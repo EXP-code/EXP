@@ -64,6 +64,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
     if (in) {
 
       double time;
+      int nused;
 
       in_ok = 1;		// Signal slave: OK
 
@@ -74,6 +75,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
 
 	in >> Ecurr;
+	in >> nused;
 	in >> axis[1];
 	in >> axis[2];
 	in >> axis[3];
@@ -160,7 +162,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 void Orient::accumulate(double time, vector<Particle> *p, double *com)
 {
   double energy, mass;
-  double Emin1=1.0e20, Emin0=1.0e20;
+  double Emin1= 1.0e20, Emin0= 1.0e20;
+  double Emax1=-1.0e20, Emax0=-1.0e20;
 
   angm.clear();
 
@@ -176,6 +179,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     if (cflags & EXTERNAL) energy += (*p)[i].potext;
 
     Emin1 = min<double>(energy, Emin1);
+    Emax1 = max<double>(energy, Emax1);
     
     if (energy < Ecurr) {
 
@@ -209,6 +213,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   // Propagate minimum energy and current cached low energy particles
   // with nodes
   MPI_Allreduce(&Emin1, &Emin0, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&Emax1, &Emax0, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&size1, &size0, 1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
 
   if (size0 == 0) {
@@ -290,9 +295,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     if (used != Nlast) 
       Egrad = (Ecurr - Elast)/(used - Nlast);
 
-				// Don't believe a zero gradient
-    if (Egrad != 0.0)
-      dE = (double)(many - used) * Egrad;
+    dE = (double)(many - used) * Egrad;
   }
 
 				// Push current value onto stack
@@ -467,23 +470,72 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     
   }
 
-				// Energy for next iteration
-  if (fabs(dE)>fabs(0.1*Ecurr)) {
-				// Suppress large step or gradient computation
-				// failure
-    if (used > many)
-      Ecurr *= 1.01;
-    else
-      Ecurr *= 0.99;
-  } 
-  else				// Use gradient computed shift
+  // Energy for next iteration
+  // =======================================================
+  // Will use the secant method computation from above to
+  // update.  This makes sure that estimate stays in bounds
+  // =======================================================
+  //
+  if (Ecurr+dE < Emin0 || Ecurr+dE > Emax0) {
+
+    int dtype = 0;
+				// Ecurr error, algorithm failure!!
+    if (Ecurr < Emin0 || Ecurr > Emax0) {
+      if (myid==0)
+	cerr << "\nOrient: Ecurr pre-step out of bounds!!! dE=" << dE 
+	     << "  Emin0=" << Emin0 
+	     << "  Emax0=" << Emax0 
+	     << "  Ecurr=" << Ecurr << "\n";
+      Ecurr = 0.99*Emin0;
+    }
+				// Try to take a smaller step
+				// using secant gradient
+    else if (Ecurr+0.2*dE > Emin0 && Ecurr+0.2*dE < Emax0) {
+      Ecurr += 0.2*dE;
+      dtype = 1;
+    }
+    
+    else {
+				// Final strategy: take small steps
+				// based on distance to minimum
+      if (used > many)
+	Ecurr += 0.06*(Emin0-Ecurr);
+      else
+	Ecurr -= 0.10*(Emin0-Ecurr);
+
+      dtype = 2;
+    } 
+    
+				// Ecurr error, algorithm failure!!
+    if (Ecurr < Emin0 && myid==0) {
+      cerr << "Orient: Ecurr post-step out of bounds: "
+	   << "  dE=" << dE 
+	   << "  Emin0=" << Emin0 
+	   << "  Emax0=" << Emax0 
+	   << "  Ecurr=" << Ecurr;
+
+      switch (dtype) {
+      case 0:
+	cout << "  Case: out of bounds to start\n";
+	break;
+      case 1: 
+	cout << "  Case: small gradient step\n";
+	break;
+      case 2:
+	cout << "  Case: small distance from center step\n";
+	break;
+      }
+    }
+
+  }
+  else				// Secant method: use approx. gradient
     Ecurr += dE;
   
 
   if (myid==0) {
     ofstream outl(logfile.c_str(), ios::app);
     if (outl) {
-      outl << setw(15) << time << setw(15) << Ecurr;
+      outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
       for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
       for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
       outl << endl;
