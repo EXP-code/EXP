@@ -174,10 +174,10 @@ void UserDisk::genTable()
       ansP = ansR = ansZ = 0.0;
       for (int k=1; k<=Nint; k++) {
 
-	Q = lq.knot(k);
+	Q = lq.knot(k)/a;
 	K = Q/sqrt(1.0 - Q*Q*a*a);
 
-	fac = exp(-K*Z) * lq.weight(k)*mass;
+	fac = exp(-K*Z) * lq.weight(k)*mass/a;
 	b0 = bessj0(K*R);
 	b1 = bessj1(K*R);
 
