@@ -32,6 +32,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   cflags = Cflg;
   logfile = Logfile;
   Nlast = 0;
+  linear = false;
 
 				// Work vectors
   axis1.setsize(1, 3);
@@ -241,6 +242,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 void Orient::accumulate(double time, vector<Particle> *p, double *com)
 {
+  if (linear) {
+      center = center0;
+      center0 += cenvel0*dtime;
+      return;
+  }
+
   double energy, mass;
   double Emin1= 1.0e20, Emin0= 1.0e20;
   double Emax1=-1.0e20, Emax0=-1.0e20;

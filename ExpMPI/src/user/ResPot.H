@@ -11,6 +11,10 @@
 #ifndef _ResPot_H
 #define _ResPot_H
 
+/**
+   Compute Resonance Potential for given expansion term and perturbation
+   using a mapping
+*/
 class ResPot
 {
 private:
@@ -71,16 +75,24 @@ private:
 
   int ngrid;
 
+  static KComplex I;
+
 public:
 
+  //! Power for ang. mom. scaling (default: 0.25)
   static double ALPHA;
+  //! Fractional energy offset for grid (default: 0.01)
   static double DELTA;
+  //! Fractional steps for differenced derivatives
   static double DELE, DELK;
+  //! Number of energy points
   static int NUME;
+  //! Number of scaled ang mom points
   static int NUMX;
+  //! Number of knots for orbit table
   static int RECS;
+  //! Maximum number of iterations in mapping
   static int ITMAX;
-  static KComplex I;
 
 
   //! Constructor

@@ -48,6 +48,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJu0 = 0.0;
   EJv0 = 0.0;
   EJw0 = 0.0;
+  EJlinear = false;
 
   binary = false;
   npart = false;
@@ -144,6 +145,7 @@ void Component::initialize(void)
 
     if (!datum.first.compare("EJdryrun")) EJdryrun = true ? atoi(datum.second.c_str()) : false;
 
+    if (!datum.first.compare("EJlinear")) EJlinear = true ? atoi(datum.second.c_str()) : false;
 
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
@@ -267,6 +269,7 @@ void Component::initialize(void)
     } else {
       orient -> set_center(EJx0, EJy0, EJz0);
       orient -> set_cenvel(EJu0, EJv0, EJw0);
+      if (EJlinear) orient -> set_linear();
       center[0] = EJx0;
       center[1] = EJy0;
       center[2] = EJz0;

@@ -61,8 +61,7 @@ private:
   unsigned int oflags;
   unsigned int cflags;
   string logfile;
-  bool extpot;
-  bool verbose;
+  bool linear;
 
   ACG gen;
   Normal gauss;
@@ -91,6 +90,9 @@ public:
     cenvel0[2] = v;
     cenvel0[3] = w;
   }
+
+  //! Set center to move at constant velocity
+  void set_linear() { linear = true; }
 
   //! Register phase space of _num_ particles and store angular momentum vector for the lowest _many_ binding energies
   void accumulate(double time, vector<Particle> *p, double* com);

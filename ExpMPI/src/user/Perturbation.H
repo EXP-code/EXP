@@ -14,26 +14,42 @@ class Perturbation  {
 
 protected:
 
+  //! Cached model instance
   AxiSymModel *model;
+  //! Cached biorthogonal function instance
   AxiSymBiorth *biorth;
+  //! True if perturbation has been computed
   bool computed;
+  //! True if perturbation frequency has been computed
   bool omega_computed;
 
+  //! String identifying type of perturbation
   string ID;
 
+  //! Harmonic orders and radial terms
   int l, m, nmax;
 
+  //! Points for numerical grids
   int Epts, Kpts, Recs, Rnum;
+  //! Frequencies
   double OMPI, omega;
 
+  //! Perturabtion vector
   Vector bcoef;
+  //! Temporary storage
   CMatrix working, current, asymp;
+  //! Method to compute response matrix
   void make_response(void);
 
+  //! Default value for Energy grid
   const static int default_Epts=5;
+  //! Default value for Kappa grid
   const static int default_Kpts=4;
+  //! Default value for number of points in orbit table
   const static int default_RECS=400;
+  //! 
   const static double default_A=1.0e-2;
+  //! Default offset from real axis
   const static double default_OMPI=0.03;
 
 public:
