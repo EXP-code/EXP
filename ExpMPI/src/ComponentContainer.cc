@@ -132,6 +132,7 @@ void ComponentContainer::initialize(void)
 
 				// Initialize interactions between components
   string value;
+  ntot = 0;
   
   for (cc=components.begin(); cc != components.end(); cc++) {
     c = *cc;
