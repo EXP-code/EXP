@@ -247,10 +247,15 @@ void Component::initialize(void)
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
     orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
-    orient -> set_center(EJx0, EJy0, EJz0);
-    center[0] = EJx0;
-    center[1] = EJy0;
-    center[2] = EJz0;
+
+    if (restart && (EJ & Orient::CENTER)) {
+      for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
+    } else {
+      orient -> set_center(EJx0, EJy0, EJz0);
+      center[0] = EJx0;
+      center[1] = EJy0;
+      center[2] = EJz0;
+    }
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }

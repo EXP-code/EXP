@@ -17,7 +17,7 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double U1, U2, U3, U4, U5;
+  double core, mass, ton, toff, delta, toffset;
 
   void userinfo();
 
@@ -32,11 +32,12 @@ public:
 UserSat::UserSat(string &line) : ExternalForce(line)
 {
 
-  U1 = 0.5;			// Satellite core size
-  U2 = 0.3;			// Satellite mass
-  U3 = -20.0;			// Turn on start time
-  U4 = 1.0;			// Turn on duration
-  U5  = 0.0;			// Time offset for orbit
+  core = 0.5;			// Satellite core size
+  mass = 0.3;			// Satellite mass
+  ton = -20.0;			// Turn on time
+  toff = 1.0e20;		// Turn off time
+  delta = 1.0;			// Turn on duration
+  toffset = 0.0;		// Time offset for orbit
 
   com_name = "sphereSL";	// Default component for com
 
@@ -83,12 +84,13 @@ void UserSat::initialize()
 {
   string val;
 
-  if (get_value("comname", val))   com_name = val;
-  if (get_value("U1", val))   U1 = atof(val.c_str());
-  if (get_value("U2", val))   U2 = atof(val.c_str());
-  if (get_value("U3", val))   U3 = atof(val.c_str());
-  if (get_value("U4", val))   U4 = atof(val.c_str());
-  if (get_value("U5", val))   U5 = atof(val.c_str());
+  if (get_value("comname", val))  com_name = val;
+  if (get_value("core", val))     core = atof(val.c_str());
+  if (get_value("mass", val))     mass = atof(val.c_str());
+  if (get_value("ton", val))      ton = atof(val.c_str());
+  if (get_value("toff", val))     toff = atof(val.c_str());
+  if (get_value("delta", val))    delta = atof(val.c_str());
+  if (get_value("toffset", val))  toffset = atof(val.c_str());
 }
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
@@ -101,19 +103,21 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  orb->get_satellite_orbit(tnow - U5, &rs[0]);
+  orb->get_satellite_orbit(tnow - toffset, &rs[0]);
 
-  satmass = U2 * 0.5*(1.0 + erf( (tnow - U3)/U4 ));
+  satmass = mass * 
+    0.5*(1.0 + erf( (tnow - ton) /delta )) *
+    0.5*(1.0 + erf( (toff - tnow)/delta )) ;
+    
 
 
   for (int i=nbeg; i<nend; i++) {
 
-    fac = U1*U1;
+    fac = core*core;
     for (int k=0; k<3; k++) {
       pos[k] = (*particles)[i].pos[k] - c0->com[k];
-      U1 += (pos[k] - rs[k])*(pos[k] - rs[k]);
+      fac += (pos[k] - rs[k])*(pos[k] - rs[k]);
     }
-
     fac = pow(fac, -0.5);
     
     ffac = -satmass*fac*fac*fac;
