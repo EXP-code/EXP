@@ -146,6 +146,10 @@ void get_ultra(int nmax, double l, double x, Vector& p);
 string trimRight(const string);
 string trimLeft(const string);
 string trimComment(const string);
+inline double atof(string& s) {return atof(s.c_str());}
+inline int atoi(string& s) {return atoi(s.c_str());}
+inline bool atol(string& s) {return atoi(s.c_str()) ? true : false;}
+
 
 // Component structures
 
