@@ -439,7 +439,10 @@ table_disk(vector<Particle>& part)
   maxz = max<double>(scaleheight*SHFACTOR, maxz);
 
   if (myid==0) {
-    cout << "Table disk epi: RDMIN=" << RDMIN << " maxr=" << maxr << endl;
+    cout << "Table disk epi: RDMIN=" << RDMIN 
+	 << " maxr=" << maxr << " NDR=" << NDR
+	 << " maxz=" << maxz << " NDZ=" << NDZ
+	 << endl;
   }
 
   dR = (log(maxr) - log(RDMIN))/(NDR-1);
