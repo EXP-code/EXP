@@ -1,0 +1,9 @@
+/*! \page faq FAQ
+\par Q1. The code dies repetitively at the same time step while trying to write phase-space output.  What is wrong?
+
+	Older distributions of GNU/Linux have a 2<sup>31</sup> file-size
+	limit.  Newer versions (e.g. on the buzzard cluster) do not
+	have this limitation.  Either periodically rename your output file 
+	our use the "outpsn" (see OutPSN) method, which writes each %dump 
+	to its own file.
+*/
