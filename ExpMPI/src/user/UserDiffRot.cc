@@ -18,6 +18,9 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   avoid = "";
   width = 10.0;
   maxpm = 2;
+  ndyn = 25;
+  dynmin = 0.001;
+  dynmax = 10.0;
   first = true;
 
   initialize();
@@ -76,17 +79,12 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   normal = new Normal(0.0, 1.0, gen);
   width = width*M_PI/180.0;
 
-  userinfo();
-
-  // Debug
-
-  ndyn = 25;
-  dynmin = 0.001;
-  dynmax = 10.0;
+				// Dynamical time distribution initialization
   ddyn = (log(dynmax) - log(dynmin))/(ndyn-1);
-
-  vector<int> *bins = new vector<int> [nthrds];
+  bins = new vector<int> [nthrds];
   for (int n=0; n<nthrds; n++) bins[n] = vector<int>(ndyn, 0);
+
+  userinfo();
 }
 
 
@@ -94,7 +92,6 @@ UserDiffRot::~UserDiffRot()
 {
   delete gen;
   delete normal;
-  delete [] bins;
 }
 
 
@@ -128,6 +125,9 @@ void UserDiffRot::initialize()
   if (get_value("rate", val))		rate = atof(val.c_str());
   if (get_value("width", val))		width = atof(val.c_str());
   if (get_value("seed", val))		seed = atoi(val.c_str());
+  if (get_value("ndyn", val))		ndyn = atoi(val.c_str());
+  if (get_value("dynmin", val))		dynmin = atof(val.c_str());
+  if (get_value("dynmax", val))		dynmax = atof(val.c_str());
 }
 
 
@@ -169,36 +169,36 @@ void UserDiffRot::determine_acceleration_and_potential(void)
     MPI_Bcast(&pos[0], ipm*4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
   }
 
+  if (first) {
+				// Determine next index position for
+				// particle double array
+    indx = (*particles)[0].dattrib.size();
+  }
+
   exp_thread_fork(false);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
   if (first) {
     
-    cout << "Myid=" << myid << " in distribution diag\n";
-
-    for (int n=1; n<nthrds; n++) {
-      for (int j=0; j<ndyn; j++) bins[0][j] += bins[n][j];
-    }
-
     vector<int> bin0(ndyn, 0);
-
-    cout << "Myid=" << myid << " about to call Reduce\n";
-
-    MPI_Reduce(&(bins[0][0]), &(bin0[0]), ndyn, MPI_INT, MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
-
-    cout << "Myid=" << myid << " returned from Reduce\n";
+    for (int n=1; n<nthrds; n++)
+      for (int j=0; j<ndyn; j++) bins[0][j] += bins[n][j];
+    
+    MPI_Reduce(&(bins[0][0]), &(bin0[0]), ndyn, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid == 0) {
 
-      cout << "****************************************************************";
+      cout << "****************************************************************" << endl;
       cout << "UserDiffRot: DTime distribution\n";
       for (int i=0; i<ndyn; i++)
-	cout << setw(15) << exp(dynmin + ddyn*(0.5+i)) 
+	cout << setw(15) << dynmin*exp(ddyn*(0.5+i)) 
 	     << setw(10) << bin0[i] << endl;
-      cout << "****************************************************************";
+      cout << "****************************************************************" << endl;
     }
+
+				// Delete the bin storage
+    delete [] bins;
 
     first = false;
   }
@@ -219,10 +219,6 @@ double UserDiffRot::get_dtime(Particle& p)
 
   if (E>=0.0) {
     E = -1.0e-08;
-    /*
-    cout << "Energy error:  T=" << 0.5*vv 
-	 << "  W=" << p.pot << ", " <<  p.potext << endl;
-    */
   }
 
 				// Compute angular momentum
@@ -255,52 +251,26 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
   double xx, yy, uu, vv;
   
   if (first) {
-				// Debug
+				// Compute dynamical distribution
     double dtmin = 1.0e20;
     double dtmax = 0.0;
     double dt;
     int jindx;
 
-    indx = (*particles)[nbeg].dattrib.size();
-
     for (int i=nbeg; i<nend; i++) {
+
       dt = get_dtime((*particles)[i]);
       (*particles)[i].dattrib.push_back(tnow + dt/rate);
+
       dtmin = min<double>(dt, dtmin);
       dtmax = max<double>(dt, dtmax);
-      if (dt<=dynmin) jindx = 0;
-      else if (dt>=dynmax) jindx = ndyn-1;
-      else jindx = (int)(log(dt - dynmin)/ddyn);
+
+      jindx = max<int>(0, min<int>(ndyn-1, (int)((log(dt)-log(dynmin))/ddyn)));
+
       bins[id][jindx]++;
     }
       
-				// Debug
-    
-    cout << "***Size check***: Myid=" << myid << "  id=" << id
-	 << "  nbeg=" << nbeg 
-	 << "  nend=" << nend 
-	 << "  size=" << (*particles)[nbeg].dattrib.size()
-	 << "\n";
-
-
-				// Debug
-    /*
-    cout << "****************************************************************"
-	 << endl
-	 << " UserDiffRot:"
-	 << "  myid=" << myid 
-	 << "  id=" << id 
-	 << "  indx=" << indx 
-	 << "  dtmin=" << dtmin 
-	 << "  dtmax=" << dtmax << endl
-	 << "****************************************************************"
-	 << endl;
-    */
-    // first = false;
   }
-
-
-  cout << "Myid=" << myid << "  id=" << id << " about to enter MAIN LOOP\n";
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -310,7 +280,6 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     bool tooclose = false;
 
     if (c1) {
-      cout << "Myid=" << myid << "  id=" << id << " in AVOID\n";
       for (int n=0; n<ipm; n++) {
 	diffr = 0.0;
 	for (int k=0; k<3; k++)
@@ -324,7 +293,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     
     if (tooclose) continue;
 
-    if ((*particles)[i].dattrib.size() < indx+1) {
+				// Sanity check
+    if ((int)(*particles)[i].dattrib.size() < indx+1) {
       cout << "***Size error***: Myid=" << myid << "  id=" << id
 	   << "  check i=" << i 
 	   << "  nbeg=" << nbeg 
@@ -333,13 +303,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 	   << "\n";
     }
 
-    // cout << "Myid=" << myid << "  id=" << id << " n=" << i << "\n";
-
     if (tnow>(*particles)[i].dattrib[indx]) {
 
-      cout << "Myid=" << myid << "  id=" << id
-	   << "  time=" << (*particles)[i].dattrib[indx] << "\n";
-	   
       (*particles)[i].dattrib[indx] = tnow + get_dtime((*particles)[i])/rate;
 
 				// Do rotation
@@ -359,8 +324,6 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     }
 
   }
-
-  cout << "Myid=" << myid << "  id=" << id << " exiting MAIN LOOP\n";
 
   return (NULL);
 }
