@@ -2,7 +2,7 @@
 <H3> Phase-space file utilities</H3>
 The following three utilities manipulate the phase-space files:
 integer values:
-<dl>
+<ol>
 <li> Number of bodies: <code>nbodies</code>
 <li> Number of integer attributes: <code>niattrib</code>
 <li> Number of real (double) attributes: <code>ndattrib</code>
