@@ -6,9 +6,9 @@ lib_LTLIBRARIES = libexpgnu.la
 
 libexpgnu_la_SOURCES = ACG.cc Binomial.cc DiscUnif.cc Erlang.cc Geom.cc \
 	HypGeom.cc LogNorm.cc MLCG.cc NegExp.cc Normal.cc Poisson.cc \
-	RNG.cc Random.cc Regex.cc RndInt.cc Uniform.cc Weibull.cc \
+	RNG.cc Random.cc RndInt.cc Uniform.cc Weibull.cc \
 	Gamma.cc String.cc SmplHist.cc SmplStat.cc \
-	error.cc timer.c
+	error.cc timer.c # Regex.cc 
 
 noinst_HEADERS = ACG.h Binomial.h DiscUnif.h Erlang.h Gamma.h Geom.h \
 	HypGeom.h LogNorm.h MLCG.h NegExp.h Normal.h Poisson.h RNG.h \
