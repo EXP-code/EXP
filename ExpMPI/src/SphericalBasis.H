@@ -51,7 +51,7 @@ protected:
   //! The maximum radius and any scale factor
   double rmax, scale;
   //! Flag PCA selection, self_consitency and drop l=1 term
-  bool selector, self_consistent, NO_L1;
+  bool selector, self_consistent, NO_L1, EVEN_L;
 
 public:
 

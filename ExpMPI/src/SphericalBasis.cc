@@ -11,6 +11,8 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   dof = 3;
   geometry = sphere;
   coef_dump = true;
+  NO_L1 = false;
+  EVEN_L = false;
 
   string val;
 
@@ -39,8 +41,12 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   if (get_value("NO_L1", val)) {
     if (atoi(val.c_str())) NO_L1 = true; 
     else NO_L1 = false;
-  } else
-    NO_L1 = false;
+  }
+
+  if (get_value("EVEN_L", val)) {
+    if (atoi(val.c_str())) EVEN_L = true; 
+    else EVEN_L = false;
+  }
 
   Lmax = Lmax<1 ? 1 : Lmax;
 
@@ -484,6 +490,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     /*		l loop */
     
     for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
+
+      if (EVEN_L && (l/2)*2 != l) continue;
 
       /*		m loop */
       for (m=0, moffset=0; m<=l; m++) {
