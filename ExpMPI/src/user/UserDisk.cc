@@ -268,7 +268,7 @@ void UserDisk::printTable()
 
     R = dr*i;
 
-    for (int j=0; j<Ngrid; j++) {
+    for (int j=0; j<num; j++) {
 
       Z = -dfac*Zmax + dz*j;
 
