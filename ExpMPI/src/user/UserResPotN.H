@@ -41,6 +41,30 @@
     @param self compute the angular momentum self-consistently if true
     @param model is the name of the file containing the model
     @param cgtrname is the name of component to whose center this force will be pinned
+
+    The logic for pattern speed determination is as follows:
+    <ul>
+    <li> By default the pattern speed is determined from the bar length 
+    <code>LENGTH</code>, <code>Fcorot</code> using the background potential
+    <li> If <code>self</code> is <code>true</code>, then the pattern speed 
+    changes are determined self-consistently from the torque
+    <li> if <code>self</code> is <code>false</code> and <code>dtom</code>>0, 
+    then the pattern speed is determined as follows:
+
+    \f[
+    \Omega = \Omega_0(1 + \Delta\Omega(1+erf((tnow-tom0)/dtom))/2)
+    \f]
+
+    <li> if <code>self</code> is <code>false</code> and <code>dtom</code><0, 
+    then the pattern speed changes at the rate:
+
+    \f[
+    {d\Omega\over dt} = \Omega_0\Delta\Omega dT (
+    (1+erf((tnow-tom0)/delta))/2 
+    (1+erf((toff-tnow/delta))/2 
+    \f]
+
+    <ul>
 */
 class UserResPotN : public ExternalForce
 {
