@@ -1,0 +1,85 @@
+/*! \page quick Quick Start	
+
+\subsection requirements Requirements
+
+You will need the following libraries:
+<ol>
+<li> Some MPI implementation. I use LAM. Your success may vary
+	with other implemenations.
+<li> C++ compiler for most of the code and f77 for one subroutine.
+<li> POSIX threads (<code>pthreads</code> in GNU/Linux).
+</ol>
+All local UMASS astro cluster should have everything you need, 
+of course.
+
+\subsection compiling Compiling the code
+
+<ol>
+<li> Run <code>./configure --prefix=/home/user</code> where
+	<code>/home/user</code> is the directory where the
+	code will be installed.
+<li> make
+<li> make install
+</ol>
+
+In this example, the executable and its utilities will be installed in 
+<code>/home/user/bin</code> and the libraries will be installed in
+<code>/home/user/lib</code>.  The default prefix is 
+<code>/usr/local</code> is probably not what you want in most cases.
+
+\subsection running Running a simulation
+
+Here are the basic steps you need to start a simulation:
+<ol>
+
+<li> Choose a working directory
+
+<li> This code reads the phase space for each component from
+	a separate file. See \ref bodies.
+
+<li> For each component, you need to decide which force
+	to use.  All available forces are derived from the
+	abstract class PotAccel.  All forces but those of
+	type ExternalForce are suitable for a component.
+
+<li> Decide the type of output you would like to see.  A typical
+	choice would be OutLog and OutPS or OutPSN.  You can
+	browse the list of decendents in the abstract class Output.
+
+<li> Decide whether or not you need an external force.  All of these
+	are derived from ExternalForce (browse the decendent list).
+	You can add your own ExternalForce type without recompiling
+	the code as a user module (advanced topic: \ref modules).
+
+<li> Make the main configuration file.  Here, you specify the
+	global parameters, the components, the output, and the 
+	external forces.  See \ref config for details.  You can
+	look at the example(s) in examples directory and use IN.FILE 
+	as a template.
+
+	In short, each of your choices has a stanza.  
+	<ul>
+	<li> The overall parameters such as library locations, step size, 
+	etc. goes at the top of the file in the <code>[global]</code> stanza
+	<li> The components are listed in the <code>[component]</code> stanza.
+	The key is the name/mnemonic of the component followed by the name
+	of its definition file.  Every component you want will have an
+	entry here.
+	<li> The <code>[output]</code> stanza lists the output types you
+	want followed by the parameter list for each one.
+	<li> The <code>[external]</code> stanza lists the external force
+	types followed by the parameter list for each one.
+	<li> The <code>[interaction]</code> stanza defines the mutual
+	interaction between the components.  E.g. if you want all N of 
+	your components to interact, you will need N(N-1)/2 entries in
+	this stanza.
+	</ul>
+
+<li> A typical mpirun command:
+	<pre>
+	mpirun -v -wd $(HOME)/work -np 32 \
+		N $(HOME)/bin/exp -- -f IN.FILE
+	</pre>
+</ol>	
+
+*/
