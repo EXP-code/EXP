@@ -57,6 +57,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   twid = 0.1;
 
   rtrunc = 1.0e20;
+  consp = false;
+  tidal = 0;
 
   com_system = false;
   com_log = false;
@@ -90,6 +92,8 @@ Component::Component(istream *in)
   twid = 0.1;
 
   rtrunc = 1.0e20;
+  consp = false;
+  tidal = 0;
 
   read_bodies_and_distribute_binary(in);
 }
@@ -111,6 +115,8 @@ void Component::initialize(void)
     if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
+
+    if (!datum.first.compare("tidal"))    {tidal = atoi(datum.second); consp=true;}
 
     if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
     
@@ -239,8 +245,9 @@ void Component::initialize(void)
     initialize_com_system();
 
     if (myid==0) {
-      cout << name << ": center of mass system is *ON*,";
-      cout << " (x, y, z)="
+      cout << name << ": center of mass system is *ON*, rtrunc=" << rtrunc;
+      if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]\n";
+      cout << name << ": (x, y, z)="
 	   << comI[0] << ", "
 	   << comI[1] << ", "
 	   << comI[2] << ") "
@@ -1321,12 +1328,53 @@ void Component::fix_positions(void)
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    if (freeze(*p)) continue;
+    if (freeze(*p)) {
+      if (consp) {		// Set flag indicating escaped particle
+	if (p->iattrib[tidal]==0) {
+	  p->iattrib[tidal] = 1;
+	  if (com_system) {	// Conserve momentum of center of mass
+	    //*** BEG DEBUG
+	    /*
+	    if (myid==0) {
+	      cout << "\n"
+		   << "COV update:\n"
+		   << "   Old COV:\n"
+		   << "       ";
+	      for (int i=0; i<3; i++) cout << setw(15) << covI[i];
+	      cout << "\n       ";
+	      for (int i=0; i<3; i++) cout << setw(15) << cov0[i];
+	      cout << "\n";
+	    }
+	    */
+	    //*** END DEBUG
+	    for (int i=0; i<3; i++) {
+	      covI[i] = (mtot0*covI[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
+	      cov0[i] = (mtot0*cov0[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
+	    }
+	    mtot0 -= p->mass;
+	    //*** BEG DEBUG
+	    /*
+	    if (myid==0) {
+	      cout << "   New COV:\n"
+		   << "       ";
+	      for (int i=0; i<3; i++) cout << setw(15) << covI[i];
+	      cout << "\n       ";
+	      for (int i=0; i<3; i++) cout << setw(15) << cov0[i];
+	      cout << "\n\n";
+	    }
+	    */
+	    //*** END DEBUG
+	  }
+	}
+      }
+      
+    } else {
     
-    mtot1 += p->mass;
+      mtot1 += p->mass;
 
-    for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
-    for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+      for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
+      for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+    }
     
   }
   
@@ -1963,7 +2011,6 @@ void Component::insert_particles(int from, int to, int begin, int number,
 bool Component::freeze(const Particle& p)
 {
   double r2 = 0.0;
-
   for (int i=0; i<3; i++) r2 += (p.pos[i] - center[i])*(p.pos[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
   else return false;

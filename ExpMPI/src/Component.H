@@ -191,6 +191,9 @@ private:
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
 
+  // Momentum tracking
+  bool consp;
+  int tidal;
 
 protected:
 
