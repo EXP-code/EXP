@@ -14,7 +14,6 @@ private:
   void initialize();
 
 public:
-
   //! Constructor
   UserTest(string &line);
   //! Destructor

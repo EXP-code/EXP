@@ -95,7 +95,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double xx, yy, zz, rr, r, pot, dpot, pos[3];
+  double pos[3], rr, r, pot, dpot;
 
   for (int i=nbeg; i<nend; i++) {
 

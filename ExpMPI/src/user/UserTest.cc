@@ -8,6 +8,8 @@ private:
   
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
+  int instance;
+  static int total;
 
 public:
 
@@ -16,10 +18,15 @@ public:
 
 };
 
+int UserTest::total = 0;
+
 UserTest::UserTest(string &line) : ExternalForce(line)
 {
   id = "Test";
-  cout << "Just made a UserTest!\n";
+  total++;
+  instance = total;
+  if (myid==0) 
+    cout << "Just made a UserTest! Instance=" << instance << endl;
 }
 
 UserTest::~UserTest()
@@ -33,7 +40,9 @@ void UserTest::initialize()
 void * UserTest::determine_acceleration_and_potential_thread(void * arg) 
 {
   int id = *((int*)arg);
-  cout << "Process " << myid << ", id=" << id << ": Time=" << tnow << endl;
+  cout << "Process " << myid 
+       << ", id=" << id << ": Time=" << tnow 
+       << ", Instance=" << instance << endl;
   return (NULL);
 }
 

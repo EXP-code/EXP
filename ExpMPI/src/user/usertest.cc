@@ -17,7 +17,7 @@ public:
 
 UserTest::UserTest(string &line) : ExternalForce(line)
 {
-  cout << "Just made a UserTest!\n";
+  if (myid==0) cout << "Just made a UserTest! Instance=" << instance << endl;
 }
 
 void UserTest::initialize()
@@ -26,6 +26,9 @@ void UserTest::initialize()
 
 void * determine_acceleration_and_potential_thread(void * arg) 
 {
+  int id = *((int*)arg);
+  if (myid==0 && id==0) cout << "A UserTest[" << instance << "] calls accel!"
+			     << endl;
   return NULL;
 }
 
