@@ -429,7 +429,7 @@ void UserDiffuse::compute_diffuse()
       F1 *= 4.0*M_PI*Gamma*(EE - phi);
       F2 *= 4.0*M_PI*Gamma*(EE - phi);
 	
-      dVpara1[i][j] = -2.0*F1/V;
+      dVpara1[i][j] = -F1/V;
       dVpara2[i][j] = 2.0*(F0 + F2)/3.0;
       dVperp2[i][j] = 2.0*(2.0*F0 + 3.0*F1 - F2)/3.0;
     
