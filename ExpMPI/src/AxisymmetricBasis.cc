@@ -4,7 +4,7 @@
 AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line) 
 {
   Lmax = 4;
-  nmax = 8;
+  nmax = 10;
   dof = 3;
   npca = 500;
   pca = false;
