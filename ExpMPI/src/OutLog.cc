@@ -11,7 +11,7 @@ char OutLog::lab_global[][19] = {
   "R(x)", 
   "R(y)", 
   "R(z)", 
-  "R(x)", 
+  "V(x)", 
   "V(y)", 
   "V(z)", 
   "L(x)", 
