@@ -33,7 +33,6 @@ private:
 
   vector<double> r, d, m, p;
 
-  LegeQuad *lwR, *lwZ;
   Matrix *facC, *facS;
   Vector** accum_cos0;
   Vector** accum_sin0;
@@ -111,6 +110,7 @@ private:
   void get_pot(Matrix&, Matrix&, double, double);
   void pca_hall(void);
   double massR(double R);
+  double densR(double R);
 
   void bomb(string oops);
 
@@ -176,6 +176,7 @@ public:
   void determine_coefficients() {};
   void determine_acceleration_and_potential() {};
 
+  void accumulate(vector<Particle>& p);
   void accumulate(double r, double z, double phi, double mass, int id);
   void accumulated_eval(double r, double z, double phi,
 			double& p, double& fr, double& fz, double& fp);

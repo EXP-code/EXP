@@ -115,18 +115,29 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
     return;
   }
 
-				// Try to read cached tables rather
-				// than recompute from distribution
+  //==================================
+  // Try to read cached tables rather
+  // than recompute from distribution
+  //==================================
+  
   if (firstime && !(restart && ortho->read_cache())) {
-    determine_coefficients();
+
+    determine_coefficients();	// Will compute EOF grid
+
+    if (!self_consistent) {	// Compute mass and coefficients
+      eof = 1;			// once and for all
+      determine_coefficients();
+    }
+
     firstime = false;
   }
 
-  /*======================*/
-  /* Compute coefficients */
-  /*======================*/
+  //======================
+  // Compute coefficients 
+  //======================
 
   if (self_consistent) {
+    
     determine_coefficients();
 
     if (ncompcyl == 0) {
@@ -140,7 +151,8 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 	dump_mzero(outname.c_str(), this_step);
       }
 #endif
-				// do it from table . . . 
+				// Get coefficients from table if this
+				// is an EOF recomputation
       eof = 1;
       determine_coefficients();
 

@@ -38,10 +38,10 @@ bool EmpCylSL::DENS=false;
 bool EmpCylSL::SELECT=false;
 bool EmpCylSL::CMAP=false;
 bool EmpCylSL::logarithmic=false;
-EmpCylSL::EmpModel EmpCylSL::mtype = Plummer;
+EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 int EmpCylSL::NUMX=64;
 int EmpCylSL::NUMY=128;
-int EmpCylSL::NOUT=6;
+int EmpCylSL::NOUT=12;
 int EmpCylSL::NUMR=1000;
 double EmpCylSL::RMIN=0.01;
 double EmpCylSL::RMAX=20;
@@ -64,9 +64,6 @@ EmpCylSL::EmpCylSL(void)
     MPItable = 4;
   else
     MPItable = 3;
-
-  lwR = 0;
-  lwZ = 0;
 
   SC = 0;
   SS = 0;
@@ -163,16 +160,15 @@ EmpCylSL::~EmpCylSL(void)
     delete [] facS;
   }
 
-  if (lwR) delete lwR;
-  if (lwZ) delete lwZ;
-  
   if (accum_cos) {
 
     for (int nth=0; nth<nthrds; nth++) {
       delete [] accum_cos[nth];
       delete [] accum_sin[nth];
-      delete [] accum_cos2[nth];
-      delete [] accum_sin2[nth];
+      if (SELECT) {
+	delete [] accum_cos2[nth];
+	delete [] accum_sin2[nth];
+      }
       
       delete [] accum_cos0[nth];
       delete [] accum_sin0[nth];
@@ -215,9 +211,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord)
   else
     MPItable = 3;
 
-  lwR = 0;
-  lwZ = 0;
-
   SC = 0;
   SS = 0;
 
@@ -250,9 +243,6 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord)
 
   SLGridSph::mpi = 1;		// Turn on MPI
   ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl());
-
-  lwR = 0;
-  lwZ = 0;
 
   SC = 0;
   SS = 0;
@@ -292,11 +282,33 @@ double EmpCylSL::massR(double R)
   case Gaussian:
     rat = R/ASCALE;
     arg = 0.5*rat*rat;
-    ans = erf(sqrt(arg)) - sqrt(2.0/M_PI)*rat*exp(-arg);
+    ans = 1.0 - exp(-arg);
     break;
   case Plummer:
     fac = R/(ASCALE+R);
     ans = pow(fac, 3.0);
+    break;
+  }
+
+  return ans;
+}
+
+double EmpCylSL::densR(double R)
+{
+  double ans=0.0, rat, fac, arg;
+
+  switch (mtype) {
+  case Exponential:
+    ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*R);
+    break;
+  case Gaussian:
+    rat = R/ASCALE;
+    arg = 0.5*rat*rat;
+    ans = exp(-arg)/(4.0*M_PI*ASCALE*ASCALE*R);
+    break;
+  case Plummer:
+    fac = 1.0/(ASCALE+R);
+    ans = 3.0*ASCALE*pow(fac, 4.0)/(4.0*M_PI);
     break;
   }
 
@@ -331,11 +343,9 @@ SphericalModelTable* EmpCylSL::make_sl()
       r[i] = RMIN + dr*i;
 
     m[i] = massR(r[i]);
+    d[i] = densR(r[i]);
   }
 
-  for (int i=0; i<number; i++)
-    d[i] = drv2(r[i], r, m)/(4.0*M_PI*r[i]*r[i]);
-  
   mm[0] = 0.0;
   pw[0] = 0.0;
   for (int i=1; i<number; i++) {
@@ -351,7 +361,7 @@ SphericalModelTable* EmpCylSL::make_sl()
 
 #ifdef DEBUG
   ostrstream outf;
-  outf << "test_adddisk." << myid << '\0';
+  outf << "test_adddisk_sl." << myid << '\0';
   ofstream out(outf.str());
   for (int i=0; i<number; i++) {
     out 
@@ -1725,7 +1735,24 @@ void EmpCylSL::make_eof(void)
 }
 
 
+void EmpCylSL::accumulate(vector<Particle>& part)
+{
+  double r, phi, z, mass;
 
+  setup_accumulation();
+
+  vector<Particle>::iterator p;
+  for (p=part.begin(); p!=part.end(); p++) {
+
+    mass = p->mass;
+    r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    phi = atan2(p->pos[1], p->pos[0]);
+    z = p->pos[2];
+    
+    accumulate(r, z, phi, mass, 0);
+  }
+
+}
   
 
 void EmpCylSL::accumulate(double r, double z, double phi, double mass, int id)
