@@ -266,7 +266,7 @@ void SphericalSL::determine_coefficients_SLsph_thread(void * arg)
 
     if (component[i] != 1) continue;
 
-    if (r<=rmax) {
+    if (r<=rmax && r<=RMAX) {
       use[id]++;
       costh = zz/r;
       phi = atan2(yy,xx);
@@ -437,7 +437,7 @@ void SphericalSL::determine_acceleration_and_potential_SLsph_thread(void * arg)
   int l,i,loffset,moffset,m;
   double r,fac,fac1,fac2,fac3,fac4,costh,phi,dp;
   double potr,potl,pott,potp,p,pc,dpc,ps,dps;
-  double dfac=0.25/M_PI;
+  double dfac=0.25/M_PI, r1, pfext1, pfext2;
   double xx, yy, zz;
 
   int id = *((int*)arg);
@@ -468,17 +468,29 @@ void SphericalSL::determine_acceleration_and_potential_SLsph_thread(void * arg)
     sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
     // get_dpotl_SLsph_safe(LMAX, NMAX, r, potd[id], dpot[id], u[id], du[id]);
 
-    ortho->get_pot(potd[id], r);
-    ortho->get_force(dpot[id], r);
+				// For exterior solution
+    pfext1 = 1.0;
+    pfext2 = 1.0;
+    r1 = r;
+    if (r>RMAX) {
+      pfext1 = RMAX/r;
+      pfext2 = pfext1;
+      r1 = RMAX;
+    }
+      
+    ortho->get_pot(potd[id], r1);
+    ortho->get_force(dpot[id], r1);
 
     get_pot_coefs_SLsph_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
-    potl = fac1*p;
-    potr = fac1*dp;
+    potl = fac1*p * pfext2;
+    potr = fac1*dp * pfext2*pfext1;
     pott = potp = 0.0;
       
     /*		l loop */
     
     for (l=1, loffset=1; l<=LMAX; loffset+=(2*l+1), l++) {
+
+      pfext2 *= pfext1;
 
       /*		m loop */
       for (m=0, moffset=0; m<=l; m++) {
@@ -489,6 +501,11 @@ void SphericalSL::determine_acceleration_and_potential_SLsph_thread(void * arg)
 	    fac2 = fac1*legs[id][l][m];
 	    get_pot_coefs_SLsph_safe(l, expcoef[loffset+moffset], &p, &dp,
 				  potd[id], dpot[id]);
+
+				// Exterior solution
+	    p *= pfext2;
+	    dp *= pfext2*pfext1;
+
 	    potl += fac2*p;
 	    potr += fac2*dp;
 	    pott += fac1*dlegs[id][l][m]*p;
@@ -505,6 +522,13 @@ void SphericalSL::determine_acceleration_and_potential_SLsph_thread(void * arg)
 				  potd[id],dpot[id]);
 	    get_pot_coefs_SLsph_safe(l,expcoef[loffset+moffset+1],&ps,&dps,
 				  potd[id],dpot[id]);
+
+				// Exterior solution
+	    pc *= pfext2;
+	    dpc *= pfext2*pfext1;
+	    ps *= pfext2;
+	    dps *= pfext2*pfext1;
+
 	    potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
 	    potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
 	    pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
@@ -554,7 +578,7 @@ void SphericalSL::determine_fields_at_point_SLsph(
   int l,loffset,moffset,m;
   double fac1,fac2,fac3,fac4,costh,dp;
   double potr,potl,pott,potp,p,pc,dpc,ps,dps,dens;
-  double dfac=0.25/M_PI;
+  double dfac=0.25/M_PI, pfext1, pfext2, r1;
 
 
   costh = cos(theta);
@@ -565,16 +589,27 @@ void SphericalSL::determine_fields_at_point_SLsph(
   sinecosine_R(LMAX, phi, cosm[0], sinm[0]);
   // get_dens_SLsph(LMAX, NMAX, r, dend);
   // get_dpotl_SLsph(LMAX, NMAX, r, potd[0], dpot[0]);
+
+				// For exterior solution
+  pfext1 = 1.0;
+  pfext2 = 1.0;
+  r1 = r;
+  if (r>RMAX) {
+    pfext1 = RMAX/r;
+    pfext2 = pfext1;
+    r1 = RMAX;
+  }
+
   ortho->get_dens(dend, r);
-  ortho->get_pot(potd[0], r);
-  ortho->get_force(dpot[0], r);
+  ortho->get_pot(potd[0], r1);
+  ortho->get_force(dpot[0], r1);
 
   get_dens_coefs_SLsph(0,expcoef[0],&dens);
   dens *= dfac*dfac;
 
   get_pot_coefs_SLsph(0,expcoef[0],&p,&dp);
-  potl = fac1*p;
-  potr = fac1*dp;
+  potl = fac1*p * pfext2;
+  potr = fac1*dp * pfext2*pfext1;
   pott = potp = 0.0;
   
       
@@ -590,6 +625,11 @@ void SphericalSL::determine_fields_at_point_SLsph(
 	get_dens_coefs_SLsph(l,expcoef[loffset+moffset],&p);
 	dens += dfac*fac2*p;
 	get_pot_coefs_SLsph(l,expcoef[loffset+moffset],&p,&dp);
+
+				// External solution
+	p *= pfext2;
+	dp *= pfext2*pfext1;
+
 	potl += fac2*p;
 	potr += fac2*dp;
 	pott += fac1*dlegs[0][l][m]*p;
@@ -606,6 +646,13 @@ void SphericalSL::determine_fields_at_point_SLsph(
 	
 	get_pot_coefs_SLsph(l,expcoef[loffset+moffset],&pc,&dpc);
 	get_pot_coefs_SLsph(l,expcoef[loffset+moffset+1],&ps,&dps);
+
+				// External solution
+	pc *= pfext2;
+	dpc *= pfext2*pfext1;
+	ps *= pfext2;
+	dps *= pfext2*pfext1;
+
 	potl += fac3*(pc*cosm[0][m] + ps*sinm[0][m]);
 	potr += fac3*(dpc*cosm[0][m] + dps*sinm[0][m]);
 	pott += fac4*(pc*cosm[0][m] + ps*sinm[0][m]);
