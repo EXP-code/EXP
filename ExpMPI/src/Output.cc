@@ -43,5 +43,5 @@ int Output::get_value(const string& name, string& value)
 void Output::bomb(const string& msg)
 {
   cerr << "Output [" << id << ": " << msg << endl;
-  exit(-1);
+  MPI_Abort(MPI_COMM_WORLD, 499);
 }

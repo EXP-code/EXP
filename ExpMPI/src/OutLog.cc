@@ -1,3 +1,4 @@
+#include <strstream>
 #include "expand.h"
 
 static char rcsid[] = "$Id$";
@@ -148,64 +149,122 @@ void OutLog::Run(int n, bool last)
     clausius = vector<double>(comp.ncomp);
     clausius1 = vector<double>(comp.ncomp);
 
-    if (myid==0 && !restart) {
-      string field;
+    if (myid==0) {
+
+      if (restart) {
+
+	out->close();
+
+	// Backup up old file
+	string backupfile = filename + ".bak";
+	string command("cp ");
+	command += filename + " " + backupfile;
+	system(command.c_str());
+
+	// Open new output stream for writing
+	out = new ofstream(filename.c_str());
+	if (!*out) {
+	  ostrstream message;
+	  message << "OutLog: error opening new log file <" 
+		  << filename << "> for writing\n";
+	  bomb(message.str());
+	}
+	  
+	// Open old file for reading
+	ifstream in(backupfile.c_str());
+	if (!in) {
+	  ostrstream message;
+	  message << "OutLog: error opening original log file <" 
+		  << backupfile << "> for reading\n";
+	  bomb(message.str());
+	}
+
+	const int cbufsiz = 16384;
+	char *cbuffer = new char [cbufsiz];
+	double ttim;
+
+				// Dump header
+	while (in) {
+	  in.getline(cbuffer, cbufsiz);
+	  if (!in) break;
+	  string line(cbuffer);
+	  *out << cbuffer << "\n";
+	  if (line.find_first_of("Time") != string::npos) break;
+	}
+	
+	while (in) {
+	  in.getline(cbuffer, cbufsiz);
+	  if (!in) break;
+	  string line(cbuffer);
+	  
+	  StringTok<string> toks(line);
+	  ttim  = atof(toks(" ").c_str());
+	  if (tnow < ttim) break;
+	  *out << cbuffer << "\n";
+	}
+	
+	in.close();
+
+      } else {
+
+	string field;
 				// Global stanza
-      *out << setfill('-') << setw(cwid) << "Global stats";
-      for (int i=1; i<num_global; i++) 
-	*out << "|" << setfill(' ') << setw(cwid) << " ";
+	*out << setfill('-') << setw(cwid) << "Global stats";
+	for (int i=1; i<num_global; i++) 
+	  *out << "|" << setfill(' ') << setw(cwid) << " ";
 
       
 				// Component stanzas
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	c = *cc;
-	*out << "|" << setw(cwid) << c->id.c_str();
-	for (int i=1; i<num_component; i++) 
-	  *out << "|" << setfill(' ') << setw(cwid) << " ";
-      }
-      *out << endl;
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  c = *cc;
+	  *out << "|" << setw(cwid) << c->id.c_str();
+	  for (int i=1; i<num_component; i++) 
+	    *out << "|" << setfill(' ') << setw(cwid) << " ";
+	}
+	*out << endl;
     
 				// Global divider
-      *out << setfill('-') << setw(cwid) << "-";
-      for (int i=1; i<num_global; i++) 
-	*out << "+" << setfill('-') << setw(cwid)  << "-";
+	*out << setfill('-') << setw(cwid) << "-";
+	for (int i=1; i<num_global; i++) 
+	  *out << "+" << setfill('-') << setw(cwid)  << "-";
       
 				// Component dividers
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	for (int i=0; i<num_component; i++) 
-	  *out << "+" << setfill('-') << setw(cwid) << "-";
-      }
-      *out << endl << setfill(' ');
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (int i=0; i<num_component; i++) 
+	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	}
+	*out << endl << setfill(' ');
 
 
 				// Global labels
-      *out << setfill(' ') << setw(cwid) << lab_global[0];
-      for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
+	*out << setfill(' ') << setw(cwid) << lab_global[0];
+	for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	for (int i=0; i<num_component; i++) {
-	  string label = (*cc)->name + " " + lab_component[i];
-	  if (label.size()<=cwid)
-	    *out << "|" << setw(cwid) << label.c_str();
-	  else
-	    *out << "|" << label;
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (int i=0; i<num_component; i++) {
+	    string label = (*cc)->name + " " + lab_component[i];
+	    if (label.size()<=cwid)
+	      *out << "|" << setw(cwid) << label.c_str();
+	    else
+	      *out << "|" << label;
+	  }
 	}
-      }
-      *out << endl;
+	*out << endl;
 
 				// Global divider
-      *out << setfill('-') << setw(cwid) << "-";
-      for (int i=1; i<num_global; i++) 
-	*out << "+" << setfill('-') << setw(cwid) << "-";
-    
-				// Component dividers
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	for (int i=0; i<num_component; i++) 
+	*out << setfill('-') << setw(cwid) << "-";
+	for (int i=1; i<num_global; i++) 
 	  *out << "+" << setfill('-') << setw(cwid) << "-";
+	
+				// Component dividers
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (int i=0; i<num_component; i++) 
+	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	}
+	*out << endl << setfill(' ');
+	
       }
-      *out << endl << setfill(' ');
-  
     }
     
   }

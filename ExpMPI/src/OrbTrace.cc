@@ -20,8 +20,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
   if (!tcomp) {
     if (myid==0) {
-      cerr << "OrbTrace: no component to trace\n";
-      MPI_Abort(MPI_COMM_WORLD, 112);
+      bomb("OrbTrace: no component to trace\n");
     }
   }
 
@@ -45,34 +44,91 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
   pbuf = vector<double>(6);
 
-  if (myid==0 && norb && !restart) {
+  if (myid==0 && norb) {
+
+    if (restart) {
+      
+      // Backup up old file
+      string backupfile = filename + ".bak";
+      string command("cp ");
+      command += filename + " " + backupfile;
+      system(command.c_str());
+
+      // Open new output stream for writing
+      ofstream out(filename.c_str());
+      if (!out) {
+	ostrstream message;
+	message << "OrbTrace: error opening new trace file <" 
+		<< filename << "> for writing\n";
+	bomb(message.str());
+      }
+	  
+      // Open old file for reading
+      ifstream in(backupfile.c_str());
+      if (!in) {
+	ostrstream message;
+	message << "OrbTrace: error opening original trace file <" 
+		<< backupfile << "> for reading\n";
+	bomb(message.str());
+      }
+
+      const int cbufsiz = 16384;
+      char *cbuffer = new char [cbufsiz];
+      double ttim;
+
+				// Dump header
+      while (in) {
+	  in.getline(cbuffer, cbufsiz);
+	  if (!in) break;
+	  string line(cbuffer);
+	  out << cbuffer << "\n";
+	  if (line.find_first_of("#") == string::npos) break;
+	}
+	
+	while (in) {
+	  string line(cbuffer);
+	  
+	  StringTok<string> toks(line);
+	  ttim  = atof(toks(" ").c_str());
+	  if (tnow < ttim) break;
+	  out << cbuffer << "\n";
+
+	  in.getline(cbuffer, cbufsiz);
+	  if (!in) break;
+	}
+	
+	in.close();
+
+
+    } else {
 				// Try to open the first time . . .
-    ofstream out(filename.c_str(), ios::out | ios::app);
-    if (!out) {
-      ostrstream outs;
-      outs << "Process " << myid << ": can't open file <" << filename << ">\n";
-      bomb(outs.str());
-    }
+      ofstream out(filename.c_str(), ios::out | ios::app);
+      if (!out) {
+	ostrstream outs;
+	outs << "Process " << myid << ": can't open file <" << filename << ">\n";
+	bomb(outs.str());
+      }
 
-    int npos = 1;
+      int npos = 1;
 
-    out << "# " << setw(4) << npos++ << setw(20) << "Time\n";
-    
-    for (int i=0; i<norb; i++) {
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " x[" << orblist[i] << "]\n";
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " y[" << orblist[i] << "]\n";
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " z[" << orblist[i] << "]\n";
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " u[" << orblist[i] << "]\n";
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " v[" << orblist[i] << "]\n";
-      out << "# " << setw(4) << npos++ 
-	  << setw(20) << " w[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ << setw(20) << "Time\n";
+      
+      for (int i=0; i<norb; i++) {
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " x[" << orblist[i] << "]\n";
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " y[" << orblist[i] << "]\n";
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " z[" << orblist[i] << "]\n";
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " u[" << orblist[i] << "]\n";
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " v[" << orblist[i] << "]\n";
+	out << "# " << setw(4) << npos++ 
+	    << setw(20) << " w[" << orblist[i] << "]\n";
+      }
+      out << "# " << endl;
     }
-    out << "# " << endl;
   }
   
 }
