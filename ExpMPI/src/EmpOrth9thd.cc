@@ -1366,6 +1366,8 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
 
+	// Only the l dependence is important here . . .
+
 	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) *
 	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
 
@@ -1376,8 +1378,8 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 	}
 	else {
 
-	  facC[id][ir][l-m] = M_SQRT2*ylm*table[id][l][ir]*cosm[id][m];
-	  facS[id][ir][l-m] = M_SQRT2*ylm*table[id][l][ir]*sinm[id][m];
+	  facC[id][ir][l-m] = ylm*table[id][l][ir]*cosm[id][m];
+	  facS[id][ir][l-m] = ylm*table[id][l][ir]*sinm[id][m];
 
 	}
 

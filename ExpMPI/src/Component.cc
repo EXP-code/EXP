@@ -987,6 +987,7 @@ void Component::fix_positions(void)
   MPI_Allreduce(cov1, cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
 				// Add com from other specified components
+				// to center
 
   double mtot0 = 0.0;
 
@@ -1000,6 +1001,11 @@ void Component::fix_positions(void)
     for (int k=0; k<dim; k++) center[k] += (*i)->com[k]*(*i)->mtot;
     mtot0 += (*i)->mtot;
   }
+
+				// Normalize center
+  if (mtot0>0.0)
+    for (int k=0; k<dim; k++) center[k] /= mtot0;
+
 
 				// Compute component center of mass and
 				// center of velocity
