@@ -103,9 +103,7 @@ void UserDisk::initialize()
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
 
-  if (get_value("Rmax", val))		Rmax = atof(val.c_str());
-  if (get_value("Zmax", val))		Zmax = atof(val.c_str());
-  if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
+  if (get_value("Nscale", val))		Nscale = atof(val.c_str());
   if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
   if (get_value("Nint", val))		Nint = atoi(val.c_str());
 
@@ -352,7 +350,7 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerThinExpDisk(string& line)
+  ExternalForce *makerExpDisk(string& line)
   {
     return new UserDisk(line);
   }
@@ -362,7 +360,7 @@ class proxy {
 public:
   proxy()
   {
-    factory["userdisk"] = makerThinExpDisk;
+    factory["userdisk"] = makerExpDisk;
   }
 };
 
