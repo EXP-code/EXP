@@ -28,7 +28,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
     }
 
     if (!*in) {
-      cerr << "End of file (?)\n";
+      if (VERBOSE) cerr << "End of file (?)\n";
       break;
     }
 
