@@ -2,7 +2,7 @@
 #include <sstream>
 
 #include "expand.h"
-
+#include <localmpi.h>
 #include <UserEBar.H>
 
 UserEBar::UserEBar(string &line) : ExternalForce(line)

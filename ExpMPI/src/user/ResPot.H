@@ -74,7 +74,8 @@ public:
 
   //! Test routine
   int coord(double* pos, double* vel,
-	    double& W1, double& W2, double& W3, double& BETA, double& PSI);
+	    double& E, double& K, double& W1, double& W2, double& W3, 
+	    double& F, double& BETA, double& PSI);
 };
 
 double rot_matrix(int l, int m, int n, double beta);

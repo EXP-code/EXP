@@ -11,7 +11,7 @@ libdir = $(prefix)/lib/user
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
-	libebarp.la librespot.la
+	libebarp.la librespot.la librptest.la
 
 libuser_la_SOURCES = UserTest.cc
 
@@ -38,4 +38,6 @@ libdisk_la_SOURCES = UserDisk.cc
 libtorque_la_SOURCES = UserTorque.cc
 
 librespot_la_SOURCES = UserResPot.cc ResPot.cc rotmatrix.cc BarForcing.cc Perturbation.cc
+
+librptest_la_SOURCES = UserRPtest.cc ResPot.cc rotmatrix.cc
 

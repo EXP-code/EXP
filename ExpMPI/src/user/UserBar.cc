@@ -2,6 +2,7 @@
 #include <sstream>
 
 #include "expand.h"
+#include <localmpi.h>
 
 #include <UserBar.H>
 

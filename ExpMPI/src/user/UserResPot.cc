@@ -1,7 +1,8 @@
 #include <math.h>
 #include "expand.h"
-#include <SatelliteOrbit.h>
+#include <localmpi.h>
 
+#include <SatelliteOrbit.h>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 #include <ResPot.H>
@@ -297,15 +298,6 @@ void UserResPot::determine_acceleration_and_potential(void)
     out << setw(15) << tnow
 	<< setw(15) << phase
 	<< setw(15) << omega
-	<< endl;
-  }
-      
-				// Debug
-  if (myid==3) {
-    ofstream out("userrespot.test", ios::out | ios::app);
-    out << setw(18) << tnow 
-	<< setw(18) << phase 
-	<< setw(18) << omega
 	<< endl;
   }
 				// Store current state

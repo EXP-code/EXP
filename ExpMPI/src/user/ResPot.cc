@@ -501,8 +501,8 @@ void ResPot::ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
 
 
 int ResPot::coord(double* ps1, double* vel,
-		  double& W1, double& W2, double& W3, 
-		  double& BETA, double& PSI)
+		  double& E, double& K, double& W1, double& W2, double& W3, 
+		  double& F, double& BETA, double& PSI)
 {
   double pos[3];
   for (int i=0; i<3; i++) pos[i] = ps1[i];
@@ -526,7 +526,7 @@ int ResPot::coord(double* ps1, double* vel,
   // Compute E, J, beta
   // ------------------
 
-  double E = 0.5*v2 + halo_model->get_pot(r);
+  E = 0.5*v2 + halo_model->get_pot(r);
   
   double angmom[3];
   
@@ -534,7 +534,7 @@ int ResPot::coord(double* ps1, double* vel,
   angmom[1] = pos[2]*vel[0] - pos[0]*vel[2];
   angmom[2] = pos[0]*vel[1] - pos[1]*vel[0];
 
-  double J = 0.0, K;
+  double J = 0.0;
   for (int i=0; i<3; i++) J += angmom[i]*angmom[i];
   J = sqrt(J);
 
@@ -593,9 +593,10 @@ int ResPot::coord(double* ps1, double* vel,
 
   w2 = psi + f;
   
-  W1 = w1;
-  W2 = w2;
-  W3 = w3;
+  W1  = w1;
+  W2  = w2;
+  W3  = w3;
+  F   = f;
   PSI = psi;
 
   return 1;

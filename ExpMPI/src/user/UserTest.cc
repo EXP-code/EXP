@@ -1,5 +1,5 @@
 #include "expand.h"
-
+#include <localmpi.h>
 #include <ExternalCollection.H>
 
 class UserTest : public ExternalForce

@@ -1,5 +1,6 @@
 #include <math.h>
 #include "expand.h"
+#include <localmpi.h>
 #include <SatelliteOrbit.h>
 
 #include <AxisymmetricBasis.H>

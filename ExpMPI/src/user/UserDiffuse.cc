@@ -1,6 +1,7 @@
 #include <math.h>
 
 #include "expand.h"
+#include <localmpi.h>
 
 #include <ACG.h>
 #include <Uniform.h>

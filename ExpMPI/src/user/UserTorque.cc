@@ -1,6 +1,8 @@
 #include <math.h>
+
 #include "expand.h"
 
+#include <localmpi.h>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
