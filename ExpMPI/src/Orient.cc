@@ -486,13 +486,6 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       center = (sumX2*sumY - sumX*sumXY)/(sumX2*i - sumX*sumX);	
       slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
 
-      /*
-      cout << " Orient debug: x, y, z = " 
-	   << center[1] << ", "
-	   << center[2] << ", "
-	   << center[3] << endl;
-      */
-
       i = 0;
       sigC = 0.0;
       sigCz = 0.0;
