@@ -201,11 +201,12 @@ double ResPot::Pot(double* pos, double* vel, double phase, CVector &bcoef)
     } 
     else psi = asin(tmp);
     
-				// Map into [-Pi, Pi]
-    phi = atan2(sin(phi-w3), cos(phi-w3));
-    
+				// Locate quadrant relative to line
+				// of nodes
+    tmp = atan2(sin(phi - w3), cos(phi-w3));
+
 				// Psi branch
-    if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
+    if (tmp>0.5*M_PI || tmp<-0.5*M_PI) psi = M_PI - psi;
   }
   
   w2 = psi + f;
@@ -215,5 +216,4 @@ double ResPot::Pot(double* pos, double* vel, double phase, CVector &bcoef)
   ans *= VeeBeta(L, L2, M, beta) * exp(I*arga);
   
   return ans.real();
-
 }

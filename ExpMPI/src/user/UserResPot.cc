@@ -42,7 +42,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
   domega = 0.0;			// Frequency shift
   t0 = 0.5;			// Mid point of drift
-  delt = 0.25;			// Width of drift period
   first = true;
 
 				// Apply force from spherical background
@@ -119,6 +118,7 @@ void UserResPot::userinfo()
        << ", Mass=" << MASS 
        << ", Omega=" << omega 
        << ", Domega=" << domega 
+       << ", T0=" << t0
        << ", b/a=" << A21
        << ", c/b=" << A32
        << ", Ton=" << ton
@@ -159,7 +159,6 @@ void UserResPot::initialize()
 
   if (get_value("domega", val))   domega = atof(val.c_str());
   if (get_value("t0", val))       t0 = atof(val.c_str());
-  if (get_value("delt", val))     delt = atof(val.c_str());
 
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
@@ -173,7 +172,7 @@ void UserResPot::initialize()
 
 void UserResPot::determine_acceleration_and_potential(void)
 {
-  double Omega = omega*(1.0 + domega*erf( (tnow - t0)/delt ));
+  double Omega = omega*(1.0 + domega*(tnow - t0));
   
   if (first) {
     phase = Omega*tnow;		// Initial phase
