@@ -263,10 +263,10 @@ void Component::initialize(void)
     if (EJ & Orient::CENTER) {
       if (use_com) 
 	cout << name 
-	     << ": CENTER finding is *ON* and will supercede COM centering,";
+	     << ": CENTER finding is *ON* and will supercede COM centering";
       else
 	cout << name 
-	     << ": CENTER finding is *ON*,";
+	     << ": CENTER finding is *ON*";
 
       cout << ", user specified initial center: x, y, z: " 
 	   << EJx0 << ", " 
