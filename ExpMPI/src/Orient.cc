@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
 
 #include <iostream>
@@ -71,7 +72,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 				// Backup old file
       string backupfile = logfile + ".bak";
-      string command("cp ");
+      if (rename(logfile.c_str(), backupfile.c_str())) {
+	cerr << "Orient: error making backup file <" 
+	     << backupfile << ">\n";
+	MPI_Abort(MPI_COMM_WORLD, 42);
+      }
+
 				// Open new output stream for writing
       ofstream out(logfile.c_str());
       if (!out) {
@@ -119,7 +125,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	istringstream line(cbuffer);
 
 	line >> time;
-	if (tnow <= time) break;
+	if (tnow < time || fabs(tnow-time)<1.0e-8) break;
 
 	out << cbuffer << "\n";
 
@@ -138,11 +144,13 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	}
 
 	if (oflags & CENTER) {
-	  sumsC.push_back(center);
+	  sumsC.push_back(center0);
 	  if (sumsC.size() > keep) sumsC.pop_front();
 	}
 
       }
+
+      cout << " Orient: current log=" << logfile << "  backup=" << backupfile << endl;
 
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
