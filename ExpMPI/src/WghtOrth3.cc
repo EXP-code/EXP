@@ -1,4 +1,4 @@
-#define DEBUG 1
+// #define DEBUG 1
 // #define DEBUG_NAN 1
 
 #include <iostream>

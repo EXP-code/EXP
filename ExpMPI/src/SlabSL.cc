@@ -95,7 +95,7 @@ void SlabSL::determine_coefficients(void)
   for (int i=0; i<nthrds; i++) use1 += use[i];
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  if (myid==0) used += use0;
+  used = use0;
 
   for (int i=0; i<nthrds; i++) {
     for (int indx=0; indx<jmax; indx++) {

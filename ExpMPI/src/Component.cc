@@ -965,8 +965,10 @@ void Component::setup_distribution(void)
 
     }
 
-    out = new ofstream("current.processor.rates");
+    out = new ofstream("current.processor.rates", ios::out | ios::app);
     if (out) {
+      *out << "# " << endl;
+      *out << "# Time=" << tnow << " Component=" << name << endl;
       *out << "# " 
 	  << setw(15) << "Norm rate"
 	  << setw(15) << "Raw rate"

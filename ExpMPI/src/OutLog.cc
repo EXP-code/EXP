@@ -99,7 +99,6 @@ void OutLog::Run(int n, bool last)
     nbodies1 = vector<int>(comp.ncomp);
 
     used0 = vector<int>(comp.ncomp);
-    used1 = vector<int>(comp.ncomp);
 
     mtot = vector<double>(comp.ncomp);
     mtot1 = vector<double>(comp.ncomp);
@@ -209,7 +208,7 @@ void OutLog::Run(int n, bool last)
   for (int i=0; i<comp.ncomp; i++) {
 
     nbodies[i] = nbodies1[i] = 0;
-    used0[i] = used1[i] = 0;
+    used0[i] = 0;
     mtot[i] = mtot1[i] = 0.0;
     ektot[i] = ektot1[i] = 0.0;
     eptot[i] =  eptot1[i] = 0.0;
@@ -263,15 +262,13 @@ void OutLog::Run(int n, bool last)
 	(p->pos[0]*p->acc[0]+p->pos[1]*p->acc[1]+p->pos[2]*p->acc[2]);
     }
     
-    used1[indx] = c->force->Used();
+    used0[indx] = c->force->Used();
 
     indx++;
   }
 				// Send back to Process 0
 
   MPI_Reduce(&nbodies1[0], &nbodies[0], comp.ncomp, MPI_INT, MPI_SUM, 
-	     0, MPI_COMM_WORLD);
-  MPI_Reduce(&used1[0], &used0[0], comp.ncomp, MPI_INT, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
   MPI_Reduce(&mtot1[0], &mtot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);

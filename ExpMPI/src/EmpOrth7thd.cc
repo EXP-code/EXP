@@ -1790,7 +1790,7 @@ void EmpCylSL::pca_hall(void)
 		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
 #ifdef DEBUG_PCA
-  cerr << "Process " << myiud << ": using " << cylused << " particles\n";
+  cerr << "Process " << myid << ": using " << cylused << " particles\n";
 #endif
 
   for (mm=0; mm<=MMAX; mm++)

@@ -97,7 +97,8 @@ void ExternalCollection::dynamicload(void)
   const unsigned int BUF_SIZE = 1024;
 
 				// command
-  char *command_str = "ls *.so"; 
+  string command;
+  command = "cd " + ldlibdir + "; ls *.so";
 
 				// string to get dynamic lib names
   char in_buf[BUF_SIZE];	// input buffer for lib
@@ -105,7 +106,7 @@ void ExternalCollection::dynamicload(void)
 
 				// get the names of all the dynamic libs (.so 
 				// files) in the current dir 
-  FILE *dl = popen(command_str, "r");
+  FILE *dl = popen(command.c_str(), "r");
   if(!dl) {
     perror("popen");
     exit(-1);

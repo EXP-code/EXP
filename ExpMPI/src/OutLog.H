@@ -61,7 +61,7 @@ private:
   bool firstime;
 
   vector<int> nbodies, nbodies1;
-  vector<int> used0, used1;
+  vector<int> used0;
   vector<double> mtot, mtot1;
   vector<dvector> com, com1;
   vector<dvector> cov, cov1;

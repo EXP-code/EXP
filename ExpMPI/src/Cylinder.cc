@@ -346,7 +346,6 @@ void Cylinder::determine_coefficients(void)
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
-  cout << "Process " << myid << ": used=" << PotAccel::used << endl;
 
   MPI_Allreduce ( &cylmassT, &cylmass,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
