@@ -540,7 +540,7 @@ main(int argc, char **argv)
       ofstream *out = new ofstream [nstr];
     
       int nout = 200;
-      double rmax = 0.5;
+      double rmax = 6.0*scale_length;
       double x, y, dr = 2.0*rmax/(nout-1);
       float f;
     
