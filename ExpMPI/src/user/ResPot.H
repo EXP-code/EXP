@@ -45,7 +45,7 @@ private:
   o2vector orbmat;
 
   double Emax, Emin, Kmin, Kmax;
-  bool grid_computed;
+  bool grid_computed, second_order;
   void compute_grid();
 
   typedef vector<double> dvector;
@@ -75,8 +75,6 @@ private:
 
   int ngrid;
 
-  static KComplex I;
-
 public:
 
   //! Power for ang. mom. scaling (default: 0.25)
@@ -85,7 +83,7 @@ public:
   static double DELTA;
   //! Fractional steps for differenced derivatives
   static double DELE, DELK;
-  //! Number of energy points
+  static double TOLITR;
   static int NUME;
   //! Number of scaled ang mom points
   static int NUMX;
@@ -93,6 +91,7 @@ public:
   static int RECS;
   //! Maximum number of iterations in mapping
   static int ITMAX;
+  static KComplex I;
 
 
   //! Constructor
@@ -124,6 +123,12 @@ public:
   bool Force(double dt, double Phase, double Omega, 
 	     double amp, CVector& bcoef,
 	     double* pos, double* vel, double* acc);
+
+  //! Set first order implicit symplectic integration
+  void set_1st_order() { second_order = false; }
+
+  //! Set second order implicit symplectic integration
+  void set_2nd_order() { second_order = true; }
 
 };
 

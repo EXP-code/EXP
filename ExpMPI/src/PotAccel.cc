@@ -111,6 +111,7 @@ void PotAccel::bomb(const string& msg)
 
 PotAccel::PotAccel(string& line)
 {
+  used = 0;
   component = NULL;
   geometry = other;
   use_external = false;

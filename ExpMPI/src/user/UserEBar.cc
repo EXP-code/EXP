@@ -493,7 +493,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	out << setw(15) << Lz
 	    << setw(15) << 0.0;
 
-      out << setw(15) << amplitude *  
+      out << setw(15) << amplitude/fabs(amplitude) *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
 

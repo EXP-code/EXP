@@ -45,6 +45,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
+  AMP = 1.0;			// Mass prefactor
   COROT = 10;			// Corotation factor
   A21 = 0.2;			// Major to semi-minor ratio
   A32 = 0.05;			// Semi-minor to minor ratio
@@ -133,6 +134,7 @@ void UserResPot::userinfo()
   cout << "** User routine RESONANCE POTENTIAL initialized";
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
+       << ", Amp=" << AMP
        << ", Omega=" << omega 
        << ", Domega=" << domega 
        << ", T0=" << t0
@@ -174,6 +176,7 @@ void UserResPot::initialize()
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
   if (get_value("LENGTH", val))   LENGTH = atof(val.c_str());
+  if (get_value("AMP", val))      AMP = atof(val.c_str());
   if (get_value("COROT", val))    COROT = atof(val.c_str());
   if (get_value("A21", val))      A21 = atof(val.c_str());
   if (get_value("A32", val))      A32 = atof(val.c_str());
@@ -327,7 +330,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  amp =
+  amp = AMP *
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     

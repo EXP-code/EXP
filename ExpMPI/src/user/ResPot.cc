@@ -15,7 +15,7 @@ double ResPot::ALPHA = 0.25;
 double ResPot::DELTA = 0.01;
 double ResPot::DELE = 0.001;
 double ResPot::DELK = 0.001;
-double TOLITR = 1.0e-8;
+double ResPot::TOLITR = 1.0e-8;
 int ResPot::NUME = 200;
 int ResPot::NUMX = 200;
 int ResPot::RECS = 100;
@@ -30,6 +30,7 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
   halo_ortho = bio;
   
   grid_computed = false;
+  second_order = true;
   
   L = l;
   M = m;
@@ -1038,17 +1039,39 @@ bool ResPot::Update(double dt, double Phase, double Omega,
   }
   
   // Get action angle coords
+  //
   double E, K, W1, W2, W3, F, BETA, PSI, I1, I2, O1, O2;
   ret = coord(posI, velI, E, K, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI);
   if (!ret) return false;
   
   KComplex VB = VeeBeta(L, L2, M, BETA);
   
+  double betaM, betaP, beta, BETA0;
+  if (BETA-DELTA<0.0) {
+    betaM = 0.0;
+    betaP = DELTA;
+    beta = 0.5*DELTA;
+  } else if (BETA+DELTA>M_PI) {
+    betaM = M_PI - DELTA;
+    betaP = M_PI;
+    beta = M_PI - 0.5*DELTA;
+  } else {
+    betaM = BETA - DELTA;
+    betaP = BETA + DELTA;
+    beta = BETA;
+  }
+  BETA0 = BETA;
+  
+  KComplex DVB = 
+    (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
+  
   // Iterative implicit solution
+  //
   double Is0, If0, Is1=0.0, Is2, Is, Is3=0.0;
-  double ws0, ws1=0.0, ws2, ws, ws3=0.0;
+  double ws0, wf0, ws1=0.0, ws2, ws, ws3=0.0;
+  double wg0, wg2, Ig0, Ig2;
   double Jm, dJm, dEIs=0.0, dKIs=0.0;
-  KComplex Fw, FI, Ul, dUldE, dUldK;
+  KComplex Fw, FI, Ul, Fg, dUldE, dUldK, UldVdIs;
   bool done = false;
   
 #ifdef DEBUG_VERBOSE
@@ -1056,34 +1079,63 @@ bool ResPot::Update(double dt, double Phase, double Omega,
   double I20 = I2;
 #endif
   
-  if (L2) {
-    Is2 = Is0 = I2/L2;
-    If0 = I1 - Is0*L1;
-  } else {
-    Is2 = Is0 = I1/L1;
-    If0 = I2 - Is0*L2;
-  }
-  
   if (isnan(I1) || isnan(I2)) {
     cerr << "Have a cow!\n";
   }
 
-  ws2 = ws0 = W1*L1 + W2*L2 + (W3 - Phase)*M;
+  // Transformation to slow-fast variables
+  //
+
+  ws0 = W1*L1 + W2*L2 + (W3 - Phase)*M;
+    
+  if (L2) {
+    Is2 = Is0 = I2/L2;
+    If0 = I1 - Is0*L1;
+    wf0 = W1;
+  } else {
+    Is2 = Is0 = I1/L1;
+    If0 = I2 - Is0*L2;
+    wf0 = W2;
+  }
+  wg0 = W3;
+  Ig0 = I2*cos(BETA) - Is0*M;
   
+  // Angle "drift" for 2nd order calculation
+  // 
+  if (second_order) {
+    ws0 += (O1*L1 + O2*L2 - Omega*M)*0.5*dt;
+    if (L2)
+      wf0 += O1*0.5*dt;
+    else
+      wf0 += O2*0.5*dt;
+  }
+  ws2 = ws0;
+
   int i;
   for (i=0; i<ITMAX; i++) {
     
+    // For convergence test
+    //
     ws3 = ws1;
     Is3 = Is1;
     
+    // Save previous step
+    //
     ws1 = ws2;
     Is1 = Is2;
     
-    // Force
+    // For force evaluation
+    //
+    if (second_order) {
+      Is = 0.5*(Is2 + Is0);
+      ws = 0.5*(ws2 + ws0);
+    } else {
+      Is = Is2;
+      ws = ws2;
+    }
     
-    Is = 0.5*(Is2 + Is0);
-    ws = 0.5*(ws2 + ws0);
-    
+    // Canonical transform
+    //
     if (L2) {
       I1 = If0 + Is*L1;
       I2 = Is*L2;
@@ -1092,42 +1144,43 @@ bool ResPot::Update(double dt, double Phase, double Omega,
       I2 = If0 + Is*L2;
     }
     
+    getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
+
+    // Sanity check
+    //
     if (isnan(I1) || isnan(I2)) {
-      cerr << "I1 or I2 is NaN: Is0=" << Is0 << " Is=" << Is << " If0=" << If0 << " Is2=" << Is2 << " i=" << i << endl;
+      cerr << "I1 or I2 is NaN: Is0=" 
+	   << Is0 << " Is=" << Is << " If0=" 
+	   << If0 << " Is2=" << Is2 << " i=" 
+	   << i << endl;
 
       pthread_mutex_lock(&iolock);
       out = open_debug_file();
-      *out <<  "I1 or I2 is NaN: Is0=" << Is0 << " Is=" << Is << " If0=" << If0 << " Is2=" << Is2 << " i=" << i << endl;
+      *out <<  "I1 or I2 is NaN: Is0=" 
+	   << Is0 << " Is=" << Is << " If0=" 
+	   << If0 << " Is2=" << Is2 << " i=" 
+	   << i << endl;
+
       out->close();
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
 
-    /*
-    if (!getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK)) {
-      for (int k=0; k<3; k++) {
-	posO[k] = posI[k];
-	velO[k] = velI[k];
-      }
-      return false;
-    }
-    */
 
-    getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
-
+    UldVdIs = Ul * DVB * amp * L2/I2 / tan(beta);
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;
     
     dEIs = O1*L1 + O2*L2;
-    dKIs =  1.0/Jm*L2 - K*dJm*dEIs/Jm;
+    dKIs = 1.0/Jm*L2;
     
-    Fw = O1*L1 + O2*L2 - Omega*M + 
-      (dUldE*dEIs + dUldK*dKIs)*exp(I*ws);
+    Fw = (dUldE*dEIs + dUldK*dKIs + UldVdIs)*exp(I*ws);
     
     FI = -I*Ul*exp(I*ws);
     
-    
+    // Sanity check
+    //
     if (isnan(Fw.real()) || isnan(FI.real())) {
       cerr << "Fw or FI is NaN, dJm=" << dJm 
 	   << " Ul="	<< Ul 
@@ -1203,6 +1256,12 @@ bool ResPot::Update(double dt, double Phase, double Omega,
     
   }
   
+  // Update orbital plane angle
+
+  Fg = -Ul * DVB * amp * exp(I*ws)/(sin(beta)*I2);
+  wg2 = wg0 + dt*Fg.real();
+  Ig2 = Ig0;
+
   if (!done) {
     // #ifdef DEBUG
     cerr << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
@@ -1225,34 +1284,39 @@ bool ResPot::Update(double dt, double Phase, double Omega,
     ret = 1;
   }
   
-  // Coordinate transform: Action-Angle to Cartesian
-  
-  // Evaluation of E, K at half-point
-  if (L2) {			// for fast angle update
-    I1 = If0 + 0.5*(Is2+Is0)*L1;
-    I2 = 0.5*(Is2+Is0)*L2;
-  } else {
-    I1 = 0.5*(Is2+Is0)*L1;
-    I2 = If0 + 0.5*(Is2+Is0)*L2;
-  }
-  
-  
-  getValues(I1, I2, O1, O2);
-  
-  
-  if (L2) {			// Angle update
-    W1 += O1*dt;
-    W2 = (ws2 - W1*L1 - (W3 - Phase - Omega*dt)*M)/L2;
-    // New actions
+  // Update phase
+  //
+
+  double afac = 1.0;
+  if (second_order) afac = 0.5;
+
+  ws2 += (O1*L1 + O2*L2 - Omega*M)*afac*dt;
+  if (L2)
+    wf0 += O1*afac*dt;
+  else
+    wf0 += O2*afac*dt;
+
+
+  // Canonical transformation from slow-fast to action-angle
+  // 
+  W3 = wg2;
+  if (L2) {
     I1 = If0 + Is2*L1;
     I2 = Is2*L2;
-  } else {			// Angle update
-    W2 += O2*dt;
-    W1 = (ws2 - W2*L2 - (W3 - Phase - Omega*dt)*M)/L1;
-    // New actions
+    W1 = wf0;
+    W2 = (ws2 - W1*L1 - (W3 - Phase - Omega*dt)*M)/L2;
+  } else {
     I1 = Is2*L1;
     I2 = If0 + Is2*L2;
+    W2 = wf0;
+    W1 = (ws2 - W2*L2 - (W3 - Phase - Omega*dt)*M)/L1;
   }
+    
+  double I3 = Is2*M + Ig2;
+  double cosb = I3/I2;
+  cosb = min<double>(cosb,  1.0);
+  cosb = max<double>(cosb, -1.0);
+  BETA = acos(cosb);
   
 #ifdef DEBUG_VERBOSE
   if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
@@ -1267,6 +1331,7 @@ bool ResPot::Update(double dt, double Phase, double Omega,
 #endif
   
   // Get new Cartesion phase space
+  //
   ret = coord(posO, velO, I1, I2, BETA, W1, W2, W3); 
   if (!ret) {
     for (int k=0; k<3; k++) {

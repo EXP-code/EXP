@@ -26,7 +26,8 @@
     @param domega is the half width of any frequency change
     @param t0 is the central point of any frequency change interval
     @param delt is the characteristic width of the frequency change interval
-    @param MASS of the bar
+    @param MASS of the bar (postive)
+    @param AMP is a mass prefactor (any sign)
     @param LENGTH of the length
     @param A21 is the ratio of the submajor axis to the major axis
     @param A32 is the ratio of the minor axis to the submajor axis
@@ -58,7 +59,7 @@ private:
   int LMAX, NMAX, NUMR, L0, M0, L1, L2, tag;
   double rmin, rmax, scale, drfac;
   
-  double MASS, LENGTH, COROT, A21, A32;
+  double MASS, LENGTH, AMP, COROT, A21, A32;
 
   int NUMX, NUME, RECS;
 
