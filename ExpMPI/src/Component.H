@@ -67,6 +67,9 @@ private:
   Partstruct *npart_p;
   int npart_tot, npart_cur;
 
+  // Initialize com tie list
+  void get_com_component(string name);
+
 protected:
 
   /** Initialize parameters (called by ComponentContainer after component
@@ -97,9 +100,9 @@ protected:
   //! Current phase-space time
   double time;
   
-  //! Component to tie com
+  //! Component list for tying center of mass
   list<Component*> com_tie;
-  void get_com_component(string name);
+
 
 public:
 
