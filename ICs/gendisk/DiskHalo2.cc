@@ -7,6 +7,7 @@
 #include <vector>
 				// MDW
 #include <interp.h>
+#include <ChebFit.h>
 #include <numerical.h>
 #include <exponential.h>
 #include <SphericalModelTable.h>
@@ -31,6 +32,9 @@ int DiskHalo::NHT = 40;
 
 double DiskHalo::R_DF = 20.0;
 double DiskHalo::DR_DF = 5.0;
+
+int DiskHalo::SMOOTH = 0;
+int DiskHalo::SAMPLE = 200;
 
 bool DiskHalo::VERBOSE = false;
 
@@ -384,10 +388,10 @@ epi(double xp, double yp, double zp)
   cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
 				// Cylindrical radius
-  lR = log(max<double>(epiRmin, sqrt(xp*xp + yp*yp)));
+  lR = log(sqrt(xp*xp + yp*yp));
   ir = (int)( (lR - log(RDMIN))/dR );
   ir = min<int>( ir, NDR-2 );
-  ir = max<int>( ir, epiJmin );
+  ir = max<int>( ir, 0 );
   cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
   cr[0] = 1.0 - cr[1];
 
@@ -491,6 +495,20 @@ table_disk(vector<Particle>& part)
 				// For debugging
   Matrix workD(0, 4, 0, NDR-1);
 
+				// Chebyshev smoothing
+  ChebFit diskpot;
+  if (SMOOTH) {
+    diskpot.range_check_off();
+    Vector RR(0, SAMPLE-1);
+    Vector PP(0, SAMPLE-1);
+    double dr = (maxr - RDMIN)/(SAMPLE-1), dum;
+    for (int i=0; i<SAMPLE; i++) {
+      RR[i] = RDMIN + dr*i;
+      disk_eval(RR[i], 0.0, 0.0, PP[i], dum, dum, dum);
+    }
+
+    diskpot.new_data(RR, PP, SMOOTH);
+  }
 				// Compute this table in parallel
 
   vector<int> ibeg(numprocs), iend(numprocs);
@@ -512,7 +530,9 @@ table_disk(vector<Particle>& part)
 
 				// For epicylic frequency
 
+      
       disk_eval(R, 0.0, phi, pot, fr, fz, fp);
+      if (SMOOTH) fr = -diskpot.der1(R);
 
       if (expandh)
 	expandh->determine_fields_at_point(R, 0.5*M_PI, phi,
@@ -598,10 +618,10 @@ table_disk(vector<Particle>& part)
     }
 
 				// Compute epicylic freqs
-    // Spline(workR, workE, -1.0e30, -1.0e30, workE2);
+    ChebFit cwork(workR, workE, SMOOTH);
+    cwork.range_check_off();
     for (int j=0; j<NDR; j++) {
-      // Splint2(workR, workE, workE2, workR[j], dum, epitable[i][j]);
-      epitable[i][j] = drv2(workR[j], workR, workE);
+      epitable[i][j] = cwork.der1(workR[j]);
       if (i==0) workD[0][j] = epitable[0][j];
       epitable[i][j] += 3.0*workE[j];
       if (i==0) workD[1][j] = epitable[0][j];
@@ -671,17 +691,11 @@ table_disk(vector<Particle>& part)
     }
   }
     
-				// Check epitable: find smallest radius
-				// with positive entries to guard against
-				// lack of particle resolution
-  double epirmin=0.0;
-  int epijmin = 0;
+				// Sanity check on epitable
   for (int i=0; i<NDP; i++) {
     for (int j=0; j<NDR; j++) {
 
       if (epitable[i][j] < 0.0) {
-	epirmin = max<double>(epirmin, RDMIN*exp(dR*j));
-	epijmin = max<int>(epijmin, j);
 
 	if (myid==0 && VERBOSE) {
 	  cout << "Epitable error: R=" << RDMIN*exp(dR*j) 
@@ -690,24 +704,11 @@ table_disk(vector<Particle>& part)
 	       << " ep2=" << epitable[i][j] << endl;
 	}
 
+	epitable[i][j] = 1.0e-8;
       }
     }
   }
-  MPI_Allreduce(&epirmin, &epiRmin, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&epijmin, &epiJmin, 1, MPI_INT,    MPI_MAX, MPI_COMM_WORLD);
-
-  epiJmin++;
-
-  if (myid==0) {
-    cout << "Epitable: Jmin=" << epiJmin 
-	 << " Rmin=" << epiRmin << endl;
-
-    double pcnt = (epiRmin-RDMIN)/(dR*(NDR-1));
-    if (pcnt > 0.01)
-      cout << "Epitable: Rmin is more that 1% of the total radial range ["
-	   << pcnt*100.0 << "]" << endl;
-  }
-
+  
   if (myid==0)
   {
     ofstream out("ep_disk.dat");

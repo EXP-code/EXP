@@ -37,8 +37,7 @@ class DiskHalo
   EmpCylSL* expandd;
 
   Matrix *disktableP, *disktableN, epitable;
-  double dP, dR, dZ, epiRmin;
-  int epiJmin;
+  double dP, dR, dZ;
 
   Matrix halotable;
   double dr, dc;
@@ -88,6 +87,9 @@ class DiskHalo
 
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
+
+  static int SMOOTH;		// Chebyshev smoothing for disk velocities
+  static int SAMPLE;
 
   static bool VERBOSE;		// Verbose error reporting
 

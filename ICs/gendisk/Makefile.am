@@ -29,7 +29,7 @@ noinst_HEADERS =
 
 gendisk_SOURCES =  initial.cc DiskHalo2.cc SLGridMP2.cc EmpOrth9thd.cc \
 	SphericalSL.cc localmpi.cc sledge.f legendre.cc \
-	ddplgndr.cc sinecosine.cc AddDisk.cc
+	ddplgndr.cc sinecosine.cc AddDisk.cc ChebFit.cc
 gendisk_DEPENDENCIES = 
 gendisk_LDADD = 
 
