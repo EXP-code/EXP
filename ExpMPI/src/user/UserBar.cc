@@ -301,7 +301,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double fac, ffac, amp = amplitude *  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
+  double fac, ffac, amp = 
+    afac * amplitude *  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
     0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
   double xx, yy, zz, rr, nn,pp;
   vector<double> pos(3); 
@@ -322,12 +323,12 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     zz = pos[2];
     rr = sqrt( xx*xx + yy*yy + zz*zz );
 
-    fac = length + rr;
+    fac = 1.0 + rr/b5;
 		     
-    ffac = -amp*numfac*length*length*length/pow(fac, 6.0);
+    ffac = -amp*numfac/pow(fac, 6.0);
 
     pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-    nn = pp * pow(rr/b5, 3.0)/(b5*b5);
+    nn = pp /( b5*rr ) ;
       
     (*particles)[i].acc[0] += ffac*
       ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
@@ -338,7 +339,7 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     (*particles)[i].acc[2] += ffac*
       ( -5.0*nn*zz );
     
-    (*particles)[i].potext += -ffac*nn*fac;
+    (*particles)[i].potext += -ffac*pp*fac;
     
   }
 
