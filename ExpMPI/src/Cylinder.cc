@@ -221,7 +221,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
 
-    if (r<=M_SQRT1_2*rcylmax) {
+    if (r2+zz*zz < 0.5*rcylmax*rcylmax) {
+
       if (eof) {
 	use[id]++;
 	cylmass0[id] += (*particles)[i].mass;
@@ -342,7 +343,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r<=M_SQRT1_2*rcylmax) {
+    if (r2 + zz*zz < 0.5*rcylmax*rcylmax) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
