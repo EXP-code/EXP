@@ -59,7 +59,6 @@ void ComponentContainer::initialize(void)
     }
 
     MPI_Bcast(&tnow, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-    tpos = tvel = tnow;
     
     MPI_Bcast(&ntot, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
@@ -120,6 +119,9 @@ void ComponentContainer::initialize(void)
     }
 
   }
+
+				// Set time
+  tpos = tvel = tnow;
 
 				// Initialize components
   list<Component*>::iterator cc, cc1;

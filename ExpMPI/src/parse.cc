@@ -39,6 +39,7 @@ void initialize(void)
   if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
   if (parse->find_item("nthrds", val))		nthrds = atoi(val.c_str());
 
+  if (parse->find_item("time", val))		tnow = atof(val.c_str());
   if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
   if (parse->find_item("rmax_tidal", val))	rmax_tidal = atof(val.c_str());
   if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
@@ -75,6 +76,7 @@ void print_parm(ostream& out, char *comment)
   out << comment << " " << "nsteps" <<  " = " << nsteps << "\n";
   out << comment << " " << "nthrds" <<  " = " << nthrds << "\n";
 
+  out << comment << " " << "time" <<  " = " << tnow << "\n";
   out << comment << " " << "dtime" <<  " = " << dtime << "\n";
   out << comment << " " << "rmax_tidal" <<  " = " << rmax_tidal << "\n";
   out << comment << " " << "NICE" <<  " = " << NICE << "\n";
