@@ -33,6 +33,8 @@ UserDiffuse::UserDiffuse(string &line) : ExternalForce(line)
   diverge = 0;			// Use power divergence for model
   diverge_rfac = 1.0;		// with this exponent
 
+  check_ev = false;		// Deep debugging statement (don't use this)
+
   initialize();
 
   if (name.size()>0) {
@@ -92,6 +94,8 @@ void UserDiffuse::userinfo()
   cout << ", (Rmin, Rmax) = (" << rmin << ", " << rmax << ")";
   if (logr)
     cout << ", using log radial grid";
+  if (check_ev)
+    cout << ", direction debug stats are *ON*";
   cout << endl;
 
   print_divider();
@@ -117,10 +121,62 @@ void UserDiffuse::initialize()
   if (get_value("modfile", val))	modfile = val;
   if (get_value("diverge", val))	diverge = atoi(val.c_str());
   if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
+  if (get_value("check_ev", val))	check_ev = atoi(val.c_str()) ? true : false;
 
   gen = new ACG(seed+myid);
   urand = new Uniform(0.0, 1.0, gen);
   nrand = new Normal(0.0, 1.0, gen);
+
+  if (check_ev) {
+    ev_mean_th = new double* [nthrds];
+    ev_disp_th = new double* [nthrds];
+    ev_numb_th = new int [nthrds];
+
+    for (int i=0; i<nthrds; i++) {
+      ev_mean_th[i] = new double [6];
+      ev_disp_th[i] = new double [6];
+    }
+
+    if (myid==0) {
+				// Open output stream for writing
+      check_file = runtag + ".check_ev";
+      ofstream out(check_file.c_str(), ios::out | ios::app);
+      if (out) {
+	out.setf(ios::left);
+	out << "# " << setw(14) << "Time"
+	    << "| " << setw(14) << "Mean (1*V)"
+	    << "| " << setw(14) << "Disp (1*V)"
+	    << "| " << setw(14) << "Mean (2*V)"
+	    << "| " << setw(14) << "Disp (2*V)"
+	    << "| " << setw(14) << "Mean (3*V)"
+	    << "| " << setw(14) << "Disp (3*V)"
+	    << "| " << setw(14) << "Mean (1*2)"
+	    << "| " << setw(14) << "Disp (1*2)"
+	    << "| " << setw(14) << "Mean (1*3)"
+	    << "| " << setw(14) << "Disp (1*3)"
+	    << "| " << setw(14) << "Mean (2*3)"
+	    << "| " << setw(14) << "Disp (2*3)"
+	    << "| " << setw(14) << "Number"
+	    << endl;
+	out << "#-1-" << setw(12) << setfill('-') << "-"
+	    << "|-2-" << setw(12) << setfill('-') << "-"
+	    << "|-3-" << setw(12) << setfill('-') << "-"
+	    << "|-4-" << setw(12) << setfill('-') << "-"
+	    << "|-5-" << setw(12) << setfill('-') << "-"
+	    << "|-6-" << setw(12) << setfill('-') << "-"
+	    << "|-7-" << setw(12) << setfill('-') << "-"
+	    << "|-8-" << setw(12) << setfill('-') << "-"
+	    << "|-9-" << setw(12) << setfill('-') << "-"
+	    << "|-10" << setw(12) << setfill('-') << "-"
+	    << "|-11" << setw(12) << setfill('-') << "-"
+	    << "|-12" << setw(12) << setfill('-') << "-"
+	    << "|-13" << setw(12) << setfill('-') << "-"
+	    << "|-14" << setw(12) << setfill('-') << "-"
+	    << endl;
+      }
+    }
+  }
+
 }
 
 
@@ -133,7 +189,54 @@ void UserDiffuse::determine_acceleration_and_potential(void)
     compute_diffuse();
   }
 
+  if (check_ev) {
+    for (int i=0; i<nthrds; i++) {
+      for (int k=0; k<6; k++) ev_mean_th[i][k] = ev_disp_th[i][k] = 0.0;
+      ev_numb_th[i] = 0;
+    }
+  }
+
   exp_thread_fork(false);
+
+  if (check_ev) {
+
+    vector<double> ev_mean(6, 0.0), ev_disp(6, 0.0);
+    vector<double> tt_mean(6, 0.0), tt_disp(6, 0.0);
+    int ev_numb = 0;
+    int tt_numb = 0;
+
+    for (int i=0; i<nthrds; i++) {
+      for (int k=0; k<6; k++) {
+	ev_mean[k] += ev_mean_th[i][k];
+	ev_disp[k] += ev_disp_th[i][k];
+      }
+      ev_numb += ev_numb_th[i];
+    }
+
+				// Get contribution from all processes
+    MPI_Reduce(&ev_mean[0], &tt_mean[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ev_disp[0], &tt_disp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ev_numb, &tt_numb, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    if (myid==0) {
+      // Open output stream for writing
+      ofstream out(check_file.c_str(), ios::out | ios::app);
+      if (out) {
+	out.setf(ios::left);
+	out << setw(16) << tpos;
+	for (int k=0; k<6; k++) {
+	  if (ev_numb>1)
+	    out << setw(16) << ev_mean[k]/ev_numb
+		<< setw(16) << sqrt((ev_disp[k]-ev_mean[k]*ev_mean[k]/ev_numb)/(ev_numb-1));
+	  else
+	    out << setw(16) << 0.0
+		<< setw(16) << 0.0;
+	}
+	out << setw(16) << ev_numb << endl;
+      } else
+	cerr << "UserDiffuse: error opening <" << check_file << "> for append\n";
+    }
+  }
 
 }
 
@@ -214,6 +317,48 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 	deltaVperp*e1[k]*cosA +	// Perpendicular direction #1
 	deltaVperp*e2[k]*sinA ;	// Perpendicular direction #2
     
+
+				// Debug directions
+    if (check_ev) {
+
+      double tmp;
+				// 1*V
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * ev[k];
+      tmp /= vv;
+      ev_mean_th[id][0] += tmp;
+      ev_disp_th[id][0] += tmp*tmp;
+				// 2*V
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * e1[k];
+      tmp /= vv;
+      ev_mean_th[id][1] += tmp;
+      ev_disp_th[id][1] += tmp*tmp;
+				// 3*V
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * e2[k];
+      tmp /= vv;
+      ev_mean_th[id][2] += tmp;
+      ev_disp_th[id][2] += tmp*tmp;
+				// 1*2
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += ev[k] * e1[k];
+      ev_mean_th[id][3] += tmp;
+      ev_disp_th[id][3] += tmp*tmp;
+				// 1*3
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += ev[k] * e2[k];
+      ev_mean_th[id][4] += tmp;
+      ev_disp_th[id][4] += tmp*tmp;
+				// 2*3
+      tmp = 0.0;
+      for (int k=0; k<3; k++) tmp += e1[k] * e2[k];
+      ev_mean_th[id][5] += tmp;
+      ev_disp_th[id][5] += tmp*tmp;
+				// Increment counter
+      ev_numb_th[id]++;
+    }
+
   }
 
   return (NULL);
@@ -465,6 +610,13 @@ void UserDiffuse::get_coefs(double r, double v,
   double a0, a1, b0, b1;
   
 				// Enforce upper and lower bounds
+#ifdef DEBUG
+  if (r>1.1*Rmax)
+    cout << "Process " << myid << ": R=" << r
+	 << " V=" << v
+	 << " Rmin=" << Rmin << " Rmax=" << Rmax
+	 << ": radius out of bounds" << endl;
+#endif      
   r = max<double>(r, Rmin);
   r = min<double>(r, Rmax);
 
@@ -488,14 +640,20 @@ void UserDiffuse::get_coefs(double r, double v,
 
 				// Enforce upper and lower bounds
   double vrel = v/vmax;
+#ifdef DEBUG
+  if (vrel>1.4)
+    cout << "Process " << myid << ": R=" << r
+	 << " V=" << v << " Vmax=" << vmax
+	 << ": velocity out of bounds" << endl;
+#endif      
   vrel = max<double>(vrel, 0.0);
   vrel = min<double>(vrel, 1.0);
 
   indxV = (int)( vrel/delV-0.5 );
   indxV = min<int>(indxV, numv-2);
 
-  b0 = (delV*(indxV+1) - vrel)/delV;
-  b1 = (vrel - delV*(indxV  ))/delV;
+  b0 = (delV*(1.5+indxV) - vrel)/delV;
+  b1 = (vrel - delV*(0.5+indxV))/delV;
 
 
 				// Do the interpolation on all quatities

@@ -22,6 +22,7 @@
     @param nume is the number of energy integration knots for diff. coef.
     @param logr is set to 1 for radial logarithmic spacing in diff. coef. table
     @param use_file is set to 1 to read background model from "modfile"
+    @param check_ev is set to 1 to check coordinate rotations (debug only; don't use this for production)
     @param modfile contains the background model
     @param diverge set to extrapolate model for a power law cusp
     @param diverge_rfac exponent for the power law
@@ -43,6 +44,7 @@ private:
   int nume;
   bool logr;
   bool use_file;
+  bool check_ev;
   string modfile;
   int diverge;
   double diverge_rfac;
@@ -72,6 +74,10 @@ private:
   ACG *gen;
   Uniform *urand;
   Normal *nrand;
+
+  string check_file;
+  double **ev_mean_th, **ev_disp_th;
+  int *ev_numb_th;
 
 public:
 
