@@ -12,6 +12,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
 {
   id = "Rotational randomization";
 
+  seed = 11;			// For random number generator
   rate = 0.5;			// Rate relative to dyn time
   name = "";			// Default component name
   avoid = "";
@@ -76,6 +77,16 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   width = width*M_PI/180.0;
 
   userinfo();
+
+  // Debug
+
+  ndyn = 25;
+  dynmin = 0.001;
+  dynmax = 10.0;
+  ddyn = (log(dynmax) - log(dynmin))/(ndyn-1);
+
+  vector<int> *bins = new vector<int> [nthrds];
+  for (int n=0; n<nthrds; n++) bins[n] = vector<int>(ndyn, 0);
 }
 
 
@@ -83,6 +94,7 @@ UserDiffRot::~UserDiffRot()
 {
   delete gen;
   delete normal;
+  delete [] bins;
 }
 
 
@@ -112,6 +124,7 @@ void UserDiffRot::initialize()
   if (get_value("name", val))		name = val;
   if (get_value("avoid", val))		avoid = val;
   if (get_value("maxpm", val))		maxpm = atoi(val.c_str());
+  if (get_value("seed", val))		seed = atoi(val.c_str());
   if (get_value("rate", val))		rate = atof(val.c_str());
   if (get_value("width", val))		width = atof(val.c_str());
   if (get_value("seed", val))		seed = atoi(val.c_str());
@@ -122,7 +135,7 @@ void UserDiffRot::determine_acceleration_and_potential(void)
 {
   if (!c0) return;
 
-  // Get particles to avoid
+				// Get particles to avoid
   if (c1) {
 
     ipm = 0;
@@ -157,6 +170,39 @@ void UserDiffRot::determine_acceleration_and_potential(void)
   }
 
   exp_thread_fork(false);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (first) {
+    
+    cout << "Myid=" << myid << " in distribution diag\n";
+
+    for (int n=1; n<nthrds; n++) {
+      for (int j=0; j<ndyn; j++) bins[0][j] += bins[n][j];
+    }
+
+    vector<int> bin0(ndyn, 0);
+
+    cout << "Myid=" << myid << " about to call Reduce\n";
+
+    MPI_Reduce(&(bins[0][0]), &(bin0[0]), ndyn, MPI_INT, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+
+    cout << "Myid=" << myid << " returned from Reduce\n";
+
+    if (myid == 0) {
+
+      cout << "****************************************************************";
+      cout << "UserDiffRot: DTime distribution\n";
+      for (int i=0; i<ndyn; i++)
+	cout << setw(15) << exp(dynmin + ddyn*(0.5+i)) 
+	     << setw(10) << bin0[i] << endl;
+      cout << "****************************************************************";
+    }
+
+    first = false;
+  }
+
 }
 
 
@@ -164,15 +210,22 @@ double UserDiffRot::get_dtime(Particle& p)
 {
   double vv, E, Lx, Ly, Lz, dt;
 
-  // Compute energy
+				// Compute energy
   vv = 0.0;
   for (int k=0; k<3; k++)
     vv += p.vel[k] * p.vel[k];
       
-  E = 0.5*vv + p.pot;
+  E = 0.5*vv + p.pot + p.potext;
 
-  if (E>=0.0) E = -1.0e-10;
-  // Compute angular momentum
+  if (E>=0.0) {
+    E = -1.0e-08;
+    /*
+    cout << "Energy error:  T=" << 0.5*vv 
+	 << "  W=" << p.pot << ", " <<  p.potext << endl;
+    */
+  }
+
+				// Compute angular momentum
   Lx = 
     p.pos[1]*p.vel[2]-
     p.pos[2]*p.vel[1];
@@ -195,23 +248,59 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 {
   int nbodies = particles->size();
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   double phi, cosp, sinp, diffr;
   double xx, yy, uu, vv;
-
+  
   if (first) {
-    
+				// Debug
+    double dtmin = 1.0e20;
+    double dtmax = 0.0;
+    double dt;
+    int jindx;
+
     indx = (*particles)[nbeg].dattrib.size();
 
-    for (int i=nbeg; i<nend; i++)
-      (*particles)[i].dattrib.push_back(tnow + 
-					get_dtime((*particles)[i])/rate);
+    for (int i=nbeg; i<nend; i++) {
+      dt = get_dtime((*particles)[i]);
+      (*particles)[i].dattrib.push_back(tnow + dt/rate);
+      dtmin = min<double>(dt, dtmin);
+      dtmax = max<double>(dt, dtmax);
+      if (dt<=dynmin) jindx = 0;
+      else if (dt>=dynmax) jindx = ndyn-1;
+      else jindx = (int)(log(dt - dynmin)/ddyn);
+      bins[id][jindx]++;
+    }
+      
+				// Debug
     
-    first = false;
+    cout << "***Size check***: Myid=" << myid << "  id=" << id
+	 << "  nbeg=" << nbeg 
+	 << "  nend=" << nend 
+	 << "  size=" << (*particles)[nbeg].dattrib.size()
+	 << "\n";
+
+
+				// Debug
+    /*
+    cout << "****************************************************************"
+	 << endl
+	 << " UserDiffRot:"
+	 << "  myid=" << myid 
+	 << "  id=" << id 
+	 << "  indx=" << indx 
+	 << "  dtmin=" << dtmin 
+	 << "  dtmax=" << dtmax << endl
+	 << "****************************************************************"
+	 << endl;
+    */
+    // first = false;
   }
 
+
+  cout << "Myid=" << myid << "  id=" << id << " about to enter MAIN LOOP\n";
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -219,20 +308,38 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 
 				// Avoid?
     bool tooclose = false;
-    for (int n=0; n<ipm; n++) {
-      diffr = 0.0;
-      for (int k=0; k<3; k++)
-	diffr += 
-	  ((*particles)[i].pos[k] - pos[n*4+1+k]) *
-	  ((*particles)[i].pos[k] - pos[n*4+1+k]) ;
 
-      if (sqrt(diffr)<pos[n*4]) tooclose = true;
+    if (c1) {
+      cout << "Myid=" << myid << "  id=" << id << " in AVOID\n";
+      for (int n=0; n<ipm; n++) {
+	diffr = 0.0;
+	for (int k=0; k<3; k++)
+	  diffr += 
+	    ((*particles)[i].pos[k] - pos[n*4+1+k]) *
+	    ((*particles)[i].pos[k] - pos[n*4+1+k]) ;
+	
+	if (sqrt(diffr)<pos[n*4]) tooclose = true;
+      }
     }
     
     if (tooclose) continue;
 
+    if ((*particles)[i].dattrib.size() < indx+1) {
+      cout << "***Size error***: Myid=" << myid << "  id=" << id
+	   << "  check i=" << i 
+	   << "  nbeg=" << nbeg 
+	   << "  nend=" << nend 
+	   << "  size=" << (*particles)[i].dattrib.size()
+	   << "\n";
+    }
+
+    // cout << "Myid=" << myid << "  id=" << id << " n=" << i << "\n";
+
     if (tnow>(*particles)[i].dattrib[indx]) {
 
+      cout << "Myid=" << myid << "  id=" << id
+	   << "  time=" << (*particles)[i].dattrib[indx] << "\n";
+	   
       (*particles)[i].dattrib[indx] = tnow + get_dtime((*particles)[i])/rate;
 
 				// Do rotation
@@ -252,6 +359,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     }
 
   }
+
+  cout << "Myid=" << myid << "  id=" << id << " exiting MAIN LOOP\n";
 
   return (NULL);
 }

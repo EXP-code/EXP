@@ -75,6 +75,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
     c1 = NULL;
 
   userinfo();
+
 }
 
 UserBar::~UserBar()
@@ -357,7 +358,7 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
 {
   int nbodies = particles->size();
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 

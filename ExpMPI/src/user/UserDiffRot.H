@@ -37,6 +37,12 @@ private:
   ACG *gen;
   Normal *normal;
 
+  // Debug dynamical times
+
+  int ndyn;
+  double dynmin, dynmax, ddyn;
+  vector<int> *bins;
+
 public:
 
   //! Constructor
