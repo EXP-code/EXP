@@ -134,8 +134,10 @@ void UserBar::determine_acceleration_and_potential(void)
 				// Write to bar state file, if true
   bool update = false;
 
-  if (c1) c1->get_angmom();	// Tell component to compute angular momentum
+  if (c1) {
+    c1->get_angmom();	// Tell component to compute angular momentum
   // cout << "Lz=" << c1->angmom[2] << endl; // debug
+  }
 
   if (firstime) {
     
@@ -334,17 +336,20 @@ void UserBar::determine_acceleration_and_potential(void)
       out << setw(15) << tvel
 	  << setw(15) << posang
 	  << setw(15) << omega;
-      if (c1) 
-	out << setw(15) << Lz + Lz0 - c1->angmom[2];
+
+      if (c1)
+	out << setw(15) << Lz + Lz0 - c1->angmom[2]
+	    << setw(15) << c1->angmom[2];
       else
-	out << setw(15) << Lz;
-      out << setw(15) << c1->angmom[2]
-	  << setw(15) << amplitude *  
+	out << setw(15) << Lz
+	    << setw(15) << 0.0;
+
+      out << setw(15) << amplitude *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ))
 	  << endl;
     }
-
+  
 }
 
 
