@@ -32,6 +32,8 @@ int DiskHalo::NHT = 40;
 double DiskHalo::R_DF = 20.0;
 double DiskHalo::DR_DF = 5.0;
 
+bool DiskHalo::VERBOSE = false;
+
 static AxiSymModel *model;
 double targetmass;
 				// Determine radius with given enclosed mass
@@ -390,7 +392,11 @@ epi(double xp, double yp, double zp)
   cr[0] = 1.0 - cr[1];
 
 				// Limit extrapolation in radius
-  const double exfac = 0.5;
+
+				// Half a grid point
+  // const double exfac = 0.5;
+				// No extrapolation
+  const double exfac = 0.0;
 
   if (cr[0] > 1.0 + exfac) {
     cr[0] = 1.0 + exfac;
@@ -414,6 +420,9 @@ epi(double xp, double yp, double zp)
 	 << "  cp=" << cp[0] << ", " << cp[1] 
 	 << "  cr=" << cr[0] << ", " << cr[1] 
 	 << "  ans=" << ans 
+	 << "  iphi1=" << iphi1
+	 << "  iphi2=" << iphi2
+	 << "  ir=" << ir
 	 << "  ep1=" << epitable[iphi1][ir  ]
 	 << "  ep2=" << epitable[iphi1][ir+1]
 	 << "  ep3=" << epitable[iphi2][ir  ]
@@ -674,7 +683,7 @@ table_disk(vector<Particle>& part)
 	epirmin = max<double>(epirmin, RDMIN*exp(dR*j));
 	epijmin = max<int>(epijmin, j);
 
-	if (myid==0) {
+	if (myid==0 && VERBOSE) {
 	  cout << "Epitable error: R=" << RDMIN*exp(dR*j) 
 	       << " j=" << j
 	       << " Phi=" << dP*i 
@@ -687,8 +696,17 @@ table_disk(vector<Particle>& part)
   MPI_Allreduce(&epirmin, &epiRmin, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   MPI_Allreduce(&epijmin, &epiJmin, 1, MPI_INT,    MPI_MAX, MPI_COMM_WORLD);
 
-  if (myid==0) cout << "Epitable: Jmin=" << epiJmin 
-		    << " Rmin=" << epiRmin << endl;
+  epiJmin++;
+
+  if (myid==0) {
+    cout << "Epitable: Jmin=" << epiJmin 
+	 << " Rmin=" << epiRmin << endl;
+
+    double pcnt = (epiRmin-RDMIN)/(dR*(NDR-1));
+    if (pcnt > 0.01)
+      cout << "Epitable: Rmin is more that 1% of the total radial range ["
+	   << pcnt*100.0 << "]" << endl;
+  }
 
   if (myid==0)
   {

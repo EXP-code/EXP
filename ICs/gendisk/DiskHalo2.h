@@ -89,6 +89,8 @@ class DiskHalo
   static double R_DF;		// Change over points for DF and Jeans
   static double DR_DF;
 
+  static bool VERBOSE;		// Verbose error reporting
+
   //! Constructor
   DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
 	   double dz0, double dh, double dMd, string& filename,

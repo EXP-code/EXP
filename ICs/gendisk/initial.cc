@@ -122,6 +122,8 @@ int DF=0;
 double R_DF=20.0;
 double DR_DF=5.0;
 
+bool VERBOSE = false;
+
 double scale_height = 0.1;
 double scale_length = 2.0;
 double disk_mass = 1.0;
@@ -162,6 +164,7 @@ main(int argc, char **argv)
 	{"norder", 1, 0, 0},
 	{"numr", 1, 0, 0},
 	{"diverge", 1, 0, 0},
+	{"verbose", 0, 0, 0},
 	{"help", 0, 0, 0},
 	{0, 0, 0, 0}
       };
@@ -193,6 +196,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("hscale")) HSCALE = atof(optarg);
 	  if (!optname.compare("norder")) NORDER = atoi(optarg);
 	  if (!optname.compare("numr")) NUMR = atoi(optarg);
+	  if (!optname.compare("verbose")) VERBOSE = true;
 	  if (!optname.compare("diverge")) {
 	    DIVERGE = 1;
 	    DIVERGE_RFAC = atof(optarg);
@@ -344,6 +348,7 @@ main(int argc, char **argv)
   DiskHalo::Q = ToomreQ;        // Toomre Q
   DiskHalo::R_DF = R_DF;
   DiskHalo::DR_DF = DR_DF;
+  DiskHalo::VERBOSE = VERBOSE;
 
   AddDisk::use_mpi = true;
 
