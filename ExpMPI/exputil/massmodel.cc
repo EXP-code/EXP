@@ -7,9 +7,11 @@ const char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <math.h>
 #include <values.h>
-#include <fstream.h>
-#include <strstream.h>
 
+#include <iostream>
+#include <iomanip>
+#include <fstream>
+#include <strstream>
 #include <string>
 #include <vector>
 
@@ -18,9 +20,10 @@ const char rcsid[] = "$Id$";
 
 int wordSplit(string& x, vector<string>& words);
 
-static int even=1;
-
 int SphericalModelTable::count = 0;
+int SphericalModelTable::even = 0;
+int SphericalModelTable::logscale = 1;
+int SphericalModelTable::linear = 0;
 
 SphericalModelTable::SphericalModelTable(string filename, 
 			       int DIVERGE, double DIVERGE_RFAC, int EXTERNAL)
@@ -93,7 +96,7 @@ SphericalModelTable::SphericalModelTable(string filename,
     mass.x[i] = radius;
     pot.x[i] = radius;
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINFLOAT,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+MINDOUBLE,DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);
@@ -135,7 +138,7 @@ SphericalModelTable::SphericalModelTable(int NUM,
   dist_defined = false;
   num = NUM;
 
-  double radius;
+  double radius = 0.0;
 
   density.x.setsize(1,num);
   density.y.setsize(1,num);
@@ -161,7 +164,7 @@ SphericalModelTable::SphericalModelTable(int NUM,
     pot.x[i] = radius;
 
     if (DIVERGE)
-      density.y[i] *= pow(radius+MINFLOAT,DIVERGE_RFAC);
+      density.y[i] *= pow(radius+MINDOUBLE,DIVERGE_RFAC);
   }
   
   Spline(density.x, density.y, 0.0, 0.0, density.y2);
@@ -194,7 +197,10 @@ double SphericalModelTable::get_mass(double r)
   if (r<mass.x[1]) return mass.y[1];
   if (r>mass.x[mass.num]) return mass.y[mass.num];
   
-  Splint1(mass.x, mass.y, mass.y2, r, ans, even);
+  if (linear)
+    ans = odd2(r, mass.x, mass.y, even);
+  else
+    Splint1(mass.x, mass.y, mass.y2, r, ans, even);
   return ans;
 }
 
@@ -202,10 +208,23 @@ double SphericalModelTable::get_density(double r)
 {
   double ans;
 
-  if (r<density.x[1]) return density.y[1];
+  if (diverge) {
+
+    if (r<density.x[1])
+      ans = density.y[1];
+    else {
+      if (linear)
+	ans = odd2(r, density.x, density.y, even);
+      else
+	Splint1(density.x, density.y, density.y2, r, ans, even);
+    }
+    return ans*pow(r, -diverge_rfac);
+  }
+
   if (r>density.x[density.num]) return density.y[density.num];
   
   Splint1(density.x, density.y, density.y2, r, ans, even);
+
   return ans;
 }
 
@@ -215,14 +234,28 @@ double SphericalModelTable::get_pot(const double r)
 
   if (r<pot.x[1]) {
     if (diverge)
-      return -1.0/(r+1.0);
+      return pot.y[1] + 
+	4.0*M_PI*density.y[1]/(3.0-diverge_rfac)*
+	(
+	 pow(density.x[1], 2.0-diverge_rfac) -
+	 (pow(density.x[1], 3.0-diverge_rfac)/r - pow(r, 2.0-diverge_rfac))
+	 )
+	-4.0*M_PI*density.y[1]/(2.0-diverge_rfac)*
+	(
+	 pow(density.x[1], 2.0-diverge_rfac) -
+	 pow(r, 2.0-diverge_rfac)
+	 );
     else
       return pot.y[1];
   }
 
   if (r>pot.x[pot.num]) return pot.y[pot.num]*pot.x[pot.num]/r;
   
-  Splint1(pot.x, pot.y, pot.y2, r, ans, even);
+  if (linear)
+    Splint1(pot.x, pot.y, pot.y2, r, ans, even);
+  else
+    ans = odd2(r, pot.x, pot.y, even);
+
   return ans;
 }
 
@@ -231,15 +264,24 @@ double SphericalModelTable::get_dpot(const double r)
   double dum, ans;
 
   if (r<pot.x[1]) {
+
     if (diverge)
-      return 1.0/( (r+1.0)*(r+1.0) );
-    else
-      Splint2(pot.x, pot.y, pot.y2, pot.x[1], dum, ans, even);
+      ans = 4.0*M_PI*density.y[1]*pow(r, 2.0-diverge_rfac)/(3.0-diverge_rfac);
+    else {
+      if (linear)
+	ans = drv2(pot.x[1], pot.x, pot.y, even);
+      else
+	Splint2(pot.x, pot.y, pot.y2, pot.x[1], dum, ans, even);
+    }
   }
   else if (r>pot.x[pot.num]) 
     ans = -pot.y[pot.num]*pot.x[pot.num]/(r*r);
-  else
-    Splint2(pot.x, pot.y, pot.y2, r, dum, ans, even);
+  else {
+    if (linear)
+      ans = drv2(r, pot.x, pot.y, even);
+    else
+      Splint2(pot.x, pot.y, pot.y2, r, dum, ans, even);
+  }
 
   return ans;
 }
@@ -248,18 +290,39 @@ void SphericalModelTable::get_pot_dpot(const double r, double& ur, double &dur)
 {
   if (r<pot.x[1]) {
     if (diverge) {
-      ur = -1.0/(r+1.0);
-      dur = 1.0/( (r+1.0)*(r+1.0) );
+      ur =  pot.y[1] + 
+	4.0*M_PI*density.y[1]/(3.0-diverge_rfac)*
+	(
+	 pow(density.x[1], 2.0-diverge_rfac) -
+	 (pow(density.x[1], 3.0-diverge_rfac)/r - pow(r, 2.0-diverge_rfac))
+	 )
+	-4.0*M_PI*density.y[1]/(2.0-diverge_rfac)*
+	(
+	 pow(density.x[1], 2.0-diverge_rfac) -
+	 pow(r, 2.0-diverge_rfac)
+	 );
+      dur = 4.0*M_PI*density.y[1]*pow(r, 1.0-diverge_rfac)/(3.0-diverge_rfac);
     }
-    else
-      Splint2(pot.x, pot.y, pot.y2, pot.x[1], ur, dur, even);
+    else {
+      if (linear) {
+	ur = odd2(pot.x[1], pot.x, pot.y, even);
+	dur = drv2(pot.x[1], pot.x, pot.y, even);
+      }
+      else
+	Splint2(pot.x, pot.y, pot.y2, pot.x[1], ur, dur, even);
+    }
   }
   else if (r>pot.x[pot.num]) {
     ur = pot.y[pot.num]*pot.x[pot.num]/r;
     dur = -pot.y[pot.num]*pot.x[pot.num]/(r*r);
   }
   else {
-    Splint2(pot.x, pot.y, pot.y2, r, ur, dur, even);
+    if (linear) {
+      ur = odd2(r, pot.x, pot.y, even);
+      dur = drv2(r, pot.x, pot.y, even);
+    }
+    else
+      Splint2(pot.x, pot.y, pot.y2, r, ur, dur, even);
   }
 
 }
@@ -270,7 +333,8 @@ double SphericalModelTable::get_dpot2(const double r)
 
   if (r<pot.x[1]) {
     if (diverge)
-      return -2.0/( (r+1.0)*(r+1.0)*(r+1.0) );
+      ans = 4.0*M_PI*density.y[1]*pow(r, -diverge_rfac)*
+	(1.0-diverge_rfac)/(3.0-diverge_rfac);
     else
       Splint2(pot.x, pot.y, pot.y2, pot.x[1], dum, ans, even);
   }
