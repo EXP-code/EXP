@@ -156,7 +156,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
+    if (component->freeze((*particles)[i])) continue;
     
     use[id]++;
 

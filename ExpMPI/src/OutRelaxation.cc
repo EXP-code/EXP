@@ -69,7 +69,7 @@ void OutRelaxation::Run(int n, bool final)
 
     for (int i=1; i<=nbodies; i++) {
 
-      if ((c->particles)[i].freeze()) continue;
+      if (c->freeze((c->particles)[i])) continue;
 
 
       esave = (c->particles)[i].dattrib[epos];

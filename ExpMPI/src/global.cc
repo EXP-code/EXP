@@ -21,9 +21,6 @@ int nbalance = 0;		// Steps between load balancing
 double dbthresh = 0.05;		// Load balancing threshold (5% by default)
 double dtime = 0.1;		// Default time step size
 
-double rmax_tidal = 1.0e+04;	// Outside of this value, particle is 
-				// considered to be unbound
-
 bool use_cwd = true;
 bool restart = false;
 int NICE = 10;

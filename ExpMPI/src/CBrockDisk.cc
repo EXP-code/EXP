@@ -254,7 +254,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) // frozen particles do not respond
+    if (component->freeze((*particles)[i])) // frozen particles do not respond
       continue;
 
     mass = (*particles)[i].mass * adb;
@@ -338,9 +338,6 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
-
-    if ((*particles)[i].freeze()) // frozen particles do not respond
-      continue;
 
     for (int k=0; k<3; k++) 
       pos[k] = (*particles)[i].pos[k] - component->center[k];

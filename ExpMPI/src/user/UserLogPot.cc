@@ -59,8 +59,6 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
-
     xx = pos[0];
     yy = pos[1];
     zz = pos[2];

@@ -76,8 +76,6 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
-	
     r = 0.0;
     for (int k=0; k<3; k++) r += (*particles)[i].pos[k]*(*particles)[i].pos[k];
     r = sqrt(r);

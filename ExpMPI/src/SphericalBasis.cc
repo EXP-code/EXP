@@ -263,7 +263,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
+    if (component->freeze((*particles)[i])) continue;
 
     mass = (*particles)[i].mass * adb;
 
@@ -448,8 +448,6 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
-
-    if ((*particles)[i].freeze()) continue;
 
     fac1 = dfac;
 

@@ -317,7 +317,7 @@ void OutLog::Run(int n, bool last)
 
     for (p=c->particles.begin(); p!=c->particles.end(); p++) {
 
-      if (p->freeze()) continue;
+      if (c->freeze(*p)) continue;
 
       mtot1[indx] +=  p->mass;
       

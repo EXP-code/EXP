@@ -258,7 +258,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   for (int i=nbeg; i<nend; i++) {
 
 				// frozen particles don't contribute to field
-    if ((*particles)[i].freeze()) continue;
+    if (component->freeze((*particles)[i])) continue;
 
     for (int j=0; j<3; j++) 
       pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];
@@ -380,8 +380,6 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   for (i=nbeg; i<nend; i++) {
-
-    if ((*particles)[i].freeze()) continue;
 
     for (int j=0; j<3; j++) 
       pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];

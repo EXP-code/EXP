@@ -527,8 +527,6 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
-
     if (c0)
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
     else if (monopole)

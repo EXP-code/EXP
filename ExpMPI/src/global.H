@@ -34,9 +34,6 @@ extern double dbthresh;
 //! Time step
 extern double dtime;
 
-//! Ignore particles beyond this radius
-extern double rmax_tidal;
-
 //! Home directory for configuration files, etc.
 extern string homedir;
 

@@ -47,7 +47,7 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
 
     for (i=nbeg; i<nend; i++) {
       {
-	if ((cp->particles)[i].freeze()) continue;
+	if (cp->freeze((cp->particles)[i])) continue;
 	x = (cp->particles)[i].pos[0];
 	y = (cp->particles)[i].pos[1];
 	z = (cp->particles)[i].pos[2];

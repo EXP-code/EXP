@@ -151,8 +151,6 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
-
 				// Compute radius and velocity scalars
     rr = vv = vdotr = 0.0;
     for (int k=0; k<3; k++) {

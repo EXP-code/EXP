@@ -32,7 +32,7 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
+    if (component->freeze((*particles)[i])) continue;
 
     mass = (*particles)[i].mass * adb;
 
@@ -125,8 +125,6 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
-
-    if ((*particles)[i].freeze()) continue;
 
     if (ctr == ej) mfactor = 1.0 - A->mixture((*particles)[i]);
     else mfactor = A->mixture((*particles)[i]);

@@ -108,8 +108,6 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if ((*particles)[i].freeze()) continue;
-
     fac = U1*U1;
     for (int k=0; k<3; k++) {
       pos[k] = (*particles)[i].pos[k] - c0->com[k];

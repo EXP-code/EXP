@@ -50,6 +50,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   toff =  1.0e20;
   twid = 0.1;
 
+  rtrunc = 1.0e20;
+
   read_bodies_and_distribute_ascii();
 }
 
@@ -77,6 +79,8 @@ Component::Component(istream *in)
   ton  = -1.0e20;
   toff =  1.0e20;
   twid = 0.1;
+
+  rtrunc = 1.0e20;
 
   read_bodies_and_distribute_binary(in);
 }
@@ -126,7 +130,8 @@ void Component::initialize(void)
 
     if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
 
-    
+    if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str()); adiabatic = true;}
+
 				// Next parameter
     token = tokens(",");
   }
@@ -1090,7 +1095,7 @@ void Component::fix_positions(void)
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    if (p->freeze()) continue;
+    if (freeze(*p)) continue;
     
     mtot1 += p->mass;
 
@@ -1137,7 +1142,7 @@ void Component::fix_positions(void)
     pend = particles.end();
     for (p=particles.begin(); p != pend; p++) {
 
-      if (p->freeze()) continue;
+      if (freeze(*p)) continue;
 	
       for (int k=0; k<dim; k++) p->vel[k] -= cov[k];
     }
@@ -1169,7 +1174,7 @@ void Component::get_angmom(void)
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    if (p->freeze()) continue;
+    if (freeze(*p)) continue;
     
     angm1[0] += p->mass*(p->pos[1]*p->vel[2]-p->pos[2]*p->vel[1]);
     angm1[1] += p->mass*(p->pos[2]*p->vel[0]-p->pos[0]*p->vel[2]);
@@ -1711,6 +1716,14 @@ void Component::insert_particles(int from, int to, int begin, int number,
 }
 
 
+bool Component::freeze(const Particle& p)
+{
+  double r2 = 0.0;
+
+  for (int i=0; i<3; i++) r2 += (p.pos[i] - center[i])*(p.pos[i] - center[i]);
+  if (r2 > rtrunc*rtrunc) return true;
+  else return false;
+}
 
 double Component::Adiabatic()
 {

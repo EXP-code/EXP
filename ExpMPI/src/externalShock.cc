@@ -60,7 +60,7 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
       x = (*particles)[i].pos[0];
       z = (*particles)[i].pos[2];
 
-      if ((*particles)[i].freeze()) continue;
+      if (component->freeze((*particles)[i])) continue;
 
       (*particles)[i].acc[2] -= w2*x;
       (*particles)[i].potext += 0.5*w2*z*z;

@@ -308,7 +308,7 @@ void ComponentContainer::fix_acceleration(void)
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
     
-      if (p->freeze()) continue;
+      if (c->freeze(*p)) continue;
 
       mtot1 += p->mass;
       axcm1 += p->mass*p->acc[0];
@@ -334,7 +334,7 @@ void ComponentContainer::fix_acceleration(void)
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
 
-      if (p->freeze()) continue;
+      if (c->freeze(*p)) continue;
       p->acc[0] -= axcm;
       p->acc[1] -= aycm;
       p->acc[2] -= azcm;
@@ -390,7 +390,7 @@ void ComponentContainer::fix_positions(void)
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
     
-	if (p->freeze()) continue;
+	if (c->freeze(*p)) continue;
 
 	for (int k=0; k<3; k++) p->vel[k] -= gcov[k];
       }

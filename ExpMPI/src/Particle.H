@@ -45,8 +45,6 @@ public:
   //! Copy constructor
   Particle(const Particle &);
 
-  //! Is particle out of bounds?
-  bool freeze(void);
 };
 
 #endif

@@ -204,8 +204,8 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
   for (int j=nbeg; j<nend; j++) {
     
     i = rr2[j].second;
-
-    if ((*particles)[i].freeze()) continue;
+    
+    if (c->freeze((*particles)[i])) continue;
 
     ind = (int)(rr2[i].first/dr);
     if (ind>=tautab) continue;
