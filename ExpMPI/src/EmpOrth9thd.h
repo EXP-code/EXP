@@ -17,6 +17,7 @@
 
 #include "expand.h"
 
+//! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
 class EmpCylSL
 {
 private:
@@ -117,41 +118,76 @@ private:
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
 
 public:
-				// Global parameters
+
+  //! Type of density model to use
   enum EmpModel {
-    Exponential, 
+    Exponential,
     Gaussian, 
     Plummer
   };
 
+  //! TRUE if density is computed
   static bool DENS;
+
+  //! TRUE if signal-to-noise methods are on
   static bool SELECT;
+
+  //! TRUE if we are using coordinate mapping
   static bool CMAP;
+
+  //! TRUE if mapping is logarithmic
   static bool logarithmic;
 
+  //! Density model type
   static EmpModel mtype;
   
+  //! Radial basis grid in radial direction
   static int NUMX;
+ 
+  //! Radial basis grid in vertical direction
   static int NUMY;
+
+  //! Number of bases to print (for debug)
   static int NOUT;
+
+  //! Number of entries in radial basis table
   static int NUMR;
+
+  //! Minimum radial value for basis
   static double RMIN;
+
+  //! Maximum radial value for basis
   static double RMAX;
+
+  //! Radial scale length
   static double ASCALE;
+
+  //! Vertical scale height
   static double HSCALE;
+
+  //! Name of cache file
   static string CACHEFILE;
+
+  //! Name of cache table file
   static string TABLEFILE;
 
 
-				// Constructors
+  //! Constructor (reset must called later)
   EmpCylSL(void);
+
+  //! Constructor with parameters
   EmpCylSL(int numr, int lmax, int mmax, int nord);
+
+  //! Destructor
   ~EmpCylSL(void);
 
+  //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord);
+
+  //! Read basis from cache file
   int read_cache(void);
 
-				// Parameter access
+  //! Parameter access: get norder
   int get_order(void) {return NORDER;}
 
 				// Z coordinate transformation
@@ -160,32 +196,54 @@ public:
   inline double z_to_y(double z) { return asinh(z/HSCALE); }
   inline double y_to_z(double y) { return HSCALE*sinh(y); }
   */
+
+  //! Compute non-dimensional vertical coordinate from Z
   double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z)/HSCALE); }
+
+  //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }
 
-				// Main member functions
-
+  //! Compute new orthogonal basis from phase space on next step
   void compute_eof(void) { eof_recompute = true; }
 
+  //! Get basis function value
   void get_all(int m, int n, double r, double z, double phi,
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
+  //! Setup for accumulated coefficients
   void setup_accumulation(void);
+
+  //! Make coefficients from accumulated data
   void make_coefficients(void);
 
+  //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
+  //! Necessary member function currently unused (change design?)
   void determine_acceleration_and_potential() {};
 
+  //! Accumulate coefficients from particle distribution
   void accumulate(vector<Particle>& p);
+
+  //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass, int id);
+
+  //! Evaluate potential and force field 
   void accumulated_eval(double r, double z, double phi,
 			double& p, double& fr, double& fz, double& fp);
+
+  //! Evaluate density field
   double accumulated_dens_eval(double r, double z, double phi);
 
-  
+  //! Dump out coefficients to stream
   void dump_coefs(ostream& out);
+
+  //! Dump out coefficients to stream in bianry format
   void dump_coefs_binary_last(ostream& out, double time);
+
+  //! Dump out coefficients to stream in bianry format
   void dump_coefs_binary_curr(ostream& out, double time);
+
+  //! Plot basis
   void dump_basis(const string& name, int step);
 
   //! Utility
@@ -201,8 +259,13 @@ public:
 
   // @}
 
+  //! Convert from non-dimensional to dimensional radial coordinate
   double xi_to_r(double);
+
+  //! Convert from dimension to non-dimension radial coordinate
   double r_to_xi(double);
+
+  //! Jacobian
   double d_xi_to_r(double);
 
 };

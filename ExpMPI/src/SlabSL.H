@@ -13,6 +13,7 @@
 class SlabSL : public PotAccel
 {
 
+//! Header structure for Sturm-Liouville slab expansion
 struct SlabSLCoefHeader {
   double time;
   double zmax;

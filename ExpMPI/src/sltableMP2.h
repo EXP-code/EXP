@@ -1,4 +1,5 @@
 
+//! Holds the tabulated Sturm-Liouville basis for a cylindrical basis
 struct TableCyl {
 
   int m;
@@ -8,6 +9,8 @@ struct TableCyl {
   Matrix ef;
 };
 
+
+//! Holds the tabulated Sturm-Liouville basis for a spherical basis
 struct TableSph {
 
   int l;
@@ -16,6 +19,7 @@ struct TableSph {
   Matrix ef;
 };
 
+//! Holds the tabulated Sturm-Liouville basis for a slab basis
 struct TableSlab {
 
   int kx;

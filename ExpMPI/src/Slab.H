@@ -11,6 +11,7 @@
 class Slab : public PotAccel
 {
 
+//! Header structure for slab expansion
 struct SlabCoefHeader {
   double time;
   double zmax;

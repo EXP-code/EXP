@@ -2,7 +2,6 @@
 #include "expand.h"
 
 #include <gaussQ.h>
-#include <WghtOrth3.h>
 #include <EmpOrth9thd.h>
 
 #include <Orient.H>

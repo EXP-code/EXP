@@ -3,7 +3,7 @@
 
 #include <Vector.h>
 
-#include <EmpOrth7thd.h>
+#include <EmpOrth9thd.h>
 
 #include <Orient.H>
 #include <Basis.H>
@@ -17,7 +17,6 @@ private:
 
   Orient* orient;
   EmpCylSL *ortho;
-  CylindricalSL *orthoS;
   int eof, ncompcyl;
   double cyltime, cylmass;
 

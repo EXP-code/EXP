@@ -21,6 +21,7 @@
 #include <massmodel.h>
 #include <sltableMP2.h>
 
+//! Cylindrical SL grid class
 class SLGridCyl
 {
 
@@ -61,50 +62,68 @@ private:
 
 public:
 
-				// Global MPI stuff
-  static int mpi;		// default: 0=off
+  //! Global MPI indicator, default: 0=off
+  static int mpi;
 
-				// Check for cached table
-  static int cache;		// default: 1=yes
+  //! Check for cached table, default: 1=yes
+  static int cache;		
 
-				// Exponential scale length
-  static double A;		// default: 1.0
+  //! Exponential scale length, default: 1.0
+  static double A;		
 
-				// Coordinate map
-  static int cmap;		// default: 1=on
+  //! Coordinate map, default: 1=on
+  static int cmap;	
 
-				// Constructors
-
+  //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
 	 double l);
+
+  //! Destructor
   ~SLGridCyl();
 
 				// Members
 
+  //! Return eigenvalue for given order
   double eigenvalue(int m, int k, int n) {return table[m][k].ev[n];}
+  //! Dimensional to dimensionless coordinate mapping
   double r_to_xi(double r);
+  //! Dimensionless to dimensional coordinate mapping
   double xi_to_r(double x);
+  //! Jacobian of dimensionless mapping
   double d_xi_to_r(double x);
 
+  //! Get potential basis value
   double get_pot(double x, int m, int n, int k, int which=1);
+  //! Get density basis value
   double get_dens(double x, int m, int n, int k, int which=1);
+  //! Get force basis value
   double get_force(double x, int m, int n, int k, int which=1);
 
+  //! Fill vector with desired potential basis 
   void get_pot(Vector& vec, double x, int m, int k, int which=1);
+  //! Fill vector with desired density basis 
   void get_dens(Vector& vec, double x, int m, int k, int which=1);
+  //! Fill vector with desired force basis 
   void get_force(Vector& vec, double x, int m, int k, int which=1);
 
+  //! Fill Matrix with desired potential basis 
   void get_pot(Matrix& tab, double x, int m, int which=1);
+  //! Fill Matrix with desired potential basis 
   void get_dens(Matrix& tab, double x, int m, int which=1);
+  //! Fill Matrix with desired potential basis 
   void get_force(Matrix& tab, double x, int m, int which=1);
 
+  //! Fill Matricies with desired potential basis 
   void get_pot(Matrix* tab, double x, int mMin, int mMax, int which=1);
+  //! Fill Matricies with desired density basis 
   void get_dens(Matrix* tab, double x, int mMin, int mMax, int which=1);
+  //! Fill Matricies with desired force basis 
   void get_force(Matrix* tab, double x, int mMin, int mMax, int which=1);
 
 };
 
 
+//! Spherical SL grid class
 class SLGridSph
 {
 
@@ -183,6 +202,7 @@ public:
 };
 
 
+//! Slab (one-dimensional) SL grid class
 class SLGridSlab
 {
 
@@ -220,24 +240,29 @@ private:
 
 public:
 
-				// Global MPI stuff
-  static int mpi;		// default: 0=off
+  //! Global MPI flag, default: 0=off
+  static int mpi;	
 
-				// Check for cached table
-  static int cache;		// default: 1=yes
+  //! Check for cached table, default: 1=yes
+  static int cache;		
 
-  static double H;		// Scale height, default=0.1
+  //! Scale height, default=0.1
+  static double H;
 
-  static double L;		// Periodic box size, default=1.0
+  //! Periodic box size, default=1.0
+  static double L;
 
-  static double ZBEG;		// Offset from origin, default=1.0e-4
+  //! Offset from origin, default=1.0e-4
+  static double ZBEG;
 
-  static double ZEND;		// Potential offset, default=1.0e-5
+  //! Potential offset, default=1.0e-5
+  static double ZEND;
 
 
-				// Constructors
-
+  //! Constructor
   SLGridSlab(int kmax, int nmax, int numz, double zmax);
+
+  //! Destructor
   ~SLGridSlab();
 
 				// Members

@@ -33,6 +33,7 @@ private:
   bool firstime_coef;
   bool firstime_accel;
 
+  //! Grid to hold tabulated basis
   class RGrid {
   public:
     Matrix rw;
@@ -44,6 +45,7 @@ private:
   Vector r_grid;
   double r_grid_del;
 
+  //! Cache roots for spherical Bessel functions
   class Roots {
   public:
 

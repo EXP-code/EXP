@@ -5,6 +5,7 @@
 
 #include <PotAccel.H>
 
+//! Periodic cube basis
 class Cube : public PotAccel
 {
 
@@ -22,7 +23,10 @@ protected:
 
   void initialize(void);
 				// Parameters
+  //! Update me
   int nmaxx, nmaxy, nmaxz;
+
+  //! Update me
   int nminx, nminy, nminz;
 
 public:
@@ -30,7 +34,10 @@ public:
   //! Id string
   string id;
 
+  //! Constructor
   Cube(string& line);
+
+  //! Destructor
   ~Cube();
 
   void determine_coefficients(void);

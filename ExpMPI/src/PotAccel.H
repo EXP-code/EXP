@@ -12,6 +12,7 @@
 class PotAccel;
 class Component;
 
+//! Helper class to pass info to threaded member
 struct thrd_pass_PotAccel {
   PotAccel *t;
   bool coef;
