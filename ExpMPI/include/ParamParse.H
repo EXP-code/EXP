@@ -35,12 +35,14 @@ protected:
 
 public:
 
+  ParamParse(string Delim);
   ParamParse(istream* in, string Delim);
   
   void find_list(const string& stanza);
   int find_item(const string& name, string& value);
   int get_next(spair& ret);
   void print_database(ostream& out);
+  void add_item(const string& name, const string& value);
 };
 
 #endif

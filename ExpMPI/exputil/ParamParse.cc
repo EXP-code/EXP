@@ -125,6 +125,22 @@ ParamParse::ParamParse(istream* in, string Delim) :
   database.push_back(current);
   nstanza++;
 
+				// Make the current stanza the first
+  curstanza = database.begin();
+}
+
+ParamParse::ParamParse(string Delim) : 
+  curitem(NULL), enditem(NULL), curstanza(NULL), delim(Delim)
+{
+  Stanza current;
+				// Default name for first stanza
+  current.name = "global";
+  nstanza = 0;
+  database.push_back(current);
+  nstanza++;
+
+				// Make the current stanza the first
+  curstanza = database.begin();
 }
 
 void ParamParse::find_list(const string& stanza)
@@ -152,6 +168,16 @@ int ParamParse::find_item(const string& name, string& value)
   }
   return 0;
 }
+
+void ParamParse::add_item(const string& name, const string& value)
+{
+  spair p;
+
+  p.first = name;
+  p.second = value;
+  curstanza->elist.push_back(p);
+}
+
 
 int ParamParse::get_next(spair& ret)
 {
