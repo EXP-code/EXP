@@ -736,14 +736,16 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 #ifdef SEQCHECK
   if (niattrib == 0) {
     seq_ok = false;
-    cerr << "SEQCHECK is compiled but phase space does not have a sequence field\n";
-    cerr << "SEQCHECK is disabled\n";
+    if (myid==0) {
+      cerr << "SEQCHECK is compiled but phase space does not have a sequence field\n";
+      cerr << "SEQCHECK is disabled\n";
+    }
   }
 
   {
     int tmp = 0;
     if (seq_ok) tmp = 1;
-    MPI_Bcast(&tmp, 1, MPI_INT, 0 MPI_COMM_WORLD);
+    MPI_Bcast(&tmp, 1, MPI_INT, 0, MPI_COMM_WORLD);
     if (myid) seq_ok = tmp ? true : false;
   }
 #endif
