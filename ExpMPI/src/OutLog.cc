@@ -141,6 +141,7 @@ void OutLog::Run(int n, bool last)
     angm0 = vector<double>(3);
     mom0 = vector<double>(5);
     pos0 = vector<double>(3);
+    vel0 = vector<double>(3);
     
     ektot = vector<double>(comp.ncomp);
     ektot1 = vector<double>(comp.ncomp);
@@ -322,30 +323,35 @@ void OutLog::Run(int n, bool last)
       mtot1[indx] +=  p->mass;
       
       for (int j=0; j<3; j++) {
-	com1[indx][j] += p->mass*p->pos[j];
-	cov1[indx][j] += p->mass*p->vel[j];
+	pos0[j] = p->pos[j] - c->comI[j];
+	vel0[j] = p->vel[j] - c->covI[j];
+      }
+
+      for (int j=0; j<3; j++) {
+	com1[indx][j] += p->mass*(p->pos[j] + c->com0[j] - c->comI[j]);
+	cov1[indx][j] += p->mass*(p->vel[j] + c->cov0[j] - c->covI[j]);
 	mom1[indx][j] += p->mass*p->pos[j]*p->pos[j];
       }
 
       // Moment matrix off-diagonal terms
-      mom1[indx][3] += p->mass*p->pos[0]*p->pos[1];
-      mom1[indx][4] += p->mass*p->pos[0]*p->pos[2];
-      mom1[indx][5] += p->mass*p->pos[1]*p->pos[2];
+      mom1[indx][3] += p->mass*pos0[0]*pos0[1];
+      mom1[indx][4] += p->mass*pos0[0]*pos0[2];
+      mom1[indx][5] += p->mass*pos0[1]*pos0[2];
 
-      angm1[indx][0] += p->mass*(p->pos[1]*p->vel[2]-p->pos[2]*p->vel[1]);
-      angm1[indx][1] += p->mass*(p->pos[2]*p->vel[0]-p->pos[0]*p->vel[2]);
-      angm1[indx][2] += p->mass*(p->pos[0]*p->vel[1]-p->pos[1]*p->vel[0]);
+      angm1[indx][0] += p->mass*(pos0[1]*vel0[2] - pos0[2]*vel0[1]);
+      angm1[indx][1] += p->mass*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
+      angm1[indx][2] += p->mass*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
 
       for (int j=0; j<3; j++) pos0[j] = p->pos[j] - c->center[j];
-
+      
       eptot1[indx] += 0.5*p->mass*p->pot;
       eptotx1[indx] += p->mass*p->potext;
-      ektot1[indx] += 0.5*p->mass*
-	(p->vel[0]*p->vel[0]+p->vel[1]*p->vel[1]+p->vel[2]*p->vel[2]);
-      clausius1[indx] += p->mass*
-	(pos0[0]*p->acc[0]+pos0[1]*p->acc[1]+pos0[2]*p->acc[2]);
+      for (int j=0; j<3; j++) {
+	ektot1[indx] += 0.5*p->mass*vel0[j]*vel0[j];
+	clausius1[indx] += p->mass*pos0[j]*p->acc[j];
+      }
     }
-    
+
     for (int j=0; j<3; j++) ctr[indx][j] = c->center[j];
 
     used0[indx] = c->force->Used();

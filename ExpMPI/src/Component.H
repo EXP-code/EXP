@@ -266,6 +266,7 @@ public:
   */
   double mtot0;
   double *com0, *cov0, *acc0;
+  double *comI, *covI;
 
   //! Total mass
   double mtot;

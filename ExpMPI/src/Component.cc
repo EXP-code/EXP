@@ -223,9 +223,12 @@ void Component::initialize(void)
   com0 = new double[3];
   cov0 = new double[3];
   acc0 = new double[3];
+  comI = new double[3];
+  covI = new double[3];
 
-  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = com0[k] = cov0[k] = 
-			    acc0[k] = angmom[k] = EJcen[k] = 0.0;
+  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 
+			    com0[k] = cov0[k] = acc0[k] = comI[k] = covI[k] = 
+			    angmom[k] = EJcen[k] = 0.0;
 
   if (EJ) {
 
@@ -1065,11 +1068,11 @@ void Component::write_binary(ostream* out)
 	}
 
 	for (int i=0; i<3; i++) {
-	  pv = p[k].pos[i] + com0[i];
+	  pv = p[k].pos[i] + com0[i] - comI[i];
 	  out->write((char *)&pv, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
-	  pv = p[k].pos[i] + cov0[i];
+	  pv = p[k].pos[i] + cov0[i] - comI[i];
 	  out->write((char *)&pv, sizeof(double));
 	}
 
@@ -1102,8 +1105,8 @@ void Component::write_ascii(ostream* out, bool accel)
 
       for (int k=0; k<number; k++) {
 	*out << setw(18) << p[k].mass;
-	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i]+com0[i];
-	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i];
+	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i]+com0[i]-comI[i];
+	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i]-comI[i];
 	if (accel)
 	  for (int i=0; i<3; i++) *out << setw(18) << p[k].acc[i];
 
@@ -1162,6 +1165,11 @@ void Component::initialize_com_system()
     for (int k=0; k<dim; k++) cov0[k] /= mtot0;
   }
 
+  for (int k=0; k<dim; k++) {
+    comI[k] = com0[k];
+    covI[k] = cov0[k];
+  }
+
   delete [] com1;
   delete [] cov1;
 }
@@ -1183,7 +1191,7 @@ void Component::fix_positions(void)
 
 				// Center of mass system
   if (com_system) {
-    for (int i=0; i<3; i++) center[i] = com0[i];
+    for (int i=0; i<3; i++) center[i] = comI[i];
   } else {
     for (int i=0; i<3; i++) center[i] = 0.0;
   }

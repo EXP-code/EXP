@@ -71,7 +71,7 @@ private:
   vector<double> ektot, eptot, eptotx, clausius;
   vector<double> ektot1, eptot1, eptotx1, clausius1;
 
-  vector<double> com0, cov0, angm0, mom0, pos0;
+  vector<double> com0, cov0, angm0, mom0, pos0, vel0;
 
 public:
 
