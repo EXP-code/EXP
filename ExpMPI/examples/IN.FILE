@@ -16,7 +16,7 @@ orbtrace : norb = 5
 
 [external]
 # usertest : parm=3
-# userbar : U5=1.0 comname=sphereSL
+# userbar : U5=1.0, comname=sphereSL
 # usersat : comname=bessel
 
 [interaction]
