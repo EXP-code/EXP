@@ -16,6 +16,7 @@ pthread_mutex_t Cylinder::sin_coef_lock;
 
 Cylinder::Cylinder(string& line) : Basis(line)
 {
+  id = "Cylinder";
   geometry = cylinder;
 
 				// Default values

@@ -7,6 +7,7 @@ static char rcsid[] = "$Id$";
 
 Hernquist::Hernquist(string& line) : SphericalBasis(line)
 {
+  id = "Hernquist sphere";
   initialize();
   setup();
 }

@@ -11,6 +11,8 @@ static char rcsid[] = "$Id$";
 
 Cube::Cube(string& line) : PotAccel(line)
 {
+  id = "Cube";
+
   nminx = nminy = nminz = 0;
   nmaxx = nmaxy = nmaxz = 16;
 

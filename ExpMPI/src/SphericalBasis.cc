@@ -624,12 +624,10 @@ void SphericalBasis::get_dens_coefs(int l, Vector& coef, double *p)
 void SphericalBasis::dump_coefs(ostream& out)
 {
   char buf[64];
-  for (int i=0; i<64; i++) buf[i] = ' ';
   ostrstream sout(buf, 64);
-  sout << id;
+  sout << setfill(' ') << id << '\0';
 
   out.write(&buf, 64*sizeof(char));
-
   out.write(&tnow, sizeof(double));
   out.write(&scale, sizeof(double));
   out.write(&nmax, sizeof(int));

@@ -7,6 +7,8 @@ static char rcsid[] = "$Id$";
 
 CBrock::CBrock(string& line) : SphericalBasis(line)
 {
+  id = "Clutton-Brock sphere";
+
   initialize();
 
 				// Initialize grids for potential

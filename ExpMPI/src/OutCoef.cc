@@ -53,7 +53,8 @@ void OutCoef::initialize()
 
 void OutCoef::Run(int n, bool last)
 {
-  if (n % nint && !last && !(tcomp->force->HaveCoefDump())) return;
+  if (!(tcomp->force->HaveCoefDump())) return;
+  if (n % nint != 0 && !last) return;
 
   MPI_Status status;
 
@@ -64,7 +65,6 @@ void OutCoef::Run(int n, bool last)
     if (!out) {
       cout << "OutCoef: can't open file <" << filename << ">\n";
     }
-    if (out) out << setw(15) << tnow;
   }
   
   tcomp->force->dump_coefs(out);

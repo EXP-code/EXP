@@ -19,6 +19,7 @@ static char rcsid[] = "$Id$";
 
 Sphere::Sphere(string&line) : SphericalBasis(line)
 {
+  id = "Sphere SL";
 				// Defaults
   rmin = 1.0e-3;
   rs = 0.067*rmax;

@@ -14,6 +14,8 @@ static char rcsid[] = "$Id$";
 
 CBrockDisk::CBrockDisk(string& line) : AxisymmetricBasis(line)
 {
+  id = "Clutton-Brock two-dimensional disk";
+
   dof = 2;			// Two degrees of freedom
 
   rmax = 100.0;

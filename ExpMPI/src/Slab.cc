@@ -17,6 +17,7 @@ static const double KEPS=1.0e-6;
 
 Slab::Slab(string& line) : PotAccel(line)
 {
+  id = "Slab (trigonometric)";
   nminx = nminy = 0;
   nmaxx = nmaxy = nmaxz = 10;
   zmax = 10.0;

@@ -15,6 +15,7 @@ static char rcsid[] = "$Id$";
 
 SlabSL::SlabSL(string& line) : PotAccel(line)
 {
+  id = "Slab (Sturm-Liouville)";
   NGRID = 100;
   nminx = nminy = 0;
   nmaxx = nmaxy = nmaxz = 10;
