@@ -42,6 +42,8 @@ public:
 
   //! Prints the value table (for debugging)
   void PrintTable();
+
+  //! Tests member evaluations against table (for debugging)
   void TestTable();
 
 };
