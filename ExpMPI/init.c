@@ -174,6 +174,6 @@ void read_bodies_and_init(void)
 
 				/* Set center of mass and com velocity
 				   to zero for each component */
-  if (zerocom || zerovel) set_global_com();
+  if (!restart && (zerocom || zerovel)) set_global_com();
 
 }
