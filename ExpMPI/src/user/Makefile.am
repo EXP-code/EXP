@@ -37,5 +37,5 @@ libdisk_la_SOURCES = UserDisk.cc
 
 libtorque_la_SOURCES = UserTorque.cc
 
-librespot_la_SOURCES = UserResPot.cc ResPot.cc rotmatrix.cc BarForcing.cc
+librespot_la_SOURCES = UserResPot.cc ResPot.cc rotmatrix.cc BarForcing.cc Perturbation.cc
 
