@@ -267,9 +267,12 @@ public:
   /**
      Center of mass system coordinates
   */
-  double mtot0;
-  double *com0, *cov0, *acc0;
+  //@{
+  //! System mass, center of mass, center of velocity and acceleration
+  double mtot0, *com0, *cov0, *acc0;
+  //! Initial center of mass and velocity
   double *comI, *covI;
+  //@}
 
   //! Total mass
   double mtot;

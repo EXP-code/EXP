@@ -47,8 +47,6 @@ protected:
   const static int default_Kpts=4;
   //! Default value for number of points in orbit table
   const static int default_RECS=400;
-  //! 
-  const static double default_A=1.0e-2;
   //! Default offset from real axis
   const static double default_OMPI=0.03;
 

@@ -11,10 +11,19 @@ C++ object-oriented style.
 The project has two primary goals: 
 <ul>
 <li> To develop a state-of-the-art research tool for my own research
-and the research of my group
+and the research of my group and outside collaborators
 <li> To continue to advance the methodology to allow more complex
 galactic interactions to be studied
 </ul>
+</p>
+
+<p> The current version is ANSI C++ compliant (or nearly so) and
+includes dynamic loading of user libraries with a standard interface,
+allowing independent development and testing of force routines,
+component interactions, etc. without recompiling or affecting the main
+code (see: \ref modules).  The source is maintained with Concurrent
+Versions System <A HREF="http://www.cvshome.org">(CVS)</A> to
+facilitate collaborative development.
 </p>
 
 <p>
@@ -26,8 +35,8 @@ from the author to use it.
 <hr>
 <br>
 
-This project has been supported in part by the NASA ATP and NSF
-Astronomy.
+Research making use of and feeding back into this project has been
+supported in part by the NASA ATP and NSF Astronomy.
 
 */
 

@@ -5,7 +5,23 @@
 	limit.  Newer versions (e.g. on the buzzard cluster) do not
 	have this limitation.  Either periodically rename your output file 
 	or use the "outpsn" (see OutPSN) method, which writes each %dump 
-	to its own file.  You will be limited to about 40 million particles
-	without additional magic.
-	
+	to its own file.  
+
+	However, the standard production version of GNU C++ (v. 3.3)
+	has an iostream bug that also limits C++ streams to the same
+	2<sup>31</sup> file-size. This has been fixed by the gcc folks
+	and this problem will disappear in GNU C++ v 3.4.
+
+\par Q2. My loadable modules don't load.  What is wrong?
+
+	The global variable <code>ldlibdir</code> defines the
+	location of all the loadable libraries.  Make sure that
+	you include this in your input file, e.g. a line like:
+
+	<code> ldlibdir : /home/weinberg/lib/user </code>
+
+	The default value for <code>ldlibdir</code> is the current
+	directory, so if you want to test a particular module, you
+	can put it in your run directory without specifying a library
+	location.
 */

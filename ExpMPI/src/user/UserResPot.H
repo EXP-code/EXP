@@ -32,7 +32,7 @@
     @param A32 is the ratio of the minor axis to the submajor axis
     @param NUME is the grid in energy space for the force evaluation
     @param NUMK is the grid in kappa space for the force evaluation
-    @parm tag is the index of the use flag (if defined)
+    @param tag is the index of the use flag (if defined)
     @param use_background is 1 (0) if spherical potential is applied (not)
     @param model is the name of the file containing the model
     @param cgtrname is the name of component to whose center this force will be pinned

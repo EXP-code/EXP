@@ -265,9 +265,12 @@ void Component::initialize(void)
 	    // Backup up old file
 	  
 	    string backupfile = comfile + ".bak";
-	    string command("cp ");
-	    command += comfile + " " + backupfile;
-	    system(command.c_str());
+	    if (rename(comfile.c_str(), backupfile.c_str())) {
+	      ostringstream message;
+	      message << "Component: error making backup file <" 
+		      << backupfile << ">\n";
+	      bomb(message.str().c_str());
+	    }
 
 	    // Open new output stream for writing
 	  
