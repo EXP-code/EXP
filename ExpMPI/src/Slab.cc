@@ -123,6 +123,7 @@ void * Slab::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
+  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -167,10 +168,12 @@ void * Slab::determine_coefficients_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << iiy << endl;
 	}
 	
+	zz = (*particles)[i].pos[2] - component->center[2];
+
 	if (iix>=iiy)
-	  trig[iix][iiy].potl(dum, dum, (*particles)[i].pos[2], zpot[id]);
+	  trig[iix][iiy].potl(dum, dum, zz, zpot[id]);
 	else
-	  trig[iiy][iix].potl(dum, dum, (*particles)[i].pos[2], zpot[id]);
+	  trig[iiy][iix].potl(dum, dum, zz, zpot[id]);
 
 	for (iz=0; iz<imz; iz++) {
 
@@ -209,6 +212,7 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -242,13 +246,15 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << iiy << endl;
 	}
 	
+	zz = (*particles)[i].pos[2] - component->center[2];
+
 	if (iix>=iiy) {
-	  trig[iix][iiy].potl(dum, dum, (*particles)[i].pos[2], zpot[id]);
-	  trig[iix][iiy].force(dum, dum, (*particles)[i].pos[2], zfrc[id]);
+	  trig[iix][iiy].potl(dum, dum, zz, zpot[id]);
+	  trig[iix][iiy].force(dum, dum, zz, zfrc[id]);
 	}
 	else {
-	  trig[iiy][iix].potl(dum, dum, (*particles)[i].pos[2], zpot[id]);
-	  trig[iiy][iix].force(dum, dum, (*particles)[i].pos[2], zfrc[id]);
+	  trig[iiy][iix].potl(dum, dum, zz, zpot[id]);
+	  trig[iiy][iix].force(dum, dum, zz, zfrc[id]);
 	}
 	
 	for (iz=0; iz<imz; iz++) {

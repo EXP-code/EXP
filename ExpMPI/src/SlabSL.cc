@@ -125,6 +125,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
+  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -169,10 +170,12 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << iiy << endl;
 	}
 	
+	zz = (*particles)[i].pos[2] - component->center[2];
+
 	if (iix>=iiy)
-	  grid->get_pot(zpot[id], (*particles)[i].pos[2], iix, iiy);
+	  grid->get_pot(zpot[id], zz, iix, iiy);
 	else
-	  grid->get_pot(zpot[id], (*particles)[i].pos[2], iiy, iix);
+	  grid->get_pot(zpot[id], zz, iiy, iix);
 
 
 	for (iz=0; iz<imz; iz++) {
@@ -210,6 +213,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double zz;
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -243,13 +247,15 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << iiy << endl;
 	}
 	
+	zz = (*particles)[i].pos[2] - component->center[2];
+
 	if (iix>=iiy) {
-	  grid->get_pot  (zpot[id], (*particles)[i].pos[2], iix, iiy);
-	  grid->get_force(zfrc[id], (*particles)[i].pos[2], iix, iiy);
+	  grid->get_pot  (zpot[id], zz, iix, iiy);
+	  grid->get_force(zfrc[id], zz, iix, iiy);
 	}
 	else {
-	  grid->get_pot  (zpot[id], (*particles)[i].pos[2], iiy, iix);
-	  grid->get_force(zfrc[id], (*particles)[i].pos[2], iiy, iix);
+	  grid->get_pot  (zpot[id], zz, iiy, iix);
+	  grid->get_force(zfrc[id], zz, iiy, iix);
 	}
 	
 	for (iz=0; iz<imz; iz++) {
