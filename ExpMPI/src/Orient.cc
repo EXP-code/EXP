@@ -105,15 +105,6 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
       const int cbufsiz = 16384;
       char *cbuffer = new char [cbufsiz];
-
-				// Look for header and write it
-      while (in) {
-	in.getline(cbuffer, cbufsiz);
-	if (!in) break;
-	string line(cbuffer);
-	out << cbuffer << "\n";
-	if (line.find_first_of("Time") != string::npos) break;
-      }
 	
 				// Look for data and write it while
 				// accumlating data for averaging
@@ -154,12 +145,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
-      cout << " Orient: cached axis master: " 
+      cout << " Orient: cached axis master (size=" << sumsA.size() << "): " 
 	   << axis[1] << ", "
 	   << axis[2] << ", "
 	   << axis[3] << endl;
 
-      cout << " Orient: cached center master: " 
+      cout << " Orient: cached center master (size=" << sumsC.size() << "): " 
 	   << center0[1] << ", "
 	   << center0[2] << ", "
 	   << center0[3] << endl;
