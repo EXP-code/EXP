@@ -137,18 +137,39 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   // Read omega file
   if (omegatab) {
     ifstream in(fileomega.c_str());
+    const int sizebuf = 1024;
+    char linebuf[sizebuf];
+
     double t, om;
     if (in) {
-      in >> t;
-      in >> om;
-      if (in) {
-	Time.push_back(t);
-	Omega.push_back(om);
+
+      while (in) {
+	in.getline(linebuf, sizebuf);
+	if (!in) break;
+	if (linebuf[0]=='#') continue;
+
+	istringstream sin(linebuf);
+	sin >> t;
+	sin >> om;
+	if (sin) {
+	  Time.push_back(t);
+	  Omega.push_back(om);
+	}
       }
+
     } else {
       cout << "UserEBarP could not open <" << fileomega << ">\n";
       MPI_Abort(MPI_COMM_WORLD, 103);
     }
+    
+    // Debugging
+    /* 
+    if (myid==0) {
+      ofstream out("testebarp.dat");
+      for (unsigned i=0; i<Time.size(); i++)
+	out << setw(15) << Time[i] << setw(15) << Omega[i] << endl;
+    }
+    */
   }
 
   userinfo();
@@ -457,8 +478,15 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
   } else {
 
-    if (omegatab) 
+    if (omegatab) {
       omega = get_omega(tpos);
+      // Debugging
+      /*
+      if (myid==0) {
+	cout << "Debug: t=" << tpos << " omega=" << omega << endl;
+      }
+      */
+    }
     else if (!fixed) {
       if (c1)
 	omega = (Lz + Lz0 - c1->angmom[2])/Iz;

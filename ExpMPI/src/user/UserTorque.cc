@@ -20,7 +20,7 @@ private:
 
   int numx, numy, sgn;
   float xmin, xmax, ymin, ymax;
-  double dX, dY, ton, toff, delta;
+  double dX, dY, ton, toff, delta, boost;
   vector<fvector> array;
 
   int diverge;
@@ -59,6 +59,7 @@ UserTorque::UserTorque(string &line) : ExternalForce(line)
   ton =-1.0e20;
   toff= 1.0e20;
   delta = 0.25;
+  boost = 1.0;
 
   initialize();
 
@@ -116,6 +117,7 @@ void UserTorque::initialize()
   if (get_value("ton", val))		ton = atof(val);
   if (get_value("toff", val))		toff = atof(val);
   if (get_value("delta", val))		delta = atof(val);
+  if (get_value("boost", val))		boost = atof(val);
   
   ifstream in(file_name.c_str());
   if (in) {
@@ -150,41 +152,23 @@ void UserTorque::initialize()
 
 double UserTorque::interpolate(double E, double K)
 {
+  if (E<=xmin || E>=xmax) return 0.0;
+  if (K<=ymin || K>=ymax) return 0.0;
+
   int indx, indy;
   double ax, bx, ay, by;
 
-  if (E<=xmin) {
-    indx = 0;
-    ax = 1.0;
-    bx = 0.0;
-  } else if (E>=xmax) {
-    indx = numx-2;
-    ax = 0.0;
-    bx = 1.0;
-  } else {
-    indx = (int)( (E - xmin)/dX );
-    indx = max<int>(0, indx);
-    indx = min<int>(numx-2, indx);
-    ax = (E - dX*indx - xmin)/dX;
-    bx = 1.0 - ax;
-  }
+  indx = (int)( (E - xmin)/dX );
+  indx = max<int>(0, indx);
+  indx = min<int>(numx-2, indx);
+  ax = (E - dX*indx - xmin)/dX;
+  bx = 1.0 - ax;
 
-  
-  if (K<=ymin) {
-    indy = 0;
-    ay = 1.0;
-    by = 0.0;
-  } else if (E>=ymax) {
-    indy = numy-2;
-    ay = 0.0;
-    by = 1.0;
-  } else {
-    indy = (int)( (K - ymin)/dY );
-    indy = max<int>(0, indy);
-    indy = min<int>(numy-2, indy);
-    ay = (K - dY*indy - ymin)/dY;
-    by = 1.0 - ay;
-  }
+  indy = (int)( (K - ymin)/dY );
+  indy = max<int>(0, indy);
+  indy = min<int>(numy-2, indy);
+  ay = (K - dY*indy - ymin)/dY;
+  by = 1.0 - ay;
 
   double ret =
     ax*ay*array[indy  ][indx  ] +
@@ -205,7 +189,7 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double amp = 0.25*sgn*
+  double amp = 0.25*sgn*boost*
     (1.0 + erf((tpos-ton )/delta)) *
     (1.0 + erf((toff-tpos)/delta)) ;
 
@@ -238,8 +222,8 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
 				// Increase/decrease tangential velocity
     phi = atan2(pos[1], pos[0]);
     
-    (*particles)[i].acc[0] += torque*cos(phi)/rr;
-    (*particles)[i].acc[1] += torque*sin(phi)/rr;
+    (*particles)[i].acc[0] += -torque*sin(phi)/rr;
+    (*particles)[i].acc[1] +=  torque*cos(phi)/rr;
   }
 
   return (NULL);
