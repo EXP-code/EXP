@@ -10,6 +10,7 @@
 #include <UserResPot.H>
 #include <BarForcing.H>
 
+#include <sstream>
 
 UserResPot::UserResPot(string &line) : ExternalForce(line)
 {
@@ -51,6 +52,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   model_file = "SLGridSph.model";
   ctr_name = "";		// Default component for com is none
 
+				// Log file name
+  filename = "ResPot." + runtag;
+
   initialize();
 
   if (ctr_name.size()>0) {
@@ -71,7 +75,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
     if (!found) {
       cerr << "Process " << myid << ": can't find desired component <"
 	   << ctr_name << ">" << endl;
-      MPI_Abort(MPI_COMM_WORLD, 35);
     }
 
   }
@@ -99,6 +102,15 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
 
+  pos = new double* [nthrds];
+  vel = new double* [nthrds];
+  acc = new double* [nthrds];
+  for (int i=0; i<nthrds; i++) {
+    pos[i] = new double [3];
+    vel[i] = new double [3];
+    acc[i] = new double [3];
+  }
+
   userinfo();
 }
 
@@ -107,6 +119,14 @@ UserResPot::~UserResPot()
   delete halo_model;
   delete halo_ortho;
   delete respot;
+  for (int i=0; i<nthrds; i++) {
+    delete [] pos[i];
+    delete [] vel[i];
+    delete [] acc[i];
+  }
+  delete [] pos;
+  delete [] vel;
+  delete [] acc;
 }
 
 void UserResPot::userinfo()
@@ -125,6 +145,10 @@ void UserResPot::userinfo()
        << ", Ton=" << ton
        << ", Toff=" << toff
        << ", Delta=" << delta
+       << ", L=" << L0
+       << ", M=" << M0
+       << ", l_1=" << L1
+       << ", l_2=" << L2
        << "\n";
   print_divider();
 }
@@ -169,6 +193,7 @@ void UserResPot::initialize()
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
+  if (get_value("filename", val)) filename = val;
 }
 
 void UserResPot::determine_acceleration_and_potential(void)
@@ -176,12 +201,113 @@ void UserResPot::determine_acceleration_and_potential(void)
   double Omega = omega*(1.0 + domega*(tnow - t0));
   
   if (first) {
-    phase = Omega*tnow;		// Initial phase
+
+    if (restart) {
+
+      if (myid == 0) {
+				// Backup up old file
+	string backupfile = filename + ".bak";
+	string command("cp ");
+	command += filename + " " + backupfile;
+	system(command.c_str());
+	
+				// Open new output stream for writing
+	ofstream out(filename.c_str());
+	if (!out) {
+	  cout << "UserResPot: error opening new log file <" 
+	       << filename << "> for writing\n";
+	  MPI_Abort(MPI_COMM_WORLD, 121);
+	  exit(0);
+	}
+	
+				// Open old file for reading
+	ifstream in(backupfile.c_str());
+	if (!in) {
+	  cout << "UserResPot: error opening original log file <" 
+	       << backupfile << "> for reading\n";
+	  MPI_Abort(MPI_COMM_WORLD, 122);
+	  exit(0);
+	}
+
+	const int linesize = 1024;
+	char line[linesize];
+	
+	in.getline(line, linesize); // Discard header
+	in.getline(line, linesize); // Next line
+
+	double phase1, omlast1, tlast1;
+	bool firstline = true;
+
+	while (in) {
+	  istringstream ins(line);
+
+	  ins >> tlast1;
+	  ins >> phase1;
+	  ins >> omlast1;
+
+	  if (tlast1 >= tpos) {
+	    if (firstline) {
+	      cerr << "UserResPot: can't read log file, aborting" << endl;
+	      MPI_Abort(MPI_COMM_WORLD, 123);
+	    }
+	    break;
+	  }
+
+	  firstline = false;
+	  tlast = tlast1;
+	  phase = phase1;
+	  omlast = omlast1;
+
+	  out << line << "\n";
+
+	  in.getline(line, linesize); // Next line
+	}
+				// Trapezoidal rule step
+	phase += (tnow - tlast)*0.5*(Omega + omlast);
+      }
+
+      MPI_Bcast(&tlast, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&phase, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&omega, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+
+    if (!restart) {
+
+      if (myid==0) {		// Write header
+	ofstream out(filename.c_str(), ios::out | ios::app);
+	out.setf(ios::left);
+	out << setw(15) << "# Time"
+	    << setw(15) << "Phase"
+	    << setw(15) << "Omega"
+	    << endl;
+      }
+      
+      phase = Omega*tnow;		// Initial phase 
+    }
+
     first = false;
+
   } else {			// Trapezoidal rule integration
     phase += (tnow - tlast)*0.5*(Omega + omlast);
   }
 
+				// Write log
+  if (myid==0) {
+    ofstream out(filename.c_str(), ios::out | ios::app);
+    out << setw(15) << tnow
+	<< setw(15) << phase
+	<< setw(15) << omega
+	<< endl;
+  }
+      
+				// Debug
+  if (myid==3) {
+    ofstream out("userrespot.test", ios::out | ios::app);
+    out << setw(18) << tnow 
+	<< setw(18) << phase 
+	<< setw(18) << omega
+	<< endl;
+  }
 				// Store current state
   tlast = tnow;
   omlast = Omega;
@@ -191,7 +317,6 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double pos[3], vel[3], acc[3];
   double amp, R2, R, pot, dpot, pot2;
   
   int nbodies = particles->size();
@@ -207,26 +332,29 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k];
-      if (c0) pos[k] -= c0->com[k];
-      vel[k] = (*particles)[i].vel[k];
-      R2 += pos[k]*pos[k];
+      pos[id][k] = (*particles)[i].pos[k];
+      if (c0) pos[id][k] -= c0->com[k];
+      vel[id][k] = (*particles)[i].vel[k];
+      R2 += pos[id][k]*pos[id][k];
     }
     R = sqrt(R2);
 
-    halo_model->get_pot_dpot(R, pot, dpot);
+    if (use_background) halo_model->get_pot_dpot(R, pot, dpot);
 
-    respot->ForceCart(pos, vel, phase, bcoef, pot2, acc[0], acc[1], acc[2]);
-
+    double fx, fy, fz;
+    respot->ForceCart(pos[id], vel[id], phase, bcoef, pot2, fx, fy, fz);
+    acc[id][0] = fx;
+    acc[id][1] = fy;
+    acc[id][2] = fz;
 
     for (int k=0; k<3; k++) {
-      acc[k] *= amp;
-      if (use_background && R>0.0) acc[k] += -dpot*pos[k]/R;
+      acc[id][k] *= amp;
+      if (use_background && R>0.0) acc[id][k] += -dpot*pos[id][k]/R;
     }
     
-    for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];
+    for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[id][k];
     
-    (*particles)[i].potext += amp * pot2;
+    (*particles)[i].potext += amp * (*particles)[i].mass * pot2;
     
     if (use_background)
       (*particles)[i].potext += (*particles)[i].mass * pot;

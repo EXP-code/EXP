@@ -1,13 +1,16 @@
+#include <iostream>
+#include <iomanip>
+
 #include <values.h>
 #include <ResPot.H>
-#include <gaussQ.h>
 
 double ResPot::DELTA = 0.01;
-int ResPot::NREC = 10;
+int ResPot::NREC = 40;
 int ResPot::NUME = 100;
 int ResPot::NUMK = 20;
-bool ResPot::use_grid = true;
 KComplex ResPot::I(0.0, 1.0);
+
+#include <localmpi.h>
 
 ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
 	       int l, int m, int l1, int l2, int nmax)
@@ -23,21 +26,22 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
   L2 = l2;
   NMAX = nmax;
 
-  Emax = halo_model->get_pot(halo_model->get_max_radius())*(1.0+DELTA);
-  Emin = halo_model->get_pot(halo_model->get_min_radius())*(1.0-DELTA);
+  Rmin = halo_model->get_min_radius();
+  Rmax = halo_model->get_max_radius();
+  Emax = halo_model->get_pot(Rmax)*(1.0+DELTA);
+  Emin = halo_model->get_pot(Rmin)*(1.0-DELTA);
   Kmin = DELTA;
   Kmax = 1.0-DELTA;
-
-  lq = new LegeQuad(NREC);
 
   // SphericalOrbit::RMAXF=1.0;
   orb = new SphericalOrbit(halo_model);
   orb->set_biorth(*halo_ortho, L, NMAX);
+
+  compute_grid();
 }
 
 ResPot::~ResPot()
 {
-  delete lq;
   delete orb;
 }
 
@@ -88,9 +92,6 @@ void ResPot::compute_grid()
   }
 
   ngrid = orb->get_angle_grid()->num;
-  tw = vector<double>(ngrid);
-  tf = vector<double>(ngrid);
-  tr = vector<double>(ngrid);
 
   grid_computed = true;
 }
@@ -111,9 +112,6 @@ double ResPot::Pot(double* pos, double* vel, double phase, CVector &bcoef)
 
   if (r>halo_model->get_max_radius()) return 0.0;
 
-  if (use_grid) compute_grid();
-
-
   // Compute E, J, beta
   // ------------------
 
@@ -131,173 +129,106 @@ double ResPot::Pot(double* pos, double* vel, double phase, CVector &bcoef)
 
   if (J>0.0) beta = acos(angmom[2]/J);
   
-  if (use_grid) {
+  // Linear interpolation coefficients
+  // ---------------------------------
 
-    // Linear interpolation coefficients
-    // ---------------------------------
+  double cE[2], cK[2];
 
-    double cE[2], cK[2];
+  E = max<double>(E, Emin);
+  E = min<double>(E, Emax);
 
-    E = max<double>(E, Emin);
-    E = min<double>(E, Emax);
+  int indxE = (int)( (E-Emin)/dE );
 
-    int indxE = (int)( (E-Emin)/dE );
+  indxE = max<int>(indxE, 0);
+  indxE = min<int>(indxE, NUME-2);
 
-    indxE = max<int>(indxE, 0);
-    indxE = min<int>(indxE, NUME-2);
-
-    cE[0] = (EE[indxE+1] - E)/dE;
-    cE[1] = 1.0 - cE[0];
+  cE[0] = (EE[indxE+1] - E)/dE;
+  cE[1] = 1.0 - cE[0];
     
-    double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
+  double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
     
-    K = J/Jm;
-    K = max<double>(K, Kmin);
-    K = min<double>(K, Kmax);
+  K = J/Jm;
+  K = max<double>(K, Kmin);
+  K = min<double>(K, Kmax);
 
-    int indxK = (int)( (K-Kmin)/dK );
+  int indxK = (int)( (K-Kmin)/dK );
 
-    indxK = max<int>(indxK, 0);
-    indxK = min<int>(indxK, NUMK-2);
+  indxK = max<int>(indxK, 0);
+  indxK = min<int>(indxK, NUMK-2);
 
-    cK[0] = (KK[indxK+1] - K)/dK;
-    cK[1] = 1.0 - cK[0];
+  cK[0] = (KK[indxK+1] - K)/dK;
+  cK[1] = 1.0 - cK[0];
 
-    double theta=0.0;
-    if (r>0.0) theta = acos(pos[2]/r);
-    double phi = atan2(pos[1], pos[0]);
+  double theta=0.0;
+  if (r>0.0) theta = acos(pos[2]/r);
+  double phi = atan2(pos[1], pos[0]);
 
     
-    // Compute angles
-    // --------------
+  // Compute angles
+  // --------------
   
-    KComplex Ul=0.0;
-    double w1=0.0, w2=0.0, w3, f=0.0, fac, psi;
-    int num;
+  KComplex Ul=0.0;
+  double w1=0.0, w2=0.0, w3, f=0.0, fac, psi;
+  int num;
 
-    for (int n=0; n<ngrid; n++) tw[n] = tf[n] = tr[n] = 0.0;
+  vector<double> tw(ngrid, 0.0);
+  vector<double> tf(ngrid, 0.0);
+  vector<double> tr(ngrid, 0.0);
 
-    for (int i1=0; i1<2; i1++) {
-      for (int i2=0; i2<2; i2++) {
-	RW *rw = &(orbmat[indxE+i1][indxK+i2]);
-	num = rw->num;
-	fac = cE[i1]*cK[i2];
+  for (int i1=0; i1<2; i1++) {
+    for (int i2=0; i2<2; i2++) {
+      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      num = rw->num;
+      fac = cE[i1]*cK[i2];
 
-	for (int n=0; n<ngrid; n++) {
-	  tw[n] += fac * rw->w1[n];
-	  tf[n] += fac * rw->f[n];
-	  tr[n] += fac * rw->r[n];
-	}
+      for (int n=0; n<ngrid; n++) {
+	tw[n] += fac * rw->w1[n];
+	tf[n] += fac * rw->f[n];
+	tr[n] += fac * rw->r[n];
+      }
 
-	for (int n=1; n<=NMAX; n++) {
-	  Ul += fac * rw->W[n-1] * bcoef[n];
-	}
+      for (int n=1; n<=NMAX; n++) {
+	Ul += fac * rw->W[n-1] * bcoef[n];
       }
     }
-
-    w1 = odd2(r, tr, tw);
-    f  = odd2(r, tr, tf);
-
-    if (rv < 0.0) {
-      w1 = 2.0*M_PI - w1;
-      f *= -1.0;
-    }
-
-    
-    w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
-
-
-    if (fabs(beta)<1.0e-08) psi = phi - w3;
-    else {
-      double tmp = cos(theta)/sin(beta);
-
-      if (fabs(tmp)>1.0) {
-	if (tmp>1.0) psi =  0.5*M_PI;
-	else         psi = -0.5*M_PI;
-      } 
-      else psi = asin(tmp);
-
-				// Map into [-Pi, Pi]
-      phi = atan2(sin(phi-w3), cos(phi-w3));
-
-				// Psi branch
-      if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
-    }
-
-    w2 = psi + f;
-
-    double arga = w1*L1 + w2*L2 + w3*M - phase*M;
-
-    Ul *= VeeBeta(L, L2, M, beta) * exp(I*arga);
-
-    return Ul.real();
-
-  } else {
-
-    E = max<double>(E, Emin);
-    E = min<double>(E, Emax);
-
-    orb->new_orbit(E, 0.5);
-    
-    K = J/orb->Jmax();
-    K = max<double>(K, Kmin);
-    K = min<double>(K, Kmax);
-
-    orb->new_orbit(E, K);
-
-    double theta=0.0;
-    if (r>0.0) theta = acos(pos[2]/r);
-    double phi = atan2(pos[1], pos[0]);
-
-    
-    // Compute angles
-    // --------------
-  
-    double w1, w2, w3, f, psi;
-    orb->get_angle(2, 0.0);
-    struct ANGLE_GRID * grid = orb->get_angle_grid();
-	
-    w1 = odd2(r, grid->r[1], grid->w1[1]);
-    f  = odd2(r, grid->r[1], grid->f[1]);
-    
-    if (rv < 0.0) {
-      w1 = 2.0*M_PI - w1;
-      f *= -1.0;
-    }
-
-    w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
-
-    if (fabs(beta)<1.0e-10) psi = phi - w3;
-    else {
-      double tmp = cos(theta)/sin(beta);
-      
-      if (fabs(tmp)>1.0) {
-	if (tmp>1.0) psi =  0.5*M_PI;
-	else         psi = -0.5*M_PI;
-      } 
-      else psi = asin(tmp);
-    }
-
-				// Map into [-Pi, Pi]
-    phi = atan2(sin(phi - w3), cos(phi - w3));
-
-    if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
-  
-    w2 = psi + f;
-
-    double arga = w1*L1 + w2*L2 + w3*M - phase*M;
-    KComplex Ul=0.0, phase=exp(I*arga);
-    Vector trns(1, NMAX);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      Ul += phase*bcoef[i]*trns[i];
-    }
-    Ul *= VeeBeta(L, L2, M, beta);
-
-    return Ul.real();
   }
   
+  w1 = odd2(r, tr, tw);
+  f  = odd2(r, tr, tf);
+  
+  if (rv < 0.0) {
+    w1 = 2.0*M_PI - w1;
+    f *= -1.0;
+  }
+
+    
+  w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
+
+
+  if (fabs(beta)<1.0e-08) psi = phi - w3;
+  else {
+    double tmp = cos(theta)/sin(beta);
+    
+    if (fabs(tmp)>1.0) {
+      if (tmp>1.0) psi =  0.5*M_PI;
+      else         psi = -0.5*M_PI;
+    } 
+    else psi = asin(tmp);
+    
+				// Map into [-Pi, Pi]
+    phi = atan2(sin(phi-w3), cos(phi-w3));
+
+				// Psi branch
+    if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
+  }
+
+  w2 = psi + f;
+
+  double arga = w1*L1 + w2*L2 + w3*M - phase*M;
+
+  Ul *= VeeBeta(L, L2, M, beta) * exp(I*arga);
+
+  return Ul.real();
 }
 
 
@@ -308,19 +239,20 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   // Numerical limit if beta=0
   // -------------------------
 
+				// Original radius
   double pos[3], rt=0.0;
   for (int i=0; i<3; i++) {
     pos[i] = ps1[i];
     rt += ps1[i]*ps1[i];
   }
 
-  // Particle at origin?
-  if (rt < 1.0e-16) {
-    pot = Pot(ps1, vel, phase, bcoef);
-    fr = ft = fp = 0.0;
+				// Particle at (numerical) origin?
+  if (rt < Rmin) {
+    pot = fr = ft = fp = 0.0;
     return;
   }
 
+				// Offset from plane
   if (fabs(ps1[2])<1.0e-4*sqrt(rt)) pos[2] = 1.0e-4*sqrt(rt);
 
   // Compute polar coords
@@ -335,19 +267,16 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   r = sqrt(r2);
   if (fabs(r2)>1.0e-8 && fabs(v2)>1.0e-8) rv /= sqrt(r2*v2);
 
-  if (r>halo_model->get_max_radius()) {
+  if (r>Rmax) {
     pot = fr = ft = fp = 0.0;
     return;
   }
 
-  double cost = cos(pos[2]/r);
+  double cost = pos[2]/r;
   double sint = sqrt(1.0 - cost*cost);
   double phi = atan2(pos[1], pos[0]);
   double theta = 0.0;
-  if (r>0.0) theta = acos(pos[2]/r);
-
-  if (use_grid) compute_grid();
-
+  if (r>0.0) theta = acos(cost);
 
   // Compute E, J, beta
   // ------------------
@@ -369,241 +298,96 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   
   KComplex Ul=0.0, dUldE=0.0, dUldK=0.0;
 
-  if (use_grid) {
+  // Linear interpolation coefficients
+  // ---------------------------------
 
-    // Linear interpolation coefficients
-    // ---------------------------------
+  double cE[2], cK[2], cEd[2], cKd[2];
 
-    double cE[2], cK[2], cEd[2], cKd[2];
+  E = max<double>(E, Emin);
+  E = min<double>(E, Emax);
 
-    E = max<double>(E, Emin);
-    E = min<double>(E, Emax);
+  int indxE = (int)( (E-Emin)/dE );
 
-    int indxE = (int)( (E-Emin)/dE );
+  indxE = max<int>(indxE, 0);
+  indxE = min<int>(indxE, NUME-2);
 
-    indxE = max<int>(indxE, 0);
-    indxE = min<int>(indxE, NUME-2);
+  cE[0] = (EE[indxE+1] - E)/dE;
+  cE[1] = 1.0 - cE[0];
 
-    cE[0] = (EE[indxE+1] - E)/dE;
-    cE[1] = 1.0 - cE[0];
-
-    cEd[0] = -1.0/dE;
-    cEd[1] =  1.0/dE;
+  cEd[0] = -1.0/dE;
+  cEd[1] =  1.0/dE;
     
-    double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
+  double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
     
-    K = J/Jm;
-    K = max<double>(K, Kmin);
-    K = min<double>(K, Kmax);
+  K = J/Jm;
+  K = max<double>(K, Kmin);
+  K = min<double>(K, Kmax);
 
-    int indxK = (int)( (K-Kmin)/dK );
+  int indxK = (int)( (K-Kmin)/dK );
 
-    indxK = max<int>(indxK, 0);
-    indxK = min<int>(indxK, NUMK-2);
+  indxK = max<int>(indxK, 0);
+  indxK = min<int>(indxK, NUMK-2);
+    
+  cK[0] = (KK[indxK+1] - K)/dK;
+  cK[1] = 1.0 - cK[0];
 
-    cK[0] = (KK[indxK+1] - K)/dK;
-    cK[1] = 1.0 - cK[0];
-
-    cKd[0] = -1.0/dK;
-    cKd[1] =  1.0/dK;
+  cKd[0] = -1.0/dK;
+  cKd[1] =  1.0/dK;
 
 
-    // Compute angles
-    // --------------
+  // Compute angles
+  // --------------
   
-    double fac;
-    int num;
+  double fac;
+  int num;
 
-    dwr = dfr = crct = 0.0;
-    for (int n=0; n<ngrid; n++) tw[n] = tf[n] = tr[n] = 0.0;
+  dwr = dfr = crct = 0.0;
+  vector<double> tw(ngrid, 0.0);
+  vector<double> tf(ngrid, 0.0);
+  vector<double> tr(ngrid, 0.0);
 
-    for (int i1=0; i1<2; i1++) {
-      for (int i2=0; i2<2; i2++) {
-	RW *rw = &(orbmat[indxE+i1][indxK+i2]);
-	num = rw->num;
-	fac = cE[i1]*cK[i2];
+  for (int i1=0; i1<2; i1++) {
+    for (int i2=0; i2<2; i2++) {
+      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      num = rw->num;
+      fac = cE[i1]*cK[i2];
+      
+      if (ngrid != num) {
+	cerr << "Oops! ngrid=" << ngrid << "  num=" << num << endl;
+      }
 
-	for (int n=0; n<ngrid; n++) {
-	  tw[n] += fac * rw->w1[n];
-	  tf[n] += fac * rw->f[n];
-	  tr[n] += fac * rw->r[n];
-	}
+      for (int k=0; k<ngrid; k++) {
+	tw[k] += fac * rw->w1[k];
+	tf[k] += fac * rw->f[k];
+	tr[k] += fac * rw->r[k];
+      }
 
-	for (int n=1; n<=NMAX; n++) {
-	  Ul += fac * rw->W[n-1] * bcoef[n];
-	  dUldE += cEd[i1] * cK [i2] * rw->W[n-1] * bcoef[n];
-	  dUldK += cE [i1] * cKd[i2] * rw->W[n-1] * bcoef[n];
-	}
+      for (int n=1; n<=NMAX; n++) {
+	Ul += fac * rw->W[n-1] * bcoef[n];
+	dUldE += cEd[i1] * cK [i2] * rw->W[n-1] * bcoef[n];
+	dUldK += cE [i1] * cKd[i2] * rw->W[n-1] * bcoef[n];
       }
     }
-
-    w1 = odd2(r, tr, tw);
-    f  = odd2(r, tr, tf);
-    dwr = drv2(r, tr, tw);
-    dfr = drv2(r, tr, tf);
-
-    if (rv < 0.0) {
-      w1 = 2.0*M_PI - w1;
-      f *= -1.0;
-      dwr *= -1.0;
-      dfr *= -1.0;
-    }
-
-    
-    // DEBUG
-
-    /*
-
-    orb->new_orbit(E, K);
-    orb->get_angle(2, 0.0);
-    struct ANGLE_GRID * grid = orb->get_angle_grid();
-	
-    double w1t = odd2(r, grid->r[1], grid->w1[1]);
-    double ft  = odd2(r, grid->r[1], grid->f[1]);
-    double dwrt = drv2(r, grid->r[1], grid->w1[1]);
-    double dfrt = drv2(r, grid->r[1], grid->f[1]);
-    
-    if (rv < 0.0) {
-      w1t = 2.0*M_PI - w1t;
-      ft *= -1.0;
-      dwrt *= -1.0;
-      dfrt *= -1.0;
-    }
-
-    const double thresh = 0.5;
-    double tmp;
-    
-
-    if ( (tmp=fabs((w1 - w1t)/w1t)) > thresh ) 
-      {
-	cout << setw(15) << tmp << setw(15) << w1 << setw(15) << w1t << endl;
-      }
-    
-    if ( (tmp=fabs((f - ft)/ft)) > thresh ) 
-      {
-	cout << setw(15) << tmp << setw(15) << f << setw(15) << ft << endl;
-      }
-    
-    if ( (tmp=fabs((dwr - dwrt)/dwrt)) > thresh ) 
-      {
-	cout << setw(15) << tmp << setw(15) << dwr << setw(15) << dwrt << endl;
-      }
-    
-    if ( (tmp=fabs((dfr - dfrt)/dfrt)) > thresh ) 
-      {
-	cout << setw(15) << tmp << setw(15) << dfr << setw(15) << dfrt << endl;
-      }
-    
-    */
-
-  } else {
-
-    double Ep, Em, delE = 0.003*(Emax - Emin);
-    double Kp, Km, delK = 0.01*(Kmax - Kmin);
-
-    E = max<double>(E, Emin);
-    E = min<double>(E, Emax);
-
-    orb->new_orbit(E, 0.5);
-    
-    K = J/orb->Jmax();
-    K = max<double>(K, Kmin);
-    K = min<double>(K, Kmax);
-
-				// For E derivative
-    if (E-0.5*delE<Emin) {
-      Ep = Emin + delE;
-      Em = Emin;
-    } else if (E+0.5*delE>Emax) {
-      Ep = Emax;
-      Em = Emax - delE;
-    } else {
-      Ep = E + 0.5*delE;
-      Em = E - 0.5*delE;
-    }
-
-				// For K derivative
-    if (K-0.5*delK<Kmin) {
-      Kp = Kmin + delK;
-      Km = Kmin;
-    } else if (K+0.5*delK>Kmax) {
-      Kp = Kmax;
-      Km = Kmax - delK;
-    } else {
-      Kp = K + 0.5*delK;
-      Km = K - 0.5*delK;
-    }
-
-    orb->new_orbit(E, K);
-
-    double theta=0.0;
-    if (r>0.0) theta = acos(pos[2]/r);
-
-    
-    // Compute angles
-    // --------------
-  
-    orb->get_angle(2, 0.0);
-    struct ANGLE_GRID * grid = orb->get_angle_grid();
-	
-    w1 = odd2(r, grid->r[1], grid->w1[1]);
-    f  = odd2(r, grid->r[1], grid->f[1]);
-    dwr = drv2(r, grid->r[1], grid->w1[1]);
-    dfr = drv2(r, grid->r[1], grid->f[1]);
-    
-    if (rv < 0.0) {
-      w1 = 2.0*M_PI - w1;
-      f *= -1.0;
-      dwr *= -1.0;
-      dfr *= -1.0;
-    }
-
-    Vector trns(1, NMAX);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      Ul += bcoef[i]*trns[i];
-    }
-    
-    // Energy deriv
-    // ------------
-    orb->new_orbit(Ep, K);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      dUldE += bcoef[i]*trns[i]/delE;
-    }
-    
-    orb->new_orbit(Em, K);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      dUldE += -bcoef[i]*trns[i]/delE;
-    }
-    
-    // Kappa deriv
-    // ------------
-    orb->new_orbit(E, Kp);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      dUldK += bcoef[i]*trns[i]/delK;
-    }
-    
-    orb->new_orbit(E, Km);
-    orb->pot_trans(L1, L2, trns);
-
-    for (int i=1; i<=NMAX; i++) {
-      dUldK += -bcoef[i]*trns[i]/delK;
-    }
-    
   }
-  
 
+  w1 = odd2(r, tr, tw);
+  f  = odd2(r, tr, tf);
+  dwr = drv2(r, tr, tw);
+  dfr = drv2(r, tr, tf);
+
+  if (rv < 0.0) {
+    w1 = 2.0*M_PI - w1;
+    f *= -1.0;
+    dwr *= -1.0;
+    dfr *= -1.0;
+  }
+
+  
   KComplex VB = VeeBeta(L, L2, M, beta);
   
   // Gradient in beta
   // ----------------
+
   double betap, betam, db=0.01;;
   if (beta-0.5*db<0.0) {
     betam=0.0;
@@ -651,6 +435,7 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
 
 
   // Map Psi into [-Pi, Pi]
+  // ----------------------
   double tmp = atan2(sin(phi - w3), cos(phi - w3));
   if (tmp>0.5*M_PI || tmp<-0.5*M_PI) {
     psi = M_PI - psi;
@@ -662,6 +447,7 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   double arga = w1*L1 + w2*L2 + w3*M - phase*M;
   KComplex argC = exp(I*arga);
 
+
   // Force computation
   // -----------------
 
@@ -672,34 +458,33 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   fr = -tmpC.real();
 
   tmpC = Ul * VB * argC * I * M;
-  fp = -tmpC.real();
+  fp = -tmpC.real()/(sint*r);
   
   tmpC = dUldK*dKdt*VB*argC + Ul*dVBdb*argC + Ul*VB*argC*(dpsidt*L2 + dw3dt*M);
-  ft = -tmpC.real();
+  ft = -tmpC.real()/r;
   
 }
 
-
-void ResPot::ForceCart(double* ps1, double* vel, double phase, CVector &bcoef,
+void ResPot::ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
 		       double& pot, double &fx, double &fy, double &fz)
 {
-  double pos[3];
-  for (int i=0; i<3; i++) pos[i] = ps1[i];
-  if (fabs(ps1[2])<1.0e-8) pos[2] = 1.0e-8;
-
-  double fr, fp, ft;
-
-  double X = pos[0];
-  double Y = pos[1];
-  double Z = pos[2];
-
-  double phi = atan2(Y, X);
+  double phi = atan2(pos[1], pos[0]);
   double cosp = cos(phi);
   double sinp = sin(phi);
 
-  double cost = Z/sqrt(X*X+Y*Y+Z*Z);
+  double R = 0.0;
+  for (int k=0; k<3; k++) R += pos[k]*pos[k];
+  R = sqrt(R);
+
+  if (R<Rmin || R>Rmax) {
+    pot = fx = fy = fz = 0.0;
+    return;
+  }
+
+  double cost = pos[2]/R;
   double sint = sqrt(1.0 - cost*cost);
 
+  double fr, fp, ft;
 
   ForceSph(pos, vel, phase, bcoef, pot, fr, fp, ft);
   
@@ -709,8 +494,7 @@ void ResPot::ForceCart(double* ps1, double* vel, double phase, CVector &bcoef,
 }
 
 
-
-int ResPot::coord(double* ps1, double* vel, 
+int ResPot::coord(double* ps1, double* vel, CVector& bcoef,
 		   double& W1, double& W2, double& W3, double& PSI)
 {
   double pos[3];
@@ -730,8 +514,6 @@ int ResPot::coord(double* ps1, double* vel,
   if (fabs(r2)>1.0e-8 && fabs(v2)>1.0e-8) rv /= sqrt(r2*v2);
 
   if (r>halo_model->get_max_radius()) return 0;
-
-  if (use_grid) compute_grid();
 
 
   // Compute E, J, beta

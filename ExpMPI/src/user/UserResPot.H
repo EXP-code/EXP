@@ -66,8 +66,11 @@ private:
   bool first;
   double domega, t0, delt, phase, tlast, omlast;
 
+  double **pos, **vel, **acc;
+
   string ctr_name;
   string model_file;
+  string filename;
 
   void userinfo();
 

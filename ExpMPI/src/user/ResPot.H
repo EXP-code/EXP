@@ -4,7 +4,6 @@
 #include <orbit.h>
 #include <massmodel.h>
 #include <biorth.h>
-#include <gaussQ.h>
 #include <CVector.h>
 #include <interp.h>
 
@@ -40,17 +39,13 @@ private:
   bool grid_computed;
   void compute_grid();
 
-  double dE, dK;
+  double dE, dK, Rmin, Rmax;
   vector<double> EE, KK, Jmax;
 
   int ngrid;
-  vector<double> tw, tr, tf;
-
-  LegeQuad* lq;
 
 public:
 
-  static bool use_grid;
   static double DELTA;
   static int NREC;
   static int NUME;
@@ -78,9 +73,8 @@ public:
 		 double& pot, double& fx, double& fy, double& fz);
 
   //! Test routine
-  int coord(double* pos, double* vel,
+  int coord(double* pos, double* vel, CVector& bcoef,
 	    double& W1, double& W2, double& W3, double& PSI);
-
 };
 
 double rot_matrix(int l, int m, int n, double beta);

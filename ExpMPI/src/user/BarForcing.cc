@@ -95,7 +95,8 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   
   double b1 = M_PI*rho*sqrt(2.0*M_PI/15.0)*(ans1 - ans2);
   double b5 = pow(b25, 0.2);
-  double afac = 2.0 * b1;
+  // double afac = 2.0 * b1;
+  double afac = b1;
   
   if (myid==0) {
     cout << "b1=" << b1 << endl;
