@@ -1,14 +1,27 @@
 #include <iostream>
+#include <fstream>
 #include <iomanip>
 
 #include <values.h>
 #include <ResPot.H>
+#include <localmpi.h>
 
 double ResPot::DELTA = 0.01;
 int ResPot::NREC = 40;
 int ResPot::NUME = 100;
 int ResPot::NUMK = 20;
 KComplex ResPot::I(0.0, 1.0);
+
+// #define TDEBUG
+#undef TDEBUG
+#ifdef TDEBUG
+#include <pthread.h>  
+pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+const double E0=-1.64716;
+const double K0= 0.84168;
+bool first = true;
+bool start = true;
+#endif
 
 #include <localmpi.h>
 
@@ -55,6 +68,11 @@ void ResPot::compute_grid()
   dE = (Emax - Emin)/(NUME-1);
   dK = (Kmax - Kmin)/(NUMK-1);
 
+#ifdef TDEBUG
+  ofstream tout;
+  if (myid==0) tout.open("respot.chk");
+#endif
+
   for (int i=0; i<NUME; i++) {
     
     E = Emin + dE*i;
@@ -76,6 +94,20 @@ void ResPot::compute_grid()
       for (int n=0; n<NMAX; n++) rw.W.push_back(t[n+1]);
 
       struct ANGLE_GRID * grid = orb->get_angle_grid();
+
+#ifdef TDEBUG
+      if (myid==0) {
+	tout << setw(15) << E 
+	     << setw(15) << K
+	     << setw(15) << grid->t[1][0]
+	     << setw(15) << grid->r[1][0]
+	     << setw(15) << grid->w1[1][0]
+	     << setw(15) << grid->f[1][0]
+	     << endl;
+	if (k==NUMK-1) tout << endl;
+      }
+#endif
+
       for (int j=0; j<grid->num; j++) {
 	rw.r.push_back(grid->r[1][j]);
 	rw.w1.push_back(grid->w1[1][j]);
@@ -92,6 +124,10 @@ void ResPot::compute_grid()
   }
 
   ngrid = orb->get_angle_grid()->num;
+
+#ifdef TDEBUG
+  if (myid==0) tout.close();
+#endif
 
   grid_computed = true;
 }
@@ -406,17 +442,22 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   double sinb = sin(beta);
   double dbdt = -cosb*cosb*cosb*cost/(sint*sint*sint*sinb);
   
-  double dpsidt = -(sint + cost*cosb/sinb*dbdt)/sinb/
-    sqrt(fabs(1.0 - cost*cost/(sinb*sinb)));
+  double cotterm = max<double>(1.0 - cost*cost*sint*sinb/(sinb*sinb*sint*sint*sint, 0.0);
 
-  double dw3dt = (cosb/(sinb*sint*sint) + 
-		  cost/(sint*sinb*sinb)*dbdt)/
-    sqrt(fabs(1.0 - cost*cost*cosb*cosb/(sint*sint*sinb*sinb)));
+  double dpsidt = -sqrt(fabs(sinb*sinb - cost*cost))*cotterm;
 
+  double dw3dt = cosb/(sinb*sint*sint) * sqrt(cotterm);
+  
   double dEdr = -J*J/(r*r*r) + halo_model->get_pot(r);
-  double dKdt =  -K*cosb*cosb*cost/(sint*sint*sint);
-  double dKdr = -J*dJm/(Jm*Jm) * dEdr;
-  double dEdt = J*Jm/(r*r)*dKdt;
+
+  double dJdt =  -J*cosb*cosb*cost/(sint*sint*sint);
+
+  double dEdt = J/(r*r) * dJdt;
+
+  double dKdt = dJdt/Jm - J/(Jm*Jm)*dJm*dEdt;
+
+  double dKdr = -K/r - K*dJm/Jm * dEdr;
+
 
 
   KComplex tmpC;
@@ -458,17 +499,21 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   tmpC = Ul * VB * argC;
   pot = tmpC.real();
 
-  tmpC = dUldE*dEdr + dUldK*dKdr + Ul*(dwr*L1 + dfr*L2);
+  tmpC = dUldE*dEdr + dUldK*dKdr + I*Ul*(dwr*L1 + dfr*L2);
   tmpC *= VB * argC;
   fr = -tmpC.real();
 
   tmpC = Ul * VB * argC * I * M;
   fp = -tmpC.real()/(sint*r);
   
-  tmpC = (dUldE*dEdt + dUldK*dKdt)*VB + Ul*dVBdb*dbdt + Ul*VB*(dpsidt*L2 + dw3dt*M);
+  tmpC = (dUldE*dEdt + dUldK*dKdt)*VB + Ul*dVBdb*dbdt + I*Ul*VB*(dpsidt*L2 + dw3dt*M);
   tmpC *= argC;
   ft = -tmpC.real()/r;
   
+				// Sanity
+  if (isnan(fr) || isinf(fr)) fr = 0.0;
+  if (isnan(fp) || isinf(fp)) fp = 0.0;
+  if (isnan(ft) || isinf(ft)) ft = 0.0;
 }
 
 void ResPot::ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
@@ -522,6 +567,8 @@ int ResPot::coord(double* ps1, double* vel,
 
   if (r>halo_model->get_max_radius()) return 0;
 
+  double theta = acos(pos[2]/r);
+  double phi = atan2(pos[1], pos[0]);
 
   // Compute E, J, beta
   // ------------------
@@ -541,57 +588,144 @@ int ResPot::coord(double* ps1, double* vel,
   BETA = 0.0;
   if (J>0.0) BETA = acos(angmom[2]/J);
   
+  
+  // Linear interpolation coefficients
+  // ---------------------------------
+
+  double cE[2], cK[2], cEd[2], cKd[2];
+
   E = max<double>(E, Emin);
   E = min<double>(E, Emax);
 
-  orb->new_orbit(E, 0.5);
+  int indxE = (int)( (E-Emin)/dE );
+
+  indxE = max<int>(indxE, 0);
+  indxE = min<int>(indxE, NUME-2);
+
+  cE[0] = (EE[indxE+1] - E)/dE;
+  cE[1] = 1.0 - cE[0];
+
+  cEd[0] = -1.0/dE;
+  cEd[1] =  1.0/dE;
     
-  K = J/orb->Jmax();
+  double Jm  =  cE[0]*Jmax[indxE] +  cE[1]*Jmax[indxE+1];
+    
+  K = J/Jm;
   K = max<double>(K, Kmin);
   K = min<double>(K, Kmax);
 
-  orb->new_orbit(E, K);
+  int indxK = (int)( (K-Kmin)/dK );
 
-  double theta=0.0;
-  if (r>0.0) theta = acos(pos[2]/r);
-  double phi = atan2(pos[1], pos[0]);
-  
+  indxK = max<int>(indxK, 0);
+  indxK = min<int>(indxK, NUMK-2);
     
+  cK[0] = (KK[indxK+1] - K)/dK;
+  cK[1] = 1.0 - cK[0];
+
+  cKd[0] = -1.0/dK;
+  cKd[1] =  1.0/dK;
+
+
   // Compute angles
   // --------------
   
-  double w1, w2, w3, psi, f;
-  orb->get_angle(2, 0.0);
-  struct ANGLE_GRID * grid = orb->get_angle_grid();
-  
-  w1 = odd2(r, grid->r[1], grid->w1[1]);
-  f  = odd2(r, grid->r[1], grid->f[1]);
-    
+  double fac;
+  int num;
+
+  vector<double> tw(ngrid, 0.0);
+  vector<double> tf(ngrid, 0.0);
+  vector<double> tr(ngrid, 0.0);
+
+  for (int i1=0; i1<2; i1++) {
+    for (int i2=0; i2<2; i2++) {
+      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      num = rw->num;
+      fac = cE[i1]*cK[i2];
+      
+      if (ngrid != num) {
+	cerr << "Oops! ngrid=" << ngrid << "  num=" << num << endl;
+      }
+
+      for (int k=0; k<ngrid; k++) {
+	tw[k] += fac * rw->w1[k];
+	tf[k] += fac * rw->f[k];
+	tr[k] += fac * rw->r[k];
+      }
+
+    }
+  }
+
+#ifdef TDEBUG
+				// Print the interpolation array 
+				// on the first time through . . . 
+  if (first && fabs(E-E0)<0.01 && fabs(K-K0)<0.01) {
+    pthread_mutex_lock(&iolock);
+    cout << "TDEBUG: Lock acquired\n";
+    if (first) {		// Being very cautions . . . 
+      cout << "TDEBUG: first\n";
+      ofstream tout("respot.tst");
+      if (tout) cout << "TDEBUG: file is ok . . . writing\n";
+      
+      tout << "# ngrid=" << ngrid 
+	   << "  rw_ngrid=" << orbmat[indxE][indxK].num << endl;
+      
+      for (int n=0; n<ngrid; n++) {
+	tout << setw(15) << tw[n]
+	     << setw(15) << tf[n]
+	     << setw(15) << tr[n];
+	for (int i1=0; i1<2; i1++) {
+	  for (int i2=0; i2<2; i2++) {
+	    RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+	    tout << setw(15) << rw->w1[n]
+		 << setw(15) << rw->f[n]
+		 << setw(15) << rw->r[n];
+	  }
+	}
+	tout << endl;
+      }
+      first = false;
+    } else {
+      cout << "TDEBUG: you beat me to it\n";
+    }
+    pthread_mutex_unlock(&iolock);
+  }
+#endif
+
+
+  double w1 = odd2(r, tr, tw);
+  double f  = odd2(r, tr, tf);
+
   if (rv < 0.0) {
     w1 = 2.0*M_PI - w1;
     f *= -1.0;
   }
 
-  w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
+  
+  // Angle computation
+  // -----------------
 
-  if (fabs(BETA)<1.0e-08) psi = phi - w3;
+  double psi, w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
+
+  if (fabs(BETA)<1.0e-10) psi = phi - w3;
   else {
     double tmp = cos(theta)/sin(BETA);
-
+    
     if (fabs(tmp)>1.0) {
       if (tmp>1.0) psi =  0.5*M_PI;
       else         psi = -0.5*M_PI;
     } 
     else psi = asin(tmp);
-
-				// Map into [-Pi, Pi]
-    phi = atan2(sin(phi-w3), cos(phi-w3));
-
-    if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
-  
   }
 
-  w2 = psi + f;
+
+  // Map Psi into [-Pi, Pi]
+  // ----------------------
+  double tmp = atan2(sin(phi - w3), cos(phi - w3));
+  if (tmp>0.5*M_PI || tmp<-0.5*M_PI) {
+    psi = M_PI - psi;
+  }
+    
+  double w2 = psi + f;
   
   W1  = w1;
   W2  = w2;

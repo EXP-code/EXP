@@ -324,12 +324,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxyP { 
 public:
-  proxy()
+  proxyP()
   {
     factory["userrptest"] = makerRPtest;
-  }
+   }
 };
 
-static proxy p;
+static proxyP p;

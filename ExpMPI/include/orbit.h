@@ -145,7 +145,11 @@ public:
   void pot_trans(int l1, int l2, Vector& t);
   
   // Access to underlying grid for pot_trans
-  struct ANGLE_GRID * get_angle_grid(void) { return &angle_grid; }
+  struct ANGLE_GRID * get_angle_grid(void) { 
+    if (!freq_defined) compute_freq();
+    if (!angle_defined) compute_angles();
+    return &angle_grid; 
+  }
   
   // Safe access
   

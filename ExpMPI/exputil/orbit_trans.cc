@@ -442,6 +442,8 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
     dtm =  M_PI;
   } 
   
+  if (!angle_defined) compute_angles();
+
   double accum = 0.0;
 
   if (kappa < 1.0-TOLEPI) {
