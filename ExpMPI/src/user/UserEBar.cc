@@ -9,11 +9,11 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 {
   id = "RotatingBarWithMonopole";
 
-  length = 0.5;			// Bar length
-  bratio = 0.2;			// Ratio of b to a
+  length = 1.0;			// Bar length
+  bratio = 0.5;			// Ratio of b to a
   cratio = 0.1;			// Ratio of c to b
-  amplitude = 0.3;		// Bar amplitude
-  mfrac = 1.0;			// Fraction of mass monopole
+  amplitude = 0.3;		// Bar quadrupole amplitude
+  barmass = 1.0;			// Total bar mass
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
@@ -130,7 +130,7 @@ void UserEBar::initialize()
   if (get_value("bratio", val))		bratio = atof(val.c_str());
   if (get_value("cratio", val))		cratio = atof(val.c_str());
   if (get_value("amp", val))		amplitude = atof(val.c_str());
-  if (get_value("mfrac", val))		mfrac = atof(val.c_str());
+  if (get_value("barmass", val))	barmass = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
@@ -159,7 +159,7 @@ void UserEBar::determine_acceleration_and_potential(void)
   if (firstime) {
     
     ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
-			   fabs(amplitude), 200, 200);
+			   barmass, 200, 200);
 
     list<Component*>::iterator cc;
     Component *c;
@@ -203,7 +203,7 @@ void UserEBar::determine_acceleration_and_potential(void)
     double A32 = a3*a3/geom/geom;
 
     double u, d, t, denom, ans1=0.0, ans2=0.0;
-    double mass = fabs(amplitude);
+    double mass = barmass * fabs(amplitude);
     for (int i=1; i<=N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
@@ -475,7 +475,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     acct[2] = ffac*
       ( -5.0*nn*zz );
     
-    M0 = mfrac*ellip->getMass(rr);
+    M0 = ellip->getMass(rr);
 
     for (int k=0; k<3; k++) {
 				// Add monopole acceleration
@@ -489,7 +489,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     }
 
 				// Quadrupole and monopole potential
-    (*particles)[i].potext += -ffac*pp*fac + mfrac*ellip->getPot(rr);
+    (*particles)[i].potext += -ffac*pp*fac + ellip->getPot(rr);
     
   }
 
