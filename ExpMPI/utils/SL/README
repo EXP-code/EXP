@@ -1,12 +1,15 @@
-Test routins for Sturm-Liouville spherical basis.  In both routines,
-you will need a copy of your model called "SLGridSph.model" in the
-local directory.
+Test routines for Sturm-Liouville spherical basis.  For both, you will
+need a copy of your model called "SLGridSph.model" in the local
+directory.
 
-Used to check required parameters for radial grid, lmax, nmax, etc.
+Intended to check required parameters for radial grid, lmax, nmax, etc.
+Also useful for examining basis functions.
 
 Brief description and example usage:
+-----------------------------------
 
-slcheck:        Use to print out potential-density pairs and check orthgonality
+slcheck:        Use to print out potential-density pairs and check 
+                orthogonality
 
                 Example:
 
@@ -33,9 +36,10 @@ slshift:        Use to check the density and potential profile under
                 ./slshift --xmax=0.1 --lmax=6 --nmax=40 --delr=0.01 \
                         --numr=10000 --cmap --rmin=1.0e-4
 
-                [output follows, no prompting]
+                [output written to stdout and files with prefix
+                "slshift", no prompting for parameters]
                 
-                "xmax" and "delr" are linear size of the output profiles
-                and the offset in the x direction for the spherical profile,
-                respectively.
+                In the example above, "xmax" and "delr" are linear
+                size of the output profiles and the offset in the x
+                direction for the spherical profile, respectively.
 
