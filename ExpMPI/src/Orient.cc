@@ -5,8 +5,10 @@
 #include <iomanip>
 #include <fstream>
 #include <string>
+#include <sstream>
 
 #include <localmpi.h>
+#include "expand.h"
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -61,7 +63,32 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
     ifstream in(logfile.c_str());
     
-    if (in) {
+
+				// If we are restarting and
+				// the logfile is there . . . 
+    if (restart && in) {
+      in.close();
+
+				// Backup old file
+      string backupfile = logfile + ".bak";
+      string command("cp ");
+				// Open new output stream for writing
+      ofstream out(logfile.c_str());
+      if (!out) {
+	cerr << "Orient: error opening new log file <" 
+	     << logfile << "> for writing\n";
+	MPI_Abort(MPI_COMM_WORLD, 43);
+      }
+	  
+      // Open old file for reading
+      in.open(backupfile.c_str());
+      if (!in) {
+	ostringstream message;
+	cerr << "Orient: error opening original log file <" 
+	     << backupfile << "> for reading\n";
+	MPI_Abort(MPI_COMM_WORLD, 44);
+      }
+
 
       double time;
       int nused;
@@ -70,18 +97,51 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+      const int cbufsiz = 16384;
+      char *cbuffer = new char [cbufsiz];
+
+				// Look for header and write it
       while (in) {
-	in >> time;
+	in.getline(cbuffer, cbufsiz);
+	if (!in) break;
+	string line(cbuffer);
+	out << cbuffer << "\n";
+	if (line.find_first_of("Time") != string::npos) break;
+      }
+	
+				// Look for data and write it while
+				// accumlating data for averaging
+      while (in) {
+
+	in.getline(cbuffer, cbufsiz);
 	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
 
-	in >> Ecurr;
-	in >> nused;
-	in >> axis[1];
-	in >> axis[2];
-	in >> axis[3];
-	in >> center0[1];
-	in >> center0[2];
-	in >> center0[3];
+	istringstream line(cbuffer);
+
+	line >> time;
+	if (tnow <= time) break;
+
+	out << cbuffer << "\n";
+
+	line >> Ecurr;
+	line >> nused;
+	line >> axis[1];
+	line >> axis[2];
+	line >> axis[3];
+	line >> center0[1];
+	line >> center0[2];
+	line >> center0[3];
+
+	if (oflags & AXIS) {
+	  sumsA.push_back(axis);
+	  if (sumsA.size() > keep) sumsA.pop_front();
+	}
+
+	if (oflags & CENTER) {
+	  sumsC.push_back(center);
+	  if (sumsC.size() > keep) sumsC.pop_front();
+	}
+
       }
 
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
@@ -96,14 +156,23 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	   << center0[2] << ", "
 	   << center0[3] << endl;
 
-      for (int j=0; j<3; j++) {
-	in1[j] = axis[j+1];
-	in2[j] = center0[j+1];
+      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      int howmany = max<int>(sumsA.size(), sumsC.size());
+      MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+      for (int k=0; k<howmany; k++) {
+
+	if (oflags & AXIS) {
+	  for (int j=0; j<3; j++) in1[j] = sumsA[k][j+1];
+	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
+
+	if (oflags & CENTER) {
+	  for (int j=0; j<3; j++) in2[j] = sumsC[k][j+1];
+	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	}
       }
 
-      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
     } else {
 
@@ -122,38 +191,49 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
     if (in_ok) {
 
       MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      int howmany;
+      MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-      for (int j=0; j<3; j++) {
-	axis[j+1] = in1[j];
-	center0[j+1] = in2[j];
-      }
+      for (int k=0; k<howmany; k++) {
 
-      if (myid==1) {
-	cerr << " Orient: cached axis slave: " 
-	     << axis[1] << ", "
-	     << axis[2] << ", "
-	     << axis[3] << "\n";
-	cerr << " Orient: cached center slave: " 
-	     << center0[1] << ", "
-	     << center0[2] << ", "
-	     << center0[3] << "\n";
+	if (oflags & AXIS) {
+	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  for (int j=0; j<3; j++) axis[j+1] = in1[j];
+	  sumsA.push_back(axis);
+	}
+
+	if (oflags & CENTER) {
+	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  for (int j=0; j<3; j++) center0[j+1] = in2[j];
+	  sumsC.push_back(center0);
+	}
+
       }
 
     }
+
   }
+
   delete [] in1;
   delete [] in2;
 
   if (in_ok) {
 
-    double phi = atan2(axis[2], axis[1]);
-    double theta = -acos(axis[3]/sqrt(axis*axis));
-    double psi = 0.0;
+    if (oflags & CENTER && sumsC.size()>0)
+      center = sumsC[sumsC.size()-1];
+	
+    if (oflags & AXIS && sumsA.size()>0) {
 
-    body = return_euler_slater(phi, theta, psi, 0);
-    orig = return_euler_slater(phi, theta, psi, 1);
+      axis = sumsA[sumsA.size()-1];
+
+      double phi = atan2(axis[2], axis[1]);
+      double theta = -acos(axis[3]/sqrt(axis*axis));
+      double psi = 0.0;
+
+      body = return_euler_slater(phi, theta, psi, 0);
+      orig = return_euler_slater(phi, theta, psi, 1);
+    }
+
   }
       
 }
