@@ -10,19 +10,19 @@ Output::Output(string& line)
 				// Default interval
   nint = 50;
 
-				// space separated tokens
-  string token = tokens(" ");
+				// comma separated tokens
+  string token = tokens(",");
   
   while (token.size()) {
 
     StringTok<string> parse(token);
     pair<string, string> spair;
-    spair.first = parse("=");
-    spair.second = parse("=");
+    spair.first = trimLeft(trimRight(parse("=")));
+    spair.second = trimLeft(trimRight(parse("=")));
     namevalue.push_back(spair);
 
 				// Next parameter
-    token = tokens(" ");
+    token = tokens(",");
   }
 
 }

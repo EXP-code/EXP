@@ -63,6 +63,7 @@ class Component
 {
 
   friend class ScatterMFP;
+  friend class OrbTrace;
   friend class ComponentContainer;
 
   static const int ndmax = 5;

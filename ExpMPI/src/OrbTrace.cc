@@ -25,42 +25,55 @@ OrbTrace::OrbTrace(string& line) : Output(line)
     }
   }
 
-  if (nskip==0) nskip = (int)tcomp->particles.size()/norb;
+  norb = min<int>(tcomp->nbodies_tot, norb);
+  if (nskip==0) nskip = (int)tcomp->nbodies_tot/norb;
 
-  ostrstream name;
-  name << filename << "." << myid << '\0';
-  filename = string(name.str());
 
-				// Try to open the first time . . .
-  ofstream out(filename.c_str(), ios::out | ios::app);
-  if (!out) {
-    ostrstream outs;
-    outs << "Process " << myid << ": can't open file <" << filename << ">\n";
-    bomb(outs.str());
-  }
-  
-  list<Component*>::iterator cc;
-  Component *c;
-  
-  int npos = 1;
-  int ncur;
-
-  out << "# " << setw(4) << npos++ << setw(20) << "Time";
-
-  out << "# [" << tcomp->name << "]\n";
-
-  ncur = nskip;
+				// Make orblist
+  int ncur = nbeg;
   for (int i=0; i<norb; i++) {
-    out << "# " << setw(4) << npos++ << setw(20) << " x[" << ncur << "]\n";
-    out << "# " << setw(4) << npos++ << setw(20) << " y[" << ncur << "]\n";
-    out << "# " << setw(4) << npos++ << setw(20) << " z[" << ncur << "]\n";
-    out << "# " << setw(4) << npos++ << setw(20) << " u[" << ncur << "]\n";
-    out << "# " << setw(4) << npos++ << setw(20) << " v[" << ncur << "]\n";
-    out << "# " << setw(4) << npos++ << setw(20) << " w[" << ncur << "]\n";
+    if (ncur<tcomp->nbodies_tot) orblist.push_back(ncur);
     ncur += nskip;
   }
+  norb = (int)orblist.size();
 
-  out << "# " << endl;
+				// Report to log
+  if (myid==0) {
+    cout << "OrbTrace: " << norb << " orbit(s) from component " << tcomp->name 
+	 << "[" << tcomp->id << "]\n";
+  }
+
+  pbuf = vector<double>(6);
+
+  if (myid==0 && norb) {
+				// Try to open the first time . . .
+    ofstream out(filename.c_str(), ios::out | ios::app);
+    if (!out) {
+      ostrstream outs;
+      outs << "Process " << myid << ": can't open file <" << filename << ">\n";
+      bomb(outs.str());
+    }
+
+    int npos = 1;
+
+    out << "# " << setw(4) << npos++ << setw(20) << "Time\n";
+    
+    for (int i=0; i<norb; i++) {
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " x[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " y[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " z[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " u[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " v[" << orblist[i] << "]\n";
+      out << "# " << setw(4) << npos++ 
+	  << setw(20) << " w[" << orblist[i] << "]\n";
+    }
+    out << "# " << endl;
+  }
   
 }
 
@@ -79,7 +92,7 @@ void OrbTrace::initialize()
   if (get_value(string("nskip"), tmp))
     nskip = atoi(tmp.c_str());
 
-  if (get_value(string("freq"), tmp)) 
+  if (get_value(string("nint"), tmp)) 
     nint = atoi(tmp.c_str());
 
 				// Search for desired component
@@ -96,33 +109,52 @@ void OrbTrace::initialize()
 
 void OrbTrace::Run(int n, bool last)
 {
-  if (n % nint && !last && !tcomp) return;
+  if (n % nint && !last && !tcomp && norb) return;
 
-  int nbodies = tcomp->particles.size();
+  MPI_Status status;
 
-  if (!nbodies) return;
-
-  ofstream out(filename.c_str(), ios::out | ios::app);
-  if (!out) {
-    ostrstream out;
-    out << "OrbTrace: can't open file <" << filename << ">\n";
-    return;
+				// Open output file
+  ofstream out;
+  if (myid==0) {
+    out.open(filename.c_str(), ios::out | ios::app);
+    if (!out) {
+      cout << "OrbTrace: can't open file <" << filename << ">\n";
+    }
+    if (out) out << setw(15) << tnow;
   }
 
-  out << setw(15) << tnow;
-
-  int ncur = nbeg;
+  int curproc = 0;
   for (int i=0; i<norb; i++) {
-    if (ncur < nbodies)
-      out 
-	<< setw(15) << (tcomp->particles)[ncur].pos[0]
-	<< setw(15) << (tcomp->particles)[ncur].pos[1]
-	<< setw(15) << (tcomp->particles)[ncur].pos[2]
-	<< setw(15) << (tcomp->particles)[ncur].vel[0]
-	<< setw(15) << (tcomp->particles)[ncur].vel[1]
-	<< setw(15) << (tcomp->particles)[ncur].vel[2];
-    ncur += nskip;
+				// Identify the node that has the 
+				// desired particle
+    while (orblist[i] >= tcomp->nbodies_index[curproc]) { curproc++; }
+
+    if (myid==curproc) {	// Copy particle to buffer
+      for (int k=0; k<3; k++) 
+	pbuf[k  ] = 
+	  tcomp->particles[orblist[i]-tcomp->nbodies_index[curproc-1]].pos[k];
+      for (int k=0; k<3; k++) 
+	pbuf[k+3] = 
+	  tcomp->particles[orblist[i]-tcomp->nbodies_index[curproc-1]].vel[k];
+    } 
+
+    if (curproc) {		// Get particle from nodes
+      
+      if (myid==curproc) {	// Send
+	MPI_Send(&pbuf[0], 6, MPI_DOUBLE, 0, 71, MPI_COMM_WORLD);
+      }
+
+      if (myid==0) { 		// Receive
+	MPI_Recv(&pbuf[0], 6, MPI_DOUBLE, curproc, 71, MPI_COMM_WORLD,
+		 &status);
+      }
+    }
+				// Print the particle buffer
+    if (myid==0 && out) {
+      for (int k=0; k<6; k++) out << setw(15) << pbuf[k];
+    }
+    
   }
-  out << endl;
   
+  if (myid==0 && out) out << endl;
 }

@@ -5,6 +5,9 @@
 
 /** Log norb orbits at each interval
     
+    For best efficiency, particles to be traced should be 
+    on the root process.
+
     @param norb is the number of orbits per node to follow
   
     @param nbeg is the offset in the bodies list for the first
@@ -25,6 +28,8 @@ private:
   int nskip;
   int norb;
   Component *tcomp;
+  vector<int> orblist;
+  vector<double> pbuf;
 
   void initialize(void);
 
