@@ -389,6 +389,17 @@ epi(double xp, double yp, double zp)
   cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
   cr[0] = 1.0 - cr[1];
 
+				// No extrapolation in radius
+  if (cr[0] > 1.0) {
+    cr[0] = 1.0;
+    cr[1] = 0.0;
+  }
+
+  if (cr[1] > 1.0) {
+    cr[0] = 0.0;
+    cr[1] = 1.0;
+  }
+
   ans = 
     cp[0]*cr[0]* epitable[iphi1][ir  ] +
     cp[0]*cr[1]* epitable[iphi1][ir+1] +
