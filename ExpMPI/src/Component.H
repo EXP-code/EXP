@@ -11,14 +11,14 @@
 /*!
   The Component provides "interactors" for specific particle fields
   <br>
-  Component file format:
+  Each field in the Component config file format contains four fields,
+  each delimited by a colon (":"), and new lines are not significant:
   <br>
   <ol>
-  <li> name [string in characters (whole line, spaces ok)]
-  <li> force id [string]
-  <li> file name [string] containing phase space to be read
-  <li> biorthogonal [enum] followed by parameters necessary for contruction
-  <li> [blank line]
+  <li> name of the potential solver (force methods) for this phase space
+  <li> component-specific parameters [see Parameter section below]
+  <li> file name containing phase space to be read
+  <li> comma-delimited parameter list passed to the potential solver
   </ol>
   <br>
   Currently available force methods:
@@ -58,11 +58,43 @@
   \par direct
   The usual n<sup>2</sup> force calculation, see Direct 
 
-  \par ton 
-  The midpoint of the adiabatic turn on for this component
+  @param use_com enables centering based on center-of-mass position
 
-  \par twid 
-  The width for the adiabatic turn on.  Unless
+  @param use_cov centers the velocity distribution on the current
+  center-of-velocity
+
+  @param com_tie ties the center to the center-of-mass of the specified
+  other component
+
+  @param EJ enables energy weighed center-of-mass.  The paramter value
+  is a two-bit flag: AXIS=1 and CENTER=2.
+    
+  @param nEJkeep is the number of time steps in running box car average for
+  EJ-determined parameters
+
+  @param nEJwant is the target number of particles to keep in the
+  ensemble used to determine the paramters.  The energy cutoff is
+  dynamically adjusted to achieve this target.
+
+  @param eEJ0 is the initial guess for the largest energy particle to
+  keep in the ensemble
+
+  @param EJkinE set true includes kinetic energy in the energy
+  determination, otherwise potential energy alone is used
+
+  @param EJext set true includes the external potential energy in the
+  energy computation
+
+  @param EJdiag turns on verbose EJ reporting
+
+  @param rmax is the maximum radius particle.  This is determined
+  dynamically from the initial conditions but can be overridden as a
+  parameter.
+
+  @param ton is the midpoint of the adiabatic turn on for this
+  component
+
+  @param twid is the width for the adiabatic turn on.  Unless
   <code>ton</code> or <code>toff</code> is specified, the component
   begins and remains fully on.
 
