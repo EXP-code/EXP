@@ -156,6 +156,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double adb = component->Adiabatic();
+  bool same;
 
   use[id] = 0;
     
@@ -173,15 +174,19 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       if (!fixed_soft) eps = *(p++);
 
 				// Compute softened distance
-      rr = eps*eps;
+      rr = 0.0;
       for (int k=0; k<3; k++)
 	rr += 
 	  (cC->Pos(i, k) - pos[k]) *
 	  (cC->Pos(i, k) - pos[k]) ;
       
-      rr = sqrt(rr);
+      if (rr<1.0e-16) 
+	same = true;
+      else 
+	same = false;
 
 				// Acceleration
+      rr = sqrt(rr+eps*eps);
       rfac = 1.0/(rr*rr*rr);
 	
       for (int k=0; k<3; k++)
@@ -190,7 +195,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 				// Potential
       if (use_external)
 	cC->AddPotExt(i, -mass/rr );
-      else
+      else if (!same)
 	cC->AddPot(i, -mass/rr );
     }
   }
