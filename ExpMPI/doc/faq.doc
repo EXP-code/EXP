@@ -4,6 +4,6 @@
 	Older distributions of GNU/Linux have a 2<sup>31</sup> file-size
 	limit.  Newer versions (e.g. on the buzzard cluster) do not
 	have this limitation.  Either periodically rename your output file 
-	our use the "outpsn" (see OutPSN) method, which writes each %dump 
+	or use the "outpsn" (see OutPSN) method, which writes each %dump 
 	to its own file.
 */
