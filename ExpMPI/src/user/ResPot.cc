@@ -17,14 +17,14 @@ bool first = true;
 bool start = true;
 #endif
 
-double ResPot::ALPHA = 0.33;
+double ResPot::ALPHA = 0.25;
 double ResPot::DELTA = 0.01;
 double TOLITR = 1.0e-8;
 int ResPot::NREC = 40;
 int ResPot::NUME = 400;
 int ResPot::NUMK = 100;
 int ResPot::NUMI = 2000;
-int ResPot::ITMAX = 100;
+int ResPot::ITMAX = 50;
 KComplex ResPot::I(0.0, 1.0);
 
 
@@ -811,19 +811,21 @@ int ResPot::coord(double* pos, double* vel,
 }
 
 
-void ResPot::Update(double dt, double Phase, double Omega, 
-		    double amp, CVector& bcoef,
-		    double* posI, double* velI,
-		    double* posO, double* velO)
+int ResPot::Update(double dt, double Phase, double Omega, 
+		   double amp, CVector& bcoef,
+		   double* posI, double* velI,
+		   double* posO, double* velO)
 {
   compute_actions();
+
+  int ret = 0;
 
   if (L1==0 && L2==0) {
     for (int k=0; k<3; k++) {
       posO[k] = posI[k];
       velO[k] = velI[k];
     }
-    return;
+    return ret;
   }
 
 
@@ -836,16 +838,18 @@ void ResPot::Update(double dt, double Phase, double Omega,
   
 
 				// Iterative implicit solution
-  double Is0, If0, Is1, Is2, Is;
-  double ws0, ws1, ws2, ws;
+  double Is0, If0, Is1, Is2, Is, Is3;
+  double ws0, ws1, ws2, ws, ws3;
   double Jm, dJm, dEIs, dKIs;
   KComplex Fw, FI, Ul, dUldE, dUldK;
   bool done = false;
 
   I1 = I1_EK.value(E, K);
 
+#ifdef DEBUG_VERBOSE
   double I10 = I1;
   double I20 = I2;
+#endif
 
   if (L2) {
     Is2 = Is0 = I2/L2;
@@ -859,6 +863,9 @@ void ResPot::Update(double dt, double Phase, double Omega,
   
   int i;
   for (i=0; i<ITMAX; i++) {
+
+    ws3 = ws1;
+    Is3 = Is1;
 
     ws1 = ws2;
     Is1 = Is2;
@@ -910,21 +917,31 @@ void ResPot::Update(double dt, double Phase, double Omega,
     if (fabs(ws1-ws2)<TOLITR && 
 	fabs(Is1-Is2)/(fabs(Is2)+1.0e-10)<TOLITR) done = true;
 
+    // Limit 2-cycle detection
+
+    if (i>3 &&
+	fabs(ws3-ws2)<TOLITR && 
+	fabs(Is3-Is2)/(fabs(Is2)+1.0e-10)<TOLITR) done = true;
+
     if (done) break;
 
   }
 
-#ifdef DEBUG
   if (!done) {
-    cerr << "Convergence error==>  E, I1, I2, DI, Dw = " 
+    // #ifdef DEBUG
+    cerr << "E, K, I1, I2, DI, Dw = " 
 	 << E
+	 << ", " << K
 	 << ", " << I1
 	 << ", " << I2
 	 << ", " << Is2-Is1
 	 << ", " << ws2-ws1
+	 << ", " << Is2-Is3
+	 << ", " << ws2-ws3
 	 << endl;
+    // #endif
+    ret = 1;
   }
-#endif
 
   // Coordinate transform: Action-Angle to Cartesian
 
@@ -960,7 +977,7 @@ void ResPot::Update(double dt, double Phase, double Omega,
     I2 = If0 + Is2*L2;
   }
 
-  /*
+#ifdef DEBUG_VERBOSE
   if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
     cout << setw(15) << I10
 	 << setw(15) << I1
@@ -970,19 +987,22 @@ void ResPot::Update(double dt, double Phase, double Omega,
 	 << setw(15) << fabs(I20 - I2)
 	 << endl;
   }
-  */
+#endif
 
 				// Get new Cartesion phase space
   coord(posO, velO, I1, I2, BETA, W1, W2, W3);
+
+  return ret;
 }
 
 
-void ResPot::Force(double dt, double Phase, double Omega, 
-		   double amp, CVector& bcoef,
-		   double* pos, double* vel, double* acc)
+int ResPot::Force(double dt, double Phase, double Omega, 
+		  double amp, CVector& bcoef,
+		  double* pos, double* vel, double* acc)
 {
   double pos0[3], vel0[3], pos2[3], vel2[3];
   double E, K, W1, W2, W3, F, BETA, PSI, I1, I2;
+  int ret;
 
 				// Get action angle coords
   coord(pos, vel, E, K, I2, W1, W2, W3, F, BETA, PSI);
@@ -994,9 +1014,11 @@ void ResPot::Force(double dt, double Phase, double Omega,
   coord(pos0, vel0, I1, I2, BETA, W1, W2, W3);
   
 				// Get phase space update with perturbation
-  Update(dt, Phase, Omega, amp, bcoef, pos, vel, pos2, vel2);
+  ret = Update(dt, Phase, Omega, amp, bcoef, pos, vel, pos2, vel2);
 
 				// Effective acceleration
   for (int k=0; k<3; k++) acc[k] = (vel2[k] - vel0[k])/dt;
+
+  return ret;
 }
 

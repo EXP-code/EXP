@@ -118,15 +118,15 @@ public:
 	    double w1, double w2, double w3);
 
   //! Update actions
-  void Update(double dt, double Phase, double Omega, 
-	      double amp, CVector& bcoef,
-	      double* posI, double* velI,
-	      double* posO, double* velO);
+  int Update(double dt, double Phase, double Omega, 
+	     double amp, CVector& bcoef,
+	     double* posI, double* velI,
+	     double* posO, double* velO);
 
   //! Force
-  void Force(double dt, double Phase, double Omega, 
-	     double amp, CVector& bcoef,
-	     double* pos, double* vel, double* acc);
+  int Force(double dt, double Phase, double Omega, 
+	    double amp, CVector& bcoef,
+	    double* pos, double* vel, double* acc);
 
 };
 

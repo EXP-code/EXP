@@ -62,7 +62,9 @@ private:
   int NUME, NUMK, NUMI;
 
   bool first;
-  double domega, t0, delt, phase, tlast, omlast;
+  double domega, t0, phase, tlast, omlast;
+
+  int *bcount;
 
   string ctr_name;
   string model_file;

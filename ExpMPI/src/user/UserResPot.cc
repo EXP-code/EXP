@@ -102,6 +102,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
 
+  bcount = new int [nthrds];
+
   userinfo();
 }
 
@@ -110,6 +112,7 @@ UserResPot::~UserResPot()
   delete halo_model;
   delete halo_ortho;
   delete respot;
+  delete [] bcount;
 }
 
 void UserResPot::userinfo()
@@ -178,7 +181,7 @@ void UserResPot::initialize()
 
 void UserResPot::determine_acceleration_and_potential(void)
 {
-  double Omega = omega*(1.0 + domega*(tnow - t0));
+  Omega = omega*(1.0 + domega*(tnow - t0));
   
   if (first) {
 
@@ -259,10 +262,11 @@ void UserResPot::determine_acceleration_and_potential(void)
 	out << setw(15) << "# Time"
 	    << setw(15) << "Phase"
 	    << setw(15) << "Omega"
+	    << setw(15) << "Bounds"
 	    << endl;
       }
       
-      phase = Omega*tnow;		// Initial phase 
+      phase = Omega*tnow;	// Initial phase 
     }
 
     first = false;
@@ -271,19 +275,36 @@ void UserResPot::determine_acceleration_and_potential(void)
     phase += (tnow - tlast)*0.5*(Omega + omlast);
   }
 
-				// Write log
+				// Store current state
+  tlast = tnow;
+  omlast = Omega;
+
+				// Clear bounds counter
+  for (int n=0; n<nthrds; n++) bcount[n] = 0;
+
+  // -----------------------------------------------------------
+  // Compute the mapping
+  // -----------------------------------------------------------
+
+  exp_thread_fork(false);
+
+  // -----------------------------------------------------------
+
+				// Get total number out of bounds
+  int btot=0;
+  for (int n=1; n<nthrds; n++) bcount[0] += bcount[n];
+  MPI_Reduce(&bcount[0], &btot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+				// Write diagnostic log
   if (myid==0) {
     ofstream out(filename.c_str(), ios::out | ios::app);
     out << setw(15) << tnow
 	<< setw(15) << phase
 	<< setw(15) << Omega
+	<< setw(15) << btot
 	<< endl;
   }
-				// Store current state
-  tlast = tnow;
-  omlast = Omega;
 
-  exp_thread_fork(false);
 }
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
@@ -299,6 +320,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+				// Check for nan (can get rid of this
+				// eventually)
   bool found_nan = false;
 
   for (int i=nbeg; i<nend; i++) {
@@ -312,7 +335,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    respot->Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO);
+    bcount[id] += 
+      respot->Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO);
 		   
     for (int k=0; k<3; k++) {
       (*particles)[i].pos[k] = posO[k];
