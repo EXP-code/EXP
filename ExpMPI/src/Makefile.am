@@ -34,8 +34,8 @@ exp_SOURCES = \
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc                \
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
      SLGridMP2.cc ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc       \
-     Sphere.cc global.cc                                                     \
-     begin.cc biorth1d.cc ddplgndr.cc Direct.cc end.cc                       \
+     Sphere.cc SphericalBasisMixtureSL.cc SphereTwoCenter.cc SphereEJCOM.cc  \
+     global.cc begin.cc biorth1d.cc ddplgndr.cc Direct.cc end.cc             \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
      incpos.cc incvel.cc initvel.cc ComponentContainer.cc                    \

@@ -44,12 +44,14 @@ protected:
 
   //! Thread method for coefficient accumulation
   virtual void * determine_coefficients_thread(void * arg);
+
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
 				// Parameters
   //! The maximum radius and any scale factor
   double rmax, scale;
+
   //! Flag PCA selection, self_consitency and drop l=1 term
   bool selector, self_consistent, NO_L1, EVEN_L;
 
@@ -62,7 +64,7 @@ public:
   SphericalBasis::~SphericalBasis();
   
   //! Required member to compute accelration and potential
-  /** This should implemenation should be fine for most cases */
+  /** This implemenation should be fine for most cases */
   virtual void get_acceleration_and_potential(vector<Particle>* Particles);
 
   //! Required member to compute coeifficients with threading
