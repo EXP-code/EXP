@@ -39,6 +39,8 @@ int main(int argc, char** argv)
   int cmap = 0;
   double scale = 1.0;
   int numr = 10000;
+  int diverge = 0;
+  double dfac = 1.0;
 
   int c;
   while (1) {
@@ -48,10 +50,11 @@ int main(int argc, char** argv)
       {"mpi", 0, 0, 0},
       {"cmap", 0, 0, 0},
       {"numr", 1, 0, 0},
+      {"dfac", 1, 0, 0},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "cmn:h",
+    c = getopt_long (argc, argv, "cmn:d:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -67,6 +70,9 @@ int main(int argc, char** argv)
 	  cmap = 1;
 	} else if (!optname.compare("numr")) {
 	  numr = atoi(optarg);
+	} else if (!optname.compare("dfac")) {
+	  diverge = 1;
+	  dfac = atof(optarg);
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
@@ -86,6 +92,11 @@ int main(int argc, char** argv)
 
     case 'n':
       numr = atoi(optarg);
+      break;
+
+    case 'd':
+      diverge = 1;
+      dfac = atof(optarg);
       break;
 
     case 'h':
@@ -145,7 +156,7 @@ int main(int argc, char** argv)
 
 				// Generate Sturm-Liouville grid
   SLGridSph *ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
-				   cmap, rs);
+				   cmap, rs, diverge, dfac);
 
 
 				// Slaves exit
@@ -229,7 +240,8 @@ int main(int argc, char** argv)
 	  x = ximin + (ximax - ximin)*lw.knot(i+1);
 	  r = ortho->xi_to_r(x);
 
-	  ans += r*r*ortho->get_pot(x, L, N1, 0)*ortho->get_dens(x, L, N2, 0) /
+	  ans += r*r*ortho->get_pot(x, L, N1, 0)*
+	    ortho->get_dens(x, L, N2, 0) /
 	    ortho->d_xi_to_r(x) * (ximax - ximin)*lw.weight(i+1);
 
 	}
