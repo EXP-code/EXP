@@ -18,6 +18,11 @@ private:
 
 protected:
 
+  /** Called to evaluate acceleration
+      Default version calls the provided thread function.
+      Can be overloaded to provide additional non-threaded
+      tasks.
+  */
   virtual void determine_acceleration_and_potential(void);
 
 public:

@@ -104,7 +104,7 @@ ParamParse::ParamParse(istream* in, string Delim) :
       current.elist.erase(current.elist.begin(), current.elist.end());
 
 				// Is it a data line
-    } else if ( (beg=line.find(delim)) != string::npos) {
+    } else if ( (beg=line.find_first_of(delim)) != string::npos) {
 
       StringTok<string> tokens(line);
       cpair.first = trimLeft(trimRight(tokens(delim)));

@@ -23,7 +23,7 @@ int NICE = 10;
 				// Files
 string homedir = "./";
 string infile = "restart.in";
-string parmfile = "PARMS.FILE";
+string parmfile = "PARAM.FILE";
 string ldlibdir = ".";
 
 double tpos, tvel, tnow;	// Per step variables

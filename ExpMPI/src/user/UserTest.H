@@ -3,6 +3,9 @@
 
 #include <ExternalCollection.H>
 
+/** Simple skeleton user routine
+    Does nothing but print out messages at each call
+*/
 class UserTest : public ExternalForce
 {
 private:
@@ -12,7 +15,9 @@ private:
 
 public:
 
+  //! Constructor
   UserTest(string &line);
+  //! Destructor
   ~UserTest();
 
 };

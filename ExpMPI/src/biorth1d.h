@@ -83,7 +83,9 @@ private:
   void compute_norm(void);
 
 public:
+  //! Enpoint offset for root finding (small)
   static double KSTOL;
+  //! Root finding tolerance (small)
   static double KSZTOL;
   
   //! Constructor

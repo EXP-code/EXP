@@ -1,3 +1,57 @@
 /*! \page modules User loadable modules
 
+One may derive classes from ExternalForce that may be built as dynamic
+modules that may be loaded and instantiatied as needed.  Modules are
+built in the <code>src/user</code> directory.  There are only a few
+steps necessary to put one's code in the tree:
+<ol>
+
+<li> Write the code (see below for additional details
+
+<li> Edit <code>Makefile.am</code>.  Assume you module is called
+<code>foo</code> and is implemented in the following source files
+<code>foo1.cc</code> and <code>foo2.cc</code>. Change the following
+lines:
+
+     <ul>
+	<li> Add <code>libfoo.la</code> to the
+	<code>lib_LTLIBRARIES</code> list
+	<li> Add a new line: <code>libfoo_la_SOURCES = foo1.cc
+	foo2,cc</code>
+	<li> (Optional) Add a new line to define any libraries needed
+	to link your code, e.g.: <code>libfoo_la_LDFLAGS = -lstdc++</code>
+     </ul>
+<li> Compile the code: <code>make</code>
+<li> Install the code in the location defined by your configure
+	script: <code>make install</code>	
+</ol>
+
+<h3> Notes on writing your module</h3>
+A good place to start is the code already in the <code>src/user</code>
+directory. The simplest code is UserTest.cc; this does
+nothing but print messages but illustrates all of the necessary
+components.
+
+All classes, of course, must derive from ExternalForce.  A quick look
+at ExternalForce.H will show that you will need to implement at least
+the member <pre>determine_acceleration_and_potential_thread()</pre>.
+In order to parse command line parameters, you will also need a
+constructor and <pre>initialize()</pre> and maybe a destructor.
+
+In addition, there is a mechanism that identifies your new class to
+the <code>exp</code>.  This has two parts.  First you must define a C
+function which constructs an instance of your class and returns a
+pointer. Using the C calling interface here gets around the problem of
+name demangling in C++ in using the dynamic linking loader (there may
+be a more transparent way to do this, but this trick seems to work
+just fine).  You will notice an addtional class at the end of the file
+called <code>proxy</code>.  An instance of this simple class is
+instantiated when the module is loaded (the last line in the file).
+As a byproduct, a pointer to the function <code>makeTest()</code> is
+is added to the factory map defined in ExternalForce.H.  This function
+can then be invoked by name in the code to create an instance of your
+class.  You can simply copy this to your own source (changing
+<code>makerTest</code> to <code>makerFoo</code> or someother unique
+name).
+
 */

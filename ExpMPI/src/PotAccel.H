@@ -14,8 +14,11 @@ class Component;
 
 //! Helper class to pass info to threaded member
 struct thrd_pass_PotAccel {
+  //! Pointer to force
   PotAccel *t;
+  //! Call coefficient thread member (true) or acceleration/potential (false)
   bool coef;
+  //! Thread counter id
   int id;
 };
 

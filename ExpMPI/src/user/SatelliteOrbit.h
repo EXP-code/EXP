@@ -25,6 +25,7 @@
 #include <massmodel.h>
 #include <model3d.h>
 
+//! Computes an satellite orbits and tidal forces in fixed halo
 class SatelliteOrbit
 {
 private:
@@ -71,37 +72,49 @@ private:
   static string MODFILE;
 
 public:
+  //! Contains parameter for satellite orbit
   static string paramFile;
 
-				// Constructor (no arguments);
+  //! Constructor (no arguments)
   SatelliteOrbit(void);
-				// Destructor
+
+  //! Destructor
   ~SatelliteOrbit(void);
 
 				// Members
 
-				// Get satellite position in halo frame
+  //! Get satellite position in halo frame
   Vector get_satellite_orbit(double T);
+
+  //! Get satellite position in halo frame
   void get_satellite_orbit(double T, double *v);
-				// Get force on satellite in halo frame
+
+  //! Get force on satellite in halo frame
   Vector get_satellite_force(double T);
 
 
 				// Member functions
 				// for TIDAL calculation
 
-				// Call once to set satelliet body orientation
+  //! Call once to set satelliet body orientation
   void setTidalOrientation(double phi, double theta, double psi);
-				// Call to set satellite position
+
+  //! Call to set satellite position
   void setTidalPosition(double T, int NI=0);
 
-				// Retrieve satellite time
+  //! Retrieve satellite time
   double Time(void) { return currentTime; }
 
-				// Get tidal force
+  //! Get tidal force
   Vector tidalForce(const Vector p);
+
+  //! Get tidal force
   Vector tidalForce(const double x, const double y, const double z);
+
+  //! Get tidal force
   Vector tidalForce(const Vector p, const Vector q);
+
+  //! Get tidal force
   Vector tidalForce(const double x, const double y, const double z,
 		    const double u, const double v, const double w);
 

@@ -1,3 +1,105 @@
 /*! \page config Configuration files
+The main configuration file identified on the <code>exp</code> command
+line using the <code>-f</code> flag. The default parameter file, in
+absence of a <code>-f file</code> override, is named
+<code>PARAM.FILE</code>.
+
+The parameter file is divided into stanzas.  Each stanza (except the
+<em>global</em> stanza) begins with a tag of the form
+<code>[stanza_name]</code>.  Each stanza is followed by lines which
+contain Key and Value pairs demarcated by a ':'.  All
+<code>Key:Value</code> pairs before the first stanza tag are
+considered global.  A line may be commented with a leading '#'.
+
+The currently defined stanzas are:
+
+\par [components]
+     
+     Each Key is the mnemonic for a component and each Value is the
+     name of file in the working directory which defines the
+     component. The mnemonic may contain spaces.  In particular, to
+     easy the transition between the phase-space format used in this
+     code (\ref bodies) and Tipsy, we use the convention that the
+     first space delimited part of the mnemonic is used by the
+     <code>psp2tipsy</code> (\ref utilities) to determine the type
+     of tipsy particle.
+
+\par [output]
+
+     Each Key defines the type of Output that the code will generate.
+     The alue is the space delimited list of parameters for the
+     Output routine.  You can have as many instances of these as you
+     like (there might be occasion reasons to have duplicates).  The
+     Key is the class name in lower case.
+
+\par [external]
+
+     These define External force routines.  Syntax is as for %Output
+     above: the Key is the name of the type and the value is the space
+     delimited parameter list.  The Key is the class name in lower
+     case.
+
+\par [interaction]
+
+     Key and Value pairs here define the interactions between
+     components.  Think: Key feels Value to get the sense of the
+     interaction.  Unfortunately, this means a fully consistent
+     simulation requires all pairs of components to be listed.
+
+<h3>Example</h3>
+<pre>
+nbodmax : 10000
+nthrds : 2
+dtime : 0.05
+ldlibdir : /home/weinberg/ExpMPI/lib/user
+nsteps: 100
+
+[components]
+dark halo : halo.conf
+star disk : disk.conf
+
+[output]
+outlog : nint=10
+outps : nint=5
+orbtrace : norb = 5
+# outdiag : nint=3
+
+[external]
+# usertest : parm=3
+userbar : length=1.0 comname=sphereSL
+# usersat : comname=bessel
+
+[interaction]
+dark halo : star disk
+star disk : dark halo
+</pre>
+
+<h2>%Component configuration</h2>
+
+Each component file should contain four fields deliminated by ':'
+characters.  The first is the Force name, the second is the list of
+parameters that that will be passed to Component.  The third is the
+name of the bodies file (in ascii) and the fourth is the list of
+parameters that will be passed to the Force.
+
+<h3>Example</h3>
+
+<pre>
+sphereSL : none : halo.bod : rmax=27.5
+</pre>
+
+Note that new lines are not significant for the component
+configuration file so the following is equivalent to the example
+above:
+
+<pre>
+sphereSL
+:
+none
+:
+halo.bod
+:
+rmax=27.5
+</pre>
 
 */

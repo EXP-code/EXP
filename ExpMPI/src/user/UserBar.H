@@ -40,7 +40,10 @@ private:
 
 public:
 
+  //! Constructor
   UserBar(string &line);
+
+  //! Destructor
   ~UserBar();
 
 };

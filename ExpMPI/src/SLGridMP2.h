@@ -123,7 +123,7 @@ public:
 };
 
 
-//! Spherical SL grid class
+//!! Spherical SL grid class
 class SLGridSph
 {
 
@@ -164,39 +164,70 @@ private:
 
 public:
 
-				// Global MPI stuff
-  static int mpi;		// default: 0=off
+  //! Flag for MPI enabled (default: 0=off)
+  static int mpi;
 
-				// Check for cached table
-  static int cache;		// default: 1=yes
+  //! Check for cached table (default: 1=yes)
+  static int cache;
 
-				// Coordinate map
-  static int cmap;		// default: 0=off
+  //! Coordinate map (default: 0=off)
+  static int cmap;
 
 				// Constructors
 
+  //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    SphericalModelTable *mod);
+  //! Constructor
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax);
+  //! Destructor
   ~SLGridSph();
 
 				// Members
 
+  //! Eigenvalue for index and harmonic order l
   double eigenvalue(int l, int n) {return table[l].ev[n];}
+  //! Map radial coordinate to nondimensional coordinate
   double r_to_xi(double r);
+  //! Map nondimensional coordinate to radial coordinate
   double xi_to_r(double x);
+  //! Jacobian of nondimensional coordinate mapping
   double d_xi_to_r(double x);
 
+  
+  //! Get potential for dimensionless coord with harmonic order l and radial orer n
   double get_pot(double x, int l, int n, int which=1);
+  //! Get density for dimensionless coord with harmonic order l and radial orer n  
   double get_dens(double x, int l, int n, int which=1);
+  //! Get force for dimensionless coord with harmonic order l and radial orer n
   double get_force(double x, int l, int n, int which=1);
 
+  /** Get potential for dimensionless coord with harmonic order l and radial orer n
+      Return all radial order values in Vector
+  */
   void get_pot(Vector& vec, double x, int l, int which=1);
+  /** Get density for dimensionless coord with harmonic order l and radial orer n
+      Return all radial order values in Vector
+  */
   void get_dens(Vector& vec, double x, int l, int which=1);
+  /** Get force for dimensionless coord with harmonic order l and radial orer n
+      Return all radial order values in Vector
+  */
   void get_force(Vector& vec, double x, int l, int which=1);
 
+  /** Get potential for dimensionless coord with harmonic order l and radial order n
+      Return Matrix with first dim harmonic order and second dim radial order
+  */
   void get_pot(Matrix& tab, double x, int which=1);
+
+  /** Get density for dimensionless coord with harmonic order l and radial order n
+      Return Matrix with first dim harmonic order and second dim radial order
+  */
   void get_dens(Matrix& tab, double x, int which=1);
+
+  /** Get force for dimensionless coord with harmonic order l and radial order n
+      Return Matrix with first dim harmonic order and second dim radial order
+  */
   void get_force(Matrix& tab, double x, int which=1);
 
 };
@@ -267,21 +298,54 @@ public:
 
 				// Members
 
+  //! Get n^th eigenvalue for given wave number indices
   double eigenvalue(int kx, int ky, int n) {return table[kx][ky].ev[n];}
+
+  //! Map from vertical coordinate to dimensionless coordinate
   double z_to_xi(double z);
+
+  //! Map from dimensionless coordinate to vertical coordinate
   double xi_to_z(double x);
+
+  //! Jacobian of coordinate mapping
   double d_xi_to_z(double x);
 
+  //! Get potential for dimensionless coord with given wave numbers and index
   double get_pot(double x, int kx, int ky, int n, int which=1);
+
+  //! Get density for dimensionless coord with given wave numbers and index
   double get_dens(double x, int kx, int ky, int n, int which=1);
+
+  //! Get force for dimensionless coord with given wave numbers and index
   double get_force(double x, int kx, int ky, int n, int which=1);
 
+  /** Get potential for member for dimensionless coord with given wave numbers
+      Return Vector for all indices
+  */
   void get_pot(Vector& vec, double x, int kx, int ky, int which=1);
+  /** Get density for dimensionless coord with given wave numbers
+      Return Vector for all indices
+  */
   void get_dens(Vector& vec, double x, int kx, int ky, int which=1);
+  /** Get force for dimensionless coord with given wave numbers
+      Return Vector for all indices
+  */
   void get_force(Vector& vec, double x, int kx, int ky, int which=1);
 
+  /** Get potential for dimensionless coord with given wave numbers
+      Return Matrix with first dimension containing x and y wavenumbers 
+      packed with y index varying most quicly, second index is vertical order.
+  */
   void get_pot(Matrix& tab, double x, int which=1);
+  /** Get density for dimensionless coord with given wave numbers
+      Return Matrix with first dimension containing x and y wavenumbers 
+      packed with y index varying most quicly, second index is vertical order.
+  */
   void get_dens(Matrix& tab, double x, int which=1);
+  /** Get force for dimensionless coord with given wave numbers
+      Return Matrix with first dimension containing x and y wavenumbers 
+      packed with y index varying most quicly, second index is vertical order.
+  */
   void get_force(Matrix& tab, double x, int which=1);
 
 };
