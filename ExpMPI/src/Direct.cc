@@ -14,6 +14,10 @@ Direct::Direct(string& line) : PotAccel(line)
   fixed_soft = true;
   ndim = 4;
 
+  adiabatic = false;
+  ton = 0.5;
+  twid = 0.1;
+
   initialize();
 
 				// Assign the ring topology
@@ -45,6 +49,16 @@ void Direct::initialize(void)
     soft = atof(val.c_str());
     fixed_soft = true;
     ndim = 4;
+  }
+
+  if (get_value("ton", val)) {
+    ton = atof(val.c_str());
+    adiabatic = true;
+  }
+
+  if (get_value("twid", val)) {
+    twid = atof(val.c_str());
+    adiabatic = true;
   }
 
   
@@ -152,6 +166,9 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
+  double adb = 1.0;
+  if (adiabatic) adb = 0.5*( 1.0 + erf((tpos-ton)/twid) );
+
   use[id] = 0;
 
   for (int i=nbeg; i<nend; i++) {
@@ -164,7 +181,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
     for (int j=0; j<ninteract; j++) {
 
 				// Get current interaction particle
-      mass = *(p++);
+      mass = *(p++) * adb;
       for (int k=0; k<3; k++) pos[k] = *(p++);
       if (!fixed_soft) eps = *(p++);
 

@@ -10,8 +10,17 @@
    associated with the Direct force.  
 
    Settable parameters:
-   @param soft_indx is the index in the particle double array for the softening value.
-   @param soft is a fixed softening value for all particles.  This can be used even if a value is specified in the particle attribute array.
+   @param soft_indx is the index in the particle double array for the 
+   softening value.
+
+   @param soft is a fixed softening value for all particles.  This can be 
+   used even if a value is specified in the particle attribute array.
+
+   @param ton is the midpoint of the adiabatic turn on for this component
+
+   @param twid is the width for the adiabatic turn on.  Unless <code>ton</code>
+   or <code>toff</code> is specified, the component begins and remains fully 
+   on.
 */
 class Direct : public PotAccel
 {
@@ -28,6 +37,9 @@ private:
 
   double soft;
   bool fixed_soft;
+
+  bool adiabatic;
+  double ton, twid;
 
   void initialize();
 
