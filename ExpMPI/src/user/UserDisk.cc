@@ -181,9 +181,9 @@ void UserDisk::genTable()
 	b0 = bessj0(K*R);
 	b1 = bessj1(K*R);
 
-	ansP += -b0;
-	ansR += -K * b1;
-	ansZ += -K * b0;
+	ansP += -b0 * fac;
+	ansR += -K * b1 * fac;
+	ansZ += -K * b0 * fac;
       }
 
       Ptable[i*Znum + j] = ansP;
@@ -198,6 +198,7 @@ void UserDisk::genTable()
 
 void UserDisk::printTable()
 {
+
   ofstream outP("test_pot.dat");
   ofstream outR("test_fr.dat");
   ofstream outZ("test_fz.dat");
@@ -225,6 +226,51 @@ void UserDisk::printTable()
       outZ << setw(18) << R
 	   << setw(18) << Z
 	   << setw(18) << Ztable[i*Znum+j]
+	   << endl;
+    }
+
+    outP << endl;
+    outR << endl;
+    outZ << endl;
+  }
+
+
+  outP.close();
+  outR.close();
+  outZ.close();
+
+  outP.open("test_pot.dat1");
+  outR.open("test_fr.dat1");
+  outZ.open("test_fz.dat1");
+
+  const int num = 100;
+  double dr = Rmax/(num-1);
+  double dz = 2.0*Zmax/(num-1);
+  double pot, fr, fz;
+
+  for (int i=0; i<num; i++) {
+
+    R = dr*i;
+
+    for (int j=0; j<Znum; j++) {
+
+      Z = -Zmax + dz*j;
+
+      getTable(R, Z, pot, fr, fz);
+
+      outP << setw(18) << R
+	   << setw(18) << Z
+	   << setw(18) << pot
+	   << endl;
+
+      outR << setw(18) << R
+	   << setw(18) << Z
+	   << setw(18) << fr
+	   << endl;
+
+      outZ << setw(18) << R
+	   << setw(18) << Z
+	   << setw(18) << fz
 	   << endl;
     }
 
