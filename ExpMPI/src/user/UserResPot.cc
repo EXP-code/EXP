@@ -276,7 +276,7 @@ void UserResPot::determine_acceleration_and_potential(void)
     ofstream out(filename.c_str(), ios::out | ios::app);
     out << setw(15) << tnow
 	<< setw(15) << phase
-	<< setw(15) << omega
+	<< setw(15) << Omega
 	<< endl;
   }
 				// Store current state
@@ -285,7 +285,6 @@ void UserResPot::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 }
-
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
   double amp, R2, R;
@@ -313,7 +312,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    respot->Update(dtime, phase, omega, amp, bcoef, posI, velI, posO, velO);
+    respot->Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO);
 		   
     for (int k=0; k<3; k++) {
       (*particles)[i].pos[k] = posO[k];

@@ -52,7 +52,7 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double ton, toff, delta, toffset, omega;
+  double ton, toff, delta, toffset, omega, Omega;
   
   int LMAX, NMAX, NUMR, L0, M0, L1, L2;
   double rmin, rmax, scale, drfac;
