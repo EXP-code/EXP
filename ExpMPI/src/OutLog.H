@@ -68,10 +68,10 @@ private:
   vector<dvector> mom, mom1;
   vector<dvector> angm, angm1;
   vector<dvector> ctr;
-  vector<double> ektot, eptot, clausius;
-  vector<double> ektot1, eptot1, clausius1;
+  vector<double> ektot, eptot, eptotx, clausius;
+  vector<double> ektot1, eptot1, eptotx1, clausius1;
 
-  vector<double> com0, cov0, angm0, mom0;
+  vector<double> com0, cov0, angm0, mom0, pos0;
 
 public:
 

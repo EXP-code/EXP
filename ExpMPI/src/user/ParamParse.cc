@@ -70,7 +70,7 @@ ParamParse::ParamParse(istream* in, string Delim) :
 				// Read in the line
     in->getline(lbuf, lbufsize);
     if (!*in) break;
-    string::size_type beg, end;
+    string::size_type beg;
 
     string line(lbuf);
 

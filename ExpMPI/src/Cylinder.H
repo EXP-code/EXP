@@ -29,7 +29,7 @@ private:
   void initialize(void);
 
 				// Parameters
-  double rcylEM, zmax, acyl;
+  double rcylmin, rcylmax, zmax, acyl;
   int nmax, lmax, mmax;
   int ncylnx, ncylny;
   double hcyl;

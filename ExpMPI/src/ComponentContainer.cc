@@ -210,6 +210,7 @@ void ComponentContainer::compute_potential(void)
 
       (*inter)->c->force->SetExternal();
       (*inter)->c->force->get_acceleration_and_potential(&((*other)->particles));
+      (*inter)->c->force->ClearExternal();
 
     }
   }

@@ -122,6 +122,9 @@ public:
   //! Set external flag for current force call 
   void SetExternal() { use_external = true; }
 
+  //! Clear external flag
+  void ClearExternal() { use_external = false; }
+
 };
 
 #endif

@@ -136,11 +136,14 @@ void OutLog::Run(int n, bool last)
     cov0 = vector<double>(3);
     angm0 = vector<double>(3);
     mom0 = vector<double>(5);
+    pos0 = vector<double>(3);
     
     ektot = vector<double>(comp.ncomp);
     ektot1 = vector<double>(comp.ncomp);
     eptot = vector<double>(comp.ncomp);
     eptot1 = vector<double>(comp.ncomp);
+    eptotx = vector<double>(comp.ncomp);
+    eptotx1 = vector<double>(comp.ncomp);
     clausius = vector<double>(comp.ncomp);
     clausius1 = vector<double>(comp.ncomp);
 
@@ -218,6 +221,7 @@ void OutLog::Run(int n, bool last)
     mtot[i] = mtot1[i] = 0.0;
     ektot[i] = ektot1[i] = 0.0;
     eptot[i] =  eptot1[i] = 0.0;
+    eptotx[i] =  eptotx1[i] = 0.0;
     clausius[i] = clausius1[i] = 0.0;
 
     for (int j=0; j<3; j++) {
@@ -261,11 +265,14 @@ void OutLog::Run(int n, bool last)
       angm1[indx][1] += p->mass*(p->pos[2]*p->vel[0]-p->pos[0]*p->vel[2]);
       angm1[indx][2] += p->mass*(p->pos[0]*p->vel[1]-p->pos[1]*p->vel[0]);
 
-      eptot1[indx] += 0.5*p->mass*p->pot + p->mass*p->potext;
+      for (int j=0; j<3; j++) pos0[j] = p->pos[j] - c->center[j];
+
+      eptot1[indx] += 0.5*p->mass*p->pot;
+      eptotx1[indx] += p->mass*p->potext;
       ektot1[indx] += 0.5*p->mass*
 	(p->vel[0]*p->vel[0]+p->vel[1]*p->vel[1]+p->vel[2]*p->vel[2]);
       clausius1[indx] += p->mass*
-	(p->pos[0]*p->acc[0]+p->pos[1]*p->acc[1]+p->pos[2]*p->acc[2]);
+	(pos0[0]*p->acc[0]+pos0[1]*p->acc[1]+pos0[2]*p->acc[2]);
     }
     
     for (int j=0; j<3; j++) ctr[indx][j] = c->center[j];
@@ -293,6 +300,8 @@ void OutLog::Run(int n, bool last)
   MPI_Reduce(&ektot1[0], &ektot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
   MPI_Reduce(&eptot1[0], &eptot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&eptotx1[0], &eptotx[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
   MPI_Reduce(&clausius1[0], &clausius[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
@@ -352,7 +361,7 @@ void OutLog::Run(int n, bool last)
       
 				// PE
     double eptot0 = 0.0;
-    for (int i=0; i<comp.ncomp; i++) eptot0 += eptot[i];
+    for (int i=0; i<comp.ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
     *out << "|" << setw(18) << eptot0;
      
 				// Clausius, Total, 2T/VC
@@ -386,7 +395,7 @@ void OutLog::Run(int n, bool last)
       for (int j=0; j<3; j++)
 	*out << "|" << setw(18) << ctr[i][j];
       *out << "|" << setw(18) << ektot[i];
-      *out << "|" << setw(18) << eptot[i];
+      *out << "|" << setw(18) << eptot[i] + eptotx[i];
       *out << "|" << setw(18) << clausius[i];
       *out << "|" << setw(18) << ektot[i] + clausius[i];
       *out << "|" << setw(18) << -2.0*ektot[i]/clausius[i];

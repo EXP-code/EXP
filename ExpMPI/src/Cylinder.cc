@@ -20,7 +20,8 @@ Cylinder::Cylinder(string& line) : Basis(line)
   geometry = cylinder;
 
 				// Default values
-  rcylEM = 20.0;
+  rcylmin = 0.01;
+  rcylmax = 20.0;
   acyl = 1.0;
   nmax = 10;
   lmax = 26;
@@ -36,7 +37,8 @@ Cylinder::Cylinder(string& line) : Basis(line)
   initialize();
 
 
-  EmpCylSL::RMAX = rcylEM;
+  EmpCylSL::RMIN = rcylmin;
+  EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
   EmpCylSL::ASCALE = acyl;
@@ -76,7 +78,8 @@ void Cylinder::initialize()
 {
   string val;
 
-  if (get_value("rcylEM", val)) rcylEM = atof(val.c_str());
+  if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
+  if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
   if (get_value("acyl", val)) acyl = atof(val.c_str());
   if (get_value("hcyl", val)) hcyl = atof(val.c_str());
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
@@ -218,7 +221,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
 
-    if (r<=M_SQRT1_2*rcylEM) {
+    if (r<=M_SQRT1_2*rcylmax) {
       if (eof) {
 	use[id]++;
 	cylmass0[id] += (*particles)[i].mass;
@@ -339,7 +342,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r<=M_SQRT1_2*rcylEM) {
+    if (r<=M_SQRT1_2*rcylmax) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
