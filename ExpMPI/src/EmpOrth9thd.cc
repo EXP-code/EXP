@@ -2525,7 +2525,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
   
   for (mm=0; mm<=MMAX; mm++) {
 
-    for (n=0; n<=min<int>(NOUT, rank3); n++) {
+    for (n=0; n<=min<int>(NOUT, rank3-1); n++) {
 
 				// Make output streams
       for (int i=0; i<MPItable; i++) {
