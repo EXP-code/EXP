@@ -7,8 +7,8 @@
     Liouville direct solution fitting to peak potential and COM.
     The mixture function is:
     \f[
-    f({\bf r}) = \hbox{erf}\left(C\left|{{\bf r} - {\bf r}_{peak}\over
-    {\bf r}_{COM} - {\bf r}_{peak}}\right|^\alpha\right)
+    f({\bf r}) = \hbox{erf}\left(C\left[{|{\bf r} - {\bf r}_{peak}|\over
+    |{\bf r}_{COM} - {\bf r}_{peak}|}\right]^\alpha\right)
     \f]
     On evaluation, the acceleration from the grid centered on 
     \f${\bf r}_{COM}\f$ is  multiplied by \f$f({\bf r})\f$ and the
