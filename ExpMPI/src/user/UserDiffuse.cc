@@ -284,10 +284,15 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 
 
 				// Unit vec perp to ${\hat r}$ and ${\hat v}$
+    /*
     e2[0] = er[1]*e1[2] - er[2]*e1[1];
     e2[1] = er[2]*e1[0] - er[0]*e1[2];
     e2[2] = er[0]*e1[1] - er[1]*e1[0];
-
+    */
+				// Unit vec perp to ${\hat e1}$ and ${\hat v}$
+    e2[0] = ev[1]*e1[2] - ev[2]*e1[1];
+    e2[1] = ev[2]*e1[0] - ev[0]*e1[2];
+    e2[2] = ev[0]*e1[1] - ev[1]*e1[0];
 
 				// Get diffusion coefficients
     get_coefs(rr, vv, dvpara1, dvpara2, dvperp2);
