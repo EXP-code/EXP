@@ -6,31 +6,23 @@ static char rcsid[] = "$Id$";
 #include <Direct.H>
 
 static const int MSGTAG=103;
-static const int NDIM=5;
 
 Direct::Direct(string& line) : PotAccel(line)
 {
   soft_indx = 0;
   soft = 0.01;
-  fixed_soft = false;
-  ndim = 5;
+  fixed_soft = true;
+  ndim = 4;
 
   initialize();
 
-  if (fixed_soft && component->ndattrib<soft_indx+1) {
-    if (myid==0) cerr << "Direct: particle softening data missing\n";
-    MPI_Abort(MPI_COMM_WORLD, 103);
-    exit(0);
-  }
-    
-				// Assign the ring connections
+				// Assign the ring topology
   to_proc = (myid+1) % numprocs;
   from_proc = (myid+numprocs-1) % numprocs;
 
 				// Buffer pointers
   tmp_buffer = NULL;
   bod_buffer = NULL;
-
 }
 
 Direct::~Direct()
@@ -63,6 +55,12 @@ void Direct::get_acceleration_and_potential(vector<Particle>* P)
   particles = P;
   nbodies = particles->size();
 
+  if (!fixed_soft && component->ndattrib<soft_indx+1) {
+    if (myid==0) cerr << "Direct: particle softening data missing\n";
+    MPI_Abort(MPI_COMM_WORLD, 103);
+    exit(0);
+  }
+    
   /*======================================*/
   /* Determine potential and acceleration */
   /*======================================*/
@@ -75,7 +73,7 @@ void Direct::determine_acceleration_and_potential(void)
 				// Determine size of largest nbody list
   ninteract = component->particles.size();
   max_bodies = ninteract;
-  MPI_Reduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+  MPI_Allreduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
 				// Allocate buffers to handle largest list
   delete [] tmp_buffer;
@@ -91,8 +89,7 @@ void Direct::determine_acceleration_and_potential(void)
     *(p++) = component->particles[i].pos[0];
     *(p++) = component->particles[i].pos[1];
     *(p++) = component->particles[i].pos[2];
-    if (fixed_soft)
-      *(p++) = component->particles[i].dattrib[soft_indx];
+    if (!fixed_soft) *(p++) = component->particles[i].dattrib[soft_indx];
   }
 
 				// Do the local interactors
@@ -126,7 +123,14 @@ void Direct::determine_acceleration_and_potential(void)
     exp_thread_fork(false);
   }
 
-  // Clear external potential flag
+  if (!use_external) {
+    int use1 = 0;
+    for (int id=0; id<nthrds; id++) use1 += use[id];
+    used = 0;
+    MPI_Allreduce (&use1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  }
+
+				// Clear external potential flag
   use_external = false;
 }
 
@@ -155,18 +159,15 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 				// Get current interaction particle
       mass = *(p++);
       for (int k=0; k<3; k++) pos[k] = *(p++);
-      if (fixed_soft)
-	eps = *(p++);
+      if (!fixed_soft) eps = *(p++);
 
-				// Compute distance
-      rr = 0.0;
+				// Compute softened distance
+      rr = eps*eps;
       for (int k=0; k<3; k++)
 	rr += 
 	  ((*particles)[i].pos[k] - pos[k]) *
 	  ((*particles)[i].pos[k] - pos[k]) ;
 
-				// Add softening
-      rr += eps*eps;
       rr = sqrt(rr);
 
 				// Acceleration
@@ -181,6 +182,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	(*particles)[i].potext += -mass/rr;
       else
 	(*particles)[i].pot += -mass/rr;
+
     }
 
   }
