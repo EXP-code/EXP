@@ -47,7 +47,8 @@ private:
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime;
-  double Lz, Lz0, Lzbar, omega, Iz, afac, b5;
+  double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
+  double T0, DOmega;
   vector<double> timeq, ampq, b5q;
   int qlast;
   string name;

@@ -17,6 +17,8 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
+  DOmega = 0.0;			// Change in pattern speed
+  T0 = 10.0;			// Center of pattern speed change
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
@@ -25,6 +27,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   filename = "BarRot." + runtag; // Output file name
 
   firstime = true;
+  omega0 = -1.0;
 
   ctr_name = "";		// Default component for com
   angm_name = "";		// Default component for angular momentum
@@ -149,7 +152,8 @@ void UserEBar::userinfo()
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
   if (fixed)
-    cout << "fixed pattern speed, ";
+    cout << "fixed pattern speed with "
+	 << "  domega=" <<  DOmega << " and t0=" << T0 << ", ";
   else
     cout << "fixed corotation fraction, ";
   if (monopole)
@@ -189,7 +193,10 @@ void UserEBar::initialize()
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
+  if (get_value("DOmega", val))		DOmega = atof(val.c_str());
+  if (get_value("T0", val))		T0 = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
+  if (get_value("omega", val))		omega0 = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
@@ -214,30 +221,35 @@ void UserEBar::determine_acceleration_and_potential(void)
     list<Component*>::iterator cc;
     Component *c;
 
-    double R=length*Fcorot;
-    double phi, theta=0.5*M_PI;
-    double dens, potl, potr, pott, potp;
-    double avg=0.0;
-    
-    for (int n=0; n<8; n++) {
-      phi = 2.0*M_PI/8.0 * n;
+    if (omega0 < 0.0) {
 
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	c = *cc;
+      double R=length*Fcorot;
+      double phi, theta=0.5*M_PI;
+      double dens, potl, potr, pott, potp;
+      double avg=0.0;
+      
+      for (int n=0; n<8; n++) {
+	phi = 2.0*M_PI/8.0 * n;
+
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  c = *cc;
 	
-	if (c->force->geometry == PotAccel::sphere || 
-	    c->force->geometry == PotAccel::cylinder) {
+	  if (c->force->geometry == PotAccel::sphere || 
+	      c->force->geometry == PotAccel::cylinder) {
 	  
-	  ((Basis*)c->force)->
-	    determine_fields_at_point_sph(R, theta, phi,
-					  &dens, &potl, &potr, &pott, &potp);
+	    ((Basis*)c->force)->
+	      determine_fields_at_point_sph(R, theta, phi,
+					    &dens, &potl, &potr, &pott, &potp);
 	  
-	  avg += potr/8.0;
+	    avg += potr/8.0;
+	  }
 	}
       }
+
+      omega0 = sqrt(avg/R);
     }
 
-    omega = sqrt(avg/R);
+    omega = omega0*(1.0 + DOmega*(tnow - T0));
 
     const int N = 100;
     LegeQuad gq(N);
@@ -430,7 +442,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	omega = Lz/Iz;
     }
     else
-      omega = lastomega;
+      omega = omega0*(1.0 + DOmega*(tnow - T0));
     
     if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;

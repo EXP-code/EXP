@@ -13,7 +13,7 @@ bin_PROGRAMS = testcoord
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
-	libebarp.la librespot.la librptest.la
+	libebarp.la librespot.la librptest.la libhalo.la
 
 libuser_la_SOURCES = UserTest.cc
 
@@ -36,6 +36,8 @@ libdiffrot_la_SOURCES = UserDiffRot.cc
 liblogpot_la_SOURCES = UserLogPot.cc
 
 libdisk_la_SOURCES = UserDisk.cc
+
+libhalo_la_SOURCES = UserHalo.cc
 
 libtorque_la_SOURCES = UserTorque.cc
 
