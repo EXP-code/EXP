@@ -28,22 +28,41 @@ void usage(char *prog)
        << prog << " [options]\n\n"
        << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " 
        << setiosflags(ios::left)
-       << setw(40) << "Description" << "\n"
+       << setw(40) << "Description" << endl << endl
        << resetiosflags(ios::left)
-       << "\n"
        << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " 
        << setiosflags(ios::left)
-       << setw(40) << "Turn on MPI for SL computation\n"
+       << setw(40) << "Turn on MPI for SL computation" << endl
        << resetiosflags(ios::left)
-       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " 
+       << setw(15) << "-t or --Trig" << setw(10) << "No" << setw(10) << " " 
        << setiosflags(ios::left)
-       << setw(40) << "Use mapped rather than linear coordinates\n"
+       << setw(40) << "Use trigonometric basis" << endl
        << resetiosflags(ios::left)
-       << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " 
+       << setw(15) << "-s or --SL" << setw(10) << "No" << setw(10) << " " 
        << setiosflags(ios::left)
-       << setw(40) << "Number of points in radial table\n"
+       << setw(40) << "Use Sturm-Liouville basis" << endl
        << resetiosflags(ios::left)
-       << "\n";
+       << setw(15) << "-n " << setw(10) << "int" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Number of basis functions" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-H " << setw(10) << "double" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Slab scale height" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-k " << setw(10) << "double" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Wave number for Trig basis" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-x " << setw(10) << "double" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Wave number in X for SL basis" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-y " << setw(10) << "double" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Wave number in Y for SL basis" << endl
+       << resetiosflags(ios::left)
+       << "" << endl;
 
   exit(0);
 }
@@ -92,7 +111,7 @@ main(int argc, char** argv)
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined \n";
+	  cout << " is not defined " << endl;
 	  exit(0);
 	}
       }
@@ -195,11 +214,11 @@ main(int argc, char** argv)
       bool done=false;
       int iwhich;
       
-      cout << "Task:\n";
-      cout << "1: Print out density, potential pairs\n";
-      cout << "2: Check density\n";
-      cout << "3: Check orthogonality\n";
-      cout << "4: Quit\n";
+      cout << "Task:" << endl;
+      cout << "1: Print out density, potential pairs" << endl;
+      cout << "2: Check density" << endl;
+      cout << "3: Check orthogonality" << endl;
+      cout << "4: Quit" << endl;
       cout << "?? ";
       cin >> iwhich;
       
@@ -213,7 +232,7 @@ main(int argc, char** argv)
 	  cin >> filename;
 	  ofstream out (filename.c_str());
 	  if (!out) {
-	    cout << "Can't open <" << filename << "> for output\n";
+	    cout << "Can't open <" << filename << "> for output" << endl;
 	    break;
 	  }
 	  
@@ -256,7 +275,7 @@ main(int argc, char** argv)
 	  cin >> filename;
 	  ofstream out (filename.c_str());
 	  if (!out) {
-	    cout << "Can't open <" << filename << "> for output\n";
+	    cout << "Can't open <" << filename << "> for output" << endl;
 	    break;
 	  }
 	  
