@@ -149,6 +149,7 @@ main(int argc, char **argv)
 	{"sccyl", 1, 0, 0},
 	{"ascale", 1, 0, 0},
 	{"hscale", 1, 0, 0},
+	{"norder", 1, 0, 0},
 	{"numr", 1, 0, 0},
 	{0, 0, 0, 0}
       };
@@ -171,6 +172,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("scsph")) SCSPH = atof(optarg);
 	  if (!optname.compare("ascale")) ASCALE = atof(optarg);
 	  if (!optname.compare("hscale")) HSCALE = atof(optarg);
+	  if (!optname.compare("norder")) NORDER = atoi(optarg);
 	  if (!optname.compare("numr")) NUMR = atoi(optarg);
 	  break;
 
