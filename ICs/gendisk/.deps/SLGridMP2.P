@@ -1,0 +1,198 @@
+SLGridMP2.o: SLGridMP2.cc /usr/include/stdlib.h \
+ /usr/include/features.h /usr/include/sys/cdefs.h \
+ /usr/include/gnu/stubs.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/include/stddef.h \
+ /usr/include/sys/types.h /usr/include/bits/types.h \
+ /usr/include/bits/pthreadtypes.h /usr/include/bits/sched.h \
+ /usr/include/time.h /usr/include/endian.h /usr/include/bits/endian.h \
+ /usr/include/sys/select.h /usr/include/bits/select.h \
+ /usr/include/bits/sigset.h /usr/include/bits/time.h \
+ /usr/include/sys/sysmacros.h /usr/include/alloca.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iostream.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/streambuf.h \
+ /usr/include/libio.h /usr/include/_G_config.h /usr/include/wchar.h \
+ /usr/include/bits/wchar.h /usr/include/gconv.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/include/stdarg.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iomanip.h \
+ ../include/f2c.h SLGridMP2.h /usr/include/math.h \
+ /usr/include/bits/huge_val.h /usr/include/bits/mathdef.h \
+ /usr/include/bits/mathcalls.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/fstream.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/string \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/bastring.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cstddef \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/straits.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cctype \
+ /usr/include/ctype.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cstring \
+ /usr/include/string.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/alloc.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_config.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_alloc.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/include/new \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/include/exception \
+ /usr/include/assert.h /usr/include/pthread.h /usr/include/sched.h \
+ /usr/include/signal.h /usr/include/bits/initspin.h \
+ /usr/include/bits/sigthread.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iterator \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_relops.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_iterator.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/bastring.cc \
+ /usr/local/lam-6.5.6/include/mpi.h \
+ /usr/local/lam-6.5.6/include/lam_config.h \
+ /usr/local/lam-6.5.6/include/mpio.h \
+ /usr/local/lam-6.5.6/include/mpi++.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_config.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_map.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_list.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/constants.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/functions.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/datatype.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/exception.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/op.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/status.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/request.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/group.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/comm.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/errhandler.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/intracomm.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/topology.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/intercomm.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/datatype_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/functions_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/request_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/comm_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/intracomm_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/topology_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/intercomm_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/group_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/op_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/errhandler_inln.h \
+ /usr/local/lam-6.5.6/include/mpi2c++/status_inln.h localmpi.h \
+ /home/weinberg/C++/include/Vector.h \
+ /home/weinberg/C++/include/Matrix.h \
+ /home/weinberg/C++/include/massmodel.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/ACG.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/RNG.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Uniform.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Random.h \
+ /home/weinberg/C++/include/logic.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/String.h \
+ /usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Regex.h \
+ /home/weinberg/C++/include/orbit.h \
+ /home/weinberg/C++/include/biorth.h \
+ /home/weinberg/C++/include/gknots.h \
+ /home/weinberg/C++/include/MassModel.h \
+ /home/weinberg/C++/include/AxiSymModel.h \
+ /home/weinberg/C++/include/EmbeddedDiskModel.h \
+ /home/weinberg/C++/include/SphericalModelTable.h \
+ /home/weinberg/C++/include/QPDistF.h sltableMP2.h
+SLGridMP2.cc :
+/usr/include/stdlib.h :
+/usr/include/features.h :
+/usr/include/sys/cdefs.h :
+/usr/include/gnu/stubs.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/include/stddef.h :
+/usr/include/sys/types.h :
+/usr/include/bits/types.h :
+/usr/include/bits/pthreadtypes.h :
+/usr/include/bits/sched.h :
+/usr/include/time.h :
+/usr/include/endian.h :
+/usr/include/bits/endian.h :
+/usr/include/sys/select.h :
+/usr/include/bits/select.h :
+/usr/include/bits/sigset.h :
+/usr/include/bits/time.h :
+/usr/include/sys/sysmacros.h :
+/usr/include/alloca.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iostream.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/streambuf.h :
+/usr/include/libio.h :
+/usr/include/_G_config.h :
+/usr/include/wchar.h :
+/usr/include/bits/wchar.h :
+/usr/include/gconv.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/include/stdarg.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iomanip.h :
+../include/f2c.h :
+SLGridMP2.h :
+/usr/include/math.h :
+/usr/include/bits/huge_val.h :
+/usr/include/bits/mathdef.h :
+/usr/include/bits/mathcalls.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/fstream.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/string :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/bastring.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cstddef :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/straits.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cctype :
+/usr/include/ctype.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/cstring :
+/usr/include/string.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/alloc.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_config.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_alloc.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/include/new :
+/usr/lib/gcc-lib/i386-linux/2.95.4/include/exception :
+/usr/include/assert.h :
+/usr/include/pthread.h :
+/usr/include/sched.h :
+/usr/include/signal.h :
+/usr/include/bits/initspin.h :
+/usr/include/bits/sigthread.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/iterator :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_relops.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/stl_iterator.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/std/bastring.cc :
+/usr/local/lam-6.5.6/include/mpi.h :
+/usr/local/lam-6.5.6/include/lam_config.h :
+/usr/local/lam-6.5.6/include/mpio.h :
+/usr/local/lam-6.5.6/include/mpi++.h :
+/usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_config.h :
+/usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_map.h :
+/usr/local/lam-6.5.6/include/mpi2c++/mpi2c++_list.h :
+/usr/local/lam-6.5.6/include/mpi2c++/constants.h :
+/usr/local/lam-6.5.6/include/mpi2c++/functions.h :
+/usr/local/lam-6.5.6/include/mpi2c++/datatype.h :
+/usr/local/lam-6.5.6/include/mpi2c++/exception.h :
+/usr/local/lam-6.5.6/include/mpi2c++/op.h :
+/usr/local/lam-6.5.6/include/mpi2c++/status.h :
+/usr/local/lam-6.5.6/include/mpi2c++/request.h :
+/usr/local/lam-6.5.6/include/mpi2c++/group.h :
+/usr/local/lam-6.5.6/include/mpi2c++/comm.h :
+/usr/local/lam-6.5.6/include/mpi2c++/errhandler.h :
+/usr/local/lam-6.5.6/include/mpi2c++/intracomm.h :
+/usr/local/lam-6.5.6/include/mpi2c++/topology.h :
+/usr/local/lam-6.5.6/include/mpi2c++/intercomm.h :
+/usr/local/lam-6.5.6/include/mpi2c++/datatype_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/functions_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/request_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/comm_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/intracomm_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/topology_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/intercomm_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/group_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/op_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/errhandler_inln.h :
+/usr/local/lam-6.5.6/include/mpi2c++/status_inln.h :
+localmpi.h :
+/home/weinberg/C++/include/Vector.h :
+/home/weinberg/C++/include/Matrix.h :
+/home/weinberg/C++/include/massmodel.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/ACG.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/RNG.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Uniform.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Random.h :
+/home/weinberg/C++/include/logic.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/String.h :
+/usr/lib/gcc-lib/i386-linux/2.95.4/../../../../include/g++-3/Regex.h :
+/home/weinberg/C++/include/orbit.h :
+/home/weinberg/C++/include/biorth.h :
+/home/weinberg/C++/include/gknots.h :
+/home/weinberg/C++/include/MassModel.h :
+/home/weinberg/C++/include/AxiSymModel.h :
+/home/weinberg/C++/include/EmbeddedDiskModel.h :
+/home/weinberg/C++/include/SphericalModelTable.h :
+/home/weinberg/C++/include/QPDistF.h :
+sltableMP2.h :

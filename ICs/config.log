@@ -1,0 +1,170 @@
+This file contains any messages produced by compilers while
+running configure, to aid debugging if configure makes a mistake.
+
+configure:556: checking for a BSD compatible install
+configure:609: checking whether build environment is sane
+configure:666: checking whether make sets ${MAKE}
+configure:712: checking for working aclocal
+configure:725: checking for working autoconf
+configure:738: checking for working automake
+configure:751: checking for working autoheader
+configure:764: checking for working makeinfo
+configure:783: checking for mawk
+configure:818: checking for g77
+configure:851: checking whether the Fortran 77 compiler (g77  ) works
+configure:864: g77 -o conftest   conftest.f  1>&5
+configure:890: checking whether the Fortran 77 compiler (g77  ) is a cross-compiler
+configure:895: checking whether we are using GNU Fortran 77
+configure:904: g77 -E conftest.fpp
+configure:919: checking whether g77 accepts -g
+configure:952: checking for gcc
+configure:1065: checking whether the C compiler (gcc  ) works
+configure:1081: gcc -o conftest    conftest.c  1>&5
+configure:1107: checking whether the C compiler (gcc  ) is a cross-compiler
+configure:1112: checking whether we are using GNU C
+configure:1121: gcc -E conftest.c
+configure:1140: checking whether gcc accepts -g
+configure:1172: checking how to run the C preprocessor
+configure:1193: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:1256: checking for c++
+configure:1288: checking whether the C++ compiler (c++  ) works
+configure:1304: c++ -o conftest    conftest.C  1>&5
+configure:1330: checking whether the C++ compiler (c++  ) is a cross-compiler
+configure:1335: checking whether we are using GNU C++
+configure:1344: c++ -E conftest.C
+configure:1363: checking whether c++ accepts -g
+configure:1395: checking how to run the C++ preprocessor
+configure:1413: c++ -E  conftest.C >/dev/null 2>conftest.out
+configure:1449: checking for a BSD compatible install
+configure:1502: checking whether ln -s works
+configure:1523: checking whether make sets ${MAKE}
+configure:1552: checking for ranlib
+configure:1581: checking for main in -largs
+configure:1596: gcc -o conftest -g -O2   conftest.c -largs   1>&5
+/usr/bin/ld: cannot find -largs
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1589 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1624: checking for main in -lblas
+configure:1639: gcc -o conftest -g -O2   conftest.c -lblas   1>&5
+/usr/bin/ld: cannot find -lblas
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1632 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1667: checking for main in -lcruft
+configure:1682: gcc -o conftest -g -O2   conftest.c -lcruft   1>&5
+/usr/bin/ld: cannot find -lcruft
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1675 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1710: checking for main in -lf2c
+configure:1725: gcc -o conftest -g -O2   conftest.c -lf2c   1>&5
+/usr/bin/ld: cannot find -lf2c
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1718 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1753: checking for main in -lfftw
+configure:1768: gcc -o conftest -g -O2   conftest.c -lfftw   1>&5
+configure:1796: checking for main in -lg
+configure:1811: gcc -o conftest -g -O2   conftest.c -lg  -lfftw  1>&5
+configure:1839: checking for main in -llapack
+configure:1854: gcc -o conftest -g -O2   conftest.c -llapack  -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -llapack
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1847 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1882: checking for main in -lm
+configure:1897: gcc -o conftest -g -O2   conftest.c -lm  -lg -lfftw  1>&5
+configure:1925: checking for main in -lmdw
+configure:1940: gcc -o conftest -g -O2   conftest.c -lmdw  -lm -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -lmdw
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 1933 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:1968: checking for main in -lmpi
+configure:1983: gcc -o conftest -g -O2   conftest.c -lmpi  -lm -lg -lfftw  1>&5
+configure:2011: checking for main in -lnumerical
+configure:2026: gcc -o conftest -g -O2   conftest.c -lnumerical  -lmpi -lm -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -lnumerical
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 2019 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:2054: checking for main in -lrfftw
+configure:2069: gcc -o conftest -g -O2   conftest.c -lrfftw  -lmpi -lm -lg -lfftw  1>&5
+configure:2097: checking for main in -lt
+configure:2112: gcc -o conftest -g -O2   conftest.c -lt  -lrfftw -lmpi -lm -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -lt
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 2105 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:2140: checking for main in -ltrillium
+configure:2155: gcc -o conftest -g -O2   conftest.c -ltrillium  -lrfftw -lmpi -lm -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -ltrillium
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 2148 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:2183: checking for main in -ltstdio
+configure:2198: gcc -o conftest -g -O2   conftest.c -ltstdio  -lrfftw -lmpi -lm -lg -lfftw  1>&5
+/usr/bin/ld: cannot find -ltstdio
+collect2: ld returned 1 exit status
+configure: failed program was:
+#line 2191 "configure"
+#include "confdefs.h"
+
+int main() {
+main()
+; return 0; }
+configure:2227: checking for ANSI C header files
+configure:2240: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:2307: gcc -o conftest -g -O2   conftest.c -lrfftw -lmpi -lm -lg -lfftw  1>&5
+configure:2334: checking for strings.h
+configure:2344: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:2334: checking for sys/time.h
+configure:2344: gcc -E  conftest.c >/dev/null 2>conftest.out
+configure:2372: checking for working const
+configure:2426: gcc -c -g -O2  conftest.c 1>&5
