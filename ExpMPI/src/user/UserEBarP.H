@@ -41,7 +41,7 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, omegatab, monopole, soft, table;
+  bool fixed, omegatab, monopole, soft, table, noself;
   string filename, fileomega;
 
   static const double numfac = 3.86274202023190e-01;

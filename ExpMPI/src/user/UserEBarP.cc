@@ -23,6 +23,7 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
+  noself = false;		// No not apply monopole to particles
   fileomega = "omega.dat";	// File containg Omega vs T
   filename = "BarRot." + runtag; // Output file name
 
@@ -200,8 +201,12 @@ void UserEBarP::userinfo()
     cout << "fixed pattern speed, ";
   else
     cout << "fixed corotation fraction, ";
-  if (monopole)
-    cout << "using monopole, ";
+  if (monopole) {
+    if (noself)
+      cout << "using monopole without force on particles, ";
+    else
+      cout << "using monopole, ";
+  }
   else
     cout << "without monopole, ";
   if (soft)
@@ -243,6 +248,7 @@ void UserEBarP::initialize()
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
+  if (get_value("noself", val))		noself = atoi(val.c_str()) ? true:false;
   if (get_value("omegatab", val))	omegatab = atoi(val.c_str()) ? true:false;
   if (get_value("fileomega", val))	fileomega = val;
   if (get_value("filename", val))	filename = val;
@@ -638,16 +644,28 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 
       M0 = ellip->getMass(rr);
 
-      for (int k=0; k<3; k++) {
+      if (noself) {
+
+	for (int k=0; k<3; k++) {
+				// Force on bar (via Newton's 3rd law)
+	  tacc[id][k] += -(*particles)[i].mass * (acct[k] -
+						  M0*pos[k]/(rr*rr*rr));
+	}
+
+      } else {
+
+	for (int k=0; k<3; k++) {
 				// Add monopole acceleration
-	acct[k] += -M0*pos[k]/(rr*rr*rr);
+	  acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Force on bar (via Newton's 3rd law)
-	tacc[id][k] += -(*particles)[i].mass * acct[k];
-      }
+	  tacc[id][k] += -(*particles)[i].mass * acct[k];
+	}
 
 				// Monopole potential
-      extpot += ellip->getPot(rr);
+	extpot += ellip->getPot(rr);
+      }
+
     }
 
 				// Add bar acceleration to particle
