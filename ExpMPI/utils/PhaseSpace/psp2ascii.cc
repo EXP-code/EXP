@@ -152,7 +152,7 @@ main(int argc, char **argv)
 				// Position to beginning of particles
     in->seekg(its->pspos);
 
-    for (int i=0; i<its->nbod; i++) {
+    for (int j=0; j<its->nbod; j++) {
       in->read((char *)&rtmp, sizeof(double));
       out << setw(18) << rtmp;
       for (int i=0; i<3; i++) {
