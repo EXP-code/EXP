@@ -5,6 +5,7 @@
 */
 
 #include <stdlib.h>
+#include <unistd.h>
 
 #include <iostream>
 #include <fstream>
@@ -25,23 +26,50 @@ pthread_mutex_t mem_lock;
 //-------------
 
 void Usage(char* prog) {
-  cerr << prog << ": filename [tipsy info (true/false)]\n";
+  cerr << prog << ": [-v -t] filename\n";
+  cerr << "        -v    verbose output\n";
+  cerr << "        -t    print tipsy info\n";
   exit(-1);
 }
 
 int
-main(int argv, char *argc[])
+main(int argc, char *argv[])
 {
-  if (argv < 2 || argv > 3) Usage(argc[0]);
-
-  cerr << "Filename: " << argc[1] << endl;
-  ifstream* in = new ifstream(argc[1]);
-
   bool tipsy = false;
-  if (argv == 3 && atoi(argc[2])) tipsy = true;
+  bool verbose = false;
+  int c;
+  
+  while (1) {
+    c = getopt(argc, argv, "vt");
+    if (c == -1) break;
 
-  PSPDump psp(in, tipsy);
+    switch (c) {
+      
+    case 'v':
+      verbose = true;
+      break;
+
+    case 't':
+      tipsy = true;
+      break;
+
+    case '?':
+      break;
+
+    default:
+      Usage(argv[0]); 
+    
+    }
+  }
+
+  if (optind >= argc) Usage(argv[0]);
+
+  cerr << "Filename: " << argv[optind] << endl;
+  ifstream* in = new ifstream(argv[optind]);
+
+  PSPDump psp(in, tipsy, verbose);
   psp.PrintSummary(cout);
 
+  return 0;
 }
   

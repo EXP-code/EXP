@@ -247,6 +247,8 @@ main(int argc, char **argv)
     write_tipsy(in, psp);
   }
   
+  cerr << "Done\n";
+
   return 0;
 }
   

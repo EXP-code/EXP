@@ -51,7 +51,7 @@ class PSPDump
 private:
 
   list<Dump> dumps;
-  bool TIPSY;
+  bool TIPSY, VERBOSE;
   
   list<Dump>::iterator sdump;
   Dump *fid;
@@ -64,7 +64,7 @@ private:
 
 public:
 
-  PSPDump(ifstream *in, bool tipsy=false);
+  PSPDump(ifstream *in, bool tipsy=false, bool verbose=false);
 
   double SetTime(double time);
   double CurrentTime() {return fid->header.time;}

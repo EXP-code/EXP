@@ -5,9 +5,12 @@ extern string trimLeft(const string);
 extern string trimRight(const string);
 
 
-PSPDump::PSPDump(ifstream *in, bool tipsy)
+PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 {
   TIPSY = tipsy;
+  VERBOSE = verbose;
+  
+  int idump = 0;
 
   while (1) {
 
@@ -16,8 +19,18 @@ PSPDump::PSPDump(ifstream *in, bool tipsy)
     dump.pos = in->tellg();
 				// Read the header, quit on failure
 				// --------------------------------
-    if(!in->read((char *)&dump.header, sizeof(MasterHeader))) break;
+    try {
+      in->read((char *)&dump.header, sizeof(MasterHeader));
+    } catch (...) {
+      if (VERBOSE) cerr << "Could not read master header for Dump #" << idump
+			<< endl;
+      break;
+    }
 
+    if (!*in) {
+      cerr << "End of file (?)\n";
+      break;
+    }
 
     bool ok = true;
 
@@ -27,8 +40,19 @@ PSPDump::PSPDump(ifstream *in, bool tipsy)
       stanza.pos = in->tellg();
       
       ComponentHeader headerC;
-      if (!headerC.read(in)) {
-	cerr << "Error reading component header\n";
+      try {
+	headerC.read(in);
+      } catch (...) {
+	cerr << "Error reading component header for time=" 
+	     << dump.header.time << " . . . quit reading file" << endl;
+	ok = false;
+	break;
+      }
+
+      if (!*in) {
+	cerr << "Error reading component header for time=" 
+	     << dump.header.time << " . . . quit reading file ";
+	cerr << "(Corrupted file?)" << endl;
 	ok = false;
 	break;
       }
@@ -52,10 +76,27 @@ PSPDump::PSPDump(ifstream *in, bool tipsy)
       
 				// Skip forward to next header
 				// ---------------------------
-      in->seekg(headerC.nbod*(8*sizeof(double)             + 
-			      headerC.niatr*sizeof(int)    +
-			      headerC.ndatr*sizeof(double)
-			      ), ios::cur);
+      try {
+	in->seekg(headerC.nbod*(8*sizeof(double)             + 
+				headerC.niatr*sizeof(int)    +
+				headerC.ndatr*sizeof(double)
+				), ios::cur);
+      } 
+      catch(...) {
+	cerr << "IO error: can't find next header for time="
+	     << dump.header.time << " . . . quit reading file" << endl;
+	ok = false;
+	break;
+      }
+
+      if (!*in) {
+	cerr << "IO error: can't find next header for time="
+	     << dump.header.time << " . . . quit reading file (corrupted?)" 
+	     << endl;
+	ok = false;
+	break;
+      }
+
 
       dump.stanzas.push_back(stanza);
 
@@ -85,9 +126,23 @@ PSPDump::PSPDump(ifstream *in, bool tipsy)
     
     if (!ok) break;
 
+    if (VERBOSE) {
+      cerr << "Committing Dump #" << idump << " at Time=" << dump.header.time
+	   << ", #N=" << dump.header.ntot
+	   << ", #C=" << dump.header.ncomp
+	   << endl;
+    }
     dumps.push_back(dump);
+    idump++;
   }
 
+  if (VERBOSE) {
+    cerr << "Cached info fields for " << dumps.size() << endl;
+    cerr << "     Initial time=" << dumps.begin()->header.time << endl;
+    sdump = dumps.end();
+    sdump--;
+    cerr << "       Final time=" << sdump->header.time << endl;
+  }
   fid = &(*dumps.begin());
 
 }
