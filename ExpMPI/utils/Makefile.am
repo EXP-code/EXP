@@ -1,1 +1,1 @@
-SUBDIRS = PhaseSpace SL Test DiskprofEMP
+SUBDIRS = PhaseSpace SL Test

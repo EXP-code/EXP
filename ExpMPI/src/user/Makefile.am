@@ -18,7 +18,7 @@ libbar_la_SOURCES = UserBar.cc
 
 libebar_la_SOURCES = UserEBar.cc EllipForce.cc
 
-libsat_la_SOURCES = UserSat.cc SatelliteOrbit.cc ParamParse.cc
+libsat_la_SOURCES = UserSat.cc SatelliteOrbit.cc
 libsat_la_LDFLAGS = -L$(top_srcdir)/exputil/.libs \
 	-L$(top_srcdir)/expgnu/.libs -lstdc++
 
