@@ -244,8 +244,9 @@ void UserDisk::printTable()
   outZ.open("test_fz.dat1");
 
   const int num = 100;
-  double dr = 1.2*Rmax/(num-1);
-  double dz = 2.0*1.2*Zmax/(num-1);
+  const double dfac = 0.2;
+  double dr = dfac*Rmax/(num-1);
+  double dz = 2.0*dfac*Zmax/(num-1);
   double pot, fr, fz;
 
   for (int i=0; i<num; i++) {
@@ -254,7 +255,7 @@ void UserDisk::printTable()
 
     for (int j=0; j<Znum; j++) {
 
-      Z = -1.2*Zmax + dz*j;
+      Z = -dfac*Zmax + dz*j;
 
       getTable(R, Z, pot, fr, fz);
 
