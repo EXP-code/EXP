@@ -40,6 +40,11 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   A21 = 0.2;			// Major to semi-minor ratio
   A32 = 0.05;			// Semi-minor to minor ratio
 
+  domega = 0.0;			// Frequency shift
+  t0 = 0.5;			// Mid point of drift
+  delt = 0.25;			// Width of drift period
+  first = true;
+
 				// Apply force from spherical background
   use_background = true;	// model
 
@@ -113,6 +118,7 @@ void UserResPot::userinfo()
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Omega=" << omega 
+       << ", Domega=" << domega 
        << ", b/a=" << A21
        << ", c/b=" << A32
        << ", Ton=" << ton
@@ -151,6 +157,10 @@ void UserResPot::initialize()
   if (get_value("A21", val))      A21 = atof(val.c_str());
   if (get_value("A32", val))      A32 = atof(val.c_str());
 
+  if (get_value("domega", val))   domega = atof(val.c_str());
+  if (get_value("t0", val))       t0 = atof(val.c_str());
+  if (get_value("delt", val))     delt = atof(val.c_str());
+
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
 
@@ -159,6 +169,24 @@ void UserResPot::initialize()
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
+}
+
+void UserResPot::determine_acceleration_and_potential(void)
+{
+  double Omega = omega*(1.0 + domega*erf( (tnow - t0)/delt ));
+  
+  if (first) {
+    phase = Omega*tnow;		// Initial phase
+    first = false;
+  } else {			// Trapezoidal rule integration
+    phase += (tnow - tlast)*0.5*(Omega + omlast);
+  }
+
+				// Store current state
+  tlast = tnow;
+  omlast = Omega;
+
+  exp_thread_fork(false);
 }
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
@@ -196,8 +224,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       posP[k] += drfac*R;
 
       acc[k] = - amp * (
-			respot->Pot(posP, vel, omega, tnow, bcoef) -
-			respot->Pot(posN, vel, omega, tnow, bcoef)
+			respot->Pot(posP, vel, phase, bcoef) -
+			respot->Pot(posN, vel, phase, bcoef)
 			)/(2.0*drfac*R);
 
       if (use_background && R>0.0) acc[k] += -dpot*pos[k]/R;
@@ -206,7 +234,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];
     
     (*particles)[i].potext += amp * 
-      respot->Pot(pos, vel, omega, tnow, bcoef);
+      respot->Pot(pos, vel, phase, bcoef);
 
     if (use_background)
       (*particles)[i].potext += (*particles)[i].mass * pot;

@@ -23,6 +23,9 @@
     @param toff is the time at the center of the <code>erf</code> turn off
     @param delta is the spread of the turn on
     @param toffset is the origin shift for the turn on
+    @param domega is the half width of any frequency change
+    @param t0 is the central point of any frequency change interval
+    @param delt is the characteristic width of the frequency change interval
     @param MASS of the bar
     @param LENGTH of the length
     @param A21 is the ratio of the submajor axis to the major axis
@@ -45,6 +48,7 @@ private:
   AxiSymBiorth *halo_ortho;
   ResPot *respot;
 
+  void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
@@ -58,6 +62,9 @@ private:
   int NUME, NUMK;
 
   bool use_background;
+
+  bool first;
+  double domega, t0, delt, phase, tlast, omlast;
 
   string ctr_name;
   string model_file;

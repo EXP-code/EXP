@@ -83,8 +83,7 @@ void ResPot::compute_grid()
 }
 
 
-double ResPot::Pot(double* pos, double* vel, double Omega, double time,
-		   CVector &bcoef)
+double ResPot::Pot(double* pos, double* vel, double phase, CVector &bcoef)
 {
   // Compute polar coords
   // --------------------
@@ -202,15 +201,16 @@ double ResPot::Pot(double* pos, double* vel, double Omega, double time,
     } 
     else psi = asin(tmp);
     
-    // Map into [-Pi, Pi]
+				// Map into [-Pi, Pi]
     phi = atan2(sin(phi-w3), cos(phi-w3));
     
+				// Psi branch
     if (phi>0.5*M_PI || phi<-0.5*M_PI) psi = M_PI - psi;
   }
   
   w2 = psi + f;
 
-  double arga = w1*L1 + w2*L2 + w3*M - Omega*time*M;
+  double arga = w1*L1 + w2*L2 + w3*M - phase*M;
   
   ans *= VeeBeta(L, L2, M, beta) * exp(I*arga);
   

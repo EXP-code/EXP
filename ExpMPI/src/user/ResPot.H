@@ -64,8 +64,7 @@ public:
   ~ResPot();
 
   //! Get potential
-  double Pot(double* pos, double* vel, double Omega, double time,
-	     CVector &bcoef);
+  double Pot(double* pos, double* vel, double phase, CVector &bcoef);
 
 };
 
