@@ -86,6 +86,9 @@ void UserDisk::userinfo()
   else
     cout << ", using inertial center";
 
+  if (debug)
+    cout << ", debugging is *ON*";
+
   cout << endl;
 
   print_divider();
