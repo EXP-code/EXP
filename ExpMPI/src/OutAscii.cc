@@ -111,7 +111,7 @@ void OutAscii::Run(int n, bool last)
 	 << setw(10) << c0->ndattrib << "\n";
   }
 
-  c0->write_ascii(out);
+  c0->write_ascii(out, accel);
 
   if (myid==0) {
     out->close();

@@ -85,7 +85,7 @@ void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
   for (int k=0; k<3; k++) center[k] = component->center[k];
   exp_ej ->  get_acceleration_and_potential(P);
 
-				// Reset set external force flag
+				// Reset external force flag
   use_external  = use_external1;
 
 				// Set center to Component center of mass
