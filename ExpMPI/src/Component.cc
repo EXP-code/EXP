@@ -248,6 +248,9 @@ void Component::initialize(void)
 
     orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
     orient -> set_center(EJx0, EJy0, EJz0);
+    center[0] = EJx0;
+    center[1] = EJy0;
+    center[2] = EJz0;
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }
@@ -260,10 +263,15 @@ void Component::initialize(void)
     if (EJ & Orient::CENTER) {
       if (use_com) 
 	cout << name 
-	     << ": CENTER finding is *ON* and will supercede COM centering\n";
+	     << ": CENTER finding is *ON* and will supercede COM centering,";
       else
 	cout << name 
-	     << ": CENTER finding is *ON*\n";
+	     << ": CENTER finding is *ON*,";
+
+      cout << ", user specified initial center: x, y, z: " 
+	   << EJx0 << ", " 
+	   << EJy0 << ", " 
+	   << EJz0 << "\n";
     }
 
   }
