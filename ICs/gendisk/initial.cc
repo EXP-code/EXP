@@ -361,9 +361,9 @@ main(int argc, char **argv)
   EmpCylSL::CMAP = true;
 
   if (basis)
-    EmpCylSL::DENS = TRUE;
+    EmpCylSL::DENS = true;
   else
-    EmpCylSL::DENS = FALSE;
+    EmpCylSL::DENS = false;
 
                                 // Create expansion only if needed . . .
   EmpCylSL* expandd = NULL;

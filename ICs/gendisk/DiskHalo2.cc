@@ -491,6 +491,7 @@ table_disk(vector<Particle>& part)
 				// For epicylic frequency
 
       disk_eval(R, 0.0, phi, pot, fr, fz, fp);
+
       if (expandh)
 	expandh->determine_fields_at_point(R, 0.5*M_PI, phi,
 					   &dens, &potl, &dpr, &dpt, &dpp);
@@ -600,7 +601,8 @@ table_disk(vector<Particle>& part)
   }
 
 				// Check solution
-  if (myid==0 && expandh) {
+  if (myid==0) {
+
     ofstream out("ep_test.dat");
     out.setf(ios::scientific);
     out.precision(4);
@@ -614,15 +616,6 @@ table_disk(vector<Particle>& part)
       r1 = r*(1.0 + DR);
       r2 = r*(1.0 - DR);
 
-      vr2 = get_disp(0.0, r, 0.0);
-      rho = halo->get_density(r);
-
-      deriv = (get_disp(0.0, r1, 0.0)*halo->get_density(r1) - 
-	       get_disp(0.0, r2, 0.0)*halo->get_density(r2) ) /	(r1 - r2);
-      
-      lhs = halo->get_mass(r);
-      rhs = -r*r*deriv/rho;
-
       out << setw(14) << r
 	  << setw(14) << epitable[0][j]
 	  << setw(14) << workR[j]
@@ -631,14 +624,28 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << workD[1][j]
 	  << setw(14) << workD[2][j]
 	  << setw(14) << workD[3][j]
-	  << setw(14) << workD[4][j]
-	  << setw(14) << vr2
-	  << setw(14) << rho
-	  << setw(14) << deriv
-	  << setw(14) << lhs
-	  << setw(14) << rhs
-	  << setw(14) << lhs - rhs
-	  << endl;
+	  << setw(14) << workD[4][j];
+
+      if (expandh) {
+	vr2 = get_disp(0.0, r, 0.0);
+	rho = halo->get_density(r);
+
+	deriv = (get_disp(0.0, r1, 0.0)*halo->get_density(r1) - 
+		 get_disp(0.0, r2, 0.0)*halo->get_density(r2) ) / (r1 - r2);
+      
+	lhs = halo->get_mass(r);
+	rhs = -r*r*deriv/rho;
+
+	out << setw(14) << vr2
+	    << setw(14) << rho
+	    << setw(14) << deriv
+	    << setw(14) << lhs
+	    << setw(14) << rhs
+	    << setw(14) << lhs - rhs;
+      }
+
+      out << endl;
+
     }
   }
     

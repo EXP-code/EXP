@@ -2505,7 +2505,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
   static int numx = 60;
   static int numy = 60;
   
-  double rmax = 0.33*Rtable;
+  double rmax = min<double>(0.33*Rtable, 6.0*ASCALE);
   double r, dr = rmax/(numx-1);
   double z, dz = 2.0*rmax/(numy-1);
 
@@ -2519,7 +2519,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
   
   for (mm=0; mm<=MMAX; mm++) {
 
-    for (n=0; n<=min<int>(NOUT, rank3); n++) {
+    for (n=0; n<=min<int>(NOUT, rank3-1); n++) {
 
 				// Make output streams
       for (int i=0; i<MPItable; i++) {
