@@ -367,7 +367,8 @@ main(int argc, char **argv)
   EmpCylSL* expandd = NULL;
   if (n_particlesD) 
     expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
-  cout << "Proccess " << myid << ": "
+
+  cout << "Proccess " << myid << ": EmpCylSL parameters "
        << " rmin=" << EmpCylSL::RMIN
        << " rmax=" << EmpCylSL::RMAX
        << " a=" << ASCALE
@@ -385,6 +386,11 @@ main(int argc, char **argv)
                     scale_height, scale_length, disk_mass, halofile,
                     DF, DIVERGE, DIVERGE_RFAC);
 
+  cout << "Proccess " << myid << ": DiskHalo parameters "
+       << " a=" << scale_length
+       << " h=" << scale_height
+       << " nmax2=" << disk_mass
+       << endl << flush;
                                 // Make zero center of mass and
                                 // center of velocity
   diskhalo.zero_com_cov(zero);
@@ -564,10 +570,12 @@ main(int argc, char **argv)
 	  else
 	    expandd->accumulated_eval(x, y,  0.0, p, fr, fz, fp);
 
+	  if (x<0.0)
+	    d = expandd->accumulated_dens_eval(fabs(x), y, M_PI);
+	  else
+	    d = expandd->accumulated_dens_eval(x, y, 0.0);
 
-          d = expandd->accumulated_dens_eval(sqrt(x*x + y*y), z, atan2(y, x));
-        
-          
+          // d = expandd->accumulated_dens_eval(sqrt(x*x + y*y), z, atan2(y, x));
           out[0].write(&(f=d ), sizeof(float));
           out[1].write(&(f=p ), sizeof(float));
           out[2].write(&(f=fr), sizeof(float));

@@ -69,6 +69,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   if (myid==0) {
     cerr << "DEBUG: DIVERGE=" << DIVERGE
 	 << " A=" << A
+	 << " H=" << H
 	 << " RDMAX=" << RDMAX
 	 << " filename=" << filename
 	 << "\n";
