@@ -26,7 +26,7 @@ void UserLogPot::userinfo()
 
   cout << "** User routine LOGARITHMIC POTENTIAL initialized, " ;
   cout << "Phi = v2/2*log(R^2 + x^2 + y^2/b^2 + z^2/c^2) with R=" 
-       << R << ", b=" << b << ", c=" << c << endl; 
+       << R << ", b=" << b << ", c=" << c << ", v2=" << v2 << endl; 
   
   print_divider();
 }
@@ -59,9 +59,9 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    xx = pos[0];
-    yy = pos[1];
-    zz = pos[2];
+    xx = (*particles)[i].pos[0];
+    yy = (*particles)[i].pos[1];
+    zz = (*particles)[i].pos[2];
     rr = R*R + xx*xx + yy*yy/(b*b) + zz*zz/(c*c);
 
     (*particles)[i].acc[0] += -v2*xx/rr;
