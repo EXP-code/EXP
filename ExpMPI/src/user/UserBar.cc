@@ -1,41 +1,18 @@
 #include <math.h>
 #include "expand.h"
 
-#include <Particle.H>
-#include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
-
-class UserBar : public ExternalForce
-{
-private:
-  
-  string com_name;
-  Component *c0;
-
-  void * determine_acceleration_and_potential_thread(void * arg);
-  void initialize();
-
-  double U1, U2, U3, U4, U5;
-
-  void userinfo();
-
-public:
-
-  UserBar(string &line);
-  ~UserBar();
-
-};
-
+#include <UserBar.H>
 
 UserBar::UserBar(string &line) : ExternalForce(line)
 {
   id = "RotatingBar";
 
-  U1 = 0.5;			// Bar length
-  U2 = 0.3;			// Bar amplitude
-  U3 = -20.0;			// Turn on start time
-  U4 = 1.0;			// Turn on duration
-  U5  = 0.0;			// Corotation factor
+  length = 0.5;			// Bar length
+  amplitude = 0.3;		// Bar amplitude
+  Ton = -20.0;			// Turn on start time
+  DeltaT = 1.0;			// Turn on duration
+  Fcorot  = 1.0;		// Corotation factor
+  fixed = false;		// Constant pattern speed
 
   com_name = "";		// Default component for com
 
@@ -86,48 +63,54 @@ void UserBar::initialize()
 {
   string val;
 
-  if (get_value("comname", val))   com_name = val;
-  if (get_value("U1", val))   U1 = atof(val.c_str());
-  if (get_value("U2", val))   U2 = atof(val.c_str());
-  if (get_value("U3", val))   U3 = atof(val.c_str());
-  if (get_value("U4", val))   U4 = atof(val.c_str());
-  if (get_value("U5", val))   U5 = atof(val.c_str());
+  if (get_value("comname", val))	com_name = val;
+  if (get_value("length", val))		length = atof(val.c_str());
+  if (get_value("amp", val))		amplitude = atof(val.c_str());
+  if (get_value("Ton", val))		Ton = atof(val.c_str());
+  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
+  if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
+  if (get_value("fixed", val)) {
+    if (atoi(val.c_str())) fixed = true;
+    else fixed = false;
+  }
 }
 
 void * UserBar::determine_acceleration_and_potential_thread(void * arg) 
 {
   static const double numfac = 3.86274202023190e-01;
   static bool firstime = true;
-  static double posang, lastomega, lasttime;
+  static double posang, omega, lastomega, lasttime;
 
   list<Component*>::iterator cc;
   Component *c;
-
-				// Get frequency
-  double R=U1*U5, theta=1.57079632679490, phi;
-  double dens, potl, potr, pott, potp;
-  double avg = 0.0;
   
-  for (int n=0; n<8; n++) {
-    phi = 2.0*M_PI/8.0 * n;
-
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
-
-      if (c->force->geometry == PotAccel::sphere || 
-	  c->force->geometry == PotAccel::cylinder) {
-
-	((Basis*)c->force)->
-	  determine_fields_at_point_sph(R, theta, phi,
-					&dens, &potl, &potr, &pott, &potp);
-
-	avg += potr/8.0;
+  if (!fixed || firstime) {
+				// Get frequency
+    double R=length*Fcorot, theta=1.57079632679490, phi;
+    double dens, potl, potr, pott, potp;
+    double avg = 0.0;
+    
+    for (int n=0; n<8; n++) {
+      phi = 2.0*M_PI/8.0 * n;
+      
+      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	c = *cc;
+	
+	if (c->force->geometry == PotAccel::sphere || 
+	    c->force->geometry == PotAccel::cylinder) {
+	  
+	  ((Basis*)c->force)->
+	    determine_fields_at_point_sph(R, theta, phi,
+					  &dens, &potl, &potr, &pott, &potp);
+	  
+	  avg += potr/8.0;
+	}
       }
     }
+
+    omega = sqrt(avg/R);
   }
-
-  double omega = sqrt(avg/R);
-
+    
   if (firstime) {
     posang = 0.0;
     lastomega = omega;
@@ -142,14 +125,13 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
       cout << "Time=" << tnow << " Posang=" << posang << endl;
 #endif
   }
-
-
+  
   int nbodies = particles->size();
   int id = *((int*)arg);
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double fac, ffac, amp = U2 * 0.5*(1.0 + erf( (tnow - U3)/U4 ));
+  double fac, ffac, amp = amplitude * 0.5*(1.0 + erf( (tnow - Ton)/DeltaT ));
   double xx, yy, zz, rr, nn;
   vector<double> pos(3); 
   double cos2p = cos(2.0*posang);
@@ -169,9 +151,9 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     zz = pos[2];
     rr = sqrt( xx*xx + yy*yy + zz*zz );
 
-    fac = U1 + rr;
+    fac = length + rr;
 		     
-    ffac = -amp*numfac*U1*U1*U1/pow(fac, 6.0);
+    ffac = -amp*numfac*length*length*length/pow(fac, 6.0);
 
     nn = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
       
