@@ -230,9 +230,9 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
     // orbit_trans routines are not reentrant . . .
     pthread_mutex_lock(&orb_lock);
     orb->new_orbit(E, 0.5);
+    K = J/orb->Jmax();
     pthread_mutex_unlock(&orb_lock);
 
-    K = J/orb->Jmax();
     torque = amp*interpolate(E, K);
 
 				// Increase/decrease tangential velocity

@@ -6,9 +6,11 @@ const char rcsid[] = "$Id$";
 
 */
 
-#define FRECS 16		/* # of rectangles for frequency integrals */
-#define tol 1.0e-8		/* tolerance for root finder */
-#define ZFRAC 0.001		/* fraction below minimum grid for tp search */
+#define FRECS 16		// # of rectangles for frequency integrals
+#define tol 1.0e-8		// tolerance for root finder
+#define ZFRAC 0.001		// fraction below minimum grid for tp search
+#define RMAXF 3.0		// Fraction beyond grid for r_apo search
+#define tolnr 1.0e-10		// r_apo location using Newton-Raphson refinement
 #define TOLEPI 1.0e-3		// Cut over for epicylic theory
 
 
@@ -61,12 +63,26 @@ void SphericalOrbit::compute_freq(void)
   xmax = model->get_max_radius();
   if ( denom(xmin)*denom(xmax) < 0.0)
     r_apo = zbrent(denom, xmin, xmax, tol);
-  if (r_circ < model->get_max_radius()) {
-    r_apo = zbrent(denom, xmin, 2.0*xmax, tol);
-  }
+  else if ( denom(xmin)*denom(RMAXF*xmax) < 0.0)
+    r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
   else {	 		// Circular radius outside mass distribution
     double r0 = -0.5*model->get_mass(model->get_max_radius())/EE;
-    r_apo = r0 + sqrt(r0*r0 + 0.5*JJ*JJ/EE);
+    r_apo = r0 + sqrt(r0*r0 - 0.5*JJ*JJ/EE);
+				// Newton-Raphson refinement (slow . . .)
+    double f, df;
+    for (int i=0; i<200; i++) {
+      f = 2.0*(EE - model->get_pot(r_apo)) - JJ*JJ/(r_apo*r_apo);
+      if (fabs(f)<tolnr) break;
+      df = -2.0*model->get_dpot(r_apo) + JJ*JJ/(r_apo*r_apo*r_apo);
+      r_apo += -f/df;
+    }
+
+#ifdef DEBUG
+    if (fabs(f)>tolnr) {
+      cerr << "compute_freq: r_apo did not converge [f=" << f << "]\n";
+    }
+    used_asymp = true;
+#endif
   }
 
   if (denom(ZFRAC*model->get_min_radius())*denom(r_circ) >= 0.0)
