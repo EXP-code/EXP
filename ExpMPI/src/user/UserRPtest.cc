@@ -26,8 +26,9 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
   rmax = 1.95;
   scale = 0.067;
 
-  NUME = 400;			// Points in Energy grid
-  NUMK = 100;			// Points in Kappa grid
+  NUMX = 400;			// Points in Ang mom grid
+  NUME = 100;			// Points in Energy grid
+  RECS = 100;			// Points in Angle grid
 
   with_ps = false;		// Don't print phase space for each particle
   npart = 5;			// Number of particles to trace
@@ -77,8 +78,9 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
   SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
   halo_ortho = sl;
 
+  ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
-  ResPot::NUMK = NUMK;
+  ResPot::RECS = RECS;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
 
 
@@ -121,8 +123,9 @@ void UserRPtest::initialize()
   if (get_value("rmax", val))     rmax = atof(val.c_str());
   if (get_value("scale", val))     scale = atof(val.c_str());
 
+  if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
-  if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
+  if (get_value("RECS", val))     RECS = atoi(val.c_str());
 
   if (get_value("with_ps", val))  with_ps = atoi(val.c_str()) ? true : false;
   if (get_value("npart", val))    npart = atoi(val.c_str());
@@ -256,7 +259,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 {
   double pos[3], vel[3];
   double R2, R, pot, dpot;
-  double E, K, J, w1, w2, w3, f, beta, psi;
+  double E, K, I1, J, O1, O2, w1, w2, w3, f, beta, psi;
   
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -286,7 +289,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 
     if (myid==0 && id==0 && i<npart) {
       if (i==0) out << setw(15) << tpos;
-      respot->coord(pos, vel, E, K, J, w1, w2, w3, f, beta, psi);
+      respot->coord(pos, vel, E, K, I1, J, O1, O2, w1, w2, w3, f, beta, psi);
       out << setw(15) << E
 	  << setw(15) << K
 	  << setw(15) << w1

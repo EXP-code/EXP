@@ -144,7 +144,7 @@ void Component::initialize(void)
 
     if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
 
-    if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str()); adiabatic = true;}
+    if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str());}
 
 				// Next parameter
     token = tokens(",");

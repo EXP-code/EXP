@@ -9,6 +9,8 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
 
 libdir = $(prefix)/lib/user
 
+bin_PROGRAMS = testcoord
+
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librptest.la
@@ -41,3 +43,5 @@ librespot_la_SOURCES = UserResPot.cc ResPot.cc rotmatrix.cc BarForcing.cc Pertur
 
 librptest_la_SOURCES = UserRPtest.cc ResPot.cc rotmatrix.cc
 
+testcoord_SOURCES = testcoord.cc ResPot.cc rotmatrix.cc BarForcing.cc Perturbation.cc getkey.c
+testcoord_LDFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi

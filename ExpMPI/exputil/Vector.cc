@@ -40,6 +40,7 @@ Vector::Vector(int l, int h)
   high=0;
   elements = NULL;
   setsize(l, h);
+  zero();			// To prevent uninitialized var warnings
 }
 
 Vector::Vector(int l, int h, double *v)

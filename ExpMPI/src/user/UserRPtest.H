@@ -41,7 +41,7 @@ private:
   int LMAX, NMAX, NUMR, L0, M0, L1, L2;
   double rmin, rmax, scale, drfac;
   
-  int NUME, NUMK;
+  int NUMX, NUME, RECS;
   
   bool with_ps;
   int npart;

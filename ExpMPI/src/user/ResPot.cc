@@ -1,157 +1,27 @@
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <iomanip>
 
 #include <values.h>
 #include <ResPot.H>
+#include <ZBrent.H>
 #include <localmpi.h>
 
-// #define TDEBUG
-#undef TDEBUG
-#ifdef TDEBUG
 #include <pthread.h>  
+pthread_mutex_t nwlock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
-const double E0=-1.64716;
-const double K0= 0.84168;
-bool first = true;
-bool start = true;
-#endif
 
 double ResPot::ALPHA = 0.25;
 double ResPot::DELTA = 0.01;
+double ResPot::DELE = 0.001;
+double ResPot::DELK = 0.001;
 double TOLITR = 1.0e-8;
-int ResPot::NREC = 40;
-int ResPot::NUME = 400;
-int ResPot::NUMK = 100;
-int ResPot::NUMI = 2000;
+int ResPot::NUME = 200;
+int ResPot::NUMX = 200;
+int ResPot::RECS = 100;
 int ResPot::ITMAX = 50;
 KComplex ResPot::I(0.0, 1.0);
-
-
-int level_surface(Matrix& z, double val, Vector& xr, Vector& yr, int& num);
-
-EKinterp::EKinterp() :
-  emin(0.0), emax(0.0), kmin(0.0), kmax(0.0), nume(2), numk(2)
-{
-  setsize(1, nume, 1, numk);
-}
-
-EKinterp::EKinterp(double Emin, double Emax, double Kmin, double Kmax,
-		   int numE, int numK) : 
-  emin(Emin), emax(Emax), kmin(Kmin), kmax(Kmax), nume(numE), numk(numK)
-{
-  setsize(1, nume, 1, numk);
-}
-
-void EKinterp::reset(double Emin, double Emax, double Kmin, double Kmax,
-		     int numE, int numK)
-{
-  emin = Emin;
-  emax = Emax;
-  kmin = Kmin;
-  kmax = Kmax;
-  nume = numE;
-  numk = numK;
-
-  dE = (Emax - Emin)/(numE-1);
-  dK = (Kmax - Kmin)/(numK-1);
-
-  setsize(1, nume, 1, numk);
-}
-
-double EKinterp::value(double E, double K)
-{
-  int indx = (int)( (E-emin)/dE );
-  int indy = (int)( (K-kmin)/dK );
-
-  indx = max<int>(indx, 0);
-  indx = min<int>(indx, nume-2);
-
-  indy = max<int>(indy, 0);
-  indy = min<int>(indy, numk-2);
-
-  double a[2], b[2];
-
-  a[0] = (emin+(indx+1)*dE - E)/dE;
-  b[0] = 1.0 - a[0];
-  
-  a[1] = (kmin+(indy+1)*dK - K)/dK;
-  b[1] = 1.0 - a[1];
-  
-  return 
-    a[0]*a[1]*(*this)[indx+1][indy+1] +
-    b[0]*a[1]*(*this)[indx+2][indy+1] +
-    a[0]*b[1]*(*this)[indx+1][indy+2] +
-    b[0]*b[1]*(*this)[indx+2][indy+2] ;
-}
-
-
-double EKinterp::deriv(double E, double K)
-{
-  int indx = (int)( (E-emin)/dE );
-  int indy = (int)( (K-kmin)/dK );
-
-  indx = max<int>(indx, 0);
-  indx = min<int>(indx, nume-2);
-
-  indy = max<int>(indy, 0);
-  indy = min<int>(indy, numk-2);
-
-  double a[2], b[2];
-
-  a[0] = -1.0/dE;
-  b[0] =  1.0/dE;
-  
-  a[1] = -1.0/dK;
-  b[1] =  1.0/dK;
-  
-  return 
-    a[0]*a[1]*(*this)[indx+1][indy+1] +
-    b[0]*a[1]*(*this)[indx+2][indy+1] +
-    a[0]*b[1]*(*this)[indx+1][indy+2] +
-    b[0]*b[1]*(*this)[indx+2][indy+2] ;
-}
-
-
-
-void EKinterp::eval(double E, double K, double& value, double& deriv)
-{
-  int indx = (int)( (E-emin)/dE );
-  int indy = (int)( (K-kmin)/dK );
-
-  indx = max<int>(indx, 0);
-  indx = min<int>(indx, nume-2);
-
-  indy = max<int>(indy, 0);
-  indy = min<int>(indy, numk-2);
-
-  double a[2], b[2];
-
-  a[0] = (emin+(indx+1)*dE - E)/dE;
-  b[0] = 1.0 - a[0];
-  
-  a[1] = (kmin+(indy+1)*dK - K)/dK;
-  b[1] = 1.0 - a[1];
-  
-
-  value = 
-    a[0]*a[1]*(*this)[indx+1][indy+1] +
-    b[0]*a[1]*(*this)[indx+2][indy+1] +
-    a[0]*b[1]*(*this)[indx+1][indy+2] +
-    b[0]*b[1]*(*this)[indx+2][indy+2] ;
-
-  a[0] = -1.0/dE;
-  b[0] =  1.0/dE;
-
-  a[1] = -1.0/dK;
-  b[1] =  1.0/dK;
-  
-  deriv = 
-    a[0]*a[1]*(*this)[indx+1][indy+1] +
-    b[0]*a[1]*(*this)[indx+2][indy+1] +
-    a[0]*b[1]*(*this)[indx+1][indy+2] +
-    b[0]*b[1]*(*this)[indx+2][indy+2] ;
-}
 
 
 ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
@@ -159,29 +29,28 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
 {
   halo_model = mod;
   halo_ortho = bio;
-
+  
   grid_computed = false;
-  actions_computed = false;
-
+  
   L = l;
   M = m;
   L1 = l1;
   L2 = l2;
   NMAX = nmax;
-
+  
   Rmin = halo_model->get_min_radius();
   Rmax = halo_model->get_max_radius();
   Emax = halo_model->get_pot(Rmax)*(1.0+DELTA);
   Emin = halo_model->get_pot(Rmin)*(1.0-DELTA);
   Kmin = DELTA;
   Kmax = 1.0-DELTA;
-
+  
   // SphericalOrbit::RMAXF=1.0;
   orb = new SphericalOrbit(halo_model);
+  orb->set_numerical_params(RECS);
   orb->set_biorth(*halo_ortho, L, NMAX);
-
+  
   compute_grid();
-  compute_actions();
 }
 
 ResPot::~ResPot()
@@ -189,110 +58,210 @@ ResPot::~ResPot()
   delete orb;
 }
 
+AxiSymModel *hmod;
+
+// Circular orbit
+//
+static double get_rc(double r, double J)
+{
+  return J*J - hmod->get_mass(r)*r;
+}
+
+// Turning points
+//
+static double adj_r(double r, vector<double> p)
+{
+  return p[1] - 0.5*p[0]*p[0]/(r*r) - hmod->get_pot(r);
+}
+
+
 void ResPot::compute_grid() 
 {
   if (grid_computed) return;
-
+  
   double E, K;
   Vector t(1, NMAX);
-
-  dE = (Emax - Emin)/(NUME-1);
-  dK = (Kmax - Kmin)/(NUMK-1);
-
-#ifdef TDEBUG
-  ofstream tout;
-  if (myid==0) tout.open("respot.chk");
-#endif
-
-  for (int i=0; i<NUME; i++) {
+  
+  // Ang mom of minimum radius circular orbit
+  minJ = Rmin*sqrt(halo_model->get_dpot(Rmin));
+  
+  // Ang mom of maximum radius circular orbit
+  maxJ = Rmax*sqrt(halo_model->get_dpot(Rmax));
+  
+  // For derivatives
+  double delE = (Emax - Emin)*0.5*DELE;
+  double delK = (Kmax - Kmin)*0.5*DELK;
+  
+  double J, rcirc, Ecirc;
+  int ibeg;
+  
+  dX = 1.0/(NUMX-1);
+  double dE = (Emax - Emin)/(NUME-1);
+  
+  hmod = halo_model;
+  
+  int iret;
+  ZBrent<double> circ;
+  
+  for (int s=0; s<NUMX; s++) {
     
-    E = Emin + dE*i;
-
-    EE.push_back(E);
-
+    J = Jx(double(s)/(NUMX-1), minJ, maxJ);
+    
+    // Compute Ecirc
+    iret = circ.find(get_rc, J, Rmin, Rmax, 1.0e-10, rcirc);
+    if (iret) {
+      cerr << "Error locating circular orbit!!\n";
+      exit(-1);
+    }
+    Ecirc = 0.5*J*J/(rcirc*rcirc) + halo_model->get_pot(rcirc);
+    if (Ecirc<Emin) Ecirc = Emin;
+    
+    EminX.push_back(Ecirc);
+    
+    vector<double> IJ1, EJ1;
     ovector orbvec;
-
-    for (int k=0; k<NUMK; k++) {
+    
+    ibeg = (int)( (Ecirc - Emin)/dE );
+    
+    for (int i=ibeg; i<NUME; i++) {
+      
+      if (i==ibeg)
+	E = Ecirc;
+      else
+	E = Emin + dE*i;
+      
+      orb->new_orbit(E, 0.5);
+      K = J/orb->Jmax();
+      K = max<double>(K, Kmin);
+      K = min<double>(K, Kmax);
+      
       RW rw;
-
-      K = Kmin + dK*k;
-
-      if (i==0) KK.push_back(K);
-
+      
       orb->new_orbit(E, K);
       orb->set_biorth(*halo_ortho, L, NMAX);
       orb->pot_trans(L1, L2, t);
       for (int n=0; n<NMAX; n++) rw.W.push_back(t[n+1]);
-
+      
       struct ANGLE_GRID * grid = orb->get_angle_grid();
-
-#ifdef TDEBUG
-      if (myid=0) {
-	tout << setw(15) << E 
-	     << setw(15) << K
-	     << setw(15) << grid->t[1][0]
-	     << setw(15) << grid->r[1][0]
-	     << setw(15) << grid->w1[1][0]
-	     << setw(15) << grid->f[1][0]
-	     << endl;
-	if (k==NUMK-1) tout << endl;
-      }
-#endif
-	
+      
       for (int j=0; j<grid->num; j++) {
 	rw.r.push_back(grid->r[1][j]);
 	rw.w1.push_back(grid->w1[1][j]);
 	rw.f.push_back(grid->f[1][j]);
       }
       rw.num = grid->num;
-
-      orbvec.push_back(rw);
+      rw.O1 = orb->get_freq(1);
+      rw.O2 = orb->get_freq(2);
+      rw.I1 = orb->get_action(1);
+      rw.E = E;
+      rw.K = K;
+      rw.Jm = orb->Jmax();
       
+      EJ1.push_back(rw.E);
+      IJ1.push_back(rw.I1);
+      
+      
+      // Derivatives
+      // -----------
+      
+      double Ep=E+delE, Em=E-delE, Kp=K+delK, Km=K-delK;
+      
+      // Energy bounds
+      if (E+delE > Emax) {
+	Ep = Emax;
+	Em = Emax - delE*2.0;
+      }
+      
+      if (K-delK < Kmin) {
+	Kp = Kmin + delK*2.0 ;
+	Km = Kmin;
+      }
+      
+      // Kappa bounds
+      if (K+delK > Kmax) {
+	Kp = Kmax;
+	Km = Kmax - delK*2.0;
+      }
+      
+      if (K-delK < Kmin) {
+	Kp = Kmin + delK*2.0 ;
+	Km = Kmin;
+      }
+      
+      // Energy deriv
+      orb->new_orbit(Ep, K);
+      orb->set_biorth(*halo_ortho, L, NMAX);
+      orb->pot_trans(L1, L2, t);
+      for (int n=0; n<NMAX; n++) rw.dWE.push_back(t[n+1]);
+      rw.dJm = orb->Jmax();
+      
+      orb->new_orbit(Em, K);
+      orb->set_biorth(*halo_ortho, L, NMAX);
+      orb->pot_trans(L1, L2, t);
+      for (int n=0; n<NMAX; n++) rw.dWE[n] = 0.5*(rw.dWE[n] - t[n+1])/delE;
+      rw.dJm = 0.5*(rw.dJm - orb->Jmax())/delE;
+      
+      // Kappa deriv
+      orb->new_orbit(E, Kp);
+      orb->set_biorth(*halo_ortho, L, NMAX);
+      orb->pot_trans(L1, L2, t);
+      for (int n=0; n<NMAX; n++) rw.dWK.push_back(t[n+1]);
+      
+      orb->new_orbit(E, Km);
+      orb->set_biorth(*halo_ortho, L, NMAX);
+      orb->pot_trans(L1, L2, t);
+      for (int n=0; n<NMAX; n++) rw.dWK[n] = 0.5*(rw.dWK[n] - t[n+1])/delK;
+      
+      // Finally, store the data for this phase space point
+      orbvec.push_back(rw);
+      check_rw(rw);
     }
-
-    Jmax.push_back(orb->Jmax());
+    
+    if (EJ1.size()<2) break;
+    
+    EX.push_back(EJ1);
+    I1X.push_back(IJ1);
+    
     orbmat.push_back(orbvec);
   }
-
+  
+  numx = EX.size();
   ngrid = orb->get_angle_grid()->num;
-
-#ifdef TDEBUG
-  if (myid==0) tout.close();
-#endif
-
+  
   grid_computed = true;
 }
 
 
-int ResPot::coord(double* ps1, double* vel,
-		  double& E, double& K, double& J,
-		  double& W1, double& W2, double& W3, 
-		  double& F, double& BETA, double& PSI)
+bool ResPot::coord(double* ps1, double* vel,
+		   double& E, double& K, double& I1, double& J,
+		   double& O1, double& O2,
+		   double& W1, double& W2, double& W3, 
+		   double& F, double& BETA, double& PSI)
 {
   double pos[3];
   for (int i=0; i<3; i++) pos[i] = ps1[i];
   if (fabs(ps1[2])<1.0e-8) pos[2] = 1.0e-8;
-
+  
   // Compute polar coords
   // --------------------
-
+  
   double r2=0.0, v2=0.0, rv=0.0, r;
   for (int i=0; i<3; i++) {
     r2 += pos[i]*pos[i];
     v2 += vel[i]*vel[i];
     rv += pos[i]*vel[i];
   }
+  
   r = sqrt(r2);
-  if (fabs(r2)>1.0e-8 && fabs(v2)>1.0e-8) rv /= sqrt(r2*v2);
-
-  if (r>halo_model->get_max_radius()) return 0;
-
+  
+  if (r>halo_model->get_max_radius()) return false;
+  
   double theta = acos(pos[2]/r);
   double phi = atan2(pos[1], pos[0]);
-
+  
   // Compute E, J, beta
   // ------------------
-
+  
   E = 0.5*v2 + halo_model->get_pot(r);
   
   double angmom[3];
@@ -300,132 +269,113 @@ int ResPot::coord(double* ps1, double* vel,
   angmom[0] = pos[1]*vel[2] - pos[2]*vel[1];
   angmom[1] = pos[2]*vel[0] - pos[0]*vel[2];
   angmom[2] = pos[0]*vel[1] - pos[1]*vel[0];
-
+  
   J = 0.0;
   for (int i=0; i<3; i++) J += angmom[i]*angmom[i];
   J = sqrt(J);
-
+  
   BETA = 0.0;
   if (J>0.0) BETA = acos(angmom[2]/J);
   
   
+  if (fabs(rv)>1.0e-10*sqrt(r2*v2)) rv /= sqrt(r2*v2);
+  else {			// Apocenter
+    if (J*J/r2 < halo_model->get_mass(r))
+      rv = -1.0;
+    else			// Pericenter
+      rv = 1.0;
+  }
+  
   // Linear interpolation coefficients
   // ---------------------------------
-
-  double cE[2], cK[2], cEd[2], cKd[2];
-
-  E = max<double>(E, Emin);
-  E = min<double>(E, Emax);
-
-  int indxE = (int)( (E-Emin)/dE );
-
-  indxE = max<int>(indxE, 0);
-  indxE = min<int>(indxE, NUME-2);
-
-  cE[0] = (EE[indxE+1] - E)/dE;
-  cE[1] = 1.0 - cE[0];
-
-  cEd[0] = -1.0/dE;
-  cEd[1] =  1.0/dE;
+  
+  J = max<double>(J, minJ);
+  J = min<double>(J, maxJ);
+  
+  double X = xJ(J, minJ, maxJ);
+  
+  int indxX = (int)( X/dX );
+  indxX = min<int>(indxX, numx-2);
+  indxX = max<int>(indxX, 0);
+  
+  double cX[2];
+  cX[0] = (dX*(indxX+1) - X)/dX;
+  cX[1] = 1.0 - cX[0];
+  
+  int indxE[2];
+  double cE[2][2];
+  for (int i1=0; i1<2; i1++) {
+    indxE[i1] = Vlocate(E, EX[indxX+i1]);
+    indxE[i1] = min<int>(indxE[i1], EX[indxX+i1].size()-2);
+    indxE[i1] = max<int>(indxE[i1], 0);
     
-  double Jm  =  cE[0]*Jmax[indxE] +  cE[1]*Jmax[indxE+1];
+    cE[i1][0] = (EX[indxX+i1][indxE[i1]+1] - E)/
+      (EX[indxX+i1][indxE[i1]+1] - EX[indxX+i1][indxE[i1]]);
     
-  K = J/Jm;
-  K = max<double>(K, Kmin);
-  K = min<double>(K, Kmax);
-
-  int indxK = (int)( (K-Kmin)/dK );
-
-  indxK = max<int>(indxK, 0);
-  indxK = min<int>(indxK, NUMK-2);
+    // Bounds: keep it on the grid else unphsical!
+    cE[i1][0] = max<double>(cE[i1][0], 0.0);
+    cE[i1][0] = min<double>(cE[i1][0], 1.0);
     
-  cK[0] = (KK[indxK+1] - K)/dK;
-  cK[1] = 1.0 - cK[0];
-
-  cKd[0] = -1.0/dK;
-  cKd[1] =  1.0/dK;
-
-
+    cE[i1][1] = 1.0 - cE[i1][0];
+    
+  }
+  
+  
   // Compute angles
   // --------------
   
   double fac;
   int num;
-
+  
   vector<double> tw(ngrid, 0.0);
   vector<double> tf(ngrid, 0.0);
   vector<double> tr(ngrid, 0.0);
-
+  
+  I1 = K = O1 = O2 = 0.0;
+  
   for (int i1=0; i1<2; i1++) {
     for (int i2=0; i2<2; i2++) {
-      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      
+      RW *rw = &(orbmat[indxX+i1][indxE[i1]+i2]);
       num = rw->num;
-      fac = cE[i1]*cK[i2];
+      fac = cX[i1]*cE[i1][i2];
       
       if (ngrid != num) {
-	cerr << "Oops! ngrid=" << ngrid << "  num=" << num << endl;
+	cerr << "ResPot::coord[1]: Oops! ngrid=" 
+	     << ngrid << "  num=" << num 
+	     << "  indxX=" << indxX+i1 << "/" << numx
+	     << "  indxE=" << indxE[i1]+i2 << "/" << EX[indxX+i1].size()
+	     << endl;
       }
-
+      
+      I1 += fac * rw->I1;
+      K  += fac * rw->K;
+      O1 += fac * rw->O1;
+      O2 += fac * rw->O2;
+      
       for (int k=0; k<ngrid; k++) {
 	tw[k] += fac * rw->w1[k];
 	tf[k] += fac * rw->f[k];
 	tr[k] += fac * rw->r[k];
       }
-
+      
     }
   }
-
-#ifdef TDEBUG
-				// Print the interpolation array 
-				// on the first time through . . . 
-  if (first && fabs(E-E0)<0.01 && fabs(K-K0)<0.01) {
-    pthread_mutex_lock(&iolock);
-    cout << "TDEBUG: Lock acquired\n";
-    if (first) {		// Being very cautions . . . 
-      cout << "TDEBUG: first\n";
-      ofstream tout("respot.tst");
-      if (tout) cout << "TDEBUG: file is ok . . . writing\n";
-      
-      tout << "# ngrid=" << ngrid 
-	   << "  rw_ngrid=" << orbmat[indxE][indxK].num << endl;
-      
-      for (int n=0; n<ngrid; n++) {
-	tout << setw(15) << tw[n]
-	     << setw(15) << tf[n]
-	     << setw(15) << tr[n];
-	for (int i1=0; i1<2; i1++) {
-	  for (int i2=0; i2<2; i2++) {
-	    RW *rw = &(orbmat[indxE+i1][indxK+i2]);
-	    tout << setw(15) << rw->w1[n]
-		 << setw(15) << rw->f[n]
-		 << setw(15) << rw->r[n];
-	  }
-	}
-	tout << endl;
-      }
-      first = false;
-    } else {
-      cout << "TDEBUG: you beat me to it\n";
-    }
-    pthread_mutex_unlock(&iolock);
-  }
-#endif
-
-
+  
   double w1 = odd2(r, tr, tw);
   double f  = odd2(r, tr, tf);
-
+  
   if (rv < 0.0) {
     w1 = 2.0*M_PI - w1;
     f *= -1.0;
   }
-
+  
   
   // Angle computation
   // -----------------
-
+  
   double psi, w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
-
+  
   if (fabs(BETA)<1.0e-10) psi = phi - w3;
   else {
     double tmp = cos(theta)/sin(BETA);
@@ -436,24 +386,27 @@ int ResPot::coord(double* ps1, double* vel,
     } 
     else psi = asin(tmp);
   }
-
-
+  
+  
   // Map Psi into [-Pi, Pi]
   // ----------------------
   double tmp = atan2(sin(phi - w3), cos(phi - w3));
   if (tmp>0.5*M_PI || tmp<-0.5*M_PI) {
     psi = M_PI - psi;
   }
-    
+  
   double w2 = psi + f;
+  
+  K = max<double>(K, Kmin);
+  K = min<double>(K, Kmax);
   
   W1  = w1;
   W2  = w2;
   W3  = w3;
   F   = f;
   PSI = psi;
-
-  return 1;
+  
+  return true;
 }
 
 
@@ -463,15 +416,15 @@ int ResPot::coord(double* ps1, double* vel,
 
 double ResPot::xJ(double J, double Jmin, double Jmax)
 {
-  if (J>Jmax) return 1.0;
-  if (J<Jmin) return 0.0;
+  if (J>=Jmax) return 1.0;
+  if (J<=Jmin) return 0.0;
   return pow( (J-Jmin)/(Jmax-Jmin), ALPHA );
 }
 
 double ResPot::Jx(double x, double Jmin, double Jmax)
 {
-  if (x>1.0) return Jmax;
-  if (x<0.0) return Jmin;
+  if (x>=1.0) return Jmax;
+  if (x<=0.0) return Jmin;
   return Jmin + (Jmax - Jmin)*pow(x, 1.0/ALPHA);
 }
 
@@ -484,373 +437,656 @@ double ResPot::dxJ(double J, double Jmin, double Jmax)
 }
 
 
-void ResPot::compute_actions()
+void ResPot::getInterp(double I1, double I2, int& indxX, int* indxE,
+		       double* cX, double** cE, bool& noboundary)
 {
-
-  if (actions_computed) return;
-
-  compute_grid();
-
-  double E, K;
-  I1min =  1.0e30;
-  I1max = -1.0e30;
-  
-  I1_EK.reset(Emin, Emax, Kmin, Kmax, NUME, NUMK);
-  O1_EK.reset(Emin, Emax, Kmin, Kmax, NUME, NUMK);
-  O2_EK.reset(Emin, Emax, Kmin, Kmax, NUME, NUMK);
-  
-  for (int i=1; i<=NUME; i++) {
-    E = Emin + dE*(i-1);
-
-    for (int j=1; j<=NUMK; j++) {
-      K = Kmin + dK*(j-1);
-
-      orb->new_orbit(E, K);
-      I1_EK[i][j] = orb->get_action(1);
-      O1_EK[i][j] = orb->get_freq(1);
-      O2_EK[i][j] = orb->get_freq(2);
-
-      I1min = min<double>(I1min, I1_EK[i][j]);
-      I1max = max<double>(I1max, I1_EK[i][j]);
-    }
-  }
-
-  
-#ifdef DEBUG
-  cout << "I1min=" << I1min << endl;
-  cout << "I1max=" << I1max << endl;
-#endif
-
-  int num, nseg;
-  Vector ER, KR;
-  double X, I1;
-  double delE = Emax - Emin;
-  double delK = Kmax - Kmin;
-
-  // Let   x = [(I1 - I1_min)/(I1_max - I1_min)]^alpha
-  // Then  I1 = I1_min + (I1_max - I1_min)] * x^(1/alpha)
-
-  for (int i=0; i<NUMI; i++) {
-    X = (0.5+i)/NUMI;
-    I1 = Jx(X, I1min, I1max);
-    nseg = level_surface(I1_EK, I1, ER, KR, num);
-
-#ifdef DEBUG
-    cout << setw(5) << i << setw(15) << I1 
-	 << setw(5) << nseg << setw(5) << num << endl;
-#endif
-
-    if (nseg==0 || num<2) continue;
-
-    vector<double> ee, jj;
-    for (int j=0; j<num; j++) {
-      E = Emin + delE*ER[j+1];
-      K = Kmin + delK*KR[j+1];
-      orb->new_orbit(E, K);
-      ee.push_back(E);
-      jj.push_back(K*orb->Jmax());
-    }
-
-    I1X.push_back(X);
-    I1E.push_back(ee);
-    I1J.push_back(jj);
-  }
-
-  actions_computed = true;
-
-}
-
-
-void ResPot::getPert(double I1, double I2, CVector& bcoef,
-		     double& Jm, double& dJm,
-		     KComplex& Ul, KComplex& dUldE, KComplex& dUldK)
-{
-  Ul = 0.0;
-  dUldE = 0.0;
-  dUldK = 0.0;
-
   // Linear interpolation coefficients
   // ---------------------------------
+  
+  double X = xJ(I2, minJ, maxJ);
+  
+  indxX = (int)( X/dX );
+  indxX = min<int>(indxX, numx-2);
+  indxX = max<int>(indxX, 0);
+  
+  cX[0] = (dX*(indxX+1) - X)/dX;
+  cX[1] = 1.0 - cX[0];
+  
+  if (isnan(cX[0]) || isnan(cX[1])) {
+    cerr << "getInterp: cX is NaN, X=" << X 
+	 << "  I1=" << I1
+	 << "  I2=" << I2 
+	 << "  minJ=" << minJ
+	 << "  maxJ=" << maxJ
+	 << endl;
+  }
 
-  double cE[2], cK[2], cEd[2], cKd[2];
+  int numE[2];
+  
+  // Upper bound
+  for (int i1=0; i1<2; i1++) {
+    numE[i1]  = I1X[indxX+i1].size()-1;
+    indxE[i1] = Vlocate(I1, I1X[indxX+i1]) + 1;
+    indxE[i1] = min<int>(indxE[i1], numE[i1]);
+    indxE[i1] = max<int>(indxE[i1], 0);
+  }
+  
+  // Get offset from outer energy boundary
+  
+  int topoff = min<int>(numE[0] - indxE[0], numE[1] - indxE[1]);
+  assert( topoff >= 0);
+  
+  // Search down through energy grid for match
+  
+  bool ok = false;
+  // Simple case: evenly spaced energy grid
+  // --------------------------------------
+  int minE = min<int>(numE[0], numE[1]) - 1;
+  
+  double I1cur=0.0;
+  for (int i1=0; i1<2; i1++) I1cur += cX[i1]*I1X[indxX+i1][numE[i1]-topoff];
+  double I1last = I1cur;
 
-  I1 = max<double>(I1min, I1);
-  I1 = min<double>(I1max, I1);
-
-  double E = getE(I1, I2);
-  E = max<double>(E, Emin);
-  E = min<double>(E, Emax);
-
-  int indxE = (int)( (E-Emin)/dE );
-
-  indxE = max<int>(indxE, 0);
-  indxE = min<int>(indxE, NUME-2);
-
-  cE[0] = (EE[indxE+1] - E)/dE;
-  cE[1] = 1.0 - cE[0];
-
-  cEd[0] = -1.0/dE;
-  cEd[1] =  1.0/dE;
+  // Over top of grid
+  // ----------------
+  if (I1>I1cur) {
+    assert( topoff==0 );
+    for (int i1=0; i1<2; i1++) {
+      indxE[i1] = I1X[indxX+i1].size()-2;
+      cE[i1][0] = 0.0;
+      cE[i1][1] = 1.0;
+    }
     
-  Jm  =  cE[0]*Jmax[indxE] +  cE[1]*Jmax[indxE+1];
-  dJm = cEd[0]*Jmax[indxE] + cEd[1]*Jmax[indxE+1];
+    noboundary = false;
+
+    return;
+  }
+  
+  // At bottom of grid
+  // -----------------
+  if (topoff>minE) {
+    for (int i1=0; i1<2; i1++) {
+      indxE[i1] = 0;
+      cE[i1][0] = 1.0;
+      cE[i1][1] = 0.0;
+    }
     
-  double K = I2/Jm;
-  K = max<double>(K, Kmin);
-  K = min<double>(K, Kmax);
+    noboundary = false;
 
-  int indxK = (int)( (K-Kmin)/dK );
+    return;
+  }
 
-  indxK = max<int>(indxK, 0);
-  indxK = min<int>(indxK, NUMK-2);
+  for (int i=topoff+1; i<=minE; i++) {
+    assert( i>0 );
+    I1last = I1cur;
+    I1cur = 0.0;
+    for (int i1=0; i1<2; i1++) {
+      assert( numE[i1]-i >= 0 );
+      I1cur += cX[i1]*I1X[indxX+i1][numE[i1]-i];
+    }
+    if ( (I1-I1cur)*(I1-I1last) <= 0.0 ) {
+      cE[1][0] = cE[0][0] = (I1last - I1)/(I1last - I1cur);
+      cE[1][1] = cE[0][1] = 1.0 - cE[0][0];
+      indxE[0] = numE[0] - i;
+      indxE[1] = numE[1] - i;
+      ok = true;
+      break;
+    }
+  }
+  
+  noboundary = true;
+
+  double I1tst1 = I1last;
+  double I1tst2 = I1cur;
+
+  if (!ok) {
     
-  cK[0] = (KK[indxK+1] - K)/dK;
-  cK[1] = 1.0 - cK[0];
+    noboundary = false;
 
-  cKd[0] = -1.0/dK;
-  cKd[1] =  1.0/dK;
+    assert( numE[0]-minE-1 >= 0 );
+
+    assert( numE[1]-minE-1 == 0 );
+
+    assert(
+	   (EX[indxX+1][0] >= EX[indxX][numE[0]-minE-1]) &&
+	   (EX[indxX+1][0] <= EX[indxX][numE[0]-minE+0])
+	   );
+    
+    // Special case #1: I1 for energies larger
+    //      than the max-min energy endpoint
+   
+    I1last = I1cur;
+    I1cur = 
+      cX[0]*odd2(EX[indxX+1][0], EX[indxX], I1X[indxX]) +
+      cX[1]*I1X[indxX+1][0];
+    
+    if ( (I1-I1cur)*(I1-I1last) <= 0.0 ) {
+
+      indxE[0] = numE[0]-minE-1;
+
+      if (fabs(I1last - I1X[indxX][indxE[0]]) < 1.0e-8) {
+	cerr << "Interp denom=0 in Special Case #1: I1last=" << I1last
+	     << "  I1cur=" << I1cur
+	     << "  I1tst1=" << I1tst1
+	     << "  I1tst2=" << I1tst2
+	     << "  I1prv=" << I1X[indxX][numE[0]-minE]
+	     << "  I1min=" << I1X[indxX][numE[0]-minE-1]
+	     << "  I1pen=" << I1X[indxX+1][numE[0]-minE]
+	     << "  I1int=" << odd2(EX[indxX+1][0], EX[indxX], I1X[indxX])
+	     << "  I1=" << I1
+	     << "  dI1top=" << I1-I1last
+	     << "  dI1bot=" << I1cur-I1last
+	     << "  indxE=" << indxE[0]
+	     << "  minE=" << minE
+	     << "  numE{0]=" << numE[0]
+	     << "  numE[1]=" << numE[1]
+	     << "  topoff=" << topoff
+	     << "  loc indx=" << Vlocate(EX[indxX+1][0], EX[indxX])
+	     << "  cX[0]=" << cX[0] << "  CX[1]=" << cX[1]
+	     << endl;
+      }
+
+      if (fabs(I1last - I1X[indxX][indxE[0]]) > 1.0e-8)
+	cE[0][0] = (I1last - I1)/(I1last - I1X[indxX][indxE[0]]);
+      else
+	cE[0][0] = (EX[indxX][indxE[0]+1] - EX[indxX+1][0])/(EX[indxX][indxE[0]+1] - EX[indxX][indxE[0]]);
+      cE[0][0] = min<double>(cE[0][0], 1.0);
+      cE[0][0] = max<double>(cE[0][0], 0.0);
+      cE[0][1] = 1.0 - cE[1][0];
+      
+      indxE[1] = 0;
+      
+      cE[1][0] = (I1last - I1)/(I1last - I1cur);
+      cE[1][0] = min<double>(cE[1][0], 1.0);
+      cE[1][0] = max<double>(cE[1][0], 0.0);
+      cE[1][1] = 1.0 - cE[0][0];
+      
+      ok = true;
+    }
+    
+    if (isnan(cE[0][0])) {
+      cerr << "NaN in Special Case #1: I1last=" << I1last
+	   << "  I1min=" << I1X[indxX][numE[0]-minE-1]
+	   << "  I1pen=" << I1X[indxX+1][numE[0]-minE]
+	   << "  I1int=" << odd2(EX[indxX+1][0], EX[indxX], I1X[indxX])
+	   << "  I1=" << I1
+	   << "  dI1top=" << I1-I1last
+	   << "  dI1bot=" << I1cur-I1last
+	   << "  cX[0]=" << cX[0] << "  CX[1]=" << cX[1]
+	   << endl;
+    }
+
+    if (isnan(cE[1][0])) {
+      cerr << "NaN in Special Case #1: I1cur" << I1cur
+	   << "  I1last=" << I1last
+	   << "  I1=" << I1
+	   << endl;
+    }
 
 
-  // Compute Ul
-  // ----------
+    if (!ok) {
+
+      noboundary = false;
+				// Assume below the grid, 
+				// unless we find a match below
+      cE[0][0] = cE[1][0] = 1.0;
+      cE[0][1] = cE[1][1] = 0.0;
+      
+      indxE[0] = indxE[1] = 0;
+      
+
+      // Special case #2: below 
+      //      largest energy endpoint
+
+
+      for (int i=numE[0]-minE-1; i>=0; i--) {
+
+	I1last = I1cur;
+	I1cur = cX[0]*I1X[indxX][i] + cX[1]*I1X[indxX+1][0];
+    
+	if ( (I1-I1cur)*(I1-I1last) <= 0.0 ) {
+
+	  cE[0][0] = (I1last - I1)/(I1last - I1cur);
+	  cE[0][0] = min<double>(cE[0][0], 1.0);
+	  cE[0][0] = max<double>(cE[0][0], 0.0);
+	  cE[0][1] = 1.0 - cE[1][0];
+      
+	  ok = true;
+
+	  if (isnan(cE[0][0])) {
+	    cerr << "NaN in Special Case #2: I1last=" << I1last
+		 << "  I1cur=" << I1cur
+		 << "  I1=" << I1
+		 << "  cX[0]=" << cX[0]
+		 << "  cX[1]=" << cX[1]
+		 << "  i=" << i
+		 << endl;
+
+	    break;
+	  }
+
+	}
+      }
+      
+    }
+	
+  }
+  
+  return;
+}
+
+bool ResPot::getValues(double I1, double I2,
+		       double& O1, double& O2)
+{
+  O1 = 0.0;
+  O2 = 0.0;
+  
+  int indxX;
+  pthread_mutex_lock(&nwlock);
+  int* indxE = new int [2];
+  double* cX = new double [2];
+  double** cE = new double* [2];
+  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
+  pthread_mutex_unlock(&nwlock);
+  
+  bool noboundary;
+  getInterp(I1, I2, indxX, indxE, cX, cE, noboundary);
+  
+  // Interpolate frequencies
+  // -----------------------
   
   double fac;
   int num;
-
+  
   for (int i1=0; i1<2; i1++) {
     for (int i2=0; i2<2; i2++) {
-      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      
+      RW *rw = &(orbmat[indxX+i1][indxE[i1]+i2]);
       num = rw->num;
-      fac = cE[i1]*cK[i2];
+      fac = cX[i1]*cE[i1][i2];
       
       if (ngrid != num) {
-	cerr << "Oops! ngrid=" << ngrid << "  num=" << num << endl;
+	cerr << "ResPot::getValues[1]: Oops! ngrid=" 
+	     << ngrid << "  num=" << num 
+	     << "  indxX=" << indxX+i1 << "/" << numx
+	     << "  indxE=" << indxE[i1]+i2 << "/" << EX[indxX+i1].size()
+	     << endl;
       }
-
-      for (int n=1; n<=NMAX; n++) {
-	Ul += fac * rw->W[n-1] * bcoef[n];
-	dUldE += cEd[i1] * cK [i2] * rw->W[n-1] * bcoef[n];
-	dUldK += cE [i1] * cKd[i2] * rw->W[n-1] * bcoef[n];
-      }
+      
+      O1  += fac * rw->O1;
+      O2  += fac * rw->O2;
     }
   }
+  
+  pthread_mutex_lock(&nwlock);
+  for (int i1=0; i1<2; i1++) delete [] cE[i1];
+  delete [] cE;
+  delete [] indxE;
+  pthread_mutex_unlock(&nwlock);
 
+  // return noboundary;
+  return true;
 }
 
-
-double ResPot::getE(double I1, double I2)
+bool ResPot::getValues(double I1, double I2, CVector& bcoef,
+		       double& O1, double& O2,
+		       double& Jm, double& dJm,
+		       KComplex& Ul, KComplex& dUldE, KComplex& dUldK)
 {
-  compute_actions();
+  O1 = 0.0;
+  O2 = 0.0;
+  Jm = 0.0;
+  dJm = 0.0;
+  Ul = 0.0;
+  dUldE = 0.0;
+  dUldK = 0.0;
+  
+  
+  int indxX;
+  pthread_mutex_lock(&nwlock);
+  int* indxE = new int [2];
+  double* cX = new double [2];
+  double** cE = new double* [2];
+  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
+  pthread_mutex_unlock(&nwlock);
+  
 
-				// Compute closest I1 in grid
-  if (I1<I1min || I1>I1max) {
-#ifdef DEBUG
-    cout << "I1=" << I1 << " is out of range [" 
-	 << I1min << ", " << I1max << "],  I2=" << I2 << endl;
-#endif
-    I1 = max<double>(I1min, I1);
-    I1 = min<double>(I1max, I1);
+  bool wasok = true;
+
+  if (isnan(I1) || isnan(I2)) {
+    cerr << "NaN on input values to getInterp\n";
+    wasok = false;
   }
 
-  int indx;
-  double x = xJ(I1, I1min, I1max);
 
-  indx = Vlocate(x, I1X);
-  indx = max<int>(0, indx);
-  indx = min<int>(I1X.size()-2, indx);
+  bool noboundary;
+  getInterp(I1, I2, indxX, indxE, cX, cE, noboundary);
+  
+  
+  for (int i1=0; i1<2; i1++) {
+    if (indxE[i1] >= (int)EX[indxX+i1].size()-1) {
+      cerr << "How did this happen?! [getValue[2]]\n";
+      wasok = false;
+    }
+  }
+  
+  
+  // Compute Ul and derivatives, Jmax, and frequencies
+  // -------------------------------------------------
+  
+  double fac;
+  int num;
+  
+  for (int i1=0; i1<2; i1++) {
+    for (int i2=0; i2<2; i2++) {
+      
+      RW *rw = &(orbmat[indxX+i1][indxE[i1]+i2]);
+      num = rw->num;
+      fac = cX[i1]*cE[i1][i2];
+      
+      if (isnan(fac)) {
+	if (wasok) 
+	  cerr << "ResPot::getValues[2]: fac=NaN and was OK!!  cX[" << i1 << "]=" << cX[i1]
+	       << "  cE[" << i1 << "][" << i2 << "]=" << cE[i1][i2] 
+	       << "  indxX=" << indxX+i1 << "/" << numx
+	       << "  indxE=" << indxE[i1]+i2 << "/" << EX[i1].size()-1
+	       << endl;
+	else
+	  cerr << "ResPot::getValues[2]: fac=NaN!!  cX[" << i1 << "]=" << cX[i1]
+	       << "  cE[" << i1 << "][" << i2 << "]=" << cE[i1][i2] 
+	       << "  indxX=" << indxX+i1 << "/" << numx
+	       << "  indxE=" << indxE[i1]+i2 << "/" << EX[i1].size()-1
+	       << endl;
+      }
 
-  double cI[2];
+      if (ngrid != num) {
+	assert( EX[indxX+i1].size() == I1X[indxX+i1].size() );
+	cerr << "ResPot::getValues[2]: Oops! ngrid=" 
+	     << ngrid << "  num=" << num 
+	     << "  i1, i2=" << i1 << ", " << i2
+	     << "  indxX=" << indxX+i1 << "/" << numx
+	     << "  indxE=" << indxE[i1]+i2 << "/" << EX[indxX+i1].size()
+	     << endl;
+      }
+      
+      O1  += fac * rw->O1;
+      O2  += fac * rw->O2;
+      Jm  += fac * rw->Jm;
+      dJm += fac * rw->dJm;
+      
+      for (int n=1; n<=NMAX; n++) {
+	Ul +=    fac * rw->W[n-1]   * bcoef[n];
+	dUldE += fac * rw->dWE[n-1] * bcoef[n];
+	dUldK += fac * rw->dWK[n-1] * bcoef[n];
+      }
+      
+    }
+  }
+  
+  pthread_mutex_lock(&nwlock);
+  for (int i1=0; i1<2; i1++) delete [] cE[i1];
+  delete [] cE;
+  delete [] cX;
+  delete [] indxE;
+  pthread_mutex_unlock(&nwlock);
 
-  cI[0] = (I1X[indx+1] - x)/(I1X[indx+1] - I1X[indx]);
-  cI[1] = 1.0 - cI[0];
-
-  double E = 
-    cI[0]*odd2(I2, I1J[indx  ], I1E[indx  ]) + 
-    cI[1]*odd2(I2, I1J[indx+1], I1E[indx+1]) ;
-
-  return E;
+  // return noboundary;
+  return true;
 }
 
-int ResPot::coord(double* pos, double* vel,
-	    double I1, double I2, double beta,
-	    double w1, double w2, double w3)
+
+bool ResPot::coord(double* pos, double* vel,
+		   double I1, double I2, double beta,
+		   double w1, double w2, double w3)
 {
   // Linear interpolation coefficients
   // ---------------------------------
-
-  double cE[2], cK[2];
-
-  double E = getE(I1, I2);
-  E = max<double>(E, Emin);
-  E = min<double>(E, Emax);
-
-  int indxE = (int)( (E-Emin)/dE );
-
-  indxE = max<int>(indxE, 0);
-  indxE = min<int>(indxE, NUME-2);
-
-  cE[0] = (EE[indxE+1] - E)/dE;
-  cE[1] = 1.0 - cE[0];
-    
-  double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
-    
-  double J = I2;
-  double K = J/Jm;
-  K = max<double>(K, Kmin);
-  K = min<double>(K, Kmax);
-
-  int indxK = (int)( (K-Kmin)/dK );
-
-  indxK = max<int>(indxK, 0);
-  indxK = min<int>(indxK, NUMK-2);
-
-  cK[0] = (KK[indxK+1] - K)/dK;
-  cK[1] = 1.0 - cK[0];
-
+  
+  int indxX;
+  pthread_mutex_lock(&nwlock);
+  int* indxE = new int [2];
+  double* cX = new double [2];
+  double** cE = new double* [2];
+  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
+  pthread_mutex_unlock(&nwlock);
+  
+  bool noboundary;
+  getInterp(I1, I2, indxX, indxE, cX, cE, noboundary);
+  
+  for (int i1=0; i1<2; i1++) {
+    if (indxE[i1] >= (int)EX[indxX+i1].size()-1) {
+      cerr << "How did this happen?! [after getInterp]\n";
+    }
+  }
   
   // Compute radius, f(w1)
   // --------------------
   
   double fac;
   int num;
-
+  
   vector<double> tw(ngrid, 0.0);
   vector<double> tf(ngrid, 0.0);
   vector<double> tr(ngrid, 0.0);
-
+  
+  double E = 0.0;
+  double rmin=Rmax, rmax=Rmin;
+  
   for (int i1=0; i1<2; i1++) {
     for (int i2=0; i2<2; i2++) {
-      RW *rw = &(orbmat[indxE+i1][indxK+i2]);
+      
+      RW *rw = &(orbmat[indxX+i1][indxE[i1]+i2]);
       num = rw->num;
-      fac = cE[i1]*cK[i2];
+      fac = cX[i1]*cE[i1][i2];
       
       if (ngrid != num) {
-	cerr << "Oops! ngrid=" << ngrid << "  num=" << num << endl;
+	cerr << "ResPot::coord[2]: Oops! ngrid=" 
+	     << ngrid << "  num=" << num
+	     << "  indxX=" << indxX+i1 << "/" << numx
+	     << "  indxE=" << indxE[i1]+i2 << "/" << EX[indxX+i1].size()
+	     << endl;
       }
-
+      
+      E += fac * rw->E;
+      
       for (int k=0; k<ngrid; k++) {
 	tw[k] += fac * rw->w1[k];
 	tf[k] += fac * rw->f[k];
 	tr[k] += fac * rw->r[k];
       }
+      
+      rmin = min<double>(rmin, rw->r[0]);
+      rmax = max<double>(rmax, rw->r[ngrid-1]);
     }
   }
-
-				// Wrap w_1 in [0, 2*pi]
+  
+  pthread_mutex_lock(&nwlock);
+  for (int i1=0; i1<2; i1++) delete [] cE[i1];
+  delete [] cE;
+  delete [] cX;
+  delete [] indxE;
+  pthread_mutex_unlock(&nwlock);
+  
+  // Wrap w_1 in [0, 2*pi]
   if (w1>=0.0)
     w1 -=  2.0*M_PI*(int)(0.5*w1/M_PI);
   else
     w1 +=  2.0*M_PI*((int)(-0.5*w1/M_PI) + 1);
-
+  
   double w10 = w1, rv=1.0;
   if (w1>M_PI) {
     w10 = 2.0*M_PI - w1;
     rv = -1.0;
   }
-
+  
   // Compute coordinates
   // -------------------
-
+  
   double r    = odd2(w10, tw, tr);
   double f    = odd2(w10, tw, tf);
   double psi  = w2 - rv*f;
-
+  
   double cosp = cos(psi);
   double sinp = sin(psi);
-
+  
   double cosb = cos(beta);
   double sinb = sin(beta);
-
+  
   double vtot = sqrt(fabs(2.0*(E - halo_model->get_pot(r))));
-  double vt   = J/r;
-  if (vtot < vt) { 
-    vt = vtot;
+  double vt   = I2/r;
+  
+  if (vtot < vt) {		// Adjust r to make orbit valid
+    double rcirc;
+    ZBrent< double > circ;
+    ZBrent< vector<double> > tp;
+    vector<double> param(2);
+    param[0] = I2;
+    param[1] = E;
+    
+    
+    if (w1>2.0*M_PI*0.9 || w1 < 0.1*2.0*M_PI) {
+      
+      if ( circ.find(get_rc, I2, 0.5*rmin, 2.0*rmax, 1.0e-10, rcirc) ) {
+#ifdef DEBUG_VERBOSE
+	cout << "  Rcirc bounds error: val, rmin=" << t1 << ", " << rmin
+	     << "  val, rmax=" << t2 << ", " << rmax << endl;
+#endif
+	return false;
+      }
+      
+      if ( tp.find(adj_r, param, Rmin, rcirc, 1.0e-10, r) ) {
+#ifdef DEBUG_VERBOSE	
+	cout << "  Radj inner bounds error: E=" << E << "  J=" << I2
+	     << "  val, r=" << t1 << ", " << Rmin
+	     << "  val, rcirc=" << t2 << ", " << rcirc << endl;
+#endif
+	return false;
+      }
+      
+      rv = 1.0;			// Pericenter
+      w1 = 0.0;
+      
+    } else {
+      
+      if ( circ.find(get_rc, I2, 0.5*rmin, 2.0*rmax, 1.0e-10, rcirc) ) {
+#ifdef DEBUG_VERBOSE
+	cout << "  Rcirc outer bounds error: val, rmin=" << t1 << ", " << rmin
+	     << "  val, rmax=" << t2 << ", " << rmax << endl;
+#endif
+	return false;
+      }
+      
+      if ( tp.find(adj_r, param, rcirc, Rmax, 1.0e-10, r) ) {
+#ifdef DEBUG_VERBOSE
+	cout << "  Radj outer bounds error: E=" << E << "  J=" << I2
+	     << "  val, rcirc=" << t1 << ", " << rcirc
+	     << "  val, r=" << t2 << ", " << Rmax << endl;
+#endif
+	return false;
+      }
+      
+      rv = -1.0;		// Apocenter
+      w1 = M_PI;
+    }
+    
+    vtot = sqrt(fabs(2.0*(E - halo_model->get_pot(r))));
+    vt = I2/r;
+    f = 0.0;
+    psi = w2;
   }
-  double vr   = sqrt(fabs(vtot*vtot - vt*vt)) * rv;
-
+  
+  double vr = 0.0;
+  if (vtot > vt) vr = sqrt(vtot*vtot - vt*vt) * rv;
+  
   double cost = sinp*sinb;
   double sint = sqrt(fabs(1.0 - cost*cost));
-
-				// Check for excursion beyond bounds
+  
+  // Check for excursion beyond bounds
   if (fabs(cost)>1.0) {
     cost = copysign(1.0, cost);
     sint = 0.0;
   }
-
+  
   double cos3 = cos(w3);
   double sin3 = sin(w3);
   
-				// Check for excursion beyond bounds
+  // Check for excursion beyond bounds
   double phi = cosb*cost/(sinb*sint);
   if (fabs(phi)>=1.0) phi = copysign(1.0, phi);
   phi  = asin(phi);
-
-				// Phi branch based on Psi
+  
+  // Phi branch based on Psi
   double tmp  = atan2(sin(psi), cos(psi));
   if (tmp>0.5*M_PI || tmp<-0.5*M_PI) phi = M_PI - phi;
   phi += w3;
-
+  
   double cosf = cos(phi);
   double sinf = sin(phi);
-
+  
   pos[0] = r * sint*cosf;
   pos[1] = r * sint*sinf;
   pos[2] = r * cost;
-
+  
   // Compute velocities
   // ------------------
   
   double xp = cosp*vr - sinp*vt;
   double yp = sinp*vr + cosp*vt;
-
+  
   vel[0] = xp*cos3 - yp*cosb*sin3;
   vel[1] = xp*sin3 + yp*cosb*cos3;
   vel[2] =           yp*sinb;
-
-  return 1;
+  
+  return noboundary;
 }
 
 
-int ResPot::Update(double dt, double Phase, double Omega, 
-		   double amp, CVector& bcoef,
-		   double* posI, double* velI,
-		   double* posO, double* velO)
+ofstream* open_debug_file()
 {
-  compute_actions();
+  ostringstream sout;
+  sout << "update." << respot_mpi_id();
+  return new ofstream(sout.str().c_str(), ios::app);
+}
 
-  int ret = 0;
 
+bool ResPot::Update(double dt, double Phase, double Omega, 
+		    double amp, CVector& bcoef,
+		    double* posI, double* velI,
+		    double* posO, double* velO)
+{
+  ofstream* out = 0;
+
+  compute_grid();
+  
+  bool ret;
+  
   if (L1==0 && L2==0) {
     for (int k=0; k<3; k++) {
       posO[k] = posI[k];
       velO[k] = velI[k];
     }
-    return ret;
+    return false;
   }
-
-
-  double E, K, W1, W2, W3, F, BETA, PSI, I1, I2;
-
-				// Get action angle coords
-  coord(posI, velI, E, K, I2, W1, W2, W3, F, BETA, PSI);
+  
+  // Get action angle coords
+  double E, K, W1, W2, W3, F, BETA, PSI, I1, I2, O1, O2;
+  ret = coord(posI, velI, E, K, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI);
+  if (!ret) return false;
   
   KComplex VB = VeeBeta(L, L2, M, BETA);
   
-
-				// Iterative implicit solution
-  double Is0, If0, Is1, Is2, Is, Is3;
-  double ws0, ws1, ws2, ws, ws3;
-  double Jm, dJm, dEIs, dKIs;
+  // Iterative implicit solution
+  double Is0, If0, Is1=0.0, Is2, Is, Is3=0.0;
+  double ws0, ws1=0.0, ws2, ws, ws3=0.0;
+  double Jm, dJm, dEIs=0.0, dKIs=0.0;
   KComplex Fw, FI, Ul, dUldE, dUldK;
   bool done = false;
-
-  I1 = I1_EK.value(E, K);
-
+  
 #ifdef DEBUG_VERBOSE
   double I10 = I1;
   double I20 = I2;
 #endif
-
+  
   if (L2) {
     Is2 = Is0 = I2/L2;
     If0 = I1 - Is0*L1;
@@ -858,20 +1094,24 @@ int ResPot::Update(double dt, double Phase, double Omega,
     Is2 = Is0 = I1/L1;
     If0 = I2 - Is0*L2;
   }
+  
+  if (isnan(I1) || isnan(I2)) {
+    cerr << "Have a cow!\n";
+  }
 
   ws2 = ws0 = W1*L1 + W2*L2 + (W3 - Phase)*M;
   
   int i;
   for (i=0; i<ITMAX; i++) {
-
+    
     ws3 = ws1;
     Is3 = Is1;
-
+    
     ws1 = ws2;
     Is1 = Is2;
-
+    
     // Force
-
+    
     Is = 0.5*(Is2 + Is0);
     ws = 0.5*(ws2 + ws0);
     
@@ -882,55 +1122,123 @@ int ResPot::Update(double dt, double Phase, double Omega,
       I1 = Is*L1;
       I2 = If0 + Is*L2;
     }
+    
+    if (isnan(I1) || isnan(I2)) {
+      cerr << "I1 or I2 is NaN: Is0=" << Is0 << " Is=" << Is << " If0=" << If0 << " Is2=" << Is2 << " i=" << i << endl;
 
-    getPert(I1, I2, bcoef, Jm, dJm, Ul, dUldE, dUldK);
+      pthread_mutex_lock(&iolock);
+      out = open_debug_file();
+      *out <<  "I1 or I2 is NaN: Is0=" << Is0 << " Is=" << Is << " If0=" << If0 << " Is2=" << Is2 << " i=" << i << endl;
+      out->close();
+      pthread_mutex_unlock(&iolock);
+      out = 0;
+    }
+
+    /*
+    if (!getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK)) {
+      for (int k=0; k<3; k++) {
+	posO[k] = posI[k];
+	velO[k] = velI[k];
+      }
+      return false;
+    }
+    */
+
+    getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
 
     Ul *= VB * amp;
     dUldE *= VB * amp;
     dUldK *= VB * amp;
-
-    E = getE(I1, I2);
-    E = max<double>(E, Emin);
-    E = min<double>(E, Emax);
-
-    K = I2/Jm;
-    K = max<double>(K, Kmin);
-    K = min<double>(K, Kmax);
-      
-    dEIs = O1_EK.value(E, K)*L1 + O2_EK.value(E, K)*L2;
+    
+    dEIs = O1*L1 + O2*L2;
     dKIs =  1.0/Jm*L2 - K*dJm*dEIs/Jm;
-
-    Fw = O1_EK.value(E, K)*L1 + O2_EK.value(E, K)*L2 - Omega*M + 
+    
+    Fw = O1*L1 + O2*L2 - Omega*M + 
       (dUldE*dEIs + dUldK*dKIs)*exp(I*ws);
-
+    
     FI = -I*Ul*exp(I*ws);
+    
+    
+    if (isnan(Fw.real()) || isnan(FI.real())) {
+      cerr << "Fw or FI is NaN, dJm=" << dJm 
+	   << " Ul="	<< Ul 
+	   << " dUldE="	<< dUldE 
+	   << " dUldK="	<< dUldK 
+	   << " dEIs="	<< dEIs 
+	   << " dKIs="	<< dKIs 
+	   << " O1="	<< O1 
+	   << " O2="	<< O2 
+	   << " Omega="	<< Omega
+	   << " dt="	<< dt
+	   << " ws="	<< ws
+	   << " ws0="	<< ws0
+	   << " ws2="	<< ws2
+	   << " i="	<< i << endl;
 
+      pthread_mutex_lock(&iolock);
+      out = open_debug_file();
+      *out  << "Fw or FI is NaN, dJm=" << dJm 
+	   << " Ul="	<< Ul 
+	   << " dUldE="	<< dUldE 
+	   << " dUldK="	<< dUldK 
+	   << " dEIs="	<< dEIs 
+	   << " dKIs="	<< dKIs 
+	   << " O1="	<< O1 
+	   << " O2="	<< O2 
+	   << " Omega="	<< Omega
+	   << " dt="	<< dt
+	   << " ws="	<< ws
+	   << " ws0="	<< ws0
+	   << " ws2="	<< ws2
+	   << " i="	<< i << endl;
+      out->close();
+      pthread_mutex_unlock(&iolock);
+      out = 0;
+    }
 
     // Update
-
+    
     ws2 = ws0 + dt*Fw.real();
     Is2 = Is0 + dt*FI.real();
+    
+    if (isnan(ws2)) {
+      cerr << "ws2 is NaN, Fw=" << Fw.real()
+	   << " ws0=" << ws0
+	   << " dt=" << dt
+	   << " i="	<< i << endl;
 
+      pthread_mutex_lock(&iolock);
+      out = open_debug_file();
+      *out  << "ws2 is NaN, Fw=" << Fw.real()
+	   << " ws0=" << ws0
+	   << " dt=" << dt
+	   << " i="	<< i << endl;
+      out->close();
+      pthread_mutex_unlock(&iolock);
+      out = 0;
+    }
 
+    
     // Check for convergence
     
     if (fabs(ws1-ws2)<TOLITR && 
 	fabs(Is1-Is2)/(fabs(Is2)+1.0e-10)<TOLITR) done = true;
-
+    
     // Limit 2-cycle detection
-
+    
     if (i>3 &&
 	fabs(ws3-ws2)<TOLITR && 
 	fabs(Is3-Is2)/(fabs(Is2)+1.0e-10)<TOLITR) done = true;
-
+    
     if (done) break;
-
+    
   }
-
+  
   if (!done) {
     // #ifdef DEBUG
-    cerr << "E, K, I1, I2, DI, Dw = " 
-	 << E
+    cerr << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
+	 << Phase
+	 << ", " << E
 	 << ", " << K
 	 << ", " << I1
 	 << ", " << I2
@@ -938,14 +1246,19 @@ int ResPot::Update(double dt, double Phase, double Omega,
 	 << ", " << ws2-ws1
 	 << ", " << Is2-Is3
 	 << ", " << ws2-ws3
+	 << ", " << Ul
+	 << ", " << dUldE
+	 << ", " << dUldK
+	 << ", " << dEIs
+	 << ", " << dKIs
 	 << endl;
     // #endif
     ret = 1;
   }
-
+  
   // Coordinate transform: Action-Angle to Cartesian
-
-				// Evaluation of E, K at half-point
+  
+  // Evaluation of E, K at half-point
   if (L2) {			// for fast angle update
     I1 = If0 + 0.5*(Is2+Is0)*L1;
     I2 = 0.5*(Is2+Is0)*L2;
@@ -953,30 +1266,25 @@ int ResPot::Update(double dt, double Phase, double Omega,
     I1 = 0.5*(Is2+Is0)*L1;
     I2 = If0 + 0.5*(Is2+Is0)*L2;
   }
-
-  E = getE(I1, I2);
-  E = max<double>(E, Emin);
-  E = min<double>(E, Emax);
-
-  K = I2/Jm;
-  K = max<double>(K, Kmin);
-  K = min<double>(K, Kmax);
-      
-
+  
+  
+  getValues(I1, I2, O1, O2);
+  
+  
   if (L2) {			// Angle update
-    W1 += O1_EK.value(E, K)*dt;
+    W1 += O1*dt;
     W2 = (ws2 - W1*L1 - (W3 - Phase - Omega*dt)*M)/L2;
-				// New actions
+    // New actions
     I1 = If0 + Is2*L1;
     I2 = Is2*L2;
   } else {			// Angle update
-    W2 += O2_EK.value(E, K)*dt;
+    W2 += O2*dt;
     W1 = (ws2 - W2*L2 - (W3 - Phase - Omega*dt)*M)/L1;
-				// New actions
+    // New actions
     I1 = Is2*L1;
     I2 = If0 + Is2*L2;
   }
-
+  
 #ifdef DEBUG_VERBOSE
   if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
     cout << setw(15) << I10
@@ -988,37 +1296,94 @@ int ResPot::Update(double dt, double Phase, double Omega,
 	 << endl;
   }
 #endif
-
-				// Get new Cartesion phase space
-  coord(posO, velO, I1, I2, BETA, W1, W2, W3);
-
+  
+  // Get new Cartesion phase space
+  ret = coord(posO, velO, I1, I2, BETA, W1, W2, W3); 
+  if (!ret) {
+    for (int k=0; k<3; k++) {
+      posO[k] = posI[k];
+      velO[k] = velI[k];
+    }
+  }
+  
+  // Debug
+  for (int k=0; k<3; k++) {
+    if (isnan(posO[k]) || isinf(posO[k]) || isnan(velO[k]) || isinf(velO[k]))
+      ret = 0;
+  }
+  
+  
   return ret;
 }
 
 
-int ResPot::Force(double dt, double Phase, double Omega, 
-		  double amp, CVector& bcoef,
-		  double* pos, double* vel, double* acc)
+bool ResPot::Force(double dt, double Phase, double Omega, 
+		   double amp, CVector& bcoef,
+		   double* pos, double* vel, double* acc)
 {
+  bool ret;
   double pos0[3], vel0[3], pos2[3], vel2[3];
-  double E, K, W1, W2, W3, F, BETA, PSI, I1, I2;
-  int ret;
-
-				// Get action angle coords
-  coord(pos, vel, E, K, I2, W1, W2, W3, F, BETA, PSI);
-  I1 = I1_EK.value(E, K);
-
-				// Get phase space update without perturbation
-  W1 += O1_EK.value(E, K)*dt;
-  W2 += O2_EK.value(E, K)*dt;
-  coord(pos0, vel0, I1, I2, BETA, W1, W2, W3);
+  double E, K, W1, W2, W3, F, BETA, PSI, I1, I2, O1, O2;
   
-				// Get phase space update with perturbation
+  // Get action angle coords
+  ret = coord(pos, vel, E, K, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI);
+  
+  if (!ret) {
+    for (int k=0; k<3; k++) acc[k] = 0.0;
+    return ret;
+  }
+  
+  // Get phase space update without perturbation
+  W1 += O1*dt;
+  W2 += O2*dt;
+  ret = coord(pos0, vel0, I1, I2, BETA, W1, W2, W3);
+  
+  if (!ret) {
+    for (int k=0; k<3; k++) acc[k] = 0.0;
+    return ret;
+  }
+  
+  // Get phase space update with perturbation
   ret = Update(dt, Phase, Omega, amp, bcoef, pos, vel, pos2, vel2);
-
-				// Effective acceleration
+  
+  if (!ret) {
+    for (int k=0; k<3; k++) acc[k] = 0.0;
+    return ret;
+  }
+  
+  // Effective acceleration
   for (int k=0; k<3; k++) acc[k] = (vel2[k] - vel0[k])/dt;
-
+  
   return ret;
+}
+
+
+void ResPot::check_rw(RW& rw)
+{
+  for (unsigned i=0; i<rw.r.size(); i++)
+    if (isnan(rw.r[i])) cout << "RW error: r nan, i=" << i << endl;
+  
+  for (unsigned i=0; i<rw.w1.size(); i++)
+    if (isnan(rw.w1[i])) cout << "RW error: w1 nan, i=" << i << endl;
+  
+  for (unsigned i=0; i<rw.f.size(); i++)
+    if (isnan(rw.f[i])) cout << "RW error: f nan, i=" << i << endl;
+  
+  for (unsigned i=0; i<rw.W.size(); i++)
+    if (isnan(rw.W[i])) cout << "RW error: W nan, i=" << i << endl;
+  
+  for (unsigned i=0; i<rw.dWE.size(); i++)
+    if (isnan(rw.dWE[i])) cout << "RW error: dWE nan, i=" << i << endl;
+  
+  for (unsigned i=0; i<rw.dWK.size(); i++)
+    if (isnan(rw.dWK[i])) cout << "RW error: dWK nan, i=" << i << endl;
+  
+  if (isnan(rw.O1))	cout << "RW error: O1 nan" << endl;
+  if (isnan(rw.O2))	cout << "RW error: O2 nan" << endl;
+  if (isnan(rw.Jm))	cout << "RW error: Jm nan" << endl;
+  if (isnan(rw.dJm))	cout << "RW error: dJm nan" << endl;
+  if (isnan(rw.E))	cout << "RW error: E nan" << endl;
+  if (isnan(rw.K))	cout << "RW error: K nan" << endl;
+  if (isnan(rw.I1))	cout << "RW error: I1 nan" << endl;
 }
 

@@ -13,17 +13,23 @@
 
 #include <sstream>
 
+static int respot_mpi_id_var;
+int respot_mpi_id()
+{
+  return respot_mpi_id_var;
+}
+
 UserResPot::UserResPot(string &line) : ExternalForce(line)
 {
   LMAX = 2;
   NMAX = 20;
-  NUMR = 1000;
+  NUMR = 800;
   L0 = 2;
   M0 = 2;
   L1 = -1;
   L2 =  2;
-  rmin = 1.0e-4;
-  rmax = 1.95;
+  rmin = 1.0e-3;
+  rmax = 1.98;
   scale = 0.067;
   drfac = 0.05;
 
@@ -33,9 +39,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
   omega = 18.9;			// Patern speed
 
-  NUME = 400;			// Points in Energy grid
-  NUMK = 100;			// Points in Kappa grid
-  NUMI = 2000;			// Points in Action grid
+  NUMX = 400;			// Points in Ang mom grid
+  NUME = 200;			// Points in Energy
+  RECS = 100;			// Points in Angle grid
 
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
@@ -90,9 +96,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
   halo_ortho = sl;
 
+  ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
-  ResPot::NUMK = NUMK;
-  ResPot::NUMI = NUMI;
+  ResPot::RECS = RECS;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
 
   BarForcing::L0 = L0;
@@ -105,6 +111,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bcount = new int [nthrds];
 
   userinfo();
+
+  respot_mpi_id_var = myid;
 }
 
 UserResPot::~UserResPot()
@@ -170,9 +178,9 @@ void UserResPot::initialize()
   if (get_value("domega", val))   domega = atof(val.c_str());
   if (get_value("t0", val))       t0 = atof(val.c_str());
 
+  if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
-  if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
-  if (get_value("NUMI", val))     NUMI = atoi(val.c_str());
+  if (get_value("RECS", val))     RECS = atoi(val.c_str());
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
@@ -335,29 +343,72 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    bcount[id] += 
-      respot->Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO);
-		   
-    for (int k=0; k<3; k++) {
-      (*particles)[i].pos[k] = posO[k];
-      (*particles)[i].vel[k] = velO[k];
-      (*particles)[i].acc[k] = (velO[k] - velI[k])/dtime;
-      if (!found_nan) {
+    if (R<rmin) {
+
+      bool test_nan = false;
+      for (int k=0; k<3; k++) {
+	// (*particles)[i].pos[k] += velI[k] * dtime;
 	if ( isnan((*particles)[i].pos[k]) ||
 	     isnan((*particles)[i].vel[k]) ||
-	     isnan((*particles)[i].acc[k]) ) found_nan = true; 
+	     isnan((*particles)[i].acc[k]) ) test_nan = true; 
+      }
+
+      if (test_nan) {
+	cout << "Process " << myid << ": found nan out of bounds (inner), "
+	     << "[ibeg,i,iend]=[" << nbeg << "," << i << "," << nend << "]\n";
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	cout << endl << flush;
       }
     }
-    (*particles)[i].potext = halo_model->get_pot(R);
+    else if (R>rmax) {
+      bool test_nan = false;
+      for (int k=0; k<3; k++) {
+	// (*particles)[i].pos[k] += velI[k] * dtime;
+	// (*particles)[i].vel[k] += -dfac*posI[k]/R * dtime;
+	if ( isnan((*particles)[i].pos[k]) ||
+	     isnan((*particles)[i].vel[k]) ||
+	     isnan((*particles)[i].acc[k]) ) test_nan = true; 
+      }
 
-    if (found_nan) {
-      cout << "Process " << myid << ": found nan\n";
-      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
-      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
-      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
-      cout << endl << flush;
-      found_nan = false;
+      if (test_nan) {
+	cout << "Process " << myid << ": found nan out of bounds (outer), "
+	     << "[ibeg,i,iend]=[" << nbeg << "," << i << "," << nend << "]\n";
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
+	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	cout << endl << flush;
+      }
     }
+    else if (respot->
+	Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO)) 
+      {
+
+	for (int k=0; k<3; k++) {
+	  (*particles)[i].pos[k] = posO[k];
+	  (*particles)[i].vel[k] = velO[k];
+	  // (*particles)[i].acc[k] = (velO[k] - velI[k])/dtime;
+	  (*particles)[i].acc[k] = 0.0;
+	  if (!found_nan) {
+	    if ( isnan((*particles)[i].pos[k]) ||
+		 isnan((*particles)[i].vel[k]) ||
+		 isnan((*particles)[i].acc[k]) ) found_nan = true; 
+	  }
+	}
+	(*particles)[i].potext = halo_model->get_pot(R);
+
+	if (found_nan) {
+	  cout << "Process " << myid << ": found nan\n";
+	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
+	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
+	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	  cout << endl << flush;
+	  found_nan = false;
+	}
+	
+      }
+    else  bcount[id]++;
 
   }
 
