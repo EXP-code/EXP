@@ -95,7 +95,7 @@ void UserBar::determine_acceleration_and_potential(void)
   bool update = false;
 
   c0->get_angmom();		// Tell component to compute angular momentum
-  cout << "Lz=" << c0->angmom[2] << endl; // debug
+  // cout << "Lz=" << c0->angmom[2] << endl; // debug
 
   if (firstime) {
     
