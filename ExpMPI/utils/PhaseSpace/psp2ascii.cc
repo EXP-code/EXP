@@ -166,7 +166,7 @@ main(int argc, char **argv)
       in->read((char *)&rtmp, sizeof(double));
       out << setw(18) << rtmp;
       for (int i=0; i<its->niatr; i++) {
-	in->read((char *)&itmp, sizeof(double));
+	in->read((char *)&itmp, sizeof(int));
 	out << setw(12) << itmp;
       }
       for (int i=0; i<its->ndatr; i++) {
