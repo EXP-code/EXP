@@ -103,6 +103,18 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 {
   particles = Particles;
 
+				// External particles only
+  if (use_external) {
+    
+    MPL_start_timer();
+    determine_acceleration_and_potential();
+    MPL_stop_timer();
+
+    use_external = false;
+
+    return;
+  }
+
 				// Try to read cached tables rather
 				// than recompute from distribution
   if (firstime && !(restart && ortho->read_cache())) {
@@ -184,9 +196,6 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 	     << '\n';
     }
   */
-
-  // Clear external potential flag
-  use_external = false;
 
 }
 

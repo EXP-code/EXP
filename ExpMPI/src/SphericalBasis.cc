@@ -198,6 +198,22 @@ void SphericalBasis::get_acceleration_and_potential(vector<Particle>* P)
   particles = P;		// "Register" particles
   nbodies = particles->size();	// And compute number of bodies
 
+  /*====================================================*/
+  /* Accel & pot using previously computed coefficients */
+  /*====================================================*/
+
+  if (use_external) {
+
+    MPL_start_timer();
+    determine_acceleration_and_potential();
+    MPL_stop_timer();
+
+    use_external = false;
+
+    return;
+  }
+
+
   /*======================*/
   /* Compute coefficients */
   /*======================*/
