@@ -15,7 +15,7 @@ libuser_la_SOURCES = UserTest.cc
 
 libbar_la_SOURCES = UserBar.cc
 
-libebar_la_SOURCES = UserEBar.cc
+libebar_la_SOURCES = UserEBar.cc EllipForce.cc
 
 libsat_la_SOURCES = UserSat.cc SatelliteOrbit.cc ParamParse.cc
 libsat_la_LDFLAGS = -L$(top_srcdir)/exputil/.libs \

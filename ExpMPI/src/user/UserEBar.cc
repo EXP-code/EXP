@@ -10,6 +10,8 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   id = "RotatingBarWithMonopole";
 
   length = 0.5;			// Bar length
+  bratio = 0.2;			// Ratio of b to a
+  cratio = 0.1;			// Ratio of c to b
   amplitude = 0.3;		// Bar amplitude
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
@@ -91,6 +93,8 @@ void UserEBar::initialize()
 
   if (get_value("comname", val))	com_name = val;
   if (get_value("length", val))		length = atof(val.c_str());
+  if (get_value("bratio", val))		bratio = atof(val.c_str());
+  if (get_value("cratio", val))		cratio = atof(val.c_str());
   if (get_value("amp", val))		amplitude = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
@@ -119,6 +123,9 @@ void UserEBar::determine_acceleration_and_potential(void)
 
   if (firstime) {
     
+    ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
+			   fabs(amplitude), 200, 200);
+
     list<Component*>::iterator cc;
     Component *c;
 
@@ -415,8 +422,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
       ( -5.0*nn*zz );
     
 				// Add monopole
-    if (rr > length) M0 = amplitude;
-    else M0 = 1.5*amplitude*(rr/length - pow(rr/length, 3.0)/3.0);
+    M0 = ellip->getMass(rr);
     for (int k=0; k<3; k++) acct[k] += -M0*pos[k]/(rr*rr*rr);
 
     for (int k=0; k<3; k++) {
@@ -426,7 +432,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
       tacc[id][k] += -(*particles)[i].mass * acct[k];
     }
 
-    (*particles)[i].potext += -ffac*pp*fac;
+    (*particles)[i].potext += -ffac*pp*fac + ellip->getPot(rr);
     
   }
 

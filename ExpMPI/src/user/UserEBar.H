@@ -4,10 +4,13 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
+#include <EllipForce.H>
 
 /** Bar rotating at specified fraction of corotation with a monopole
 
     @param length is the bar length
+    @param bratio is the ratio of the submajor axis to the major axis
+    @param cratio is the ratio of the minor axis to the submajor axis
     @param amp is the bar amplitude (mass)
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
@@ -22,6 +25,7 @@ private:
   
   string com_name;
   Component *c0;
+  EllipForce *ellip;
 
   void determine_acceleration_and_potential(void);
   void determine_acceleration_and_potential(vector<Particle>*);
@@ -31,7 +35,7 @@ private:
   double teval;
   double pos[3], vel[3], acc[3], acc1[3], **tacc;
 
-  double length, amplitude, Ton, Toff, DeltaT, Fcorot;
+  double length, bratio, cratio, amplitude, Ton, Toff, DeltaT, Fcorot;
   bool fixed, soft;
   string filename;
 
