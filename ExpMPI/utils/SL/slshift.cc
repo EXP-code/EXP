@@ -117,8 +117,8 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
 	for (int l=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++) {
 	    if (m) facp = 2.0;
-	    else facp = 1.0;
-	    multi[l][m][i] += facp*2.0*dP * 2.0*lq.weight(k) *
+	    else   facp = 1.0;
+	    multi[l][m][i] += facp*dP * 2.0*lq.weight(k) *
 	      (0.5*l+0.25)/M_PI*exp(lgamma(1.0+l-m)-lgamma(1.0+l+m)) *
 	      plgndr(l, m, 2.0*(lq.knot(k)-0.5)) * cos(phi*m) * rho;
 	  }
