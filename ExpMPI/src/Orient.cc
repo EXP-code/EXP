@@ -145,12 +145,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
-      cout << " Orient: cached axis master (size=" << sumsA.size() << "): " 
+      cout << " Orient: axis master (cache size=" << sumsA.size() << "): " 
 	   << axis[1] << ", "
 	   << axis[2] << ", "
 	   << axis[3] << endl;
 
-      cout << " Orient: cached center master (size=" << sumsC.size() << "): " 
+      cout << " Orient: center master (cache size=" << sumsC.size() << "): " 
 	   << center0[1] << ", "
 	   << center0[2] << ", "
 	   << center0[3] << endl;
