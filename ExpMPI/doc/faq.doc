@@ -6,6 +6,6 @@
 	have this limitation.  Either periodically rename your output file 
 	or use the "outpsn" (see OutPSN) method, which writes each %dump 
 	to its own file.  You will be limited to about 40 million particles
-	without additional work.
+	without additional magic.
 	
 */
