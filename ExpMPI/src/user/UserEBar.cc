@@ -20,12 +20,14 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
+  table = false;		// Not using tabled quadrupole
   filename = "BarRot";		// Output file name
 
   firstime = true;
 
   ctr_name = "";		// Default component for com
   angm_name = "";		// Default component for angular momentum
+  table_name = "";		// Default for input b1,b5 table
   
   initialize();
 
@@ -80,6 +82,47 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
     c1 = NULL;
 
 
+  if (table_name.size()>0) {
+				// Read in data
+    ifstream in(table_name.c_str());
+    if (!in) {
+      cerr << "Process " << myid << ": error opening quadrupole file <"
+	   << table_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
+    
+    string fline;
+    double val;
+    getline(in, fline, '\n');
+    while (in) {
+      if (fline.find("#") == string::npos && fline.find("!") == string::npos) {
+	istrstream ins(fline.c_str());
+	ins >> val;
+	timeq.push_back(val);
+	ins >> val;
+	ampq.push_back(val*2.0);
+	ins >> val;
+	b5q.push_back(val);
+      }
+
+      getline(in, fline, '\n');
+    }
+
+    // Temporary debug
+    if (myid==0) {
+      cout << endl << "***Quadrupole***" << endl;
+      for (unsigned i=0; i<=timeq.size(); i++)
+	cout << setw(5) << i
+	     << setw(20) << timeq[i]
+	     << setw(20) << ampq[i]
+	     << setw(20) << b5q[i]
+	     << endl;
+    }
+
+    qlast = timeq.size()-1;
+    table = true;
+  }
+
   // Zero monopole variables
   teval = tnow;
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
@@ -113,6 +156,8 @@ void UserEBar::userinfo()
     cout << "center on component <" << ctr_name << ">, ";
   else
     cout << "using inertial center, ";
+  if (table)
+    cout << "using user quadrupole table, ";
   if (c1) 
     cout << "angular momentum from <" << angm_name << ">" << endl;
   else
@@ -126,6 +171,7 @@ void UserEBar::initialize()
 
   if (get_value("ctrname", val))	ctr_name = val;
   if (get_value("angmname", val))	angm_name = val;
+  if (get_value("tblname", val))	table_name = val;
   if (get_value("length", val))		length = atof(val.c_str());
   if (get_value("bratio", val))		bratio = atof(val.c_str());
   if (get_value("cratio", val))		cratio = atof(val.c_str());
@@ -421,13 +467,28 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
-    * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  double fac, ffac, amp = 0.0;
   double xx, yy, zz, rr, nn, pp, M0=0.0;
   vector<double> pos(3), acct(3); 
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
+
+  if (table) {
+    if (tvel<timeq[0]) {
+      afac = ampq[0];
+      b5 = b5q[0];
+    } else if (tvel>timeq[qlast]) {
+      afac = ampq[qlast];
+      b5 = b5q[qlast];
+    } else {
+      afac = odd2(tvel, timeq, ampq, 0);
+      b5 = odd2(tvel, timeq, b5q, 0);
+    }
+  }
+
+  if (fabs(amplitude)>0.0) amp = afac * amplitude/fabs(amplitude) 
+			     * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
+			     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
 
   for (int i=nbeg; i<nend; i++) {
 

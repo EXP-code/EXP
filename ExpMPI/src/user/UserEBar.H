@@ -19,14 +19,15 @@
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param soft use the shallow form of the potential (default: false)
-    @param ctr_name defines the component that defines the center (defeats inertial centering)
-    @param angm_name defines the component that defines the L_z reservoir (null name: L_z[init]=0)
+    @param ctrname defines the component that defines the center (defeats inertial centering)
+    @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
+    @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
 */
 class UserEBar : public ExternalForce
 {
 private:
   
-  string ctr_name, angm_name;
+  string ctr_name, angm_name, table_name;
   Component *c0, *c1;
   EllipForce *ellip;
 
@@ -39,13 +40,15 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, soft;
+  bool fixed, soft, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime;
   double Lz, Lz0, Lzbar, omega, Iz, afac, b5;
+  vector<double> timeq, ampq, b5q;
+  int qlast;
   string name;
 
   void userinfo();
