@@ -60,7 +60,6 @@ void UserBar::userinfo()
 {
   if (myid) return;		// Return if node master node
   cout << "** User routine ROTATING BAR initialized, " ;
-  cout << "****************************************************************\n";
   if (fixed)
     cout << "fixed pattern speed, ";
   else
@@ -73,6 +72,7 @@ void UserBar::userinfo()
     cout << "center on component <" << com_name << ">" << endl;
   else
     cout << "center on origin" << endl;
+  cout << "****************************************************************\n";
 }
 
 void UserBar::initialize()

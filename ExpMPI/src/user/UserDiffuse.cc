@@ -58,7 +58,7 @@ void UserDiffuse::userinfo()
   else
     cout << "** User routine FAKE DIFFUSION disabled: no component specified";
   
-  cout << "****************************************************************\n";
+  cout << "\n****************************************************************\n";
 
   cout << ", rate = " << rate;
   cout << ", seed = " << seed;
@@ -94,6 +94,7 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double rr, vv, vv1, dt, dv, sigma, E, vsign;
+  int dnmax = 5, dn = 0;
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -117,18 +118,30 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
      
       dv = sigma*(*nrand)();
 
-      if (dv>0.0) vsign = 1.0;
-      else vsign = -1.0;
+      if (dv>0.0) 
+	vsign = 1.0;
+      else 
+	vsign = -1.0;
 
       dv += (*particles)[i].vel[k];
       
-      if (vv1 < vv &&
-	  vv1 + dv*dv > vv) dv = vsign*sqrt(vv - vv1);
-      else dv = 0.0;
+      if (vv1 < vv && vv1 + dv*dv > vv) 
+	dv = vsign*sqrt(vv - vv1);
+      else 
+	dv = 0.0;
       
       vv1 += dv*dv;
 
       (*particles)[i].vel[k] = dv;
+    }
+
+    if (fabs(vv1 - vv)>1.0e-10 && dn<dnmax) {
+      cout << "Process " << myid << " out of bounds: " 
+	   << " sigma=" << sigma
+	   << " vv1=" << vv1
+	   << " vv=" << vv
+	   << endl;
+      dn++;
     }
 
   }
