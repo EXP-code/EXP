@@ -35,7 +35,7 @@ void OutPSN::initialize()
 
 				// Determine last file
 
-  if (restart && nbeg==0) {
+  if (restart && nbeg==0 && myid==0) {
 
     for (nbeg=0; nbeg<100000; nbeg++) {
 
@@ -47,6 +47,10 @@ void OutPSN::initialize()
       ofstream out(fname.str(), ios::out | ios::noreplace);
 
       if (out) {
+	out.close();
+	ostrstream command;
+	command << "rm "<<  fname.str() << "\0";
+	system(command.str());
 	cout << "OutPSN: will begin with nbeg=" << nbeg << endl;
 	break;
       }
