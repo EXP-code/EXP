@@ -56,16 +56,20 @@ private:
   int many, used;
   double Ecurr, Elast, Egrad;
   int Nlast;
+  int flags;
+  string logfile;
+  bool verbose;
 
 public:
   //! Mask flags for Orient behavior
   enum OrientFlags {AXIS=1, CENTER=2};
 
   //! Constructor
-  Orient(int number_to_keep, int target, double rinit);
+  Orient(int number_to_keep, int target, double rinit, int flags, 
+	 string logfile, bool verbose=false);
 
   //! Register phase space of <num> particles and store angular momentum vector for the lowest <many> binding energies
-  void accumulate(vector<Particle> *p, double* com);
+  void accumulate(double time, vector<Particle> *p, double* com);
 
   //! Return transformation to new body axes
   Matrix& transformBody(void) {return body;};

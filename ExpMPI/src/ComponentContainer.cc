@@ -356,10 +356,10 @@ void ComponentContainer::fix_positions(void)
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
-    // cout << "Process " << myid << ": about to accumulate center . . . ";
     // MPI_Barrier(MPI_COMM_WORLD); // I'm not sure why I need this here . . .
-    if (c->EJ) c->orient->accumulate(&c->particles, &c->center[0]);
-    // cout << "Process " << myid << ": done\n";
+    if (c->EJ) {
+      c->orient->accumulate(tpos, &c->particles, &c->center[0]);
+    }
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

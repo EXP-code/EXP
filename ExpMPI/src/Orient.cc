@@ -2,6 +2,7 @@
 #include <math.h>
 
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <string>
 
@@ -14,17 +15,19 @@
 #include <Orient.H>
 
 
-const string axis_cache = "axis.cache";
-
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
-Orient::Orient(int n, int nwant, double Einit)
+Orient::Orient(int n, int nwant, double Einit, int Flags, 
+	       string Logfile, bool Verbose)
 {
   keep = n;
   current = 0;
   many = nwant;
   Egrad = 0.0;
   Ecurr = Einit;
+  flags = Flags;
+  verbose = Verbose;
+  logfile = Logfile;
   Nlast = 0;
 
 				// Work vectors
@@ -51,31 +54,42 @@ Orient::Orient(int n, int nwant, double Einit)
   int in_ok;
   double *in1 = new double [3];
   double *in2 = new double [3];
+
   if (myid==0) {		// Master does the reading
 
-    ifstream in(axis_cache.c_str());
+    ifstream in(logfile.c_str());
     
     if (in) {
+
+      double time;
 
       in_ok = 1;		// Signal slave: OK
 
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-      in >> axis[1];
-      in >> axis[2];
-      in >> axis[3];
-      in >> center[1];
-      in >> center[2];
-      in >> center[3];
+      while (in) {
+	in >> time;
+	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
+
+	in >> axis[1];
+	in >> axis[2];
+	in >> axis[3];
+	in >> center[1];
+	in >> center[2];
+	in >> center[3];
+      }
+
+      cout << "Orient: cached time=" << time << endl;
 
       cout << "Orient: cached axis master: " 
 	   << axis[1] << ", "
 	   << axis[2] << ", "
-	   << axis[3] << "\n";
+	   << axis[3] << endl;
+
       cout << "Orient: cached center master: " 
 	   << center[1] << ", "
 	   << center[2] << ", "
-	   << center[3] << "\n";
+	   << center[3] << endl;
 
       for (int j=0; j<3; j++) {
 	in1[j] = axis[j+1];
@@ -90,6 +104,7 @@ Orient::Orient(int n, int nwant, double Einit)
 
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
     }
+
 
   } else {
 
@@ -136,7 +151,7 @@ Orient::Orient(int n, int nwant, double Einit)
 }
 
 
-void Orient::accumulate(vector<Particle> *p, double *com)
+void Orient::accumulate(double time, vector<Particle> *p, double *com)
 {
   double mass;
 
@@ -144,22 +159,24 @@ void Orient::accumulate(vector<Particle> *p, double *com)
 
   int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
+
     if ((*p)[i].pot < Ecurr) {
+
       mass = (*p)[i].mass;
 
       t.E = (*p)[i].pot + 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + (*p)[i].vel[1]*(*p)[i].vel[1] + (*p)[i].vel[2]*(*p)[i].vel[2]);
-      /*
-	t.E = (*p)[i].pot;
-      */
+
       t.M = mass;
       t.L[1] = mass*(((*p)[i].pos[1]-com[1])*(*p)[i].vel[2]-((*p)[i].pos[2]-com[2])*(*p)[i].vel[1]);
       t.L[2] = mass*(((*p)[i].pos[2]-com[2])*(*p)[i].vel[0]-((*p)[i].pos[0]-com[0])*(*p)[i].vel[2]);
       t.L[3] = mass*(((*p)[i].pos[0]-com[0])*(*p)[i].vel[1]-((*p)[i].pos[1]-com[1])*(*p)[i].vel[0]);
+
       /*
 	t.R[1] = (*p)[i].pot*(*p)[i].pos[0];
 	t.R[2] = (*p)[i].pot*(*p)[i].pos[1];
 	t.R[3] = (*p)[i].pot*(*p)[i].pos[2];
       */
+
       t.R[1] = mass*(*p)[i].pos[0];
       t.R[2] = mass*(*p)[i].pos[1];
       t.R[3] = mass*(*p)[i].pos[2];
@@ -198,6 +215,13 @@ void Orient::accumulate(vector<Particle> *p, double *com)
   MPI_Allreduce(inC.array(0, 2), center1.array(0, 2), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  if (verbose && myid==0) {
+    cout << "Orient info: " << used << " particles used, Ecurr=" << Ecurr 
+	 << " Center=" 
+	 << center1[1] << ", "
+	 << center1[2] << ", "
+	 << center1[3] << endl;
+  }
 
 				// Compute delta energy for next step
   if (used && Nlast) {
@@ -218,8 +242,8 @@ void Orient::accumulate(vector<Particle> *p, double *com)
 
     axis1   /= mtot;
     center1 /= mtot;
-    sumsA.push_back(axis1);
-    sumsC.push_back(center1);
+    if (flags & AXIS)   sumsA.push_back(axis1);
+    if (flags & CENTER) sumsC.push_back(center1);
 
     if (sumsA.size() > keep) {
 
@@ -269,13 +293,6 @@ void Orient::accumulate(vector<Particle> *p, double *com)
       orig = return_euler_slater(phi, theta, psi, 1);
     }
 
-    /*
-    cout << "Process " << myid << ": size=" << sumsC.size()
-	 << " com=" 
-	 << center[1] << " "
-	 << center[2] << " "
-	 << center[3] << "\n";
-    */
 
     if (sumsC.size() > 2) {
 
@@ -298,6 +315,10 @@ void Orient::accumulate(vector<Particle> *p, double *com)
 	sumY2 += *j & *j;
 
 	i++;
+
+	if (verbose && myid==0)
+	  cout << "Orient debug i=" << i << " : SumX=" << sumX 
+	       << "  SumX2=" << sumX2 << endl;
       }
 				// Linear least squares estimate for center
 
@@ -325,6 +346,35 @@ void Orient::accumulate(vector<Particle> *p, double *com)
 
     center *= factor*factor;
 
+    if (verbose && myid==0) {
+      cout << "===================================================" << endl
+	   << "Orient info: size=" << sumsC.size()
+	   << " SumX=" << sumX << " SumX2=" << sumX2 << endl
+	   << " SumY="
+	   << sumY[1] << " "
+	   << sumY[2] << " "
+	   << sumY[3] << endl
+	   << " SumXY="
+	   << sumXY[1] << " "
+	   << sumXY[2] << " "
+	   << sumXY[3] << endl
+	   << " SumY2="
+	   << sumY2[1] << " "
+	   << sumY2[2] << " "
+	   << sumY2[3] << endl
+	   << " slope="
+	   << slope[1] << " "
+	   << slope[2] << " "
+	   << slope[3] << endl
+	   << " center=" 
+	   << center[1] << " "
+	   << center[2] << " "
+	   << center[3] << endl
+	   << "===================================================" << endl;
+    }
+    
+
+
   }
 
 				// Energy for next iteration
@@ -339,4 +389,14 @@ void Orient::accumulate(vector<Particle> *p, double *com)
   else				// Use gradient computed shift
     Ecurr += dE;
   
+  if (myid==0) {
+    ofstream outl(logfile.c_str(), ios::app);
+    if (outl) {
+      outl << setw(15) << time;
+      for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
+      for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
+      outl << endl;
+    }
+  }
+
 }

@@ -213,6 +213,8 @@ public:
   int nEJwant;
   //! Initial guess for energy cutoff
   double eEJ0;
+  //! Print verbose diagnostics
+  bool EJdiag;
 
   //! Orientation cache
   Orient *orient;

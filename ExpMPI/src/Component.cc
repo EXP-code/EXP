@@ -31,6 +31,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   nEJkeep = 100;
   nEJwant = 500;
   eEJ0 = -0.5;
+  EJdiag = false;
 
   binary = false;
   npart = false;
@@ -50,6 +51,7 @@ Component::Component(istream *in)
   nEJkeep = 100;
   nEJwant = 500;
   eEJ0 = -0.5;
+  EJdiag = false;
 
   binary = true;
   npart = false;
@@ -87,6 +89,8 @@ void Component::initialize(void)
     if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
 
     if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJdiag"))   EJdiag = true ? atoi(datum.second.c_str()) : false;
 
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
@@ -166,8 +170,13 @@ void Component::initialize(void)
     cout << "Process " << myid << ": about to create Orient with"
 	 << " nkeep=" << nEJkeep
 	 << " nwant=" << nEJwant
-	 << " eEJ=" << eEJ0 << endl;
-    orient = new Orient(nEJkeep, nEJwant, eEJ0);
+	 << " eEJ=" << eEJ0;
+    if (EJdiag) cout << " verbose=true " << endl;
+    else        cout << " verbose=false" << endl;
+
+    string EJlogfile = name + ".orient"; 
+
+    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJlogfile, EJdiag);
     cout << "Process " << myid << ": Orient successful\n";
   }
 
@@ -199,6 +208,7 @@ void Component::get_com_component(string name)
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
+
 				// Is this the one?
     if (c->name.compare(name) == 0) {
       com_tie.push_back(&(*c));
