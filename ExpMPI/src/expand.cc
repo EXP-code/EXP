@@ -123,8 +123,10 @@ main(int argc, char** argv)
   //================
 
   if (myid==0) {
+    cout << setw(50) << setfill('-') << "-" << setfill(' ') << endl;
     cout << endl << "This is " << PACKAGE << " " << VERSION
 	 << " " << version_id << endl << endl;
+    cout << setw(50) << setfill('-') << "-" << setfill(' ') << endl;
   }
 
 
