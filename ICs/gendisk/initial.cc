@@ -108,12 +108,12 @@ int NDR=200;
 int NDZ=200;
 double SHFACTOR=16.0;
 
-int NMAX2=8;
+int NMAX2=10;
 int LMAX2=36;
 int MMAX=4;
 int NUMX=128;
 int NUMY=64;
-int NORDER=16;
+int NORDER=10;
 
 int DIVERGE=0;
 double DIVERGE_RFAC=1.0;
@@ -660,11 +660,11 @@ void usage(char *prog)
        << "  -r rmin    inner edge for sph SL expansion (0.001)\n"
        << "  -R rmax    outer edge for SL expansion (2.0)\n"
        << "  -s scale   halo coordinate scale\n"
-       << "  -S scale   disk coordinate scale\n"
        << "  -1 rmin    minimum radius for change over to DF\n"
        << "  -2 rmax    maximum radius for change over to DF\n"
        << "  -b         print out basis images (false)\n"
        << "  -z         zero center of mass and velocity (false)\n"
+       << "  -h         this help message\n"
        << "  -v         verbose help\n"
        << endl;
 }
