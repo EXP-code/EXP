@@ -58,11 +58,12 @@ void UserDiffuse::userinfo()
   else
     cout << "** User routine FAKE DIFFUSION disabled: no component specified";
   
-  cout << "\n****************************************************************\n";
-
   cout << ", rate = " << rate;
   cout << ", seed = " << seed;
   cout << endl;
+  cout << "****************************************************************"
+       << endl;
+
 }
 
 void UserDiffuse::initialize()
@@ -125,11 +126,13 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 
       dv += (*particles)[i].vel[k];
       
-      if (vv1 < vv && vv1 + dv*dv > vv) 
-	dv = vsign*sqrt(vv - vv1);
-      else 
+      if (vv1 < vv) {
+	if (vv1 + dv*dv > vv || k==2) dv = vsign*sqrt(vv - vv1);
+      }
+      else { 
 	dv = 0.0;
-      
+      }
+
       vv1 += dv*dv;
 
       (*particles)[i].vel[k] = dv;
@@ -140,6 +143,8 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 	   << " sigma=" << sigma
 	   << " vv1=" << vv1
 	   << " vv=" << vv
+	   << " dt=" << dt
+	   << " E=" << E
 	   << endl;
       dn++;
     }
