@@ -33,8 +33,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
   omega = 18.9;			// Patern speed
 
-  NUME = 100;			// Points in Energy grid
+  NUME = 400;			// Points in Energy grid
   NUMK = 100;			// Points in Kappa grid
+  NUMI = 2000;			// Points in Action grid
 
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
@@ -91,6 +92,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
   ResPot::NUME = NUME;
   ResPot::NUMK = NUMK;
+  ResPot::NUMI = NUMI;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
 
   BarForcing::L0 = L0;
@@ -167,6 +169,7 @@ void UserResPot::initialize()
 
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
+  if (get_value("NUMI", val))     NUMI = atoi(val.c_str());
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;

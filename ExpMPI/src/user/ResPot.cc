@@ -21,9 +21,9 @@ double ResPot::ALPHA = 0.33;
 double ResPot::DELTA = 0.01;
 double TOLITR = 1.0e-8;
 int ResPot::NREC = 40;
-int ResPot::NUME = 100;
-int ResPot::NUMK = 20;
-int ResPot::NUMI = 1000;
+int ResPot::NUME = 400;
+int ResPot::NUMK = 100;
+int ResPot::NUMI = 2000;
 int ResPot::ITMAX = 100;
 KComplex ResPot::I(0.0, 1.0);
 
@@ -648,8 +648,8 @@ double ResPot::getE(double I1, double I2)
     cout << "I1=" << I1 << " is out of range [" 
 	 << I1min << ", " << I1max << "],  I2=" << I2 << endl;
 #endif
-    I1 = max<double>(I1min*(1.0+0.25/NUMI), I1);
-    I1 = min<double>(I1max*(1.0-0.25/NUMI), I1);
+    I1 = max<double>(I1min, I1);
+    I1 = min<double>(I1max, I1);
   }
 
   int indx;
@@ -844,6 +844,9 @@ void ResPot::Update(double dt, double Phase, double Omega,
 
   I1 = I1_EK.value(E, K);
 
+  double I10 = I1;
+  double I20 = I2;
+
   if (L2) {
     Is2 = Is0 = I2/L2;
     If0 = I1 - Is0*L1;
@@ -890,8 +893,10 @@ void ResPot::Update(double dt, double Phase, double Omega,
     dEIs = O1_EK.value(E, K)*L1 + O2_EK.value(E, K)*L2;
     dKIs =  1.0/Jm*L2 - K*dJm*dEIs/Jm;
 
-    Fw = O1_EK.value(E, K)*L1 + O2_EK.value(E, K)*L2 - Omega*M + I*Ul*exp(I*ws);
-    FI = -(dUldE*dEIs + dUldK*dKIs)*exp(I*ws);
+    Fw = O1_EK.value(E, K)*L1 + O2_EK.value(E, K)*L2 - Omega*M + 
+      (dUldE*dEIs + dUldK*dKIs)*exp(I*ws);
+
+    FI = -I*Ul*exp(I*ws);
 
 
     // Update
@@ -923,7 +928,8 @@ void ResPot::Update(double dt, double Phase, double Omega,
 
   // Coordinate transform: Action-Angle to Cartesian
 
-  if (L2) {
+				// Evaluation of E, K at half-point
+  if (L2) {			// for fast angle update
     I1 = If0 + 0.5*(Is2+Is0)*L1;
     I2 = 0.5*(Is2+Is0)*L2;
   } else {
@@ -939,18 +945,34 @@ void ResPot::Update(double dt, double Phase, double Omega,
   K = max<double>(K, Kmin);
   K = min<double>(K, Kmax);
       
-  if (L2) {
+
+  if (L2) {			// Angle update
     W1 += O1_EK.value(E, K)*dt;
     W2 = (ws2 - W1*L1 - (W3 - Phase - Omega*dt)*M)/L2;
+				// New actions
     I1 = If0 + Is2*L1;
     I2 = Is2*L2;
-  } else {
+  } else {			// Angle update
     W2 += O2_EK.value(E, K)*dt;
     W1 = (ws2 - W2*L2 - (W3 - Phase - Omega*dt)*M)/L1;
+				// New actions
     I1 = Is2*L1;
     I2 = If0 + Is2*L2;
   }
 
+  /*
+  if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
+    cout << setw(15) << I10
+	 << setw(15) << I1
+	 << setw(15) << I20
+	 << setw(15) << I2
+	 << setw(15) << fabs(I10 - I1)
+	 << setw(15) << fabs(I20 - I2)
+	 << endl;
+  }
+  */
+
+				// Get new Cartesion phase space
   coord(posO, velO, I1, I2, BETA, W1, W2, W3);
 }
 
@@ -959,10 +981,22 @@ void ResPot::Force(double dt, double Phase, double Omega,
 		   double amp, CVector& bcoef,
 		   double* pos, double* vel, double* acc)
 {
-  double pos2[3], vel2[3];
+  double pos0[3], vel0[3], pos2[3], vel2[3];
+  double E, K, W1, W2, W3, F, BETA, PSI, I1, I2;
+
+				// Get action angle coords
+  coord(pos, vel, E, K, I2, W1, W2, W3, F, BETA, PSI);
+  I1 = I1_EK.value(E, K);
+
+				// Get phase space update without perturbation
+  W1 += O1_EK.value(E, K)*dt;
+  W2 += O2_EK.value(E, K)*dt;
+  coord(pos0, vel0, I1, I2, BETA, W1, W2, W3);
   
+				// Get phase space update with perturbation
   Update(dt, Phase, Omega, amp, bcoef, pos, vel, pos2, vel2);
 
-  for (int k=0; k<3; k++) acc[k] = (vel2[k] - vel[k])/dt;
+				// Effective acceleration
+  for (int k=0; k<3; k++) acc[k] = (vel2[k] - vel0[k])/dt;
 }
 

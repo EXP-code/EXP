@@ -59,7 +59,7 @@ private:
   
   double MASS, LENGTH, COROT, A21, A32;
 
-  int NUME, NUMK;
+  int NUME, NUMK, NUMI;
 
   bool first;
   double domega, t0, delt, phase, tlast, omlast;
