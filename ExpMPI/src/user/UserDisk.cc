@@ -73,8 +73,10 @@ void UserDisk::userinfo()
 
   print_divider();
 
-  cout << "** User routine: thin exponential disk with a=" 
-       << a << ", mass=" << mass;
+  cout << "** User routine: thin exponential disk with a=" << a 
+       << ", mass=" << mass
+       << ", Rmax=" << Rmax
+       << ", Zmax=" << Zmax;
 
   if (c0) 
     cout << ", center on component <" << ctr_name << ">";
