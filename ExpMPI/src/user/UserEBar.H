@@ -33,7 +33,7 @@ private:
   void initialize();
 
   double teval;
-  double pos[3], vel[3], acc[3], acc1[3], **tacc;
+  double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, Ton, Toff, DeltaT, Fcorot;
   bool fixed, soft;

@@ -53,7 +53,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 
   // Zero point data
   teval = tnow;
-  for (int k=0; k<3; k++) pos[k] = vel[k] = acc[k] = 0.0;
+  for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors
   tacc = new double* [nthrds];
@@ -276,9 +276,9 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  ins >> omega;
 	  ins >> Lz1;
 	  ins >> am1;
-	  ins >> pos[0];
-	  ins >> pos[1];
-	  ins >> pos[2];
+	  ins >> bps[0];
+	  ins >> bps[1];
+	  ins >> bps[2];
 	  ins >> vel[0];
 	  ins >> vel[1];
 	  ins >> vel[2];
@@ -302,9 +302,9 @@ void UserEBar::determine_acceleration_and_potential(void)
       MPI_Bcast(&lastomega, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&Lz, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&Lz0, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(pos, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(vel, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      MPI_Bcast(acc, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&bps[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&vel[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&acc[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
 
     firstime = false;
@@ -336,10 +336,10 @@ void UserEBar::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) acc1[k] += tacc[n][k];
   }
 
-  MPI_Allreduce(&acc1, &acc, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   // Backward Euler
   for (int k=0; k<3; k++) {
-    pos[k] += vel[k] * (tnow - teval);
+    bps[k] += vel[k] * (tnow - teval);
     vel[k] += acc[k] * (tnow - teval);
   }
   teval = tnow;
@@ -357,7 +357,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  << setw(15) << amplitude *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
-      for (int k=0; k<3; k++) cout << setw(15) << pos[k];
+      for (int k=0; k<3; k++) cout << setw(15) << bps[k];
       for (int k=0; k<3; k++) cout << setw(15) << vel[k];
       for (int k=0; k<3; k++) cout << setw(15) << acc[k];
       out << endl;
@@ -385,10 +385,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
     if ((*particles)[i].freeze()) continue;
 
-    if (c0)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->com[k];
-    else
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
+    for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
     
     xx = pos[0];
     yy = pos[1];
