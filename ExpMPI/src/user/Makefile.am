@@ -5,7 +5,8 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 AM_CFLAGS = -fPIC -Wall -D_REENTRANT
 AM_CXXFLAGS = -fPIC -Wall -D_REENTRANT
-AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
+# AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
+LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
 
 libdir = $(prefix)/lib/user
 
