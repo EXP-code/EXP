@@ -63,8 +63,9 @@ void SphericalOrbit::compute_freq(void)
   xmax = model->get_max_radius();
   if ( denom(xmin)*denom(xmax) < 0.0)
     r_apo = zbrent(denom, xmin, xmax, tol);
-  else if ( denom(xmin)*denom(RMAXF*xmax) < 0.0)
+  if (r_circ < model->get_max_radius()) {
     r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
+  }
   else {	 		// Circular radius outside mass distribution
     double r0 = -0.5*model->get_mass(model->get_max_radius())/EE;
     r_apo = r0 + sqrt(r0*r0 - 0.5*JJ*JJ/EE);
