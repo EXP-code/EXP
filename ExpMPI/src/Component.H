@@ -219,6 +219,9 @@ protected:
   //! Binary read flag
   bool binary;
 
+  //! COM log file
+  string comfile;
+
 public:
 
   //! Particle file
@@ -322,8 +325,11 @@ public:
   //! Move center at constant velocity specified by (EJu0, EJv0, EJw0)
   bool EJlinear;
 
-  //! Use center of mass coordinagte system
+  //! Use center of mass coordinate system
   bool com_system;
+
+  //! Log the center of mass coordinate system at each step
+  bool com_log;
 
   //! Maximum radius from center for force evaluation
   double rtrunc;

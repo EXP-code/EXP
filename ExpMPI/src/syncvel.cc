@@ -27,9 +27,15 @@ void synchronize_velocity(int sign)
     
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
-      for (int k=0; k<c->dim; k++) p->vel[k] +=  rsign*p->acc[k]*0.5*dtime;
+
+      for (int k=0; k<c->dim; k++) 
+	p->vel[k] +=  rsign*(p->acc[k] - c->acc0[k])*0.5*dtime;
     }
     
+    if (c->com_system) {
+      for (int k=0; k<c->dim; k++) c->cov0[k] += rsign*c->acc0[k]*0.5*dtime;
+    }
+
   }
   
   // Increment times

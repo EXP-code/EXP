@@ -16,22 +16,24 @@ void incr_position(void)
 
   if (eqmotion) {
 
-    list<Component*>::iterator c;
+    list<Component*>::iterator cc;
     vector<Particle>::iterator p, pend;
+    Component *c;
   
-    for (c=comp.components.begin(); c != comp.components.end(); c++) {
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
 
-      pend = (*c)->particles.end();
-      for (p=(*c)->particles.begin(); p != pend; p++) {
+      pend = c->particles.end();
+      for (p=c->particles.begin(); p != pend; p++) {
 	
-	if ((*c)->freeze(*p)) continue;
+	if (c->freeze(*p)) continue;
 	
-	for (int k=0; k<(*c)->dim; k++) 
-	  p->pos[k] += (p->vel[k] - (*c)->cov0[k])*dtime;
+	for (int k=0; k<c->dim; k++) 
+	  p->pos[k] += (p->vel[k] - c->cov0[k])*dtime;
       }
   
-      if ((*c)->com_system) {
-	for (int k=0; k<(*c)->dim; k++) (*c)->com0[k] += (*c)->cov0[k]*dtime;
+      if (c->com_system) {
+	for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dtime;
       }
       
     }

@@ -16,21 +16,24 @@ void incr_velocity(void)
   
   if (eqmotion) {
 
-    list<Component*>::iterator c;
+    list<Component*>::iterator cc;
     vector<Particle>::iterator p, pend;
+    Component *c;
   
-    for (c=comp.components.begin(); c != comp.components.end(); c++) {
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
     
-      pend = (*c)->particles.end();
-      for (p=(*c)->particles.begin(); p != pend; p++) {
-	for (int k=0; k<(*c)->dim; k++) p->vel[k] += p->acc[k]*dtime;
+      pend = c->particles.end();
+      for (p=c->particles.begin(); p != pend; p++) {
+
+	for (int k=0; k<c->dim; k++) 
+	  p->vel[k] += (p->acc[k] - c->acc0[k])*dtime;
       }
 
-      if ((*c)->com_system) {
-	for (int k=0; k<(*c)->dim; k++) (*c)->cov0[k] += (*c)->acc0[k]*dtime;
+      if (c->com_system) {
+	for (int k=0; k<c->dim; k++) c->cov0[k] += c->acc0[k]*dtime;
       }
       
-
     }
 
   }

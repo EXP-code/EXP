@@ -297,6 +297,14 @@ void ComponentContainer::compute_potential(void)
 
   }
   
+  //
+  // Update center of mass system coordinates
+  //
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
+    if (c->com_system) c->update_accel();
+  }
+  
   gottapot = true;
 }
 

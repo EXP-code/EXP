@@ -59,6 +59,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   rtrunc = 1.0e20;
 
   com_system = false;
+  com_log = false;
 
   read_bodies_and_distribute_ascii();
 }
@@ -107,7 +108,9 @@ void Component::initialize(void)
     datum.first  = trimLeft(trimRight(parse("=")));
     datum.second = trimLeft(trimRight(parse("=")));
 
-    if (!datum.first.compare("com"))      com_system = true;
+    if (!datum.first.compare("com"))      com_system = atoi(datum.second) ? true : false;
+
+    if (!datum.first.compare("comlog"))   com_log = atoi(datum.second) ? true : false;
 
     if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
     
@@ -227,8 +230,122 @@ void Component::initialize(void)
   covI = new double[3];
 
   for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 
-			    com0[k] = cov0[k] = acc0[k] = comI[k] = covI[k] = 
+			    com0[k] = cov0[k] = acc0[k] = 
+			    comI[k] = covI[k] = 
 			    angmom[k] = EJcen[k] = 0.0;
+
+  if (com_system) {
+
+    initialize_com_system();
+
+    if (myid==0) {
+      cout << name << ": center of mass system is *ON*,";
+      cout << " (x, y, z)="
+	   << comI[0] << ", "
+	   << comI[1] << ", "
+	   << comI[2] << ") "
+	   << " (u, v, w)="
+	   << covI[0] << ", "
+	   << covI[1] << ", "
+	   << covI[2] << ") "
+	   << "\n";
+
+      if (com_log) {
+
+	comfile = name + ".comlog." + runtag;
+	bool newfile = true;
+
+	if (restart) {
+
+	  // Open old file for reading
+	  ifstream in(comfile.c_str());
+
+	  if (in) {
+	    
+	    // Backup up old file
+	  
+	    string backupfile = comfile + ".bak";
+	    string command("cp ");
+	    command += comfile + " " + backupfile;
+	    system(command.c_str());
+
+	    // Open new output stream for writing
+	  
+	    ofstream out(comfile.c_str());
+	    if (!out) {
+	      ostringstream message;
+	      message << "Component: error opening new log file <" 
+		      << comfile << "> for writing\n";
+	      bomb(message.str().c_str());
+	    }
+	  
+	    const int cbufsiz = 16384;
+	    char *cbuffer = new char [cbufsiz];
+	    double ttim;
+
+	    while (in) {
+	      in.getline(cbuffer, cbufsiz);
+	      if (!in) break;
+	      string line(cbuffer);
+	      
+	      if (line.find_first_of("#") != string::npos) {
+
+		// Header/comment lines
+
+		out << cbuffer << "\n";
+		
+	      } else {
+		
+		// Data lines
+	      
+		StringTok<string> toks(line);
+		ttim  = atof(toks(" ").c_str());
+		if (tnow < ttim) break;
+		out << cbuffer << "\n";
+	      }
+	    }
+
+	    newfile = false;
+
+	  } else {
+
+	    ostringstream message;
+	    message << "Component: error opening original log file <" 
+		    << comfile << "> for reading, starting new log file\n";
+	  }
+	}
+
+	if (newfile) {
+	  ofstream out(comfile.c_str());
+	  if (!out) {
+	    ostringstream message;
+	    message << "Component: error opening new log file <" 
+		    << comfile << "> for writing\n";
+	    bomb(message.str().c_str());
+	  }
+	  
+	  out.setf(ios::left);
+	  out << setw(15) << "#\n";
+	  out << setw(15) << "# Time"
+	      << setw(15) << "X"
+	      << setw(15) << "Y"
+	      << setw(15) << "Z"
+	      << setw(15) << "U"
+	      << setw(15) << "V"
+	      << setw(15) << "W"
+	      << setw(15) << "aX"
+	      << setw(15) << "aY"
+	      << setw(15) << "aZ"
+	      << setw(15) << "cX"
+	      << setw(15) << "cY"
+	      << setw(15) << "cZ"
+	      << endl;
+	  out << "#\n";
+	}
+      }
+    }
+  }
+
 
   if (EJ) {
 
@@ -294,24 +411,6 @@ void Component::initialize(void)
 
   }
     
-  if (com_system) {
-
-    initialize_com_system();
-
-    if (myid==0) {
-      cout << name << ": center of mass system is *ON*,";
-      cout << " (x, y, z)="
-	   << comI[0] << ", "
-	   << comI[1] << ", "
-	   << comI[2] << ") "
-	   << " (u, v, w)="
-	   << covI[0] << ", "
-	   << covI[1] << ", "
-	   << covI[2] << ") "
-	   << "\n";
-    }
-  }
-
 }
 
 
@@ -1163,7 +1262,8 @@ void Component::initialize_com_system()
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    if (freeze(*p)) continue;
+    // No freezing here!!!
+    // if (freeze(*p)) continue;
     
     mtot1 += p->mass;
 
@@ -1184,6 +1284,7 @@ void Component::initialize_com_system()
   for (int k=0; k<dim; k++) {
     comI[k] = com0[k];
     covI[k] = cov0[k];
+    center[k] = comI[k];
   }
 
   delete [] com1;
@@ -1255,13 +1356,12 @@ void Component::update_accel(void)
   double *acc1 = new double [3];
 
   
-  vector<Particle>::iterator p, pend;
+  vector<Particle>::iterator p;
 
   for (int k=0; k<dim; k++) acc0[k] = acc1[k] = 0.0;
 
 				// Particle loop
-  pend = particles.end();
-  for (p=particles.begin(); p != pend; p++) {
+  for (p=particles.begin(); p != particles.end(); p++) {
     
     if (freeze(*p)) continue;
     
@@ -1276,15 +1376,26 @@ void Component::update_accel(void)
     for (int k=0; k<dim; k++) acc0[k] /= mtot;
   }
   
-				// Shift to mean acceleration
 
-  for (p=particles.begin(); p != pend; p++) {
-    
-    if (freeze(*p)) continue;
-    
-    for (int k=0; k<dim; k++) p->acc[k] -= acc0[k];
+  if (myid==0 && com_log) {
+				// Open output stream for writing
+    ofstream out(comfile.c_str(), ios::out | ios::app);
+    if (!out) {
+      cerr << "Component: error opening <" << comfile << "> for append\n";
+      return;
+    }
+
+    out << setw(15) << tnow;
+    for (int k=0; k<3; k++) out << setw(15) << com0[k];
+    for (int k=0; k<3; k++) out << setw(15) << cov0[k];
+    for (int k=0; k<3; k++) out << setw(15) << acc0[k];
+    for (int k=0; k<3; k++) out << setw(15) << center[k];
+    out << endl;
+
   }
-  
+
+
+
 }
 
 
