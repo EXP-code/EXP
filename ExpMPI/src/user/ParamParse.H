@@ -40,7 +40,10 @@ protected:
   string delim;
 
   //! Error output
+  //@{
   void bomb(const char *msg);
+  void bomb(const string&);
+  //@}
 
 public:
 
