@@ -1061,7 +1061,7 @@ void Component::setup_distribution(void)
 
   if (myid == 0) {
     in = new ifstream("processor.rates");
-    if (!in) {
+    if (!*in) {
       cerr << "setup: Error opening <processor.rates> . . . will assume homogeneous cluster\n";
     }
 
@@ -1069,7 +1069,7 @@ void Component::setup_distribution(void)
     orates = vector<double>(numprocs);
     trates = vector<double>(numprocs);
 
-    if (in) {			// We are reading from a file
+    if (*in) {			// We are reading from a file
       for (n=0; n<numprocs; n++) {
 	*in >> rates[n];
 	if (!*in) {
