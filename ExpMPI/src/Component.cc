@@ -18,6 +18,8 @@
 
 #include "expand.h"
 
+static bool firsttime = true;
+
 Component::Component(string NAME, string ID, string CPARAM, string PFILE, 
 		     string FPARAM) : 
   name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
@@ -1061,8 +1063,9 @@ void Component::setup_distribution(void)
 
   if (myid == 0) {
     in = new ifstream("processor.rates");
-    if (!*in) {
+    if (!*in && firsttime) {
       cerr << "setup: can not find <processor.rates> . . . will assume homogeneous cluster\n";
+      firsttime = false;
     }
 
     rates =  vector<double>(numprocs);
