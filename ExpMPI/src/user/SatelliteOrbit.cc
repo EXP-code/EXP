@@ -585,8 +585,6 @@ void SatelliteOrbit::parse_args(void)
   int i, iret;
   vector<string> word, valu;
 
-  paramFile = homedir + "/" + paramFile;
-
   iret = get_key_value_from_file(paramFile, word, valu);
   if (iret == 0) {
     cerr << "SatelliteOrbit: parameter parsing failed\n";

@@ -425,8 +425,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
     omega -= difLzT/Iz;
   else {
     if (dtom>0.0)
-      omega = omega0*(1.0 + (domega - 1.0)*
-		      0.5*(1.0 + erf( (tnow - tom0) /dtom )));
+      omega = omega0*(1.0 + domega*0.5*(1.0 + erf( (tnow - tom0)/dtom )));
     else
       omega += omega0*domega*dtime*
 	0.5*(1.0 + erf( (tnow - ton) /delta )) *

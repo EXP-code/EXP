@@ -18,6 +18,8 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
   DOmega = 0.0;			// Change in pattern speed
+  tom0 = 1.0;			// Midpoint of forced bar slow down
+  dtom = -1.0;			// Width of forced bar slow down
   T0 = 10.0;			// Center of pattern speed change
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
@@ -152,9 +154,11 @@ void UserEBar::userinfo()
   print_divider();
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
-  if (fixed)
+  if (fixed) {
     cout << "fixed pattern speed with "
 	 << "  domega=" <<  DOmega << " and t0=" << T0 << ", ";
+    if (dtom>0) cout << ",  dT_om=" << dtom;
+  }
   else
     cout << "fixed corotation fraction, ";
   if (monopole)
@@ -195,6 +199,8 @@ void UserEBar::initialize()
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("DOmega", val))		DOmega = atof(val.c_str());
+  if (get_value("tom0", val))     	tom0 = atof(val.c_str());
+  if (get_value("dtom", val))     	dtom = atof(val.c_str());
   if (get_value("T0", val))		T0 = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("omega", val))		omega0 = atof(val.c_str());
@@ -250,7 +256,10 @@ void UserEBar::determine_acceleration_and_potential(void)
       omega0 = sqrt(avg/R);
     }
 
-    omega = omega0*(1.0 + DOmega*(tnow - T0));
+    if (dtom>0.0)
+      omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tnow - T0)/dtom )));
+    else
+      omega = omega0*(1.0 + DOmega*(tnow - T0));
 
     const int N = 100;
     LegeQuad gq(N);
@@ -443,8 +452,12 @@ void UserEBar::determine_acceleration_and_potential(void)
       else
 	omega = Lz/Iz;
     }
-    else
-      omega = omega0*(1.0 + DOmega*(tnow - T0));
+    else {
+      if (dtom>0.0)
+	omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tnow - T0)/dtom )));
+      else
+	omega = omega0*(1.0 + DOmega*(tnow - T0));
+    }
     
     if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;

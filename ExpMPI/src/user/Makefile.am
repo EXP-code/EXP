@@ -13,8 +13,8 @@ bin_PROGRAMS = testcoord
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
-	libebarp.la librespot.la librespotn.la librptest.la libhalo.la
-	librespert.la
+	libebarp.la librespot.la librespotn.la librptest.la libhalo.la \
+	libusercommon.la
 
 #
 # User utility library for duplicated source components
@@ -56,5 +56,5 @@ librptest_la_SOURCES = UserRPtest.cc
 librptest_la_CFLAGS = $(AM_CFLAGS)	#Force removal of .o
 
 testcoord_SOURCES = testcoord.cc getkey.c
-testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -L./.libs -lusercommon -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
+testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lusercommon -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
 testcoord_CFLAGS = $(AM_CFLAGS)	#Force removal of .o

@@ -16,6 +16,8 @@
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the spread of the turn on
+    @param tom0 is the midpoint of forced bar slow down
+    @param dtom is the width of forced bar slow down (>0 for erf)
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param monopole force is self-consistently computed from Newton's third law (default: true)
@@ -47,7 +49,7 @@ private:
   bool firstime;
   double posang, lastomega, lasttime;
   double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
-  double T0, DOmega;
+  double T0, DOmega, tom0, dtom;
   vector<double> timeq, ampq, b5q;
   int qlast;
   string name;
