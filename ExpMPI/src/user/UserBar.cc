@@ -91,6 +91,7 @@ void UserBar::initialize()
 
 void UserBar::determine_acceleration_and_potential(void)
 {
+				// Write to bar state file, if true
   bool update = false;
 
   if (firstime) {
@@ -255,6 +256,7 @@ void UserBar::determine_acceleration_and_potential(void)
     }
 
     firstime = false;
+    update = true;
 
   } else {
 
