@@ -110,7 +110,8 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
 	
 	R = sqrt(x*x + y*y + z*z);
 
-	rho = model.get_density(R);
+	// 4Pi needed for correct sol'n to Poisson's eqn
+	rho = 4.0 * M_PI * model.get_density(R);
 
 	for (int l=0; l<=lmax; l++) {
 	  for (int m=0; m<=l; m++) {
@@ -218,7 +219,7 @@ double Reconstruct::density_eval(double x, double y, double z)
   for (int l=0; l<=lmax; l++) {
     for (int m=0; m<=l; m++) {
       ans += -biorth->get_dens(r, l, coefs[l][m]) * 
-	plgndr(l, m, costh) * 2.0 * cos(phi*m);
+	plgndr(l, m, costh) * 2.0 * cos(phi*m) / (4.0*M_PI);
     }
   }
     
@@ -330,6 +331,8 @@ main(int argc, char** argv)
 	  check_bio = true;
 	} else if (!optname.compare("cmap")) {
 	  cmap = 1;
+	} else if (!optname.compare("surface")) {
+	  surface = true;
 	} else if (!optname.compare("numr")) {
 	  numr = atoi(optarg);
 	} else if (!optname.compare("lmax")) {
@@ -458,14 +461,14 @@ main(int argc, char** argv)
       cout << setw(15) << x
 	   << setw(15) << recon.density_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.potential_eval(x, 0.0, 0.0)
-	   << setw(15) << recon.density_eval(0.0, x, 0.0)
-	   << setw(15) << recon.potential_eval(0.0, x, 0.0)
+	   << setw(15) << recon.density_eval(delr, x, 0.0)
+	   << setw(15) << recon.potential_eval(delr, x, 0.0)
 	   << endl;
       out  << setw(15) << x
 	   << setw(15) << recon.density_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.potential_eval(x, 0.0, 0.0)
-	   << setw(15) << recon.density_eval(0.0, x, 0.0)
-	   << setw(15) << recon.potential_eval(0.0, x, 0.0)
+	   << setw(15) << recon.density_eval(delr, x, 0.0)
+	   << setw(15) << recon.potential_eval(delr, x, 0.0)
 	   << endl;
     }
 
@@ -479,8 +482,8 @@ main(int argc, char** argv)
 	string ostr(outfile);
 	ostr += suffix[i];
 	out[i].open(ostr.c_str());
-	for (int i=0; i<2; i++) out[i].write(&numx, sizeof(int));
-	for (int i=0; i<2; i++) {
+	for (int j=0; j<2; j++) out[i].write(&numx, sizeof(int));
+	for (int j=0; j<2; j++) {
 	  out[i].write(&(z=-xmax), sizeof(float));
 	  out[i].write(&(z= xmax), sizeof(float));
 	}

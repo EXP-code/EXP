@@ -17,6 +17,22 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 
 
+//===========================================================================
+
+void usage(char *prog)
+{
+  cout << "Usage:\n\n"
+       << prog << " [options]\n\n"
+       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " << setw(-40) << "Description" << "\n"
+       << "\n"
+       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Turn on MPI for SL computation\n"
+       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Use mapped rather than linear coordinates\n"
+       << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number of points in radial table\n"
+       << "\n";
+
+  exit(0);
+}
+
 int main(int argc, char** argv)
 {
   bool use_mpi = false;
@@ -35,7 +51,7 @@ int main(int argc, char** argv)
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "cmn:",
+    c = getopt_long (argc, argv, "cmn:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -71,6 +87,10 @@ int main(int argc, char** argv)
     case 'n':
       numr = atoi(optarg);
       break;
+
+    case 'h':
+    default:
+      usage(argv[0]);
     }
 
   }

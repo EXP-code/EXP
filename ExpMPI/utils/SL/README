@@ -1,6 +1,6 @@
 Test routines for Sturm-Liouville spherical basis.  For both, you will
 need a copy of your model called "SLGridSph.model" in the local
-directory.
+directory.  Use option "-h" for a list of options.
 
 Intended to check required parameters for radial grid, lmax, nmax, etc.
 Also useful for examining basis functions.
