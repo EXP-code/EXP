@@ -246,7 +246,7 @@ void Orient::accumulate(double time, vector<Particle> *p,
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;
-      if (myid==0) write_log(time, 0.0, 0.0);
+      if (myid==0) write_log(time, 0.0, 0.0, com);
       return;
   }
 
@@ -647,16 +647,16 @@ void Orient::accumulate(double time, vector<Particle> *p,
     Ecurr += dE;
   
 
-  if (myid==0) write_log(time, Egrad, dE);
+    if (myid==0) write_log(time, Egrad, dE, com);
 }
 
-void Orient::write_log(double time, double Egrad, double dE)
+void Orient::write_log(double time, double Egrad, double dE, double *com)
 {
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
-    for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << center[k+1] + com[k];
     outl << setw(15) << Egrad << setw(15) << dE;
     outl << endl;
   }

@@ -66,7 +66,7 @@ private:
   ACG gen;
   Normal gauss;
 
-  void write_log(double time, double Egrad, double dE);
+  void write_log(double time, double Egrad, double dE, double *com);
 
 public:
   //! Mask flags for Orient type
@@ -94,7 +94,7 @@ public:
   }
 
   //! Write log entry
-  void logEntry(double time) { write_log(time, 0.0, 0.0); }
+  void logEntry(double time, double *com) { write_log(time, 0.0, 0.0, com); }
 
   //! Set center to move at constant velocity
   void set_linear() { linear = true; }

@@ -387,7 +387,7 @@ void ComponentContainer::fix_positions(void)
 	c->orient->accumulate(tpos, &c->particles, 
 			      &c->center[0], &c->com0[0], &c->cov0[0]);
       else
-	if (myid==0) c->orient->logEntry(tpos);
+	if (myid==0) c->orient->logEntry(tpos, c->com0);
     }
   }
 
