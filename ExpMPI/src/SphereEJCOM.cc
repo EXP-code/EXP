@@ -37,9 +37,14 @@ double SphereEJCOM::mixture(Particle& p)
       (p.pos[k] - component->center[k]) *
       (p.pos[k] - component->center[k]) ;
 
-    dif += 
-      (component->com[k] - component->center[k]) *
-      (component->com[k] - component->center[k]) ;
+    if (component->com_system)
+      dif += 
+	(component->comI[k] - component->center[k]) *
+	(component->comI[k] - component->center[k]) ;
+    else
+      dif += 
+	(component->com[k] - component->center[k]) *
+	(component->com[k] - component->center[k]) ;
   }
 
   return erf(cfac*pow(dej/(dif+1.0e-10), 0.5*alpha));

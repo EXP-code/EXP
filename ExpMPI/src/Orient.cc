@@ -240,13 +240,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 }
 
 
-void Orient::accumulate(double time, vector<Particle> *p, 
-			double *com, double *cov)
+void Orient::accumulate(double time, Component *c)
 {
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;
-      if (myid==0) write_log(time, 0.0, 0.0, com);
+      if (myid==0) write_log(time, 0.0, 0.0, c);
       return;
   }
 
@@ -256,9 +255,13 @@ void Orient::accumulate(double time, vector<Particle> *p,
 
   angm.clear();
 
-  double cen[3];
-  for (int i=0; i<3; i++) cen[i] = com[i] + center[i+1];
+  double cen[3], vel[3];
+  for (int i=0; i<3; i++) {
+    cen[i] = c->comI[i] + center[i+1];
+    vel[i] = c->covI[i];
+  }
 
+  vector<Particle> *p = &(c->particles);
   int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
 
@@ -281,14 +284,14 @@ void Orient::accumulate(double time, vector<Particle> *p,
 
       t.M = mass;
 
-      t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2] - cov[2]) -
-		     ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1] - cov[1]));
+      t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2] - vel[2]) -
+		     ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1] - vel[1]));
 
-      t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0] - cov[0]) -
-		     ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2] - cov[2]));
+      t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0] - vel[0]) -
+		     ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2] - vel[2]));
 
-      t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1] - cov[1]) -
-		     ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0] - cov[0]));
+      t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1] - vel[1]) -
+		     ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0] - vel[0]));
 
       /*
 	t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
@@ -328,9 +331,9 @@ void Orient::accumulate(double time, vector<Particle> *p,
       
       if (cflags & KE) 
 	energy += 0.5*(
-		       ((*p)[i].vel[0] - cov[0])*((*p)[i].vel[0] - cov[0]) +
-		       ((*p)[i].vel[1] - cov[1])*((*p)[i].vel[1] - cov[1]) + 
-		       ((*p)[i].vel[2] - cov[2])*((*p)[i].vel[2] - cov[2])
+		       ((*p)[i].vel[0] - vel[0])*((*p)[i].vel[0] - vel[0]) +
+		       ((*p)[i].vel[1] - vel[1])*((*p)[i].vel[1] - vel[1]) + 
+		       ((*p)[i].vel[2] - vel[2])*((*p)[i].vel[2] - vel[2])
 		       );
       
       if (cflags & EXTERNAL) energy += (*p)[i].potext;
@@ -343,14 +346,14 @@ void Orient::accumulate(double time, vector<Particle> *p,
 	
 	t.M = mass;
 
-	t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2]-cov[2]) -
-		       ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1]-cov[1]));
+	t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2]-vel[2]) -
+		       ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1]-vel[1]));
 
-	t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0]-cov[0]) -
-		       ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2]-cov[2]));
+	t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0]-vel[0]) -
+		       ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2]-vel[2]));
 
-	t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1]-cov[1]) -
-		       ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0]-cov[0]));
+	t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1]-vel[1]) -
+		       ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0]-vel[0]));
 	
 	/*
 	  t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
@@ -650,17 +653,17 @@ void Orient::accumulate(double time, vector<Particle> *p,
     Ecurr += dE;
 
 
-  if (myid==0) write_log(time, Egrad, dE, com);
+  if (myid==0) write_log(time, Egrad, dE, c);
 }
 
-void Orient::write_log(double time, double Egrad, double dE, double *com)
+void Orient::write_log(double time, double Egrad, double dE, Component *c)
 {
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
     for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
-    for (int k=0; k<3; k++) outl << setw(15) << com[k];
+    for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
     outl << setw(15) << Egrad << setw(15) << dE;
     outl << endl;
   }

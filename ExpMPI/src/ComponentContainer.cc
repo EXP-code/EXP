@@ -392,9 +392,9 @@ void ComponentContainer::fix_positions(void)
 
     if (c->EJ) {
       if (gottapot || restart) 
-	c->orient->accumulate(tpos, &c->particles, &c->com0[0], &c->cov0[0]);
+	c->orient->accumulate(tpos, c);
       else
-	if (myid==0) c->orient->logEntry(tpos, c->com0);
+	if (myid==0) c->orient->logEntry(tpos, c);
     }
   }
 

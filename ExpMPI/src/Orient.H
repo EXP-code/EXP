@@ -13,6 +13,7 @@
 
 #include <Vector.h>
 #include <Particle.H>
+#include <Component.H>
 
 /** Class to hold energy and angular momentum for use in centering
     a component.  Helper class for class Orient. */
@@ -66,7 +67,7 @@ private:
   ACG gen;
   Normal gauss;
 
-  void write_log(double time, double Egrad, double dE, double *com);
+  void write_log(double time, double Egrad, double dE, Component *c);
 
 public:
   //! Mask flags for Orient type
@@ -94,13 +95,13 @@ public:
   }
 
   //! Write log entry
-  void logEntry(double time, double *com) { write_log(time, 0.0, 0.0, com); }
+  void logEntry(double time, Component *c) { write_log(time, 0.0, 0.0, c); }
 
   //! Set center to move at constant velocity
   void set_linear() { linear = true; }
 
   //! Register phase space of _num_ particles and store angular momentum vector for the lowest _many_ binding energies
-  void accumulate(double time, vector<Particle> *p, double* com, double *cov);
+  void accumulate(double time, Component* c);
 
   //! Return transformation to new body axes
   Matrix& transformBody(void) {return body;};

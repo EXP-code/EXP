@@ -91,7 +91,10 @@ void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
   use_external  = use_external1;
 
 				// Set center to Component center of mass
-  for (int k=0; k<3; k++) center[k] = component->com[k];
+  if (component->com_system)
+    for (int k=0; k<3; k++) center[k] = component->comI[k];
+  else
+    for (int k=0; k<3; k++) center[k] = component->com[k];
   if (use_external) exp_com ->  SetExternal();
   exp_com ->  get_acceleration_and_potential(P);
   exp_com -> ClearExternal();
