@@ -503,7 +503,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double fac, ffac, amp = 0.0;
-  double xx, yy, zz, rr, nn, pp, M0=0.0;
+  double xx, yy, zz, rr, nn, pp, extpot, M0=0.0;
   vector<double> pos(3), acct(3); 
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
@@ -565,6 +565,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     acct[2] = ffac*
       ( -5.0*nn*zz );
     
+				// Quadrupole
+    extpot = -ffac*pp*fac;
+    
+
     if (monopole) {
 
       M0 = ellip->getMass(rr);
@@ -573,17 +577,23 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 				// Add monopole acceleration
 	acct[k] += -M0*pos[k]/(rr*rr*rr);
 
-				// Add bar acceleration to particle
-	(*particles)[i].acc[k] += acct[k];
-
 				// Force on bar (via Newton's 3rd law)
 	tacc[id][k] += -(*particles)[i].mass * acct[k];
-      }
-    }
 
 				// Quadrupole and monopole potential
-    (*particles)[i].potext += -ffac*pp*fac + ellip->getPot(rr);
-    
+	extpot += ellip->getPot(rr);
+	
+      }
+
+    }
+
+				// Add bar acceleration to particle
+    for (int k=0; k<3; k++)
+      (*particles)[i].acc[k] += acct[k];
+
+				// Add external potential
+    (*particles)[i].potext += extpot;
+
   }
 
   return (NULL);
