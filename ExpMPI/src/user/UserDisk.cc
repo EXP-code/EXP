@@ -127,8 +127,8 @@ void UserDisk::getTable(double R, double Z,
     fz = -mass * Z/(r*r*r);
 
   } else {
-    int indR = min<int>(Ngrid-1, (int)(RR/dR));
-    int indZ = min<int>(Ngrid-1, (int)(ZZ/dZ));
+    int indR = min<int>(Ngrid-2, (int)(RR/dR));
+    int indZ = min<int>(Ngrid-2, (int)(ZZ/dZ));
 
     double aR[2], aZ[2];
     
