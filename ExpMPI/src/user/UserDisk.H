@@ -9,6 +9,9 @@
     is tabulated on a two-dimensional grid with positive Z and
     interpolated using bilinear interpolation.
 
+    The default values for #Nscale, #Ngrid and #Nint should suffice
+    for most applications.
+
     @param a is the disk scale length
     @param mass is the total mass of the disk
     @param Ton is the time at the center of the <code>erf</code> turn on

@@ -21,7 +21,7 @@ UserDisk::UserDisk(string &line) : ExternalForce(line)
 
   Nscale = 25.0;		// Maximum grid radius in scale lengths
   Ngrid = 800;			// Number of points on grid
-  Nint = 400;			// Number of k-integration points
+  Nint = 600;			// Number of k-integration points
 
   debug = false;		// Print out potential/force tables
   dfac = 1.2;			// Fraction of grid for interp test
@@ -138,8 +138,7 @@ void UserDisk::getTable(double R, double Z,
     aZ[0] = (dZ*(indZ+1)-ZZ)/dZ;
     aZ[1] = 1.0 - aZ[0];
     
-    pot = fr = fz = 0.0;
-
+    pot = fr = fz = 0.0;	// Bilinear interpolation
     for (int i=0; i<2; i++) {
       for (int j=0; j<2; j++) {
 	pot += Ptable[(indR+i)*Ngrid+indZ+j]*aR[i]*aZ[j];
@@ -181,6 +180,11 @@ void UserDisk::genTable()
       ansP = ansR = ansZ = 0.0;
       for (int k=1; k<=Nint; k++) {
 
+				// Do integral over finite domain
+				// through change of variables
+
+				// B&T equation 2-167
+
 	Q = lq.knot(k)/a;
 	K = Q/sqrt(1.0 - Q*Q*a*a);
 
@@ -188,9 +192,9 @@ void UserDisk::genTable()
 	b0 = bessj0(K*R);
 	b1 = bessj1(K*R);
 
-	ansP += -b0 * fac;
-	ansR += -K * b1 * fac;
-	ansZ += -K * b0 * fac;
+	ansP += -b0 * fac;	// Potential
+	ansR += -K * b1 * fac;	// -d(Potential)/dR
+	ansZ += -K * b0 * fac;	// -d(Potential)/dZ
       }
 
       Ptable[i*Ngrid + j] = ansP;
@@ -205,6 +209,9 @@ void UserDisk::genTable()
 }
 
 
+// This routine is for debugging 
+// (enabled by setting parameter debug=1)
+//
 void UserDisk::printTable()
 {
   string filename;
@@ -321,6 +328,8 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
+				// Set center if component is
+				// defined, otherwise use origin
     if (c0)
       for (int k=0; k<3; k++) 
 	pos[k] = (*particles)[i].pos[k] - c0->center[k];
@@ -334,8 +343,10 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
 
     rr = sqrt( xx*xx + yy*yy );
 
+				// Interpolate on table
     getTable(rr, zz, pot, fr, fz);
 
+				// Add acceleration by disk
     (*particles)[i].acc[0] += amp * fr*xx/(rr+1.0e-10);
     (*particles)[i].acc[1] += amp * fr*yy/(rr+1.0e-10);
     (*particles)[i].acc[2] += amp * fz;
