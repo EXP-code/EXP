@@ -9,7 +9,8 @@ LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
 
 libdir = $(prefix)/lib/user
 
-lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la
+lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
+	libsatfix.la
 
 libuser_la_SOURCES = UserTest.cc
 
@@ -22,3 +23,5 @@ libsat_la_LDFLAGS = -L$(top_srcdir)/exputil/.libs \
 	-L$(top_srcdir)/expgnu/.libs -lstdc++
 
 libdiffuse_la_SOURCES = UserDiffuse.cc
+
+libsatfix_la_SOURCES = SatFix.cc
