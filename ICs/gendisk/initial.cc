@@ -104,7 +104,7 @@ double HSCALE=0.1;
 double RDISK=10.0;
 double ZMAX=10.0;
 
-int NDR=200;
+int NDR=800;
 int NDZ=200;
 double SHFACTOR=16.0;
 

@@ -129,7 +129,9 @@ class DiskHalo
 
   double vphi(double xp, double yp, double zp);
 
-  double v_circ(double xp, double yp, double zp);
+  //  double v_circ(double xp, double yp, double zp);
+
+  double v_circ2(double xp, double yp, double zp);
 
   void set_vel_disk(vector<Particle>& part);
 

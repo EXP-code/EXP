@@ -23,8 +23,8 @@ double DiskHalo::RDMAX = 20.0;
 double DiskHalo::Q = 1.2;
 double DiskHalo::SHFACTOR = 16.0;
 int DiskHalo::NDP = 16;
-int DiskHalo::NDZ = 40;
-int DiskHalo::NDZF = 1;
+int DiskHalo::NDZ = 100;
+int DiskHalo::NDZF = 2;
 int DiskHalo::NDR = 800;
 int DiskHalo::NHR = 800;
 int DiskHalo::NHT = 40;
@@ -742,6 +742,25 @@ table_disk(vector<Particle>& part)
     }
   }
 
+  if (myid==0)
+  {
+    ofstream out("test_vel.dat");
+    out.setf(ios::scientific);
+    out.precision(2);
+    double rr;
+    
+    for (int j=0; j<NDR; j++) {
+
+      rr = RDMIN*exp(dR*j);
+
+      out << setw(18) << rr
+	  << setw(18) << get_dispdz(rr, 0.0, 0.0)
+	  << setw(18) << vr_disp(rr, 0.0, 0.0)
+	  << setw(18) << vphi(rr, 0.0, 0.0)
+	  << endl;
+    }
+  }
+
   if (myid==0) cout << "[table] " << flush;
 }
 
@@ -753,12 +772,12 @@ table_disk(vector<Particle>& part)
 */
 double DiskHalo::vphi(double xp, double yp, double zp)
 {
-  double R, ans, R1, R2, X1, Y1, X2, Y2, t2, t1, phi, vc;
+  double R, ans, R1, R2, X1, Y1, X2, Y2, t2, t1, phi, vc2;
 
   R = sqrt(xp*xp + yp*yp);
   phi = atan2(yp, xp);
   
-  const double DR = 0.01;
+  const double DR = 0.05;
   R1 = R*(1.0 - DR);
   R2 = R*(1.0 + DR);
 
@@ -771,9 +790,9 @@ double DiskHalo::vphi(double xp, double yp, double zp)
   t1 = disk_density(R1, 0.0)*vr_disp(X1, Y1, 0.0);
   t2 = disk_density(R2, 0.0)*vr_disp(X2, Y2, 0.0);
 
-  vc = v_circ(xp, yp, 0.0);
+  vc2 = v_circ2(xp, yp, 0.0);
 
-  ans = sqrt(max<double>(0.0, vc*vc + 
+  ans = sqrt(max<double>(0.0, vc2 + 
 			 vr_disp(xp, yp, 0.0) * 
 			 (log(t1)-log(t2))/(log(R1)-log(R2))));
   
@@ -881,19 +900,23 @@ double DiskHalo::vr_disp(double xp, double yp,double zp)
 /*
   Analytic rotation curve
 */
-double DiskHalo::v_circ(double xp, double yp, double zp)
+double DiskHalo::v_circ2(double xp, double yp, double zp)
 {
   double R = sqrt(xp*xp + yp*yp);
-  double vcirc2 = R*deri_pot(xp, yp, 0.0, 1);
+  double vcirc2h = R*deri_pot_halo(xp, yp, 0.0, 1);
+  double vcirc2d = R*deri_pot_disk(xp, yp, 0.0, 1);
 
 				// Sanity check
-  if (vcirc2<=0.0) {
-    cout << "DiskHalo::v_circ: circular velocity out of bounds, R="
-	 << R << "  v_circ2=" << vcirc2 << endl;
-    vcirc2 = 1.0e-20;
+  if ( (vcirc2h<=0.0 || vcirc2d<=0.0) && (vcirc2h+vcirc2d<=0.0) ) {
+    cout << "DiskHalo::v_circ2: circular velocity out of bounds, R=" << R 
+	 << " v_circ2h=" << vcirc2h 
+	 << " v_circ2d=" << vcirc2d 
+	 << endl;
+    vcirc2h = max<double>(vcirc2h, 1.0e-20);
+    vcirc2d = max<double>(vcirc2d, 1.0e-20);
   }
 
-  return sqrt(vcirc2);
+  return vcirc2h + vcirc2d;
 }
 
 
