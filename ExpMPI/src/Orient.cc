@@ -8,8 +8,8 @@
 #include <string>
 #include <sstream>
 
-#include <localmpi.h>
 #include "expand.h"
+#include <localmpi.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -65,9 +65,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
     ifstream in(logfile.c_str());
     
 
-				// If we are restarting and
-				// the logfile is there . . . 
-    if (restart && in) {
+				// If the logfile is there, read it
+    if (in) {
       in.close();
 
 				// Backup old file
