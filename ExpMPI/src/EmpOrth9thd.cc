@@ -1999,10 +1999,12 @@ void EmpCylSL::pca_hall(void)
       sqr = accum_cos[0][mm][nn]*accum_cos[0][mm][nn];
       // fac = (accum_cos2[0][mm][nn] - cylmass*sqr + 1.0e-10)/(sqr + 1.0e-18);
       var = accum_cos2[0][mm][nn] - cylmass*sqr;
-      fac = sqr/(var + sqr + 1.0e-10);
+      fac = sqr/(var/(cylused+1) + sqr + 1.0e-10);
       if (hout) *hout << mm << ", " << nn << ", C:   "
 		      << setw(18) << accum_cos2[0][mm][nn] << "  " 
-		      << setw(18) << sqr << "  " << fac << '\n';
+		      << setw(18) << sqr << "  " 
+		      << setw(18) << var << "  " 
+		      << setw(18) << fac << '\n';
       // accum_cos[0][mm][nn] *= 1.0/(1.0 + fac);
       accum_cos[0][mm][nn] *= fac;
     }
@@ -2013,10 +2015,12 @@ void EmpCylSL::pca_hall(void)
       sqr = accum_sin[0][mm][nn]*accum_sin[0][mm][nn];
       // fac = (accum_sin2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
       var = accum_sin2[0][mm][nn] - cylmass*sqr;
-      fac = sqr/(var + sqr + 1.0e-10);
+      fac = sqr/(var/(cylused+1) + sqr + 1.0e-10);
       if (hout) *hout << mm << ", " << nn << ", S:   "
 		      << setw(18) << accum_sin2[0][mm][nn] << "  " 
-		      << setw(18) << sqr << "  " << fac << '\n';
+		      << setw(18) << sqr << "  " 
+		      << setw(18) << var << "  " 
+		      << setw(18) << fac << '\n';
       accum_sin[0][mm][nn] *= fac;
     }
   
