@@ -11,10 +11,21 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 {
   nint = 1;
   norb = 5;
-  nskip = 10;
+  nbeg = 0;
+  nskip = 0;
   filename = "ORBTRACE";
+  tcomp = NULL;
 
   initialize();
+
+  if (!tcomp) {
+    if (myid==0) {
+      cerr << "OrbTrace: no component to trace\n";
+      MPI_Abort(MPI_COMM_WORLD, 112);
+    }
+  }
+
+  if (nskip==0) nskip = (int)tcomp->particles.size()/norb;
 
   ostrstream name;
   name << filename << "." << myid << '\0';
@@ -36,19 +47,14 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
   out << "# " << setw(4) << npos++ << setw(20) << "Time";
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+  out << "# [" << tcomp->name << "]\n";
 
-    c = *cc;
-
-    out << "# [" << c->id << "]\n";
-
-    ncur = nskip;
-    for (int i=0; i<norb; i++) {
-      out << "# " << setw(4) << npos++ << setw(20) << " x[" << ncur << "]\n";
-      out << "# " << setw(4) << npos++ << setw(20) << " y[" << ncur << "]\n";
-      out << "# " << setw(4) << npos++ << setw(20) << " z[" << ncur << "]\n";
-      ncur += nskip;
-    }
+  ncur = nskip;
+  for (int i=0; i<norb; i++) {
+    out << "# " << setw(4) << npos++ << setw(20) << " x[" << ncur << "]\n";
+    out << "# " << setw(4) << npos++ << setw(20) << " y[" << ncur << "]\n";
+    out << "# " << setw(4) << npos++ << setw(20) << " z[" << ncur << "]\n";
+    ncur += nskip;
   }
 
   out << "# " << endl;
@@ -64,17 +70,34 @@ void OrbTrace::initialize()
   if (get_value(string("norb"), tmp)) 
     norb = atoi(tmp.c_str());
 
+  if (get_value(string("nbeg"), tmp))
+    nbeg = atoi(tmp.c_str());
+
   if (get_value(string("nskip"), tmp))
     nskip = atoi(tmp.c_str());
 
   if (get_value(string("freq"), tmp)) 
     nint = atoi(tmp.c_str());
 
+				// Search for desired component
+  if (get_value(string("name"), tmp)) {
+    list<Component*>::iterator cc;
+    Component* c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if (!(c->name.compare(tmp))) tcomp  = c;
+    }
+  }
+  
 }
 
 void OrbTrace::Run(int n, bool last)
 {
-  if (n % nint && !last) return;
+  if (n % nint && !last && !tcomp) return;
+
+  int nbodies = tcomp->particles.size();
+
+  if (!nbodies) return;
 
   ofstream out(filename.c_str(), ios::out | ios::app);
   if (!out) {
@@ -85,27 +108,14 @@ void OrbTrace::Run(int n, bool last)
 
   out << setw(15) << tnow;
 
-  list<Component*>::iterator cc;
-  Component *c;
-  
-  int nbodies, ncur;
-
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-
-    c = *cc;
-
-    nbodies = c->particles.size();
-
-    ncur = nskip;
-    for (int i=0; i<norb; i++) {
-      if (ncur < nbodies)
-	out 
-	  << setw(15) << (c->particles)[ncur].pos[0]
-	  << setw(15) << (c->particles)[ncur].pos[1]
-	  << setw(15) << (c->particles)[ncur].pos[2];
-      ncur += nskip;
-    }
-
+  int ncur = nbeg;
+  for (int i=0; i<norb; i++) {
+    if (ncur < nbodies)
+      out 
+	<< setw(15) << (tcomp->particles)[ncur].pos[0]
+	<< setw(15) << (tcomp->particles)[ncur].pos[1]
+	<< setw(15) << (tcomp->particles)[ncur].pos[2];
+    ncur += nskip;
   }
   out << endl;
   

@@ -7,12 +7,11 @@
     
     @param norb is the number of orbits per node to follow
   
+    @param nbeg is the offset in the bodies list for the first
+    particle to trace.
+    
     @param nskip is the interval between orbits beginning with nskip.
-    If nskip is unspecified, <code>nskip=nbodies/norb</code>.  The
-    first particle traced will be offset in the bodies list by
-    <code>nskip</code>.  If <code>nskip*norb</code> is larger than
-    the number of bodies, only <code>nbodies/nskip</code> orbits
-    will be traced.
+    If nskip is unspecified, <code>nskip=nbodies/norb</code>. 
 
     @param nfreq is the frequency between file updates 
 */
@@ -22,8 +21,10 @@ class OrbTrace : public Output
 private:
 
   string filename;
+  int nbeg;
   int nskip;
   int norb;
+  Component *tcomp;
 
   void initialize(void);
 
