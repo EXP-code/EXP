@@ -443,8 +443,8 @@ determine_fields_at_point_sph(double r, double theta, double phi,
   determine_fields_at_point_cyl(R, z, phi, tdens, tpotl, 
 				&tpotR, &tpotZ, tpotp);
   
-  *tpotr =  tpotR*sin(theta) + tpotZ*cos(theta) ;
-  *tpott = (tpotZ*sin(theta) - tpotR*cos(theta) )/(r+1.0e-10);
+  *tpotr =   tpotR*sin(theta) + tpotZ*cos(theta) ;
+  *tpott = (-tpotZ*sin(theta) + tpotR*cos(theta) )/(r+1.0e-10);
 }
 
 
@@ -454,6 +454,10 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
 					     double *tpotr, double *tpotz, double *tpotp)
 {
   ortho->accumulated_eval(r, z, phi, *tpotl, *tpotr, *tpotz, *tpotp);
+  // Accumulated eval returns forces not potential gradients
+  *tpotr *= -1.0;
+  *tpotz *= -1.0;
+  *tpotp *= -1.0;
 #ifdef DENSITY
   *tdens = ortho->accumulated_dens_eval(r, z, phi);
 #else
