@@ -1,8 +1,12 @@
 static char rcsid[] = "$Id$";
 
 #include "expand.h"
+#include <localmpi.h>
 
 #include <Direct.H>
+
+static const int MSGTAG=103;
+static const int NDIM=5;
 
 Direct::Direct(string& line) : PotAccel(line)
 {
@@ -16,6 +20,20 @@ Direct::Direct(string& line) : PotAccel(line)
     exit(0);
   }
     
+				// Assign the ring connections
+  to_proc = (myid+1) % numprocs;
+  from_proc = (myid+numprocs-1) % numprocs;
+
+				// Buffer pointers
+  tmp_buffer = NULL;
+  bod_buffer = NULL;
+
+}
+
+Direct::~Direct()
+{
+  delete [] tmp_buffer;
+  delete [] bod_buffer;
 }
 
 void Direct::initialize(void)
@@ -39,7 +57,60 @@ void Direct::get_acceleration_and_potential(vector<Particle>* P)
 
 void Direct::determine_acceleration_and_potential(void)
 {
+				// Determine size of largest nbody list
+  ninteract = component->particles.size();
+  max_bodies = ninteract;
+  MPI_Reduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+
+				// Allocate buffers
+  delete [] tmp_buffer;
+  delete [] bod_buffer;
+  int buffer_size = max_bodies*NDIM;
+  tmp_buffer = new double [buffer_size];
+  bod_buffer = new double [buffer_size];
+
+				// Load body buffer with local interactors
+  double *p = bod_buffer;
+  for (int i=0; i<ninteract; i++) {
+    *(p++) = component->particles[i].mass;
+    *(p++) = component->particles[i].pos[0];
+    *(p++) = component->particles[i].pos[1];
+    *(p++) = component->particles[i].pos[2];
+    *(p++) = component->particles[i].dattrib[soft_indx];
+  }
+
+				// Do the local interactors
+  local = true;
   exp_thread_fork(false);
+  local = false;
+
+				// Do the ring . . . 
+  for(int n=1; n<numprocs; n++) {
+
+    MPI_Request req1, req2;
+    MPI_Status stat;
+
+				// Copy current to temp buffer
+    memcpy(tmp_buffer, bod_buffer, buffer_size*sizeof(double));
+
+				// Get NEW buffer from right
+    MPI_Irecv(bod_buffer, buffer_size, MPI_DOUBLE, from_proc, MSGTAG, 
+	      MPI_COMM_WORLD, &req1);
+
+				// Send OLD buffer to left
+    MPI_Isend(tmp_buffer, ninteract*NDIM, MPI_DOUBLE, to_proc, MSGTAG, 
+	      MPI_COMM_WORLD, &req2);
+
+    MPI_Wait(&req2, &stat);
+    MPI_Wait(&req1, &stat);
+
+				// How many particles did we get?
+    MPI_Get_count(&stat, MPI_DOUBLE, &ninteract);
+    ninteract /= NDIM;
+	
+				// Accumulate the interactions
+    exp_thread_fork(false);
+  }
 
   // Clear external potential flag
   use_external = false;
@@ -48,6 +119,8 @@ void Direct::determine_acceleration_and_potential(void)
 void * Direct::determine_acceleration_and_potential_thread(void * arg)
 {
   double rr, rfac;
+  double mass, pos[3], eps;
+  double *p;
 
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -59,26 +132,44 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   for (int i=nbeg; i<nend; i++) {
 
     if ((*particles)[i].freeze()) continue;
+    
+    use[id]++;
 
+    p = bod_buffer;
+    for (int j=0; j<ninteract; j++) {
 
-    for (int j=0; j<i; j++) {
+      mass = *(p++);
+      pos[0] = *(p++);
+      pos[1] = *(p++);
+      pos[2] = *(p++);
+      eps = *(p++);
 
-      rr = (*particles)[i].dattrib[soft_indx];
-      rr = rr*rr;
+				// Compute distance
+      rr = 0.0;
       for (int k=0; k<3; k++)
-	rr += (*particles)[i].pos[k] - (*particles)[j].pos[k];
+	rr += 
+	  ((*particles)[i].pos[k] - pos[k]) *
+	  ((*particles)[i].pos[k] - pos[k]) ;
+
+				// Check for coincident particles (e.g. same)
+      if (local && !use_external && rr<1.0e-10) continue;
+
+				// Add softening
+      rr += eps*eps;
       rr = sqrt(rr);
 
       rfac = 1.0/(rr*rr*rr);
 
+				// Acceleration
       for (int k=0; k<3; k++)
-	(*particles)[i].acc[k] += -(*particles)[j].mass *
-	  ((*particles)[i].pos[k] - (*particles)[j].pos[k]) * rfac;
+	(*particles)[i].acc[k] += -mass *
+	  ((*particles)[i].pos[k] - pos[k]) * rfac;
 
+				// Potential
       if (use_external)
-	(*particles)[i].potext += -(*particles)[j].mass/rr;
+	(*particles)[i].potext += -mass/rr;
       else
-	(*particles)[i].pot += -(*particles)[j].mass/rr;
+	(*particles)[i].pot += -mass/rr;
     }
 
   }

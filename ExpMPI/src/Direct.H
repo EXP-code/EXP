@@ -2,12 +2,26 @@
 #ifndef _Direct_H
 #define _Direct_H
 
-//! computes the potential, acceleration and density using the direct summation
+/**
+   Computes the potential, acceleration and density using the direct summation
+
+   Positions are passed from node to node on a ring.  Accelerations
+   computed on requested particles array due to particles in component
+   associated with the Direct force.  
+*/
 class Direct : public PotAccel
 {
 private:
 
   int soft_indx;
+
+  int to_proc, from_proc;
+  int max_bodies;
+  int ninteract;
+
+  double *tmp_buffer, *bod_buffer;
+
+  bool local;
 
   void initialize();
 
@@ -22,6 +36,9 @@ public:
   //! The constructor
   /** <param> line passes in any explicit parameters */
   Direct(string& line);
+
+  //! The constructor
+  ~Direct();
 
   //! The main force call
   void get_acceleration_and_potential(vector<Particle>*);
