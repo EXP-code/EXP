@@ -43,7 +43,7 @@ void OutCHKPT::Run(int n, bool last)
     
 				// Attempt to move file to backup
     ostrstream msg;
-    msg << "mv " << filename << " " << filename << ".bak";
+    msg << "mv " << filename << " " << filename << ".bak" << '\0';
     system(msg.str());
 
 				// Open file and write master header
