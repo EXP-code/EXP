@@ -1197,7 +1197,7 @@ void Component::write_binary(ostream* out)
 	  out->write((char *)&pv, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
-	  pv = p[k].pos[i] + cov0[i] - comI[i];
+	  pv = p[k].vel[i] + cov0[i] - covI[i];
 	  out->write((char *)&pv, sizeof(double));
 	}
 
@@ -1231,7 +1231,7 @@ void Component::write_ascii(ostream* out, bool accel)
       for (int k=0; k<number; k++) {
 	*out << setw(18) << p[k].mass;
 	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i]+com0[i]-comI[i];
-	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i]-comI[i];
+	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i]-covI[i];
 	if (accel)
 	  for (int i=0; i<3; i++) *out << setw(18) << p[k].acc[i];
 
@@ -1333,37 +1333,11 @@ void Component::fix_positions(void)
 	if (p->iattrib[tidal]==0) {
 	  p->iattrib[tidal] = 1;
 	  if (com_system) {	// Conserve momentum of center of mass
-	    //*** BEG DEBUG
-	    /*
-	    if (myid==0) {
-	      cout << "\n"
-		   << "COV update:\n"
-		   << "   Old COV:\n"
-		   << "       ";
-	      for (int i=0; i<3; i++) cout << setw(15) << covI[i];
-	      cout << "\n       ";
-	      for (int i=0; i<3; i++) cout << setw(15) << cov0[i];
-	      cout << "\n";
-	    }
-	    */
-	    //*** END DEBUG
 	    for (int i=0; i<3; i++) {
 	      covI[i] = (mtot0*covI[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
 	      cov0[i] = (mtot0*cov0[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
 	    }
 	    mtot0 -= p->mass;
-	    //*** BEG DEBUG
-	    /*
-	    if (myid==0) {
-	      cout << "   New COV:\n"
-		   << "       ";
-	      for (int i=0; i<3; i++) cout << setw(15) << covI[i];
-	      cout << "\n       ";
-	      for (int i=0; i<3; i++) cout << setw(15) << cov0[i];
-	      cout << "\n\n";
-	    }
-	    */
-	    //*** END DEBUG
 	  }
 	}
       }
