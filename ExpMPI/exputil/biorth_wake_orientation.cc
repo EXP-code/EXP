@@ -1,6 +1,6 @@
 
 #include <string>
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 
 #include <Vector.h>
@@ -14,6 +14,7 @@ double plgndr(int l, int m, double x);
 double rot_matrix(int l, int m, int n, double beta);
 Matrix return_euler_slater(double, double, double, int);
 
+using namespace std;
 
 void BiorthWake::orientation(int L, int M, 
 			     Vector& phi, Vector& theta, Vector& psi,

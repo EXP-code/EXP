@@ -74,8 +74,9 @@ UserSat::~UserSat()
 void UserSat::userinfo()
 {
   if (myid) return;		// Return if node master node
+  print_divider();
   cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized\n";
-  cout << "****************************************************************\n";
+  print_divider();
 }
 
 void UserSat::initialize()

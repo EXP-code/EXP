@@ -5,7 +5,9 @@
 #include <fstream>
 #include <list>
 #include <string>
-#include <pair.h>
+#include <utility>
+
+using namespace std;
 
 typedef pair<string, string> spair;
 

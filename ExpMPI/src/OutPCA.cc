@@ -72,8 +72,8 @@ void OutPCA::Run(int k)
   cout << "Entering out_pca . . .\n";
   if (!selector) return;	// Fail safe . . .
 
-  ostrstream number;
-  number << k << '\0';
+  ostringstream number;
+  number << k;
   string curname = (string)outname + "." + number.str();
 
   cout << "About to call zeroth_order . . .\n";

@@ -1,18 +1,18 @@
 
-#include <math.h>
-#include <iostream.h>
+using namespace std;
 
-#include <numerical.h>
-#include <Vector.h>
-#include <interp.h>
-#include <isothermal.h>
+#include <iostream>
 
+void testme(ostream& out)
+{
+  out << "This is a test!\n";
+  out << "This is a test!\n";
+  out << "This is a test!\n";
+}
+
+int
 main()
 {
-  cout << "This is a test!" << endl;
-  ACG gen (11, 20);
-  Uniform u(0.0, 1.0, &gen);
-
-  for (int i=0; i<10; i++) cout << u() << endl;
+  testme(cout);
 }
 

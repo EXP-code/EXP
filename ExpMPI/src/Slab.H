@@ -15,6 +15,8 @@ class Slab : public PotAccel
 struct SlabCoefHeader {
   double time;
   double zmax;
+  double h;
+  int type;
   int nmaxx, nmaxy, nmaxz;
   int jmax;
 };
@@ -46,6 +48,9 @@ private:
   void * determine_coefficients_thread(void * arg);
   void * determine_acceleration_and_potential_thread(void * arg);
 
+  // Biorth ID
+  static const int ID=0;
+
 protected:
 
   //! Parse parameters and initialize on first call
@@ -60,7 +65,7 @@ public:
   Slab(string& line);
 
   //! Destructor
-  virtual ~Slab() {};
+  ~Slab();
 
   //! Print coefficients to output stream
   void dump_coefs(ostream& out);

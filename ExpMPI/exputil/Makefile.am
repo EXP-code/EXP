@@ -3,9 +3,6 @@
 CC = mpicc
 CXX = mpiCC
 
-CFLAGS = -O3
-CXXFLAGS = -O3
-
 LIBS = -lpthread -lmpi -lm
 
 if ENABLE_DEBUG

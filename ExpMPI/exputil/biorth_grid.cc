@@ -9,7 +9,7 @@
 static const char rcsid[] = "$Id$";
 
 #include <string>
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 #include <Vector.h>
 #include <interp.h>

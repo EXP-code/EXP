@@ -40,5 +40,12 @@ void ExternalForce::determine_acceleration_and_potential(void)
   exp_thread_fork(false);
 }
 
+void ExternalForce::print_divider(void)
+{
+  if (myid) return;
 
+  char c = cout.fill('-');
+  cout << setw(80) << "-" << endl;
+  cout.fill(c);
+}
 

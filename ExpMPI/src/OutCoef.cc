@@ -1,7 +1,6 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
 
 #include <expand.h>
 
@@ -10,7 +9,7 @@
 OutCoef::OutCoef(string& line) : Output(line)
 {
   nint = 10;
-  filename = "outcoef";
+  filename = "outcoef." + runtag;
   tcomp = NULL;
 
   initialize();

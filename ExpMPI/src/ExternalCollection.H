@@ -5,6 +5,8 @@
 
 #include <ExternalForce.H>
 
+using namespace std;
+
 //! factory for dynamically loaded forces
 extern map<string, maker_t *, less<string> > factory;
 extern map<string, maker_t *, less<string> >::iterator fitr;

@@ -3,9 +3,9 @@ CXX = mpiCC
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
-CFLAGS = -O3 -fPIC -Wall -D_REENTRANT
-CXXFLAGS = -O3 -fPIC -Wall -D_REENTRANT
-LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
+AM_CFLAGS = -fPIC -Wall -D_REENTRANT
+AM_CXXFLAGS = -fPIC -Wall -D_REENTRANT
+AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
 
 libdir = $(prefix)/lib/user
 

@@ -1,7 +1,9 @@
 
 #include <math.h>
-#include <iostream.h>
+#include <iostream>
 #include <Vector.h>
+
+using namespace std;
 
 void Splint1(const Vector &xa, const Vector &ya, const Vector &y2a, double x, double &y)
 {

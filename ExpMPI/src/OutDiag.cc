@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 
@@ -45,7 +45,7 @@ void OutDiag::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "ORBDIAG";
+    filename = "ORBDIAG." + runtag;
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -97,9 +97,9 @@ void OutDiag::Run(int n, bool last)
   double r, dr, dens;
   double potl, potr, pott, potp;
     
-  ostrstream outs;
+  ostringstream outs;
   outs << filename.c_str() << "." << n << '\0';
-  ofstream out(outs.str());
+  ofstream out(outs.str().c_str());
   if (!out) return;
 
   out.setf(ios::scientific);

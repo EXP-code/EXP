@@ -119,10 +119,10 @@ public:
   //! Dimensional to non-dimensional mapping
   double r_to_rb(double const x)    { return x; }
   //! Jacobian for non-dimensional mapping
-  double d_r_to_rb(double const x)  { return 0.0; }
+  double d_r_to_rb(double const x)  { return 1.0; }
 
   //! Minimum value in non-dimensional mapping
-  double rb_min(void)               { return 0.0; }
+  double rb_min(void)               { return -zmax; }
   //! Maximum value in non-dimensional mapping
   double rb_max(void)               { return zmax; }
 

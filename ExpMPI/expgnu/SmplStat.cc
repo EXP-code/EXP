@@ -18,7 +18,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #ifdef __GNUG__
 #pragma implementation
 #endif
-#include <stream.h>
+#include <iostream>
 #include <SmplStat.h>
 #include <math.h>
 
@@ -35,7 +35,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 void default_SampleStatistic_error_handler(const char* msg)
 {
-  cerr << "Fatal SampleStatistic error. " << msg << "\n";
+  std::cerr << "Fatal SampleStatistic error. " << msg << "\n";
   exit(1);
 }
 

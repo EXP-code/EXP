@@ -26,8 +26,10 @@ if test ! -x `which autoconf`
 then echo you need autoconf to generate the Makefile
 fi
 aclocal
+autoheader
 automake --add-missing
-automake --add-missing
+automake
 autoconf
 ./configure $*
-$MAKE
+$MAKE CCFLAGS="-O3" CFLAGS="-O3"
+

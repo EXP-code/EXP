@@ -1,4 +1,7 @@
-#include <iostream.h>
+using namespace std;
+
+#include <iostream>
+
 #include <math.h>
 #include <mpi.h>
 

@@ -1,11 +1,13 @@
 #pragma implementation
 
+using namespace std;
+
 //***************************************************************************
 // Wake stuff
 //***************************************************************************
 
 #include <string>
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 #include <Vector.h>
 #include <biorth.h>

@@ -30,7 +30,7 @@
 class SphereTwoCenter : public PotAccel
 {
 
-  friend SphericalBasisMixtureSL;
+  friend class SphericalBasisMixtureSL;
 
 private:
 

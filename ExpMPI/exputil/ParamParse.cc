@@ -1,10 +1,16 @@
 #include <iostream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 #include <algorithm>
 
 #include <ParamParse.H>
 #include <StringTok.H>
+
+Stanza::Stanza(const Stanza &p)
+{
+  name = p.name;
+  elist = p.elist;
+}
 
 string trimLeft(const string value)
 {
@@ -25,7 +31,7 @@ string trimLeft(const string value)
 
 string trimRight(const string value)
  {
-   string::size_type where = value.find_last_not_of(' ');
+   string::size_type where = value.find_last_not_of(" \t\n");
   
    if (where == string::npos)
      // string has nothing but space
@@ -89,7 +95,7 @@ ParamParse::ParamParse(istream* in, string Delim) :
 				// Must be followed "]"
       string::size_type end = line.find("]");
       if (end == string::npos) {
-	ostrstream sout;
+	ostringstream sout;
 	sout << "Syntax error: " << line;
 	bomb(sout.str());
       }
@@ -156,7 +162,7 @@ int ParamParse::get_next(spair& ret)
   return 0;
 }
 
-void ParamParse::bomb(const char *msg)
+void ParamParse::bomb(const string& msg)
 {
   cerr << "ParamParse error: " << msg << "\n";
   exit(-1);
@@ -168,15 +174,16 @@ void ParamParse::print_database(ostream& out)
   list<Stanza>::iterator it;
   list<spair>::iterator it1;
 
+  out << setiosflags(ios::left);
+
   for (it=database.begin(); it!=database.end(); it++) {
     out << setw(2) << istanza << " [" << it->name << "]" << endl;
 
     iparam = 0;
     for (it1=it->elist.begin(); it1!=it->elist.end(); it1++) {
       out << " " << setw(3) << iparam
-	  << setw(15) << it1->first.c_str() << " | "
-	  << setw(-60) << it1->second.c_str()
-	  << endl;
+	  << setw(15) << it1->first.c_str()  << " | "
+	  << it1->second << endl;
       iparam++;
     }
 
@@ -185,6 +192,8 @@ void ParamParse::print_database(ostream& out)
     
   }
 
+  out << resetiosflags(ios::left);
+  
 }
 
 

@@ -16,13 +16,7 @@ noinst_HEADERS = ACG.h Binomial.h DiscUnif.h Erlang.h Gamma.h Geom.h \
 	Uniform.h Weibull.h builtin.h rx.h std.h # Regex.h String.h
 
 
-# AM_CFLAGS = -Wall -fPIC
-# AM_CXXFLAGS = -Wall -fPIC
 AM_CFLAGS = -fPIC -D_REENTRANT
 AM_CXXFLAGS = -fPIC -D_REENTRANT
-# CFLAGS = -g -DDEBUG
-# CXXFLAGS = -g -DDEBUG
-CFLAGS = -O3
-CXXFLAGS = -O3
 
 ## libexpgnu/Makefile.am ends here

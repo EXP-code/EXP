@@ -37,6 +37,14 @@ public:
   
   // Error function
   
+  void bomb(string s) {
+    cerr << "ERROR from " << OrbitID << ": " << s << '\n';
+#ifdef DEBUG
+    abort();
+#endif
+    exit(-1);
+  }
+  
   void bomb(char *s) {
     cerr << "ERROR from " << OrbitID << ": " << s << '\n';
 #ifdef DEBUG

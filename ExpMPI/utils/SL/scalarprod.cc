@@ -29,9 +29,10 @@
  *
  ***************************************************************************/
 
+using namespace std;
 
 #include <math.h>
-#include <vector.h>
+#include <Vector.h>
 #include <gaussQ.h>
 #include <biorth2d.h>
 #include <OrthoPoly.h>

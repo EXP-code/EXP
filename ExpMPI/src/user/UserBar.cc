@@ -1,5 +1,5 @@
 #include <math.h>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 
@@ -19,7 +19,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
-  filename = "BarRot";		// Output file name
+  filename = "BarRot." + runtag; // Output file name
 
   firstime = true;
 
@@ -87,6 +87,10 @@ UserBar::~UserBar()
 void UserBar::userinfo()
 {
   if (myid) return;		// Return if node master node
+
+
+  print_divider();
+
   cout << "** User routine ROTATING BAR initialized, " ;
   if (fixed)
     cout << "fixed pattern speed, ";
@@ -104,7 +108,8 @@ void UserBar::userinfo()
     cout << "angular momentum from <" << angm_name << ">" << endl;
   else
     cout << "no initial angular momentum" << endl;
-  cout << "****************************************************************\n";
+
+  print_divider();
 }
 
 void UserBar::initialize()
@@ -259,23 +264,40 @@ void UserBar::determine_acceleration_and_potential(void)
 
       if (myid == 0) {
 	
-	const int linesize = 1024;
-	char line[linesize];
+	// Backup up old file
+	string backupfile = name + ".bak";
+	string command("cp ");
+	command += name + " " + backupfile;
+	system(command.c_str());
+
+	// Open new output stream for writing
+	ofstream out(name.c_str());
+	if (!out) {
+	  cout << "UserEBar: error opening new log file <" 
+	       << filename << "> for writing\n";
+	  MPI_Abort(MPI_COMM_WORLD, 121);
+	  exit(0);
+	}
 	
-	ifstream in(name.c_str());
+	// Open old file for reading
+	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cerr << "User_bar_slow: can't open barstat file<" << name << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 101);
+	  cout << "UserEBar: error opening original log file <" 
+	       << backupfile << "> for reading\n";
+	  MPI_Abort(MPI_COMM_WORLD, 122);
 	  exit(0);
 	}
 
+	const int linesize = 1024;
+	char line[linesize];
+	
 	in.getline(line, linesize); // Discard header
 	in.getline(line, linesize); // Next line
-
-	double Lz1, am1;
+	
+	double Lzp, Lz1, am1;
 	bool firstime1 = true;
 	while (in) {
-	  istrstream ins(line);
+	  istringstream ins(line);
 
 	  lastomega = omega;
 
@@ -283,13 +305,18 @@ void UserBar::determine_acceleration_and_potential(void)
 	  ins >> posang;
 	  ins >> omega;
 	  ins >> Lz1;
+	  ins >> Lzp;
 	  ins >> am1;
 
 	  if (firstime1) {
 	    Lz = Lz1;
-	    Lz0 = am1;
+	    Lz0 = Lzp;
 	    firstime1 = false;
 	  }
+
+	  if (lasttime >= tvel) break;
+
+	  out << line << "\n";
 
 	  in.getline(line, linesize); // Next line
 	}

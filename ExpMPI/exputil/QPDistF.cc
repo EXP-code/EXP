@@ -34,9 +34,12 @@
 
 #pragma implementation
 
-#include <iostream.h>
-#include <fstream.h>
+using namespace std;
+
+#include <iostream>
+#include <fstream>
 #include <string>
+
 #include <malloc.h>
 #include <math.h>
 

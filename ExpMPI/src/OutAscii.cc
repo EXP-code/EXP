@@ -1,7 +1,9 @@
+using namespace std;
+
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 #include <global.H>
@@ -51,7 +53,7 @@ void OutAscii::initialize()
   if (Output::get_value(string("name"), tmp))  name = tmp;
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUTASC\0";
+    filename = "OUTASC." + runtag + "\0";
   }
   if (Output::get_value(string("accel"), tmp)) {
     if (atoi(tmp.c_str())) accel = true;
@@ -63,17 +65,13 @@ void OutAscii::initialize()
     for (nbeg=0; nbeg<100000; nbeg++) {
 
 				// Output name
-      ostrstream fname;
+      ostringstream fname;
       fname << filename << "." << setw(5) << setfill('0') << nbeg << '\0';
 
 				// See if we can open file
-      ofstream out(fname.str(), ios::out | ios::noreplace);
+      ifstream in(fname.str().c_str());
 
-      if (out) {
-	out.close();
-	ostrstream command;
-	command << "rm " <<  fname.str() << '\0';
-	system(command.str());
+      if (!in) {
 	cout << "OutAscii: will begin with nbeg=" << nbeg << endl;
 	break;
       }
@@ -93,11 +91,11 @@ void OutAscii::Run(int n, bool last)
 
   if (myid==0) {
 				// Output name
-    ostrstream fname;
+    ostringstream fname;
     fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
 
 				// Open file and write master header
-    out = new ofstream(fname.str(), ios::out | ios::noreplace);
+    out = new ofstream(fname.str().c_str());
 
     if (!*out) {
       cerr << "OutAscii: can't open file <" << fname.str() 

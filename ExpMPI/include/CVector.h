@@ -3,12 +3,14 @@
 #pragma interface
 #endif
 #define _CVector_h 1
-#include <iostream.h>
-#include <fstream.h>
+#include <iostream>
+#include <fstream>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
+
+using namespace std;
 
 #include <kevin_complex.h>
 
@@ -20,9 +22,9 @@ class Complex;
 
 class CVector
 {
-	friend Matrix;
-	friend Vector;
-	friend CMatrix;
+	friend class Matrix;
+	friend class Vector;
+	friend class CMatrix;
 //	private:
         protected:
 		int low, high;
@@ -179,9 +181,9 @@ void bomb_CMatrix(const char *);
 
 class CMatrix
 {
-        friend CVector;
-        friend Matrix;
-	friend Vector;
+        friend class CVector;
+        friend class Matrix;
+	friend class Vector;
 //	private:
         protected:
 		int rlow, rhigh;	/* low and high row indices */

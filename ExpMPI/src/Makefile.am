@@ -5,9 +5,6 @@ VPATH = $(top_srcdir)/src:.
 CC = mpicc
 CXX = mpiCC
 
-CFLAGS = -O3
-CXXFLAGS = -O3
-
 if ENABLE_SEQCHECK
 ADD_CFLAGS1 = -DSEQCHECK
 ADD_CXXFLAGS1 = -DSEQCHECK
@@ -27,7 +24,7 @@ endif
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
-CXXLINK = hf77 -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
+CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 exp_SOURCES = \
      Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc		     \
@@ -48,7 +45,7 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 bin_PROGRAMS = exp
 
 COMMON_LIBS = -lexputil -lexpgnu -lstdc++
-SYS_LIBS = -lpthread -ldl -lm
+SYS_LIBS = -lpthread -ldl -lg2c -lm
 MPI_LIBS = -lmpi
 
 LIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS)

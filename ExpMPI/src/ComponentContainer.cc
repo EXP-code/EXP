@@ -20,6 +20,10 @@ ComponentContainer::ComponentContainer(void)
 
 void ComponentContainer::initialize(void)
 {
+
+  read_rates();			// Read initial processor rates
+
+
   spair data;
 
 				// Initialize individual components
@@ -40,7 +44,7 @@ void ComponentContainer::initialize(void)
 
       }
 
-      in->read(&master, sizeof(MasterHeader));
+      in->read((char *)&master, sizeof(MasterHeader));
       if (!*in) {
 	cerr << "ComponentContainer::initialize: could not read master header from <"
 	     << infile << ">\n";
@@ -170,8 +174,10 @@ void ComponentContainer::initialize(void)
 
   if (myid==0 && !interaction.empty()) {
     cout << "\nUsing the following component interation list:\n";
-    cout << setw(-30) << setfill('-') << "-"
+    cout << setiosflags(ios::left)
+	 << setw(30) << setfill('-') << "-"
 	 << "------" 
+	 << resetiosflags(ios::left)
 	 << setw(30) << setfill('-') << "-"
 	 << "\n" << setfill(' ');
     
@@ -181,18 +187,24 @@ void ComponentContainer::initialize(void)
       Interaction *inter = *i;
       for (j=inter->l.begin(); j != inter->l.end(); j++) {
 	Component *comp = *j;
-	cout << setw(-30) << inter->c->name 
+	cout << setiosflags(ios::left)
+	     << setw(30) << inter->c->name 
 	     << " <==> " 
+	     << resetiosflags(ios::left)
 	     << setw(30) << comp->name
 	     << "\n";
       }
-      cout << setw(-30) << setfill('-') << "-"
+      cout << setiosflags(ios::left)
+	   << setw(30) << setfill('-') << "-"
 	   << "------" 
+	   << resetiosflags(ios::left)
 	   << setw(30) << setfill('-') << "-"
 	   << "\n" << setfill(' ');
     }
     cout << "\n";
   }
+
+  
 }
 
 
@@ -358,7 +370,6 @@ void ComponentContainer::fix_positions(void)
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
-    // MPI_Barrier(MPI_COMM_WORLD); // I'm not sure why I need this here . . .
     if (c->EJ) {
       c->orient->accumulate(tpos, &c->particles, &c->center[0]);
     }
@@ -391,4 +402,137 @@ void ComponentContainer::fix_positions(void)
 
 }
 
+
+void ComponentContainer::read_rates(void)
+{
+
+  rates =  vector<double>(numprocs);
+
+  if (myid == 0) {
+    ifstream in(ratefile.c_str());
+    
+    double norm = 0.0;
+    
+    if (in) {			// We are reading from a file
+      for (int n=0; n<numprocs; n++) {
+	in >> rates[n];
+	if (!in) {
+	  cerr << "setup: error reading <" << ratefile << ">\n";
+	  MPI_Abort(MPI_COMM_WORLD, 33);
+	  exit(0);
+	}
+	norm += rates[n];
+      }
+
+    } else {			// Assign equal rates to all nodes
+      cerr << "setup: can not find <" << ratefile << "> . . . will assume homogeneous cluster\n";
+      for (int n=0; n<numprocs; n++) {
+	rates[n] = 1.0;
+	norm += rates[n];
+      }
+    }
+
+    for (int n=0; n<numprocs; n++) rates[n] /= norm;
+
+  }
+
+  MPI_Bcast(&rates[0], numprocs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+}
+
+
+void ComponentContainer::load_balance(void)
+{
+  if (!nbalance || this_step % nbalance)  return;
+
+				// Query timers
+  vector<double> rates1(numprocs, 0.0), trates(numprocs, 0.0);
+  rates1[myid] = MPL_read_timer(1);
+  MPI_Allreduce(&rates1[0], &trates[0], numprocs, 
+		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+				// Compute normalized rate vector
+  double norm = 0.0;
+  for (int i=0; i<numprocs; i++) {
+    rates1[i] = 1.0/trates[i];
+    norm += rates1[i];
+  }
+  for (int i=0; i<numprocs; i++) rates1[i] /= norm;
+
+				// For debugging
+#ifdef RANDOMTIME
+  {
+    if (myid==0) cout << "*** WARNING: using random time intervals for load balance testing ***\n";
+    double norm = 0.0;
+    for (int i=0; i<numprocs; i++) {
+      rates1[i] = rand();
+      norm += rates1[i];
+    }
+    for (int i=0; i<numprocs; i++) rates1[i] /= norm;
+  }
+#endif
+
+				// Compare relative difference with threshold
+  bool toobig = false;
+  double curdif;
+  for (int n=0; n<numprocs; n++) {
+    if (rates[n]>0.0) {
+      curdif = fabs(rates[n]-rates1[n])/rates[n];
+      if ( curdif > dbthresh) toobig = true;
+    }
+  }
+  
+
+				// Print out info
+  if (myid==0) {
+    
+    string outrates = "current.processor.rates.test." + runtag;
+
+    ofstream out(outrates.c_str(), ios::out | ios::app);
+    if (out) {
+      out << "# Step: " << this_step << endl;
+      out << "# "
+	  << setw(5)  << "Proc"
+	  << setw(15) << "Step time"
+	  << setw(15) << "Norm rate"
+	  << setw(15) << "Rate frac"
+	  << endl
+	  << "# "
+	  << setw(5)  << "-----"
+	  << setw(15) << "----------"
+	  << setw(15) << "----------"
+	  << setw(15) << "----------"
+	  << endl;
+      
+      for (int n=0; n<numprocs; n++) {
+	out << "  "
+	    << setw(5) << n
+	    << setw(15) << trates[n]
+	    << setw(15) << rates1[n];
+
+	if (rates[n]>0.0)
+	  out << setw(15) << fabs(rates[n]-rates1[n])/rates[n] << endl;
+	else
+	  out << setw(15) << " ***" << endl;
+      
+      }
+    }
+  }
+
+
+  if (toobig) {
+
+				// Use new rates
+    rates = rates1;
+
+				// Initiate load balancing for each component
+    list<Component*>::iterator cc;
+  
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      (*cc)->load_balance();
+    }
+
+  }
+
+}
 

@@ -8,8 +8,11 @@
 
 // #include <stdio.h>
 #include <math.h>
-#include <iostream.h>
-#include <fstream.h>
+#include <iostream>
+#include <fstream>
+#include <string>
+
+using namespace std;
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -20,16 +23,16 @@ class Three_Vector;
 class Matrix;
 class CMatrix;
 
-void bomb_Vector_operation(const char *);
-void bomb_Vector(const char *);
-void bomb_Matrix_operation(const char *);
-void bomb_Matrix(const char *);
+void bomb_Vector_operation(const string&);
+void bomb_Vector(const string&);
+void bomb_Matrix_operation(const string&);
+void bomb_Matrix(const string&);
 
 class Vector
 {
-	friend CMatrix;
-	friend CVector;
-	friend Matrix;
+	friend class CMatrix;
+	friend class CVector;
+	friend class Matrix;
 //	private:
         protected:
 		int low, high;
@@ -158,10 +161,10 @@ class Vector
 
 class Matrix
 {
-	friend Vector;
-	friend Three_Vector;
-	friend CMatrix;
-	friend CVector;
+	friend class Vector;
+	friend class Three_Vector;
+	friend class CMatrix;
+	friend class CVector;
 //	private:
 	protected:
 		int rlow, rhigh;	/* low and high row indices */
@@ -295,8 +298,8 @@ class Vector;
 
 class Three_Vector
 {
-	friend Vector;
-	friend Matrix;
+	friend class Vector;
+	friend class Matrix;
 protected:
 	double x[3];
 	static int nlive;
@@ -408,7 +411,7 @@ Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev);
 Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev);
 void jacobi(double **, int, double *, double **, int *);
 void eigsrt(double *, double **, int);
-int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z);
+int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z);
 
 
 #endif

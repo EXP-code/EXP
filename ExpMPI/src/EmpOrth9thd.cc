@@ -5,9 +5,9 @@
 // #define EIGEN 1
 // #define DEBUG_PCA
 
-#include <iostream.h>
-#include <iomanip.h>
-#include <strstream.h>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
 
 #include <string>
 #include <algorithm>
@@ -381,9 +381,9 @@ SphericalModelTable* EmpCylSL::make_sl()
     p[i] = -mm[i]/(r[i]+1.0e-10) - (pw[number-1] - pw[i]);
 
 #ifdef DEBUG
-  ostrstream outf;
+  ostringstream outf;
   outf << "test_adddisk_sl." << myid << '\0';
-  ofstream out(outf.str());
+  ofstream out(outf.str().c_str());
   for (int i=0; i<number; i++) {
     out 
       << setw(15) << r[i] 
@@ -644,20 +644,20 @@ int EmpCylSL::cache_grid(int readwrite)
     const int one = 1;
     const int zero = 0;
 
-    out.write(&MMAX, sizeof(int));
-    out.write(&NUMX, sizeof(int));
-    out.write(&NUMY, sizeof(int));
-    out.write(&NMAX, sizeof(int));
-    out.write(&NORDER, sizeof(int));
-    if (DENS) out.write(&one, sizeof(int));
-    else      out.write(&zero, sizeof(int));
-    if (CMAP) out.write(&one, sizeof(int));
-    else      out.write(&zero, sizeof(int));
-    out.write(&RMIN, sizeof(double));
-    out.write(&RMAX, sizeof(double));
-    out.write(&ASCALE, sizeof(double));
-    out.write(&HSCALE, sizeof(double));
-    out.write(&tnow, sizeof(double));
+    out.write((char *)&MMAX, sizeof(int));
+    out.write((char *)&NUMX, sizeof(int));
+    out.write((char *)&NUMY, sizeof(int));
+    out.write((char *)&NMAX, sizeof(int));
+    out.write((char *)&NORDER, sizeof(int));
+    if (DENS) out.write((char *)&one, sizeof(int));
+    else      out.write((char *)&zero, sizeof(int));
+    if (CMAP) out.write((char *)&one, sizeof(int));
+    else      out.write((char *)&zero, sizeof(int));
+    out.write((char *)&RMIN, sizeof(double));
+    out.write((char *)&RMAX, sizeof(double));
+    out.write((char *)&ASCALE, sizeof(double));
+    out.write((char *)&HSCALE, sizeof(double));
+    out.write((char *)&tnow, sizeof(double));
 
 				// Write table
 
@@ -667,20 +667,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&potC[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&potC[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&rforceC[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&rforceC[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&zforceC[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&zforceC[m][v][ix][iy], sizeof(double));
 	  
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write(&densC[m][v][ix][iy], sizeof(double));
+	      out.write((char *)&densC[m][v][ix][iy], sizeof(double));
 
 	}
 	
@@ -694,20 +694,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&potS[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&potS[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&rforceS[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&rforceS[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write(&zforceS[m][v][ix][iy], sizeof(double));
+	    out.write((char *)&zforceS[m][v][ix][iy], sizeof(double));
 	
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write(&densS[m][v][ix][iy], sizeof(double));
+	      out.write((char *)&densS[m][v][ix][iy], sizeof(double));
 	}
 	
       }
@@ -727,17 +727,17 @@ int EmpCylSL::cache_grid(int readwrite)
     bool cmap=false, dens=false;
     double rmin, rmax, ascl, hscl;
 
-    in.read(&mmax, sizeof(int));
-    in.read(&numx, sizeof(int));
-    in.read(&numy, sizeof(int));
-    in.read(&nmax, sizeof(int));
-    in.read(&norder, sizeof(int));
-    in.read(&tmp, sizeof(int)); if (tmp) dens = true;
-    in.read(&tmp, sizeof(int)); if (tmp) cmap = true;
-    in.read(&rmin, sizeof(double));
-    in.read(&rmax, sizeof(double));
-    in.read(&ascl, sizeof(double));
-    in.read(&hscl, sizeof(double));
+    in.read((char *)&mmax, sizeof(int));
+    in.read((char *)&numx, sizeof(int));
+    in.read((char *)&numy, sizeof(int));
+    in.read((char *)&nmax, sizeof(int));
+    in.read((char *)&norder, sizeof(int));
+    in.read((char *)&tmp, sizeof(int)); if (tmp) dens = true;
+    in.read((char *)&tmp, sizeof(int)); if (tmp) cmap = true;
+    in.read((char *)&rmin, sizeof(double));
+    in.read((char *)&rmax, sizeof(double));
+    in.read((char *)&ascl, sizeof(double));
+    in.read((char *)&hscl, sizeof(double));
 
 				// Spot check compatibility
     if ( (MMAX    != mmax   ) |
@@ -768,7 +768,7 @@ int EmpCylSL::cache_grid(int readwrite)
       }
     
     double time;
-    in.read(&time, sizeof(double));
+    in.read((char *)&time, sizeof(double));
 
 				// Read table
 
@@ -778,20 +778,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&potC[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&potC[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&rforceC[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&rforceC[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&zforceC[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&zforceC[m][v][ix][iy], sizeof(double));
 	  
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read(&densC[m][v][ix][iy], sizeof(double));
+	      in.read((char *)&densC[m][v][ix][iy], sizeof(double));
 
 	}
 	
@@ -805,20 +805,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&potS[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&potS[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&rforceS[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&rforceS[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    in.read(&zforceS[m][v][ix][iy], sizeof(double));
+	    in.read((char *)&zforceS[m][v][ix][iy], sizeof(double));
 	
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      in.read(&densS[m][v][ix][iy], sizeof(double));
+	      in.read((char *)&densS[m][v][ix][iy], sizeof(double));
 	}
 	
       }
@@ -2492,19 +2492,19 @@ void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
   coefheader.nord = NORDER;
   coefheader.nmax = NMAX;
 
-  out.write(&coefheader, sizeof(CoefHeader));
+  out.write((char *)&coefheader, sizeof(CoefHeader));
 
   for (int mm=0; mm<=MMAX; mm++) {
 
     for (int l=mm; l<=LMAX; l++) {
       
       for (int j=1; j<=NMAX; j++)
-	out.write(&(p=accum_cos0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
+	out.write((char *)&(p=accum_cos0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
       
       if (mm) {
 
 	for (int j=1; j<=NMAX; j++)
-	  out.write(&(p=accum_sin0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
+	  out.write((char *)&(p=accum_sin0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
 
       }
       
@@ -2518,17 +2518,17 @@ void EmpCylSL::dump_coefs_binary_curr(ostream& out, double time)
   coefheader2.mmax = MMAX;
   coefheader2.nmax = rank3;
 
-  out.write(&coefheader2, sizeof(CoefHeader2));
+  out.write((char *)&coefheader2, sizeof(CoefHeader2));
 
   for (int mm=0; mm<=MMAX; mm++) {
 
     for (int j=0; j<rank3; j++)
-      out.write(&accum_cos[0][mm][j], sizeof(double));
+      out.write((char *)&accum_cos[0][mm][j], sizeof(double));
     
     if (mm) {
 
       for (int j=0; j<rank3; j++)
-	out.write(&accum_sin[0][mm][j], sizeof(double));
+	out.write((char *)&accum_sin[0][mm][j], sizeof(double));
       
     }
   }
@@ -2560,34 +2560,38 @@ void EmpCylSL::dump_basis(const string& name, int step)
 				// Make output streams
       for (int i=0; i<MPItable; i++) {
 
-	ostrstream ins(strbuf, 128);
+	ostringstream ins;
 	ins << name << ".C." << labels[i] << mm << "." << n
 	    << "." << step << '\0';
+	for (int j=0; i<min<int>(128, ins.str().length()); j++)
+	  strbuf[j] = ins.str().c_str()[j];
 	
 	outC[i] = new ofstream(strbuf);
-	outC[i]->write(&numx, sizeof(int));
-	outC[i]->write(&numy, sizeof(int));
-	outC[i]->write(&(zz=  0.0), sizeof(float));
-	outC[i]->write(&(zz= rmax), sizeof(float));
-	outC[i]->write(&(zz=-rmax), sizeof(float));
-	outC[i]->write(&(zz= rmax), sizeof(float));
+	outC[i]->write((char *)&numx, sizeof(int));
+	outC[i]->write((char *)&numy, sizeof(int));
+	outC[i]->write((char *)&(zz=  0.0), sizeof(float));
+	outC[i]->write((char *)&(zz= rmax), sizeof(float));
+	outC[i]->write((char *)&(zz=-rmax), sizeof(float));
+	outC[i]->write((char *)&(zz= rmax), sizeof(float));
       }
 
       if (mm) {
 
 	for (int i=0; i<MPItable; i++) {
 
-	  ostrstream ins(strbuf, 128);
+	  ostringstream ins;
 	  ins << name << ".S." << labels[i] << mm << "." << n 
 	      << "." << step << '\0';
+	  for (int j=0; i<min<int>(128, ins.str().length()); j++)
+	    strbuf[j] = ins.str().c_str()[j];
 	
 	  outS[i] = new ofstream(strbuf);
-	  outS[i]->write(&numx,       sizeof(int));
-	  outS[i]->write(&numy,       sizeof(int));
-	  outS[i]->write(&(zz=  0.0), sizeof(float));
-	  outS[i]->write(&(zz= rmax), sizeof(float));
-	  outS[i]->write(&(zz=-rmax), sizeof(float));
-	  outS[i]->write(&(zz= rmax), sizeof(float));
+	  outS[i]->write((char *)&numx,       sizeof(int));
+	  outS[i]->write((char *)&numy,       sizeof(int));
+	  outS[i]->write((char *)&(zz=  0.0), sizeof(float));
+	  outS[i]->write((char *)&(zz= rmax), sizeof(float));
+	  outS[i]->write((char *)&(zz=-rmax), sizeof(float));
+	  outS[i]->write((char *)&(zz= rmax), sizeof(float));
 	}
 
       }
@@ -2631,7 +2635,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    potC[mm][n][ix  ][iy+1] * c01 +
 	    potC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[0]->write(&zz, sizeof(float));
+	  outC[0]->write((char *)&zz, sizeof(float));
 	    
 	  zz = fac*(
 	    rforceC[mm][n][ix  ][iy  ] * c00 +
@@ -2639,7 +2643,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    rforceC[mm][n][ix  ][iy+1] * c01 +
 	    rforceC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[1]->write(&zz, sizeof(float));
+	  outC[1]->write((char *)&zz, sizeof(float));
 
 	  zz = fac*(
 	    zforceC[mm][n][ix  ][iy  ] * c00 +
@@ -2647,7 +2651,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    zforceC[mm][n][ix  ][iy+1] * c01 +
 	    zforceC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[2]->write(&zz, sizeof(float));
+	  outC[2]->write((char *)&zz, sizeof(float));
 
 	  if (DENS) {
 	    zz = fac*(
@@ -2656,7 +2660,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      densC[mm][n][ix  ][iy+1] * c01 +
 	      densC[mm][n][ix+1][iy+1] * c11 );
 
-	    outC[3]->write(&zz, sizeof(float));
+	    outC[3]->write((char *)&zz, sizeof(float));
 	  }
 
 	  if (mm) {
@@ -2667,7 +2671,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      potS[mm][n][ix  ][iy+1] * c01 +
 	      potS[mm][n][ix+1][iy+1] * c11 );
 
-	    outS[0]->write(&zz, sizeof(float));
+	    outS[0]->write((char *)&zz, sizeof(float));
 	    
 	    zz = fac*(
 	      rforceS[mm][n][ix  ][iy  ] * c00 +
@@ -2675,7 +2679,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      rforceS[mm][n][ix  ][iy+1] * c01 +
 	      rforceS[mm][n][ix+1][iy+1] * c11 );
 
-	    outS[1]->write(&zz, sizeof(float));
+	    outS[1]->write((char *)&zz, sizeof(float));
 
 	    zz = fac*(
 	      zforceS[mm][n][ix  ][iy  ] * c00 +
@@ -2683,7 +2687,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      zforceS[mm][n][ix  ][iy+1] * c01 +
 	      zforceS[mm][n][ix+1][iy+1] * c11 );
 	    
-	    outS[2]->write(&zz, sizeof(float));
+	    outS[2]->write((char *)&zz, sizeof(float));
 	    
 	    if (DENS) {
 	      zz = fac*(
@@ -2692,7 +2696,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 		densS[mm][n][ix  ][iy+1] * c01 +
 		densS[mm][n][ix+1][iy+1] * c11 );
 	      
-	      outS[3]->write(&zz, sizeof(float));
+	      outS[3]->write((char *)&zz, sizeof(float));
 	    }
 
 	  }
@@ -2724,16 +2728,16 @@ double EmpCylSL::r_to_xi(double r)
 {
   if (CMAP) {
     if (r<0.0) {
-      ostrstream msg;
+      ostringstream msg;
       msg << "radius=" << r << " < 0! [mapped]";
-      bomb(string(msg.str()));
+      bomb(msg.str());
     }
     return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
-      ostrstream msg;
+      ostringstream msg;
       msg << "radius=" << r << " < 0!";
-      bomb(string(msg.str()));
+      bomb(msg.str());
     }
     return r;
   }

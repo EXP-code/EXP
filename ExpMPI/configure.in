@@ -1,7 +1,11 @@
 dnl Process this file with autoconf to produce a configure script.
-AC_INIT(src/expand.h)
-AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(EXP, 3.99)
+AC_INIT(EXP, 4.09)
+AC_CONFIG_HEADERS(config.h)
+AC_CONFIG_SRCDIR(src/expand.cc)
+AM_INIT_AUTOMAKE
+
+AC_DEFINE([NEED_MAIN], 1, [Define if a function `main' is needed.])
+
 
 dnl Checks for programs.
 AC_PROG_AWK
@@ -79,5 +83,31 @@ AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 
 
 dnl Make the makefiles
-AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile)
+AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile)
 
+echo "----------------------------------------------------------------"
+echo "Now type: "
+echo ""
+echo "    make"
+echo ""
+echo "or"
+echo ""
+echo "    make CXXFLAGS=\"-O3\" CFLAGS=\"-O3\""
+echo ""
+echo "to make the package for production work.  The default flags are"
+echo "\"-g -O2\".  You may automatically install the executable and"
+echo "libraries with the command:"
+echo ""
+echo "    make install prefix=/home/user"
+echo ""
+echo "----------------------------------------------------------------"
+ 
+if test x$DOXYGEN != xnotfound; then
+echo "The documentation will be in: doc/html.  You can make the"
+echo "documentation before the compilation, if you like."
+echo "----------------------------------------------------------------"
+else
+echo "You need the doxygen package to build the documentation."
+echo "You can get this at http://www.stack.nl/~dimitri/doxygen"
+echo "----------------------------------------------------------------"
+fi

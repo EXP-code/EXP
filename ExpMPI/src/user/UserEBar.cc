@@ -1,5 +1,5 @@
 #include <math.h>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 
@@ -13,7 +13,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   bratio = 0.5;			// Ratio of b to a
   cratio = 0.1;			// Ratio of c to b
   amplitude = 0.3;		// Bar quadrupole amplitude
-  barmass = 1.0;			// Total bar mass
+  barmass = 1.0;		// Total bar mass
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
@@ -21,7 +21,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
-  filename = "BarRot";		// Output file name
+  filename = "BarRot." + runtag; // Output file name
 
   firstime = true;
 
@@ -96,7 +96,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
     getline(in, fline, '\n');
     while (in) {
       if (fline.find("#") == string::npos && fline.find("!") == string::npos) {
-	istrstream ins(fline.c_str());
+	istringstream ins(fline.c_str());
 	ins >> val;
 	timeq.push_back(val);
 	ins >> val;
@@ -143,6 +143,9 @@ UserEBar::~UserEBar()
 void UserEBar::userinfo()
 {
   if (myid) return;		// Return if node master node
+
+  print_divider();
+
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
   if (fixed)
     cout << "fixed pattern speed, ";
@@ -162,7 +165,8 @@ void UserEBar::userinfo()
     cout << "angular momentum from <" << angm_name << ">" << endl;
   else
     cout << "no initial angular momentum (besides bar)" << endl;
-  cout << "****************************************************************\n";
+
+  print_divider();
 }
 
 void UserEBar::initialize()
@@ -329,23 +333,40 @@ void UserEBar::determine_acceleration_and_potential(void)
 
       if (myid == 0) {
 	
-	const int linesize = 1024;
-	char line[linesize];
+	// Backup up old file
+	string backupfile = name + ".bak";
+	string command("cp ");
+	command += name + " " + backupfile;
+	system(command.c_str());
+
+	// Open new output stream for writing
+	ofstream out(name.c_str());
+	if (!out) {
+	  cout << "UserEBar: error opening new log file <" 
+	       << filename << "> for writing\n";
+	  MPI_Abort(MPI_COMM_WORLD, 121);
+	  exit(0);
+	}
 	
-	ifstream in(name.c_str());
+	// Open old file for reading
+	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cerr << "User_bar_slow: can't open barstat file<" << name << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 101);
+	  cout << "UserEBar: error opening original log file <" 
+	       << backupfile << "> for reading\n";
+	  MPI_Abort(MPI_COMM_WORLD, 122);
 	  exit(0);
 	}
 
+	const int linesize = 1024;
+	char line[linesize];
+	
 	in.getline(line, linesize); // Discard header
 	in.getline(line, linesize); // Next line
 
-	double Lz1, am1;
+	double Lzp, Lz1, am1;
 	bool firstime1 = true;
 	while (in) {
-	  istrstream ins(line);
+	  istringstream ins(line);
 
 	  lastomega = omega;
 
@@ -353,6 +374,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  ins >> posang;
 	  ins >> omega;
 	  ins >> Lz1;
+	  ins >> Lzp;
 	  ins >> am1;
 	  ins >> bps[0];
 	  ins >> bps[1];
@@ -366,12 +388,17 @@ void UserEBar::determine_acceleration_and_potential(void)
 
 	  if (firstime1) {
 	    Lz = Lz1;
-	    Lz0 = am1;
+	    Lz0 = Lzp;
 	    firstime1 = false;
 	  }
 
+	  if (lasttime >= tvel) break;
+
+	  out << line << "\n";
+
 	  in.getline(line, linesize); // Next line
 	}
+
       }
 
       MPI_Bcast(&lasttime, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -417,7 +444,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 				// Get full contribution from all threads
   for (int k=0; k<3; k++) acc[k] = acc1[k] = 0.0;
   for (int n=0; n<nthrds; n++) {
-    for (int k=0; k<3; k++) acc1[k] += tacc[n][k];
+    for (int k=0; k<3; k++) acc1[k] += tacc[n][k]/barmass;
   }
 
 				// Get contribution from all processes

@@ -1,10 +1,12 @@
+using namespace std;
+
 #include "expand.h"
 
 #include <stdlib.h>
 #include <math.h>
-#include <iostream.h>
-#include <iomanip.h>
-#include <fstream.h>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <string>
 #include <Vector.h>
 

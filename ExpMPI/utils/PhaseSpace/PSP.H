@@ -9,8 +9,8 @@
 
 #include <header.H>
 
-struct Stanza {
-
+struct PSPstanza 
+{
   streampos pos, pspos;
   string name;
   string id;
@@ -38,10 +38,10 @@ class Dump
 public:
   streampos pos;
   MasterHeader header;
-  list<Stanza> stanzas;
+  list<PSPstanza> stanzas;
   
   int ngas, ndark, nstar, ntot;
-  list<Stanza> gas, dark, star;
+  list<PSPstanza> gas, dark, star;
   
   Dump () : ngas(0), ndark(0), nstar(0), ntot(0) {}
 
@@ -60,8 +60,8 @@ private:
   list<Dump>::iterator sdump;
   Dump *fid;
 
-  list<Stanza>::iterator spos;
-  Stanza *cur;
+  list<PSPstanza>::iterator spos;
+  PSPstanza *cur;
 
   SParticle part;
   int pcount;
@@ -80,17 +80,17 @@ public:
   Dump *GetDump();
   Dump *NextDump();
 
-  Stanza *GetStanza();
-  Stanza *NextStanza();
+  PSPstanza *GetStanza();
+  PSPstanza *NextStanza();
 
-  Stanza *GetGas();
-  Stanza *NextGas();
+  PSPstanza *GetGas();
+  PSPstanza *NextGas();
 
-  Stanza *GetDark();
-  Stanza *NextDark();
+  PSPstanza *GetDark();
+  PSPstanza *NextDark();
 
-  Stanza *GetStar();
-  Stanza *NextStar();
+  PSPstanza *GetStar();
+  PSPstanza *NextStar();
 
   SParticle *GetParticle(istream* in);
   SParticle *NextParticle(istream* in);

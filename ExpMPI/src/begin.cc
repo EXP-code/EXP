@@ -17,6 +17,19 @@ void begin_run(void)
 {
 
   //===================================
+  // Make the Vector class mutex
+  //===================================
+  
+  int errcode = pthread_mutex_init(&mem_lock, NULL);
+  if (errcode) {
+    cerr << "Process " << myid 
+	 << ": failed to make the Vector class memory lock, errcode=" 
+	 << errcode << endl;
+    MPI_Abort(MPI_COMM_WORLD, 115);
+  }
+
+
+  //===================================
   // Initialize phase-space components 
   //===================================
 
@@ -34,19 +47,19 @@ void begin_run(void)
 
   comp.compute_potential();
 
-  //===================================
-  // Initialize output routines
-  //===================================
-
-  output.initialize();
-  output.Run(0);
-
   //==============================
   // Increment velocity of bodies 
   // to initialize leap-frog      
   //==============================
 
   init_velocity();
+
+  //===================================
+  // Initialize output routines
+  //===================================
+
+  output.initialize();
+  output.Run(0);
 
   //======================
   // Write parameter file 

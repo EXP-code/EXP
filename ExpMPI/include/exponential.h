@@ -78,18 +78,22 @@ public:
 
   double distf(double E, double L) {
     bomb("Dist fct not defined!");
+    return 0.0;
   }
 
   double dfde(double E, double L) {
     bomb("Dist fct not defined!");
+    return 0.0;
   }
 
   double dfdl(double E, double L) {
     bomb("Dist fct not defined!");
+    return 0.0;
   }
   
   double d2fde2(double E, double L) {
     bomb("Dist fct not defined!");
+    return 0.0;
   }
 
 };

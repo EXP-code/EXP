@@ -1,3 +1,5 @@
+using namespace std;
+
 // #define DEBUG 1
 // #define DEBUG_SLEDGE 1
 // #define DEBUG_NAN 1
@@ -12,8 +14,9 @@
 // #define MESTELCYL
 
 #include <stdlib.h>
-#include <iostream.h>
-#include <iomanip.h>
+#include <iostream>
+#include <iomanip>
+
 #include <f2c.h>
 
 #include <SLGridMP2.h>
@@ -2835,7 +2838,7 @@ int SLGridSlab::read_cached_table(void)
   if (!in) return 0;
 
   int NUMK, NMAX, NUMZ, i, j;
-  double ZMAX, HH, zbeg, zend;
+  double ZMAX, HH, LL, zbeg, zend;
 
   cerr << "SLGridSlab::read_cached_table: trying to read cached table . . . \n";
 
@@ -2844,6 +2847,7 @@ int SLGridSlab::read_cached_table(void)
   in.read((char *)&NUMZ, sizeof(int));		if(!in || NUMZ!=numz) return 0;
   in.read((char *)&ZMAX, sizeof(double));	if(!in || ZMAX!=zmax) return 0;
   in.read((char *)&HH, sizeof(double));		if(!in || HH!=H)      return 0;
+  in.read((char *)&LL, sizeof(double));		if(!in || LL!=L)      return 0;
   in.read((char *)&zbeg, sizeof(double));	if(!in || zbeg!=ZBEG) return 0;
   in.read((char *)&zend, sizeof(double));	if(!in || zend!=ZEND) return 0;
 
@@ -2904,6 +2908,7 @@ void SLGridSlab::write_cached_table(void)
   out.write((char *)&numz, sizeof(int));
   out.write((char *)&zmax, sizeof(double));
   out.write((char *)&H,    sizeof(double));
+  out.write((char *)&L,    sizeof(double));
   out.write((char *)&ZBEG, sizeof(double));
   out.write((char *)&ZEND, sizeof(double));
 
@@ -2936,7 +2941,6 @@ SLGridSlab::~SLGridSlab()
 				// Members
 
 /*
-
 double SLGridSlab::z_to_xi(double z)
 {
   return tanh(z/H);
@@ -2951,8 +2955,8 @@ double SLGridSlab::d_xi_to_z(double xi)
 {
   return H/(1.0 - xi*xi);
 }
-
 */
+
 
 /*
 double SLGridSlab::z_to_xi(double z)
@@ -2971,7 +2975,6 @@ double SLGridSlab::d_xi_to_z(double xi)
 }
 */
 
-
 				// Simple cartesian coordinates seem
 				// to work best here; this transformation
 				// is the identity . . . 
@@ -2980,7 +2983,7 @@ double SLGridSlab::z_to_xi(double z)
 {
   return z;
 }
-    
+
 double SLGridSlab::xi_to_z(double xi)
 {
   return xi;
@@ -2990,6 +2993,7 @@ double SLGridSlab::d_xi_to_z(double xi)
 {
   return 1.0;
 }
+
 
 
 double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
@@ -3004,7 +3008,7 @@ double SLGridSlab::get_pot(double x, int kx, int ky, int n, int which)
   if (which)
     x = z_to_xi(x);
 
-  if (ky > ky) {
+  if (ky > kx) {
     hold = ky;
     ky = kx;
     kx = hold;
@@ -3040,7 +3044,7 @@ double SLGridSlab::get_dens(double x, int kx, int ky, int n, int which)
   if (which)
     x = z_to_xi(x);
 
-  if (ky > ky) {
+  if (ky > kx) {
     hold = ky;
     ky = kx;
     kx = hold;
@@ -3075,7 +3079,7 @@ double SLGridSlab::get_force(double x, int kx, int ky, int n, int which)
   if (which)
     x = z_to_xi(x);
 
-  if (ky > ky) {
+  if (ky > kx) {
     hold = ky;
     ky = kx;
     kx = hold;
@@ -3234,7 +3238,7 @@ void SLGridSlab::get_pot(Vector& vec, double x, int kx, int ky, int which)
   if (which)
     x = z_to_xi(x);
 
-  if (ky > ky) {
+  if (ky > kx) {
     hold = ky;
     ky = kx;
     kx = hold;
@@ -3284,8 +3288,8 @@ void SLGridSlab::get_dens(Vector& vec, double x, int kx, int ky, int which)
   double x2 = (x - xi[indx])/dxi;
   
 
+  sign2 = 1;
   for (int n=1; n<=nmax; n++) {
-    sign2 = 1;
 #ifdef USE_TABLE
     vec[n] = (x1*table[kx][ky].ef[n][indx] + x2*table[kx][ky].ef[n][indx+1])*
       sqrt(table[kx][ky].ev[n]) * (x1*d0[indx] + x2*d0[indx+1]) * sign2;
@@ -3310,7 +3314,7 @@ void SLGridSlab::get_force(Vector& vec, double x, int kx, int ky, int which)
   if (which)
     x = z_to_xi(x);
 
-  if (ky > ky) {
+  if (ky > kx) {
     hold = ky;
     ky = kx;
     kx = hold;
@@ -3345,7 +3349,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
   int i, j, k, VERBOSE=0;
   integer NUM, N;
-  logical type[8];
+  logical type[8] = {1, 0, 0, 0, 1, 0, 0, 0};
   logical endfin[2] = {1, 1};
   
 #ifdef DEBUG_SLEDGE
@@ -3373,7 +3377,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   double *pdef = new double [NUM*N];
   double f, df;
 
-  KKZ = 2.0*M_PI/L * sqrt(KX*KX + KY*KY);
+  KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
   f = slabpot(cons[6]);
@@ -3385,7 +3389,8 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
     df = slabdpot(cons[7]);
     cons[4] = (df + KKZ*f)*f;
   }
-  cons[5] = 1.0/(f*f);
+  cons[5] = 1.0;
+  //  cons[5] = 1.0/(f*f);
 
   //
   //     Initialize the vector INVEC(*):
@@ -3405,7 +3410,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
   //        classify,
   //        let SLEDGE choose the initial mesh
   //
-  logical job[5] = {0,1,0,0,0};
+  logical job[5] = {0,1,0,1,0};
 
   //
   //     Output mesh
@@ -3550,6 +3555,7 @@ void SLGridSlab::init_table(void)
   xmax = z_to_xi( zmax);
   dxi = (xmax-xmin)/(numz-1);
 
+
   for (i=0; i<numz; i++) {
     xi[i] = xmin + dxi*i;
     z[i] = xi_to_z(xi[i]);
@@ -3631,7 +3637,7 @@ void SLGridSlab::compute_table_slave(void)
     double *pdef = new double [NUM*N];
     double f, df;
 
-    KKZ = 2.0*M_PI/L * sqrt(KX*KX + KY*KY);
+    KKZ = 2.0*M_PI/L * sqrt((double)(KX*KX + KY*KY));
 
 				// Even BC, inner has zero gradient
     f = slabpot(cons[6]);

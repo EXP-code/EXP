@@ -1,7 +1,9 @@
-#include <strstream>
-#include "expand.h"
-
 static char rcsid[] = "$Id$";
+
+using namespace std;
+
+#include <sstream>
+#include "expand.h"
 
 #include <OutLog.H>
 
@@ -68,7 +70,7 @@ void OutLog::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUTLOG.dat";
+    filename = "OUTLOG." + runtag + "\0";
   }
 
   if (Output::get_value(string("freq"), tmp))
@@ -164,16 +166,16 @@ void OutLog::Run(int n, bool last)
 	// Open new output stream for writing
 	out = new ofstream(filename.c_str());
 	if (!*out) {
-	  ostrstream message;
+	  ostringstream message;
 	  message << "OutLog: error opening new log file <" 
 		  << filename << "> for writing\n";
-	  bomb(message.str());
+	  bomb(message.str().c_str());
 	}
 	  
 	// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  ostrstream message;
+	  ostringstream message;
 	  message << "OutLog: error opening original log file <" 
 		  << backupfile << "> for reading\n";
 	  bomb(message.str());
@@ -489,3 +491,4 @@ void OutLog::Run(int n, bool last)
   }
 
 }
+

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 #include <global.H>
@@ -20,7 +20,7 @@ void OutPSN::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUT\0";
+    filename = "OUT." + runtag + "\0";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -40,17 +40,13 @@ void OutPSN::initialize()
     for (nbeg=0; nbeg<100000; nbeg++) {
 
 				// Output name
-      ostrstream fname;
+      ostringstream fname;
       fname << filename << "." << setw(5) << setfill('0') << nbeg << '\0';
 
 				// See if we can open file
-      ofstream out(fname.str(), ios::out | ios::noreplace);
+      ifstream in(fname.str().c_str());
 
-      if (out) {
-	out.close();
-	ostrstream command;
-	command << "rm " <<  fname.str() << '\0';
-	system(command.str());
+      if (!in) {
 	cout << "OutPSN: will begin with nbeg=" << nbeg << endl;
 	break;
       }
@@ -71,11 +67,11 @@ void OutPSN::Run(int n, bool last)
 
   if (myid==0) {
 				// Output name
-    ostrstream fname;
+    ostringstream fname;
     fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
 
 				// Open file and write master header
-    out = new ofstream(fname.str(), ios::out | ios::noreplace);
+    out = new ofstream(fname.str().c_str());
 
     if (!*out) {
       cerr << "OutPSN: can't open file <" << fname.str() 
@@ -89,7 +85,7 @@ void OutPSN::Run(int n, bool last)
     header.ntot = comp.ntot;
     header.ncomp = comp.ncomp;
 
-    out->write(&header, sizeof(MasterHeader));
+    out->write((char *)&header, sizeof(MasterHeader));
   }
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {

@@ -1,5 +1,7 @@
+using namespace std;
+
 #include <unistd.h>
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

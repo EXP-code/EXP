@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 
 #include <expand.h>
 
@@ -13,7 +13,9 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   norb = 5;
   nbeg = 0;
   nskip = 0;
-  filename = "ORBTRACE";
+  use_acc = false;
+  use_pot = false;
+  filename = "ORBTRACE." + runtag;
   tcomp = NULL;
 
   initialize();
@@ -42,7 +44,12 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 	 << "[" << tcomp->id << "]\n";
   }
 
-  pbuf = vector<double>(6);
+  nbuf = 6;
+  if (use_acc) nbuf += 3;
+  if (use_pot) nbuf += 1;
+  
+
+  pbuf = vector<double>(nbuf);
 
   if (myid==0 && norb) {
 
@@ -57,7 +64,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       // Open new output stream for writing
       ofstream out(filename.c_str());
       if (!out) {
-	ostrstream message;
+	ostringstream message;
 	message << "OrbTrace: error opening new trace file <" 
 		<< filename << "> for writing\n";
 	bomb(message.str());
@@ -66,7 +73,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       // Open old file for reading
       ifstream in(backupfile.c_str());
       if (!in) {
-	ostrstream message;
+	ostringstream message;
 	message << "OrbTrace: error opening original trace file <" 
 		<< backupfile << "> for reading\n";
 	bomb(message.str());
@@ -104,7 +111,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 				// Try to open the first time . . .
       ofstream out(filename.c_str(), ios::out | ios::app);
       if (!out) {
-	ostrstream outs;
+	ostringstream outs;
 	outs << "Process " << myid << ": can't open file <" << filename << ">\n";
 	bomb(outs.str());
       }
@@ -126,6 +133,18 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 	    << setw(20) << " v[" << orblist[i] << "]\n";
 	out << "# " << setw(4) << npos++ 
 	    << setw(20) << " w[" << orblist[i] << "]\n";
+	if (use_acc) {
+	  out << "# " << setw(4) << npos++ 
+	      << setw(20) << " ax[" << orblist[i] << "]\n";
+	  out << "# " << setw(4) << npos++ 
+	      << setw(20) << " ay[" << orblist[i] << "]\n";
+	  out << "# " << setw(4) << npos++ 
+	      << setw(20) << " az[" << orblist[i] << "]\n";
+	}
+	if (use_pot) {
+	  out << "# " << setw(4) << npos++ 
+	      << setw(20) << " pot[" << orblist[i] << "]\n";
+	}
       }
       out << "# " << endl;
     }
@@ -150,6 +169,16 @@ void OrbTrace::initialize()
 
   if (get_value(string("nint"), tmp)) 
     nint = atoi(tmp.c_str());
+
+  if (get_value(string("use_acc"), tmp)) {
+    if (atoi(tmp.c_str())) use_acc = true;
+    else                   use_acc = false;
+  }
+
+  if (get_value(string("use_pot"), tmp)) {
+    if (atoi(tmp.c_str())) use_pot = true;
+    else                   use_pot = false;
+  }
 
 				// Search for desired component
   if (get_value(string("name"), tmp)) {
@@ -191,12 +220,22 @@ void OrbTrace::Run(int n, bool last)
       curindex = orblist[i];
       if (curproc) curindex -= tcomp->nbodies_index[curproc-1];
 
+      int icnt=0;
       for (int k=0; k<3; k++) 
-	pbuf[k  ] = 
+	pbuf[icnt++] = 
 	  tcomp->particles[curindex].pos[k];
       for (int k=0; k<3; k++) 
-	pbuf[k+3] = 
+	pbuf[icnt++] = 
 	  tcomp->particles[curindex].vel[k];
+      if (use_acc) {
+	for (int k=0; k<3; k++) 
+	  pbuf[icnt++] = 
+	    tcomp->particles[curindex].acc[k];
+      }
+      if (use_acc) {
+	pbuf[icnt++] = tcomp->particles[curindex].pot + 
+	  tcomp->particles[curindex].potext;
+      }
 
 #ifdef DEBUG
       cout << "Process " << curproc << ": packing particle #" << orblist[i]
@@ -211,17 +250,17 @@ void OrbTrace::Run(int n, bool last)
     if (curproc) {		// Get particle from nodes
       
       if (myid==curproc) {	// Send
-	MPI_Send(&pbuf[0], 6, MPI_DOUBLE, 0, 71, MPI_COMM_WORLD);
+	MPI_Send(&pbuf[0], nbuf, MPI_DOUBLE, 0, 71, MPI_COMM_WORLD);
       }
 
       if (myid==0) { 		// Receive
-	MPI_Recv(&pbuf[0], 6, MPI_DOUBLE, curproc, 71, MPI_COMM_WORLD,
+	MPI_Recv(&pbuf[0], nbuf, MPI_DOUBLE, curproc, 71, MPI_COMM_WORLD,
 		 &status);
       }
     }
 				// Print the particle buffer
     if (myid==0 && out) {
-      for (int k=0; k<6; k++) out << setw(15) << pbuf[k];
+      for (int k=0; k<nbuf; k++) out << setw(15) << pbuf[k];
     }
     
   }

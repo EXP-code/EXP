@@ -11,12 +11,14 @@ const char rcsid[] = "$Id$";
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <strstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
 #include <massmodel.h>
 #include <interp.h>
+
+using namespace std;
 
 int wordSplit(string& x, vector<string>& words);
 
@@ -68,7 +70,7 @@ SphericalModelTable::SphericalModelTable(string filename,
     x = cbuf;
   } while (x.find('#') < x.size() || x.find('!') < x.size());
 
-  istrstream ist(x.c_str(), x.size());
+  istringstream ist(x, istringstream::in);
   ist >> num;
 
   density.x.setsize(1,num);
@@ -87,7 +89,7 @@ SphericalModelTable::SphericalModelTable(string filename,
   for (int i=1; i<=num; i++) {
     from.getline(cbuf, MAXLINE);
     x = cbuf;
-    istrstream ist(x.c_str(), x.size());
+    istringstream ist(x, istringstream::in);
     ist >> radius;
     ist >> density.y[i];
     ist >> mass.y[i];
@@ -345,6 +347,75 @@ double SphericalModelTable::get_dpot2(const double r)
 
   return ans;
 }
+
+void SphericalModelTable::print_df(char const *name)
+{
+  if (!dist_defined) bomb("distribution function not defined");
+
+  ofstream out(name);
+  if (!out) {
+    cerr << "Couldn't open <" << name << "\n";
+    return;
+  }
+
+  double g, d;
+  for (int i=df.Q.getlow(); i<=df.Q.gethigh(); i++) {
+
+    if (linear) {
+      d = odd2(df.Q[i], df.Q, df.fQ);
+      g = odd2(df.Q[i], df.Q, df.ffQ);
+    } else {
+      Splint1(df.Q, df.fQ, df.fQ2, df.Q[i], d);
+      Splint1(df.Q, df.ffQ, df.ffQ2, df.Q[i], g);
+    }
+
+    d *= - exp(g - df.Q[i]);
+
+    out << setw(16) << df.Q[i]
+	<< setw(16) << df.fQ[i]
+	<< setw(16) << df.ffQ[i]
+	<< setw(16) << d
+	<< setw(16) << -d*exp(g - df.Q[i])
+	<< endl;
+  }
+}
+
+
+void SphericalModelTable::print_model(char const *name)
+{
+  ofstream out(name);
+  if (!out) {
+    cerr << "Couldn't open <" << name << "\n";
+    return;
+  }
+
+  out.setf(ios::left);
+
+  out << "# ModelID=" << ModelID << endl;
+  out << setw(18) << "# Radius" 
+      << setw(18) << "Density" 
+      << setw(18) << "Mass" 
+      << setw(18) << "Potential" 
+      << endl;
+
+  char c = out.fill('-');
+  out << setw(18) << "#-[1]"
+      << setw(18) << "|-[2]"
+      << setw(18) << "|-[3]"
+      << setw(18) << "|-[4]"
+      << endl;
+  out.fill(c);
+
+  for (int i=1; i<=density.num; i++) {
+    out << setw(18) << density.x[i]
+	<< setw(18) << density.y[i]
+	<< setw(18) << mass.y[i]
+	<< setw(18) << pot.y[i]
+	<< endl;
+  }
+
+}
+
 
 void EmbeddedDiskModel::verbose_df(void)
 {

@@ -1,14 +1,17 @@
+static char rcsid[] = "$Id$";
+
+using namespace std;
+
 #include <values.h>
 #include "expand.h"
+
+#include <sstream>
 
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
 
 #include <Orient.H>
 #include <Cylinder.H>
-
-static char rcsid[] = "$Id$";
-
 
 pthread_mutex_t Cylinder::used_lock;
 pthread_mutex_t Cylinder::cos_coef_lock;
@@ -509,8 +512,7 @@ void Cylinder::dump_coefs(ostream& out)
 }
 
 				// Density debug
-#include <fstream.h>
-#include <strstream.h>
+#include <fstream>
 
 void Cylinder::dump_mzero(const string& name, int step)
 {
@@ -520,14 +522,13 @@ void Cylinder::dump_mzero(const string& name, int step)
   double z, dz = 2.0*ZMAX/(ncylny-1);
 
   float zz;
-  char strbuf[128];
   string label[] = {".dens0.", ".pot0.", ".fr0.", ".fz0."};
   ofstream** out = new ofstream* [4];
 
   for (int i=0; i<4; i++) {
-    ostrstream ins(strbuf, 128);
+    ostringstream ins;
     ins << name << label[i] << step << '\0';
-    out[i] = new ofstream(strbuf);
+    out[i] = new ofstream(ins.str().c_str());
 
     out[i]->write((char *)&ncylnx, sizeof(int));
     out[i]->write((char *)&ncylny, sizeof(int));

@@ -1,16 +1,13 @@
+using namespace std;
 
 #include <stdlib.h>
-#include <iostream.h>
+#include <iostream>
 
 #include <Vector.h>
-
-using namespace std;
 
 int Three_Vector::nlive=0;
 
 
-
-	
 Three_Vector::operator Vector(void)
 {
         Vector tmp(1, 3);

@@ -9,6 +9,7 @@
 
 int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z);
 
+int
 main(int argc, char **argv)
 {
   int i, j, k;
@@ -308,7 +309,7 @@ main(int argc, char **argv)
 // const double XX_EPS = MINDOUBLE;
 const double XX_EPS = 1.11078e-16;
 
-int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z)
+int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z)
 {
   int i, j, k, RotCount, SweepCount, slimit;
   double eps, tol, vt, p, x0, y0, q, r, c0, s0, d1, d2;
@@ -325,9 +326,9 @@ int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z)
   eps = XX_EPS;
   tol = nRow*nRow*eps;
 
-  slimit = nCol/4+1;		/* Safety feature to truncate */
-  if (slimit < 7.0)		/* sweep iteraction in case of */
-    slimit = 7;			/* exotic failure */
+  slimit = nCol/4+1;		// Safety feature to truncate
+  if (slimit < 7.0)		// sweep iteraction in case of
+    slimit = 7;			// exotic failure
   SweepCount = 0;
   RotCount = 1;
 
@@ -355,7 +356,7 @@ int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z)
 		  p += x0*y0; q += x0*x0; r += y0*y0;
 		}
 
-	      if (q<r) {	/* Exchange columns which are out of order */
+	      if (q<r) {	// Exchange columns which are out of order
 		c0 = 0.0;
 		s0 = 1.0;
 		
@@ -408,7 +409,7 @@ int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z)
 		}
 	    }
 	}
-				/* Sweep complete */
+				// Sweep complete
 #if DEBUG      
       {
 	int imax = nCol*(nCol-1)/2;
@@ -416,10 +417,10 @@ int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z)
 	     << imax - RotCount << " of " << imax  << '\n';
       }
 #endif
-				/* New sweep? */
+				// New sweep?
     }
 
-				/* Compute singular values */
+				// Compute singular values
 
   for (j=0; j<nCol; j++)
     {

@@ -78,8 +78,10 @@ SatFix::~SatFix()
 void SatFix::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "** Enforces mirror coordinates for adjacent particles         **\n";
-  cout << "****************************************************************\n";
+
+  print_divider();
+  cout << "Enforces mirror coordinates for adjacent particles\n";
+  print_divider();
 }
 
 void SatFix::initialize()

@@ -9,9 +9,10 @@
 #endif
 
 #include <math.h>
-#include <iostream.h>
-#include <fstream.h>
+#include <iostream>
+#include <fstream>
 #include <string>
+
 #include <mpi.h>
 #include <localmpi.h>
 

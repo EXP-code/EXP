@@ -32,4 +32,7 @@ void do_step(int n)
 
 				// Write output
   output.Run(n);
+
+				// Load balance
+  comp.load_balance();
 }

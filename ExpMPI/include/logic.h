@@ -4,6 +4,8 @@
 
 #include <string>
 
+using namespace std;
+
 #ifdef IS_MAIN
 string StrLogic[] = {"False", "True"};
 #else

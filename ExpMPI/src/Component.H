@@ -5,7 +5,16 @@
 #include <PotAccel.H>
 #include <Orient.H>
 #include <header.H>
+#include <utility>
 
+
+//! Structure used to sort old & new indices for load balancing
+struct loadb_datum
+{
+  int top;		///< Top particle index for this process
+  int indx;		///< Process ID
+  unsigned short s;	///< 0-->Old partiion, 1-->New partiion
+};
 
 //! Class associating the phase space with a biorthogonal basis
 /*!
@@ -87,6 +96,9 @@
 
   @param EJdiag turns on verbose EJ reporting
 
+  @param EJdryrun set to true does not apply EJ centering or rotation but
+  computes the transformation
+
   @param rmax is the maximum radius particle.  This is determined
   dynamically from the initial conditions but can be overridden as a
   parameter.
@@ -109,17 +121,19 @@ class Component
   static const int ndmax = 5;
   static const int nimax = 5;
 
+public:
+
   //! For interprocess communication
   struct Partstruct
-  {				// Type:    Offsets:
-    double mass;		// 0        0
-    double pos[3];		// 1        1,2,3
-    double vel[3];		// 2        4,5,6
-    double acc[3];		// 3        7,8.9
-    double pot;			// 4        10
-    double potext;		// 5        11
-    int    iatr[nimax];		// 6        12,13,14,15,16
-    double datr[ndmax];		// 7        17,18,19,20,21
+  {				///< Type:    Offsets:
+    double mass;		///< 0        0
+    double pos[3];		///< 1        1,2,3
+    double vel[3];		///< 2        4,5,6
+    double acc[3];		///< 3        7,8.9
+    double pot;			///< 4        10
+    double potext;		///< 5        11
+    int    iatr[nimax];		///< 6        12,13,14,15,16
+    double datr[ndmax];		///< 7        17,18,19,20,21
   };
 
 private:
@@ -130,6 +144,7 @@ private:
   void get_next_particle_from_file(Partstruct *onepart, istream *in);
   void part_to_Particle(Partstruct&, Particle&);
   void Particle_to_part(Partstruct&, Particle&);
+  void load_balance(void);
 
   Partstruct *buf;
   static const int nbuf = 2000;
@@ -152,7 +167,13 @@ private:
 
   // Adiabatic mass
   bool adiabatic;
-  double ton, twid;
+  double ton, toff, twid;
+
+
+  // For load balancing
+  vector <loadb_datum> loadb;
+  void append_particles(int from, int to, int begin, int number);
+  void insert_particles(int from, int to, int begin, int number, int loc);
 
 protected:
 
@@ -176,14 +197,13 @@ protected:
   //! Vectors for holding current particle partition
   vector<int> plist, ncount, nbodies_index, nbodies_table;
   //! Vectors for holding the rates per node for load balancing
-  vector<double> rates, orates, trates;
+  vector<double> orates, trates;
 
   //! Binary read flag
   bool binary;
 
   //! Component list for tying center of mass
   list<Component*> com_tie;
-
 
 public:
 
@@ -257,6 +277,8 @@ public:
   double eEJ0;
   //! Print verbose diagnostics
   bool EJdiag;
+  //! Do not apply transformation
+  bool EJdryrun;
   //! Use particle KE for energy computation
   bool EJkinE;
   //! Use external potential for energy computation

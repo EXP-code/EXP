@@ -1,6 +1,6 @@
 #include <iostream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 #include <string>
 
 #include <vector>
@@ -253,7 +253,7 @@ void Reconstruct::dump_coefficients(string file)
   ofstream out(file.c_str());
   if (!out) {
     cerr << "Reconstruct::dump_coefficients: can't open <"
-	 << file << "> . . . \n";
+	 << file << "> . . . " << endl;
     return;
   }
   out.setf(ios::scientific);
@@ -265,9 +265,9 @@ void Reconstruct::dump_coefficients(string file)
   out << "# Cosine coefficients only" << endl;
   out << "#" << setw(4) << "l" << setw(5) << "m";
   for (int i=1; i<=nmax; i++) {
-    ostrstream ostr;
-    ostr << "n=" << i << '\0';
-    out << setw(18) <<  ostr.str();
+    ostringstream ostr;
+    ostr << "n=" << i;
+    out << setw(18) << ostr.str();
   }
   out << endl;
 
@@ -293,29 +293,29 @@ void Reconstruct::dump_coefficients(string file)
 
 void usage(char *prog)
 {
-  cout << "Usage:\n\n"
-       << prog << " [options]\n\n"
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " << setw(-40) << "Description" << "\n"
-       << "\n"
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Turn on MPI for SL computation\n"
-       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Use mapped rather than linear coordinates\n"
-       << setw(15) << "--cbio" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Print out basis, if desired\n"
-       << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Dump coefficients, if desired\n"
-       << setw(15) << "--surface" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Print out surface plots (SM 'ch' style)\n"
-       << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number of points in radial table\n"
-       << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Lmax (spherical harmonic expansion)\n"
-       << setw(15) << "--nmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Nmax (radial basis function expansion)\n"
-       << setw(15) << "--rmin" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Minimum radius for SL basis\n"
-       << setw(15) << "--rmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Maximum radius for SL basis\n"
-       << setw(15) << "--rs"<< setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Scale length for radial coordinate mapping\n"
-       << setw(15) << "--delr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "X-axis offset multipole expansions\n"
-       << setw(15) << "--delta" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Fractional offset for difference derivatives\n"
-       << setw(15) << "--xmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Length of \"box\" for output profiles\n"
-       << setw(15) << "--numx" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number pts for output profiles\n"
-       << setw(15) << "--numt" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number knots for cos(theta) integral\n"
-       << setw(15) << "--nump" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number knots for phi integral\n"
-       << setw(15) << "--file" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "File name prefix for output\n"
-       << "\n";
+  cout << "Usage:" << endl << endl
+       << prog << " [options]" << endl << endl
+       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Description" << endl << resetiosflags(ios::left)
+       << endl
+       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Turn on MPI for SL computation" << endl << resetiosflags(ios::left)
+       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use mapped rather than linear coordinates" << endl << resetiosflags(ios::left)
+       << setw(15) << "--cbio" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Print out basis, if desired" << endl << resetiosflags(ios::left)
+       << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Dump coefficients, if desired" << endl << resetiosflags(ios::left)
+       << setw(15) << "--surface" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Print out surface plots (SM 'ch' style)" << endl << resetiosflags(ios::left)
+       << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number of points in radial table" << endl << resetiosflags(ios::left)
+       << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Lmax (spherical harmonic expansion)" << endl << resetiosflags(ios::left)
+       << setw(15) << "--nmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Nmax (radial basis function expansion)" << endl << resetiosflags(ios::left)
+       << setw(15) << "--rmin" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Minimum radius for SL basis" << endl << resetiosflags(ios::left)
+       << setw(15) << "--rmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Maximum radius for SL basis" << endl << resetiosflags(ios::left)
+       << setw(15) << "--rs"<< setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Scale length for radial coordinate mapping" << endl << resetiosflags(ios::left)
+       << setw(15) << "--delr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "X-axis offset multipole expansions" << endl << resetiosflags(ios::left)
+       << setw(15) << "--delta" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Fractional offset for difference derivatives" << endl << resetiosflags(ios::left)
+       << setw(15) << "--xmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Length of \"box\" for output profiles" << endl << resetiosflags(ios::left)
+       << setw(15) << "--numx" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number pts for output profiles" << endl << resetiosflags(ios::left)
+       << setw(15) << "--numt" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number knots for cos(theta) integral" << endl << resetiosflags(ios::left)
+       << setw(15) << "--nump" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number knots for phi integral" << endl << resetiosflags(ios::left)
+       << setw(15) << "--file" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "File name prefix for output" << endl << resetiosflags(ios::left)
+       << endl;
 
   exit(0);
 }
@@ -413,7 +413,7 @@ main(int argc, char** argv)
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined \n";
+	  cout << " is not defined" << endl;
 	  exit(0);
 	}
       }
@@ -544,10 +544,10 @@ main(int argc, char** argv)
 	string ostr(outfile);
 	ostr += suffix[i];
 	out[i].open(ostr.c_str());
-	for (int j=0; j<2; j++) out[i].write(&numx, sizeof(int));
+	for (int j=0; j<2; j++) out[i].write((char *)&numx, sizeof(int));
 	for (int j=0; j<2; j++) {
-	  out[i].write(&(z=-xmax), sizeof(float));
-	  out[i].write(&(z= xmax), sizeof(float));
+	  out[i].write((char *)&(z=-xmax), sizeof(float));
+	  out[i].write((char *)&(z= xmax), sizeof(float));
 	}
       }
       
@@ -556,8 +556,8 @@ main(int argc, char** argv)
 	for (int i=0; i<numx; i++) {
 	  x = -xmax + dxy*i;
 	  
-	  out[0].write(&(z=recon.potential_eval(x, y, 0.0)), sizeof(float));
-	  out[1].write(&(z=recon.density_eval(x, y, 0.0)), sizeof(float));
+	  out[0].write((char *)&(z=recon.potential_eval(x, y, 0.0)), sizeof(float));
+	  out[1].write((char *)&(z=recon.density_eval(x, y, 0.0)), sizeof(float));
 	}
       }
     }

@@ -36,10 +36,8 @@ void PotAccel::exp_thread_fork(bool coef)
 	 << ": exp_thread_fork: error allocating memory for thread\n";
     exit(18);
   }
-				// Make the memory mutex
-  if (coef) make_mutex(&mem_lock, "make_coefficients", "memory_lock");
-  else make_mutex(&mem_lock, "determine_acceleration", "memory_lock");
-  threading_on = 1;
+				// Enable the memory mutex
+  // threading_on = 1;
 
 
 				// Make the <nthrds> threads
@@ -71,10 +69,8 @@ void PotAccel::exp_thread_fork(bool coef)
     }
   }
   
-				/* Remove the memory mutex */
-  if (coef) kill_mutex(&mem_lock, "make_coefficients", "memory_lock");
-  else kill_mutex(&mem_lock, "determine_acceleration", "memory_lock");
-  threading_on = 0;
+				// Disable the memory mutex
+  // threading_on = 0;
 
 
   delete [] td;

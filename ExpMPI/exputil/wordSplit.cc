@@ -1,10 +1,11 @@
-
 #include <utility>
 #include <deque>
 #include <iterator>
 #include <algorithm>
 #include <vector>
 #include <string>
+
+using namespace std;
 
 int wordSplit(string& x, vector<string>& words)
 {

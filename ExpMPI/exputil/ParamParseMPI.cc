@@ -1,6 +1,5 @@
 #include <iostream>
 #include <iomanip>
-#include <strstream>
 
 #include <ParamParseMPI.H>
 
@@ -25,6 +24,9 @@ ParamParseMPI::ParamParseMPI(istream* in, string Delim) :
       MPI_Bcast(&signal, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
       strncpy(lbuf, it->name.c_str(), lbufsize);
+#ifdef DEBUG
+      cout << "Sending: " << lbuf << endl;
+#endif
       MPI_Bcast(&lbuf, lbufsize, MPI_CHAR, 0, MPI_COMM_WORLD);
 
       for (it1=it->elist.begin(); it1!=it->elist.end(); it1++) {

@@ -3,6 +3,8 @@
 
 #include <iostream>
 
+using namespace std;
+
 //! Describe the phase space dump
 struct MasterHeader {
   //! Current time for phase space

@@ -8,9 +8,11 @@
 
 static const char rcsid[] = "$Id$";
 
+using namespace std;
+
 #include <stdlib.h>
 #include <string>
-#include <iostream.h>
+#include <iostream>
 #include <math.h>
 #include <Vector.h>
 #include <biorth2d.h>

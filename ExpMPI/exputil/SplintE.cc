@@ -1,6 +1,7 @@
+using namespace std;
 
 #include <math.h>
-#include <iostream.h>
+#include <iostream>
 #include <stdlib.h>
 #include <Vector.h>
 

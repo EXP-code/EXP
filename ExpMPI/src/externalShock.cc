@@ -5,17 +5,13 @@ static char rcsid[] = "$Id$";
 #include "expand.h"
 
 #include <stdlib.h>
-#include <iostream.h>
-#include <iomanip.h>
-#include <fstream.h>
 #include <string>
 #include <Vector.h>
 #include <numerical.h>
 
-
 #include <externalShock.H>
 
-externalShock::externalShock(string& line) : ExternalForce(line)
+externalShock::externalShock(std::string& line) : ExternalForce(line)
 {
   E=-0.5;
   K=1.0e-4;
@@ -38,7 +34,7 @@ externalShock::~externalShock()
 
 void externalShock::initialize()
 {
-  string val;
+  std::string val;
 
   if (get_value("E", val)) E = atof(val.c_str());
   if (get_value("K", val)) K = atof(val.c_str());

@@ -251,6 +251,8 @@ public:
   int grid_size(void) { return num; }
 
   void setup_df(int NUM, double RA=1.0e20);
+  void print_model(char const *name);
+  void print_df(char const *name);
   double get_ra2(void) { return df.ra2; }
 
   double distf(double E, double L);

@@ -16,6 +16,8 @@
 #include <ACG.h>
 #include <Uniform.h>
 
+using namespace std;
+
 #ifndef PI
 #define PI		3.1415626536
 #endif

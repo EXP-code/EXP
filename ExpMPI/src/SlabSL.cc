@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <math.h>
 
@@ -43,9 +42,9 @@ SlabSL::SlabSL(string& line) : PotAccel(line)
   for (int i=0; i<nthrds; i++)
     expccof[i] = new Complex[jmax];
   
-  expreal = new double [jmax];
+  expreal  = new double [jmax];
   expreal1 = new double [jmax];
-  expimag = new double [jmax];
+  expimag  = new double [jmax];
   expimag1 = new double [jmax];
     
   dfac = 2.0*M_PI;
@@ -59,6 +58,24 @@ SlabSL::SlabSL(string& line) : PotAccel(line)
     zpot[i].setsize(1, nmaxz);
     zfrc[i].setsize(1, nmaxz);
   }
+
+}
+
+SlabSL::~SlabSL()
+{
+  for (int i=0; i<nthrds; i++) delete [] expccof[i];
+  delete [] expccof;
+
+  delete [] expreal;
+  delete [] expreal1;
+  delete [] expimag;
+  delete [] expimag1;
+  
+  delete grid;
+
+  delete [] zpot;
+  delete [] zfrc;
+
 }
 
 void SlabSL::initialize()
@@ -84,25 +101,29 @@ void SlabSL::determine_coefficients(void)
   // Clean 
 
   for (int indx=0; indx<jmax; indx++) {
-    for (int i=0; i<nthrds; i++) expccof[i][indx] = 0.0;
     expreal[indx] = 0.0;
     expimag[indx] = 0.0;
     expreal1[indx] = 0.0;
     expimag1[indx] = 0.0;
   }
 
+  for (int i=0; i<nthrds; i++) {
+    use[i] = 0;
+    for (int indx=0; indx<jmax; indx++) expccof[i][indx] = 0.0;
+  }
+
   exp_thread_fork(true);
 
-  int use0, use1=0;
-  for (int i=0; i<nthrds; i++) use1 += use[i];
+  int used1 = 0;
+  used = 0;
+  for (int i=0; i<nthrds; i++) used1 += use[i];
   
-  MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  used = use0;
+  MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   for (int i=0; i<nthrds; i++) {
     for (int indx=0; indx<jmax; indx++) {
-      expreal1[indx] = expccof[i][indx].real();
-      expimag1[indx] = expccof[i][indx].imag();
+      expreal1[indx] += expccof[i][indx].real();
+      expimag1[indx] += expccof[i][indx].imag();
     }
   }
 
@@ -115,7 +136,7 @@ void SlabSL::determine_coefficients(void)
 
 void * SlabSL::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, indx;
+  int ix, iy, iz, iix, iiy, ii, jj, indx;
 
   Complex startx, starty, facx, facy;
   Complex stepx, stepy;
@@ -129,6 +150,8 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
     
+				// Increment particle counter
+    use[id]++;
 
 				// Truncate to box with sides in [0,1]
     
@@ -145,29 +168,29 @@ void * SlabSL::determine_coefficients_thread(void * arg)
       (*particles)[i].pos[1] -= (double)((int)(*particles)[i].pos[1]);
     
 
-				/* Recursion multipliers */
+				// Recursion multipliers
     stepx = exp(-kfac*(*particles)[i].pos[0]);
     stepy = exp(-kfac*(*particles)[i].pos[1]);
    
-				/* Initial values */
+				// Initial values
     startx = exp(nmaxx*kfac*(*particles)[i].pos[0]);
     starty = exp(nmaxy*kfac*(*particles)[i].pos[1]);
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-      iix = nmaxx - ix;
-      if (iix<0) iix = ix - nmaxx;
+      ii = ix - nmaxx;
+      iix = abs(ii);
       
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
-	iiy = nmaxy - iy;
-	if (iiy<0) iiy = iy - nmaxy;
+	jj = iy - nmaxy;
+	iiy = abs(jj);
 	
-	if (iix < 0 || iix > nmaxx) {
-	  cerr << "Out of bounds: iix=" << iix << endl;
+	if (iix > nmaxx) {
+	  cerr << "Out of bounds: iix=" << ii << endl;
 	}
-	if (iiy < 0 || iiy > nmaxy) {
-	  cerr << "Out of bounds: iiy=" << iiy << endl;
+	if (iiy > nmaxy) {
+	  cerr << "Out of bounds: iiy=" << jj << endl;
 	}
 	
 	zz = (*particles)[i].pos[2] - component->center[2];
@@ -181,9 +204,10 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	for (iz=0; iz<imz; iz++) {
 
 	  indx = imz*(iy + imy*ix) + iz;
-                             // |--- density in orthogonal series
-                             // |    is 4.0*M_PI rho
-			     // v
+
+                              // |--- density in orthogonal series
+                              // |    is 4.0*M_PI rho
+                              // v
 	  expccof[id][indx] += -4.0*M_PI*(*particles)[i].mass*adb*
 	    facx*facy*zpot[id][iz+1];
 	}
@@ -199,7 +223,9 @@ void SlabSL::get_acceleration_and_potential(vector<Particle>* P)
 
   determine_coefficients();
 
+  MPL_start_timer();
   exp_thread_fork(false);
+  MPL_stop_timer();
 }
 
 void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
@@ -219,19 +245,19 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
     
     accx = accy = accz = potl = 0.0;
     
-				/* Recursion multipliers */
+				// Recursion multipliers
     stepx = exp(kfac*(*particles)[i].pos[0]);
     stepy = exp(kfac*(*particles)[i].pos[1]);
 
-				/* Initial values (note sign change) */
+				// Initial values (note sign change)
     startx = exp(-nmaxx*kfac*(*particles)[i].pos[0]);
     starty = exp(-nmaxy*kfac*(*particles)[i].pos[1]);
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-				/* Compute wavenumber; recall that the */
-				/* coefficients are stored as follows: */
-				/* -nmax,-nmax+1,...,0,...,nmax-1,nmax */
+				// Compute wavenumber; recall that the
+				// coefficients are stored as follows:
+				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
       ii = ix - nmaxx;
       iix = abs(ii);
       
@@ -240,11 +266,11 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	jj = iy - nmaxy;
 	iiy = abs(jj);
 	
-	if (iix < 0 || iix > nmaxx) {
-	  cerr << "Out of bounds: iix=" << iix << endl;
+	if (iix > nmaxx) {
+	  cerr << "Out of bounds: ii=" << ii << endl;
 	}
-	if (iiy < 0 || iiy > nmaxy) {
-	  cerr << "Out of bounds: iiy=" << iiy << endl;
+	if (iiy > nmaxy) {
+	  cerr << "Out of bounds: jj=" << jj << endl;
 	}
 	
 	zz = (*particles)[i].pos[2] - component->center[2];
@@ -257,6 +283,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  grid->get_pot  (zpot[id], zz, iiy, iix);
 	  grid->get_force(zfrc[id], zz, iiy, iix);
 	}
+
 	
 	for (iz=0; iz<imz; iz++) {
 	  
@@ -265,22 +292,15 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  fac  = facx*facy*zpot[id][iz+1]*expccof[0][indx];
 	  facf = facx*facy*zfrc[id][iz+1]*expccof[0][indx];
 	  
-	  
-				/* Don't add potential for 
-				   zero wavenumber (constant term) */
-	  
-	  if (ii==0 && jj==0 && iz==0) fac = 0.0;
-	  
-	  
-				/* Limit to minimum wave number */
+				// Limit to minimum wave number
 	  
 	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
-	  potl -= fac;
+	  potl += fac;
 	  
-	  accx -= Complex(0.0,-dfac*ii)*fac;
-	  accy -= Complex(0.0,-dfac*jj)*fac;
-	  accz -= facf;
+	  accx += -dfac*ii*Complex(0.0,1.0)*fac;
+	  accy += -dfac*jj*Complex(0.0,1.0)*fac;
+	  accz += -facf;
 	  
 	}
       }
@@ -300,15 +320,17 @@ void SlabSL::dump_coefs(ostream& out)
 {
   coefheader.time = tpos;
   coefheader.zmax = zmax;
+  coefheader.h = hslab;
+  coefheader.type = ID;
   coefheader.nmaxx = nmaxx;
   coefheader.nmaxy = nmaxy;
   coefheader.nmaxz = nmaxz;
   coefheader.jmax = (1+2*nmaxx)*(1+2*nmaxy)*nmaxz;
   
-  out.write(&coefheader, sizeof(SlabSLCoefHeader));
+  out.write((char *)&coefheader, sizeof(SlabSLCoefHeader));
   for (int i=0; i<coefheader.jmax; i++) {
-    out.write(&expccof[0][i].real(), sizeof(double));
-    out.write(&expccof[0][i].imag(), sizeof(double));
+    out.write((char *)&expccof[0][i].real(), sizeof(double));
+    out.write((char *)&expccof[0][i].imag(), sizeof(double));
   }
 }
 

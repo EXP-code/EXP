@@ -112,12 +112,12 @@ main(int argc, char **argv)
   in = new ifstream(argv[optind]);
 
   {
-    cout.write(&psp.CurrentDump()->header, sizeof(MasterHeader));
+    cout.write((char *)&psp.CurrentDump()->header, sizeof(MasterHeader));
     
     double rtmp;
     int itmp;
 
-    list<Stanza>::iterator its;
+    list<PSPstanza>::iterator its;
 
     for (its = psp.CurrentDump()->stanzas.begin(); 
 	 its != psp.CurrentDump()->stanzas.end(); its++) {
@@ -162,25 +162,25 @@ main(int argc, char **argv)
       in->seekg(its->pspos);
 
       for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	cout.write(&rtmp, sizeof(double));
+	in->read((char *)&rtmp, sizeof(double));
+	cout.write((char *)&rtmp, sizeof(double));
 	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  cout.write(&rtmp, sizeof(double));
+	  in->read((char *)&rtmp, sizeof(double));
+	  cout.write((char *)&rtmp, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  cout.write(&rtmp, sizeof(double));
+	  in->read((char *)&rtmp, sizeof(double));
+	  cout.write((char *)&rtmp, sizeof(double));
 	}
-	in->read(&rtmp, sizeof(double));
-	cout.write(&rtmp, sizeof(double));
+	in->read((char *)&rtmp, sizeof(double));
+	cout.write((char *)&rtmp, sizeof(double));
 	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	  cout.write(&itmp, sizeof(int));
+	  in->read((char *)&itmp, sizeof(double));
+	  cout.write((char *)&itmp, sizeof(int));
 	}
 	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  cout.write(&rtmp, sizeof(double));
+	  in->read((char *)&rtmp, sizeof(double));
+	  cout.write((char *)&rtmp, sizeof(double));
 	}      
       }
     }

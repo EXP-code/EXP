@@ -5,13 +5,15 @@ const char rcsid[] = "$Id$";
 
 #include <math.h>
 #include <string>
-#include <iostream.h>
-#include <strstream.h>
+#include <iostream>
+#include <sstream>
 #include <stdlib.h>
 
 #include <Vector.h>
 #include <orbit.h>
 #include <interp.h>
+
+using namespace std;
 
 SphericalOrbit::SphericalOrbit(void) {
   dof = 3;
@@ -118,21 +120,19 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
 {
 
   if (Kappa < 0.0 || Kappa > 1.0) {
-    char* p = new char[128];
-    ostrstream ost(p,128);
-    ost << "illegal value of Kappa: " << Kappa << '\0';
-    bomb(p);
+    ostringstream ost;
+    ost << "illegal value of Kappa: " << Kappa;
+    bomb(ost.str());
   }
 
 //  if (Energy < model->get_pot(model->get_min_radius()) || 
 //      Energy > model->get_pot(model->get_max_radius())) {
   if (Energy < model->get_pot(model->get_min_radius())) {
-    char* p = new char[128];
-    ostrstream ost(p,128);
+    ostringstream ost;
     ost << "illegal value of Energy: " << Energy;
     ost << "  Emin[r=" << model->get_min_radius() << "] = " 
-	<< model->get_pot(model->get_min_radius()) << '\0';    
-    bomb(p);
+	<< model->get_pot(model->get_min_radius());
+    bomb(ost.str());
   }
 
 

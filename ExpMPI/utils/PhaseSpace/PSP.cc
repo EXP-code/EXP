@@ -36,7 +36,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
     for (int i=0; i<dump.header.ncomp; i++) {
 
-      Stanza stanza;
+      PSPstanza stanza;
       stanza.pos = in->tellg();
       
       ComponentHeader headerC;
@@ -175,7 +175,7 @@ double PSPDump::SetTime(double time)
 void PSPDump::PrintSummary(ostream &out)
 {
   list<Dump>::iterator itd;
-  list<Stanza>::iterator its;
+  list<PSPstanza>::iterator its;
 
   for (itd = dumps.begin(); itd != dumps.end(); itd++) {
 
@@ -212,7 +212,7 @@ void PSPDump::PrintSummary(ostream &out)
 
 void PSPDump::PrintSummaryCurrent(ostream &out)
 {
-  list<Stanza>::iterator its;
+  list<PSPstanza>::iterator its;
 
   out << "Time=" << fid->header.time << "   [" << fid->pos << "]" << endl;
   out << "   Total particle number: " << fid->header.ntot  << endl;
@@ -265,7 +265,7 @@ Dump* PSPDump::NextDump()
 }
 
 
-Stanza* PSPDump::GetStanza()
+PSPstanza* PSPDump::GetStanza()
 {
   spos = fid->stanzas.begin();
   cur = &(*spos);
@@ -275,7 +275,7 @@ Stanza* PSPDump::GetStanza()
     return 0;
 }
 
-Stanza* PSPDump::NextStanza()
+PSPstanza* PSPDump::NextStanza()
 {
   spos++;
   cur = &(*spos);
@@ -305,12 +305,12 @@ SParticle *PSPDump::NextParticle(istream* in)
 {
 				// Read partcle
   if (pcount < spos->nbod) {
-    in->read(&part.mass, sizeof(double));
-    for (int i=0; i<3; i++) in->read(&part.pos[i], sizeof(double));
-    for (int i=0; i<3; i++) in->read(&part.vel[i], sizeof(double));
-    in->read(&part.phi, sizeof(double));
-    for (int i=0; i<spos->niatr; i++) in->read(&part.iatr[i], sizeof(int));
-    for (int i=0; i<spos->ndatr; i++) in->read(&part.datr[i], sizeof(double));
+    in->read((char *)&part.mass, sizeof(double));
+    for (int i=0; i<3; i++) in->read((char *)&part.pos[i], sizeof(double));
+    for (int i=0; i<3; i++) in->read((char *)&part.vel[i], sizeof(double));
+    in->read((char *)&part.phi, sizeof(double));
+    for (int i=0; i<spos->niatr; i++) in->read((char *)&part.iatr[i], sizeof(int));
+    for (int i=0; i<spos->ndatr; i++) in->read((char *)&part.datr[i], sizeof(double));
 
     pcount++;
 
@@ -321,7 +321,7 @@ SParticle *PSPDump::NextParticle(istream* in)
   
 }
 
-Stanza* PSPDump::GetGas()
+PSPstanza* PSPDump::GetGas()
 {
   spos = fid->gas.begin();
   cur = &(*spos);
@@ -331,7 +331,7 @@ Stanza* PSPDump::GetGas()
     return 0;
 }
 
-Stanza* PSPDump::NextGas()
+PSPstanza* PSPDump::NextGas()
 {
   spos++;
   cur = &(*spos);
@@ -341,7 +341,7 @@ Stanza* PSPDump::NextGas()
     return 0;
 }
 
-Stanza* PSPDump::GetDark()
+PSPstanza* PSPDump::GetDark()
 {
   spos = fid->dark.begin();
   cur = &(*spos);
@@ -351,7 +351,7 @@ Stanza* PSPDump::GetDark()
     return 0;
 }
 
-Stanza* PSPDump::NextDark()
+PSPstanza* PSPDump::NextDark()
 {
   spos++;
   cur = &(*spos);
@@ -361,7 +361,7 @@ Stanza* PSPDump::NextDark()
     return 0;
 }
 
-Stanza* PSPDump::GetStar()
+PSPstanza* PSPDump::GetStar()
 {
   spos = fid->star.begin();
   cur = &(*spos);
@@ -371,7 +371,7 @@ Stanza* PSPDump::GetStar()
     return 0;
 }
 
-Stanza* PSPDump::NextStar()
+PSPstanza* PSPDump::NextStar()
 {
   spos++;
   cur = &(*spos);

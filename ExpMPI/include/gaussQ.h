@@ -47,6 +47,8 @@ HISTORY
 #endif
 #define _gaussQ_h 1
 
+using namespace std;
+
 #include <string>
 #include <Vector.h>
 

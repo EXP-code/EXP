@@ -2,7 +2,6 @@
 #include <stdio.h>
 #include <math.h>
 #include <mpi.h>
-
 #include <Vector.h>
 #include <kevin_complex.h>
 

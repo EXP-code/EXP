@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
-#include <strstream>
+#include <sstream>
 
 #include <Particle.H>
 #include <CBrockDisk.H>
@@ -681,21 +681,27 @@ double CBrockDisk::norm(int n, int m)
 
 void CBrockDisk::dump_coefs(ostream& out)
 {
-  char buf[64];
-  for (int i=0; i<64; i++) buf[i] = ' ';
-  ostrstream sout(buf, 64);
+  ostringstream sout;
   sout << id;
 
-  out.write(&buf, 64*sizeof(char));
+  char buf[64];
+  for (int i=0; i<64; i++) {
+    if (i<sout.str().length()) 
+      buf[i] = sout.str().c_str()[i];
+    else 
+      buf[i] = ' ';
+  }
+  
+  out.write((char *)&buf, 64*sizeof(char));
 
-  out.write(&tnow, sizeof(double));
-  out.write(&scale, sizeof(double));
-  out.write(&nmax, sizeof(int));
-  out.write(&Lmax, sizeof(int));
+  out.write((char *)&tnow, sizeof(double));
+  out.write((char *)&scale, sizeof(double));
+  out.write((char *)&nmax, sizeof(int));
+  out.write((char *)&Lmax, sizeof(int));
 
   for (int ir=1; ir<=nmax; ir++) {
     for (int l=0; l<=2*Lmax; l++)
-      out.write(&expcoef[l][ir], sizeof(double));
+      out.write((char *)&expcoef[l][ir], sizeof(double));
   }
 
 }

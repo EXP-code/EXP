@@ -3,7 +3,9 @@
 #define _k_complex_h
 #define Complex KComplex
 
-#include <iostream.h>
+#include <iostream>
+
+using namespace std;
 
 class CVector;
 class CMatrix;
@@ -21,8 +23,8 @@ protected:
 	static int nlive;
 #endif
 public:
-	friend CVector;
-	friend CMatrix;
+	friend class CVector;
+	friend class CMatrix;
 
 	/* constructors */
 	

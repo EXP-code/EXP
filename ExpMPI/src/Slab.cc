@@ -1,4 +1,3 @@
-
 #include <stdlib.h>
 #include <math.h>
 
@@ -29,13 +28,14 @@ Slab::Slab(string& line) : PotAccel(line)
   imy = 1+2*nmaxy;
   imz = nmaxz;
   jmax = imx*imy*imz;
+
   expccof = new Complex* [nthrds];
   for (int i=0; i<nthrds; i++)
-    expccof[i] = new Complex[jmax];
+    expccof[i] = new Complex [jmax];
 
-  expreal = new double [jmax];
+  expreal  = new double [jmax];
   expreal1 = new double [jmax];
-  expimag = new double [jmax];
+  expimag  = new double [jmax];
   expimag1 = new double [jmax];
   
   dfac = 2.0*M_PI;
@@ -47,7 +47,8 @@ Slab::Slab(string& line) : PotAccel(line)
   trig = new OneDTrig* [nnmax+1];
   for (int i=0; i<=nnmax; i++) {
     trig[i] = new OneDTrig [i+1];
-    for (int j=0; j<=i; j++) trig[i][j].reset(dfac*sqrt(i*i + j*j)+KEPS, zmax);
+    for (int j=0; j<=i; j++) 
+      trig[i][j].reset(dfac*sqrt((double)(i*i + j*j))+KEPS, zmax);
   }
 
   zpot = new Vector [nthrds];
@@ -56,6 +57,25 @@ Slab::Slab(string& line) : PotAccel(line)
     zpot[i].setsize(1, nmaxz);
     zfrc[i].setsize(1, nmaxz);
   }
+
+}
+
+Slab::~Slab()
+{
+  for (int i=0; i<nthrds; i++) delete [] expccof[i];
+  delete [] expccof;
+
+  delete [] expreal;
+  delete [] expreal1;
+  delete [] expimag;
+  delete [] expimag1;
+  
+  for (int i=0; i<=nnmax; i++) delete [] trig[i];
+  delete [] trig;
+
+  delete [] zpot;
+  delete [] zfrc;
+
 }
 
 void Slab::initialize()
@@ -67,7 +87,7 @@ void Slab::initialize()
   if (get_value("nmaxz", val)) nmaxz = atoi(val.c_str());
   if (get_value("nminx", val)) nminx = atoi(val.c_str());
   if (get_value("nminy", val)) nminy = atoi(val.c_str());
-  if (get_value("zmax", val))  zmax = atof(val.c_str());
+  if (get_value("zmax",  val)) zmax  = atof(val.c_str());
 
 }
 
@@ -81,29 +101,32 @@ void Slab::determine_coefficients(void)
   // Clean 
 
   for (int indx=0; indx<jmax; indx++) {
-    for (int i=0; i<nthrds; i++) expccof[i][indx] = 0.0;
     expreal[indx] = 0.0;
     expimag[indx] = 0.0;
     expreal1[indx] = 0.0;
     expimag1[indx] = 0.0;
   }
 
+  for (int i=0; i<nthrds; i++) {
+    use[i] = 0;
+    for (int indx=0; indx<jmax; indx++) expccof[i][indx] = 0.0;
+  }
+
   exp_thread_fork(true);
 
-  int use0, use1 = 0;
+  int used1 = 0;
   used = 0;
-  for (int i=0; i<nthrds; i++) use1 += use[i];
+  for (int i=0; i<nthrds; i++) used1 += use[i];
   
-  MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  used = use0;
+  MPI_Allreduce ( &used1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   for (int i=0; i<nthrds; i++) {
     for (int indx=0; indx<jmax; indx++) {
-      expreal1[indx] = expccof[i][indx].real();
-      expimag1[indx] = expccof[i][indx].imag();
+      expreal1[indx] += expccof[i][indx].real();
+      expimag1[indx] += expccof[i][indx].imag();
     }
   }
-
+  
   MPI_Allreduce( expreal1, expreal, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce( expimag1, expimag, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
@@ -127,6 +150,8 @@ void * Slab::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
     
+				// Increment particle counter
+    use[id]++;
 
 				// Truncate to box with sides in [0,1]
     
@@ -143,11 +168,11 @@ void * Slab::determine_coefficients_thread(void * arg)
       (*particles)[i].pos[1] -= (double)((int)(*particles)[i].pos[1]);
     
 
-				/* Recursion multipliers */
+				// Recursion multipliers
     stepx = exp(-kfac*(*particles)[i].pos[0]);
     stepy = exp(-kfac*(*particles)[i].pos[1]);
     
-				/* Initial values */
+				// Initial values
     startx = exp(nmaxx*kfac*(*particles)[i].pos[0]);
     starty = exp(nmaxy*kfac*(*particles)[i].pos[1]);
     
@@ -156,14 +181,15 @@ void * Slab::determine_coefficients_thread(void * arg)
       iix = nmaxx - ix;
       if (iix<0) iix = ix - nmaxx;
       
+      if (iix < 0 || iix > nmaxx) {
+	cerr << "Out of bounds: iix=" << iix << endl;
+      }
+
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
 	
 	iiy = nmaxy - iy;
 	if (iiy<0) iiy = iy - nmaxy;
 	
-	if (iix < 0 || iix > nmaxx) {
-	  cerr << "Out of bounds: iix=" << iix << endl;
-	}
 	if (iiy < 0 || iiy > nmaxy) {
 	  cerr << "Out of bounds: iiy=" << iiy << endl;
 	}
@@ -175,14 +201,15 @@ void * Slab::determine_coefficients_thread(void * arg)
 	else
 	  trig[iiy][iix].potl(dum, dum, zz, zpot[id]);
 
+
 	for (iz=0; iz<imz; iz++) {
 
 	  indx = imz*(iy + imy*ix) + iz;
 
-                            // |--- density in orthogonal series
-                            // |    is 4.0*M_PI rho
-                            // v
-	  expccof[id][indx] += 4.0*M_PI*(*particles)[i].mass*adb*
+                             // |--- density in orthogonal series
+                             // |    is 4.0*M_PI rho
+                             // v
+	  expccof[id][indx] += -4.0*M_PI*(*particles)[i].mass*adb*
 	    facx*facy*zpot[id][iz+1];
 	}
       }
@@ -197,7 +224,9 @@ void Slab::get_acceleration_and_potential(vector<Particle>* P)
 
   determine_coefficients();
 
+  MPL_start_timer();
   exp_thread_fork(false);
+  MPL_stop_timer();
 }
 
 void * Slab::determine_acceleration_and_potential_thread(void * arg)
@@ -218,19 +247,19 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
     
     accx = accy = accz = potl = 0.0;
     
-				/* Recursion multipliers */
+				// Recursion multipliers
     stepx = exp(kfac*(*particles)[i].pos[0]);
     stepy = exp(kfac*(*particles)[i].pos[1]);
 
-				/* Initial values (note sign change) */
+				// Initial values (note sign change)
     startx = exp(-nmaxx*kfac*(*particles)[i].pos[0]);
     starty = exp(-nmaxy*kfac*(*particles)[i].pos[1]);
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
-				/* Compute wavenumber; recall that the */
-				/* coefficients are stored as follows: */
-				/* -nmax,-nmax+1,...,0,...,nmax-1,nmax */
+				// Compute wavenumber; recall that the
+				// coefficients are stored as follows:
+				// -nmax,-nmax+1,...,0,...,nmax-1,nmax
       ii = ix - nmaxx;
       iix = abs(ii);
       
@@ -256,6 +285,7 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
 	  trig[iiy][iix].potl(dum, dum, zz, zpot[id]);
 	  trig[iiy][iix].force(dum, dum, zz, zfrc[id]);
 	}
+
 	
 	for (iz=0; iz<imz; iz++) {
 	  
@@ -265,21 +295,20 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
 	  facf = facx*facy*zfrc[id][iz+1]*expccof[0][indx];
 	  
 	  
-				/* Don't add potential for 
-				   zero wavenumber (constant term) */
+				// Don't add potential for 
+				// zero wavenumber (constant term)
 	  
-	  if (ii==0 && jj==0 && iz==0) fac = 0.0;
+	  if (ii==0 && jj==0 && iz==0) fac = facf = 0.0;
 	  
-	  
-				/* Limit to minimum wave number */
+				// Limit to minimum wave number
 	  
 	  if (abs(ii)<nminx || abs(jj)<nminy) continue;
 	  
-	  potl -= fac;
+	  potl += fac;
 	  
-	  accx -= Complex(0.0,-dfac*ii)*fac;
-	  accy -= Complex(0.0,-dfac*jj)*fac;
-	  accz -= facf;
+	  accx += -dfac*ii*Complex(0.0,1.0)*fac;
+	  accy += -dfac*jj*Complex(0.0,1.0)*fac;
+	  accz += facf;
 	  
 	}
       }
@@ -299,15 +328,17 @@ void Slab::dump_coefs(ostream& out)
 {
   coefheader.time = tpos;
   coefheader.zmax = zmax;
+  coefheader.h = 0.0;
+  coefheader.type = ID;
   coefheader.nmaxx = nmaxx;
   coefheader.nmaxy = nmaxy;
   coefheader.nmaxz = nmaxz;
   coefheader.jmax = (1+2*nmaxx)*(1+2*nmaxy)*nmaxz;
   
-  out.write(&coefheader, sizeof(SlabCoefHeader));
+  out.write((char *)&coefheader, sizeof(SlabCoefHeader));
   for (int i=0; i<coefheader.jmax; i++) {
-    out.write(&expccof[0][i].real(), sizeof(double));
-    out.write(&expccof[0][i].imag(), sizeof(double));
+    out.write((char *)&expccof[0][i].real(), sizeof(double));
+    out.write((char *)&expccof[0][i].imag(), sizeof(double));
   }
 }
 

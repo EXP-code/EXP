@@ -120,7 +120,7 @@ public:
 	void binread(istream& fp);
 	void binwrite(ostream& fp);
 
-	friend Ensemble;
+	friend class Ensemble;
 };
 
 

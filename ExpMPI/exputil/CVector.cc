@@ -11,6 +11,8 @@
 
 #include <pthread.h>
 
+using namespace std;
+
 extern char threading_on;
 extern pthread_mutex_t mem_lock;
 

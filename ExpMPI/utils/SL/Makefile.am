@@ -3,9 +3,6 @@
 CC = mpicc
 CXX = mpiCC
 
-CFLAGS = -g
-CXXFLAGS = -g
-
 if ENABLE_DMALLOC
 ADD_CFLAGS3 = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
@@ -14,8 +11,6 @@ endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
-
-CXXLINK = mpiCC $(CXXFLAGS) $(LDFLAGS) -o $@
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 

@@ -1,3 +1,5 @@
+// -*- C++ -*-
+
 /**
    Description:
    -----------
@@ -58,7 +60,7 @@
 #define BSD_SOURCE
 
 #undef MPE_PROFILE
-/* #define MPE_PROFILE */
+// #define MPE_PROFILE
 
 #include <mpi.h>
 #ifdef MPE_PROFILE
@@ -75,18 +77,20 @@
 #include <iomanip>
 #include <string>
 
+using namespace std;
+
 #include <Vector.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
 #endif
 
-				/* Turn on sequence checking on debug */
+				// Turn on sequence checking on debug
 #ifdef DEBUG
 #define SEQCHECK
 #endif
 
-				/* Function declarations */
+				// Function declarations
 void init_velocity(void);
 void begin_run(void);
 void incr_position(void);
@@ -101,7 +105,7 @@ void synchronize_velocity(int);
 #define MIN(A,B) (A<B ? A : B)
 #endif
 
-/*****Stuff for expand.c*****/
+//*****Stuff for expand.c*****
 
 double get_dens(double r, int l, double *coef);
 double densi(double rr, int l, int n),potli(double rr, int l, int n);
@@ -110,7 +114,7 @@ void get_potacc(double r, int l, double *coef, double *p, double *dp);
 void set_global_com(void);
 void create_tipsy(void);
 
-/******Mathematical utilities******/
+//******Mathematical utilities******
 double zbrent();
 extern "C" double dgammln();
 void locate();
@@ -118,7 +122,7 @@ double plgndr(int, int, double);
 double dplgndr(int l, int m, double x);
 double factrl(int n);
 
-/* Constants */
+// Constants
 
 #define DSMALL  1.0e-8
 #define DSMALL2 1.0e-8
@@ -164,3 +168,4 @@ void do_output_init(void);
 #include <global.H>
 
 #endif
+

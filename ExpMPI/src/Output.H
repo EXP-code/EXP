@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <pair.h>
+#include <utility>
 #include <StringTok.H>
 
 //! Output routines.

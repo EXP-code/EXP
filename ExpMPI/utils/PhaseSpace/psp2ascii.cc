@@ -4,12 +4,14 @@
   MDWeinberg 06/10/02
 */
 
+using namespace std;
+
 #include <unistd.h>
 #include <stdlib.h>
 
 #include <iostream>
 #include <fstream>
-#include <strstream>
+#include <sstream>
 #include <iomanip>
 #include <vector>
 #include <string>
@@ -119,7 +121,7 @@ main(int argc, char **argv)
   in = new ifstream(argv[optind]);
 
   
-  list<Stanza>::iterator its;
+  list<PSPstanza>::iterator its;
   double rtmp;
   int itmp;
 
@@ -129,9 +131,9 @@ main(int argc, char **argv)
 				// Open an output file
 				// -------------------
 
-    ostrstream oname;
+    ostringstream oname;
     oname << cname << "." << its->name << '\0';
-    ofstream out(oname.str());
+    ofstream out(oname.str().c_str());
     out.setf(ios::scientific);
     out.precision(10);
 
@@ -151,24 +153,24 @@ main(int argc, char **argv)
     in->seekg(its->pspos);
 
     for (int i=0; i<its->nbod; i++) {
-      in->read(&rtmp, sizeof(double));
+      in->read((char *)&rtmp, sizeof(double));
       out << setw(18) << rtmp;
       for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
+	  in->read((char *)&rtmp, sizeof(double));
 	  out << setw(18) << rtmp;
       }
       for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
+	  in->read((char *)&rtmp, sizeof(double));
 	  out << setw(18) << rtmp;
       }
-      in->read(&rtmp, sizeof(double));
+      in->read((char *)&rtmp, sizeof(double));
       out << setw(18) << rtmp;
       for (int i=0; i<its->niatr; i++) {
-	in->read(&itmp, sizeof(double));
+	in->read((char *)&itmp, sizeof(double));
 	out << setw(12) << itmp;
       }
       for (int i=0; i<its->ndatr; i++) {
-	in->read(&rtmp, sizeof(double));
+	in->read((char *)&rtmp, sizeof(double));
 	out << setw(12) << rtmp;
       }      
 

@@ -6,8 +6,10 @@
 #pragma interface
 #endif
 
-#include <iostream.h>
-#include <fstream.h>
+using namespace std;
+
+#include <iostream>
+#include <fstream>
 
 class Poly : public Vector
 {

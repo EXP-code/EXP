@@ -11,7 +11,6 @@ static char rcsid[] = "$Id$";
 #include <getopt.h>
 
 #include <iostream>
-#include <strstream>
 #include <string>
 
 void exp_usage(char *prog)
@@ -38,6 +37,8 @@ void initialize(void)
   if (parse->find_item("nbodmax", val))		nbodmax = atoi(val.c_str());
   if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
   if (parse->find_item("nthrds", val))		nthrds = atoi(val.c_str());
+  if (parse->find_item("nbalance", val))	nbalance = atoi(val.c_str());
+  if (parse->find_item("dbthresh", val))	dbthresh = atof(val.c_str());
 
   if (parse->find_item("time", val))		tnow = atof(val.c_str());
   if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
@@ -65,13 +66,13 @@ void initialize(void)
   if (parse->find_item("ldlibdir", val))	ldlibdir = val;
   if (parse->find_item("infile", val))		infile = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
+  if (parse->find_item("ratefile", val))	ratefile = val;
+  if (parse->find_item("runtag", val))		runtag = val;
 
 }
 
 void print_parm(ostream& out, char *comment)
 {
-  ostrstream outs;
-
   out << comment << " " << "nbodmax" << " = " << nbodmax << "\n";
   out << comment << " " << "nsteps" <<  " = " << nsteps << "\n";
   out << comment << " " << "nthrds" <<  " = " << nthrds << "\n";

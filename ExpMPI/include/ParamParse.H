@@ -5,12 +5,19 @@
 #include <fstream>
 #include <list>
 #include <string>
-#include <pair.h>
+#include <utility>
+
+using namespace std;
 
 typedef pair<string, string> spair;
-struct Stanza {
+
+class Stanza {
+public:
   string name;
   list<spair> elist;
+
+  Stanza() {};
+  Stanza(const Stanza &);
 };
 
 
@@ -24,7 +31,7 @@ protected:
   list<Stanza>::iterator curstanza;
   string delim;
 
-  void bomb(const char *msg);
+  void bomb(const string&);
 
 public:
 

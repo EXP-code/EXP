@@ -30,8 +30,8 @@
 
 #pragma implementation
 
-#include <iostream.h>
-#include <iomanip.h>
+#include <iostream>
+#include <iomanip>
 #include <math.h>
 #include <Vector.h>
 #include <OrthoPoly.h>

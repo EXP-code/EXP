@@ -1,7 +1,7 @@
 #ifndef _ScatterMFP_H
 #define _ScatterMFP_H
 
-#include <pair.h>
+#include <utility>
 #include <ACG.h>
 #include <Normal.h>
 #include <Uniform.h>

@@ -1,1 +1,1 @@
-SUBDIRS = PhaseSpace SL
+SUBDIRS = PhaseSpace SL Test

@@ -1,7 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 
 #include "expand.h"
 #include <global.H>
@@ -20,7 +20,7 @@ void OutCHKPT::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUT\0";
+    filename = "OUT." + runtag + ".chkpt\0";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -44,9 +44,9 @@ void OutCHKPT::Run(int n, bool last)
   if (myid==0) {
     
 				// Attempt to move file to backup
-    ostrstream msg;
+    ostringstream msg;
     msg << "mv " << filename << " " << filename << ".bak" << '\0';
-    system(msg.str());
+    system(msg.str().c_str());
 
 				// Open file and write master header
     out = new ofstream(filename.c_str());
@@ -63,7 +63,7 @@ void OutCHKPT::Run(int n, bool last)
     header.ntot = comp.ntot;
     header.ncomp = comp.ncomp;
 
-    out->write(&header, sizeof(MasterHeader));
+    out->write((char *)&header, sizeof(MasterHeader));
   }
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {

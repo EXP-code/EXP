@@ -16,7 +16,7 @@ AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
-bin_PROGRAMS = pspinfo psp2tipsy pspsplit psp2ascii
+bin_PROGRAMS = testparse
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lstdc++ -lpthread -ldl -lm
@@ -28,22 +28,8 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-pspinfo_SOURCES = pspinfo.cc PSP.cc header.cc
+testparse_SOURCES = testparse.cc
 
-psp2tipsy_SOURCES = psp2tipsy.cc PSP.cc header.cc
+CLEANFILES	=
 
-pspsplit_SOURCES = pspsplit.cc PSP.cc header.cc
-
-psp2ascii_SOURCES = psp2ascii.cc PSP.cc header.cc
-
-*.cc:		header.H
-
-header.H:	$(top_srcdir)/src/header.H
-		cp $(top_srcdir)/src/$@ .
-
-header.cc:	$(top_srcdir)/src/header.cc
-		cp $(top_srcdir)/src/$@ .
-
-CLEANFILES	= header.cc header.H
-
-## utils/PhaseSpace/Makefile.am ends here
+## utils/Test/Makefile.am ends here

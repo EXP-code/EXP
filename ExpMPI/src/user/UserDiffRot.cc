@@ -1,5 +1,4 @@
 #include <math.h>
-#include <strstream>
 
 #include "expand.h"
 
@@ -98,6 +97,9 @@ UserDiffRot::~UserDiffRot()
 void UserDiffRot::userinfo()
 {
   if (myid) return;		// Return if node master node
+
+  print_divider();
+
   if (c0)
     cout << "** User routine ROTATION RANDOMIZATION initialized for component: <" << name << ">";
   else
@@ -109,9 +111,8 @@ void UserDiffRot::userinfo()
   cout << ", width = " << width;
   cout << ", seed = " << seed;
   cout << endl;
-  cout << "****************************************************************"
-       << endl;
 
+  print_divider();
 }
 
 void UserDiffRot::initialize()

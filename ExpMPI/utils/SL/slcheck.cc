@@ -21,14 +21,26 @@ pthread_mutex_t mem_lock;
 
 void usage(char *prog)
 {
-  cout << "Usage:\n\n"
-       << prog << " [options]\n\n"
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " << setw(-40) << "Description" << "\n"
-       << "\n"
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Turn on MPI for SL computation\n"
-       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Use mapped rather than linear coordinates\n"
-       << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number of points in radial table\n"
-       << "\n";
+  cout << "Usage:" << endl << endl
+       << prog << " [options]" << endl << endl
+       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Description" << endl
+       << resetiosflags(ios::left)
+       << endl
+       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Turn on MPI for SL computation" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Use mapped rather than linear coordinates" << endl
+       << resetiosflags(ios::left)
+       << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Number of points in radial table" << endl
+       << resetiosflags(ios::left)
+       << endl;
 
   exit(0);
 }
@@ -76,7 +88,7 @@ int main(int argc, char** argv)
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined \n";
+	  cout << " is not defined " << endl;
 	  exit(0);
 	}
       }
@@ -170,10 +182,10 @@ int main(int argc, char** argv)
     bool done=false;
     int iwhich;
 
-    cout << "Task:\n";
-    cout << "1: Print out density, potential pairs\n";
-    cout << "2: Check orthogonality\n";
-    cout << "3: Quit\n";
+    cout << "Task:" << endl;
+    cout << "1: Print out density, potential pairs" << endl;
+    cout << "2: Check orthogonality" << endl;
+    cout << "3: Quit" << endl;
     cout << "?? ";
     cin >> iwhich;
 
@@ -185,7 +197,7 @@ int main(int argc, char** argv)
 	cin >> filename;
 	ofstream out (filename.c_str());
 	if (!out) {
-	  cout << "Can't open <" << filename << "> for output\n";
+	  cout << "Can't open <" << filename << "> for output" << endl;
 	  break;
 	}
 

@@ -98,12 +98,12 @@ void write_tipsy(ifstream *in, PSPDump &psp)
   theader.ndark = psp.CurrentDump()->ndark;
   theader.nstar = psp.CurrentDump()->nstar;
   
-  cout.write(&theader, sizeof(tipsydump));
+  cout.write((char *)&theader, sizeof(tipsydump));
     
   double rtmp;
   int itmp;
   
-  Stanza *stanza;
+  PSPstanza *stanza;
   SParticle *part;
 				// Do gas particles
 				// ----------------
@@ -118,7 +118,7 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       gas.phi = part->phi;
       gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
       
-      cout.write(&gas, sizeof(gas_particle));
+      cout.write((char *)&gas, sizeof(gas_particle));
     }
   }
 
@@ -134,7 +134,7 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       dark.phi = part->phi;
       dark.eps = 0.0;
       
-      cout.write(&dark, sizeof(dark_particle));
+      cout.write((char *)&dark, sizeof(dark_particle));
     }
   }
   
@@ -151,7 +151,7 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       star.phi = part->phi;
       star.metals = star.tform = star.eps = 0.0;
       
-      cout.write(&star, sizeof(star_particle));
+      cout.write((char *)&star, sizeof(star_particle));
     }
   }
   

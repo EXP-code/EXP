@@ -1,6 +1,7 @@
 #include <iostream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
+#include <vector>
 #include <string>
 #include <algorithm>
 
@@ -20,7 +21,10 @@
 
 #include "expand.h"
 
-static bool firsttime = true;
+bool less_loadb(const loadb_datum& one, const loadb_datum& two)
+{
+  return (one.top < two.top);
+}
 
 Component::Component(string NAME, string ID, string CPARAM, string PFILE, 
 		     string FPARAM) : 
@@ -42,11 +46,11 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   buf = new Partstruct [nbuf];
 
   adiabatic = false;
-  ton = 0.5;
+  ton  = -1.0e20;
+  toff =  1.0e20;
   twid = 0.1;
 
   read_bodies_and_distribute_ascii();
-
 }
 
 
@@ -62,6 +66,7 @@ Component::Component(istream *in)
   EJkinE = true;
   EJext = false;
   EJdiag = false;
+  EJdryrun = false;
 
   binary = true;
   npart = false;
@@ -69,7 +74,8 @@ Component::Component(istream *in)
 
 
   adiabatic = false;
-  ton = 0.5;
+  ton  = -1.0e20;
+  toff =  1.0e20;
   twid = 0.1;
 
   read_bodies_and_distribute_binary(in);
@@ -103,17 +109,22 @@ void Component::initialize(void)
 
     if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
 
-    if (!datum.first.compare("EJkinE"))     EJkinE = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJkinE"))   EJkinE = true ? atoi(datum.second.c_str()) : false;
 
     if (!datum.first.compare("EJext"))    EJext = true ? atoi(datum.second.c_str()) : false;
 
     if (!datum.first.compare("EJdiag"))   EJdiag = true ? atoi(datum.second.c_str()) : false;
 
+    if (!datum.first.compare("EJdryrun")) EJdryrun = true ? atoi(datum.second.c_str()) : false;
+
+
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
     if (!datum.first.compare("ton"))      {ton = atof(datum.second.c_str()); adiabatic = true;}
 
-    if (!datum.first.compare("twid"))      {twid = atof(datum.second.c_str()); adiabatic = true;}
+    if (!datum.first.compare("toff"))     {toff= atof(datum.second.c_str()); adiabatic = true;}
+
+    if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
 
     
 				// Next parameter
@@ -204,12 +215,13 @@ void Component::initialize(void)
     else if (myid==0) {
       cout << name << ": EJ centering *ON*";
       if (EJkinE) cout << ", using particle kinetic energy";
-      if (EJext) cout << ", using external potential";
+      if (EJext)  cout << ", using external potential";
+      if (EJdryrun) cout << ", dryrun";
       cout << "\n";
     }
       
     
-    string EJlogfile = name + ".orient"; 
+    string EJlogfile = name + ".orient." + runtag;
 
     unsigned EJctl = 0;
     if (EJdiag)		EJctl |= Orient::DIAG;
@@ -338,7 +350,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
 
     fin->getline(line, nline);
-    istrstream ins(line);
+    istringstream ins(line);
     
     ins >> nbodies_tot;		
     if (!ins) {
@@ -447,7 +459,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// First line
     {
       fin->getline(line, nline);
-      istrstream ins(line);
+      istringstream ins(line);
 
       ins >> part.mass;
       for (int j=0; j<3; j++) ins >> part.pos[j];
@@ -473,7 +485,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     for (int i=2; i<=ncount[0]; i++) {
       
       fin->getline(line, nline);
-      istrstream ins(line);
+      istringstream ins(line);
 
       ins >> part.mass;
       for (int j=0; j<3; j++) ins >> part.pos[j];
@@ -508,7 +520,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       while (icount < ncount[n]) {
 
 	fin->getline(line, nline);
-	istrstream ins(line);
+	istringstream ins(line);
 
 	ins >> buf[ibufcount].mass;
 	for (int j=0; j<3; j++) ins >> buf[ibufcount].pos[j];
@@ -587,15 +599,15 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
 {
-  in->read(&(onepart->mass), sizeof(double));
-  for (int i=0; i<3; i++) in->read(&(onepart->pos[i]), sizeof(double));
-  for (int i=0; i<3; i++) in->read(&(onepart->vel[i]), sizeof(double));
-  in->read(&(onepart->pot), sizeof(double));
+  in->read((char *)&(onepart->mass), sizeof(double));
+  for (int i=0; i<3; i++) in->read((char *)&(onepart->pos[i]), sizeof(double));
+  for (int i=0; i<3; i++) in->read((char *)&(onepart->vel[i]), sizeof(double));
+  in->read((char *)&(onepart->pot), sizeof(double));
   onepart->potext = 0.0;
   for (int i=0; i<niattrib; i++) 
-    in->read(&(onepart->iatr[i]), sizeof(int));
+    in->read((char *)&(onepart->iatr[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
-    in->read(&(onepart->datr[i]), sizeof(double));
+    in->read((char *)&(onepart->datr[i]), sizeof(double));
 }
 
 
@@ -977,9 +989,9 @@ void Component::write_binary(ostream* out)
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
-    ostrstream outs;
+    ostringstream outs;
     outs << name << " : " << id << " : " << cparam << " : " << fparam << '\0';
-    strncpy(header.info, outs.str(), header.ninfochar);
+    strncpy(header.info, outs.str().c_str(), header.ninfochar);
 
     if (!header.write(out)) {
       cerr << "Component::write_binary: Error writing particle header\n";
@@ -998,21 +1010,21 @@ void Component::write_binary(ostream* out)
     if (myid == 0) {
 
       for (int k=0; k<number; k++) {
-	out->write(&(p[k].mass), sizeof(double));
+	out->write((char *)&(p[k].mass), sizeof(double));
 	if (first) {
 	  mass0 = p[k].mass;
 	  first = false;
 	}
-	for (int i=0; i<3; i++) out->write(&(p[k].pos[i]), sizeof(double));
-	for (int i=0; i<3; i++) out->write(&(p[k].vel[i]), sizeof(double));
+	for (int i=0; i<3; i++) out->write((char *)&(p[k].pos[i]), sizeof(double));
+	for (int i=0; i<3; i++) out->write((char *)&(p[k].vel[i]), sizeof(double));
 
 	pot0 = p[k].pot + p[k].potext;
-	out->write(&pot0, sizeof(double));
+	out->write((char *)&pot0, sizeof(double));
 
 	for (int i=0; i<header.niatr; i++) 
-	  out->write(&(p[k].iatr[i]), sizeof(int));
+	  out->write((char *)&(p[k].iatr[i]), sizeof(int));
 	for (int i=0; i<header.ndatr; i++) 
-	  out->write(&(p[k].datr[i]), sizeof(double));
+	  out->write((char *)&(p[k].datr[i]), sizeof(double));
       }
     }
 
@@ -1135,7 +1147,7 @@ void Component::fix_positions(void)
   delete [] cov1;
 
   Vector ctr;
-  if (EJ & Orient::CENTER) {
+  if ((EJ & Orient::CENTER) && !EJdryrun) {
     ctr = orient->currentCenter();
     for (int i=0; i<3; i++) center[i] = ctr[i+1];
   }
@@ -1182,7 +1194,6 @@ void Component::setup_distribution(void)
   ofstream *out;
   ifstream *in;
   int n;
-  double norm=0.0;
 
 				/* Needed for both master and slaves */
 
@@ -1190,46 +1201,18 @@ void Component::setup_distribution(void)
   nbodies_table = vector<int>(numprocs);
 
   if (myid == 0) {
-    in = new ifstream("processor.rates");
-    if (!*in && firsttime) {
-      cerr << "setup: can not find <processor.rates> . . . will assume homogeneous cluster\n";
-      firsttime = false;
-    }
 
-    rates =  vector<double>(numprocs);
     orates = vector<double>(numprocs);
     trates = vector<double>(numprocs);
 
-    if (*in) {			// We are reading from a file
-      for (n=0; n<numprocs; n++) {
-	*in >> rates[n];
-	if (!*in) {
-	  cerr << "setup: error reading <processor.rates>\n";
-	  MPI_Abort(MPI_COMM_WORLD, 33);
-	  exit(0);
-	}
-	norm += rates[n];
-      }
-
-      delete in;
-    
-    } else {			// Assign equal rates to all nodes
-      for (n=0; n<numprocs; n++) {
-	rates[n] = 1.0;
-	norm += rates[n];
-      }
-    }
-
     for (n=0; n<numprocs; n++) {
 
-      rates[n] /= norm;
-      
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
-	  max<int>(1, min<int>((int)(rates[n] * nbodies_tot), nbodies_tot));
+	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index[n] = (int)(rates[n] * nbodies_tot) + 
+	  nbodies_index[n] = (int)(comp.rates[n] * nbodies_tot) + 
 	    nbodies_index[n-1];
 	else
 	  nbodies_index[n] = nbodies_tot;
@@ -1239,20 +1222,20 @@ void Component::setup_distribution(void)
 
     }
 
-    out = new ofstream("current.processor.rates", ios::out | ios::app);
+    string outrates = "current.processor.rates." + runtag;
+
+    out = new ofstream(outrates.c_str(), ios::out | ios::app);
     if (out) {
       *out << "# " << endl;
       *out << "# Time=" << tnow << " Component=" << name << endl;
       *out << "# " 
 	  << setw(15) << "Norm rate"
-	  << setw(15) << "Raw rate"
 	  << setw(15) << "Delta rate"
 	  << setw(15) << "Index"
 	  << setw(15) << "Current #"
 	  << endl
 	  << "# "
 	  << setw(15) << "---------"
-	  << setw(15) << "--------"
 	  << setw(15) << "----------"
 	  << setw(15) << "--------"
 	  << setw(15) << "---------"
@@ -1260,9 +1243,8 @@ void Component::setup_distribution(void)
       
       for (n=0; n<numprocs; n++)
 	*out << "  "
-	    << setw(15) << rates[n]
-	    << setw(15) << rates[n]*norm
-	    << setw(15) << 1.0 - rates[n]*nbodies_tot/nbodies_table[n]
+	    << setw(15) << comp.rates[n]
+	    << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table[n]
 	    << setw(15) << nbodies_index[n]
 	    << setw(15) << nbodies_table[n]
 	    << endl;
@@ -1278,8 +1260,462 @@ void Component::setup_distribution(void)
 
 }
 
+void Component::load_balance(void)
+{
+  MPI_Status status;
+  vector<int> nbodies_index1(numprocs);
+  vector<int> nbodies_table1(numprocs);
+  ofstream *out, *log;
+
+
+  if (myid == 0) {
+
+    vector<double> orates1(numprocs);
+    vector<double> trates1(numprocs);
+
+    for (int n=0; n<numprocs; n++) {
+
+      if (n == 0)
+	nbodies_table1[n] = nbodies_index1[n] = 
+	  max<int>(1, min<int>((int)(comp.rates[n] * nbodies_tot), nbodies_tot));
+      else {
+	if (n < numprocs-1)
+	  nbodies_index1[n] = (int)(comp.rates[n] * nbodies_tot) + 
+	    nbodies_index1[n-1];
+	else
+	  nbodies_index1[n] = nbodies_tot;
+      
+	nbodies_table1[n] = nbodies_index1[n] - nbodies_index1[n-1];
+      }
+
+    }
+
+    string outrates = "current.processor.rates." + runtag;
+    string rateslog = "current.processor.rates.log." + runtag;
+
+    out = new ofstream(outrates.c_str(), ios::out | ios::app);
+    log = new ofstream(rateslog.c_str(), ios::out | ios::app);
+
+    if (*out) {
+      *out << "# " << endl;
+      *out << "# Time=" << tnow << " Component=" << name << endl;
+      *out << "# " 
+	   << setw(15) << "Norm rate"
+	   << setw(15) << "Delta rate"
+	   << setw(15) << "Index"
+	   << setw(15) << "Current #"
+	   << setw(15) << "Old Index"
+	   << setw(15) << "Previous #"
+	   << endl
+	   << "# "
+	   << setw(15) << "--------"
+	   << setw(15) << "----------"
+	   << setw(15) << "--------"
+	   << setw(15) << "---------"
+	   << setw(15) << "---------"
+	   << setw(15) << "---------"
+	   << endl;
+      
+      for (int n=0; n<numprocs; n++)
+	*out << "  "
+	     << setw(15) << comp.rates[n]
+	     << setw(15) << 1.0 - comp.rates[n]*nbodies_tot/nbodies_table1[n]
+	     << setw(15) << nbodies_index1[n]
+	     << setw(15) << nbodies_table1[n]
+	     << setw(15) << nbodies_index[n]
+	     << setw(15) << nbodies_table[n]
+	     << endl;
+    }
+
+  }
+
+  MPI_Bcast(&nbodies_index1[0], numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&nbodies_table1[0], numprocs, MPI_INT, 0, MPI_COMM_WORLD);
+
+				// Compute index
+  loadb.erase(loadb.begin(), loadb.end());
+  loadb_datum datum0, datum1;
+  datum0.s = 0;
+  datum1.s = 1;
+  for (int i=0; i<numprocs; i++) {
+    datum0.top = nbodies_index[i];
+    datum1.top = nbodies_index1[i];
+    datum0.indx = datum1.indx = i;
+    loadb.push_back(datum0);
+    loadb.push_back(datum1);
+  }
+
+  sort(loadb.begin(), loadb.end(), less_loadb);
+
+  if (myid==0 && *log) 
+    {
+      *log << setw(72) << setfill('.') << ".\n" << setfill(' ');
+      *log << "Time=" << tnow << " Component=" << name << endl;
+      *log << endl;
+      *log << "List:\n";
+      log->setf(ios::left);
+      *log << setw(4) << "N"
+	   << setw(6) << "Index"
+	   << setw(10) << "Old"
+	   << setw(10) << "New"
+	   << endl;
+
+      char c = log->fill('-');
+      *log << setw(4) << "|"
+	   << setw(6) << "|"
+	   << setw(10) << "|"
+	   << setw(10) << "|"
+	   << endl;
+      log->fill(c);
+      
+      for (int i=0; i<2*numprocs; i++) {
+	
+	*log << setw(4) << i
+	     << setw(6) << loadb[i].indx;
+	if (loadb[i].s)
+	  *log << setw(10) << " " << setw(10) << loadb[i].top;
+	else 
+	  *log << setw(10) << loadb[i].top;
+	*log << endl;
+      }
+
+    }
+
+
+  if (myid==0 && *log) 
+    {
+      *log << "\nAnalysis:\n";
+      log->setf(ios::left);
+      *log << setw(10) << "Interval"
+	   << setw(10) << "Number"
+	   << setw(10) << "Old"
+	   << setw(10) << "New"
+	   << setw(10) << "Action"
+	   << endl;
+
+      char c = log->fill('-');
+      *log << setw(10) << "|"
+	   << setw(10) << "|"
+	   << setw(10) << "|"
+	   << setw(10) << "|"
+	   << setw(10) << "|"
+	   << endl;
+      log->fill(c);
+    }
+
+
+  int iold=0, inew=0;
+
+				// Offset will keep track of position in
+				// original vector
+  int bot, ptr, nump, offset=0;
+  vector<int> loc(numprocs, 0);
+
+				// Beginning particle index
+  if (myid) bot = nbodies_index[myid-1];
+  else      bot = 0;
+
+  for (int i=0; i<2*numprocs-2; i++) {
+
+				// Assign new interval
+    if (loadb[i].s) inew = loadb[i].indx+1;
+    else            iold = loadb[i].indx+1;
+    
+    if (myid==0 && *log)
+      *log << setw(10) << i
+	   << setw(10) << loadb[i+1].top - loadb[i].top
+	   << setw(10) << iold
+	   << setw(10) << inew;
+    
+				// Relative pointer index of particles
+				// to be shifted
+    if (myid==iold) {
+      ptr = loadb[i].top - bot + offset;
+				// Sanity check
+      if (ptr<0)
+	cerr << "oops in load_balance: iold=" << iold 
+	     << "  beg=" << ptr << "\n";
+    }
+
+				// Number of particles to be shifted
+    nump = loadb[i+1].top - loadb[i].top;
+
+    ostringstream msg;
+    
+    if (inew==iold || nump==0) 
+      msg << "Do nothing";
+    else if (inew>iold) {
+      msg << "Insert " << nump << " from #" << iold << " to #" << inew;
+      insert_particles(iold, inew, ptr, nump, loc[inew]);
+      if (myid==iold) {
+#ifdef DEBUG
+	cout << "Process " << myid << ":"
+	     << "  beg seq=" << particles[ptr].iattrib[0] 
+	     << "  end seq=" << particles[ptr+nump-1].iattrib[0]
+	     << "  erasing=[" << ptr << ", " << ptr+nump-1 << "]" << endl;
+#endif
+	if (ptr+nump==nbodies)
+	  particles.erase(particles.begin()+ptr, particles.end());
+	else
+	  particles.erase(particles.begin()+ptr, particles.begin()+ptr+nump);
+	offset -= nump;
+#ifdef DEBUG
+	if (particles.size())
+	  cout << "Process " << myid << ": new ends :"
+	       << "  beg seq=" << particles[0].iattrib[0] 
+	       << "  end seq=" << particles[particles.size()-1].iattrib[0] 
+	       << endl;
+	else
+	  cout << "Process " << myid << ": no particles!"
+	       << endl;
+#endif
+      }
+				// Update counters for shifted particles
+      if (myid==inew) {
+	offset += nump;
+	loc[inew] += nump;
+      }
+    }
+    else if (iold>inew) {
+      msg << "Append " << nump << " from #" << iold << " to #" << inew;
+      append_particles(iold, inew, ptr, nump);
+      if (myid==iold) {
+#ifdef DEBUG
+	cout << "Process " << myid << ":"
+	     << "  beg seq=" << particles[ptr].iattrib[0] 
+	     << "  end seq=" << particles[ptr+nump-1].iattrib[0] 
+	     << "  erasing=[" << ptr << ", " << ptr+nump-1 << "]" << endl;
+#endif
+	if (ptr+nump==nbodies) {
+	  particles.erase(particles.begin()+ptr, particles.end());
+	}
+	else {
+	  particles.erase(particles.begin()+ptr, particles.begin()+ptr+nump);
+	}
+	offset -= nump;
+#ifdef DEBUG
+	if (particles.size())
+	  cout << "Process " << myid << ": new ends :"
+	       << "  beg seq=" << particles[0].iattrib[0] 
+	       << "  end seq=" << particles[particles.size()-1].iattrib[0] 
+	       << endl;
+	else
+	  cout << "Process " << myid << ": no particles!"
+	       << endl;
+#endif
+      }
+    }
+    
+    if (myid==0 && *log) *log << setw(10) << msg.str() << endl;
+
+  }
+
+  
+				// Update indices
+  nbodies = nbodies_table1[myid];
+  nbodies_index = nbodies_index1;
+  nbodies_table = nbodies_table1;
+  
+
+#ifdef SEQCHECK
+  char msgbuf[200];		// Only need 31 characters . . .
+
+  if (myid==0) *log << endl << "Post load-balance sequence check:" 
+		    << endl << endl;
+
+  for (int i=0; i<numprocs; i++) {
+    if (myid==i) {
+      ostringstream msg;
+      msg << "Process " << setw(4) << myid << ":"
+	  << setw(9) << particles[0].iattrib[0]
+	  << setw(9) << particles[nbodies-1].iattrib[0];
+      strcpy(msgbuf, msg.str().c_str());
+      if (myid!=0) 
+	MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
+    }
+
+    if (myid==0) {
+      if (myid!=i)
+	MPI_Recv(msgbuf, 200, MPI_CHAR, i, 81, MPI_COMM_WORLD, &status);
+
+      *log << msgbuf << endl;
+    }
+
+
+  }
+
+  if (myid==0) seq_beg = 1;
+  else         seq_beg = nbodies_index[myid-1]+1;
+
+				// Explicit check
+  int nbad1 = 0, nbad=0;
+  for (int i=0; i<nbodies; i++) {
+    if (particles[i].iattrib[0] != seq_beg+i) {
+      cout << "Process " << myid << ": sequence error on load balance,"
+	   << " component=" << name
+	   << " i=" << i
+	   << " seq=" << particles[i].iattrib[0]
+	   << " expected=" << seq_beg+i
+	   << endl << flush;
+      nbad1++;
+    }
+  }
+
+  MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+  if (nbad) {
+    if (myid==0) cout << nbad << " bad states\n";
+    MPI_Finalize();
+    exit(-1);
+  }
+
+  if (myid==0) *log << "\nSequence check ok!\n";
+
+#endif
+
+  if (myid==0) {
+    out->close();
+    delete out;
+    log->close();
+    delete log;
+  }
+
+}
+
+
+void Component::append_particles(int from, int to, int begin, int number)
+{
+  MPI_Status status;
+
+  int icount, indx, counter=0;
+
+  if (myid == from) {
+    
+    while (counter < number) {
+
+      icount = 0;
+      while (icount < nbuf && counter < number) {
+
+	Particle_to_part(buf[icount], particles[begin+counter]);
+      
+	icount++;
+	counter++;
+      }
+      
+      MPI_Send(&icount, 1, MPI_INT, to, 72, MPI_COMM_WORLD);
+      MPI_Send(buf, icount, Particletype, to, 73, MPI_COMM_WORLD);
+#ifdef DEBUG
+      cout << "Process " << myid 
+	   << ": sent " << icount << " particles to Process " << to
+	   << " for append, counter value=" << counter
+	   << endl << flush;
+#endif    
+    }
+
+  }
+
+  if (myid == to) {
+  
+    Particle temp;
+
+    while (counter < number) {
+
+      MPI_Recv(&icount, 1, MPI_INT, from, 72, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, icount, Particletype, from, 73, MPI_COMM_WORLD, &status);
+
+#ifdef DEBUG
+      cout << "Process " << myid 
+	   << ": received " << icount << " particles from Process " << from
+	   << " for append" << endl << flush;
+#endif    
+
+      for (int j=0; j<icount; j++) {
+
+	part_to_Particle(buf[j], temp);
+	particles.push_back(temp);
+
+	counter++;
+      }
+      
+    }
+
+  }
+
+}
+
+
+
+void Component::insert_particles(int from, int to, int begin, int number, 
+				 int loc)
+{
+  MPI_Status status;
+
+  int icount, indx, counter=0;
+
+  if (myid == from) {
+    
+    while (counter < number) {
+
+      icount = 0;
+      while (icount < nbuf && counter < number) {
+
+	Particle_to_part(buf[icount], particles[begin+counter]);
+      
+	icount++;
+	counter++;
+      }
+      
+      MPI_Send(&icount, 1, MPI_INT, to, 72, MPI_COMM_WORLD);
+      MPI_Send(buf, icount, Particletype, to, 73, MPI_COMM_WORLD);
+#ifdef DEBUG
+      cout << "Process " << myid 
+	   << ": sent " << icount << " particles to Process " << to
+	   << " for insert, counter value=" << counter
+	   << endl << flush;
+#endif    
+    }
+
+  }
+
+  if (myid == to) {
+  
+    Particle temp;
+    vector<Particle> newp;
+
+    while (counter < number) {
+
+      MPI_Recv(&icount, 1, MPI_INT, from, 72, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, icount, Particletype, from, 73, MPI_COMM_WORLD, &status);
+
+#ifdef DEBUG
+      cout << "Process " << myid 
+	   << ": received " << icount << " particles from Process " << from
+	   << " for insert" << endl << flush;
+#endif    
+
+      for (int j=0; j<icount; j++) {
+
+	part_to_Particle(buf[j], temp);
+	newp.push_back(temp);
+
+	counter++;
+      }
+      
+    }
+
+    for (int i=0; i<number; i++) 
+      particles.insert(particles.begin()+loc+i, newp[i]);
+
+  }
+
+}
+
+
+
 double Component::Adiabatic()
 {
   if (!adiabatic) return 1.0;
-  return 0.5*( 1.0 + erf((tpos-ton)/twid) );
+  return 0.25*
+    ( 1.0 + erf((tpos - ton )/twid) ) *
+    ( 1.0 + erf((toff - tpos)/twid) ) ;
 }

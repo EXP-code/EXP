@@ -7,11 +7,13 @@
 
 static const char rcsid[] = "@(#)simann.c++	1.3 15:55:47 3/30/93   EFC";
 
+using namespace std;
+
 #include <stdlib.h>
 #include <stddef.h>
-#include <iostream.h>
-#include <iomanip.h>
-#include <fstream.h>
+#include <iostream>
+#include <iomanip>
+#include <fstream>
 #include <math.h>
 
 #include <simann2.h>

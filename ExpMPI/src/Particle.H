@@ -4,6 +4,7 @@
 
 #include <vector>
 
+using namespace std;
 
 //! Keeps track of all info for one particle
 /*!
@@ -39,7 +40,7 @@ public:
   vector<double> dattrib;
 
   //! Constructor
-  Particle() {}
+  Particle();
 
   //! Copy constructor
   Particle(const Particle &);

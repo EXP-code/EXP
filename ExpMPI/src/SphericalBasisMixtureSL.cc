@@ -1,5 +1,4 @@
 #include "expand.h"
-#include <strstream>
 #include <SphericalBasisMixtureSL.H>
 #include <SphereTwoCenter.H>
 

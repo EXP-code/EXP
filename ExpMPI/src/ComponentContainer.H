@@ -55,6 +55,9 @@ public:
   //! List of interactions
   list<Interaction*> interaction;
 
+  //! Processor rates
+  vector<double> rates;
+
   //! Constructor
   ComponentContainer();
 
@@ -75,6 +78,12 @@ public:
 
   //! Remove the center of mass accelration from the overall phase space
   void fix_acceleration();
+
+  //! Read initial processor rates
+  void read_rates();
+
+  //! Compute duty for each processor and initiate load balancing
+  void load_balance();
 
 };
 

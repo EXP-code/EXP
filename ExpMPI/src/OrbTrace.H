@@ -18,6 +18,10 @@
 
     @param nint is the frequency between file updates 
 
+    @param useacc to output the acceleration
+
+    @param usepot to output the potential
+
     @param name of the component to trace
 */
 class OrbTrace : public Output
@@ -29,9 +33,12 @@ private:
   int nbeg;
   int nskip;
   int norb;
+  bool use_acc;
+  bool use_pot;
   Component *tcomp;
   vector<int> orblist;
   vector<double> pbuf;
+  int nbuf;
 
   void initialize(void);
 

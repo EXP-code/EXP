@@ -168,6 +168,8 @@ void ParamParse::print_database(ostream& out)
   list<Stanza>::iterator it;
   list<spair>::iterator it1;
 
+  out << setiosflags(ios::left);
+
   for (it=database.begin(); it!=database.end(); it++) {
     out << setw(2) << istanza << " [" << it->name << "]" << endl;
 
@@ -175,7 +177,7 @@ void ParamParse::print_database(ostream& out)
     for (it1=it->elist.begin(); it1!=it->elist.end(); it1++) {
       out << " " << setw(3) << iparam
 	  << setw(15) << it1->first.c_str() << " | "
-	  << setw(-60) << it1->second.c_str()
+	  << setw(60) << it1->second.c_str()
 	  << endl;
       iparam++;
     }
@@ -184,6 +186,8 @@ void ParamParse::print_database(ostream& out)
     out << endl;
     
   }
+
+  out << resetiosflags(ios::left);
 
 }
 

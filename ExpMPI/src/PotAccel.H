@@ -12,6 +12,8 @@
 class PotAccel;
 class Component;
 
+using namespace std;
+
 //! Helper class to pass info to threaded member
 struct thrd_pass_PotAccel {
   //! Pointer to force

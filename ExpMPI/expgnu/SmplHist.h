@@ -22,8 +22,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #endif
 #define SampleHistogram_h 1
 
-#include <iostream.h>
+#include <iostream>
 #include <SmplStat.h>
+
+using namespace std;
 
 extern const int SampleHistogramMinimum;
 extern const int SampleHistogramMaximum;

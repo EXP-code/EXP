@@ -1,5 +1,4 @@
 #include <math.h>
-
 #include <iostream>
 
 #define ITMAX 500
@@ -12,7 +11,7 @@ double zbrent(double (*func) (double), double x1, double x2, double tol)
   double fa=(*func)(a),fb=(*func)(b),fc,p,q,r,s,tol1,xm;
 
   if (fb*fa > 0.0) {
-    cerr << "Root must be bracketed in ZBRENT";
+    std::cerr << "Root must be bracketed in ZBRENT";
     exit(-1);
   }
   fc=fb;
@@ -67,7 +66,7 @@ double zbrent(double (*func) (double), double x1, double x2, double tol)
       b += (xm > 0.0 ? fabs(tol1) : -fabs(tol1));
     fb=(*func)(b);
   }
-  cerr << "Maximum number of iterations exceeded in ZBRENT";
+  std::cerr << "Maximum number of iterations exceeded in ZBRENT";
 }
 
 #undef ITMAX

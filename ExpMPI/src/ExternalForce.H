@@ -25,6 +25,11 @@ protected:
   */
   virtual void determine_acceleration_and_potential(void);
 
+  /** User info divider
+      Make demarcation in output log
+  */
+  void print_divider(void);
+
 public:
   //! Name of external force (mnemonic)
   string id;
