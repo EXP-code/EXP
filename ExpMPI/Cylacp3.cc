@@ -276,7 +276,7 @@ void * determine_coefficients_Cyl_thread(void * arg)
 
     if (component[i] != 2) continue;
     
-    if (r<=rmax && fabs(zz)<=zmax) {
+    if (r<=rcylEM && fabs(zz)<=zmax) {
       if (eof) {
 	use[id]++;
 	cylmass0[id] += mass[i];
@@ -410,7 +410,7 @@ void * determine_acceleration_and_potential_Cyl_thread(void * arg)
     r = rr[i] = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r<=rmax && fabs(zz)<=zmax) {
+    if (r<=rcylEM && fabs(zz)<=zmax) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
@@ -432,7 +432,12 @@ void * determine_acceleration_and_potential_Cyl_thread(void * arg)
     }
     else {
 
-      // cerr.form("r=%f zz=%f Cylmass=%f\n", r, zz, cylmass);
+      /*
+      if (component[i]==0) {
+	cerr.form("Process %d: i=%d r=%f zz=%f Cylmass=%f\n", 
+		  myid, i, r, zz, cylmass);
+      }
+      */
 
       r3 = r2 + zz*zz;
       p = -cylmass/sqrt(r3);	// -M/r
