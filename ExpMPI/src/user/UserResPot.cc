@@ -106,6 +106,7 @@ UserResPot::~UserResPot()
 {
   delete halo_model;
   delete halo_ortho;
+  delete respot;
 }
 
 void UserResPot::userinfo()
@@ -190,8 +191,8 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double pos[3], posN[3], posP[3], vel[3], acc[3];
-  double amp, R2, R, pot, dpot;
+  double pos[3], vel[3], acc[3];
+  double amp, R2, R, pot, dpot, pot2;
   
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -215,26 +216,18 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
     halo_model->get_pot_dpot(R, pot, dpot);
 
+    respot->ForceCart(pos, vel, phase, bcoef, pot2, acc[0], acc[1], acc[2]);
+
+
     for (int k=0; k<3; k++) {
-
-      for (int k2=0; k2<3; k2++) posP[k2] = posN[k2] = pos[k2];
-
-      posN[k] -= drfac*R;
-      posP[k] += drfac*R;
-
-      acc[k] = - amp * (
-			respot->Pot(posP, vel, phase, bcoef) -
-			respot->Pot(posN, vel, phase, bcoef)
-			)/(2.0*drfac*R);
-
+      acc[k] *= amp;
       if (use_background && R>0.0) acc[k] += -dpot*pos[k]/R;
     }
     
     for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];
     
-    (*particles)[i].potext += amp * 
-      respot->Pot(pos, vel, phase, bcoef);
-
+    (*particles)[i].potext += amp * pot2;
+    
     if (use_background)
       (*particles)[i].potext += (*particles)[i].mass * pot;
 

@@ -11,13 +11,11 @@
 #ifndef _ResPot_H
 #define _ResPot_H
 
-/**
-   Computes the resonance potential for a given resonance
-*/
 class ResPot
 {
 private:
   int L, M, L1, L2, NMAX;
+
 
   AxiSymModel *halo_model;
   AxiSymBiorth *halo_ortho;
@@ -39,22 +37,27 @@ private:
   o2vector orbmat;
 
   double Emax, Emin, Kmin, Kmax;
+  bool grid_computed;
   void compute_grid();
 
   double dE, dK;
   vector<double> EE, KK, Jmax;
 
-  //! Numerical constant
-  static KComplex I;
-  
+  int ngrid;
+  vector<double> tw, tr, tf;
+
+  LegeQuad* lq;
+
 public:
 
-  //! Relative radial offset for numerical differential (default: 0.01)
+  static bool use_grid;
   static double DELTA;
-  //! Number of ENERGY grid points for tabled grid (default: 400)
+  static int NREC;
   static int NUME;
-  //! Number of KAPPA grid points for tabled grid (default: 100)
   static int NUMK;
+  static int NUMT;
+  static KComplex I;
+
 
   //! Constructor
   ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
@@ -65,6 +68,18 @@ public:
 
   //! Get potential
   double Pot(double* pos, double* vel, double phase, CVector &bcoef);
+
+  //! Get force (spherical coordinates)
+  void ForceSph(double* pos, double* vel, double phase, CVector &bcoef,
+		double& pot, double& fr, double& ft, double& fp);
+
+  //! Get force (cartesian coordinates
+  void ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
+		 double& pot, double& fx, double& fy, double& fz);
+
+  //! Test routine
+  int coord(double* pos, double* vel,
+	    double& W1, double& W2, double& W3, double& PSI);
 
 };
 

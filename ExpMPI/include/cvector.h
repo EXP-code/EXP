@@ -3,8 +3,9 @@
 #pragma interface
 #endif
 #define _cvector_h 1
-#include <iostream.h>
-#include <fstream.h>
+
+#include <iostream>
+#include <fstream>
 #include <kevin_complex.h>
 
 class Vector;
