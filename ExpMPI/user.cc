@@ -26,8 +26,8 @@ static char rcsid[] = "$Id$";
 extern "C" void user_perturbation()
 {
   static bool firstime = true;
-  if (firstime && myid==1) {
-    cerr << "Perturbation using satellite on a linear trajectory\n";
+  if (firstime && myid==0) {
+    cout << "Perturbation using satellite on a linear trajectory\n";
     firstime = false;
   }
 

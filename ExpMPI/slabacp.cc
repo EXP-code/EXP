@@ -37,9 +37,7 @@
 #include <kevin_complex.h>
 #include <biorth1d.h>
 
-extern "C" {
 #include "expand.h"
-}
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";

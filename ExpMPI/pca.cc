@@ -10,8 +10,9 @@
 #define GHQL
 #undef DEBUG
 
-extern "C" {
 #include "expand.h"
+
+extern "C" {
 
   void get_dens_coefs_bes(int, double *, double *);
   void get_pot_coefs_bes(int, double *, double *, double *);
