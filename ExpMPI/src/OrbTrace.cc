@@ -10,6 +10,7 @@
 OrbTrace::OrbTrace(string& line) : Output(line)
 {
   norb = 5;
+  nskip = 0;
   filename = "ORBTRACE";
 
   initialize();
@@ -30,7 +31,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   Component *c;
   
   int npos = 1;
-  int nbodies, nskip, nmax, ncur;
+  int nbodies, nmax, ncur;
 
   out << "# " << setw(4) << npos << setw(20) << "Time";
 
@@ -42,10 +43,12 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
     nmax = norb;
     nbodies = c->particles.size();
-    nskip = nbodies/norb;
     if (nskip < 1) {
-      nmax = nbodies;
-      nskip = 1;
+      nskip = nbodies/norb;
+      if (nskip < 1) {
+	nmax = nbodies;
+	nskip = 1;
+      }
     }
 
     ncur = 0;
@@ -68,6 +71,9 @@ void OrbTrace::initialize()
   
   if (!get_value(string("norb"), tmp)) 
     norb = atoi(tmp.c_str());
+
+  if (!get_value(string("nskip"), tmp)) 
+    nskip = atoi(tmp.c_str());
 }
 
 void OrbTrace::Run(int n, bool last)
@@ -86,7 +92,7 @@ void OrbTrace::Run(int n, bool last)
   list<Component*>::iterator cc;
   Component *c;
   
-  int nbodies, nskip, nmax, ncur;
+  int nbodies, nskip, nmax;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 
@@ -100,14 +106,11 @@ void OrbTrace::Run(int n, bool last)
       nskip = 1;
     }
 
-    ncur = 0;
-    for (int i=0; i<nmax; i++) {
+    for (int ncur=nskip-1; ncur<nmax; ncur += nskip)
       out 
 	<< setw(15) << (c->particles)[ncur].pos[0]
 	<< setw(15) << (c->particles)[ncur].pos[1]
 	<< setw(15) << (c->particles)[ncur].pos[2];
-      ncur += nskip;
-    }
   }
   out << endl;
   

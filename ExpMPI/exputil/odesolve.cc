@@ -63,7 +63,6 @@ void constant_step(
 	ode_derivs derivs,
 	ode_rk algorithm)
 {
-	int i;
 	double *dxdt;
 
 	dxdt = nr_vector(1, n);

@@ -177,7 +177,7 @@ void QPDistF::compute_distribution(void)
   df_computed = true;
 
 				// Indices
-  int i, j, k, l;
+  int i, j, k;
 
   //
   // Set-up model
@@ -271,7 +271,7 @@ void QPDistF::compute_distribution(void)
     Dgrid[i] = t->get_density(Rgrid[i]);
   }
 
-  double vrmax, vtmax, vv, th, vr, vt, pot, E, K, dt=0.5*M_PI/NUMT;
+  double vrmax, vv, th, pot, E, K, dt=0.5*M_PI/NUMT;
   LegeQuad wk(NINT);
   orb = new SphericalOrbit(t);
   Matrix *basis = new Matrix [MGRID] - 1;

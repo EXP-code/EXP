@@ -69,7 +69,7 @@ Vector rhoQy2;
 	     
 void SphericalModelTable::setup_df(int NUM, double RA)
 {
-  double x,ur,fac,fint(double p),d,d1,d2,dQ,Q,Qmin,Qmax;
+  double x,fac,fint(double p),d,dQ,Q,Qmin,Qmax;
   int i;
 
   DIVERGE = diverge;
@@ -152,7 +152,7 @@ void SphericalModelTable::setup_df(int NUM, double RA)
 
 double fint(double p)
 {
-  double d,d1,d2;
+  double d,d1;
   
   Splint2(rhoQx, rhoQy, rhoQy2, p, d, d1);
   if (DIVERGE) {

@@ -138,7 +138,7 @@ double qadapt(double a, double b, func_1d func, double tol)
 double quadsplit(double a, double b, func_1d func, double fmid, double tol)
 {
 	double flow, fhigh, fmean, delta;
-	double qlow, qmid, qhigh, newtol;
+	double qlow, qmid, qhigh;
 
 
 	/* evaluate the function at the low and high sample points.
