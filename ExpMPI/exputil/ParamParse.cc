@@ -14,7 +14,11 @@ Stanza::Stanza(const Stanza &p)
 
 void Stanza::clear()
 {
+#if __GNUC__ && (__GNUC__ < 3)
+  name.erase(name.begin(), name.end());
+#else
   name.clear();
+#endif
   elist.clear();
 }
 
