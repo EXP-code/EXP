@@ -19,11 +19,11 @@ UserDisk::UserDisk(string &line) : ExternalForce(line)
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
 
-  Rmax = 20.0;			// Maximum grid radius
-  Zmax = 20.0;			// Maximum grid height
+  Rmax = 2.0;			// Maximum grid radius
+  Zmax = 2.0;			// Maximum grid height
   Rnum = 100;			// Number of points on radius grid
   Znum = 100;			// Number of points on vertical grid
-  Nint = 40;			// Number of k-integration points
+  Nint = 400;			// Number of k-integration points
 
   debug = false;		// Print out potential/force tables
   dfac = 1.2;			// Fraction of grid for interp test
@@ -202,12 +202,17 @@ void UserDisk::genTable()
 
 }
 
+
 void UserDisk::printTable()
 {
+  string filename;
 
-  ofstream outP("test_pot.dat");
-  ofstream outR("test_fr.dat");
-  ofstream outZ("test_fz.dat");
+  filename = "test_pot." + runtag;
+  ofstream outP(filename.c_str());
+  filename = "test_fr." + runtag;
+  ofstream outR(filename.c_str());
+  filename = "test_fz." + runtag;
+  ofstream outZ(filename.c_str());
 
   double R, Z;
 
@@ -245,9 +250,12 @@ void UserDisk::printTable()
   outR.close();
   outZ.close();
 
-  outP.open("test_pot.dat1");
-  outR.open("test_fr.dat1");
-  outZ.open("test_fz.dat1");
+  filename = "test_pot1." + runtag;
+  outP.open(filename.c_str());
+  filename = "test_fr1." + runtag;
+  outR.open(filename.c_str());
+  filename = "test_fz1." + runtag;
+  outZ.open(filename.c_str());
 
   const int num = 100;
   double dr = dfac*Rmax/(num-1);
