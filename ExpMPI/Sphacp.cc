@@ -107,10 +107,8 @@ void get_acceleration_and_potential_SLsph(void)
   /*======================*/
 
   if (firstime || self_consistent) {
-				// Try to read cached tables rather
-				// than recompute from distribution
-    if (!(restart && firstime))
-      orthoS->determine_coefficients_SLsph();
+    
+    orthoS->determine_coefficients_SLsph();
 
     firstime = 0;
   }
