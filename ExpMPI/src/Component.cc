@@ -1278,5 +1278,5 @@ void Component::setup_distribution(void)
 double Component::Adiabatic()
 {
   if (!adiabatic) return 1.0;
-  return 0.5*( 1.0 + erf((time-ton)/twid) );
+  return 0.5*( 1.0 + erf((tpos-ton)/twid) );
 }

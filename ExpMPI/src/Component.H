@@ -181,9 +181,6 @@ protected:
   //! Binary read flag
   bool binary;
 
-  //! Current phase-space time
-  double time;
-  
   //! Component list for tying center of mass
   list<Component*> com_tie;
 
