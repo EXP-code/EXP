@@ -54,6 +54,9 @@ OrbTrace::OrbTrace(string& line) : Output(line)
     out << "# " << setw(4) << npos++ << setw(20) << " x[" << ncur << "]\n";
     out << "# " << setw(4) << npos++ << setw(20) << " y[" << ncur << "]\n";
     out << "# " << setw(4) << npos++ << setw(20) << " z[" << ncur << "]\n";
+    out << "# " << setw(4) << npos++ << setw(20) << " u[" << ncur << "]\n";
+    out << "# " << setw(4) << npos++ << setw(20) << " v[" << ncur << "]\n";
+    out << "# " << setw(4) << npos++ << setw(20) << " w[" << ncur << "]\n";
     ncur += nskip;
   }
 
@@ -114,7 +117,10 @@ void OrbTrace::Run(int n, bool last)
       out 
 	<< setw(15) << (tcomp->particles)[ncur].pos[0]
 	<< setw(15) << (tcomp->particles)[ncur].pos[1]
-	<< setw(15) << (tcomp->particles)[ncur].pos[2];
+	<< setw(15) << (tcomp->particles)[ncur].pos[2]
+	<< setw(15) << (tcomp->particles)[ncur].vel[0]
+	<< setw(15) << (tcomp->particles)[ncur].vel[1]
+	<< setw(15) << (tcomp->particles)[ncur].vel[2];
     ncur += nskip;
   }
   out << endl;
