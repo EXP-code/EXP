@@ -1376,8 +1376,8 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 	}
 	else {
 
-	  facC[id][ir][l-m] = ylm*table[id][l][ir]*cosm[id][m];
-	  facS[id][ir][l-m] = ylm*table[id][l][ir]*sinm[id][m];
+	  facC[id][ir][l-m] = M_SQRT2*ylm*table[id][l][ir]*cosm[id][m];
+	  facS[id][ir][l-m] = M_SQRT2*ylm*table[id][l][ir]*sinm[id][m];
 
 	}
 
