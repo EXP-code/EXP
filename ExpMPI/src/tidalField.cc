@@ -42,7 +42,7 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
     cp = *ccp;
 
     nbodies = cp->particles.size();
-    nbeg = 1+nbodies*id/nthrds;
+    nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
     for (i=nbeg; i<nend; i++) {

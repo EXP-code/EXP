@@ -248,7 +248,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   int nbodies = particles->size();
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   use[id] = 0;
@@ -436,7 +436,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   int nbodies = particles->size();
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
