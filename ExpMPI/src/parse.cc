@@ -73,20 +73,30 @@ void initialize(void)
 
 void print_parm(ostream& out, char *comment)
 {
-  out << comment << " " << "nbodmax" << " = " << nbodmax << "\n";
-  out << comment << " " << "nsteps" <<  " = " << nsteps << "\n";
-  out << comment << " " << "nthrds" <<  " = " << nthrds << "\n";
+  out << comment << "[global]" << endl;
 
-  out << comment << " " << "time" <<  " = " << tnow << "\n";
-  out << comment << " " << "dtime" <<  " = " << dtime << "\n";
-  out << comment << " " << "NICE" <<  " = " << NICE << "\n";
+  out << comment << " " << "nbodmax"    << " = " << nbodmax     << endl;
+  out << comment << " " << "nsteps"     << " = " << nsteps      << endl;
+  out << comment << " " << "nthrds"     << " = " << nthrds      << endl;
+  out << comment << " " << "nbalance"   << " = " << nbalance    << endl;
+  out << comment << " " << "dbthresh"   << " = " << dbthresh    << endl;
 
-  out << comment << " " << "use_cwd" <<  " = " << use_cwd << "\n";
-  out << comment << " " << "restart" <<  " = " << restart << "\n";
+  out << comment << " " << "time"       << " = " << tnow        << endl;
+  out << comment << " " << "dtime"      << " = " << dtime       << endl;
+  out << comment << " " << "NICE"       << " = " << NICE        << endl;
 
-  out << comment << " " << "homedir" <<  " = " << homedir << "\n";
-  out << comment << " " << "infile" <<  " = " << infile << "\n";
-  out << comment << " " << "parmfile" <<  " = " << parmfile << "\n";
+  out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
+  out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;
+  out << comment << " " << "global_cov" << " = " << global_cov  << endl;
+  out << comment << " " << "restart"    << " = " << restart     << endl;
+
+  out << comment << " " << "homedir"    << " = " << homedir     << endl;
+  out << comment << " " << "ldlibdir"   << " = " << ldlibdir    << endl;
+  out << comment << " " << "infile"     << " = " << infile      << endl;
+  out << comment << " " << "parmfile"   << " = " << parmfile    << endl;
+  out << comment << " " << "ratefile"   << " = " << ratefile    << endl;
+  out << comment << " " << "outdir"     << " = " << outdir      << endl;
+  out << comment << " " << "runtag"     << " = " << runtag      << endl;
 }
 
 
@@ -124,7 +134,7 @@ void MPL_parse_args(int argc, char** argv)
   
   if (myid==0) {
 
-    while ((c = getopt(argc, argv, "f:dh")) != -1)
+    while ((c = getopt(argc, argv, "f:dvh")) != -1)
       switch (c) {
       case 'f': 
 	curparm.erase(curparm.begin(), curparm.end());
@@ -132,6 +142,9 @@ void MPL_parse_args(int argc, char** argv)
 	break;
       case 'd':
 	print_default();
+	break;
+      case 'v':
+	exit(0);
 	break;
       case '?':
       case 'h':
