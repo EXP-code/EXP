@@ -19,7 +19,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(LDFLAGS) -o $@
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
-bin_PROGRAMS = slcheck slcheckN
+bin_PROGRAMS = slcheck
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lstdc++ -lpthread -ldl -lm
@@ -32,7 +32,7 @@ CXXLINK = mpif77 $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 slcheck_SOURCES = slcheck.cc SLGridMP2.cc sledge.f
-slcheckN_SOURCES = slcheck_nompi.cc SLGridMP2.cc sledge.f
+
 
 ## Copy files
 
