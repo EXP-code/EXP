@@ -94,14 +94,19 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 				// Set up for resonance potential
   hm =  new SphericalModelTable(model_file);
   halo_model = hm;
+  cout << "Process " << myid << ": made model in UserResPot\n";
 
+  cout << "Process " << myid << ": about to make biorth . . .\n";
   SphereSL::cache = 0;
-  halo_ortho = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax,
-			    pot, dpot, dens);
+  SphereSL::mpi = 0;
+  SphereSL::rscale = 0.067;
+  halo_ortho = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, pot, dpot, dens);
+  cout << "Process " << myid << ": made biorth in UserResPot\n";
 
   ResPot::NUME = NUME;
   ResPot::NUMK = NUMK;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
+  cout << "Process " << myid << ": made ResPot in UserResPot\n";
 
   BarForcing::L0 = L0;
   BarForcing::M0 = M0;
@@ -109,6 +114,10 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_quad_parameters(A21, A32);
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
+  cout << "Process " << myid << ": made BarForcing in UserResPot\n";
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  exit(0);
 
   userinfo();
 }

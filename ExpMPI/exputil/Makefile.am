@@ -43,12 +43,13 @@ MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
 ORBIT_SRC = orbit.cc orbit_trans.cc
 BIORTH_SRC = biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc \
 	sbessz.cc ultra.cc jnsph.cc bessz.cc \
-	biorth_wake_orientation.cc biorthSL.cc
+	biorth_wake_orientation.cc biorthSL.cc scalarprod.cc
 GAUSS_SRC = gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c
 QPDISTF_SRC = QPDistF.cc qld.c
 BESSEL_SRC = airy.c hyp2f1.c hyperg.c i0.c i1.c iv.c \
 	jv.c k0.c k1.c kn.c psi.c struve.c const.c chbevl.c \
 	mtherr.c polevl.c dgammln.cc
+SLEDGE_SRC = sledge.f
 
 #	all source files
 
@@ -58,10 +59,17 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(VECTOR_SRC) $(COMPLEX_SRC) $(CVECTOR_SRC) $(SPECFUNC_SRC) \
 	$(PHASE_SRC)  $(SYMP_SRC) $(INTERP_SRC) $(MASSMODEL_SRC) \
 	$(ORBIT_SRC) $(BIORTH_SRC) $(POLY_SRC) $(GAUSS_SRC) \
-	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC)
+	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC) \
+	$(SLEDGE_SRC)
 
 AM_CFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+
+
+sledge.f:	$(top_srcdir)/src/sledge.f
+	cp $(top_srcdir)/src/$@ .
+
+CLEANFILES =	sledge.f
 
 ## libexputil/Makefile.am ends here
 

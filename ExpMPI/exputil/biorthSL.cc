@@ -513,12 +513,16 @@ void SphereSL::compute_table(struct TableSph* table, int l)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6] = {1.0e-4*rscale, 1.0e-6,  
+		   1.0e-4*rscale, 1.0e-6,  
+		   1.0e-4*rscale, 1.0e-6};
   int i, j, k, VERBOSE=0;
   integer NUM, N;
   logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
   logical endfin[2] = {1, 1};
   
+  cerr << "In compute_table, l=" << l << "\n";
+
 #ifdef DEBUG_SLEDGE
   VERBOSE = SLEDGE_VERBOSE;
 #endif
@@ -529,13 +533,22 @@ void SphereSL::compute_table(struct TableSph* table, int l)
   NUM = numr;
   N = nmax;
   
-  integer iflag[nmax], invec[nmax+3];
-  double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
-    pdef[NUM*N];
+  // integer iflag[nmax], invec[nmax+3];
+  integer *iflag = new integer [nmax];
+  integer *invec = new integer [nmax+3];
+
+  //  double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
+  // pdef[NUM*N];
+  double t, rho;
+  double *ev = new double [N];
+  double *store = new double [26*(NUM+16)];
+  double *xef = new double [NUM+16];
+  double *ef = new double [NUM*N];
+  double *pdef = new double [NUM*N];
   double f;
 
+  f = (*sphpot)(cons[6]);
   if (l==0) {
-    f = (*sphpot)(cons[6]);
     cons[0] = (*sphdpot)(cons[6])/f;
     cons[2] = 1.0/(cons[6]*cons[6]*f*f);
   }
@@ -543,6 +556,7 @@ void SphereSL::compute_table(struct TableSph* table, int l)
     cons[0] = 1.0;
 
   f = (*sphpot)(cons[7]);
+  cons[4] = (1.0 + l)/cons[7] + (*sphdpot)(cons[7])/f;
   cons[5] = 1.0/(cons[7]*cons[7]*f);
 
   //
@@ -578,8 +592,16 @@ void SphereSL::compute_table(struct TableSph* table, int l)
   sphPot = sphpot;
   sphDens = sphdens;
 
+  cerr << "Calling sledge, l=" << l 
+       << ", NUM=" << NUM
+       << ", nmax=" << nmax
+       << " . . . ";
+
   sledge_(job, cons, endfin, invec, tol, type, ev, &NUM, xef, ef, pdef,
-	   t, rho, iflag, store);
+	   &t, &rho, iflag, store);
+
+  cerr << "done\n";
+
   //
   //     Print results:
   //
@@ -626,6 +648,14 @@ void SphereSL::compute_table(struct TableSph* table, int l)
   }
 
   table->l = l;
+
+  delete [] iflag;
+  delete [] invec;
+  delete [] ev;
+  delete [] store;
+  delete [] xef;
+  delete [] ef;
+  delete [] pdef;
 }
 
 
