@@ -88,6 +88,12 @@ struct loadb_datum
   @param eEJ0 is the initial guess for the largest energy particle to
   keep in the ensemble
 
+  @param EJx0 is the initial EJ center x-coordinate (default: 0)
+
+  @param EJy0 is the initial EJ center y-coordinate (default: 0)
+
+  @param EJz0 is the initial EJ center z-coordinate (default: 0)
+
   @param EJkinE set true includes kinetic energy in the energy
   determination, otherwise potential energy alone is used
 
@@ -280,6 +286,8 @@ public:
   int nEJwant;
   //! Initial guess for energy cutoff
   double eEJ0;
+  //! Initial EJ center
+  double EJx0, EJy0, EJz0;
   //! Print verbose diagnostics
   bool EJdiag;
   //! Do not apply transformation

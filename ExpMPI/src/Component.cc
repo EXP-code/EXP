@@ -40,6 +40,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJkinE = true;
   EJext = false;
   EJdiag = false;
+  EJx0 = 0.0;
+  EJy0 = 0.0;
+  EJz0 = 0.0;
 
   binary = false;
   npart = false;
@@ -112,6 +115,12 @@ void Component::initialize(void)
     if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
 
     if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJx0"))     EJx0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJy0"))     EJy0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJz0"))     EJz0 = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJkinE"))   EJkinE = true ? atoi(datum.second.c_str()) : false;
 
@@ -234,6 +243,7 @@ void Component::initialize(void)
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
     orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
+    orient -> set_center(EJx0, EJy0, EJz0);
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }
