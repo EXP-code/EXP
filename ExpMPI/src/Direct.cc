@@ -62,7 +62,7 @@ void Direct::determine_acceleration_and_potential(void)
   max_bodies = ninteract;
   MPI_Reduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
 
-				// Allocate buffers
+				// Allocate buffers to handle largest list
   delete [] tmp_buffer;
   delete [] bod_buffer;
   int buffer_size = max_bodies*NDIM;
@@ -138,10 +138,9 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
     p = bod_buffer;
     for (int j=0; j<ninteract; j++) {
 
+				// Get current interaction particle
       mass = *(p++);
-      pos[0] = *(p++);
-      pos[1] = *(p++);
-      pos[2] = *(p++);
+      for (int k=0; k<3; k++) pos[k] = *(p++);
       eps = *(p++);
 
 				// Compute distance
@@ -158,9 +157,9 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       rr += eps*eps;
       rr = sqrt(rr);
 
+				// Acceleration
       rfac = 1.0/(rr*rr*rr);
 
-				// Acceleration
       for (int k=0; k<3; k++)
 	(*particles)[i].acc[k] += -mass *
 	  ((*particles)[i].pos[k] - pos[k]) * rfac;
