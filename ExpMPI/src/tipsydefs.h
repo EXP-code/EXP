@@ -7,11 +7,11 @@ typedef float Real;
 
 //! Tipsy particle structure for a gas particle
 struct gas_particle {
-  //! Particle mass
+  //! particle mass
     Real mass;
-  //! Particle position vector
+  //! particle position vector
     Real pos[MAXDIM];
-  //! Particle velociy vector
+  //! particle velociy vector
     Real vel[MAXDIM];
   //! Density
     Real rho;
@@ -45,11 +45,11 @@ struct dark_particle *dark_particles;
 
 //! Tipsy particle structure for a star particle
 struct star_particle {
-  //! Particle mass
+  //! particle mass
     Real mass;
-  //! Particle position vector
+  //! particle position vector
     Real pos[MAXDIM];
-  //! Particle velocity vector
+  //! particle velocity vector
     Real vel[MAXDIM];
   //! Metallicty value
     Real metals ;
