@@ -22,6 +22,7 @@ int main(int argc, char** argv)
   bool use_mpi = false;
   int cmap = 0;
   double scale = 1.0;
+  int numr = 10000;
 
   int c;
   while (1) {
@@ -30,10 +31,11 @@ int main(int argc, char** argv)
     static struct option long_options[] = {
       {"mpi", 0, 0, 0},
       {"cmap", 0, 0, 0},
+      {"numr", 1, 0, 0},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "",
+    c = getopt_long (argc, argv, "cmn:",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -47,6 +49,8 @@ int main(int argc, char** argv)
 	  use_mpi = true;
 	} else if (!optname.compare("cmap")) {
 	  cmap = 1;
+	} else if (!optname.compare("numr")) {
+	  numr = atoi(optarg);
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
@@ -62,6 +66,10 @@ int main(int argc, char** argv)
 
     case 'm':
       use_mpi = true;
+      break;
+
+    case 'n':
+      numr = atoi(optarg);
       break;
     }
 
@@ -82,7 +90,6 @@ int main(int argc, char** argv)
   //===================
 
   int Lmax, nmax;
-  int numr = 1000;
   double rmin, rmax, rs;
   
   if (!use_mpi || myid==0) {
