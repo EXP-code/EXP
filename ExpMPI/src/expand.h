@@ -1,0 +1,165 @@
+/**
+   Description:
+   -----------
+ 
+   This routine is an NBODY code whose force calculation is based 
+   on a biorthogonal phase-space expansion; for now, the expansion
+   set is based on the eigenfunctions of the spherical Laplacian:
+ 
+              Y_{lm} * j_n
+                ^       ^
+                |       |
+                |       spherical Bessel functions
+                | spherical harmonics
+ 
+ 
+   Call sequence:
+   -------------
+   exp [-f parameter file] [ [keyword=value] [keyword=value] ... ]
+ 
+ 
+   Parameters:
+   ----------
+   The parameter file may be used instead of the keyword/value pairs.
+   The available keywords are: 
+ 
+   KEYWORD        EXPLANATION                            DEFAULT
+   ----------     ----------------------------           --------
+   nbodmax =      maximum # of bodies                    20000
+   lmax =         maximum harmonic order                 4
+   nmax =         maxinum radial order                   10
+   nlog =         interval between log output            10
+   nlist =        interval between p-s output            50
+   nsteps =       total number of steps to run           500
+   fixacc =       add off set to acceleration to
+                  conserve momentum                      1  (1=yes 0=no)
+   selfgrav =     turn-on self-gravity                   1
+   outbods =      output phase space                     1
+   outengy =      output per particle energies           0
+   diag =         diagnostic output                      0
+   dtime =        time step                              0.1
+   rmax =         maximum radial extent                  (computed from input)
+   logfile =      logfile name                           LOG.FILE
+   infile =       input parameter file                   IN.FILE
+   outname =      output file prefix                     OUT
+   parmfile =     parameter file name                    PARMS.FILE
+
+
+
+  $Id$
+*/
+
+#ifndef _expand_h
+#define _expand_h
+
+#include "../config.h"
+#include "version.h"
+
+#define BSD_SOURCE
+
+#undef MPE_PROFILE
+/* #define MPE_PROFILE */
+
+#include <mpi.h>
+#ifdef MPE_PROFILE
+#include <mpe.h>
+#endif
+
+#include <stdlib.h>
+#include <unistd.h>
+#include <math.h>
+#include <values.h>
+
+#include <iostream>
+#include <fstream>
+#include <iomanip>
+#include <string>
+
+#include <Vector.h>
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
+				/* Turn on sequence checking on debug */
+#ifdef DEBUG
+#define SEQCHECK
+#endif
+
+				/* Function declarations */
+void init_velocity(void);
+void begin_run(void);
+void incr_position(void);
+void incr_velocity(void);
+void write_parm(void);
+
+#ifndef MAX
+#define MAX(A,B) (A>B ? A : B)
+#endif
+#ifndef MIN
+#define MIN(A,B) (A<B ? A : B)
+#endif
+
+/*****Stuff for expand.c*****/
+
+double get_dens(double r, int l, double *coef);
+double densi(double rr, int l, int n),potli(double rr, int l, int n);
+void make_grid(double rmin, double rmax, int lmax, int nmax);
+void get_potacc(double r, int l, double *coef, double *p, double *dp);
+void set_global_com(void);
+void create_tipsy(void);
+
+/******Mathematical utilities******/
+double zbrent();
+extern "C" double dgammln();
+void locate();
+double plgndr(int, int, double);
+double dplgndr(int l, int m, double x);
+double factrl(int n);
+
+/* Constants */
+
+#define DSMALL  1.0e-8
+#define DSMALL2 1.0e-8
+
+// parallel prototypes
+
+void setup_distribution(void);
+void redistribute_particles(void);
+void test_mpi(void);
+void parallel_gather_coefficients(void);
+void parallel_distribute_coefficients(void);
+void recompute_processor_rates(void);
+void MPL_reset_timer(void);
+void MPL_start_timer(void);
+void MPL_stop_timer(void);
+double MPL_read_timer(int reset);
+
+// utilities
+
+void get_ultra(int nmax, double l, double x, Vector& p);
+string trimRight(const string);
+string trimLeft(const string);
+string trimComment(const string);
+
+// Component structures
+
+#include <ComponentContainer.H>
+
+// External forces
+
+#include <ExternalForce.H>
+
+// Output list
+
+#include <Output.H>
+
+void do_output_init(void);
+
+// Parameter database
+
+#include <ParamParseMPI.H>
+
+#include <global.H>
+
+#endif
