@@ -24,8 +24,8 @@ public:
 
   //! Do some output
   /*!
-    <param> nstep is the current time step index
-    <param> final should be true on last step to force output
+    \param nstep is the current time step index
+    \param final should be true on last step to force output
   */
   void Run(int nstep, bool final=false);
 

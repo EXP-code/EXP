@@ -35,7 +35,7 @@ private:
 public:
 				// Global parameters
   //! Constructor
-  /*! <param> line passes any parameters (rsphSL, rmin and numr) */
+  /*! \param line passes any parameters (rsphSL, rmin and numr) */
   SphereEJCOM(string& line);
 
   //! Mixture function for the two expansions

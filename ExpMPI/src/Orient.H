@@ -85,7 +85,7 @@ public:
     center0[3] = z;
   }
 
-  //! Register phase space of <num> particles and store angular momentum vector for the lowest <many> binding energies
+  //! Register phase space of _num_ particles and store angular momentum vector for the lowest _many_ binding energies
   void accumulate(double time, vector<Particle> *p, double* com);
 
   //! Return transformation to new body axes

@@ -80,7 +80,7 @@ public:
   Geometry geometry;
 
   //! Constructor
-  /*! <param> line is parsed and info is made available to derived 
+  /*! \param line is parsed and info is made available to derived 
     classes on  request */
   PotAccel(string& line);
 

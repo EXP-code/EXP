@@ -44,7 +44,7 @@ private:
 public:
 
   //! The constructor
-  /** <param> line passes in any explicit parameters */
+  /** \param line passes in any explicit parameters */
   Direct(string& line);
 
   //! The constructor

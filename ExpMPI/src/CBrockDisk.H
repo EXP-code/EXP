@@ -49,7 +49,7 @@ private:
 public:
 
   //! Constructor
-  /*! <param> line is the parameter string */
+  /*! \param line is the parameter string */
   CBrockDisk(string& line);
   //! Destructor
   ~CBrockDisk(void);

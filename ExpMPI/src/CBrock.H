@@ -30,7 +30,7 @@ private:
 public:
 
   //! Constructor
-  /*! <param> line is the parameter string */
+  /*! \param line is the parameter string */
   CBrock(string& line);
 
 };

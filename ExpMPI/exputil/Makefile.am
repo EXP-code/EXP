@@ -1,9 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-# CC = mpicc
-# CXX = mpiCC
-CC = gcc
-CXX = g++
+CXXLD = --tag=F77 mpif77
 
 LIBS = -lpthread -lmpi -lm
 

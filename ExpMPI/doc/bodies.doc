@@ -50,6 +50,6 @@ which decribes the number of bodies in the component
 (<code>niatr</code>), the number of double components
 (<code>ndatr</code>), number of characters reserved for the info
 string (<code>ninfochar</code>) and the info string
-(<code>ninfochar</char>).
+(<code>ninfochar</code>).
 
 */

@@ -52,7 +52,7 @@ public:
   static pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
 
   //! Constructor
-  /** <param> line contains the parameters passed to the method */
+  /** \param line contains the parameters passed to the method */
   Cylinder(string& line);
 
   //! Destructor

@@ -1,5 +1,5 @@
-CCLD  = --tag=CC  mpicc
-CXXLD = --tag=CXX mpiCC
+CCLD  = --tag=F77  mpif77
+CXXLD = --tag=F77 mpif77
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 

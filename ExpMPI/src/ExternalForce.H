@@ -35,7 +35,7 @@ public:
   string id;
   
   //! Constructor
-  /** <param> line passes any parameters to the method */
+  /** \param line passes any parameters to the method */
   ExternalForce(string& line);
 
   //! Destructor

@@ -1,7 +1,5 @@
 /*! \mainpage EXP
 
-<body>
-
 <p> I wrote the EXP code over about 10 years, incorporating published
 biorthogonal expansions and my own published and unpublished work on
 n-body methodology.  This version has been rewritten to exploit the
@@ -31,6 +29,5 @@ from the author to use it.
 This project has been supported in part by the NASA ATP and NSF
 Astronomy.
 
-</body> 
 */
 

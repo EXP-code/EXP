@@ -1,6 +1,6 @@
 /*! \page quick Quick Start	
 
-\subsection requirements Requirements
+\section requirements Requirements
 
 You will need the following libraries:
 <ol>
@@ -12,7 +12,7 @@ You will need the following libraries:
 All local UMASS astro cluster should have everything you need, 
 of course.
 
-\subsection compiling Compiling the code
+\section compiling Compiling the code
 
 <ol>
 <li> Run <code>./configure --prefix=/home/user</code> where
@@ -27,7 +27,7 @@ In this example, the executable and its utilities will be installed in
 <code>/home/user/lib</code>.  The default prefix is 
 <code>/usr/local</code> is probably not what you want in most cases.
 
-\subsection running Running a simulation
+\section running Running a simulation
 
 Here are the basic steps you need to start a simulation:
 <ol>

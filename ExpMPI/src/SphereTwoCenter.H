@@ -74,7 +74,7 @@ public:
   double *center;
 
   //! Constructor
-  /*! <param> line passes any parameters (rsphSL, rmin and numr) */
+  /*! \param line passes any parameters (rsphSL, rmin and numr) */
   SphereTwoCenter(string& line);
 
   //! Destructor

@@ -57,7 +57,7 @@ protected:
 
 public:
 
-  //! Constructor (<param>line</param> contains the paramter list)
+  //! Constructor (<code>line</code> contains the paramter list)
   SphericalBasis(string& line);
 
   //! Copy constructor
