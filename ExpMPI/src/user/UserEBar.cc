@@ -71,7 +71,7 @@ UserEBar::~UserEBar()
 void UserEBar::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "** User routine ROTATING BAR initialized, " ;
+  cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
   if (fixed)
     cout << "fixed pattern speed, ";
   else

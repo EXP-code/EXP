@@ -487,54 +487,53 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     potr = fac1*dp;
     pott = potp = 0.0;
       
-    /*		l loop */
-    
+    //		l loop
+    //		------
     for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
 
+				// Suppress L=1 terms?
+      if (NO_L1  && l==1) continue;
+
+				// Suppress odd L terms?
       if (EVEN_L && (l/2)*2 != l) continue;
 
-      /*		m loop */
+      //		m loop
+      //		------
       for (m=0, moffset=0; m<=l; m++) {
 	fac1 = (2.0*l+1.0)/(4.0*M_PI);
 	if (m==0) {
-				/* Suppress L=1 terms? */
-	  if ( !NO_L1 || !(l==1) ) {
-	    fac2 = fac1*legs[id][l][m];
-	    get_pot_coefs_safe(l, expcoef[loffset+moffset], &p, &dp,
-			      potd[id], dpot[id]);
-	    if (ioff) {
-	      p *= pow(rmax/r0,(double)(l+1));
-	      dp = -p/r0 * (l+1);
-	    }
-	    potl += fac2*p;
-	    potr += fac2*dp;
-	    pott += fac1*dlegs[id][l][m]*p;
+	  fac2 = fac1*legs[id][l][m];
+	  get_pot_coefs_safe(l, expcoef[loffset+moffset], &p, &dp,
+			     potd[id], dpot[id]);
+	  if (ioff) {
+	    p *= pow(rmax/r0,(double)(l+1));
+	    dp = -p/r0 * (l+1);
 	  }
+	  potl += fac2*p;
+	  potr += fac2*dp;
+	  pott += fac1*dlegs[id][l][m]*p;
 	  moffset++;
 	}
 	else {
-				/* Suppress L=1 terms? */
-	  if ( !NO_L1 || !(l==1) ) {
-	    fac2 = 2.0 * fac1 * factorial[l][m];
-	    fac3 = fac2 * legs[id][l][m];
-	    fac4 = fac2 * dlegs[id][l][m];
-	    get_pot_coefs_safe(l, expcoef[loffset+moffset], &pc, &dpc,
-				   potd[id], dpot[id]);
-	    get_pot_coefs_safe(l, expcoef[loffset+moffset+1] ,&ps, &dps,
-				   potd[id], dpot[id]);
-	    if (ioff) {
-	      facp = pow(rmax/r0,(double)(l+1));
-	      facdp = -1.0/r0 * (l+1);
-	      pc *= facp;
-	      ps *= facp;
-	      dpc = pc*facdp;
-	      dps = ps*facdp;
-	    }
-	    potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
-	    potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
-	    pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
-	    potp += fac3*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
+	  fac2 = 2.0 * fac1 * factorial[l][m];
+	  fac3 = fac2 * legs[id][l][m];
+	  fac4 = fac2 * dlegs[id][l][m];
+	  get_pot_coefs_safe(l, expcoef[loffset+moffset], &pc, &dpc,
+			     potd[id], dpot[id]);
+	  get_pot_coefs_safe(l, expcoef[loffset+moffset+1] ,&ps, &dps,
+			     potd[id], dpot[id]);
+	  if (ioff) {
+	    facp = pow(rmax/r0,(double)(l+1));
+	    facdp = -1.0/r0 * (l+1);
+	    pc *= facp;
+	    ps *= facp;
+	    dpc = pc*facdp;
+	    dps = ps*facdp;
 	  }
+	  potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
+	  potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
+	  pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
+	  potp += fac3*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
 	  moffset +=2;
 	}
       }
