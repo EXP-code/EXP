@@ -452,8 +452,13 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 	   << "===================================================" << endl;
     }
     
-
-
+    // Will force center to be last minimum energy average
+    // rather than pooled average of the last "keep" states
+    if (keep == 0) {
+      for (int i=1; i<=3; i++) center[i] = (*sumsC.begin())[i];
+      sumsC.pop_front();
+    }
+    
   }
 
 				// Energy for next iteration
