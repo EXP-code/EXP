@@ -12,6 +12,7 @@
     @param bratio is the ratio of the submajor axis to the major axis
     @param cratio is the ratio of the minor axis to the submajor axis
     @param amp is the bar amplitude (mass)
+    @param mfrac is the fraction of mass assigned to the monopole
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the spread of the turn on
@@ -37,7 +38,7 @@ private:
   double teval;
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
-  double length, bratio, cratio, amplitude, Ton, Toff, DeltaT, Fcorot;
+  double length, bratio, cratio, amplitude, mfrac, Ton, Toff, DeltaT, Fcorot;
   bool fixed, soft;
   string filename;
 

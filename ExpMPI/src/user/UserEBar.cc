@@ -13,6 +13,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   bratio = 0.2;			// Ratio of b to a
   cratio = 0.1;			// Ratio of c to b
   amplitude = 0.3;		// Bar amplitude
+  mfrac = 1.0;			// Fraction of mass monopole
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
@@ -129,6 +130,7 @@ void UserEBar::initialize()
   if (get_value("bratio", val))		bratio = atof(val.c_str());
   if (get_value("cratio", val))		cratio = atof(val.c_str());
   if (get_value("amp", val))		amplitude = atof(val.c_str());
+  if (get_value("mfrac", val))		mfrac = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
@@ -473,7 +475,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     acct[2] = ffac*
       ( -5.0*nn*zz );
     
-    M0 = ellip->getMass(rr);
+    M0 = mfrac*ellip->getMass(rr);
 
     for (int k=0; k<3; k++) {
 				// Add monopole acceleration
@@ -487,7 +489,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     }
 
 				// Quadrupole and monopole potential
-    (*particles)[i].potext += -ffac*pp*fac + ellip->getPot(rr);
+    (*particles)[i].potext += -ffac*pp*fac + mfrac*ellip->getPot(rr);
     
   }
 
