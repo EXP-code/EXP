@@ -209,8 +209,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  SLGridSph::cmap = 1;
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1.0);
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
 
   if (DENS)
     MPItable = 4;
@@ -255,8 +254,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  SLGridSph::cmap = 1;
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1.0);
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
 
   SC = 0;
   SS = 0;

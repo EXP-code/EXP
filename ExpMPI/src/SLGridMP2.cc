@@ -29,7 +29,6 @@ MPI_Status status;
 int SLGridCyl::mpi = 0;		// initially off
 int SLGridCyl::cache = 1;	// initially yes
 double SLGridCyl::A = 1.0;
-int SLGridCyl::cmap = 1;	// coordinate mapping initially on
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -178,7 +177,7 @@ void SLGridCyl::bomb(string oops)
 				// Constructors
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
-	       double RMIN, double RMAX, double L, double SCALE)
+	       double RMIN, double RMAX, double L, int CMAP, double SCALE)
 {
   int m, k;
 
@@ -191,6 +190,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   rmax = RMAX;
   l = L;
 
+  cmap = CMAP;
   scale = SCALE;
 
 #ifdef JAFFECYL
@@ -388,7 +388,7 @@ int SLGridCyl::read_cached_table(void)
   ifstream in(cyl_cache_name.c_str());
   if (!in) return 0;
 
-  int MMAX, NMAX, NUMR, NUMK, i, j;
+  int MMAX, NMAX, NUMR, NUMK, i, j, CMAP;
   double RMIN, RMAX, L, AA, SCL;
 
   cerr << "SLGridCyl::read_cached_table: trying to read cached table . . . \n";
@@ -401,6 +401,7 @@ int SLGridCyl::read_cached_table(void)
   in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
   in.read((char *)&L, sizeof(double));		if(!in || L!=l) return 0;
   in.read((char *)&AA, sizeof(double));		if(!in || AA!=A) return 0;
+  in.read((char *)&CMAP, sizeof(double));	if(!in || CMAP!=cmap) return 0;
   in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
 
   for (int m=0; m<=mmax; m++) {
@@ -455,6 +456,7 @@ void SLGridCyl::write_cached_table(void)
   out.write((char *)&rmax, sizeof(double));
   out.write((char *)&l, sizeof(double));
   out.write((char *)&A, sizeof(double));
+  out.write((char *)&cmap, sizeof(int));
   out.write((char *)&scale, sizeof(double));
 
   for (int m=0; m<=mmax; m++) {
@@ -1493,7 +1495,6 @@ void SLGridCyl::mpi_unpack_table(void)
 
 int SLGridSph::mpi = 0;		// initially off
 int SLGridSph::cache = 1;	// initially yes
-int SLGridSph::cmap = 0;	// coordinate mapping initially off
 
 const string sph_cache_name = ".slgrid_sph_cache";
 const string model_file_name = "SLGridSph.model";
@@ -1541,25 +1542,25 @@ void SLGridSph::bomb(string oops)
 				// Constructors
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, double SCALE)
+		     double RMIN, double RMAX, int CMAP, double SCALE)
 {
   model = new SphericalModelTable(model_file_name);
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
 }
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, SphericalModelTable *mod,
-		     double SCALE)
+		     int CMAP, double SCALE)
 {
   model = mod;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
 }
 
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
-			   double RMIN, double RMAX, double SCALE)
+			   double RMIN, double RMAX, int CMAP, double SCALE)
 {
   int l;
 
@@ -1570,6 +1571,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   rmin = RMIN;
   rmax = RMAX;
 
+  cmap = CMAP;
   scale = SCALE;
 
   init_table();

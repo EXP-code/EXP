@@ -30,6 +30,7 @@ private:
   int mmax, nmax, numr, numk;
   double rmin, rmax, l;
 
+  int cmap;
   double scale;
 
   double dk;
@@ -73,12 +74,10 @@ public:
   //! Exponential scale length, default: 1.0
   static double A;		
 
-  //! Coordinate map, default: 1=on
-  static int cmap;	
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	 double l, double Scale=1.0);
+	 double l, int Cmap=0, double Scale=1.0);
   ~SLGridCyl();
 
 				// Members
@@ -132,6 +131,7 @@ private:
   int lmax, nmax, numr;
   double rmin, rmax;
 
+  int cmap;
   double scale;
 
   double xmin, xmax, dxi;
@@ -144,7 +144,7 @@ private:
   struct TableSph* table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
-		  double RMIN, double RMAX, double SCALE);
+		  double RMIN, double RMAX, int CMAP, double SCALE);
 
   void init_table(void);
   void compute_table(struct TableSph* table, int L);
@@ -172,16 +172,14 @@ public:
   //! Check for cached table (default: 1=yes)
   static int cache;
 
-  //! Coordinate map (default: 0=off)
-  static int cmap;
 
 				// Constructors
 
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    SphericalModelTable *mod, double Scale=1.0);
+	    SphericalModelTable *mod, int Cmap=0, double Scale=1.0);
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    double Scale=1.0);
+	    int Cmap=0, double Scale=1.0);
   ~SLGridSph();
 
 				// Members
