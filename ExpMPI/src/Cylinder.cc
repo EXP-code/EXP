@@ -19,14 +19,17 @@ Cylinder::Cylinder(string& line) : Basis(line)
   geometry = cylinder;
 
 				// Default values
-  rcylmin = 0.001;
-  rcylmax = 20.0;
+
+  rcylmin = 0.001;		// Should only change these two in
+  rcylmax = 20.0;		// extreme circumstances
+
+  ncylnx = 128;			// These defaults should do fine in
+  ncylny = 64;			// most cases, as well
+
   acyl = 1.0;
   nmax = 10;
   lmax = 36;
   mmax = 4;
-  ncylnx = 32;
-  ncylny = 32;
   hcyl = 1.0;
   ncylorder = 16;
   ncylrecomp = -1;
@@ -41,7 +44,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
-  EmpCylSL::CMAP = true;
+  EmpCylSL::CMAP = true;	// Always use coordinate mapping
 
 				// For debugging
 #ifdef DENSITY
@@ -77,8 +80,10 @@ void Cylinder::initialize()
 {
   string val;
 
-  if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
-  if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
+  // These should not be user settable . . 
+  // if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
+  // if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
+
   if (get_value("acyl", val)) acyl = atof(val.c_str());
   if (get_value("hcyl", val)) hcyl = atof(val.c_str());
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
