@@ -8,6 +8,10 @@
    Positions are passed from node to node on a ring.  Accelerations
    computed on requested particles array due to particles in component
    associated with the Direct force.  
+
+   Settable parameters:
+   @param soft_indx is the index in the particle double array for the softening value
+   @param soft is a fixed softening value for all particles.
 */
 class Direct : public PotAccel
 {
@@ -18,10 +22,12 @@ private:
   int to_proc, from_proc;
   int max_bodies;
   int ninteract;
+  int ndim;
 
   double *tmp_buffer, *bod_buffer;
 
-  bool local;
+  double soft;
+  bool fixed_soft;
 
   void initialize();
 

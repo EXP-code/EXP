@@ -11,10 +11,13 @@ static const int NDIM=5;
 Direct::Direct(string& line) : PotAccel(line)
 {
   soft_indx = 0;
+  soft = 0.01;
+  fixed_soft = false;
+  ndim = 5;
 
   initialize();
 
-  if (component->ndattrib<soft_indx+1) {
+  if (fixed_soft && component->ndattrib<soft_indx+1) {
     if (myid==0) cerr << "Direct: particle softening data missing\n";
     MPI_Abort(MPI_COMM_WORLD, 103);
     exit(0);
@@ -40,7 +43,19 @@ void Direct::initialize(void)
 {
   string val;
 
-  if (get_value("soft_indx", val)) soft_indx = atoi(val.c_str());
+  if (get_value("soft_indx", val)) {
+    soft_indx = atoi(val.c_str());
+    fixed_soft = false;
+    ndim = 5;
+  }
+
+  if (get_value("soft", val)) {
+    soft = atof(val.c_str());
+    fixed_soft = true;
+    ndim = 4;
+  }
+
+  
 }
 
 void Direct::get_acceleration_and_potential(vector<Particle>* P)
@@ -65,7 +80,7 @@ void Direct::determine_acceleration_and_potential(void)
 				// Allocate buffers to handle largest list
   delete [] tmp_buffer;
   delete [] bod_buffer;
-  int buffer_size = max_bodies*NDIM;
+  int buffer_size = max_bodies*ndim;
   tmp_buffer = new double [buffer_size];
   bod_buffer = new double [buffer_size];
 
@@ -76,13 +91,12 @@ void Direct::determine_acceleration_and_potential(void)
     *(p++) = component->particles[i].pos[0];
     *(p++) = component->particles[i].pos[1];
     *(p++) = component->particles[i].pos[2];
-    *(p++) = component->particles[i].dattrib[soft_indx];
+    if (fixed_soft)
+      *(p++) = component->particles[i].dattrib[soft_indx];
   }
 
 				// Do the local interactors
-  local = true;
   exp_thread_fork(false);
-  local = false;
 
 				// Do the ring . . . 
   for(int n=1; n<numprocs; n++) {
@@ -98,7 +112,7 @@ void Direct::determine_acceleration_and_potential(void)
 	      MPI_COMM_WORLD, &req1);
 
 				// Send OLD buffer to left
-    MPI_Isend(tmp_buffer, ninteract*NDIM, MPI_DOUBLE, to_proc, MSGTAG, 
+    MPI_Isend(tmp_buffer, ninteract*ndim, MPI_DOUBLE, to_proc, MSGTAG, 
 	      MPI_COMM_WORLD, &req2);
 
     MPI_Wait(&req2, &stat);
@@ -106,7 +120,7 @@ void Direct::determine_acceleration_and_potential(void)
 
 				// How many particles did we get?
     MPI_Get_count(&stat, MPI_DOUBLE, &ninteract);
-    ninteract /= NDIM;
+    ninteract /= ndim;
 	
 				// Accumulate the interactions
     exp_thread_fork(false);
@@ -119,7 +133,7 @@ void Direct::determine_acceleration_and_potential(void)
 void * Direct::determine_acceleration_and_potential_thread(void * arg)
 {
   double rr, rfac;
-  double mass, pos[3], eps;
+  double mass, pos[3], eps = soft;
   double *p;
 
   int nbodies = particles->size();
@@ -141,7 +155,8 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 				// Get current interaction particle
       mass = *(p++);
       for (int k=0; k<3; k++) pos[k] = *(p++);
-      eps = *(p++);
+      if (fixed_soft)
+	eps = *(p++);
 
 				// Compute distance
       rr = 0.0;
@@ -149,9 +164,6 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	rr += 
 	  ((*particles)[i].pos[k] - pos[k]) *
 	  ((*particles)[i].pos[k] - pos[k]) ;
-
-				// Check for coincident particles (e.g. same)
-      if (local && !use_external && rr<1.0e-10) continue;
 
 				// Add softening
       rr += eps*eps;
