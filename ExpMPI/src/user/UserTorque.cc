@@ -146,31 +146,35 @@ double UserTorque::interpolate(double E, double K)
   int indx, indy;
   double ax, bx, ay, by;
 
-  if (E<xmin) {
+  if (E<=xmin) {
     indx = 0;
     ax = 1.0;
     bx = 0.0;
-  } else if (E>xmax) {
-    indx = numx-1;
+  } else if (E>=xmax) {
+    indx = numx-2;
     ax = 0.0;
     bx = 1.0;
   } else {
     indx = (int)( (E - xmin)/dX );
+    indx = max<int>(0, indx);
+    indx = min<int>(numx-2, indx);
     ax = (E - dX*indx - xmin)/dX;
     bx = 1.0 - ax;
   }
 
   
-  if (K<ymin) {
+  if (K<=ymin) {
     indy = 0;
     ay = 1.0;
     by = 0.0;
-  } else if (E>ymax) {
-    indy = numy-1;
+  } else if (E>=ymax) {
+    indy = numy-2;
     ay = 0.0;
     by = 1.0;
   } else {
     indy = (int)( (K - ymin)/dY );
+    indy = max<int>(0, indy);
+    indy = min<int>(numy-2, indy);
     ay = (K - dY*indy - ymin)/dY;
     by = 1.0 - ay;
   }
@@ -239,12 +243,12 @@ extern "C" {
   }
 }
 
-class proxysat { 
+class proxytorque { 
 public:
-  proxysat()
+  proxytorque()
   {
     factory["usertorque"] = makerTorque;
   }
 };
 
-proxysat p;
+proxytorque p;

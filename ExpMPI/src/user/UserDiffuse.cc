@@ -686,12 +686,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxydiffuse { 
 public:
-  proxy()
+  proxydiffuse()
   {
     factory["userdiffuse"] = makerDiffuse;
   }
 };
 
-proxy p;
+proxydiffuse p;

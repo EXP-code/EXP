@@ -84,12 +84,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxylogpot { 
 public:
-  proxy()
+  proxylogpot()
   {
     factory["userlogp"] = makerLogPot;
   }
 };
 
-proxy p;
+proxylogpot p;

@@ -67,6 +67,7 @@ void ExternalCollection::initialize()
 
 
       if (!found) {		// Complain to user
+
 	string msg("I don't know about the external force named: ");
 	msg += name;
 	bomb(msg);
@@ -135,7 +136,13 @@ void ExternalCollection::dynamicload(void)
     dl_list.insert(dl_list.end(), dlib);
   }
 
-  if (myid==0) cout << " >\n\n";
+  if (myid==0) {
+    cout << " >" << endl;
+    cout << "ExternalCollection: Available user routines are <";
+    for (fitr=factory.begin(); fitr!=factory.end(); fitr++)
+      cout << " " << fitr->first;
+    cout ">" << endl << endl;
+  }
 }
 
 void ExternalCollection::bomb(string& msg)

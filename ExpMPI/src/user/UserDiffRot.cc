@@ -335,12 +335,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxydiffrot { 
 public:
-  proxy()
+  proxydiffrot()
   {
     factory["userdiffrot"] = makerDiffRot;
   }
 };
 
-proxy p;
+proxydiffrot p;

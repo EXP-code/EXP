@@ -606,12 +606,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxyebar { 
 public:
-  proxy()
+  proxyebar()
   {
     factory["userebar"] = makerEBar;
   }
 };
 
-proxy p;
+proxyebar p;

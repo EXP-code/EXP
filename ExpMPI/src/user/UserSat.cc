@@ -135,12 +135,12 @@ extern "C" {
   }
 }
 
-class proxysat { 
+class proxy { 
 public:
-  proxysat()
+  proxy()
   {
     factory["usersat"] = makerSat;
   }
 };
 
-proxysat p;
+static proxy p;

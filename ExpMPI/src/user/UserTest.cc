@@ -45,12 +45,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxytest { 
 public:
-  proxy()
+  proxytest()
   {
     factory["usertest"] = makerTest;
   }
 };
 
-proxy p;
+proxytest p;

@@ -367,12 +367,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxydisk { 
 public:
-  proxy()
+  proxydisk()
   {
     factory["userdisk"] = makerExpDisk;
   }
 };
 
-proxy p;
+proxydisk p;
