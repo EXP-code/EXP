@@ -35,13 +35,13 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-pspinfo_SOURCES = pspinfo.cc header.cc
+pspinfo_SOURCES = pspinfo.cc PSP.cc header.cc
 
-psp2tipsy_SOURCES = psp2tipsy.cc header.cc
+psp2tipsy_SOURCES = psp2tipsy.cc PSP.cc header.cc
 
-pspsplit_SOURCES = pspsplit.cc header.cc
+pspsplit_SOURCES = pspsplit.cc PSP.cc header.cc
 
-psp2ascii_SOURCES = psp2ascii.cc header.cc
+psp2ascii_SOURCES = psp2ascii.cc PSP.cc header.cc
 
 ## src/ParseTest/Makefile.am ends here
 

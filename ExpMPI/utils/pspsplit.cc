@@ -14,14 +14,10 @@
 #include <string>
 #include <list>
 
-#include <StringTok.H>
-#include <header.H>
+#include <PSP.H>
 
 #define MAXDIM 3
 
-
-extern string trimLeft(const string);
-extern string trimRight(const string);
 
 				// Globals for exputil library
 				// Unused here
@@ -40,31 +36,6 @@ void Usage(char* prog) {
   cerr << "    -v              verbose output\n\n";
   exit(0);
 }
-
-struct Stanza {
-  streampos pos, pspos;
-  string name;
-  string id;
-  string param;
-  string ttype;
-  int nbod;
-  int niatr;
-  int ndatr;
-};
-
-class Dump 
-{
-public:
-
-  streampos pos;
-  MasterHeader header;
-  list<Stanza> stanzas;
-  
-  int ngas, ndark, nstar, ntot;
-  list<Stanza> gas, dark, star;
-
-  Dump () : ngas(0), ndark(0), nstar(0), ntot(0) {}
-};
 
 int
 main(int argc, char **argv)
@@ -115,148 +86,34 @@ main(int argc, char **argv)
     in = in2;
 
   }
-				// Look for best fit time
-  double tdif = 1.0e30;
-  Dump fid;
 
-  list<Dump> dumps;
-
-  while (1) {
-
-    Dump dump;
-
-    dump.pos = in->tellg();
-				// Read the header, quit on failure
-				// --------------------------------
-    if(!in->read((char *)&dump.header, sizeof(MasterHeader))) break;
-
-
-    bool ok = true;
-
-    for (int i=0; i<dump.header.ncomp; i++) {
-
-      Stanza stanza;
-      stanza.pos = in->tellg();
-      
-      ComponentHeader headerC;
-      if (!headerC.read(in)) {
-	cerr << "Error reading header\n";
-	ok = false;
-	break;
-      }
-
-      stanza.pspos = in->tellg();
-
-				// Parse the info string
-				// ---------------------
-      StringTok<string> tokens(headerC.info);
-      stanza.name = trimLeft(trimRight(tokens(":")));
-      stanza.id = trimLeft(trimRight(tokens(":")));
-      stanza.param = trimLeft(trimRight(tokens(":")));
-
-				// Strip of the tipsy type
-      StringTok<string> tipsytype(stanza.name);
-      stanza.ttype = trimLeft(trimRight(tipsytype(" ")));
-      stanza.nbod = headerC.nbod;
-      stanza.niatr = headerC.niatr;
-      stanza.ndatr = headerC.ndatr;
-
-      
-				// Skip forward to next header
-				// ---------------------------
-      in->seekg(headerC.nbod*(8*sizeof(double)             + 
-			      headerC.niatr*sizeof(int)    +
-			      headerC.ndatr*sizeof(double)
-			      ), ios::cur);
-
-      dump.stanzas.push_back(stanza);
-
-				// Count up Tipsy types and make
-				// linked  lists
-				// -----------------------------
-      if (!stanza.ttype.compare("gas")) {
-	dump.ngas += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.gas.push_back(stanza);
-      }
-      if (!stanza.ttype.compare("dark")) {
-	dump.ndark += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.dark.push_back(stanza);
-      }
-      if (!stanza.ttype.compare("star")) {
-	dump.nstar += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.star.push_back(stanza);
-      }
-
-    }
-
-    if (!ok) break;
-
-    dumps.push_back(dump);
-    if (fabs(time - dump.header.time) < tdif) {
-      fid = dump;
-      tdif = fabs(time-dump.header.time);
-    }
-  }
-
+  PSPDump psp(in, true);
+  in->close();
+  delete in;
 
 				// Now write a summary
 				// -------------------
-  if (verbose) {
 
-    list<Dump>::iterator itd;
-    list<Stanza>::iterator its;
+  if (verbose) psp.PrintSummary(cerr);
 
-    for (itd = dumps.begin(); itd != dumps.end(); itd++) {
-
-      cerr << "Time=" << itd->header.time << "   [" << itd->pos << "]" << endl;
-      cerr << "   Total particle number: " << itd->header.ntot  << endl;
-      cerr << "   Number of components:  " << itd->header.ncomp << endl;
-      cerr << "          Gas particles:  " << itd->ngas << endl;
-      cerr << "         Dark particles:  " << itd->ndark << endl;
-      cerr << "         Star particles:  " << itd->nstar << endl;
-
-      int cnt=1;
-
-      for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
-	
-				// Print the info for this stanza
-				// ------------------------------
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	cerr << "--- Component #" << setw(2) << cnt++ << endl;
-	cerr << setw(20) << " name :: "  << its->name   << endl
-	     << setw(20) << " id :: "    << its->id     << endl
-	     << setw(20) << " param :: " << its->param  << endl
-	     << setw(20) << " tipsy :: " << its->ttype  << endl
-	     << setw(20) << " nbod :: "  << its->nbod  << endl
-	     << setw(20) << " niatr :: " << its->niatr << endl
-	     << setw(20) << " ndatr :: " << its->ndatr << endl;
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	
-      }
-    }
-  }
     
   cerr << "\nBest fit dump to <" << time << "> has time <" 
-       << fid.header.time << ">\n";
+       << psp.SetTime(time) << ">\n";
 
 				// Create new dump
 				// ---------------
-  in->close();
-  delete in;
   in = new ifstream(argv[optind]);
 
   {
-    cout.write(&fid.header, sizeof(MasterHeader));
+    cout.write(&psp.CurrentDump()->header, sizeof(MasterHeader));
     
     double rtmp;
     int itmp;
 
     list<Stanza>::iterator its;
 
-    for (its = fid.stanzas.begin(); its != fid.stanzas.end(); its++) {
+    for (its = psp.CurrentDump()->stanzas.begin(); 
+	 its != psp.CurrentDump()->stanzas.end(); its++) {
 
 				// Position to header
       in->seekg(its->pos);

@@ -17,9 +17,7 @@
 
 #include <StringTok.H>
 #include <header.H>
-
-extern string trimLeft(const string);
-extern string trimRight(const string);
+#include <PSP.H>
 
 				// Globals for exputil library
 				// Unused here
@@ -40,27 +38,6 @@ void Usage(char* prog) {
   exit(0);
 }
 
-struct Stanza {
-  streampos pos, pspos;
-  string name;
-  string id;
-  string param;
-  string ttype;
-  int nbod;
-  int niatr;
-  int ndatr;
-};
-
-class Dump 
-{
-public:
-
-  streampos pos;
-  MasterHeader header;
-  list<Stanza> stanzas;
-  
-  Dump () {}
-};
 
 int
 main(int argc, char **argv)
@@ -111,124 +88,33 @@ main(int argc, char **argv)
       exit(-1);
     }
 
-    cerr << "Using filename: " << argv[optind] << endl;
+    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
 
 				// Assign file stream to input stream
     in = in2;
 
   }
-				// Look for best fit time
-  double tdif = 1.0e30;
-  Dump fid;
-
-  list<Dump> dumps;
-
-  while (1) {
-
-    Dump dump;
-
-    dump.pos = in->tellg();
-				// Read the header, quit on failure
-				// --------------------------------
-    if(!in->read((char *)&dump.header, sizeof(MasterHeader))) break;
 
 
-    bool ok = true;
+				// Parse the PSP file
+				// ------------------
+  PSPDump psp(in);
 
-    for (int i=0; i<dump.header.ncomp; i++) {
-
-      Stanza stanza;
-      stanza.pos = in->tellg();
-      
-      ComponentHeader headerC;
-      if (!headerC.read(in)) {
-	cerr << "Error reading component header\n";
-	ok = false;
-	break;
-      }
-
-      stanza.pspos = in->tellg();
-
-				// Parse the info string
-				// ---------------------
-      StringTok<string> tokens(headerC.info);
-      stanza.name = trimLeft(trimRight(tokens(":")));
-      stanza.id = trimLeft(trimRight(tokens(":")));
-      stanza.param = trimLeft(trimRight(tokens(":")));
-
-				// Strip of the tipsy type
-      StringTok<string> tipsytype(stanza.name);
-      stanza.ttype = trimLeft(trimRight(tipsytype(" ")));
-      stanza.nbod = headerC.nbod;
-      stanza.niatr = headerC.niatr;
-      stanza.ndatr = headerC.ndatr;
-
-      
-				// Skip forward to next header
-				// ---------------------------
-      in->seekg(headerC.nbod*(8*sizeof(double)             + 
-			      headerC.niatr*sizeof(int)    +
-			      headerC.ndatr*sizeof(double)
-			      ), ios::cur);
-
-      dump.stanzas.push_back(stanza);
-
-    }
-
-    if (!ok) break;
-
-    dumps.push_back(dump);
-    if (fabs(time - dump.header.time) < tdif) {
-      fid = dump;
-      tdif = fabs(time-dump.header.time);
-    }
-  }
-
+  in->close();
+  delete in;
 
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    list<Dump>::iterator itd;
-    list<Stanza>::iterator its;
-
-    for (itd = dumps.begin(); itd != dumps.end(); itd++) {
-
-      cerr << "Time=" << itd->header.time << "   [" << itd->pos << "]" << endl;
-      cerr << "   Total particle number: " << itd->header.ntot  << endl;
-      cerr << "   Number of components:  " << itd->header.ncomp << endl;
-
-      int cnt=1;
-
-      for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
-	
-				// Print the info for this stanza
-				// ------------------------------
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	cerr << "--- Component #" << setw(2) << cnt++ << endl;
-	cerr << setw(20) << " name :: "  << its->name   << endl
-	     << setw(20) << " id :: "    << its->id     << endl
-	     << setw(20) << " param :: " << its->param  << endl
-	     << setw(20) << " nbod :: "  << its->nbod  << endl
-	     << setw(20) << " niatr :: " << its->niatr << endl
-	     << setw(20) << " ndatr :: " << its->ndatr << endl;
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	
-      }
-    }
-  }
+    psp.PrintSummary(cerr);
     
-  cerr << "\nBest fit dump to <" << time << "> has time <" 
-       << fid.header.time << ">\n";
+    cerr << "\nBest fit dump to <" << time << "> has time <" 
+	 << psp.SetTime(time) << ">\n";
+  }
 
 				// Dump ascii for each component
 				// -----------------------------
-  in->close();
-  delete in;
-
-  
-
-
   in = new ifstream(argv[optind]);
 
   
@@ -236,7 +122,8 @@ main(int argc, char **argv)
   double rtmp;
   int itmp;
 
-  for (its = fid.stanzas.begin(); its != fid.stanzas.end(); its++) {
+  for (its = psp.CurrentDump()->stanzas.begin(); 
+       its != psp.CurrentDump()->stanzas.end(); its++) {
 
 				// Open an output file
 				// -------------------

@@ -16,6 +16,7 @@
 
 #include <StringTok.H>
 #include <header.H>
+#include <PSP.H>
 
 #define MAXDIM 3
 
@@ -75,35 +76,86 @@ pthread_mutex_t mem_lock;
 void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
   cerr << "    -t time         use dump closest to <time>\n";
+  cerr << "    -a              convert entire file\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
 }
 
-struct Stanza {
-  streampos pos, pspos;
-  string name;
-  string id;
-  string param;
-  string ttype;
-  int nbod;
-  int niatr;
-  int ndatr;
-};
-
-class Dump 
+void write_tipsy(ifstream *in, PSPDump &psp)
 {
-public:
+				// Create tipsy output
+				// -------------------
+  tipsydump theader;
+  gas_particle gas;
+  dark_particle dark;
+  star_particle star;
 
-  streampos pos;
-  MasterHeader header;
-  list<Stanza> stanzas;
+  theader.time = psp.CurrentDump()->header.time;
+  theader.nbodies = psp.CurrentDump()->ntot;
+  theader.ndim = 3;
+  theader.nsph = psp.CurrentDump()->ngas;
+  theader.ndark = psp.CurrentDump()->ndark;
+  theader.nstar = psp.CurrentDump()->nstar;
   
-  int ngas, ndark, nstar, ntot;
-  list<Stanza> gas, dark, star;
+  cout.write(&theader, sizeof(tipsydump));
+    
+  double rtmp;
+  int itmp;
+  
+  Stanza *stanza;
+  SParticle *part;
+				// Do gas particles
+				// ----------------
 
-  Dump () : ngas(0), ndark(0), nstar(0), ntot(0) {}
-};
+  for (stanza=psp.GetGas(); stanza!=0; stanza=psp.NextGas()) {
+      
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+
+      gas.mass = part->mass;
+      for (int i=0; i<3; i++) gas.pos[i] = part->pos[i];
+      for (int i=0; i<3; i++) gas.vel[i] = part->vel[i];
+      gas.phi = part->phi;
+      gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
+      
+      cout.write(&gas, sizeof(gas_particle));
+    }
+  }
+
+				// Do dark particles
+				// -----------------
+  for (stanza=psp.GetDark(); stanza!=0; stanza=psp.NextDark()) {
+      
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+
+      dark.mass = part->mass;
+      for (int i=0; i<3; i++) dark.pos[i] = part->pos[i];
+      for (int i=0; i<3; i++) dark.vel[i] = part->vel[i];
+      dark.phi = part->phi;
+      dark.eps = 0.0;
+      
+      cout.write(&dark, sizeof(dark_particle));
+    }
+  }
+  
+				// Do star particles
+				// -----------------
+
+  for (stanza=psp.GetStar(); stanza!=0; stanza=psp.NextStar()) {
+      
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+
+      star.mass = part->mass;
+      for (int i=0; i<3; i++) star.pos[i] = part->pos[i];
+      for (int i=0; i<3; i++) star.vel[i] = part->vel[i];
+      star.phi = part->phi;
+      star.metals = star.tform = star.eps = 0.0;
+      
+      cout.write(&star, sizeof(star_particle));
+    }
+  }
+  
+}
 
 int
 main(int argc, char **argv)
@@ -111,12 +163,13 @@ main(int argc, char **argv)
   char *prog = argv[0];
   double time=1e20;
   bool verbose = false;
+  bool all = false;
 
   // Parse command line
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:vh");
+    int c = getopt(argc, argv, "t:avh");
 
     if (c == -1) break;
 
@@ -128,6 +181,10 @@ main(int argc, char **argv)
 
     case 'v':
       verbose = true;
+      break;
+
+    case 'a':
+      all = true;
       break;
 
     case '?':
@@ -154,263 +211,40 @@ main(int argc, char **argv)
     in = in2;
 
   }
-				// Look for best fit time
-  double tdif = 1.0e30;
-  Dump fid;
 
-  list<Dump> dumps;
+				// Read the phase space file
+				// -------------------------
 
-  while (1) {
+  PSPDump psp(in, true);
 
-    Dump dump;
-
-    dump.pos = in->tellg();
-				// Read the header, quit on failure
-				// --------------------------------
-    if(!in->read((char *)&dump.header, sizeof(MasterHeader))) break;
-
-
-    bool ok = true;
-
-    for (int i=0; i<dump.header.ncomp; i++) {
-
-      Stanza stanza;
-      stanza.pos = in->tellg();
-      
-      ComponentHeader headerC;
-      if (!headerC.read(in)) {
-	cerr << "Error reading component header\n";
-	ok = false;
-	break;
-      }
-
-      stanza.pspos = in->tellg();
-
-				// Parse the info string
-				// ---------------------
-      StringTok<string> tokens(headerC.info);
-      stanza.name = trimLeft(trimRight(tokens(":")));
-      stanza.id = trimLeft(trimRight(tokens(":")));
-      stanza.param = trimLeft(trimRight(tokens(":")));
-
-				// Strip of the tipsy type
-      StringTok<string> tipsytype(stanza.name);
-      stanza.ttype = trimLeft(trimRight(tipsytype(" ")));
-      stanza.nbod = headerC.nbod;
-      stanza.niatr = headerC.niatr;
-      stanza.ndatr = headerC.ndatr;
-
-      
-				// Skip forward to next header
-				// ---------------------------
-      in->seekg(headerC.nbod*(8*sizeof(double)             + 
-			      headerC.niatr*sizeof(int)    +
-			      headerC.ndatr*sizeof(double)
-			      ), ios::cur);
-
-      dump.stanzas.push_back(stanza);
-
-				// Count up Tipsy types and make
-				// linked  lists
-				// -----------------------------
-      if (!stanza.ttype.compare("gas")) {
-	dump.ngas += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.gas.push_back(stanza);
-      }
-      if (!stanza.ttype.compare("dark")) {
-	dump.ndark += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.dark.push_back(stanza);
-      }
-      if (!stanza.ttype.compare("star")) {
-	dump.nstar += stanza.nbod;
-	dump.ntot += stanza.nbod;
-	dump.star.push_back(stanza);
-      }
-
-    }
-
-    if (!ok) break;
-
-    dumps.push_back(dump);
-    if (fabs(time - dump.header.time) < tdif) {
-      fid = dump;
-      tdif = fabs(time-dump.header.time);
-    }
-  }
-
-
-				// Now write a summary
-				// -------------------
-  if (verbose) {
-
-    list<Dump>::iterator itd;
-    list<Stanza>::iterator its;
-
-    for (itd = dumps.begin(); itd != dumps.end(); itd++) {
-
-      cerr << "Time=" << itd->header.time << "   [" << itd->pos << "]" << endl;
-      cerr << "   Total particle number: " << itd->header.ntot  << endl;
-      cerr << "   Number of components:  " << itd->header.ncomp << endl;
-      cerr << "          Gas particles:  " << itd->ngas << endl;
-      cerr << "         Dark particles:  " << itd->ndark << endl;
-      cerr << "         Star particles:  " << itd->nstar << endl;
-
-      int cnt=1;
-
-      for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
-	
-				// Print the info for this stanza
-				// ------------------------------
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	cerr << "--- Component #" << setw(2) << cnt++ << endl;
-	cerr << setw(20) << " name :: "  << its->name   << endl
-	     << setw(20) << " id :: "    << its->id     << endl
-	     << setw(20) << " param :: " << its->param  << endl
-	     << setw(20) << " tipsy :: " << its->ttype  << endl
-	     << setw(20) << " nbod :: "  << its->nbod  << endl
-	     << setw(20) << " niatr :: " << its->niatr << endl
-	     << setw(20) << " ndatr :: " << its->ndatr << endl;
-	cerr << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	
-      }
-    }
-  }
-    
-  cerr << "\nBest fit dump to <" << time << "> has time <" 
-       << fid.header.time << ">\n";
+  in->close();
+  delete in;
+				// Reopen file
+  in = new ifstream(argv[optind]);
 
 				// Create tipsy output
 				// -------------------
-  in->close();
-  delete in;
-  in = new ifstream(argv[optind]);
 
-  {
-    tipsydump theader;
-    gas_particle gas;
-    dark_particle dark;
-    star_particle star;
+  if (all) {
 
-    theader.time = fid.header.time;
-    theader.nbodies = fid.ntot;
-    theader.ndim = 3;
-    theader.nsph = fid.ngas;
-    theader.ndark = fid.ndark;
-    theader.nstar = fid.nstar;
+				// Write a summary
+				// -------------------
+    if (verbose) psp.PrintSummary(cerr);
 
-    cout.write(&theader, sizeof(tipsydump));
-    
-    double rtmp;
-    int itmp;
+    Dump *dump;
+    for (dump=psp.GetDump(); dump!=0; dump=psp.NextDump())
+      write_tipsy(in, psp);
 
-    list<Stanza>::iterator its;
+  } else {
 
-				// Do gas particles
-				// ----------------
+    cerr << "\nBest fit dump to <" << time << "> has time <" 
+	 << psp.SetTime(time) << ">\n";
+  
+				// Write a summary
+				// -------------------
+    if (verbose) psp.PrintSummaryCurrent(cerr);
 
-    for (its = fid.gas.begin(); its != fid.gas.end(); its++) {
-
-				// Position to beginning of particles
-      in->seekg(its->pspos);
-
-      for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	gas.mass = rtmp;
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  gas.pos[i] = rtmp;
-	}
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  gas.vel[i] = rtmp;
-	}
-	in->read(&rtmp, sizeof(double));
-	gas.phi = rtmp;
-	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	}
-	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	}      
-
-	gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
-
-	cout.write(&gas, sizeof(gas_particle));
-      }
-    }
-
-				// Do dark particles
-				// -----------------
-
-    for (its = fid.dark.begin(); its != fid.dark.end(); its++) {
-
-				// Position to beginning of particles
-      in->seekg(its->pspos);
-
-      for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	dark.mass = rtmp;
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  dark.pos[i] = rtmp;
-	}
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  dark.vel[i] = rtmp;
-	}
-	in->read(&rtmp, sizeof(double));
-	dark.phi = rtmp;
-	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	}
-	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	}      
-
-	dark.eps = 0.0;
-
-	cout.write(&dark, sizeof(dark_particle));
-
-      }
-
-    }
-
-				// Do star particles
-				// -----------------
-
-    for (its = fid.star.begin(); its != fid.star.end(); its++) {
-
-				// Position to beginning of particles
-      in->seekg(its->pspos);
-
-      for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	star.mass = rtmp;
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  star.pos[i] = rtmp;
-	}
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  star.vel[i] = rtmp;
-	}
-	in->read(&rtmp, sizeof(double));
-	star.phi = rtmp;
-	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	}
-	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	}      
-
-	star.metals = star.tform = star.eps = 0.0;
-
-	cout.write(&star, sizeof(star_particle));
-      }
-    }
-    
+    write_tipsy(in, psp);
   }
   
   return 0;
