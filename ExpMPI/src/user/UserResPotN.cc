@@ -597,6 +597,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     
   }
 
+  /*
   pthread_mutex_lock(&iolock);
   cout << setw(15) << tnow
        << setw(15) << amp
@@ -609,6 +610,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     cout << setw(15) << difLz[id][ir];
   cout << endl;
   pthread_mutex_unlock(&iolock);
+  */
 
   return (NULL);
 }
