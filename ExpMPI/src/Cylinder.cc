@@ -31,7 +31,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   lmax = 36;
   mmax = 4;
   hcyl = 1.0;
-  ncylorder = 16;
+  ncylorder = 10;
   ncylrecomp = -1;
   self_consistent = true;
   selector = false;
@@ -57,6 +57,15 @@ Cylinder::Cylinder(string& line) : Basis(line)
 
   ortho = new EmpCylSL();
   ortho->reset(nmax, lmax, mmax, ncylorder, acyl, hcyl);
+
+  cout << "Process " << myid << ": Cylinder parameters: "
+       << " nmax=" << nmax
+       << " lmax=" << lmax
+       << " mmax=" << mmax
+       << " ncylorder=" << ncylorder
+       << " acyl=" << acyl
+       << " hcyl=" << hcyl
+       << "\n";
 
   ncompcyl = 0;
 

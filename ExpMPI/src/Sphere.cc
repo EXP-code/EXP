@@ -22,7 +22,7 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
 				// Defaults
   rmin = 1.0e-3;
   rs = 0.067*rmax;
-  numr = 1000;
+  numr = 2000;
 
 				// Get initialization info
   initialize();
