@@ -309,6 +309,7 @@ void usage(char *prog)
        << setw(15) << "--rmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Maximum radius for SL basis\n"
        << setw(15) << "--rs"<< setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Scale length for radial coordinate mapping\n"
        << setw(15) << "--delr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "X-axis offset multipole expansions\n"
+       << setw(15) << "--delta" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Fractional offset for difference derivatives\n"
        << setw(15) << "--xmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Length of \"box\" for output profiles\n"
        << setw(15) << "--numx" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number pts for output profiles\n"
        << setw(15) << "--numt" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number knots for cos(theta) integral\n"
@@ -335,6 +336,7 @@ main(int argc, char** argv)
   double rmin=0.001, rmax=1.95, rs=0.067;
   double delr=0.01, xmax=1.0;
   int numx=100, numt = 40, nump = 40;
+  double delta = 0.05;
 
   string outfile = "slshift";
 
@@ -355,6 +357,7 @@ main(int argc, char** argv)
       {"rmax", 1, 0, 0},	// Maximum radius for SL basis
       {"rs", 1, 0, 0},		// Scale length for radial coordinate mapping
       {"delr", 1, 0, 0},	// X-axis offset multipole expansions
+      {"delta", 1, 0, 0},	// Fractional offset for difference derivs
       {"xmax", 1, 0, 0},	// Length of "box" for output profiles
       {"numx", 1, 0, 0},	// Number pts for output profiles
       {"numt", 1, 0, 0},	// Number knots for cos(theta) integral
@@ -506,19 +509,28 @@ main(int argc, char** argv)
     ofstream out(ostr.c_str());
 
     double x, dx = 2.0*xmax/(numx-1);
+    double xm, xp, dp;
     for (int i=0; i<numx; i++) {
       x = -xmax + dx*i;
+      xm = max<double>(rmin, x*(1.0-delta));
+      xp = min<double>(rmax, x*(1.0+delta));
+      dp = (
+	    recon.potential_eval(xp, 0.0, 0.0) -
+	    recon.potential_eval(xm, 0.0, 0.0)
+	    ) / (xp - xm);
       cout << setw(15) << x
 	   << setw(15) << recon.density_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.potential_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.density_eval(delr, x, 0.0)
 	   << setw(15) << recon.potential_eval(delr, x, 0.0)
+	   << setw(15) << dp
 	   << endl;
       out  << setw(15) << x
 	   << setw(15) << recon.density_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.potential_eval(x, 0.0, 0.0)
 	   << setw(15) << recon.density_eval(delr, x, 0.0)
 	   << setw(15) << recon.potential_eval(delr, x, 0.0)
+	   << setw(15) << dp
 	   << endl;
     }
 
