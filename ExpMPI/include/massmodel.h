@@ -218,6 +218,9 @@ private:
 public:
 
   static int count;		// Count instantiations
+  static int even;		// Assume even spacing (default: yes)
+  static int logscale;		// Log scale in df computation (default: yes)
+  static int linear;		// Linear interpolation in model (default: no)
 
   SphericalModelTable(string filename, 
 		 int DIVERGE = 0, double DIVERGE_RFAC = 1.0, int EXTERNAL = 0);
