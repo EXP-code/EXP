@@ -305,9 +305,9 @@ void Component::initialize(void)
 	   << comI[1] << ", "
 	   << comI[2] << ") "
 	   << " (u, v, w)="
-	   << comI[0] << ", "
-	   << comI[1] << ", "
-	   << comI[2] << ") "
+	   << covI[0] << ", "
+	   << covI[1] << ", "
+	   << covI[2] << ") "
 	   << "\n";
     }
 
