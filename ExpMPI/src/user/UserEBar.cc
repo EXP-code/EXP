@@ -533,6 +533,8 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
     else if (monopole)
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
+    else
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
     
     xx = pos[0];
     yy = pos[1];
@@ -565,10 +567,11 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     acct[2] = ffac*
       ( -5.0*nn*zz );
     
-				// Quadrupole
+				// Quadrupole potential
     extpot = -ffac*pp*fac;
     
 
+				// Monopole contribution
     if (monopole) {
 
       M0 = ellip->getMass(rr);
@@ -579,12 +582,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
 				// Force on bar (via Newton's 3rd law)
 	tacc[id][k] += -(*particles)[i].mass * acct[k];
-
-				// Quadrupole and monopole potential
-	extpot += ellip->getPot(rr);
-	
       }
 
+				// Monopole potential
+      extpot += ellip->getPot(rr);
     }
 
 				// Add bar acceleration to particle
