@@ -7,6 +7,8 @@
 #include <Vector.h>
 #include <phase.h>
 
+using namespace std;
+
 Frame_Rotation Frame;
 
 double Phase::tolerance=1.e-5;

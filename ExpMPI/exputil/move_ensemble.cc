@@ -9,7 +9,7 @@
 
 #include "phase.h"
 
-
+using namespace std;
 
 Ensemble Ensemble::Step_Positions(double dt)
 {

@@ -43,6 +43,7 @@
 #include <interp.h>
 #include <massmodel.h>
 
+using namespace std;
 
 bool AxiSymModel::gen_EJ = true;
 int AxiSymModel::numr = 50;

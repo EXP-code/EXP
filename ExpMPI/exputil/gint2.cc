@@ -63,10 +63,13 @@
 
 #include <stdlib.h>
 #include <math.h>
+
 #include <iostream>
 #include <iomanip>
 
 #include <gaussQ.h>
+
+using namespace std;
 
                               /* if DEBUG is set, weights and abscissas are
                                  printed on stderr */

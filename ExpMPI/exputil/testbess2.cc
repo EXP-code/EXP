@@ -40,6 +40,8 @@
 #include <numerical.h>
 #include <Vector.h>
 
+using namespace std;
+
 int parse_args(int, char **);
 
 

@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 //----------------------------------------------------------------------
 
 void usage(char *);
-void set_parm(char *, char *);
+void set_parm(string&, string&);
 void write_parm(void);
 void print_default(void);
 
@@ -89,9 +89,7 @@ int parse_args(int argc, char **argv)
 {
   char *prog=argv[0];
   int c, iparmf=0,iret,i;
-  char file[128];
-  char wbuf[WBUFSIZE];
-  char vbuf[WBUFSIZE];
+  string file;
 
   ParamParse prse("=");
 
@@ -103,8 +101,8 @@ int parse_args(int argc, char **argv)
     switch (c) {
     case 'f':
       iparmf=1;
-      strcpy(file, optarg);
-      cout << "File=" << optarg << endl;
+      file = optarg;
+      cout << "File=" << file << endl;
       break;
     case 'd':
       print_default();
@@ -129,29 +127,36 @@ int parse_args(int argc, char **argv)
   
 				// Set parameters
   spair ret;
-  while (prse.get_next(ret)) {
-    strcpy(wbuf, ret.first.c_str());
-    strcpy(vbuf, ret.second.c_str());
-
-    set_parm(wbuf, vbuf);
-  }
-
+  while (prse.get_next(ret)) set_parm(ret.first, ret.second);
 }
 
-void set_parm(char *word, char *valu)
+double atof(string& s)
 {
-  string wrd(word);
+  return atof(s.c_str());
+}
 
-  if (wrd == "NICE")		NICE = atoi(valu);
+int atoi(string& s)
+{
+  return atoi(s.c_str());
+}
 
-  else if (wrd == "DENS")	DENS = atoi(valu) ? true : false;
+bool atol(string& s)
+{
+  return atoi(s.c_str()) ? true : false;
+}
 
-  else if (wrd == "RMAX")	RMAX = atof(valu);
+void set_parm(string& word, string& valu)
+{
+  if (word == "NICE")		NICE = atoi(valu);
 
-  else if (wrd == "PARMFILE")	PARMFILE = string(valu);
+  else if (word == "DENS")	DENS = atol(valu);
+
+  else if (word == "RMAX")	RMAX = atof(valu);
+
+  else if (word == "PARMFILE")	PARMFILE = valu;
 
   else {
-      cerr << "No such parameter: " << wrd << endl;
+      cerr << "No such parameter: " << word << endl;
       exit(-1);
   }
 }

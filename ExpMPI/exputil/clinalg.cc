@@ -7,6 +7,8 @@
 
 #include <clinalg.h>
 
+using namespace std;
+
 extern int myid;
 
 void bomb_clinalg(const char *msg)

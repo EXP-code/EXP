@@ -10,6 +10,8 @@
 
 #include <cpoly.h>
 
+using namespace std;
+
 /*
 	Default constructor; make a null vector.
 */

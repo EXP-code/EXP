@@ -5,6 +5,10 @@
 #include <math.h>
 #include <Vector.h>
 
+#include <iostream>
+
+using namespace std;
+
 #ifdef TEST
 
 int SVD(Matrix A, Matrix &U, Matrix &V, Vector &Z);
@@ -161,31 +165,31 @@ main(int argc, char **argv)
 
     for (i=0; i<nCol; i++)
       if (z[i]>0.0)
-	cout.form("%e ", sqrt(z[i]));
+	cout << sqrt(z[i]) << " ";
       else
-	cout.form("%e ", z[i]);
+	cout << z[i] << " ";
     cout << endl << endl;
     for (i=0; i<nRow; i++)
       {
 	for (j=0; j<nCol; j++)
 	  if (z[j]<1.0e-8)
-	    cout.form("%f ", u[i][j]);
+	    cout << u[i][j] << " ";
 	  else
-	    cout.form("%f ", u[i][j]/sqrt(z[j]));
+	    cout << u[i][j]/sqrt(z[j]) << " ";
 	cout << endl;
       }
     cout << endl;
     for (i=0; i<nCol; i++)
       {
 	for (j=0; j<nCol; j++)
-	  cout.form("%f ", v[i][j]);
+	  cout << v[i][j] << " ";
 	cout << endl;
       }
   }
   
   double max=0.0;
   double amax=0.0;
-  if (!diag_only) cout.form("\nTest:\n");
+  if (!diag_only) cout << "\nTest:\n";
   for (i=0; i<nRow; i++) {
     
     for (j=0; j<nCol; j++) {
@@ -194,7 +198,7 @@ main(int argc, char **argv)
       for (k=0; k<nCol; k++)
 	b[i][j] += u[i][k]*v[j][k];
       
-      if (!diag_only) cout.form("%f ", b[i][j]);
+      if (!diag_only) cout << b[i][j] << " ";
       tmp = fabs(a[i][j]-b[i][j]);
       max = max < tmp ? tmp : max;
       tmp /= (fabs(a[i][j]) + MINDOUBLE);
@@ -202,7 +206,7 @@ main(int argc, char **argv)
     }
     if (!diag_only) cout << endl;
   }
-  cout.form("\nUWV':  Rel error: %e    Abs error: %e\n\n", amax, max);
+  cout << "\nUWV':  Rel error: " << amax << "    Abs error: " << max << "\n\n";
 
   if (!diag_only) cout.form("\nU:\n");
   
@@ -217,7 +221,7 @@ main(int argc, char **argv)
 	  tmp += u[k][i]*u[k][j];
 	else
 	  tmp += u[k][i]*u[k][j]/sqrt(z[i]*z[j]);
-      if (!diag_only) cout.form("%f ", tmp);
+      if (!diag_only) cout << tmp << " ";
 
       if (i==j) {
 	tmp2 = fabs(1.0-tmp);
@@ -230,9 +234,9 @@ main(int argc, char **argv)
     }
     if (!diag_only) cout << endl;
   }
-  cout.form("\nU:  Diag error: %e    Off-diag error: %e\n\n", max, amax);
+  cout << "\nU:  Diag error: " << max << "    Off-diag error: " << amax << "\n\n";
 
-  if (!diag_only) cout.form("\nV:\n");
+  if (!diag_only) cout << "\nV:\n";
   
   max=0.0;
   amax=0.0;
@@ -242,7 +246,7 @@ main(int argc, char **argv)
       tmp = 0.0;
       for (k=0; k<nCol; k++)
 	tmp += v[i][k]*v[j][k];
-      if (!diag_only) cout.form("%f ", tmp);
+      if (!diag_only) cout << tmp << " ";
 
       if (i==j) {
 	tmp2 = fabs(1.0-tmp);
@@ -253,9 +257,9 @@ main(int argc, char **argv)
 	amax = amax < tmp2 ? tmp2 : amax;
       }	  
     }
-    if (!diag_only) cout.form("\n");
+    if (!diag_only) cout << cout;
   }
-  cout.form("\nV:  Diag error: %e    Off-diag error: %e\n\n", max, amax);
+  cout << "\nV:  Diag error: " << max << "    Off-diag error: " << amax << "\n\n";
 
 }
 

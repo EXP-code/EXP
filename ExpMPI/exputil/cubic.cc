@@ -3,7 +3,7 @@
 #include <numerical.h>
 #include <Vector.h>
 
-
+using namespace std;
 
 Matrix build_cubic_table(Vector &xt, Vector &ft, Vector &dft)
 {

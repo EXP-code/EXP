@@ -1,6 +1,9 @@
 #include <unistd.h>
-#include <iostream.h>
 #include <math.h>
+
+#include <iostream>
+
+using namespace std;
 
 static void bomb_ghql(char* msg)
 {

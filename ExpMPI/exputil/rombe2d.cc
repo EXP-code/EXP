@@ -1,6 +1,8 @@
 #include <stdlib.h>
 #include <math.h>
 
+using namespace std;
+
 /*
 *	Computes integral using Simpson's rule with Romberg's
 *	correction with a supplied integrand routine

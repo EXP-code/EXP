@@ -3,6 +3,8 @@
 #include <sstream>
 #include <algorithm>
 
+using namespace std;
+
 #include <ParamParse.H>
 #include <StringTok.H>
 
@@ -89,7 +91,7 @@ void ParamParse::parse_istream(istream* in)
 				// Read in the line
     in->getline(lbuf, lbufsize);
     if (!*in) break;
-    string::size_type beg, end;
+    string::size_type beg;
 
     string line(lbuf);
 

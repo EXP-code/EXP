@@ -205,7 +205,7 @@ void QPDistF::compute_distribution(void)
     double dM = (log(Mmax) - log(Mmax/300.0))/EGRID;
 
 #ifdef TEST
-    cerr.form("QPDistF: [Mmin, Mmax] = [%f, %f]\n", Mmin, Mmax);
+    cerr << "QPDistF: [Mmin, Mmax] = [" << Mmin << ", " << Mmax << "]\n";
 #endif
 
     double rcur, rlo, rhi, mcur, mlo, mhi;
@@ -235,7 +235,7 @@ void QPDistF::compute_distribution(void)
       rmin = rcur;
 
 #ifdef TEST
-    cerr.form("QPDistF: Egrid[%f[%f]] = %f,  eps = %f\n", target, rcur, Egrid[i], rhi-rlo);
+      cerr << "QPDistF: Egrid[" << target << "[" << rcur << "]] = " << Egrid[i] << ",  eps = " << rhi-rlo << endl;
 #endif
 
       if (i==1)

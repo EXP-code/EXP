@@ -37,6 +37,8 @@
 #include <OrthoPoly.h>
 #include <CauchyPV.h>
 
+using namespace std;
+
 				// Constructor
 PVQuad :: PVQuad(int N)
 {

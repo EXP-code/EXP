@@ -15,6 +15,8 @@ static const char rcsid[] = "$Id$";
 #include <interp.h>
 #include "biorth.h"
 
+using namespace std;
+
 double factrl(int n);
 double plgndr(int l, int m, double x);
 

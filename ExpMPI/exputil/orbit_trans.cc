@@ -20,6 +20,8 @@ const char rcsid[] = "$Id$";
 #include "massmodel.h"
 #include "orbit.h"
 
+using namespace std;
+
 				// Global variables
 static AxiSymModel *mm;
 static double EE, JJ, KK;

@@ -4,6 +4,7 @@
 
 #include <linalg.h>
 
+using namespace std;
 
 /* Compute LU decomposition */
 
