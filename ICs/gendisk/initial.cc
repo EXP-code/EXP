@@ -20,7 +20,7 @@
 
  Added the basis expansion of the disk: 12/10/01. KHB
 
- Rewrittend debugged by MDW between 12/28/01-12/31/01.  
+ Rewritten and debugged by MDW between 12/28/01-12/31/01.  
 
         Added command line parsing.  "gendisk -h" will list parameters.
 
@@ -44,6 +44,9 @@
         master.  
 
         Removed lots of other cruft.
+
+Updated to use new EmpOrth cylindrical basis.  06/08/02 MDW
+
 */
 
                                 // System libs
@@ -83,21 +86,23 @@
 #include "EmpOrth9thd.h"
 #include "SphericalSL.h"
 #include "DiskHalo2.h" 
+
+void verbose_help(char*);
+void usage(char*);
+
                                 // Parameters
 int LMAX=4;
 int NMAX=10;
 int NUMR=2000;
-double RMIN=0.005;
+double RMIN=0.001;
+double RMAX=2.0;
 double RCYLMIN=0.001;
 double RCYLMAX=20.0;
-double SCSPH=1.0;
-double RSPHSL=47.5;
+double SCSPH=0.0666667;
 double ASCALE=1.0;
 double HSCALE=0.1;
-double SCCYL=1.0;
 double RDISK=10.0;
 double ZMAX=10.0;
-double TIME=0.0;
 
 int NDR=200;
 int NDZ=200;
@@ -128,7 +133,7 @@ main(int argc, char **argv)
 {
   static string halofile = "SLGridSph.model";
   bool basis = false;
-  bool zero = false;
+  bool zero = true;
   int nhalo = 1000;             // Halo particles
   int ndisk = 1000;             // Disk particles
 
@@ -142,20 +147,27 @@ main(int argc, char **argv)
       // int this_option_optind = optind ? optind : 1;
       int option_index = 0;
       static struct option long_options[] = {
+	{"nmax", 1, 0, 0},
+	{"nmax2", 1, 0, 0},
+	{"lmax", 1, 0, 0},
+	{"lmax2", 1, 0, 0},
+	{"mmax", 1, 0, 0},
 	{"rcylmin", 1, 0, 0},
 	{"rcylmax", 1, 0, 0},
 	{"rmin", 1, 0, 0},
+	{"rmax", 1, 0, 0},
 	{"scsph", 1, 0, 0},
-	{"sccyl", 1, 0, 0},
 	{"ascale", 1, 0, 0},
 	{"hscale", 1, 0, 0},
 	{"norder", 1, 0, 0},
 	{"numr", 1, 0, 0},
+	{"diverge", 1, 0, 0},
+	{"help", 0, 0, 0},
 	{0, 0, 0, 0}
       };
 
       c = getopt_long (argc, argv, 
-		       "H:D:L:M:X:N:n:f:Q:l:Z:m:r:R:1:2:s:S:bzh",
+		       "H:D:L:M:X:N:n:f:Q:l:A:Z:m:r:R:1:2:s:bzhv",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -166,14 +178,29 @@ main(int argc, char **argv)
         {
 	case 0:			// Long options
 	  optname = string(long_options[option_index].name);
+
+	  if (!optname.compare("nmax")) NMAX = atoi(optarg);
+	  if (!optname.compare("nmax2")) NMAX2 = atoi(optarg);
+	  if (!optname.compare("lmax")) LMAX = atoi(optarg);
+	  if (!optname.compare("lmax2")) LMAX2 = atoi(optarg);
+	  if (!optname.compare("mmax")) MMAX = atoi(optarg);
 	  if (!optname.compare("rcylmin")) RCYLMIN = atof(optarg);
 	  if (!optname.compare("rcylmax")) RCYLMAX = atof(optarg);
 	  if (!optname.compare("rmin")) RMIN = atof(optarg);
+	  if (!optname.compare("rmax")) RMAX = atof(optarg);
 	  if (!optname.compare("scsph")) SCSPH = atof(optarg);
 	  if (!optname.compare("ascale")) ASCALE = atof(optarg);
 	  if (!optname.compare("hscale")) HSCALE = atof(optarg);
 	  if (!optname.compare("norder")) NORDER = atoi(optarg);
 	  if (!optname.compare("numr")) NUMR = atoi(optarg);
+	  if (!optname.compare("diverge")) {
+	    DIVERGE = 1;
+	    DIVERGE_RFAC = atof(optarg);
+	  }
+	  if (!optname.compare("help")) {
+	    verbose_help(argv[0]);
+	    exit(0);
+	  }
 	  break;
 
         case 'H':
@@ -188,7 +215,7 @@ main(int argc, char **argv)
           LMAX = atoi(optarg);
           break;
 
-        case 'X':
+        case 'l':
           LMAX2 = atoi(optarg);
           break;
 
@@ -208,12 +235,14 @@ main(int argc, char **argv)
           ToomreQ = atof(optarg);
           break;
 
-        case 'l':
+        case 'A':
           scale_length = atof(optarg);
+	  ASCALE = scale_length;
           break;
 
         case 'Z':
           scale_height = atof(optarg);
+	  HSCALE = scale_height;
           break;
 
         case 'm':
@@ -225,12 +254,12 @@ main(int argc, char **argv)
           break;
 
 	case 'r':
-	  RSPHSL = atof(optarg);
+	  RMIN = atof(optarg);
 	  break;
 
         case 'R':
-          DIVERGE = 1;
-          DIVERGE_RFAC = atof(optarg);
+	  RMAX = atof(optarg);
+
           break;
 
         case '1':
@@ -248,39 +277,18 @@ main(int argc, char **argv)
           break;
 
         case 'z':
-          zero = true;
+          zero = false;
           break;
+
+	case 'v':
+	  verbose_help(argv[0]);
+	  exit(0);
 
         case 'h':
         case '?':
         default:
-          cout << "\nGenerates a spherical phase space with an embedded disk\n"
-               << "  using Jeans' equations assuming velocity isotropy for\n"
-               << "  the spherical component and in-plane isotropy for the\n"
-               << "  disk component\n\n"
-               << "\nUsage : mpirun -v -np <# of nodes> " << argv[0] 
-               << " -- [options]\n\n"
-               << "  -H num     number of halo particles (1000)\n"
-               << "  -D num     number of disk particles (1000)\n"
-               << "  -L lmax    spherical harmonic order (4)\n"
-               << "  -M mmax    cylindrical harmonic order (4)\n"
-               << "  -X lmax    maximum l for cylindrical expansion (26)\n"
-               << "  -N nmax    spherical radial order (10)\n"
-               << "  -n nmax2   cylindrical radial order (8)\n"
-               << "  -Q value   Toomre Q for radial dispersion (1.2)\n"
-               << "  -l a       scale length (2.0)\n"
-               << "  -Z h       scale height (0.1)\n"
-               << "  -m mass    disk mass (1.0)\n"
-               << "  -r rsphsl  edge for SL expansion (47.5)\n"
-               << "  -R expon   power law divergence exponent (unset)\n"
-               << "  -s scale   halo coordinate scale\n"
-               << "  -S scale   disk coordinate scale\n"
-               << "  -1 rmin    minimum radius for change over to DF\n"
-               << "  -2 rmax    maximum radius for change over to DF\n"
-               << "  -b         print out basis images (false)\n"
-               << "  -z         zero center of mass and velocity (false)\n"
-               << endl;
-          exit(0);
+	  usage(argv[0]);
+	  exit(0);
         }
     }
 
@@ -328,7 +336,7 @@ main(int argc, char **argv)
                                 // Disk halo grid parameters
   DiskHalo::RDMIN = RMIN;
   DiskHalo::RHMIN = RMIN;
-  DiskHalo::RHMAX = RSPHSL;
+  DiskHalo::RHMAX = RMAX;
   DiskHalo::RDMAX = RDISK*scale_length;
   DiskHalo::NDR = NDR;
   DiskHalo::NDZ = NDZ;
@@ -346,7 +354,7 @@ main(int argc, char **argv)
   // SLGridSph::cmap = 1;
     
   SphericalSL::RMIN = RMIN;
-  SphericalSL::RMAX = RSPHSL;
+  SphericalSL::RMAX = RMAX;
   SphericalSL::NUMR = NUMR;
                                 // Create expansion only if needed . . .
   SphericalSL *expandh = NULL;
@@ -630,3 +638,93 @@ main(int argc, char **argv)
   return 0;
 }
 
+void usage(char *prog)
+{
+  cout << "\nGenerates a spherical phase space with an embedded disk\n"
+       << "  using Jeans' equations assuming velocity isotropy for\n"
+       << "  the spherical component and in-plane isotropy for the\n"
+       << "  disk component\n\n"
+       << "\nUsage : mpirun -v -np <# of nodes> " << prog 
+       << " -- [options]\n\n"
+       << "  -H num     number of halo particles (1000)\n"
+       << "  -D num     number of disk particles (1000)\n"
+       << "  -L lmax    spherical harmonic order (4)\n"
+       << "  -M mmax    cylindrical harmonic order (4)\n"
+       << "  -N nmax    spherical radial order (10)\n"
+       << "  -n nmax2   cylindrical radial order (8)\n"
+       << "  -l lmax2   spherical harmonic order for empirical fct (36)\n"
+       << "  -Q value   Toomre Q for radial dispersion (1.2)\n"
+       << "  -A a       scale length (2.0)\n"
+       << "  -Z h       scale height (0.1)\n"
+       << "  -m mass    disk mass (1.0)\n"
+       << "  -r rmin    inner edge for sph SL expansion (0.001)\n"
+       << "  -R rmax    outer edge for SL expansion (2.0)\n"
+       << "  -s scale   halo coordinate scale\n"
+       << "  -S scale   disk coordinate scale\n"
+       << "  -1 rmin    minimum radius for change over to DF\n"
+       << "  -2 rmax    maximum radius for change over to DF\n"
+       << "  -b         print out basis images (false)\n"
+       << "  -z         zero center of mass and velocity (false)\n"
+       << "  -v         verbose help\n"
+       << endl;
+}
+
+void verbose_help(char *prog)
+{
+  usage(prog);
+
+  cout << "-----------------------------------------------------------\n"
+       << "In addition to the standard options, the following long\n"
+       << "options are available:\n\n"
+       << "  --nmax val      is the radial order for the halo expansion\n"
+       << "  --nmax2 val     is the radial order for the disk expansion\n"
+       << "  --lmax val      is the spherical order for the halo expansion\n"
+       << "  --lmax2 val     is the spherical order for the disk expansion\n"
+       << "  --mmax val      is the cylindrical order for the disk expansion\n"
+       << "  --rmin val      minimum radius for realization\n"
+       << "  --rmax val      maximum radius for realization\n"
+       << "  --scsph val     scale for spherical coordinate mapping\n"
+       << "  --ascale val    disk scale length for halo embedded disk\n"
+       << "  --hscale val    disk scale height for halo embedded disk\n"
+       << "  --norder val    number of empirical cylindrical basis functions\n"
+       << "  --numr val      number of mesh points for SL table grid\n"
+       << "  --diverge val   power law divergence density exponent\n"
+       << "  --rcylmin val   minimum cylindrical radius for table (scaled)\n"
+       << "  --rcylmax val   maximum cylindrical radius for table (scaled)\n"
+       << "-----------------------------------------------------------\n\n"
+       << "NOTES\n\n"
+       << "The most often needed parameter changes can be done using the\n"
+       << "single character flags.  You should rarely, if ever, need to\n"
+       << "change rcylmin and rcylmax.  The most important flags are as\n"
+       << "follows:\n\n"
+       << " * You will always need to set the desired number of disk and\n"
+       << "   halo particles using the -D and -H flags\n\n"
+       << " * The scale length and scale height of the disk are set by\n"
+       << "   the -A and -Z flags.  Both the cylindrical basis and the\n"
+       << "   phase-space generation use the same values unless the phase-\n"
+       << "   space values are specifed explicitly by -ascale and -hscale\n\n"
+       << " * Set rmin (-r) to the some fraction of the smallest spatial\n"
+       << "   scale.  Set rmax (-R) to a large radius such that the halo\n"
+       << "   density is small but non zero.\n\n"
+       << " * The halo scale length should be set (-s) appropriately.\n"
+       << "   This value is used for coordinate scaling only\n"
+       << " * You will probably the center of mass and the center of\n"
+       << "   velocity set to zero; this is the default.  To suppress\n"
+       << "   this, use the -z flag.\n"
+       << "-----------------------------------------------------------\n\n"
+       << "Example STRATEGIES\n\n"
+       << " * Use " << prog << " to generate a halo and disk using prior\n"
+       << "   evolution\n\n"
+       << " * Generate the ICs iteratively steps as follows:\n\n"
+       << "   (1) Generate a disk according to the model in SLGridSph.model\n"
+       << "       and disk according the -A, -Z -m (etc)\n\n"
+       << "   (2) Evolve the ICs from Step (1) above but with fixed disk\n"
+       << "       (e.g.) using the Componenet parameter self_consistent=0\n"
+       << "       This allows the halo to react and readjust to the disk\n"
+       << "       and potentially its inability to resolve small scales\n"
+       << "       due to lack of particles.\n\n"
+       << "   (3) Use the output halo profile from the simulation as to\n"
+       << "       construct a new SLGridSph.model and repeat Step (1).\n\n"
+       << "   Iterate if desired, although it's probably not necessary.\n"
+       << endl;
+}
