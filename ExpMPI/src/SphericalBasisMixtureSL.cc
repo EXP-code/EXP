@@ -12,6 +12,7 @@ SphericalBasisMixtureSL::SphericalBasisMixtureSL
 {
   A = A1;
   ctr = ctr1;
+  setup();
 }
 
 
@@ -26,7 +27,7 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-
+  
   use[id] = 0;
 
   for (i=nbeg; i<nend; i++) {

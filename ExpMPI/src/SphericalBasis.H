@@ -60,6 +60,9 @@ public:
   //! Constructor (<param>line</param> contains the paramter list)
   SphericalBasis(string& line);
 
+  //! Copy constructor
+  SphericalBasis(const SphericalBasis& p);
+
   //! Destructor
   SphericalBasis::~SphericalBasis();
   

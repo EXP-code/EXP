@@ -44,8 +44,6 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
   exp_ej  = new SphericalBasisMixtureSL(line, this, ej);
   exp_com = new SphericalBasisMixtureSL(line, this, com);
   center = new double [3];
-
-  // setup();
 }
 
 
@@ -77,56 +75,23 @@ SphereTwoCenter::~SphereTwoCenter(void)
 
 void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
 {
-				
   particles = P;		// "Register" particles
   nbodies = particles->size();	// And compute number of bodies
 
-  /*====================================================*/
-  /* Accel & pot using previously computed coefficients */
-  /*====================================================*/
+  
+  bool use_external1 = use_external;
 
-  if (use_external) {
-
-    MPL_start_timer();
 				// Set center to Component center
-    for (int k=0; k<3; k++) center[k] = component->center[k];
-    exp_ej->determine_acceleration_and_potential();
-				// Set center to Component center of mass
-    for (int k=0; k<3; k++) center[k] = component->com[k];
-    exp_com->determine_acceleration_and_potential();
-    MPL_stop_timer();
-
-    use_external = false;
-
-    return;
-  }
-
-
-  /*======================*/
-  /* Compute coefficients */
-  /*======================*/
-
-  if (firstime_accel || self_consistent) {
-    firstime_accel = false;
-    for (int k=0; k<3; k++) center[k] = component->center[k];
-    exp_ej->determine_coefficients();
-    for (int k=0; k<3; k++) center[k] = component->com[k];
-    exp_com->determine_coefficients();
-  }
-
-
-  /*======================================*/
-  /* Determine potential and acceleration */
-  /*======================================*/
-
-  MPL_start_timer();
-
   for (int k=0; k<3; k++) center[k] = component->center[k];
-  exp_ej->determine_acceleration_and_potential();
-  for (int k=0; k<3; k++) center[k] = component->com[k];
-  exp_com->determine_acceleration_and_potential();
+  exp_ej ->  get_acceleration_and_potential(P);
 
-  MPL_stop_timer();
+				// Reset set external force flag
+  use_external  = use_external1;
+
+				// Set center to Component center of mass
+  for (int k=0; k<3; k++) center[k] = component->com[k];
+  exp_com ->  get_acceleration_and_potential(P);
+
 
   // Clear external potential flag
   use_external = false;

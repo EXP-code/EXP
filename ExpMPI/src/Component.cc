@@ -9,6 +9,7 @@
 #include <CBrockDisk.H>
 #include <Hernquist.H>
 #include <Sphere.H>
+#include <SphereEJCOM.H>
 #include <Cylinder.H>
 #include <Cube.H>
 #include <Slab.H>
@@ -128,6 +129,10 @@ void Component::initialize(void)
   }
   else if ( !id.compare("sphereSL") ) {
     force = new Sphere(fparam);
+    dim = 3;
+  }
+  else if ( !id.compare("sphereEJCOM") ) {
+    force = new SphereEJCOM(fparam);
     dim = 3;
   }
   else if ( !id.compare("cube") ) {
