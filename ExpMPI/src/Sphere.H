@@ -4,8 +4,16 @@
 #include <SLGridMP2.h>
 #include <SphericalBasis.H>
 
-//! computes the potential, acceleration and density using the Sturm Liouville direct solution
-class Sphere : public SphericalBasis
+/** Computes the potential, acceleration and density using the Sturm
+    Liouville direct solution
+
+    \param rmin is the minimum value in the table for the 
+    radial basis functions (default is 0.001)
+
+    \param numr is the number radial coordinate knots in the table 
+    (default is 1000)
+*/
+class Sphere : public SphericalBasis 
 {
 
 private:
