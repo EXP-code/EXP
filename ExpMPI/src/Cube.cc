@@ -70,13 +70,14 @@ void * Cube::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
   use[id] = 0;
 
   for (i=nbeg; i<nend; i++) {
 
     use[id]++;
-    mass = (*particles)[i].mass;
+    mass = (*particles)[i].mass * adb;
 
 				/* Truncate to cube with sides in [0,1] */
     

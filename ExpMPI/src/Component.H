@@ -58,6 +58,14 @@
   \par direct
   The usual n<sup>2</sup> force calculation, see Direct 
 
+  \par ton 
+  The midpoint of the adiabatic turn on for this component
+
+  \par twid 
+  The width for the adiabatic turn on.  Unless
+  <code>ton</code> or <code>toff</code> is specified, the component
+  begins and remains fully on.
+
 */
 class Component
 {
@@ -109,6 +117,10 @@ private:
 
   // Initialize com tie list
   void get_com_component(string name);
+
+  // Adiabatic mass
+  bool adiabatic;
+  double ton, twid;
 
 protected:
 
@@ -256,6 +268,9 @@ public:
 
   //! Update angular momentum values
   void get_angmom(void);
+
+  //! Adiabatic turn on factor, range in [0, 1]
+  double Component::Adiabatic(void);
 
 };
 

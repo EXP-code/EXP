@@ -250,13 +250,14 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
   for (int i=nbeg; i<nend; i++) {
 
     if ((*particles)[i].freeze()) // frozen particles do not respond
       continue;
 
-    mass = (*particles)[i].mass;
+    mass = (*particles)[i].mass * adb;
 
     for (int k=0; k<3; k++) 
       pos[k] = (*particles)[i].pos[k] - component->center[k];

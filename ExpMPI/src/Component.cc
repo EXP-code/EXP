@@ -41,6 +41,10 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   npart = false;
   buf = new Partstruct [nbuf];
 
+  adiabatic = false;
+  ton = 0.5;
+  twid = 0.1;
+
   read_bodies_and_distribute_ascii();
 
 }
@@ -104,6 +108,11 @@ void Component::initialize(void)
 
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
+    if (!datum.first.compare("ton"))      {ton = atof(datum.second.c_str()); adiabatic = true;}
+
+    if (!datum.first.compare("twid"))      {twid = atof(datum.second.c_str()); adiabatic = true;}
+
+    
 				// Next parameter
     token = tokens(",");
   }
@@ -1266,3 +1275,8 @@ void Component::setup_distribution(void)
 
 }
 
+double Component::Adiabatic()
+{
+  if (!adiabatic) return 1.0;
+  return 0.5*( 1.0 + erf((time-ton)/twid) );
+}

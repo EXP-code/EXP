@@ -247,6 +247,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
   use[id] = 0;
   cylmass0[id] = 0.0;
@@ -271,13 +272,15 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
     if (r2+zz*zz < 0.5*rcylmax*rcylmax) {
 
+      double mas = (*particles)[i].mass * adb;
+
       if (eof) {
 	use[id]++;
-	cylmass0[id] += (*particles)[i].mass;
+	cylmass0[id] += mas;
       }
 
       phi = atan2(yy, xx);
-      ortho->accumulate(r, zz, phi, (*particles)[i].mass, id);
+      ortho->accumulate(r, zz, phi, mas, id);
     }
     
   }

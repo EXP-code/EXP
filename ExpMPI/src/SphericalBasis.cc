@@ -257,6 +257,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
   use[id] = 0;
 
@@ -264,7 +265,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
     if ((*particles)[i].freeze()) continue;
 
-    mass = (*particles)[i].mass;
+    mass = (*particles)[i].mass * adb;
 
     xx = (*particles)[i].pos[0] - component->center[0];
     yy = (*particles)[i].pos[1] - component->center[1];

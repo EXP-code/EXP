@@ -122,6 +122,7 @@ void * Slab::determine_coefficients_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
   for (int i=nbeg; i<nend; i++) {
     
@@ -178,7 +179,7 @@ void * Slab::determine_coefficients_thread(void * arg)
                             // |--- density in orthogonal series
                             // |    is 4.0*M_PI rho
                             // v
-	  expccof[id][indx] += 4.0*M_PI*(*particles)[i].mass*
+	  expccof[id][indx] += 4.0*M_PI*(*particles)[i].mass*adb*
 	    facx*facy*zpot[id][iz+1];
 	}
       }
