@@ -429,6 +429,25 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 }
 
+void Cylinder::
+determine_fields_at_point_sph(double r, double theta, double phi,
+			      double *tdens, double *tpotl, 
+			      double *tpotr, double *tpott, 
+			      double *tpotp)
+
+{
+  double R = r*sin(theta);
+  double z = r*cos(theta);
+  double tpotR, tpotZ;
+
+  determine_fields_at_point_cyl(R, z, phi, tdens, tpotl, 
+				&tpotR, &tpotZ, tpotp);
+  
+  *tpotr =  tpotR*sin(theta) + tpotZ*cos(theta) ;
+  *tpott = (tpotZ*sin(theta) - tpotR*cos(theta) )/(r+1.0e-10);
+}
+
+
 
 void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
 					     double *tdens, double *tpotl, 

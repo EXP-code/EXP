@@ -151,9 +151,9 @@ void OutLog::Run(int n, bool last)
     if (myid==0) {
       string field;
 				// Global stanza
-      *out << setw(cwid-2) << setfill('-') << "Global stats";
+      *out << setfill('-') << setw(cwid) << "Global stats";
       for (int i=1; i<num_global; i++) 
-	*out << "|" << setw(cwid) << setfill(' ');
+	*out << "|" << setfill(' ') << setw(cwid) << " ";
 
       
 				// Component stanzas
@@ -161,24 +161,25 @@ void OutLog::Run(int n, bool last)
 	c = *cc;
 	*out << "|" << setw(cwid) << c->id.c_str();
 	for (int i=1; i<num_component; i++) 
-	  *out << "|" << setw(cwid) << setfill(' ');
+	  *out << "|" << setfill(' ') << setw(cwid) << " ";
       }
       *out << endl;
     
 				// Global divider
-      *out << setw(cwid) << setfill('-');
+      *out << setfill('-') << setw(cwid) << "-";
       for (int i=1; i<num_global; i++) 
-	*out << "+" << setw(cwid) << setfill('-');
+	*out << "+" << setfill('-') << setw(cwid)  << "-";
       
 				// Component dividers
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	for (int i=0; i<num_component; i++) 
-	  *out << "+" << setw(cwid) << setfill('-');
+	  *out << "+" << setfill('-') << setw(cwid) << "-";
       }
-      *out << endl;
+      *out << endl << setfill(' ');
+
 
 				// Global labels
-      *out << setw(cwid) << setfill(' ') << lab_global[0];
+      *out << setfill(' ') << setw(cwid) << lab_global[0];
       for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
@@ -194,16 +195,16 @@ void OutLog::Run(int n, bool last)
       *out << endl;
 
 				// Global divider
-      *out << setw(cwid) << setfill('-');
+      *out << setfill('-') << setw(cwid) << "-";
       for (int i=1; i<num_global; i++) 
-	*out << "+" << setw(cwid) << setfill('-');
+	*out << "+" << setfill('-') << setw(cwid) << "-";
     
 				// Component dividers
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	for (int i=0; i<num_component; i++) 
-	  *out << "+" << setw(cwid) << setfill('-');
+	  *out << "+" << setfill('-') << setw(cwid) << "-";
       }
-      *out << setfill(' ') << endl;
+      *out << endl << setfill(' ');
   
     }
     

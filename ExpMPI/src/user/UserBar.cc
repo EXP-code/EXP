@@ -37,30 +37,33 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   U4 = 1.0;			// Turn on duration
   U5  = 0.0;			// Corotation factor
 
-  com_name = "sphereSL";	// Default component for com
+  com_name = "";		// Default component for com
 
   initialize();
 
-  cout << "Process " << myid << ": UserBar::com_name=" << com_name << endl;
-
+  if (com_name.size()>0) {
 				// Look for the fiducial component
-  bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if ( !com_name.compare(c->id) ) {
-      c0 = c;
-      found = true;
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !com_name.compare(c->id) ) {
+	c0 = c;
+	found = true;
       break;
+      }
     }
-  }
 
-  if (!found) {
-    cerr << "Process " << myid << ": can't find desired component <"
-	 << com_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << com_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
+
   }
+  else
+    c0 = NULL;
 
   userinfo();
 }
@@ -72,7 +75,11 @@ UserBar::~UserBar()
 void UserBar::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "User routine initialized: rotating bar with fixed pattern speed\n";
+  cout << "User routine initialized: rotating bar with fixed pattern speed, " ;
+  if (c0) 
+    cout << " center on component <" << com_name << ">" << endl;
+  else
+    cout << " center on origin" << endl;
 }
 
 void UserBar::initialize()
@@ -110,9 +117,9 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
       if (c->force->geometry == PotAccel::sphere || 
 	  c->force->geometry == PotAccel::cylinder) {
 
-	((AxisymmetricBasis*)c->force)->
+	((Basis*)c->force)->
 	  determine_fields_at_point_sph(R, theta, phi,
-					  &dens, &potl, &potr, &pott, &potp);
+					&dens, &potl, &potr, &pott, &potp);
 
 	avg += potr/8.0;
       }
@@ -152,9 +159,11 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
 
     if ((*particles)[i].freeze()) continue;
 
-    for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - c0->com[k];
-
+    if (c0)
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->com[k];
+    else
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
+    
     xx = pos[0];
     yy = pos[1];
     zz = pos[2];

@@ -26,6 +26,26 @@ public:
   //! Save coefficients to file (need type marker to id dump, component id?)
   virtual void dump_coefs(ostream& out) = 0;
 
+
+  /** Supply density, potential and derivatives at arbitrary point
+      in spherical coordinates
+  */
+  virtual void determine_fields_at_point_sph
+  (double r, double theta, double phi,
+   double *tdens, double *tpotl, 
+   double *tpotr, double *tpott, double *tpotp) = 0;
+
+
+  /**
+     Supply density, potential and derivatives at arbitrary point
+      in cylindrical coordinates
+  */
+  virtual void determine_fields_at_point_cyl
+  (double r, double z, double phi,
+   double *tdens, double *tpotl, 
+   double *tpotr, double *tpotz, double *tpotp) = 0;
+
+
   //! Utility
   // @{
 
