@@ -310,6 +310,7 @@ void Component::initialize(void)
 	   << covI[2] << ") "
 	   << "\n";
     }
+  }
 
 }
 
