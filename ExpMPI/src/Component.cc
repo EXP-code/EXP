@@ -68,8 +68,11 @@ Component::Component(istream *in)
   buf = new Partstruct [nbuf];
 
 
-  read_bodies_and_distribute_binary(in);
+  adiabatic = false;
+  ton = 0.5;
+  twid = 0.1;
 
+  read_bodies_and_distribute_binary(in);
 }
 
 
