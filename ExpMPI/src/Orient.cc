@@ -71,6 +71,7 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	in >> time;
 	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
 
+	in >> Ecurr;
 	in >> axis[1];
 	in >> axis[2];
 	in >> axis[3];
@@ -79,7 +80,7 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	in >> center[3];
       }
 
-      cout << "Orient: cached time=" << time << endl;
+      cout << "Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
       cout << "Orient: cached axis master: " 
 	   << axis[1] << ", "
@@ -95,6 +96,8 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	in1[j] = axis[j+1];
 	in2[j] = center[j+1];
       }
+
+      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -114,6 +117,7 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 
     if (in_ok) {
 
+      MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -153,20 +157,29 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 
 void Orient::accumulate(double time, vector<Particle> *p, double *com)
 {
-  double mass;
+  double energy, mass;
+  double Emin1=1.0e20, Emin0=1.0e20;
 
   angm.clear();
 
   int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
 
-    if ((*p)[i].pot < Ecurr) {
+    energy = (*p)[i].pot + 
+      0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
+	   (*p)[i].vel[1]*(*p)[i].vel[1] + 
+	   (*p)[i].vel[2]*(*p)[i].vel[2]);
+
+    Emin1 = min<double>(energy, Emin1);
+
+    if (energy < Ecurr) {
 
       mass = (*p)[i].mass;
 
-      t.E = (*p)[i].pot + 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + (*p)[i].vel[1]*(*p)[i].vel[1] + (*p)[i].vel[2]*(*p)[i].vel[2]);
+      t.E = energy;
 
       t.M = mass;
+
       t.L[1] = mass*(((*p)[i].pos[1]-com[1])*(*p)[i].vel[2]-((*p)[i].pos[2]-com[2])*(*p)[i].vel[1]);
       t.L[2] = mass*(((*p)[i].pos[2]-com[2])*(*p)[i].vel[0]-((*p)[i].pos[0]-com[0])*(*p)[i].vel[2]);
       t.L[3] = mass*(((*p)[i].pos[0]-com[0])*(*p)[i].vel[1]-((*p)[i].pos[1]-com[1])*(*p)[i].vel[0]);
@@ -182,9 +195,58 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       t.R[3] = mass*(*p)[i].pos[2];
       angm.push_back(t);
     }
-    
   }
-  
+
+  // Sanity check
+
+  int size0=0, size1=(int)angm.size();
+
+  // Propagate minimum energy and current cached low energy particles
+  // with nodes
+  MPI_Allreduce(&Emin1, &Emin0, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&size1, &size0, 1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
+
+  if (size0 == 0) {
+    
+    if (myid==0) {
+      cout << "Orient: Ecurr error, current value=" << Ecurr 
+	   << " but Min(Phi)=" << Emin0 << endl;
+    }
+    
+    Ecurr = Emin0*0.98;
+    
+    for (int i=0; i<nbodies; i++) {
+      
+      energy = (*p)[i].pot + 
+	0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
+	     (*p)[i].vel[1]*(*p)[i].vel[1] + 
+	     (*p)[i].vel[2]*(*p)[i].vel[2]);
+
+      if (energy < Ecurr) {
+	
+	mass = (*p)[i].mass;
+	
+	t.E = energy;
+	
+	t.M = mass;
+
+	t.L[1] = mass*(((*p)[i].pos[1]-com[1])*(*p)[i].vel[2]-((*p)[i].pos[2]-com[2])*(*p)[i].vel[1]);
+	t.L[2] = mass*(((*p)[i].pos[2]-com[2])*(*p)[i].vel[0]-((*p)[i].pos[0]-com[0])*(*p)[i].vel[2]);
+	t.L[3] = mass*(((*p)[i].pos[0]-com[0])*(*p)[i].vel[1]-((*p)[i].pos[1]-com[1])*(*p)[i].vel[0]);
+	
+	/*
+	  t.R[1] = (*p)[i].pot*(*p)[i].pos[0];
+	  t.R[2] = (*p)[i].pot*(*p)[i].pos[1];
+	  t.R[3] = (*p)[i].pot*(*p)[i].pos[2];
+	*/
+	  
+	t.R[1] = mass*(*p)[i].pos[0];
+	t.R[2] = mass*(*p)[i].pos[1];
+	t.R[3] = mass*(*p)[i].pos[2];
+	angm.push_back(t);
+      }
+    }
+  }
 				// Compute values for this step
   axis1.zero();
   center1.zero();
@@ -215,15 +277,6 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   MPI_Allreduce(inC.array(0, 2), center1.array(0, 2), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  if (verbose && myid==0) {
-    cout << "Orient info: " << used << " particles used, Ecurr=" << Ecurr 
-	 << " Center=" 
-	 << center1[1] << ", "
-	 << center1[2] << ", "
-	 << center1[3] << endl;
-  }
-
-				// Compute delta energy for next step
   if (used && Nlast) {
 				// Don't divide by zero
     if (used != Nlast) 
@@ -244,6 +297,18 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     center1 /= mtot;
     if (flags & AXIS)   sumsA.push_back(axis1);
     if (flags & CENTER) sumsC.push_back(center1);
+
+
+    if (verbose && myid==0) {
+      cout << "Orient info: " << used << " particles used, Ecurr=" << Ecurr 
+	   << " Center=" 
+	   << center1[1] << ", "
+	   << center1[2] << ", "
+	   << center1[3] << endl;
+    }
+
+				// Compute delta energy for next step
+
 
     if (sumsA.size() > keep) {
 
@@ -316,14 +381,24 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
 	i++;
 
+	/*
 	if (verbose && myid==0)
 	  cout << "Orient debug i=" << i << " : SumX=" << sumX 
-	       << "  SumX2=" << sumX2 << endl;
+	       << "  SumX2=" << sumX2 << "  Delta=" << sumX2*i - sumX*sumX 
+	       << endl;
+	*/
       }
 				// Linear least squares estimate for center
 
       center = (sumX2*sumY - sumX*sumXY)/(sumX2*i - sumX*sumX);	
       slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
+
+      /*
+      cout << "Orient debug: x, y, z = " 
+	   << center[1] << ", "
+	   << center[2] << ", "
+	   << center[3] << endl;
+      */
 
       i = 0;
       sigC = 0.0;
@@ -341,7 +416,11 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     }
 
-    double factor = (double)(sumsC.size() - keep)/keep;
+    double factor = (double)((int)sumsC.size() - keep)/keep;
+    /*
+    cout << "Orient debug: size=" << sumsC.size() << "  keep=" << keep 
+	 << "  factor=" << factor << endl;
+    */
     factor = 1.0 - factor*factor;
 
     center *= factor*factor;
@@ -389,10 +468,11 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   else				// Use gradient computed shift
     Ecurr += dE;
   
+
   if (myid==0) {
     ofstream outl(logfile.c_str(), ios::app);
     if (outl) {
-      outl << setw(15) << time;
+      outl << setw(15) << time << setw(15) << Ecurr;
       for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
       for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
       outl << endl;
