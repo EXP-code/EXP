@@ -148,6 +148,12 @@ int main(int argc, char** argv)
 				   cmap, rs);
 
 
+				// Slaves exit
+  if (use_mpi && myid>0) {
+    MPI_Finalize();
+    exit(0);
+  }
+
 				// Do what?
   while (1) {
     bool done=false;
@@ -242,5 +248,12 @@ int main(int argc, char** argv)
   }
 
   delete ortho;
+
+  if (use_mpi) MPI_Finalize();
+
   return 0;
 }
+
+
+
+
