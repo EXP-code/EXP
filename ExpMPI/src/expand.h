@@ -92,6 +92,7 @@ void begin_run(void);
 void incr_position(void);
 void incr_velocity(void);
 void write_parm(void);
+void synchronize_velocity(int);
 
 #ifndef MAX
 #define MAX(A,B) (A>B ? A : B)
