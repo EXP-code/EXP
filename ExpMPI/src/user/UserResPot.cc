@@ -6,27 +6,10 @@
 #include <ExternalCollection.H>
 #include <ResPot.H>
 #include <biorth.h>
-#include <biorthSL.h>
+#include <sphereSL.h>
 #include <UserResPot.H>
 #include <BarForcing.H>
 
-
-static SphericalModelTable *hm;
-                                                                                
-double pot(double r)
-{
-  return hm->get_pot(r);
-}
-                                                                                
-double dpot(double r)
-{
-  return hm->get_dpot(r);
-}
-                                                                                
-double dens(double r)
-{
-  return hm->get_density(r);
-}
 
 UserResPot::UserResPot(string &line) : ExternalForce(line)
 {
@@ -39,6 +22,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   L2 =  2;
   rmin = 1.0e-4;
   rmax = 1.95;
+  scale = 0.067;
   drfac = 0.05;
 
   ton = -20.0;			// Turn on time
@@ -92,21 +76,17 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
 
 				// Set up for resonance potential
-  hm =  new SphericalModelTable(model_file);
+  SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
-  cout << "Process " << myid << ": made model in UserResPot\n";
 
-  cout << "Process " << myid << ": about to make biorth . . .\n";
   SphereSL::cache = 0;
-  SphereSL::mpi = 0;
-  SphereSL::rscale = 0.067;
-  halo_ortho = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, pot, dpot, dens);
-  cout << "Process " << myid << ": made biorth in UserResPot\n";
+  SphereSL::mpi = 1;
+  SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
+  halo_ortho = sl;
 
   ResPot::NUME = NUME;
   ResPot::NUMK = NUMK;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
-  cout << "Process " << myid << ": made ResPot in UserResPot\n";
 
   BarForcing::L0 = L0;
   BarForcing::M0 = M0;
@@ -114,10 +94,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_quad_parameters(A21, A32);
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
-  cout << "Process " << myid << ": made BarForcing in UserResPot\n";
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  exit(0);
 
   userinfo();
 }
@@ -142,7 +118,6 @@ void UserResPot::userinfo()
        << ", Ton=" << ton
        << ", Toff=" << toff
        << ", Delta=" << delta
-       << ", Omega=" << omega
        << "\n";
   print_divider();
 }
@@ -162,6 +137,7 @@ void UserResPot::initialize()
 
   if (get_value("rmin", val))     rmin = atof(val.c_str());
   if (get_value("rmax", val))     rmax = atof(val.c_str());
+  if (get_value("scale", val))     scale = atof(val.c_str());
   if (get_value("drfac", val))    drfac = atof(val.c_str());
 
   if (get_value("ton", val))      ton = atof(val.c_str());
@@ -203,7 +179,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k] - c0->com[k];
+      pos[k] = (*particles)[i].pos[k];
+      if (c0) pos[k] -= c0->com[k];
       vel[k] = (*particles)[i].vel[k];
       R2 += pos[k]*pos[k];
     }
@@ -223,7 +200,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 			respot->Pot(posN, vel, omega, tnow, bcoef)
 			)/(2.0*drfac*R);
 
-      if (use_background) acc[k] += -dpot*pos[k]/R;
+      if (use_background && R>0.0) acc[k] += -dpot*pos[k]/R;
     }
     
     for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];

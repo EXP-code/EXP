@@ -3,9 +3,9 @@
 #include <gaussQ.h>
 
 double ResPot::DELTA = 0.01;
-int ResPot::NREC = 10;
-int ResPot::NUME = 100;
-int ResPot::NUMK = 20;
+int ResPot::NUME = 400;
+int ResPot::NUMK = 100;
+
 KComplex ResPot::I(0.0, 1.0);
 
 ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
@@ -25,8 +25,6 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
   Kmin = DELTA;
   Kmax = 1.0-DELTA;
 
-  lq = new LegeQuad(NREC);
-
   // SphericalOrbit::RMAXF=1.0;
   orb = new SphericalOrbit(halo_model);
   orb->set_biorth(*halo_ortho, L, NMAX);
@@ -36,7 +34,6 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
 
 ResPot::~ResPot()
 {
-  delete lq;
   delete orb;
 }
 

@@ -11,6 +11,9 @@
 #ifndef _ResPot_H
 #define _ResPot_H
 
+/**
+   Computes the resonance potential for a given resonance
+*/
 class ResPot
 {
 private:
@@ -41,18 +44,17 @@ private:
   double dE, dK;
   vector<double> EE, KK, Jmax;
 
-  LegeQuad* lq;
-
+  //! Numerical constant
+  static KComplex I;
+  
 public:
 
-  static bool use_grid;
+  //! Relative radial offset for numerical differential (default: 0.01)
   static double DELTA;
-  static int NREC;
+  //! Number of ENERGY grid points for tabled grid (default: 400)
   static int NUME;
+  //! Number of KAPPA grid points for tabled grid (default: 100)
   static int NUMK;
-  static int NUMT;
-  static KComplex I;
-
 
   //! Constructor
   ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 

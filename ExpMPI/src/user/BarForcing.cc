@@ -15,12 +15,12 @@
 #include <hernquist.h>
 #include <gaussQ.h>
 
+#include <localmpi.h>
 #include <BarForcing.H>
 
 
 int BarForcing::L0 = 2;
 int BarForcing::M0 = 2;
-int BarForcing::Mnum = 20;
 double BarForcing::RMIN = 0.0;
 double BarForcing::RMAX = 20.0;
 double BarForcing::AMPLITUDE = 0.5;
@@ -75,19 +75,21 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   inertia = 0.2*mass*(a1*a1 + a2*a2);
 
   
-  cout << "====================================================\n";
-  cout << "Computed quadrupole fit to homogenous ellipsoid\n";
-  cout << "with Mass=" << mass << " A_1=" << a1 << " A_2=" << a2 
-       << " A_3=" << a3 << "\n"
-       << "with an exact fit to asymptotic quadrupole, e.g.\n"
-       << "     U_{22} = b1 r**2/( 1+(r/b5)**5 ) or\n"
-       << "            = b1 r**2/( 1+ r/b5 )**5\n";
-  cout << "====================================================\n";
+  if (myid==0) {
+    cout << "====================================================\n";
+    cout << "Computed quadrupole fit to homogenous ellipsoid\n";
+    cout << "with Mass=" << mass << " A_1=" << a1 << " A_2=" << a2 
+	 << " A_3=" << a3 << "\n"
+	 << "with an exact fit to asymptotic quadrupole, e.g.\n"
+	 << "     U_{22} = b1 r**2/( 1+(r/b5)**5 ) or\n"
+	 << "            = b1 r**2/( 1+ r/b5 )**5\n";
+    cout << "====================================================\n";
 
-  cout << "V_1=" << ans1 << endl;
-  cout << "V_2=" << ans2 << endl;
-  cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
-
+    cout << "V_1=" << ans1 << endl;
+    cout << "V_2=" << ans2 << endl;
+    cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
+  }
+    
   double rho = mass/(4.0*M_PI/3.0*a1*a2*a3);
   double b25 = 0.4*a1*a2*a3*(a2*a2 - a1*a1)/(ans1 - ans2);
   
@@ -95,11 +97,13 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   double b5 = pow(b25, 0.2);
   double afac = 2.0 * b1;
   
-  cout << "b1=" << b1 << endl;
-  cout << "b5=" << b5 << endl;
-  cout << "afac=" << afac << endl;
-  cout << "====================================================\n" 
-       << flush;
+  if (myid==0) {
+    cout << "b1=" << b1 << endl;
+    cout << "b5=" << b5 << endl;
+    cout << "afac=" << afac << endl;
+    cout << "====================================================\n" 
+	 << flush;
+  }
 
   LENGTH = b5;
   AMPLITUDE = afac;

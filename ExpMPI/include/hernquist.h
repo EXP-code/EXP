@@ -38,7 +38,9 @@ public:
 
   double get_density(const double r) {
     if (r>0.0) return rscl/(2.0*M_PI*r)*pow(r+rscl,-3.0);
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0.0;
+  }
 
   double get_pot(const double r) { 
      return -1.0/(r+rscl);

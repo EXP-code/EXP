@@ -26,19 +26,11 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-slcheck_SOURCES = slcheck.cc SLGridMP2.cc
+slcheck_SOURCES = slcheck.cc
 
-slshift_SOURCES = slshift.cc SLGridMP2.cc scalarprod.cc SLSphere.cc
+slshift_SOURCES = slshift.cc SLSphere.cc
 
-orthochk_SOURCES = orthochk.cc biorth1d.cc SLGridMP2.cc
-
-## Copy files
-
-SLGridMP2.h:	$(top_srcdir)/src/SLGridMP2.h
-	cp $(top_srcdir)/src/$@ .
-
-SLGridMP2.cc:	$(top_srcdir)/src/SLGridMP2.cc
-	cp $(top_srcdir)/src/$@ .
+orthochk_SOURCES = orthochk.cc biorth1d.cc
 
 biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 	cp $(top_srcdir)/src/$@ .
@@ -46,6 +38,6 @@ biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 biorth1d.cc:	$(top_srcdir)/src/biorth1d.cc
 	cp $(top_srcdir)/src/$@ .
 
-CLEANFILES = 	SLGridMP2.h SLGridMP2.cc biorth1d.h biorth1d.cc 
+CLEANFILES = 	biorth1d.h biorth1d.cc 
 
 ## utils/SL/Makefile.am ends here

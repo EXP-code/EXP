@@ -30,9 +30,9 @@ exp_SOURCES = \
      Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc		     \
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc                \
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
-     SLGridMP2.cc ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc       \
+     ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc                    \
      Sphere.cc SphericalBasisMixtureSL.cc SphereTwoCenter.cc SphereEJCOM.cc  \
-     global.cc begin.cc biorth1d.cc ddplgndr.cc Direct.cc NoForce.cc end.cc  \
+     global.cc begin.cc ddplgndr.cc Direct.cc NoForce.cc end.cc              \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
      incpos.cc incvel.cc initvel.cc ComponentContainer.cc OutAscii.cc        \
@@ -56,7 +56,6 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
 	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H \
 	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H \
 	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H \
-	SLGridMP2.h biorth1d.h \
 	coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h version.h
 
 # special case for f77 for now
