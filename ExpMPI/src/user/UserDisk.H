@@ -15,10 +15,8 @@
     @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the spread of the turn on
     @param ctrname defines the component that defines the center (otherwise the center is fixed to the origin)
-    @param Rmax is the maximum cylindrical radius for the potential/force table
-    @param Zmax is the maximum height for the potential/force table
-    @param Rnum is the number of radial table points
-    @param Znum is the number of vertical table points
+    @param Nscale is the physical scale of the grid in numbers of disk scale lengths
+    @param Ngrid is the number of table points in each dimension
     @param Nint is the number of integration knots
 */
 class UserDisk : public ExternalForce
@@ -36,8 +34,8 @@ private:
   double a, mass, Ton, Toff, DeltaT;
 
   double *Rtable, *Ptable, *Ztable;
-  double Rmax, Zmax, dR, dZ, dfac;
-  int Rnum, Znum, Nint;
+  double Nscale, Rmax, Zmax, dR, dZ, dfac;
+  int Ngrid, Nint;
   bool debug;
 
   string name;

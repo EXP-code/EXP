@@ -19,10 +19,8 @@ UserDisk::UserDisk(string &line) : ExternalForce(line)
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
 
-  Rmax = 2.0;			// Maximum grid radius
-  Zmax = 2.0;			// Maximum grid height
-  Rnum = 100;			// Number of points on radius grid
-  Znum = 100;			// Number of points on vertical grid
+  Nscale = 25.0;		// Maximum grid radius in scale lengths
+  Ngrid = 800;			// Number of points on grid
   Nint = 400;			// Number of k-integration points
 
   debug = false;		// Print out potential/force tables
@@ -78,8 +76,8 @@ void UserDisk::userinfo()
 
   cout << "** User routine: thin exponential disk with a=" << a 
        << ", mass=" << mass
-       << ", Rmax=" << Rmax
-       << ", Zmax=" << Zmax;
+       << ", Nscale=" << Nscale
+       << ", Ngrid=" << Ngrid;
 
   if (c0) 
     cout << ", center on component <" << ctr_name << ">";
@@ -107,8 +105,8 @@ void UserDisk::initialize()
 
   if (get_value("Rmax", val))		Rmax = atof(val.c_str());
   if (get_value("Zmax", val))		Zmax = atof(val.c_str());
-  if (get_value("Rnum", val))		Rnum = atoi(val.c_str());
-  if (get_value("Znum", val))		Znum = atoi(val.c_str());
+  if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
+  if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
   if (get_value("Nint", val))		Nint = atoi(val.c_str());
 
   if (get_value("debug", val))	        debug = atoi(val.c_str()) ? true : false;
@@ -131,8 +129,8 @@ void UserDisk::getTable(double R, double Z,
     fz = -mass * Z/(r*r*r);
 
   } else {
-    int indR = min<int>(Rnum-1, (int)(RR/dR));
-    int indZ = min<int>(Znum-1, (int)(ZZ/dZ));
+    int indR = min<int>(Ngrid-1, (int)(RR/dR));
+    int indZ = min<int>(Ngrid-1, (int)(ZZ/dZ));
 
     double aR[2], aZ[2];
     
@@ -146,9 +144,9 @@ void UserDisk::getTable(double R, double Z,
 
     for (int i=0; i<2; i++) {
       for (int j=0; j<2; j++) {
-	pot += Ptable[(indR+i)*Znum+indZ+j]*aR[i]*aZ[j];
-	fr  += Rtable[(indR+i)*Znum+indZ+j]*aR[i]*aZ[j];
-	fz  += Ztable[(indR+i)*Znum+indZ+j]*aR[i]*aZ[j];
+	pot += Ptable[(indR+i)*Ngrid+indZ+j]*aR[i]*aZ[j];
+	fr  += Rtable[(indR+i)*Ngrid+indZ+j]*aR[i]*aZ[j];
+	fz  += Ztable[(indR+i)*Ngrid+indZ+j]*aR[i]*aZ[j];
       }
     }
     if (Z<0.0) fz *= -1.0;
@@ -158,12 +156,15 @@ void UserDisk::getTable(double R, double Z,
 
 void UserDisk::genTable()
 {
-  Ptable = new double [Rnum*Znum];
-  Rtable = new double [Rnum*Znum];
-  Ztable = new double [Rnum*Znum];
+  Ptable = new double [Ngrid*Ngrid];
+  Rtable = new double [Ngrid*Ngrid];
+  Ztable = new double [Ngrid*Ngrid];
 
-  dR = Rmax/(Rnum-1);
-  dZ = Zmax/(Znum-1);
+  Rmax = a*Nscale;
+  Zmax = a*Nscale;
+
+  dR = Rmax/(Ngrid-1);
+  dZ = Zmax/(Ngrid-1);
 
   double R, Z, Q, K, ansP, ansR, ansZ, fac, b0, b1;
 
@@ -171,11 +172,11 @@ void UserDisk::genTable()
   				// plane
   LegeQuad lq(Nint);
 
-  for (int i=0; i<Rnum; i++) {
+  for (int i=0; i<Ngrid; i++) {
 
     R = dR*i;
 
-    for (int j=0; j<Znum; j++) {
+    for (int j=0; j<Ngrid; j++) {
 
       Z = dZ*j;
 
@@ -194,9 +195,9 @@ void UserDisk::genTable()
 	ansZ += -K * b0 * fac;
       }
 
-      Ptable[i*Znum + j] = ansP;
-      Rtable[i*Znum + j] = ansR;
-      Ztable[i*Znum + j] = ansZ;
+      Ptable[i*Ngrid + j] = ansP;
+      Rtable[i*Ngrid + j] = ansR;
+      Ztable[i*Ngrid + j] = ansZ;
     }
   }
 
@@ -219,27 +220,27 @@ void UserDisk::printTable()
 
   double R, Z;
 
-  for (int i=0; i<Rnum; i++) {
+  for (int i=0; i<Ngrid; i++) {
 
     R = dR*i;
 
-    for (int j=0; j<Znum; j++) {
+    for (int j=0; j<Ngrid; j++) {
 
       Z = dZ*j;
 
       outP << setw(18) << R
 	   << setw(18) << Z
-	   << setw(18) << Ptable[i*Znum+j]
+	   << setw(18) << Ptable[i*Ngrid+j]
 	   << endl;
 
       outR << setw(18) << R
 	   << setw(18) << Z
-	   << setw(18) << Rtable[i*Znum+j]
+	   << setw(18) << Rtable[i*Ngrid+j]
 	   << endl;
 
       outZ << setw(18) << R
 	   << setw(18) << Z
-	   << setw(18) << Ztable[i*Znum+j]
+	   << setw(18) << Ztable[i*Ngrid+j]
 	   << endl;
     }
 
@@ -269,7 +270,7 @@ void UserDisk::printTable()
 
     R = dr*i;
 
-    for (int j=0; j<Znum; j++) {
+    for (int j=0; j<Ngrid; j++) {
 
       Z = -dfac*Zmax + dz*j;
 
