@@ -14,8 +14,7 @@ class UserTorque : public ExternalForce
 
 private:
   
-  string com_name, dlz_name;
-  string model_name, file_name;
+  string com_name, model_name, file_name;
 
   Component *c0;
 
@@ -101,7 +100,6 @@ void UserTorque::initialize()
 {
   string val;
 
-  if (get_value("dlzname", val))	dlz_name = val;
   if (get_value("comname", val))	com_name = val;
   if (get_value("file_name", val))	file_name = val;
   if (get_value("model_name", val))	model_name = val;
@@ -112,7 +110,7 @@ void UserTorque::initialize()
   if (get_value("toff", val))		toff = atof(val);
   if (get_value("delta", val))		delta = atof(val);
   
-  ifstream in(dlz_name.c_str());
+  ifstream in(file_name.c_str());
   if (in) {
     in.read((char *)&numx, sizeof(int));
     in.read((char *)&numy, sizeof(int));
@@ -139,7 +137,7 @@ void UserTorque::initialize()
     throw "UserTorque: could not open input file";
   }
 
-  halo = new SphericalModelTable(file_name, diverge, diverge_rfac);
+  halo = new SphericalModelTable(model_name, diverge, diverge_rfac);
   orb  = new SphericalOrbit(halo);
 }
 
