@@ -52,11 +52,15 @@ UserBar::~UserBar()
 void UserBar::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "User routine initialized: rotating bar with fixed pattern speed, " ;
-  if (c0) 
-    cout << " center on component <" << com_name << ">" << endl;
+  cout << "User routine initialized: rotating bar, " ;
+  if (fixed)
+    cout << "fixed pattern speed, ";
   else
-    cout << " center on origin" << endl;
+    cout << "fixed corotation fraction, ";
+  if (c0) 
+    cout << "center on component <" << com_name << ">" << endl;
+  else
+    cout << "center on origin" << endl;
 }
 
 void UserBar::initialize()
