@@ -17,6 +17,7 @@
 #include <Slab.H>
 #include <SlabSL.H>
 #include <Direct.H>
+#include <NoForce.H>
 #include <Orient.H>
 
 #include "expand.h"
@@ -203,6 +204,10 @@ void Component::initialize(void)
   }
   else if ( !id.compare("direct") ) {
     force = new Direct(fparam);
+    dim = 3;
+  }
+  else if ( !id.compare("noforce") ) {
+    force = new NoForce(fparam);
     dim = 3;
   }
   else {

@@ -11,7 +11,7 @@
 #include <BarForcing.H>
 
 
-SphericalModelTable *hm;
+static SphericalModelTable *hm;
                                                                                 
 double pot(double r)
 {
@@ -55,6 +55,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   COROT = 10;			// Corotation factor
   A21 = 0.2;			// Major to semi-minor ratio
   A32 = 0.05;			// Semi-minor to minor ratio
+
+				// Apply force from spherical background
+  use_background = true;	// model
 
 				// Tabled spherical model
   model_file = "SLGridSph.model";
@@ -107,15 +110,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
 
-  /*
-  if (myid==0) {
-    for (int i=1; i<=NMAX; i++)
-      cout << setw(3) << i
-	   << setw(15) << bcoef[i]
-	   << endl;
-  }
-  */
-
   userinfo();
 }
 
@@ -129,8 +123,9 @@ void UserResPot::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
-  cout << "** User routine RESONANCE POTENTIAL initialized"
-       << " with Length=" << LENGTH 
+  cout << "** User routine RESONANCE POTENTIAL initialized";
+  if (use_background) cout << " using background";
+  cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Omega=" << omega 
        << ", b/a=" << A21
@@ -138,6 +133,7 @@ void UserResPot::userinfo()
        << ", Ton=" << ton
        << ", Toff=" << toff
        << ", Delta=" << delta
+       << ", Omega=" << omega
        << "\n";
   print_divider();
 }
@@ -173,14 +169,17 @@ void UserResPot::initialize()
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
 
-  if (get_value("model", val))     model_file = val;
-  if (get_value("ctrname", val))   ctr_name = val;
+  if (get_value("use_background", val))
+    use_background = atoi(val.c_str()) ? true : false;
+
+  if (get_value("model", val))    model_file = val;
+  if (get_value("ctrname", val))  ctr_name = val;
 }
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
   double pos[3], posN[3], posP[3], vel[3], acc[3];
-  double amp, R2, R;
+  double amp, R2, R, pot, dpot;
   
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -201,6 +200,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
+    halo_model->get_pot_dpot(R, pot, dpot);
+
     for (int k=0; k<3; k++) {
 
       for (int k2=0; k2<3; k2++) posP[k2] = posN[k2] = pos[k2];
@@ -212,6 +213,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 			respot->Pot(posP, vel, omega, tnow, bcoef) -
 			respot->Pot(posN, vel, omega, tnow, bcoef)
 			)/(2.0*drfac*R);
+
+      if (use_background) acc[k] += -dpot*pos[k]/R;
     }
     
     for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];
@@ -219,16 +222,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     (*particles)[i].potext += amp * 
       respot->Pot(pos, vel, omega, tnow, bcoef);
 
-    /*
-    if (i==0) {
-      cout << setw(18) << tnow;
-      cout << setw(18) << amp;
-      for (int k=0; k<3; k++) cout << setw(18) << pos[k];
-      for (int k=0; k<3; k++) cout << setw(18) << vel[k];
-      for (int k=0; k<3; k++) cout << setw(18) << acc[k];
-      cout << endl;
-    }
-    */
+    if (use_background)
+      (*particles)[i].potext += (*particles)[i].mass * pot;
 
   }
 

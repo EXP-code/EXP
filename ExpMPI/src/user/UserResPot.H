@@ -29,6 +29,8 @@ private:
 
   int NUME, NUMK;
 
+  bool use_background;
+
   string ctr_name;
   string model_file;
 

@@ -67,6 +67,9 @@ struct loadb_datum
   \par direct
   The usual n<sup>2</sup> force calculation, see Direct 
 
+  \par noforce
+  No force (presumably, you are supplying your own force)
+
   @param use_com enables centering based on center-of-mass position
 
   @param use_cov centers the velocity distribution on the current
