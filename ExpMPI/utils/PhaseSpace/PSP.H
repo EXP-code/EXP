@@ -14,7 +14,8 @@ struct Stanza {
   streampos pos, pspos;
   string name;
   string id;
-  string param;
+  string cparam;
+  string fparam;
   string ttype;
   int nbod;
   int niatr;
@@ -43,6 +44,9 @@ public:
   list<Stanza> gas, dark, star;
   
   Dump () : ngas(0), ndark(0), nstar(0), ntot(0) {}
+
+  //! Add replace cparam field
+  void add_cparam(void);
 };
 
 class PSPDump 

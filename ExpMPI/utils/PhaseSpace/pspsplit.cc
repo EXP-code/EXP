@@ -30,8 +30,9 @@ pthread_mutex_t mem_lock;
 //-------------
 
 void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
+  cerr << prog << ": [-t time -s -v -h] filename\n\n";
   cerr << "    -t time         use dump closest to <time>\n";
+  cerr << "    -s              add a cparam string (prompts user)\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
@@ -42,13 +43,15 @@ main(int argc, char **argv)
 {
   char *prog = argv[0];
   double time=1e20;
+  bool add_cparam = false;
   bool verbose = false;
+  
 
   // Parse command line
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:vh");
+    int c = getopt(argc, argv, "t:svh");
 
     if (c == -1) break;
 
@@ -56,6 +59,10 @@ main(int argc, char **argv)
 
     case 't':
       time = atof(optarg);
+      break;
+
+    case 's':
+      add_cparam = true;
       break;
 
     case 'v':
@@ -123,6 +130,32 @@ main(int argc, char **argv)
 	cerr << "Error reading header\n";
 	exit(-1);
       }
+
+      if (add_cparam) {
+
+	cerr <<"===================================================" << endl
+	     << "Name=" << its->name << endl
+	     << "ID=" << its->id << endl
+	     << "Current cparam string=" << its->cparam << endl
+	     << "Enter new cparam string: ";
+	char line[1024];
+	cin.getline(line, 1024);
+	its->cparam = line;
+
+	string delim = " : ";
+	string infostr = 
+	  its->name + delim + 
+	  its->id + delim + 
+	  its->cparam + delim + 
+	  its->fparam + '\0';
+	if (infostr.size() > headerC.ninfochar) {
+	  delete [] headerC.info;
+	  headerC.ninfochar = infostr.size() + 1;
+	  headerC.info = new char [headerC.ninfochar];
+	}
+	strcpy(headerC.info, infostr.c_str());
+      }
+
       headerC.write(&cout);
 
 				// Position to beginning of particles

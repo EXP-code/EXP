@@ -64,7 +64,15 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       StringTok<string> tokens(headerC.info);
       stanza.name = trimLeft(trimRight(tokens(":")));
       stanza.id = trimLeft(trimRight(tokens(":")));
-      stanza.param = trimLeft(trimRight(tokens(":")));
+      stanza.cparam = trimLeft(trimRight(tokens(":")));
+      stanza.fparam = trimLeft(trimRight(tokens(":")));
+
+				// Check for old style
+				// -------------------
+      if (stanza.fparam.size() == 0) {
+	stanza.fparam = stanza.cparam;
+	stanza.cparam = "";
+      }
       
 				// Strip of the tipsy type
       StringTok<string> tipsytype(stanza.name);
@@ -190,7 +198,8 @@ void PSPDump::PrintSummary(ostream &out)
       out << "--- Component #" << setw(2) << cnt++ << endl;
       out << setw(20) << " name :: "  << its->name   << endl
 	  << setw(20) << " id :: "    << its->id     << endl
-	  << setw(20) << " param :: " << its->param  << endl;
+	  << setw(20) << " cparam :: " << its->cparam << endl
+	  << setw(20) << " fparam :: " << its->fparam << endl;
       if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
       out << setw(20) << " nbod :: "  << its->nbod  << endl
 	  << setw(20) << " niatr :: " << its->niatr << endl
@@ -224,7 +233,8 @@ void PSPDump::PrintSummaryCurrent(ostream &out)
     out << "--- Component #" << setw(2) << cnt++ << endl;
     out << setw(20) << " name :: "  << its->name   << endl
 	<< setw(20) << " id :: "    << its->id     << endl
-	<< setw(20) << " param :: " << its->param  << endl;
+	<< setw(20) << " cparam :: " << its->cparam  << endl
+	<< setw(20) << " fparam :: " << its->fparam  << endl;
     if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
     out << setw(20) << " nbod :: "  << its->nbod  << endl
 	<< setw(20) << " niatr :: " << its->niatr << endl
@@ -370,5 +380,3 @@ Stanza* PSPDump::NextStar()
   else 
     return 0;
 }
-
-
