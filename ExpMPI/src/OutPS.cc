@@ -70,7 +70,7 @@ void OutPS::Run(int n, bool last)
     delete out;
   }
 
-  synchronize_velocity(-1);
+  synchronize_velocity(0);
 
 }
 
