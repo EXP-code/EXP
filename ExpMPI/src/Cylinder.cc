@@ -56,8 +56,12 @@ Cylinder::Cylinder(string& line) : Basis(line)
 				// For debugging
   if (density) EmpCylSL::DENS = true;
 
+  /*
   ortho = new EmpCylSL();
   ortho->reset(nmax, lmax, mmax, ncylorder, acyl, hcyl);
+  */
+
+  ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
 
   if (selector) {
     EmpCylSL::SELECT = true;
@@ -129,9 +133,9 @@ void Cylinder::initialize()
   }
 }
 
-void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
+void Cylinder::get_acceleration_and_potential(Component* C)
 {
-  particles = Particles;
+  cC = C;
 
 				// External particles only
   if (use_external) {
@@ -179,8 +183,8 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 				// Dump basis
 #ifdef DENSITY
       if (myid == 0) {
-	ortho->dump_basis(outname.c_str(), this_step);
-	dump_mzero(outname.c_str(), this_step);
+	ortho->dump_basis(runtag.c_str(), this_step);
+	dump_mzero(runtag.c_str(), this_step);
       }
 #endif
 				// Get coefficients from table if this
@@ -248,7 +252,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   double r, r2, phi;
   double xx, yy, zz;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -260,13 +264,13 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   for (int i=nbeg; i<nend; i++) {
 
 				// frozen particles don't contribute to field
-    if (component->freeze((*particles)[i])) continue;
+    if (cC->freeze(*(cC->Part(i)))) continue;
 
     for (int j=0; j<3; j++) 
-      pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];
+      pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
 
-    if (component->EJ & Orient::AXIS) 
-      pos[id] = component->orient->transformBody() * pos[id];
+    if (cC->EJ & Orient::AXIS) 
+      pos[id] = cC->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
     yy = pos[id][2];
@@ -275,9 +279,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
 
-    if (r2+zz*zz < 0.5*rcylmax*rcylmax) {
+    if (r2+zz*zz < rcylmax*rcylmax) {
 
-      double mas = (*particles)[i].mass * adb;
+      double mas = cC->Mass(i) * adb;
 
       if (eof) {
 	use[id]++;
@@ -376,7 +380,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   double xx, yy, zz;
   double p, fr, fz, fp;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -384,10 +388,10 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   for (i=nbeg; i<nend; i++) {
 
     for (int j=0; j<3; j++) 
-      pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];
+      pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
 
-    if (component->EJ & Orient::AXIS) 
-      pos[id] = component->orient->transformBody() * pos[id];
+    if (cC->EJ & Orient::AXIS) 
+      pos[id] = cC->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
     yy = pos[id][2];
@@ -397,7 +401,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r2 + zz*zz < 0.5*rcylmax*rcylmax) {
+    if (r2 + zz*zz < rcylmax*rcylmax) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
@@ -406,18 +410,18 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
       if (use_external)
-	(*particles)[i].potext += p;
+	cC->AddPotExt(i, p);
       else
-	(*particles)[i].pot += p;
+	cC->AddPot(i, p);
 
       frc[id][1] = fr*xx/r - fp*yy/r2;
       frc[id][2] = fr*yy/r + fp*xx/r2;
       frc[id][3] = fz;
 
-      if (component->EJ & Orient::AXIS) 
-	frc[id] = component->orient->transformOrig() * frc[id];
+      if (cC->EJ & Orient::AXIS) 
+	frc[id] = cC->orient->transformOrig() * frc[id];
 
-      for (int j=0; j<3; j++) (*particles)[i].acc[j] += frc[id][j+1];
+      for (int j=0; j<3; j++) cC->AddAcc(i, j, frc[id][j+1]);
     }
     else {
 
@@ -431,13 +435,13 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       fr = p/r3;		// -M/r^3
 
       if (use_external)
-	(*particles)[i].potext += p;
+	cC->AddPotExt(i, p);
       else
-	(*particles)[i].pot += p;
+	cC->AddPot(i, p);
 
-      (*particles)[i].acc[0] += xx * fr;
-      (*particles)[i].acc[1] += yy * fr;
-      (*particles)[i].acc[2] += zz * fr;
+      cC->AddAcc(i, 0, xx*fr);
+      cC->AddAcc(i, 1, yy*fr);
+      cC->AddAcc(i, 2, zz*fr);
     }
 
   }
@@ -527,7 +531,7 @@ void Cylinder::dump_mzero(const string& name, int step)
 
   for (int i=0; i<4; i++) {
     ostringstream ins;
-    ins << name << label[i] << step << '\0';
+    ins << name << label[i] << step;
     out[i] = new ofstream(ins.str().c_str());
 
     out[i]->write((char *)&ncylnx, sizeof(int));

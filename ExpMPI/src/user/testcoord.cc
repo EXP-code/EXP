@@ -222,7 +222,7 @@ main(int argc, char **argv)
 // Initialize spherical model
 // ===================================================================
 
-  SphericalModelTable *ml;
+  SphericalModelTable *ml=0;
 
   switch (HALO_MODEL) {
   case file:
@@ -366,6 +366,7 @@ main(int argc, char **argv)
 
     double Phase = PHASE;
     double T = 0.0;
+    double res;
 
     while (T<=TEND) {
 
@@ -373,7 +374,7 @@ main(int argc, char **argv)
       Omega = OMEGA*(1.0 + DOMEGA*(T-T0));
 
       ret = respot.Update(DT, Phase, Omega, amp, bcoef, 
-			  posI, velI, posO, velO);
+			  posI, velI, posO, velO, &res);
       
       respot.coord(posO, velO, E1, K1, I1, I2, O1, O2, 
 		   W1, W2, W3, F, BETA, PSI);

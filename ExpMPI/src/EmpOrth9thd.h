@@ -204,7 +204,8 @@ public:
   */
 
   //! Compute non-dimensional vertical coordinate from Z
-  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
+  double z_to_y(double z) { 
+    return z/(fabs(z)+DBL_MIN)*asinh(fabs(z*ASCALE/HSCALE)); }
 
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }

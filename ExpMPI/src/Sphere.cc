@@ -3,9 +3,6 @@
 static char rcsid[] = "$Id$";
 #endif
 
-#define DENSITY
-// #define SELECTOR
-
 #include <values.h>
 
 #include "expand.h"

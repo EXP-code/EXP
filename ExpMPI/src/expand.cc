@@ -1,9 +1,10 @@
-#define MAIN 1
+
 #include "expand.h"
 
 void do_step(int);
 void clean_up(void);
 
+#include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
 
@@ -11,9 +12,25 @@ void clean_up(void);
 static char rcsid[] = "$Id$";
 */
 
+//! Abort the time stepping and checkpoint when signaled
+void signal_handler(int sig) 
+{
+  if (myid==0) {
+    stop_signal = 1;
+    cout << endl << "Process 0: user signaled a stop at step=" << this_step << " . . . quitting on next step after output" << endl;
+  } else {
+    cout << endl << "Process " << myid << ": user signaled a stop but only the root process can stop me . . . continuing" << endl;
+  }
+}
+
+//! Sync argument lists on all processes
 void MPL_parse_args(int argc, char** argv);
 
-int main(int argc, char** argv)
+/**
+   The MAIN routine
+*/
+int 
+main(int argc, char** argv)
 {
   const int hdbufsize=1024;
   char hdbuffer[hdbufsize];
@@ -21,9 +38,6 @@ int main(int argc, char** argv)
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;
 
-#ifdef DEBUG
-  sleep(20);
-#endif
 
   //===================
   // MPI preliminaries 
@@ -71,8 +85,36 @@ int main(int argc, char** argv)
 #endif
 
 
+  //====================================
+  // Set signal handler on HUP and TERM
+  //====================================
+
+  if (signal(SIGTERM, signal_handler) == SIG_ERR) {
+    cerr << endl 
+	 << "Process " << myid
+	 << ": Error setting signal handler [TERM]" << endl;
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
 #ifdef DEBUG
-  //  sleep(20);
+  else {
+    cerr << endl 
+	 << "Process " << myid
+	 << ": SIGTERM error handler set" << endl;
+  }
+#endif
+
+  if (signal(SIGHUP, signal_handler) == SIG_ERR) {
+    cerr << endl 
+	 << "Process " << myid
+	 << ": Error setting signal handler [HUP]" << endl;
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+#ifdef DEBUG
+  else {
+    cerr << endl 
+	 << "Process " << myid
+	 << ": SIGHUP error handler set" << endl;
+  }
 #endif
 
 
@@ -150,7 +192,21 @@ int main(int argc, char** argv)
   // MAIN LOOP 
   //===========
 
-  for (this_step=1; this_step<=nsteps; this_step++) do_step(this_step);
+  for (this_step=1; this_step<=nsteps; this_step++) {
+
+    do_step(this_step);
+    
+    //
+    // Synchronize and check for the term signal
+    //
+    MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+    if (stop_signal) {
+      cout << "Process " << myid << ": have stop signal\n";
+      this_step++; 
+      break;
+    }
+
+  }
 
 
   //===========

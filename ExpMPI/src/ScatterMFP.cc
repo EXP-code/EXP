@@ -96,10 +96,10 @@ void ScatterMFP::initialize()
 }
 
 
-void ScatterMFP::get_acceleration_and_potential(vector<Particle>* P)
+void ScatterMFP::get_acceleration_and_potential(Component* C)
 {
-  particles = P;		// "Register" particles
-  nbodies = (*particles).size(); // And compute number of bodies
+  cC = C;			// "Register" component
+  nbodies = cC->Number();	// And compute number of bodies
 
   
   /*======================================*/
@@ -119,12 +119,12 @@ void ScatterMFP::get_acceleration_and_potential(vector<Particle>* P)
   for (int i=1; i<=nbodies; i++) {
     RR = 0.0;
     for (int j=0; j<3; j++) 
-      RR += (*particles)[i].pos[j] * (*particles)[i].pos[j];
+      RR += cC->Pos(i, j) * cC->Pos(i, j);
     RR = sqrt(RR);
 
     ind = (int)(RR/dr);
     if (ind>=tautab) continue;
-    dtau1[ind] += (*particles)[i].mass;
+    dtau1[ind] += cC->Mass(i);
   }
 
 				// Distribute table
@@ -196,7 +196,7 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
   double rm, rp, rtst1, rtst=0.0;
 #endif
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -205,21 +205,21 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
     
     i = rr2[j].second;
     
-    if (c->freeze((*particles)[i])) continue;
+    if (c->freeze(*(c->Part(i)))) continue;
 
     ind = (int)(rr2[i].first/dr);
     if (ind>=tautab) continue;
 
     v2 = 0.0;
     for (int l=0; l<3; l++) 
-      v2 += (*particles)[i].vel[l] * (*particles)[i].vel[l];
+      v2 += cC->Vel(i, l) * cC->Vel(i, l);
 
-    (*particles)[i].dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
+    cC->Part(i)->dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
 
-    if (1.0 - exp(-(*particles)[i].dattrib[mfp_index]/tauscat)>(*unif)()) {
+    if (1.0 - exp(-cC->Part(i)->dattrib[mfp_index]/tauscat)>(*unif)()) {
 
 				// Initialize optical depth
-      (*particles)[i].dattrib[mfp_index] = 0.0;
+      cC->Part(i)->dattrib[mfp_index] = 0.0;
 
 				// Choose a buddy
       if (j==1)
@@ -240,13 +240,13 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
       if (j>1 && rtst<(rtst1=min<double>(rm, rp))) rtst = rtst1;
 #endif
 
-      vcom[1] = 0.5*((*particles)[i].vel[0] + (*particles)[k].vel[0]);
-      vcom[2] = 0.5*((*particles)[i].vel[1] + (*particles)[k].vel[1]);
-      vcom[3] = 0.5*((*particles)[i].vel[2] + (*particles)[k].vel[2]);
+      vcom[1] = 0.5*(cC->Vel(i, 0) + cC->Vel(k, 0));
+      vcom[2] = 0.5*(cC->Vel(i, 1) + cC->Vel(k, 1));
+      vcom[3] = 0.5*(cC->Vel(i, 2) + cC->Vel(k, 2));
 
-      vrel[1] = (*particles)[k].vel[0] - (*particles)[i].vel[0];
-      vrel[2] = (*particles)[k].vel[1] - (*particles)[i].vel[1];
-      vrel[3] = (*particles)[k].vel[2] - (*particles)[i].vel[2];
+      vrel[1] = cC->Vel(k, 0) - cC->Vel(i, 0);
+      vrel[2] = cC->Vel(k, 1) - cC->Vel(i, 1);
+      vrel[3] = cC->Vel(k, 2) - cC->Vel(i, 2);
 
 				// Choose a random direction for velocity
       vfnl[1] = (*gaus)();
@@ -256,13 +256,13 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
       vfnl *= sqrt(vrel*vrel)/sqrt(vfnl*vfnl);
 
 				// To lab frame
-      (*particles)[i].vel[0] = vcom[1] + 0.5*vfnl[1];
-      (*particles)[i].vel[1] = vcom[2] + 0.5*vfnl[2];
-      (*particles)[i].vel[2] = vcom[3] + 0.5*vfnl[3];
+      cC->Part(i)->vel[0] = vcom[1] + 0.5*vfnl[1];
+      cC->Part(i)->vel[1] = vcom[2] + 0.5*vfnl[2];
+      cC->Part(i)->vel[2] = vcom[3] + 0.5*vfnl[3];
 
-      (*particles)[k].vel[0] = vcom[1] - 0.5*vfnl[1];
-      (*particles)[k].vel[1] = vcom[2] - 0.5*vfnl[2];
-      (*particles)[k].vel[2] = vcom[3] - 0.5*vfnl[3];
+      cC->Part(k)->vel[0] = vcom[1] - 0.5*vfnl[1];
+      cC->Part(k)->vel[1] = vcom[2] - 0.5*vfnl[2];
+      cC->Part(k)->vel[2] = vcom[3] - 0.5*vfnl[3];
 
       cntr[id]++;
     }

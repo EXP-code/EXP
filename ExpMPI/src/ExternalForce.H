@@ -42,7 +42,7 @@ public:
   virtual ~ExternalForce() {}
 
   //! Will be called by clients to evaluate force
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component * compIn);
 
   /** Multithreaded method (must be thread safe) for force computation
       that must be provided by all derived classes (hence pure virtual) */

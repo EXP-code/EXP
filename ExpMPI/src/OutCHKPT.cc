@@ -20,7 +20,7 @@ void OutCHKPT::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUT." + runtag + ".chkpt\0";
+    filename = outdir + "OUT." + runtag + ".chkpt";
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -45,7 +45,7 @@ void OutCHKPT::Run(int n, bool last)
     
 				// Attempt to move file to backup
     ostringstream msg;
-    msg << "mv " << filename << " " << filename << ".bak" << '\0';
+    msg << "mv " << filename << " " << filename << ".bak";
     system(msg.str().c_str());
 
 				// Open file and write master header

@@ -9,7 +9,7 @@
 OutCoef::OutCoef(string& line) : Output(line)
 {
   nint = 10;
-  filename = "outcoef." + runtag;
+  filename = outdir + "outcoef." + runtag;
   tcomp = NULL;
 
   initialize();

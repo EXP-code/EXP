@@ -173,7 +173,7 @@ void UserDiffRot::determine_acceleration_and_potential(void)
   if (first) {
 				// Determine next index position for
 				// particle double array
-    indx = (*particles)[0].dattrib.size();
+    indx = cC->Part(0)->dattrib.size();
   }
 
   exp_thread_fork(false);
@@ -243,7 +243,7 @@ double UserDiffRot::get_dtime(Particle& p)
 
 void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -260,8 +260,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 
     for (int i=nbeg; i<nend; i++) {
 
-      dt = get_dtime((*particles)[i]);
-      (*particles)[i].dattrib.push_back(tnow + dt/rate);
+      dt = get_dtime(*(cC->Part(i)));
+      cC->Part(i)->dattrib.push_back(tnow + dt/rate);
 
       dtmin = min<double>(dt, dtmin);
       dtmax = max<double>(dt, dtmax);
@@ -283,8 +283,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
 	diffr = 0.0;
 	for (int k=0; k<3; k++)
 	  diffr += 
-	    ((*particles)[i].pos[k] - pos[n*4+1+k]) *
-	    ((*particles)[i].pos[k] - pos[n*4+1+k]) ;
+	    (cC->Pos(i, k) - pos[n*4+1+k]) *
+	    (cC->Pos(i, k) - pos[n*4+1+k]) ;
 	
 	if (sqrt(diffr)<pos[n*4]) tooclose = true;
       }
@@ -293,33 +293,33 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     if (tooclose) continue;
 
 				// Sanity check
-    if ((int)(*particles)[i].dattrib.size() < indx+1) {
+    if ((int)cC->Part(i)->dattrib.size() < indx+1) {
       cout << "***Size error***: Myid=" << myid << "  id=" << id
 	   << "  check i=" << i 
 	   << "  nbeg=" << nbeg 
 	   << "  nend=" << nend 
-	   << "  size=" << (*particles)[i].dattrib.size()
+	   << "  size=" << cC->Part(i)->dattrib.size()
 	   << "\n";
     }
 
-    if (tnow>(*particles)[i].dattrib[indx]) {
+    if (tnow>cC->Part(i)->dattrib[indx]) {
 
-      (*particles)[i].dattrib[indx] = tnow + get_dtime((*particles)[i])/rate;
+      cC->Part(i)->dattrib[indx] = tnow + get_dtime(*(cC->Part(i)))/rate;
 
 				// Do rotation
       phi =  width * (*normal)();
       cosp = cos(phi);
       sinp = sin(phi);
       
-      xx = (*particles)[i].pos[0]*cosp - (*particles)[i].pos[1]*sinp;
-      yy = (*particles)[i].pos[0]*sinp + (*particles)[i].pos[1]*cosp;
-      uu = (*particles)[i].vel[0]*cosp - (*particles)[i].vel[1]*sinp;
-      vv = (*particles)[i].vel[0]*sinp + (*particles)[i].vel[1]*cosp;
+      xx = cC->Pos(i, 0)*cosp - cC->Pos(i, 1)*sinp;
+      yy = cC->Pos(i, 0)*sinp + cC->Pos(i, 1)*cosp;
+      uu = cC->Vel(i, 0)*cosp - cC->Vel(i, 1)*sinp;
+      vv = cC->Vel(i, 0)*sinp + cC->Vel(i, 1)*cosp;
 
-      (*particles)[i].pos[0] = xx;
-      (*particles)[i].pos[1] = yy;
-      (*particles)[i].vel[0] = uu;
-      (*particles)[i].vel[1] = vv;
+      cC->Part(i)->pos[0] = xx;
+      cC->Part(i)->pos[1] = yy;
+      cC->Part(i)->vel[0] = uu;
+      cC->Part(i)->vel[1] = vv;
     }
 
   }

@@ -13,8 +13,6 @@ class Cylinder : public Basis
 {
 private:
 
-  vector<Particle> *particles;
-
   Orient* orient;
   EmpCylSL *ortho;
   int eof, ncompcyl;
@@ -59,7 +57,7 @@ public:
   ~Cylinder();
   
   //! The main force call
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component*);
 
   //! Return the value for the fields at a spherical polar coordinate
   void 

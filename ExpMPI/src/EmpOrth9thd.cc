@@ -382,7 +382,7 @@ SphericalModelTable* EmpCylSL::make_sl()
 
 #ifdef DEBUG
   ostringstream outf;
-  outf << "test_adddisk_sl." << myid << '\0';
+  outf << "test_adddisk_sl." << myid;
   ofstream out(outf.str().c_str());
   for (int i=0; i<number; i++) {
     out 
@@ -657,6 +657,8 @@ int EmpCylSL::cache_grid(int readwrite)
     out.write((char *)&RMAX, sizeof(double));
     out.write((char *)&ASCALE, sizeof(double));
     out.write((char *)&HSCALE, sizeof(double));
+
+    out.write((char *)&cylmass, sizeof(double));
     out.write((char *)&tnow, sizeof(double));
 
 				// Write table
@@ -768,6 +770,7 @@ int EmpCylSL::cache_grid(int readwrite)
       }
     
     double time;
+    in.read((char *)&cylmass, sizeof(double));
     in.read((char *)&time, sizeof(double));
 
 				// Read table
@@ -824,7 +827,16 @@ int EmpCylSL::cache_grid(int readwrite)
       }
 
     }
-
+    
+    Rtable = M_SQRT1_2 * RMAX;
+    XMIN = r_to_xi(RMIN);
+    XMAX = r_to_xi(Rtable);
+    dX = (XMAX - XMIN)/NUMX;
+    
+    YMIN = z_to_y(-Rtable);
+    YMAX = z_to_y( Rtable);
+    dY = (YMAX - YMIN)/NUMY;
+    
     cerr << "EmpCylSL::cache_grid: file read successfully" << endl;
   }
 
@@ -1382,7 +1394,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
   double rr = sqrt(r*r + z*z);
 
-  if (rr>Rtable) return;
+  if (rr/ASCALE>Rtable) return;
 
   double fac0 = 4.0*M_PI, ylm;
 
@@ -2047,10 +2059,10 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   p = 0.0;
 
   double rr = sqrt(r*r + z*z);
-  if (rr>Rtable) return;
+  if (rr/ASCALE>Rtable) return;
 
-  double X = (r_to_xi(r) - XMIN)/dX;
-  double Y = (z_to_y(z)  - YMIN)/dY;
+  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
+  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -2175,10 +2187,10 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi)
 
   double rr = sqrt(r*r + z*z);
 
-  if (rr > Rtable) return ans;
+  if (rr/ASCALE > Rtable) return ans;
 
-  double X = (r_to_xi(r) - XMIN)/dX;
-  double Y = (z_to_y(z)  - YMIN)/dY;
+  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
+  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -2246,11 +2258,11 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
   Vc.setsize(0, max(1,MMAX), 0, rank3-1);
   Vs.setsize(0, max(1,MMAX), 0, rank3-1);
 
-  if (z > Rtable) z = Rtable;
-  if (z <-Rtable) z = -Rtable;
+  if (z/ASCALE > Rtable) z =  Rtable*ASCALE;
+  if (z/ASCALE <-Rtable) z = -Rtable*ASCALE;
 
-  double X = (r_to_xi(r) - XMIN)/dX;
-  double Y = (z_to_y(z)  - YMIN)/dY;
+  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
+  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -2318,7 +2330,7 @@ void EmpCylSL::get_all(int mm, int nn,
 
   double rr = sqrt(r*r + z*z);
 
-  if (rr>Rtable) {
+  if (rr/ASCALE>Rtable) {
     p = -cylmass/(rr+1.0e-16);
     fr = p*r/(rr+1.0e-16)/(rr+1.0e-16);
     fz = p*z/(rr+1.0e-16)/(rr+1.0e-16);
@@ -2326,11 +2338,11 @@ void EmpCylSL::get_all(int mm, int nn,
     return;
   }
 
-  if (z > Rtable) z = Rtable;
-  if (z <-Rtable) z = -Rtable;
+  if (z/ASCALE > Rtable) z =  Rtable*ASCALE;
+  if (z/ASCALE <-Rtable) z = -Rtable*ASCALE;
 
-  double X = (r_to_xi(r) - XMIN)/dX;
-  double Y = (z_to_y(z)  - YMIN)/dY;
+  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
+  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -2547,7 +2559,6 @@ void EmpCylSL::dump_basis(const string& name, int step)
 
   float zz;
 
-  char strbuf[128];
   double fac=1;
   int n, mm;
   ofstream** outC = new ofstream* [MPItable];
@@ -2562,11 +2573,9 @@ void EmpCylSL::dump_basis(const string& name, int step)
 
 	ostringstream ins;
 	ins << name << ".C." << labels[i] << mm << "." << n
-	    << "." << step << '\0';
-	for (int j=0; i<min<int>(128, ins.str().length()); j++)
-	  strbuf[j] = ins.str().c_str()[j];
+	    << "." << step;
 	
-	outC[i] = new ofstream(strbuf);
+	outC[i] = new ofstream(ins.str().c_str());
 	outC[i]->write((char *)&numx, sizeof(int));
 	outC[i]->write((char *)&numy, sizeof(int));
 	outC[i]->write((char *)&(zz=  0.0), sizeof(float));
@@ -2581,11 +2590,9 @@ void EmpCylSL::dump_basis(const string& name, int step)
 
 	  ostringstream ins;
 	  ins << name << ".S." << labels[i] << mm << "." << n 
-	      << "." << step << '\0';
-	  for (int j=0; i<min<int>(128, ins.str().length()); j++)
-	    strbuf[j] = ins.str().c_str()[j];
+	      << "." << step;
 	
-	  outS[i] = new ofstream(strbuf);
+	  outS[i] = new ofstream(ins.str().c_str());
 	  outS[i]->write((char *)&numx,       sizeof(int));
 	  outS[i]->write((char *)&numy,       sizeof(int));
 	  outS[i]->write((char *)&(zz=  0.0), sizeof(float));
@@ -2607,8 +2614,8 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	  
 	  r = dr*j;
 
-	  double X = (r_to_xi(r) - XMIN)/dX;
-	  double Y = (z_to_y(z)  - YMIN)/dY;
+	  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
+	  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
 
 	  int ix = (int)X;
 	  int iy = (int)Y;
@@ -2732,7 +2739,7 @@ double EmpCylSL::r_to_xi(double r)
       msg << "radius=" << r << " < 0! [mapped]";
       bomb(msg.str());
     }
-    return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
+    return (r - 1.0)/(r + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;

@@ -48,12 +48,33 @@ protected:
   //! Thread method for accerlation compuation
   virtual void * determine_acceleration_and_potential_thread(void * arg);
 
+  //! Compute rms coefficients
+  void compute_rms_coefs(void);
+
+  //! Add noise
+  void update_noise(void);
+
 				// Parameters
   //! The maximum radius and any scale factor
   double rmax, scale;
 
   //! Flag PCA selection, self_consitency and drop l=1 term
-  bool selector, self_consistent, NO_L1, EVEN_L;
+  bool selector, self_consistent, NO_L1, EVEN_L, NOISE;
+
+  //! Number of "effective" points for RMS noise computation
+  double noiseN;
+
+  //! Model for RMS noise computation
+  string noise_model_file;
+
+  //! Expected coefficient values for RMS noise computation
+  Vector meanC;
+
+  //! Expected squared coefficient values for RMS noise computation
+  Matrix rmsC;
+  int seedN;
+  ACG *gen;
+  Normal *nrand;
 
 public:
 
@@ -68,7 +89,7 @@ public:
   
   //! Required member to compute accelration and potential
   /** This implemenation should be fine for most cases */
-  virtual void get_acceleration_and_potential(vector<Particle>* Particles);
+  virtual void get_acceleration_and_potential(Component* cC);
 
   //! Required member to compute coeifficients with threading
   /** The thread member must be supplied by the derived class */

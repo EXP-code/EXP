@@ -42,6 +42,10 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   sumY2.setsize(1, 3);
   slope.setsize(1, 3);
 
+  pos = vector<double>(3);
+  psa = vector<double>(3);
+  vel = vector<double>(3);
+
 				// Center and axis
   axis.setsize(1, 3);
   center.setsize(1, 3);
@@ -51,6 +55,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   center.zero();
   center0.zero();
   cenvel0.zero();
+
+  used = 0;
 
 				// Set up identity
   body.setsize(1, 3, 1, 3);
@@ -99,7 +105,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 
       double time;
-      int nused;
+      int tused;
 
       in_ok = 1;		// Signal slave: OK
 
@@ -118,26 +124,35 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	istringstream line(cbuffer);
 
 	line >> time;
-	if (tnow < time || fabs(tnow-time)<1.0e-8) break;
+	if (tnow+0.1*dtime < time) break;
 
 	out << cbuffer << "\n";
 
 	line >> Ecurr;
-	line >> nused;
-	line >> axis[1];
+	line >> tused;
+	line >> axis[1];	// Last computed axis from regression
 	line >> axis[2];
 	line >> axis[3];
-	line >> center0[1];
+	line >> axis1[1];	// Last axis from particles
+	line >> axis1[2];
+	line >> axis1[3];
+	line >> center[1];	// Last computed center from regression
+	line >> center[2];
+	line >> center[3];
+	line >> center0[1];	// Analytic center
 	line >> center0[2];
 	line >> center0[3];
-
+	line >> center1[1];	// Last center from particles
+	line >> center1[2];
+	line >> center1[3];
+	
 	if (oflags & AXIS) {
-	  sumsA.push_back(axis);
+	  sumsA.push_back(axis1);
 	  if (sumsA.size() > keep) sumsA.pop_front();
 	}
 
 	if (oflags & CENTER) {
-	  sumsC.push_back(center0);
+	  sumsC.push_back(center1);
 	  if (sumsC.size() > keep) sumsC.pop_front();
 	}
 
@@ -153,11 +168,15 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	   << axis[3] << endl;
 
       cout << " Orient: center master (cache size=" << sumsC.size() << "): " 
-	   << center0[1] << ", "
-	   << center0[2] << ", "
-	   << center0[3] << endl;
+	   << center[1] << ", "
+	   << center[2] << ", "
+	   << center[3] << endl;
 
       MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
       int howmany = max<int>(sumsA.size(), sumsC.size());
       MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -192,6 +211,10 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
     if (in_ok) {
 
       MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
       int howmany;
       MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
@@ -199,14 +222,14 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 	if (oflags & AXIS) {
 	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=0; j<3; j++) axis[j+1] = in1[j];
-	  sumsA.push_back(axis);
+	  for (int j=0; j<3; j++) axis1[j+1] = in1[j];
+	  sumsA.push_back(axis1);
 	}
 
 	if (oflags & CENTER) {
 	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=0; j<3; j++) center0[j+1] = in2[j];
-	  sumsC.push_back(center0);
+	  for (int j=0; j<3; j++) center1[j+1] = in2[j];
+	  sumsC.push_back(center1);
 	}
 
       }
@@ -220,12 +243,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
   if (in_ok) {
 
-    if (oflags & CENTER && sumsC.size()>0)
-      center = sumsC[sumsC.size()-1];
-	
-    if (oflags & AXIS && sumsA.size()>0) {
-
-      axis = sumsA[sumsA.size()-1];
+    if (oflags & AXIS) {
 
       double phi = atan2(axis[2], axis[1]);
       double theta = -acos(axis[3]/sqrt(axis*axis));
@@ -255,53 +273,44 @@ void Orient::accumulate(double time, Component *c)
 
   angm.clear();
 
-  double cen[3], vel[3];
-  for (int i=0; i<3; i++) {
-    cen[i] = c->comI[i] + center[i+1];
-    vel[i] = c->covI[i];
-  }
+  double v2;
+  unsigned nbodies = c->Number();
 
-  vector<Particle> *p = &(c->particles);
-  int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
 
-    energy = (*p)[i].pot;
-    
-    if (cflags & KE) energy += 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
-				    (*p)[i].vel[1]*(*p)[i].vel[1] + 
-				    (*p)[i].vel[2]*(*p)[i].vel[2]);
+    v2 = 0.0;
+    for (int k=0; k<3; k++) {
+      pos[k] = c->Pos(i, k, Component::Local);
+      vel[k] = c->Vel(i, k, Component::Local);
+      psa[k] = pos[k] - center[k+1];
+      v2 += vel[k]*vel[k];
+    }
 
-    if (cflags & EXTERNAL) energy += (*p)[i].potext;
+    energy = c->Part(i)->pot;
+    
+    if (cflags & KE) energy += 0.5*v2;
+
+    if (cflags & EXTERNAL) energy += c->Part(i)->potext;
 
     Emin1 = min<double>(energy, Emin1);
     Emax1 = max<double>(energy, Emax1);
     
     if (energy < Ecurr) {
 
-      mass = (*p)[i].mass;
+      mass = c->Part(i)->mass;
 
       t.E = energy;
 
       t.M = mass;
 
-      t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2] - vel[2]) -
-		     ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1] - vel[1]));
+      t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
+      t.L[2] = mass*(psa[2]*vel[0] - psa[0]*vel[2]);
+      t.L[3] = mass*(psa[0]*vel[1] - psa[1]*vel[0]);
 
-      t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0] - vel[0]) -
-		     ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2] - vel[2]));
+      t.R[1] = mass*pos[0];
+      t.R[2] = mass*pos[1];
+      t.R[3] = mass*pos[2];
 
-      t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1] - vel[1]) -
-		     ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0] - vel[0]));
-
-      /*
-	t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
-	t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - cen[1]);
-	t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - cen[2]);
-      */
-
-      t.R[1] = mass*((*p)[i].pos[0] - cen[0]);
-      t.R[2] = mass*((*p)[i].pos[1] - cen[1]);
-      t.R[3] = mass*((*p)[i].pos[2] - cen[2]);
       angm.push_back(t);
     }
   }
@@ -327,43 +336,36 @@ void Orient::accumulate(double time, Component *c)
     
     for (int i=0; i<nbodies; i++) {
       
-      energy = (*p)[i].pot;
+      v2 = 0.0;
+      for (int k=0; k<3; k++) {
+	pos[k] = c->Pos(i, k, Component::Local);
+	vel[k] = c->Vel(i, k, Component::Local);
+	psa[k] = pos[k] - center[k+1];
+	v2 += vel[k]*vel[k];
+      }
+
+      energy = c->Part(i)->pot;
       
-      if (cflags & KE) 
-	energy += 0.5*(
-		       ((*p)[i].vel[0] - vel[0])*((*p)[i].vel[0] - vel[0]) +
-		       ((*p)[i].vel[1] - vel[1])*((*p)[i].vel[1] - vel[1]) + 
-		       ((*p)[i].vel[2] - vel[2])*((*p)[i].vel[2] - vel[2])
-		       );
+      if (cflags & KE) energy += 0.5*v2;
       
-      if (cflags & EXTERNAL) energy += (*p)[i].potext;
+      if (cflags & EXTERNAL) energy += c->Part(i)->potext;
 
       if (energy < Ecurr) {
 	
-	mass = (*p)[i].mass;
+	mass = c->Part(i)->mass;
 	
 	t.E = energy;
 	
 	t.M = mass;
 
-	t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2]-vel[2]) -
-		       ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1]-vel[1]));
-
-	t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0]-vel[0]) -
-		       ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2]-vel[2]));
-
-	t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1]-vel[1]) -
-		       ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0]-vel[0]));
+	t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
+	t.L[2] = mass*(psa[2]*vel[0] - psa[0]*vel[2]);
+	t.L[3] = mass*(psa[0]*vel[1] - psa[1]*vel[0]);
 	
-	/*
-	  t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
-	  t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - cen[1]);
-	  t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - cen[2]);
-	*/
-	  
-	t.R[1] = mass*((*p)[i].pos[0] - cen[0]);
-	t.R[2] = mass*((*p)[i].pos[1] - cen[1]);
-	t.R[3] = mass*((*p)[i].pos[2] - cen[2]);
+	t.R[1] = mass*pos[0];
+	t.R[2] = mass*pos[1];
+	t.R[3] = mass*pos[2];
+
 	angm.push_back(t);
       }
     }
@@ -371,19 +373,18 @@ void Orient::accumulate(double time, Component *c)
 				// Compute values for this step
   axis1.zero();
   center1.zero();
-  double mtot=0.0, mtot1=0.0, dE=1e20;
+  double mtot=0.0, mtot1=0.0, dE=1.0e06;
   vector<EL3>::iterator i;
   for (i = angm.begin(); i != angm.end(); i++) {
-    axis1 += i->L;
+    axis1   += i->L;
     center1 += i->R;
-    mtot1 += i->M;
+    mtot1   += i->M;
   }
 
   int cnum = angm.size();
   Vector inA = axis1;
   Vector inC = center1;
 
-  used = 0;
   axis1.zero();
   center1.zero();
 
@@ -661,9 +662,25 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
+
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
+
+    if (sumsA.size())
+      for (int k=0; k<3; k++) outl << setw(15) << sumsA.back()[k+1];
+    else
+      for (int k=0; k<3; k++) outl << setw(15) << 0.0;
+
     for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
-    for (int k=0; k<3; k++) outl << setw(15) << c->com0[k];
+
+    for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
+
+    if (sumsC.size())
+      for (int k=0; k<3; k++) outl << setw(15) << sumsC.back()[k+1];
+    else
+      for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
+
+    for (int k=0; k<3; k++) outl << setw(15) << c->com0[k] - c->comI[k];
+
     outl << setw(15) << Egrad << setw(15) << dE;
     outl << endl;
   }

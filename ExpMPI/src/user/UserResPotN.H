@@ -1,5 +1,5 @@
-#ifndef _UserResPoT_H
-#define _UserResPoT_H
+#ifndef _UserResPoTN_H
+#define _UserResPoTN_H
 
 #include <massmodel.h>
 #include <biorth.h>
@@ -23,9 +23,11 @@
     @param toff is the time at the center of the <code>erf</code> turn off
     @param delta is the spread of the turn on
     @param toffset is the origin shift for the turn on
-    @param domega is the half width of any frequency change
-    @param t0 is the central point of any frequency change interval
     @param delt is the characteristic width of the frequency change interval
+    @param phase0 is the initial phase
+    @param domega slow down rate if <code>self</code> is false
+    @param tom0 is the midpoint of forced bar slow down
+    @param dtom is the width of forced bar slow down (>0 for erf)
     @param ITMAX is the maximum number of iterations for mapping solution
     @param MASS of the bar (postive)
     @param AMP is a mass prefactor (any sign)
@@ -34,12 +36,13 @@
     @param A32 is the ratio of the minor axis to the submajor axis
     @param NUME is the grid in energy space for the force evaluation
     @param NUMK is the grid in kappa space for the force evaluation
-    @param tag is the index of the use flag (if defined)
+    @param usetag is the index of the use flag (if defined)
     @param use_background is 1 (0) if spherical potential is applied (not)
+    @param self compute the angular momentum self-consistently if true
     @param model is the name of the file containing the model
     @param cgtrname is the name of component to whose center this force will be pinned
 */
-class UserResPot : public ExternalForce
+class UserResPotN : public ExternalForce
 {
 private:
   
@@ -49,16 +52,18 @@ private:
   CVector bcoef, bcoefPP;
   AxiSymModel  *halo_model;
   AxiSymBiorth *halo_ortho;
-  ResPot *respot;
+  vector<ResPot*> respot;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double ton, toff, delta, toffset, omega, Omega;
+  double ton, toff, delta, toffset, phase0, omega0, omega, Iz;
   
-  int LMAX, NMAX, NUMR, L0, M0, L1, L2, tag;
-  double rmin, rmax, scale, drfac;
+  int LMAX, NMAX, NUMR, L0, M0, usetag;
+  double rmin, rmax, scale, drfac, Klim;
+  vector<int> L1, L2;
+  int numRes;
   
   double MASS, LENGTH, AMP, COROT, A21, A32;
 
@@ -66,9 +71,16 @@ private:
   int ITMAX;
 
   bool first;
-  double domega, t0, phase, tlast, omlast;
+  double phase, tlast, omlast;
 
-  int *bcount;
+  bool self;
+  double domega, tom0, dtom;
+
+  bool debug;
+
+  vector<int> bcount;
+  vector< vector<double> > difLz;
+  vector<double> difLz0, difLNP;
 
   string ctr_name;
   string model_file;
@@ -79,10 +91,10 @@ private:
 public:
 
   //! Constructor
-  UserResPot(string &line);
+  UserResPotN(string &line);
 
   //! Destructor
-  ~UserResPot();
+  ~UserResPotN();
 
 };
 

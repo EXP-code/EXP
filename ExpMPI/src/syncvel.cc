@@ -20,16 +20,16 @@ void synchronize_velocity(int sign)
 
   list<Component*>::iterator cc;
   Component *c;
-  vector<Particle>::iterator p, pend;
+  unsigned ntot;
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
     
-    pend = c->particles.end();
-    for (p=c->particles.begin(); p != pend; p++) {
+    ntot = c->Number();
+    for (int i=0; i<ntot; i++) {
 
       for (int k=0; k<c->dim; k++) 
-	p->vel[k] +=  rsign*(p->acc[k] - c->acc0[k])*0.5*dtime;
+	c->AddVel(i, k, rsign*(c->Acc(i, k) - c->acc0[k])*0.5*dtime );
     }
     
     if (c->com_system) {

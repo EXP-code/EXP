@@ -17,17 +17,17 @@ void incr_position(void)
   if (eqmotion) {
 
     list<Component*>::iterator cc;
-    vector<Particle>::iterator p, pend;
     Component *c;
+    int ntot;
   
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
 
-      pend = c->particles.end();
-      for (p=c->particles.begin(); p != pend; p++) {
+      ntot = c->Number();
+      for (int i=0; i<ntot; i++) {
 	
 	for (int k=0; k<c->dim; k++) 
-	  p->pos[k] += (p->vel[k] - c->covI[k])*dtime;
+	  c->Part(i)->pos[k] += (c->Part(i)->vel[k] - c->covI[k])*dtime;
       }
   
       if (c->com_system) {

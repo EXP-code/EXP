@@ -171,7 +171,7 @@ main(int argc, char **argv)
       }
       for (int i=0; i<its->ndatr; i++) {
 	in->read((char *)&rtmp, sizeof(double));
-	out << setw(12) << rtmp;
+	out << setw(18) << rtmp;
       }      
 
       out << endl;		// End the record

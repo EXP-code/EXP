@@ -24,7 +24,8 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
-  filename = "BarRot." + runtag; // Output file name
+				// Output file name
+  filename = outdir + "BarRot." + runtag;
 
   firstime = true;
   omega0 = -1.0;
@@ -301,7 +302,8 @@ void UserEBar::determine_acceleration_and_potential(void)
     double b25 = 0.4*a1*a2*a3*(a2*a2 - a1*a1)/(ans1 - ans2);
 
     b5 = pow(b25, 0.2);
-    afac = 2.0 * b1;
+    // afac = 2.0 * b1;
+    afac = b1;
 
     if (myid==0) {
       cout << "b1=" << b1 << endl;
@@ -509,7 +511,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 
 void * UserEBar::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -539,12 +541,12 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
+    for (int k=0; k<3; k++) pos[k] = cC->Pos(i, k);
+
     if (c0)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
+      for (int k=0; k<3; k++) pos[k] -= c0->center[k];
     else if (monopole)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
-    else
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
+      for (int k=0; k<3; k++) pos[k] -= bps[k];
     
     xx = pos[0];
     yy = pos[1];
@@ -591,7 +593,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 	acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Force on bar (via Newton's 3rd law)
-	tacc[id][k] += -(*particles)[i].mass * acct[k];
+	tacc[id][k] += -cC->Mass(i) * acct[k];
       }
 
 				// Monopole potential
@@ -599,11 +601,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     }
 
 				// Add bar acceleration to particle
-    for (int k=0; k<3; k++)
-      (*particles)[i].acc[k] += acct[k];
-
+    cC->AddAcc(i, acct);
+    
 				// Add external potential
-    (*particles)[i].potext += extpot;
+    cC->AddPotExt(i, extpot);
 
   }
 

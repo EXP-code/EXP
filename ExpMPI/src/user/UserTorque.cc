@@ -186,7 +186,7 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
   double pos[3], vel[3], ll[3], rr, vv;
   double E, J, K, torque, phi;
   
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -199,8 +199,8 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
 
     rr = vv = 0.0;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k] - c0->com[k];
-      vel[k] = (*particles)[i].vel[k];
+      pos[k] = cC->Pos(i, k) - c0->com[k];
+      vel[k] = cC->Vel(i, k);
       rr += pos[k]*pos[k];
       vv += vel[k]*vel[k];
     }
@@ -224,8 +224,8 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
 				// Increase/decrease tangential velocity
     phi = atan2(pos[1], pos[0]);
     
-    (*particles)[i].acc[0] += -torque*sin(phi)/rr;
-    (*particles)[i].acc[1] +=  torque*cos(phi)/rr;
+    cC->AddAcc(i, 0, -torque*sin(phi)/rr );
+    cC->AddAcc(i, 1,  torque*cos(phi)/rr );
   }
 
   return (NULL);

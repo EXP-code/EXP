@@ -66,6 +66,7 @@ void initialize(void)
   if (parse->find_item("infile", val))		infile = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
   if (parse->find_item("ratefile", val))	ratefile = val;
+  if (parse->find_item("outdir", val))		outdir = val;
   if (parse->find_item("runtag", val))		runtag = val;
 
 }
@@ -92,7 +93,8 @@ void print_parm(ostream& out, char *comment)
 void write_parm(void)
 {
   if (myid!=0) return;
-  ofstream out(parmfile.c_str());
+  string curparm(outdir + parmfile + "." + runtag);
+  ofstream out(curparm.c_str());
   if (!out) {
     cerr << "write_parm: could not open <" << parmfile << ">\n";
     MPI_Abort(MPI_COMM_WORLD, 102);
@@ -116,7 +118,7 @@ void MPL_parse_args(int argc, char** argv)
   int myid;
   char file[128];
   int c;
-  string curparm(parmfile);
+  string curparm(outdir + parmfile + "." + runtag);
 
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   

@@ -49,6 +49,9 @@ extern string parmfile;
 //! Initial processor rate file
 extern string ratefile;
 
+//! Directory for output
+extern string outdir;
+
 //! Used for labeling report files
 extern string runtag;
 
@@ -79,6 +82,9 @@ extern double *gcom, *gcov;
 
 //! Resets total center of velocity to zero if true
 extern bool global_cov;
+
+//! Emergency stop
+extern unsigned char stop_signal;
 
 				// MPI variables
 

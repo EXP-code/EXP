@@ -99,7 +99,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   double pos[3], rs[3], fac, ffac;
   double satmass;
   
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -116,17 +116,18 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 
     fac = core*core;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k] - c0->com[k];
+      pos[k] = cC->Pos(i, k, Component::Inertial) - c0->com[k];
       fac += (pos[k] - rs[k])*(pos[k] - rs[k]);
     }
     fac = pow(fac, -0.5);
     
     ffac = -satmass*fac*fac*fac;
 
-    for (int k=0; k<3; k++)
-      (*particles)[i].acc[k] += ffac*(pos[k]-rs[k]);
+    // Add acceration
+    for (int k=0; k<3; k++) cC->AddAcc(i, k, ffac*(pos[k]-rs[k]) );
     
-    (*particles)[i].potext += -satmass*fac;
+    // Add external potential
+    cC->AddPotExt(i, -satmass*fac );
   }
 
   return (NULL);

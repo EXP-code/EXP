@@ -40,7 +40,7 @@ void OutRelaxation::initialize()
 				// Get file name
   if (!get_value(string("suffix"), suffix)) {
     suffix.erase();
-    suffix = "out\0";
+    suffix = "out";
   }
 
   if (get_value(string("epos"), tmp))  epos = atoi(tmp.c_str());
@@ -65,21 +65,21 @@ void OutRelaxation::Run(int n, bool final)
 
     c = *cc;
 
-    nbodies = c->particles.size();
+    nbodies = c->Number();
 
     for (int i=1; i<=nbodies; i++) {
 
-      if (c->freeze((c->particles)[i])) continue;
+      if (c->freeze(*(c->Part(i)))) continue;
 
 
-      esave = (c->particles)[i].dattrib[epos];
+      esave = c->Part(i)->dattrib[epos];
 
       delta_e = 0.0;
       for (int j=0; j<3; j++) 
-	delta_e += (c->particles)[i].vel[j] * (c->particles)[i].vel[j];
+	delta_e += c->Vel(i, j) * c->Vel(i, j);
 
-      delta_e = 0.5*(c->particles)[i].mass*delta_e + 
-	(c->particles)[i].mass*((c->particles)[i].pot + (c->particles)[i].potext) -
+      delta_e = 0.5*c->Mass(i)*delta_e + 
+	c->Mass(i)*(c->Part(i)->pot + c->Part(i)->potext) -
 	esave;
 	
       e_average1 += delta_e/esave;

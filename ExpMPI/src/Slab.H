@@ -41,7 +41,7 @@ private:
   SlabCoefHeader coefheader;
 
   void determine_coefficients(void);
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component*);
 
   // Threading
 

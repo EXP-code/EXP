@@ -13,6 +13,12 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   coef_dump = true;
   NO_L1 = false;
   EVEN_L = false;
+  NOISE = false;
+  noiseN = 1.0e-6;
+  noise_model_file = "SLGridSph.model";
+  gen = 0;
+  nrand = 0;
+  seedN = 11;
 
   string val;
 
@@ -47,6 +53,21 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
     if (atoi(val.c_str())) EVEN_L = true; 
     else EVEN_L = false;
   }
+
+  if (get_value("NOISE", val)) {
+    if (atoi(val.c_str())) {
+      NOISE = true; 
+      self_consistent = false;
+    }
+    else NOISE = false;
+  }
+
+  if (get_value("noiseN", val)) noiseN = atof(val.c_str());
+
+  if (get_value("noise_model_file", val)) noise_model_file = val;
+
+  if (get_value("seedN", val)) seedN = atoi(val.c_str());
+
 
   Lmax = Lmax<1 ? 1 : Lmax;
 
@@ -167,6 +188,8 @@ void SphericalBasis::setup(void)
       krnl[l][n] = knl(n-1,l);
     }
   }
+
+  if (NOISE) compute_rms_coefs();
 }  
 
 
@@ -187,6 +210,8 @@ SphericalBasis::~SphericalBasis()
   delete [] u;
   delete [] du;
   delete [] use;
+  delete gen;
+  delete nrand;
 }
 
 void SphericalBasis::initialize()
@@ -199,11 +224,11 @@ void SphericalBasis::check_range()
 				// Do nothing
 }
 
-void SphericalBasis::get_acceleration_and_potential(vector<Particle>* P)
+void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
 				
-  particles = P;		// "Register" particles
-  nbodies = particles->size();	// And compute number of bodies
+  cC = C;			// "Register" component
+  nbodies = cC->Number();	// And compute number of bodies
 
   /*====================================================*/
   /* Accel & pot using previously computed coefficients */
@@ -231,6 +256,8 @@ void SphericalBasis::get_acceleration_and_potential(vector<Particle>* P)
   }
 
 
+  if (NOISE) update_noise();
+
   /*======================================*/
   /* Determine potential and acceleration */
   /*======================================*/
@@ -253,7 +280,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
   double xx, yy, zz;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -263,13 +290,13 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    if (component->freeze((*particles)[i])) continue;
+    if (component->freeze(*(cC->Part(i)))) continue;
 
-    mass = (*particles)[i].mass * adb;
+    mass = cC->Mass(i) * adb;
 
-    xx = (*particles)[i].pos[0] - component->center[0];
-    yy = (*particles)[i].pos[1] - component->center[1];
-    zz = (*particles)[i].pos[2] - component->center[2];
+    xx = cC->Pos(i, 0, Component::Local | Component::Centered);
+    yy = cC->Pos(i, 1, Component::Local | Component::Centered);
+    zz = cC->Pos(i, 2, Component::Local | Component::Centered);
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -442,17 +469,19 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   double pos[3];
   double xx, yy, zz;
 
-  int nbodies = particles->size();
+  unsigned  nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
 
+    if (component->freeze(*(cC->Part(i)))) continue;
+
     fac1 = dfac;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->center[k];
+      pos[k] = cC->Pos(i, k, Component::Local | Component::Centered);
 
     xx = pos[0];
     yy = pos[1];
@@ -545,17 +574,17 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     pott /= scale;
     potp /= scale;
 
-    (*particles)[i].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r) );
-    (*particles)[i].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r) );
-    (*particles)[i].acc[2] += -(potr*zz/r + pott*fac/(r*r*r));
+    cC->AddAcc(i, 0, -(potr*xx/r - pott*xx*zz/(r*r*r)) );
+    cC->AddAcc(i, 1, -(potr*yy/r - pott*yy*zz/(r*r*r)) );
+    cC->AddAcc(i, 2, -(potr*zz/r + pott*fac/(r*r*r))   );
     if (fac > DSMALL2) {
-      (*particles)[i].acc[0] +=  potp*yy/fac;
-      (*particles)[i].acc[1] += -potp*xx/fac;
+      cC->AddAcc(i, 0,  potp*yy/fac );
+      cC->AddAcc(i, 1, -potp*xx/fac );
     }
     if (use_external)
-      (*particles)[i].potext += potl;
+      cC->AddPotExt(i, potl);
     else
-      (*particles)[i].pot += potl;
+      cC->AddPot(i, potl);
 
   }
 
@@ -733,3 +762,122 @@ void SphericalBasis::determine_fields_at_point_sph(double r, double theta, doubl
   *tpotp = potp/scale;
   
 }
+
+
+void SphericalBasis::compute_rms_coefs(void)
+{
+  meanC.setsize(1, nmax);
+  rmsC.setsize(0, Lmax, 1, nmax);
+
+  meanC.zero();
+  rmsC.zero();
+
+  const int numg = 100;
+  LegeQuad qe(numg);
+
+  SphericalModelTable modl(noise_model_file);
+  double rmin = modl.get_min_radius();
+  double rmax = modl.get_max_radius();
+  double del = rmax - rmin;
+  double r, rs;
+
+  for (int i=1; i<=numg; i++) {
+    r = rmin + del*qe.knot(i);
+    rs = r / scale;
+
+    get_potl(Lmax, nmax, rs, potd[0], 0);
+
+    for(int l=0; l<=Lmax; l++) {
+      
+      for (int n=1; n<=nmax; n++) {
+
+	if (l==0)
+	  meanC[n] += del * qe.weight(i) * r * r * potd[0][l][n]/scale *
+	    modl.get_density(r);
+
+	rmsC[l][n] += del * qe.weight(i) * r * r * potd[0][l][n]/scale *
+	  potd[0][l][n]/scale * modl.get_density(r);
+      }
+    }
+  }
+
+  double fac, fac1;
+  double mtot = modl.get_mass(rmax);
+
+  for(int l=0; l<=Lmax; l++) {
+
+    fac1 = (4.0*M_PI)/(2.0*l+1.0);
+
+    for (int n=1; n<=nmax; n++) {
+      fac = normM[l][n];
+      if (l==0) meanC[n] *= 4.0*M_PI*fac1/fac;
+      rmsC[l][n] *= mtot*4.0*M_PI*fac1*fac1/(fac*fac);
+    }
+  }
+
+}
+
+
+void SphericalBasis::update_noise(void)
+{
+
+  if (gen==0) {
+				// Want the same seed on each process
+    gen = new ACG(seedN);
+    nrand = new Normal(0.0, 1.0, gen);
+
+    if (myid==0) {
+      ofstream out("rmscoef.dat");
+
+      for(int l=0; l<=Lmax; l++) {
+
+	out << "# L=" << l << endl;
+	for (int n=1; n<=nmax; n++) {
+	  if (l==0)
+	    out << setw(5)  << n
+		<< setw(16) << expcoef[l][n]
+		<< setw(16) << meanC[n]
+		<< setw(16) << rmsC[l][n]
+		<< setw(16) << rmsC[l][n] - meanC[n]*meanC[n]
+		<< endl;
+	  else
+	    out << setw(5)  << n
+		<< setw(16) << expcoef[l][n]
+		<< setw(16) << 0.0
+		<< setw(16) << rmsC[l][n]
+		<< setw(16) << rmsC[l][n]
+		<< endl;
+	}
+	out << endl;
+      }
+    }
+  }
+
+
+				// l loop
+  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+				// m loop
+    for (int m=0, moffset=0; m<=l; m++) {
+
+      if (m==0) {
+	for (int n=1; n<=nmax; n++) {
+	  expcoef[loffset+moffset][n] = 
+	    sqrt(fabs(rmsC[l][n] - meanC[n]*meanC[n])/factorial[l][m]/noiseN)*(*nrand)();
+	  if (l==0) expcoef[l][n] += meanC[n];
+	}
+	moffset++;
+      }
+      else {
+	for (int n=1; n<=nmax; n++) {
+	  expcoef[loffset+moffset+0][n] = 
+	    sqrt(0.5*fabs(rmsC[l][n] - meanC[n]*meanC[n])/factorial[l][m]/noiseN)*(*nrand)();
+	  expcoef[loffset+moffset+1][n] = 
+	    sqrt(0.5*fabs(rmsC[l][n] - meanC[n]*meanC[n])/factorial[l][m]/noiseN)*(*nrand)();
+	}
+	moffset+=2;
+      }
+    }
+  }
+
+}
+

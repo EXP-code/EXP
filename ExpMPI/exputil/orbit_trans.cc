@@ -82,7 +82,6 @@ void SphericalOrbit::compute_freq(void)
     if (fabs(f)>tolnr) {
       cerr << "compute_freq: r_apo did not converge [f=" << f << "]\n";
     }
-    used_asymp = true;
 #endif
   }
 

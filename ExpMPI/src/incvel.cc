@@ -18,16 +18,17 @@ void incr_velocity(void)
 
     list<Component*>::iterator cc;
     vector<Particle>::iterator p, pend;
+    unsigned ntot;
     Component *c;
   
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
     
-      pend = c->particles.end();
-      for (p=c->particles.begin(); p != pend; p++) {
+      ntot = c->Number();
+      for (int i=0; i<ntot; i++) {
 
 	for (int k=0; k<c->dim; k++) 
-	  p->vel[k] += (p->acc[k] - c->acc0[k])*dtime;
+	  c->Part(i)->vel[k] += (c->Part(i)->acc[k] - c->acc0[k])*dtime;
       }
 
       if (c->com_system) {

@@ -55,7 +55,7 @@ public:
   ~CBrockDisk(void);
 
   //! Force evaluation called clients
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component*);
 
 
   /**

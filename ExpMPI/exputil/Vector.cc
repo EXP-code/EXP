@@ -188,20 +188,24 @@ double &Vector::operator[](int i) const
 
 void Vector::setsize(int l, int h)
 {
-  /* do we need to resize at all? */
+  // do we need to resize at all?
   
   if (l==low && h==high) return;
   
   
   
   
-  /* is the requested size positive? */
+  // is the requested size positive?
   
-  if (h<l) bomb_Vector("invalid size <0");
+  if (h<l) {
+    ostringstream mesg;
+    mesg << "invalid size <0, l=" << l << " h=" << h;
+    bomb_Vector(mesg.str());
+  }
   
   
   
-  /* delete the old elements if they already exist */
+  // delete the old elements if they already exist
   
   elements += low;
   // if (elements != NULL) delete [] elements;
@@ -211,14 +215,14 @@ void Vector::setsize(int l, int h)
   
   
   
-  /* set the new size */
+  // set the new size
   
   low = l;
   high = h;
   
   
   
-  /* allocate the new elements, and offset the pointer */
+  // allocate the new elements, and offset the pointer
   
   if (threading_on) pthread_mutex_lock(&mem_lock);
   elements = new double[high-low+1];
@@ -605,19 +609,23 @@ void Matrix::setsize(int rl, int rh, int cl, int ch)
 {
   int i;
   
-  /* do we need to resize at all? */
+  // do we need to resize at all?
   
   if (rl==rlow && cl==clow && rh==rhigh && ch==chigh) return;
   
   
   
-  /* is the new size positive? */
+  // is the new size positive?
   
-  if (rh<rl || ch<cl) bomb_Matrix("invalid size<=0");
+  if (rh<rl || ch<cl) {
+    ostringstream mesg;
+    mesg << "invalid size <0, rl=" << rl << " rh=" << rh
+	 << " cl=" << cl << " ch" << ch;
+    bomb_Matrix(mesg.str());
+  }
   
   
-  
-  /* delete old storage if it exists */
+  // delete old storage if it exists
   
   rows += rlow;
   // if (rows != NULL) delete [] rows;
@@ -627,7 +635,7 @@ void Matrix::setsize(int rl, int rh, int cl, int ch)
   
   
   
-  /* set the new size */
+  // set the new size
   
   rlow = rl;
   rhigh = rh;
@@ -636,7 +644,7 @@ void Matrix::setsize(int rl, int rh, int cl, int ch)
   
   
   
-  /* allocate the array of rows */
+  // allocate the array of rows
   
   if (threading_on) pthread_mutex_lock(&mem_lock);
   rows = new Vector[rhigh+1-rlow];
@@ -646,7 +654,7 @@ void Matrix::setsize(int rl, int rh, int cl, int ch)
   
   
   
-  /* create the individual rows */
+  // create the individual rows
   
   for (i=rlow; i<=rhigh; i++) rows[i].setsize(clow, chigh);
 }

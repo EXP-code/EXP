@@ -27,7 +27,7 @@ public:
   ~SatFix();
 
   //! Get force
-  void get_acceleration_and_potential(vector<Particle>* P);
+  void get_acceleration_and_potential(Component* C);
 
   //! Required threaded member
   void * determine_acceleration_and_potential_thread(void * arg) {return NULL;}

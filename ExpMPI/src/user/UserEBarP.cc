@@ -25,7 +25,8 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   monopole = true;		// Use the monopole part of the potential
   noself = false;		// No not apply monopole to particles
   fileomega = "omega.dat";	// File containg Omega vs T
-  filename = "BarRot." + runtag; // Output file name
+				// Output file name
+  filename = outdir + "BarRot." + runtag;
 
   firstime = true;
 
@@ -567,7 +568,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
 void * UserEBarP::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -596,13 +597,13 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 			     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
 
   for (int i=nbeg; i<nend; i++) {
+    
+    for (int k=0; k<3; k++) pos[k] = cC->Pos(i, k);
 
     if (c0)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
+      for (int k=0; k<3; k++) pos[k] -= c0->center[k];
     else if (monopole)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
-    else
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
+      for (int k=0; k<3; k++) pos[k] -= bps[k];
     
     xx = pos[0];
     yy = pos[1];
@@ -648,8 +649,8 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 
 	for (int k=0; k<3; k++) {
 				// Force on bar (via Newton's 3rd law)
-	  tacc[id][k] += -(*particles)[i].mass * (acct[k] -
-						  M0*pos[k]/(rr*rr*rr));
+	  tacc[id][k] += -cC->Mass(i) * (acct[k] -
+					      M0*pos[k]/(rr*rr*rr));
 	}
 
       } else {
@@ -659,7 +660,7 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 	  acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Force on bar (via Newton's 3rd law)
-	  tacc[id][k] += -(*particles)[i].mass * acct[k];
+	  tacc[id][k] += -cC->Mass(i) * acct[k];
 	}
 
 				// Monopole potential
@@ -669,11 +670,10 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
     }
 
 				// Add bar acceleration to particle
-    for (int k=0; k<3; k++)
-      (*particles)[i].acc[k] += acct[k];
+    cC->AddAcc(i, acct);
 
 				// Add external potential
-    (*particles)[i].potext += extpot;
+    cC->AddPotExt(i, extpot);
 
   }
 

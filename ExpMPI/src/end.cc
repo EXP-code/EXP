@@ -14,7 +14,7 @@ static char rcsid[] = "$Id$";
 void clean_up(void)
 {
 				// Call for final output to files
-  output.Run(nsteps+1, true);
+  output.Run(this_step, true);
 
   MPI_Barrier(MPI_COMM_WORLD);
 #ifdef MPE_PROFILE

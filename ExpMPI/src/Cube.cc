@@ -66,7 +66,7 @@ void * Cube::determine_coefficients_thread(void * arg)
   Complex stepx,stepy,stepz;
   double mass;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -77,38 +77,35 @@ void * Cube::determine_coefficients_thread(void * arg)
   for (i=nbeg; i<nend; i++) {
 
     use[id]++;
-    mass = (*particles)[i].mass * adb;
+    mass = cC->Mass(i) * adb;
 
 				/* Truncate to cube with sides in [0,1] */
     
-    if ((*particles)[i].pos[0]<0.0)
-      (*particles)[i].pos[0] += 
-	(double)((int)fabs((*particles)[i].pos[0])) + 1.0;
+    if (cC->Pos(i, 0)<0.0)
+      cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0);
     else
-      (*particles)[i].pos[0] -= (double)((int)(*particles)[i].pos[0]);
+      cC->AddPos(i, 0, -(double)((int)cC->Pos(i, 0)));
     
-    if ((*particles)[i].pos[1]<0.0)
-      (*particles)[i].pos[1] += 
-	(double)((int)fabs((*particles)[i].pos[1])) + 1.0;
+    if (cC->Pos(i, 1)<0.0)
+      cC->AddPos(i, 1, (double)((int)fabs(cC->Pos(i, 1))) + 1.0);
     else
-      (*particles)[i].pos[1] -= (double)((int)(*particles)[i].pos[1]);
+      cC->AddPos(i, 1, -(double)((int)cC->Pos(i, 1)));
     
-    if ((*particles)[i].pos[2]<0.0)
-      (*particles)[i].pos[2] += 
-	(double)((int)fabs((*particles)[i].pos[2])) + 1.0;
+    if (cC->Pos(i, 2)<0.0)
+      cC->AddPos(i, 2, (double)((int)fabs(cC->Pos(i, 2))) + 1.0);
     else
-      (*particles)[i].pos[2] -= (double)((int)(*particles)[i].pos[2]);
+      cC->AddPos(i, 2, -(double)((int)cC->Pos(i, 2)));
     
     
 				/* Recursion multipliers */
-    stepx = exp(-kfac*(*particles)[i].pos[0]);
-    stepy = exp(-kfac*(*particles)[i].pos[1]);
-    stepz = exp(-kfac*(*particles)[i].pos[2]);
+    stepx = exp(-kfac*cC->Pos(i, 0));
+    stepy = exp(-kfac*cC->Pos(i, 1));
+    stepz = exp(-kfac*cC->Pos(i, 2));
     
 				/* Initial values */
-    startx = exp(nmaxx*kfac*(*particles)[i].pos[0]);
-    starty = exp(nmaxy*kfac*(*particles)[i].pos[1]);
-    startz = exp(nmaxz*kfac*(*particles)[i].pos[2]);
+    startx = exp(nmaxx*kfac*cC->Pos(i, 0));
+    starty = exp(nmaxy*kfac*cC->Pos(i, 1));
+    startz = exp(nmaxz*kfac*cC->Pos(i, 2));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
@@ -167,7 +164,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
   Complex stepx,stepy,stepz;
   double k2;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -177,14 +174,14 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
     accx = accy = accz = dens = potl = 0.0;
     
 				/* Recursion multipliers */
-    stepx = exp(kfac*(*particles)[i].pos[0]);
-    stepy = exp(kfac*(*particles)[i].pos[1]);
-    stepz = exp(kfac*(*particles)[i].pos[2]);
+    stepx = exp(kfac*cC->Pos(i, 0));
+    stepy = exp(kfac*cC->Pos(i, 1));
+    stepz = exp(kfac*cC->Pos(i, 2));
     
 				/* Initial values (note sign change) */
-    startx = exp(-nmaxx*kfac*(*particles)[i].pos[0]);
-    starty = exp(-nmaxy*kfac*(*particles)[i].pos[1]);
-    startz = exp(-nmaxz*kfac*(*particles)[i].pos[2]);
+    startx = exp(-nmaxx*kfac*cC->Pos(i, 0));
+    starty = exp(-nmaxy*kfac*cC->Pos(i, 1));
+    startz = exp(-nmaxz*kfac*cC->Pos(i, 2));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       for (facy=starty, iy=0; iy<imy; iy++, facy*=stepy) {
@@ -223,21 +220,21 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
       }
     }
     
-    (*particles)[i].acc[0] += Re(accx);
-    (*particles)[i].acc[1] += Re(accy);
-    (*particles)[i].acc[2] += Re(accz);
+    cC->AddAcc(i, 0, Re(accx));
+    cC->AddAcc(i, 1, Re(accy));
+    cC->AddAcc(i, 2, Re(accz));
     if (use_external)
-      (*particles)[i].potext += Re(potl);
+      cC->AddPotExt(i, Re(potl));
     else
-      (*particles)[i].pot += Re(potl);
+      cC->AddPot(i, Re(potl));
   }
   
   return (NULL);
 }
 
-void Cube::get_acceleration_and_potential(vector<Particle>* Particles)
+void Cube::get_acceleration_and_potential(Component* C)
 {
-  particles = Particles;
+  cC = C;
 
   exp_thread_fork(false);
 

@@ -70,7 +70,7 @@ void OutLog::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUTLOG." + runtag + "\0";
+    filename = outdir + "OUTLOG." + runtag;
   }
 
   if (Output::get_value(string("freq"), tmp))
@@ -121,9 +121,6 @@ void OutLog::Run(int n, bool last)
 
     ctr = vector<dvector>(comp.ncomp);
 
-    mom = vector<dvector>(comp.ncomp);
-    mom1 = vector<dvector>(comp.ncomp);
-
     for (int i=0; i<comp.ncomp; i++) {
       com[i] = vector<double>(3);
       com1[i] = vector<double>(3);
@@ -132,16 +129,20 @@ void OutLog::Run(int n, bool last)
       angm[i] = vector<double>(3);
       angm1[i] = vector<double>(3);
       ctr[i] = vector<double>(3);
-      mom[i] = vector<double>(6);
-      mom1[i] = vector<double>(6);
     }
 
     com0 = vector<double>(3);
     cov0 = vector<double>(3);
+    angmG = vector<double>(3);
     angm0 = vector<double>(3);
-    mom0 = vector<double>(5);
     pos0 = vector<double>(3);
     vel0 = vector<double>(3);
+
+    posL = vector<double>(3);
+    velL = vector<double>(3);
+    
+    comG = vector<double>(3);
+    covG = vector<double>(3);
     
     ektot = vector<double>(comp.ncomp);
     ektot1 = vector<double>(comp.ncomp);
@@ -302,53 +303,60 @@ void OutLog::Run(int n, bool last)
       angm[i][j] = angm1[i][j] = 0.0;
     }
 
-    for (int j=0; j<6; j++)
-      mom[i][j] = mom1[i][j] = 0.0;
-
   }
 
+				// Global
+  for (int j=0; j<3; j++) {
+    comG[j] = com0[j] = 0.0;
+    covG[j] = cov0[j] = 0.0;
+    angmG[j] = angm0[j] = 0.0;
+  }
+
+
 				// Collect info
-  vector<Particle>::iterator p;
+  unsigned ntot;
   int indx = 0;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
   
-    nbodies1[indx] = c->particles.size();
+    nbodies1[indx] = c->Number();
 
-    for (p=c->particles.begin(); p!=c->particles.end(); p++) {
+    for (int i=0; i<nbodies1[indx]; i++) {
 
-      if (c->freeze(*p)) continue;
+      if (c->freeze(*(c->Part(i)))) continue;
 
-      mtot1[indx] +=  p->mass;
+      mtot1[indx] +=  c->Mass(i);
       
       for (int j=0; j<3; j++) {
-	pos0[j] = p->pos[j] - c->comI[j];
-	vel0[j] = p->vel[j] - c->covI[j];
+	pos0[j] = c->Pos(i, j, Component::Inertial);
+	vel0[j] = c->Vel(i, j, Component::Inertial);
+	posL[j] = c->Pos(i, j, Component::Local);
+	velL[j] = c->Vel(i, j, Component::Local);
       }
 
       for (int j=0; j<3; j++) {
-	com1[indx][j] += p->mass*(p->pos[j] + c->com0[j] - c->comI[j]);
-	cov1[indx][j] += p->mass*(p->vel[j] + c->cov0[j] - c->covI[j]);
-	mom1[indx][j] += p->mass*p->pos[j]*p->pos[j];
+	com1[indx][j] += c->Mass(i)*posL[j];
+	cov1[indx][j] += c->Mass(i)*velL[j];
+	comG[j] += c->Mass(i)*pos0[j];
+	covG[j] += c->Mass(i)*vel0[j];
       }
 
-      // Moment matrix off-diagonal terms
-      mom1[indx][3] += p->mass*pos0[0]*pos0[1];
-      mom1[indx][4] += p->mass*pos0[0]*pos0[2];
-      mom1[indx][5] += p->mass*pos0[1]*pos0[2];
+      angm1[indx][0] += c->Mass(i)*(posL[1]*velL[2] - posL[2]*velL[1]);
+      angm1[indx][1] += c->Mass(i)*(posL[2]*velL[0] - posL[0]*velL[2]);
+      angm1[indx][2] += c->Mass(i)*(posL[0]*velL[1] - posL[1]*velL[0]);
 
-      angm1[indx][0] += p->mass*(pos0[1]*vel0[2] - pos0[2]*vel0[1]);
-      angm1[indx][1] += p->mass*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
-      angm1[indx][2] += p->mass*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
+      angmG[0] += c->Mass(i)*(pos0[1]*vel0[2] - pos0[2]*vel0[1]);
+      angmG[1] += c->Mass(i)*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
+      angmG[2] += c->Mass(i)*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
 
-      for (int j=0; j<3; j++) pos0[j] = p->pos[j] - c->center[j];
+      for (int j=0; j<3; j++) pos0[j] = c->Pos(i, j, Component::Centered);
       
-      eptot1[indx] += 0.5*p->mass*p->pot;
-      eptotx1[indx] += p->mass*p->potext;
+      eptot1[indx] += 0.5*c->Mass(i)*c->Part(i)->pot;
+      eptotx1[indx] += c->Mass(i)*c->Part(i)->potext;
       for (int j=0; j<3; j++) {
-	ektot1[indx] += 0.5*p->mass*vel0[j]*vel0[j];
-	clausius1[indx] += p->mass*pos0[j]*p->acc[j];
+	ektot1[indx] += 0.5*c->Mass(i)*velL[j]*velL[j];
+	clausius1[indx] += c->Mass(i)*posL[j]*c->Part(i)->acc[j];
       }
     }
 
@@ -369,11 +377,17 @@ void OutLog::Run(int n, bool last)
 	       0, MPI_COMM_WORLD);
     MPI_Reduce(&cov1[i][0], &cov[i][0], 3, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
-    MPI_Reduce(&mom1[i][0], &mom[i][0], 6, MPI_DOUBLE, MPI_SUM, 
-	       0, MPI_COMM_WORLD);
     MPI_Reduce(&angm1[i][0], &angm[i][0], 3, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
   }
+
+  MPI_Reduce(&comG[0], &com0[0], 3, MPI_DOUBLE, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&covG[0], &cov0[0], 3, MPI_DOUBLE, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+  MPI_Reduce(&angmG[0], &angm0[0], 3, MPI_DOUBLE, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+
   MPI_Reduce(&ektot1[0], &ektot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
   MPI_Reduce(&eptot1[0], &eptot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
@@ -403,20 +417,6 @@ void OutLog::Run(int n, bool last)
     int nbodies0 = 0;
     for (int i=0; i<comp.ncomp; i++) nbodies0 += nbodies[i];
     *out << "|" << setw(cwid) << nbodies0;
-
-				// Vectors
-    vector<double> com0(3), cov0(3), angm0(3), mom0(5);
-    for (int j=0; j<3; j++) com0[j] = cov0[j] = angm0[j] = 0.0;
-    for (int j=0; j<5; j++) mom0[j] = 0.0;
-    for (int i=0; i<comp.ncomp; i++) {
-      for (int j=0; j<3; j++) {
-	com0[j] += com[i][j];
-	cov0[j] += cov[i][j];
-	angm0[j] += angm[i][j];
-      }
-      for (int j=0; j<3; j++)
-	mom0[j] += mom[i][j];
-    }
 
 				// COM
     for (int j=0; j<3; j++)

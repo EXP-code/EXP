@@ -20,7 +20,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
-  filename = "BarRot." + runtag; // Output file name
+  filename = outdir + "BarRot." + runtag; // Output file name
 
   firstime = true;
 
@@ -141,7 +141,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
   if (c1) {
     c1->get_angmom();	// Tell component to compute angular momentum
-  // cout << "Lz=" << c1->angmom[2] << endl; // debug
+    // cout << "Lz=" << c1->angmom[2] << endl; // debug
   }
 
   if (firstime) {
@@ -382,7 +382,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
 void * UserBar::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -397,10 +397,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (c0)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
-    else
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k];
+    for (int k=0; k<3; k++) pos[k] = cC->Pos(i, k);
+    if (c0) for (int k=0; k<3; k++) pos[k] -=  c0->center[k];
     
     xx = pos[0];
     yy = pos[1];
@@ -423,16 +421,17 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
       nn = pp * pow(rr/b5, 3.0)/(b5*b5);
     }
 
-    (*particles)[i].acc[0] += ffac*
-      ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
+    cC->AddAcc(i, 0, 
+		    ffac*( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx ) );
     
-    (*particles)[i].acc[1] += ffac*
-      ( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy );
+    cC->AddAcc(i, 1,
+		    ffac*( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy ) );
 
-    (*particles)[i].acc[2] += ffac*
-      ( -5.0*nn*zz );
+    cC->AddAcc(i, 2, 
+		    ffac*( -5.0*nn*zz ) );
     
-    (*particles)[i].potext += -ffac*pp*fac;
+
+    cC->AddPotExt(i, -ffac*pp*fac );
     
   }
 

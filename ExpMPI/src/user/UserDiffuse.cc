@@ -140,7 +140,7 @@ void UserDiffuse::initialize()
 
     if (myid==0) {
 				// Open output stream for writing
-      check_file = runtag + ".check_ev";
+      check_file = outdir + runtag + ".check_ev";
       ofstream out(check_file.c_str(), ios::out | ios::app);
       if (out) {
 	out.setf(ios::left);
@@ -244,7 +244,7 @@ void UserDiffuse::determine_acceleration_and_potential(void)
 
 void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -258,8 +258,8 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 				// Compute radius and velocity scalars
     rr = vv = vdotr = 0.0;
     for (int k=0; k<3; k++) {
-      er[k] = (*particles)[i].pos[k] - c0->center[k];
-      ev[k] = (*particles)[i].vel[k];
+      er[k] = cC->Pos(i, k) - c0->center[k];
+      ev[k] = cC->Vel(i, k);
       rr += er[k]*er[k];
       vv += ev[k]*ev[k];
       vdotr += er[k]*ev[k];
@@ -316,30 +316,30 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
     double sinA = sin(angle);
 				// Update particle velocity
     for (int k=0; k<3; k++)
-      (*particles)[i].vel[k] += 
+      cC->AddVel(i, k, 
 	deltaVpara*ev[k]      +	// Parallel direction
 	deltaVperp*e1[k]*cosA +	// Perpendicular direction #1
-	deltaVperp*e2[k]*sinA ;	// Perpendicular direction #2
-    
+	deltaVperp*e2[k]*sinA 	// Perpendicular direction #2
+		      );
 				// Debug directions
     if (check_ev) {
 
       double tmp;
 				// 1*V
       tmp = 0.0;
-      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * ev[k];
+      for (int k=0; k<3; k++) tmp += cC->Vel(i, k) * ev[k];
       tmp /= vv;
       ev_mean_th[id][0] += tmp;
       ev_disp_th[id][0] += tmp*tmp;
 				// 2*V
       tmp = 0.0;
-      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * e1[k];
+      for (int k=0; k<3; k++) tmp += cC->Vel(i, k) * e1[k];
       tmp /= vv;
       ev_mean_th[id][1] += tmp;
       ev_disp_th[id][1] += tmp*tmp;
 				// 3*V
       tmp = 0.0;
-      for (int k=0; k<3; k++) tmp += (*particles)[i].vel[k] * e2[k];
+      for (int k=0; k<3; k++) tmp += cC->Vel(i, k) * e2[k];
       tmp /= vv;
       ev_mean_th[id][2] += tmp;
       ev_disp_th[id][2] += tmp*tmp;
@@ -393,13 +393,11 @@ void UserDiffuse::compute_model()
   vector<double> histo(numr, 0.0);
 
 
-  for (vector<Particle>::iterator p = c0->particles.begin();
-	 p != c0->particles.end(); p++) 
+  for (unsigned n=0; n<c0->Number(); n++)
     {
-
       r = 0.0;
       for (int i=0; i<3; i++) 
-	r += (p->pos[i]-c0->center[i])*(p->pos[i]-c0->center[i]);
+	r += (c0->Pos(n, i)-c0->center[i])*(c0->Pos(n, i)-c0->center[i]);
       r = sqrt(r);
 
       if (r>rmin && r<rmax) {
@@ -408,7 +406,7 @@ void UserDiffuse::compute_model()
 	else
 	  indx = (int)( (r-rmin)/dr );
 
-	histo[indx] += p->mass;
+	histo[indx] += c0->Mass(n);
       }
       
     }

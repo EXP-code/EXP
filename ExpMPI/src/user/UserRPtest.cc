@@ -40,7 +40,7 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
   ctr_name = "";		// Default component for com is none
 
 				// Log file name
-  filename = "RPtest." + runtag;
+  filename = outdir + "RPtest." + runtag;
 
   initialize();
 
@@ -261,7 +261,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
   double R2, R, pot, dpot;
   double E, K, I1, J, O1, O2, w1, w2, w3, f, beta, psi;
   
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -278,9 +278,9 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k];
+      pos[k] = cC->Pos(i, k);
       if (c0) pos[k] -= c0->com[k];
-      vel[k] = (*particles)[i].vel[k];
+      vel[k] = cC->Vel(i, k);
       R2 += pos[k]*pos[k];
     }
     R = sqrt(R2);
@@ -306,9 +306,9 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
       if (i==npart-1) out << endl;
     }
 
-    for (int k=0; k<3; k++) (*particles)[i].acc[k] += -dpot*pos[k]/R;
+    for (int k=0; k<3; k++) cC->AddAcc(i, k, -dpot*pos[k]/R );
     
-    (*particles)[i].potext += (*particles)[i].mass * pot;
+    cC->AddPotExt(i, cC->Mass(i) * pot );
 
   }
 

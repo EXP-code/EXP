@@ -90,7 +90,7 @@ void UserHalo::determine_acceleration_and_potential(void)
 
 void * UserHalo::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -101,7 +101,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
 
     rr = 0.0;
     for (int k=0; k<3; k++) {
-      pos[k] = (*particles)[i].pos[k];
+      pos[k] = cC->Pos(i, k);	// Inertial by default
       if (c0) pos[k] -= c0->center[k];
       rr += pos[k]*pos[k];
     }
@@ -110,7 +110,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     model->get_pot_dpot(r, pot, dpot);
 
     for (int k=0; k<3; k++)
-      (*particles)[i].acc[k] += -dpot*pos[k]/r;
+      cC->AddAcc(i, k, -dpot*pos[k]/r );
   }
 
   return (NULL);

@@ -47,14 +47,14 @@ protected:
     <code>name</code> */
   int get_value(const string& name, string& value);
 
-  //! Pointer to phase space
-  vector<Particle> *particles;
-
   //! Number of bodies
   int nbodies;
   
   //! "Back" pointer to component that instantiated this force
   Component *component;
+
+  //! Current component pointer
+  Component *cC;
 
   //! Used by derived class to initialize any storage and parameters
   virtual void initialize(void) = 0;
@@ -88,7 +88,7 @@ public:
   virtual ~PotAccel();
 
   //! The main force evaluation routine to be called by clients
-  virtual void get_acceleration_and_potential(vector<Particle>*) = 0;
+  virtual void get_acceleration_and_potential(Component *c) = 0;
 
   /*! Used by get_acceleration_and_potential to request that the
     expansion be performed. */

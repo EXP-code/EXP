@@ -21,12 +21,12 @@ void * generateRelaxation::determine_acceleration_and_potential_thread
 {
   if (done) return (NULL);
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  if (id==0) epos = (*particles)[0].dattrib.size();
+  if (id==0) epos = cC->Part(0)->dattrib.size();
 
   double esave;
 
@@ -34,12 +34,12 @@ void * generateRelaxation::determine_acceleration_and_potential_thread
 
     esave = 0.0;
     for (int j=0; j<3; j++)
-      esave += (*particles)[i].vel[j] * (*particles)[i].vel[j];
+      esave += cC->Vel(i, j) * cC->Vel(i, j);
   
-    esave *= 0.5*(*particles)[i].mass;
-    esave += (*particles)[i].mass*
-      ( (*particles)[i].pot + (*particles)[i].potext );
-    (*particles)[i].dattrib.push_back(esave);
+    esave *= 0.5*cC->Mass(i);
+    esave += cC->Mass(i) *
+      ( cC->Part(i)->pot + cC->Part(i)->potext );
+    cC->Part(i)->dattrib.push_back(esave);
     
   }
   

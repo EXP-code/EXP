@@ -15,7 +15,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   nskip = 0;
   use_acc = false;
   use_pot = false;
-  filename = "ORBTRACE." + runtag;
+  filename = outdir + "ORBTRACE." + runtag;
   tcomp = NULL;
 
   initialize();

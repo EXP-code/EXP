@@ -65,13 +65,13 @@ private:
   vector<double> mtot, mtot1;
   vector<dvector> com, com1;
   vector<dvector> cov, cov1;
-  vector<dvector> mom, mom1;
   vector<dvector> angm, angm1;
   vector<dvector> ctr;
   vector<double> ektot, eptot, eptotx, clausius;
   vector<double> ektot1, eptot1, eptotx1, clausius1;
 
-  vector<double> com0, cov0, angm0, mom0, pos0, vel0;
+  vector<double> com0, cov0, angmG, angm0, pos0, vel0;
+  vector<double> comG, covG, comL, covL, posL, velL;
 
 public:
 

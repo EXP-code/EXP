@@ -51,7 +51,7 @@ public:
   ~Direct();
 
   //! The main force call
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component*);
 
 };
 

@@ -81,7 +81,7 @@ public:
   ~SphereTwoCenter();
 
   //! Main force evaluation routine: cycle through each grid
-  void get_acceleration_and_potential(vector<Particle>*);
+  void get_acceleration_and_potential(Component*);
 
   //! Mixture function for the two expansions
   virtual double mixture(Particle& p) = 0;

@@ -64,6 +64,8 @@ private:
   string logfile;
   bool linear;
 
+  vector<double> pos, psa, vel;
+
   ACG gen;
   Normal gauss;
 

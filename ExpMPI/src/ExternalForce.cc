@@ -7,10 +7,10 @@ ExternalForce::ExternalForce(string& line) : PotAccel(line)
 				// Do nothing
 }
 
-void ExternalForce::get_acceleration_and_potential(vector<Particle>* P)
+void ExternalForce::get_acceleration_and_potential(Component *C)
 {
-  particles = P;		// "Register" particles
-  nbodies = (*particles).size(); // And compute number of bodies
+  cC = C;
+  nbodies = cC->Number();	// And compute number of bodies
 
   
   /*======================================*/

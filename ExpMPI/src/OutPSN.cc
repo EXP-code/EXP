@@ -20,7 +20,7 @@ void OutPSN::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUT." + runtag + "\0";
+    filename = outdir + "OUT." + runtag;
   }
 
   if (Output::get_value(string("nint"), tmp))
@@ -41,7 +41,7 @@ void OutPSN::initialize()
 
 				// Output name
       ostringstream fname;
-      fname << filename << "." << setw(5) << setfill('0') << nbeg << '\0';
+      fname << filename << "." << setw(5) << setfill('0') << nbeg;
 
 				// See if we can open file
       ifstream in(fname.str().c_str());
@@ -68,7 +68,7 @@ void OutPSN::Run(int n, bool last)
   if (myid==0) {
 				// Output name
     ostringstream fname;
-    fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
+    fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
 				// Open file and write master header
     out = new ofstream(fname.str().c_str());

@@ -53,7 +53,7 @@ void OutAscii::initialize()
   if (Output::get_value(string("name"), tmp))  name = tmp;
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUTASC." + runtag + "\0";
+    filename = outdir + "OUTASC." + runtag;
   }
   if (Output::get_value(string("accel"), tmp)) {
     if (atoi(tmp.c_str())) accel = true;
@@ -66,7 +66,7 @@ void OutAscii::initialize()
 
 				// Output name
       ostringstream fname;
-      fname << filename << "." << setw(5) << setfill('0') << nbeg << '\0';
+      fname << filename << "." << setw(5) << setfill('0') << nbeg;
 
 				// See if we can open file
       ifstream in(fname.str().c_str());
@@ -92,7 +92,7 @@ void OutAscii::Run(int n, bool last)
   if (myid==0) {
 				// Output name
     ostringstream fname;
-    fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
+    fname << filename << "." << setw(5) << setfill('0') << nbeg++;
 
 				// Open file and write master header
     out = new ofstream(fname.str().c_str());

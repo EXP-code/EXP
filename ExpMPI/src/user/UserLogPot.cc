@@ -50,7 +50,7 @@ void UserLogPot::determine_acceleration_and_potential(void)
 
 void * UserLogPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -59,18 +59,18 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    xx = (*particles)[i].pos[0];
-    yy = (*particles)[i].pos[1];
-    zz = (*particles)[i].pos[2];
+    xx = cC->Pos(i, 0);
+    yy = cC->Pos(i, 1);
+    zz = cC->Pos(i, 2);
     rr = R*R + xx*xx + yy*yy/(b*b) + zz*zz/(c*c);
 
-    (*particles)[i].acc[0] += -v2*xx/rr;
+    cC->AddAcc(i, 0,-v2*xx/rr );
     
-    (*particles)[i].acc[1] += -v2*yy/(rr*b*b);
+    cC->AddAcc(i, 1, -v2*yy/(rr*b*b) );
 
-    (*particles)[i].acc[2] += -v2*zz/(rr*c*c);
+    cC->AddAcc(i, 2, -v2*zz/(rr*c*c) );
     
-    (*particles)[i].potext += 0.5*v2*log(rr);
+    cC->AddPotExt(i, 0.5*v2*log(rr) );
   }
 
   return (NULL);

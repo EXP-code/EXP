@@ -37,7 +37,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   
   plocate = vector<int>(numprocs, 0);
   vector<int> plocate1 = vector<int>(numprocs, 0);
-  plocate1[myid] = c0->particles.size(); 
+  plocate1[myid] = c0->Number();
 
   MPI_Allreduce(&plocate1[0], &plocate[0], numprocs, 
 		MPI_INT, MPI_SUM, MPI_COMM_WORLD);
@@ -92,37 +92,38 @@ void SatFix::initialize()
   if (get_value("verbose", val))    if (atoi(val.c_str())) verbose = true;
 }
 
-void SatFix::get_acceleration_and_potential(vector<Particle>* P)
+void SatFix::get_acceleration_and_potential(Component* C)
 {
-  particles = P;		// "Register" particles
-  nbodies = (*particles).size(); // And compute number of bodies
+  cC = C;			// "Register" component
+  nbodies = C->Number();	// And compute number of bodies
 
   MPI_Status status;
   
   MPL_start_timer();
 
   if (myid0 == myid1 && myid0 == myid) {
+
     for (int k=0; k<3; k++) {
-      (*P)[1].pos[k] = -(*P)[0].pos[k];
-      (*P)[1].vel[k] = -(*P)[0].vel[k];
-      (*P)[1].acc[k] = -(*P)[0].acc[k];
+      C->Part(1)->pos[k] = C->Part(0)->pos[k];
+      C->Part(1)->vel[k] = C->Part(0)->vel[k];
+      C->Part(1)->acc[k] = C->Part(0)->acc[k];
     }
   } else if (myid0 == myid) {	// Send particle to mirror
-    MPI_Send(&((*P)[0].pos[0]), 3, MPI_DOUBLE, myid1, 133, MPI_COMM_WORLD);
-    MPI_Send(&((*P)[0].vel[0]), 3, MPI_DOUBLE, myid1, 134, MPI_COMM_WORLD);
-    MPI_Send(&((*P)[0].acc[0]), 3, MPI_DOUBLE, myid1, 135, MPI_COMM_WORLD);
+    MPI_Send(C->Part(0)->pos, 3, MPI_DOUBLE, myid1, 133, MPI_COMM_WORLD);
+    MPI_Send(C->Part(0)->vel, 3, MPI_DOUBLE, myid1, 134, MPI_COMM_WORLD);
+    MPI_Send(C->Part(0)->acc, 3, MPI_DOUBLE, myid1, 135, MPI_COMM_WORLD);
   } else if (myid1 == myid) {	// Get particle from fiducial
-    MPI_Recv(&((*P)[0].pos[0]), 3, MPI_DOUBLE, myid0, 133, MPI_COMM_WORLD, 
+    MPI_Recv(C->Part(0)->pos, 3, MPI_DOUBLE, myid0, 133, MPI_COMM_WORLD, 
 	     &status);
-    MPI_Recv(&((*P)[0].vel[0]), 3, MPI_DOUBLE, myid0, 134, MPI_COMM_WORLD,
+    MPI_Recv(C->Part(0)->vel, 3, MPI_DOUBLE, myid0, 134, MPI_COMM_WORLD, 
 	     &status);
-    MPI_Recv(&((*P)[0].acc[0]), 3, MPI_DOUBLE, myid0, 135, MPI_COMM_WORLD,
+    MPI_Recv(C->Part(0)->acc, 3, MPI_DOUBLE, myid0, 135, MPI_COMM_WORLD, 
 	     &status);
 				// Change sign of phase space
     for (int k=0; k<3; k++) {
-      (*P)[0].pos[k] *= -1.0;
-      (*P)[0].vel[k] *= -1.0;
-      (*P)[0].acc[k] *= -1.0;
+      C->Part(0)->pos[k] *= -1.0;
+      C->Part(0)->vel[k] *= -1.0;
+      C->Part(0)->acc[k] *= -1.0;
     }
   }
 

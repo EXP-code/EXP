@@ -27,7 +27,6 @@ private:
   int ipm, indx;
 
   void determine_acceleration_and_potential(void);
-  void determine_acceleration_and_potential(vector<Particle>*);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
   void userinfo();

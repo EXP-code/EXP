@@ -28,7 +28,6 @@ private:
   Component *c0, *c1;
 
   void determine_acceleration_and_potential(void);
-  void determine_acceleration_and_potential(vector<Particle>*);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 

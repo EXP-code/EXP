@@ -118,6 +118,9 @@ struct loadb_datum
   continues to be affected by it).  The default value is
   <code>1.0e20</code>.
 
+  @param rcom is the radius beyond which a particle is not used
+  to compute the center of mass coordinate system
+
   @param ton is the midpoint of the adiabatic turn on for this
   component
 
@@ -133,22 +136,23 @@ class Component
   friend class OrbTrace;
   friend class ComponentContainer;
 
-  static const int ndmax = 5;
-  static const int nimax = 5;
-
 public:
 
-  //! For interprocess communication
+  const static int nimax = 5;
+  const static int ndmax = 12;
+
+  //! For interprocess communication, need static structure for MPI mapping
   struct Partstruct
-  {				///< Type:    Offsets:
+  {
+				///< Type:    Offsets:
     double mass;		///< 0        0
     double pos[3];		///< 1        1,2,3
     double vel[3];		///< 2        4,5,6
     double acc[3];		///< 3        7,8.9
     double pot;			///< 4        10
     double potext;		///< 5        11
-    int    iatr[nimax];		///< 6        12,13,14,15,16
-    double datr[ndmax];		///< 7        17,18,19,20,21
+    int    iatr[nimax];		///< 6        12,13,14,15,16 (e.g.)
+    double datr[ndmax];		///< 7        17,18,19,20,21 (e.g.)
   };
 
 private:
@@ -225,7 +229,19 @@ protected:
   //! COM log file
   string comfile;
 
+  //! COM flag
+  int com_restart;
+
+  //! COM restart function
+  void restart_com_system(void);
+
+  //! Points to associated particles
+  vector<Particle> particles;
+
 public:
+
+  //! Describe the phase space coordinates
+  enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
   //! Particle file
   string pfile;
@@ -275,6 +291,9 @@ public:
   double mtot0, *com0, *cov0, *acc0;
   //! Initial center of mass and velocity
   double *comI, *covI;
+  //! Maximum radius for contribution to center-of-mass computation
+  double rcom;
+
   //@}
 
   //! Total mass
@@ -288,9 +307,6 @@ public:
 
   //! Points to associated force instance
   PotAccel *force;
-
-  //! Points to associated particles
-  vector<Particle> particles;
 
   //! Attribute array dimensions
   int niattrib, ndattrib;
@@ -385,6 +401,107 @@ public:
   //! Is particle out of bounds?
   bool freeze(const Particle&);
 
+  //! Is particle beyond COM system
+  bool escape_com(const Particle&);
+
+  //! Access to particle
+  Particle *Part(int i) {
+    return &particles[i];
+  }
+
+  //! Particle vector size
+  unsigned Number() {
+    return particles.size();
+  }
+
+  //! Access to mass
+  double Mass(int i) {
+    return particles[i].mass;
+  }
+
+  //! Access to positions
+  double Pos(int i, int j, unsigned flags=Inertial) {
+    double val = particles[i].pos[j];
+    if (com_system) {
+      if (flags & Inertial) val += com0[j] - comI[j];
+      else if (flags & Local) val += -comI[j];
+    }
+    if (flags & Centered) val -= center[j];
+    return val;
+  }
+
+  //! Access to velocities
+  double Vel(int i, int j, unsigned flags=Inertial) {
+    double val = particles[i].vel[j];
+    if (com_system) {
+      if (flags & Inertial) val += cov0[j] - covI[j];
+      else if (flags & Local) val += -covI[j];
+    }
+    return val;
+  }
+  
+  //! Access to acceleration
+  double Acc(int i, int j, unsigned flags=Inertial) {
+    double val = particles[i].acc[j];
+    if (com_system && (flags & Inertial)) val += acc0[j];
+    return val;
+  }
+  
+  //! Add to position (by component)
+  void AddPos(int i, int j, double val) {
+    particles[i].pos[j] += val;
+  }
+  
+  //! Add to position (by array)
+  void AddPos(int i, double* val) {
+    for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
+  }
+  
+  //! Add to position (by vector)
+  void AddPos(int i, vector<double>& val) {
+    for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
+  }
+  
+  //! Add to velocity (by component)
+  void AddVel(int i, int j, double val) {
+    particles[i].vel[j] += val;
+  }
+  
+  //! Add to velocity (by array)
+  void AddVel(int i, double* val) {
+    for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
+  }
+  
+  //! Add to velocity (by vector)
+  void AddVel(int i, vector<double>& val) {
+    for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
+  }
+  
+  //! Add to accerlation (by component)
+  void AddAcc(int i, int j, double val) {
+    particles[i].acc[j] += val;
+  }
+  
+  //! Add to acceleration (by array)
+  void AddAcc(int i, double *val) {
+    for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
+  }
+  
+  //! Add to accerlation (by vector)
+  void AddAcc(int i, vector<double>& val) {
+    for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
+  }
+  
+  //! Add to potential
+  void AddPot(int i, double val) {
+    particles[i].pot += val;
+  }
+  
+  //! Add to external potential
+  void AddPotExt(int i, double val) {
+    particles[i].potext += val;
+  }
+  
 };
 
 #endif

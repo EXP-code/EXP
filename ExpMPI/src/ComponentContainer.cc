@@ -10,6 +10,7 @@ static char rcsid[] = "$Id$";
 
 #include <vector>
 
+#include <localmpi.h>
 #include <ComponentContainer.H>
 #include <StringTok.H>
 
@@ -20,6 +21,8 @@ ComponentContainer::ComponentContainer(void)
 
 void ComponentContainer::initialize(void)
 {
+  Component *c, *c1;
+
 
   read_rates();			// Read initial processor rates
 
@@ -68,8 +71,11 @@ void ComponentContainer::initialize(void)
       
     MPI_Bcast(&ncomp, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    for (int i=0; i<ncomp; i++) components.push_back(new Component(in));
-
+    for (int i=0; i<ncomp; i++) {
+      c = new Component(in);
+      components.push_back(c);
+    }
+      
   }
   else {
     
@@ -117,19 +123,20 @@ void ComponentContainer::initialize(void)
       pfile = trimLeft(trimRight(pfile));
       fparam = trimLeft(trimRight(fparam));
 
-      components.push_back(new Component(name, id, cparam, pfile, fparam));
+      c = new Component(name, id, cparam, pfile, fparam);
+      components.push_back(c);
       
       ncomp++;
     }
 
   }
 
+
 				// Set time
   tpos = tvel = tnow;
 
 				// Initialize components
   list<Component*>::iterator cc, cc1;
-  Component *c, *c1;
 
   for (cc=components.begin(); cc != components.end(); cc++) {
     c = *cc;
@@ -176,7 +183,7 @@ void ComponentContainer::initialize(void)
     cout << "\nUsing the following component interation list:\n";
     cout << setiosflags(ios::left)
 	 << setw(30) << setfill('-') << "-"
-	 << "------" 
+	 << "-----------" 
 	 << resetiosflags(ios::left)
 	 << setw(30) << setfill('-') << "-"
 	 << "\n" << setfill(' ');
@@ -189,14 +196,14 @@ void ComponentContainer::initialize(void)
 	Component *comp = *j;
 	cout << setiosflags(ios::left)
 	     << setw(30) << inter->c->name 
-	     << " <==> " 
+	     << "acts on" 
 	     << resetiosflags(ios::left)
 	     << setw(30) << comp->name
 	     << "\n";
       }
       cout << setiosflags(ios::left)
 	   << setw(30) << setfill('-') << "-"
-	   << "------" 
+	   << "-----------" 
 	   << resetiosflags(ios::left)
 	   << setw(30) << setfill('-') << "-"
 	   << "\n" << setfill(' ');
@@ -259,7 +266,7 @@ void ComponentContainer::compute_potential(void)
 
 				// Compute new accelerations and potential
 
-    c->force->get_acceleration_and_potential(&(c->particles));
+    c->force->get_acceleration_and_potential(c);
   
   }
       
@@ -274,7 +281,7 @@ void ComponentContainer::compute_potential(void)
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
       (*inter)->c->force->SetExternal();
-      (*inter)->c->force->get_acceleration_and_potential(&((*other)->particles));
+      (*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
 
     }
@@ -291,7 +298,7 @@ void ComponentContainer::compute_potential(void)
       c = *cc;
       for (ext=external.force_list.begin(); 
 	   ext != external.force_list.end(); ext++) {
-	(*ext)->get_acceleration_and_potential(&(c->particles));
+	(*ext)->get_acceleration_and_potential(c);
       }
     }
 
@@ -509,7 +516,7 @@ void ComponentContainer::load_balance(void)
 				// Print out info
   if (myid==0) {
     
-    string outrates = "current.processor.rates.test." + runtag;
+    string outrates = outdir + "current.processor.rates.test." + runtag;
 
     ofstream out(outrates.c_str(), ios::out | ios::app);
     if (out) {

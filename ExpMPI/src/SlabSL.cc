@@ -141,11 +141,11 @@ void * SlabSL::determine_coefficients_thread(void * arg)
   Complex startx, starty, facx, facy;
   Complex stepx, stepy;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-  double adb = component->Adiabatic();
+  double adb = cC->Adiabatic();
   double zz;
 
   for (int i=nbeg; i<nend; i++) {
@@ -155,26 +155,24 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 
 				// Truncate to box with sides in [0,1]
     
-    if ((*particles)[i].pos[0]<0.0)
-      (*particles)[i].pos[0] += 
-	(double)((int)fabs((*particles)[i].pos[0])) + 1.0;
+    if (cC->Pos(i, 0)<0.0)
+      cC->AddPos(i, 0, (double)((int)fabs(cC->Pos(i, 0))) + 1.0 );
     else
-      (*particles)[i].pos[0] -= (double)((int)(*particles)[i].pos[0]);
+      cC->AddPos(i, 0, -(double)((int)cC->Pos(i, 0)) );
     
-    if ((*particles)[i].pos[1]<0.0)
-      (*particles)[i].pos[1] += 
-	(double)((int)fabs((*particles)[i].pos[1])) + 1.0;
+    if (cC->Pos(i, 1)<0.0)
+      cC->AddPos(i, 1, (double)((int)fabs(cC->Pos(i, 1))) + 1.0 );
     else
-      (*particles)[i].pos[1] -= (double)((int)(*particles)[i].pos[1]);
+      cC->AddPos(i, 1, -(double)((int)cC->Pos(i, 1)) );
     
 
 				// Recursion multipliers
-    stepx = exp(-kfac*(*particles)[i].pos[0]);
-    stepy = exp(-kfac*(*particles)[i].pos[1]);
+    stepx = exp(-kfac*cC->Pos(i, 0));
+    stepy = exp(-kfac*cC->Pos(i, 1));
    
 				// Initial values
-    startx = exp(nmaxx*kfac*(*particles)[i].pos[0]);
-    starty = exp(nmaxy*kfac*(*particles)[i].pos[1]);
+    startx = exp(nmaxx*kfac*cC->Pos(i, 0));
+    starty = exp(nmaxy*kfac*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -193,7 +191,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
 	  cerr << "Out of bounds: iiy=" << jj << endl;
 	}
 	
-	zz = (*particles)[i].pos[2] - component->center[2];
+	zz = cC->Pos(i, 2, Component::Centered);
 
 	if (iix>=iiy)
 	  grid->get_pot(zpot[id], zz, iix, iiy);
@@ -208,7 +206,7 @@ void * SlabSL::determine_coefficients_thread(void * arg)
                               // |--- density in orthogonal series
                               // |    is 4.0*M_PI rho
                               // v
-	  expccof[id][indx] += -4.0*M_PI*(*particles)[i].mass*adb*
+	  expccof[id][indx] += -4.0*M_PI*cC->Mass(i)*adb*
 	    facx*facy*zpot[id][iz+1];
 	}
       }
@@ -217,9 +215,9 @@ void * SlabSL::determine_coefficients_thread(void * arg)
     
 }
 
-void SlabSL::get_acceleration_and_potential(vector<Particle>* P)
+void SlabSL::get_acceleration_and_potential(Component* C)
 {
-  particles = P;
+  cC = C;
 
   determine_coefficients();
 
@@ -235,7 +233,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
   Complex stepx, stepy;
   Complex accx, accy, accz;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -246,12 +244,12 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
     accx = accy = accz = potl = 0.0;
     
 				// Recursion multipliers
-    stepx = exp(kfac*(*particles)[i].pos[0]);
-    stepy = exp(kfac*(*particles)[i].pos[1]);
+    stepx = exp(kfac*cC->Pos(i, 0));
+    stepy = exp(kfac*cC->Pos(i, 1));
 
 				// Initial values (note sign change)
-    startx = exp(-nmaxx*kfac*(*particles)[i].pos[0]);
-    starty = exp(-nmaxy*kfac*(*particles)[i].pos[1]);
+    startx = exp(-nmaxx*kfac*cC->Pos(i, 0));
+    starty = exp(-nmaxy*kfac*cC->Pos(i, 1));
     
     for (facx=startx, ix=0; ix<imx; ix++, facx*=stepx) {
       
@@ -273,7 +271,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  cerr << "Out of bounds: jj=" << jj << endl;
 	}
 	
-	zz = (*particles)[i].pos[2] - component->center[2];
+	zz = cC->Pos(i, 2, Component::Centered);
 
 	if (iix>=iiy) {
 	  grid->get_pot  (zpot[id], zz, iix, iiy);
@@ -306,13 +304,13 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
       }
     }
     
-    (*particles)[i].acc[0] += Re(accx);
-    (*particles)[i].acc[1] += Re(accy);
-    (*particles)[i].acc[2] += Re(accz);
+    cC->AddAcc(i, 0, Re(accx));
+    cC->AddAcc(i, 1, Re(accy));
+    cC->AddAcc(i, 2, Re(accz));
     if (use_external)
-      (*particles)[i].potext += Re(potl);
+      cC->AddPotExt(i, Re(potl));
     else
-      (*particles)[i].pot += Re(potl);
+      cC->AddPot(i, Re(potl));
   }
 }
 

@@ -46,7 +46,7 @@ void externalShock::initialize()
 
 void * externalShock::determine_acceleration_and_potential_thread(void * arg)
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -57,13 +57,13 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++)
     {
-      x = (*particles)[i].pos[0];
-      z = (*particles)[i].pos[2];
+      x = cC->Pos(i, 0);
+      z = cC->Pos(i, 2);
 
-      if (component->freeze((*particles)[i])) continue;
+      if (component->freeze(*(cC->Part(i)))) continue;
 
-      (*particles)[i].acc[2] -= w2*x;
-      (*particles)[i].potext += 0.5*w2*z*z;
+      cC->AddAcc(i, 2, -w2*x );
+      cC->AddPotExt(i, 0.5*w2*z*z );
     }
 
 }

@@ -3,9 +3,6 @@
 static char rcsid[] = "$Id$";
 #endif
 
-#define DENSITY
-// #define SELECTOR
-
 #include <values.h>
 
 #include "expand.h"
@@ -73,10 +70,10 @@ SphereTwoCenter::~SphereTwoCenter(void)
   delete [] center;
 }
 
-void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
+void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
 {
-  particles = P;		// "Register" particles
-  nbodies = particles->size();	// And compute number of bodies
+  cC = curComp;			// "Register" component
+  nbodies = cC->Number();	// And compute number of bodies
 
   
   bool use_external1 = use_external;
@@ -84,7 +81,7 @@ void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
 				// Set center to Component center
   for (int k=0; k<3; k++) center[k] = component->center[k];
   if (use_external) exp_ej -> SetExternal();
-  exp_ej ->  get_acceleration_and_potential(P);
+  exp_ej ->  get_acceleration_and_potential(cC);
   exp_ej -> ClearExternal();
 
 				// Reset external force flag
@@ -96,7 +93,7 @@ void SphereTwoCenter::get_acceleration_and_potential(vector<Particle>* P)
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
   if (use_external) exp_com ->  SetExternal();
-  exp_com ->  get_acceleration_and_potential(P);
+  exp_com ->  get_acceleration_and_potential(cC);
   exp_com -> ClearExternal();
 
 

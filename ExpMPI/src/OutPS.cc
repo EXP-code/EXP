@@ -19,7 +19,7 @@ void OutPS::initialize()
 				// Get file name
   if (!Output::get_value(string("filename"), filename)) {
     filename.erase();
-    filename = "OUT" + runtag + "\0";
+    filename = outdir + "OUT" + runtag;
   }
 
   if (Output::get_value(string("nint"), tmp))

@@ -22,7 +22,7 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
   double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
   double xx, yy, zz;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -32,13 +32,13 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    if (component->freeze((*particles)[i])) continue;
+    if (cC->freeze(*(cC->Part(i)))) continue;
 
-    mass = (*particles)[i].mass * adb;
+    mass = cC->Mass(i) * adb;
 
-    xx = (*particles)[i].pos[0] - A->center[0];
-    yy = (*particles)[i].pos[1] - A->center[1];
-    zz = (*particles)[i].pos[2] - A->center[2];
+    xx = cC->Pos(i, 0, Component::Local | Component::Centered);
+    yy = cC->Pos(i, 1, Component::Local | Component::Centered);
+    zz = cC->Pos(i, 2, Component::Local | Component::Centered);
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -119,20 +119,22 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
   double pos[3];
   double xx, yy, zz, mfactor;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (ctr == ej) mfactor = 1.0 - A->mixture((*particles)[i]);
-    else mfactor = A->mixture((*particles)[i]);
+    if (cC->freeze(*(cC->Part(i)))) continue;
+
+    if (ctr == ej) mfactor = 1.0 - A->mixture(*(cC->Part(i)));
+    else mfactor = A->mixture(*(cC->Part(i)));
 
     fac1 = dfac * mfactor;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - A->center[k];
+      pos[k] = cC->Pos(i, k, Component::Local | Component::Centered);
 
     xx = pos[0];
     yy = pos[1];
@@ -225,17 +227,17 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
     pott /= scale;
     potp /= scale;
 
-    (*particles)[i].acc[0] += -(potr*xx/r - pott*xx*zz/(r*r*r) );
-    (*particles)[i].acc[1] += -(potr*yy/r - pott*yy*zz/(r*r*r) );
-    (*particles)[i].acc[2] += -(potr*zz/r + pott*fac/(r*r*r));
+    cC->AddAcc(i, 0, -(potr*xx/r - pott*xx*zz/(r*r*r) ) );
+    cC->AddAcc(i, 1, -(potr*yy/r - pott*yy*zz/(r*r*r) ) );
+    cC->AddAcc(i, 2, -(potr*zz/r + pott*fac/(r*r*r))  );
     if (fac > DSMALL2) {
-      (*particles)[i].acc[0] +=  potp*yy/fac;
-      (*particles)[i].acc[1] += -potp*xx/fac;
+      cC->AddAcc(i, 0,  potp*yy/fac);
+      cC->AddAcc(i, 1, -potp*xx/fac);
     }
     if (use_external)
-      (*particles)[i].potext += potl;
+      cC->AddPotExt(i, potl);
     else
-      (*particles)[i].pot += potl;
+      cC->AddPot(i, potl);
 
   }
 

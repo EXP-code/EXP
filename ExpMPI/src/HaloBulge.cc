@@ -69,7 +69,7 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
 {
   double r, potl, dpot, potlB, dpotB;
 
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -77,7 +77,7 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
   for (int i=nbeg; i<nend; i++) {
 
     r = 0.0;
-    for (int k=0; k<3; k++) r += (*particles)[i].pos[k]*(*particles)[i].pos[k];
+    for (int k=0; k<3; k++) r += cC->Pos(i, k)*cC->Pos(i, k);
     r = sqrt(r);
 
     model->get_pot_dpot(r/RHALO, potl, dpot);
@@ -89,8 +89,8 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
     dpotB *= MBULGE/RBULGE/RBULGE;
 
     for (int k=0; k<3; k++) 
-      (*particles)[i].acc[k] += -(dpot + dpotB)*(*particles)[i].pos[k]/r;
-    (*particles)[i].potext += potl + potlB;
+      cC->AddAcc(i, k, -(dpot + dpotB)*cC->Pos(i, k)/r );
+    cC->AddPotExt(i,  potl + potlB );
     
   }
 }

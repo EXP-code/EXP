@@ -138,9 +138,9 @@ CBrockDisk::~CBrockDisk(void)
   delete [] sinm;
 }
 
-void CBrockDisk::get_acceleration_and_potential(vector<Particle>* Particles)
+void CBrockDisk::get_acceleration_and_potential(Component* curComp)
 {
-  particles = Particles;
+  cC = curComp;
 
   /*========================================*/
   /* No coefficients for external particles */

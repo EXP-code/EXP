@@ -22,11 +22,13 @@
 
 #include "expand.h"
 
+// For sort algorithm below
 bool less_loadb(const loadb_datum& one, const loadb_datum& two)
 {
   return (one.top < two.top);
 }
 
+// Constructor
 Component::Component(string NAME, string ID, string CPARAM, string PFILE, 
 		     string FPARAM) : 
   name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
@@ -49,7 +51,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   binary = false;
   npart = false;
-  buf = new Partstruct [nbuf];
 
   adiabatic = false;
   ton  = -1.0e20;
@@ -57,6 +58,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   twid = 0.1;
 
   rtrunc = 1.0e20;
+  rcom = 1.0e20;
   consp = false;
   tidal = 0;
 
@@ -80,11 +82,13 @@ Component::Component(istream *in)
   EJx0 = 0.0;
   EJy0 = 0.0;
   EJz0 = 0.0;
+  EJu0 = 0.0;
+  EJv0 = 0.0;
+  EJw0 = 0.0;
+  EJlinear = false;
 
   binary = true;
   npart = false;
-  buf = new Partstruct [nbuf];
-
 
   adiabatic = false;
   ton  = -1.0e20;
@@ -92,8 +96,13 @@ Component::Component(istream *in)
   twid = 0.1;
 
   rtrunc = 1.0e20;
+  rcom = 1.0e20;
   consp = false;
   tidal = 0;
+
+  com_system = false;
+  com_log = false;
+  com_restart = 0;
 
   read_bodies_and_distribute_binary(in);
 }
@@ -157,6 +166,8 @@ void Component::initialize(void)
     if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
 
     if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str());}
+
+    if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
     
 				// Next parameter
     token = tokens(",");
@@ -240,26 +251,29 @@ void Component::initialize(void)
 			    comI[k] = covI[k] = 
 			    angmom[k] = EJcen[k] = 0.0;
 
+
   if (com_system) {
 
     initialize_com_system();
 
     if (myid==0) {
       cout << name << ": center of mass system is *ON*, rtrunc=" << rtrunc;
-      if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]\n";
-      cout << name << ": (x, y, z)="
-	   << comI[0] << ", "
-	   << comI[1] << ", "
-	   << comI[2] << ") "
-	   << " (u, v, w)="
-	   << covI[0] << ", "
-	   << covI[1] << ", "
-	   << covI[2] << ") "
-	   << "\n";
+      if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]";
+      cout << ", computed COM system:";
+      cout << endl << "\t\t(x, y, z)=("
+	   << setw(15) << comI[0] << ", "
+	   << setw(15) << comI[1] << ", "
+	   << setw(15) << comI[2] << ") "
+	   << endl << "\t\t"
+	   << "(u, v, w)=("
+	   << setw(15) << covI[0] << ", "
+	   << setw(15) << covI[1] << ", "
+	   << setw(15) << covI[2] << ") "
+	   << endl;
 
       if (com_log) {
 
-	comfile = name + ".comlog." + runtag;
+	comfile = outdir + name + ".comlog." + runtag;
 	bool newfile = true;
 
 	if (restart) {
@@ -291,7 +305,8 @@ void Component::initialize(void)
 	  
 	    const int cbufsiz = 16384;
 	    char *cbuffer = new char [cbufsiz];
-	    double ttim;
+	    double ttim, ttim0;
+	    bool first_data = true;
 
 	    while (in) {
 	      in.getline(cbuffer, cbufsiz);
@@ -310,18 +325,68 @@ void Component::initialize(void)
 	      
 		StringTok<string> toks(line);
 		ttim  = atof(toks(" ").c_str());
-		if (tnow < ttim) break;
+
+		if (first_data) {
+		  istringstream istr(line);
+		  istr >> ttim0;
+		  for (int k=0; k<3; k++) istr >> comI[k];
+		  for (int k=0; k<3; k++) istr >> covI[k];
+		  first_data = false;
+		}
+
+		if ( fabs(tnow - ttim) < 1.0e-8 ) {
+		  istringstream istr(line);
+
+		  istr >> ttim;
+
+		  for (int k=0; k<3; k++) istr >> com0[k];
+		  for (int k=0; k<3; k++) istr >> cov0[k];
+		  for (int k=0; k<3; k++) istr >> acc0[k];
+		  for (int k=0; k<3; k++) istr >> center[k];
+	    
+		  cout << "\t\tRead com log for " << name 
+		       << " at T=" << ttim << ", using:";
+
+		  cout << endl << "\t\t(x, y, z)=("
+		       << setw(15) << com0[0] << ", "
+		       << setw(15) << com0[1] << ", "
+		       << setw(15) << com0[2] << ") "
+		       << endl << "\t\t"
+		       << "(u, v, w)=("
+		       << setw(15) << cov0[0] << ", "
+		       << setw(15) << cov0[1] << ", "
+		       << setw(15) << cov0[2] << ") "
+		       << endl;
+
+		  cout << "\t\tInitial com at T=" << ttim0 << " is:";
+		  cout << endl << "\t\t(x, y, z)=("
+		       << setw(15) << comI[0] << ", "
+		       << setw(15) << comI[1] << ", "
+		       << setw(15) << comI[2] << ") "
+		       << endl << "\t\t"
+		       << "(u, v, w)=("
+		       << setw(15) << covI[0] << ", "
+		       << setw(15) << covI[1] << ", "
+		       << setw(15) << covI[2] << ") "
+		       << endl;
+
+		  newfile = false;
+		  com_restart = 1;
+
+		  break;
+		}
 		out << cbuffer << "\n";
 	      }
 	    }
 
-	    newfile = false;
+	    if (newfile) {
+	      cout << "Component: time=" << tnow << " not found in <"
+		   << comfile << ">, starting new log file\n";
+	    }
 
 	  } else {
-
-	    ostringstream message;
-	    message << "Component: error opening original log file <" 
-		    << comfile << "> for reading, starting new log file\n";
+	    cout << "Component: error opening original log file <" 
+		 << comfile << "> for reading, starting new log file\n";
 	  }
 	}
 
@@ -353,7 +418,10 @@ void Component::initialize(void)
 	  out << "#\n";
 	}
       }
+      cout << "\n";		// Close off info line
     }
+				// Send com to all processes
+    restart_com_system();
   }
 
 
@@ -375,7 +443,7 @@ void Component::initialize(void)
     }
       
     
-    string EJlogfile = name + ".orient." + runtag;
+    string EJlogfile = outdir + name + ".orient." + runtag;
 
     unsigned EJctl = 0;
     if (EJdiag)		EJctl |= Orient::DIAG;
@@ -517,33 +585,35 @@ void Component::read_bodies_and_distribute_ascii(void)
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
+
+				// Sanity check
+    if (niattrib > nimax) {
+      cerr << "Component: niattrib=" << niattrib << " >  nimax="
+	   << nimax << ".  Change constant in Component.H and recompile\n";
+      MPI_Abort(MPI_COMM_WORLD, 11);
+      exit(-1);
+    }
+
+    if (ndattrib > ndmax) {
+      cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
+	   << ndmax << ".  Change constant in Component.H and recompile\n";
+      MPI_Abort(MPI_COMM_WORLD, 11);
+      exit(-1);
+    }
+
   }
 #ifdef SEQCHECK
   seq_ok = true;		// Will always be ok to start . . . 
   niattrib++;
 #endif
-				// Check buffer dimensions
-  if (myid==0) {
-
-    if (niattrib>nimax) {
-      cerr << "Too many integer attributes: redimension nimax and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 12);
-      exit(-1);
-    }
-
-    if (ndattrib>ndmax) {
-      cerr << "Too many real # attributes: redimension nimax and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 13);
-      exit(-1);
-    }
-
-  }
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&niattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
+				// Assign particle structure buffer
+  buf = new Partstruct [nbuf];
 
 				// Make MPI datatype
   
@@ -570,7 +640,7 @@ void Component::read_bodies_and_distribute_ascii(void)
   MPI_Type_commit(&Particletype);
 
 
-  double rmax1, r2;
+  double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
@@ -727,13 +797,13 @@ void Component::read_bodies_and_distribute_ascii(void)
 #ifdef SEQCHECK			// Sanity check
   if (seq_ok) {
     if (particles.size()) {
-      if (seq_beg != particles[0].iattrib[0] || 
-	  seq_end != particles[nbodies-1].iattrib[0]) {
+      if (seq_beg != particles[0].iattrib[niattrib-1] || 
+	  seq_end != particles[nbodies-1].iattrib[niattrib-1]) {
 	cout << "Process " << myid << ": sequence error on init,"
 	     << " seq_beg=" << seq_beg
 	     << " seq_end=" << seq_end
-	     << " seq[1]=" << particles[0].iattrib[0]
-	     << " seq[N]=" << particles[nbodies-1].iattrib[0]
+	     << " seq[1]=" << particles[0].iattrib[niattrib-1]
+	     << " seq[N]=" << particles[nbodies-1].iattrib[niattrib-1]
 	     << " nbodies=" << nbodies
 	     << endl << flush;
 	MPI_Abort(MPI_COMM_WORLD, -1);
@@ -820,22 +890,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       MPI_Abort(MPI_COMM_WORLD, 12);
       exit(-1);
     }
-				// Check buffer dimensions
-
-    if (header.niatr>nimax) {
-      cerr << "Too many integer attributes: " << header.niatr 
-	   << ", redimension nimax and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 12);
-      exit(-1);
-    }
-
-    if (header.ndatr>ndmax) {
-      cerr << "Too many real # attributes: " << header.ndatr
-	   << ", redimension ndmax and recompile\n";
-      MPI_Abort(MPI_COMM_WORLD, 13);
-      exit(-1);
-    }
-
 
     nbodies_tot = header.nbod;
     niattrib = header.niatr;
@@ -856,7 +910,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       cerr << "SEQCHECK is disabled\n";
     }
   }
-
+  
   {
     int tmp = 0;
     if (seq_ok) tmp = 1;
@@ -873,6 +927,27 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (myid) info = new char [ninfochar+1];
   MPI_Bcast(info, ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
+
+  if (myid==0) {
+				// Assign particle structure buffer
+				// Sanity check
+    if (niattrib > nimax) {
+      cerr << "Component: niattrib=" << niattrib << " >  nimax="
+	   << nimax << ".  Change constant in Component.H and recompile\n";
+      MPI_Abort(MPI_COMM_WORLD, 11);
+      exit(-1);
+    }
+
+    if (ndattrib > ndmax) {
+      cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
+	   << ndmax << ".  Change constant in Component.H and recompile\n";
+      MPI_Abort(MPI_COMM_WORLD, 11);
+      exit(-1);
+    }
+
+  }
+
+  buf = new Partstruct [nbuf];
 
 				// Parse info field to get 
 				// id and parameter strings
@@ -1034,13 +1109,13 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 #ifdef SEQCHECK			// Sanity check
   if (seq_ok) {
-    if (seq_beg != particles[0].iattrib[0] || 
-	seq_end != particles[nbodies-1].iattrib[0]) {
+    if (seq_beg != particles[0].iattrib[niattrib-1] || 
+	seq_end != particles[nbodies-1].iattrib[niattrib-1]) {
       cout << "Process " << myid << ": sequence error on init,"
 	   << " seq_beg=" << seq_beg
 	   << " seq_end=" << seq_end
-	   << " seq[1]=" << particles[0].iattrib[0]
-	   << " seq[N]=" << particles[nbodies-1].iattrib[0]
+	   << " seq[1]=" << particles[0].iattrib[niattrib-1]
+	   << " seq[N]=" << particles[nbodies-1].iattrib[niattrib-1]
 	   << endl << flush;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
@@ -1166,7 +1241,7 @@ void Component::write_binary(ostream* out)
     header.ndatr = ndattrib;
   
     ostringstream outs;
-    outs << name << " : " << id << " : " << cparam << " : " << fparam << '\0';
+    outs << name << " : " << id << " : " << cparam << " : " << fparam;
     strncpy(header.info, outs.str().c_str(), header.ninfochar);
 
     if (!header.write(out)) {
@@ -1272,9 +1347,6 @@ void Component::initialize_com_system()
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    // No freezing here!!!
-    // if (freeze(*p)) continue;
-    
     mtot1 += p->mass;
 
     for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
@@ -1294,11 +1366,36 @@ void Component::initialize_com_system()
   for (int k=0; k<dim; k++) {
     comI[k] = com0[k];
     covI[k] = cov0[k];
-    center[k] = comI[k];
+    center[k] = 0.0;
   }
 
   delete [] com1;
   delete [] cov1;
+}
+
+void Component::restart_com_system()
+{
+  MPI_Bcast(&com_restart, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (com_restart) {
+    MPI_Bcast(&comI[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&covI[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&com0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&cov0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&acc0[0],   3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&center[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+				// Particle loop
+    vector<Particle>::iterator p, pend = particles.end();
+    for (p=particles.begin(); p != pend; p++) {
+
+      for (int i=0; i<3; i++) {
+	p->pos[i] -= com0[i] - comI[i];
+	p->vel[i] -= cov0[i] - covI[i];
+      }
+    }
+
+  }
+
 }
 
 void Component::fix_positions(void)
@@ -1315,20 +1412,14 @@ void Component::fix_positions(void)
   for (int k=0; k<dim; k++)
     com[k] = cov[k] = com1[k] = cov1[k] = 0.0;
 
-
-				// Center of mass system
-  if (com_system) {
-    for (int i=0; i<3; i++) center[i] = comI[i];
-  } else {
-    for (int i=0; i<3; i++) center[i] = 0.0;
-  }
+  for (int i=0; i<3; i++) center[i] = 0.0;
 
 
 				// Particle loop
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    if (freeze(*p)) {
+    if (escape_com(*p)) {
       if (consp) {		// Set flag indicating escaped particle
 	if (p->iattrib[tidal]==0) {
 	  p->iattrib[tidal] = 1;
@@ -1388,7 +1479,7 @@ void Component::update_accel(void)
 				// Particle loop
   for (p=particles.begin(); p != particles.end(); p++) {
     
-    if (freeze(*p)) continue;
+    if (escape_com(*p)) continue;
     
     for (int k=0; k<dim; k++) acc1[k] += p->mass*p->acc[k];
   }
@@ -1492,7 +1583,7 @@ void Component::setup_distribution(void)
 
     }
 
-    string outrates = "current.processor.rates." + runtag;
+    string outrates = outdir + "current.processor.rates." + runtag;
 
     out = new ofstream(outrates.c_str(), ios::out | ios::app);
     if (out) {
@@ -1560,8 +1651,8 @@ void Component::load_balance(void)
 
     }
 
-    string outrates = "current.processor.rates." + runtag;
-    string rateslog = "current.processor.rates.log." + runtag;
+    string outrates = outdir + "current.processor.rates." + runtag;
+    string rateslog = outdir + "current.processor.rates.log." + runtag;
 
     out = new ofstream(outrates.c_str(), ios::out | ios::app);
     log = new ofstream(rateslog.c_str(), ios::out | ios::app);
@@ -1798,8 +1889,8 @@ void Component::load_balance(void)
       if (myid==i) {
 	ostringstream msg;
 	msg << "Process " << setw(4) << myid << ":"
-	    << setw(9) << particles[0].iattrib[0]
-	    << setw(9) << particles[nbodies-1].iattrib[0];
+	    << setw(9) << particles[0].iattrib[niattrib-1]
+	    << setw(9) << particles[nbodies-1].iattrib[niattrib-1];
 	strcpy(msgbuf, msg.str().c_str());
 	if (myid!=0) 
 	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
@@ -1985,8 +2076,20 @@ void Component::insert_particles(int from, int to, int begin, int number,
 bool Component::freeze(const Particle& p)
 {
   double r2 = 0.0;
-  for (int i=0; i<3; i++) r2 += (p.pos[i] - center[i])*(p.pos[i] - center[i]);
+  for (int i=0; i<3; i++) r2 += 
+			    (p.pos[i] - comI[i] - center[i])*
+			    (p.pos[i] - comI[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
+  else return false;
+}
+
+bool Component::escape_com(const Particle& p)
+{
+  double r2 = 0.0;
+  for (int i=0; i<3; i++) r2 += 
+			    (p.pos[i] - comI[i] - center[i])*
+			    (p.pos[i] - comI[i] - center[i]);
+  if (r2 > rcom*rcom) return true;
   else return false;
 }
 

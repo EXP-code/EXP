@@ -42,6 +42,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   NUMX = 400;			// Points in Ang mom grid
   NUME = 200;			// Points in Energy
   RECS = 100;			// Points in Angle grid
+  ITMAX = 50;			// Number of iterations for mapping solution
 
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
@@ -101,6 +102,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
+  ResPot::ITMAX = ITMAX;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
 
   BarForcing::L0 = L0;
@@ -147,6 +149,7 @@ void UserResPot::userinfo()
        << ", M=" << M0
        << ", l_1=" << L1
        << ", l_2=" << L2
+       << ", ITMAX=" << ITMAX
        << "\n";
   print_divider();
 }
@@ -187,10 +190,12 @@ void UserResPot::initialize()
   if (get_value("NUMX", val))     NUMX = atoi(val.c_str());
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("RECS", val))     RECS = atoi(val.c_str());
+  if (get_value("ITMAX", val))    ITMAX = atoi(val.c_str());
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
+  if (get_value("tag", val))      tag = atoi(val.c_str());
 }
 
 void UserResPot::determine_acceleration_and_potential(void)
@@ -322,10 +327,10 @@ void UserResPot::determine_acceleration_and_potential(void)
 }
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R2, R;
+  double amp, R2, R, res;
   double posI[3], posO[3], velI[3], velO[3];
   
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -340,13 +345,13 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (tag>=0 && (*particles)[i].iattrib[tag]) continue;
+    if (tag>=0 && cC->Part(i)->iattrib[tag]) continue;
 
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-      posI[k] = (*particles)[i].pos[k];
+      posI[k] = cC->Pos(i, k);
       if (c0) posI[k] -= c0->com[k];
-      velI[k] = (*particles)[i].vel[k];
+      velI[k] = cC->Vel(i, k);
       R2 += posI[k]*posI[k];
     }
     R = sqrt(R2);
@@ -355,62 +360,62 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
       bool test_nan = false;
       for (int k=0; k<3; k++) {
-	// (*particles)[i].pos[k] += velI[k] * dtime;
-	if ( isnan((*particles)[i].pos[k]) ||
-	     isnan((*particles)[i].vel[k]) ||
-	     isnan((*particles)[i].acc[k]) ) test_nan = true; 
+	// cC->Pos(i, k) += velI[k] * dtime;
+	if ( isnan(cC->Pos(i, k)) ||
+	     isnan(cC->Vel(i, k)) ||
+	     isnan(cC->Acc(i, k)) ) test_nan = true; 
       }
 
       if (test_nan) {
 	cout << "Process " << myid << ": found nan out of bounds (inner), "
 	     << "[ibeg,i,iend]=[" << nbeg << "," << i << "," << nend << "]\n";
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Pos(i, k);
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Vel(i, k);
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Acc(i, k);
 	cout << endl << flush;
       }
     }
     else if (R>rmax) {
       bool test_nan = false;
       for (int k=0; k<3; k++) {
-	// (*particles)[i].pos[k] += velI[k] * dtime;
-	// (*particles)[i].vel[k] += -dfac*posI[k]/R * dtime;
-	if ( isnan((*particles)[i].pos[k]) ||
-	     isnan((*particles)[i].vel[k]) ||
-	     isnan((*particles)[i].acc[k]) ) test_nan = true; 
+	// cC->Pos(i, k) += velI[k] * dtime;
+	// cC->Vel(i, k) += -dfac*posI[k]/R * dtime;
+	if ( isnan(cC->Pos(i, k)) ||
+	     isnan(cC->Vel(i, k)) ||
+	     isnan(cC->Acc(i, k)) ) test_nan = true; 
       }
 
       if (test_nan) {
 	cout << "Process " << myid << ": found nan out of bounds (outer), "
 	     << "[ibeg,i,iend]=[" << nbeg << "," << i << "," << nend << "]\n";
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
-	for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Pos(i, k);
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Vel(i, k);
+	for (int k=0; k<3; k++) cout << setw(15) << cC->Acc(i, k);
 	cout << endl << flush;
       }
     }
     else if (respot->
-	Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO)) 
+	     Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO, &res))
       {
 
 	for (int k=0; k<3; k++) {
-	  (*particles)[i].pos[k] = posO[k];
-	  (*particles)[i].vel[k] = velO[k];
-	  // (*particles)[i].acc[k] = (velO[k] - velI[k])/dtime;
-	  (*particles)[i].acc[k] = 0.0;
+	  cC->Part(i)->pos[k] = posO[k];
+	  cC->Part(i)->vel[k] = velO[k];
+	  // cC->Part(i)->acc[k] = (velO[k] - velI[k])/dtime;
+	  cC->Part(i)->acc[k] = 0.0;
 	  if (!found_nan) {
-	    if ( isnan((*particles)[i].pos[k]) ||
-		 isnan((*particles)[i].vel[k]) ||
-		 isnan((*particles)[i].acc[k]) ) found_nan = true; 
+	    if ( isnan(cC->Pos(i, k)) ||
+		 isnan(cC->Vel(i, k)) ||
+		 isnan(cC->Acc(i, k)) ) found_nan = true; 
 	  }
 	}
-	(*particles)[i].potext = halo_model->get_pot(R);
+	cC->Part(i)->potext = halo_model->get_pot(R);
 
 	if (found_nan) {
 	  cout << "Process " << myid << ": found nan\n";
-	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
-	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
-	  for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+	  for (int k=0; k<3; k++) cout << setw(15) << cC->Pos(i, k);
+	  for (int k=0; k<3; k++) cout << setw(15) << cC->Vel(i, k);
+	  for (int k=0; k<3; k++) cout << setw(15) << cC->Acc(i, k);
 	  cout << endl << flush;
 	  found_nan = false;
 	}
@@ -418,7 +423,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       }
     else  {
       bcount[id]++;
-      if (tag>=0) (*particles)[i].iattrib[tag] = 1;
+      if (tag>=0) cC->Part(i)->iattrib[tag] = 1;
     }
 
   }

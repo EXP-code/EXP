@@ -26,7 +26,7 @@ QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
 #RANDOM_SRC = random.cc
 RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc \
-	wordSplit.cc ParamParse.cc ParamParseMPI.cc
+	wordSplit.cc ParamParse.cc ParamParseMPI.cc localmpi.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc # ghql.cc

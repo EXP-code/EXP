@@ -28,8 +28,9 @@ int NICE = 10;
 				// Files
 string homedir = "./";
 string infile = "restart.in";
-string parmfile = "PARAM.FILE";
+string parmfile = "PARAM";
 string ratefile = "processor.rates";
+string outdir = "";
 string runtag = "newrun";
 string ldlibdir = ".";
 
@@ -42,6 +43,7 @@ double *gcom = new double [3];
 double *gcov = new double [3];
 bool global_cov = false;
 bool eqmotion = true;
+unsigned char stop_signal = 0;
 
 				// MPI variables
 int is_init=1;

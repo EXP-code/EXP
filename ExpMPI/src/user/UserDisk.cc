@@ -216,11 +216,11 @@ void UserDisk::printTable()
 {
   string filename;
 
-  filename = "test_pot." + runtag;
+  filename = outdir + "test_pot." + runtag;
   ofstream outP(filename.c_str());
-  filename = "test_fr." + runtag;
+  filename = outdir + "test_fr." + runtag;
   ofstream outR(filename.c_str());
-  filename = "test_fz." + runtag;
+  filename = outdir + "test_fz." + runtag;
   ofstream outZ(filename.c_str());
 
   double R, Z;
@@ -259,11 +259,11 @@ void UserDisk::printTable()
   outR.close();
   outZ.close();
 
-  filename = "test_pot1." + runtag;
+  filename = outdir + "test_pot1." + runtag;
   outP.open(filename.c_str());
-  filename = "test_fr1." + runtag;
+  filename = outdir + "test_fr1." + runtag;
   outR.open(filename.c_str());
-  filename = "test_fz1." + runtag;
+  filename = outdir + "test_fz1." + runtag;
   outZ.open(filename.c_str());
 
   const int num = 100;
@@ -313,7 +313,7 @@ void UserDisk::determine_acceleration_and_potential(void)
 
 void * UserDisk::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = particles->size();
+  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -332,10 +332,10 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
 				// defined, otherwise use origin
     if (c0)
       for (int k=0; k<3; k++) 
-	pos[k] = (*particles)[i].pos[k] - c0->center[k];
+	pos[k] = cC->Pos(i, k) - c0->center[k];
     else
       for (int k=0; k<3; k++) 
-	pos[k] = (*particles)[i].pos[k];
+	pos[k] = cC->Pos(i, k);
     
     xx = pos[0];
     yy = pos[1];
@@ -347,12 +347,12 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
     getTable(rr, zz, pot, fr, fz);
 
 				// Add acceleration by disk
-    (*particles)[i].acc[0] += amp * fr*xx/(rr+1.0e-10);
-    (*particles)[i].acc[1] += amp * fr*yy/(rr+1.0e-10);
-    (*particles)[i].acc[2] += amp * fz;
+    cC->AddAcc(i, 0, amp * fr*xx/(rr+1.0e-10) );
+    cC->AddAcc(i, 1, amp * fr*yy/(rr+1.0e-10) );
+    cC->AddAcc(i, 2, amp * fz );
 
 				// Add external potential
-    (*particles)[i].potext += pot;
+    cC->AddPotExt(i, pot);
 
   }
 

@@ -41,21 +41,21 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
   for (ccp=comp.components.begin(); ccp != comp.components.end(); ccp++) {
     cp = *ccp;
 
-    nbodies = cp->particles.size();
+    nbodies = cp->Number();
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
     for (i=nbeg; i<nend; i++) {
       {
-	if (cp->freeze((cp->particles)[i])) continue;
-	x = (cp->particles)[i].pos[0];
-	y = (cp->particles)[i].pos[1];
-	z = (cp->particles)[i].pos[2];
-	(cp->particles)[i].acc[0] += 0.5*w2*(pp*(c*x + s*y) - pm*x);
-	(cp->particles)[i].acc[1] += 0.5*w2*(pp*(s*x - c*y) - pm*y);
-	(cp->particles)[i].acc[2] -= w2*z;
-	(cp->particles)[i].potext += 0.5*w2*z*z - 
-	  0.25*w2*(pp*(c+s)*x*x + pp*(s-c)*y*y - pm*(x*x+y*y) );
+	if (cp->freeze(*(cp->Part(i)))) continue;
+	x = cp->Pos(i, 0);
+	y = cp->Pos(i, 1);
+	z = cp->Pos(i, 2);
+	cp->AddAcc(i, 0, 0.5*w2*(pp*(c*x + s*y) - pm*x) );
+	cp->AddAcc(i, 1, 0.5*w2*(pp*(s*x - c*y) - pm*y) );
+	cp->AddAcc(i, 2, w2*z );
+	cp->AddPotExt(i, 0.5*w2*z*z - 
+		      0.25*w2*(pp*(c+s)*x*x + pp*(s-c)*y*y - pm*(x*x+y*y) ) );
       }
     }
   }

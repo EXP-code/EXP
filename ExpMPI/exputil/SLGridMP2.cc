@@ -2829,7 +2829,7 @@ SLGridSlab::SLGridSlab(int NUMK, int NMAX, int NUMZ, double ZMAX)
   }
 
 #ifdef DEBUG
-  cerr.form("Process %d: exiting constructor\n", myid);
+  cerr << "Process " << myid << ": exiting constructor\n";
 #endif
 }
 

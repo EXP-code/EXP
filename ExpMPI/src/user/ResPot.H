@@ -44,7 +44,7 @@ private:
 
   o2vector orbmat;
 
-  double Emax, Emin, Kmin, Kmax;
+  double Emax, Emin, Kmin, Kmax, Kupd;
   bool grid_computed, second_order;
   void compute_grid();
 
@@ -71,8 +71,20 @@ private:
 
   double Rmin, Rmax, minJ, maxJ;
 
-  void getInterp(double I1, double I2, int& indxX, int indxE[2], double cX[2], double cE[2][2], bool& noboundary);
+  void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
 
+  bool Update2(double dt, double Phase, double Omega, 
+	       double amp, CVector& bcoef,
+	       double* posI, double* velI,
+	       double* posO, double* velO,
+	       double* res);
+  
+  bool Update3(double dt, double Phase, double Omega, 
+	       double amp, CVector& bcoef,
+	       double* posI, double* velI,
+	       double* posO, double* velO,
+	       double* res);
+  
   int ngrid;
 
 public:
@@ -117,8 +129,12 @@ public:
   bool Update(double dt, double Phase, double Omega, 
 	      double amp, CVector& bcoef,
 	      double* posI, double* velI,
-	      double* posO, double* velO);
+	      double* posO, double* velO,
+	      double* res);
   
+  //! K value from last update
+  double K() { return Kupd; }
+
   //! Force
   bool Force(double dt, double Phase, double Omega, 
 	     double amp, CVector& bcoef,

@@ -39,7 +39,7 @@ private:
 
   // The usual required members
 
-  void get_acceleration_and_potential(vector<Particle>* P);
+  void get_acceleration_and_potential(Component* C);
   void * determine_acceleration_and_potential_thread(void * arg);
 
 public:
