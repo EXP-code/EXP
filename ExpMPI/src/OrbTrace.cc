@@ -9,8 +9,9 @@
 
 OrbTrace::OrbTrace(string& line) : Output(line)
 {
+  nint = 1;
   norb = 5;
-  nskip = 0;
+  nskip = 10;
   filename = "ORBTRACE";
 
   initialize();
@@ -31,9 +32,9 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   Component *c;
   
   int npos = 1;
-  int nbodies, nmax, ncur;
+  int ncur;
 
-  out << "# " << setw(4) << npos << setw(20) << "Time";
+  out << "# " << setw(4) << npos++ << setw(20) << "Time";
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 
@@ -41,18 +42,8 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
     out << "# [" << c->id << "]\n";
 
-    nmax = norb;
-    nbodies = c->particles.size();
-    if (nskip < 1) {
-      nskip = nbodies/norb;
-      if (nskip < 1) {
-	nmax = nbodies;
-	nskip = 1;
-      }
-    }
-
-    ncur = 0;
-    for (int i=0; i<nmax; i++) {
+    ncur = nskip;
+    for (int i=0; i<norb; i++) {
       out << "# " << setw(4) << npos++ << setw(20) << " x[" << ncur << "]\n";
       out << "# " << setw(4) << npos++ << setw(20) << " y[" << ncur << "]\n";
       out << "# " << setw(4) << npos++ << setw(20) << " z[" << ncur << "]\n";
@@ -69,11 +60,15 @@ void OrbTrace::initialize()
 				// Get file name
   get_value(string("filename"), filename);
   
-  if (!get_value(string("norb"), tmp)) 
+  if (get_value(string("norb"), tmp)) 
     norb = atoi(tmp.c_str());
 
-  if (!get_value(string("nskip"), tmp)) 
+  if (get_value(string("nskip"), tmp))
     nskip = atoi(tmp.c_str());
+
+  if (get_value(string("freq"), tmp)) 
+    nint = atoi(tmp.c_str());
+
 }
 
 void OrbTrace::Run(int n, bool last)
@@ -92,25 +87,24 @@ void OrbTrace::Run(int n, bool last)
   list<Component*>::iterator cc;
   Component *c;
   
-  int nbodies, nskip, nmax;
+  int nbodies, ncur;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 
     c = *cc;
 
-    nmax = norb;
     nbodies = c->particles.size();
-    nskip = nbodies/norb;
-    if (nskip < 1) {
-      nmax = nbodies;
-      nskip = 1;
+
+    ncur = nskip;
+    for (int i=0; i<norb; i++) {
+      if (ncur < nbodies)
+	out 
+	  << setw(15) << (c->particles)[ncur].pos[0]
+	  << setw(15) << (c->particles)[ncur].pos[1]
+	  << setw(15) << (c->particles)[ncur].pos[2];
+      ncur += nskip;
     }
 
-    for (int ncur=nskip-1; ncur<nmax; ncur += nskip)
-      out 
-	<< setw(15) << (c->particles)[ncur].pos[0]
-	<< setw(15) << (c->particles)[ncur].pos[1]
-	<< setw(15) << (c->particles)[ncur].pos[2];
   }
   out << endl;
   
