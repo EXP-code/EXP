@@ -142,6 +142,7 @@ void MPL_parse_args(int argc, char** argv)
 	break;
       case 'd':
 	print_default();
+	exit(0);
 	break;
       case 'v':
 	exit(0);
