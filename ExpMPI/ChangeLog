@@ -1,3 +1,945 @@
+2005-03-29  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* include/CVector.h, include/CauchyPV.h, include/HunterX.h, include/OrthoPoly.h, include/ParamParse.H, include/ParamParseMPI.H, include/QPDistF.h, include/SLGridMP2.h, include/Spline.h, include/StringTok.H, include/Swap.h, include/Vector.h, include/ZBrent.H, include/biorth.h, include/biorth1d.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/clinalg.h, include/complex.h, include/cpoly.h, include/cresponse.cc, include/cubic.h, include/cvector.h, include/dead.letter, include/diskfft.cc, include/exponential.h, include/f2c.h, include/fft.h, include/gaussQ.h, include/gknots.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/interp.h, include/isothermal.h, include/kalnajs.h, include/kevin_complex.h, include/king.h, include/linalg.h, include/localmpi.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mconf.h, include/mestel.h, include/model2d.h, include/model3d.h, include/models.h, include/needle.h, include/numerical.h, include/numerical.h.orig, include/numerical.old, include/orbit.h, include/phase.h, include/plummer.h, include/poly.h, include/port.h, include/rotcurv.h, include/simann2.h, include/sltableMP2.h, include/sphereSL.h, include/staeckel.h, include/testembed.cc, include/toomre.h, include/vector.h, include/vector3.h, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/MPL.cc, src/Makefile.am, src/NoForce.H, src/NoForce.cc, src/OrbTrace.H, src/OrbTrace.cc, src/Orient.H, src/Orient.cc, src/OutAscii.H, src/OutAscii.cc, src/OutCHKPT.H, src/OutCHKPT.cc, src/OutCoef.H, src/OutCoef.cc, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutPSN.H, src/OutPSN.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP2.cc, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphereEJCOM.H, src/SphereEJCOM.cc, src/SphereTwoCenter.H, src/SphereTwoCenter.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.H, src/SphericalBasisMixtureSL.cc, src/begin.cc, src/biorth1d.cc, src/checkultra.cc, src/coef.H, src/ddplgndr.cc, src/end.cc, src/exp_thread.h, src/expand.cc, src/expand.h, src/externalShock.H, src/externalShock.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/global.H, src/global.cc, src/header.H, src/header.cc, src/incpos.cc, src/incvel.cc, src/initvel.cc, src/parse.cc, src/sbessj.cc, src/sbessz.cc, src/sledge.f, src/sltableMP2.h, src/step.cc, src/syncvel.cc, src/tidalField.H, src/tidalField.cc, src/tipsydefs.h, src/tmp.tmp, src/tmp.tmp~, src/ultra.cc, src/ultrasphere.cc, src/user/BarForcing.H, src/user/BarForcing.cc, src/user/EllipForce.H, src/user/EllipForce.cc, src/user/Makefile.am, src/user/Perturbation.H, src/user/Perturbation.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/SatFix.H, src/user/SatFix.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.H, src/user/UserBar.cc, src/user/UserDiffRot.H, src/user/UserDiffRot.cc, src/user/UserDiffuse.H, src/user/UserDiffuse.cc, src/user/UserDisk.H, src/user/UserDisk.cc, src/user/UserEBar.H, src/user/UserEBar.cc, src/user/UserEBarP.H, src/user/UserEBarP.cc, src/user/UserHalo.H, src/user/UserHalo.cc, src/user/UserLogPot.H, src/user/UserLogPot.cc, src/user/UserRPtest.H, src/user/UserRPtest.cc, src/user/UserResPot.H, src/user/UserResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/UserTorque.cc, src/user/getkey.c, src/user/getkey.cc, src/user/rotmatrix.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/testcoord.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/version.h, src/zbrent.cc, utils/Makefile.am, utils/PhaseSpace/Makefile.am, utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/ascii2psp.cc, utils/PhaseSpace/header.H, utils/PhaseSpace/header.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspinfo.cc, utils/PhaseSpace/pspsplit.cc, utils/SL/Makefile.am, utils/SL/README, utils/SL/SLGridMP2.cc, utils/SL/SLSphere.H, utils/SL/SLSphere.cc, utils/SL/biorth1d.cc, utils/SL/orthochk.cc, utils/SL/scalarprod.cc, utils/SL/slcheck.cc, utils/SL/slshift.cc, utils/Test/Makefile.am, utils/Test/testparams.cc, utils/Test/testparamsMPI.cc, utils/Test/testparse.cc, AUTHORS, COPYING, ChangeLog, INSTALL, Makefile.am, NEWS, README, autogen.sh, configure.in, doc/Makefile.am, doc/bodies.doc, doc/check.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/faq.doc, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, doc/quick.doc, doc/utilities.doc, examples/IN.FILE, examples/SLGridSph.model, examples/disk.bod, examples/disk.conf, examples/halo.bod, examples/halo.conf, examples/processor.rates, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, expgnu/timer.c, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.c, exputil/GaussCore.h, exputil/Hermite.c, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.c, exputil/Jacobi.h, exputil/Laguerre.c, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/SLGridMP2.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/airy.c, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth1d.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/chbevl.c, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/const.c, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/iv.c, exputil/jacobi.cc, exputil/jnsph.cc, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/laguer.cc, exputil/levsurf.cc, exputil/linalg.cc, exputil/localmpi.cc, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/mtherr.c, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/polevl.c, exputil/poly.cc, exputil/prolate.cc, exputil/psi.c, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/qld.c, exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/scalarprod.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/sphereSL.cc, exputil/struve.c, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, install-sh, missing, mkinstalldirs:
+	Merging NewC branch onto HEAD at version 6.0 to version beyond any
+	previous version (2.0 was not)
+
+	* exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/scalarprod.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/sphereSL.cc, exputil/struve.c, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, include/plummer.h, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/MPL.cc, src/Makefile.am, src/NoForce.H, src/NoForce.cc, src/OrbTrace.H, src/OrbTrace.cc, src/Orient.H, src/Orient.cc, src/OutAscii.H, src/OutAscii.cc, src/OutCHKPT.H, src/OutCHKPT.cc, src/OutCoef.H, src/OutCoef.cc, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutPSN.H, src/OutPSN.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP2.cc, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphereEJCOM.H, src/SphereEJCOM.cc, src/SphereTwoCenter.H, src/SphereTwoCenter.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.H, src/SphericalBasisMixtureSL.cc, src/begin.cc, src/biorth1d.cc, src/checkultra.cc, src/coef.H, src/ddplgndr.cc, src/end.cc, src/exp_thread.h, src/expand.cc, src/expand.h, src/externalShock.H, src/externalShock.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/global.H, src/global.cc, src/header.H, src/header.cc, src/incpos.cc, src/incvel.cc, src/initvel.cc, src/parse.cc, src/sbessj.cc, src/sbessz.cc, src/sledge.f, src/sltableMP2.h, src/step.cc, src/syncvel.cc, src/tidalField.H, src/tidalField.cc, src/tipsydefs.h, src/tmp.tmp, src/tmp.tmp~, src/ultra.cc, src/ultrasphere.cc, src/user/BarForcing.H, src/user/BarForcing.cc, src/user/EllipForce.H, src/user/EllipForce.cc, src/user/Makefile.am, src/user/Perturbation.H, src/user/Perturbation.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/SatFix.H, src/user/SatFix.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.H, src/user/UserBar.cc, src/user/UserDiffRot.H, src/user/UserDiffRot.cc, src/user/UserDiffuse.H, src/user/UserDiffuse.cc, src/user/UserDisk.H, src/user/UserDisk.cc, src/user/UserEBar.H, src/user/UserEBar.cc, src/user/UserEBarP.H, src/user/UserEBarP.cc, src/user/UserHalo.H, src/user/UserHalo.cc, src/user/UserLogPot.H, src/user/UserLogPot.cc, src/user/UserRPtest.H, src/user/UserRPtest.cc, src/user/UserResPot.H, src/user/UserResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/UserTorque.cc, src/user/getkey.c, src/user/getkey.cc, src/user/rotmatrix.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/testcoord.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/version.h, src/zbrent.cc, utils/Makefile.am, utils/PhaseSpace/Makefile.am, utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/ascii2psp.cc, utils/PhaseSpace/header.H, utils/PhaseSpace/header.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspinfo.cc, utils/PhaseSpace/pspsplit.cc, utils/SL/Makefile.am, utils/SL/README, utils/SL/SLGridMP2.cc, utils/SL/SLSphere.H, utils/SL/SLSphere.cc, utils/SL/biorth1d.cc, utils/SL/orthochk.cc, utils/SL/scalarprod.cc, utils/SL/slcheck.cc, utils/SL/slshift.cc, utils/Test/Makefile.am, utils/Test/testparams.cc, utils/Test/testparamsMPI.cc, utils/Test/testparse.cc, doc/Makefile.am, doc/bodies.doc, doc/check.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/faq.doc, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, doc/quick.doc, doc/utilities.doc, examples/IN.FILE, examples/SLGridSph.model, examples/disk.bod, examples/disk.conf, examples/halo.bod, examples/halo.conf, examples/processor.rates, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, expgnu/timer.c, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.c, exputil/GaussCore.h, exputil/Hermite.c, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.c, exputil/Jacobi.h, exputil/Laguerre.c, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/SLGridMP2.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/airy.c, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth1d.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/chbevl.c, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/const.c, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/iv.c, exputil/jacobi.cc, exputil/jnsph.cc, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/laguer.cc, exputil/levsurf.cc, exputil/linalg.cc, exputil/localmpi.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/mtherr.c, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/polevl.c, exputil/poly.cc, exputil/prolate.cc, exputil/psi.c, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/qld.c, exputil/quad.cc, exputil/realize_model.cc:
+	Merge from NewC back to HEAD
+
+	* src/ComponentContainer.cc, src/Cylinder.cc, src/EmpOrth9thd.cc, src/Sphere.cc, src/SphereTwoCenter.cc:
+	Updated Cylindrical expansion for fixed scaling
+
+2005-03-22  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/user/ResPot.cc:
+	Fixed scaling in EmpOrth9thd
+
+2005-03-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserBar.cc, src/user/UserDiffuse.cc, src/user/UserDisk.cc, src/user/UserEBar.cc, src/user/UserEBarP.cc, src/user/UserRPtest.cc, src/user/UserResPotN.cc:
+	Update for outdir.
+
+	* src/Component.cc, src/ComponentContainer.cc, src/OrbTrace.cc, src/OutAscii.cc, src/OutCHKPT.cc, src/OutCoef.cc, src/OutLog.cc, src/OutPS.cc, src/OutPSN.cc, src/global.H, src/global.cc, src/parse.cc:
+	Add output directory specification
+
+2005-03-04  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Added freeze to force computation
+
+2005-02-28  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPotN.cc: Fix parameter parsing typo.
+
+2005-02-27  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Add non-self consistent slow down
+
+2005-02-25  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc:
+	Typo in MPI structure allocation (nimax instead of niattrib, etc).
+
+	* src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Redid to use new particle for each resonance.
+
+2005-02-24  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/OutLog.H, src/OutLog.cc:
+	Per component com and cov relative to local center, global relative to inertial center.
+
+	* src/Component.cc: Remove debug lines
+
+	* src/Component.H, src/Component.cc:
+	Revert to fixed communication structure
+
+	* src/Orient.cc: Fix log file roll back time
+
+	* src/Component.H: Fix partstruct for nimax or ndmax equal to zero
+
+	* src/Component.H, src/Component.cc, src/Orient.cc, src/user/UserResPotN.cc, utils/PhaseSpace/psp2ascii.cc:
+	More fix ups of UserResPotN.  Fixed (or tried to fix) JunHwan's
+	restart bug.
+
+2005-02-23  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc, src/user/testcoord.cc:
+	Updates for resonance tracking
+
+2005-02-19  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc: Changed default for dE.
+
+	* src/Orient.cc: Add com (back) to Orient log file
+
+	* src/Orient.cc: Lots of minor changes to fix up restarts.
+
+	* src/user/UserResPotN.cc, src/Orient.H, src/Orient.cc: A few fixes.
+
+2005-02-18  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Direct.cc, src/Orient.cc:
+	Bug fixes to Direct (for external) and Orient (for restart)
+
+2005-02-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/user/Makefile.am, src/user/ResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Fixed bug in COM restarts.
+
+2005-02-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/user/Makefile.am:
+	Updates to fix COM restart.
+
+2005-02-13  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPotN.cc: Fix (darned!) uninitialized variable phase0
+
+2005-02-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.cc: Updates to ResPot
+
+2005-01-27  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/localmpi.cc: Missing file.
+
+	* exputil/localmpi.cc: New file.
+
+2005-01-22  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/expand.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc, src/user/testcoord.cc:
+	Fixes to signal handling, updated interpolation scheme in ResPot.
+
+2005-01-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/Makefile.am, exputil/localmpi.h, include/localmpi.h, src/Component.cc, src/ComponentContainer.cc, src/Cylinder.cc, src/EmpOrth9thd.cc, src/OutAscii.cc, src/OutCHKPT.cc, src/OutDiag.cc, src/OutLog.cc, src/OutPS.cc, src/OutPSN.cc, src/OutRelaxation.cc, src/global.cc, src/parse.cc, src/user/ResPot.cc, src/user/UserResPotN.cc:
+	Minor clean up and restart bug fixes.
+
+2005-01-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserBar.cc, src/user/UserResPotN.cc:
+	Additional debug checks.
+
+2005-01-13  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/ComponentContainer.cc, src/end.cc, src/expand.cc, src/global.H, src/global.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Updated for SIGTERM capture.
+
+2005-01-06  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.cc: Fixed branch bugs for coord() member of ResPot
+
+2005-01-03  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.cc, src/user/UserResPotN.cc: More debug.
+
+	* src/user/UserResPotN.cc: Still more debug info.
+
+	* src/user/UserResPotN.cc: Debugging data.
+
+2005-01-02  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPotN.cc: Even more debug info.
+
+	* src/user/UserResPotN.cc: Print out Iz to start.
+
+	* src/user/UserResPotN.cc: Added more debug info
+
+	* src/user/UserResPotN.cc: Added debug info
+
+	* src/user/UserResPotN.cc: Fixed bug in total Lz accumulation.
+
+2005-01-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPotN.cc: More bug fixes in UserResPotN.cc
+
+	* src/Component.cc, src/user/UserResPotN.cc: Fix bug in UserResPotN
+
+2004-12-31  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/CVector.cc, exputil/SLGridMP2.cc, exputil/Vector.cc, exputil/orbit_trans.cc, include/CVector.h, src/Component.cc, src/SLGridMP2.cc, src/user/UserResPot.cc, src/user/UserResPotN.cc:
+	Minor updates.  Fixed potential SEQCHECK bug.
+
+	* exputil/CVector.cc, exputil/Vector.cc, include/CVector.h: Updates.
+
+2004-12-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/SphericalBasis.H, src/SphericalBasis.cc, src/user/Makefile.am, src/user/ResPot.cc, src/user/UserEBar.cc, src/user/UserResPotN.H, src/user/UserResPotN.cc:
+	Minor fixes, updated UserResPot for multiple resonances.
+
+	* src/user/UserResPotN.H, src/user/UserResPotN.cc: New file.
+
+2004-12-18  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/Makefile.am: Fix up for new version fo automake.
+
+2004-12-10  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc, src/user/UserResPot.cc:
+	Fixed error in new version of Orient when size0 == 0
+
+2004-12-08  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPot.H, src/user/UserResPot.cc:
+	Added ITMAX to UserResPot to adjust default number of iterations for mapping
+	solution
+
+2004-12-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc:
+	Added radius limit to center-of-mass computation (rcom).
+
+	* src/Component.cc: Bug fix.
+
+2004-12-05  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.H, src/Orient.cc, src/user/UserBar.H, src/user/UserBar.cc, src/user/UserDiffRot.H, src/user/UserDiffuse.H, src/user/UserDisk.H, src/user/UserEBar.H, src/user/UserEBarP.H, src/user/UserHalo.H, src/user/UserLogPot.H:
+	Fixed up error in Orient (typo) and incorrect interfaces in user modules.
+
+2004-12-03  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Cylinder.cc, src/Orient.cc, src/OutLog.cc, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc:
+	Change from "Natural" to "Local"
+
+	* src/Component.H, src/Cylinder.cc, src/Orient.cc, src/OutLog.cc, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc:
+	Change from COM to Natural
+
+	* src/Component.H, src/Component.cc, src/Orient.cc: Bug fix.
+
+2004-12-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/incpos.cc:
+	Erroneous call to freeze in particle phase space integration
+
+	* src/incpos.cc: Erroneous use of freeze in integrator
+
+	* src/user/UserHalo.cc: Just a comment line.
+
+	* configure.in, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.cc, src/NoForce.H, src/Orient.cc, src/OutLog.cc, src/OutRelaxation.cc, src/PotAccel.H, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/SphereTwoCenter.H, src/SphereTwoCenter.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc, src/externalShock.cc, src/generateRelaxation.cc, src/incpos.cc, src/incvel.cc, src/initvel.cc, src/syncvel.cc, src/tidalField.cc, src/user/Makefile.am, src/user/SatFix.H, src/user/SatFix.cc, src/user/UserBar.H, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.cc, src/user/UserDisk.cc, src/user/UserEBar.cc, src/user/UserEBarP.cc, src/user/UserHalo.cc, src/user/UserLogPot.cc, src/user/UserRPtest.cc, src/user/UserResPot.cc, src/user/UserSat.cc, src/user/UserTorque.cc:
+	Branch with new Component & Force interface operating on the Component
+	rather than the Force level.  The Component class now implements an
+	abstract layer to access particles and allows for coordinate changes.
+
+2004-11-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/rotmatrix.cc, src/PotAccel.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserEBar.cc, src/user/UserResPot.H, src/user/UserResPot.cc, src/user/rotmatrix.cc:
+	Minor bug fixes.
+
+2004-10-27  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/incpos.cc: Fix bugs that JunHwan found.
+
+2004-10-26  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc:
+	Added momentum conservation to com system.
+
+2004-10-24  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* doc/faq.doc, doc/header.html, doc/mainpage.doc, src/Component.H, src/Component.cc, src/user/Perturbation.H, src/user/UserResPot.H:
+	Fix up documentation.
+
+	* src/ComponentContainer.cc, src/Orient.H, src/Orient.cc, src/SphereEJCOM.cc, src/SphereTwoCenter.cc:
+	More twiddles to deal with com_system.
+
+	* src/ComponentContainer.cc, src/Orient.H, src/Orient.cc:
+	Minor fixes and a bit of extra debug info in log files.
+
+2004-10-23  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/incpos.cc, src/incvel.cc, src/initvel.cc, src/syncvel.cc:
+	More fixes for system com.
+
+2004-10-22  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/ComponentContainer.cc, src/Orient.H, src/Orient.cc:
+	Orient bug fix.
+
+	* src/Component.cc: Fix bug.
+
+	* src/Component.cc: Minor fix.
+
+	* src/Component.cc: Added COM system log file diagnostic to Component
+
+	* include/plummer.h: Forgot this file!
+
+	* src/Component.H, src/Component.cc, src/OutLog.H, src/OutLog.cc:
+	Fix OutLog.
+
+	* src/Component.cc: Updated phase space writing routines
+
+	* src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/Orient.H, src/Orient.cc, src/global.H, src/global.cc, src/incpos.cc, src/incvel.cc, src/parse.cc, src/step.cc:
+	Changes for center of mass system coordinates
+
+2004-10-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserHalo.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/usertest.cc:
+	Minor fixes and additional diagnostics.
+
+2004-10-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/ComponentContainer.cc, src/user/UserHalo.cc:
+	Fixed minor bug in UserHalo.
+
+	* src/ComponentContainer.cc, src/Orient.H, src/user/UserHalo.H, src/user/UserHalo.cc:
+	Fix ComponentContainer bug.   Added UserHalo.
+
+	* src/user/Makefile.am, src/user/UserEBar.H, src/user/UserEBar.cc, src/user/UserHalo.H, src/user/UserHalo.cc:
+	For including a background spherical halo potential.
+
+	* src/ComponentContainer.H, src/ComponentContainer.cc, src/Orient.H, src/Orient.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	Fix order of fix_position call.
+
+2004-10-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Orient.H, src/Orient.cc:
+	Added log file for center.  Changed a few docs.
+
+	* src/Component.H, src/Component.cc, src/Orient.H, src/Orient.cc, src/user/Perturbation.H, src/user/ResPot.H:
+	Added constant velocity center in Orient.  Documentation update.
+
+2004-09-20  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/Orient.H, src/Orient.cc, src/user/ResPot.H, src/user/ResPot.cc:
+	Added velocity IC to Orient.
+
+2004-09-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/getkey.c: Missing file . . .
+
+	* src/user/testcoord.cc: Test routine for ResPot
+
+	* exputil/Vector.cc, include/ZBrent.H, include/model3d.h, src/Component.cc, src/user/Makefile.am, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserRPtest.H, src/user/UserRPtest.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	Minor fixes to utils.  ResPot updates.
+
+2004-09-02  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/orbit_trans.cc: Backport update for r_circ determination.
+
+2004-08-21  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	More respot updates
+
+2004-08-17  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserResPot.H, src/user/UserResPot.cc:
+	Scope of Omega vs omega variables was incorrect.  Both should be class
+	variables.
+
+	* src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	Updates for ResPot default parameters.
+
+2004-08-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.cc, src/user/UserResPot.cc:
+	Change name of global variable from "mapping" to "eqmotion"
+
+	* exputil/Makefile.am, exputil/levsurf.cc, src/global.H, src/global.cc, src/incpos.cc, src/incvel.cc, src/parse.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserRPtest.cc, src/user/UserResPot.H, src/user/UserResPot.cc, configure.in:
+	Update for mapping routine.
+
+2004-08-11  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in, exputil/orbit_trans.cc, include/orbit.h, src/user/ResPot.cc, src/user/UserRPtest.cc, utils/Makefile.am:
+	Fix ups in orbit class for ResPot and UserResPot.
+
+	* exputil/orbit_trans.cc: Fixed bad porting typo in gknots-->LegeQuad
+
+2004-08-10  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/Makefile.am, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserBar.cc, src/user/UserDiffuse.cc, src/user/UserEBar.cc, src/user/UserRPtest.H, src/user/UserRPtest.cc, src/user/UserResPot.cc, src/user/UserSat.cc, src/user/UserTest.cc, src/user/UserTorque.cc:
+	Added orbital element test routine (and missing localmpi header)
+
+2004-08-09  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.H, src/user/ResPot.cc: Fixed a few more typos.
+
+2004-08-08  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/BarForcing.cc, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	A few bugs fixed in ResPot.
+
+2004-08-05  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in, include/cvector.h, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.cc, utils/Makefile.am:
+	New version of ResPot
+
+	* src/user/ResPot.cc, src/user/UserResPot.cc:
+	Change linear frequency time dependence rather than erf()
+
+2004-07-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc:
+	Updated to allow a frequency shift with time
+
+2004-07-04  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/SLGridMP2.cc: Moved from src
+
+	* exputil/biorth1d.cc: Moved from src.
+
+	* configure.in, exputil/Makefile.am, exputil/biorthSL.cc, exputil/sphereSL.cc, include/SLGridMP2.h, include/biorth1d.h, include/biorthSL.h, include/hernquist.h, include/isothermal.h, include/sphereSL.h, src/Makefile.am, src/NoForce.cc, src/SLGridMP2.h, src/biorth1d.h, src/user/BarForcing.H, src/user/BarForcing.cc, src/user/Perturbation.H, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc, utils/SL/Makefile.am:
+	Moved biorth computation to exputil.
+
+	* exputil/scalarprod.cc: Needed for UserResPot
+
+	* configure.in, exputil/Makefile.am, exputil/biorthSL.cc, src/Makefile.am, src/NoForce.cc, src/user/UserResPot.cc, utils/Makefile.am, utils/SL/Makefile.am:
+	Updates for rearranging sledge compilations in makefiles
+
+2004-07-03  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/NoForce.H, src/NoForce.cc: Add method that applies no force.
+
+	* src/Component.H, src/Component.cc, src/Makefile.am, src/user/UserResPot.H, src/user/UserResPot.cc:
+	Added null force method.
+
+	* src/user/UserResPot.H, src/user/UserResPot.cc:
+	Add NUME and NUMK grid parameters to UserResPot
+
+	* src/user/Perturbation.cc, src/user/ResPot.cc, src/user/UserResPot.cc:
+	Some bugs found.
+
+2004-07-02  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/Makefile.am, src/user/Perturbation.cc: Missing file
+
+	* src/user/UserResPot.H, src/user/UserResPot.cc: More parameter fix ups
+
+	* src/user/UserResPot.H, src/user/UserResPot.cc:
+	Add parameters for bar shape
+
+	* src/user/UserDiffuse.cc: Fix error velocity unit vectors
+
+	* configure.in, exputil/Makefile.am, exputil/biorthSL.cc, exputil/realize_model.cc, include/biorth.h, include/biorthSL.h, include/exponential.h, include/massmodel.h, include/sltableMP2.h, src/user/BarForcing.H, src/user/BarForcing.cc, src/user/Makefile.am, src/user/Perturbation.H, src/user/ResPot.H, src/user/ResPot.cc, src/user/UserResPot.H, src/user/UserResPot.cc, src/user/rotmatrix.cc, utils/Makefile.am, utils/PhaseSpace/ascii2psp.cc, utils/PhaseSpace/header.H, utils/PhaseSpace/header.cc, utils/SL/SLGridMP2.cc, utils/SL/biorth1d.cc:
+	Updates to utils and new user method (UserResPot)
+
+2004-06-27  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserEBarP.H, src/user/UserEBarP.cc:
+	Added option to have particles ignore bar monopole.
+
+2004-06-23  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc: Fix recentering on restart bug.
+
+	* utils/PhaseSpace/Makefile.am, utils/PhaseSpace/psp2ascii.cc:
+	Fix bug in loop counter.
+
+2004-06-20  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserEBarP.cc, src/user/UserTorque.cc:
+	Fix up bug in omega.dat reading.
+
+2004-06-19  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/Makefile.am, src/user/UserEBarP.H, src/user/UserEBarP.cc:
+	Version of EBar that includes a Omega vs T table
+
+2004-05-03  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc: Fixed typo.
+
+	* src/Component.H, src/Component.cc: Added sanity check for SEQCHECK
+
+2004-04-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/user/UserSat.cc:
+	Fixed bug in Orient centering on restart.  Use mnemonics for UserSat.
+
+2004-04-18  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in, exputil/orbit_trans.cc, src/user/UserTorque.cc:
+	Backported extremal checks from C++mdw libs.
+
+	* src/version.h: update time stamp
+
+	* src/ExternalCollection.cc, src/user/UserTorque.cc:
+	Print out list of user routines.  Use mutex for orb in UserTorque.
+
+	* src/ExternalCollection.cc, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.cc, src/user/UserDisk.cc, src/user/UserEBar.cc, src/user/UserLogPot.cc, src/user/UserSat.cc, src/user/UserTest.cc, src/user/UserTorque.cc:
+	Fixed factory initialization for user routines to obey ANSI scoping
+	rules.
+
+	* src/user/UserTorque.cc: Change file name parameters
+
+	* src/expand.h, src/user/Makefile.am, src/user/UserTorque.cc:
+	Added User routine to add torque to phase space from E-J image
+
+2004-04-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.H, src/Orient.cc:
+	Fixed Orient bug: user specified center was not initialized
+	before the first step.
+
+	* utils/PhaseSpace/psp2ascii.cc: Fixed typo for integer attributes.
+
+2004-03-15  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* autogen.sh, configure.in, expgnu/Makefile.am, src/user/Makefile.am:
+	Fixed up autogen.sh for new versions of auto*tools.
+
+2004-02-08  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/CauchyPV.cc, exputil/ParamParse.cc, exputil/QPDistF.cc, exputil/biorth_grid.cc, exputil/clinalg.cc, exputil/cpoly.cc, exputil/cubic.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/linalg.cc, exputil/move_ensemble.cc, exputil/orbit_trans.cc, exputil/phase.cc, exputil/poly.cc, exputil/realize_model.cc, exputil/rombe2d.cc, exputil/svd.cc, exputil/testbess.cc, exputil/testbess2.cc, utils/Test/testparams.cc:
+	Added missing namespace statements for std as required.
+
+2004-02-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in: Remove deprecated macro
+
+	* src/user/UserDiffuse.cc:
+	Restored previous computation of diffusion coefficients (which was
+	correct).
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Added some debug stuff.
+
+2004-02-06  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/ParamParse.cc: Backwards compatbility to gcc 2.95
+
+	* exputil/ParamParse.cc: Fix typo in ParamParse.
+
+	* configure.in, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, utils/Makefile.am:
+	Fix nonexistent directories & old files.
+
+2004-02-05  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/tmp.cc, include/ParamParse.H, utils/Makefile.am, utils/Test/Makefile.am, utils/Test/testparams.cc, utils/Test/testparamsMPI.cc:
+	Generalization of ParseParams.
+	CVS ----------------------------------------------------------------------
+
+	* exputil/ParamParse.cc, include/ParamParse.H: Addded "new_item" member
+
+2004-02-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in, src/user/UserDiffuse.cc:
+	Bumped up version #.  Fixed bug in diffusion coefficient.
+
+2004-01-20  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/ParamParse.H: Fixed missing definition and doc string
+
+	* doc/bodies.doc, doc/mainpage.doc, doc/quick.doc, exputil/Makefile.am, src/CBrock.H, src/CBrockDisk.H, src/Cylinder.H, src/Direct.H, src/ExternalForce.H, src/OrbTrace.H, src/Orient.H, src/OutAscii.H, src/OutCHKPT.H, src/OutCoef.H, src/OutDiag.H, src/OutPCA.H, src/OutPS.H, src/OutPSN.H, src/OutRelaxation.H, src/PotAccel.H, src/SLGridMP2.h, src/Sphere.H, src/SphereEJCOM.H, src/SphereTwoCenter.H, src/SphericalBasis.H, src/user/Makefile.am:
+	Updated doxygen comments
+
+2004-01-19  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/Makefile.am, src/user/Makefile.am, src/user/ParamParse.cc, src/user/UserLogPot.cc:
+	ANSI and Libtool updates
+
+2003-12-09  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDisk.H, src/user/UserDisk.cc:
+	Added a bit more documenation
+
+	* src/user/UserDisk.cc: Fix interpolation fencepost error
+
+	* src/user/UserDisk.cc: Typo in debug output
+
+	* src/user/UserDisk.cc: Fixed cruft in parser
+
+	* src/user/UserDisk.H, src/user/UserDisk.cc:
+	Set grid size in scale units
+
+	* src/user/UserDisk.H: Fixed description in doc
+
+	* src/user/UserDisk.cc: Record debug flag in log
+
+	* src/user/UserDisk.cc: A few minor clean ups.
+
+	* src/user/UserDisk.H, src/user/UserDisk.cc:
+	Made debug switch a parameter.
+
+	* src/user/UserDisk.cc:
+	Augment debug routine for smaller spatial window.
+
+	* src/user/UserDisk.cc: Bug fix.
+
+	* src/user/UserDisk.cc: Z force sign error for monopole approx.
+
+	* src/user/UserDisk.cc: More debug enhancements
+
+	* src/user/UserDisk.cc: More thorough debug routine.
+
+	* src/user/UserDisk.cc: Bug fix.
+
+	* src/user/UserDisk.cc:
+	Changed integration variable for exponential disk potential.
+
+	* src/user/UserDisk.cc: Fixed output routine bug.
+
+	* src/user/UserDisk.cc: Added more parameters to log file info line.
+
+	* src/user/UserDisk.cc: Add genTable call to constructor.
+
+	* src/user/UserDisk.H, src/user/UserDisk.cc:
+	Added UserDisk: a user module for a thin exponential disk
+
+	* doc/header.html, src/user/Makefile.am:
+	Made a user potential for a thin exponential disk
+
+2003-11-08  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.H, src/Orient.cc:
+	Fixed bug in Orient which allowed the differenced energy gradient to latch
+	at zero.
+
+2003-11-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc: Itsy bitsy formating change
+
+2003-11-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Cylinder.cc: Make rcylmin and rcylmax settable again.
+
+2003-10-17  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc: Fixed initial center specification bug
+
+2003-10-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/Orient.H: Fix typo in revised Orient code.
+
+	* src/Component.H, src/Component.cc, src/Orient.H:
+	Allow initial center to be passed to Orient
+
+2003-10-11  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserLogPot.cc: Fixed bug (typo in particle postions)
+
+	* src/Component.H: Documentation update (only)
+
+	* src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/Cylinder.cc, src/Direct.cc, src/HaloBulge.cc, src/OutLog.cc, src/OutRelaxation.cc, src/Particle.H, src/Particle.cc, src/ScatterMFP.cc, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc, src/externalShock.cc, src/global.H, src/global.cc, src/incpos.cc, src/parse.cc, src/tidalField.cc, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.cc, src/user/UserEBar.cc, src/user/UserLogPot.cc, src/user/UserSat.cc:
+	Moved freeze code into component class so that each component
+	could have different "tidal" radii
+
+2003-10-10  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/OutLog.cc:
+	Update OutLog for per component KE in component's center of velocity frame
+
+	* src/SLGridMP2.cc: Override end-point classification for SL problem
+
+2003-10-09  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc:
+	Let Orient read log file to get initial center (even on a new run)
+
+	* src/user/Makefile.am, src/user/UserLogPot.H, src/user/UserLogPot.cc:
+	Triaxial external logarithmic potential
+
+2003-10-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserEBar.cc: Fixed monopole=0 bug
+
+	* src/user/UserEBar.cc: Fixed blunder in code without monopole
+
+	* src/Orient.cc: Changed diag text
+
+	* src/Orient.cc: Remove unneeded header finding code
+
+	* src/Orient.cc: Fixed missing lines in file renaming
+
+2003-10-06  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc: Added restart info . . .
+
+	* src/user/UserEBar.H, src/user/UserEBar.cc:
+	Allow monopole to be turned on and off
+
+2003-10-01  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* autogen.sh: Fix production options.
+
+	* autogen.sh, src/user/Makefile.am:
+	Specific autogen.sh for buzzard's auto* versions
+
+2003-09-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in: Updated version number.
+
+	* acconfig.h, autogen.sh, config.h.in, configure.in, expgnu/Makefile.am, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/Makefile.am, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/clinalg.cc, exputil/eigen.cc, exputil/elemfunc.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/jacobi.cc, exputil/massmodel.cc, exputil/nrutil.cc, exputil/orbit.cc, exputil/simann2.cc, exputil/svd.cc, exputil/tmp.cc, exputil/wordSplit.cc, include/CVector.h, include/ParamParse.H, include/ParamParseMPI.H, include/Vector.h, include/exponential.h, include/gaussQ.h, include/kevin_complex.h, include/logic.h, include/massmodel.h, include/orbit.h, include/phase.h, include/poly.h, include/simann2.h, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cylinder.cc, src/EmpOrth9thd.cc, src/ExternalCollection.H, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.cc, src/Makefile.am, src/OrbTrace.H, src/OrbTrace.cc, src/OutAscii.cc, src/OutCHKPT.cc, src/OutCoef.cc, src/OutDiag.cc, src/OutLog.cc, src/OutPCA.cc, src/OutPS.cc, src/OutPSN.cc, src/Output.H, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP2.cc, src/SLGridMP2.h, src/ScatterMFP.H, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/SphereTwoCenter.H, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc, src/begin.cc, src/biorth1d.h, src/expand.h, src/externalShock.cc, src/global.H, src/global.cc, src/header.H, src/header.cc, src/parse.cc, src/step.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatFix.cc, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.H, src/user/UserDiffuse.cc, src/user/UserEBar.cc, src/user/UserSat.cc, src/zbrent.cc, utils/Makefile.am, utils/PhaseSpace/Makefile.am, utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspsplit.cc, utils/SL/Makefile.am, utils/SL/scalarprod.cc, utils/SL/slcheck.cc, utils/SL/slshift.cc, utils/Test/Makefile.am, utils/Test/testparse.cc:
+	Merged ANSI branch back to head!!
+
+	* src/Component.cc: Fixed typo in ton.
+
+	* src/Component.H, src/Component.cc:
+	Added toff and changed default limits.
+
+2003-09-19  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.cc: Typo in name of unit vector, oops.
+
+2003-09-13  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserBar.cc, src/user/UserEBar.cc:
+	Yet another fixup to the restart from logfile code.
+
+	* src/user/UserBar.cc, src/user/UserEBar.cc:
+	Fixed problem with rereading log on restart.
+
+	* src/user/UserBar.cc, src/user/UserEBar.cc:
+	Fixed restart algorithm . . .
+
+2003-09-05  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/Component.H:
+	Added "dryrun" parameter to EJ (does computation but does not apply
+	transformation)
+
+2003-09-04  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc, src/ComponentContainer.cc, src/OrbTrace.cc, src/OutAscii.cc, src/OutCHKPT.cc, src/OutCoef.cc, src/OutDiag.cc, src/OutLog.cc, src/OutPS.cc, src/OutPSN.cc, src/global.H, src/global.cc, src/parse.cc, src/user/UserBar.cc, src/user/UserDiffuse.cc, src/user/UserEBar.cc:
+	Added runtag string variable default filename variables for report
+	generation.
+
+2003-09-03  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserEBar.cc:
+	Fix inertial center calculation (forgot to divide by bar mass!!)
+
+2003-08-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.cc: Added additional output on construction.
+
+2003-08-29  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Added additional documentation to header and made Enum a variable
+	rather than a constant.
+
+	* src/user/UserDiffuse.cc: Fixed factor of 2 mistake in DF.
+
+	* src/user/UserDiffuse.cc:
+	Increase default number of knots for diffusion coefficient integration.
+
+2003-08-24  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* exputil/Vector.cc, exputil/massmodel.cc, exputil/svd.cc, include/Vector.h, include/massmodel.h:
+	Changes for mem_lock mutex and print routines for SphericalModelTable.
+
+	* src/ExternalForce.H, src/ExternalForce.cc, src/PotAccel.cc, src/begin.cc, src/user/SatFix.cc, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.H, src/user/UserDiffuse.cc, src/user/UserEBar.cc, src/user/UserSat.cc:
+	Put mem_lock mutex in global start-up routine.  Added new UserDiffuse
+	code and added output log separator to ExternalForce class.
+
+2003-08-22  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Update for EJ version.  Need velocity space version.
+
+2003-08-21  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Version of diffusion code for testing; compiles but not debugged.
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Nearly done with draft code; only need Monte Carlo choice of velocity
+	changes . . .
+
+2003-08-20  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Begin updating for two-body diffusion; still a skeleton at this point.
+
+2003-08-07  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/ComponentContainer.H, src/global.H:
+	Added doxygen doc comments
+
+	* autogen.sh, configure.in, src/user/Makefile.am:
+	More config system cleanup.
+
+	* acconfig.h: Deprecated config file.
+
+	* configure.in: Fixed typo in configure info message.
+
+	* src/user/Makefile.am: Removed illegal AM_* variable.
+
+	* src/Slab.cc, src/SlabSL.cc: Add omitted timers for load balancing.
+
+	* src/Component.H: Added Doxygen doc for loadb_datum
+
+	* src/parse.cc: Parse "dbthresh" variable.
+
+2003-08-06  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* configure.in: Add new macro to replace deprecated config.h.in.
+
+	* configure.in, expgnu/Makefile.am, exputil/Makefile.am, src/Makefile.am, src/user/Makefile.am, utils/PhaseSpace/Makefile.am, utils/SL/Makefile.am, utils/Test/Makefile.am:
+	Make Makefile.am files stylistically consistent.  Add more doc to
+	configure.in.
+
+	* config.h.in: This is a derived file!!
+
+	* exputil/ParamParseMPI.cc, src/Component.cc, src/ComponentContainer.cc, src/global.H, src/global.cc:
+	Added thresholding switch to load balancing
+
+	* src/Component.cc: Formatting changes only.
+
+	* src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/expand.h, src/global.H, src/global.cc, src/parse.cc, src/step.cc:
+	Implemented and tested per component load balancing.
+
+2003-07-19  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Slab.cc, src/SlabSL.cc:
+	Fix unitialized use[] variables for OutLog
+
+	* src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc:
+	Removed the mutexes used for debugging
+
+	* exputil/Complex.cc, src/Slab.cc: Made complex class thread safe
+
+2003-07-18  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Slab.cc: Zero out force for constant density term
+
+	* src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc:
+	Tested and fixed signs, etc, in acceleration code as necessary.
+
+2003-07-17  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/SlabSL.cc: Comment fixes and cleaning
+
+	* exputil/ParamParse.cc: Added namespace declarations
+
+	* exputil/ParamParse.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc:
+	Fixed threading problems in Slab routines.
+
+2003-07-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Slab.cc, src/SlabSL.cc:
+	Fix error in multithreaded coefficient accumulation
+
+	* src/Slab.cc, src/SlabSL.cc: Minor formating changes
+
+	* src/OrbTrace.H, src/OrbTrace.cc, src/Slab.cc, src/SlabSL.cc:
+	Added accelerations to OrbTrace
+
+2003-07-14  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Particle.H, src/Particle.cc, src/begin.cc:
+	Fix error in order of velocity offset call and output call (only
+	affected first call to OutPS).  Initialize phase-space fields to
+	zero on construction (shouldn't matter . . . but this simplifies
+	debugging).
+
+2003-07-13  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspsplit.cc:
+	Fixed confusion between PSP stanza and ParamParse stanza classes.
+
+	* src/SlabSL.cc: Minor fixes.
+
+2003-06-30  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* utils/Test/Makefile.am, utils/Test/testparse.cc:
+	Added Test directory to utils.
+
+	* utils/Test/Makefile.am, utils/Test/testparse.cc: New file.
+
+	* src/Output.H, src/Particle.H, src/PotAccel.H, src/SLGridMP2.cc, src/SLGridMP2.h, src/ScatterMFP.H, src/Slab.cc, src/SlabSL.cc, src/SphereTwoCenter.H, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc, src/biorth1d.h, src/expand.h, src/externalShock.cc, src/global.H, src/header.H, src/header.cc, src/parse.cc, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/UserBar.cc, src/user/UserDiffRot.cc, src/user/UserDiffuse.cc, src/user/UserEBar.cc, src/zbrent.cc, utils/Makefile.am, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspsplit.cc, utils/SL/scalarprod.cc, utils/SL/slcheck.cc, utils/SL/slshift.cc, configure.in, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/clinalg.cc, exputil/eigen.cc, exputil/elemfunc.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/jacobi.cc, exputil/massmodel.cc, exputil/nrutil.cc, exputil/orbit.cc, exputil/simann2.cc, exputil/tmp.cc, exputil/wordSplit.cc, include/CVector.h, include/ParamParse.H, include/ParamParseMPI.H, include/Vector.h, include/exponential.h, include/gaussQ.h, include/kevin_complex.h, include/logic.h, include/orbit.h, include/phase.h, include/poly.h, include/simann2.h, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/Cylinder.cc, src/EmpOrth9thd.cc, src/ExternalCollection.H, src/HaloBulge.cc, src/Makefile.am, src/OrbTrace.cc, src/OutAscii.cc, src/OutCHKPT.cc, src/OutCoef.cc, src/OutDiag.cc, src/OutLog.cc, src/OutPS.cc, src/OutPSN.cc:
+	Check in port of code that is gcc-3.3 (Ansi) compliant.  Minor changes to
+	SLGridMP2.cc and SlabSL.cc to fix sign problem in force.
+
+2003-06-29  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* utils/SL/orthochk.cc: Fixed help documentation
+
+	* utils/SL/Makefile.am, utils/SL/orthochk.cc:
+	Added one-dimensional biorthogonal function check
+
+2003-06-26  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Slab.cc, src/SlabSL.cc: Added centering from component->center.
+
+	* utils/SL/slcheck.cc: Added diverge flags.
+
+2003-05-25  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/user/UserEBar.cc: Fix minor debug output fencepost error.
+
+	* src/user/UserEBar.H, src/user/UserEBar.cc:
+	Added facility to use a time-dependent quadrupole from an input table.
+
+2003-05-18  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc: Additional checks and diagnostics
+
+2003-04-16  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/PotAccel.H, src/SphereTwoCenter.H, src/SphereTwoCenter.cc:
+	Overload RegisterComponent in SphereTwoCenter to assign the component
+	pointer to the the SphericalBasisMixtureSL instances as well as the
+	SphereTwoCenter instance
+
+	* src/SphereTwoCenter.cc:
+	Need to register containing component with each SphereSL in SphereTwoCenter
+
+2003-03-31  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* utils/SL/slcheck.cc: Minor fix of slcheck in MPI mode.
+
+2003-03-26  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.cc:
+	Fixed missing initialization for default adiabatic variables on restart.
+
+2003-03-24  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc:
+	Fix undefined "time" variable in Component.  Reference in Adiabatic()
+	to "time" should be "tpos".
+
+2003-03-22  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* include/massmodel.h:
+	Updated massmodel to included changes to more recent SphericalModelTable.
+	Use unevenly space grid by default.
+
+	* exputil/massmodel.cc:
+	Updated massmodel from newer SphericalModelTable.  Use uneven
+	spaced table by default.
+
+2003-03-21  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/SLGridMP2.cc, src/SLGridMP2.h, src/Sphere.H, src/Sphere.cc:
+	Added support for the DIVERGE option in SphericalModelTable.
+
+2003-02-25  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H: Documentation update
+
+	* src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/Cube.cc, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/Slab.cc, src/SlabSL.cc, src/SphericalBasis.cc, src/SphericalBasisMixtureSL.cc:
+	Added Adiabatic member to Component class.  Specifying either the
+	"ton" or "twid" component will now enable adiabatic per particle
+	mass turn on.
+
+2003-02-11  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/Orient.H, src/Orient.cc:
+	Add flag to toggle energy centering to include/exclude kinetic energy
+	and include/exclude external potential
+
+2003-02-06  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/EmpOrth9thd.cc, src/Orient.H, src/Orient.cc:
+	Changed Orient to include external potential using the EJext flag
+
+	* src/user/UserBar.H, src/user/UserBar.cc:
+	Added axis ratios as input variables
+
+2003-01-23  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* ChangeLog: Updated ChangeLog from cvs log
+
+2002-12-17  Martin Weinberg  <weinberg@osprey.astro.umass.edu>
+
+	* src/Orient.cc:
+	Added kludge to use last minimum energy value as center.
+
 2002-12-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
 
 	* src/Orient.cc:

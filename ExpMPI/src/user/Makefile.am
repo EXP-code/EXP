@@ -14,18 +14,23 @@ bin_PROGRAMS = testcoord
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librespotn.la librptest.la libhalo.la
+	librespert.la
+
+#
+# User utility library for duplicated source components
+#
+libusercommon_la_SOURCES = ResPot.cc BarForcing.cc Perturbation.cc \
+	EllipForce.cc SatelliteOrbit.cc
 
 libuser_la_SOURCES = UserTest.cc
 
 libbar_la_SOURCES = UserBar.cc
 
-libebar_la_SOURCES = UserEBar.cc EllipForce.cc
+libebar_la_SOURCES = UserEBar.cc
 
-libebarp_la_SOURCES = UserEBarP.cc EllipForce.cc
+libebarp_la_SOURCES = UserEBarP
 
-libsat_la_SOURCES = UserSat.cc SatelliteOrbit.cc
-#libsat_la_LDFLAGS = -L$(top_srcdir)/exputil/.libs \
-#	-L$(top_srcdir)/expgnu/.libs -lstdc++
+libsat_la_SOURCES = UserSat.cc
 
 libdiffuse_la_SOURCES = UserDiffuse.cc
 
@@ -41,15 +46,15 @@ libhalo_la_SOURCES = UserHalo.cc
 
 libtorque_la_SOURCES = UserTorque.cc
 
-librespot_la_SOURCES = UserResPot.cc ResPot.cc BarForcing.cc Perturbation.cc
+librespot_la_SOURCES = UserResPot.cc 
 librespot_la_CFLAGS = $(AM_CFLAGS) 	#Force removal of .o
 
-librespotn_la_SOURCES = UserResPotN.cc ResPot.cc BarForcing.cc Perturbation.cc
+librespotn_la_SOURCES = UserResPotN.cc
 librespotn_la_CFLAGS = $(AM_CFLAGS)	#Force removal of .o
 
-librptest_la_SOURCES = UserRPtest.cc ResPot.cc
+librptest_la_SOURCES = UserRPtest.cc
 librptest_la_CFLAGS = $(AM_CFLAGS)	#Force removal of .o
 
-testcoord_SOURCES = testcoord.cc ResPot.cc BarForcing.cc Perturbation.cc getkey.c
-testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
+testcoord_SOURCES = testcoord.cc getkey.c
+testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -L./.libs -lusercommon -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
 testcoord_CFLAGS = $(AM_CFLAGS)	#Force removal of .o
