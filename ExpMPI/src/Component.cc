@@ -89,7 +89,7 @@ void Component::initialize(void)
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
 				// Next parameter
-    token = tokens(" ");
+    token = tokens(",");
   }
 
 

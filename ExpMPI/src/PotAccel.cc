@@ -126,8 +126,8 @@ PotAccel::PotAccel(string& line)
   StringTok<string> tokens(Line);
   pair<string, string> datum;
 
-				// space separated tokens
-  string token = tokens(" ");
+				// Comma separated tokens
+  string token = tokens(",");
   
   while (token.size()) {
 
@@ -137,7 +137,7 @@ PotAccel::PotAccel(string& line)
     namevalue.push_back(datum);
 
 				// Next parameter
-    token = tokens(" ");
+    token = tokens(",");
   }
 
 }
