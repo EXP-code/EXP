@@ -14,7 +14,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   Component *c;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
-    if ( !comp_name.compare(c->id) ) {
+    if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;
       break;
@@ -22,7 +22,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   }
 
   if (!found) {
-    cerr << "Process " << myid << ": can't find desired component <"
+    cerr << "Process " << myid << ": SatFix can't find desired component <"
 	 << comp_name << ">" << endl;
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
@@ -42,11 +42,13 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   MPI_Allreduce(&plocate1[0], &plocate[0], numprocs, 
 		MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (verbose) cout << "****************SatFix Debug****************\n";
+  if (verbose && myid==0) 
+    cout << "****************SatFix Debug****************\n";
 
   myid0 = myid1 = -1;
   for (int i=0; i<numprocs; i++) {
-    if (verbose) cout << setw(5) << i << setw(10) << plocate[i] << endl;
+    if (verbose && myid==0) 
+      cout << setw(5) << i << setw(10) << plocate[i] << endl;
 
     if (myid0<0 && myid1<0 && plocate[i] != 0) {
       myid0 = i;
@@ -56,7 +58,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
     if (myid0>=0 && myid1<0 && plocate[i] != 0) myid1 = i;
   }
 
-  if (verbose)  {
+  if (verbose && myid==0)  {
     cout << "Id 0=" << myid0 << ", Particle 0\n";
     if (myid0 == myid1)
       cout << "Id 1=" << myid0 << ", Particle 1\n";
