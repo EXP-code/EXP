@@ -65,11 +65,11 @@ Regex::Regex(const char* t, int fast, int bufsize,
     buf->fastmap = (char*)malloc(256);
   else
     buf->fastmap = 0;
-  buf->translate = (unsigned char*)transtable;
+  buf->translate = (char*)transtable;
   if (tlen > bufsize)
     bufsize = tlen;
   buf->allocated = bufsize;
-  buf->buffer = (char *)malloc(buf->allocated);
+  buf->buffer = (unsigned char *)malloc(buf->allocated);
   const char* msg = re_compile_pattern((const char*)t, tlen, buf);
   if (msg != 0)
     (*lib_error_handler)("Regex", msg);

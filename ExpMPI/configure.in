@@ -1,0 +1,56 @@
+dnl Process this file with autoconf to produce a configure script.
+AC_INIT(src/expand.h)
+AM_CONFIG_HEADER(config.h)
+AM_INIT_AUTOMAKE(EXP, 2.1)
+
+dnl Checks for programs.
+AC_PROG_AWK
+AC_PROG_CC
+AC_PROG_F77
+AC_PROG_CPP
+AC_PROG_CXX
+AC_PROG_CXXCPP
+AC_PROG_INSTALL
+AC_PROG_LN_S
+AC_PROG_MAKE_SET
+AC_PROG_RANLIB
+
+dnl Checks for libraries.
+dnl Replace `main' with a function in -largs:
+AC_CHECK_LIB(args, main)
+dnl Replace `main' with a function in -leigen:
+AC_CHECK_LIB(eigen, main)
+dnl Replace `main' with a function in -lfft:
+AC_CHECK_LIB(fft, main)
+dnl Replace `main' with a function in -lm:
+AC_CHECK_LIB(m, main)
+dnl Replace `main' with a function in -lmdw:
+AC_CHECK_LIB(mdw, main)
+dnl Replace `main' with a function in -lmpi:
+AC_CHECK_LIB(mpi, main)
+dnl Replace `main' with a function in -lnumerical:
+AC_CHECK_LIB(numerical, main)
+dnl Replace `main' with a function in -lpthread:
+AC_CHECK_LIB(pthread, main)
+dnl Replace `main' with a function in -lsrnd:
+AC_CHECK_LIB(srnd, main)
+dnl Replace `main' with a function in -lstdc:
+AC_CHECK_LIB(stdc, main)
+dnl Replace `main' with a function in -lt:
+AC_CHECK_LIB(t, main)
+dnl Replace `main' with a function in -ltrillium:
+AC_CHECK_LIB(trillium, main)
+dnl Replace `main' with a function in -ltstdio:
+AC_CHECK_LIB(tstdio, main)
+
+dnl Checks for header files.
+AC_HEADER_STDC
+AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
+
+dnl Checks for typedefs, structures, and compiler characteristics.
+AC_C_CONST
+AC_C_INLINE
+
+dnl Checks for library functions.
+
+AC_OUTPUT(libsrnd/Makefile mdwlib/Makefile numerical/Makefile src/Makefile Makefile)

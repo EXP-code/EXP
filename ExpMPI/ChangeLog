@@ -1,0 +1,10 @@
+Reoranized version of ExpMPI (MDW 06/15/00)
+
+o All supporting libraries and main code are now generated
+  together using the GNU autoconf package.
+
+o All vestiges of the no longer supported libg++ library
+  have been removed.  Necessary stuff from libg++ (e.g. 
+  the random and stat classes are compiled in a standalone 
+  library (libsrnd)
+

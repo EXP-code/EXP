@@ -1,0 +1,65 @@
+/* config.h.in.  Generated automatically from configure.in by autoheader.  */
+
+/* Define to empty if the keyword does not work.  */
+#undef const
+
+/* Define as __inline if that's what the C compiler calls it.  */
+#undef inline
+
+/* Define if you have the ANSI C header files.  */
+#undef STDC_HEADERS
+
+/* Define if you have the <malloc.h> header file.  */
+#undef HAVE_MALLOC_H
+
+/* Define if you have the <mpi.h> header file.  */
+#undef HAVE_MPI_H
+
+/* Define if you have the <unistd.h> header file.  */
+#undef HAVE_UNISTD_H
+
+/* Define if you have the args library (-largs).  */
+#undef HAVE_LIBARGS
+
+/* Define if you have the eigen library (-leigen).  */
+#undef HAVE_LIBEIGEN
+
+/* Define if you have the fft library (-lfft).  */
+#undef HAVE_LIBFFT
+
+/* Define if you have the m library (-lm).  */
+#undef HAVE_LIBM
+
+/* Define if you have the mdw library (-lmdw).  */
+#undef HAVE_LIBMDW
+
+/* Define if you have the mpi library (-lmpi).  */
+#undef HAVE_LIBMPI
+
+/* Define if you have the numerical library (-lnumerical).  */
+#undef HAVE_LIBNUMERICAL
+
+/* Define if you have the pthread library (-lpthread).  */
+#undef HAVE_LIBPTHREAD
+
+/* Define if you have the srnd library (-lsrnd).  */
+#undef HAVE_LIBSRND
+
+/* Define if you have the stdc library (-lstdc).  */
+#undef HAVE_LIBSTDC
+
+/* Define if you have the t library (-lt).  */
+#undef HAVE_LIBT
+
+/* Define if you have the trillium library (-ltrillium).  */
+#undef HAVE_LIBTRILLIUM
+
+/* Define if you have the tstdio library (-ltstdio).  */
+#undef HAVE_LIBTSTDIO
+
+/* Name of package */
+#undef PACKAGE
+
+/* Version number of package */
+#undef VERSION
+

@@ -1,0 +1,48 @@
+
+The generated Makefile depends on the LAM MPI library
+whose location should be specified in your environment,
+e.g.:
+
+	setenv LAMHOME /usr/local/lam632
+or
+
+	LAMHOME=/usr/local/lam632
+
+
+You will also need to add $LAMHOME/bin to your path, so
+that the mpi compilers wrappers hcc & hf77 are available, 
+e.g.:
+
+	setenv PATH ${LAMHOME}/bin:${PATH}
+
+To compile everything you will need to issue the
+following commands:
+
+aclocal
+autoconf
+automake
+./configure <options>
+make
+
+Alternatively, one can use the autogen.sh script
+which does everything:
+
+./autogen.sh <configure options>
+
+The configure options are found using: ./configure --help
+You can change the default compilers as follows:
+
+csh (tcsh):
+
+		env CC=egcc CXX=g++ ./configure
+
+	or
+
+		setenv CC egcc
+		setenv CXX g++
+		./configure
+
+sh (bash):
+
+		CC=egcc CXX=g++ ./configure
+
