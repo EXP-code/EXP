@@ -16,7 +16,7 @@ AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
-bin_PROGRAMS = testparse
+bin_PROGRAMS = testparse testparams testparamsMPI
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lstdc++ -lpthread -ldl -lm
@@ -29,6 +29,10 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 noinst_HEADERS =
 
 testparse_SOURCES = testparse.cc
+
+testparams_SOURCES = testparams.cc
+
+testparamsMPI_SOURCES = testparamsMPI.cc
 
 CLEANFILES	=
 

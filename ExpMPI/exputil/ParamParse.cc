@@ -12,6 +12,12 @@ Stanza::Stanza(const Stanza &p)
   elist = p.elist;
 }
 
+void Stanza::clear()
+{
+  name.clear();
+  elist.clear();
+}
+
 string trimLeft(const string value)
 {
    // stripping only space (character #32)
@@ -56,22 +62,26 @@ string trimComment(const string value)
    return value.substr(0, max<int>(where - 1, 0));
  }
 
-ParamParse::ParamParse(istream* in, string Delim) : 
-  curitem(NULL), enditem(NULL), curstanza(NULL), delim(Delim)
+void ParamParse::parse_istream(istream* in)
 {
   if (in==NULL) return;
 
   const int lbufsize = 512;
   char lbuf[lbufsize];
 
-  Stanza current;
   spair cpair;
-
 				// Default name for first stanza
-  current.name = "global";
-
-  nstanza = 0;
-
+  if (database.size() == 0) {
+    curstanza = new Stanza();
+    database.push_back(curstanza);
+    cout << "Name=" << curstanza->name << endl;
+    curstanza->name = "global";
+    nstanza = 1;
+  } else {
+    if (!find_list("global")) 
+      bomb("Couldn't find global stanza; this should never happen");
+  }
+  
   while (*in) {
 				// Read in the line
     in->getline(lbuf, lbufsize);
@@ -100,15 +110,17 @@ ParamParse::ParamParse(istream* in, string Delim) :
 	bomb(sout.str());
       }
 
-				// Close the current stanza
-      database.push_back(current);
-      nstanza++;
-
-				// Open the new stanza
+				// Try to open the stanza
       string name = line.substr( beg+1, end-beg-1 );
-      current.name = name;
-      current.elist.erase(current.elist.begin(), current.elist.end());
 
+				// Add new stanza needed
+      if (!find_list(name)) {
+	curstanza = new Stanza();
+	database.push_back(curstanza);
+	curstanza->name = "global";
+	nstanza++;
+      }
+      
 				// Is it a data line
     } else if ( (beg=line.find(delim)) != string::npos) {
 
@@ -116,44 +128,81 @@ ParamParse::ParamParse(istream* in, string Delim) :
       cpair.first = trimLeft(trimRight(tokens(delim)));
       cpair.second = trimLeft(trimRight(tokens(delim)));
       
-      current.elist.push_back(cpair);
+      curstanza->elist.push_back(cpair);
     }
 				// Forget about other lines
   }
 
-				// Close the current stanza
-  database.push_back(current);
-  nstanza++;
-
 				// Make the current stanza the first
-  curstanza = database.begin();
+  if (!find_list("global"))
+    bomb ("Could not reset to global stanza");
+
 }
 
-ParamParse::ParamParse(string Delim) : 
+ParamParse::ParamParse(istream* in, string Delim) : 
   curitem(NULL), enditem(NULL), curstanza(NULL), delim(Delim)
 {
-  Stanza current;
-				// Default name for first stanza
-  current.name = "global";
-  nstanza = 0;
-  database.push_back(current);
-  nstanza++;
-
-				// Make the current stanza the first
-  curstanza = database.begin();
+  parse_istream(in);
 }
 
-void ParamParse::find_list(const string& stanza)
+ParamParse::ParamParse(const string& filename, string Delim) : 
+  curitem(NULL), enditem(NULL), curstanza(NULL), delim(Delim)
 {
-  list<Stanza>::iterator it;
+  parse_file(filename);
+}
+
+int ParamParse::parse_file(const string& filename)
+{
+  ifstream in(filename.c_str());
+  parse_istream(&in);
+
+  return curstanza->elist.size();
+}
+
+int ParamParse::parse_argv(int argc, char** argv)
+{
+  string data;
+  for (int i=0; i<argc; i++) {
+    if (i) data += "\n";
+    data += argv[i];
+  }
+  istringstream in(data);
+  parse_istream(&in);
+
+  return curstanza->elist.size();
+}
+
+
+ParamParse::ParamParse(const string& Delim) : 
+  curitem(NULL), enditem(NULL), curstanza(NULL)
+{
+  delim = Delim;
+  curstanza = new Stanza();
+  database.push_back(curstanza);
+  curstanza->name = "global";
+  nstanza = 1;
+}
+
+ParamParse::~ParamParse()
+{
+  list<Stanza*>::iterator it;
+  for (it=database.begin(); it!=database.end(); it++) delete *it;
+}
+
+
+bool ParamParse::find_list(const string& stanza)
+{
+  list<Stanza*>::iterator it;
   for (it=database.begin(); it!=database.end(); it++) {
-    if (it->name.compare(stanza) == 0) {
-      curstanza = it;
-      curitem = it->elist.begin();
-      enditem = it->elist.end();
-      return;
+    if ((*it)->name.compare(stanza) == 0) {
+      curstanza = *it;
+      curitem = curstanza->elist.begin();
+      enditem = curstanza->elist.end();
+      return true;
     }
   }
+
+  return false;
 }
 
 
@@ -197,16 +246,16 @@ void ParamParse::bomb(const string& msg)
 void ParamParse::print_database(ostream& out)
 {
   int istanza = 0, iparam;
-  list<Stanza>::iterator it;
+  list<Stanza*>::iterator it;
   list<spair>::iterator it1;
 
   out << setiosflags(ios::left);
 
   for (it=database.begin(); it!=database.end(); it++) {
-    out << setw(2) << istanza << " [" << it->name << "]" << endl;
+    out << setw(2) << istanza << " [" << (*it)->name << "]" << endl;
 
     iparam = 0;
-    for (it1=it->elist.begin(); it1!=it->elist.end(); it1++) {
+    for (it1=(*it)->elist.begin(); it1!=(*it)->elist.end(); it1++) {
       out << " " << setw(3) << iparam
 	  << setw(15) << it1->first.c_str()  << " | "
 	  << it1->second << endl;
