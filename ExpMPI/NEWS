@@ -1,0 +1,6 @@
+2002-06-05	All lists of keyword=value pairs are now comma delimited
+		rather than space delimited
+
+2002-06-07	Removed dependence on a "processor.rates" file.  Assumes
+		homogeneous cluster if the "processor.rates" file is not
+		found.
