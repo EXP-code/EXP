@@ -8,6 +8,9 @@
 double *sbessjz(int n, int m);
 double sbessj(int n, double x);
 
+
+/** Computes the potential, acceleration and density using eigenfunctions of the Spherical Laplacian: spherical Bessel functions
+*/
 class Bessel : public SphericalBasis
 {
 
@@ -64,9 +67,12 @@ private:
   
 public:
   
+  //! Number of entries in fixed table (static variable)
   static int RNUM;
 
+  //! Constructor
   Bessel(string& line);
+  //! Destructor
   ~Bessel();
 };
 

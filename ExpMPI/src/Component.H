@@ -20,6 +20,44 @@
   <li> biorthogonal [enum] followed by parameters necessary for contruction
   <li> [blank line]
   </ol>
+  <br>
+  Currently available force methods:
+  \par bessel 
+  %Bessel function basis, see Bessel 
+
+  \par c_brock 
+  Clutton-Brock's spherical basis, see CBrock
+
+  \par c_brock_disk 
+  Clutton-Brock's two-dimensional disk basis, see CBrockDisk
+
+  \par hernq 
+  %Hernquist's spherical basis, see Hernquist
+
+  \par sphereSL 
+  Weinberg's adaptive spherical basis derived by numerical solution to the Sturm-Liouville equation, see Sphere
+
+  \par cube 
+  Trigonmetric basis with periodic boundaries, see Cube
+
+  \par slabSL 
+  Trigonmetric basis with periodic boundaries the horizontal
+  directions and vacuum boundary conditions in the vertical dirction,
+  see Slab
+
+  \par slab 
+  Trigonmetric basis with periodic boundaries the horizontal
+  directions and vacuum boundary conditions in the vertical dirction
+  based on a direct solution of the Sturm-Liouville equation
+  perpendicular to the slab, see SlabSL
+
+  \par cylinder 
+  Weinberg's adaptive cylindrical basis derived by numerical solution
+  to the Sturm-Liouville equation, see Cylinder
+
+  \par direct
+  The usual n<sup>2</sup> force calculation, see Direct 
+
 */
 class Component
 {
