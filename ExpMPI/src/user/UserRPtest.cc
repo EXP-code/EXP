@@ -256,7 +256,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 {
   double pos[3], vel[3];
   double R2, R, pot, dpot;
-  double E, K, w1, w2, w3, f, beta, psi;
+  double E, K, J, w1, w2, w3, f, beta, psi;
   
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -286,7 +286,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
 
     if (myid==0 && id==0 && i<npart) {
       if (i==0) out << setw(15) << tpos;
-      respot->coord(pos, vel, E, K, w1, w2, w3, f, beta, psi);
+      respot->coord(pos, vel, E, K, J, w1, w2, w3, f, beta, psi);
       out << setw(15) << E
 	  << setw(15) << K
 	  << setw(15) << w1

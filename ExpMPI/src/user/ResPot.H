@@ -10,6 +10,31 @@
 #ifndef _ResPot_H
 #define _ResPot_H
 
+class EKinterp : public Matrix
+{
+private:
+  
+  double emin, emax, kmin, kmax, dE, dK;
+  int nume, numk;
+  
+public:
+
+  //! Constructor
+  EKinterp();
+  EKinterp(double Emin, double Emax, double Kmin, double Kmax,
+	   int numE, int numK);
+
+  //! Set or reset array
+  void reset(double Emin, double Emax, double Kmin, double Kmax,
+	   int numE, int numK);
+
+  //! Interpolate
+  double value(double E, double K);
+  double deriv(double E, double K);
+  void eval(double E, double K, double& value, double& deriv);
+};
+
+
 class ResPot
 {
 private:
@@ -39,6 +64,23 @@ private:
   bool grid_computed;
   void compute_grid();
 
+  typedef vector<double> dvector;
+  bool actions_computed;
+  double I1min, I1max;
+  EKinterp I1_EK, O1_EK, O2_EK;
+  dvector I1X;
+  vector<dvector> I1E, I1J;
+
+  void compute_actions();
+  double getE(double I1, double I2);
+  void getPert(double E, double K, CVector& bcoef,
+	       double& Jm, double& dJm,
+	       KComplex& Ul, KComplex& dUldE, KComplex& dUldK);
+
+  double xJ(double J, double Jmin, double Jmax);
+  double Jx(double x, double Jmin, double Jmax);
+  double dxJ(double J, double Jmin, double Jmax);
+
   double dE, dK, Rmin, Rmax;
   vector<double> EE, KK, Jmax;
 
@@ -46,11 +88,14 @@ private:
 
 public:
 
+  static double ALPHA;
   static double DELTA;
   static int NREC;
   static int NUME;
   static int NUMK;
   static int NUMT;
+  static int NUMI;
+  static int ITMAX;
   static KComplex I;
 
 
@@ -61,21 +106,28 @@ public:
   //! Destructor
   ~ResPot();
 
-  //! Get potential
-  double Pot(double* pos, double* vel, double phase, CVector &bcoef);
-
-  //! Get force (spherical coordinates)
-  void ForceSph(double* pos, double* vel, double phase, CVector &bcoef,
-		double& pot, double& fr, double& ft, double& fp);
-
-  //! Get force (cartesian coordinates
-  void ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
-		 double& pot, double& fx, double& fy, double& fz);
-
-  //! Test routine
+  //! Coordinate transform: Cartesian to Action-Angle
   int coord(double* pos, double* vel,
-	    double& E, double& K, double& W1, double& W2, double& W3, 
+	    double& E, double& K, double& J,
+	    double& W1, double& W2, double& W3, 
 	    double& F, double& BETA, double& PSI);
+
+  //! Coordinate transform: Action-Angle to Cartesian
+  int coord(double* pos, double* vel,
+	    double I1, double I2, double beta, 
+	    double w1, double w2, double w3);
+
+  //! Update actions
+  void Update(double dt, double Phase, double Omega, 
+	      double amp, CVector& bcoef,
+	      double* posI, double* velI,
+	      double* posO, double* velO);
+
+  //! Force
+  void Force(double dt, double Phase, double Omega, 
+	     double amp, CVector& bcoef,
+	     double* pos, double* vel, double* acc);
+
 };
 
 double rot_matrix(int l, int m, int n, double beta);

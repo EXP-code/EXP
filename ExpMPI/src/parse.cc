@@ -52,6 +52,10 @@ void initialize(void)
     if (atoi(val.c_str())) fixacc = true;
     else fixacc = false;
   }
+  if (parse->find_item("eqmotion", val)) {
+    if (atoi(val.c_str())) eqmotion = true;
+    else eqmotion = false;
+  }
   if (parse->find_item("global_cov", val)) {
     if (atoi(val.c_str())) global_cov = true;
     else global_cov = false;

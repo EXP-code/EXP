@@ -37,7 +37,7 @@ PHASE_SRC = phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc \
 	diag_ensemble.cc map.cc pc.cc models.cc prolate.cc perfect.cc \
 	rotcurv.cc needle.cc hubble.cc quad.cc
 SPECFUNC_SRC = gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc # modbessel.cc 
-INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc
+INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc
 MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
         realize_model.cc
 ORBIT_SRC = orbit.cc orbit_trans.cc

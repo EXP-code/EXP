@@ -61,12 +61,8 @@ private:
 
   int NUME, NUMK;
 
-  bool use_background;
-
   bool first;
   double domega, t0, delt, phase, tlast, omlast;
-
-  double **pos, **vel, **acc;
 
   string ctr_name;
   string model_file;

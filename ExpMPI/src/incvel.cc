@@ -10,20 +10,23 @@ static char rcsid[] = "$Id$";
 
 void incr_velocity(void)
 {
-
 #ifdef MPE_PROFILE
   MPE_Log_event(13, myid, "b_time");
 #endif
   
-  list<Component*>::iterator c;
-  vector<Particle>::iterator p, pend;
+  if (eqmotion) {
+
+    list<Component*>::iterator c;
+    vector<Particle>::iterator p, pend;
   
-  for (c=comp.components.begin(); c != comp.components.end(); c++) {
+    for (c=comp.components.begin(); c != comp.components.end(); c++) {
     
-    pend = (*c)->particles.end();
-    for (p=(*c)->particles.begin(); p != pend; p++) {
-      for (int k=0; k<(*c)->dim; k++) p->vel[k] += p->acc[k]*dtime;
+      pend = (*c)->particles.end();
+      for (p=(*c)->particles.begin(); p != pend; p++) {
+	for (int k=0; k<(*c)->dim; k++) p->vel[k] += p->acc[k]*dtime;
+      }
     }
+
   }
 
   // Increment times

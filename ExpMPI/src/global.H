@@ -52,6 +52,9 @@ extern string ratefile;
 //! Used for labeling report files
 extern string runtag;
 
+//! Toggle phase space advance (e.g. for use with externally supplied mapping).  On by default.
+extern bool eqmotion;
+
 				// Internal variables
 //! Deprecated
 extern bool use_cwd;

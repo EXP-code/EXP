@@ -33,7 +33,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
   omega = 18.9;			// Patern speed
 
-  NUME = 400;			// Points in Energy grid
+  NUME = 100;			// Points in Energy grid
   NUMK = 100;			// Points in Kappa grid
 
   MASS = 0.05;			// Bar mass
@@ -45,9 +45,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   domega = 0.0;			// Frequency shift
   t0 = 0.5;			// Mid point of drift
   first = true;
-
-				// Apply force from spherical background
-  use_background = true;	// model
 
 				// Tabled spherical model
   model_file = "SLGridSph.model";
@@ -103,15 +100,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
 
-  pos = new double* [nthrds];
-  vel = new double* [nthrds];
-  acc = new double* [nthrds];
-  for (int i=0; i<nthrds; i++) {
-    pos[i] = new double [3];
-    vel[i] = new double [3];
-    acc[i] = new double [3];
-  }
-
   userinfo();
 }
 
@@ -120,14 +108,6 @@ UserResPot::~UserResPot()
   delete halo_model;
   delete halo_ortho;
   delete respot;
-  for (int i=0; i<nthrds; i++) {
-    delete [] pos[i];
-    delete [] vel[i];
-    delete [] acc[i];
-  }
-  delete [] pos;
-  delete [] vel;
-  delete [] acc;
 }
 
 void UserResPot::userinfo()
@@ -135,7 +115,6 @@ void UserResPot::userinfo()
   if (myid) return;		// Return if node master node
   print_divider();
   cout << "** User routine RESONANCE POTENTIAL initialized";
-  if (use_background) cout << " using background";
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Omega=" << omega 
@@ -188,9 +167,6 @@ void UserResPot::initialize()
 
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
-
-  if (get_value("use_background", val))
-    use_background = atoi(val.c_str()) ? true : false;
 
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
@@ -309,7 +285,8 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R2, R, pot, dpot, pot2;
+  double amp, R2, R;
+  double posI[3], posO[3], velI[3], velO[3];
   
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -320,36 +297,39 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+  bool found_nan = false;
+
   for (int i=nbeg; i<nend; i++) {
 
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-      pos[id][k] = (*particles)[i].pos[k];
-      if (c0) pos[id][k] -= c0->com[k];
-      vel[id][k] = (*particles)[i].vel[k];
-      R2 += pos[id][k]*pos[id][k];
+      posI[k] = (*particles)[i].pos[k];
+      if (c0) posI[k] -= c0->com[k];
+      velI[k] = (*particles)[i].vel[k];
+      R2 += posI[k]*posI[k];
     }
     R = sqrt(R2);
 
-    if (use_background) halo_model->get_pot_dpot(R, pot, dpot);
-
-    double fx, fy, fz;
-    respot->ForceCart(pos[id], vel[id], phase, bcoef, pot2, fx, fy, fz);
-    acc[id][0] = fx;
-    acc[id][1] = fy;
-    acc[id][2] = fz;
-
+    respot->Update(dtime, phase, omega, amp, bcoef, posI, velI, posO, velO);
+		   
     for (int k=0; k<3; k++) {
-      acc[id][k] *= amp;
-      if (use_background && R>0.0) acc[id][k] += -dpot*pos[id][k]/R;
+      (*particles)[i].pos[k] = posO[k];
+      (*particles)[i].vel[k] = velO[k];
+      (*particles)[i].acc[k] = (velO[k] - velI[k])/dtime;
+      if (!found_nan) {
+	if ( isnan((*particles)[i].pos[k]) ||
+	     isnan((*particles)[i].vel[k]) ||
+	     isnan((*particles)[i].acc[k]) ) found_nan = true; 
+      }
     }
-    
-    for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[id][k];
-    
-    (*particles)[i].potext += amp * (*particles)[i].mass * pot2;
-    
-    if (use_background)
-      (*particles)[i].potext += (*particles)[i].mass * pot;
+    (*particles)[i].potext = halo_model->get_pot(R);
+
+    if (found_nan) {
+      cout << "Process " << myid << ": found nan\n";
+      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
+      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
+      for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+    }
 
   }
 

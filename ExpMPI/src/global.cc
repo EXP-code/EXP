@@ -42,6 +42,7 @@ double *gcom = new double [3];
 double *gcov = new double [3];
 bool global_cov = false;
 bool fixacc = false;
+bool eqmotion = true;
 
 				// MPI variables
 int is_init=1;
