@@ -165,11 +165,11 @@ void UserDisk::genTable()
 
   for (int i=0; i<Rnum; i++) {
 
-    R = dR*i/a;
+    R = dR*i;
 
     for (int j=0; j<Znum; j++) {
 
-      Z = dZ*j/a;
+      Z = dZ*j;
 
       ansP = ansR = ansZ = 0.0;
       for (int k=1; k<=Nint; k++) {
