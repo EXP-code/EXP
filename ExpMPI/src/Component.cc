@@ -67,7 +67,7 @@ void Component::initialize(void)
   StringTok<string> tokens(cparam);
   pair<string, string> datum;
 
-  string token = tokens("|");	// Bar separated tokens
+  string token = tokens(",");	// Comma separated tokens
 
   while (token.size()) {
     StringTok<string> parse(token);

@@ -135,7 +135,7 @@ void ExternalCollection::dynamicload(void)
     dl_list.insert(dl_list.end(), dlib);
   }
 
-  if (myid==0) cout << " >\n";
+  if (myid==0) cout << " >\n\n";
 }
 
 void ExternalCollection::bomb(string& msg)

@@ -166,6 +166,31 @@ void ComponentContainer::initialize(void)
 
   }
 
+  if (myid==0 && !interaction.empty()) {
+    cout << "\nUsing the following component interation list:\n";
+    cout << setw(-30) << setfill('-') << "-"
+	 << "------" 
+	 << setw(30) << setfill('-') << "-"
+	 << "\n" << setfill(' ');
+    
+    list<Interaction*>::iterator i;
+    list<Component*>::iterator j;
+    for (i=interaction.begin(); i != interaction.end(); i++) {
+      Interaction *inter = *i;
+      for (j=inter->l.begin(); j != inter->l.end(); j++) {
+	Component *comp = *j;
+	cout << setw(-30) << inter->c->name 
+	     << " <==> " 
+	     << setw(30) << comp->name
+	     << "\n";
+      }
+      cout << setw(-30) << setfill('-') << "-"
+	   << "------" 
+	   << setw(30) << setfill('-') << "-"
+	   << "\n" << setfill(' ');
+    }
+    cout << "\n";
+  }
 }
 
 

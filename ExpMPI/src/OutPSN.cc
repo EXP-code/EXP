@@ -49,7 +49,7 @@ void OutPSN::Run(int n, bool last)
   if (myid==0) {
 				// Output name
     ostrstream fname;
-    fname << filename << "." << nbeg++ << '\0';
+    fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
 
 				// Open file and write master header
     out = new ofstream(fname.str());
