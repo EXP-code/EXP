@@ -43,19 +43,19 @@ SatFix::SatFix(string &line) : ExternalForce(line)
 		MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   if (verbose && myid==0) 
-    cout << "****************SatFix Debug****************\n";
+    cout << "************************SatFix Debug****************************\n";
 
   myid0 = myid1 = -1;
   for (int i=0; i<numprocs; i++) {
     if (verbose && myid==0) 
       cout << setw(5) << i << setw(10) << plocate[i] << endl;
 
+    if (myid0>=0 && myid1<0 && plocate[i] != 0) myid1 = i;
+
     if (myid0<0 && myid1<0 && plocate[i] != 0) {
       myid0 = i;
       if (plocate[i]>1) myid1 = i;
     }
-
-    if (myid0>=0 && myid1<0 && plocate[i] != 0) myid1 = i;
   }
 
   if (verbose && myid==0)  {
@@ -65,7 +65,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
     else
       cout << "Id 1=" << myid1 << ", Particle 0\n";
     
-    cout << "********************************************\n";
+    cout << "****************************************************************\n";  
   }    
 
   userinfo();
