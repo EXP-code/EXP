@@ -503,16 +503,18 @@ void Component::read_bodies_and_distribute_ascii(void)
   }
   
 #ifdef SEQCHECK			// Sanity check
-  if (seq_beg != particles[0].iattrib[0] || 
-      seq_end != particles[nbodies-1].iattrib[0]) {
-    cout << "Process " << myid << ": sequence error on init,"
-	 << " seq_beg=" << seq_beg
-	 << " seq_end=" << seq_end
-	 << " seq[1]=" << particles[0].iattrib[0]
-	 << " seq[N]=" << particles[nbodies-1].iattrib[0]
-	 << " nbodies=" << nbodies
-	 << endl << flush;
-    MPI_Abort(MPI_COMM_WORLD, -1);
+  if (particles.size()) {
+    if (seq_beg != particles[0].iattrib[0] || 
+	seq_end != particles[nbodies-1].iattrib[0]) {
+      cout << "Process " << myid << ": sequence error on init,"
+	   << " seq_beg=" << seq_beg
+	   << " seq_end=" << seq_end
+	   << " seq[1]=" << particles[0].iattrib[0]
+	   << " seq[N]=" << particles[nbodies-1].iattrib[0]
+	   << " nbodies=" << nbodies
+	   << endl << flush;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
   }
 #endif
 
@@ -525,7 +527,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// COM HERE?
   if (myid==0) delete fin;
 
-  }
+}
 
 void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
 {
@@ -1087,10 +1089,10 @@ void Component::setup_distribution(void)
       
       if (n == 0)
 	nbodies_table[n] = nbodies_index[n] = 
-	  min<int>(round_up(rates[n] * nbodies_tot), nbodies_tot);
+	  max<int>(1, min<int>((int)(rates[n] * nbodies_tot), nbodies_tot));
       else {
 	if (n < numprocs-1)
-	  nbodies_index[n] = round_up(rates[n] * nbodies_tot) + 
+	  nbodies_index[n] = (int)(rates[n] * nbodies_tot) + 
 	    nbodies_index[n-1];
 	else
 	  nbodies_index[n] = nbodies_tot;

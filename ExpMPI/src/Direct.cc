@@ -75,6 +75,13 @@ void Direct::determine_acceleration_and_potential(void)
   max_bodies = ninteract;
   MPI_Allreduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
+#ifdef DEBUG
+    cout << "Process " << myid 
+	 << ": Max bodies=" << max_bodies
+	 << "  Direct ninteract=" << ninteract << "\n";
+    MPI_Barrier(MPI_COMM_WORLD);
+#endif
+
 				// Allocate buffers to handle largest list
   delete [] tmp_buffer;
   delete [] bod_buffer;
