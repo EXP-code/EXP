@@ -353,13 +353,19 @@ void OutLog::Run(int n, bool last)
 
 				// COM
     for (int j=0; j<3; j++)
-      *out << "|" << setw(cwid) << com0[j];
+      if (mtot0>0.0)
+	*out << "|" << setw(cwid) << com0[j]/mtot0;
+      else
+	*out << "|" << setw(cwid) << 0.0;
 
 
 				// COV
     for (int j=0; j<3; j++)
-      *out << "|" << setw(cwid) << cov0[j];
-    
+      if (mtot0>0.0)
+	*out << "|" << setw(cwid) << cov0[j];
+      else
+	*out << "|" << setw(cwid) << 0.0;
+	
 				// Ang mom
     for (int j=0; j<3; j++)
       *out << "|" << setw(cwid) << angm0[j];
@@ -397,9 +403,15 @@ void OutLog::Run(int n, bool last)
       *out << "|" << setw(cwid) << mtot[i];
       *out << "|" << setw(cwid) << nbodies[i];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(cwid) << com[i][j];
+	if (mtot[i]>0.0)
+	  *out << "|" << setw(cwid) << com[i][j]/mtot[i];
+	else
+	  *out << "|" << setw(cwid) << 0.0;
       for (int j=0; j<3; j++)
-	*out << "|" << setw(cwid) << cov[i][j];
+	if (mtot[i]>0.0)
+	  *out << "|" << setw(cwid) << cov[i][j]/mtot[i];
+	else
+	  *out << "|" << setw(cwid) << 0.0;
       for (int j=0; j<3; j++)
 	*out << "|" << setw(cwid) << angm[i][j];
       for (int j=0; j<3; j++)
