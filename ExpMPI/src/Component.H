@@ -75,10 +75,11 @@ class Component
     double mass;		// 0        0
     double pos[3];		// 1        1,2,3
     double vel[3];		// 2        4,5,6
-    double pot;			// 3        7
-    double potext;		// 4        8
-    int    iatr[nimax];		// 5        9,10,11,12,13
-    double datr[ndmax];		// 6        14,15,16,17,18
+    double acc[3];		// 3        7,8.9
+    double pot;			// 4        10
+    double potext;		// 5        11
+    int    iatr[nimax];		// 6        12,13,14,15,16
+    double datr[ndmax];		// 7        17,18,19,20,21
   };
 
 private:
@@ -237,8 +238,11 @@ public:
   //! Particle handler
   int get_next_particle(Partstruct *onepart);
   
-  //! Write binary component structure
+  //! Write binary component phase-space structure
   void write_binary(ostream *out);
+  
+  //! Write ascii component phase-space structure
+  void write_ascii(ostream *out, bool accel = false);
   
   //! Redestribute this component
   void redistribute_particles(void);

@@ -38,7 +38,7 @@ exp_SOURCES = \
      global.cc begin.cc biorth1d.cc ddplgndr.cc Direct.cc end.cc             \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
-     incpos.cc incvel.cc initvel.cc ComponentContainer.cc                    \
+     incpos.cc incvel.cc initvel.cc ComponentContainer.cc OutAscii.cc        \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
      parse.cc Slab.cc SlabSL.cc step.cc syncvel.cc sbessj.cc sbessz.cc       \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc sledge.f zbrent.cc

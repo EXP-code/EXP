@@ -1,4 +1,5 @@
 #include <iostream>
+#include <iomanip>
 #include <strstream>
 #include <string>
 #include <algorithm>
@@ -255,6 +256,7 @@ void Component::part_to_Particle(Partstruct& str, Particle& cls)
   for (int j=0; j<3; j++) {
       cls.pos[j] = str.pos[j];
       cls.vel[j] = str.vel[j];
+      cls.acc[j] = str.acc[j];
   }
   cls.pot = str.pot;
   cls.potext = str.potext;
@@ -273,6 +275,7 @@ void Component::Particle_to_part(Partstruct& str, Particle& cls)
   for (int j=0; j<3; j++) {
       str.pos[j] = cls.pos[j];
       str.vel[j] = cls.vel[j];
+      str.acc[j] = cls.acc[j];
   }
   str.pot = cls.pot;
   str.potext = cls.potext;
@@ -351,25 +354,26 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 				// Make MPI datatype
   
-  MPI_Datatype	type[7] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_INT, MPI_DOUBLE};
+  MPI_Datatype type[8] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			  MPI_DOUBLE, MPI_DOUBLE, MPI_INT,    MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint	disp[7];
+  MPI_Aint disp[8];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
-  MPI_Get_address(&buf[0].pot,		&disp[3]);
-  MPI_Get_address(&buf[0].potext,	&disp[4]);
-  MPI_Get_address(&buf[0].iatr,		&disp[5]);
-  MPI_Get_address(&buf[0].datr,		&disp[6]);
+  MPI_Get_address(&buf[0].acc,		&disp[3]);
+  MPI_Get_address(&buf[0].pot,		&disp[4]);
+  MPI_Get_address(&buf[0].potext,	&disp[5]);
+  MPI_Get_address(&buf[0].iatr,		&disp[6]);
+  MPI_Get_address(&buf[0].datr,		&disp[7]);
 
-  for (int i=6; i>=0; i--) disp[i] -= disp[0];
+  for (int i=7; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int		blocklen[7] = {1, 3, 3, 1, 1, nimax, ndmax};
+  int blocklen[8] = {1, 3, 3, 3, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(7, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(8, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
 
@@ -679,25 +683,26 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Make MPI datatype
   
-  MPI_Datatype	type[7] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_INT, MPI_DOUBLE};
+  MPI_Datatype	type[8] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			   MPI_DOUBLE, MPI_DOUBLE, MPI_INT,    MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint	disp[7];
+  MPI_Aint disp[8];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
-  MPI_Get_address(&buf[0].pot,		&disp[3]);
-  MPI_Get_address(&buf[0].potext,	&disp[4]);
-  MPI_Get_address(&buf[0].iatr,		&disp[5]);
-  MPI_Get_address(&buf[0].datr,		&disp[6]);
+  MPI_Get_address(&buf[0].acc,		&disp[3]);
+  MPI_Get_address(&buf[0].pot,		&disp[4]);
+  MPI_Get_address(&buf[0].potext,	&disp[5]);
+  MPI_Get_address(&buf[0].iatr,		&disp[6]);
+  MPI_Get_address(&buf[0].datr,		&disp[7]);
 
-  for (int i=6; i>=0; i--) disp[i] -= disp[0];
+  for (int i=7; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int		blocklen[7] = {1, 3, 3, 1, 1, nimax, ndmax};
+  int blocklen[8] = {1, 3, 3, 3, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(7, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(8, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
   double rmax1, r2;
@@ -981,6 +986,42 @@ void Component::write_binary(ostream* out)
     
     p = get_particles(&number);
 
+  }
+    
+}
+
+
+void Component::write_ascii(ostream* out, bool accel)
+{
+  int number = -1;
+  Partstruct *p = get_particles(&number);
+
+  while (p) {
+
+    if (myid == 0) {
+
+      for (int k=0; k<number; k++) {
+	*out << setw(18) << p[k].mass;
+	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i];
+	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i];
+	if (accel)
+	  for (int i=0; i<3; i++) *out << setw(18) << p[k].acc[i];
+
+	*out << setw(18) << p[k].pot;
+	*out << setw(18) << p[k].potext;
+	  
+	for (int i=0; i<niattrib; i++) 
+	  *out << setw(10) << p[k].iatr[i];
+	for (int i=0; i<ndattrib; i++) 
+	  *out << setw(18) << p[k].datr[i];
+
+	*out << endl;
+      }
+
+    }
+    
+    p = get_particles(&number);
+    
   }
     
 }
