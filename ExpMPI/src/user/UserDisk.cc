@@ -203,11 +203,11 @@ void UserDisk::printTable()
 
   for (int i=0; i<Rnum; i++) {
 
-    R = dR*i/a;
+    R = dR*i;
 
     for (int j=0; j<Znum; j++) {
 
-      Z = dZ*j/a;
+      Z = dZ*j;
 
       outP << setw(18) << R
 	   << setw(18) << Z
