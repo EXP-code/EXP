@@ -5,6 +5,11 @@
 #define _CVector_h 1
 #include <iostream.h>
 #include <fstream.h>
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <kevin_complex.h>
 
 class Vector;

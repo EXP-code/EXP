@@ -24,8 +24,8 @@ void out_put(int n)
   if (n==0) {
 
     out_log(n);
-    if (olist && myid==0) out_list(n);
-    if (tipsy && myid==0) out_tipsy(n);
+    if (olist) out_list(n);
+    if (tipsy) out_tipsy(n);
     if (diag && myid==0) out_diag(n);
     if (coef && myid==0) out_coef(n);
     if (cylinder && coefcyl && myid==0) out_coef_cyl(n);
@@ -34,7 +34,6 @@ void out_put(int n)
   }
   else if ( !(n%nlog) || !(n%nlist) || !(n%ntipsy) || !(n%ndiag) || !(n%ncoef) || !(n%nrelx) || !(n%npcaout) || !(n%nbalance) || !(n%nchkpt) || finish) {
 
-    int not_gathered=1;
     int not_sync=1;
     /*
     double begin_time = MPI_Wtime();
@@ -47,31 +46,27 @@ void out_put(int n)
 
     if (olist) {
       if (!(n%nlist) || finish) {
-	if (not_gathered) {gather_particles(); not_gathered = 0;}
 	if (not_sync) {synchronize_velocity(1); not_sync = 0;}
-	if (myid==0) out_list(n);
+	out_list(n);
       }
     }
 
     if (nchkpt) {
       if (!(n%nchkpt)) {
-	if (not_gathered) {gather_particles(); not_gathered = 0;}
 	if (not_sync) {synchronize_velocity(1); not_sync = 0;}
-	if (myid==0) out_chkpt();
+	out_chkpt();
       }
     }
 
     if (tipsy) {
       if (!(n%ntipsy) || finish) {
-	if (not_gathered) {gather_particles(); not_gathered = 0;}
 	if (not_sync) {synchronize_velocity(1); not_sync = 0;}
-	if (myid==0) out_tipsy(n);
+	out_tipsy(n);
       }
     }
 
     if (diag) {
       if (!(n%ndiag) || finish) {
-	if (not_gathered) {gather_particles(); not_gathered = 0;}
 	if (not_sync) {synchronize_velocity(1); not_sync = 0;}
 	if (myid==0) out_diag(n);
       }
@@ -83,7 +78,7 @@ void out_put(int n)
       }
     }
     
-    if (coefcyl) {
+    if (cylinder && coefcyl) {
       if (!(n%ncoefcyl) || finish) {
 	if (myid==0) out_coef_cyl(n);
       }
@@ -91,7 +86,6 @@ void out_put(int n)
     
     if (relx) {
       if (!(n%nrelx) || finish) {
-	if (not_gathered) {gather_particles(); not_gathered = 0;}
 	if (not_sync) {synchronize_velocity(1); not_sync = 0;}
 	out_relx(n);
       }
@@ -107,7 +101,7 @@ void out_put(int n)
 
     if (balance) {
       if (!(n%nbalance)) {
-	recompute_processor_rates(&not_gathered);
+	recompute_processor_rates();
       }
     }
 

@@ -22,10 +22,10 @@ void adjust_scale(int n)
 
   if (myid == 0) {
 
-    get_potacc(0.0,0,expcoef[0],&p0,&dp);
+    get_potacc(0.0, 0, expcoef[0], &p0, &dp);
     dr = rmax/NUM;
     for (i=1; i<=NUM; r +=dr, i++) {
-      get_potacc(r,0,expcoef[0],&p,&dp);
+      get_potacc(r,0,expcoef[0], &p, &dp);
       if (p>0.5*p0) {
 	scale = r;
 	break;

@@ -34,8 +34,10 @@
 #include <iomanip.h>
 #include <fstream.h>
 #include <string>
-#include <Vector.h>
 
+#include "localmpi.h"
+
+#include <Vector.h>
 #include <numerical.h>
 #include <orbit.h>
 #include <massmodel.h>
@@ -43,7 +45,6 @@
 #include <isothermal.h>
 #include <hernquist.h>
 
-#include "localmpi.h"
 
 int parse_args(int, char **);
 

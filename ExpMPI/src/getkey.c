@@ -46,6 +46,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 void strip_blanks(char *);
 
 #ifdef TEST

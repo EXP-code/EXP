@@ -38,6 +38,10 @@ static char rcsid_satellite_orbit[] = "$Id$";
 #include <math.h>
 #include <string>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <kevin_complex.h>
 #include <Vector.h>
 #include <orbit.h>

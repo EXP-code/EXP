@@ -33,9 +33,12 @@
 #include <iostream.h>
 #include <iomanip.h>
 #include <fstream.h>
-// #include <GetOpt.h>
 #include <string>
 #include <Vector.h>
+
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
 
 #include <numerical.h>
 #include <orbit.h>

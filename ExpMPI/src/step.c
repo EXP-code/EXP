@@ -14,16 +14,9 @@ static char rcsid[] = "$Id$";
 void do_step(int n)
 {
 
-  /*
-  if (myid>0) MPL_start_timer();
-  */
-
   /*========================*/
   /* Advance using leapfrog */
   /*========================*/
-
-				/* let particles shed mass */
-  mass_loss();
 
 				/* put COM at origin in phase space */
   if (fixpos==1) fix_positions();
@@ -57,13 +50,5 @@ void do_step(int n)
 */
 
 				/* Write output */
-  /*
-  if (myid>0) MPL_stop_timer();
-  */
-
   out_put(n);
-
-  /*
-  if (myid>0) MPL_start_timer();
-  */
 }

@@ -209,7 +209,7 @@ void get_acceleration_and_potential_bes(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_bes();
+  determine_acceleration_and_potential_bes();
 
   MPL_stop_timer();
 
@@ -249,27 +249,24 @@ void determine_coefficients_bes(void)
   use0 = 0;
   use1 = 0;
 
-  if (myid>0) {
-
-    use = (int *) malloc(nthrds*sizeof(int));
-    if (!use) {
-      fprintf(stderr, "bessacp: problem allocating <use>\n");
-      exit(-1);
-    }
+  use = (int *) malloc(nthrds*sizeof(int));
+  if (!use) {
+    fprintf(stderr, "bessacp: problem allocating <use>\n");
+    exit(-1);
+  }
 
 				/* Initialize locks */
-    make_mutex(&expc_lock, routine, "expc_lock");
-    make_mutex(&cc_lock, routine, "cc_lock");
+  make_mutex(&expc_lock, routine, "expc_lock");
+  make_mutex(&cc_lock, routine, "cc_lock");
 
-    exp_thread_fork((void *)&determine_coefficients_bes_thread, routine);
+  exp_thread_fork((void *)&determine_coefficients_bes_thread, routine);
 
-    kill_mutex(&expc_lock, routine, "expc_lock");
-    kill_mutex(&cc_lock, routine, "cc_lock");
-
-    for (i=0; i<nthrds; i++) use1 += use[i];
-    
-    free(use);
-  }
+  kill_mutex(&expc_lock, routine, "expc_lock");
+  kill_mutex(&cc_lock, routine, "cc_lock");
+  
+  for (i=0; i<nthrds; i++) use1 += use[i];
+  
+  free(use);
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if (myid==0) used += use0;

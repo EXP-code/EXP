@@ -1,5 +1,18 @@
 ## Process this file with automake to produce Makefile.in
 
+CFLAGS = -O3
+CXXFLAGS = -O3
+
+if ENABLE_DEBUG
+ADD_CFLAGS2 = -DDEBUG
+ADD_CXXFLAGS2 = -DDEBUG
+endif
+
+if ENABLE_DMALLOC
+ADD_CFLAGS3 = -DUSE_DMALLOC -g
+ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
+endif
+
 noinst_LIBRARIES = libnumerical.a
 
 ODE_SRC = rk4.cc bs.cc odesolve.cc
@@ -46,14 +59,8 @@ libnumerical_a_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 
 INCLUDES = -I$(top_srcdir)/include -I$(LAMHOME)/include -I$(LAMHOME)/include/mpi2c++
 
-# AM_CFLAGS = -Wall -fPIC
-# AM_CXXFLAGS = -Wall -fPIC
-AM_CFLAGS = -fPIC -D_REENTRANT
-AM_CXXFLAGS = -fPIC -D_REENTRANT
-# CFLAGS = -g -DDEBUG
-# CXXFLAGS = -g -DDEBUG
-CFLAGS = -O3
-CXXFLAGS = -O3
+AM_CFLAGS = -fPIC -D_REENTRANT $(ADD_CFLAGS2) $(ADD_CFLAGS3)
+AM_CXXFLAGS = -fPIC -D_REENTRANT $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 ## libnumerical/Makefile.am ends here
 

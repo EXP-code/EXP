@@ -89,7 +89,7 @@ void get_acceleration_and_potential_Cyl(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_Cyl();
+  determine_acceleration_and_potential_Cyl();
 
   MPL_stop_timer();
 
@@ -111,38 +111,40 @@ void determine_coefficients_Cyl(void)
 
   for (l=0; l<=mmax2; l++) ortho[l].setup_accumulation();
     
-  if (myid>0) {
-
   /*		Begin by finding positions */
 
-    for (i=1; i<=nbodies; i++) {
+  for (i=1; i<=nbodies; i++) {
 
-      if (freeze_particle(i)) continue;		/* frozen particles don't
+    if (freeze_particle(i)) continue;		/* frozen particles don't
 						   contribute to field.
 						   KL 5/27/92 */
-      xx = x[i] - com2[0];
-      yy = y[i] - com2[1];
-      zz = z[i] - com2[2];
-
-      r2 = (xx*xx + yy*yy);
-      r = rr[i] = sqrt(r2) + DSMALL;
-
-      if (component[i] != 2) continue;
-
-      if (r<=rmax && fabs(zz)<=zmax) {
-	use1++;
-	phi = atan2(yy,xx);
-	
-	for (l=0; l<=mmax2; l++) ortho[l].accumulate(r, zz, phi, mass[i]);
-      }
+    xx = x[i] - com2[0];
+    yy = y[i] - com2[1];
+    zz = z[i] - com2[2];
+    
+    r2 = (xx*xx + yy*yy);
+    r = rr[i] = sqrt(r2) + DSMALL;
+    
+    if (component[i] != 2) continue;
+    
+    if (r<=rmax && fabs(zz)<=zmax) {
+      use1++;
+      phi = atan2(yy,xx);
+      
+      for (l=0; l<=mmax2; l++) ortho[l].accumulate(r, zz, phi, mass[i]);
     }
-
   }
-
+  
   for (l=0; l<=mmax2; l++) ortho[l].make_coefficients();
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  if (myid==0) used += use0;
+  if (myid==0) {
+    used += use0;
+#ifdef DEBUG
+    cout << "  Disk particles used: " << use0 << endl;
+#endif
+  }
+
 
 #ifdef MPE_PROFILE
   MPE_Log_event(10, myid, "e_compute_coef");

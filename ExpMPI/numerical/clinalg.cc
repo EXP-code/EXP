@@ -3,9 +3,27 @@
 #include <Vector.h>
 #include <kevin_complex.h>
 
+#include <mpi.h>
 
 #include <clinalg.h>
 
+extern int myid;
+
+void bomb_clinalg(const char *msg)
+{
+  if (myid>=0) {
+        cerr << "clinalg ERROR [mpi_id=" << myid << "]: " << msg << '\n';
+	MPI_Abort(MPI_COMM_WORLD, -1);
+  }
+  else {
+    cerr << "clinalg ERROR: " << msg << '\n';
+#ifdef DEBUG
+    chdir("/tmp");
+    abort();
+#endif
+  }
+  exit(0);
+}
 
 /* Compute LU decomposition */
 
@@ -241,8 +259,7 @@ CMatrix sub_matrix(CMatrix& in,
 
   if ( ibeg<in.getrlow() || iend>in.getrhigh() || jbeg<in.getclow() ||
        jend>in.getchigh() ) {
-    cerr << "Error in sub_matrix input\n";
-    exit(-1);
+    bomb_clinalg("Error in sub_matrix input");
   }
 
   out.setsize(ibeg+ioff, iend+ioff, jbeg+joff, jend+joff);
@@ -267,8 +284,7 @@ void embed_matrix(CMatrix& to, CMatrix& from, int rbeg, int cbeg)
   if ( rbeg<to.getrlow() || cbeg<to.getclow() || 
       from_row_size + rbeg -1 > to.getrhigh() ||
       from_col_size + cbeg -1 > to.getrhigh() ) {
-    cerr << "Error in embed_matrix input (sizes!)\n";
-    exit(-1);
+    bomb_clinalg("Error in embed_matrix input (sizes!)");
   }
 
   for (int i=rbeg; i<rbeg+from_row_size; i++) {
@@ -287,8 +303,7 @@ void embed_matrix(Matrix& to, Matrix& from, int rbeg, int cbeg)
   if ( rbeg<to.getrlow() || cbeg<to.getclow() || 
       from_row_size + rbeg -1 > to.getrhigh() ||
       from_col_size + cbeg -1 > to.getrhigh() ) {
-    cerr << "Error in inbed_matrix input (sizes!)\n";
-    exit(-1);
+    bomb_clinalg("Error in inbed_matrix input (sizes!)");
   }
 
   for (int i=rbeg; i<rbeg+from_row_size; i++) {
@@ -307,8 +322,7 @@ void embed_matrix(CMatrix& to, Matrix& from, int rbeg, int cbeg)
   if ( rbeg<to.getrlow() || cbeg<to.getclow() || 
       from_row_size + rbeg -1 > to.getrhigh() ||
       from_col_size + cbeg -1 > to.getrhigh() ) {
-    cerr << "Error in inbed_matrix input (sizes!)\n";
-    exit(-1);
+    bomb_clinalg("Error in inbed_matrix input (sizes!)");
   }
 
   for (int i=rbeg; i<rbeg+from_row_size; i++) {

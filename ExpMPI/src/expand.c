@@ -94,7 +94,7 @@ int main(int argc, char** argv)
   MPI_Group world_group, slave_group;
 
 #ifdef DEBUG
-  sleep(20);
+  // sleep(20);
 #endif
 
   /*===================*/

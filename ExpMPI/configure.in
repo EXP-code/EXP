@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/expand.h)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(EXP, 3.0)
+AM_INIT_AUTOMAKE(EXP, 3.03)
 
 dnl Checks for programs.
 AC_PROG_AWK
@@ -15,32 +15,50 @@ AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
 
+dnl Arguments
+
+AC_ARG_ENABLE(seqcheck,
+    [  --enable-seqcheck        add code to check particle sequence on repartition],
+    enable_seqcheck=yes,
+    enable_seqcheck=no)
+
+AC_ARG_ENABLE(debug,
+    [  --enable-debug                  compile with verbose output and debugging flags],
+    enable_debug=yes,
+    enable_debug=no)
+
+AC_ARG_ENABLE(dmalloc,
+    [  --enable-dmalloc                link in the dmalloc package for memory debugging],
+    enable_dmalloc=yes,
+    enable_dmalloc=no)
+
+
 dnl Checks for libraries.
-dnl Replace `main' with a function in -largs:
+dnl Replace 'main' with a function in -largs:
 AC_CHECK_LIB(args, main)
-dnl Replace `main' with a function in -leigen:
+dnl Replace 'main' with a function in -leigen:
 AC_CHECK_LIB(eigen, main)
-dnl Replace `main' with a function in -lfft:
+dnl Replace 'main' with a function in -lfft:
 AC_CHECK_LIB(fft, main)
-dnl Replace `main' with a function in -lm:
+dnl Replace 'main' with a function in -lm:
 AC_CHECK_LIB(m, main)
-dnl Replace `main' with a function in -lmdw:
+dnl Replace 'main' with a function in -lmdw:
 AC_CHECK_LIB(mdw, main)
-dnl Replace `main' with a function in -lmpi:
+dnl Replace 'main' with a function in -lmpi:
 AC_CHECK_LIB(mpi, main)
-dnl Replace `main' with a function in -lnumerical:
+dnl Replace 'main' with a function in -lnumerical:
 AC_CHECK_LIB(numerical, main)
-dnl Replace `main' with a function in -lpthread:
+dnl Replace 'main' with a function in -lpthread:
 AC_CHECK_LIB(pthread, main)
-dnl Replace `main' with a function in -lsrnd:
+dnl Replace 'main' with a function in -lsrnd:
 AC_CHECK_LIB(srnd, main)
-dnl Replace `main' with a function in -lstdc:
+dnl Replace 'main' with a function in -lstdc:
 AC_CHECK_LIB(stdc, main)
-dnl Replace `main' with a function in -lt:
+dnl Replace 'main' with a function in -lt:
 AC_CHECK_LIB(t, main)
-dnl Replace `main' with a function in -ltrillium:
+dnl Replace 'main' with a function in -ltrillium:
 AC_CHECK_LIB(trillium, main)
-dnl Replace `main' with a function in -ltstdio:
+dnl Replace 'main' with a function in -ltstdio:
 AC_CHECK_LIB(tstdio, main)
 
 dnl Checks for header files.
@@ -51,6 +69,12 @@ dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
 AC_C_INLINE
 
-dnl Checks for library functions.
+dnl Set variables for Makefile
+AM_CONDITIONAL(ENABLE_SEQCHECK, test "$enable_seqcheck" = "yes")
+AM_CONDITIONAL(ENABLE_DEBUG, test "$enable_debug" = "yes")
+AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 
+
+dnl Make the makefiles
 AC_OUTPUT(libsrnd/Makefile mdwlib/Makefile numerical/Makefile src/Makefile Makefile)
+

@@ -5,12 +5,14 @@
 #include <strstream.h>
 #include <fstream.h>
 #include <string>
-#include <Vector.h>
 
 #define GHQL
 #undef DEBUG
 
 #include "expand.h"
+
+#include <Vector.h>
+
 
 extern "C" {
 

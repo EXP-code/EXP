@@ -3,6 +3,7 @@
 ========================================
 
 Files:
+------
 
 README		This file
 
@@ -21,3 +22,39 @@ libsrnd		Utility library 3 (random number classes, GNU string class,
 
 src		Source for nbody code
 
+
+Compile hints:
+--------------
+
+Set LAMHOME environment variable.  Then, for production:
+
+aclocal
+autoconf
+automake
+./configure
+make
+
+For checking/verification:
+
+<same>
+make CFLAGS="-DDEBUG" CXXFLAGS="-DDEBUG" 
+
+For debugging:
+
+<same>
+make CFLAGS="-g -DDEBUG" CXXFLAGS="-g -DDEBUG" 
+
+
+For sequence checking:
+
+<same>
+make CFLAGS="-DSEQCHECK" CXXFLAGS="-DSEQCHECK" 
+
+
+For dmalloc checking:
+
+<same>
+make CFLAGS="-DUSE_MALLOC" CXXFLAGS="-DUSE_DMALLOC" LDFLAG=
+
+
+To compile with sequence and dmalloc

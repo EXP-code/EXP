@@ -11,6 +11,9 @@
 #include <iostream.h>
 #include <fstream.h>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
 
 class CVector;
 class Three_Vector;

@@ -16,15 +16,12 @@ void incr_position(void)
   MPE_Log_event(13, myid, "b_time");
 #endif
 
-  if (myid != 0) {
-    
-    for(i=1; i<=nbodies; i++) {
-      if (freeze_particle(i)) continue;	/* do not move frozen particles
+  for(i=1; i<=nbodies; i++) {
+    if (freeze_particle(i)) continue;	/* do not move frozen particles
 					KL 5/27/92 */
-      x[i]=x[i]+vx[i]*dtime;
-      y[i]=y[i]+vy[i]*dtime;
-      z[i]=z[i]+vz[i]*dtime;
-    }
+    x[i]=x[i]+vx[i]*dtime;
+    y[i]=y[i]+vy[i]*dtime;
+    z[i]=z[i]+vz[i]*dtime;
   }
 
   /* Increment times */

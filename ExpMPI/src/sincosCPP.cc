@@ -1,5 +1,9 @@
 #include <math.h>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <Vector.h>
   
 void sinecosine_R(int mmax, double phi, Vector& c, Vector& s)

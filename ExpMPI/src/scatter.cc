@@ -17,10 +17,9 @@ static char rcsid[] = "$Id$";
 #include <Normal.h>
 #include <string>
 
-#include <Vector.h>
-
 #include "expand.h"
 
+#include <Vector.h>
 
 extern "C" void indexx(int n, double *arrin, int *indx);
 
@@ -69,7 +68,7 @@ extern "C" void scatter_mfp(void)
   }
 
 				// Distribute table
-  MPI_Allreduce(dtau1, dtau, tautab, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+  MPI_Allreduce(dtau1, dtau, tautab, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Compute density from mass per bin
   for (int j=0; j<tautab; j++)
@@ -149,7 +148,7 @@ extern "C" void scatter_mfp(void)
 
 				// Keep count of mean # of interactions
   int sum=0;
-  MPI_Reduce(&cnt, &sum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_SLAVE);
+  MPI_Reduce(&cnt, &sum, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   if (myid==1) {
     
     cntacc += sum;

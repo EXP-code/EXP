@@ -226,7 +226,7 @@ void get_acceleration_and_potential_CB(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_CB();
+  determine_acceleration_and_potential_CB();
 
   MPL_stop_timer();
 
@@ -357,30 +357,27 @@ void determine_coefficients_CB(void)
   use0 = 0;
   use1 = 0;
 
-  if (myid>0) {
-
-    use = (int *) malloc(nthrds*sizeof(int));
-    if (!use) {
-      fprintf(stderr, "CBacp: problem allocating <use>\n");
-      exit(-1);
-    }
+  use = (int *) malloc(nthrds*sizeof(int));
+  if (!use) {
+    fprintf(stderr, "CBacp: problem allocating <use>\n");
+    exit(-1);
+  }
 
 				/* Initialize locks */
-    /*    make_mutex(&cc_lock, routine, "cc_lock"); */
+  /*    make_mutex(&cc_lock, routine, "cc_lock"); */
 
-    exp_thread_fork(determine_coefficients_CB_thread, routine);
+  exp_thread_fork(determine_coefficients_CB_thread, routine);
 
-    /*    kill_mutex(&cc_lock, routine, "cc_lock"); */
+  /*    kill_mutex(&cc_lock, routine, "cc_lock"); */
 
-    for (i=0; i<nthrds; i++) {
-      use1 += use[i];
-      for (l=0; l<= Lmax*(Lmax+2); l++)
-	for (n=1; n<=nmax; n++)
-	  expcoef1[l][n] += expcoef0[i][l][n];
-    }
-    
-    free(use);
+  for (i=0; i<nthrds; i++) {
+    use1 += use[i];
+    for (l=0; l<= Lmax*(Lmax+2); l++)
+      for (n=1; n<=nmax; n++)
+	expcoef1[l][n] += expcoef0[i][l][n];
   }
+    
+  free(use);
 
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);

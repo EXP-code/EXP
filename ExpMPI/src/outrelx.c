@@ -8,6 +8,21 @@
 static char rcsid[] = "$Id$";
 #endif
 
+void generate_relx(void)
+{
+  static int done = 0;
+  int i;
+
+  if (done) return;
+
+  for (i=1; i<=nbodies; i++) {
+    esave[i] = 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]) +
+      mass[i]*(pot[i] + potext[i]);
+  }
+
+  done = 1;
+}
+
 void out_relx(int n)
 {
 
@@ -25,8 +40,6 @@ void out_relx(int n)
 #endif
 
   if (firstime) {
-
-    distribute_relx();
 
     if (myid==0) {
 				/* Initialize output file */

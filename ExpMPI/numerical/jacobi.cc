@@ -2,6 +2,10 @@
 #include <math.h>
 #include <Vector.h>
 
+#include <mpi.h>
+
+extern int myid;
+
 #define ROTATE(a,i,j,k,l) g=a[i][j];h=a[k][l];a[i][j]=g-s*(h+g*tau);\
 	a[k][l]=h+s*(g-h*tau);
 
@@ -96,7 +100,10 @@ void jacobi(double **a, int n,double *d, double **v, int *nrot)
 		}
 	}
 	cerr << "Too many iterations in routine JACOBI\n";
-	exit(0);
+	if (myid>=0)
+	  MPI_Abort(MPI_COMM_WORLD, -1);
+	else
+	  exit(0);
 }
 
 #undef ROTATE

@@ -135,7 +135,7 @@ void get_acceleration_and_potential_CBDisk(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_CBDisk();
+  determine_acceleration_and_potential_CBDisk();
 
   MPL_stop_timer();
 
@@ -163,54 +163,51 @@ void determine_coefficients_CBDisk(void)
   use0 = 0;
   use1 = 0;
 
-  if (myid>0) {
+  /*		Begin by finding positions */
+  for (i=1; i<=nbodies; i++) {
 
-    /*		Begin by finding positions */
-    for (i=1; i<=nbodies; i++) {
-
-      if (freeze_particle(i)) continue;		/* frozen particles don't
+    if (freeze_particle(i)) continue;		/* frozen particles don't
 						   contribute to field.
 						   KL 5/27/92 */
-      r2 = (x[i]*x[i] + y[i]*y[i]);
-      r = rr[i] = sqrt(r2) + DSMALL;
+    r2 = (x[i]*x[i] + y[i]*y[i]);
+    r = rr[i] = sqrt(r2) + DSMALL;
 
-      if (component[i] != 1) continue;
+    if (component[i] != 1) continue;
 
-      if (r<=rmax) {
-	use1++;
-	phi = atan2(y[i],x[i]);
-	rs = r/scale;
+    if (r<=rmax) {
+      use1++;
+      phi = atan2(y[i],x[i]);
+      rs = r/scale;
 	
       
-	sinecosine(lmax, phi, &cosm, &sinm);
-	get_potl_CBDisk(lmax, nmax, rs, potd);
+      sinecosine(lmax, phi, &cosm, &sinm);
+      get_potl_CBDisk(lmax, nmax, rs, potd);
+      
+      /*		l loop */
 
-	/*		l loop */
-
-	for (n=1; n<=nmax; n++) {
-	  expcoef1[0][n] += potd[0][n]*mass[i]/normM[0][n];
-	  if (selector && compute) {
-	    for (nn=n; nn<=nmax; nn++)
-	      cc1[0][n][nn] += potd[0][n]*potd[0][nn]*mass[i]/
-		(normM[0][n]*normM[0][nn]);
-	  }
+      for (n=1; n<=nmax; n++) {
+	expcoef1[0][n] += potd[0][n]*mass[i]/normM[0][n];
+	if (selector && compute) {
+	  for (nn=n; nn<=nmax; nn++)
+	    cc1[0][n][nn] += potd[0][n]*potd[0][nn]*mass[i]/
+	      (normM[0][n]*normM[0][nn]);
 	}
+      }
 	
-	for (l=1;l<=lmax; l++) {
+      for (l=1;l<=lmax; l++) {
 
-	  fac1 = cosm[l];
-	  fac2 = sinm[l];
-
-	  for (n=1; n<=nmax; n++) {
-	    expcoef1[2*l - 1][n] +=  potd[l][n]*fac1*mass[i]/normM[l][n];
-	    expcoef1[2*l    ][n] +=  potd[l][n]*fac2*mass[i]/normM[l][n];
-	    if (selector && compute) {
-	      for (nn=n; nn<=nmax; nn++) {
-		cc1[2*l - 1][n][nn] += potd[l][n]*potd[l][nn]*fac1*fac1*
-		  mass[i]/(normM[l][n]*normM[l][nn]);
-		cc1[2*l    ][n][nn] += potd[l][n]*potd[l][nn]*fac2*fac2*
-		  mass[i]/(normM[l][n]*normM[l][nn]);
-	      }
+	fac1 = cosm[l];
+	fac2 = sinm[l];
+	
+	for (n=1; n<=nmax; n++) {
+	  expcoef1[2*l - 1][n] +=  potd[l][n]*fac1*mass[i]/normM[l][n];
+	  expcoef1[2*l    ][n] +=  potd[l][n]*fac2*mass[i]/normM[l][n];
+	  if (selector && compute) {
+	    for (nn=n; nn<=nmax; nn++) {
+	      cc1[2*l - 1][n][nn] += potd[l][n]*potd[l][nn]*fac1*fac1*
+		mass[i]/(normM[l][n]*normM[l][nn]);
+	      cc1[2*l    ][n][nn] += potd[l][n]*potd[l][nn]*fac2*fac2*
+		mass[i]/(normM[l][n]*normM[l][nn]);
 	    }
 	  }
 	}

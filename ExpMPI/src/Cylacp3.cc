@@ -42,13 +42,15 @@
 // #define SELECTOR
 
 #include <values.h>
+
+#include "expand.h"
+#include "exp_thread.h"
+
 #include <gaussQ.h>
 #include <WghtOrth3.h>
 #include <EmpOrth7thd.h>
 #include <Orient.h>
 
-#include "expand.h"
-#include "exp_thread.h"
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";
@@ -190,9 +192,9 @@ void get_acceleration_and_potential_Cyl(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_Cyl();
-  if (myid>0 && EJcyl) orient->accumulate(component, mass, pot, 
-					  x, y, z, vx, vy, vz, com2, nbodies);
+  determine_acceleration_and_potential_Cyl();
+  if (EJcyl) orient->accumulate(component, mass, pot, 
+				x, y, z, vx, vy, vz, com2, nbodies);
 
   MPL_stop_timer();
 
@@ -311,41 +313,37 @@ void determine_coefficients_Cyl(void)
 
   ortho->setup_accumulation();
     
-  if (myid>0) {
+  use = new int [nthrds];
+  if (!use) {
+    cerr << "Cylacp: problem allocating <use>\n";
+    exit(-1);
+  }
 
-    use = new int [nthrds];
-    if (!use) {
-      cerr << "Cylacp: problem allocating <use>\n";
-      exit(-1);
-    }
-
-    cylmass0 = new double [nthrds];
-    if (!cylmass0) {
-      cerr << "Cylacp: problem allocating <cylmass0>\n";
-      exit(-1);
-    }
+  cylmass0 = new double [nthrds];
+  if (!cylmass0) {
+    cerr << "Cylacp: problem allocating <cylmass0>\n";
+    exit(-1);
+  }
 
 
 				/* Initialize locks */
-    make_mutex(&used_lock, routine, "used_lock");
-    make_mutex(&cos_coef_lock, routine, "cos_coef_lock");
-    make_mutex(&sin_coef_lock, routine, "sin_coef_lock");
+  make_mutex(&used_lock, routine, "used_lock");
+  make_mutex(&cos_coef_lock, routine, "cos_coef_lock");
+  make_mutex(&sin_coef_lock, routine, "sin_coef_lock");
 
-    exp_thread_fork(determine_coefficients_Cyl_thread, routine);
+  exp_thread_fork(determine_coefficients_Cyl_thread, routine);
+  
+  kill_mutex(&used_lock, routine, "used_lock");
+  kill_mutex(&cos_coef_lock, routine, "cos_coef_lock");
+  kill_mutex(&sin_coef_lock, routine, "sin_coef_lock");
 
-    kill_mutex(&used_lock, routine, "used_lock");
-    kill_mutex(&cos_coef_lock, routine, "cos_coef_lock");
-    kill_mutex(&sin_coef_lock, routine, "sin_coef_lock");
-
-    for (i=0; i<nthrds; i++) {
-      use1 += use[i];
-      cylmassT += cylmass0[i];
-    }
-
-    delete [] use;
-    delete [] cylmass0;
+  for (i=0; i<nthrds; i++) {
+    use1 += use[i];
+    cylmassT += cylmass0[i];
   }
 
+  delete [] use;
+  delete [] cylmass0;
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();

@@ -20,21 +20,18 @@ void write_parm(void);
 void begin_run(void)
 {
 
-  /*====================================*/
-  /* Read in p-s and initialize vectors */
-  /*====================================*/
+  /*================================*/
+  /* Initialize phase-space vectors */
+  /*================================*/
 
-  read_bodies_and_init();
+  do_bodies_init();
 
 
   /*====================================*/
   /* Distribute particles to processors */
   /*====================================*/
 
-  is_init = 1;
-  setup_distribution();
-  distribute_particles();
-  is_init = 0;
+  read_bodies_and_distribute();
 
   /*==================================*/
   /* put COM at origin in phase space */

@@ -26,4 +26,7 @@ class any_thread
   virtual void thread_call(void*) = 0;
 };
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
 

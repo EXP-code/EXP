@@ -33,7 +33,7 @@ void compute_potential(void)
 #ifdef TESTACC
   FILE *out = NULL;
   
-  if (component[1] == 0 && myid) {
+  if (component[1] == 0) {
     out = fopen("testacc.dat", "a");
     fprintf(out, "%3d %13.6e", myid, tnow);
   }
@@ -66,7 +66,7 @@ void compute_potential(void)
     }
 
 #ifdef TESTACC
-    if (component[1] == 0 && myid) {
+    if (component[1] == 0) {
       fprintf(out, "  %13.6e  %13.6e  %13.6e", ax[1], ay[1], az[1]);
     }
 #endif
@@ -104,7 +104,7 @@ void compute_potential(void)
     }
 
 #ifdef TESTACC
-    if (component[1] == 0 && myid) {
+    if (component[1] == 0) {
       fprintf(out, "  %13.6e  %13.6e  %13.6e", ax[1], ay[1], az[1]);
     }
 #endif
@@ -116,7 +116,7 @@ void compute_potential(void)
     }
     
 #ifdef TESTACC
-    if (component[1] == 0 && myid) {
+    if (component[1] == 0) {
       fprintf(out, "  %13.6e  %13.6e  %13.6e\n", ax[1], ay[1], az[1]);
     }
 #endif
@@ -132,9 +132,6 @@ void compute_potential(void)
     }
 
   }
-
-  if (myid == 0) return;
-
 
 
 	/* include tidal perturbation (KL 5/27/92) */
@@ -159,6 +156,13 @@ void compute_potential(void)
     }
 
 
+  if (relx)			/* Initialize relaxation */
+    {
+      generate_relx();
+    }
+
+
+
   if (scatter) 			/* (MDW 10/16/99) */
     {
       scatter_mfp();
@@ -175,5 +179,6 @@ void compute_potential(void)
 #ifdef TESTACC
   if (out) fclose(out);
 #endif
+
 }
 

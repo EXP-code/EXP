@@ -88,7 +88,7 @@ void get_acceleration_and_potential_Cyl(void)
 
   MPL_start_timer();
 
-  if (myid>0) determine_acceleration_and_potential_Cyl();
+  determine_acceleration_and_potential_Cyl();
 
   MPL_stop_timer();
 
@@ -110,34 +110,30 @@ void determine_coefficients_Cyl(void)
 
   ortho->setup_accumulation();
     
-  if (myid>0) {
-
   /*		Begin by finding positions */
 
-    for (i=1; i<=nbodies; i++) {
+  for (i=1; i<=nbodies; i++) {
 
-      if (freeze_particle(i)) continue;		/* frozen particles don't
+    if (freeze_particle(i)) continue;		/* frozen particles don't
 						   contribute to field.
 						   KL 5/27/92 */
-      xx = x[i] - com2[0];
-      yy = y[i] - com2[1];
-      zz = z[i] - com2[2];
+    xx = x[i] - com2[0];
+    yy = y[i] - com2[1];
+    zz = z[i] - com2[2];
 
-      r2 = (xx*xx + yy*yy);
-      r = rr[i] = sqrt(r2) + DSMALL;
+    r2 = (xx*xx + yy*yy);
+    r = rr[i] = sqrt(r2) + DSMALL;
 
-      if (component[i] != 2) continue;
+    if (component[i] != 2) continue;
 
-      if (r<=rmax && fabs(zz)<=zmax) {
-	use1++;
-	phi = atan2(yy,xx);
-	
-	ortho->accumulate(r, zz, phi, mass[i]);
-      }
+    if (r<=rmax && fabs(zz)<=zmax) {
+      use1++;
+      phi = atan2(yy,xx);
+      
+      ortho->accumulate(r, zz, phi, mass[i]);
     }
-
   }
-
+  
   ortho->make_coefficients();
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);

@@ -105,8 +105,10 @@ extern "C" void user_perturbation()
     posang += 0.5*(omega + lastomega)*dtime;
     lastomega = omega;
     lasttime = tnow;
-    if (myid==1)		// Debug
+#ifdef DEBUG
+    if (myid==0)
       cout << "Time=" << tnow << " Posang=" << posang << endl;
+#endif
   }
 
   double fac, ffac, amp = U2 * 0.5*(1.0 + erf( (tnow - U3)/U4 ));

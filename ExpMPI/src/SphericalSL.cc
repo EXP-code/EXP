@@ -221,11 +221,9 @@ void SphericalSL::get_acceleration_and_potential_SLsph(void)
   /* Determine potential and acceleration */
   /*======================================*/
 
-  MPL_start_timer();
-
-  if (myid>0) determine_acceleration_and_potential_SLsph();
-
-  MPL_stop_timer();
+  cout << "Process " << myid << ": about to call determine_acceration\n"
+       << flush;
+  determine_acceleration_and_potential_SLsph();
 
 }
 
@@ -356,21 +354,19 @@ void SphericalSL::determine_coefficients_SLsph(void)
   use1 = 0;
   do_accel = false;
 
-  if (myid>0) {
+  start_threads(nthrds);
 
-    start_threads(nthrds);
-
-    for (i=0; i<nthrds; i++) {
-      use1 += use[i];
-      for (l=0; l<= LMAX*(LMAX+2); l++)
-	for (n=1; n<=NMAX; n++)
-	  expcoef1[l][n] += expcoef0[i][l][n];
-    }
-    
+  for (i=0; i<nthrds; i++) {
+    use1 += use[i];
+    for (l=0; l<= LMAX*(LMAX+2); l++)
+      for (n=1; n<=NMAX; n++)
+	expcoef1[l][n] += expcoef0[i][l][n];
   }
+    
 
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if (myid==0) used += use0;
+
 
   if (!selector) {
 
@@ -425,7 +421,7 @@ void SphericalSL::determine_coefficients_SLsph(void)
     }
   }
   if (iflg) {
-    if (!myid) cerr << iflg << " NaNs\n";
+    cerr << iflg << " NaNs\n";
     MPI_Finalize();
     exit(-11);
   }

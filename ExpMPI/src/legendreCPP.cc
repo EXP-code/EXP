@@ -1,6 +1,10 @@
 #include <iostream>
 #include <math.h>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <Vector.h>
   
 void legendre_R(int lmax, double x, Matrix& p)

@@ -4,8 +4,6 @@
 
 #include <expand.h>
 
-static char rcsid[] = "$Id$";
-
 const int norb = 5;
 static int orblist[norb] = {100, 150, 200, 250, 300};
 

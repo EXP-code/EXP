@@ -42,10 +42,10 @@
 // #define SELECTOR
 
 #include <values.h>
-#include <gaussQ.h>
 
 #include "expand.h"
 
+#include <gaussQ.h>
 #include <SphericalSL.h>
 
 #ifdef RCSID
@@ -124,7 +124,7 @@ void get_acceleration_and_potential_SLsph(void)
 
   MPL_start_timer();
 
-  if (myid>0) orthoS->determine_acceleration_and_potential_SLsph();
+  orthoS->determine_acceleration_and_potential_SLsph();
 
   MPL_stop_timer();
 }

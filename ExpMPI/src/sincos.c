@@ -1,3 +1,7 @@
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <math.h>
   
 void sinecosine_R(int mmax, double phi, double *c, double *s)

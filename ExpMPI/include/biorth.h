@@ -9,6 +9,8 @@
 #endif
 #define _biorth_h 1
 
+#undef RNUM
+
 static const char rcsid_biorth[] = "$Id$";
 
 #include <string>

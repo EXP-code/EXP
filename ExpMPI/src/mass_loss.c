@@ -39,8 +39,6 @@ void mass_loss(void)
 	double f;
 
 
-	if (myid == 0) return;
-
 	f = 1.0 - frac_mloss * (1.0 - exp(-tnow/t_mloss));
 
 	for (i=1; i<=nbodies; i++)

@@ -36,6 +36,10 @@
 #include <string>
 #include <Vector.h>
 
+#ifdef USE_DMALLOC
+#include <dmalloc.h>
+#endif
+
 #include <numerical.h>
 #include <orbit.h>
 #include <massmodel.h>

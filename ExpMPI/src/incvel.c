@@ -16,13 +16,10 @@ void incr_velocity(void)
   MPE_Log_event(13, myid, "b_time");
 #endif
 
-  if (myid != 0) {
-
-    for (i=1; i<=nbodies; i++) {
-      vx[i]=vx[i]+ax[i]*dtime;
-      vy[i]=vy[i]+ay[i]*dtime;
-      vz[i]=vz[i]+az[i]*dtime;
-    }
+  for (i=1; i<=nbodies; i++) {
+    vx[i]=vx[i]+ax[i]*dtime;
+    vy[i]=vy[i]+ay[i]*dtime;
+    vz[i]=vz[i]+az[i]*dtime;
   }
 
   /* Increment times */

@@ -3,10 +3,10 @@ The generated Makefile depends on the LAM MPI library
 whose location should be specified in your environment,
 e.g.:
 
-	setenv LAMHOME /usr/local/lam632
+	setenv LAMHOME /usr/local/lam
 or
 
-	LAMHOME=/usr/local/lam632
+	LAMHOME=/usr/local/lam
 
 
 You will also need to add $LAMHOME/bin to your path, so

@@ -21,8 +21,6 @@ void fix_acceleration(void)
   double axcm,aycm,azcm,mtot;
   double axcm1,aycm1,azcm1,mtot1;
 
-  if (myid == 0) return;
-
   axcm = aycm = azcm = mtot = 0.0;
   axcm1 = aycm1 = azcm1 = mtot1 = 0.0;
 
@@ -37,10 +35,10 @@ void fix_acceleration(void)
   }
 
 
-  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&axcm1, &axcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&aycm1, &aycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&azcm1, &azcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&axcm1, &axcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&aycm1, &aycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&azcm1, &azcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   if (mtot>0.0) {
     axcm=axcm/mtot;
@@ -83,93 +81,75 @@ void fix_positions_by_component(void)
   double com11[3], com21[3], vcom[3], vcom1[3];
   MPI_Status status;
 
-  if (myid > 0) {
+  for (i=0; i<3; i++)
+    com1[i] = com11[i] = com2[i] = com21[i] = vcom[i] = vcom1[i] = 0.0;
 
-    for (i=0; i<3; i++)
-      com1[i] = com11[i] = com2[i] = com21[i] = vcom[i] = vcom1[i] = 0.0;
+  mcom1 = mcom11 = mcom2 = mcom21 = 0.0;
+  mtot1 = mtot = 0.0;
 
-    mcom1 = mcom11 = mcom2 = mcom21 = 0.0;
-    mtot1 = mtot = 0.0;
+  for (i=1; i<=nbodies; i++) {
 
-    for (i=1; i<=nbodies; i++) {
-
-      if (freeze_particle(i)) continue;
+    if (freeze_particle(i)) continue;
     
-      if (component[i] == 1) {
+    if (component[i] == 1) {
 	
-	mcom11 += mass[i];
-	com11[0] += mass[i]*x[i];
-	com11[1] += mass[i]*y[i];
-	com11[2] += mass[i]*z[i];
-
-      }
-
-      if (component[i] == 2) {
-
-	mcom21 += mass[i];
-	com21[0] += mass[i]*x[i];
-	com21[1] += mass[i]*y[i];
-	com21[2] += mass[i]*z[i];
-
-      }
-
-      if (fixvel) {
-
-	mtot1 += mass[i];
-	vcom1[0] += mass[i]*vx[i];
-	vcom1[1] += mass[i]*vy[i];
-	vcom1[2] += mass[i]*vz[i];
+      mcom11 += mass[i];
+      com11[0] += mass[i]*x[i];
+      com11[1] += mass[i]*y[i];
+      com11[2] += mass[i]*z[i];
       
-      }
-    
     }
 
-    MPI_Allreduce(&mcom11, &mcom1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-    MPI_Allreduce(&mcom21, &mcom2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-    MPI_Allreduce(com11, com1, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-    MPI_Allreduce(com21, com2, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+    if (component[i] == 2) {
 
-    if (mcom1 > 0.0) {
-      for (i=0; i<3; i++) com1[i] /= mcom1;
-    }
-    if (mcom2 > 0.0) {
-      for (i=0; i<3; i++) com2[i] /= mcom2;
+      mcom21 += mass[i];
+      com21[0] += mass[i]*x[i];
+      com21[1] += mass[i]*y[i];
+      com21[2] += mass[i]*z[i];
+      
     }
 
     if (fixvel) {
-      MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-      MPI_Allreduce(vcom1, vcom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-      if (mtot > 0.0) {
-	for (i=0; i<3; i++) vcom[i] /= mtot;
-      }
 
-      for (i=1; i<=nbodies; i++) {
-
-	if (freeze_particle(i)) continue;
-
-	vx[i] -= vcom[0];
-	vy[i] -= vcom[1];
-	vz[i] -= vcom[2];
-	
-      }
-    }
-
-				/* First slave return com to master */
-    if (myid==1) {
-      MPI_Send(com1, 3, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
-      MPI_Send(com2, 3, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
-    }
-
-  }
-  else {
-    MPI_Recv(com1, 3, MPI_DOUBLE, MPI_ANY_SOURCE, 40, MPI_COMM_WORLD,
-	     &status);
-    MPI_Recv(com2, 3, MPI_DOUBLE, MPI_ANY_SOURCE, 40, MPI_COMM_WORLD,
-	     &status);
-
-  }
-
+      mtot1 += mass[i];
+      vcom1[0] += mass[i]*vx[i];
+      vcom1[1] += mass[i]*vy[i];
+      vcom1[2] += mass[i]*vz[i];
       
+    }
+    
+  }
+  
+  MPI_Allreduce(&mcom11, &mcom1, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&mcom21, &mcom2, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(com11, com1, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(com21, com2, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
+  if (mcom1 > 0.0) {
+    for (i=0; i<3; i++) com1[i] /= mcom1;
+  }
+  if (mcom2 > 0.0) {
+    for (i=0; i<3; i++) com2[i] /= mcom2;
+  }
+
+  if (fixvel) {
+    MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(vcom1, vcom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    if (mtot > 0.0) {
+      for (i=0; i<3; i++) vcom[i] /= mtot;
+    }
+    
+    for (i=1; i<=nbodies; i++) {
+
+      if (freeze_particle(i)) continue;
+
+      vx[i] -= vcom[0];
+      vy[i] -= vcom[1];
+      vz[i] -= vcom[2];
+      
+      }
+  }
+
 }
 
 
@@ -181,8 +161,6 @@ void fix_positions(void)
 
   double xcm1, ycm1, zcm1, mtot1;
   double vxcm1, vycm1, vzcm1;
-
-  if (myid == 0) return;
 
   xcm = ycm = zcm = mtot = 0.0;
   vxcm = vycm = vzcm = 0.0;
@@ -203,15 +181,15 @@ void fix_positions(void)
   }
 
 
-  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce(&xcm1, &xcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&ycm1, &ycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&zcm1, &zcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+  MPI_Allreduce(&xcm1, &xcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&ycm1, &ycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&zcm1, &zcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   
-  MPI_Allreduce(&vxcm1, &vxcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&vycm1, &vycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
-  MPI_Allreduce(&vzcm1, &vzcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_SLAVE);
+  MPI_Allreduce(&vxcm1, &vxcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&vycm1, &vycm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&vzcm1, &vzcm, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   if (mtot > 0.0) {
     vxcm /= mtot;

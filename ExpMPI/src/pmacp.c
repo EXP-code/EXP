@@ -10,6 +10,7 @@ static char rcsid[] = "$Id$";
 
 void make_pointmass_list()
 {
+  MPI_Status status;
   int i, *p;
   static int firstime = 1;
 
@@ -18,6 +19,9 @@ void make_pointmass_list()
   for (i=1; i<=nbodies; i++)
     if (component[i] == 0) pmnum++;
 
+#ifdef DEBUG
+  fprintf(stderr, "Process %d: nbodies=%d  pmnum=%d\n", myid, nbodies, pmnum);
+#endif
 				/* Delete point mass list */
   if (!firstime) free(pmlist);
 
@@ -30,9 +34,18 @@ void make_pointmass_list()
       if (component[i] == 0) *(p++) = i;    
   }
 
+
 				/* Broadcast total number of point masses */
-  if (myid==0) pmnum0 = pmnum;
-  MPI_Bcast(&pmnum0, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Allreduce(&pmnum, &pmnum0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  /*
+  MPI_Reduce(&pmnum, &pmnum0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (myid==0) {
+    for (i=1; i<numprocs; i++)
+      MPI_Send(&pmnum0, 1, MPI_INT, i, 0, MPI_COMM_WORLD);
+  } else {
+      MPI_Recv(&pmnum0, 1, MPI_INT, 0, 0, MPI_COMM_WORLD, &status);
+  }
+  */
 
 }
 
@@ -42,14 +55,12 @@ void get_acceleration_and_potential_pointmass()
   int i, j, k, l;
   int pmnum1;
 
-  if (myid == 0) return;
-
-  for (l=1; l<=slaves; l++) {
+  for (l=0; l<numprocs; l++) {
     
     if (l == myid) pmnum1 = pmnum;
 
 				/* Send number of particles */
-    MPI_Bcast(&pmnum1, 1, MPI_INT, l-1, MPI_COMM_SLAVE);
+    MPI_Bcast(&pmnum1, 1, MPI_INT, l, MPI_COMM_WORLD);
 
 				/* Skip if zero */
     for (j=0; j<pmnum1; j++) {
@@ -65,10 +76,10 @@ void get_acceleration_and_potential_pointmass()
 	zz = z[k];
       }
 
-      MPI_Bcast(&mm, 1, MPI_DOUBLE, l-1, MPI_COMM_SLAVE);
-      MPI_Bcast(&xx, 1, MPI_DOUBLE, l-1, MPI_COMM_SLAVE);
-      MPI_Bcast(&yy, 1, MPI_DOUBLE, l-1, MPI_COMM_SLAVE);
-      MPI_Bcast(&zz, 1, MPI_DOUBLE, l-1, MPI_COMM_SLAVE);
+      MPI_Bcast(&mm, 1, MPI_DOUBLE, l, MPI_COMM_WORLD);
+      MPI_Bcast(&xx, 1, MPI_DOUBLE, l, MPI_COMM_WORLD);
+      MPI_Bcast(&yy, 1, MPI_DOUBLE, l, MPI_COMM_WORLD);
+      MPI_Bcast(&zz, 1, MPI_DOUBLE, l, MPI_COMM_WORLD);
 
 
       for (i=1; i<=nbodies; i++) {

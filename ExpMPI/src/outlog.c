@@ -59,18 +59,16 @@ void out_log(int n)
   double ektotc1, ektotc11, epself11, epself1, clausiusc1, clausiusc11;
   double ektotc2, ektotc21, epself21, epself2, clausiusc2, clausiusc21;
   double clausius1,xcm1,ycm1,zcm1,epselfg1;
-  /*
-  double vrel,vrel2,r2stars,r2clds,v2stars,v2clds,masstar,mcld,mcld1,mcld2;
-  */
   double Mxx, Myy, Mzz, Mxy, Mxz, Myz;
   double Mxx1, Myy1, Mzz1, Mxy1, Mxz1, Myz1;
   static double curwtime, lastwtime;
   static double ektotxy=0.0;
   double ektotxy1=0.0;
+  int nbodies_cur = 0;
   static int laststep,firstime=1;
   FILE *flog;
 
-				/* Use clock() to time step */
+				/* Use MPI wall clock to time step */
   wtime = 0.0;
   if (firstime) {
     lastwtime = MPI_Wtime();
@@ -116,57 +114,55 @@ void out_log(int n)
   Myz = 0.0;	       Myz1 = 0.0;
   
 				/* Collect info */
-  if (myid > 0) {
 
-    for (i=1; i<=nbodies; i++) {
+  for (i=1; i<=nbodies; i++) {
 				/* ignore frozen particles -KL 6/23/92*/
-      if (freeze_particle(i)) continue;
+    if (freeze_particle(i)) continue;
 
 				/* ignore point mass blobs */
-      if (component[i]==0) continue;
+    if (component[i]==0) continue;
 
-      mtot1 = mtot1 + mass[i];
-      xcm1 = xcm1 + mass[i]*x[i];
-      ycm1 = ycm1 + mass[i]*y[i];
-      zcm1 = zcm1 + mass[i]*z[i];
-      vxcm1 = vxcm1 + mass[i]*vx[i];
-      vycm1 = vycm1 + mass[i]*vy[i];
-      vzcm1 = vzcm1 + mass[i]*vz[i];
-      eptot1 = eptot1 + 0.5*mass[i]*pot[i] + mass[i]*potext[i];
-      epselfg1 = epselfg1 + 0.5*mass[i]*pot[i];
-      ektot1 = ektot1 + 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
-      if (slab && firstime)
-	ektotxy1 = ektotxy1 + 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]);
-      clausius1 = clausius1 + mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
-      if (component[i]==1) {
-	ektotc11 +=  0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
-	clausiusc11 += mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
-	epself11 += 0.5*mass[i]*pot[i];
-      }
-      if (component[i]==2) {
-	ektotc21 += 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
-	clausiusc21 += mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
-	epself21 += 0.5*mass[i]*pot[i];
-      }
-				/* add only bound particles to L and M */
-      if (0.5*(vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i]) + pot[i] <= 0.0)
-	{
-	  lxtot1 = lxtot1 + mass[i]*(y[i]*vz[i]-z[i]*vy[i]);
-	  lytot1 = lytot1 + mass[i]*(z[i]*vx[i]-x[i]*vz[i]);
-	  lztot1 = lztot1 + mass[i]*(x[i]*vy[i]-y[i]*vx[i]);
-	  Mxx1 = Mxx1 + mass[i]*x[i]*x[i];
-	  Myy1 = Myy1 + mass[i]*y[i]*y[i];
-	  Mzz1 = Mzz1 + mass[i]*z[i]*z[i];
-	  Mxy1 = Mxy1 + mass[i]*x[i]*y[i];
-	  Mxz1 = Mxz1 + mass[i]*x[i]*z[i];
-	  Myz1 = Myz1 + mass[i]*y[i]*z[i];
-	}
+    mtot1 = mtot1 + mass[i];
+    xcm1 = xcm1 + mass[i]*x[i];
+    ycm1 = ycm1 + mass[i]*y[i];
+    zcm1 = zcm1 + mass[i]*z[i];
+    vxcm1 = vxcm1 + mass[i]*vx[i];
+    vycm1 = vycm1 + mass[i]*vy[i];
+    vzcm1 = vzcm1 + mass[i]*vz[i];
+    eptot1 = eptot1 + 0.5*mass[i]*pot[i] + mass[i]*potext[i];
+    epselfg1 = epselfg1 + 0.5*mass[i]*pot[i];
+    ektot1 = ektot1 + 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
+    if (slab && firstime)
+      ektotxy1 = ektotxy1 + 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]);
+    clausius1 = clausius1 + mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
+    if (component[i]==1) {
+      ektotc11 +=  0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
+      clausiusc11 += mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
+      epself11 += 0.5*mass[i]*pot[i];
     }
-
+    if (component[i]==2) {
+      ektotc21 += 0.5*mass[i]*(vx[i]*vx[i]+vy[i]*vy[i]+vz[i]*vz[i]);
+      clausiusc21 += mass[i]*(x[i]*ax[i]+y[i]*ay[i]+z[i]*az[i]);
+      epself21 += 0.5*mass[i]*pot[i];
+    }
+				/* add only bound particles to L and M */
+    if (0.5*(vx[i]*vx[i] + vy[i]*vy[i] + vz[i]*vz[i]) + pot[i] <= 0.0)
+      {
+	lxtot1 = lxtot1 + mass[i]*(y[i]*vz[i]-z[i]*vy[i]);
+	lytot1 = lytot1 + mass[i]*(z[i]*vx[i]-x[i]*vz[i]);
+	lztot1 = lztot1 + mass[i]*(x[i]*vy[i]-y[i]*vx[i]);
+	Mxx1 = Mxx1 + mass[i]*x[i]*x[i];
+	Myy1 = Myy1 + mass[i]*y[i]*y[i];
+	Mzz1 = Mzz1 + mass[i]*z[i]*z[i];
+	Mxy1 = Mxy1 + mass[i]*x[i]*y[i];
+	Mxz1 = Mxz1 + mass[i]*x[i]*z[i];
+	Myz1 = Myz1 + mass[i]*y[i]*z[i];
+      }
   }
   
 				/* Send back to Process 0 */
 
+  MPI_Reduce(&nbodies, &nbodies_cur, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&xcm1, &xcm, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ycm1, &ycm, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -221,7 +217,7 @@ void out_log(int n)
     m2claus =  -2.0*ektot/clausius;
     
     fprintf(flog,"%e\n", tnow);
-    fprintf(flog,"%e %d %d %d\n", mtot,nbodies,ninteract,nmerge);
+    fprintf(flog,"%e %d %d %d\n", mtot,nbodies_cur,ninteract,nmerge);
     fprintf(flog,"%e %e %e", xcm,ycm,zcm);
     if (fixpos==2) {
       fprintf(flog," %e %e %e", com1[0], com1[1], com1[2]);

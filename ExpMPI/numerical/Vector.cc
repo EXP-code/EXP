@@ -3,8 +3,13 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#include <mpi.h>
+
 #include <Vector.h>
 #include <kevin_complex.h>
+
+#include <strstream.h>
 #include <string>
 
 #include <pthread.h>
@@ -12,7 +17,7 @@
 extern char threading_on;
 extern pthread_mutex_t mem_lock;
 
-#include "localmpi.h"
+extern int myid;
 
 /*
 	Default constructor; make a null vector.
@@ -712,7 +717,12 @@ Vector Matrix::col(int j)
 
 Vector &Matrix::row(int i)
 {
-	if (i<rlow || i>rhigh) bomb_Matrix("row subscript out of range");
+	if (i<rlow || i>rhigh) {
+	  ostrstream out;
+	  out << "row subscript out of range"
+	      << ": i=" << i << " rlow=" << rlow << " rhigh=" << rhigh;
+	  bomb_Matrix(out.str());
+	}
 
 	return rows[i];
 }
@@ -733,7 +743,12 @@ void Matrix::setrow(int i, Vector &v)
 {
 	if (v.low != clow || v.high != chigh) 
 		bomb_Matrix("row-vector size mismatch");
-	if (i<rlow || i>rhigh) bomb_Matrix("row subscript out of range");
+	if (i<rlow || i>rhigh) {
+	  ostrstream out;
+	  out << "row subscript out of range"
+	      << ": i=" << i << " rlow=" << rlow << " rhigh=" << rhigh;
+	  bomb_Matrix(out.str());
+	}
 	rows[i] = v;
 }
 
@@ -812,7 +827,12 @@ void destroy_Matrix_array(double **ptr, int rl, int rh, int cl, int ch)
 
 Vector &Matrix::operator[](int i) const
 {
-	if (i<rlow || i>rhigh) bomb_Matrix("row subscript out of range");
+	if (i<rlow || i>rhigh) {
+	  ostrstream out;
+	  out << "row subscript out of range"
+	      << ": i=" << i << " rlow=" << rlow << " rhigh=" << rhigh;
+	  bomb_Matrix(out.str());
+	}
 	return rows[i];
 }
 
