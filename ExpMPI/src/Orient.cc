@@ -45,9 +45,11 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   axis.setsize(1, 3);
   center.setsize(1, 3);
   center0.setsize(1, 3);
+  cenvel0.setsize(1, 3);
   axis.zero();
   center.zero();
   center0.zero();
+  cenvel0.zero();
 
 				// Set up identity
   body.setsize(1, 3, 1, 3);
@@ -508,6 +510,10 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       center = center0*factor + center*(1.0 - factor);
     } else
       center = center0;
+
+				// Increment initial center according 
+				// to user specified velocity
+    center0 += cenvel0*dtime;
 
     if ((cflags & DIAG) && myid==0) {
       cout << "===================================================" << endl

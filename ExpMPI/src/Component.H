@@ -97,6 +97,12 @@ struct loadb_datum
 
   @param EJz0 is the initial EJ center z-coordinate (default: 0)
 
+  @param EJu0 is the initial EJ center u-velocity   (default: 0)
+
+  @param EJv0 is the initial EJ center v-velocity   (default: 0)
+
+  @param EJw0 is the initial EJ center w-velocity   (default: 0)
+
   @param EJkinE set true includes kinetic energy in the energy
   determination, otherwise potential energy alone is used
 
@@ -285,22 +291,34 @@ public:
 
   //! Binding energy orientation flag
   int EJ;
+
   //! Number to keep in orientation stack
   int nEJkeep;
+
   //! Target number of particles for average
   int nEJwant;
+
   //! Initial guess for energy cutoff
   double eEJ0;
+
   //! Initial EJ center
   double EJx0, EJy0, EJz0;
+
+  //! Initial EJ velocity
+  double EJu0, EJv0, EJw0;
+
   //! Print verbose diagnostics
   bool EJdiag;
+
   //! Do not apply transformation
   bool EJdryrun;
+
   //! Use particle KE for energy computation
   bool EJkinE;
+
   //! Use external potential for energy computation
   bool EJext;
+
   //! Maximum radius from center for force evaluation
   double rtrunc;
 

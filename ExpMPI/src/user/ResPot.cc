@@ -9,7 +9,6 @@
 #include <localmpi.h>
 
 #include <pthread.h>  
-pthread_mutex_t nwlock = PTHREAD_MUTEX_INITIALIZER;
 pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
 double ResPot::ALPHA = 0.25;
@@ -437,8 +436,8 @@ double ResPot::dxJ(double J, double Jmin, double Jmax)
 }
 
 
-void ResPot::getInterp(double I1, double I2, int& indxX, int* indxE,
-		       double* cX, double** cE, bool& noboundary)
+void ResPot::getInterp(double I1, double I2, int& indxX, int indxE[2],
+		       double cX[2], double cE[2][2], bool& noboundary)
 {
   // Linear interpolation coefficients
   // ---------------------------------
@@ -682,12 +681,9 @@ bool ResPot::getValues(double I1, double I2,
   O2 = 0.0;
   
   int indxX;
-  pthread_mutex_lock(&nwlock);
-  int* indxE = new int [2];
-  double* cX = new double [2];
-  double** cE = new double* [2];
-  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
-  pthread_mutex_unlock(&nwlock);
+  int indxE[2];
+  double cX[2];
+  double cE[2][2];
   
   bool noboundary;
   getInterp(I1, I2, indxX, indxE, cX, cE, noboundary);
@@ -718,12 +714,6 @@ bool ResPot::getValues(double I1, double I2,
     }
   }
   
-  pthread_mutex_lock(&nwlock);
-  for (int i1=0; i1<2; i1++) delete [] cE[i1];
-  delete [] cE;
-  delete [] indxE;
-  pthread_mutex_unlock(&nwlock);
-
   // return noboundary;
   return true;
 }
@@ -743,13 +733,9 @@ bool ResPot::getValues(double I1, double I2, CVector& bcoef,
   
   
   int indxX;
-  pthread_mutex_lock(&nwlock);
-  int* indxE = new int [2];
-  double* cX = new double [2];
-  double** cE = new double* [2];
-  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
-  pthread_mutex_unlock(&nwlock);
-  
+  int indxE[2];
+  double cX[2];
+  double cE[2][2];
 
   bool wasok = true;
 
@@ -823,13 +809,6 @@ bool ResPot::getValues(double I1, double I2, CVector& bcoef,
     }
   }
   
-  pthread_mutex_lock(&nwlock);
-  for (int i1=0; i1<2; i1++) delete [] cE[i1];
-  delete [] cE;
-  delete [] cX;
-  delete [] indxE;
-  pthread_mutex_unlock(&nwlock);
-
   // return noboundary;
   return true;
 }
@@ -843,12 +822,9 @@ bool ResPot::coord(double* pos, double* vel,
   // ---------------------------------
   
   int indxX;
-  pthread_mutex_lock(&nwlock);
-  int* indxE = new int [2];
-  double* cX = new double [2];
-  double** cE = new double* [2];
-  for (int i1=0; i1<2; i1++) cE[i1] = new double [2];
-  pthread_mutex_unlock(&nwlock);
+  int indxE[2];
+  double cX[2];
+  double cE[2][2];
   
   bool noboundary;
   getInterp(I1, I2, indxX, indxE, cX, cE, noboundary);
@@ -899,13 +875,6 @@ bool ResPot::coord(double* pos, double* vel,
       rmax = max<double>(rmax, rw->r[ngrid-1]);
     }
   }
-  
-  pthread_mutex_lock(&nwlock);
-  for (int i1=0; i1<2; i1++) delete [] cE[i1];
-  delete [] cE;
-  delete [] cX;
-  delete [] indxE;
-  pthread_mutex_unlock(&nwlock);
   
   // Wrap w_1 in [0, 2*pi]
   if (w1>=0.0)

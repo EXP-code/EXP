@@ -45,6 +45,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJx0 = 0.0;
   EJy0 = 0.0;
   EJz0 = 0.0;
+  EJu0 = 0.0;
+  EJv0 = 0.0;
+  EJw0 = 0.0;
 
   binary = false;
   npart = false;
@@ -126,6 +129,12 @@ void Component::initialize(void)
     if (!datum.first.compare("EJy0"))     EJy0 = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJz0"))     EJz0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJu0"))     EJu0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJv0"))     EJv0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJw0"))     EJw0 = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJkinE"))   EJkinE = true ? atoi(datum.second.c_str()) : false;
 
@@ -257,6 +266,7 @@ void Component::initialize(void)
       for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
     } else {
       orient -> set_center(EJx0, EJy0, EJz0);
+      orient -> set_cenvel(EJu0, EJv0, EJw0);
       center[0] = EJx0;
       center[1] = EJy0;
       center[2] = EJz0;

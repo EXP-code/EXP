@@ -50,7 +50,7 @@ private:
   deque<Vector> sumsA, sumsC;
   int keep, current;
   Matrix body, orig;
-  Vector axis, center, axis1, center1, center0;
+  Vector axis, center, axis1, center1, center0, cenvel0;
   double sumX, sumX2;
   Vector sumY, sumY2, sumXY, slope;
   double sigA, sigC, sigCz;
@@ -83,6 +83,13 @@ public:
     center[1] = center0[1] = x;
     center[2] = center0[2] = y;
     center[3] = center0[3] = z;
+  }
+
+  //! Set initial center velocity (zero by default)
+  void set_cenvel(double u, double v, double w) {
+    cenvel0[1] = u;
+    cenvel0[2] = v;
+    cenvel0[3] = w;
   }
 
   //! Register phase space of _num_ particles and store angular momentum vector for the lowest _many_ binding energies
