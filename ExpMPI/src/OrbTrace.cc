@@ -50,7 +50,8 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       ncur += nskip;
     }
   }
-  out << endl;
+
+  out << "# " << endl;
   
 }
 
