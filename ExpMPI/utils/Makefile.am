@@ -23,7 +23,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(LDFLAGS) -o $@
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
-bin_PROGRAMS = pspinfo psp2tipsy pspsplit
+bin_PROGRAMS = pspinfo psp2tipsy pspsplit psp2ascii
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lstdc++ -lpthread -ldl -lm
@@ -40,6 +40,8 @@ pspinfo_SOURCES = pspinfo.cc header.cc
 psp2tipsy_SOURCES = psp2tipsy.cc header.cc
 
 pspsplit_SOURCES = pspsplit.cc header.cc
+
+psp2ascii_SOURCES = psp2ascii.cc header.cc
 
 ## src/ParseTest/Makefile.am ends here
 
