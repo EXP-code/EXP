@@ -93,6 +93,9 @@ public:
     cenvel0[3] = w;
   }
 
+  //! Write log entry
+  void logEntry(double time) { write_log(time, 0.0, 0.0); }
+
   //! Set center to move at constant velocity
   void set_linear() { linear = true; }
 

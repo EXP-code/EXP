@@ -20,11 +20,12 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  string model_file;
-  int diverge;
+  string model_file, ctr_name;
   double diverge_rfac;
+  int diverge;
 
   SphericalModelTable *model;
+  Component *c0;
 
   void userinfo();
 

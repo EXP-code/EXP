@@ -15,7 +15,7 @@ static char rcsid[] = "$Id$";
 
 ComponentContainer::ComponentContainer(void)
 {
-  gottapot = true;
+  gottapot = false;
 }
 
 void ComponentContainer::initialize(void)
@@ -229,7 +229,7 @@ void ComponentContainer::compute_potential(void)
   //
   // Compute new center
   //
-  if (!gottapot || restart) fix_positions();
+  fix_positions();
 
   //
   // Recompute global com
@@ -384,8 +384,12 @@ void ComponentContainer::fix_positions(void)
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
+
     if (c->EJ) {
-      c->orient->accumulate(tpos, &c->particles, &c->center[0]);
+      if (gottapot || restart) 
+	c->orient->accumulate(tpos, &c->particles, &c->center[0]);
+      else
+	c->orient->logEntry(tpos);
     }
   }
 

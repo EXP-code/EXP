@@ -7,12 +7,41 @@
 
 UserHalo::UserHalo(string &line) : ExternalForce(line)
 {
-  id = "SphericalHalo";
+
+  id = "SphericalHalo";		// Halo model file
   model_file = "SLGridSph.model";
-  diverge = 0;
-  diverge_rfac = 1.0;
+
+  diverge = 0;			// Use analytic divergence (true/false)
+  diverge_rfac = 1.0;		// Exponent for profile divergence
+  ctr_name = "";		// Default component for center
 
   initialize();
+
+  if (ctr_name.size()>0) {
+				// Look for the fiducial component for
+				// centering
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !ctr_name.compare(c->name) ) {
+	c0 = c;
+	found = true;
+      break;
+      }
+    }
+
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
+
+  }
+  else
+    c0 = NULL;
+
 
   model = new SphericalModelTable(model_file, diverge, diverge_rfac);
 
@@ -32,7 +61,12 @@ void UserHalo::userinfo()
 
   cout << "** User routine SPHERICAL HALO initialized, " ;
   cout << "Filename=" << model_file << "  diverge=" << diverge
-       << "  diverge_rfac=" << diverge_rfac << endl;
+       << "  diverge_rfac=" << diverge_rfac;
+  if (c0) 
+    cout << ", center on component <" << ctr_name << ">";
+  else
+    cout << ", using inertial center";
+  cout << endl;
   
   print_divider();
 }
@@ -44,6 +78,7 @@ void UserHalo::initialize()
   if (get_value("model_file", val))	model_file = val;
   if (get_value("diverge", val))	diverge = atoi(val.c_str());
   if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
+  if (get_value("ctrname", val))	ctr_name = val;
 }
 
 
@@ -60,26 +95,22 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double xx, yy, zz, rr, r, pot, dpot;
+  double xx, yy, zz, rr, r, pot, dpot, pos[3];
 
   for (int i=nbeg; i<nend; i++) {
 
-    xx = (*particles)[i].pos[0];
-    yy = (*particles)[i].pos[1];
-    zz = (*particles)[i].pos[2];
-    rr = xx*xx + yy*yy + zz*zz;
+    rr = 0.0;
+    for (int k=0; k<3; k++) {
+      pos[k] = (*particles)[i].pos[k];
+      if (c0) pos[k] -= c0->center[k];
+      rr += pos[k]*pos[i];
+    }
     r = sqrt(rr);
 
     model->get_pot_dpot(r, pot, dpot);
 
-
-    (*particles)[i].acc[0] += -dpot*xx/r;
-    
-    (*particles)[i].acc[1] += -dpot*yy/r;
-
-    (*particles)[i].acc[2] += -dpot*zz/r;
-    
-    (*particles)[i].potext += pot;
+    for (int k=0; k<3; k++)
+      (*particles)[i].acc[k] += -dpot*pos[k]/r;
   }
 
   return (NULL);
