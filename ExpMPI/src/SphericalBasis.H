@@ -75,7 +75,7 @@ public:
 
   //! Get derivative of potential
   /*! 
-    \param lmax is the maximum harmonic order
+    \param Lmax is the maximum harmonic order
     \param nmax is the maximum radial order
     \param r is the evaluation radius
     \param p will be returned array in harmonics l and radial order n

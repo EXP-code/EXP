@@ -52,7 +52,7 @@ void OutPSN::Run(int n, bool last)
     fname << filename << "." << setw(5) << setfill('0') << nbeg++ << '\0';
 
 				// Open file and write master header
-    out = new ofstream(fname.str());
+    out = new ofstream(fname.str(), ios::out | ios:noreplace);
 
     if (!*out) {
       cerr << "OutPSN: can't open file <" << fname.str() 
