@@ -23,18 +23,20 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 
   firstime = true;
 
-  com_name = "";		// Default component for com
-
+  ctr_name = "";		// Default component for com
+  angm_name = "";		// Default component for angular momentum
+  
   initialize();
 
-  if (com_name.size()>0) {
-				// Look for the fiducial component
+  if (ctr_name.size()>0) {
+				// Look for the fiducial component for
+				// centering
     bool found = false;
     list<Component*>::iterator cc;
     Component *c;
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
-      if ( !com_name.compare(c->name) ) {
+      if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
       break;
@@ -43,7 +45,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 
     if (!found) {
       cerr << "Process " << myid << ": can't find desired component <"
-	   << com_name << ">" << endl;
+	   << ctr_name << ">" << endl;
       MPI_Abort(MPI_COMM_WORLD, 35);
     }
 
@@ -51,13 +53,30 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   else
     c0 = NULL;
 
-  // Zero point data
-  teval = tnow;
-  for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
+  if (angm_name.size()>0) {
+				// Look for the fiducial component
+				// for angular momentum
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !angm_name.compare(c->name) ) {
+	c1 = c;
+	found = true;
+      break;
+      }
+    }
 
-  // Assign working vectors
-  tacc = new double* [nthrds];
-  for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << angm_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
+
+  }
+  else
+    c1 = NULL;
 
   userinfo();
 }
@@ -81,9 +100,13 @@ void UserEBar::userinfo()
   else
     cout << "standard potential, ";
   if (c0) 
-    cout << "center on component <" << com_name << ">" << endl;
+    cout << "center on component <" << ctr_name << ">, " << endl;
   else
-    cout << "center on origin" << endl;
+    cout << "using inertial center, " << endl;
+  if (c1) 
+    cout << "angular momentum from <" << angm_name << ">" << endl;
+  else
+    cout << "no initial angular momentum (besides bar)" << endl;
   cout << "****************************************************************\n";
 }
 
@@ -91,7 +114,8 @@ void UserEBar::initialize()
 {
   string val;
 
-  if (get_value("comname", val))	com_name = val;
+  if (get_value("ctrname", val))	ctr_name = val;
+  if (get_value("angmname", val))	angm_name = val;
   if (get_value("length", val))		length = atof(val.c_str());
   if (get_value("bratio", val))		bratio = atof(val.c_str());
   if (get_value("cratio", val))		cratio = atof(val.c_str());
@@ -118,8 +142,8 @@ void UserEBar::determine_acceleration_and_potential(void)
 				// Write to bar state file, if true
   bool update = false;
 
-  c0->get_angmom();		// Tell component to compute angular momentum
-  // cout << "Lz=" << c0->angmom[2] << endl; // debug
+  if (c1) c1->get_angmom();	// Tell component to compute angular momentum
+  // cout << "Lz=" << c1->angmom[2] << endl; // debug
 
   if (firstime) {
     
@@ -241,7 +265,10 @@ void UserEBar::determine_acceleration_and_potential(void)
     Iz = 0.2*mass*(a1*a1 + a2*a2);
     Lz = Iz * omega;
 
-    Lz0 = c0->angmom[2];
+    if (c1)
+      Lz0 = c1->angmom[2];
+    else
+      Lz0 = 0.0;
 
     posang = 0.0;
     lastomega = omega;
@@ -312,8 +339,12 @@ void UserEBar::determine_acceleration_and_potential(void)
 
   } else {
 
-    if (!fixed)
-      omega = (Lz + Lz0 - c0->angmom[2])/Iz;
+    if (!fixed) {
+      if (c1)
+	omega = (Lz + Lz0 - c1->angmom[2])/Iz;
+      else
+	omega = Lz/Iz;
+    }
     else
       omega = lastomega;
     
@@ -351,9 +382,12 @@ void UserEBar::determine_acceleration_and_potential(void)
 
       out << setw(15) << tvel
 	  << setw(15) << posang
-	  << setw(15) << omega
-	  << setw(15) << Lz + Lz0 - c0->angmom[2]
-	  << setw(15) << c0->angmom[2]
+	  << setw(15) << omega;
+      if (c1) 
+	out << setw(15) << Lz + Lz0 - c1->angmom[2];
+      else
+	out << setw(15) << Lz;
+      out << setw(15) << c1->angmom[2]
 	  << setw(15) << amplitude *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
@@ -376,7 +410,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
     * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
-  double xx, yy, zz, rr, nn, pp, M0;
+  double xx, yy, zz, rr, nn, pp, M0=0.0;
   vector<double> pos(3), acct(3); 
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
@@ -385,7 +419,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
     if ((*particles)[i].freeze()) continue;
 
-    for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
+    if (c0)
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
+    else
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
     
     xx = pos[0];
     yy = pos[1];

@@ -18,13 +18,15 @@
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param soft use the shallow form of the potential (default: false)
+    @param ctr_name defines the component that defines the center (defeats inertial centering)
+    @param angm_name defines the component that defines the L_z reservoir (null name: L_z[init]=0)
 */
 class UserEBar : public ExternalForce
 {
 private:
   
-  string com_name;
-  Component *c0;
+  string ctr_name, angm_name;
+  Component *c0, *c1;
   EllipForce *ellip;
 
   void determine_acceleration_and_potential(void);

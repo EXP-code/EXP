@@ -15,13 +15,15 @@
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param soft use the shallow form of the potential (default: false)
+    @param ctr_name defines the component that defines the bar center
+    @param angm_name defines the component that defines the L_z reservoir
 */
 class UserBar : public ExternalForce
 {
 private:
   
-  string com_name;
-  Component *c0;
+  string angm_name, ctr_name;
+  Component *c0, *c1;
 
   void determine_acceleration_and_potential(void);
   void determine_acceleration_and_potential(vector<Particle>*);
