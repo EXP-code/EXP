@@ -216,6 +216,8 @@ public:
   double eEJ0;
   //! Print verbose diagnostics
   bool EJdiag;
+  //! Use particle KE for energy computation
+  bool EJkinE;
   //! Use external potential for energy computation
   bool EJext;
 

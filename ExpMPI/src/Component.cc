@@ -33,6 +33,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   nEJkeep = 100;
   nEJwant = 500;
   eEJ0 = -0.5;
+  EJkinE = true;
   EJext = false;
   EJdiag = false;
 
@@ -54,6 +55,7 @@ Component::Component(istream *in)
   nEJkeep = 100;
   nEJwant = 500;
   eEJ0 = -0.5;
+  EJkinE = true;
   EJext = false;
   EJdiag = false;
 
@@ -93,6 +95,8 @@ void Component::initialize(void)
     if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
 
     if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJkinE"))     EJkinE = true ? atoi(datum.second.c_str()) : false;
 
     if (!datum.first.compare("EJext"))    EJext = true ? atoi(datum.second.c_str()) : false;
 
@@ -182,10 +186,12 @@ void Component::initialize(void)
 		     << " nkeep=" << nEJkeep
 		     << " nwant=" << nEJwant
 		     << " eEJ=" << eEJ0
+		     << " EJkinE=" << EJkinE
 		     << " EJext=" << EJext;
 
     else if (myid==0) {
       cout << name << ": EJ centering *ON*";
+      if (EJkinE) cout << ", using particle kinetic energy";
       if (EJext) cout << ", using external potential";
       cout << "\n";
     }
@@ -193,7 +199,12 @@ void Component::initialize(void)
     
     string EJlogfile = name + ".orient"; 
 
-    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJlogfile, EJext, EJdiag);
+    unsigned EJctl = 0;
+    if (EJdiag)		EJctl |= Orient::DIAG;
+    if (EJkinE)		EJctl |= Orient::KE;
+    if (EJext)		EJctl |= Orient::EXTERNAL;
+
+    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }

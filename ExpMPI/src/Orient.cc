@@ -17,17 +17,16 @@
 
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
-Orient::Orient(int n, int nwant, double Einit, int Flags, 
-	       string Logfile, bool Extpot, bool Verbose)
+Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
+	       string Logfile)
 {
   keep = n;
   current = 0;
   many = nwant;
   Egrad = 0.0;
   Ecurr = Einit;
-  flags = Flags;
-  extpot = Extpot;
-  verbose = Verbose;
+  oflags = Oflg;
+  cflags = Cflg;
   logfile = Logfile;
   Nlast = 0;
 
@@ -168,15 +167,16 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
 
-    energy = (*p)[i].pot + 
-      0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
-	   (*p)[i].vel[1]*(*p)[i].vel[1] + 
-	   (*p)[i].vel[2]*(*p)[i].vel[2]);
+    energy = (*p)[i].pot;
+    
+    if (cflags & KE) energy += 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
+				    (*p)[i].vel[1]*(*p)[i].vel[1] + 
+				    (*p)[i].vel[2]*(*p)[i].vel[2]);
 
-    if (extpot) energy += (*p)[i].potext;
+    if (cflags & EXTERNAL) energy += (*p)[i].potext;
 
     Emin1 = min<double>(energy, Emin1);
-
+    
     if (energy < Ecurr) {
 
       mass = (*p)[i].mass;
@@ -222,12 +222,13 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     
     for (int i=0; i<nbodies; i++) {
       
-      energy = (*p)[i].pot + 
-	0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
-	     (*p)[i].vel[1]*(*p)[i].vel[1] + 
-	     (*p)[i].vel[2]*(*p)[i].vel[2]);
-
-      if (extpot) energy += (*p)[i].potext;
+      energy = (*p)[i].pot;
+      
+      if (cflags & KE) energy += 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
+				      (*p)[i].vel[1]*(*p)[i].vel[1] + 
+				      (*p)[i].vel[2]*(*p)[i].vel[2]);
+      
+      if (cflags & EXTERNAL) energy += (*p)[i].potext;
 
       if (energy < Ecurr) {
 	
@@ -302,11 +303,11 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     axis1   /= mtot;
     center1 /= mtot;
-    if (flags & AXIS)   sumsA.push_back(axis1);
-    if (flags & CENTER) sumsC.push_back(center1);
+    if (oflags & AXIS)   sumsA.push_back(axis1);
+    if (oflags & CENTER) sumsC.push_back(center1);
 
 
-    if (verbose && myid==0) {
+    if ((cflags & DIAG) && myid==0) {
       cout << " Orient info: " << used << " particles used, Ecurr=" << Ecurr 
 	   << " Center=" 
 	   << center1[1] << ", "
@@ -389,7 +390,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 	i++;
 
 	/*
-	if (verbose && myid==0)
+	if ((cflags & DIAG) && myid==0)
 	  cout << " Orient debug i=" << i << " : SumX=" << sumX 
 	       << "  SumX2=" << sumX2 << "  Delta=" << sumX2*i - sumX*sumX 
 	       << endl;
@@ -430,7 +431,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     } else
       center = center0;
 
-    if (verbose && myid==0) {
+    if ((cflags & DIAG) && myid==0) {
       cout << "===================================================" << endl
 	   << " Orient info: size=" << sumsC.size()
 	   << "  SumX=" << sumX << " SumX2=" << sumX2 << endl

@@ -56,18 +56,22 @@ private:
   int many, used;
   double Ecurr, Elast, Egrad;
   int Nlast;
-  int flags;
+  unsigned int oflags;
+  unsigned int cflags;
   string logfile;
   bool extpot;
   bool verbose;
 
 public:
-  //! Mask flags for Orient behavior
+  //! Mask flags for Orient type
   enum OrientFlags {AXIS=1, CENTER=2};
 
+  //! Mask flags for Orient behavior
+  enum ControlFlags {DIAG=1, KE=2, EXTERNAL=4};
+
   //! Constructor
-  Orient(int number_to_keep, int target, double rinit, int flags, 
-	 string logfile, bool extpot=false, bool verbose=false);
+  Orient(int number_to_keep, int target, double rinit, 
+	 unsigned orient_flags, unsigned control_flags, string logfile);
 
   //! Register phase space of <num> particles and store angular momentum vector for the lowest <many> binding energies
   void accumulate(double time, vector<Particle> *p, double* com);
