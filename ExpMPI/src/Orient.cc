@@ -80,14 +80,14 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	in >> center[3];
       }
 
-      cout << "Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
+      cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
 
-      cout << "Orient: cached axis master: " 
+      cout << " Orient: cached axis master: " 
 	   << axis[1] << ", "
 	   << axis[2] << ", "
 	   << axis[3] << endl;
 
-      cout << "Orient: cached center master: " 
+      cout << " Orient: cached center master: " 
 	   << center[1] << ", "
 	   << center[2] << ", "
 	   << center[3] << endl;
@@ -127,11 +127,11 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
       }
 
       if (myid==1) {
-	cerr << "Orient: cached axis slave: " 
+	cerr << " Orient: cached axis slave: " 
 	     << axis[1] << ", "
 	     << axis[2] << ", "
 	     << axis[3] << "\n";
-	cerr << "Orient: cached center slave: " 
+	cerr << " Orient: cached center slave: " 
 	     << center[1] << ", "
 	     << center[2] << ", "
 	     << center[3] << "\n";
@@ -209,7 +209,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   if (size0 == 0) {
     
     if (myid==0) {
-      cout << "Orient: Ecurr error, current value=" << Ecurr 
+      cout << " Orient: Ecurr error, current value=" << Ecurr 
 	   << " but Min(Phi)=" << Emin0 << endl;
     }
     
@@ -300,7 +300,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
 
     if (verbose && myid==0) {
-      cout << "Orient info: " << used << " particles used, Ecurr=" << Ecurr 
+      cout << " Orient info: " << used << " particles used, Ecurr=" << Ecurr 
 	   << " Center=" 
 	   << center1[1] << ", "
 	   << center1[2] << ", "
@@ -383,7 +383,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
 	/*
 	if (verbose && myid==0)
-	  cout << "Orient debug i=" << i << " : SumX=" << sumX 
+	  cout << " Orient debug i=" << i << " : SumX=" << sumX 
 	       << "  SumX2=" << sumX2 << "  Delta=" << sumX2*i - sumX*sumX 
 	       << endl;
 	*/
@@ -394,7 +394,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
 
       /*
-      cout << "Orient debug: x, y, z = " 
+      cout << " Orient debug: x, y, z = " 
 	   << center[1] << ", "
 	   << center[2] << ", "
 	   << center[3] << endl;
@@ -418,7 +418,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     double factor = (double)((int)sumsC.size() - keep)/keep;
     /*
-    cout << "Orient debug: size=" << sumsC.size() << "  keep=" << keep 
+    cout << " Orient debug: size=" << sumsC.size() << "  keep=" << keep 
 	 << "  factor=" << factor << endl;
     */
     factor = 1.0 - factor*factor;
@@ -427,25 +427,25 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     if (verbose && myid==0) {
       cout << "===================================================" << endl
-	   << "Orient info: size=" << sumsC.size()
-	   << " SumX=" << sumX << " SumX2=" << sumX2 << endl
-	   << " SumY="
+	   << " Orient info: size=" << sumsC.size()
+	   << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
+	   << "  SumY="
 	   << sumY[1] << " "
 	   << sumY[2] << " "
 	   << sumY[3] << endl
-	   << " SumXY="
+	   << "  SumXY="
 	   << sumXY[1] << " "
 	   << sumXY[2] << " "
 	   << sumXY[3] << endl
-	   << " SumY2="
+	   << "  SumY2="
 	   << sumY2[1] << " "
 	   << sumY2[2] << " "
 	   << sumY2[3] << endl
-	   << " slope="
+	   << "  slope="
 	   << slope[1] << " "
 	   << slope[2] << " "
 	   << slope[3] << endl
-	   << " center=" 
+	   << "  center=" 
 	   << center[1] << " "
 	   << center[2] << " "
 	   << center[3] << endl

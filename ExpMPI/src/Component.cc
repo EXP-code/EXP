@@ -167,17 +167,17 @@ void Component::initialize(void)
   for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = angmom[k] = 0.0;
 
   if (EJ) {
-    cout << "Process " << myid << ": about to create Orient with"
-	 << " nkeep=" << nEJkeep
-	 << " nwant=" << nEJwant
-	 << " eEJ=" << eEJ0;
-    if (EJdiag) cout << " verbose=true " << endl;
-    else        cout << " verbose=false" << endl;
 
+    if (EJdiag) cout << "Process " << myid << ": about to create Orient with"
+		      << " nkeep=" << nEJkeep
+		      << " nwant=" << nEJwant
+		      << " eEJ=" << eEJ0;
+    
     string EJlogfile = name + ".orient"; 
 
     orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJlogfile, EJdiag);
-    cout << "Process " << myid << ": Orient successful\n";
+
+    if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }
 
   if (myid == 0) {		// Flag messages for diagnostics

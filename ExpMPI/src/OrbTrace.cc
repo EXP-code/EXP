@@ -123,19 +123,33 @@ void OrbTrace::Run(int n, bool last)
     if (out) out << setw(15) << tnow;
   }
 
-  int curproc = 0;
+  int curindex, curproc = 0;
   for (int i=0; i<norb; i++) {
 				// Identify the node that has the 
 				// desired particle
     while (orblist[i] >= tcomp->nbodies_index[curproc]) { curproc++; }
 
+
     if (myid==curproc) {	// Copy particle to buffer
+
+      curindex = orblist[i];
+      if (curproc) curindex -= tcomp->nbodies_index[curproc-1];
+
       for (int k=0; k<3; k++) 
 	pbuf[k  ] = 
-	  tcomp->particles[orblist[i]-tcomp->nbodies_index[curproc-1]].pos[k];
+	  tcomp->particles[curindex].pos[k];
       for (int k=0; k<3; k++) 
 	pbuf[k+3] = 
-	  tcomp->particles[orblist[i]-tcomp->nbodies_index[curproc-1]].vel[k];
+	  tcomp->particles[curindex].vel[k];
+
+#ifdef DEBUG
+      cout << "Process " << curproc << ": packing particle #" << orblist[i]
+	   << "  index=" << curindex;
+      for (int k=0; k<3; k++) 
+	cout << " " << 
+	  tcomp->particles[curindex].pos[k];
+      cout << endl;
+#endif 
     } 
 
     if (curproc) {		// Get particle from nodes
