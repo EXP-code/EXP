@@ -69,6 +69,8 @@ Cylinder::Cylinder(string& line) : Basis(line)
        << " lmax=" << lmax
        << " mmax=" << mmax
        << " ncylorder=" << ncylorder
+       << " rcylmin=" << rcylmin
+       << " rcylmax=" << rcylmax
        << " acyl=" << acyl
        << " hcyl=" << hcyl
        << " selector=" << selector
@@ -98,9 +100,9 @@ void Cylinder::initialize()
 {
   string val;
 
-  // These should not be user settable . . 
-  // if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
-  // if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
+  // These should not be user settable . . . but need them for now
+  if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
+  if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
 
   if (get_value("acyl", val)) acyl = atof(val.c_str());
   if (get_value("hcyl", val)) hcyl = atof(val.c_str());
