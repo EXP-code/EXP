@@ -3,7 +3,7 @@
 
 #include <gaussQ.h>
 #include <WghtOrth3.h>
-#include <EmpOrth7thd.h>
+#include <EmpOrth9thd.h>
 
 #include <Orient.H>
 #include <Cylinder.H>
@@ -20,48 +20,28 @@ Cylinder::Cylinder(string& line) : Basis(line)
   geometry = cylinder;
 
 				// Default values
-  rcylSL = 20.0;
   rcylEM = 20.0;
-  zmax = 8.0;
-  acyl = 0.5;
+  acyl = 1.0;
   nmax = 10;
-  nfft = 6;
+  lmax = 26;
   mmax = 4;
   ncylnx = 32;
   ncylny = 32;
   hcyl = 1.0;
-  EJcyl = 0;
-  ncylkeep = 100;
-  ncylamom = 500;
-  ecyl0 = -0.5;
-  ncylnzof = -1;
-  ncylordz = 6;
+  ncylorder = 16;
   ncylrecomp = -1;
   self_consistent = true;
   selector = false;
 
   initialize();
 
-  if (rcylSL < rcylEM) {
-    cerr << "Cylacp: rcylSL < rcylEM . . . setting rcylSL=rcylEM\n";
-    rcylSL = rcylEM;
-  }
-
-  CylindricalSL::ZMAX = zmax;
-  CylindricalSL::RMAX = rcylSL;
-  SLGridCyl::A = acyl;
-
-  orthoS = new CylindricalSL();
-  orthoS->reset(nmax, nfft, mmax);
 
   EmpCylSL::RMAX = rcylEM;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
+  EmpCylSL::ASCALE = acyl;
   EmpCylSL::HSCALE = hcyl;
-  if (ncylnzof>0)
-    EmpCylSL::NZOF = ncylnzof;
-  else
-    EmpCylSL::NZOF = orthoS->get_maxNZ();
+
 				// For debugging
 #ifdef DENSITY
   EmpCylSL::DENS = true;
@@ -72,25 +52,10 @@ Cylinder::Cylinder(string& line) : Basis(line)
 #endif
 
   ortho = new EmpCylSL();
-  ortho->reset(orthoS, zmax, ncylordz);
+  ortho->reset(nmax, lmax, mmax, ncylorder);
 
   ncompcyl = 0;
 
-  if (EJcyl) orient = new Orient(ncylkeep, ncylamom, ecyl0);
-    
-  if (myid == 0) {		// Flag messages for diagnostics
-    
-    if (EJcyl & AXIS)
-      cout << "Cylinder: AXIS orientation is *ON*\n";
-    else
-      cout << "Cylinder: AXIS orientation is *OFF*\n";
-
-    if (EJcyl & CENTER)
-      cout << "Cylinder: CENTER finding is *ON*\n";
-    else
-      cout << "Cylinder: CENTER finding is *OFF*\n";
-  }
-    
   pos = new Vector [nthrds];
   frc = new Vector [nthrds];
   for (int i=0; i<nthrds; i++) {
@@ -111,22 +76,15 @@ void Cylinder::initialize()
 {
   string val;
 
-  if (get_value("rcylSL", val)) rcylSL = atof(val.c_str());
   if (get_value("rcylEM", val)) rcylEM = atof(val.c_str());
-  if (get_value("zmax", val)) zmax = atof(val.c_str());
   if (get_value("acyl", val)) acyl = atof(val.c_str());
   if (get_value("hcyl", val)) hcyl = atof(val.c_str());
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
-  if (get_value("nfft", val)) nfft = atoi(val.c_str());
+  if (get_value("lmax", val)) lmax = atoi(val.c_str());
   if (get_value("mmax", val)) mmax = atoi(val.c_str());
   if (get_value("ncylnx", val)) ncylnx = atoi(val.c_str());
   if (get_value("ncylny", val)) ncylny = atoi(val.c_str());
-  if (get_value("EJcyl", val)) EJcyl = atoi(val.c_str());
-  if (get_value("ncylkeep", val)) ncylkeep = atoi(val.c_str());
-  if (get_value("ncylamom", val)) ncylamom = atoi(val.c_str());
-  if (get_value("ecyl0", val)) ecyl0 = atof(val.c_str());
-  if (get_value("ncylzof", val)) ncylnzof = atoi(val.c_str());
-  if (get_value("ncylordz", val)) ncylordz = atoi(val.c_str());
+  if (get_value("ncylorder", val)) ncylorder = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true; 
@@ -147,17 +105,6 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
   if (firstime && !(restart && ortho->read_cache())) {
     determine_coefficients();
     firstime = false;
-  }
-
-  /*======================*/
-  /* Reset center of mass */
-  /*======================*/
-
-  Vector ctr;
-  if (EJcyl & CENTER) {
-    ctr = orient->currentCenter();
-				// Tie halo center to disk center
-    for (int i=0; i<3; i++) component->com[i] = ctr[i+1];
   }
 
   /*======================*/
@@ -197,8 +144,6 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 
   determine_acceleration_and_potential();
 
-  if (EJcyl) orient->accumulate(particles, &component->com[0]);
-
   MPL_stop_timer();
 
 
@@ -214,18 +159,9 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
   }
 
 
-				// Test
-  /*
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) {
-    cout << "Cyl: n=" << this_step << "  com=" << component->com[0] 
-	 << ", " << component->com[1] << ", " << component->com[2] << endl;
-  }
-  */
-
-
   // Debug
-  if (myid==1 && EJcyl) 
+  /*
+  if (myid==1 && component->EJ) 
     {
       string toutfile = string(homedir) + "test.orientation";
       ofstream debugf(toutfile.c_str(), ios::app);
@@ -244,6 +180,7 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
 	     << orient->currentUsed()
 	     << '\n';
     }
+  */
 
   // Clear external potential flag
   use_external = false;
@@ -269,9 +206,10 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     if ((*particles)[i].freeze()) continue;
 
     for (int j=0; j<3; j++) 
-      pos[id][j+1] = (*particles)[i].pos[j] - component->com[j];
+      pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];
 
-    if (EJcyl & AXIS) pos[id] = orient->transformBody() * pos[id];
+    if (component->EJ & Orient::AXIS) 
+      pos[id] = component->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
     yy = pos[id][2];
@@ -280,7 +218,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
 
-    if (r<=rcylEM && fabs(zz)<=zmax) {
+    if (r<=M_SQRT1_2*rcylEM) {
       if (eof) {
 	use[id]++;
 	cylmass0[id] += (*particles)[i].mass;
@@ -388,9 +326,10 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     if ((*particles)[i].freeze()) continue;
 
     for (int j=0; j<3; j++) 
-      pos[id][j+1] = (*particles)[i].pos[j] - component->com[j];
+      pos[id][j+1] = (*particles)[i].pos[j] - component->center[j];
 
-    if (EJcyl & AXIS) pos[id] = orient->transformBody() * pos[id];
+    if (component->EJ & Orient::AXIS) 
+      pos[id] = component->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
     yy = pos[id][2];
@@ -400,7 +339,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r<=rcylEM && fabs(zz)<=zmax) {
+    if (r<=M_SQRT1_2*rcylEM) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
@@ -417,7 +356,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       frc[id][2] = fr*yy/r + fp*xx/r2;
       frc[id][3] = fz;
 
-      if (EJcyl & AXIS) frc[id] = orient->transformOrig() * frc[id];
+      if (component->EJ & Orient::AXIS) 
+	frc[id] = component->orient->transformOrig() * frc[id];
 
       for (int j=0; j<3; j++) (*particles)[i].acc[j] += frc[id][j+1];
     }

@@ -11,9 +11,6 @@
 //! This routine computes the potential, acceleration and density using the Cylindrical biorthogonal expansion
 class Cylinder : public Basis
 {
-
-  enum OrientFlags {AXIS=1, CENTER=2};
-
 private:
 
   vector<Particle> *particles;
@@ -32,11 +29,11 @@ private:
   void initialize(void);
 
 				// Parameters
-  double rcylSL, rcylEM, zmax, acyl;
-  int nmax, nfft, mmax;
+  double rcylEM, zmax, acyl;
+  int nmax, lmax, mmax;
   int ncylnx, ncylny;
-  double hcyl, ecyl0;
-  int EJcyl, ncylkeep, ncylamom, ncylnzof, ncylordz, ncylrecomp;
+  double hcyl;
+  int ncylorder, ncylrecomp;
   bool self_consistent, selector, firstime;
 
   // These should be ok for all derived classes, hence declared private

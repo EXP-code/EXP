@@ -71,7 +71,7 @@ void ComponentContainer::initialize(void)
 
     while (parse->get_next(data)) {
       
-      string name = data.first;
+      string name = trimLeft(trimRight(data.first));
       string id, pfile, cparam, fparam;
       const int linesize = 2048;
       char line[linesize];
@@ -85,7 +85,14 @@ void ComponentContainer::initialize(void)
 	  exit(0);
 	}
 	
-	desc.getline(line, linesize);
+	desc.get(line, linesize, '\0');
+
+				// Replace delimeters with spaces
+	for (int i=0; i<linesize; i++) {
+	  if ( line[i] == '\0' ) break;
+	  if ( line[i] == '\n' ) line[i] = ' ';
+	}
+
       }
 	
       MPI_Bcast(line, linesize, MPI_CHAR, 0, MPI_COMM_WORLD);
@@ -109,10 +116,16 @@ void ComponentContainer::initialize(void)
 
   }
 
-				// Initialize interactions between components
+				// Initialize components
   list<Component*>::iterator cc, cc1;
   Component *c, *c1;
 
+  for (cc=components.begin(); cc != components.end(); cc++) {
+    c = *cc;
+    c->initialize();
+  }
+
+				// Initialize interactions between components
   string value;
   
   for (cc=components.begin(); cc != components.end(); cc++) {
@@ -311,6 +324,11 @@ void ComponentContainer::fix_positions(void)
     mtot1 += c->mtot;
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
+
+    // cout << "Process " << myid << ": about to accumulate center . . . ";
+    // MPI_Barrier(MPI_COMM_WORLD); // I'm not sure why I need this here . . .
+    if (c->EJ) c->orient->accumulate(&c->particles, &c->center[0]);
+    // cout << "Process " << myid << ": done\n";
   }
 
   MPI_Barrier(MPI_COMM_WORLD);

@@ -17,6 +17,7 @@
 class EL3 
 {
 public:
+  
   /// Mass
   double M;
   /// Binding energy
@@ -57,6 +58,7 @@ private:
   int Nlast;
 
 public:
+  enum OrientFlags {AXIS=1, CENTER=2};
 
   //! Constructor
   Orient(int number_to_keep, int target, double rinit);
@@ -70,7 +72,7 @@ public:
   //! Return transformation to original coordinates
   Matrix& transformOrig(void) {return orig;};
 
-  //! Return current center
+  //! Return current axis
   Vector& currentAxis(void) {return axis;};
 
   //! Return current center

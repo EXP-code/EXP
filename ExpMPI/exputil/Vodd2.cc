@@ -40,9 +40,9 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <Vector.h>
 
-int Vlocate(double x, Vector xtab);
+#include <Vector.h>
+#include <interp.h>
 
 
 double odd2(double x, const Vector &xtab, const Vector &ftab, int even)
@@ -82,6 +82,58 @@ double drv2(double x, const Vector &xtab, const Vector &ftab, int even)
 
   min = xtab.getlow();
   max = xtab.gethigh();
+
+  if (even)
+    index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
+  else
+    index = Vlocate(x, xtab);
+
+  if (index < min) index=min;
+  if (index >= max) index=max-1;
+
+  ans = ( ftab[index+1] -ftab[index] )/( xtab[index+1]-xtab[index] ) ;
+
+  return ans;
+
+}
+
+double odd2(double x, const vector<double> &xtab, const vector<double> &ftab, int even)
+{
+  int index,min,max;
+  double ans;
+
+
+  /*  find position in grid  */
+
+  min = 0;
+  max = xtab.size() - 1;
+
+  if (even)
+    index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;
+  else
+    index = Vlocate(x, xtab);
+
+  if (index < min) index=min;
+  if (index >= max) index=max-1;
+
+  ans = ( ftab[index+1]*(x-xtab[index]  ) -
+	  ftab[index  ]*(x-xtab[index+1]) )
+    /( xtab[index+1]-xtab[index] ) ;
+
+  return ans;
+
+}
+
+double drv2(double x, const vector<double> &xtab, const vector<double> &ftab, int even)
+{
+  int index,min,max;
+  double ans;
+
+
+  /*  find position in grid  */
+
+  min = 0;
+  max = xtab.size() - 1;
 
   if (even)
     index = (int)((x-xtab[min])/(xtab[max]-xtab[min])*(double)(max-min)) + min;

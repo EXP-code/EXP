@@ -244,7 +244,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
     mass = (*particles)[i].mass;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->com[k];
+      pos[k] = (*particles)[i].pos[k] - component->center[k];
 
     xx = pos[0];
     yy = pos[1];
@@ -327,7 +327,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
       continue;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->com[k];
+      pos[k] = (*particles)[i].pos[k] - component->center[k];
 
     xx = pos[0];
     yy = pos[1];

@@ -16,7 +16,9 @@
 #include <localmpi.h>
 
 #include <Vector.h>
+// #include <Matrix.h>
 
+#include <massmodel.h>
 #include <sltableMP2.h>
 
 class SLGridCyl
@@ -68,6 +70,9 @@ public:
 				// Exponential scale length
   static double A;		// default: 1.0
 
+				// Coordinate map
+  static int cmap;		// default: 1=on
+
 				// Constructors
 
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
@@ -117,6 +122,9 @@ private:
 
   struct TableSph* table;
 
+  void initialize(int LMAX, int NMAX, int NUMR,
+		  double RMIN, double RMAX);
+
   void init_table(void);
   void compute_table(struct TableSph* table, int L);
   void compute_table_slave(void);
@@ -143,11 +151,13 @@ public:
 				// Check for cached table
   static int cache;		// default: 1=yes
 
-				// Coordinate map flat
+				// Coordinate map
   static int cmap;		// default: 0=off
 
 				// Constructors
 
+  SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
+	    SphericalModelTable *mod);
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax);
   ~SLGridSph();
 

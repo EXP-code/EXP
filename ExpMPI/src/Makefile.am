@@ -31,7 +31,7 @@ CXXLINK = hf77 -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 exp_SOURCES = \
      Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc		     \
-     Cube.cc Cylinder.cc EmpOrth7thd.cc ExternalCollection.cc                \
+     Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc                \
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
      SLGridMP2.cc ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc       \
      Sphere.cc WghtOrth3.cc global.cc                                        \

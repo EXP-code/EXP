@@ -14,6 +14,7 @@
 #include <Slab.H>
 #include <SlabSL.H>
 #include <Direct.H>
+#include <Orient.H>
 
 #include "expand.h"
 
@@ -23,13 +24,19 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 {
   use_com = false;
   use_cov = false;
+
+  EJ = 0;
+  nEJkeep = 100;
+  nEJwant = 500;
+  eEJ0 = -0.5;
+
   binary = false;
+
   npart = false;
   buf = new Partstruct [nbuf];
 
   read_bodies_and_distribute_ascii();
 
-  initialize();
 }
 
 
@@ -42,30 +49,48 @@ Component::Component(istream *in)
   buf = new Partstruct [nbuf];
 
   read_bodies_and_distribute_binary(in);
-  initialize();
+
 }
 
 
 void Component::initialize(void)
 {
 				// Parse the parameters
-
   StringTok<string> tokens(cparam);
   pair<string, string> datum;
 
-  string token = tokens(" ");	// Space separated tokens
+  string token = tokens("|");	// Bar separated tokens
 
   while (token.size()) {
     StringTok<string> parse(token);
-    datum.first  = parse("=");
-    datum.second = parse("=");
+    datum.first  = trimLeft(trimRight(parse("=")));
+    datum.second = trimLeft(trimRight(parse("=")));
 
-    if (!datum.first.compare("use_com"))    use_com = true;
+    if (!datum.first.compare("use_com"))  use_com = true;
 
-    if (!datum.first.compare("use_cov"))    use_cov = true;
+    if (!datum.first.compare("use_cov"))  use_cov = true;
+
+    if (!datum.first.compare("com_tie"))  get_com_component(datum.second);
+
+    if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
+    
+    if (!datum.first.compare("nEJkeep"))  nEJkeep = atoi(datum.second.c_str());
+
+    if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
+
+    if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
 
 				// Next parameter
     token = tokens(" ");
+  }
+
+				// DEBUG
+  if (myid==0) {
+    if (use_com) cout << name << ": self com is *ON*\n";
+    list<Component*>::iterator i;
+    for (i=com_tie.begin(); i != com_tie.end(); i++) {
+      cout << name << ": use <" << (*i)->name << "> for com\n";
+    }
   }
 
 				// Instantiate the force ("reflection" by hand)
@@ -119,11 +144,62 @@ void Component::initialize(void)
   force->RegisterComponent(this);
 
   com = new double [3];
+  center = new double [3];
   cov = new double [3];
   angmom = new double [3];
   ps = new double [6];
 
-  for (int k=0; k<3; k++) com[k] = cov[k] = angmom[k] = 0.0;
+  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = angmom[k] = 0.0;
+
+  if (EJ) {
+    cout << "Process " << myid << ": about to create Orient with"
+	 << " nkeep=" << nEJkeep
+	 << " nwant=" << nEJwant
+	 << " eEJ=" << eEJ0 << endl;
+    orient = new Orient(nEJkeep, nEJwant, eEJ0);
+    cout << "Process " << myid << ": Orient successful\n";
+  }
+
+  if (myid == 0) {		// Flag messages for diagnostics
+    
+    if (EJ & Orient::AXIS)
+      cout << name << ": AXIS orientation is *ON*\n";
+
+    if (EJ & Orient::CENTER) {
+      if (use_com) 
+	cout << name 
+	     << ": CENTER finding is *ON* and will supercede COM centering\n";
+      else
+	cout << name 
+	     << ": CENTER finding is *ON*\n";
+    }
+
+  }
+    
+}
+
+
+void Component::get_com_component(string name)
+{
+				// Loop through components to find com target
+  list<Component*>::iterator cc;
+  Component *c;
+  bool found = false;
+  
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
+				// Is this the one?
+    if (c->name.compare(name) == 0) {
+      com_tie.push_back(&(*c));
+      found = true;
+      break;
+    }
+  }
+
+  if (!found) {
+    string msg = "Could not find target component named <" + name +  "> for COM\n";
+    bomb(msg);
+  }
 
 }
 
@@ -134,6 +210,7 @@ Component::~Component(void)
   delete [] buf;
   delete [] com;
   delete [] cov;
+  delete [] center;
   delete [] angmom;
   delete [] ps;
 }
@@ -484,7 +561,7 @@ int Component::get_next_particle(Partstruct *onepart)
   else
     onepart = NULL;
 
-  for (int k=0; k<3; k++) com[k] = cov[k] = 0.0;
+  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 0.0;
 
   return 1;
 }
@@ -682,7 +759,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (rmax <= 0.0) rmax = sqrt(rmax1);
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  for (int k=0; k<3; k++) com[k] = cov[k] = 0.0;
+  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 0.0;
 
 }
 
@@ -859,7 +936,7 @@ void Component::fix_positions(void)
 				// Zero stuff out
   mtot = mtot1 = 0.0;
   for (int k=0; k<dim; k++)
-    com[k] = cov[k] = com1[k] = cov1[k] = 0.0;
+    com[k] = center[k] = cov[k] = com1[k] = cov1[k] = 0.0;
 
 				// Particle loop
   pend = particles.end();
@@ -869,8 +946,8 @@ void Component::fix_positions(void)
     
     mtot1 += p->mass;
 
-    if (use_com) for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
-    if (use_cov) for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+    for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
+    for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
     
   }
   
@@ -878,16 +955,31 @@ void Component::fix_positions(void)
   MPI_Allreduce(com1, com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(cov1, cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
-  if (mtot > 0.0) {
-    for (int k=0; k<dim; k++) com[k] /= mtot;
+				// Add com from other specified components
+
+  double mtot0 = 0.0;
+
+  if (use_com) {
+    for (int k=0; k<dim; k++) center[k] = com[k];
+    mtot0 += mtot;
+  }
+  
+  list<Component*>::iterator i;
+  for (i=com_tie.begin(); i != com_tie.end(); i++) {
+    for (int k=0; k<dim; k++) center[k] += (*i)->com[k]*(*i)->mtot;
+    mtot0 += (*i)->mtot;
   }
 
+				// Compute component center of mass and
+				// center of velocity
+
+  if (mtot > 0.0) {
+    for (int k=0; k<dim; k++) com[k] /= mtot;
+    for (int k=0; k<dim; k++) cov[k] /= mtot;
+  }
 
   if (use_cov) {
-    if (mtot > 0.0) {
-      for (int k=0; k<dim; k++) cov[k] /= mtot;
-    }
-    
+
     pend = particles.end();
     for (p=particles.begin(); p != pend; p++) {
 
@@ -899,6 +991,12 @@ void Component::fix_positions(void)
 
   delete [] com1;
   delete [] cov1;
+
+  Vector ctr;
+  if (EJ & Orient::CENTER) {
+    ctr = orient->currentCenter();
+    for (int i=0; i<3; i++) center[i] = ctr[i+1];
+  }
 }
 
 

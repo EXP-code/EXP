@@ -3,6 +3,7 @@
 
 #include <mpi.h>
 #include <PotAccel.H>
+#include <Orient.H>
 #include <header.H>
 
 
@@ -24,6 +25,7 @@ class Component
 {
 
   friend class ScatterMFP;
+  friend class ComponentContainer;
 
   static const int ndmax = 5;
   static const int nimax = 5;
@@ -41,8 +43,6 @@ class Component
   };
 
 private:
-
-  void initialize(void);
 
   //! Parallel distribute and particle io
   void read_bodies_and_distribute_ascii(void);
@@ -69,6 +69,10 @@ private:
 
 protected:
 
+  /** Initialize parameters (called by ComponentContainer after component
+      instantiation */
+  void initialize(void);
+
   //! Slab parameters
   double azcm_slab;
 
@@ -93,6 +97,10 @@ protected:
   //! Current phase-space time
   double time;
   
+  //! Component to tie com
+  list<Component*> com_tie;
+  void get_com_component(string name);
+
 public:
 
   //! Particle file
@@ -135,7 +143,7 @@ public:
      These are pointers to the center of mass, center of velocity,
      angular momentum and the phase-space 6 vector.
   */
-  double *com, *cov, *angmom, *ps;
+  double *com, *cov, *center, *angmom, *ps;
 
   //! Total mass
   double mtot;
@@ -154,6 +162,18 @@ public:
 
   //! Attribute array dimensions
   int niattrib, ndattrib;
+
+  //! Binding energy orientation flag
+  int EJ;
+  //! Number to keep in orientation stack
+  int nEJkeep;
+  //! Target number of particles for average
+  int nEJwant;
+  //! Initial guess for energy cutoff
+  double eEJ0;
+
+  //! Orientation cache
+  Orient *orient;
 
   //! The constructor
   /*! 

@@ -119,6 +119,7 @@ void MPL_parse_args(int argc, char** argv)
   int myid;
   char file[128];
   int c;
+  string curparm(parmfile);
 
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   
@@ -127,8 +128,8 @@ void MPL_parse_args(int argc, char** argv)
     while ((c = getopt(argc, argv, "f:dh")) != -1)
       switch (c) {
       case 'f': 
-	parmfile.erase(parmfile.begin(), parmfile.end());
-	parmfile = optarg;
+	curparm.erase(curparm.begin(), curparm.end());
+	curparm = optarg;
 	break;
       case 'd':
 	print_default();
@@ -139,9 +140,11 @@ void MPL_parse_args(int argc, char** argv)
 	break;
       }
     
-    ifstream in(infile.c_str());
+    ifstream in(curparm.c_str());
     if (!in) {
+      char mbuf[512];
       cerr << "MAIN: can not open parameter file <" << parmfile << ">\n";
+      cerr << "MAIN: pwd is <" << getcwd(mbuf, 512) << ">\n";
       MPI_Abort(MPI_COMM_WORLD, 9);
     }
 

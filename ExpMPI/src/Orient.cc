@@ -222,6 +222,7 @@ void Orient::accumulate(vector<Particle> *p, double *com)
     sumsC.push_back(center1);
 
     if (sumsA.size() > keep) {
+
       sumsA.pop_front();
 
       double x;
@@ -260,7 +261,6 @@ void Orient::accumulate(vector<Particle> *p, double *com)
       }
       sigA /= i;
 
-      
       double phi = atan2(axis[2], axis[1]);
       double theta = -acos(axis[3]/sqrt(axis*axis));
       double psi = 0.0;
@@ -269,8 +269,17 @@ void Orient::accumulate(vector<Particle> *p, double *com)
       orig = return_euler_slater(phi, theta, psi, 1);
     }
 
-    if (sumsC.size() > keep) {
-      sumsC.pop_front();
+    /*
+    cout << "Process " << myid << ": size=" << sumsC.size()
+	 << " com=" 
+	 << center[1] << " "
+	 << center[2] << " "
+	 << center[3] << "\n";
+    */
+
+    if (sumsC.size() > 2) {
+
+      if (sumsC.size() > keep) sumsC.pop_front();
 
       double x;
       int i=0;
@@ -290,7 +299,7 @@ void Orient::accumulate(vector<Particle> *p, double *com)
 
 	i++;
       }
-				// Linear least squares estimate for axis
+				// Linear least squares estimate for center
 
       center = (sumX2*sumY - sumX*sumXY)/(sumX2*i - sumX*sumX);	
       slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
@@ -310,6 +319,11 @@ void Orient::accumulate(vector<Particle> *p, double *com)
       sigCz /= i;
 
     }
+
+    double factor = (double)(sumsC.size() - keep)/keep;
+    factor = 1.0 - factor*factor;
+
+    center *= factor*factor;
 
   }
 

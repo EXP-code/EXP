@@ -44,8 +44,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <Vector.h>
+#include <vector>
 
-int Vlocate(double x, Vector xx)
+int Vlocate(double x, const Vector& xx)
 {
   int ascnd,ju,jm,jl,min,max;
   
@@ -65,7 +66,7 @@ int Vlocate(double x, Vector xx)
 }
 
 
-int Vlocate_with_guard(double value, Vector vector)
+int Vlocate_with_guard(double value, const Vector& vector)
 {
   int which,min,max;
 
@@ -86,7 +87,53 @@ int Vlocate_with_guard(double value, Vector vector)
     }
     else{
       puts("WARNING: misordered data in locate_with_guard");
-      return 0;
+      return -1;
+    }
+  }
+}
+
+int Vlocate(double x, const vector<double> &xx)
+{
+  int ascnd,ju,jm,jl,min,max;
+  
+  min = 0;
+  max = xx.size() - 1;
+  jl=min-1;
+  ju=max+1;
+  ascnd=xx[max] > xx[min];
+  while (ju-jl > 1) {
+    jm=(ju+jl) >> 1;
+    if ((x > xx[jm]) == ascnd)
+      jl=jm;
+    else
+      ju=jm;
+  }
+  return jl;
+}
+
+
+int Vlocate_with_guard(double value, const vector<double> &vec)
+{
+  int which,min,max;
+
+  min = 0;
+  max = vec.size() - 1;
+  which = (vec[min] < vec[max]);
+
+  if( ( vec[min] < value == which ) &&
+      ( value < vec[max] == which ) ) {
+    return Vlocate(value, vec);
+  }
+  else{
+    if( (value <= vec[min]  ) == which ){
+      return min;
+    }
+    else if( (value >= vec[max]) == which ){
+      return max;
+    }
+    else{
+      puts("WARNING: misordered data in locate_with_guard");
+      return -1;
     }
   }
 }

@@ -67,6 +67,7 @@ private:
   vector<dvector> cov, cov1;
   vector<dvector> mom, mom1;
   vector<dvector> angm, angm1;
+  vector<dvector> ctr;
   vector<double> ektot, eptot, clausius;
   vector<double> ektot1, eptot1, clausius1;
 
@@ -77,12 +78,12 @@ public:
   //! Number of global entries
   static const int num_global = 19;
   //! Number of per-component entries
-  static const int num_component = 17;
+  static const int num_component = 20;
 
   //! Global column labels
-  static char lab_global[][18];
+  static char lab_global[][19];
   //! Per-component column labels
-  static char lab_component[][18];
+  static char lab_component[][20];
 
   /*! \brief Constructor
       \param line token list of specific parameters

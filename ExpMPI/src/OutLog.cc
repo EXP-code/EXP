@@ -4,7 +4,7 @@ static char rcsid[] = "$Id$";
 
 #include <OutLog.H>
 
-char OutLog::lab_global[][18] = {
+char OutLog::lab_global[][19] = {
   "Current time",
   "Total mass", 
   "Number of bodies", 
@@ -26,7 +26,7 @@ char OutLog::lab_global[][18] = {
   "Total # used"
 };
 
-char OutLog::lab_component[][18] = {
+char OutLog::lab_component[][20] = {
   "Total mass", 
   "Number of bodies", 
   "COM (x)", 
@@ -38,6 +38,9 @@ char OutLog::lab_component[][18] = {
   "Ang mom (x)", 
   "Ang mom (y)", 
   "Ang mom (z)", 
+  "CTR (x)", 
+  "CTR (y)", 
+  "CTR (z)", 
   "Total KE", 
   "Total PE", 
   "Virial of C", 
@@ -112,6 +115,8 @@ void OutLog::Run(int n, bool last)
     angm = vector<dvector>(comp.ncomp);
     angm1 = vector<dvector>(comp.ncomp);
 
+    ctr = vector<dvector>(comp.ncomp);
+
     mom = vector<dvector>(comp.ncomp);
     mom1 = vector<dvector>(comp.ncomp);
 
@@ -122,6 +127,7 @@ void OutLog::Run(int n, bool last)
       cov1[i] = vector<double>(3);
       angm[i] = vector<double>(3);
       angm1[i] = vector<double>(3);
+      ctr[i] = vector<double>(3);
       mom[i] = vector<double>(6);
       mom1[i] = vector<double>(6);
     }
@@ -262,6 +268,8 @@ void OutLog::Run(int n, bool last)
 	(p->pos[0]*p->acc[0]+p->pos[1]*p->acc[1]+p->pos[2]*p->acc[2]);
     }
     
+    for (int j=0; j<3; j++) ctr[indx][j] = c->center[j];
+
     used0[indx] = c->force->Used();
 
     indx++;
@@ -375,6 +383,8 @@ void OutLog::Run(int n, bool last)
 	*out << "|" << setw(18) << cov[i][j];
       for (int j=0; j<3; j++)
 	*out << "|" << setw(18) << angm[i][j];
+      for (int j=0; j<3; j++)
+	*out << "|" << setw(18) << ctr[i][j];
       *out << "|" << setw(18) << ektot[i];
       *out << "|" << setw(18) << eptot[i];
       *out << "|" << setw(18) << clausius[i];

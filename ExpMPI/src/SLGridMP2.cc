@@ -5,6 +5,12 @@
 #define SLEDGE_VERBOSE 1
 #define USE_TABLE 1
 
+#define CYLFAC 1.01
+// #define EXPONCYL
+#define PLUMMERCYL
+// #define JAFFECYL
+// #define MESTELCYL
+
 #include <stdlib.h>
 #include <iostream.h>
 #include <iomanip.h>
@@ -23,6 +29,7 @@ MPI_Status status;
 int SLGridCyl::mpi = 0;		// initially off
 int SLGridCyl::cache = 1;	// initially yes
 double SLGridCyl::A = 1.0;
+int SLGridCyl::cmap = 1;	// coordinate mapping initially on
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -44,37 +51,123 @@ extern "C" {
 
 double cylpot(double r)
 {
-  // double y = 0.5 * r / SLGridCyl::A;
+				// Jaffe-like cylinder
+#ifdef JAFFECYL
+  double r2 = r/SLGridCyl::A;
+  return log(1.0 + r2) - log(1.0 + CYLFAC*cylrfac);
+#endif
+				// Mestel-like cylinder
+#ifdef MESTELCYL
+  double a2 = SLGridCyl::A * SLGridCyl::A;
+  double r2 = r*r/a2;
+  return log(1.0 + sqrt(1.0 + r2)) - log(1.0 + sqrt(1.0 + CYLFAC*cylrfac));
+#endif
 
-  // return -2.0*M_PI*A*y*(iv(0, y)*kn(1, y) - iv(1, y)*kn(0, y));
-  // return -2.0*M_PI*SLGridCyl::A*y*(i0(y)*k1(y) - i1(y)*k0(y));
-
-  return -1.0/sqrt(1.0 + r*r/(SLGridCyl::A*SLGridCyl::A));
-}
-
-double cylpotsl(double r)
-{
+				// Thin expontial
+#ifdef EXPONCYL
+  double y = 0.5 * r / SLGridCyl::A;
+  return -2.0*M_PI*SLGridCyl::A*y*(i0(y)*k1(y) - i1(y)*k0(y));
+#endif
+				// Plummer-like cylinder
+#ifdef PLUMMERCYL
   double a2 = SLGridCyl::A*SLGridCyl::A;
   double r2 = r*r/a2;
 
-  return (2.0 - r2)/pow(1.0 + r2, 2.5)/a2;
+  return -1.0/sqrt(1.0 + r2);
+#endif
+}
+
+double cyldpot(double r)
+{
+				// Jaffe-like cylinder
+#ifdef JAFFECYL
+  return 1.0/(SLGridCyl::A + r);
+#endif
+				// Mestel-like cylinder
+#ifdef MESTELCYL
+  double a2 = SLGridCyl::A * SLGridCyl::A;
+  double fac = sqrt(1.0 + r*r/a2);
+  return r/a2/(fac*(1.0 + fac));
+#endif
+
+				// Thin expontial
+#ifdef EXPONCYL
+  double y = 0.5 * r / SLGridCyl::A;
+  return 4.0*M_PI*SLGridCyl::A*y*y*(i0(y)*k0(y) - i1(y)*k1(y));
+#endif
+				// Plummer-like cylinder
+#ifdef PLUMMERCYL
+  double a2 = SLGridCyl::A*SLGridCyl::A;
+  double fac = sqrt(1.0 + r*r/a2);
+
+  return r/a2/(fac*fac*fac);
+#endif
 }
 
 double cyldens(double r)
 {
-  // double a2 = SLGridCyl::A*SLGridCyl::A;
-  // double r2 = r*r/a2;
+				// Jaffe-like cylinder
+#ifdef JAFFECYL
+  double fac = r + SLGridCyl::A;
+  return SLGridCyl::A/( fac*fac*r );
+#endif
+
+				// Mestel-like cylinder
+#ifdef MESTELCYL
+  double a2 = SLGridCyl::A * SLGridCyl::A;
+  double r2 = r*r/a2;
+  double fac1 = sqrt(1.0 + r2);
+  double fac2 = 1.0 + fac1;
+
+  return 1.0/(fac1*fac2*a2) * (2.0 - r2/(fac1*fac2) - r2/(fac1*fac1));
+#endif
 
   // This 4pi from Poisson's eqn
   //        |
   //        |       /-- This begins the true projected density profile
   //        |       |
   //        v       v
-  return 4.0*M_PI * exp(-r/SLGridCyl::A)/(2.0*SLGridCyl::A);
+#ifdef EXPONCYL
+  return 4.0*M_PI * exp(-r/SLGridCyl::A);
+#endif
 
-  //  return (2.0 + r2)/pow(1.0 + r2, 2.5)/a2;
+#ifdef PLUMMERCYL
+  /*
+  double a2 = SLGridCyl::A*SLGridCyl::A;
+  double r2 = r*r/a2;
+
+  return (2.0 - r2)/pow(1.0 + r2, 2.5)/a2;
+  */
+  return 4.0*M_PI * exp(-r/SLGridCyl::A);
+#endif
 }
 
+
+double cylpotsl(double r)
+{
+				// Jaffe cylinder
+#ifdef JAFFECYL
+  return cyldens(r);
+#endif
+				// Mestel cylinder
+#ifdef MESTELCYL
+  return cyldens(r);
+#endif
+				// Exponential
+#ifdef EXPONCYL
+  double y = 0.5 * r / SLGridCyl::A;
+  return M_PI*(2.0*SLGridCyl::A*i0(y)*k0(y) - r*i0(y)*k1(y) +
+	       r*i1(y)*k0(y))/(SLGridCyl::A*SLGridCyl::A);
+#endif
+  
+				// Plummer-like
+#ifdef PLUMMERCYL
+  double a2 = SLGridCyl::A*SLGridCyl::A;
+  double r2 = r*r/a2;
+
+  return (2.0 - r2)/pow(1.0 + r2, 2.5)/a2;
+#endif
+}
 
 void SLGridCyl::bomb(string oops)
 {
@@ -98,9 +191,16 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   rmax = RMAX;
   l = L;
 
+#ifdef JAFFECYL
+  cylrfac = RMAX/A;
+#endif
+#ifdef MESTELCYL
+  cylrfac = RMAX*RMAX/A*A;
+#endif
+
   kv.setsize(0, NUMK);
-  dk = M_PI/L;
-  // dk = 0.5*M_PI/L;
+  // dk = M_PI/L;
+  dk = 0.5*M_PI/L;
   for (k=0; k<=NUMK; k++) kv[k] = dk*k;
 
   init_table();
@@ -383,29 +483,43 @@ SLGridCyl::~SLGridCyl()
 
 double SLGridCyl::r_to_xi(double r)
 {
-  if (r<0.0) bomb("radius < 0!");
-  return (r-1.0)/(r+1.0);
+  if (cmap) {
+    if (r<0.0) bomb("radius < 0!");
+    return (r-1.0)/(r+1.0);
+  } else {
+    if (r<0.0) bomb("radius < 0!");
+    return r;
+  }
 }
     
 double SLGridCyl::xi_to_r(double xi)
 {
-  if (xi<-1.0) bomb("xi < -1!");
-  if (xi>=1.0) bomb("xi >= 1!");
+  if (cmap) {
+    if (xi<-1.0) bomb("xi < -1!");
+    if (xi>=1.0) bomb("xi >= 1!");
 
-  return (1.0+xi)/(1.0 - xi);
+    return (1.0+xi)/(1.0 - xi);
+  } else {
+    return xi;
+  }
+
 }
 
 double SLGridCyl::d_xi_to_r(double xi)
 {
-  if (xi<-1.0) bomb("xi < -1!");
-  if (xi>=1.0) bomb("xi >= 1!");
+  if (cmap) {
+    if (xi<-1.0) bomb("xi < -1!");
+    if (xi>=1.0) bomb("xi >= 1!");
 
-  return 0.5*(1.0-xi)*(1.0-xi);
+    return 0.5*(1.0-xi)*(1.0-xi);
+  } else {
+    return 1.0;
+  }
 }
 
 double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -434,7 +548,7 @@ double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
 
 double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -464,7 +578,7 @@ double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
 
 double SLGridCyl::get_force(double x, int m, int n, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -496,7 +610,7 @@ double SLGridCyl::get_force(double x, int m, int n, int k, int which)
 
 void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -538,7 +652,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 
 void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -578,7 +692,7 @@ void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
 
 void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -618,7 +732,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 
 void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -654,7 +768,7 @@ void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
 
 void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -692,7 +806,7 @@ void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
 
 void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -725,7 +839,7 @@ void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
 
 void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -786,7 +900,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 
 void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -833,7 +947,7 @@ void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
 
 void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
 {
-  if (which)
+  if (which || !cmap)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
@@ -929,13 +1043,23 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
   double *pdef = new double [NUM*N];
   double f;
 
+				// Inner  BC
   f = cylpot(cons[6]);
-  cons[2] = -1.0/(cons[6]*f*f);	// zero first deriv
+  if (M==0) {
+    cons[0] = cyldpot(cons[6])/f;
+    cons[2] = 1.0/(cons[6]*f*f);
+  }
+  else
+    cons[0] = 1.0;
 
-  cons[4] = (1.0 + M)/cons[7];
+				// Outer BC
   f = cylpot(cons[7]);
+  // cons[4] = (1.0+M)/cons[7] + cyldpot(cons[7])/f;
+				// TEST
+  cons[4] = (1.0+M)/(cons[7]*cons[7]) + cyldpot(cons[7])/f/cons[7];
   cons[5] = 1.0/(cons[7]*f*f);
 
+  
   //
   //     Initialize the vector INVEC(*):
   //       estimates for the eigenvalues/functions specified
@@ -1037,9 +1161,15 @@ void SLGridCyl::init_table(void)
   p0.setsize(0, numr-1);
   d0.setsize(0, numr-1);
 
-  xmin = (rmin - 1.0)/(rmin + 1.0);
-  xmax = (rmax - 1.0)/(rmax + 1.0);
-  dxi = (xmax-xmin)/(numr-1);
+  if (cmap) {
+    xmin = (rmin - 1.0)/(rmin + 1.0);
+    xmax = (rmax - 1.0)/(rmax + 1.0);
+    dxi = (xmax-xmin)/(numr-1);
+  } else {
+    xmin = rmin;
+    xmax = rmax;
+    dxi = (xmax-xmin)/(numr-1);
+  }
 
   for (i=0; i<numr; i++) {
     xi[i] = xmin + dxi*i;
@@ -1161,6 +1291,24 @@ void SLGridCyl::compute_table_slave(void)
     //
     
 #ifdef DEBUG
+    
+    if (type[0]) cout << "Slave " << myid 
+		      << ": Inner endpoint is regular\n";
+    if (type[1]) cout << "Slave " << myid 
+		      << ": Inner endpoint is limit circle\n";
+    if (type[2]) cout << "Slave " << myid 
+		      << ": Inner endpoint is nonoscillatory for all EV\n";
+    if (type[3]) cout << "Slave " << myid 
+		      << ": Inner endpoint is oscillatory for all EV\n";
+    if (type[4]) cout << "Slave " << myid 
+		      << ": Outer endpoint is regular\n";
+    if (type[5]) cout << "Slave " << myid 
+		      << ": Outer endpoint is limit circle\n";
+    if (type[6]) cout << "Slave " << myid 
+		      << ": Outer endpoint is nonoscillatory for all EV\n";
+    if (type[7]) cout << "Slave " << myid 
+		      << ": Outer endpoint is oscillatory for all EV\n";
+		      
     cout << "Slave " << mpi_myid << ": computed (m, k)=("
 		 << M << ", " << K << ")\n";
 
@@ -1387,6 +1535,23 @@ void SLGridSph::bomb(string oops)
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX)
 {
+  model = new SphericalModelTable(model_file_name);
+
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX);
+}
+
+SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
+		     double RMIN, double RMAX, SphericalModelTable *mod)
+{
+  model = mod;
+
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX);
+}
+
+
+void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
+			   double RMIN, double RMAX)
+{
   int l;
 
   lmax = LMAX;
@@ -1395,8 +1560,6 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 
   rmin = RMIN;
   rmax = RMAX;
-
-  model = new SphericalModelTable(model_file_name);
 
   init_table();
 
@@ -1671,7 +1834,7 @@ double SLGridSph::r_to_xi(double r)
     if (r<0.0) bomb("radius < 0!");
     ret =  (r-1.0)/(r+1.0);
   } else {
-    if (r<0.0) bomb("radius < 0!");
+
     ret = r;
   }    
 
@@ -1802,8 +1965,6 @@ double SLGridSph::get_force(double x, int l, int n, int which)
 
 void SLGridSph::get_pot(Matrix& mat, double x, int which)
 {
-  double x0=x;
-
   if (which || !cmap)
     x = r_to_xi(x);
   else {
@@ -2031,6 +2192,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   double *pdef = new double [NUM*N];
   double f;
 
+				// Inner BC
   f = sphpot(cons[6]);
   if (l==0) {
     cons[0] = sphdpot(cons[6])/f;
@@ -2039,8 +2201,9 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   else
     cons[0] = 1.0;
 
-  cons[4] = (1.0 + l)/cons[7];
+				// Outer BC
   f = sphpot(cons[7]);
+  cons[4] = (1.0 + l)/cons[7] + sphdpot(cons[7])/f;
   cons[5] = 1.0/(cons[7]*cons[7]*f*f);
 
   //
@@ -2268,7 +2431,7 @@ void SLGridSph::compute_table_slave(void)
     //
     
 #ifdef DEBUG
-    cout << "Slave " <<  mpi_myid << ": computeed l = " << L << "\n";
+    cout << "Slave " <<  mpi_myid << ": computed l = " << L << "\n";
 
     cout.precision(6);
     cout.setf(ios::scientific);
@@ -3749,7 +3912,7 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
 
     *px = (*x)*f*f;
     *qx = (M2*f/(*x) + K2*f*(*x) - cylpotsl(*x)*(*x))*f;
-    *rx = -cyldens(*x)*(*x)*f;
+    *rx = -rho*(*x)*f;
   }
   else {			// Spherical
 

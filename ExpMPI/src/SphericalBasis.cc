@@ -243,9 +243,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
     mass = (*particles)[i].mass;
 
-    xx = (*particles)[i].pos[0] - component->com[0];
-    yy = (*particles)[i].pos[1] - component->com[1];
-    zz = (*particles)[i].pos[2] - component->com[2];
+    xx = (*particles)[i].pos[0] - component->center[0];
+    yy = (*particles)[i].pos[1] - component->center[1];
+    zz = (*particles)[i].pos[2] - component->center[2];
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -430,7 +430,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     fac1 = dfac;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->com[k];
+      pos[k] = (*particles)[i].pos[k] - component->center[k];
 
     xx = pos[0];
     yy = pos[1];
