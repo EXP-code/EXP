@@ -10,6 +10,8 @@
     \param rmin is the minimum value in the table for the 
     radial basis functions (default is 0.001)
 
+    \param cmap should be 1 for coordinate scaling, 0 for no scaling
+
     \param rs is the halo scale length (default is 0.067*rmax)
 
     \param numr is the number radial coordinate knots in the table 
@@ -37,6 +39,7 @@ private:
   double rmin;
   double rs;
   int numr;
+  int cmap;
 
 public:
 				// Global parameters
