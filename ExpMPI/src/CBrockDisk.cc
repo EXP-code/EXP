@@ -139,6 +139,21 @@ void CBrockDisk::get_acceleration_and_potential(vector<Particle>* Particles)
 {
   particles = Particles;
 
+  /*========================================*/
+  /* No coefficients for external particles */
+  /*========================================*/
+
+  if (use_external) {
+
+    MPL_start_timer();
+    determine_acceleration_and_potential();
+    MPL_stop_timer();
+
+    use_external = false;
+
+    return;
+  }
+
   /*======================*/
   /* Compute coefficients */
   /*======================*/
