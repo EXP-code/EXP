@@ -389,7 +389,7 @@ main(int argc, char **argv)
   cout << "Proccess " << myid << ": DiskHalo parameters "
        << " a=" << scale_length
        << " h=" << scale_height
-       << " nmax2=" << disk_mass
+       << " mass=" << disk_mass
        << endl << flush;
                                 // Make zero center of mass and
                                 // center of velocity
