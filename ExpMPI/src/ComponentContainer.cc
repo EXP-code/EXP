@@ -389,7 +389,7 @@ void ComponentContainer::fix_positions(void)
       if (gottapot || restart) 
 	c->orient->accumulate(tpos, &c->particles, &c->center[0]);
       else
-	c->orient->logEntry(tpos);
+	if (myid==0) c->orient->logEntry(tpos);
     }
   }
 

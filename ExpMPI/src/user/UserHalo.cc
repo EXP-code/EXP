@@ -103,7 +103,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     for (int k=0; k<3; k++) {
       pos[k] = (*particles)[i].pos[k];
       if (c0) pos[k] -= c0->center[k];
-      rr += pos[k]*pos[i];
+      rr += pos[k]*pos[k];
     }
     r = sqrt(rr);
 
