@@ -40,8 +40,6 @@ private:
 
   bool binary;
   double time0;
-  string infile;
-  string outfile;
   int ifile;
 
 public:

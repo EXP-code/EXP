@@ -3,7 +3,11 @@
 
 #include <OutPS.H>
 
-//! Print field quantities for spherical and cylindrical bases
+/** Append phase space dumps to specified file at regular intervals
+
+    @param filename is the name of the output file
+    @param nint is the number of steps between dumps
+*/
 class OutPS : public Output
 {
 

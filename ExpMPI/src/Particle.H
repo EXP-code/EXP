@@ -16,14 +16,19 @@ public:
 
   //! Mass of particle
   double mass;
+
   //! Position vector
   double pos[3];
+
   //! Velocity vector
   double vel[3];
+
   //! Acceleration vector
   double acc[3];
+
   //! Gravitational potential due to particles  
   double pot;
+
   //! Gravitational potential from external forces
   double potext;
   
@@ -32,6 +37,12 @@ public:
 
   //! Real (double) attributes
   vector<double> dattrib;
+
+  //! Constructor
+  Particle() {}
+
+  //! Copy constructor
+  Particle(const Particle &);
 
   //! Is particle out of bounds?
   bool freeze(void);

@@ -2,6 +2,21 @@
 
 #include <Particle.H>
 
+Particle::Particle(const Particle &p)
+{
+  mass = p.mass;
+  for (int k=0; k<3; k++) {
+    pos[k] = p.pos[k];
+    vel[k] = p.vel[k];
+    acc[k] = p.acc[k];
+  }
+  pot = p.pot;
+  potext = p.potext;
+  iattrib = p.iattrib;
+  dattrib = p.dattrib;
+
+}
+
 bool Particle::freeze(void)
 {
   double r2 = 0.0;

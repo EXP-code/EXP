@@ -51,7 +51,7 @@ main(int argv, char *argc[])
 
 				// Read the header, quit on failure
 				// --------------------------------
-    if(!in->read((char *)&header, sizeof(MasterHeader))) break;
+    if(!in->read(&header, sizeof(MasterHeader))) break;
     lastpos = currpos;
     poslist.push_back(currpos);
 

@@ -120,9 +120,11 @@ void Cylinder::get_acceleration_and_potential(vector<Particle>* Particles)
   // than recompute from distribution
   //==================================
   
-  if (firstime && !(restart && ortho->read_cache())) {
+  if (firstime) {
 
-    determine_coefficients();	// Will compute EOF grid
+    if (!(restart && ortho->read_cache()))
+      determine_coefficients();	// Will compute EOF grid
+
 
     if (!self_consistent) {	// Compute mass and coefficients
       eof = 1;			// once and for all

@@ -26,7 +26,7 @@ bool ComponentHeader::read(istream *in)
   in->read(&niatr, sizeof(int));		if (!*in) return false;
   in->read(&ndatr, sizeof(int));		if (!*in) return false;
   in->read(&ninfo, sizeof(int));		if (!*in) return false;
-  cout << "Ninfo=" << ninfo << "  Ninfochar=" << ninfochar << endl;
+
   if (ninfo != ninfochar) {
     delete [] info;
     ninfochar = ninfo;

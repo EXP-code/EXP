@@ -31,7 +31,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   eEJ0 = -0.5;
 
   binary = false;
-
   npart = false;
   buf = new Partstruct [nbuf];
 
@@ -44,9 +43,16 @@ Component::Component(istream *in)
 {
   use_com = false;
   use_cov = false;
+
+  EJ = 0;
+  nEJkeep = 100;
+  nEJwant = 500;
+  eEJ0 = -0.5;
+
   binary = true;
   npart = false;
   buf = new Partstruct [nbuf];
+
 
   read_bodies_and_distribute_binary(in);
 
@@ -80,9 +86,12 @@ void Component::initialize(void)
 
     if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
 
+    if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
+
 				// Next parameter
     token = tokens(" ");
   }
+
 
 				// DEBUG
   if (myid==0) {
@@ -401,12 +410,6 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
     }
 
-    if (restart)
-      if (myid==0) cout << "Restart . . .\n";
-    else
-      if (myid==0) cout << "New run . . .\n";
-    cout << flush;
-
     particles.push_back(part);
 
 				// Remainder of Node 0's particles
@@ -430,7 +433,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<ndattrib; j++) ins >> part.dattrib[j];
 
       r2 = 0.0;
-      for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
@@ -512,9 +515,11 @@ void Component::read_bodies_and_distribute_ascii(void)
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 #endif
-				// Default: set to max radius
 
-  if (rmax <= 0.0) rmax = sqrt(rmax1);
+				// Default: set to max radius
+				// can be overriden by parameter
+
+  rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// COM HERE?
@@ -527,6 +532,8 @@ void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
   in->read(&(onepart->mass), sizeof(double));
   for (int i=0; i<3; i++) in->read(&(onepart->pos[i]), sizeof(double));
   for (int i=0; i<3; i++) in->read(&(onepart->vel[i]), sizeof(double));
+  in->read(&(onepart->pot), sizeof(double));
+  onepart->potext = 0.0;
   for (int i=0; i<niattrib; i++) 
     in->read(&(onepart->iatr[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
@@ -561,7 +568,6 @@ int Component::get_next_particle(Partstruct *onepart)
   else
     onepart = NULL;
 
-  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 0.0;
 
   return 1;
 }
@@ -574,6 +580,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Get component header
   ComponentHeader header;
+
+				// Node local parameter buffer
+  int ninfochar;
+  char *info;
   
   if (myid == 0) {
 
@@ -585,13 +595,15 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Check buffer dimensions
 
     if (header.niatr>nimax) {
-      cerr << "Too many integer attributes: redimension nimax and recompile\n";
+      cerr << "Too many integer attributes: " << header.niatr 
+	   << ", redimension nimax and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 12);
       exit(-1);
     }
 
     if (header.ndatr>ndmax) {
-      cerr << "Too many real # attributes: redimension nimax and recompile\n";
+      cerr << "Too many real # attributes: " << header.ndatr
+	   << ", redimension ndmax and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 13);
       exit(-1);
     }
@@ -600,6 +612,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     nbodies_tot = header.nbod;
     niattrib = header.niatr;
     ndattrib = header.ndatr;
+    ninfochar = header.ninfochar;
+    info = new char [ninfochar+1];
+    memcpy(info, header.info, ninfochar);
+    info[ninfochar] = '\0';
   }
 
 				// Broadcast attributes for this
@@ -607,14 +623,28 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&niattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&header.ninfochar, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&header.info, header.ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ninfochar, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid) info = new char [ninfochar+1];
+  MPI_Bcast(info, ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
+
 
 				// Parse info field to get 
 				// id and parameter strings
-  StringTok<string> tokens(header.info);
+  StringTok<string> tokens(info);
+  name = trimLeft(trimRight(tokens(":")));
   id = trimLeft(trimRight(tokens(":")));
   fparam = trimLeft(trimRight(tokens(":")));
+
+  delete [] info;
+
+				// Informational output
+  if (myid==0)
+    cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
+	 << "--- New Component" << endl
+	 << setw(20) << " name :: "  << name          << endl
+	 << setw(20) << " id :: "    << id            << endl
+	 << setw(20) << " param :: " << fparam         << endl
+	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
 				// Make MPI datatype
   
@@ -667,10 +697,11 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   else seq_beg = plist[myid-1]+1;
   seq_end = plist[myid];
 
-  Partstruct *onepart;
+  Partstruct onepart;
   Particle part;
   part.iattrib = vector<int>(niattrib);
   part.dattrib = vector<double>(ndattrib);
+
 
   if (myid==0) {
 				// Read root node particles
@@ -678,12 +709,12 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (int i=1; i<=ncount[0]; i++)
     {
-      get_next_particle_from_file(onepart, in);
+      get_next_particle_from_file(&onepart, in);
 
-      part_to_Particle(*onepart, part);
+      part_to_Particle(onepart, part);
 
       r2 = 0.0;
-      for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
+      for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
@@ -691,6 +722,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     }
 
     nbodies = ncount[0];
+
 
 				// Now load the other nodes
     int icount, ibufcount;
@@ -702,16 +734,18 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       ibufcount = 0;
       while (icount < ncount[n]) {
 
-	get_next_particle_from_file(onepart, in);
-
-	part_to_Particle(*onepart, part);
-
+	get_next_particle_from_file(&buf[ibufcount], in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
 	  r2 += buf[ibufcount].pos[k]*buf[ibufcount].pos[k];
 
 	rmax1 = max<double>(r2, rmax1);
+
+	/*
+	cout << "#=" << icount << " r2=" << r2 << " rmax1=" << rmax1 
+	     << " mass=" << buf[ibufcount].mass << endl;
+	*/
 
 	ibufcount++;
 	icount++;
@@ -726,7 +760,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
     }
 
-    } else {
+  } else {
 
     MPI_Recv(&nbodies, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status0);
       
@@ -742,6 +776,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     }
   }
 
+
 #ifdef SEQCHECK			// Sanity check
   if (seq_beg != particles[0].iattrib[0] || 
       seq_end != particles[nbodies-1].iattrib[0]) {
@@ -755,11 +790,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   }
 #endif
 				// Default: set to max radius
-
-  if (rmax <= 0.0) rmax = sqrt(rmax1);
+  rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
-  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 0.0;
 
 }
 

@@ -38,26 +38,31 @@ void ComponentContainer::initialize(void)
 	MPI_Abort(MPI_COMM_WORLD, 5);
 	exit(0);
 
-	in->read(&master, sizeof(MasterHeader));
-	if (!*in) {
-	  cerr << "ComponentContainer::initialize: could not read master header from <"
-	       << infile << ">\n";
-	  MPI_Abort(MPI_COMM_WORLD, 6);
-	  exit(0);
-	}
-
       }
 
+      in->read(&master, sizeof(MasterHeader));
+      if (!*in) {
+	cerr << "ComponentContainer::initialize: could not read master header from <"
+	     << infile << ">\n";
+	MPI_Abort(MPI_COMM_WORLD, 6);
+	exit(0);
+      }
+
+      cout << "Recovering from <" << infile << ">:"
+	   << "  Tnow=" << master.time
+	   << "  Ntot=" << master.ntot
+	   << "  Ncomp=" << master.ncomp << endl;
+
+      tnow = master.time;
+      ntot = master.ntot;
+      ncomp = master.ncomp;
     }
 
-    tnow = master.time;
     MPI_Bcast(&tnow, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     tpos = tvel = tnow;
     
-    ntot = master.ntot;
     MPI_Bcast(&ntot, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
-    ncomp = master.ncomp;
     MPI_Bcast(&ncomp, 1, MPI_INT, 0, MPI_COMM_WORLD);
       
     for (int i=0; i<ncomp; i++) components.push_back(new Component(in));
