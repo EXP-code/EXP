@@ -1,6 +1,6 @@
 #include <iostream>
 #include <iomanip>
-#include <strstream>
+#include <sstream>
 #include <algorithm>
 
 #include <ParamParse.H>
@@ -89,7 +89,7 @@ ParamParse::ParamParse(istream* in, string Delim) :
 				// Must be followed "]"
       string::size_type end = line.find("]");
       if (end == string::npos) {
-	ostrstream sout;
+	ostringstream sout;
 	sout << "Syntax error: " << line;
 	bomb(sout.str());
       }
@@ -156,7 +156,7 @@ int ParamParse::get_next(spair& ret)
   return 0;
 }
 
-void ParamParse::bomb(const char *msg)
+void ParamParse::bomb(const string& msg)
 {
   cerr << "ParamParse error: " << msg << "\n";
   exit(-1);

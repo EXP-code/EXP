@@ -55,7 +55,7 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double pos[3], xx, yy, zz, rr;
+  double xx, yy, zz, rr;
 
   for (int i=nbeg; i<nend; i++) {
 

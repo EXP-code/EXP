@@ -1,7 +1,9 @@
 ## Process this file with automake to produce Makefile.in
 
-CC = mpicc
-CXX = mpiCC
+# CC = mpicc
+# CXX = mpiCC
+CC = gcc
+CXX = g++
 
 LIBS = -lpthread -lmpi -lm
 
@@ -14,6 +16,8 @@ if ENABLE_DMALLOC
 ADD_CFLAGS3 = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 endif
+
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -59,10 +63,8 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(ORBIT_SRC) $(BIORTH_SRC) $(POLY_SRC) $(GAUSS_SRC) \
 	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC)
 
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
-
-AM_CFLAGS = -fPIC -D_REENTRANT $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -fPIC -D_REENTRANT $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
+AM_CXXFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 ## libexputil/Makefile.am ends here
 
