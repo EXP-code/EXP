@@ -66,6 +66,8 @@ private:
   ACG gen;
   Normal gauss;
 
+  void write_log(double Egrad, double dE);
+
 public:
   //! Mask flags for Orient type
   enum OrientFlags {AXIS=1, CENTER=2};

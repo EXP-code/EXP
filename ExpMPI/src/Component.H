@@ -114,7 +114,8 @@ struct loadb_datum
   @param EJdryrun set to true does not apply EJ centering or rotation but
   computes the transformation
 
-  @param EJlinear set true moves center with constant velocity (default: false)
+  @param EJlinear set true moves center with constant velocity.  For
+  testing only!! (default: false)
 
   @param rmax is the maximum radius particle.  This is determined
   dynamically from the initial conditions but can be overridden as a
