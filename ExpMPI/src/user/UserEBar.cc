@@ -21,6 +21,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   fixed = false;		// Constant pattern speed
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
+  monopole = true;		// Use the monopole part of the potential
   filename = "BarRot." + runtag; // Output file name
 
   firstime = true;
@@ -151,6 +152,10 @@ void UserEBar::userinfo()
     cout << "fixed pattern speed, ";
   else
     cout << "fixed corotation fraction, ";
+  if (monopole)
+    cout << "using monopole, ";
+  else
+    cout << "without monopole, ";
   if (soft)
     cout << "soft potential, ";
   else
@@ -187,6 +192,7 @@ void UserEBar::initialize()
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
+  if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
   if (get_value("filename", val))	filename = val;
 
 }
@@ -451,11 +457,13 @@ void UserEBar::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  for (int k=0; k<3; k++) {
-    bps[k] += vel[k] * (tnow - teval);
-    vel[k] += acc[k] * (tnow - teval);
+  if (monopole) {
+    for (int k=0; k<3; k++) {
+      bps[k] += vel[k] * (tnow - teval);
+      vel[k] += acc[k] * (tnow - teval);
+    }
+    teval = tnow;
   }
-  teval = tnow;
 
   if (myid==0 && update) 
     {
@@ -523,7 +531,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
     if (c0)
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
-    else
+    else if (monopole)
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
     
     xx = pos[0];
@@ -557,17 +565,20 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     acct[2] = ffac*
       ( -5.0*nn*zz );
     
-    M0 = ellip->getMass(rr);
+    if (monopole) {
 
-    for (int k=0; k<3; k++) {
+      M0 = ellip->getMass(rr);
+
+      for (int k=0; k<3; k++) {
 				// Add monopole acceleration
-      acct[k] += -M0*pos[k]/(rr*rr*rr);
+	acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Add bar acceleration to particle
-      (*particles)[i].acc[k] += acct[k];
+	(*particles)[i].acc[k] += acct[k];
 
 				// Force on bar (via Newton's 3rd law)
-      tacc[id][k] += -(*particles)[i].mass * acct[k];
+	tacc[id][k] += -(*particles)[i].mass * acct[k];
+      }
     }
 
 				// Quadrupole and monopole potential

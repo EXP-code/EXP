@@ -18,6 +18,7 @@
     @param DeltaT is the spread of the turn on
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
+    @param monopole force is self-consistently computed from Newton's third law (default: true)
     @param soft use the shallow form of the potential (default: false)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
@@ -40,7 +41,7 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, soft, table;
+  bool fixed, monopole, soft, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;
