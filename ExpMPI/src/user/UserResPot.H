@@ -25,7 +25,7 @@ private:
   int LMAX, NMAX, NUMR, L0, M0, L1, L2;
   double rmin, rmax, drfac;
   
-  double MASS, LENGTH, COROT;
+  double MASS, LENGTH, COROT, A21, A32;
 
   string model_file;
 

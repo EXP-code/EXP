@@ -50,6 +50,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
   COROT = 10;			// Corotation factor
+  A21 = 0.2;			// Major to semi-minor ratio
+  A32 = 0.05;			// Semi-minor to minor ratio
 
 				// Tabled spherical model
   model_file = "SLGridSph.model";
@@ -89,8 +91,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   BarForcing::L0 = L0;
   BarForcing::M0 = M0;
   BarForcing bar(NMAX, MASS, LENGTH, COROT);
-  bar.compute_quad_parameters();
+  bar.compute_quad_parameters(A21, A32);
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
+  omega = bar.Omega();
 
   userinfo();
 }
@@ -105,7 +108,13 @@ void UserResPot::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
-  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized\n";
+  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized"
+       << " with Length=" << LENGTH 
+       << ", Mass=" << MASS 
+       << ", Omega=" << omega 
+       << ", b/a=" << A21
+       << ", c/b=" << A32
+       << "\n";
   print_divider();
 }
 
@@ -130,12 +139,12 @@ void UserResPot::initialize()
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
-  if (get_value("omega", val))    omega = atof(val.c_str());
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
   if (get_value("LENGTH", val))   LENGTH = atof(val.c_str());
   if (get_value("COROT", val))    COROT = atof(val.c_str());
-
+  if (get_value("A21", val))      A21 = atof(val.c_str());
+  if (get_value("A32", val))      A32 = atof(val.c_str());
 
   if (get_value("file", val))     model_file = val;
 }
