@@ -294,7 +294,22 @@ void Component::initialize(void)
 
   }
     
-  if (com_system) initialize_com_system();
+  if (com_system) {
+
+    initialize_com_system();
+
+    if (myid==0) {
+      cout << name << ": center of mass system is *ON*,";
+      cout << " (x, y, z)="
+	   << comI[0] << ", "
+	   << comI[1] << ", "
+	   << comI[2] << ") "
+	   << " (u, v, w)="
+	   << comI[0] << ", "
+	   << comI[1] << ", "
+	   << comI[2] << ") "
+	   << "\n";
+    }
 
 }
 
