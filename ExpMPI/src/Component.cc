@@ -404,6 +404,7 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
   }
 #ifdef SEQCHECK
+  seq_ok = true;		// Will always be ok to start . . . 
   niattrib++;
 #endif
 				// Check buffer dimensions
@@ -499,8 +500,10 @@ void Component::read_bodies_and_distribute_ascii(void)
       part.pot = part.potext = 0.0;
 
 #ifdef SEQCHECK
-      for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
-      part.iattrib[niattrib-1] = 1;
+      if (seq_ok) {
+	for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
+	part.iattrib[niattrib-1] = 1;
+      }
 #else
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
 #endif
@@ -525,8 +528,10 @@ void Component::read_bodies_and_distribute_ascii(void)
       part.pot = part.potext = 0.0;
 
 #ifdef SEQCHECK
-      for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
-      part.iattrib[niattrib-1] = i;
+      if (seq_ok) {
+	for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
+	part.iattrib[niattrib-1] = i;
+      }
 #else
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
 #endif
@@ -560,8 +565,10 @@ void Component::read_bodies_and_distribute_ascii(void)
 	buf[ibufcount].pot = buf[ibufcount].potext = 0.0;
 
 #ifdef SEQCHECK
-	for (int j=0; j<niattrib-1; j++) ins >> buf[ibufcount].iatr[j];
-	buf[ibufcount].iatr[niattrib-1] = nbodies_index[n-1] + 1 + icount;
+	if (seq_ok) {
+	  for (int j=0; j<niattrib-1; j++) ins >> buf[ibufcount].iatr[j];
+	  buf[ibufcount].iatr[niattrib-1] = nbodies_index[n-1] + 1 + icount;
+	}
 #else
 	for (int j=0; j<niattrib; j++) ins >> buf[ibufcount].iatr[j];
 #endif
@@ -603,17 +610,19 @@ void Component::read_bodies_and_distribute_ascii(void)
   }
   
 #ifdef SEQCHECK			// Sanity check
-  if (particles.size()) {
-    if (seq_beg != particles[0].iattrib[0] || 
-	seq_end != particles[nbodies-1].iattrib[0]) {
-      cout << "Process " << myid << ": sequence error on init,"
-	   << " seq_beg=" << seq_beg
-	   << " seq_end=" << seq_end
-	   << " seq[1]=" << particles[0].iattrib[0]
-	   << " seq[N]=" << particles[nbodies-1].iattrib[0]
-	   << " nbodies=" << nbodies
-	   << endl << flush;
-      MPI_Abort(MPI_COMM_WORLD, -1);
+  if (seq_ok) {
+    if (particles.size()) {
+      if (seq_beg != particles[0].iattrib[0] || 
+	  seq_end != particles[nbodies-1].iattrib[0]) {
+	cout << "Process " << myid << ": sequence error on init,"
+	     << " seq_beg=" << seq_beg
+	     << " seq_end=" << seq_end
+	     << " seq[1]=" << particles[0].iattrib[0]
+	     << " seq[N]=" << particles[nbodies-1].iattrib[0]
+	     << " nbodies=" << nbodies
+	     << endl << flush;
+	MPI_Abort(MPI_COMM_WORLD, -1);
+      }
     }
   }
 #endif
@@ -722,6 +731,22 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     info[ninfochar] = '\0';
   }
 
+				// Sanity check for SEQCHECK
+				// 
+#ifdef SEQCHECK
+  if (niattrib == 0) {
+    seq_ok = false;
+    cerr << "SEQCHECK is compiled but phase space does not have a sequence field\n";
+    cerr << "SEQCHECK is disabled\n";
+  }
+
+  {
+    int tmp = 0;
+    if (seq_ok) tmp = 1;
+    MPI_Bcast(&tmp, 1, MPI_INT, 0 MPI_COMM_WORLD);
+    if (myid) seq_ok = tmp ? true : false;
+  }
+#endif
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -891,15 +916,17 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 
 #ifdef SEQCHECK			// Sanity check
-  if (seq_beg != particles[0].iattrib[0] || 
-      seq_end != particles[nbodies-1].iattrib[0]) {
-    cout << "Process " << myid << ": sequence error on init,"
-	 << " seq_beg=" << seq_beg
-	 << " seq_end=" << seq_end
-	 << " seq[1]=" << particles[0].iattrib[0]
-	 << " seq[N]=" << particles[nbodies-1].iattrib[0]
-	 << endl << flush;
-    MPI_Abort(MPI_COMM_WORLD, -1);
+  if (seq_ok) {
+    if (seq_beg != particles[0].iattrib[0] || 
+	seq_end != particles[nbodies-1].iattrib[0]) {
+      cout << "Process " << myid << ": sequence error on init,"
+	   << " seq_beg=" << seq_beg
+	   << " seq_end=" << seq_end
+	   << " seq[1]=" << particles[0].iattrib[0]
+	   << " seq[N]=" << particles[nbodies-1].iattrib[0]
+	   << endl << flush;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
   }
 #endif
 				// Default: set to max radius
@@ -1550,59 +1577,60 @@ void Component::load_balance(void)
   
 
 #ifdef SEQCHECK
-  char msgbuf[200];		// Only need 31 characters . . .
+  if (seq_ok) {
+    char msgbuf[200];		// Only need 31 characters . . .
 
-  if (myid==0) *log << endl << "Post load-balance sequence check:" 
-		    << endl << endl;
+    if (myid==0) *log << endl << "Post load-balance sequence check:" 
+		      << endl << endl;
 
-  for (int i=0; i<numprocs; i++) {
-    if (myid==i) {
-      ostringstream msg;
-      msg << "Process " << setw(4) << myid << ":"
-	  << setw(9) << particles[0].iattrib[0]
-	  << setw(9) << particles[nbodies-1].iattrib[0];
-      strcpy(msgbuf, msg.str().c_str());
-      if (myid!=0) 
-	MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
+    for (int i=0; i<numprocs; i++) {
+      if (myid==i) {
+	ostringstream msg;
+	msg << "Process " << setw(4) << myid << ":"
+	    << setw(9) << particles[0].iattrib[0]
+	    << setw(9) << particles[nbodies-1].iattrib[0];
+	strcpy(msgbuf, msg.str().c_str());
+	if (myid!=0) 
+	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
+      }
+      
+      if (myid==0) {
+	if (myid!=i)
+	  MPI_Recv(msgbuf, 200, MPI_CHAR, i, 81, MPI_COMM_WORLD, &status);
+
+	*log << msgbuf << endl;
+      }
+      
+
     }
 
-    if (myid==0) {
-      if (myid!=i)
-	MPI_Recv(msgbuf, 200, MPI_CHAR, i, 81, MPI_COMM_WORLD, &status);
-
-      *log << msgbuf << endl;
-    }
-
-
-  }
-
-  if (myid==0) seq_beg = 1;
-  else         seq_beg = nbodies_index[myid-1]+1;
-
+    if (myid==0) seq_beg = 1;
+    else         seq_beg = nbodies_index[myid-1]+1;
+    
 				// Explicit check
-  int nbad1 = 0, nbad=0;
-  for (int i=0; i<nbodies; i++) {
-    if (particles[i].iattrib[0] != seq_beg+i) {
-      cout << "Process " << myid << ": sequence error on load balance,"
-	   << " component=" << name
-	   << " i=" << i
-	   << " seq=" << particles[i].iattrib[0]
-	   << " expected=" << seq_beg+i
-	   << endl << flush;
-      nbad1++;
+    int nbad1 = 0, nbad=0;
+    for (int i=0; i<nbodies; i++) {
+      if (particles[i].iattrib[0] != seq_beg+i) {
+	cout << "Process " << myid << ": sequence error on load balance,"
+	     << " component=" << name
+	     << " i=" << i
+	     << " seq=" << particles[i].iattrib[0]
+	     << " expected=" << seq_beg+i
+	     << endl << flush;
+	nbad1++;
+      }
     }
+
+    MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+    if (nbad) {
+      if (myid==0) cout << nbad << " bad states\n";
+      MPI_Finalize();
+      exit(-1);
+    }
+    
+    if (myid==0) *log << "\nSequence check ok!\n";
   }
-
-  MPI_Allreduce(&nbad1, &nbad, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-  if (nbad) {
-    if (myid==0) cout << nbad << " bad states\n";
-    MPI_Finalize();
-    exit(-1);
-  }
-
-  if (myid==0) *log << "\nSequence check ok!\n";
-
 #endif
 
   if (myid==0) {

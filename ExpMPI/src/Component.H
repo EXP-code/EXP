@@ -159,6 +159,8 @@ private:
 
   Partstruct *buf;
   static const int nbuf = 2000;
+
+  bool seq_ok;
   int seq_beg, seq_end;
 
 				// Used in computing target rates for
