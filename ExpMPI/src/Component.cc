@@ -1041,6 +1041,33 @@ void Component::fix_positions(void)
 }
 
 
+void Component::get_angmom(void)
+{
+  double *angm1 = new double [3];
+
+  
+  vector<Particle>::iterator p, pend;
+
+				// Zero stuff out
+  for (int k=0; k<3; k++)
+    angmom[k] = angm1[k] = 0.0;
+  
+				// Particle loop
+  pend = particles.end();
+  for (p=particles.begin(); p != pend; p++) {
+    
+    if (p->freeze()) continue;
+    
+    angm1[0] += p->mass*(p->pos[1]*p->vel[2]-p->pos[2]*p->vel[1]);
+    angm1[1] += p->mass*(p->pos[2]*p->vel[0]-p->pos[0]*p->vel[2]);
+    angm1[2] += p->mass*(p->pos[0]*p->vel[1]-p->pos[1]*p->vel[0]);
+        
+  }
+  
+  MPI_Allreduce(angm1, angmom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+}
+
+
 int Component::round_up(double dnumb)
 {
   int numb = (int)(dnumb + 1.0);

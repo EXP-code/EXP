@@ -244,6 +244,9 @@ public:
   //! Compute center of mass and center of velocity
   void fix_positions(void);
 
+  //! Update angular momentum values
+  void get_angmom(void);
+
 };
 
 #endif
