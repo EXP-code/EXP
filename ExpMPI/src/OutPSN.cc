@@ -49,7 +49,7 @@ void OutPSN::initialize()
       if (out) {
 	out.close();
 	ostrstream command;
-	command << "rm "<<  fname.str() << "\0";
+	command << "rm " <<  fname.str() << '\0';
 	system(command.str());
 	cout << "OutPSN: will begin with nbeg=" << nbeg << endl;
 	break;

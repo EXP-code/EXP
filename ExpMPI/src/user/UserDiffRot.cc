@@ -15,6 +15,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   rate = 0.5;			// Rate relative to dyn time
   name = "";			// Default component name
   avoid = "";
+  width = 10.0;
   maxpm = 2;
   first = true;
 
@@ -71,7 +72,8 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
 
   pos = vector<double>(4*maxpm);
   gen = new ACG(seed);
-  uniform = new Uniform(0.0, 1.0, gen);
+  normal = new Normal(0.0, 1.0, gen);
+  width = width*M_PI/180.0;
 
   userinfo();
 }
@@ -80,7 +82,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
 UserDiffRot::~UserDiffRot()
 {
   delete gen;
-  delete uniform;
+  delete normal;
 }
 
 
@@ -92,9 +94,10 @@ void UserDiffRot::userinfo()
   else
     cout << "** User routine ROTATION RANDOMIZATION disabled: no component specified";
   
-  cout << ", avoid = " << avoid;
+  if (avoid.size() > 0) cout << ", avoid = " << avoid;
   cout << ", maxpm = " << maxpm;
   cout << ", rate = " << rate;
+  cout << ", width = " << width;
   cout << ", seed = " << seed;
   cout << endl;
   cout << "****************************************************************"
@@ -110,6 +113,7 @@ void UserDiffRot::initialize()
   if (get_value("avoid", val))		avoid = val;
   if (get_value("maxpm", val))		maxpm = atoi(val.c_str());
   if (get_value("rate", val))		rate = atof(val.c_str());
+  if (get_value("width", val))		width = atof(val.c_str());
   if (get_value("seed", val))		seed = atoi(val.c_str());
 }
 
@@ -232,7 +236,7 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
       (*particles)[i].dattrib[indx] = tnow + get_dtime((*particles)[i])/rate;
 
 				// Do rotation
-      phi = 2.0*M_PI*(*uniform)();
+      phi =  width * (*normal)();
       cosp = cos(phi);
       sinp = sin(phi);
       

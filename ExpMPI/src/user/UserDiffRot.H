@@ -19,6 +19,7 @@ private:
   long int seed;
   int maxpm;
   double rate; 
+  double width; 
   bool first;
 
   Component *c0, *c1;
@@ -34,7 +35,7 @@ private:
   double get_dtime(Particle& p);
 
   ACG *gen;
-  Uniform *uniform;
+  Normal *normal;
 
 public:
 
