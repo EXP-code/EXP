@@ -86,6 +86,13 @@ public:
   //! Mixture function for the two expansions
   virtual double mixture(Particle& p) = 0;
 
+  //! For access to parent component
+  virtual void RegisterComponent(Component *c) { 
+    component = c; 
+    exp_ej->RegisterComponent(c);
+    exp_com->RegisterComponent(c);
+  }
+
 };
 
 #endif

@@ -43,8 +43,6 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
 				// Generate two expansion grids
   exp_ej  = new SphericalBasisMixtureSL(line, this, ej);
   exp_com = new SphericalBasisMixtureSL(line, this, com);
-  exp_ej->RegisterComponent(component);
-  exp_com->RegisterComponent(component);
   center = new double [3];
 }
 

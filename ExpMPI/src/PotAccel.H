@@ -106,7 +106,7 @@ public:
   static int compute;
 
   //! For access to parent component
-  void RegisterComponent(Component *c) { component = c; }
+  virtual void RegisterComponent(Component *c) { component = c; }
 
   //! Thread particle counter
   int *use;
