@@ -234,8 +234,8 @@ void SphericalOrbit::compute_angles(void)
   
   if (!Gkn) {
     Gkn = new LegeQuad(recs);
-    dtp = 0.0;
-    dtm = 0.5*M_PI;
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
   } 
   
   if (freq_defined) {
@@ -349,8 +349,8 @@ void SphericalOrbit::compute_angles_epi(void)
   
   if (!Gkn) {
     Gkn = new LegeQuad(recs);
-    dtp = 0.0;
-    dtm = 0.5*M_PI;
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
   } 
   else if (Gkn->get_n() != recs) {
     delete Gkn;
@@ -438,8 +438,8 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
   if (Gkn->get_n() != recs) {
     delete Gkn;
     Gkn = new LegeQuad(recs);
-    dtp = 0.0;
-    dtm = 0.5*M_PI;
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
   } 
   
   double accum = 0.0;
@@ -467,8 +467,8 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
 
   if (!Gkn) {
     Gkn = new LegeQuad(recs);
-    dtp = 0.0;
-    dtm = 0.5*M_PI;
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
   }
   else if (Gkn->get_n() != recs) {
     delete Gkn;
@@ -510,8 +510,8 @@ void SphericalOrbit::pot_trans(int l1, int l2, Vector& t)
 
   if (!Gkn) {
     Gkn = new LegeQuad(recs);
-    dtp = 0.0;
-    dtm = 0.5*M_PI;
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
   }
   else if (Gkn->get_n() != recs) {
     delete Gkn;
