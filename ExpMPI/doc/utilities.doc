@@ -24,4 +24,9 @@ the first word in the name field of each component.
 Split out the dump at TIME from OUT. Data is written to stdout. Useful
 for restarting from a particular time point.
 
+\par psp2ascii [-t TIME] OUT
+
+Converts dump in file OUT at TIME to ascii files, one for each component.
+The format is the same for ascii initial conditions.
+
 */

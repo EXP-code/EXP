@@ -1,0 +1,16 @@
+/*! \page check Exploration & Verification routines
+
+These routines exercise the algorithms outside of the exp code
+in order to check parameter choices, etc.
+
+So far there is only one: it checks the spherical Sturm-Liouville
+basis
+
+\par slcheck [--mpi | --cmap]
+
+Reads the SLGridSph.model file and will prompt you for input
+parameters.  The <code>--mpi</code> flag runs the code using MPI and
+the <code>--cmap</code> uses coordinate mapping based on the
+<code>rs</code> scale parameter.
+
+*/
