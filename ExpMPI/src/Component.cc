@@ -172,6 +172,8 @@ void Component::initialize(void)
 		      << " nkeep=" << nEJkeep
 		      << " nwant=" << nEJwant
 		      << " eEJ=" << eEJ0;
+    else if (myid==0) cout << name << ": EJ centering *ON*\n";
+      
     
     string EJlogfile = name + ".orient"; 
 
