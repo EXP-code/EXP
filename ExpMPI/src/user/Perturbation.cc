@@ -6,17 +6,16 @@
 #include <sstream>
 #include <math.h>
 
-#include <CMatrix.h>
+#include <CVector.h>
 #include <clinalg.h>
 
 #include <biorth.h>
 #include <model3d.h>
-#include <RespMat4.h>
 #include <isothermal.h>
 #include <hernquist.h>
 #include <gaussQ.h>
 
-#include <Perturbation.h>
+#include <Perturbation.H>
 
 
 int Perturbation::L1MAX = 6;
@@ -91,32 +90,10 @@ void Perturbation::make_response()
 				// Get frequency
   compute_omega();
   
-  if (selfgrav) {
-    KComplex Omega(omega, -OMPI);
-  
-    RespMat tmat(Omega, l, l, L1MAX, nmax, 
-		 Kpts, Epts,	// Notice order!
-		 model, biorth,
-		 0, 0, 0, verbose, jacoint);
-  
-    working = -tmat.mat();
-
-				// Identify
-    for (int i=1; i<=working.getnrows(); i++) working[i][i] = 1.0;
-
-    if (inverse(working, current)) {
-      cerr << ID << ": inverse of dispersion relation failed!\n";
-      exit(-1);
-    }
-
-    asymp = tmat.mat_asymptotic();
-
-  } else {
-    asymp = CMatrix(1, nmax, 1, nmax);
-    asymp.zero();
-    for (int i=1; i<=asymp.getnrows(); i++) asymp[i][i] = 1.0;
-    working = asymp;
-  }
+  asymp = CMatrix(1, nmax, 1, nmax);
+  asymp.zero();
+  for (int i=1; i<=asymp.getnrows(); i++) asymp[i][i] = 1.0;
+  working = asymp;
 
   computed = true;
 }

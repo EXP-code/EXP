@@ -103,9 +103,6 @@ double ResPot::Pot(double* pos, double* vel, double Omega, double time,
 
   if (r>halo_model->get_max_radius()) return 0.0;
 
-  if (use_grid) compute_grid();
-
-
   // Compute E, J, beta
   // ------------------
 

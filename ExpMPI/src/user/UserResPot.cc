@@ -102,6 +102,15 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
 
+  /*
+  if (myid==0) {
+    for (int i=1; i<=NMAX; i++)
+      cout << setw(3) << i
+	   << setw(15) << bcoef[i]
+	   << endl;
+  }
+  */
+
   userinfo();
 }
 
@@ -115,12 +124,15 @@ void UserResPot::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
-  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized"
+  cout << "** User routine RESONANCE POTENTIAL initialized"
        << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Omega=" << omega 
        << ", b/a=" << A21
        << ", c/b=" << A32
+       << ", Ton=" << ton
+       << ", Toff=" << toff
+       << ", Delta=" << delta
        << "\n";
   print_divider();
 }
@@ -160,18 +172,17 @@ void UserResPot::initialize()
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
   double pos[3], posN[3], posP[3], vel[3], acc[3];
-  double amp, R2, R=0.0;
+  double amp, R2, R;
   
   int nbodies = particles->size();
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   amp =
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
-
   for (int i=nbeg; i<nend; i++) {
 
     R2 = 0.0;
@@ -180,24 +191,37 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       vel[k] = (*particles)[i].vel[k];
       R2 += pos[k]*pos[k];
     }
+    R = sqrt(R2);
 
     for (int k=0; k<3; k++) {
 
-      for (int k2=0; k<3; k++) posP[k2] = posN[k2] = pos[k2];
+      for (int k2=0; k2<3; k2++) posP[k2] = posN[k2] = pos[k2];
 
       posN[k] -= drfac*R;
       posP[k] += drfac*R;
 
       acc[k] = - amp * (
-			respot->Pot(posP, vel, omega, tpos, bcoef) -
-			respot->Pot(posN, vel, omega, tpos, bcoef)
+			respot->Pot(posP, vel, omega, tnow, bcoef) -
+			respot->Pot(posN, vel, omega, tnow, bcoef)
 			)/(2.0*drfac*R);
     }
     
     for (int k=0; k<3; k++) (*particles)[i].acc[k] += acc[k];
     
     (*particles)[i].potext += amp * 
-      respot->Pot(pos, vel, omega, tpos, bcoef);
+      respot->Pot(pos, vel, omega, tnow, bcoef);
+
+    /*
+    if (i==0) {
+      cout << setw(18) << tnow;
+      cout << setw(18) << amp;
+      for (int k=0; k<3; k++) cout << setw(18) << pos[k];
+      for (int k=0; k<3; k++) cout << setw(18) << vel[k];
+      for (int k=0; k<3; k++) cout << setw(18) << acc[k];
+      cout << endl;
+    }
+    */
+
   }
 
   return (NULL);
