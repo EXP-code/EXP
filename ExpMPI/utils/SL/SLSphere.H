@@ -14,6 +14,7 @@ private:
   SLGridSph *ortho;
   int lmax, nmax, numr;
   double rmin, rmax;
+  double xmin, xmax;
 
 public:
   
@@ -57,8 +58,8 @@ public:
   double r_to_rb(double const r )   {return ortho->r_to_xi(r);}
   double d_r_to_rb(double const rb) {return ortho->d_xi_to_r(rb);}
 
-  double rb_min(void) {return rmin;}
-  double rb_max(void) {return rmax;}
+  double rb_min(void) {return xmin;}
+  double rb_max(void) {return xmax;}
 
   int get_dof(void) { return dof; }
   double krnl(const int l, const int n) { return 1; }
