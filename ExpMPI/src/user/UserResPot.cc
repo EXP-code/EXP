@@ -329,6 +329,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].pos[k];
       for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].vel[k];
       for (int k=0; k<3; k++) cout << setw(15) << (*particles)[i].acc[k];
+      cout << endl << flush;
+      found_nan = false;
     }
 
   }

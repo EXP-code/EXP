@@ -769,12 +769,22 @@ int ResPot::coord(double* pos, double* vel,
   double vr   = sqrt(fabs(vtot*vtot - vt*vt)) * rv;
 
   double cost = sinp*sinb;
-  double sint = sqrt(1.0 - cost*cost);
+  double sint = sqrt(fabs(1.0 - cost*cost));
+
+				// Check for excursion beyond bounds
+  if (fabs(cost)>1.0) {
+    cost = copysign(1.0, cost);
+    sint = 0.0;
+  }
 
   double cos3 = cos(w3);
   double sin3 = sin(w3);
+  
+				// Check for excursion beyond bounds
+  double phi = cosb*cost/(sinb*sint);
+  if (fabs(phi)>=1.0) phi = copysign(1.0, phi);
+  phi  = asin(phi);
 
-  double phi  = asin(cosb*cost/(sinb*sint));
 				// Phi branch based on Psi
   double tmp  = atan2(sin(psi), cos(psi));
   if (tmp>0.5*M_PI || tmp<-0.5*M_PI) phi = M_PI - phi;
