@@ -33,6 +33,25 @@ void OutPSN::initialize()
   else
     nbeg = 0;
 
+				// Determine last file
+
+  if (restart && nbeg==0) {
+
+    for (nbeg=0; nbeg<100000; nbeg++) {
+
+				// Output name
+      ostrstream fname;
+      fname << filename << "." << setw(5) << setfill('0') << nbeg << '\0';
+
+				// See if we can open file
+      ofstream out(fname.str(), ios::out | ios::noreplace);
+
+      if (out) {
+	cout << "OutPSN: will begin with nbeg=" << nbeg << endl;
+	break;
+      }
+    }
+  }
 }
 
 
