@@ -22,6 +22,7 @@ CBrockDisk::CBrockDisk(string& line) : AxisymmetricBasis(line)
   nmax = 10;
   self_consistent = true;
   selector = false;
+  coef_dump = true;
 
   initialize();
 

@@ -20,6 +20,7 @@ Slab::Slab(string& line) : PotAccel(line)
   nminx = nminy = 0;
   nmaxx = nmaxy = nmaxz = 10;
   zmax = 10.0;
+  coef_dump = true;
 
   initialize();
 

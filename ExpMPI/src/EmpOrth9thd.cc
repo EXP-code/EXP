@@ -43,10 +43,8 @@ int EmpCylSL::NUMX=64;
 int EmpCylSL::NUMY=128;
 int EmpCylSL::NOUT=12;
 int EmpCylSL::NUMR=1000;
-double EmpCylSL::RMIN=0.01;
-double EmpCylSL::RMAX=20;
-double EmpCylSL::ASCALE=1.0;
-double EmpCylSL::HSCALE=0.2;
+double EmpCylSL::RMIN=0.001;
+double EmpCylSL::RMAX=20.0;
 string EmpCylSL::CACHEFILE = ".eof.cache.file";
 string EmpCylSL::TABLEFILE = ".eof.table.file";
 
@@ -196,15 +194,23 @@ EmpCylSL::~EmpCylSL(void)
 }
 
 
-EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord)
+EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord, 
+		   double ascale, double hscale)
 {
   NMAX = nmax;
   MMAX = mmax;
   LMAX = lmax;
   NORDER = nord;
 
+  ASCALE = ascale;
+  HSCALE = hscale;
+  pfac = 1.0/sqrt(ascale);
+  ffac = pfac/ascale;
+  dfac = ffac/ascale;
+
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl());
+  SLGridSph::cmap = 1;
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1.0);
 
   if (DENS)
     MPItable = 4;
@@ -234,15 +240,23 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord)
 }
 
 
-void EmpCylSL::reset(int numr, int lmax, int mmax, int nord)
+void EmpCylSL::reset(int numr, int lmax, int mmax, int nord, 
+		     double ascale, double hscale)
 {
   NMAX = numr;
   MMAX = mmax;
   LMAX = lmax;
   NORDER = nord;
 
+  ASCALE = ascale;
+  HSCALE = hscale;
+  pfac = 1.0/sqrt(ascale);
+  ffac = pfac/ascale;
+  dfac = ffac/ascale;
+
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl());
+  SLGridSph::cmap = 1;
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1.0);
 
   SC = 0;
   SS = 0;
@@ -271,21 +285,24 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord)
   mpi_double_buf3 = 0;
 }
 
+/*
+  Note that the produced by the following three routines
+  are in dimensionless units
+*/
 double EmpCylSL::massR(double R)
 {
-  double ans=0.0, rat, fac, arg;
+  double ans=0.0, fac, arg;
 
   switch (mtype) {
   case Exponential:
-    ans = 1.0 - (1.0 + R/ASCALE)*exp(-R/ASCALE); 
+    ans = 1.0 - (1.0 + R)*exp(-R); 
     break;
   case Gaussian:
-    rat = R/ASCALE;
-    arg = 0.5*rat*rat;
+    arg = 0.5*R*R;
     ans = 1.0 - exp(-arg);
     break;
   case Plummer:
-    fac = R/(ASCALE+R);
+    fac = R/(1.0+R);
     ans = pow(fac, 3.0);
     break;
   }
@@ -295,20 +312,19 @@ double EmpCylSL::massR(double R)
 
 double EmpCylSL::densR(double R)
 {
-  double ans=0.0, rat, fac, arg;
+  double ans=0.0, fac, arg;
 
   switch (mtype) {
   case Exponential:
-    ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*R);
+    ans = exp(-R)/(4.0*M_PI*R);
     break;
   case Gaussian:
-    rat = R/ASCALE;
-    arg = 0.5*rat*rat;
-    ans = exp(-arg)/(4.0*M_PI*ASCALE*ASCALE*R);
+    arg = 0.5*R*R;
+    ans = exp(-arg)/(4.0*M_PI*R);
     break;
   case Plummer:
-    fac = 1.0/(ASCALE+R);
-    ans = 3.0*ASCALE*pow(fac, 4.0)/(4.0*M_PI);
+    fac = 1.0/(1.0+R);
+    ans = 3.0*pow(fac, 4.0)/(4.0*M_PI);
     break;
   }
 
@@ -317,7 +333,7 @@ double EmpCylSL::densR(double R)
 
 SphericalModelTable* EmpCylSL::make_sl()
 {
-  const int number = 1000;
+  const int number = 10000;
 
   r =  vector<double>(number);
   d =  vector<double>(number);
@@ -632,7 +648,10 @@ int EmpCylSL::cache_grid(int readwrite)
     else      out.write(&zero, sizeof(int));
     if (CMAP) out.write(&one, sizeof(int));
     else      out.write(&zero, sizeof(int));
+    out.write(&RMIN, sizeof(double));
     out.write(&RMAX, sizeof(double));
+    out.write(&ASCALE, sizeof(double));
+    out.write(&HSCALE, sizeof(double));
     out.write(&tnow, sizeof(double));
 
 				// Write table
@@ -701,7 +720,7 @@ int EmpCylSL::cache_grid(int readwrite)
 
     int mmax, numx, numy, nmax, norder, tmp;
     bool cmap=false, dens=false;
-    double rmax;
+    double rmin, rmax, ascl, hscl;
 
     in.read(&mmax, sizeof(int));
     in.read(&numx, sizeof(int));
@@ -710,7 +729,10 @@ int EmpCylSL::cache_grid(int readwrite)
     in.read(&norder, sizeof(int));
     in.read(&tmp, sizeof(int)); if (tmp) dens = true;
     in.read(&tmp, sizeof(int)); if (tmp) cmap = true;
+    in.read(&rmin, sizeof(double));
     in.read(&rmax, sizeof(double));
+    in.read(&ascl, sizeof(double));
+    in.read(&hscl, sizeof(double));
 
 				// Spot check compatibility
     if ( (MMAX    != mmax   ) |
@@ -719,7 +741,11 @@ int EmpCylSL::cache_grid(int readwrite)
 	 (NMAX    != nmax   ) |
 	 (NORDER  != norder ) |
 	 (DENS    != dens   ) |
-	 (CMAP    != cmap   )  
+	 (CMAP    != cmap   ) |
+	 (fabs(rmin-RMIN)>1.0e-12 ) |
+	 (fabs(rmax-RMAX)>1.0e-12 ) |
+	 (fabs(ascl-ASCALE)>1.0e-12 ) |
+	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
 	cout << "MMAX=" << MMAX << " mmax=" << mmax << endl;
@@ -729,12 +755,13 @@ int EmpCylSL::cache_grid(int readwrite)
 	cout << "NORDER=" << NORDER << " norder=" << norder << endl;
 	cout << "DENS=" << DENS << " dens=" << dens << endl;
 	cout << "CMAP=" << CMAP << " cmap=" << cmap << endl;
+	cout << "RMIN=" << RMIN << " rmin=" << rmin << endl;
 	cout << "RMAX=" << RMAX << " rmax=" << rmax << endl;
+	cout << "ASCALE=" << ASCALE << " ascale=" << ascl << endl;
+	cout << "HSCALE=" << HSCALE << " hscale=" << hscl << endl;
 	return 0;
       }
-
-    if (fabs(rmax-RMAX)>1.0e-12) return 0;
-
+    
     double time;
     in.read(&time, sizeof(double));
 
@@ -972,9 +999,9 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 
       double rr = sqrt(r*r + z*z) + 1.0e-18;
 
-      ortho->get_pot(potd, rr);
-      ortho->get_force(dpot, rr);
-      if (DENS) ortho->get_dens(dend, rr);
+      ortho->get_pot(potd, rr/ASCALE);
+      ortho->get_force(dpot, rr/ASCALE);
+      if (DENS) ortho->get_dens(dend, rr/ASCALE);
 
       costh = z/rr;
       dlegendre_R(LMAX, costh, legs[0], dlegs[0]);
@@ -990,10 +1017,10 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	    if (m==0) {
 	      fac2 = fac1*legs[0][l][m];
 
-	      dens = fac2*dend[l][ir];
-	      potl = fac2*potd[l][ir];
-	      potr = fac2*dpot[l][ir];
-	      pott = fac1*dlegs[0][l][m]*potd[l][ir];
+	      dens = fac2*dend[l][ir] * dfac;
+	      potl = fac2*potd[l][ir] * pfac;
+	      potr = fac2*dpot[l][ir] * ffac;
+	      pott = fac1*dlegs[0][l][m]*potd[l][ir] * pfac;
 
 	    } else {
 
@@ -1001,10 +1028,10 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	      fac3 = fac2 * legs[0][l][m];
 	      fac4 = fac2 * dlegs[0][l][m];
 	      
-	      dens = fac3*dend[l][ir];
-	      potl = fac3*potd[l][ir];
-	      potr = fac3*dpot[l][ir];
-	      pott = fac4*potd[l][ir];
+	      dens = fac3*dend[l][ir] * dfac;
+	      potl = fac3*potd[l][ir] * pfac;
+	      potr = fac3*dpot[l][ir] * ffac;
+	      pott = fac4*potd[l][ir] * pfac;
 	    }
 	    
 	    int nn = ir + NMAX*(l-m);
@@ -1350,7 +1377,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
   double fac0 = 4.0*M_PI, ylm;
 
-  ortho->get_pot(table[id], rr);
+  ortho->get_pot(table[id], rr/ASCALE);
   double costh = z/(rr+1.0e-18);
   legendre_R(LMAX, costh, legs[id]);
   sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
@@ -1368,7 +1395,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
 	// Only the l dependence is important here . . .
 
-	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) *
+	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
 
 	if (m==0) {
@@ -1793,14 +1820,6 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass, int id)
 
     mcos = cos(phi*mm);
     msin = sin(phi*mm);
-    /*
-    if (mm) {
-      mcos = cos(phi*mm);
-      msin = sin(phi*mm);
-    }
-    else
-      mcos = M_SQRT1_2;
-    */
 
     for (int nn=0; nn<rank3; nn++) 
       hold[id][nn] = norm * mass * mcos * vc[id][mm][nn];
@@ -2159,14 +2178,6 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi)
 
     ccos = cos(phi*mm);
     ssin = sin(phi*mm);
-    /*
-    if (mm) {
-      ccos = cos(phi*mm);
-      ssin = sin(phi*mm);
-    }
-    else
-      ccos = M_SQRT1_2;
-    */
 
     for (n=0; n<rank3; n++) {
 
@@ -2280,9 +2291,9 @@ void EmpCylSL::get_all(int mm, int nn,
   double rr = sqrt(r*r + z*z);
 
   if (rr>Rtable) {
-    p = -cylmass/(rr+1.0e-8);
-    fr = p*r/(rr+1.0e-8)/(rr+1.0e-8);
-    fz = p*z/(rr+1.0e-8)/(rr+1.0e-8);
+    p = -cylmass/(rr+1.0e-16);
+    fr = p*r/(rr+1.0e-16)/(rr+1.0e-16);
+    fz = p*z/(rr+1.0e-16)/(rr+1.0e-16);
 
     return;
   }
@@ -2316,14 +2327,6 @@ void EmpCylSL::get_all(int mm, int nn,
 
   ccos = cos(phi*mm);
   ssin = sin(phi*mm);
-  /*
-  if (mm) {
-    ccos = cos(phi*mm);
-    ssin = sin(phi*mm);
-  }
-  else
-    ccos = M_SQRT1_2;
-  */
 
   p += ccos *
     (
@@ -2697,7 +2700,7 @@ double EmpCylSL::r_to_xi(double r)
       msg << "radius=" << r << " < 0! [mapped]";
       bomb(string(msg.str()));
     }
-    return (r-1.0)/(r+1.0);
+    return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
       ostrstream msg;
@@ -2714,7 +2717,7 @@ double EmpCylSL::xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    return (1.0+xi)/(1.0 - xi);
+    return (1.0 + xi)/(1.0 - xi) * ASCALE;
   } else {
     return xi;
   }
@@ -2727,7 +2730,7 @@ double EmpCylSL::d_xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    return 0.5*(1.0-xi)*(1.0-xi);
+    return 0.5*(1.0 - xi)*(1.0 - xi) / ASCALE;
   } else {
     return 1.0;
   }

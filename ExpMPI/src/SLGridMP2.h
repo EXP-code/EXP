@@ -30,6 +30,8 @@ private:
   int mmax, nmax, numr, numk;
   double rmin, rmax, l;
 
+  double scale;
+
   double dk;
 
   double xmin, xmax, dxi;
@@ -76,9 +78,7 @@ public:
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	 double l);
-
-  //! Destructor
+	 double l, double Scale=1.0);
   ~SLGridCyl();
 
 				// Members
@@ -132,6 +132,8 @@ private:
   int lmax, nmax, numr;
   double rmin, rmax;
 
+  double scale;
+
   double xmin, xmax, dxi;
 
   Vector r;
@@ -142,7 +144,7 @@ private:
   struct TableSph* table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
-		  double RMIN, double RMAX);
+		  double RMIN, double RMAX, double SCALE);
 
   void init_table(void);
   void compute_table(struct TableSph* table, int L);
@@ -177,10 +179,9 @@ public:
 
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    SphericalModelTable *mod);
-  //! Constructor
-  SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax);
-  //! Destructor
+	    SphericalModelTable *mod, double Scale=1.0);
+  SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
+	    double Scale=1.0);
   ~SLGridSph();
 
 				// Members

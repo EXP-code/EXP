@@ -118,6 +118,7 @@ PotAccel::PotAccel(string& line)
   component = NULL;
   geometry = other;
   use_external = false;
+  coef_dump = false;
 
   use = new int [nthrds];
 

@@ -63,6 +63,9 @@ protected:
   //! Set flag to add to external potential field
   int use_external;
 
+  //! Coefficient dump flag (true if a useful dump_coefs member is defined)
+  bool coef_dump;
+
 public:
 
   //! Id string
@@ -128,6 +131,12 @@ public:
 
   //! Clear external flag
   void ClearExternal() { use_external = false; }
+
+  //! Dump coefficients for this force?
+  bool HaveCoefDump() { return coef_dump; }
+
+  //! Dump current coefficients
+  virtual void dump_coefs(ostream &out) {};
 
 };
 

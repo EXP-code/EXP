@@ -23,10 +23,6 @@ public:
   
   
 
-  //! Save coefficients to file (need type marker to id dump, component id?)
-  virtual void dump_coefs(ostream& out) = 0;
-
-
   /** Supply density, potential and derivatives at arbitrary point
       in spherical coordinates
   */

@@ -34,6 +34,10 @@ private:
 
   vector<double> r, d, m, p;
 
+  double ASCALE;
+  double HSCALE;
+  double pfac, dfac, ffac;
+
   Matrix *facC, *facS;
   Vector** accum_cos0;
   Vector** accum_sin0;
@@ -159,12 +163,6 @@ public:
   //! Maximum radial value for basis
   static double RMAX;
 
-  //! Radial scale length
-  static double ASCALE;
-
-  //! Vertical scale height
-  static double HSCALE;
-
   //! Name of cache file
   static string CACHEFILE;
 
@@ -176,13 +174,15 @@ public:
   EmpCylSL(void);
 
   //! Constructor with parameters
-  EmpCylSL(int numr, int lmax, int mmax, int nord);
+  EmpCylSL(int numr, int lmax, int mmax, int nord,
+	   double ascale, double hscale);
 
   //! Destructor
   ~EmpCylSL(void);
 
   //! Reconstruct basis with new parameters
-  void reset(int numr, int lmax, int mmax, int nord);
+  void reset(int numr, int lmax, int mmax, int nord,
+	     double ascale, double hscale);
 
   //! Read basis from cache file
   int read_cache(void);
@@ -198,7 +198,7 @@ public:
   */
 
   //! Compute non-dimensional vertical coordinate from Z
-  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z)/HSCALE); }
+  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
 
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }
@@ -268,6 +268,11 @@ public:
   //! Jacobian
   double d_xi_to_r(double);
 
+  //! Return current value of disk scale length
+  double get_ascale(void) { return ASCALE; }
+
+  //! Return current value of disk scale height
+  double get_hscale(void) { return HSCALE; }
 };
 
 extern void legendre_R(int lmax, double x, Matrix& p);

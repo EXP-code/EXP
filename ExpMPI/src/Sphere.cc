@@ -21,6 +21,7 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
 {
 				// Defaults
   rmin = 1.0e-3;
+  rs = 0.067*rmax;
   numr = 1000;
 
 				// Get initialization info
@@ -29,7 +30,7 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
   SLGridSph::mpi = 1;		// Turn on MPI
 
 				// Generate Sturm-Liouville grid
-  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax);
+  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, rs);
 
   setup();
 }
@@ -40,6 +41,7 @@ void Sphere::initialize()
   string val;
 
   if (get_value("rmin", val)) rmin = atof(val.c_str());
+  if (get_value("rs", val)) rs = atof(val.c_str());
   if (get_value("numr", val)) numr = atoi(val.c_str());
 
 }

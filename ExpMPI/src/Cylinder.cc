@@ -19,11 +19,11 @@ Cylinder::Cylinder(string& line) : Basis(line)
   geometry = cylinder;
 
 				// Default values
-  rcylmin = 0.01;
+  rcylmin = 0.001;
   rcylmax = 20.0;
   acyl = 1.0;
   nmax = 10;
-  lmax = 26;
+  lmax = 36;
   mmax = 4;
   ncylnx = 32;
   ncylny = 32;
@@ -32,6 +32,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   ncylrecomp = -1;
   self_consistent = true;
   selector = false;
+  coef_dump = true;
 
   initialize();
 
@@ -40,8 +41,6 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
-  EmpCylSL::ASCALE = acyl;
-  EmpCylSL::HSCALE = hcyl;
 
 				// For debugging
 #ifdef DENSITY
@@ -53,7 +52,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 #endif
 
   ortho = new EmpCylSL();
-  ortho->reset(nmax, lmax, mmax, ncylorder);
+  ortho->reset(nmax, lmax, mmax, ncylorder, acyl, hcyl);
 
   ncompcyl = 0;
 

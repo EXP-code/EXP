@@ -178,7 +178,7 @@ void SLGridCyl::bomb(string oops)
 				// Constructors
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
-	       double RMIN, double RMAX, double L)
+	       double RMIN, double RMAX, double L, double SCALE)
 {
   int m, k;
 
@@ -190,6 +190,8 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   rmin = RMIN;
   rmax = RMAX;
   l = L;
+
+  scale = SCALE;
 
 #ifdef JAFFECYL
   cylrfac = RMAX/A;
@@ -387,7 +389,7 @@ int SLGridCyl::read_cached_table(void)
   if (!in) return 0;
 
   int MMAX, NMAX, NUMR, NUMK, i, j;
-  double RMIN, RMAX, L, AA;
+  double RMIN, RMAX, L, AA, SCL;
 
   cerr << "SLGridCyl::read_cached_table: trying to read cached table . . . \n";
 
@@ -399,6 +401,7 @@ int SLGridCyl::read_cached_table(void)
   in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
   in.read((char *)&L, sizeof(double));		if(!in || L!=l) return 0;
   in.read((char *)&AA, sizeof(double));		if(!in || AA!=A) return 0;
+  in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
 
   for (int m=0; m<=mmax; m++) {
     for (int k=0; k<=numk; k++) {
@@ -452,6 +455,7 @@ void SLGridCyl::write_cached_table(void)
   out.write((char *)&rmax, sizeof(double));
   out.write((char *)&l, sizeof(double));
   out.write((char *)&A, sizeof(double));
+  out.write((char *)&scale, sizeof(double));
 
   for (int m=0; m<=mmax; m++) {
     for (int k=0; k<=numk; k++) {
@@ -485,7 +489,7 @@ double SLGridCyl::r_to_xi(double r)
 {
   if (cmap) {
     if (r<0.0) bomb("radius < 0!");
-    return (r-1.0)/(r+1.0);
+    return (r/scale-1.0)/(r/scale+1.0);
   } else {
     if (r<0.0) bomb("radius < 0!");
     return r;
@@ -498,7 +502,7 @@ double SLGridCyl::xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    return (1.0+xi)/(1.0 - xi);
+    return (1.0+xi)/(1.0 - xi) * scale;
   } else {
     return xi;
   }
@@ -511,7 +515,7 @@ double SLGridCyl::d_xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    return 0.5*(1.0-xi)*(1.0-xi);
+    return 0.5*(1.0-xi)*(1.0-xi)/scale;
   } else {
     return 1.0;
   }
@@ -1011,7 +1015,9 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6] = {1.0e-4*scale,1.0e-5,  
+		   1.0e-4*scale,1.0e-5,  
+		   1.0e-4*scale,1.0e-5};
   int i, j, VERBOSE=0;
   integer NUM, N, M;
   logical type[8];
@@ -1162,8 +1168,8 @@ void SLGridCyl::init_table(void)
   d0.setsize(0, numr-1);
 
   if (cmap) {
-    xmin = (rmin - 1.0)/(rmin + 1.0);
-    xmax = (rmax - 1.0)/(rmax + 1.0);
+    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
+    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
     dxi = (xmax-xmin)/(numr-1);
   } else {
     xmin = rmin;
@@ -1185,7 +1191,9 @@ void SLGridCyl::compute_table_slave(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6] = {1.0e-4*scale,1.0e-5,  
+		   1.0e-4*scale,1.0e-5, 
+		   1.0e-4*scale,1.0e-5};
   int i, j, VERBOSE=0;
   integer NUM;
   logical type[8];
@@ -1533,24 +1541,25 @@ void SLGridSph::bomb(string oops)
 				// Constructors
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX)
+		     double RMIN, double RMAX, double SCALE)
 {
   model = new SphericalModelTable(model_file_name);
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, SCALE);
 }
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, SphericalModelTable *mod)
+		     double RMIN, double RMAX, SphericalModelTable *mod,
+		     double SCALE)
 {
   model = mod;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, SCALE);
 }
 
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
-			   double RMIN, double RMAX)
+			   double RMIN, double RMAX, double SCALE)
 {
   int l;
 
@@ -1560,6 +1569,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
   rmin = RMIN;
   rmax = RMAX;
+
+  scale = SCALE;
 
   init_table();
 
@@ -1742,7 +1753,7 @@ int SLGridSph::read_cached_table(void)
   if (!in) return 0;
 
   int LMAX, NMAX, NUMR, i, j;
-  double RMIN, RMAX;
+  double RMIN, RMAX, SCL;
 
   cerr << "SLGridSph::read_cached_table: trying to read cached table . . . \n";
 
@@ -1751,6 +1762,7 @@ int SLGridSph::read_cached_table(void)
   in.read((char *)&NUMR, sizeof(int));		if(!in || NUMR!=numr) return 0;
   in.read((char *)&RMIN, sizeof(double));	if(!in || RMIN!=rmin) return 0;
   in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
+  in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
 
   for (int l=0; l<=lmax; l++) {
 
@@ -1801,6 +1813,7 @@ void SLGridSph::write_cached_table(void)
   out.write((char *)&numr, sizeof(int));
   out.write((char *)&rmin, sizeof(double));
   out.write((char *)&rmax, sizeof(double));
+  out.write((char *)&scale, sizeof(double));
 
   for (int l=0; l<=lmax; l++) {
 
@@ -1832,7 +1845,7 @@ double SLGridSph::r_to_xi(double r)
 
   if (cmap) {
     if (r<0.0) bomb("radius < 0!");
-    ret =  (r-1.0)/(r+1.0);
+    ret =  (r/scale-1.0)/(r/scale+1.0);
   } else {
 
     ret = r;
@@ -1849,7 +1862,7 @@ double SLGridSph::xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret =(1.0+xi)/(1.0 - xi);
+    ret =(1.0+xi)/(1.0 - xi) * scale;
   } else {
     if (xi<0.0) bomb("xi < 0!");
 
@@ -1867,7 +1880,7 @@ double SLGridSph::d_xi_to_r(double xi)
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
-    ret = 0.5*(1.0-xi)*(1.0-xi);
+    ret = 0.5*(1.0-xi)*(1.0-xi)/scale;
   } else {
     if (xi<0.0) bomb("xi < 0!");
     ret = 1.0;
@@ -2162,7 +2175,9 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6] = {1.0e-4*scale,1.0e-6,  
+		   1.0e-4*scale,1.0e-6,  
+		   1.0e-4*scale,1.0e-6};
   int i, j, k, VERBOSE=0;
   integer NUM, N;
   logical type[8];
@@ -2307,8 +2322,8 @@ void SLGridSph::init_table(void)
   d0.setsize(0, numr-1);
 
   if (cmap) {
-    xmin = (rmin - 1.0)/(rmin + 1.0);
-    xmax = (rmax - 1.0)/(rmax + 1.0);
+    xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
+    xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
   } else {
     xmin = rmin;
     xmax = rmax;
@@ -2329,7 +2344,10 @@ void SLGridSph::compute_table_slave(void)
 {
 
   double cons[8] = {0.0, 0.0, 0.0, 0.0,   0.0, 0.0,   0.0, 0.0};
-  double tol[6] = {1.0e-4,1.0e-5,  1.0e-4,1.0e-5,  1.0e-4,1.0e-5};
+  double tol[6] = {1.0e-1*scale,1.0e-6,  
+		   1.0e-1*scale,1.0e-6,  
+		   1.0e-1*scale,1.0e-6};
+
   int i, j, VERBOSE=0;
   integer NUM;
   logical type[8];

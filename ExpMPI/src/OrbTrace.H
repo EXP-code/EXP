@@ -1,5 +1,5 @@
-#ifndef _OutTrace_H
-#define _OutTrace_H
+#ifndef _OrbTrace_H
+#define _OrbTrace_H
 
 #include <OrbTrace.H>
 
@@ -16,7 +16,9 @@
     @param nskip is the interval between orbits beginning with nskip.
     If nskip is unspecified, <code>nskip=nbodies/norb</code>. 
 
-    @param nfreq is the frequency between file updates 
+    @param nint is the frequency between file updates 
+
+    @param name of the component to trace
 */
 class OrbTrace : public Output
 {

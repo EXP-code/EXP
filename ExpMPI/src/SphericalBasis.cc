@@ -10,6 +10,7 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
 {
   dof = 3;
   geometry = sphere;
+  coef_dump = true;
 
   string val;
 
