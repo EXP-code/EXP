@@ -74,7 +74,6 @@ void ParamParse::parse_istream(istream* in)
   if (database.size() == 0) {
     curstanza = new Stanza();
     database.push_back(curstanza);
-    cout << "Name=" << curstanza->name << endl;
     curstanza->name = "global";
     nstanza = 1;
   } else {
@@ -117,7 +116,7 @@ void ParamParse::parse_istream(istream* in)
       if (!find_list(name)) {
 	curstanza = new Stanza();
 	database.push_back(curstanza);
-	curstanza->name = "global";
+	curstanza->name = name;
 	nstanza++;
       }
       
