@@ -385,19 +385,21 @@ epi(double xp, double yp, double zp)
   lR = log(max<double>(epiRmin, sqrt(xp*xp + yp*yp)));
   ir = (int)( (lR - log(RDMIN))/dR );
   ir = min<int>( ir, NDR-2 );
-  ir = max<int>( ir, 0 );
+  ir = max<int>( ir, epiJmin );
   cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
   cr[0] = 1.0 - cr[1];
 
-				// No extrapolation in radius
-  if (cr[0] > 1.0) {
-    cr[0] = 1.0;
-    cr[1] = 0.0;
+				// Limit extrapolation in radius
+  const double exfac = 0.5;
+
+  if (cr[0] > 1.0 + exfac) {
+    cr[0] = 1.0 + exfac;
+    cr[1] = -exfac;
   }
 
-  if (cr[1] > 1.0) {
-    cr[0] = 0.0;
-    cr[1] = 1.0;
+  if (cr[1] > 1.0 + exfac) {
+    cr[0] = -exfac;
+    cr[1] = 1.0 + exfac;
   }
 
   ans = 
@@ -660,24 +662,33 @@ table_disk(vector<Particle>& part)
     }
   }
     
-				// Check epitable
+				// Check epitable: find smallest radius
+				// with positive entries to guard against
+				// lack of particle resolution
   double epirmin=0.0;
+  int epijmin = 0;
   for (int i=0; i<NDP; i++) {
     for (int j=0; j<NDR; j++) {
 
       if (epitable[i][j] < 0.0) {
 	epirmin = max<double>(epirmin, RDMIN*exp(dR*j));
+	epijmin = max<int>(epijmin, j);
 
 	if (myid==0) {
-	  cout << "Epitable error: R=" << RDMIN*exp(dR*j)
-	       << " Phi=" << dP*i << " ep2=" << epitable[i][j] << endl;
+	  cout << "Epitable error: R=" << RDMIN*exp(dR*j) 
+	       << " j=" << j
+	       << " Phi=" << dP*i 
+	       << " ep2=" << epitable[i][j] << endl;
 	}
 
       }
     }
   }
   MPI_Allreduce(&epirmin, &epiRmin, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  if (myid==0) cout << "Epitable: Rmin=" << epiRmin << endl;
+  MPI_Allreduce(&epijmin, &epiJmin, 1, MPI_INT,    MPI_MAX, MPI_COMM_WORLD);
+
+  if (myid==0) cout << "Epitable: Jmin=" << epiJmin 
+		    << " Rmin=" << epiRmin << endl;
 
   if (myid==0)
   {

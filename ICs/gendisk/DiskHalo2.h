@@ -38,6 +38,7 @@ class DiskHalo
 
   Matrix *disktableP, *disktableN, epitable;
   double dP, dR, dZ, epiRmin;
+  int epiJmin;
 
   Matrix halotable;
   double dr, dc;

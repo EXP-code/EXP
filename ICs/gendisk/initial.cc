@@ -337,7 +337,7 @@ main(int argc, char **argv)
   DiskHalo::RDMIN = RMIN;
   DiskHalo::RHMIN = RMIN;
   DiskHalo::RHMAX = RMAX;
-  DiskHalo::RDMAX = RDISK*scale_length;
+  DiskHalo::RDMAX = min<double>(RDISK*scale_length, RMAX);
   DiskHalo::NDR = NDR;
   DiskHalo::NDZ = NDZ;
   DiskHalo::SHFACTOR = SHFACTOR;
