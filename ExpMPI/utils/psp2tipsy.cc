@@ -170,6 +170,8 @@ main(int argc, char **argv)
     if(!in->read((char *)&dump.header, sizeof(MasterHeader))) break;
 
 
+    bool ok = true;
+
     for (int i=0; i<dump.header.ncomp; i++) {
 
       Stanza stanza;
@@ -177,8 +179,9 @@ main(int argc, char **argv)
       
       ComponentHeader headerC;
       if (!headerC.read(in)) {
-	cerr << "Error reading header\n";
-	exit(-1);
+	cerr << "Error reading component header\n";
+	ok = false;
+	break;
       }
 
       stanza.pspos = in->tellg();
@@ -227,6 +230,8 @@ main(int argc, char **argv)
       }
 
     }
+
+    if (!ok) break;
 
     dumps.push_back(dump);
     if (fabs(time - dump.header.time) < tdif) {
