@@ -21,7 +21,7 @@
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
-	       string Logfile)
+	       string Logfile) : gen(11, 20), gauss(0.0, 1.0, &gen) 
 {
   keep = n;
   current = 0;
@@ -374,6 +374,10 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       Egrad = (Ecurr - Elast)/(used - Nlast);
 
     dE = (double)(many - used) * Egrad;
+
+    if (fabs(dE) <= 1.0e-10)
+      dE = (Ecurr - Emin0)*0.01*gauss();
+
   }
 
 				// Push current value onto stack
@@ -616,6 +620,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
       for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
       for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
+      outl << setw(15) << Egrad << setw(15) << dE;
       outl << endl;
     }
   }

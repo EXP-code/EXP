@@ -8,8 +8,10 @@
 #include <deque>
 #include <algorithm>
 
-#include <Vector.h>
+#include <ACG.h>
+#include <Normal.h>
 
+#include <Vector.h>
 #include <Particle.H>
 
 /** Class to hold energy and angular momentum for use in centering
@@ -61,6 +63,9 @@ private:
   string logfile;
   bool extpot;
   bool verbose;
+
+  ACG gen;
+  Normal gauss;
 
 public:
   //! Mask flags for Orient type
