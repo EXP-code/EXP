@@ -34,8 +34,9 @@ private:
   double a, mass, Ton, Toff, DeltaT;
 
   double *Rtable, *Ptable, *Ztable;
-  double Rmax, Zmax, dR, dZ;
+  double Rmax, Zmax, dR, dZ, dfac;
   int Rnum, Znum, Nint;
+  bool debug;
 
   string name;
 

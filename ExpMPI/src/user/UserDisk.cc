@@ -25,6 +25,9 @@ UserDisk::UserDisk(string &line) : ExternalForce(line)
   Znum = 100;			// Number of points on vertical grid
   Nint = 40;			// Number of k-integration points
 
+  debug = false;		// Print out potential/force tables
+  dfac = 1.2;			// Fraction of grid for interp test
+
   ctr_name = "";		// Default component for com
   
   initialize();
@@ -104,7 +107,9 @@ void UserDisk::initialize()
   if (get_value("Rnum", val))		Rnum = atoi(val.c_str());
   if (get_value("Znum", val))		Znum = atoi(val.c_str());
   if (get_value("Nint", val))		Nint = atoi(val.c_str());
-}
+
+  if (get_value("debug", val))	        debug = atoi(val.c_str()) ? true : false;
+  if (get_value("dfac", val))	        dfac = atof(val.c_str());}
 
 
 
@@ -192,7 +197,8 @@ void UserDisk::genTable()
     }
   }
 
-  printTable();
+
+  if (debug) printTable();
 
 }
 
@@ -244,7 +250,6 @@ void UserDisk::printTable()
   outZ.open("test_fz.dat1");
 
   const int num = 100;
-  const double dfac = 0.2;
   double dr = dfac*Rmax/(num-1);
   double dz = 2.0*dfac*Zmax/(num-1);
   double pot, fr, fz;
