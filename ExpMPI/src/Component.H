@@ -216,6 +216,8 @@ public:
   double eEJ0;
   //! Print verbose diagnostics
   bool EJdiag;
+  //! Use external potential for energy computation
+  bool EJext;
 
   //! Orientation cache
   Orient *orient;

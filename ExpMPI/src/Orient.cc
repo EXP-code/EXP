@@ -18,7 +18,7 @@
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, double Einit, int Flags, 
-	       string Logfile, bool Verbose)
+	       string Logfile, bool Extpot, bool Verbose)
 {
   keep = n;
   current = 0;
@@ -26,6 +26,7 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
   Egrad = 0.0;
   Ecurr = Einit;
   flags = Flags;
+  extpot = Extpot;
   verbose = Verbose;
   logfile = Logfile;
   Nlast = 0;
@@ -172,6 +173,8 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 	   (*p)[i].vel[1]*(*p)[i].vel[1] + 
 	   (*p)[i].vel[2]*(*p)[i].vel[2]);
 
+    if (extpot) energy += (*p)[i].potext;
+
     Emin1 = min<double>(energy, Emin1);
 
     if (energy < Ecurr) {
@@ -223,6 +226,8 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 	0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
 	     (*p)[i].vel[1]*(*p)[i].vel[1] + 
 	     (*p)[i].vel[2]*(*p)[i].vel[2]);
+
+      if (extpot) energy += (*p)[i].potext;
 
       if (energy < Ecurr) {
 	

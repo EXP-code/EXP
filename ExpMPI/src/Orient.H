@@ -58,6 +58,7 @@ private:
   int Nlast;
   int flags;
   string logfile;
+  bool extpot;
   bool verbose;
 
 public:
@@ -66,7 +67,7 @@ public:
 
   //! Constructor
   Orient(int number_to_keep, int target, double rinit, int flags, 
-	 string logfile, bool verbose=false);
+	 string logfile, bool extpot=false, bool verbose=false);
 
   //! Register phase space of <num> particles and store angular momentum vector for the lowest <many> binding energies
   void accumulate(double time, vector<Particle> *p, double* com);

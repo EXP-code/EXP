@@ -20,7 +20,6 @@
 /*
 const int nthrds = 1;
 double tnow = 0.0;
-static pthread_mutex_t used_lock;
 */
 
 #include <numerical.h>
