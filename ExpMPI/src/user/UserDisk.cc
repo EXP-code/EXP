@@ -56,6 +56,8 @@ UserDisk::UserDisk(string &line) : ExternalForce(line)
 
 
   userinfo();
+
+  genTable();
 }
 
 UserDisk::~UserDisk()
