@@ -208,7 +208,7 @@ Reconstruct::Reconstruct(AxiSymBiorth *bio, double rmin, double rmax,
     coefs[l] = new Vector [lmax+1];
     for (int m=0; m<=l; m++)
       coefs[l][m] = scalar_prod(density, rmin, rmax, l, m, *biorth,
-				shift_func, nmax, 200);
+				shift_func, nmax, 400);
   }
 
 }
@@ -334,7 +334,7 @@ main(int argc, char** argv)
   int numr=1000;
   double rmin=0.001, rmax=1.95, rs=0.067;
   double delr=0.01, xmax=1.0;
-  int numx=100, numt = 20, nump = 20;
+  int numx=100, numt = 40, nump = 40;
 
   string outfile = "slshift";
 
