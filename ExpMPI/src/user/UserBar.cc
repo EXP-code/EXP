@@ -59,7 +59,8 @@ UserBar::~UserBar()
 void UserBar::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "User routine initialized: rotating bar, " ;
+  cout << "** User routine ROTATING BAR initialized, " ;
+  cout << "****************************************************************\n";
   if (fixed)
     cout << "fixed pattern speed, ";
   else

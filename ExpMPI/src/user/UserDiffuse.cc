@@ -54,9 +54,11 @@ void UserDiffuse::userinfo()
 {
   if (myid) return;		// Return if node master node
   if (c0)
-    cout << "Diffusion routine initialized for component: <" << name << ">, ";
+    cout << "** User routine FAKE DIFFUSION initialized for component: <" << name << ">";
   else
-    cout << "Diffusion routine disabled: no component specified";
+    cout << "** User routine FAKE DIFFUSION disabled: no component specified";
+  
+  cout << "****************************************************************\n";
 
   cout << ", rate = " << rate;
   cout << ", seed = " << seed;

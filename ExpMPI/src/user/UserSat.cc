@@ -74,7 +74,8 @@ UserSat::~UserSat()
 void UserSat::userinfo()
 {
   if (myid) return;		// Return if node master node
-  cout << "User routine initialized: satellite in fixed potential\n";
+  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized\n";
+  cout << "****************************************************************\n";
 }
 
 void UserSat::initialize()
