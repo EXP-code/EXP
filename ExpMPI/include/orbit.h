@@ -1,18 +1,13 @@
  // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _orbit_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _orbit_h 1
 
 const char rcsid_orbit[] = "$Id$";
 
 #include <logic.h>
 #include <biorth.h>
-extern "C" {
-#include <gknots.h>
-}
+#include <gaussQ.h>
 
 class AxiSymModel;
 
@@ -34,6 +29,8 @@ public:
   Vector action;
   Vector freq;
   
+  virtual ~RegularOrbit() {}
+
   virtual double get_action(const int) = 0;
   virtual double get_freq(const int) = 0;
   virtual double get_angle(const int, const double) = 0;
@@ -95,7 +92,7 @@ private:
   int l1s, l2s;
   Vector cosvec;
   
-  struct GAUSS Gkn;
+  LegeQuad *Gkn;
   
 public:
   
@@ -105,7 +102,7 @@ public:
   SphericalOrbit(AxiSymModel *model);
   SphericalOrbit(AxiSymModel *model, double Energy, double kappa,
 		 double beta = 0.0);
-  ~SphericalOrbit();
+  virtual ~SphericalOrbit();
   
   //  SphericalOrbit(SphericalOrbit &orb);
   SphericalOrbit &operator=(const SphericalOrbit &);

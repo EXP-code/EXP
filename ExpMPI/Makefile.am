@@ -1,2 +1,2 @@
-SUBDIRS = mdwlib libsrnd numerical src
-EXTRA_DIST = $(top_srcdir)/numerical/include/*.h $(top_srcdir)/src/*.cc
+SUBDIRS = expgnu exputil src doc utils
+EXTRA_DIST = $(top_srcdir)/exputil/include/*.h $(top_srcdir)/src/*.cc

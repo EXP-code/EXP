@@ -1,0 +1,56 @@
+#ifndef _ScatterMFP_H
+#define _ScatterMFP_H
+
+#include <pair.h>
+#include <ACG.h>
+#include <Normal.h>
+#include <Uniform.h>
+
+#include <ExternalForce.H>
+
+typedef pair<double, int> rpair;
+
+bool less_rpair(const rpair& one, const rpair& two);
+
+//! Compute acceleration based on mean free path (dark matter pressure)
+/*! Will probably never use this again . . . */
+class ScatterMFP : public ExternalForce
+{
+
+private:
+
+  double tau, tauscat, rmax;
+  int tautab, nscat;
+  double *dtau, *dtau1;
+  double dr;
+  vector<int> cntr;
+
+  vector <rpair> rr2;
+
+  ACG *gen;
+  Uniform *unif;
+  Normal *gaus;
+  int cntacc;
+
+  void initialize();
+  Component *c;			// Component ptr
+  string comp_id;		// Component id
+  int mfp_index;		// Index in double attribute list
+
+  // The usual required members
+
+  void get_acceleration_and_potential(vector<Particle>* P);
+  void * determine_acceleration_and_potential_thread(void * arg);
+
+public:
+
+  //! Constructor
+  ScatterMFP(string& line);
+
+  //! Destructor
+  ~ScatterMFP();
+
+};
+
+
+#endif

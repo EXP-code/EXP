@@ -26,7 +26,8 @@ if test ! -x `which autoconf`
 then echo you need autoconf to generate the Makefile
 fi
 aclocal
-automake
+automake --add-missing
+automake --add-missing
 autoconf
 ./configure $*
 $MAKE

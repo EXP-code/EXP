@@ -24,20 +24,17 @@
 /* Define if you have the eigen library (-leigen).  */
 #undef HAVE_LIBEIGEN
 
+/* Define if you have the exputil library (-lexputil).  */
+#undef HAVE_LIBEXPUTIL
+
 /* Define if you have the fft library (-lfft).  */
 #undef HAVE_LIBFFT
 
 /* Define if you have the m library (-lm).  */
 #undef HAVE_LIBM
 
-/* Define if you have the mdw library (-lmdw).  */
-#undef HAVE_LIBMDW
-
 /* Define if you have the mpi library (-lmpi).  */
 #undef HAVE_LIBMPI
-
-/* Define if you have the numerical library (-lnumerical).  */
-#undef HAVE_LIBNUMERICAL
 
 /* Define if you have the pthread library (-lpthread).  */
 #undef HAVE_LIBPTHREAD

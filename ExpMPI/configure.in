@@ -1,7 +1,7 @@
 dnl Process this file with autoconf to produce a configure script.
 AC_INIT(src/expand.h)
 AM_CONFIG_HEADER(config.h)
-AM_INIT_AUTOMAKE(EXP, 3.03)
+AM_INIT_AUTOMAKE(EXP, 3.99)
 
 dnl Checks for programs.
 AC_PROG_AWK
@@ -14,6 +14,7 @@ AC_PROG_INSTALL
 AC_PROG_LN_S
 AC_PROG_MAKE_SET
 AC_PROG_RANLIB
+AM_PROG_LIBTOOL
 
 dnl Arguments
 
@@ -33,6 +34,10 @@ AC_ARG_ENABLE(dmalloc,
     enable_dmalloc=no)
 
 
+dnl Look for doxygen
+AC_PATH_PROG(DOXYGEN, doxygen, notfound)
+AM_CONDITIONAL(DOXYGEN_FOUND, test x$DOXYGEN != xnotfound)
+
 dnl Checks for libraries.
 dnl Replace 'main' with a function in -largs:
 AC_CHECK_LIB(args, main)
@@ -42,12 +47,10 @@ dnl Replace 'main' with a function in -lfft:
 AC_CHECK_LIB(fft, main)
 dnl Replace 'main' with a function in -lm:
 AC_CHECK_LIB(m, main)
-dnl Replace 'main' with a function in -lmdw:
-AC_CHECK_LIB(mdw, main)
 dnl Replace 'main' with a function in -lmpi:
 AC_CHECK_LIB(mpi, main)
-dnl Replace 'main' with a function in -lnumerical:
-AC_CHECK_LIB(numerical, main)
+dnl Replace 'main' with a function in -lexputil:
+AC_CHECK_LIB(exputil, main)
 dnl Replace 'main' with a function in -lpthread:
 AC_CHECK_LIB(pthread, main)
 dnl Replace 'main' with a function in -lsrnd:
@@ -76,5 +79,5 @@ AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
 
 
 dnl Make the makefiles
-AC_OUTPUT(libsrnd/Makefile mdwlib/Makefile numerical/Makefile src/Makefile Makefile)
+AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile utils/Makefile)
 

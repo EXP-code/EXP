@@ -1,9 +1,6 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _massmodel_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _massmodel_h 1
 
 const char rcsid_massmodel[] = "$Id$";
@@ -11,7 +8,6 @@ const char rcsid_massmodel[] = "$Id$";
 #include <ACG.h>
 #include <Uniform.h>
 
-#include <logic.h>
 #include <Vector.h>
 #include <orbit.h>
 
@@ -42,6 +38,8 @@ public:
   int dim;
   string ModelID;
   bool defined;
+
+  virtual ~MassModel() {}
 
   virtual double get_mass(const double, const double, const double) = 0;
   virtual double get_density(const double, const double, const double) = 0;
@@ -88,6 +86,8 @@ public:
     ModelID = "AxiSymModel";
     gen_firstime = true;
   }
+
+  virtual ~AxiSymModel(void) { }
 
   void set_seed(int s) { gen_seed = s;}
   void set_itmax(int s) { gen_itmax = s;}
@@ -156,7 +156,7 @@ public:
   EmbeddedDiskModel(AxiSymModel **T, double *M_scale, double *R_scale, 
 		      int NUMBER);
 
-  ~EmbeddedDiskModel();
+  virtual ~EmbeddedDiskModel();
 
   double get_mass(const double);
   double get_density(const double);
@@ -227,7 +227,7 @@ public:
 	         int DIVERGE = 0, double DIVERGE_RFAC = 0, int EXTERNAL = 0,
 					   string ID = "" );
 
-  ~SphericalModelTable();
+  virtual ~SphericalModelTable();
 
   // Required member functions
 

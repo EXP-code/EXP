@@ -1,0 +1,55 @@
+/*! \page bodies Phase space file format
+<H3> Ascii file format</H3>
+The first line of an ascii phase space file needs three space-delimited
+integer values:
+<ol>
+<li> Number of bodies: <code>nbodies</code>
+<li> Number of integer attributes: <code>niattrib</code>
+<li> Number of real (double) attributes: <code>ndattrib</code>
+</ol>
+This header is followed by <code>nbodies</code> rows each containing
+<code>7+niattrib+ndattrib</code> values as follows:
+<ul>
+<li> Mass (one real value)
+<li> Position (three real values)
+<li> Velocity (three real values)
+<li> Integer attributes (<code>niattrib</code>) values
+<li> Real attributes (<code>ndattrib</code>) values
+</ul>
+
+
+<H3> Binary file format</H3>	
+The binary phase space structure consists of a master header followed by
+"stanzas".  Each stanza is has a header followed by the phase space.
+The master header is:
+<pre>
+struct MasterHeader {
+  double time;
+  int ntot;
+  int ncomp;
+};
+</pre>
+The parameters are:
+<ul>
+<li> <code>time</code> - the current time
+<li> <code>ntot</code> - total number of bodies in all components
+<li> <code>ncomp</code> - number of components
+</ul>
+Each stanza begins with a header:
+<pre>
+struct ComponentHeader {
+  int nbod;
+  int niatr;
+  int ndatr;
+  int ninfochar;
+  char info[ninfochar];
+};
+</pre>
+which decribes the number of bodies in the component
+(<code>nbod</code>), the number of integer attributes
+(<code>niatr</code>), the number of double components
+(<code>ndatr</code>), number of characters reserved for the info
+string (<code>ninfochar</code>) and the info string
+(<code>ninfochar</char>).
+
+*/

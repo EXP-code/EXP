@@ -1,14 +1,11 @@
 
 #ifndef _Logic_h
-#ifdef __GNUG__
-#pragma interface
-#endif
-#define _Logic_h 1
+#define _Logic_h
 
 #include <string>
 
 #ifdef IS_MAIN
-String StrLogic[] = {"False", "True"};
+string StrLogic[] = {"False", "True"};
 #else
 extern string *StrLogic;
 #endif

@@ -1,0 +1,60 @@
+#ifndef _ExternalCollection_H
+#define _ExternalCollection_H
+
+#include <map>
+
+#include <ExternalForce.H>
+
+//! factory for dynamically loaded forces
+extern map<string, maker_t *, less<string> > factory;
+extern map<string, maker_t *, less<string> >::iterator fitr;
+
+
+//! Container class for external force types
+/*!
+  These are supplied as a file with one type to a line.  The constructor
+  does "hand coded" reflection to make a chain of these.  Therefore, the
+  external forces will be applied in order of their listing (in case this
+  matters).
+  <br>
+  Format: single line per force, parameters separated from name by ":"
+*/
+class ExternalCollection
+{
+private:
+
+  list<ExternalForce *>::iterator sitr;
+
+  list<void *> dl_list;		// list to hold handles for dynamic libs 
+  list<void *>::iterator itr; 
+  void dynamicload(void);
+
+  void bomb(string& msg);
+
+public:
+  
+  //! List of forces we create
+  list<ExternalForce *> force_list;	
+
+  //! Constructor
+  ExternalCollection();
+
+  //! Destructor
+  ~ExternalCollection();
+  
+  //! Reads configuration database and initializes requested external forces
+  void initialize();
+
+  //! Provides the same interface to compute acceleration as ExternalForce
+  void get_acceleration_and_potential(vector<Particle>*);
+
+};
+
+
+#include <tidalField.H>
+#include <externalShock.H>
+#include <generateRelaxation.H>
+#include <ScatterMFP.H>
+#include <HaloBulge.H>
+
+#endif

@@ -24,6 +24,8 @@ public:
 
   string BiorthID;
 
+  virtual ~Biorth() {}
+
   virtual double potl(const int, const int, const double) = 0;
   virtual double dens(const int, const int, const double) = 0;
   virtual double krnl(const int, const int) = 0;
@@ -53,6 +55,8 @@ protected:
 
 public:
   AxiSymBiorth(int DOF=0) { dof = DOF; }
+
+  virtual ~AxiSymBiorth() {}
 
   virtual double potl(const int, const int, const double) = 0;
   virtual double dens(const int, const int, const double) = 0;
@@ -113,6 +117,7 @@ public:
 	     double RMIN=0.0, double RMAX=20, 
 	     int NMAX=10, int LMAX=10, int RNUM=400);
 	     
+  virtual ~BiorthGrid() {}
 
 				// Required functions
 
@@ -160,6 +165,7 @@ private:
 public:
 
   CBSphere(void);
+  virtual ~CBSphere() {}
 
 				// Required functions
 
@@ -199,7 +205,7 @@ private:
 public:
 
   HQSphere(void);
-
+  virtual ~HQSphere() {}
 				// Required functions
 
   double potl(const int nn, const int l, const double rb);
@@ -247,7 +253,7 @@ private:
 public:
 
   BSSphere(double RMAX=1.0, int NMAX=10, int LMAX=10);
-  ~BSSphere(void);
+  virtual ~BSSphere();
 
 				// Required functions
 
