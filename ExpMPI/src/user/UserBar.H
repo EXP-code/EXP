@@ -10,6 +10,7 @@
     @param length is the bar length
     @param amp is the bar amplitude 
     @param Ton is the time at the center of the <code>erf</code> turn on
+    @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the speard of the turn on
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start.
