@@ -1062,7 +1062,7 @@ void Component::setup_distribution(void)
   if (myid == 0) {
     in = new ifstream("processor.rates");
     if (!*in) {
-      cerr << "setup: Error opening <processor.rates> . . . will assume homogeneous cluster\n";
+      cerr << "setup: can not find <processor.rates> . . . will assume homogeneous cluster\n";
     }
 
     rates =  vector<double>(numprocs);
@@ -1073,7 +1073,7 @@ void Component::setup_distribution(void)
       for (n=0; n<numprocs; n++) {
 	*in >> rates[n];
 	if (!*in) {
-	  cerr << "Error reading <processor.rates>\n";
+	  cerr << "setup: error reading <processor.rates>\n";
 	  MPI_Abort(MPI_COMM_WORLD, 33);
 	  exit(0);
 	}
