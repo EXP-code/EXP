@@ -19,45 +19,6 @@
 
 #define MAXDIM 3
 
-typedef float Real;
-
-struct gas_particle {
-    Real mass;
-    Real pos[MAXDIM];
-    Real vel[MAXDIM];
-    Real rho;
-    Real temp;
-    Real hsmooth;
-    Real metals ;
-    Real phi ;
-} ;
-
-struct dark_particle {
-    Real mass;
-    Real pos[MAXDIM];
-    Real vel[MAXDIM];
-    Real eps;
-    Real phi ;
-} ;
-
-struct star_particle {
-    Real mass;
-    Real pos[MAXDIM];
-    Real vel[MAXDIM];
-    Real metals ;
-    Real tform ;
-    Real eps;
-    Real phi ;
-} ;
-
-struct tipsydump {
-    double time ;
-    int nbodies ;
-    int ndim ;
-    int nsph ;
-    int ndark ;
-    int nstar ;
-} ;
 
 extern string trimLeft(const string);
 extern string trimRight(const string);
@@ -276,136 +237,59 @@ main(int argc, char **argv)
   cerr << "\nBest fit dump to <" << time << "> has time <" 
        << fid.header.time << ">\n";
 
-				// Create tipsy output
-				// -------------------
+				// Create new dump
+				// ---------------
   in->close();
   delete in;
   in = new ifstream(argv[optind]);
 
   {
-    tipsydump theader;
-    gas_particle gas;
-    dark_particle dark;
-    star_particle star;
-
-    theader.time = fid.header.time;
-    theader.nbodies = fid.ntot;
-    theader.ndim = 3;
-    theader.nsph = fid.ngas;
-    theader.ndark = fid.ndark;
-    theader.nstar = fid.nstar;
-
-    cout.write(&theader, sizeof(tipsydump));
+    cout.write(&fid.header, sizeof(MasterHeader));
     
     double rtmp;
     int itmp;
 
     list<Stanza>::iterator its;
 
-				// Do gas particles
-				// ----------------
+    for (its = fid.stanzas.begin(); its != fid.stanzas.end(); its++) {
 
-    for (its = fid.gas.begin(); its != fid.gas.end(); its++) {
+				// Position to header
+      in->seekg(its->pos);
+      
+      ComponentHeader headerC;
+      if (!headerC.read(in)) {
+	cerr << "Error reading header\n";
+	exit(-1);
+      }
+      headerC.write(&cout);
 
 				// Position to beginning of particles
       in->seekg(its->pspos);
 
       for (int i=0; i<its->nbod; i++) {
 	in->read(&rtmp, sizeof(double));
-	gas.mass = rtmp;
+	cout.write(&rtmp, sizeof(double));
 	for (int i=0; i<3; i++) {
 	  in->read(&rtmp, sizeof(double));
-	  gas.pos[i] = rtmp;
+	  cout.write(&rtmp, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
 	  in->read(&rtmp, sizeof(double));
-	  gas.vel[i] = rtmp;
+	  cout.write(&rtmp, sizeof(double));
 	}
 	in->read(&rtmp, sizeof(double));
-	gas.phi = rtmp;
+	cout.write(&rtmp, sizeof(double));
 	for (int i=0; i<its->niatr; i++) {
 	  in->read(&itmp, sizeof(double));
+	  cout.write(&itmp, sizeof(int));
 	}
 	for (int i=0; i<its->ndatr; i++) {
 	  in->read(&rtmp, sizeof(double));
+	  cout.write(&rtmp, sizeof(double));
 	}      
-
-	gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
-
-	cout.write(&gas, sizeof(gas_particle));
       }
     }
 
-				// Do dark particles
-				// -----------------
-
-    for (its = fid.dark.begin(); its != fid.dark.end(); its++) {
-
-				// Position to beginning of particles
-      in->seekg(its->pspos);
-
-      for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	dark.mass = rtmp;
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  dark.pos[i] = rtmp;
-	}
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  dark.vel[i] = rtmp;
-	}
-	in->read(&rtmp, sizeof(double));
-	dark.phi = rtmp;
-	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	}
-	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	}      
-
-	dark.eps = 0.0;
-
-	cout.write(&dark, sizeof(dark_particle));
-
-      }
-
-    }
-
-				// Do star particles
-				// -----------------
-
-    for (its = fid.star.begin(); its != fid.star.end(); its++) {
-
-				// Position to beginning of particles
-      in->seekg(its->pspos);
-
-      for (int i=0; i<its->nbod; i++) {
-	in->read(&rtmp, sizeof(double));
-	star.mass = rtmp;
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  star.pos[i] = rtmp;
-	}
-	for (int i=0; i<3; i++) {
-	  in->read(&rtmp, sizeof(double));
-	  star.vel[i] = rtmp;
-	}
-	in->read(&rtmp, sizeof(double));
-	star.phi = rtmp;
-	for (int i=0; i<its->niatr; i++) {
-	  in->read(&itmp, sizeof(double));
-	}
-	for (int i=0; i<its->ndatr; i++) {
-	  in->read(&rtmp, sizeof(double));
-	}      
-
-	star.metals = star.tform = star.eps = 0.0;
-
-	cout.write(&star, sizeof(star_particle));
-      }
-    }
-    
   }
   
   return 0;

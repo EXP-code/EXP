@@ -38,7 +38,6 @@ main(int argv, char *argc[])
 {
   streampos lastpos, currpos;
   vector<streampos> poslist;
-  double time=1e20;
 
   MasterHeader header;
 
