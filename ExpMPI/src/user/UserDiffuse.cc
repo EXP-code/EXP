@@ -216,10 +216,10 @@ void UserDiffuse::determine_acceleration_and_potential(void)
 				// Get contribution from all processes
     MPI_Reduce(&ev_mean[0], &tt_mean[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&ev_disp[0], &tt_disp[0], 6, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&ev_numb, &tt_numb, 1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&ev_numb, &tt_numb, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     
     if (myid==0) {
-      // Open output stream for writing
+				// Open output stream for writing
       ofstream out(check_file.c_str(), ios::out | ios::app);
       if (out) {
 	out.setf(ios::left);
@@ -296,7 +296,6 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 				// Normal random variates
     double r1 = (*nrand)();
     double r2 = (*nrand)();
-
 				// Clip
 
     if (fabs(r1)>clip) r1 = copysign(clip, r1);
@@ -309,7 +308,6 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
     double angle = 2.0*M_PI*(*urand)();	// Angle in tangent velocity plane
     double cosA = cos(angle);
     double sinA = sin(angle);
-
 				// Update particle velocity
     for (int k=0; k<3; k++)
       (*particles)[i].vel[k] += 
@@ -317,7 +315,6 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
 	deltaVperp*e1[k]*cosA +	// Perpendicular direction #1
 	deltaVperp*e2[k]*sinA ;	// Perpendicular direction #2
     
-
 				// Debug directions
     if (check_ev) {
 
@@ -455,11 +452,9 @@ void UserDiffuse::compute_model()
 
   model = new SphericalModelTable(numr, &R[0]-1, &D[0]-1, &M[0]-1, &P[0]-1,
 				  0, 0.0, 0, "model from histogram");
-  // model->setup_df(400);
   model->setup_df(800);
   
-  // Debug: print out model
-
+				// Debug: print out model
   if (myid==0) {
     model->print_model("test_model.dat");
     model->print_df("test_df.dat");
@@ -574,7 +569,7 @@ void UserDiffuse::compute_diffuse()
       F1 *= 4.0*M_PI*Gamma*(EE - phi);
       F2 *= 4.0*M_PI*Gamma*(EE - phi);
 	
-      dVpara1[i][j] = -F1/V;
+      dVpara1[i][j] = -2.0*F1/V;
       dVpara2[i][j] = 2.0*(F0 + F2)/3.0;
       dVperp2[i][j] = 2.0*(2.0*F0 + 3.0*F1 - F2)/3.0;
     
