@@ -111,7 +111,8 @@ main(int argc, char **argv)
     
     cerr << "\nBest fit dump to <" << time << "> has time <" 
 	 << psp.SetTime(time) << ">\n";
-  }
+  } else 
+    psp.SetTime(time);
 
 				// Dump ascii for each component
 				// -----------------------------
