@@ -181,7 +181,7 @@ double UserDiffRot::get_dtime(Particle& p)
     p.pos[0]*p.vel[1]-
     p.pos[1]*p.vel[0];
   
-  dt = sqrt(Lx*Lx + Ly*Ly + Lz*Lz)/sqrt(-2.0*E);
+  dt = sqrt(Lx*Lx + Ly*Ly + Lz*Lz)/(-2.0*E);
   
   return dt;
 }
