@@ -47,6 +47,9 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
   omega = 18.9;			// Patern speed
 
+  NUME = 400;			// Points in Energy grid
+  NUMK = 100;			// Points in Kappa grid
+
   MASS = 0.05;			// Bar mass
   LENGTH = 0.067;		// Bar length
   COROT = 10;			// Corotation factor
@@ -93,6 +96,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   halo_ortho = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax,
 			    pot, dpot, dens);
 
+  ResPot::NUME = NUME;
+  ResPot::NUMK = NUMK;
   respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
 
   BarForcing::L0 = L0;
@@ -164,6 +169,9 @@ void UserResPot::initialize()
   if (get_value("COROT", val))    COROT = atof(val.c_str());
   if (get_value("A21", val))      A21 = atof(val.c_str());
   if (get_value("A32", val))      A32 = atof(val.c_str());
+
+  if (get_value("NUME", val))     NUME = atoi(val.c_str());
+  if (get_value("NUMK", val))     NUMK = atoi(val.c_str());
 
   if (get_value("model", val))     model_file = val;
   if (get_value("ctrname", val))   ctr_name = val;

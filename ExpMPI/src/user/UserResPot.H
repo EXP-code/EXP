@@ -27,6 +27,8 @@ private:
   
   double MASS, LENGTH, COROT, A21, A32;
 
+  int NUME, NUMK;
+
   string ctr_name;
   string model_file;
 
