@@ -18,8 +18,8 @@
     See SphereTwoCenter for other parameters controlling the spherical
     expansion.
 
-    \param cfac is a prefactor $C$ for the erf ramp above
-    \param alpha is the exponent in the argument of the erf
+    \param cfac is a prefactor \f$C\f$ for the erf ramp above
+    \param alpha is the exponent in the argument of the erf (\f$\alpha\f$)
 
 */
 class SphereEJCOM : public SphereTwoCenter
