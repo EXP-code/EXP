@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <strstream>
 #include <string>
 
 #include <vector>
@@ -183,6 +184,9 @@ public:
   // Evaluation of potential profile
   double potential_eval(double x, double y, double z);
 
+  // Dump coefficients
+  void dump_coefficients(string filename);
+
 };
 
 Reconstruct::~Reconstruct()
@@ -244,6 +248,47 @@ double Reconstruct::potential_eval(double x, double y, double z)
   return ans;
 }
 
+void Reconstruct::dump_coefficients(string file)
+{
+  ofstream out(file.c_str());
+  if (!out) {
+    cerr << "Reconstruct::dump_coefficients: can't open <"
+	 << file << "> . . . \n";
+    return;
+  }
+  out.setf(ios::scientific);
+  out.precision(8);
+
+  double fac;
+
+  // Header
+  out << "# Cosine coefficients only" << endl;
+  out << "#" << setw(4) << "l" << setw(5) << "m";
+  for (int i=1; i<=nmax; i++) {
+    ostrstream ostr;
+    ostr << "n=" << i << '\0';
+    out << setw(18) <<  ostr.str();
+  }
+  out << endl;
+
+  // Coefficients
+  for (int l=0; l<=lmax; l++) {
+    for (int m=0; m<=l; m++) {
+
+      out << setw(5) << l
+	  << setw(5) << m;
+
+      fac = sqrt((0.5*l+0.25)/M_PI*
+		 exp(lgamma(1.0+l-m)-lgamma(1.0+l+m)));
+      if (m) fac *= M_SQRT2;
+      
+      for (int i=1; i<=nmax; i++) out << setw(18) << coefs[l][m][i]/fac;
+      
+      out << endl;
+    }
+  }
+}
+
 //===========================================================================
 
 void usage(char *prog)
@@ -255,6 +300,7 @@ void usage(char *prog)
        << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Turn on MPI for SL computation\n"
        << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Use mapped rather than linear coordinates\n"
        << setw(15) << "--cbio" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Print out basis, if desired\n"
+       << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Dump coefficients, if desired\n"
        << setw(15) << "--surface" << setw(10) << "No" << setw(10) << " " << setw(-40) << "Print out surface plots (SM 'ch' style)\n"
        << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Number of points in radial table\n"
        << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setw(-40) << "Lmax (spherical harmonic expansion)\n"
@@ -280,6 +326,7 @@ main(int argc, char** argv)
   bool use_mpi = false;
   bool check_bio = false;
   bool surface = false;
+  bool dump = false;
   int cmap = 0;
   double scale = 1.0;
 
@@ -299,6 +346,7 @@ main(int argc, char** argv)
       {"mpi", 0, 0, 0},		// Turn on MPI for SL computation
       {"cmap", 0, 0, 0},	// Use mapped rather than linear coordinates
       {"cbio", 0, 0, 0},	// Print out basis, if desired
+      {"coefs", 0, 0, 0},	// Dump coefficients, if desired
       {"surface", 0, 0, 0},	// Print out surface plots (SM 'ch' style)
       {"numr", 1, 0, 0},	// Number of points in radial table
       {"lmax", 1, 0, 0},	// Lmax (spherical harmonic expansion)
@@ -333,6 +381,8 @@ main(int argc, char** argv)
 	  cmap = 1;
 	} else if (!optname.compare("surface")) {
 	  surface = true;
+	} else if (!optname.compare("coefs")) {
+	  dump = true;
 	} else if (!optname.compare("numr")) {
 	  numr = atoi(optarg);
 	} else if (!optname.compare("lmax")) {
@@ -498,6 +548,12 @@ main(int argc, char** argv)
 	  out[1].write(&(z=recon.density_eval(x, y, 0.0)), sizeof(float));
 	}
       }
+    }
+
+    if (dump) {
+      string ostr(outfile);
+      ostr += ".coefs";
+      recon.dump_coefficients(ostr);
     }
 
   }
