@@ -78,6 +78,15 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   else
     c1 = NULL;
 
+
+  // Zero monopole variables
+  teval = tnow;
+  for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
+
+  // Assign working vectors for each thread
+  tacc = new double* [nthrds];
+  for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
+
   userinfo();
 }
 
@@ -100,9 +109,9 @@ void UserEBar::userinfo()
   else
     cout << "standard potential, ";
   if (c0) 
-    cout << "center on component <" << ctr_name << ">, " << endl;
+    cout << "center on component <" << ctr_name << ">, ";
   else
-    cout << "using inertial center, " << endl;
+    cout << "using inertial center, ";
   if (c1) 
     cout << "angular momentum from <" << angm_name << ">" << endl;
   else
@@ -143,7 +152,7 @@ void UserEBar::determine_acceleration_and_potential(void)
   bool update = false;
 
   if (c1) c1->get_angmom();	// Tell component to compute angular momentum
-  // cout << "Lz=" << c1->angmom[2] << endl; // debug
+  // cout << "Process " << myid << ": Lz=" << c1->angmom[2] << endl; // debug
 
   if (firstime) {
     
@@ -356,19 +365,23 @@ void UserEBar::determine_acceleration_and_potential(void)
     }
   }
 
+				// Zero thread variables
   for (int n=0; n<nthrds; n++) {
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
   exp_thread_fork(false);
 
+				// Get full contribution from all threads
   for (int k=0; k<3; k++) acc[k] = acc1[k] = 0.0;
   for (int n=0; n<nthrds; n++) {
     for (int k=0; k<3; k++) acc1[k] += tacc[n][k];
   }
 
+				// Get contribution from all processes
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  // Backward Euler
+
+				// Backward Euler
   for (int k=0; k<3; k++) {
     bps[k] += vel[k] * (tnow - teval);
     vel[k] += acc[k] * (tnow - teval);
@@ -383,17 +396,22 @@ void UserEBar::determine_acceleration_and_potential(void)
       out << setw(15) << tvel
 	  << setw(15) << posang
 	  << setw(15) << omega;
-      if (c1) 
-	out << setw(15) << Lz + Lz0 - c1->angmom[2];
+
+      if (c1)
+	out << setw(15) << Lz + Lz0 - c1->angmom[2]
+	    << setw(15) << c1->angmom[2];
       else
-	out << setw(15) << Lz;
-      out << setw(15) << c1->angmom[2]
-	  << setw(15) << amplitude *  
+	out << setw(15) << Lz
+	    << setw(15) << 0.0;
+
+      out << setw(15) << amplitude *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
+
       for (int k=0; k<3; k++) out << setw(15) << bps[k];
       for (int k=0; k<3; k++) out << setw(15) << vel[k];
       for (int k=0; k<3; k++) out << setw(15) << acc[k];
+      
       out << endl;
     }
 
@@ -420,9 +438,9 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     if ((*particles)[i].freeze()) continue;
 
     if (c0)
-      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
-    else
       for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - c0->center[k];
+    else
+      for (int k=0; k<3; k++) pos[k] = (*particles)[i].pos[k] - bps[k];
     
     xx = pos[0];
     yy = pos[1];

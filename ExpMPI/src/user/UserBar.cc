@@ -94,9 +94,9 @@ void UserBar::userinfo()
   else
     cout << "standard potential, ";
   if (c0) 
-    cout << "center on component <" << ctr_name << ">, " << endl;
+    cout << "center on component <" << ctr_name << ">, ";
   else
-    cout << "center on origin" << endl;
+    cout << "center on origin, ";
   if (c1) 
     cout << "angular momentum from <" << angm_name << ">" << endl;
   else
