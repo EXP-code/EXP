@@ -11,7 +11,6 @@ static char rcsid[] = "$Id$";
 
 void synchronize_velocity(int sign)
 {
-  int i;
   double rsign;
 
   if (sign)

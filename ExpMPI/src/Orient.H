@@ -58,6 +58,7 @@ private:
   int Nlast;
 
 public:
+  //! Mask flags for Orient behavior
   enum OrientFlags {AXIS=1, CENTER=2};
 
   //! Constructor

@@ -345,7 +345,7 @@ void Component::read_bodies_and_distribute_ascii(void)
   MPI_Type_commit(&Particletype);
 
 
-  double tmp, rmax1, r2;
+  double rmax1, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
@@ -639,7 +639,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Type_create_struct(7, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
-  double tmp, rmax1, r2;
+  double rmax1, r2;
 
 
   if (nbodies_tot > nbodmax*numprocs) {
@@ -928,7 +928,6 @@ void Component::fix_positions(void)
   double mtot1;
   double *com1 = new double [3];
   double *cov1 = new double [3];
-  MPI_Status status;
 
   
   vector<Particle>::iterator p, pend;

@@ -199,8 +199,8 @@ void OutLog::Run(int n, bool last)
   
   if (n % nint && !last) return;
 
-  int i;
-				/* Use MPI wall clock to time step */
+
+				// Use MPI wall clock to time step
   double wtime = 0.0;
 
   if (n>laststep) {

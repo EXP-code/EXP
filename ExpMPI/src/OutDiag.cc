@@ -96,7 +96,6 @@ void OutDiag::Run(int n, bool last)
 
   double r, dr, dens;
   double potl, potr, pott, potp;
-  double phi=PHI,theta=THETA;
     
   ostrstream outs;
   outs << filename.c_str() << "." << n << '\0';

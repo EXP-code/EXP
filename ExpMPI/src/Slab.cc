@@ -111,9 +111,9 @@ void Slab::determine_coefficients(void)
 
 void * Slab::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx, dum;
+  int ix, iy, iz, iix, iiy, indx, dum;
 
-  Complex fac, startx, starty, facx, facy, potl, facf;
+  Complex startx, starty, facx, facy;
   Complex stepx, stepy;
 
   int nbodies = particles->size();

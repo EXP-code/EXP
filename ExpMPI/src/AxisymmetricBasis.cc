@@ -384,7 +384,6 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 void AxisymmetricBasis::parallel_gather_coefficients(void)
 {
-  int loffset, moffset;
 
 #ifdef MPE_PROFILE
   MPE_Log_event(5, myid, "b_gather_c");
@@ -468,7 +467,6 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
 
 void AxisymmetricBasis::parallel_distribute_coefficients(void)
 {
-  int loffset, moffset;
 
 #ifdef MPE_PROFILE
   MPE_Log_event(7, myid, "b_distrib_c");

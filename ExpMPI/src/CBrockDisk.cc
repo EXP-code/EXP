@@ -139,8 +139,6 @@ void CBrockDisk::get_acceleration_and_potential(vector<Particle>* Particles)
 {
   particles = Particles;
 
-  int l, n;
-
   /*======================*/
   /* Compute coefficients */
   /*======================*/
@@ -165,7 +163,6 @@ void CBrockDisk::determine_coefficients(void)
 {
   int compute;
   int l, i, n, nn;
-  double r, r2, rs, fac1, fac2, phi;
 
   if (selector) compute = !(this_step%npca);
 
@@ -229,7 +226,7 @@ void CBrockDisk::determine_coefficients(void)
 
 void * CBrockDisk::determine_coefficients_thread(void * arg)
 {
-  double pos[3], xx, yy, zz, r, rr, r2, phi, rs, fac1, fac2, mass;
+  double pos[3], xx, yy, zz, r, r2, phi, rs, fac1, fac2, mass;
 
   int nbodies = particles->size();
   int id = *((int*)arg);
@@ -411,7 +408,7 @@ void CBrockDisk::determine_fields_at_point_polar
  )
 {
   int l;
-  double rs,costh,dp;
+  double rs,dp;
   double potr,potl,potp,p,pc,dpc,ps,dps,dens;
 
   rs = r/scale;

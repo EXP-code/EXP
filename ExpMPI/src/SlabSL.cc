@@ -113,9 +113,9 @@ void SlabSL::determine_coefficients(void)
 
 void * SlabSL::determine_coefficients_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx, dum;
+  int ix, iy, iz, iix, iiy, indx;
 
-  Complex fac, startx, starty, facx, facy, potl, facf;
+  Complex startx, starty, facx, facy;
   Complex stepx, stepy;
 
   int nbodies = particles->size();
@@ -198,7 +198,7 @@ void SlabSL::get_acceleration_and_potential(vector<Particle>* P)
 
 void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 {
-  int ix, iy, iz, iix, iiy, ii, jj, indx, dum;
+  int ix, iy, iz, iix, iiy, ii, jj, indx;
   Complex fac, startx, starty, facx, facy, potl, facf;
   Complex stepx, stepy;
   Complex accx, accy, accz;

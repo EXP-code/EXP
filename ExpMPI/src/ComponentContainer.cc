@@ -303,7 +303,6 @@ void ComponentContainer::fix_acceleration(void)
 
 void ComponentContainer::fix_positions(void)
 {
-  int i;
   double mtot1, mtot0;
   double *gcom1 = new double [3];
   double *gcov1 = new double [3];

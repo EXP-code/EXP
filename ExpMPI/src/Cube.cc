@@ -59,11 +59,10 @@ void Cube::initialize(void)
 void * Cube::determine_coefficients_thread(void * arg)
 {
 
-  int i,ix,iy,iz,ii,jj,kk,indx;
-  Complex fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
+  int i,ix,iy,iz,indx;
+  Complex startx,starty,startz,facx,facy,facz;
   Complex stepx,stepy,stepz;
   double mass;
-  double k2;
 
   int nbodies = particles->size();
   int id = *((int*)arg);
