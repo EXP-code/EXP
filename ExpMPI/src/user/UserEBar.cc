@@ -135,14 +135,8 @@ void UserEBar::initialize()
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
-  if (get_value("fixed", val)) {
-    if (atoi(val.c_str())) fixed = true;
-    else fixed = false;
-  }
-  if (get_value("soft", val)) {
-    if (atoi(val.c_str())) soft = true;
-    else soft = false;
-  }
+  if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
+  if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("filename", val))	filename = val;
 
 }
