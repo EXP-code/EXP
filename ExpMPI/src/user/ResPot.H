@@ -73,8 +73,8 @@ public:
 		 double& pot, double& fx, double& fy, double& fz);
 
   //! Test routine
-  int coord(double* pos, double* vel, CVector& bcoef,
-	    double& W1, double& W2, double& W3, double& PSI);
+  int coord(double* pos, double* vel,
+	    double& W1, double& W2, double& W3, double& BETA, double& PSI);
 };
 
 double rot_matrix(int l, int m, int n, double beta);

@@ -317,7 +317,8 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   cEd[0] = -1.0/dE;
   cEd[1] =  1.0/dE;
     
-  double Jm = cE[0]*Jmax[indxE] + cE[1]*Jmax[indxE+1];
+  double Jm  =  cE[0]*Jmax[indxE] +  cE[1]*Jmax[indxE+1];
+  double dJm = cEd[0]*Jmax[indxE] + cEd[1]*Jmax[indxE+1];
     
   K = J/Jm;
   K = max<double>(K, Kmin);
@@ -412,7 +413,10 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
 		  cost/(sint*sinb*sinb)*dbdt)/
     sqrt(fabs(1.0 - cost*cost*cosb*cosb/(sint*sint*sinb*sinb)));
 
+  double dEdr = -J*J/(r*r*r) + halo_model->get_pot(r);
   double dKdt =  -K*cosb*cosb*cost/(sint*sint*sint);
+  double dKdr = -J*dJm/(Jm*Jm) * dEdr;
+  double dEdt = J*Jm/(r*r)*dKdt;
 
 
   KComplex tmpC;
@@ -454,13 +458,15 @@ void ResPot::ForceSph(double* ps1, double* vel, double phase, CVector &bcoef,
   tmpC = Ul * VB * argC;
   pot = tmpC.real();
 
-  tmpC = dUldE*halo_model->get_pot(r)*VB*argC + Ul*VB*argC*(dwr*L1 + dfr*L2);
+  tmpC = dUldE*dEdr + dUldK*dKdr + Ul*(dwr*L1 + dfr*L2);
+  tmpC *= VB * argC;
   fr = -tmpC.real();
 
   tmpC = Ul * VB * argC * I * M;
   fp = -tmpC.real()/(sint*r);
   
-  tmpC = dUldK*dKdt*VB*argC + Ul*dVBdb*argC + Ul*VB*argC*(dpsidt*L2 + dw3dt*M);
+  tmpC = (dUldE*dEdt + dUldK*dKdt)*VB + Ul*dVBdb*dbdt + Ul*VB*(dpsidt*L2 + dw3dt*M);
+  tmpC *= argC;
   ft = -tmpC.real()/r;
   
 }
@@ -494,8 +500,9 @@ void ResPot::ForceCart(double* pos, double* vel, double phase, CVector &bcoef,
 }
 
 
-int ResPot::coord(double* ps1, double* vel, CVector& bcoef,
-		   double& W1, double& W2, double& W3, double& PSI)
+int ResPot::coord(double* ps1, double* vel,
+		  double& W1, double& W2, double& W3, 
+		  double& BETA, double& PSI)
 {
   double pos[3];
   for (int i=0; i<3; i++) pos[i] = ps1[i];
@@ -527,11 +534,12 @@ int ResPot::coord(double* ps1, double* vel, CVector& bcoef,
   angmom[1] = pos[2]*vel[0] - pos[0]*vel[2];
   angmom[2] = pos[0]*vel[1] - pos[1]*vel[0];
 
-  double J = 0.0, beta = 0.0, K;
+  double J = 0.0, K;
   for (int i=0; i<3; i++) J += angmom[i]*angmom[i];
   J = sqrt(J);
 
-  if (J>0.0) beta = acos(angmom[2]/J);
+  BETA = 0.0;
+  if (J>0.0) BETA = acos(angmom[2]/J);
   
   E = max<double>(E, Emin);
   E = min<double>(E, Emax);
@@ -566,9 +574,9 @@ int ResPot::coord(double* ps1, double* vel, CVector& bcoef,
 
   w3 = atan2(angmom[1], angmom[0]) + 0.5*M_PI;
 
-  if (fabs(beta)<1.0e-08) psi = phi - w3;
+  if (fabs(BETA)<1.0e-08) psi = phi - w3;
   else {
-    double tmp = cos(theta)/sin(beta);
+    double tmp = cos(theta)/sin(BETA);
 
     if (fabs(tmp)>1.0) {
       if (tmp>1.0) psi =  0.5*M_PI;
