@@ -25,6 +25,31 @@
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
+
+    The logic for pattern speed determination is as follows:
+    <ul>
+    <li> By default the pattern speed is determined from the bar length
+    <code>length</code>, <code>Fcorot</code> using the background potential.
+    If <code>omega</code>>0, then this value is used rather than the default
+    one.
+    <li> If <code>fixed</code> is <code>false</code>, then the pattern speed
+    changes are determined self-consistently from the torque
+    <li> if <code>self</code> is <code>true</code> and <code>dtom</code>>0,
+    then the pattern speed is determined as follows:
+
+    \f[
+    \Omega = \Omega_0\left[1 + {\Delta\Omega\over 2}\left\{
+    1+\hbox{erf}\left({t_{now}-T_0\over\delta t_{om}}\right)\right\}\right]
+    \f]
+
+    <li> If <code>self</code> is <code>false</code>, then the pattern speed
+    is determined as follows:
+
+    \f[
+    \Omega = \Omega_0\left[1 + \Delta\Omega(t_{now}-T_0)\right]
+    \f]
+
+    </ul>
 */
 class UserEBar : public ExternalForce
 {

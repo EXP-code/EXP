@@ -52,16 +52,18 @@
     then the pattern speed is determined as follows:
 
     \f[
-    \Omega = \Omega_0(1 + \Delta\Omega(1+erf((tnow-tom0)/dtom))/2)
+    \Omega = \Omega_0\left[1 + {\Delta\Omega\over2}
+    \left\{(1+\hbox{erf}\left({t_{now}-t_{om0}\over \delta t_{om}}\right)\right\}\right]
     \f]
 
     <li> if <code>self</code> is <code>false</code> and <code>dtom</code><0, 
     then the pattern speed changes at the rate:
 
     \f[
-    {d\Omega\over dt} = \Omega_0\Delta\Omega dT (
-    (1+erf((tnow-tom0)/delta))/2 
-    (1+erf((toff-tnow/delta))/2 
+    {d\Omega\over dt} = \Omega_0\Delta\Omega\times dT \times
+    {1\over 2}\left[1+\hbox{erf}\left({t_{now}-t_{om0}\over\delta}\right)\right]
+    \times
+    {1\over2}\left[1+\hbox{erf}\left({t_{off}-t_{now}\over\delta}\right)\right] 
     \f]
 
     <ul>
