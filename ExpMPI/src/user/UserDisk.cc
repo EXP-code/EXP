@@ -157,11 +157,11 @@ void UserDisk::genTable()
   dR = Rmax/(Rnum-1);
   dZ = Zmax/(Znum-1);
 
-  double R, Z, ansP, ansR, ansZ, fac, b0, b1;
+  double R, Z, Q, K, ansP, ansR, ansZ, fac, b0, b1;
 
 				// Compute table for upper quarter
   				// plane
-  LaguQuad lq(Nint);
+  LegeQuad lq(Nint);
 
   for (int i=0; i<Rnum; i++) {
 
@@ -173,14 +173,17 @@ void UserDisk::genTable()
 
       ansP = ansR = ansZ = 0.0;
       for (int k=1; k<=Nint; k++) {
-	fac = exp(-lq.knot(k)*Z) /
-	  pow(1.0 + R*R, 1.5) * lq.weight(k)*mass/a;
-	b0 = bessj0(lq.knot(k)*R);
-	b1 = bessj1(lq.knot(k)*R);
+
+	Q = lq.knot(k);
+	K = Q/sqrt(1.0 - Q*Q*a*a);
+
+	fac = exp(-K*Z) * lq.weight(k)*mass;
+	b0 = bessj0(K*R);
+	b1 = bessj1(K*R);
 
 	ansP += -b0;
-	ansR += -lq.knot(k)/a * b1;
-	ansZ += -lq.knot(k)/a * b0;
+	ansR += -K * b1;
+	ansZ += -K * b0;
       }
 
       Ptable[i*Znum + j] = ansP;
