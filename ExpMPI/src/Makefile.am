@@ -36,7 +36,7 @@ exp_SOURCES = \
      SLGridMP2.cc ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc       \
      Sphere.cc global.cc                                                     \
      begin.cc biorth1d.cc ddplgndr.cc Direct.cc end.cc                       \
-     OutputContainer.cc OutPS.cc OutCHKPT.cc Output.cc header.cc             \
+     OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
      incpos.cc incvel.cc initvel.cc ComponentContainer.cc                    \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc                       \
