@@ -16,6 +16,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   DeltaT = 1.0;			// Turn on duration
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
+  shallow = false;		// Use shallow form of the bar potential
   filename = "BarRot";		// Output file name
 
   firstime = true;
@@ -31,7 +32,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
     Component *c;
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
-      if ( !com_name.compare(c->id) ) {
+      if ( !com_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
       break;
@@ -63,6 +64,10 @@ void UserBar::userinfo()
     cout << "fixed pattern speed, ";
   else
     cout << "fixed corotation fraction, ";
+  if (shallow)
+    cout << "shallow potential, ";
+  else
+    cout << "standard potential, ";
   if (c0) 
     cout << "center on component <" << com_name << ">" << endl;
   else
@@ -83,6 +88,10 @@ void UserBar::initialize()
   if (get_value("fixed", val)) {
     if (atoi(val.c_str())) fixed = true;
     else fixed = false;
+  }
+  if (get_value("shallow", val)) {
+    if (atoi(val.c_str())) shallow = true;
+    else shallow = false;
   }
   if (get_value("filename", val))	filename = val;
 
@@ -305,9 +314,9 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double fac, ffac, amp = 
-    afac * amplitude *  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-    0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
+    * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
   double xx, yy, zz, rr, nn,pp;
   vector<double> pos(3); 
   double cos2p = cos(2.0*posang);
@@ -327,13 +336,22 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     zz = pos[2];
     rr = sqrt( xx*xx + yy*yy + zz*zz );
 
-    fac = 1.0 + rr/b5;
-		     
-    ffac = -amp*numfac/pow(fac, 6.0);
+    if (shallow) {
+      fac = 1.0 + rr/b5;
 
-    pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-    nn = pp /( b5*rr ) ;
+      ffac = -amp*numfac/pow(fac, 6.0);
+
+      pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
+      nn = pp /( b5*rr ) ;
+    } else {
+      fac = 1.0 + pow(rr/b5, 5.0);
+
+      ffac = -amp*numfac/(fac*fac);
       
+      pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
+      nn = pp * pow(rr/b5, 3.0)/(b5*b5);
+    }
+
     (*particles)[i].acc[0] += ffac*
       ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
     
