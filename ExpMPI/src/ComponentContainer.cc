@@ -297,9 +297,6 @@ void ComponentContainer::compute_potential(void)
 
   }
   
-
-  if (fixacc) fix_acceleration();
-
   gottapot = true;
 }
 
@@ -369,7 +366,8 @@ void ComponentContainer::fix_positions(void)
   MPI_Status status;
 
   mtot = mtot1 = 0.0;
-  for (int k=0; k<3; k++) gcom[k] = gcom1[k] = gcov[k] = gcov1[k] = 0.0;
+  for (int k=0; k<3; k++) 
+    gcom[k] = gcom1[k] = gcov[k] = gcov1[k] = 0.0;
 
   list<Component*>::iterator cc;
   Component *c;
@@ -384,10 +382,10 @@ void ComponentContainer::fix_positions(void)
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
-
     if (c->EJ) {
       if (gottapot || restart) 
-	c->orient->accumulate(tpos, &c->particles, &c->center[0]);
+	c->orient->accumulate(tpos, &c->particles, 
+			      &c->center[0], &c->com0[0], &c->cov0[0]);
       else
 	if (myid==0) c->orient->logEntry(tpos);
     }

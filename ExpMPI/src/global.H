@@ -80,9 +80,6 @@ extern double *gcom, *gcov;
 //! Resets total center of velocity to zero if true
 extern bool global_cov;
 
-//! Resets total accelerationto zero if true
-extern bool fixacc;
-
 				// MPI variables
 
 //! Used to flag separate behavior on inintialization (unused)

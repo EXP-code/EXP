@@ -25,6 +25,12 @@ void incr_velocity(void)
       for (p=(*c)->particles.begin(); p != pend; p++) {
 	for (int k=0; k<(*c)->dim; k++) p->vel[k] += p->acc[k]*dtime;
       }
+
+      if ((*c)->com_system) {
+	for (int k=0; k<(*c)->dim; k++) (*c)->cov0[k] += (*c)->acc0[k]*dtime;
+      }
+      
+
     }
 
   }

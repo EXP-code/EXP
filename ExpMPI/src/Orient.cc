@@ -240,7 +240,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 }
 
 
-void Orient::accumulate(double time, vector<Particle> *p, double *com)
+void Orient::accumulate(double time, vector<Particle> *p, 
+			double *cen, double *com, double *cov)
 {
   if (linear) {
       center = center0;
@@ -277,19 +278,24 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
       t.M = mass;
 
-      t.L[1] = mass*(((*p)[i].pos[1]-com[1])*(*p)[i].vel[2]-((*p)[i].pos[2]-com[2])*(*p)[i].vel[1]);
-      t.L[2] = mass*(((*p)[i].pos[2]-com[2])*(*p)[i].vel[0]-((*p)[i].pos[0]-com[0])*(*p)[i].vel[2]);
-      t.L[3] = mass*(((*p)[i].pos[0]-com[0])*(*p)[i].vel[1]-((*p)[i].pos[1]-com[1])*(*p)[i].vel[0]);
+      t.L[1] = mass*(((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[2] - cov[2]) -
+		     ((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[1] - cov[1]));
+
+      t.L[2] = mass*(((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[0] - cov[0]) -
+		     ((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[2] - cov[2]));
+
+      t.L[3] = mass*(((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[1] - cov[1]) -
+		     ((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[0] - cov[0]));
 
       /*
-	t.R[1] = (*p)[i].pot*(*p)[i].pos[0];
-	t.R[2] = (*p)[i].pot*(*p)[i].pos[1];
-	t.R[3] = (*p)[i].pot*(*p)[i].pos[2];
+	t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - com[0]);
+	t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - com[1]);
+	t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - com[2]);
       */
 
-      t.R[1] = mass*(*p)[i].pos[0];
-      t.R[2] = mass*(*p)[i].pos[1];
-      t.R[3] = mass*(*p)[i].pos[2];
+      t.R[1] = mass*((*p)[i].pos[0] - com[0]);
+      t.R[2] = mass*((*p)[i].pos[1] - com[1]);
+      t.R[3] = mass*((*p)[i].pos[2] - com[2]);
       angm.push_back(t);
     }
   }
@@ -317,9 +323,12 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       
       energy = (*p)[i].pot;
       
-      if (cflags & KE) energy += 0.5*((*p)[i].vel[0]*(*p)[i].vel[0] + 
-				      (*p)[i].vel[1]*(*p)[i].vel[1] + 
-				      (*p)[i].vel[2]*(*p)[i].vel[2]);
+      if (cflags & KE) 
+	energy += 0.5*(
+		       ((*p)[i].vel[0] - cov[0])*((*p)[i].vel[0] - cov[0]) +
+		       ((*p)[i].vel[1] - cov[1])*((*p)[i].vel[1] - cov[1]) + 
+		       ((*p)[i].vel[2] - cov[2])*((*p)[i].vel[2] - cov[2])
+		       );
       
       if (cflags & EXTERNAL) energy += (*p)[i].potext;
 
@@ -331,19 +340,24 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 	
 	t.M = mass;
 
-	t.L[1] = mass*(((*p)[i].pos[1]-com[1])*(*p)[i].vel[2]-((*p)[i].pos[2]-com[2])*(*p)[i].vel[1]);
-	t.L[2] = mass*(((*p)[i].pos[2]-com[2])*(*p)[i].vel[0]-((*p)[i].pos[0]-com[0])*(*p)[i].vel[2]);
-	t.L[3] = mass*(((*p)[i].pos[0]-com[0])*(*p)[i].vel[1]-((*p)[i].pos[1]-com[1])*(*p)[i].vel[0]);
+	t.L[1] = mass*(((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[2]-cov[2]) -
+		       ((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[1]-cov[1]));
+
+	t.L[2] = mass*(((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[0]-cov[0]) -
+		       ((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[2]-cov[2]));
+
+	t.L[3] = mass*(((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[1]-cov[1]) -
+		       ((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[0]-cov[0]));
 	
 	/*
-	  t.R[1] = (*p)[i].pot*(*p)[i].pos[0];
-	  t.R[2] = (*p)[i].pot*(*p)[i].pos[1];
-	  t.R[3] = (*p)[i].pot*(*p)[i].pos[2];
+	  t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - com[0]);
+	  t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - com[1]);
+	  t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - com[2]);
 	*/
 	  
-	t.R[1] = mass*(*p)[i].pos[0];
-	t.R[2] = mass*(*p)[i].pos[1];
-	t.R[3] = mass*(*p)[i].pos[2];
+	t.R[1] = mass*((*p)[i].pos[0] - com[0]);
+	t.R[2] = mass*((*p)[i].pos[1] - com[1]);
+	t.R[3] = mass*((*p)[i].pos[2] - com[2]);
 	angm.push_back(t);
       }
     }

@@ -70,14 +70,6 @@ struct loadb_datum
   \par noforce
   No force (presumably, you are supplying your own force)
 
-  @param use_com enables centering based on center-of-mass position
-
-  @param use_cov centers the velocity distribution on the current
-  center-of-velocity
-
-  @param com_tie ties the center to the center-of-mass of the specified
-  other component
-
   @param EJ enables energy weighed center-of-mass.  The paramter value
   is a two-bit flag: AXIS=1 and CENTER=2.
     
@@ -187,18 +179,18 @@ private:
   Partstruct *npart_p;
   int npart_tot, npart_cur;
 
-  // Initialize com tie list
-  void get_com_component(string name);
-
   // Adiabatic mass
   bool adiabatic;
   double ton, toff, twid;
-
 
   // For load balancing
   vector <loadb_datum> loadb;
   void append_particles(int from, int to, int begin, int number);
   void insert_particles(int from, int to, int begin, int number, int loc);
+
+  // Compute initial com position and velocity from phase space
+  void initialize_com_system();
+
 
 protected:
 
@@ -226,9 +218,6 @@ protected:
 
   //! Binary read flag
   bool binary;
-
-  //! Component list for tying center of mass
-  list<Component*> com_tie;
 
 public:
 
@@ -266,13 +255,17 @@ public:
   //! Maximum initial particle radious
   double rmax;
 
-  //! Use com or cov to center grid
-  bool use_com, use_cov;
   /**
      These are pointers to the center of mass, center of velocity,
      angular momentum and the phase-space 6 vector.
   */
   double *com, *cov, *center, *angmom, *ps;
+
+  /**
+     Center of mass system coordinates
+  */
+  double mtot0;
+  double *com0, *cov0, *acc0;
 
   //! Total mass
   double mtot;
@@ -307,6 +300,9 @@ public:
   //! Initial EJ center
   double EJx0, EJy0, EJz0;
 
+  //! EJ center
+  double *EJcen;
+
   //! Initial EJ velocity
   double EJu0, EJv0, EJw0;
 
@@ -324,6 +320,9 @@ public:
 
   //! Move center at constant velocity specified by (EJu0, EJv0, EJw0)
   bool EJlinear;
+
+  //! Use center of mass coordinagte system
+  bool com_system;
 
   //! Maximum radius from center for force evaluation
   double rtrunc;
@@ -360,6 +359,9 @@ public:
 
   //! Compute center of mass and center of velocity
   void fix_positions(void);
+
+  //! Subtract mean acceleration from each particle accel
+  void update_accel(void);
 
   //! Update angular momentum values
   void get_angmom(void);

@@ -24,9 +24,6 @@ void do_step(int n)
 				// Compute acceleration
   comp.compute_potential();
 
-				// Adjust to keep COM at origin
-  if (fixacc) comp.fix_acceleration();
-
 				// Velocity step
   incr_velocity();
 

@@ -31,9 +31,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 		     string FPARAM) : 
   name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
 {
-  use_com = false;
-  use_cov = false;
-
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
@@ -61,15 +58,14 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   rtrunc = 1.0e20;
 
+  com_system = false;
+
   read_bodies_and_distribute_ascii();
 }
 
 
 Component::Component(istream *in)
 {
-  use_com = false;
-  use_cov = false;
-
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
@@ -111,11 +107,7 @@ void Component::initialize(void)
     datum.first  = trimLeft(trimRight(parse("=")));
     datum.second = trimLeft(trimRight(parse("=")));
 
-    if (!datum.first.compare("use_com"))  use_com = true;
-
-    if (!datum.first.compare("use_cov"))  use_cov = true;
-
-    if (!datum.first.compare("com_tie"))  get_com_component(datum.second);
+    if (!datum.first.compare("com"))      com_system = true;
 
     if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
     
@@ -156,20 +148,11 @@ void Component::initialize(void)
     if (!datum.first.compare("twid"))     {twid = atof(datum.second.c_str()); adiabatic = true;}
 
     if (!datum.first.compare("rtrunc"))   {rtrunc = atof(datum.second.c_str());}
-
+    
 				// Next parameter
     token = tokens(",");
   }
 
-
-				// DEBUG
-  if (myid==0) {
-    if (use_com) cout << name << ": self com is *ON*\n";
-    list<Component*>::iterator i;
-    for (i=com_tie.begin(); i != com_tie.end(); i++) {
-      cout << name << ": use <" << (*i)->name << "> for com\n";
-    }
-  }
 
 				// Instantiate the force ("reflection" by hand)
 
@@ -234,8 +217,15 @@ void Component::initialize(void)
   cov = new double [3];
   angmom = new double [3];
   ps = new double [6];
+  EJcen = new double [3];
 
-  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = angmom[k] = 0.0;
+				// For COM system
+  com0 = new double[3];
+  cov0 = new double[3];
+  acc0 = new double[3];
+
+  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = com0[k] = cov0[k] = 
+			    acc0[k] = angmom[k] = EJcen[k] = 0.0;
 
   if (EJ) {
 
@@ -265,14 +255,14 @@ void Component::initialize(void)
     orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
 
     if (restart && (EJ & Orient::CENTER)) {
-      for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
+      for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];
     } else {
       orient -> set_center(EJx0, EJy0, EJz0);
       orient -> set_cenvel(EJu0, EJv0, EJw0);
       if (EJlinear) orient -> set_linear();
-      center[0] = EJx0;
-      center[1] = EJy0;
-      center[2] = EJz0;
+      EJcen[0] = EJx0;
+      EJcen[1] = EJy0;
+      EJcen[2] = EJz0;
     }
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
@@ -284,18 +274,14 @@ void Component::initialize(void)
       cout << name << ": AXIS orientation is *ON*\n";
 
     if (EJ & Orient::CENTER) {
-      if (use_com) 
-	cout << name 
-	     << ": CENTER finding is *ON* and will supercede COM centering";
-      else
-	cout << name 
-	     << ": CENTER finding is *ON*";
+      cout << name 
+	   << ": CENTER finding is *ON*";
 
       if (restart)
 	cout << ", current center on restart: x, y, z: " 
-	     << center[0] << ", " 
-	     << center[1] << ", " 
-	     << center[2] << "\n";
+	     << EJcen[0] << ", " 
+	     << EJcen[1] << ", " 
+	     << EJcen[2] << "\n";
       else
 	cout << ", user specified initial center: x, y, z: " 
 	     << EJx0 << ", " 
@@ -305,31 +291,7 @@ void Component::initialize(void)
 
   }
     
-}
-
-
-void Component::get_com_component(string name)
-{
-				// Loop through components to find com target
-  list<Component*>::iterator cc;
-  Component *c;
-  bool found = false;
-  
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-
-				// Is this the one?
-    if (c->name.compare(name) == 0) {
-      com_tie.push_back(&(*c));
-      found = true;
-      break;
-    }
-  }
-
-  if (!found) {
-    string msg = "Could not find target component named <" + name +  "> for COM\n";
-    bomb(msg);
-  }
+  if (com_system) initialize_com_system();
 
 }
 
@@ -341,6 +303,7 @@ Component::~Component(void)
   delete [] com;
   delete [] cov;
   delete [] center;
+  delete [] EJcen;
   delete [] angmom;
   delete [] ps;
 }
@@ -1157,6 +1120,45 @@ void Component::write_ascii(ostream* out, bool accel)
 }
 
 
+void Component::initialize_com_system()
+{
+  double mtot1;
+  double *com1 = new double [3];
+  double *cov1 = new double [3];
+  
+  
+  vector<Particle>::iterator p, pend;
+
+				// Zero stuff out
+  mtot0 = mtot1 = 0.0;
+  for (int k=0; k<dim; k++) com1[k] = cov1[k] = 0.0;
+
+				// Particle loop
+  pend = particles.end();
+  for (p=particles.begin(); p != pend; p++) {
+    
+    if (freeze(*p)) continue;
+    
+    mtot1 += p->mass;
+
+    for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
+    for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+    
+  }
+  
+  MPI_Allreduce(&mtot1, &mtot0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(com1, com0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(cov1, cov0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
+  if (mtot0 > 0.0) {
+    for (int k=0; k<dim; k++) com0[k] /= mtot0;
+    for (int k=0; k<dim; k++) cov0[k] /= mtot0;
+  }
+
+  delete [] com1;
+  delete [] cov1;
+}
+
 void Component::fix_positions(void)
 {
   double mtot1;
@@ -1169,7 +1171,16 @@ void Component::fix_positions(void)
 				// Zero stuff out
   mtot = mtot1 = 0.0;
   for (int k=0; k<dim; k++)
-    com[k] = center[k] = cov[k] = com1[k] = cov1[k] = 0.0;
+    com[k] = cov[k] = com1[k] = cov1[k] = 0.0;
+
+
+				// Center of mass system
+  if (com_system) {
+    for (int i=0; i<3; i++) center[i] = com0[i];
+  } else {
+    for (int i=0; i<3; i++) center[i] = 0.0;
+  }
+
 
 				// Particle loop
   pend = particles.end();
@@ -1188,54 +1199,61 @@ void Component::fix_positions(void)
   MPI_Allreduce(com1, com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(cov1, cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
-				// Add com from other specified components
-				// to center
-
-  double mtot0 = 0.0;
-
-  if (use_com) {
-    for (int k=0; k<dim; k++) center[k] = com[k];
-    mtot0 += mtot;
-  }
-  
-  list<Component*>::iterator i;
-  for (i=com_tie.begin(); i != com_tie.end(); i++) {
-    for (int k=0; k<dim; k++) center[k] += (*i)->com[k]*(*i)->mtot;
-    mtot0 += (*i)->mtot;
-  }
-
-				// Normalize center
-  if (mtot0>0.0)
-    for (int k=0; k<dim; k++) center[k] /= mtot0;
-
 
 				// Compute component center of mass and
-				// center of velocity
+				// center of velocity, and center of accel
 
   if (mtot > 0.0) {
     for (int k=0; k<dim; k++) com[k] /= mtot;
     for (int k=0; k<dim; k++) cov[k] /= mtot;
   }
 
-  if (use_cov) {
-
-    pend = particles.end();
-    for (p=particles.begin(); p != pend; p++) {
-
-      if (freeze(*p)) continue;
-	
-      for (int k=0; k<dim; k++) p->vel[k] -= cov[k];
-    }
-  }
-
   delete [] com1;
   delete [] cov1;
 
-  Vector ctr;
   if ((EJ & Orient::CENTER) && !EJdryrun) {
-    ctr = orient->currentCenter();
-    for (int i=0; i<3; i++) center[i] = ctr[i+1];
+    Vector ctr = orient->currentCenter();
+    for (int i=0; i<3; i++) center[i] += ctr[i+1];
   }
+
+}
+
+
+void Component::update_accel(void)
+{
+  double *acc1 = new double [3];
+
+  
+  vector<Particle>::iterator p, pend;
+
+  for (int k=0; k<dim; k++) acc0[k] = acc1[k] = 0.0;
+
+				// Particle loop
+  pend = particles.end();
+  for (p=particles.begin(); p != pend; p++) {
+    
+    if (freeze(*p)) continue;
+    
+    for (int k=0; k<dim; k++) acc1[k] += p->mass*p->acc[k];
+  }
+  
+  MPI_Allreduce(acc1, acc0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+
+				// Compute component center of accel
+  if (mtot > 0.0) {
+    for (int k=0; k<dim; k++) acc0[k] /= mtot;
+  }
+  
+				// Shift to mean acceleration
+
+  for (p=particles.begin(); p != pend; p++) {
+    
+    if (freeze(*p)) continue;
+    
+    for (int k=0; k<dim; k++) p->acc[k] -= acc0[k];
+  }
+  
 }
 
 

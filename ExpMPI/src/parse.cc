@@ -48,10 +48,6 @@ void initialize(void)
     if (atoi(val.c_str())) use_cwd = true;
     else use_cwd = false;
   }
-  if (parse->find_item("fixacc", val)) {
-    if (atoi(val.c_str())) fixacc = true;
-    else fixacc = false;
-  }
   if (parse->find_item("eqmotion", val)) {
     if (atoi(val.c_str())) eqmotion = true;
     else eqmotion = false;

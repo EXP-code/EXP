@@ -26,9 +26,13 @@ void incr_position(void)
 	
 	if ((*c)->freeze(*p)) continue;
 	
-      for (int k=0; k<(*c)->dim; k++) p->pos[k] += p->vel[k]*dtime;
+	for (int k=0; k<(*c)->dim; k++) 
+	  p->pos[k] += (p->vel[k] - (*c)->cov0[k])*dtime;
       }
   
+      if ((*c)->com_system) {
+	for (int k=0; k<(*c)->dim; k++) (*c)->com0[k] += (*c)->cov0[k]*dtime;
+      }
       
     }
 
