@@ -245,7 +245,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;
-      if (myid==0) write_log(0.0, 0.0);
+      if (myid==0) write_log(time, 0.0, 0.0);
       return;
   }
 
@@ -426,9 +426,11 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       sumXY.zero();
       sumY2.zero();
 
+      int N = sumsC.size();
+
       deque<Vector>::iterator j;
       for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	x = sumsA.size() - 1 - (double)i;
+	x = time - dtime*(N-1-i);
 	sumX += x;
 	sumX2 += x*x;
 	sumY += *j;
@@ -440,13 +442,13 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
 				// Linear least squares estimate for axis
 
-      axis = (sumX2*sumY - sumX*sumXY)/(sumX2*i - sumX*sumX);
-      slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
+      slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+      axis = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX) + slope*time;
 
       i = 0;
       sigA = 0.0;
       for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	x = sumsA.size() - 1 - (double)i;
+	x = -dtime*(N-1-i);
 	sigA += (*j - axis - slope*x)*(*j - axis - slope*x);
 
 	i++;
@@ -462,7 +464,7 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     }
 
 
-    if (sumsC.size() > 2) {
+    if (sumsC.size() > 1) {
 
       if (sumsC.size() > keep) sumsC.pop_front();
 
@@ -473,9 +475,12 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
       sumY.zero();
       sumXY.zero();
       sumY2.zero();
+
+      int N = sumsC.size();
+
       deque<Vector>::iterator j;
       for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	x = sumsC.size() - 1 - i;
+	x = time - dtime*(N-1-i);
 	sumX += x;
 	sumX2 += x*x;
 	sumY += *j;
@@ -484,23 +489,27 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
 	i++;
 
-	/*
 	if ((cflags & DIAG) && myid==0)
-	  cout << " Orient debug i=" << i << " : SumX=" << sumX 
-	       << "  SumX2=" << sumX2 << "  Delta=" << sumX2*i - sumX*sumX 
+	  cout << " Orient debug i=" << i << ":"
+	       << "      t=" << setw(15) << x
+	       << "      x=" << setw(15) << (*j)[1]
+	       << "      y=" << setw(15) << (*j)[2]
+	       << "      z=" << setw(15) << (*j)[3]
+	       << "   SumX=" << setw(15) << sumX 
+	       << "  SumX2=" << setw(15) << sumX2 
+	       << "  Delta=" << setw(15) << sumX2*i - sumX*sumX 
 	       << endl;
-	*/
       }
 				// Linear least squares estimate for center
 
-      center = (sumX2*sumY - sumX*sumXY)/(sumX2*i - sumX*sumX);	
-      slope = (sumXY*i - sumX*sumY)/(sumX2*i - sumX*sumX);
+      slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+      center = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX) + slope*time;
 
       i = 0;
       sigC = 0.0;
       sigCz = 0.0;
       for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	x = sumsC.size() - 1 - (double)i;
+	x = -dtime*(N-1-i);
 	sigC += (*j - center - slope*x)*(*j - center - slope*x);
 	sigCz += 
 	  ( (*j)[3] - center[3] - slope[3]*x ) *
@@ -512,12 +521,15 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     }
 
-    if (sumsC.size()>2) {
-      double factor = (double)((int)sumsC.size() - keep)/keep;
-      factor = factor*factor;
-      center = center0*factor + center*(1.0 - factor);
+    if (keep>1) {
+      if (sumsC.size()>1) {
+	double factor = (double)((int)sumsC.size() - keep)/keep;
+	factor = factor*factor;
+	center = center0*factor + center*(1.0 - factor);
+      } else
+	center = center0;
     } else
-      center = center0;
+      center = center1;
 
 				// Increment initial center according 
 				// to user specified velocity
@@ -621,10 +633,10 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
     Ecurr += dE;
   
 
-  if (myid==0) write_log(Egrad, dE);
+  if (myid==0) write_log(time, Egrad, dE);
 }
 
-void Orient::write_log(double Egrad, double dE)
+void Orient::write_log(double time, double Egrad, double dE)
 {
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {

@@ -39,6 +39,7 @@ class ComponentContainer
 private:
 
   bool binary;
+  bool gottapot;
   double time0;
   int ifile;
 

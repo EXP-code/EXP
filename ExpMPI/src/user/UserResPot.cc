@@ -53,6 +53,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   t0 = 0.5;			// Mid point of drift
   first = true;
 
+  tag = -1;			// Flag not used unless explicitly defined
+
 				// Tabled spherical model
   model_file = "SLGridSph.model";
   ctr_name = "";		// Default component for com is none
@@ -86,7 +88,6 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   else
     c0 = NULL;
 
-
 				// Set up for resonance potential
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
@@ -107,6 +108,8 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   bar.compute_quad_parameters(A21, A32);
   bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   omega = bar.Omega();
+
+  bcoef *= -1.0;
 
   bcount = new int [nthrds];
 
@@ -334,6 +337,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
+    if (tag>=0 && (*particles)[i].iattrib[tag]) continue;
+
     R2 = 0.0;
     for (int k=0; k<3; k++) {
       posI[k] = (*particles)[i].pos[k];
@@ -408,7 +413,10 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 	}
 	
       }
-    else  bcount[id]++;
+    else  {
+      bcount[id]++;
+      if (tag>=0) (*particles)[i].iattrib[tag] = 1;
+    }
 
   }
 

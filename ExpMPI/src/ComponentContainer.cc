@@ -15,7 +15,7 @@ static char rcsid[] = "$Id$";
 
 ComponentContainer::ComponentContainer(void)
 {
-				// Do nothing
+  gottapot = true;
 }
 
 void ComponentContainer::initialize(void)
@@ -225,6 +225,25 @@ void ComponentContainer::compute_potential(void)
   Component *c;
   vector<Particle>::iterator p, pend;
 
+  
+  //
+  // Compute new center
+  //
+  if (!gottapot || restart) fix_positions();
+
+  //
+  // Recompute global com
+  //
+  for (int k=0; k<3; k++) gcom[k] = 0.0;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
+    for (int k=0; k<3; k++) gcom[k] += c->com[k];
+  }
+
+
+  //
+  // Compute accel for each component
+  //
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
@@ -245,8 +264,9 @@ void ComponentContainer::compute_potential(void)
   }
       
 
+  //
   // Do the component interactions
-
+  //
   list<Interaction*>::iterator inter;
   list<Component*>::iterator other;
   
@@ -260,8 +280,9 @@ void ComponentContainer::compute_potential(void)
     }
   }
       
+  //
   // Do the external forces (if there are any . . .)
-
+  //
   if (!external.force_list.empty()) {
 
     list<ExternalForce*>::iterator ext;
@@ -276,17 +297,10 @@ void ComponentContainer::compute_potential(void)
 
   }
   
-  // Recompute global com
-  for (int k=0; k<3; k++) gcom[k] = 0.0;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    for (int k=0; k<3; k++) gcom[k] += c->com[k];
-  }
-
-  fix_positions();
 
   if (fixacc) fix_acceleration();
 
+  gottapot = true;
 }
 
 

@@ -66,7 +66,7 @@ private:
   ACG gen;
   Normal gauss;
 
-  void write_log(double Egrad, double dE);
+  void write_log(double time, double Egrad, double dE);
 
 public:
   //! Mask flags for Orient type
