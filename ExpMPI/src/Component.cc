@@ -273,10 +273,16 @@ void Component::initialize(void)
 	cout << name 
 	     << ": CENTER finding is *ON*";
 
-      cout << ", user specified initial center: x, y, z: " 
-	   << EJx0 << ", " 
-	   << EJy0 << ", " 
-	   << EJz0 << "\n";
+      if (restart)
+	cout << ", current center on restart: x, y, z: " 
+	     << center[0] << ", " 
+	     << center[1] << ", " 
+	     << center[2] << "\n";
+      else
+	cout << ", user specified initial center: x, y, z: " 
+	     << EJx0 << ", " 
+	     << EJy0 << ", " 
+	     << EJz0 << "\n";
     }
 
   }
