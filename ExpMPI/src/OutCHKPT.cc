@@ -59,7 +59,7 @@ void OutCHKPT::Run(int n, bool last)
 				// Open file and write master header
     
     struct MasterHeader header;
-    header.time = tnow;
+    header.time = tpos;
     header.ntot = comp.ntot;
     header.ncomp = comp.ncomp;
 
