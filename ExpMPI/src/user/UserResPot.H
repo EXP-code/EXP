@@ -27,6 +27,7 @@ private:
   
   double MASS, LENGTH, COROT, A21, A32;
 
+  string ctr_name;
   string model_file;
 
   void userinfo();

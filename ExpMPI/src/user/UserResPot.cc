@@ -55,30 +55,37 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
 				// Tabled spherical model
   model_file = "SLGridSph.model";
-  com_name = "sphereSL";	// Default component for com
+  ctr_name = "";		// Default component for com is none
 
   initialize();
 
-				// Look for the fiducial component
-  bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if ( !com_name.compare(c->id) ) {
-      c0 = c;
-      found = true;
+  if (ctr_name.size()>0) {
+				// Look for the fiducial component for
+				// centering
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !ctr_name.compare(c->name) ) {
+	c0 = c;
+	found = true;
       break;
+      }
     }
+
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << ctr_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
+
   }
-
-  if (!found) {
-    cerr << "Process " << myid << ": can't find desired component <"
-	 << com_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
-  }
+  else
+    c0 = NULL;
 
 
+				// Set up for resonance potential
   hm =  new SphericalModelTable(model_file);
   halo_model = hm;
 
@@ -146,7 +153,8 @@ void UserResPot::initialize()
   if (get_value("A21", val))      A21 = atof(val.c_str());
   if (get_value("A32", val))      A32 = atof(val.c_str());
 
-  if (get_value("file", val))     model_file = val;
+  if (get_value("model", val))     model_file = val;
+  if (get_value("ctrname", val))   ctr_name = val;
 }
 
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
