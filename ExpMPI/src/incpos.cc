@@ -26,8 +26,6 @@ void incr_position(void)
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
 	
-	if (c->freeze(*p)) continue;
-	
 	for (int k=0; k<c->dim; k++) 
 	  p->pos[k] += (p->vel[k] - c->covI[k])*dtime;
       }
