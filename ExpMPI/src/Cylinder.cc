@@ -41,6 +41,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
+  EmpCylSL::CMAP = true;
 
 				// For debugging
 #ifdef DENSITY
