@@ -477,6 +477,15 @@ void OutLog::Run(int n, bool last)
 	*out << "|" << setw(cwid) << angm[i][j];
       for (int j=0; j<3; j++)
 	*out << "|" << setw(cwid) << ctr[i][j];
+
+      double vbar2=0.0;		// Kinetic energy in per component
+      if (mtot[i]>0.0) {	// center of velocity frame
+	for (int j=0; j<3; j++)
+	  vbar2 +=  cov[i][j]*cov[i][j];
+	vbar2 /=  mtot[i]*mtot[i];
+      }
+      ektot[i] -= 0.5*mtot[i]*vbar2; // Update KE
+      
       *out << "|" << setw(cwid) << ektot[i];
       *out << "|" << setw(cwid) << eptot[i] + eptotx[i];
       *out << "|" << setw(cwid) << clausius[i];
