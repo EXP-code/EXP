@@ -16,6 +16,7 @@ noinst_HEADERS = ACG.h Binomial.h DiscUnif.h Erlang.h Gamma.h Geom.h \
 	Uniform.h Weibull.h builtin.h rx.h std.h # Regex.h String.h
 
 
+CXXLD = --tag=F77 mpif77
 AM_CFLAGS = -fPIC -D_REENTRANT
 AM_CXXFLAGS = -fPIC -D_REENTRANT
 

@@ -16,20 +16,28 @@ fi
 echo This script runs configure and make...
 echo You did remember necessary arguments for configure, right?
 
-if test ! -x `which aclocal`
+if test ! -x `which aclocal-1.7`
 then echo you need autoconfig and automake to generate the Makefile
 fi
-if test ! -x `which automake`
+
+if test ! -x `which automake-1.7`
 then echo you need automake to generate the Makefile
 fi
+
 if test ! -x `which autoconf`
 then echo you need autoconf to generate the Makefile
 fi
-aclocal
-autoheader2.50
-automake --add-missing
-automake
-autoconf2.50
+
+if test ! -x `which libtoolize`
+then echo you need libtoolize to generate the Makefile
+fi
+
+aclocal-1.7
+autoheader
+libtoolize
+automake-1.7 --add-missing
+automake-1.7
+autoconf
 ./configure $*
 $MAKE CXXFLAGS="-O3" CFLAGS="-O3"
 
