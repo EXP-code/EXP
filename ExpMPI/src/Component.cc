@@ -563,8 +563,10 @@ int Component::get_next_particle(Partstruct *onepart)
   if (!npart) {
     npart_tot = -1;
     npart_p = get_particles(&npart_tot);
-    cerr << "Component::get_next_particle: no particles found!?!\n";
-    if (!npart_tot) return 0;
+    if (npart_p == NULL) {
+      cerr << "Component::get_next_particle: no particles found!?!\n";
+      return 0;
+    }
     npart = true;
     npart_cur = 0;
   }
@@ -572,7 +574,7 @@ int Component::get_next_particle(Partstruct *onepart)
 				// Get a new bunch
   if (npart_cur == npart_tot) {
     npart_p = get_particles(&npart_tot);
-    if (!npart_tot) {
+    if (npart_p == NULL) {
       npart = false;
       return 0;
     }
@@ -948,7 +950,7 @@ void Component::write_binary(ostream* out)
   int number = -1;
   Partstruct *p = get_particles(&number);
 
-  while (number) {
+  while (p) {
 
     if (myid == 0) {
 
