@@ -40,6 +40,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJkinE = true;
   EJext = false;
   EJdiag = false;
+  EJdryrun = false;
   EJx0 = 0.0;
   EJy0 = 0.0;
   EJz0 = 0.0;
@@ -72,6 +73,9 @@ Component::Component(istream *in)
   EJext = false;
   EJdiag = false;
   EJdryrun = false;
+  EJx0 = 0.0;
+  EJy0 = 0.0;
+  EJz0 = 0.0;
 
   binary = true;
   npart = false;

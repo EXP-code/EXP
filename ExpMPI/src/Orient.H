@@ -75,9 +75,9 @@ public:
 
   //! Set initial center (zero by default)
   void set_center(double x, double y, double z) {
-    center0[0] = x;
-    center0[1] = y;
-    center0[2] = z;
+    center0[1] = x;
+    center0[2] = y;
+    center0[3] = z;
   }
 
   //! Register phase space of <num> particles and store angular momentum vector for the lowest <many> binding energies
