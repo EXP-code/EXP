@@ -9,11 +9,15 @@ OutRelaxation::OutRelaxation(string& line) : Output(line)
 {
   id = "OutRelaxation";
 
+  epos = 0;			// Default
+
+  initialize();
+
 				// Initialize output file
   if (myid==0) {
     
     fname = "relx.";
-    fname += outname;
+    fname += suffix;
 
     ofstream out(fname.c_str(), ios::out | ios::app);
     if (!out) {
@@ -23,17 +27,21 @@ OutRelaxation::OutRelaxation(string& line) : Output(line)
     }
 
     out << "! 1) time 2) step 3) Delta E; 4) Root variance; 5) |Delta E|\n";
+
+    cout << "Created an OutRelaxation with dattrib index = " << epos << "\n";
   }
-
-  // need to assign epos
-
-  epos = 1;			// Placeholder, fix this!
 
 }
 
 void OutRelaxation::initialize()
 {
   string tmp;
+
+				// Get file name
+  if (!get_value(string("suffix"), suffix)) {
+    suffix.erase();
+    suffix = "out\0";
+  }
 
   if (get_value(string("epos"), tmp))  epos = atoi(tmp.c_str());
 }

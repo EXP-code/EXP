@@ -1,8 +1,8 @@
 /*! \page bodies Phase space file format
-<H3> Ascii file format</H3>
-The first line of an ascii phase space file needs three space-delimited
+<H3> Phase-space file utilities</H3>
+The following three utilities manipulate the phase-space files:
 integer values:
-<ol>
+<dl>
 <li> Number of bodies: <code>nbodies</code>
 <li> Number of integer attributes: <code>niattrib</code>
 <li> Number of real (double) attributes: <code>ndattrib</code>

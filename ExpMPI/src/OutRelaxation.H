@@ -10,6 +10,7 @@ class OutRelaxation : public Output
 private:
 
   string fname;
+  string suffix;
 
   int epos;
   void initialize(void);
