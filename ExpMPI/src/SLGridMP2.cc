@@ -2186,7 +2186,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 		   1.0e-4*scale,1.0e-6};
   int i, j, k, VERBOSE=0;
   integer NUM, N;
-  logical type[8];
+  logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
   logical endfin[2] = {1, 1};
   
 #ifdef DEBUG_SLEDGE
@@ -2245,7 +2245,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
   //        classify,
   //        let SLEDGE choose the initial mesh
   //
-  logical job[5] = {0,1,0,0,0};
+  logical job[5] = {0,1,0,1,0};
 
   //
   //     Output mesh
@@ -2356,7 +2356,7 @@ void SLGridSph::compute_table_slave(void)
 
   int i, j, VERBOSE=0;
   integer NUM;
-  logical type[8];
+  logical type[8] = {0, 0, 1, 0, 0, 0, 1, 0};
   logical endfin[2] = {1, 1};
   
   struct TableSph table;
@@ -2436,7 +2436,7 @@ void SLGridSph::compute_table_slave(void)
     //        classify,
     //        let SLEDGE choose the initial mesh
     //
-    logical job[5] = {0,1,0,0,0};
+    logical job[5] = {0,1,0,1,0};
 
     //
     //     Output mesh
