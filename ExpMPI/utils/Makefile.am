@@ -1,1 +1,1 @@
-SUBDIRS = PhaseSpace SL Test
+SUBDIRS = PhaseSpace SL Test gendisk

@@ -43,7 +43,7 @@ MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
 ORBIT_SRC = orbit.cc orbit_trans.cc
 BIORTH_SRC = biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc \
 	sbessz.cc ultra.cc jnsph.cc bessz.cc \
-	biorth_wake_orientation.cc
+	biorth_wake_orientation.cc biorthSL.cc
 GAUSS_SRC = gaussQ.cc GaussCore.c Hermite.c Jacobi.c Laguerre.c
 QPDISTF_SRC = QPDistF.cc qld.c
 BESSEL_SRC = airy.c hyp2f1.c hyperg.c i0.c i1.c iv.c \

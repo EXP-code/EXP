@@ -284,13 +284,14 @@ public:
 };
 
 enum ScalarType {density, potential};
-static string ScalarTypeNames[] = {"Density", "Potential"};
+string& ScalarTypeName(ScalarType i);
+
+enum BiorthFcts3d {bessel, clutton_brock, hernquist, sturm};
 
 Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
 		   AxiSymBiorth& s, double (*func)(double, int, int), 
 		   int nc, int ng);
 
-enum BiorthFcts3d {bessel, clutton_brock, hernquist, sturm};
 static string BiorthFcts3dName[] = {"BSSphere", "CBSphere", "HQSphere", "SphereSL"};
 		   
 #endif

@@ -4,15 +4,10 @@
 // Exponential disk
 //
 
-const char rcsid_expon[] = "$Id$";
-
 #ifndef _Expon_h
+#define _Expon_h
 
-#define _Expon_h 1
-
-#ifndef _Logic_
-#include <logic.h>
-#endif
+const char rcsid_expon[] = "$Id$";
 
 #include <massmodel.h>
 

@@ -48,11 +48,12 @@ using namespace std;
 bool AxiSymModel::gen_EJ = true;
 int AxiSymModel::numr = 50;
 int AxiSymModel::numj = 50;
-int AxiSymModel::gen_N = 400;
+int AxiSymModel::gen_N = 4000;
+int AxiSymModel::gen_logr = 1;
 double AxiSymModel::gen_kmin = 0.0;
 unsigned int AxiSymModel::gen_seed = 11;
-int AxiSymModel::gen_itmax = 4000;
-
+int AxiSymModel::gen_itmax = 1000;
+const double ftol = 1.0e-5;
 
 Vector AxiSymModel::gen_point_2d(int& ierr)
 {
@@ -163,7 +164,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
 	gen_mass[i] = get_mass(gen_rloc[i]);
 
 	pot = get_pot(gen_rloc[i]);
-	vmax = sqrt(2.0*(Emax - pot));
+	vmax = sqrt(2.0*fabs(Emax - pot));
 
 	fmax = 0.0;
 	for (int j=0; j<numr; j++) {
@@ -276,7 +277,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
       gen_mass[i] = get_mass(gen_rloc[i]);
 
       pot = get_pot(gen_rloc[i]);
-      vmax = sqrt(2.0*(Emax - pot));
+      vmax = sqrt(2.0*fabs(Emax - pot));
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
@@ -301,7 +302,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
 
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   pot = get_pot(r);
-  vmax = sqrt(2.0*(Emax - pot));
+  vmax = sqrt(2.0*fabs(Emax - pot));
   
                                 // Trial velocity point
     
@@ -384,7 +385,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
       gen_mass[i] = get_mass(gen_rloc[i]);
 
       pot = get_pot(gen_rloc[i]);
-      vmax = sqrt(2.0*(Emax - pot));
+      vmax = sqrt(2.0*fabs(Emax - pot));
 
       fmax = 0.0;
       for (int j=0; j<numr; j++) {
@@ -410,7 +411,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
   r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
   pot = get_pot(r);
-  vmax = sqrt(2.0*(Emax - pot));
+  vmax = sqrt(2.0*fabs(Emax - pot));
 
                                 // Trial velocity point
     
@@ -462,5 +463,146 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
   out[6] = vr * cost      - vt1 * sint;
     
   return out;
+}
+
+
+void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
+{
+  if (dof()!=3)
+      bomb( "AxiSymModel: gen_velocity only implemented for 3d model!" );
+
+  if (!dist_defined) {
+    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    _exit (-1);
+  }
+
+  double r, pot, vmax, xxx, yyy, vr, vt, eee, vt1, vt2, fmax;
+  double phi, sint, cost, sinp, cosp, azi;
+
+  double Emax = get_pot(get_max_radius());
+
+  if (gen_firstime) {
+    double zzz;
+    // const int numr = 200;
+    // const int numj = 200;
+
+    double tol = 1.0e-5;
+    double dx = (1.0 - 2.0*tol)/(numr-1);
+    double dy = (1.0 - 2.0*tol)/(numj-1);
+    double dr;
+
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+
+    gen_mass.setsize(1, gen_N);
+    gen_rloc.setsize(1, gen_N);
+    gen_fmax.setsize(1, gen_N);
+
+    if (get_min_radius() <= 1.0e-16) gen_logr = 0;
+
+     if (gen_logr)
+      dr = (log(get_max_radius()) - log(get_min_radius()))/(gen_N-1);
+    else
+      dr = (get_max_radius() - get_min_radius())/(gen_N-1);
+
+
+    for (int i=1; i<=gen_N; i++) {
+
+      if (gen_logr) {
+	gen_rloc[i] = log(get_min_radius()) + dr*(i-1);
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = get_min_radius() + dr*(i-1);
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = get_mass(r);
+
+      pot = get_pot(r);
+      vmax = sqrt(2.0*fabs(Emax - pot));
+
+      fmax = 0.0;
+      for (int j=0; j<numr; j++) {
+	xxx = tol + dx*j;
+
+	for (int k=0; k<numj; k++) {
+	  yyy = tol + dy*k;
+
+	  vr = vmax*xxx;
+	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
+	  eee = pot + 0.5*(vr*vr + vt*vt);
+
+	  zzz = distf(eee, r*vt);
+	  fmax = zzz>fmax ? zzz : fmax;
+	}
+      }
+      gen_fmax[i] = fmax*(1.0 + ftol);
+
+    }
+    gen_firstime = false;
+
+#ifdef DEBUG
+    ofstream tout("test.dfgrid");
+    tout << "# Rmin=" << get_min_radius() 
+	 << "  Rmax=" << get_max_radius() << endl;
+    for (int i=1; i<=gen_N; i++)
+      tout << gen_rloc[i]
+	   << gen_mass[i]
+	   << gen_fmax[i]
+	   << endl;
+#endif
+  }
+
+  r = sqrt(pos[0]*pos[0] + pos[1]*pos[1] + pos[2]*pos[2]);
+  if (gen_logr) r = log(r);
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
+  pot = get_pot(r);
+  vmax = sqrt(2.0*fabs(Emax - pot));
+
+                                // Trial velocity point
+    
+  int it;
+  for (it=0; it<gen_itmax; it++) {
+
+    xxx = 2.0*sin(asin((*Unit)())/3.0);
+    yyy = (1.0 - xxx*xxx)*(*Unit)();
+
+    vr = vmax*xxx;
+    vt = vmax*sqrt(yyy);
+    eee = pot + 0.5*(vr*vr + vt*vt);
+
+    if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
+
+    if ((*Unit)()<0.5) vr *= -1.0;
+    
+    azi = 2.0*M_PI*(*Unit)();
+    vt1 = vt*cos(azi);
+    vt2 = vt*sin(azi);
+
+    break;
+  }
+                
+  if (it==gen_itmax) {
+    cerr << "Velocity selection failed, r=" << r << "\n";
+    ierr = 1;
+    return;
+  }
+
+  ierr = 0;
+  
+  if ((*Unit)()>=0.5) vr *= -1.0;
+
+  phi = atan2(pos[1], pos[0]);
+  cost = pos[2]/(r+1.0e-18);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  vel[0] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  vel[1] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  vel[2] = vr * cost      - vt1 * sint;
 }
 

@@ -70,13 +70,13 @@ private:
   Vector gen_point_2d(int& ierr);
   Vector gen_point_2d(double r, int& ierr);
   Vector gen_point_3d(int& ierr);
-
+ 
 public:
                                 // Stuff for gen_point
   static bool gen_EJ;
   static int numr, numj;
   static int gen_N;
-  static int gen_itmax;
+  static int gen_itmax, gen_logr;
   static double gen_kmin;
   static unsigned int gen_seed;
 
@@ -136,6 +136,9 @@ public:
       bomb( "AxiSymModel: dof must be 2 or 3" );
     return Vector();
   }
+
+  void gen_velocity(double* pos, double* vel, int& ierr);
+
 
 };
 
