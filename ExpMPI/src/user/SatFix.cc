@@ -61,9 +61,9 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   if (verbose && myid==0)  {
     cout << "Id 0=" << myid0 << ", Particle 0\n";
     if (myid0 == myid1)
-      cout << "Id 1=" << myid0 << ", Particle 1\n";
+      cout << "Id 1=" << myid1 << ", Particle 1\n";
     else
-      cout << "Id 1=" << myid0 << ", Particle 0\n";
+      cout << "Id 1=" << myid1 << ", Particle 0\n";
     
     cout << "********************************************\n";
   }    
