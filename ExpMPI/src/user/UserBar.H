@@ -21,11 +21,20 @@ private:
   string com_name;
   Component *c0;
 
+  void determine_acceleration_and_potential(void);
+  void determine_acceleration_and_potential(vector<Particle>*);
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double length, amplitude, Ton, DeltaT, Fcorot;
+  double length, amplitude, Ton, Toff, DeltaT, Fcorot;
   bool fixed;
+  string filename;
+
+  static const double numfac = 3.86274202023190e-01;
+  bool firstime;
+  double posang, lastomega, lasttime;
+  double Lz, Lz0, Lzbar, omega, Iz, afac, b5;
+  string name;
 
   void userinfo();
 

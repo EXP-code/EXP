@@ -13,9 +13,12 @@ class ExternalForce : public PotAccel
 private:
 
   void determine_coefficients(void);
-  void determine_acceleration_and_potential(void);
 
   void * determine_coefficients_thread(void * arg);
+
+protected:
+
+  virtual void determine_acceleration_and_potential(void);
 
 public:
   //! Name of external force (mnemonic)
