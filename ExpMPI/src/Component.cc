@@ -1062,26 +1062,32 @@ void Component::setup_distribution(void)
   if (myid == 0) {
     in = new ifstream("processor.rates");
     if (!in) {
-      cerr << "setup: Error opening <processor.rates> . . . quit\n";
-      MPI_Abort(MPI_COMM_WORLD, 32);
-      exit(0);
+      cerr << "setup: Error opening <processor.rates> . . . will assume homogeneous cluster\n";
     }
 
     rates =  vector<double>(numprocs);
     orates = vector<double>(numprocs);
     trates = vector<double>(numprocs);
 
-    for (n=0; n<numprocs; n++) {
-      *in >> rates[n];
-      if (!*in) {
-	cerr << "Error reading <processor.rates>\n";
-	MPI_Abort(MPI_COMM_WORLD, 33);
-	exit(0);
+    if (in) {			// We are reading from a file
+      for (n=0; n<numprocs; n++) {
+	*in >> rates[n];
+	if (!*in) {
+	  cerr << "Error reading <processor.rates>\n";
+	  MPI_Abort(MPI_COMM_WORLD, 33);
+	  exit(0);
+	}
+	norm += rates[n];
       }
-      norm += rates[n];
-    }
 
-    delete in;
+      delete in;
+    
+    } else {			// Assign equal rates to all nodes
+      for (n=0; n<numprocs; n++) {
+	rates[n] = 1.0;
+	norm += rates[n];
+      }
+    }
 
     for (n=0; n<numprocs; n++) {
 
