@@ -12,6 +12,7 @@ OPT	= -O3 -fPIC
 OBJ =	ACG.o Binomial.o DiscUnif.o Erlang.o Geom.o HypGeom.o	\
 	LogNorm.o MLCG.o NegExp.o Normal.o Poisson.o RNG.o	\
 	Random.o Regex.o RndInt.o Uniform.o Weibull.o Gamma.o	\
+	String.o						\
 	error.o timer.o
 
 default: libsrnd.so

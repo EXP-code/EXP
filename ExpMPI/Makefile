@@ -1,15 +1,15 @@
 # 
 ALL: default
 
-LAMHOME     = /usr/local/lam62b
+LAMHOME     = /usr/local/lam63
 SHELL       = /bin/sh
-CC          = egcc -D_REENTRANT -I$(LAMHOME)/h
+CC          = egcc -D_REENTRANT -I$(LAMHOME)/include
 CLINKER     = hf77
 PTHREAD     = -lpthread
 SYSLIBS     = -L$(LAMHOME)/lib -lmpi $(PTHREAD) -lm
 				#Problems using efence with MPI?
 # SYSLIBS     = -L$(LAMHOME)/lib -lmpi $(PTHREAD) -lefence -lm
-CCC         = g++ -D_REENTRANT  -I$(LAMHOME)/h -I./libsrnd
+CCC         = g++ -D_REENTRANT  -I$(LAMHOME)/include -I./libsrnd
 F77         = g77
 CCLINKER    = $(CCC)
 OPTFLAGS    = -static -g -DDEBUG
