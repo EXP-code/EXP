@@ -83,6 +83,7 @@ void OutLog::Run(int n, bool last)
   list<Component*>::iterator cc;
   Component *c;
   ofstream *out;
+  const int cwid = 20;
 
   if (myid==0) {
 				// Open output stream for writing
@@ -150,51 +151,59 @@ void OutLog::Run(int n, bool last)
     if (myid==0) {
       string field;
 				// Global stanza
-      *out << "--" << setw(16) << "Global stats";
-      for (int i=1; i<num_global; i++) *out << "|" << setw(18) << " ";
+      *out << setw(cwid-2) << setfill('-') << "Global stats";
+      for (int i=1; i<num_global; i++) 
+	*out << "|" << setw(cwid) << setfill(' ');
+
       
 				// Component stanzas
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	c = *cc;
-	*out << "|" << setw(18) << c->id.c_str();
-	for (int i=1; i<num_component; i++) *out << "|" << setw(18) << " ";
+	*out << "|" << setw(cwid) << c->id.c_str();
+	for (int i=1; i<num_component; i++) 
+	  *out << "|" << setw(cwid) << setfill(' ');
       }
       *out << endl;
     
 				// Global divider
-      *out << setw(18) << "------------------";
+      *out << setw(cwid) << setfill('-');
       for (int i=1; i<num_global; i++) 
-	*out << "+" << setw(18) << "------------------";
+	*out << "+" << setw(cwid) << setfill('-');
       
 				// Component dividers
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	for (int i=0; i<num_component; i++) 
-	  *out << "+" << setw(18) << "------------------";
+	  *out << "+" << setw(cwid) << setfill('-');
       }
       *out << endl;
 
 				// Global labels
-      *out << setw(18) << lab_global[0];
-      for (int i=1; i<num_global; i++) *out << "|" << setw(18) << lab_global[i];
+      *out << setw(cwid) << setfill(' ') << lab_global[0];
+      for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	for (int i=0; i<num_component; i++) 
-	  *out << "|" << setw(18) << lab_component[i];
+	for (int i=0; i<num_component; i++) {
+	  string label = (*cc)->name + " " + lab_component[i];
+	  if (label.size()<=cwid)
+	    *out << "|" << setw(cwid) << label.c_str();
+	  else
+	    *out << "|" << label;
+	}
       }
       *out << endl;
 
 				// Global divider
-      *out << setw(18) << "------------------";
+      *out << setw(cwid) << setfill('-');
       for (int i=1; i<num_global; i++) 
-	*out << "+" << setw(18) << "------------------";
+	*out << "+" << setw(cwid) << setfill('-');
     
 				// Component dividers
       for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	for (int i=0; i<num_component; i++) 
-	  *out << "+" << setw(18) << "------------------";
+	  *out << "+" << setw(cwid) << setfill('-');
       }
-      *out << endl;
+      *out << setfill(' ') << endl;
   
     }
     
@@ -314,18 +323,18 @@ void OutLog::Run(int n, bool last)
     // =============
 
 				// Current time
-    *out << setw(18) << tnow;
+    *out << setw(cwid) << tnow;
 
     double mtot0 = 0.0;
     for (int i=0; i<comp.ncomp; i++) mtot0 += mtot[i];
 
 				// Total mass
-    *out << "|" << setw(18) << mtot0;
+    *out << "|" << setw(cwid) << mtot0;
 
 				// Total number
     int nbodies0 = 0;
     for (int i=0; i<comp.ncomp; i++) nbodies0 += nbodies[i];
-    *out << "|" << setw(18) << nbodies0;
+    *out << "|" << setw(cwid) << nbodies0;
 
 				// Vectors
     vector<double> com0(3), cov0(3), angm0(3), mom0(5);
@@ -343,38 +352,38 @@ void OutLog::Run(int n, bool last)
 
 				// COM
     for (int j=0; j<3; j++)
-      *out << "|" << setw(18) << com0[j];
+      *out << "|" << setw(cwid) << com0[j];
 
 
 				// COV
     for (int j=0; j<3; j++)
-      *out << "|" << setw(18) << cov0[j];
+      *out << "|" << setw(cwid) << cov0[j];
     
 				// Ang mom
     for (int j=0; j<3; j++)
-      *out << "|" << setw(18) << angm0[j];
+      *out << "|" << setw(cwid) << angm0[j];
     
 				// KE
     double ektot0 = 0.0;
     for (int i=0; i<comp.ncomp; i++) ektot0 += ektot[i];
-    *out << "|" << setw(18) << ektot0;
+    *out << "|" << setw(cwid) << ektot0;
       
 				// PE
     double eptot0 = 0.0;
     for (int i=0; i<comp.ncomp; i++) eptot0 += eptot[i] + 0.5*eptotx[i];
-    *out << "|" << setw(18) << eptot0;
+    *out << "|" << setw(cwid) << eptot0;
      
 				// Clausius, Total, 2T/VC
     double clausius0 = 0.0;
     for (int i=0; i<comp.ncomp; i++) clausius0 += clausius[i];
-    *out << "|" << setw(18) << clausius0;
-    *out << "|" << setw(18) << ektot0 + clausius0;
-    *out << "|" << setw(18) << -2.0*ektot0/clausius0;
+    *out << "|" << setw(cwid) << clausius0;
+    *out << "|" << setw(cwid) << ektot0 + clausius0;
+    *out << "|" << setw(cwid) << -2.0*ektot0/clausius0;
 
-    *out << "|" << setw(18) << wtime;
+    *out << "|" << setw(cwid) << wtime;
     int usedT = 0;
     for (int i=0; i<comp.ncomp; i++) usedT += used0[i];
-    *out << "|" << setw(18) << usedT;
+    *out << "|" << setw(cwid) << usedT;
 
 
     // =============
@@ -384,22 +393,22 @@ void OutLog::Run(int n, bool last)
 
     for (int i=0; i<comp.ncomp; i++) {
 
-      *out << "|" << setw(18) << mtot[i];
-      *out << "|" << setw(18) << nbodies[i];
+      *out << "|" << setw(cwid) << mtot[i];
+      *out << "|" << setw(cwid) << nbodies[i];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(18) << com[i][j];
+	*out << "|" << setw(cwid) << com[i][j];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(18) << cov[i][j];
+	*out << "|" << setw(cwid) << cov[i][j];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(18) << angm[i][j];
+	*out << "|" << setw(cwid) << angm[i][j];
       for (int j=0; j<3; j++)
-	*out << "|" << setw(18) << ctr[i][j];
-      *out << "|" << setw(18) << ektot[i];
-      *out << "|" << setw(18) << eptot[i] + eptotx[i];
-      *out << "|" << setw(18) << clausius[i];
-      *out << "|" << setw(18) << ektot[i] + clausius[i];
-      *out << "|" << setw(18) << -2.0*ektot[i]/clausius[i];
-      *out << "|" << setw(18) << used0[i];
+	*out << "|" << setw(cwid) << ctr[i][j];
+      *out << "|" << setw(cwid) << ektot[i];
+      *out << "|" << setw(cwid) << eptot[i] + eptotx[i];
+      *out << "|" << setw(cwid) << clausius[i];
+      *out << "|" << setw(cwid) << ektot[i] + clausius[i];
+      *out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
+      *out << "|" << setw(cwid) << used0[i];
     }
 
     *out << endl;
