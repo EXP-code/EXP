@@ -193,8 +193,8 @@ void UserEBar::determine_acceleration_and_potential(void)
     LegeQuad gq(N);
 
     double a1 = length;
-    double a2 = 0.5*a1;
-    double a3 = 0.1*a2;
+    double a2 = bratio*a1;
+    double a3 = cratio*a2;
 
     double geom = pow(a1*a2*a3, 1.0/3.0);
 
