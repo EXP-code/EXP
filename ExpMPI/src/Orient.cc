@@ -241,7 +241,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 
 void Orient::accumulate(double time, vector<Particle> *p, 
-			double *cen, double *com, double *cov)
+			double *com, double *cov)
 {
   if (linear) {
       center = center0;
@@ -255,6 +255,9 @@ void Orient::accumulate(double time, vector<Particle> *p,
   double Emax1=-1.0e20, Emax0=-1.0e20;
 
   angm.clear();
+
+  double cen[3];
+  for (int i=0; i<3; i++) cen[i] = com[i] + center[i+1];
 
   int nbodies = p->size();
   for (int i=0; i<nbodies; i++) {
@@ -278,24 +281,24 @@ void Orient::accumulate(double time, vector<Particle> *p,
 
       t.M = mass;
 
-      t.L[1] = mass*(((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[2] - cov[2]) -
-		     ((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[1] - cov[1]));
+      t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2] - cov[2]) -
+		     ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1] - cov[1]));
 
-      t.L[2] = mass*(((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[0] - cov[0]) -
-		     ((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[2] - cov[2]));
+      t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0] - cov[0]) -
+		     ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2] - cov[2]));
 
-      t.L[3] = mass*(((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[1] - cov[1]) -
-		     ((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[0] - cov[0]));
+      t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1] - cov[1]) -
+		     ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0] - cov[0]));
 
       /*
-	t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - com[0]);
-	t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - com[1]);
-	t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - com[2]);
+	t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
+	t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - cen[1]);
+	t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - cen[2]);
       */
 
-      t.R[1] = mass*((*p)[i].pos[0] - com[0]);
-      t.R[2] = mass*((*p)[i].pos[1] - com[1]);
-      t.R[3] = mass*((*p)[i].pos[2] - com[2]);
+      t.R[1] = mass*((*p)[i].pos[0] - cen[0]);
+      t.R[2] = mass*((*p)[i].pos[1] - cen[1]);
+      t.R[3] = mass*((*p)[i].pos[2] - cen[2]);
       angm.push_back(t);
     }
   }
@@ -340,24 +343,24 @@ void Orient::accumulate(double time, vector<Particle> *p,
 	
 	t.M = mass;
 
-	t.L[1] = mass*(((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[2]-cov[2]) -
-		       ((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[1]-cov[1]));
+	t.L[1] = mass*(((*p)[i].pos[1]-cen[1])*((*p)[i].vel[2]-cov[2]) -
+		       ((*p)[i].pos[2]-cen[2])*((*p)[i].vel[1]-cov[1]));
 
-	t.L[2] = mass*(((*p)[i].pos[2]-com[2]-cen[2])*((*p)[i].vel[0]-cov[0]) -
-		       ((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[2]-cov[2]));
+	t.L[2] = mass*(((*p)[i].pos[2]-cen[2])*((*p)[i].vel[0]-cov[0]) -
+		       ((*p)[i].pos[0]-cen[0])*((*p)[i].vel[2]-cov[2]));
 
-	t.L[3] = mass*(((*p)[i].pos[0]-com[0]-cen[0])*((*p)[i].vel[1]-cov[1]) -
-		       ((*p)[i].pos[1]-com[1]-cen[1])*((*p)[i].vel[0]-cov[0]));
+	t.L[3] = mass*(((*p)[i].pos[0]-cen[0])*((*p)[i].vel[1]-cov[1]) -
+		       ((*p)[i].pos[1]-cen[1])*((*p)[i].vel[0]-cov[0]));
 	
 	/*
-	  t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - com[0]);
-	  t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - com[1]);
-	  t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - com[2]);
+	  t.R[1] = (*p)[i].pot*((*p)[i].pos[0] - cen[0]);
+	  t.R[2] = (*p)[i].pot*((*p)[i].pos[1] - cen[1]);
+	  t.R[3] = (*p)[i].pot*((*p)[i].pos[2] - cen[2]);
 	*/
 	  
-	t.R[1] = mass*((*p)[i].pos[0] - com[0]);
-	t.R[2] = mass*((*p)[i].pos[1] - com[1]);
-	t.R[3] = mass*((*p)[i].pos[2] - com[2]);
+	t.R[1] = mass*((*p)[i].pos[0] - cen[0]);
+	t.R[2] = mass*((*p)[i].pos[1] - cen[1]);
+	t.R[3] = mass*((*p)[i].pos[2] - cen[2]);
 	angm.push_back(t);
       }
     }
@@ -645,9 +648,9 @@ void Orient::accumulate(double time, vector<Particle> *p,
   }
   else				// Secant method: use approx. gradient
     Ecurr += dE;
-  
 
-    if (myid==0) write_log(time, Egrad, dE, com);
+
+  if (myid==0) write_log(time, Egrad, dE, com);
 }
 
 void Orient::write_log(double time, double Egrad, double dE, double *com)
@@ -656,7 +659,8 @@ void Orient::write_log(double time, double Egrad, double dE, double *com)
   if (outl) {
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
-    for (int k=0; k<3; k++) outl << setw(15) << center[k+1] + com[k];
+    for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << com[k];
     outl << setw(15) << Egrad << setw(15) << dE;
     outl << endl;
   }

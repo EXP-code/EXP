@@ -100,8 +100,7 @@ public:
   void set_linear() { linear = true; }
 
   //! Register phase space of _num_ particles and store angular momentum vector for the lowest _many_ binding energies
-  void accumulate(double time, vector<Particle> *p, double* cen, 
-		  double* com, double *cov);
+  void accumulate(double time, vector<Particle> *p, double* com, double *cov);
 
   //! Return transformation to new body axes
   Matrix& transformBody(void) {return body;};
