@@ -357,9 +357,9 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  << setw(15) << amplitude *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
-      for (int k=0; k<3; k++) cout << setw(15) << bps[k];
-      for (int k=0; k<3; k++) cout << setw(15) << vel[k];
-      for (int k=0; k<3; k++) cout << setw(15) << acc[k];
+      for (int k=0; k<3; k++) out << setw(15) << bps[k];
+      for (int k=0; k<3; k++) out << setw(15) << vel[k];
+      for (int k=0; k<3; k++) out << setw(15) << acc[k];
       out << endl;
     }
 
@@ -408,27 +408,30 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
       nn = pp * pow(rr/b5, 3.0)/(b5*b5);
     }
 
-				// Quadrupole
+				// Quadrupole acceleration
     acct[0] = ffac*
       ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
     
-    acct[1] += ffac*
+    acct[1] = ffac*
       ( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy );
 
-    acct[2] += ffac*
+    acct[2] = ffac*
       ( -5.0*nn*zz );
     
-				// Add monopole
     M0 = ellip->getMass(rr);
-    for (int k=0; k<3; k++) acct[k] += -M0*pos[k]/(rr*rr*rr);
 
     for (int k=0; k<3; k++) {
+				// Add monopole acceleration
+      acct[k] += -M0*pos[k]/(rr*rr*rr);
+
 				// Add bar acceleration to particle
       (*particles)[i].acc[k] += acct[k];
+
 				// Force on bar (via Newton's 3rd law)
       tacc[id][k] += -(*particles)[i].mass * acct[k];
     }
 
+				// Quadrupole and monopole potential
     (*particles)[i].potext += -ffac*pp*fac + ellip->getPot(rr);
     
   }
