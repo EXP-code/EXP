@@ -34,8 +34,11 @@ Cylinder::Cylinder(string& line) : Basis(line)
   hcyl = 1.0;
   ncylorder = 10;
   ncylrecomp = -1;
+  hallfile = "disk";
+  hallfreq = 50;
   self_consistent = true;
   selector = false;
+  density = false;
   coef_dump = true;
 
   initialize();
@@ -48,16 +51,15 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::CMAP = true;	// Always use coordinate mapping
 
 				// For debugging
-#ifdef DENSITY
-  EmpCylSL::DENS = true;
-#endif
-
-#ifdef SELECTOR
-  EmpCylSL::SELECT = true;
-#endif
+  if (density) EmpCylSL::DENS = true;
 
   ortho = new EmpCylSL();
   ortho->reset(nmax, lmax, mmax, ncylorder, acyl, hcyl);
+
+  if (selector) {
+    EmpCylSL::SELECT = true;
+    ortho->setHall(hallfile, hallfreq);
+  }
 
   cout << "Process " << myid << ": Cylinder parameters: "
        << " nmax=" << nmax
@@ -66,6 +68,9 @@ Cylinder::Cylinder(string& line) : Basis(line)
        << " ncylorder=" << ncylorder
        << " acyl=" << acyl
        << " hcyl=" << hcyl
+       << " selector=" << selector
+       << " hallfreq=" << hallfreq
+       << " hallfile=" << hallfile
        << "\n";
 
   ncompcyl = 0;
@@ -103,6 +108,8 @@ void Cylinder::initialize()
   if (get_value("ncylny", val)) ncylny = atoi(val.c_str());
   if (get_value("ncylorder", val)) ncylorder = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
+  if (get_value("hallfreq", val)) hallfreq = atoi(val.c_str());
+  if (get_value("hallfile", val)) hallfile = val;
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true; 
     else self_consistent = false;
@@ -110,6 +117,10 @@ void Cylinder::initialize()
   if (get_value("selector", val)) {
     if (atoi(val.c_str())) selector = true; 
     else selector = false;
+  }
+  if (get_value("density", val)) {
+    if (atoi(val.c_str())) density = true; 
+    else density = false;
   }
 }
 

@@ -80,6 +80,10 @@ EmpCylSL::EmpCylSL(void)
   mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
+
+  hallfile = "";
+  hallcount = 0;
+  hallfreq = 50;
 }
 
 EmpCylSL::~EmpCylSL(void)
@@ -236,6 +240,10 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
+
+  hallfile = "";
+  hallcount = 0;
+  hallfreq = 50;
 }
 
 
@@ -1143,6 +1151,10 @@ void EmpCylSL::setup_accumulation(void)
 
     accum_cos = new Vector* [nthrds];
     accum_sin = new Vector* [nthrds];
+    if (SELECT) {
+	accum_cos2 = new Vector* [nthrds];
+	accum_sin2 = new Vector* [nthrds];
+    }
     for (int nth=0; nth<nthrds;nth++) {
       accum_cos[nth] = new Vector [MMAX+1];
       accum_sin[nth] = new Vector [MMAX+1];
@@ -1956,7 +1968,7 @@ void EmpCylSL::make_coefficients(void)
 
 void EmpCylSL::pca_hall(void)
 {
-  double sqr, fac;
+  double sqr, var, fac;
   int mm, nn;
 
 #ifdef DEBUG_PCA
@@ -1969,39 +1981,54 @@ void EmpCylSL::pca_hall(void)
 		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
 #ifdef DEBUG_PCA
-  cerr << "Process " << myiud << ": using " << cylused << " particles\n";
+  cerr << "Process " << myid << ": using " << cylused << " particles\n";
 #endif
+
+  ofstream *hout = NULL;
+  if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
+    hout = new ofstream(hallfile.c_str(), ios::out | ios::app);
+    if (!hout) {
+      cerr << "Could not open <" << hallfile << "> for appending output\n";
+    }
+    *hout << "# Time = " << tpos << "  Step=" << hallcount << "\n";
+    *hout << "#\n";
+  }
 
   for (mm=0; mm<=MMAX; mm++)
     for (nn=0; nn<rank3; nn++) {
       sqr = accum_cos[0][mm][nn]*accum_cos[0][mm][nn];
-      //      fac = (accum_cos2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18)/cylused;
-      fac = (accum_cos2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
-#ifdef DEBUG_PCA
-      if (myid==0) cerr << mm << ", " << nn << ", C:   "
-			<< accum_cos2[0][mm][nn] << "  " 
-			<< sqr << "  " << fac << '\n';
-#endif
-      accum_cos[0][mm][nn] *= 1.0/(1.0 + fac);
+      // fac = (accum_cos2[0][mm][nn] - cylmass*sqr + 1.0e-10)/(sqr + 1.0e-18);
+      var = accum_cos2[0][mm][nn] - cylmass*sqr;
+      fac = sqr/(var + sqr + 1.0e-10);
+      if (hout) *hout << mm << ", " << nn << ", C:   "
+		      << setw(18) << accum_cos2[0][mm][nn] << "  " 
+		      << setw(18) << sqr << "  " << fac << '\n';
+      // accum_cos[0][mm][nn] *= 1.0/(1.0 + fac);
+      accum_cos[0][mm][nn] *= fac;
     }
   
 
   for (mm=1; mm<=MMAX; mm++)
     for (nn=0; nn<rank3; nn++) {
       sqr = accum_sin[0][mm][nn]*accum_sin[0][mm][nn];
-      //      fac = (accum_sin2[mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18)/cylused;
-      fac = (accum_sin2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
-#ifdef DEBUG_PCA
-      if (myid==0) cerr << mm << ", " << nn << ", S:   "
-			<< accum_sin2[0][mm][nn] << "  " 
-			<< sqr << "  " << fac << '\n';
-#endif
-      accum_sin[0][mm][nn] *= 1.0/(1.0 + fac);
+      // fac = (accum_sin2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
+      var = accum_sin2[0][mm][nn] - cylmass*sqr;
+      fac = sqr/(var + sqr + 1.0e-10);
+      if (hout) *hout << mm << ", " << nn << ", S:   "
+		      << setw(18) << accum_sin2[0][mm][nn] << "  " 
+		      << setw(18) << sqr << "  " << fac << '\n';
+      accum_sin[0][mm][nn] *= fac;
     }
   
 #ifdef DEBUG_PCA
   cerr << "Process " << myid << ": exiting to pca_hall\n";
 #endif
+
+  if (hout) {
+    hout->close();
+    delete hout;
+  }
+
 }
 
 

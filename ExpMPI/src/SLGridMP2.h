@@ -78,6 +78,7 @@ public:
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
 	 double l, int Cmap=0, double Scale=1.0);
+  //! Destructor
   ~SLGridCyl();
 
 				// Members
@@ -178,8 +179,10 @@ public:
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    SphericalModelTable *mod, int Cmap=0, double Scale=1.0);
+  //! Constructor (uses file <model_file_name> for file)
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    int Cmap=0, double Scale=1.0);
+  //! Destructor
   ~SLGridSph();
 
 				// Members

@@ -27,6 +27,9 @@ private:
   int NORDER;
   int NKEEP;
 
+  int hallfreq, hallcount;
+  string hallfile;
+
   double YMIN, YMAX;
   double dX, dY;
   int M, cylused, cylused1;
@@ -157,6 +160,9 @@ public:
   //! Number of entries in radial basis table
   static int NUMR;
 
+  //! Selector output freq
+  static int HALLFREQ;
+
   //! Minimum radial value for basis
   static double RMIN;
 
@@ -273,6 +279,13 @@ public:
 
   //! Return current value of disk scale height
   double get_hscale(void) { return HSCALE; }
+
+  //! Set frequency and file name for selector output
+  inline void setHall(string file, int n=50) {
+    hallfile = file;
+    hallfreq = n;
+  }
+
 };
 
 extern void legendre_R(int lmax, double x, Matrix& p);

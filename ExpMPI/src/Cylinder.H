@@ -32,8 +32,9 @@ private:
   int nmax, lmax, mmax;
   int ncylnx, ncylny;
   double hcyl;
-  int ncylorder, ncylrecomp;
-  bool self_consistent, selector, firstime;
+  int ncylorder, ncylrecomp, hallfreq;
+  string hallfile;
+  bool self_consistent, density, selector, firstime;
 
   // These should be ok for all derived classes, hence declared private
 
