@@ -1,0 +1,24 @@
+nbodmax : 10000
+nthrds : 2
+dtime : 0.05
+ldlibdir : /home/weinberg/ExpMPI/lib/user
+nsteps: 100
+
+[components]
+dark halo : halo.conf
+star disk : disk.conf
+
+[output]
+outlog : nint=10
+outps : nint=5
+orbtrace : norb = 5
+# outdiag : nint=3
+
+[external]
+# usertest : parm=3
+# userbar : U5=1.0 comname=sphereSL
+# usersat : comname=bessel
+
+[interaction]
+dark halo : star disk
+star disk : dark halo
