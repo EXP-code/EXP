@@ -20,19 +20,21 @@ extern double rmax_tidal;
 
 //! Home directory for configuration files, etc.
 extern string homedir;
+
 //! Directory to look for loadable modules
 extern string ldlibdir;
-//! Logfile name (deprecated?)
-extern string logfile;
-//! Input file (deprecated?)
+
+
+//! Input file (for restart)
 extern string infile;
-//! Output file head name (deprecated?)
-extern string outname;
+
 //! Parameter dump file
 extern string parmfile;
 
 extern bool use_cwd;
+
 extern bool restart;
+
 extern int NICE;
 
 extern double tpos,tvel,tnow;

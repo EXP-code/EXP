@@ -10,6 +10,7 @@ static char rcsid[] = "$Id$";
 #include <OrbTrace.H>
 #include <OutDiag.H>
 #include <OutPS.H>
+#include <OutCHKPT.H>
 
 OutputContainer::OutputContainer() {}
 
@@ -35,6 +36,10 @@ void OutputContainer::initialize(void)
 
     else if ( !data.first.compare("outps") ) {
       out.push_back(new OutPS(data.second));
+    }
+
+    else if ( !data.first.compare("outchkpt") ) {
+      out.push_back(new OutCHKPT(data.second));
     }
 
     else {

@@ -62,9 +62,7 @@ void initialize(void)
 
   if (parse->find_item("homedir", val))		homedir = val;
   if (parse->find_item("ldlibdir", val))	ldlibdir = val;
-  if (parse->find_item("logfile", val))		logfile = val;
   if (parse->find_item("infile", val))		infile = val;
-  if (parse->find_item("outname", val))		outname = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
 
 }
@@ -85,9 +83,7 @@ void print_parm(ostream& out, char *comment)
   out << comment << " " << "restart" <<  " = " << restart << "\n";
 
   out << comment << " " << "homedir" <<  " = " << homedir << "\n";
-  out << comment << " " << "logfile" <<  " = " << logfile << "\n";
   out << comment << " " << "infile" <<  " = " << infile << "\n";
-  out << comment << " " << "outname" <<  " = " << outname << "\n";
   out << comment << " " << "parmfile" <<  " = " << parmfile << "\n";
 }
 

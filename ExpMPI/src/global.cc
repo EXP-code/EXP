@@ -22,9 +22,7 @@ int NICE = 10;
 
 				// Files
 string homedir = "./";
-string logfile = "LOG.FILE";
-string infile = "IN.FILE";
-string outname = "OUT";
+string infile = "restart.in";
 string parmfile = "PARMS.FILE";
 string ldlibdir = ".";
 

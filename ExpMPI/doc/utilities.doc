@@ -1,11 +1,27 @@
-/*! \page bodies Phase space file format
-<H3> Phase-space file utilities</H3>
+/*! \page utilities Phase-space file utilities
+
+The binary output format, <code>psp</code> is a generalized
+hierarchical self-describing format designed to keep most of the
+information about all components in a phase space that the code can be
+restarted from the dump file.
+
 The following three utilities manipulate the phase-space files:
 integer values:
-<dl>
-<dt> Number of bodies: <code>nbodies</code>
-<dt> Number of integer attributes: <code>niattrib</code>
-<dt> Number of real (double) attributes: <code>ndattrib</code>
-</dl>
+
+\par pspinfo OUT
+
+Lists all of the dumps in a <code>psp</code> file (here name OUT) and
+their attributes.
+
+\par psp2tipsy [-t TIME] OUT
+
+Converts dump in file OUT at TIME to a tipsy format.  Data is written
+to stdout.  The tipsy components (dark, star, gas) are determined from
+the first word in the name field of each component.
+
+\par pspsplit [-t TIME] OUT
+
+Split out the dump at TIME from OUT. Data is written to stdout. Useful
+for restarting from a particular time point.
 
 */
