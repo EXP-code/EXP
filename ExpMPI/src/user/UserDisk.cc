@@ -143,9 +143,9 @@ void UserDisk::getTable(double R, double Z,
 	fz  += Ztable[(indR+i)*Znum+indZ+j]*aR[i]*aZ[j];
       }
     }
+    if (Z<0.0) fz *= -1.0;
   }
 
-  if (Z<0.0) fz *= -1.0;
 }
 
 void UserDisk::genTable()
