@@ -132,8 +132,8 @@ PotAccel::PotAccel(string& line)
   while (token.size()) {
 
     StringTok<string> parse(token);
-    datum.first  = parse("=");
-    datum.second = parse("=");
+    datum.first  = trimLeft(trimRight(parse("=")));
+    datum.second = trimLeft(trimRight(parse("=")));
     namevalue.push_back(datum);
 
 				// Next parameter
