@@ -148,7 +148,7 @@ void OutLog::Run(int n, bool last)
     clausius = vector<double>(comp.ncomp);
     clausius1 = vector<double>(comp.ncomp);
 
-    if (myid==0) {
+    if (myid==0 && !restart) {
       string field;
 				// Global stanza
       *out << setfill('-') << setw(cwid) << "Global stats";

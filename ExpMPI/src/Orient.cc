@@ -41,8 +41,10 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 				// Center and axis
   axis.setsize(1, 3);
   center.setsize(1, 3);
+  center0.setsize(1, 3);
   axis.zero();
   center.zero();
+  center0.zero();
 
 				// Set up identity
   body.setsize(1, 3, 1, 3);
@@ -75,9 +77,9 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	in >> axis[1];
 	in >> axis[2];
 	in >> axis[3];
-	in >> center[1];
-	in >> center[2];
-	in >> center[3];
+	in >> center0[1];
+	in >> center0[2];
+	in >> center0[3];
       }
 
       cout << " Orient: cached time=" << time << "  Ecurr= " << Ecurr << endl;
@@ -88,13 +90,13 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	   << axis[3] << endl;
 
       cout << " Orient: cached center master: " 
-	   << center[1] << ", "
-	   << center[2] << ", "
-	   << center[3] << endl;
+	   << center0[1] << ", "
+	   << center0[2] << ", "
+	   << center0[3] << endl;
 
       for (int j=0; j<3; j++) {
 	in1[j] = axis[j+1];
-	in2[j] = center[j+1];
+	in2[j] = center0[j+1];
       }
 
       MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -123,7 +125,7 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 
       for (int j=0; j<3; j++) {
 	axis[j+1] = in1[j];
-	center[j+1] = in2[j];
+	center0[j+1] = in2[j];
       }
 
       if (myid==1) {
@@ -132,9 +134,9 @@ Orient::Orient(int n, int nwant, double Einit, int Flags,
 	     << axis[2] << ", "
 	     << axis[3] << "\n";
 	cerr << " Orient: cached center slave: " 
-	     << center[1] << ", "
-	     << center[2] << ", "
-	     << center[3] << "\n";
+	     << center0[1] << ", "
+	     << center0[2] << ", "
+	     << center0[3] << "\n";
       }
 
     }
@@ -416,14 +418,12 @@ void Orient::accumulate(double time, vector<Particle> *p, double *com)
 
     }
 
-    double factor = (double)((int)sumsC.size() - keep)/keep;
-    /*
-    cout << " Orient debug: size=" << sumsC.size() << "  keep=" << keep 
-	 << "  factor=" << factor << endl;
-    */
-    factor = 1.0 - factor*factor;
-
-    center *= factor*factor;
+    if (sumsC.size()>2) {
+      double factor = (double)((int)sumsC.size() - keep)/keep;
+      factor = factor*factor;
+      center = center0*factor + center*(1.0 - factor);
+    } else
+      center = center0;
 
     if (verbose && myid==0) {
       cout << "===================================================" << endl

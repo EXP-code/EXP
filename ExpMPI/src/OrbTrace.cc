@@ -45,7 +45,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 
   pbuf = vector<double>(6);
 
-  if (myid==0 && norb) {
+  if (myid==0 && norb && !restart) {
 				// Try to open the first time . . .
     ofstream out(filename.c_str(), ios::out | ios::app);
     if (!out) {

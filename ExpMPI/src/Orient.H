@@ -48,7 +48,7 @@ private:
   deque<Vector> sumsA, sumsC;
   int keep, current;
   Matrix body, orig;
-  Vector axis, center, axis1, center1;
+  Vector axis, center, axis1, center1, center0;
   double sumX, sumX2;
   Vector sumY, sumY2, sumXY, slope;
   double sigA, sigC, sigCz;

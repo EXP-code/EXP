@@ -649,7 +649,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   StringTok<string> tokens(info);
   name = trimLeft(trimRight(tokens(":")));
   id = trimLeft(trimRight(tokens(":")));
+  cparam = trimLeft(trimRight(tokens(":")));
   fparam = trimLeft(trimRight(tokens(":")));
+
+				// Backward compatibility
+  if (fparam.size() == 0) {
+    fparam = cparam;
+    cparam = "";
+  }
 
   delete [] info;
 
@@ -657,9 +664,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (myid==0)
     cout << setw(60) << setfill('-') << "-" << endl << setfill(' ')
 	 << "--- New Component" << endl
-	 << setw(20) << " name :: "  << name          << endl
-	 << setw(20) << " id :: "    << id            << endl
-	 << setw(20) << " param :: " << fparam         << endl
+	 << setw(20) << " name   :: " << name           << endl
+	 << setw(20) << " id     :: " << id             << endl
+	 << setw(20) << " cparam :: " << cparam         << endl
+	 << setw(20) << " fparam :: " << fparam         << endl
 	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
 				// Make MPI datatype
@@ -925,7 +933,7 @@ void Component::write_binary(ostream* out)
     header.ndatr = ndattrib;
   
     ostrstream outs;
-    outs << name << " : " << id << " : " << fparam << '\0';
+    outs << name << " : " << id << " : " << cparam << " : " << fparam << '\0';
     strncpy(header.info, outs.str(), header.ninfochar);
 
     if (!header.write(out)) {
