@@ -26,6 +26,8 @@ private:
   int diverge;
   double diverge_rfac;
 
+  pthread_mutex_t orb_lock;
+
   double interpolate(double E, double K);
 
   void * determine_acceleration_and_potential_thread(void * arg);
@@ -80,12 +82,17 @@ UserTorque::UserTorque(string &line) : ExternalForce(line)
   }
 
   userinfo();
+
+  pthread_mutex_init(&orb_lock, NULL);
+
+
 }
 
 UserTorque::~UserTorque()
 {
   delete orb;
   delete halo;
+  pthread_mutex_destroy(&orb_lock);
 }
 
 void UserTorque::userinfo()
@@ -220,7 +227,10 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
     E = 0.5*vv + halo->get_pot(rr);
     J = sqrt(ll[0]*ll[0] + ll[1]*ll[1] + ll[2]*ll[2]);
 
+    // orbit_trans routines are not reentrant . . .
+    pthread_mutex_lock(&orb_lock);
     orb->new_orbit(E, 0.5);
+    pthread_mutex_unlock(&orb_lock);
 
     K = J/orb->Jmax();
     torque = amp*interpolate(E, K);

@@ -88,7 +88,7 @@ ExternalCollection::~ExternalCollection(void)
   }
 				// destroy any forces we created
   for(sitr=force_list.begin(); sitr!=force_list.end(); sitr++) {
-    delete *sitr;
+    delete &(**sitr);
   }
 }
 
@@ -141,7 +141,7 @@ void ExternalCollection::dynamicload(void)
     cout << "ExternalCollection: Available user routines are <";
     for (fitr=factory.begin(); fitr!=factory.end(); fitr++)
       cout << " " << fitr->first;
-    cout ">" << endl << endl;
+    cout << ">" << endl << endl;
   }
 }
 
