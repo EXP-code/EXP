@@ -35,6 +35,8 @@ void OutCHKPT::Run(int n, bool last)
 {
   if (n % nint && !last) return;
 
+  synchronize_velocity(1);
+
   ofstream *out;
   list<Component*>::iterator cc;
   Component* c;
@@ -73,6 +75,8 @@ void OutCHKPT::Run(int n, bool last)
     out->close();
     delete out;
   }
+
+  synchronize_velocity(-1);
 
 }
 
