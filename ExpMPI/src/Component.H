@@ -103,9 +103,10 @@ struct loadb_datum
   dynamically from the initial conditions but can be overridden as a
   parameter.
 
-  @param rtrunc is used to set the <code>rmax_tidal</code> value which
-  tells the force evluation to ignore the contribution of this particle
-  when determining the force field
+  @param rtrunc is the radius from the <code>center</code> beyond
+  which it does not contribute to the force expansion (but does
+  continues to be affected by it).  The default value is
+  <code>1.0e20</code>.
 
   @param ton is the midpoint of the adiabatic turn on for this
   component
