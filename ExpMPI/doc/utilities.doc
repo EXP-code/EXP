@@ -1,0 +1,11 @@
+/*! \page bodies Phase space file format
+<H3> Phase-space file utilities</H3>
+The following three utilities manipulate the phase-space files:
+integer values:
+<dl>
+<dt> Number of bodies: <code>nbodies</code>
+<dt> Number of integer attributes: <code>niattrib</code>
+<dt> Number of real (double) attributes: <code>ndattrib</code>
+</dl>
+
+*/
