@@ -8,6 +8,8 @@
 static char rcsid[] = "$Id$";
 #endif
 
+#undef TESTACC
+
 extern void get_acceleration_and_potential_bes(void);
 extern void get_acceleration_and_potential_CB(void);
 extern void get_acceleration_and_potential_HERNQ(void);
@@ -28,6 +30,14 @@ void compute_potential(void)
 {
   int i;
 
+#ifdef TESTACC
+  FILE *out = NULL;
+  
+  if (component[1] == 0 && myid) {
+    out = fopen("testacc.dat", "a");
+    fprintf(out, "%3d %13.6e", myid, tnow);
+  }
+#endif
 
 				/* Zero-out external potential */
   for (i=1; i<=nbodies; i++)
@@ -55,6 +65,11 @@ void compute_potential(void)
       done = 1;
     }
 
+#ifdef TESTACC
+    if (component[1] == 0 && myid) {
+      fprintf(out, "  %13.6e  %13.6e  %13.6e", ax[1], ay[1], az[1]);
+    }
+#endif
 				/* Component #1: halo/spherical particles */
     if (bessel_sph) { 
       get_acceleration_and_potential_bes();
@@ -88,11 +103,23 @@ void compute_potential(void)
       done = 1;
     }
 
+#ifdef TESTACC
+    if (component[1] == 0 && myid) {
+      fprintf(out, "  %13.6e  %13.6e  %13.6e", ax[1], ay[1], az[1]);
+    }
+#endif
+
 				/* Component #2: disk particles */
     if (cylinder) {
       get_acceleration_and_potential_Cyl();
       done = 1;
     }
+    
+#ifdef TESTACC
+    if (component[1] == 0 && myid) {
+      fprintf(out, "  %13.6e  %13.6e  %13.6e\n", ax[1], ay[1], az[1]);
+    }
+#endif
 
 				/* No self-gravity whatsoever! */
     if (nulltest) {
@@ -144,5 +171,9 @@ void compute_potential(void)
       user_perturbation();
     }
 
+
+#ifdef TESTACC
+  if (out) fclose(out);
+#endif
 }
 
