@@ -507,7 +507,10 @@ void print_parm(FILE *stream, char *comment)
   fprintf(stream,"%s%-15s = %e\n",comment,"rmax",rmax);
   fprintf(stream,"%s%-15s = %e\n",comment,"zmax",zmax);
   fprintf(stream,"%s%-15s = %e\n",comment,"ecyl0",ecyl0);
+  fprintf(stream,"%s%-15s = %e\n",comment,"rcylEM",rcylEM);
+  fprintf(stream,"%s%-15s = %e\n",comment,"rcylSL",rcylSL);
   fprintf(stream,"%s%-15s = %d\n",comment,"EJcyl",EJcyl);
+  fprintf(stream,"%s%-15s = %e\n",comment,"rsphSL",rsphSL);
   fprintf(stream,"%s%-15s = %e\n",comment,"rdiag",rdiag);
   fprintf(stream,"%s%-15s = %e\n",comment,"scale",scale);
   fprintf(stream,"%s%-15s = %e\n",comment,"acyl",acyl);
