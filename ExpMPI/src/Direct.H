@@ -10,8 +10,8 @@
    associated with the Direct force.  
 
    Settable parameters:
-   @param soft_indx is the index in the particle double array for the softening value
-   @param soft is a fixed softening value for all particles.
+   @param soft_indx is the index in the particle double array for the softening value.
+   @param soft is a fixed softening value for all particles.  This can be used even if a value is specified in the particle attribute array.
 */
 class Direct : public PotAccel
 {
