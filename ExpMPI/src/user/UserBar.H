@@ -8,7 +8,9 @@
 /** Bar rotating at specified fraction of corotation
 
     @param length is the bar length
-    @param amp is the bar amplitude 
+    @param bratio is the ratio of the submajor axis to the major axis
+    @param cratio is the ratio of the minor axis to the submajor axis
+    @param amp is the bar amplitude in fraction of the monopole mass
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the spread of the turn on
@@ -30,7 +32,7 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double length, amplitude, Ton, Toff, DeltaT, Fcorot;
+  double length, bratio, cratio, amplitude, Ton, Toff, DeltaT, Fcorot;
   bool fixed, soft;
   string filename;
 

@@ -10,7 +10,9 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   id = "RotatingBar";
 
   length = 0.5;			// Bar length
-  amplitude = 0.3;		// Bar amplitude
+  bratio = 0.5;			// Ratio of b to a
+  cratio = 0.1;			// Ratio of c to b
+  amplitude = 0.3;		// Bar quadrupole amplitude
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
@@ -112,6 +114,8 @@ void UserBar::initialize()
   if (get_value("ctrname", val))	ctr_name = val;
   if (get_value("angmname", val))	angm_name = val;
   if (get_value("length", val))		length = atof(val.c_str());
+  if (get_value("bratio", val))		bratio = atof(val.c_str());
+  if (get_value("cratio", val))		cratio = atof(val.c_str());
   if (get_value("amp", val))		amplitude = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
@@ -168,8 +172,8 @@ void UserBar::determine_acceleration_and_potential(void)
     LegeQuad gq(N);
 
     double a1 = length;
-    double a2 = 0.5*a1;
-    double a3 = 0.1*a2;
+    double a2 = bratio*a1;
+    double a3 = cratio*a2;
 
     double geom = pow(a1*a2*a3, 1.0/3.0);
 
