@@ -14,7 +14,7 @@
     @param DeltaT is the spread of the turn on
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
-    @param shallow use the shallow form of the potential (default: false)
+    @param soft use the shallow form of the potential (default: false)
 */
 class UserBar : public ExternalForce
 {
@@ -29,7 +29,7 @@ private:
   void initialize();
 
   double length, amplitude, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, shallow;
+  bool fixed, soft;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;

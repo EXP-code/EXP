@@ -16,7 +16,7 @@ UserBar::UserBar(string &line) : ExternalForce(line)
   DeltaT = 1.0;			// Turn on duration
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
-  shallow = false;		// Use shallow form of the bar potential
+  soft = false;			// Use soft form of the bar potential
   filename = "BarRot";		// Output file name
 
   firstime = true;
@@ -64,8 +64,8 @@ void UserBar::userinfo()
     cout << "fixed pattern speed, ";
   else
     cout << "fixed corotation fraction, ";
-  if (shallow)
-    cout << "shallow potential, ";
+  if (soft)
+    cout << "soft potential, ";
   else
     cout << "standard potential, ";
   if (c0) 
@@ -89,9 +89,9 @@ void UserBar::initialize()
     if (atoi(val.c_str())) fixed = true;
     else fixed = false;
   }
-  if (get_value("shallow", val)) {
-    if (atoi(val.c_str())) shallow = true;
-    else shallow = false;
+  if (get_value("soft", val)) {
+    if (atoi(val.c_str())) soft = true;
+    else soft = false;
   }
   if (get_value("filename", val))	filename = val;
 
@@ -336,7 +336,7 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     zz = pos[2];
     rr = sqrt( xx*xx + yy*yy + zz*zz );
 
-    if (shallow) {
+    if (soft) {
       fac = 1.0 + rr/b5;
 
       ffac = -amp*numfac/pow(fac, 6.0);
