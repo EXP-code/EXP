@@ -111,7 +111,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
     // Temporary debug
     if (myid==0) {
       cout << endl << "***Quadrupole***" << endl;
-      for (unsigned i=0; i<=timeq.size(); i++)
+      for (unsigned i=0; i<timeq.size(); i++)
 	cout << setw(5) << i
 	     << setw(20) << timeq[i]
 	     << setw(20) << ampq[i]
