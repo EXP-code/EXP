@@ -171,10 +171,8 @@ void UserResPotN::userinfo()
        << ", Klim=" << Klim;
   if (self)  cout << ", with self-consistent slow down";
   else {
-    if (dtom>0)
-      cout << ", T_om=" << tom0 << ",  dT_om=" << dtom;
-    else
-      cout << ", Domega=" << domega;
+    if (dtom>0) cout << ", T_om=" << tom0 << ", dT_om=" << dtom;
+    cout << ", Domega=" << domega;
   }
   if (debug) cout << ", with debug ang mom";
   if (usetag>=0)
@@ -466,10 +464,12 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+  
+
 				// Check for nan (can get rid of this
 				// eventually)
   bool found_nan = false;
-  bool ok;
+  ResPot::ReturnCode ret;
   int ir;
 
   for (int i=nbeg; i<nend; i++) {
@@ -488,7 +488,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     
     
 				// Update without perturbation
-    ok = respot[0]->
+    ret = respot[0]->
       Update(dtime, phase, omega, 0.0, bcoef, posI, velI, pos1, vel1, &res);
     
     Lz2 = pos1[0]*vel1[1] - pos1[1]*vel1[0];
@@ -503,13 +503,14 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    if (R>rmin && R<rmax && ok) {
+    if (R>rmin && R<rmax && ret == ResPot::OK) {
 
       ir = i % numRes;
       
-      if (respot[ir]-> Update(dtime, phase, omega, amp, bcoef, 
-			      posI, velI, posO, velO, &res)) {
-
+      if ((ret=respot[ir]-> 
+	   Update(dtime, phase, omega, amp, bcoef, 
+		  posI, velI, posO, velO, &res)) == ResPot::OK) {
+	
 				// Current ang mom
 	Lz1 = posO[0]*velO[1] - posO[1]*velO[0];
 
@@ -545,13 +546,19 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 	  dvel[k] += velO[k] - vel1[k];
 	}
 
-      } else ok = false;
+      }
 	
     }
 
-    if (!ok) {
+    if (ret != ResPot::OK) {
       bcount[id]++;
       if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
+#ifdef DEBUG
+      pthread_mutex_lock(&iolock);
+      cout << "Process " << myid << " id=" << id << ":"
+	   << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
+      pthread_mutex_unlock(&iolock);
+#endif
     }
 
     for (int k=0; k<3; k++) {
@@ -590,10 +597,10 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     
   }
 
-  /*
-
   pthread_mutex_lock(&iolock);
   cout << setw(15) << tnow
+       << setw(15) << amp
+       << setw(15) << ResPot::ReturnDesc[ret]
        << setw(5) << myid
        << setw(5) << id
        << setw(8) << nbeg
@@ -602,8 +609,6 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     cout << setw(15) << difLz[id][ir];
   cout << endl;
   pthread_mutex_unlock(&iolock);
-
-  */
 
   return (NULL);
 }

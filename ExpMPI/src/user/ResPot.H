@@ -17,14 +17,23 @@
 */
 class ResPot
 {
+public:
+  
+  enum ReturnCode {OK, 
+		   CoordRad, CoordVel, CoordCirc, CoordTP, CoordRange,
+		   UpdateBadL, UpdateIterate, UpdateBadVal};
+  
+  const static char* ReturnDesc[];
+  
+  
 private:
   int L, M, L1, L2, NMAX;
-
+  
   AxiSymModel *halo_model;
   AxiSymBiorth *halo_ortho;
-
+  
   SphericalOrbit *orb;
-
+  
   class RW {
   public:
     vector<double> r;
@@ -38,25 +47,25 @@ private:
   };
   
   void check_rw(RW&);
-
+  
   typedef vector<RW> ovector;
   typedef vector<ovector> o2vector;
-
+  
   o2vector orbmat;
-
+  
   double Emax, Emin, Kmin, Kmax, Kupd;
   bool grid_computed, second_order;
   void compute_grid();
-
+  
   typedef vector<double> dvector;
   bool actions_computed;
-
+  
   int numx;
   double dX;
   vector<dvector> I1X, EX;
   vector<double> EminX;
-
-
+  
+  
   bool getValues(double I1, double I2,
 		 double& O1, double& O2);
   
@@ -68,27 +77,27 @@ private:
   double xJ(double J, double Jmin, double Jmax);
   double Jx(double x, double Jmin, double Jmax);
   double dxJ(double J, double Jmin, double Jmax);
-
-  double Rmin, Rmax, minJ, maxJ;
-
-  void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
-
-  bool Update2(double dt, double Phase, double Omega, 
-	       double amp, CVector& bcoef,
-	       double* posI, double* velI,
-	       double* posO, double* velO,
-	       double* res);
   
-  bool Update3(double dt, double Phase, double Omega, 
-	       double amp, CVector& bcoef,
-	       double* posI, double* velI,
-	       double* posO, double* velO,
-	       double* res);
+  double Rmin, Rmax, minJ, maxJ;
+  
+  void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
+  
+  ReturnCode Update2(double dt, double Phase, double Omega, 
+		     double amp, CVector& bcoef,
+		     double* posI, double* velI,
+		     double* posO, double* velO,
+		     double* res);
+  
+  ReturnCode Update3(double dt, double Phase, double Omega, 
+		     double amp, CVector& bcoef,
+		     double* posI, double* velI,
+		     double* posO, double* velO,
+		     double* res);
   
   int ngrid;
-
+  
 public:
-
+  
   //! Power for ang. mom. scaling (default: 0.25)
   static double ALPHA;
   //! Fractional energy offset for grid (default: 0.01)
@@ -104,48 +113,48 @@ public:
   //! Maximum number of iterations in mapping
   static int ITMAX;
   static KComplex I;
-
-
+  
+  
   //! Constructor
   ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
 	 int l, int m, int l1, int l2, int n);
-
+  
   //! Destructor
   ~ResPot();
-
+  
   //! Coordinate transform: Cartesian to Action-Angle
-  bool coord(double* pos, double* vel,
-	     double& E, double& K, double& I1, double& J,
-	     double& O1, double& O2,
-	     double& W1, double& W2, double& W3, 
-	     double& F, double& BETA, double& PSI);
+  ReturnCode coord(double* pos, double* vel,
+		   double& E, double& K, double& I1, double& J,
+		   double& O1, double& O2,
+		   double& W1, double& W2, double& W3, 
+		   double& F, double& BETA, double& PSI);
   
   //! Coordinate transform: Action-Angle to Cartesian
-  bool coord(double* pos, double* vel,
-	     double I1, double I2, double beta, 
-	     double w1, double w2, double w3);
-
+  ReturnCode coord(double* pos, double* vel,
+		   double I1, double I2, double beta, 
+		   double w1, double w2, double w3);
+  
   //! Update actions
-  bool Update(double dt, double Phase, double Omega, 
-	      double amp, CVector& bcoef,
-	      double* posI, double* velI,
-	      double* posO, double* velO,
-	      double* res);
+  ReturnCode Update(double dt, double Phase, double Omega, 
+		    double amp, CVector& bcoef,
+		    double* posI, double* velI,
+		    double* posO, double* velO,
+		    double* res);
   
   //! K value from last update
   double K() { return Kupd; }
-
+  
   //! Force
-  bool Force(double dt, double Phase, double Omega, 
-	     double amp, CVector& bcoef,
-	     double* pos, double* vel, double* acc);
-
+  ReturnCode Force(double dt, double Phase, double Omega, 
+		   double amp, CVector& bcoef,
+		   double* pos, double* vel, double* acc);
+  
   //! Set first order implicit symplectic integration
   void set_1st_order() { second_order = false; }
-
+  
   //! Set second order implicit symplectic integration
   void set_2nd_order() { second_order = true; }
-
+  
 };
 
 double rot_matrix(int l, int m, int n, double beta);

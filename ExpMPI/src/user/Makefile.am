@@ -16,7 +16,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libebarp.la librespot.la librespotn.la librptest.la libhalo.la
 
 #
-# Convenience library for duplicated source components
+# Convenience library for duplicated source components (static)
 #
 noinst_LIBRARIES = libcommon.a
 
