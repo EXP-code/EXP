@@ -21,6 +21,10 @@
 
     \param numr is the number radial coordinate knots in the table 
     (default is 1000)
+
+    \param diverge sets the power law extrapolation of a cusp profile
+
+    \param dfac is the inverse slope of the power law
 */
 class Sphere : public SphericalBasis 
 {
@@ -45,6 +49,8 @@ private:
   double rs;
   int numr;
   int cmap;
+  int diverge;
+  double dfac;
 
 public:
 				// Global parameters

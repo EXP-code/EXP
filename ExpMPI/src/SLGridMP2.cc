@@ -1542,9 +1542,10 @@ void SLGridSph::bomb(string oops)
 				// Constructors
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, int CMAP, double SCALE)
+		     double RMIN, double RMAX, int CMAP, double SCALE,
+		     int DIVERGE, double DFAC)
 {
-  model = new SphericalModelTable(model_file_name);
+  model = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
 }
