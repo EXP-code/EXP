@@ -131,7 +131,7 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
     if (ctr == ej) mfactor = 1.0 - A->mixture((*particles)[i]);
     else mfactor = A->mixture((*particles)[i]);
 
-    fac1 = dfac;
+    fac1 = dfac * mfactor;
 
     for (int k=0; k<3; k++) 
       pos[k] = (*particles)[i].pos[k] - A->center[k];

@@ -12,7 +12,12 @@
 
     \param cmap should be 1 for coordinate scaling, 0 for no scaling
 
-    \param rs is the halo scale length (default is 0.067*rmax)
+    \param rs is the halo scale length (default is 0.067*rmax).  This
+    is used to for the coordinate mapping (when <code>cmap=1</code>) as
+    follows:
+    \f[
+    x =  {r/r_s-1 \over r/r_s+1}
+    \f]
 
     \param numr is the number radial coordinate knots in the table 
     (default is 1000)
