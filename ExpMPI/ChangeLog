@@ -1,3 +1,2397 @@
+2002-12-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Orient.cc:
+	Added kludge to use last minimum energy value as center.
+
+	* src/user/UserBar.cc, src/user/UserEBar.cc:
+	Simplied selection of boolean values in initialize().
+
+2002-12-14  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserEBar.H, src/user/UserEBar.cc:
+	Changed parameters: barmass is now the total mass of the bar.  Amplitude
+	is the fraction of the quadrupole presented (relative to the fit to the
+	ellipoid with mass "barmass"
+
+2002-12-12  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/SphereTwoCenter.cc: Fix use_external bug.
+
+2002-12-11  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserEBar.cc:
+	Replace hardwired bratio and cratio by variable values.
+
+2002-12-05  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutCHKPT.cc:
+	Fixed (evil) typo in sychronize_velocity argument (was -1)
+
+2002-12-04  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Sphere.H, src/SphericalBasisMixtureSL.cc:
+	Added doc on rs parameter.  Added forgotten factor of mfactor.
+
+	* src/OutAscii.cc, src/SphereTwoCenter.cc:
+	Missing argument in write_ascii call.
+
+2002-11-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/Makefile.am, src/OutAscii.H, src/OutAscii.cc, src/OutputContainer.cc:
+	Added method to output ascii format phase-space structure.
+
+2002-11-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/SphereEJCOM.H: This should do it on the formula.
+
+	* src/SphereEJCOM.H: One more time on the TeX formula.
+
+	* src/SphereEJCOM.H: Documentation fix (TeX error)
+
+	* src/SphereEJCOM.H, src/SphereEJCOM.cc:
+	Added power-law exponent to argument of erf in mixture function
+
+	* src/Component.cc, src/SphereTwoCenter.cc, src/SphericalBasis.H, src/SphericalBasisMixtureSL.cc:
+	Incorrect member called in top level SphereTwoCenter force call
+
+	* utils/SL/slshift.cc: Added force output to slshift.
+
+	* src/Makefile.am, src/SphericalBasis.H, src/user/SatFix.H:
+	Added new two-center routines to Makefile.
+
+	* src/SphereEJCOM.H, src/SphereEJCOM.cc, src/SphereTwoCenter.H, src/SphereTwoCenter.cc, src/SphericalBasisMixtureSL.H, src/SphericalBasisMixtureSL.cc:
+	Added routines to implement the two center kludge
+
+2002-11-20  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/Makefile.am, src/user/UserDiffRot.cc:
+	Updated UserDiffRot to print initial distribution of dynamical times.
+	Added -D_REENTRANT to CXXFLAGS and CFLAGS (should make this a global
+	option somehow).
+
+2002-11-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserBar.cc, src/user/UserDiffRot.H, src/user/UserDiffRot.cc, src/user/UserDiffuse.cc, src/user/UserEBar.cc:
+	Fixed fence-post error in particle indexing.
+
+2002-11-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserDiffRot.H, src/user/UserDiffRot.cc, src/OutPSN.cc:
+	Fix dynamical time computation bug in UserDiffRot and null termination
+	in filename construction in OutPSN.
+
+2002-11-14  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserDiffRot.cc: Fixed bug in dynamical time calculation
+
+2002-11-08  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserDiffRot.H, src/user/UserDiffRot.cc:
+	Added option to avoid particles.
+
+2002-11-07  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserDiffRot.H, src/user/UserDiffRot.cc, src/user/Makefile.am:
+	Added routine to randomize line of nodes
+
+2002-11-05  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* utils/SL/slshift.cc: Changed defaults for Phi and Theta quadrature
+
+	* utils/SL/SLSphere.H, utils/SL/SLSphere.cc, utils/SL/slshift.cc:
+	Fixed factor of two between coefficients and evaluation routines
+
+	* utils/SL/slshift.cc: Normalization fix.
+
+2002-11-04  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* utils/SL/slshift.cc: Update to norm of coefficients
+
+	* utils/SL/slshift.cc: Added coefficient dump to Reconstruct class
+
+	* utils/SL/README, utils/SL/slcheck.cc, utils/SL/slshift.cc:
+	Additional documentation and "-h" help.  Added 4Pi normalization
+	for potential/density.
+
+2002-11-03  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* utils/SL/slshift.cc: Missing file from previous check in
+
+	* utils/SL/README: Added help stanza
+
+	* utils/SL/Makefile.am, utils/SL/README, utils/SL/SLSphere.H, utils/SL/SLSphere.cc, utils/SL/scalarprod.cc, utils/SL/slcheck.cc:
+	Added test program to explore required basis parameters for a central
+	shift of an input spherical model.
+
+2002-10-25  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserBar.cc:
+	Fixed bug in bar output in cases where angmname is not set.
+
+2002-10-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutPSN.cc: Debugged algorithm to choose nbeg on restart.
+
+2002-10-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutPSN.cc: Add automatic file number detection on restart
+
+2002-10-18  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OrbTrace.cc, src/OutLog.cc, src/Output.cc:
+	Updated a few of the Output routines to deal automatically with restarting.
+
+2002-10-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/SatFix.cc:
+	Fixed mistake in myid* assignment: look unassigned myid1 before
+	myid0
+
+	* src/user/SatFix.cc: Fixed bug in debug output (sigh).
+
+	* src/user/SatFix.cc:
+	Fixed bug in component name search.  Changed verbose output only for
+	master node (n0).
+
+	* src/user/Makefile.am, src/user/SatFix.H, src/user/SatFix.cc:
+	Added routine to enforce mirror image of phase space for two satellites.
+
+2002-09-28  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* Makefile.am:
+	Make doc the last target in case doxygen is not installed.
+
+2002-09-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserEBar.H, src/user/UserEBar.cc:
+	Added variable monopole mass
+
+	* src/user/UserBar.cc, src/user/UserEBar.cc:
+	Generalized UserBar to separate angmom and centering targets
+
+2002-09-15  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/EllipForce.H: Document debug members
+
+	* src/user/EllipForce.H: Added doxygen documentation
+
+	* src/user/UserBar.H, src/user/UserBar.cc, src/user/UserEBar.H, src/user/UserEBar.cc:
+	Separate ang mom and centering targets
+
+	* src/user/UserEBar.cc, src/SphericalBasis.cc:
+	Added MONOPOLE to id string for log file
+
+2002-09-11  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserEBar.cc: Additional documentation
+
+	* src/user/UserEBar.H, src/user/UserEBar.cc: Bug fixes
+
+	* src/user/EllipForce.H, src/user/EllipForce.cc, src/user/Makefile.am, src/user/UserEBar.H, src/user/UserEBar.cc:
+	Added force routines for homogeneous ellipsoid
+
+2002-09-10  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/SphericalBasis.H, src/SphericalBasis.cc:
+	Added flag to use even angular L terms only
+
+	* src/user/Makefile.am, src/user/UserEBar.H, src/user/UserEBar.cc:
+	Added bar potential including a monopole term.
+
+2002-08-25  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/ComponentContainer.cc, src/parse.cc:
+	Allow a fresh start from an arbitrary time (using the "time" parameter
+	in the global section).
+
+	* utils/PhaseSpace/psp2ascii.cc: Forgot to set time . . .
+
+2002-08-22  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.cc:
+	Fix component count in get_particles for nodes with zero particles.  Now
+	uses NULL pointer to signal end of particle list rather than returned
+	number in the current packet.
+
+2002-08-18  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/pspsplit.cc:
+	Improve restart logic.  Add component parameter cacheing.  Allow user
+	to change component string on the fly.  Old PhaseSpace parsing should
+	be compatable.  Not caching cparam was an oversight (read BUG).
+
+	* src/Component.cc, src/OrbTrace.cc, src/Orient.H, src/Orient.cc, src/OutLog.cc:
+	Improve restart logic.
+
+2002-08-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.cc: Added additioal info for Orient diag.
+
+	* src/Component.cc, src/OrbTrace.cc, src/Orient.cc:
+	Added additional debug info.  Fixed minor indexing bug in OrbTrace.
+
+	* src/Orient.cc:
+	Make sure that Ecurr and target number are parallelized
+
+2002-08-16  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/Orient.H, src/Orient.cc:
+	Changes to implement/debug Orient code
+
+2002-08-10  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Direct.H, src/Direct.cc: Added adiabatic turn on for particles.
+
+2002-08-09  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/EmpOrth9thd.cc: Fix up the Hall smoothing for the cylinder
+
+	* src/Sphere.H, src/Sphere.cc: Repaired the screwed up cmap tag
+
+	* doc/check.doc, doc/utilities.doc:
+	Documented the new "slcheck" routine
+
+	* utils/SL/Makefile.am: Removed debugging source
+
+	* configure.in, utils/Makefile.am, utils/PhaseSpace/Makefile.am, utils/PhaseSpace/PSP.H, utils/PhaseSpace/PSP.cc, utils/PhaseSpace/psp2ascii.cc, utils/PhaseSpace/psp2tipsy.cc, utils/PhaseSpace/pspinfo.cc, utils/PhaseSpace/pspsplit.cc, utils/SL/Makefile.am, utils/SL/slcheck.cc:
+	Reorganization of utils directory.  Addition of SL checking utility.
+
+2002-08-06  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Cylinder.H, src/Cylinder.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/SLGridMP2.h, src/SphericalBasis.H:
+	Added support for Hall smoothing.  Doc update in headers.
+
+2002-07-25  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserDiffuse.cc: Updated & debugged
+
+	* src/user/UserBar.cc, src/user/UserDiffuse.cc:
+	Changes to UserDiffuse algorithm and log output
+
+	* src/user/UserBar.cc, src/user/UserDiffuse.cc, src/user/UserSat.cc:
+	Changes to log output only
+
+	* src/user/Makefile.am, src/user/UserDiffuse.H, src/user/UserDiffuse.cc:
+	Kludge to let angular momenta of particles diffuse on energy surface
+
+2002-07-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserBar.H, src/user/UserBar.cc:
+	Changed the variable from shallow to soft
+
+	* src/user/UserBar.H, src/user/UserBar.cc:
+	Updated bar to use either hard or soft form of the bar potential
+
+	* src/user/UserBar.cc: Remove debug line from UserBar
+
+	* src/Component.H, src/Component.cc, src/user/UserBar.cc:
+	Add angular momentum computation to component; needed by UserBar
+
+2002-07-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutPSN.cc: Fix typo . . .
+
+	* src/OutPSN.cc, src/SphericalBasis.H:
+	Don't overwrite existing OUT files.  Doc string update in SphericalBasis.H.
+
+	* src/user/UserBar.cc: Fix bugs that Kelly found . . .
+
+2002-07-11  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/ExternalCollection.cc, src/OutPSN.cc, NEWS, src/Component.cc, src/ComponentContainer.cc:
+	Added Interaction print out to logfile (stdout).  Minor cosmetic changes
+	to improve readability.
+
+2002-07-10  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* expgnu/Makefile.am, src/CBrock.cc, src/CBrockDisk.cc, src/Cube.cc, src/Cylinder.cc, src/Hernquist.cc, src/OutCoef.cc, src/Slab.cc, src/SlabSL.cc, src/Sphere.cc, src/SphericalBasis.cc:
+	Removed deprecated classes from library (String & Regex).  Fixed but
+	in OutCoef.
+
+2002-06-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* expgnu/Makefile.am:
+	Don't compile Regex (seems to have problems with global constructors)
+
+2002-06-26  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/ComponentContainer.cc:
+	Fix initialization bug in total number of bodies.
+
+	* src/Component.cc:
+	Eliminate multiple messages about <processor.rates> on start up
+
+	* utils/Makefile.am:
+	Consolidated psp functionality to a single class and reimplemented
+	the utilities.
+
+2002-06-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutCHKPT.cc, src/OutPS.cc, src/OutPSN.cc, src/Slab.cc, src/SlabSL.cc:
+	Write time at current position step rather than latest of position
+	and velocity steps
+
+	* examples/disk.conf: Added requisite commas in configure file
+
+2002-06-15  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutPS.cc, src/OutPSN.cc:
+	Fix up velocity syncrhonization in phase space output routines
+
+2002-06-14  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/expand.h: Add sychronize velocity routine to global header file
+
+	* src/OutCHKPT.cc, src/OutPS.cc:
+	Forgot to resychronize phase-space dumps
+
+2002-06-11  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/AxisymmetricBasis.cc: Make parameters consistent
+
+	* utils/Makefile.am:
+	Routine to dump each component to an ascii per-component file
+
+	* src/Cylinder.cc, src/EmpOrth9thd.cc, src/Sphere.cc:
+	Change default parameter values
+
+	* src/Component.cc:
+	Changed error messages to make more descriptive on warning rather than
+	error
+
+	* src/Component.cc:
+	Fix error in detecting the existence of the processor.rates file
+
+2002-06-09  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/EmpOrth9thd.cc: Minor bug in output basis routine
+	CVSCVS: Committing in .
+
+	* src/PotAccel.cc: Strip leading spaces from parsed tokens
+
+2002-06-07  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Cylinder.cc:
+	Remove rcylmin and rcylmax from user key=value access
+
+	* src/Cylinder.cc:
+	Coordinate mapping in SLGridSph should always be on in EmpCylSL
+
+	* NEWS: Start updating the NEWS file
+
+	* src/Component.cc: Remove requirement for processor.rates file
+
+2002-06-05  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/EmpOrth9thd.cc, src/SLGridMP2.cc, src/SLGridMP2.h:
+	Updated to remove cmap from global variable of SLGrid* classes
+
+	* examples/IN.FILE: Change delimiters to comma
+
+	* src/Component.cc, src/PotAccel.cc:
+	Change parameter delimiter to comma
+
+	* src/OutCoef.H, src/OutCoef.cc: Coefficient output routines
+
+	* src/Basis.H, src/CBrockDisk.cc, src/Cylinder.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/Makefile.am, src/OrbTrace.H, src/OutputContainer.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP2.cc, src/SLGridMP2.h, src/Slab.cc, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.cc:
+	Fix up for Cylinder scaling and OutCoef
+
+2002-05-31  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* config.h.in, src/Component.H, src/OrbTrace.H, src/OrbTrace.cc, src/Output.cc:
+	Updates for Output & OrbTrace
+
+2002-05-30  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OrbTrace.cc: Added u, v, w to the trace
+
+	* src/ScatterMFP.cc, src/SphericalBasis.cc, src/tidalField.cc:
+	Fix fence point error on some force loops
+
+	* src/OrbTrace.H, src/OrbTrace.cc:
+	Make OrbTrace tied to a specific component.
+
+	* src/Component.cc, src/Direct.cc:
+	Fixed error in particle indexing for small numbers of particles.  Added
+	debug lines to Direct.
+
+2002-05-29  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.cc, src/EmpOrth9thd.cc:
+	Fix error in center determination
+
+2002-05-28  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/EmpOrth9thd.cc: Normalization fix up (?)
+
+2002-05-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user/UserBar.cc: Write to bar state file on first step
+
+	* src/user/UserBar.cc: Fixes to UserBar for multiple components.
+
+	* doc/faq.doc, doc/mainpage.doc: More updates.
+
+	* doc/faq.doc: More additions.
+
+	* doc/faq.doc: Fix typo.
+
+	* doc/faq.doc, doc/header.html: Added FAQ
+
+	* src/user/UserBar.H: Documentation update
+
+2002-05-26  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* doc/header.html, doc/quick.doc: Added draft of a quick start document
+
+	* src/OutPSN.H, src/OutputContainer.cc:
+	Added "outpsn" to OutputContainer
+
+2002-05-25  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Makefile.am, src/OutPSN.H, src/OutPSN.cc:
+	Phase space output with one file per dump
+
+2002-05-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* doc/modules.doc, src/ExternalForce.H, src/PotAccel.H, src/SLGridMP2.h, src/biorth1d.h, src/global.cc, src/sltableMP2.h, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.h, src/user/UserBar.H, src/user/UserTest.H, doc/config.doc, doc/header.html:
+	Documentation updates
+
+2002-05-11  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/ExternalForce.H, src/user/UserBar.H, src/user/UserBar.cc:
+	Use most recent bar potential model in UserBar
+
+2002-05-08  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutCHKPT.cc: Make sure OUT.bak char string is null terminated
+
+	* src/user/UserBar.cc: Updated userinfo message
+
+	* src/user/UserBar.H: Add missing header file
+
+	* src/user/UserBar.cc:
+	Allow for fixed corotation fraction or fixed pattern speed.  Update
+	parameters from U* to mnemonics.
+
+	* doc/exp.cfg: Updated to scan src/user for header files
+
+	* src/OutLog.cc:
+	COM and COV is current multipled by mass value!!  Fixed.
+
+2002-05-07  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OrbTrace.cc: Add comment character to final header line
+
+	* src/OrbTrace.H, src/OrbTrace.cc: Fixed parameter parsing bug
+
+	* exputil/QPDistF.cc, exputil/massmodel_dist.cc, exputil/odesolve.cc, exputil/qadapt.cc, src/OrbTrace.H, src/OrbTrace.cc:
+	Updated OrbTrace.
+
+2002-05-05  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* config.h.in, src/tipsydefs.h: Fix up documentation error
+
+	* src/Bessel.H, src/Cube.H, src/Cylinder.H, src/Cylinder.cc, src/EmpOrth9thd.h, src/Makefile.am, src/PotAccel.H, src/SLGridMP2.h, src/Slab.H, src/SlabSL.H, src/WghtOrth3.cc, src/WghtOrth3.h, src/biorth1d.h, src/coef.H, src/sltableMP2.h, src/tipsydefs.h:
+	Update documenation strings.  Remove unneeded files.
+
+	* src/EmpOrth7thd.cc, src/EmpOrth7thd.h: Replaced by EmpOrth9thd
+
+	* doc/bodies.doc: Fixed doxygen doc bug
+
+	* doc/bodies.doc, src/OutRelaxation.H, src/OutRelaxation.cc:
+	Added a few fix ups and eliminated a bit of cruft in the global
+	stanza.
+
+	* doc/utilities.doc, src/OutputContainer.cc, src/global.H, src/global.cc, src/parse.cc:
+	Fix up to make sure OutCHKPT can be instantiated.  Update some doc files.
+
+	* doc/utilities.doc: Documenation for utility programs
+
+	* src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cylinder.cc, src/Makefile.am, src/OutPS.H, src/Particle.H, src/Particle.cc, src/header.cc:
+	Fixed up component method for binary restarts
+
+	* src/OutCHKPT.H, src/OutCHKPT.cc:
+	Added check point output method (untested)
+
+	* utils/Makefile.am:
+	Added *unoptimized* utility to split out a single phase space dump
+
+	* src/CBrockDisk.cc: Add use_external clause
+
+2002-05-03  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Sphere.H: Added parameter list to doc
+
+	* src/Bessel.H, src/Component.H: Added some doc
+
+	* src/Direct.cc:
+	A few more updates to Direct.  Seems to be working now.
+
+2002-05-02  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Direct.H: One more doc update.
+
+	* src/Direct.H, src/Direct.cc:
+	Updated documenation and removed unnecessary code.
+
+	* src/Direct.cc: A bit more code clean up.
+
+	* src/Direct.H, src/Direct.cc: Finished Direct method; needs testing.
+
+2002-05-01  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Cylinder.cc:
+	Mistake in fields_cyl: accumulated_eval returns forces not potential
+	gradients.
+
+	* src/OutLog.cc: Fix error in column header
+
+	* src/AxisymmetricBasis.H, src/Basis.H, src/Cylinder.cc, src/OutLog.cc, src/user/UserBar.cc:
+	Have Basis define the field evaluation members rather than
+	AxisymmetricBasis.  This allows UserBar to cast the force for both
+	Spherical and Cylindrical types to a Basis abstract interface.
+
+2002-04-29  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/OutLog.cc: Shorted column names
+
+	* src/OutLog.cc: Fix up column headers to hold component names
+
+	* src/Cylinder.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h:
+	Fix bug in self_consistent logic for Cylinder class.  Updates to
+	EmpOrth9 (changed disk deprojection to improve accuracy of density)
+
+2002-04-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Cylinder.cc, src/SphericalBasis.cc:
+	Interaction should not recompute coefficients!  May need to be changed for
+	a few other methods.  Will check.
+
+	* src/Cylinder.cc: Wrong asymptotic monopole condition for cylinder
+
+2002-04-25  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/ComponentContainer.cc, src/Cylinder.H, src/Cylinder.cc, src/OutLog.H, src/OutLog.cc, src/PotAccel.H, src/user/ParamParse.cc:
+	Minor bug fixes, parameter changes.
+
+2002-04-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Component.H: Redefine get_com_component to private member
+
+	* src/AxisymmetricBasis.cc, src/CBrockDisk.cc, src/Component.cc, src/ComponentContainer.cc, src/Cube.cc, src/EmpOrth9thd.cc, src/EmpOrth9thd.h, src/Orient.H, src/OutDiag.cc, src/OutLog.cc, src/Slab.cc, src/SlabSL.cc, src/syncvel.cc:
+	Update for new EmpOrth9thd source
+
+2002-04-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* config.h.in, exputil/Vlocate.cc, exputil/Vodd2.cc, include/interp.h, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.cc, src/Cylinder.H, src/Cylinder.cc, src/Makefile.am, src/Orient.H, src/Orient.cc, src/OutLog.H, src/OutLog.cc, src/SLGridMP2.cc, src/SLGridMP2.h, src/SphericalBasis.cc, src/parse.cc:
+	Lots of minor bug fixes.
+
+	* utils/Makefile.am: Changed ps2tispy to psp2tipsy.  Name change only.
+
+2002-04-18  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* examples/disk.conf: Update for new version of disk expansion
+
+	* examples/disk.bod, examples/disk.conf, examples/halo.bod, examples/halo.conf, examples/processor.rates, examples/IN.FILE, examples/SLGridSph.model:
+	New example directory with one example
+
+2002-04-04  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/SlabSL.cc, src/WghtOrth3.cc, src/Component.cc, src/Cylinder.cc, src/EmpOrth7thd.cc, src/ExternalCollection.cc, src/OutLog.H, src/OutLog.cc, src/Slab.cc:
+	Append to current rates file.  Remove some debugging lines.
+
+	* src/Orient.H: Missing file
+
+	* mdwlib/sort2.c, mdwlib/spline.c, mdwlib/splint.c, mdwlib/splint1.c, mdwlib/splint1d.c, mdwlib/splsum.c, mdwlib/tensor.c, mdwlib/xrand.c, mdwlib/zbrent.c, numerical/CVector.cc, numerical/CauchyPV.cc, numerical/Complex.cc, numerical/GaussCore.c, numerical/GaussCore.h, numerical/Hermite.c, numerical/Hermite.h, numerical/HunterToomre.cc, numerical/Jacobi.c, numerical/Jacobi.h, numerical/Laguerre.c, numerical/Laguerre.h, numerical/Makefile.am, numerical/Makefile.with_shared, numerical/OrthoPoly.cc, numerical/QPDistF.cc, numerical/Spline.cc, numerical/Splint.cc, numerical/SplintE.cc, numerical/Vector.cc, numerical/Vector3.cc, numerical/Vlocate.cc, numerical/Vodd2.cc, numerical/airy.c, numerical/bessel.cc, numerical/bessz.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth2d2.cc, numerical/biorth_grid.cc, numerical/biorth_wake.cc, numerical/biorth_wake_orientation.cc, numerical/brent.cc, numerical/bs.cc, numerical/chbevl.c, numerical/clinalg.cc, numerical/coctsvd.cc, numerical/const.c, numerical/cpoly.cc, numerical/cubic.cc, numerical/diag_ensemble.cc, numerical/eigen.cc, numerical/eigsrt.cc, numerical/eigtest.cc, numerical/elemfunc.cc, numerical/embedded.cc, numerical/ensemble.cc, numerical/euler.cc, numerical/euler_slater.cc, numerical/gammln.cc, numerical/gauleg.cc, numerical/gaussQ.cc, numerical/ghql.cc, numerical/horner.cc, numerical/hubble.cc, numerical/hyp2f1.c, numerical/hyperg.c, numerical/i0.c, numerical/i1.c, numerical/inverse.cc, numerical/io_ensemble.cc, numerical/isothermal.cc, numerical/iv.c, numerical/jacobi.cc, numerical/jnsph.cc, numerical/jv.c, numerical/k0.c, numerical/k1.c, numerical/kn.c, numerical/laguer.cc, numerical/linalg.cc, numerical/lubksb.cc, numerical/ludcmp.cc, numerical/map.cc, numerical/massmodel.cc, numerical/massmodel_array.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/mix.cc, numerical/mnbrak.cc, numerical/modbess.cc, numerical/models.cc, numerical/move_ensemble.cc, numerical/mtherr.c, numerical/needle.cc, numerical/nrutil.cc, numerical/odesolve.cc, numerical/orbit.cc, numerical/orbit_trans.cc, numerical/pc.cc, numerical/perfect.cc, numerical/phase.cc, numerical/polevl.c, numerical/poly.cc, numerical/prolate.cc, numerical/psi.c, numerical/qadapt.cc, numerical/qadapt2d.cc, numerical/qld.c, numerical/quad.cc, numerical/realize_model.cc, numerical/rk4.cc, numerical/rotcurv.cc, numerical/rotmatrix.cc, numerical/rtbis.cc, numerical/rtsafe.cc, numerical/sbessz.cc, numerical/sia4.cc, numerical/simann2.cc, numerical/simu2.cc, numerical/sort.cc, numerical/struve.c, numerical/svd.cc, numerical/syndiv.cc, numerical/testbess.cc, numerical/testbess2.cc, numerical/tmp.cc, numerical/ultra.cc, numerical/wordSplit.cc, numerical/zbrac.cc, numerical/zbrak.cc, numerical/zbrent.cc, numerical/zroots.cc, libsrnd/ACG.cc, libsrnd/ACG.cc.orig, libsrnd/ACG.h, libsrnd/Binomial.cc, libsrnd/Binomial.h, libsrnd/DiscUnif.cc, libsrnd/DiscUnif.h, libsrnd/Erlang.cc, libsrnd/Erlang.h, libsrnd/Gamma.cc, libsrnd/Gamma.h, libsrnd/Geom.cc, libsrnd/Geom.h, libsrnd/HypGeom.cc, libsrnd/HypGeom.h, libsrnd/LogNorm.cc, libsrnd/LogNorm.h, libsrnd/MLCG.cc, libsrnd/MLCG.h, libsrnd/Makefile.am, libsrnd/NegExp.cc, libsrnd/NegExp.h, libsrnd/Normal.cc, libsrnd/Normal.h, libsrnd/Poisson.cc, libsrnd/Poisson.h, libsrnd/RNG.cc, libsrnd/RNG.h, libsrnd/Random.cc, libsrnd/Random.h, libsrnd/Regex.cc, libsrnd/Regex.h, libsrnd/RndInt.cc, libsrnd/RndInt.h, libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h, libsrnd/String.cc, libsrnd/String.h, libsrnd/Uniform.cc, libsrnd/Uniform.h, libsrnd/Weibull.cc, libsrnd/Weibull.h, libsrnd/builtin.h, libsrnd/error.cc, libsrnd/rx.h, libsrnd/std.h, libsrnd/timer.c, mdwlib/Makefile.am, mdwlib/brent.c, mdwlib/cel.c, mdwlib/cutil.c, mdwlib/cutil.h, mdwlib/cutilc++.c, mdwlib/dgammln.c, mdwlib/dgammp.c, mdwlib/dgammq.c, mdwlib/dgcf.c, mdwlib/dgser.c, mdwlib/dplgndr.c, mdwlib/el2.c, mdwlib/exponi.c, mdwlib/f1dim.c, mdwlib/fpeieee.c, mdwlib/frprmn.c, mdwlib/gasdev.c, mdwlib/gauss.c, mdwlib/getkey.c, mdwlib/gknots.c, mdwlib/indexx.c, mdwlib/lagknots.c, mdwlib/linmin.c, mdwlib/locate.c, mdwlib/lubksb.c, mdwlib/ludcmp.c, mdwlib/mnbrak.c, mdwlib/odd2.c, mdwlib/plgndr.c, mdwlib/poidev.c, mdwlib/rombe2d.c, mdwlib/sbessj.c, mdwlib/sbessz.c, mdwlib/sort.c:
+	Get rid of duplicate files and directories
+
+	* src/SLGridMP2.h, src/WghtOrth3.cc, src/WghtOrth3.h, src/biorth1d.cc, src/biorth1d.h, src/exp_thread.h, src/expand.h, src/sledge.f, src/sltableMP2.h, src/tipsydefs.h, src/version.h, src/EmpOrth7thd.cc, src/EmpOrth7thd.h, src/Makefile.am, src/Orient.cc, src/SLGridMP2.cc:
+	Ok
+
+	* exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/struve.c, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, include/HunterX.h, include/ParamParse.H, include/ParamParseMPI.H, include/Spline.h, include/StringTok.H, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/exponential.h, include/f2c.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/isothermal.h, include/kalnajs.h, include/king.h, include/localmpi.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mestel.h, include/orbit.h, include/toomre.h, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/MPL.cc, src/OrbTrace.H, src/OrbTrace.cc, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/begin.cc, src/checkultra.cc, src/coef.H, src/ddplgndr.cc, src/end.cc, src/expand.cc, src/externalShock.H, src/externalShock.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/global.H, src/global.cc, src/header.H, src/header.cc, src/incpos.cc, src/incvel.cc, src/initvel.cc, src/parse.cc, src/sbessj.cc, src/sbessz.cc, src/step.cc, src/syncvel.cc, src/tidalField.H, src/tidalField.cc, src/tmp.tmp, src/tmp.tmp~, src/ultra.cc, src/ultrasphere.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/getkey.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/zbrent.cc, utils/Makefile.am, Makefile.am, autogen.sh, config.h.in, configure.in, doc/Makefile.am, doc/bodies.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, expgnu/timer.c, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.c, exputil/GaussCore.h, exputil/Hermite.c, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.c, exputil/Jacobi.h, exputil/Laguerre.c, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/airy.c, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/chbevl.c, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/const.c, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/iv.c, exputil/jacobi.cc, exputil/jnsph.cc, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/laguer.cc, exputil/linalg.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/mtherr.c, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/polevl.c, exputil/poly.cc, exputil/prolate.cc, exputil/psi.c, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/qld.c, mkinstalldirs:
+	Try to fix up main branch repository
+
+	* src/legendre.cc, src/legendreCPP.cc: Try again to fix this repository
+
+	* src/dispersion.c, src/end.c, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/f2c.h, src/factrl.c, src/fixacc.c, src/getkey.c, src/getkey_old.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/syncvel.c, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tides.c, src/ultra.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/HERNQacp.c, src/Interp.h, src/Orient.h, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/Sphacp.cc, src/SphericalSL.cc, src/SphericalSL.h, src/Spline.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/cldsacc.c, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/directacp.c:
+	Replace repository (sigh)
+
+	* src/Sphacp.cc: Still screwed up: arghh!!!
+
+	* src/CBacp.c, src/CBdiskacp.c, src/coef.h, src/cubeacp.cc, src/interactinit.cc, src/outputinit.cc:
+	Remove unneeded files
+
+	* INSTALL, README, configure.in, include/CVector.h, include/HunterX.h, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/exponential.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/isothermal.h, include/kalnajs.h, include/king.h, include/massmodel.h, include/massmodel_old.h, include/mestel.h, include/orbit.h, include/toomre.h, mkinstalldirs, numerical/Makefile.am, numerical/Vector.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth_grid.cc, numerical/clinalg.cc, numerical/jacobi.cc, numerical/massmodel.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/orbit.cc, numerical/orbit_trans.cc, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/HERNQacp.c, src/SatelliteOrbit.cc, src/Sphacp.cc, src/SphericalSL.cc, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.h, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/cldsacc.c, src/cubeacp.cc, src/directacp.c, src/end.c, src/expand.c, src/fixacc.c, src/getkey.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendre.cc, src/legendreCPP.cc, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/step.c, src/syncvel.c, src/tides.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c:
+	Reversion to previous version
+
+	* include/Spline.h: Missing header
+
+	* include/Spline.h: New file.
+
+2002-04-03  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/initvel.cc: More missing source
+
+	* src/incvel.cc: Missing files
+
+	* src/expand.cc, src/end.cc: Missing source file
+
+	* include/f2c.h: Another missing header
+
+	* include/f2c.h: New file.
+
+	* include/localmpi.h: Another missing header
+
+	* include/ParamParse.H, include/ParamParseMPI.H, include/StringTok.H:
+	Missing files
+
+	* src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, utils/Makefile.am, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, expgnu/timer.c, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.c, exputil/GaussCore.h, exputil/Hermite.c, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.c, exputil/Jacobi.h, exputil/Laguerre.c, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/airy.c, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/chbevl.c, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/const.c, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/iv.c, exputil/jacobi.cc, exputil/jnsph.cc, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/laguer.cc, exputil/linalg.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/mtherr.c, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/polevl.c, exputil/poly.cc, exputil/prolate.cc, exputil/psi.c, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/qld.c, exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/struve.c, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, include/CVector.h, include/HunterX.h, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/exponential.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/isothermal.h, include/kalnajs.h, include/king.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mestel.h, include/orbit.h, include/toomre.h, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HERNQacp.c, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/Interp.h, src/MPL.cc, src/OrbTrace.H, src/OrbTrace.cc, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalSL.cc, src/SphericalSL.h, src/Spline.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/begin.cc, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/checkultra.cc, src/cldsacc.c, src/coef.H, src/coef.h, src/ddplgndr.c, src/ddplgndr.cc, src/directacp.c, src/dispersion.c, src/end.c, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/externalShock.H, src/externalShock.cc, src/f2c.h, src/factrl.c, src/fixacc.c, src/generateRelaxation.H, src/generateRelaxation.cc, src/getkey.c, src/getkey_old.c, src/global.H, src/global.cc, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/header.H, src/header.cc, src/incpos.c, src/incpos.cc, src/incvel.c, src/incvel.cc, src/init.c, src/initvel.c, src/interactinit.cc, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outputinit.cc, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/parse.cc, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/sbessj.cc, src/sbessz.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/step.cc, src/syncvel.c, src/syncvel.cc, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tidalField.H, src/tidalField.cc, src/tides.c, src/ultra.c, src/ultra.cc, src/ultrasphere.c, src/ultrasphere.cc, src/user.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/getkey.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, src/zbrent.cc, INSTALL, Makefile.am, README, autogen.sh, config.h.in, configure.in, doc/Makefile.am, doc/bodies.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, mkinstalldirs:
+	Commit new version
+
+	* include/kalnajs.h, include/kevin_complex.h, include/king.h, include/linalg.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mconf.h, include/mestel.h, include/model2d.h, include/model3d.h, include/models.h, include/needle.h, include/numerical.h, include/numerical.h.orig, include/numerical.old, include/orbit.h, include/phase.h, include/poly.h, include/port.h, include/rotcurv.h, include/simann2.h, include/staeckel.h, include/testembed.cc, include/toomre.h, include/vector.h, include/vector3.h, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/HERNQacp.c, src/Interp.h, src/Orient.h, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/Sphacp.cc, src/SphericalSL.cc, src/SphericalSL.h, src/Spline.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/cldsacc.c, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/directacp.c, src/dispersion.c, src/end.c, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/f2c.h, src/factrl.c, src/fixacc.c, src/getkey.c, src/getkey_old.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/syncvel.c, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tides.c, src/ultra.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, AUTHORS, COPYING, ChangeLog, INSTALL, Makefile.am, NEWS, README, acconfig.h, autogen.sh, config.h.in, configure.in, include/CVector.h, include/CauchyPV.h, include/HunterX.h, include/OrthoPoly.h, include/QPDistF.h, include/Swap.h, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/clinalg.h, include/complex.h, include/cpoly.h, include/cresponse.cc, include/cubic.h, include/cvector.h, include/dead.letter, include/diskfft.cc, include/exponential.h, include/fft.h, include/gaussQ.h, include/gknots.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/interp.h, include/isothermal.h, install-sh, missing, mkinstalldirs:
+	New version
+
+	* src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/begin.cc, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/checkultra.cc, src/cldsacc.c, src/coef.H, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/ddplgndr.cc, src/directacp.c, src/dispersion.c, src/end.c, src/end.cc, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/expand.cc, src/externalShock.H, src/externalShock.cc, src/factrl.c, src/fixacc.c, src/freeze.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/getkey.c, src/getkey_old.c, src/global.H, src/global.cc, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/header.H, src/header.cc, src/incpos.c, src/incpos.cc, src/incvel.c, src/incvel.cc, src/init.c, src/init.cc, src/initvel.c, src/initvel.cc, src/interactinit.cc, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outputinit.cc, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/parse.cc, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/sbessj.cc, src/sbessz.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/step.cc, src/syncvel.c, src/syncvel.cc, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tidalField.H, src/tidalField.cc, src/tides.c, src/ultra.c, src/ultra.cc, src/ultrasphere.c, src/ultrasphere.cc, src/user.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/getkey.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, src/zbrent.cc, utils/Makefile.am, INSTALL, Makefile.am, README, autogen.sh, config.h.in, configure.in, doc/Makefile.am, doc/bodies.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, expgnu/timer.c, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.c, exputil/GaussCore.h, exputil/Hermite.c, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.c, exputil/Jacobi.h, exputil/Laguerre.c, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/airy.c, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/chbevl.c, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/const.c, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/iv.c, exputil/jacobi.cc, exputil/jnsph.cc, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/laguer.cc, exputil/linalg.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/mtherr.c, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/polevl.c, exputil/poly.cc, exputil/prolate.cc, exputil/psi.c, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/qld.c, exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/struve.c, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, include/CVector.h, include/HunterX.h, include/ParamParse.H, include/ParamParseMPI.H, include/StringTok.H, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/exponential.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/isothermal.h, include/kalnajs.h, include/king.h, include/localmpi.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mestel.h, include/orbit.h, include/toomre.h, mkinstalldirs, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBacp.c, src/CBdiskacp.c, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HERNQacp.c, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/Interp.h, src/MPL.cc, src/OrbTrace.H, src/OrbTrace.cc, src/Orient.h, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphacp.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalSL.cc, src/SphericalSL.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c:
+	New trunc
+
+	* autogen.sh, expgnu/timer.c: More missing files . . .
+
+	* expgnu/timer.c: New file.
+
+	* mdwlib/Makefile.am, mdwlib/brent.c, mdwlib/cel.c, mdwlib/cutil.c, mdwlib/cutil.h, mdwlib/cutilc++.c, mdwlib/dgammln.c, mdwlib/dgammp.c, mdwlib/dgammq.c, mdwlib/dgcf.c, mdwlib/dgser.c, mdwlib/dplgndr.c, mdwlib/el2.c, mdwlib/exponi.c, mdwlib/f1dim.c, mdwlib/fpeieee.c, mdwlib/frprmn.c, mdwlib/gasdev.c, mdwlib/gauss.c, mdwlib/getkey.c, mdwlib/gknots.c, mdwlib/indexx.c, mdwlib/lagknots.c, mdwlib/linmin.c, mdwlib/locate.c, mdwlib/lubksb.c, mdwlib/ludcmp.c, mdwlib/mnbrak.c, mdwlib/odd2.c, mdwlib/plgndr.c, mdwlib/poidev.c, mdwlib/rombe2d.c, mdwlib/sbessj.c, mdwlib/sbessz.c, mdwlib/sort.c, mdwlib/sort2.c, mdwlib/spline.c, mdwlib/splint.c, mdwlib/splint1.c, mdwlib/splint1d.c, mdwlib/splsum.c, mdwlib/tensor.c, mdwlib/xrand.c, mdwlib/zbrent.c, numerical/CVector.cc, numerical/CauchyPV.cc, numerical/Complex.cc, numerical/GaussCore.c, numerical/GaussCore.h, numerical/Hermite.c, numerical/Hermite.h, numerical/HunterToomre.cc, numerical/Jacobi.c, numerical/Jacobi.h, numerical/Laguerre.c, numerical/Laguerre.h, numerical/Makefile.am, numerical/Makefile.with_shared, numerical/OrthoPoly.cc, numerical/QPDistF.cc, numerical/Spline.cc, numerical/Splint.cc, numerical/SplintE.cc, numerical/Vector.cc, numerical/Vector3.cc, numerical/Vlocate.cc, numerical/Vodd2.cc, numerical/airy.c, numerical/bessel.cc, numerical/bessz.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth2d2.cc, numerical/biorth_grid.cc, numerical/biorth_wake.cc, numerical/biorth_wake_orientation.cc, numerical/brent.cc, numerical/bs.cc, numerical/chbevl.c, numerical/clinalg.cc, numerical/coctsvd.cc, numerical/const.c, numerical/cpoly.cc, numerical/cubic.cc, numerical/diag_ensemble.cc, numerical/eigen.cc, numerical/eigsrt.cc, numerical/eigtest.cc, numerical/elemfunc.cc, numerical/embedded.cc, numerical/ensemble.cc, numerical/euler.cc, numerical/euler_slater.cc, numerical/gammln.cc, numerical/gauleg.cc, numerical/gaussQ.cc, numerical/ghql.cc, numerical/horner.cc, numerical/hubble.cc, numerical/hyp2f1.c, numerical/hyperg.c, numerical/i0.c, numerical/i1.c, numerical/inverse.cc, numerical/io_ensemble.cc, numerical/isothermal.cc, numerical/iv.c, numerical/jacobi.cc, numerical/jnsph.cc, numerical/jv.c, numerical/k0.c, numerical/k1.c, numerical/kn.c, numerical/laguer.cc, numerical/linalg.cc, numerical/lubksb.cc, numerical/ludcmp.cc, numerical/map.cc, numerical/massmodel.cc, numerical/massmodel_array.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/mix.cc, numerical/mnbrak.cc, numerical/modbess.cc, numerical/models.cc, numerical/move_ensemble.cc, numerical/mtherr.c, numerical/needle.cc, numerical/nrutil.cc, numerical/odesolve.cc, numerical/orbit.cc, numerical/orbit_trans.cc, numerical/pc.cc, numerical/perfect.cc, numerical/phase.cc, numerical/polevl.c, numerical/poly.cc, numerical/prolate.cc, numerical/psi.c, numerical/qadapt.cc, numerical/qadapt2d.cc, numerical/qld.c, numerical/quad.cc, numerical/realize_model.cc, numerical/rk4.cc, numerical/rotcurv.cc, numerical/rotmatrix.cc, numerical/rtbis.cc, numerical/rtsafe.cc, numerical/sbessz.cc, numerical/sia4.cc, numerical/simann2.cc, numerical/simu2.cc, numerical/sort.cc, numerical/struve.c, numerical/svd.cc, numerical/syndiv.cc, numerical/testbess.cc, numerical/testbess2.cc, numerical/tmp.cc, numerical/ultra.cc, numerical/wordSplit.cc, numerical/zbrac.cc, numerical/zbrak.cc, numerical/zbrent.cc, numerical/zroots.cc:
+	Remove duplicate files
+
+	* libsrnd/ACG.cc, libsrnd/ACG.cc.orig, libsrnd/ACG.h, libsrnd/Binomial.cc, libsrnd/Binomial.h, libsrnd/DiscUnif.cc, libsrnd/DiscUnif.h, libsrnd/Erlang.cc, libsrnd/Erlang.h, libsrnd/Gamma.cc, libsrnd/Gamma.h, libsrnd/Geom.cc, libsrnd/Geom.h, libsrnd/HypGeom.cc, libsrnd/HypGeom.h, libsrnd/LogNorm.cc, libsrnd/LogNorm.h, libsrnd/MLCG.cc, libsrnd/MLCG.h, libsrnd/Makefile.am, libsrnd/NegExp.cc, libsrnd/NegExp.h, libsrnd/Normal.cc, libsrnd/Normal.h, libsrnd/Poisson.cc, libsrnd/Poisson.h, libsrnd/RNG.cc, libsrnd/RNG.h, libsrnd/Random.cc, libsrnd/Random.h, libsrnd/Regex.cc, libsrnd/Regex.h, libsrnd/RndInt.cc, libsrnd/RndInt.h, libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h, libsrnd/String.cc, libsrnd/String.h, libsrnd/Uniform.cc, libsrnd/Uniform.h, libsrnd/Weibull.cc, libsrnd/Weibull.h, libsrnd/builtin.h, libsrnd/error.cc, libsrnd/rx.h, libsrnd/std.h, libsrnd/timer.c:
+	Remove duplicate directory
+
+	* configure.in: Removed ParseTest
+
+	* exputil/GaussCore.c, exputil/Hermite.c, exputil/Jacobi.c, exputil/Laguerre.c, exputil/airy.c, exputil/chbevl.c, exputil/const.c, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/iv.c, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/mtherr.c, exputil/polevl.c, exputil/psi.c, exputil/qld.c, exputil/struve.c:
+	Added missing *.c files
+
+	* exputil/GaussCore.c, exputil/Hermite.c, exputil/Jacobi.c, exputil/Laguerre.c, exputil/airy.c, exputil/chbevl.c, exputil/const.c, exputil/hyp2f1.c, exputil/hyperg.c, exputil/i0.c, exputil/i1.c, exputil/iv.c, exputil/jv.c, exputil/k0.c, exputil/k1.c, exputil/kn.c, exputil/mtherr.c, exputil/polevl.c, exputil/psi.c, exputil/qld.c, exputil/struve.c:
+	New file.
+
+	* include/ParamParse.H, include/ParamParseMPI.H, include/StringTok.H:
+	Forgotten files . . .
+
+	* include/ParamParse.H, include/ParamParseMPI.H, include/StringTok.H:
+	New file.
+
+	* src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphacp.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/SphericalSL.cc, src/SphericalSL.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/begin.cc, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/checkultra.cc, src/cldsacc.c, src/coef.H, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/ddplgndr.cc, src/directacp.c, src/dispersion.c, src/end.c, src/end.cc, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/expand.cc, src/externalShock.H, src/externalShock.cc, src/factrl.c, src/fixacc.c, src/freeze.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/getkey.c, src/getkey_old.c, src/global.H, src/global.cc, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/header.H, src/header.cc, src/incpos.c, src/incpos.cc, src/incvel.c, src/incvel.cc, src/init.c, src/init.cc, src/initvel.c, src/initvel.cc, src/interactinit.cc, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outputinit.cc, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/parse.cc, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/sbessj.cc, src/sbessz.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/step.cc, src/syncvel.c, src/syncvel.cc, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tidalField.H, src/tidalField.cc, src/tides.c, src/ultra.c, src/ultra.cc, src/ultrasphere.c, src/ultrasphere.cc, src/user.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/getkey.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, src/zbrent.cc, utils/Makefile.am:
+	Huge reorg for new branch . . . I can't even begin to list the changes.
+
+	* src/ScatterMFP.H, src/ScatterMFP.cc, src/Slab.H, src/Slab.cc, src/SlabSL.H, src/SlabSL.cc, src/Sphere.H, src/Sphere.cc, src/SphericalBasis.H, src/SphericalBasis.cc, src/begin.cc, src/checkultra.cc, src/coef.H, src/ddplgndr.cc, src/end.cc, src/expand.cc, src/externalShock.H, src/externalShock.cc, src/freeze.cc, src/generateRelaxation.H, src/generateRelaxation.cc, src/global.H, src/global.cc, src/header.H, src/header.cc, src/incpos.cc, src/incvel.cc, src/init.cc, src/initvel.cc, src/interactinit.cc, src/outputinit.cc, src/parse.cc, src/sbessj.cc, src/sbessz.cc, src/step.cc, src/syncvel.cc, src/tidalField.H, src/tidalField.cc, src/ultra.cc, src/ultrasphere.cc, src/user/Makefile.am, src/user/ParamParse.H, src/user/ParamParse.cc, src/user/SatelliteOrbit.cc, src/user/SatelliteOrbit.h, src/user/UserBar.cc, src/user/UserSat.cc, src/user/UserTest.H, src/user/UserTest.cc, src/user/getkey.cc, src/user/satellite.cc, src/user/satellite_orbit.cc, src/user/satellite_orbit2.cc, src/user/user.cc, src/user/user_bar.cc, src/user/user_linear_sat.cc, src/user/user_sat.cc, src/user/user_sat_com.cc, src/user/user_sat_tide.cc, src/user/user_sat_tide_ni.cc, src/user/user_self.cc, src/user/user_slab.cc, src/user/user_slabhalo.cc, src/user/user_stub.cc, src/user/user_twosat.cc, src/user/usertest.cc, src/zbrent.cc, utils/Makefile.am:
+	New file.
+
+	* Makefile.am, config.h.in, configure.in, doc/Makefile.am, doc/bodies.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.h, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.h, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/jacobi.cc, exputil/jnsph.cc, exputil/laguer.cc, exputil/linalg.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/poly.cc, exputil/prolate.cc, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, include/biorth.h, include/localmpi.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/orbit.h, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBacp.c, src/CBdiskacp.c, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HERNQacp.c, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/Interp.h, src/MPL.cc, src/OrbTrace.H, src/OrbTrace.cc, src/Orient.h, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc, src/SLGridMP.cc, src/SLGridMP.h:
+	Huge reorg for new branch . . . I can't even begin to list the changes.
+
+	* doc/Makefile.am, doc/bodies.doc, doc/config.doc, doc/exp.cfg, doc/exp.css, doc/exp_logo.gif, doc/footer.html, doc/header.html, doc/header_old.html, doc/intro.doc, doc/mainpage.doc, doc/modules.doc, expgnu/ACG.cc, expgnu/ACG.h, expgnu/Binomial.cc, expgnu/Binomial.h, expgnu/DiscUnif.cc, expgnu/DiscUnif.h, expgnu/Erlang.cc, expgnu/Erlang.h, expgnu/Gamma.cc, expgnu/Gamma.h, expgnu/Geom.cc, expgnu/Geom.h, expgnu/HypGeom.cc, expgnu/HypGeom.h, expgnu/LogNorm.cc, expgnu/LogNorm.h, expgnu/MLCG.cc, expgnu/MLCG.h, expgnu/Makefile.am, expgnu/NegExp.cc, expgnu/NegExp.h, expgnu/Normal.cc, expgnu/Normal.h, expgnu/Poisson.cc, expgnu/Poisson.h, expgnu/RNG.cc, expgnu/RNG.h, expgnu/Random.cc, expgnu/Random.h, expgnu/Regex.cc, expgnu/Regex.h, expgnu/RndInt.cc, expgnu/RndInt.h, expgnu/SmplHist.cc, expgnu/SmplHist.h, expgnu/SmplStat.cc, expgnu/SmplStat.h, expgnu/String.cc, expgnu/String.h, expgnu/Uniform.cc, expgnu/Uniform.h, expgnu/Weibull.cc, expgnu/Weibull.h, expgnu/builtin.h, expgnu/error.cc, expgnu/rx.h, expgnu/std.h, exputil/CVector.cc, exputil/CauchyPV.cc, exputil/Complex.cc, exputil/GaussCore.h, exputil/Hermite.h, exputil/HunterToomre.cc, exputil/Jacobi.h, exputil/Laguerre.h, exputil/Makefile.am, exputil/OrthoPoly.cc, exputil/ParamParse.cc, exputil/ParamParseMPI.cc, exputil/QPDistF.cc, exputil/Spline.cc, exputil/Splint.cc, exputil/SplintE.cc, exputil/Vector.cc, exputil/Vector3.cc, exputil/Vlocate.cc, exputil/Vodd2.cc, exputil/bessel.cc, exputil/bessz.cc, exputil/biorth.cc, exputil/biorth2d.cc, exputil/biorth2d2.cc, exputil/biorth_grid.cc, exputil/biorth_wake.cc, exputil/biorth_wake_orientation.cc, exputil/brent.cc, exputil/bs.cc, exputil/clinalg.cc, exputil/coctsvd.cc, exputil/cpoly.cc, exputil/cubic.cc, exputil/dgammln.cc, exputil/diag_ensemble.cc, exputil/eigen.cc, exputil/eigsrt.cc, exputil/eigtest.cc, exputil/elemfunc.cc, exputil/embedded.cc, exputil/ensemble.cc, exputil/euler.cc, exputil/euler_slater.cc, exputil/gammln.cc, exputil/gauleg.cc, exputil/gaussQ.cc, exputil/ghql.cc, exputil/gint2.cc, exputil/horner.cc, exputil/hubble.cc, exputil/inverse.cc, exputil/io_ensemble.cc, exputil/isothermal.cc, exputil/jacobi.cc, exputil/jnsph.cc, exputil/laguer.cc, exputil/linalg.cc, exputil/localmpi.h, exputil/lubksb.cc, exputil/ludcmp.cc, exputil/map.cc, exputil/massmodel.cc, exputil/massmodel_array.cc, exputil/massmodel_dist.cc, exputil/mix.cc, exputil/mnbrak.cc, exputil/modbess.cc, exputil/models.cc, exputil/move_ensemble.cc, exputil/needle.cc, exputil/nrutil.cc, exputil/odesolve.cc, exputil/orbit.cc, exputil/orbit_trans.cc, exputil/pc.cc, exputil/perfect.cc, exputil/phase.cc, exputil/poly.cc, exputil/prolate.cc, exputil/qadapt.cc, exputil/qadapt2d.cc, exputil/quad.cc, exputil/realize_model.cc, exputil/rk4.cc, exputil/rombe2d.cc, exputil/rotcurv.cc, exputil/rotmatrix.cc, exputil/rtbis.cc, exputil/rtsafe.cc, exputil/sbessz.cc, exputil/sia4.cc, exputil/simann2.cc, exputil/simu2.cc, exputil/sort.cc, exputil/svd.cc, exputil/syndiv.cc, exputil/testbess.cc, exputil/testbess2.cc, exputil/tmp.cc, exputil/ultra.cc, exputil/wordSplit.cc, exputil/zbrac.cc, exputil/zbrak.cc, exputil/zbrent.cc, exputil/zroots.cc, src/AxisymmetricBasis.H, src/AxisymmetricBasis.cc, src/Basis.H, src/Basis.cc, src/Bessel.H, src/Bessel.cc, src/CBrock.H, src/CBrock.cc, src/CBrockDisk.H, src/CBrockDisk.cc, src/Component.H, src/Component.cc, src/ComponentContainer.H, src/ComponentContainer.cc, src/Cube.H, src/Cube.cc, src/Cylinder.H, src/Cylinder.cc, src/Direct.H, src/Direct.cc, src/ExternalCollection.H, src/ExternalCollection.cc, src/ExternalForce.H, src/ExternalForce.cc, src/HaloBulge.H, src/HaloBulge.cc, src/Hernquist.H, src/Hernquist.cc, src/MPL.cc, src/OrbTrace.H, src/OrbTrace.cc, src/OutDiag.H, src/OutDiag.cc, src/OutLog.H, src/OutLog.cc, src/OutPCA.H, src/OutPCA.cc, src/OutPS.H, src/OutPS.cc, src/OutRelaxation.H, src/OutRelaxation.cc, src/Output.H, src/Output.cc, src/OutputContainer.H, src/OutputContainer.cc, src/Particle.H, src/Particle.cc, src/PotAccel.H, src/PotAccel.cc:
+	New file.
+
+2001-10-15  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* numerical/Vector.cc, numerical/clinalg.cc, numerical/jacobi.cc:
+	Added some MPI error handling to libnumerical routines
+
+2001-10-13  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/output.c, src/user.cc:
+	Don't output cylindrical coefficients unless cylinder is selected
+
+2001-10-04  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in: Bumped version number
+
+	* src/user.cc, README, configure.in, include/CVector.h, include/Vector.h, include/biorth.h, include/localmpi.h, numerical/Makefile.am, numerical/Vector.cc, src/Cylacp3.cc, src/SatelliteOrbit.cc, src/Sphacp.cc, src/any_thread.h, src/cubeacp.cc, src/getkey.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/init.c, src/legendre.cc, src/legendreCPP.cc, src/pca.cc, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc:
+	Added precompiler variables for dmalloc
+
+	* src/parallelCPP.cc:
+	Fixed a bug in for nodes "emptied" during repartiioning.
+
+2001-08-05  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* README, src/parallelCPP.cc:
+	Added a few comments to README on compile flags.  Fixed bug in tipsy
+	output code.
+
+2001-08-03  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/init.c, src/parallelCPP.cc, src/user.cc:
+	Working version of redistribute_particles.  Lots of robust debugging
+	diagnostics added (enabled with DEBUG flag)
+
+2001-07-30  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/localmpi.h, src/parallel.c, src/parallelCPP.cc, src/user.cc:
+	Fix up processor rate file writing
+
+	* include/localmpi.h:
+	Needed for error output routines in Vector and Matrix
+
+	* include/localmpi.h: New file.
+
+	* src/parallel.c, src/parallelCPP.cc, INSTALL:
+	Additional changes to redistribution routines
+
+2001-07-29  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in, src/parallel.c: A few more fix ups
+
+2001-07-28  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in, include/HunterX.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/exponential.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/isothermal.h, include/kalnajs.h, include/king.h, include/massmodel.h, include/massmodel_old.h, include/mestel.h, include/orbit.h, include/toomre.h, mkinstalldirs, numerical/Vector.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth_grid.cc, numerical/massmodel.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/orbit.cc, numerical/orbit_trans.cc, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/HERNQacp.c, src/SatelliteOrbit.cc, src/Sphacp.cc, src/SphericalSL.cc, src/accpot.c, src/adjscl.c, src/analcld.c, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/cldsacc.c, src/cubeacp.cc, src/directacp.c, src/end.c, src/expand.c, src/fixacc.c, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/slabacp.cc, src/slabacpSL.cc, src/step.c, src/syncvel.c, src/tides.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c:
+	Check in version without full caching of phase space on master
+
+	* src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/syncvel.c, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tides.c, src/ultra.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, AUTHORS, COPYING, ChangeLog, INSTALL, Makefile.am, NEWS, README, acconfig.h, autogen.sh, config.h.in, configure.in, include/CVector.h, include/CauchyPV.h, include/HunterX.h, include/OrthoPoly.h, include/QPDistF.h, include/Swap.h, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/clinalg.h, include/complex.h, include/cpoly.h, include/cresponse.cc, include/cubic.h, include/cvector.h, include/dead.letter, include/diskfft.cc, include/exponential.h, include/fft.h, include/gaussQ.h, include/gknots.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/interp.h, include/isothermal.h, include/kalnajs.h, include/kevin_complex.h, include/king.h, include/linalg.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mconf.h, include/mestel.h, include/model2d.h, include/model3d.h, include/models.h, include/needle.h, include/numerical.h, include/numerical.h.orig, include/numerical.old, include/orbit.h, include/phase.h, include/poly.h, include/port.h, include/rotcurv.h, include/simann2.h, include/staeckel.h, include/testembed.cc, include/toomre.h, include/vector.h, include/vector3.h, install-sh, libsrnd/ACG.cc, libsrnd/ACG.cc.orig, libsrnd/ACG.h, libsrnd/Binomial.cc, libsrnd/Binomial.h, libsrnd/DiscUnif.cc, libsrnd/DiscUnif.h, libsrnd/Erlang.cc, libsrnd/Erlang.h, libsrnd/Gamma.cc, libsrnd/Gamma.h, libsrnd/Geom.cc, libsrnd/Geom.h, libsrnd/HypGeom.cc, libsrnd/HypGeom.h, libsrnd/LogNorm.cc, libsrnd/LogNorm.h, libsrnd/MLCG.cc, libsrnd/MLCG.h, libsrnd/Makefile.am, libsrnd/NegExp.cc, libsrnd/NegExp.h, libsrnd/Normal.cc, libsrnd/Normal.h, libsrnd/Poisson.cc, libsrnd/Poisson.h, libsrnd/RNG.cc, libsrnd/RNG.h, libsrnd/Random.cc, libsrnd/Random.h, libsrnd/Regex.cc, libsrnd/Regex.h, libsrnd/RndInt.cc, libsrnd/RndInt.h, libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h, libsrnd/String.cc, libsrnd/String.h, libsrnd/Uniform.cc, libsrnd/Uniform.h, libsrnd/Weibull.cc, libsrnd/Weibull.h, libsrnd/builtin.h, libsrnd/error.cc, libsrnd/rx.h, libsrnd/std.h, libsrnd/timer.c, mdwlib/Makefile.am, mdwlib/brent.c, mdwlib/cel.c, mdwlib/cutil.c, mdwlib/cutil.h, mdwlib/cutilc++.c, mdwlib/dgammln.c, mdwlib/dgammp.c, mdwlib/dgammq.c, mdwlib/dgcf.c, mdwlib/dgser.c, mdwlib/dplgndr.c, mdwlib/el2.c, mdwlib/exponi.c, mdwlib/f1dim.c, mdwlib/fpeieee.c, mdwlib/frprmn.c, mdwlib/gasdev.c, mdwlib/gauss.c, mdwlib/getkey.c, mdwlib/gknots.c, mdwlib/indexx.c, mdwlib/lagknots.c, mdwlib/linmin.c, mdwlib/locate.c, mdwlib/lubksb.c, mdwlib/ludcmp.c, mdwlib/mnbrak.c, mdwlib/odd2.c, mdwlib/plgndr.c, mdwlib/poidev.c, mdwlib/rombe2d.c, mdwlib/sbessj.c, mdwlib/sbessz.c, mdwlib/sort.c, mdwlib/sort2.c, mdwlib/spline.c, mdwlib/splint.c, mdwlib/splint1.c, mdwlib/splint1d.c, mdwlib/splsum.c, mdwlib/tensor.c, mdwlib/xrand.c, mdwlib/zbrent.c, missing, mkinstalldirs, numerical/CVector.cc, numerical/CauchyPV.cc, numerical/Complex.cc, numerical/GaussCore.c, numerical/GaussCore.h, numerical/Hermite.c, numerical/Hermite.h, numerical/HunterToomre.cc, numerical/Jacobi.c, numerical/Jacobi.h, numerical/Laguerre.c, numerical/Laguerre.h, numerical/Makefile.am, numerical/Makefile.with_shared, numerical/OrthoPoly.cc, numerical/QPDistF.cc, numerical/Spline.cc, numerical/Splint.cc, numerical/SplintE.cc, numerical/Vector.cc, numerical/Vector3.cc, numerical/Vlocate.cc, numerical/Vodd2.cc, numerical/airy.c, numerical/bessel.cc, numerical/bessz.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth2d2.cc, numerical/biorth_grid.cc, numerical/biorth_wake.cc, numerical/biorth_wake_orientation.cc, numerical/brent.cc, numerical/bs.cc, numerical/chbevl.c, numerical/clinalg.cc, numerical/coctsvd.cc, numerical/const.c, numerical/cpoly.cc, numerical/cubic.cc, numerical/diag_ensemble.cc, numerical/eigen.cc, numerical/eigsrt.cc, numerical/eigtest.cc, numerical/elemfunc.cc, numerical/embedded.cc, numerical/ensemble.cc, numerical/euler.cc, numerical/euler_slater.cc, numerical/gammln.cc, numerical/gauleg.cc, numerical/gaussQ.cc, numerical/ghql.cc, numerical/horner.cc, numerical/hubble.cc, numerical/hyp2f1.c, numerical/hyperg.c, numerical/i0.c, numerical/i1.c, numerical/inverse.cc, numerical/io_ensemble.cc, numerical/isothermal.cc, numerical/iv.c, numerical/jacobi.cc, numerical/jnsph.cc, numerical/jv.c, numerical/k0.c, numerical/k1.c, numerical/kn.c, numerical/laguer.cc, numerical/linalg.cc, numerical/lubksb.cc, numerical/ludcmp.cc, numerical/map.cc, numerical/massmodel.cc, numerical/massmodel_array.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/mix.cc, numerical/mnbrak.cc, numerical/modbess.cc, numerical/models.cc, numerical/move_ensemble.cc, numerical/mtherr.c, numerical/needle.cc, numerical/nrutil.cc, numerical/odesolve.cc, numerical/orbit.cc, numerical/orbit_trans.cc, numerical/pc.cc, numerical/perfect.cc, numerical/phase.cc, numerical/polevl.c, numerical/poly.cc, numerical/prolate.cc, numerical/psi.c, numerical/qadapt.cc, numerical/qadapt2d.cc, numerical/qld.c, numerical/quad.cc, numerical/realize_model.cc, numerical/rk4.cc, numerical/rotcurv.cc, numerical/rotmatrix.cc, numerical/rtbis.cc, numerical/rtsafe.cc, numerical/sbessz.cc, numerical/sia4.cc, numerical/simann2.cc, numerical/simu2.cc, numerical/sort.cc, numerical/struve.c, numerical/svd.cc, numerical/syndiv.cc, numerical/testbess.cc, numerical/testbess2.cc, numerical/tmp.cc, numerical/ultra.cc, numerical/wordSplit.cc, numerical/zbrac.cc, numerical/zbrak.cc, numerical/zbrent.cc, numerical/zroots.cc, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/HERNQacp.c, src/Interp.h, src/Orient.h, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/Sphacp.cc, src/SphericalSL.cc, src/SphericalSL.h, src/Spline.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/cldsacc.c, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/directacp.c, src/dispersion.c, src/end.c, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/f2c.h, src/factrl.c, src/fixacc.c, src/getkey.c, src/getkey_old.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendre.c:
+	Release of reorganized version of code
+
+	* numerical/kn.c, numerical/laguer.cc, numerical/linalg.cc, numerical/lubksb.cc, numerical/ludcmp.cc, numerical/map.cc, numerical/massmodel.cc, numerical/massmodel_array.cc, numerical/massmodel_dist.cc, numerical/massmodel_dist_old.cc, numerical/mix.cc, numerical/mnbrak.cc, numerical/modbess.cc, numerical/models.cc, numerical/move_ensemble.cc, numerical/mtherr.c, numerical/needle.cc, numerical/nrutil.cc, numerical/odesolve.cc, numerical/orbit.cc, numerical/orbit_trans.cc, numerical/pc.cc, numerical/perfect.cc, numerical/phase.cc, numerical/polevl.c, numerical/poly.cc, numerical/prolate.cc, numerical/psi.c, numerical/qadapt.cc, numerical/qadapt2d.cc, numerical/qld.c, numerical/quad.cc, numerical/realize_model.cc, numerical/rk4.cc, numerical/rotcurv.cc, numerical/rotmatrix.cc, numerical/rtbis.cc, numerical/rtsafe.cc, numerical/sbessz.cc, numerical/sia4.cc, numerical/simann2.cc, numerical/simu2.cc, numerical/sort.cc, numerical/struve.c, numerical/svd.cc, numerical/syndiv.cc, numerical/testbess.cc, numerical/testbess2.cc, numerical/tmp.cc, numerical/ultra.cc, numerical/wordSplit.cc, numerical/zbrac.cc, numerical/zbrak.cc, numerical/zbrent.cc, numerical/zroots.cc, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc, src/Cylacp2.cc, src/Cylacp3.cc, src/EmpOrth4.cc, src/EmpOrth4.h, src/EmpOrth5.cc, src/EmpOrth5.h, src/EmpOrth6.cc, src/EmpOrth6.h, src/EmpOrth7.cc, src/EmpOrth7.h, src/HERNQacp.c, src/Interp.h, src/Orient.h, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/Sphacp.cc, src/SphericalSL.cc, src/SphericalSL.h, src/Spline.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/any_thread.cc, src/any_thread.h, src/any_thread2.cc, src/any_thread2.h, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/checkultra.c, src/cldsacc.c, src/coef.h, src/cubeacp.cc, src/ddplgndr.c, src/directacp.c, src/dispersion.c, src/end.c, src/exp_thread.c, src/exp_threads.h, src/expand.c, src/f2c.h, src/factrl.c, src/fixacc.c, src/getkey.c, src/getkey_old.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendre.c, src/legendre.cc, src/legendreCPP.cc, src/localmpi.h, src/makecube.c, src/makegrid.c, src/mass_loss.c, src/orbtrace.cc, src/outchkpt.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincos.c, src/sincos.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/sltableMP.h, src/step.c, src/syncvel.c, src/test.cc, src/test_any.cc, src/test_any_thread.cc, src/test_tk.cc, src/testcbdisk.cc, src/testsatorb.c, src/testslab.cc, src/tides.c, src/ultra.c, src/ultrasphere.c, src/user.cc, src/user_bar.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_com.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, AUTHORS, COPYING, ChangeLog, INSTALL, Makefile.am, NEWS, README, acconfig.h, autogen.sh, config.h.in, configure.in, include/CVector.h, include/CauchyPV.h, include/HunterX.h, include/OrthoPoly.h, include/QPDistF.h, include/Swap.h, include/Vector.h, include/biorth.h, include/biorth2d.h, include/biorth_wake.h, include/biorth_wake.h.old, include/clinalg.h, include/complex.h, include/cpoly.h, include/cresponse.cc, include/cubic.h, include/cvector.h, include/dead.letter, include/diskfft.cc, include/exponential.h, include/fft.h, include/gaussQ.h, include/gknots.h, include/hernquist.h, include/hernquist.h.orig, include/hunter.h, include/interp.h, include/isothermal.h, include/kalnajs.h, include/kevin_complex.h, include/king.h, include/linalg.h, include/logic.h, include/massmodel.h, include/massmodel_old.h, include/mconf.h, include/mestel.h, include/model2d.h, include/model3d.h, include/models.h, include/needle.h, include/numerical.h, include/numerical.h.orig, include/numerical.old, include/orbit.h, include/phase.h, include/poly.h, include/port.h, include/rotcurv.h, include/simann2.h, include/staeckel.h, include/testembed.cc, include/toomre.h, include/vector.h, include/vector3.h, install-sh, libsrnd/Makefile, libsrnd/Makefile.am, libsrnd/Regex.cc, libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h, libsrnd/builtin.h, libsrnd/std.h, mdwlib/Makefile.am, mdwlib/brent.c, mdwlib/cel.c, mdwlib/cutil.c, mdwlib/cutil.h, mdwlib/cutilc++.c, mdwlib/dgammln.c, mdwlib/dgammp.c, mdwlib/dgammq.c, mdwlib/dgcf.c, mdwlib/dgser.c, mdwlib/dplgndr.c, mdwlib/el2.c, mdwlib/exponi.c, mdwlib/f1dim.c, mdwlib/fpeieee.c, mdwlib/frprmn.c, mdwlib/gasdev.c, mdwlib/gauss.c, mdwlib/getkey.c, mdwlib/gknots.c, mdwlib/indexx.c, mdwlib/lagknots.c, mdwlib/linmin.c, mdwlib/locate.c, mdwlib/lubksb.c, mdwlib/ludcmp.c, mdwlib/mnbrak.c, mdwlib/odd2.c, mdwlib/plgndr.c, mdwlib/poidev.c, mdwlib/rombe2d.c, mdwlib/sbessj.c, mdwlib/sbessz.c, mdwlib/sort.c, mdwlib/sort2.c, mdwlib/spline.c, mdwlib/splint.c, mdwlib/splint1.c, mdwlib/splint1d.c, mdwlib/splsum.c, mdwlib/tensor.c, mdwlib/xrand.c, mdwlib/zbrent.c, missing, mkinstalldirs, numerical/CVector.cc, numerical/CauchyPV.cc, numerical/Complex.cc, numerical/GaussCore.c, numerical/GaussCore.h, numerical/Hermite.c, numerical/Hermite.h, numerical/HunterToomre.cc, numerical/Jacobi.c, numerical/Jacobi.h, numerical/Laguerre.c, numerical/Laguerre.h, numerical/Makefile.am, numerical/Makefile.with_shared, numerical/OrthoPoly.cc, numerical/QPDistF.cc, numerical/Spline.cc, numerical/Splint.cc, numerical/SplintE.cc, numerical/Vector.cc, numerical/Vector3.cc, numerical/Vlocate.cc, numerical/Vodd2.cc, numerical/airy.c, numerical/bessel.cc, numerical/bessz.cc, numerical/biorth.cc, numerical/biorth2d.cc, numerical/biorth2d2.cc, numerical/biorth_grid.cc, numerical/biorth_wake.cc, numerical/biorth_wake_orientation.cc, numerical/brent.cc, numerical/bs.cc, numerical/chbevl.c, numerical/clinalg.cc, numerical/coctsvd.cc, numerical/const.c, numerical/cpoly.cc, numerical/cubic.cc, numerical/diag_ensemble.cc, numerical/eigen.cc, numerical/eigsrt.cc, numerical/eigtest.cc, numerical/elemfunc.cc, numerical/embedded.cc, numerical/ensemble.cc, numerical/euler.cc, numerical/euler_slater.cc, numerical/gammln.cc, numerical/gauleg.cc, numerical/gaussQ.cc, numerical/ghql.cc, numerical/horner.cc, numerical/hubble.cc, numerical/hyp2f1.c, numerical/hyperg.c, numerical/i0.c, numerical/i1.c, numerical/inverse.cc, numerical/io_ensemble.cc, numerical/isothermal.cc, numerical/iv.c, numerical/jacobi.cc, numerical/jnsph.cc, numerical/jv.c, numerical/k0.c, numerical/k1.c:
+	Merged reoranized branch on to trunk
+
+	* src/orbtrace.cc: Added rcsid.
+
+2001-07-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/orbtrace.cc: Cache phase space for selected orbits
+
+	* src/orbtrace.cc: New file.
+
+2001-07-23  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user.cc, src/user_bar.cc: Fix ups for bar forcing user routine
+
+2001-07-22  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/Sphacp.cc, src/user.cc, src/user_bar.cc:
+	Added field eval member for SphericalSL and user_bar fix ups
+
+	* src/user_bar.cc: New file.
+
+	* src/output.c, src/parse.c, src/user_bar.cc: Rotating bar perturbation
+
+2001-06-02  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* include/Vector.h, numerical/Makefile.am, numerical/Vector.cc, src/analcld.c, src/begin.c, src/expand.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/shock.cc:
+	Debugging code for vector/matrix.  Minor fixes to perturbation routines.
+
+2001-03-07  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in, numerical/CVector.cc, numerical/Vector.cc, numerical/Vector3.cc:
+	A few fix ups in setsize routines for Vector.
+
+	* src/SatelliteOrbit.cc, src/exp_thread.c, src/expand.c, src/parse.c, src/user.cc, src/user_sat.cc, src/user_sat_com.cc:
+	Minor fixes; consistent directory setting and searching.
+
+2001-02-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* libsrnd/Makefile.am, mdwlib/Makefile.am, numerical/CVector.cc, numerical/Makefile.am, numerical/Vector.cc, src/expand.c, src/localmpi.h, src/parse.c:
+	Fixed bug in Matrix::setsize (minor).  Generalized config to use
+	either LAM or MPICH with minor changes.  Removed non-blocking
+	communication from EmpOrth7thd.
+
+2001-02-04  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* numerical/Vector.cc, src/Cylacp3.cc, src/Orient.h, src/user.cc, src/user_sat.cc:
+	Added COM to satellite orbit perturbation.  Minor bug fixes.
+
+2001-01-27  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/user_sat_com.cc: New file.
+
+	* src/user_sat_com.cc:
+	Shift the satellite orbit to the halo center of mass.
+
+2001-01-26  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/output.c: Remove debug printf statement.
+
+2001-01-20  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in, src/user.cc: Update version.
+
+2001-01-02  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* mdwlib/Makefile.am, numerical/Makefile.am, libsrnd/Makefile.am:
+	Make -O3 the defaults for support libraries.
+
+2001-01-01  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* libsrnd/Makefile.am, mdwlib/Makefile.am, numerical/Makefile.am:
+	Revised default compile flags.
+
+2000-12-31  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* config.h.in, configure.in, numerical/Makefile.am:
+	Fix up a few configuration inconsistencies
+
+2000-12-22  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* configure.in, src/user.cc:
+	Lowered optimization for WghtOrth3 (O3 seems to break mpi here)
+
+2000-12-21  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* config.h.in, libsrnd/Regex.cc, src/user.cc: Minor compile bugs . . .
+
+2000-08-19  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/EmpOrth4.cc, src/EmpOrth5.cc, src/EmpOrth6.cc, src/EmpOrth7.cc:
+	Fixed up initialization error (variable: ssin) found by Daisuke Iono
+
+2000-06-28  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* src/outlog.c:
+	Added recording of centers for Component 1 and Component 2
+
+2000-06-17  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* INSTALL: Add reminder about PATH
+
+	* include/gknots.h, numerical/gknots.h:
+	Moved gknots.h from ./numerical to ./include
+
+	* include/gknots.h: New file.
+
+2000-06-16  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* numerical/gknots.h, src/gknots.h: Missing header file
+
+	* numerical/gknots.h: New file.
+
+	* src/gknots.h: Missing header file
+
+	* src/gknots.h: New file.
+
+	* ChangeLog: Added note on current updates
+
+	* numerical/Makefile.am~, numerical/struve.c~:
+	Remove backup edits from source
+
+	* AUTHORS, INSTALL, README: Added and updated boilerplate stuff
+
+	* README: libsrnd updates.  Added a README
+
+2000-06-15  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* numerical/libnumerical.a: Library accidentally added to repository
+
+	* src/f2c.h: Missing file
+
+	* src/f2c.h: New file.
+
+	* mdwlib/libmdw.a: Library accidentally added to repository
+
+	* libsrnd/std.h: Missing file
+
+	* libsrnd/std.h: New file.
+
+	* libsrnd/builtin.h: Missing file
+
+	* libsrnd/builtin.h, libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h:
+	New file.
+
+	* libsrnd/SmplHist.cc, libsrnd/SmplHist.h, libsrnd/SmplStat.cc, libsrnd/SmplStat.h:
+	Update source files
+
+	* libsrnd/Makefile.am: Missing file Makefile.am
+
+	* libsrnd/Makefile.am: New file.
+
+	* src/Cylacp2.cc, src/Cylacp3.cc, src/EmpOrth7.cc, src/EmpOrth7.h, src/HERNQacp.c, src/Orient.h, src/SLGridMP.cc, src/SLGridMP.h, src/SatelliteOrbit.cc, src/SatelliteOrbit.h, src/Sphacp.cc, src/SphericalSL.cc, src/SphericalSL.h, src/WghtOrth.cc, src/WghtOrth.h, src/WghtOrth2.cc, src/WghtOrth2.h, src/accpot.c, src/adjscl.c, src/analcld.c, src/begin.c, src/bessacp.c, src/bessacp1.c, src/bessacp2.c, src/bessacpMG.c, src/biorth_CB.c, src/biorth_HERNQ.c, src/biorth_bes.c, src/cldsacc.c, src/cubeacp.cc, src/directacp.c, src/end.c, src/expand.c, src/fixacc.c, src/halo+bulge.cc, src/halo.cc, src/halo_only.cc, src/incpos.c, src/incvel.c, src/init.c, src/initvel.c, src/legendreCPP.cc, src/makegrid.c, src/outcoef.c, src/outdiag.c, src/outlist.c, src/outlog.c, src/outlog.linux.c, src/outlog.sun.c, src/output.c, src/outrelx.c, src/outtipsy.c, src/parallel.c, src/parallelCPP.cc, src/parse.c, src/pca.cc, src/pmacp.c, src/potden.c, src/satellite.c, src/satellite_orbit.cc, src/satellite_orbit2.cc, src/scatter.cc, src/shock.cc, src/sincosCPP.cc, src/slabacp.cc, src/slabacpSL.cc, src/step.c, src/syncvel.c, src/test_tk.cc, src/testcbdisk.cc, src/testslab.cc, src/tides.c, src/ultrasphere.c, src/user.cc, src/user_linear_sat.cc, src/user_sat.c, src/user_sat.cc, src/user_sat_tide.cc, src/user_sat_tide_ni.cc, src/user_self.c, src/user_slab.c, src/user_slabhalo.c, src/user_stub.c, src/user_twosat.c, src/CBacp.c, src/CBdiskacp.c, src/Cylacp.cc:
+	Updated version of files including all changes to remove non-standard
+	C++ code
+
+	* libsrnd/Makefile, mdwlib/Makefile, mdwlib/Makefile.in, numerical/Makefile, numerical/Makefile.in:
+	Mistakenly entered transient files
+
+	* numerical/zroots.cc: Added new numerical/zroots.cc
+
+	* numerical/zroots.cc: New file.
+
+	* numerical/zbrent.cc: Added new numerical/zbrent.cc
+
+	* numerical/zbrent.cc: New file.
+
+	* numerical/zbrak.cc: Added new numerical/zbrak.cc
+
+	* numerical/zbrak.cc: New file.
+
+	* numerical/zbrac.cc: Added new numerical/zbrac.cc
+
+	* numerical/zbrac.cc: New file.
+
+	* numerical/wordSplit.cc: Added new numerical/wordSplit.cc
+
+	* numerical/wordSplit.cc: New file.
+
+	* numerical/ultra.cc: Added new numerical/ultra.cc
+
+	* numerical/ultra.cc: New file.
+
+	* numerical/tmp.cc: Added new numerical/tmp.cc
+
+	* numerical/tmp.cc: New file.
+
+	* numerical/testbess2.cc: Added new numerical/testbess2.cc
+
+	* numerical/testbess2.cc: New file.
+
+	* numerical/testbess.cc: Added new numerical/testbess.cc
+
+	* numerical/testbess.cc: New file.
+
+	* numerical/syndiv.cc: Added new numerical/syndiv.cc
+
+	* numerical/syndiv.cc: New file.
+
+	* numerical/svd.cc: Added new numerical/svd.cc
+
+	* numerical/svd.cc: New file.
+
+	* numerical/struve.c~: Added new numerical/struve.c~
+
+	* numerical/struve.c~: New file.
+
+	* numerical/struve.c: Added new numerical/struve.c
+
+	* numerical/struve.c: New file.
+
+	* numerical/sort.cc: Added new numerical/sort.cc
+
+	* numerical/sort.cc: New file.
+
+	* numerical/simu2.cc: Added new numerical/simu2.cc
+
+	* numerical/simu2.cc: New file.
+
+	* numerical/simann2.cc: Added new numerical/simann2.cc
+
+	* numerical/simann2.cc: New file.
+
+	* numerical/sia4.cc: Added new numerical/sia4.cc
+
+	* numerical/sia4.cc: New file.
+
+	* numerical/sbessz.cc: Added new numerical/sbessz.cc
+
+	* numerical/sbessz.cc: New file.
+
+	* numerical/rtsafe.cc: Added new numerical/rtsafe.cc
+
+	* numerical/rtsafe.cc: New file.
+
+	* numerical/rtbis.cc: Added new numerical/rtbis.cc
+
+	* numerical/rtbis.cc: New file.
+
+	* numerical/rotmatrix.cc: Added new numerical/rotmatrix.cc
+
+	* numerical/rotmatrix.cc: New file.
+
+	* numerical/rotcurv.cc: Added new numerical/rotcurv.cc
+
+	* numerical/rotcurv.cc: New file.
+
+	* numerical/rk4.cc: Added new numerical/rk4.cc
+
+	* numerical/rk4.cc: New file.
+
+	* numerical/realize_model.cc: Added new numerical/realize_model.cc
+
+	* numerical/realize_model.cc: New file.
+
+	* numerical/quad.cc: Added new numerical/quad.cc
+
+	* numerical/quad.cc: New file.
+
+	* numerical/qld.c: Added new numerical/qld.c
+
+	* numerical/qld.c: New file.
+
+	* numerical/qadapt2d.cc: Added new numerical/qadapt2d.cc
+
+	* numerical/qadapt2d.cc: New file.
+
+	* numerical/qadapt.cc: Added new numerical/qadapt.cc
+
+	* numerical/qadapt.cc: New file.
+
+	* numerical/psi.c: Added new numerical/psi.c
+
+	* numerical/psi.c: New file.
+
+	* numerical/prolate.cc: Added new numerical/prolate.cc
+
+	* numerical/prolate.cc: New file.
+
+	* numerical/poly.cc: Added new numerical/poly.cc
+
+	* numerical/poly.cc: New file.
+
+	* numerical/polevl.c: Added new numerical/polevl.c
+
+	* numerical/polevl.c: New file.
+
+	* numerical/phase.cc: Added new numerical/phase.cc
+
+	* numerical/phase.cc: New file.
+
+	* numerical/perfect.cc: Added new numerical/perfect.cc
+
+	* numerical/perfect.cc: New file.
+
+	* numerical/pc.cc: Added new numerical/pc.cc
+
+	* numerical/pc.cc: New file.
+
+	* numerical/orbit_trans.cc: Added new numerical/orbit_trans.cc
+
+	* numerical/orbit_trans.cc: New file.
+
+	* numerical/orbit.cc: Added new numerical/orbit.cc
+
+	* numerical/orbit.cc: New file.
+
+	* numerical/odesolve.cc: Added new numerical/odesolve.cc
+
+	* numerical/odesolve.cc: New file.
+
+	* numerical/nrutil.cc: Added new numerical/nrutil.cc
+
+	* numerical/nrutil.cc: New file.
+
+	* numerical/needle.cc: Added new numerical/needle.cc
+
+	* numerical/needle.cc: New file.
+
+	* numerical/mtherr.c: Added new numerical/mtherr.c
+
+	* numerical/mtherr.c: New file.
+
+	* numerical/move_ensemble.cc: Added new numerical/move_ensemble.cc
+
+	* numerical/move_ensemble.cc: New file.
+
+	* numerical/models.cc: Added new numerical/models.cc
+
+	* numerical/models.cc: New file.
+
+	* numerical/modbess.cc: Added new numerical/modbess.cc
+
+	* numerical/modbess.cc: New file.
+
+	* numerical/mnbrak.cc: Added new numerical/mnbrak.cc
+
+	* numerical/mnbrak.cc: New file.
+
+	* numerical/mix.cc: Added new numerical/mix.cc
+
+	* numerical/mix.cc: New file.
+
+	* numerical/massmodel_dist_old.cc:
+	Added new numerical/massmodel_dist_old.cc
+
+	* numerical/massmodel_dist_old.cc: New file.
+
+	* numerical/massmodel_dist.cc: Added new numerical/massmodel_dist.cc
+
+	* numerical/massmodel_dist.cc: New file.
+
+	* numerical/massmodel_array.cc: Added new numerical/massmodel_array.cc
+
+	* numerical/massmodel_array.cc: New file.
+
+	* numerical/massmodel.cc: Added new numerical/massmodel.cc
+
+	* numerical/massmodel.cc: New file.
+
+	* numerical/map.cc: Added new numerical/map.cc
+
+	* numerical/map.cc: New file.
+
+	* numerical/ludcmp.cc: Added new numerical/ludcmp.cc
+
+	* numerical/ludcmp.cc: New file.
+
+	* numerical/lubksb.cc: Added new numerical/lubksb.cc
+
+	* numerical/lubksb.cc: New file.
+
+	* numerical/linalg.cc: Added new numerical/linalg.cc
+
+	* numerical/linalg.cc: New file.
+
+	* numerical/libnumerical.a: Added new numerical/libnumerical.a
+
+	* numerical/libnumerical.a: New file.
+
+	* numerical/laguer.cc: Added new numerical/laguer.cc
+
+	* numerical/laguer.cc: New file.
+
+	* numerical/kn.c: Added new numerical/kn.c
+
+	* numerical/kn.c: New file.
+
+	* numerical/k1.c: Added new numerical/k1.c
+
+	* numerical/k1.c: New file.
+
+	* numerical/k0.c: Added new numerical/k0.c
+
+	* numerical/k0.c: New file.
+
+	* numerical/jv.c: Added new numerical/jv.c
+
+	* numerical/jv.c: New file.
+
+	* numerical/jnsph.cc: Added new numerical/jnsph.cc
+
+	* numerical/jnsph.cc: New file.
+
+	* numerical/jacobi.cc: Added new numerical/jacobi.cc
+
+	* numerical/jacobi.cc: New file.
+
+	* numerical/iv.c: Added new numerical/iv.c
+
+	* numerical/iv.c: New file.
+
+	* numerical/isothermal.cc: Added new numerical/isothermal.cc
+
+	* numerical/isothermal.cc: New file.
+
+	* numerical/io_ensemble.cc: Added new numerical/io_ensemble.cc
+
+	* numerical/io_ensemble.cc: New file.
+
+	* numerical/inverse.cc: Added new numerical/inverse.cc
+
+	* numerical/inverse.cc: New file.
+
+	* numerical/i1.c: Added new numerical/i1.c
+
+	* numerical/i1.c: New file.
+
+	* numerical/i0.c: Added new numerical/i0.c
+
+	* numerical/i0.c: New file.
+
+	* numerical/hyperg.c: Added new numerical/hyperg.c
+
+	* numerical/hyperg.c: New file.
+
+	* numerical/hyp2f1.c: Added new numerical/hyp2f1.c
+
+	* numerical/hyp2f1.c: New file.
+
+	* numerical/hubble.cc: Added new numerical/hubble.cc
+
+	* numerical/hubble.cc: New file.
+
+	* numerical/horner.cc: Added new numerical/horner.cc
+
+	* numerical/horner.cc: New file.
+
+	* numerical/ghql.cc: Added new numerical/ghql.cc
+
+	* numerical/ghql.cc: New file.
+
+	* numerical/gaussQ.cc: Added new numerical/gaussQ.cc
+
+	* numerical/gaussQ.cc: New file.
+
+	* numerical/gauleg.cc: Added new numerical/gauleg.cc
+
+	* numerical/gauleg.cc: New file.
+
+	* numerical/gammln.cc: Added new numerical/gammln.cc
+
+	* numerical/gammln.cc: New file.
+
+	* numerical/euler_slater.cc: Added new numerical/euler_slater.cc
+
+	* numerical/euler_slater.cc: New file.
+
+	* numerical/euler.cc: Added new numerical/euler.cc
+
+	* numerical/euler.cc: New file.
+
+	* numerical/ensemble.cc: Added new numerical/ensemble.cc
+
+	* numerical/ensemble.cc: New file.
+
+	* numerical/embedded.cc: Added new numerical/embedded.cc
+
+	* numerical/embedded.cc: New file.
+
+	* numerical/elemfunc.cc: Added new numerical/elemfunc.cc
+
+	* numerical/elemfunc.cc: New file.
+
+	* numerical/eigtest.cc: Added new numerical/eigtest.cc
+
+	* numerical/eigtest.cc: New file.
+
+	* numerical/eigsrt.cc: Added new numerical/eigsrt.cc
+
+	* numerical/eigsrt.cc: New file.
+
+	* numerical/eigen.cc: Added new numerical/eigen.cc
+
+	* numerical/eigen.cc: New file.
+
+	* numerical/diag_ensemble.cc: Added new numerical/diag_ensemble.cc
+
+	* numerical/diag_ensemble.cc: New file.
+
+	* numerical/cubic.cc: Added new numerical/cubic.cc
+
+	* numerical/cubic.cc: New file.
+
+	* numerical/cpoly.cc: Added new numerical/cpoly.cc
+
+	* numerical/cpoly.cc: New file.
+
+	* numerical/const.c: Added new numerical/const.c
+
+	* numerical/const.c: New file.
+
+	* numerical/coctsvd.cc: Added new numerical/coctsvd.cc
+
+	* numerical/coctsvd.cc: New file.
+
+	* numerical/clinalg.cc: Added new numerical/clinalg.cc
+
+	* numerical/clinalg.cc: New file.
+
+	* numerical/chbevl.c: Added new numerical/chbevl.c
+
+	* numerical/chbevl.c: New file.
+
+	* numerical/bs.cc: Added new numerical/bs.cc
+
+	* numerical/bs.cc: New file.
+
+	* numerical/brent.cc: Added new numerical/brent.cc
+
+	* numerical/brent.cc: New file.
+
+	* numerical/biorth_wake_orientation.cc:
+	Added new numerical/biorth_wake_orientation.cc
+
+	* numerical/biorth_wake_orientation.cc: New file.
+
+	* numerical/biorth_wake.cc: Added new numerical/biorth_wake.cc
+
+	* numerical/biorth_wake.cc: New file.
+
+	* numerical/biorth_grid.cc: Added new numerical/biorth_grid.cc
+
+	* numerical/biorth_grid.cc: New file.
+
+	* numerical/biorth2d2.cc: Added new numerical/biorth2d2.cc
+
+	* numerical/biorth2d2.cc: New file.
+
+	* numerical/biorth2d.cc: Added new numerical/biorth2d.cc
+
+	* numerical/biorth2d.cc: New file.
+
+	* numerical/biorth.cc: Added new numerical/biorth.cc
+
+	* numerical/biorth.cc: New file.
+
+	* numerical/bessz.cc: Added new numerical/bessz.cc
+
+	* numerical/bessz.cc: New file.
+
+	* numerical/bessel.cc: Added new numerical/bessel.cc
+
+	* numerical/bessel.cc: New file.
+
+	* numerical/airy.c: Added new numerical/airy.c
+
+	* numerical/airy.c: New file.
+
+	* numerical/Vodd2.cc: Added new numerical/Vodd2.cc
+
+	* numerical/Vodd2.cc: New file.
+
+	* numerical/Vlocate.cc: Added new numerical/Vlocate.cc
+
+	* numerical/Vlocate.cc: New file.
+
+	* numerical/Vector3.cc: Added new numerical/Vector3.cc
+
+	* numerical/Vector3.cc: New file.
+
+	* numerical/Vector.cc: Added new numerical/Vector.cc
+
+	* numerical/Vector.cc: New file.
+
+	* numerical/SplintE.cc: Added new numerical/SplintE.cc
+
+	* numerical/SplintE.cc: New file.
+
+	* numerical/Splint.cc: Added new numerical/Splint.cc
+
+	* numerical/Splint.cc: New file.
+
+	* numerical/Spline.cc: Added new numerical/Spline.cc
+
+	* numerical/Spline.cc: New file.
+
+	* numerical/QPDistF.cc: Added new numerical/QPDistF.cc
+
+	* numerical/QPDistF.cc: New file.
+
+	* numerical/OrthoPoly.cc: Added new numerical/OrthoPoly.cc
+
+	* numerical/OrthoPoly.cc: New file.
+
+	* numerical/Makefile.with_shared:
+	Added new numerical/Makefile.with_shared
+
+	* numerical/Makefile.with_shared: New file.
+
+	* numerical/Makefile.in: Added new numerical/Makefile.in
+
+	* numerical/Makefile.in: New file.
+
+	* numerical/Makefile.am~: Added new numerical/Makefile.am~
+
+	* numerical/Makefile.am~: New file.
+
+	* numerical/Makefile.am: Added new numerical/Makefile.am
+
+	* numerical/Makefile.am: New file.
+
+	* numerical/Makefile: Added new numerical/Makefile
+
+	* numerical/Makefile: New file.
+
+	* numerical/Laguerre.h: Added new numerical/Laguerre.h
+
+	* numerical/Laguerre.h: New file.
+
+	* numerical/Laguerre.c: Added new numerical/Laguerre.c
+
+	* numerical/Laguerre.c: New file.
+
+	* numerical/Jacobi.h: Added new numerical/Jacobi.h
+
+	* numerical/Jacobi.h: New file.
+
+	* numerical/Jacobi.c: Added new numerical/Jacobi.c
+
+	* numerical/Jacobi.c: New file.
+
+	* numerical/HunterToomre.cc: Added new numerical/HunterToomre.cc
+
+	* numerical/HunterToomre.cc: New file.
+
+	* numerical/Hermite.h: Added new numerical/Hermite.h
+
+	* numerical/Hermite.h: New file.
+
+	* numerical/Hermite.c: Added new numerical/Hermite.c
+
+	* numerical/Hermite.c: New file.
+
+	* numerical/GaussCore.h: Added new numerical/GaussCore.h
+
+	* numerical/GaussCore.h: New file.
+
+	* numerical/GaussCore.c: Added new numerical/GaussCore.c
+
+	* numerical/GaussCore.c: New file.
+
+	* numerical/Complex.cc: Added new numerical/Complex.cc
+
+	* numerical/Complex.cc: New file.
+
+	* numerical/CauchyPV.cc: Added new numerical/CauchyPV.cc
+
+	* numerical/CauchyPV.cc: New file.
+
+	* numerical/CVector.cc: Added new numerical/CVector.cc
+
+	* numerical/CVector.cc: New file.
+
+	* mdwlib/zbrent.c: Added new mdwlib/zbrent.c
+
+	* mdwlib/zbrent.c: New file.
+
+	* mdwlib/xrand.c: Added new mdwlib/xrand.c
+
+	* mdwlib/xrand.c: New file.
+
+	* mdwlib/tensor.c: Added new mdwlib/tensor.c
+
+	* mdwlib/tensor.c: New file.
+
+	* mdwlib/splsum.c: Added new mdwlib/splsum.c
+
+	* mdwlib/splsum.c: New file.
+
+	* mdwlib/splint1d.c: Added new mdwlib/splint1d.c
+
+	* mdwlib/splint1d.c: New file.
+
+	* mdwlib/splint1.c: Added new mdwlib/splint1.c
+
+	* mdwlib/splint1.c: New file.
+
+	* mdwlib/splint.c: Added new mdwlib/splint.c
+
+	* mdwlib/splint.c: New file.
+
+	* mdwlib/spline.c: Added new mdwlib/spline.c
+
+	* mdwlib/spline.c: New file.
+
+	* mdwlib/sort2.c: Added new mdwlib/sort2.c
+
+	* mdwlib/sort2.c: New file.
+
+	* mdwlib/sort.c: Added new mdwlib/sort.c
+
+	* mdwlib/sort.c: New file.
+
+	* mdwlib/sbessz.c: Added new mdwlib/sbessz.c
+
+	* mdwlib/sbessz.c: New file.
+
+	* mdwlib/sbessj.c: Added new mdwlib/sbessj.c
+
+	* mdwlib/sbessj.c: New file.
+
+	* mdwlib/rombe2d.c: Added new mdwlib/rombe2d.c
+
+	* mdwlib/rombe2d.c: New file.
+
+	* mdwlib/poidev.c: Added new mdwlib/poidev.c
+
+	* mdwlib/poidev.c: New file.
+
+	* mdwlib/plgndr.c: Added new mdwlib/plgndr.c
+
+	* mdwlib/plgndr.c: New file.
+
+	* mdwlib/odd2.c: Added new mdwlib/odd2.c
+
+	* mdwlib/odd2.c: New file.
+
+	* mdwlib/mnbrak.c: Added new mdwlib/mnbrak.c
+
+	* mdwlib/mnbrak.c: New file.
+
+	* mdwlib/ludcmp.c: Added new mdwlib/ludcmp.c
+
+	* mdwlib/ludcmp.c: New file.
+
+	* mdwlib/lubksb.c: Added new mdwlib/lubksb.c
+
+	* mdwlib/lubksb.c: New file.
+
+	* mdwlib/locate.c: Added new mdwlib/locate.c
+
+	* mdwlib/locate.c: New file.
+
+	* mdwlib/linmin.c: Added new mdwlib/linmin.c
+
+	* mdwlib/linmin.c: New file.
+
+	* mdwlib/libmdw.a: Added new mdwlib/libmdw.a
+
+	* mdwlib/libmdw.a: New file.
+
+	* mdwlib/lagknots.c: Added new mdwlib/lagknots.c
+
+	* mdwlib/lagknots.c: New file.
+
+	* mdwlib/indexx.c: Added new mdwlib/indexx.c
+
+	* mdwlib/indexx.c: New file.
+
+	* mdwlib/gknots.c: Added new mdwlib/gknots.c
+
+	* mdwlib/gknots.c: New file.
+
+	* mdwlib/getkey.c: Added new mdwlib/getkey.c
+
+	* mdwlib/getkey.c: New file.
+
+	* mdwlib/gauss.c: Added new mdwlib/gauss.c
+
+	* mdwlib/gauss.c: New file.
+
+	* mdwlib/gasdev.c: Added new mdwlib/gasdev.c
+
+	* mdwlib/gasdev.c: New file.
+
+	* mdwlib/frprmn.c: Added new mdwlib/frprmn.c
+
+	* mdwlib/frprmn.c: New file.
+
+	* mdwlib/fpeieee.c: Added new mdwlib/fpeieee.c
+
+	* mdwlib/fpeieee.c: New file.
+
+	* mdwlib/f1dim.c: Added new mdwlib/f1dim.c
+
+	* mdwlib/f1dim.c: New file.
+
+	* mdwlib/exponi.c: Added new mdwlib/exponi.c
+
+	* mdwlib/exponi.c: New file.
+
+	* mdwlib/el2.c: Added new mdwlib/el2.c
+
+	* mdwlib/el2.c: New file.
+
+	* mdwlib/dplgndr.c: Added new mdwlib/dplgndr.c
+
+	* mdwlib/dplgndr.c: New file.
+
+	* mdwlib/dgser.c: Added new mdwlib/dgser.c
+
+	* mdwlib/dgser.c: New file.
+
+	* mdwlib/dgcf.c: Added new mdwlib/dgcf.c
+
+	* mdwlib/dgcf.c: New file.
+
+	* mdwlib/dgammq.c: Added new mdwlib/dgammq.c
+
+	* mdwlib/dgammq.c: New file.
+
+	* mdwlib/dgammp.c: Added new mdwlib/dgammp.c
+
+	* mdwlib/dgammp.c: New file.
+
+	* mdwlib/dgammln.c: Added new mdwlib/dgammln.c
+
+	* mdwlib/dgammln.c: New file.
+
+	* mdwlib/cutilc++.c: Added new mdwlib/cutilc++.c
+
+	* mdwlib/cutilc++.c: New file.
+
+	* mdwlib/cutil.h: Added new mdwlib/cutil.h
+
+	* mdwlib/cutil.h: New file.
+
+	* mdwlib/cutil.c: Added new mdwlib/cutil.c
+
+	* mdwlib/cutil.c: New file.
+
+	* mdwlib/cel.c: Added new mdwlib/cel.c
+
+	* mdwlib/cel.c: New file.
+
+	* mdwlib/brent.c: Added new mdwlib/brent.c
+
+	* mdwlib/brent.c: New file.
+
+	* mdwlib/Makefile.in: Added new mdwlib/Makefile.in
+
+	* mdwlib/Makefile.in: New file.
+
+	* mdwlib/Makefile.am: Added new mdwlib/Makefile.am
+
+	* mdwlib/Makefile.am: New file.
+
+	* mdwlib/Makefile: Added new mdwlib/Makefile
+
+	* mdwlib/Makefile: New file.
+
+	* include/vector3.h: Added new include/vector3.h
+
+	* include/vector3.h: New file.
+
+	* include/vector.h: Added new include/vector.h
+
+	* include/vector.h: New file.
+
+	* include/toomre.h: Added new include/toomre.h
+
+	* include/toomre.h: New file.
+
+	* include/testembed.cc: Added new include/testembed.cc
+
+	* include/testembed.cc: New file.
+
+	* include/staeckel.h: Added new include/staeckel.h
+
+	* include/staeckel.h: New file.
+
+	* include/simann2.h: Added new include/simann2.h
+
+	* include/simann2.h: New file.
+
+	* include/rotcurv.h: Added new include/rotcurv.h
+
+	* include/rotcurv.h: New file.
+
+	* include/port.h: Added new include/port.h
+
+	* include/port.h: New file.
+
+	* include/poly.h: Added new include/poly.h
+
+	* include/poly.h: New file.
+
+	* include/phase.h: Added new include/phase.h
+
+	* include/phase.h: New file.
+
+	* include/orbit.h: Added new include/orbit.h
+
+	* include/orbit.h: New file.
+
+	* include/numerical.old: Added new include/numerical.old
+
+	* include/numerical.old: New file.
+
+	* include/numerical.h.orig: Added new include/numerical.h.orig
+
+	* include/numerical.h.orig: New file.
+
+	* include/numerical.h: Added new include/numerical.h
+
+	* include/numerical.h: New file.
+
+	* include/needle.h: Added new include/needle.h
+
+	* include/needle.h: New file.
+
+	* include/models.h: Added new include/models.h
+
+	* include/models.h: New file.
+
+	* include/model3d.h: Added new include/model3d.h
+
+	* include/model3d.h: New file.
+
+	* include/model2d.h: Added new include/model2d.h
+
+	* include/model2d.h: New file.
+
+	* include/mestel.h: Added new include/mestel.h
+
+	* include/mestel.h: New file.
+
+	* include/mconf.h: Added new include/mconf.h
+
+	* include/mconf.h: New file.
+
+	* include/massmodel_old.h: Added new include/massmodel_old.h
+
+	* include/massmodel_old.h: New file.
+
+	* include/massmodel.h: Added new include/massmodel.h
+
+	* include/massmodel.h: New file.
+
+	* include/logic.h: Added new include/logic.h
+
+	* include/logic.h: New file.
+
+	* include/linalg.h: Added new include/linalg.h
+
+	* include/linalg.h: New file.
+
+	* include/king.h: Added new include/king.h
+
+	* include/king.h: New file.
+
+	* include/kevin_complex.h: Added new include/kevin_complex.h
+
+	* include/kevin_complex.h: New file.
+
+	* include/kalnajs.h: Added new include/kalnajs.h
+
+	* include/kalnajs.h: New file.
+
+	* include/isothermal.h: Added new include/isothermal.h
+
+	* include/isothermal.h: New file.
+
+	* include/interp.h: Added new include/interp.h
+
+	* include/interp.h: New file.
+
+	* include/hunter.h: Added new include/hunter.h
+
+	* include/hunter.h: New file.
+
+	* include/hernquist.h.orig: Added new include/hernquist.h.orig
+
+	* include/hernquist.h.orig: New file.
+
+	* include/hernquist.h: Added new include/hernquist.h
+
+	* include/hernquist.h: New file.
+
+	* include/gaussQ.h: Added new include/gaussQ.h
+
+	* include/gaussQ.h: New file.
+
+	* include/fft.h: Added new include/fft.h
+
+	* include/fft.h: New file.
+
+	* include/exponential.h: Added new include/exponential.h
+
+	* include/exponential.h: New file.
+
+	* include/diskfft.cc: Added new include/diskfft.cc
+
+	* include/diskfft.cc: New file.
+
+	* include/dead.letter: Added new include/dead.letter
+
+	* include/dead.letter: New file.
+
+	* include/cvector.h: Added new include/cvector.h
+
+	* include/cvector.h: New file.
+
+	* include/cubic.h: Added new include/cubic.h
+
+	* include/cubic.h: New file.
+
+	* include/cresponse.cc: Added new include/cresponse.cc
+
+	* include/cresponse.cc: New file.
+
+	* include/cpoly.h: Added new include/cpoly.h
+
+	* include/cpoly.h: New file.
+
+	* include/complex.h: Added new include/complex.h
+
+	* include/complex.h: New file.
+
+	* include/clinalg.h: Added new include/clinalg.h
+
+	* include/clinalg.h: New file.
+
+	* include/biorth_wake.h.old: Added new include/biorth_wake.h.old
+
+	* include/biorth_wake.h.old: New file.
+
+	* include/biorth_wake.h: Added new include/biorth_wake.h
+
+	* include/biorth_wake.h: New file.
+
+	* include/biorth2d.h: Added new include/biorth2d.h
+
+	* include/biorth2d.h: New file.
+
+	* include/biorth.h: Added new include/biorth.h
+
+	* include/biorth.h: New file.
+
+	* include/Vector.h: Added new include/Vector.h
+
+	* include/Vector.h: New file.
+
+	* include/Swap.h: Added new include/Swap.h
+
+	* include/Swap.h: New file.
+
+	* include/QPDistF.h: Added new include/QPDistF.h
+
+	* include/QPDistF.h: New file.
+
+	* include/OrthoPoly.h: Added new include/OrthoPoly.h
+
+	* include/OrthoPoly.h: New file.
+
+	* include/HunterX.h: Added new include/HunterX.h
+
+	* include/HunterX.h: New file.
+
+	* include/CauchyPV.h: Added new include/CauchyPV.h
+
+	* include/CauchyPV.h: New file.
+
+	* include/CVector.h: Added new include/CVector.h
+
+	* include/CVector.h: New file.
+
+	* configure.in: Added new configure.in
+
+	* configure.in: New file.
+
+	* config.h.in: Added new config.h.in
+
+	* config.h.in: New file.
+
+	* mkinstalldirs: Added new mkinstalldirs
+
+	* mkinstalldirs: New file.
+
+	* missing: Added new missing
+
+	* missing: New file.
+
+	* install-sh: Added new install-sh
+
+	* install-sh: New file.
+
+	* autogen.sh: Added new autogen.sh
+
+	* autogen.sh: New file.
+
+	* acconfig.h: Added new acconfig.h
+
+	* acconfig.h: New file.
+
+	* README: Added new README
+
+	* README: New file.
+
+	* NEWS: Added new NEWS
+
+	* NEWS: New file.
+
+	* Makefile.am: Added new Makefile.am
+
+	* Makefile.am: New file.
+
+	* INSTALL: Added new INSTALL
+
+	* INSTALL: New file.
+
+	* ChangeLog: Added new ChangeLog
+
+	* ChangeLog: New file.
+
+	* COPYING: Added new COPYING
+
+	* COPYING: New file.
+
+	* AUTHORS: Added new AUTHORS
+
+	* AUTHORS, src/user_twosat.c: New file.
+
+	* src/user_twosat.c: Renamed user_twosat.c to src/user_twosat.c
+
+	* src/user_stub.c: New file.
+
+	* src/user_stub.c: Renamed user_stub.c to src/user_stub.c
+
+	* src/user_slabhalo.c: New file.
+
+	* src/user_slabhalo.c: Renamed user_slabhalo.c to src/user_slabhalo.c
+
+	* src/user_slab.c: New file.
+
+	* src/user_slab.c: Renamed user_slab.c to src/user_slab.c
+
+	* src/user_self.c: New file.
+
+	* src/user_self.c: Renamed user_self.c to src/user_self.c
+
+	* src/user_sat_tide_ni.cc: New file.
+
+	* src/user_sat_tide_ni.cc:
+	Renamed user_sat_tide_ni.cc to src/user_sat_tide_ni.cc
+
+	* src/user_sat_tide.cc: New file.
+
+	* src/user_sat_tide.cc:
+	Renamed user_sat_tide.cc to src/user_sat_tide.cc
+
+	* src/user_sat.cc: New file.
+
+	* src/user_sat.cc: Renamed user_sat.cc to src/user_sat.cc
+
+	* src/user_sat.c: New file.
+
+	* src/user_sat.c: Renamed user_sat.c to src/user_sat.c
+
+	* src/user_linear_sat.cc: New file.
+
+	* src/user_linear_sat.cc:
+	Renamed user_linear_sat.cc to src/user_linear_sat.cc
+
+	* src/user.cc: New file.
+
+	* src/user.cc: Renamed user.cc to src/user.cc
+
+	* src/ultrasphere.c: New file.
+
+	* src/ultrasphere.c: Renamed ultrasphere.c to src/ultrasphere.c
+
+	* src/ultra.c: New file.
+
+	* src/ultra.c: Renamed ultra.c to src/ultra.c
+
+	* src/tides.c: New file.
+
+	* src/tides.c: Renamed tides.c to src/tides.c
+
+	* src/testslab.cc: New file.
+
+	* src/testslab.cc: Renamed testslab.cc to src/testslab.cc
+
+	* src/testsatorb.c: New file.
+
+	* src/testsatorb.c: Renamed testsatorb.c to src/testsatorb.c
+
+	* src/testcbdisk.cc: New file.
+
+	* src/testcbdisk.cc: Renamed testcbdisk.cc to src/testcbdisk.cc
+
+	* src/test_tk.cc: New file.
+
+	* src/test_tk.cc: Renamed test_tk.cc to src/test_tk.cc
+
+	* src/test_any_thread.cc: New file.
+
+	* src/test_any_thread.cc:
+	Renamed test_any_thread.cc to src/test_any_thread.cc
+
+	* src/test_any.cc: New file.
+
+	* src/test_any.cc: Renamed test_any.cc to src/test_any.cc
+
+	* src/test.cc: New file.
+
+	* src/test.cc: Renamed test.cc to src/test.cc
+
+	* src/syncvel.c: New file.
+
+	* src/syncvel.c: Renamed syncvel.c to src/syncvel.c
+
+	* src/step.c: New file.
+
+	* src/step.c: Renamed step.c to src/step.c
+
+	* src/sltableMP.h: New file.
+
+	* src/sltableMP.h: Renamed sltableMP.h to src/sltableMP.h
+
+	* src/slabacpSL.cc: New file.
+
+	* src/slabacpSL.cc: Renamed slabacpSL.cc to src/slabacpSL.cc
+
+	* src/slabacp.cc: New file.
+
+	* src/slabacp.cc: Renamed slabacp.cc to src/slabacp.cc
+
+	* src/sincosCPP.cc: New file.
+
+	* src/sincosCPP.cc: Renamed sincosCPP.cc to src/sincosCPP.cc
+
+	* src/sincos.cc: New file.
+
+	* src/sincos.cc: Renamed sincos.cc to src/sincos.cc
+
+	* src/sincos.c: New file.
+
+	* src/sincos.c: Renamed sincos.c to src/sincos.c
+
+	* src/shock.cc: New file.
+
+	* src/shock.cc: Renamed shock.cc to src/shock.cc
+
+	* src/scatter.cc: New file.
+
+	* src/scatter.cc: Renamed scatter.cc to src/scatter.cc
+
+	* src/satellite_orbit2.cc: New file.
+
+	* src/satellite_orbit2.cc:
+	Renamed satellite_orbit2.cc to src/satellite_orbit2.cc
+
+	* src/satellite_orbit.cc: New file.
+
+	* src/satellite_orbit.cc:
+	Renamed satellite_orbit.cc to src/satellite_orbit.cc
+
+	* src/satellite.c: New file.
+
+	* src/satellite.c: Renamed satellite.c to src/satellite.c
+
+	* src/potden.c: New file.
+
+	* src/potden.c: Renamed potden.c to src/potden.c
+
+	* src/pmacp.c: New file.
+
+	* src/pmacp.c: Renamed pmacp.c to src/pmacp.c
+
+	* src/pca.cc: New file.
+
+	* src/pca.cc: Renamed pca.cc to src/pca.cc
+
+	* src/parse.c: New file.
+
+	* src/parse.c: Renamed parse.c to src/parse.c
+
+	* src/parallelCPP.cc: New file.
+
+	* src/parallelCPP.cc: Renamed parallelCPP.cc to src/parallelCPP.cc
+
+	* src/parallel.c: New file.
+
+	* src/parallel.c: Renamed parallel.c to src/parallel.c
+
+	* src/outtipsy.c: New file.
+
+	* src/outtipsy.c: Renamed outtipsy.c to src/outtipsy.c
+
+	* src/outrelx.c: New file.
+
+	* src/outrelx.c: Renamed outrelx.c to src/outrelx.c
+
+	* src/output.c: New file.
+
+	* src/output.c: Renamed output.c to src/output.c
+
+	* src/outlog.sun.c: New file.
+
+	* src/outlog.sun.c: Renamed outlog.sun.c to src/outlog.sun.c
+
+	* src/outlog.linux.c: New file.
+
+	* src/outlog.linux.c: Renamed outlog.linux.c to src/outlog.linux.c
+
+	* src/outlog.c: New file.
+
+	* src/outlog.c: Renamed outlog.c to src/outlog.c
+
+	* src/outlist.c: New file.
+
+	* src/outlist.c: Renamed outlist.c to src/outlist.c
+
+	* src/outdiag.c: New file.
+
+	* src/outdiag.c: Renamed outdiag.c to src/outdiag.c
+
+	* src/outcoef.c: New file.
+
+	* src/outcoef.c: Renamed outcoef.c to src/outcoef.c
+
+	* src/outchkpt.c: New file.
+
+	* src/outchkpt.c: Renamed outchkpt.c to src/outchkpt.c
+
+	* src/mass_loss.c: New file.
+
+	* src/mass_loss.c: Renamed mass_loss.c to src/mass_loss.c
+
+	* src/makegrid.c: New file.
+
+	* src/makegrid.c: Renamed makegrid.c to src/makegrid.c
+
+	* src/makecube.c: New file.
+
+	* src/makecube.c: Renamed makecube.c to src/makecube.c
+
+	* src/localmpi.h: New file.
+
+	* src/localmpi.h: Renamed localmpi.h to src/localmpi.h
+
+	* src/legendreCPP.cc: New file.
+
+	* src/legendreCPP.cc: Renamed legendreCPP.cc to src/legendreCPP.cc
+
+	* src/legendre.cc: New file.
+
+	* src/legendre.cc: Renamed legendre.cc to src/legendre.cc
+
+	* src/legendre.c: New file.
+
+	* src/legendre.c: Renamed legendre.c to src/legendre.c
+
+	* src/initvel.c: New file.
+
+	* src/initvel.c: Renamed initvel.c to src/initvel.c
+
+	* src/init.c: New file.
+
+	* src/init.c: Renamed init.c to src/init.c
+
+	* src/incvel.c: New file.
+
+	* src/incvel.c: Renamed incvel.c to src/incvel.c
+
+	* src/incpos.c: New file.
+
+	* src/incpos.c: Renamed incpos.c to src/incpos.c
+
+	* src/halo_only.cc: New file.
+
+	* src/halo_only.cc: Renamed halo_only.cc to src/halo_only.cc
+
+	* src/halo.cc: New file.
+
+	* src/halo.cc: Renamed halo.cc to src/halo.cc
+
+	* src/halo+bulge.cc: New file.
+
+	* src/halo+bulge.cc: Renamed halo+bulge.cc to src/halo+bulge.cc
+
+	* src/getkey_old.c: New file.
+
+	* src/getkey_old.c: Renamed getkey_old.c to src/getkey_old.c
+
+	* src/getkey.c: New file.
+
+	* src/getkey.c: Renamed getkey.c to src/getkey.c
+
+	* src/fixacc.c: New file.
+
+	* src/fixacc.c: Renamed fixacc.c to src/fixacc.c
+
+	* src/factrl.c: New file.
+
+	* src/factrl.c: Renamed factrl.c to src/factrl.c
+
+	* src/expand.c: New file.
+
+	* src/expand.c: Renamed expand.c to src/expand.c
+
+	* src/exp_threads.h: New file.
+
+	* src/exp_threads.h: Renamed exp_threads.h to src/exp_threads.h
+
+	* src/exp_thread.c: New file.
+
+	* src/exp_thread.c: Renamed exp_thread.c to src/exp_thread.c
+
+	* src/end.c: New file.
+
+	* src/end.c: Renamed end.c to src/end.c
+
+	* src/dispersion.c: New file.
+
+	* src/dispersion.c: Renamed dispersion.c to src/dispersion.c
+
+	* src/directacp.c: New file.
+
+	* src/directacp.c: Renamed directacp.c to src/directacp.c
+
+	* src/ddplgndr.c: New file.
+
+	* src/ddplgndr.c: Renamed ddplgndr.c to src/ddplgndr.c
+
+	* src/cubeacp.cc: New file.
+
+	* src/cubeacp.cc: Renamed cubeacp.cc to src/cubeacp.cc
+
+	* src/coef.h: New file.
+
+	* src/coef.h: Renamed coef.h to src/coef.h
+
+	* src/cldsacc.c: New file.
+
+	* src/cldsacc.c: Renamed cldsacc.c to src/cldsacc.c
+
+	* src/checkultra.c: New file.
+
+	* src/checkultra.c: Renamed checkultra.c to src/checkultra.c
+
+	* src/biorth_bes.c: New file.
+
+	* src/biorth_bes.c: Renamed biorth_bes.c to src/biorth_bes.c
+
+	* src/biorth_HERNQ.c: New file.
+
+	* src/biorth_HERNQ.c: Renamed biorth_HERNQ.c to src/biorth_HERNQ.c
+
+	* src/biorth_CB.c: New file.
+
+	* src/biorth_CB.c: Renamed biorth_CB.c to src/biorth_CB.c
+
+	* src/bessacpMG.c: New file.
+
+	* src/bessacpMG.c: Renamed bessacpMG.c to src/bessacpMG.c
+
+	* src/bessacp2.c: New file.
+
+	* src/bessacp2.c: Renamed bessacp2.c to src/bessacp2.c
+
+	* src/bessacp1.c: New file.
+
+	* src/bessacp1.c: Renamed bessacp1.c to src/bessacp1.c
+
+	* src/bessacp.c: New file.
+
+	* src/bessacp.c: Renamed bessacp.c to src/bessacp.c
+
+	* src/begin.c: New file.
+
+	* src/begin.c: Renamed begin.c to src/begin.c
+
+	* src/any_thread2.h: New file.
+
+	* src/any_thread2.h: Renamed any_thread2.h to src/any_thread2.h
+
+	* src/any_thread2.cc: New file.
+
+	* src/any_thread2.cc: Renamed any_thread2.cc to src/any_thread2.cc
+
+	* src/any_thread.h: New file.
+
+	* src/any_thread.h: Renamed any_thread.h to src/any_thread.h
+
+	* src/any_thread.cc: New file.
+
+	* src/any_thread.cc: Renamed any_thread.cc to src/any_thread.cc
+
+	* src/analcld.c: New file.
+
+	* src/analcld.c: Renamed analcld.c to src/analcld.c
+
+	* src/adjscl.c: New file.
+
+	* src/adjscl.c: Renamed adjscl.c to src/adjscl.c
+
+	* src/accpot.c: New file.
+
+	* src/accpot.c: Renamed accpot.c to src/accpot.c
+
+	* src/WghtOrth2.h: New file.
+
+	* src/WghtOrth2.h: Renamed WghtOrth2.h to src/WghtOrth2.h
+
+	* src/WghtOrth2.cc: New file.
+
+	* src/WghtOrth2.cc: Renamed WghtOrth2.cc to src/WghtOrth2.cc
+
+	* src/WghtOrth.h: New file.
+
+	* src/WghtOrth.h: Renamed WghtOrth.h to src/WghtOrth.h
+
+	* src/WghtOrth.cc: New file.
+
+	* src/WghtOrth.cc: Renamed WghtOrth.cc to src/WghtOrth.cc
+
+	* src/Spline.h: New file.
+
+	* src/Spline.h: Renamed Spline.h to src/Spline.h
+
+	* src/SphericalSL.h: New file.
+
+	* src/SphericalSL.h: Renamed SphericalSL.h to src/SphericalSL.h
+
+	* src/SphericalSL.cc: New file.
+
+	* src/SphericalSL.cc: Renamed SphericalSL.cc to src/SphericalSL.cc
+
+	* src/Sphacp.cc: New file.
+
+	* src/Sphacp.cc: Renamed Sphacp.cc to src/Sphacp.cc
+
+	* src/SatelliteOrbit.h: New file.
+
+	* src/SatelliteOrbit.h:
+	Renamed SatelliteOrbit.h to src/SatelliteOrbit.h
+
+	* src/SatelliteOrbit.cc: New file.
+
+	* src/SatelliteOrbit.cc:
+	Renamed SatelliteOrbit.cc to src/SatelliteOrbit.cc
+
+	* src/SLGridMP.h: New file.
+
+	* src/SLGridMP.h: Renamed SLGridMP.h to src/SLGridMP.h
+
+	* src/SLGridMP.cc: New file.
+
+	* src/SLGridMP.cc: Renamed SLGridMP.cc to src/SLGridMP.cc
+
+	* src/Orient.h: New file.
+
+	* src/Orient.h: Renamed Orient.h to src/Orient.h
+
+	* src/Interp.h: New file.
+
+	* src/Interp.h: Renamed Interp.h to src/Interp.h
+
+	* src/HERNQacp.c: New file.
+
+	* src/HERNQacp.c: Renamed HERNQacp.c to src/HERNQacp.c
+
+	* src/EmpOrth7.h: New file.
+
+	* src/EmpOrth7.h: Renamed EmpOrth7.h to src/EmpOrth7.h
+
+	* src/EmpOrth7.cc: New file.
+
+	* src/EmpOrth7.cc: Renamed EmpOrth7.cc to src/EmpOrth7.cc
+
+	* src/EmpOrth6.h: New file.
+
+	* src/EmpOrth6.h: Renamed EmpOrth6.h to src/EmpOrth6.h
+
+	* src/EmpOrth6.cc: New file.
+
+	* src/EmpOrth6.cc: Renamed EmpOrth6.cc to src/EmpOrth6.cc
+
+	* src/EmpOrth5.h: New file.
+
+	* src/EmpOrth5.h: Renamed EmpOrth5.h to src/EmpOrth5.h
+
+	* src/EmpOrth5.cc: New file.
+
+	* src/EmpOrth5.cc: Renamed EmpOrth5.cc to src/EmpOrth5.cc
+
+	* src/EmpOrth4.h: New file.
+
+	* src/EmpOrth4.h: Renamed EmpOrth4.h to src/EmpOrth4.h
+
+	* src/EmpOrth4.cc: New file.
+
+	* src/EmpOrth4.cc: Renamed EmpOrth4.cc to src/EmpOrth4.cc
+
+	* src/Cylacp3.cc: New file.
+
+	* src/Cylacp3.cc: Renamed Cylacp3.cc to src/Cylacp3.cc
+
+	* src/Cylacp2.cc: New file.
+
+	* src/Cylacp2.cc: Renamed Cylacp2.cc to src/Cylacp2.cc
+
+	* src/Cylacp.cc: New file.
+
+	* src/Cylacp.cc: Renamed Cylacp.cc to src/Cylacp.cc
+
+	* src/CBdiskacp.c: New file.
+
+	* src/CBdiskacp.c: Renamed CBdiskacp.c to src/CBdiskacp.c
+
+	* src/CBacp.c: New file.
+
+	* src/CBacp.c: Renamed CBacp.c to src/CBacp.c
+
+2000-01-03  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* libsrnd/Makefile: Updated makefile to include String
+
+2000-01-02  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* libsrnd/Gamma.cc, libsrnd/Gamma.h, libsrnd/Makefile:
+	Added Gamma variates class to random number generators based on TOMS 599
+
+1999-12-10  Martin Weinberg  <weinberg@owl.astro.umass.edu>
+
+	* libsrnd/tmp.tmp: Removed junk list of files
+
+	* libsrnd/ACG.cc, libsrnd/ACG.cc.orig, libsrnd/ACG.h, libsrnd/Binomial.cc, libsrnd/Binomial.h, libsrnd/DiscUnif.cc, libsrnd/DiscUnif.h, libsrnd/Erlang.cc, libsrnd/Erlang.h, libsrnd/Geom.cc, libsrnd/Geom.h, libsrnd/HypGeom.cc, libsrnd/HypGeom.h, libsrnd/LogNorm.cc, libsrnd/LogNorm.h, libsrnd/MLCG.cc, libsrnd/MLCG.h, libsrnd/Makefile, libsrnd/NegExp.cc, libsrnd/NegExp.h, libsrnd/Normal.cc, libsrnd/Normal.h, libsrnd/Poisson.cc, libsrnd/Poisson.h, libsrnd/RNG.cc, libsrnd/RNG.h, libsrnd/Random.cc, libsrnd/Random.h, libsrnd/Regex.cc, libsrnd/Regex.h, libsrnd/RndInt.cc, libsrnd/RndInt.h, libsrnd/String.cc, libsrnd/String.h, libsrnd/Uniform.cc, libsrnd/Uniform.h, libsrnd/Weibull.cc, libsrnd/Weibull.h, libsrnd/error.cc, libsrnd/rx.h, libsrnd/timer.c, libsrnd/tmp.tmp:
+	GNU libg++ random and string classes
+
 Reoranized version of ExpMPI (MDW 06/15/00)
 
 o All supporting libraries and main code are now generated
