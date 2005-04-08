@@ -155,12 +155,17 @@ void UserEBar::userinfo()
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
   if (fixed) {
-    cout << "fixed pattern speed with "
-	 << "  domega=" <<  DOmega << " and t0=" << T0 << ", ";
-    if (dtom>0) cout << ",  dT_om=" << dtom;
+    cout << "prescribed pattern speed with "
+	 << "  domega=" <<  DOmega << " and t0=" << T0;
+    if (dtom>0) cout << ", dT_om=" << dtom;
+    cout << ", ";
   }
   else
-    cout << "fixed corotation fraction, ";
+    cout << "initial corotation fraction, ";
+  if (omega0<0.0)
+    cout << "initial pattern speed to be computed, ";
+  else
+    cout << "initial pattern speed " << omega0 << ", ";
   if (monopole)
     cout << "using monopole, ";
   else
@@ -205,6 +210,7 @@ void UserEBar::initialize()
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("omega", val))		omega0 = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
+  if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
   if (get_value("filename", val))	filename = val;
@@ -303,6 +309,7 @@ void UserEBar::determine_acceleration_and_potential(void)
       cout << "V_1=" << ans1 << endl;
       cout << "V_2=" << ans2 << endl;
       cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
+      cout << "Omega(0)=" << omega0 << endl;
 
     }
 

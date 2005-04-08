@@ -13,13 +13,27 @@ static char rcsid[] = "$Id$";
 */
 
 //! Abort the time stepping and checkpoint when signaled
-void signal_handler(int sig) 
+static int stop_signal0 = 0;
+void signal_handler_stop(int sig) 
 {
   if (myid==0) {
-    stop_signal = 1;
-    cout << endl << "Process 0: user signaled a stop at step=" << this_step << " . . . quitting on next step after output" << endl;
+    stop_signal0 = 1;
+    cout << endl << "Process 0: user signaled a STOP at step=" << this_step << " . . . quitting on next step after output" << endl;
   } else {
-    cout << endl << "Process " << myid << ": user signaled a stop but only the root process can stop me . . . continuing" << endl;
+    cout << endl << "Process " << myid << ": user signaled a STOP but only the root process can stop me . . . continuing" << endl;
+  }
+}
+
+//! Dump phase space
+static int dump_signal0 = 0;
+void signal_handler_dump(int sig) 
+{
+  if (myid==0) {
+    dump_signal0 = 1;
+    cout << endl << "Process 0: user signaled a DUMP at step=" << this_step
+	 << endl;
+  } else {
+    cout << endl << "Process " << myid << ": user signaled a DUMP but only the root process can do this . . . continuing" << endl;
   }
 }
 
@@ -89,7 +103,7 @@ main(int argc, char** argv)
   // Set signal handler on HUP and TERM
   //====================================
 
-  if (signal(SIGTERM, signal_handler) == SIG_ERR) {
+  if (signal(SIGTERM, signal_handler_stop) == SIG_ERR) {
     cerr << endl 
 	 << "Process " << myid
 	 << ": Error setting signal handler [TERM]" << endl;
@@ -103,7 +117,7 @@ main(int argc, char** argv)
   }
 #endif
 
-  if (signal(SIGHUP, signal_handler) == SIG_ERR) {
+  if (signal(SIGHUP, signal_handler_dump) == SIG_ERR) {
     cerr << endl 
 	 << "Process " << myid
 	 << ": Error setting signal handler [HUP]" << endl;
@@ -199,13 +213,24 @@ main(int argc, char** argv)
     do_step(this_step);
     
     //
-    // Synchronize and check for the term signal
+    // Synchronize and check for signals
     //
+
+				// Signal will only be set after the step
+    dump_signal = dump_signal0;
+    stop_signal = stop_signal0;
+				// Broadcast the signal
+    MPI_Bcast(&dump_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
     MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+
     if (stop_signal) {
       cout << "Process " << myid << ": have stop signal\n";
       this_step++; 
       break;
+    }
+    
+    if (dump_signal) {
+      cout << "Process " << myid << ": have dump signal . . . continuing\n";
     }
 
   }

@@ -56,7 +56,7 @@
     \left\{(1+\hbox{erf}\left({t_{now}-t_{om0}\over \delta t_{om}}\right)\right\}\right]
     \f]
 
-    <li> if <code>self</code> is <code>false</code> and <code>dtom</code><0, 
+    <li> If <code>self</code> is <code>false</code> and <code>dtom</code><0, 
     then the pattern speed changes at the rate:
 
     \f[

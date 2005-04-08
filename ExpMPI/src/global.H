@@ -83,7 +83,19 @@ extern double *gcom, *gcov;
 //! Resets total center of velocity to zero if true
 extern bool global_cov;
 
-//! Emergency stop
+/**
+   Phase space dump on next step
+
+   This flag is set by signalling the root process with SIGHUP
+*/
+extern unsigned char dump_signal;
+
+/**
+   Stop on next step
+
+   This flag is set by signalling the root process with SIGTERM
+*/
+
 extern unsigned char stop_signal;
 
 				// MPI variables

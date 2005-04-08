@@ -57,7 +57,8 @@ void OutPSN::initialize()
 
 void OutPSN::Run(int n, bool last)
 {
-  if (n % nint && !last) return;
+  if (n % nint && !last && !dump_signal) return;
+  if (restart  && n==0  && !dump_signal) return;
 
   synchronize_velocity(1);
 
@@ -100,5 +101,6 @@ void OutPSN::Run(int n, bool last)
 
   synchronize_velocity(0);
 
+  dump_signal = 0;
 }
 

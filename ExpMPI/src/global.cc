@@ -44,6 +44,7 @@ double *gcov = new double [3];
 bool global_cov = false;
 bool eqmotion = true;
 unsigned char stop_signal = 0;
+unsigned char dump_signal = 0;
 
 				// MPI variables
 int is_init=1;

@@ -20,6 +20,7 @@
     @param dtom is the width of forced bar slow down (>0 for erf)
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
+    @param self if the opposite of <code>fixed</code> included here for consistency with other routines
     @param monopole force is self-consistently computed from Newton's third law (default: true)
     @param soft use the shallow form of the potential (default: false)
     @param ctrname defines the component that defines the center (defeats inertial centering)

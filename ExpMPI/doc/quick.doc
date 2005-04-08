@@ -80,6 +80,13 @@ Here are the basic steps you need to start a simulation:
 	mpirun -v -wd $(HOME)/work -np 32 \
 		N $(HOME)/bin/exp -- -f IN.FILE
 	</pre>
+
+<li> One can force a phase-space dump by signalling the root process with
+	a SIGHUP
+
+<li> One can force a clean stop on the next step by signalling the root 
+	process with a SIGHUP
+
 </ol>	
 
 */

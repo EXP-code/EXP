@@ -5,6 +5,9 @@ static char rcsid[] = "$Id$";
 
 #include <Direct.H>
 
+#ifdef DEBUG
+static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 static const int MSGTAG=103;
 
 Direct::Direct(string& line) : PotAccel(line)
@@ -75,8 +78,13 @@ void Direct::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   cout << "Process " << myid 
-       << ": Max bodies=" << max_bodies
-       << "  Direct ninteract=" << ninteract << "\n";
+       << ": max bodies=" << max_bodies
+       << "  direct ninteract=" << ninteract
+       << "  name=" << cC->name;
+  if (use_external) 
+    cout << " (external bodies)" << endl;
+  else 
+    cout << " (local bodies)" << endl;
   MPI_Barrier(MPI_COMM_WORLD);
 #endif
   
@@ -146,7 +154,7 @@ void Direct::determine_acceleration_and_potential(void)
 
 void * Direct::determine_acceleration_and_potential_thread(void * arg)
 {
-  double rr, rfac;
+  double rr, rr0, rfac;
   double mass, pos[3], eps = soft;
   double *p;
 
@@ -156,10 +164,14 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double adb = component->Adiabatic();
-  bool same;
 
   use[id] = 0;
     
+#ifdef DEBUG
+  double tclausius[nthrds];
+  for (int i=0; i<nthrds; i++) tclausius[id] = 0.0;
+#endif
+
   for (int i=nbeg; i<nend; i++) {
     
     if (cC->freeze(*(cC->Part(i)))) continue;
@@ -173,33 +185,43 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       for (int k=0; k<3; k++) pos[k] = *(p++);
       if (!fixed_soft) eps = *(p++);
 
-				// Compute softened distance
-      rr = 0.0;
+				// Compute interparticle squared distance
+      rr0 = 0.0;
       for (int k=0; k<3; k++)
-	rr += 
+	rr0 += 
 	  (cC->Pos(i, k) - pos[k]) *
 	  (cC->Pos(i, k) - pos[k]) ;
       
-      if (rr<1.0e-16) 
-	same = true;
-      else 
-	same = false;
+				// Compute softened distance
+      rr = sqrt(rr0+eps*eps);
 
 				// Acceleration
-      rr = sqrt(rr+eps*eps);
       rfac = 1.0/(rr*rr*rr);
 	
       for (int k=0; k<3; k++)
 	cC->AddAcc(i, k, -mass *(cC->Pos(i, k) - pos[k]) * rfac );
       
 				// Potential
-      if (use_external)
+      if (use_external) {
 	cC->AddPotExt(i, -mass/rr );
-      else if (!same)
+#ifdef DEBUG
+      for (int k=0; k<3; k++)
+	tclausius[id] += -mass *(cC->Pos(i, k) - pos[k]) * cC->Pos(i, k) * rfac;
+#endif
+      }
+      else if (rr0 > 1.0e-16)	// Ignore "self" potential
 	cC->AddPot(i, -mass/rr );
     }
   }
   
+#ifdef DEBUG
+  if (use_external) {
+    pthread_mutex_lock(&iolock);
+    cout << "Process " << myid << ", id=" << id << ": ninteract=" << ninteract
+	 << "  VC=" << tclausius[id] << endl;
+    pthread_mutex_unlock(&iolock);
+  }
+#endif
 }
 
 void Direct::determine_coefficients(void) {}
