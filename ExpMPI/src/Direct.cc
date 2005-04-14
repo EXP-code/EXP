@@ -174,7 +174,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
     
-    if (cC->freeze(*(cC->Part(i)))) continue;
+    // if (cC->freeze(*(cC->Part(i)))) continue;
     
     if (!use_external) use[id]++;
 

@@ -75,9 +75,8 @@ private:
   string com_name;
   Component *c0;
 
-  CVector bcoef, bcoefPP;
   AxiSymModel  *halo_model;
-  AxiSymBiorth *halo_ortho;
+  Perturbation *pert;
   vector<ResPot*> respot;
 
   void determine_acceleration_and_potential(void);

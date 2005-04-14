@@ -21,19 +21,21 @@
 
 int BarForcing::L0 = 2;
 int BarForcing::M0 = 2;
+int BarForcing::Mnum = 20;
 double BarForcing::RMIN = 0.0;
 double BarForcing::RMAX = 20.0;
 double BarForcing::AMPLITUDE = 0.5;
 double BarForcing::LENGTH = 0.5;
 
 BarForcing::BarForcing(int NMAX, double Mass, double Length, 
-		       double Corot) : Perturbation(NMAX)
+		       double Corot, double Amp) : Perturbation(NMAX)
 {
   ID = "BarForcing";
   user_omega = false;
   mass = Mass;
   length = Length;
   corot = Corot;
+  amp = Amp;
   inertia = 1.0;
 
   LENGTH = length;
@@ -95,7 +97,9 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   
   double b1 = M_PI*rho*sqrt(2.0*M_PI/15.0)*(ans1 - ans2);
   double b5 = pow(b25, 0.2);
+
   // double afac = 2.0 * b1;
+  // Single M component
   double afac = b1;
   
   if (myid==0) {
@@ -107,7 +111,7 @@ void BarForcing::compute_quad_parameters(double a21, double a32)
   }
 
   LENGTH = b5;
-  AMPLITUDE = afac;
+  AMPLITUDE = afac*amp;
 }
 
 AxiSymBiorth *tst;
@@ -122,6 +126,11 @@ double quadfunc(double r, int l, int m)
   double x = r/BarForcing::LENGTH;
   return BarForcing::AMPLITUDE * BarForcing::LENGTH*BarForcing::LENGTH
     * pow(x, l)/(1.0 + pow(x, 2.0*l+1.0));
+}
+
+double BarForcing::eval(double r)
+{
+  return quadfunc(r, L0, M0);
 }
 
 void BarForcing::compute_coefficients()

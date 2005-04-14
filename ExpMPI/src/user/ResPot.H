@@ -8,6 +8,8 @@
 #include <interp.h>
 #include <numerical.h>
 
+#include <Perturbation.H>
+
 #ifndef _ResPot_H
 #define _ResPot_H
 
@@ -27,11 +29,9 @@ public:
   
   
 private:
-  int L, M, L1, L2, NMAX;
-  
+  int L, M, L1, L2;
+
   AxiSymModel *halo_model;
-  AxiSymBiorth *halo_ortho;
-  
   SphericalOrbit *orb;
   
   class RW {
@@ -39,10 +39,8 @@ private:
     vector<double> r;
     vector<double> w1;
     vector<double> f;
-    vector<double> W;
-    vector<double> dWE;
-    vector<double> dWK;
     double O1, O2, Jm, dJm, E, K, I1;
+    double W, dWE, dWK;
     int num;
   };
   
@@ -69,8 +67,8 @@ private:
   bool getValues(double I1, double I2,
 		 double& O1, double& O2);
   
-  bool getValues(double I1, double I2, CVector& bcoef,
-		 double& O1, double& o2,
+  bool getValues(double I1, double I2,
+		 double& O1, double& O2,
 		 double& Jm, double& dJm,
 		 KComplex& Ul, KComplex& dUldE, KComplex& dUldK);
   
@@ -81,15 +79,15 @@ private:
   double Rmin, Rmax, minJ, maxJ;
   
   void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
-  
-  ReturnCode Update2(double dt, double Phase, double Omega, 
-		     double amp, CVector& bcoef,
+
+  ReturnCode Update2(double dt, double Phase, double Omega,
+		     double amp,
 		     double* posI, double* velI,
 		     double* posO, double* velO,
 		     double* res);
   
-  ReturnCode Update3(double dt, double Phase, double Omega, 
-		     double amp, CVector& bcoef,
+  ReturnCode Update3(double dt, double Phase, double Omega,
+		     double amp,
 		     double* posI, double* velI,
 		     double* posO, double* velO,
 		     double* res);
@@ -116,9 +114,8 @@ public:
   
   
   //! Constructor
-  ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
-	 int l, int m, int l1, int l2, int n);
-  
+  ResPot(AxiSymModel *mod, Perturbation *pert, int l, int m, int l1, int l2);
+
   //! Destructor
   ~ResPot();
   
@@ -135,8 +132,8 @@ public:
 		   double w1, double w2, double w3);
   
   //! Update actions
-  ReturnCode Update(double dt, double Phase, double Omega, 
-		    double amp, CVector& bcoef,
+  ReturnCode Update(double dt, double Phase, double Omega,
+		    double amp,
 		    double* posI, double* velI,
 		    double* posO, double* velO,
 		    double* res);
@@ -145,8 +142,7 @@ public:
   double K() { return Kupd; }
   
   //! Force
-  ReturnCode Force(double dt, double Phase, double Omega, 
-		   double amp, CVector& bcoef,
+  ReturnCode Force(double dt, double Phase, double Omega, double amp,
 		   double* pos, double* vel, double* acc);
   
   //! Set first order implicit symplectic integration

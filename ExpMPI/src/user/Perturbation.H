@@ -47,7 +47,7 @@ protected:
   const static int default_Kpts=4;
   //! Default value for number of points in orbit table
   const static int default_RECS=400;
-  //! Default offset from real axis
+  const static double default_A=1.0e-2;
   const static double default_OMPI=0.03;
 
 public:
@@ -94,11 +94,17 @@ public:
 			    AxiSymBiorth *halo_ortho,
 			    CVector& total, CVector& pp);
 
+
+  void set_model(AxiSymModel *halo_model) { model = halo_model; }
+
+
+
   //! Compute the expansion coefficients
   virtual void compute_coefficients() = 0;
 
   //! Compute the frequency from the background model
   virtual void compute_omega() = 0;
+  virtual double eval(double r) = 0;
 };
 
 #endif /* _Perturbation_h */

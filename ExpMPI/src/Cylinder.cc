@@ -387,8 +387,11 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    for (int j=0; j<3; j++) 
-      pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
+    if (use_external) {
+      cC->Pos(&pos[id][1], i, Component::Inertial);
+      component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
+    } else
+      cC->Pos(&pos[id][1], Component::Local | Component::Centered);
 
     if (cC->EJ & Orient::AXIS) 
       pos[id] = cC->orient->transformBody() * pos[id];

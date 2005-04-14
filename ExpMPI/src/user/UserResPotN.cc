@@ -26,7 +26,6 @@ int respot_mpi_id()
 UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 {
   LMAX = 2;
-  NMAX = 20;
   NUMR = 800;
   L0 = 2;
   M0 = 2;
@@ -109,10 +108,17 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
 
-  SphereSL::cache = 0;
-  SphereSL::mpi = 1;
-  SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
-  halo_ortho = sl;
+				// Perturbation
+  BarForcing::L0 = L0;
+  BarForcing::M0 = M0;
+  BarForcing *bar = new BarForcing(NMAX, MASS, LENGTH, COROT);
+  bar->set_model(halo_model);
+  bar->compute_quad_parameters(A21, A32);
+  omega = omega0 = bar->Omega();
+  Iz = bar->get_Iz();
+
+  pert = bar;
+
 
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
@@ -120,18 +126,8 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   ResPot::ITMAX = ITMAX;
 
   for (int i=0; i<numRes; i++) {
-    respot.push_back(new ResPot(halo_model, halo_ortho, L0, M0, L1[i], L2[i], NMAX));
+    respot.push_back(new ResPot(halo_model, pert, L0, M0, L1[i], L2[i]));
   }
-
-  BarForcing::L0 = L0;
-  BarForcing::M0 = M0;
-  BarForcing bar(NMAX, MASS, LENGTH, COROT);
-  bar.compute_quad_parameters(A21, A32);
-  bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
-  omega = omega0 = bar.Omega();
-  Iz = bar.get_Iz();
-
-  bcoef *= -1.0;
 
   bcount = vector<int>(nthrds);
   difLz = vector< vector<double> >(nthrds);
@@ -148,7 +144,7 @@ UserResPotN::~UserResPotN()
 {
   for (int i=0; i<numRes; i++) delete respot[i];
   delete halo_model;
-  delete halo_ortho;
+  delete pert;
 }
 
 void UserResPotN::userinfo()
@@ -489,7 +485,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     
 				// Update without perturbation
     ret = respot[0]->
-      Update(dtime, phase, omega, 0.0, bcoef, posI, velI, pos1, vel1, &res);
+      Update(dtime, phase, omega, 0.0, posI, velI, pos1, vel1, &res);
     
     Lz2 = pos1[0]*vel1[1] - pos1[1]*vel1[0];
 
@@ -508,7 +504,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       ir = i % numRes;
       
       if ((ret=respot[ir]-> 
-	   Update(dtime, phase, omega, amp, bcoef, 
+	   Update(dtime, phase, omega, amp,
 		  posI, velI, posO, velO, &res)) == ResPot::OK) {
 	
 				// Current ang mom

@@ -9,6 +9,7 @@
 #include <biorth.h>
 #include <sphereSL.h>
 #include <UserRPtest.H>
+#include <BarForcing.H>
 
 #include <sstream>
 
@@ -69,23 +70,20 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
     c0 = NULL;
 
 
+				// Perturbation
+  BarForcing::L0 = L0;
+  BarForcing::M0 = M0;
+  BarForcing *bar = new BarForcing(NMAX, 0.1, 0.1, 1.0);
+  bar->compute_quad_parameters(0.2, 0.2);
+
 				// Set up for resonance potential
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
 
-  SphereSL::cache = 0;
-  SphereSL::mpi = 1;
-  SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
-  halo_ortho = sl;
-
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
-  respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
-
-
-  bcoef.setsize(1, NMAX);
-  bcoef.zero();
+  respot = new ResPot(halo_model, bar, L0, M0, L1, L2);
 
   userinfo();
 }
@@ -93,7 +91,6 @@ UserRPtest::UserRPtest(string &line) : ExternalForce(line)
 UserRPtest::~UserRPtest()
 {
   delete halo_model;
-  delete halo_ortho;
   delete respot;
 }
 

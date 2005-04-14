@@ -14,7 +14,7 @@ class BarForcing : public Perturbation
 
 private:
 
-  double mass, length, corot, inertia;
+  double mass, amp, length, corot, inertia;
   bool user_omega;
 
 public:
@@ -23,7 +23,7 @@ public:
   static int L0;
   //! "m" harmonic index for perturbation
   static int M0;
-  //! Amplitude of quadrupole relative to monopole (relative factor)
+  static int Mnum;
   static double AMPLITUDE;
   //! Length of bar
   static double LENGTH;
@@ -31,7 +31,8 @@ public:
   static double RMIN, RMAX;
 
   //! Constructor
-  BarForcing(int NMAX, double mass, double length, double corot=1.0);
+  BarForcing(int NMAX, double mass, double length, double corot=1.0,
+	     double amp=1.0);
 
   //! Parameter setup
   void compute_quad_parameters(double a21=0.5, double a32=0.1);
@@ -47,6 +48,8 @@ public:
 
   //! Return moment of intetia
   double get_Iz() { return inertia; }
+
+  double eval(double);
 };
 
 #endif /* _BarForcing_h */

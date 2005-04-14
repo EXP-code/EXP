@@ -94,25 +94,20 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
 
-  SphereSL::cache = 0;
-  SphereSL::mpi = 1;
-  SphereSL *sl = new SphereSL(LMAX, NMAX, NUMR, rmin, rmax, scale, hm);
-  halo_ortho = sl;
+				// Set up the perturbation
+  BarForcing::L0 = L0;
+  BarForcing::M0 = M0;
+  BarForcing *bar = new BarForcing(NMAX, MASS, LENGTH, COROT);
+  bar->compute_quad_parameters(A21, A32);
+  omega = bar->Omega();
+
+  pert = bar;
 
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
   ResPot::ITMAX = ITMAX;
-  respot = new ResPot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
-
-  BarForcing::L0 = L0;
-  BarForcing::M0 = M0;
-  BarForcing bar(NMAX, MASS, LENGTH, COROT);
-  bar.compute_quad_parameters(A21, A32);
-  bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
-  omega = bar.Omega();
-
-  bcoef *= -1.0;
+  respot = new ResPot(halo_model, pert, L0, M0, L1, L2);
 
   bcount = new int [nthrds];
 
@@ -124,7 +119,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 UserResPot::~UserResPot()
 {
   delete halo_model;
-  delete halo_ortho;
+  delete pert;
   delete respot;
   delete [] bcount;
 }
@@ -395,7 +390,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       }
     }
     else if (respot->
-	     Update(dtime, phase, Omega, amp, bcoef, posI, velI, posO, velO, &res))
+	     Update(dtime, phase, Omega, amp, posI, velI, posO, velO, &res))
       {
 
 	for (int k=0; k<3; k++) {

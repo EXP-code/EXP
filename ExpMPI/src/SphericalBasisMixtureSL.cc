@@ -126,15 +126,17 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (cC->freeze(*(cC->Part(i)))) continue;
-
     if (ctr == ej) mfactor = 1.0 - A->mixture(*(cC->Part(i)));
     else mfactor = A->mixture(*(cC->Part(i)));
 
     fac1 = dfac * mfactor;
 
-    for (int k=0; k<3; k++) 
-      pos[k] = cC->Pos(i, k, Component::Local | Component::Centered);
+    if (use_external) {
+      cC->Pos(pos, i, Component::Inertial);
+      component->ConvertPos(pos, Component::Local | Component::Centered);
+    } else
+      cC->Pos(pos, Component::Local | Component::Centered);
+
 
     xx = pos[0];
     yy = pos[1];

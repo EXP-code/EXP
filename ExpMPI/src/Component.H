@@ -415,12 +415,12 @@ public:
   }
 
   //! Access to mass
-  double Mass(int i) {
+  inline double Mass(int i) {
     return particles[i].mass;
   }
 
   //! Access to positions
-  double Pos(int i, int j, unsigned flags=Inertial) {
+  inline double Pos(int i, int j, unsigned flags=Inertial) {
     double val = particles[i].pos[j];
     if (com_system) {
       if (flags & Inertial) val += com0[j] - comI[j];
@@ -431,7 +431,7 @@ public:
   }
 
   //! Access to velocities
-  double Vel(int i, int j, unsigned flags=Inertial) {
+  inline double Vel(int i, int j, unsigned flags=Inertial) {
     double val = particles[i].vel[j];
     if (com_system) {
       if (flags & Inertial) val += cov0[j] - covI[j];
@@ -440,65 +440,113 @@ public:
     return val;
   }
   
+  //! Get positions
+  inline void Pos(double *pos, int i, unsigned flags=Inertial) {
+    for (int k=0; k<3; k++) {
+      pos[k] = particles[i].pos[k];
+      if (com_system) {
+	if (flags & Inertial) pos[k] += com0[k] - comI[k];
+	else if (flags & Local) pos[k] += -comI[k];
+      }
+      if (flags & Centered) pos[k] -= center[k];
+    }
+  }
+
+  //! Get velocities
+  inline void Vel(double *vel, int i, unsigned flags=Inertial) {
+    for (int k=0; k<3; k++) {
+      vel[k] = particles[i].vel[k];
+      if (com_system) {
+	if (flags & Inertial) vel[k] += cov0[k] - covI[k];
+	else if (flags & Local) vel[k] += -covI[k];
+      }
+    }
+  }
+  
+  //! Convert coordinates from inertial to local
+  inline void ConvertPos(double* pos, unsigned flags=Local | Centered) {
+    if (flags & Inertial) return;
+    for (int k=0; k<3; k++) {
+      if (com_system) {		// Native
+	pos[k] += comI[k] - com0[k]; 
+				// Local
+	if (flags & Local) pos[k] -= comI[k];
+      }
+      if (flags & Centered) pos[k] -= center[k];
+    }
+  }
+
+  //! Convert velocities from inertial to local
+  inline void ConvertVel(double* vel, unsigned flags=Local | Centered) {
+    if (flags & Inertial) return;
+    for (int k=0; k<3; k++) {
+      if (com_system) {		// Native
+	vel[k] += covI[k] - cov0[k]; 
+				// Local
+	if (flags & Local) vel[k] -= covI[k];
+      }
+    }
+  }
+
   //! Access to acceleration
-  double Acc(int i, int j, unsigned flags=Inertial) {
+  inline double Acc(int i, int j, unsigned flags=Inertial) {
     double val = particles[i].acc[j];
     if (com_system && (flags & Inertial)) val += acc0[j];
     return val;
   }
   
   //! Add to position (by component)
-  void AddPos(int i, int j, double val) {
+  inline void AddPos(int i, int j, double val) {
     particles[i].pos[j] += val;
   }
   
   //! Add to position (by array)
-  void AddPos(int i, double* val) {
+  inline void AddPos(int i, double* val) {
     for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
   }
   
   //! Add to position (by vector)
-  void AddPos(int i, vector<double>& val) {
+  inline void AddPos(int i, vector<double>& val) {
     for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
   }
   
   //! Add to velocity (by component)
-  void AddVel(int i, int j, double val) {
+  inline void AddVel(int i, int j, double val) {
     particles[i].vel[j] += val;
   }
   
   //! Add to velocity (by array)
-  void AddVel(int i, double* val) {
+  inline void AddVel(int i, double* val) {
     for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
   }
   
   //! Add to velocity (by vector)
-  void AddVel(int i, vector<double>& val) {
+  inline void AddVel(int i, vector<double>& val) {
     for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
   }
   
   //! Add to accerlation (by component)
-  void AddAcc(int i, int j, double val) {
+  inline void AddAcc(int i, int j, double val) {
     particles[i].acc[j] += val;
   }
   
   //! Add to acceleration (by array)
-  void AddAcc(int i, double *val) {
+  inline void AddAcc(int i, double *val) {
     for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
-  void AddAcc(int i, vector<double>& val) {
+  inline void AddAcc(int i, vector<double>& val) {
     for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
   }
   
   //! Add to potential
-  void AddPot(int i, double val) {
+  inline void AddPot(int i, double val) {
     particles[i].pot += val;
   }
   
   //! Add to external potential
-  void AddPotExt(int i, double val) {
+  inline void AddPotExt(int i, double val) {
     particles[i].potext += val;
   }
   

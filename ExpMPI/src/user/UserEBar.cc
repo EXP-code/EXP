@@ -155,8 +155,8 @@ void UserEBar::userinfo()
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
   if (fixed) {
-    cout << "prescribed pattern speed with "
-	 << "  domega=" <<  DOmega << " and t0=" << T0;
+    cout << "prescribed pattern speed with"
+	 << " domega=" <<  DOmega << " and t0=" << T0;
     if (dtom>0) cout << ", dT_om=" << dtom;
     cout << ", ";
   }

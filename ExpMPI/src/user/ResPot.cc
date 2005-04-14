@@ -27,11 +27,16 @@ const char* ResPot::ReturnDesc[] = {
   "UpdateBadL", "UpdateIterate", "UpdateBadVal"};
 
 
-ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio, 
-	       int l, int m, int l1, int l2, int nmax)
+static Perturbation *pbar;
+static double perturb(double r)
+{
+  return pbar->eval(r);
+}
+
+ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
+	       int l, int m, int l1, int l2)
 {
   halo_model = mod;
-  halo_ortho = bio;
   
   grid_computed = false;
   second_order = true;
@@ -40,7 +45,6 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
   M = m;
   L1 = l1;
   L2 = l2;
-  NMAX = nmax;
   
   Rmin = halo_model->get_min_radius();
   Rmax = halo_model->get_max_radius();
@@ -53,8 +57,8 @@ ResPot::ResPot(AxiSymModel *mod, AxiSymBiorth *bio,
   // SphericalOrbit::RMAXF=1.0;
   orb = new SphericalOrbit(halo_model);
   orb->set_numerical_params(RECS);
-  orb->set_biorth(*halo_ortho, L, NMAX);
   
+  pbar = pert;
   compute_grid();
 }
 
@@ -85,13 +89,12 @@ void ResPot::compute_grid()
   if (grid_computed) return;
   
   double E, K;
-  Vector t(1, NMAX);
   
   // Ang mom of minimum radius circular orbit
-  minJ = Rmin*sqrt(halo_model->get_dpot(Rmin));
+  minJ = Rmin*sqrt(max<double>(halo_model->get_dpot(Rmin), 0.0));
   
   // Ang mom of maximum radius circular orbit
-  maxJ = Rmax*sqrt(halo_model->get_dpot(Rmax));
+  maxJ = Rmax*sqrt(max<double>(halo_model->get_dpot(Rmax), 0.0));
   
   // For derivatives
   double delE = (Emax - Emin)*0.5*DELE;
@@ -140,9 +143,7 @@ void ResPot::compute_grid()
       RW rw;
       
       orb->new_orbit(E, K);
-      orb->set_biorth(*halo_ortho, L, NMAX);
-      orb->pot_trans(L1, L2, t);
-      for (int n=0; n<NMAX; n++) rw.W.push_back(t[n+1]);
+      rw.W = orb->pot_trans(L1, L2, perturb);
       
       struct ANGLE_GRID * grid = orb->get_angle_grid();
       
@@ -192,27 +193,19 @@ void ResPot::compute_grid()
       
       // Energy deriv
       orb->new_orbit(Ep, K);
-      orb->set_biorth(*halo_ortho, L, NMAX);
-      orb->pot_trans(L1, L2, t);
-      for (int n=0; n<NMAX; n++) rw.dWE.push_back(t[n+1]);
+      rw.dWE = orb->pot_trans(L1, L2, perturb);
       rw.dJm = orb->Jmax();
       
       orb->new_orbit(Em, K);
-      orb->set_biorth(*halo_ortho, L, NMAX);
-      orb->pot_trans(L1, L2, t);
-      for (int n=0; n<NMAX; n++) rw.dWE[n] = 0.5*(rw.dWE[n] - t[n+1])/delE;
+      rw.dWE = 0.5*(rw.dWE - orb->pot_trans(L1, L2, perturb))/delE;
       rw.dJm = 0.5*(rw.dJm - orb->Jmax())/delE;
       
       // Kappa deriv
       orb->new_orbit(E, Kp);
-      orb->set_biorth(*halo_ortho, L, NMAX);
-      orb->pot_trans(L1, L2, t);
-      for (int n=0; n<NMAX; n++) rw.dWK.push_back(t[n+1]);
+      rw.dWK = orb->pot_trans(L1, L2, perturb);
       
       orb->new_orbit(E, Km);
-      orb->set_biorth(*halo_ortho, L, NMAX);
-      orb->pot_trans(L1, L2, t);
-      for (int n=0; n<NMAX; n++) rw.dWK[n] = 0.5*(rw.dWK[n] - t[n+1])/delK;
+      rw.dWK = 0.5*(rw.dWK - orb->pot_trans(L1, L2, perturb))/delK;
       
       // Finally, store the data for this phase space point
       orbvec.push_back(rw);
@@ -581,7 +574,7 @@ bool ResPot::getValues(double I1, double I2,
   return true;
 }
 
-bool ResPot::getValues(double I1, double I2, CVector& bcoef,
+bool ResPot::getValues(double I1, double I2,
 		       double& O1, double& O2,
 		       double& Jm, double& dJm,
 		       KComplex& Ul, KComplex& dUldE, KComplex& dUldK)
@@ -663,12 +656,9 @@ bool ResPot::getValues(double I1, double I2, CVector& bcoef,
       Jm  += fac * rw->Jm;
       dJm += fac * rw->dJm;
       
-      for (int n=1; n<=NMAX; n++) {
-	Ul +=    fac * rw->W[n-1]   * bcoef[n];
-	dUldE += fac * rw->dWE[n-1] * bcoef[n];
-	dUldK += fac * rw->dWK[n-1] * bcoef[n];
-      }
-      
+      Ul +=    fac * rw->W;
+      dUldE += fac * rw->dWE;
+      dUldK += fac * rw->dWK;
     }
   }
   
@@ -916,19 +906,19 @@ ofstream* open_debug_file()
 }
 
 ResPot::ReturnCode ResPot::Update(double dt, double Phase, double Omega, 
-				  double amp, CVector& bcoef,
+				  double amp,
 				  double* posI, double* velI,
 				  double* posO, double* velO, double* res)
 {
-  if (M) 
-    return Update3(dt, Phase, Omega, amp, bcoef, posI, velI, posO, velO, res);
+  if (M)
+    return Update3(dt, Phase, Omega, amp, posI, velI, posO, velO, res);
   else
-    return Update2(dt, Phase, Omega, amp, bcoef, posI, velI, posO, velO, res);
+    return Update2(dt, Phase, Omega, amp, posI, velI, posO, velO, res);
 }
 
 
 ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega, 
-				   double amp, CVector& bcoef,
+				   double amp,
 				   double* posI, double* velI,
 				   double* posO, double* velO, double* res)
 {
@@ -1068,8 +1058,8 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
       I2 = If + Is[2]*L2;
     }
     
-    getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
-    
+    getValues(I1, I2, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
+
     // Sanity check
     //
     if (isnan(I1) || isnan(I2)) {
@@ -1282,9 +1272,8 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
 }
 
 
-
-ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega, 
-				   double amp, CVector& bcoef,
+ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
+				   double amp, 
 				   double* posI, double* velI,
 				   double* posO, double* velO, double* res)
 {
@@ -1420,8 +1409,8 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
     I1 = If1 + Is[2]*L1;
     I2 = If2 + Is[2]*L2;
     
-    getValues(I1, I2, bcoef, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
-    
+    getValues(I1, I2, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
+
     // Sanity check
     //
     if (isnan(I1) || isnan(I2)) {
@@ -1628,7 +1617,7 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
 
 
 ResPot::ReturnCode ResPot::Force(double dt, double Phase, double Omega, 
-				 double amp, CVector& bcoef,
+				 double amp,
 				 double* pos, double* vel, double* acc)
 {
   ReturnCode ret = OK;
@@ -1655,7 +1644,7 @@ ResPot::ReturnCode ResPot::Force(double dt, double Phase, double Omega,
   
   // Get phase space update with perturbation
   double res;
-  ret = Update(dt, Phase, Omega, amp, bcoef, pos, vel, pos2, vel2, &res);
+  ret = Update(dt, Phase, Omega, amp, pos, vel, pos2, vel2, &res);
   
   if (ret != OK) {
     for (int k=0; k<3; k++) acc[k] = 0.0;
@@ -1680,15 +1669,6 @@ void ResPot::check_rw(RW& rw)
   for (unsigned i=0; i<rw.f.size(); i++)
     if (isnan(rw.f[i])) cout << "RW error: f nan, i=" << i << endl;
   
-  for (unsigned i=0; i<rw.W.size(); i++)
-    if (isnan(rw.W[i])) cout << "RW error: W nan, i=" << i << endl;
-  
-  for (unsigned i=0; i<rw.dWE.size(); i++)
-    if (isnan(rw.dWE[i])) cout << "RW error: dWE nan, i=" << i << endl;
-  
-  for (unsigned i=0; i<rw.dWK.size(); i++)
-    if (isnan(rw.dWK[i])) cout << "RW error: dWK nan, i=" << i << endl;
-  
   if (isnan(rw.O1))	cout << "RW error: O1 nan" << endl;
   if (isnan(rw.O2))	cout << "RW error: O2 nan" << endl;
   if (isnan(rw.Jm))	cout << "RW error: Jm nan" << endl;
@@ -1696,5 +1676,8 @@ void ResPot::check_rw(RW& rw)
   if (isnan(rw.E))	cout << "RW error: E nan" << endl;
   if (isnan(rw.K))	cout << "RW error: K nan" << endl;
   if (isnan(rw.I1))	cout << "RW error: I1 nan" << endl;
+  if (isnan(rw.W))	cout << "RW error: W nan" << endl;
+  if (isnan(rw.dWE))	cout << "RW error: dWE nan" << endl;
+  if (isnan(rw.dWK))	cout << "RW error: dWK nan" << endl;
 }
 

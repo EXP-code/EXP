@@ -292,11 +292,9 @@ main(int argc, char **argv)
   BarForcing::M0 = M0;
   BarForcing::selfgrav = selfgrav;
 
-  CVector bcoef, bcoefPP;
   BarForcing bar(NMAX, MFRAC*halo_model->get_mass(LENGTH), LENGTH, COROT);
-
+  bar.set_model(halo_model);
   bar.compute_quad_parameters();
-  bar.compute_perturbation(halo_model, halo_ortho, bcoef, bcoefPP);
   double OMEGA = bar.Omega();
 
 // -------------------------------------------------------------------
@@ -307,7 +305,7 @@ main(int argc, char **argv)
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
-  ResPot respot(halo_model, halo_ortho, L0, M0, L1, L2, NMAX);
+  ResPot respot(halo_model, &bar, L0, M0, L1, L2);
   cout << "done\n";
 
 
@@ -373,7 +371,7 @@ main(int argc, char **argv)
       amp = AMP*0.25*(1.0 + erf((T - T0)/DELTA))*(1.0 + erf((TF - T)/DELTA));
       Omega = OMEGA*(1.0 + DOMEGA*(T-T0));
 
-      ret = respot.Update(DT, Phase, Omega, amp, bcoef, 
+      ret = respot.Update(DT, Phase, Omega, amp,
 			  posI, velI, posO, velO, &res);
       
       respot.coord(posO, velO, E1, K1, I1, I2, O1, O2, 

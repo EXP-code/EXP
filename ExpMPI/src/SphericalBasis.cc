@@ -476,12 +476,13 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (component->freeze(*(cC->Part(i)))) continue;
-
     fac1 = dfac;
 
-    for (int k=0; k<3; k++) 
-      pos[k] = cC->Pos(i, k, Component::Local | Component::Centered);
+    if (use_external) {
+      cC->Pos(pos, i, Component::Inertial);
+      component->ConvertPos(pos, Component::Local | Component::Centered);
+    } else
+      cC->Pos(pos, i, Component::Local | Component::Centered);
 
     xx = pos[0];
     yy = pos[1];

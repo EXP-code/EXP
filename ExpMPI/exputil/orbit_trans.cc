@@ -435,6 +435,12 @@ void SphericalOrbit::compute_biorth(void)
 double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 {
 
+  if (!Gkn) {
+    Gkn = new LegeQuad(recs);
+    dtp = -0.5*M_PI;
+    dtm =  M_PI;
+  }
+
   if (Gkn->get_n() != recs) {
     delete Gkn;
     Gkn = new LegeQuad(recs);
