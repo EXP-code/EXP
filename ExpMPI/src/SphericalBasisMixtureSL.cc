@@ -116,7 +116,7 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
   double potr,potl,pott,potp,p,pc,dpc,ps,dps,facp,facdp;
   double dfac=0.25/M_PI;
 
-  double pos[3];
+  Particle pt;
   double xx, yy, zz, mfactor;
 
   unsigned nbodies = cC->Number();
@@ -126,21 +126,27 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
 
   for (int i=nbeg; i<nend; i++) {
 
-    if (ctr == ej) mfactor = 1.0 - A->mixture(*(cC->Part(i)));
-    else mfactor = A->mixture(*(cC->Part(i)));
+    // Make copy of particle (slightly inefficient by clean)
+    pt = *(cC->Part(i));
+
+    if (use_external) {
+      // Get the position in inertial coords
+      cC->Pos(pt.pos, i, Component::Inertial);
+      // Convert this to component coords
+      component->ConvertPos(pt.pos, Component::Local);
+    } else
+      // Already in component coords
+      cC->Pos(pt.pos, Component::Local);
+
+    if (ctr == ej) mfactor = 1.0 - A->mixture(pt);
+    else           mfactor = A->mixture(pt);
 
     fac1 = dfac * mfactor;
 
-    if (use_external) {
-      cC->Pos(pos, i, Component::Inertial);
-      component->ConvertPos(pos, Component::Local);
-    } else
-      cC->Pos(pos, Component::Local);
-
-
-    xx = pos[0] - A->center[0];
-    yy = pos[1] - A->center[1];
-    zz = pos[2] - A->center[2];
+				// Now, move to current center . . .
+    xx = pt.pos[0] - A->center[0];
+    yy = pt.pos[1] - A->center[1];
+    zz = pt.pos[2] - A->center[2];
 
     r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
     costh = zz/r;

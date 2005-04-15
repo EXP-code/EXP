@@ -92,6 +92,7 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
     for (int k=0; k<3; k++) center[k] = component->comI[k];
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
+
   if (use_external) exp_com ->  SetExternal();
   exp_com -> get_acceleration_and_potential(cC);
   exp_com -> ClearExternal();
