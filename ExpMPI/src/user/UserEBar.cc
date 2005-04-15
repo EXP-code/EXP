@@ -162,6 +162,7 @@ void UserEBar::userinfo()
   }
   else
     cout << "initial corotation fraction, ";
+  cout << " amplitude=" << amplitude << ", ";
   if (omega0<0.0)
     cout << "initial pattern speed to be computed, ";
   else

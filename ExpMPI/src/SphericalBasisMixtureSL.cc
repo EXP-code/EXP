@@ -36,9 +36,9 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
 
     mass = cC->Mass(i) * adb;
 
-    xx = cC->Pos(i, 0, Component::Local | Component::Centered);
-    yy = cC->Pos(i, 1, Component::Local | Component::Centered);
-    zz = cC->Pos(i, 2, Component::Local | Component::Centered);
+    xx = cC->Pos(i, 0, Component::Local) - A->center[0];
+    yy = cC->Pos(i, 1, Component::Local) - A->center[1];
+    zz = cC->Pos(i, 2, Component::Local) - A->center[2];
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -133,14 +133,14 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
 
     if (use_external) {
       cC->Pos(pos, i, Component::Inertial);
-      component->ConvertPos(pos, Component::Local | Component::Centered);
+      component->ConvertPos(pos, Component::Local);
     } else
-      cC->Pos(pos, Component::Local | Component::Centered);
+      cC->Pos(pos, Component::Local);
 
 
-    xx = pos[0];
-    yy = pos[1];
-    zz = pos[2];
+    xx = pos[0] - A->center[0];
+    yy = pos[1] - A->center[1];
+    zz = pos[2] - A->center[2];
 
     r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
     costh = zz/r;

@@ -81,7 +81,7 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
 				// Set center to Component center
   for (int k=0; k<3; k++) center[k] = component->center[k];
   if (use_external) exp_ej -> SetExternal();
-  exp_ej ->  get_acceleration_and_potential(cC);
+  exp_ej -> get_acceleration_and_potential(cC);
   exp_ej -> ClearExternal();
 
 				// Reset external force flag
@@ -93,7 +93,7 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
   if (use_external) exp_com ->  SetExternal();
-  exp_com ->  get_acceleration_and_potential(cC);
+  exp_com -> get_acceleration_and_potential(cC);
   exp_com -> ClearExternal();
 
 
