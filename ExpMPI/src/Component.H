@@ -424,7 +424,6 @@ public:
     double val = particles[i].pos[j];
     if (com_system) {
       if (flags & Inertial) val += com0[j] - comI[j];
-      else if (flags & Local) val += -comI[j];
     }
     if (flags & Centered) val -= center[j];
     return val;
@@ -435,7 +434,6 @@ public:
     double val = particles[i].vel[j];
     if (com_system) {
       if (flags & Inertial) val += cov0[j] - covI[j];
-      else if (flags & Local) val += -covI[j];
     }
     return val;
   }
@@ -446,7 +444,6 @@ public:
       pos[k] = particles[i].pos[k];
       if (com_system) {
 	if (flags & Inertial) pos[k] += com0[k] - comI[k];
-	else if (flags & Local) pos[k] += -comI[k];
       }
       if (flags & Centered) pos[k] -= center[k];
     }
@@ -458,7 +455,6 @@ public:
       vel[k] = particles[i].vel[k];
       if (com_system) {
 	if (flags & Inertial) vel[k] += cov0[k] - covI[k];
-	else if (flags & Local) vel[k] += -covI[k];
       }
     }
   }
@@ -467,10 +463,9 @@ public:
   inline void ConvertPos(double* pos, unsigned flags=Local | Centered) {
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
-      if (com_system) {		// Native
-	pos[k] += comI[k] - com0[k]; 
-				// Local
-	if (flags & Local) pos[k] -= comI[k];
+      if (com_system) {
+	if (flags & Local)
+	  pos[k] += comI[k] - com0[k]; 
       }
       if (flags & Centered) pos[k] -= center[k];
     }
@@ -480,10 +475,10 @@ public:
   inline void ConvertVel(double* vel, unsigned flags=Local | Centered) {
     if (flags & Inertial) return;
     for (int k=0; k<3; k++) {
-      if (com_system) {		// Native
-	vel[k] += covI[k] - cov0[k]; 
-				// Local
-	if (flags & Local) vel[k] -= covI[k];
+      if (com_system) {	
+	if (flags & Local) 
+	  vel[k] += covI[k] - cov0[k]; 
+
       }
     }
   }
