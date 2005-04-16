@@ -126,9 +126,6 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
 
   for (int i=nbeg; i<nend; i++) {
 
-    // Make copy of particle (slightly inefficient by clean)
-    pt = *(cC->Part(i));
-
     if (use_external) {
       // Get the position in inertial coords
       cC->Pos(pt.pos, i, Component::Inertial);
@@ -136,7 +133,7 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
       component->ConvertPos(pt.pos, Component::Local);
     } else
       // Already in component coords
-      cC->Pos(pt.pos, Component::Local);
+      pt = *(cC->Part(i));
 
     if (ctr == ej) mfactor = 1.0 - A->mixture(pt);
     else           mfactor = A->mixture(pt);
