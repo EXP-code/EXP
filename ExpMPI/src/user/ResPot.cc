@@ -905,22 +905,24 @@ ofstream* open_debug_file()
   return new ofstream(sout.str().c_str(), ios::app);
 }
 
-ResPot::ReturnCode ResPot::Update(double dt, double Phase, double Omega, 
+ResPot::ReturnCode ResPot::Update(double dt, 
+				  vector<double>& Phase, 
 				  double amp,
 				  double* posI, double* velI,
-				  double* posO, double* velO, double* res)
+				  double* posO, double* velO)
 {
   if (M)
-    return Update3(dt, Phase, Omega, amp, posI, velI, posO, velO, res);
+    return Update3(dt, Phase, amp, posI, velI, posO, velO);
   else
-    return Update2(dt, Phase, Omega, amp, posI, velI, posO, velO, res);
+    return Update2(dt, Phase, amp, posI, velI, posO, velO);
 }
 
 
-ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega, 
+ResPot::ReturnCode ResPot::Update2(double dt, 
+				   vector<double>& Phase, 
 				   double amp,
 				   double* posI, double* velI,
-				   double* posO, double* velO, double* res)
+				   double* posO, double* velO)
 {
   ofstream* out = 0;
   
@@ -994,7 +996,7 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
   // Transformation to slow-fast variables
   //
   
-  ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase)*M;
+  ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase[0])*M;
   if (L2) {
     Is[2] = Is[0] = I2/L2;
     wf[2] = wf[0] = W1;
@@ -1008,7 +1010,7 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
   // Angle "drift" for 2nd order calculation
   // 
   if (second_order) {
-    ws[0] += (O1*L1 + O2*L2 - Omega*M)*0.5*dt;
+    ws[0] += (O1*L1 + O2*L2)*0.5*dt - (Phase[1] - Phase[0])*M;
     if (L2)
       wf[0] += O1*0.5*dt;
     else
@@ -1113,7 +1115,6 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
 	   << " dKIs="	<< dKIs 
 	   << " O1="	<< O1 
 	   << " O2="	<< O2 
-	   << " Omega="	<< Omega
 	   << " dt="	<< dt
 	   << " ws="	<< ws[1]
 	   << " ws0="	<< ws[0]
@@ -1130,7 +1131,6 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
 	    << " dKIs="	<< dKIs 
 	    << " O1="	<< O1 
 	    << " O2="	<< O2 
-	    << " Omega="	<< Omega
 	    << " dt="	<< dt
 	    << " ws="	<< ws[1]
 	    << " ws0="	<< ws[0]
@@ -1187,7 +1187,7 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
     cerr << endl
 	 << "Not done: "
 	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
-	 << Phase
+	 << Phase[1]
 	 << ", " << E
 	 << ", " << Kupd
 	 << ", " << I1
@@ -1212,9 +1212,13 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
   double afac = 1.0;
   if (second_order) afac = 0.5;
   
-  *res = O1*L1 + O2*L2 - Omega*M;
-  
-  ws[2]  += (*res)*afac*dt;
+  double res = O1*L1 + O2*L2;
+
+  if (second_order)
+    ws[2]  += res*afac*dt - (Phase[2] - Phase[1])*M;
+  else
+    ws[2]  += res*afac*dt - (Phase[2] - Phase[0])*M;
+
   if (L2)
     wf[2] += O1*afac*dt;
   else
@@ -1225,12 +1229,12 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
   // 
   if (L2) {
     W1 = wf[2];
-    W2 = (ws[2] - W1*L1 + (Phase + Omega*dt)*M)/L2;
+    W2 = (ws[2] - W1*L1 + Phase[2]*M)/L2;
     I1 = Is[2]*L1 + If;
     I2 = Is[2]*L2;
   } else {
     W2 = wf[2];
-    W1 = (ws[2] - W2*L2 + (Phase + Omega*dt)*M)/L2;
+    W1 = (ws[2] - W2*L2 + Phase[2]*M)/L2;
     I1 = Is[2]*L1;
     I2 = Is[2]*L2 + If;
   }
@@ -1272,10 +1276,11 @@ ResPot::ReturnCode ResPot::Update2(double dt, double Phase, double Omega,
 }
 
 
-ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
+ResPot::ReturnCode ResPot::Update3(double dt, 
+				   vector<double>& Phase, 
 				   double amp, 
 				   double* posI, double* velI,
-				   double* posO, double* velO, double* res)
+				   double* posO, double* velO)
 {
   ofstream* out = 0;
   
@@ -1350,7 +1355,7 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
   // Transformation to slow-fast variables
   //
   
-  ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase)*M;
+  ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase[0])*M;
   wf1[2] = wf1[0] = W1;
   wf2[2] = wf2[0] = W2;
   
@@ -1364,7 +1369,7 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
   // Angle "drift" for 2nd order calculation
   // 
   if (second_order) {
-    ws[0] += (O1*L1 + O2*L2 - Omega*M)*0.5*dt;
+    ws[0] += (O1*L1 + O2*L2)*0.5*dt - (Phase[1] - Phase[0])*M;
     wf1[0] += O1*0.5*dt;
     wf1[0] += O1*0.5*dt;
   }
@@ -1461,7 +1466,6 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
 	   << " dKIs="	<< dKIs 
 	   << " O1="	<< O1 
 	   << " O2="	<< O2 
-	   << " Omega="	<< Omega
 	   << " dt="	<< dt
 	   << " ws="	<< ws[1]
 	   << " ws0="	<< ws[0]
@@ -1478,7 +1482,6 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
 	    << " dKIs="	<< dKIs 
 	    << " O1="	<< O1 
 	    << " O2="	<< O2 
-	    << " Omega="	<< Omega
 	    << " dt="	<< dt
 	    << " ws="	<< ws[1]
 	    << " ws0="	<< ws[0]
@@ -1537,7 +1540,7 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
     cerr << endl
 	 << "Not done: "
 	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
-	 << Phase
+	 << Phase[1]
 	 << ", " << E
 	 << ", " << Kupd
 	 << ", " << I1
@@ -1563,9 +1566,13 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
   double afac=1.0;
   if (second_order) afac = 0.5;
   
-  *res = O1*L1 + O2*L2 - Omega*M;
-  
-  ws[2]  += (*res)*afac*dt;
+  double res = O1*L1 + O2*L2;
+
+  if (second_order)
+    ws[2]  += res*afac*dt - (Phase[2] - Phase[1])*M;
+  else
+    ws[2]  += res*afac*dt - (Phase[2] - Phase[0])*M;
+
   wf1[2] += O1*afac*dt;
   wf2[2] += O2*afac*dt;
   
@@ -1574,7 +1581,7 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
   // 
   W1 = wf1[2];
   W2 = wf2[2];
-  W3 = (ws[2] - W1*L1 - W2*L2 + (Phase + Omega*dt)*M)/M;
+  W3 = (ws[2] - W1*L1 - W2*L2 + Phase[2]*M)/M;
   I1 = Is[2]*L1 + If1;
   I2 = Is[2]*L2 + If2;
   I3 = Is[2]*M;
@@ -1616,7 +1623,8 @@ ResPot::ReturnCode ResPot::Update3(double dt, double Phase, double Omega,
 }
 
 
-ResPot::ReturnCode ResPot::Force(double dt, double Phase, double Omega, 
+ResPot::ReturnCode ResPot::Force(double dt, 
+				 vector<double>& Phase, 
 				 double amp,
 				 double* pos, double* vel, double* acc)
 {
@@ -1643,8 +1651,7 @@ ResPot::ReturnCode ResPot::Force(double dt, double Phase, double Omega,
   }
   
   // Get phase space update with perturbation
-  double res;
-  ret = Update(dt, Phase, Omega, amp, pos, vel, pos2, vel2, &res);
+  ret = Update(dt, Phase, amp, pos, vel, pos2, vel2);
   
   if (ret != OK) {
     for (int k=0; k<3; k++) acc[k] = 0.0;

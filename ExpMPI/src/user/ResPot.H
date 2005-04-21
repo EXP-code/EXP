@@ -80,17 +80,15 @@ private:
   
   void getInterp(double I1, double I2, int& indxX, int& indxE, double cX[2], double cE[2], bool& noboundary);
 
-  ReturnCode Update2(double dt, double Phase, double Omega,
+  ReturnCode Update2(double dt, vector<double>& Phase,
 		     double amp,
 		     double* posI, double* velI,
-		     double* posO, double* velO,
-		     double* res);
+		     double* posO, double* velO);
   
-  ReturnCode Update3(double dt, double Phase, double Omega,
+  ReturnCode Update3(double dt, vector<double>& Phase,
 		     double amp,
 		     double* posI, double* velI,
-		     double* posO, double* velO,
-		     double* res);
+		     double* posO, double* velO);
   
   int ngrid;
   
@@ -132,18 +130,17 @@ public:
 		   double w1, double w2, double w3);
   
   //! Update actions
-  ReturnCode Update(double dt, double Phase, double Omega,
+  ReturnCode Update(double dt, vector<double>& Phase,
 		    double amp,
 		    double* posI, double* velI,
-		    double* posO, double* velO,
-		    double* res);
+		    double* posO, double* velO);
   
   //! K value from last update
   double K() { return Kupd; }
   
   //! Force
-  ReturnCode Force(double dt, double Phase, double Omega, double amp,
-		   double* pos, double* vel, double* acc);
+  ReturnCode Force(double dt, vector<double>& Phase,
+		   double amp, double* pos, double* vel, double* acc);
   
   //! Set first order implicit symplectic integration
   void set_1st_order() { second_order = false; }

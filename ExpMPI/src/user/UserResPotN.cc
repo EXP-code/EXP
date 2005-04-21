@@ -447,7 +447,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R2, R, res;
+  double amp, R2, R;
   double posI[3], posO[3], velI[3], velO[3], Lz0, Lz1, Lz2;
   double pos1[3], vel1[3], dpos[3], dvel[3];
   
@@ -461,6 +461,10 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
   
+  vector<double> Phase(3);
+  Phase[0] = phase;
+  Phase[1] = phase + omega*0.5*dtime;
+  Phase[2] = phase + omega*dtime;
 
 				// Check for nan (can get rid of this
 				// eventually)
@@ -485,7 +489,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     
 				// Update without perturbation
     ret = respot[0]->
-      Update(dtime, phase, omega, 0.0, posI, velI, pos1, vel1, &res);
+      Update(dtime, Phase, 0.0, posI, velI, pos1, vel1);
     
     Lz2 = pos1[0]*vel1[1] - pos1[1]*vel1[0];
 
@@ -504,8 +508,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       ir = i % numRes;
       
       if ((ret=respot[ir]-> 
-	   Update(dtime, phase, omega, amp,
-		  posI, velI, posO, velO, &res)) == ResPot::OK) {
+	   Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
 	
 				// Current ang mom
 	Lz1 = posO[0]*velO[1] - posO[1]*velO[0];

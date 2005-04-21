@@ -219,6 +219,9 @@ main(int argc, char** argv)
 				// Signal will only be set after the step
     dump_signal = dump_signal0;
     stop_signal = stop_signal0;
+				// Reset signals
+    stop_signal0 = 0;
+    dump_signal0 = 0;
 				// Broadcast the signal
     MPI_Bcast(&dump_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
     MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);

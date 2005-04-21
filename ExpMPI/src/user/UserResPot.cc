@@ -322,7 +322,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 }
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R2, R, res;
+  double amp, R2, R;
   double posI[3], posO[3], velI[3], velO[3];
   
   unsigned nbodies = cC->Number();
@@ -334,6 +334,11 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+  vector<double> Phase(3);
+  Phase[0] = phase;
+  Phase[1] + phase + Omega*dtime*0.5;
+  Phase[2] + phase + Omega*dtime;
+
 				// Check for nan (can get rid of this
 				// eventually)
   bool found_nan = false;
@@ -390,9 +395,9 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       }
     }
     else if (respot->
-	     Update(dtime, phase, Omega, amp, posI, velI, posO, velO, &res))
+	     Update(dtime, Phase, amp, posI, velI, posO, velO))
       {
-
+	
 	for (int k=0; k<3; k++) {
 	  cC->Part(i)->pos[k] = posO[k];
 	  cC->Part(i)->vel[k] = velO[k];

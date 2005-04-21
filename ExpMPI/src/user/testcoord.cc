@@ -362,17 +362,21 @@ main(int argc, char **argv)
     orb.new_orbit(E0, K0);
     I10 = orb.get_action(1);
 
+    vector<double> phase(3);
     double Phase = PHASE;
     double T = 0.0;
-    double res;
 
     while (T<=TEND) {
 
       amp = AMP*0.25*(1.0 + erf((T - T0)/DELTA))*(1.0 + erf((TF - T)/DELTA));
-      Omega = OMEGA*(1.0 + DOMEGA*(T-T0));
 
-      ret = respot.Update(DT, Phase, Omega, amp,
-			  posI, velI, posO, velO, &res);
+      
+      Omega = OMEGA*(1.0 + DOMEGA*(T-T0));
+      phase[0] = PHASE;
+      phase[1] = PHASE + Omega*DT*0.5;
+      phase[2] = PHASE + Omega*DT*0.5;
+
+      ret = respot.Update(DT, phase, amp, posI, velI, posO, velO);
       
       respot.coord(posO, velO, E1, K1, I1, I2, O1, O2, 
 		   W1, W2, W3, F, BETA, PSI);
