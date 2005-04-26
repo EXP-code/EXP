@@ -132,8 +132,8 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
       // Convert this to component coords
       component->ConvertPos(pt.pos, Component::Local);
     } else
-      // Already in component coords
-      pt = *(cC->Part(i));
+      // Get the position in local com coords
+      cc->Pos(pt.pos, i, Component::Local);
 
     if (ctr == ej) mfactor = 1.0 - A->mixture(pt);
     else           mfactor = A->mixture(pt);
