@@ -38,10 +38,11 @@ void ComponentContainer::initialize(void)
 				// Open file
     if (myid==0) {
 
-      in = new ifstream(infile.c_str());
+      string resfile = outdir + infile;
+      in = new ifstream(resfile.c_str());
       if (!*in) {
 	cerr << "ComponentContainer::initialize: could not open <"
-	     << infile << ">\n";
+	     << resfile << ">\n";
 	MPI_Abort(MPI_COMM_WORLD, 5);
 	exit(0);
 
@@ -50,12 +51,12 @@ void ComponentContainer::initialize(void)
       in->read((char *)&master, sizeof(MasterHeader));
       if (!*in) {
 	cerr << "ComponentContainer::initialize: could not read master header from <"
-	     << infile << ">\n";
+	     << resfile << ">\n";
 	MPI_Abort(MPI_COMM_WORLD, 6);
 	exit(0);
       }
 
-      cout << "Recovering from <" << infile << ">:"
+      cout << "Recovering from <" << resfile << ">:"
 	   << "  Tnow=" << master.time
 	   << "  Ntot=" << master.ntot
 	   << "  Ncomp=" << master.ncomp << endl;

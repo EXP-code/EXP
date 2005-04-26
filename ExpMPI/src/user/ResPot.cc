@@ -1007,18 +1007,10 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     If = I2 - Is[0]*L2;
   }
   
-  // Angle "drift" for 2nd order calculation
-  // 
-  if (second_order) {
-    ws[0] += (O1*L1 + O2*L2)*0.5*dt - (Phase[1] - Phase[0])*M;
-    if (L2)
-      wf[0] += O1*0.5*dt;
-    else
-      wf[0] += O2*0.5*dt;
-  }
-  
   I3 = I2*cos(BETA);
   
+  double Omega = (Phase[2] - Phase[0])/dt;
+
   int i;
   for (i=0; i<ITMAX; i++) {
     
@@ -1039,8 +1031,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     //
     if (second_order) {
       // Second order
-      Is[2] = 0.5*(Is[2]  + Is[0]);
-      ws[2] = 0.5*(ws[2]  + ws[0]);
+      Is[2] = 0.5*(Is[2] + Is[0]);
+      ws[2] = 0.5*(ws[2] + ws[0]);
       wf[2] = 0.5*(wf[2] + wf[0]);
       
     } else {
@@ -1094,12 +1086,13 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     dKI1 = -I2*dJm/(Jm*Jm)*O1;
     dKI2 = 1.0/Jm - I2*dJm/(Jm*Jm)*O2;
     
-    Fw = (dUldE*dEIs + dUldK*dKIs + UldVdIs)*exp(I*ws[2]);
+    Fw = O1*L1 + O2*L2 - Omega*M +
+      (dUldE*dEIs + dUldK*dKIs + UldVdIs)*exp(I*ws[2]);
     FI = -I*Ul*exp(I*ws[2]);
     if (L2)
-      Ff = (dUldE*O1 + dUldK*dKI1)*exp(I*ws[2]);
+      Ff = O1 + (dUldE*O1 + dUldK*dKI1)*exp(I*ws[2]);
     else
-      Ff = (dUldE*O2 + dUldK*dKI2 + dUldI2)*exp(I*ws[2]);
+      Ff = O2 + (dUldE*O2 + dUldK*dKI2 + dUldI2)*exp(I*ws[2]);
     
     // Sanity check
     //
@@ -1205,25 +1198,6 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     // #endif
     ret = UpdateIterate;
   }
-  
-  // Update phase
-  //
-  
-  double afac = 1.0;
-  if (second_order) afac = 0.5;
-  
-  double res = O1*L1 + O2*L2;
-
-  if (second_order)
-    ws[2]  += res*afac*dt - (Phase[2] - Phase[1])*M;
-  else
-    ws[2]  += res*afac*dt - (Phase[2] - Phase[0])*M;
-
-  if (L2)
-    wf[2] += O1*afac*dt;
-  else
-    wf[2] += O2*afac*dt;
-  
   
   // Canonical transformation from slow-fast to action-angle
   // 
@@ -1366,13 +1340,8 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   If2 = I2 - Is[0]*L2;
   
   
-  // Angle "drift" for 2nd order calculation
-  // 
-  if (second_order) {
-    ws[0] += (O1*L1 + O2*L2)*0.5*dt - (Phase[1] - Phase[0])*M;
-    wf1[0] += O1*0.5*dt;
-    wf1[0] += O1*0.5*dt;
-  }
+  double Omega = (Phase[2] - Phase[0])/dt;
+
   
   int i;
   for (i=0; i<ITMAX; i++) {
@@ -1447,10 +1416,10 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     dKI1 = -I2*dJm/(Jm*Jm)*O1;
     dKI2 = 1.0/Jm - I2*dJm/(Jm*Jm)*O2;
     
-    Fw = dUldb*exp(I*ws[2]);
+    Fw = O1*L1 + O2*L2 - Omega*M + dUldb*exp(I*ws[2]);
     FI = -I*Ul*exp(I*ws[2]);
-    F1 = (dUldE*O1 + dUldK*dKI1)*exp(I*ws[2]);
-    F2 = (dUldE*O2 + dUldK*dKI2)*exp(I*ws[2]);
+    F1 = O1 + (dUldE*O1 + dUldK*dKI1)*exp(I*ws[2]);
+    F2 = O2 + (dUldE*O2 + dUldK*dKI2)*exp(I*ws[2]);
     
     // Sanity check
     //
@@ -1559,23 +1528,6 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     
     ret = UpdateIterate;
   }
-  
-  // Update phase
-  //
-  
-  double afac=1.0;
-  if (second_order) afac = 0.5;
-  
-  double res = O1*L1 + O2*L2;
-
-  if (second_order)
-    ws[2]  += res*afac*dt - (Phase[2] - Phase[1])*M;
-  else
-    ws[2]  += res*afac*dt - (Phase[2] - Phase[0])*M;
-
-  wf1[2] += O1*afac*dt;
-  wf2[2] += O2*afac*dt;
-  
   
   // Canonical transformation from slow-fast to action-angle
   // 

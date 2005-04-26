@@ -13,7 +13,7 @@ struct loadb_datum
 {
   int top;		///< Top particle index for this process
   int indx;		///< Process ID
-  unsigned short s;	///< 0-->Old partiion, 1-->New partiion
+v  unsigned short s;	///< 0-->Old partiion, 1-->New partiion
 };
 
 //! Class associating the phase space with a biorthogonal basis
@@ -127,6 +127,29 @@ struct loadb_datum
   @param twid is the width for the adiabatic turn on.  Unless
   <code>ton</code> or <code>toff</code> is specified, the component
   begins and remains fully on.
+
+  <br>
+  Reference frames:
+  <ol>
+
+  <li> <em>Inertial</em> is the rest reference frame whose coordinate
+  system is centered at (0, 0, 0)
+
+  <li> <em>Local</em> is the coordinate system of specific to the
+  particles of an individual Component instance.  If com_system is
+  defined, this is defined to have its origin at the center of mass
+  and the center of velocity of the component's partcles at all times.
+  If <code>com_system</code> is off, this is the same as
+  <em>Inertial</em>
+
+  <li> <em>Centered</em> offsets the particles coordinates using the
+  current centering scheme for the expansion.  At this point, this is
+  the EJ method selectable by the user.  The SphereTwoCenter method
+  indirectly manipulates this to achieve two separate expansion
+  centers.
+
+  </ol>
+  
 
 */
 class Component
@@ -423,7 +446,10 @@ public:
   inline double Pos(int i, int j, unsigned flags=Inertial) {
     double val = particles[i].pos[j];
     if (com_system) {
-      if (flags & Inertial) val += com0[j] - comI[j];
+      if (flags & Local)
+	val -= comI[j];
+      else if (flags & Inertial) 
+	val += com0[j] - comI[j];
     }
     if (flags & Centered) val -= center[j];
     return val;
@@ -433,7 +459,10 @@ public:
   inline double Vel(int i, int j, unsigned flags=Inertial) {
     double val = particles[i].vel[j];
     if (com_system) {
-      if (flags & Inertial) val += cov0[j] - covI[j];
+      if (flags & Local)
+	val -= covI[j];
+      else if (flags & Inertial) 
+	val += cov0[j] - covI[j];
     }
     return val;
   }
@@ -443,7 +472,10 @@ public:
     for (int k=0; k<3; k++) {
       pos[k] = particles[i].pos[k];
       if (com_system) {
-	if (flags & Inertial) pos[k] += com0[k] - comI[k];
+	if (flags & Local) 
+	  pos[k] -= comI[k];
+	else if (flags & Inertial) 
+	  pos[k] += com0[k] - comI[k];
       }
       if (flags & Centered) pos[k] -= center[k];
     }
@@ -454,7 +486,10 @@ public:
     for (int k=0; k<3; k++) {
       vel[k] = particles[i].vel[k];
       if (com_system) {
-	if (flags & Inertial) vel[k] += cov0[k] - covI[k];
+	if (flags & Local)
+	  vel[k] -= covI[k];
+	else if (flags & Inertial) 
+	  vel[k] += cov0[k] - covI[k];
       }
     }
   }
@@ -465,7 +500,7 @@ public:
     for (int k=0; k<3; k++) {
       if (com_system) {
 	if (flags & Local)
-	  pos[k] += comI[k] - com0[k]; 
+	  pos[k] -= com0[k]; 
       }
       if (flags & Centered) pos[k] -= center[k];
     }
@@ -477,7 +512,7 @@ public:
     for (int k=0; k<3; k++) {
       if (com_system) {	
 	if (flags & Local) 
-	  vel[k] += covI[k] - cov0[k]; 
+	  vel[k] -= cov0[k]; 
 
       }
     }

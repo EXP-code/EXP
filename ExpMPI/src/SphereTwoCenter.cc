@@ -89,7 +89,7 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
 
 				// Set center to Component center of mass
   if (component->com_system)
-    for (int k=0; k<3; k++) center[k] = component->comI[k];
+    for (int k=0; k<3; k++) center[k] = 0.0;
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
 
