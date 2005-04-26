@@ -13,7 +13,7 @@ struct loadb_datum
 {
   int top;		///< Top particle index for this process
   int indx;		///< Process ID
-v  unsigned short s;	///< 0-->Old partiion, 1-->New partiion
+  unsigned short s;	///< 0-->Old partiion, 1-->New partiion
 };
 
 //! Class associating the phase space with a biorthogonal basis
