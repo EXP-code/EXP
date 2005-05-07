@@ -11,7 +11,8 @@
 #include <pthread.h>  
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
-#define DEBUG_VERBOSE
+#define DEBUG_VERBOSE		// More copious reporting on errors
+#undef DEBUG_DEBUG		// Only for a few-step diagnostic run
 
 double ResPot::ALPHA = 0.25;
 double ResPot::DELTA = 0.01;
@@ -1004,7 +1005,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   KComplex Fw, FI, Ul, Ff, dUldE, dUldK, dUldI2, UldVdIs;
   bool done = false;
   
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG_DEBUG
   double I10 = I1;
   double I20 = I2;
 #endif
@@ -1238,7 +1239,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   cosb = max<double>(cosb, -1.0);
   BETA = acos(cosb);
   
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG_DEBUG
   if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
     cout << setw(15) << I10
 	 << setw(15) << I1
@@ -1337,7 +1338,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   KComplex Fw, FI, Ul, F1, F2, dUldE, dUldK, dUldb;
   bool done = false;
   
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG_DEBUG
   double I10 = I1;
   double I20 = I2;
 #endif
@@ -1563,7 +1564,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   cosb = max<double>(cosb, -1.0);
   BETA = acos(cosb);
   
-#ifdef DEBUG_VERBOSE
+#ifdef DEBUG_DEBUG
   if (fabs(I10-I1)>1.0e-3*fabs(I10) || fabs(I20-I2)>1.0e-3*fabs(I20)) {
     cout << setw(15) << I10
 	 << setw(15) << I1
