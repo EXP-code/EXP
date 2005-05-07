@@ -124,11 +124,11 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   ResPot::ITMAX = ITMAX;
   respot = new ResPot(halo_model, pert, L0, M0, L1, L2);
 
-  btotn = vector<int>(8);
+  btotn = vector<int>(ResPot::NumDesc-1);
   bcount = vector< vector<int> >(nthrds);
   difLz = vector<double>(nthrds);
   for (int i=0; i<nthrds; i++)
-    bcount[i] = vector<int>(8);
+    bcount[i] = vector<int>(ResPot::NumDesc-1);
   
   userinfo();
 
@@ -313,7 +313,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 	    << setw(15) << "dOmega(tot)"
 	    << setw(15) << "Bounds"
 	    << endl;
-	for (int j=1; j<=8; j++)
+	for (int j=1; j<ResPot::NumDesc; j++)
 	  out << setw(15) << ResPot::ReturnDesc[j];
 	out << endl;
 	
@@ -324,7 +324,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 	    << "| " << setw(13) << ncnt++
 	    << "| " << setw(13) << ncnt++
 	    << "| " << setw(13) << ncnt++;
-      	for (int j=1; j<=8; j++)
+      	for (int j=1; j<ResPot::NumDesc; j++)
 	  out << "| " << setw(13) << ncnt++;
 	out << endl;
 	out.fill(c);
@@ -343,7 +343,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 				// Clear bounds counter
   for (int n=0; n<nthrds; n++) {
-    for (int j=0; j<8; j++) bcount[n][j] = 0;
+    for (int j=0; j<ResPot::NumDesc-1; j++) bcount[n][j] = 0;
   }
 
 				// Clear difLz array
@@ -360,12 +360,12 @@ void UserResPot::determine_acceleration_and_potential(void)
 
 				// Get total number out of bounds
   for (int n=1; n<nthrds; n++) {
-    for (int j=0; j<8; j++) {
+    for (int j=0; j<ResPot::NumDesc-1; j++) {
       bcount[0][j] += bcount[n][j];
       btotn[j] = 0;
     }
   }
-  MPI_Reduce(&(bcount[0][0]), &btotn[0], 8, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPot::NumDesc-1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Get total change in angular momentum
   difLz0 = 0.0;
@@ -381,7 +381,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 				// Write diagnostic log
   if (myid==0) {
     int btot=0;
-    for (int j=0; j<8; j++) btot += btotn[j];
+    for (int j=0; j<ResPot::NumDesc-1; j++) btot += btotn[j];
     ofstream out(filename.c_str(), ios::out | ios::app);
     out.setf(ios::left);
     out << setw(15) << tnow
@@ -389,7 +389,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 	<< setw(15) << omega
 	<< setw(15) << -difLz0/Iz
 	<< setw(15) << btot;
-    for (int j=0; j<8; j++)
+    for (int j=0; j<ResPot::NumDesc-1; j++)
       out << setw(15) << btotn[j];
     out << endl;
   }

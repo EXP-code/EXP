@@ -21,11 +21,14 @@ class ResPot
 {
 public:
   
+  const static int NumDesc = 11;
+  
+  const static char* ResPot::ReturnDesc[];
+
   enum ReturnCode {OK, 
 		   CoordRad, CoordVel, CoordCirc, CoordTP, CoordRange,
+		   CoordBadPos, CoordBadVel, 
 		   UpdateBadL, UpdateIterate, UpdateBadVal};
-  
-  const static char* ReturnDesc[];
   
   
 private:

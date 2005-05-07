@@ -25,16 +25,26 @@ int ResPot::RECS = 100;
 int ResPot::ITMAX = 50;
 KComplex ResPot::I(0.0, 1.0);
 
-const char* ResPot::ReturnDesc[] = {
-  "OK", "CoordRad", "CoordVel", "CoordCirc", "CoordTP", "CoordRange",
-  "UpdateBadL", "UpdateIterate", "UpdateBadVal"};
-
-
 static Perturbation *pbar;
 static double perturb(double r)
 {
   return pbar->eval(r);
 }
+
+ofstream* open_debug_file()
+{
+  ostringstream sout;
+  sout << "update." << respot_mpi_id();
+  return new ofstream(sout.str().c_str(), ios::app);
+}
+
+
+const char* ResPot::ReturnDesc[] = {
+  "OK", 
+  "CoordRad", "CoordVel", "CoordCirc", "CoordTP", "CoordRange", 
+  "CoordBadPos", "CoordBadVel", 
+  "UpdateBadL", "UpdateIterate", "UpdateBadVal"};
+
 
 ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
 	       int l, int m, int l1, int l2)
@@ -678,6 +688,8 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
 				 double I1, double I2, double beta,
 				 double w1, double w2, double w3)
 {
+  ofstream* out = 0;
+
   // Linear interpolation coefficients
   // ---------------------------------
   
@@ -737,9 +749,11 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
     }
   }
   
+#ifdef DEBUG_DEBUG
   if ( fabs(test-1.0) >= 1.0e-10 ) {
     cout << "Test=" << test << endl;
   }
+#endif
   
   assert( fabs(test-1.0)<1.0e-10 );
   
@@ -866,12 +880,14 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
   }
   
   double vr = 0.0;
-  if (vtot > vt) vr = sqrt(vtot*vtot - vt*vt) * rv;
+  if (fabs(vtot) > fabs(vt)) vr = sqrt(vtot*vtot - vt*vt) * rv;
   
   double cost = sinp*sinb;
   double sint = sqrt(fabs(1.0 - cost*cost));
   
   // Check for excursion beyond bounds
+  // ---------------------------------
+
   if (fabs(cost)>1.0) {
     cost = copysign(1.0, cost);
     sint = 0.0;
@@ -881,6 +897,8 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
   double sin3 = sin(w3);
   
   // Check for excursion beyond bounds
+  // ---------------------------------
+
   double phi;
   double tmp  = atan2(sin(psi), cos(psi));
   
@@ -898,6 +916,9 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
     phi = w3 + tmp;
   }
   
+  // Compute positions
+  // -----------------
+  
   double cosf = cos(phi);
   double sinf = sin(phi);
   
@@ -905,6 +926,34 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
   pos[1] = r * sint*sinf;
   pos[2] = r * cost;
   
+  // Check final values
+  // ------------------
+
+  for (int k=0; k<3; k++)
+    if (isnan(pos[k]) || isinf(pos[k])) return CoordBadPos;
+
+
+  // Sanity check
+  // ------------
+
+  if (isnan(vr)  || isinf(vr)  || 
+      isinf(vt)  || isinf(vt)  ||
+      isinf(w3)  || isinf(w3)  ||
+      isinf(psi) || isinf(psi)
+      )
+    {
+      pthread_mutex_lock(&iolock);
+      out = open_debug_file();
+      *out <<  "Coord: vel variable is NaN or Inf: vr=" << vr 
+	   << " vt=" << vt << " psi=" << psi 
+	   << " w3=" << w3 << " r=" << r 
+	   << endl;
+      out->close();
+      pthread_mutex_unlock(&iolock);
+      out = 0;
+    }
+  
+
   // Compute velocities
   // ------------------
   
@@ -915,16 +964,19 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
   vel[1] = xp*sin3 + yp*cosb*cos3;
   vel[2] =           yp*sinb;
   
+
+  // Check final values
+  // ------------------
+
+  for (int k=0; k<3; k++)
+    if (isnan(vel[k]) || isinf(vel[k])) return CoordBadVel;
+  
+  // OK!
+  // ---
+
   return OK;
 }
 
-
-ofstream* open_debug_file()
-{
-  ostringstream sout;
-  sout << "update." << respot_mpi_id();
-  return new ofstream(sout.str().c_str(), ios::app);
-}
 
 ResPot::ReturnCode ResPot::Update(double dt, 
 				  vector<double>& Phase, 
@@ -960,7 +1012,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   }
   
   // Get action angle coords
-  //
+  // -----------------------
+
   double E, W1, W2, W3, F, BETA, PSI;
   double I1, I2, O1, O2;
   ret = coord(posI, velI, E, Kupd, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI);
@@ -987,7 +1040,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
-  //
+  // ---------------------------
   double Is [4] = {0.0, 0.0, 0.0, 0.0};
   double ws [4] = {0.0, 0.0, 0.0, 0.0};
   double wf [4] = {0.0, 0.0, 0.0, 0.0};
@@ -1015,7 +1068,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   }
   
   // Transformation to slow-fast variables
-  //
+  // -------------------------------------
   
   ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase[0])*M;
   if (L2) {
@@ -1036,20 +1089,23 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   for (i=0; i<ITMAX; i++) {
     
     // For convergence test
-    //
+    // --------------------
+
     ws[3] = ws[1]; 
     wf[3] = wf[1];
     Is[3] = Is[1];
     
     
     // Save previous step
-    //
+    // ------------------
+
     ws[1] = ws[2];
     wf[1] = wf[2];
     Is[1] = Is[2];
     
     // For force evaluation
-    //
+    // --------------------
+
     if (second_order) {
       // Second order
       Is[2] = 0.5*(Is[2] + Is[0]);
@@ -1064,7 +1120,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     }
     
     // Canonical transform
-    //
+    // -------------------
+
     if (L2) {
       I1 = If + Is[2]*L1;
       I2 = Is[2]*L2;
@@ -1076,7 +1133,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     getValues(I1, I2, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
 
     // Sanity check
-    //
+    // ------------
+
     if (isnan(I1) || isnan(I2)) {
       cerr << "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is=" << Is << " If=" 
@@ -1116,7 +1174,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
       Ff = O2 + (dUldE*O2 + dUldK*dKI2 + dUldI2)*exp(I*ws[2]);
     
     // Sanity check
-    //
+    // ------------
+
     if (
 	isnan(Fw.real()) || isnan(FI.real()) ||
 	isnan(Ff.real())
@@ -1156,7 +1215,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     }
     
     // Update
-    //
+    // ------
+
     ws[2] = ws[0] + dt*Fw.real();
     Is[2] = Is[0] + dt*FI.real();
     wf[2] = wf[0] + dt*Ff.real();
@@ -1180,14 +1240,16 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     
     
     // Check for convergence
-    //
+    // ---------------------
+
     if (fabs(ws[1]-ws[2])<TOLITR*dt && 
 	fabs(Is[1]-Is[2])/(fabs(Is[2])+1.0e-10)<TOLITR*dt &&
 	fabs(wf[1]-wf[2])<TOLITR*dt
 	) done = true;
     
     // Limit 2-cycle detection
-    //
+    // -----------------------
+
     if (i>3 &&
 	fabs(ws[3]-ws[2])<TOLITR*dt && 
 	fabs(Is[3]-Is[2])/(fabs(Is[2])+1.0e-10)<TOLITR*dt) done = true;
@@ -1221,7 +1283,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   }
   
   // Canonical transformation from slow-fast to action-angle
-  // 
+  // -------------------------------------------------------
+
   if (L2) {
     W1 = wf[2];
     W2 = (ws[2] - W1*L1 + Phase[2]*M)/L2;
@@ -1252,7 +1315,8 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 #endif
   
   // Get new Cartesion phase space
-  //
+  // -----------------------------
+
   ret = coord(posO, velO, I1, I2, BETA, W1, W2, W3); 
   if (ret != OK) {
     for (int k=0; k<3; k++) {
@@ -1261,12 +1325,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
     }
   }
   
-  // Debug
-  for (int k=0; k<3; k++) {
-    if (isnan(posO[k]) || isinf(posO[k]) || isnan(velO[k]) || isinf(velO[k]))
-      ret = UpdateBadVal;
-  }
-  
+  // Return last completion code
+  // ---------------------------
+
   return ret;
 }
 
@@ -1292,7 +1353,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   }
   
   // Get action angle coords
-  //
+  // -----------------------
   double E, W1, W2, W3, F, BETA, PSI;
   double I1, I2, O1, O2;
   if ((ret=coord(posI, velI, E, Kupd, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI)) != OK) return ret;
@@ -1318,7 +1379,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     (VeeBeta(L, L2, M, betaP) - VeeBeta(L, L2, M, betaM)) / (betaP - betaM);
   
   // Iterative implicit solution
-  //
+  // ---------------------------
   double Is [4] = {0.0, 0.0, 0.0, 0.0};
   double ws [4] = {0.0, 0.0, 0.0, 0.0};
   double wf1[4] = {0.0, 0.0, 0.0, 0.0};
@@ -1348,7 +1409,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   }
   
   // Transformation to slow-fast variables
-  //
+  // -------------------------------------
   
   ws[2]  = ws[0]  = W1*L1 + W2*L2 + (W3 - Phase[0])*M;
   wf1[2] = wf1[0] = W1;
@@ -1368,7 +1429,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   for (i=0; i<ITMAX; i++) {
     
     // For convergence test
-    //
+    // --------------------
     ws [3] = ws [1]; 
     wf1[3] = wf1[1];
     wf2[3] = wf2[1];
@@ -1376,14 +1437,14 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     
     
     // Save previous step
-    //
+    // ------------------
     ws [1] = ws [2];
     wf1[1] = wf1[2];
     wf2[1] = wf2[2];
     Is [1] = Is [2];
     
     // For force evaluation
-    //
+    // --------------------
     if (second_order) {
       // Second order
       Is[2]  = 0.5*(Is[2]  + Is[0]);
@@ -1400,14 +1461,14 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     }
     
     // Canonical transform
-    //
+    // -------------------
     I1 = If1 + Is[2]*L1;
     I2 = If2 + Is[2]*L2;
     
     getValues(I1, I2, O1, O2, Jm, dJm, Ul, dUldE, dUldK);
 
     // Sanity check
-    //
+    // ------------
     if (isnan(I1) || isnan(I2)) {
       cerr << "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is=" << Is << " If1=" 
@@ -1443,7 +1504,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     F2 = O2 + (dUldE*O2 + dUldK*dKI2)*exp(I*ws[2]);
     
     // Sanity check
-    //
+    // ------------
     if (
 	isnan(Fw.real()) || isnan(FI.real()) ||
 	isnan(F1.real()) || isnan(F2.real())
@@ -1483,7 +1544,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     }
     
     // Update
-    //
+    // ------
     ws[2]  = ws[0]  + dt*Fw.real();
     Is[2]  = Is[0]  + dt*FI.real();
     wf1[2] = wf1[0] + dt*F1.real();
@@ -1508,7 +1569,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     
     
     // Check for convergence
-    //
+    // ---------------------
     if (fabs(ws[1]-ws[2])<TOLITR*dt && 
 	fabs(Is[1]-Is[2])/(fabs(Is[2])+1.0e-10)<TOLITR*dt &&
 	fabs(wf1[1]-wf1[2])<TOLITR*dt && 
@@ -1516,7 +1577,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	) done = true;
     
     // Limit 2-cycle detection
-    //
+    // -----------------------
     if (i>3 &&
 	fabs(ws[3]-ws[2])<TOLITR*dt && 
 	fabs(Is[3]-Is[2])/(fabs(Is[2])+1.0e-10)<TOLITR*dt) done = true;
@@ -1551,7 +1612,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   }
   
   // Canonical transformation from slow-fast to action-angle
-  // 
+  // -------------------------------------------------------
   W1 = wf1[2];
   W2 = wf2[2];
   W3 = (ws[2] - W1*L1 - W2*L2 + Phase[2]*M)/M;
@@ -1577,7 +1638,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 #endif
   
   // Get new Cartesion phase space
-  //
+  // -----------------------------
   if ((ret=coord(posO, velO, I1, I2, BETA, W1, W2, W3)) != OK) {
     for (int k=0; k<3; k++) {
       posO[k] = posI[k];
@@ -1585,13 +1646,8 @@ ResPot::ReturnCode ResPot::Update3(double dt,
     }
   }
   
-  // Debug
-  for (int k=0; k<3; k++) {
-    if (isnan(posO[k]) || isinf(posO[k]) || isnan(velO[k]) || isinf(velO[k]))
-      ret = UpdateBadVal;
-  }
-  
-  
+  // Return last completion code
+  // ---------------------------
   return ret;
 }
 
@@ -1614,6 +1670,7 @@ ResPot::ReturnCode ResPot::Force(double dt,
   }
   
   // Get phase space update without perturbation
+  // -------------------------------------------
   W1 += O1*dt;
   W2 += O2*dt;
   ret = coord(pos0, vel0, I1, I2, BETA, W1, W2, W3);
@@ -1624,6 +1681,7 @@ ResPot::ReturnCode ResPot::Force(double dt,
   }
   
   // Get phase space update with perturbation
+  // ----------------------------------------
   ret = Update(dt, Phase, amp, pos, vel, pos2, vel2);
   
   if (ret != OK) {
@@ -1632,6 +1690,7 @@ ResPot::ReturnCode ResPot::Force(double dt,
   }
   
   // Effective acceleration
+  // ----------------------
   for (int k=0; k<3; k++) acc[k] = (vel2[k] - vel0[k])/dt;
   
   return ret;
