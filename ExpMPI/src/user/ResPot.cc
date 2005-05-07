@@ -11,6 +11,8 @@
 #include <pthread.h>  
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
+#define DEBUG_VERBOSE
+
 double ResPot::ALPHA = 0.25;
 double ResPot::DELTA = 0.01;
 double ResPot::DELE = 0.001;
@@ -502,7 +504,11 @@ void ResPot::getInterp(double I1, double I2, int& indxX, int& indxE,
 	hi = mid;		// Discard upper interval
     }
     
-    indxE = lo;
+    if (lo==-1)
+      indxE = 0;
+    else
+      indxE = lo;
+    
     double Ilo = cX[0]*I1X[indxX][indxE]   + cX[1]*I1X[indxX+1][indxE];
     double Ihi = cX[0]*I1X[indxX][indxE+1] + cX[1]*I1X[indxX+1][indxE+1];
     
@@ -777,8 +783,10 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
     
     if ( (ret=circ.find(get_rc, I2, 0.5*rmin, 2.0*rmax, 1.0e-10, rcirc)) ) {
 #ifdef DEBUG_VERBOSE
-      cout << "  Rcirc bounds error: val, rmin=" << t1 << ", " << rmin
-	   << "  val, rmax=" << t2 << ", " << rmax << endl;
+      cout << "  Rcirc bounds error: val, rmin=" 
+	   << get_rc(0.5*rmin, I2) << ", " << rmin
+	   << "  val, rmax=" 
+	   << get_rc(2.0*rmax, I2) << ", " << rmax << endl;
 #endif
       return CoordCirc;
     }
@@ -795,16 +803,23 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
 	  r = Rmin;
 	} else if (fabs(fmax) < ftol*fabs(fmin)) {
 	  r = rcirc;
-	} else 
+	} else {
+#ifdef DEBUG_VERBOSE	
+	  cout << "  Inner turning point problem: E=" << E << "  J=" << I2
+	       << "  val, r=" << fmin << ", " << Rmin
+	       << "  val, rcirc=" << fmax << ", " << rcirc << endl;
+#endif
 	  return CoordRange;
-	
+	}
       } else {			// Above or at circular orbit radius
 	
 	if ( (ret=tp.find(adj_r, param, Rmin, rcirc, 1.0e-10, r)) ) {
 #ifdef DEBUG_VERBOSE	
 	  cout << "  Radj inner bounds error: E=" << E << "  J=" << I2
-	       << "  val, r=" << t1 << ", " << Rmin
-	       << "  val, rcirc=" << t2 << ", " << rcirc << endl;
+	       << "  val, r=" << adj_r(Rmin, param) 
+	       << ", " << Rmin
+	       << "  val, rcirc=" << adj_r(rcirc, param) 
+	       << ", " << rcirc << endl;
 #endif
 	  return CoordTP;
 	}
@@ -821,16 +836,21 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
 	  r = rcirc;
 	} else if (fabs(fmax) < ftol*fabs(fmin)) {
 	  r = Rmax;
-	} else 
+	} else {
+#ifdef DEBUG_VERBOSE	
+	  cout << "  Outer turning point problem: E=" << E << "  J=" << I2
+	       << "  val, r=" << fmin << ", " << Rmin
+	       << "  val, rcirc=" << fmax << ", " << rcirc << endl;
+#endif
 	  return CoordRange;
-	
+	}
       } else {
 	
 	if ( (ret=tp.find(adj_r, param, rcirc, Rmax, 1.0e-10, r)) ) {
 #ifdef DEBUG_VERBOSE
 	  cout << "  Radj outer bounds error: E=" << E << "  J=" << I2
-	       << "  val, rcirc=" << t1 << ", " << rcirc
-	       << "  val, r=" << t2 << ", " << Rmax << endl;
+	       << "  val, rcirc=" << adj_r(rcirc, param) << ", " << rcirc
+	       << "  val, r=" << adj_r(Rmax, param) << ", " << Rmax << endl;
 #endif
 	  return CoordTP;
 	}

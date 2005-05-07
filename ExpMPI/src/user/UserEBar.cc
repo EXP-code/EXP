@@ -266,7 +266,7 @@ void UserEBar::determine_acceleration_and_potential(void)
     if (dtom>0.0)
       omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tnow - T0)/dtom )));
     else
-      omega = omega0*(1.0 + DOmega*(tnow - T0));
+      omega = omega0*(1.0 + DOmega*(tnow - T0*0.5));
 
     const int N = 100;
     LegeQuad gq(N);
@@ -464,7 +464,7 @@ void UserEBar::determine_acceleration_and_potential(void)
       if (dtom>0.0)
 	omega = omega0*(1.0 + DOmega*0.5*(1.0 + erf( (tnow - T0)/dtom )));
       else
-	omega = omega0*(1.0 + DOmega*(tnow - T0));
+	omega = omega0*(1.0 + DOmega*(tnow - T0*0.5));
     }
     
     if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {

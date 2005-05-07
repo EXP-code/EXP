@@ -14,8 +14,9 @@
 #include <sstream>
 
 #include <pthread.h>  
+#ifdef DEBUG
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
-
+#endif
 
 static int respot_mpi_id_var;
 int respot_mpi_id()
@@ -47,7 +48,8 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   RECS = 100;			// Points in Angle grid
   ITMAX = 50;			// Number of iterations for mapping solution
 
-  MASS = 0.05;			// Bar mass
+  MASS = -1.0;			// Bar mass
+  MFRAC = 0.05;			// Fraction of enclosed mass
   LENGTH = 0.067;		// Bar length
   AMP = 1.0;			// Mass prefactor
   COROT = 10;			// Corotation factor
@@ -61,7 +63,6 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 
 
   first = true;
-  debug = false;
 
   usetag = -1;			// Flag not used unless explicitly defined
 
@@ -109,16 +110,18 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   halo_model = hm;
 
 				// Perturbation
+  if (MASS < 0.0) MASS = hm->get_mass(LENGTH);
+
   BarForcing::L0 = L0;
   BarForcing::M0 = M0;
-  BarForcing *bar = new BarForcing(NMAX, MASS, LENGTH, COROT);
-  bar->set_model(halo_model);
-  bar->compute_quad_parameters(A21, A32);
-  omega = omega0 = bar->Omega();
-  Iz = bar->get_Iz();
+  BarForcing bar(NMAX, MFRAC*MASS, LENGTH, COROT);
 
-  pert = bar;
+  bar.set_model(halo_model);
+  bar.compute_quad_parameters(A21, A32);
+  omega = omega0 = bar.Omega();
+  Iz = bar.get_Iz();
 
+  pert = &bar;
 
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
@@ -129,11 +132,14 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
     respot.push_back(new ResPot(halo_model, pert, L0, M0, L1[i], L2[i]));
   }
 
-  bcount = vector<int>(nthrds);
-  difLz = vector< vector<double> >(nthrds);
-  for (int i=0; i<nthrds; i++) difLz[i] = vector<double>(numRes);
+  btotn = vector<int>(8);
   difLz0 = vector<double>(numRes);
-  difLNP = vector<double>(nthrds);
+  bcount = vector< vector<int> >(nthrds);
+  difLz = vector< vector<double> >(nthrds);
+  for (int i=0; i<nthrds; i++) {
+    difLz[i] = vector<double>(numRes);
+    bcount[i] = vector<int>(8);
+  }
 
   userinfo();
 
@@ -144,7 +150,6 @@ UserResPotN::~UserResPotN()
 {
   for (int i=0; i<numRes; i++) delete respot[i];
   delete halo_model;
-  delete pert;
 }
 
 void UserResPotN::userinfo()
@@ -154,6 +159,7 @@ void UserResPotN::userinfo()
   cout << "** User routine RESONANCE POTENTIAL initialized";
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
+       << ", Mfrac=" << MFRAC 
        << ", Amp=" << AMP
        << ", Iz=" << Iz
        << ", Omega=" << omega 
@@ -170,7 +176,6 @@ void UserResPotN::userinfo()
     if (dtom>0) cout << ", T_om=" << tom0 << ", dT_om=" << dtom;
     cout << ", Domega=" << domega;
   }
-  if (debug) cout << ", with debug ang mom";
   if (usetag>=0)
     cout << ", with bad value tagging";
   for (int ir=0; ir<numRes; ir++)
@@ -222,6 +227,7 @@ void UserResPotN::initialize()
   if (get_value("phase0", val))   phase0 = atof(val.c_str());
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
+  if (get_value("MFRAC", val))    MFRAC = atof(val.c_str());
   if (get_value("LENGTH", val))   LENGTH = atof(val.c_str());
   if (get_value("AMP", val))      AMP = atof(val.c_str());
   if (get_value("COROT", val))    COROT = atof(val.c_str());
@@ -243,7 +249,6 @@ void UserResPotN::initialize()
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
   if (get_value("usetag", val))   usetag = atoi(val.c_str());
-  if (get_value("debug", val))    debug = atoi(val.c_str());
 }
 
 void UserResPotN::determine_acceleration_and_potential(void)
@@ -335,13 +340,14 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	    << setw(15) << "Phase"
 	    << setw(15) << "Omega"
 	    << setw(15) << "dOmega(tot)"
-	    << setw(15) << "Bounds";
+	    << setw(15) << "Bounds(tot)";
 	for (int ir=0; ir<numRes; ir++) {
 	  ostringstream olab;
 	  olab << "dOmega(" << L1[ir] << "," << L2[ir] << ")";
 	  out << setw(15) << olab.str().c_str();
 	}
-	if (debug) out << setw(15) << "dLz(NP)";
+	for (int j=1; j<=8; j++)
+	  out << setw(15) << ResPot::ReturnDesc[j];
 	out << endl;
 
 	char c = out.fill('-');
@@ -351,12 +357,10 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	    << "| " << setw(13) << ncnt++
 	    << "| " << setw(13) << ncnt++
 	    << "| " << setw(13) << ncnt++;
-	for (int ir=0; ir<numRes; ir++) {
+	for (int ir=0; ir<numRes; ir++)
 	  out << "| " << setw(13) << ncnt++;
-	}
-	if (debug) {
+      	for (int j=1; j<=8; j++)
 	  out << "| " << setw(13) << ncnt++;
-	}
 	out << endl;
 	out.fill(c);
       }
@@ -373,12 +377,13 @@ void UserResPotN::determine_acceleration_and_potential(void)
   omlast = omega;
 
 				// Clear bounds counter
-  for (int n=0; n<nthrds; n++) bcount[n] = 0;
+  for (int n=0; n<nthrds; n++) {
+    for (int j=0; j<8; j++) bcount[n][j] = 0;
+  }
 
 				// Clear difLz array
   for (int n=0; n<nthrds; n++) {
     for (int j=0; j<numRes; j++) difLz[n][j] = 0.0;
-    difLNP[n] = 0.0;
   }
   for (int j=0; j<numRes; j++) difLz0[j] = 0.0;
 
@@ -391,9 +396,13 @@ void UserResPotN::determine_acceleration_and_potential(void)
   // -----------------------------------------------------------
 
 				// Get total number out of bounds
-  int btot=0;
-  for (int n=1; n<nthrds; n++) bcount[0] += bcount[n];
-  MPI_Reduce(&bcount[0], &btot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  for (int n=1; n<nthrds; n++) {
+    for (int j=0; j<8; j++) {
+      bcount[0][j] += bcount[n][j];
+      btotn[j] = 0;
+    }
+  }
+  MPI_Reduce(&(bcount[0][0]), &btotn[0], 8, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Get total change in angular momentum
   for (int ir=0; ir<numRes; ir++) {
@@ -402,15 +411,6 @@ void UserResPotN::determine_acceleration_and_potential(void)
   MPI_Allreduce(&difLz[0][0], &difLz0[0], numRes, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-
-				// Total change in ang mom *without* pert
-				// for debugging
-  double difLNP0 = 0.0;
-  if (debug) {
-    for (int n=1; n<nthrds; n++) difLNP[0] += difLNP[n];
-    MPI_Reduce(&difLNP[0], &difLNP0, 1, 
-	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
 
   double difLzT = 0.0;
   for (int ir=0; ir<numRes; ir++) difLzT += difLz0[ir];
@@ -421,13 +421,13 @@ void UserResPotN::determine_acceleration_and_potential(void)
     if (dtom>0.0)
       omega = omega0*(1.0 + domega*0.5*(1.0 + erf( (tnow - tom0)/dtom )));
     else
-      omega += omega0*domega*dtime*
-	0.5*(1.0 + erf( (tnow - ton) /delta )) *
-	0.5*(1.0 + erf( (toff - tnow)/delta )) ;
+      omega = omega0*(1.0 + domega*(tnow - tom0*0.5));
   }
 
 				// Write diagnostic log
   if (myid==0) {
+    int btot=0;
+    for (int j=0; j<8; j++) btot += btotn[j];
     ofstream out(filename.c_str(), ios::out | ios::app);
     out.setf(ios::left);
     out << setw(15) << tnow
@@ -436,8 +436,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	<< setw(15) << -difLzT/Iz
 	<< setw(15) << btot;
     for (int ir=0; ir<numRes; ir++) out << setw(15) << -difLz0[ir]/Iz;
-    if (debug)
-      out << setw(15) << difLNP0;
+    for (int j=0; j<8; j++)
+      out << setw(15) << btotn[j];
     out << endl;
   }
 
@@ -448,8 +448,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
 {
   double amp, R2, R;
-  double posI[3], posO[3], velI[3], velO[3], Lz0, Lz1, Lz2;
-  double pos1[3], vel1[3], dpos[3], dvel[3];
+  double posI[3], posO[3], velI[3], velO[3], Lz0, Lz1;
   
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -469,7 +468,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 				// Check for nan (can get rid of this
 				// eventually)
   bool found_nan = false;
-  ResPot::ReturnCode ret;
+  ResPot::ReturnCode ret = ResPot::OK;
+  double dpot;
   int ir;
 
   for (int i=nbeg; i<nend; i++) {
@@ -487,18 +487,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     Lz0 = posI[0]*velI[1] - posI[1]*velI[0];
     
     
-				// Update without perturbation
-    ret = respot[0]->
-      Update(dtime, Phase, 0.0, posI, velI, pos1, vel1);
-    
-    Lz2 = pos1[0]*vel1[1] - pos1[1]*vel1[0];
-
     R2 = 0.0;
     for (int k=0; k<3; k++) {
-				// Accumulated difference
-      dpos[k] = 0.0;
-      dvel[k] = 0.0;
-
       R2 += posI[k]*posI[k];
     }
     R = sqrt(R2);
@@ -513,44 +503,14 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 				// Current ang mom
 	Lz1 = posO[0]*velO[1] - posO[1]*velO[0];
 
-	  
 				// Accumulate change in Lz for each resonance
 	if (respot[ir]->K()<Klim)
 	  difLz[id][ir] += cC->Mass(i)*(Lz1 - Lz0);
 	
-	if (debug && ir==0 && respot[ir]->K()<Klim) 
-	  difLNP[id] += cC->Mass(i)*(Lz2 - Lz0);
-
-	/*
-	if (fabs(Lz1-Lz0) > 1.0e-12) {
-	  pthread_mutex_lock(&iolock);
-	  cout << setw(15) << tnow
-	       << setw(5) << myid
-	       << setw(5) << id
-	       << setw(10) << i 
-	       << setw(15) << R
-	       << setw(15) << Lz0
-	       << setw(15) << Lz1
-	       << setw(15) << Lz2
-	       << setw(15) << Lz1 - Lz0
-	       << setw(15) << Lz2 - Lz0
-	       << endl;
-	  pthread_mutex_unlock(&iolock);
-	}
-	*/
-
-				// Accumulate changes in PS due to resonances
-	for (int k=0; k<3; k++) {
-	  dpos[k] += posO[k] - pos1[k];
-	  dvel[k] += velO[k] - vel1[k];
-	}
-
       }
 	
-    }
-
-    if (ret != ResPot::OK) {
-      bcount[id]++;
+    } else {
+      if (ret != ResPot::OK) bcount[id][ret-1]++;
       if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
 #ifdef DEBUG
       pthread_mutex_lock(&iolock);
@@ -558,12 +518,19 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 	   << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
       pthread_mutex_unlock(&iolock);
 #endif
+
+      dpot = halo_model->get_dpot(R);
+
+      for (int k=0; k<3; k++) {
+	posO[k] = velI[k] * dtime;
+	if (R>0.01*rmin) velO[k] = -dpot*posI[k]/R * dtime;
+      }
     }
 
     for (int k=0; k<3; k++) {
-      cC->Part(i)->pos[k] = pos1[k] + dpos[k];
-      cC->Part(i)->vel[k] = vel1[k] + dvel[k];
-      cC->Part(i)->acc[k] = 0.0;
+      cC->Part(i)->pos[k] = posO[k];
+      cC->Part(i)->vel[k] = velO[k];
+      cC->Part(i)->acc[k] = (velO[k] - velI[k])/dtime;
       if (!found_nan) {
 	if ( isnan(cC->Pos(i, k)) ||
 	     isnan(cC->Vel(i, k)) ||
@@ -580,36 +547,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       cout << endl << flush;
       found_nan = false;
     }
-	
-
-    /*
-    Lz1 = 
-      cC->Part(i)->pos[0] * cC->Part(i)->vel[1] - 
-      cC->Part(i)->pos[1] * cC->Part(i)->vel[0] ;
-
-    if (respot[0]->K()<Klim) 
-      difLz[id][0] += cC->Mass(i)*(Lz1 - Lz0);
-
-    if (debug && respot[0]->K()<Klim) 
-      difLNP[id] += cC->Mass(i)*(Lz2 - Lz0);
-    */
     
   }
-
-  /*
-  pthread_mutex_lock(&iolock);
-  cout << setw(15) << tnow
-       << setw(15) << amp
-       << setw(15) << ResPot::ReturnDesc[ret]
-       << setw(5) << myid
-       << setw(5) << id
-       << setw(8) << nbeg
-       << setw(8) << nend;
-  for (int ir=0; ir<numRes; ir++)
-    cout << setw(15) << difLz[id][ir];
-  cout << endl;
-  pthread_mutex_unlock(&iolock);
-  */
 
   return (NULL);
 }

@@ -29,7 +29,8 @@
     @param tom0 is the midpoint of forced bar slow down
     @param dtom is the width of forced bar slow down (>0 for erf)
     @param ITMAX is the maximum number of iterations for mapping solution
-    @param MASS of the bar (postive)
+    @param MASS of the bar (postive to use)
+    @param MFRAC is the mass fraction of the bar inside LENGTH (postive)
     @param AMP is a mass prefactor (any sign)
     @param LENGTH of the length
     @param A21 is the ratio of the submajor axis to the major axis
@@ -90,7 +91,7 @@ private:
   vector<int> L1, L2;
   int numRes;
   
-  double MASS, LENGTH, AMP, COROT, A21, A32;
+  double MASS, MFRAC, LENGTH, AMP, COROT, A21, A32;
 
   int NUMX, NUME, RECS;
   int ITMAX;
@@ -103,7 +104,8 @@ private:
 
   bool debug;
 
-  vector<int> bcount;
+  vector<int> btotn;
+  vector< vector<int> > bcount;
   vector< vector<double> > difLz;
   vector<double> difLz0, difLNP;
 
