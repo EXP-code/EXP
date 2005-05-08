@@ -1188,6 +1188,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << " dKIs="	<< dKIs 
 	   << " O1="	<< O1 
 	   << " O2="	<< O2 
+	   << " Omega="	<< Omega 
+	   << " P0="	<< Phase[0]
+	   << " P2="	<< Phase[2]
 	   << " dt="	<< dt
 	   << " ws="	<< ws[1]
 	   << " ws0="	<< ws[0]
@@ -1204,6 +1207,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	    << " dKIs="	<< dKIs 
 	    << " O1="	<< O1 
 	    << " O2="	<< O2 
+	    << " Omega="	<< Omega 
+	    << " P0="	<< Phase[0]
+	    << " P2="	<< Phase[2]
 	    << " dt="	<< dt
 	    << " ws="	<< ws[1]
 	    << " ws0="	<< ws[0]
@@ -1517,6 +1523,9 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << " dKIs="	<< dKIs 
 	   << " O1="	<< O1 
 	   << " O2="	<< O2 
+	   << " Omega="	<< Omega 
+	   << " P0="	<< Phase[0]
+	   << " P0="	<< Phase[2]
 	   << " dt="	<< dt
 	   << " ws="	<< ws[1]
 	   << " ws0="	<< ws[0]
@@ -1533,6 +1542,9 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	    << " dKIs="	<< dKIs 
 	    << " O1="	<< O1 
 	    << " O2="	<< O2 
+	    << " Omega="	<< Omega 
+	    << " P0="	<< Phase[0]
+	    << " P0="	<< Phase[2]
 	    << " dt="	<< dt
 	    << " ws="	<< ws[1]
 	    << " ws0="	<< ws[0]

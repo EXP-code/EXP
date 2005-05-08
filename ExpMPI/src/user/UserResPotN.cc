@@ -396,11 +396,9 @@ void UserResPotN::determine_acceleration_and_potential(void)
   // -----------------------------------------------------------
 
 				// Get total number out of bounds
-  for (int n=1; n<nthrds; n++) {
-    for (int j=0; j<ResPot::NumDesc-1; j++) {
-      bcount[0][j] += bcount[n][j];
-      btotn[j] = 0;
-    }
+  for (int j=0; j<ResPot::NumDesc-1; j++) {
+    for (int n=1; n<nthrds; n++)  bcount[0][j] += bcount[n][j];
+    btotn[j] = 0;
   }
   MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPot::NumDesc-1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
@@ -468,11 +466,13 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 				// Check for nan (can get rid of this
 				// eventually)
   bool found_nan = false;
-  ResPot::ReturnCode ret = ResPot::OK;
+  ResPot::ReturnCode ret;
   double dpot;
   int ir;
 
   for (int i=nbeg; i<nend; i++) {
+
+    ret = ResPot::OK;		// Reset error flag
 
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;
 
@@ -493,7 +493,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    if (R>rmin && R<rmax && ret == ResPot::OK) {
+    if (R>rmin && R<rmax) {
 
       ir = i % numRes;
       

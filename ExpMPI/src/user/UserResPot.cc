@@ -419,10 +419,12 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 				// Check for nan (can get rid of this
 				// eventually)
   bool found_nan = false;
-  ResPot::ReturnCode ret = ResPot::OK;
+  ResPot::ReturnCode ret;
   double dpot;
 
   for (int i=nbeg; i<nend; i++) {
+
+    ret = ResPot::OK;		// Reset error flag
 
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;
 
@@ -443,7 +445,7 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    if (R>rmin && R<rmax && ret == ResPot::OK) {
+    if (R>rmin && R<rmax) {
 
       if ((ret=respot-> 
 	   Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
