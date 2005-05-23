@@ -95,6 +95,8 @@ private:
   
   int ngrid;
   
+  string dbgFILE;
+
 public:
   
   //! Power for ang. mom. scaling (default: 0.25)
@@ -111,8 +113,8 @@ public:
   static int RECS;
   //! Maximum number of iterations in mapping
   static int ITMAX;
+  //! Complex sqrt(-1)
   static KComplex I;
-  
   
   //! Constructor
   ResPot(AxiSymModel *mod, Perturbation *pert, int l, int m, int l1, int l2);
@@ -151,12 +153,15 @@ public:
   //! Set second order implicit symplectic integration
   void set_2nd_order() { second_order = true; }
   
+  //! Set debug file
+  void set_debug_file(const string& dbg) { dbgFILE = dbg; }
+
 };
 
 double rot_matrix(int l, int m, int n, double beta);
 double Ylm01(int ll, int mm);
 KComplex VeeBeta(int l, int l2, int m, double beta);
-extern int respot_mpi_id();
+extern string respot_mpi_id();
 
 #endif
 

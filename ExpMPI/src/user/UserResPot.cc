@@ -10,6 +10,7 @@
 #include <sphereSL.h>
 #include <UserResPot.H>
 #include <BarForcing.H>
+#include <CircularOrbit.H>
 
 #include <sstream>
 
@@ -18,10 +19,19 @@
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #endif
 
-static int respot_mpi_id_var;
-int respot_mpi_id()
+string respot_mpi_id()
 {
-  return respot_mpi_id_var;
+  static bool first = true;
+  static string id;
+
+  if (first) {
+    ostringstream sout;
+    sout << runtag << ".respot_dbg." << myid;
+    id = sout.str();
+    first = false;
+  }
+
+  return id;
 }
 
 UserResPot::UserResPot(string &line) : ExternalForce(line)
@@ -61,7 +71,10 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   domega = 0.0;			// Rate of forced slow down
   tom0 = 1.0;			// Midpoint of forced bar slow down
   dtom = -1.0;			// Width of forced bar slow down
+  fileomega = "";		// File containing Omega vs T
 
+  usebar = true;		// Use BarForcing and 
+  useorb = false;		// Not CircularOrbit
 
   first = true;
 
@@ -107,16 +120,25 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 				// Perturbation
   if (MASS < 0.0) MASS = hm->get_mass(LENGTH);
 
-  BarForcing::L0 = L0;
-  BarForcing::M0 = M0;
-  BarForcing bar(NMAX, MFRAC*MASS, LENGTH, COROT);
+  if (usebar) {
+    BarForcing::L0 = L0;
+    BarForcing::M0 = M0;
+    BarForcing *bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
 
-  bar.set_model(halo_model);
-  bar.compute_quad_parameters(A21, A32);
-  omega = omega0 = bar.Omega();
-  Iz = bar.get_Iz();
+    bar->set_model(halo_model);
+    bar->compute_quad_parameters(A21, A32);
+    omega = omega0 = bar->Omega();
+    Iz = bar->get_Iz();
 
-  pert = &bar;
+    pert = bar;
+  } else {
+    CircularOrbit *orb = new CircularOrbit(NMAX, L0, M0, MASS, LENGTH);
+
+    omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
+    Iz = MASS*LENGTH*LENGTH*omega;
+
+    pert = orb;
+  }
 
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
@@ -124,21 +146,55 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
   ResPot::ITMAX = ITMAX;
   respot = new ResPot(halo_model, pert, L0, M0, L1, L2);
 
+				// Construct debug file name
+  ostringstream sout;
+  sout << runtag << ".respot_dbg." << myid;
+  respot->set_debug_file(sout.str());
+
   btotn = vector<int>(ResPot::NumDesc-1);
   bcount = vector< vector<int> >(nthrds);
   difLz = vector<double>(nthrds);
   for (int i=0; i<nthrds; i++)
     bcount[i] = vector<int>(ResPot::NumDesc-1);
   
-  userinfo();
+				// Read omega file
+  if (fileomega.size()) {
+    ifstream in(fileomega.c_str());
+    const int sizebuf = 1024;
+    char linebuf[sizebuf];
 
-  respot_mpi_id_var = myid;
+    double t, om;
+    if (in) {
+
+      while (in) {
+	in.getline(linebuf, sizebuf);
+	if (!in) break;
+	if (linebuf[0]=='#') continue;
+
+	istringstream sin(linebuf);
+	sin >> t;
+	sin >> om;
+	if (sin) {
+	  Time.push_back(t);
+	  Omega.push_back(om);
+	}
+      }
+
+    } else {
+      cout << "UserResPotN could not open <" << fileomega << ">\n";
+      MPI_Abort(MPI_COMM_WORLD, 103);
+    }
+    
+  }
+
+  userinfo();
 }
 
 UserResPot::~UserResPot()
 {
   delete halo_model;
   delete respot;
+  delete pert;
 }
 
 void UserResPot::userinfo()
@@ -146,6 +202,8 @@ void UserResPot::userinfo()
   if (myid) return;		// Return if node master node
   print_divider();
   cout << "** User routine RESONANCE POTENTIAL initialized";
+  if (usebar) cout << " using bar";
+  else cout << " using satellite";
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Mfrac=" << MFRAC 
@@ -165,6 +223,8 @@ void UserResPot::userinfo()
        << ", L1=" << L1
        << ", L2=" << L2
        << ", Klim=" << Klim;
+  if (fileomega.size())
+    cout << ", using table <" << fileomega << "> for Omega(t)";
   if (dtom>0) cout << ", T_om=" << tom0 << ", dT_om=" << dtom;
   cout << ", Domega=" << domega;
   if (usetag>=0)
@@ -219,8 +279,29 @@ void UserResPot::initialize()
   if (get_value("model", val))    model_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
+  if (get_value("fileomega", val))	fileomega = val;
   if (get_value("usetag", val))   usetag = atoi(val.c_str());
+  if (get_value("usebar", val))   
+    {
+      usebar = val.c_str() ? usebar=true : usebar=false;
+      useorb = val.c_str() ? usebar=false : usebar=true;
+    }
+  if (get_value("useorb", val))   
+    {
+      useorb = val.c_str() ? usebar=true : usebar=false;
+      usebar = val.c_str() ? usebar=false : usebar=true;
+    }
 }
+
+
+double UserResPot::get_omega(double t)
+{
+  if (t<Time.front()) return Omega.front();
+  if (t>Time.back())  return Omega.back();
+
+  return odd2(t, Time, Omega, 0);
+}
+
 
 void UserResPot::determine_acceleration_and_potential(void)
 {
@@ -373,7 +454,9 @@ void UserResPot::determine_acceleration_and_potential(void)
   MPI_Allreduce(&difLz[0], &difLz0, 1,
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  if (dtom>0.0)
+  if (fileomega.size())
+    omega = get_omega(tnow);
+  else if (dtom>0.0)
     omega = omega0*(1.0 + domega*0.5*(1.0 + erf( (tnow - tom0)/dtom )));
   else
     omega = omega0*(1.0 + domega*(tnow - tom0*0.5));
@@ -418,13 +501,15 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 
 				// Check for nan (can get rid of this
 				// eventually)
+  bool updated;
   bool found_nan = false;
   ResPot::ReturnCode ret;
   double dpot;
 
   for (int i=nbeg; i<nend; i++) {
 
-    ret = ResPot::OK;		// Reset error flag
+    ret = ResPot::OK;		// Reset error flags
+    updated = false;
 
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;
 
@@ -457,20 +542,23 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
 	if (respot->K()<Klim)
 	  difLz[id] += cC->Mass(i)*(Lz1 - Lz0);
 	
-      }
-	
-    } else {
-      if (ret != ResPot::OK) bcount[id][ret-1]++;
-      if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
+	updated = true;
+
+      } else {
+
+	if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
 #ifdef DEBUG
-      pthread_mutex_lock(&iolock);
-      cout << "Process " << myid << " id=" << id << ":"
-	   << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
-      pthread_mutex_unlock(&iolock);
+	pthread_mutex_lock(&iolock);
+	cout << "Process " << myid << " id=" << id << ":"
+	     << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
+	pthread_mutex_unlock(&iolock);
 #endif
+      }
 
+    }
+     
+    if (!updated) {
       dpot = halo_model->get_dpot(R);
-
       for (int k=0; k<3; k++) {
 	posO[k] = velI[k] * dtime;
 	if (R>0.01*rmin) velO[k] = -dpot*posI[k]/R * dtime;

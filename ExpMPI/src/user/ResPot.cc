@@ -11,7 +11,7 @@
 #include <pthread.h>  
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
-#define DEBUG_VERBOSE		// More copious reporting on errors
+#undef DEBUG_VERBOSE		// More copious reporting on errors
 #undef DEBUG_DEBUG		// Only for a few-step diagnostic run
 
 double ResPot::ALPHA = 0.25;
@@ -31,14 +31,6 @@ static double perturb(double r)
   return pbar->eval(r);
 }
 
-ofstream* open_debug_file()
-{
-  ostringstream sout;
-  sout << "update." << respot_mpi_id();
-  return new ofstream(sout.str().c_str(), ios::app);
-}
-
-
 const char* ResPot::ReturnDesc[] = {
   "OK", 
   "CoordRad", "CoordVel", "CoordCirc", "CoordTP", "CoordRange", 
@@ -53,6 +45,7 @@ ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
   
   grid_computed = false;
   second_order = true;
+  dbgFILE = "update.dbg";
   
   L = l;
   M = m;
@@ -943,12 +936,12 @@ ResPot::ReturnCode ResPot::coord(double* pos, double* vel,
       )
     {
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out <<  "Coord: vel variable is NaN or Inf: vr=" << vr 
 	   << " vt=" << vt << " psi=" << psi 
 	   << " w3=" << w3 << " r=" << r 
 	   << endl;
-      out->close();
+      delete out;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1142,13 +1135,13 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out <<  "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is1=" << Is[1] << " If=" 
 	   << If << " Is2=" << Is[2] << " i=" 
 	   << i << endl;
       
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1198,7 +1191,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out  << "Fw or FI is NaN, dJm=" << dJm 
 	    << " Ul="	<< Ul 
 	    << " dUldE="	<< dUldE 
@@ -1215,7 +1208,7 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	    << " ws0="	<< ws[0]
 	    << " ws2="	<< ws[2]
 	    << " i="	<< i << endl;
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1234,12 +1227,12 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out  << "ws2 is NaN, Fw=" << Fw.real()
 	    << " ws0=" << ws[0]
 	    << " dt=" << dt
 	    << " i="	<< i << endl;
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1265,9 +1258,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   }
   
   if (!done) {
-    // #ifdef DEBUG
-    cerr << endl
-	 << "Not done: "
+    pthread_mutex_lock(&iolock);
+    out = new ofstream(dbgFILE.c_str(), ios::app);
+    *out << "Update iteration: "
 	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
 	 << Phase[1]
 	 << ", " << E
@@ -1284,7 +1277,9 @@ ResPot::ReturnCode ResPot::Update2(double dt,
 	 << ", " << dEIs
 	 << ", " << dKIs
 	 << endl;
-    // #endif
+    delete out;
+    pthread_mutex_unlock(&iolock);
+    out = 0;
     ret = UpdateIterate;
   }
   
@@ -1482,13 +1477,13 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out <<  "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is1=" << Is[1] << " If1=" 
 	   << If1 << " If2=" << If2 << " Is2=" << Is[2] << " i=" 
 	   << i << endl;
       
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1533,7 +1528,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out  << "Fw or FI is NaN, dJm=" << dJm 
 	    << " Ul="	<< Ul 
 	    << " dUldE="	<< dUldE 
@@ -1550,7 +1545,7 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	    << " ws0="	<< ws[0]
 	    << " ws2="	<< ws[2]
 	    << " i="	<< i << endl;
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1569,12 +1564,12 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	   << " i="	<< i << endl;
       
       pthread_mutex_lock(&iolock);
-      out = open_debug_file();
+      out = new ofstream(dbgFILE.c_str(), ios::app);
       *out  << "ws2 is NaN, Fw=" << Fw.real()
 	    << " ws0=" << ws[0]
 	    << " dt=" << dt
 	    << " i="	<< i << endl;
-      out->close();
+      delete out;;
       pthread_mutex_unlock(&iolock);
       out = 0;
     }
@@ -1599,9 +1594,9 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   }
   
   if (!done) {
-    // #ifdef DEBUG
-    cerr << endl
-	 << "Not done: "
+    pthread_mutex_lock(&iolock);
+    out = new ofstream(dbgFILE.c_str(), ios::app);
+    *out << "Update iteration: "
 	 << "Phase, E, K, I1, I2, DI, Dw, Ul, dUldE, dUldK, dEIs, dKIs = " 
 	 << Phase[1]
 	 << ", " << E
@@ -1618,8 +1613,9 @@ ResPot::ReturnCode ResPot::Update3(double dt,
 	 << ", " << dEIs
 	 << ", " << dKIs
 	 << endl;
-    // #endif
-    
+    delete out;
+    pthread_mutex_unlock(&iolock);
+    out = 0;
     ret = UpdateIterate;
   }
   

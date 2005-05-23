@@ -64,7 +64,7 @@ using namespace std;
 
 int parse_args(int, char **);
 void write_parm(void);
-int respot_mpi_id() { return 99; }
+string respot_mpi_id() { return "testcoord.dbg"; }
 
 				// Input parameters
 int L1=-1;

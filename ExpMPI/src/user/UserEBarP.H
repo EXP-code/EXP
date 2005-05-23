@@ -16,7 +16,6 @@
     @param Ton is the time at the center of the <code>erf</code> turn on
     @param Toff is the time at the center of the <code>erf</code> turn off
     @param DeltaT is the spread of the turn on
-    @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param monopole force is self-consistently computed from Newton's third law (default: true)
     @param soft use the shallow form of the potential (default: false)
@@ -39,8 +38,8 @@ private:
   double teval;
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
-  double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, omegatab, monopole, soft, table, noself;
+  double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT;
+  bool fixed, monopole, soft, table, noself;
   string filename, fileomega;
 
   static const double numfac = 3.86274202023190e-01;

@@ -102,6 +102,8 @@ private:
   bool self;
   double domega, tom0, dtom;
 
+  bool usebar, useorb;
+
   bool debug;
 
   vector<int> btotn;
@@ -112,6 +114,10 @@ private:
   string ctr_name;
   string model_file;
   string filename;
+  string fileomega;
+
+  vector<double> Time, Omega;
+  double get_omega(double);
 
   void userinfo();
 

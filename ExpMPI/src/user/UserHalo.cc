@@ -109,8 +109,13 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
 
     model->get_pot_dpot(r, pot, dpot);
 
+    // Add external accerlation
     for (int k=0; k<3; k++)
       cC->AddAcc(i, k, -dpot*pos[k]/r );
+
+    // Add external potential
+    cC->AddPotExt(i, pot );
+
   }
 
   return (NULL);

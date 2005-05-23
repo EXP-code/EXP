@@ -21,7 +21,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 noinst_LIBRARIES = libcommon.a
 
 libcommon_a_SOURCES = ResPot.cc BarForcing.cc Perturbation.cc \
-	EllipForce.cc SatelliteOrbit.cc
+	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc
 
 #
 # Shared (loadable) libraries
@@ -33,7 +33,7 @@ libbar_la_SOURCES = UserBar.cc
 libebar_la_SOURCES = UserEBar.cc
 libebar_la_LIBADD = libcommon.a
 
-libebarp_la_SOURCES = UserEBarP
+libebarp_la_SOURCES = UserEBarP.cc
 libebarp_la_LIBADD = libcommon.a
 
 libsat_la_SOURCES = UserSat.cc

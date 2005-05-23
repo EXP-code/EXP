@@ -2,12 +2,12 @@
 #include <sstream>
 
 #include "expand.h"
-
+#include <localmpi.h>
 #include <UserEBarP.H>
 
 UserEBarP::UserEBarP(string &line) : ExternalForce(line)
 {
-  id = "RotatingBarWithMonopole";
+  id = "RotatingBarWithMonopoleOmega";
 
   length = 1.0;			// Bar length
   bratio = 0.5;			// Ratio of b to a
@@ -17,14 +17,11 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   DeltaT = 1.0;			// Turn on duration
-  Fcorot  = 1.0;		// Corotation factor
-  fixed = false;		// Constant pattern speed
-  omegatab = false;		// Use tabled pattern speed
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
   noself = false;		// No not apply monopole to particles
-  fileomega = "omega.dat";	// File containg Omega vs T
+  fileomega = "";		// File containg Omega vs T
 				// Output file name
   filename = outdir + "BarRot." + runtag;
 
@@ -137,42 +134,40 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
 
   // Read omega file
-  if (omegatab) {
-    ifstream in(fileomega.c_str());
-    const int sizebuf = 1024;
-    char linebuf[sizebuf];
+  ifstream in(fileomega.c_str());
+  const int sizebuf = 1024;
+  char linebuf[sizebuf];
 
-    double t, om;
-    if (in) {
+  double t, om;
+  if (in) {
 
-      while (in) {
-	in.getline(linebuf, sizebuf);
-	if (!in) break;
-	if (linebuf[0]=='#') continue;
-
-	istringstream sin(linebuf);
-	sin >> t;
-	sin >> om;
-	if (sin) {
-	  Time.push_back(t);
-	  Omega.push_back(om);
-	}
+    while (in) {
+      in.getline(linebuf, sizebuf);
+      if (!in) break;
+      if (linebuf[0]=='#') continue;
+      
+      istringstream sin(linebuf);
+      sin >> t;
+      sin >> om;
+      if (sin) {
+	Time.push_back(t);
+	Omega.push_back(om);
       }
-
-    } else {
-      cout << "UserEBarP could not open <" << fileomega << ">\n";
-      MPI_Abort(MPI_COMM_WORLD, 103);
     }
     
-    // Debugging
-    /* 
-    if (myid==0) {
-      ofstream out("testebarp.dat");
-      for (unsigned i=0; i<Time.size(); i++)
-	out << setw(15) << Time[i] << setw(15) << Omega[i] << endl;
-    }
-    */
+  } else {
+    cout << "UserEBarP could not open <" << fileomega << ">\n";
+    MPI_Abort(MPI_COMM_WORLD, 103);
   }
+    
+  // Debugging
+  /*
+  if (myid==0) {
+    ofstream out("testebarp.dat");
+    for (unsigned i=0; i<Time.size(); i++)
+      out << setw(15) << Time[i] << setw(15) << Omega[i] << endl;
+  }
+  */
 
   userinfo();
 }
@@ -198,10 +193,7 @@ void UserEBarP::userinfo()
   print_divider();
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
-  if (fixed)
-    cout << "fixed pattern speed, ";
-  else
-    cout << "fixed corotation fraction, ";
+  cout << "using table <" << fileomega << "> for Omega(t), ";
   if (monopole) {
     if (noself)
       cout << "using monopole without force on particles, ";
@@ -218,8 +210,6 @@ void UserEBarP::userinfo()
     cout << "center on component <" << ctr_name << ">, ";
   else
     cout << "using inertial center, ";
-  if (omegatab)
-    cout << "using table <" << fileomega << "> for Omega(t), ";
   if (table)
     cout << "using user quadrupole table, ";
   if (c1) 
@@ -245,12 +235,10 @@ void UserEBarP::initialize()
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
-  if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
   if (get_value("noself", val))		noself = atoi(val.c_str()) ? true:false;
-  if (get_value("omegatab", val))	omegatab = atoi(val.c_str()) ? true:false;
   if (get_value("fileomega", val))	fileomega = val;
   if (get_value("filename", val))	filename = val;
 
@@ -269,38 +257,9 @@ void UserEBarP::determine_acceleration_and_potential(void)
     
     ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
 			   barmass, 200, 200);
-
-    list<Component*>::iterator cc;
-    Component *c;
-
-    double R=length*Fcorot;
-    double phi, theta=0.5*M_PI;
-    double dens, potl, potr, pott, potp;
-    double avg=0.0;
     
-    for (int n=0; n<8; n++) {
-      phi = 2.0*M_PI/8.0 * n;
-
-      for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	c = *cc;
-	
-	if (c->force->geometry == PotAccel::sphere || 
-	    c->force->geometry == PotAccel::cylinder) {
-	  
-	  ((Basis*)c->force)->
-	    determine_fields_at_point_sph(R, theta, phi,
-					  &dens, &potl, &potr, &pott, &potp);
-	  
-	  avg += potr/8.0;
-	}
-      }
-    }
-
-    if (omegatab) 
-      omega = get_omega(tpos);
-    else
-      omega = sqrt(avg/R);
-
+    omega = get_omega(tpos);
+    
     const int N = 100;
     LegeQuad gq(N);
 
@@ -343,6 +302,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
       cout << "V_1=" << ans1 << endl;
       cout << "V_2=" << ans2 << endl;
       cout << "I_3=" << 0.2*mass*(a1*a1 + a2*a2) << endl;
+      cout << "Omega(0)=" << omega << endl;
 
     }
 
@@ -351,7 +311,8 @@ void UserEBarP::determine_acceleration_and_potential(void)
     double b25 = 0.4*a1*a2*a3*(a2*a2 - a1*a1)/(ans1 - ans2);
 
     b5 = pow(b25, 0.2);
-    afac = 2.0 * b1;
+    // afac = 2.0 * b1;
+    afac = b1;
 
     if (myid==0) {
       cout << "b1=" << b1 << endl;
@@ -482,27 +443,11 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
     firstime = false;
     update = true;
-
+    
   } else {
 
-    if (omegatab) {
-      omega = get_omega(tpos);
-      // Debugging
-      /*
-      if (myid==0) {
-	cout << "Debug: t=" << tpos << " omega=" << omega << endl;
-      }
-      */
-    }
-    else if (!fixed) {
-      if (c1)
-	omega = (Lz + Lz0 - c1->angmom[2])/Iz;
-      else
-	omega = Lz/Iz;
-    }
-    else
-      omega = lastomega;
-    
+    omega = get_omega(tpos);
+
     if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
@@ -552,7 +497,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 	out << setw(15) << Lz
 	    << setw(15) << 0.0;
 
-      out << setw(15) << amplitude *  
+      out << setw(15) << amplitude/fabs(amplitude) *  
 	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
 	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
 
@@ -597,7 +542,7 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 			     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
 
   for (int i=nbeg; i<nend; i++) {
-    
+
     for (int k=0; k<3; k++) pos[k] = cC->Pos(i, k);
 
     if (c0)
@@ -671,7 +616,7 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
 
 				// Add bar acceleration to particle
     cC->AddAcc(i, acct);
-
+    
 				// Add external potential
     cC->AddPotExt(i, extpot);
 
@@ -688,7 +633,7 @@ extern "C" {
   }
 }
 
-class proxyebar { 
+class proxyebar {
 public:
   proxyebar()
   {

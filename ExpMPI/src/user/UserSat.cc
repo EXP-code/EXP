@@ -20,6 +20,9 @@ private:
 
   double core, mass, ton, toff, delta, toffset;
 
+  bool circ;
+  double omega, phase, r0;
+
   void userinfo();
 
 public:
@@ -40,6 +43,11 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   delta = 1.0;			// Turn on duration
   toffset = 0.0;		// Time offset for orbit
 
+  circ = false;			// Assume circular orbit on x-y plane
+  r0 = 1.0;			// Radius
+  phase = 0.0;			// Initial position angle
+  omega = 1.0;			// Angular frequency
+
   com_name = "sphereSL";	// Default component for com
 
   initialize();
@@ -50,7 +58,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   Component *c;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
-    if ( !com_name.compare(c->id) ) {
+    if ( !com_name.compare(c->name) ) {
       c0 = c;
       found = true;
       break;
@@ -63,7 +71,8 @@ UserSat::UserSat(string &line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
-  orb = new SatelliteOrbit;
+  if (circ) orb = 0;
+  else      orb = new SatelliteOrbit;
 
   userinfo();
 }
@@ -77,7 +86,18 @@ void UserSat::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
-  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized\n";
+  cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized using ";
+  if (circ)
+    cout << "fixed circular orbit with mass=" << mass 
+	 << ", core=" << core
+	 << ", r=" << r0 
+	 << ", p(0)=" << phase 
+	 << ", Omega=" << omega 
+	 << endl;
+  else
+    cout << "specified orbit with mass=" << mass 
+	 << ", core=" << core
+	 << endl;
   print_divider();
 }
 
@@ -92,11 +112,15 @@ void UserSat::initialize()
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
+  if (get_value("circ", val))     circ = atoi(val.c_str()) ? true : false;
+  if (get_value("r0", val))       r0 = atof(val.c_str());
+  if (get_value("phase", val))    phase = atof(val.c_str());
+  if (get_value("omega", val))    omega = atof(val.c_str());
 }
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double pos[3], rs[3], fac, ffac;
+  double pos[3], rs[3], fac, ffac, phi;
   double satmass;
   
   int nbodies = cC->Number();
@@ -104,14 +128,19 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  orb->get_satellite_orbit(tnow - toffset, &rs[0]);
+  if (circ) {
+    phi = phase + omega*tnow;
+    rs[0] = r0*cos(phi);
+    rs[1] = r0*sin(phi);
+    rs[2] = 0.0;
+  }
+  else
+    orb->get_satellite_orbit(tnow - toffset, &rs[0]);
 
   satmass = mass * 
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
-
-
   for (int i=nbeg; i<nend; i++) {
 
     fac = core*core;
