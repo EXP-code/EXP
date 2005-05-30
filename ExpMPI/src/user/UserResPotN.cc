@@ -64,6 +64,9 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 
   usetag = -1;			// Flag not used unless explicitly defined
 
+  pmass = -1.0;			// Mass for two-body diffusion
+  diffuse = 0;
+
 				// Tabled spherical model
   model_file = "SLGridSph.model";
   ctr_name = "";		// Default component for com is none
@@ -145,6 +148,9 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
     respot[i]->set_debug_file(sout.str());
   }
 
+  // Initialize two-body diffusion
+  if (pmass>0.0) diffuse = new TwoBodyDiffuse (pmass);
+
   btotn = vector<int>(ResPot::NumDesc-1);
   difLz0 = vector<double>(numRes);
   bcount = vector< vector<int> >(nthrds);
@@ -192,6 +198,7 @@ UserResPotN::~UserResPotN()
   for (int i=0; i<numRes; i++) delete respot[i];
   delete halo_model;
   delete pert;
+  delete diffuse;
 }
 
 void UserResPotN::userinfo()
@@ -226,7 +233,10 @@ void UserResPotN::userinfo()
     cout << ", with bad value tagging";
   for (int ir=0; ir<numRes; ir++)
     cout << ", (l_1,l_2)_" << ir << "=(" << L1[ir] << "," << L2[ir] << ")";
-  cout << ", ITMAX=" << ITMAX << "\n";
+  cout << ", ITMAX=" << ITMAX;
+  if (pmass>0.0) cout << ", using two-body diffusion with logL=5.7 and mass=" 
+		      << pmass;
+  cout << endl;
   print_divider();
 }
 
@@ -289,6 +299,8 @@ void UserResPotN::initialize()
   if (get_value("domega", val))   domega = atof(val.c_str());
   if (get_value("tom0", val))     tom0 = atof(val.c_str());
   if (get_value("dtom", val))     dtom = atof(val.c_str());
+
+  if (get_value("pmass", val))    pmass = atof(val.c_str());
 
 
   if (get_value("model", val))    model_file = val;
@@ -514,7 +526,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
 {
   double amp, R2, R;
-  double posI[3], posO[3], velI[3], velO[3], Lz0, Lz1;
+  double posI[3], posO[3], velI[3], velO[3], vdif[3], Lz0, Lz1;
   
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -570,6 +582,11 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       if ((ret=respot[ir]-> 
 	   Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
 	
+				// Apply two-body diffusion
+	if (pmass>0.0) {
+	  diffuse->get_diffusion(dtime, posO, velO, vdif);
+	  for (int k=0; k<3; k++) velO[k] += vdif[k];
+	}
 				// Current ang mom
 	Lz1 = posO[0]*velO[1] - posO[1]*velO[0];
 

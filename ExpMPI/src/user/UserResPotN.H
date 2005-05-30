@@ -4,6 +4,7 @@
 #include <massmodel.h>
 #include <biorth.h>
 #include <ResPot.H>
+#include <TwoBodyDiffuse.H>
 
 /** Apply specific component of resonance potential and
     optionally, the spherical restoring force
@@ -37,6 +38,7 @@
     @param A32 is the ratio of the minor axis to the submajor axis
     @param NUME is the grid in energy space for the force evaluation
     @param NUMK is the grid in kappa space for the force evaluation
+    @param pmass is the mass for two-body diffusion (<=0 is off)
     @param usetag is the index of the use flag (if defined)
     @param use_background is 1 (0) if spherical potential is applied (not)
     @param self compute the angular momentum self-consistently if true
@@ -118,6 +120,9 @@ private:
 
   vector<double> Time, Omega;
   double get_omega(double);
+
+  double pmass;
+  TwoBodyDiffuse *diffuse;
 
   void userinfo();
 

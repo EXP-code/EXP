@@ -1,4 +1,5 @@
 #include <math.h>
+#include <pthread.h>
 
 #include "expand.h"
 #include <localmpi.h>
@@ -8,6 +9,8 @@
 #include <Normal.h>
 
 #include <UserDiffuse.H>
+
+static pthread_mutex_t randlock = PTHREAD_MUTEX_INITIALIZER;
 
 UserDiffuse::UserDiffuse(string &line) : ExternalForce(line)
 {
@@ -300,8 +303,11 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
     
 
 				// Normal random variates
+    pthread_mutex_lock(&randlock);
     double r1 = (*nrand)();
     double r2 = (*nrand)();
+    double r3 = (*urand)();
+    pthread_mutex_unlock(&randlock);
 				// Clip
 
     if (fabs(r1)>clip) r1 = copysign(clip, r1);
@@ -311,7 +317,7 @@ void * UserDiffuse::determine_acceleration_and_potential_thread(void * arg)
     double deltaVpara = dvpara1*dtime + r1*sqrt(dvpara2*dtime);
     double deltaVperp = r2*sqrt(dvperp2*dtime);
 
-    double angle = 2.0*M_PI*(*urand)();	// Angle in tangent velocity plane
+    double angle = 2.0*M_PI*r3;	// Angle in tangent velocity plane
     double cosA = cos(angle);
     double sinA = sin(angle);
 				// Update particle velocity
