@@ -598,6 +598,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 
       } else {
 
+	bcount[id][ret-1]++;
+
 	if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
 #ifdef DEBUG
 	pthread_mutex_lock(&iolock);
@@ -613,7 +615,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       dpot = halo_model->get_dpot(R);
       for (int k=0; k<3; k++) {
 	posO[k] = velI[k] * dtime;
-	if (R>0.01*rmin) velO[k] = -dpot*posI[k]/R * dtime;
+	if (R>0.01*rmin) velO[k] = velI[k] - dpot*posI[k]/R * dtime;
       }
     }
 
