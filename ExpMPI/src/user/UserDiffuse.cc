@@ -378,7 +378,7 @@ void UserDiffuse::compute_model()
 {
   if (use_file) {
     model = new SphericalModelTable(modfile, diverge, diverge_rfac);
-    model->setup_df(400);
+    model->setup_df(800);
     return;
   }
 
@@ -472,6 +472,7 @@ void UserDiffuse::compute_model()
 
 }
 
+
 void UserDiffuse::compute_diffuse()
 {
   // ===================================================================
@@ -563,7 +564,7 @@ void UserDiffuse::compute_diffuse()
 
       for (int k=1; k<=jq->get_n(); k++) {
 
-	F0 += model->distf(EE + (Emax - EE)*jq->knot(k), 0.5) * 
+	F0 += 2.0*model->distf(EE + (Emax - EE)*jq->knot(k), 0.5) * 
 	  jq->weight(k);
       
 	E = phi + (EE - phi)*jq->knot(k);
@@ -592,6 +593,8 @@ void UserDiffuse::compute_diffuse()
 	     << endl;
 
     } // End V loop
+
+    if (myid==0) *out << endl;
 
   } // End R loop
 
