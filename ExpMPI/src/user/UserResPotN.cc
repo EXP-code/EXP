@@ -624,8 +624,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     if (!updated) {
       dpot = halo_model->get_dpot(R);
       for (int k=0; k<3; k++) {
-	posO[k] += velI[k] * dtime;
-	velO[k] += -dpot*posI[k]/R * dtime;
+	posO[k] = posI[k] + velI[k] * dtime;
+	velO[k] = velI[k] - dpot*posI[k]/R * dtime;
       }
     }
 
