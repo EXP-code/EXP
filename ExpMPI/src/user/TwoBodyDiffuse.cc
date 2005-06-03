@@ -309,3 +309,40 @@ void TwoBodyDiffuse::get_coefs(double r, double v,
     }
 
 }
+
+void TwoBodyDiffuse::dump_grid(ostream *out)
+{
+  out->setf(ios::left);
+
+  *out << setw(15) << "# Radius" 
+       << setw(15) << "Velocity"
+       << setw(15) << "D(para)"
+       << setw(15) << "D(para^2)"
+       << setw(15) << "D(perp^2)"
+       << endl;
+
+  char c = out->fill('-');
+  *out << setw(15) << "#-1" 
+       << setw(15) << "|-2"
+       << setw(15) << "|-3"
+       << setw(15) << "|-4"
+       << setw(15) << "|-5"
+       << endl;
+  out->fill(c);
+
+  double dV;
+
+  for (int i=0; i<numr; i++) {
+    dV = Vmax[i]/numv;
+    for (int j=0; j<numv; j++) {
+      *out << setw(15) << R[i] 
+	   << setw(15) << dV*(j+0.5)
+	   << setw(15) << dVpara1[i][j]
+	   << setw(15) << dVpara2[i][j]
+	   << setw(15) << dVperp2[i][j]
+	   << endl;
+    }
+    *out << endl;
+  }
+  
+}

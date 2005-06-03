@@ -61,6 +61,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   useorb = false;		// Not CircularOrbit
 
   first = true;
+  debug = false;		// Diagnostic output
 
   usetag = -1;			// Flag not used unless explicitly defined
 
@@ -149,7 +150,15 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   }
 
   // Initialize two-body diffusion
-  if (pmass>0.0) diffuse = new TwoBodyDiffuse (pmass);
+  if (pmass>0.0) {
+    diffuse = new TwoBodyDiffuse (pmass);
+    if (debug) {
+      ostringstream file;
+      file << "diffusion_grid." << runtag << "." << myid;
+      ofstream out(file.str().c_str());
+      if (out) diffuse->dump_grid(&out);
+    }
+  }
 
   btotn = vector<int>(ResPot::NumDesc-1);
   difLz0 = vector<double>(numRes);
@@ -307,16 +316,17 @@ void UserResPotN::initialize()
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
   if (get_value("fileomega", val))	fileomega = val;
+  if (get_value("debug",val))	  debug = atoi(val.c_str()) ? true : false;
   if (get_value("usetag", val))   usetag = atoi(val.c_str());
   if (get_value("usebar", val))   
     {
-      usebar = val.c_str() ? usebar=true : usebar=false;
-      useorb = val.c_str() ? usebar=false : usebar=true;
+      usebar = atoi(val.c_str()) ? true  : false;
+      useorb = atoi(val.c_str()) ? false : true;
     }
   if (get_value("useorb", val))   
     {
-      useorb = val.c_str() ? usebar=true : usebar=false;
-      usebar = val.c_str() ? usebar=false : usebar=true;
+      useorb = atoi(val.c_str()) ? true  : false;
+      usebar = atoi(val.c_str()) ? false : true;
     }
 }
 
@@ -614,8 +624,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     if (!updated) {
       dpot = halo_model->get_dpot(R);
       for (int k=0; k<3; k++) {
-	posO[k] = velI[k] * dtime;
-	if (R>0.01*rmin) velO[k] = velI[k] - dpot*posI[k]/R * dtime;
+	posO[k] += velI[k] * dtime;
+	velO[k] += -dpot*posI[k]/R * dtime;
       }
     }
 

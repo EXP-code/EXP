@@ -3,6 +3,8 @@
 
 using namespace std;
 
+#include <iostream>
+#include <iomanip>
 #include <vector>
 #include <string>
 
@@ -78,6 +80,9 @@ public:
 
   //! Get velocity kick
   void get_diffusion(double dtime, double* pos, double* vel, double* dvel);
+
+  //! Print out coefficient grid in gnuplot format
+  void dump_grid(ostream* out);
 
 };
 
