@@ -16,8 +16,6 @@
     @param M is the "m" index for the resonance
     @param L1 is the "l_1" index for the resonance
     @param L2 is the "l_2" index for the resonance
-    @param rmin is the minimum radius for the biorthogonal expansion
-    @param rmax is the maximum radius for the biorthogonal expansion
     @param scale for coordinate mapping in expansion
     @param drfac is the relative radial offset for numerical derivatives
     @param ton is the time at the center of the <code>erf</code> turn on
@@ -92,7 +90,7 @@ private:
   double ton, toff, delta, toffset, phase0, omega0, omega, Iz;
   
   int LMAX, NMAX, NUMR, L0, M0, usetag;
-  double rmin, rmax, scale, drfac, Klim;
+  double scale, drfac, Klim;
   vector<int> L1, L2;
   int numRes;
   

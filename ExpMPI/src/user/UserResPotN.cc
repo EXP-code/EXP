@@ -25,8 +25,6 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   NUMR = 800;
   L0 = 2;
   M0 = 2;
-  rmin = 1.0e-3;
-  rmax = 1.98;
   Klim = 1.0;
   scale = 0.067;
   drfac = 0.05;
@@ -285,8 +283,6 @@ void UserResPotN::initialize()
     MPI_Abort(MPI_COMM_WORLD, 119);
   }
 
-  if (get_value("rmin", val))     rmin = atof(val.c_str());
-  if (get_value("rmax", val))     rmax = atof(val.c_str());
   if (get_value("Klim", val))     Klim = atof(val.c_str());
   if (get_value("scale", val))    scale = atof(val.c_str());
   if (get_value("drfac", val))    drfac = atof(val.c_str());
@@ -594,42 +590,38 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    //    if (R>rmin && R<rmax) {
-
-      ir = i % numRes;
+    ir = i % numRes;
       
-      if ((ret=respot[ir]-> 
-	   Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
+    if ((ret=respot[ir]-> 
+	 Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
 	
 				// Apply two-body diffusion
-	if (pmass>0.0) {
-	  diffuse->get_diffusion(dtime, posO, velO, vdif);
-	  for (int k=0; k<3; k++) velO[k] += vdif[k];
-	}
+      if (pmass>0.0) {
+	diffuse->get_diffusion(dtime, posO, velO, vdif);
+	for (int k=0; k<3; k++) velO[k] += vdif[k];
+      }
 				// Current ang mom
-	Lz1 = posO[0]*velO[1] - posO[1]*velO[0];
+      Lz1 = posO[0]*velO[1] - posO[1]*velO[0];
 
 				// Accumulate change in Lz for each resonance
-	if (respot[ir]->K()<Klim)
-	  difLz[id][ir] += cC->Mass(i)*(Lz1 - Lz0);
+      if (respot[ir]->K()<Klim)
+	difLz[id][ir] += cC->Mass(i)*(Lz1 - Lz0);
 	
-	updated = true;
+      updated = true;
 
-      } else {
+    } else {
 
-	bcount[id][ret-1]++;
+      bcount[id][ret-1]++;
 
-	if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
+      if (usetag>=0) cC->Part(i)->iattrib[usetag] = 1;
 #ifdef DEBUG
-	pthread_mutex_lock(&iolock);
-	cout << "Process " << myid << " id=" << id << ":"
-	     << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
-	pthread_mutex_unlock(&iolock);
+      pthread_mutex_lock(&iolock);
+      cout << "Process " << myid << " id=" << id << ":"
+	   << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
+      pthread_mutex_unlock(&iolock);
 #endif
-      }
+    }
 
-      //    }
-     
     if (!updated) {
       dpot = halo_model->get_dpot(R);
       for (int k=0; k<3; k++) {
