@@ -15,7 +15,9 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 #undef DEBUG_DEBUG		// Only for a few-step diagnostic run
 
 double ResPot::ALPHA = 0.25;
-double ResPot::DELTA = 0.01;
+double ResPot::DELTA_E = 0.001;
+double ResPot::DELTA_K = 0.001;
+double ResPot::DELTA_B = 0.001;
 double ResPot::DELE = 0.001;
 double ResPot::DELK = 0.001;
 double ResPot::TOLITR = 1.0e-8;
@@ -54,10 +56,10 @@ ResPot::ResPot(AxiSymModel *mod, Perturbation* pert,
   
   Rmin = halo_model->get_min_radius();
   Rmax = halo_model->get_max_radius();
-  Emax = halo_model->get_pot(Rmax)*(1.0+DELTA);
-  Emin = halo_model->get_pot(Rmin)*(1.0-DELTA);
-  Kmin = DELTA;
-  Kmax = 1.0-DELTA;
+  Emax = halo_model->get_pot(Rmax)*(1.0+DELTA_E);
+  Emin = halo_model->get_pot(Rmin)*(1.0-DELTA_E);
+  Kmin = DELTA_K;
+  Kmax = 1.0-DELTA_K;
   Kupd = 0.0;
   
   // SphericalOrbit::RMAXF=1.0;
@@ -1013,17 +1015,17 @@ ResPot::ReturnCode ResPot::Update2(double dt,
   if (ret != OK) return ret;
   
   double betaM, betaP, beta;
-  if (BETA-DELTA<0.0) {
+  if (BETA-DELTA_B<0.0) {
     betaM = 0.0;
-    betaP = DELTA;
-    beta = 0.5*DELTA;
-  } else if (BETA+DELTA>M_PI) {
-    betaM = M_PI - DELTA;
+    betaP = DELTA_B;
+    beta = 0.5*DELTA_B;
+  } else if (BETA+DELTA_B>M_PI) {
+    betaM = M_PI - DELTA_B;
     betaP = M_PI;
-    beta = M_PI - 0.5*DELTA;
+    beta = M_PI - 0.5*DELTA_B;
   } else {
-    betaM = BETA - DELTA;
-    betaP = BETA + DELTA;
+    betaM = BETA - DELTA_B;
+    betaP = BETA + DELTA_B;
     beta = BETA;
   }
   
@@ -1360,17 +1362,17 @@ ResPot::ReturnCode ResPot::Update3(double dt,
   if ((ret=coord(posI, velI, E, Kupd, I1, I2, O1, O2, W1, W2, W3, F, BETA, PSI)) != OK) return ret;
   
   double betaM, betaP, beta;
-  if (BETA-DELTA<0.0) {
+  if (BETA-DELTA_B<0.0) {
     betaM = 0.0;
-    betaP = DELTA;
-    beta = 0.5*DELTA;
-  } else if (BETA+DELTA>M_PI) {
-    betaM = M_PI - DELTA;
+    betaP = DELTA_B;
+    beta = 0.5*DELTA_B;
+  } else if (BETA+DELTA_B>M_PI) {
+    betaM = M_PI - DELTA_B;
     betaP = M_PI;
-    beta = M_PI - 0.5*DELTA;
+    beta = M_PI - 0.5*DELTA_B;
   } else {
-    betaM = BETA - DELTA;
-    betaP = BETA + DELTA;
+    betaM = BETA - DELTA_B;
+    betaP = BETA + DELTA_B;
     beta = BETA;
   }
   

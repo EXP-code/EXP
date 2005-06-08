@@ -30,6 +30,9 @@
     @param tom0 is the midpoint of forced bar slow down
     @param dtom is the width of forced bar slow down (>0 for erf)
     @param ITMAX is the maximum number of iterations for mapping solution
+    @param DELE is the fractional offset in the energy grid
+    @param DELK is the offset in the kappa grid
+    @param DELB is the offset in the beta grid
     @param MASS of the bar (postive to use)
     @param MFRAC is the mass fraction of the bar inside LENGTH (postive)
     @param AMP is a mass prefactor (any sign)
@@ -97,6 +100,7 @@ private:
 
   int NUMX, NUME, RECS;
   int ITMAX;
+  double DELE, DELK, DELB;
 
   bool first;
   double phase, tlast, omlast;

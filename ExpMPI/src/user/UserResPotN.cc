@@ -15,9 +15,9 @@
 #include <sstream>
 
 #include <pthread.h>  
-#ifdef DEBUG
+// #ifdef DEBUG
 static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
-#endif
+// #endif
 
 UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 {
@@ -42,6 +42,9 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   NUME = 200;			// Points in Energy
   RECS = 100;			// Points in Angle grid
   ITMAX = 50;			// Number of iterations for mapping solution
+  DELE = 0.001;			// Fractional offset in E grid
+  DELK = 0.001;			// Offset in Kappa
+  DELB = 0.001;			// Offset in Beta
 
   MASS = -1.0;			// Bar mass
   MFRAC = 0.05;			// Fraction of enclosed mass
@@ -138,6 +141,9 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
   ResPot::ITMAX = ITMAX;
+  ResPot::DELTA_E = DELE;
+  ResPot::DELTA_K = DELK;
+  ResPot::DELTA_B = DELB;
 				// Instantiate one for each resonance
   for (int i=0; i<numRes; i++) {
     respot.push_back(new ResPot(halo_model, pert, L0, M0, L1[i], L2[i]));
@@ -303,6 +309,9 @@ void UserResPotN::initialize()
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("RECS", val))     RECS = atoi(val.c_str());
   if (get_value("ITMAX", val))    ITMAX = atoi(val.c_str());
+  if (get_value("DELE", val))     DELE = atof(val.c_str());
+  if (get_value("DELK", val))     DELK = atof(val.c_str());
+  if (get_value("DELB", val))     DELB = atof(val.c_str());
   
   if (get_value("self", val))     self = atoi(val.c_str());
   if (get_value("domega", val))   domega = atof(val.c_str());
@@ -585,7 +594,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     }
     R = sqrt(R2);
 
-    if (R>rmin && R<rmax) {
+    //    if (R>rmin && R<rmax) {
 
       ir = i % numRes;
       
@@ -619,7 +628,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 #endif
       }
 
-    }
+      //    }
      
     if (!updated) {
       dpot = halo_model->get_dpot(R);
@@ -627,6 +636,26 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 	posO[k] = posI[k] + velI[k] * dtime;
 	velO[k] = velI[k] - dpot*posI[k]/R * dtime;
       }
+
+      /*
+      if (ret==ResPot::CoordRange) {
+	pthread_mutex_lock(&iolock);
+	ostringstream sout;
+	sout << "testlim." << myid;
+	ofstream out(sout.str().c_str(), ios::app);
+	if (out) {
+	  out << setw(4)  << id
+	      << setw(15) << R
+	      << setw(15) << dpot;
+	  for (int k=0; k<3; k++) out << setw(15) << posI[k];
+	  for (int k=0; k<3; k++) out << setw(15) << posO[k];
+	  for (int k=0; k<3; k++) out << setw(15) << velI[k];
+	  for (int k=0; k<3; k++) out << setw(15) << velO[k];
+	  out << endl;
+	}
+	pthread_mutex_unlock(&iolock);
+      }
+      */
     }
 
     for (int k=0; k<3; k++) {

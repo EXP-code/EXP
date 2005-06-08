@@ -101,8 +101,12 @@ public:
   
   //! Power for ang. mom. scaling (default: 0.25)
   static double ALPHA;
-  //! Fractional energy offset for grid (default: 0.01)
-  static double DELTA;
+  //! Fractional energy offset for grid (default: 0.001)
+  static double DELTA_E;
+  //! Kappa offset for grid (default: 0.001)
+  static double DELTA_K;
+  //! Beta offset for grid (default: 0.001)
+  static double DELTA_B;
   //! Fractional steps for differenced derivatives
   static double DELE, DELK;
   static double TOLITR;
