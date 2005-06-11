@@ -43,6 +43,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   DELE = 0.001;			// Fractional offset in E grid
   DELK = 0.001;			// Offset in Kappa
   DELB = 0.001;			// Offset in Beta
+  ALPHA = 0.25;			// Power law index for J distribution
 
   MASS = -1.0;			// Bar mass
   MFRAC = 0.05;			// Fraction of enclosed mass
@@ -138,6 +139,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   ResPot::NUMX = NUMX;
   ResPot::NUME = NUME;
   ResPot::RECS = RECS;
+  ResPot::ALPHA = ALPHA;
   ResPot::ITMAX = ITMAX;
   ResPot::DELTA_E = DELE;
   ResPot::DELTA_K = DELK;
@@ -308,6 +310,7 @@ void UserResPotN::initialize()
   if (get_value("DELE", val))     DELE = atof(val.c_str());
   if (get_value("DELK", val))     DELK = atof(val.c_str());
   if (get_value("DELB", val))     DELB = atof(val.c_str());
+  if (get_value("ALPHA", val))    ALPHA = atof(val.c_str());
   
   if (get_value("self", val))     self = atoi(val.c_str());
   if (get_value("domega", val))   domega = atof(val.c_str());
@@ -461,6 +464,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
       phase = phase0;	// Initial phase 
     }
 
+				// Do next for every time except the first
+				// ----------------------------------------
   } else {			// Trapezoidal rule integration
     phase += (tnow - tlast)*0.5*(omega + omlast);
   }
@@ -493,7 +498,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
     for (int n=1; n<nthrds; n++)  bcount[0][j] += bcount[n][j];
     btotn[j] = 0;
   }
-  MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPot::NumDesc-1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPot::NumDesc-1, 
+	     MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Get total change in angular momentum
   for (int ir=0; ir<numRes; ir++) {
@@ -540,7 +546,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R2, R;
+  double amp, R0, R1, v2;
   double posI[3], posO[3], velI[3], velO[3], vdif[3], Lz0, Lz1;
   
   unsigned nbodies = cC->Number();
@@ -574,22 +580,19 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;
 
 				// Initial conditions
+    R0 = 0.0;
     for (int k=0; k<3; k++) {
       posI[k] = cC->Pos(i, k);
       if (c0) posI[k] -= c0->com[k];
       velI[k] = cC->Vel(i, k);
+
+      R0 += posI[k]*posI[k];
     }
+    R0 = sqrt(R0);
     
 				// Initial Lz
     Lz0 = posI[0]*velI[1] - posI[1]*velI[0];
     
-    
-    R2 = 0.0;
-    for (int k=0; k<3; k++) {
-      R2 += posI[k]*posI[k];
-    }
-    R = sqrt(R2);
-
     ir = i % numRes;
       
     if ((ret=respot[ir]-> 
@@ -622,34 +625,22 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 #endif
     }
 
-    if (!updated) {
-      dpot = halo_model->get_dpot(R);
-      for (int k=0; k<3; k++) {
-	posO[k] = posI[k] + velI[k] * dtime;
-	velO[k] = velI[k] - dpot*posI[k]/R * dtime;
-      }
 
-      /*
-      if (ret==ResPot::CoordRange) {
-	pthread_mutex_lock(&iolock);
-	ostringstream sout;
-	sout << "testlim." << myid;
-	ofstream out(sout.str().c_str(), ios::app);
-	if (out) {
-	  out << setw(4)  << id
-	      << setw(15) << R
-	      << setw(15) << dpot;
-	  for (int k=0; k<3; k++) out << setw(15) << posI[k];
-	  for (int k=0; k<3; k++) out << setw(15) << posO[k];
-	  for (int k=0; k<3; k++) out << setw(15) << velI[k];
-	  for (int k=0; k<3; k++) out << setw(15) << velO[k];
-	  out << endl;
+
+    if (!updated) {
+				// Try zero amplitude update
+      if ((ret=respot[ir]-> 
+	   Update(dtime, Phase, 0.0, posI, velI, posO, velO)) != ResPot::OK) {
+	
+	dpot = halo_model->get_dpot(R0);
+	for (int k=0; k<3; k++) {
+	  posO[k] = posI[k] + velI[k] * dtime;
+	  velO[k] = velI[k] - dpot*posI[k]/R0 * dtime;
 	}
-	pthread_mutex_unlock(&iolock);
       }
-      */
     }
 
+    R1 = 0.0;
     for (int k=0; k<3; k++) {
       cC->Part(i)->pos[k] = posO[k];
       cC->Part(i)->vel[k] = velO[k];
@@ -659,8 +650,11 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 	     isnan(cC->Vel(i, k)) ||
 	     isnan(cC->Acc(i, k)) ) found_nan = true; 
       }
+      R1 += posO[k]*posO[k];
     }
-    cC->Part(i)->potext = halo_model->get_pot(R);
+    R1 = sqrt(R1);
+
+    cC->Part(i)->potext = halo_model->get_pot(R1);
     
     if (found_nan) {
       cout << "Process " << myid << ": found nan\n";
@@ -671,6 +665,30 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
       found_nan = false;
     }
     
+    /*
+    if (myid==0 && i==45178) {
+      ofstream out("test_orbit.respot", ios::app | ios::out);
+      if (out) {
+	out << setw(15) << tnow;
+	for (int k=0; k<3; k++) out << setw(15) << posI[k];
+	v2 = 0.0;
+	for (int k=0; k<3; k++) {
+	  out << setw(15) << velI[k];
+	  v2 += velI[k]*velI[k];
+	}
+	out << setw(15) << 0.5*v2 + halo_model->get_pot(R0);
+	
+	for (int k=0; k<3; k++) out << setw(15) << posO[k];
+	v2 = 0.0;
+	for (int k=0; k<3; k++) {
+	  out << setw(15) << velO[k];
+	  v2 += velO[k]*velO[k];
+	}
+	out << setw(15) << 0.5*v2 + halo_model->get_pot(R1) << endl;
+      }
+    }
+    */
+
   }
 
   return (NULL);

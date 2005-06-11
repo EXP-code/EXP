@@ -12,6 +12,7 @@
     @param LMAX is the maximum harmonic order
     @param NMAX is the maximum radial order
     @param NUMR is the radial grid for the biorthogonal expansion
+    @param ALPHA is the power law index for J grid point distribution
     @param L0 is the "l" index for the resonance
     @param M is the "m" index for the resonance
     @param L1 is the "l_1" index for the resonance
@@ -90,7 +91,7 @@ private:
   double ton, toff, delta, toffset, phase0, omega0, omega, Iz;
   
   int LMAX, NMAX, NUMR, L0, M0, usetag;
-  double scale, drfac, Klim;
+  double ALPHA, scale, drfac, Klim;
   vector<int> L1, L2;
   int numRes;
   

@@ -16,6 +16,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   use_acc = false;
   use_pot = false;
   filename = outdir + "ORBTRACE." + runtag;
+  orbitlist = "";
   tcomp = NULL;
 
   initialize();
@@ -29,13 +30,31 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   norb = min<int>(tcomp->nbodies_tot, norb);
   if (nskip==0) nskip = (int)tcomp->nbodies_tot/norb;
 
+  if (orbitlist.size()>0) {
+				// Read in orbit list
+    ifstream iorb(orbitlist.c_str());
+    if (!iorb) {
+      if (myid==0) {
+	bomb("OrbTrace: provided orbitlist file cannot be opened\n");
+      }
+    }
 
+    int cntr;
+    while (1) {
+      iorb >> cntr;
+      if (iorb.eof() || iorb.bad()) break;
+      orblist.push_back(cntr);
+    }
+
+  } else {
 				// Make orblist
-  int ncur = nbeg;
-  for (int i=0; i<norb; i++) {
-    if (ncur<tcomp->nbodies_tot) orblist.push_back(ncur);
-    ncur += nskip;
+    int ncur = nbeg;
+    for (int i=0; i<norb; i++) {
+      if (ncur<tcomp->nbodies_tot) orblist.push_back(ncur);
+      ncur += nskip;
+    }
   }
+
   norb = (int)orblist.size();
 
 				// Report to log
@@ -169,6 +188,9 @@ void OrbTrace::initialize()
 
   if (get_value(string("nint"), tmp)) 
     nint = atoi(tmp.c_str());
+
+  if (get_value(string("orbitlist"), tmp))
+    orbitlist = tmp;
 
   if (get_value(string("use_acc"), tmp)) {
     if (atoi(tmp.c_str())) use_acc = true;

@@ -22,6 +22,8 @@
 
     @param usepot to output the potential
 
+    @param orbitlist is the list of particle numbers to trace
+
     @param name of the component to trace
 */
 class OrbTrace : public Output
@@ -30,6 +32,7 @@ class OrbTrace : public Output
 private:
 
   string filename;
+  string orbitlist;
   int nbeg;
   int nskip;
   int norb;

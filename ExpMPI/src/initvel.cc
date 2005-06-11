@@ -15,20 +15,24 @@ void init_velocity(void)
   unsigned ntot;
   Component *c;
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  if (eqmotion) {
 
-    ntot = c->Number();
-    for (int i=0; i<ntot; i++) {
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
 
-      for (int k=0; k<c->dim; k++) 
-	c->Part(i)->vel[k] += 0.5*dtime*c->Part(i)->acc[k];
+      ntot = c->Number();
+      for (int i=0; i<ntot; i++) {
+
+	for (int k=0; k<c->dim; k++) 
+	  c->Part(i)->vel[k] += 0.5*dtime*c->Part(i)->acc[k];
+      }
+      
+      if (c->com_system) {
+	for (int k=0; k<c->dim; k++) c->cov0[k] += 0.5*dtime*c->acc0[k];
+      }
+      
     }
-
-    if (c->com_system) {
-      for (int k=0; k<c->dim; k++) c->cov0[k] += 0.5*dtime*c->acc0[k];
-    }
-
+    
   }
 
   // Increment velocity time, system time
