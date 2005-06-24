@@ -236,7 +236,8 @@ void UserResPotN::userinfo()
        << ", Delta=" << delta
        << ", L=" << L0
        << ", M=" << M0
-       << ", Klim=" << Klim;
+       << ", Klim=" << Klim
+       << ", model=" << model_file;
   if (self)  cout << ", with self-consistent slow down";
   else if (fileomega.size())
     cout << ", using table <" << fileomega << "> for Omega(t)";

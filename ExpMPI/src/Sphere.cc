@@ -24,11 +24,13 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
   cmap = 1;
   diverge = 0;
   dfac = 1.0;
+  model_file = "SLGridSph.model";
 
 				// Get initialization info
   initialize();
 
   SLGridSph::mpi = 1;		// Turn on MPI
+  SLGridSph::model_file_name = model_file;
 
 				// Generate Sturm-Liouville grid
   ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, cmap, rs, diverge, dfac);
@@ -47,6 +49,7 @@ void Sphere::initialize()
   if (get_value("cmap", val)) cmap = atoi(val.c_str());
   if (get_value("diverge", val)) diverge = atoi(val.c_str());
   if (get_value("dfac", val)) dfac = atof(val.c_str());
+  if (get_value("modelname", val)) model_file = val.c_str();
 
 }
 

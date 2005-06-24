@@ -1499,8 +1499,8 @@ void SLGridCyl::mpi_unpack_table(void)
 int SLGridSph::mpi = 0;		// initially off
 int SLGridSph::cache = 1;	// initially yes
 
-const string sph_cache_name = ".slgrid_sph_cache";
-const string model_file_name = "SLGridSph.model";
+string SLGridSph::sph_cache_name = ".slgrid_sph_cache";
+string SLGridSph::model_file_name = "SLGridSph.model";
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 

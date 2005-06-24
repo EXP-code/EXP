@@ -19,6 +19,8 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   gen = 0;
   nrand = 0;
   seedN = 11;
+  ssfrac = 0.0;
+  subset = false;
 
   string val;
 
@@ -68,6 +70,10 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
 
   if (get_value("seedN", val)) seedN = atoi(val.c_str());
 
+  if (get_value("ssfrac", val)) {
+    ssfrac = atof(val.c_str());	// Check for sane value
+    if (ssfrac>0.0 && ssfrac<1.0) subset = true;
+  }
 
   Lmax = Lmax<1 ? 1 : Lmax;
 
@@ -286,6 +292,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
 
+				// Compute potential using a 
+				// subset of particles
+  if (subset) nend = (int)floor(ssfrac*nend);
+
   use[id] = 0;
 
   for (i=nbeg; i<nend; i++) {
@@ -293,6 +303,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     if (component->freeze(*(cC->Part(i)))) continue;
 
     mass = cC->Mass(i) * adb;
+				// Adjust mass for subset
+    if (subset) mass /= ssfrac;
 
     xx = cC->Pos(i, 0, Component::Local | Component::Centered);
     yy = cC->Pos(i, 1, Component::Local | Component::Centered);
@@ -881,4 +893,3 @@ void SphericalBasis::update_noise(void)
   }
 
 }
-

@@ -371,7 +371,7 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
     table =  new TableCyl* [mmax+1];
     for (m=0; m<=mmax; m++) table[m] = new TableCyl [numk+1];
 
-    if (!read_cached_table()) {
+    if (!cache || !read_cached_table()) {
       for (m=0; m<=mmax; m++) {
 	for (k=0; k<=numk; k++) {
 	  cerr << "Begin [" << m << ", " << k << "] . . .\n";
@@ -1501,8 +1501,8 @@ void SLGridCyl::mpi_unpack_table(void)
 int SLGridSph::mpi = 0;		// initially off
 int SLGridSph::cache = 1;	// initially yes
 
-const string sph_cache_name = ".slgrid_sph_cache";
-const string model_file_name = "SLGridSph.model";
+string SLGridSph::sph_cache_name = ".slgrid_sph_cache";
+string SLGridSph::model_file_name = "SLGridSph.model";
 
 extern "C" {
   int sledge_(logical* job, doublereal* cons, logical* endfin, 
@@ -1729,7 +1729,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 
     table =  new TableSph [lmax+1];
 
-    if (!read_cached_table()) {
+    if (!cache || !read_cached_table()) {
 
       for (l=0; l<=lmax; l++) {
 	cerr << "Begin [" << l << "] . . .\n";

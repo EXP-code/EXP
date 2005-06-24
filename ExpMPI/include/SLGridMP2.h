@@ -174,6 +174,11 @@ public:
   //! Check for cached table (default: 1=yes)
   static int cache;
 
+  //! Model file name
+  static string model_file_name;
+
+  //! Cache file name
+  static string sph_cache_name;
 
 				// Constructors
 

@@ -51,6 +51,7 @@ private:
   int cmap;
   int diverge;
   double dfac;
+  string model_file;
 
 public:
 				// Global parameters

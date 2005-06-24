@@ -76,6 +76,10 @@ protected:
   ACG *gen;
   Normal *nrand;
 
+  //! Subsample fraction of particles
+  double ssfrac;
+  bool subset;
+
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)
