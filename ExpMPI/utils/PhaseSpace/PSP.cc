@@ -1,3 +1,5 @@
+#include <math.h>
+
 #include <PSP.H>
 
 #include <StringTok.H>

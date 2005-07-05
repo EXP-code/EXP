@@ -17,8 +17,6 @@ using namespace std;
 #include <iostream>
 #include <iomanip>
 
-#include <f2c.h>
-
 #include <SLGridMP2.h>
 #include <massmodel.h>
 
@@ -26,6 +24,7 @@ using namespace std;
 #include <dmalloc.h>
 #endif
 
+#include <f2c.h>
 
 MPI_Status status;
 

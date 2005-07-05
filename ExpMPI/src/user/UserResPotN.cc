@@ -547,7 +547,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
 {
-  double amp, R0, R1, v2;
+  double amp, R0, R1;
   double posI[3], posO[3], velI[3], velO[3], vdif[3], Lz0, Lz1;
   
   unsigned nbodies = cC->Number();
