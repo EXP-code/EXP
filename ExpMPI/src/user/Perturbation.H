@@ -47,7 +47,7 @@ protected:
   const static int default_Kpts=4;
   //! Default value for number of points in orbit table
   const static int default_RECS=400;
-  const static double default_A=1.0e-2;
+  //! Constant imaginary part of forcing frequency
   const static double default_OMPI=0.03;
 
 public:
@@ -95,8 +95,8 @@ public:
 			    CVector& total, CVector& pp);
 
 
+  //! Register halo model with perturbation
   void set_model(AxiSymModel *halo_model) { model = halo_model; }
-
 
 
   //! Compute the expansion coefficients
@@ -104,6 +104,8 @@ public:
 
   //! Compute the frequency from the background model
   virtual void compute_omega() = 0;
+
+  //! Get value of perturbation potential
   virtual double eval(double r) = 0;
 };
 

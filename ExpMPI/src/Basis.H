@@ -42,14 +42,16 @@ public:
    double *tpotr, double *tpotz, double *tpotp) = 0;
 
 
-  //! Utility
+  /** @name Utility functions */
   // @{
 
   //! Compute Associated Legendre Polynomials, return Matrix type
   void legendre_R(int lmax, double x, Matrix& p);
+
   /** Compute Associated Legendre Polynomials and derivitives, 
-      return Matrix type */
+  return Matrix type */
   void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
+
   //! Compute vectors of sines and cosines by recursion
   void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
 

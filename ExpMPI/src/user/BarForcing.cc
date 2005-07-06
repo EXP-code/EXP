@@ -21,7 +21,6 @@
 
 int BarForcing::L0 = 2;
 int BarForcing::M0 = 2;
-int BarForcing::Mnum = 20;
 double BarForcing::RMIN = 0.0;
 double BarForcing::RMAX = 20.0;
 double BarForcing::AMPLITUDE = 0.5;

@@ -112,17 +112,21 @@ extern char processor_name[MPI_MAX_PROCESSOR_NAME];
 //! Internally defined slave communicator
 extern MPI_Comm MPI_COMM_SLAVE;
 
-//! Coefficient header on each output dump
-// @{
+/** @name Coefficient header on each output dump */
+//@{
+//! Header type 1
 extern CoefHeader coefheader;
+//! Header type 2
 extern struct CoefHeader2 coefheader2;
-// @}
+//@}
 
-//! Theading variables
-// @{
+/** @name Theading variables */
+//@{
+//! signal that threading is in use
 extern char threading_on;
+//! mutex for memory
 extern pthread_mutex_t mem_lock;
-// @}
+//@}
 
 // Particle components
 

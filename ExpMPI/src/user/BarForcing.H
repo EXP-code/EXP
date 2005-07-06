@@ -23,7 +23,7 @@ public:
   static int L0;
   //! "m" harmonic index for perturbation
   static int M0;
-  static int Mnum;
+  //! Mass of bar
   static double AMPLITUDE;
   //! Length of bar
   static double LENGTH;
@@ -49,6 +49,7 @@ public:
   //! Return moment of intetia
   double get_Iz() { return inertia; }
 
+  //! Return potential evaluation
   double eval(double);
 };
 

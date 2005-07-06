@@ -72,12 +72,17 @@ protected:
 
   //! Expected squared coefficient values for RMS noise computation
   Matrix rmsC;
+  //! Seed for random number generator
   int seedN;
+  //! Random number generator
   ACG *gen;
+  //! Normal variate generator
   Normal *nrand;
 
   //! Subsample fraction of particles
   double ssfrac;
+
+  //! Flag to use subset
   bool subset;
 
 public:

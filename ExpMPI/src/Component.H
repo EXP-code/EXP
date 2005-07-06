@@ -161,7 +161,9 @@ class Component
 
 public:
 
+  //! Maximum number of *extra* integer components
   const static int nimax = 5;
+  //! Maximum number of *extra* double components
   const static int ndmax = 12;
 
   //! For interprocess communication, need static structure for MPI mapping
@@ -307,7 +309,7 @@ public:
   double *com, *cov, *center, *angmom, *ps;
 
   /**
-     Center of mass system coordinates
+     @name Center of mass system coordinates
   */
   //@{
   //! System mass, center of mass, center of velocity and acceleration

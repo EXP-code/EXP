@@ -253,7 +253,7 @@ public:
   //! Plot basis
   void dump_basis(const string& name, int step);
 
-  //! Utility
+  /** @name Utility functions */
   // @{
 
   //! Compute Associated Legendre Polynomials, return Matrix type

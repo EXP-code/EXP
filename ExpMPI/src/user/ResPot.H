@@ -21,10 +21,13 @@ class ResPot
 {
 public:
   
+  //! Number of return codes
   const static int NumDesc = 11;
   
-  const static char* ResPot::ReturnDesc[];
+  //! Return code name (character string)
+  const static char* ReturnDesc[];
 
+  //! Return codes
   enum ReturnCode {OK, 
 		   CoordRad, CoordVel, CoordCirc, CoordTP, CoordRange,
 		   CoordBadPos, CoordBadVel, 
@@ -101,22 +104,34 @@ public:
   
   //! Power for ang. mom. scaling (default: 0.25)
   static double ALPHA;
+
   //! Fractional energy offset for grid (default: 0.001)
   static double DELTA_E;
+
   //! Kappa offset for grid (default: 0.001)
   static double DELTA_K;
+
   //! Beta offset for grid (default: 0.001)
   static double DELTA_B;
+
   //! Fractional steps for differenced derivatives
   static double DELE, DELK;
+
+  //! Maximum number of iterations
   static double TOLITR;
+
+  //! Number of points in energy grid
   static int NUME;
+
   //! Number of scaled ang mom points
   static int NUMX;
+
   //! Number of knots for orbit table
   static int RECS;
+
   //! Maximum number of iterations in mapping
   static int ITMAX;
+
   //! Complex sqrt(-1)
   static KComplex I;
   

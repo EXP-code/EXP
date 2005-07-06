@@ -52,23 +52,20 @@
     changes are determined self-consistently from the torque
     <li> if <code>self</code> is <code>false</code> and <code>dtom</code>>0, 
     then the pattern speed is determined as follows:
-
     \f[
     \Omega = \Omega_0\left[1 + {\Delta\Omega\over2}
-    \left\{(1+\hbox{erf}\left({t_{now}-t_{om0}\over \delta t_{om}}\right)\right\}\right]
+    \left\{ 1 + \hbox{erf}\left({t_{now}-t_{om0}\over \delta t_{om}}\right)
+    \right\}\right]
     \f]
-
     <li> If <code>self</code> is <code>false</code> and <code>dtom</code><0, 
     then the pattern speed changes at the rate:
-
     \f[
     {d\Omega\over dt} = \Omega_0\Delta\Omega\times dT \times
     {1\over 2}\left[1+\hbox{erf}\left({t_{now}-t_{om0}\over\delta}\right)\right]
     \times
     {1\over2}\left[1+\hbox{erf}\left({t_{off}-t_{now}\over\delta}\right)\right] 
     \f]
-
-    <ul>
+    </ul>
 */
 class UserResPot : public ExternalForce
 {

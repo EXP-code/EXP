@@ -71,7 +71,7 @@
     {1\over2}\left[1+\hbox{erf}\left({t_{off}-t_{now}\over\delta}\right)\right] 
     \f]
 
-    <ul>
+    </ul>
 */
 class UserResPotN : public ExternalForce
 {
