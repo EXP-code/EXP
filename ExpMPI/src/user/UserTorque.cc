@@ -102,7 +102,13 @@ void UserTorque::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
-  cout << "** User routine TORQUE GRID initialized\n";
+  cout << "** User routine TORQUE GRID initialized: file=<" << file_name 
+       << ">, Ton=" << ton 
+       << ", Toff=" << toff
+       << ", Delta=" << delta 
+       << ", boost=" << boost 
+       << ", sgn=" << sgn
+       << endl;
   print_divider();
 }
 

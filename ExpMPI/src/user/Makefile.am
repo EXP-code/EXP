@@ -67,4 +67,4 @@ librptest_la_LIBADD = libcommon.a
 #
 testcoord_SOURCES = testcoord.cc getkey.c
 testcoord_LDADD = libcommon.a
-testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
+testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu /usr/lib/libstdc++.so.6 -llammpi++ -lmpi

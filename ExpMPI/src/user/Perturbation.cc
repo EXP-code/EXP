@@ -22,6 +22,7 @@ int Perturbation::L1MAX = 6;
 int Perturbation::NINT = 500;
 bool Perturbation::selfgrav = false;
 bool Perturbation::verbose = false;
+double Perturbation::default_OMPI=0.03;
 
 
 Perturbation::Perturbation(int NMAX)

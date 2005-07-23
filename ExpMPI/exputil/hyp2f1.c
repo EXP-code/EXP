@@ -66,6 +66,7 @@ Direct inquiries to 30 Frost Street, Cambridge, MA 02140
 */
 
 
+#include <math.h>
 #include "mconf.h"
 
 #ifdef DEC

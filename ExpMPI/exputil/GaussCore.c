@@ -13,11 +13,17 @@
 /**/
 
 #include <stdio.h>		/* for error messages */
+#include <stdlib.h>
 #include "GaussCore.h"
 
 #define GaussEPS 1.0e-12
 #define abs(x) ( ((x) < 0) ? -(x) : (x) )
 #define sqr(x) ((x)*(x))
+
+/*
+/* Forward declaration for function QQp:
+/**/
+static int QQp();
 
 /*
 /* Function to test a real value for exceeding -1,
@@ -74,11 +80,6 @@ double abscis[], weight[];
     workcell *rank = (workcell *) weight;     /* rank[k].i is on weight[k] */
     double *upbnd = abscis;		      /* upbnd[k]  is on abscis[k] */
 
-
-  /*
-  /* Forward declaration for function QQp:
-  /**/
-    static int QQp();
 
   /*
   /* Give a copy of formal parameters to QQp.
@@ -205,9 +206,7 @@ double abscis[], weight[];
 /* The polynomial computer... /*
 /*   alf1, bet1, n1, confl1 are passed by GaussMaster. /*
 /**/
-static int QQp(t, poly, deriv)    /* not exported, hence static */
-double t;
-double *poly, *deriv;
+static int QQp(double t, double* poly, double* deriv)
 {
     int k;
     double tmp, tmpa, tmpb, tmpab;

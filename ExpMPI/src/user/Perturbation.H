@@ -42,13 +42,13 @@ protected:
   void make_response(void);
 
   //! Default value for Energy grid
-  const static int default_Epts=5;
+  static const int default_Epts=5;
   //! Default value for Kappa grid
-  const static int default_Kpts=4;
+  static const int default_Kpts=4;
   //! Default value for number of points in orbit table
-  const static int default_RECS=400;
-  //! Constant imaginary part of forcing frequency
-  const static double default_OMPI=0.03;
+  static const int default_RECS=400;
+  //! Constant imaginary part of forcing frequency (can't make this const because of portability standard)
+  static double default_OMPI;
 
 public:
 

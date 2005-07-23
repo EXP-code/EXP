@@ -9,7 +9,7 @@
     is tabulated on a two-dimensional grid with positive Z and
     interpolated using bilinear interpolation.
 
-    The default values for #Nscale, #Ngrid and #Nint should suffice
+    The default values for Nscale, Ngrid and Nint should suffice
     for most applications.
 
     @param a is the disk scale length
