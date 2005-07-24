@@ -400,7 +400,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	in.getline(line, linesize); // Discard header
 	in.getline(line, linesize); // Next line
 
-	double Lzp, Lz1, am1;
+	double Lzp,  am1;
 	bool firstime1 = true;
 	while (in) {
 	  istringstream ins(line);
@@ -410,7 +410,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  ins >> lasttime;
 	  ins >> posang;
 	  ins >> omega;
-	  ins >> Lz1;
+	  ins >> Lz;
 	  ins >> Lzp;
 	  ins >> am1;
 	  ins >> bps[0];
@@ -424,7 +424,6 @@ void UserEBar::determine_acceleration_and_potential(void)
 	  ins >> acc[2];
 
 	  if (firstime1) {
-	    Lz = Lz1;
 	    Lz0 = Lzp;
 	    firstime1 = false;
 	  }
@@ -435,6 +434,13 @@ void UserEBar::determine_acceleration_and_potential(void)
 
 	  in.getline(line, linesize); // Next line
 	}
+
+	cout << "UserEBar: restart at T=" << lasttime 
+	     << " with PosAng=" << posang
+	     << ", Omega=" << omega
+	     << ", Lz=" << Lz
+	     << ", Lz0=" << Lz0
+	     << endl;
 
       }
 
@@ -447,6 +453,9 @@ void UserEBar::determine_acceleration_and_potential(void)
       MPI_Bcast(&bps[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&vel[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&acc[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      // Recompute Lz from log output
+      if (c1) Lz = Lz - Lz0 + c1->angmom[2];
     }
 
     firstime = false;

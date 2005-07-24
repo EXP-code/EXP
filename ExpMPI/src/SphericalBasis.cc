@@ -11,6 +11,7 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   dof = 3;
   geometry = sphere;
   coef_dump = true;
+  NO_L0 = false;
   NO_L1 = false;
   EVEN_L = false;
   NOISE = false;
@@ -45,6 +46,11 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
     else selector = false;
   } else
     selector = false;
+
+  if (get_value("NO_L0", val)) {
+    if (atoi(val.c_str())) NO_L0 = true; 
+    else NO_L0 = false;
+  }
 
   if (get_value("NO_L1", val)) {
     if (atoi(val.c_str())) NO_L1 = true; 
@@ -156,7 +162,7 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
     dlegs[i].setsize(0,Lmax,0,Lmax);
   }
 
-				/* Work vectors */
+  // Work vectors
   u = new Vector [nthrds];
   du = new Vector [nthrds];
   if (!u) bomb("problem allocating <u>");
@@ -236,9 +242,9 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
 
-  /*====================================================*/
-  /* Accel & pot using previously computed coefficients */
-  /*====================================================*/
+  //====================================================
+  // Accel & pot using previously computed coefficients 
+  //====================================================
 
   if (use_external) {
 
@@ -252,9 +258,9 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   }
 
 
-  /*======================*/
-  /* Compute coefficients */
-  /*======================*/
+  //======================
+  // Compute coefficients 
+  //======================
 
   if (firstime_accel || self_consistent) {
     firstime_accel = false;
@@ -264,9 +270,9 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
   if (NOISE) update_noise();
 
-  /*======================================*/
-  /* Determine potential and acceleration */
-  /*======================================*/
+  //======================================
+  // Determine potential and acceleration 
+  //======================================
 
   MPL_start_timer();
 
@@ -325,9 +331,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       get_potl(Lmax, nmax, rs, potd[id], id);
 
-      /*		l loop */
+      //		l loop
       for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-	/*		m loop */
+	//		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
 	    if (selector && compute)
@@ -390,7 +396,7 @@ void SphericalBasis::determine_coefficients(void)
   if (selector) compute = !(this_step%npca) || firstime_coef;
 
 
-  /*		Clean */
+  //		Clean
   for (n=1; n<=nmax; n++) {
       for (l=0; l<=Lmax*(Lmax+2); l++) {
 	expcoef[l][n]  = 0.0;
@@ -428,7 +434,7 @@ void SphericalBasis::determine_coefficients(void)
 #endif
 
     for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-	/*		m loop */
+      //		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
 
@@ -518,22 +524,25 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
       ioff = 0;
 
 
-    get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
-    get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
-    if (ioff) {
-      p *= rmax/r0;
-      dp = -p/r0;
+    potl = potr = pott = potp = 0.0;
+
+    if (!NO_L0) {
+      get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
+      get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
+      if (ioff) {
+	p *= rmax/r0;
+	dp = -p/r0;
+      }
+      potl = fac1*p;
+      potr = fac1*dp;
     }
-    potl = fac1*p;
-    potr = fac1*dp;
-    pott = potp = 0.0;
       
     //		l loop
     //		------
     for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
 
 				// Suppress L=1 terms?
-      if (NO_L1  && l==1) continue;
+      if (NO_L1 && l==1) continue;
 
 				// Suppress odd L terms?
       if (EVEN_L && (l/2)*2 != l) continue;

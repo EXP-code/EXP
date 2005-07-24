@@ -58,8 +58,8 @@ protected:
   //! The maximum radius and any scale factor
   double rmax, scale;
 
-  //! Flag PCA selection, self_consitency and drop l=1 term
-  bool selector, self_consistent, NO_L1, EVEN_L, NOISE;
+  //! Flag PCA selection, self_consitency, fixed monopole and drop l=1 term
+  bool selector, self_consistent, NO_L0, NO_L1, EVEN_L, NOISE;
 
   //! Number of "effective" points for RMS noise computation
   double noiseN;
