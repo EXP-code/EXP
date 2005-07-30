@@ -199,9 +199,49 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
       in_ok = 0;		// Signal slave: NO VALUES
 
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+				// Write header
+      ofstream out(logfile.c_str());
+      if (out) {
+	out.setf(ios::left);
+	out << setw(15) << "# Time"
+	    << setw(15) << "| E_curr"
+	    << setw(15) << "| Used"
+	    << setw(15) << "| X-axis(reg)"
+	    << setw(15) << "| Y-axis(reg)"
+	    << setw(15) << "| Z-axis(reg)"
+	    << setw(15) << "| X-axis(cur)"
+	    << setw(15) << "| Y-axis(cur)"
+	    << setw(15) << "| Z-axis(cur)"
+	    << setw(15) << "| X-center(anl)"
+	    << setw(15) << "| Y-center(anl)"
+	    << setw(15) << "| Z-center(anl)"
+	    << setw(15) << "| X-center(reg)"
+	    << setw(15) << "| Y-center(reg)"
+	    << setw(15) << "| Z-center(reg)"
+	    << setw(15) << "| X-center(cur)"
+	    << setw(15) << "| Y-center(cur)"
+	    << setw(15) << "| Z-center(cur)"
+	    << setw(15) << "| X-com(eff)"
+	    << setw(15) << "| Y-com(eff)"
+	    << setw(15) << "| Z-com(eff)"
+	    << setw(15) << "| E-grad"
+	    << setw(15) << "| Delta E"
+	    << endl;
+	out.fill('-');
+
+	int icnt = 1;
+	out << "# " << setw(13) << icnt;
+	for (int i=0; i<22; i++) out << "| " << setw(13) << icnt;
+	out << endl;
+
+	out.close();
+
+      } else {
+	cerr << "Orient: error opening log file <" << logfile << ">\n";
+      }
     }
-
-
+    
   } else {
 
 				// Get state from Master
