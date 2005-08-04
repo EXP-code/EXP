@@ -46,30 +46,30 @@ public:
 
 Log file contents:
 
-1	Time
-2	Energy
-3	Particles used
-4	Current Axis(x) from regression
-5	Current Axis(y)
-6	Current Axis(z)
-7	Last Axis(x) from particles
-8	Last Axis(y)
-9	Last Axis(z)
-10	Current Center(x) from analytic approx
-11	Current Center(y)
-12	Current Center(z)
-13	Current Center(x) from regression
-14	Current Center(y)
-15	Current Center(z)
-16	Last Center(x) from particles
-17	Last Center(y)
-18	Last Center(z)
-19	Effective COM(x)
-20	Effective COM(y)
-21	Effective COM(z)
-22	E grad
-23	Delta E
-
+-#	Time
+-#	Energy
+-#	Particles used
+-#	Current Axis(x) from regression
+-#	Current Axis(y)
+-#	Current Axis(z)
+-#	Last Axis(x) from particles
+-#	Last Axis(y)
+-#	Last Axis(z)
+-#	Current Center(x) from analytic approx
+-#	Current Center(y)
+-#	Current Center(z)
+-#	Current Center(x) from regression
+-#	Current Center(y)
+-#	Current Center(z)
+-#	Last Center(x) from particles
+-#	Last Center(y)
+-#	Last Center(z)
+-#	Effective COM(x)
+-#	Effective COM(y)
+-#	Effective COM(z)
+-#	E grad
+-#	Delta E
+.
 */
 class Orient
 {

@@ -834,6 +834,9 @@ void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
     in->read((char *)&(onepart->iatr[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
     in->read((char *)&(onepart->datr[i]), sizeof(double));
+  for (int i=0; i<3; i++) onepart->pos[i] -= com0[i]-comI[i];
+  for (int i=0; i<3; i++) onepart->vel[i] -= cov0[i]-covI[i];
+
 }
 
 
