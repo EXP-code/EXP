@@ -15,7 +15,16 @@
 
 #include <SLGridMP2.h>
 
+#ifndef STANDALONE
 #include "expand.h"
+#else
+#include <Particle.H>
+extern int nthrds;
+extern char threading_on;
+extern pthread_mutex_t mem_lock;
+extern double tpos;
+extern double tnow;
+#endif
 
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
 class EmpCylSL

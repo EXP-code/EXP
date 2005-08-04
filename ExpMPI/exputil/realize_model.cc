@@ -29,31 +29,40 @@
  *
  ***************************************************************************/
 
+#include <iostream>
+#include <iomanip>
+
 #include <unistd.h>
 #include <math.h>
-
-#include <iostream>
-#include <string>
-
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
 
 #include <Vector.h>
-#include <interp.h>
 #include <massmodel.h>
+#include <interp.h>
 
-using namespace std;
+#ifdef DEBUG
+#include <orbit.h>
+static SphericalOrbit orb;
+#endif
+
 
 bool AxiSymModel::gen_EJ = true;
 int AxiSymModel::numr = 50;
 int AxiSymModel::numj = 50;
-int AxiSymModel::gen_N = 4000;
+int AxiSymModel::gen_N = 400;
+int AxiSymModel::gen_E = 200;
+int AxiSymModel::gen_K = 100;
+double AxiSymModel::gen_tolE = 0.01;
+double AxiSymModel::gen_tolK = 0.02;
+double AxiSymModel::gen_rmin = 0.0;
 int AxiSymModel::gen_logr = 1;
 double AxiSymModel::gen_kmin = 0.0;
 unsigned int AxiSymModel::gen_seed = 11;
-int AxiSymModel::gen_itmax = 1000;
-const double ftol = 1.0e-5;
+int AxiSymModel::gen_itmax = 4000;
+const double ftol = 0.01;
+
 
 Vector AxiSymModel::gen_point_2d(int& ierr)
 {
@@ -63,12 +72,13 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
   }
 
   int it;
-  double r, pot, vmax, xxx, yyy, zzz, vr, vt, eee, fmax, vv;
-  double phi, sinp, cosp;
+  double r=0.0, pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax, vv;
+  double phi=0.0, sinp, cosp;
   double T, w1;
   double tol = 1.0e-5;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
 
-  double Emin = get_pot(get_min_radius());
+  double Emin = get_pot(rmin);
   double Emax = get_pot(get_max_radius());
 
 
@@ -147,6 +157,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
       double tol = 1.0e-5;
       double dx = (1.0 - 2.0*tol)/(numr-1);
       double dy = (1.0 - 2.0*tol)/(numj-1);
+      double dr;
 
       gen = new ACG(gen_seed, 20);
       Unit = new Uniform(0.0, 1.0, gen);
@@ -157,13 +168,27 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
 
       cout << "gen_point_2d[" << ModelID << "]: " << get_max_radius() << endl;
 
-      double dr = (get_max_radius() - get_min_radius())/gen_N;
+      if (rmin <= 1.0e-16) gen_logr = 0;
+
+      if (gen_logr)
+	dr = (log(get_max_radius()) - log(rmin))/(gen_N-1);
+      else
+	dr = (get_max_radius() - rmin)/(gen_N-1);
 
       for (int i=1; i<=gen_N; i++) {
-	gen_rloc[i] = get_min_radius() + dr*((double)i-0.5);
-	gen_mass[i] = get_mass(gen_rloc[i]);
 
-	pot = get_pot(gen_rloc[i]);
+	if (gen_logr) {
+	  gen_rloc[i] = log(rmin + dr*(i-1));
+	  r = exp(gen_rloc[i]);
+	}
+	else {
+	  gen_rloc[i] = rmin + dr*(i-1);
+	  r = gen_rloc[i];
+	}
+
+	gen_mass[i] = get_mass(r);
+	
+	pot = get_pot(r);
 	vmax = sqrt(2.0*fabs(Emax - pot));
 
 	fmax = 0.0;
@@ -181,7 +206,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
 	    fmax = zzz>fmax ? zzz : fmax;
 	  }
 	}
-	gen_fmax[i] = fmax*1.1;
+	gen_fmax[i] = fmax*(1.0 + ftol);
 
       }
       gen_firstime = false;
@@ -189,8 +214,10 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
 
     r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
     fmax = odd2(r, gen_rloc, gen_fmax, 1);
+    if (gen_logr) r = exp(r);
+
     pot = get_pot(r);
-    vmax = sqrt(2.0*(Emax - pot));
+    vmax = sqrt(2.0*fabs(Emax - pot));
 
                                 // Trial velocity point
     
@@ -215,7 +242,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
   }
 
                 
-  Vector out(1, 6);
+  Vector out(0, 6);
 
   if (it==gen_itmax) {
     cerr << "Velocity selection failed, r=" << r << "\n";
@@ -229,6 +256,7 @@ Vector AxiSymModel::gen_point_2d(int& ierr)
   cosp = cos(phi);
   sinp = sin(phi);
 
+  out[0] = 1.0;
   out[1] = r * cosp;
   out[2] = r * sinp;
   out[3] = 0.0;
@@ -248,10 +276,9 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
   }
 
   int it;
-  double pot, vmax, xxx, yyy, zzz, vr, vt, eee, fmax;
-  double phi, sinp, cosp;
-
-  double Emin = get_pot(get_min_radius());
+  double pot, vmax, xxx, yyy, zzz, vr=0.0, vt=0.0, eee, fmax;
+  double phi=0.0, sinp, cosp;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
@@ -267,13 +294,13 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
     gen_rloc.setsize(1, gen_N);
     gen_fmax.setsize(1, gen_N);
 
-    cout << "gen_point_2d[" << ModelID << "]: " << get_min_radius()
+    cout << "gen_point_2d[" << ModelID << "]: " << rmin
 	 << ", " << get_max_radius() << endl;
 
-    double dr = (get_max_radius() - get_min_radius())/gen_N;
+    double dr = (get_max_radius() - rmin)/gen_N;
 
     for (int i=1; i<=gen_N; i++) {
-      gen_rloc[i] = get_min_radius() + dr*((double)i-0.5);
+      gen_rloc[i] = rmin + dr*(i-1);
       gen_mass[i] = get_mass(gen_rloc[i]);
 
       pot = get_pot(gen_rloc[i]);
@@ -294,7 +321,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
-      gen_fmax[i] = fmax*1.1;
+      gen_fmax[i] = fmax*(1.0 + ftol);
 
     }
     gen_firstime = false;
@@ -325,7 +352,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
   }
 
   
-  Vector out(1, 6);
+  Vector out(0, 6);
 
   if (it==gen_itmax) {
     cerr << "Velocity selection failed, r=" << r << "\n";
@@ -339,6 +366,7 @@ Vector AxiSymModel::gen_point_2d(double r, int& ierr)
   cosp = cos(phi);
   sinp = sin(phi);
 
+  out[0] = 1.0;
   out[1] = r * cosp;
   out[2] = r * sinp;
   out[3] = 0.0;
@@ -357,9 +385,14 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     _exit (-1);
   }
 
-  double r, pot, vmax, xxx, yyy, vr, vt, eee, vt1, vt2, fmax;
+#ifdef DEBUG
+  static ofstream tout("gen3d.ktest");
+#endif
+
+  double r, pot, vmax, xxx, yyy, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
   double phi, sint, cost, sinp, cosp, azi;
 
+  double rmin = max<double>(get_min_radius(), gen_rmin);
   double Emax = get_pot(get_max_radius());
 
   if (gen_firstime) {
@@ -367,9 +400,14 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     // const int numr = 200;
     // const int numj = 200;
 
+#ifdef DEBUG
+    orb = SphericalOrbit(this);
+#endif
+
     double tol = 1.0e-5;
     double dx = (1.0 - 2.0*tol)/(numr-1);
     double dy = (1.0 - 2.0*tol)/(numj-1);
+    double dr;
 
     gen = new ACG(gen_seed, 20);
     Unit = new Uniform(0.0, 1.0, gen);
@@ -378,13 +416,28 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     gen_rloc.setsize(1, gen_N);
     gen_fmax.setsize(1, gen_N);
 
-    double dr = (get_max_radius() - get_min_radius())/gen_N;
+    if (rmin <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(get_max_radius()) - log(rmin))/(gen_N-1);
+    else
+      dr = (get_max_radius() - rmin)/(gen_N-1);
+
 
     for (int i=1; i<=gen_N; i++) {
-      gen_rloc[i] = get_min_radius() + dr*((double)i-0.5);
-      gen_mass[i] = get_mass(gen_rloc[i]);
 
-      pot = get_pot(gen_rloc[i]);
+      if (gen_logr) {
+	gen_rloc[i] = log(rmin) + dr*(i-1);
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = rmin + dr*(i-1);
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = get_mass(r);
+
+      pot = get_pot(r);
       vmax = sqrt(2.0*fabs(Emax - pot));
 
       fmax = 0.0;
@@ -398,32 +451,64 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
 	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
 	  eee = pot + 0.5*(vr*vr + vt*vt);
 
-	  zzz = distf(eee, gen_rloc[i]*vt);
+	  zzz = distf(eee, r*vt);
 	  fmax = zzz>fmax ? zzz : fmax;
 	}
       }
-      gen_fmax[i] = fmax*1.1;
+      gen_fmax[i] = fmax*(1.0 + ftol);
 
     }
+
+    // Debug
+    
+    ofstream test("test.grid");
+    if (test) {
+
+      test << "# Rmin=" << rmin
+	   << "  Rmax=" << get_max_radius()
+	   << endl;
+
+      for (int i=1; i<=gen_N; i++) {
+	test << setw(15) << gen_rloc[i]
+	     << setw(15) << gen_mass[i]
+	     << setw(15) << gen_fmax[i]
+	     << endl;
+      }
+    }
+
     gen_firstime = false;
   }
 
   r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
   fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
   pot = get_pot(r);
   vmax = sqrt(2.0*fabs(Emax - pot));
 
                                 // Trial velocity point
     
   int it;
+  double angmom[3];
+
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = 2.0*sin(asin((*Unit)())/3.0);
+    xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
     yyy = (1.0 - xxx*xxx)*(*Unit)();
 
     vr = vmax*xxx;
     vt = vmax*sqrt(yyy);
     eee = pot + 0.5*(vr*vr + vt*vt);
+
+    // Debug
+    /*
+    if (sqrt(vr*vr + vt*vt)>0.99*vmax) {
+      cout << "Check: df val = " << distf(eee, r*vt)/fmax 
+	   << "  v/vmax = " << sqrt(vr*vr + vt*vt)/vmax 
+	   << "  eee = " << eee
+	   << endl;
+    }
+    */
 
     if ((*Unit)() > distf(eee, r*vt)/fmax ) continue;
 
@@ -436,7 +521,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
     break;
   }
                 
-  Vector out(1, 6);
+  Vector out(0, 6);
 
   if (it==gen_itmax) {
     cerr << "Velocity selection failed, r=" << r << "\n";
@@ -455,6 +540,7 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
   cosp = cos(phi);
   sinp = sin(phi);
 
+  out[0] = 1.0;
   out[1] = r * sint*cosp;
   out[2] = r * sint*sinp;
   out[3] = r * cost;
@@ -462,9 +548,355 @@ Vector AxiSymModel::gen_point_3d(int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
+#ifdef DEBUG
+  eee = pot + 0.5*(out[4]*out[4]+out[5]*out[5]+out[6]*out[6]);
+  orb.new_orbit(eee, 0.5);
+  angmom[0] = out[2]*out[6] - out[3]*out[5];
+  angmom[1] = out[3]*out[4] - out[1]*out[6];
+  angmom[2] = out[1]*out[5] - out[2]*out[4];
+  tout << setw(15) << eee
+       << setw(15) << sqrt(angmom[0]*angmom[0]+
+			   angmom[1]*angmom[1]+
+			   angmom[2]*angmom[2])/orb.Jmax()
+       << setw(15) << r
+       << setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
+       << "\n";
+#endif
+
+
   return out;
 }
 
+
+Vector AxiSymModel::gen_point_3d(double Emin, double Emax, 
+				 double Kmin, double Kmax, int& ierr)
+{
+  if (!dist_defined) {
+    cerr << "AxiSymModel: must define distribution before realizing!\n";
+    _exit (-1);
+  }
+
+#ifdef DEBUG
+  double angmom[3];
+  static ofstream tout("gen3d.Etest");
+#endif
+
+  double r, vr, vt, vt1, vt2, E, K, J, jmax, w1t, eee, pot;
+  double phi, sint, cost, sinp, cosp, azi;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
+  double rmax = get_max_radius();
+
+  if (gen_firstime_E) {
+
+#ifdef DEBUG
+    orb = SphericalOrbit(this);
+#endif
+    gen_orb = SphericalOrbit(this);
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+
+    Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
+    Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
+
+    dEgrid = (Emax_grid - Emin_grid)/(gen_E-1);
+    dKgrid = (1.0 - 2.0*gen_tolK)/(gen_K-1);
+
+    for (int i=0; i<gen_E; i++) Egrid.push_back(Emin_grid + dEgrid*i);
+    for (int i=0; i<gen_K; i++) Kgrid.push_back(gen_tolK  + dKgrid*i);
+
+    double ans, K, angles = 2.0*pow(2.0*M_PI, 3.0), tfac;
+    vector<double> tmass;
+    ANGLE_GRID *agrid;
+
+    for (int i=0; i<gen_E; i++) {
+      ans = 0.0;
+
+      vector<WRgrid> wrvec;
+      for (int j=0; j<gen_K; j++) {
+				// Trapezoidal rule factor
+	if (j==0 || j==gen_K) tfac = 0.5;
+	else tfac = 1.0;
+
+	K = gen_tolK + dKgrid*j;
+	gen_orb.new_orbit(Egrid[i], K);
+	ans += K*gen_orb.Jmax()*gen_orb.Jmax() /
+	  gen_orb.get_freq(1) * distf(Egrid[i], gen_orb.AngMom()) * tfac;
+
+	WRgrid wr;
+	agrid = gen_orb.get_angle_grid();
+
+	for (int n=0; n<agrid->num; n++) {
+	  wr.w1.push_back(agrid->w1[1][n]);
+	  wr.r.push_back(agrid->r[1][n]);
+	}
+	wrvec.push_back(wr);
+
+      } // End Kappa loop
+
+      Jmax.push_back(gen_orb.Jmax());
+      tmass.push_back(ans*angles*dKgrid*dEgrid);
+      Rgrid.push_back(wrvec);
+
+    } // Energy E loop
+
+    EgridMass.push_back(0.0);
+    for (int i=1; i<gen_E; i++) 
+      EgridMass.push_back(EgridMass[i-1]+tmass[i]);
+
+    // Debug
+    
+    ofstream test("test.grid");
+    if (test) {
+
+      test << "# Emin=" << Emin_grid
+	   << "  Emax=" << Emax_grid
+	   << endl;
+
+      for (int i=0; i<gen_E; i++) {
+	test << setw(15) << Egrid[i]
+	     << setw(15) << EgridMass[i]
+	     << setw(15) << Jmax[i]
+	     << endl;
+      }
+    }
+
+    gen_firstime_E = false;
+
+#ifdef DEBUG
+    tout << "# Emin=" << Emin_grid << "  Emax=" << Emax_grid
+	 << "  Mass frac=" << 
+      ( odd2(Emax, Egrid, EgridMass, 1) - 
+	odd2(Emin, Egrid, EgridMass, 1) )/EgridMass[gen_E-1] << endl;
+#endif    
+  }
+
+				// Enforce limits
+  Emin = max<double>(Emin, Emin_grid);
+  Emin = min<double>(Emin, Emax_grid);
+  Emax = max<double>(Emax, Emin_grid);
+  Emax = min<double>(Emax, Emax_grid);
+
+  double Mmin = odd2(Emin, Egrid, EgridMass, 1);
+  double Mmax = odd2(Emax, Egrid, EgridMass, 1);
+  double kmin = max<double>(Kmin, gen_tolK);
+  double kmax = min<double>(Kmax, 1.0 - gen_tolK);
+
+  E = odd2(Mmin + (Mmax-Mmin)*(*Unit)(), EgridMass, Egrid, 0);
+  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*(*Unit)());
+
+  int indxE = int( (E - Emin_grid)/dEgrid );
+  int indxK = int( (K - gen_tolK)/dKgrid );
+  
+  indxE = max<int>(0, min<int>(gen_E-2, indxE));
+  indxK = max<int>(0, min<int>(gen_K-2, indxK));
+
+  double cE[2], cK[2];
+
+  cE[1] = (E - (Emin_grid + dEgrid*indxE))/dEgrid;
+  cE[0] = 1.0 - cE[1];
+
+  cK[1] = (K - (gen_tolK + dKgrid*indxK))/dKgrid;
+  cK[0] = 1.0 - cK[1];
+
+
+  r = 0.0;
+  J = 0.0;
+  jmax = 0.0;
+  w1t = M_PI*(*Unit)();
+
+  for (int ie=0; ie<2; ie++) {
+    J += cE[ie]*Jmax[indxE+ie] * K;
+    jmax += cE[ie]*Jmax[indxE+ie];
+    for (int ik=0; ik<2; ik++) {
+      r += cE[ie]*cK[ik]*odd2(w1t, Rgrid[indxE+ie][indxK+ik].w1, 
+			     Rgrid[indxE+ie][indxK+ik].r, 0);
+    }
+  }
+      
+  pot = get_pot(r);
+  vt = J/r;
+  ierr = 0;
+				// Interpolation check (should be rare)
+				// Error condition is set
+  if (2.0*(E - pot) - vt*vt < 0.0) {
+    ierr = 1;
+    if (E < pot) E = pot;
+    vt = sqrt(E - pot);
+  }
+  vr = sqrt( 2.0*(E - pot) - vt*vt );
+
+  if ((*Unit)()<0.5) vr *= -1.0;
+    
+  azi = 2.0*M_PI*(*Unit)();
+  vt1 = vt*cos(azi);
+  vt2 = vt*sin(azi);
+
+  Vector out(0, 6);
+
+  phi = 2.0*M_PI*(*Unit)();
+  cost = 2.0*((*Unit)() - 0.5);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  out[0] = (Mmax - Mmin)/EgridMass[gen_E-1];
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+
+#ifdef DEBUG
+  if (ierr) return out;
+
+  eee = pot + 0.5*(out[4]*out[4]+out[5]*out[5]+out[6]*out[6]);
+  orb.new_orbit(eee, 0.5);
+  angmom[0] = out[2]*out[6] - out[3]*out[5];
+  angmom[1] = out[3]*out[4] - out[1]*out[6];
+  angmom[2] = out[1]*out[5] - out[2]*out[4];
+  tout << setw(15) << eee
+       << setw(15) << E
+       << setw(15) << sqrt(angmom[0]*angmom[0]+
+			   angmom[1]*angmom[1]+
+			   angmom[2]*angmom[2])/orb.Jmax()
+       << setw(15) << K
+       << setw(15) << r
+       << setw(15) << sqrt(out[4]*out[4]+out[5]*out[5]+out[6]*out[6])
+       << setw(15) << orb.Jmax()
+       << setw(15) << jmax
+       << "\n";
+#endif
+
+  return out;
+}
+
+
+
+Vector AxiSymModel::gen_point_jeans_3d(int& ierr)
+{
+  double r, d, xxx, yyy, vr, vt, vt1, vt2, vv, vtot;
+  double phi, sint, cost, sinp, cosp, azi;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
+
+  if (gen_firstime_jeans) {
+    double dr;
+
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+    Gauss = new Normal(0.0, 1.0, gen);
+
+    gen_mass.setsize(1, gen_N);
+    gen_rloc.setsize(1, gen_N);
+    gen_fmax.setsize(1, gen_N);
+    Vector work(1, gen_N);
+    Vector work2(1, gen_N);
+
+    if (rmin <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(get_max_radius()) - log(rmin))/(gen_N-1);
+    else
+      dr = (get_max_radius() - rmin)/(gen_N-1);
+
+
+    for (int i=1; i<=gen_N; i++) {
+
+      if (gen_logr) {
+	gen_rloc[i] = log(rmin) + dr*(i-1);
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = rmin + dr*(i-1);
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = get_mass(r);
+      work[i] = get_dpot(r) * get_density(r);
+      if (gen_logr) work[i] *= r;
+    }
+
+    Trapsum(gen_rloc, work, work2);
+
+    for (int i=1; i<=gen_N; i++)
+      gen_fmax[i] = 3.0*(work2[gen_N] - work2[i]);
+
+
+    // Debug
+    
+    ofstream test("test.grid");
+    if (test) {
+
+      test << "# [Jeans] Rmin=" << rmin
+	   << "  Rmax=" << get_max_radius()
+	   << endl;
+
+      for (int i=1; i<=gen_N; i++) {
+	if (gen_logr) r = exp(gen_rloc[i]);
+	else r = gen_rloc[i];
+
+	d = get_density(r);
+	if (d>0.0 && gen_fmax[i]>=0.0)
+	  vtot = sqrt(gen_fmax[i]/d);
+	else
+	  vtot = 0.0;
+
+	test << setw(15) << gen_rloc[i]
+	     << setw(15) << gen_mass[i]
+	     << setw(15) << gen_fmax[i]
+	     << setw(15) << vtot
+	     << endl;
+      }
+    }
+
+    gen_firstime_jeans = false;
+  }
+
+  r = odd2((*Unit)()*gen_mass[gen_N], gen_mass, gen_rloc, 0);
+  vv = odd2(r, gen_rloc, gen_fmax);
+
+  if (gen_logr) r = exp(r);
+
+  d = get_density(r);
+  if (d>0.0 && vv >=0.0)
+    vtot = sqrt(vv/d);
+  else
+    vtot = 0.0;
+    
+  
+  xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
+  yyy = (1.0 - xxx*xxx)*(*Unit)();
+
+  vr = vtot*xxx;
+  vt = vtot*sqrt(yyy);
+
+  azi = 2.0*M_PI*(*Unit)();
+  vt1 = vt*cos(azi);
+  vt2 = vt*sin(azi);
+
+  Vector out(0, 6);
+
+  if ((*Unit)()>=0.5) vr *= -1.0;
+
+  phi = 2.0*M_PI*(*Unit)();
+  cost = 2.0*((*Unit)() - 0.5);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  out[0] = 1.0;
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+  ierr = 0;
+
+  return out;
+}
 
 void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 {
@@ -476,8 +908,9 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     _exit (-1);
   }
 
-  double r, pot, vmax, xxx, yyy, vr, vt, eee, vt1, vt2, fmax;
+  double r, pot, vmax, xxx, yyy, vr=0.0, vt, eee, vt1=0.0, vt2=0.0, fmax;
   double phi, sint, cost, sinp, cosp, azi;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
 
   double Emax = get_pot(get_max_radius());
 
@@ -498,22 +931,22 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
     gen_rloc.setsize(1, gen_N);
     gen_fmax.setsize(1, gen_N);
 
-    if (get_min_radius() <= 1.0e-16) gen_logr = 0;
-
-     if (gen_logr)
-      dr = (log(get_max_radius()) - log(get_min_radius()))/(gen_N-1);
+    if (rmin <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(get_max_radius()) - log(rmin))/(gen_N-1);
     else
-      dr = (get_max_radius() - get_min_radius())/(gen_N-1);
+      dr = (get_max_radius() - rmin)/(gen_N-1);
 
 
     for (int i=1; i<=gen_N; i++) {
 
       if (gen_logr) {
-	gen_rloc[i] = log(get_min_radius()) + dr*(i-1);
+	gen_rloc[i] = log(rmin) + dr*(i-1);
 	r = exp(gen_rloc[i]);
       }
       else {
-	gen_rloc[i] = get_min_radius() + dr*(i-1);
+	gen_rloc[i] = rmin + dr*(i-1);
 	r = gen_rloc[i];
       }
 
@@ -544,12 +977,12 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
 
 #ifdef DEBUG
     ofstream tout("test.dfgrid");
-    tout << "# Rmin=" << get_min_radius() 
+    tout << "# Rmin=" << rmin 
 	 << "  Rmax=" << get_max_radius() << endl;
     for (int i=1; i<=gen_N; i++)
-      tout << gen_rloc[i]
-	   << gen_mass[i]
-	   << gen_fmax[i]
+      tout << setw(18) << gen_rloc[i]
+	   << setw(18) << gen_mass[i]
+	   << setw(18) << gen_fmax[i]
 	   << endl;
 #endif
   }
@@ -565,9 +998,10 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
                                 // Trial velocity point
     
   int it;
+
   for (it=0; it<gen_itmax; it++) {
 
-    xxx = 2.0*sin(asin((*Unit)())/3.0);
+    xxx = -2.0*cos(acos((*Unit)())/3.0 - 2.0*M_PI/3.0);
     yyy = (1.0 - xxx*xxx)*(*Unit)();
 
     vr = vmax*xxx;

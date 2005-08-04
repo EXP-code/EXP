@@ -21,7 +21,7 @@ lib_LTLIBRARIES = libexputil.la
 ODE_SRC = rk4.cc bs.cc odesolve.cc
 SYMP_SRC = sia4.cc
 ROOT_SRC = rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc
-QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc
+QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
 #UTIL_SRC = elemfunc.cc sort.cc cmdparse.cc locate.cc nrutil.cc single.cc
 #RANDOM_SRC = random.cc
 RANDOM_SRC =
@@ -37,7 +37,8 @@ PHASE_SRC = phase.cc ensemble.cc io_ensemble.cc move_ensemble.cc \
 	diag_ensemble.cc map.cc pc.cc models.cc prolate.cc perfect.cc \
 	rotcurv.cc needle.cc hubble.cc quad.cc
 SPECFUNC_SRC = gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc # modbessel.cc 
-INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc
+INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc \
+	ChebFit.cc
 MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
         realize_model.cc
 ORBIT_SRC = orbit.cc orbit_trans.cc

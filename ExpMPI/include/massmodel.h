@@ -5,8 +5,11 @@
 
 const char rcsid_massmodel[] = "$Id$";
 
+#include <vector>
+
 #include <ACG.h>
 #include <Uniform.h>
+#include <Normal.h>
 
 #include <Vector.h>
 #include <orbit.h>
@@ -56,92 +59,141 @@ public:
 
 };
   
+
 class AxiSymModel : public MassModel
 {
-private:
-                                // Stuff for gen_point
+protected:
+  // Stuff for gen_point
   ACG *gen;
   Uniform *Unit;
+  Normal *Gauss;
   bool gen_firstime;
+  bool gen_firstime_E;
+  bool gen_firstime_jeans;
   Vector gen_rloc, gen_mass, gen_fmax;
   SphericalOrbit gen_orb;
   double gen_fomax;
-
+  
   Vector gen_point_2d(int& ierr);
   Vector gen_point_2d(double r, int& ierr);
   Vector gen_point_3d(int& ierr);
- 
+  Vector gen_point_3d(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+  Vector gen_point_jeans_3d(int& ierr);
+  
+  double Emin_grid, Emax_grid, dEgrid, dKgrid;
+  vector<double> Egrid, Kgrid, EgridMass;
+  vector<double> Jmax;
+  
+  class WRgrid
+  {
+  public:
+    vector<double> w1;
+    vector<double> r;
+  };
+  
+  typedef vector<WRgrid> wrvector;
+  vector<wrvector> Rgrid;
+  
 public:
-                                // Stuff for gen_point
+  // Stuff for gen_point
   static bool gen_EJ;
   static int numr, numj;
   static int gen_N;
-  static int gen_itmax, gen_logr;
+  static int gen_E;
+  static int gen_K;
+  static int gen_itmax;
+  static int gen_logr;
+  static double gen_rmin;
   static double gen_kmin;
+  static double gen_tolE, gen_tolK;
   static unsigned int gen_seed;
-
+  
   bool dist_defined;
-
+  
   AxiSymModel(void) { 
     ModelID = "AxiSymModel";
     gen_firstime = true;
+    gen_firstime_E = true;
+    gen_firstime_jeans = true;
   }
-
-  virtual ~AxiSymModel(void) { }
-
+  
+  virtual ~AxiSymModel() {}
+  
   void set_seed(int s) { gen_seed = s;}
   void set_itmax(int s) { gen_itmax = s;}
-
+  
   virtual double get_mass(const double) = 0;
   virtual double get_density(const double) = 0;
   virtual double get_pot(const double) = 0;
   virtual double get_dpot(const double) = 0;
   virtual double get_dpot2(const double) = 0;
   virtual void get_pot_dpot(const double, double&, double&) = 0;
-
+  
   double get_mass(const double x1, const double x2, const double x3)
-    { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
-
+  { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
   double get_density(const double x1, const double x2, const double x3)
-    { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
-
+  { return get_density(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
   double get_pot(const double x1, const double x2, const double x3)
-    { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
-
+  { return get_pot(sqrt(x1*x1 + x2*x2 + x3*x3)); }
+  
   // Addiional member functions
-
+  
   virtual double get_min_radius(void) = 0;
   virtual double get_max_radius(void) = 0;
   virtual double distf(double, double) = 0;
   virtual double dfde(double, double) = 0;
   virtual double dfdl(double, double) = 0;
   virtual double d2fde2(double, double) = 0;
-
-  Vector gen_point(int& ierr) {
+  
+  virtual Vector gen_point(int& ierr) {
     if (dof()==2)
       return gen_point_2d(ierr);
     else if (dof()==3)
       return gen_point_3d(ierr);
     else
       bomb( "dof must be 2 or 3" );
+    
     return Vector();
   }
-
-  Vector gen_point(double r, int& ierr) {
+  
+  virtual Vector gen_point_jeans(int& ierr) {
+    if (dof()==2)
+      bomb( "AxiSymModel: gen_point_jeans_2d(ierr) not implemented!" );
+    else if (dof()==3)
+      return gen_point_jeans_3d(ierr);
+    else
+      bomb( "dof must be 2 or 3" );
+    
+    return Vector();
+  }
+  
+  virtual Vector gen_point(double r, int& ierr) {
     if (dof()==2)
       return gen_point_2d(r, ierr);
     else if (dof()==3)
       bomb( "AxiSymModel: gen_point(r, ierr) not implemented!" );
     else
       bomb( "AxiSymModel: dof must be 2 or 3" );
+    
     return Vector();
   }
-
-  void gen_velocity(double* pos, double* vel, int& ierr);
-
-
+  
+  virtual Vector gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr) {
+    if (dof()==2)
+      bomb( "AxiSymModel: gen_point(r, ierr) not implemented!" );
+    else if (dof()==3)
+      return gen_point_3d(Emin, Emax, Kmin, Kmax, ierr);
+    else
+      bomb( "AxiSymModel: dof must be 2 or 3" );
+    
+    return Vector();
+  }
+  
+  virtual void gen_velocity(double *pos, double *vel, int& ierr);
+  
 };
-
 
 class EmbeddedDiskModel : public AxiSymModel
 {

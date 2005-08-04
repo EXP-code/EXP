@@ -34,6 +34,7 @@ protected:
     
 public:
     Normal(double xmean, double xvariance, RNG *gen);
+    virtual ~Normal() {}
     double mean();
     double mean(double x);
     double variance();

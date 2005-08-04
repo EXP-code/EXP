@@ -65,10 +65,10 @@ public:
   int n;
 
   double weight(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
-  else return w[i]; }
+  return w[i]; }
 
   double knot(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
-  else return r[i]; }
+  return r[i]; }
 
   Vector& wV(void) { return w; }
   Vector& kV(void) { return r; }

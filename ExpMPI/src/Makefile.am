@@ -44,7 +44,7 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = exp
 
-COMMON_LIBS = -lexputil -lexpgnu -lstdc++
+COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lpthread -ldl -lg2c -lm
 MPI_LIBS = -lmpi
 

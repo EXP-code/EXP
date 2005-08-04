@@ -2489,11 +2489,11 @@ void EmpCylSL::dump_coefs(ostream& out)
 }
 
 
-/*
+#ifdef STANDALONE
 #include <coef.H>
 static CoefHeader coefheader;
 static CoefHeader2 coefheader2;
-*/
+#endif
 
 void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
 {

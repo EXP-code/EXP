@@ -33,6 +33,7 @@ class Uniform: public Random {
     double delta;
 public:
     Uniform(double low, double high, RNG *gen);
+    virtual ~Uniform() {}
 
     double low();
     double low(double x);
