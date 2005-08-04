@@ -1,0 +1,31 @@
+/*! \page ics Initial condition programs
+
+
+\par mpirun -v -np <# of nodes> N gendisk -- [options]
+	
+Generates a spherical phase space with an embedded disk using Jeans'
+equations assuming velocity isotropy for the spherical component and
+in-plane isotropy for the disk component
+
+Options:
+<pre>
+  -H num     number of halo particles (1000)
+  -D num     number of disk particles (1000)
+  -L lmax    spherical harmonic order (4)
+  -M mmax    cylindrical harmonic order (4)
+  -X lmax    maximum l for cylindrical expansion (26)
+  -N nmax    spherical radial order (10)
+  -n nmax2   cylindrical radial order (8)
+  -Q value   Toomre Q for radial dispersion (1.2)
+  -l a       scale length (2.0)
+  -Z h       scale height (0.1)
+  -m mass    disk mass (1.0)
+  -r rsphsl  edge for SL expansion (47.5)
+  -R expon   power law divergence exponent (unset)
+  -s scale   halo coordinate scale
+  -1 rmin    minimum radius for change over to DF
+  -2 rmax    maximum radius for change over to DF
+  -b         print out basis images (false)
+  -z         zero center of mass and velocity (false)
+</pre>
+*/
