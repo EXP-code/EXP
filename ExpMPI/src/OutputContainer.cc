@@ -14,6 +14,7 @@ static char rcsid[] = "$Id$";
 #include <OutAscii.H>
 #include <OutCHKPT.H>
 #include <OutCoef.H>
+#include <OutFrac.H>
 
 OutputContainer::OutputContainer() {}
 
@@ -55,6 +56,10 @@ void OutputContainer::initialize(void)
 
     else if ( !data.first.compare("outcoef") ) {
       out.push_back(new OutCoef(data.second));
+    }
+
+    else if ( !data.first.compare("outfrac") ) {
+      out.push_back(new OutFrac(data.second));
     }
 
     else {

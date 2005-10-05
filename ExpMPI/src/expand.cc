@@ -1,3 +1,6 @@
+/*
+static char rcsid[] = "$Id$";
+*/
 
 #include "expand.h"
 
@@ -7,10 +10,11 @@ void clean_up(void);
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <fpetrap.h>
 
-/*
-static char rcsid[] = "$Id$";
-*/
+//===========================================
+// Clean stop on a SIGTERM or SIGHUP
+//===========================================
 
 //! Abort the time stepping and checkpoint when signaled
 static int stop_signal0 = 0;
@@ -49,9 +53,12 @@ main(int argc, char** argv)
   const int hdbufsize=1024;
   char hdbuffer[hdbufsize];
 
+#ifdef DEBUG
+  set_fpu_handler();
+#endif
+
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;
-
 
   //===================
   // MPI preliminaries 

@@ -77,6 +77,8 @@ void ComponentContainer::initialize(void)
       components.push_back(c);
     }
       
+    cout << "ComponentContainer: process " << myid << ", restart complete\n";
+
   }
   else {
     

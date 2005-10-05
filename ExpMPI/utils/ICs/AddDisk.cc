@@ -1,4 +1,5 @@
 #include <math.h>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <vector>
@@ -79,7 +80,7 @@ AddDisk::AddDisk(AxiSymModel* halo, AxiSymModel* disk, double Dmass)
      outf << "test_adddisk." << myid << '\0';
    else
      outf << "test_adddisk.dat\0";
-   ofstream out(outf.str());
+   ofstream out(outf.str().c_str());
    for (int i=0; i<number; i++) {
      out 
        << setw(15) << r[i] 
@@ -104,7 +105,7 @@ AddDisk::AddDisk(AxiSymModel* halo, AxiSymModel* disk, double Dmass)
       outf << "test_adddisk_mod." << myid << '\0';
     else
       outf << "test_adddisk_mod.dat\0";
-    ofstream out(outf.str());
+    ofstream out(outf.str().c_str());
     for (int i=1; i<number; i++) {
       out 
 	<< setw(15) << 0.5*(r[i-1]+r[i])

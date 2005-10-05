@@ -88,7 +88,7 @@ ExternalCollection::~ExternalCollection(void)
   }
 				// destroy any forces we created
   for(sitr=force_list.begin(); sitr!=force_list.end(); sitr++) {
-    delete &(**sitr);
+    delete *sitr;
   }
 }
 

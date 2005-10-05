@@ -28,11 +28,14 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
 
   firstime_accel = true;
   self_consistent = true;
+  model_file = "SLGridSph.model";
 
 				// Get initialization info
   initialize();
 
   SLGridSph::mpi = 1;		// Turn on MPI
+  SLGridSph::model_file_name = model_file;
+  SLGridSph::sph_cache_name += "." + runtag + "_stc";
 
 				// Generate Sturm-Liouville grid
   ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, cmap, rs);
@@ -55,6 +58,7 @@ void SphereTwoCenter::initialize()
   if (get_value("cmap", val)) cmap = atoi(val.c_str());
   if (get_value("Lmax", val)) Lmax = atoi(val.c_str());
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
+  if (get_value("modelname", val)) model_file = val.c_str();
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true;
     else self_consistent = false;

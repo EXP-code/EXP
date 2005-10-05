@@ -62,6 +62,9 @@ private:
   //! If set, coefficients will only be computed once
   bool self_consistent;
 
+  //! Model file name
+  string model_file;
+
 protected:
 
   //! Points at the instance of SL grid shared between SphericalBasis instances

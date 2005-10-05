@@ -31,6 +31,8 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
 
   SLGridSph::mpi = 1;		// Turn on MPI
   SLGridSph::model_file_name = model_file;
+  SLGridSph::sph_cache_name += "." + runtag;
+  
 
 				// Generate Sturm-Liouville grid
   ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, cmap, rs, diverge, dfac);

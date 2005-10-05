@@ -295,7 +295,7 @@ void BiorthWake::amoeba(void)
 #ifdef DEBUG
 
 #include <gaussQ.h>
-#include <iomanip.h>
+#include <iomanip>
 
 Complex BiorthWake::test_fct(double theta, double phi)
 {

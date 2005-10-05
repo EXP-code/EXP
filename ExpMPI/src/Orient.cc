@@ -231,8 +231,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	out.fill('-');
 
 	int icnt = 1;
-	out << "# " << setw(13) << icnt;
-	for (int i=0; i<22; i++) out << "| " << setw(13) << icnt;
+	out << "# " << setw(13) << icnt++;
+	for (int i=0; i<22; i++) out << "| " << setw(13) << icnt++;
 	out << endl;
 
 	out.close();

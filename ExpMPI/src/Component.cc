@@ -1004,7 +1004,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
   double rmax1, r2;
 
-
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
       cerr << "Not enough space on all processors to hold phase space\n";
@@ -1039,6 +1038,9 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (myid==0) {
 				// Read root node particles
 
+    cout << "Count=" << ncount[0] << endl;
+
+
     rmax1 = 0.0;
     for (int i=1; i<=ncount[0]; i++)
     {
@@ -1060,6 +1062,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Now load the other nodes
     int icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
+
+      cout << "Loading node <" << n << ">\n";
 
       MPI_Send(&ncount[n], 1, MPI_INT, n, 1, MPI_COMM_WORLD);
 

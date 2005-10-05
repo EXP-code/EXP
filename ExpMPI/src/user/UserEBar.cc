@@ -36,6 +36,8 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   angm_name = "";		// Default component for angular momentum
   table_name = "";		// Default for input b1,b5 table
   
+  ellip = 0;
+
   initialize();
 
   if (ctr_name.size()>0) {
@@ -145,6 +147,7 @@ UserEBar::~UserEBar()
 {
   for (int n=0; n<nthrds; n++) delete [] tacc[n];
   delete [] tacc;
+  delete ellip;
 }
 
 void UserEBar::userinfo()

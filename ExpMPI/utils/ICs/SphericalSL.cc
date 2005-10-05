@@ -329,7 +329,7 @@ void SphericalSL::accumulate(vector<Particle> &part)
   for (n=1; n<=NMAX; n++) {
     for (l=0; l<=LMAX*(LMAX+2); l++) {
       if (isnan(expcoef[l][n])) {
-	cerr.form("expcoef[%d][%d] is NaN\n", l, n);
+	cerr << "expcoef[" << l << "][" << n << "] is NaN" << endl;
 	iflg++;
       }
     }

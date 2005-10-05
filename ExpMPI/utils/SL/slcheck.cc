@@ -40,6 +40,10 @@ void usage(char *prog)
        << setiosflags(ios::left)
        << setw(40) << "Number of points in radial table" << endl
        << resetiosflags(ios::left)
+       << setw(15) << "-i or --file" << setw(10) << "SLGridSph.model" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Model profile" << endl
+       << resetiosflags(ios::left)
        << endl;
 
   exit(0);
@@ -53,6 +57,7 @@ int main(int argc, char** argv)
   int numr = 10000;
   int diverge = 0;
   double dfac = 1.0;
+  string filename = "SLGridSph.model";
 
   int c;
   while (1) {
@@ -63,10 +68,11 @@ int main(int argc, char** argv)
       {"cmap", 0, 0, 0},
       {"numr", 1, 0, 0},
       {"dfac", 1, 0, 0},
+      {"file", 1, 0, 0},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "cmn:d:h",
+    c = getopt_long (argc, argv, "cmn:d:i:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -85,6 +91,8 @@ int main(int argc, char** argv)
 	} else if (!optname.compare("dfac")) {
 	  diverge = 1;
 	  dfac = atof(optarg);
+	} else if (!optname.compare("file")) {
+	  filename = optarg;
 	} else {
 	  cout << "Option " << long_options[option_index].name;
 	  if (optarg) cout << " with arg " << optarg;
@@ -109,6 +117,10 @@ int main(int argc, char** argv)
     case 'd':
       diverge = 1;
       dfac = atof(optarg);
+      break;
+
+    case 'i':
+      filename = optarg;
       break;
 
     case 'h':
@@ -165,6 +177,9 @@ int main(int argc, char** argv)
 
     SLGridSph::mpi = 0;		// Turn off MPI
   }
+
+				// Set model file
+  SLGridSph::model_file_name = filename;
 
 				// Generate Sturm-Liouville grid
   SLGridSph *ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
