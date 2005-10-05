@@ -968,7 +968,6 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
-
 #ifdef EIGEN
   static Vector sum(ev.getlow(), ev.gethigh());
   {
@@ -1822,7 +1821,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass, int id)
   }
 
   double rr = sqrt(r*r+z*z);
-  if (rr>Rtable) return;
+  if (rr/ASCALE>Rtable) return;
 
   double msin, mcos;
   int mm;
@@ -2524,6 +2523,7 @@ void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
   }
 }
 
+
 void EmpCylSL::dump_coefs_binary_curr(ostream& out, double time)
 {
   coefheader2.time = time;
@@ -2614,8 +2614,8 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	  
 	  r = dr*j;
 
-	  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
-	  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
+	  double X = (r_to_xi(r) - XMIN)/dX;
+	  double Y = ( z_to_y(z) - YMIN)/dY;
 
 	  int ix = (int)X;
 	  int iy = (int)Y;
