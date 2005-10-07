@@ -44,6 +44,7 @@ int EmpCylSL::NOUT=12;
 int EmpCylSL::NUMR=2000;
 double EmpCylSL::RMIN=0.001;
 double EmpCylSL::RMAX=20.0;
+double EmpCylSL::HFAC=0.2;
 string EmpCylSL::CACHEFILE = ".eof.cache.file";
 string EmpCylSL::TABLEFILE = ".eof.table.file";
 
@@ -2730,6 +2731,367 @@ void EmpCylSL::dump_basis(const string& name, int step)
 
 
 }
+
+void EmpCylSL::dump_images(const string& OUTFILE,
+			   double XYOUT, double ZOUT, int OUTR, int OUTZ,
+			   bool logscale)
+{
+  if (myid!=0) return;
+  
+  double p, d, rf, zf, pf;
+  double dr, dz = 2.0*ZOUT/(OUTZ-1);
+  double rmin = RMIN*ASCALE;
+  
+  if (logscale) 
+    dr = (log(XYOUT) - log(rmin))/(OUTR-1);
+  else
+    dr = (XYOUT - rmin)/(OUTR-1);
+  
+  string Name;
+  int Number  = 14;
+  int Number2 = 8;
+  string Types[] = {".pot", ".dens", ".fr", ".fz", ".fp",
+				// Finite difference
+		    ".empfr", ".empfz", ".empfp",
+				// Compare with recursion
+		    ".diffr", ".diffz", ".diffp",
+				// Relative difference
+		    ".relfr", ".relfz", ".relfp"};
+  
+  //============
+  // Open files
+  //============
+  ofstream *out = new ofstream [Number];
+  for (int j=0; j<Number; j++) {
+    Name = OUTFILE + Types[j] + ".eof_recon";
+    out[j].open(Name.c_str());
+    if (!out[j]) {
+      cerr << "Couldn't open <" << Name << ">\n";
+      break;
+    }
+  }
+  
+  double del, tmp, rP, rN, zP, zN, pP, pN;
+  double potpr, potnr, potpz, potnz, potpp, potnp;
+
+  
+  double hr = HFAC*dr;
+  double hz = HFAC*dz;
+  double hp = 2.0*M_PI/64.0;
+  
+  if (logscale) hr = HFAC*0.5*(exp(dr) - exp(-dr));
+  
+  double r=0.0, z=0.0;
+  
+  for (int iz=0; iz<OUTZ; iz++) {
+    
+    z = -ZOUT + dz*iz;
+
+    for (int ir=0; ir<OUTR; ir++) {
+      
+      if (logscale)
+	r = rmin*exp(dr*ir);
+      else
+	r = rmin + dr*ir;
+	  
+      accumulated_eval(r, z, 0.0, p, rf, zf, pf);
+      d = accumulated_dens_eval(r, z, 0.0);
+      
+      out[0]  << setw(15) << r << setw(15) << z << setw(15) << p;
+      out[1]  << setw(15) << r << setw(15) << z << setw(15) << d;
+      out[2]  << setw(15) << r << setw(15) << z << setw(15) << rf;
+      out[3]  << setw(15) << r << setw(15) << z << setw(15) << zf;
+      out[4]  << setw(15) << r << setw(15) << z << setw(15) << pf;
+
+      
+      //===================
+      // Finite difference
+      //===================
+      
+      if (logscale) {
+	rP = r*(1.0 + 0.5*hr);
+	rN = max<double>(1.0e-5, r*(1.0-0.5*hr));
+	del = rP - rN;
+      }
+      else {
+	rP = dr*ir+0.5*hr;
+	rN = max<double>(1.0e-5, dr*ir-0.5*hr);
+	del = hr;
+      }
+      zP = -ZOUT + dz*iz + 0.5*hz;
+      zN = -ZOUT + dz*iz - 0.5*hz;
+      
+      pP =  0.5*hp;
+      pN = -0.5*hp;
+
+      accumulated_eval(rP, z, 0.0, potpr, tmp, tmp, tmp);
+      accumulated_eval(rN, z, 0.0, potnr, tmp, tmp, tmp);
+      accumulated_eval(r, zP, 0.0, potpz, tmp, tmp, tmp);
+      accumulated_eval(r, zN, 0.0, potnz, tmp, tmp, tmp);
+      accumulated_eval(r,  z,  pP, potpp, tmp, tmp, tmp);
+      accumulated_eval(r,  z,  pN, potnp, tmp, tmp, tmp);
+      
+      //==================================================
+
+      out[5] << setw(15) << r << setw(15) << z 
+	     << setw(15) << -(potpr - potnr)/del;
+      
+      out[6] << setw(15) << r << setw(15) << z << setw(15)
+	     << -(potpz - potnz)/hz;
+      
+      out[7] << setw(15) << r << setw(15) << z << setw(15)
+	     << -(potpp - potnp)/hp;
+      
+      //==================================================
+      
+
+      out[8] << setw(15) << r << setw(15) << z 
+	     << setw(15) << (potnr - potpr)/del - rf;
+      
+      out[9] << setw(15) << r << setw(15) << z << setw(15)
+	     << (potnz - potpz)/hz - zf;
+      
+      out[10] << setw(15) << r << setw(15) << z << setw(15)
+	      << (potpp - potnp)/hp - pf;
+      
+      //==================================================
+	  
+	  
+      out[11] << setw(15) << r << setw(15) << z 
+	      << setw(15) << ((potnr - potpr)/del - rf)/(fabs(rf)+1.0e-18);
+      
+      out[12] << setw(15) << r << setw(15) << z << setw(15)
+	      << ((potnz - potpz)/hz - zf)/(fabs(zf)+1.0e-18);
+      
+      out[13] << setw(15) << r << setw(15) << z << setw(15)
+	      << ((potpp - potnp)/hp - pf)/(fabs(pf)+1.0e-18);
+      
+      //==================================================
+
+      for (int j=0; j<Number; j++) out[j] << endl;
+
+    }
+    
+    for (int j=0; j<Number; j++) out[j] << endl;
+    
+  }
+  
+  //
+  // Close current files
+  //
+  for (int j=0; j<Number; j++) out[j].close();
+
+  //
+  // Open files (face on)
+  //
+  for (int j=0; j<Number2; j++) {
+    Name = OUTFILE + Types[j] + ".eof_recon_face";
+    out[j].open(Name.c_str());
+    if (!out[j]) {
+      cerr << "Couldn't open <" << Name << ">\n";
+      break;
+    }
+  }
+  
+  double rr, pp, xx, yy, dxy = 2.0*XYOUT/(OUTR-1);
+  
+  for (int iy=0; iy<OUTR; iy++) {
+    yy = -XYOUT + dxy*iy;
+    
+    for (int ix=0; ix<OUTR; ix++) {
+      xx = -XYOUT + dxy*ix;
+      
+      rr = sqrt(xx*xx + yy*yy);
+      pp = atan2(yy, xx);
+      
+      accumulated_eval(rr, 0.0, pp, p, rf, zf, pf);
+      d = accumulated_dens_eval(rr, 0.0, pp);
+      
+      out[0]  << setw(15) << xx << setw(15) << yy << setw(15) << p;
+      out[1]  << setw(15) << xx << setw(15) << yy << setw(15) << d;
+      out[2]  << setw(15) << xx << setw(15) << yy << setw(15) << rf;
+      out[3]  << setw(15) << xx << setw(15) << yy << setw(15) << zf;
+      out[4]  << setw(15) << xx << setw(15) << yy << setw(15) << pf;
+
+      //===================
+      // Finite difference
+      //===================
+      
+      if (logscale) {
+	rP = rr*(1.0 + 0.5*hr);
+	rN = max<double>(1.0e-5, rr*(1.0-0.5*hr));
+	del = rP - rN;
+      }
+      else {
+	rP = rr+0.5*hr;
+	rN = max<double>(1.0e-5, rr-0.5*hr);
+	del = hr;
+      }
+      zP =  0.5*hz;
+      zN = -0.5*hz;
+      
+      pP = pp + 0.5*hp;
+      pN = pp - 0.5*hp;
+
+      accumulated_eval(rP, 0.0, pp, potpr, tmp, tmp, tmp);
+      accumulated_eval(rN, 0.0, pp, potnr, tmp, tmp, tmp);
+      accumulated_eval(rr,  zP, pp, potpz, tmp, tmp, tmp);
+      accumulated_eval(rr,  zN, pp, potnz, tmp, tmp, tmp);
+      accumulated_eval(rr, 0.0, pP, potpp, tmp, tmp, tmp);
+      accumulated_eval(rr, 0.0, pN, potnp, tmp, tmp, tmp);
+      
+      //==================================================
+
+      out[5] << setw(15) << xx << setw(15) << yy 
+	     << setw(15) << -(potpr - potnr)/del;
+      
+      out[6] << setw(15) << xx << setw(15) << yy << setw(15)
+	     << -(potpz - potnz)/hz;
+      
+      out[7] << setw(15) << xx << setw(15) << yy << setw(15)
+	     << -(potpp - potnp)/hp;
+      
+      //==================================================
+
+      for (int j=0; j<Number2; j++) out[j] << endl;
+
+    }
+    
+    for (int j=0; j<Number2; j++) out[j] << endl;
+    
+  }
+  
+  //
+  // Close current files and delete
+  //
+  for (int j=0; j<Number2; j++) out[j].close();
+  delete [] out;
+}
+
+
+void EmpCylSL::dump_images_basis(const string& OUTFILE,
+				 double XYOUT, double ZOUT, 
+				 int OUTR, int OUTZ, bool logscale,
+				 int M1, int M2, int N1, int N2)
+{
+  if (myid!=0) return;
+  
+  double p, d, rf, zf, pf;
+  double dr, dz = 2.0*ZOUT/(OUTZ-1);
+  double rmin = RMIN*ASCALE;
+  
+  if (logscale) 
+    dr = (log(XYOUT) - log(rmin))/(OUTR-1);
+  else
+    dr = (XYOUT - rmin)/(OUTR-1);
+  
+  int Number  = 10;
+  string Types[] = {".pot", ".dens", ".fr", ".fz", ".empfr", ".empfz", 
+		    ".diffr", ".diffz", ".relfr", ".relfz"};
+  
+  double tmp, rP, rN, zP, zN, r, z, del;
+  double potpr, potnr, potpz, potnz;
+  
+  ofstream *out = new ofstream [Number];
+  
+  double hr = HFAC*dr;
+  double hz = HFAC*dz;
+  
+  if (logscale) hr = HFAC*0.5*(exp(dr) - exp(-dr));
+  
+  for (int m=M1; m<=M2; m++) {
+    
+    for (int n=N1; n<=N2; n++) {
+      
+      
+      //============
+      // Open files
+      //============
+      
+      for (int j=0; j<Number; j++) {
+	ostringstream fname;
+	fname << OUTFILE << Types[j] << '.' << m << '.' << n << ".eof_basis";
+	out[j].open(fname.str().c_str());
+	if (out[j].bad()) {
+	  cout << "EmpCylSL::dump_images_basis: failed to open " 
+	       << fname.str() << endl;
+	  return;
+	}
+      }
+      
+      for (int iz=0; iz<OUTZ; iz++) {
+	for (int ir=0; ir<OUTR; ir++) {
+	  
+	  z = -ZOUT + dz*iz;
+	  if (logscale)
+	    r = rmin*exp(dr*ir);
+	  else
+	    r = rmin + dr*ir;
+	  
+	  get_all(m, n, r, z, 0.0, p, d, rf, zf, pf);
+	  
+	  out[0] << setw(15) << r << setw(15) << z << setw(15) << p;
+	  out[1] << setw(15) << r << setw(15) << z << setw(15) << d;
+	  out[2] << setw(15) << r << setw(15) << z << setw(15) << rf;
+	  out[3] << setw(15) << r << setw(15) << z << setw(15) << zf;
+	  
+	  //===================
+	  // Finite difference
+	  //===================
+	  
+	  if (logscale) {
+	    rP = r*(1.0 + 0.5*hr);
+	    rN = max<double>(1.0e-5, r*(1.0-0.5*hr));
+	    del = rP - rN;
+	  }
+	  else {
+	    rP = dr*ir+0.5*hr;
+	    rN = max<double>(1.0e-5, dr*ir-0.5*hr);
+	    del = hr;
+	  }
+	  zP = -ZOUT + dz*iz + 0.5*hz;
+	  zN = -ZOUT + dz*iz - 0.5*hz;
+	  
+	  get_all(m, n, rP, z, 0.0, potpr, tmp, tmp, tmp, tmp);
+	  get_all(m, n, rN, z, 0.0, potnr, tmp, tmp, tmp, tmp);
+	  get_all(m, n, r, zP, 0.0, potpz, tmp, tmp, tmp, tmp);
+	  get_all(m, n, r, zN, 0.0, potnz, tmp, tmp, tmp, tmp);
+	  
+	  out[4] << setw(15) << r << setw(15) << z 
+		 << setw(15) << -(potpr - potnr)/del ;
+	  
+	  out[5] << setw(15) << r << setw(15) << z << setw(15)
+		 << -(potpz - potnz)/hz  << setw(15) << hz;
+	  
+	  out[6] << setw(15) << r << setw(15) << z << setw(15)
+		 << -(potpr - potnr)/del - rf;
+	  
+	  out[7] << setw(15) << r << setw(15) << z << setw(15)
+		 << -(potpz - potnz)/hz  - zf;
+	  
+	  
+	  out[8] << setw(15) << r << setw(15) << z << setw(15)
+		 << (-(potpr - potnr)/del - rf)/(fabs(rf)+1.0e-18);
+	  
+	  out[9] << setw(15) << r << setw(15) << z << setw(15)
+		 << (-(potpz - potnz)/hz  - zf)/(fabs(zf)+1.0e-18);
+	  
+	  for (int j=0; j<Number; j++) out[j] << endl;
+	  
+	}
+	
+	for (int j=0; j<Number; j++) out[j] << endl;
+	
+      }
+      
+      for (int j=0; j<Number; j++) out[j].close();
+    }
+    
+  }
+  
+  delete [] out;
+}
+
 
 double EmpCylSL::r_to_xi(double r)
 {

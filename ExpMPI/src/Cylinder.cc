@@ -156,12 +156,8 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   
   if (firstime) {
 
-    if (!(restart && ortho->read_cache()))
-      determine_coefficients();	// Will compute EOF grid
-
-
-    if (!self_consistent) {	// Compute mass and coefficients
-      eof = 1;			// once and for all
+    if (!(restart && ortho->read_cache())) {
+      eof = 1;			// Compute EOF grid
       determine_coefficients();
     }
 
@@ -181,12 +177,15 @@ void Cylinder::get_acceleration_and_potential(Component* C)
       cyltime = tnow;
 
 				// Dump basis
-#ifdef DENSITY
-      if (myid == 0) {
+      if (myid == 0 && density) {
 	ortho->dump_basis(runtag.c_str(), this_step);
+
+	ostringstream dumpname;
+	dumpname << "images" << "." << runtag << "." << this_step;
+	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl,
+			   64, 64, true);
 	dump_mzero(runtag.c_str(), this_step);
       }
-#endif
 				// Get coefficients from table if this
 				// is an EOF recomputation
       eof = 1;
@@ -279,7 +278,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
 
-    if (r2+zz*zz < rcylmax*rcylmax) {
+    if (r2+zz*zz < rcylmax*rcylmax*acyl*acyl) {
 
       double mas = cC->Mass(i) * adb;
 
@@ -312,7 +311,7 @@ void Cylinder::determine_coefficients(void)
   use0 = 0;
   use1 = 0;
   cylmassT = 0.0;
-  cylmass = 0.0;
+  cylmass =  0.0;
 
   ortho->setup_accumulation();
     
@@ -428,11 +427,6 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     }
     else {
 
-      /*
-      cerr.form("Process %d: i=%d r=%f zz=%f Cylmass=%f\n", 
-		  myid, i, r, zz, cylmass);
-      */
-
       r3 = r2 + zz*zz;
       p = -cylmass/sqrt(r3);	// -M/r
       fr = p/r3;		// -M/r^3
@@ -498,20 +492,15 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
   *tpotr *= -1.0;
   *tpotz *= -1.0;
   *tpotp *= -1.0;
-#ifdef DENSITY
-  *tdens = ortho->accumulated_dens_eval(r, z, phi);
-#else
-  *tdens = 0.0;
-#endif
+  if (density)
+    *tdens = ortho->accumulated_dens_eval(r, z, phi);
+  else
+    *tdens = 0.0;
 }
 
 				// Dump coefficients to a file
 void Cylinder::dump_coefs(ostream& out)
 {
-  /*
-  fprintf(fout, "Time=%f\n", tnow);
-  ortho->dump_coefs(fout);
-  */
   /*
   ortho->dump_coefs_binary_last(out, cyltime);
   */

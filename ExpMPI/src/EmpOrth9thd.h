@@ -184,6 +184,8 @@ public:
   //! Name of cache table file
   static string TABLEFILE;
 
+  //! Fraction of table range for basis images (for debug)
+  static double HFAC;
 
   //! Constructor (reset must called later)
   EmpCylSL(void);
@@ -261,6 +263,17 @@ public:
 
   //! Plot basis
   void dump_basis(const string& name, int step);
+
+  //! Plot full fields for debugging
+  void dump_images(const string& OUTFILE,
+		   double XYOUT, double ZOUT, int OUTR, int OUTZ,
+		   bool logscale);
+
+  //! Plot basis images for debugging
+  void dump_images_basis(const string& OUTFILE,
+			 double XYOUT, double ZOUT, 
+			 int OUTR, int OUTZ, bool logscale,
+			 int M1, int M2, int N1, int N2);
 
   /** @name Utility functions */
   // @{
