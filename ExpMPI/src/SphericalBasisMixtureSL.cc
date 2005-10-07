@@ -126,6 +126,8 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
 
   for (int i=nbeg; i<nend; i++) {
 
+    if (cC->freeze(*(cC->Part(i)))) continue;
+
     if (use_external) {
       // Get the position in inertial coords
       cC->Pos(pt.pos, i, Component::Inertial);

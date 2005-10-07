@@ -22,6 +22,7 @@ private:
   Vector *pos, *frc;
 
   double *cylmass0;
+  int *offgrid;
 
   void initialize(void);
 

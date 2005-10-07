@@ -14,7 +14,8 @@ OutDiag::OutDiag(string& line) : Output(line)
 				// Defaults
   RMIN = 1.0e-3;
   RMAX = 10.0;
-  THETA = PHI = 1.0e-10;
+  THETA = 0.5*M_PI;
+  PHI = 1.0e-10;
   NUM = 100;
 
   list<Component*>::iterator cc;

@@ -91,6 +91,10 @@ Cylinder::Cylinder(string& line) : Basis(line)
     frc[i].setsize(1, 3);
   }
 
+#ifdef DEBUG
+  offgrid = new int [nthrds];
+#endif
+
   firstime = true;
 }
 
@@ -98,6 +102,9 @@ Cylinder::~Cylinder()
 {
   delete [] pos;
   delete [] frc;
+#ifdef DEBUG
+  delete [] offgrid;
+#endif
 }
 
 void Cylinder::initialize()
@@ -403,7 +410,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(r2) + DSMALL;
     phi = atan2(yy, xx);
 
-    if (r2 + zz*zz < rcylmax*rcylmax) {
+    if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
 
       ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
     
@@ -439,6 +446,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       cC->AddAcc(i, 0, xx*fr);
       cC->AddAcc(i, 1, yy*fr);
       cC->AddAcc(i, 2, zz*fr);
+#ifdef DEBUG
+      offgrid[id]++;
+#endif
     }
 
   }
@@ -455,7 +465,23 @@ void Cylinder::determine_acceleration_and_potential(void)
   MPE_Log_event(11, myid, "b_compute_force");
 #endif
 
+#ifdef DEBUG
+  for (int i=0; i<nthrds; i++) offgrid[i] = 0;
+#endif
+
   exp_thread_fork(false);
+
+#ifdef DEBUG
+  int offtot=0;
+  for (int i=1; i<nthrds; i++) offgrid[0] += offgrid[i];
+  MPI_Reduce(&offgrid[0], &offtot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (myid==0) {
+    if (use_external)
+      cout << endl << "T=" << tnow << "  external offgrid=" << offtot << endl;
+    else
+      cout << endl << "T=" << tnow << "  self offgrid=" << offtot << endl;
+  }    
+#endif
 
 #ifdef MPE_PROFILE
   MPE_Log_event(12, myid, "e_compute_force");
