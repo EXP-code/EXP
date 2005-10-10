@@ -56,11 +56,6 @@ Cylinder::Cylinder(string& line) : Basis(line)
 				// For debugging
   if (density) EmpCylSL::DENS = true;
 
-  /*
-  ortho = new EmpCylSL();
-  ortho->reset(nmax, lmax, mmax, ncylorder, acyl, hcyl);
-  */
-
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
 
   if (selector) {
@@ -205,9 +200,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   }
 
 
-  /*======================================*/
-  /* Determine potential and acceleration */
-  /*======================================*/
+  //======================================
+  // Determine potential and acceleration 
+  //======================================
 
   MPL_start_timer();
 
@@ -216,9 +211,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   MPL_stop_timer();
 
 
-  /*=====================================*/
-  /* Recompute PCA analysis on next step */
-  /*=====================================*/
+  //=====================================
+  // Recompute PCA analysis on next step 
+  //=====================================
 
   ncompcyl++;
   if (ncompcyl == ncylrecomp) {
@@ -329,7 +324,7 @@ void Cylinder::determine_coefficients(void)
   }
 
 
-				/* Initialize locks */
+				// Initialize locks
   make_mutex(&used_lock, routine, "used_lock");
   make_mutex(&cos_coef_lock, routine, "cos_coef_lock");
   make_mutex(&sin_coef_lock, routine, "sin_coef_lock");
@@ -391,13 +386,20 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
+#ifdef DEBUG
+  static bool firstime = true;
+  ofstream out;
+  int flg;
+  if (firstime && myid==0 && id==0) out.open("debug.tst");
+#endif
+
   for (i=nbeg; i<nend; i++) {
 
     if (use_external) {
       cC->Pos(&pos[id][1], i, Component::Inertial);
       component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
     } else
-      cC->Pos(&pos[id][1], Component::Local | Component::Centered);
+      cC->Pos(&pos[id][1], i, Component::Local | Component::Centered);
 
     if (cC->EJ & Orient::AXIS) 
       pos[id] = cC->orient->transformBody() * pos[id];
@@ -431,6 +433,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id] = cC->orient->transformOrig() * frc[id];
 
       for (int j=0; j<3; j++) cC->AddAcc(i, j, frc[id][j+1]);
+#ifdef DEBUG
+      flg = 1;
+#endif
     }
     else {
 
@@ -448,11 +453,26 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       cC->AddAcc(i, 2, zz*fr);
 #ifdef DEBUG
       offgrid[id]++;
+      flg = 2;
 #endif
     }
-
+    
+#ifdef DEBUG
+    if (firstime && myid==0 && id==0 && i < 5) {
+      out << setw(9)  << i          << setw(9) << flg << endl
+	  << setw(18) << xx         << endl
+	  << setw(18) << yy         << endl
+	  << setw(18) << zz         << endl
+	  << setw(18) << frc[0][1]  << endl
+	  << setw(18) << frc[0][2]  << endl
+	  << setw(18) << frc[0][3]  << endl;
+    }
+#endif
   }
 
+#ifdef DEBUG
+  firstime = false;		// DEBUG
+#endif
   return (NULL);
 }
 
