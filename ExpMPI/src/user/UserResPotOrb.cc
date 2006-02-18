@@ -5,21 +5,34 @@
 #include <SatelliteOrbit.h>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-#include <ResPot.H>
+#include <ResPotOrb.H>
 #include <biorth.h>
 #include <sphereSL.h>
-#include <UserResPotN.H>
+#include <UserResPotOrb.H>
 #include <BarForcing.H>
-#include <CircularOrbit.H>
 
 #include <sstream>
 
 #include <pthread.h>  
-// #ifdef DEBUG
-static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
-// #endif
 
-UserResPotN::UserResPotN(string &line) : ExternalForce(line)
+static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+
+string respotorb_mpi_id()
+{
+  static bool first = true;
+  static string id;
+
+  if (first) {
+    ostringstream sout;
+    sout << runtag << ".respotorb_dbg." << myid;
+    id = sout.str();
+    first = false;
+  }
+
+  return id;
+}
+
+UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
 {
   LMAX = 2;
   NUMR = 800;
@@ -33,8 +46,6 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   toff = 1.0e20;		// Turn off time
   delta = 1.0;			// Turn on duration
   toffset = 0.0;		// Time offset for orbit
-  omega = 18.9;			// Patern speed
-  phase0 = 0.0;			// Initial phase
 
   NUMX = 400;			// Points in Ang mom grid
   NUME = 200;			// Points in Energy
@@ -53,15 +64,6 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   A21 = 0.2;			// Major to semi-minor ratio
   A32 = 0.05;			// Semi-minor to minor ratio
 
-  self = true;			// Self consistent slow down
-  domega = 0.0;			// Rate of forced slow down
-  tom0 = 1.0;			// Midpoint of forced bar slow down
-  dtom = -1.0;			// Width of forced bar slow down
-  fileomega = "";		// File containing Omega vs T
-
-  usebar = true;		// Use BarForcing and 
-  useorb = false;		// Not CircularOrbit
-
   first = true;
   debug = false;		// Diagnostic output
 
@@ -73,6 +75,9 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 				// Tabled spherical model
   model_file = "SLGridSph.model";
   ctr_name = "";		// Default component for com is none
+
+				// Orbit data file
+  data_file = "orbit.data";
 
 				// Log file name
   filename = outdir + "ResPot." + runtag;
@@ -109,6 +114,47 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   else
     c0 = NULL;
 
+  bool ok = true;
+  if (data_file.size()>0) {
+				// Open satellite orbit file
+    ifstream in(data_file.c_str());
+    if (!in) ok = false;
+    
+    double t, r, x[3], v[3];
+    while (in) {
+      in >> t;
+      r = 0.0;
+      for (int k=0; k<3; k++) {
+	in >> x[k];
+	r += x[k]*x[k];
+      }
+      r = sqrt(r);
+      
+      for (int k=0; k<3; k++) in >> v[k];
+
+      if (in) {
+	Time.push_back(t);
+	Phase.push_back(atan2(x[1], x[0]));
+	Radius.push_back(r);
+
+	if (r>0.0)
+	  Omega.push_back( (x[0]*v[1] - x[1]*v[0])/(r*r) );
+	else
+	  Omega.push_back( 0.0 );
+      }
+
+    }
+
+  }
+  else
+    ok = false;
+
+  if (!ok) {
+    cerr << "Process " << myid << ": can't open or read from <"
+	 << data_file << ">" << endl;
+    MPI_Abort(MPI_COMM_WORLD, 124);
+  }
+
 				// Set up for resonance potential
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
@@ -116,37 +162,20 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 				// Perturbation
   if (MASS < 0.0) MASS = hm->get_mass(LENGTH);
 
-  if (usebar) {
-    BarForcing::L0 = L0;
-    BarForcing::M0 = M0;
-    BarForcing *bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
+  omega = get_omega(tnow);
+  Iz = MASS*LENGTH*LENGTH*omega;
 
-    bar->set_model(halo_model);
-    bar->compute_quad_parameters(A21, A32);
-    omega = omega0 = bar->Omega();
-    Iz = bar->get_Iz();
-
-    pert = bar;
-  } else {
-    CircularOrbit *orb = new CircularOrbit(NMAX, L0, M0, MASS, LENGTH);
-
-    omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
-    Iz = MASS*LENGTH*LENGTH*omega;
-
-    pert = orb;
-  }
-
-  ResPot::NUMX = NUMX;
-  ResPot::NUME = NUME;
-  ResPot::RECS = RECS;
-  ResPot::ALPHA = ALPHA;
-  ResPot::ITMAX = ITMAX;
-  ResPot::DELTA_E = DELE;
-  ResPot::DELTA_K = DELK;
-  ResPot::DELTA_B = DELB;
+  ResPotOrb::NUMX = NUMX;
+  ResPotOrb::NUME = NUME;
+  ResPotOrb::RECS = RECS;
+  ResPotOrb::ALPHA = ALPHA;
+  ResPotOrb::ITMAX = ITMAX;
+  ResPotOrb::DELTA_E = DELE;
+  ResPotOrb::DELTA_K = DELK;
+  ResPotOrb::DELTA_B = DELB;
 				// Instantiate one for each resonance
   for (int i=0; i<numRes; i++) {
-    respot.push_back(new ResPot(halo_model, pert, L0, M0, L1[i], L2[i]));
+    respot.push_back(new ResPotOrb(halo_model, MASS, L0, M0, L1[i], L2[i]));
   }
 				// Construct debug file names
   for (int i=0; i<numRes; i++) {
@@ -166,13 +195,13 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
     }
   }
 
-  btotn = vector<int>(ResPot::NumDesc-1);
+  btotn = vector<int>(ResPotOrb::NumDesc-1);
   difLz0 = vector<double>(numRes);
   bcount = vector< vector<int> >(nthrds);
   difLz = vector< vector<double> >(nthrds);
   for (int i=0; i<nthrds; i++) {
     difLz[i] = vector<double>(numRes);
-    bcount[i] = vector<int>(ResPot::NumDesc-1);
+    bcount[i] = vector<int>(ResPotOrb::NumDesc-1);
   }
 
 				// Read omega file
@@ -199,7 +228,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
       }
 
     } else {
-      cout << "UserResPotN could not open <" << fileomega << ">\n";
+      cout << "UserResPotOrbOrb could not open <" << fileomega << ">\n";
       MPI_Abort(MPI_COMM_WORLD, 103);
     }
     
@@ -208,21 +237,20 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   userinfo();
 }
 
-UserResPotN::~UserResPotN()
+UserResPotOrb::~UserResPotOrb()
 {
   for (int i=0; i<numRes; i++) delete respot[i];
   delete halo_model;
-  delete pert;
   delete diffuse;
 }
 
-void UserResPotN::userinfo()
+void UserResPotOrb::userinfo()
 {
   if (myid) return;		// Return if node master node
   print_divider();
   cout << "** User routine RESONANCE POTENTIAL initialized";
-  if (usebar) cout << " using bar";
-  else cout << " using satellite";
+
+  cout << " using satellite";
   cout << " with Length=" << LENGTH 
        << ", Mass=" << MASS 
        << ", Mfrac=" << MFRAC 
@@ -237,26 +265,22 @@ void UserResPotN::userinfo()
        << ", L=" << L0
        << ", M=" << M0
        << ", Klim=" << Klim
-       << ", model=" << model_file;
-  if (self)  cout << ", with self-consistent slow down";
-  else if (fileomega.size())
-    cout << ", using table <" << fileomega << "> for Omega(t)";
-  else {
-    if (dtom>0) cout << ", T_om=" << tom0 << ", dT_om=" << dtom;
-    cout << ", Domega=" << domega;
-  }
+       << ", model=" << model_file
+       << ", orbit=" << data_file;
+
   if (usetag>=0)
     cout << ", with bad value tagging";
   for (int ir=0; ir<numRes; ir++)
     cout << ", (l_1,l_2)_" << ir << "=(" << L1[ir] << "," << L2[ir] << ")";
   cout << ", ITMAX=" << ITMAX;
+
   if (pmass>0.0) cout << ", using two-body diffusion with logL=5.7 and mass=" 
 		      << pmass;
   cout << endl;
   print_divider();
 }
 
-void UserResPotN::initialize()
+void UserResPotOrb::initialize()
 {
   string val;
 
@@ -280,7 +304,7 @@ void UserResPotN::initialize()
   }
 
   if (L1.size() != L2.size() || numRes != (int)L1.size()) {
-    cerr << "UserResPotN: error parsing resonances, "
+    cerr << "UserResPotOrb: error parsing resonances, "
 	 << "  Size(L1)=" << L1.size() << "  Size(L2)=" << L2.size() 
 	 << "  numRes=" << numRes << endl;
     MPI_Abort(MPI_COMM_WORLD, 119);
@@ -294,7 +318,6 @@ void UserResPotN::initialize()
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
-  if (get_value("phase0", val))   phase0 = atof(val.c_str());
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
   if (get_value("MFRAC", val))    MFRAC = atof(val.c_str());
@@ -313,33 +336,32 @@ void UserResPotN::initialize()
   if (get_value("DELB", val))     DELB = atof(val.c_str());
   if (get_value("ALPHA", val))    ALPHA = atof(val.c_str());
   
-  if (get_value("self", val))     self = atoi(val.c_str());
-  if (get_value("domega", val))   domega = atof(val.c_str());
-  if (get_value("tom0", val))     tom0 = atof(val.c_str());
-  if (get_value("dtom", val))     dtom = atof(val.c_str());
-
   if (get_value("pmass", val))    pmass = atof(val.c_str());
 
-
   if (get_value("model", val))    model_file = val;
+  if (get_value("data", val))     data_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
-  if (get_value("fileomega", val))	fileomega = val;
   if (get_value("debug",val))	  debug = atoi(val.c_str()) ? true : false;
-  if (get_value("usetag", val))   usetag = atoi(val.c_str());
-  if (get_value("usebar", val))   
-    {
-      usebar = atoi(val.c_str()) ? true  : false;
-      useorb = atoi(val.c_str()) ? false : true;
-    }
-  if (get_value("useorb", val))   
-    {
-      useorb = atoi(val.c_str()) ? true  : false;
-      usebar = atoi(val.c_str()) ? false : true;
-    }
 }
 
-double UserResPotN::get_omega(double t)
+double UserResPotOrb::get_radius(double t)
+{
+  if (t<Time.front()) return Radius.front();
+  if (t>Time.back())  return Radius.back();
+
+  return odd2(t, Time, Radius, 0);
+}
+
+double UserResPotOrb::get_phase(double t)
+{
+  if (t<Time.front()) return Phase.front();
+  if (t>Time.back())  return Phase.back();
+
+  return odd2(t, Time, Phase, 0);
+}
+
+double UserResPotOrb::get_omega(double t)
 {
   if (t<Time.front()) return Omega.front();
   if (t>Time.back())  return Omega.back();
@@ -348,7 +370,7 @@ double UserResPotN::get_omega(double t)
 }
 
 
-void UserResPotN::determine_acceleration_and_potential(void)
+void UserResPotOrb::determine_acceleration_and_potential(void)
 {
 
   if (first) {
@@ -365,7 +387,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 				// Open new output stream for writing
 	ofstream out(filename.c_str());
 	if (!out) {
-	  cout << "UserResPotN: error opening new log file <" 
+	  cout << "UserResPotOrb: error opening new log file <" 
 	       << filename << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
@@ -374,7 +396,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 				// Open old file for reading
 	ifstream in(backupfile.c_str());
 	if (!in) {
-	  cout << "UserResPotN: error opening original log file <" 
+	  cout << "UserResPotOrb: error opening original log file <" 
 	       << backupfile << "> for reading\n";
 	  MPI_Abort(MPI_COMM_WORLD, 122);
 	  exit(0);
@@ -401,8 +423,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 	    if (tlast1 >= tpos) {
 	      if (firstline) {
-		cerr << "UserResPotN: can't read log file, aborting" << endl;
-		cerr << "UserResPotN: line=" << line << endl;
+		cerr << "UserResPotOrb: can't read log file, aborting" << endl;
+		cerr << "UserResPotOrb: line=" << line << endl;
 		MPI_Abort(MPI_COMM_WORLD, 123);
 	      }
 	      break;
@@ -443,8 +465,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	  olab << "dOmega(" << L1[ir] << "," << L2[ir] << ")";
 	  out << setw(15) << olab.str().c_str();
 	}
-	for (int j=1; j<ResPot::NumDesc; j++)
-	  out << setw(15) << ResPot::ReturnDesc[j];
+	for (int j=1; j<ResPotOrb::NumDesc; j++)
+	  out << setw(15) << ResPotOrb::ReturnDesc[j];
 	out << endl;
 
 	char c = out.fill('-');
@@ -456,28 +478,26 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	    << "| " << setw(13) << ncnt++;
 	for (int ir=0; ir<numRes; ir++)
 	  out << "| " << setw(13) << ncnt++;
-      	for (int j=1; j<ResPot::NumDesc; j++)
+      	for (int j=1; j<ResPotOrb::NumDesc; j++)
 	  out << "| " << setw(13) << ncnt++;
 	out << endl;
 	out.fill(c);
       }
       
-      phase = phase0;	// Initial phase 
     }
 
-				// Do next for every time except the first
-				// ----------------------------------------
-  } else {			// Trapezoidal rule integration
-    phase += (tnow - tlast)*0.5*(omega + omlast);
   }
 
 				// Store current state
   tlast = tnow;
   omlast = omega;
 
+  phase = get_phase(tnow);
+  omega = get_omega(tnow);
+
 				// Clear bounds counter
   for (int n=0; n<nthrds; n++) {
-    for (int j=0; j<ResPot::NumDesc-1; j++) bcount[n][j] = 0;
+    for (int j=0; j<ResPotOrb::NumDesc-1; j++) bcount[n][j] = 0;
   }
 
 				// Clear difLz array
@@ -500,11 +520,11 @@ void UserResPotN::determine_acceleration_and_potential(void)
   // -----------------------------------------------------------
 
 				// Get total number out of bounds
-  for (int j=0; j<ResPot::NumDesc-1; j++) {
+  for (int j=0; j<ResPotOrb::NumDesc-1; j++) {
     for (int n=1; n<nthrds; n++)  bcount[0][j] += bcount[n][j];
     btotn[j] = 0;
   }
-  MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPot::NumDesc-1, 
+  MPI_Reduce(&(bcount[0][0]), &btotn[0], ResPotOrb::NumDesc-1, 
 	     MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Get total change in angular momentum
@@ -518,21 +538,11 @@ void UserResPotN::determine_acceleration_and_potential(void)
   double difLzT = 0.0;
   for (int ir=0; ir<numRes; ir++) difLzT += difLz0[ir];
 
-  if (self)
-    omega -= difLzT/Iz;
-  else if (fileomega.size())
-    omega = get_omega(tnow);
-  else {
-    if (dtom>0.0)
-      omega = omega0*(1.0 + domega*0.5*(1.0 + erf( (tnow - tom0)/dtom )));
-    else
-      omega = omega0*(1.0 + domega*(tnow - tom0*0.5));
-  }
-
+  omega = get_omega(tnow);
 				// Write diagnostic log
   if (myid==0) {
     int btot=0;
-    for (int j=0; j<ResPot::NumDesc-1; j++) btot += btotn[j];
+    for (int j=0; j<ResPotOrb::NumDesc-1; j++) btot += btotn[j];
     ofstream out(filename.c_str(), ios::out | ios::app);
     out.setf(ios::left);
     out << setw(15) << tnow
@@ -541,7 +551,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 	<< setw(15) << -difLzT/Iz
 	<< setw(15) << btot;
     for (int ir=0; ir<numRes; ir++) out << setw(15) << -difLz0[ir]/Iz;
-    for (int j=0; j<ResPot::NumDesc-1; j++)
+    for (int j=0; j<ResPotOrb::NumDesc-1; j++)
       out << setw(15) << btotn[j];
     out << endl;
   }
@@ -550,7 +560,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
 }
 
 
-void * UserResPotN::determine_acceleration_and_potential_thread(void * arg) 
+void * UserResPotOrb::determine_acceleration_and_potential_thread(void * arg) 
 {
   double amp, R0, R1;
   double posI[3], posO[3], velI[3], velO[3], vdif[3], Lz0, Lz1;
@@ -565,6 +575,10 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
   
+  double rsat = get_radius(tnow);
+  double phase = get_phase(tnow);
+  double omega = get_omega(tnow);
+
   vector<double> Phase(3);
   Phase[0] = phase;
   Phase[1] = phase + omega*0.5*dtime;
@@ -574,13 +588,13 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 				// eventually)
   bool updated;
   bool found_nan = false;
-  ResPot::ReturnCode ret;
+  ResPotOrb::ReturnCode ret;
   double dpot;
   int ir;
 
   for (int i=nbeg; i<nend; i++) {
 
-    ret = ResPot::OK;		// Reset error flags
+    ret = ResPotOrb::OK;		// Reset error flags
     updated = false;
 
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;
@@ -602,7 +616,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     ir = i % numRes;
       
     if ((ret=respot[ir]-> 
-	 Update(dtime, Phase, amp, posI, velI, posO, velO)) == ResPot::OK) {
+	 Update(dtime, Phase, rsat, amp, posI, velI, posO, velO)) == ResPotOrb::OK) {
 	
 				// Apply two-body diffusion
       if (pmass>0.0) {
@@ -636,7 +650,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
     if (!updated) {
 				// Try zero amplitude update
       if ((ret=respot[ir]-> 
-	   Update(dtime, Phase, 0.0, posI, velI, posO, velO)) != ResPot::OK) {
+	   Update(dtime, Phase, rsat, 0.0, posI, velI, posO, velO)) != ResPotOrb::OK) {
 	
 	dpot = halo_model->get_dpot(R0);
 	for (int k=0; k<3; k++) {
@@ -704,18 +718,18 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 
 
 extern "C" {
-  ExternalForce *makerResPotN(string& line)
+  ExternalForce *makerResPotOrb(string& line)
   {
-    return new UserResPotN(line);
+    return new UserResPotOrb(line);
   }
 }
 
-class proxyN { 
+class proxyrporb { 
 public:
-  proxyN()
+  proxyrporb()
   {
-    factory["userrespot2"] = makerResPotN;
+    factory["userrespotorb"] = makerResPotOrb;
   }
 };
 
-static proxyN p;
+static proxyrporb p;
