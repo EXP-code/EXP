@@ -56,9 +56,7 @@ UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
   DELB = 0.001;			// Offset in Beta
   ALPHA = 0.25;			// Power law index for J distribution
 
-  MASS = -1.0;			// Bar mass
-  MFRAC = 0.05;			// Fraction of enclosed mass
-  LENGTH = 0.067;		// Bar length
+  MASS = 0.05;			// Satellite mass
   AMP = 1.0;			// Mass prefactor
   COROT = 10;			// Corotation factor
   A21 = 0.2;			// Major to semi-minor ratio
@@ -159,11 +157,9 @@ UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
   SphericalModelTable *hm = new SphericalModelTable(model_file);
   halo_model = hm;
 
-				// Perturbation
-  if (MASS < 0.0) MASS = hm->get_mass(LENGTH);
-
+  double r = get_radius(tnow);
   omega = get_omega(tnow);
-  Iz = MASS*LENGTH*LENGTH*omega;
+  Iz = MASS*r*r*omega;
 
   ResPotOrb::NUMX = NUMX;
   ResPotOrb::NUME = NUME;
@@ -251,9 +247,7 @@ void UserResPotOrb::userinfo()
   cout << "** User routine RESONANCE POTENTIAL initialized";
 
   cout << " using satellite";
-  cout << " with Length=" << LENGTH 
-       << ", Mass=" << MASS 
-       << ", Mfrac=" << MFRAC 
+  cout << " with Mass=" << MASS 
        << ", Amp=" << AMP
        << ", Iz=" << Iz
        << ", Omega=" << omega 
@@ -320,8 +314,6 @@ void UserResPotOrb::initialize()
   if (get_value("toffset", val))  toffset = atof(val.c_str());
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
-  if (get_value("MFRAC", val))    MFRAC = atof(val.c_str());
-  if (get_value("LENGTH", val))   LENGTH = atof(val.c_str());
   if (get_value("AMP", val))      AMP = atof(val.c_str());
   if (get_value("COROT", val))    COROT = atof(val.c_str());
   if (get_value("A21", val))      A21 = atof(val.c_str());
