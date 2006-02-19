@@ -199,6 +199,7 @@ void ResPotOrb::compute_grid()
       
       // Energy deriv
       orb->new_orbit(Ep, K);
+      grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Ep.push_back(
 			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
@@ -208,6 +209,7 @@ void ResPotOrb::compute_grid()
       rw.dJm = orb->Jmax();
       
       orb->new_orbit(Em, K);
+      grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Em.push_back(
 			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
@@ -217,6 +219,7 @@ void ResPotOrb::compute_grid()
       
       // Kappa deriv
       orb->new_orbit(E, Kp);
+      grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Kp.push_back(
 			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
@@ -225,6 +228,7 @@ void ResPotOrb::compute_grid()
       }
 
       orb->new_orbit(E, Km);
+      grid = orb->get_angle_grid();
       for (int j=0; j<grid->num; j++) {
 	rw.ff_Km.push_back(
 			   Gkn.weight(j+1)*grid->dw1dt[1][j]*
@@ -704,38 +708,35 @@ bool ResPotOrb::getValues(double rsat, double I1, double I2,
       for (int i=0; i<ngrid; i++) {
 
 	if (rw->r[i]>rsat)
-	  W += rw->ff[i]*AMPLITUDE*pow(rw->r[i]/rsat, -(1.0+L));
+	  W += rw->ff[i]*pow(rw->r[i]/rsat, -(1.0+L));
 	else
-	  W += rw->ff[i]*AMPLITUDE*pow(rw->r[i]/rsat, L);
+	  W += rw->ff[i]*pow(rw->r[i]/rsat, L);
 
 	if (rw->r_Ep[i]>rsat)
-	  dWE += rw->ff_Ep[i]*AMPLITUDE*pow(rw->r_Ep[i]/rsat, -(1.0+L));
+	  dWE += rw->ff_Ep[i]*pow(rw->r_Ep[i]/rsat, -(1.0+L));
 	else
-	  dWE += rw->ff_Ep[i]*AMPLITUDE*pow(rw->r_Ep[i]/rsat, L);
+	  dWE += rw->ff_Ep[i]*pow(rw->r_Ep[i]/rsat, L);
 
 	if (rw->r_Em[i]>rsat)
-	  dWE -= rw->ff_Ep[i]*AMPLITUDE*pow(rw->r_Em[i]/rsat, -(1.0+L));
+	  dWE -= rw->ff_Em[i]*pow(rw->r_Em[i]/rsat, -(1.0+L));
 	else
-	  dWE -= rw->ff_Em[i]*AMPLITUDE*pow(rw->r_Em[i]/rsat, L);
+	  dWE -= rw->ff_Em[i]*pow(rw->r_Em[i]/rsat, L);
 
 
 	if (rw->r_Kp[i]>rsat)
-	  dWK += rw->ff_Kp[i]*AMPLITUDE*pow(rw->r_Kp[i]/rsat, -(1.0+L));
+	  dWK += rw->ff_Kp[i]*pow(rw->r_Kp[i]/rsat, -(1.0+L));
 	else
-	  dWK += rw->ff_Kp[i]*AMPLITUDE*pow(rw->r_Kp[i]/rsat, L);
+	  dWK += rw->ff_Kp[i]*pow(rw->r_Kp[i]/rsat, L);
 
 	if (rw->r_Km[i]>rsat)
-	  dWK -= rw->ff_Km[i]*AMPLITUDE*pow(rw->r_Km[i]/rsat, -(1.0+L));
+	  dWK -= rw->ff_Km[i]*pow(rw->r_Km[i]/rsat, -(1.0+L));
 	else
-	  dWK -= rw->ff_Km[i]*AMPLITUDE*pow(rw->r_Km[i]/rsat, L);
+	  dWK -= rw->ff_Km[i]*pow(rw->r_Km[i]/rsat, L);
       }
   
-      dWE /= delE;
-      dWK /= delK;
-
-      Ul +=    fac * W;
-      dUldE += fac * dWE;
-      dUldK += fac * dWK;
+      Ul +=    fac * W   * AMPLITUDE;
+      dUldE += fac * dWE * AMPLITUDE/delE;
+      dUldK += fac * dWK * AMPLITUDE/delK;
     }
   }
   

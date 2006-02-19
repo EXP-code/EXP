@@ -525,7 +525,9 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
   double difLzT = 0.0;
   for (int ir=0; ir<numRes; ir++) difLzT += difLz0[ir];
 
+  double r = get_radius(tnow);
   omega = get_omega(tnow);
+  Iz = MASS*r*r*omega;
 				// Write diagnostic log
   if (myid==0) {
     int btot=0;
