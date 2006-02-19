@@ -117,6 +117,8 @@ void ExternalCollection::dynamicload(void)
 
   void *dlib; 
   char name[1024];
+  bool first = true
+;
   while(fgets(in_buf, BUF_SIZE, dl)) {
 				// trim off the whitespace 
     char *ws = strpbrk(in_buf, " \t\n"); 
@@ -130,8 +132,13 @@ void ExternalCollection::dynamicload(void)
       exit(-1);
     }
 
-    if (myid==0) cout << " " << in_buf;
-    
+    if (myid==0) {
+      if (first) {
+	cout << " " << in_buf;
+	first = false;
+      } else 
+	cout << " " << in_buf;
+    }
 				// add the handle to our list
     dl_list.insert(dl_list.end(), dlib);
   }
@@ -139,14 +146,21 @@ void ExternalCollection::dynamicload(void)
   if (myid==0) {
     cout << " >" << endl;
     cout << "ExternalCollection: Available user routines are <";
-    for (fitr=factory.begin(); fitr!=factory.end(); fitr++)
-      cout << " " << fitr->first;
+    first = true;
+    for (fitr=factory.begin(); fitr!=factory.end(); fitr++) {
+      if (first) {
+	cout << fitr->first;
+	first = false;
+      } else
+	cout << " " << fitr->first;
+    }
+
     cout << ">" << endl << endl;
   }
 }
 
 void ExternalCollection::bomb(string& msg)
-{
+  {
   cerr << "ExternalCollection: " << msg << endl;
   exit(-1);
 }

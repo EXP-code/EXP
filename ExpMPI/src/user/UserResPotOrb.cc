@@ -510,12 +510,7 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
   // Compute the mapping
   // -----------------------------------------------------------
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  cout << "Process " << myid << ": before exp_thread_fork\n";
-
   exp_thread_fork(false);
-
-  cout << "Process " << myid << ": returned from exp_thread_fork\n";
 
   // -----------------------------------------------------------
 
