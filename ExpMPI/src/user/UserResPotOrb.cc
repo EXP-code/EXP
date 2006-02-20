@@ -39,13 +39,10 @@ UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
   L0 = 2;
   M0 = 2;
   Klim = 1.0;
-  scale = 0.067;
-  drfac = 0.05;
 
   ton = -20.0;			// Turn on time
   toff = 1.0e20;		// Turn off time
   delta = 1.0;			// Turn on duration
-  toffset = 0.0;		// Time offset for orbit
 
   NUMX = 400;			// Points in Ang mom grid
   NUME = 200;			// Points in Energy
@@ -58,9 +55,6 @@ UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
 
   MASS = 0.05;			// Satellite mass
   AMP = 1.0;			// Mass prefactor
-  COROT = 10;			// Corotation factor
-  A21 = 0.2;			// Major to semi-minor ratio
-  A32 = 0.05;			// Semi-minor to minor ratio
 
   first = true;
   debug = false;		// Diagnostic output
@@ -251,8 +245,6 @@ void UserResPotOrb::userinfo()
        << ", Amp=" << AMP
        << ", Iz=" << Iz
        << ", Omega=" << omega 
-       << ", b/a=" << A21
-       << ", c/b=" << A32
        << ", Ton=" << ton
        << ", Toff=" << toff
        << ", Delta=" << delta
@@ -305,13 +297,10 @@ void UserResPotOrb::initialize()
   }
 
   if (get_value("Klim", val))     Klim = atof(val.c_str());
-  if (get_value("scale", val))    scale = atof(val.c_str());
-  if (get_value("drfac", val))    drfac = atof(val.c_str());
 
   if (get_value("ton", val))      ton = atof(val.c_str());
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
-  if (get_value("toffset", val))  toffset = atof(val.c_str());
 
   if (get_value("MASS", val))     MASS = atof(val.c_str());
   if (get_value("AMP", val))      AMP = atof(val.c_str());

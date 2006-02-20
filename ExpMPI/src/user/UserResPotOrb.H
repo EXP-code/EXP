@@ -6,10 +6,10 @@
 #include <ResPotOrb.H>
 #include <TwoBodyDiffuse.H>
 
-/** Apply specific component of resonance potential and
-    optionally, the spherical restoring force for a satellite orbit
-    specified a priori.  At each step, the position (and the pattern
-    speed) is computed by table lookup.
+/** Apply specific component of resonance potential and optionally,
+    the spherical restoring force for a satellite orbit specified a
+    priori.  At each step, the position (and the pattern speed) is
+    computed by table lookup; the orbit decay is NOT self consistent.
 
     @param LMAX is the maximum harmonic order
     @param NMAX is the maximum radial order
@@ -19,22 +19,15 @@
     @param M is the "m" index for the resonance
     @param L1 is the "l_1" index for the resonance
     @param L2 is the "l_2" index for the resonance
-    @param scale for coordinate mapping in expansion
-    @param drfac is the relative radial offset for numerical derivatives
     @param ton is the time at the center of the <code>erf</code> turn on
     @param toff is the time at the center of the <code>erf</code> turn off
     @param delta is the spread of the turn on
-    @param toffset is the origin shift for the turn on
-    @param delt is the characteristic width of the frequency change interval
     @param ITMAX is the maximum number of iterations for mapping solution
     @param DELE is the fractional offset in the energy grid
     @param DELK is the offset in the kappa grid
     @param DELB is the offset in the beta grid
     @param MASS of the satellite
-    @param AMP is a mass prefactor (any sign)
-    @param LENGTH of the length
-    @param A21 is the ratio of the submajor axis to the major axis
-    @param A32 is the ratio of the minor axis to the submajor axis
+    @param AMP is a mass prefactor
     @param NUME is the grid in energy space for the force evaluation
     @param NUMK is the grid in kappa space for the force evaluation
     @param pmass is the mass for two-body diffusion (<=0 is off)
@@ -68,7 +61,7 @@ private:
   double ton, toff, delta, toffset, phase0, omega0, omega, Iz;
   
   int LMAX, NMAX, NUMR, L0, M0, usetag;
-  double ALPHA, scale, drfac, Klim;
+  double ALPHA, scale, Klim;
   vector<int> L1, L2;
   int numRes;
   
