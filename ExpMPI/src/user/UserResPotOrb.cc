@@ -15,7 +15,7 @@
 
 #include <pthread.h>  
 
-static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+// static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 
 string respotorb_mpi_id()
 {
@@ -618,7 +618,7 @@ void * UserResPotOrb::determine_acceleration_and_potential_thread(void * arg)
 #ifdef DEBUG
       pthread_mutex_lock(&iolock);
       cout << "Process " << myid << " id=" << id << ":"
-	   << " i=" << myid << " Error=" << ResPot::ReturnDesc[ret] << endl;
+	   << " i=" << myid << " Error=" << ResPotOrb::ReturnDesc[ret] << endl;
       pthread_mutex_unlock(&iolock);
 #endif
     }

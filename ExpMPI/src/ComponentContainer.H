@@ -42,6 +42,7 @@ private:
   bool gottapot;
   double time0;
   int ifile;
+  double *gcom1, *gcov1;
 
 public:
   //! Total number of bodies

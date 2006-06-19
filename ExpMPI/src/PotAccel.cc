@@ -55,6 +55,11 @@ void PotAccel::exp_thread_fork(bool coef)
 	  << ", errcode=" << errcode << endl;
       exit(19);
     }
+#ifdef DEBUG
+    else {
+      cout << "Process " << myid << ": thread <" << i << "> created\n";
+    }
+#endif
   }
     
 				// Collapse the threads

@@ -45,7 +45,13 @@ void begin_run(void)
   // Compute initial accereration  
   //===============================
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": about to compute potential [begin]\n";
+#endif
   comp.compute_potential();
+#ifdef DEBUG
+  cout << "Process " << myid << ": potential computed [begin]\n";
+#endif
 
   //==============================
   // Increment velocity of bodies 

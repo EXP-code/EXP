@@ -22,6 +22,8 @@
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param self if the opposite of <code>fixed</code> included here for consistency with other routines
     @param monopole force is self-consistently computed from Newton's third law (default: true)
+    @param onoff to apply turn-on, turn-off to monopole (default: false)
+    @param monofrac is the fraction of the monopole to turn off (default: 1.0)
     @param soft use the shallow form of the potential (default: false)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
@@ -68,7 +70,8 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  bool fixed, monopole, soft, table;
+  double monopole_frac;
+  bool fixed, monopole, monopole_onoff, soft, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;

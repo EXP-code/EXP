@@ -21,7 +21,7 @@
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
-	       string Logfile) : gen(11, 20), gauss(0.0, 1.0, &gen) 
+	       string Logfile)
 {
   keep = n;
   current = 0;
@@ -33,6 +33,9 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   logfile = Logfile;
   Nlast = 0;
   linear = false;
+				// Random variates
+  gen = new ACG(11, 20);
+  gauss = new Normal (0.0, 1.0, gen);
 
 				// Work vectors
   axis1.setsize(1, 3);
@@ -310,6 +313,9 @@ void Orient::accumulate(double time, Component *c)
   double energy, mass;
   double Emin1= 1.0e20, Emin0= 1.0e20;
   double Emax1=-1.0e20, Emax0=-1.0e20;
+  Normal g = *gauss;	// Seems to be a compiler bug or a C++ feature
+				// that I don't understand
+
 
   angm.clear();
 
@@ -447,7 +453,7 @@ void Orient::accumulate(double time, Component *c)
     dE = (double)(many - used) * Egrad;
 
     if (fabs(dE) <= 1.0e-10)
-      dE = (Ecurr - Emin0)*0.01*gauss();
+      dE = (Ecurr - Emin0)*0.01*g();
 
   }
 
@@ -726,3 +732,9 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
   }
 }
 
+
+Orient::~Orient()
+{
+  delete gauss;
+  delete gen;
+}

@@ -9,6 +9,7 @@
 #include <algorithm>
 
 #include <ACG.h>
+#include <Uniform.h>
 #include <Normal.h>
 
 #include <Vector.h>
@@ -94,8 +95,8 @@ private:
 
   vector<double> pos, psa, vel;
 
-  ACG gen;
-  Normal gauss;
+  ACG *gen;
+  Normal *gauss;
 
   void write_log(double time, double Egrad, double dE, Component *c);
 
@@ -109,6 +110,9 @@ public:
   //! Constructor
   Orient(int number_to_keep, int target, double rinit, 
 	 unsigned orient_flags, unsigned control_flags, string logfile);
+
+  //! Destructor
+  ~Orient();
 
   //! Set initial center (zero by default)
   void set_center(double x, double y, double z) {

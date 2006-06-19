@@ -16,7 +16,7 @@
 
 #include <pthread.h>  
 // #ifdef DEBUG
-static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+// static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 // #endif
 
 UserResPotN::UserResPotN(string &line) : ExternalForce(line)

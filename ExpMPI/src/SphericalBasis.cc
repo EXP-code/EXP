@@ -6,6 +6,10 @@
 static char rcsid[] = "$Id$";
 #endif
 
+#ifdef DEBUG
+static pthread_mutex_t io_lock;
+#endif
+
 SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
 {
   dof = 3;
@@ -190,6 +194,9 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   firstime_coef  = true;
   firstime_accel = true;
 
+#ifdef DEBUG
+  pthread_mutex_init(&io_lock, NULL);
+#endif
 }
 
 void SphericalBasis::setup(void)
@@ -238,6 +245,9 @@ void SphericalBasis::check_range()
 
 void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
+#ifdef DEBUG
+  cout << "Process " << myid << ": in get_acceleration_and_potential\n";
+#endif
 				
   cC = C;			// "Register" component
   nbodies = cC->Number();	// And compute number of bodies
@@ -264,7 +274,13 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
   if (firstime_accel || self_consistent) {
     firstime_accel = false;
+#ifdef DEBUG
+  cout << "Process " << myid << ": about to call <determine_coefficients>\n";
+#endif
     determine_coefficients();
+#ifdef DEBUG
+  cout << "Process " << myid << ": exited <determine_coefficients>\n";
+#endif
   }
 
 
@@ -298,6 +314,15 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
 
+#ifdef DEBUG
+  pthread_mutex_lock(&io_lock);
+  cout << "Process " << myid 
+       << ", " << id
+       << ": in determine_coefficients_thread"
+       << ", rmax=" << rmax << endl;
+  pthread_mutex_unlock(&io_lock);
+#endif
+				
 				// Compute potential using a 
 				// subset of particles
   if (subset) nend = (int)floor(ssfrac*nend);
@@ -379,6 +404,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	}
       }
     }
+
   }
 
   return (NULL);
@@ -411,8 +437,15 @@ void SphericalBasis::determine_coefficients(void)
   use1 = 0;
   used = 0;
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": in <determine_coefficients>, about to thread\n";
+#endif
+
   exp_thread_fork(true);
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": in <determine_coefficients>, thread returned\n";
+#endif
   for (i=0; i<nthrds; i++) {
     use1 += use[i];
     for (l=0; l<=Lmax*(Lmax+2); l++)
@@ -487,10 +520,23 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   double pos[3];
   double xx, yy, zz;
 
+#ifdef DEBUG
+  pthread_mutex_lock(&io_lock);
+  cout << "Process " << myid << ": in thread\n";
+  pthread_mutex_unlock(&io_lock);
+#endif
+
   unsigned  nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+#ifdef DEBUG
+  pthread_mutex_lock(&io_lock);
+  cout << "id=" << id << " nbeg=" << nbeg << " nend=" << nend << endl;
+  pthread_mutex_unlock(&io_lock);
+#endif
+
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -618,6 +664,10 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
 void SphericalBasis::determine_acceleration_and_potential(void)
 {
+#ifdef DEBUG
+  cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
+#endif
+
 #ifdef MPE_PROFILE
   MPE_Log_event(11, myid, "b_compute_force");
 #endif

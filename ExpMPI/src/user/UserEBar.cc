@@ -26,6 +26,9 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
+  monopole_onoff = false;	// To apply turn-on and turn-off to monopole
+  monopole_frac = 1.0;		// Fraction of monopole to turn off
+
 				// Output file name
   filename = outdir + "BarRot." + runtag;
 
@@ -170,8 +173,13 @@ void UserEBar::userinfo()
     cout << "initial pattern speed to be computed, ";
   else
     cout << "initial pattern speed " << omega0 << ", ";
-  if (monopole)
-    cout << "using monopole, ";
+  if (monopole) {
+    if (monopole_onoff)
+      cout << "using monopole with turn-on/off with fraction=" 
+	   << monopole_frac << ", ";
+    else
+      cout << "using monopole, ";
+  }
   else
     cout << "without monopole, ";
   if (soft)
@@ -217,6 +225,8 @@ void UserEBar::initialize()
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
+  if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
+  if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
 
 }
@@ -286,6 +296,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 
     double u, d, t, denom, ans1=0.0, ans2=0.0;
     double mass = barmass * fabs(amplitude);
+
     for (int i=1; i<=N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
@@ -528,9 +539,12 @@ void UserEBar::determine_acceleration_and_potential(void)
 	out << setw(15) << Lz
 	    << setw(15) << 0.0;
 
-      out << setw(15) << amplitude/fabs(amplitude) *  
-	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
+      if (amplitude==0.0)
+	out << setw(15) <<  0.0;
+      else
+	out << setw(15) << amplitude/fabs(amplitude) *  
+	  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
+	  0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
 
       for (int k=0; k<3; k++) out << setw(15) << bps[k];
       for (int k=0; k<3; k++) out << setw(15) << vel[k];
@@ -555,6 +569,13 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
+  double fraction = 
+    0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
+    0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+
+  double fonoff = 
+    (1.0 - monopole_frac) + monopole_frac*fraction;
+
   if (table) {
     if (tvel<timeq[0]) {
       afac = ampq[0];
@@ -568,9 +589,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     }
   }
 
-  if (fabs(amplitude)>0.0) amp = afac * amplitude/fabs(amplitude) 
-			     * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
-			     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  if (amplitude==0.0) 
+    amp = 0.0;
+  else
+    amp = afac * amplitude/fabs(amplitude) * fraction;
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -620,6 +642,8 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
     if (monopole) {
 
       M0 = ellip->getMass(rr);
+
+      if (monopole_onoff) M0 *= fonoff;
 
       for (int k=0; k<3; k++) {
 				// Add monopole acceleration

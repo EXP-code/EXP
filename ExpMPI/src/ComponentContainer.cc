@@ -17,6 +17,8 @@ static char rcsid[] = "$Id$";
 ComponentContainer::ComponentContainer(void)
 {
   gottapot = false;
+  gcom1 = new double [3];
+  gcov1 = new double [3];
 }
 
 void ComponentContainer::initialize(void)
@@ -236,10 +238,18 @@ void ComponentContainer::compute_potential(void)
   vector<Particle>::iterator p, pend;
 
   
+#ifdef DEBUG
+  cout << "Process " << myid << ": entered <compute_potential>\n";
+#endif
+
   //
   // Compute new center
   //
   fix_positions();
+
+#ifdef DEBUG
+  cout << "Process " << myid << ": returned from <fix_positions>\n";
+#endif
 
   //
   // Recompute global com
@@ -250,6 +260,9 @@ void ComponentContainer::compute_potential(void)
     for (int k=0; k<3; k++) gcom[k] += c->com[k];
   }
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": gcom computed\n";
+#endif
 
   //
   // Compute accel for each component
@@ -269,8 +282,15 @@ void ComponentContainer::compute_potential(void)
 
 				// Compute new accelerations and potential
 
+#ifdef DEBUG
+    cout << "Process " << myid << ": about to call force <"
+	 << c->id << ">\n";
+#endif
     c->force->get_acceleration_and_potential(c);
-  
+#ifdef DEBUG
+    cout << "Process " << myid << ": force <"
+	 << c->id << "> done\n";
+#endif
   }
       
 
@@ -379,8 +399,6 @@ void ComponentContainer::fix_acceleration(void)
 void ComponentContainer::fix_positions(void)
 {
   double mtot1, mtot0;
-  double *gcom1 = new double [3];
-  double *gcov1 = new double [3];
   MPI_Status status;
 
   mtot = mtot1 = 0.0;
@@ -429,9 +447,6 @@ void ComponentContainer::fix_positions(void)
       }
     }
   }
-
-  delete [] gcom1;
-  delete [] gcov1;
 
 }
 

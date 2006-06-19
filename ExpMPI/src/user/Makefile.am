@@ -9,7 +9,7 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
 
 libdir = $(prefix)/lib/user
 
-bin_PROGRAMS = testcoord
+# bin_PROGRAMS = testcoord
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
@@ -69,7 +69,7 @@ librptest_la_LIBADD = libcommon.a
 #
 # Test routine
 #
-testcoord_SOURCES = testcoord.cc getkey.c
-testcoord_LDADD = libcommon.a
-# testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -lstdc++ -llammpi++ -lmpi
-testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -llammpi++ -lmpi
+# testcoord_SOURCES = testcoord.cc getkey.c
+# testcoord_LDADD = libcommon.a
+# testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -lstdc++ -lmpi_cxx -lmpi
+# testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lmpi_cxx -lmpi
