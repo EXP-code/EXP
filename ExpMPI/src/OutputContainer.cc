@@ -84,7 +84,14 @@ void OutputContainer::Run(int n, bool final)
   list<Output*>::iterator it;
   for (it=out.begin(); it != out.end(); it++) (*it)->Run(n, final);
   if (myid==0) {
+#ifdef DEBUG
+    cout << setw(60) << setfill('=') << "=" << endl
+	 << "====== Step " << n << endl
+	 << setw(60) << setfill('=') << "=" << endl
+	 << setfill(' ');
+#else
     cout << "." << n << flush;
+#endif
     if (final) cout << "\n";
   }
 }
