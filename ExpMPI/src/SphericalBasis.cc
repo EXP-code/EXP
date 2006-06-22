@@ -344,7 +344,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
       
-    if (r<=rmax) {
+    // if (r<=rmax) {
+    if (r<rmax) {
       use[id]++;
       costh = zz/r;
       phi = atan2(yy,xx);
