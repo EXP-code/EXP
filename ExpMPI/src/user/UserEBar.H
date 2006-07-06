@@ -13,9 +13,14 @@
     @param cratio is the ratio of the minor axis to the submajor axis
     @param amp is the bar amplitude in fraction of the monopole mass
     @param barmass is the total mass of bar (monopole part)
-    @param Ton is the time at the center of the <code>erf</code> turn on
-    @param Toff is the time at the center of the <code>erf</code> turn off
+    @param Ton is the time at the center of the <code>erf</code> turn on for the quadrupole
+    @param Toff is the time at the center of the <code>erf</code> turn off for the quadrupole
     @param DeltaT is the spread of the turn on
+    @param TmonoOn is the time at the center of the <code>erf</code> turn on
+    for the monopole
+    @param TmonoOff is the time at the center of the <code>erf</code> turn off
+    for the quadrupole
+    @param DeltaMonoT is the spread of the turn on for the quadrupole
     @param tom0 is the midpoint of forced bar slow down
     @param dtom is the width of forced bar slow down (>0 for erf)
     @param Fcorot is fraction of the length relative to the corotation radius
@@ -24,6 +29,7 @@
     @param monopole force is self-consistently computed from Newton's third law (default: true)
     @param onoff to apply turn-on, turn-off to monopole (default: false)
     @param monofrac is the fraction of the monopole to turn off (default: 1.0)
+    @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
     @param soft use the shallow form of the potential (default: false)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
@@ -70,7 +76,8 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  double monopole_frac;
+  double TmonoOn, TmonoOff, DeltaMonoT;
+  double monopole_frac, quadrupole_frac;
   bool fixed, monopole, monopole_onoff, soft, table;
   string filename;
 

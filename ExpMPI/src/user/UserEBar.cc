@@ -16,7 +16,10 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   barmass = 1.0;		// Total bar mass
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
+  TmonoOn = -20.0;		// Turn on start time for monopole
+  TmonoOff = 200.0;		// Turn off start time monopole
   DeltaT = 1.0;			// Turn on duration
+  DeltaMonoT = 1.0;		// Turn on duration for monopole
   DOmega = 0.0;			// Change in pattern speed
   tom0 = 1.0;			// Midpoint of forced bar slow down
   dtom = -1.0;			// Width of forced bar slow down
@@ -28,6 +31,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   monopole = true;		// Use the monopole part of the potential
   monopole_onoff = false;	// To apply turn-on and turn-off to monopole
   monopole_frac = 1.0;		// Fraction of monopole to turn off
+  quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
 
 				// Output file name
   filename = outdir + "BarRot." + runtag;
@@ -173,10 +177,15 @@ void UserEBar::userinfo()
     cout << "initial pattern speed to be computed, ";
   else
     cout << "initial pattern speed " << omega0 << ", ";
+  cout << "quadrupole fraction=" << quadrupole_frac
+       << ", Ton=" << Ton << ", Toff=" << Toff << ", DeltaT=" << DeltaT 
+       << ", ";
   if (monopole) {
     if (monopole_onoff)
       cout << "using monopole with turn-on/off with fraction=" 
-	   << monopole_frac << ", ";
+	   << monopole_frac << ", TmonoOn=" << TmonoOn
+	   << ", TmonoOff=" << TmonoOff << ", DeltaMonoT=" << DeltaMonoT
+	   << ", ";
     else
       cout << "using monopole, ";
   }
@@ -214,7 +223,10 @@ void UserEBar::initialize()
   if (get_value("barmass", val))	barmass = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
+  if (get_value("TmonoOn", val))	TmonoOn = atof(val.c_str());
+  if (get_value("TmonoOff", val))	TmonoOff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
+  if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
   if (get_value("DOmega", val))		DOmega = atof(val.c_str());
   if (get_value("tom0", val))     	tom0 = atof(val.c_str());
   if (get_value("dtom", val))     	dtom = atof(val.c_str());
@@ -227,6 +239,7 @@ void UserEBar::initialize()
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
+  if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
 
 }
@@ -569,12 +582,19 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  double fraction = 
-    0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-    0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  double fraction_on =   0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) ;
 
-  double fonoff = 
-    (1.0 - monopole_frac) + monopole_frac*fraction;
+  double fraction_off =  0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+
+  double quad_onoff = fraction_on*( (1.0 - quadrupole_frac) +
+				    quadrupole_frac * fraction_off );
+
+  double mono_fraction = 
+    0.5*(1.0 + erf( (tvel - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tvel - TmonoOff)/DeltaMonoT )) ;
+
+  double mono_onoff = 
+    (1.0 - monopole_frac) + monopole_frac*mono_fraction;
 
   if (table) {
     if (tvel<timeq[0]) {
@@ -592,7 +612,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   if (amplitude==0.0) 
     amp = 0.0;
   else
-    amp = afac * amplitude/fabs(amplitude) * fraction;
+    amp = afac * amplitude/fabs(amplitude) * quad_onoff;
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -643,7 +663,7 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
       M0 = ellip->getMass(rr);
 
-      if (monopole_onoff) M0 *= fonoff;
+      if (monopole_onoff) M0 *= mono_onoff;
 
       for (int k=0; k<3; k++) {
 				// Add monopole acceleration
