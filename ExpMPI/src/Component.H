@@ -421,7 +421,7 @@ public:
   void get_angmom(void);
 
   //! Adiabatic turn on factor, range in [0, 1]
-  double Component::Adiabatic(void);
+  double Adiabatic(void);
 
   //! Is particle out of bounds?
   bool freeze(const Particle&);

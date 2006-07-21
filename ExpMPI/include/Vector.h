@@ -2,11 +2,6 @@
 
 #define _Vector_h 1
 
-#ifdef __GNUG__
-#pragma interface
-#endif
-
-// #include <stdio.h>
 #include <math.h>
 #include <iostream>
 #include <fstream>

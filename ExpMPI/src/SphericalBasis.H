@@ -94,7 +94,7 @@ public:
   SphericalBasis(const SphericalBasis& p);
 
   //! Destructor
-  SphericalBasis::~SphericalBasis();
+  ~SphericalBasis();
   
   //! Required member to compute accelration and potential
   /** This implemenation should be fine for most cases */

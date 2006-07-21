@@ -24,7 +24,12 @@ using namespace std;
 #include <dmalloc.h>
 #endif
 
-#include <f2c.h>
+// For fortran call
+// (This should work both 32-bit and 64-bit . . . )
+//
+typedef int	logical;
+typedef double	doublereal;
+typedef int	integer;
 
 MPI_Status status;
 

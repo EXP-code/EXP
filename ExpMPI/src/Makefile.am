@@ -61,7 +61,7 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
 # special case for f77 for now
 
 sledge.o:	sledge.f
-		f77 -O3 -o sledge.o -c sledge.f
+		f77 -g -o sledge.o -c sledge.f
 
 SUBDIRS = user
 

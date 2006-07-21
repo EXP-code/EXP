@@ -9,6 +9,8 @@ void ludcmp(double **, int, int *, double *);
 void lubksb(double **, int, int *, double *);
 
 
+void destroy_Matrix_array(double **ptr, int rl, int rh, int cl, int ch);
+
 Matrix Matrix::Inverse(void)
 {
 	double *col, d, **a;
