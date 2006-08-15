@@ -7,7 +7,7 @@
 
 UserEBarP::UserEBarP(string &line) : ExternalForce(line)
 {
-  id = "RotatingBarWithMonopoleOmega";
+  id = "RotatingBarWithMonopoleOmegaFile";
 
   length = 1.0;			// Bar length
   bratio = 0.5;			// Ratio of b to a
@@ -16,12 +16,19 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   barmass = 1.0;		// Total bar mass
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
+  TmonoOn = -20.0;		// Turn on start time for monopole
+  TmonoOff = 200.0;		// Turn off start time monopole
   DeltaT = 1.0;			// Turn on duration
+  DeltaMonoT = 1.0;		// Turn on duration for monopole
+  DOmega = 0.0;			// Change in pattern speed
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
-  noself = false;		// No not apply monopole to particles
   fileomega = "";		// File containg Omega vs T
+  monopole_onoff = false;	// To apply turn-on and turn-off to monopole
+  monopole_frac = 1.0;		// Fraction of monopole to turn off
+  quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
+
 				// Output file name
   filename = outdir + "BarRot." + runtag;
 
@@ -31,6 +38,8 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   angm_name = "";		// Default component for angular momentum
   table_name = "";		// Default for input b1,b5 table
   
+  ellip = 0;
+
   initialize();
 
   if (ctr_name.size()>0) {
@@ -184,6 +193,7 @@ UserEBarP::~UserEBarP()
 {
   for (int n=0; n<nthrds; n++) delete [] tacc[n];
   delete [] tacc;
+  delete ellip;
 }
 
 void UserEBarP::userinfo()
@@ -193,10 +203,17 @@ void UserEBarP::userinfo()
   print_divider();
 
   cout << "** User routine ROTATING BAR with MONOPOLE initialized, " ;
-  cout << "using table <" << fileomega << "> for Omega(t), ";
+  cout << "prescribed pattern speed from file <" << fileomega << ">, ";
+  cout << "quadrupole fraction=" << quadrupole_frac
+       << ", Ton=" << Ton << ", Toff=" << Toff << ", DeltaT=" << DeltaT 
+       << ", ";
+
   if (monopole) {
-    if (noself)
-      cout << "using monopole without force on particles, ";
+    if (monopole_onoff)
+      cout << "using monopole with turn-on/off with fraction=" 
+	   << monopole_frac << ", TmonoOn=" << TmonoOn
+	   << ", TmonoOff=" << TmonoOff << ", DeltaMonoT=" << DeltaMonoT
+	   << ", ";
     else
       cout << "using monopole, ";
   }
@@ -234,12 +251,16 @@ void UserEBarP::initialize()
   if (get_value("barmass", val))	barmass = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
+  if (get_value("TmonoOn", val))	TmonoOn = atof(val.c_str());
+  if (get_value("TmonoOff", val))	TmonoOff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
-  if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
+  if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
-  if (get_value("noself", val))		noself = atoi(val.c_str()) ? true:false;
   if (get_value("fileomega", val))	fileomega = val;
+  if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
+  if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
+  if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
 
 }
@@ -275,6 +296,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
     double u, d, t, denom, ans1=0.0, ans2=0.0;
     double mass = barmass * fabs(amplitude);
+
     for (int i=1; i<=N; i++) {
       t = 0.5*M_PI*gq.knot(i);
       u = tan(t);
@@ -497,9 +519,12 @@ void UserEBarP::determine_acceleration_and_potential(void)
 	out << setw(15) << Lz
 	    << setw(15) << 0.0;
 
-      out << setw(15) << amplitude/fabs(amplitude) *  
-	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
+      if (amplitude==0.0)
+	out << setw(15) <<  0.0;
+      else
+	out << setw(15) << amplitude/fabs(amplitude) *  
+	  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
+	  0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
 
       for (int k=0; k<3; k++) out << setw(15) << bps[k];
       for (int k=0; k<3; k++) out << setw(15) << vel[k];
@@ -524,6 +549,20 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
+  double fraction_on =   0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) ;
+
+  double fraction_off =  0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+
+  double quad_onoff = fraction_on*( (1.0 - quadrupole_frac) +
+				    quadrupole_frac * fraction_off );
+
+  double mono_fraction = 
+    0.5*(1.0 + erf( (tvel - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tvel - TmonoOff)/DeltaMonoT )) ;
+
+  double mono_onoff = 
+    (1.0 - monopole_frac) + monopole_frac*mono_fraction;
+
   if (table) {
     if (tvel<timeq[0]) {
       afac = ampq[0];
@@ -537,9 +576,10 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
     }
   }
 
-  if (fabs(amplitude)>0.0) amp = afac * amplitude/fabs(amplitude) 
-			     * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
-			     * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  if (amplitude==0.0) 
+    amp = 0.0;
+  else
+    amp = afac * amplitude/fabs(amplitude) * quad_onoff;
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -570,7 +610,7 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
       pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
       nn = pp * pow(rr/b5, 3.0)/(b5*b5);
     }
-
+    
 				// Quadrupole acceleration
     acct[0] = ffac*
       ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
@@ -589,29 +629,19 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
     if (monopole) {
 
       M0 = ellip->getMass(rr);
-
-      if (noself) {
-
-	for (int k=0; k<3; k++) {
-				// Force on bar (via Newton's 3rd law)
-	  tacc[id][k] += -cC->Mass(i) * (acct[k] -
-					      M0*pos[k]/(rr*rr*rr));
-	}
-
-      } else {
-
-	for (int k=0; k<3; k++) {
+      
+      if (monopole_onoff) M0 *= mono_onoff;
+      
+      for (int k=0; k<3; k++) {
 				// Add monopole acceleration
-	  acct[k] += -M0*pos[k]/(rr*rr*rr);
+	acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Force on bar (via Newton's 3rd law)
-	  tacc[id][k] += -cC->Mass(i) * acct[k];
-	}
-
-				// Monopole potential
-	extpot += ellip->getPot(rr);
+	tacc[id][k] += -cC->Mass(i) * acct[k];
       }
 
+				// Monopole potential
+      extpot += ellip->getPot(rr);
     }
 
 				// Add bar acceleration to particle

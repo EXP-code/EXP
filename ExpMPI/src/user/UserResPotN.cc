@@ -198,6 +198,8 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 	}
       }
 
+      omega = omega0 = Omega.front();
+
     } else {
       cout << "UserResPotN could not open <" << fileomega << ">\n";
       MPI_Abort(MPI_COMM_WORLD, 103);

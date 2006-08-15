@@ -13,15 +13,47 @@
     @param cratio is the ratio of the minor axis to the submajor axis
     @param amp is the bar amplitude in fraction of the monopole mass
     @param barmass is the total mass of bar (monopole part)
-    @param Ton is the time at the center of the <code>erf</code> turn on
-    @param Toff is the time at the center of the <code>erf</code> turn off
+    @param Ton is the time at the center of the <code>erf</code> turn on for the quadrupole
+    @param Toff is the time at the center of the <code>erf</code> turn off for the quadrupole
     @param DeltaT is the spread of the turn on
-    @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
+    @param TmonoOn is the time at the center of the <code>erf</code> turn on
+    for the monopole
+    @param TmonoOff is the time at the center of the <code>erf</code> turn off
+    for the quadrupole
+    @param DeltaMonoT is the spread of the turn on for the quadrupole
     @param monopole force is self-consistently computed from Newton's third law (default: true)
+    @param onoff to apply turn-on, turn-off to monopole (default: false)
+    @param monofrac is the fraction of the monopole to turn off (default: 1.0)
+    @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
     @param soft use the shallow form of the potential (default: false)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
+
+    The logic for pattern speed determination is as follows:
+    <ul>
+    <li> By default the pattern speed is determined from the bar length
+    <code>length</code>, <code>Fcorot</code> using the background potential.
+    If <code>omega</code>>0, then this value is used rather than the default
+    one.
+    <li> If <code>fixed</code> is <code>false</code>, then the pattern speed
+    changes are determined self-consistently from the torque
+    <li> if <code>self</code> is <code>true</code> and <code>dtom</code>>0,
+    then the pattern speed is determined as follows:
+
+    \f[
+    \Omega = \Omega_0\left[1 + {\Delta\Omega\over 2}\left\{
+    1+\hbox{erf}\left({t_{now}-T_0\over\delta t_{om}}\right)\right\}\right]
+    \f]
+
+    <li> If <code>self</code> is <code>false</code>, then the pattern speed
+    is determined as follows:
+
+    \f[
+    \Omega = \Omega_0\left[1 + \Delta\Omega(t_{now}-T_0)\right]
+    \f]
+
+    </ul>
 */
 class UserEBarP : public ExternalForce
 {
@@ -38,14 +70,17 @@ private:
   double teval;
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
-  double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT;
-  bool fixed, monopole, soft, table, noself;
+  double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
+  double TmonoOn, TmonoOff, DeltaMonoT;
+  double monopole_frac, quadrupole_frac;
+  bool monopole, monopole_onoff, soft, table;
   string filename, fileomega;
 
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime;
-  double Lz, Lz0, Lzbar, omega, Iz, afac, b5;
+  double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
+  double T0, DOmega, tom0, dtom;
   vector<double> timeq, ampq, b5q;
   vector<double> Time, Omega;
   int qlast;
