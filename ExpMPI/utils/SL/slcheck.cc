@@ -32,9 +32,9 @@ void usage(char *prog)
        << setiosflags(ios::left)
        << setw(40) << "Turn on MPI for SL computation" << endl
        << resetiosflags(ios::left)
-       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " 
+       << setw(15) << "-c or --cmap" << setw(10) << "Yes" << setw(10) << " " 
        << setiosflags(ios::left)
-       << setw(40) << "Use mapped rather than linear coordinates" << endl
+       << setw(40) << "Use mapped rather than linear coordinates (0|1|2)" << endl
        << resetiosflags(ios::left)
        << setw(15) << "-n or --numr" << setw(10) << "Yes" << setw(10) << " " 
        << setiosflags(ios::left)
@@ -65,14 +65,14 @@ int main(int argc, char** argv)
     int option_index = 0;
     static struct option long_options[] = {
       {"mpi", 0, 0, 0},
-      {"cmap", 0, 0, 0},
+      {"cmap", 1, 0, 0},
       {"numr", 1, 0, 0},
       {"dfac", 1, 0, 0},
       {"file", 1, 0, 0},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "cmn:d:i:h",
+    c = getopt_long (argc, argv, "c:mn:d:i:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -85,7 +85,7 @@ int main(int argc, char** argv)
 	if (!optname.compare("mpi")) {
 	  use_mpi = true;
 	} else if (!optname.compare("cmap")) {
-	  cmap = 1;
+	  cmap = atoi(optarg);
 	} else if (!optname.compare("numr")) {
 	  numr = atoi(optarg);
 	} else if (!optname.compare("dfac")) {
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
       break;
 
     case 'c':
-      cmap = 1;
+      cmap = atoi(optarg);
       break;
 
     case 'm':
@@ -180,6 +180,8 @@ int main(int argc, char** argv)
 
 				// Set model file
   SLGridSph::model_file_name = filename;
+
+  cout << "CMAP=" << cmap << endl;
 
 				// Generate Sturm-Liouville grid
   SLGridSph *ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 

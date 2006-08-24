@@ -13,7 +13,8 @@
     \param rmax is the minimum value in the table for the 
     radial basis functions (default is 0.001)
 
-    \param cmap should be 1 for coordinate scaling, 0 for no scaling
+    \param cmap should be 1 for coordinate scaling, 2 for log
+    coordinate scaling, and 0 for no scaling
 
     \param Lmax is maximum order for the harmonic expansion (\f$Y_{lm}\f$)
 

@@ -13,9 +13,15 @@ using namespace std;
 // #define JAFFECYL
 // #define MESTELCYL
 
+#define XOFFSET (1.0e-8)
+
 #include <stdlib.h>
+
 #include <iostream>
+#include <sstream>
+#include <fstream>
 #include <iomanip>
+#include <vector>
 
 #include <SLGridMP2.h>
 #include <massmodel.h>
@@ -538,7 +544,7 @@ double SLGridCyl::get_pot(double x, int m, int n, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
 				// XI grid is same for all k
@@ -567,7 +573,7 @@ double SLGridCyl::get_dens(double x, int m, int n, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
 				// XI grid is same for all k
@@ -597,7 +603,7 @@ double SLGridCyl::get_force(double x, int m, int n, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
 				// XI grid is same for all k
@@ -629,7 +635,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   mat.setsize(0, numk, 1, nmax);
@@ -671,7 +677,7 @@ void SLGridCyl::get_dens(Matrix& mat, double x, int m, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   mat.setsize(0, numk, 1, nmax);
@@ -711,7 +717,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   mat.setsize(0, numk, 1, nmax);
@@ -751,7 +757,7 @@ void SLGridCyl::get_pot(Vector& vec, double x, int m, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   vec.setsize(1, nmax);
@@ -787,7 +793,7 @@ void SLGridCyl::get_dens(Vector& vec, double x, int m, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   vec.setsize(1, nmax);
@@ -825,7 +831,7 @@ void SLGridCyl::get_force(Vector& vec, double x, int m, int k, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   vec.setsize(1, nmax);
@@ -858,7 +864,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   if (mmax < mMax) mMax = mmax;
@@ -919,7 +925,7 @@ void SLGridCyl::get_dens(Matrix* mat, double x, int mMin, int mMax, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   if (mmax < mMax) mMax = mmax;
@@ -966,7 +972,7 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
     x = r_to_xi(x);
   else {
     if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (x>=1.0) x=1.0-XOFFSET;
   }
 
   if (mmax < mMax) mMax = mmax;
@@ -1052,7 +1058,7 @@ void SLGridCyl::compute_table(struct TableCyl* table, int m, int k)
 
   // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
   // pdef[NUM*N];
-  double *t, *rho;
+  double *t=0, *rho=0;
   double *ev = new double [N];
   double *store = new double [26*(NUM+16)];
   double *xef = new double [NUM+16];
@@ -1259,7 +1265,7 @@ void SLGridCyl::compute_table_slave(void)
 
     // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
     // pdef[NUM*N];
-    double *t, *rho;
+    double *t=0, *rho=0;
     double *ev = new double [N];
     double *store = new double [26*(NUM+16)];
     double *xef = new double [NUM+16];
@@ -1766,7 +1772,7 @@ int SLGridSph::read_cached_table(void)
   ifstream in(sph_cache_name.c_str());
   if (!in) return 0;
 
-  int LMAX, NMAX, NUMR, i, j;
+  int LMAX, NMAX, NUMR, i, j, CMAP;
   double RMIN, RMAX, SCL;
 
   cerr << "SLGridSph::read_cached_table: trying to read cached table . . . \n";
@@ -1774,6 +1780,7 @@ int SLGridSph::read_cached_table(void)
   in.read((char *)&LMAX, sizeof(int));		if(!in || LMAX!=lmax) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
   in.read((char *)&NUMR, sizeof(int));		if(!in || NUMR!=numr) return 0;
+  in.read((char *)&CMAP, sizeof(int));		if(!in || CMAP!=cmap) return 0;
   in.read((char *)&RMIN, sizeof(double));	if(!in || RMIN!=rmin) return 0;
   in.read((char *)&RMAX, sizeof(double));	if(!in || RMAX!=rmax) return 0;
   in.read((char *)&SCL, sizeof(double));	if(!in || SCL!=scale) return 0;
@@ -1825,6 +1832,7 @@ void SLGridSph::write_cached_table(void)
   out.write((char *)&lmax, sizeof(int));
   out.write((char *)&nmax, sizeof(int));
   out.write((char *)&numr, sizeof(int));
+  out.write((char *)&cmap, sizeof(int));
   out.write((char *)&rmin, sizeof(double));
   out.write((char *)&rmax, sizeof(double));
   out.write((char *)&scale, sizeof(double));
@@ -1857,11 +1865,13 @@ double SLGridSph::r_to_xi(double r)
 {
   double ret;
 
-  if (cmap) {
+  if (cmap==1) {
     if (r<0.0) bomb("radius < 0!");
     ret =  (r/scale-1.0)/(r/scale+1.0);
+  } else if (cmap==2) {
+    if (r<=0.0) bomb("radius <= 0!");
+    ret = log(r);
   } else {
-
     ret = r;
   }    
 
@@ -1872,11 +1882,13 @@ double SLGridSph::xi_to_r(double xi)
 {
   double ret;
 
-  if (cmap) {
+  if (cmap==1) {
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
     ret =(1.0+xi)/(1.0 - xi) * scale;
+  } else if (cmap==2) {
+    ret = exp(xi);
   } else {
     if (xi<0.0) bomb("xi < 0!");
 
@@ -1890,11 +1902,13 @@ double SLGridSph::d_xi_to_r(double xi)
 {
   double ret;
 
-  if (cmap) {
+  if (cmap==1) {
     if (xi<-1.0) bomb("xi < -1!");
     if (xi>=1.0) bomb("xi >= 1!");
 
     ret = 0.5*(1.0-xi)*(1.0-xi)/scale;
+  } else if (cmap==2) {
+    ret = exp(-xi);
   } else {
     if (xi<0.0) bomb("xi < 0!");
     ret = 1.0;
@@ -1908,8 +1922,14 @@ double SLGridSph::get_pot(double x, int l, int n, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
 
@@ -1937,8 +1957,14 @@ double SLGridSph::get_dens(double x, int l, int n, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   int indx = (int)( (x-xmin)/dxi );
@@ -1964,8 +1990,14 @@ double SLGridSph::get_force(double x, int l, int n, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
 
@@ -1995,8 +2027,14 @@ void SLGridSph::get_pot(Matrix& mat, double x, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   mat.setsize(0, lmax, 1, nmax);
@@ -2030,8 +2068,14 @@ void SLGridSph::get_dens(Matrix& mat, double x, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   mat.setsize(0, lmax, 1, nmax);
@@ -2065,8 +2109,14 @@ void SLGridSph::get_force(Matrix& mat, double x, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   mat.setsize(0, lmax, 1, nmax);
@@ -2097,8 +2147,14 @@ void SLGridSph::get_pot(Vector& vec, double x, int l, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   vec.setsize(1, nmax);
@@ -2129,8 +2185,14 @@ void SLGridSph::get_dens(Vector& vec, double x, int l, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   vec.setsize(1, nmax);
@@ -2161,8 +2223,14 @@ void SLGridSph::get_force(Vector& vec, double x, int l, int which)
   if (which || !cmap)
     x = r_to_xi(x);
   else {
-    if (x<-1.0) x=-1.0;
-    if (x>=1.0) x=1.0-1.0e-3;
+    if (cmap==1) {
+      if (x<-1.0) x=-1.0;
+      if (x>=1.0) x=1.0-XOFFSET;
+    }
+    if (cmap==2) {
+      if (x<xmin) x=xmin;
+      if (x>xmax) x=xmax;
+    }
   }
 
   vec.setsize(1, nmax);
@@ -2213,7 +2281,7 @@ void SLGridSph::compute_table(struct TableSph* table, int l)
 
   // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
   // pdef[NUM*N];
-  double *t, *rho;
+  double *t=0, *rho=0;
   double *ev = new double [N];
   double *store = new double [26*(NUM+16)];
   double *xef = new double [NUM+16];
@@ -2335,9 +2403,13 @@ void SLGridSph::init_table(void)
   p0.setsize(0, numr-1);
   d0.setsize(0, numr-1);
 
-  if (cmap) {
+  if (cmap==1) {
     xmin = (rmin/scale - 1.0)/(rmin/scale + 1.0);
     xmax = (rmax/scale - 1.0)/(rmax/scale + 1.0);
+  }
+  else if (cmap==2) {
+    xmin = log(rmin);
+    xmax = log(rmax);
   } else {
     xmin = rmin;
     xmax = rmax;
@@ -2412,7 +2484,7 @@ void SLGridSph::compute_table_slave(void)
 
     // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
     // pdef[NUM*N];
-    double *t, *rho;
+    double *t=0, *rho=0;
     double *ev = new double [N];
     double *store = new double [26*(NUM+16)];
     double *xef = new double [NUM+16];
@@ -3379,7 +3451,7 @@ void SLGridSlab::compute_table(struct TableSlab* table, int KX, int KY)
 
   // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
   // pdef[NUM*N];
-  double *t, *rho;
+  double *t=0, *rho=0;
   double *ev = new double [N];
   double *store = new double [26*(NUM+16)];
   double *xef = new double [NUM+16];
@@ -3639,7 +3711,7 @@ void SLGridSlab::compute_table_slave(void)
 
     // double ev[N], *t, *rho, store[26*(NUM+16)], xef[NUM+16], ef[NUM*N],
     // pdef[NUM*N];
-    double *t, *rho;
+    double *t=0, *rho=0;
     double *ev = new double [N];
     double *store = new double [26*(NUM+16)];
     double *xef = new double [NUM+16];
