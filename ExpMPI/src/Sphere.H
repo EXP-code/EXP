@@ -10,11 +10,11 @@
     \param rmin is the minimum value in the table for the 
     radial basis functions (default is 0.001)
 
-    \param cmap should be 1 for algebraic coordinate scaling, 2 for log
-    coordinate scaling, 0 for no scaling
-
     \param rs is the halo scale length (default is 0.067*rmax).  This
-    is used to for the coordinate mapping as follows: 
+    is used to for the coordinate mapping  (see below).
+
+    \param cmap should be 1 for algebraic coordinate scaling, 2 for log
+    coordinate scaling, 0 for no scaling as follows: 
     \f[ 
     x = {r/r_s-1 \over r/r_s+1} 
     \f]
@@ -22,12 +22,11 @@
     \f[
     x =  \log(r)
     \f]
-    when <code>cmap=2</code>.
-
-    Algebraic coordinate scaling is a good general choice.  For spherical
-    models with a very large dynamic range (e.g. deep, cuspy halos),
-    logarithmic scaling will be a better choice.  Logarithmic scaling
-    will insist that the <code>rmin>0</code>.
+    when <code>cmap=2</code>.  Algebraic coordinate scaling is a good
+    general choice.  For spherical models with a very large dynamic
+    range (e.g. deep, cuspy halos), logarithmic scaling will be a
+    better choice.  Logarithmic scaling will insist that the
+    <code>rmin>0</code>.
 
     \param numr is the number radial coordinate knots in the table 
     (default is 1000)
