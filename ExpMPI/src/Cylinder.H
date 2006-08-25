@@ -33,7 +33,7 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, hallfreq;
   string hallfile;
-  bool self_consistent, density, selector, firstime;
+  bool self_consistent, logarithmic, density, selector, firstime;
 
   // These should be ok for all derived classes, hence declared private
 

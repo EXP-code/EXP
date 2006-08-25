@@ -154,6 +154,9 @@ public:
   //! TRUE if mapping is logarithmic
   static bool logarithmic;
 
+  //! No extrapolating beyond grid (default: false)
+  static bool enforce_limits;
+
   //! Density model type
   static EmpModel mtype;
   
@@ -187,6 +190,7 @@ public:
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
 
+
   //! Constructor (reset must called later)
   EmpCylSL(void);
 
@@ -215,8 +219,7 @@ public:
   */
 
   //! Compute non-dimensional vertical coordinate from Z
-  double z_to_y(double z) { 
-    return z/(fabs(z)+DBL_MIN)*asinh(fabs(z*ASCALE/HSCALE)); }
+  double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
 
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }

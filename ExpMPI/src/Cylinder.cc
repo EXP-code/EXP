@@ -40,6 +40,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   hallfile = "disk";
   hallfreq = 50;
   self_consistent = true;
+  logarithmic = false;
   selector = false;
   density = false;
   coef_dump = true;
@@ -51,6 +52,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
+  EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CMAP = true;	// Always use coordinate mapping
 
 				// For debugging
@@ -124,6 +126,10 @@ void Cylinder::initialize()
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true; 
     else self_consistent = false;
+  }
+  if (get_value("logr", val)) {
+    if (atoi(val.c_str())) logarithmic = true; 
+    else logarithmic = false;
   }
   if (get_value("selector", val)) {
     if (atoi(val.c_str())) selector = true; 

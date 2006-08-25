@@ -37,6 +37,7 @@ bool EmpCylSL::DENS=false;
 bool EmpCylSL::SELECT=false;
 bool EmpCylSL::CMAP=false;
 bool EmpCylSL::logarithmic=false;
+bool EmpCylSL::enforce_limits=false;
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 int EmpCylSL::NUMX=128;
 int EmpCylSL::NUMY=64;
@@ -645,22 +646,21 @@ int EmpCylSL::cache_grid(int readwrite)
     const int one = 1;
     const int zero = 0;
 
-    out.write((char *)&MMAX, sizeof(int));
-    out.write((char *)&NUMX, sizeof(int));
-    out.write((char *)&NUMY, sizeof(int));
-    out.write((char *)&NMAX, sizeof(int));
-    out.write((char *)&NORDER, sizeof(int));
-    if (DENS) out.write((char *)&one, sizeof(int));
-    else      out.write((char *)&zero, sizeof(int));
-    if (CMAP) out.write((char *)&one, sizeof(int));
-    else      out.write((char *)&zero, sizeof(int));
-    out.write((char *)&RMIN, sizeof(double));
-    out.write((char *)&RMAX, sizeof(double));
-    out.write((char *)&ASCALE, sizeof(double));
-    out.write((char *)&HSCALE, sizeof(double));
-
-    out.write((char *)&cylmass, sizeof(double));
-    out.write((char *)&tnow, sizeof(double));
+    out.write((const char *)&MMAX, sizeof(int));
+    out.write((const char *)&NUMX, sizeof(int));
+    out.write((const char *)&NUMY, sizeof(int));
+    out.write((const char *)&NMAX, sizeof(int));
+    out.write((const char *)&NORDER, sizeof(int));
+    if (DENS) out.write((const char *)&one, sizeof(int));
+    else      out.write((const char *)&zero, sizeof(int));
+    if (CMAP) out.write((const char *)&one, sizeof(int));
+    else      out.write((const char *)&zero, sizeof(int));
+    out.write((const char *)&RMIN, sizeof(double));
+    out.write((const char *)&RMAX, sizeof(double));
+    out.write((const char *)&ASCALE, sizeof(double));
+    out.write((const char *)&HSCALE, sizeof(double));
+    out.write((const char *)&cylmass, sizeof(double));
+    out.write((const char *)&tnow, sizeof(double));
 
 				// Write table
 
@@ -670,20 +670,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&potC[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&potC[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&rforceC[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&rforceC[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&zforceC[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&zforceC[m][v][ix][iy], sizeof(double));
 	  
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((char *)&densC[m][v][ix][iy], sizeof(double));
+	      out.write((const char *)&densC[m][v][ix][iy], sizeof(double));
 
 	}
 	
@@ -697,20 +697,20 @@ int EmpCylSL::cache_grid(int readwrite)
 
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&potS[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&potS[m][v][ix][iy], sizeof(double));
 	
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&rforceS[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&rforceS[m][v][ix][iy], sizeof(double));
 	  
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
-	    out.write((char *)&zforceS[m][v][ix][iy], sizeof(double));
+	    out.write((const char *)&zforceS[m][v][ix][iy], sizeof(double));
 	
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
-	      out.write((char *)&densS[m][v][ix][iy], sizeof(double));
+	      out.write((const char *)&densS[m][v][ix][iy], sizeof(double));
 	}
 	
       }
@@ -830,12 +830,12 @@ int EmpCylSL::cache_grid(int readwrite)
     }
     
     Rtable = M_SQRT1_2 * RMAX;
-    XMIN = r_to_xi(RMIN);
-    XMAX = r_to_xi(Rtable);
+    XMIN = r_to_xi(RMIN*ASCALE);
+    XMAX = r_to_xi(Rtable*ASCALE);
     dX = (XMAX - XMIN)/NUMX;
     
-    YMIN = z_to_y(-Rtable);
-    YMAX = z_to_y( Rtable);
+    YMIN = z_to_y(-Rtable*ASCALE);
+    YMAX = z_to_y( Rtable*ASCALE);
     dY = (YMAX - YMIN)/NUMY;
     
     cerr << "EmpCylSL::cache_grid: file read successfully" << endl;
@@ -969,6 +969,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
+
 #ifdef EIGEN
   static Vector sum(ev.getlow(), ev.gethigh());
   {
@@ -1218,12 +1219,12 @@ void EmpCylSL::setup_eof()
     ef.setsize(1, rank2, 1, rank2);
 
     Rtable = M_SQRT1_2 * RMAX;
-    XMIN = r_to_xi(RMIN);
-    XMAX = r_to_xi(Rtable);
+    XMIN = r_to_xi(RMIN*ASCALE);
+    XMAX = r_to_xi(Rtable*ASCALE);
     dX = (XMAX - XMIN)/NUMX;
 
-    YMIN = z_to_y(-Rtable);
-    YMAX = z_to_y( Rtable);
+    YMIN = z_to_y(-Rtable*ASCALE);
+    YMAX = z_to_y( Rtable*ASCALE);
     dY = (YMAX - YMIN)/NUMY;
 
     potC = new Matrix* [MMAX+1];
@@ -1717,7 +1718,7 @@ void EmpCylSL::make_eof(void)
 	ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
 
 #elif defined(GHQL)
-	ev = var[M].Symmetric_Eigenvalues(ef);
+	ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
 	ef = ef.Transpose();
 #else
 	ev = var[M].Symmetric_Eigenvalues(ef);
@@ -1758,7 +1759,7 @@ void EmpCylSL::make_eof(void)
 	ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
 
 #elif defined(GHQL)
-	ev = var[M].Symmetric_Eigenvalues(ef);
+	ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
 	ef = ef.Transpose();
 #else
 	ev = var[M].Symmetric_Eigenvalues(ef);
@@ -2061,18 +2062,30 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
   double rr = sqrt(r*r + z*z);
   if (rr/ASCALE>Rtable) return;
 
-  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
-  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
+  double X = (r_to_xi(r) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
   
-  if (ix < 0) ix = 0;
-  if (iy < 0) iy = 0;
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
   
-  if (ix >= NUMX) ix = NUMX-1;
-  if (iy >= NUMY) iy = NUMY-1;
-  
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
   double delx0 = (double)ix + 1.0 - X;
   double dely0 = (double)iy + 1.0 - Y;
   double delx1 = X - (double)ix;
@@ -2189,17 +2202,29 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi)
 
   if (rr/ASCALE > Rtable) return ans;
 
-  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
-  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
+  double X = (r_to_xi(r) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
 
-  if (ix < 0) ix = 0;
-  if (iy < 0) iy = 0;
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
   
-  if (ix >= NUMX) ix = NUMX-1;
-  if (iy >= NUMY) iy = NUMY-1;
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
 
   double delx0 = (double)ix + 1.0 - X;
   double dely0 = (double)iy + 1.0 - Y;
@@ -2261,18 +2286,30 @@ void EmpCylSL::get_pot(Matrix& Vc, Matrix& Vs, double r, double z)
   if (z/ASCALE > Rtable) z =  Rtable*ASCALE;
   if (z/ASCALE <-Rtable) z = -Rtable*ASCALE;
 
-  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
-  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
+  double X = (r_to_xi(r) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
 
-  if (ix < 0) ix = 0;
-  if (iy < 0) iy = 0;
+  if (ix < 0) {
+    ix = 0;
+    if (enforce_limits) X = 0.0;
+  }
+  if (iy < 0) {
+    iy = 0;
+    if (enforce_limits) Y = 0.0;
+  }
   
-  if (ix >= NUMX) ix = NUMX-1;
-  if (iy >= NUMY) iy = NUMY-1;
-    
+  if (ix >= NUMX) {
+    ix = NUMX-1;
+    if (enforce_limits) X = NUMX;
+  }
+  if (iy >= NUMY) {
+    iy = NUMY-1;
+    if (enforce_limits) Y = NUMY;
+  }
+
   double delx0 = (double)ix + 1.0 - X;
   double dely0 = (double)iy + 1.0 - Y;
   double delx1 = X - (double)ix;
@@ -2341,8 +2378,8 @@ void EmpCylSL::get_all(int mm, int nn,
   if (z/ASCALE > Rtable) z =  Rtable*ASCALE;
   if (z/ASCALE <-Rtable) z = -Rtable*ASCALE;
 
-  double X = (r_to_xi(r/ASCALE) - XMIN)/dX;
-  double Y = ( z_to_y(z/ASCALE) - YMIN)/dY;
+  double X = (r_to_xi(r) - XMIN)/dX;
+  double Y = (z_to_y(z)  - YMIN)/dY;
 
   int ix = (int)X;
   int iy = (int)Y;
@@ -2504,19 +2541,19 @@ void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
   coefheader.nord = NORDER;
   coefheader.nmax = NMAX;
 
-  out.write((char *)&coefheader, sizeof(CoefHeader));
+  out.write((const char *)&coefheader, sizeof(CoefHeader));
 
   for (int mm=0; mm<=MMAX; mm++) {
 
     for (int l=mm; l<=LMAX; l++) {
       
       for (int j=1; j<=NMAX; j++)
-	out.write((char *)&(p=accum_cos0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
+	out.write((const char *)&(p=accum_cos0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
       
       if (mm) {
 
 	for (int j=1; j<=NMAX; j++)
-	  out.write((char *)&(p=accum_sin0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
+	  out.write((const char *)&(p=accum_sin0[0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
 
       }
       
@@ -2524,24 +2561,23 @@ void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
   }
 }
 
-
 void EmpCylSL::dump_coefs_binary_curr(ostream& out, double time)
 {
   coefheader2.time = time;
   coefheader2.mmax = MMAX;
   coefheader2.nmax = rank3;
 
-  out.write((char *)&coefheader2, sizeof(CoefHeader2));
+  out.write((const char *)&coefheader2, sizeof(CoefHeader2));
 
   for (int mm=0; mm<=MMAX; mm++) {
 
     for (int j=0; j<rank3; j++)
-      out.write((char *)&accum_cos[0][mm][j], sizeof(double));
+      out.write((const char *)&accum_cos[0][mm][j], sizeof(double));
     
     if (mm) {
 
       for (int j=0; j<rank3; j++)
-	out.write((char *)&accum_sin[0][mm][j], sizeof(double));
+	out.write((const char *)&accum_sin[0][mm][j], sizeof(double));
       
     }
   }
@@ -2577,12 +2613,12 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    << "." << step;
 	
 	outC[i] = new ofstream(ins.str().c_str());
-	outC[i]->write((char *)&numx, sizeof(int));
-	outC[i]->write((char *)&numy, sizeof(int));
-	outC[i]->write((char *)&(zz=  0.0), sizeof(float));
-	outC[i]->write((char *)&(zz= rmax), sizeof(float));
-	outC[i]->write((char *)&(zz=-rmax), sizeof(float));
-	outC[i]->write((char *)&(zz= rmax), sizeof(float));
+	outC[i]->write((const char *)&numx, sizeof(int));
+	outC[i]->write((const char *)&numy, sizeof(int));
+	outC[i]->write((const char *)&(zz=  0.0), sizeof(float));
+	outC[i]->write((const char *)&(zz= rmax), sizeof(float));
+	outC[i]->write((const char *)&(zz=-rmax), sizeof(float));
+	outC[i]->write((const char *)&(zz= rmax), sizeof(float));
       }
 
       if (mm) {
@@ -2594,12 +2630,12 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      << "." << step;
 	
 	  outS[i] = new ofstream(ins.str().c_str());
-	  outS[i]->write((char *)&numx,       sizeof(int));
-	  outS[i]->write((char *)&numy,       sizeof(int));
-	  outS[i]->write((char *)&(zz=  0.0), sizeof(float));
-	  outS[i]->write((char *)&(zz= rmax), sizeof(float));
-	  outS[i]->write((char *)&(zz=-rmax), sizeof(float));
-	  outS[i]->write((char *)&(zz= rmax), sizeof(float));
+	  outS[i]->write((const char *)&numx,       sizeof(int));
+	  outS[i]->write((const char *)&numy,       sizeof(int));
+	  outS[i]->write((const char *)&(zz=  0.0), sizeof(float));
+	  outS[i]->write((const char *)&(zz= rmax), sizeof(float));
+	  outS[i]->write((const char *)&(zz=-rmax), sizeof(float));
+	  outS[i]->write((const char *)&(zz= rmax), sizeof(float));
 	}
 
       }
@@ -2621,12 +2657,24 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	  int ix = (int)X;
 	  int iy = (int)Y;
 
-	  if (ix < 0) ix = 0;
-	  if (iy < 0) iy = 0;
-  
-	  if (ix >= NUMX) ix = NUMX-1;
-	  if (iy >= NUMY) iy = NUMY-1;
-
+	  if (ix < 0) {
+	    ix = 0;
+	    if (enforce_limits) X = 0.0;
+	  }
+	  if (iy < 0) {
+	    iy = 0;
+	    if (enforce_limits) Y = 0.0;
+	  }
+	  
+	  if (ix >= NUMX) {
+	    ix = NUMX-1;
+	    if (enforce_limits) X = NUMX;
+	  }
+	  if (iy >= NUMY) {
+	    iy = NUMY-1;
+	    if (enforce_limits) Y = NUMY;
+	  }
+	  
 	  double delx0 = (double)ix + 1.0 - X;
 	  double dely0 = (double)iy + 1.0 - Y;
 	  double delx1 = X - (double)ix;
@@ -2643,7 +2691,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    potC[mm][n][ix  ][iy+1] * c01 +
 	    potC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[0]->write((char *)&zz, sizeof(float));
+	  outC[0]->write((const char *)&zz, sizeof(float));
 	    
 	  zz = fac*(
 	    rforceC[mm][n][ix  ][iy  ] * c00 +
@@ -2651,7 +2699,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    rforceC[mm][n][ix  ][iy+1] * c01 +
 	    rforceC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[1]->write((char *)&zz, sizeof(float));
+	  outC[1]->write((const char *)&zz, sizeof(float));
 
 	  zz = fac*(
 	    zforceC[mm][n][ix  ][iy  ] * c00 +
@@ -2659,7 +2707,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	    zforceC[mm][n][ix  ][iy+1] * c01 +
 	    zforceC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[2]->write((char *)&zz, sizeof(float));
+	  outC[2]->write((const char *)&zz, sizeof(float));
 
 	  if (DENS) {
 	    zz = fac*(
@@ -2668,7 +2716,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      densC[mm][n][ix  ][iy+1] * c01 +
 	      densC[mm][n][ix+1][iy+1] * c11 );
 
-	    outC[3]->write((char *)&zz, sizeof(float));
+	    outC[3]->write((const char *)&zz, sizeof(float));
 	  }
 
 	  if (mm) {
@@ -2679,7 +2727,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      potS[mm][n][ix  ][iy+1] * c01 +
 	      potS[mm][n][ix+1][iy+1] * c11 );
 
-	    outS[0]->write((char *)&zz, sizeof(float));
+	    outS[0]->write((const char *)&zz, sizeof(float));
 	    
 	    zz = fac*(
 	      rforceS[mm][n][ix  ][iy  ] * c00 +
@@ -2687,7 +2735,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      rforceS[mm][n][ix  ][iy+1] * c01 +
 	      rforceS[mm][n][ix+1][iy+1] * c11 );
 
-	    outS[1]->write((char *)&zz, sizeof(float));
+	    outS[1]->write((const char *)&zz, sizeof(float));
 
 	    zz = fac*(
 	      zforceS[mm][n][ix  ][iy  ] * c00 +
@@ -2695,7 +2743,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	      zforceS[mm][n][ix  ][iy+1] * c01 +
 	      zforceS[mm][n][ix+1][iy+1] * c11 );
 	    
-	    outS[2]->write((char *)&zz, sizeof(float));
+	    outS[2]->write((const char *)&zz, sizeof(float));
 	    
 	    if (DENS) {
 	      zz = fac*(
@@ -2704,7 +2752,7 @@ void EmpCylSL::dump_basis(const string& name, int step)
 		densS[mm][n][ix  ][iy+1] * c01 +
 		densS[mm][n][ix+1][iy+1] * c11 );
 	      
-	      outS[3]->write((char *)&zz, sizeof(float));
+	      outS[3]->write((const char *)&zz, sizeof(float));
 	    }
 
 	  }
@@ -3101,7 +3149,7 @@ double EmpCylSL::r_to_xi(double r)
       msg << "radius=" << r << " < 0! [mapped]";
       bomb(msg.str());
     }
-    return (r - 1.0)/(r + 1.0);
+    return (r/ASCALE - 1.0)/(r/ASCALE + 1.0);
   } else {
     if (r<0.0)  {
       ostringstream msg;
