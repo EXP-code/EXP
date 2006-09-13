@@ -276,7 +276,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     for (int j=0; j<3; j++) 
       pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
 
-    if (cC->EJ & Orient::AXIS) 
+    if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
       pos[id] = cC->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
@@ -407,7 +407,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
     } else
       cC->Pos(&pos[id][1], i, Component::Local | Component::Centered);
 
-    if (cC->EJ & Orient::AXIS) 
+    if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
       pos[id] = cC->orient->transformBody() * pos[id];
 
     xx = pos[id][1];
@@ -435,7 +435,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       frc[id][2] = fr*yy/r + fp*xx/r2;
       frc[id][3] = fz;
 
-      if (cC->EJ & Orient::AXIS) 
+      if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
 	frc[id] = cC->orient->transformOrig() * frc[id];
 
       for (int j=0; j<3; j++) cC->AddAcc(i, j, frc[id][j+1]);

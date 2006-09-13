@@ -15,9 +15,9 @@
 #include <sstream>
 
 #include <pthread.h>  
-// #ifdef DEBUG
-// static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
-// #endif
+#ifdef DEBUG
+static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
+#endif
 
 UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 {
@@ -451,11 +451,11 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
 	char c = out.fill('-');
 	int ncnt=1;
-	out << "# " << setw(13) << ncnt++ 
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++;
+	out << "# " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
 	for (int ir=0; ir<numRes; ir++)
 	  out << "| " << setw(13) << ncnt++;
       	for (int j=1; j<ResPot::NumDesc; j++)

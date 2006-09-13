@@ -583,11 +583,10 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   double sin2p = sin(2.0*posang);
 
   double fraction_on =   0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) ;
-
   double fraction_off =  0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
 
-  double quad_onoff = fraction_on*( (1.0 - quadrupole_frac) +
-				    quadrupole_frac * fraction_off );
+  double quad_onoff = 
+    fraction_on*( (1.0 - quadrupole_frac) + quadrupole_frac * fraction_off );
 
   double mono_fraction = 
     0.5*(1.0 + erf( (tvel - TmonoOn )/DeltaMonoT )) *
