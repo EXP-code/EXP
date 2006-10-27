@@ -22,6 +22,7 @@ static pthread_mutex_t iolock = PTHREAD_MUTEX_INITIALIZER;
 UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 {
   LMAX = 2;
+  NMAX = 20;
   NUMR = 800;
   L0 = 2;
   M0 = 2;
@@ -33,7 +34,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   toff = 1.0e20;		// Turn off time
   delta = 1.0;			// Turn on duration
   toffset = 0.0;		// Time offset for orbit
-  omega = 18.9;			// Patern speed
+  omega = -1.0;			// Patern speed
   phase0 = 0.0;			// Initial phase
 
   NUMX = 400;			// Points in Ang mom grid
@@ -130,7 +131,10 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   } else {
     CircularOrbit *orb = new CircularOrbit(NMAX, L0, M0, MASS, LENGTH);
 
-    omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
+    if(omega <= 0.0)
+      omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
+    else
+      omega0 = omega;
     Iz = MASS*LENGTH*LENGTH*omega;
 
     pert = orb;
