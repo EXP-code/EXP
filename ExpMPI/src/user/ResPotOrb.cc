@@ -94,10 +94,10 @@ void ResPotOrb::compute_grid()
   double E, K;
   
   // Ang mom of minimum radius circular orbit
-  minJ = Rmin*sqrt(max<double>(halo_model->get_dpot(Rmin), 0.0));
+  minJ = Rmin*sqrt(max<double>(halo_model->get_dpot(Rmin)*Rmin, 0.0));
   
   // Ang mom of maximum radius circular orbit
-  maxJ = Rmax*sqrt(max<double>(halo_model->get_dpot(Rmax), 0.0));
+  maxJ = Rmax*sqrt(max<double>(halo_model->get_dpot(Rmax)*Rmax, 0.0));
   
   // For derivatives
   delE = (Emax - Emin)*0.5*DELE;
