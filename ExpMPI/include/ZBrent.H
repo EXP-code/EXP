@@ -20,6 +20,7 @@ class ZBrent
 public:
   static int ITMAX;
   static double EPS;
+  static double epsilon;
 
   ZBrent() {}
   ZBrentReturn find(func_T func, T& param, double x1, double x2, double tol,
@@ -29,6 +30,7 @@ public:
 
 template<class T> int ZBrent<T>::ITMAX=100;
 template<class T> double ZBrent<T>::EPS=1.0e-16;
+template<class T> double ZBrent<T>::epsilon=1.0e-3;
 
 template <class T>
 ZBrentReturn
@@ -40,9 +42,21 @@ ZBrent<T>::find(func_T func, T& param, double x1, double x2, double tol,
   double fa=(*func)(a, param);
   double fb=(*func)(b, param);
 
-  if (fb*fa > 0.0) return Bracket;
+  if (fb*fa > 0.0) {
+    if (a > b) {
+      a *= (1+epsilon);
+      b *= (1-epsilon);
+    } else {
+      a *= (1-epsilon);
+      b *= (1+epsilon);
+    }      
+    fa=(*func)(a, param);
+    fb=(*func)(b, param);
+    if (fb*fa > 0.0) return Bracket;
+  }
 
   fc = fb;
+  c = b;
 
   for (int iter=1; iter<=ITMAX; iter++) {
     if (fb*fc > 0.0) {
