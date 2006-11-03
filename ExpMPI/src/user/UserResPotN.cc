@@ -135,6 +135,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
       omega = omega0 = sqrt(MASS/(LENGTH*LENGTH*LENGTH));
     else
       omega0 = omega;
+
     Iz = MASS*LENGTH*LENGTH*omega;
 
     pert = orb;
@@ -320,6 +321,7 @@ void UserResPotN::initialize()
   if (get_value("ALPHA", val))    ALPHA = atof(val.c_str());
   
   if (get_value("self", val))     self = atoi(val.c_str());
+  if (get_value("omega", val))    omega = atof(val.c_str());
   if (get_value("domega", val))   domega = atof(val.c_str());
   if (get_value("tom0", val))     tom0 = atof(val.c_str());
   if (get_value("dtom", val))     dtom = atof(val.c_str());
