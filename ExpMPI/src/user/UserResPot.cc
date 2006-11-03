@@ -276,6 +276,7 @@ void UserResPot::initialize()
   if (get_value("RECS", val))     RECS = atoi(val.c_str());
   if (get_value("ITMAX", val))    ITMAX = atoi(val.c_str());
   
+  if (get_value("omega", val))    omega = atof(val.c_str());
   if (get_value("domega", val))   domega = atof(val.c_str());
   if (get_value("tom0", val))     tom0 = atof(val.c_str());
   if (get_value("dtom", val))     dtom = atof(val.c_str());
