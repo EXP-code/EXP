@@ -1,7 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-#pragma implementation "simann2.h"
-
 // simanneal.c++   Implementation of a General Purpose Simulated Annealing Class
 /* Uses Cauchy training         */
 

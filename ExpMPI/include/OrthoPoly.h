@@ -4,11 +4,11 @@
 
 */
 
-
 #include <values.h>
 #include <math.h>
 #include <Vector.h>
 
+#ifndef _OrthoPoly_h
 #define _OrthoPoly_h
 
 class OrthoPoly
@@ -206,7 +206,5 @@ class Hermite : public OrthoPoly
 
 };
 
-
-
-
+#endif
 

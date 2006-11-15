@@ -29,7 +29,7 @@ static int QQp();
 /* Function to test a real value for exceeding -1,
 /* and quit on an error if condition not met.
 /**/
-GaussCheck(value)
+void GaussCheck(value)
 double value;
 {
     if (value <= (-1.0)) {
@@ -51,7 +51,7 @@ static int n1;
 /*
 /* The workhorse.
 /**/
-GaussMaster(n, alpha, beta, conflag, abscis, weight)
+void GaussMaster(n, alpha, beta, conflag, abscis, weight)
 int n;
 double alpha, beta;
 int conflag;

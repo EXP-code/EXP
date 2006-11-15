@@ -5,8 +5,6 @@
 //
 //  MDW 11/13/91 [based on "findwake" by MDW: 12/26/1987]
 
-#pragma implementation
-
 static const char rcsid[] = "$Id$";
 
 using namespace std;

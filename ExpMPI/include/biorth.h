@@ -4,9 +4,6 @@
 
 
 #ifndef _biorth_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _biorth_h 1
 
 #undef RNUM

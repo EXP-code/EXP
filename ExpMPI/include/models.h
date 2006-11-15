@@ -1,4 +1,3 @@
-#pragma interface
 
 class Miyamoto;
 class Isothermal;

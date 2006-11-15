@@ -20,7 +20,6 @@ UserEBarP::UserEBarP(string &line) : ExternalForce(line)
   TmonoOff = 200.0;		// Turn off start time monopole
   DeltaT = 1.0;			// Turn on duration
   DeltaMonoT = 1.0;		// Turn on duration for monopole
-  DOmega = 0.0;			// Change in pattern speed
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential

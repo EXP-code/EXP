@@ -4,8 +4,6 @@
 //  Clutton-Brock's 2-dimensional series
 //
 
-#pragma implementation
-
 static const char rcsid[] = "$Id$";
 
 using namespace std;

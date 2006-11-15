@@ -6,8 +6,6 @@ const char rcsid_plummer[] = "$Id$";
 #include <math.h>
 #include <massmodel.h>
 
-#pragma implementation
-
 class PlummerSphere : public AxiSymModel
 {
 private:

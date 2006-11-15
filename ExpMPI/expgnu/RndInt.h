@@ -31,9 +31,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
 #ifndef _RandomInteger_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _RandomInteger_h 1
 
 // RandomInteger uses a random number generator to generate an integer

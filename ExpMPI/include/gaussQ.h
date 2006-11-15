@@ -42,9 +42,6 @@ HISTORY
 */
 
 #ifndef _gaussQ_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _gaussQ_h 1
 
 using namespace std;

@@ -4,9 +4,6 @@
 
 
 #ifndef _biorth2d_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _biorth2d_h 1
 
 static const char rcsid_biorth2d_h[] = "$Id$";

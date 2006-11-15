@@ -6,9 +6,6 @@
 //
 
 #ifndef _QPDistF_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _QPDistF_h 1
 
 #include <biorth.h>

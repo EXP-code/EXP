@@ -1,4 +1,3 @@
-#pragma implementation "staeckel.h"
 
 #include <math.h>
 #include <stdio.h>

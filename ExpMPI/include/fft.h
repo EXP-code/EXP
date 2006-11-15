@@ -3,10 +3,6 @@
 #ifndef _fft_h
 #define _fft_h
 
-#ifdef __GNU__
-#pragma interface
-#endif
-
 /*
  ************************************************************************
  *

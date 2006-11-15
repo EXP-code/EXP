@@ -1,7 +1,5 @@
 // This may look like C code, but it is really -*- C++ -*-
 
-#pragma implementation
-
 const char rcsid[] = "$Id$";
 
 #include <stdlib.h>

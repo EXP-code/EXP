@@ -1,10 +1,5 @@
 #ifndef _poly_h
-
 #define _poly_h 1
-
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 using namespace std;
 

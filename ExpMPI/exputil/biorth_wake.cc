@@ -1,4 +1,3 @@
-#pragma implementation
 
 using namespace std;
 

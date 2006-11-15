@@ -3,9 +3,6 @@
 // Wake generation class
 
 #ifndef _biorth_wake_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _biorth_wake_h 1
 
 static const char rcsid_biorth_wake[] = "$Id$";

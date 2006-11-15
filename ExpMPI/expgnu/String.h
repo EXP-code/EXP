@@ -18,9 +18,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 #ifndef _String_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _String_h 1
 
 #include <iostream.h>

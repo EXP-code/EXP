@@ -14,9 +14,7 @@ You should have received a copy of the GNU Library General Public
 License along with this library; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
-#ifdef __GNUG__
-#pragma implementation
-#endif
+
 #include <Random.h>
 #include <Uniform.h>
 
@@ -24,3 +22,37 @@ double Uniform::operator()()
 {
     return( pLow + delta * pGenerator -> asDouble() );
 }
+
+Uniform::Uniform(double low, double high, RNG *gen) : Random(gen)
+{
+  pLow = (low < high) ? low : high;
+  pHigh = (low < high) ? high : low;
+  delta = pHigh - pLow;
+}
+
+inline double Uniform::low() 
+{
+  return pLow; 
+}
+
+inline double Uniform::low(double x) 
+{
+  double tmp = pLow;
+  pLow = x;
+  delta = pHigh - pLow;
+  return tmp;
+}
+
+inline double Uniform::high() 
+{ 
+  return pHigh; 
+}
+
+inline double Uniform::high(double x) 
+{
+  double tmp = pHigh;
+  pHigh = x;
+  delta = pHigh - pLow;
+  return tmp;
+}
+

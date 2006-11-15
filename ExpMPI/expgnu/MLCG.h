@@ -17,9 +17,6 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _MLCG_h
 #define _MLCG_h 1 
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 #include <RNG.h>
 #include <math.h>
@@ -50,38 +47,5 @@ public:
     void reseed(_G_int32_t, _G_int32_t);
 };
 
-inline _G_int32_t
-MLCG::seed1()
-{
-    return(seedOne);
-}
-
-inline void
-MLCG::seed1(_G_int32_t s)
-{
-    initialSeedOne = s;
-    reset();
-}
-
-inline _G_int32_t
-MLCG::seed2()
-{
-    return(seedTwo);
-}
-
-inline void
-MLCG::seed2(_G_int32_t s)
-{
-    initialSeedTwo = s;
-    reset();
-}
-
-inline void
-MLCG::reseed(_G_int32_t s1, _G_int32_t s2)
-{
-    initialSeedOne = s1;
-    initialSeedTwo = s2;
-    reset();
-}
 
 #endif

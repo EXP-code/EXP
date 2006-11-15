@@ -1,12 +1,7 @@
 // This may look like C code, but it is really -*- C++ -*-
 
 #ifndef _SLGridMP_h
-
 #define _SLGridMP_h 1
-
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 #include <math.h>
 #include <iostream>

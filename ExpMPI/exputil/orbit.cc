@@ -1,6 +1,4 @@
 
-#pragma implementation
-
 const char rcsid[] = "$Id$";
 
 #include <math.h>

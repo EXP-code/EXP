@@ -120,7 +120,11 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
   if (usebar) {
     BarForcing::L0 = L0;
     BarForcing::M0 = M0;
-    BarForcing *bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
+    BarForcing *bar;
+    if (MFRAC>0.0)
+      bar = new BarForcing(NMAX, MFRAC*MASS, LENGTH, COROT);
+    else
+      bar = new BarForcing(NMAX, MASS, LENGTH, COROT);
 
     bar->set_model(halo_model);
     bar->compute_quad_parameters(A21, A32);
@@ -617,7 +621,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 
 				// Accumulate change in Lz for each resonance
       if (respot[ir]->K()<Klim)
-	difLz[id][ir] += cC->Mass(i)*(Lz1 - Lz0);
+	difLz[id][ir] += cC->Mass(i)*(Lz1 - Lz0) * numRes;
 	
       updated = true;
 

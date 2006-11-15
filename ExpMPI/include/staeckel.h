@@ -1,7 +1,4 @@
-#pragma interface
-
 class Phase;
-
 
 class Perfect
 {
@@ -38,9 +35,4 @@ public:
 	double Flambda(double);
 	double dFlambda(double);
 };
-
-
-
-
-
 

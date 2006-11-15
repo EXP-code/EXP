@@ -1,4 +1,3 @@
-#pragma implementation
 
 #include <stdio.h>
 #include <math.h>

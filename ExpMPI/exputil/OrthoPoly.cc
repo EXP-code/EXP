@@ -1,8 +1,5 @@
 
-#ifndef _OrthoPoly_h
-#pragma implementation
 #include <OrthoPoly.h>
-#endif
 
 double OrthoPoly::f(const double x, const int n)
 {

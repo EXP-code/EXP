@@ -8,10 +8,6 @@
 #ifndef SIM_ANNEAL_HPP_
 #define SIM_ANNEAL_HPP_ 1.3
 
-#ifdef __GNUG__
-#pragma interface
-#endif
-
 #include <string>
 #include <ACG.h>
 #include <Uniform.h>

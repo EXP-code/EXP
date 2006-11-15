@@ -32,8 +32,6 @@
  *
  ***************************************************************************/
 
-#pragma implementation
-
 using namespace std;
 
 #include <iostream>

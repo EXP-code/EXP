@@ -1,8 +1,6 @@
 #ifndef _CVector_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _CVector_h 1
+
 #include <iostream>
 #include <fstream>
 

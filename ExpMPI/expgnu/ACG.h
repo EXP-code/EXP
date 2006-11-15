@@ -1,28 +1,25 @@
 // This may look like C code, but it is really -*- C++ -*-
 /* 
-Copyright (C) 1988 Free Software Foundation
-    written by Dirk Grunwald (grunwald@cs.uiuc.edu)
-
-This file is part of the GNU C++ Library.  This library is free
-software; you can redistribute it and/or modify it under the terms of
-the GNU Library General Public License as published by the Free
-Software Foundation; either version 2 of the License, or (at your
-option) any later version.  This library is distributed in the hope
-that it will be useful, but WITHOUT ANY WARRANTY; without even the
-implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
-PURPOSE.  See the GNU Library General Public License for more details.
-You should have received a copy of the GNU Library General Public
-License along with this library; if not, write to the Free Software
-Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+   Copyright (C) 1988 Free Software Foundation
+   written by Dirk Grunwald (grunwald@cs.uiuc.edu)
+   
+   This file is part of the GNU C++ Library.  This library is free
+   software; you can redistribute it and/or modify it under the terms of
+   the GNU Library General Public License as published by the Free
+   Software Foundation; either version 2 of the License, or (at your
+   option) any later version.  This library is distributed in the hope
+   that it will be useful, but WITHOUT ANY WARRANTY; without even the
+   implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR
+   PURPOSE.  See the GNU Library General Public License for more details.
+   You should have received a copy of the GNU Library General Public
+   License along with this library; if not, write to the Free Software
+   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _ACG_h
 #define _ACG_h 1 
 
 #include <RNG.h>
 #include <math.h>
-#ifdef __GNUG__
-#pragma interface
-#endif
 
 //
 //	Additive number generator. This method is presented in Volume II
@@ -40,29 +37,30 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //	twice the size of the state table.
 //
 
-class ACG : public RNG {
-
-    _G_uint32_t initialSeed;	// used to reset generator
-    int initialTableEntry;
-
-    _G_uint32_t *state;
-    _G_uint32_t *auxState;
-    short stateSize;
-    short auxSize;
-    _G_uint32_t lcgRecurr;
-    short j;
-    short k;
-
+class ACG : public RNG 
+{
+  
+  _G_uint32_t initialSeed;	// used to reset generator
+  int initialTableEntry;
+  
+  _G_uint32_t *state;
+  _G_uint32_t *auxState;
+  short stateSize;
+  short auxSize;
+  _G_uint32_t lcgRecurr;
+  short j;
+  short k;
+  
 protected:
-
+  
 public:
-    ACG(_G_uint32_t seed = 0, int size = 55);
-    virtual ~ACG();
-    //
-    // Return a long-words word of random bits
-    //
-    virtual _G_uint32_t asLong();
-    virtual void reset();
+  ACG(_G_uint32_t seed = 0, int size = 55);
+  virtual ~ACG();
+  //
+  // Return a long-words word of random bits
+  //
+  virtual _G_uint32_t asLong();
+  virtual void reset();
 };
 
 #endif

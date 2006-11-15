@@ -1,5 +1,3 @@
-#pragma implementation
-
 #include <assert.h>
 #include <stdlib.h>
 #include <unistd.h>

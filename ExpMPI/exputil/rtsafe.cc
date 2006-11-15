@@ -51,6 +51,8 @@ double rtsafe(dfunc_1d funcd, double x1, double x2, double xacc)
 		}
 	}
 	nrerror("Maximum number of iterations exceeded in RTSAFE");
+
+	return 0.0;
 }
 
 #undef MAXIT

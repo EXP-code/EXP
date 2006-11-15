@@ -31,10 +31,6 @@
  *
  ***************************************************************************/
 
-#ifdef __GNUG__
-#pragma implementation
-#endif
-
 #include <math.h>
 #include <numerical.h>
 #include <biorth1d.h>

@@ -1,6 +1,4 @@
 
-#pragma implementation
-
 #include <math.h>
 #include <string>
 #include <Vector.h>

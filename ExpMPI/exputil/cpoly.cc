@@ -1,4 +1,3 @@
-#pragma implementation
 
 #include <math.h>
 #include <unistd.h>

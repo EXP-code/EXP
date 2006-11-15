@@ -213,12 +213,12 @@ public:
 
   virtual ~EmbeddedDiskModel();
 
-  double get_mass(const double);
-  double get_density(const double);
-  double get_pot(const double);
-  double get_dpot(const double);
-  double get_dpot2(const double);
-  void get_pot_dpot(const double, double&, double&);
+  virtual double get_mass(const double);
+  virtual double get_density(const double);
+  virtual double get_pot(const double);
+  virtual double get_dpot(const double);
+  virtual double get_dpot2(const double);
+  virtual void get_pot_dpot(const double, double&, double&);
 
   double get_mass(const double x1, const double x2, const double x3)
     { return get_mass(sqrt(x1*x1 + x2*x2 + x3*x3)); }
@@ -289,12 +289,12 @@ public:
 
   // Required member functions
 
-  double get_mass(const double);
-  double get_density(const double);
-  double get_pot(const double);
-  double get_dpot(const double);
-  double get_dpot2(const double);
-  void get_pot_dpot(const double, double&, double&);
+  virtual double get_mass(const double);
+  virtual double get_density(const double);
+  virtual double get_pot(const double);
+  virtual double get_dpot(const double);
+  virtual double get_dpot2(const double);
+  virtual void get_pot_dpot(const double, double&, double&);
   
   // Additional member functions
 
