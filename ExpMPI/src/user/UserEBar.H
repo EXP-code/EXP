@@ -31,6 +31,7 @@
     @param monofrac is the fraction of the monopole to turn off (default: 1.0)
     @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
     @param soft use the shallow form of the potential (default: false)
+    @param angmomfac factor artificially changing the self-consistent total bar angular momentum (default: 1.0)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
@@ -83,7 +84,7 @@ private:
 
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
-  double posang, lastomega, lasttime;
+  double posang, lastomega, lasttime, angmomfac;
   double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
   double T0, DOmega, tom0, dtom;
   vector<double> timeq, ampq, b5q;

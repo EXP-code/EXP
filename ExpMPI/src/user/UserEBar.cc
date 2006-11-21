@@ -13,6 +13,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   bratio = 0.5;			// Ratio of b to a
   cratio = 0.1;			// Ratio of c to b
   amplitude = 0.3;		// Bar quadrupole amplitude
+  angmomfac = 1.0;		// Artifically change the total bar ang mom
   barmass = 1.0;		// Total bar mass
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
@@ -173,10 +174,15 @@ void UserEBar::userinfo()
   else
     cout << "initial corotation fraction, ";
   cout << " amplitude=" << amplitude << ", ";
+
+  if (fabs(angmomfac-1.0)<1.0e-10)
+    cout << " ang mom factor=" << angmomfac << ", ";
+    
   if (omega0<0.0)
     cout << "initial pattern speed to be computed, ";
   else
     cout << "initial pattern speed " << omega0 << ", ";
+
   cout << "quadrupole fraction=" << quadrupole_frac
        << ", Ton=" << Ton << ", Toff=" << Toff << ", DeltaT=" << DeltaT 
        << ", ";
@@ -220,6 +226,7 @@ void UserEBar::initialize()
   if (get_value("bratio", val))		bratio = atof(val.c_str());
   if (get_value("cratio", val))		cratio = atof(val.c_str());
   if (get_value("amp", val))		amplitude = atof(val.c_str());
+  if (get_value("angmomfac", val))	angmomfac = atof(val.c_str());
   if (get_value("barmass", val))	barmass = atof(val.c_str());
   if (get_value("Ton", val))		Ton = atof(val.c_str());
   if (get_value("Toff", val))		Toff = atof(val.c_str());
@@ -381,7 +388,7 @@ void UserEBar::determine_acceleration_and_potential(void)
       }
     }
 
-    Iz = 0.2*mass*(a1*a1 + a2*a2);
+    Iz = 0.2*mass*(a1*a1 + a2*a2) * angmomfac;
     Lz = Iz * omega;
 
     if (c1)

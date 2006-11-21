@@ -13,6 +13,7 @@
     @param cratio is the ratio of the minor axis to the submajor axis
     @param amp is the bar amplitude in fraction of the monopole mass
     @param barmass is the total mass of bar (monopole part)
+    @param angmomfac factor artificially changing the self-consistent total bar angular momentum (default: 1.0)
     @param Ton is the time at the center of the <code>erf</code> turn on for the quadrupole
     @param Toff is the time at the center of the <code>erf</code> turn off for the quadrupole
     @param DeltaT is the spread of the turn on
@@ -78,7 +79,7 @@ private:
 
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
-  double posang, lastomega, lasttime;
+  double posang, lastomega, lasttime, angmomfac;
   double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
   double T0, DOmega, tom0, dtom;
   vector<double> timeq, ampq, b5q;
