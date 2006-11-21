@@ -155,7 +155,7 @@ UserResPotOrb::UserResPotOrb(string &line) : ExternalForce(line)
 
   double r = get_radius(tnow);
   omega = get_omega(tnow);
-  Iz = MASS*r*r*omega;
+  Iz = MASS*r*r;
 
   ResPotOrb::NUMX = NUMX;
   ResPotOrb::NUME = NUME;
@@ -518,7 +518,7 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
 
   double r = get_radius(tnow);
   omega = get_omega(tnow);
-  Iz = MASS*r*r*omega;
+  Iz = MASS*r*r;
 				// Write diagnostic log
   if (myid==0) {
     int btot=0;
