@@ -175,7 +175,7 @@ void UserEBar::userinfo()
     cout << "initial corotation fraction, ";
   cout << " amplitude=" << amplitude << ", ";
 
-  if (fabs(angmomfac-1.0)<1.0e-10)
+  if (fabs(angmomfac-1.0)>1.0e-10)
     cout << " ang mom factor=" << angmomfac << ", ";
     
   if (omega0<0.0)
