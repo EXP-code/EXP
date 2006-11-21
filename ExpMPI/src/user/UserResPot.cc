@@ -140,7 +140,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
     else
       omega0 = omega;
 
-    Iz = MASS*LENGTH*LENGTH*omega;
+    Iz = MASS*LENGTH*LENGTH;
 
     pert = orb;
   }
