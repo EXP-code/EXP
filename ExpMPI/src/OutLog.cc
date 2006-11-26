@@ -268,6 +268,40 @@ void OutLog::Run(int n, bool last)
 	}
 	*out << endl << setfill(' ');
 	
+				// Global count
+	int count=0;
+	{
+	  ostringstream slab;
+	  slab << "[" << ++count << "]";
+	  *out << setfill(' ') << setw(cwid) << slab.str();
+	}
+	for (int i=1; i<num_global; i++) {
+	  ostringstream slab;
+	  slab << "[" << ++count << "]";
+	  *out << "|" << setw(cwid) << slab.str();
+	}    
+				// Component count
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (int i=0; i<num_component; i++) {
+	    ostringstream slab;
+	    slab << "[" << ++count << "]";
+	    *out << "|" << setw(cwid) << slab.str();
+	  }
+	}
+	*out << endl;
+
+				// Global divider
+	*out << setfill('-') << setw(cwid) << "-";
+	for (int i=1; i<num_global; i++) 
+	  *out << "+" << setfill('-') << setw(cwid) << "-";
+	
+				// Component dividers
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (int i=0; i<num_component; i++) 
+	    *out << "+" << setfill('-') << setw(cwid) << "-";
+	}
+	*out << endl << setfill(' ');
+	
       }
     }
     
