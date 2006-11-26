@@ -8,6 +8,7 @@ private:
   
   // Parameters
   bool verbose;
+  bool debug;
   string comp_name;
 
   Component *c0;

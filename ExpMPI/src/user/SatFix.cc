@@ -3,7 +3,8 @@
 
 SatFix::SatFix(string &line) : ExternalForce(line)
 {
-  verbose = false;
+  verbose = true;
+  debug   = false;
   comp_name = "Points";		// Default component for fixing
 
   initialize();
@@ -60,6 +61,7 @@ void SatFix::initialize()
 
   if (get_value("compname", val))   comp_name = val;
   if (get_value("verbose", val))    if (atoi(val.c_str())) verbose = true;
+  if (get_value("debug", val))      if (atoi(val.c_str())) debug = true;
 }
 
 void SatFix::get_acceleration_and_potential(Component* C)
@@ -112,18 +114,16 @@ void SatFix::get_acceleration_and_potential(Component* C)
 	     MPI_COMM_WORLD);
   }
 
-  if (ncount[myid]) {
-    for (int n=begin; n<end; n+=2) {
+  for (int n=begin; n<end; n+=2) {
 
-      check_body(n);
+    check_body(n);
 
-      for (int k=0; k<3; k++) {
-	C->Part(n+1)->pos[k] = -C->Part(n)->pos[k];
-	C->Part(n+1)->vel[k] = -C->Part(n)->vel[k];
-	C->Part(n+1)->acc[k] = -C->Part(n)->acc[k];
-      }
-    } 
-  }
+    for (int k=0; k<3; k++) {
+      C->Part(n+1)->pos[k] = -C->Part(n)->pos[k];
+      C->Part(n+1)->vel[k] = -C->Part(n)->vel[k];
+      C->Part(n+1)->acc[k] = -C->Part(n)->acc[k];
+    }
+  } 
 
   MPL_stop_timer();
 }
@@ -229,7 +229,7 @@ void SatFix::compute_list()
 
 void SatFix::check_send()
 {
-  if (verbose) {
+  if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
       if (isnan(c0->Part(end)->pos[k])) ferror = true;
@@ -245,7 +245,7 @@ void SatFix::check_send()
 
 void SatFix::check_body(int n)
 {
-  if (verbose) {
+  if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
       if (isnan(c0->Part(n)->pos[k])) ferror = true;
@@ -260,7 +260,7 @@ void SatFix::check_body(int n)
 
 void SatFix::check_recv()
 {
-  if (verbose) {
+  if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
       if (isnan(c0->Part(0)->pos[k])) ferror = true;
@@ -276,7 +276,7 @@ void SatFix::check_recv()
 
 void SatFix::print_recv()
 {
-  if (verbose) {
+  if (debug) {
     cout << endl << "Process " << myid << ": received pos=";
     for (int k=0; k<3; k++) cout << setw(16) << c0->Part(0)->pos[k];
     cout << endl << "Process " << myid << ": received vel=";
@@ -288,7 +288,7 @@ void SatFix::print_recv()
 
 void SatFix::print_send()
 {
-  if (verbose) {
+  if (debug) {
     cout << endl << "Process " << myid << ": sent pos=";
     for (int k=0; k<3; k++) cout << setw(16) << c0->Part(end)->pos[k];
     cout << endl << "Process " << myid << ": sent vel=";
