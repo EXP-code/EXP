@@ -12,8 +12,8 @@ private:
 
   Component *c0;
 
-  vector<int> plocate;
-  int myid0, myid1;
+  int begin, end;
+  vector<int> send, recv, last;
 
   void initialize();
   void userinfo();

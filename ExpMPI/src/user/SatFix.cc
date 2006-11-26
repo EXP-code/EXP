@@ -22,7 +22,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
   }
 
   // Find out who has particles, make sure that there are an even number
-  if (2*(c0->nbodies_tot)/2 != c0->nbodies_tot) {
+  if (2*(c0->nbodies_tot/2) != c0->nbodies_tot) {
     if (myid==0) cerr << "SatFix: component <" << comp_name 
 		      << "> has an odd number of particles!!! nbodies_tot=" 
 		      << c0->nbodies_tot << "\n";
@@ -35,12 +35,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
-  plocate = vector<int>(numprocs, 0);
-  vector<int> plocate1 = vector<int>(numprocs, 0);
-  plocate1[myid] = c0->Number();
-
-  MPI_Allreduce(&plocate1[0], &plocate[0], numprocs, 
-		MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  last = vector<int>(numprocs, 0);
 
   userinfo();
 }
@@ -68,76 +63,133 @@ void SatFix::initialize()
 
 void SatFix::get_acceleration_and_potential(Component* C)
 {
-  cC = C;			// "Register" component
-  nbodies = cC->Number();	// And compute number of bodies
+  if (C != c0) return;
 
-  if (verbose) cout << "Process " << myid << ": nbodies=" << nbodies << endl;
+				// Get body count
+  vector<int> ncount = c0->particle_count();
+				// Check for change in body count
+  bool recompute = false;
+  for (int n=0; n<numprocs; n++) {
+    if (last[n] != ncount[n]) recompute = true;
+  }
+  
+  if (verbose) 
+    cout << "Process " << myid << ": nbodies=" << ncount[myid] << endl;
 
-  if (!nbodies) return;		// Do we have any particle?
+  if (!ncount[myid]) return;	// Do we have any particles?
 
   MPI_Status status;
   
-  MPL_start_timer();
+  if (recompute) {
+				// Deal with end points
+    send = vector<int>(numprocs, -1);
+    recv = vector<int>(numprocs, -1);
+    bool remainder = false;
+    int from, number;
 
-  int recv = 0;
-  int send = 0;
-		       // Check for info from previous process
-  if (myid) {
-    
-    MPI_Recv(&recv, 1, MPI_INT, myid-1, 132, MPI_COMM_WORLD, &status);
-    
-    if (verbose) cout << "Process " << myid << ": recv=" << recv << " from Process " << myid-1 << endl;
+    for (int n=0; n<numprocs; n++) {
+      number = ncount[n];
 
-    if (recv) {
-      MPI_Recv(C->Part(0)->pos, 3, MPI_DOUBLE, myid-1, 133, MPI_COMM_WORLD, &status);
-      MPI_Recv(C->Part(0)->vel, 3, MPI_DOUBLE, myid-1, 134, MPI_COMM_WORLD, &status);
-      MPI_Recv(C->Part(0)->acc, 3, MPI_DOUBLE, myid-1, 135, MPI_COMM_WORLD, &status);
+      if (number>0) {
+				// Particle to be sent from previous node
+	if (remainder) {
+	  send[from] = n;
+	  recv[n] = from;
+	  number--;
+	  remainder = false;
+	}
+				// Particlde to be sent to next node
+	if ( 2*(number/2) != number ) {
+	  from = n;
+	  remainder = true;
+	}
+	
+      }
+    }
+				// Debug
+    if (verbose && myid==0) {
+
+      cout << "Node list" << endl 
+	   << "---------" << endl
+	   << setw(6) << "Node" 
+	   << setw(6) << "Send" 
+	   << setw(6) << "Recv" << endl;
       
-				// Change sign of phase space
-      for (int k=0; k<3; k++) {
-	C->Part(0)->pos[k] *= -1.0;
-	C->Part(0)->vel[k] *= -1.0;
-	C->Part(0)->acc[k] *= -1.0;
+      for (int n=0; n<numprocs; n++) {
+	cout << setw(6) << n;
+      if (send[n]<0) cout << setw(6) << "*";
+      else cout << setw(6) << send[n];
+      if (recv[n]<0) cout << setw(6) << "*";
+      else cout << setw(6) << recv[n];
+      cout << endl;
       }
     }
 
+    begin = 0;
+    end   = ncount[myid];
+
+    if (recv[myid]>=0) begin++;
+    if (send[myid]>=0) end--;
+
+    last = ncount;
+    recompute = false;
+
+    if (verbose) {
+				// Should always have an even number of 
+				// particles on each node after end points 
+				// are removed
+      int total = end - begin;
+      if (total>0) assert( 2*(total/2) == total );
+    }
+    
   }
 
-  if (!(nbodies-recv)) return;	// No more bodies?  
-  int nbodiesE = 2*((nbodies-recv)/2);
-  int lastn = 0;
+  MPL_start_timer();
 
-  if (verbose) cout << "Process " << myid << ": nbodiesE=" << nbodiesE << endl;
+				// Check for info from previous process
+  if (recv[myid]>=0) {
+    
+    if (verbose) cout << "Process " << myid << ": receiving from Process " 
+		      << recv[myid] << endl;
 
-  for (int n=recv; n<nbodiesE; n+=2) {
-
+    MPI_Recv(C->Part(0)->pos, 3, MPI_DOUBLE, recv[myid], 133, 
+	     MPI_COMM_WORLD, &status);
+    MPI_Recv(C->Part(0)->vel, 3, MPI_DOUBLE, recv[myid], 134, 
+	     MPI_COMM_WORLD, &status);
+    MPI_Recv(C->Part(0)->acc, 3, MPI_DOUBLE, recv[myid], 135, 
+	     MPI_COMM_WORLD, &status);
+    
+				// Change sign of phase space
     for (int k=0; k<3; k++) {
-      C->Part(n+1)->pos[k] = C->Part(n)->pos[k];
-      C->Part(n+1)->vel[k] = C->Part(n)->vel[k];
-      C->Part(n+1)->acc[k] = C->Part(n)->acc[k];
+      C->Part(0)->pos[k] *= -1.0;
+      C->Part(0)->vel[k] *= -1.0;
+      C->Part(0)->acc[k] *= -1.0;
     }
-    if (verbose) lastn = n+1;
-  } 
 
-  if (verbose) cout << "Process " << myid << ": last particle used=" << lastn << endl;
-
-				// Send particle to mirror?
-  if (myid+1 < numprocs) {
-
-    if (nbodies-recv != nbodiesE) send = 1;
-
-    MPI_Send(&send, 1, MPI_INT, myid+1, 132, MPI_COMM_WORLD);
-
-    if (send) {
-
-      if (verbose) cout << "Process " << myid 
-			<< ": sending particle " << nbodies -1 << " to Process " << myid+1 << endl;
-
-      MPI_Send(C->Part(nbodies-1)->pos, 3, MPI_DOUBLE, myid+1, 133, MPI_COMM_WORLD);
-      MPI_Send(C->Part(nbodies-1)->vel, 3, MPI_DOUBLE, myid+1, 134, MPI_COMM_WORLD);
-      MPI_Send(C->Part(nbodies-1)->acc, 3, MPI_DOUBLE, myid+1, 135, MPI_COMM_WORLD);
-    }
   }
+
+				// Send info to next process
+  if (send[myid]>=0) {
+    
+    if (verbose) cout << "Process " << myid << ": sending to Process " 
+		      << send[myid] << endl;
+
+    MPI_Recv(C->Part(end)->pos, 3, MPI_DOUBLE, send[myid], 133, 
+	     MPI_COMM_WORLD, &status);
+    MPI_Recv(C->Part(end)->vel, 3, MPI_DOUBLE, send[myid], 134, 
+	     MPI_COMM_WORLD, &status);
+    MPI_Recv(C->Part(end)->acc, 3, MPI_DOUBLE, send[myid], 135, 
+	     MPI_COMM_WORLD, &status);
+
+  }
+
+  for (int n=begin; n<end; n+=2) {
+    for (int k=0; k<3; k++) {
+      C->Part(n+1)->pos[k] = -C->Part(n)->pos[k];
+      C->Part(n+1)->vel[k] = -C->Part(n)->vel[k];
+      C->Part(n+1)->acc[k] = -C->Part(n)->acc[k];
+    }
+  } 
 
   MPL_stop_timer();
 }

@@ -5,6 +5,7 @@
 #include <PotAccel.H>
 #include <Orient.H>
 #include <header.H>
+#include <localmpi.h>
 #include <utility>
 
 
@@ -245,6 +246,7 @@ protected:
 
   //! Vectors for holding current particle partition
   vector<int> plist, ncount, nbodies_index, nbodies_table;
+
   //! Vectors for holding the rates per node for load balancing
   vector<double> orates, trates;
 
@@ -402,6 +404,15 @@ public:
   //! Particle handler
   int get_next_particle(Partstruct *onepart);
   
+  //! Retrieve particle count on a particular node (one node at a time)
+  int particle_count(int node) { 
+    if (node<0 || node>=numprocs) return 0;
+    return ncount[node]; 
+  }
+
+  //! Retrieve particle count on a particular node (all nodes at once)
+  vector<int> particle_count() { return ncount; }
+
   //! Write binary component phase-space structure
   void write_binary(ostream *out);
   
