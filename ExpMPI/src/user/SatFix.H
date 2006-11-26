@@ -13,10 +13,20 @@ private:
   Component *c0;
 
   int begin, end;
-  vector<int> send, recv, last;
+  vector<int> send, recv, ncount, last;
 
   void initialize();
   void userinfo();
+
+  MPI_Status status;
+  
+  void compute_list();
+				// For debugging
+  void check_body(int);
+  void check_send();
+  void check_recv();
+  void print_send();
+  void print_recv();
 
 public:
 
