@@ -341,6 +341,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	    << setw(15) << "Phi"
 	    << setw(15) << "Omega"
 	    << setw(15) << "L_z(Bar)"
+	    << setw(15) << "T_z(Bar)"
 	    << setw(15) << "Amp"
 	    << setw(15) << "x"
 	    << setw(15) << "y"
@@ -407,6 +408,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	  ins >> posang;
 	  ins >> omega;
 	  ins >> Lz;
+	  ins >> Tz;
 	  ins >> am1;
 	  ins >> bps[0];
 	  ins >> bps[1];
@@ -487,12 +489,13 @@ void UserEBarS::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 
-				// Get total torque;
-  double torque0 = 0.0, torque1 = 0.0;
-  for (int n=0; n<nthrds; n++) torque1 += torque[n];
+				// Get total torque on bar
+  double torque1 = 0.0;
+  for (int n=0; n<nthrds; n++) torque1 -= torque[n];
 
 				// Get contribution from all processes
-  MPI_Allreduce(&torque1, &torque0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  Tz = 0.0;
+  MPI_Allreduce(&torque1, &Tz, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
   if (monopole) {
@@ -502,7 +505,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
   }
   
-  Lz += -torque0 * (tnow - teval);
+  Lz += Tz * (tnow - teval);
 
   teval = tnow;
 
@@ -514,7 +517,8 @@ void UserEBarS::determine_acceleration_and_potential(void)
       out << setw(15) << tvel
 	  << setw(15) << posang
 	  << setw(15) << omega
-	  << setw(15) << Lz;
+	  << setw(15) << Lz
+	  << setw(15) << Tz;
 
       if (amplitude==0.0)
 	out << setw(15) <<  0.0;
