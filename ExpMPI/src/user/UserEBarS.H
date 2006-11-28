@@ -75,7 +75,9 @@ private:
   void initialize();
 
   double teval;
-  double bps[3], vel[3], acc[3], acc1[3], **tacc, *torque;
+  double bps[3], vel[3], acc[3], acc1[3], **tacc;
+  double *TzM, *TzN;
+  int cid;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT;

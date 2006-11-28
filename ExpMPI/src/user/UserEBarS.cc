@@ -119,18 +119,20 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
-  torque = new double [nthrds];
+  TzM  = new double  [comp.ncomp];
+  TzN  = new double  [nthrds];
   tacc = new double* [nthrds];
   for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
-
+  
   userinfo();
 }
 
 UserEBarS::~UserEBarS()
 {
-  delete [] torque;
   for (int n=0; n<nthrds; n++) delete [] tacc[n];
   delete [] tacc;
+  delete [] TzM;
+  delete [] TzN;
   delete ellip;
 }
 
@@ -178,12 +180,14 @@ void UserEBarS::userinfo()
   else
     cout << "standard potential, ";
   if (c0) 
-    cout << "center on component <" << ctr_name << ">, ";
+    cout << "center on component <" << ctr_name << ">";
   else
-    cout << "using inertial center, ";
-  if (table)
-    cout << "using user quadrupole table, ";
+    cout << "using inertial center";
 
+  if (table)
+    cout << ", using user quadrupole table";
+
+  cout << endl;
   print_divider();
 }
 
@@ -340,8 +344,16 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	out << setw(15) << "# Time"
 	    << setw(15) << "Phi"
 	    << setw(15) << "Omega"
-	    << setw(15) << "L_z(Bar)"
-	    << setw(15) << "T_z(Bar)"
+	    << setw(15) << "L_z(Bar)";
+
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) 
+	  {
+	    ostringstream ostr;
+	    ostr << "T_z(" << (*cc)->name << ")";
+	    out << setw(15) << ostr.str().substr(0,15);
+	  }
+	
+	out << setw(15) << "T_z(total)"
 	    << setw(15) << "Amp"
 	    << setw(15) << "x"
 	    << setw(15) << "y"
@@ -409,6 +421,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	  ins >> omega;
 	  ins >> Lz;
 	  ins >> Tz;
+	  for (int m=0; m<comp.ncomp; m++) ins >> TzM[m];
 	  ins >> am1;
 	  ins >> bps[0];
 	  ins >> bps[1];
@@ -472,10 +485,24 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
   }
 
-				// Zero thread variables
+				// Zero out thread variables
   for (int n=0; n<nthrds; n++) {
-    torque[n] = 0.0;
+    TzN[n] = 0.0;
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
+  }
+
+				// Identify list #
+  cid=0;
+  for (list<Component*>::iterator cc=comp.components.begin(); 
+       cc != comp.components.end(); cc++) 
+    {
+      if (cC == *cc) break;
+      cid++;
+    }
+
+  if (cid==comp.ncomp) {
+    cerr << "Process " << myid << ": failed to identify component!\n";
+    MPI_Abort(MPI_COMM_WORLD, 135);
   }
 
   exp_thread_fork(false);
@@ -488,15 +515,16 @@ void UserEBarS::determine_acceleration_and_potential(void)
 				// Get contribution from all processes
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-
-				// Get total torque on bar
-  double torque1 = 0.0;
-  for (int n=0; n<nthrds; n++) torque1 -= torque[n];
+				// Get torque for each component 
+				// from all threads
+  double Tz1=0.0, Tz0=0.0;
+  for (int n=0; n<nthrds; n++) Tz1 -= TzN[n];
 
 				// Get contribution from all processes
-  Tz = 0.0;
-  MPI_Allreduce(&torque1, &Tz, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&Tz1, &Tz0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  TzM[cid] = Tz0;
+  
 				// Backward Euler
   if (monopole) {
     for (int k=0; k<3; k++) {
@@ -505,7 +533,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
   }
   
-  Lz += Tz * (tnow - teval);
+  Lz += Tz0 * (tnow - teval);
 
   teval = tnow;
 
@@ -517,8 +545,15 @@ void UserEBarS::determine_acceleration_and_potential(void)
       out << setw(15) << tvel
 	  << setw(15) << posang
 	  << setw(15) << omega
-	  << setw(15) << Lz
-	  << setw(15) << Tz;
+	  << setw(15) << Lz;
+
+      Tz0 = 0.0;
+      for (int m=0; m<comp.ncomp; m++) {
+	Tz0 += TzM[m];
+	out << setw(15) << TzM[m];
+      }
+      
+      out << setw(15) << Tz0;
 
       if (amplitude==0.0)
 	out << setw(15) <<  0.0;
@@ -652,8 +687,7 @@ void * UserEBarS::determine_acceleration_and_potential_thread(void * arg)
 
 				// Accumulate torque
     
-    torque[id] += cC->Mass(i) * (pos[0]*acct[1] - pos[1]*acct[0]);
-
+    TzN[id] += cC->Mass(i) * (pos[0]*acct[1] - pos[1]*acct[0]);
   }
 
   return (NULL);
