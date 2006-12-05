@@ -143,6 +143,7 @@ void UserWake::userinfo()
        << ", YMAX=" << YMAX
        << ", PHI=" << PHI
        << ", THETA=" << THETA
+       << ", PSI=" << PSI
        << ", NSTEP=" << NSTEP
        << ", filename=" << filename
        << endl;
@@ -232,7 +233,27 @@ void UserWake::determine_acceleration_and_potential(void)
     // Compute the images
     // -----------------------------------------------------------
 
-    exp_thread_fork(false);
+    // exp_thread_fork(false);
+
+    double dens0, potl0, dens, potl, potr, pott, potp;
+
+    for (int i=nbeg; i<nend; i++) {
+
+      ((Basis *)cC->force)->
+	determine_fields_at_point_sph(r[i], theta[i], phi[i], 
+				      &dens0, &potl0, 
+				      &dens, &potl,
+				      &potr, &pott, &potp);
+    
+      data1[0][i] += dens0;
+      data1[1][i] += dens - dens0;
+      data1[2][i] += dens;
+      
+      data1[4][i] += potl0;
+      data1[5][i] += potl - potl0;
+      data1[6][i] += potl;
+    }
+
 
     // -----------------------------------------------------------
     // Print the images after the last component in the list
@@ -268,11 +289,11 @@ void UserWake::determine_acceleration_and_potential(void)
 	      for (int j=0; j<npix; j++) {
 
 		if (i==3) {	// Relative density
-		  data0[i][j] = data0[2][j];
+		  data0[i][j] = data0[1][j];
 		  if (data0[0][j]>0.0) data0[i][j] /= fabs(data0[0][j]);
 		}
 		if (i==7) {	// Relative potential
-		  data0[i][j] = data0[6][j];
+		  data0[i][j] = data0[5][j];
 		  if (data0[4][j]>0.0) data0[i][j] /= fabs(data0[4][j]);
 		}
 		out.write((const char *)&data0[i][j], sizeof(float));
