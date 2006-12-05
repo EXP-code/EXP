@@ -756,19 +756,30 @@ void SphericalBasis::dump_coefs(ostream& out)
 }
 
 
-void SphericalBasis::determine_fields_at_point_cyl(double R, double z, double phi, double *tdens, double *tpotl, double *tpotR, double *tpotz, double *tpotp)
+void SphericalBasis::determine_fields_at_point_cyl
+(double R, double z, double phi, 
+ double *tdens0, double *tpotl0, 
+ double *tdens, double *tpotl, 
+ double *tpotR, double *tpotz, double *tpotp)
 {
   double r = sqrt(R*R + z*z) + 1.0e-18;
   double theta = acos(z/R);
   double tpotr, tpott;
 
-  determine_fields_at_point_sph(r, theta, phi, tdens, tpotl, &tpotr,
-				&tpott, tpotp);
+  determine_fields_at_point_sph(r, theta, phi, 
+				tdens0, tpotl0, 
+				tdens, tpotl, 
+				&tpotr,	&tpott, tpotp);
+
   *tpotR = tpotr*sin(theta) - tpott*cos(theta);
   *tpotz = tpotr*cos(theta) + tpott*sin(theta);
 }
 
-void SphericalBasis::determine_fields_at_point_sph(double r, double theta, double phi, double *tdens, double *tpotl, double *tpotr, double *tpott, double *tpotp)
+void SphericalBasis::determine_fields_at_point_sph
+(double r, double theta, double phi, 
+ double *tdens0, double *tpotl0, 
+ double *tdens, double *tpotl, 
+ double *tpotr, double *tpott, double *tpotp)
 {
   int l,loffset,moffset,m;
   double rs,fac1,fac2,fac3,fac4,costh,dp;
@@ -792,6 +803,8 @@ void SphericalBasis::determine_fields_at_point_sph(double r, double theta, doubl
   potr = fac1*dp;
   pott = potp = 0.0;
   
+  *tdens0 = dens;
+  *tpotl0 = potl;
 
   // l loop
     
@@ -829,6 +842,9 @@ void SphericalBasis::determine_fields_at_point_sph(double r, double theta, doubl
       }
     }
   }
+
+  *tdens0 /= scale*scale*scale;
+  *tpotl0 /= scale;
 
   *tdens = dens/(scale*scale*scale);
   *tpotl = potl/scale;

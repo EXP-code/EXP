@@ -95,8 +95,8 @@ void OutDiag::Run(int n, bool last)
   if (myid) return;
   if (n % nint && !last) return;
 
-  double r, dr, dens;
-  double potl, potr, pott, potp;
+  double r, dr, dens, dens0;
+  double potl0, potl, potr, pott, potp;
     
   ostringstream outs;
   outs << filename.c_str() << "." << n;
@@ -121,6 +121,7 @@ void OutDiag::Run(int n, bool last)
     for (c=lcomp.begin(); c != lcomp.end(); c++) {
       AxisymmetricBasis * q = (AxisymmetricBasis *)((*c)->force);
       q->determine_fields_at_point_sph(r, THETA, PHI,
+				       &dens0, &potl0, 
 				       &dens, &potl, &potr, &pott, &potp);
       out << setw(15) << dens
 	  << setw(15) << potl

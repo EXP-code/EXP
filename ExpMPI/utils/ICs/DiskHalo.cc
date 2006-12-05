@@ -257,11 +257,13 @@ get_hpot(double xp, double yp, double zp)
 void DiskHalo::disk_eval(double R, double z, double phi,
 			 double &p, double &fr, double &fz, double &fp)
 {
+  double p0;
+
   //                   This is the table radius
   //                   ------------------------
   if (sqrt(R*R+z*z) <= M_SQRT1_2*expandd->get_ascale()*expandd->RMAX) {
     
-    expandd->accumulated_eval(R, z, phi, p, fr, fz, fp);
+    expandd->accumulated_eval(R, z, phi, p0, p, fr, fz, fp);
 
   } else {
 

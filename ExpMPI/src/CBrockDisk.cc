@@ -395,24 +395,26 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
 void 
 CBrockDisk::determine_fields_at_point_sph(double r, double theta, double phi,
+					  double *tdens0, double *tpotl0, 
 					  double *tdens, double *tpotl, 
 					  double *tpotr, double *tpott, 
 					  double *tpotp)
 
 {
-  determine_fields_at_point_polar(r, phi, tdens, tpotl, tpotr, tpotp);
+  determine_fields_at_point_polar(r, phi, tdens0, tpotl0, tdens, tpotl, tpotr, tpotp);
   *tpott = 0.0;
 }
 
 
 void 
 CBrockDisk::determine_fields_at_point_cyl(double r, double z, double phi,
+					  double *tdens0, double *tpotl0, 
 					  double *tdens, double *tpotl, 
 					  double *tpotr, double *tpott, 
 					  double *tpotp)
 
 {
-  determine_fields_at_point_polar(r, phi, tdens, tpotl, tpotr, tpotp);
+  determine_fields_at_point_polar(r, phi, tdens0, tpotl0, tdens, tpotl, tpotr, tpotp);
   *tpott = 0.0;
 }
 
@@ -420,6 +422,7 @@ CBrockDisk::determine_fields_at_point_cyl(double r, double z, double phi,
 void CBrockDisk::determine_fields_at_point_polar
 (
  double r, double phi,
+ double *tdens0, double *tpotl0,
  double *tdens, double *tpotl, double *tpotr, double *tpotp
  )
 {
@@ -441,6 +444,8 @@ void CBrockDisk::determine_fields_at_point_polar
   potr = dp;
   potp = 0.0;
   
+  *tdens0 = dens;
+  *tpotl0 = potl;
       
   /*		l loop */
     
@@ -457,6 +462,9 @@ void CBrockDisk::determine_fields_at_point_polar
     potp += (-pc*sinm[0][l] + ps*cosm[0][l])*l;
   }
 
+  *tdens0 /= scale*scale*scale;
+  *tpotl0 /= scale;
+      
   *tdens = dens/(scale*scale*scale);
   *tpotl = potl/scale;
   *tpotr = potr/(scale*scale);

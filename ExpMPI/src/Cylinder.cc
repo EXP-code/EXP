@@ -385,7 +385,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   int i;
   double r, r2, r3, phi;
   double xx, yy, zz;
-  double p, fr, fz, fp;
+  double p, p0, fr, fz, fp;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -420,7 +420,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
     if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
 
-      ortho->accumulated_eval(r, zz, phi, p, fr, fz, fp);
+      ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
     
 #ifdef DEBUG
       check_force_values(phi, p, fr, fz, fp);
@@ -517,6 +517,7 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 void Cylinder::
 determine_fields_at_point_sph(double r, double theta, double phi,
+			      double *tdens0, double *tpotl0, 
 			      double *tdens, double *tpotl, 
 			      double *tpotr, double *tpott, 
 			      double *tpotp)
@@ -526,7 +527,7 @@ determine_fields_at_point_sph(double r, double theta, double phi,
   double z = r*cos(theta);
   double tpotR, tpotZ;
 
-  determine_fields_at_point_cyl(R, z, phi, tdens, tpotl, 
+  determine_fields_at_point_cyl(R, z, phi, tdens0, tpotl0, tdens, tpotl, 
 				&tpotR, &tpotZ, tpotp);
   
   *tpotr =   tpotR*sin(theta) + tpotZ*cos(theta) ;
@@ -536,16 +537,17 @@ determine_fields_at_point_sph(double r, double theta, double phi,
 
 
 void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
+					     double *tdens0, double *tpotl0, 
 					     double *tdens, double *tpotl, 
 					     double *tpotr, double *tpotz, double *tpotp)
 {
-  ortho->accumulated_eval(r, z, phi, *tpotl, *tpotr, *tpotz, *tpotp);
+  ortho->accumulated_eval(r, z, phi, *tpotl0, *tpotl, *tpotr, *tpotz, *tpotp);
   // Accumulated eval returns forces not potential gradients
   *tpotr *= -1.0;
   *tpotz *= -1.0;
   *tpotp *= -1.0;
   if (density)
-    *tdens = ortho->accumulated_dens_eval(r, z, phi);
+    *tdens = ortho->accumulated_dens_eval(r, z, phi, *tdens0);
   else
     *tdens = 0.0;
 }
@@ -588,7 +590,7 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 
 				// Ok, write data
-  double p, fr, fz, fp;
+  double p, p0, d0, fr, fz, fp;
 
   for (int k=0; k<ncylny; k++) {
 
@@ -598,10 +600,10 @@ void Cylinder::dump_mzero(const string& name, int step)
 	  
       r = dr*j;
 
-      zz = ortho->accumulated_dens_eval(r, z, 0.0);
+      zz = ortho->accumulated_dens_eval(r, z, 0.0, d0);
       out[0]->write((char *)&zz, sizeof(float));
 
-      ortho->accumulated_eval(r, z, 0.0, p, fr, fz, fp);
+      ortho->accumulated_eval(r, z, 0.0, p0, p, fr, fz, fp);
       out[1]->write((char *)&(zz=p ), sizeof(float));
       out[2]->write((char *)&(zz=fr), sizeof(float));
       out[3]->write((char *)&(zz=fz), sizeof(float));

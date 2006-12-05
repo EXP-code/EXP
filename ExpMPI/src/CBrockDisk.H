@@ -66,16 +66,19 @@ public:
   */
   void 
   determine_fields_at_point_polar(double r, double phi,
+				  double *tdens0, double *tpotl0, 
 				  double *tdens, double *tpotl, 
 				  double *tpotr, double *tpotp);
   void 
   determine_fields_at_point_sph(double r, double theta, double phi,
+				double *tdens0, double *tpotl0, 
 				double *tdens, double *tpotl, 
 				double *tpotr, double *tpott, 
 				double *tpotp);
 
   void 
   determine_fields_at_point_cyl(double r, double z, double phi,
+				double *tdens0, double *tpotl0, 
 				double *tdens, double *tpotl, 
 				double *tpotr, double *tpotz, 
 				double *tpotp);

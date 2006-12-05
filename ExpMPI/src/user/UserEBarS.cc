@@ -119,6 +119,7 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
+  okM  = 0;
   TzM  = new double  [comp.ncomp];
   TzN  = new double  [nthrds];
   tacc = new double* [nthrds];
@@ -229,8 +230,6 @@ void UserEBarS::initialize()
 
 void UserEBarS::determine_acceleration_and_potential(void)
 {
-				// Write to bar state file, if true
-  bool update = false;
 
   if (firstime) {
     
@@ -244,7 +243,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
       double R=length*Fcorot;
       double phi, theta=0.5*M_PI;
-      double dens, potl, potr, pott, potp;
+      double dens0, potl0, dens, potl, potr, pott, potp;
       double avg=0.0;
       
       for (int n=0; n<8; n++) {
@@ -257,7 +256,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	      c->force->geometry == PotAccel::cylinder) {
 	  
 	    ((Basis*)c->force)->
-	      determine_fields_at_point_sph(R, theta, phi,
+	      determine_fields_at_point_sph(R, theta, phi, &dens0, &potl0,
 					    &dens, &potl, &potr, &pott, &potp);
 	  
 	    avg += potr/8.0;
@@ -463,7 +462,6 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
 
     firstime = false;
-    update = true;
 
   } else {
 
@@ -481,7 +479,6 @@ void UserEBarS::determine_acceleration_and_potential(void)
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
       lasttime = tvel;
-      update = true;
     }
   }
 
@@ -504,6 +501,8 @@ void UserEBarS::determine_acceleration_and_potential(void)
     cerr << "Process " << myid << ": failed to identify component!\n";
     MPI_Abort(MPI_COMM_WORLD, 135);
   }
+
+  okM++;
 
   exp_thread_fork(false);
 
@@ -533,41 +532,48 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
   }
   
-  Lz += Tz0 * (tnow - teval);
+				// All components computed
+  if (okM == comp.ncomp-1) {
 
-  teval = tnow;
+				// Total torque
+    Tz0 = 0.0;
+    for (int m=0; m<comp.ncomp; m++) Tz0 += TzM[m];
 
-  if (myid==0 && update) 
-    {
-      ofstream out(name.c_str(), ios::out | ios::app);
-      out.setf(ios::scientific);
+				// Update bar angular momentum
+    Lz += Tz0 * (tnow - teval);
 
-      out << setw(15) << tvel
-	  << setw(15) << posang
-	  << setw(15) << omega
-	  << setw(15) << Lz;
+    okM   = 0;
+    teval = tnow;
 
-      Tz0 = 0.0;
-      for (int m=0; m<comp.ncomp; m++) {
-	Tz0 += TzM[m];
-	out << setw(15) << TzM[m];
+    if (myid==0) 
+      {
+	ofstream out(name.c_str(), ios::out | ios::app);
+	out.setf(ios::scientific);
+
+	out << setw(15) << tvel
+	    << setw(15) << posang
+	    << setw(15) << omega
+	    << setw(15) << Lz;
+
+	for (int m=0; m<comp.ncomp; m++) 
+	  out << setw(15) << TzM[m];
+	
+	out << setw(15) << Tz0;
+
+	if (amplitude==0.0)
+	  out << setw(15) <<  0.0;
+	else
+	  out << setw(15) << amplitude/fabs(amplitude) *  
+	    0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
+	    0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
+	
+	for (int k=0; k<3; k++) out << setw(15) << bps[k];
+	for (int k=0; k<3; k++) out << setw(15) << vel[k];
+	for (int k=0; k<3; k++) out << setw(15) << acc[k];
+      
+	out << endl;
       }
-      
-      out << setw(15) << Tz0;
-
-      if (amplitude==0.0)
-	out << setw(15) <<  0.0;
-      else
-	out << setw(15) << amplitude/fabs(amplitude) *  
-	  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-	  0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
-
-      for (int k=0; k<3; k++) out << setw(15) << bps[k];
-      for (int k=0; k<3; k++) out << setw(15) << vel[k];
-      for (int k=0; k<3; k++) out << setw(15) << acc[k];
-      
-      out << endl;
-    }
+  }
 
 }
 

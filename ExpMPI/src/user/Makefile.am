@@ -14,7 +14,7 @@ libdir = $(prefix)/lib/user
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
-	librptest.la libhalo.la libebars.la
+	librptest.la libhalo.la libebars.la libwake.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -68,6 +68,9 @@ librespotorb_la_LIBADD = libcommon.a
 
 librptest_la_SOURCES = UserRPtest.cc
 librptest_la_LIBADD = libcommon.a
+
+libwake_la_SOURCES = UserWake.cc
+libwake_la_LIBADD = libcommon.a
 
 #
 # Test routine

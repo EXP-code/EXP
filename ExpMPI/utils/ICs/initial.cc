@@ -627,7 +627,7 @@ main(int argc, char **argv)
         out[i].write((char *)&(f= rmax), sizeof(float));
       }
     
-      double z = 0.0, d, p, fr, fz, fp;
+      double z = 0.0, d0, p0, d, p, fr, fz, fp;
     
       for (int j=0; j<nout; j++) {
         y = -rmax + dr*j;
@@ -636,12 +636,12 @@ main(int argc, char **argv)
           x = -rmax + dr*i;
         
 	  if (x<0.0)
-	    expandd->accumulated_eval(fabs(x), y, M_PI, p, fr, fz, fp);
+	    expandd->accumulated_eval(fabs(x), y, M_PI, p0, p, fr, fz, fp);
 	  else
-	    expandd->accumulated_eval(x, y,  0.0, p, fr, fz, fp);
+	    expandd->accumulated_eval(x, y,  0.0, p0, p, fr, fz, fp);
 
 
-          d = expandd->accumulated_dens_eval(sqrt(x*x + y*y), z, atan2(y, x));
+          d = expandd->accumulated_dens_eval(sqrt(x*x + y*y), z, atan2(y, x), d0);
         
           
           out[0].write((char *)&(f=d ), sizeof(float));

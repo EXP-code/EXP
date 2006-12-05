@@ -2048,9 +2048,9 @@ void EmpCylSL::pca_hall(void)
 }
 
 
-void EmpCylSL::accumulated_eval(double r, double z, double phi,
-				double& p, double& fr, double& fz, 
-				double &fp)
+void EmpCylSL::accumulated_eval(double r, double z, double phi, 
+				double &p0, double& p, 
+				double& fr, double& fz, double &fp)
 {
   //  if (!coefs_made) make_coefficients();
 
@@ -2185,12 +2185,15 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
       
     }
     
+    if (mm=0) p0 = p;
+
   }
   
 }
 
 
-double EmpCylSL::accumulated_dens_eval(double r, double z, double phi)
+double EmpCylSL::accumulated_dens_eval(double r, double z, double phi, 
+				       double& d0)
 {
   if (!DENS) return 0.0;
 
@@ -2270,6 +2273,8 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi)
       }
 
     }
+
+    if (mm==0) d0 = ans;
 
   }
 
@@ -2819,7 +2824,7 @@ void EmpCylSL::dump_images(const string& OUTFILE,
     }
   }
   
-  double del, tmp, rP, rN, zP, zN, pP, pN;
+  double del, tmp, rP, rN, zP, zN, pP, pN, p0, d0;
   double potpr, potnr, potpz, potnz, potpp, potnp;
 
   
@@ -2842,8 +2847,8 @@ void EmpCylSL::dump_images(const string& OUTFILE,
       else
 	r = rmin + dr*ir;
 	  
-      accumulated_eval(r, z, 0.0, p, rf, zf, pf);
-      d = accumulated_dens_eval(r, z, 0.0);
+      accumulated_eval(r, z, 0.0, p0, p, rf, zf, pf);
+      d = accumulated_dens_eval(r, z, 0.0, d0);
       
       out[0]  << setw(15) << r << setw(15) << z << setw(15) << p;
       out[1]  << setw(15) << r << setw(15) << z << setw(15) << d;
@@ -2872,12 +2877,12 @@ void EmpCylSL::dump_images(const string& OUTFILE,
       pP =  0.5*hp;
       pN = -0.5*hp;
 
-      accumulated_eval(rP, z, 0.0, potpr, tmp, tmp, tmp);
-      accumulated_eval(rN, z, 0.0, potnr, tmp, tmp, tmp);
-      accumulated_eval(r, zP, 0.0, potpz, tmp, tmp, tmp);
-      accumulated_eval(r, zN, 0.0, potnz, tmp, tmp, tmp);
-      accumulated_eval(r,  z,  pP, potpp, tmp, tmp, tmp);
-      accumulated_eval(r,  z,  pN, potnp, tmp, tmp, tmp);
+      accumulated_eval(rP, z, 0.0, tmp, potpr, tmp, tmp, tmp);
+      accumulated_eval(rN, z, 0.0, tmp, potnr, tmp, tmp, tmp);
+      accumulated_eval(r, zP, 0.0, tmp, potpz, tmp, tmp, tmp);
+      accumulated_eval(r, zN, 0.0, tmp, potnz, tmp, tmp, tmp);
+      accumulated_eval(r,  z,  pP, tmp, potpp, tmp, tmp, tmp);
+      accumulated_eval(r,  z,  pN, tmp, potnp, tmp, tmp, tmp);
       
       //==================================================
 
@@ -2952,8 +2957,8 @@ void EmpCylSL::dump_images(const string& OUTFILE,
       rr = sqrt(xx*xx + yy*yy);
       pp = atan2(yy, xx);
       
-      accumulated_eval(rr, 0.0, pp, p, rf, zf, pf);
-      d = accumulated_dens_eval(rr, 0.0, pp);
+      accumulated_eval(rr, 0.0, pp, p0, p, rf, zf, pf);
+      d = accumulated_dens_eval(rr, 0.0, pp, d0);
       
       out[0]  << setw(15) << xx << setw(15) << yy << setw(15) << p;
       out[1]  << setw(15) << xx << setw(15) << yy << setw(15) << d;
@@ -2981,12 +2986,12 @@ void EmpCylSL::dump_images(const string& OUTFILE,
       pP = pp + 0.5*hp;
       pN = pp - 0.5*hp;
 
-      accumulated_eval(rP, 0.0, pp, potpr, tmp, tmp, tmp);
-      accumulated_eval(rN, 0.0, pp, potnr, tmp, tmp, tmp);
-      accumulated_eval(rr,  zP, pp, potpz, tmp, tmp, tmp);
-      accumulated_eval(rr,  zN, pp, potnz, tmp, tmp, tmp);
-      accumulated_eval(rr, 0.0, pP, potpp, tmp, tmp, tmp);
-      accumulated_eval(rr, 0.0, pN, potnp, tmp, tmp, tmp);
+      accumulated_eval(rP, 0.0, pp, tmp, potpr, tmp, tmp, tmp);
+      accumulated_eval(rN, 0.0, pp, tmp, potnr, tmp, tmp, tmp);
+      accumulated_eval(rr,  zP, pp, tmp, potpz, tmp, tmp, tmp);
+      accumulated_eval(rr,  zN, pp, tmp, potnz, tmp, tmp, tmp);
+      accumulated_eval(rr, 0.0, pP, tmp, potpp, tmp, tmp, tmp);
+      accumulated_eval(rr, 0.0, pN, tmp, potnp, tmp, tmp, tmp);
       
       //==================================================
 

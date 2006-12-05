@@ -249,11 +249,11 @@ public:
   void accumulate(double r, double z, double phi, double mass, int id);
 
   //! Evaluate potential and force field 
-  void accumulated_eval(double r, double z, double phi,
+  void accumulated_eval(double r, double z, double phi, double& p0,
 			double& p, double& fr, double& fz, double& fp);
 
   //! Evaluate density field
-  double accumulated_dens_eval(double r, double z, double phi);
+  double accumulated_dens_eval(double r, double z, double phi, double& d0);
 
   //! Dump out coefficients to stream
   void dump_coefs(ostream& out);

@@ -151,7 +151,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
     double R=length*Fcorot;
     double phi, theta=0.5*M_PI;
-    double dens, potl, potr, pott, potp;
+    double dens0, potl0, dens, potl, potr, pott, potp;
     double avg=0.0;
     
     for (int n=0; n<8; n++) {
@@ -164,7 +164,7 @@ void UserBar::determine_acceleration_and_potential(void)
 	    c->force->geometry == PotAccel::cylinder) {
 	  
 	  ((Basis*)c->force)->
-	    determine_fields_at_point_sph(R, theta, phi,
+	    determine_fields_at_point_sph(R, theta, phi, &dens0, &potl0,
 					  &dens, &potl, &potr, &pott, &potp);
 	  
 	  avg += potr/8.0;

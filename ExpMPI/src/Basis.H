@@ -28,7 +28,7 @@ public:
   */
   virtual void determine_fields_at_point_sph
   (double r, double theta, double phi,
-   double *tdens, double *tpotl, 
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl, 
    double *tpotr, double *tpott, double *tpotp) = 0;
 
 
@@ -38,7 +38,7 @@ public:
   */
   virtual void determine_fields_at_point_cyl
   (double r, double z, double phi,
-   double *tdens, double *tpotl, 
+   double *tdens0, double *dpotl0, double *tdens, double *tpotl,
    double *tpotr, double *tpotz, double *tpotp) = 0;
 
 
