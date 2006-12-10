@@ -100,11 +100,11 @@ UserWake::UserWake(string &line) : ExternalForce(line)
 
   for (int j=0; j<NUMY; j++) {
 
-    P0[1] = YMIN + dY*j;
+    P0[2] = YMIN + dY*j;
 
     for (int i=0; i<NUMX; i++) {
 
-      P0[2] = XMIN + dX*i;
+      P0[1] = XMIN + dX*i;
 
       P1 = rotate * P0;
 

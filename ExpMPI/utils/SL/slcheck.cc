@@ -44,6 +44,10 @@ void usage(char *prog)
        << setiosflags(ios::left)
        << setw(40) << "Model profile" << endl
        << resetiosflags(ios::left)
+       << setw(15) << "-l or --logr" << setw(10) << "No" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "Turn on log spacing in radius" << endl
+       << resetiosflags(ios::left)
        << endl;
 
   exit(0);
@@ -52,6 +56,7 @@ void usage(char *prog)
 int main(int argc, char** argv)
 {
   bool use_mpi = false;
+  bool use_logr = false;
   int cmap = 0;
   double scale = 1.0;
   int numr = 10000;
@@ -65,6 +70,7 @@ int main(int argc, char** argv)
     int option_index = 0;
     static struct option long_options[] = {
       {"mpi", 0, 0, 0},
+      {"logr", 0, 0, 0},
       {"cmap", 1, 0, 0},
       {"numr", 1, 0, 0},
       {"dfac", 1, 0, 0},
@@ -72,7 +78,7 @@ int main(int argc, char** argv)
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "c:mn:d:i:h",
+    c = getopt_long (argc, argv, "c:lmn:d:i:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -86,6 +92,8 @@ int main(int argc, char** argv)
 	  use_mpi = true;
 	} else if (!optname.compare("cmap")) {
 	  cmap = atoi(optarg);
+	} else if (!optname.compare("logr")) {
+	  use_logr = true;
 	} else if (!optname.compare("numr")) {
 	  numr = atoi(optarg);
 	} else if (!optname.compare("dfac")) {
@@ -104,6 +112,10 @@ int main(int argc, char** argv)
 
     case 'c':
       cmap = atoi(optarg);
+      break;
+
+    case 'l':
+      use_logr = true;
       break;
 
     case 'm':
@@ -181,6 +193,7 @@ int main(int argc, char** argv)
 				// Set model file
   SLGridSph::model_file_name = filename;
 
+  cout << "Model=" << filename << endl;
   cout << "CMAP=" << cmap << endl;
 
 				// Generate Sturm-Liouville grid
@@ -230,10 +243,23 @@ int main(int argc, char** argv)
 	double ximin = ortho->r_to_xi(rmin);
 	double ximax = ortho->r_to_xi(rmax);
 
-	double x, r;
+	double x, r, lrmin, lrmax;
+
+	if (use_logr) {
+	  if (rmin<1.0e-16) use_logr = false;
+	  else {
+	    lrmin = log(rmin);
+	    lrmax = log(rmax);
+	  }
+	}
 
 	for (int i=0; i<num; i++) {
-	  x = ximin + (ximax-ximin)*(0.5 + i)/num;
+
+	  if (use_logr)
+	    x = ortho->r_to_xi(exp(lrmin + (lrmax-lrmin)*i/(num-1)));
+	  else
+	    x = ximin + (ximax-ximin)*i/(num-1);
+
 	  r = ortho->xi_to_r(x);
 	  out << setw(15) << x
 	      << setw(15) << r
