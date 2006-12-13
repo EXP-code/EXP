@@ -204,10 +204,13 @@ void UserWake::determine_acceleration_and_potential(void)
 	       << names[0] << "." << count;
 	  
 	  // Try to open stream for writing
-	  ifstream in(filename.c_str());
+	  ifstream in(ostr.str().c_str());
 	  if (!in) break;
 	}
       }
+
+      if (myid==0) 
+	cout << "UserWake: beginning at frame=" << count << endl;
 
       MPI_Bcast(&count, 1, MPI_INT, 0, MPI_COMM_WORLD);
 	
