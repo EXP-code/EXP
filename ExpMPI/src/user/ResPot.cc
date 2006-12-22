@@ -183,9 +183,9 @@ void ResPot::compute_grid()
 	Em = Emax - delE*2.0;
       }
       
-      if (K-delK < Kmin) {
-	Kp = Kmin + delK*2.0 ;
-	Km = Kmin;
+      if (E-delE < Emin) {
+	Ep = Emin + delE*2.0 ;
+	Em = Emin;
       }
       
       // Kappa bounds
