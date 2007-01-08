@@ -25,4 +25,4 @@
 # or
 #DEFAULT (echo ""; id; echo %{sVv}; date; cat) >> $CVSROOT/CVSROOT/commitlog
 
-ALL Mail -s %s weinberg@osprey.astro.umass.edu
+ALL /usr/bin/mail -s %s weinberg@osprey.astro.umass.edu
