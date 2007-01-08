@@ -361,12 +361,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxywake { 
 public:
-  proxy()
+  proxywake()
   {
     factory["userwake"] = makerWake;
   }
 };
 
-static proxy p;
+proxywake p;

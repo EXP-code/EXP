@@ -95,6 +95,8 @@ main(int argc, char **argv)
 				// Assign file stream to input stream
     in = in2;
 
+  } else {
+    Usage(prog);
   }
 
 

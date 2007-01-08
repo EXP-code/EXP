@@ -103,11 +103,13 @@ extern unsigned char stop_signal;
 //! Used to flag separate behavior on inintialization (unused)
 extern int is_init;
 
+#ifndef _localmpi_h
 //! Maintains number of processes, slaves, MPI id, etc.
 extern int numprocs, slaves, myid, proc_namelen;
 
 //! MPI returned processor name
 extern char processor_name[MPI_MAX_PROCESSOR_NAME];
+#endif
 
 //! Internally defined slave communicator
 extern MPI_Comm MPI_COMM_SLAVE;

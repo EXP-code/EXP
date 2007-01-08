@@ -406,11 +406,11 @@ void UserResPot::determine_acceleration_and_potential(void)
 	
 	char c = out.fill('-');
 	int ncnt=1;
-	out << "# " << setw(13) << ncnt++ 
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++
-	    << "| " << setw(13) << ncnt++;
+	out << "# " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
+	out << "| " << setw(13) << ncnt++;
       	for (int j=1; j<ResPot::NumDesc; j++)
 	  out << "| " << setw(13) << ncnt++;
 	out << endl;
@@ -605,12 +605,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxyrespot { 
 public:
-  proxy()
+  proxyrespot()
   {
     factory["userrespot"] = makerResPot;
   }
 };
 
-static proxy p;
+static proxyrespot p;

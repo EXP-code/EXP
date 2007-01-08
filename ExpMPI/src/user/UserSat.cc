@@ -5,12 +5,13 @@
 
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
+#include <FindOrb.H>
 
 class UserSat : public ExternalForce
 {
 private:
   
-  string com_name;
+  string com_name, config, orbfile;
   Component *c0;
 
   SatelliteOrbit *orb;
@@ -20,18 +21,23 @@ private:
 
   double core, mass, ton, toff, delta, toffset;
 
-  bool circ;
-  double omega, phase, r0;
+  bool circ, orbit;
+  double omega, phase, r0, tlast;
 
   void userinfo();
 
 public:
+
+				// For debugging . . .
+  static int instances;
 
   UserSat(string &line);
   ~UserSat();
 
 };
 
+
+int UserSat::instances = 0;
 
 UserSat::UserSat(string &line) : ExternalForce(line)
 {
@@ -43,12 +49,14 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   delta = 1.0;			// Turn on duration
   toffset = 0.0;		// Time offset for orbit
 
+  orbit = false;		// Print out orbit for debugging
   circ = false;			// Assume circular orbit on x-y plane
   r0 = 1.0;			// Radius
   phase = 0.0;			// Initial position angle
   omega = 1.0;			// Angular frequency
 
   com_name = "sphereSL";	// Default component for com
+  config   = "conf.file";	// Configuration file for spherical orbit
 
   initialize();
 
@@ -72,7 +80,32 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   }
 
   if (circ) orb = 0;
-  else      orb = new SatelliteOrbit;
+  else      orb = new SatelliteOrbit(config);
+
+  if (orbit && myid==0) {
+    ostringstream sout;
+    sout << "UserSat." << runtag << "." << ++instances;
+    orbfile = sout.str();
+    ofstream out (orbfile.c_str());
+    out << left << setfill('-')
+	<< setw(15) << "#"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< endl << setfill(' ')
+	<< setw(15) << "# Time"
+	<< setw(15) << "+ X-pos"
+	<< setw(15) << "+ Y-pos"
+	<< setw(15) << "+ Z-pos"
+	<< endl << setfill('-')
+	<< setw(15) << "#"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< setw(15) << "+"
+	<< endl << setfill(' ');
+      
+    tlast = tnow;
+  }
 
   userinfo();
 }
@@ -97,7 +130,9 @@ void UserSat::userinfo()
   else
     cout << "specified orbit with mass=" << mass 
 	 << ", core=" << core
+	 << ", config=" << config
 	 << endl;
+
   print_divider();
 }
 
@@ -106,12 +141,14 @@ void UserSat::initialize()
   string val;
 
   if (get_value("comname", val))  com_name = val;
+  if (get_value("config", val))   config = val;
   if (get_value("core", val))     core = atof(val.c_str());
   if (get_value("mass", val))     mass = atof(val.c_str());
   if (get_value("ton", val))      ton = atof(val.c_str());
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
+  if (get_value("orbit", val))    orbit = atoi(val.c_str()) ? true : false;
   if (get_value("circ", val))     circ = atoi(val.c_str()) ? true : false;
   if (get_value("r0", val))       r0 = atof(val.c_str());
   if (get_value("phase", val))    phase = atof(val.c_str());
@@ -141,6 +178,14 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+  if (orbit && myid==0 && id==0 && tnow>tlast) {
+    ofstream out (orbfile.c_str(), ios::app);
+    out << setw(15) << tnow;
+    for (int k=0; k<3; k++) out << setw(15) << rs[k];
+    out << endl;
+    tlast = tnow;
+  }
+
   for (int i=nbeg; i<nend; i++) {
 
     fac = core*core;
@@ -170,12 +215,12 @@ extern "C" {
   }
 }
 
-class proxy { 
+class proxysat { 
 public:
-  proxy()
+  proxysat()
   {
     factory["usersat"] = makerSat;
   }
 };
 
-static proxy p;
+proxysat p;

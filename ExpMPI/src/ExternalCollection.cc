@@ -81,8 +81,16 @@ void ExternalCollection::initialize()
 ExternalCollection::~ExternalCollection(void)
 {
 
-				// close all the dynamic libs we opened
+				// destroy any forces we created
   int i = 0;
+  for(sitr=force_list.begin(); sitr!=force_list.end(); sitr++) {
+    cout << "Process " << myid << ": deleting <" << ++i << "> . . .";
+    delete *sitr;
+    cout << " done" << endl;
+  }
+
+				// close all the dynamic libs we opened
+  i = 0;
   for(itr=dl_list.begin(); itr!=dl_list.end(); itr++) {
     void *dlib = *itr;
     if (dlib) {
@@ -91,13 +99,7 @@ ExternalCollection::~ExternalCollection(void)
       cout << " done" << endl;
     }
   }
-				// destroy any forces we created
-  i = 0;
-  for(sitr=force_list.begin(); sitr!=force_list.end(); sitr++) {
-    cout << "Process " << myid << ": deleting <" << ++i << "> . . .";
-    delete *sitr;
-    cout << " done" << endl;
-  }
+
 }
 
 void ExternalCollection::dynamicload(void)

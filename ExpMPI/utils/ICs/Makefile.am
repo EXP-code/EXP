@@ -27,8 +27,8 @@ noinst_HEADERS =
 bin_PROGRAMS = gendisk
 
 gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
-	SphericalSL.cc localmpi.cc legendre.cc Particle.cc \
-	ddplgndr.cc sinecosine.cc AddDisk.cc
+	SphericalSL.cc legendre.cc Particle.cc \
+	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 
 Particle.cc:	$(top_srcdir)/src/Particle.cc
 	cp $(top_srcdir)/src/$@ .

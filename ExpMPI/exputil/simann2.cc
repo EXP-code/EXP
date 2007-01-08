@@ -1,18 +1,19 @@
 // This may look like C code, but it is really -*- C++ -*-
 
+#pragma implementation "simann2.h"
+
 // simanneal.c++   Implementation of a General Purpose Simulated Annealing Class
 /* Uses Cauchy training         */
 
 static const char rcsid[] = "@(#)simann.c++	1.3 15:55:47 3/30/93   EFC";
 
-using namespace std;
-
 #include <stdlib.h>
 #include <stddef.h>
+#include <math.h>
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <math.h>
 
 #include <simann2.h>
 
@@ -26,9 +27,9 @@ using namespace std;
 #endif
 
 
-SimAnneal::SimAnneal (CostFunction f, const int d):
-func (f), dimension (d), ddwell (20), rrange (PI2), t0 (0.0), K (1.0),
-rho (0.5), dt (0.1), tscale (0.1), maxit (400), c_jump (100.0), fsave(0)
+SimAnneal::SimAnneal (Func1d* f, const int d):
+  func (f), dimension (d), ddwell (20), rrange (PI2), t0 (0.0), K (1.0),
+  rho (0.5), dt (0.1), tscale (0.1), maxit (400), c_jump (100.0), fsave(0)
 {
 
   gen = new ACG (10, 20);
@@ -47,7 +48,7 @@ rho (0.5), dt (0.1), tscale (0.1), maxit (400), c_jump (100.0), fsave(0)
 }
 
 int SimAnneal::
-set_up (CostFunction f, const int d, const int seed)
+set_up (Func1d *f, const int d, const int seed)
 {
 
   dimension = d;
@@ -102,7 +103,7 @@ melt (const int iters)
       equilibrate (t, ddwell);
 
       /* "energy" */
-      ynew = func (x);
+      ynew = func->CostFunction (x);
       c = ynew - y;
 
       if (c < 0.0 && ynew < ybest)
@@ -142,7 +143,7 @@ equilibrate (const double t, const int n)
 	  xnew[j] = x[j] + xc;
 	}
       /* "energy" */
-      ynew = func (xnew);
+      ynew = func->CostFunction (xnew);
       c = ynew - y;
 
       if (c < 0.0)		/* keep xnew if energy is reduced */
@@ -232,7 +233,7 @@ anneal (const int iters)
 	  xnew[j] = x[j] + xc;
 	}
       /* "energy" */
-      ynew = func (xnew);
+      ynew = func->CostFunction (xnew);
       c = ynew - y;
 
       if (ynew <= y)		/* keep xnew if energy is reduced */

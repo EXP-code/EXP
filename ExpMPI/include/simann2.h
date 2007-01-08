@@ -8,51 +8,69 @@
 #ifndef SIM_ANNEAL_HPP_
 #define SIM_ANNEAL_HPP_ 1.3
 
-#include <string>
-#include <ACG.h>
-#include <Uniform.h>
+#ifdef __GNUG__
+#pragma interface
+#endif
 
 using namespace std;
+
+#include <string>
+
+#include <ACG.h>
+#include <Uniform.h>
+#include <Func1d.H>
 
 #ifndef PI
 #define PI		3.1415626536
 #endif
 
-typedef double (*CostFunction)(double*);
-     
 class SimAnneal
 {
  private:
+
+  Func1d *func;			// 
+  int dimension;		// 
+  int ddwell;			// 
+  double rrange;		// 
+  double t0;			// 
+  double K;			// 
+  double rho;			// 
+  double dt;			// temperature increment to use when melting
+  double tscale	;		// 
+  int maxit;			// 
+  double c_jump;		// phase transition step size
+  int fsave;			// 
+
   ACG *gen;			// Random number generation from libg++
   Uniform *number_range;	// Define function pointers for ANSI
   Uniform *number_01;
-  CostFunction func;
-  int dimension, maxit, ddwell;
   int err;
   double *x, *xnew, *xbest;
-  double dt;			// temperature increment to use when melting
-  double c_jump;		// phase transition step size
-  double rrange;
-  double K, rho, t0, tscale, y, ybest;
+  double y, dy, ybest;
+
   int equilibrate(const double t, const int n);
   string fname;
-  int fsave;
   void log_state(int);
+
  public:
 
-  SimAnneal() :	t0(0.0), K(1.0), rho(0.5), dt(0.1), tscale(0.1), ddwell(20),
-  maxit(400), c_jump(100.0), dimension(1), func(NULL), rrange(PI/2.0),
+  SimAnneal() :	 func(NULL), dimension(1), ddwell(20), rrange(PI/2.0), 
+    t0(0.0), K(1.0), rho(0.5), dt(0.1), tscale(0.1), maxit(400), c_jump(100.0),
     fsave(0) {
     gen = new ACG(10,20);
     number_range = new Uniform(-rrange, rrange, gen);
     number_01 = new Uniform(0.0, 1.0, gen);
   }
 
-  SimAnneal(CostFunction f,const int d = 1);
+  SimAnneal(Func1d* f, const int d = 1);
 
-  ~SimAnneal() { delete x; delete xnew; delete xbest; }
+  ~SimAnneal() 
+  { 
+    delete [] x; delete [] xnew; delete [] xbest; 
+    delete gen; delete number_range; delete number_01; 
+  }
   
-  int set_up(CostFunction f, const int d = 1, const int seed=10);
+  int set_up(Func1d* f, const int d = 1, const int seed=10);
   
   const int operator!() const { return err; }
   
@@ -77,8 +95,12 @@ class SimAnneal
     { if ( j > 0.0 ) c_jump = j;
       return c_jump; }
   double range(const double r = -1.0)
-    { if ( r > 0.0 ) { rrange = r; number_range=new Uniform(-r,r,gen);}
-      return rrange; }
+    { 
+      if ( r > 0.0 ) 
+	{ rrange = r; delete number_range; 
+	number_range=new Uniform(-r,r,gen);}
+      return rrange; 
+    }
   void initial(double* xinit);
   void current(double* xcur);
   void optimum(double* xopt);

@@ -26,7 +26,8 @@ QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
 #RANDOM_SRC = random.cc
 RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc \
-	wordSplit.cc ParamParse.cc ParamParseMPI.cc localmpi.cc
+	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc \
+	localmpi.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc # ghql.cc
@@ -41,7 +42,7 @@ INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc \
 	ChebFit.cc
 MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
         realize_model.cc
-ORBIT_SRC = orbit.cc orbit_trans.cc
+ORBIT_SRC = orbit.cc orbit_trans.cc FindOrb.cc
 BIORTH_SRC = biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc \
 	sbessz.cc ultra.cc jnsph.cc bessz.cc sphereSL.cc biorth1d.cc \
 	biorth_wake_orientation.cc SLGridMP2.cc scalarprod.cc

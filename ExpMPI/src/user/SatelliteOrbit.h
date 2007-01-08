@@ -25,6 +25,9 @@
 #include <massmodel.h>
 #include <model3d.h>
 
+#include <FindOrb.H>
+#include <ParamDatabase.H>
+
 //! Computes an satellite orbits and tidal forces in fixed halo
 class SatelliteOrbit
 {
@@ -32,7 +35,7 @@ private:
 
   SphericalModelTable *m;
   AxiSymModel *halo_model;
-  SphericalOrbit orb;
+  FindOrb *orb;
   Matrix rotate, rotateI;
   Three_Vector v, v0, u, u0, non;
   Matrix tidalRot, tidalRotI;
@@ -53,30 +56,12 @@ private:
   Vector get_tidal_force();
   Vector get_tidal_force_non_inertial();
 
-				// Default initial parameters
-  static Models3d HALO_MODEL;
-  static double E;
-  static double K;
-  static double INCLINE;
-  static double PSI;
-  static double PHIP;
-  static double VROT;
-  static double RCORE;
-  static double RMODMIN;
-  static double RMODMAX;
-  static double RA;
-  static int DIVERGE;
-  static int NUMDF;
-  static int NRECS;
-  static double DIVERGE_RFAC;
-  static string MODFILE;
+  ParamDatabase *config;
 
 public:
-  //! Contains parameter for satellite orbit
-  static string paramFile;
 
-  //! Constructor (no arguments)
-  SatelliteOrbit(void);
+  //! Constructor
+  SatelliteOrbit(const string &file);
 
   //! Destructor
   ~SatelliteOrbit(void);

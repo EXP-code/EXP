@@ -7,8 +7,13 @@
 #include <dmalloc.h>
 #endif
 
+// We don't want to redefine these if they have already been defined
+// elsewhere . . . 
+//
+#ifndef _global_H
 extern int numprocs, slaves, myid, proc_namelen;
 extern char processor_name[MPI_MAX_PROCESSOR_NAME];
+#endif
 
 #include <iostream>
 #include <iomanip>

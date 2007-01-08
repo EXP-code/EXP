@@ -109,10 +109,14 @@ void BiorthWake::orientation_init(void)
 BiorthWake* current;
 
 				// World function accessible by SA
-double sa_energy(double *params)
+class SA_Energy : public Func1d
 {
-  return current->energy(params);
-}
+public:
+  double CostFunction(double *params)
+  {
+    return current->energy(params);
+  }
+} sa_energy;
 
 double BiorthWake::energy(double *params)
 {
@@ -174,7 +178,7 @@ void BiorthWake::get_transform(double& phi, double& theta, double& psi,
 
   current = this;
 
-  SimAnneal sa(sa_energy, ndim);
+  SimAnneal sa(&sa_energy, ndim);
 
   if ( !sa ) {
     cerr << "problem initializing SimAnneal object\n";
