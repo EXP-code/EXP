@@ -94,9 +94,7 @@ ExternalCollection::~ExternalCollection(void)
   for(itr=dl_list.begin(); itr!=dl_list.end(); itr++) {
     void *dlib = *itr;
     if (dlib) {
-      cout << "Process " << myid << ": closing <" << ++i << "> . . .";
       dlclose(dlib);
-      cout << " done" << endl;
     }
   }
 

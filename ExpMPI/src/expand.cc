@@ -171,7 +171,9 @@ main(int argc, char** argv)
 
     homedir.erase(homedir.begin(), homedir.end());
     homedir = hdbuffer;
+#if 0
     if (myid == 0) cout << "Process 0: homedir=" << homedir << "\n";
+#endif
   }
   
   retdir = chdir(homedir.c_str());
