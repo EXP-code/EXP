@@ -171,9 +171,7 @@ main(int argc, char** argv)
 
     homedir.erase(homedir.begin(), homedir.end());
     homedir = hdbuffer;
-#if 0
-    if (myid == 0) cout << "Process 0: homedir=" << homedir << "\n";
-#endif
+    if (myid == 0) cout << "main: working directory is <" << homedir << ">\n";
   }
   
   retdir = chdir(homedir.c_str());
@@ -193,11 +191,12 @@ main(int argc, char** argv)
   //=======
   // DEBUG 
   //=======
+#if 0
   if (myid) {
     getcwd(hdbuffer, (size_t)hdbufsize);
     cout << "Process " << myid << ": homedir=" << hdbuffer << "\n";
   }
-
+#endif
 
   //================
   // Nice process ? 

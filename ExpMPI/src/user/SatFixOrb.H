@@ -5,6 +5,25 @@
 /**
    Force dual satellites to be inversion symmetric about the origin
    and to follow a particular analytic orbit
+   
+   The particle with integer attribute <code>tag</code> will be forced
+   to maintain the analytic orbit defined by SatelliteOrbit with
+   parameters specified in the file <code>config</code>.
+
+   The remaining particles will be forced to be inversion symmetric by
+   adjacent pairs.
+   
+
+   @param tag is the integer attribute of the particle whose orbit
+   will be enforced
+
+   @param config has the parameters for SatelliteOrbit
+
+   @param compname is the point mass component containing the
+   particles to be tracked
+
+   @param toffset shifts the origin of the orbit at T=0 from the
+   orbit's pericenter
 */
 class SatFixOrb : public ExternalForce
 {

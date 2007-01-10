@@ -42,7 +42,11 @@ SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)
 
   // Make sure that the particles are tagged
   //
-  if (c0->Part(0)->iattrib.size()<1) {
+  int in=0, out;
+  if (c0->Number()) in = c0->Part(0)->iattrib.size();
+  MPI_Allreduce(&in, &out, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+
+  if (out<1) {
     if (myid==0) cerr << "SatFixOrb: bodies need an integer tag!" << endl;
     MPI_Abort(MPI_COMM_WORLD, 37);
   }
