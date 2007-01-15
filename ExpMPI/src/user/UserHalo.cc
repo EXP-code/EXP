@@ -11,6 +11,9 @@ UserHalo::UserHalo(string &line) : ExternalForce(line)
   id = "SphericalHalo";		// Halo model file
   model_file = "SLGridSph.model";
 
+  q1 = 1.0;			// Flattening of the Galactic Potentail to X-axis
+  q2 = 1.0;			// Flattening of the Galactic Potentail to Y-axis
+  q3 = 1.0;			// Flattening of the Galactic Potentail to Z-axis
   diverge = 0;			// Use analytic divergence (true/false)
   diverge_rfac = 1.0;		// Exponent for profile divergence
   ctr_name = "";		// Default component for center
@@ -67,7 +70,12 @@ void UserHalo::userinfo()
   else
     cout << ", using inertial center";
   cout << endl;
-  
+
+  cout << "Flattening of halo (q1 , q2 , q3) = (" 
+       << q1 << " , " 
+       << q2 << " , " 
+       << q3 << " ) " << endl; 
+
   print_divider();
 }
 
@@ -76,6 +84,9 @@ void UserHalo::initialize()
   string val;
 
   if (get_value("model_file", val))	model_file = val;
+  if (get_value("q1", val))	        q1 = atof(val.c_str());
+  if (get_value("q2", val))	        q2 = atof(val.c_str());
+  if (get_value("q3", val))	        q3 = atof(val.c_str());
   if (get_value("diverge", val))	diverge = atoi(val.c_str());
   if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
   if (get_value("ctrname", val))	ctr_name = val;
@@ -96,6 +107,11 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double pos[3], rr, r, pot, dpot;
+  double qq[3];
+  
+  qq[0]=q1*q1;
+  qq[1]=q2*q2;
+  qq[2]=q3*q3;
 
   for (int i=nbeg; i<nend; i++) {
 
@@ -103,7 +119,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     for (int k=0; k<3; k++) {
       pos[k] = cC->Pos(i, k);	// Inertial by default
       if (c0) pos[k] -= c0->center[k];
-      rr += pos[k]*pos[k];
+      rr += pos[k]*pos[k]/qq[k];
     }
     r = sqrt(rr);
 
@@ -111,7 +127,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
 
     // Add external accerlation
     for (int k=0; k<3; k++)
-      cC->AddAcc(i, k, -dpot*pos[k]/r );
+      cC->AddAcc(i, k, -dpot*pos[k]/(qq[k]*r) );
 
     // Add external potential
     cC->AddPotExt(i, pot );
