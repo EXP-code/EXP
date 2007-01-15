@@ -20,6 +20,7 @@ private:
   void initialize();
 
   string model_file, ctr_name;
+  double q1, q2, q3;
   double diverge_rfac;
   int diverge;
 
