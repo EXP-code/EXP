@@ -78,6 +78,7 @@ database_record init[] = {
   {"RA",		"double", 	"1.0e20"},
   {"DIVERGE",		"int", 		"0"},
   {"NUMDF",		"int", 		"100"},
+  {"MAXIT",		"int", 		"2000"},
   {"NRECS",		"int", 		"512"},
   {"DIVERGE_RFAC",	"double",	"1.0"},
   {"MODFILE",		"string",	"halo.model"},
@@ -136,6 +137,8 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
 // ===================================================================
 // Setup orbit
 // ===================================================================
+
+  FindOrb::MAXIT = config->get<int>("MAXIT");
 
   orb = new FindOrb(
 		    halo_model,

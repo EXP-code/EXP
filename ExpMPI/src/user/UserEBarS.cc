@@ -533,7 +533,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
   }
   
 				// All components computed
-  if (okM == comp.ncomp-1) {
+  if (okM == comp.ncomp) {
 
 				// Total torque
     Tz0 = 0.0;
