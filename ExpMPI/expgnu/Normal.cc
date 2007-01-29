@@ -23,13 +23,18 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 //	This is the ``polar'' method.
 // 
 
-Normal::~Normal() 
+
+
+Normal::Normal(double xmean, double xvariance, RNG *gen) : Random(gen) 
 {
+  pMean = xmean;
+  pVariance = xvariance;
+  pStdDev = sqrt(pVariance);
+  haveCachedNormal = 0;
 }
 
 double Normal::operator()()
 {
-    
     if (haveCachedNormal == 1) {
 	haveCachedNormal = 0;
 	return(cachedNormal * pStdDev + pMean );
@@ -57,5 +62,10 @@ double Normal::operator()()
 	    }
 	}
     }
+}
+
+Normal::~Normal() 
+{
+  // Nothing
 }
 

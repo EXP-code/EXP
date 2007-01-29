@@ -15,50 +15,34 @@ You should have received a copy of the GNU Library General Public
 License along with this library; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
+
 #ifndef _Normal_h
 #define _Normal_h 
 
 #include <Random.h>
 
-class Normal: public Random {
-    char haveCachedNormal;
-    double cachedNormal;
+class Normal: public Random 
+{
+  char haveCachedNormal;
+  double cachedNormal;
 
 protected:
-    double pMean;
-    double pVariance;
-    double pStdDev;
+  double pMean;
+  double pVariance;
+  double pStdDev;
     
 public:
-    Normal(double xmean, double xvariance, RNG *gen);
-    virtual ~Normal();
-    double mean();
-    double mean(double x);
-    double variance();
-    double variance(double x);
-    virtual double operator()();
-};
+  Normal(double xmean, double xvariance, RNG *gen);
+  ~Normal();
+  
+  double mean() { return pMean; }
+  double mean(double x) { double t=pMean; pMean = x; return t; }
 
+  double variance() { return pVariance; }
+  double variance(double x) 
+  { double t=pVariance; pVariance = x; pStdDev = sqrt(pVariance); return t; }
 
-inline Normal::Normal(double xmean, double xvariance, RNG *gen)
-: Random(gen) {
-  pMean = xmean;
-  pVariance = xvariance;
-  pStdDev = sqrt(pVariance);
-  haveCachedNormal = 0;
-}
-
-inline double Normal::mean() { return pMean; };
-inline double Normal::mean(double x) {
-  double t=pMean; pMean = x;
-  return t;
-}
-
-inline double Normal::variance() { return pVariance; }
-inline double Normal::variance(double x) {
-  double t=pVariance; pVariance = x;
-  pStdDev = sqrt(pVariance);
-  return t;
+  virtual double operator()();
 };
 
 #endif

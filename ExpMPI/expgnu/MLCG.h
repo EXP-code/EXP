@@ -16,7 +16,7 @@ License along with this library; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _MLCG_h
-#define _MLCG_h 1 
+#define _MLCG_h
 
 #include <RNG.h>
 #include <math.h>
@@ -40,11 +40,30 @@ public:
     //
     virtual _G_uint32_t asLong();
     virtual void reset();
-    _G_int32_t seed1();
-    void seed1(_G_int32_t);
-    _G_int32_t seed2();
-    void seed2(_G_int32_t);
-    void reseed(_G_int32_t, _G_int32_t);
+
+  _G_int32_t seed1() {return(seedOne);}
+  
+  void seed1(_G_int32_t s)
+  {
+    initialSeedOne = s;
+    reset();
+  }
+
+  _G_int32_t seed2() {return(seedTwo);}
+
+  void seed2(_G_int32_t s)
+  {
+    initialSeedTwo = s;
+    reset();
+  }
+
+  void reseed(_G_int32_t s1, _G_int32_t s2)
+  {
+    initialSeedOne = s1;
+    initialSeedTwo = s2;
+    reset();
+  }
+
 };
 
 

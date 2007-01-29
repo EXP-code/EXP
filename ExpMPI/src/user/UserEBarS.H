@@ -29,6 +29,7 @@
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param self if the opposite of <code>fixed</code> included here for consistency with other routines
     @param monopole force is self-consistently computed from Newton's third law (default: true)
+    @param follow computes monopole center self-consitently (default: true)
     @param onoff to apply turn-on, turn-off to monopole (default: false)
     @param monofrac is the fraction of the monopole to turn off (default: 1.0)
     @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
@@ -83,7 +84,7 @@ private:
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT;
   double monopole_frac, quadrupole_frac;
-  bool fixed, monopole, monopole_onoff, soft, table;
+  bool fixed, monopole, monopole_follow, monopole_onoff, soft, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;

@@ -30,6 +30,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   soft = false;			// Use soft form of the bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
+  monopole_follow = true;	// Follow monopole center
   monopole_onoff = false;	// To apply turn-on and turn-off to monopole
   monopole_frac = 1.0;		// Fraction of monopole to turn off
   quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
@@ -194,6 +195,10 @@ void UserEBar::userinfo()
 	   << ", ";
     else
       cout << "using monopole, ";
+    if (monopole_follow)
+      cout << "self-consistent monopole centering, ";
+    else
+      cout << "monopole center fixed, ";
   }
   else
     cout << "without monopole, ";
@@ -243,7 +248,8 @@ void UserEBar::initialize()
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
-  if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
+  if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;  
+  if (get_value("follow", val))		monopole_follow = atoi(val.c_str()) ? true:false;
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
@@ -536,7 +542,7 @@ void UserEBar::determine_acceleration_and_potential(void)
   MPI_Allreduce(&acc1[0], &acc[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 				// Backward Euler
-  if (monopole) {
+  if (monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval);
       vel[k] += acc[k] * (tnow - teval);

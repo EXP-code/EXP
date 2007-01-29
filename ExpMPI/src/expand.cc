@@ -10,6 +10,7 @@ void clean_up(void);
 #include <signal.h>
 #include <sys/time.h>
 #include <sys/resource.h>
+#include <sys/types.h>
 #include <fpetrap.h>
 
 //===========================================
@@ -85,10 +86,16 @@ main(int argc, char** argv)
     
   // Debug id 
   MPI_Group_rank ( slave_group, &n );
-  cerr << "Process " << myid << " on " << processor_name
-       << "   rank in SLAVE: " << n << "\n";
-  
+  if (myid==0)  cerr << "Process " << myid << " on " << processor_name
+		     << "   pid=" << getpid()
+		     << "   MASTER NODE\n";
   MPI_Barrier(MPI_COMM_WORLD);
+  for (int j=1; j<numprocs; j++) {
+    if (myid==j) cerr << "Process " << myid << " on " << processor_name
+		      << "   pid=" << getpid()
+		      << "   rank in SLAVE: " << j << "\n";
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 
 #ifdef MPE_PROFILE
   MPE_Init_log();

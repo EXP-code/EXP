@@ -31,6 +31,7 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
   monopole_onoff = false;	// To apply turn-on and turn-off to monopole
+  monopole_follow = true;	// Follow monopole center
   monopole_frac = 1.0;		// Fraction of monopole to turn off
   quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
 
@@ -173,6 +174,10 @@ void UserEBarS::userinfo()
 	   << ", ";
     else
       cout << "using monopole, ";
+    if (monopole_follow)
+      cout << "self-consistent monopole centering, ";
+    else
+      cout << "monopole center fixed, ";
   }
   else
     cout << "without monopole, ";
@@ -220,6 +225,7 @@ void UserEBarS::initialize()
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
   if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
+  if (get_value("follow", val))		monopole_follow = atoi(val.c_str()) ? true:false;
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
@@ -525,7 +531,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
   TzM[cid] = Tz0;
   
 				// Backward Euler
-  if (monopole) {
+  if (monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
       bps[k] += vel[k] * (tnow - teval);
       vel[k] += acc[k] * (tnow - teval);

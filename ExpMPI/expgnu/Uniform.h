@@ -34,10 +34,15 @@ public:
   Uniform(double low, double high, RNG *gen);
   virtual ~Uniform() {}
 
-  double low();
-  double low(double x);
-  double high();
-  double high(double x);
+  double low() { return pLow; }
+
+  double low(double x) 
+  { double tmp = pLow; pLow = x; delta = pHigh - pLow; return tmp; }
+
+  double high() { return pHigh; }
+
+  double high(double x) 
+  { double tmp = pHigh; pHigh = x; delta = pHigh - pLow; return tmp; }
 
   virtual double operator()();
 };

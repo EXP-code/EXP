@@ -100,6 +100,7 @@ _G_uint32_t MLCG::asLong()
   return( (unsigned long) z);
 }
 
+/*
 inline _G_int32_t
 MLCG::seed1()
 {
@@ -133,3 +134,4 @@ MLCG::reseed(_G_int32_t s1, _G_int32_t s2)
   initialSeedTwo = s2;
   reset();
 }
+*/
