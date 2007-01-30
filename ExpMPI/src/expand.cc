@@ -86,12 +86,14 @@ main(int argc, char** argv)
     
   // Debug id 
   MPI_Group_rank ( slave_group, &n );
-  if (myid==0)  cerr << "Process " << myid << " on " << processor_name
+  if (myid==0)  cerr << "Process " << setw(4) << right << myid 
+		     << " on " << processor_name
 		     << "   pid=" << getpid()
 		     << "   MASTER NODE\n";
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
-    if (myid==j) cerr << "Process " << myid << " on " << processor_name
+    if (myid==j) cerr << "Process " << setw(4) << right << myid 
+		      << " on " << processor_name
 		      << "   pid=" << getpid()
 		      << "   rank in SLAVE: " << j << "\n";
     MPI_Barrier(MPI_COMM_WORLD);

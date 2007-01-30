@@ -65,6 +65,15 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_system = false;
   com_log = false;
 
+  force   = 0;			// Null out pointers
+  buf     = 0;
+  com     = 0;
+  cov     = 0;
+  center  = 0;
+  EJcen   = 0;
+  angmom  = 0;
+  ps      = 0;
+
   read_bodies_and_distribute_ascii();
 }
 
@@ -103,6 +112,15 @@ Component::Component(istream *in)
   com_system = false;
   com_log = false;
   com_restart = 0;
+
+  force   = 0;			// Null out pointers
+  buf     = 0;
+  com     = 0;
+  cov     = 0;
+  center  = 0;
+  EJcen   = 0;
+  angmom  = 0;
+  ps      = 0;
 
   read_bodies_and_distribute_binary(in);
 }
