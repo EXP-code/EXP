@@ -86,18 +86,23 @@ main(int argc, char** argv)
     
   // Debug id 
   MPI_Group_rank ( slave_group, &n );
-  if (myid==0)  cerr << "Process " << setw(4) << right << myid 
+  if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ')
+		     << "Process " << setw(4) << right << myid 
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
-		     << "   MASTER NODE\n";
+		     << "   MASTER NODE\t Ready to go!\n";
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
     if (myid==j) cerr << "Process " << setw(4) << right << myid 
 		      << " on " << processor_name
 		      << "   pid=" << getpid()
-		      << "   rank in SLAVE: " << j << "\n";
+		      << "   rank in SLAVE: " << j << "\t Ready to go!\n";
     MPI_Barrier(MPI_COMM_WORLD);
   }
+
+  if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ') << endl;
 
 #ifdef MPE_PROFILE
   MPE_Init_log();

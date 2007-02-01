@@ -23,7 +23,9 @@ void clean_up(void)
   MPE_Finish_log(file);
 #endif
 
-  if (myid==0)  cerr << "Process " << setw(4) << right << myid 
+  if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ')
+		     << "Process " << setw(4) << right << myid 
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
 		     << "   MASTER NODE\t Exiting EXP\n";
@@ -35,6 +37,9 @@ void clean_up(void)
 		      << "   rank in SLAVE: " << j << "\t Exiting EXP\n";
     MPI_Barrier(MPI_COMM_WORLD);
   }
+
+  if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ') << endl;
 
   MPI_Finalize();
 
