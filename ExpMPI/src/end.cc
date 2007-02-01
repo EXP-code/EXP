@@ -18,13 +18,23 @@ void clean_up(void)
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-				// Debug
-  // cout << "Process " << myid << ": about to exit mpi . . . " << endl;
-
 #ifdef MPE_PROFILE
   sprintf(file, "expand_mpe.%s", logfile);
   MPE_Finish_log(file);
 #endif
+
+  if (myid==0)  cerr << "Process " << setw(4) << right << myid 
+		     << " on " << processor_name
+		     << "   pid=" << getpid()
+		     << "   MASTER NODE\t Exiting EXP\n";
+  MPI_Barrier(MPI_COMM_WORLD);
+  for (int j=1; j<numprocs; j++) {
+    if (myid==j) cerr << "Process " << setw(4) << right << myid 
+		      << " on " << processor_name
+		      << "   pid=" << getpid()
+		      << "   rank in SLAVE: " << j << "\t Exiting EXP\n";
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 
   MPI_Finalize();
 
