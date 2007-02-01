@@ -19,7 +19,7 @@ void clean_up(void)
   MPI_Barrier(MPI_COMM_WORLD);
 
 				// Debug
-  cout << "Process " << myid << ": about to exit mpi . . . " << endl;
+  // cout << "Process " << myid << ": about to exit mpi . . . " << endl;
 
 #ifdef MPE_PROFILE
   sprintf(file, "expand_mpe.%s", logfile);

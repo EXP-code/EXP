@@ -31,7 +31,7 @@ public:
   NoForce(std::string& line);
 
   //! The constructor
-  ~NoForce();
+  virtual ~NoForce();
 
   //! The main force call
   void get_acceleration_and_potential(Component*) {}

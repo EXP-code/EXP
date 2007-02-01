@@ -66,13 +66,21 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   com_log = false;
 
   force   = 0;			// Null out pointers
+  orient  = 0;
   buf     = 0;
+
   com     = 0;
   cov     = 0;
   center  = 0;
   EJcen   = 0;
   angmom  = 0;
   ps      = 0;
+
+  com0    = 0;
+  cov0    = 0;
+  acc0    = 0;
+  comI    = 0;
+  covI    = 0;
 
   read_bodies_and_distribute_ascii();
 }
@@ -114,13 +122,21 @@ Component::Component(istream *in)
   com_restart = 0;
 
   force   = 0;			// Null out pointers
+  orient  = 0;
   buf     = 0;
+
   com     = 0;
   cov     = 0;
   center  = 0;
   EJcen   = 0;
   angmom  = 0;
   ps      = 0;
+
+  com0    = 0;
+  cov0    = 0;
+  acc0    = 0;
+  comI    = 0;
+  covI    = 0;
 
   read_bodies_and_distribute_binary(in);
 }
@@ -250,25 +266,24 @@ void Component::initialize(void)
 
   force->RegisterComponent(this);
 
-  com = new double [3];
+  com    = new double [3];
   center = new double [3];
-  cov = new double [3];
+  cov    = new double [3];
   angmom = new double [3];
-  ps = new double [6];
-  EJcen = new double [3];
+  ps     = new double [6];
+  EJcen  = new double [3];
 
 				// For COM system
-  com0 = new double[3];
-  cov0 = new double[3];
-  acc0 = new double[3];
-  comI = new double[3];
-  covI = new double[3];
+  com0   = new double[3];
+  cov0   = new double[3];
+  acc0   = new double[3];
+  comI   = new double[3];
+  covI   = new double[3];
 
-  for (int k=0; k<3; k++) com[k] = center[k] = cov[k] = 
-			    com0[k] = cov0[k] = acc0[k] = 
-			    comI[k] = covI[k] = 
-			    angmom[k] = EJcen[k] = 0.0;
-
+  for (int k=0; k<3; k++) 
+    com[k] = center[k] = cov[k] = com0[k] = cov0[k] = acc0[k] = 
+      comI[k] = covI[k] = angmom[k] = EJcen[k] = 0.0;
+  
 
   if (com_system) {
 
@@ -397,6 +412,8 @@ void Component::initialize(void)
 	      }
 	    }
 
+	    delete [] cbuffer;
+
 	    if (newfile) {
 	      cout << "Component: time=" << tnow << " not found in <"
 		   << comfile << ">, starting new log file\n";
@@ -513,13 +530,22 @@ void Component::initialize(void)
 Component::~Component(void)
 {
   delete force;
+
+  delete orient;
   delete [] buf;
+
   delete [] com;
-  delete [] cov;
   delete [] center;
-  delete [] EJcen;
+  delete [] cov;
   delete [] angmom;
   delete [] ps;
+  delete [] EJcen;
+
+  delete [] com0;
+  delete [] cov0;
+  delete [] acc0;
+  delete [] comI;
+  delete [] covI;
 }
 
 void Component::bomb(const string& msg)
@@ -1532,7 +1558,7 @@ void Component::update_accel(void)
 
   }
 
-
+  delete [] acc1;
 
 }
 
@@ -1561,6 +1587,8 @@ void Component::get_angmom(void)
   }
   
   MPI_Allreduce(angm1, angmom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  delete [] angm1;
 }
 
 

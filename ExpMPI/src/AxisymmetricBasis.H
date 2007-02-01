@@ -51,7 +51,7 @@ public:
   //! Constructor
   AxisymmetricBasis(string& line);
   //! Destructor
-  ~AxisymmetricBasis();
+  virtual ~AxisymmetricBasis();
 
   //! Compute component noise suppression using PCA analysis
   void pca_hall(int compute);

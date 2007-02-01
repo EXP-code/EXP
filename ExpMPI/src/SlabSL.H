@@ -73,7 +73,7 @@ public:
   SlabSL(string& line);
 
   //! Destructor
-  ~SlabSL();
+  virtual ~SlabSL();
 
   //! Print coefficients to output stream
   void dump_coefs(ostream& out);

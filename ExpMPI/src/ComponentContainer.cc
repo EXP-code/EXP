@@ -222,13 +222,29 @@ void ComponentContainer::initialize(void)
 
 ComponentContainer::~ComponentContainer(void)
 {
+  Component *p1;
+  Interaction *p2;
+
   list<Component*>::iterator c;
-  for (c=comp.components.begin(); c != comp.components.end(); c++)
-    delete *c;
+  for (c=comp.components.begin(); c != comp.components.end(); c++) {
+    p1 = *c;
+#ifdef DEBUG
+    cout << "Process " << myid 
+	 << " deleting component <" << p1->name << ">" << endl;
+#endif
+    delete p1;
+  }
 
   list<Interaction*>::iterator i;
-  for (i=interaction.begin(); i != interaction.end(); i++)
-    delete *i;
+  for (i=interaction.begin(); i != interaction.end(); i++) {
+    p2 = *i;
+#ifdef DEBUG
+    cout << "Process " << myid 
+	 << " deleting interaction <" << p2->c->name << ">" << endl;
+#endif
+    delete p2;
+  }
+
 }
 
 void ComponentContainer::compute_potential(void)

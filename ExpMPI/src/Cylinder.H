@@ -55,7 +55,7 @@ public:
   Cylinder(string& line);
 
   //! Destructor
-  ~Cylinder();
+  virtual ~Cylinder();
   
   //! The main force call
   void get_acceleration_and_potential(Component*);

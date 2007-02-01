@@ -48,7 +48,7 @@ public:
   Direct(string& line);
 
   //! The constructor
-  ~Direct();
+  virtual ~Direct();
 
   //! The main force call
   void get_acceleration_and_potential(Component*);

@@ -65,7 +65,7 @@ public:
   Slab(string& line);
 
   //! Destructor
-  ~Slab();
+  virtual ~Slab();
 
   //! Print coefficients to output stream
   void dump_coefs(ostream& out);

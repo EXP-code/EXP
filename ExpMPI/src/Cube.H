@@ -38,7 +38,7 @@ public:
   Cube(string& line);
 
   //! Destructor
-  ~Cube();
+  virtual ~Cube();
 
   void determine_coefficients(void);
   void get_acceleration_and_potential(Component*);

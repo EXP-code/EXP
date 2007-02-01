@@ -122,7 +122,9 @@ PotAccel::PotAccel(string& line)
   use_external = false;
   coef_dump = false;
 
+  // Per thread counter
   use = new int [nthrds];
+  if (!use) bomb("problem allocating <use>");
 
   string Line = trimLeft(trimRight(line));
   StringTok<string> tokens(Line);

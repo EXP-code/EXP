@@ -69,7 +69,7 @@ public:
   Sphere(string& line);
 
   //! Destructor
-  ~Sphere();
+  virtual ~Sphere();
 };
 
 #endif

@@ -75,7 +75,7 @@ public:
   //! Constructor
   Bessel(string& line);
   //! Destructor
-  ~Bessel();
+  virtual ~Bessel();
 };
 
 #endif // Bessel.H

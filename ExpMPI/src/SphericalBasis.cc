@@ -186,11 +186,6 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
       factorial[l][m] = factrl(l-m)/factrl(l+m);
   }
 
-  // Per thread counter
-  use = new int [nthrds];
-  if (!use) bomb("problem allocating <use>");
-
-
   firstime_coef  = true;
   firstime_accel = true;
 
@@ -228,7 +223,6 @@ SphericalBasis::~SphericalBasis()
   delete [] dlegs;
   delete [] u;
   delete [] du;
-  delete [] use;
   delete gen;
   delete nrand;
 }

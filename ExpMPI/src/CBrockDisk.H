@@ -52,7 +52,7 @@ public:
   /*! \param line is the parameter string */
   CBrockDisk(string& line);
   //! Destructor
-  ~CBrockDisk(void);
+  virtual ~CBrockDisk(void);
 
   //! Force evaluation called clients
   void get_acceleration_and_potential(Component*);

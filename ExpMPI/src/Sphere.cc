@@ -1,8 +1,4 @@
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #include <values.h>
 
 #include "expand.h"

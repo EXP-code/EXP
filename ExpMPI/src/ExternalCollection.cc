@@ -84,9 +84,13 @@ ExternalCollection::~ExternalCollection(void)
 				// destroy any forces we created
   int i = 0;
   for(sitr=force_list.begin(); sitr!=force_list.end(); sitr++) {
+#ifdef DEBUG
     cout << "Process " << myid << ": deleting <" << ++i << "> . . .";
+#endif
     delete *sitr;
+#ifdef DEBUG
     cout << " done" << endl;
+#endif
   }
 
 				// close all the dynamic libs we opened
