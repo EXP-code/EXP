@@ -594,7 +594,7 @@ void Component::Particle_to_part(Partstruct& str, Particle& cls)
   str.pot = cls.pot;
   str.potext = cls.potext;
 
-  str.indx = indx.indx;
+  str.indx = cls.indx;
 
   for (int j=0; j<niattrib; j++) str.iatr[j] = cls.iattrib[j];
 
@@ -850,8 +850,6 @@ void Component::read_bodies_and_distribute_ascii(void)
       }
     }
   }
-#endif
-
 				// Default: set to max radius
 				// can be overriden by parameter
 
@@ -1138,7 +1136,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Sanity check
   if (seq_check) {
-    if (seq_beg != particles[0].indx
+    if (seq_beg != particles[0].indx ||
 	seq_end != particles[nbodies-1].indx) {
       cout << "Process " << myid << ": sequence error on init,"
 	   << " seq_beg=" << seq_beg
@@ -1149,7 +1147,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
   }
-#endif
+
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -1276,7 +1274,7 @@ struct Component::Partstruct * Component::get_particles_unordered(int* number)
   if (*number < 0) {
     counter = 1;
 				// Remake the particle index map
-    mapping.clean();
+    mapping.erase(mapping.begin(), mapping.end());
     for (int i=0; i<particles.size(); i++)  mapping[particles[i].indx] = i;
   }
 
@@ -1293,15 +1291,15 @@ struct Component::Partstruct * Component::get_particles_unordered(int* number)
       Particle_to_part(buf[0], particles[mapping[counter]]);
       // No communication necessary . . .
     } else {			// Receive the particle from a node
-      MPI_Recv(buf, 1, Particletype, node, 53, MPI_COMM_WORLD, &status);
+      MPI_Recv(buf, 1, Particletype, MPI_ANY_SOURCE, 55, MPI_COMM_WORLD, &status);
     }
   } else {
 				// Owned by me?
     if (mapping.find(counter) != mapping.end()) {
 				// Pack structure
-      Particle_to_part(buf[0], particles[mapping[counter]);
+      Particle_to_part(buf[0], particles[mapping[counter]]);
 				// Send to master
-      MPI_Send(buf, 1, Particletype, 0, 53, MPI_COMM_WORLD);
+      MPI_Send(buf, 1, Particletype, 0, 55, MPI_COMM_WORLD);
     }
   }
 
@@ -1976,7 +1974,7 @@ void Component::load_balance(void)
 	ostringstream msg;
 	msg << "Process " << setw(4) << myid << ":"
 	    << setw(9) << particles[0].indx
-	    << setw(9) << particles[nbodies-1].indx
+	    << setw(9) << particles[nbodies-1].indx;
 	strcpy(msgbuf, msg.str().c_str());
 	if (myid!=0) 
 	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
@@ -2190,11 +2188,12 @@ double Component::Adiabatic()
 
 void Component::redistributeByList(vector<int>& redist)
 {
+  MPI_Status status;
   Particle part;
   vector<int>::iterator it = redist.begin();
 
   vector<int> myDelete;
-  int curnode, tonode, lastnode, M, icount;
+  int indx, curnode, tonode, lastnode, M, icount;
 
   while (it != redist.end()) {
     curnode = *(it++);
