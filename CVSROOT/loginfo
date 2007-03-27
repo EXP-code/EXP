@@ -25,4 +25,4 @@
 # or
 #DEFAULT (echo ""; id; echo %{sVv}; date; cat) >> $CVSROOT/CVSROOT/commitlog
 
-ALL (echo ""; echo $USER; date; cat) | /usr/bin/mail -s "CVS commit in BIE repository" weinberg@astro.umass.edu
+ALL (echo ""; echo $USER; date; cat) | /usr/bin/mail -s "CVS commit in ExpMPI repository" weinberg@astro.umass.edu
