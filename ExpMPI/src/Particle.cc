@@ -9,6 +9,7 @@ Particle::Particle()
   mass = pot = potext = 0.0;
   for (int k=0; k<3; k++)
     pos[k] = vel[k] = acc[k] = 0.0;
+  indx = 0;
 }
 
 Particle::Particle(const Particle &p)
@@ -23,7 +24,7 @@ Particle::Particle(const Particle &p)
   potext = p.potext;
   iattrib = p.iattrib;
   dattrib = p.dattrib;
-
+  indx = p.indx;
 }
 
 

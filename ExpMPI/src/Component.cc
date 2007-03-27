@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <algorithm>
+#include <map>
 
 #include <Component.H>
 #include <Bessel.H>
@@ -82,6 +83,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   comI    = 0;
   covI    = 0;
 
+  ordered = true;
+  seq_check = false;
+
   read_bodies_and_distribute_ascii();
 }
 
@@ -138,6 +142,8 @@ Component::Component(istream *in)
   comI    = 0;
   covI    = 0;
 
+  ordered = true;
+
   read_bodies_and_distribute_binary(in);
 }
 
@@ -181,15 +187,15 @@ void Component::initialize(void)
 
     if (!datum.first.compare("EJw0"))     EJw0 = atof(datum.second.c_str());
 
-    if (!datum.first.compare("EJkinE"))   EJkinE = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJkinE"))   EJkinE = atoi(datum.second.c_str()) ? true : false;
 
-    if (!datum.first.compare("EJext"))    EJext = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJext"))    EJext =  atoi(datum.second.c_str()) ? true : false;
 
-    if (!datum.first.compare("EJdiag"))   EJdiag = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJdiag"))   EJdiag = atoi(datum.second.c_str()) ? true : false;
 
-    if (!datum.first.compare("EJdryrun")) EJdryrun = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJdryrun")) EJdryrun = atoi(datum.second.c_str()) ? true : false;
 
-    if (!datum.first.compare("EJlinear")) EJlinear = true ? atoi(datum.second.c_str()) : false;
+    if (!datum.first.compare("EJlinear")) EJlinear = atoi(datum.second.c_str()) ? true : false;
 
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
@@ -203,6 +209,8 @@ void Component::initialize(void)
 
     if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
     
+    if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
+
 				// Next parameter
     token = tokens(",");
   }
@@ -565,6 +573,8 @@ void Component::part_to_Particle(Partstruct& str, Particle& cls)
   cls.pot = str.pot;
   cls.potext = str.potext;
 
+  cls.indx = str.indx;
+
   cls.iattrib = vector<int>(niattrib);
   for (int j=0; j<niattrib; j++) cls.iattrib[j] = str.iatr[j];
 
@@ -583,6 +593,8 @@ void Component::Particle_to_part(Partstruct& str, Particle& cls)
   }
   str.pot = cls.pot;
   str.potext = cls.potext;
+
+  str.indx = indx.indx;
 
   for (int j=0; j<niattrib; j++) str.iatr[j] = cls.iattrib[j];
 
@@ -646,10 +658,6 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
 
   }
-#ifdef SEQCHECK
-  seq_ok = true;		// Will always be ok to start . . . 
-  niattrib++;
-#endif
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -661,26 +669,29 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 				// Make MPI datatype
   
-  MPI_Datatype type[8] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			  MPI_DOUBLE, MPI_DOUBLE, MPI_INT,    MPI_DOUBLE};
+  MPI_Datatype type[9] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			  MPI_DOUBLE, MPI_DOUBLE, MPI_UNSIGNED_LONG,
+			  MPI_INT,    MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint disp[8];
+  MPI_Aint disp[9];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
   MPI_Get_address(&buf[0].acc,		&disp[3]);
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].iatr,		&disp[6]);
-  MPI_Get_address(&buf[0].datr,		&disp[7]);
+  MPI_Get_address(&buf[0].potext,	&disp[5]);
+  MPI_Get_address(&buf[0].indx,		&disp[6]);
+  MPI_Get_address(&buf[0].iatr,		&disp[7]);
+  MPI_Get_address(&buf[0].datr,		&disp[8]);
 
-  for (int i=7; i>=0; i--) disp[i] -= disp[0];
+  for (int i=8; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[8] = {1, 3, 3, 3, 1, 1, nimax, ndmax};
+  int blocklen[9] = {1, 3, 3, 3, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(8, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(9, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
 
@@ -728,14 +739,9 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) ins >> part.vel[j];
       part.pot = part.potext = 0.0;
 
-#ifdef SEQCHECK
-      if (seq_ok) {
-	for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
-	part.iattrib[niattrib-1] = 1;
-      }
-#else
+      part.indx = 1;
+
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
-#endif
       for (int j=0; j<ndattrib; j++) ins >> part.dattrib[j];
 
       rmax1 = 0.0;
@@ -756,14 +762,9 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) ins >> part.vel[j];
       part.pot = part.potext = 0.0;
 
-#ifdef SEQCHECK
-      if (seq_ok) {
-	for (int j=0; j<niattrib-1; j++) ins >> part.iattrib[j];
-	part.iattrib[niattrib-1] = i;
-      }
-#else
+      part.indx = i;
+
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
-#endif
       for (int j=0; j<ndattrib; j++) ins >> part.dattrib[j];
 
       r2 = 0.0;
@@ -793,14 +794,9 @@ void Component::read_bodies_and_distribute_ascii(void)
 	for (int j=0; j<3; j++) ins >> buf[ibufcount].vel[j];
 	buf[ibufcount].pot = buf[ibufcount].potext = 0.0;
 
-#ifdef SEQCHECK
-	if (seq_ok) {
-	  for (int j=0; j<niattrib-1; j++) ins >> buf[ibufcount].iatr[j];
-	  buf[ibufcount].iatr[niattrib-1] = nbodies_index[n-1] + 1 + icount;
-	}
-#else
+	buf[ibufcount].indx = nbodies_index[n-1] + 1 + icount;
+
 	for (int j=0; j<niattrib; j++) ins >> buf[ibufcount].iatr[j];
-#endif
 	for (int j=0; j<ndattrib; j++) ins >> buf[ibufcount].datr[j];
 
 	r2 = 0.0;
@@ -838,16 +834,16 @@ void Component::read_bodies_and_distribute_ascii(void)
     }
   }
   
-#ifdef SEQCHECK			// Sanity check
-  if (seq_ok) {
+				// Sanity check
+  if (seq_check) {
     if (particles.size()) {
-      if (seq_beg != particles[0].iattrib[niattrib-1] || 
-	  seq_end != particles[nbodies-1].iattrib[niattrib-1]) {
+      if (seq_beg != particles[0].indx || 
+	  seq_end != particles[nbodies-1].indx) {
 	cout << "Process " << myid << ": sequence error on init,"
 	     << " seq_beg=" << seq_beg
 	     << " seq_end=" << seq_end
-	     << " seq[1]=" << particles[0].iattrib[niattrib-1]
-	     << " seq[N]=" << particles[nbodies-1].iattrib[niattrib-1]
+	     << " seq[1]=" << particles[0].indx
+	     << " seq[N]=" << particles[nbodies-1].indx
 	     << " nbodies=" << nbodies
 	     << endl << flush;
 	MPI_Abort(MPI_COMM_WORLD, -1);
@@ -874,6 +870,7 @@ void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
   for (int i=0; i<3; i++) in->read((char *)&(onepart->vel[i]), sizeof(double));
   in->read((char *)&(onepart->pot), sizeof(double));
   onepart->potext = 0.0;
+  onepart->indx = ++seq_cur;
   for (int i=0; i<niattrib; i++) 
     in->read((char *)&(onepart->iatr[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
@@ -944,24 +941,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     info[ninfochar] = '\0';
   }
 
-				// Sanity check for SEQCHECK
-				// 
-#ifdef SEQCHECK
-  if (niattrib == 0) {
-    seq_ok = false;
-    if (myid==0) {
-      cerr << "SEQCHECK is compiled but phase space does not have a sequence field\n";
-      cerr << "SEQCHECK is disabled\n";
-    }
-  }
-  
-  {
-    int tmp = 0;
-    if (seq_ok) tmp = 1;
-    MPI_Bcast(&tmp, 1, MPI_INT, 0, MPI_COMM_WORLD);
-    if (myid) seq_ok = tmp ? true : false;
-  }
-#endif
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1021,26 +1000,28 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Make MPI datatype
   
-  MPI_Datatype	type[8] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_INT,    MPI_DOUBLE};
+  MPI_Datatype	type[9] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			   MPI_DOUBLE, MPI_DOUBLE, MPI_UNSIGNED_LONG,
+			   MPI_INT,    MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint disp[8];
+  MPI_Aint disp[9];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
   MPI_Get_address(&buf[0].acc,		&disp[3]);
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].iatr,		&disp[6]);
-  MPI_Get_address(&buf[0].datr,		&disp[7]);
+  MPI_Get_address(&buf[0].indx,		&disp[6]);
+  MPI_Get_address(&buf[0].iatr,		&disp[7]);
+  MPI_Get_address(&buf[0].datr,		&disp[8]);
 
-  for (int i=7; i>=0; i--) disp[i] -= disp[0];
+  for (int i=8; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[8] = {1, 3, 3, 3, 1, 1, nimax, ndmax};
+  int blocklen[9] = {1, 3, 3, 3, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(8, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(9, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
   double rmax1, r2;
@@ -1080,7 +1061,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Read root node particles
 
     cout << "Count=" << ncount[0] << endl;
-
+    seq_cur = 0;
 
     rmax1 = 0.0;
     for (int i=1; i<=ncount[0]; i++)
@@ -1155,15 +1136,15 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   }
 
 
-#ifdef SEQCHECK			// Sanity check
-  if (seq_ok) {
-    if (seq_beg != particles[0].iattrib[niattrib-1] || 
-	seq_end != particles[nbodies-1].iattrib[niattrib-1]) {
+				// Sanity check
+  if (seq_check) {
+    if (seq_beg != particles[0].indx
+	seq_end != particles[nbodies-1].indx) {
       cout << "Process " << myid << ": sequence error on init,"
 	   << " seq_beg=" << seq_beg
 	   << " seq_end=" << seq_end
-	   << " seq[1]=" << particles[0].iattrib[niattrib-1]
-	   << " seq[N]=" << particles[nbodies-1].iattrib[niattrib-1]
+	   << " seq[1]=" << particles[0].indx
+	   << " seq[N]=" << particles[nbodies-1].indx
 	   << endl << flush;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
@@ -1175,7 +1156,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 }
 
+
 struct Component::Partstruct * Component::get_particles(int* number)
+{
+  if (ordered) return get_particles_ordered(number);
+  else         return get_particles_unordered(number);
+}
+
+struct Component::Partstruct * Component::get_particles_ordered(int* number)
 {
   MPI_Status status;
 
@@ -1275,6 +1263,54 @@ struct Component::Partstruct * Component::get_particles(int* number)
        << endl << flush;
 #endif    
 
+}
+
+
+struct Component::Partstruct * Component::get_particles_unordered(int* number)
+{
+  MPI_Status status;
+
+  static int counter;
+  static map<unsigned long, int> mapping;
+
+  if (*number < 0) {
+    counter = 1;
+				// Remake the particle index map
+    mapping.clean();
+    for (int i=0; i<particles.size(); i++)  mapping[particles[i].indx] = i;
+  }
+
+				// Done?
+  if (counter==nbodies_tot) {
+    *number = 0;
+    return 0;
+  }
+
+  if (myid == 0) {
+				// Owned by the root node?
+    if (mapping.find(counter) != mapping.end()) {
+      // Pack structure
+      Particle_to_part(buf[0], particles[mapping[counter]]);
+      // No communication necessary . . .
+    } else {			// Receive the particle from a node
+      MPI_Recv(buf, 1, Particletype, node, 53, MPI_COMM_WORLD, &status);
+    }
+  } else {
+				// Owned by me?
+    if (mapping.find(counter) != mapping.end()) {
+				// Pack structure
+      Particle_to_part(buf[0], particles[mapping[counter]);
+				// Send to master
+      MPI_Send(buf, 1, Particletype, 0, 53, MPI_COMM_WORLD);
+    }
+  }
+
+				// Next counter . . . 
+  counter++;
+
+				// Return values
+  *number = 1;
+  return buf;
 }
 
 
@@ -1928,8 +1964,8 @@ void Component::load_balance(void)
   nbodies_table = nbodies_table1;
   
 
-#ifdef SEQCHECK
-  if (seq_ok) {
+  if (seq_check) {
+    
     char msgbuf[200];		// Only need 31 characters . . .
 
     if (myid==0) *log << endl << "Post load-balance sequence check:" 
@@ -1939,8 +1975,8 @@ void Component::load_balance(void)
       if (myid==i) {
 	ostringstream msg;
 	msg << "Process " << setw(4) << myid << ":"
-	    << setw(9) << particles[0].iattrib[niattrib-1]
-	    << setw(9) << particles[nbodies-1].iattrib[niattrib-1];
+	    << setw(9) << particles[0].indx
+	    << setw(9) << particles[nbodies-1].indx
 	strcpy(msgbuf, msg.str().c_str());
 	if (myid!=0) 
 	  MPI_Send(msgbuf, 200, MPI_CHAR, 0, 81, MPI_COMM_WORLD);
@@ -1983,7 +2019,7 @@ void Component::load_balance(void)
     
     if (myid==0) *log << "\nSequence check ok!\n";
   }
-#endif
+
 
   if (myid==0) {
     out->close();
@@ -2149,4 +2185,78 @@ double Component::Adiabatic()
   return 0.25*
     ( 1.0 + erf((tpos - ton )/twid) ) *
     ( 1.0 + erf((toff - tpos)/twid) ) ;
+}
+
+
+void Component::redistributeByList(vector<int>& redist)
+{
+  Particle part;
+  vector<int>::iterator it = redist.begin();
+
+  vector<int> myDelete;
+  int curnode, tonode, lastnode, M, icount;
+
+  while (it != redist.end()) {
+    curnode = *(it++);
+    M       = *(it++);
+    if (M) {
+      indx   = *(it++);
+      tonode = *(it++);
+      icount = 0;
+
+      if (myid==curnode) {
+	Particle_to_part(buf[icount], particles[indx]);
+	myDelete.push_back(indx);
+      }
+      icount++;
+      lastnode = tonode;
+
+      for (int m=1; m<M; m++) {
+	indx   = *(it++);
+	tonode = *(it++);
+				// Send the particles
+	if (tonode != lastnode && icount) {
+	  if (myid==curnode) 
+	    MPI_Send(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD);
+	  if (myid==lastnode) {
+	    MPI_Recv(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD, &status);
+	    for (int i=0; i<icount; i++) {
+	      part_to_Particle(buf[i], part);
+	      particles.push_back(part);
+	    }
+	  }
+	}
+
+				// Buffer this particle
+	if (myid==curnode) {
+	  Particle_to_part(buf[icount], particles[indx]);
+	  myDelete.push_back(indx);
+	}
+	icount++;
+	lastnode = tonode;
+	
+				// Buffer is full?
+	if (icount == nbuf) {
+	  if (myid==curnode) 
+	    MPI_Send(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD);
+	  if (myid==tonode) {
+	    MPI_Recv(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD, &status);
+	    for (int i=0; i<icount; i++) {
+	      part_to_Particle(buf[i], part);
+	      particles.push_back(part);
+	    }
+	  }
+	  icount = 0;
+	}
+      } // End of particles on this node
+    }
+    
+  } // Next stanza
+
+  // Delete particles that have been transferred to a new node
+  
+  for (unsigned int n=myDelete.size()-1; n>=0; n++) {
+    particles.erase(particles.begin()+myDelete[n]);
+  }
+
 }

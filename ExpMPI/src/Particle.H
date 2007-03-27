@@ -39,6 +39,9 @@ public:
   //! Real (double) attributes
   vector<double> dattrib;
 
+  //! Index for ordering
+  unsigned long indx;
+
   //! Constructor
   Particle();
 

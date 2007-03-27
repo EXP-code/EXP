@@ -40,6 +40,8 @@ private:
   Three_Vector v, v0, u, u0, non;
   Matrix tidalRot, tidalRotI;
   double omega, domega;
+  double rsat, vsat, Omega;
+  bool circ;
 
   int halo_type;
 

@@ -177,8 +177,9 @@ public:
     double acc[3];		///< 3        7,8.9
     double pot;			///< 4        10
     double potext;		///< 5        11
-    int    iatr[nimax];		///< 6        12,13,14,15,16 (e.g.)
-    double datr[ndmax];		///< 7        17,18,19,20,21 (e.g.)
+    unsigned long indx;		///< 6        12
+    int    iatr[nimax];		///< 7        13,13,14,15,17 (e.g.)
+    double datr[ndmax];		///< 8        18,18,19,20,22 (e.g.)
   };
 
 private:
@@ -194,8 +195,8 @@ private:
   Partstruct *buf;
   static const int nbuf = 2000;
 
-  bool seq_ok;
-  int seq_beg, seq_end;
+  bool seq_check, ordered;
+  int seq_beg, seq_end, seq_cur;
 
 				// Used in computing target rates for
 				// load balancing
@@ -212,6 +213,10 @@ private:
   // Adiabatic mass
   bool adiabatic;
   double ton, toff, twid;
+
+  // For particle retrival in the proper order
+  Partstruct * get_particles_ordered(int* number);
+  Partstruct * get_particles_unordered(int* number);
 
   // For load balancing
   vector <loadb_datum> loadb;
@@ -424,6 +429,31 @@ public:
 
   //! Compute center of mass and center of velocity
   void fix_positions(void);
+
+  //! Control: assume particle on nodes remain unchanged
+  void setOrdered() { ordered = true; }
+
+  //! Control: assume particle on nodes may change
+  void setUnordered() { ordered = false; }
+
+  /** Redistribute particle by list
+
+      Serialize redistribution list into an integer array
+      of numprocs stanzas, each with the format
+      n -- current node
+      M -- number to redistribute (may be zero)
+      index_1
+      tonode_1
+      index_2
+      tonode_2
+      .
+      .
+      index_M
+      tonode_M
+
+      so each stanza has 2(M+1) integers
+  */
+  void redistributeByList(vector<int>& redist);
 
   //! Subtract mean acceleration from each particle accel
   void update_accel(void);

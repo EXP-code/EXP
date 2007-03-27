@@ -68,6 +68,7 @@ database_record init[] = {
   {"HALO_MODEL",	"int",		"0"},
   {"PERI",		"double",	"0.5"},
   {"APO",		"double",	"1.0"},
+  {"RSAT",		"double",	"1.0"},
   {"INCLINE",		"double",	"45.0"},	  
   {"PSI",		"double",	"0.0"},
   {"PHIP",		"double",	"0.0"},
@@ -81,6 +82,7 @@ database_record init[] = {
   {"MAXIT",		"int", 		"2000"},
   {"NRECS",		"int", 		"512"},
   {"DIVERGE_RFAC",	"double",	"1.0"},
+  {"CIRCULAR",		"bool",		"false"},
   {"MODFILE",		"string",	"halo.model"},
   {"",			"",    		""}
 };
@@ -101,7 +103,8 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
     m = new SphericalModelTable(
 				config->get<string>("MODFILE"), 
 				config->get<int>("DIVERGE"), 
-				config->get<double>("DIVERGE_RFAC"));
+				config->get<double>("DIVERGE_RFAC")
+				);
     m->setup_df(config->get<int>("NUMDF"), config->get<double>("RA"));
     halo_model = m;
 				// Assign filename to ID string
@@ -131,40 +134,17 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
   default:
     cerr << "Illegal HALO model: " << config->get<int>("HALO_MODEL") << '\n';
     exit(-1);
-    }
+  }
   
 
 // ===================================================================
 // Setup orbit
 // ===================================================================
 
-  FindOrb::MAXIT = config->get<int>("MAXIT");
-
-  orb = new FindOrb(
-		    halo_model,
-		    config->get<double>("PERI"), 
-		    config->get<double>("APO")
-		    );
-
-  OrbValues ret = orb->Anneal();
-
-  if (myid==0) {
-    cout << left << setw(60) << setfill('-') << '-' << endl << setfill(' ');
-    cout << "Boltzman constant: " << ret.Boltzmann << endl
-	 << "Initial temperature: " << ret.t0 << '\t'
-	 << "Final temperature: " << ret.tf << endl
-	 << "Estimated minumum at: " << ret.energy
-	 << ", " << ret.kappa << endl
-	 << "Functional value = " << ret.value << endl
-	 << "Peri, apo = " << ret.peri << ", " << ret.apo << endl
-	 << "Radial period = " << ret.radial_period << endl
-	 << "Aximuthal period = " << ret.azimuthal_period << endl;
-  }
-
   double INCLINE = config->get<double>("INCLINE");
   double PSI     = config->get<double>("PSI");
   double PHIP    = config->get<double>("PHIP");
-
+    
   INCLINE *= M_PI/180.0;
   PSI     *= M_PI/180.0;
   PHIP    *= M_PI/180.0;
@@ -172,21 +152,63 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
 				// Set orientation of satellite orbit
   rotate  = return_euler(PHIP, INCLINE, PSI, 1);
   rotateI = rotate.Inverse();
-
+  
 				// Set default body rotation to identity
   setTidalOrientation(0.0, 0.0, 0.0);
 
 				// In case non-inertial is not desired
   omega = domega = 0.0;
 
+  circ = config->get<bool>("CIRCULAR");
+
+  if (circ) {
+
+    rsat = config->get<double>("RSAT");
+    vsat = sqrt(rsat*halo_model->get_dpot(rsat));
+    Omega = vsat/rsat;
+
+  } else {
+
+    FindOrb::MAXIT = config->get<int>("MAXIT");
+
+    orb = new FindOrb(
+		      halo_model,
+		      config->get<double>("PERI"), 
+		      config->get<double>("APO")
+		      );
+
+    OrbValues ret = orb->Anneal();
+
+    if (myid==0) {
+      cout << left << setw(60) << setfill('-') << '-' << endl << setfill(' ');
+      cout << "Boltzman constant: " << ret.Boltzmann << endl
+	   << "Initial temperature: " << ret.t0 << '\t'
+	   << "Final temperature: " << ret.tf << endl
+	   << "Estimated minumum at: " << ret.energy
+	   << ", " << ret.kappa << endl
+	   << "Functional value = " << ret.value << endl
+	   << "Peri, apo = " << ret.peri << ", " << ret.apo << endl
+	   << "Radial period = " << ret.radial_period << endl
+	   << "Aximuthal period = " << ret.azimuthal_period << endl;
+    }
+  }
+    
   if (myid==0) {
 
-    double r   = orb->Orb().get_angle(6, 0.0);
-    double phi = orb->Orb().get_angle(7, 0.0);
+    double r, phi;
 
+    if (circ) {
+      r = rsat;
+      phi = 0.0;
+    } else {
+      r   = orb->Orb().get_angle(6, 0.0);
+      phi = orb->Orb().get_angle(7, 0.0);
+    }
+      
     v0[1] = r*cos(phi);
     v0[2] = r*sin(phi);
     v0[3] = 0.0;
+    
 				// Set current satellite position
     currentR = rotate*v0;
 
@@ -352,8 +374,16 @@ Vector SatelliteOrbit::get_tidal_force_non_inertial(void)
 
 void SatelliteOrbit::setTidalPosition(double T, int NI)
 {
-  double r = orb->Orb().get_angle(6, T);
-  double phi = orb->Orb().get_angle(7, T);
+  double r, phi;
+
+  if (circ) {
+    r = rsat;
+    phi = Omega*T;
+  } else {
+    r = orb->Orb().get_angle(6, T);
+    phi = orb->Orb().get_angle(7, T);
+  }
+
   double dpot = halo_model->get_dpot(r);
 
   currentTime = T;
@@ -374,27 +404,39 @@ void SatelliteOrbit::setTidalPosition(double T, int NI)
 
 
   if (NI) {			// Set up for non-inertial terms
-
-    double delT = 2.0*M_PI/orb->Orb().get_freq(2)/40.0;
+    
+    if (circ) {
+      omega = Omega;
+      domega = 0.0;
+    } else {
+      double delT =2.0*M_PI/orb->Orb().get_freq(2)/40.0;
   
-    omega = (
-	     orb->Orb().get_angle(7, T+0.5*delT) -
-	     orb->Orb().get_angle(7, T-0.5*delT)
-	     ) / delT;
-
-    domega = (
-	      orb->Orb().get_angle(7, T+delT) -
-	      orb->Orb().get_angle(7, T     ) * 2.0 +
-	      orb->Orb().get_angle(7, T-delT)
-	      ) / (delT*delT);
+      omega = (
+	       orb->Orb().get_angle(7, T+0.5*delT) -
+	       orb->Orb().get_angle(7, T-0.5*delT)
+	       ) / delT;
+      
+      domega = (
+		orb->Orb().get_angle(7, T+delT) -
+		orb->Orb().get_angle(7, T     ) * 2.0 +
+		orb->Orb().get_angle(7, T-delT)
+		) / (delT*delT);
+    }
   }
 }
 
 
 Vector SatelliteOrbit::get_satellite_orbit(double T)
 {
-  double r = orb->Orb().get_angle(6, T);
-  double phi = orb->Orb().get_angle(7, T);
+  double r, phi;
+
+  if (circ) {
+    r = rsat;
+    phi = Omega*T;
+  } else {
+    r = orb->Orb().get_angle(6, T);
+    phi = orb->Orb().get_angle(7, T);
+  }
 
   v0[1] = r*cos(phi);
   v0[2] = r*sin(phi);
@@ -409,8 +451,15 @@ Vector SatelliteOrbit::get_satellite_orbit(double T)
 
 void SatelliteOrbit::get_satellite_orbit(double T, double *v)
 {
-  double r = orb->Orb().get_angle(6, T);
-  double phi = orb->Orb().get_angle(7, T);
+  double r, phi;
+
+  if (circ) {
+    r = rsat;
+    phi = Omega*T;
+  } else {
+    r = orb->Orb().get_angle(6, T);
+    phi = orb->Orb().get_angle(7, T);
+  }
 
   v0[1] = r*cos(phi);
   v0[2] = r*sin(phi);
@@ -425,8 +474,16 @@ void SatelliteOrbit::get_satellite_orbit(double T, double *v)
 
 Vector SatelliteOrbit::get_satellite_force(double T)
 {
-  double r = orb->Orb().get_angle(6, T);
-  double phi = orb->Orb().get_angle(7, T);
+  double r, phi;
+
+  if (circ) {
+    r = rsat;
+    phi = Omega*T;
+  } else {
+    r = orb->Orb().get_angle(6, T);
+    phi = orb->Orb().get_angle(7, T);
+  }
+
   double dpot = halo_model->get_dpot(r);
 
   v0[1] = -dpot*cos(phi);
