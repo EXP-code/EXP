@@ -40,6 +40,10 @@ void usage(char *prog)
        << setiosflags(ios::left)
        << setw(40) << "Number of points in radial table" << endl
        << resetiosflags(ios::left)
+       << setw(15) << "-s or --cache" << setw(10) << ".slgrid_sph_cache" << setw(10) << " " 
+       << setiosflags(ios::left)
+       << setw(40) << "SL cache filename" << endl
+       << resetiosflags(ios::left)
        << setw(15) << "-i or --file" << setw(10) << "SLGridSph.model" << setw(10) << " " 
        << setiosflags(ios::left)
        << setw(40) << "Model profile" << endl
@@ -63,6 +67,7 @@ int main(int argc, char** argv)
   int diverge = 0;
   double dfac = 1.0;
   string filename = "SLGridSph.model";
+  string cachefile = ".slgrid_sph_cache";
 
   int c;
   while (1) {
@@ -74,11 +79,12 @@ int main(int argc, char** argv)
       {"cmap", 1, 0, 0},
       {"numr", 1, 0, 0},
       {"dfac", 1, 0, 0},
+      {"cache", 1, 0, 0},
       {"file", 1, 0, 0},
       {0, 0, 0, 0}
     };
 
-    c = getopt_long (argc, argv, "c:lmn:d:i:h",
+    c = getopt_long (argc, argv, "c:lmn:d:i:s:h",
 		     long_options, &option_index);
 
     if (c == -1) break;
@@ -99,6 +105,8 @@ int main(int argc, char** argv)
 	} else if (!optname.compare("dfac")) {
 	  diverge = 1;
 	  dfac = atof(optarg);
+	} else if (!optname.compare("cache")) {
+	  cachefile = optarg;
 	} else if (!optname.compare("file")) {
 	  filename = optarg;
 	} else {
@@ -133,6 +141,10 @@ int main(int argc, char** argv)
 
     case 'i':
       filename = optarg;
+      break;
+
+    case 's':
+      cachefile = optarg;
       break;
 
     case 'h':
@@ -192,6 +204,7 @@ int main(int argc, char** argv)
 
 				// Set model file
   SLGridSph::model_file_name = filename;
+  SLGridSph::sph_cache_name = cachefile;
 
   cout << "Model=" << filename << endl;
   cout << "CMAP=" << cmap << endl;

@@ -2192,17 +2192,21 @@ void Component::redistributeByList(vector<int>& redist)
   Particle part;
   vector<int>::iterator it = redist.begin();
 
-  vector<int> myDelete;
+				// Keep list of particles to delete
+  vector<int> myDelete;		// from current node
+
   int indx, curnode, tonode, lastnode, M, icount;
 
   while (it != redist.end()) {
-    curnode = *(it++);
-    M       = *(it++);
+    curnode = *(it++);		// Current owner
+    M       = *(it++);		// Number to transfer to another node
     if (M) {
-      indx   = *(it++);
-      tonode = *(it++);
-      icount = 0;
+      indx   = *(it++);		// Index on owner's list
+      tonode = *(it++);		// Destination
+      icount = 0;		// Number in transfer buffer so far
 
+      // Do the first particle
+      //
       if (myid==curnode) {
 	Particle_to_part(buf[icount], particles[indx]);
 	myDelete.push_back(indx);
@@ -2210,15 +2214,17 @@ void Component::redistributeByList(vector<int>& redist)
       icount++;
       lastnode = tonode;
 
+      // Do the remaining particles
+      //
       for (int m=1; m<M; m++) {
 	indx   = *(it++);
 	tonode = *(it++);
 				// Send the particles
 	if (tonode != lastnode && icount) {
 	  if (myid==curnode) 
-	    MPI_Send(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD);
+	    MPI_Send(buf, icount, Particletype, lastnode, 53, MPI_COMM_WORLD);
 	  if (myid==lastnode) {
-	    MPI_Recv(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD, &status);
+	    MPI_Recv(buf, icount, Particletype, curnode , 53, MPI_COMM_WORLD, &status);
 	    for (int i=0; i<icount; i++) {
 	      part_to_Particle(buf[i], part);
 	      particles.push_back(part);
@@ -2237,9 +2243,9 @@ void Component::redistributeByList(vector<int>& redist)
 				// Buffer is full?
 	if (icount == nbuf) {
 	  if (myid==curnode) 
-	    MPI_Send(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD);
+	    MPI_Send(buf, icount, Particletype, tonode,  53, MPI_COMM_WORLD);
 	  if (myid==tonode) {
-	    MPI_Recv(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD, &status);
+	    MPI_Recv(buf, icount, Particletype, curnode, 53, MPI_COMM_WORLD, &status);
 	    for (int i=0; i<icount; i++) {
 	      part_to_Particle(buf[i], part);
 	      particles.push_back(part);
@@ -2254,7 +2260,7 @@ void Component::redistributeByList(vector<int>& redist)
 
   // Delete particles that have been transferred to a new node
   
-  for (unsigned int n=myDelete.size()-1; n>=0; n++) {
+  for (unsigned int n=myDelete.size()-1; n>=0; n--) {
     particles.erase(particles.begin()+myDelete[n]);
   }
 

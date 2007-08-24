@@ -1,6 +1,6 @@
 // #define DEBUG 1
 // #define DEBUG_NAN 1
-// #define GHQL 1
+#define GHQL 1
 // #define STURM 1
 // #define EIGEN 1
 // #define DEBUG_PCA
@@ -2185,7 +2185,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
       
     }
     
-    if (mm=0) p0 = p;
+    if (mm==0) p0 = p;
 
   }
   

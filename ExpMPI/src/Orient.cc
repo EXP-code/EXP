@@ -55,6 +55,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   center0.setsize(1, 3);
   cenvel0.setsize(1, 3);
   axis.zero();
+  axis[3] = 1;
   center.zero();
   center0.zero();
   cenvel0.zero();
