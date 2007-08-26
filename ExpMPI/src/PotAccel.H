@@ -68,6 +68,9 @@ protected:
   //! Coefficient dump flag (true if a useful dump_coefs member is defined)
   bool coef_dump;
 
+  //! Current level for multistepping
+  int mlevel;
+
 public:
 
   //! Id string
@@ -90,9 +93,13 @@ public:
   //! The main force evaluation routine to be called by clients
   virtual void get_acceleration_and_potential(Component *c) = 0;
 
-  /*! Used by get_acceleration_and_potential to request that the
-    expansion be performed. */
+  /** Used by get_acceleration_and_potential to request that the
+      expansion be performed. */
+  //@{
   virtual void determine_coefficients(void) = 0;
+  virtual void determine_coefficients(Component *c) 
+  { cC = c; determine_coefficients(); }
+  //@}
 
   //! Multithreading implementation of the expansion computation
   virtual void * determine_coefficients_thread(void * arg) = 0;
@@ -139,6 +146,32 @@ public:
 
   //! Dump current coefficients
   virtual void dump_coefs(ostream &out) {};
+
+  /** Update the multi time step force algorithm when moving particle 
+      <code>i</code> from level <code>cur</code> to level 
+      <code>next</code>
+  */
+  
+  //! Execute to begin level shifts for particles
+  virtual void multistep_update_begin() {}
+
+  //! Implementation of level shifts
+  virtual void multistep_update(int cur, int next, Component* c, int i) {}
+
+  //! Execute to finish level shifts for particles
+  virtual void multistep_update_finish() {}
+
+  //! Set the level for evaluating acceleration (or coefficients) at level n
+  void set_multistep_level(int n) { mlevel=n; }
+
+  //! Exchange data for interpolating the next sub time step
+  virtual void multistep_swap(int M) {}
+
+  //! Reset data for multistep
+  virtual void multistep_reset() {}
+
+  //! Print debug info
+  virtual void multistep_debug() {}
 
 };
 

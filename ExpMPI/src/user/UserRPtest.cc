@@ -177,7 +177,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
 
 	  ins >> tlast1;
 
-	  if (tlast1 >= tpos) {
+	  if (tlast1 >= tnow) {
 	    if (firstline) {
 	      cerr << "UserRPtest: can't read log file, aborting" << endl;
 	      MPI_Abort(MPI_COMM_WORLD, 123);
@@ -285,7 +285,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
     halo_model->get_pot_dpot(R, pot, dpot);
 
     if (myid==0 && id==0 && i<npart) {
-      if (i==0) out << setw(15) << tpos;
+      if (i==0) out << setw(15) << tnow;
       respot->coord(pos, vel, E, K, I1, J, O1, O2, w1, w2, w3, f, beta, psi);
       out << setw(15) << E
 	  << setw(15) << K

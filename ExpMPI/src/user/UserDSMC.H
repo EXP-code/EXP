@@ -7,6 +7,9 @@
 
 #include <Timer.h>
 
+/**
+   Helper class describing a comparison for sorting particles in radius
+*/
 class RadiusSort
 {
 public:
@@ -31,6 +34,9 @@ public:
 };
 
 
+/**
+   Helper class describing a comparison for sorting the most bound particles
+*/
 class BoundSort
 {
 public:

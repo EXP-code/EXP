@@ -198,8 +198,8 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double amp = 0.25*sgn*boost*
-    (1.0 + erf((tpos-ton )/delta)) *
-    (1.0 + erf((toff-tpos)/delta)) ;
+    (1.0 + erf((tnow-ton )/delta)) *
+    (1.0 + erf((toff-tnow)/delta)) ;
 
   for (int i=nbeg; i<nend; i++) {
 

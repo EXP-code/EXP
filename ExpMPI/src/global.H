@@ -3,6 +3,8 @@
 
 #include <pthread.h>
 #include <mpi.h>
+
+#include <vector>
 #include <string>
 
 #include <coef.H>
@@ -58,18 +60,31 @@ extern string runtag;
 //! Toggle phase space advance (e.g. for use with externally supplied mapping).  On by default.
 extern bool eqmotion;
 
+//! Multistep levels (default: 0 means to multistepping)
+extern int multistep;
+
+//! Synchronize multistep positions at each substep (default: true)
+extern int posnsync;
+
+//! Fraction of dynamical time for determining multistep level
+extern double dynfrac;
+
 				// Internal variables
-//! Deprecated
-extern bool use_cwd;
 
 //! Global set on restart (to used by initializers and user modules)
 extern bool restart;
 
+//! Use Node 0's home dir for the working dir on all nodes
+extern bool use_cwd;
+
 //! Process priority set to NICE value
 extern int NICE;
 
+//! Output logging level
+extern int VERBOSE;
+
 //! Times for each phase space slice (for Leap-Frog)
-extern double tpos,tvel,tnow;
+extern double tnow;
 
 //! Current step number
 extern int this_step;
@@ -77,11 +92,36 @@ extern int this_step;
 //! Total mass in simulation (used by Orient and log diagnostics)
 extern double mtot;
 
-//! Global center of mass and center of velocity
-extern double *gcom, *gcov; 
+//! Global center of mass
+extern double *gcom;
+
+//! Global center of velocity
+extern double *gcov; 
 
 //! Resets total center of velocity to zero if true
 extern bool global_cov;
+
+//! Maximum number of multistep steps
+extern int Mstep;
+
+//! Current point in multistepping
+extern int mstep;
+
+//! Multistep time step spacing
+extern vector<int> mintvl;
+
+//! Lowest synchronized level at a step
+extern vector<int> mfirst;
+
+//! Sub steps for last coefficient evaluation
+extern vector<int> stepL;
+
+//! Sub steps for current coefficient evaluation
+extern vector<int> stepN;
+
+//! Multistep level flag: levels currently synchronized
+extern vector< vector<bool> > mactive;
+
 
 /**
    Phase space dump on next step
@@ -105,7 +145,9 @@ extern int is_init;
 
 #ifndef _localmpi_h
 //! Maintains number of processes, slaves, MPI id, etc.
+//@{
 extern int numprocs, slaves, myid, proc_namelen;
+//@}
 
 //! MPI returned processor name
 extern char processor_name[MPI_MAX_PROCESSOR_NAME];

@@ -360,7 +360,7 @@ void UserResPot::determine_acceleration_and_potential(void)
 	    ins >> phase1;
 	    ins >> omlast1;
 
-	    if (tlast1 >= tpos) {
+	    if (tlast1 >= tnow) {
 	      if (firstline) {
 		cerr << "UserResPotN: can't read log file, aborting" << endl;
 		cerr << "UserResPotN: line=" << line << endl;

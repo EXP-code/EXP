@@ -60,8 +60,6 @@ void OutPSN::Run(int n, bool last)
   if (n % nint && !last && !dump_signal) return;
   if (restart  && n==0  && !dump_signal) return;
 
-  synchronize_velocity(1);
-
   ofstream *out;
   list<Component*>::iterator cc;
   Component* c;
@@ -82,7 +80,7 @@ void OutPSN::Run(int n, bool last)
 				// Open file and write master header
     
     struct MasterHeader header;
-    header.time = tpos;
+    header.time = tnow;
     header.ntot = comp.ntot;
     header.ncomp = comp.ncomp;
 
@@ -98,8 +96,6 @@ void OutPSN::Run(int n, bool last)
     out->close();
     delete out;
   }
-
-  synchronize_velocity(0);
 
   dump_signal = 0;
 }

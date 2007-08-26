@@ -227,7 +227,7 @@ void UserDiffuse::determine_acceleration_and_potential(void)
       ofstream out(check_file.c_str(), ios::out | ios::app);
       if (out) {
 	out.setf(ios::left);
-	out << setw(16) << tpos;
+	out << setw(16) << tnow;
 	for (int k=0; k<6; k++) {
 	  if (ev_numb>1)
 	    out << setw(16) << ev_mean[k]/ev_numb

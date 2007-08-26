@@ -55,17 +55,10 @@
 #define _expand_h
 
 #include "../config.h"
-#include "version.h"
 
 #define BSD_SOURCE
 
-#undef MPE_PROFILE
-// #define MPE_PROFILE
-
 #include <mpi.h>
-#ifdef MPE_PROFILE
-#include <mpe.h>
-#endif
 
 #include <stdlib.h>
 #include <unistd.h>
@@ -74,6 +67,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <string>
 
@@ -93,10 +87,13 @@ using namespace std;
 				// Function declarations
 void init_velocity(void);
 void begin_run(void);
-void incr_position(void);
-void incr_velocity(void);
+void incr_position(double dt, int mlevel=0);
+void incr_velocity(double dt, int mlevel=0);
 void write_parm(void);
-void synchronize_velocity(int);
+void initialize_multistep();
+void sync_eval_multistep();
+void adjust_multistep_level(bool);
+
 
 #ifndef MAX
 #define MAX(A,B) (A>B ? A : B)

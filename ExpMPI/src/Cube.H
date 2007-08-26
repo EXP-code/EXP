@@ -23,11 +23,16 @@ protected:
 
   void initialize(void);
 				// Parameters
-  //! Update me
-  int nmaxx, nmaxy, nmaxz;
 
-  //! Update me
+  //! Minimum wave numbers in each dimesion
+  //@{
+  int nmaxx, nmaxy, nmaxz;
+  //@}
+
+  //! Maximum wave numbers in each dimesion
+  //@{
   int nminx, nminy, nminz;
+  //@}
 
 public:
 
@@ -40,7 +45,10 @@ public:
   //! Destructor
   virtual ~Cube();
 
+  //! Compute the coefficients
   void determine_coefficients(void);
+
+  //! Compute the force
   void get_acceleration_and_potential(Component*);
 
   // Threading

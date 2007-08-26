@@ -22,10 +22,10 @@ void user_perturbation()
   for (i=1; i<=nbodies; i++)
     {
       if (freeze_particle(i)) continue;
-      ax[i] += dummy_x(x[i], y[i], z[i], tpos);
-      ay[i] += dummy_x(x[i], y[i], z[i], tpos);
-      az[i] += dummy_z(x[i], y[i], z[i], tpos);
-      potext[i] += dummy_p(x[i], y[i], z[i], tpos);
+      ax[i] += dummy_x(x[i], y[i], z[i], tnow);
+      ay[i] += dummy_x(x[i], y[i], z[i], tnow);
+      az[i] += dummy_z(x[i], y[i], z[i], tnow);
+      potext[i] += dummy_p(x[i], y[i], z[i], tnow);
     }
 
 */

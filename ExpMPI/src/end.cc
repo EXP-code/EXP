@@ -18,11 +18,6 @@ void clean_up(void)
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-#ifdef MPE_PROFILE
-  sprintf(file, "expand_mpe.%s", logfile);
-  MPE_Finish_log(file);
-#endif
-
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ')
 		     << "Process " << setw(4) << right << myid 

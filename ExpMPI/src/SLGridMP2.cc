@@ -1667,7 +1667,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 	    MPI_Send(&l, 1, MPI_INT, retid, 11, MPI_COMM_WORLD);
       
 #ifdef DEBUG    
-	    cout << "Master g orders to Slave " << retid
+	    cout << "Master gave orders to Slave " << retid
 		 << ": l=" << l << '\n'; 
 #endif
 				// Increment counters

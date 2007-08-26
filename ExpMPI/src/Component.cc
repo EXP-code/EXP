@@ -573,6 +573,7 @@ void Component::part_to_Particle(Partstruct& str, Particle& cls)
   cls.pot = str.pot;
   cls.potext = str.potext;
 
+  cls.level = str.level;
   cls.indx = str.indx;
 
   cls.iattrib = vector<int>(niattrib);
@@ -594,6 +595,7 @@ void Component::Particle_to_part(Partstruct& str, Particle& cls)
   str.pot = cls.pot;
   str.potext = cls.potext;
 
+  str.level = cls.level;
   str.indx = cls.indx;
 
   for (int j=0; j<niattrib; j++) str.iatr[j] = cls.iattrib[j];
@@ -669,9 +671,10 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 				// Make MPI datatype
   
-  MPI_Datatype type[9] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			  MPI_DOUBLE, MPI_DOUBLE, MPI_UNSIGNED_LONG,
-			  MPI_INT,    MPI_DOUBLE};
+  MPI_Datatype type[10] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			   MPI_DOUBLE, MPI_DOUBLE, 
+			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,
+			   MPI_INT,    MPI_DOUBLE};
 
 				// Get displacements
   MPI_Aint disp[9];
@@ -682,16 +685,17 @@ void Component::read_bodies_and_distribute_ascii(void)
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].indx,		&disp[6]);
-  MPI_Get_address(&buf[0].iatr,		&disp[7]);
-  MPI_Get_address(&buf[0].datr,		&disp[8]);
+  MPI_Get_address(&buf[0].level,	&disp[6]);
+  MPI_Get_address(&buf[0].indx,		&disp[7]);
+  MPI_Get_address(&buf[0].iatr,		&disp[8]);
+  MPI_Get_address(&buf[0].datr,		&disp[9]);
 
-  for (int i=8; i>=0; i--) disp[i] -= disp[0];
+  for (int i=9; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[9] = {1, 3, 3, 3, 1, 1, 1, nimax, ndmax};
+  int blocklen[10] = {1, 3, 3, 3, 1, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(9, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(10, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
 
@@ -737,8 +741,10 @@ void Component::read_bodies_and_distribute_ascii(void)
       ins >> part.mass;
       for (int j=0; j<3; j++) ins >> part.pos[j];
       for (int j=0; j<3; j++) ins >> part.vel[j];
+      for (int j=0; j<3; j++) part.acc[j] = 0.0;
       part.pot = part.potext = 0.0;
 
+      part.level = 0;
       part.indx = 1;
 
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
@@ -762,6 +768,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) ins >> part.vel[j];
       part.pot = part.potext = 0.0;
 
+      part.level = 0;
       part.indx = i;
 
       for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
@@ -792,8 +799,10 @@ void Component::read_bodies_and_distribute_ascii(void)
 	ins >> buf[ibufcount].mass;
 	for (int j=0; j<3; j++) ins >> buf[ibufcount].pos[j];
 	for (int j=0; j<3; j++) ins >> buf[ibufcount].vel[j];
+	for (int j=0; j<3; j++) buf[ibufcount].acc[j] = 0.0;
 	buf[ibufcount].pot = buf[ibufcount].potext = 0.0;
 
+	buf[ibufcount].level = 0;
 	buf[ibufcount].indx = nbodies_index[n-1] + 1 + icount;
 
 	for (int j=0; j<niattrib; j++) ins >> buf[ibufcount].iatr[j];
@@ -842,6 +851,9 @@ void Component::read_bodies_and_distribute_ascii(void)
 	cout << "Process " << myid << ": sequence error on init,"
 	     << " seq_beg=" << seq_beg
 	     << " seq_end=" << seq_end
+	     << " level[1]=" << particles[0].level
+	     << " level[N]=" << particles[nbodies-1].level
+	     << " seq[1]=" << particles[0].level
 	     << " seq[1]=" << particles[0].indx
 	     << " seq[N]=" << particles[nbodies-1].indx
 	     << " nbodies=" << nbodies
@@ -868,6 +880,7 @@ void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
   for (int i=0; i<3; i++) in->read((char *)&(onepart->vel[i]), sizeof(double));
   in->read((char *)&(onepart->pot), sizeof(double));
   onepart->potext = 0.0;
+  onepart->level = 0;
   onepart->indx = ++seq_cur;
   for (int i=0; i<niattrib; i++) 
     in->read((char *)&(onepart->iatr[i]), sizeof(int));
@@ -998,28 +1011,30 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Make MPI datatype
   
-  MPI_Datatype	type[9] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_UNSIGNED_LONG,
-			   MPI_INT,    MPI_DOUBLE};
-
+  MPI_Datatype	type[10] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			    MPI_DOUBLE, MPI_DOUBLE, 
+			    MPI_UNSIGNED, MPI_UNSIGNED_LONG,
+			    MPI_INT,    MPI_DOUBLE};
+  
 				// Get displacements
-  MPI_Aint disp[9];
+  MPI_Aint disp[10];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
   MPI_Get_address(&buf[0].acc,		&disp[3]);
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].indx,		&disp[6]);
-  MPI_Get_address(&buf[0].iatr,		&disp[7]);
-  MPI_Get_address(&buf[0].datr,		&disp[8]);
+  MPI_Get_address(&buf[0].level,	&disp[6]);
+  MPI_Get_address(&buf[0].indx,		&disp[7]);
+  MPI_Get_address(&buf[0].iatr,		&disp[8]);
+  MPI_Get_address(&buf[0].datr,		&disp[9]);
 
-  for (int i=8; i>=0; i--) disp[i] -= disp[0];
+  for (int i=9; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[9] = {1, 3, 3, 3, 1, 1, 1, nimax, ndmax};
+  int blocklen[10] = {1, 3, 3, 3, 1, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(9, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(10, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 
   double rmax1, r2;
@@ -2181,8 +2196,8 @@ double Component::Adiabatic()
 {
   if (!adiabatic) return 1.0;
   return 0.25*
-    ( 1.0 + erf((tpos - ton )/twid) ) *
-    ( 1.0 + erf((toff - tpos)/twid) ) ;
+    ( 1.0 + erf((tnow - ton )/twid) ) *
+    ( 1.0 + erf((toff - tnow)/twid) ) ;
 }
 
 

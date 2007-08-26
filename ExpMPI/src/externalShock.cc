@@ -53,7 +53,7 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
 
   double w2, x, z;
 
-  w2 = get_tidal_shock(tpos);
+  w2 = get_tidal_shock(tnow);
 
   for (int i=nbeg; i<nend; i++)
     {

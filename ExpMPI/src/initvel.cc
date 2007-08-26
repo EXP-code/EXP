@@ -36,7 +36,4 @@ void init_velocity(void)
   }
 
   // Increment velocity time, system time
-
-  tvel=tvel+0.5*dtime;
-  tnow=tvel;
 }

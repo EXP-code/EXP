@@ -143,7 +143,14 @@ string centerfile = "center.dat";
   
 // Global variables
 
+#include <Particle.H>
+
 int nthrds = 1;
+int this_step = 0;
+int multistep = 0;
+int mstep = 1;
+int Mstep = 1;
+vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 double tpos = 0.0;
@@ -511,8 +518,7 @@ main(int argc, char **argv)
   
   if (n_particlesD) {
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
-    expandd->compute_eof();
-    expandd->accumulate(dparticles);
+    expandd->accumulate_eof(dparticles);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
   

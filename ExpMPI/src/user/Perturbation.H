@@ -27,17 +27,26 @@ protected:
   string ID;
 
   //! Harmonic orders and radial terms
+  //@{
   int l, m, nmax;
+  //@}
 
   //! Points for numerical grids
+  //@{
   int Epts, Kpts, Recs, Rnum;
+  //@}
+
   //! Frequencies
+  //@{
   double OMPI, omega;
+  //@}
 
   //! Perturabtion vector
   Vector bcoef;
   //! Temporary storage
+  //@{
   CMatrix working, current, asymp;
+  //@}
   //! Method to compute response matrix
   void make_response(void);
 
@@ -62,8 +71,7 @@ public:
   static bool verbose;
 
 				// Constructor
-  //! Constructor
-  /**
+  /** Constructor
      @param Nmax is the radial expansion order
   */
   Perturbation(int Nmax);

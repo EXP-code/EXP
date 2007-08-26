@@ -39,6 +39,9 @@ public:
   //! Real (double) attributes
   vector<double> dattrib;
 
+  //! Multistep level
+  unsigned level;
+
   //! Index for ordering
   unsigned long indx;
 

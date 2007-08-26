@@ -108,7 +108,7 @@ void tqli(double *d, double *e, int n, double **z)
 	if ((double)(fabs(e[m])+dd) == dd) break;
       }
       if (m != l) {
-	if (iter++ == 30) bomb_ghql("tqli: too many iterations");
+	if (iter++ == 30) throw "tqli: too many iterations";
 	g=(d[l+1]-d[l])/(2.0*e[l]);
 	r=pythag(g,1.0);
 	g=d[m]-d[l]+e[l]/(g+SIGN(r,g));

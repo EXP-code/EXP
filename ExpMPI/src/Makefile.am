@@ -35,9 +35,9 @@ exp_SOURCES = \
      global.cc begin.cc ddplgndr.cc Direct.cc NoForce.cc end.cc              \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
-     incpos.cc incvel.cc initvel.cc ComponentContainer.cc OutAscii.cc        \
+     incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc       \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
-     parse.cc Slab.cc SlabSL.cc step.cc syncvel.cc sbessj.cc sbessz.cc       \
+     multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
@@ -56,7 +56,8 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
 	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H \
 	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H \
 	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H \
-	coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h version.h
+	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h \
+        version.h 
 
 # special case for f77 for now
 

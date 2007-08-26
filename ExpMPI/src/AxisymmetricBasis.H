@@ -21,14 +21,25 @@ protected:
   //! Frequency of PCA recomputation
   int npca;
 
-  //! Expansion coefficients (summed over all nodes)
-  Matrix expcoef;
-  //! Expansion coefficients (per node)
-  Matrix expcoef1;
+  /**
+     Expansion coefficients (summed over all nodes)
+
+     The vector entries store coefficients for a multistep
+     expansion.  Move pointers rather than objects for
+     efficiency.
+  */
+  //@{
+  Matrix expcoef, expcoef1;
+  vector<Matrix*> expcoefN;
+  vector<Matrix*> expcoefL;
+  //@}
+
   //! Normalization for covariance matrix based on the biorthogonal basis norm
   Matrix normM;
   //! The variance for all nodes and per node (respectively)
+  //@{
   Matrix *cc, *cc1;
+  //@}
 
   /** MPI routines to distribution the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
@@ -36,6 +47,9 @@ protected:
   /** MPI routines to sum the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
   void parallel_gather_coefficients(void);
+
+  /** 
+   */
 
 public:
 
@@ -55,6 +69,9 @@ public:
 
   //! Compute component noise suppression using PCA analysis
   void pca_hall(int compute);
+
+  //! Reset used particle counter
+  virtual void multistep_reset() { used=0; }
 
 private:
 

@@ -136,10 +136,6 @@ void ComponentContainer::initialize(void)
 
   }
 
-
-				// Set time
-  tpos = tvel = tnow;
-
 				// Initialize components
   list<Component*>::iterator cc, cc1;
 
@@ -247,12 +243,11 @@ ComponentContainer::~ComponentContainer(void)
 
 }
 
-void ComponentContainer::compute_potential(void)
+void ComponentContainer::compute_potential(int mlevel)
 {
   list<Component*>::iterator cc;
   Component *c;
   vector<Particle>::iterator p, pend;
-
   
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
@@ -288,6 +283,9 @@ void ComponentContainer::compute_potential(void)
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
+				// If we are multistepping, only 
+				// zero-out for current level and deeper
+      if (multistep && (p->level < mlevel)) continue;
 
 				// Zero-out external potential
       p->potext = 0.0;
@@ -302,6 +300,7 @@ void ComponentContainer::compute_potential(void)
     cout << "Process " << myid << ": about to call force <"
 	 << c->id << ">\n";
 #endif
+    c->force->set_multistep_level(mlevel);
     c->force->get_acceleration_and_potential(c);
 #ifdef DEBUG
     cout << "Process " << myid << ": force <"
@@ -352,6 +351,77 @@ void ComponentContainer::compute_potential(void)
   }
   
   gottapot = true;
+}
+
+
+void ComponentContainer::compute_expansion(int mlevel)
+{
+  list<Component*>::iterator cc;
+  Component *c;
+
+#ifdef DEBUG
+  cout << "Process " << myid << ": entered <compute_expansion>\n";
+#endif
+
+  //
+  // Compute expansion for each component
+  //
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
+    
+#ifdef DEBUG
+    cout << "Process " << myid << ": about to compute coefficients <"
+	 << c->id << ">\n";
+#endif
+				// Compute coefficients
+    c->force->set_multistep_level(mlevel);
+    c->force->determine_coefficients(c);
+#ifdef DEBUG
+    cout << "Process " << myid << ": coefficients <"
+	 << c->id << "> done\n";
+#endif
+  }
+
+}
+
+
+void ComponentContainer::multistep_swap(int M)
+  {
+#ifdef DEBUG
+  cout << "Process " << myid << ": entered <multistep_swap>\n";
+#endif
+  //
+  // Do swap for each component
+  //
+  list<Component*>::iterator cc;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    (*cc)->force->multistep_swap(M);
+  }
+
+#ifdef DEBUG
+  cout << "Process " << myid << ": exiting <multistep_swap>\n";
+#endif
+}
+
+
+void ComponentContainer::multistep_reset()
+  {
+  //
+  // Do reset for each component
+  //
+  list<Component*>::iterator cc;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    (*cc)->force->multistep_reset();
+  }
+}
+
+
+void ComponentContainer::multistep_debug()
+{
+  list<Component*>::iterator cc;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    (*cc)->force->multistep_debug();
+  }
 }
 
 
@@ -436,9 +506,9 @@ void ComponentContainer::fix_positions(void)
 
     if (c->EJ) {
       if (gottapot || restart) 
-	c->orient->accumulate(tpos, c);
+	c->orient->accumulate(tnow, c);
       else
-	if (myid==0) c->orient->logEntry(tpos, c);
+	if (myid==0) c->orient->logEntry(tnow, c);
     }
   }
 

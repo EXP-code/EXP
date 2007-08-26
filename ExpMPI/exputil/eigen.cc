@@ -20,7 +20,7 @@ static double dsqrarg;
 
 static double dpythag(double a, double b)
 {
-  double absa,absb;
+  double absa, absb;
   absa=fabs(a);
   absb=fabs(b);
   if (absa > absb) return absa*sqrt(1.0+DSQR(absb/absa));
@@ -29,8 +29,8 @@ static double dpythag(double a, double b)
 
 static void tred2(Matrix& a, int n, Vector& d, Vector& e)
 {
-  int l,k,j,i;
-  double scale,hh,h,g,f;
+  int l, k, j, i;
+  double scale, hh, h, g, f;
   
   for (i=n;i>=2;i--) {
     l=i-1;
@@ -98,8 +98,8 @@ static void tred2(Matrix& a, int n, Vector& d, Vector& e)
 static void tqli(Vector& d, Vector& e, int n, Matrix& z)
 {
   double pythag(double a, double b);
-  int m,l,iter,i,k;
-  double s,r,p,g,f,dd,c,b;
+  int m, l, iter, i, k;
+  double s, r, p, g, f, dd, c, b;
   
   for (i=2;i<=n;i++) e[i-1]=e[i];
   e[n]=0.0;
@@ -113,14 +113,14 @@ static void tqli(Vector& d, Vector& e, int n, Matrix& z)
       if (m != l) {
 	if (iter++ == 30) bomb_ghql("tqli: too many iterations");
 	g=(d[l+1]-d[l])/(2.0*e[l]);
-	r=pythag(g,1.0);
-	g=d[m]-d[l]+e[l]/(g+SIGN(r,g));
+	r=pythag(g, 1.0);
+	g=d[m]-d[l]+e[l]/(g+SIGN(r, g));
 	s=c=1.0;
 	p=0.0;
 	for (i=m-1;i>=l;i--) {
 	  f=s*e[i];
 	  b=c*e[i];
-	  e[i+1]=(r=pythag(f,g));
+	  e[i+1]=(r=pythag(f, g));
 	  if (r == 0.0) {
 	    d[i+1] -= p;
 	    e[m]=0.0;
@@ -150,9 +150,9 @@ static void tqli(Vector& d, Vector& e, int n, Matrix& z)
 
 static void eigsrt(Vector& d, Matrix& v, int n)
 {
-  int k,j,i;
+  int k, j, i;
   double p;
-
+  
   for (i=1;i<n;i++) {
     p=d[k=i];
     for (j=i+1;j<=n;j++)
@@ -170,155 +170,122 @@ static void eigsrt(Vector& d, Matrix& v, int n)
 }
 
 
-Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec)
+Vector Matrix::Symmetric_Eigenvalues(Matrix &EigenVec) throw (char const*)
 {
-	double **v, *d, **a;
-	int i, j, n, niters;
-	
-	if (rlow != 1 || clow != 1)
-	{
-		puts("Eigenvalues expects a unit-offset matrix");
-		exit(0);
-	}
-
-	if (rhigh != chigh)
-	{
-		puts("I can't take the eigenvalues of a non-square matrix");
-		exit(0);
-	}
-
-	n = rhigh;
-
-	a = nr_matrix(1, n, 1, n);
-	v = nr_matrix(1, n, 1, n);
-	d = nr_vector(1, n);
-
-
-
-
-	// copy the input matrix into a double pointer array
-
-	for (i=1; i<=n; i++)
-	{
-		for (j=1; j<=n; j++)
-		{
-			a[i][j] = (*this)[i][j];
-		}
-	}
-
-
-
-	// call numerical recipes eigenroutines
-
-	jacobi(a, n, d, v, &niters);
-	eigsrt(d, v, n);
-
-
-
-
-	// copy the eigenvector array into a matrix object
-
-	for (i=1; i<=n; i++)
-	{
-		for (j=1; j<=n; j++)
-		{
-			EigenVec[i][j] = v[i][j];
-		}
-	}
-
-
-
-	// copy the eigenvalue return into a vector object
-
-
-	Vector EigenVals(1, n, d);
-
-
-
-	// tidy up memory
-
-	free_nr_matrix(a, 1, n, 1, n);
-	free_nr_matrix(v, 1, n, 1, n);
-	free_nr_vector(d, 1, n);
-
-
-	// return
-
-	return EigenVals;
+  double **v, *d, **a;
+  int n, niters;
+  
+  if (rlow != 1 || clow != 1)
+    {
+      puts("Eigenvalues expects a unit-offset matrix");
+      exit(0);
+    }
+  
+  if (rhigh != chigh)
+    {
+      puts("I can't take the eigenvalues of a non-square matrix");
+      exit(0);
+    }
+  
+  n = rhigh;
+  
+  a = nr_matrix(1, n, 1, n);
+  v = nr_matrix(1, n, 1, n);
+  d = nr_vector(1, n);
+  
+  
+  
+  
+  // copy the input matrix into a double pointer array
+  
+  for (int i=1; i<=n; i++)
+    for (int j=1; j<=n; j++)
+      a[i][j] = (*this)[i][j];
+  
+  // call numerical recipes eigenroutines
+  
+  jacobi(a, n, d, v, &niters);
+  eigsrt(d, v, n);
+  
+  
+  // copy the eigenvector array into a matrix object
+  
+  for (int i=1; i<=n; i++)
+    for (int j=1; j<=n; j++)
+      EigenVec[i][j] = v[i][j];
+  
+  // copy the eigenvalue return into a vector object
+  
+  
+  Vector EigenVals(1, n, d);
+  
+  
+  
+  // tidy up memory
+  
+  free_nr_matrix(a, 1, n, 1, n);
+  free_nr_matrix(v, 1, n, 1, n);
+  free_nr_vector(d, 1, n);
+  
+  
+  // return
+  
+  return EigenVals;
 }
 
 
-Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev)
+Vector Symmetric_Eigenvalues(Matrix &m, Matrix &ev) throw (char const*)
 {
-	Vector tmp;
-
-	tmp = m.Symmetric_Eigenvalues(ev);
-
-	return tmp;
-}
-	
-
-Vector Matrix::Symmetric_Eigenvalues_GHQL(Matrix &EigenVec)
-{
-        int n;
-	
-	if (rlow != 1 || clow != 1)
-	{
-		puts("Eigenvalues expects a unit-offset matrix");
-		exit(0);
-	}
-
-	if (rhigh != chigh)
-	{
-		puts("I can't take the eigenvalues of a non-square matrix");
-		exit(0);
-	}
-
-	n = rhigh;
-
-	Matrix a(1, n, 1, n);
-	Vector d(1, n);
-	Vector e(1, n);
-
-	a = (*this);
-
-	tred2(a, n, d, e);
-	tqli(d, e, n, a);
-	eigsrt(d, a, n);
-
-	// copy the eigenvectors return into a return matrix
-	EigenVec = a;
-
-	// return
-
-	return d;
+  Vector tmp;
+  
+  tmp = m.Symmetric_Eigenvalues(ev);
+  
+  return tmp;
 }
 
 
-Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev)
+Vector Matrix::Symmetric_Eigenvalues_GHQL(Matrix &EigenVec) throw (char const*)
 {
-	Vector tmp;
-
-	tmp = m.Symmetric_Eigenvalues(ev);
-
-	return tmp;
+  int n;
+  
+  if (rlow != 1 || clow != 1)
+    {
+      puts("Eigenvalues expects a unit-offset matrix");
+      exit(0);
+    }
+  
+  if (rhigh != chigh)
+    {
+      puts("I can't take the eigenvalues of a non-square matrix");
+      exit(0);
+    }
+  
+  n = rhigh;
+  
+  Matrix a(1, n, 1, n);
+  Vector d(1, n);
+  Vector e(1, n);
+  
+  a = (*this);
+  
+  tred2(a, n, d, e);
+  tqli(d, e, n, a);
+  eigsrt(d, a, n);
+  
+  // copy the eigenvectors return into a return matrix
+  EigenVec = a;
+  
+  // return
+  
+  return d;
 }
-	
-
-	
-
-	
-
-	
 
 
-	
-
-	
-	
-
-
-
-
-
-
+Vector Symmetric_Eigenvalues_GHQL(Matrix &m, Matrix &ev) throw (char const*)
+{
+  Vector tmp;
+  
+  tmp = m.Symmetric_Eigenvalues(ev);
+  
+  return tmp;
+}

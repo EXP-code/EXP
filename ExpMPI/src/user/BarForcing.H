@@ -28,8 +28,10 @@ public:
   //! Length of bar
   static double LENGTH;
   //! Minimum and maximum radii for expansion
+  //@{
   static double RMIN, RMAX;
-
+  //@}
+  
   //! Constructor
   BarForcing(int NMAX, double mass, double length, double corot=1.0,
 	     double amp=1.0);

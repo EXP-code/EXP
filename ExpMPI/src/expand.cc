@@ -104,21 +104,6 @@ main(int argc, char** argv)
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ') << endl;
 
-#ifdef MPE_PROFILE
-  MPE_Init_log();
-
-  if (myid == 0) {
-    MPE_Describe_state(1, 2, "Distribute particles", "red:dimple3" );
-    MPE_Describe_state(3, 4, "Gather particles", "green:dllines3" );
-    MPE_Describe_state(5, 6, "Gather coefs", "cyan:hlines2" );
-    MPE_Describe_state(7, 8, "Distribute coefs", "yellow:drlines4" );
-    MPE_Describe_state(9, 10, "Compute coefs", "magenta:vlines3" );
-    MPE_Describe_state(11, 12, "Compute forces", "orange3:gray" );
-    MPE_Describe_state(13, 14, "Advance time", "purple:boxes" );
-    MPE_Describe_state(15, 16, "Send energies", "blue:dllines4" );
-  }
-#endif
-
 
   //====================================
   // Set signal handler on HUP and TERM
@@ -158,10 +143,11 @@ main(int argc, char** argv)
   //================
 
   if (myid==0) {
-    cout << setw(50) << setfill('-') << "-" << setfill(' ') << endl;
-    cout << endl << "This is " << PACKAGE << " " << VERSION
-	 << " " << version_id << endl << endl;
-    cout << setw(50) << setfill('-') << "-" << setfill(' ') << endl;
+    ostringstream sout;
+    cout << endl << setw(50) << setfill('%') << '%' << endl;
+    sout << "%%%%% This is " << PACKAGE_STRING << " ";
+    cout << left << setw(50) << sout.str() << endl;
+    cout << setw(50) << "%" << setfill(' ') << endl << endl;
   }
 
 
@@ -172,7 +158,6 @@ main(int argc, char** argv)
 
   MPL_parse_args(argc, argv);
 
-  
   //========================
   // Change to desired home 
   // directory              
@@ -231,6 +216,27 @@ main(int argc, char** argv)
   //===========
 
   for (this_step=1; this_step<=nsteps; this_step++) {
+
+    // Remove this permanently??
+    /*
+    if (multistep && VERBOSE>3) {
+      if (myid==0) {
+	cout << endl;
+	cout << setw(70) << setfill('-') << '-' << endl;
+	ostringstream sout;
+	sout << "--- MASTER: step=" << this_step << " ";
+	cout << setw(70) << left << sout.str() << endl << right;
+	cout << setw(70) << '-' << setfill(' ') << endl;
+      }
+
+      comp.multistep_debug();
+
+      if (myid==0) {
+	cout << endl;
+	cout << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+      }
+    }
+    */
 
     do_step(this_step);
     

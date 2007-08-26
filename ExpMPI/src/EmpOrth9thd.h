@@ -19,11 +19,11 @@
 #include "expand.h"
 #else
 #include <Particle.H>
-extern int nthrds;
-extern char threading_on;
-extern pthread_mutex_t mem_lock;
-extern double tpos;
-extern double tnow;
+extern int this_step;
+extern int Mstep;
+extern int mstep;
+extern int multistep;
+extern vector<int> stepL, stepN;
 #endif
 
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
@@ -42,6 +42,8 @@ private:
   double YMIN, YMAX;
   double dX, dY;
   int M, cylused, cylused1;
+  vector<double> cylmass1;
+  bool cylmass_made;
   double cylmass;
 
   vector<double> r, d, m, p;
@@ -51,9 +53,7 @@ private:
   double pfac, dfac, ffac;
 
   Matrix *facC, *facS;
-  Vector** accum_cos0;
-  Vector** accum_sin0;
-  
+
   int rank2, rank3;
 
   double *MPIin, *MPIout;
@@ -95,8 +95,15 @@ private:
   Matrix* trforce;
   Matrix* tzforce;
 
-  Vector** accum_cos;
-  Vector** accum_sin;
+  vector<Vector**> accum_cos0, accum_sin0;
+  vector<Vector**> accum_cosL, accum_cosN;
+  vector<Vector**> accum_sinL, accum_sinN;
+  vector< vector<unsigned> > howmany1;
+  vector<unsigned> howmany;
+
+  Vector* accum_cos;
+  Vector* accum_sin;
+
   Vector** accum_cos2;
   Vector** accum_sin2;
   Matrix *vc, *vs;
@@ -105,8 +112,7 @@ private:
 
   Vector* hold;
 
-  bool coefs_made;
-  bool eof_recompute;
+  vector<bool> coefs_made;
   bool eof_made;
 
   SphericalModelTable* make_sl();
@@ -117,9 +123,6 @@ private:
   void receive_eof(int request_id, int m);
   void compute_eof_grid(int request_id, int m);
   void setup_eof_grid(void);
-  void setup_eof(void);
-  void accumulate_eof(double r, double z, double phi, double mass, int id);
-  void make_eof(void);
 				// 1=write, 0=read
 				// return: 0=failure
   int cache_grid(int);		
@@ -128,6 +131,13 @@ private:
   void pca_hall(void);
   double massR(double R);
   double densR(double R);
+
+  bool coefs_made_all() 
+  {
+    for (int M=0; M<=multistep; M++) 
+      if (!coefs_made[M]) return false;
+    return true;
+  }
 
   void bomb(string oops);
 
@@ -224,18 +234,31 @@ public:
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }
 
-  //! Compute new orthogonal basis from phase space on next step
-  void compute_eof(void) { eof_recompute = true; }
-
   //! Get basis function value
   void get_all(int m, int n, double r, double z, double phi,
 	       double& p, double& d, double& fr, double& fz, double& fp);
 
   //! Setup for accumulated coefficients
+  //@{
+  //! All levels
   void setup_accumulation(void);
+  //! Single level
+  void setup_accumulation(int mlevel);
+  //! For EOF
+  void setup_eof(void);
+  //! Clear mass counter
+  void reset_mass(void);
+  //@}
 
   //! Make coefficients from accumulated data
+  //@{
+  //! All levels
   void make_coefficients(void);
+  //! Single level
+  void make_coefficients(int mlevel);
+  //! Make empirical orthgonal functions
+  void make_eof(void);
+  //@}
 
   //! Necessary member function currently unused (change design?)
   void determine_coefficients() {};
@@ -243,10 +266,17 @@ public:
   void determine_acceleration_and_potential() {};
 
   //! Accumulate coefficients from particle distribution
-  void accumulate(vector<Particle>& p);
+  void accumulate(vector<Particle>& p, int mlev=0);
+
+  //! Make EOF from particle distribution
+  void accumulate_eof(vector<Particle>& p);
 
   //! Add single particle to coefficients
-  void accumulate(double r, double z, double phi, double mass, int id);
+  void accumulate(double r, double z, double phi, double mass, int id, int mlev=0);
+
+  //! Add single particle to EOF coefficients
+  void accumulate_eof(double r, double z, double phi, double mass, int id, int mlev=0);
+
 
   //! Evaluate potential and force field 
   void accumulated_eval(double r, double z, double phi, double& p0,
@@ -254,6 +284,33 @@ public:
 
   //! Evaluate density field
   double accumulated_dens_eval(double r, double z, double phi, double& d0);
+
+  /** Extrapolate and sum coefficents per multistep level to get
+      a complete set of coefficients for force evaluation at an
+      intermediate time step
+  */
+  void compute_multistep_coefficients(int mlevel);
+
+  //! For updating levels
+  //@{
+  vector<Matrix> differS, differC;
+  //@}
+  
+  /** Update the multi time step coefficient table when moving particle 
+      <code>i</code> from level <code>cur</code> to level 
+      <code>next</code>
+  */
+  //@{
+  virtual void multistep_update_begin();
+  virtual void multistep_update(int from, int to, double r, double z, double phi, double mass);
+  virtual void multistep_update_finish();
+  //@}
+
+  //! Exchange data for interpolating the next sub time step
+  virtual void multistep_swap(int M);
+
+  //! Print debug info
+  void multistep_debug();
 
   //! Dump out coefficients to stream
   void dump_coefs(ostream& out);

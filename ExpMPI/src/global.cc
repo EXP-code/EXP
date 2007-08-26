@@ -21,9 +21,10 @@ int nbalance = 0;		// Steps between load balancing
 double dbthresh = 0.05;		// Load balancing threshold (5% by default)
 double dtime = 0.1;		// Default time step size
 
-bool use_cwd = true;
-bool restart = false;
-int NICE = 10;
+bool restart = false;		// Restart from a checkpoint
+bool use_cwd = false;		// Use Node 0's current working directory on all nodes
+int NICE = 10;			// Default niceness level
+int VERBOSE = 1;		// Chattiness for standard output
 
 				// Files
 string homedir = "./";
@@ -34,7 +35,7 @@ string outdir = "";
 string runtag = "newrun";
 string ldlibdir = ".";
 
-double tpos, tvel, tnow;	// Per step variables
+double tnow;			// Per step variables
 int this_step;
 
 				// Global center of mass
@@ -45,6 +46,15 @@ bool global_cov = false;
 bool eqmotion = true;
 unsigned char stop_signal = 0;
 unsigned char dump_signal = 0;
+				// Multistep variables
+int multistep = 0;
+bool posnsync = true;
+double dynfrac = 0.03;
+int Mstep = 0;
+int mstep = 0;
+vector<int> mfirst, mintvl, stepL, stepN;
+vector< vector<bool> > mactive;
+
 
 				// MPI variables
 int is_init=1;

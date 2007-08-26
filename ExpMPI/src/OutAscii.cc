@@ -85,8 +85,6 @@ void OutAscii::Run(int n, bool last)
   if (n % nint && !last) return;
   if (!c0) return;
 
-  synchronize_velocity(1);
-
   ofstream *out;
 
   if (myid==0) {
@@ -115,8 +113,6 @@ void OutAscii::Run(int n, bool last)
     out->close();
     delete out;
   }
-
-  synchronize_velocity(0);
 
 }
 

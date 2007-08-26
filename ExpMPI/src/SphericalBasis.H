@@ -12,13 +12,27 @@ protected:
   //! Will cache values of the kernel required for recursion relations
   Matrix krnl;
   //! Work vectors to make recursion evaluations thread safe
-  Vector *u, *du;
-  //! Matrices per thread for obtaining field, legendre and coefficients
-  Matrix *potd, *dpot, *legs, *dlegs, *expcoef0;
-  //! Work vectors for sines and cosines for all values <code>m</code>
-  Vector *cosm, *sinm;
-  //! Work matrices
-  Matrix dend, factorial;
+  Vector *u;
+  //! Work vectors to make recursion evaluations thread safe
+  Vector *du;
+  //! Matrices per thread for obtaining potential field
+  Matrix *potd;
+  //! Matrices per thread for obtaining derivative of potential field
+  Matrix *dpot;
+  //! Matrices per thread for obtaining legendre coefficients
+  Matrix *legs;
+  //! Matrices per thread for obtaining derivatives legendre coefficients
+  Matrix *dlegs;
+  //! Matrices per thread for obtaining expansion coefficients
+  Matrix *expcoef0;
+  //! Work vectors for cosines for all values <code>m</code>
+  Vector *cosm;
+  //! Work vectors for sines for all values <code>m</code>
+  Vector *sinm;
+  //! Work matrix
+  Matrix dend;
+  //! Cache factorial values
+  Matrix factorial;
 
   //! Initialize method
   virtual void initialize();
@@ -39,8 +53,11 @@ protected:
   //! Get density from coefficient vector
   void get_dens_coefs(int l, Vector& coef, double* p);
 
-  //! Flag whether or not work space has been initialized
-  bool firstime_coef, firstime_accel;
+  //! Flag whether or not work space has been initialized for coefficients
+  bool firstime_coef;
+
+  //! Flag whether or not work space has been initialized for acceleration
+  bool firstime_accel;
 
   //! Thread method for coefficient accumulation
   virtual void * determine_coefficients_thread(void * arg);
@@ -55,11 +72,29 @@ protected:
   void update_noise(void);
 
 				// Parameters
-  //! The maximum radius and any scale factor
-  double rmax, scale;
+  //! The maximum radius
+  double rmax;
 
-  //! Flag PCA selection, self_consitency, fixed monopole and drop l=1 term
-  bool selector, self_consistent, NO_L0, NO_L1, EVEN_L, NOISE;
+  //! Radial scale factor
+  double scale;
+
+  //! Flag PCA selection
+  bool selector;
+
+  //! Flag self_consitency
+  bool self_consistent;
+
+  //! Flag fixed monopole
+  bool NO_L0;
+
+  //! Flag drop l=1 term
+  bool NO_L1;
+
+  //! Flag use of even l harmonics only
+  bool EVEN_L;
+
+  //! Flag adding noise to coefficients (for testing diffusion)
+  bool NOISE;  
 
   //! Number of "effective" points for RMS noise computation
   double noiseN;
@@ -85,6 +120,23 @@ protected:
   //! Flag to use subset
   bool subset;
 
+  /** Extrapolate and sum coefficents per multistep level to get
+      a complete set of coefficients for force evaluation at an
+      intermediate time step
+  */
+  void compute_multistep_coefficients();
+
+  //! For updating levels
+  vector<Matrix> differ1;
+
+  //! For updating levels
+  vector<Matrix> differ0;
+
+  /** Dump current coefficients (all multistep levels)
+      For debugging . . .
+  */
+  void dump_coefs_all(ostream &);
+
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)
@@ -108,8 +160,20 @@ public:
   /** The thread member must be supplied by the derived class */
   virtual void determine_acceleration_and_potential(void);
 
-  //! Get derivative of potential
-  /** 
+  /** Update the multi time step coefficient table when moving particle 
+      <code>i</code> from level <code>cur</code> to level 
+      <code>next</code>
+  */
+  //@{
+  virtual void multistep_update_begin();
+  virtual void multistep_update(int cur, int next, Component* c, int i);
+  virtual void multistep_update_finish();
+  //@}
+
+  //! Exchange data for interpolating the next sub time step
+  virtual void multistep_swap(int M);
+
+  /** Get derivative of potential
     \param lmax is the maximum harmonic order
     \param nmax is the maximum radial order
     \param r is the evaluation radius
@@ -124,8 +188,7 @@ public:
   void get_dpotl(int lmax, int nmax, double r, Matrix& p, Matrix& dp, 
 		 int tid) = 0;
 
-  //! Get derivative of potential
-  /**
+  /** Get derivative of potential
     \param lmax is the maximum harmonic order
     \param nmax is the maximum radial order
     \param r is the evaluation radius
@@ -138,8 +201,7 @@ public:
   void get_potl(int lmax, int nmax, double r, Matrix& p,
 		int tid) = 0;
 
-  //! Get derivative of potential
-  /** 
+  /** Get derivative of potential
     \param lmax is the maximum harmonic order
     \param nmax is the maximum radial order
     \param r is the evaluation radius
@@ -152,8 +214,7 @@ public:
   void get_dens(int lmax, int nmax, double r, Matrix& d,
 		int tid) = 0;
 
-  //! Get derivative of potential
-  /**
+  /** Get derivative of potential
     \param lmax is the maximum harmonic order
     \param nmax is the maximum radial order
     \param r is the evaluation radius

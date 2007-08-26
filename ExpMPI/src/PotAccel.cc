@@ -121,6 +121,7 @@ PotAccel::PotAccel(string& line)
   geometry = other;
   use_external = false;
   coef_dump = false;
+  mlevel = 0;
 
   // Per thread counter
   use = new int [nthrds];

@@ -43,19 +43,32 @@ void initialize(void)
   if (parse->find_item("time", val))		tnow = atof(val.c_str());
   if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
   if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
+  if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());
+
+  if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());
+
+  if (parse->find_item("dynfrac", val))		dynfrac = atof(val.c_str());
 
   if (parse->find_item("use_cwd", val)) {
     if (atoi(val.c_str())) use_cwd = true;
     else use_cwd = false;
   }
+
+  if (parse->find_item("posnsync", val)) {
+    if (atoi(val.c_str())) posnsync = true;
+    else posnsync = false;
+  }
+
   if (parse->find_item("eqmotion", val)) {
     if (atoi(val.c_str())) eqmotion = true;
     else eqmotion = false;
   }
+
   if (parse->find_item("global_cov", val)) {
     if (atoi(val.c_str())) global_cov = true;
     else global_cov = false;
   }
+
   if (parse->find_item("restart", val)) {
     if (atoi(val.c_str())) restart = true;
     else restart = false;
@@ -84,6 +97,11 @@ void print_parm(ostream& out, char *comment)
   out << comment << " " << "time"       << " = " << tnow        << endl;
   out << comment << " " << "dtime"      << " = " << dtime       << endl;
   out << comment << " " << "NICE"       << " = " << NICE        << endl;
+  out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
+
+  out << comment << " " << "multistep"  << " = " << multistep   << endl;
+  out << comment << " " << "posnsync"   << " = " << posnsync   << endl;
+  out << comment << " " << "dynfrac"    << " = " << dynfrac     << endl;
 
   out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
   out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;

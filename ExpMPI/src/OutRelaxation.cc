@@ -53,10 +53,6 @@ void OutRelaxation::Run(int n, bool final)
   int used1 = 0, used0 = 0;
   
 
-#ifdef MPE_PROFILE
-  MPE_Log_event(15, myid, "b_relx");
-#endif
-
   int nbodies;
   list<Component*>::iterator cc;
   Component* c;
@@ -116,9 +112,5 @@ void OutRelaxation::Run(int n, bool final)
 	<< " " << setw(14) << e_absolute
 	<< endl;
   }
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(16, myid, "e_relx");
-#endif
 
 }

@@ -117,7 +117,10 @@ public:
   static double DELTA_B;
 
   //! Fractional steps for differenced derivatives
-  static double DELE, DELK;
+  static double DELE;
+
+  //! Fractional steps for differenced derivatives
+  static double DELK;
 
   //! Maximum number of iterations
   static double TOLITR;

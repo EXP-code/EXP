@@ -13,10 +13,9 @@ class Cylinder : public Basis
 {
 private:
 
-  Orient* orient;
   EmpCylSL *ortho;
   int eof, ncompcyl;
-  double cyltime, cylmass;
+  double cylmass;
 
   // Three_Vector *pos, *frc;
   Vector *pos, *frc;
@@ -45,10 +44,26 @@ private:
 
   void * determine_acceleration_and_potential_thread(void * arg);
 
+  /** Extrapolate and sum coefficents per multistep level to get
+      a complete set of coefficients for force evaluation at an
+      intermediate time step
+  */
+  void compute_multistep_coefficients() {
+    ortho->compute_multistep_coefficients(mlevel);
+  }
+
+  //! Reset used particle counter and mass registers
+  virtual void multistep_reset();
+
+  //! For updating levels
+  vector<Matrix> differ1, differ0;
+
 public:
 
   //! Mutexes for multithreading
+  //@{
   static pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
+  //@}
 
   //! Constructor
   /** \param line contains the parameters passed to the method */
@@ -76,11 +91,28 @@ public:
 				double *tpotr, double *tpotz, 
 				double *tpotp);
 
+  /** Update the multi time step coefficient table when moving particle 
+      <code>i</code> from level <code>cur</code> to level 
+      <code>next</code>
+  */
+  //@{
+  virtual void multistep_update_begin() { ortho->multistep_update_begin(); }
+  virtual void multistep_update(int cur, int next, Component* c, int i);
+  virtual void multistep_update_finish() { ortho->multistep_update_finish(); }
+  //@}
+
+  //! Exchange data for interpolating the next sub time step
+  virtual void multistep_swap(int M) { ortho->multistep_swap(M); }
+
+  //! Print debug info
+  virtual void multistep_debug();
+
   //! Save coefficients to file (need type marker to id dump, component id?)
   void dump_coefs(ostream& out);
 
   //! Sanity check on grid: dumps SM-style images of initial field
   void dump_mzero(const string& name, int step);
+
 };
 
 

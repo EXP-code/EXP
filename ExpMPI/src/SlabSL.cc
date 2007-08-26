@@ -316,7 +316,7 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 
 void SlabSL::dump_coefs(ostream& out)
 {
-  coefheader.time = tpos;
+  coefheader.time = tnow;
   coefheader.zmax = zmax;
   coefheader.h = hslab;
   coefheader.type = ID;

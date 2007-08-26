@@ -10,8 +10,10 @@ using namespace std;
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
 
-#include <Orient.H>
 #include <Cylinder.H>
+
+#include <Timer.h>
+Timer timer_debug(true);
 
 pthread_mutex_t Cylinder::used_lock;
 pthread_mutex_t Cylinder::cos_coef_lock;
@@ -65,7 +67,11 @@ Cylinder::Cylinder(string& line) : Basis(line)
     ortho->setHall(hallfile, hallfreq);
   }
 
-  cout << "Process " << myid << ": Cylinder parameters: "
+  ortho->setup_accumulation();
+
+  
+#ifdef DEBUG
+  cout << endl << "Process " << myid << ": Cylinder parameters: "
        << " nmax=" << nmax
        << " lmax=" << lmax
        << " mmax=" << mmax
@@ -77,8 +83,25 @@ Cylinder::Cylinder(string& line) : Basis(line)
        << " selector=" << selector
        << " hallfreq=" << hallfreq
        << " hallfile=" << hallfile
-       << "\n";
-
+       << endl << endl;
+#else
+  if (myid==0) {
+    cout << endl << "Cylinder parameters: "
+	 << " nmax=" << nmax
+	 << " lmax=" << lmax
+	 << " mmax=" << mmax
+	 << " ncylorder=" << ncylorder
+	 << " rcylmin=" << rcylmin
+	 << " rcylmax=" << rcylmax
+	 << " acyl=" << acyl
+	 << " hcyl=" << hcyl
+	 << " selector=" << selector
+	 << " hallfreq=" << hallfreq
+	 << " hallfile=" << hallfile
+	 << endl << endl;
+  }
+#endif
+      
   ncompcyl = 0;
 
   pos = new Vector [nthrds];
@@ -144,7 +167,6 @@ void Cylinder::initialize()
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
   cC = C;
-
 				// External particles only
   if (use_external) {
     
@@ -157,52 +179,28 @@ void Cylinder::get_acceleration_and_potential(Component* C)
     return;
   }
 
-  //==================================
-  // Try to read cached tables rather
-  // than recompute from distribution
-  //==================================
-  
-  if (firstime) {
-
-    if (!(restart && ortho->read_cache())) {
-      eof = 1;			// Compute EOF grid
-      determine_coefficients();
-    }
-
-    firstime = false;
-  }
-
   //======================
   // Compute coefficients 
   //======================
 
-  if (self_consistent) {
-    
-    determine_coefficients();
+  // On first call, will try to read cached tables rather
+  // than recompute from distribution
+  
+  if (firstime || multistep==0) determine_coefficients();
 
-    if (ncompcyl == 0) {
+  //============
+  // Dump basis
+  //============
 
-      cyltime = tnow;
-
-				// Dump basis
-      if (myid == 0 && density) {
-	ortho->dump_basis(runtag.c_str(), this_step);
-
-	ostringstream dumpname;
-	dumpname << "images" << "." << runtag << "." << this_step;
-	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl,
-			   64, 64, true);
-	dump_mzero(runtag.c_str(), this_step);
-      }
-				// Get coefficients from table if this
-				// is an EOF recomputation
-      eof = 1;
-      determine_coefficients();
-
-				// In the end, it would be cleaner to call 
- 				// for table recomputation separately
+  if (ncompcyl==0) {
+    if (myid == 0 && density) {
+      ortho->dump_basis(runtag.c_str(), this_step);
+      
+      ostringstream dumpname;
+      dumpname << "images" << "." << runtag << "." << this_step;
+      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      dump_mzero(runtag.c_str(), this_step);
     }
-    
   }
 
 
@@ -217,47 +215,45 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   MPL_stop_timer();
 
 
-  //=====================================
-  // Recompute PCA analysis on next step 
-  //=====================================
+  //=======================
+  // Recompute PCA analysis
+  //=======================
 
   ncompcyl++;
   if (ncompcyl == ncylrecomp) {
-    ortho->compute_eof();
     ncompcyl = 0;
-    eof = 0;
+    eof = 1;
+    determine_coefficients();
   }
 
 
   // Debug
-  /*
-  if (myid==1 && component->EJ) 
-    {
-      string toutfile = string(homedir) + "test.orientation";
-      ofstream debugf(toutfile.c_str(), ios::app);
-      Vector axis = orient->currentAxis();
-      debugf << tnow << " "
-	     << orient->currentAxis()[1] << " " 
-	     << orient->currentAxis()[2] << " " 
-	     << orient->currentAxis()[3] << " " 
-	     << orient->currentAxisVar() << " "
-	     << orient->currentCenter()[1] << " " 
-	     << orient->currentCenter()[2] << " " 
-	     << orient->currentCenter()[3] << " " 
-	     << orient->currentCenterVar() << " "
-	     << orient->currentCenterVarZ() << " "
-	     << orient->currentE() << " "
-	     << orient->currentUsed()
-	     << '\n';
-    }
-  */
+  if (VERBOSE>3 && myid==1 && component->EJ) {
+    string toutfile = string(homedir) + "test.orientation." + runtag;
+    ofstream debugf(toutfile.c_str(), ios::app);
+    Vector axis = cC->orient->currentAxis();
+    debugf << tnow << " "
+	   << cC->orient->currentAxis()[1] << " " 
+	   << cC->orient->currentAxis()[2] << " " 
+	   << cC->orient->currentAxis()[3] << " " 
+	   << cC->orient->currentAxisVar() << " "
+	   << cC->orient->currentCenter()[1] << " " 
+	   << cC->orient->currentCenter()[2] << " " 
+	   << cC->orient->currentCenter()[3] << " " 
+	   << cC->orient->currentCenterVar() << " "
+	   << cC->orient->currentCenterVarZ() << " "
+	   << cC->orient->currentE() << " "
+	   << cC->orient->currentUsed()
+	   << endl;
+  }
 
 }
 
 void * Cylinder::determine_coefficients_thread(void * arg)
 {
-  double r, r2, phi;
-  double xx, yy, zz;
+  double r, r2, phi, R2;
+  double xx, yy, zz, mas;
+  double Rmax2 = rcylmax*rcylmax*acyl*acyl;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -270,9 +266,14 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-				// frozen particles don't contribute to field
+    // Frozen particles don't contribute to field
+    //
     if (cC->freeze(*(cC->Part(i)))) continue;
-
+    
+    // If we are multistepping, only accumulate for the desired level!
+    //
+    if (eof==0 && multistep && (cC->Part(i)->level != mlevel)) continue;
+    
     for (int j=0; j<3; j++) 
       pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
 
@@ -285,18 +286,41 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
     r2 = xx*xx + yy*yy;
     r = sqrt(r2) + DSMALL;
+    R2 = r2 + zz*zz;
+    
+    if ( R2 < Rmax2) {
 
-    if (r2+zz*zz < rcylmax*rcylmax*acyl*acyl) {
-
-      double mas = cC->Mass(i) * adb;
-
-      if (eof) {
-	use[id]++;
-	cylmass0[id] += mas;
-      }
-
+      mas = cC->Mass(i) * adb;
       phi = atan2(yy, xx);
-      ortho->accumulate(r, zz, phi, mas, id);
+
+      if (eof)
+	ortho->accumulate_eof(r, zz, phi, mas, id, mlevel);
+      else
+	ortho->accumulate(r, zz, phi, mas, id, mlevel);
+
+      use[id]++;
+      cylmass0[id] += mas;
+
+    } else {
+      if (VERBOSE>3) {
+	cout << "Process " << myid 
+	     << ": r^2=" << R2
+	     << " max r^2=" << Rmax2 
+	     << " r2=" << r2 
+	     << " z2=" << zz*zz 
+	     << " m=" << cylmass0[id] 
+	     << " eof=" << eof
+	     << endl;
+
+	if (isnan(R2)) {
+	  cout << endl;
+	  cC->orient->transformBody().print(cout);
+	  cout << endl;
+	  cC->orient->currentAxis().print(cout);
+	  cout << endl;
+	  MPI_Abort(MPI_COMM_WORLD, -1);
+	}
+      }
     }
     
   }
@@ -310,25 +334,32 @@ void Cylinder::determine_coefficients(void)
   static char routine[] = "determine_coefficients_Cylacp";
   int i;
   int use0, use1;
-  double cylmassT;
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(9, myid, "b_compute_coef");
-#endif
+  double cylmassT1=0.0, cylmassT0=0.0;
 
   use0 = 0;
   use1 = 0;
-  cylmassT = 0.0;
-  cylmass =  0.0;
+  
+  if (firstime) {
+    if (!(restart && ortho->read_cache())) eof = 1;
+    firstime = false;
+  } else {
+    if (!self_consistent) return;
+  }
 
-  ortho->setup_accumulation();
-    
+  if (eof) {
+    ortho->setup_eof();
+    cylmass = 0.0;
+  }
+
+  if (multistep==0) {
+    ortho->setup_accumulation();
+  }
+
   cylmass0 = new double [nthrds];
   if (!cylmass0) {
     cerr << "Cylacp: problem allocating <cylmass0>\n";
     exit(-1);
   }
-
 
 				// Initialize locks
   make_mutex(&used_lock, routine, "used_lock");
@@ -343,27 +374,30 @@ void Cylinder::determine_coefficients(void)
 
   for (i=0; i<nthrds; i++) {
     use1 += use[i];
-    cylmassT += cylmass0[i];
+    cylmassT1 += cylmass0[i];
   }
 
   delete [] cylmass0;
+
 				// Turn off timer so as not bias by 
 				// communication barrier
   MPL_stop_timer();
 
-  ortho->make_coefficients();
+  MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  used = use0;
+  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  MPI_Allreduce ( &cylmassT, &cylmass,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(10, myid, "e_compute_coef");
-#endif
-
+  if (multistep==0 || stepN[mlevel]==Mstep) {
+    used += use0;
+    cylmass += cylmassT0;
+  }
+  
+  if (eof) {
+    ortho->make_eof();
+    eof = 0;
+  }
+  
   MPL_start_timer();
-
 }
 
 void check_force_values(double phi, double p, double fr, double fz, double fp)
@@ -400,6 +434,10 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
   for (i=nbeg; i<nend; i++) {
+
+    // If we are multistepping, compute accel only at or below this level
+    //
+    if (multistep && (cC->Part(i)->level < mlevel)) continue;
 
     if (use_external) {
       cC->Pos(&pos[id][1], i, Component::Inertial);
@@ -482,14 +520,16 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   return (NULL);
 }
 
+static int ocf = 0;
 
 void Cylinder::determine_acceleration_and_potential(void)
 {
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
-#ifdef MPE_PROFILE
-  MPE_Log_event(11, myid, "b_compute_force");
-#endif
+  ortho->make_coefficients();
+
+				// Interpolation
+  if (multistep) compute_multistep_coefficients();
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
@@ -507,10 +547,6 @@ void Cylinder::determine_acceleration_and_potential(void)
     else
       cout << endl << "T=" << tnow << "  self offgrid=" << offtot << endl;
   }    
-#endif
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(12, myid, "e_compute_force");
 #endif
 
 }
@@ -617,4 +653,60 @@ void Cylinder::dump_mzero(const string& name, int step)
   }
   delete [] out;
 
+}
+
+void Cylinder::multistep_update(int from, int to, Component* c, int i)
+{
+
+  if (c->freeze(*(c->Part(i)))) return;
+
+  double mass = c->Mass(i) * component->Adiabatic();
+
+  double xx = c->Pos(i, 0, Component::Local | Component::Centered);
+  double yy = c->Pos(i, 1, Component::Local | Component::Centered);
+  double zz = c->Pos(i, 2, Component::Local | Component::Centered);
+
+  double r2 = (xx*xx + yy*yy);
+  double  r = sqrt(r2);
+  double phi = atan2(yy, xx);
+
+  ortho->multistep_update(from, to, r, zz, phi, mass);
+}
+
+
+void Cylinder::multistep_reset() 
+{ 
+  used = 0; 
+  cylmass = 0.0;
+  ortho->reset_mass();
+}
+
+
+static int idbg = 0;
+void Cylinder::multistep_debug() 
+{
+  if (myid==0) {
+    cout << endl;
+    cout << setw(70) << setfill('-') << '-' << endl;
+    ostringstream sout;
+    sout << "--- multistep_debug: " << idbg << endl;
+    cout << setw(70) << left << sout.str() << endl << right;
+    cout << setw(70) << '-' << setfill(' ') << endl;
+
+    ostringstream sout2;
+    sout2 << "cylinder.coefs." << runtag << "." << ocf++;
+    ofstream out(sout2.str().c_str());
+    ortho->dump_coefs(out);
+  }
+
+  ortho->multistep_debug();
+
+  if (myid==1) ortho->dump_basis(runtag.c_str(), idbg);
+
+  ostringstream dumpname;
+  dumpname << "images" << "." << runtag << "." << idbg;
+  ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+  dump_mzero(runtag.c_str(), idbg);
+  
+  idbg++;
 }

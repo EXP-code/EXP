@@ -259,7 +259,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
     posang = 0.0;
     lastomega = omega;
-    lasttime = tvel;
+    lasttime = tnow;
     
     if (restart) {
 
@@ -315,7 +315,7 @@ void UserBar::determine_acceleration_and_potential(void)
 	    firstime1 = false;
 	  }
 
-	  if (lasttime >= tvel) break;
+	  if (lasttime >= tnow) break;
 
 	  out << line << "\n";
 
@@ -345,10 +345,10 @@ void UserBar::determine_acceleration_and_potential(void)
     else
       omega = lastomega;
     
-    if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {
+    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
-      lasttime = tvel;
+      lasttime = tnow;
       update = true;
     }
   }
@@ -360,7 +360,7 @@ void UserBar::determine_acceleration_and_potential(void)
       ofstream out(name.c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
-      out << setw(15) << tvel
+      out << setw(15) << tnow
 	  << setw(15) << posang
 	  << setw(15) << omega;
 
@@ -372,8 +372,8 @@ void UserBar::determine_acceleration_and_potential(void)
 	    << setw(15) << 0.0;
 
       out << setw(15) << amplitude *  
-	0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-	0.5*(1.0 - erf( (tvel - Toff)/DeltaT ))
+	0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) *
+	0.5*(1.0 - erf( (tnow - Toff)/DeltaT ))
 	  << endl;
     }
   
@@ -388,8 +388,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
 
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
-    * 0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+    * 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
   double xx, yy, zz, rr, nn,pp;
   vector<double> pos(3); 
   double cos2p = cos(2.0*posang);

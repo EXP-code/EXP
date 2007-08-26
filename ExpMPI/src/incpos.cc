@@ -8,43 +8,33 @@
 static char rcsid[] = "$Id$";
 #endif
 
-void incr_position(void)
+void incr_position(double dt, int mlevel)
 {
-#ifdef MPE_PROFILE
-  MPE_Log_event(13, myid, "b_time");
-#endif
-
   if (eqmotion) {
 
     list<Component*>::iterator cc;
     Component *c;
-    int ntot;
   
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
 
-      ntot = c->Number();
-      for (int i=0; i<ntot; i++) {
-	
+      unsigned ntot = c->Number();
+      for (unsigned i=0; i<ntot; i++) {
+				// If we are multistepping, only 
+				// advance for this level
+      if (multistep && mlevel>=0 && (c->Part(i)->level != mlevel)) continue;
+
 	for (int k=0; k<c->dim; k++) 
-	  c->Part(i)->pos[k] += (c->Part(i)->vel[k] - c->covI[k])*dtime;
+	  c->Part(i)->pos[k] += (c->Part(i)->vel[k] - c->covI[k])*dt;
       }
   
-      if (c->com_system) {
-	for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dtime;
+      if (c->com_system) {	// Only do this once per multistep
+	if (multistep==0 || (mstep==Mstep && mlevel==multistep))
+	  for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dt;
       }
       
     }
 
   }
-
-  // Increment times
-
-  tpos=tpos+dtime;
-  tnow=tpos;
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(14, myid, "e_time");
-#endif
 
 }

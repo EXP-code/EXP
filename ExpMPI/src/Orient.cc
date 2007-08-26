@@ -45,6 +45,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   sumY2.setsize(1, 3);
   slope.setsize(1, 3);
 
+  lasttime = -1.0e+30;
+
   pos = vector<double>(3);
   psa = vector<double>(3);
   vel = vector<double>(3);
@@ -60,6 +62,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   center0.zero();
   cenvel0.zero();
 
+  axis[3] = 1;
+
   used = 0;
 
 				// Set up identity
@@ -68,7 +72,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   body[1][1] = body[2][2] = body[3][3] = 1.0;
   orig = body;
 
-				// Check for previous state
+				// Check for previous state on
+				// a restart
   int in_ok;
   double *in1 = new double [3];
   double *in2 = new double [3];
@@ -77,7 +82,6 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
     ifstream in(logfile.c_str());
     
-
 				// If the logfile is there, read it
     if (in) {
       in.close();
@@ -98,7 +102,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	MPI_Abort(MPI_COMM_WORLD, 43);
       }
 	  
-      // Open old file for reading
+				// Open old file for reading
       in.open(backupfile.c_str());
       if (!in) {
 	ostringstream message;
@@ -112,7 +116,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
       int tused;
 
       in_ok = 1;		// Signal slave: OK
-
+	
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
       const int cbufsiz = 16384;
@@ -120,7 +124,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	
 				// Look for data and write it while
 				// accumlating data for averaging
-      while (in) {
+      while (in && restart) {
 
 	in.getline(cbuffer, cbufsiz);
 	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
@@ -149,7 +153,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	line >> center1[1];	// Last center from particles
 	line >> center1[2];
 	line >> center1[3];
-	
+	  
 	if (oflags & AXIS) {
 	  sumsA.push_back(axis1);
 	  if (sumsA.size() > keep) sumsA.pop_front();
@@ -159,7 +163,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	  sumsC.push_back(center1);
 	  if (sumsC.size() > keep) sumsC.pop_front();
 	}
-
+	
       }
 
       cout << " Orient: current log=" << logfile << "  backup=" << backupfile << endl;
@@ -170,20 +174,20 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	   << axis[1] << ", "
 	   << axis[2] << ", "
 	   << axis[3] << endl;
-
+      
       cout << " Orient: center master (cache size=" << sumsC.size() << "): " 
 	   << center[1] << ", "
 	   << center[2] << ", "
 	   << center[3] << endl;
-
+      
       MPI_Bcast(&Ecurr, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&axis[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&center[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
       MPI_Bcast(&center0[1], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
+      
       int howmany = max<int>(sumsA.size(), sumsC.size());
       MPI_Bcast(&howmany, 1, MPI_INT, 0, MPI_COMM_WORLD);
-
+	
       for (int k=0; k<howmany; k++) {
 
 	if (oflags & AXIS) {
@@ -199,9 +203,9 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 
     } else {
-
+	
       in_ok = 0;		// Signal slave: NO VALUES
-
+	
       MPI_Bcast(&in_ok, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 				// Write header
@@ -304,6 +308,10 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 void Orient::accumulate(double time, Component *c)
 {
+				// Do not register a duplicate entry
+  if (fabs(lasttime - time) < 1.0e-16) return;
+  lasttime = time;
+
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;

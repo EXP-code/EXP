@@ -31,8 +31,8 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
   pm = 1.0-hills_p;
   pp = 1.0+hills_p;
 	
-  c = cos(2.0*hills_omega*tpos);
-  s = sin(2.0*hills_omega*tpos);
+  c = cos(2.0*hills_omega*tnow);
+  s = sin(2.0*hills_omega*tnow);
 
   int nbeg, nend, id = *((int*)arg);
 

@@ -93,8 +93,22 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
   initialize();
 
 
-  //	Allocate coefficient matrix
-  expcoef.setsize(0, Lmax*(Lmax+2), 1, nmax);
+  // Allocate coefficient matrix (one for each multistep level)
+  // and zero-out contents
+  differ1 = vector<Matrix>(multistep+1);
+  differ0 = vector<Matrix>(multistep+1);
+  for (int i=0; i<=multistep; i++) {
+    expcoefN.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+    expcoefL.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
+
+    (*expcoefN.back()).zero();
+    (*expcoefL.back()).zero();
+
+    differ1[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
+    differ0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
+  }
+    
+  expcoef .setsize(0, Lmax*(Lmax+2), 1, nmax);
   expcoef1.setsize(0, Lmax*(Lmax+2), 1, nmax);
   
   expcoef0 = new Matrix [nthrds];
@@ -209,7 +223,8 @@ void SphericalBasis::setup(void)
 
 SphericalBasis::~SphericalBasis()
 {
-  delete [] expcoef0;
+  for (int i=0; i<nthrds; i++) delete [] expcoef0;
+
   if (selector) {
     delete [] cc;
     delete [] cc1;
@@ -267,17 +282,26 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   //======================
 
   if (firstime_accel || self_consistent) {
+    if (multistep==0) {
+#ifdef DEBUG
+      cout << "Process " << myid << ": about to call <determine_coefficients>\n";
+#endif
+      determine_coefficients();
+#ifdef DEBUG
+      cout << "Process " << myid << ": exited <determine_coefficients>\n";
+#endif
+    } else {
+#ifdef DEBUG
+      cout << "Process " << myid << ": about to call <compute_multistep_coefficients>\n";
+#endif
+      compute_multistep_coefficients();
+#ifdef DEBUG
+      cout << "Process " << myid << ": exited <compute_multistep_coefficients>\n";
+#endif
+    }
     firstime_accel = false;
-#ifdef DEBUG
-  cout << "Process " << myid << ": about to call <determine_coefficients>\n";
-#endif
-    determine_coefficients();
-#ifdef DEBUG
-  cout << "Process " << myid << ": exited <determine_coefficients>\n";
-#endif
   }
-
-
+  
   if (NOISE) update_noise();
 
   //======================================
@@ -292,6 +316,23 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
   // Clear external potential flag
   use_external = false;
+
+  //======================================
+  // Dump coefficients for debugging
+  //======================================
+
+#ifdef DEBUG
+  if (myid==0) {
+    if ( (multistep && mstep==Mstep) || !multistep) {
+      static int cnt = 0;
+      ostringstream sout;
+      sout << "SphericalBasis.debug." << runtag << "." << cnt++;
+      ofstream out(sout.str().c_str());
+      if (out) dump_coefs_all(out);
+    }
+  }
+#endif
+
 }
 
 
@@ -327,6 +368,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
     if (component->freeze(*(cC->Part(i)))) continue;
 
+    // If we are multistepping, only accumulate for this level!
+    //
+    if (multistep && (cC->Part(i)->level != mlevel)) continue;
+    
     mass = cC->Mass(i) * adb;
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
@@ -338,7 +383,6 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
       
-    // if (r<=rmax) {
     if (r<rmax) {
       use[id]++;
       costh = zz/r;
@@ -379,10 +423,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      facs2 = fac2*fac2*mass;
 	    }
 	    for (n=1; n<=nmax; n++) {
-	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
+
+	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
 	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 
-	      if (selector && compute) {
+	      if (selector && compute && mlevel==0) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++) {
 		  cc1[loffset+moffset][n][nn] += 
@@ -408,29 +453,32 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
-  int l, i, loffset, moffset, m, n, nn, use0, use1;
+  // Return if we should leave the coefficients fixed
+  //
+  if (!self_consistent && !firstime_accel) return;
 
-#ifdef MPE_PROFILE
-  MPE_Log_event(9, myid, "b_compute_coef");
-#endif
+  int loffset, moffset, use0, use1;
 
   if (selector) compute = !(this_step%npca) || firstime_coef;
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": in <determine_coefficients>, about to clean";
+#endif
 
-  //		Clean
-  for (n=1; n<=nmax; n++) {
-      for (l=0; l<=Lmax*(Lmax+2); l++) {
-	expcoef[l][n]  = 0.0;
-	expcoef1[l][n] = 0.0;
-	for (i=0; i<nthrds; i++) expcoef0[i][l][n] = 0.0;
-	if (selector && compute) 
-	  for (nn=n; nn<=nmax; nn++) cc1[l][n][nn] = 0.0;
-      }
-    }
+  //
+  // Clean arrays for current level
+  //
+  expcoefN[mlevel]->zero();
+
+  for (int i=0; i<nthrds; i++) expcoef0[i].zero();
+
+  if (selector && compute) {
+    for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
+  }
 
   use0 = 0;
   use1 = 0;
-  used = 0;
+  if (multistep==0) used = 0;
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, about to thread\n";
@@ -441,57 +489,68 @@ void SphericalBasis::determine_coefficients(void)
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>, thread returned\n";
 #endif
-  for (i=0; i<nthrds; i++) {
-    use1 += use[i];
-    for (l=0; l<=Lmax*(Lmax+2); l++)
-      for (n=1; n<=nmax; n++)
-	expcoef1[l][n] += expcoef0[i][l][n];
-  }
+  //
+  // Sum up the results from each thread
+  //
+  for (int i=0; i<nthrds; i++) use1 += use[i];
+  for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
     
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  used = use0;
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(10, myid, "e_compute_coef");
-#endif
+  if (multistep && (stepN[mlevel]==Mstep)) used += use0;
 
   if (!selector) {
 
-#ifdef MPE_PROFILE
-    MPE_Log_event(7, myid, "b_distrib_c");
-#endif
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
-    for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      //		m loop
-	for (m=0, moffset=0; m<=l; m++) {
-	  if (m==0) {
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
 
-	    MPI_Allreduce ( &expcoef1[loffset+moffset][1],
-			    &expcoef[loffset+moffset][1],
+	  if (multistep)
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			    &((*expcoefN[mlevel])[loffset+moffset][1]),
 			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  else
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			    &(expcoef[loffset+moffset][1]),
+			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  
+	  moffset++;
+	}
+	else {
 
-	    moffset++;
+	  if (multistep) {
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			    &((*expcoefN[mlevel])[loffset+moffset][1]),
+			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			    &((*expcoefN[mlevel])[loffset+moffset+1][1]),
+			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  } else {
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			    &(expcoef[loffset+moffset][1]),
+			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  
+	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			    &(expcoef[loffset+moffset+1][1]),
+			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  }
-	  else {
-
-	    MPI_Allreduce ( &expcoef1[loffset+moffset][1],
-			    &expcoef[loffset+moffset][1],
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-	    MPI_Allreduce ( &expcoef1[loffset+moffset+1][1],
-			    &expcoef[loffset+moffset+1][1],
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	    moffset+=2;
-	  }
+	  moffset+=2;
 	}
       }
+    }
 
-#ifdef MPE_PROFILE
-    MPE_Log_event(8, myid, "e_distrib_c");
+#ifdef DEBUG
+  cout << "Process " << myid << ": in <determine_coefficients>, "
+       << "about to call compute_multistep_coefficients\n";
 #endif
 
+#ifdef DEBUG
+  cout << "Process " << myid << ": in <determine_coefficients>, "
+       << "returned from compute_multistep_coefficients\n";
+#endif
   }
- 
+
   if (selector) {
     
     parallel_gather_coefficients();
@@ -503,6 +562,130 @@ void SphericalBasis::determine_coefficients(void)
     firstime_coef = 0;
   }
 
+}
+
+void SphericalBasis::multistep_update_begin()
+{
+				// Clear the update matricies
+  for (int M=0; M<=multistep; M++)
+    for (int l=0; l<=Lmax*(Lmax+2); l++)
+      for (int ir=1; ir<=nmax; ir++) 
+	differ1[M][l][ir] = differ0[M][l][ir] = 0.0;
+}
+
+void SphericalBasis::multistep_update_finish()
+{
+				// Combine the update matricies
+  for (int M=0; M<=multistep; M++)
+    for (int l=0; l<=Lmax*(Lmax+2); l++) 
+      MPI_Allreduce (&differ1[M][l][1], &differ0[M][l][1],
+		     nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+				// Update the local coefficients
+  for (int M=0; M<=multistep; M++)
+    for (int l=0; l<=Lmax*(Lmax+2); l++)
+      for (int ir=1; ir<=nmax; ir++) 
+	(*expcoefN[M])[l][ir] += differ0[M][l][ir];
+
+}
+
+void SphericalBasis::multistep_update(int from, int to, Component *c, int i)
+{
+  
+  if (c->freeze(*(c->Part(i)))) return;
+
+  double mass = c->Mass(i) * component->Adiabatic();
+
+				// Adjust mass for subset
+  if (subset) mass /= ssfrac;
+
+  double xx = c->Pos(i, 0, Component::Local | Component::Centered);
+  double yy = c->Pos(i, 1, Component::Local | Component::Centered);
+  double zz = c->Pos(i, 2, Component::Local | Component::Centered);
+
+  double r2 = (xx*xx + yy*yy + zz*zz);
+  double  r = sqrt(r2) + DSMALL;
+      
+  if (r<rmax) {
+
+    double costh = zz/r;
+    double phi = atan2(yy,xx);
+    double rs = r/scale;
+    double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
+    int moffset;
+
+    legendre_R(Lmax, costh, legs[0]);
+    sinecosine_R(Lmax, phi, cosm[0], sinm[0]);
+
+    get_potl(Lmax, nmax, rs, potd[0], 0);
+
+    //		l loop
+    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+      //		m loop
+      for (int m=0, moffset=0; m<=l; m++) {
+	if (m==0) {
+	  for (int n=1; n<=nmax; n++) {
+	    val = potd[0][l][n]*legs[0][l][m]*mass*fac0/normM[l][n];
+	    differ1[from][loffset+moffset][n] -= val;
+	    differ1[  to][loffset+moffset][n] += val;
+	    
+	  }
+	  moffset++;
+
+	} else {
+	  fac1 = legs[0][l][m]*cosm[0][m];
+	  fac2 = legs[0][l][m]*sinm[0][m];
+
+	  for (int n=1; n<=nmax; n++) {
+	    val1 = potd[0][l][n]*fac1*mass*fac0/normM[l][n];
+	    val2 = potd[0][l][n]*fac1*mass*fac0/normM[l][n];
+	    differ1[from][loffset+moffset  ][n] -= val1;
+	    differ1[from][loffset+moffset+1][n] -= val2;
+	    differ1[  to][loffset+moffset  ][n] += val1;
+	    differ1[  to][loffset+moffset+1][n] += val2;
+	  }
+	  moffset+=2;
+	}
+      }
+    }
+  }
+  
+}
+
+
+
+void SphericalBasis::compute_multistep_coefficients()
+{
+				// Clean coefficient matrix
+				// 
+  for (int l=0; l<=Lmax*(Lmax+2); l++)
+    for (int n=1; n<=nmax; n++) expcoef[l][n] = 0.0;
+
+				// Interpolate to get coefficients above
+  double a, b;			// 
+  for (int M=0; M<mlevel; M++) {
+    b = (double)(mstep - stepL[M])/(double)(stepN[M] - stepL[M]);
+    a = 1.0 - b;
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
+    }
+    // Sanity debug check
+    if (a<0.0 && a>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
+    }
+    if (b<0.0 && b>1.0) {
+      cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
+    }
+  }
+				// Add coefficients at or below this level
+				// 
+  for (int M=mlevel; M<=multistep; M++) {
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	expcoef[l][n] += (*expcoefN[M])[l][n];
+    }
+  }
 }
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
@@ -537,6 +720,11 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
     if (component->freeze(*(cC->Part(i)))) continue;
 
+    // If we are multistepping, compute accel only at or below this level
+    //
+    if (multistep && (cC->Part(i)->level < mlevel)) continue;
+    
+
     if (use_external) {
       cC->Pos(pos, i, Component::Inertial);
       component->ConvertPos(pos, Component::Local | Component::Centered);
@@ -554,8 +742,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
     rs = r/scale;
     phi = atan2(yy, xx);
 
-    dlegendre_R(Lmax, costh, legs[id], dlegs[id]);
-    sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
+    dlegendre_R (Lmax, costh, legs[id], dlegs[id]);
+    sinecosine_R(Lmax, phi,   cosm[id], sinm [id]);
 
     if (r>rmax) {
       ioff = 1;
@@ -663,15 +851,7 @@ void SphericalBasis::determine_acceleration_and_potential(void)
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
 
-#ifdef MPE_PROFILE
-  MPE_Log_event(11, myid, "b_compute_force");
-#endif
-
   exp_thread_fork(false);
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(12, myid, "e_compute_force");
-#endif
 
 }
 
@@ -964,4 +1144,53 @@ void SphericalBasis::update_noise(void)
     }
   }
 
+}
+
+
+void SphericalBasis::dump_coefs_all(ostream& out)
+{
+  out << setw(10) << "Time:"   << setw(18) << tnow      << endl
+      << setw(10) << "Scale:"  << setw(18) << scale     << endl
+      << setw(10) << "Nmax:"   << setw(8)  << nmax      << endl
+      << setw(10) << "Lmax:"   << setw(8)  << Lmax      << endl
+      << setw(10) << "Levels:" << setw(8)  << multistep << endl;
+  
+  out << setw(70) << setfill('=') << "=" << endl << setfill(' ');
+  out << "Total" << endl;
+  out << setw(70) << setfill('=') << "=" << endl << setfill(' ');
+
+  for (int ir=1; ir<=nmax; ir++) {
+    for (int l=0; l<=Lmax*(Lmax+2); l++)
+      out << setw(18) << expcoef[l][ir];
+    out << endl;
+  }
+  
+  out << endl;
+
+  if (multistep) {
+
+    for (int M=0; M<=multistep; M++) {
+      out << setw(70) << setfill('=') << "=" << endl << setfill(' ');
+      out << "Level " << M << endl;
+      out << setw(70) << setfill('=') << "=" << endl << setfill(' ');
+
+      for (int ir=1; ir<=nmax; ir++) {
+	for (int l=0; l<=Lmax*(Lmax+2); l++)
+	  out << setw(18) << (*expcoefN[M])[l][ir];
+	out << endl;
+      }
+    }
+  }
+
+}
+
+
+//
+// Swap pointers rather than copy
+//
+void SphericalBasis::multistep_swap(int M)
+{
+  Matrix *p = expcoefL[M];
+  expcoefL[M] = expcoefN[M];
+  expcoefN[M] = p;
 }

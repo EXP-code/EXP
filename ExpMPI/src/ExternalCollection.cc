@@ -125,8 +125,9 @@ void ExternalCollection::dynamicload(void)
     exit(-1);
   }
   
-  if (myid==0) cout << "ExternalCollection: Loaded user libraries <";
-
+  if (myid==0) cout << "ExternalCollection:" << endl
+		    << setw(71) << setfill('-') << "-" << endl
+		    <<  "Loaded user libraries <";
   void *dlib; 
   char name[1024];
   bool first = true
@@ -156,8 +157,9 @@ void ExternalCollection::dynamicload(void)
   }
 
   if (myid==0) {
-    cout << ">" << endl;
-    cout << "ExternalCollection: Available user routines are <";
+    cout << ">" << endl 
+	 << setw(71) << setfill('-') << "-" << endl
+	 << "Available user routines are <";
     first = true;
     for (fitr=factory.begin(); fitr!=factory.end(); fitr++) {
       if (first) {
@@ -167,7 +169,8 @@ void ExternalCollection::dynamicload(void)
 	cout << " " << fitr->first;
     }
 
-    cout << ">" << endl << endl;
+    cout << ">" << endl 
+	 << setw(71) << setfill('-') << "-" << endl << endl;
   }
 }
 

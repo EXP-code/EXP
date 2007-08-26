@@ -177,9 +177,10 @@ public:
     double acc[3];		///< 3        7,8.9
     double pot;			///< 4        10
     double potext;		///< 5        11
-    unsigned long indx;		///< 6        12
-    int    iatr[nimax];		///< 7        13,13,14,15,17 (e.g.)
-    double datr[ndmax];		///< 8        18,18,19,20,22 (e.g.)
+    unsigned level;		///< 6        12
+    unsigned long indx;		///< 7        13
+    int    iatr[nimax];		///< 8        14,15,16,16,18 (e.g.)
+    double datr[ndmax];		///< 9        19,20,21,22,23 (e.g.)
   };
 
 private:
@@ -250,10 +251,14 @@ protected:
   void setup_distribution(void);
 
   //! Vectors for holding current particle partition
+  //@{
   vector<int> plist, ncount, nbodies_index, nbodies_table;
+  //@}
 
   //! Vectors for holding the rates per node for load balancing
+  //@{
   vector<double> orates, trates;
+  //@}
 
   //! Binary read flag
   bool binary;
@@ -313,7 +318,18 @@ public:
      These are pointers to the center of mass, center of velocity,
      angular momentum and the phase-space 6 vector.
   */
-  double *com, *cov, *center, *angmom, *ps;
+  //@{
+  //! Center of mass
+  double *com;
+  //! Center of velocity
+  double *cov;
+  //! Center (e.g. set by Orient)
+  double *center;
+  //! Angular momentum vector
+  double *angmom;
+  //! Phase space vector
+  double *ps;
+  //@}
 
   /**
      @name Center of mass system coordinates
@@ -340,8 +356,11 @@ public:
   //! Points to associated force instance
   PotAccel *force;
 
-  //! Attribute array dimensions
-  int niattrib, ndattrib;
+  //! Attribute array dimensions for integer parameters
+  int niattrib;
+
+  //! Attribute array dimensions for float-valued parameters
+  int ndattrib;
 
   //! Binding energy orientation flag
   int EJ;
@@ -356,13 +375,27 @@ public:
   double eEJ0;
 
   //! Initial EJ center
-  double EJx0, EJy0, EJz0;
+  //@{
+  //! x-coord
+  double EJx0;
+  //! y-coord
+  double EJy0;
+  //! z-coord
+  double EJz0;
+  //@}
 
   //! EJ center
   double *EJcen;
 
   //! Initial EJ velocity
-  double EJu0, EJv0, EJw0;
+  //@{
+  //! x-coord
+  double EJu0;
+  //! y-coord
+  double EJv0;
+  //! z-coord
+  double EJw0;
+  //@}
 
   //! Print verbose diagnostics
   bool EJdiag;
@@ -446,8 +479,8 @@ public:
       tonode_1
       index_2
       tonode_2
-      .
-      .
+      \.
+      \.
       index_M
       tonode_M
 

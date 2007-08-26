@@ -287,7 +287,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
     ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
 			   barmass, 200, 200);
     
-    omega = get_omega(tpos);
+    omega = get_omega(tnow);
     
     const int N = 100;
     LegeQuad gq(N);
@@ -386,7 +386,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 
     posang = 0.0;
     lastomega = omega;
-    lasttime = tvel;
+    lasttime = tnow;
     
     if (restart) {
 
@@ -451,7 +451,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
 	    firstime1 = false;
 	  }
 
-	  if (lasttime >= tvel) break;
+	  if (lasttime >= tnow) break;
 
 	  out << line << "\n";
 
@@ -476,12 +476,12 @@ void UserEBarP::determine_acceleration_and_potential(void)
     
   } else {
 
-    omega = get_omega(tpos);
+    omega = get_omega(tnow);
 
-    if ( fabs(tvel-lasttime) > 2.0*DBL_EPSILON) {
+    if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
       posang += 0.5*(omega + lastomega)*dtime;
       lastomega = omega;
-      lasttime = tvel;
+      lasttime = tnow;
       update = true;
     }
   }
@@ -516,7 +516,7 @@ void UserEBarP::determine_acceleration_and_potential(void)
       ofstream out(name.c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
-      out << setw(15) << tvel
+      out << setw(15) << tnow
 	  << setw(15) << posang
 	  << setw(15) << omega;
 
@@ -531,8 +531,8 @@ void UserEBarP::determine_acceleration_and_potential(void)
 	out << setw(15) <<  0.0;
       else
 	out << setw(15) << amplitude/fabs(amplitude) *  
-	  0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) *
-	  0.5*(1.0 - erf( (tvel - Toff)/DeltaT ));
+	  0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) *
+	  0.5*(1.0 - erf( (tnow - Toff)/DeltaT ));
 
       for (int k=0; k<3; k++) out << setw(15) << bps[k];
       for (int k=0; k<3; k++) out << setw(15) << vel[k];
@@ -557,30 +557,30 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  double fraction_on =   0.5*(1.0 + erf( (tvel - Ton )/DeltaT )) ;
+  double fraction_on =   0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) ;
 
-  double fraction_off =  0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+  double fraction_off =  0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
 
   double quad_onoff = fraction_on*( (1.0 - quadrupole_frac) +
 				    quadrupole_frac * fraction_off );
 
   double mono_fraction = 
-    0.5*(1.0 + erf( (tvel - TmonoOn )/DeltaMonoT )) *
-    0.5*(1.0 - erf( (tvel - TmonoOff)/DeltaMonoT )) ;
+    0.5*(1.0 + erf( (tnow - TmonoOn )/DeltaMonoT )) *
+    0.5*(1.0 - erf( (tnow - TmonoOff)/DeltaMonoT )) ;
 
   double mono_onoff = 
     (1.0 - monopole_frac) + monopole_frac*mono_fraction;
 
   if (table) {
-    if (tvel<timeq[0]) {
+    if (tnow<timeq[0]) {
       afac = ampq[0];
       b5 = b5q[0];
-    } else if (tvel>timeq[qlast]) {
+    } else if (tnow>timeq[qlast]) {
       afac = ampq[qlast];
       b5 = b5q[qlast];
     } else {
-      afac = odd2(tvel, timeq, ampq, 0);
-      b5 = odd2(tvel, timeq, b5q, 0);
+      afac = odd2(tnow, timeq, ampq, 0);
+      b5 = odd2(tnow, timeq, b5q, 0);
     }
   }
 

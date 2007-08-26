@@ -41,24 +41,51 @@ void begin_run(void)
 
   external.initialize();
   
+  //==============================
+  // Initialize multistepping
+  //==============================
+
+  initialize_multistep();
+
   //===============================
   // Compute initial accereration  
   //===============================
 
-#ifdef DEBUG
-  cout << "Process " << myid << ": about to compute potential [begin]\n";
-#endif
-  comp.compute_potential();
-#ifdef DEBUG
-  cout << "Process " << myid << ": potential computed [begin]\n";
-#endif
+  if (multistep) {
+    sync_eval_multistep();	// Use last coefficient evaluation
+    for (int M=0; M<=multistep; M++) {
+      comp.compute_expansion(M);
+    }
+  } else {
+    comp.multistep_reset();
+  }
+
+  comp.compute_potential(0);
+  //                     ^
+  //                     |
+  //   All time levels---/
 
   //==============================
-  // Increment velocity of bodies 
-  // to initialize leap-frog      
+  // Initialize multistep levels
   //==============================
+  adjust_multistep_level(true);
+  //                     ^
+  //                     |
+  // Do all particles---/
 
-  init_velocity();
+  // Then recompute coefficients . . . 
+  //
+  if (multistep) {
+    sync_eval_multistep();	// Use last coefficient evaluation
+    for (int M=0; M<=multistep; M++) {
+      comp.multistep_swap(M);
+      comp.compute_expansion(M);
+    }
+  } else {
+    comp.multistep_reset();
+  }
+
+  comp.compute_potential(0);
 
   //===================================
   // Initialize output routines

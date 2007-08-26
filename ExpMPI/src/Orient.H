@@ -86,6 +86,7 @@ private:
   double sigA, sigC, sigCz;
 
   int many, used;
+  double lasttime;
   double Ecurr, Elast, Egrad;
   int Nlast;
   unsigned int oflags;

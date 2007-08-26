@@ -41,7 +41,7 @@
     The data file should contain the phase space of the orbit as a function
     of time with each record having the following 7 fields:
 
-    <time> <x-pos> <y-pos> <z-pos> <x-vel> <y-vel> <z-vel>
+    'time' 'x-pos' 'y-pos' 'z-pos' 'x-vel' 'y-vel' 'z-vel'
 
 */
 class UserResPotOrb : public ExternalForce

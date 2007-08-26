@@ -323,8 +323,8 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
   vector<double> pos(3);
 
   double amp = 
-      0.5*(1.0 + erf( (tvel - Ton )/DeltaT ))
-    * 0.5*(1.0 - erf( (tvel - Toff)/DeltaT )) ;
+      0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
+    * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
 
   for (int i=nbeg; i<nend; i++) {
 

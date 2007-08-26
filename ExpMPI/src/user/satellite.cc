@@ -25,10 +25,10 @@ void user_perturbation()
   int i;
    
   double rs[3], fac, ffac;
-  double tfac = 0.5*( 1.0 + erf( (tpos-TS)/DS ));
+  double tfac = 0.5*( 1.0 + erf( (tnow-TS)/DS ));
 
-  rs[0] = RS*cos(tpos*OS);
-  rs[1] = RS*cos(tpos*OS);
+  rs[0] = RS*cos(tnow*OS);
+  rs[1] = RS*cos(tnow*OS);
   rs[2] = 0.0;
 
   for (i=1; i<=nbodies; i++)

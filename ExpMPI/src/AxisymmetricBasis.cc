@@ -71,6 +71,10 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
 
 AxisymmetricBasis::~AxisymmetricBasis()
 {
+  vector<Matrix *>::iterator it;
+  for (it=expcoefN.begin(); it!=expcoefN.end(); it++) delete *it;
+  for (it=expcoefL.begin(); it!=expcoefL.end(); it++) delete *it;
+
   if (pca) {
     delete [] weight;
     delete [] b_Hall;
@@ -385,10 +389,6 @@ void AxisymmetricBasis::pca_hall(int compute)
 void AxisymmetricBasis::parallel_gather_coefficients(void)
 {
 
-#ifdef MPE_PROFILE
-  MPE_Log_event(5, myid, "b_gather_c");
-#endif
-
   if (myid == 0) {
 
     for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
@@ -459,18 +459,10 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
     }
   }
 
-#ifdef MPE_PROFILE
-  MPE_Log_event(6, myid, "e_gather_c");
-#endif
-
 }
 
 void AxisymmetricBasis::parallel_distribute_coefficients(void)
 {
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(7, myid, "b_distrib_c");
-#endif
 
   for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
@@ -490,10 +482,6 @@ void AxisymmetricBasis::parallel_distribute_coefficients(void)
 	}
       }
   }
-
-#ifdef MPE_PROFILE
-  MPE_Log_event(8, myid, "e_distrib_c");
-#endif
 
 }
 
