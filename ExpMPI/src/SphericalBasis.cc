@@ -223,7 +223,7 @@ void SphericalBasis::setup(void)
 
 SphericalBasis::~SphericalBasis()
 {
-  for (int i=0; i<nthrds; i++) delete [] expcoef0;
+  delete [] expcoef0;
 
   if (selector) {
     delete [] cc;
