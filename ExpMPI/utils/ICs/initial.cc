@@ -147,7 +147,7 @@ string centerfile = "center.dat";
 
 int nthrds = 1;
 int this_step = 0;
-int multistep = 0;
+unsigned multistep = 0;
 int mstep = 1;
 int Mstep = 1;
 vector<int> stepL(1, 0), stepN(1, 1);
