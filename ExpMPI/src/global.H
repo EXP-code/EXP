@@ -61,7 +61,7 @@ extern string runtag;
 extern bool eqmotion;
 
 //! Multistep levels (default: 0 means to multistepping)
-extern int multistep;
+extern unsigned multistep;
 
 //! Synchronize multistep positions at each substep (default: true)
 extern int posnsync;

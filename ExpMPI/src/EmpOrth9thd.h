@@ -22,7 +22,7 @@
 extern int this_step;
 extern int Mstep;
 extern int mstep;
-extern int multistep;
+extern unsigned multistep;
 extern vector<int> stepL, stepN;
 #endif
 
@@ -134,7 +134,7 @@ private:
 
   bool coefs_made_all() 
   {
-    for (int M=0; M<=multistep; M++) 
+    for (unsigned M=0; M<=multistep; M++) 
       if (!coefs_made[M]) return false;
     return true;
   }
@@ -289,7 +289,7 @@ public:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients(int mlevel);
+  void compute_multistep_coefficients(unsigned mlevel);
 
   //! For updating levels
   //@{
@@ -307,7 +307,7 @@ public:
   //@}
 
   //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(int M);
+  virtual void multistep_swap(unsigned M);
 
   //! Print debug info
   void multistep_debug();

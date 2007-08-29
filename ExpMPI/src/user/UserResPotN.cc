@@ -587,6 +587,11 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
+				// If we are multistepping, compute accel 
+				// only at or below this level
+
+    if (multistep && (cC->Part(i)->level < mlevel)) continue;
+
     ret = ResPot::OK;		// Reset error flags
     updated = false;
 

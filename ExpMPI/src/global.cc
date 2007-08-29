@@ -47,7 +47,7 @@ bool eqmotion = true;
 unsigned char stop_signal = 0;
 unsigned char dump_signal = 0;
 				// Multistep variables
-int multistep = 0;
+unsigned multistep = 0;
 bool posnsync = true;
 double dynfrac = 0.03;
 int Mstep = 0;

@@ -574,7 +574,12 @@ void * UserResPotOrb::determine_acceleration_and_potential_thread(void * arg)
 
   for (int i=nbeg; i<nend; i++) {
 
-    ret = ResPotOrb::OK;		// Reset error flags
+				// If we are multistepping, compute accel 
+				// only at or below this level
+
+    if (multistep && (cC->Part(i)->level < mlevel)) continue;
+
+    ret = ResPotOrb::OK;	// Reset error flags
     updated = false;
 
     if (usetag>=0 && cC->Part(i)->iattrib[usetag]) continue;

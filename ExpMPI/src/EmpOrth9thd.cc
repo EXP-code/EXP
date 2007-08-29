@@ -3712,7 +3712,7 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 
 
 
-void EmpCylSL::compute_multistep_coefficients(int mlevel)
+void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 {
 				// Clean coefficient matrix
 				// 
@@ -3760,7 +3760,7 @@ void EmpCylSL::compute_multistep_coefficients(int mlevel)
 //
 // Swap pointers rather than copy
 //
-void EmpCylSL::multistep_swap(int M)
+void EmpCylSL::multistep_swap(unsigned M)
 {
   Vector **p;
 

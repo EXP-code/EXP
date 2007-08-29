@@ -102,7 +102,7 @@ public:
   //@}
 
   //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(int M) { ortho->multistep_swap(M); }
+  virtual void multistep_swap(unsigned M) { ortho->multistep_swap(M); }
 
   //! Print debug info
   virtual void multistep_debug();

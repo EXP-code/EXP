@@ -1188,7 +1188,7 @@ void SphericalBasis::dump_coefs_all(ostream& out)
 //
 // Swap pointers rather than copy
 //
-void SphericalBasis::multistep_swap(int M)
+void SphericalBasis::multistep_swap(unsigned M)
 {
   Matrix *p = expcoefL[M];
   expcoefL[M] = expcoefN[M];

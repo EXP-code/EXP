@@ -38,7 +38,8 @@ exp_SOURCES = \
      incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc       \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
      multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
-     tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc
+     tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
+     OutCalbr.cc
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 

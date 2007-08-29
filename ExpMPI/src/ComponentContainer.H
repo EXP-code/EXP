@@ -70,14 +70,14 @@ public:
   void initialize();
 
   //! Compute the acceleration for all components in the container
-  void compute_potential(int mlevel=0);
+  void compute_potential(unsigned mlevel=0);
 
   /** Compute the expansion for all components in the container
       Those without expansions, should return without working */
-  void compute_expansion(int mlevel=0);
+  void compute_expansion(unsigned mlevel=0);
 
   //! Swap states or multilevel time step interpolation
-  void multistep_swap(int M);
+  void multistep_swap(unsigned M);
 
   //! Reset data before a multistep step
   void multistep_reset();

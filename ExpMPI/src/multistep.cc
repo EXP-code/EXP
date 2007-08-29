@@ -136,7 +136,7 @@ void initialize_multistep()
 
 				// Find and save the active levels at each step
   for (int ms=1; ms<=Mstep; ms++) {
-    for (int mlevel=0; mlevel<=multistep; mlevel++) {
+    for (unsigned mlevel=0; mlevel<=multistep; mlevel++) {
       if ( (ms % (1 << (multistep-mlevel))) == 0) 
 	mactive[ms-1][mlevel] = true;
     }

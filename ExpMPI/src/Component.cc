@@ -747,8 +747,15 @@ void Component::read_bodies_and_distribute_ascii(void)
       part.level = 0;
       part.indx = 1;
 
-      for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
-      for (int j=0; j<ndattrib; j++) ins >> part.dattrib[j];
+      for (int j=0; j<niattrib; j++) {
+	ins >> part.iattrib[j];
+	if (!ins) part.iattrib[j] = 0;
+      }
+
+      for (int j=0; j<ndattrib; j++) {
+	ins >> part.dattrib[j];
+	if (!ins) part.dattrib[j] = 0;
+      }
 
       rmax1 = 0.0;
       for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
@@ -771,8 +778,15 @@ void Component::read_bodies_and_distribute_ascii(void)
       part.level = 0;
       part.indx = i;
 
-      for (int j=0; j<niattrib; j++) ins >> part.iattrib[j];
-      for (int j=0; j<ndattrib; j++) ins >> part.dattrib[j];
+      for (int j=0; j<niattrib; j++) {
+	ins >> part.iattrib[j];
+	if (!ins) part.iattrib[j] = 0;
+      }
+
+      for (int j=0; j<ndattrib; j++) {
+	ins >> part.dattrib[j];
+	if (!ins) part.dattrib[j] = 0;
+      }
 
       r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
@@ -805,8 +819,15 @@ void Component::read_bodies_and_distribute_ascii(void)
 	buf[ibufcount].level = 0;
 	buf[ibufcount].indx = nbodies_index[n-1] + 1 + icount;
 
-	for (int j=0; j<niattrib; j++) ins >> buf[ibufcount].iatr[j];
-	for (int j=0; j<ndattrib; j++) ins >> buf[ibufcount].datr[j];
+	for (int j=0; j<niattrib; j++) {
+	  ins >> buf[ibufcount].iatr[j];
+	  if (!ins) buf[ibufcount].iatr[j] = 0;
+	}
+
+	for (int j=0; j<ndattrib; j++) {
+	  ins >> buf[ibufcount].datr[j];
+	  if (!ins) buf[ibufcount].datr[j] = 0;
+	}
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 

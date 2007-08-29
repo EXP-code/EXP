@@ -243,7 +243,7 @@ ComponentContainer::~ComponentContainer(void)
 
 }
 
-void ComponentContainer::compute_potential(int mlevel)
+void ComponentContainer::compute_potential(unsigned mlevel)
 {
   list<Component*>::iterator cc;
   Component *c;
@@ -354,7 +354,7 @@ void ComponentContainer::compute_potential(int mlevel)
 }
 
 
-void ComponentContainer::compute_expansion(int mlevel)
+void ComponentContainer::compute_expansion(unsigned mlevel)
 {
   list<Component*>::iterator cc;
   Component *c;
@@ -385,7 +385,7 @@ void ComponentContainer::compute_expansion(int mlevel)
 }
 
 
-void ComponentContainer::multistep_swap(int M)
+void ComponentContainer::multistep_swap(unsigned M)
   {
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <multistep_swap>\n";

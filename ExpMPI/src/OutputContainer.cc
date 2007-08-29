@@ -15,6 +15,7 @@ static char rcsid[] = "$Id$";
 #include <OutCHKPT.H>
 #include <OutCoef.H>
 #include <OutFrac.H>
+#include <OutCalbr.H>
 #include <OutMulti.H>
 
 OutputContainer::OutputContainer() {}
@@ -65,6 +66,10 @@ void OutputContainer::initialize(void)
 
     else if ( !data.first.compare("outmulti") ) {
       out.push_back(new OutMulti(data.second));
+    }
+
+    else if ( !data.first.compare("outcalbr") ) {
+      out.push_back(new OutCalbr(data.second));
     }
 
     else {

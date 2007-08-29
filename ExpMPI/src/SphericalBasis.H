@@ -171,7 +171,7 @@ public:
   //@}
 
   //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(int M);
+  virtual void multistep_swap(unsigned M);
 
   /** Get derivative of potential
     \param lmax is the maximum harmonic order
