@@ -22,7 +22,7 @@
 				// Constants from expand.h
 extern int nthrds;
 extern double tnow;
-extern int multistep;
+extern unsigned multistep;
 #endif
 
 #include <numerical.h>
