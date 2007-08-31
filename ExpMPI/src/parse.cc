@@ -47,7 +47,9 @@ void initialize(void)
 
   if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());
 
-  if (parse->find_item("dynfrac", val))		dynfrac = atof(val.c_str());
+  if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
+
+  if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
 
   if (parse->find_item("use_cwd", val)) {
     if (atoi(val.c_str())) use_cwd = true;
@@ -100,8 +102,9 @@ void print_parm(ostream& out, char *comment)
   out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
 
   out << comment << " " << "multistep"  << " = " << multistep   << endl;
-  out << comment << " " << "posnsync"   << " = " << posnsync   << endl;
-  out << comment << " " << "dynfrac"    << " = " << dynfrac     << endl;
+  out << comment << " " << "posnsync"   << " = " << posnsync    << endl;
+  out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
+  out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
 
   out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
   out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;

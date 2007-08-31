@@ -67,7 +67,13 @@ extern unsigned multistep;
 extern int posnsync;
 
 //! Fraction of dynamical time for determining multistep level
-extern double dynfrac;
+//@{
+//! Velocity coefficient (default: 0.01)
+extern double dynfracV;
+//! Acceleration coefficient (default: 0.03)
+extern double dynfracA;
+//@}
+
 
 				// Internal variables
 
@@ -112,6 +118,9 @@ extern vector<int> mintvl;
 
 //! Lowest synchronized level at a step
 extern vector<int> mfirst;
+
+//! Particles at each level
+extern vector<int> levpop;
 
 //! Sub steps for last coefficient evaluation
 extern vector<int> stepL;

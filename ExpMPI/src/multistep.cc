@@ -34,7 +34,7 @@ void adjust_multistep_level(bool all)
   int npart, lev, offgrid;
   vector<unsigned> off1, off;
 
-  if (all) mstep=Mstep;
+  if (all) mstep = Mstep;
 
   //
   // Run through particles in each component
@@ -64,7 +64,7 @@ void adjust_multistep_level(bool all)
 	vtot = sqrt(vtot) + 1.0e-18;
 	atot = sqrt(atot) + 1.0e-18;
 
-	dt = dynfrac*min<double>(rtot/vtot, sqrt(rtot/atot));
+	dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
 	
 	if (dt>dtime) lev = 0;
 	else lev = (int)floor(log(dtime/dt)/log(2.0));
@@ -75,6 +75,10 @@ void adjust_multistep_level(bool all)
 	}
 
 	if ( lev != c->Part(n)->level && (all || mactive[mstep-1][lev]) ) {
+	  // Adjust level counts
+	  levpop[c->Part(n)->level]--;
+	  levpop[lev]++;
+	  // Update coefficients
 	  c->force->multistep_update(c->Part(n)->level, lev, c, n);
 	  c->Part(n)->level = lev;
 	}
@@ -142,8 +146,12 @@ void initialize_multistep()
     }
   }
 
-  stepL = vector<int>(multistep+1);
-  stepN = vector<int>(multistep+1);
+  stepL  = vector<int>(multistep+1);
+  stepN  = vector<int>(multistep+1);
+  levpop = vector<int>(multistep+1, 0);
+
+  for (list<Component*>::iterator cc=comp.components.begin(); 
+       cc != comp.components.end(); cc++) levpop[0] = (*cc)->Number();
 
   mfirst = vector<int>(Mstep);
 				// Lowest active level at each step

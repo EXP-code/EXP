@@ -89,10 +89,13 @@ void OutCalbr::set_energies()
       out << setw(18) << "# Time";
       for (int i=0; i<num; i++) {
 	ostringstream label;
-	label << setprecision(3) << fixed << "| " << Ec[i];
+	label << setprecision(3) << fixed 
+	      << "| [" << Ec[i]-0.5*dE 
+	      << ", "  << Ec[i] 
+	      << ", "  << Ec[i]+0.5*dE << ")";
 	out << setw(4*18) << label.str();
       }
-      out << endl << setw(18) << " ";
+      out << endl << setw(18) << "#";
       string labs[4] = {"| E", "Lx", "Ly", "Lz"};
       for (int i=0; i<num; i++) {
 	for (int j=0; j<4; j++) out << setw(18) << labs[j];
@@ -233,10 +236,10 @@ void OutCalbr::Run(int n, bool last)
     
     for (int i=0; i<num; i++) {
       if (ncnt[i]>0) {
-	out << setw(18) << deltaE[i] /ncnt[i]
-	    << setw(18) << deltaLx[i]/ncnt[i]
-	    << setw(18) << deltaLy[i]/ncnt[i]
-	    << setw(18) << deltaLz[i]/ncnt[i];
+	out << setw(18) << sqrt(deltaE[i] /ncnt[i])
+	    << setw(18) << sqrt(deltaLx[i]/ncnt[i])
+	    << setw(18) << sqrt(deltaLy[i]/ncnt[i])
+	    << setw(18) << sqrt(deltaLz[i]/ncnt[i]);
       } else {
 	out << setw(18) << 0.0
 	    << setw(18) << 0.0

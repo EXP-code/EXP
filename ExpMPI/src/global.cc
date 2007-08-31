@@ -49,10 +49,11 @@ unsigned char dump_signal = 0;
 				// Multistep variables
 unsigned multistep = 0;
 bool posnsync = true;
-double dynfrac = 0.03;
+double dynfracV = 0.01;
+double dynfracA = 0.03;
 int Mstep = 0;
 int mstep = 0;
-vector<int> mfirst, mintvl, stepL, stepN;
+vector<int> mfirst, mintvl, levpop, stepL, stepN;
 vector< vector<bool> > mactive;
 
 

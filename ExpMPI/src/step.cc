@@ -193,6 +193,32 @@ void do_step(int n)
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     }
 
+    // DEBUG
+    //
+    if (VERBOSE>4) {
+      
+      if (myid==0) {
+	cout << endl
+	     << setw(70) << setfill('-') << '-' << endl
+	     << setw(70) << left << "--- Level info" << endl
+	     << setw(70) << setfill('-') << '-' << endl 
+	     << setfill(' ') << right;
+      }
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  cout << setw(4) << myid << ": ";
+	  for (int m=0; m<=multistep; m++) cout << setw(8) << levpop[m];
+	  cout << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+      if (myid==0) {
+	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      }
+    }
+    //
+    // END DEBUG
+
     timer_coef.reset();
     timer_drift.reset();
     timer_vel.reset();
