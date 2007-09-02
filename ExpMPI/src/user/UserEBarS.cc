@@ -116,7 +116,8 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
   }
 
   // Zero monopole variables
-  teval = tnow;
+  teval = vector<double>(multistep+1, tnow);
+  tevalS = tnow;
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
@@ -482,7 +483,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
     
     if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
-      posang += 0.5*(omega + lastomega)*dtime;
+      posang += 0.5*(omega + lastomega)*(tnow - lasttime);
       lastomega = omega;
       lasttime = tnow;
     }
@@ -528,13 +529,13 @@ void UserEBarS::determine_acceleration_and_potential(void)
 				// Get contribution from all processes
   MPI_Allreduce(&Tz1, &Tz0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  TzM[cid] = Tz0;
+  TzM[cid] += Tz0;
   
 				// Backward Euler
   if (monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
-      bps[k] += vel[k] * (tnow - teval);
-      vel[k] += acc[k] * (tnow - teval);
+      bps[k] += vel[k] * (tnow - teval[mlevel]);
+      vel[k] += acc[k] * (tnow - teval[mlevel]);
     }
   }
   
@@ -546,10 +547,10 @@ void UserEBarS::determine_acceleration_and_potential(void)
     for (int m=0; m<comp.ncomp; m++) Tz0 += TzM[m];
 
 				// Update bar angular momentum
-    Lz += Tz0 * (tnow - teval);
+    Lz += Tz0 * (tnow - teval[mlevel]);
 
     okM   = 0;
-    teval = tnow;
+    for (unsigned m=mlevel; m<=multistep; m++) teval[mlevel] = tnow;
 
     if (myid==0) 
       {

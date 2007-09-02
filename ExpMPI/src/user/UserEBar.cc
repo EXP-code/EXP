@@ -518,7 +518,7 @@ void UserEBar::determine_acceleration_and_potential(void)
     }
     
     if ( fabs(tnow-lasttime) > 2.0*DBL_EPSILON) {
-      posang += 0.5*(omega + lastomega)*dtime;
+      posang += 0.5*(omega + lastomega)*(tnow - lasttime);
       lastomega = omega;
       lasttime = tnow;
       update = true;

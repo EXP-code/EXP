@@ -276,6 +276,17 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #endif
 
   //
+  // Compute angular momentum for each component
+  //
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    (*cc)->get_angmom();
+  }
+
+#ifdef DEBUG
+  cout << "Process " << myid << ": angmom computed\n";
+#endif
+
+  //
   // Compute accel for each component
   //
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
@@ -308,6 +319,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #endif
   }
       
+
+  //
+  // Compute new center
+  //
+  fix_positions();
+
 
   //
   // Do the component interactions

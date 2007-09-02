@@ -75,7 +75,8 @@ private:
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
-  double teval;
+  double tevalS;
+  vector<double> teval;
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
   double *TzM, *TzN;
   int okM;
