@@ -142,7 +142,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   }
 
   // Zero monopole variables
-  teval = tnow;
+  teval = vector<double>(multistep+1, tnow);
   for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
@@ -544,10 +544,10 @@ void UserEBar::determine_acceleration_and_potential(void)
 				// Backward Euler
   if (monopole && monopole_follow) {
     for (int k=0; k<3; k++) {
-      bps[k] += vel[k] * (tnow - teval);
-      vel[k] += acc[k] * (tnow - teval);
+      bps[k] += vel[k] * (tnow - teval[mlevel]);
+      vel[k] += acc[k] * (tnow - teval[mlevel]);
     }
-    teval = tnow;
+    for (unsigned m=mlevel; m<=multistep; m++) teval[m] = tnow;
   }
 
   if (myid==0 && update) 
