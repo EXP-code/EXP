@@ -655,7 +655,7 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 }
 
-void Cylinder::multistep_update(int from, int to, Component* c, int i)
+void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
 
   if (c->freeze(*(c->Part(i)))) return;
@@ -670,7 +670,7 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i)
   double  r = sqrt(r2);
   double phi = atan2(yy, xx);
 
-  ortho->multistep_update(from, to, r, zz, phi, mass);
+  ortho->multistep_update(from, to, r, zz, phi, mass, id);
 }
 
 

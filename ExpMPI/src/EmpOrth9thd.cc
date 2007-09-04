@@ -1209,13 +1209,22 @@ void EmpCylSL::setup_accumulation(void)
       howmany.push_back(0);
     }
     
-    differC = vector<Matrix>(multistep+1);
-    differS = vector<Matrix>(multistep+1);
-
 #ifdef DEBUG_NAN
     cerr << "Slave " << myid << ": tables allocated, MMAX=" << MMAX << "\n";
 #endif // DEBUG_NAN
   }
+
+  differC1 = vector< vector<Matrix> >(nthrds);
+  differS1 = vector< vector<Matrix> >(nthrds);
+  for (int nth=0; nth<nthrds; nth++) {
+    differC1[nth] = vector<Matrix>(multistep+1);
+    differS1[nth] = vector<Matrix>(multistep+1); 
+    if (nth==0) {
+      differC = vector<Matrix>(multistep+1);
+      differS = vector<Matrix>(multistep+1);
+    }
+  }
+
 
   cylused = cylused1 = 0;
   cylmass = 0.0;
@@ -3637,33 +3646,50 @@ void EmpCylSL::sinecosine_R(int mmax, double phi, Vector& c, Vector& s)
 void EmpCylSL::multistep_update_begin()
 {
 				// Clear the update matricies
-  for (int M=0; M<=multistep; M++) {
-    differC[M].setsize(0, MMAX, 0, rank3-1);
-    differS[M].setsize(0, MMAX, 0, rank3-1);
+  for (int nth=0; nth<nthrds; nth++) {
+    for (int M=0; M<=multistep; M++) {
+      differC1[nth][M].setsize(0, MMAX, 0, rank3-1);
+      differS1[nth][M].setsize(0, MMAX, 0, rank3-1);
+      if (nth==0) {
+	differC[M].setsize(0, MMAX, 0, rank3-1);
+	differS[M].setsize(0, MMAX, 0, rank3-1);
+      }
 
-    for (int mm=0; mm<=MMAX; mm++) {
-      for (int nn=0; nn<rank3; nn++) {
-	differC[M][mm][nn] = differS[M][mm][nn] = 0.0;
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  differC1[nth][M][mm][nn] = differS1[nth][M][mm][nn] = 0.0;
+	  if (nth==0) differC[M][mm][nn] = differS[M][mm][nn] = 0.0;
+	}
       }
     }
   }
+
 }
 
 void EmpCylSL::multistep_update_finish()
 {
-  vector<double> work(rank3);
+  vector<double> work1(rank3), work(rank3);
+
 				// Combine the update matricies
   for (int M=0; M<=multistep; M++) {
 
     for (int mm=0; mm<=MMAX; mm++) {
       
-      MPI_Allreduce (&differC[M][mm][0], &work[0],
+      for (int k=0; k<rank3; k++) work1[k] = differC1[0][M][mm][k];
+      for (int nth=1; nth<nthrds; nth++)
+	for (int k=0; k<rank3; k++) work1[k] += differC1[nth][M][mm][k];
+
+      MPI_Allreduce (&work1[0], &work[0],
 		     rank3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] += work[nn];
 
       if (mm) {
-	MPI_Allreduce (&differS[M][mm][1], &work[0],
+	for (int k=0; k<rank3; k++) work1[k] = differS1[0][M][mm][k];
+	for (int nth=1; nth<nthrds; nth++)
+	  for (int k=0; k<rank3; k++) work1[k] += differS1[nth][M][mm][k];
+
+	MPI_Allreduce (&work1[0], &work[0],
 		       rank3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
 	for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] += work[nn];
@@ -3674,7 +3700,7 @@ void EmpCylSL::multistep_update_finish()
 
 }
 
-void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi, double mass)
+void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi, double mass, int id)
 {
   double rr = sqrt(r*r+z*z);
   if (rr/ASCALE>Rtable) return;
@@ -3683,7 +3709,7 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
 
   double norm = -4.0*M_PI;
   
-  get_pot(vc[0], vs[0], r, z);
+  get_pot(vc[id], vs[id], r, z);
 
   for (int mm=0; mm<=MMAX; mm++) {
 
@@ -3691,19 +3717,19 @@ void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi
     msin = sin(phi*mm);
 
     for (int nn=0; nn<rank3; nn++) 
-      hold[0][nn] = norm * mass * mcos * vc[0][mm][nn];
+      hold[id][nn] = norm * mass * mcos * vc[id][mm][nn];
 
     for (int nn=0; nn<rank3; nn++) {
-      differC[from][mm][nn] -= hold[0][nn];
-      differC[to  ][mm][nn] += hold[0][nn];
+      differC1[id][from][mm][nn] -= hold[id][nn];
+      differC1[id][to  ][mm][nn] += hold[id][nn];
     }
 
     if (mm>0) {
       for (int nn=0; nn<rank3; nn++) 
-	hold[0][nn] = norm * mass * msin * vs[0][mm][nn];
+	hold[id][nn] = norm * mass * msin * vs[id][mm][nn];
       for (int nn=0; nn<rank3; nn++) {
-	differS[from][mm][nn] -= hold[0][nn];
-	differS[to  ][mm][nn] += hold[0][nn];
+	differS1[id][from][mm][nn] -= hold[id][nn];
+	differS1[id][to  ][mm][nn] += hold[id][nn];
       }
     }
   }

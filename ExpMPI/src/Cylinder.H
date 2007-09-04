@@ -55,9 +55,6 @@ private:
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();
 
-  //! For updating levels
-  vector<Matrix> differ1, differ0;
-
 public:
 
   //! Mutexes for multithreading
@@ -97,7 +94,7 @@ public:
   */
   //@{
   virtual void multistep_update_begin() { ortho->multistep_update_begin(); }
-  virtual void multistep_update(int cur, int next, Component* c, int i);
+  virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish() { ortho->multistep_update_finish(); }
   //@}
 

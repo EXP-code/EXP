@@ -24,6 +24,7 @@ extern int Mstep;
 extern int mstep;
 extern unsigned multistep;
 extern vector<int> stepL, stepN;
+extern pthread_mutex_t coef_lock;
 #endif
 
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
@@ -293,6 +294,7 @@ public:
 
   //! For updating levels
   //@{
+  vector< vector<Matrix> > differS1, differC1;
   vector<Matrix> differS, differC;
   //@}
   
@@ -302,7 +304,7 @@ public:
   */
   //@{
   virtual void multistep_update_begin();
-  virtual void multistep_update(int from, int to, double r, double z, double phi, double mass);
+  virtual void multistep_update(int from, int to, double r, double z, double phi, double mass, int id);
   virtual void multistep_update_finish();
   //@}
 

@@ -127,7 +127,7 @@ protected:
   void compute_multistep_coefficients();
 
   //! For updating levels
-  vector<Matrix> differ1;
+  vector< vector<Matrix> > differ1;
 
   //! For updating levels
   vector<Matrix> differ0;
@@ -166,7 +166,7 @@ public:
   */
   //@{
   virtual void multistep_update_begin();
-  virtual void multistep_update(int cur, int next, Component* c, int i);
+  virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish();
   //@}
 

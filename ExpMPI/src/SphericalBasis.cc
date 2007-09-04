@@ -95,7 +95,13 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
 
   // Allocate coefficient matrix (one for each multistep level)
   // and zero-out contents
-  differ1 = vector<Matrix>(multistep+1);
+  differ1 = vector< vector<Matrix> >(nthrds);
+  for (int n=0; n<nthrds; n++) {
+    differ1[n] = vector<Matrix>(multistep+1);
+    for (int i=0; i<=multistep; i++)
+      differ1[n][i].setsize(0, Lmax*(Lmax+2), 1, nmax);
+  }
+
   differ0 = vector<Matrix>(multistep+1);
   for (int i=0; i<=multistep; i++) {
     expcoefN.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
@@ -104,7 +110,6 @@ SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
     (*expcoefN.back()).zero();
     (*expcoefL.back()).zero();
 
-    differ1[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
     differ0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
   }
     
@@ -567,20 +572,30 @@ void SphericalBasis::determine_coefficients(void)
 void SphericalBasis::multistep_update_begin()
 {
 				// Clear the update matricies
-  for (int M=0; M<=multistep; M++)
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      for (int ir=1; ir<=nmax; ir++) 
-	differ1[M][l][ir] = differ0[M][l][ir] = 0.0;
+  for (int n=0; n<nthrds; n++) {
+    for (int M=0; M<=multistep; M++)
+      for (int l=0; l<=Lmax*(Lmax+2); l++)
+	for (int ir=1; ir<=nmax; ir++) {
+	  differ1[n][M][l][ir] = 0.0;
+	  if (n==0) differ0[M][l][ir] = 0.0;
+	}
+  }
+
 }
 
 void SphericalBasis::multistep_update_finish()
 {
 				// Combine the update matricies
-  for (int M=0; M<=multistep; M++)
-    for (int l=0; l<=Lmax*(Lmax+2); l++) 
-      MPI_Allreduce (&differ1[M][l][1], &differ0[M][l][1],
+  for (int M=0; M<=multistep; M++) {
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      vector<double> tmp(nmax, 0.0);
+      for (int n=1; n<nthrds; n++) 
+	for (int ir=1; ir<=nmax; ir++) tmp[ir-1] += differ1[n][M][l][ir];
+      
+      MPI_Allreduce (&tmp[0], &differ0[M][l][1],
 		     nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
+    }
+  }
 				// Update the local coefficients
   for (int M=0; M<=multistep; M++)
     for (int l=0; l<=Lmax*(Lmax+2); l++)
@@ -589,7 +604,7 @@ void SphericalBasis::multistep_update_finish()
 
 }
 
-void SphericalBasis::multistep_update(int from, int to, Component *c, int i)
+void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
   
   if (c->freeze(*(c->Part(i)))) return;
@@ -614,35 +629,40 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i)
     double val, val1, val2, fac0=4.0*M_PI, fac1, fac2;
     int moffset;
 
-    legendre_R(Lmax, costh, legs[0]);
-    sinecosine_R(Lmax, phi, cosm[0], sinm[0]);
+    legendre_R(Lmax, costh, legs[id]);
+    sinecosine_R(Lmax, phi, cosm[id], sinm[id]);
 
-    get_potl(Lmax, nmax, rs, potd[0], 0);
+    get_potl(Lmax, nmax, rs, potd[id], 0);
 
-    //		l loop
+    //
+    // l loop
+    //
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-      //		m loop
+      //
+      // m loop
+      //
       for (int m=0, moffset=0; m<=l; m++) {
 	if (m==0) {
 	  for (int n=1; n<=nmax; n++) {
-	    val = potd[0][l][n]*legs[0][l][m]*mass*fac0/normM[l][n];
-	    differ1[from][loffset+moffset][n] -= val;
-	    differ1[  to][loffset+moffset][n] += val;
+	    val = potd[id][l][n]*legs[id][l][m]*mass*fac0/normM[l][n];
 	    
+	    differ1[id][from][loffset+moffset][n] -= val;
+	    differ1[id][  to][loffset+moffset][n] += val;
 	  }
 	  moffset++;
 
 	} else {
-	  fac1 = legs[0][l][m]*cosm[0][m];
-	  fac2 = legs[0][l][m]*sinm[0][m];
+	  fac1 = legs[id][l][m]*cosm[id][m];
+	  fac2 = legs[id][l][m]*sinm[id][m];
 
 	  for (int n=1; n<=nmax; n++) {
-	    val1 = potd[0][l][n]*fac1*mass*fac0/normM[l][n];
-	    val2 = potd[0][l][n]*fac1*mass*fac0/normM[l][n];
-	    differ1[from][loffset+moffset  ][n] -= val1;
-	    differ1[from][loffset+moffset+1][n] -= val2;
-	    differ1[  to][loffset+moffset  ][n] += val1;
-	    differ1[  to][loffset+moffset+1][n] += val2;
+	    val1 = potd[id][l][n]*fac1*mass*fac0/normM[l][n];
+	    val2 = potd[id][l][n]*fac1*mass*fac0/normM[l][n];
+
+	    differ1[id][from][loffset+moffset  ][n] -= val1;
+	    differ1[id][from][loffset+moffset+1][n] -= val2;
+	    differ1[id][  to][loffset+moffset  ][n] += val1;
+	    differ1[id][  to][loffset+moffset+1][n] += val2;
 	  }
 	  moffset+=2;
 	}

@@ -156,7 +156,7 @@ public:
   virtual void multistep_update_begin() {}
 
   //! Implementation of level shifts
-  virtual void multistep_update(int cur, int next, Component* c, int i) {}
+  virtual void multistep_update(int cur, int next, Component* c, int i, int id) {}
 
   //! Execute to finish level shifts for particles
   virtual void multistep_update_finish() {}
