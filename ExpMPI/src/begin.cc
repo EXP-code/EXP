@@ -29,6 +29,14 @@ void begin_run(void)
   }
 
 
+  
+  //===================================
+  // Make the kick/drift thread vectors
+  //===================================
+  
+  posvel_data = vector<thrd_pass_posvel>(nthrds);
+  posvel_thrd = vector<pthread_t>       (nthrds);
+
   //===================================
   // Initialize phase-space components 
   //===================================

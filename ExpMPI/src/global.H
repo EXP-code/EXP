@@ -131,6 +131,26 @@ extern vector<int> stepN;
 //! Multistep level flag: levels currently synchronized
 extern vector< vector<bool> > mactive;
 
+/// Helper class to pass info for incr_postion and incr_velocity
+struct thrd_pass_posvel 
+{
+  //! Time step
+  double dt;
+
+  //! Levels flag
+  int mlevel;
+
+  //! Thread counter id
+  int id;
+};
+
+
+//! Multithreding data structures for incr_position and incr_velocity
+extern vector<thrd_pass_posvel> posvel_data;
+
+//! Threads for incr_position and incr_velocity
+extern vector<pthread_t> posvel_thrd;
+
 
 /**
    Phase space dump on next step

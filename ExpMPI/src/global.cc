@@ -57,6 +57,19 @@ vector<int> mfirst, mintvl, levpop, stepL, stepN;
 vector< vector<bool> > mactive;
 
 
+				// Multithreading data structures for
+				// incr_position and incr_velocity
+struct thrd_pass_posvel 
+{
+  double dt;
+  int mlevel;
+  int id;
+};
+
+vector<thrd_pass_posvel> posvel_data;
+vector<pthread_t> posvel_thrd;
+
+
 				// MPI variables
 int is_init=1;
 int numprocs, slaves, myid, proc_namelen;

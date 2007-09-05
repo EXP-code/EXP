@@ -8,42 +8,36 @@
 static char rcsid[] = "$Id$";
 #endif
 
-/// Helper class to pass info to threaded drift routine
-struct thrd_pass_incpos {
-  //! Time step
-  double dt;
-
-  //! Levels flag
-  int mlevel;
-
-  //! Thread counter id
-  int id;
-};
-
-
 void * incr_position_thread(void *ptr)
 {
   // Current time step
-  double dt = static_cast<thrd_pass_incpos*>(ptr)->dt;
+  //
+  double dt = static_cast<thrd_pass_posvel*>(ptr)->dt;
 
   // Current level
-  int mlevel = static_cast<thrd_pass_incpos*>(ptr)->mlevel;
+  //
+  int mlevel = static_cast<thrd_pass_posvel*>(ptr)->mlevel;
 
   // Thread ID
-  int id = static_cast<thrd_pass_incpos*>(ptr)->id;
+  //
+  int id = static_cast<thrd_pass_posvel*>(ptr)->id;
 
   
   list<Component*>::iterator cc;
   int nbeg, nend;
   Component *c;
   
+  //
+  // Component loop
+  //
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
     unsigned ntot = c->Number();
 
     //
-    // Compute the beginning and end points for threads
+    // Compute the beginning and end points in particle list
+    // for each thread
     //
     nbeg = ntot*id    /nthrds;
     nend = ntot*(id+1)/nthrds;
@@ -61,25 +55,10 @@ void * incr_position_thread(void *ptr)
 
 }
 
+
 void incr_position(double dt, int mlevel)
 {
   if (!eqmotion) return;
-
-  thrd_pass_incpos* td = new thrd_pass_incpos [nthrds];
-
-  if (!td) {
-    cerr << "Process " << myid
-	 << ": incr_position: error allocating thread structures\n";
-    exit(18);
-  }
-
-  pthread_t* t  = new pthread_t [nthrds];
-
-  if (!t) {
-    cerr << "Process " << myid
-	 << ": incr_position: error allocating memory for thread\n";
-    exit(18);
-  }
 
   //
   // Make the <nthrds> threads
@@ -89,11 +68,12 @@ void incr_position(double dt, int mlevel)
   
   for (int i=0; i<nthrds; i++) {
 
-    td[i].dt = dt;
-    td[i].mlevel = mlevel;
-    td[i].id = i;
+    posvel_data[i].dt = dt;
+    posvel_data[i].mlevel = mlevel;
+    posvel_data[i].id = i;
 
-    errcode =  pthread_create(&t[i], 0, incr_position_thread, &td[i]);
+    errcode =  pthread_create(&posvel_thrd[i], 0, incr_position_thread, 
+			      &posvel_data[i]);
 
     if (errcode) {
       cerr << "Process " << myid
@@ -112,30 +92,33 @@ void incr_position(double dt, int mlevel)
   // Collapse the threads
   //
   for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(t[i], &retval))) {
+    if ((errcode=pthread_join(posvel_thrd[i], &retval))) {
       cerr << "Process " << myid
 	   << " incr_position: thread join " << i
 	   << " failed, errcode=" << errcode << endl;
       exit(20);
     }
 #ifdef DEBUG    
-    cout << "Process " << myid << ": incr_position thread <" << i << "> thread exited\n";
+    cout << "Process " << myid << ": incr_position thread <" 
+	 << i << "> thread exited\n";
 #endif
   }
   
-  delete [] td;
-  delete [] t;
 
+  //
+  // Only do this once per multistep
+  //
+  if (multistep==0 || (mstep==Mstep && mlevel==multistep)) {
 
-  list<Component*>::iterator cc;
-  Component *c;
+    list<Component*>::iterator cc;
+    Component *c;
   
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
 
-    if (c->com_system) {	// Only do this once per multistep
-      if (multistep==0 || (mstep==Mstep && mlevel==multistep))
+      if (c->com_system) {
 	for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dt;
+      }
     }
     
   }

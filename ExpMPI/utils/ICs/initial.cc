@@ -153,6 +153,7 @@ int Mstep = 1;
 vector<int> stepL(1, 0), stepN(1, 1);
 char threading_on = 0;
 pthread_mutex_t mem_lock;
+pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
   

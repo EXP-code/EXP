@@ -64,11 +64,13 @@
 #include <unistd.h>
 #include <math.h>
 #include <values.h>
+#include <pthread.h>
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <vector>
 #include <string>
 
 using namespace std;
