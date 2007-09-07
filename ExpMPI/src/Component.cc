@@ -90,6 +90,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
 				// Particle list per level
   levlist = vector< vector<int> > (multistep+1);
+				// Begin with empty lists
   for (int n=0; n<nbodies; n++)
     levlist[particles[n].level].push_back(n);
 }
@@ -155,6 +156,7 @@ Component::Component(istream *in)
 
 				// Particle list per level
   levlist = vector< vector<int> > (multistep+1);
+				// Begin with empty lists
   for (int n=0; n<nbodies; n++)
     levlist[particles[n].level].push_back(n);
 }

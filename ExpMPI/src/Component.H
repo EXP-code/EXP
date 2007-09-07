@@ -662,18 +662,20 @@ public:
     particles[i].potext += val;
   }
   
-  //! Insert a particle into the level list
+  //! Insert particle n into the level list at lev
   inline void LevInsert(int n, int lev) {
     vector<int>::iterator p = 
       lower_bound(levlist[lev].begin(), levlist[lev].end(), n);
     levlist[lev].insert(p, n);
   }
 
-  //! Remove a particle from the level list
+  //! Remove particle n from the level list at lev
   inline void LevRemove(int n, int lev) {
     vector<int>::iterator p = 
       find(levlist[lev].begin(), levlist[lev].end(), n);
     if (p!=levlist[lev].end()) levlist[lev].erase(p);
+    else cerr << "Process " << myid << ": particle not found, n=" << n
+	      << " for level=" << lev << endl;
   }
 
 };

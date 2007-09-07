@@ -735,7 +735,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   for (int lev=mlevel; lev<=multistep+1; lev++) {
 
-    nbodies = cC->Number();
+    nbodies = cC->levlist[lev].size();
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
