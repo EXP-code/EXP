@@ -25,7 +25,7 @@ void * incr_velocity_thread(void *ptr)
 
 
   list<Component*>::iterator cc;
-  int nbeg, nend;
+  int nbeg, nend, indx;
   Component *c;
   
   //
@@ -34,24 +34,25 @@ void * incr_velocity_thread(void *ptr)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
     
-    unsigned ntot = c->Number();
+    for (int lev=0; lev<=multistep; lev++) {
 
-    //
-    // Compute the beginning and end points in the particle vector 
-    // for each thread
-    //
-    nbeg = ntot*id    /nthrds;
-    nend = ntot*(id+1)/nthrds;
+      unsigned ntot = c->levlist[lev].size();
 
-    for (unsigned i=nbeg; i<nend; i++) {
-      // If we are multistepping, only 
-      // advance for this level
-      if (multistep && (c->Part(i)->level != mlevel)) continue;
+      //
+      // Compute the beginning and end points in the particle vector 
+      // for each thread
+      //
+      nbeg = ntot*id    /nthrds;
+      nend = ntot*(id+1)/nthrds;
+    
+      for (unsigned i=nbeg; i<nend; i++) {
 
-      for (int k=0; k<c->dim; k++) 
-	c->Part(i)->vel[k] += (c->Part(i)->acc[k] - c->acc0[k])*dt;
+	indx = c->levlist[lev][i];
+	for (int k=0; k<c->dim; k++) 
+	  c->Part(indx)->vel[k] += (c->Part(i)->acc[k] - c->acc0[k])*dt;
+      }
+      
     }
-
   }
 
 }

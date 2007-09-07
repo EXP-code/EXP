@@ -36,6 +36,7 @@ void begin_run(void)
   
   posvel_data = vector<thrd_pass_posvel>(nthrds);
   posvel_thrd = vector<pthread_t>       (nthrds);
+  pthread_mutex_init(&lev_lock, NULL);
 
   //===================================
   // Initialize phase-space components 

@@ -343,12 +343,12 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  int l, i, loffset, moffset, m, n, nn;
+  int l, i, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
   double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
   double xx, yy, zz;
 
-  unsigned nbodies = cC->Number();
+  unsigned nbodies = cC->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
@@ -371,19 +371,18 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   for (i=nbeg; i<nend; i++) {
 
-    if (component->freeze(*(cC->Part(i)))) continue;
+    indx = cC->levlist[mlevel][i];
 
-    // If we are multistepping, only accumulate for this level!
-    //
-    if (multistep && (cC->Part(i)->level != mlevel)) continue;
+    if (component->freeze(*(cC->Part(indx)))) continue;
+
     
-    mass = cC->Mass(i) * adb;
+    mass = cC->Mass(indx) * adb;
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
-
-    xx = cC->Pos(i, 0, Component::Local | Component::Centered);
-    yy = cC->Pos(i, 1, Component::Local | Component::Centered);
-    zz = cC->Pos(i, 2, Component::Local | Component::Centered);
+    
+    xx = cC->Pos(indx, 0, Component::Local | Component::Centered);
+    yy = cC->Pos(indx, 1, Component::Local | Component::Centered);
+    zz = cC->Pos(indx, 2, Component::Local | Component::Centered);
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -710,9 +709,10 @@ void SphericalBasis::compute_multistep_coefficients()
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 {
-  int l,loffset,moffset,m,ioff;
-  double r,rs,r0=0.0,fac,fac1,fac2,fac3,fac4,costh,phi,dp;
-  double potr,potl,pott,potp,p,pc,dpc,ps,dps,facp,facdp;
+  int l, loffset, moffset, m, ioff, indx, nbeg, nend;
+  unsigned nbodies;
+  double r, rs, r0=0.0, fac, fac1, fac2, fac3, fac4, costh, phi, dp;
+  double potr, potl, pott, potp, p, pc, dpc, ps, dps, facp, facdp;
   double dfac=0.25/M_PI;
 
   double pos[3];
@@ -724,10 +724,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   pthread_mutex_unlock(&io_lock);
 #endif
 
-  unsigned  nbodies = cC->Number();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -736,128 +733,133 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
 
-  for (int i=nbeg; i<nend; i++) {
+  for (int lev=mlevel; lev<=multistep+1; lev++) {
 
-    if (component->freeze(*(cC->Part(i)))) continue;
+    nbodies = cC->Number();
+    nbeg = nbodies*id/nthrds;
+    nend = nbodies*(id+1)/nthrds;
 
-    // If we are multistepping, compute accel only at or below this level
-    //
-    if (multistep && (cC->Part(i)->level < mlevel)) continue;
-    
+    for (int i=nbeg; i<nend; i++) {
 
-    if (use_external) {
-      cC->Pos(pos, i, Component::Inertial);
-      component->ConvertPos(pos, Component::Local | Component::Centered);
-    } else
-      cC->Pos(pos, i, Component::Local | Component::Centered);
+      indx = cC->levlist[lev][i];
 
-    fac1 = dfac;
+      if (component->freeze(*(cC->Part(indx)))) continue;
 
-    xx = pos[0];
-    yy = pos[1];
-    zz = pos[2];
+      if (use_external) {
+	cC->Pos(pos, indx, Component::Inertial);
+	component->ConvertPos(pos, Component::Local | Component::Centered);
+      } else
+	cC->Pos(pos, indx, Component::Local | Component::Centered);
 
-    r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
-    costh = zz/r;
-    rs = r/scale;
-    phi = atan2(yy, xx);
+      fac1 = dfac;
 
-    dlegendre_R (Lmax, costh, legs[id], dlegs[id]);
-    sinecosine_R(Lmax, phi,   cosm[id], sinm [id]);
+      xx = pos[0];
+      yy = pos[1];
+      zz = pos[2];
 
-    if (r>rmax) {
-      ioff = 1;
-      r0 = r;
-      r = rmax;
+      r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
+      costh = zz/r;
       rs = r/scale;
-    }
-    else
-      ioff = 0;
+      phi = atan2(yy, xx);
 
+      dlegendre_R (Lmax, costh, legs[id], dlegs[id]);
+      sinecosine_R(Lmax, phi,   cosm[id], sinm [id]);
 
-    potl = potr = pott = potp = 0.0;
-
-    if (!NO_L0) {
-      get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
-      get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
-      if (ioff) {
-	p *= rmax/r0;
-	dp = -p/r0;
+      if (r>rmax) {
+	ioff = 1;
+	r0 = r;
+	r = rmax;
+	rs = r/scale;
       }
-      potl = fac1*p;
-      potr = fac1*dp;
-    }
+      else
+	ioff = 0;
+
+
+      potl = potr = pott = potp = 0.0;
       
-    //		l loop
-    //		------
-    for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
+      if (!NO_L0) {
+	get_dpotl(Lmax, nmax, rs, potd[id], dpot[id], id);
+	get_pot_coefs_safe(0, expcoef[0], &p, &dp, potd[id], dpot[id]);
+	if (ioff) {
+	  p *= rmax/r0;
+	  dp = -p/r0;
+	}
+	potl = fac1*p;
+	potr = fac1*dp;
+      }
+      
+      //		l loop
+      //		------
+      for (l=1, loffset=1; l<=Lmax; loffset+=(2*l+1), l++) {
 
 				// Suppress L=1 terms?
-      if (NO_L1 && l==1) continue;
-
+	if (NO_L1 && l==1) continue;
+	
 				// Suppress odd L terms?
-      if (EVEN_L && (l/2)*2 != l) continue;
+	if (EVEN_L && (l/2)*2 != l) continue;
 
-      //		m loop
-      //		------
-      for (m=0, moffset=0; m<=l; m++) {
-	fac1 = (2.0*l+1.0)/(4.0*M_PI);
-	if (m==0) {
-	  fac2 = fac1*legs[id][l][m];
-	  get_pot_coefs_safe(l, expcoef[loffset+moffset], &p, &dp,
-			     potd[id], dpot[id]);
-	  if (ioff) {
-	    p *= pow(rmax/r0,(double)(l+1));
-	    dp = -p/r0 * (l+1);
+	//		m loop
+	//		------
+	for (m=0, moffset=0; m<=l; m++) {
+	  fac1 = (2.0*l+1.0)/(4.0*M_PI);
+	  if (m==0) {
+	    fac2 = fac1*legs[id][l][m];
+	    get_pot_coefs_safe(l, expcoef[loffset+moffset], &p, &dp,
+			       potd[id], dpot[id]);
+	    if (ioff) {
+	      p *= pow(rmax/r0,(double)(l+1));
+	      dp = -p/r0 * (l+1);
+	    }
+	    potl += fac2*p;
+	    potr += fac2*dp;
+	    pott += fac1*dlegs[id][l][m]*p;
+	    moffset++;
 	  }
-	  potl += fac2*p;
-	  potr += fac2*dp;
-	  pott += fac1*dlegs[id][l][m]*p;
-	  moffset++;
-	}
-	else {
-	  fac2 = 2.0 * fac1 * factorial[l][m];
-	  fac3 = fac2 * legs[id][l][m];
-	  fac4 = fac2 * dlegs[id][l][m];
-	  get_pot_coefs_safe(l, expcoef[loffset+moffset], &pc, &dpc,
-			     potd[id], dpot[id]);
-	  get_pot_coefs_safe(l, expcoef[loffset+moffset+1] ,&ps, &dps,
-			     potd[id], dpot[id]);
-	  if (ioff) {
-	    facp = pow(rmax/r0,(double)(l+1));
-	    facdp = -1.0/r0 * (l+1);
-	    pc *= facp;
-	    ps *= facp;
-	    dpc = pc*facdp;
-	    dps = ps*facdp;
+	  else {
+	    fac2 = 2.0 * fac1 * factorial[l][m];
+	    fac3 = fac2 * legs[id][l][m];
+	    fac4 = fac2 * dlegs[id][l][m];
+	    get_pot_coefs_safe(l, expcoef[loffset+moffset], &pc, &dpc,
+			       potd[id], dpot[id]);
+	    get_pot_coefs_safe(l, expcoef[loffset+moffset+1] ,&ps, &dps,
+			       potd[id], dpot[id]);
+	    if (ioff) {
+	      facp = pow(rmax/r0,(double)(l+1));
+	      facdp = -1.0/r0 * (l+1);
+	      pc *= facp;
+	      ps *= facp;
+	      dpc = pc*facdp;
+	      dps = ps*facdp;
+	    }
+	    potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
+	    potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
+	    pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
+	    potp += fac3*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
+	    moffset +=2;
 	  }
-	  potl += fac3*(pc*cosm[id][m] + ps*sinm[id][m]);
-	  potr += fac3*(dpc*cosm[id][m] + dps*sinm[id][m]);
-	  pott += fac4*(pc*cosm[id][m] + ps*sinm[id][m]);
-	  potp += fac3*(-pc*sinm[id][m] + ps*cosm[id][m])*m;
-	  moffset +=2;
 	}
       }
+
+      fac = xx*xx + yy*yy;
+
+      potr /= scale*scale;
+      potl /= scale;
+      pott /= scale;
+      potp /= scale;
+
+      cC->AddAcc(indx, 0, -(potr*xx/r - pott*xx*zz/(r*r*r)) );
+      cC->AddAcc(indx, 1, -(potr*yy/r - pott*yy*zz/(r*r*r)) );
+      cC->AddAcc(indx, 2, -(potr*zz/r + pott*fac/(r*r*r))   );
+      if (fac > DSMALL2) {
+	cC->AddAcc(indx, 0,  potp*yy/fac );
+	cC->AddAcc(indx, 1, -potp*xx/fac );
+      }
+      if (use_external)
+	cC->AddPotExt(indx, potl);
+      else
+	cC->AddPot(indx, potl);
+
     }
-
-    fac = xx*xx + yy*yy;
-
-    potr /= scale*scale;
-    potl /= scale;
-    pott /= scale;
-    potp /= scale;
-
-    cC->AddAcc(i, 0, -(potr*xx/r - pott*xx*zz/(r*r*r)) );
-    cC->AddAcc(i, 1, -(potr*yy/r - pott*yy*zz/(r*r*r)) );
-    cC->AddAcc(i, 2, -(potr*zz/r + pott*fac/(r*r*r))   );
-    if (fac > DSMALL2) {
-      cC->AddAcc(i, 0,  potp*yy/fac );
-      cC->AddAcc(i, 1, -potp*xx/fac );
-    }
-    if (use_external)
-      cC->AddPotExt(i, potl);
-    else
-      cC->AddPot(i, potl);
 
   }
 

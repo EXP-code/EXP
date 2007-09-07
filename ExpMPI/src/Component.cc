@@ -87,7 +87,14 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   seq_check = false;
 
   read_bodies_and_distribute_ascii();
+
+				// Particle list per level
+  levlist = vector< vector<int> > (multistep+1);
+  for (int n=0; n<nbodies; n++)
+    levlist[particles[n].level].push_back(n);
 }
+
+
 
 
 Component::Component(istream *in)
@@ -145,6 +152,11 @@ Component::Component(istream *in)
   ordered = true;
 
   read_bodies_and_distribute_binary(in);
+
+				// Particle list per level
+  levlist = vector< vector<int> > (multistep+1);
+  for (int n=0; n<nbodies; n++)
+    levlist[particles[n].level].push_back(n);
 }
 
 

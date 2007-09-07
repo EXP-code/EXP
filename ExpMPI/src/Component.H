@@ -353,6 +353,12 @@ public:
   //! Bodies on all nodes
   int nbodies_tot;
 
+  /** Particle list per level
+      This will be a sorted list for each level.  We use a vector rather
+      than (e.g.) a set for the random insertion
+  */
+  vector< vector<int> > levlist;
+
   //! Points to associated force instance
   PotAccel *force;
 
@@ -656,6 +662,20 @@ public:
     particles[i].potext += val;
   }
   
+  //! Insert a particle into the level list
+  inline void LevInsert(int n, int lev) {
+    vector<int>::iterator p = 
+      lower_bound(levlist[lev].begin(), levlist[lev].end(), n);
+    levlist[lev].insert(p, n);
+  }
+
+  //! Remove a particle from the level list
+  inline void LevRemove(int n, int lev) {
+    vector<int>::iterator p = 
+      find(levlist[lev].begin(), levlist[lev].end(), n);
+    if (p!=levlist[lev].end()) levlist[lev].erase(p);
+  }
+
 };
 
 #endif

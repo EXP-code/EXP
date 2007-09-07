@@ -255,27 +255,26 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   double xx, yy, zz, mas;
   double Rmax2 = rcylmax*rcylmax*acyl*acyl;
 
-  unsigned nbodies = cC->Number();
+  unsigned nbodies = cC->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
+  int indx;
 
   use[id] = 0;
   cylmass0[id] = 0.0;
 
   for (int i=nbeg; i<nend; i++) {
 
+    indx = cC->levlist[mlevel][i];
+
     // Frozen particles don't contribute to field
     //
-    if (cC->freeze(*(cC->Part(i)))) continue;
-    
-    // If we are multistepping, only accumulate for the desired level!
-    //
-    if (eof==0 && multistep && (cC->Part(i)->level != mlevel)) continue;
+    if (cC->freeze(*(cC->Part(indx)))) continue;
     
     for (int j=0; j<3; j++) 
-      pos[id][j+1] = cC->Pos(i, j, Component::Local | Component::Centered);
+      pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
 
     if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
       pos[id] = cC->orient->transformBody() * pos[id];
@@ -290,7 +289,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     
     if ( R2 < Rmax2) {
 
-      mas = cC->Mass(i) * adb;
+      mas = cC->Mass(indx) * adb;
       phi = atan2(yy, xx);
 
       if (eof)
@@ -416,15 +415,13 @@ void check_force_values(double phi, double p, double fr, double fz, double fp)
 
 void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 {
-  int i;
+  int i, indx, nbeg, nend;
+  unsigned nbodies;
   double r, r2, r3, phi;
   double xx, yy, zz;
   double p, p0, fr, fz, fp;
 
-  unsigned nbodies = cC->Number();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
 
 #ifdef DEBUG
   static bool firstime = true;
@@ -433,85 +430,95 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   if (firstime && myid==0 && id==0) out.open("debug.tst");
 #endif
 
-  for (i=nbeg; i<nend; i++) {
+  for (int lev=mlevel; lev<=multistep+1; lev++) {
 
-    // If we are multistepping, compute accel only at or below this level
-    //
-    if (multistep && (cC->Part(i)->level < mlevel)) continue;
-
-    if (use_external) {
-      cC->Pos(&pos[id][1], i, Component::Inertial);
-      component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
-    } else
-      cC->Pos(&pos[id][1], i, Component::Local | Component::Centered);
-
-    if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
-      pos[id] = cC->orient->transformBody() * pos[id];
-
-    xx = pos[id][1];
-    yy = pos[id][2];
-    zz = pos[id][3];
-
-    r2 = xx*xx + yy*yy;
-    r = sqrt(r2) + DSMALL;
-    phi = atan2(yy, xx);
-
-    if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
-
-      ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
+    nbodies = cC->levlist[lev].size();
+    nbeg = nbodies*id/nthrds;
+    nend = nbodies*(id+1)/nthrds;
     
-#ifdef DEBUG
-      check_force_values(phi, p, fr, fz, fp);
-#endif
+    for (i=nbeg; i<nend; i++) {
 
-      if (use_external)
-	cC->AddPotExt(i, p);
-      else
-	cC->AddPot(i, p);
+      indx = cC->levlist[lev][i];
 
-      frc[id][1] = fr*xx/r - fp*yy/r2;
-      frc[id][2] = fr*yy/r + fp*xx/r2;
-      frc[id][3] = fz;
+      // If we are multistepping, compute accel only at or below this level
+      //
+
+      if (use_external) {
+	cC->Pos(&pos[id][1], indx, Component::Inertial);
+	component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
+      } else
+	cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
 
       if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
-	frc[id] = cC->orient->transformOrig() * frc[id];
+	pos[id] = cC->orient->transformBody() * pos[id];
 
-      for (int j=0; j<3; j++) cC->AddAcc(i, j, frc[id][j+1]);
-#ifdef DEBUG
-      flg = 1;
-#endif
-    }
-    else {
+      xx = pos[id][1];
+      yy = pos[id][2];
+      zz = pos[id][3];
+      
+      r2 = xx*xx + yy*yy;
+      r = sqrt(r2) + DSMALL;
+      phi = atan2(yy, xx);
 
-      r3 = r2 + zz*zz;
-      p = -cylmass/sqrt(r3);	// -M/r
-      fr = p/r3;		// -M/r^3
+      if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
 
-      if (use_external)
-	cC->AddPotExt(i, p);
-      else
-	cC->AddPot(i, p);
-
-      cC->AddAcc(i, 0, xx*fr);
-      cC->AddAcc(i, 1, yy*fr);
-      cC->AddAcc(i, 2, zz*fr);
-#ifdef DEBUG
-      offgrid[id]++;
-      flg = 2;
-#endif
-    }
+	ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
     
 #ifdef DEBUG
-    if (firstime && myid==0 && id==0 && i < 5) {
-      out << setw(9)  << i          << setw(9) << flg << endl
-	  << setw(18) << xx         << endl
-	  << setw(18) << yy         << endl
-	  << setw(18) << zz         << endl
-	  << setw(18) << frc[0][1]  << endl
-	  << setw(18) << frc[0][2]  << endl
-	  << setw(18) << frc[0][3]  << endl;
-    }
+	check_force_values(phi, p, fr, fz, fp);
 #endif
+
+	if (use_external)
+	  cC->AddPotExt(i, p);
+	else
+	  cC->AddPot(i, p);
+
+	frc[id][1] = fr*xx/r - fp*yy/r2;
+	frc[id][2] = fr*yy/r + fp*xx/r2;
+	frc[id][3] = fz;
+	
+	if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
+	  frc[id] = cC->orient->transformOrig() * frc[id];
+
+	for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j+1]);
+#ifdef DEBUG
+	flg = 1;
+#endif
+      }
+      else {
+
+	r3 = r2 + zz*zz;
+	p = -cylmass/sqrt(r3);	// -M/r
+	fr = p/r3;		// -M/r^3
+
+	if (use_external)
+	  cC->AddPotExt(indx, p);
+	else
+	  cC->AddPot(indx, p);
+
+	cC->AddAcc(indx, 0, xx*fr);
+	cC->AddAcc(indx, 1, yy*fr);
+	cC->AddAcc(indx, 2, zz*fr);
+#ifdef DEBUG
+	offgrid[id]++;
+	flg = 2;
+#endif
+      }
+    
+#ifdef DEBUG
+      if (firstime && myid==0 && id==0 && i < 5) {
+	out << setw(9)  << i          << endl
+	    << setw(9)  << indx       << endl
+	    << setw(9)  << flg        << endl
+	    << setw(18) << xx         << endl
+	    << setw(18) << yy         << endl
+	    << setw(18) << zz         << endl
+	    << setw(18) << frc[0][1]  << endl
+	    << setw(18) << frc[0][2]  << endl
+	    << setw(18) << frc[0][3]  << endl;
+      }
+#endif
+    }
   }
 
 #ifdef DEBUG

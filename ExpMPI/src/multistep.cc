@@ -113,6 +113,15 @@ void * adjust_multistep_level_thread(void *ptr)
 	  dlev[id][lev]++;
 
 	  //
+	  // Adjust component level list
+	  //
+	  
+	  pthread_mutex_lock(&lev_lock);
+	  c->LevRemove(n, c->Part(n)->level);
+	  c->LevInsert(n, lev);
+	  pthread_mutex_unlock(&lev_lock);
+
+	  //
 	  // Update coefficients
 	  //
 	  c->force->multistep_update(c->Part(n)->level, lev, c, n, id);

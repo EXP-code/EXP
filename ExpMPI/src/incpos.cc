@@ -24,7 +24,7 @@ void * incr_position_thread(void *ptr)
 
   
   list<Component*>::iterator cc;
-  int nbeg, nend;
+  int nbeg, nend, indx;
   Component *c;
   
   //
@@ -33,24 +33,25 @@ void * incr_position_thread(void *ptr)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
-    unsigned ntot = c->Number();
+    for (int lev=0; lev<=multistep; lev++) {
+      
+      unsigned ntot = c->levlist[lev].size();
 
-    //
-    // Compute the beginning and end points in particle list
-    // for each thread
-    //
-    nbeg = ntot*id    /nthrds;
-    nend = ntot*(id+1)/nthrds;
+      //
+      // Compute the beginning and end points in particle list
+      // for each thread
+      //
+      nbeg = ntot*id    /nthrds;
+      nend = ntot*(id+1)/nthrds;
 
-    for (unsigned i=nbeg; i<nend; i++) {
-				// If we are multistepping, only 
-				// advance for this level
-      if (multistep && mlevel>=0 && (c->Part(i)->level != mlevel)) continue;
+      for (unsigned i=nbeg; i<nend; i++) {
 
-      for (int k=0; k<c->dim; k++) 
-	c->Part(i)->pos[k] += (c->Part(i)->vel[k] - c->covI[k])*dt;
-    }
+	indx = c->levlist[lev][i];
+	for (int k=0; k<c->dim; k++) 
+	  c->Part(indx)->pos[k] += (c->Part(indx)->vel[k] - c->covI[k])*dt;
+      }
     
+    }
   }
 
 }
