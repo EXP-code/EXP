@@ -297,11 +297,11 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 #endif
     } else {
 #ifdef DEBUG
-      cout << "Process " << myid << ": about to call <compute_multistep_coefficients>\n";
+      cout << "Process " << myid << ": about to call <compute_multistep_coefficients>, mlevel=" << mlevel << endl;
 #endif
       compute_multistep_coefficients();
 #ifdef DEBUG
-      cout << "Process " << myid << ": exited <compute_multistep_coefficients>\n";
+      cout << "Process " << myid << ": exited <compute_multistep_coefficients>, mlevel=" << mlevel << endl;
 #endif
     }
     firstime_accel = false;
@@ -362,7 +362,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
        << ", rmax=" << rmax << endl;
   pthread_mutex_unlock(&io_lock);
 #endif
-				
+
 				// Compute potential using a 
 				// subset of particles
   if (subset) nend = (int)floor(ssfrac*nend);
@@ -388,6 +388,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     r = sqrt(r2) + DSMALL;
       
     if (r<rmax) {
+
       use[id]++;
       costh = zz/r;
       phi = atan2(yy,xx);
@@ -466,7 +467,7 @@ void SphericalBasis::determine_coefficients(void)
   if (selector) compute = !(this_step%npca) || firstime_coef;
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, about to clean";
+  cout << "Process " << myid << ": in <determine_coefficients>" << endl;
 #endif
 
   //
@@ -475,40 +476,41 @@ void SphericalBasis::determine_coefficients(void)
   expcoefN[mlevel]->zero();
 
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
-
-  if (selector && compute) {
+    
+  if (selector && compute && mlevel==0) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
   }
 
   use0 = 0;
   use1 = 0;
   if (multistep==0) used = 0;
-
+    
 #ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, about to thread\n";
+  cout << "Process " << myid << ": in <determine_coefficients>, about to thread, lev=" << mlevel << endl;
 #endif
 
   exp_thread_fork(true);
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, thread returned\n";
+  cout << "Process " << myid << ": in <determine_coefficients>, thread returned, lev=" << mlevel << endl;
 #endif
   //
   // Sum up the results from each thread
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
-    
+  
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   if (multistep && (stepN[mlevel]==Mstep)) used += use0;
-
+  
   if (!selector) {
-
+    
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-
+      
       for (int m=0, moffset=0; m<=l; m++) {
-	if (m==0) {
 
+	if (m==0) {
+	  
 	  if (multistep)
 	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
 			    &((*expcoefN[mlevel])[loffset+moffset][1]),
@@ -543,18 +545,8 @@ void SphericalBasis::determine_coefficients(void)
 	}
       }
     }
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, "
-       << "about to call compute_multistep_coefficients\n";
-#endif
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, "
-       << "returned from compute_multistep_coefficients\n";
-#endif
   }
-
+  
   if (selector) {
     
     parallel_gather_coefficients();
@@ -616,7 +608,7 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
   double xx = c->Pos(i, 0, Component::Local | Component::Centered);
   double yy = c->Pos(i, 1, Component::Local | Component::Centered);
   double zz = c->Pos(i, 2, Component::Local | Component::Centered);
-
+  
   double r2 = (xx*xx + yy*yy + zz*zz);
   double  r = sqrt(r2) + DSMALL;
       
@@ -705,6 +697,27 @@ void SphericalBasis::compute_multistep_coefficients()
 	expcoef[l][n] += (*expcoefN[M])[l][n];
     }
   }
+
+#ifdef DEBUG
+  if (myid==0) {
+    ofstream out("multistep_update.debug", ios::app);
+    out << setw(70) << setfill('-') << '-' << endl;
+    ostringstream sout;
+    sout << "--- mlevel=" << mlevel << " T=" << tnow << " ";
+    out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
+    out << setw(70) << setfill('-') << '-' << endl;
+    ostringstream sout2;
+    sout2 << left << setw(5) << "# l" << setw(5) << "| n"
+	  << setw(18) << "| coef" << endl << setfill(' ') << right;
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      for (int n=1; n<=nmax; n++) 
+	out << setw(5) << l << setw(5) << n 
+	    << setw(18) << expcoef[l][n] << endl;
+    }
+    out << endl;
+  }
+#endif
+
 }
 
 void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
@@ -733,7 +746,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
 
-  for (int lev=mlevel; lev<=multistep+1; lev++) {
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();
     nbeg = nbodies*id/nthrds;
@@ -1215,4 +1228,27 @@ void SphericalBasis::multistep_swap(unsigned M)
   Matrix *p = expcoefL[M];
   expcoefL[M] = expcoefN[M];
   expcoefN[M] = p;
+#ifdef DEBUG
+  if (myid==0) {
+    cout << "Process " << myid << ": in multistep_swap" << endl;
+    ofstream out("multistep_swap.debug", ios::app);
+    out << setw(70) << setfill('-') << '-' << endl;
+    ostringstream sout;
+    sout << "--- level=" << M << " T=" << tnow << " ";
+    out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
+    out << setw(70) << setfill('-') << '-' << endl;
+    ostringstream sout2;
+    sout2 << left << setw(5) << "# n_r" << setw(5) << "| n_l"
+	  << setw(18) << "| last coef" << setw(18) << "| cur coef"
+	  << setw(18) << "| rel diff" << endl << setfill(' ') << right;
+    for (int ir=1; ir<=nmax; ir++) {
+      for (int l=0; l<=Lmax*(Lmax+2); l++)
+	out << setw(5) << ir << setw(5) << l
+	    << setw(18) << (*expcoefL[M])[l][ir]
+	    << setw(18) << (*expcoefN[M])[l][ir]
+	    << setw(18) << fabs((*expcoefN[M])[l][ir] - (*expcoefL[M])[l][ir])/(fabs((*expcoefL[M])[l][ir])+1.0e-18) << endl;
+    }
+    out << setw(70) << setfill('-') << '-' << endl;
+  }
+#endif
 }

@@ -24,14 +24,19 @@ void sync_eval_multistep(void)
 
 
 /// Helper class to pass info to threaded multistep update routine
-struct thrd_pass_sync {
-  //! All levels flag
-  bool all;
+struct thrd_pass_sync 
+{
+  //! Level
+  int level;
+
   //! Thread counter id
   int id;
+
+  //! Component
+  Component *c;
 };
 
-// Count offgrid particles in the threads
+/// Count offgrid particles in the threads
 vector< vector<unsigned> > off1;
 vector< vector<int> > dlev;
 
@@ -40,102 +45,84 @@ vector< vector<int> > dlev;
 //
 void * adjust_multistep_level_thread(void *ptr)
 {
-  // Compute all levels?
-  bool all = static_cast<thrd_pass_sync*>(ptr)->all;
+  // Level
+  int level = static_cast<thrd_pass_sync*>(ptr)->level;
 
   // Thread ID
   int   id = static_cast<thrd_pass_sync*>(ptr)->id;
 
+  // Component
+  Component *c = static_cast<thrd_pass_sync*>(ptr)->c;
+
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  list<Component*>::iterator cc;
-  Component *c;
   double dt;
-  int npart, lev, offgrid;
-
-  if (all) mstep = Mstep;
+  int npart = c->levlist[level].size();
+  int offgrid = 0, lev;
 
   //
-  // Run through particles in each component
+  // Compute the beginning and end points for threads
   //
+  int nbeg = npart*id    /nthrds;
+  int nend = npart*(id+1)/nthrds;
 
-  int nbeg, nend;
+  //
+  // The particle loop
+  //
+  for (int i=nbeg; i<nend; i++) {
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    double rtot = 0.0;
+    double vtot = 0.0;
+    double atot = 0.0;
+      
+    int n = c->levlist[level][i];
     
-    c = *cc;
+    for (int k=0; k<c->dim; k++) {
+      rtot += c->Part(n)->pos[k]*c->Part(n)->pos[k];
+      vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
+      atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+    }
+    rtot = sqrt(rtot);
+    vtot = sqrt(vtot) + 1.0e-18;
+    atot = sqrt(atot) + 1.0e-18;
 
-    npart = c->Number();
-    offgrid = 0;
-
-    //
-    // Compute the beginning and end points for threads
-    //
-    nbeg = npart*id    /nthrds;
-    nend = npart*(id+1)/nthrds;
-
-    //
-    // The particle loop
-    //
-    for (int n=nbeg; n<nend; n++) {
-
-      if (all || mactive[mstep-1][c->Part(n)->level]) {
-
-	double rtot = 0.0;
-	double vtot = 0.0;
-	double atot = 0.0;
-
-	for (int i=0; i<c->dim; i++) {
-	  rtot += c->Part(n)->pos[i]*c->Part(n)->pos[i];
-	  vtot += c->Part(n)->vel[i]*c->Part(n)->vel[i];
-	  atot += c->Part(n)->acc[i]*c->Part(n)->acc[i];
-	}
-	rtot = sqrt(rtot);
-	vtot = sqrt(vtot) + 1.0e-18;
-	atot = sqrt(atot) + 1.0e-18;
-
-	dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
+    dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
 	
-	if (dt>dtime) lev = 0;
-	else lev = (int)floor(log(dtime/dt)/log(2.0));
-
-	if (lev>multistep) {
-	  lev = multistep;
-	  offgrid++;
-	}
-
-	if ( lev != c->Part(n)->level && (all || mactive[mstep-1][lev]) ) {
-	  //
-	  // Adjust level counts
-	  //
-	  dlev[id][c->Part(n)->level]--;
-	  dlev[id][lev]++;
-
-	  //
-	  // Adjust component level list
-	  //
-	  
-	  pthread_mutex_lock(&lev_lock);
-	  c->LevRemove(n, c->Part(n)->level);
-	  c->LevInsert(n, lev);
-	  pthread_mutex_unlock(&lev_lock);
-
-	  //
-	  // Update coefficients
-	  //
-	  c->force->multistep_update(c->Part(n)->level, lev, c, n, id);
-	  c->Part(n)->level = lev;
-	}
-      }
+    if (dt>dtime) lev = 0;
+    else lev = (int)floor(log(dtime/dt)/log(2.0));
+    
+    if (lev>multistep) {
+      lev = multistep;
+      offgrid++;
+    }
+    
+    // Sanity check
+    if (level != c->Part(n)->level) {
+      cerr << "Process " << myid << " id=" << id 
+	   << ": n=" << n << " level=" << level << " plevel="
+	   << c->Part(n)->level << endl;
     }
 
-    if (VERBOSE>0 && (this_step % 100 == 0)) {
-      off1[id].push_back(offgrid);
-    }
+    if (lev != level) {
+      //
+      // Adjust level counts
+      //
+      dlev[id][level]--;
+      dlev[id][lev  ]++;
 
+      //
+      // Update coefficients
+      //
+      c->force->multistep_update(c->Part(n)->level, lev, c, n, id);
+      c->Part(n)->level = lev;
+    }
   }
 
+  if (VERBOSE>0 && (this_step % 100 == 0)) {
+    off1[id].push_back(offgrid);
+  }
+  
   return (NULL);
 }
 
@@ -156,6 +143,7 @@ void adjust_multistep_level(bool all)
   //
   off1 = vector< vector<unsigned> > (nthrds);
   dlev = vector< vector<int> > (nthrds);
+  for (int i=0; i<nthrds; i++) dlev[i] = vector<int>(multistep+1, 0);
 
   thrd_pass_sync* td = new thrd_pass_sync [nthrds];
 
@@ -172,59 +160,74 @@ void adjust_multistep_level(bool all)
 	 << ": adjust_multistep_level: error allocating memory for thread\n";
     exit(18);
   }
-
-  //
-  // Make the <nthrds> threads
-  //
-  int errcode;
-  void *retval;
   
-  for (int i=0; i<nthrds; i++) {
-
-    td[i].all = all;
-    td[i].id = i;
-    dlev[i] = vector<int>(multistep, 0);
-
-    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
-
-    if (errcode) {
-      cerr << "Process " << myid
-	   << " adjust_multistep_level: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
-    }
-#ifdef DEBUG
-    else {
-      cout << "Process " << myid << ": thread <" << i << "> created\n";
-    }
-#endif
-  }
+  for (list<Component*>::iterator cc=comp.components.begin();
+       cc != comp.components.end(); cc++) {
     
-  //
-  // Collapse the threads
-  //
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(t[i], &retval))) {
-      cerr << "Process " << myid
-	   << " adjust_multistep_level: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
-    }
-    for (int m=0; m<=multistep; m++) levpop[m] += dlev[i][m];
-#ifdef DEBUG    
-    cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
-#endif
-  }
+    for (int level=0; level<=multistep; level++) {
+
+      if (all || mactive[mstep-1][level]) {
+	//
+	// Make the <nthrds> threads
+	//
+	int errcode;
+	void *retval;
   
+	for (int i=0; i<nthrds; i++) {
+      
+	  td[i].level = level;
+	  td[i].id = i;
+	  td[i].c = *cc;
+
+	  errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
+
+	  if (errcode) {
+	    cerr << "Process " << myid
+		 << " adjust_multistep_level: cannot make thread " << i
+		 << ", errcode=" << errcode << endl;
+	    exit(19);
+	  }
+#ifdef DEBUG
+	  else {
+	    cout << "Process " << myid << ": thread <" << i << "> created\n";
+	  }
+#endif
+	}
+    
+	//
+	// Collapse the threads
+	//
+	for (int i=0; i<nthrds; i++) {
+	  if ((errcode=pthread_join(t[i], &retval))) {
+	    cerr << "Process " << myid
+		 << " adjust_multistep_level: thread join " << i
+		 << " failed, errcode=" << errcode << endl;
+	    exit(20);
+	  }
+#ifdef DEBUG    
+	  cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
+#endif
+	}
+  
+      }
+    }
+  }
+
   delete [] td;
   delete [] t;
+
+  for (int m=0; m<=multistep; m++)
+    for (int i=0; i<nthrds; i++)
+      levpop[m] += dlev[i][m];
 
   //
   // Finish the update
   //
   for (list<Component*>::iterator cc=comp.components.begin(); 
-       cc != comp.components.end(); cc++)
+       cc != comp.components.end(); cc++) {
+    (*cc)->reset_level_lists();
     (*cc)->force->multistep_update_finish();
+  }
 
 
   //

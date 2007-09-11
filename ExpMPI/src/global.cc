@@ -68,7 +68,6 @@ struct thrd_pass_posvel
 
 vector<thrd_pass_posvel> posvel_data;
 vector<pthread_t> posvel_thrd;
-pthread_mutex_t lev_lock;
 
 				// MPI variables
 int is_init=1;

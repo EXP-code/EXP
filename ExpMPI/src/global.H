@@ -151,9 +151,6 @@ extern vector<thrd_pass_posvel> posvel_data;
 //! Threads for incr_position and incr_velocity
 extern vector<pthread_t> posvel_thrd;
 
-//! Mutex for adjusting level list in each component
-extern pthread_mutex_t lev_lock;
-
 /**
    Phase space dump on next step
 

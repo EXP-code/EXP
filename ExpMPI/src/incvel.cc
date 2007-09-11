@@ -26,6 +26,7 @@ void * incr_velocity_thread(void *ptr)
 
   list<Component*>::iterator cc;
   int nbeg, nend, indx;
+  unsigned ntot;
   Component *c;
   
   //
@@ -34,25 +35,29 @@ void * incr_velocity_thread(void *ptr)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
     
-    for (int lev=0; lev<=multistep; lev++) {
+    if (mlevel>=0)		// Use a particular level
+      ntot = c->levlist[mlevel].size();
+    else			// Use ALL levels
+      ntot = c->Number();
 
-      unsigned ntot = c->levlist[lev].size();
-
-      //
-      // Compute the beginning and end points in the particle vector 
-      // for each thread
-      //
-      nbeg = ntot*id    /nthrds;
-      nend = ntot*(id+1)/nthrds;
+    //
+    // Compute the beginning and end points in the particle vector 
+    // for each thread
+    //
+    nbeg = ntot*(id  )/nthrds;
+    nend = ntot*(id+1)/nthrds;
     
-      for (unsigned i=nbeg; i<nend; i++) {
+    for (unsigned i=nbeg; i<nend; i++) {
 
-	indx = c->levlist[lev][i];
-	for (int k=0; k<c->dim; k++) 
-	  c->Part(indx)->vel[k] += (c->Part(i)->acc[k] - c->acc0[k])*dt;
-      }
-      
+      if (mlevel>=0)
+	indx = c->levlist[mlevel][i];
+      else
+	indx = i;
+
+      for (int k=0; k<c->dim; k++) 
+	c->Part(indx)->vel[k] += (c->Part(indx)->acc[k] - c->acc0[k])*dt;
     }
+      
   }
 
 }

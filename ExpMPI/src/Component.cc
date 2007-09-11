@@ -88,14 +88,135 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   read_bodies_and_distribute_ascii();
 
-				// Particle list per level
-  levlist = vector< vector<int> > (multistep+1);
-				// Begin with empty lists
-  for (int n=0; n<nbodies; n++)
-    levlist[particles[n].level].push_back(n);
+  reset_level_lists();
 }
 
+struct thrd_pass_reset
+{
+  int id;
+  Component *c;
+  vector< vector<int> > newlist;
+};
 
+static thrd_pass_reset* td = 0;
+static pthread_t* t  = 0;
+
+void * reset_level_lists_thrd(void *ptr)
+{
+  // Thread ID
+  int id = static_cast<thrd_pass_reset*>(ptr)->id;
+
+  // Component
+  Component *c = static_cast<thrd_pass_reset*>(ptr)->c;
+
+
+  int nbodies = c->Number();
+  int nbeg = nbodies*(id  )/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+
+  for (int n=nbeg; n<nend; n++)
+    (static_cast<thrd_pass_reset*>(ptr)->newlist)[c->Part(n)->level].push_back(n);
+  
+  return (NULL);
+}
+
+void Component::reset_level_lists()
+{
+  if (td==0) {
+    td = new thrd_pass_reset [nthrds];
+
+    if (!td) {
+      cerr << "Process " << myid
+	   << ": reset_level_lists: error allocating memory for thread data\n";
+      exit(18);
+    }
+  
+    t  = new pthread_t [nthrds];
+
+    if (!t) {
+      cerr << "Process " << myid
+	   << ": reset_level_lists: error allocating memory for thread\n";
+      exit(18);
+    }
+  }
+  
+  //
+  // Make the <nthrds> threads
+  //
+  int errcode;
+  void *retval;
+  
+  for (int i=0; i<nthrds; i++) {
+    
+    td[i].id = i;
+    td[i].c  = this;
+    td[i].newlist  = vector< vector<int> >(multistep+1);
+
+    errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
+
+    if (errcode) {
+      cerr << "Process " << myid
+	   << " reset_level_lists: cannot make thread " << i
+	   << ", errcode=" << errcode << endl;
+      exit(19);
+    }
+#ifdef DEBUG
+    else {
+      cout << "Process " << myid << ": thread <" << i << "> created\n";
+    }
+#endif
+  }
+    
+  //
+  // Collapse the threads
+  //
+  for (int i=0; i<nthrds; i++) {
+    if ((errcode=pthread_join(t[i], &retval))) {
+      cerr << "Process " << myid
+	   << " reset_level_lists: thread join " << i
+	   << " failed, errcode=" << errcode << endl;
+      exit(20);
+    }
+#ifdef DEBUG    
+    cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
+#endif
+  }
+				// Particle list per level.
+				// Begin with empty lists . . .
+  levlist = vector< vector<int> > (multistep+1);
+  for (int i=0; i<nthrds; i++) {
+    for (int n=0; n<=multistep; n++) {
+      levlist[n].insert(levlist[n].end(),
+		td[i].newlist[n].begin(), 
+		td[i].newlist[n].end());
+    }
+  }
+
+				// Sanity check
+  if (VERBOSE>10 && (this_step % 10 == 0)) {
+    vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
+    for (int n=0; n<=multistep; n++) lev1[n] = levlist[n].size();
+    MPI_Reduce(&lev1[0], &lev0[0], multistep+1, MPI_UNSIGNED,
+	       MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) {
+      unsigned tot=0;
+      double sum=0.0;
+      for (int n=0; n<=multistep; n++) tot += lev0[n];
+      cout << setw(70) << setfill('-') << '-' << endl;
+      ostringstream sout;
+      sout << "--- Component <" << id << ">, T=" << tnow;
+      cout << setw(70) << left << sout.str().c_str() << endl;
+      cout << setw(70) << '-' << endl << setfill(' ');
+      for (int n=0; n<=multistep; n++) {
+	sum += lev0[n];
+	cout << setw(3) << n << setw(10) << lev0[n] 
+	     << setw(10) << sum/tot << endl;
+      }
+      cout << endl << setw(3) << "T" << setw(10) << tot << endl << right;
+      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+    }
+  }
+}
 
 
 Component::Component(istream *in)
@@ -154,11 +275,7 @@ Component::Component(istream *in)
 
   read_bodies_and_distribute_binary(in);
 
-				// Particle list per level
-  levlist = vector< vector<int> > (multistep+1);
-				// Begin with empty lists
-  for (int n=0; n<nbodies; n++)
-    levlist[particles[n].level].push_back(n);
+  reset_level_lists();
 }
 
 

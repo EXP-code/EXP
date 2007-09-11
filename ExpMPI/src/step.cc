@@ -7,7 +7,7 @@
 #include <Timer.h>
 Timer timer_coef(true), timer_drift(true), timer_vel(true);
 static Timer timer_pot(true), timer_adj(true);
-static unsigned tskip = 10;
+static unsigned tskip = 1;
 static bool timing = false;
 
 #ifdef RCSID
@@ -208,6 +208,23 @@ void do_step(int n)
 	if (myid==n) {
 	  cout << setw(4) << myid << ": ";
 	  for (int m=0; m<=multistep; m++) cout << setw(8) << levpop[m];
+	  cout << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+      if (myid==0) {
+	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      vector<int> tlev(multistep+1, 0);
+      for (list<Component*>::iterator cc=comp.components.begin(); 
+	   cc != comp.components.end(); cc++) {
+	for (int n=0; n<(*cc)->Number(); n++) tlev[(*cc)->Part(n)->level]++;
+      }
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  cout << setw(4) << myid << ": ";
+	  for (int m=0; m<=multistep; m++) cout << setw(8) << tlev[m];
 	  cout << endl;
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
