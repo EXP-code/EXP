@@ -1647,56 +1647,137 @@ void Component::restart_com_system()
 
 }
 
-void Component::fix_positions(void)
+
+struct thrd_pass_posn
 {
-  double mtot1;
-  double *com1 = new double [3];
-  double *cov1 = new double [3];
-
-  
-  vector<Particle>::iterator p, pend;
-
-				// Zero stuff out
-  mtot = mtot1 = 0.0;
-  for (int k=0; k<dim; k++)
-    com[k] = cov[k] = com1[k] = cov1[k] = 0.0;
-
-  for (int i=0; i<3; i++) center[i] = 0.0;
+  int id;
+  Component *c;
+  bool consp;
+  bool tidal;
+  bool com_system;
+  vector<double> com, cov;
+  double mtot;
+};
 
 
+
+void * fix_positions_thread(void *ptr)
+{
+  int id = static_cast<thrd_pass_posn*>(ptr)->id;
+  Component *c = static_cast<thrd_pass_posn*>(ptr)->c;
+
+  bool consp = static_cast<thrd_pass_posn*>(ptr)->consp;
+  bool tidal = static_cast<thrd_pass_posn*>(ptr)->tidal;
+  bool com_system = static_cast<thrd_pass_posn*>(ptr)->com_system;
+
+  vector<double> *com = &(static_cast<thrd_pass_posn*>(ptr)->com);
+  vector<double> *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov);
+  double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot);
+
+  int nbodies = c->Number();
+  int nbeg = nbodies*(id  )/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
 				// Particle loop
-  pend = particles.end();
-  for (p=particles.begin(); p != pend; p++) {
+  for (int n=nbeg; n<nend; n++) {
     
-    if (escape_com(*p)) {
-      if (consp) {		// Set flag indicating escaped particle
-	if (p->iattrib[tidal]==0) {
-	  p->iattrib[tidal] = 1;
+    if (consp) {
+      if (c->escape_com(*c->Part(n))) {
+				// Set flag indicating escaped particle
+	if (c->Part(n)->iattrib[tidal]==0) {
+
+	  c->Part(n)->iattrib[tidal] = 1;
+
 	  if (com_system) {	// Conserve momentum of center of mass
-	    for (int i=0; i<3; i++) {
-	      covI[i] = (mtot0*covI[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
-	      cov0[i] = (mtot0*cov0[i] - p->mass*p->vel[i])/(mtot0 - p->mass);
-	    }
-	    mtot0 -= p->mass;
+	    *mtot += c->Part(n)->mass;
+	    for (int i=0; i<3; i++) 
+	      (*cov)[i] += c->Part(n)->mass*c->Part(n)->vel[i]; 
 	  }
 	}
       }
       
     } else {
     
-      mtot1 += p->mass;
+      *mtot += c->Part(n)->mass;
 
-      for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
-      for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+      for (int k=0; k<c->dim; k++) {
+	(*com)[k] += c->Part(n)->mass*c->Part(n)->pos[k];
+	(*cov)[k] += c->Part(n)->mass*c->Part(n)->vel[k];
+      }
+      
     }
-    
   }
-  
-  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(com1, com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(cov1, cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    
 
+}
+  
+
+void Component::fix_positions(void)
+{
+				// Zero center
+  for (int i=0; i<3; i++) center[i] = 0.0;
+  				// Zero variables
+  mtot = 0.0;
+  for (int k=0; k<dim; k++)
+    com[k] = cov[k] = 0.0;
+
+  vector<thrd_pass_posn> data(nthrds);
+  vector<pthread_t>      thrd(nthrds);
+  vector<double>         com1(3, 0.0), cov1(3, 0.0);
+  double                 mtot1 = 0.0;
+
+  int errcode;
+  void *retval;
+  
+  for (int i=0; i<nthrds; i++) {
+
+    data[i].id = i;
+    data[i].c  = this;
+    data[i].consp = consp;
+    data[i].tidal = tidal;
+    data[i].com_system = com_system;
+
+    data[i].com = vector<double>(3, 0.0);
+    data[i].cov = vector<double>(3, 0.0);
+    data[i].mtot = 0.0;
+
+    errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
+
+    if (errcode) {
+      cerr << "Process " << myid
+	   << " Component::fix_positions: cannot make thread " << i
+	   << ", errcode=" << errcode << endl;
+      exit(19);
+    }
+  }
+    
+  //
+  // Collapse the threads
+  //
+  for (int i=0; i<nthrds; i++) {
+    if ((errcode=pthread_join(thrd[i], &retval))) {
+      cerr << "Process " << myid
+	   << " Component::fix_positions: thread join " << i
+	   << " failed, errcode=" << errcode << endl;
+      exit(20);
+    }
+    for (int k=0; k<3; k++) {
+      com1[k] += data[i].com[k];
+      cov1[k] += data[i].cov[k];
+    }
+    mtot1 += data[i].mtot;
+  }
+
+
+  MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&com1[0], com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&cov1[0], cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+  if (consp && com_system) {
+    for (int i=0; i<3; i++) {
+      covI[i] = (mtot0*covI[i] - cov[i])/(mtot0 - mtot);
+      cov0[i] = (mtot0*cov0[i] - cov[i])/(mtot0 - mtot);
+    }
+    mtot0 -= mtot;
+  }
 				// Compute component center of mass and
 				// center of velocity, and center of accel
 
@@ -1704,9 +1785,6 @@ void Component::fix_positions(void)
     for (int k=0; k<dim; k++) com[k] /= mtot;
     for (int k=0; k<dim; k++) cov[k] /= mtot;
   }
-
-  delete [] com1;
-  delete [] cov1;
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
     Vector ctr = orient->currentCenter();
@@ -1764,33 +1842,110 @@ void Component::update_accel(void)
 }
 
 
-void Component::get_angmom(void)
+struct thrd_pass_angmom
 {
-  double *angm1 = new double [3];
+  //! Thread counter id
+  int id;
+
+  //! Angular momentum for this thread
+  double angm1[3];
+
+  //! Component
+  Component *c;
+};
+
+
+
+void * get_angmom_thread(void *ptr)
+{
+  //
+  // Thread ID
+  //
+  int id = static_cast<thrd_pass_angmom*>(ptr)->id;
+  //
+  // Ang mom vector
+  //
+  double *angm1 = static_cast<thrd_pass_angmom*>(ptr)->angm1;
+  //
+  // Component
+  //
+  Component *c = static_cast<thrd_pass_angmom*>(ptr)->c;
 
   
-  vector<Particle>::iterator p, pend;
-
-				// Zero stuff out
-  for (int k=0; k<3; k++)
-    angmom[k] = angm1[k] = 0.0;
+				// Zero stuff out vector
+  for (int k=0; k<3; k++) angm1[k] = 0.0;
   
 				// Particle loop
-  pend = particles.end();
-  for (p=particles.begin(); p != pend; p++) {
+  unsigned ntot = c->Number();
+  int nbeg = ntot*(id  )/nthrds;
+  int nend = ntot*(id+1)/nthrds;
+  
+  for (int n=nbeg; n<nend; n++) {
+
+    if (c->freeze(*(c->Part(n)))) continue;
     
-    if (freeze(*p)) continue;
-    
-    angm1[0] += p->mass*(p->pos[1]*p->vel[2]-p->pos[2]*p->vel[1]);
-    angm1[1] += p->mass*(p->pos[2]*p->vel[0]-p->pos[0]*p->vel[2]);
-    angm1[2] += p->mass*(p->pos[0]*p->vel[1]-p->pos[1]*p->vel[0]);
-        
+    angm1[0] += c->Part(n)->mass*
+      (c->Part(n)->pos[1]*c->Part(n)->vel[2]-
+       c->Part(n)->pos[2]*c->Part(n)->vel[1]);
+
+    angm1[1] += c->Part(n)->mass*
+      (c->Part(n)->pos[2]*c->Part(n)->vel[0]-
+       c->Part(n)->pos[0]*c->Part(n)->vel[2]);
+
+    angm1[2] += c->Part(n)->mass*
+      (c->Part(n)->pos[0]*c->Part(n)->vel[1]-
+       c->Part(n)->pos[1]*c->Part(n)->vel[0]);
   }
   
-  MPI_Allreduce(angm1, angmom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-  delete [] angm1;
 }
+
+
+void Component::get_angmom(void)
+{
+  
+  //
+  // Make the <nthrds> threads
+  //
+  int errcode;
+  void *retval;
+
+  vector<thrd_pass_angmom> data(nthrds);
+  vector<pthread_t>        thrd(nthrds);
+  vector<double>           angm1(3, 0);
+
+  for (int i=0; i<nthrds; i++) {
+
+    data[i].id = i;
+    data[i].c  = this;
+
+    errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
+
+    if (errcode) {
+      cerr << "Process " << myid
+	   << " Component::get_angmom: cannot make thread " << i
+	   << ", errcode=" << errcode << endl;
+      exit(19);
+    }
+  }
+    
+  //
+  // Collapse the threads
+  //
+  for (int i=0; i<nthrds; i++) {
+    if ((errcode=pthread_join(thrd[i], &retval))) {
+      cerr << "Process " << myid
+	   << " Component::get_angmom: thread join " << i
+	   << " failed, errcode=" << errcode << endl;
+      exit(20);
+    }
+    for (int k=0; k<3; k++) angm1[k] += data[i].angm1[k];
+  }
+
+
+  MPI_Allreduce(&angm1[0], angmom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+}
+
 
 
 int Component::round_up(double dnumb)

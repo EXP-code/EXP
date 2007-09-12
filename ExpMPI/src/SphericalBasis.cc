@@ -288,21 +288,9 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
   if (firstime_accel || self_consistent) {
     if (multistep==0) {
-#ifdef DEBUG
-      cout << "Process " << myid << ": about to call <determine_coefficients>\n";
-#endif
       determine_coefficients();
-#ifdef DEBUG
-      cout << "Process " << myid << ": exited <determine_coefficients>\n";
-#endif
     } else {
-#ifdef DEBUG
-      cout << "Process " << myid << ": about to call <compute_multistep_coefficients>, mlevel=" << mlevel << endl;
-#endif
       compute_multistep_coefficients();
-#ifdef DEBUG
-      cout << "Process " << myid << ": exited <compute_multistep_coefficients>, mlevel=" << mlevel << endl;
-#endif
     }
     firstime_accel = false;
   }
@@ -731,25 +719,19 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   double pos[3];
   double xx, yy, zz;
 
-#ifdef DEBUG
-  pthread_mutex_lock(&io_lock);
-  cout << "Process " << myid << ": in thread\n";
-  pthread_mutex_unlock(&io_lock);
-#endif
-
   int id = *((int*)arg);
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
-  cout << "id=" << id << " nbeg=" << nbeg << " nend=" << nend << endl;
+  cout << "Process " << myid << ": in thread "
+       << "id=" << id << " nbeg=" << nbeg << " nend=" << nend << endl;
   pthread_mutex_unlock(&io_lock);
 #endif
-
 
   for (int lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();
-    nbeg = nbodies*id/nthrds;
+    nbeg = nbodies*(id  )/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
     for (int i=nbeg; i<nend; i++) {
@@ -908,8 +890,9 @@ void SphericalBasis::get_pot_coefs(int l, Vector& coef, double *p, double *dp)
 }
 
 
-void SphericalBasis::get_pot_coefs_safe(int l, Vector& coef, double *p, double *dp,
-				    Matrix& potd1, Matrix& dpot1)
+void SphericalBasis::get_pot_coefs_safe(int l, Vector& coef, 
+					double *p, double *dp,
+					Matrix& potd1, Matrix& dpot1)
 {
   double pp, dpp;
   int i;

@@ -4,6 +4,8 @@
 #include "expand.h"
 #include <localmpi.h>
 #include <UserEBar.H>
+#include <Timer.h>
+static Timer timer_tot(true), timer_thrd(true);
 
 UserEBar::UserEBar(string &line) : ExternalForce(line)
 {
@@ -260,6 +262,7 @@ void UserEBar::initialize()
 
 void UserEBar::determine_acceleration_and_potential(void)
 {
+  timer_tot.start();
 				// Write to bar state file, if true
   bool update = false;
 
@@ -530,7 +533,9 @@ void UserEBar::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
+  timer_thrd.start();
   exp_thread_fork(false);
+  timer_thrd.stop();
 
 				// Get full contribution from all threads
   for (int k=0; k<3; k++) acc[k] = acc1[k] = 0.0;
@@ -580,16 +585,19 @@ void UserEBar::determine_acceleration_and_potential(void)
       out << endl;
     }
 
+  timer_tot.stop();
+  cout << setw(20) << "Bar total: "
+       << setw(18) << 1.0e-6*timer_tot.getTime().getRealTime() << endl
+       << setw(20) << "Bar threads: "
+       << setw(18) << 1.0e-6*timer_thrd.getTime().getRealTime() << endl;
+  timer_tot.reset();
+  timer_thrd.reset();
 }
 
 
 void * UserEBar::determine_acceleration_and_potential_thread(void * arg) 
 {
-  int nbodies = cC->Number();
-  int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
-
+  int id = *((int*)arg), nbodies, nbeg, nend, indx;
   double fac, ffac, amp = 0.0;
   double xx, yy, zz, rr, nn, pp, extpot, M0=0.0;
   vector<double> pos(3), acct(3); 
@@ -627,79 +635,85 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   else
     amp = afac * amplitude/fabs(amplitude) * quad_onoff;
 
-  for (int i=nbeg; i<nend; i++) {
 
-    // If we are multistepping, compute accel only at or below this level
-    //
-    if (multistep && (cC->Part(i)->level < mlevel)) continue;
-    
-    for (int k=0; k<3; k++) pos[k] = cC->Pos(i, k);
+  for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
-    if (c0)
-      for (int k=0; k<3; k++) pos[k] -= c0->center[k];
-    else if (monopole)
-      for (int k=0; k<3; k++) pos[k] -= bps[k];
-    
-    xx = pos[0];
-    yy = pos[1];
-    zz = pos[2];
-    rr = sqrt( xx*xx + yy*yy + zz*zz );
+    nbodies = cC->levlist[lev].size();
+    nbeg = nbodies*(id  )/nthrds;
+    nend = nbodies*(id+1)/nthrds;
 
-    if (soft) {
-      fac = 1.0 + rr/b5;
+    for (int i=nbeg; i<nend; i++) {
 
-      ffac = -amp*numfac/pow(fac, 6.0);
-
-      pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-      nn = pp /( b5*rr ) ;
-    } else {
-      fac = 1.0 + pow(rr/b5, 5.0);
-
-      ffac = -amp*numfac/(fac*fac);
+      indx = cC->levlist[lev][i];
       
-      pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-      nn = pp * pow(rr/b5, 3.0)/(b5*b5);
-    }
+      for (int k=0; k<3; k++) pos[k] = cC->Pos(indx, k);
+
+      if (c0)
+	for (int k=0; k<3; k++) pos[k] -= c0->center[k];
+      else if (monopole)
+	for (int k=0; k<3; k++) pos[k] -= bps[k];
+    
+      xx = pos[0];
+      yy = pos[1];
+      zz = pos[2];
+      rr = sqrt( xx*xx + yy*yy + zz*zz );
+
+      if (soft) {
+	fac = 1.0 + rr/b5;
+
+	ffac = -amp*numfac/pow(fac, 6.0);
+
+	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
+	nn = pp /( b5*rr ) ;
+      } else {
+	fac = 1.0 + pow(rr/b5, 5.0);
+	
+	ffac = -amp*numfac/(fac*fac);
+	
+	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
+	nn = pp * pow(rr/b5, 3.0)/(b5*b5);
+      }
 
 				// Quadrupole acceleration
-    acct[0] = ffac*
-      ( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
+      acct[0] = ffac*
+	( 2.0*( xx*cos2p + yy*sin2p)*fac - 5.0*nn*xx );
     
-    acct[1] = ffac*
-      ( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy );
+      acct[1] = ffac*
+	( 2.0*(-yy*cos2p + xx*sin2p)*fac - 5.0*nn*yy );
 
-    acct[2] = ffac*
-      ( -5.0*nn*zz );
+      acct[2] = ffac*
+	( -5.0*nn*zz );
     
 				// Quadrupole potential
-    extpot = -ffac*pp*fac;
+      extpot = -ffac*pp*fac;
     
 
 				// Monopole contribution
-    if (monopole) {
+      if (monopole) {
 
-      M0 = ellip->getMass(rr);
-
-      if (monopole_onoff) M0 *= mono_onoff;
-
-      for (int k=0; k<3; k++) {
+	M0 = ellip->getMass(rr);
+	
+	if (monopole_onoff) M0 *= mono_onoff;
+	
+	for (int k=0; k<3; k++) {
 				// Add monopole acceleration
-	acct[k] += -M0*pos[k]/(rr*rr*rr);
+	  acct[k] += -M0*pos[k]/(rr*rr*rr);
 
 				// Force on bar (via Newton's 3rd law)
-	tacc[id][k] += -cC->Mass(i) * acct[k];
-      }
+	  tacc[id][k] += -cC->Mass(indx) * acct[k];
+	}
 
 				// Monopole potential
-      extpot += ellip->getPot(rr);
-    }
+	extpot += ellip->getPot(rr);
+      }
 
 				// Add bar acceleration to particle
-    cC->AddAcc(i, acct);
+      cC->AddAcc(indx, acct);
     
 				// Add external potential
-    cC->AddPotExt(i, extpot);
+      cC->AddPotExt(indx, extpot);
 
+    }
   }
 
   return (NULL);

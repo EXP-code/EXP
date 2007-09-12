@@ -13,6 +13,14 @@ static char rcsid[] = "$Id$";
 #include <localmpi.h>
 #include <ComponentContainer.H>
 #include <StringTok.H>
+#include <Timer.h>
+
+static Timer timer_posn(true), timer_gcom(true), timer_angmom(true);
+static Timer timer_zero(true), timer_accel(true), timer_inter(true);
+static Timer timer_total(true), timer_fixp(true);
+static bool timing = false;
+static unsigned tskip = 1;
+
 
 ComponentContainer::ComponentContainer(void)
 {
@@ -253,10 +261,18 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
 
+  // Turn on step timers or VERBOSE level 4 or greater
+  //
+  if (VERBOSE>3) timing = true;
+
+  if (timing) timer_total.start();
+
   //
   // Compute new center
   //
+  if (timing) timer_posn.start();
   fix_positions();
+  if (timing) timer_posn.stop();
 
 #ifdef DEBUG
   cout << "Process " << myid << ": returned from <fix_positions>\n";
@@ -265,11 +281,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Recompute global com
   //
+  if (timing) timer_gcom.start();
   for (int k=0; k<3; k++) gcom[k] = 0.0;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
     for (int k=0; k<3; k++) gcom[k] += c->com[k];
   }
+  if (timing) timer_gcom.stop();
 
 #ifdef DEBUG
   cout << "Process " << myid << ": gcom computed\n";
@@ -278,9 +296,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Compute angular momentum for each component
   //
+  if (timing) timer_angmom.start();
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     (*cc)->get_angmom();
   }
+  if (timing) timer_angmom.stop();
 
 #ifdef DEBUG
   cout << "Process " << myid << ": angmom computed\n";
@@ -289,41 +309,49 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Compute accel for each component
   //
+  int nbeg, nend, indx;
+  unsigned ntot;
+
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
-    pend = c->particles.end();
-    for (p=c->particles.begin(); p != pend; p++) {
-				// If we are multistepping, only 
-				// zero-out for current level and deeper
-      if (multistep && (p->level < mlevel)) continue;
+  if (timing) timer_zero.start();
+    for (int lev=mlevel; lev<=multistep; lev++) {
+
+      ntot = c->levlist[lev].size();
+
+      for (unsigned n=0; n<ntot; n++) {
 
 				// Zero-out external potential
-      p->potext = 0.0;
+	c->Part(n)->potext = 0.0;
 				// Zero-out potential and acceleration
-      p->pot = 0.0;
-      for (int i=0; i<c->dim; i++) p->acc[i] = 0.0;
+	c->Part(n)->pot = 0.0;
+	for (int k=0; k<c->dim; k++) c->Part(n)->acc[k] = 0.0;
+      }
     }
+    if (timing) timer_zero.stop();
 
 				// Compute new accelerations and potential
-
 #ifdef DEBUG
     cout << "Process " << myid << ": about to call force <"
 	 << c->id << ">\n";
 #endif
+    if (timing) timer_accel.start();
     c->force->set_multistep_level(mlevel);
     c->force->get_acceleration_and_potential(c);
+    if (timing) timer_accel.stop();
 #ifdef DEBUG
     cout << "Process " << myid << ": force <"
 	 << c->id << "> done\n";
 #endif
   }
-      
 
   //
   // Compute new center
   //
-  fix_positions();
+  if (timing) timer_posn.start();
+  // fix_positions();
+  if (timing) timer_posn.stop();
 
 
   //
@@ -345,6 +373,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Do the external forces (if there are any . . .)
   //
+  if (timing) timer_inter.start();
   if (!external.force_list.empty()) {
 
     list<ExternalForce*>::iterator ext;
@@ -358,15 +387,59 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 
   }
+  if (timing) timer_inter.stop();
+
+  if (timing) timer_total.stop();
   
   //
   // Update center of mass system coordinates
   //
+  if (timing) timer_gcom.start();
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
     if (c->com_system) c->update_accel();
   }
+  if (timing) timer_gcom.stop();
   
+  if (timing && this_step!=0 && (this_step % tskip) == 0) {
+    if (myid==0) {
+      cout << endl
+	   << setw(70) << setfill('-') << '-' << endl
+	   << setw(70) << left << "--- Timer info in comp, mlevel=" 
+	   << mlevel << endl
+	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
+      if (multistep) {
+	cout << setw(20) << "COM: "
+	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
+	     << setw(20) << "Position: "
+	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
+	     << setw(20) << "Component position: "
+	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
+	     << setw(20) << "Ang mom: "
+	     << setw(18) << 1.0e-6*timer_angmom.getTime().getRealTime() << endl
+	     << setw(20) << "Zero: "
+	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
+	     << setw(20) << "Accel: "
+	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
+	     << setw(20) << "Interaction: "
+	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
+	     << setw(20) << "Total: "
+	     << setw(18) << 1.0e-6*timer_total.getTime().getRealTime() << endl;
+
+      }
+      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+    }
+
+    timer_gcom.reset();
+    timer_posn.reset();
+    timer_fixp.reset();
+    timer_angmom.reset();
+    timer_zero.reset();
+    timer_accel.reset();
+    timer_inter.reset();
+    timer_total.reset();
+  }
+
   gottapot = true;
 }
 
@@ -515,7 +588,9 @@ void ComponentContainer::fix_positions(void)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
+    if (timing) timer_fixp.start();
     c->fix_positions();
+    if (timing) timer_fixp.stop();
     
     mtot1 += c->mtot;
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
