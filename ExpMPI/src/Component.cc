@@ -1670,8 +1670,8 @@ void * fix_positions_thread(void *ptr)
   bool tidal = static_cast<thrd_pass_posn*>(ptr)->tidal;
   bool com_system = static_cast<thrd_pass_posn*>(ptr)->com_system;
 
-  vector<double> *com = &(static_cast<thrd_pass_posn*>(ptr)->com);
-  vector<double> *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov);
+  double *com = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
+  double *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
   double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot);
 
   int nbodies = c->Number();
@@ -1690,7 +1690,7 @@ void * fix_positions_thread(void *ptr)
 	  if (com_system) {	// Conserve momentum of center of mass
 	    *mtot += c->Part(n)->mass;
 	    for (int i=0; i<3; i++) 
-	      (*cov)[i] += c->Part(n)->mass*c->Part(n)->vel[i]; 
+	      cov[i] += c->Part(n)->mass*c->Part(n)->vel[i]; 
 	  }
 	}
       }
@@ -1700,8 +1700,8 @@ void * fix_positions_thread(void *ptr)
       *mtot += c->Part(n)->mass;
 
       for (int k=0; k<c->dim; k++) {
-	(*com)[k] += c->Part(n)->mass*c->Part(n)->pos[k];
-	(*cov)[k] += c->Part(n)->mass*c->Part(n)->vel[k];
+	com[k] += c->Part(n)->mass*c->Part(n)->pos[k];
+	cov[k] += c->Part(n)->mass*c->Part(n)->vel[k];
       }
       
     }
@@ -1714,6 +1714,7 @@ void Component::fix_positions(void)
 {
 				// Zero center
   for (int i=0; i<3; i++) center[i] = 0.0;
+
   				// Zero variables
   mtot = 0.0;
   for (int k=0; k<dim; k++)
@@ -1848,7 +1849,7 @@ struct thrd_pass_angmom
   int id;
 
   //! Angular momentum for this thread
-  double angm1[3];
+  vector<double> angm1;
 
   //! Component
   Component *c;
@@ -1865,36 +1866,34 @@ void * get_angmom_thread(void *ptr)
   //
   // Ang mom vector
   //
-  double *angm1 = static_cast<thrd_pass_angmom*>(ptr)->angm1;
+  double *angm1 = &(static_cast<thrd_pass_angmom*>(ptr)->angm1[0]);
   //
   // Component
   //
   Component *c = static_cast<thrd_pass_angmom*>(ptr)->c;
 
-  
-				// Zero stuff out vector
-  for (int k=0; k<3; k++) angm1[k] = 0.0;
-  
-				// Particle loop
+
   unsigned ntot = c->Number();
   int nbeg = ntot*(id  )/nthrds;
   int nend = ntot*(id+1)/nthrds;
+  double mass, *pos, *vel;
   
+  //
+  // Particle loop
+  //
   for (int n=nbeg; n<nend; n++) {
 
     if (c->freeze(*(c->Part(n)))) continue;
+
+    mass = c->Part(n)->mass;
+    pos  = c->Part(n)->pos;
+    vel  = c->Part(n)->vel;
     
-    angm1[0] += c->Part(n)->mass*
-      (c->Part(n)->pos[1]*c->Part(n)->vel[2]-
-       c->Part(n)->pos[2]*c->Part(n)->vel[1]);
+    angm1[0] += mass*(pos[1]*vel[2] - pos[2]*vel[1]);
 
-    angm1[1] += c->Part(n)->mass*
-      (c->Part(n)->pos[2]*c->Part(n)->vel[0]-
-       c->Part(n)->pos[0]*c->Part(n)->vel[2]);
+    angm1[1] += mass*(pos[2]*vel[0] - pos[0]*vel[2]);
 
-    angm1[2] += c->Part(n)->mass*
-      (c->Part(n)->pos[0]*c->Part(n)->vel[1]-
-       c->Part(n)->pos[1]*c->Part(n)->vel[0]);
+    angm1[2] += mass*(pos[0]*vel[1] - pos[1]*vel[0]);
   }
   
 }
@@ -1917,6 +1916,8 @@ void Component::get_angmom(void)
 
     data[i].id = i;
     data[i].c  = this;
+    for (int k=0; k<3; k++) data[i].angm1.push_back(0);
+  
 
     errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
 

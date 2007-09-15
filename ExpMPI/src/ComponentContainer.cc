@@ -321,12 +321,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       ntot = c->levlist[lev].size();
 
       for (unsigned n=0; n<ntot; n++) {
-
+				// Particle index
+	indx = c->levlist[lev][n];
 				// Zero-out external potential
-	c->Part(n)->potext = 0.0;
+	c->Part(indx)->potext = 0.0;
 				// Zero-out potential and acceleration
-	c->Part(n)->pot = 0.0;
-	for (int k=0; k<c->dim; k++) c->Part(n)->acc[k] = 0.0;
+	c->Part(indx)->pot = 0.0;
+	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
       }
     }
     if (timing) timer_zero.stop();
@@ -350,7 +351,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   // Compute new center
   //
   if (timing) timer_posn.start();
-  // fix_positions();
+  fix_positions();
   if (timing) timer_posn.stop();
 
 
@@ -403,10 +404,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   
   if (timing && this_step!=0 && (this_step % tskip) == 0) {
     if (myid==0) {
+      ostringstream sout;
+      sout << "--- Timer info in comp, mlevel=" << mlevel;
       cout << endl
 	   << setw(70) << setfill('-') << '-' << endl
-	   << setw(70) << left << "--- Timer info in comp, mlevel=" 
-	   << mlevel << endl
+	   << setw(70) << left << sout.str().c_str() << endl
 	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
       if (multistep) {
 	cout << setw(20) << "COM: "

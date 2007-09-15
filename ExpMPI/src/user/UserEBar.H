@@ -31,7 +31,7 @@
     @param onoff to apply turn-on, turn-off to monopole (default: false)
     @param monofrac is the fraction of the monopole to turn off (default: 1.0)
     @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
-    @param soft use the shallow form of the potential (default: false)
+    @param alpha is the power hardness (softness) of the bar quadrupole (default: 5)
     @param angmomfac factor artificially changing the self-consistent total bar angular momentum (default: 1.0)
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
@@ -79,8 +79,8 @@ private:
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT;
-  double monopole_frac, quadrupole_frac;
-  bool fixed, monopole, monopole_follow, monopole_onoff, soft, table;
+  double monopole_frac, quadrupole_frac, alpha;
+  bool fixed, monopole, monopole_follow, monopole_onoff, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;

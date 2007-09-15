@@ -6,6 +6,7 @@
 #include <UserEBar.H>
 #include <Timer.h>
 static Timer timer_tot(true), timer_thrd(true);
+static bool timing = false;
 
 UserEBar::UserEBar(string &line) : ExternalForce(line)
 {
@@ -29,7 +30,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   T0 = 10.0;			// Center of pattern speed change
   Fcorot  = 1.0;		// Corotation factor
   fixed = false;		// Constant pattern speed
-  soft = false;			// Use soft form of the bar potential
+  alpha = 5.0;			// Variable sharpness bar potential
   table = false;		// Not using tabled quadrupole
   monopole = true;		// Use the monopole part of the potential
   monopole_follow = true;	// Follow monopole center
@@ -152,6 +153,9 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
 
   userinfo();
+
+  // Only turn on bar timing for extreme debugging levels
+  if (VERBOSE>49) timing = true;
 }
 
 UserEBar::~UserEBar()
@@ -204,10 +208,9 @@ void UserEBar::userinfo()
   }
   else
     cout << "without monopole, ";
-  if (soft)
-    cout << "soft potential, ";
-  else
-    cout << "standard potential, ";
+
+  cout << "bar softness (alpha)=" << alpha << ", ";
+
   if (c0) 
     cout << "center on component <" << ctr_name << ">, ";
   else
@@ -249,7 +252,7 @@ void UserEBar::initialize()
   if (get_value("omega", val))		omega0 = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
-  if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
+  if (get_value("alpha", val))		alpha = atof(val.c_str());
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;  
   if (get_value("follow", val))		monopole_follow = atoi(val.c_str()) ? true:false;
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
@@ -262,7 +265,7 @@ void UserEBar::initialize()
 
 void UserEBar::determine_acceleration_and_potential(void)
 {
-  timer_tot.start();
+  if (timing) timer_tot.start();
 				// Write to bar state file, if true
   bool update = false;
 
@@ -533,9 +536,9 @@ void UserEBar::determine_acceleration_and_potential(void)
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;
   }
 
-  timer_thrd.start();
+  if (timing) timer_thrd.start();
   exp_thread_fork(false);
-  timer_thrd.stop();
+  if (timing) timer_thrd.stop();
 
 				// Get full contribution from all threads
   for (int k=0; k<3; k++) acc[k] = acc1[k] = 0.0;
@@ -585,13 +588,15 @@ void UserEBar::determine_acceleration_and_potential(void)
       out << endl;
     }
 
-  timer_tot.stop();
-  cout << setw(20) << "Bar total: "
-       << setw(18) << 1.0e-6*timer_tot.getTime().getRealTime() << endl
-       << setw(20) << "Bar threads: "
-       << setw(18) << 1.0e-6*timer_thrd.getTime().getRealTime() << endl;
-  timer_tot.reset();
-  timer_thrd.reset();
+  if (timing) {
+    timer_tot.stop();
+    cout << setw(20) << "Bar total: "
+	 << setw(18) << 1.0e-6*timer_tot.getTime().getRealTime() << endl
+	 << setw(20) << "Bar threads: "
+	 << setw(18) << 1.0e-6*timer_thrd.getTime().getRealTime() << endl;
+    timer_tot.reset();
+    timer_thrd.reset();
+  }
 }
 
 
@@ -658,21 +663,11 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
       zz = pos[2];
       rr = sqrt( xx*xx + yy*yy + zz*zz );
 
-      if (soft) {
-	fac = 1.0 + rr/b5;
-
-	ffac = -amp*numfac/pow(fac, 6.0);
-
-	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-	nn = pp /( b5*rr ) ;
-      } else {
-	fac = 1.0 + pow(rr/b5, 5.0);
-	
-	ffac = -amp*numfac/(fac*fac);
-	
-	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
-	nn = pp * pow(rr/b5, 3.0)/(b5*b5);
-      }
+				// Variable sharpness potential
+      fac = 1.0 + pow(rr/b5, alpha);
+      ffac = -amp*numfac/pow(fac, 5.0/alpha+1.0);
+      pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
+      nn = pp * pow(rr/b5, alpha-1.0) / ( b5*rr );
 
 				// Quadrupole acceleration
       acct[0] = ffac*
