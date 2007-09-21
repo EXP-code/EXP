@@ -15,7 +15,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
-	libdsmc.la
+	libdsmc.la libebarn.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -34,6 +34,9 @@ libbar_la_SOURCES = UserBar.cc
 
 libebar_la_SOURCES = UserEBar.cc
 libebar_la_LIBADD = libcommon.a
+
+libebarn_la_SOURCES = UserEBarN.cc
+libebarn_la_LIBADD = libcommon.a
 
 libebarp_la_SOURCES = UserEBarP.cc
 libebarp_la_LIBADD = libcommon.a
