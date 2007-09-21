@@ -218,7 +218,7 @@ void do_step(int n)
       if (myid==0) {
 	cout << endl;
 	cout << setw(4) << "T" << ": ";
-	for (int m=0; m<=multistep; m++) cout << setw(8) << levpop[m];
+	for (int m=0; m<=multistep; m++) cout << setw(8) << levtot[m];
 	cout << endl;
 	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
       }
