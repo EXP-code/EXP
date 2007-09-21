@@ -418,6 +418,10 @@ void UserEBarN::determine_acceleration_and_potential(void)
 
     mass = barmass * fabs(amplitude);
 
+    a[0] = length;
+    a[1] = bratio*a[0];
+    a[2] = cratio*a[1];
+
     // *M_PI*a[0]*a[1]*a[2] sucked into the leading factor for the 
     // gravitational potential
     //
@@ -427,10 +431,6 @@ void UserEBarN::determine_acceleration_and_potential(void)
     else 
       rho0 = (2.0*modelp + 3.0)*mass/4.0; 
     
-    a[0] = length;
-    a[1] = bratio*a[0];
-    a[2] = cratio*a[1];
-
     lrmin = log(rsmin*a[0]);
     lrmax = log(rsmax*a[0]);
     ldr = (lrmax - lrmin)/(numt-1);
@@ -447,12 +447,14 @@ void UserEBarN::determine_acceleration_and_potential(void)
       if (VERBOSE>3) {
 	string name = "UserEBarN." + runtag + ".debug";
 	ofstream out(name.c_str());
+
 	out << "# a1, a2, a3=" << a[0] << ", " << a[1] << ", " << a[2] << endl;
-	cout << "Expon=" << expon << endl;
-	cout << "Param=" << modelp << endl;
+	out << "# Expon=" << expon << endl;
+	out << "# Param=" << modelp << endl;
 	out << "# Mass=" << barmass << endl;
 	out << "# Ampl=" << amplitude << endl;
 	out << "# I_3=" << 0.2*mass*(a[0]*a[0] + a[1]*a[1]) << endl;
+	out << "#" << endl;
 	for (int j=0; j<numt; j++)
 	  out << setw(18) << rr[j] << setw(18) << uu[j] << endl;
       }
@@ -463,12 +465,16 @@ void UserEBarN::determine_acceleration_and_potential(void)
 	cout << "an exponential density with scale length " << modelp << endl;
       else
 	cout << "an power-law density with exponent " << modelp << endl;
+      cout << "Rho0=" << rho0 << endl;
       cout << "Mass=" << barmass << endl;
       cout << "Ampl=" << amplitude << endl;
       cout << "I_3=" << 0.2*mass*(a[0]*a[0] + a[1]*a[1]) << endl;
       cout << "Omega(0)=" << omega0 << endl;
       cout << "====================================================\n";
       
+      name = filename;
+      name += ".barstat";
+
       if (!restart) {
 	ofstream out(name.c_str(), ios::out | ios::app);
 
