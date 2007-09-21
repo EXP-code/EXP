@@ -749,7 +749,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 				// Variable sharpness potential
       if (quadpot(rr, pot, dpot)) {
 	fac = pot/(rr*rr);
-	dfac = (dpot/rr - 2.0*pot)/(rr*rr*rr);
+	dfac = (dpot - 2.0*pot/rr)/(rr*rr*rr);
 	ffac = -amp*numfac;
 	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
       } else {
