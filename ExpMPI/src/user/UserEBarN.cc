@@ -751,7 +751,6 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
       } else {
 	ffac = 0.0;
-	cout << "Process " << myid << ", id=" << id << ": r=" << rr << endl;
       }
 
 				// Quadrupole acceleration
