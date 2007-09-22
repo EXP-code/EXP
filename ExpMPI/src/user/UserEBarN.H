@@ -22,7 +22,6 @@
     @param TmonoOff is the time at the center of the <code>erf</code> turn off
     for the quadrupole
     @param DeltaMonoT is the spread of the turn on for the quadrupole
-    @param tom0 is the midpoint of forced bar slow down
     @param dtom is the width of forced bar slow down (>0 for erf)
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
@@ -72,7 +71,7 @@ class UserEBarN : public ExternalForce
 {
 private:
   
-  string ctr_name, angm_name, table_name;
+  string ctr_name, angm_name;
   Component *c0, *c1;
   EllipForce *ellip;
 
@@ -93,10 +92,8 @@ private:
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime, angmomfac;
-  double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
-  double T0, DOmega, tom0, dtom;
-  vector<double> timeq, ampq, b5q;
-  int qlast;
+  double Lz, Lz0, Lzbar, omega, omega0, Iz;
+  double T0, DOmega, dtom;
   string name;
 
   double ldr, lrmin, lrmax;

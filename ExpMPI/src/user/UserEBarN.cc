@@ -25,7 +25,6 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
   DeltaT = 1.0;			// Turn on duration
   DeltaMonoT = 1.0;		// Turn on duration for monopole
   DOmega = 0.0;			// Change in pattern speed
-  tom0 = 1.0;			// Midpoint of forced bar slow down
   dtom = -1.0;			// Width of forced bar slow down
   T0 = 10.0;			// Center of pattern speed change
   Fcorot  = 1.0;		// Corotation factor
@@ -210,7 +209,6 @@ void UserEBarN::initialize()
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
   if (get_value("DOmega", val))		DOmega = atof(val.c_str());
-  if (get_value("tom0", val))     	tom0 = atof(val.c_str());
   if (get_value("dtom", val))     	dtom = atof(val.c_str());
   if (get_value("T0", val))		T0 = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
@@ -319,7 +317,6 @@ double UserEBarN::Potential(vector<double> x)
 
 double UserEBarN::U22(double r) 
 {
-  const double numfac = 0.25*sqrt(15.0/(2.0*M_PI));
   vector<double> z(3);
   const int nphi = 20, ntheta = 40;
   const double dphi = 2.0*M_PI/nphi;
@@ -721,7 +718,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
   if (amplitude==0.0) 
     amp = 0.0;
   else
-    amp = afac * amplitude/fabs(amplitude) * quad_onoff;
+    amp = amplitude/fabs(amplitude) * quad_onoff;
 
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
@@ -754,6 +751,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 	pp = (xx*xx - yy*yy)*cos2p + 2.0*xx*yy*sin2p;
       } else {
 	ffac = 0.0;
+	cout << "Process " << myid << ", id=" << id << ": r=" << rr << endl;
       }
 
 				// Quadrupole acceleration
