@@ -7,7 +7,7 @@
 #include <EllipForce.H>
 #include <ZBrent.H>
 
-/** Bar rotating at specified fraction of corotation with a monopole
+/** Bar with density stratified on confocal ellipsoidal shells.
 
     @param length is the bar length
     @param bratio is the ratio of the submajor axis to the major axis
@@ -37,7 +37,7 @@
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
     @param expon sets an exponential disk-like ellipsoid bar profile
-    @param model parameter is the exponent of a power law density profile for if <code>expon=false</code> or the exponential scale length if <code>expon=true</expon>.
+    @param model parameter is the exponent of a power law density profile for if <code>expon=false</code> or the exponential scale length if <code>expon=true</code>.
     @param rmin is the minimum radius for the quadrupole table
     @param rmax is the maximum radius for the quadrupole table
     @param numt is the number of entries for the table
@@ -52,24 +52,42 @@
     \f[
     m^2 = \sum_{i=1}^3 {x_i^2\over a_i^2}.
     \f]
+    Note that \f$m\f$ is analogous to the radius and is proptional to the true 
+    radius for a spherical distribution (\f$a_1=a_2=a_3\f$).
     Inside the ellipsoid, the gravitational potential is given by:
     \f[
-    \Phi({\bf r}) = -G\pi a_1a_2a_3 \int_0^\infty {du\over\Delta} 
+    \Phi_{in}({\bf r}) = -G\pi a_1a_2a_3 \int_0^\infty {du\over\Delta} 
     \int^\infty_{m^2(u)} dm^2 \rho(m^2)
-    \]
+    \f]
     where 
     \f[
-    m^2(u) = \sum_{i=1}^3 {x_i^2\over a_i^2 + u}.
+    m^2(u) = \sum_{i=1}^3 {x_i^2\over a_i^2 + u}
+    \f]
+    and
+    \f[
+    \Delta^2 = \prod_{i=1}^3(a_i^2 + u).
     \f]
     Outside the ellipsoid, the gravitational potential is given by:
     \f[
-    \Phi({\bf r}) = -G\pi a_1a_2a_3 \int_\lambda^\infty {du\over\Delta} 
+    \Phi_{out}({\bf r}) = -G\pi a_1a_2a_3 \int_\lambda^\infty {du\over\Delta} 
     \int^\infty_{m^2(u)} dm^2 \rho(m^2)
-    \]
+    \f]
     where 
     \f[
     1 = \sum_{i=1}^3 {x_i^2\over a_i^2 + \lambda}.
     \f]
+
+    Two density profiles are included.  A power-law profile of the form:
+    \f[
+    \rho = \rho_o m^{2\alpha}
+    \f]
+    where \f$\alpha>-1\f$ and an exponential profile
+    \f[
+    \rho = \rho_o {e^{-a_1 m/ h} \over m}
+    \f]
+    where \f$h\f$ is the disk scale length.  The latter profile should 
+    approximate an exponential disk in projection when \f$a_1, a_2 \gg a_3\f$.
+
 
     The logic for pattern speed determination is as follows:
     <ul>
