@@ -428,8 +428,8 @@ void UserEBarN::determine_acceleration_and_potential(void)
     else 
       rho0 = (2.0*modelp + 3.0)*mass/4.0; 
     
-    lrmin = log(rsmin*a[0]);
-    lrmax = log(rsmax*a[0]);
+    lrmin = log(rsmin);
+    lrmax = log(rsmax);
     ldr = (lrmax - lrmin)/(numt-1);
     double r;
 

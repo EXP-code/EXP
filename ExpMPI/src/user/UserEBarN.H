@@ -42,6 +42,35 @@
     @param rmax is the maximum radius for the quadrupole table
     @param numt is the number of entries for the table
 
+    The potential is evaluated using the tecniques described in
+    Chandrasekhar (1969) EFE as follows.  The density is assumed to be
+    stratified on confocal ellipsoids:
+    \f[
+    \rho({\bf r}) = \rho(m^2)
+    \f]
+    where
+    \f[
+    m^2 = \sum_{i=1}^3 {x_i^2\over a_i^2}.
+    \f]
+    Inside the ellipsoid, the gravitational potential is given by:
+    \f[
+    \Phi({\bf r}) = -G\pi a_1a_2a_3 \int_0^\infty {du\over\Delta} 
+    \int^\infty_{m^2(u)} dm^2 \rho(m^2)
+    \]
+    where 
+    \f[
+    m^2(u) = \sum_{i=1}^3 {x_i^2\over a_i^2 + u}.
+    \f]
+    Outside the ellipsoid, the gravitational potential is given by:
+    \f[
+    \Phi({\bf r}) = -G\pi a_1a_2a_3 \int_\lambda^\infty {du\over\Delta} 
+    \int^\infty_{m^2(u)} dm^2 \rho(m^2)
+    \]
+    where 
+    \f[
+    1 = \sum_{i=1}^3 {x_i^2\over a_i^2 + \lambda}.
+    \f]
+
     The logic for pattern speed determination is as follows:
     <ul>
     <li> By default the pattern speed is determined from the bar length
