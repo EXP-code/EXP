@@ -36,7 +36,7 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
   monopole_frac = 1.0;		// Fraction of monopole to turn off
   quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
 
-  expon = false;		// Use the exponential disk density rather than power law
+  bartype = powerlaw;		// Use the the powerlaw density profile
   modelp = 0.0;			// Either the power law exponent or the exponential scale length
   rsmin  = 0.001;		// The minimum radius for the quadrupole table in major axis units
   rsmax  = 100;	                // The maximum radius for the quadrupole table in major axis units
@@ -178,6 +178,18 @@ void UserEBarN::userinfo()
 
   cout << "bar softness (alpha)=" << alpha << ", ";
 
+  switch (bartype) {
+  case powerlaw:
+    cout << "powerlaw density profile with exponent=" << modelp << ", ";
+    break;
+  case ferrers:
+    cout << "Ferrers density profile with exponent=" << modelp << ", ";
+    break;
+  case expon:
+    cout << "Exponential density profile with scale length=" << modelp << ", ";
+    break;
+  }
+
   if (c0) 
     cout << "center on component <" << ctr_name << ">, ";
   else
@@ -222,11 +234,28 @@ void UserEBarN::initialize()
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
-  if (get_value("expon", val))          expon = atoi(val.c_str()) ? true : false;
+
   if (get_value("modelp", val))         modelp = atof(val.c_str());
   if (get_value("rmin", val))           rsmin = atof(val.c_str());
   if (get_value("rmax", val))           rsmax = atof(val.c_str());
   if (get_value("numt", val))           numt = atoi(val.c_str());
+  if (get_value("bartype", val)) {
+    switch(atoi(val)) {
+    case powerlaw:
+      bartype = powerlaw;
+      break;
+    case ferrers:
+      bartype = ferrers;
+      break;
+    case expon:
+      bartype = expon;
+      break;
+    default:
+      if (myid==0)
+	cerr << "UnderEBarN: no such bar profile=" << atoi(optarg) << endl;
+      MPI_Abort(MPI_COMM_WORLD, 36);
+    }
+  }
 }
 
 
@@ -277,7 +306,7 @@ double solve(vector<double> x, double m2)
 
 double UserEBarN::Potential(vector<double> x)
 {
-  double mshell, ans=0.0, u, d, t, denom, m2;
+  double mshell=0.0, ans=0.0, u, d, t, denom, m2;
   double tmin, tmax=0.5*M_PI;
 
   double ellip = 0.0;
@@ -303,11 +332,18 @@ double UserEBarN::Potential(vector<double> x)
       denom *= a[k]*a[k]+u;
     }
 
-    if (expon)
-      mshell = 2.0*rho0*modelp/a[0]*(1.0 - exp(-a[0]*sqrt(m2)/modelp));
-    else 
+    switch (bartype) {
+    case powerlaw:
       mshell = rho0/(modelp+1.0)*(1.0 - pow(m2, modelp+1.0));
-    
+      break;
+    case ferrers:
+      mshell = rho0/(modelp+1.0)*(1.0 - pow(1.0-m2, modelp+1.0));
+      break;
+    case expon:
+      mshell = 2.0*rho0*modelp/a[0]*(exp(-a[0]/modelp) - exp(-a[0]*sqrt(m2)/modelp));
+      break;
+    }
+
     ans += d*gq->weight(i) * mshell/sqrt(denom);
   }
 
@@ -422,12 +458,19 @@ void UserEBarN::determine_acceleration_and_potential(void)
     // *M_PI*a[0]*a[1]*a[2] sucked into the leading factor for the 
     // gravitational potential
     //
-    if (expon)
+    switch (bartype) {
+    case expon:
       rho0 = a[0]*a[0]*mass/(4.0*modelp*modelp) / 
 	( 1.0 - (1.0 + a[0]/modelp)*exp(-a[0]/modelp) ); 
-    else 
+      break;
+    case powerlaw:
       rho0 = (2.0*modelp + 3.0)*mass/4.0; 
-    
+      break;
+    case ferrers:
+      rho0 = 2.0*exp(lgamma(2.5+modelp) - lgamma(1.5) - lgamma(1.0+modelp))/4.0;
+      break;
+    }
+
     lrmin = log(rsmin);
     lrmax = log(rsmax);
     ldr = (lrmax - lrmin)/(numt-1);

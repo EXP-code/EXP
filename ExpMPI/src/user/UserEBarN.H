@@ -36,8 +36,8 @@
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
-    @param expon sets an exponential disk-like ellipsoid bar profile
-    @param model parameter is the exponent of a power law density profile for if <code>expon=false</code> or the exponential scale length if <code>expon=true</code>.
+    @param bartype sets the profile type (see BarType)
+    @param model parameter is the exponent of a power law density profile for if <code>bartype=powerlaw</code>, the Ferrers index if <code>bartype=ferrers</code> or the exponential scale length if <code>bartype=expon</code>.
     @param rmin is the minimum radius for the quadrupole table
     @param rmax is the maximum radius for the quadrupole table
     @param numt is the number of entries for the table
@@ -118,6 +118,8 @@ class UserEBarN : public ExternalForce
 {
 private:
   
+  enum BarType {powerlaw, ferrers, expon} bartype;
+
   string ctr_name, angm_name;
   Component *c0, *c1;
   EllipForce *ellip;
@@ -132,7 +134,7 @@ private:
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT, modelp, mass;
   double monopole_frac, quadrupole_frac, alpha, model_param, rsmin, rsmax;
-  bool fixed, monopole, monopole_follow, monopole_onoff, table, expon;
+  bool fixed, monopole, monopole_follow, monopole_onoff, table;
   int numt, N;
   string filename;
 
