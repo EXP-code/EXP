@@ -52,8 +52,6 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
   ctr_name = "";		// Default component for com
   angm_name = "";		// Default component for angular momentum
   
-  ellip = 0;
-
   initialize();
 
   if (ctr_name.size()>0) {
@@ -127,7 +125,6 @@ UserEBarN::~UserEBarN()
 {
   for (int n=0; n<nthrds; n++) delete [] tacc[n];
   delete [] tacc;
-  delete ellip;
   delete gt;
   delete gq;
 }
@@ -304,6 +301,56 @@ double solve(vector<double> x, double m2)
   return ans;
 }
 
+double UserEBarN::Density(vector<double> x)
+{
+  double m2=0.0, rho=0.0;
+  for (int k=0; k<3; k++) m2 += x[k]*x[k]/(a[k]*a[k]);
+
+  if (m2>1.0) return 0.0;
+
+  switch (bartype){
+  case powerlaw:
+    rho = rho0*pow(m2, modelp);
+    break;
+  case ferrers:
+    rho = rho0*pow(1.0 - m2, modelp);
+    break;
+  case expon:
+    rho =  rho0*exp(-a[0]*sqrt(m2)/modelp)/sqrt(m2);
+    break;
+  }
+
+  return rho/(M_PI*a[0]*a[1]*a[2]);
+}
+
+double UserEBarN::RhoBar(double r) 
+{
+  vector<double> z(3);
+  const int nphi = 40, ntheta = 80;
+  const double dphi = 0.5*M_PI/nphi;
+
+  double cosx, sinx, phi, ans=0.0;
+
+  if (gt==0) gt = new LegeQuad(ntheta);
+
+  for (int i=0; i<nphi; i++) {
+    phi = dphi*i;
+    for (int j=1; j<=ntheta; j++) {
+      cosx = gt->knot(j);
+      sinx = sqrt(1.0 - cosx*cosx);
+
+      z[0] = r*sinx*cos(phi);
+      z[1] = r*sinx*sin(phi);
+      z[2] = r*cosx;
+
+      ans += gt->weight(j)*dphi * Density(z);
+    }
+  }
+
+  return ans*8.0/(4.0*M_PI);
+}
+
+
 double UserEBarN::Potential(vector<double> x)
 {
   double mshell=0.0, ans=0.0, u, d, t, denom, m2;
@@ -354,7 +401,7 @@ double UserEBarN::Potential(vector<double> x)
 double UserEBarN::U22(double r) 
 {
   vector<double> z(3);
-  const int nphi = 20, ntheta = 40;
+  const int nphi = 40, ntheta = 80;
   const double dphi = 2.0*M_PI/nphi;
 
   double cosx, sinx, phi, ans=0.0;
@@ -376,6 +423,34 @@ double UserEBarN::U22(double r)
   }
 
   return ans*numfac;
+}
+
+
+double UserEBarN::getMass(double r)
+{
+  if (r<rr.front()) return mm.front();
+  if (r>rr.back() ) return mm.back();
+
+  double lr = log(r);
+  int indx = (int)floor((log(r) - lrmin)/ldr);
+  double a = (lrmin + ldr*(indx+1) - lr)/ldr;
+  double b = (lr - lrmin - ldr*indx)/ldr;
+
+  return a*mm[indx] + b*mm[indx+1];
+}
+
+
+double UserEBarN::getPot(double r)
+{
+  if (r<rr.front()) return pp.front();
+  if (r>rr.back() ) return -mm.back()/r;
+
+  double lr = log(r);
+  int indx = (int)floor((log(r) - lrmin)/ldr);
+  double a = (lrmin + ldr*(indx+1) - lr)/ldr;
+  double b = (lr - lrmin - ldr*indx)/ldr;
+
+  return a*pp[indx] + b*pp[indx+1];
 }
 
 
@@ -409,9 +484,6 @@ void UserEBarN::determine_acceleration_and_potential(void)
 
   if (firstime) {
     
-    ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
-			   barmass, 200, 200);
-
     list<Component*>::iterator cc;
     Component *c;
 
@@ -474,13 +546,30 @@ void UserEBarN::determine_acceleration_and_potential(void)
     lrmin = log(rsmin);
     lrmax = log(rsmax);
     ldr = (lrmax - lrmin)/(numt-1);
-    double r;
+    double r, msum=0.0, psum=0.0, r1=0.0, r2=0.0, rlst=0.0, rcur=0.0;
 
     for (int j=0; j<numt; j++) {
       r = exp(lrmin + ldr*j);
+      if (j) {
+	r1 = r2;
+	r2 = r;
+	rlst = rcur;
+	rcur = RhoBar(r2);
+	msum += 4.0*M_PI/2.0 * ldr * (rlst*pow(r1, 3) + rcur*pow(r2, 3));
+	psum += 4.0*M_PI/2.0 * ldr * (rlst*pow(r1, 2) + rcur*pow(r2, 2));
+      } else {
+	r2 = r;
+	rcur = RhoBar(r2);
+      }
+
       rr.push_back(r);
+      mm.push_back(msum);
+      mm.push_back(psum);
       uu.push_back(U22(r));
     }
+
+    for (int j=0; j<numt; j++)
+      pp[j] = -mm[j]/rr[j] - (pp.back() - pp[j]);
 
     if (myid==0) {
 
@@ -496,7 +585,9 @@ void UserEBarN::determine_acceleration_and_potential(void)
 	out << "# I_3=" << 0.2*mass*(a[0]*a[0] + a[1]*a[1]) << endl;
 	out << "#" << endl;
 	for (int j=0; j<numt; j++)
-	  out << setw(18) << rr[j] << setw(18) << uu[j] << endl;
+	  out << setw(18) << rr[j]
+	      << setw(18) << mm[j] 
+	      << setw(18) << uu[j] << endl;
       }
 
       cout << "====================================================\n";
@@ -813,7 +904,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 				// Monopole contribution
       if (monopole) {
 
-	M0 = ellip->getMass(rr);
+	M0 = getMass(rr);
 	
 	if (monopole_onoff) M0 *= mono_onoff;
 	
@@ -826,7 +917,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 	}
 
 				// Monopole potential
-	extpot += ellip->getPot(rr);
+	extpot += getPot(rr);
       }
 
 				// Add bar acceleration to particle

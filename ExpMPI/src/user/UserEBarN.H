@@ -4,7 +4,6 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
-#include <EllipForce.H>
 #include <ZBrent.H>
 
 /** Bar with density stratified on confocal ellipsoidal shells.
@@ -122,7 +121,6 @@ private:
 
   string ctr_name, angm_name;
   Component *c0, *c1;
-  EllipForce *ellip;
 
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg);
@@ -146,14 +144,18 @@ private:
   string name;
 
   double ldr, lrmin, lrmax;
-  vector<double> rr, uu;
+  vector<double> rr, mm, uu, pp;
 
   void userinfo();
   
   double rho0;
   LegeQuad *gq, *gt;
+  double Density(vector<double> x);
   double Potential(vector<double> x);
+  double RhoBar(double r);
   double U22(double r);
+  double getMass(double r);
+  double getPot(double r);
   bool quadpot(double r, double& f, double& fr);
 
 public:
