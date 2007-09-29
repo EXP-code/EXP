@@ -18,6 +18,7 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
   amplitude = 0.3;		// Bar quadrupole amplitude
   angmomfac = 1.0;		// Artifically change the total bar ang mom
   barmass = 1.0;		// Total bar mass
+  monofac = 1.0;		// Monopole amplitude
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   TmonoOn = -20.0;		// Turn on start time for monopole
@@ -38,9 +39,9 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
 
   bartype = powerlaw;		// Use the the powerlaw density profile
   modelp = 0.0;			// Either the power law exponent or the exponential scale length
-  rsmin  = 0.001;		// The minimum radius for the quadrupole table in major axis units
-  rsmax  = 100;	                // The maximum radius for the quadrupole table in major axis units
-  numt   = 400;                 // Number of table entries for quadrupole table
+  rsmin  = 0.0001;		// The minimum radius for the quadrupole table in major axis units
+  rsmax  = 2;	                // The maximum radius for the quadrupole table in major axis units
+  numt   = 1000;                // Number of table entries for quadrupole table
   N      = 100;			// Number of integration knots
 
 				// Output file name
@@ -326,7 +327,7 @@ double UserEBarN::Density(vector<double> x)
 double UserEBarN::RhoBar(double r) 
 {
   vector<double> z(3);
-  const int nphi = 40, ntheta = 80;
+  const int nphi = 200, ntheta = 100;
   const double dphi = 0.5*M_PI/nphi;
 
   double cosx, sinx, phi, ans=0.0;
@@ -401,7 +402,7 @@ double UserEBarN::Potential(vector<double> x)
 double UserEBarN::U22(double r) 
 {
   vector<double> z(3);
-  const int nphi = 40, ntheta = 80;
+  const int nphi = 200, ntheta = 100;
   const double dphi = 2.0*M_PI/nphi;
 
   double cosx, sinx, phi, ans=0.0;
@@ -425,6 +426,33 @@ double UserEBarN::U22(double r)
   return ans*numfac;
 }
 
+
+void UserEBarN::Inertia(vector<double>& I)
+{
+  I = vector<double>(3, 0.0);
+  vector<double> z(3);
+  double fac;
+
+  for (int i=1; i<=N; i++) {
+    z[0] = a[0]*gq->knot(i);
+
+    for (int j=1; j<=N; j++) {
+      z[1] = a[1]*gq->knot(j);
+
+      for (int k=1; k<=N; k++) {
+	z[2] = a[2]*gq->knot(k);
+
+	fac = gq->weight(i)*gq->weight(j)*gq->weight(k) * Density(z); 
+	
+	I[0] += fac * (z[1]*z[1] + z[2]*z[2]);
+	I[1] += fac * (z[0]*z[0] + z[2]*z[2]);
+	I[2] += fac * (z[0]*z[0] + z[1]*z[1]);
+      }
+    }
+  }
+
+  for (int k=0; k<3; k++) I[k] *= 8.0*a[0]*a[1]*a[2];
+}
 
 double UserEBarN::getMass(double r)
 {
@@ -480,7 +508,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
   bool update = false;
 
   if (c1) c1->get_angmom();	// Tell component to compute angular momentum
-  // cout << "Process " << myid << ": Lz=" << c1->angmom[2] << endl; // debug
+  // cout << "Process " << myid << ": Lz=" << c1->angmom[2] << endl; // debug  
 
   if (firstime) {
     
@@ -521,8 +549,6 @@ void UserEBarN::determine_acceleration_and_potential(void)
     else
       omega = omega0*(1.0 + DOmega*(tnow - T0*0.5));
 
-    mass = barmass * fabs(amplitude);
-
     a[0] = length;
     a[1] = bratio*a[0];
     a[2] = cratio*a[1];
@@ -532,40 +558,59 @@ void UserEBarN::determine_acceleration_and_potential(void)
     //
     switch (bartype) {
     case expon:
-      rho0 = a[0]*a[0]*mass/(4.0*modelp*modelp) / 
+      rho0 = a[0]*a[0]*barmass/(4.0*modelp*modelp) / 
 	( 1.0 - (1.0 + a[0]/modelp)*exp(-a[0]/modelp) ); 
       break;
     case powerlaw:
-      rho0 = (2.0*modelp + 3.0)*mass/4.0; 
+      rho0 = (2.0*modelp + 3.0)*barmass/4.0; 
       break;
     case ferrers:
-      rho0 = 2.0*exp(lgamma(2.5+modelp) - lgamma(1.5) - lgamma(1.0+modelp))/4.0;
+      rho0 = 2.0*exp(lgamma(2.5+modelp) - lgamma(1.5) - lgamma(1.0+modelp))*barmass/4.0;
       break;
     }
 
     lrmin = log(rsmin);
     lrmax = log(rsmax);
     ldr = (lrmax - lrmin)/(numt-1);
-    double r, msum=0.0, psum=0.0, r1=0.0, r2=0.0, rlst=0.0, rcur=0.0;
+    double r, msum=0.0, psum=0.0;
 
-    for (int j=0; j<numt; j++) {
-      r = exp(lrmin + ldr*j);
-      if (j) {
-	r1 = r2;
-	r2 = r;
-	rlst = rcur;
-	rcur = RhoBar(r2);
-	msum += 4.0*M_PI/2.0 * ldr * (rlst*pow(r1, 3) + rcur*pow(r2, 3));
-	psum += 4.0*M_PI/2.0 * ldr * (rlst*pow(r1, 2) + rcur*pow(r2, 2));
-      } else {
-	r2 = r;
-	rcur = RhoBar(r2);
-      }
+    vector<double> rr1(numt, 0.0);
+    vector<double> rb1(numt, 0.0), rb(numt, 0.0);
+    vector<double> ub1(numt, 0.0);
 
-      rr.push_back(r);
-      mm.push_back(msum);
-      mm.push_back(psum);
-      uu.push_back(U22(r));
+    rr = vector<double>(numt, 0.0);
+    mm = vector<double>(numt, 0.0);
+    pp = vector<double>(numt, 0.0);
+    uu = vector<double>(numt, 0.0);
+
+				// Evaluate the table in parallel
+				// 
+    int jbeg = (myid+0)*numt/numprocs;
+    int jend = (myid+1)*numt/numprocs;
+
+    for (int j=jbeg; j<jend; j++) {
+      rr1[j] = r = exp(lrmin + ldr*j);
+      rb1[j] = RhoBar(r);
+      ub1[j] = U22(r);
+    }
+
+				// Combine evaluations from all processes
+				// 
+    MPI_Allreduce(&rr1[0], &rr[0], numt, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&rb1[0], &rb[0], numt, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&ub1[0], &uu[0], numt, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+				// Compute the mass and potential
+				// 
+    for (int j=1; j<numt; j++) {
+      msum += 4.0*M_PI/2.0 * ldr * 
+	(rb[j-1]*pow(rr[j-1], 3) + rb[j]*pow(rr[j], 3));
+
+      psum += 4.0*M_PI/2.0 * ldr * 
+	(rb[j-1]*pow(rr[j-1], 2) + rb[j]*pow(rr[j], 2));
+
+      mm[j] = msum;
+      pp[j] = psum;
     }
 
     for (int j=0; j<numt; j++)
@@ -580,13 +625,14 @@ void UserEBarN::determine_acceleration_and_potential(void)
 	out << "# a1, a2, a3=" << a[0] << ", " << a[1] << ", " << a[2] << endl;
 	out << "# Expon=" << expon << endl;
 	out << "# Param=" << modelp << endl;
-	out << "# Mass=" << barmass << endl;
-	out << "# Ampl=" << amplitude << endl;
-	out << "# I_3=" << 0.2*mass*(a[0]*a[0] + a[1]*a[1]) << endl;
+	out << "# Mass="  << barmass << endl;
+	out << "# Ampl="  << amplitude << endl;
+	out << "# I_3="   << 0.2*barmass*(a[0]*a[0] + a[1]*a[1]) << endl;
 	out << "#" << endl;
 	for (int j=0; j<numt; j++)
 	  out << setw(18) << rr[j]
 	      << setw(18) << mm[j] 
+	      << setw(18) << pp[j] 
 	      << setw(18) << uu[j] << endl;
       }
 
@@ -599,7 +645,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
       cout << "Rho0=" << rho0 << endl;
       cout << "Mass=" << barmass << endl;
       cout << "Ampl=" << amplitude << endl;
-      cout << "I_3=" << 0.2*mass*(a[0]*a[0] + a[1]*a[1]) << endl;
+      cout << "I_3=" << 0.2*barmass*(a[0]*a[0] + a[1]*a[1]) << endl;
       cout << "Omega(0)=" << omega0 << endl;
       cout << "====================================================\n";
       
@@ -628,7 +674,9 @@ void UserEBarN::determine_acceleration_and_potential(void)
       }
     }
 
-    Iz = 0.2*mass*(a[0]*a[0] + a[1]*a[1]) * angmomfac;
+    vector<double> I;
+    Inertia(I);
+    Iz = I[2] * angmomfac;
     Lz = Iz * omega;
 
     if (c1)
@@ -852,7 +900,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
   if (amplitude==0.0) 
     amp = 0.0;
   else
-    amp = amplitude/fabs(amplitude) * quad_onoff;
+    amp = amplitude * quad_onoff;
 
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
@@ -904,7 +952,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 				// Monopole contribution
       if (monopole) {
 
-	M0 = getMass(rr);
+	M0 = getMass(rr) * monofac;
 	
 	if (monopole_onoff) M0 *= mono_onoff;
 	

@@ -130,7 +130,7 @@ private:
   double bps[3], vel[3], acc[3], acc1[3], **tacc;
 
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
-  double TmonoOn, TmonoOff, DeltaMonoT, modelp, mass;
+  double TmonoOn, TmonoOff, DeltaMonoT, modelp, monofac;
   double monopole_frac, quadrupole_frac, alpha, model_param, rsmin, rsmax;
   bool fixed, monopole, monopole_follow, monopole_onoff, table;
   int numt, N;
@@ -154,6 +154,7 @@ private:
   double Potential(vector<double> x);
   double RhoBar(double r);
   double U22(double r);
+  void Inertia(vector<double>& I);
   double getMass(double r);
   double getPot(double r);
   bool quadpot(double r, double& f, double& fr);
