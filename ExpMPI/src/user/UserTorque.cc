@@ -224,6 +224,17 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
     E = 0.5*vv + halo->get_pot(rr);
     J = sqrt(ll[0]*ll[0] + ll[1]*ll[1] + ll[2]*ll[2]);
 
+    if(rr > halo->get_max_radius()) continue;
+	
+    if(E < halo->get_pot(halo->get_min_radius())){
+      cout << "illegal value of Energy: " << E
+           << "  Emin[r=" << halo->get_min_radius() << "] = "
+           << halo->get_pot(halo->get_min_radius());
+
+      E = halo->get_pot(halo->get_min_radius());
+
+      cout << ":: Now modify the Energy to E =" << E << endl;
+    }
     // orbit_trans routines are not reentrant . . .
     pthread_mutex_lock(&orb_lock);
     orb->new_orbit(E, 0.5);
