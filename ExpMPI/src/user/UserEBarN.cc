@@ -454,48 +454,35 @@ void UserEBarN::Inertia(vector<double>& I)
   for (int k=0; k<3; k++) I[k] *= 8.0*a[0]*a[1]*a[2];
 }
 
-double UserEBarN::getMass(double r)
+bool UserEBarN::quadpot(double r, double& p, double& f, double& fr, double& M)
 {
-  if (r<rr.front()) return mm.front();
-  if (r>rr.back() ) return mm.back();
-
-  double lr = log(r);
-  int indx = (int)floor((log(r) - lrmin)/ldr);
-  double a = (lrmin + ldr*(indx+1) - lr)/ldr;
-  double b = (lr - lrmin - ldr*indx)/ldr;
-
-  return a*mm[indx] + b*mm[indx+1];
-}
-
-
-double UserEBarN::getPot(double r)
-{
-  if (r<rr.front()) return pp.front();
-  if (r>rr.back() ) return -mm.back()/r;
-
-  double lr = log(r);
-  int indx = (int)floor((log(r) - lrmin)/ldr);
-  double a = (lrmin + ldr*(indx+1) - lr)/ldr;
-  double b = (lr - lrmin - ldr*indx)/ldr;
-
-  return a*pp[indx] + b*pp[indx+1];
-}
-
-
-bool UserEBarN::quadpot(double r, double& f, double& fr)
-{
-  if (r<rr.front() || r>=rr.back()) {
+  if (r<rr.front()) {
+    p = pp.front();
     f = fr = 0.0;
+    M = mm.front();
+    return false;
+  }
+
+  if (r>=rr.back()) {
+    p = pp.back()*rr.back()/r;
+    f = uu.back()*pow(rr.back()/r, 3.0);
+    fr = -3.0*f/r;
+    M = mm.back();
     return false;
   }
 
   double lr = log(r);
-  int indx = (int)floor((log(r) - lrmin)/ldr);
+  int indx = max<int>(0, min<int>((int)floor((lr - lrmin)/ldr), numt-2));
+  int indx2 = max<int>(1, indx);
+  double dlr = (lr - (lrmin + ldr*indx2))/ldr;
+
   double a = (lrmin + ldr*(indx+1) - lr)/ldr;
   double b = (lr - lrmin - ldr*indx)/ldr;
 
+  p = a*pp[indx] + b*pp[indx+1];
   f = a*uu[indx] + b*uu[indx+1];
-  fr = (uu[indx+1] - uu[indx])/ldr;
+  fr = (uu[indx2+1]*(dlr+0.5) - 2.0*uu[indx]*dlr + uu[indx2-1]*(dlr-0.5))/(r*ldr);
+  M = a*mm[indx] + b*mm[indx+1];
 
   return true;
 }
@@ -879,7 +866,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 {
   int id = *((int*)arg), nbodies, nbeg, nend, indx;
   double fac=0.0, ffac=0.0, dfac=0.0, amp=0.0, pot=0.0, dpot=0.0;
-  double xx, yy, zz, rr, pp=0.0, extpot, M0=0.0;
+  double xx, yy, zz, rr, pp=0.0, extpot, M0=0.0, P0=0.0;
   vector<double> pos(3), acct(3); 
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
@@ -926,7 +913,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
       rr = sqrt( xx*xx + yy*yy + zz*zz );
 
 				// Variable sharpness potential
-      if (quadpot(rr, pot, dpot)) {
+      if (quadpot(rr, P0, pot, dpot, M0)) {
 	fac = pot/(rr*rr);
 	dfac = (dpot - 2.0*pot/rr)/(rr*rr*rr);
 	ffac = -amp*numfac;
@@ -952,7 +939,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 				// Monopole contribution
       if (monopole) {
 
-	M0 = getMass(rr) * monofac;
+	M0 *= monofac;
 	
 	if (monopole_onoff) M0 *= mono_onoff;
 	
@@ -965,7 +952,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 	}
 
 				// Monopole potential
-	extpot += getPot(rr);
+	extpot += P0;
       }
 
 				// Add bar acceleration to particle

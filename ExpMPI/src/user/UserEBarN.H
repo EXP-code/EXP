@@ -155,9 +155,7 @@ private:
   double RhoBar(double r);
   double U22(double r);
   void Inertia(vector<double>& I);
-  double getMass(double r);
-  double getPot(double r);
-  bool quadpot(double r, double& f, double& fr);
+  bool quadpot(double r, double& p, double& f, double& fr, double& m);
 
 public:
 
