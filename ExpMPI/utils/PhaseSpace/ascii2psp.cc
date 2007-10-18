@@ -1,13 +1,16 @@
 /*
-  Combinine ascii components into PSP
+  Translate from standard tipsy components into PSP
 
   MDWeinberg 05/15/04
 */
 
 using namespace std;
 
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
+
+#include "tipsydefs.h"
 
 #include <iostream>
 #include <fstream>
