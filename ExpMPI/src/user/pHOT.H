@@ -69,6 +69,7 @@ public:
   //@{
   //! Do the extra work to determine the kinetic state per cell
   void makeState();
+
   //! Evaluate the kinetic state for the given input position
   void State(double *pos, double& dens, double& temp, 
 	     double& vx, double& vx, double& vz);

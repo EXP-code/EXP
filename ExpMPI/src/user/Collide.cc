@@ -399,6 +399,7 @@ void * Collide::collide_thread(void * arg)
     collSoFar[id] = collTime[id].stop();
   } // Loop over cells
 
+  return (NULL);
 }
 
 

@@ -41,7 +41,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   diamfac = 1.0;
   taufrac = 0.2;
   boxsize = 1.0;
-  comp_name = "dark halo";
+  comp_name = "gas disk";
   nsteps = -1;
 
 				// Initialize using input parameters
@@ -135,7 +135,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
-    tree.sendParticles(particles);
+    tree.sendParticles(c0->Particles());
     tree.makeTree();
     firstime = false;
   }
@@ -193,23 +193,25 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   if(nsteps>1 && n%nsteps == 0 ) {
     
-    unsigned medianNumb = collide.medianNumber();
-    unsigned medianColl = collide.medianColl();
+    static unsigned tmpc = 0;
+    unsigned medianNumb = collide->medianNumber();
+    unsigned medianColl = collide->medianColl();
 
     ostringstream sout;
     sout << "tmp.out." << tmpc++;
     string filen = sout.str();
     tree.testFrontier(filen);
 
-    tree.resetCell();     // Begin frontier iteration to add up KE
-    unsigned ncells = tree.Number();
+    pHOT_iterator ic(tree);   // Begin frontier iteration to add up KE
+
     double KEtot1=0.0, KEtot=0.0, totE, dspE;
+    unsigned ncells = tree.Number();
     for (unsigned j=0; j<ncells; j++) {
-      tree.nextCell();
-      tree.KE(totE, dspE);
+      ic.nextCell();
+      ic.KE(totE, dspE);
       KEtot1 += totE;
     }
-    double Elost1=collide.Elost(), Elost=0.0;
+    double Elost1=collide->Elost(), Elost=0.0;
 
     MPI_Reduce(&KEtot1, &KEtot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost1, &Elost, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -221,8 +223,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       mout << "Finished " 
 	   << setw(digit1) << n << " of " << nsteps << " steps; " 
-	   << setw(digit2) << collide.total() << " coll; "
-	   << setw(digit2) << collide.errors() << " coll errs; "
+	   << setw(digit2) << collide->total() << " coll; "
+	   << setw(digit2) << collide->errors() << " coll errs; "
 	   << medianNumb << " num/cell; "
 	   << medianColl << " coll/cell; "
 	   << tree.Number() << " cells";
