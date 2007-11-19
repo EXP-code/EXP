@@ -28,7 +28,6 @@ pHOT::pHOT()
 
 void pHOT::sendParticles(vector<Particle>& Data)
 {
-  MPI_Status status;
   Partstruct part;
   unsigned nbodies;
 
@@ -61,7 +60,7 @@ void pHOT::sendParticles(vector<Particle>& Data)
 				// Root node's bodies
 				// first . . .
     nbodies = number - num*(numprocs-1);
-    for (int i=0; i<nbodies; i++) {
+    for (unsigned i=0; i<nbodies; i++) {
       pf.Particle_to_part(part, (*data)[it->second]);
       part.indx = it->second;
       part.key  = it->first;
@@ -74,7 +73,7 @@ void pHOT::sendParticles(vector<Particle>& Data)
 
     for (int i=1; i<numprocs; i++) {
       pf.ShipParticles(i, 0, num);
-      for (int j=0; j<num; j++) {
+      for (unsigned j=0; j<num; j++) {
 	pf.SendParticle((*data)[it->second], it->second, it->first);
 	it++;
       }
@@ -89,10 +88,7 @@ void pHOT::sendParticles(vector<Particle>& Data)
 
     pf.ShipParticles(myid, 0, nbodies);
 
-    unsigned seq;
-    unsigned long long key;
-
-    for (int j=0; j<nbodies; j++) {
+    for (unsigned j=0; j<nbodies; j++) {
       pf.RecvParticle(part);
       bodies[part.indx] = part;
       keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
@@ -105,7 +101,6 @@ void pHOT::sendParticles(vector<Particle>& Data)
 
 void pHOT::gatherParticles(vector<Particle>& Data)
 {
-  MPI_Status status;
   Partstruct part;
   indx_part::iterator it;
 
@@ -117,14 +112,13 @@ void pHOT::gatherParticles(vector<Particle>& Data)
     for (it=bodies.begin(); it!=bodies.end(); it++)
       pf.part_to_Particle(it->second, Data[it->first]);
 
-    unsigned num, seq;
-    unsigned long long key;
+    unsigned num;
 				// Get the particles from the nodes
     for (int i=1; i<numprocs; i++) {
 
       pf.ShipParticles(0, i, num);
 
-      for (int j=0; j<num; j++) {
+      for (unsigned j=0; j<num; j++) {
 	pf.RecvParticle(part);
 	pf.part_to_Particle(part, Data[part.indx]);
       }
@@ -319,7 +313,7 @@ void pHOT::densCheck()
 {
   makeState();
 
-  int MaxLev = 6;
+  unsigned MaxLev = 6;
   cntlev = vector<unsigned> (MaxLev+1, 0);
   kidlev = vector<unsigned> (MaxLev+1, 0);
   maslev = vector<double>   (MaxLev+1, 0);
@@ -352,7 +346,7 @@ void pHOT::densCheck()
 	 << setw(18) << "------"
 	 << endl;
     
-    for (int k=0; k<=MaxLev; k++) {
+    for (unsigned k=0; k<=MaxLev; k++) {
       if (cntlev[k])
 	cout << setw(8)  << k 
 	     << setw(8)  << cntlev[k]
@@ -380,7 +374,7 @@ void pHOT::densCheck()
       MPI_Recv(&vollevN[0], MaxLev+1, MPI_DOUBLE,   n, 147, MPI_COMM_WORLD, &s);
 
       cout << endl << "Node #" << n << endl;
-      for (int k=0; k<=MaxLev; k++) {
+      for (unsigned k=0; k<=MaxLev; k++) {
 	if (cntlevN[k])
 	  cout << setw(8)  << k 
 	       << setw(8)  << cntlevN[k]
@@ -432,7 +426,7 @@ void pHOT::densCheck()
 	 << setw(18) << "------"
 	 << endl;
 
-    for (int n=0; n<=MaxLev; n++) {
+    for (unsigned n=0; n<=MaxLev; n++) {
       if (cntlev[n])
 	cout << setw(8)  << n 
 	     << setw(8)  << cntlev0[n]
@@ -462,7 +456,6 @@ void pHOT::dumpFrontier()
       for (it=frontier.begin(); it!=frontier.end(); it++) {
 	vector<double> mpos(3,0.0), vpos(3,0.0);
 	unsigned num = it->second->bods.size();
-	unsigned indx;
 	double mass = 0.0;
 	for (unsigned n=0; n<num; n++) {
 	  mass += bodies[it->second->bods[n]].mass;
@@ -644,7 +637,7 @@ void pHOT::testFrontier(string& filename)
       for (c=frontier.begin(); c!=frontier.end(); c++) {
 	double mass=0, temp=0, pos[]={0,0,0}, vel[]={0,0,0};
 	p = c->second;
-	for (int n=0; n<p->bods.size(); n++) {
+	for (unsigned n=0; n<p->bods.size(); n++) {
 	  mass += bodies[p->bods[n]].mass;
 	  for (int k=0; k<3; k++) {
 	    pos[k] += bodies[p->bods[n]].mass * bodies[p->bods[n]].pos[k];
@@ -702,7 +695,6 @@ void pHOT::testFrontier(string& filename)
 
 void pHOT::sendCell(unsigned long long key, int to, unsigned num)
 {
-  MPI_Status status;
   pCell *p = frontier.find(key)->second;
   
 #ifdef DEBUG
@@ -718,7 +710,7 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
   pf.ShipParticles(to, myid, num);
 
   key_type tkey;
-  for (int j=0; j<num; j++) {
+  for (unsigned j=0; j<num; j++) {
     if (bodies.find(p->bods[j]) == bodies.end()) {
       cout << "Process " << myid << ": indx not in body list!" << endl;
     }
@@ -772,16 +764,13 @@ void pHOT::recvCell(int from, unsigned num)
        << " from " << from << endl;
 #endif
 
-  MPI_Status status;
   Partstruct part;
-  unsigned seq;
-  unsigned long long key;
 
   pCell *p = root;
 
   pf.ShipParticles(myid, from, num);
 
-  for (int j=0; j<num; j++) {
+  for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
     bodies[part.indx] = part;
     keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
@@ -1141,7 +1130,7 @@ double pHOT::medianVol()
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 61, MPI_COMM_WORLD, &s);
       vector<unsigned> lev1(num);
       MPI_Recv(&lev1[0], num, MPI_UNSIGNED, n, 62, MPI_COMM_WORLD, &s);
-      for (int j=0; j<num; j++) lev.push_back(lev1[j]);
+      for (unsigned j=0; j<num; j++) lev.push_back(lev1[j]);
     }
 
     sort(lev.begin(), lev.end());
@@ -1161,7 +1150,7 @@ void pHOT::Repartition()
 {
   MPI_Status s;
   indx_part::iterator n;
-  unsigned nbod, nget, Tcnt, Fcnt;
+  unsigned nbod, Tcnt, Fcnt;
   vector<unsigned> From(numprocs, 0), To(numprocs, 0), Tlst;
   
   MPI_Barrier(MPI_COMM_WORLD);
@@ -1222,7 +1211,7 @@ void pHOT::Repartition()
       from[i] = vector<unsigned>(numprocs, 0);
     }
 
-    for (int i=0; i<nnb; i++) {
+    for (unsigned i=0; i<nnb; i++) {
       if (it->second.second != 0) {
 	tlst[it->second.second][0].push_back(it->second.first);
 	tcnt[it->second.second]++;
@@ -1234,7 +1223,7 @@ void pHOT::Repartition()
     }
 
     for (int id=1; id<numprocs; id++) {
-      for (int i=0; i<num; i++) {
+      for (unsigned i=0; i<num; i++) {
 	if (it->second.second != id) {
 	  tlst[it->second.second][id].push_back(it->second.first);
 	  tcnt[it->second.second]++;
@@ -1350,7 +1339,7 @@ void pHOT::Repartition()
 
   for (int id=0; id<numprocs; id++) {
     if (To[id]) {
-      for (int i=0; i<To[id]; i++) {
+      for (unsigned i=0; i<To[id]; i++) {
 	psend[ps+i] = bodies[Tlst[ps+i]];
 	bodies.erase(Tlst[ps+i]);
       }
@@ -1402,7 +1391,7 @@ void pHOT::Repartition()
     MPI_Wait(&recv_requests[i], &s);
   }
   
-  for (int i=0; i<Fcnt; i++) bodies[precv[i].indx] = precv[i];
+  for (unsigned i=0; i<Fcnt; i++) bodies[precv[i].indx] = precv[i];
       
   //
   // Remake key body index
