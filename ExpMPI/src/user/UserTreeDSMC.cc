@@ -10,6 +10,8 @@
 
 #include <Timer.h>
 
+#include "expand.h"
+#include "UserTreeDSMC.H"
 #include "CollideLTE.H"
 
 using namespace std;
@@ -31,7 +33,7 @@ double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Munit = 1.0e12*msun/mp;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 
-UserTreeDSMC::UserTreeDSMC()
+UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 {
 				// Default parameter values
   ncell = 64;
@@ -39,7 +41,7 @@ UserTreeDSMC::UserTreeDSMC()
   diamfac = 1.0;
   taufrac = 0.2;
   boxsize = 1.0;
-
+  comp_name = "dark halo";
   nsteps = -1;
 
 				// Initialize using input parameters
@@ -63,10 +65,6 @@ UserTreeDSMC::UserTreeDSMC()
 
 				// Diameter*Bohr radius in Lunits
   double diam = diamfac*a0/(Lunit);
-				// for output
-  double Dunit = 1.0;
-				// vel^2/(deg K)
-  double KE = boltz/mp/(Vunit*Vunit); 
 
   pHOT::s[0] = pHOT::s[1] = pHOT::s[2] = boxsize;
 
@@ -76,7 +74,7 @@ UserTreeDSMC::UserTreeDSMC()
 
 
   Collide::CNUM = cnum;
-  coll = new CollideLTE(diam, nthrds);
+  collide = new CollideLTE(diam, nthrds);
 
   //
   // Timers: set precision to microseconds
@@ -106,7 +104,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac 
-       << ", taufac=" << taufac << ", compname=" << compname;
+       << ", taufrac=" << taufrac << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   cout << endl;
 
@@ -117,12 +115,12 @@ void UserTreeDSMC::initialize()
 {
   string val;
 
-  if (get_value("Lunit", val))		Lunit = val;
-  if (get_value("Tunit", val))		Tunit = val;
-  if (get_value("Munit", val))		Munit = val;
+  if (get_value("Lunit", val))		Lunit = atof(val.c_str());
+  if (get_value("Tunit", val))		Tunit = atof(val.c_str());
+  if (get_value("Munit", val))		Munit = atof(val.c_str());
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
-  if (get_value("taufac", val))		taufrac = atof(val.c_str());
+  if (get_value("taufrac", val))	taufrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
 }

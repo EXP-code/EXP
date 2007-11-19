@@ -25,6 +25,7 @@ private:
   
   int ncell;
   int cnum;
+  int nsteps;
   double diamfac;
   double taufrac;
   double boxsize;
