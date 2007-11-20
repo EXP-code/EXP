@@ -16,6 +16,13 @@ private:
   long userTime, systemTime, realTime;
 
 public:
+  TimeElapsed() : userTime(0), systemTime(0), realTime(0) {}
+  TimeElapsed(const TimeElapsed& p) {
+    userTime = p.userTime;
+    systemTime = p.systemTime;
+    realTime = p.realTime;
+  }
+
   TimeElapsed(long user, long system, long real)
     {
       userTime = user;
@@ -38,11 +45,12 @@ public:
       return userTime + systemTime;
     }
       
-
   long getRealTime()
     {
       return realTime;
     }
+
+  long operator()() { return userTime + systemTime; }
 };
 
 class Timer
@@ -88,10 +96,10 @@ private:
     started = true;
 
     if (gettimeofday(&begin, NULL))
-      cerr << "gettimeofday error!";
+      std::cerr << "gettimeofday error!";
 
     if (getrusage(RUSAGE_SELF, &beginusage) == -1)
-      cerr << "getrusage error!";
+      std::cerr << "getrusage error!";
   }
   
   // stop timer and return time measured so far.
@@ -102,10 +110,10 @@ private:
       return TimeElapsed(0, 0, 0);
     
     if (gettimeofday(&end, NULL))
-      cerr << "gettimeofday error!";
+      std::cerr << "gettimeofday error!";
 
     if (getrusage(RUSAGE_SELF, &endusage) == -1)
-      cerr << "getrusage error!";
+      std::cerr << "getrusage error!";
 
     started = false;
 
@@ -152,10 +160,10 @@ private:
       if (started)
 	{
 	  if (gettimeofday(&begin, NULL))
-	    cerr << "gettimeofday error!";
+	    std::cerr << "gettimeofday error!";
 
 	  if (getrusage(RUSAGE_SELF, &beginusage) == -1)
-	    cerr << "getrusage error!";
+	    std::cerr << "getrusage error!";
 	}
     }
 
@@ -166,10 +174,10 @@ private:
       return TimeElapsed(utime, stime, rtime);
 
     if (gettimeofday(&end, NULL))
-      cerr << "gettimeofday error!";
+      std::cerr << "gettimeofday error!";
 
     if (getrusage(RUSAGE_SELF, &endusage) == -1)
-      cerr << "getrusage error!";
+      std::cerr << "getrusage error!";
 
     if (precision)
       {

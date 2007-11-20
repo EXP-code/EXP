@@ -509,6 +509,11 @@ public:
   //! Is particle beyond COM system
   bool escape_com(const Particle&);
 
+  //! Access to particle vector
+  vector<Particle>& Particles() {
+    return particles;
+  }
+
   //! Access to particle
   Particle *Part(int i) {
     return &particles[i];

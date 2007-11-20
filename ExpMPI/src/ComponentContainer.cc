@@ -365,6 +365,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
       (*inter)->c->force->SetExternal();
+      (*inter)->c->force->set_multistep_level(mlevel);
       (*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
 
@@ -383,6 +384,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       c = *cc;
       for (ext=external.force_list.begin(); 
 	   ext != external.force_list.end(); ext++) {
+	(*ext)->set_multistep_level(mlevel);
 	(*ext)->get_acceleration_and_potential(c);
       }
     }

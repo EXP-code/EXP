@@ -17,7 +17,7 @@
     @param ncell is the desired number of particles per cell
     @param cnum non-zero adjusts cross section for cnum collisions per cel
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
-    @param taufrac is a multiplicative fraction of the crossing time for time step selection
+    @param collfrac is a multiplicative fraction for collsion number
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -27,9 +27,11 @@ private:
   int cnum;
   int nsteps;
   double diamfac;
-  double taufrac;
+  double collfrac;
   double boxsize;
 
+  unsigned stepnum;
+  double curtime;
 
   CollideLTE *collide;
 

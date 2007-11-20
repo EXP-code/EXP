@@ -134,7 +134,7 @@ public:
 
   double Mass() { return fit->second->Mass(); }
 
-  Partstruct *Body(unsigned k) { return &(tr->bodies[fit->second->bods[k]]); }
+  Partstruct *Body(unsigned k) { return fit->second->Body(k); }
 };
 
 #endif

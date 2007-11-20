@@ -28,8 +28,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H \
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H \
 	UserBar.H UserHalo.H pCell.H HeatCool.H UserDSMC.H UserLogPot.H \
-	pHOT.H ParticleFerry.H UserDiffRot.H UserRPtest.H pHOT_types.H \
-	Timer.h
+	pHOT.H ParticleFerry.H UserDiffRot.H UserRPtest.H pHOT_types.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc

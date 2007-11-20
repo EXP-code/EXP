@@ -117,6 +117,7 @@ void do_step(int n)
       if (timing) timer_vel.start();
       for (int M=mfirst[mstep-1]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
+	// For low-level debugging . . .
 	/*
 	if (myid==0) {
 	  cout << "Step=" << setw(3) << n

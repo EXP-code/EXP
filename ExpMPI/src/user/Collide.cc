@@ -85,7 +85,6 @@ Collide::Collide(double diameter, int nth)
 {
   nthrds = nth;
 
-  numcntT = vector< vector<unsigned> > (nthrds);
   colcntT = vector< vector<unsigned> > (nthrds);
   error1T = vector<unsigned> (nthrds, 0);
   col1T = vector<unsigned> (nthrds, 0);
@@ -108,6 +107,13 @@ Collide::Collide(double diameter, int nth)
   collSoFar = vector<TimeElapsed>(nthrds);
   collCnt = vector<int>(nthrds, 0);
   for (int n=0; n<nthrds; n++) collTime[n].Microseconds();
+  
+  tdiag  = vector<unsigned>(numdiag, 0);
+  tdiag1 = vector<unsigned>(numdiag, 0);
+  tdiag0 = vector<unsigned>(numdiag, 0);
+  tdiagT = vector< vector<unsigned> > (nthrds);
+  for (int n=0; n<nthrds; n++) 
+    tdiagT[n] = vector<unsigned>(numdiag, 0);
 
   gen = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
@@ -163,7 +169,10 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     colcntT[n].clear();		// and collision counts
     numcntT[n].clear();
 
+    for (unsigned k=0; k<numdiag; k++) tdiagT[n][k] = 0;
   }
+  for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
+
 				// Make cellist
   unsigned ncells = tree.Number();
   pHOT_iterator c(tree);
@@ -198,6 +207,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     col1 += col1T[n];
     numcnt.insert(numcnt.end(), numcntT[n].begin(), numcntT[n].end());
     colcnt.insert(colcnt.end(), colcntT[n].begin(), colcntT[n].end());
+    for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
 #ifdef DIAG
     KEtot += KEtotT[n];
     KElost += KElostT[n];
@@ -211,6 +221,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   MPI_Reduce(&col1, &col, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 #ifdef DIAG
   double KEtot0=0.0, KElost0=0.0;
   MPI_Reduce(&KEtot,  &KEtot0,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -222,6 +233,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
 
   coltot += col;
   errtot += error;
+  for (unsigned k=0; k<numdiag; k++) tdiag[k] += tdiag0[k];
 
   snglSoFar = snglTime.stop();
 
@@ -301,6 +313,18 @@ void * Collide::collide_thread(void * arg)
     double coeff  = 0.5*number*(number-1)*Fn/volc*cross*tau;
     double select = coeff*crm;
 
+				// Diagnose time step in this cell
+    double vmass;
+    vector<double> V1, V2;
+    c->Vel(vmass, V1, V2);
+    double vmean = (V2[0]+V2[1]+V2[2])/vmass/3.0;
+    double taudiag = pow(c->Volume(), 0.333333)/sqrt(vmean)/tau;
+    
+    int indx = (int)floor(log(taudiag)/log(10.0) + 4);
+    if (indx<0) indx = 0;
+    if (indx>8) indx = 8;
+    tdiagT[id][indx]++;
+    
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
 

@@ -5,6 +5,7 @@
 #include <string>
 
 #include "localmpi.h"
+#include "ParticleFerry.H"
 #include "pCell.H"
 #include "pHOT.H"
 
@@ -296,4 +297,9 @@ double pCell::Mass()
 double pCell::Volume()
 {
   return tree->volume/(1 << 3*level);
+}
+
+Partstruct* pCell::Body(unsigned k)
+{ 
+  return &(tree->bodies[bods[k]]); 
 }

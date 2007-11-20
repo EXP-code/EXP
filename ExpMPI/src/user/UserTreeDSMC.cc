@@ -28,9 +28,9 @@ static double mp = 1.67e-24;		// g
 static double msun = 1.989e33;		// g
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
-double UserTreeDSMC::Tunit = 5e8*year;
+double UserTreeDSMC::Munit = 1.0e12*msun;
+double UserTreeDSMC::Tunit = sqrt(6.67e-8*Lunit*Lunit*Lunit/Munit);
 double UserTreeDSMC::Vunit = Lunit/Tunit;
-double UserTreeDSMC::Munit = 1.0e12*msun/mp;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
@@ -39,7 +39,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ncell = 64;
   cnum = 0;
   diamfac = 1.0;
-  taufrac = 0.2;
+  collfrac = 5.0;
   boxsize = 1.0;
   comp_name = "gas disk";
   nsteps = -1;
@@ -104,7 +104,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac 
-       << ", taufrac=" << taufrac << ", compname=" << comp_name;
+       << ", collfrac=" << collfrac << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   cout << endl;
 
@@ -120,7 +120,7 @@ void UserTreeDSMC::initialize()
   if (get_value("Munit", val))		Munit = atof(val.c_str());
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
-  if (get_value("taufrac", val))	taufrac = atof(val.c_str());
+  if (get_value("collfrac", val))	collfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
 }
@@ -137,7 +137,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (firstime) {
     tree.sendParticles(c0->Particles());
     tree.makeTree();
+
+    stepnum = 0;
+    curtime = tnow;
+
     firstime = false;
+  } else {
+
+    if (tnow-curtime < 1.0e-12) {
+      stepnum++;
+      curtime = tnow;
+    }
+
   }
 
   // DEBUG
@@ -148,9 +159,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   double minvol = tree.minVol();
   double medianvol = tree.medianVol();
-  double minsize = pow(minvol, 0.3333333);
+  // double minsize = pow(minvol, 0.3333333);
   double mediansize = pow(medianvol, 0.3333333);
-  double tau = taufrac*mediansize/sqrt(max<double>(T1, T2));
+  double tau = dtime*mintvl[mlevel]/Mstep;
   double ElostTot = 0.0;
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -180,7 +191,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Evaluate collisions among the particles
   //
-  unsigned col = collide->collide(tree, Fn, tau);
+  unsigned col = collide->collide(tree, collfrac, tau);
     
   collideSoFar = collideTime.stop();
 
@@ -191,7 +202,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Periodically display the current progress
   //
   //
-  if(nsteps>1 && n%nsteps == 0 ) {
+  if(nsteps>1 && stepnum%nsteps == 0 ) {
     
     static unsigned tmpc = 0;
     unsigned medianNumb = collide->medianNumber();
@@ -221,8 +232,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       sout << runtag << ".DSMC_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
+      int digit1 = (int)floor(log(nsteps)/log(10.0)) + 1;
+      int digit2 = (int)floor(log(nsteps*400*volume/minvol)/log(10.0)) + 1;
+
       mout << "Finished " 
-	   << setw(digit1) << n << " of " << nsteps << " steps; " 
+	   << setw(digit1) << stepnum << " of " << nsteps << " steps; " 
 	   << setw(digit2) << collide->total() << " coll; "
 	   << setw(digit2) << collide->errors() << " coll errs; "
 	   << medianNumb << " num/cell; "
@@ -246,6 +260,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "    density=" << densitySoFar()*1.0e-6 << endl
 	   << "     gather=" << gatherSoFar()*1.0e-6 << endl
 	   << endl;
+
+      collide->tsdiag(mout);
 
       driftTime.reset();
       bcTime.reset();

@@ -150,6 +150,10 @@ void CollideLTE::initialize_cell(pCell* cell,
   HeatCool heatcool(n0, T);
 
   deltaE[id] = heatcool.CoolRate()/UserTreeDSMC::Eunit * n_h*n_h * Volume * tau * UserTreeDSMC::Tunit / number;
+
+				// Assign temp to cells
+  unsigned nbods = cell->bods.size();
+  for (unsigned j=0; j<nbods; j++) cell->Body(j)->datr[0] = T;
 }
 
 

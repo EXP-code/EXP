@@ -67,6 +67,10 @@ protected:
   std::vector<unsigned> col1T;
   std::vector<double> KEtotT, KElostT;
 
+  const static unsigned numdiag = 9;
+  std::vector<unsigned> tdiag, tdiag1, tdiag0;
+  std::vector< vector<unsigned> > tdiagT;
+
   std::vector< vector<pCell*> > cellist;
 
   double diam0, diam;
@@ -114,6 +118,16 @@ public:
       collTime[n].reset(); 
       collCnt[n] = 0;
     }
+  }
+
+  void tsdiag(ostream& out) {
+    out << "-----Time step diagnostics---------------" << endl;
+    for (unsigned k=0; k<numdiag; k++) {
+      out << setw(15) << pow(10.0, -3.5+k)
+	   << setw(15) << tdiag[k] << endl;
+      tdiag[k] = 0;
+    }
+    out << "-----------------------------------------" << endl;
   }
 
 };
