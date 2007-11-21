@@ -124,7 +124,7 @@ public:
     out << "-----Time step diagnostics---------------" << endl;
     for (unsigned k=0; k<numdiag; k++) {
       out << setw(15) << pow(10.0, -3.5+k)
-	   << setw(15) << tdiag[k] << endl;
+	  << setw(15) << tdiag[k] << endl;
       tdiag[k] = 0;
     }
     out << "-----------------------------------------" << endl;

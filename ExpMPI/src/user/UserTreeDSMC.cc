@@ -29,7 +29,7 @@ static double msun = 1.989e33;		// g
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
 double UserTreeDSMC::Munit = 1.0e12*msun;
-double UserTreeDSMC::Tunit = sqrt(6.67e-8*Lunit*Lunit*Lunit/Munit);
+double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.673e-08));
 double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 
@@ -80,14 +80,13 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Timers: set precision to microseconds
   //
   
-  driftTime.Microseconds();
-  bcTime.Microseconds();
   partnTime.Microseconds();
   treeTime.Microseconds();
   collideTime.Microseconds();
   densityTime.Microseconds();
   gatherTime.Microseconds();
 
+  userinfo();
 }
 
 UserTreeDSMC::~UserTreeDSMC()
@@ -142,9 +141,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     curtime = tnow;
 
     firstime = false;
+
   } else {
 
-    if (tnow-curtime < 1.0e-12) {
+    if (tnow-curtime > 1.0e-12) {
       stepnum++;
       curtime = tnow;
     }
@@ -166,13 +166,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  if (myid==0) 
-    cout << setw(10) << "Length: " << setw(16) << mediansize << endl
-	 << setw(10) << "Tau: "    << setw(16) << tau        << endl;
-
-  TimeElapsed driftSoFar, bcSoFar, partnSoFar;
+  TimeElapsed partnSoFar;
   TimeElapsed treeSoFar, collideSoFar, densitySoFar, gatherSoFar;
-
 
   //
   // Test repartition
@@ -204,6 +199,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   if(nsteps>1 && stepnum%nsteps == 0 ) {
     
+    collide->Debug(tnow);
+
     static unsigned tmpc = 0;
     unsigned medianNumb = collide->medianNumber();
     unsigned medianColl = collide->medianColl();
@@ -252,8 +249,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "   Total KE=" << KEtot << endl
 	   << "      Ratio=" << Elost/KEtot << endl << endl
 	   << "Timing (secs):" << endl
-	   << "      drift=" << driftSoFar()*1.0e-6 << endl
-	   << "         bc=" << bcSoFar()*1.0e-6 << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "       tree=" << treeSoFar()*1.0e-6 << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl
@@ -263,12 +258,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       collide->tsdiag(mout);
 
-      driftTime.reset();
-      bcTime.reset();
       partnTime.reset();
       treeTime.reset();
       collideTime.reset();
       densityTime.reset();
+      gatherTime.reset();
     }
 
   }

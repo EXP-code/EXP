@@ -50,6 +50,10 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   
   ellip = 0;
 
+  // Zero monopole variables
+  teval = vector<double>(multistep+1, tnow);
+  for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
+
   initialize();
 
   if (ctr_name.size()>0) {
@@ -253,6 +257,12 @@ void UserEBar::initialize()
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
   if (get_value("alpha", val))		alpha = atof(val.c_str());
+  if (get_value("x0", val))     	bps[0] = atof(val.c_str());
+  if (get_value("y0", val))     	bps[1] = atof(val.c_str());
+  if (get_value("z0", val))     	bps[2] = atof(val.c_str());
+  if (get_value("u0", val))     	vel[0] = atof(val.c_str());
+  if (get_value("v0", val))     	vel[1] = atof(val.c_str());
+  if (get_value("w0", val))     	vel[2] = atof(val.c_str());
   if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;  
   if (get_value("follow", val))		monopole_follow = atoi(val.c_str()) ? true:false;
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;

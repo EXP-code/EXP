@@ -39,7 +39,8 @@ private:
   Component *c0;
 
   void determine_acceleration_and_potential(void);
-  void * determine_acceleration_and_potential_thread(void * arg);
+  void * determine_acceleration_and_potential_thread(void * arg) 
+  { return (NULL); }
   void initialize();
 
 				// The tree
@@ -47,7 +48,7 @@ private:
   double volume;
 
 				// Timers
-  Timer driftTime, bcTime, partnTime, treeTime;
+  Timer partnTime, treeTime;
   Timer collideTime, densityTime, gatherTime;
 
   void userinfo();

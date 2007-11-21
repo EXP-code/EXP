@@ -86,6 +86,7 @@ Collide::Collide(double diameter, int nth)
   nthrds = nth;
 
   colcntT = vector< vector<unsigned> > (nthrds);
+  numcntT = vector< vector<unsigned> > (nthrds);
   error1T = vector<unsigned> (nthrds, 0);
   col1T = vector<unsigned> (nthrds, 0);
   KEtotT = vector<double> (nthrds, 0);
