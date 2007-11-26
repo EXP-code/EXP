@@ -44,7 +44,6 @@ private:
   void initialize();
 
 				// The tree
-  pHOT tree;
   double volume;
 
 				// Timers

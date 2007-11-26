@@ -208,7 +208,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
 	const int nlabels2 = 6;
 	string labels2[] = {"X", "Y", "Z", "U", "V", "W"};
 
-	for (int i=1; i<=npart; i++) {
+	for (unsigned i=1; i<=npart; i++) {
 	  for (int j=0; j<nlabels; j++) {
 	    ostringstream sout;
 	    sout << labels[j] << "(" << i << ")";
@@ -229,7 +229,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
 	out << setw(15) << "# 1";
 	int cntr = 2;
 
-	for (int i=1; i<=npart; i++) {
+	for (unsigned i=1; i<=npart; i++) {
 	  for (int j=0; j<nlabels; j++) {
 	    out << "| " << setw(13) << cntr++;
 	  }
@@ -271,8 +271,12 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
   }
 
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
 
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+    i = (it++)->first;
 				// If we are multistepping, compute accel 
 				// only at or below this level
 

@@ -148,8 +148,13 @@ void * Slab::determine_coefficients_thread(void * arg)
   double adb = component->Adiabatic();
   double zz;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
     
+    i = (it++)->first;
 				// Increment particle counter
     use[id]++;
 
@@ -241,8 +246,14 @@ void * Slab::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double zz;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
     
+    i = (it++)->first;
+
     accx = accy = accz = potl = 0.0;
     
 				// Recursion multipliers

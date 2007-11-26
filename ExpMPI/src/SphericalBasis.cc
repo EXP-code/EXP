@@ -331,7 +331,7 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 void * SphericalBasis::determine_coefficients_thread(void * arg)
 {
-  int l, i, loffset, moffset, m, n, nn, indx;
+  int l, loffset, moffset, m, n, nn, indx;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
   double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
   double xx, yy, zz;
@@ -357,11 +357,11 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
   use[id] = 0;
 
-  for (i=nbeg; i<nend; i++) {
+  for (int i=nbeg; i<nend; i++) {
 
     indx = cC->levlist[mlevel][i];
 
-    if (component->freeze(*(cC->Part(indx)))) continue;
+    if (component->freeze(indx)) continue;
 
     
     mass = cC->Mass(indx) * adb;
@@ -586,7 +586,7 @@ void SphericalBasis::multistep_update_finish()
 void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int id)
 {
   
-  if (c->freeze(*(c->Part(i)))) return;
+  if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -721,24 +721,26 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   int id = *((int*)arg);
 
-#ifdef DEBUG
-  pthread_mutex_lock(&io_lock);
-  cout << "Process " << myid << ": in thread "
-       << "id=" << id << " nbeg=" << nbeg << " nend=" << nend << endl;
-  pthread_mutex_unlock(&io_lock);
-#endif
-
   for (int lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();
     nbeg = nbodies*(id  )/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
+#ifdef DEBUG
+  pthread_mutex_lock(&io_lock);
+  cout << "Process " << myid << ": in thread"
+       << " id=" << id 
+       << " level=" << lev
+       << " nbeg=" << nbeg << " nend=" << nend << endl;
+  pthread_mutex_unlock(&io_lock);
+#endif
+
     for (int i=nbeg; i<nend; i++) {
 
       indx = cC->levlist[lev][i];
 
-      if (component->freeze(*(cC->Part(indx)))) continue;
+      if (component->freeze(indx)) continue;
 
       if (use_external) {
 	cC->Pos(pos, indx, Component::Inertial);
@@ -870,6 +872,15 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
   exp_thread_fork(false);
 
+#ifdef DEBUG
+  cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
+  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << "> bodies ["
+       << cC->Particles().begin()->second.indx << ", "
+       << cC->Particles().rbegin()->second.indx << "], ["
+       << cC->Particles().begin()->first << ", "
+       << cC->Particles().rbegin()->first << "]"
+       << " #=" << cC->Particles().size() << endl;
+#endif
 }
 
 

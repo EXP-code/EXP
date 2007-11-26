@@ -20,6 +20,7 @@
 #include <Direct.H>
 #include <NoForce.H>
 #include <Orient.H>
+#include <pHOT.H>
 
 #include "expand.h"
 
@@ -51,7 +52,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJlinear = false;
 
   binary = false;
-  npart = false;
 
   adiabatic = false;
   ton  = -1.0e20;
@@ -68,7 +68,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   force   = 0;			// Null out pointers
   orient  = 0;
-  buf     = 0;
 
   com     = 0;
   cov     = 0;
@@ -83,12 +82,15 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   comI    = 0;
   covI    = 0;
 
-  ordered = true;
   seq_check = false;
 
   read_bodies_and_distribute_ascii();
 
   reset_level_lists();
+
+  tree = new pHOT(this);
+
+  pbuf = new Particle [ParticleFerry::nbuf];
 }
 
 struct thrd_pass_reset
@@ -114,8 +116,13 @@ void * reset_level_lists_thrd(void *ptr)
   int nbeg = nbodies*(id  )/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  for (int n=nbeg; n<nend; n++)
-    (static_cast<thrd_pass_reset*>(ptr)->newlist)[c->Part(n)->level].push_back(n);
+  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+
+  for (int n=0; n<nbeg; n++) it++;
+  for (int n=nbeg; n<nend; n++) {
+    (static_cast<thrd_pass_reset*>(ptr)->newlist)[it->second.level].push_back(it->first);
+    it++;
+  }
   
   return (NULL);
 }
@@ -238,7 +245,6 @@ Component::Component(istream *in)
   EJlinear = false;
 
   binary = true;
-  npart = false;
 
   adiabatic = false;
   ton  = -1.0e20;
@@ -256,7 +262,6 @@ Component::Component(istream *in)
 
   force   = 0;			// Null out pointers
   orient  = 0;
-  buf     = 0;
 
   com     = 0;
   cov     = 0;
@@ -270,8 +275,6 @@ Component::Component(istream *in)
   acc0    = 0;
   comI    = 0;
   covI    = 0;
-
-  ordered = true;
 
   read_bodies_and_distribute_binary(in);
 
@@ -671,7 +674,8 @@ Component::~Component(void)
   delete force;
 
   delete orient;
-  delete [] buf;
+
+  delete [] pbuf;
 
   delete [] com;
   delete [] center;
@@ -685,53 +689,14 @@ Component::~Component(void)
   delete [] acc0;
   delete [] comI;
   delete [] covI;
+
+  delete tree;
 }
 
 void Component::bomb(const string& msg)
 {
   cerr << "Component [" << name << ", " << id << "]: " << msg << endl;
   exit(-1);
-}
-
-void Component::part_to_Particle(Partstruct& str, Particle& cls)
-{
-  cls.mass = str.mass;
-  for (int j=0; j<3; j++) {
-      cls.pos[j] = str.pos[j];
-      cls.vel[j] = str.vel[j];
-      cls.acc[j] = str.acc[j];
-  }
-  cls.pot = str.pot;
-  cls.potext = str.potext;
-
-  cls.level = str.level;
-  cls.indx = str.indx;
-
-  cls.iattrib = vector<int>(niattrib);
-  for (int j=0; j<niattrib; j++) cls.iattrib[j] = str.iatr[j];
-
-  cls.dattrib = vector<double>(ndattrib);
-  for (int j=0; j<ndattrib; j++) cls.dattrib[j] = str.datr[j];
-
-}
-
-void Component::Particle_to_part(Partstruct& str, Particle& cls)
-{
-  str.mass = cls.mass;
-  for (int j=0; j<3; j++) {
-      str.pos[j] = cls.pos[j];
-      str.vel[j] = cls.vel[j];
-      str.acc[j] = cls.acc[j];
-  }
-  str.pot = cls.pot;
-  str.potext = cls.potext;
-
-  str.level = cls.level;
-  str.indx = cls.indx;
-
-  for (int j=0; j<niattrib; j++) str.iatr[j] = cls.iattrib[j];
-
-  for (int j=0; j<ndattrib; j++) str.datr[j] = cls.dattrib[j];
 }
 
 void Component::read_bodies_and_distribute_ascii(void)
@@ -797,39 +762,6 @@ void Component::read_bodies_and_distribute_ascii(void)
   MPI_Bcast(&niattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
-				// Assign particle structure buffer
-  buf = new Partstruct [nbuf];
-
-				// Make MPI datatype
-  
-  MPI_Datatype type[10] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, 
-			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,
-			   MPI_INT,    MPI_DOUBLE};
-
-				// Get displacements
-  MPI_Aint disp[9];
-  MPI_Get_address(&buf[0].mass,		&disp[0]);
-  MPI_Get_address(&buf[0].pos,		&disp[1]);
-  MPI_Get_address(&buf[0].vel,		&disp[2]);
-  MPI_Get_address(&buf[0].acc,		&disp[3]);
-  MPI_Get_address(&buf[0].pot,		&disp[4]);
-  MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].level,	&disp[6]);
-  MPI_Get_address(&buf[0].indx,		&disp[7]);
-  MPI_Get_address(&buf[0].iatr,		&disp[8]);
-  MPI_Get_address(&buf[0].datr,		&disp[9]);
-
-  for (int i=9; i>=0; i--) disp[i] -= disp[0];
-  
-				// Block offsets
-  int blocklen[10] = {1, 3, 3, 3, 1, 1, 1, 1, nimax, ndmax};
-  
-  MPI_Type_create_struct(10, blocklen, disp, type, &Particletype);
-  MPI_Type_commit(&Particletype);
-
-
   double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
@@ -846,20 +778,8 @@ void Component::read_bodies_and_distribute_ascii(void)
   setup_distribution();
   is_init = 0;
 
-				// Form cumulative and differential bodies list
-  
-  plist = vector<int>(numprocs);
-  for (int i=0; i<numprocs; i++) plist[i] = nbodies_index[i];
-  ncount = plist;
-  for (int i=1; i<numprocs; i++) ncount[i] -= plist[i-1];
 
-  if (myid==0) seq_beg = 1;
-  else seq_beg = plist[myid-1]+1;
-  seq_end = plist[myid];
-
-  Particle part;
-  part.iattrib = vector<int>(niattrib);
-  part.dattrib = vector<double>(ndattrib);
+  Particle part(niattrib, ndattrib);
 
   if (myid==0) {
 				// Read root node particles
@@ -892,11 +812,11 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
     }
 
-    particles.push_back(part);
+    particles[part.indx] = part;
 
 				// Remainder of Node 0's particles
 
-    for (int i=2; i<=ncount[0]; i++) {
+    for (int i=2; i<=nbodies_table[0]; i++) {
       
       fin->getline(line, nline);
       istringstream ins(line);
@@ -924,56 +844,51 @@ void Component::read_bodies_and_distribute_ascii(void)
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
-      particles.push_back(part);
+      particles[part.indx] = part;
     }
 
-    nbodies = ncount[0];
+    nbodies = nbodies_table[0];
 
     int icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
 
-      MPI_Send(&ncount[n], 1, MPI_INT, n, 1, MPI_COMM_WORLD);
+      pf.ShipParticles(n, 0, nbodies_table[n]);
 
       icount = 0;
       ibufcount = 0;
-      while (icount < ncount[n]) {
+      while (icount < nbodies_table[n]) {
 
 	fin->getline(line, nline);
 	istringstream ins(line);
 
-	ins >> buf[ibufcount].mass;
-	for (int j=0; j<3; j++) ins >> buf[ibufcount].pos[j];
-	for (int j=0; j<3; j++) ins >> buf[ibufcount].vel[j];
-	for (int j=0; j<3; j++) buf[ibufcount].acc[j] = 0.0;
-	buf[ibufcount].pot = buf[ibufcount].potext = 0.0;
+	ins >> part.mass;
+	for (int j=0; j<3; j++) ins >> part.pos[j];
+	for (int j=0; j<3; j++) ins >> part.vel[j];
+	for (int j=0; j<3; j++) part.acc[j] = 0.0;
+	part.pot = part.potext = 0.0;
 
-	buf[ibufcount].level = 0;
-	buf[ibufcount].indx = nbodies_index[n-1] + 1 + icount;
+	part.level = 0;
+	part.indx = nbodies_index[n-1] + 1 + icount;
 
 	for (int j=0; j<niattrib; j++) {
-	  ins >> buf[ibufcount].iatr[j];
-	  if (!ins) buf[ibufcount].iatr[j] = 0;
+	  ins >> part.iattrib[j];
+	  if (!ins) part.iattrib[j] = 0;
 	}
 
 	for (int j=0; j<ndattrib; j++) {
-	  ins >> buf[ibufcount].datr[j];
-	  if (!ins) buf[ibufcount].datr[j] = 0;
+	  ins >> part.dattrib[j];
+	  if (!ins) part.dattrib[j] = 0;
 	}
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
-	  r2 += buf[ibufcount].pos[k]*buf[ibufcount].pos[k];
+	  r2 += part.pos[k]*part.pos[k];
 
 	rmax1 = max<double>(r2, rmax1);
 
-	ibufcount++;
-	icount++;
 
-	if (ibufcount == nbuf || icount == ncount[n]) {
-	  MPI_Send(&ibufcount, 1, MPI_INT, n, 2, MPI_COMM_WORLD);
-	  MPI_Send(buf, ibufcount, Particletype, n, 3, MPI_COMM_WORLD);
-	  ibufcount = 0;
-	}
+	pf.SendParticle(part);
+	icount++;
 
       }
 
@@ -981,37 +896,12 @@ void Component::read_bodies_and_distribute_ascii(void)
 
   } else {
 
-    MPI_Recv(&nbodies, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status0);
+    pf.ShipParticles(myid, 0, nbodies);
       
-    int icount = 0, isent;
-    while (icount < nbodies) {
-      MPI_Recv(&isent, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &status0);
-      MPI_Recv(buf, isent, Particletype, 0, 3, MPI_COMM_WORLD, &status0);
-      for (int i=0; i<isent; i++) {
-	part_to_Particle(buf[i], part);
-	particles.push_back(part);
-	icount++;
-      }
-    }
-  }
-  
-				// Sanity check
-  if (seq_check) {
-    if (particles.size()) {
-      if (seq_beg != particles[0].indx || 
-	  seq_end != particles[nbodies-1].indx) {
-	cout << "Process " << myid << ": sequence error on init,"
-	     << " seq_beg=" << seq_beg
-	     << " seq_end=" << seq_end
-	     << " level[1]=" << particles[0].level
-	     << " level[N]=" << particles[nbodies-1].level
-	     << " seq[1]=" << particles[0].level
-	     << " seq[1]=" << particles[0].indx
-	     << " seq[N]=" << particles[nbodies-1].indx
-	     << " nbodies=" << nbodies
-	     << endl << flush;
-	MPI_Abort(MPI_COMM_WORLD, -1);
-      }
+    int icount = 0;
+    while (pf.RecvParticle(part)) {
+      particles[part.indx] = part;
+      icount++;
     }
   }
 				// Default: set to max radius
@@ -1023,55 +913,30 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// COM HERE?
   if (myid==0) delete fin;
 
+#ifdef DEBUG
+  cout << "read_bodies_and_distribute_ascii: process " << myid 
+       << " name=" << name << " bodies ["
+       << particles.begin()->second.indx << ", "
+       << particles.rbegin()->second.indx << "], ["
+       << particles.begin()->first << ", "
+       << particles.rbegin()->first << "]"
+       << " #=" << particles.size() << endl;
+#endif
 }
 
-void Component::get_next_particle_from_file(Partstruct *onepart, istream *in)
+void Component::get_next_particle_from_file(Particle* part, istream *in)
 {
-  in->read((char *)&(onepart->mass), sizeof(double));
-  for (int i=0; i<3; i++) in->read((char *)&(onepart->pos[i]), sizeof(double));
-  for (int i=0; i<3; i++) in->read((char *)&(onepart->vel[i]), sizeof(double));
-  in->read((char *)&(onepart->pot), sizeof(double));
-  onepart->potext = 0.0;
-  onepart->level = 0;
-  onepart->indx = ++seq_cur;
+  in->read((char *)&(part->mass), sizeof(double));
+  for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
+  for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
+  in->read((char *)&(part->pot), sizeof(double));
+  part->potext = 0.0;
+  part->level = 0;
+  part->indx = ++seq_cur;
   for (int i=0; i<niattrib; i++) 
-    in->read((char *)&(onepart->iatr[i]), sizeof(int));
+    in->read((char *)&(part->iattrib[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
-    in->read((char *)&(onepart->datr[i]), sizeof(double));
-}
-
-
-int Component::get_next_particle(Partstruct *onepart)
-{
-				// Initialize read
-  if (!npart) {
-    npart_tot = -1;
-    npart_p = get_particles(&npart_tot);
-    if (npart_p == NULL) {
-      cerr << "Component::get_next_particle: no particles found!?!\n";
-      return 0;
-    }
-    npart = true;
-    npart_cur = 0;
-  }
-
-				// Get a new bunch
-  if (npart_cur == npart_tot) {
-    npart_p = get_particles(&npart_tot);
-    if (npart_p == NULL) {
-      npart = false;
-      return 0;
-    }
-    npart_cur = 0;
-  }
-
-  if (myid == 0) 
-    onepart = &(npart_p[npart_cur++]);
-  else
-    onepart = NULL;
-
-
-  return 1;
+    in->read((char *)&(part->dattrib[i]), sizeof(double));
 }
 
 
@@ -1133,8 +998,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
   }
 
-  buf = new Partstruct [nbuf];
-
 				// Parse info field to get 
 				// id and parameter strings
   StringTok<string> tokens(info);
@@ -1161,34 +1024,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 	 << setw(20) << " fparam :: " << fparam         << endl
 	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
-				// Make MPI datatype
-  
-  MPI_Datatype	type[10] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			    MPI_DOUBLE, MPI_DOUBLE, 
-			    MPI_UNSIGNED, MPI_UNSIGNED_LONG,
-			    MPI_INT,    MPI_DOUBLE};
-  
-				// Get displacements
-  MPI_Aint disp[10];
-  MPI_Get_address(&buf[0].mass,		&disp[0]);
-  MPI_Get_address(&buf[0].pos,		&disp[1]);
-  MPI_Get_address(&buf[0].vel,		&disp[2]);
-  MPI_Get_address(&buf[0].acc,		&disp[3]);
-  MPI_Get_address(&buf[0].pot,		&disp[4]);
-  MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].level,	&disp[6]);
-  MPI_Get_address(&buf[0].indx,		&disp[7]);
-  MPI_Get_address(&buf[0].iatr,		&disp[8]);
-  MPI_Get_address(&buf[0].datr,		&disp[9]);
-
-  for (int i=9; i>=0; i--) disp[i] -= disp[0];
-  
-				// Block offsets
-  int blocklen[10] = {1, 3, 3, 3, 1, 1, 1, 1, nimax, ndmax};
-  
-  MPI_Type_create_struct(10, blocklen, disp, type, &Particletype);
-  MPI_Type_commit(&Particletype);
-
   double rmax1, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
@@ -1207,275 +1042,276 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Form cumulative and differential bodies list
   
-  plist = vector<int>(numprocs);
-  for (int i=0; i<numprocs; i++) plist[i] = nbodies_index[i];
-  ncount = plist;
-  for (int i=1; i<numprocs; i++) ncount[i] -= plist[i-1];
+  Particle part(niattrib, ndattrib);
 
-  if (myid==0) seq_beg = 1;
-  else seq_beg = plist[myid-1]+1;
-  seq_end = plist[myid];
-
-  Partstruct onepart;
-  Particle part;
-  part.iattrib = vector<int>(niattrib);
-  part.dattrib = vector<double>(ndattrib);
-
+  unsigned int ipart=0;
 
   if (myid==0) {
 				// Read root node particles
 
-    cout << "Count=" << ncount[0] << endl;
+    cout << "Count=" << nbodies_table[0] << endl;
     seq_cur = 0;
 
     rmax1 = 0.0;
-    for (int i=1; i<=ncount[0]; i++)
+    for (int i=1; i<=nbodies_table[0]; i++)
     {
-      get_next_particle_from_file(&onepart, in);
-
-      part_to_Particle(onepart, part);
+      get_next_particle_from_file(&part, in);
 
       r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
-      particles.push_back(part);
+      part.indx = ++ipart;
+      particles[part.indx] = part;
     }
 
-    nbodies = ncount[0];
+    nbodies = nbodies_table[0];
 
 
 				// Now load the other nodes
-    int icount, ibufcount;
+    int icount;
     for (int n=1; n<numprocs; n++) {
 
       cout << "Loading node <" << n << ">\n";
 
-      MPI_Send(&ncount[n], 1, MPI_INT, n, 1, MPI_COMM_WORLD);
+      pf.ShipParticles(n, 0, nbodies_table[n]);
 
       icount = 0;
-      ibufcount = 0;
-      while (icount < ncount[n]) {
+      while (icount < nbodies_table[n]) {
 
-	get_next_particle_from_file(&buf[ibufcount], in);
+	get_next_particle_from_file(&part, in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
-	  r2 += buf[ibufcount].pos[k]*buf[ibufcount].pos[k];
+	  r2 += part.pos[k]*part.pos[k];
 
 	rmax1 = max<double>(r2, rmax1);
 
 	/*
 	cout << "#=" << icount << " r2=" << r2 << " rmax1=" << rmax1 
-	     << " mass=" << buf[ibufcount].mass << endl;
+	     << " mass=" << part.mass << endl;
 	*/
 
-	ibufcount++;
+	
 	icount++;
-
-	if (ibufcount == nbuf || icount == ncount[n]) {
-	  MPI_Send(&ibufcount, 1, MPI_INT, n, 2, MPI_COMM_WORLD);
-	  MPI_Send(buf, ibufcount, Particletype, n, 3, MPI_COMM_WORLD);
-	  ibufcount = 0;
-	}
-
+	pf.SendParticle(part);
       }
 
     }
 
   } else {
 
-    MPI_Recv(&nbodies, 1, MPI_INT, 0, 1, MPI_COMM_WORLD, &status0);
+    pf.ShipParticles(myid, 0, nbodies);
       
-    int icount = 0, isent;
-    while (icount < nbodies) {
-      MPI_Recv(&isent, 1, MPI_INT, 0, 2, MPI_COMM_WORLD, &status0);
-      MPI_Recv(buf, isent, Particletype, 0, 3, MPI_COMM_WORLD, &status0);
-      for (int i=0; i<isent; i++) {
-	part_to_Particle(buf[i], part);
-	particles.push_back(part);
-	icount++;
-      }
+    int icount = 0;
+    while (pf.RecvParticle(part)) {
+      particles[part.indx] = part;
+      icount++;
     }
   }
 
-
-				// Sanity check
-  if (seq_check) {
-    if (seq_beg != particles[0].indx ||
-	seq_end != particles[nbodies-1].indx) {
-      cout << "Process " << myid << ": sequence error on init,"
-	   << " seq_beg=" << seq_beg
-	   << " seq_end=" << seq_end
-	   << " seq[1]=" << particles[0].indx
-	   << " seq[N]=" << particles[nbodies-1].indx
-	   << endl << flush;
-      MPI_Abort(MPI_COMM_WORLD, -1);
-    }
-  }
 
 				// Default: set to max radius
   rmax = sqrt(fabs(rmax1));
   MPI_Bcast(&rmax, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+#ifdef DEBUG
+  cout << "read_bodies_and_distribute_binary: process " << myid 
+       << " name=<" << name << "> bodies ["
+       << particles.begin()->second.indx << ", "
+       << particles.rbegin()->second.indx << "], ["
+       << particles.begin()->first << ", "
+       << particles.rbegin()->first << "]"
+       << " #=" << particles.size() << endl;
+#endif
 }
 
 
-struct Component::Partstruct * Component::get_particles(int* number)
-{
-  if (ordered) return get_particles_ordered(number);
-  else         return get_particles_unordered(number);
-}
-
-struct Component::Partstruct * Component::get_particles_ordered(int* number)
+struct Particle * Component::get_particles(int* number)
 {
   MPI_Status status;
 
-  static int counter = 0;
-  static int node = 0;
-
+  static int counter = 1;	// Sequence begins at 1
+  static Particle part;
+  static bool seq_state_ok = true;
+  
+  int curcount = 0;		// Counter for this bunch
+  
+#ifdef DEBUG
   if (*number < 0) {
-    counter = 0;
-    node = 0;
+    cout << "get_particles: process " << myid 
+	 << " <name=" << name << "> bodies ["
+	 << particles.begin()->second.indx << ", "
+	 << particles.rbegin()->second.indx << "], ["
+	 << particles.begin()->first << ", "
+	 << particles.rbegin()->first << "]" 
+	 << " #=" << particles.size() << endl;
   }
-
-  if (node==numprocs) {
+#endif
+				// Reset
+  if (*number < 0) {
+    counter = 1;
+    part = Particle(niattrib, ndattrib);
+    seq_state_ok = true;
+  }
+				// Done?
+  if (counter > nbodies_tot) {
     *number = 0;
     return 0;
   }
 
-  int icount, indx, curnode = node;
-  if (node == 0) {
+  map<unsigned int, Particle> tlist;
+  map<unsigned int, Particle>::iterator cur;
+  map<unsigned long, Particle>::iterator icur, ibeg, iend;
+
+  unsigned icount;
+  int beg = counter;
+  int end = counter + ParticleFerry::nbuf;
+
+  MPI_Bcast(&beg, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&end, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+#ifdef DEBUG
+  cout << "get_particles: process " << myid 
+       << " particles=<" << name << ">"
+       << " number=" << particles.size()
+       << " beg=" << beg
+       << " end=" << end 
+       << endl;
+#endif
+
+  for (int node=0; node<numprocs; node++) {
     
-    if (myid == 0) {
+    if (myid==0) {
+				// Do root's particle first
+      if (node==0) {
       
-      icount = 0;
-      while (icount < nbuf && counter < nbodies_index[node]) {
+	ibeg = particles.lower_bound(beg);
+	iend = particles.lower_bound(end);
 
-	Particle_to_part(buf[icount], particles[counter]);
+	icount = 0;
+	for (icur=ibeg; icur!=iend; icur++)
+	  pbuf[icount++] = icur->second;
+#ifdef DEBUG
+	cout << "get_particles: master loaded " 
+	     << icount << " of its own particles" << endl << flush;
+#endif    
+	
+      } else {
+	  
+	unsigned number;
+	pf.ShipParticles(0, node, number);
 
-	icount++;
-	counter++;
+	icount = 0;
+	while (pf.RecvParticle(part)) pbuf[icount++] = part;
+#ifdef DEBUG
+	cout << "Process " << myid 
+	     << ": received " << icount << " particles from Slave" << node
+	     << ", expected " << number
+	     << endl << flush;
+#endif    
       }
 
-      if (counter == nbodies_index[node]) node++;
-
-#ifdef DEBUG
-    cout << "Process " << myid 
-	 << ": buffered " << icount << " particles from master"
-	 << endl << flush;
-#endif    
-
-    }
-
-  } else {
-
-    if (myid == 0) {
-
-      MPI_Recv(&icount, 1, MPI_INT, node, 52, MPI_COMM_WORLD, &status);
-      MPI_Recv(buf, icount, Particletype, node, 53, MPI_COMM_WORLD, &status);
-
-#ifdef DEBUG
-    cout << "Process " << myid 
-	 << ": received " << icount << " particles from slave"
-	 << endl << flush;
-#endif    
-
+      // Load the ordered array
+      for (int n=0; n<icount; n++) {
+	tlist[pbuf[n].indx] = pbuf[n];
+	curcount++;
+	counter++;
+      }
+      
+				// Nodes send particles to master
     } else if (myid == node) {
       
-      icount = 0;
-      while (icount < nbuf && counter < nbodies_index[node]) {
-
-	indx = counter - nbodies_index[node-1];
 	
-				// Pack structure
-	Particle_to_part(buf[icount], particles[indx]);
+      ibeg = particles.lower_bound(beg);
+      iend = particles.lower_bound(end);
 
-	icount++;
-	counter++;
-      }
+      icount = 0;
+      for (icur=ibeg; icur!=iend; icur++) icount++;
 
-      MPI_Send(&icount, 1, MPI_INT, 0, 52, MPI_COMM_WORLD);
-      MPI_Send(buf, icount, Particletype, 0, 53, MPI_COMM_WORLD);
+      pf.ShipParticles(0, myid, icount);
+      for (icur=ibeg; icur!=iend; icur++) 
+	pf.SendParticle(icur->second);
+
 #ifdef DEBUG
-    cout << "Process " << myid 
-	 << ": sent " << icount << " particles to master"
-	 << ", counter value=" << counter
-	 << ", nbodies_index=" << nbodies_index[node]
-	 << endl << flush;
+      cout << "get_particles: process " << myid 
+	   << ": sent " << icount << " particles to master"
+	   << ", counter value=" << counter
+	   << ", nbodies_index=" << nbodies_index[node]
+	   << ", seq_beg=" << ibeg->second.indx
+	   << ", seq_end=" << iend->second.indx
+	   << ", number found =" << icount
+	   << ", first=" << particles.begin()->second.indx
+	   << ", last=" << particles.rbegin()->second.indx
+	   << endl << flush;
 #endif    
-
-      if (counter == nbodies_index[node]) node++;
-      
+	
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
+
   }
-  
-  MPI_Bcast(&counter, 1, MPI_INT, curnode, MPI_COMM_WORLD);
-  MPI_Bcast(&node, 1, MPI_INT, curnode, MPI_COMM_WORLD);
-  MPI_Bcast(&icount, 1, MPI_INT, curnode, MPI_COMM_WORLD);
+
+  MPI_Bcast(&counter, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
 				// Return values
-  *number = icount;
-  return buf;
+  *number = curcount;
+
+#ifdef DEBUG
+  if (myid==0) {
+    cout << "get_particles: master size of tlist=" << tlist.size() << endl;
+  }
+#endif
+
+  int n=0;
+  for (cur=tlist.begin(); cur!=tlist.end(); cur++) {
+    pbuf[n++] = cur->second;
+  }
 
 #ifdef DEBUG
   cout << "Process " << myid 
-       << ": received counter=" << counter << " node=" << node
-       << " number=" << *number
-       << " address=" << buf
-       << endl << flush;
+       << ": received next counter=" << counter
+       << " icount=" << icount;
+  if (counter > nbodies_tot) cout << " [this means we are done]";
+  cout << endl << flush;
 #endif    
 
-}
-
-
-struct Component::Partstruct * Component::get_particles_unordered(int* number)
-{
-  MPI_Status status;
-
-  static int counter;
-  static map<unsigned long, int> mapping;
-
-  if (*number < 0) {
-    counter = 1;
-				// Remake the particle index map
-    mapping.erase(mapping.begin(), mapping.end());
-    for (int i=0; i<particles.size(); i++)  mapping[particles[i].indx] = i;
-  }
-
-				// Done?
-  if (counter==nbodies_tot) {
-    *number = 0;
-    return 0;
-  }
-
-  if (myid == 0) {
-				// Owned by the root node?
-    if (mapping.find(counter) != mapping.end()) {
-      // Pack structure
-      Particle_to_part(buf[0], particles[mapping[counter]]);
-      // No communication necessary . . .
-    } else {			// Receive the particle from a node
-      MPI_Recv(buf, 1, Particletype, MPI_ANY_SOURCE, 55, MPI_COMM_WORLD, &status);
+  if (myid==0 && seq_check && seq_state_ok) {
+    bool seq_ok = true;
+    unsigned n = beg;
+    for (cur=tlist.begin(); cur!=tlist.end(); cur++) {
+      if (cur->first != n++) {
+	cout << "get_particles sequence error:"
+	     << " expected=" << n
+	     << " found=" << cur->first
+	     << endl << flush;
+	unsigned n = beg;
+	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	cout << setw(10) << "Expect" << setw(10) << "Found" << endl;
+	for (cur=tlist.begin(); cur!=tlist.end(); cur++)
+	  cout << setw(10) << n++ << setw(10) << cur->first << endl;
+	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	seq_ok = false;
+	break;
+      }
     }
-  } else {
-				// Owned by me?
-    if (mapping.find(counter) != mapping.end()) {
-				// Pack structure
-      Particle_to_part(buf[0], particles[mapping[counter]]);
-				// Send to master
-      MPI_Send(buf, 1, Particletype, 0, 55, MPI_COMM_WORLD);
+
+    if (!seq_ok && seq_state_ok) {
+      cout << "get_particles sequence failure in [" << beg
+	   << ", " << end << "]" << endl;
+      seq_state_ok = false;
+    }
+
+    if (counter > nbodies_tot) {
+      if (seq_state_ok)
+	cout << "get_particles: GOOD sequence!" << endl;
+      else
+	cout << "get_particles: sequence ERROR!" << endl;
     }
   }
 
-				// Next counter . . . 
-  counter++;
-
-				// Return values
-  *number = 1;
-  return buf;
+  return pbuf;
 }
 
 
@@ -1499,22 +1335,17 @@ void Component::write_binary(ostream* out)
     }
   }
 
-  bool first = true;
-  double mass0, pot0, pv;
-
+				// First bunch of particles
   int number = -1;
-  Partstruct *p = get_particles(&number);
+  Particle *p = get_particles(&number);
 
+  double pot0, pv;
   while (p) {
 
     if (myid == 0) {
 
       for (int k=0; k<number; k++) {
 	out->write((char *)&(p[k].mass), sizeof(double));
-	if (first) {
-	  mass0 = p[k].mass;
-	  first = false;
-	}
 
 	for (int i=0; i<3; i++) {
 	  pv = p[k].pos[i] + com0[i] - comI[i];
@@ -1529,13 +1360,14 @@ void Component::write_binary(ostream* out)
 	out->write((char *)&pot0, sizeof(double));
 
 	for (int i=0; i<header.niatr; i++) 
-	  out->write((char *)&(p[k].iatr[i]), sizeof(int));
+	  out->write((char *)&(p[k].iattrib[i]), sizeof(int));
 	for (int i=0; i<header.ndatr; i++) 
-	  out->write((char *)&(p[k].datr[i]), sizeof(double));
+	  out->write((char *)&(p[k].dattrib[i]), sizeof(double));
       }
+
     }
 
-    
+				// Next bunch of particles
     p = get_particles(&number);
 
   }
@@ -1546,7 +1378,7 @@ void Component::write_binary(ostream* out)
 void Component::write_ascii(ostream* out, bool accel)
 {
   int number = -1;
-  Partstruct *p = get_particles(&number);
+  Particle *p = get_particles(&number);
 
   while (p) {
 
@@ -1563,9 +1395,9 @@ void Component::write_ascii(ostream* out, bool accel)
 	*out << setw(18) << p[k].potext;
 	  
 	for (int i=0; i<niattrib; i++) 
-	  *out << setw(10) << p[k].iatr[i];
+	  *out << setw(10) << p[k].iattrib[i];
 	for (int i=0; i<ndattrib; i++) 
-	  *out << setw(18) << p[k].datr[i];
+	  *out << setw(18) << p[k].dattrib[i];
 
 	*out << endl;
       }
@@ -1586,7 +1418,7 @@ void Component::initialize_com_system()
   double *cov1 = new double [3];
   
   
-  vector<Particle>::iterator p, pend;
+  map<unsigned long, Particle>::iterator p, pend;
 
 				// Zero stuff out
   mtot0 = mtot1 = 0.0;
@@ -1596,10 +1428,10 @@ void Component::initialize_com_system()
   pend = particles.end();
   for (p=particles.begin(); p != pend; p++) {
     
-    mtot1 += p->mass;
+    mtot1 += p->second.mass;
 
-    for (int k=0; k<dim; k++) com1[k] += p->mass*p->pos[k];
-    for (int k=0; k<dim; k++) cov1[k] += p->mass*p->vel[k];
+    for (int k=0; k<dim; k++) com1[k] += p->second.mass*p->second.pos[k];
+    for (int k=0; k<dim; k++) cov1[k] += p->second.mass*p->second.vel[k];
     
   }
   
@@ -1634,12 +1466,12 @@ void Component::restart_com_system()
     MPI_Bcast(&center[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// Particle loop
-    vector<Particle>::iterator p, pend = particles.end();
+    map<unsigned long, Particle>::iterator p, pend = particles.end();
     for (p=particles.begin(); p != pend; p++) {
 
       for (int i=0; i<3; i++) {
-	p->pos[i] -= com0[i] - comI[i];
-	p->vel[i] -= cov0[i] - covI[i];
+	p->second.pos[i] -= com0[i] - comI[i];
+	p->second.vel[i] -= cov0[i] - covI[i];
       }
     }
 
@@ -1677,9 +1509,15 @@ void * fix_positions_thread(void *ptr)
   int nbodies = c->Number();
   int nbeg = nbodies*(id  )/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+
 				// Particle loop
-  for (int n=nbeg; n<nend; n++) {
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
     
+    unsigned long n = (it++)->first;
+
     if (consp) {
       if (c->escape_com(*c->Part(n))) {
 				// Set flag indicating escaped particle
@@ -1800,16 +1638,16 @@ void Component::update_accel(void)
   double *acc1 = new double [3];
 
   
-  vector<Particle>::iterator p;
+  map<unsigned long, Particle>::iterator p;
 
   for (int k=0; k<dim; k++) acc0[k] = acc1[k] = 0.0;
 
 				// Particle loop
   for (p=particles.begin(); p != particles.end(); p++) {
     
-    if (escape_com(*p)) continue;
+    if (escape_com(p->second)) continue;
     
-    for (int k=0; k<dim; k++) acc1[k] += p->mass*p->acc[k];
+    for (int k=0; k<dim; k++) acc1[k] += p->second.mass*p->second.acc[k];
   }
   
   MPI_Allreduce(acc1, acc0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -1878,12 +1716,18 @@ void * get_angmom_thread(void *ptr)
   int nend = ntot*(id+1)/nthrds;
   double mass, *pos, *vel;
   
+				// Create and advance the iterator
+  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+  for (int q=0; q<nbeg; q++) it++;
+
   //
   // Particle loop
   //
-  for (int n=nbeg; n<nend; n++) {
+  for (int q=nbeg; q<nend; q++) {
 
-    if (c->freeze(*(c->Part(n)))) continue;
+    unsigned long n = (it++)->first;
+
+    if (c->freeze(n)) continue;
 
     mass = c->Part(n)->mass;
     pos  = c->Part(n)->pos;
@@ -1963,10 +1807,9 @@ void Component::setup_distribution(void)
   ifstream *in;
   int n;
 
-				/* Needed for both master and slaves */
-
-  nbodies_index = vector<int>(numprocs);
-  nbodies_table = vector<int>(numprocs);
+				// Needed for both master and slaves
+  nbodies_index = vector<unsigned int>(numprocs);
+  nbodies_table = vector<unsigned int>(numprocs);
 
   if (myid == 0) {
 
@@ -2031,8 +1874,8 @@ void Component::setup_distribution(void)
 void Component::load_balance(void)
 {
   MPI_Status status;
-  vector<int> nbodies_index1(numprocs);
-  vector<int> nbodies_table1(numprocs);
+  vector<unsigned int> nbodies_index1(numprocs);
+  vector<unsigned int> nbodies_table1(numprocs);
   ofstream *out, *log;
 
 
@@ -2173,15 +2016,13 @@ void Component::load_balance(void)
 
 
   int iold=0, inew=0;
-
+  
 				// Offset will keep track of position in
 				// original vector
-  int bot, ptr, nump, offset=0;
+  int nump;
   vector<int> loc(numprocs, 0);
 
-				// Beginning particle index
-  if (myid) bot = nbodies_index[myid-1];
-  else      bot = 0;
+  vector<int> nlist;
 
   for (int i=0; i<2*numprocs-2; i++) {
 
@@ -2195,96 +2036,75 @@ void Component::load_balance(void)
 	   << setw(10) << iold
 	   << setw(10) << inew;
     
-				// Relative pointer index of particles
-				// to be shifted
-    if (myid==iold) {
-      ptr = loadb[i].top - bot + offset;
-				// Sanity check
-      if (ptr<0)
-	cerr << "oops in load_balance: iold=" << iold 
-	     << "  beg=" << ptr << "\n";
-    }
-
 				// Number of particles to be shifted
     nump = loadb[i+1].top - loadb[i].top;
-
+    
     ostringstream msg;
     
     if (inew==iold || nump==0) 
       msg << "Do nothing";
     else if (inew>iold) {
-      msg << "Insert " << nump << " from #" << iold << " to #" << inew;
-      insert_particles(iold, inew, ptr, nump, loc[inew]);
-      if (myid==iold) {
-#ifdef DEBUG
-	cout << "Process " << myid << ":"
-	     << "  beg seq=" << particles[ptr].iattrib[0] 
-	     << "  end seq=" << particles[ptr+nump-1].iattrib[0]
-	     << "  erasing=[" << ptr << ", " << ptr+nump-1 << "]" << endl;
-#endif
-	if (ptr+nump==nbodies)
-	  particles.erase(particles.begin()+ptr, particles.end());
-	else
-	  particles.erase(particles.begin()+ptr, particles.begin()+ptr+nump);
-	offset -= nump;
-#ifdef DEBUG
-	if (particles.size())
-	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles[0].iattrib[0] 
-	       << "  end seq=" << particles[particles.size()-1].iattrib[0] 
-	       << endl;
-	else
-	  cout << "Process " << myid << ": no particles!"
-	       << endl;
-#endif
-      }
-				// Update counters for shifted particles
-      if (myid==inew) {
-	offset += nump;
-	loc[inew] += nump;
-      }
-    }
-    else if (iold>inew) {
-      msg << "Append " << nump << " from #" << iold << " to #" << inew;
-      append_particles(iold, inew, ptr, nump);
-      if (myid==iold) {
-#ifdef DEBUG
-	cout << "Process " << myid << ":"
-	     << "  beg seq=" << particles[ptr].iattrib[0] 
-	     << "  end seq=" << particles[ptr+nump-1].iattrib[0] 
-	     << "  erasing=[" << ptr << ", " << ptr+nump-1 << "]" << endl;
-#endif
-	if (ptr+nump==nbodies) {
-	  particles.erase(particles.begin()+ptr, particles.end());
-	}
-	else {
-	  particles.erase(particles.begin()+ptr, particles.begin()+ptr+nump);
-	}
-	offset -= nump;
-#ifdef DEBUG
-	if (particles.size())
-	  cout << "Process " << myid << ": new ends :"
-	       << "  beg seq=" << particles[0].iattrib[0] 
-	       << "  end seq=" << particles[particles.size()-1].iattrib[0] 
-	       << endl;
-	else
-	  cout << "Process " << myid << ": no particles!"
-	       << endl;
-#endif
-      }
-    }
-    
-    if (myid==0 && *log) *log << setw(10) << msg.str() << endl;
+      msg << "Add " << nump << " from #" << iold << " to #" << inew;
+      
+      nlist.erase(nlist.begin(), nlist.end());
 
+      map<unsigned long, Particle>::reverse_iterator it = particles.rbegin();
+      for (int n=0; n<nump; n++) {
+	nlist.push_back(it->first);
+	it++;
+      }
+      
+      add_particles(iold, inew, nlist);
+      
+#ifdef DEBUG
+      if (myid==iold) {
+	if (particles.size())
+	  cout << "Process " << myid << ": new ends :"
+	       << "  beg seq=" << particles.begin() ->second.indx
+	       << "  end seq=" << particles.rbegin()->second.indx
+	       << endl;
+	else
+	  cout << "Process " << myid << ": no particles!"
+	       << endl;
+      }
+#endif
+    } else if (iold>inew) {
+      msg << "Add " << nump << " from #" << iold << " to #" << inew;
+
+      nlist.erase(nlist.begin(), nlist.end());
+
+      map<unsigned long, Particle>::iterator it = particles.begin();
+      for (int n=0; n<nump; n++) {
+	nlist.push_back(it->first);
+	it++;
+      }
+
+      add_particles(iold, inew, nlist);
+
+#ifdef DEBUG
+      if (myid==iold) {
+	if (particles.size())
+	  cout << "Process " << myid << ": new ends :"
+	       << "  beg seq=" << particles.begin() ->second.indx
+	       << "  end seq=" << particles.rbegin()->second.indx
+	       << endl;
+	else
+	  cout << "Process " << myid << ": no particles!"
+	       << endl;
+      }
+#endif
+
+    }
+
+    if (myid==0 && *log) *log << setw(10) << msg.str() << endl;
   }
 
   
-				// Update indices
+				// update indices
   nbodies = nbodies_table1[myid];
   nbodies_index = nbodies_index1;
   nbodies_table = nbodies_table1;
   
-
   if (seq_check) {
     
     char msgbuf[200];		// Only need 31 characters . . .
@@ -2352,27 +2172,32 @@ void Component::load_balance(void)
 }
 
 
-void Component::append_particles(int from, int to, int begin, int number)
+void Component::add_particles(int from, int to, vector<int>& plist)
 {
   MPI_Status status;
 
-  int icount, indx, counter=0;
+  unsigned number = plist.size();
+  vector<int>::iterator it=plist.begin();
+
+  int icount, counter=0;
+
+  pf.ShipParticles(to, from, number);
 
   if (myid == from) {
     
     while (counter < number) {
 
       icount = 0;
-      while (icount < nbuf && counter < number) {
+      while (icount < ParticleFerry::nbuf && counter < number) {
 
-	Particle_to_part(buf[icount], particles[begin+counter]);
+	pf.SendParticle(particles[*it]);
+	particles.erase(*it);
       
 	icount++;
 	counter++;
+	it++;
       }
       
-      MPI_Send(&icount, 1, MPI_INT, to, 72, MPI_COMM_WORLD);
-      MPI_Send(buf, icount, Particletype, to, 73, MPI_COMM_WORLD);
 #ifdef DEBUG
       cout << "Process " << myid 
 	   << ": sent " << icount << " particles to Process " << to
@@ -2389,8 +2214,10 @@ void Component::append_particles(int from, int to, int begin, int number)
 
     while (counter < number) {
 
-      MPI_Recv(&icount, 1, MPI_INT, from, 72, MPI_COMM_WORLD, &status);
-      MPI_Recv(buf, icount, Particletype, from, 73, MPI_COMM_WORLD, &status);
+      while (pf.RecvParticle(temp)) {
+	particles[temp.indx] = temp;
+	counter++;
+      }
 
 #ifdef DEBUG
       cout << "Process " << myid 
@@ -2398,14 +2225,6 @@ void Component::append_particles(int from, int to, int begin, int number)
 	   << " for append" << endl << flush;
 #endif    
 
-      for (int j=0; j<icount; j++) {
-
-	part_to_Particle(buf[j], temp);
-	particles.push_back(temp);
-
-	counter++;
-      }
-      
     }
 
   }
@@ -2413,79 +2232,12 @@ void Component::append_particles(int from, int to, int begin, int number)
 }
 
 
-
-void Component::insert_particles(int from, int to, int begin, int number, 
-				 int loc)
-{
-  MPI_Status status;
-
-  int icount, indx, counter=0;
-
-  if (myid == from) {
-    
-    while (counter < number) {
-
-      icount = 0;
-      while (icount < nbuf && counter < number) {
-
-	Particle_to_part(buf[icount], particles[begin+counter]);
-      
-	icount++;
-	counter++;
-      }
-      
-      MPI_Send(&icount, 1, MPI_INT, to, 72, MPI_COMM_WORLD);
-      MPI_Send(buf, icount, Particletype, to, 73, MPI_COMM_WORLD);
-#ifdef DEBUG
-      cout << "Process " << myid 
-	   << ": sent " << icount << " particles to Process " << to
-	   << " for insert, counter value=" << counter
-	   << endl << flush;
-#endif    
-    }
-
-  }
-
-  if (myid == to) {
-  
-    Particle temp;
-    vector<Particle> newp;
-
-    while (counter < number) {
-
-      MPI_Recv(&icount, 1, MPI_INT, from, 72, MPI_COMM_WORLD, &status);
-      MPI_Recv(buf, icount, Particletype, from, 73, MPI_COMM_WORLD, &status);
-
-#ifdef DEBUG
-      cout << "Process " << myid 
-	   << ": received " << icount << " particles from Process " << from
-	   << " for insert" << endl << flush;
-#endif    
-
-      for (int j=0; j<icount; j++) {
-
-	part_to_Particle(buf[j], temp);
-	newp.push_back(temp);
-
-	counter++;
-      }
-      
-    }
-
-    for (int i=0; i<number; i++) 
-      particles.insert(particles.begin()+loc+i, newp[i]);
-
-  }
-
-}
-
-
-bool Component::freeze(const Particle& p)
+bool Component::freeze(unsigned indx)
 {
   double r2 = 0.0;
   for (int i=0; i<3; i++) r2 += 
-			    (p.pos[i] - comI[i] - center[i])*
-			    (p.pos[i] - comI[i] - center[i]);
+			    (particles[indx].pos[i] - comI[i] - center[i])*
+			    (particles[indx].pos[i] - comI[i] - center[i]);
   if (r2 > rtrunc*rtrunc) return true;
   else return false;
 }
@@ -2512,29 +2264,29 @@ double Component::Adiabatic()
 void Component::redistributeByList(vector<int>& redist)
 {
   MPI_Status status;
-  Particle part;
+  Particle part(niattrib, ndattrib);
+
   vector<int>::iterator it = redist.begin();
+  vector<unsigned> tlist;
 
-				// Keep list of particles to delete
-  vector<int> myDelete;		// from current node
-
-  int indx, curnode, tonode, lastnode, M, icount;
+  unsigned int icount;
+  int indx, curnode, tonode, lastnode, M;
 
   while (it != redist.end()) {
     curnode = *(it++);		// Current owner
     M       = *(it++);		// Number to transfer to another node
     if (M) {
-      indx   = *(it++);		// Index on owner's list
+      indx   = *(it++);		// Index
       tonode = *(it++);		// Destination
-      icount = 0;		// Number in transfer buffer so far
+      icount = 0;		// Number transferred to destination
+
 
       // Do the first particle
       //
-      if (myid==curnode) {
-	Particle_to_part(buf[icount], particles[indx]);
-	myDelete.push_back(indx);
-      }
+      tlist.erase(tlist.begin(), tlist.end());
+      tlist.push_back(indx);
       icount++;
+
       lastnode = tonode;
 
       // Do the remaining particles
@@ -2542,49 +2294,30 @@ void Component::redistributeByList(vector<int>& redist)
       for (int m=1; m<M; m++) {
 	indx   = *(it++);
 	tonode = *(it++);
-				// Send the particles
+				// Next destination?
 	if (tonode != lastnode && icount) {
-	  if (myid==curnode) 
-	    MPI_Send(buf, icount, Particletype, lastnode, 53, MPI_COMM_WORLD);
+	  pf.ShipParticles(tonode, curnode, icount);
+	  if (myid==curnode) {
+	    for (unsigned i=0; i<icount; i++) {
+	      pf.SendParticle(particles[tlist[i]]);
+	      particles.erase(tlist[i]);
+	    }
+	  }
 	  if (myid==lastnode) {
-	    MPI_Recv(buf, icount, Particletype, curnode , 53, MPI_COMM_WORLD, &status);
-	    for (int i=0; i<icount; i++) {
-	      part_to_Particle(buf[i], part);
-	      particles.push_back(part);
-	    }
+	    while (pf.RecvParticle(part))
+	      particles[part.indx] = part;
 	  }
-	}
-
-				// Buffer this particle
-	if (myid==curnode) {
-	  Particle_to_part(buf[icount], particles[indx]);
-	  myDelete.push_back(indx);
-	}
-	icount++;
-	lastnode = tonode;
-	
-				// Buffer is full?
-	if (icount == nbuf) {
-	  if (myid==curnode) 
-	    MPI_Send(buf, icount, Particletype, tonode,  53, MPI_COMM_WORLD);
-	  if (myid==tonode) {
-	    MPI_Recv(buf, icount, Particletype, curnode, 53, MPI_COMM_WORLD, &status);
-	    for (int i=0; i<icount; i++) {
-	      part_to_Particle(buf[i], part);
-	      particles.push_back(part);
-	    }
-	  }
+	  tlist.erase(tlist.begin(), tlist.end());
 	  icount = 0;
 	}
-      } // End of particles on this node
-    }
+
+				// Add the particle
+	tlist.push_back(indx);
+	icount++;
+      }
+	
+    } // End of particles on this node
     
   } // Next stanza
-
-  // Delete particles that have been transferred to a new node
-  
-  for (unsigned int n=myDelete.size()-1; n>=0; n--) {
-    particles.erase(particles.begin()+myDelete[n]);
-  }
 
 }

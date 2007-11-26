@@ -81,7 +81,7 @@ protected:
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) {}
 
-  virtual int inelastic(pHOT* tree, Partstruct* p1, Partstruct* p2,
+  virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
 
   void debug_list(pHOT& tree);

@@ -57,8 +57,12 @@ void * UserLogPot::determine_acceleration_and_potential_thread(void * arg)
 
   double xx, yy, zz, rr;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
 
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+    i = (it++)->first;
 				// If we are multistepping, compute accel 
 				// only at or below this level
 

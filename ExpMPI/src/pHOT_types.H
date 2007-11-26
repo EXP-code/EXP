@@ -64,7 +64,6 @@ typedef vector< pair<unsigned long long, unsigned> > key_indx;
 typedef hash_map<unsigned long long, pCell*, hashULL, eqULL> key_cell;
 typedef hash_map<unsigned long long, unsigned long long, hashULL, eqULL> key_key;
 typedef hash_map<unsigned, unsigned long long, hash<unsigned> > indx_key;
-typedef hash_map<unsigned, Partstruct, hash<unsigned> > indx_part;
 typedef hash_set< pair<unsigned long long, unsigned> , hashPAIR, eqPAIR> key_set;
 
 

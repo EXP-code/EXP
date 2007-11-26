@@ -1,7 +1,7 @@
 #ifndef _UserDiffRot_H
 #define _UserDiffRot_H
 
-#include <Particle.H>
+#include <ParticleFerry.H>
 #include <Component.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>

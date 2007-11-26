@@ -56,9 +56,9 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
 
   if (c->ndattrib < mfp_index+1) {
     c->ndattrib = mfp_index+1;
-    vector<Particle>::iterator it;
+    map<unsigned long, Particle>::iterator it;
     for (it=c->particles.begin(); it!=c->particles.end(); it++)
-      it->dattrib.resize(c->ndattrib);
+      it->second.dattrib.resize(c->ndattrib);
     
   }
   
@@ -205,7 +205,7 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
     
     i = rr2[j].second;
     
-    if (c->freeze(*(c->Part(i)))) continue;
+    if (c->freeze(i)) continue;
 
     ind = (int)(rr2[i].first/dr);
     if (ind>=tautab) continue;

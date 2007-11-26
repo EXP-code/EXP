@@ -22,12 +22,13 @@ struct Partstruct
   double acc[3];              ///< 3        7,8.9
   double pot;                 ///< 4        10
   double potext;              ///< 5        11
-  unsigned long indx;         ///< 6        12
-  unsigned long long key;     ///< 7        13
-  unsigned nicnt;             ///< 8        14
-  unsigned ndcnt;             ///< 9        15
-  int    iatr[nimax];         ///< 10       16,17,18,19,20 (e.g.)
-  double datr[ndmax];         ///< 11       21,22,23,24,25 (e.g.)
+  unsigned level;             ///< 6        12
+  unsigned long indx;         ///< 6        13
+  unsigned long long key;     ///< 7        14
+  unsigned nicnt;             ///< 8        15
+  unsigned ndcnt;             ///< 9        16
+  int    iatr[nimax];         ///< 10       17,18,19,20,21 (e.g.)
+  double datr[ndmax];         ///< 11       22,23,24,25,26 (e.g.)
 };
 
 class ParticleFerry
@@ -55,9 +56,9 @@ public:
 
   bool RecvParticle(Particle& part, unsigned& seq, unsigned long long& key);
 
-  void SendParticle(Partstruct& part);
+  void SendParticle(Particle& part);
 
-  bool RecvParticle(Partstruct& part);
+  bool RecvParticle(Particle& part);
   
   void part_to_Particle(Partstruct& str, Particle& cls);
 

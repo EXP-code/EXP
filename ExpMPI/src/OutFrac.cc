@@ -115,8 +115,13 @@ void OutFrac::Run(int n, bool last)
 				// Compute R and rank by radius
   double r, pos[3];
   vector<double> rad(tcomp->Number());
+  map<unsigned long, Particle>::iterator it = tcomp->Particles().begin();
+  unsigned long j;
+
   for (int n=0; n<tcomp->Number(); n++) {
-    tcomp->Pos(pos, n, Component::Centered);
+    j = it->first;
+    it++;
+    tcomp->Pos(pos, j, Component::Centered);
     r = 0.0;
     for (int j=0; j<3; j++) r += pos[j]*pos[j];
     rad[n] = sqrt(r);

@@ -10,132 +10,23 @@ using namespace std;
 
 #include "pHOT.H"
 
-double pHOT::s[] = {1.0, 1.0, 1.0};
+double pHOT::sides[] = {2.0, 2.0, 2.0};
+double pHOT::offst[] = {1.0, 1.0, 1.0};
 unsigned pHOT::neg_half = 0;
 
 /*
   Constructor: initialize domain
 */
-pHOT::pHOT()
+pHOT::pHOT(Component *C)
 {
-  volume = s[0]*s[1]*s[2];	// Total volume of oct-tree region
+  cc = C;			// Register the calling component
+
+  volume = sides[0]*sides[1]*sides[2];	// Total volume of oct-tree region
   root = 0;
 				// For debugging
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
 } 
-
-
-void pHOT::sendParticles(vector<Particle>& Data)
-{
-  Partstruct part;
-  unsigned nbodies;
-
-  data = &Data;
-
-				// Clean the maps
-  keybods.clear();
-  bodies.clear();
-
-  if (myid==0) {
-
-    volume = s[0]*s[1]*s[2];	// Total volume of oct-tree region
-
-    number = data->size();	// Total data size
-
-				// Assign keys for partitioning
-    for (unsigned n=0; n<number; n++)
-      keybods.push_back(pair<key_type, unsigned>(getKey(&(*data)[n].pos[0]), n));
-    sort(keybods.begin(), keybods.end());
-
-				// Break up into equal segments and
-				// send to processors
-    unsigned num = number/numprocs;
-    MPI_Bcast(&num, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-    
-				// Begin iterating through the key/body list
-				//
-    key_indx::iterator it = keybods.begin();
-
-				// Root node's bodies
-				// first . . .
-    nbodies = number - num*(numprocs-1);
-    for (unsigned i=0; i<nbodies; i++) {
-      pf.Particle_to_part(part, (*data)[it->second]);
-      part.indx = it->second;
-      part.key  = it->first;
-      bodies[it->second] = part;
-      it++;
-    }
-				// Mark the end of root's list 
-				// for deletion later
-    key_indx::iterator tonodes = it;
-
-    for (int i=1; i<numprocs; i++) {
-      pf.ShipParticles(i, 0, num);
-      for (unsigned j=0; j<num; j++) {
-	pf.SendParticle((*data)[it->second], it->second, it->first);
-	it++;
-      }
-    }
-
-
-    keybods.erase(tonodes, keybods.end());
-
-  } else {
-
-    MPI_Bcast(&nbodies, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
-
-    pf.ShipParticles(myid, 0, nbodies);
-
-    for (unsigned j=0; j<nbodies; j++) {
-      pf.RecvParticle(part);
-      bodies[part.indx] = part;
-      keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
-    }
-  }
-
-  sort(keybods.begin(), keybods.end());
-}
-
-
-void pHOT::gatherParticles(vector<Particle>& Data)
-{
-  Partstruct part;
-  indx_part::iterator it;
-
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  if (myid==0) {
-				// Load root's particles
-    
-    for (it=bodies.begin(); it!=bodies.end(); it++)
-      pf.part_to_Particle(it->second, Data[it->first]);
-
-    unsigned num;
-				// Get the particles from the nodes
-    for (int i=1; i<numprocs; i++) {
-
-      pf.ShipParticles(0, i, num);
-
-      for (unsigned j=0; j<num; j++) {
-	pf.RecvParticle(part);
-	pf.part_to_Particle(part, Data[part.indx]);
-      }
-    }
-    
-  } else {
-
-    unsigned num = bodies.size();
-    pf.ShipParticles(0, myid, num);
-
-    for (it=bodies.begin(); it!=bodies.end(); it++)
-      pf.SendParticle(it->second);
-  }
-
-  MPI_Barrier(MPI_COMM_WORLD);
-
-}
 
 
 pHOT::~pHOT()
@@ -147,7 +38,7 @@ pHOT::~pHOT()
 unsigned long long pHOT::getKey(double *p)
 {
   for (unsigned k=0; k<3; k++) {
-    if (fabs(p[k]/s[k])> 1.0) {
+    if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
       ostringstream sout;
       sout << "Coordinate out of pbounds in pHOT::key: "
 	   << __FILE__ << ", " << __LINE__ << endl;
@@ -163,7 +54,7 @@ unsigned long long pHOT::getKey(double *p)
 
 				// Reverse the order
   for (unsigned k=0; k<3; k++)
-    bins[2-k] = (unsigned)floor( (p[k]/s[k]+neg_half)*factor );
+    bins[2-k] = (unsigned)floor( ((p[k]+offst[k])/sides[k]+neg_half)*factor );
   
   unsigned long long place = 1;
   unsigned long long _key = 0;
@@ -197,6 +88,7 @@ string pHOT::printKey(unsigned long long p)
 
   return sret.str();
 }
+
 
 void pHOT::makeTree()
 {
@@ -458,9 +350,9 @@ void pHOT::dumpFrontier()
 	unsigned num = it->second->bods.size();
 	double mass = 0.0;
 	for (unsigned n=0; n<num; n++) {
-	  mass += bodies[it->second->bods[n]].mass;
+	  mass += cc->particles[it->second->bods[n]].mass;
 	  for (unsigned k=0; k<3; k++) {
-	    tmp = bodies[it->second->bods[n]].pos[k];
+	    tmp = cc->particles[it->second->bods[n]].pos[k];
 	    mpos[k] += tmp;
 	    vpos[k] += tmp*tmp;
 	  }
@@ -567,7 +459,7 @@ void pHOT::testDump()
       for (it=keybods.begin(); it!=keybods.end(); it++) {
 	cout << setw(12) << hex << it->first;
 	for (unsigned k=0; k<3; k++) 
-	  cout << setw(18) << dec << (*data)[it->second].pos[k];
+	  cout << setw(18) << dec << (cc->particles)[it->second].pos[k];
 	cout << endl;
       }
     }
@@ -638,12 +530,18 @@ void pHOT::testFrontier(string& filename)
 	double mass=0, temp=0, pos[]={0,0,0}, vel[]={0,0,0};
 	p = c->second;
 	for (unsigned n=0; n<p->bods.size(); n++) {
-	  mass += bodies[p->bods[n]].mass;
+	  mass += cc->particles[p->bods[n]].mass;
 	  for (int k=0; k<3; k++) {
-	    pos[k] += bodies[p->bods[n]].mass * bodies[p->bods[n]].pos[k];
-	    vel[k] += bodies[p->bods[n]].mass * bodies[p->bods[n]].vel[k];
-	    temp += bodies[p->bods[n]].mass * 
-	      bodies[p->bods[n]].vel[k] * bodies[p->bods[n]].vel[k];
+	    pos[k] += 
+	      cc->particles[p->bods[n]].mass * 
+	      cc->particles[p->bods[n]].pos[k];
+	    vel[k] += 
+	      cc->particles[p->bods[n]].mass * 
+	      cc->particles[p->bods[n]].vel[k];
+	    temp += 
+	      cc->particles[p->bods[n]].mass * 
+	      cc->particles[p->bods[n]].vel[k] *
+	      cc->particles[p->bods[n]].vel[k];
 	  }
 	}
 	
@@ -711,14 +609,11 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
 
   key_type tkey;
   for (unsigned j=0; j<num; j++) {
-    if (bodies.find(p->bods[j]) == bodies.end()) {
-      cout << "Process " << myid << ": indx not in body list!" << endl;
-    }
 
-    pf.SendParticle(bodies[p->bods[j]]);
-
+    pf.SendParticle(cc->particles[p->bods[j]]);
+    
 				// Find the record and delete it
-    tkey = bodies[p->bods[j]].key;
+    tkey = cc->particles[p->bods[j]].key;
     key_indx::iterator it = 
       lower_bound(keybods.begin(), keybods.end(), tkey, ltULL());
 
@@ -726,7 +621,7 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
     while (it->first == tkey) {
       if (it->second == p->bods[j]) {
 	keybods.erase(it);
-	bodies.erase(p->bods[j]);
+	cc->particles.erase(p->bods[j]);
 	testme = true;
 	break;
       }
@@ -754,6 +649,8 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
     p->keys.clear();
     p->bods.clear();
   }
+
+  cc->nbodies = cc->particles.size();
 }
 
 
@@ -764,7 +661,7 @@ void pHOT::recvCell(int from, unsigned num)
        << " from " << from << endl;
 #endif
 
-  Partstruct part;
+  Particle part;
 
   pCell *p = root;
 
@@ -772,7 +669,7 @@ void pHOT::recvCell(int from, unsigned num)
 
   for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
-    bodies[part.indx] = part;
+    cc->particles[part.indx] = part;
     keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
     if (part.key < key_min || part.key >= key_max) {
       cout << "Process " << myid << ": in recvCell, key=" 
@@ -780,6 +677,8 @@ void pHOT::recvCell(int from, unsigned num)
     }
     p = p->Add(pair<unsigned long long, unsigned>(part.key, part.indx));
   }
+
+  cc->nbodies = cc->particles.size();
 }
 
 void pHOT::makeState()
@@ -884,9 +783,9 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   vector<double> pt(3);
   double dens, temp, vx, vy, vz;
 
-  double dx = s[0]/nx;
-  double dy = s[1]/ny;
-  double dz = s[2]/nz;
+  double dx = sides[0]/nx;
+  double dy = sides[1]/ny;
+  double dz = sides[2]/nz;
 
   ofstream out;
 
@@ -897,7 +796,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("XY")==0) {
 
 				// X-Y slice
-    pt[2] = 0.5*s[2];
+    pt[2] = 0.5*sides[2] - offst[2];
     for (int i=0; i<nx; i++) {
       pt[0] = (0.5+i)*dx;
       for (int j=0; j<ny; j++) {
@@ -922,7 +821,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("XZ")==0) {
 
 				// X-Z slice
-    pt[1] = 0.5*s[1];
+    pt[1] = 0.5*sides[1] - offst[1];
     for (int i=0; i<nx; i++) {
       pt[0] = (0.5+i)*dx;
       for (int j=0; j<nz; j++) {
@@ -947,7 +846,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("YZ")==0) {
 
 				// X-Y slice
-    pt[0] = 0.5*s[0];
+    pt[0] = 0.5*sides[0] - offst[0];
     for (int i=0; i<ny; i++) {
       pt[1] = (0.5+i)*dy;
       for (int j=0; j<nz; j++) {
@@ -1149,17 +1048,20 @@ double pHOT::medianVol()
 void pHOT::Repartition()
 {
   MPI_Status s;
-  indx_part::iterator n;
   unsigned nbod, Tcnt, Fcnt;
   vector<unsigned> From(numprocs, 0), To(numprocs, 0), Tlst;
   
   MPI_Barrier(MPI_COMM_WORLD);
 
+  volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
+
+
   //
   // Recompute keys
   //
-  for (n=bodies.begin(); n!=bodies.end(); n++) 
-    n->second.key = getKey(&(n->second.pos[0]));
+  map<unsigned long, Particle>::iterator it = cc->Particles().begin();
+  for (; it!=cc->Particles().end(); it++)
+    it->second.key = getKey(&(it->second.pos[0]));
 
   //
   // Compute the new partition
@@ -1171,10 +1073,10 @@ void pHOT::Repartition()
 				// 
 				// Root's particles first
 				// 
-    for (n=bodies.begin(); n!=bodies.end(); n++) {
+    map<unsigned long, Particle>::iterator n = cc->Particles().begin();
+    for (; n!=cc->Particles().end(); n++)
       newmap.push_back(NewPair(n->second.key, 
 			       pair<unsigned, int>(n->first, 0)));
-    }
     
 				// 
 				// Get remote particles
@@ -1291,19 +1193,21 @@ void pHOT::Repartition()
 				// Root node's lists
     Tcnt = tcnt[0];
     Fcnt = fcnt[0];
-    for (int id=0; id<numprocs; id++) Tlst.insert(Tlst.end(), tlst[0][id].begin(), tlst[0][id].end());
+    for (int id=0; id<numprocs; id++) 
+      Tlst.insert(Tlst.end(), tlst[0][id].begin(), tlst[0][id].end());
     To = to[0];
     From = from[0];
 
   } else {
 
-    nbod = bodies.size();
+    nbod = cc->Number();
     MPI_Send(&nbod, 1, MPI_UNSIGNED, 0, 41, MPI_COMM_WORLD);
 
     vector<unsigned long long> Nkeys;
     vector<unsigned> Nindx;
 
-    for (n=bodies.begin(); n!=bodies.end(); n++) {
+    map<unsigned long, Particle>::iterator n = cc->Particles().begin();
+    for (; n!=cc->Particles().end(); n++) {
       Nkeys.push_back(n->second.key);
       Nindx.push_back(n->second.indx);
     }
@@ -1340,8 +1244,8 @@ void pHOT::Repartition()
   for (int id=0; id<numprocs; id++) {
     if (To[id]) {
       for (unsigned i=0; i<To[id]; i++) {
-	psend[ps+i] = bodies[Tlst[ps+i]];
-	bodies.erase(Tlst[ps+i]);
+	pf.Particle_to_part(psend[ps+i], cc->Particles()[Tlst[ps+i]]);
+	cc->Particles().erase(Tlst[ps+i]);
       }
       send_requests.push_back(r);
       MPI_Isend(&psend[ps], To[id], ParticleFerry::Particletype, id, 49, 
@@ -1391,13 +1295,18 @@ void pHOT::Repartition()
     MPI_Wait(&recv_requests[i], &s);
   }
   
-  for (unsigned i=0; i<Fcnt; i++) bodies[precv[i].indx] = precv[i];
+  Particle part;
+  for (unsigned i=0; i<Fcnt; i++) {
+    pf.part_to_Particle(precv[i], part);
+    cc->Particles()[part.indx] = part;
+  }
       
   //
   // Remake key body index
   //
   keybods.clear();
-  for (n=bodies.begin(); n!=bodies.end(); n++)
+  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
+  for (; n!=cc->Particles().end(); n++)
     keybods.push_back(pair<key_type, unsigned>(n->second.key, n->second.indx));
   sort(keybods.begin(), keybods.end());
 
@@ -1406,9 +1315,9 @@ void pHOT::Repartition()
 
 bool pHOT::checkKeybods()
 {
-  indx_part::iterator n;
   bool ok = true;
-  for (n=bodies.begin(); n!=bodies.end(); n++) {
+  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
+  for (; n!=cc->Particles().end(); n++) {
     key_indx::iterator it = 
       lower_bound(keybods.begin(), keybods.end(), n->second.key, ltULL());
     if (it==keybods.end()) {

@@ -1317,9 +1317,6 @@ void EmpCylSL::setup_eof()
     rank2 = NMAX*(LMAX+1);
     rank3 = NORDER;
     
-    ev.setsize(1, rank2);
-    ef.setsize(1, rank2, 1, rank2);
-
     Rtable = M_SQRT1_2 * RMAX;
     XMIN = r_to_xi(RMIN*ASCALE);
     XMAX = r_to_xi(Rtable*ASCALE);
@@ -1852,6 +1849,11 @@ void EmpCylSL::make_eof(void)
     /*==========================*/
     
 	try {
+				// Set sizes
+	  int i1 = var[M].getrlow(), i2 = var[M].getrhigh();
+	  ev.setsize(i1, i2);
+	  ef.setsize(i1, i2, i1, i2);
+
 #if defined(STURM)
 	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
 	  
@@ -1913,10 +1915,27 @@ void EmpCylSL::make_eof(void)
     /*==========================*/
     
 	try {
+				// Set sizes
+	  int i1 = var[M].getrlow(), i2 = var[M].getrhigh();
+	  ev.setsize(i1, i2);
+	  ef.setsize(i1, i2, i1, i2);
+
 #if defined(STURM)
 	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
 
 #elif defined(GHQL)
+#ifdef DEBUG	  
+	  cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
+	       << endl
+	       << "ev=[" << ev.getlow() << ", " << ev.gethigh() << "],"
+	       << endl
+	       << "ef=[ [" << ef.getrlow() << ", " << ef.getrhigh() << "]"
+	       << "[" << ef.getclow() << ", " << ef.getchigh() << "] ]"
+	       << endl
+	       << "var=[ [" << var[M].getrlow() << ", " << var[M].getrhigh() << "]"
+	       << ", [" << var[M].getclow() << ", " << var[M].getchigh() << "] ]"
+	       << endl;
+#endif
 	  ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
 	  ef = ef.Transpose();
 #else

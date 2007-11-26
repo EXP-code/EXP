@@ -63,9 +63,14 @@ void OutRelaxation::Run(int n, bool final)
 
     nbodies = c->Number();
 
-    for (int i=1; i<=nbodies; i++) {
+    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    unsigned long i;
 
-      if (c->freeze(*(c->Part(i)))) continue;
+    for (int q=1; q<=nbodies; q++) {
+
+      i = it->first; it++;
+
+      if (c->freeze(i)) continue;
 
 
       esave = c->Part(i)->dattrib[epos];

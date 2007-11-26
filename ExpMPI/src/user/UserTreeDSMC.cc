@@ -22,9 +22,9 @@ using namespace std;
 
 static double pc = 3.086e18;		// cm
 static double a0 = 2.0*0.054e-7;	// cm (2xBohr radius)
-static double boltz = 1.381e-16;	// cgs
-static double year = 365.25*24*3600;	// seconds
-static double mp = 1.67e-24;		// g
+// static double boltz = 1.381e-16;	// cgs
+// static double year = 365.25*24*3600;	// seconds
+// static double mp = 1.67e-24;		// g
 static double msun = 1.989e33;		// g
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
@@ -66,11 +66,11 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Diameter*Bohr radius in Lunits
   double diam = diamfac*a0/(Lunit);
 
-  pHOT::s[0] = pHOT::s[1] = pHOT::s[2] = boxsize;
+  pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
 
   pCell::bucket = ncell;
 
-  volume = pHOT::s[0] * pHOT::s[1] * pHOT::s[2];
+  volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
 
 
   Collide::CNUM = cnum;
@@ -134,8 +134,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
-    tree.sendParticles(c0->Particles());
-    tree.makeTree();
+    c0->Tree()->Repartition();
+    c0->Tree()->makeTree();
 
     stepnum = 0;
     curtime = tnow;
@@ -157,10 +157,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Compute time step
   //
-  double minvol = tree.minVol();
-  double medianvol = tree.medianVol();
+  double minvol = c0->Tree()->minVol();
+  // double medianvol = c0->Tree()->medianVol();
   // double minsize = pow(minvol, 0.3333333);
-  double mediansize = pow(medianvol, 0.3333333);
+  // double mediansize = pow(medianvol, 0.3333333);
   double tau = dtime*mintvl[mlevel]/Mstep;
   double ElostTot = 0.0;
 
@@ -173,20 +173,20 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Test repartition
   //
   partnTime.start();
-  tree.Repartition();
+  c0->Tree()->Repartition();
   partnSoFar = partnTime.stop();
   
   //
   // Sort the particles into cells
   //
   treeTime.start();
-  tree.makeTree();
+  c0->Tree()->makeTree();
   treeSoFar = treeTime.stop();
   
   //
   // Evaluate collisions among the particles
   //
-  unsigned col = collide->collide(tree, collfrac, tau);
+  unsigned col = collide->collide(*c0->Tree(), collfrac, tau);
     
   collideSoFar = collideTime.stop();
 
@@ -208,12 +208,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     ostringstream sout;
     sout << "tmp.out." << tmpc++;
     string filen = sout.str();
-    tree.testFrontier(filen);
+    c0->Tree()->testFrontier(filen);
 
-    pHOT_iterator ic(tree);   // Begin frontier iteration to add up KE
+				// Begin frontier iteration to add up KE
+    pHOT_iterator ic(*c0->Tree());
 
     double KEtot1=0.0, KEtot=0.0, totE, dspE;
-    unsigned ncells = tree.Number();
+    unsigned ncells = c0->Tree()->Number();
     for (unsigned j=0; j<ncells; j++) {
       ic.nextCell();
       ic.KE(totE, dspE);
@@ -238,7 +239,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(digit2) << collide->errors() << " coll errs; "
 	   << medianNumb << " num/cell; "
 	   << medianColl << " coll/cell; "
-	   << tree.Number() << " cells";
+	   << c0->Tree()->Number() << " cells";
       mout << endl << endl;
 	
       ElostTot += Elost;

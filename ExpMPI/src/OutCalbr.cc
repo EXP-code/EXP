@@ -32,7 +32,13 @@ void OutCalbr::set_energies()
 				// Compute energies and angular momentum
     
     double Emin1=1e30, Emax1=-1e30, v2, E;
-    for (int n=0; n<tcomp->Number(); n++) {
+
+    map<unsigned long, Particle>::iterator it = tcomp->Particles().begin();
+    unsigned long n;
+
+    for (int q=0; q<tcomp->Number(); q++) {
+      n = (it++)->first;
+
       v2 = 0.0;
       for (int j=0; j<3; j++) 
 	v2 += tcomp->Part(n)->vel[j]*tcomp->Part(n)->vel[j];
@@ -139,11 +145,11 @@ void OutCalbr::initialize()
 
 }
 
-void OutCalbr::Run(int n, bool last)
+void OutCalbr::Run(int ns, bool last)
 {
-  if (n==0) set_energies();
+  if (ns==0) set_energies();
 
-  if (n % nint != 0 && !last) return;
+  if (ns % nint != 0 && !last) return;
 
   MPI_Status status;
 
@@ -171,7 +177,12 @@ void OutCalbr::Run(int n, bool last)
 				// Compute energies and angmom
   double E, Lx, Ly, Lz, v2;
   int indx;
-  for (int n=0; n<tcomp->Number(); n++) {
+  map<unsigned long, Particle>::iterator it = tcomp->Particles().begin();
+  unsigned long n;
+
+  for (int q=0; q<tcomp->Number(); q++) {
+    n = (it++)->first;
+
     v2 = 0.0;
     for (int j=0; j<3; j++) 
       v2 += tcomp->Part(n)->vel[j]*tcomp->Part(n)->vel[j];

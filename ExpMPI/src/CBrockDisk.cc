@@ -246,21 +246,27 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 {
   double pos[3], xx, yy, zz, r, r2, phi, rs, fac1, fac2, mass;
 
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
 
+  map<unsigned long, Particle>::iterator it=cC->Particles().begin();
+  unsigned long j;
+
+  for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
 
-    if (component->freeze((*particles)[i])) // frozen particles do not respond
+    j = (it++)->first;
+
+    if (component->freeze(j)) // frozen particles do not respond
       continue;
 
-    mass = (*particles)[i].mass * adb;
+    mass = cC->Mass(j)* adb;
 
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->center[k];
+      pos[k] = cC->Pos(j, k) - component->center[k];
 
     xx = pos[0];
     yy = pos[1];
@@ -332,15 +338,21 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   double pos[3];
   double xx, yy, zz;
 
-  int nbodies = particles->size();
+  int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
+  map<unsigned long, Particle>::iterator it=cC->Particles().begin();
+  unsigned long j;
+
+  for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
 
+    j = it->first;
+
     for (int k=0; k<3; k++) 
-      pos[k] = (*particles)[i].pos[k] - component->center[k];
+      pos[k] = cC->Pos(j, k) - component->center[k];
 
     xx = pos[0];
     yy = pos[1];
@@ -375,19 +387,20 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     potl /= scale;
     potp /= scale;
 
-    (*particles)[i].acc[0] += -potr*xx/r;
-    (*particles)[i].acc[1] += -potr*yy/r;
-    (*particles)[i].acc[2] += -potr*zz/r;
+    cC->AddAcc(j, 0, -potr*xx/r);
+    cC->AddAcc(j, 1, -potr*yy/r);
+    cC->AddAcc(j, 2, -potr*zz/r);
     if (fac > DSMALL2) {
-      (*particles)[i].acc[0] +=  potp*yy/fac;
-      (*particles)[i].acc[1] += -potp*xx/fac;
+      cC->AddAcc(j, 0,  potp*yy/fac);
+      cC->AddAcc(j, 1, -potp*xx/fac);
     }
 
     if (use_external)
-      (*particles)[i].potext += potl;
+      cC->AddPotExt(j, potl);
     else
-      (*particles)[i].pot += potl;
+      cC->AddPot(j, potl);
 
+    it++;
   }
 
 

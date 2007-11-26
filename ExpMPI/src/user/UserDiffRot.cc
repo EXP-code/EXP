@@ -144,7 +144,7 @@ void UserDiffRot::determine_acceleration_and_potential(void)
     if (myid==0) {
 
       int number = -1;
-      Component::Partstruct *p = c1->get_particles(&number);
+      Particle *p = c1->get_particles(&number);
 
       while (p) {
 	
@@ -258,9 +258,13 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     double dt;
     int jindx;
 
-    for (int i=nbeg; i<nend; i++) {
+    map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+    unsigned long i;
 
-      dt = get_dtime(*(cC->Part(i)));
+    for (int q=0   ; q<nbeg; q++) it++;
+    for (int q=nbeg; q<nend; q++) {
+      i = (it++)->first;
+
       cC->Part(i)->dattrib.push_back(tnow + dt/rate);
 
       dtmin = min<double>(dt, dtmin);
@@ -273,7 +277,12 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
       
   }
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+    i = (it++)->first;
 
     // If we are multistepping, compute accel only at or below this level
     //

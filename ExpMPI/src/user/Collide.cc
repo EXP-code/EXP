@@ -277,7 +277,7 @@ void * Collide::collide_thread(void * arg)
     double v1[3], v2[3];
     for (int k=0; k<3; k++) v1[k] = v2[k] = 0;
 
-    Partstruct *p;
+    Particle *p;
     for (unsigned i=0; i<number; i++) {
       p = tree->Body(c->bods[i]);
       ms += p->mass;
@@ -342,8 +342,8 @@ void * Collide::collide_thread(void * arg)
       //
       unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
       unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
-      Partstruct* p1 = tree->Body(c->bods[k1]); // First particle
-      Partstruct* p2 = tree->Body(c->bods[k2]); // Second particle
+      Particle* p1 = tree->Body(c->bods[k1]); // First particle
+      Particle* p2 = tree->Body(c->bods[k2]); // Second particle
 
       // Calculate pair's relative speed (pre-collision)
       //

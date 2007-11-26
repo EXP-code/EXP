@@ -45,7 +45,7 @@ public:
     exit(-1);
   }
   
-  void bomb(char *s) {
+  void bomb(const char *s) {
     cerr << "ERROR from " << OrbitID << ": " << s << '\n';
 #ifdef DEBUG
     abort();

@@ -39,7 +39,7 @@ exp_SOURCES = \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
      multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
-     OutCalbr.cc
+     OutCalbr.cc pHOT.cc ParticleFerry.cc pCell.cc
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
@@ -58,7 +58,7 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
 	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H \
 	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H \
 	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h \
-        version.h 
+        version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H
 
 # special case for f77 for now
 

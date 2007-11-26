@@ -17,7 +17,7 @@ SphericalBasisMixtureSL::SphericalBasisMixtureSL
 
 void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
 {
-  int l, i, loffset, moffset, m, n, nn;
+  int l,loffset, moffset, m, n, nn;
   double r, r2, rs, fac1, fac2, costh, phi, mass;
   double facs1=0.0, facs2=0.0, fac0=4.0*M_PI;
   double xx, yy, zz;
@@ -28,11 +28,17 @@ void * SphericalBasisMixtureSL::determine_coefficients_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
   
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
   use[id] = 0;
 
-  for (i=nbeg; i<nend; i++) {
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
 
-    if (cC->freeze(*(cC->Part(i)))) continue;
+    i = (it++)->first;
+
+    if (cC->freeze(i)) continue;
 
     mass = cC->Mass(i) * adb;
 
@@ -124,9 +130,15 @@ void * SphericalBasisMixtureSL::determine_acceleration_and_potential_thread(void
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
 
-    if (cC->freeze(*(cC->Part(i)))) continue;
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+    
+    i = (it++)->first;
+    
+    if (cC->freeze(i)) continue;
 
     if (use_external) {
       // Get the position in inertial coords

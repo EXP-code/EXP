@@ -44,7 +44,7 @@ private:
   int NUMX, NUME, RECS;
   
   bool with_ps;
-  int npart;
+  unsigned npart;
 
   bool first;
   double tlast;

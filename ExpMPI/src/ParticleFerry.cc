@@ -12,33 +12,34 @@ ParticleFerry::ParticleFerry()
   ibufcount = 0;
 				// Make MPI datatype
   
-  MPI_Datatype type[12] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+  MPI_Datatype type[13] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
 			   MPI_DOUBLE, MPI_DOUBLE, 
-			   MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG_LONG, 
+			   MPI_UNSIGNED, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG_LONG, 
 			   MPI_UNSIGNED, MPI_UNSIGNED,
 			   MPI_INT, MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint disp[12];
+  MPI_Aint disp[13];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
   MPI_Get_address(&buf[0].acc,		&disp[3]);
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].indx,		&disp[6]);
-  MPI_Get_address(&buf[0].key,		&disp[7]);
-  MPI_Get_address(&buf[0].nicnt,	&disp[8]);
-  MPI_Get_address(&buf[0].ndcnt,	&disp[9]);
-  MPI_Get_address(&buf[0].iatr,		&disp[10]);
-  MPI_Get_address(&buf[0].datr,		&disp[11]);
+  MPI_Get_address(&buf[0].level,	&disp[6]);
+  MPI_Get_address(&buf[0].indx,		&disp[7]);
+  MPI_Get_address(&buf[0].key,		&disp[8]);
+  MPI_Get_address(&buf[0].nicnt,	&disp[9]);
+  MPI_Get_address(&buf[0].ndcnt,	&disp[10]);
+  MPI_Get_address(&buf[0].iatr,		&disp[11]);
+  MPI_Get_address(&buf[0].datr,		&disp[12]);
 
-  for (int i=11; i>=0; i--) disp[i] -= disp[0];
+  for (int i=12; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[12] = {1, 3, 3, 3, 1, 1, 1, 1, 1, 1, nimax, ndmax};
+  int blocklen[13] = {1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(12, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(13, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 }
 
@@ -51,10 +52,12 @@ void ParticleFerry::part_to_Particle(Partstruct& str, Particle& cls)
       cls.vel[j] = str.vel[j];
       cls.acc[j] = str.acc[j];
   }
-  cls.pot = str.pot;
+  cls.pot    = str.pot;
   cls.potext = str.potext;
 
-  cls.indx = str.indx;
+  cls.level  = str.level;
+  cls.indx   = str.indx;
+  cls.key    = str.key;
 
   cls.iattrib = vector<int>(str.nicnt);
   for (int j=0; j<str.nicnt; j++) cls.iattrib[j] = str.iatr[j];
@@ -75,7 +78,9 @@ void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
   str.pot = cls.pot;
   str.potext = cls.potext;
 
-  str.indx = cls.indx;
+  str.level = cls.level;
+  str.indx  = cls.indx;
+  str.key   = cls.key;
 
   str.nicnt = min<int>(nimax, cls.iattrib.size());
   str.ndcnt = min<int>(ndmax, cls.dattrib.size());
@@ -124,16 +129,16 @@ void ParticleFerry::SendParticle(Particle& ptc,
   if (ibufcount == nbuf || itotcount == _total) BufferSend();
 }
 
-void ParticleFerry::SendParticle(Partstruct& part)
+void ParticleFerry::SendParticle(Particle& part)
 {
   // Add particle to buffer
   //
-  buf[ibufcount] = part;
+  Particle_to_part(buf[ibufcount], part);
+  ibufcount++;
+  itotcount++;
 
   // If buffer is full, send the buffer and reset
   //
-  ibufcount++;
-  itotcount++;
   if (ibufcount == nbuf || itotcount == _total) BufferSend();
 }
 
@@ -153,11 +158,16 @@ bool ParticleFerry::RecvParticle(Particle& ptc,
   return true;
 }
 
-bool ParticleFerry::RecvParticle(Partstruct& part)
+bool ParticleFerry::RecvParticle(Particle& part)
 {
   if (itotcount++ == _total) return false;
   if (ibufcount==0) BufferRecv();
-  part = buf[--ibufcount];
+  part_to_Particle(buf[--ibufcount], part);
+#ifdef DEBUG
+  if (part.indx==0) {
+    cout << "ParticleFerry: process " << myid << " error in sequence" << endl;
+  }
+#endif
   return true;
 }
 
@@ -165,12 +175,10 @@ void ParticleFerry::BufferSend()
 {
   MPI_Send(&ibufcount, 1,         MPI_INT,      _to, 2, MPI_COMM_WORLD);
   MPI_Send(buf,        ibufcount, Particletype, _to, 3, MPI_COMM_WORLD);
-  // DEBUG
-  /*
-  cout << "Process " << myid  << ": send, tot=" << itotcount << endl;
-  bufferKeyCheck();
-  */
-  // END DEBUG
+#ifdef DEBUG
+  cout << "ParticleFerry: process " << myid  << " send, tot=" << itotcount << endl;
+  // bufferKeyCheck();
+#endif
   ibufcount = 0;
 }
 
@@ -180,12 +188,10 @@ void ParticleFerry::BufferRecv()
 
   MPI_Recv(&ibufcount, 1,         MPI_INT,      _from, 2, MPI_COMM_WORLD, &s);
   MPI_Recv(buf,        ibufcount, Particletype, _from, 3, MPI_COMM_WORLD, &s);
-  // DEBUG
-  /*
-  cout << "Process " << myid  << ": recv, tot=" << itotcount-1+ibufcount << endl;
-  bufferKeyCheck();
-  */
-  // END DEBUG
+#ifdef DEBUG
+  cout << "ParticleFerry: process " << myid  << " recv, tot=" << itotcount-1+ibufcount << endl;
+  // bufferKeyCheck();
+#endif
 }
 
 void ParticleFerry::bufferKeyCheck()

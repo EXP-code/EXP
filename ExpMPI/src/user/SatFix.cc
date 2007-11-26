@@ -36,7 +36,7 @@ SatFix::SatFix(string &line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
-  last = vector<int>(numprocs, 0);
+  last = vector<unsigned int>(numprocs, 0);
 
   userinfo();
 }

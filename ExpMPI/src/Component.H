@@ -8,6 +8,9 @@
 #include <localmpi.h>
 #include <utility>
 
+#include <ParticleFerry.H>
+
+class pHOT;
 
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
@@ -159,42 +162,16 @@ class Component
   friend class ScatterMFP;
   friend class OrbTrace;
   friend class ComponentContainer;
-
-public:
-
-  //! Maximum number of *extra* integer components
-  const static int nimax = 5;
-  //! Maximum number of *extra* double components
-  const static int ndmax = 12;
-
-  //! For interprocess communication, need static structure for MPI mapping
-  struct Partstruct
-  {
-				///< Type:    Offsets:
-    double mass;		///< 0        0
-    double pos[3];		///< 1        1,2,3
-    double vel[3];		///< 2        4,5,6
-    double acc[3];		///< 3        7,8.9
-    double pot;			///< 4        10
-    double potext;		///< 5        11
-    unsigned level;		///< 6        12
-    unsigned long indx;		///< 7        13
-    int    iatr[nimax];		///< 8        14,15,16,16,18 (e.g.)
-    double datr[ndmax];		///< 9        19,20,21,22,23 (e.g.)
-  };
+  friend class pHOT;
 
 private:
 
   //! Parallel distribute and particle io
   void read_bodies_and_distribute_ascii(void);
   void read_bodies_and_distribute_binary(istream *);
-  void get_next_particle_from_file(Partstruct *onepart, istream *in);
-  void part_to_Particle(Partstruct&, Particle&);
-  void Particle_to_part(Partstruct&, Particle&);
+  void get_next_particle_from_file(Particle *onepart, istream *in);
   void load_balance(void);
 
-  Partstruct *buf;
-  static const int nbuf = 2000;
 
   bool seq_check, ordered;
   int seq_beg, seq_end, seq_cur;
@@ -206,23 +183,16 @@ private:
   //! Error
   void bomb(const string& msg);
 
-  // Particle handler variables
-  bool npart;
-  Partstruct *npart_p;
-  int npart_tot, npart_cur;
+  // Particle buffer
+  Particle *pbuf;
 
   // Adiabatic mass
   bool adiabatic;
   double ton, toff, twid;
 
-  // For particle retrival in the proper order
-  Partstruct * get_particles_ordered(int* number);
-  Partstruct * get_particles_unordered(int* number);
-
   // For load balancing
   vector <loadb_datum> loadb;
-  void append_particles(int from, int to, int begin, int number);
-  void insert_particles(int from, int to, int begin, int number, int loc);
+  void add_particles(int from, int to, vector<int>& plist);
 
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
@@ -230,6 +200,9 @@ private:
   // Momentum tracking
   bool consp;
   int tidal;
+
+  // For exchanging particles
+  ParticleFerry pf;
 
 protected:
 
@@ -241,7 +214,7 @@ protected:
   double azcm_slab;
 
   //! Bodies on this node
-  int nbodies;
+  unsigned int nbodies;
 
   /** Used by gather and distribution routines to define a particle
       structure to MPI */
@@ -250,9 +223,9 @@ protected:
   //! Setup distribution vectors
   void setup_distribution(void);
 
-  //! Vectors for holding current particle partition
+  //! Vector holding current particle partition
   //@{
-  vector<int> plist, ncount, nbodies_index, nbodies_table;
+  vector<unsigned int> nbodies_table, nbodies_index;
   //@}
 
   //! Vectors for holding the rates per node for load balancing
@@ -272,8 +245,11 @@ protected:
   //! COM restart function
   void restart_com_system(void);
 
-  //! Points to associated particles
-  vector<Particle> particles;
+  //! Points to associated particles using sequence number
+  map<unsigned long, Particle> particles;
+
+  //! Oct tree
+  pHOT *tree;
 
 public:
 
@@ -443,19 +419,16 @@ public:
   ~Component();
 
   //! Parallel gather
-  Partstruct* get_particles(int* number);
-  
-  //! Particle handler
-  int get_next_particle(Partstruct *onepart);
+  Particle* get_particles(int* number);
   
   //! Retrieve particle count on a particular node (one node at a time)
   int particle_count(int node) { 
     if (node<0 || node>=numprocs) return 0;
-    return ncount[node]; 
+    return nbodies_table[node]; 
   }
 
   //! Retrieve particle count on a particular node (all nodes at once)
-  vector<int> particle_count() { return ncount; }
+  vector<unsigned int> particle_count() { return nbodies_table; }
 
   //! Write binary component phase-space structure
   void write_binary(ostream *out);
@@ -468,12 +441,6 @@ public:
 
   //! Compute center of mass and center of velocity
   void fix_positions(void);
-
-  //! Control: assume particle on nodes remain unchanged
-  void setOrdered() { ordered = true; }
-
-  //! Control: assume particle on nodes may change
-  void setUnordered() { ordered = false; }
 
   /** Redistribute particle by list
 
@@ -504,18 +471,18 @@ public:
   double Adiabatic(void);
 
   //! Is particle out of bounds?
-  bool freeze(const Particle&);
+  bool freeze(unsigned indx);
 
   //! Is particle beyond COM system
   bool escape_com(const Particle&);
 
   //! Access to particle vector
-  vector<Particle>& Particles() {
+  map<unsigned long, Particle>& Particles() {
     return particles;
   }
 
   //! Access to particle
-  Particle *Part(int i) {
+  Particle *Part(unsigned long i) {
     return &particles[i];
   }
 
@@ -669,6 +636,9 @@ public:
   
   //! Reset the level lists
   void reset_level_lists();
+
+  //! Temporary access to tree (until I figure out what is really needed)
+  pHOT* Tree() { return tree; }
 
 };
 

@@ -58,7 +58,7 @@ public:
   pCell* Add(const key_pair&);
 
   //! Particle access
-  Partstruct *Body(unsigned k);
+  Particle *Body(unsigned k);
 
   //! Recursively zero the tree's state vector
   void zeroState();

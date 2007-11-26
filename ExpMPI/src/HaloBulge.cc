@@ -74,7 +74,12 @@ void * HaloBulge::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=nbeg; q<nend; q++) {
+
+    i = it->first; it++;
 
     r = 0.0;
     for (int k=0; k<3; k++) r += cC->Pos(i, k)*cC->Pos(i, k);

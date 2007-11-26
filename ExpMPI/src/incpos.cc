@@ -46,12 +46,15 @@ void * incr_position_thread(void *ptr)
     nbeg = ntot*(id  )/nthrds;
     nend = ntot*(id+1)/nthrds;
 
-    for (unsigned i=nbeg; i<nend; i++) {
+    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+
+    for (int q=0   ; q<nbeg; q++) it++;
+    for (int q=nbeg; q<nend; q++) {
 
       if (mlevel>=0)
-	indx = c->levlist[mlevel][i];
+	indx = c->levlist[mlevel][q];
       else
-	indx = i;
+	indx = (it++)->first;
 
       for (int k=0; k<c->dim; k++) 
 	c->Part(indx)->pos[k] += (c->Part(indx)->vel[k] - c->covI[k])*dt;

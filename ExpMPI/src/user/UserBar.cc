@@ -395,7 +395,13 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+
+  for (int q=0   ; q<nbeg; q++) it++;
+
+  for (int q=nbeg; q<nend; q++) {
+
+    unsigned long i = (it++)->first;
 
     // If we are multistepping, compute accel only at or below this level
     //

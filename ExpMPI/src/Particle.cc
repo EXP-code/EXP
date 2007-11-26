@@ -11,6 +11,21 @@ Particle::Particle()
     pos[k] = vel[k] = acc[k] = 0.0;
   level = 0;
   indx = 0;
+  key = 0;
+}
+
+Particle::Particle(unsigned niatr, unsigned ndatr)
+{
+  // Initialize basic fields
+
+  mass = pot = potext = 0.0;
+  for (int k=0; k<3; k++)
+    pos[k] = vel[k] = acc[k] = 0.0;
+  level = 0;
+  indx = 0;
+  key = 0;
+  iattrib = vector<int>(niatr, 0);
+  dattrib = vector<double>(ndatr, 0);
 }
 
 Particle::Particle(const Particle &p)
@@ -21,12 +36,13 @@ Particle::Particle(const Particle &p)
     vel[k] = p.vel[k];
     acc[k] = p.acc[k];
   }
-  pot = p.pot;
-  potext = p.potext;
+  pot     = p.pot;
+  potext  = p.potext;
   iattrib = p.iattrib;
   dattrib = p.dattrib;
-  level = p.level;
-  indx = p.indx;
+  level   = p.level;
+  indx    = p.indx;
+  key     = p.key;
 }
 
 

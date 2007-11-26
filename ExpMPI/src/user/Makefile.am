@@ -27,14 +27,13 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	ResPotOrb.H UserEBar.H UserResPotOrb.H SatFix.H UserEBarN.H \
 	UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H \
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H \
-	UserBar.H UserHalo.H pCell.H HeatCool.H UserDSMC.H UserLogPot.H \
-	pHOT.H ParticleFerry.H UserDiffRot.H UserRPtest.H pHOT_types.H
+	UserBar.H UserHalo.H HeatCool.H UserDSMC.H UserLogPot.H \
+	UserDiffRot.H UserRPtest.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc
 
-libdsmc_a_SOURCES = Collide.cc pCell.cc pHOT.cc ParticleFerry.cc \
-	CollideLTE.cc HeatCool.cc
+libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
 
 #
 # Shared (loadable) libraries

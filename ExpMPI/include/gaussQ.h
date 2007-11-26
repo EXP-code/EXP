@@ -73,7 +73,7 @@ public:
   double get_alpha(void) { return alpha; }
   double get_beta(void) { return beta; }
 
-  int bomb(char *s) {
+  int bomb(const char *s) {
     cerr << "ERROR from " << FunctionID << ": " << s << '\n';
     exit(-1);
     return 0;

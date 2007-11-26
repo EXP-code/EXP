@@ -45,9 +45,15 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
-    for (i=nbeg; i<nend; i++) {
+    map<unsigned long, Particle>::iterator it = cp->Particles().begin();
+    unsigned long i;
+
+    for (int q=0   ; q<nbeg; q++) it++;
+    for (int q=nbeg; q<nend; q++) 
       {
-	if (cp->freeze(*(cp->Part(i)))) continue;
+	i = (it++)->first;
+
+	if (cp->freeze(i)) continue;
 	x = cp->Pos(i, 0);
 	y = cp->Pos(i, 1);
 	z = cp->Pos(i, 2);
@@ -57,7 +63,5 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
 	cp->AddPotExt(i, 0.5*w2*z*z - 
 		      0.25*w2*(pp*(c+s)*x*x + pp*(s-c)*y*y - pm*(x*x+y*y) ) );
       }
-    }
   }
-
 }

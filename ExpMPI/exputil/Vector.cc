@@ -853,7 +853,15 @@ Matrix &Matrix::operator=(const Matrix &m)
     }
   
   if (m.rlow!=rlow || m.rhigh!=rhigh || m.clow!=clow || m.chigh!=chigh) 
-    bomb_Matrix_operation("=");
+    {
+      ostringstream sout;
+      sout << "=" 
+	   << " rlow[" << m.rlow << "|" << rlow << "]"
+	   << " rhigh[" << m.rhigh << "|" << rhigh << "]"
+	   << " clow[" << m.clow << "|" << clow << "]"
+	   << " chigh[" << m.chigh << "|" << chigh << "]";
+      bomb_Matrix_operation(sout.str());
+    }
   
   for (i=rlow; i<=rhigh; i++) 
     {

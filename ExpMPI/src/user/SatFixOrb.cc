@@ -51,7 +51,7 @@ SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 37);
   }
 
-  last = vector<int>(numprocs, 0);
+  last = vector<unsigned int>(numprocs, 0);
 
   orb = new SatelliteOrbit(config);
 

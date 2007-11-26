@@ -61,7 +61,7 @@ void Cube::initialize(void)
 void * Cube::determine_coefficients_thread(void * arg)
 {
 
-  int i,ix,iy,iz,indx;
+  int ix,iy,iz,indx;
   Complex startx,starty,startz,facx,facy,facz;
   Complex stepx,stepy,stepz;
   double mass;
@@ -74,7 +74,14 @@ void * Cube::determine_coefficients_thread(void * arg)
 
   use[id] = 0;
 
-  for (i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+
+    i = it->first;
+    it++;
 
     use[id]++;
     mass = cC->Mass(i) * adb;
@@ -169,8 +176,14 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
     
+    i = it->first; it++;
+
     accx = accy = accz = dens = potl = 0.0;
     
 				/* Recursion multipliers */

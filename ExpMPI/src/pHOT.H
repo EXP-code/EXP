@@ -1,11 +1,12 @@
 #ifndef _pHOT_H
 #define _pHOT_H
 
-#include "localmpi.h"
-#include "Particle.H"
-#include "ParticleFerry.H"
-#include "pHOT_types.H"
-#include "pCell.H"
+#include <localmpi.h>
+#include <Particle.H>
+#include <Component.H>
+#include <ParticleFerry.H>
+#include <pHOT_types.H>
+#include <pCell.H>
 
 class pHOT
 {
@@ -15,12 +16,13 @@ class pHOT
 
 protected:
 
+  Component *cc;
+
   unsigned number;
 
   key_indx keybods;
   key_cell frontier;
   key_key bodycell;
-  indx_part bodies;
 
   vector<Particle> *data;
   pCell *root;
@@ -42,9 +44,10 @@ protected:
 public:
 
   static unsigned neg_half;
-  static double s[];
+  static double sides[];
+  static double offst[];
 
-  pHOT();
+  pHOT(Component* C);
   ~pHOT();
 
   key_type getKey(double *);
@@ -56,9 +59,8 @@ public:
   //@{
   void makeTree();
   void Repartition();
-  void sendParticles(vector<Particle>& p);
-  void gatherParticles(vector<Particle>& p);
-  Partstruct *Body(unsigned k) { return &bodies[k]; }
+  Particle *Body(unsigned k) { return &cc->particles[k]; }
+
 
   //! Number of cells in tree
   unsigned Number() { return frontier.size(); }
@@ -134,7 +136,7 @@ public:
 
   double Mass() { return fit->second->Mass(); }
 
-  Partstruct *Body(unsigned k) { return fit->second->Body(k); }
+  Particle *Body(unsigned k) { return fit->second->Body(k); }
 };
 
 #endif

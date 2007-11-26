@@ -255,7 +255,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 {
   list<Component*>::iterator cc;
   Component *c;
-  vector<Particle>::iterator p, pend;
   
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
@@ -529,7 +528,7 @@ void ComponentContainer::fix_acceleration(void)
 
   list<Component*>::iterator cc;
   Component *c;
-  vector<Particle>::iterator p, pend;
+  map<unsigned long, Particle>::iterator p, pend;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -537,12 +536,12 @@ void ComponentContainer::fix_acceleration(void)
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
     
-      if (c->freeze(*p)) continue;
+      if (c->freeze(p->first)) continue;
 
-      mtot1 += p->mass;
-      axcm1 += p->mass*p->acc[0];
-      aycm1 += p->mass*p->acc[1];
-      azcm1 += p->mass*p->acc[2];
+      mtot1 += p->second.mass;
+      axcm1 += p->second.mass*p->second.acc[0];
+      aycm1 += p->second.mass*p->second.acc[1];
+      azcm1 += p->second.mass*p->second.acc[2];
     }
   }
 
@@ -563,10 +562,10 @@ void ComponentContainer::fix_acceleration(void)
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
 
-      if (c->freeze(*p)) continue;
-      p->acc[0] -= axcm;
-      p->acc[1] -= aycm;
-      p->acc[2] -= azcm;
+      if (c->freeze(p->first)) continue;
+      p->second.acc[0] -= axcm;
+      p->second.acc[1] -= aycm;
+      p->second.acc[2] -= azcm;
 
     }
 
@@ -587,7 +586,7 @@ void ComponentContainer::fix_positions(void)
 
   list<Component*>::iterator cc;
   Component *c;
-  vector<Particle>::iterator p, pend;
+  map<unsigned long, Particle>::iterator p, pend;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -623,9 +622,9 @@ void ComponentContainer::fix_positions(void)
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
     
-	if (c->freeze(*p)) continue;
+	if (c->freeze(p->first)) continue;
 
-	for (int k=0; k<3; k++) p->vel[k] -= gcov[k];
+	for (int k=0; k<3; k++) p->second.vel[k] -= gcov[k];
       }
     }
   }

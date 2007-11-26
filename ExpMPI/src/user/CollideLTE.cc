@@ -153,7 +153,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
 				// Assign temp to cells
   unsigned nbods = cell->bods.size();
-  for (unsigned j=0; j<nbods; j++) cell->Body(j)->datr[0] = T;
+  for (unsigned j=0; j<nbods; j++) cell->Body(j)->dattrib[0] = T;
 }
 
 

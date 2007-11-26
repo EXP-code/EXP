@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <string>
 #include <list>
+#include <map>
 
 #include <Particle.H>
 #include <StringTok.H>
@@ -124,10 +125,10 @@ public:
   void exp_thread_fork(bool coef);
 
   //! Make a mutex
-  void make_mutex(pthread_mutex_t *m, char *caller, char *name);
+  void make_mutex(pthread_mutex_t *m, const char *caller, char *name);
 
   //! Kill a mutex
-  void kill_mutex(pthread_mutex_t *m, char *caller, char *name);
+  void kill_mutex(pthread_mutex_t *m, const char *caller, char *name);
 
   //! Error
   void bomb(const string& msg);

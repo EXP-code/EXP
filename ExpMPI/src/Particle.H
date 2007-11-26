@@ -34,7 +34,7 @@ public:
   double potext;
   
   //! Integer attributes
-  vector<int>    iattrib;
+  vector<int> iattrib;
 
   //! Real (double) attributes
   vector<double> dattrib;
@@ -45,8 +45,14 @@ public:
   //! Index for ordering
   unsigned long indx;
 
+  //! Hash key
+  unsigned long long key;
+
   //! Constructor
   Particle();
+
+  //! Constructor with presized attribute lists
+  Particle(unsigned niatr, unsigned ndatr);
 
   //! Copy constructor
   Particle(const Particle &);

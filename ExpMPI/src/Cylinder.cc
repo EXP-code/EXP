@@ -271,7 +271,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
     // Frozen particles don't contribute to field
     //
-    if (cC->freeze(*(cC->Part(indx)))) continue;
+    if (cC->freeze(indx)) continue;
     
     for (int j=0; j<3; j++) 
       pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
@@ -415,8 +415,6 @@ void check_force_values(double phi, double p, double fr, double fz, double fp)
 
 void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 {
-  int i, indx, nbeg, nend;
-  unsigned nbodies;
   double r, r2, r3, phi;
   double xx, yy, zz;
   double p, p0, fr, fz, fp;
@@ -430,15 +428,29 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   if (firstime && myid==0 && id==0) out.open("debug.tst");
 #endif
 
-  for (int lev=mlevel; lev<=multistep+1; lev++) {
+  for (int lev=mlevel; lev<=multistep; lev++) {
 
-    nbodies = cC->levlist[lev].size();
-    nbeg = nbodies*id/nthrds;
-    nend = nbodies*(id+1)/nthrds;
+    unsigned nbodies = cC->levlist[lev].size();
+    int nbeg = nbodies*id/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
     
-    for (i=nbeg; i<nend; i++) {
+#ifdef DEBUG
+    cout << "Process " << myid << " id=" << id 
+	 << ": nbodies=" << nbodies
+	 << " lev=" << lev
+	 << " nbeg=" << nbeg
+	 << " nend=" << nend << endl;
+#endif
 
-      indx = cC->levlist[lev][i];
+    for (int q=nbeg; q<nend; q++) {
+
+      unsigned indx = cC->levlist[lev][q];
+
+      if (indx<1 || indx>cC->nbodies_tot) {
+	cout << "Process " << myid << " id=" << id 
+	     << ": index error in Cylinder q=" << q
+	     << " indx=" << indx << endl;
+      }
 
       // If we are multistepping, compute accel only at or below this level
       //
@@ -469,9 +481,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
 	if (use_external)
-	  cC->AddPotExt(i, p);
+	  cC->AddPotExt(indx, p);
 	else
-	  cC->AddPot(i, p);
+	  cC->AddPot(indx, p);
 
 	frc[id][1] = fr*xx/r - fp*yy/r2;
 	frc[id][2] = fr*yy/r + fp*xx/r2;
@@ -506,8 +518,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       }
     
 #ifdef DEBUG
-      if (firstime && myid==0 && id==0 && i < 5) {
-	out << setw(9)  << i          << endl
+      if (firstime && myid==0 && id==0 && q < 5) {
+	out << setw(9)  << q          << endl
 	    << setw(9)  << indx       << endl
 	    << setw(9)  << flg        << endl
 	    << setw(18) << xx         << endl
@@ -540,11 +552,13 @@ void Cylinder::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;
+  cout << "Proocess " << myid << ": about to fork" << endl;
 #endif
 
   exp_thread_fork(false);
 
 #ifdef DEBUG
+  cout << "Cylinder: process " << myid << " returned from fork" << endl;
   int offtot=0;
   for (int i=1; i<nthrds; i++) offgrid[0] += offgrid[i];
   MPI_Reduce(&offgrid[0], &offtot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -554,6 +568,12 @@ void Cylinder::determine_acceleration_and_potential(void)
     else
       cout << endl << "T=" << tnow << "  self offgrid=" << offtot << endl;
   }    
+  cout << "Cylinder: process " << myid << " name=<" << cC->name << "> bodies ["
+       << cC->Particles().begin()->second.indx << ", "
+       << cC->Particles().rbegin()->second.indx << "], ["
+       << cC->Particles().begin()->first << ", "
+       << cC->Particles().rbegin()->first << "]"
+       << " #=" << cC->Particles().size() << endl;
 #endif
 
 }
@@ -665,7 +685,7 @@ void Cylinder::dump_mzero(const string& name, int step)
 void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
 
-  if (c->freeze(*(c->Part(i)))) return;
+  if (c->freeze(i)) return;
 
   double mass = c->Mass(i) * component->Adiabatic();
 

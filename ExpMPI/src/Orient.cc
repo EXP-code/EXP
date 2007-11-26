@@ -330,8 +330,12 @@ void Orient::accumulate(double time, Component *c)
 
   double v2;
   unsigned nbodies = c->Number();
+  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+  unsigned long i;
 
-  for (int i=0; i<nbodies; i++) {
+  for (int q=0; q<nbodies; q++) {
+
+    i = it->first; it++;
 
     v2 = 0.0;
     for (int k=0; k<3; k++) {
@@ -389,8 +393,13 @@ void Orient::accumulate(double time, Component *c)
     
     Ecurr = Emin0*0.98;
     
-    for (int i=0; i<nbodies; i++) {
+    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    unsigned long i;
+
+    for (int q=0; q<nbodies; q++) {
       
+      i = it->first; it++;
+
       v2 = 0.0;
       for (int k=0; k<3; k++) {
 	pos[k] = c->Pos(i, k, Component::Local);
@@ -429,8 +438,7 @@ void Orient::accumulate(double time, Component *c)
   axis1.zero();
   center1.zero();
   double mtot=0.0, mtot1=0.0, dE=1.0e06;
-  vector<EL3>::iterator i;
-  for (i = angm.begin(); i != angm.end(); i++) {
+  for (vector<EL3>::iterator i=angm.begin(); i!=angm.end(); i++) {
     axis1   += i->L;
     center1 += i->R;
     mtot1   += i->M;

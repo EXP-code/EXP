@@ -39,7 +39,8 @@ private:
   Component *c0;
 
   int begin, end;
-  vector<int> send, recv, ncount, last;
+  vector<unsigned int> ncount, last;
+  vector<int> send, recv;
 
   SatelliteOrbit *orb;
 

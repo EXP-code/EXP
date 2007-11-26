@@ -97,7 +97,7 @@ pCell* pCell::Add(const key_pair& keypair)
       while (p->first==keypair.first && p->second==keypair.second ) {
 	cout << "pos=";
 	for (int k=0; k<3; k++) 
-	  cout << setw(18) << tree->bodies[p->second].pos[k];
+	  cout << setw(18) << tree->cc->Particles()[p->second].pos[k];
 	cout << endl;
 	p++;
       }
@@ -160,11 +160,12 @@ void pCell::accumState()
   unsigned indx, count = bods.size();
   for (unsigned j=0; j<count; j++) {
     indx = bods[j];
-    state[0] += tree->bodies[indx].mass;
+    state[0] += tree->cc->Particles()[indx].mass;
     for (int k=0; k<3; k++) {
-      state[1]   += tree->bodies[indx].mass * 
-	tree->bodies[indx].vel[k]*tree->bodies[indx].vel[k];
-      state[2+k] += tree->bodies[indx].mass * tree->bodies[indx].vel[k];
+      state[1]   += tree->cc->Particles()[indx].mass * 
+	tree->cc->Particles()[indx].vel[k]*tree->cc->Particles()[indx].vel[k];
+      state[2+k] += tree->cc->Particles()[indx].mass * 
+	tree->cc->Particles()[indx].vel[k];
     }
   }
   if (parent) parent->accumState(count, state);
@@ -217,13 +218,13 @@ void pCell::KE(double &total, double &dispr)
     for (unsigned i=0; i<number; i++) {
       unsigned indx = bods[i];
       for (int k=0; k<3; k++) {
-	vel1[k] += tree->bodies[indx].mass * 
-	  tree->bodies[indx].vel[k];
+	vel1[k] += tree->cc->Particles()[indx].mass * 
+	  tree->cc->Particles()[indx].vel[k];
 
-	vel2[k] += tree->bodies[indx].mass * 
-	  tree->bodies[indx].vel[k] * tree->bodies[indx].vel[k];
+	vel2[k] += tree->cc->Particles()[indx].mass * 
+	  tree->cc->Particles()[indx].vel[k] * tree->cc->Particles()[indx].vel[k];
       }
-      totmass += tree->bodies[indx].mass;
+      totmass += tree->cc->Particles()[indx].mass;
     }
     for (int k=0; k<3; k++) {
       total += 0.5*vel2[k];
@@ -242,9 +243,9 @@ void pCell::KE(double &total, double &dispr)
       out << "# number=" << number << endl;
       for (unsigned i=0; i<number; i++) {
 	unsigned indx = bods[i];
-	out << setw(8) << indx << setw(15) << tree->bodies[indx].mass;
+	out << setw(8) << indx << setw(15) << tree->cc->Particles()[indx].mass;
 	for (int k=0; k<3; k++)
-	  out << setw(15) << tree->bodies[indx].vel[k];
+	  out << setw(15) << tree->cc->Particles()[indx].vel[k];
 	out << endl;
       }
     }
@@ -268,13 +269,13 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
     for (unsigned i=0; i<number; i++) {
       unsigned indx = bods[i];
       for (int k=0; k<3; k++) {
-	v1[k] += tree->bodies[indx].mass * 
-	  tree->bodies[indx].vel[k];
+	v1[k] += tree->cc->Particles()[indx].mass * 
+	  tree->cc->Particles()[indx].vel[k];
 
-	v2[k] += tree->bodies[indx].mass * 
-	  tree->bodies[indx].vel[k] * tree->bodies[indx].vel[k];
+	v2[k] += tree->cc->Particles()[indx].mass * 
+	  tree->cc->Particles()[indx].vel[k] * tree->cc->Particles()[indx].vel[k];
       }
-      mass += tree->bodies[indx].mass;
+      mass += tree->cc->Particles()[indx].mass;
     }
   }
 
@@ -288,7 +289,7 @@ double pCell::Mass()
   if (isLeaf) {
     unsigned number = bods.size();
     for (unsigned i=0; i<number; i++)
-      Mass += tree->bodies[bods[i]].mass;
+      Mass += tree->cc->Particles()[bods[i]].mass;
   }
 
   return Mass;
@@ -299,7 +300,7 @@ double pCell::Volume()
   return tree->volume/(1 << 3*level);
 }
 
-Partstruct* pCell::Body(unsigned k)
+Particle* pCell::Body(unsigned k)
 { 
-  return &(tree->bodies[bods[k]]); 
+  return &(tree->cc->Particles()[bods[k]]); 
 }

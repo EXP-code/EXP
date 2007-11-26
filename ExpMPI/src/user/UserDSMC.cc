@@ -530,11 +530,15 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = number*id/nthrds;
   int nend = number*(id+1)/nthrds;
 
-
   double Vc, rho, Rmin, Rmax, Zmin, Zmax;
   int ir, iz, iw, ncount, Nc;
 
-  for (int i=nbeg; i<nend; i++) {
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++) {
+    i = (it++)->first;
 				// Number in this cell
 				// 
     Nc = binlist[i].size();

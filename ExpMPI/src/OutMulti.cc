@@ -47,7 +47,8 @@ void OutMulti::Run(int n, bool last)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
-    for (int n=0; n<c->Number(); n++) counts[c->Part(n)->level]++;
+    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    for (int q=0; q<c->Number(); q++) counts[c->Part((it++)->first)->level]++;
   }
 
   MPI_Reduce(&counts[0], &histo[0], multistep+1, MPI_UNSIGNED, MPI_SUM,

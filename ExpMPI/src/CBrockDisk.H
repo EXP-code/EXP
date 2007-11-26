@@ -10,8 +10,6 @@ class CBrockDisk : public AxisymmetricBasis
 
 private:
 
-  vector<Particle> *particles;
-
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
   double *cylmass0;
 

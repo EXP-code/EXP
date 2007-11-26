@@ -55,12 +55,19 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
 
   w2 = get_tidal_shock(tnow);
 
-  for (int i=nbeg; i<nend; i++)
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long i;
+
+
+  for (int q=0   ; q<nbeg; q++) it++;
+  for (int q=nbeg; q<nend; q++)
     {
+      i = (it++)->first;
+
       x = cC->Pos(i, 0);
       z = cC->Pos(i, 2);
 
-      if (component->freeze(*(cC->Part(i)))) continue;
+      if (component->freeze(i)) continue;
 
       cC->AddAcc(i, 2, -w2*x );
       cC->AddPotExt(i, 0.5*w2*z*z );

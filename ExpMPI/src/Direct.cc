@@ -97,7 +97,11 @@ void Direct::determine_acceleration_and_potential(void)
   
   // Load body buffer with local interactors
   double *p = bod_buffer;
-  for (int i=0; i<ninteract; i++) {
+  map<unsigned long, Particle>::iterator it = component->Particles().begin();
+  unsigned long i;
+
+  for (int q=0; q<ninteract; q++) {
+    i = it->first; it++;
     *(p++) = component->Mass(i);
     *(p++) = component->Pos(i, 0);
     *(p++) = component->Pos(i, 1);
@@ -172,9 +176,15 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   for (int i=0; i<nthrds; i++) tclausius[id] = 0.0;
 #endif
 
+  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  unsigned long j;
+
+  for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
     
-    // if (cC->freeze(*(cC->Part(i)))) continue;
+    j = it->first; it++;
+
+    // if (cC->freeze(j)) continue;
     
     if (!use_external) use[id]++;
 
@@ -189,8 +199,8 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       rr0 = 0.0;
       for (int k=0; k<3; k++)
 	rr0 += 
-	  (cC->Pos(i, k) - pos[k]) *
-	  (cC->Pos(i, k) - pos[k]) ;
+	  (cC->Pos(j, k) - pos[k]) *
+	  (cC->Pos(j, k) - pos[k]) ;
       
 				// Compute softened distance
       rr = sqrt(rr0+eps*eps);
@@ -199,18 +209,18 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       rfac = 1.0/(rr*rr*rr);
 	
       for (int k=0; k<3; k++)
-	cC->AddAcc(i, k, -mass *(cC->Pos(i, k) - pos[k]) * rfac );
+	cC->AddAcc(j, k, -mass *(cC->Pos(j, k) - pos[k]) * rfac );
       
 				// Potential
       if (use_external) {
-	cC->AddPotExt(i, -mass/rr );
+	cC->AddPotExt(j, -mass/rr );
 #ifdef DEBUG
       for (int k=0; k<3; k++)
-	tclausius[id] += -mass *(cC->Pos(i, k) - pos[k]) * cC->Pos(i, k) * rfac;
+	tclausius[id] += -mass *(cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
       }
       else if (rr0 > 1.0e-16)	// Ignore "self" potential
-	cC->AddPot(i, -mass/rr );
+	cC->AddPot(j, -mass/rr );
     }
   }
   

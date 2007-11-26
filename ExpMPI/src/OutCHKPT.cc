@@ -62,13 +62,24 @@ void OutCHKPT::Run(int n, bool last)
     header.ncomp = comp.ncomp;
 
     out->write((char *)&header, sizeof(MasterHeader));
+#ifdef DEBUG
+    cout << "OutCHKPT: header written" << endl;
+#endif
+
   }
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
+#ifdef DEBUG
+    cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
+	 << " force=" << c->id << endl;
+#endif
     c->write_binary(out);
+#ifdef DEBUG
+    cout << "OutCHKPT: process " << myid << " write completed on " << c->name << endl;
+#endif
   }
-
+  
   if (myid==0) {
     out->close();
     delete out;

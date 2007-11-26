@@ -356,24 +356,29 @@ void OutLog::Run(int n, bool last)
   
     nbodies1[indx] = c->Number();
 
-    for (int i=0; i<nbodies1[indx]; i++) {
+    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    unsigned long i;
 
-      if (c->freeze(*(c->Part(i)))) continue;
+    for (int q=0; q<nbodies1[indx]; q++) {
+
+      i = (it++)->first;
+
+      if (c->freeze(i)) continue;
 
       mtot1[indx] +=  c->Mass(i);
       
-      for (int j=0; j<3; j++) {
-	pos0[j] = c->Pos(i, j, Component::Inertial);
-	vel0[j] = c->Vel(i, j, Component::Inertial);
-	posL[j] = c->Pos(i, j, Component::Local);
-	velL[j] = c->Vel(i, j, Component::Local);
+      for (int k=0; k<3; k++) {
+	pos0[k] = c->Pos(i, k, Component::Inertial);
+	vel0[k] = c->Vel(i, k, Component::Inertial);
+	posL[k] = c->Pos(i, k, Component::Local);
+	velL[k] = c->Vel(i, k, Component::Local);
       }
 
-      for (int j=0; j<3; j++) {
-	com1[indx][j] += c->Mass(i)*posL[j];
-	cov1[indx][j] += c->Mass(i)*velL[j];
-	comG[j] += c->Mass(i)*pos0[j];
-	covG[j] += c->Mass(i)*vel0[j];
+      for (int k=0; k<3; k++) {
+	com1[indx][k] += c->Mass(i)*posL[k];
+	cov1[indx][k] += c->Mass(i)*velL[k];
+	comG[k] += c->Mass(i)*pos0[k];
+	covG[k] += c->Mass(i)*vel0[k];
       }
 
       angm1[indx][0] += c->Mass(i)*(posL[1]*velL[2] - posL[2]*velL[1]);
@@ -384,17 +389,17 @@ void OutLog::Run(int n, bool last)
       angmG[1] += c->Mass(i)*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
       angmG[2] += c->Mass(i)*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
 
-      for (int j=0; j<3; j++) pos0[j] = c->Pos(i, j, Component::Centered);
+      for (int k=0; k<3; k++) pos0[k] = c->Pos(i, k, Component::Centered);
       
       eptot1[indx] += 0.5*c->Mass(i)*c->Part(i)->pot;
       eptotx1[indx] += c->Mass(i)*c->Part(i)->potext;
-      for (int j=0; j<3; j++) {
-	ektot1[indx] += 0.5*c->Mass(i)*velL[j]*velL[j];
-	clausius1[indx] += c->Mass(i)*posL[j]*c->Part(i)->acc[j];
+      for (int k=0; k<3; k++) {
+	ektot1[indx] += 0.5*c->Mass(i)*velL[k]*velL[k];
+	clausius1[indx] += c->Mass(i)*posL[k]*c->Part(i)->acc[k];
       }
     }
 
-    for (int j=0; j<3; j++) ctr[indx][j] = c->center[j];
+    for (int k=0; k<3; k++) ctr[indx][k] = c->center[k];
 
     used0[indx] = c->force->Used();
 
