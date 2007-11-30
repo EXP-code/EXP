@@ -46,6 +46,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   selector = false;
   density = false;
   coef_dump = true;
+  try_cache = true;
 
   initialize();
 
@@ -158,6 +159,10 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) selector = true; 
     else selector = false;
   }
+  if (get_value("try_cache", val)) {
+    if (atoi(val.c_str())) try_cache = true; 
+    else try_cache = false;
+  }
   if (get_value("density", val)) {
     if (atoi(val.c_str())) density = true; 
     else density = false;
@@ -231,19 +236,19 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   if (VERBOSE>3 && myid==1 && component->EJ) {
     string toutfile = string(homedir) + "test.orientation." + runtag;
     ofstream debugf(toutfile.c_str(), ios::app);
-    Vector axis = cC->orient->currentAxis();
+    Vector axis = component->orient->currentAxis();
     debugf << tnow << " "
-	   << cC->orient->currentAxis()[1] << " " 
-	   << cC->orient->currentAxis()[2] << " " 
-	   << cC->orient->currentAxis()[3] << " " 
-	   << cC->orient->currentAxisVar() << " "
-	   << cC->orient->currentCenter()[1] << " " 
-	   << cC->orient->currentCenter()[2] << " " 
-	   << cC->orient->currentCenter()[3] << " " 
-	   << cC->orient->currentCenterVar() << " "
-	   << cC->orient->currentCenterVarZ() << " "
-	   << cC->orient->currentE() << " "
-	   << cC->orient->currentUsed()
+	   << component->orient->currentAxis()[1] << " " 
+	   << component->orient->currentAxis()[2] << " " 
+	   << component->orient->currentAxis()[3] << " " 
+	   << component->orient->currentAxisVar() << " "
+	   << component->orient->currentCenter()[1] << " " 
+	   << component->orient->currentCenter()[2] << " " 
+	   << component->orient->currentCenter()[3] << " " 
+	   << component->orient->currentCenterVar() << " "
+	   << component->orient->currentCenterVarZ() << " "
+	   << component->orient->currentE() << " "
+	   << component->orient->currentUsed()
 	   << endl;
   }
 
@@ -330,7 +335,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
 void Cylinder::determine_coefficients(void)
 {
-  static char routine[] = "determine_coefficients_Cylacp";
+  static char routine[] = "determine_coefficients_Cylinder";
   int i;
   int use0, use1;
   double cylmassT1=0.0, cylmassT0=0.0;
@@ -339,15 +344,32 @@ void Cylinder::determine_coefficients(void)
   use1 = 0;
   
   if (firstime) {
-    if (!(restart && ortho->read_cache())) eof = 1;
+    bool cache_ok = false;
+				// Try to read cache
+    if (try_cache || restart) {
+      cache_ok = ortho->read_cache();
+				// For a restart, cache must be read
+				// otherwise, abort
+      if (restart && !cache_ok) {
+	if (myid==0) 
+	  cerr << "Cylinder: can not read cache file on restart" << endl;
+	MPI_Abort(MPI_COMM_WORLD, -1);
+      }
+    }
+
+    eof = cache_ok ? 0 : 1;
     firstime = false;
+
   } else {
+
     if (!self_consistent) return;
+
   }
 
   if (eof) {
     ortho->setup_eof();
     cylmass = 0.0;
+    if (myid==0) cerr << "Cylinder: setup for eof\n";
   }
 
   if (multistep==0) {
@@ -356,7 +378,7 @@ void Cylinder::determine_coefficients(void)
 
   cylmass0 = new double [nthrds];
   if (!cylmass0) {
-    cerr << "Cylacp: problem allocating <cylmass0>\n";
+    cerr << "Cylinder: problem allocating <cylmass0>\n";
     exit(-1);
   }
 
@@ -364,6 +386,28 @@ void Cylinder::determine_coefficients(void)
   make_mutex(&used_lock, routine, "used_lock");
   make_mutex(&cos_coef_lock, routine, "cos_coef_lock");
   make_mutex(&sin_coef_lock, routine, "sin_coef_lock");
+
+#ifdef LEVCHECK
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) {
+      if (myid==0) cout << "------------------------" << endl
+			<< "Level check in Cylinder:" << endl 
+			<< "------------------------" << endl;
+      cout << setw(4) << myid << setw(4) << mlevel << setw(4) << eof;
+      if (cC->levlist[mlevel].size())
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << cC->levlist[mlevel].front()
+	     << setw(12) << cC->levlist[mlevel].back() << endl;
+      else
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << (int)(-1)
+	     << setw(12) << (int)(-1) << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << endl;
+#endif
 
   exp_thread_fork(true);
   
@@ -461,8 +505,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       } else
 	cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
 
-      if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
-	pos[id] = cC->orient->transformBody() * pos[id];
+      if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
+	pos[id] = component->orient->transformBody() * pos[id];
 
       xx = pos[id][1];
       yy = pos[id][2];
@@ -489,8 +533,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	frc[id][2] = fr*yy/r + fp*xx/r2;
 	frc[id][3] = fz;
 	
-	if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
-	  frc[id] = cC->orient->transformOrig() * frc[id];
+	if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
+	  frc[id] = component->orient->transformOrig() * frc[id];
 
 	for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j+1]);
 #ifdef DEBUG

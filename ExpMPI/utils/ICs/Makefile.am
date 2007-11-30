@@ -24,7 +24,9 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk
+bin_PROGRAMS = gendisk shrinkics
+
+shrinkics_SOURCES = shrinkics.cc
 
 gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \

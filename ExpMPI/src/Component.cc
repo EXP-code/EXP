@@ -199,6 +199,30 @@ void Component::reset_level_lists()
     }
   }
 
+#ifdef LEVCHECK
+				// Level creation check
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) {
+      if (myid==0) 
+	cout << "-------------------------------" << endl
+	     << "Level creation in <" << name << ">:" << endl 
+	     << "-------------------------------" << endl;
+      for (int j=0; j<=multistep; j++) {
+	cout << setw(4) << myid << setw(4) << j;
+	if (levlist[j].size())
+	  cout << setw(12) << levlist[j].front()
+	       << setw(12) << levlist[j].back() << endl;
+	else
+	  cout << setw(12) << (int)(-1)
+	       << setw(12) << (int)(-1) << endl;
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << endl;
+#endif  
+
 				// Sanity check
   if (VERBOSE>10 && (this_step % 10 == 0)) {
     vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
@@ -1305,9 +1329,9 @@ struct Particle * Component::get_particles(int* number)
 
     if (counter > nbodies_tot) {
       if (seq_state_ok)
-	cout << "get_particles: GOOD sequence!" << endl;
+	cout << "get_particles [" << name << "]: GOOD sequence!" << endl;
       else
-	cout << "get_particles: sequence ERROR!" << endl;
+	cout << "get_particles [" << name << "]: sequence ERROR!" << endl;
     }
   }
 
@@ -1544,7 +1568,6 @@ void * fix_positions_thread(void *ptr)
       
     }
   }
-
 }
   
 
@@ -1610,6 +1633,19 @@ void Component::fix_positions(void)
   MPI_Allreduce(&com1[0], com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&cov1[0], cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
+  // #ifdef DEBUG
+				// Check for NaN
+  bool com_nan = false, cov_nan = false;
+  for (int k=0; k<3; k++)
+    if (isnan(com[k])) com_nan = true;
+  for (int k=0; k<3; k++)
+    if (isnan(cov[k])) cov_nan = true;
+  if (com_nan && myid==0)
+    cerr << "Component [" << name << "] com has a NaN" << endl;
+  if (cov_nan && myid==0)
+    cerr << "Component [" << name << "] cov has a NaN" << endl;
+  // #endif
+
   if (consp && com_system) {
     for (int i=0; i<3; i++) {
       covI[i] = (mtot0*covI[i] - cov[i])/(mtot0 - mtot);

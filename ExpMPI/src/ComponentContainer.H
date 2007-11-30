@@ -85,6 +85,9 @@ public:
   //! Print debug info
   void multistep_debug();
 
+  //! Debug for bad phase space values
+  bool bad_values();
+
   /**
      Recompute the center of mass and centers of velocity for all
      components.  These may be used (if flagged) to center the phase

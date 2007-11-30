@@ -477,6 +477,29 @@ void SphericalBasis::determine_coefficients(void)
   cout << "Process " << myid << ": in <determine_coefficients>, about to thread, lev=" << mlevel << endl;
 #endif
 
+#ifdef LEVCHECK
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) {
+      if (myid==0) cout << "-------------------------------" << endl
+			<< "Level check in Spherical Basis:" << endl 
+			<< "-------------------------------" << endl;
+      cout << setw(4) << myid << setw(4) << mlevel;
+      if (cC->levlist[mlevel].size())
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << cC->levlist[mlevel].front()
+	     << setw(12) << cC->levlist[mlevel].back() << endl;
+      else
+	cout << setw(12) << cC->levlist[mlevel].size()
+	     << setw(12) << (int)(-1)
+	     << setw(12) << (int)(-1) << endl;
+      
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << endl;
+#endif
+
   exp_thread_fork(true);
 
 #ifdef DEBUG
@@ -740,7 +763,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
       indx = cC->levlist[lev][i];
 
-      if (component->freeze(indx)) continue;
+      if (cC->freeze(indx)) continue;
 
       if (use_external) {
 	cC->Pos(pos, indx, Component::Inertial);

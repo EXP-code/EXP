@@ -44,6 +44,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   sumXY.setsize(1, 3);
   sumY2.setsize(1, 3);
   slope.setsize(1, 3);
+  intercept.setsize(1, 3);
 
   lasttime = -1.0e+30;
 
@@ -56,11 +57,10 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   center.setsize(1, 3);
   center0.setsize(1, 3);
   cenvel0.setsize(1, 3);
-  axis.zero();
-  axis[3] = 1;
   center.zero();
   center0.zero();
   cenvel0.zero();
+  axis.zero();
 
   axis[3] = 1;
 
@@ -75,8 +75,8 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 				// Check for previous state on
 				// a restart
   int in_ok;
-  double *in1 = new double [3];
-  double *in2 = new double [3];
+  double *in1 = new double [4];
+  double *in2 = new double [4];
 
   if (myid==0) {		// Master does the reading
 
@@ -155,12 +155,12 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	line >> center1[3];
 	  
 	if (oflags & AXIS) {
-	  sumsA.push_back(axis1);
+	  sumsA.push_back(DV(time, axis1));
 	  if (sumsA.size() > keep) sumsA.pop_front();
 	}
 
 	if (oflags & CENTER) {
-	  sumsC.push_back(center1);
+	  sumsC.push_back(DV(time, center1));
 	  if (sumsC.size() > keep) sumsC.pop_front();
 	}
 	
@@ -191,12 +191,14 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
       for (int k=0; k<howmany; k++) {
 
 	if (oflags & AXIS) {
-	  for (int j=0; j<3; j++) in1[j] = sumsA[k][j+1];
+	  in1[0] = sumsA[k].first;
+	  for (int j=1; j<=3; j++) in1[j] = sumsA[k].second[j];
 	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
 
 	if (oflags & CENTER) {
-	  for (int j=0; j<3; j++) in2[j] = sumsC[k][j+1];
+	  in2[0] = sumsC[k].first;
+	  for (int j=1; j<=3; j++) in2[j] = sumsC[k].second[j];
 	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
       }
@@ -270,14 +272,14 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 
 	if (oflags & AXIS) {
 	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=0; j<3; j++) axis1[j+1] = in1[j];
-	  sumsA.push_back(axis1);
+	  for (int j=1; j<=3; j++) axis1[j] = in1[j];
+	  sumsA.push_back(DV(in1[0], axis1));
 	}
 
 	if (oflags & CENTER) {
 	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	  for (int j=0; j<3; j++) center1[j+1] = in2[j];
-	  sumsC.push_back(center1);
+	  for (int j=1; j<=3; j++) center1[j] = in2[j];
+	  sumsC.push_back(DV(in2[0], center1));
 	}
 
       }
@@ -309,7 +311,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 void Orient::accumulate(double time, Component *c)
 {
 				// Do not register a duplicate entry
-  if (fabs(lasttime - time) < 1.0e-16) return;
+  if (fabs(lasttime - time) < 1.0e-12) return;
   lasttime = time;
 
   if (linear) {
@@ -331,15 +333,25 @@ void Orient::accumulate(double time, Component *c)
   double v2;
   unsigned nbodies = c->Number();
   map<unsigned long, Particle>::iterator it = c->Particles().begin();
-  unsigned long i;
 
   for (int q=0; q<nbodies; q++) {
 
-    i = it->first; it++;
+    unsigned long i = (it++)->first;
 
     v2 = 0.0;
     for (int k=0; k<3; k++) {
       pos[k] = c->Pos(i, k, Component::Local);
+      if (isnan(pos[k])) {
+	cerr << "Orient: process " << myid << " index=" << i
+	     << " has NaN on component ";
+	for (int s=0; s<3; s++)
+	  cerr << setw(16) << c->Part(i)->pos[s];
+	for (int s=0; s<3; s++)
+	  cerr << setw(16) << c->Part(i)->vel[s];
+	for (int s=0; s<3; s++)
+	  cerr << setw(16) << c->Part(i)->acc[s];
+	cerr << endl;
+      }
       vel[k] = c->Vel(i, k, Component::Local);
       psa[k] = pos[k] - center[k+1];
       v2 += vel[k]*vel[k];
@@ -359,7 +371,7 @@ void Orient::accumulate(double time, Component *c)
       mass = c->Part(i)->mass;
 
       t.E = energy;
-
+      t.T = time;
       t.M = mass;
 
       t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
@@ -398,7 +410,7 @@ void Orient::accumulate(double time, Component *c)
 
     for (int q=0; q<nbodies; q++) {
       
-      i = it->first; it++;
+      i = (it++)->first;
 
       v2 = 0.0;
       for (int k=0; k<3; k++) {
@@ -419,7 +431,7 @@ void Orient::accumulate(double time, Component *c)
 	mass = c->Part(i)->mass;
 	
 	t.E = energy;
-	
+	t.T = time;
 	t.M = mass;
 
 	t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
@@ -444,6 +456,22 @@ void Orient::accumulate(double time, Component *c)
     mtot1   += i->M;
   }
 
+#ifdef DEBUG
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) {
+      if (myid==0) cout << "------------------------" << endl
+			<< "Center check in Orient:" << endl 
+			<< "------------------------" << endl;
+      cout << setw(4) << myid << setw(4);
+      for (int k=1; k<=3; k++) cout << setw(18) << center1[k];
+      cout << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) cout << endl;
+#endif
+
   int cnum = angm.size();
   Vector inA = axis1;
   Vector inC = center1;
@@ -462,17 +490,26 @@ void Orient::accumulate(double time, Component *c)
   MPI_Allreduce(inC.array(0, 2), center1.array(0, 2), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
+  dE = 0.0;			// Default, will trigger computation
+				// based on current and minimum value below
+
   if (used && Nlast) {
+    Egrad = Ecurr - Elast;
 				// Don't divide by zero
-    if (used != Nlast) 
-      Egrad = (Ecurr - Elast)/(used - Nlast);
+    if (used != Nlast) Egrad /= used - Nlast;
 
     dE = (double)(many - used) * Egrad;
 
-    if (fabs(dE) <= 1.0e-10)
-      dE = (Ecurr - Emin0)*0.01*g();
-
+    if ((cflags & DIAG) && myid==0) {
+      cout << " Orient info [" << time << ", " << c->name << "]: " 
+	   << used << " particles used, Ecurr=" << Ecurr 
+	   << " Elast=" << Elast << " used=" << used << " Nlast=" << Nlast
+	   << " Egrad=" << Egrad << " dE=" << dE << endl;
+    }
   }
+
+  if (fabs(dE) <= 1.0e-10)
+    dE = (Ecurr - Emin0)*0.01*g();
 
 				// Push current value onto stack
   if (used) {
@@ -482,12 +519,13 @@ void Orient::accumulate(double time, Component *c)
 
     axis1   /= mtot;
     center1 /= mtot;
-    if (oflags & AXIS)   sumsA.push_back(axis1);
-    if (oflags & CENTER) sumsC.push_back(center1);
+    if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
+    if (oflags & CENTER) sumsC.push_back(DV(time, center1));
 
 
     if ((cflags & DIAG) && myid==0) {
-      cout << " Orient info: " << used << " particles used, Ecurr=" << Ecurr 
+      cout << " Orient info [" << time << ", " << c->name << "]: " 
+	   << used << " particles used, Ecurr=" << Ecurr 
 	   << " Center=" 
 	   << center1[1] << ", "
 	   << center1[2] << ", "
@@ -495,8 +533,6 @@ void Orient::accumulate(double time, Component *c)
     }
 
 				// Compute delta energy for next step
-
-
     if (sumsA.size() > keep) {
 
       sumsA.pop_front();
@@ -512,14 +548,14 @@ void Orient::accumulate(double time, Component *c)
 
       int N = sumsC.size();
 
-      deque<Vector>::iterator j;
+      deque<DV>::iterator j;
       for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	x = time - dtime*(N-1-i);
+	x = j->first;
 	sumX += x;
 	sumX2 += x*x;
-	sumY += *j;
-	sumXY += *j * x;
-	sumY2 += *j & *j;
+	sumY += j->second;
+	sumXY += j->second * x;
+	sumY2 += j->second & j->second;
 
 	i++;
       }
@@ -527,14 +563,15 @@ void Orient::accumulate(double time, Component *c)
 				// Linear least squares estimate for axis
 
       slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
-      axis = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX) + slope*time;
+      intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
+      axis = intercept + slope*time;
 
       i = 0;
       sigA = 0.0;
       for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	x = -dtime*(N-1-i);
-	sigA += (*j - axis - slope*x)*(*j - axis - slope*x);
-
+	sigA += 
+	  (j->second - intercept - slope*j->first) *
+	  (j->second - intercept - slope*j->first) ;
 	i++;
       }
       sigA /= i;
@@ -562,23 +599,24 @@ void Orient::accumulate(double time, Component *c)
 
       int N = sumsC.size();
 
-      deque<Vector>::iterator j;
+      deque<DV>::iterator j;
       for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	x = time - dtime*(N-1-i);
+	x = j->first;
 	sumX += x;
 	sumX2 += x*x;
-	sumY += *j;
-	sumXY += *j * x;
-	sumY2 += *j & *j;
+	sumY += j->second;
+	sumXY += j->second * x;
+	sumY2 += j->second & j->second;
 
 	i++;
 
 	if ((cflags & DIAG) && myid==0)
-	  cout << " Orient debug i=" << i << ":"
+	  cout << " Orient debug [" << time << ", " << c->name << "] i=" 
+	       << i << ":"
 	       << "      t=" << setw(15) << x
-	       << "      x=" << setw(15) << (*j)[1]
-	       << "      y=" << setw(15) << (*j)[2]
-	       << "      z=" << setw(15) << (*j)[3]
+	       << "      x=" << setw(15) << j->second[1]
+	       << "      y=" << setw(15) << j->second[2]
+	       << "      z=" << setw(15) << j->second[3]
 	       << "   SumX=" << setw(15) << sumX 
 	       << "  SumX2=" << setw(15) << sumX2 
 	       << "  Delta=" << setw(15) << sumX2*i - sumX*sumX 
@@ -587,17 +625,19 @@ void Orient::accumulate(double time, Component *c)
 				// Linear least squares estimate for center
 
       slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
-      center = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX) + slope*time;
+      intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
+      center = intercept + slope*time;
 
       i = 0;
       sigC = 0.0;
       sigCz = 0.0;
       for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	x = -dtime*(N-1-i);
-	sigC += (*j - center - slope*x)*(*j - center - slope*x);
+	sigC += 
+	  (j->second - intercept - slope*j->first) *
+	  (j->second - intercept - slope*j->first) ;
 	sigCz += 
-	  ( (*j)[3] - center[3] - slope[3]*x ) *
-	  ( (*j)[3] - center[3] - slope[3]*x );
+	  ( j->second[3] - intercept[3] - slope[3]*j->first ) *
+	  ( j->second[3] - intercept[3] - slope[3]*j->first ) ;
 	i++;
       }
       sigC  /= i;
@@ -621,7 +661,8 @@ void Orient::accumulate(double time, Component *c)
 
     if ((cflags & DIAG) && myid==0) {
       cout << "===================================================" << endl
-	   << " Orient info: size=" << sumsC.size()
+	   << " Orient info [" << time << ", " << c->name << "]:" 
+	   << " size=" << sumsC.size()
 	   << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
 	   << "  SumY="
 	   << sumY[1] << " "
@@ -649,7 +690,7 @@ void Orient::accumulate(double time, Component *c)
     // Will force center to be last minimum energy average
     // rather than pooled average of the last "keep" states
     if (keep == 0) {
-      for (int i=1; i<=3; i++) center[i] = (*sumsC.begin())[i];
+      for (int i=1; i<=3; i++) center[i] = sumsC.begin()->second[i];
       sumsC.pop_front();
     }
     
@@ -729,7 +770,7 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
 
     if (sumsA.size())
-      for (int k=0; k<3; k++) outl << setw(15) << sumsA.back()[k+1];
+      for (int k=0; k<3; k++) outl << setw(15) << sumsA.back().second[k+1];
     else
       for (int k=0; k<3; k++) outl << setw(15) << 0.0;
 
@@ -738,7 +779,7 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
     for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
 
     if (sumsC.size())
-      for (int k=0; k<3; k++) outl << setw(15) << sumsC.back()[k+1];
+      for (int k=0; k<3; k++) outl << setw(15) << sumsC.back().second[k+1];
     else
       for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
 

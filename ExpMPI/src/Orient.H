@@ -21,7 +21,8 @@
 class EL3 
 {
 public:
-  
+  /// Time
+  double T;
   /// Mass
   double M;
   /// Binding energy
@@ -74,15 +75,17 @@ Log file contents:
 */
 class Orient
 {
+  typedef pair<double, Vector> DV;
+
 private:
   EL3 t;
   vector<EL3> angm;
-  deque<Vector> sumsA, sumsC;
+  deque<DV> sumsA, sumsC;
   int keep, current;
   Matrix body, orig;
   Vector axis, center, axis1, center1, center0, cenvel0;
   double sumX, sumX2;
-  Vector sumY, sumY2, sumXY, slope;
+  Vector sumY, sumY2, sumXY, slope, intercept;
   double sigA, sigC, sigCz;
 
   int many, used;

@@ -29,6 +29,10 @@ void do_step(int n)
 
   comp.multistep_reset();
 
+  if (comp.bad_values()) 
+    cout << "Process " << myid 
+	 << ": found BAD values before multistep" << endl;
+
   if (multistep) {
     
 				// Sub step markers
@@ -53,14 +57,29 @@ void do_step(int n)
 	  if (timing) timer_vel.start();
 	  incr_velocity(0.5*DT, M);
 	  if (timing) timer_vel.stop();
+
+	  if (comp.bad_values()) 
+	    cout << "Process " << myid 
+		 << ": found BAD values after incr_vel M=" << M << endl;
+
 				// Advance position by whole step:
 				// D_1
 	  if (timing) timer_drift.start();
 	  incr_position(DT, M);
 	  if (timing) timer_drift.stop();
+
+	  if (comp.bad_values()) 
+	    cout << "Process " << myid 
+		 << ": found BAD values after incr_posl M=" << M << endl;
+
 				// Do the swap
 				//
 	  comp.multistep_swap(M);
+
+	  if (comp.bad_values()) 
+	    cout << "Process " << myid 
+		 << ": found BAD values after swap M=" << M << endl;
+
 				// Update the markers
 				// 
 	  stepL[M]  =  stepN[M];
@@ -70,12 +89,19 @@ void do_step(int n)
 				// for this level
 	  comp.compute_expansion(M);
 
+	  if (comp.bad_values()) 
+	    cout << "Process " << myid 
+		 << ": found BAD values after expansion M=" << M << endl;
+
 				// Reset the particle positions;
 				// they will be drifted sycrhonously below
 	  if (timing) timer_drift.start();
 	  if (posnsync) incr_position(-DT, M);
 	  if (timing) timer_drift.stop();
 
+	  if (comp.bad_values()) 
+	    cout << "Process " << myid 
+		 << ": found BAD values after second incr pos M=" << M << endl;
 	  /*
 	  if (myid==0) {
 	    if (mstep==1 && M==0) cout << endl;
@@ -94,6 +120,10 @@ void do_step(int n)
 	  */
 	}
 	if (timing) timer_coef.stop();
+
+	if (comp.bad_values())  
+	  cout << "Process " << myid
+	       << ": found BAD values after multistep coef" << endl;
       }
 
       tnow += dt;		// Time at the end of the current step
@@ -135,6 +165,9 @@ void do_step(int n)
       adjust_multistep_level(false);
       if (timing) timer_adj.stop();
 
+      if (comp.bad_values())
+	cout << "Process " << myid
+	     << ": found BAD values after multstep advance" << endl;
     }
 
   } else {

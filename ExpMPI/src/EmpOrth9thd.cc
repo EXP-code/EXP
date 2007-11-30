@@ -620,6 +620,7 @@ void EmpCylSL::send_eof_grid()
 
 int EmpCylSL::read_cache(void)
 {
+  setup_eof();
   setup_accumulation();
 
 				// Master tries to read table
@@ -779,6 +780,7 @@ int EmpCylSL::cache_grid(int readwrite)
 	return 0;
       }
     
+
     double time;
     in.read((char *)&cylmass, sizeof(double));
     in.read((char *)&time, sizeof(double));
@@ -827,7 +829,7 @@ int EmpCylSL::cache_grid(int readwrite)
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
 	    in.read((char *)&zforceS[m][v][ix][iy], sizeof(double));
-	
+
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
@@ -847,7 +849,7 @@ int EmpCylSL::cache_grid(int readwrite)
     YMAX = z_to_y( Rtable*ASCALE);
     dY = (YMAX - YMIN)/NUMY;
     
-    cerr << "EmpCylSL::cache_grid: file read successfully" << endl;
+    cerr << "EmpCylSL::cache_grid: cache file read successfully" << endl;
   }
 
   return 1;
