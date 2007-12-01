@@ -170,7 +170,7 @@ void ExternalCollection::dynamicload(void)
     }
 
     cout << ">" << endl 
-	 << setw(71) << setfill('-') << "-" << setfill('-') << endl << endl;
+	 << setw(71) << setfill('-') << "-" << setfill(' ') << endl << endl;
   }
 }
 

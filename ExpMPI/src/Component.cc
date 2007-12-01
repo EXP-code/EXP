@@ -922,10 +922,20 @@ void Component::read_bodies_and_distribute_ascii(void)
 
     pf.ShipParticles(myid, 0, nbodies);
       
+#ifdef DEBUG
     int icount = 0;
+#endif
     while (pf.RecvParticle(part)) {
       particles[part.indx] = part;
+#ifdef DEBUG
+      if (icount<5) {
+	cout << "Process " << myid << ": received ";
+	cout << setw(14) << part.mass;
+	for (int k=0; k<3; k++) cout << setw(14) << part.pos[k];
+	cout << endl;
+      }
       icount++;
+#endif
     }
   }
 				// Default: set to max radius
@@ -1255,8 +1265,23 @@ struct Particle * Component::get_particles(int* number)
       for (icur=ibeg; icur!=iend; icur++) icount++;
 
       pf.ShipParticles(0, myid, icount);
-      for (icur=ibeg; icur!=iend; icur++) 
+#ifdef DEBUG
+      icount = 0;
+#endif
+      for (icur=ibeg; icur!=iend; icur++) {
+#ifdef DEBUG
+	if (icount<2) {
+	  cout << "Component [" << myid << "]: sending ";
+	  cout << setw(3) << icount
+	       << setw(14) << icur->second.mass
+	       << setw(18) << icur->second.key;
+	  for (int k=0; k<3; k++) cout << setw(14) << icur->second.pos[k];
+	  cout << endl;
+	}
+	icount++;
+#endif
 	pf.SendParticle(icur->second);
+      }
 
 #ifdef DEBUG
       cout << "get_particles: process " << myid 

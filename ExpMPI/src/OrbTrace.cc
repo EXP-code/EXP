@@ -11,7 +11,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 {
   nint = 1;
   norb = 5;
-  nbeg = 0;
+  nbeg = 1;
   nskip = 0;
   use_acc = false;
   use_pot = false;
@@ -230,41 +230,36 @@ void OrbTrace::Run(int n, bool last)
     if (out) out << setw(15) << tnow;
   }
 
-  int curindex, curproc = 0;
+  int curproc, nflag;
+  map<unsigned long, Particle>::iterator it; 
+
   for (int i=0; i<norb; i++) {
-				// Identify the node that has the 
-				// desired particle
-    while (orblist[i] >= tcomp->nbodies_index[curproc]) { curproc++; }
 
+    nflag = -1;
+    if ( (it=tcomp->particles.find(orblist[i])) != tcomp->particles.end())
+      nflag = myid;
 
-    if (myid==curproc) {	// Copy particle to buffer
+    MPI_Allreduce(&nflag, &curproc, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
 
-      curindex = orblist[i];
-      if (curproc) curindex -= tcomp->nbodies_index[curproc-1];
-
+    if (curproc == myid) {
+      
+      // Copy particle to buffer
       int icnt=0;
-      for (int k=0; k<3; k++) 
-	pbuf[icnt++] = 
-	  tcomp->particles[curindex].pos[k];
-      for (int k=0; k<3; k++) 
-	pbuf[icnt++] = 
-	  tcomp->particles[curindex].vel[k];
+      for (int k=0; k<3; k++) pbuf[icnt++] = it->second.pos[k];
+      for (int k=0; k<3; k++) pbuf[icnt++] = it->second.vel[k];
       if (use_acc) {
-	for (int k=0; k<3; k++) 
-	  pbuf[icnt++] = 
-	    tcomp->particles[curindex].acc[k];
+	for (int k=0; k<3; k++) pbuf[icnt++] = it->second.acc[k];
       }
       if (use_acc) {
-	pbuf[icnt++] = tcomp->particles[curindex].pot + 
-	  tcomp->particles[curindex].potext;
+	pbuf[icnt++] = it->second.pot + it->second.potext;
       }
 
 #ifdef DEBUG
-      cout << "Process " << curproc << ": packing particle #" << orblist[i]
-	   << "  index=" << curindex;
+      cout << "Process " << myid << ": packing particle #" << orblist[i]
+	   << "  index=" << it->second.indx;
       for (int k=0; k<3; k++) 
 	cout << " " << 
-	  tcomp->particles[curindex].pos[k];
+	  it->second.pos[k];
       cout << endl;
 #endif 
     } 

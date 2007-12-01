@@ -37,12 +37,14 @@ pHOT::~pHOT()
 
 unsigned long long pHOT::getKey(double *p)
 {
-  for (unsigned k=0; k<3; k++) {
+  // Out of bounds?
+  //
+  for (unsigned k=0; k<3; k++) { 
     if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
-      ostringstream sout;
-      sout << "Coordinate out of pbounds in pHOT::key: "
-	   << __FILE__ << ", " << __LINE__ << endl;
-      throw sout.str().c_str();
+      cout << "Coordinate out of pbounds in pHOT::key: ";
+      for (int l=0; l<3; l++) cout << setw(18) << p[l];
+      cout << endl;
+      return 0;
     }
   }
 
@@ -111,7 +113,10 @@ void pHOT::makeTree()
   key_indx::iterator it;
   pCell* p = root;
   for (it=keybods.begin(); it!=keybods.end(); it++)  {
-    if (it->first < key_min || it->first >= key_max) { // Sanity check . . .
+				// Ignore out of bounds particles
+    if (it->first == 0) continue;
+				// Sanity check . . .
+    if (it->first < key_min || it->first >= key_max) {
       cout << "Process " << myid << ": in makeTree, key=" 
 	   << hex << it->first << endl << dec;
     }
@@ -671,6 +676,7 @@ void pHOT::recvCell(int from, unsigned num)
     pf.RecvParticle(part);
     cc->particles[part.indx] = part;
     keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
+    if (part.key == 0) continue;
     if (part.key < key_min || part.key >= key_max) {
       cout << "Process " << myid << ": in recvCell, key=" 
 	   << hex << part.key << endl << dec;
@@ -1060,8 +1066,20 @@ void pHOT::Repartition()
   // Recompute keys
   //
   map<unsigned long, Particle>::iterator it = cc->Particles().begin();
-  for (; it!=cc->Particles().end(); it++)
+  for (; it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
+    if (it->second.key == 0) {
+      cout << "pHOT::Repartition [" << myid << "]: out of bounds,"
+	   << " indx=" << setw(12) << it->second.indx
+	   << " mass=" << setw(18) << it->second.mass
+	   << " pos=";
+      for (int k=0; k<3; k++)
+	cout << setw(18) << it->second.pos[k];
+      for (int k=0; k<3; k++)
+	cout << setw(18) << it->second.vel[k];
+      cout << endl;
+    }
+  }
 
   //
   // Compute the new partition

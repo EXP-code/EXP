@@ -128,6 +128,7 @@ void UserTreeDSMC::initialize()
 void UserTreeDSMC::determine_acceleration_and_potential(void)
 {
   static bool firstime = true;
+  static unsigned nrep = 0;
 
   //
   // Make the cells
@@ -135,6 +136,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   if (firstime) {
     c0->Tree()->Repartition();
+    MPI_Barrier(MPI_COMM_WORLD);
+    cout << "UserTreeDSMC[" << myid << "]: after first repartition" << endl;
+    nrep++;
     c0->Tree()->makeTree();
 
     stepnum = 0;
@@ -174,6 +178,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   partnTime.start();
   c0->Tree()->Repartition();
+  MPI_Barrier(MPI_COMM_WORLD);
+  cout << "UserTreeDSMC[" << myid << "]: after repartition " << nrep++ << endl;
   partnSoFar = partnTime.stop();
   
   //
