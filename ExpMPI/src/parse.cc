@@ -133,6 +133,14 @@ void write_parm(void)
   }
   
   print_parm(out, "");
+
+  out << endl
+      << "--------------------" << endl
+      << " Parameter database " << endl
+      << "--------------------" << endl
+      << endl;
+
+  parse->print_database(out);
 }
 
 
