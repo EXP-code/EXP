@@ -472,6 +472,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   if (firstime && myid==0 && id==0) out.open("debug.tst");
 #endif
 
+  // If we are multistepping, compute accel only at or below <mlevel>
+  //
   for (int lev=mlevel; lev<=multistep; lev++) {
 
     unsigned nbodies = cC->levlist[lev].size();
@@ -496,9 +498,6 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	     << " indx=" << indx << endl;
       }
 
-      // If we are multistepping, compute accel only at or below this level
-      //
-
       if (use_external) {
 	cC->Pos(&pos[id][1], indx, Component::Inertial);
 	component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
@@ -519,24 +518,13 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
 
 	ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
-    
 #ifdef DEBUG
 	check_force_values(phi, p, fr, fz, fp);
 #endif
-
-	if (use_external)
-	  cC->AddPotExt(indx, p);
-	else
-	  cC->AddPot(indx, p);
-
 	frc[id][1] = fr*xx/r - fp*yy/r2;
 	frc[id][2] = fr*yy/r + fp*xx/r2;
 	frc[id][3] = fz;
 	
-	if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
-	  frc[id] = component->orient->transformOrig() * frc[id];
-
-	for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j+1]);
 #ifdef DEBUG
 	flg = 1;
 #endif
@@ -547,20 +535,26 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	p = -cylmass/sqrt(r3);	// -M/r
 	fr = p/r3;		// -M/r^3
 
-	if (use_external)
-	  cC->AddPotExt(indx, p);
-	else
-	  cC->AddPot(indx, p);
+	frc[id][1] = xx*fr;
+	frc[id][2] = yy*fr;
+	frc[id][3] = zz*fr;
 
-	cC->AddAcc(indx, 0, xx*fr);
-	cC->AddAcc(indx, 1, yy*fr);
-	cC->AddAcc(indx, 2, zz*fr);
 #ifdef DEBUG
 	offgrid[id]++;
 	flg = 2;
 #endif
       }
     
+      if (use_external)
+	cC->AddPotExt(indx, p);
+      else
+	cC->AddPot(indx, p);
+
+      if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
+	frc[id] = component->orient->transformOrig() * frc[id];
+
+      for (int j=0; j<3; j++) cC->AddAcc(indx, j, frc[id][j+1]);
+
 #ifdef DEBUG
       if (firstime && myid==0 && id==0 && q < 5) {
 	out << setw(9)  << q          << endl

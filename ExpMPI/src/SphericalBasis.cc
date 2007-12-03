@@ -744,6 +744,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   int id = *((int*)arg);
 
+  // If we are multistepping, compute accel only at or below <mlevel>
+  //
   for (int lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();

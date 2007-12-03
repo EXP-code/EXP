@@ -258,12 +258,12 @@ void adjust_multistep_level(bool all)
 
 	list<Component*>::iterator cc;
 	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	  if (*it > 0) {
+	  //	  if (*it > 0) {
 	    ostringstream sout;
 	    sout << "Component <" << (*cc)->name << ">";
 	    cout << setw(20) << sout.str() << ": "
 		 << *it << "/" << (*cc)->nbodies_tot << endl;
-	  }
+	    // }
 	  it++;
 	}
 	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
