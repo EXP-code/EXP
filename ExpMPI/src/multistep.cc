@@ -39,6 +39,8 @@ struct thrd_pass_sync
 /// Count offgrid particles in the threads
 vector< vector<unsigned> > off1;
 vector< vector<int> > dlev;
+vector< double > mindt1;
+vector< double > maxdt1;
 
 //
 // The threaded routine
@@ -88,6 +90,8 @@ void * adjust_multistep_level_thread(void *ptr)
     atot = sqrt(atot) + 1.0e-18;
 
     dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
+    mindt1[id] = min<double>(mindt1[id], dt);
+    maxdt1[id] = max<double>(maxdt1[id], dt);
 	
     if (dt>dtime) lev = 0;
     else lev = (int)floor(log(dtime/dt)/log(2.0));
@@ -141,6 +145,8 @@ void adjust_multistep_level(bool all)
   //
   // Preliminary data structure and thread creation
   //
+  mindt1 = vector< double > (nthrds,  1.0e20);
+  maxdt1 = vector< double > (nthrds, -1.0e20);
   off1 = vector< vector<unsigned> > (nthrds);
   dlev = vector< vector<int> > (nthrds);
   for (int i=0; i<nthrds; i++) dlev[i] = vector<int>(multistep+1, 0);
@@ -237,14 +243,25 @@ void adjust_multistep_level(bool all)
 
     for (int n=1; n<nthrds; n++) {
       for (unsigned j=0; j<off1[0].size(); j++) off1[0][j] += off1[n][j];
+      mindt1[0] = min<double>(mindt1[0], mindt1[n]);
+      maxdt1[0] = max<double>(maxdt1[0], maxdt1[n]);
     }
 
     vector<unsigned> off(off1[0].size(), 0);
+    double mindt, maxdt;
 
+    MPI_Reduce(&mindt1[0], &mindt, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
     MPI_Reduce(&off1[0][0], &off[0], off1.size(), MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
     
     if (myid==0) {
+      
+      cout << endl
+	   << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+	   << setw(70) << left << "--- Min DT=" << mindt 
+	   << "  Max DT=" << maxdt << endl
+	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
 
       unsigned sum=0;
       for (unsigned i=0; i<off.size(); i++) sum += off[i];

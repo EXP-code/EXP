@@ -204,17 +204,25 @@ void Component::reset_level_lists()
   for (int n=0; n<numprocs; n++) {
     if (n==myid) {
       if (myid==0) 
-	cout << "-------------------------------" << endl
+	cout << endl
+	     << "----------------------------------------------" << endl
 	     << "Level creation in <" << name << ">:" << endl 
-	     << "-------------------------------" << endl;
+	     << "----------------------------------------------" << endl
+	     << setw(4) << left << "ID" << setw(4) << "lev"
+	     << setw(12) << "first" << setw(12) << "last" 
+	     << setw(12) << "count" << endl;
       for (int j=0; j<=multistep; j++) {
 	cout << setw(4) << myid << setw(4) << j;
 	if (levlist[j].size())
 	  cout << setw(12) << levlist[j].front()
-	       << setw(12) << levlist[j].back() << endl;
+	       << setw(12) << levlist[j].back() 
+	       << setw(12) << levlist[j].size()
+	       << endl;
 	else
 	  cout << setw(12) << (int)(-1)
-	       << setw(12) << (int)(-1) << endl;
+	       << setw(12) << (int)(-1) 
+	       << setw(12) << levlist[j].size()
+	       << endl;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);

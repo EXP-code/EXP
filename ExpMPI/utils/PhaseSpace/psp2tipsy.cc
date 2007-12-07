@@ -69,6 +69,10 @@ int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 
+				// Interesting globals
+int use_dens = -1;
+int use_temp = -1;
+
 //-------------
 // Help message
 //-------------
@@ -76,6 +80,8 @@ pthread_mutex_t mem_lock;
 void Usage(char* prog) {
   cerr << prog << ": [-t time -v -h] filename\n\n";
   cerr << "    -t time         use dump closest to <time>\n";
+  cerr << "    -T pos          attribute position for temperature\n";
+  cerr << "    -D pos          attribute position for density\n";
   cerr << "    -a              convert entire file\n";
   cerr << "    -h              print this help message\n";
   cerr << "    -v              verbose output\n\n";
@@ -117,6 +123,10 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       for (int i=0; i<3; i++) gas.vel[i] = part->vel[i];
       gas.phi = part->phi;
       gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
+      if (use_temp>=0 && use_temp<part->datr.size())
+	gas.temp = part->datr[use_temp];
+      if (use_dens>=0 && use_dens<part->datr.size())
+	gas.rho = part->datr[use_dens];
       
       cout.write((char *)&gas, sizeof(gas_particle));
     }
@@ -169,7 +179,7 @@ main(int argc, char **argv)
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:avh");
+    int c = getopt(argc, argv, "t:T:D:avh");
 
     if (c == -1) break;
 
@@ -177,6 +187,14 @@ main(int argc, char **argv)
 
     case 't':
       time = atof(optarg);
+      break;
+
+    case 'T':
+      use_temp = atoi(optarg);
+      break;
+
+    case 'D':
+      use_dens = atoi(optarg);
       break;
 
     case 'v':

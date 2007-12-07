@@ -106,16 +106,16 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// 
   double KEtot, KEdsp;
   cell->KE(KEtot, KEdsp);	// These are already specific in mass
-  double Mass = cell->Mass();
+  double mass = cell->Mass();
   
   double rvrel = sqrt(4.0*KEdsp);
-
   KEdsp *= UserTreeDSMC::Eunit;
-  Mass  *= UserTreeDSMC::Munit;
 
+  double Mass = mass * UserTreeDSMC::Munit;
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double T = 2.0*KEdsp/3.0 * mm/UserTreeDSMC::Munit/boltz;
-  double Volume = cell->Volume() * pow(UserTreeDSMC::Lunit, 3);
+  double volume = cell->Volume();
+  double Volume = volume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0 = Density/mp;
 
@@ -149,11 +149,29 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   HeatCool heatcool(n0, T);
 
-  deltaE[id] = heatcool.CoolRate()/UserTreeDSMC::Eunit * n_h*n_h * Volume * tau * UserTreeDSMC::Tunit / number;
+  deltaE[id] = heatcool.CoolRate()/UserTreeDSMC::Eunit * n_h*n_h * Volume * tau * UserTreeDSMC::Tunit / mass / number;
 
-				// Assign temp to cells
-  unsigned nbods = cell->bods.size();
-  for (unsigned j=0; j<nbods; j++) cell->Body(j)->dattrib[0] = T;
+				// Assign temp and/or density to particles
+  if (use_temp>=0 || use_dens>=0) {
+    
+    unsigned nbods = cell->bods.size();
+    for (unsigned j=0; j<nbods; j++) {
+      if (cell->bods[j] == 0) {
+	cout << "proc=" << myid << " id=" << id 
+	     << " ptr=" << hex << cell << dec
+	     << " j=" << j << " indx=" << cell->bods[j] 
+	     << "/" << cell->bods.size() << endl;
+	continue;
+      }
+
+      int sz = cell->Body(j)->dattrib.size();
+      if (use_temp>=0 && use_temp<sz) 
+	cell->Body(j)->dattrib[use_temp] = T;
+      if (use_dens>=0 && use_dens<sz) 
+	cell->Body(j)->dattrib[use_dens] = mass/volume;
+    }
+  }
+
 }
 
 

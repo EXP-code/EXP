@@ -79,7 +79,7 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
 
 
 int Collide::CNUM = 0;
-bool Collide::CBA = true;
+bool Collide::CBA = false;
 
 Collide::Collide(double diameter, int nth)
 {
@@ -115,6 +115,9 @@ Collide::Collide(double diameter, int nth)
   tdiagT = vector< vector<unsigned> > (nthrds);
   for (int n=0; n<nthrds; n++) 
     tdiagT[n] = vector<unsigned>(numdiag, 0);
+
+  use_temp = -1;
+  use_dens = -1;
 
   gen = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
@@ -181,8 +184,10 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     cellist[n].clear();
     int nbeg = ncells*(n  )/nthrds;
     int nend = ncells*(n+1)/nthrds;
-    for (int j=nbeg; j<nend; j++) 
+    for (int j=nbeg; j<nend; j++) {
+      c.nextCell();
       cellist[n].push_back(c.Cell());
+    }
   }
       
 #ifdef DEBUG
@@ -191,7 +196,17 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
 
   snglTime.stop();
   forkTime.start();
+  {
+    ostringstream sout;
+    sout << "before fork, " << __FILE__ << ": " << __LINE__;
+    tree.checkBounds(2.0, sout.str().c_str());
+  }
   collide_thread_fork(&tree, Fn, tau);
+  {
+    ostringstream sout;
+    sout << "after fork, " << __FILE__ << ": " << __LINE__;
+    tree.checkBounds(2.0, sout.str().c_str());
+  }
   forkSoFar = forkTime.stop();
   snglTime.start();
 
@@ -319,7 +334,8 @@ void * Collide::collide_thread(void * arg)
     vector<double> V1, V2;
     c->Vel(vmass, V1, V2);
     double vmean = (V2[0]+V2[1]+V2[2])/vmass/3.0;
-    double taudiag = pow(c->Volume(), 0.333333)/sqrt(vmean)/tau;
+    double length = pow(c->Volume(), 0.333333);
+    double taudiag = length/sqrt(vmean)/tau;
     
     int indx = (int)floor(log(taudiag)/log(10.0) + 4);
     if (indx<0) indx = 0;
@@ -400,11 +416,18 @@ void * Collide::collide_thread(void * arg)
 	  cr = sqrt(cr);
 
 	  // Displacement
-	  double displ;
-	  for (int k=0; k<3; k++) {
-	    displ = crel[k]*cross/cr;
-	    p1->pos[k] += displ;
-	    p2->pos[k] -= displ;
+	  if (cr>0.0) {
+	    double displ;
+	    for (int k=0; k<3; k++) {
+	      displ = crel[k]*diam/cr;
+	      if (displ > length) {
+		cout << "Huge displacement, process " << myid 
+		     << " id=" << id << ": displ=" << displ
+		     << " len=" << length << endl;
+	      }
+	      p1->pos[k] += displ;
+	      p2->pos[k] -= displ;
+	    }
 	  }
 	}
 

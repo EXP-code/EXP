@@ -18,6 +18,8 @@
     @param cnum non-zero adjusts cross section for cnum collisions per cel
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
+    @param use_temp is the particle attribute position for temperature
+    @param use_dens is the particle attribute position for density
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -26,7 +28,9 @@ private:
   int ncell;
   int cnum;
   int nsteps;
+  int use_temp, use_dens;
   double diamfac;
+  double diam;
   double collfrac;
   double boxsize;
 

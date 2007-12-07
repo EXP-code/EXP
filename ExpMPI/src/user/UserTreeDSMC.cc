@@ -1,3 +1,4 @@
+#include <sys/timeb.h>
 #include <stdlib.h>
 #include <sys/types.h>
 #include <getopt.h>
@@ -35,6 +36,8 @@ double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 {
+  id = "TreeDSMC";		// ID string
+
 				// Default parameter values
   ncell = 64;
   cnum = 0;
@@ -43,6 +46,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   boxsize = 1.0;
   comp_name = "gas disk";
   nsteps = -1;
+  use_temp = -1;
+  use_dens = -1;
 
 				// Initialize using input parameters
   initialize();
@@ -64,7 +69,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Eunit = Munit*Vunit*Vunit;
 
 				// Diameter*Bohr radius in Lunits
-  double diam = diamfac*a0/(Lunit);
+  diam = diamfac*a0/(Lunit);
 
   pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
 
@@ -75,6 +80,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
   Collide::CNUM = cnum;
   collide = new CollideLTE(diam, nthrds);
+  collide->set_temp_dens(use_temp, use_dens);
 
   //
   // Timers: set precision to microseconds
@@ -102,9 +108,11 @@ void UserTreeDSMC::userinfo()
 
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
-       << ", cnum=" << cnum << ", diamfac=" << diamfac 
+       << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", collfrac=" << collfrac << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
+  if (use_temp>=0) cout << ", temp at pos=" << use_temp;
+  if (use_dens>=0) cout << ", dens at pos=" << use_dens;
   cout << endl;
 
   print_divider();
@@ -122,6 +130,8 @@ void UserTreeDSMC::initialize()
   if (get_value("collfrac", val))	collfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
+  if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
+  if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
 }
 
 
@@ -137,9 +147,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (firstime) {
     c0->Tree()->Repartition();
     MPI_Barrier(MPI_COMM_WORLD);
-    cout << "UserTreeDSMC[" << myid << "]: after first repartition" << endl;
-    nrep++;
     c0->Tree()->makeTree();
+    c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
 
     stepnum = 0;
     curtime = tnow;
@@ -177,9 +186,21 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Test repartition
   //
   partnTime.start();
+  {
+    ostringstream sout;
+    sout << "before Repartition [" << nrep << "], " 
+	 << __FILE__ << ": " << __LINE__;
+    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+  }
+
   c0->Tree()->Repartition();
+  {
+    ostringstream sout;
+    sout << "after Repartition [" << nrep << "], " 
+	 << __FILE__ << ": " << __LINE__;
+    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+  }
   MPI_Barrier(MPI_COMM_WORLD);
-  cout << "UserTreeDSMC[" << myid << "]: after repartition " << nrep++ << endl;
   partnSoFar = partnTime.stop();
   
   //
@@ -187,13 +208,34 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   treeTime.start();
   c0->Tree()->makeTree();
+  {
+    ostringstream sout;
+    sout << "after makeTree [" << nrep << "], " 
+	 << __FILE__ << ": " << __LINE__;
+    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+  }
   treeSoFar = treeTime.stop();
   
   //
   // Evaluate collisions among the particles
   //
+
+  {
+    ostringstream sout;
+    sout << "before Collide [" << nrep << "], " 
+	 << __FILE__ << ": " << __LINE__;
+    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+  }
+
   unsigned col = collide->collide(*c0->Tree(), collfrac, tau);
     
+  {
+    ostringstream sout;
+    sout << "after Collide [" << nrep << "], " 
+	 << __FILE__ << ": " << __LINE__;
+    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+  }
+
   collideSoFar = collideTime.stop();
 
 				// Debug
@@ -273,7 +315,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 
   }
+				// Remake level lists because particles
+				// will (usually) have been exchanged 
+				// between nodes
+  c0->reset_level_lists();
 
+  MPI_Barrier(MPI_COMM_WORLD);
 }
 
 

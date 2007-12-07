@@ -162,6 +162,7 @@ void do_step(int n)
       if (timing) timer_vel.stop();
 
       if (timing) timer_adj.start();
+      if (myid==0) cout << "Calling adjust" << endl;
       adjust_multistep_level(false);
       if (timing) timer_adj.stop();
 

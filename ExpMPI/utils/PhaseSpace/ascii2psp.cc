@@ -186,7 +186,7 @@ main(int argc, char **argv)
       for (int j=0; j<3; j++) ins >> vel[j];
 
       for (int j=0; j<headers[i].niatr; j++) ins >> ivec[j];
-      for (int j=0; i<headers[i].ndatr; i++) ins >> dvec[j];
+      for (int j=0; j<headers[i].ndatr; j++) ins >> dvec[j];
       
       // Write phase space
       out.write((char *)&mass, sizeof(double));
@@ -195,7 +195,7 @@ main(int argc, char **argv)
       out.write((char *)&pot, sizeof(double));
       for (int j=0; j<headers[i].niatr; j++) 
 	out.write((char *)&(ivec[j]), sizeof(int));
-      for (int j=0; i<headers[i].ndatr; i++) 
+      for (int j=0; j<headers[i].ndatr; j++) 
 	out.write((char *)&(dvec[j]), sizeof(double));
     }
   }

@@ -1,9 +1,11 @@
+#include <sys/timeb.h>
 #include <math.h>
 #include <sstream>
 
 #include "expand.h"
 
 #include <UserHalo.H>
+
 
 UserHalo::UserHalo(string &line) : ExternalForce(line)
 {
@@ -114,11 +116,43 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   qq[2]=q3*q3;
 
   map<unsigned long, Particle>::iterator it = cC->Particles().begin();
-  unsigned long i;
+
+  /*
+  if (myid==0) {
+    cout << "UserHalo: component=" << cC->name << endl;
+    cout << " First: " 
+	 << setw(10) << it->first
+	 << setw(10) << it->second.indx
+	 << setw(18) << scientific << it->second.mass
+	 << endl;
+    it++;
+    cout << "Second: " 
+	 << setw(10) << it->first
+	 << setw(10) << it->second.indx
+	 << setw(18) << scientific << it->second.mass  
+	 << endl;
+    it++;
+    cout << " Third: " 
+	 << setw(10) << it->first
+	 << setw(10) << it->second.indx
+	 << setw(18) << scientific << it->second.mass  
+	 << endl;
+
+    struct timeb tp;
+    ftime(&tp);
+
+    cout << cC->name << " Number=" << cC->Particles().size() 
+	 << " time=" << setw(9) << tp.time << '.' 
+	 << setfill('0') << setw(3) << tp.millitm << setfill(' ')
+	 << " ptr=" << hex << &(cC->Particles()) << endl << dec;
+
+    it = cC->Particles().begin();
+  }
+  */
 
   for (int q=0   ; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {
-      i = (it++)->first;
+    unsigned long i = (it++)->first;
 				// If we are multistepping, compute accel 
 				// only at or below this level
 
@@ -133,6 +167,19 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     r = sqrt(rr);
 
     model->get_pot_dpot(r, pot, dpot);
+
+    // DEBUG
+    /*
+    cout << "#, indx, tnow, mass, r, pot, dpot=" 
+	 << setw(4) << myid << setw(8) << i 
+	 << setw(10) << fixed << tnow
+	 << setw(18) << scientific << cC->Mass(i)
+	 << setw(18) << scientific << r 
+	 << setw(18) << scientific << pot 
+	 << setw(18) << scientific << dpot
+	 << fixed << endl;
+    */
+    // END DEBUG
 
     // Add external accerlation
     for (int k=0; k<3; k++)

@@ -97,6 +97,8 @@ public:
 	    string cut, 
 	    vector<double>&    x, vector<double>& dens, vector<double>& temp, 
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
+  void checkBounds(double, const char *);
+
   //@}
 };
 
@@ -137,6 +139,7 @@ public:
   double Mass() { return fit->second->Mass(); }
 
   Particle *Body(unsigned k) { return fit->second->Body(k); }
+
 };
 
 #endif

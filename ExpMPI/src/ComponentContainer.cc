@@ -305,6 +305,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   cout << "Process " << myid << ": angmom computed\n";
 #endif
 
+
   //
   // Compute accel for each component
   //
@@ -377,6 +378,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (timing) timer_inter.start();
   if (!external.force_list.empty()) {
 
+    unsigned cnt=0;
     list<ExternalForce*>::iterator ext;
 
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
@@ -389,6 +391,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 
   }
+
   if (timing) timer_inter.stop();
 
   if (timing) timer_total.stop();

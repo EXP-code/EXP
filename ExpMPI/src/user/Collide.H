@@ -78,6 +78,8 @@ protected:
   unsigned errtot;
   unsigned numtot;
 
+  int use_temp, use_dens;
+
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) {}
 
@@ -96,6 +98,9 @@ public:
 
   Collide(double diameter, int nth=1);
   ~Collide();
+
+  virtual void 
+  set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
 
   unsigned total()  { return coltot; }
   unsigned errors() { return errtot; }

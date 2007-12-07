@@ -39,12 +39,14 @@ unsigned long long pHOT::getKey(double *p)
 {
   // Out of bounds?
   //
-  for (unsigned k=0; k<3; k++) { 
-    if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
-      cout << "Coordinate out of pbounds in pHOT::key: ";
-      for (int l=0; l<3; l++) cout << setw(18) << p[l];
-      cout << endl;
-      return 0;
+  if (0) {
+    for (unsigned k=0; k<3; k++) { 
+      if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
+	cout << "Coordinate out of pbounds in pHOT::key: ";
+	for (int l=0; l<3; l++) cout << setw(18) << p[l];
+	cout << endl;
+	return 0;
+      }
     }
   }
 
@@ -113,9 +115,7 @@ void pHOT::makeTree()
   key_indx::iterator it;
   pCell* p = root;
   for (it=keybods.begin(); it!=keybods.end(); it++)  {
-				// Ignore out of bounds particles
-    if (it->first == 0) continue;
-				// Sanity check . . .
+
     if (it->first < key_min || it->first >= key_max) {
       cout << "Process " << myid << ": in makeTree, key=" 
 	   << hex << it->first << endl << dec;
@@ -140,9 +140,17 @@ void pHOT::makeTree()
 				// to compare with its head
     if (myid==n-1) {
 
-      key_indx::iterator it = keybods.end(); it--;
+      key_indx::reverse_iterator it = keybods.rbegin();
+      {
+	// Debug: check validity of key
+	if (bodycell.find(it->first) == bodycell.end()) {
+	  cout << "Process " << myid << ": bad key=" << it->first
+	       << " #cells=" << bodycell.size() << endl;
+	}
+      }
       tailKey = bodycell[it->first];
-      tail_num = frontier[tailKey]->bods.size(); // Number of bodies in my tail cell
+				// Number of bodies in my tail cell
+      tail_num = frontier[tailKey]->bods.size();
 
       MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD);
@@ -160,11 +168,21 @@ void pHOT::makeTree()
 
       sort(keybods.begin(), keybods.end());
     }
+
 				// Send the previous node my head value
 				// to compare with its tail
     if (myid==n) {
+
+      {
+	// Debug: check validity of key
+	if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
+	  cout << "Process " << myid << ": bad key=" << keybods.begin()->first
+	       << " #cells=" << bodycell.size() << endl;
+	}
+      }
       headKey = bodycell[keybods.begin()->first];
-      head_num = frontier[headKey]->bods.size(); // Number of bodies in my head cell
+				// Number of bodies in my head cell
+      head_num = frontier[headKey]->bods.size();
 
       MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n-1, 1000, MPI_COMM_WORLD);
       MPI_Send(&head_num, 1, MPI_UNSIGNED, n-1, 1001, MPI_COMM_WORLD);
@@ -172,7 +190,7 @@ void pHOT::makeTree()
       MPI_Recv(&prevKey, 1, MPI_UNSIGNED_LONG_LONG, n-1, 1000, MPI_COMM_WORLD, &status);
       MPI_Recv(&prev_num, 1, MPI_UNSIGNED, n-1, 1001, MPI_COMM_WORLD, &status);
 
-      if (headKey == prevKey) {
+      if (headKey && headKey == prevKey) {
 	if (head_num < prev_num) {
 	  sendCell(headKey, n-1, head_num);
 	} else {
@@ -182,8 +200,8 @@ void pHOT::makeTree()
 
       sort(keybods.begin(), keybods.end());
     }    
-  }
 
+  }
 }
 
 vector<unsigned> cntlev;
@@ -605,6 +623,10 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
        << " to " << to << endl;
 #endif
 
+  // DEBUG
+  vector<unsigned long> erased;
+  // END DEBUG
+
 
   vector<double> buffer1(3*num);
   vector<unsigned> buffer2(num);
@@ -627,6 +649,9 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
       if (it->second == p->bods[j]) {
 	keybods.erase(it);
 	cc->particles.erase(p->bods[j]);
+	// DEBUG
+	erased.push_back(p->bods[j]);
+	// END DEBUG
 	testme = true;
 	break;
       }
@@ -655,6 +680,15 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
     p->bods.clear();
   }
 
+  // BEGIN DEBUG
+  vector<unsigned long>::iterator iq;
+  for (iq=erased.begin(); iq!=erased.end(); iq++) {
+    if (cc->particles.find(*iq) != cc->particles.end())
+      cout << "pHOT::sendCell proc=" << myid
+	   << " found erased index=" << *iq << endl;
+  }
+  // END DEBUG
+
   cc->nbodies = cc->particles.size();
 }
 
@@ -675,12 +709,13 @@ void pHOT::recvCell(int from, unsigned num)
   for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
     cc->particles[part.indx] = part;
-    keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
     if (part.key == 0) continue;
     if (part.key < key_min || part.key >= key_max) {
       cout << "Process " << myid << ": in recvCell, key=" 
 	   << hex << part.key << endl << dec;
     }
+    if (part.indx==0) cout << "pHOT::recvCell bad particle indx=0!" << endl;
+    keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
     p = p->Add(pair<unsigned long long, unsigned>(part.key, part.indx));
   }
 
@@ -1062,6 +1097,12 @@ void pHOT::Repartition()
   volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
 
 
+  // BEGIN DEBUG
+  vector<unsigned long> erased;
+  // END DEBUG
+
+  // checkBounds(2.0, "BEFORE repartition");
+
   //
   // Recompute keys
   //
@@ -1250,6 +1291,7 @@ void pHOT::Repartition()
 
   MPI_Barrier(MPI_COMM_WORLD);
 
+  static unsigned debug_ctr = 0;
   unsigned ps=0, pr=0;
   vector<MPI_Request> send_requests, recv_requests;
   vector<Partstruct> psend(Tcnt), precv(Fcnt);
@@ -1264,8 +1306,16 @@ void pHOT::Repartition()
       for (unsigned i=0; i<To[id]; i++) {
 	pf.Particle_to_part(psend[ps+i], cc->Particles()[Tlst[ps+i]]);
 	cc->Particles().erase(Tlst[ps+i]);
+	erased.push_back(Tlst[ps+i]);
       }
       send_requests.push_back(r);
+      for (unsigned i=0; i<To[id]; i++) {
+	if (psend[ps+i].indx == 0) {
+	  cerr << "pHOT::Repartition[" << debug_ctr
+	       << "]: SEND from=" << myid << " to=" << id << " #=" << To[id]
+	       << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
+	}
+      }
       MPI_Isend(&psend[ps], To[id], ParticleFerry::Particletype, id, 49, 
 		MPI_COMM_WORLD, &send_requests.back());
       ps += To[id];
@@ -1285,11 +1335,9 @@ void pHOT::Repartition()
     }
   }
 
-
   //
   // Buffer size sanity check
   //
-
   if (1) {
 
     if (Tcnt-ps) {
@@ -1303,6 +1351,18 @@ void pHOT::Repartition()
 	   << ": [Fcnt] found <" << pr << "> but expected <" 
 	   << Fcnt << ">" << endl;
     }
+
+  }
+
+  // Chatty if nothing sent or received
+  //
+  if (0) {
+    
+    if (send_requests.size() == 0)
+      cout << "Process " << myid << ": nothing to send!" << endl;
+      
+    if (recv_requests.size() == 0)
+      cout << "Process " << myid << ": nothing to receive!" << endl;
   }
 
   for (unsigned i=0; i<send_requests.size(); i++) {
@@ -1313,20 +1373,79 @@ void pHOT::Repartition()
     MPI_Wait(&recv_requests[i], &s);
   }
   
+
+  // DEBUG
+  //
+  pr = 0;
+  for (int id=0; id<numprocs; id++) {
+    if (From[id]) {
+      for (int i=0; i<From[id]; i++) {
+	if (precv[pr+i].indx == 0) {
+	  cerr << "pHOT::Repartition[" << debug_ctr 
+	       << "]: RECV to=" << myid << " from=" << id << " #=" << From[id]
+	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass << endl;
+	}
+      }
+      pr += From[id];
+    }
+  }
+
+  debug_ctr++;
+
+  // END DEBUG
+
   Particle part;
   for (unsigned i=0; i<Fcnt; i++) {
     pf.part_to_Particle(precv[i], part);
     cc->Particles()[part.indx] = part;
   }
+  cc->nbodies = cc->particles.size();
       
   //
   // Remake key body index
   //
   keybods.clear();
+  unsigned oab1=0, oab=0;
   map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-  for (; n!=cc->Particles().end(); n++)
+  for (; n!=cc->Particles().end(); n++) {
+    if (n->second.key==0) {
+      oab1++;
+      continue;
+    }
+    if (n->second.indx==0) cout << "pHOT::Repartition bad particle indx=0!" << endl;
     keybods.push_back(pair<key_type, unsigned>(n->second.key, n->second.indx));
+  }
   sort(keybods.begin(), keybods.end());
+
+  // checkBounds(2.0, "AFTER repartition");
+
+  MPI_Reduce(&oab1, &oab, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (myid==0 && oab)
+    cout << endl << "pHOT::Repartition: " << oab << " out of bounds" << endl;
+
+  if (0) {
+    bool ok = true;
+    map<unsigned long, Particle>::iterator ip;
+    for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
+      if (ip->second.indx==0) {
+	cout << "pHOT::Repartition BAD particle in proc=" << myid
+	     << " key=" << ip->second.key << endl;
+	ok = false;
+      }
+    }
+    if (ok) cout << "pHOT::Repartition: leaving with good indx" << endl;
+
+    if (cc->particles.size() != cc->nbodies) 
+      cout << "pHOT::Repartition: leaving with # mismatch!" << endl;
+
+    int nbodies1 = cc->nbodies, nbodies0=0;
+    MPI_Reduce(&nbodies1, &nbodies0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) {
+      if (nbodies0 != cc->nbodies_tot)
+	cout << "pHOT::Repartition: leaving with total # mismatch!" << endl;
+    }
+
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
@@ -1345,3 +1464,19 @@ bool pHOT::checkKeybods()
 
   return ok;
 }
+
+
+void pHOT::checkBounds(double rmax, const char *msg)
+{
+  int bad = 0;
+  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
+  for (; n!=cc->Particles().end(); n++) {
+    for (int k=0; k<3; k++) if (fabs(n->second.pos[k])>rmax) bad++;
+  }
+  if (bad) {
+    cout << "Process " << myid << ": has " << bad << " out of bounds";
+    if (msg) cout << ", " << msg << endl;
+    else cout << endl;
+  }
+}
+
