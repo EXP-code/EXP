@@ -39,7 +39,7 @@ double **nr_matrix(int, int, int, int);
 void free_nr_vector(double *, int, int);
 void free_nr_ivector(int *, int, int);
 void free_nr_matrix(double **, int, int, int, int);
-void nrerror(char *);
+void nrerror(const char *);
 void sort(int, double *);
 
 

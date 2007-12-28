@@ -86,7 +86,7 @@ void initialize(void)
 
 }
 
-void print_parm(ostream& out, char *comment)
+void print_parm(ostream& out, const char *comment)
 {
   out << comment << "[global]" << endl;
 

@@ -5,7 +5,7 @@
 
 using namespace std;
 
-void nrerror(char *error_text)
+void nrerror(const char *error_text)
 {
   cerr << "Numerical Recipes run-time error...\n";
   cerr << error_text << endl;

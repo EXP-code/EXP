@@ -18,8 +18,11 @@ private:
 
 public:
 
-  //! Target bucket size
+  //! Target collision bucket size
   static unsigned bucket;
+
+  //! Target macroscopic bucket size
+  static unsigned Bucket;
 
   //! Number of bits per dimension
   static unsigned nbits;
@@ -48,6 +51,7 @@ public:
   vector<double> state;
 
   pCell* parent;
+  pCell* sample;
   map<unsigned, pCell*> children;
   bool isLeaf;
   
@@ -56,9 +60,6 @@ public:
 
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&);
-
-  //! Particle access
-  Particle *Body(unsigned k);
 
   //! Recursively zero the tree's state vector
   void zeroState();
@@ -85,6 +86,18 @@ public:
 
   //! Return total volume of cell
   double Volume();
+
+  //! Find the cells whose body number is "just" larger than Bucket
+  pCell* findSampleCell();
+
+  //! Return number of bodies in Sample Cell
+  unsigned SampleBodyNumber() { return sample->bods.size(); }
+
+  //! Return bodies from Sample Cell
+  Particle* SampleBody(unsigned int k);
+
+  //! Return bodies from this cell
+  Particle* Body(unsigned int k);
 
 };
 

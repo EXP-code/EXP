@@ -48,6 +48,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   nsteps = -1;
   use_temp = -1;
   use_dens = -1;
+  frontier = false;
+  mfpstat = false;
 
 				// Initialize using input parameters
   initialize();
@@ -92,6 +94,17 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   densityTime.Microseconds();
   gatherTime.Microseconds();
 
+
+  if (mfpstat) {
+    quant.push_back(0.05);
+    quant.push_back(0.1);
+    quant.push_back(0.2);
+    quant.push_back(0.5);
+    quant.push_back(0.8);
+    quant.push_back(0.9);
+    quant.push_back(0.95);
+  }       
+
   userinfo();
 }
 
@@ -132,6 +145,8 @@ void UserTreeDSMC::initialize()
   if (get_value("compname", val))	comp_name = val;
   if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
+  if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
+  if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
 }
 
 
@@ -249,14 +264,38 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     collide->Debug(tnow);
 
-    static unsigned tmpc = 0;
     unsigned medianNumb = collide->medianNumber();
     unsigned medianColl = collide->medianColl();
 
-    ostringstream sout;
-    sout << "tmp.out." << tmpc++;
-    string filen = sout.str();
-    c0->Tree()->testFrontier(filen);
+    if (frontier) {
+      ostringstream sout;
+      sout << runtag << ".DSMC.frontier." << nsteps;
+      string filen = sout.str();
+      c0->Tree()->testFrontier(filen);
+    }
+
+    if (mfpstat) {
+
+      collide->mfpsizeQuantile(quant, mfp_, ts_);
+
+      if (myid==0) {
+
+	ostringstream sout;
+	sout << runtag << ".DSMC.mfpstat." << nsteps;
+	string filen = sout.str();
+	ofstream out(filen.c_str());
+	if (out) {
+	  
+	  out << setw(18) << "Quantiles: " 
+	      << setw(18) << "MFP/size"
+	      << setw(18) << "Flight/size"
+	      << endl;
+	  for (unsigned nq=0; nq<quant.size(); nq++)
+	    out << setw(18) << quant[nq] << ": " 
+		<< setw(18) << mfp_[nq] << setw(18) << ts_[nq] << endl;
+	}
+      }
+    }
 
 				// Begin frontier iteration to add up KE
     pHOT_iterator ic(*c0->Tree());

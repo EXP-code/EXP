@@ -50,7 +50,7 @@ pthread_mutex_t mem_lock;
 using namespace std;
 
 int parse_args(int argc, char **argv);
-void print_parm(ostream &, char *);
+void print_parm(ostream &, const char *);
 
 
 				// Parameters
@@ -209,7 +209,7 @@ void print_default()
 }
 
 
-void print_parm(ostream& stream, char *comment)
+void print_parm(ostream& stream, const char *comment)
 {
   stream.setf(ios::left);
 

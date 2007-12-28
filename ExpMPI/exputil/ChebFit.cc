@@ -147,7 +147,7 @@ double ChebFit::chebev(double x, Vector& cin)
   return y*d-dd+0.5*cin[0];
 }
 
-void ChebFit::bomb(char *a, ...)
+void ChebFit::bomb(const char *a, ...)
 {
   va_list ap;
   char *b, *c;

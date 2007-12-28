@@ -9,7 +9,8 @@
 #include "pCell.H"
 #include "pHOT.H"
 
-unsigned pCell::bucket = 64;	// Target bucket size
+unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
+unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
 unsigned pCell::nbits = 16;	// Number of bits per dimension
 
 string printKey(key_type p)
@@ -41,7 +42,7 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(5, 0.0);
+  state = vector<double>(7, 0.0);
 
   tree->frontier[mykey] = this;	// Root is born on the frontier
 }
@@ -57,7 +58,7 @@ pCell::pCell(pCell* mom, unsigned id) :
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(5, 0.0);
+  state = vector<double>(7, 0.0);
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
 }
@@ -150,7 +151,7 @@ pCell* pCell::Add(const key_pair& keypair)
 void pCell::zeroState()
 {
   count = 0;
-  for (int k=0; k<5; k++) state[k] = 0.0;
+  for (int k=0; k<7; k++) state[k] = 0.0;
   map<unsigned, pCell*>::iterator it = children.begin();
   for (; it != children.end(); it++) it->second->zeroState();
 }
@@ -162,10 +163,9 @@ void pCell::accumState()
     indx = bods[j];
     state[0] += tree->cc->Particles()[indx].mass;
     for (int k=0; k<3; k++) {
-      state[1]   += tree->cc->Particles()[indx].mass * 
+      state[1+k] += tree->cc->Particles()[indx].mass * 
 	tree->cc->Particles()[indx].vel[k]*tree->cc->Particles()[indx].vel[k];
-      state[2+k] += tree->cc->Particles()[indx].mass * 
-	tree->cc->Particles()[indx].vel[k];
+      state[4+k] += tree->cc->Particles()[indx].mass * tree->cc->Particles()[indx].vel[k];
     }
   }
   if (parent) parent->accumState(count, state);
@@ -175,7 +175,7 @@ void pCell::accumState()
 void pCell::accumState(unsigned _count, vector<double>& _state)
 {
   count += _count;
-  for (int k=0; k<5; k++) state[k] += _state[k];
+  for (int k=0; k<7; k++) state[k] += _state[k];
   if (parent) parent->accumState(_count, _state);
 }
 
@@ -300,7 +300,22 @@ double pCell::Volume()
   return tree->volume/(1 << 3*level);
 }
 
+pCell* pCell::findSampleCell()
+{
+  pCell *cur = this;		// Begin with this cell
+  while(cur->count < Bucket) {
+				// We are at the root
+    if (cur->parent == 0) break;
+				// Keep walking up the tree . . 
+    cur = cur->parent;
+  }
+				// The answer.
+  sample = cur;
+}
+
+
 Particle* pCell::Body(unsigned k)
 { 
+  if (k<0 || k>=bods.size()) return 0;
   return &(tree->cc->Particles()[bods[k]]); 
 }

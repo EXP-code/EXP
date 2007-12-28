@@ -40,7 +40,7 @@ private:
 		      double& potl0, double& potl,
 		      int L1=0, int L2=10000);
 
-  void bomb(char *s);
+  void bomb(const char *s);
 
 				// Orientation
 

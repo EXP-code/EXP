@@ -35,6 +35,7 @@ protected:
   //! Frontier iterator
   key_cell::iterator fit;
   bool reset;
+  unsigned total_cells;
 
   ParticleFerry pf;
 
@@ -64,6 +65,7 @@ public:
 
   //! Number of cells in tree
   unsigned Number() { return frontier.size(); }
+  unsigned TotalNumber() { return total_cells; }
 
   /**
      Density routines
@@ -76,6 +78,7 @@ public:
   void State(double *pos, double& dens, double& temp, 
 	     double& vx, double& vx, double& vz);
   double minVol();
+  double maxVol();
   double medianVol();
   double Volume() { return volume; }
   //@}
@@ -91,7 +94,6 @@ public:
   void densCheck();
   void statFrontier();
   void testFrontier(string& filename);
-  void testDump();
   void Slice(int nx, int ny, int nz, string cut, string prefix);
   void Slab(vector<int>& n, vector<double>& pmin, vector<double>& pmax,
 	    string cut, 
@@ -133,7 +135,7 @@ public:
 
   pCell* Cell() { return fit->second; }
 
-  double Volume() { return volume/(1 << (3*fit->second->level)); }
+  double Volume() { return volume/((unsigned long long)1 << (3*fit->second->level)); }
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }

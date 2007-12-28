@@ -1,3 +1,5 @@
+#include <values.h>
+
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -202,6 +204,28 @@ void pHOT::makeTree()
     }    
 
   }
+
+
+  // Each node start at root and walk down the tree to zero the counts
+  //
+  root->zeroState();
+
+  // March through the frontier and accumulate the counts
+  //
+  for (key_cell::iterator it=frontier.begin(); 
+       it != frontier.end(); it++) it->second->accumState();
+
+
+  // March through the frontier to find the sample cells
+  //
+  for (key_cell::iterator it=frontier.begin(); 
+       it != frontier.end(); it++) it->second->findSampleCell();
+
+  // Accumulate the total number of cells in the tree
+  //
+  unsigned my_cells = frontier.size();
+  MPI_Allreduce(&my_cells, &total_cells, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
 }
 
 vector<unsigned> cntlev;
@@ -216,7 +240,7 @@ void pHOT::densEmit(unsigned lev, pCell *p)
     cntlev[lev]++;
     if (p->parent) kidlev[lev] += p->parent->children.size();
     maslev[lev] += p->state[0];
-    vollev[lev] += volume/(1<<(3*p->level));
+    vollev[lev] += volume/((unsigned long long)1 << (3*p->level));
   } else {
     map<unsigned, pCell*>::iterator it;
     for (it=p->children.begin(); it!=p->children.end(); it++) 
@@ -382,14 +406,14 @@ void pHOT::dumpFrontier()
 	}
 	
 	totmass += mass;
-	totvol  += volume/(1<<(3*it->second->level));
+	totvol  += volume/((unsigned long long)1<<(3*it->second->level));
 
 	cout << setw(4)  << myid
 	     << setw(12) << hex << it->first << dec
 	     << setw(8)  << it->second->level
 	     << setw(18) << num
 	     << setw(18) << mass
-	     << setw(18) << mass/(volume/(1<<(3*it->second->level)));
+	     << setw(18) << mass/(volume/((unsigned long long)1<<(3*it->second->level)));
 	
 	for (unsigned k=0; k<3; k++) {
 	  mpos[k] /= num;
@@ -469,25 +493,6 @@ void pHOT::statFrontier()
     cout << endl;
   }
 
-}
-
-
-void pHOT::testDump()
-{
-  key_indx::iterator it;
-
-  for (int n=0; n<numprocs; n++) {
-
-    if (myid==n) {
-      for (it=keybods.begin(); it!=keybods.end(); it++) {
-	cout << setw(12) << hex << it->first;
-	for (unsigned k=0; k<3; k++) 
-	  cout << setw(18) << dec << (cc->particles)[it->second].pos[k];
-	cout << endl;
-      }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
 }
 
 
@@ -724,14 +729,6 @@ void pHOT::recvCell(int from, unsigned num)
 
 void pHOT::makeState()
 {
-  // Each node start at root and walk down the three to zero the counts
-  //
-  root->zeroState();
-
-  // March through the frontier and accumulate the counts
-  //
-  for (key_cell::iterator it=frontier.begin(); 
-       it != frontier.end(); it++) it->second->accumState();
 }
 
 
@@ -745,17 +742,17 @@ void pHOT::State(double *x, double& dens, double& temp,
   // Walk tree to get count
   //
   unsigned count, level;
-  vector<double> state(5);
+  vector<double> state(7);
   root->Find(key, count, level, state);
 
-  vector<double>   stt1(numprocs*5, 0);
-  vector<double>   stt0(numprocs*5, 0);
+  vector<double>   stt1(numprocs*7, 0);
+  vector<double>   stt0(numprocs*7, 0);
   vector<unsigned> cnt1(numprocs, 0), lev1(numprocs, 0);
   vector<unsigned> cnt0(numprocs, 0), lev0(numprocs, 0);
 
   cnt1[myid] = count;
   lev1[myid] = level;
-  for (int k=0; k<5; k++) stt1[myid*5+k] = state[k];
+  for (int k=0; k<7; k++) stt1[myid*7+k] = state[k];
 
 
   MPI_Reduce(&cnt1[0], &cnt0[0], numprocs,   MPI_UNSIGNED, MPI_SUM, 
@@ -784,29 +781,26 @@ void pHOT::State(double *x, double& dens, double& temp,
 				// This is the deepest level
     unsigned clv = dlist[0].first;
     unsigned cnt = 1;
-    for (int k=0; k<5; k++) state[k] = stt0[5*dlist[0].second + k];
+    for (int k=0; k<7; k++) state[k] = stt0[7*dlist[0].second + k];
 
 				// Add others at the same level
     for (int n=1; n<numprocs; n++) {
       if (clv != dlist[n].first) break;
-      for (int k=0; k<5; k++) state[k] += stt0[5*dlist[n].second + k];
+      for (int k=0; k<7; k++) state[k] += stt0[7*dlist[n].second + k];
       cnt++;
     }
 
 				// Mass average
     if (state[0]>0.0) {
-      double v2 = 0.0;
-      for (int k=0; k<3; k++) {
-	state[2+k] /= state[0];
-	v2 += state[2+k] * state[2+k] * state[0];
-      }
+      double disp = 0.0;
+      for (int k=0; k<3; k++)
+	disp += (state[1+k] - state[4+k]*state[4+k]/state[0])/state[0];
       
-
-      dens = state[0] * (1 << (3*clv))/(volume*cnt);
-      temp = 0.333333333333*(state[1] - v2)/state[0];
-      velx = state[2];
-      vely = state[3];
-      velz = state[4];
+      dens = state[0] * ((unsigned long long)1 << (3*clv))/(volume*cnt);
+      temp = 0.333333333333*disp;
+      velx = state[4]/state[0];
+      vely = state[5]/state[0];
+      velz = state[6]/state[0];
     }
     else {
       dens = temp = velx = vely = velz = 0.0;
@@ -1048,7 +1042,25 @@ double pHOT::minVol()
   for (it=frontier.begin(); it!=frontier.end(); it++)
     maxlev = max<unsigned>(maxlev, it->second->level);
 
-  return volume/(1 << (3*maxlev));
+  double vol1, vol;
+  vol1 = volume/((unsigned long long)1 << (3*maxlev));
+  MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+
+  return vol;
+}
+
+double pHOT::maxVol()
+{
+  unsigned minlev = MAXINT;
+  key_cell::iterator it;
+  for (it=frontier.begin(); it!=frontier.end(); it++)
+    minlev = min<unsigned>(minlev, it->second->level);
+
+  double vol1, vol;
+  vol1 = volume/((unsigned long long)1 << (3*minlev));
+  MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+  return vol;
 }
 
 double pHOT::medianVol()

@@ -102,11 +102,12 @@ void CollideLTE::initialize_cell(pCell* cell,
 				 double rvmax, double tau, double number, 
 				 int id)
 {
+  pCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
 				// 
   double KEtot, KEdsp;
-  cell->KE(KEtot, KEdsp);	// These are already specific in mass
-  double mass = cell->Mass();
+  samp->KE(KEtot, KEdsp);	// These are already specific in mass
+  double mass = samp->Mass();	// Mass in sample cell
   
   double rvrel = sqrt(4.0*KEdsp);
   KEdsp *= UserTreeDSMC::Eunit;
@@ -114,26 +115,28 @@ void CollideLTE::initialize_cell(pCell* cell,
   double Mass = mass * UserTreeDSMC::Munit;
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double T = 2.0*KEdsp/3.0 * mm/UserTreeDSMC::Munit/boltz;
-  double volume = cell->Volume();
+
+				// Volume in sample cell
+  double volume = samp->Volume();
   double Volume = volume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0 = Density/mp;
 
   if (log(T)>tmin && log(T)<tmax) {
     int indx = (int)float( (log(T) - tmin)/dtmp );
-    thisto2[indx] += cell->Mass();
+    thisto2[indx] += samp->Mass();
   }
 
   if (log(n0)>nmin && log(n0)<nmax) {
     int indx = (int)float( (log(n0) - nmin)/ntmp );
-    nhisto2[indx] += cell->Mass();
+    nhisto2[indx] += samp->Mass();
   }
 
   if (log(T) >tmin && log(T) <tmax &&
       log(n0)>nmin && log(n0)<nmax) {
     int indx1 = (int)float( (log(T)  - tmin)/dtmp );
     int indx2 = (int)float( (log(n0) - nmin)/ntmp );
-    trho[indx1][indx2] += cell->Mass();
+    trho[indx1][indx2] += samp->Mass();
   }
 
   cellcnt[id]++;

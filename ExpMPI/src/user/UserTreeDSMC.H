@@ -18,6 +18,8 @@
     @param cnum non-zero adjusts cross section for cnum collisions per cel
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
+    @param frontier enables printing of active cell list (for debugging)
+    @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
 */
@@ -33,6 +35,11 @@ private:
   double diam;
   double collfrac;
   double boxsize;
+
+  bool frontier, mfpstat;
+
+				// For MFP and time step statistics
+  vector<double> quant, mfp_, ts_;
 
   unsigned stepnum;
   double curtime;

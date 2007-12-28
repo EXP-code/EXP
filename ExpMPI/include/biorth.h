@@ -34,7 +34,7 @@ public:
 
 				// Error function
 
-  void bomb(char *s) {
+  void bomb(const char *s) {
     cerr << "ERROR from " << BiorthID << ": " << s << '\n';
     exit(-1);
   }

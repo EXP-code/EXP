@@ -57,7 +57,7 @@ private:
 
 				// Error function
 
-  void bomb(char *s) {
+  void bomb(const char *s) {
     cerr << "QPDistF: " << s << endl;
     exit(-1);
   }

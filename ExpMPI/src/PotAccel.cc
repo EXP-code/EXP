@@ -83,7 +83,8 @@ void PotAccel::exp_thread_fork(bool coef)
 }
 
 
-void PotAccel::make_mutex(pthread_mutex_t *m, const char *caller, char *name)
+void PotAccel::make_mutex(pthread_mutex_t *m, const char *caller, 
+			  const char *name)
 {
   int errcode;
 
@@ -95,7 +96,8 @@ void PotAccel::make_mutex(pthread_mutex_t *m, const char *caller, char *name)
   }
 }
 
-void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller, char *name)
+void PotAccel::kill_mutex(pthread_mutex_t *m, const char * caller, 
+			  const char *name)
 {
   int errcode;
   

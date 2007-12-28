@@ -60,12 +60,14 @@ protected:
 
   std::vector<unsigned> numcnt;
   std::vector<unsigned> colcnt;
+  std::vector<double>   mfprat, tsrat, tdens, tvolc;
 
   std::vector< vector<unsigned> > numcntT;
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> col1T;
   std::vector<double> KEtotT, KElostT;
+  std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT;
 
   const static unsigned numdiag = 9;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
@@ -108,6 +110,10 @@ public:
   unsigned medianNumber();
   unsigned medianColl();
   unsigned collide(pHOT& cl, double Fn, double tau);
+  void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
+
+
+
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);
 

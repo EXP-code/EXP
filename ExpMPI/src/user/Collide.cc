@@ -79,7 +79,7 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
 
 
 int Collide::CNUM = 0;
-bool Collide::CBA = false;
+bool Collide::CBA = true;
 
 Collide::Collide(double diameter, int nth)
 {
@@ -91,6 +91,11 @@ Collide::Collide(double diameter, int nth)
   col1T = vector<unsigned> (nthrds, 0);
   KEtotT = vector<double> (nthrds, 0);
   KElostT = vector<double> (nthrds, 0);
+
+  mfpratT = vector< vector<double> > (nthrds);
+  tsratT  = vector< vector<double> > (nthrds);
+  tdensT  = vector< vector<double> > (nthrds);
+  tvolcT  = vector< vector<double> > (nthrds);
 
   cellist = vector< vector<pCell*> > (nthrds);
 
@@ -172,10 +177,17 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
 				// For computing cell occupation #
     colcntT[n].clear();		// and collision counts
     numcntT[n].clear();
+				// For computing MFP to cell size ratio 
+				// and drift ratio
+    mfpratT[n].clear();
+    tsratT[n].clear();
+    tdensT[n].clear();
+    tvolcT[n].clear();
 
     for (unsigned k=0; k<numdiag; k++) tdiagT[n][k] = 0;
   }
   for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
+
 
 				// Make cellist
   unsigned ncells = tree.Number();
@@ -228,8 +240,21 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     KEtot += KEtotT[n];
     KElost += KElostT[n];
 #endif
+    
   }
 
+				// For computing MFP to cell size ratio 
+				// and drift ratio (diagnostic only)
+  mfprat.clear();
+  tsrat.clear();
+  tdens.clear();
+  tvolc.clear();
+  for (int n=0; n<nthrds; n++) {
+    mfprat.insert(mfprat.end(), mfpratT[n].begin(), mfpratT[n].end());
+    tsrat. insert(tsrat.end(),   tsratT[n].begin(),  tsratT[n].end());
+    tdens. insert(tdens.end(),   tdensT[n].begin(),  tdensT[n].end());
+    tvolc. insert(tvolc.end(),   tvolcT[n].begin(),  tvolcT[n].end());
+  }
 
 #ifdef DIAG
   // cout << "Process " << myid << ": lost=" << KElost/KEtot << endl;
@@ -286,24 +311,14 @@ void * Collide::collide_thread(void * arg)
       continue;  // Skip to the next cell
     }
 
-				// Compute 1.5 maximum velocity in each cell
-    double crm = 0;
-    double ms = 0;
-    double v1[3], v2[3];
-    for (int k=0; k<3; k++) v1[k] = v2[k] = 0;
 
-    Particle *p;
-    for (unsigned i=0; i<number; i++) {
-      p = tree->Body(c->bods[i]);
-      ms += p->mass;
-      for (int k=0; k<3; k++) {
-	v1[k] += p->mass*p->vel[k];
-	v2[k] += p->mass*p->vel[k]*p->vel[k];
-      }
-    }
-    if (ms>0.0) {
-      for (unsigned k=0; k<3; k++)
-	crm += v2[k]/ms - v1[k]*v1[k]/(ms*ms);
+				// Compute 1.5 maximum velocity in each MACRO cell
+    double crm = 0;
+    pCell *samp = c->sample;
+    if (samp->state[0]>0.0) {
+      for (unsigned k=0; k<3; k++) 
+	crm += (samp->state[1+k] - 
+		samp->state[4+k]*samp->state[4+k]/samp->state[0])/samp->state[0];
     }
     crm = 1.5*sqrt(fabs(crm));
 
@@ -322,6 +337,13 @@ void * Collide::collide_thread(void * arg)
       cross = 2.0*CNUM*volc/(Fn*tau*crm*number*(number-1));
       diam = sqrt(cross/M_PI);
     }
+
+    // Diagnostic: MFP to linear cell size ratio 
+    //
+    mfpratT[id].push_back(pow(volc, 0.66666667)/(cross*number));
+    tsratT[id].push_back(crm/1.5*tau/pow(volc,0.33333333));
+    tdensT[id].push_back(number/volc);
+    tvolcT[id].push_back(volc);
 
     // Determine number of candidate collision pairs
     // to be selected in this cell
@@ -499,5 +521,56 @@ unsigned Collide::medianColl()
     return 0;
   }
 
+}
+
+void Collide::mfpsizeQuantile(vector<double>& quantiles, 
+			      vector<double>& mfp_, vector<double>& ts_) 
+{
+  MPI_Status s;
+
+  if (myid==0) {
+    unsigned num;
+    for (int n=1; n<numprocs; n++) {
+      MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
+      vector<double> tmp(num);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
+      mfprat.insert(mfprat.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
+      tsrat.insert(tsrat.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
+      tdens.insert(tdens.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      tvolc.insert(tvolc.end(), tmp.begin(), tmp.end());
+    }
+
+    std::sort(mfprat.begin(), mfprat.end()); 
+    std::sort(tsrat.begin(),  tsrat.end()); 
+    std::sort(tdens.begin(),  tdens.end()); 
+    std::sort(tvolc.begin(),  tvolc.end()); 
+
+    mfp_ = vector<double>(quantiles.size());
+    ts_  = vector<double>(quantiles.size());
+    for (unsigned j=0; j<quantiles.size(); j++) {
+      mfp_[j] = mfprat[(unsigned)floor(quantiles[j]*mfprat.size())];
+      ts_[j]  = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
+    }
+
+    ofstream out("tmp.collide");
+    for (unsigned j=0; j<mfprat.size(); j++)
+      out << setw(8) << j 
+	  << setw(18) << mfprat[j] 
+	  << setw(18) << tsrat[j] 
+	  << setw(18) << tdens[j] 
+	  << setw(18) << tvolc[j] 
+	  << endl;
+    
+  } else {
+    unsigned num = mfprat.size();
+    MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
+    MPI_Send(&mfprat[0], num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
+    MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
+    MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
+    MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
+  }
 }
 

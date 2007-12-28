@@ -8,7 +8,7 @@ using namespace std;
 #include <numerical.h>
 #include <Vector.h>
 
-static void bomb_ghql(char* msg)
+static void bomb_ghql(const char* msg)
 {
   cerr << msg << endl;
   exit(-1);

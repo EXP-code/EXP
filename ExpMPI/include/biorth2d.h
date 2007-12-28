@@ -106,6 +106,6 @@ public:
 };
 
 enum BiorthFcts2d {clutton_brock_2d, bessel_2d};
-static char* BiorthFcts2dName[] = {"CBDisk", "BSDisk"};
+static const char* BiorthFcts2dName[] = {"CBDisk", "BSDisk"};
 
 #endif

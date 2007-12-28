@@ -1,5 +1,8 @@
 #include <math.h>
 
+void nrerror(const char *);
+
+
 /* Derivative of the associated Legendre polynomial using the recursion
    relation given in G&R */
 
@@ -8,7 +11,6 @@ double plgndr2(int l, int m, double x)
 {
   double fact, pll, pmm, pmmp1, somx2;
   int i, ll;
-  void nrerror(char *);
   
   if (m < 0 || m > l || fabs(x) > 1.0) {
     nrerror("Bad arguments in routine DPLGNDR2");

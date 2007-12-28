@@ -56,7 +56,7 @@ BiorthWake::~BiorthWake(void)
 }
 
 
-void BiorthWake::bomb(char *s)
+void BiorthWake::bomb(const char *s)
 {
   cerr << "ERROR from BiorthWake(" << bio->BiorthID << "): " << s << '\n';
   exit(-1);

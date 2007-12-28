@@ -559,7 +559,7 @@ main(int argc, char **argv)
     if (n_particlesH) {
       
       const int nstr = 5;
-      char *names[nstr] = {".dens", ".potl", ".potr", ".pott", ".potp"};
+      const char *names[nstr] = {".dens", ".potl", ".potr", ".pott", ".potp"};
       ofstream *out = new ofstream [nstr];
       
       int nout = 200;
@@ -613,7 +613,7 @@ main(int argc, char **argv)
     if (n_particlesD) {
 
       const int nstr = 5;
-      char *names[nstr] = {".dens", ".pot", ".fr", ".fz", ".fp"};
+      const char *names[nstr] = {".dens", ".pot", ".fr", ".fz", ".fp"};
       ofstream *out = new ofstream [nstr];
     
       int nout = 200;

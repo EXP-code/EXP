@@ -48,7 +48,7 @@ public:
   double der2(double x) 
   {if (defined) return chebev(x, c2); else bomb("no data!"); return 0.0;}
   
-  void bomb(char *, ...);
+  void bomb(const char *, ...);
   
 };
 
