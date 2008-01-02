@@ -25,7 +25,7 @@ static double pc = 3.086e18;		// cm
 static double a0 = 2.0*0.054e-7;	// cm (2xBohr radius)
 // static double boltz = 1.381e-16;	// cgs
 // static double year = 365.25*24*3600;	// seconds
-// static double mp = 1.67e-24;		// g
+static double mp = 1.67e-24;		// g
 static double msun = 1.989e33;		// g
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
@@ -42,7 +42,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ncell = 64;
   cnum = 0;
   diamfac = 1.0;
-  collfrac = 5.0;
   boxsize = 1.0;
   comp_name = "gas disk";
   nsteps = -1;
@@ -72,6 +71,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// Diameter*Bohr radius in Lunits
   diam = diamfac*a0/(Lunit);
+				// Number of protons per mass unit
+  collfrac = Munit/mp;
 
   pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
 
@@ -83,6 +84,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::CNUM = cnum;
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
+  ElostTot = 0.0;
 
   //
   // Timers: set precision to microseconds
@@ -122,7 +124,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
-       << ", collfrac=" << collfrac << ", compname=" << comp_name;
+       << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
@@ -140,7 +142,6 @@ void UserTreeDSMC::initialize()
   if (get_value("Munit", val))		Munit = atof(val.c_str());
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
-  if (get_value("collfrac", val))	collfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
   if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
@@ -190,7 +191,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // double minsize = pow(minvol, 0.3333333);
   // double mediansize = pow(medianvol, 0.3333333);
   double tau = dtime*mintvl[mlevel]/Mstep;
-  double ElostTot = 0.0;
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -269,7 +269,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (frontier) {
       ostringstream sout;
-      sout << runtag << ".DSMC.frontier." << nsteps;
+      sout << runtag << ".DSMC.frontier." << stepnum;
       string filen = sout.str();
       c0->Tree()->testFrontier(filen);
     }
@@ -281,7 +281,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       if (myid==0) {
 
 	ostringstream sout;
-	sout << runtag << ".DSMC.mfpstat." << nsteps;
+	sout << runtag << ".DSMC.mfpstat." << stepnum;
 	string filen = sout.str();
 	ofstream out(filen.c_str());
 	if (out) {
@@ -300,14 +300,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// Begin frontier iteration to add up KE
     pHOT_iterator ic(*c0->Tree());
 
-    double KEtot1=0.0, KEtot=0.0, totE, dspE;
-    unsigned ncells = c0->Tree()->Number();
-    for (unsigned j=0; j<ncells; j++) {
-      ic.nextCell();
-      ic.KE(totE, dspE);
-      KEtot1 += totE;
-    }
-    double Elost1=collide->Elost(), Elost=0.0;
+    double KEtot1=collide->Etotal(), KEtot=0.0;
+    double Elost1=collide->Elost(),  Elost=0.0;
 
     MPI_Reduce(&KEtot1, &KEtot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost1, &Elost, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -321,7 +315,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       int digit2 = (int)floor(log(nsteps*400*volume/minvol)/log(10.0)) + 1;
 
       mout << "Finished " 
-	   << setw(digit1) << stepnum << " of " << nsteps << " steps; " 
+	   << setw(digit1) << stepnum << " steps; " 
 	   << setw(digit2) << collide->total() << " coll; "
 	   << setw(digit2) << collide->errors() << " coll errs; "
 	   << medianNumb << " num/cell; "
@@ -334,9 +328,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "Energy (system):" << endl
 	   << "       Lost=" << Elost << endl
 	   << " Total loss=" << ElostTot << endl
-	   << "   Total KE=" << KEtot << endl
-	   << "      Ratio=" << Elost/KEtot << endl << endl
-	   << "Timing (secs):" << endl
+	   << "   Total KE=" << KEtot << endl;
+
+      if (KEtot<=0.0)
+	mout << "      Ratio= XXXX" << endl << endl;
+      else
+	mout << "      Ratio=" << Elost/KEtot << endl << endl;
+
+      mout << "Timing (secs):" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "       tree=" << treeSoFar()*1.0e-6 << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl

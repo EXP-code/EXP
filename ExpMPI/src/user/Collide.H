@@ -38,6 +38,11 @@ struct thrd_pass_Collide
 
 class Collide
 {
+
+public:
+
+  typedef pair<double, vector<double> > Precord;
+
 private:
 
   // Threading stuff
@@ -54,20 +59,26 @@ private:
   ACG *gen;
   Uniform *unit;
 
+  vector<Precord> prec;
+
 protected:
 
   int nthrds;
 
   std::vector<unsigned> numcnt;
   std::vector<unsigned> colcnt;
-  std::vector<double>   mfprat, tsrat, tdens, tvolc;
+  std::vector<double>   tsrat, tdens, tvolc, ttemp, tdelt;
+
+  static const unsigned Nphase = 4, Nmfp = 3;
+  std::vector<Precord> tphase, tmfpst;
+  std::vector< vector<Precord> > tphaseT, tmfpstT;
 
   std::vector< vector<unsigned> > numcntT;
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> col1T;
   std::vector<double> KEtotT, KElostT;
-  std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT;
+  std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT, ttempT, tdeltT;
 
   const static unsigned numdiag = 9;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
@@ -83,7 +94,7 @@ protected:
   int use_temp, use_dens;
 
   virtual void initialize_cell(pCell* cell, double vrelmax,
-			       double dt, double number, int id=0) {}
+			       double dt, double number, int id=0) { }
 
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
@@ -97,6 +108,11 @@ public:
 
   static bool CBA;		// Use the Consistent Boltzmann Algorithm
 				// Alexander, Garcia, Alder 1995, PRL, 74, 5212
+
+  static bool SORTED;		// Print out sorted cell parameters
+
+  static bool PHASE;		// Print out T-rho plane for cells will mass weighting
+  
 
   Collide(double diameter, int nth=1);
   ~Collide();
@@ -112,7 +128,8 @@ public:
   unsigned collide(pHOT& cl, double Fn, double tau);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
 
-
+  virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
+  virtual double Elost()  { cerr << "Oops [2]" << endl; return 0.0; }
 
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);

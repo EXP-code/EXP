@@ -45,6 +45,7 @@ private:
   double curtime;
 
   CollideLTE *collide;
+  double ElostTot;
 
   string comp_name;
   Component *c0;

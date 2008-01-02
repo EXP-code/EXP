@@ -6,8 +6,14 @@
 using namespace std;
 
 #include "Timer.h"
+#include "global.H"
 #include "pHOT.H"
 #include "Collide.H"
+
+				// Print out sorted cell parameters
+bool Collide::SORTED = true;
+				// Print out T-rho plane for cells will mass weighting
+bool Collide::PHASE = true;
 
 extern "C"
 void *
@@ -89,13 +95,14 @@ Collide::Collide(double diameter, int nth)
   numcntT = vector< vector<unsigned> > (nthrds);
   error1T = vector<unsigned> (nthrds, 0);
   col1T = vector<unsigned> (nthrds, 0);
-  KEtotT = vector<double> (nthrds, 0);
-  KElostT = vector<double> (nthrds, 0);
 
-  mfpratT = vector< vector<double> > (nthrds);
   tsratT  = vector< vector<double> > (nthrds);
   tdensT  = vector< vector<double> > (nthrds);
   tvolcT  = vector< vector<double> > (nthrds);
+  ttempT  = vector< vector<double> > (nthrds);
+  tdeltT  = vector< vector<double> > (nthrds);
+  tphaseT = vector< vector<Precord> > (nthrds);
+  tmfpstT = vector< vector<Precord> > (nthrds);
 
   cellist = vector< vector<pCell*> > (nthrds);
 
@@ -126,6 +133,10 @@ Collide::Collide(double diameter, int nth)
 
   gen = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
+
+  prec = vector<Precord>(nthrds);
+  for (int n=0; n<nthrds; n++)
+    prec[n].second = vector<double>(Nmfp, 0);
 }
 
 Collide::~Collide()
@@ -171,18 +182,18 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   for (int n=0; n<nthrds; n++) {
     error1T[n] = 0;
     col1T[n] = 0;
-				// Diagnostics
-    KEtotT[n] = 0.0;
-    KElostT[n] = 0.0;
 				// For computing cell occupation #
     colcntT[n].clear();		// and collision counts
     numcntT[n].clear();
 				// For computing MFP to cell size ratio 
 				// and drift ratio
-    mfpratT[n].clear();
     tsratT[n].clear();
     tdensT[n].clear();
     tvolcT[n].clear();
+    ttempT[n].clear();
+    tdeltT[n].clear();
+    tphaseT[n].clear();
+    tmfpstT[n].clear();
 
     for (unsigned k=0; k<numdiag; k++) tdiagT[n][k] = 0;
   }
@@ -236,41 +247,32 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     numcnt.insert(numcnt.end(), numcntT[n].begin(), numcntT[n].end());
     colcnt.insert(colcnt.end(), colcntT[n].begin(), colcntT[n].end());
     for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
-#ifdef DIAG
-    KEtot += KEtotT[n];
-    KElost += KElostT[n];
-#endif
-    
   }
 
 				// For computing MFP to cell size ratio 
 				// and drift ratio (diagnostic only)
-  mfprat.clear();
   tsrat.clear();
   tdens.clear();
   tvolc.clear();
+  ttemp.clear();
+  tdelt.clear();
+  tphase.clear();
+  tmfpst.clear();
+
   for (int n=0; n<nthrds; n++) {
-    mfprat.insert(mfprat.end(), mfpratT[n].begin(), mfpratT[n].end());
     tsrat. insert(tsrat.end(),   tsratT[n].begin(),  tsratT[n].end());
     tdens. insert(tdens.end(),   tdensT[n].begin(),  tdensT[n].end());
     tvolc. insert(tvolc.end(),   tvolcT[n].begin(),  tvolcT[n].end());
+    ttemp. insert(ttemp.end(),   ttempT[n].begin(),  ttempT[n].end());
+    tdelt. insert(tdelt.end(),   tdeltT[n].begin(),  tdeltT[n].end());
+    tphase.insert(tphase.end(), tphaseT[n].begin(), tphaseT[n].end());
+    tmfpst.insert(tmfpst.end(), tmfpstT[n].begin(), tmfpstT[n].end());
   }
 
-#ifdef DIAG
-  // cout << "Process " << myid << ": lost=" << KElost/KEtot << endl;
-#endif
   MPI_Reduce(&col1, &col, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-#ifdef DIAG
-  double KEtot0=0.0, KElost0=0.0;
-  MPI_Reduce(&KEtot,  &KEtot0,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&KElost, &KElost0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (myid==0) {
-    cout << "Total lost=" << KElost0/KEtot0 << endl;
-  }
-#endif
 
   coltot += col;
   errtot += error;
@@ -326,6 +328,10 @@ void * Collide::collide_thread(void * arg)
     //
     double volc = c->Volume();
 
+    // Mass in the cell
+    //
+    double mass = c->Mass();
+
     // Fiducial cross section
     //
     diam = diam0;
@@ -334,21 +340,30 @@ void * Collide::collide_thread(void * arg)
     // Determine cross section based on fixed number of collisions
     //
     if (CNUM) {
-      cross = 2.0*CNUM*volc/(Fn*tau*crm*number*(number-1));
+      cross = 2.0*CNUM*volc/(Fn*mass*tau*crm*number*(number-1));
       diam = sqrt(cross/M_PI);
     }
 
     // Diagnostic: MFP to linear cell size ratio 
     //
-    mfpratT[id].push_back(pow(volc, 0.66666667)/(cross*number));
     tsratT[id].push_back(crm/1.5*tau/pow(volc,0.33333333));
     tdensT[id].push_back(number/volc);
     tvolcT[id].push_back(volc);
+    
+    double posx, posy, posz;
+    c->MeanPos(posx, posy, posz);
+    
+    prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross*number);
+    prec[id].second[0] = sqrt(posx*posx+posy*posy*+posz*posz);
+    prec[id].second[1] = number/volc;
+    prec[id].second[2] = volc;
 
+    tmfpstT[id].push_back(prec[id]);
+    
     // Determine number of candidate collision pairs
     // to be selected in this cell
     //
-    double coeff  = 0.5*number*(number-1)*Fn/volc*cross*tau;
+    double coeff  = 0.5*number*(number-1)*Fn*mass/volc*cross*tau;
     double select = coeff*crm;
 
 				// Diagnose time step in this cell
@@ -461,11 +476,6 @@ void * Collide::collide_thread(void * arg)
     colcntT[id].push_back(colc);
     col1T[id] += colc;
 
-#ifdef DIAG
-    vector<double> ret = diag(); // Diagnostic output for this cell
-    KEtotT[id] += ret[0];
-    KElostT[id] += ret[1];
-#endif
     collSoFar[id] = collTime[id].stop();
   } // Loop over cells
 
@@ -487,6 +497,11 @@ unsigned Collide::medianNumber()
     }
 
     std::sort(numcnt.begin(), numcnt.end()); 
+
+    ofstream out("tmp.numcnt");
+    for (unsigned j=0; j<numcnt.size(); j++)
+      out << setw(8) << j << setw(18) << numcnt[j] << endl;
+
     return numcnt[numcnt.size()/2]; 
 
   } else {
@@ -512,6 +527,11 @@ unsigned Collide::medianColl()
     }
 
     std::sort(colcnt.begin(), colcnt.end()); 
+
+    ofstream out("tmp.colcnt");
+    for (unsigned j=0; j<colcnt.size(); j++)
+      out << setw(8) << j << setw(18) << colcnt[j] << endl;
+
     return colcnt[colcnt.size()/2]; 
 
   } else {
@@ -534,43 +554,133 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
       vector<double> tmp(num);
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
-      mfprat.insert(mfprat.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
       tsrat.insert(tsrat.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
       tdens.insert(tdens.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
       tvolc.insert(tvolc.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      ttemp.insert(ttemp.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
+      tdelt.insert(tdelt.end(), tmp.begin(), tmp.end());
+
+      vector<Precord> tmp2(num);
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
+      for (unsigned k=0; k<num; k++) {
+				// Load density
+	tmp2[k].first = tmp[k];
+				// Initialize record
+	tmp2[k].second = vector<double>(Nphase, 0);
+      }
+      for (unsigned l=0; l<Nphase; l++) {
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46+l, MPI_COMM_WORLD, &s);
+	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
+      }
+      tphase.insert(tphase.end(), tmp2.begin(), tmp2.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46+Nphase, MPI_COMM_WORLD, &s);
+      for (unsigned k=0; k<num; k++) {
+				// Load mfp
+	tmp2[k].first = tmp[k];
+				// Initialize record
+	tmp2[k].second = vector<double>(Nmfp, 0);
+      }
+      for (unsigned l=0; l<Nmfp; l++) {
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 47+Nphase+l, MPI_COMM_WORLD, &s);
+	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
+      }
+      tmfpst.insert(tmfpst.end(), tmp2.begin(), tmp2.end());
     }
 
-    std::sort(mfprat.begin(), mfprat.end()); 
     std::sort(tsrat.begin(),  tsrat.end()); 
     std::sort(tdens.begin(),  tdens.end()); 
     std::sort(tvolc.begin(),  tvolc.end()); 
+    std::sort(ttemp.begin(),  ttemp.end()); 
+    std::sort(tdelt.begin(),  tdelt.end()); 
+    std::sort(tphase.begin(), tphase.end());
+    std::sort(tmfpst.begin(), tmfpst.end());
 
     mfp_ = vector<double>(quantiles.size());
     ts_  = vector<double>(quantiles.size());
     for (unsigned j=0; j<quantiles.size(); j++) {
-      mfp_[j] = mfprat[(unsigned)floor(quantiles[j]*mfprat.size())];
+      mfp_[j] = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
       ts_[j]  = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
     }
 
-    ofstream out("tmp.collide");
-    for (unsigned j=0; j<mfprat.size(); j++)
-      out << setw(8) << j 
-	  << setw(18) << mfprat[j] 
-	  << setw(18) << tsrat[j] 
-	  << setw(18) << tdens[j] 
-	  << setw(18) << tvolc[j] 
+    if (SORTED) {
+      ostringstream ostr;
+      ostr << runtag << ".collide." << this_step;
+      ofstream out(ostr.str().c_str());
+      out << left << setw(8) << "# N" // Header
+	  << setw(18) << "| MFP/L"
+	  << setw(18) << "| Radius(MFP)"
+	  << setw(18) << "| Density(MFP)"
+	  << setw(18) << "| Volume(MFP)"
+	  << setw(18) << "| TOF/TS"
+	  << setw(18) << "| Density"
+	  << setw(18) << "| Cell vol"
+	  << setw(18) << "| Cell temp"
+	  << setw(18) << "| Cool/part"
 	  << endl;
+      for (unsigned j=0; j<tmfpst.size(); j++)
+	out << setw(8) << j 
+	    << setw(18) << tmfpst[j].first
+	    << setw(18) << tmfpst[j].second[0]
+	    << setw(18) << tmfpst[j].second[1]
+	    << setw(18) << tmfpst[j].second[2]
+	    << setw(18) << tsrat[j] 
+	    << setw(18) << tdens[j] 
+	    << setw(18) << tvolc[j] 
+	    << setw(18) << ttemp[j] 
+	    << setw(18) << tdelt[j] 
+	    << endl;
+    }
+
+
+    if (PHASE) {
+      ostringstream ostr;
+      ostr << runtag << ".phase." << this_step;
+      ofstream out(ostr.str().c_str());
+      out << left << setw(8) << "# N" // Header
+	  << setw(18) << "| Density"
+	  << setw(18) << "| Temp"
+	  << setw(18) << "| Number"
+	  << setw(18) << "| Mass"
+	  << setw(18) << "| Volume"
+	  << endl;
+      for (unsigned j=0; j<tphase.size(); j++) {
+	out << setw(8) << j << setw(18) << tphase[j].first;
+	for (unsigned k=0; k<Nphase; k++) 
+	  out << setw(18) << tphase[j].second[k];
+	out << endl;
+      }
+    }
     
   } else {
-    unsigned num = mfprat.size();
+    unsigned num = tmfpst.size();
     MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
-    MPI_Send(&mfprat[0], num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
-    MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
-    MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
-    MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
+    MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
+    MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
+    MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
+    MPI_Send(&ttemp[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
+    MPI_Send(&tdelt[0],  num, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
+
+    vector<double> tmp(num);
+
+    for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].first;
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
+    for (unsigned l=0; l<Nphase; l++) {
+      for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].second[l];
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 46+l, MPI_COMM_WORLD);
+    }
+
+    for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].first;
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 46+Nphase, MPI_COMM_WORLD);
+    for (unsigned l=0; l<Nmfp; l++) {
+      for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].second[l];
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 47+Nphase+l, MPI_COMM_WORLD);
+    }
   }
 }
 

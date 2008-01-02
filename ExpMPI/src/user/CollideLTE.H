@@ -6,6 +6,9 @@
 
 class CollideLTE : public Collide
 {
+private:
+  vector<Precord> prec;
+
 protected:
   // For debugging
   vector<unsigned> cellcnt;
@@ -29,16 +32,18 @@ protected:
   void initialize_cell(pCell* cell, double vrelmax, 
 		       double dt, double number, int id=0);
 
-  int inelastic(pHOT *tree, Partstruct* p1, Partstruct* p2, double *crm,
-		int id=0);
+  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
   // Diagnostic output
+  double totalSoFar;
   vector<double> lostSoFar;
 
 public:
 
   CollideLTE(double diameter, int nth=1);
-  double Elost();
+
+  virtual double Etotal();
+  virtual double Elost();
 
   void Debug(double t);
 

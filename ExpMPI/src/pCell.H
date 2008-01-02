@@ -43,10 +43,15 @@ public:
 
   /**
      @param 0 mass
-     @param 1 vel2
-     @param 2 velx
-     @param 3 vely
-     @param 4 velz
+     @param 1 vel2x
+     @param 2 vel2y
+     @param 3 vel2z
+     @param 4 velx
+     @param 5 vely
+     @param 6 velz
+     @param 7 posx
+     @param 8 posy
+     @param 9 posz
   */
   vector<double> state;
 
@@ -86,6 +91,9 @@ public:
 
   //! Return total volume of cell
   double Volume();
+
+  //! Mean position
+  void MeanPos(double &x, double &y, double& z);
 
   //! Find the cells whose body number is "just" larger than Bucket
   pCell* findSampleCell();

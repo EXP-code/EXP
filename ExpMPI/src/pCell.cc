@@ -42,7 +42,7 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(7, 0.0);
+  state = vector<double>(10, 0.0);
 
   tree->frontier[mykey] = this;	// Root is born on the frontier
 }
@@ -58,7 +58,7 @@ pCell::pCell(pCell* mom, unsigned id) :
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(7, 0.0);
+  state = vector<double>(10, 0.0);
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
 }
@@ -151,7 +151,7 @@ pCell* pCell::Add(const key_pair& keypair)
 void pCell::zeroState()
 {
   count = 0;
-  for (int k=0; k<7; k++) state[k] = 0.0;
+  for (int k=0; k<10; k++) state[k] = 0.0;
   map<unsigned, pCell*>::iterator it = children.begin();
   for (; it != children.end(); it++) it->second->zeroState();
 }
@@ -166,6 +166,7 @@ void pCell::accumState()
       state[1+k] += tree->cc->Particles()[indx].mass * 
 	tree->cc->Particles()[indx].vel[k]*tree->cc->Particles()[indx].vel[k];
       state[4+k] += tree->cc->Particles()[indx].mass * tree->cc->Particles()[indx].vel[k];
+      state[7+k] += tree->cc->Particles()[indx].mass * tree->cc->Particles()[indx].pos[k];
     }
   }
   if (parent) parent->accumState(count, state);
@@ -175,7 +176,7 @@ void pCell::accumState()
 void pCell::accumState(unsigned _count, vector<double>& _state)
 {
   count += _count;
-  for (int k=0; k<7; k++) state[k] += _state[k];
+  for (int k=0; k<10; k++) state[k] += _state[k];
   if (parent) parent->accumState(_count, _state);
 }
 
@@ -205,33 +206,31 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
   return;
 }
 
+double pCell::Mass()
+{
+  return state[0]; 
+}
+
+void pCell::MeanPos(double &x, double &y, double& z)
+{
+  if (state[0]<=0.0) return;
+  x = state[7]/state[0];
+  y = state[8]/state[0];
+  z = state[9]/state[0];
+}
+
 void pCell::KE(double &total, double &dispr)
 {
   total = 0.0;
   dispr = 0.0;
 
-  if (isLeaf) {
-    vector<double> vel1(3, 0.0);
-    vector<double> vel2(3, 0.0);
-    double totmass = 0.0;
-    unsigned number = bods.size();
-    for (unsigned i=0; i<number; i++) {
-      unsigned indx = bods[i];
-      for (int k=0; k<3; k++) {
-	vel1[k] += tree->cc->Particles()[indx].mass * 
-	  tree->cc->Particles()[indx].vel[k];
-
-	vel2[k] += tree->cc->Particles()[indx].mass * 
-	  tree->cc->Particles()[indx].vel[k] * tree->cc->Particles()[indx].vel[k];
-      }
-      totmass += tree->cc->Particles()[indx].mass;
-    }
+  if (state[0]>0.0) {
     for (int k=0; k<3; k++) {
-      total += 0.5*vel2[k];
-      dispr += 0.5*(vel2[k] - vel1[k]*vel1[k]/totmass);
+      total += 0.5*state[1+k];
+      dispr += 0.5*(state[1+k] - state[4+k]*state[4+k]/state[0]);
     }
 
-    if (number<2) dispr=0.0;
+    if (count<2) dispr=0.0;
 
     // DEBUG
     //
@@ -240,20 +239,15 @@ void pCell::KE(double &total, double &dispr)
       ostringstream sout;
       sout << "pCell_tst." << myid << "." << cnt++;
       ofstream out(sout.str().c_str());
-      out << "# number=" << number << endl;
-      for (unsigned i=0; i<number; i++) {
-	unsigned indx = bods[i];
-	out << setw(8) << indx << setw(15) << tree->cc->Particles()[indx].mass;
-	for (int k=0; k<3; k++)
-	  out << setw(15) << tree->cc->Particles()[indx].vel[k];
-	out << endl;
-      }
+      out << "# number=" << count << endl;
+      for (unsigned i=0; i<10; i++) 
+	out << setw(3) << i << setw(15) << state[i] << endl;
     }
     
     // Return energy per unit mass
     //
-    total /= totmass;
-    dispr /= totmass;
+    total /= state[0];
+    dispr /= state[0];
   }
 
 }
@@ -279,20 +273,6 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
     }
   }
 
-}
-
-
-
-double pCell::Mass()
-{
-  double Mass = 0.0;
-  if (isLeaf) {
-    unsigned number = bods.size();
-    for (unsigned i=0; i<number; i++)
-      Mass += tree->cc->Particles()[bods[i]].mass;
-  }
-
-  return Mass;
 }
 
 double pCell::Volume()

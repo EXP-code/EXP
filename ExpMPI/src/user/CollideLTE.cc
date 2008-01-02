@@ -93,8 +93,13 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
   trho = vector< vector<double> >(numt);
   for (unsigned n=0; n<numt; n++) trho[n] = vector<double>(numn, 0);
 
+  totalSoFar = 0.0;
   lostSoFar = vector<double>(nthrds, 0.0);
   deltaE = vector<double>(nthrds);
+
+  prec = vector<Precord>(nthrds);
+  for (int n=0; n<nthrds; n++)
+    prec[n].second = vector<double>(Nphase);
 }
 
 
@@ -107,8 +112,11 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// 
   double KEtot, KEdsp;
   samp->KE(KEtot, KEdsp);	// These are already specific in mass
+
   double mass = samp->Mass();	// Mass in sample cell
   
+  totalSoFar += mass*KEdsp;
+
   double rvrel = sqrt(4.0*KEdsp);
   KEdsp *= UserTreeDSMC::Eunit;
 
@@ -152,7 +160,23 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   HeatCool heatcool(n0, T);
 
-  deltaE[id] = heatcool.CoolRate()/UserTreeDSMC::Eunit * n_h*n_h * Volume * tau * UserTreeDSMC::Tunit / mass / number;
+  // CoolRate has units erg*cm^3/t
+  // So CoolRate*n_h*n_h*Volume*Time = ergs
+
+  // Energy per encounter
+  //
+  deltaE[id] = heatcool.CoolRate() * n_h*n_h * Volume * tau * 
+    UserTreeDSMC::Tunit /(UserTreeDSMC::Eunit * number);
+
+  ttempT[id].push_back(T);
+  tdeltT[id].push_back(deltaE[id]);
+
+  prec[id].first = mass/volume;
+  prec[id].second[0] = T;
+  prec[id].second[1] = cell->bods.size();
+  prec[id].second[2] = cell->Mass();
+  prec[id].second[3] = cell->Volume();
+  tphaseT[id].push_back(prec[id]);
 
 				// Assign temp and/or density to particles
   if (use_temp>=0 || use_dens>=0) {
@@ -178,8 +202,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 }
 
 
-int CollideLTE::inelastic(pHOT *tree, Partstruct* p1, Partstruct* p2,
-			  double *cr, int id)
+int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, int id)
 {
   int ret = 0;			// No error (flag)
 
@@ -201,6 +224,13 @@ int CollideLTE::inelastic(pHOT *tree, Partstruct* p1, Partstruct* p2,
   return ret;
 }
 
+
+double CollideLTE::Etotal()
+{ 
+  double ret = totalSoFar;
+  totalSoFar = 0.0;
+  return ret; 
+}
 
 double CollideLTE::Elost()
 { 
