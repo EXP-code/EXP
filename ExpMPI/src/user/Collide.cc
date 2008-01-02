@@ -354,9 +354,11 @@ void * Collide::collide_thread(void * arg)
     c->MeanPos(posx, posy, posz);
     
     prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross*number);
-    prec[id].second[0] = sqrt(posx*posx+posy*posy*+posz*posz);
-    prec[id].second[1] = number/volc;
-    prec[id].second[2] = volc;
+    prec[id].second[0] = sqrt(posx*posx + posy*posy);
+    prec[id].second[1] = posz;
+    prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
+    prec[id].second[3] = mass/volc;
+    prec[id].second[4] = volc;
 
     tmfpstT[id].push_back(prec[id]);
     
@@ -614,7 +616,9 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       ofstream out(ostr.str().c_str());
       out << left << setw(8) << "# N" // Header
 	  << setw(18) << "| MFP/L"
-	  << setw(18) << "| Radius(MFP)"
+	  << setw(18) << "| Cyl radius (MFP)"
+	  << setw(18) << "| Vertical (MFP)"
+	  << setw(18) << "| Sph radius (MFP)"
 	  << setw(18) << "| Density(MFP)"
 	  << setw(18) << "| Volume(MFP)"
 	  << setw(18) << "| TOF/TS"
@@ -623,12 +627,17 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	  << setw(18) << "| Cell temp"
 	  << setw(18) << "| Cool/part"
 	  << endl;
+      out << "# " << setw(6) << 1;
+      for (unsigned k=2; k<13; k++) out << "| " << setw(16) << k;
+      out << endl;
       for (unsigned j=0; j<tmfpst.size(); j++)
 	out << setw(8) << j 
 	    << setw(18) << tmfpst[j].first
 	    << setw(18) << tmfpst[j].second[0]
 	    << setw(18) << tmfpst[j].second[1]
 	    << setw(18) << tmfpst[j].second[2]
+	    << setw(18) << tmfpst[j].second[3]
+	    << setw(18) << tmfpst[j].second[4]
 	    << setw(18) << tsrat[j] 
 	    << setw(18) << tdens[j] 
 	    << setw(18) << tvolc[j] 
@@ -649,6 +658,9 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	  << setw(18) << "| Mass"
 	  << setw(18) << "| Volume"
 	  << endl;
+      out << "# " << setw(6) << 1;
+      for (unsigned k=2; k<7; k++) out << "| " << setw(16) << k;
+      out << endl;
       for (unsigned j=0; j<tphase.size(); j++) {
 	out << setw(8) << j << setw(18) << tphase[j].first;
 	for (unsigned k=0; k<Nphase; k++) 

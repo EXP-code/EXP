@@ -277,7 +277,7 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
 
 double pCell::Volume()
 {
-  return tree->volume/(1 << 3*level);
+  return tree->volume/((unsigned long long)1 << 3*level);
 }
 
 pCell* pCell::findSampleCell()

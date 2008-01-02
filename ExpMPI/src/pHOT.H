@@ -62,9 +62,10 @@ public:
   void Repartition();
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
+  //! Number of cells in tree frontier (leaves)
+  unsigned Number() { return frontier.size(); }
 
   //! Number of cells in tree
-  unsigned Number() { return frontier.size(); }
   unsigned TotalNumber() { return total_cells; }
 
   /**

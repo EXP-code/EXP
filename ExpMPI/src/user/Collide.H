@@ -69,7 +69,7 @@ protected:
   std::vector<unsigned> colcnt;
   std::vector<double>   tsrat, tdens, tvolc, ttemp, tdelt;
 
-  static const unsigned Nphase = 4, Nmfp = 3;
+  static const unsigned Nphase = 4, Nmfp = 5;
   std::vector<Precord> tphase, tmfpst;
   std::vector< vector<Precord> > tphaseT, tmfpstT;
 
