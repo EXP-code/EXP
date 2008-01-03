@@ -28,7 +28,7 @@ private:
 				// Parameters
   double rcylmin, rcylmax, zmax, acyl;
   int nmax, lmax, mmax;
-  int ncylnx, ncylny;
+  int ncylnx, ncylny, ncylr;
   double hcyl;
   int ncylorder, ncylrecomp, hallfreq;
   string hallfile;

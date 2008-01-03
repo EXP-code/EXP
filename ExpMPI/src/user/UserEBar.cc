@@ -25,7 +25,6 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   DeltaT = 1.0;			// Turn on duration
   DeltaMonoT = 1.0;		// Turn on duration for monopole
   DOmega = 0.0;			// Change in pattern speed
-  tom0 = 1.0;			// Midpoint of forced bar slow down
   dtom = -1.0;			// Width of forced bar slow down
   T0 = 10.0;			// Center of pattern speed change
   Fcorot  = 1.0;		// Corotation factor
@@ -37,6 +36,10 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   monopole_onoff = false;	// To apply turn-on and turn-off to monopole
   monopole_frac = 1.0;		// Fraction of monopole to turn off
   quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
+
+  oscil = false;		// Oscillate quadrupole amplitude
+  Oamp = 0.5;			// Relative strength of amplitude oscillations
+  Ofreq = 2.0;			// Frequency of amplitude oscillations
 
 				// Output file name
   filename = outdir + "BarRot." + runtag;
@@ -150,7 +153,6 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 
   // Zero monopole variables
   teval = vector<double>(multistep+1, tnow);
-  for (int k=0; k<3; k++) bps[k] = vel[k] = acc[k] = 0.0;
 
   // Assign working vectors for each thread
   tacc = new double* [nthrds];
@@ -205,6 +207,8 @@ void UserEBar::userinfo()
 	   << ", ";
     else
       cout << "using monopole, ";
+    cout << "(x, y, z)=(" << bps[0] << ", " << bps[1] << ", " << bps[2] << "), ";
+    cout << "(u, v, w)=(" << vel[0] << ", " << vel[1] << ", " << vel[2] << "), ";
     if (monopole_follow)
       cout << "self-consistent monopole centering, ";
     else
@@ -214,6 +218,9 @@ void UserEBar::userinfo()
     cout << "without monopole, ";
 
   cout << "bar softness (alpha)=" << alpha << ", ";
+
+  if (oscil)
+    cout << "oscillation freq=" << Ofreq << " and oscillation amp=" << Oamp << ", ";
 
   if (c0) 
     cout << "center on component <" << ctr_name << ">, ";
@@ -249,13 +256,15 @@ void UserEBar::initialize()
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
   if (get_value("DOmega", val))		DOmega = atof(val.c_str());
-  if (get_value("tom0", val))     	tom0 = atof(val.c_str());
   if (get_value("dtom", val))     	dtom = atof(val.c_str());
   if (get_value("T0", val))		T0 = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("omega", val))		omega0 = atof(val.c_str());
   if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
   if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
+  if (get_value("oscil", val))		oscil = atoi(val.c_str()) ? true:false;
+  if (get_value("Ofreq", val))		Ofreq = atof(val.c_str());
+  if (get_value("Oamp", val))		Oamp = atof(val.c_str());
   if (get_value("alpha", val))		alpha = atof(val.c_str());
   if (get_value("x0", val))     	bps[0] = atof(val.c_str());
   if (get_value("y0", val))     	bps[1] = atof(val.c_str());
@@ -376,8 +385,8 @@ void UserEBar::determine_acceleration_and_potential(void)
     double b25 = 0.4*a1*a2*a3*(a2*a2 - a1*a1)/(ans1 - ans2);
 
     b5 = pow(b25, 0.2);
-    // afac = 2.0 * b1;
-    afac = b1;
+    afac = 2.0 * b1;
+    // afac = b1;
 
     if (myid==0) {
       cout << "b1=" << b1 << endl;
@@ -650,6 +659,8 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   else
     amp = afac * amplitude/fabs(amplitude) * quad_onoff;
 
+  if (oscil)
+    amp *= (1.0 + Oamp*sin(Ofreq*(tnow - Ton)))/(1.0 + fabs(Oamp));
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 

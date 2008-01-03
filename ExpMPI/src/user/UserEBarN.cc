@@ -18,7 +18,7 @@ UserEBarN::UserEBarN(string &line) : ExternalForce(line)
   amplitude = 0.3;		// Bar quadrupole amplitude
   angmomfac = 1.0;		// Artifically change the total bar ang mom
   barmass = 1.0;		// Total bar mass
-  monofac = 1.0;		// Monopole amplitude
+  monoamp = 1.0;		// Monopole amplitude
   Ton = -20.0;			// Turn on start time
   Toff = 200.0;			// Turn off start time
   TmonoOn = -20.0;		// Turn on start time for monopole
@@ -160,12 +160,13 @@ void UserEBarN::userinfo()
        << ", ";
   if (monopole) {
     if (monopole_onoff)
-      cout << "using monopole with turn-on/off with fraction=" 
+      cout << "using monopole (amplitude=" << monoamp 
+	   << ") with turn-on/off with fraction=" 
 	   << monopole_frac << ", TmonoOn=" << TmonoOn
 	   << ", TmonoOff=" << TmonoOff << ", DeltaMonoT=" << DeltaMonoT
 	   << ", ";
     else
-      cout << "using monopole, ";
+      cout << "using monopole (amplitude=" << monoamp << "), ";
     if (monopole_follow)
       cout << "self-consistent monopole centering, ";
     else
@@ -231,6 +232,7 @@ void UserEBarN::initialize()
   if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
+  if (get_value("monoamp", val))	monoamp = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
 
   if (get_value("modelp", val))         modelp = atof(val.c_str());
@@ -939,7 +941,7 @@ void * UserEBarN::determine_acceleration_and_potential_thread(void * arg)
 				// Monopole contribution
       if (monopole) {
 
-	M0 *= monofac;
+	M0 *= monoamp;
 	
 	if (monopole_onoff) M0 *= mono_onoff;
 	

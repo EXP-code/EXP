@@ -31,6 +31,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 
   ncylnx = 128;			// These defaults should do fine in
   ncylny = 64;			// most cases, as well
+  ncylr = 2000;
 
   acyl = 1.0;
   nmax = 10;
@@ -55,6 +56,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::RMAX = rcylmax;
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
+  EmpCylSL::NUMR = ncylr;
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CMAP = true;	// Always use coordinate mapping
 
@@ -143,6 +145,7 @@ void Cylinder::initialize()
   if (get_value("mmax", val)) mmax = atoi(val.c_str());
   if (get_value("ncylnx", val)) ncylnx = atoi(val.c_str());
   if (get_value("ncylny", val)) ncylny = atoi(val.c_str());
+  if (get_value("ncylr", val)) ncylr = atoi(val.c_str());
   if (get_value("ncylorder", val)) ncylorder = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val)) hallfreq = atoi(val.c_str());

@@ -12,34 +12,35 @@ ParticleFerry::ParticleFerry()
   ibufcount = 0;
 				// Make MPI datatype
   
-  MPI_Datatype type[13] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, 
+  MPI_Datatype type[14] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
+			   MPI_DOUBLE, MPI_DOUBLE, MPI_FLOAT,
 			   MPI_UNSIGNED, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG_LONG, 
 			   MPI_UNSIGNED, MPI_UNSIGNED,
 			   MPI_INT, MPI_DOUBLE};
 
 				// Get displacements
-  MPI_Aint disp[13];
+  MPI_Aint disp[14];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
   MPI_Get_address(&buf[0].acc,		&disp[3]);
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
-  MPI_Get_address(&buf[0].level,	&disp[6]);
-  MPI_Get_address(&buf[0].indx,		&disp[7]);
-  MPI_Get_address(&buf[0].key,		&disp[8]);
-  MPI_Get_address(&buf[0].nicnt,	&disp[9]);
-  MPI_Get_address(&buf[0].ndcnt,	&disp[10]);
-  MPI_Get_address(&buf[0].iatr,		&disp[11]);
-  MPI_Get_address(&buf[0].datr,		&disp[12]);
+  MPI_Get_address(&buf[0].dtreq,	&disp[6]);
+  MPI_Get_address(&buf[0].level,	&disp[7]);
+  MPI_Get_address(&buf[0].indx,		&disp[8]);
+  MPI_Get_address(&buf[0].key,		&disp[9]);
+  MPI_Get_address(&buf[0].nicnt,	&disp[10]);
+  MPI_Get_address(&buf[0].ndcnt,	&disp[11]);
+  MPI_Get_address(&buf[0].iatr,		&disp[12]);
+  MPI_Get_address(&buf[0].datr,		&disp[13]);
 
-  for (int i=12; i>=0; i--) disp[i] -= disp[0];
+  for (int i=13; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[13] = {1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, nimax, ndmax};
+  int blocklen[14] = {1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, nimax, ndmax};
   
-  MPI_Type_create_struct(13, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(14, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
 }
 
@@ -55,6 +56,7 @@ void ParticleFerry::part_to_Particle(Partstruct& str, Particle& cls)
   cls.pot    = str.pot;
   cls.potext = str.potext;
 
+  cls.dtreq  = str.dtreq;
   cls.level  = str.level;
   cls.indx   = str.indx;
   cls.key    = str.key;
@@ -78,6 +80,7 @@ void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
   str.pot = cls.pot;
   str.potext = cls.potext;
 
+  str.dtreq = cls.dtreq;
   str.level = cls.level;
   str.indx  = cls.indx;
   str.key   = cls.key;

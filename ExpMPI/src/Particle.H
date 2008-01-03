@@ -42,6 +42,9 @@ public:
   //! Multistep level
   unsigned level;
 
+  //! Internal process time step (<0 means ignore)
+  float dtreq;
+
   //! Index for ordering
   unsigned long indx;
 

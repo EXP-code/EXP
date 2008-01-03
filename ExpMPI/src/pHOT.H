@@ -138,7 +138,6 @@ public:
 
   double Volume() { return volume/((unsigned long long)1 << (3*fit->second->level)); }
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
-
   double Mass() { return fit->second->Mass(); }
 
   Particle *Body(unsigned k) { return fit->second->Body(k); }

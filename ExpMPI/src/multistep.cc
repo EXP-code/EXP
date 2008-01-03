@@ -90,6 +90,8 @@ void * adjust_multistep_level_thread(void *ptr)
     atot = sqrt(atot) + 1.0e-18;
 
     dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
+    if (c->Part(n)->dtreq>0) dt = min<double>(dt, c->Part(n)->dtreq);
+
     mindt1[id] = min<double>(mindt1[id], dt);
     maxdt1[id] = max<double>(maxdt1[id], dt);
 	
@@ -211,7 +213,8 @@ void adjust_multistep_level(bool all)
 	    exit(20);
 	  }
 #ifdef DEBUG    
-	  cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
+	  cout << "Process " << myid 
+	       << ": multistep thread <" << i << "> thread exited\n";
 #endif
 	}
   
@@ -257,19 +260,15 @@ void adjust_multistep_level(bool all)
     
     if (myid==0) {
       
-      cout << endl
-	   << setw(70) << setfill('-') << '-' << endl << setfill(' ')
-	   << setw(70) << left << "--- Min DT=" << mindt 
-	   << "  Max DT=" << maxdt << endl
-	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
-
       unsigned sum=0;
       for (unsigned i=0; i<off.size(); i++) sum += off[i];
       
       if (sum) {
 	cout << setw(70) << setfill('-') << '-' << endl
-	     << setw(70) << left << "--- Multistepping overrun" << endl
-	     << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
+	     << left << "--- Multistepping overrun" << endl
+	     << left << "--- Min DT=" << mindt << "  Max DT=" << maxdt << endl
+	     << setw(70) << setfill('-') << '-' << endl 
+	     << setfill(' ') << right;
 
 	vector<unsigned>::iterator it = off.begin();
 

@@ -10,6 +10,7 @@ Particle::Particle()
   for (int k=0; k<3; k++)
     pos[k] = vel[k] = acc[k] = 0.0;
   level = 0;
+  dtreq = -1;
   indx = 0;
   key = 0;
 }
@@ -22,6 +23,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   for (int k=0; k<3; k++)
     pos[k] = vel[k] = acc[k] = 0.0;
   level = 0;
+  dtreq = -1;
   indx = 0;
   key = 0;
   iattrib = vector<int>(niatr, 0);
@@ -41,6 +43,7 @@ Particle::Particle(const Particle &p)
   iattrib = p.iattrib;
   dattrib = p.dattrib;
   level   = p.level;
+  dtreq   = p.dtreq;
   indx    = p.indx;
   key     = p.key;
 }

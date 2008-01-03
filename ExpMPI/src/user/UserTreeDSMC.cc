@@ -17,6 +17,95 @@
 
 using namespace std;
 
+extern "C"
+void *
+dsmc_thread_call(void *atp)
+{
+  thrd_pass_dsmc *tp = (thrd_pass_dsmc *)atp;
+  UserTreeDSMC *p = (UserTreeDSMC *)tp->p;
+  p->timestep_thread((void*)&tp->arg);
+  return NULL;
+}
+
+void UserTreeDSMC::dsmc_thread_fork(pHOT* tree)
+{
+  int errcode;
+  void *retval;
+  
+  td = new thrd_pass_dsmc [nthrds];
+  t = new pthread_t [nthrds];
+
+  if (!td) {
+    cerr << "Process " << myid 
+         << ": dsmc_thread_fork: error allocating memory for thread counters\n";
+    exit(18);
+  }
+  if (!t) {
+    cerr << "Process " << myid
+         << ": dsmc_thread_fork: error allocating memory for thread\n";
+    exit(18);
+  }
+
+                                // Make the <nthrds> threads
+  for (int i=0; i<nthrds; i++) {
+    td[i].p = this;
+    td[i].arg.tree = tree;
+    td[i].arg.id = i;
+
+    errcode =  pthread_create(&t[i], 0, dsmc_thread_call, &td[i]);
+    if (errcode) {
+      cerr << "Process " << myid;
+      cerr << " UserTreeDSMC: cannot make thread " << i
+	   << ", errcode=" << errcode << endl;
+      exit(19);
+    }
+  }
+    
+                                // Collapse the threads
+  for (int i=0; i<nthrds; i++) {
+    if ((errcode=pthread_join(t[i], &retval))) {
+      cerr << "Process " << myid;
+      cerr << " UserTreeDSMC: thread join " << i
+           << " failed, errcode=" << errcode << endl;
+      exit(20);
+    }
+  }
+  
+  delete [] td;
+  delete [] t;
+}
+
+
+void * UserTreeDSMC::timestep_thread(void * arg)
+{
+  pHOT *tree = (pHOT*)((dsmc_pass_arguments*)arg)->tree;
+  int id = (int)((dsmc_pass_arguments*)arg)->id;
+
+  // Loop over cells, cell time-of-flight time
+  // for each particle
+
+  unsigned ncells = tree->Number(), nbods;
+  double L, vel;
+
+  pHOT_iterator pt(*tree);
+
+  for (unsigned j=0; j<ncells; j++) {
+    nbods = pt.nextCell();
+    if ( (int)(j%nthrds) == id ) {
+      L = pow(pt.Volume(), 0.3333333333333);
+      for (unsigned i=0; i<nbods; i++) {
+	vel = 1.0e-40;
+	for (unsigned k=0; k<3; k++)
+	  vel = max<double>(vel, fabs(pt.Body(i)->vel[k]));
+	pt.Body(i)->dtreq = L/vel;
+      }
+    }
+  }
+
+  return (NULL);
+}
+
+
 //
 // Physical units
 //
@@ -49,7 +138,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_dens = -1;
   frontier = false;
   mfpstat = false;
-
+  use_multi = false;
 				// Initialize using input parameters
   initialize();
 
@@ -148,6 +237,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
+  if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
 }
 
 
@@ -229,6 +319,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	 << __FILE__ << ": " << __LINE__;
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
+				// Time step request
+  if (use_multi) dsmc_thread_fork(c0->Tree());
   treeSoFar = treeTime.stop();
   
   //

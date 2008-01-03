@@ -9,6 +9,25 @@
 
 #include "CollideLTE.H"
 
+//! Helper class to pass info to threaded member
+struct dsmc_pass_arguments
+{
+  //! Pointer to iterator
+  pHOT *tree;
+  //! Thread counter id
+  int id;
+};
+  
+class UserTreeDSMC;
+
+struct thrd_pass_dsmc
+{
+  UserTreeDSMC *p;
+  //! Arguments
+  dsmc_pass_arguments arg;
+};
+
+
 /** DSMC particle routine
     @param Lunit is the physical scale in cm per system units
     @param Tunit is the physical time scale in years per system unit
@@ -22,6 +41,7 @@
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
+    @param use_multi attempts to set the time step (if multistep is enabled)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -36,7 +56,7 @@ private:
   double collfrac;
   double boxsize;
 
-  bool frontier, mfpstat;
+  bool frontier, mfpstat, use_multi;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_;
@@ -64,6 +84,12 @@ private:
 
   void userinfo();
 
+				// Threading
+  thrd_pass_dsmc *td;
+  pthread_t *t;
+  void dsmc_thread_fork(pHOT *tree);
+
+
 #ifdef TIMER
   Timer *timer;
 #endif
@@ -82,6 +108,10 @@ public:
 
   //! Destructor
   ~UserTreeDSMC();
+
+  //! For threading
+  void *timestep_thread(void *arg);
+
 };
 
 #endif

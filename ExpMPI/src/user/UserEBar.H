@@ -21,14 +21,17 @@
     @param TmonoOff is the time at the center of the <code>erf</code> turn off
     for the quadrupole
     @param DeltaMonoT is the spread of the turn on for the quadrupole
-    @param tom0 is the midpoint of forced bar slow down
     @param dtom is the width of forced bar slow down (>0 for erf)
+    @param Fcorot is fraction of the length relative to the corotation radius
+    @param Oamp is the amplitude of the oscillating quadrupole strength (default: 0.5)
+    @param Ofreq is the frequency of the oscillating quadrupole strength (default: 2.0)
     @param Fcorot is fraction of the length relative to the corotation radius
     @param fixed if nonzero, pattern speed is computed at every step from the current potential, if zero, pattern speed is evaluated once to start (default: false).
     @param self if the opposite of <code>fixed</code> included here for consistency with other routines
     @param monopole force is self-consistently computed from Newton's third law (default: true)
     @param follow computes monopole center self-consitently (default: true)
     @param onoff to apply turn-on, turn-off to monopole (default: false)
+    @param oscil to oscillate the amplitude, see Oamp and Ofreq (default: false)
     @param monofrac is the fraction of the monopole to turn off (default: 1.0)
     @param quadfrac is the fraction of the quadrupole to turn off (default: 1.0)
     @param alpha is the power hardness (softness) of the bar quadrupole (default: 5)
@@ -80,14 +83,15 @@ private:
   double length, bratio, cratio, amplitude, barmass, Ton, Toff, DeltaT, Fcorot;
   double TmonoOn, TmonoOff, DeltaMonoT;
   double monopole_frac, quadrupole_frac, alpha;
-  bool fixed, monopole, monopole_follow, monopole_onoff, table;
+  double Ofreq, Oamp;
+  bool oscil, fixed, monopole, monopole_follow, monopole_onoff, table;
   string filename;
 
   static const double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime, angmomfac;
   double Lz, Lz0, Lzbar, omega, omega0, Iz, afac, b5;
-  double T0, DOmega, tom0, dtom;
+  double T0, DOmega, dtom;
   vector<double> timeq, ampq, b5q;
   int qlast;
   string name;
