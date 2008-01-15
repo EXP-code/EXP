@@ -20,6 +20,8 @@ int nthrds = 2;			// Number of POSIX threads
 int nbalance = 0;		// Steps between load balancing
 double dbthresh = 0.05;		// Load balancing threshold (5% by default)
 double dtime = 0.1;		// Default time step size
+unsigned PFbufsz = 40000;	// ParticleFerry buffer size in particles
+
 
 bool restart = false;		// Restart from a checkpoint
 bool use_cwd = false;		// Use Node 0's current working directory on all nodes

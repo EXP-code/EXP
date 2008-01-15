@@ -33,6 +33,9 @@ extern int nbalance;
 //! Load balancing threshold (larger difference initiates balancing)
 extern double dbthresh;
 
+//! Particle ferry buffer size
+extern unsigned PFbufsz;
+
 //! Time step
 extern double dtime;
 

@@ -42,6 +42,7 @@ void initialize(void)
 
   if (parse->find_item("time", val))		tnow = atof(val.c_str());
   if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
+  if (parse->find_item("PFbufsz", val))         PFbufsz = atoi(val.c_str());
   if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
   if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());
 
@@ -98,6 +99,7 @@ void print_parm(ostream& out, const char *comment)
 
   out << comment << " " << "time"       << " = " << tnow        << endl;
   out << comment << " " << "dtime"      << " = " << dtime       << endl;
+  out << comment << " " << "PFbufsz"    << " = " << PFbufsz     << endl;
   out << comment << " " << "NICE"       << " = " << NICE        << endl;
   out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
 

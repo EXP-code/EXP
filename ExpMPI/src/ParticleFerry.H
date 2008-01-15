@@ -46,7 +46,6 @@ private:
 
 public:
 
-  static unsigned nbuf;
   static MPI_Datatype Particletype;
 
   ParticleFerry();

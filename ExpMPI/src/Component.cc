@@ -90,7 +90,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   tree = new pHOT(this);
 
-  pbuf = new Particle [ParticleFerry::nbuf];
+  pbuf = new Particle [PFbufsz];
 }
 
 struct thrd_pass_reset
@@ -1209,7 +1209,7 @@ struct Particle * Component::get_particles(int* number)
 
   unsigned icount;
   int beg = counter;
-  int end = counter + ParticleFerry::nbuf;
+  int end = counter + PFbufsz;
 
   MPI_Bcast(&beg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&end, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -2257,7 +2257,7 @@ void Component::add_particles(int from, int to, vector<int>& plist)
     while (counter < number) {
 
       icount = 0;
-      while (icount < ParticleFerry::nbuf && counter < number) {
+      while (icount < PFbufsz && counter < number) {
 
 	pf.SendParticle(particles[*it]);
 	particles.erase(*it);

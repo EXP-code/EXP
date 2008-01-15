@@ -16,6 +16,13 @@ double pHOT::sides[] = {2.0, 2.0, 2.0};
 double pHOT::offst[] = {1.0, 1.0, 1.0};
 unsigned pHOT::neg_half = 0;
 
+template<class U, class V>
+struct pair_compare
+{
+  bool operator()(const pair<U, V>& a, const pair<U, V>& b)
+  { return a.first<=b.first; }
+};
+
 /*
   Constructor: initialize domain
 */
@@ -25,7 +32,7 @@ pHOT::pHOT(Component *C)
 
   volume = sides[0]*sides[1]*sides[2];	// Total volume of oct-tree region
   root = 0;
-				// For debugging
+
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
 } 
@@ -37,11 +44,11 @@ pHOT::~pHOT()
 }
 
 
-unsigned long long pHOT::getKey(double *p)
+key_type pHOT::getKey(double *p)
 {
   // Out of bounds?
   //
-  if (0) {
+  if (false) {			// Set to true for check
     for (unsigned k=0; k<3; k++) { 
       if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
 	cout << "Coordinate out of pbounds in pHOT::key: ";
@@ -62,8 +69,8 @@ unsigned long long pHOT::getKey(double *p)
   for (unsigned k=0; k<3; k++)
     bins[2-k] = (unsigned)floor( ((p[k]+offst[k])/sides[k]+neg_half)*factor );
   
-  unsigned long long place = 1;
-  unsigned long long _key = 0;
+  key_type place = 1;
+  key_type _key = 0;
   for (unsigned i=0; i<nbits; i++) {
     for (unsigned k=0; k<3; k++) {
       _key |= (bins[k] & mask)*place;
@@ -77,7 +84,7 @@ unsigned long long pHOT::getKey(double *p)
   return _key;
 }
 
-string pHOT::printKey(unsigned long long p)
+string pHOT::printKey(key_type p)
 {
   ostringstream sout, sret;
 
@@ -125,13 +132,50 @@ void pHOT::makeTree()
     p = p->Add(*it);		// Do the work
   }
 
+				// Sanity checks and debugging
+  if (true) {
+    if (false) {			// Report on particle sizes for each node
+      unsigned long bdcel1=cc->Particles().size(), bdcelmin, bdcelmax, bdcelsum, bdcelsm2;
+      MPI_Reduce(&bdcel1, &bdcelmin, 1, MPI_UNSIGNED_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&bdcel1, &bdcelmax, 1, MPI_UNSIGNED_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&bdcel1, &bdcelsum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+      bdcel1 = bdcel1*bdcel1;
+      MPI_Reduce(&bdcel1, &bdcelsm2, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+      if (myid==0)
+	cout << "In makeTree, particles min=" << bdcelmin << " max=" << bdcelmax
+	     << " mean=" << bdcelsum/numprocs
+	     << " stdv=" << sqrt( (bdcelsm2 - bdcelsum*bdcelsum/numprocs)/(numprocs-1) )
+	     << endl;
+    }
+    if (false) {		// Report on body counts for each node
+      if (myid==0) {
+	cout << left << setfill('-')
+	     << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ')
+	     << setw(4) << "pid" << setw(15) << "# bodies" << endl << setfill('-')
+	     << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ') << right;
+      }
+      for (int i=0; i<numprocs; i++) {
+	if (myid==i) cout << setw(4) << i << setw(15) << cc->Particles().size() << endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+      if (myid==0) 
+	cout << setfill('-') << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ');
+    }
+    if (bodycell.size()==0) {
+      cout << "Process " << myid << ": in makeTree, unusual condition #bodycell=0"
+	   << " with #keybods=" << keybods.size() 
+	   << " and #bodies=" << cc->Particles().size()
+	   << endl;
+    }
+  }
+  
   //
   // Adjust boundaries bodies to prevent cell duplication on the boundary
   //
 
   MPI_Status status;
 				// Exchange boundary keys
-  unsigned long long headKey, tailKey, prevKey, nextKey;
+  key_type headKey, tailKey, prevKey, nextKey;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
 
 				// Do the boundaries sequentially to prevent
@@ -142,17 +186,24 @@ void pHOT::makeTree()
 				// to compare with its head
     if (myid==n-1) {
 
-      key_indx::reverse_iterator it = keybods.rbegin();
-      {
-	// Debug: check validity of key
-	if (bodycell.find(it->first) == bodycell.end()) {
-	  cout << "Process " << myid << ": bad key=" << it->first
-	       << " #cells=" << bodycell.size() << endl;
+      if (keybods.size()) {
+
+	key_indx::reverse_iterator it = keybods.rbegin();
+	{
+	  // Debug: check validity of key
+	  if (bodycell.find(it->first) == bodycell.end()) {
+	    cout << "Process " << myid << ": bad key=" 
+		 << hex << it->first << dec
+		 << " #cells=" << bodycell.size() << endl;
+	  }
 	}
-      }
-      tailKey = bodycell[it->first];
+	tailKey = bodycell[it->first];
 				// Number of bodies in my tail cell
-      tail_num = frontier[tailKey]->bods.size();
+	tail_num = frontier[tailKey]->bods.size();
+      } else {
+	tailKey = 0;
+	tail_num = 0;
+      }
 
       MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD);
@@ -160,7 +211,7 @@ void pHOT::makeTree()
       MPI_Recv(&nextKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD, &status);
       MPI_Recv(&next_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD, &status);
 
-      if (tailKey == nextKey) {
+      if (tailKey && tailKey == nextKey) {
 	if (tail_num <= next_num) {
 	  sendCell(tailKey, n, tail_num);
 	} else {
@@ -175,16 +226,23 @@ void pHOT::makeTree()
 				// to compare with its tail
     if (myid==n) {
 
-      {
-	// Debug: check validity of key
-	if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
-	  cout << "Process " << myid << ": bad key=" << keybods.begin()->first
-	       << " #cells=" << bodycell.size() << endl;
+      if (keybods.size()) {
+
+	{
+	  // Debug: check validity of key
+	  if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
+	    cout << "Process " << myid << ": bad key=" 
+		 << hex << keybods.begin()->first << dec
+		 << " #cells=" << bodycell.size() << endl;
+	  }
 	}
-      }
-      headKey = bodycell[keybods.begin()->first];
+	headKey = bodycell[keybods.begin()->first];
 				// Number of bodies in my head cell
-      head_num = frontier[headKey]->bods.size();
+	head_num = frontier[headKey]->bods.size();
+      } else {
+	headKey = 0;
+	head_num = 0;
+      }
 
       MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n-1, 1000, MPI_COMM_WORLD);
       MPI_Send(&head_num, 1, MPI_UNSIGNED, n-1, 1001, MPI_COMM_WORLD);
@@ -240,7 +298,7 @@ void pHOT::densEmit(unsigned lev, pCell *p)
     cntlev[lev]++;
     if (p->parent) kidlev[lev] += p->parent->children.size();
     maslev[lev] += p->state[0];
-    vollev[lev] += volume/((unsigned long long)1 << (3*p->level));
+    vollev[lev] += volume/((key_type)1 << (3*p->level));
   } else {
     map<unsigned, pCell*>::iterator it;
     for (it=p->children.begin(); it!=p->children.end(); it++) 
@@ -406,14 +464,14 @@ void pHOT::dumpFrontier()
 	}
 	
 	totmass += mass;
-	totvol  += volume/((unsigned long long)1<<(3*it->second->level));
+	totvol  += volume/((key_type)1<<(3*it->second->level));
 
 	cout << setw(4)  << myid
 	     << setw(12) << hex << it->first << dec
 	     << setw(8)  << it->second->level
 	     << setw(18) << num
 	     << setw(18) << mass
-	     << setw(18) << mass/(volume/((unsigned long long)1<<(3*it->second->level)));
+	     << setw(18) << mass/(volume/((key_type)1<<(3*it->second->level)));
 	
 	for (unsigned k=0; k<3; k++) {
 	  mpos[k] /= num;
@@ -583,7 +641,7 @@ void pHOT::testFrontier(string& filename)
 	temp = 0.333333333333*(temp/mass - v2);
 
 	unsigned n=0;
-	double vol = volume/((unsigned long long)1 << (3*p->level)); 
+	double vol = volume/((key_type)1 << (3*p->level)); 
 
 	out << " ";
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << myid;
@@ -619,7 +677,7 @@ void pHOT::testFrontier(string& filename)
 }
 
 
-void pHOT::sendCell(unsigned long long key, int to, unsigned num)
+void pHOT::sendCell(key_type key, int to, unsigned num)
 {
   pCell *p = frontier.find(key)->second;
   
@@ -635,7 +693,7 @@ void pHOT::sendCell(unsigned long long key, int to, unsigned num)
 
   vector<double> buffer1(3*num);
   vector<unsigned> buffer2(num);
-  vector<unsigned long long> buffer3(num);
+  vector<key_type> buffer3(num);
 
   pf.ShipParticles(to, myid, num);
 
@@ -721,7 +779,7 @@ void pHOT::recvCell(int from, unsigned num)
     }
     if (part.indx==0) cout << "pHOT::recvCell bad particle indx=0!" << endl;
     keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
-    p = p->Add(pair<unsigned long long, unsigned>(part.key, part.indx));
+    p = p->Add(pair<key_type, unsigned>(part.key, part.indx));
   }
 
   cc->nbodies = cc->particles.size();
@@ -735,7 +793,7 @@ void pHOT::makeState()
 void pHOT::State(double *x, double& dens, double& temp,
 		 double& velx, double& vely, double& velz)
 {
-  unsigned long long key = getKey(x);
+  key_type key = getKey(x);
 
   dens = temp = velx = vely = velz = 0.0;
 
@@ -796,7 +854,7 @@ void pHOT::State(double *x, double& dens, double& temp,
       for (int k=0; k<3; k++)
 	disp += (state[1+k] - state[4+k]*state[4+k]/state[0])/state[0];
       
-      dens = state[0] * ((unsigned long long)1 << (3*clv))/(volume*cnt);
+      dens = state[0] * ((key_type)1 << (3*clv))/(volume*cnt);
       temp = 0.333333333333*disp;
       velx = state[4]/state[0];
       vely = state[5]/state[0];
@@ -1043,7 +1101,7 @@ double pHOT::minVol()
     maxlev = max<unsigned>(maxlev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((unsigned long long)1 << (3*maxlev));
+  vol1 = volume/((key_type)1 << (3*maxlev));
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
   return vol;
@@ -1057,7 +1115,7 @@ double pHOT::maxVol()
     minlev = min<unsigned>(minlev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((unsigned long long)1 << (3*minlev));
+  vol1 = volume/((key_type)1 << (3*minlev));
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
   return vol;
@@ -1071,8 +1129,6 @@ double pHOT::medianVol()
   key_cell::iterator it;
   for (it=frontier.begin(); it!=frontier.end(); it++) 
     lev.push_back(it->second->level);
-
-  // MPI_Barrier(MPI_COMM_WORLD);
 
   if (myid==0) {
 
@@ -1095,14 +1151,13 @@ double pHOT::medianVol()
 
   MPI_Bcast(&mlev, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-  return volume/((unsigned long long)1 << (3*mlev));
+  return volume/((key_type)1 << (3*mlev));
 }
 
 void pHOT::Repartition()
 {
   MPI_Status s;
-  unsigned nbod, Tcnt, Fcnt;
-  vector<unsigned> From(numprocs, 0), To(numprocs, 0), Tlst;
+  map<unsigned long, Particle>::iterator it;
   
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -1116,11 +1171,12 @@ void pHOT::Repartition()
   // checkBounds(2.0, "BEFORE repartition");
 
   //
-  // Recompute keys
+  // Recompute keys and compute new partition
   //
-  map<unsigned long, Particle>::iterator it = cc->Particles().begin();
-  for (; it!=cc->Particles().end(); it++) {
+  vector<key_type> keys, kbeg(numprocs), kfin(numprocs);
+  for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
+    keys.push_back(it->second.key);
     if (it->second.key == 0) {
       cout << "pHOT::Repartition [" << myid << "]: out of bounds,"
 	   << " indx=" << setw(12) << it->second.indx
@@ -1133,177 +1189,63 @@ void pHOT::Repartition()
       cout << endl;
     }
   }
+  partitionKeys(keys, kbeg, kfin);
 
   //
-  // Compute the new partition
+  // Nodes compute send list
   //
-  if (myid==0) {
-    
-    typedef pair<key_type, pair<unsigned, int> > NewPair;
-    vector<NewPair> newmap;
-				// 
-				// Root's particles first
-				// 
-    map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-    for (; n!=cc->Particles().end(); n++)
-      newmap.push_back(NewPair(n->second.key, 
-			       pair<unsigned, int>(n->first, 0)));
-    
-				// 
-				// Get remote particles
-				// 
-    for (int id=1; id<numprocs; id++) {
-      MPI_Recv(&nbod, 1, MPI_UNSIGNED, id, 41, MPI_COMM_WORLD, &s);
-
-      vector<unsigned long long> nkeys(nbod);
-      vector<unsigned> nindx(nbod);
-
-      MPI_Recv(&nkeys[0], nbod, MPI_UNSIGNED_LONG_LONG, id, 42, MPI_COMM_WORLD, &s);
-      MPI_Recv(&nindx[0], nbod, MPI_UNSIGNED, id, 43, MPI_COMM_WORLD, &s);
-
-      for (unsigned i=0; i<nbod; i++) {
-	newmap.push_back(NewPair(nkeys[i], 
-				 pair<unsigned, int>(nindx[i], id)));
-      }
-    }
-    sort(newmap.begin(), newmap.end());
-
-    unsigned newnum = newmap.size();
-    unsigned num = newnum/numprocs;
-    unsigned nnb = newnum - num*(numprocs-1);
-
-    vector<NewPair>::iterator it = newmap.begin();
-
-    vector< vector< vector<unsigned> > > tlst(numprocs);
-    vector<unsigned> tcnt(numprocs, 0), fcnt(numprocs, 0);
-    vector< vector<unsigned> > to(numprocs), from(numprocs);
-
-    for (int i=0; i<numprocs; i++) {
-      tlst[i] = vector< vector<unsigned> >(numprocs);
-      to[i]   = vector<unsigned>(numprocs, 0);
-      from[i] = vector<unsigned>(numprocs, 0);
-    }
-
-    for (unsigned i=0; i<nnb; i++) {
-      if (it->second.second != 0) {
-	tlst[it->second.second][0].push_back(it->second.first);
-	tcnt[it->second.second]++;
-	to[it->second.second][0]++;
-	from[0][it->second.second]++;
-	fcnt[0]++;
-      }
-      it++;
-    }
-
-    for (int id=1; id<numprocs; id++) {
-      for (unsigned i=0; i<num; i++) {
-	if (it->second.second != id) {
-	  tlst[it->second.second][id].push_back(it->second.first);
-	  tcnt[it->second.second]++;
-	  to[it->second.second][id]++;
-	  from[id][it->second.second]++;
-	  fcnt[id]++;
-	}
-	it++;
-      }
-    }
-
-    if (0) {
-
-      cout << setw(60) << setfill('-') << '-' << endl << setfill(' ');
-    
-      for (int id=0; id<numprocs; id++) {
-	if (tcnt[id]) {
-	  for (int id2=0; id2<numprocs; id2++) {
-	    if (tlst[id][id2].size()) {
-	      cout << "#" << setw(3) << id 
-		   << " sending " << setw(3) << tlst[id][id2].size()
-		   << " to   " << setw(3) << id2 << endl;
-	    }
-	  }
-	}
-      }
-
-      for (int id=0; id<numprocs; id++) {
-	if (fcnt[id]) {
-	  for (int id2=0; id2<numprocs; id2++) {
-	    if (from[id][id2]) {
-	      cout << "#" << setw(3) << id
-		   << " getting " << setw(3) << from[id][id2]
-		   << " from " << setw(3) << id2 << endl;
-	    }
-	  }
-	}
-      }
-      
-      cout << setw(60) << setfill('-') << '-' << endl << setfill(' ');
-    }
-
-    //
-    // Ship lists
-    //
-    for (int id=1; id<numprocs; id++) {
-      MPI_Send(&tcnt[id], 1, MPI_UNSIGNED, id, 44, MPI_COMM_WORLD);
-      MPI_Send(&fcnt[id], 1, MPI_UNSIGNED, id, 45, MPI_COMM_WORLD);
-    }
-
-    vector<unsigned> tolist;	// Work vector
-
-    for (int id=1; id<numprocs; id++) {
-      if (tcnt[id]) {
-	MPI_Send(&to[id][0], numprocs, MPI_UNSIGNED, id, 46, MPI_COMM_WORLD);
-	tolist.clear();
-	for (int id2=0; id2<numprocs; id2++) 
-	  tolist.insert(tolist.end(), tlst[id][id2].begin(), tlst[id][id2].end());
-	MPI_Send(&tolist[0], tcnt[id], MPI_UNSIGNED, id, 47, MPI_COMM_WORLD);
-      }
-      if (fcnt[id])
-	MPI_Send(&from[id][0], numprocs, MPI_UNSIGNED, id, 48, MPI_COMM_WORLD);
-    }
-    
-				// Root node's lists
-    Tcnt = tcnt[0];
-    Fcnt = fcnt[0];
-    for (int id=0; id<numprocs; id++) 
-      Tlst.insert(Tlst.end(), tlst[0][id].begin(), tlst[0][id].end());
-    To = to[0];
-    From = from[0];
-
-  } else {
-
-    nbod = cc->Number();
-    MPI_Send(&nbod, 1, MPI_UNSIGNED, 0, 41, MPI_COMM_WORLD);
-
-    vector<unsigned long long> Nkeys;
-    vector<unsigned> Nindx;
-
-    map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-    for (; n!=cc->Particles().end(); n++) {
-      Nkeys.push_back(n->second.key);
-      Nindx.push_back(n->second.indx);
-    }
-    MPI_Send(&Nkeys[0], nbod, MPI_UNSIGNED_LONG_LONG, 0, 42, MPI_COMM_WORLD);
-    MPI_Send(&Nindx[0], nbod, MPI_UNSIGNED, 0, 43, MPI_COMM_WORLD);
-
-    //
-    // Receive lists
-    //
-    MPI_Recv(&Tcnt, 1, MPI_UNSIGNED, 0, 44, MPI_COMM_WORLD, &s);
-    MPI_Recv(&Fcnt, 1, MPI_UNSIGNED, 0, 45, MPI_COMM_WORLD, &s);
-
-    if (Tcnt) {
-      MPI_Recv(&To[0], numprocs, MPI_UNSIGNED, 0, 46, MPI_COMM_WORLD, &s);
-      Tlst = vector<unsigned>(Tcnt);
-      MPI_Recv(&Tlst[0], Tcnt, MPI_UNSIGNED, 0, 47, MPI_COMM_WORLD, &s);
-    }
-
-    if (Fcnt)
-      MPI_Recv(&From[0], numprocs, MPI_UNSIGNED, 0, 48, MPI_COMM_WORLD, &s);
-  }
+  vector<key_type> loclist(numprocs+1);
+  for (unsigned i=0; i<numprocs; i++) 
+    loclist[i] = kbeg[i];
+  loclist[numprocs] = kfin[numprocs-1];	// End point for binary search
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  static unsigned debug_ctr = 0;
+  vector<unsigned> sndlist1(numprocs*numprocs, 0);
+  vector<unsigned> sendlist(numprocs*numprocs);
+  vector< vector<unsigned> > bodylist(numprocs);
+  unsigned t;
+  for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
+    t = find_proc(loclist, it->second.key);
+    if (t == numprocs) {
+      cerr << "Process " << myid << ": loclist found last entry, "
+	   << " key=" << hex << it->second.key 
+	   << ", end pt=" << loclist.back() << dec
+	   << ", index=" << t << endl;
+    }
+    if (t == myid) continue;
+    bodylist[t].push_back(it->first);
+    sndlist1[numprocs*myid + t]++;
+  }
+
+  int ntot = numprocs*numprocs;
+  MPI_Allreduce(&sndlist1[0], &sendlist[0], ntot, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  
+  unsigned Tcnt=0, Fcnt=0;
+  for (int i=0; i<numprocs; i++) {
+    Tcnt += sendlist[numprocs*myid + i];
+    Fcnt += sendlist[numprocs*i + myid];
+  }
+
+				// DEBUG OUTPUT
+  if (false) {			// If true, write send and receive list for each node
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	cout << "--------------------------------------------------------" << endl;
+	cout << "Process " << myid << ": Tcnt=" << Tcnt << " Fcnt=" << Fcnt << endl;
+	for (int m=0; m<numprocs; m++)
+	  cout << setw(5) << m 
+	       << setw(8) << sendlist[numprocs*n+m]
+	       << setw(8) << sendlist[numprocs*m+n]
+	       << endl;
+	cout << "--------------------------------------------------------" << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+				// END DEBUG OUTPUT
+
+  static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
   vector<MPI_Request> send_requests, recv_requests;
   vector<Partstruct> psend(Tcnt), precv(Fcnt);
@@ -1312,25 +1254,25 @@ void pHOT::Repartition()
   //
   // Send particles
   //
-
   for (int id=0; id<numprocs; id++) {
-    if (To[id]) {
-      for (unsigned i=0; i<To[id]; i++) {
-	pf.Particle_to_part(psend[ps+i], cc->Particles()[Tlst[ps+i]]);
-	cc->Particles().erase(Tlst[ps+i]);
-	erased.push_back(Tlst[ps+i]);
+    unsigned To = sendlist[numprocs*myid+id];
+    if (To) {
+      for (unsigned i=0; i<To; i++) {
+	pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[id][i]]);
+	cc->Particles().erase(bodylist[id][i]);
+	erased.push_back(bodylist[id][i]);
       }
       send_requests.push_back(r);
-      for (unsigned i=0; i<To[id]; i++) {
+      for (unsigned i=0; i<To; i++) {
 	if (psend[ps+i].indx == 0) {
 	  cerr << "pHOT::Repartition[" << debug_ctr
-	       << "]: SEND from=" << myid << " to=" << id << " #=" << To[id]
+	       << "]: SEND from=" << myid << " to=" << id << " #=" << To
 	       << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
 	}
       }
-      MPI_Isend(&psend[ps], To[id], ParticleFerry::Particletype, id, 49, 
+      MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, id, 49, 
 		MPI_COMM_WORLD, &send_requests.back());
-      ps += To[id];
+      ps += To;
     }
   }
 
@@ -1339,18 +1281,19 @@ void pHOT::Repartition()
   //
   
   for (int id=0; id<numprocs; id++) {
-    if (From[id]) {
+    unsigned From = sendlist[numprocs*id+myid];
+    if (From) {
       recv_requests.push_back(r);
-      MPI_Irecv(&precv[pr], From[id], ParticleFerry::Particletype, id, 49, 
+      MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, id, 49, 
 		MPI_COMM_WORLD, &recv_requests.back());
-      pr += From[id];
+      pr += From;
     }
   }
 
   //
   // Buffer size sanity check
   //
-  if (1) {
+  if (true) {			// Enabled if true
 
     if (Tcnt-ps) {
       cout << "Process " << myid 
@@ -1368,8 +1311,7 @@ void pHOT::Repartition()
 
   // Chatty if nothing sent or received
   //
-  if (0) {
-    
+  if (false) {
     if (send_requests.size() == 0)
       cout << "Process " << myid << ": nothing to send!" << endl;
       
@@ -1377,28 +1319,24 @@ void pHOT::Repartition()
       cout << "Process " << myid << ": nothing to receive!" << endl;
   }
 
-  for (unsigned i=0; i<send_requests.size(); i++) {
-    MPI_Wait(&send_requests[i], &s);
-  }
+  for (unsigned i=0; i<send_requests.size(); i++) MPI_Wait(&send_requests[i], &s);
+  for (unsigned i=0; i<recv_requests.size(); i++) MPI_Wait(&recv_requests[i], &s);
 
-  for (unsigned i=0; i<recv_requests.size(); i++) {
-    MPI_Wait(&recv_requests[i], &s);
-  }
-  
-
+  //
   // DEBUG
   //
   pr = 0;
   for (int id=0; id<numprocs; id++) {
-    if (From[id]) {
-      for (int i=0; i<From[id]; i++) {
+    unsigned From = sendlist[numprocs*id+myid];
+    if (From) {
+      for (int i=0; i<From; i++) {
 	if (precv[pr+i].indx == 0) {
 	  cerr << "pHOT::Repartition[" << debug_ctr 
-	       << "]: RECV to=" << myid << " from=" << id << " #=" << From[id]
+	       << "]: RECV to=" << myid << " from=" << id << " #=" << From
 	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass << endl;
 	}
       }
-      pr += From[id];
+      pr += From;
     }
   }
 
@@ -1418,8 +1356,8 @@ void pHOT::Repartition()
   //
   keybods.clear();
   unsigned oab1=0, oab=0;
-  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-  for (; n!=cc->Particles().end(); n++) {
+  map<unsigned long, Particle>::iterator n;
+  for (n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     if (n->second.key==0) {
       oab1++;
       continue;
@@ -1435,8 +1373,8 @@ void pHOT::Repartition()
   if (myid==0 && oab)
     cout << endl << "pHOT::Repartition: " << oab << " out of bounds" << endl;
 
-  if (0) {
-    bool ok = true;
+  if (false) {			// Sanity checks for bad particle indecies
+    bool ok = true;		// and bad particle counts
     map<unsigned long, Particle>::iterator ip;
     for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
       if (ip->second.indx==0) {
@@ -1492,3 +1430,177 @@ void pHOT::checkBounds(double rmax, const char *msg)
   }
 }
 
+void pHOT::partitionKeys(vector<key_type>& keys, 
+			 vector<key_type>& kbeg, vector<key_type>& kfin)
+{
+				// Sort the keys
+  sort(keys.begin(), keys.end());
+
+				// Sample keys at desired rate
+  const unsigned srate = 1000;	// e.g. every srate^th key is sampled
+
+				// Number of samples
+  unsigned nsamp = keys.size()/srate;
+
+  vector<key_type> keylist1, keylist;
+  for (unsigned i=0; i<nsamp; i++)
+    keylist1.push_back(keys[srate*(2*i+1)/2]);
+
+				// Tree aggregation (merge sort) of the
+				// entire key list
+  parallelMerge(keylist1, keylist);
+
+  if (myid==0) {
+
+    double delta = static_cast<double>(keylist.size())/numprocs;
+    for (unsigned i=0; i<numprocs-1; i++)
+      kfin[i] = keylist[static_cast<unsigned>(floor(delta*(i+1)))];
+    kfin[numprocs-1] = key_max;
+
+    kbeg[0] = key_min;
+    for (unsigned i=1; i<numprocs; i++)
+      kbeg[i] = kfin[i-1];
+
+    if (false) {	 // If true, print key ranges for each process
+      cout << "--------------------------------------------------" << endl
+	   << "partitionKeys: keys in list=" << keylist.size() << endl
+	   << "--------------------------------------------------" << endl;
+      for (int i=0; i<numprocs; i++)
+	cout << setw(5) << i << hex << setw(15) << kbeg[i] 
+	     << setw(15) << kfin[i] << dec << endl;
+      cout << "--------------------------------------------------" << endl;
+    }
+  }
+
+  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+}
+
+
+//
+// Binary search
+//
+unsigned pHOT::find_proc(vector<key_type>& keys, key_type key)
+{
+  unsigned num = keys.size();
+  unsigned beg=0, end=num-1, cur;
+
+  if (key<=keys[beg])   return beg;
+  if (key>=keys[num-1]) return num-1;
+
+  while (end-beg>1) {
+    cur = (beg + end)/2;
+    if (key < keys[cur])
+      end = cur;
+    else
+      beg = cur;
+  }
+
+  return beg;
+}
+
+
+//
+// This routine combines two sorted vectors into one
+// larger sorted vector
+//
+void pHOT::sortCombine(vector<key_type>& one, vector<key_type>& two,
+		       vector<key_type>& comb)
+{
+  int i=0, j=0;
+  int n = one.size()-1;
+  int m = two.size()-1;
+  
+  comb = vector<key_type>(one.size()+two.size());
+
+  for(int k=0; k<n+m+2; k++) {
+    if (i > n)
+      comb[k] = two[j++];
+    else if(j > m)
+      comb[k] = one[i++];
+    else {
+      if(one[i] < two[j])
+	comb[k] = one[i++];
+      else
+	comb[k] = two[j++];
+    }
+  }
+}
+
+//
+// This routine combines the initial input vector on
+// each node (sorted to start) by a binary merge algorithm
+//
+void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
+{
+  MPI_Status status;
+  vector<key_type> work;
+  unsigned n;
+
+  // Find the largest power of two smaller than
+  // the number of processors
+  // 
+  int M2 = 1;
+  while (2*M2 < numprocs) M2 = M2*2;
+
+  // Combine the particles of the high nodes
+  // with those of the lower nodes so that
+  // all particles are within M2 nodes
+  //
+  // NB: if M2 == numprocs, no particles
+  // will be sent or received
+  //
+  if (myid >= M2) {
+    n = initl.size();
+    MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
+    MPI_Send(&initl[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+	     MPI_COMM_WORLD);
+    return;
+  }
+
+  vector<key_type> data = initl;
+
+  // Retrieve the excess particles
+  //
+  if (myid + M2 < numprocs) {
+    MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
+    vector<key_type> recv(n);
+    MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
+	     MPI_COMM_WORLD, &status);
+				// data=data+new_data
+    sortCombine(initl, recv, data);
+  }
+    
+  // Now do the iterative binary merge
+  //
+  while (M2 > 1) {
+
+    M2 = M2/2;
+
+    // When M2 = 1, we are on the the last iteration.
+    // The final node left will be the root with the entire sorted array.
+
+    // The upper half of the nodes send to the lower half and is done
+    //
+    if (myid >= M2) {
+      n = data.size();
+      MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
+      MPI_Send(&data[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+	       MPI_COMM_WORLD);
+      return;
+    } else {
+      MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
+      vector<key_type> recv(n);
+      MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
+	       MPI_COMM_WORLD, &status);
+      // The lower half sorts and the goes around again.
+      sortCombine(data, recv, work);
+      data = work;
+    }
+  }
+
+  // We are done, return the result
+  final = data;
+
+  return;
+}

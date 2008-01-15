@@ -1,14 +1,14 @@
 #include <iostream>
 #include <iomanip>
+#include "global.H"
 #include "ParticleFerry.H"
 
-unsigned ParticleFerry::nbuf = 2000;
 MPI_Datatype ParticleFerry::Particletype;
 
 ParticleFerry::ParticleFerry()
 {
 				// Assign particle structure buffer
-  buf = new Partstruct [nbuf];
+  buf = new Partstruct [PFbufsz];
   ibufcount = 0;
 				// Make MPI datatype
   
@@ -129,7 +129,7 @@ void ParticleFerry::SendParticle(Particle& ptc,
   //
   ibufcount++;
   itotcount++;
-  if (ibufcount == nbuf || itotcount == _total) BufferSend();
+  if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
 }
 
 void ParticleFerry::SendParticle(Particle& part)
@@ -142,7 +142,7 @@ void ParticleFerry::SendParticle(Particle& part)
 
   // If buffer is full, send the buffer and reset
   //
-  if (ibufcount == nbuf || itotcount == _total) BufferSend();
+  if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
 }
 
 bool ParticleFerry::RecvParticle(Particle& ptc,

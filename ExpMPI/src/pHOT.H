@@ -31,6 +31,10 @@ protected:
 
   void sendCell(key_type key, int to, unsigned num);
   void recvCell(int from, unsigned num);
+  void partitionKeys(vector<key_type>& keys, vector<key_type>& kbeg, vector<key_type>& kfin);
+  void parallelMerge(vector<key_type>& in, vector<key_type>& out);
+  void sortCombine(vector<key_type>& one, vector<key_type>& two, vector<key_type>& comb);
+  unsigned find_proc(vector<key_type>& keys, key_type key);
 
   //! Frontier iterator
   key_cell::iterator fit;
@@ -62,10 +66,9 @@ public:
   void Repartition();
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
-  //! Number of cells in tree frontier (leaves)
-  unsigned Number() { return frontier.size(); }
 
   //! Number of cells in tree
+  unsigned Number() { return frontier.size(); }
   unsigned TotalNumber() { return total_cells; }
 
   /**
@@ -136,8 +139,9 @@ public:
 
   pCell* Cell() { return fit->second; }
 
-  double Volume() { return volume/((unsigned long long)1 << (3*fit->second->level)); }
+  double Volume() { return volume/((key_type)1 << (3*fit->second->level)); }
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
+
   double Mass() { return fit->second->Mass(); }
 
   Particle *Body(unsigned k) { return fit->second->Body(k); }
