@@ -12,7 +12,7 @@
 //
 #ifndef _global_H
 extern int numprocs, slaves, myid, proc_namelen;
-extern char processor_name[MPI_MAX_PROCESSOR_NAME];
+extern char* processor_name;
 #endif
 
 #include <iostream>

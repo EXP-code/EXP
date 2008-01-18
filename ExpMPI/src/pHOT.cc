@@ -1247,47 +1247,58 @@ void pHOT::Repartition()
 
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
-  vector<MPI_Request> send_requests, recv_requests;
+  vector<MPI_Request> send_requests;
   vector<Partstruct> psend(Tcnt), precv(Fcnt);
   MPI_Request r;
 
   //
-  // Send particles
+  // Exchange particles between processes
   //
-  for (int id=0; id<numprocs; id++) {
-    unsigned To = sendlist[numprocs*myid+id];
-    if (To) {
-      for (unsigned i=0; i<To; i++) {
-	pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[id][i]]);
-	cc->Particles().erase(bodylist[id][i]);
-	erased.push_back(bodylist[id][i]);
-      }
-      send_requests.push_back(r);
-      for (unsigned i=0; i<To; i++) {
-	if (psend[ps+i].indx == 0) {
-	  cerr << "pHOT::Repartition[" << debug_ctr
-	       << "]: SEND from=" << myid << " to=" << id << " #=" << To
-	       << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
+  for (int frID=0; frID<numprocs; frID++) {
+    for (int toID=0; toID<numprocs; toID++) {
+				// 
+				// Current process sends particles (non-blocking)
+      if (myid==frID) {		// 
+	unsigned To = sendlist[numprocs*frID+toID];
+	if (To) {
+	  for (unsigned i=0; i<To; i++) {
+	    pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
+	    cc->Particles().erase(bodylist[toID][i]);
+	    erased.push_back(bodylist[toID][i]);
+	  }
+	  send_requests.push_back(r);
+	  for (unsigned i=0; i<To; i++) {
+	    if (psend[ps+i].indx == 0) {
+	      cerr << "pHOT::Repartition[" << debug_ctr
+		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
+		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
+	    }
+	  }
+	  MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
+		    MPI_COMM_WORLD, &send_requests.back());
+	  ps += To;
 	}
       }
-      MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, id, 49, 
-		MPI_COMM_WORLD, &send_requests.back());
-      ps += To;
-    }
-  }
+				// 
+				// Current process receives particles (blocking)
+      if (myid==toID) {		// 
+	unsigned From = sendlist[numprocs*frID+toID];
+	if (From) {
+	  MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
+		   MPI_COMM_WORLD, &s);
+	  pr += From;
+	}
+      }
 
-  //
-  // Receive particles
-  //
-  
-  for (int id=0; id<numprocs; id++) {
-    unsigned From = sendlist[numprocs*id+myid];
-    if (From) {
-      recv_requests.push_back(r);
-      MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, id, 49, 
-		MPI_COMM_WORLD, &recv_requests.back());
-      pr += From;
+    } // Receipt loop
+				// Sending node waits for particle delivery
+    if (myid==frID) {		// 
+      for (unsigned i=0; i<send_requests.size(); i++) 
+	MPI_Wait(&send_requests[i], &s);
+      send_requests.clear();
     }
+
+    // MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
   }
 
   //
@@ -1308,19 +1319,6 @@ void pHOT::Repartition()
     }
 
   }
-
-  // Chatty if nothing sent or received
-  //
-  if (false) {
-    if (send_requests.size() == 0)
-      cout << "Process " << myid << ": nothing to send!" << endl;
-      
-    if (recv_requests.size() == 0)
-      cout << "Process " << myid << ": nothing to receive!" << endl;
-  }
-
-  for (unsigned i=0; i<send_requests.size(); i++) MPI_Wait(&send_requests[i], &s);
-  for (unsigned i=0; i<recv_requests.size(); i++) MPI_Wait(&recv_requests[i], &s);
 
   //
   // DEBUG
@@ -1560,6 +1558,7 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
 
   vector<key_type> data = initl;
 
+  //
   // Retrieve the excess particles
   //
   if (myid + M2 < numprocs) {
@@ -1571,6 +1570,7 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
     sortCombine(initl, recv, data);
   }
     
+  //
   // Now do the iterative binary merge
   //
   while (M2 > 1) {
@@ -1580,6 +1580,7 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
     // When M2 = 1, we are on the the last iteration.
     // The final node left will be the root with the entire sorted array.
 
+    //
     // The upper half of the nodes send to the lower half and is done
     //
     if (myid >= M2) {
@@ -1593,13 +1594,17 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
       vector<key_type> recv(n);
       MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
 	       MPI_COMM_WORLD, &status);
-      // The lower half sorts and the goes around again.
+      //
+      // The lower half sorts and loop again
+      //
       sortCombine(data, recv, work);
       data = work;
     }
   }
 
+  //
   // We are done, return the result
+  //
   final = data;
 
   return;

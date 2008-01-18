@@ -74,7 +74,7 @@ vector<pthread_t> posvel_thrd;
 				// MPI variables
 int is_init=1;
 int numprocs, slaves, myid, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
+char* processor_name;
 
 MPI_Comm MPI_COMM_SLAVE;
 

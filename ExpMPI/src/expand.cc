@@ -65,12 +65,15 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
 
+  processor_name = new char [MPI_MAX_PROCESSOR_NAME];
+
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
 				// Make SLAVE group 
+/*
   slaves = numprocs - 1;
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
   nslaves = new int [slaves];
@@ -83,7 +86,7 @@ main(int argc, char** argv)
   MPI_Group_incl(world_group, slaves, nslaves, &slave_group);
   MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
   delete [] nslaves;
-    
+
   // Debug id 
   MPI_Group_rank ( slave_group, &n );
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
@@ -92,6 +95,7 @@ main(int argc, char** argv)
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
 		     << "   MASTER NODE\t Ready to go!\n";
+*/
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
     if (myid==j) cerr << "Process " << setw(4) << right << myid 
@@ -272,6 +276,8 @@ main(int argc, char** argv)
   //===========
 
   clean_up();
+
+  delete [] processor_name;
 
   return 0;
 }

@@ -181,7 +181,7 @@ extern int numprocs, slaves, myid, proc_namelen;
 //@}
 
 //! MPI returned processor name
-extern char processor_name[MPI_MAX_PROCESSOR_NAME];
+extern char* processor_name;
 #endif
 
 //! Internally defined slave communicator

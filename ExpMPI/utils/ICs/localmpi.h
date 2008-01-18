@@ -9,7 +9,7 @@ void local_init_mpi(int argc, char **argv);
 #ifdef IS_INIT_MPI
 				/* MPI variables */
 int numprocs, slaves, myid, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
+char* processor_name;
 
 #else
 				/* MPI variables */

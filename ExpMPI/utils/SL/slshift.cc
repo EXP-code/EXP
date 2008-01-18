@@ -16,7 +16,7 @@
 				// MPI global variables
 				// so one can link to exp libraries
 int numprocs, myid, proc_namelen;
-char processor_name[MPI_MAX_PROCESSOR_NAME];
+char* processor_name;
 
 MPI_Comm MPI_COMM_SLAVE;
 
@@ -438,6 +438,7 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
   if (use_mpi) {
+    processor_name = new char [MPI_MAX_PROCESSOR_NAME];
     MPI_Init(&argc,&argv);
     MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
     MPI_Comm_rank(MPI_COMM_WORLD, &myid);
