@@ -213,9 +213,15 @@ void pHOT::makeTree()
 
       if (tailKey && tailKey == nextKey) {
 	if (tail_num <= next_num) {
-	  sendCell(tailKey, n, tail_num);
+	  if (tail_num)
+	    sendCell(tailKey, n, tail_num);
+	  else
+	    cout << "Process " << myid << ": not sending cell with zero particles" << endl;
 	} else {
-	  recvCell(n, next_num);
+	  if (next_num)
+	    recvCell(n, next_num);
+	  else
+	    cout << "Process " << myid << ": not receiving cell with zero particles" << endl;
 	}
       }
 
@@ -252,9 +258,15 @@ void pHOT::makeTree()
 
       if (headKey && headKey == prevKey) {
 	if (head_num < prev_num) {
-	  sendCell(headKey, n-1, head_num);
+	  if (head_num)
+	    sendCell(headKey, n-1, head_num);
+	  else
+	    cout << "Process " << myid << ": not sending cell with zero particles" << endl;
 	} else {
-	  recvCell(n-1, prev_num);
+	  if (prev_num)
+	    recvCell(n-1, prev_num);
+	  else
+	    cout << "Process " << myid << ": not receiving cell with zero particles" << endl;
 	}
       }
 
@@ -1247,9 +1259,11 @@ void pHOT::Repartition()
 
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
-  vector<MPI_Request> send_requests;
-  vector<Partstruct> psend(Tcnt), precv(Fcnt);
-  MPI_Request r;
+  Partstruct *psend, *precv = 0;
+  int ierr;
+
+  if (Tcnt) psend = new Partstruct [Tcnt];
+  if (Fcnt) precv = new Partstruct [Fcnt];
 
   //
   // Exchange particles between processes
@@ -1266,7 +1280,6 @@ void pHOT::Repartition()
 	    cc->Particles().erase(bodylist[toID][i]);
 	    erased.push_back(bodylist[toID][i]);
 	  }
-	  send_requests.push_back(r);
 	  for (unsigned i=0; i<To; i++) {
 	    if (psend[ps+i].indx == 0) {
 	      cerr << "pHOT::Repartition[" << debug_ctr
@@ -1274,8 +1287,12 @@ void pHOT::Repartition()
 		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
 	    }
 	  }
-	  MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
-		    MPI_COMM_WORLD, &send_requests.back());
+	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
+			      MPI_COMM_WORLD)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in Reparition sending "
+		   << To << " particles to #" << toID << " ierr=" << ierr << endl;
+	    }
 	  ps += To;
 	}
       }
@@ -1284,21 +1301,19 @@ void pHOT::Repartition()
       if (myid==toID) {		// 
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
-	  MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
-		   MPI_COMM_WORLD, &s);
+	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
+			      MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in Reparition receiving "
+		   << From << " particles from #" << frID << " ierr=" << ierr << endl;
+	    }
 	  pr += From;
 	}
       }
 
     } // Receipt loop
-				// Sending node waits for particle delivery
-    if (myid==frID) {		// 
-      for (unsigned i=0; i<send_requests.size(); i++) 
-	MPI_Wait(&send_requests[i], &s);
-      send_requests.clear();
-    }
 
-    // MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
+    MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
   }
 
   //
@@ -1349,6 +1364,12 @@ void pHOT::Repartition()
   }
   cc->nbodies = cc->particles.size();
       
+  //
+  // Clean up temporary body storage
+  //
+  if (Tcnt) delete [] psend;
+  if (Fcnt) delete [] precv;
+
   //
   // Remake key body index
   //
@@ -1435,10 +1456,14 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   sort(keys.begin(), keys.end());
 
 				// Sample keys at desired rate
-  const unsigned srate = 1000;	// e.g. every srate^th key is sampled
+  unsigned srate = 1000;	// e.g. every srate^th key is sampled
 
 				// Number of samples
   unsigned nsamp = keys.size()/srate;
+				// Sanity checks
+  if (nsamp < 10000/numprocs) nsamp = 10000/numprocs; // Too few samples
+  if (nsamp > keys.size())    nsamp = keys.size();    // Too many for particle count
+  srate = keys.size()/nsamp;                          // Consistent sampling rate
 
   vector<key_type> keylist1, keylist;
   for (unsigned i=0; i<nsamp; i++)
@@ -1448,11 +1473,11 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 				// entire key list
   parallelMerge(keylist1, keylist);
 
+
   if (myid==0) {
 
-    double delta = static_cast<double>(keylist.size())/numprocs;
     for (unsigned i=0; i<numprocs-1; i++)
-      kfin[i] = keylist[static_cast<unsigned>(floor(delta*(i+1)))];
+      kfin[i] = keylist[static_cast<unsigned>(keylist.size()*(i+1)/numprocs)];
     kfin[numprocs-1] = key_max;
 
     kbeg[0] = key_min;

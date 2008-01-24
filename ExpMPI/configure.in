@@ -51,7 +51,7 @@ AC_CHECK_LIB(fft, main)
 dnl Replace 'main' with a function in -lm:
 AC_CHECK_LIB(m, main)
 dnl Replace 'main' with a function in -lmpi:
-AC_CHECK_LIB(mpi, main)
+#AC_CHECK_LIB(mpi, main)
 dnl Replace 'main' with a function in -lexputil:
 AC_CHECK_LIB(exputil, main)
 dnl Replace 'main' with a function in -lpthread:

@@ -120,8 +120,8 @@ public:
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
 
-  unsigned total()  { return coltot; }
-  unsigned errors() { return errtot; }
+  unsigned total()  { double t=coltot; coltot=0; return t; }
+  unsigned errors() { double t=errtot; errtot=0; return t; }
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();

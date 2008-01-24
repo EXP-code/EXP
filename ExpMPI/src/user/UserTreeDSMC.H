@@ -79,8 +79,7 @@ private:
   double volume;
 
 				// Timers
-  Timer partnTime, treeTime;
-  Timer collideTime, densityTime, gatherTime;
+  Timer partnTime, treeTime, collideTime;
 
   void userinfo();
 

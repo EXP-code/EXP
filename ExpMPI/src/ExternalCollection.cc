@@ -124,7 +124,12 @@ void ExternalCollection::dynamicload(void)
     perror("popen");
     exit(-1);
   }
-  
+ 
+  ostringstream ostr;
+  ostr << "extcoll.log." << myid;
+  ofstream tout(ostr.str().c_str());
+  tout << "Process " << myid << ": opened <" << command << ">" << endl;
+
   if (myid==0) cout << "ExternalCollection:" << endl
 		    << setw(71) << setfill('-') << "-" << endl
 		    <<  "Loaded user libraries <";
@@ -132,29 +137,40 @@ void ExternalCollection::dynamicload(void)
   char name[1024];
   bool first = true
 ;
-  while(fgets(in_buf, BUF_SIZE, dl)) {
+  for (int i=0; i<numprocs; i++) {
+    if (i==myid) {
+      while(fgets(in_buf, BUF_SIZE, dl)) {
 				// trim off the whitespace 
-    char *ws = strpbrk(in_buf, " \t\n"); 
-    if (ws) *ws = '\0';
-				// preappend ldlibdir to the front of 
+	char *ws = strpbrk(in_buf, " \t\n"); 
+	if (ws) *ws = '\0';
+	// preappend ldlibdir to the front of 
 				// the lib name
-    sprintf(name, "%s/%s", ldlibdir.c_str(), in_buf); 
-    dlib = dlopen(name, RTLD_NOW | RTLD_GLOBAL);
-    if(dlib == NULL) {
-      cerr << dlerror() << endl; 
-      exit(-1);
-    }
+	sprintf(name, "%s/%s", ldlibdir.c_str(), in_buf); 
 
-    if (myid==0) {
-      if (first) {
-	cout << in_buf;
-	first = false;
-      } else 
-	cout << " " << in_buf;
-    }
+	tout << "Process " << myid << ": call dlopen on <" << name << ">" << endl;
+
+	dlib = dlopen(name, RTLD_NOW | RTLD_GLOBAL);
+	if(dlib == NULL) {
+	  cerr << dlerror() << endl; 
+	  exit(-1);
+	}
+
+	if (myid==0) {
+	  if (first) {
+	    cout << in_buf;
+	    first = false;
+	  } else 
+	    cout << " " << in_buf;
+	}
 				// add the handle to our list
-    dl_list.insert(dl_list.end(), dlib);
+	dl_list.insert(dl_list.end(), dlib);
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
+
+  tout << "Process " << myid << ": done with dlopen" << endl;
+  tout.close();
 
   if (myid==0) {
     cout << ">" << endl 

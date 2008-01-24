@@ -182,9 +182,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   partnTime.Microseconds();
   treeTime.Microseconds();
   collideTime.Microseconds();
-  densityTime.Microseconds();
-  gatherTime.Microseconds();
-
 
   if (mfpstat) {
     quant.push_back(0.05);
@@ -284,8 +281,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  TimeElapsed partnSoFar;
-  TimeElapsed treeSoFar, collideSoFar, densitySoFar, gatherSoFar;
+  TimeElapsed partnSoFar, treeSoFar, collideSoFar;
 
   //
   // Test repartition
@@ -327,6 +323,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Evaluate collisions among the particles
   //
 
+  collideTime.start();
+
   {
     ostringstream sout;
     sout << "before Collide [" << nrep << "], " 
@@ -334,7 +332,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
 
-  unsigned col = collide->collide(*c0->Tree(), collfrac, tau);
+  // unsigned col = 
+  collide->collide(*c0->Tree(), collfrac, tau);
     
   {
     ostringstream sout;
@@ -402,18 +401,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       ostringstream sout;
       sout << runtag << ".DSMC_log";
       ofstream mout(sout.str().c_str(), ios::app);
-
-      int digit1 = (int)floor(log(nsteps)/log(10.0)) + 1;
-      int digit2 = (int)floor(log(nsteps*400*volume/minvol)/log(10.0)) + 1;
-
-      mout << "Finished " 
-	   << setw(digit1) << stepnum << " steps; " 
-	   << setw(digit2) << collide->total() << " coll; "
-	   << setw(digit2) << collide->errors() << " coll errs; "
-	   << medianNumb << " num/cell; "
-	   << medianColl << " coll/cell; "
-	   << c0->Tree()->Number() << " cells";
-      mout << endl << endl;
+      mout << "Summary:" << endl << left
+	   << setw(6) << " " << setw(20) << stepnum << "steps" << endl
+	   << setw(6) << " " << setw(20) << collide->total() << "collisions" << endl
+	   << setw(6) << " " << setw(20) << collide->errors() << "collision errors" << endl
+	   << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
+	   << setw(6) << " " << setw(20) << medianColl << "collision/cell" << endl
+	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() << "cells" << endl
+	   << endl;
 	
       ElostTot += Elost;
 
@@ -431,8 +426,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "       tree=" << treeSoFar()*1.0e-6 << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl
-	   << "    density=" << densitySoFar()*1.0e-6 << endl
-	   << "     gather=" << gatherSoFar()*1.0e-6 << endl
 	   << endl;
 
       collide->tsdiag(mout);
@@ -440,8 +433,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       partnTime.reset();
       treeTime.reset();
       collideTime.reset();
-      densityTime.reset();
-      gatherTime.reset();
     }
 
   }
