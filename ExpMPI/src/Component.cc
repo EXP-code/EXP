@@ -147,46 +147,57 @@ void Component::reset_level_lists()
     }
   }
   
-  //
-  // Make the <nthrds> threads
-  //
-  int errcode;
-  void *retval;
+  if (nthrds==1) {
+
+    td[0].id = 0;
+    td[0].c  = this;
+    td[0].newlist  = vector< vector<int> >(multistep+1);
+
+    reset_level_lists_thrd(&td[0]);
+
+  } else {
+
+    //
+    // Make the <nthrds> threads
+    //
+    int errcode;
+    void *retval;
   
-  for (int i=0; i<nthrds; i++) {
+    for (int i=0; i<nthrds; i++) {
     
-    td[i].id = i;
-    td[i].c  = this;
-    td[i].newlist  = vector< vector<int> >(multistep+1);
+      td[i].id = i;
+      td[i].c  = this;
+      td[i].newlist  = vector< vector<int> >(multistep+1);
+      
+      errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
 
-    errcode =  pthread_create(&t[i], 0, reset_level_lists_thrd, &td[i]);
-
-    if (errcode) {
-      cerr << "Process " << myid
-	   << " reset_level_lists: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
-    }
+      if (errcode) {
+	cerr << "Process " << myid
+	     << " reset_level_lists: cannot make thread " << i
+	     << ", errcode=" << errcode << endl;
+	exit(19);
+      }
 #ifdef DEBUG
-    else {
-      cout << "Process " << myid << ": thread <" << i << "> created\n";
-    }
+      else {
+	cout << "Process " << myid << ": thread <" << i << "> created\n";
+      }
 #endif
-  }
+    }
     
-  //
-  // Collapse the threads
-  //
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(t[i], &retval))) {
-      cerr << "Process " << myid
-	   << " reset_level_lists: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
-    }
+    //
+    // Collapse the threads
+    //
+    for (int i=0; i<nthrds; i++) {
+      if ((errcode=pthread_join(t[i], &retval))) {
+	cerr << "Process " << myid
+	     << " reset_level_lists: thread join " << i
+	     << " failed, errcode=" << errcode << endl;
+	exit(20);
+      }
 #ifdef DEBUG    
-    cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
+      cout << "Process " << myid << ": multistep thread <" << i << "> thread exited\n";
 #endif
+    }
   }
 				// Particle list per level.
 				// Begin with empty lists . . .
@@ -1619,46 +1630,63 @@ void Component::fix_positions(void)
   vector<double>         com1(3, 0.0), cov1(3, 0.0);
   double                 mtot1 = 0.0;
 
-  int errcode;
-  void *retval;
+  if (nthrds==1) {
+
+    data[0].id = 0;
+    data[0].c  = this;
+    data[0].consp = consp;
+    data[0].tidal = tidal;
+    data[0].com_system = com_system;
+
+    data[0].com = vector<double>(3, 0.0);
+    data[0].cov = vector<double>(3, 0.0);
+    data[0].mtot = 0.0;
+
+    fix_positions_thread(&data[0]);
+
+  } else {
+
+    int errcode;
+    void *retval;
   
-  for (int i=0; i<nthrds; i++) {
+    for (int i=0; i<nthrds; i++) {
 
-    data[i].id = i;
-    data[i].c  = this;
-    data[i].consp = consp;
-    data[i].tidal = tidal;
-    data[i].com_system = com_system;
+      data[i].id = i;
+      data[i].c  = this;
+      data[i].consp = consp;
+      data[i].tidal = tidal;
+      data[i].com_system = com_system;
 
-    data[i].com = vector<double>(3, 0.0);
-    data[i].cov = vector<double>(3, 0.0);
-    data[i].mtot = 0.0;
+      data[i].com = vector<double>(3, 0.0);
+      data[i].cov = vector<double>(3, 0.0);
+      data[i].mtot = 0.0;
 
-    errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
+      errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
 
-    if (errcode) {
-      cerr << "Process " << myid
-	   << " Component::fix_positions: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
+      if (errcode) {
+	cerr << "Process " << myid
+	     << " Component::fix_positions: cannot make thread " << i
+	     << ", errcode=" << errcode << endl;
+	exit(19);
+      }
     }
-  }
     
-  //
-  // Collapse the threads
-  //
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(thrd[i], &retval))) {
-      cerr << "Process " << myid
-	   << " Component::fix_positions: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
+    //
+    // Collapse the threads
+    //
+    for (int i=0; i<nthrds; i++) {
+      if ((errcode=pthread_join(thrd[i], &retval))) {
+	cerr << "Process " << myid
+	     << " Component::fix_positions: thread join " << i
+	     << " failed, errcode=" << errcode << endl;
+	exit(20);
+      }
+      for (int k=0; k<3; k++) {
+	com1[k] += data[i].com[k];
+	cov1[k] += data[i].cov[k];
+      }
+      mtot1 += data[i].mtot;
     }
-    for (int k=0; k<3; k++) {
-      com1[k] += data[i].com[k];
-      cov1[k] += data[i].cov[k];
-    }
-    mtot1 += data[i].mtot;
   }
 
 
@@ -1825,34 +1853,45 @@ void Component::get_angmom(void)
   vector<pthread_t>        thrd(nthrds);
   vector<double>           angm1(3, 0);
 
-  for (int i=0; i<nthrds; i++) {
+  if (nthrds==1) {
 
-    data[i].id = i;
-    data[i].c  = this;
-    for (int k=0; k<3; k++) data[i].angm1.push_back(0);
+    data[0].id = 0;
+    data[0].c  = this;
+    for (int k=0; k<3; k++) data[0].angm1.push_back(0);
+    
+    get_angmom_thread(&data[0]);
+
+  } else {
+
+    for (int i=0; i<nthrds; i++) {
+
+      data[i].id = i;
+      data[i].c  = this;
+      for (int k=0; k<3; k++) data[i].angm1.push_back(0);
   
 
-    errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
+      errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
 
-    if (errcode) {
-      cerr << "Process " << myid
-	   << " Component::get_angmom: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
+      if (errcode) {
+	cerr << "Process " << myid
+	     << " Component::get_angmom: cannot make thread " << i
+	     << ", errcode=" << errcode << endl;
+	exit(19);
+      }
     }
-  }
     
-  //
-  // Collapse the threads
-  //
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(thrd[i], &retval))) {
-      cerr << "Process " << myid
-	   << " Component::get_angmom: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
+    //
+    // Collapse the threads
+    //
+    for (int i=0; i<nthrds; i++) {
+      if ((errcode=pthread_join(thrd[i], &retval))) {
+	cerr << "Process " << myid
+	     << " Component::get_angmom: thread join " << i
+	     << " failed, errcode=" << errcode << endl;
+	exit(20);
+      }
+      for (int k=0; k<3; k++) angm1[k] += data[i].angm1[k];
     }
-    for (int k=0; k<3; k++) angm1[k] += data[i].angm1[k];
   }
 
 

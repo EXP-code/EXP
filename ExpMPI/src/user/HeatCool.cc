@@ -1,4 +1,5 @@
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 
 using namespace std;
@@ -290,11 +291,6 @@ void HeatCool::xion(double t, double *x, double *x_1, double *x_2, double *x_3, 
   za_Hepp = a_Hepp(t);
   zg_Hep = g_Hep(t);
   for (i = 1; i <= 50; ++i) {
-    if(i == 50)
-      {
-	cerr << "<too many iterations in xion>" << endl;
-	cerr << "t: " << t << ", n_h: " << n_h << ", n_e: " << n_e << endl;
-      }
     // solve for neutral H fraction given constant n_e 
     if (g0 + (zg_H + za_Hp)*n_e != 0.0) {
       zx = za_Hp*n_e/(g0 + (zg_H + za_Hp)*n_e);
@@ -330,6 +326,14 @@ void HeatCool::xion(double t, double *x, double *x_1, double *x_2, double *x_3, 
     n_e = .5*(n_e + old_n_e);
     old_n_e = n_e;
   }
+  if (i > 50)
+    {
+      ostringstream sout;
+      sout << "<too many iterations in xion>" << endl;
+      sout << "t: " << t << ", n_h: " << n_h << ", n_e: " << n_e << endl;
+      throw (sout.str());
+    }
+
   zx = min(1.,zx);
   *x = zx;
   *x_1 = zx1;
@@ -550,7 +554,14 @@ HeatCool::HeatCool(double density, double temp)
   h1 = eps_He;
   h2 = eps_Hep;
   
-  xion(temp, &x, &x_1, &x_2, &x_3, &n_e);
+  try {
+    xion(temp, &x, &x_1, &x_2, &x_3, &n_e);
+  } catch (string msg) {
+    crate = hrate = compcrate = trate = 0.0;
+    cerr << msg << ", no heating or cooling for this step" << endl;
+    return;
+  }
+
   f_e = 1.0 - x + x_2*r + (x_3)*2.0*r;
   crate = f_e*rate_Hp(temp)*(1.0 - x);
   crate += f_e*x_2*r*rate_Hep(temp);

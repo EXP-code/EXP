@@ -8,6 +8,7 @@
 
 #include <ACG.h>
 #include <Uniform.h>
+#include <Normal.h>
 
 #include "Particle.H"
 #include "pHOT.H"
@@ -58,6 +59,7 @@ private:
 
   ACG *gen;
   Uniform *unit;
+  Normal *norm;
 
   vector<Precord> prec;
 
@@ -76,7 +78,7 @@ protected:
   std::vector< vector<unsigned> > numcntT;
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
-  std::vector<unsigned> col1T;
+  std::vector<unsigned> col1T, epsm1T, Nepsm1T;
   std::vector<double> KEtotT, KElostT;
   std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT, ttempT, tdeltT;
 
@@ -88,16 +90,21 @@ protected:
 
   double diam0, diam;
   unsigned coltot;
+  unsigned epsmtot;
+  unsigned epsmcells;
   unsigned errtot;
   unsigned numtot;
 
-  int use_temp, use_dens;
+  int use_temp, use_dens, use_delt;
 
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) { }
 
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
+
+  virtual void EPSM(pHOT* tree, pCell* cell, int id);
+  vector<double> coolrate;
 
   void debug_list(pHOT& tree);
 
@@ -113,19 +120,29 @@ public:
 
   static bool PHASE;		// Print out T-rho plane for cells will mass weighting
   
+				// Use EPSM when mean free path/cell size ratio 
+				// is below EPSMratio (default = -1.0, never)
+  static double EPSMratio;
+				// Temperature floor in resampling dispersion for EPSM
+  static double TFLOOR;
+
 
   Collide(double diameter, int nth=1);
   ~Collide();
 
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
+  virtual void set_timestep(int DTpos) { }
 
-  unsigned total()  { double t=coltot; coltot=0; return t; }
-  unsigned errors() { double t=errtot; errtot=0; return t; }
+  unsigned total()  { unsigned t=coltot; coltot=0; return t; }
+  unsigned EPSMtotal()  { unsigned t=epsmtot; epsmtot=0; return t; }
+  unsigned EPSMcells()  { unsigned t=epsmcells; epsmcells=0; return t; }
+  unsigned errors() { unsigned t=errtot; errtot=0; return t; }
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
   unsigned collide(pHOT& cl, double Fn, double tau);
+  void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }

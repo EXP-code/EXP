@@ -112,7 +112,7 @@ pCell* pCell::Add(const key_pair& keypair)
   if (isLeaf && keys.find(keypair)==keys.end()) {
 
 				// I am still a leaf . . .
-    if (bods.size() < bucket) {
+    if (bods.size() < bucket || level+1==nbits) {
       keys.insert(keypair);
       tree->bodycell[key] = mykey;
       bods.push_back(keypair.second);
@@ -213,10 +213,38 @@ double pCell::Mass()
 
 void pCell::MeanPos(double &x, double &y, double& z)
 {
-  if (state[0]<=0.0) return;
+  if (state[0]<=0.0) {
+    x = y = z = 0.0;
+    return;
+  }
   x = state[7]/state[0];
   y = state[8]/state[0];
   z = state[9]/state[0];
+}
+
+void pCell::MeanPos(vector<double> &p)
+{
+  p = vector<double>(3, 0);
+  if (state[0]<=0.0) return;
+  for (int k=0; k<3; k++) p[k] = state[7+k]/state[0];
+}
+
+void pCell::MeanVel(double &u, double &v, double& w)
+{
+  if (state[0]<=0.0) {
+    u = v = w = 0.0;
+    return;
+  }
+  u = state[4]/state[0];
+  v = state[5]/state[0];
+  w = state[6]/state[0];
+}
+
+void pCell::MeanVel(vector<double> &p)
+{
+  p = vector<double>(3, 0);
+  if (state[0]<=0.0) return;
+  for (int k=0; k<3; k++) p[k] = state[4+k]/state[0];
 }
 
 void pCell::KE(double &total, double &dispr)

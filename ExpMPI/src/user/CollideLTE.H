@@ -42,6 +42,8 @@ public:
 
   CollideLTE(double diameter, int nth=1);
 
+  virtual void set_timestep(int DTpos) { use_delt=DTpos; }
+
   virtual double Etotal();
   virtual double Elost();
 

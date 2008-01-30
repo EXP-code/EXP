@@ -288,8 +288,30 @@ void pHOT::makeTree()
 
   // March through the frontier to find the sample cells
   //
-  for (key_cell::iterator it=frontier.begin(); 
-       it != frontier.end(); it++) it->second->findSampleCell();
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
+    it->second->findSampleCell();
+
+  // Find min and max cell occupation
+  //
+  unsigned min1=MAXINT, max1=0, nt;
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
+    nt = it->second->bods.size();
+    min1 = min<unsigned>(min1, nt);
+    max1 = max<unsigned>(max1, nt);
+  }
+
+  MPI_Allreduce(&min1, &min_cell, 1, MPI_UNSIGNED, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&max1, &max_cell, 1, MPI_UNSIGNED, MPI_MAX, MPI_COMM_WORLD);
+
+  vector<unsigned>  chist1(max_cell-min_cell+1, 0);
+  chist = vector<unsigned>(max_cell-min_cell+1, 0);
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++)
+    chist1[it->second->bods.size()-min_cell]++;
+  
+  MPI_Allreduce(&chist1[0], &chist[0], max_cell-min_cell+1, 
+		MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+  for (unsigned i=1; i<max_cell-min_cell+1; i++) chist[i] += chist[i-1];
 
   // Accumulate the total number of cells in the tree
   //
@@ -297,6 +319,26 @@ void pHOT::makeTree()
   MPI_Allreduce(&my_cells, &total_cells, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
 }
+
+unsigned pHOT::CellCount(double pctl)
+{
+  pctl = min<double>( max<double>(0.0, pctl), 1.0 );
+  unsigned target = static_cast<unsigned>(floor( pctl*chist.back() ));
+  unsigned li=0, ui=max_cell-min_cell, mi;
+  while (ui-li>1) {
+    mi = (li + ui)/2;
+    if (chist[mi] <= target)
+      li = mi;
+    else
+      ui = mi;
+  }
+
+  if ( chist[ui]-target > target-chist[li] )
+    return min_cell+li;
+  else
+    return min_cell+ui;
+}
+
 
 vector<unsigned> cntlev;
 vector<unsigned> kidlev;
@@ -1463,7 +1505,7 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 				// Sanity checks
   if (nsamp < 10000/numprocs) nsamp = 10000/numprocs; // Too few samples
   if (nsamp > keys.size())    nsamp = keys.size();    // Too many for particle count
-  srate = keys.size()/nsamp;                          // Consistent sampling rate
+  if (nsamp) srate = keys.size()/nsamp;	              // Consistent sampling rate
 
   vector<key_type> keylist1, keylist;
   for (unsigned i=0; i<nsamp; i++)

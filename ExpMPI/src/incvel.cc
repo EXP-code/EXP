@@ -69,48 +69,59 @@ void incr_velocity(double dt, int mlevel)
 {
   if (!eqmotion) return;
 
-  //
-  // Make the <nthrds> threads
-  //
-  int errcode;
-  void *retval;
-  
-  for (int i=0; i<nthrds; i++) {
+  if (nthrds==1) {
 
-    posvel_data[i].dt = dt;
-    posvel_data[i].mlevel = mlevel;
-    posvel_data[i].id = i;
+    posvel_data[0].dt = dt;
+    posvel_data[0].mlevel = mlevel;
+    posvel_data[0].id = 0;
     
-    errcode =  pthread_create(&posvel_thrd[i], 0, incr_velocity_thread, 
-			      &posvel_data[i]);
+    incr_velocity_thread(&posvel_data[0]);
 
-    if (errcode) {
-      cerr << "Process " << myid
-	   << " incr_velocity: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
-    }
+  } else {
+
+    //
+    // Make the <nthrds> threads
+    //
+    int errcode;
+    void *retval;
+    
+    for (int i=0; i<nthrds; i++) {
+
+      posvel_data[i].dt = dt;
+      posvel_data[i].mlevel = mlevel;
+      posvel_data[i].id = i;
+      
+      errcode =  pthread_create(&posvel_thrd[i], 0, incr_velocity_thread, 
+				&posvel_data[i]);
+
+      if (errcode) {
+	cerr << "Process " << myid
+	     << " incr_velocity: cannot make thread " << i
+	     << ", errcode=" << errcode << endl;
+	exit(19);
+      }
 #ifdef DEBUG
-    else {
-      cout << "Process " << myid << ": thread <" << i << "> created\n";
-    }
+      else {
+	cout << "Process " << myid << ": thread <" << i << "> created\n";
+      }
 #endif
-  }
+    }
     
-  //
-  // Collapse the threads
-  //
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(posvel_thrd[i], &retval))) {
-      cerr << "Process " << myid
-	   << " incr_velocity: thread join " << i
-	   << " failed, errcode=" << errcode << endl;
-      exit(20);
-    }
+    //
+    // Collapse the threads
+    //
+    for (int i=0; i<nthrds; i++) {
+      if ((errcode=pthread_join(posvel_thrd[i], &retval))) {
+	cerr << "Process " << myid
+	     << " incr_velocity: thread join " << i
+	     << " failed, errcode=" << errcode << endl;
+	exit(20);
+      }
 #ifdef DEBUG    
-    cout << "Process " << myid << ": incr_velocity thread <" 
-	 << i << "> thread exited\n";
+      cout << "Process " << myid << ": incr_velocity thread <" 
+	   << i << "> thread exited\n";
 #endif
+    }
   }
   
 

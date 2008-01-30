@@ -35,6 +35,7 @@ struct thrd_pass_dsmc
     @param BoxSize half the size of a side in system units
     @param ncell is the desired number of particles per cell
     @param cnum non-zero adjusts cross section for cnum collisions per cel
+    @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
     @param frontier enables printing of active cell list (for debugging)
@@ -42,6 +43,9 @@ struct thrd_pass_dsmc
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
     @param use_multi attempts to set the time step (if multistep is enabled)
+    @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
+    @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
+    @param cba use the Collisional Boltzmann Approximation from Alexander et al.
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -50,16 +54,18 @@ private:
   int ncell;
   int cnum;
   int nsteps;
-  int use_temp, use_dens;
+  int use_temp, use_dens, use_delt;
   double diamfac;
   double diam;
   double collfrac;
   double boxsize;
+  double epsm;
+  double coolfrac;
 
-  bool frontier, mfpstat, use_multi;
+  bool frontier, mfpstat, use_multi, cba;
 
 				// For MFP and time step statistics
-  vector<double> quant, mfp_, ts_;
+  vector<double> quant, mfp_, ts_, coll_;
 
   unsigned stepnum;
   double curtime;

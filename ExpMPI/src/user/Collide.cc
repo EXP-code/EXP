@@ -8,12 +8,20 @@ using namespace std;
 #include "Timer.h"
 #include "global.H"
 #include "pHOT.H"
+#include "UserTreeDSMC.H"
 #include "Collide.H"
 
 				// Print out sorted cell parameters
 bool Collide::SORTED = true;
 				// Print out T-rho plane for cells will mass weighting
 bool Collide::PHASE = true;
+				// Temperature floor in EPSM
+double Collide::TFLOOR = 1000.0;
+
+				// Proton mass (g)
+const double mp = 1.67262158e-24;
+				// Boltzmann constant (cgs)
+const double boltz = 1.3810e-16;
 
 extern "C"
 void *
@@ -30,6 +38,20 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
   int errcode;
   void *retval;
   
+  if (nthrds==1) {
+    thrd_pass_Collide td;
+    
+    td.p = this;
+    td.arg.tree = tree;
+    td.arg.fn = Fn;
+    td.arg.tau = tau;
+    td.arg.id = 0;
+
+    collide_thread_call(&td);
+
+    return;
+  }
+
   td = new thrd_pass_Collide [nthrds];
   t = new pthread_t [nthrds];
 
@@ -86,6 +108,7 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
 
 int Collide::CNUM = 0;
 bool Collide::CBA = true;
+double Collide::EPSMratio = -1.0;
 
 Collide::Collide(double diameter, int nth)
 {
@@ -95,6 +118,8 @@ Collide::Collide(double diameter, int nth)
   numcntT = vector< vector<unsigned> > (nthrds);
   error1T = vector<unsigned> (nthrds, 0);
   col1T = vector<unsigned> (nthrds, 0);
+  epsm1T = vector<unsigned> (nthrds, 0);
+  Nepsm1T = vector<unsigned> (nthrds, 0);
 
   tsratT  = vector< vector<double> > (nthrds);
   tdensT  = vector< vector<double> > (nthrds);
@@ -109,7 +134,10 @@ Collide::Collide(double diameter, int nth)
   diam0 = diam = diameter;
   coltot = 0;			// Count total collisions
   errtot = 0;			// Count errors in inelastic computation
+  epsmtot = 0;
 
+				// Default cooling rate (if not set by derived class)
+  coolrate = vector<double>(nthrds, 0.0);
 
   snglTime.Microseconds();
   forkTime.Microseconds();
@@ -133,6 +161,7 @@ Collide::Collide(double diameter, int nth)
 
   gen = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
+  norm = new Normal(0.0, 1.0, gen);
 
   prec = vector<Precord>(nthrds);
   for (int n=0; n<nthrds; n++)
@@ -143,6 +172,7 @@ Collide::~Collide()
 {
   delete gen;
   delete unit;
+  delete norm;
 }
 
 void Collide::debug_list(pHOT& tree)
@@ -182,6 +212,8 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   for (int n=0; n<nthrds; n++) {
     error1T[n] = 0;
     col1T[n] = 0;
+    epsm1T[n] = 0;
+    Nepsm1T[n] = 0;
 				// For computing cell occupation #
     colcntT[n].clear();		// and collision counts
     numcntT[n].clear();
@@ -237,6 +269,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   unsigned error1=0, error=0;
 
   unsigned col1=0, col=0;	// Count number of collisions
+  unsigned epsm1=0, epsm=0, Nepsm1=0, Nepsm=0;
 
   numcnt.clear();
   colcnt.clear();
@@ -244,6 +277,8 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   for (int n=0; n<nthrds; n++) {
     error1 += error1T[n];
     col1 += col1T[n];
+    epsm1 += epsm1T[n];
+    Nepsm1 += Nepsm1T[n];
     numcnt.insert(numcnt.end(), numcntT[n].begin(), numcntT[n].end());
     colcnt.insert(colcnt.end(), colcntT[n].begin(), colcntT[n].end());
     for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
@@ -270,11 +305,15 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   }
 
   MPI_Reduce(&col1, &col, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&epsm1, &epsm, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&Nepsm1, &Nepsm, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
   coltot += col;
+  epsmtot += epsm;
+  epsmcells += Nepsm;
   errtot += error;
   for (unsigned k=0; k<numdiag; k++) tdiag[k] += tdiag0[k];
 
@@ -353,6 +392,9 @@ void * Collide::collide_thread(void * arg)
     double posx, posy, posz;
     c->MeanPos(posx, posy, posz);
     
+    // MFP = 1/(n*cross_section)
+    // MFP/l = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
+
     prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross*number);
     prec[id].second[0] = sqrt(posx*posx + posy*posy);
     prec[id].second[1] = posz;
@@ -381,104 +423,113 @@ void * Collide::collide_thread(void * arg)
     if (indx>8) indx = 8;
     tdiagT[id][indx]++;
     
+
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
-
+    
     collTime[id].start();
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
 
-    unsigned colc = 0;
-    // Loop over total number of candidate collision pairs
-    //
-    for (unsigned i=0; i<nsel; i++ ) {
+    if (prec[id].first < EPSMratio) {
 
-      // Pick two particles at random out of this cell
+      EPSM(tree, c, id);
+
+    } else {
+
+      unsigned colc = 0;
+      // Loop over total number of candidate collision pairs
       //
-      unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
-      unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
-      Particle* p1 = tree->Body(c->bods[k1]); // First particle
-      Particle* p2 = tree->Body(c->bods[k2]); // Second particle
+      for (unsigned i=0; i<nsel; i++ ) {
 
-      // Calculate pair's relative speed (pre-collision)
-      //
-      double cr = 0.0;
-      for (int k=0; k<3; k++) {
-	crel[k] = p1->vel[k] - p2->vel[k];
-	cr += crel[k]*crel[k];
-      }
-      cr = sqrt(cr);
-
-      if( cr > crm )         // If relative speed larger than crm,
-        crm = cr;            // then reset crm to larger value
-
-      // Accept or reject candidate pair according to relative speed
-      //
-      if( cr/crm > (*unit)() ) {
-        // If pair accepted, select post-collision velocities
+	// Pick two particles at random out of this cell
 	//
-        colc++;			// Collision counter
+	unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
+	unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
+	Particle* p1 = tree->Body(c->bods[k1]); // First particle
+	Particle* p2 = tree->Body(c->bods[k2]); // Second particle
+	
+	// Calculate pair's relative speed (pre-collision)
+	//
+	double cr = 0.0;
+	for (int k=0; k<3; k++) {
+	  crel[k] = p1->vel[k] - p2->vel[k];
+	  cr += crel[k]*crel[k];
+	}
+	cr = sqrt(cr);
+	
+	if( cr > crm )         // If relative speed larger than crm,
+	  crm = cr;            // then reset crm to larger value
+
+	// Accept or reject candidate pair according to relative speed
+	//
+	if( cr/crm > (*unit)() ) {
+	  // If pair accepted, select post-collision velocities
+	  //
+	  colc++;			// Collision counter
 
 				// Do inelastic stuff
-	error1T[id] += inelastic(tree, p1, p2, &cr, id);
-				// May update relative velocity to reflect
-				// excitation of internal degrees of freedom
+	  error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	  // May update relative velocity to reflect
+	  // excitation of internal degrees of freedom
+	  
+	  // Center of mass velocity
+	  double tmass = p1->mass + p2->mass;
+	  for(unsigned k=0; k<3; k++)
+	    vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
 
-				// Center of mass velocity
-	double tmass = p1->mass + p2->mass;
-        for(unsigned k=0; k<3; k++)
-          vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
 
+	  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+	  double sin_th = sqrt(1.0 - cos_th*cos_th); // collision angle theta
+	  double phi = 2.0*M_PI*(*unit)();           // Collision angle phi
 
-        double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-        double sin_th = sqrt(1.0 - cos_th*cos_th); // collision angle theta
-        double phi = 2.0*M_PI*(*unit)();           // Collision angle phi
+	  vrel[0] = cr*cos_th;             // Compute post-collision
+	  vrel[1] = cr*sin_th*cos(phi);    // relative velocity
+	  vrel[2] = cr*sin_th*sin(phi);
 
-        vrel[0] = cr*cos_th;             // Compute post-collision
-        vrel[1] = cr*sin_th*cos(phi);    // relative velocity
-        vrel[2] = cr*sin_th*sin(phi);
-
-				// Update post-collision velocities
-        for(unsigned k=0; k<3; k++ ) {
-          p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
-          p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
-        }
-
-	if (CBA) {
-
-	  // Calculate pair's relative speed (post-collision)
-	  cr = 0.0;
-	  for (int k=0; k<3; k++) {
-	    crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
-	    cr += crel[k]*crel[k];
+	  // Update post-collision velocities
+	  for(unsigned k=0; k<3; k++ ) {
+	    p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
+	    p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
 	  }
-	  cr = sqrt(cr);
 
-	  // Displacement
-	  if (cr>0.0) {
-	    double displ;
+	  if (CBA) {
+
+	    // Calculate pair's relative speed (post-collision)
+	    cr = 0.0;
 	    for (int k=0; k<3; k++) {
-	      displ = crel[k]*diam/cr;
-	      if (displ > length) {
-		cout << "Huge displacement, process " << myid 
-		     << " id=" << id << ": displ=" << displ
-		     << " len=" << length << endl;
-	      }
-	      p1->pos[k] += displ;
-	      p2->pos[k] -= displ;
+	      crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
+	      cr += crel[k]*crel[k];
 	    }
+	    cr = sqrt(cr);
+	    
+	    // Displacement
+	    if (cr>0.0) {
+	      double displ;
+	      for (int k=0; k<3; k++) {
+		displ = crel[k]*diam/cr;
+		if (displ > length) {
+		  cout << "Huge displacement, process " << myid 
+		       << " id=" << id << ": displ=" << displ
+		       << " len=" << length << endl;
+		}
+		p1->pos[k] += displ;
+		p2->pos[k] -= displ;
+	      }
 	  }
-	}
+	  }
+	  
+	} // Loop over pairs
 
-      } // Loop over pairs
-
-    }
+      }
 
 				// Count collisions
-    colcntT[id].push_back(colc);
-    col1T[id] += colc;
+      colcntT[id].push_back(colc);
+      col1T[id] += colc;
 
+    }
     collSoFar[id] = collTime[id].stop();
+
   } // Loop over cells
 
   return (NULL);
@@ -530,7 +581,9 @@ unsigned Collide::medianColl()
 
     std::sort(colcnt.begin(), colcnt.end()); 
 
-    ofstream out("tmp.colcnt");
+    ostringstream ostr;
+    ostr << runtag << ".colcnt";
+    ofstream out(ostr.str().c_str());
     for (unsigned j=0; j<colcnt.size(); j++)
       out << setw(8) << j << setw(18) << colcnt[j] << endl;
 
@@ -543,6 +596,42 @@ unsigned Collide::medianColl()
     return 0;
   }
 
+}
+
+void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
+{
+  MPI_Status s;
+
+  if (myid==0) {
+    unsigned num;
+    for (int n=1; n<numprocs; n++) {
+      MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
+      vector<unsigned> tmp(num);
+      MPI_Recv(&tmp[0], num, MPI_UNSIGNED, n, 40, MPI_COMM_WORLD, &s);
+      colcnt.insert(colcnt.end(), tmp.begin(), tmp.end());
+    }
+
+    std::sort(colcnt.begin(), colcnt.end()); 
+
+    coll_ = vector<double>(quantiles.size());
+    for (unsigned j=0; j<quantiles.size(); j++)
+      coll_[j] = colcnt[(unsigned)floor(quantiles[j]*colcnt.size())];
+
+    ostringstream ostr;
+    ostr << runtag << ".colcnt";
+    ofstream out(ostr.str().c_str());
+    out << "Cell data:" << endl;
+    for (unsigned j=0; j<colcnt.size(); j++)
+      out << setw(8) << j << setw(18) << colcnt[j] << endl;
+    out << endl << "Quantiles:" << endl;
+    for (unsigned j=0; j<quantiles.size(); j++)
+      out << setw(8) << quantiles[j] << setw(18) << coll_[j] << endl;
+    
+  } else {
+    unsigned num = colcnt.size();
+    MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
+    MPI_Send(&colcnt[0], num, MPI_UNSIGNED, 0, 40, MPI_COMM_WORLD);
+  }
 }
 
 void Collide::mfpsizeQuantile(vector<double>& quantiles, 
@@ -696,3 +785,34 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
+void Collide::EPSM(pHOT* tree, pCell* cell, int id)
+{
+  if (cell->bods.size()<2) return;
+
+				// Cell temperature and mass (cgs)
+				// 
+  double KEtot, KEdsp;
+  cell->KE(KEtot, KEdsp);	// These are already specific in mass
+
+  double mass = cell->Mass();	// Mass in cell
+  vector<double> vr;		// Mean velocity
+  cell->MeanVel(vr);
+
+  if (mass<=0.0) return;
+				// Compute 1d vel. disp. after cooling
+  double sigma = sqrt(boltz*TFLOOR * mp/(1.5*UserTreeDSMC::Munit*UserTreeDSMC::Eunit));
+  if (KEdsp > coolrate[id]/mass)
+    sigma = sqrt((KEdsp - coolrate[id]/mass)/1.5);
+  
+				// Realize new velocities for all particles
+  unsigned nbods = cell->bods.size();
+  for (unsigned j=0; j<nbods; j++) {
+    Particle* p = tree->Body(cell->bods[j]);
+    for (unsigned k=0; k<3; k++)
+      p->vel[k] = vr[k] + sigma*(*norm)();
+  }
+
+  epsm1T[id] += nbods;
+  Nepsm1T[id]++;
+
+}

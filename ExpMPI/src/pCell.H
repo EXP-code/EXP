@@ -93,7 +93,16 @@ public:
   double Volume();
 
   //! Mean position
+  //@{
   void MeanPos(double &x, double &y, double& z);
+  void MeanPos(vector<double>& p);
+  //@}
+
+  //! Mean velocity
+  //@{
+  void MeanVel(double &x, double &y, double& z);
+  void MeanVel(vector<double>& v);
+  //@}
 
   //! Find the cells whose body number is "just" larger than Bucket
   pCell* findSampleCell();

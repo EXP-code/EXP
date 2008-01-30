@@ -20,6 +20,19 @@ int PotAccel::compute;
 
 void PotAccel::exp_thread_fork(bool coef)
 {
+  if (nthrds==1) {
+
+    thrd_pass_PotAccel td;
+
+    td.t = this;
+    td.coef = coef;
+    td.id = 0;
+
+    call_any_threads_thread_call(&td);
+
+    return;
+  }
+
   int errcode;
   void *retval;
   

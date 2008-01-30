@@ -46,6 +46,9 @@ protected:
   //! For debugging
   key_type key_min, key_max;
 
+  unsigned min_cell, max_cell;
+  vector<unsigned> chist;
+
 public:
 
   static unsigned neg_half;
@@ -70,6 +73,7 @@ public:
   //! Number of cells in tree
   unsigned Number() { return frontier.size(); }
   unsigned TotalNumber() { return total_cells; }
+  unsigned CellCount(double pctl);
 
   /**
      Density routines

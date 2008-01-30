@@ -118,17 +118,19 @@ void CollideLTE::initialize_cell(pCell* cell,
   totalSoFar += mass*KEdsp;
 
   double rvrel = sqrt(4.0*KEdsp);
-  KEdsp *= UserTreeDSMC::Eunit;
 
   double Mass = mass * UserTreeDSMC::Munit;
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
-  double T = 2.0*KEdsp/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  double T = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
 				// Volume in sample cell
   double volume = samp->Volume();
   double Volume = volume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0 = Density/mp;
+
+				// Volume in real cell
+  double CellVolume = cell->Volume() * pow(UserTreeDSMC::Lunit, 3);
 
   if (log(T)>tmin && log(T)<tmax) {
     int indx = (int)float( (log(T) - tmin)/dtmp );
@@ -163,10 +165,14 @@ void CollideLTE::initialize_cell(pCell* cell,
   // CoolRate has units erg*cm^3/t
   // So CoolRate*n_h*n_h*Volume*Time = ergs
 
+  // Total energy lost (for both collisions and EPSM)
+  //
+  coolrate[id] = heatcool.CoolRate() * n_h*n_h * CellVolume * tau *
+    UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+
   // Energy per encounter
   //
-  deltaE[id] = heatcool.CoolRate() * n_h*n_h * Volume * tau * 
-    UserTreeDSMC::Tunit /(UserTreeDSMC::Eunit * number);
+  deltaE[id] = coolrate[id] / number;
 
   ttempT[id].push_back(T);
   tdeltT[id].push_back(deltaE[id]);
@@ -197,6 +203,28 @@ void CollideLTE::initialize_cell(pCell* cell,
       if (use_dens>=0 && use_dens<sz) 
 	cell->Body(j)->dattrib[use_dens] = mass/volume;
     }
+  }
+
+				// Energy ratio for time step estimation
+  if (use_delt>=0) {
+
+    double Ctime =  tau*KEdsp/coolrate[id];
+
+    unsigned nbods = cell->bods.size();
+    for (unsigned j=0; j<nbods; j++) {
+      if (cell->bods[j] == 0) {
+	cout << "proc=" << myid << " id=" << id 
+	     << " ptr=" << hex << cell << dec
+	     << " j=" << j << " indx=" << cell->bods[j] 
+	     << "/" << cell->bods.size() << endl;
+	continue;
+      }
+
+      int sz = cell->Body(j)->dattrib.size();
+      if (use_delt>=0 && use_delt<sz) 
+	cell->Body(j)->dattrib[use_delt] = Ctime;
+    }
+
   }
 
 }

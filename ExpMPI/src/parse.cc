@@ -36,7 +36,7 @@ void initialize(void)
 
   if (parse->find_item("nbodmax", val))		nbodmax = atoi(val.c_str());
   if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
-  if (parse->find_item("nthrds", val))		nthrds = atoi(val.c_str());
+  if (parse->find_item("nthrds", val))		nthrds = max<int>(1, atoi(val.c_str()));
   if (parse->find_item("nbalance", val))	nbalance = atoi(val.c_str());
   if (parse->find_item("dbthresh", val))	dbthresh = atof(val.c_str());
 

@@ -175,49 +175,63 @@ void adjust_multistep_level(bool all)
     for (int level=0; level<=multistep; level++) {
 
       if (all || mactive[mstep-1][level]) {
-	//
-	// Make the <nthrds> threads
-	//
-	int errcode;
-	void *retval;
+
+	if (nthrds==1) {
+
+	  td[0].level = level;
+	  td[0].id = 0;
+	  td[0].c = *cc;
+
+	  adjust_multistep_level_thread(&td[0]);
+
+	} else {
+	  
+
+	  //
+	  // Make the <nthrds> threads
+	  //
+	  int errcode;
+	  void *retval;
   
-	for (int i=0; i<nthrds; i++) {
-      
-	  td[i].level = level;
-	  td[i].id = i;
-	  td[i].c = *cc;
-
-	  errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
-
-	  if (errcode) {
-	    cerr << "Process " << myid
-		 << " adjust_multistep_level: cannot make thread " << i
-		 << ", errcode=" << errcode << endl;
-	    exit(19);
-	  }
+	  for (int i=0; i<nthrds; i++) {
+	    
+	    td[i].level = level;
+	    td[i].id = i;
+	    td[i].c = *cc;
+	    
+	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
+	    
+	    if (errcode) {
+	      cerr << "Process " << myid
+		   << " adjust_multistep_level: cannot make thread " << i
+		   << ", errcode=" << errcode << endl;
+	      exit(19);
+	    }
 #ifdef DEBUG
-	  else {
-	    cout << "Process " << myid << ": thread <" << i << "> created\n";
-	  }
+	    else {
+	      cout << "Process " << myid << ": thread <" << i << "> created\n";
+	    }
 #endif
-	}
-    
-	//
-	// Collapse the threads
-	//
-	for (int i=0; i<nthrds; i++) {
-	  if ((errcode=pthread_join(t[i], &retval))) {
-	    cerr << "Process " << myid
-		 << " adjust_multistep_level: thread join " << i
-		 << " failed, errcode=" << errcode << endl;
-	    exit(20);
 	  }
+	  
+	  //
+	  // Collapse the threads
+	  //
+	  for (int i=0; i<nthrds; i++) {
+	    if ((errcode=pthread_join(t[i], &retval))) {
+	      cerr << "Process " << myid
+		   << " adjust_multistep_level: thread join " << i
+		   << " failed, errcode=" << errcode << endl;
+	      exit(20);
+	    }
 #ifdef DEBUG    
-	  cout << "Process " << myid 
-	       << ": multistep thread <" << i << "> thread exited\n";
+	    cout << "Process " << myid 
+		 << ": multistep thread <" << i << "> thread exited\n";
 #endif
-	}
+	  }
   
+	}
+	
       }
     }
   }

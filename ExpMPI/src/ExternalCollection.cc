@@ -138,7 +138,8 @@ void ExternalCollection::dynamicload(void)
   bool first = true
 ;
   for (int i=0; i<numprocs; i++) {
-    if (i==myid) {
+    if (i==myid) {		// Put dlopen in a loop with an barrier to prevent swamping 
+				// slow NFS servers that plague some compute clusters
       while(fgets(in_buf, BUF_SIZE, dl)) {
 				// trim off the whitespace 
 	char *ws = strpbrk(in_buf, " \t\n"); 
