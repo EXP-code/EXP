@@ -375,6 +375,7 @@ void * Collide::collide_thread(void * arg)
     //
     diam = diam0;
     double cross  = M_PI*diam*diam;
+    double diamCBA = sqrt(Fn*mass)*diam;
 
     // Determine cross section based on fixed number of collisions
     //
@@ -393,7 +394,7 @@ void * Collide::collide_thread(void * arg)
     c->MeanPos(posx, posy, posz);
     
     // MFP = 1/(n*cross_section)
-    // MFP/l = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
+    // MFP/side = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
 
     prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross*number);
     prec[id].second[0] = sqrt(posx*posx + posy*posy);
@@ -507,7 +508,7 @@ void * Collide::collide_thread(void * arg)
 	    if (cr>0.0) {
 	      double displ;
 	      for (int k=0; k<3; k++) {
-		displ = crel[k]*diam/cr;
+		displ = crel[k]*diamCBA/cr;
 		if (displ > length) {
 		  cout << "Huge displacement, process " << myid 
 		       << " id=" << id << ": displ=" << displ
@@ -516,7 +517,7 @@ void * Collide::collide_thread(void * arg)
 		p1->pos[k] += displ;
 		p2->pos[k] -= displ;
 	      }
-	  }
+	    }
 	  }
 	  
 	} // Loop over pairs

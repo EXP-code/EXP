@@ -71,11 +71,12 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
 				// Check for old style
 				// -------------------
+      /*
       if (stanza.fparam.size() == 0) {
 	stanza.fparam = stanza.cparam;
 	stanza.cparam = "";
       }
-      
+      */
 				// Strip of the tipsy type
       StringTok<string> tipsytype(stanza.name);
       stanza.ttype = trimLeft(trimRight(tipsytype(" ")));

@@ -1459,6 +1459,51 @@ void pHOT::Repartition()
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
+
+#ifdef DEBUG
+  checkIndices();
+#endif
+}
+
+void pHOT::checkIndices()
+{
+  MPI_Status s;
+
+  vector<unsigned> indices;
+  for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
+    indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
+
+  for (int n=1; n<numprocs; n++) {
+    if (myid==0) {
+      unsigned icnt;
+      MPI_Recv(&icnt, 1, MPI_UNSIGNED, n, 392, MPI_COMM_WORLD, &s);
+      vector<unsigned> get(icnt);
+      MPI_Recv(&get[0], icnt, MPI_UNSIGNED, n, 393, MPI_COMM_WORLD, &s);
+
+      indices.insert(indices.end(), get.begin(), get.end());
+
+    } else if (myid==n) {
+
+      unsigned icnt = indices.size();
+      MPI_Send(&icnt, 1, MPI_UNSIGNED, 0, 392, MPI_COMM_WORLD);
+      MPI_Send(&indices[0], icnt, MPI_UNSIGNED, 0, 393, MPI_COMM_WORLD);
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  if (myid==0) {
+    sort(indices.begin(), indices.end());
+    for (unsigned n=1; n<=indices.size(); n++) {
+      if (n!=indices[n-1]) {
+	cout << "pHOT::checkIndices ERROR: found=" << indices[n-1] << " expected " << n
+	     << " total=" << indices.size() << endl;
+	break;
+      }
+    }
+    if (indices.size() != cc->nbodies_tot)
+      cout << "pHOT::checkIndices ERROR: index count=" << indices.size() 
+	   << " body count=" << cc->nbodies_tot << endl;
+  }
 }
 
 bool pHOT::checkKeybods()
@@ -1676,3 +1721,16 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
 
   return;
 }
+
+
+unsigned pHOT::checkNumber()
+{
+  unsigned nbods1=0, nbods=0;
+  for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++) 
+    nbods1 += it->second->bods.size();
+  
+  MPI_Reduce(&nbods1, &nbods, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  return nbods;
+}
+

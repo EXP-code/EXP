@@ -1260,7 +1260,7 @@ struct Particle * Component::get_particles(int* number)
 	while (pf.RecvParticle(part)) pbuf[icount++] = part;
 #ifdef DEBUG
 	cout << "Process " << myid 
-	     << ": received " << icount << " particles from Slave" << node
+	     << ": received " << icount << " particles from Slave " << node
 	     << ", expected " << number
 	     << endl << flush;
 #endif    
@@ -1328,7 +1328,8 @@ struct Particle * Component::get_particles(int* number)
 
 #ifdef DEBUG
   if (myid==0) {
-    cout << "get_particles: master size of tlist=" << tlist.size() << endl;
+    cout << "get_particles: master size of tlist=" << tlist.size() 
+    	 << " current count=" << curcount << endl;
   }
 #endif
 

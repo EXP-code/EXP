@@ -240,7 +240,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
-       << ", epsm=" << epsm << ", compname=" << comp_name;
+       << ", epsm=" << epsm << ", boxsize=" << boxsize << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
@@ -264,6 +264,7 @@ void UserTreeDSMC::initialize()
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
   if (get_value("epsm", val))		epsm = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
+  if (get_value("boxsize", val))	boxsize = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
@@ -437,6 +438,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&KEtot1, &KEtot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost1, &Elost, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    unsigned cellBods = c0->Tree()->checkNumber();
+
     if (myid==0) {
 
       unsigned coll_total = collide->total()/nsteps;
@@ -472,6 +475,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "occupation @ 50%" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.95) 
 	   << "occupation @ 95%" << endl
+	   << setw(6) << " " << setw(20) << cellBods
+	   << "total number in cells" << endl
 	   << endl;
       mout.precision(prec);
 	
