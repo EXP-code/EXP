@@ -113,7 +113,7 @@ void * UserTreeDSMC::timestep_thread(void * arg)
 	DT = L/vel;
 				// Cooling criterion
 	int sz = pt.Body(i)->dattrib.size();
-	if (use_delt>=0 && use_delt<sz) 
+	if (use_delt>=0 && use_delt<sz)
 	  DT = min<double>(DT, coolfrac*pt.Body(i)->dattrib[use_delt]);
 	
 	pt.Body(i)->dtreq = DT;
@@ -161,6 +161,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   frontier = false;
   mfpstat = false;
   use_multi = false;
+  use_pullin = false;
   cba = true;
 				// Initialize using input parameters
   initialize();
@@ -195,6 +196,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 
   Collide::CBA = cba;
+  Collide::PULLIN = use_pullin;
   Collide::CNUM = cnum;
   Collide::EPSMratio = epsm;
   collide = new CollideLTE(diam, nthrds);
@@ -244,6 +246,7 @@ void UserTreeDSMC::userinfo()
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
+  if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -274,6 +277,7 @@ void UserTreeDSMC::initialize()
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
+  if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
 }
 
@@ -430,7 +434,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 
 				// Begin frontier iteration to add up KE
-    pHOT_iterator ic(*c0->Tree());
+    // pHOT_iterator ic(*c0->Tree());
 
     double KEtot1=collide->Etotal(), KEtot=0.0;
     double Elost1=collide->Elost(),  Elost=0.0;
@@ -511,9 +515,47 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// between nodes
   c0->reset_level_lists();
 
+				// Debugging disk
+				//
+  // triggered_cell_body_dump(0.01, 0.002);
+
   MPI_Barrier(MPI_COMM_WORLD);
 }
 
+void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
+{
+  static bool done = false;
+  if (tnow<time) return;
+  if (done) return;
+
+  unsigned cnt=0;
+  vector<double> p(3);
+  pHOT_iterator c(*c0->Tree());
+
+  for (unsigned n=0; n<c0->Tree()->Number(); n++) {
+    unsigned tnum = c.nextCell();
+    double r2 = 0.0;
+
+    c.Cell()->MeanPos(p);
+    for (unsigned k=0; k<3; k++) r2 += p[k]*p[k];
+
+    if (r2 < radius*radius) {
+      ostringstream ostr;
+      ostr << runtag << ".testcell." << myid << "." << cnt++;
+      ofstream out(ostr.str().c_str());
+
+      for (unsigned j=0; j<tnum; j++) {
+	for (unsigned k=0; k<3; k++) 
+	  out << setw(18) << c0->Tree()->Body(c.Cell()->bods[j])->pos[k];
+	for (unsigned k=0; k<3; k++) 
+	  out << setw(18) << c0->Tree()->Body(c.Cell()->bods[j])->vel[k];
+	out << endl;
+      }
+    }
+  }
+
+  done = true;
+}
 
 extern "C" {
   ExternalForce *makerTreeDSMC(string& line)

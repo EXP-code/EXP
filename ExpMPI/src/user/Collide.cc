@@ -11,6 +11,8 @@ using namespace std;
 #include "UserTreeDSMC.H"
 #include "Collide.H"
 
+				// Use the original Pullin velocity selection algorithm
+bool Collide::PULLIN = false;
 				// Print out sorted cell parameters
 bool Collide::SORTED = true;
 				// Print out T-rho plane for cells will mass weighting
@@ -153,11 +155,20 @@ Collide::Collide(double diameter, int nth)
   tdiag1 = vector<unsigned>(numdiag, 0);
   tdiag0 = vector<unsigned>(numdiag, 0);
   tdiagT = vector< vector<unsigned> > (nthrds);
-  for (int n=0; n<nthrds; n++) 
+
+  tcool  = vector<unsigned>(numdiag, 0);
+  tcool1 = vector<unsigned>(numdiag, 0);
+  tcool0 = vector<unsigned>(numdiag, 0);
+  tcoolT = vector< vector<unsigned> > (nthrds);
+
+  for (int n=0; n<nthrds; n++) {
     tdiagT[n] = vector<unsigned>(numdiag, 0);
+    tcoolT[n] = vector<unsigned>(numdiag, 0);
+  }
 
   use_temp = -1;
   use_dens = -1;
+  use_delt = -1;
 
   gen = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
@@ -227,9 +238,14 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     tphaseT[n].clear();
     tmfpstT[n].clear();
 
-    for (unsigned k=0; k<numdiag; k++) tdiagT[n][k] = 0;
+    for (unsigned k=0; k<numdiag; k++) {
+      tdiagT[n][k] = 0;
+      if (use_delt>=0) tcoolT[n][k] = 0;
+    }
   }
   for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
+  if (use_delt>=0) 
+    for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
 
 
 				// Make cellist
@@ -282,6 +298,8 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     numcnt.insert(numcnt.end(), numcntT[n].begin(), numcntT[n].end());
     colcnt.insert(colcnt.end(), colcntT[n].begin(), colcntT[n].end());
     for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
+    if (use_delt>=0) 
+      for (unsigned k=0; k<numdiag; k++) tcool1[k] += tcoolT[n][k];
   }
 
 				// For computing MFP to cell size ratio 
@@ -310,12 +328,16 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  if (use_delt>=0)
+    MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
   coltot += col;
   epsmtot += epsm;
   epsmcells += Nepsm;
   errtot += error;
   for (unsigned k=0; k<numdiag; k++) tdiag[k] += tdiag0[k];
+  if (use_delt>=0)
+    for (unsigned k=0; k<numdiag; k++) tcool[k] += tcool0[k];
 
   snglSoFar = snglTime.stop();
 
@@ -419,9 +441,9 @@ void * Collide::collide_thread(void * arg)
     double length = pow(c->Volume(), 0.333333);
     double taudiag = length/sqrt(vmean)/tau;
     
-    int indx = (int)floor(log(taudiag)/log(10.0) + 4);
-    if (indx<0) indx = 0;
-    if (indx>8) indx = 8;
+    int indx = (int)floor(log(taudiag)/log(4.0) + 5);
+    if (indx<0 ) indx = 0;
+    if (indx>10) indx = 10;
     tdiagT[id][indx]++;
     
 
@@ -488,7 +510,8 @@ void * Collide::collide_thread(void * arg)
 	  vrel[1] = cr*sin_th*cos(phi);    // relative velocity
 	  vrel[2] = cr*sin_th*sin(phi);
 
-	  // Update post-collision velocities
+				// Update post-collision velocities
+				// 
 	  for(unsigned k=0; k<3; k++ ) {
 	    p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
 	    p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
@@ -497,6 +520,7 @@ void * Collide::collide_thread(void * arg)
 	  if (CBA) {
 
 	    // Calculate pair's relative speed (post-collision)
+	    //
 	    cr = 0.0;
 	    for (int k=0; k<3; k++) {
 	      crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
@@ -505,14 +529,15 @@ void * Collide::collide_thread(void * arg)
 	    cr = sqrt(cr);
 	    
 	    // Displacement
+	    //
 	    if (cr>0.0) {
 	      double displ;
 	      for (int k=0; k<3; k++) {
 		displ = crel[k]*diamCBA/cr;
-		if (displ > length) {
-		  cout << "Huge displacement, process " << myid 
-		       << " id=" << id << ": displ=" << displ
-		       << " len=" << length << endl;
+		if (displ > 0.5*length) {
+		  cout << endl << "Huge displacement in CBA, process " << myid << endl
+		       << "   id=" << id << ": displ=" << displ << endl
+		       << "   len=" << length << " diam=" << diamCBA << endl;
 		}
 		p1->pos[k] += displ;
 		p2->pos[k] -= displ;
@@ -790,6 +815,234 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 {
   if (cell->bods.size()<2) return;
 
+				// Compute mean and variance in each dimension
+				// 
+  vector<double> mvel(3, 0.0), disp(3, 0.0);
+  double mass = 0.0;
+  unsigned nbods = cell->bods.size();
+  for (unsigned j=0; j<nbods; j++) {
+    Particle* p = tree->Body(cell->bods[j]);
+    for (unsigned k=0; k<3; k++) {
+      mvel[k] += p->mass*p->vel[k];
+      disp[k] += p->mass*p->vel[k]*p->vel[k];
+    }
+    mass += p->mass;
+  }
+
+				// Can do anything if the gas has no mass
+  if (mass<=0.0) return;
+
+  double Emin = 1.5*boltz*TFLOOR * mass/mp*UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
+  double Einternal = 0.0, Eratio;
+  for (unsigned k=0; k<3; k++) {
+    mvel[k] /= mass;
+				// Disp is variance here
+    disp[k] = (disp[k] - mvel[k]*mvel[k]*mass)/mass;
+				// Total kinetic energy in COV frame
+    Einternal += 0.5*mass*disp[k];
+  }
+  
+				// Crazy values?
+  for (unsigned k=0; k<3; k++) {
+    if (disp[k]<0.0) {
+      cout << "Process " << myid  << " id " << id << ": crazy value disp[" << k 
+	   << "]=" << disp[k] << " mvel=" << mvel[k] << " nbods=" << nbods << endl;
+      disp[k] = 0.0;
+    }
+  }
+				// Correct 1d vel. disp. after cooling
+				// 
+  if (Einternal - Emin > coolrate[id])
+    Eratio = (Einternal - coolrate[id])/Einternal;
+  else
+    Eratio = min<double>(Emin, Einternal)/Einternal;
+  
+  for (unsigned k=0; k<3; k++) 	// Sanity check
+    if (disp[k]>0.0) disp[k] = sqrt(Eratio*disp[k]);
+
+				// Debug
+  /*
+  cout << "Process " << myid << " id " << id 
+       << ": Einternal=" << Einternal 
+       << " Ratio=" << Eratio << " Emin=" << Emin << endl;
+  */
+
+				// Realize new velocities for all particles
+				// 
+  if (PULLIN) {
+    double R=0.0, T=0.0;	// Shut up warnings
+    const double sqrt3 = sqrt(3.0);
+
+    if (nbods==2) {
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
+      for (unsigned k=0; k<3; k++) {
+	R = (*unit)();
+	if ((*unit)()>0.5)
+	  p1->vel[k] = mvel[k] + disp[k];
+	else 
+	  p1->vel[k] = mvel[k] - disp[k];
+	p2->vel[k] = 2.0*mvel[k] - p1->vel[k];
+      }
+
+    } else if (nbods==3) {
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
+      Particle* p3 = tree->Body(cell->bods[2]);
+      double v2, v3;
+      for (unsigned k=0; k<3; k++) {
+	T = 2.0*M_PI*(*unit)();
+	v2 = M_SQRT2*disp[k]*cos(T);
+	v3 = M_SQRT2*disp[k]*sin(T);
+	p1->vel[k] = mvel[k] - M_SQRT2*v2/sqrt3;
+	p2->vel[k] = p1->vel[k] + (sqrt3*v2 - v3)/M_SQRT2;
+	p3->vel[k] = p2->vel[k] + M_SQRT2*v3;
+      }
+    } else if (nbods==4) {
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
+      Particle* p3 = tree->Body(cell->bods[2]);
+      Particle* p4 = tree->Body(cell->bods[3]);
+      double v2, v3, e2, e4, v4;
+      for (unsigned k=0; k<3; k++) {
+	R = (*unit)();
+	e2 = disp[k]*disp[k]*(1.0 - R*R);
+	T = 2.0*M_PI*(*unit)();
+	v2 = sqrt(2.0*e2)*cos(T);
+	v3 = sqrt(2.0*e2)*sin(T);
+	p1->vel[k] = mvel[k] - sqrt3*v2/2.0;
+	p2->vel[k] = p1->vel[k] + (2.0*v2 - M_SQRT2*v3)/sqrt3;
+	e4 = disp[k]*disp[k]*R*R;
+	if ((*unit)()>0.5) v4 =  sqrt(2.0*e4);
+	else               v4 = -sqrt(2.0*e4);
+	p3->vel[k] = p2->vel[k] + (sqrt3*v3 - v4)/M_SQRT2;
+	p4->vel[k] = p3->vel[k] + M_SQRT2*v4;
+      }
+
+    } else {
+
+      Particle *Pm1, *P00, *Pp1;
+      vector<double> Tk, v(nbods), e(nbods);
+      int kmax, dim, jj;
+      bool Even = (nbods/2*2 == nbods);
+
+      for (int k=0; k<3; k++) {
+	if (Even) { 
+				// Even
+	  kmax = nbods;
+	  dim = kmax/2-1;
+	  Tk = vector<double>(dim);
+	  for (int m=0; m<dim; m++) 
+	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.5));
+	} else {			
+				// Odd
+	  kmax = nbods-1;
+	  dim = kmax/2-1;
+	  Tk = vector<double>(dim);
+	  for (int m=0; m<dim; m++) 
+	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.0));
+	}
+      
+	e[1] = disp[k]*disp[k]*(1.0 - Tk[0]);
+	T = 2.0*M_PI*(*unit)();
+	v[1] = sqrt(2.0*e[1])*cos(T);
+	v[2] = sqrt(2.0*e[1])*sin(T);
+
+	P00 = tree->Body(cell->bods[0]);
+	Pp1 = tree->Body(cell->bods[1]);
+
+	P00->vel[k] = mvel[k] - sqrt(nbods-1)*v[1]/sqrt(nbods);
+	Pp1->vel[k] = P00->vel[k] + (sqrt(nbods)*v[1] - sqrt(nbods-2)*v[2])/sqrt(nbods-1);
+
+	double prod = 1.0;
+	for (int j=4; j<kmax-1; j+=2) {
+	  jj = j-1;
+
+	  Pm1 = tree->Body(cell->bods[jj-2]);
+	  P00 = tree->Body(cell->bods[jj-1]);
+	  Pp1 = tree->Body(cell->bods[jj  ]);
+
+	  prod *= Tk[j/2-2];
+	  e[jj] = disp[k]*disp[k]*(1.0 - Tk[j/2-1])*prod;
+	  T = 2.0*M_PI*(*unit)();
+	  v[jj]   = sqrt(2.0*e[jj])*cos(T);
+	  v[jj+1] = sqrt(2.0*e[jj])*sin(T);
+	  
+	  P00->vel[k] = Pm1->vel[k] + 
+	    (sqrt(3.0+nbods-j)*v[jj-1] - sqrt(1.0+nbods-j)*v[jj]  )/sqrt(2.0+nbods-j);
+	  Pp1->vel[k] = P00->vel[k] +
+	    (sqrt(2.0+nbods-j)*v[jj  ] - sqrt(    nbods-j)*v[jj+1])/sqrt(1.0+nbods-j);
+	}
+
+	prod *= Tk[kmax/2-2];
+	e[kmax-1] = disp[k]*disp[k]*prod;
+
+	if (Even) {
+	  if ((*unit)()>0.5) v[nbods-1] =  sqrt(2.0*e[kmax-1]);
+	  else               v[nbods-1] = -sqrt(2.0*e[kmax-1]);
+	} else {
+	  T = 2.0*M_PI*(*unit)();
+	  v[nbods-2] = sqrt(2.0*e[kmax-1])*cos(T);
+	  v[nbods-1] = sqrt(2.0*e[kmax-1])*sin(T);
+
+	  Pm1 = tree->Body(cell->bods[nbods-4]);
+	  P00 = tree->Body(cell->bods[nbods-3]);
+
+	  P00->vel[k] = Pm1->vel[k] + (2.0*v[nbods-3] - M_SQRT2*v[nbods-2])/sqrt3;
+	}
+
+	Pm1 = tree->Body(cell->bods[nbods-3]);
+	P00 = tree->Body(cell->bods[nbods-2]);
+	Pp1 = tree->Body(cell->bods[nbods-1]);
+
+	P00->vel[k] = Pm1->vel[k] + (sqrt3*v[nbods-2] - v[nbods-1])/M_SQRT2;
+	Pp1->vel[k] = P00->vel[k] + M_SQRT2*v[nbods-1];
+      }
+    }
+
+    // End Pullin algorithm
+  } else {
+
+				// Realize a distribution with internal dispersion only
+				// 
+    vector<double> Tmvel(3, 0.0);
+    vector<double> Tdisp(3, 0.0);
+    for (unsigned j=0; j<nbods; j++) {
+      Particle* p = tree->Body(cell->bods[j]);
+      for (unsigned k=0; k<3; k++) {
+	p->vel[k] = disp[k]*(*norm)();
+	Tmvel[k] += p->mass*p->vel[k];
+	Tdisp[k] += p->mass*p->vel[k]*p->vel[k];
+      }
+    }
+
+				// Compute mean and variance
+				// 
+    for (unsigned k=0; k<3; k++) {
+      Tmvel[k] /= mass;
+      Tdisp[k] = (Tdisp[k] - Tmvel[k]*Tmvel[k]*mass)/mass;
+    }
+
+				// Enforce energy and momentum conservation
+				// 
+    for (unsigned j=0; j<nbods; j++) {
+      Particle* p = tree->Body(cell->bods[j]);
+      for (unsigned k=0; k<3; k++)
+	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*disp[k]/Tdisp[k];
+    }
+
+  }
+
+  epsm1T[id] += nbods;
+  Nepsm1T[id]++;
+
+}
+
+/*
+void Collide::EPSM(pHOT* tree, pCell* cell, int id)
+{
+  if (cell->bods.size()<2) return;
+
 				// Cell temperature and mass (cgs)
 				// 
   double KEtot, KEdsp;
@@ -801,7 +1054,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   if (mass<=0.0) return;
 				// Compute 1d vel. disp. after cooling
-  double sigma = sqrt(boltz*TFLOOR * mp/(1.5*UserTreeDSMC::Munit*UserTreeDSMC::Eunit));
+  double sigma = sqrt(boltz*TFLOOR * mp/(UserTreeDSMC::Munit*UserTreeDSMC::Eunit));
   if (KEdsp > coolrate[id]/mass)
     sigma = sqrt((KEdsp - coolrate[id]/mass)/1.5);
   
@@ -817,3 +1070,4 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   Nepsm1T[id]++;
 
 }
+*/

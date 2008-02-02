@@ -104,8 +104,7 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 
 
 void CollideLTE::initialize_cell(pCell* cell, 
-				 double rvmax, double tau, double number, 
-				 int id)
+				 double rvmax, double tau, double number, int id)
 {
   pCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -208,8 +207,17 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Energy ratio for time step estimation
   if (use_delt>=0) {
 
-    double Ctime =  tau*KEdsp/coolrate[id];
+    double Ctime =  tau*cell->Mass()*KEdsp/(coolrate[id]+1.0e-20);
+    //                                                     ^
+    // to prevent inf values ------------------------------|
+    //
+				// Diagnose cooling time step in this cell
+    int indx = (int)floor(log(Ctime/tau)/log(4.0) + 5);
+    if (indx<0 ) indx = 0;
+    if (indx>10) indx = 10;
+    tcoolT[id][indx]++;
 
+				// Assign per body time step requests
     unsigned nbods = cell->bods.size();
     for (unsigned j=0; j<nbods; j++) {
       if (cell->bods[j] == 0) {

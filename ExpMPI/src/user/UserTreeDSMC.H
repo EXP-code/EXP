@@ -62,7 +62,7 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, mfpstat, use_multi, cba;
+  bool frontier, mfpstat, use_multi, use_pullin, cba;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_;
@@ -94,6 +94,8 @@ private:
   pthread_t *t;
   void dsmc_thread_fork(pHOT *tree);
 
+				// Debugging
+  void triggered_cell_body_dump(double time, double radios);
 
 #ifdef TIMER
   Timer *timer;

@@ -82,9 +82,10 @@ protected:
   std::vector<double> KEtotT, KElostT;
   std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT, ttempT, tdeltT;
 
-  const static unsigned numdiag = 9;
+  const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
-  std::vector< vector<unsigned> > tdiagT;
+  std::vector<unsigned> tcool, tcool1, tcool0;
+  std::vector< vector<unsigned> > tdiagT, tcoolT;
 
   std::vector< vector<pCell*> > cellist;
 
@@ -112,6 +113,8 @@ public:
 
   static int CNUM;		// Target CNUM collisions if nonzero
 				// default: 0
+
+  static bool PULLIN;		// Use the origina Pullin velocity selection algorithm
 
   static bool CBA;		// Use the Consistent Boltzmann Algorithm
 				// Alexander, Garcia, Alder 1995, PRL, 74, 5212
@@ -166,13 +169,24 @@ public:
   }
 
   void tsdiag(ostream& out) {
-    out << "-----Time step diagnostics---------------" << endl;
+    out << "-----------------------------------------------------" << endl;
+    out << "-----Time step diagnostics---------------------------" << endl;
+    out << "-----------------------------------------------------" << endl;
+    out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
+	<< setw(15) << "Flight/Tau";
+    if (use_delt>=0) out << setw(15) << "Cool/Tau";
+    out << endl;
+    out << "-----------------------------------------------------" << endl;
     for (unsigned k=0; k<numdiag; k++) {
-      out << setw(15) << pow(10.0, -3.5+k)
-	  << setw(15) << tdiag[k] << endl;
+      out << setw(8)  << -10+2*static_cast<int>(k)
+	  << setw(15) << pow(4.0, -5.0+k)
+	  << setw(15) << tdiag[k];
+      if (use_delt>=0) out << setw(15) << tcool[k];
+      out << endl;
       tdiag[k] = 0;
+      if (use_delt>=0) tcool[k] = 0;
     }
-    out << "-----------------------------------------" << endl;
+    out << "-----------------------------------------------------" << endl;
   }
 
 };
