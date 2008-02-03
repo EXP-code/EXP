@@ -141,6 +141,9 @@ Collide::Collide(double diameter, int nth)
 				// Default cooling rate (if not set by derived class)
   coolrate = vector<double>(nthrds, 0.0);
 
+				// EPSM diagnostics
+  lostSoFar_EPSM = vector<double>(nthrds, 0.0);
+
   snglTime.Microseconds();
   forkTime.Microseconds();
   waitTime.Microseconds();
@@ -832,26 +835,25 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Can do anything if the gas has no mass
   if (mass<=0.0) return;
 
-  double Emin = 1.5*boltz*TFLOOR * mass/mp*UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
   double Einternal = 0.0, Eratio;
   for (unsigned k=0; k<3; k++) {
     mvel[k] /= mass;
 				// Disp is variance here
     disp[k] = (disp[k] - mvel[k]*mvel[k]*mass)/mass;
-				// Total kinetic energy in COV frame
-    Einternal += 0.5*mass*disp[k];
-  }
-  
-				// Crazy values?
-  for (unsigned k=0; k<3; k++) {
+
+				// Crazy value?
     if (disp[k]<0.0) {
       cout << "Process " << myid  << " id " << id << ": crazy value disp[" << k 
 	   << "]=" << disp[k] << " mvel=" << mvel[k] << " nbods=" << nbods << endl;
       disp[k] = 0.0;
     }
+				// Total kinetic energy in COV frame
+    Einternal += 0.5*mass*disp[k];
   }
+  
 				// Correct 1d vel. disp. after cooling
 				// 
+  double Emin = 1.5*boltz*TFLOOR * mass/mp*UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
   if (Einternal - Emin > coolrate[id])
     Eratio = (Einternal - coolrate[id])/Einternal;
   else
@@ -1033,6 +1035,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   }
 
+  lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);
   epsm1T[id] += nbods;
   Nepsm1T[id]++;
 

@@ -152,6 +152,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   epsm = -1.0;
   diamfac = 1.0;
   boxsize = 1.0;
+  boxratio = 1.0;
   comp_name = "gas disk";
   nsteps = -1;
   use_temp = -1;
@@ -189,6 +190,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
   pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
   pHOT::offst[0] = pHOT::offst[1] = pHOT::offst[2] = boxsize;
+
+				// For cylindrical disk
+  pHOT::sides[2] = boxratio;
+  pHOT::offst[2] = boxratio;
 
   pCell::bucket = ncell;
 
@@ -242,7 +247,8 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
-       << ", epsm=" << epsm << ", boxsize=" << boxsize << ", compname=" << comp_name;
+       << ", epsm=" << epsm << ", boxsize=" << boxsize << ", boxratio=" << boxratio
+       << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
@@ -268,6 +274,7 @@ void UserTreeDSMC::initialize()
   if (get_value("epsm", val))		epsm = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize = atof(val.c_str());
+  if (get_value("boxratio", val))	boxratio = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;

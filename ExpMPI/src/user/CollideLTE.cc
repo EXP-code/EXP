@@ -93,9 +93,11 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
   trho = vector< vector<double> >(numt);
   for (unsigned n=0; n<numt; n++) trho[n] = vector<double>(numn, 0);
 
+  deltaE = vector<double>(nthrds);
+
+				// Energy diagnostics
   totalSoFar = 0.0;
   lostSoFar = vector<double>(nthrds, 0.0);
-  deltaE = vector<double>(nthrds);
 
   prec = vector<Precord>(nthrds);
   for (int n=0; n<nthrds; n++)
@@ -272,8 +274,9 @@ double CollideLTE::Elost()
 { 
   double ret=0.0;
   for (int n=0; n<nthrds; n++) {
-    ret += lostSoFar[n];
+    ret += lostSoFar[n] + lostSoFar_EPSM[n];
     lostSoFar[n] = 0.0; 
+    lostSoFar_EPSM[n] = 0.0; 
   }
   return ret; 
 }

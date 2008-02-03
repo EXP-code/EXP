@@ -29,12 +29,13 @@ struct thrd_pass_dsmc
 
 
 /** DSMC particle routine
-    @param Lunit is the physical scale in cm per system units
-    @param Tunit is the physical time scale in years per system unit
-    @param Munit is the physical mass in units of mp per system units
-    @param BoxSize half the size of a side in system units
-    @param ncell is the desired number of particles per cell
-    @param cnum non-zero adjusts cross section for cnum collisions per cel
+    @param Lunit is the physical scale in cm per system units (default: 300 kpc)
+    @param Tunit is the physical time scale in years per system unit (default: gravitational)
+    @param Munit is the physical mass in units of mp per system units (default: 1e12 Msun)
+    @param boxsize half the size of a side in system units (default: 1)
+    @param boxratio is the ratio of the z box height to the x or y box height (default: 1)
+    @param ncell is the desired number of particles per cell (default: 64)
+    @param cnum non-zero adjusts cross section for cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
@@ -59,6 +60,7 @@ private:
   double diam;
   double collfrac;
   double boxsize;
+  double boxratio;
   double epsm;
   double coolfrac;
 

@@ -35,6 +35,7 @@ protected:
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
   // Diagnostic output
+  //
   double totalSoFar;
   vector<double> lostSoFar;
 

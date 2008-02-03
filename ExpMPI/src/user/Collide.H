@@ -107,6 +107,10 @@ protected:
   virtual void EPSM(pHOT* tree, pCell* cell, int id);
   vector<double> coolrate;
 
+  // For diagnostic output
+  //
+  vector<double> lostSoFar_EPSM;
+
   void debug_list(pHOT& tree);
 
 public:
