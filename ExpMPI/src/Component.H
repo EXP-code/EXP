@@ -251,6 +251,9 @@ protected:
   //! Oct tree
   pHOT *tree;
 
+  //! Level occupation output
+  int nlevel;
+
 public:
 
   //! Describe the phase space coordinates

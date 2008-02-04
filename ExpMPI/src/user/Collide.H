@@ -153,7 +153,8 @@ public:
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
-  virtual double Elost()  { cerr << "Oops [2]" << endl; return 0.0; }
+  virtual void Elost(double* collide, double* epsm)  
+  { cerr << "Oops [2]" << endl; *collide=0; *epsm=0; }
 
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);

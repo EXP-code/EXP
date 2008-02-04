@@ -46,7 +46,7 @@ public:
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
 
   virtual double Etotal();
-  virtual double Elost();
+  virtual void Elost(double* collide, double* epsm);
 
   void Debug(double t);
 

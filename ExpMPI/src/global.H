@@ -63,7 +63,7 @@ extern string runtag;
 //! Toggle phase space advance (e.g. for use with externally supplied mapping).  On by default.
 extern bool eqmotion;
 
-//! Multistep levels (default: 0 means to multistepping)
+//! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
 //! Synchronize multistep positions at each substep (default: true)

@@ -270,15 +270,17 @@ double CollideLTE::Etotal()
   return ret; 
 }
 
-double CollideLTE::Elost()
+void CollideLTE::Elost(double* collide, double* epsm)
 { 
-  double ret=0.0;
+  double ret1=0.0, ret2=0.0;
   for (int n=0; n<nthrds; n++) {
-    ret += lostSoFar[n] + lostSoFar_EPSM[n];
+    ret1 += lostSoFar[n];
+    ret2 += lostSoFar_EPSM[n];
     lostSoFar[n] = 0.0; 
     lostSoFar_EPSM[n] = 0.0; 
   }
-  return ret; 
+  *collide = ret1;
+  *epsm = ret2;
 }
 
 

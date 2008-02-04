@@ -207,7 +207,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
   collide->set_timestep(use_delt);
-  ElostTot = 0.0;
+  ElostTotCollide = ElostTotEPSM = 0.0;
 
   //
   // Timers: set precision to microseconds
@@ -444,10 +444,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     // pHOT_iterator ic(*c0->Tree());
 
     double KEtot1=collide->Etotal(), KEtot=0.0;
-    double Elost1=collide->Elost(),  Elost=0.0;
+    double Elost1, Elost2, ElostC=0.0, ElostE=0.0;
 
-    MPI_Reduce(&KEtot1, &KEtot, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Elost1, &Elost, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    collide->Elost(&Elost1, &Elost2);
+
+    MPI_Reduce(&KEtot1, &KEtot,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Elost1, &ElostC, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     unsigned cellBods = c0->Tree()->checkNumber();
 
@@ -468,14 +471,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(6) << " " << setw(20) << stepnum << "step number" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
 	   << setw(6) << " " << setw(20) << coll_error << "collision errors (" 
-	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl
-	   << setw(6) << " " << setw(20) << epsm_total << "EPSM particles (" 
-	   << 100.0*epsm_total/c0->nbodies_tot << "%)" << endl
-	   << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
-	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() << "total # cells" << endl
-	   << setw(6) << " " << setw(20) << epsm_cells << "EPSM cells (" 
-	   << 100.0*epsm_cells/c0->Tree()->TotalNumber() << "%)" << endl
-	   << setw(6) << " " << setw(20) << coll_[0] << "collision/cell @ 1%" << endl
+	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl;
+      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total << "EPSM particles (" 
+		       << 100.0*epsm_total/c0->nbodies_tot << "%)" << endl;
+      mout << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
+	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() << "total # cells" << endl;
+      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_cells << "EPSM cells (" 
+		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() << "%)" << endl;
+      mout << setw(6) << " " << setw(20) << coll_[0] << "collision/cell @ 1%" << endl
 	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
 	   << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
 	   << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
@@ -491,17 +494,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << endl;
       mout.precision(prec);
 	
-      ElostTot += Elost;
+      ElostTotCollide += ElostC;
+      ElostTotEPSM    += ElostE;
 
-      mout << "Energy (system):" << endl
-	   << "       Lost=" << Elost << endl
-	   << " Total loss=" << ElostTot << endl
-	   << "   Total KE=" << KEtot << endl;
+      mout << "Energy (system):" << endl << " Lost collide =" << ElostC << endl;
+      if (epsm>0) mout << "    Lost EPSM =" << ElostE << endl;
+      mout << "   Total loss =" << ElostTotCollide+ElostTotEPSM << endl;
+      if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;
+      mout << "     Total KE =" << KEtot << endl;
 
       if (KEtot<=0.0)
 	mout << "      Ratio= XXXX" << endl << endl;
       else
-	mout << "      Ratio=" << Elost/KEtot << endl << endl;
+	mout << "      Ratio=" << (ElostC+ElostE)/KEtot << endl << endl;
 
       mout << "Timing (secs):" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl

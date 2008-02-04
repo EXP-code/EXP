@@ -400,7 +400,6 @@ void * Collide::collide_thread(void * arg)
     //
     diam = diam0;
     double cross  = M_PI*diam*diam;
-    double diamCBA = sqrt(Fn*mass)*diam;
 
     // Determine cross section based on fixed number of collisions
     //
@@ -408,6 +407,8 @@ void * Collide::collide_thread(void * arg)
       cross = 2.0*CNUM*volc/(Fn*mass*tau*crm*number*(number-1));
       diam = sqrt(cross/M_PI);
     }
+
+    double diamCBA = sqrt(Fn*mass)*diam;
 
     // Diagnostic: MFP to linear cell size ratio 
     //
@@ -457,7 +458,8 @@ void * Collide::collide_thread(void * arg)
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
 
-    if (prec[id].first < EPSMratio) {
+    // if (prec[id].first < EPSMratio) {
+    if (number/select < EPSMratio) {
 
       EPSM(tree, c, id);
 

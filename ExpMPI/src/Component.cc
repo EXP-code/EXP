@@ -91,6 +91,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   tree = new pHOT(this);
 
   pbuf = new Particle [PFbufsz];
+
+  nlevel = -1;
 }
 
 struct thrd_pass_reset
@@ -243,27 +245,31 @@ void Component::reset_level_lists()
 #endif  
 
 				// Sanity check
-  if (VERBOSE>10 && (this_step % 10 == 0)) {
+  if (nlevel>0 && (this_step % nlevel == 0)) {
     vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
     for (int n=0; n<=multistep; n++) lev1[n] = levlist[n].size();
     MPI_Reduce(&lev1[0], &lev0[0], multistep+1, MPI_UNSIGNED,
 	       MPI_SUM, 0, MPI_COMM_WORLD);
     if (myid==0) {
+      ostringstream ofil;
+      ofil << runtag << ".levels";
+      ofstream out(ofil.str().c_str(), ios::app);
+
       unsigned tot=0;
       double sum=0.0;
       for (int n=0; n<=multistep; n++) tot += lev0[n];
-      cout << setw(70) << setfill('-') << '-' << endl;
+      out << setw(70) << setfill('-') << '-' << endl;
       ostringstream sout;
       sout << "--- Component <" << id << ">, T=" << tnow;
-      cout << setw(70) << left << sout.str().c_str() << endl;
-      cout << setw(70) << '-' << endl << setfill(' ');
+      out << setw(70) << left << sout.str().c_str() << endl;
+      out << setw(70) << '-' << endl << setfill(' ');
       for (int n=0; n<=multistep; n++) {
 	sum += lev0[n];
-	cout << setw(3) << n << setw(10) << lev0[n] 
+	out << setw(3) << n << setw(10) << lev0[n] 
 	     << setw(10) << sum/tot << endl;
       }
-      cout << endl << setw(3) << "T" << setw(10) << tot << endl << right;
-      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      out << endl << setw(3) << "T" << setw(10) << tot << endl << right;
+      out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     }
   }
 }
@@ -322,6 +328,8 @@ Component::Component(istream *in)
   read_bodies_and_distribute_binary(in);
 
   reset_level_lists();
+
+  nlevel = -1;
 }
 
 
@@ -387,6 +395,9 @@ void Component::initialize(void)
     if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
     
     if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
+
+    if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
+
 
 				// Next parameter
     token = tokens(",");
@@ -838,7 +849,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) part.acc[j] = 0.0;
       part.pot = part.potext = 0.0;
 
-      part.level = 0;
+      part.level = multistep;
       part.indx = 1;
 
       for (int j=0; j<niattrib; j++) {
@@ -869,7 +880,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       for (int j=0; j<3; j++) ins >> part.vel[j];
       part.pot = part.potext = 0.0;
 
-      part.level = 0;
+      part.level = multistep;
       part.indx = i;
 
       for (int j=0; j<niattrib; j++) {
@@ -910,7 +921,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 	for (int j=0; j<3; j++) part.acc[j] = 0.0;
 	part.pot = part.potext = 0.0;
 
-	part.level = 0;
+	part.level = multistep;
 	part.indx = nbodies_index[n-1] + 1 + icount;
 
 	for (int j=0; j<niattrib; j++) {
@@ -984,7 +995,7 @@ void Component::get_next_particle_from_file(Particle* part, istream *in)
   for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
   in->read((char *)&(part->pot), sizeof(double));
   part->potext = 0.0;
-  part->level = 0;
+  part->level = multistep;
   part->indx = ++seq_cur;
   for (int i=0; i<niattrib; i++) 
     in->read((char *)&(part->iattrib[i]), sizeof(int));

@@ -73,7 +73,7 @@ private:
   double curtime;
 
   CollideLTE *collide;
-  double ElostTot;
+  double ElostTotCollide, ElostTotEPSM;
 
   string comp_name;
   Component *c0;
