@@ -84,6 +84,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   seq_check = false;
 
+  nlevel = -1;
+
   read_bodies_and_distribute_ascii();
 
   reset_level_lists();
@@ -92,7 +94,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   pbuf = new Particle [PFbufsz];
 
-  nlevel = -1;
 }
 
 struct thrd_pass_reset
@@ -325,11 +326,16 @@ Component::Component(istream *in)
   comI    = 0;
   covI    = 0;
 
+  nlevel = -1;
+
   read_bodies_and_distribute_binary(in);
 
   reset_level_lists();
 
-  nlevel = -1;
+  tree = new pHOT(this);
+
+  pbuf = new Particle [PFbufsz];
+
 }
 
 
@@ -1071,10 +1077,12 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   fparam = trimLeft(trimRight(tokens(":")));
 
 				// Backward compatibility
+  /*
   if (fparam.size() == 0) {
     fparam = cparam;
     cparam = "";
   }
+  */
 
   delete [] info;
 

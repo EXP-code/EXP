@@ -458,7 +458,9 @@ void * Collide::collide_thread(void * arg)
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
 
+				// Old version ===>
     // if (prec[id].first < EPSMratio) {
+
     if (number/select < EPSMratio) {
 
       EPSM(tree, c, id);
