@@ -265,7 +265,8 @@ main(int argc, char** argv)
     }
     
     if (dump_signal) {
-      cout << "Process " << myid << ": have dump signal . . . continuing\n";
+      cout << "Process " << myid << ": dump signal received,"
+	   << " will dump on Step " << this_step+1 << ", continuing . . .\n";
     }
 
   }

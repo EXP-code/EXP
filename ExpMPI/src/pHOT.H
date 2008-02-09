@@ -49,11 +49,16 @@ protected:
   unsigned min_cell, max_cell;
   vector<unsigned> chist;
 
+  ACG *gen;
+  Uniform *unit;
+  double *offset;
+
 public:
 
   static unsigned neg_half;
   static double sides[];
   static double offst[];
+  static double jittr[];
 
   pHOT(Component* C);
   ~pHOT();

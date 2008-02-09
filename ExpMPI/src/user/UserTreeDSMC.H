@@ -34,6 +34,7 @@ struct thrd_pass_dsmc
     @param Munit is the physical mass in units of mp per system units (default: 1e12 Msun)
     @param boxsize half the size of a side in system units (default: 1)
     @param boxratio is the ratio of the z box height to the x or y box height (default: 1)
+    @param jitter is the fraction of the box size added to the tree origin (default: 0)
     @param ncell is the desired number of particles per cell (default: 64)
     @param cnum non-zero adjusts cross section for cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
@@ -61,6 +62,7 @@ private:
   double collfrac;
   double boxsize;
   double boxratio;
+  double jitter;
   double epsm;
   double coolfrac;
 

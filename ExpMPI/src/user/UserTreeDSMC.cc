@@ -97,20 +97,21 @@ void * UserTreeDSMC::timestep_thread(void * arg)
   // for each particle
 
   unsigned ncells = tree->Number(), nbods;
-  double L, vel, DT;
+  double L, DT;
 
   pHOT_iterator pt(*tree);
 
   for (unsigned j=0; j<ncells; j++) {
     nbods = pt.nextCell();
     if ( (int)(j%nthrds) == id ) {
-      L = pow(pt.Volume(), 0.3333333333333);
+      L = pt.Cell()->Scale();
       for (unsigned i=0; i<nbods; i++) {
 				// Time of flight criterion
-	vel = 1.0e-40;
-	for (unsigned k=0; k<3; k++)
-	  vel = max<double>(vel, fabs(pt.Body(i)->vel[k]));
-	DT = L/vel;
+	DT = 1.0e40;
+	for (unsigned k=0; k<3; k++) {
+	  DT = min<double>
+	    (pHOT::sides[k]*L/(fabs(pt.Body(i)->vel[k])+1.0e-40), DT);
+	}
 				// Cooling criterion
 	int sz = pt.Body(i)->dattrib.size();
 	if (use_delt>=0 && use_delt<sz)
@@ -153,6 +154,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   diamfac = 1.0;
   boxsize = 1.0;
   boxratio = 1.0;
+  jitter = 0.0;
   comp_name = "gas disk";
   nsteps = -1;
   use_temp = -1;
@@ -192,18 +194,26 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   pHOT::offst[0] = pHOT::offst[1] = pHOT::offst[2] = boxsize;
 
 				// For cylindrical disk
-  pHOT::sides[2] = boxratio;
-  pHOT::offst[2] = boxratio;
+  pHOT::sides[2] *= boxratio;
+  pHOT::offst[2] *= boxratio + 0.0003;
+
+				// Jitter factor of the origin offset
+				// 
+  for (unsigned k=0; k<3; k++) pHOT::jittr[k] = jitter*pHOT::offst[k];
 
   pCell::bucket = ncell;
 
   volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
 
 
+  //
+  // Set collision parameters
+  //
   Collide::CBA = cba;
   Collide::PULLIN = use_pullin;
   Collide::CNUM = cnum;
   Collide::EPSMratio = epsm;
+				// Create the collision instance
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
   collide->set_timestep(use_delt);
@@ -247,7 +257,8 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
-       << ", epsm=" << epsm << ", boxsize=" << boxsize << ", boxratio=" << boxratio
+       << ", epsm=" << epsm << ", boxsize=" << boxsize 
+       << ", boxratio=" << boxratio << ", jitter=" << jitter 
        << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
@@ -275,6 +286,7 @@ void UserTreeDSMC::initialize()
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize = atof(val.c_str());
   if (get_value("boxratio", val))	boxratio = atof(val.c_str());
+  if (get_value("jitter", val))		jitter = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
@@ -311,11 +323,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   } else {
 
-    if (tnow-curtime > 1.0e-12) {
-      stepnum++;
-      curtime = tnow;
+    if (tnow-curtime < 1.0e-14) {
+      return; 			// Don't do this time step again!
     }
 
+    stepnum++;
+    curtime = tnow;
   }
 
   // DEBUG
@@ -324,10 +337,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Compute time step
   //
-  // double minvol = c0->Tree()->minVol();
-  // double medianvol = c0->Tree()->medianVol();
-  // double minsize = pow(minvol, 0.3333333);
-  // double mediansize = pow(medianvol, 0.3333333);
   double tau = dtime*mintvl[mlevel]/Mstep;
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -465,19 +474,29 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       sout << runtag << ".DSMC_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
-      unsigned prec = mout.precision(2);
-      mout << "Summary:" << endl << left << "--------" << endl
+      mout << "Summary:" << endl << left << "--------" << endl << scientific
 	   << setw(6) << " " << setw(20) << tnow << "current time" << endl
 	   << setw(6) << " " << setw(20) << stepnum << "step number" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
 	   << setw(6) << " " << setw(20) << coll_error << "collision errors (" 
+	   << setprecision(2) << fixed 
 	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl;
-      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total << "EPSM particles (" 
-		       << 100.0*epsm_total/c0->nbodies_tot << "%)" << endl;
+
+      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total 
+		       << "EPSM particles ("
+		       << 100.0*epsm_total/c0->nbodies_tot << "%)" 
+		       << scientific << endl;
       mout << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
-	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() << "total # cells" << endl;
-      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_cells << "EPSM cells (" 
-		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() << "%)" << endl;
+	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() 
+	   << "total # cells" << endl;
+
+      if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_cells 
+		       << "EPSM cells (" << setprecision(2) << fixed 
+		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() 
+		       << "%)" << scientific << endl;
+
+      mout << fixed << setprecision(0);
+
       mout << setw(6) << " " << setw(20) << coll_[0] << "collision/cell @ 1%" << endl
 	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
 	   << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
@@ -491,13 +510,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "occupation @ 95%" << endl
 	   << setw(6) << " " << setw(20) << cellBods
 	   << "total number in cells" << endl
-	   << endl;
-      mout.precision(prec);
+	   << endl << setprecision(4);
 	
       ElostTotCollide += ElostC;
       ElostTotEPSM    += ElostE;
 
-      mout << "Energy (system):" << endl << " Lost collide =" << ElostC << endl;
+      mout << scientific << "Energy (system):" << endl 
+	   << " Lost collide =" << ElostC << endl;
       if (epsm>0) mout << "    Lost EPSM =" << ElostE << endl;
       mout << "   Total loss =" << ElostTotCollide+ElostTotEPSM << endl;
       if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;

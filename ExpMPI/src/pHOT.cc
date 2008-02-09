@@ -14,6 +14,7 @@ using namespace std;
 
 double pHOT::sides[] = {2.0, 2.0, 2.0};
 double pHOT::offst[] = {1.0, 1.0, 1.0};
+double pHOT::jittr[] = {0.0, 0.0, 0.0};
 unsigned pHOT::neg_half = 0;
 
 template<class U, class V>
@@ -33,6 +34,10 @@ pHOT::pHOT(Component *C)
   volume = sides[0]*sides[1]*sides[2];	// Total volume of oct-tree region
   root = 0;
 
+  gen = new ACG(11+myid);
+  unit = new Uniform(-1.0, 1.0, gen);
+  offset = new double [3];
+
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
 } 
@@ -41,6 +46,9 @@ pHOT::pHOT(Component *C)
 pHOT::~pHOT()
 {
   delete root;
+  delete unit;
+  delete gen;
+  delete offset;
 }
 
 
@@ -117,6 +125,11 @@ void pHOT::makeTree()
   // Make the root
   //
   root = new pCell(this);
+
+  //
+  // Make new offset
+  //
+  for (unsigned k=0; k<3; k++) offset[k] = offst[k] + (*unit)()*jittr[k];
 
   //
   // Add the data

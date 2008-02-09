@@ -11,15 +11,16 @@ using namespace std;
 #include "UserTreeDSMC.H"
 #include "Collide.H"
 
-				// Use the original Pullin velocity selection algorithm
+				// Use the original Pullin velocity 
+				// selection algorithm
 bool Collide::PULLIN = false;
 				// Print out sorted cell parameters
 bool Collide::SORTED = true;
-				// Print out T-rho plane for cells will mass weighting
+				// Print out T-rho plane for cells 
+				// with mass weighting
 bool Collide::PHASE = true;
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
-
 				// Proton mass (g)
 const double mp = 1.67262158e-24;
 				// Boltzmann constant (cgs)
@@ -332,7 +333,8 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   if (use_delt>=0)
-    MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
 
   coltot += col;
   epsmtot += epsm;
@@ -361,7 +363,6 @@ void * Collide::collide_thread(void * arg)
 
   // Loop over cells, processing collisions in each cell
   //
-
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
 
     // Number of particles in this cell
@@ -378,7 +379,8 @@ void * Collide::collide_thread(void * arg)
     }
 
 
-				// Compute 1.5 maximum velocity in each MACRO cell
+    // Compute 1.5 maximum velocity in each MACRO cell
+    //
     double crm = 0;
     pCell *samp = c->sample;
     if (samp->state[0]>0.0) {
@@ -441,15 +443,19 @@ void * Collide::collide_thread(void * arg)
     double vmass;
     vector<double> V1, V2;
     c->Vel(vmass, V1, V2);
-    double vmean = (V2[0]+V2[1]+V2[2])/vmass/3.0;
-    double length = pow(c->Volume(), 0.333333);
-    double taudiag = length/sqrt(vmean)/tau;
-    
-    int indx = (int)floor(log(taudiag)/log(4.0) + 5);
+    double scale = c->Scale();
+    double taudiag = 1.0e40;
+    for (int k=0; k<3; k++) {
+      taudiag = min<double>
+	(pHOT::sides[k]*scale/(sqrt(V2[k]/vmass)+1.0e-40), taudiag);
+    }
+
+    int indx = (int)floor(log(taudiag/tau)/log(4.0) + 5);
     if (indx<0 ) indx = 0;
     if (indx>10) indx = 10;
     tdiagT[id][indx]++;
     
+    double length = pow(c->Volume(), 0.3333333);
 
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
@@ -457,10 +463,12 @@ void * Collide::collide_thread(void * arg)
     collTime[id].start();
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
-
-				// Old version ===>
-    // if (prec[id].first < EPSMratio) {
-
+    
+    // DEBUG
+    continue;
+    // END DEBUG
+				// If more than EPSMratio collisions per
+				// particle, assume equipartition
     if (number/select < EPSMratio) {
 
       EPSM(tree, c, id);
@@ -468,6 +476,7 @@ void * Collide::collide_thread(void * arg)
     } else {
 
       unsigned colc = 0;
+
       // Loop over total number of candidate collision pairs
       //
       for (unsigned i=0; i<nsel; i++ ) {
@@ -563,7 +572,7 @@ void * Collide::collide_thread(void * arg)
     }
     collSoFar[id] = collTime[id].stop();
 
-  } // Loop over cells
+    } // Loop over cells
 
   return (NULL);
 }
@@ -836,7 +845,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     mass += p->mass;
   }
 
-				// Can do anything if the gas has no mass
+				// Can't do anything if the gas has no mass
   if (mass<=0.0) return;
 
   double Einternal = 0.0, Eratio;
@@ -846,37 +855,41 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     disp[k] = (disp[k] - mvel[k]*mvel[k]*mass)/mass;
 
 				// Crazy value?
-    if (disp[k]<0.0) {
-      cout << "Process " << myid  << " id " << id << ": crazy value disp[" << k 
-	   << "]=" << disp[k] << " mvel=" << mvel[k] << " nbods=" << nbods << endl;
-      disp[k] = 0.0;
-    }
+    if (disp[k]<0.0) disp[k] = 0.0;
+
 				// Total kinetic energy in COV frame
     Einternal += 0.5*mass*disp[k];
   }
-  
 				// Correct 1d vel. disp. after cooling
 				// 
-  double Emin = 1.5*boltz*TFLOOR * mass/mp*UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
+  double Emin = 1.5*boltz*TFLOOR * mass/mp * 
+    UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
+
   if (Einternal - Emin > coolrate[id])
     Eratio = (Einternal - coolrate[id])/Einternal;
   else
     Eratio = min<double>(Emin, Einternal)/Einternal;
   
-  for (unsigned k=0; k<3; k++) 	// Sanity check
-    if (disp[k]>0.0) disp[k] = sqrt(Eratio*disp[k]);
+				// Compute the mean 1d vel.disp. from the
+				// distribution
+  double mdisp = 0.0;
+  for (unsigned k=0; k<3; k++) {
+    if (disp[k]>0.0) mdisp += disp[k];
+  }
+  mdisp = sqrt(Eratio*mdisp/3.0);
 
-				// Debug
-  /*
-  cout << "Process " << myid << " id " << id 
-       << ": Einternal=" << Einternal 
-       << " Ratio=" << Eratio << " Emin=" << Emin << endl;
-  */
-
+				// Sanity check
+				// 
+  if (mdisp<=0.0 || isnan(mdisp) || isinf(mdisp)) {
+    cout << "Process " << myid  << " id " << id 
+	 << ": crazy values, mdisp=" << mdisp << " Eratio=" << Eratio 
+	 << " Eint=" << Einternal << " nbods=" << nbods << endl;
+    return;
+  }
 				// Realize new velocities for all particles
 				// 
   if (PULLIN) {
-    double R=0.0, T=0.0;	// Shut up warnings
+    double R=0.0, T=0.0;	// [Shuts up the compile-time warnings]
     const double sqrt3 = sqrt(3.0);
 
     if (nbods==2) {
@@ -885,9 +898,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
 	if ((*unit)()>0.5)
-	  p1->vel[k] = mvel[k] + disp[k];
+	  p1->vel[k] = mvel[k] + mdisp;
 	else 
-	  p1->vel[k] = mvel[k] - disp[k];
+	  p1->vel[k] = mvel[k] - mdisp;
 	p2->vel[k] = 2.0*mvel[k] - p1->vel[k];
       }
 
@@ -898,8 +911,8 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       double v2, v3;
       for (unsigned k=0; k<3; k++) {
 	T = 2.0*M_PI*(*unit)();
-	v2 = M_SQRT2*disp[k]*cos(T);
-	v3 = M_SQRT2*disp[k]*sin(T);
+	v2 = M_SQRT2*mdisp*cos(T);
+	v3 = M_SQRT2*mdisp*sin(T);
 	p1->vel[k] = mvel[k] - M_SQRT2*v2/sqrt3;
 	p2->vel[k] = p1->vel[k] + (sqrt3*v2 - v3)/M_SQRT2;
 	p3->vel[k] = p2->vel[k] + M_SQRT2*v3;
@@ -912,13 +925,13 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       double v2, v3, e2, e4, v4;
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
-	e2 = disp[k]*disp[k]*(1.0 - R*R);
+	e2 = mdisp*mdisp*(1.0 - R*R);
 	T = 2.0*M_PI*(*unit)();
 	v2 = sqrt(2.0*e2)*cos(T);
 	v3 = sqrt(2.0*e2)*sin(T);
 	p1->vel[k] = mvel[k] - sqrt3*v2/2.0;
 	p2->vel[k] = p1->vel[k] + (2.0*v2 - M_SQRT2*v3)/sqrt3;
-	e4 = disp[k]*disp[k]*R*R;
+	e4 = mdisp*mdisp*R*R;
 	if ((*unit)()>0.5) v4 =  sqrt(2.0*e4);
 	else               v4 = -sqrt(2.0*e4);
 	p3->vel[k] = p2->vel[k] + (sqrt3*v3 - v4)/M_SQRT2;
@@ -949,7 +962,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.0));
 	}
       
-	e[1] = disp[k]*disp[k]*(1.0 - Tk[0]);
+	e[1] = mdisp*mdisp*(1.0 - Tk[0]);
 	T = 2.0*M_PI*(*unit)();
 	v[1] = sqrt(2.0*e[1])*cos(T);
 	v[2] = sqrt(2.0*e[1])*sin(T);
@@ -969,7 +982,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	  Pp1 = tree->Body(cell->bods[jj  ]);
 
 	  prod *= Tk[j/2-2];
-	  e[jj] = disp[k]*disp[k]*(1.0 - Tk[j/2-1])*prod;
+	  e[jj] = mdisp*mdisp*(1.0 - Tk[j/2-1])*prod;
 	  T = 2.0*M_PI*(*unit)();
 	  v[jj]   = sqrt(2.0*e[jj])*cos(T);
 	  v[jj+1] = sqrt(2.0*e[jj])*sin(T);
@@ -981,7 +994,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	}
 
 	prod *= Tk[kmax/2-2];
-	e[kmax-1] = disp[k]*disp[k]*prod;
+	e[kmax-1] = mdisp*mdisp*prod;
 
 	if (Even) {
 	  if ((*unit)()>0.5) v[nbods-1] =  sqrt(2.0*e[kmax-1]);
@@ -1007,74 +1020,53 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     }
 
     // End Pullin algorithm
+
   } else {
 
-				// Realize a distribution with internal dispersion only
-				// 
+				// Realize a distribution with internal
+				// dispersion only
     vector<double> Tmvel(3, 0.0);
     vector<double> Tdisp(3, 0.0);
     for (unsigned j=0; j<nbods; j++) {
       Particle* p = tree->Body(cell->bods[j]);
       for (unsigned k=0; k<3; k++) {
-	p->vel[k] = disp[k]*(*norm)();
+	p->vel[k] = mdisp*(*norm)();
 	Tmvel[k] += p->mass*p->vel[k];
 	Tdisp[k] += p->mass*p->vel[k]*p->vel[k];
       }
     }
-
 				// Compute mean and variance
 				// 
+    double Tmdisp = 0.0;
     for (unsigned k=0; k<3; k++) {
       Tmvel[k] /= mass;
       Tdisp[k] = (Tdisp[k] - Tmvel[k]*Tmvel[k]*mass)/mass;
+      Tmdisp += Tdisp[k];
     }
+    Tmdisp = sqrt(Tmdisp/3.0);
 
+				// Sanity check
+				// 
+    if (Tmdisp<=0.0 || isnan(Tmdisp) || isinf(Tmdisp)) {
+      cout << "Process " << myid  << " id " << id 
+	   << ": crazy values, Tmdisp=" << Tmdisp << " mdisp=" << mdisp 
+	   << " nbods=" << nbods << endl;
+      return;
+    }
 				// Enforce energy and momentum conservation
 				// 
     for (unsigned j=0; j<nbods; j++) {
       Particle* p = tree->Body(cell->bods[j]);
       for (unsigned k=0; k<3; k++)
-	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*disp[k]/Tdisp[k];
+	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*mdisp/Tmdisp;
     }
 
   }
 
+				// Record diagnostics
+				// 
   lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);
   epsm1T[id] += nbods;
   Nepsm1T[id]++;
-
 }
 
-/*
-void Collide::EPSM(pHOT* tree, pCell* cell, int id)
-{
-  if (cell->bods.size()<2) return;
-
-				// Cell temperature and mass (cgs)
-				// 
-  double KEtot, KEdsp;
-  cell->KE(KEtot, KEdsp);	// These are already specific in mass
-
-  double mass = cell->Mass();	// Mass in cell
-  vector<double> vr;		// Mean velocity
-  cell->MeanVel(vr);
-
-  if (mass<=0.0) return;
-				// Compute 1d vel. disp. after cooling
-  double sigma = sqrt(boltz*TFLOOR * mp/(UserTreeDSMC::Munit*UserTreeDSMC::Eunit));
-  if (KEdsp > coolrate[id]/mass)
-    sigma = sqrt((KEdsp - coolrate[id]/mass)/1.5);
-  
-				// Realize new velocities for all particles
-  unsigned nbods = cell->bods.size();
-  for (unsigned j=0; j<nbods; j++) {
-    Particle* p = tree->Body(cell->bods[j]);
-    for (unsigned k=0; k<3; k++)
-      p->vel[k] = vr[k] + sigma*(*norm)();
-  }
-
-  epsm1T[id] += nbods;
-  Nepsm1T[id]++;
-
-}
-*/

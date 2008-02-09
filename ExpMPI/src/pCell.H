@@ -92,6 +92,9 @@ public:
   //! Return total volume of cell
   double Volume();
 
+  //! Return the length scale factor from the quad tree
+  double Scale();
+
   //! Mean position
   //@{
   void MeanPos(double &x, double &y, double& z);

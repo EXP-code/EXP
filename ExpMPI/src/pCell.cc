@@ -308,6 +308,11 @@ double pCell::Volume()
   return tree->volume/((unsigned long long)1 << 3*level);
 }
 
+double pCell::Scale()
+{
+  return 1.0/((unsigned long long)1 << level);
+}
+
 pCell* pCell::findSampleCell()
 {
   pCell *cur = this;		// Begin with this cell
