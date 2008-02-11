@@ -171,6 +171,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   coolrate[id] = heatcool.CoolRate() * n_h*n_h * CellVolume * tau *
     UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 
+  if (NOCOOL) coolrate[id] = 0.0;
+
   // Energy per encounter
   //
   deltaE[id] = coolrate[id] / number;

@@ -19,6 +19,10 @@ bool Collide::SORTED = true;
 				// Print out T-rho plane for cells 
 				// with mass weighting
 bool Collide::PHASE = true;
+				// Turn off collisions for testing
+bool Collide::DRYRUN = false;
+				// Turn off cooling for testing
+bool Collide::NOCOOL = false;
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 				// Proton mass (g)
@@ -123,12 +127,14 @@ Collide::Collide(double diameter, int nth)
   col1T = vector<unsigned> (nthrds, 0);
   epsm1T = vector<unsigned> (nthrds, 0);
   Nepsm1T = vector<unsigned> (nthrds, 0);
+  tmassT = vector<double> (nthrds, 0);
 
   tsratT  = vector< vector<double> > (nthrds);
   tdensT  = vector< vector<double> > (nthrds);
   tvolcT  = vector< vector<double> > (nthrds);
   ttempT  = vector< vector<double> > (nthrds);
   tdeltT  = vector< vector<double> > (nthrds);
+  tdispT  = vector< vector<double> > (nthrds);
   tphaseT = vector< vector<Precord> > (nthrds);
   tmfpstT = vector< vector<Precord> > (nthrds);
 
@@ -168,7 +174,11 @@ Collide::Collide(double diameter, int nth)
   for (int n=0; n<nthrds; n++) {
     tdiagT[n] = vector<unsigned>(numdiag, 0);
     tcoolT[n] = vector<unsigned>(numdiag, 0);
+    tdispT[n] = vector<double>(3, 0);
   }
+
+  disptot = vector<double>(3, 0);
+  masstot = 0.0;
 
   use_temp = -1;
   use_dens = -1;
@@ -229,6 +239,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     col1T[n] = 0;
     epsm1T[n] = 0;
     Nepsm1T[n] = 0;
+    tmassT[n] = 0;
 				// For computing cell occupation #
     colcntT[n].clear();		// and collision counts
     numcntT[n].clear();
@@ -246,11 +257,12 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
       tdiagT[n][k] = 0;
       if (use_delt>=0) tcoolT[n][k] = 0;
     }
+
+    for (unsigned k=0; k<3; k++) tdispT[n][k] = 0;
   }
   for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
   if (use_delt>=0) 
     for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
-
 
 				// Make cellist
   unsigned ncells = tree.Number();
@@ -291,6 +303,10 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   unsigned col1=0, col=0;	// Count number of collisions
   unsigned epsm1=0, epsm=0, Nepsm1=0, Nepsm=0;
 
+				// Dispersion test
+  double mass1 = 0, mass0 = 0;
+  vector<double> disp1(3, 0), disp0(3, 0);
+
   numcnt.clear();
   colcnt.clear();
 
@@ -324,6 +340,9 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     tdelt. insert(tdelt.end(),   tdeltT[n].begin(),  tdeltT[n].end());
     tphase.insert(tphase.end(), tphaseT[n].begin(), tphaseT[n].end());
     tmfpst.insert(tmfpst.end(), tmfpstT[n].begin(), tmfpstT[n].end());
+
+    for (unsigned k=0; k<3; k++) disp1[k] += tdispT[n][k];
+    mass1 += tmassT[n];
   }
 
   MPI_Reduce(&col1, &col, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -331,10 +350,13 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   MPI_Reduce(&Nepsm1, &Nepsm, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
+	     MPI_COMM_WORLD);
   if (use_delt>=0)
     MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
+  MPI_Reduce(&disp1[0], &disp0[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&mass1, &mass0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
   coltot += col;
   epsmtot += epsm;
@@ -343,10 +365,22 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   for (unsigned k=0; k<numdiag; k++) tdiag[k] += tdiag0[k];
   if (use_delt>=0)
     for (unsigned k=0; k<numdiag; k++) tcool[k] += tcool0[k];
+  for (unsigned k=0; k<3; k++) disptot[k] += disp0[k];
+  masstot += mass0;
 
   snglSoFar = snglTime.stop();
 
   return( col );
+}
+
+void Collide::dispersion(vector<double>& disp)
+{
+  disp = disptot;
+  if (masstot>0.0) {
+    for (unsigned k=0; k<3; k++) disp[k] /= masstot;
+  }
+  for (unsigned k=0; k<3; k++) disptot[k] = 0.0;
+  masstot = 0.0;
 }
 
 
@@ -464,9 +498,9 @@ void * Collide::collide_thread(void * arg)
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
     
-    // DEBUG
-    continue;
-    // END DEBUG
+				// No collisions, primarily for testing . . .
+    if (DRYRUN) continue;
+
 				// If more than EPSMratio collisions per
 				// particle, assume equipartition
     if (number/select < EPSMratio) {
@@ -572,7 +606,31 @@ void * Collide::collide_thread(void * arg)
     }
     collSoFar[id] = collTime[id].stop();
 
-    } // Loop over cells
+    // Compute dispersion diagnostics
+    //
+    double tmass = 0.0;
+    vector<double> velm(3, 0.0), velm2(3, 0.0);
+    for (unsigned j=0; j<number; j++) {
+      Particle* p = tree->Body(c->bods[j]);
+      for (unsigned k=0; k<3; k++) {
+	velm[k]  += p->mass*p->vel[k];
+	velm2[k] += p->mass*p->vel[k]*p->vel[k];
+      }
+      tmass += p->mass;
+    }
+
+    if (tmass>0.0) {
+      for (unsigned k=0; k<3; k++) {
+	velm[k] /= tmass;
+	velm2[k] = velm2[k] - velm[k]*velm[k]*tmass;
+	if (velm2[k]>0.0) {
+	  tdispT[id][k] += velm2[k];
+	  tmassT[id]    += tmass;
+	}
+      }
+    }
+
+  } // Loop over cells
 
   return (NULL);
 }
@@ -1062,7 +1120,6 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     }
 
   }
-
 				// Record diagnostics
 				// 
   lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);

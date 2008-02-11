@@ -1474,9 +1474,30 @@ void pHOT::Repartition()
   MPI_Barrier(MPI_COMM_WORLD);
 
 #ifdef DEBUG
+  checkDupes();
   checkIndices();
 #endif
 }
+
+void pHOT::checkDupes()
+{
+  MPI_Status s;
+
+  vector<unsigned> indices;
+  for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
+    indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
+
+  sort(indices.begin(), indices.end());
+  
+  unsigned dup = 0;
+  for (unsigned n=1; n<indices.size(); n++) {
+    if (indices[n-1] == indices[n]) dup++;
+  }
+
+  if (dup)
+    cout << "Process " << myid << ": pHOT::checkDupes, dup=" << dup << endl;
+}
+
 
 void pHOT::checkIndices()
 {

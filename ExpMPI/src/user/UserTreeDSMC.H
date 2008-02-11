@@ -42,6 +42,7 @@ struct thrd_pass_dsmc
     @param collfrac is a multiplicative fraction for collsion number
     @param frontier enables printing of active cell list (for debugging)
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
+    @param dryrun enabled turns off collsions (primarily for debugging)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
     @param use_multi attempts to set the time step (if multistep is enabled)
@@ -66,7 +67,7 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, mfpstat, use_multi, use_pullin, cba;
+  bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_;

@@ -163,6 +163,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   coolfrac = 0.1;
   frontier = false;
   mfpstat = false;
+  dryrun = false;
+  nocool = false;
   use_multi = false;
   use_pullin = false;
   cba = true;
@@ -213,6 +215,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::PULLIN = use_pullin;
   Collide::CNUM = cnum;
   Collide::EPSMratio = epsm;
+  Collide::DRYRUN = dryrun;
+  Collide::NOCOOL = nocool;
 				// Create the collision instance
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
@@ -264,6 +268,8 @@ void UserTreeDSMC::userinfo()
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
+  if (dryrun)      cout << ", collisions disabled";
+  if (nocool)      cout << ", cooling disabled";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -295,6 +301,8 @@ void UserTreeDSMC::initialize()
   if (get_value("use_delt", val))	use_delt = atoi(val.c_str());
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
+  if (get_value("dryrun", val))		dryrun = atoi(val.c_str()) ? true : false;
+  if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
   if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
@@ -324,6 +332,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   } else {
 
     if (tnow-curtime < 1.0e-14) {
+      if (myid==0) {
+	cout << "UserTreeDSMC: attempt to redo step at T=" << tnow << endl;
+      }
       return; 			// Don't do this time step again!
     }
 
@@ -470,6 +481,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned epsm_total = collide->EPSMtotal()/nsteps;
       unsigned epsm_cells = collide->EPSMcells()/nsteps;
 
+      vector<double> disp;
+      collide->dispersion(disp);
+      double dmean = (disp[0]+disp[1]+disp[2])/3.0;
+
       ostringstream sout;
       sout << runtag << ".DSMC_log";
       ofstream mout(sout.str().c_str(), ios::app);
@@ -521,12 +536,15 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "   Total loss =" << ElostTotCollide+ElostTotEPSM << endl;
       if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;
       mout << "     Total KE =" << KEtot << endl;
-
-      if (KEtot<=0.0)
-	mout << "      Ratio= XXXX" << endl << endl;
-      else
-	mout << "      Ratio=" << (ElostC+ElostE)/KEtot << endl << endl;
-
+      if (KEtot<=0.0) mout << "         Ratio= XXXX" << endl;
+      else mout << "    Ratio lost=" << (ElostC+ElostE)/KEtot << endl;
+      mout << "     3-D disp =" << disp[0] << ", " << disp[1] 
+	   << ", " << disp[2] << endl;
+      if (dmean>0.0) {
+	mout << "   Disp ratio =" << disp[0]/dmean << ", " 
+	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
+      }
+	
       mout << "Timing (secs):" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "       tree=" << treeSoFar()*1.0e-6 << endl

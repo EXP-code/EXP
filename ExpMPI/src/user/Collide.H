@@ -79,8 +79,9 @@ protected:
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> col1T, epsm1T, Nepsm1T;
-  std::vector<double> KEtotT, KElostT;
-  std::vector< vector<double> >  mfpratT, tsratT, tdensT, tvolcT, ttempT, tdeltT;
+  std::vector<double> KEtotT, KElostT, tmassT;
+  std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT, ttempT;
+  std::vector< vector<double> > tdeltT, tdispT;
 
   const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
@@ -88,6 +89,9 @@ protected:
   std::vector< vector<unsigned> > tdiagT, tcoolT;
 
   std::vector< vector<pCell*> > cellist;
+
+  std::vector<double> disptot;
+  double masstot;
 
   double diam0, diam;
   unsigned coltot;
@@ -127,6 +131,11 @@ public:
 
   static bool PHASE;		// Print out T-rho plane for cells will mass weighting
   
+  static bool DRYRUN;		// Turn off collisions (for testing, debugging, etc.)
+				// Set cooling to zero for testing
+				// (default: false)
+  static bool NOCOOL;
+
 				// Use EPSM when mean free path/cell size ratio 
 				// is below EPSMratio (default = -1.0, never)
   static double EPSMratio;
@@ -151,6 +160,7 @@ public:
   unsigned collide(pHOT& cl, double Fn, double tau);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
+  void dispersion(vector<double>& disp);
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
   virtual void Elost(double* collide, double* epsm)  

@@ -103,6 +103,7 @@ public:
   //@{
   bool checkKeybods();
   void checkIndices();
+  void checkDupes();
   void dumpFrontier();
   void densEmit(unsigned lev, pCell *p);
   void densCheck();
