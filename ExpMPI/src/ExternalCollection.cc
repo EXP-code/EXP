@@ -125,10 +125,12 @@ void ExternalCollection::dynamicload(void)
     exit(-1);
   }
  
+#ifdef DEBUG
   ostringstream ostr;
   ostr << "extcoll.log." << myid;
   ofstream tout(ostr.str().c_str());
   tout << "Process " << myid << ": opened <" << command << ">" << endl;
+#endif
 
   if (myid==0) cout << "ExternalCollection:" << endl
 		    << setw(71) << setfill('-') << "-" << endl
@@ -148,7 +150,9 @@ void ExternalCollection::dynamicload(void)
 				// the lib name
 	sprintf(name, "%s/%s", ldlibdir.c_str(), in_buf); 
 
+#ifdef DEBUG
 	tout << "Process " << myid << ": call dlopen on <" << name << ">" << endl;
+#endif
 
 	dlib = dlopen(name, RTLD_NOW | RTLD_GLOBAL);
 	if(dlib == NULL) {
@@ -170,8 +174,10 @@ void ExternalCollection::dynamicload(void)
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
+#ifdef DEBUG
   tout << "Process " << myid << ": done with dlopen" << endl;
   tout.close();
+#endif
 
   if (myid==0) {
     cout << ">" << endl 

@@ -148,7 +148,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   id = "TreeDSMC";		// ID string
 
 				// Default parameter values
-  ncell = 64;
+  ncell = 7;
+  Ncell = 64;
   cnum = 0;
   epsm = -1.0;
   diamfac = 1.0;
@@ -197,13 +198,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// For cylindrical disk
   pHOT::sides[2] *= boxratio;
-  pHOT::offst[2] *= boxratio + 0.0003;
+  pHOT::offst[2] *= boxratio;
 
 				// Jitter factor of the origin offset
 				// 
   for (unsigned k=0; k<3; k++) pHOT::jittr[k] = jitter*pHOT::offst[k];
 
   pCell::bucket = ncell;
+  pCell::Bucket = Ncell;
 
   volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
 
@@ -262,6 +264,7 @@ void UserTreeDSMC::userinfo()
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", epsm=" << epsm << ", boxsize=" << boxsize 
+       << ", ncell=" << ncell << ", Ncell=" << Ncell
        << ", boxratio=" << boxratio << ", jitter=" << jitter 
        << ", compname=" << comp_name;
   if (nsteps>0) cout << ", with diagnostic output";
@@ -295,6 +298,8 @@ void UserTreeDSMC::initialize()
   if (get_value("jitter", val))		jitter = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
+  if (get_value("ncell", val))		ncell = atoi(val.c_str());
+  if (get_value("Ncell", val))		Ncell = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
   if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
@@ -436,7 +441,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (mfpstat) {
 
-      collide->mfpsizeQuantile(quant, mfp_, ts_);
+      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_);
 
       if (myid==0) {
 
@@ -449,13 +454,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	  out << setw(18) << "Quantiles: " 
 	      << setw(18) << "MFP/size"
 	      << setw(18) << "Flight/size"
-	      << setw(18) << "Collide/size"
+	      << setw(18) << "Collions/cell"
+	      << setw(18) << "Number/Nsel"
 	      << endl;
 	  for (unsigned nq=0; nq<quant.size(); nq++)
 	    out << setw(18) << quant[nq] << ": " 
 		<< setw(18) << mfp_[nq] 
 		<< setw(18) << ts_[nq] 
-		<< setw(18) << coll_[nq] << endl;
+		<< setw(18) << coll_[nq] 
+		<< setw(18) << nsel_[nq] 
+		<< endl;
 	}
       }
     }
@@ -512,11 +520,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       mout << fixed << setprecision(0);
 
-      mout << setw(6) << " " << setw(20) << coll_[0] << "collision/cell @ 1%" << endl
-	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
+      mout << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
 	   << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
 	   << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
-	   << setw(6) << " " << setw(20) << coll_[8] << "collision/cell @ 99%" << endl
+	   << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
+	   << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
+	   << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.05) 
 	   << "occupation @ 5%" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.50) 

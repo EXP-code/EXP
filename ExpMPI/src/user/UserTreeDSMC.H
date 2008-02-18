@@ -35,7 +35,8 @@ struct thrd_pass_dsmc
     @param boxsize half the size of a side in system units (default: 1)
     @param boxratio is the ratio of the z box height to the x or y box height (default: 1)
     @param jitter is the fraction of the box size added to the tree origin (default: 0)
-    @param ncell is the desired number of particles per cell (default: 64)
+    @param ncell is the desired number of particles per cell (default: 7)
+    @param Ncell is the desired number of particles per sample cell (default: 64)
     @param cnum non-zero adjusts cross section for cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
@@ -54,7 +55,7 @@ class UserTreeDSMC : public ExternalForce
 {
 private:
   
-  int ncell;
+  int ncell, Ncell;
   int cnum;
   int nsteps;
   int use_temp, use_dens, use_delt;
@@ -70,7 +71,7 @@ private:
   bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool;
 
 				// For MFP and time step statistics
-  vector<double> quant, mfp_, ts_, coll_;
+  vector<double> quant, mfp_, ts_, coll_, nsel_;
 
   unsigned stepnum;
   double curtime;

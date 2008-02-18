@@ -69,7 +69,7 @@ protected:
 
   std::vector<unsigned> numcnt;
   std::vector<unsigned> colcnt;
-  std::vector<double>   tsrat, tdens, tvolc, ttemp, tdelt;
+  std::vector<double>   tsrat, tdens, tvolc, ttemp, tdelt, tseln;
 
   static const unsigned Nphase = 4, Nmfp = 5;
   std::vector<Precord> tphase, tmfpst;
@@ -80,7 +80,8 @@ protected:
   std::vector<unsigned> error1T;
   std::vector<unsigned> col1T, epsm1T, Nepsm1T;
   std::vector<double> KEtotT, KElostT, tmassT;
-  std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT, ttempT;
+  std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
+  std::vector< vector<double> > ttempT, tselnT;
   std::vector< vector<double> > tdeltT, tdispT;
 
   const static unsigned numdiag = 11;
@@ -129,6 +130,8 @@ public:
 
   static bool SORTED;		// Print out sorted cell parameters
 
+  static bool EXTRA;		// Print out extra collision statistics for debugging
+
   static bool PHASE;		// Print out T-rho plane for cells will mass weighting
   
   static bool DRYRUN;		// Turn off collisions (for testing, debugging, etc.)
@@ -159,7 +162,8 @@ public:
   unsigned medianColl();
   unsigned collide(pHOT& cl, double Fn, double tau);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
-  void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, vector<double>& ts_) ;
+  void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
+		       vector<double>& ts_, vector<double>& coll_) ;
   void dispersion(vector<double>& disp);
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
@@ -188,7 +192,7 @@ public:
     out << "-----Time step diagnostics---------------------------" << endl;
     out << "-----------------------------------------------------" << endl;
     out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
-	<< setw(15) << "Flight/Tau";
+	<< setw(15) << "Size/Flight";
     if (use_delt>=0) out << setw(15) << "Cool/Tau";
     out << endl;
     out << "-----------------------------------------------------" << endl;

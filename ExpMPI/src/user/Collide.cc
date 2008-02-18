@@ -15,10 +15,12 @@ using namespace std;
 				// selection algorithm
 bool Collide::PULLIN = false;
 				// Print out sorted cell parameters
-bool Collide::SORTED = true;
+bool Collide::SORTED = false;
 				// Print out T-rho plane for cells 
 				// with mass weighting
-bool Collide::PHASE = true;
+bool Collide::PHASE = false;
+				// Extra debugging output
+bool Collide::EXTRA = false;
 				// Turn off collisions for testing
 bool Collide::DRYRUN = false;
 				// Turn off cooling for testing
@@ -135,6 +137,7 @@ Collide::Collide(double diameter, int nth)
   ttempT  = vector< vector<double> > (nthrds);
   tdeltT  = vector< vector<double> > (nthrds);
   tdispT  = vector< vector<double> > (nthrds);
+  tselnT  = vector< vector<double> > (nthrds);
   tphaseT = vector< vector<Precord> > (nthrds);
   tmfpstT = vector< vector<Precord> > (nthrds);
 
@@ -143,7 +146,8 @@ Collide::Collide(double diameter, int nth)
   diam0 = diam = diameter;
   coltot = 0;			// Count total collisions
   errtot = 0;			// Count errors in inelastic computation
-  epsmtot = 0;
+  epsmcells = 0			// Count cells in EPSM regime
+  epsmtot = 0;			// Count particles in EPSM regime
 
 				// Default cooling rate (if not set by derived class)
   coolrate = vector<double>(nthrds, 0.0);
@@ -250,6 +254,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     tvolcT[n].clear();
     ttempT[n].clear();
     tdeltT[n].clear();
+    tselnT[n].clear();
     tphaseT[n].clear();
     tmfpstT[n].clear();
 
@@ -329,6 +334,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   tvolc.clear();
   ttemp.clear();
   tdelt.clear();
+  tseln.clear();
   tphase.clear();
   tmfpst.clear();
 
@@ -338,6 +344,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
     tvolc. insert(tvolc.end(),   tvolcT[n].begin(),  tvolcT[n].end());
     ttemp. insert(ttemp.end(),   ttempT[n].begin(),  ttempT[n].end());
     tdelt. insert(tdelt.end(),   tdeltT[n].begin(),  tdeltT[n].end());
+    tseln. insert(tseln.end(),   tselnT[n].begin(),  tselnT[n].end());
     tphase.insert(tphase.end(), tphaseT[n].begin(), tphaseT[n].end());
     tmfpst.insert(tmfpst.end(), tmfpstT[n].begin(), tmfpstT[n].end());
 
@@ -489,6 +496,10 @@ void * Collide::collide_thread(void * arg)
     if (indx>10) indx = 10;
     tdiagT[id][indx]++;
     
+				// Number per selection ratio
+    tselnT[id].push_back(static_cast<double>(number)/select);
+
+
     double length = pow(c->Volume(), 0.3333333);
 
 				// Number of pairs to be selected
@@ -503,7 +514,7 @@ void * Collide::collide_thread(void * arg)
 
 				// If more than EPSMratio collisions per
 				// particle, assume equipartition
-    if (number/select < EPSMratio) {
+    if (static_cast<double>(number)/select < EPSMratio) {
 
       EPSM(tree, c, id);
 
@@ -651,9 +662,11 @@ unsigned Collide::medianNumber()
 
     std::sort(numcnt.begin(), numcnt.end()); 
 
-    ofstream out("tmp.numcnt");
-    for (unsigned j=0; j<numcnt.size(); j++)
-      out << setw(8) << j << setw(18) << numcnt[j] << endl;
+    if (EXTRA) {
+      ofstream out("tmp.numcnt");
+      for (unsigned j=0; j<numcnt.size(); j++)
+	out << setw(8) << j << setw(18) << numcnt[j] << endl;
+    }
 
     return numcnt[numcnt.size()/2]; 
 
@@ -681,11 +694,13 @@ unsigned Collide::medianColl()
 
     std::sort(colcnt.begin(), colcnt.end()); 
 
-    ostringstream ostr;
-    ostr << runtag << ".colcnt";
-    ofstream out(ostr.str().c_str());
-    for (unsigned j=0; j<colcnt.size(); j++)
-      out << setw(8) << j << setw(18) << colcnt[j] << endl;
+    if (EXTRA) {
+      ostringstream ostr;
+      ostr << runtag << ".colcnt";
+      ofstream out(ostr.str().c_str());
+      for (unsigned j=0; j<colcnt.size(); j++)
+	out << setw(8) << j << setw(18) << colcnt[j] << endl;
+    }
 
     return colcnt[colcnt.size()/2]; 
 
@@ -735,7 +750,9 @@ void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
 }
 
 void Collide::mfpsizeQuantile(vector<double>& quantiles, 
-			      vector<double>& mfp_, vector<double>& ts_) 
+			      vector<double>& mfp_, 
+			      vector<double>& ts_,
+			      vector<double>& coll_) 
 {
   MPI_Status s;
 
@@ -754,10 +771,12 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       ttemp.insert(ttemp.end(), tmp.begin(), tmp.end());
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
       tdelt.insert(tdelt.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
+      tseln.insert(tseln.end(), tmp.begin(), tmp.end());
 
       vector<Precord> tmp2(num);
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
 				// Load density
 	tmp2[k].first = tmp[k];
@@ -765,12 +784,12 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	tmp2[k].second = vector<double>(Nphase, 0);
       }
       for (unsigned l=0; l<Nphase; l++) {
-	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46+l, MPI_COMM_WORLD, &s);
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 47+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
       tphase.insert(tphase.end(), tmp2.begin(), tmp2.end());
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46+Nphase, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 47+Nphase, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
 				// Load mfp
 	tmp2[k].first = tmp[k];
@@ -778,7 +797,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	tmp2[k].second = vector<double>(Nmfp, 0);
       }
       for (unsigned l=0; l<Nmfp; l++) {
-	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 47+Nphase+l, MPI_COMM_WORLD, &s);
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48+Nphase+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
       tmfpst.insert(tmfpst.end(), tmp2.begin(), tmp2.end());
@@ -789,14 +808,17 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     std::sort(tvolc.begin(),  tvolc.end()); 
     std::sort(ttemp.begin(),  ttemp.end()); 
     std::sort(tdelt.begin(),  tdelt.end()); 
+    std::sort(tseln.begin(),  tseln.end()); 
     std::sort(tphase.begin(), tphase.end());
     std::sort(tmfpst.begin(), tmfpst.end());
 
-    mfp_ = vector<double>(quantiles.size());
-    ts_  = vector<double>(quantiles.size());
+    mfp_  = vector<double>(quantiles.size());
+    ts_   = vector<double>(quantiles.size());
+    coll_ = vector<double>(quantiles.size());
     for (unsigned j=0; j<quantiles.size(); j++) {
-      mfp_[j] = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
-      ts_[j]  = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
+      mfp_[j]  = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
+      ts_[j]   = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
+      coll_[j] = tseln [(unsigned)floor(quantiles[j]*tseln.size()) ];
     }
 
     if (SORTED) {
@@ -815,6 +837,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	  << setw(18) << "| Cell vol"
 	  << setw(18) << "| Cell temp"
 	  << setw(18) << "| Cool/part"
+	  << setw(18) << "| Number/Nsel"
 	  << endl;
       out << "# " << setw(6) << 1;
       for (unsigned k=2; k<13; k++) out << "| " << setw(16) << k;
@@ -832,6 +855,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	    << setw(18) << tvolc[j] 
 	    << setw(18) << ttemp[j] 
 	    << setw(18) << tdelt[j] 
+	    << setw(18) << tseln[j] 
 	    << endl;
     }
 
@@ -866,21 +890,22 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
     MPI_Send(&ttemp[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
     MPI_Send(&tdelt[0],  num, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
+    MPI_Send(&tseln[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
 
     vector<double> tmp(num);
 
     for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nphase; l++) {
       for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 46+l, MPI_COMM_WORLD);
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 47+l, MPI_COMM_WORLD);
     }
 
     for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 46+Nphase, MPI_COMM_WORLD);
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 47+Nphase, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nmfp; l++) {
       for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 47+Nphase+l, MPI_COMM_WORLD);
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 48+Nphase+l, MPI_COMM_WORLD);
     }
   }
 }
@@ -918,6 +943,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Total kinetic energy in COV frame
     Einternal += 0.5*mass*disp[k];
   }
+				// Can't collide if with no internal energy
+  if (Einternal<=0.0) return;
+
 				// Correct 1d vel. disp. after cooling
 				// 
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
