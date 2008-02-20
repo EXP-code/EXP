@@ -1,0 +1,148 @@
+#include <math.h>
+#include <sstream>
+
+#include "expand.h"
+
+#include <Particle.H>
+#include <AxisymmetricBasis.H>
+#include <ExternalCollection.H>
+
+//
+// Rotate the halo about given center
+//
+
+class UserRotation : public ExternalForce
+{
+private:
+  
+  void determine_acceleration_and_potential(void);
+  void * determine_acceleration_and_potential_thread(void * arg);
+  void initialize();
+
+  double Omega;
+  bool EJ;
+
+  void userinfo();
+
+public:
+
+  //! Constructor
+  UserRotation(string &line);
+
+  //! Destructor
+  ~UserRotation();
+
+};
+
+UserRotation::UserRotation(string &line) : ExternalForce(line)
+{
+
+  //  id = "Halo Rotation";	       
+
+  Omega = 0;			// Rotation frequency
+  EJ = false;                   // Default center is COM
+
+  initialize();
+
+  userinfo();
+}
+
+UserRotation::~UserRotation()
+{
+}
+
+void UserRotation::userinfo()
+{
+  if (myid) return;		// Return if node master node
+
+  print_divider();
+
+  cout << "** User routine Rotation initialized, " ;
+  cout << "Omega=" << Omega;
+  cout << " , the rotation center is ";
+  if (EJ) cout << " the EJ center";
+  else cout << " the COM";
+  cout << endl;
+  
+  print_divider();
+}
+
+void UserRotation::initialize()
+{
+  string val;
+
+  if (get_value("Omega", val))      Omega = atof(val.c_str());
+  if (get_value("EJ",val))       EJ = atoi(val.c_str()) ? true : false;
+}
+
+
+void UserRotation::determine_acceleration_and_potential(void)
+{
+  exp_thread_fork(false);
+}
+
+
+void * UserRotation::determine_acceleration_and_potential_thread(void * arg) 
+{
+
+  if (this_step) {
+
+    unsigned nbodies = cC->Number();
+    int id = *((int*)arg);
+    int nbeg = nbodies*id/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
+
+    double angle;
+    double pos0[3], vel0[3], pos1[3], vel1[3], dpos[3], dvel[3];
+
+    for (int i=nbeg; i<nend; i++) {
+      for(int k=0; k<3; k++){
+	if(!EJ) {
+	  pos0[k] = cC->Pos(i, k) - cC->com0[k];
+	  vel0[k] = cC->Vel(i, k) - cC->cov0[k];
+	} else {
+	  pos0[k] = cC->Pos(i, k) - (cC->com0[k] + cC->center[k]);
+	  vel0[k] = cC->Vel(i, k) - (cC->cov0[k] + cC->center[k]);
+	}
+      }
+      angle = Omega*dtime;
+
+      pos1[0] = pos0[0]*cos(angle) - pos0[1]*sin(angle);
+      pos1[1] = pos0[0]*sin(angle) + pos0[1]*cos(angle);
+      pos1[2] = pos0[2];
+
+      vel1[0] = vel0[0]*cos(angle) - vel0[1]*sin(angle);
+      vel1[1] = vel0[0]*sin(angle) + vel0[1]*cos(angle);
+      vel1[2] = vel0[2];
+
+      for(int k=0; k<3; k++){
+	dpos[k] = pos1[k]-pos0[k]; 
+	dvel[k] = vel1[k]-vel0[k]; 
+      }
+
+      // Rotate position and velocity
+      cC->AddPos(i, dpos);
+      cC->AddVel(i, dvel);
+
+    }
+  }
+  return (NULL);
+}
+
+
+extern "C" {
+  ExternalForce *makerRotation(string& line)
+  {
+    return new UserRotation(line);
+  }
+}
+
+class proxyhalo { 
+public:
+  proxyhalo()
+  {
+    factory["userrotation"] = makerRotation;
+  }
+};
+
+proxyhalo p;
