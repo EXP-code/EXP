@@ -15,7 +15,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
-	libdsmc.la libebarn.la libtreegas.la
+	libdsmc.la libebarn.la libtreegas.la libperiodic.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -94,6 +94,9 @@ libdsmc_la_LIBADD = libcommon.a
 
 libtreegas_la_SOURCES = UserTreeDSMC.cc 
 libtreegas_la_LIBADD = libcommon.a libdsmc.a
+
+libperiodic_la_SOURCES = UserPeriodic.cc 
+libperiodic_la_LIBADD = libcommon.a
 
 #
 # Test routine

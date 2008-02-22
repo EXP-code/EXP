@@ -518,14 +518,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() 
 		       << "%)" << scientific << endl;
 
-      mout << fixed << setprecision(0);
+      mout << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
+	   << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
+	   << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl;
 
-      mout << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
+      mout << fixed << setprecision(0)
+	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
 	   << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
 	   << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
-	   << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
-	   << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
-	   << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.05) 
 	   << "occupation @ 5%" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.50) 

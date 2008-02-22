@@ -157,8 +157,12 @@ void CollideLTE::initialize_cell(pCell* cell,
   dispT[id] += T*T;
   tlist[id].push_back(T);
 
+  // Mean effective number of of collisions
+  //
   number *= min<double>(1.0, rvrel/rvmax);
 
+  // Hydrogen number density
+  //
   double n_h = n0*f_H;
 
   HeatCool heatcool(n0, T);

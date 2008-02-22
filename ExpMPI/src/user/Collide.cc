@@ -146,7 +146,7 @@ Collide::Collide(double diameter, int nth)
   diam0 = diam = diameter;
   coltot = 0;			// Count total collisions
   errtot = 0;			// Count errors in inelastic computation
-  epsmcells = 0			// Count cells in EPSM regime
+  epsmcells = 0;		// Count cells in EPSM regime
   epsmtot = 0;			// Count particles in EPSM regime
 
 				// Default cooling rate (if not set by derived class)
