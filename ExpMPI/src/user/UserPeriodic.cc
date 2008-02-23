@@ -17,11 +17,17 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
 				// Center offset in each dimension
   offset = vector<double>(3, 1.0);
 
-  bc = "ppp";			// Periodic BC in all dimensions;
+  bc = "ppp";			// Periodic BC in all dimensions
 
-  comp_name = "";		// Default component
+  comp_name = "";		// Default component (must be specified)
+
+  nbin = 0;			// Number of bins in trace (0 means no trace)
+  dT = 1.0;			// Interval for trace
+  tcol = -1;			// Column for temperture info (ignored if <0)
+  trace = false;		// Tracing off until signalled
 
   initialize();
+
 				// Look for the fiducial component
   bool found = false;
   list<Component*>::iterator cc;
@@ -36,11 +42,27 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   }
 
   if (!found) {
-    cerr << "Process " << myid << ": can't find desired component <"
-	 << comp_name << ">" << endl;
+    cerr << "UserPeriodic: process " << myid 
+	 << " can't find fiducial component <" << comp_name << ">" << endl;
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
   
+  // 
+  // Initialize structures for trace data
+  //
+  if (nbin) {
+    mbinT = vector< vector<double> >(nthrds);
+    tbinT = vector< vector<double> >(nthrds);
+    for (int n=0; n<nthrds; n++) {
+      mbinT[n] = vector<double>(nbin, 0);
+      tbinT[n] = vector<double>(nbin, 0);
+    }
+    mbin = vector<double>(nbin);
+    tbin = vector<double>(nbin);
+    Tnext = tnow;
+    dX = L[0]/nbin;
+  }
+
   userinfo();
 }
 
@@ -54,8 +76,10 @@ void UserPeriodic::userinfo()
 
   print_divider();
 
-  cout << "** User routine PERIODIC BOUNDARY CONDITION initialized, " ;
-  cout << ", using component <" << comp_name << ">";
+  cout << "** User routine PERIODIC BOUNDARY CONDITION initialized"
+       << " using component <" << comp_name << ">";
+  if (nbin) cout << " with gas trace, dT=" << dT 
+		 << ", nbin=" << nbin << ", tcol=" << tcol;
   cout << endl;
 
   cout << "Cube sides (x , y , x) = (" 
@@ -90,11 +114,15 @@ void UserPeriodic::initialize()
   if (get_value("cy", val))	        offset[1] = atof(val.c_str());
   if (get_value("cz", val))	        offset[2] = atof(val.c_str());
 
+  if (get_value("dT", val))	        dT = atof(val.c_str());
+  if (get_value("nbin", val))	        nbin = atoi(val.c_str());
+  if (get_value("tcol", val))	        tcol = atoi(val.c_str());
+
   if (get_value("btype", val)) {
     if (strlen(val.c_str()) >= 3) {
       for (int k=0; k<3; k++) {
-	if (val.c_str()[k] == 'p') bc[k] = 'p';
-	else                       bc[k] = 'r';
+	if (val.c_str()[k] == 'p') bc[k] = 'p';	// Periodic
+	else                       bc[k] = 'r';	// Reflection
       }
     }
   }
@@ -103,7 +131,49 @@ void UserPeriodic::initialize()
 
 void UserPeriodic::determine_acceleration_and_potential(void)
 {
+  if (nbin && tnow>=Tnext) trace = true;
   exp_thread_fork(false);
+  if (trace) write_trace();
+}
+
+void UserPeriodic::write_trace()
+{
+  for (int n=1; n<nthrds; n++) {
+    for (int k=0; k<nbin; k++) {
+      mbinT[0][k] += mbinT[n][k];
+      tbinT[0][k] += tbinT[n][k];
+    }
+  }
+
+  MPI_Reduce(&mbinT[0][0], &mbin[0], nbin, MPI_DOUBLE, MPI_SUM, 0, 
+	     MPI_COMM_WORLD);
+
+  MPI_Reduce(&tbinT[0][0], &tbin[0], nbin, MPI_DOUBLE, MPI_SUM, 0, 
+	     MPI_COMM_WORLD);
+
+  if (myid==0) {
+    ostringstream fout;
+    fout << runtag << ".shocktube_trace";
+    ofstream out(fout.str().c_str(), ios::app);
+    for (int k=0; k<nbin; k++)
+      out << setw(18) << tnow
+	  << setw(18) << dX*(0.5+k) - offset[0]
+	  << setw(18) << mbin[k]/(dX*L[1]*L[2])
+	  << setw(18) << tbin[k]/(mbin[k]+1.0e-10)
+	  << endl;
+    out << endl;
+  }
+
+  //
+  // Clean data structures for next call
+  //
+  for (int n=0; n<nthrds; n++) {
+    for (int k=0; k<nbin; k++)
+      mbinT[n][k] = tbinT[n][k] = 0.0;
+  }
+
+  trace = false;		// Tracing off until
+  Tnext += dT;			// tnow>=Tnext
 }
 
 
@@ -122,53 +192,72 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     
 				// Index for the current particle
     unsigned long i = (it++)->first;
-				// If we are multistepping, compute accel 
-				// only at or below this level
-    if (multistep && (cC->Part(i)->level < mlevel)) continue;
     
     Particle *p = cC->Part(i);
 
-    for (int k=0; k<3; k++) {
+				// If we are multistepping, compute BC
+				// only at or above this level
+    if (multistep && (cC->Part(i)->level >= mlevel)) {
 
+      for (int k=0; k<3; k++) {
 				// Increment so that the positions range
 				// between 0 and L[k]
-      pos = p->pos[k] + offset[k];
+	pos = p->pos[k] + offset[k];
 
-				// Reflection
-      if (bc[k] == 'r') {
-	if (pos < 0.0) {
-	  delta = -pos - L[k]*floor(-pos/L[k]);
-	  p->pos[k] = delta - offset[k];
-	  p->vel[k] = -p->vel[k];
-	} 
-	if (pos >= L[k]) {
-	  delta = pos - L[k]*floor(pos/L[k]);
-	  p->pos[k] =  L[k] - delta - offset[k];
-	  p->vel[k] = -p->vel[k];
+	//
+	// Reflection BC
+	//
+	if (bc[k] == 'r') {
+	  if (pos < 0.0) {
+	    delta = -pos - L[k]*floor(-pos/L[k]);
+	    p->pos[k] = delta - offset[k];
+	    p->vel[k] = -p->vel[k];
+	  } 
+	  if (pos >= L[k]) {
+	    delta = pos - L[k]*floor(pos/L[k]);
+	    p->pos[k] =  L[k] - delta - offset[k];
+	    p->vel[k] = -p->vel[k];
+	  }
 	}
+	
+	//
+	// Periodic BC
+	//
+	if (bc[k] == 'p') {
+	  if (pos < 0.0) {
+	    p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
+	  }
+	  if (pos >= L[k]) {
+	    p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
+	  }
+	}
+	
       }
-      
-				// Periodic
-      if (bc[k] == 'p') {
-	if (pos < 0.0) {
-	  p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
-	}
-	if (pos >= L[k]) {
-	  p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
+
+      //
+      // Sanity check for this particle
+      //
+      for (int k=0; k<3; k++) {
+	if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
+	  cout << "Process " << myid << " id=" << id 
+	       << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
 	}
       }
 
     }
 
     //
-    // Sanity check for this particle
+    // Acccumlate data for shocktube trace
     //
-    for (int k=0; k<3; k++) {
-      if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
-	cout << "Process " << myid << " id=" << id 
-	     << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
+    if (trace) {
+      int indx = static_cast<int>(floor((p->pos[0]+offset[0])/dX));
+      if (indx>=0 && indx<nbin) {
+	mbinT[id][indx] += p->mass;
+	if (tcol>=0 && tcol<static_cast<int>(p->dattrib.size()))
+	  tbinT[id][indx] += p->mass*p->dattrib[tcol];
       }
     }
+
   }
   
   return (NULL);

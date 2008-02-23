@@ -48,6 +48,7 @@ struct thrd_pass_dsmc
     @param use_dens is the particle attribute position for density
     @param use_multi attempts to set the time step (if multistep is enabled)
     @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
+    @param use_exes track energy loss per particle for exact energy conservation
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
 */
@@ -58,7 +59,7 @@ private:
   int ncell, Ncell;
   int cnum;
   int nsteps;
-  int use_temp, use_dens, use_delt;
+  int use_temp, use_dens, use_delt, use_exes;
   double diamfac;
   double diam;
   double collfrac;
@@ -71,7 +72,7 @@ private:
   bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool;
 
 				// For MFP and time step statistics
-  vector<double> quant, mfp_, ts_, coll_, nsel_;
+  vector<double> quant, mfp_, ts_, coll_, nsel_, rate_;
 
   unsigned stepnum;
   double curtime;

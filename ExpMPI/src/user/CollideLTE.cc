@@ -118,9 +118,11 @@ void CollideLTE::initialize_cell(pCell* cell,
   
   totalSoFar += mass*KEdsp;
 
+				// RMS relative velocity
   double rvrel = sqrt(4.0*KEdsp);
 
   double Mass = mass * UserTreeDSMC::Munit;
+				// Mean mass per particle
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double T = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
@@ -129,7 +131,6 @@ void CollideLTE::initialize_cell(pCell* cell,
   double Volume = volume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0 = Density/mp;
-
 				// Volume in real cell
   double CellVolume = cell->Volume() * pow(UserTreeDSMC::Lunit, 3);
 
@@ -159,7 +160,8 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Mean effective number of of collisions
   //
-  number *= min<double>(1.0, rvrel/rvmax);
+  // number *= min<double>(1.0, rvrel/rvmax);
+  number *= 0.5;
 
   // Hydrogen number density
   //
@@ -177,6 +179,34 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   if (NOCOOL) coolrate[id] = 0.0;
 
+  // Get excess for particles in this cell and redistribute if possible
+  //
+  if (use_exes>=0) {
+    double Excess = 0.0;
+    unsigned nbods = cell->bods.size();
+    for (unsigned n=0; n<nbods; n++) {
+      Particle* p = cell->Body(n);
+      if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
+	Excess += p->dattrib[use_exes];
+    }
+
+    if (coolrate[id]-Excess > 0.0) {
+      coolrate[id] -= Excess;
+      for (unsigned n=0; n<nbods; n++) {
+	Particle* p = cell->Body(n);
+	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
+	  p->dattrib[use_exes] = 0;
+      }
+    } else {
+      for (unsigned n=0; n<nbods; n++) {
+	Particle* p = cell->Body(n);
+	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
+	  p->dattrib[use_exes] *= (Excess - coolrate[id])/Excess;
+      }
+      coolrate[id] = 0;
+    }
+  } 
+
   // Energy per encounter
   //
   deltaE[id] = coolrate[id] / number;
@@ -191,7 +221,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   prec[id].second[3] = cell->Volume();
   tphaseT[id].push_back(prec[id]);
 
-				// Assign temp and/or density to particles
+  // Assign temp and/or density to particles
+  //
   if (use_temp>=0 || use_dens>=0) {
     
     unsigned nbods = cell->bods.size();
@@ -256,11 +287,13 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 				// Consistent: KE in coll. frame is
   if ((*cr)*(*cr) > 2.0*deltaE[id]/Mu) {
     lostSoFar[id] += deltaE[id];	// larger than the energy radiated
+    decelT[id]    += deltaE[id];
     (*cr) = sqrt((*cr)*(*cr) - 2.0*deltaE[id]/Mu);
     ret = 0;			// No error
   }
   else {			// Inconsistent: too much energy lost!
     lostSoFar[id] += 0.5*Mu*(*cr)*(*cr);
+    decelT[id]    += 0.5*Mu*(*cr)*(*cr);
     (*cr) = 0.0;
     ret = 1;			// Set error flag
   }

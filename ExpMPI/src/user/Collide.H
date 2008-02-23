@@ -69,7 +69,7 @@ protected:
 
   std::vector<unsigned> numcnt;
   std::vector<unsigned> colcnt;
-  std::vector<double>   tsrat, tdens, tvolc, ttemp, tdelt, tseln;
+  std::vector<double>   tsrat, derat, tdens, tvolc, ttemp, tdelt, tseln;
 
   static const unsigned Nphase = 4, Nmfp = 5;
   std::vector<Precord> tphase, tmfpst;
@@ -79,9 +79,9 @@ protected:
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> col1T, epsm1T, Nepsm1T;
-  std::vector<double> KEtotT, KElostT, tmassT;
+  std::vector<double> KEtotT, KElostT, tmassT, decelT;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
-  std::vector< vector<double> > ttempT, tselnT;
+  std::vector< vector<double> > ttempT, tselnT, deratT;
   std::vector< vector<double> > tdeltT, tdispT;
 
   const static unsigned numdiag = 11;
@@ -101,7 +101,7 @@ protected:
   unsigned errtot;
   unsigned numtot;
 
-  int use_temp, use_dens, use_delt;
+  int use_temp, use_dens, use_delt, use_exes;
 
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) { }
@@ -151,6 +151,8 @@ public:
 
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
+  virtual void
+  set_excess(int Epos) { use_exes=Epos; }
   virtual void set_timestep(int DTpos) { }
 
   unsigned total()  { unsigned t=coltot; coltot=0; return t; }
@@ -163,7 +165,8 @@ public:
   unsigned collide(pHOT& cl, double Fn, double tau);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
-		       vector<double>& ts_, vector<double>& coll_) ;
+		       vector<double>& ts_, vector<double>& coll_,
+		       vector<double>& rate_) ;
   void dispersion(vector<double>& disp);
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }

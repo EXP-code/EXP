@@ -161,6 +161,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_temp = -1;
   use_dens = -1;
   use_delt = -1;
+  use_exes = -1;
   coolfrac = 0.1;
   frontier = false;
   mfpstat = false;
@@ -185,6 +186,12 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     }
   }
 
+  if (!found) {
+    cerr << "UserTreeDSMC: process " << myid 
+	 << ": can't find fiducial component <" << comp_name << ">" << endl;
+    MPI_Abort(MPI_COMM_WORLD, 35);
+  }
+  
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;
 
@@ -223,6 +230,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
   collide->set_timestep(use_delt);
+  collide->set_excess(use_exes);
   ElostTotCollide = ElostTotEPSM = 0.0;
 
   //
@@ -270,6 +278,7 @@ void UserTreeDSMC::userinfo()
   if (nsteps>0) cout << ", with diagnostic output";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
+  if (use_exes>=0) cout << ", excess at pos=" << use_exes;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
@@ -304,6 +313,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
   if (get_value("use_delt", val))	use_delt = atoi(val.c_str());
+  if (get_value("use_exes", val))	use_exes = atoi(val.c_str());
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
   if (get_value("dryrun", val))		dryrun = atoi(val.c_str()) ? true : false;
@@ -353,7 +363,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Compute time step
   //
-  double tau = dtime*mintvl[mlevel]/Mstep;
+  // double tau = dtime*mintvl[mlevel]/Mstep;
+
+  // Now, DSMC is computed on the smallest step, every step
+  double tau = dtime*mintvl[multistep]/Mstep;
+
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
@@ -441,7 +455,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (mfpstat) {
 
-      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_);
+      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
 
       if (myid==0) {
 
@@ -456,6 +470,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	      << setw(18) << "Flight/size"
 	      << setw(18) << "Collions/cell"
 	      << setw(18) << "Number/Nsel"
+	      << setw(18) << "Energy ratio"
 	      << endl;
 	  for (unsigned nq=0; nq<quant.size(); nq++)
 	    out << setw(18) << quant[nq] << ": " 
@@ -463,6 +478,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		<< setw(18) << ts_[nq] 
 		<< setw(18) << coll_[nq] 
 		<< setw(18) << nsel_[nq] 
+		<< setw(18) << rate_[nq] 
 		<< endl;
 	}
       }
