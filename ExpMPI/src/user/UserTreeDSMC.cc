@@ -445,7 +445,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     unsigned medianNumb = collide->medianNumber();
     collide->collQuantile(quant, coll_);
-
+    collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
+      
     if (frontier) {
       ostringstream sout;
       sout << runtag << ".DSMC.frontier." << stepnum;
@@ -453,34 +454,29 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       c0->Tree()->testFrontier(filen);
     }
 
-    if (mfpstat) {
+    if (mfpstat && myid==0) {
 
-      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
-
-      if (myid==0) {
-
-	ostringstream sout;
-	sout << runtag << ".DSMC.mfpstat." << stepnum;
-	string filen = sout.str();
-	ofstream out(filen.c_str());
-	if (out) {
+      ostringstream sout;
+      sout << runtag << ".DSMC.mfpstat." << stepnum;
+      string filen = sout.str();
+      ofstream out(filen.c_str());
+      if (out) {
 	  
-	  out << setw(18) << "Quantiles: " 
-	      << setw(18) << "MFP/size"
-	      << setw(18) << "Flight/size"
-	      << setw(18) << "Collions/cell"
-	      << setw(18) << "Number/Nsel"
-	      << setw(18) << "Energy ratio"
+	out << setw(18) << "Quantiles: " 
+	    << setw(18) << "MFP/size"
+	    << setw(18) << "Flight/size"
+	    << setw(18) << "Collions/cell"
+	    << setw(18) << "Number/Nsel"
+	    << setw(18) << "Energy ratio"
+	    << endl;
+	for (unsigned nq=0; nq<quant.size(); nq++)
+	  out << setw(18) << quant[nq] << ": " 
+	      << setw(18) << mfp_[nq] 
+	      << setw(18) << ts_[nq] 
+	      << setw(18) << coll_[nq] 
+	      << setw(18) << nsel_[nq] 
+	      << setw(18) << rate_[nq] 
 	      << endl;
-	  for (unsigned nq=0; nq<quant.size(); nq++)
-	    out << setw(18) << quant[nq] << ": " 
-		<< setw(18) << mfp_[nq] 
-		<< setw(18) << ts_[nq] 
-		<< setw(18) << coll_[nq] 
-		<< setw(18) << nsel_[nq] 
-		<< setw(18) << rate_[nq] 
-		<< endl;
-	}
       }
     }
 
