@@ -10,6 +10,7 @@
 
 using namespace std;
 
+#include "global.H"
 #include "pHOT.H"
 
 double pHOT::sides[] = {2.0, 2.0, 2.0};
@@ -58,7 +59,7 @@ key_type pHOT::getKey(double *p)
   //
   if (false) {			// Set to true for check
     for (unsigned k=0; k<3; k++) { 
-      if (fabs((p[k]+offst[k])/sides[k])> 1.0) {
+      if (fabs((p[k]+offset[k])/sides[k])> 1.0) {
 	cout << "Coordinate out of pbounds in pHOT::key: ";
 	for (int l=0; l<3; l++) cout << setw(18) << p[l];
 	cout << endl;
@@ -75,7 +76,7 @@ key_type pHOT::getKey(double *p)
 
 				// Reverse the order
   for (unsigned k=0; k<3; k++)
-    bins[2-k] = (unsigned)floor( ((p[k]+offst[k])/sides[k]+neg_half)*factor );
+    bins[2-k] = (unsigned)floor( ((p[k]+offset[k])/sides[k]+neg_half)*factor );
   
   key_type place = 1;
   key_type _key = 0;
@@ -127,9 +128,10 @@ void pHOT::makeTree()
   root = new pCell(this);
 
   //
-  // Make new offset
+  // Make new offset (only 0 node's values matter, obviously)
   //
   for (unsigned k=0; k<3; k++) offset[k] = offst[k] + (*unit)()*jittr[k];
+  MPI_Bcast(&offset[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   //
   // Add the data
@@ -146,8 +148,8 @@ void pHOT::makeTree()
   }
 
 				// Sanity checks and debugging
-  if (true) {
-    if (false) {			// Report on particle sizes for each node
+  if (false) {
+    if (true) {			// Report on particle sizes for each node
       unsigned long bdcel1=cc->Particles().size(), bdcelmin, bdcelmax, bdcelsum, bdcelsm2;
       MPI_Reduce(&bdcel1, &bdcelmin, 1, MPI_UNSIGNED_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
       MPI_Reduce(&bdcel1, &bdcelmax, 1, MPI_UNSIGNED_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
@@ -160,7 +162,7 @@ void pHOT::makeTree()
 	     << " stdv=" << sqrt( (bdcelsm2 - bdcelsum*bdcelsum/numprocs)/(numprocs-1) )
 	     << endl;
     }
-    if (false) {		// Report on body counts for each node
+    if (true) {		// Report on body counts for each node
       if (myid==0) {
 	cout << left << setfill('-')
 	     << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ')
@@ -956,7 +958,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("XY")==0) {
 
 				// X-Y slice
-    pt[2] = 0.5*sides[2] - offst[2];
+    pt[2] = 0.5*sides[2] - offset[2];
     for (int i=0; i<nx; i++) {
       pt[0] = (0.5+i)*dx;
       for (int j=0; j<ny; j++) {
@@ -981,7 +983,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("XZ")==0) {
 
 				// X-Z slice
-    pt[1] = 0.5*sides[1] - offst[1];
+    pt[1] = 0.5*sides[1] - offset[1];
     for (int i=0; i<nx; i++) {
       pt[0] = (0.5+i)*dx;
       for (int j=0; j<nz; j++) {
@@ -1006,7 +1008,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
   if (cut.compare("YZ")==0) {
 
 				// X-Y slice
-    pt[0] = 0.5*sides[0] - offst[0];
+    pt[0] = 0.5*sides[0] - offset[0];
     for (int i=0; i<ny; i++) {
       pt[1] = (0.5+i)*dy;
       for (int j=0; j<nz; j++) {
@@ -1473,10 +1475,12 @@ void pHOT::Repartition()
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-#ifdef DEBUG
-  checkDupes();
-  checkIndices();
-#endif
+  if (true) {
+    checkIndices();
+    if (!checkKeybods())
+      cout << "Process " << myid 
+	   << ": particle key not in keybods list at T=" << tnow << endl;
+  }
 }
 
 void pHOT::checkDupes()
@@ -1503,10 +1507,14 @@ void pHOT::checkIndices()
 {
   MPI_Status s;
 
+  // All prcesses make an index list
+  //
   vector<unsigned> indices;
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
 
+  // All processes send the index list to the master node
+  //
   for (int n=1; n<numprocs; n++) {
     if (myid==0) {
       unsigned icnt;
@@ -1526,14 +1534,24 @@ void pHOT::checkIndices()
   }
 
   if (myid==0) {
+    //
+    // Sort the index list
+    //
     sort(indices.begin(), indices.end());
+    //
+    // Check each entry in the list
+    //
     for (unsigned n=1; n<=indices.size(); n++) {
       if (n!=indices[n-1]) {
-	cout << "pHOT::checkIndices ERROR: found=" << indices[n-1] << " expected " << n
+	cout << "pHOT::checkIndices ERROR: found=" << indices[n-1] 
+	     << " expected " << n
 	     << " total=" << indices.size() << endl;
 	break;
       }
     }
+    //
+    // Check the total body count
+    //
     if (indices.size() != cc->nbodies_tot)
       cout << "pHOT::checkIndices ERROR: index count=" << indices.size() 
 	   << " body count=" << cc->nbodies_tot << endl;
