@@ -15,7 +15,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
-	libdsmc.la libebarn.la libtreegas.la libperiodic.la
+	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -28,7 +28,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H \
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H \
 	UserBar.H UserHalo.H HeatCool.H UserDSMC.H UserLogPot.H \
-	UserDiffRot.H UserRPtest.H
+	UserDiffRot.H UserRPtest.H UserAtmos.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc
@@ -98,10 +98,6 @@ libtreegas_la_LIBADD = libcommon.a libdsmc.a
 libperiodic_la_SOURCES = UserPeriodic.cc 
 libperiodic_la_LIBADD = libcommon.a
 
-#
-# Test routine
-#
-# testcoord_SOURCES = testcoord.cc getkey.c
-# testcoord_LDADD = libcommon.a
-# testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -lstdc++ -lmpi_cxx -lmpi
-# testcoord_LDFLAGS = -L$(top_srcdir)/exputil -L$(top_srcdir)/expgnu -lexputil -lexpgnu -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lmpi_cxx -lmpi
+libatmos_la_SOURCES = UserAtmos.cc 
+libatmos_la_LIBADD = libcommon.a
+
