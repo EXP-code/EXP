@@ -795,10 +795,11 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   MPI_Status s;
 
   if (myid==0) {
-    unsigned num;
+    unsigned nmb, num;
     for (int n=1; n<numprocs; n++) {
+      MPI_Recv(&nmb, 1, MPI_UNSIGNED, n, 38, MPI_COMM_WORLD, &s);
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
-      vector<double> tmp(num);
+      vector<double> tmb(nmb), tmp(num);
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
       tsrat.insert(tsrat.end(), tmp.begin(), tmp.end());
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
@@ -811,8 +812,8 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       tdelt.insert(tdelt.end(), tmp.begin(), tmp.end());
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
       tseln.insert(tseln.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
-      derat.insert(derat.end(), tmp.begin(), tmp.end());
+      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
+      derat.insert(derat.end(), tmb.begin(), tmb.end());
 
       vector<Precord> tmp2(num);
 
@@ -858,10 +859,22 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     coll_ = vector<double>(quantiles.size());
     rate_ = vector<double>(quantiles.size());
     for (unsigned j=0; j<quantiles.size(); j++) {
-      mfp_[j]  = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
-      ts_[j]   = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
-      coll_[j] = tseln [(unsigned)floor(quantiles[j]*tseln.size()) ];
-      rate_[j] = derat [(unsigned)floor(quantiles[j]*derat.size()) ];
+      if (tmfpst.size())
+	mfp_[j]  = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
+      else
+	mfp_[j] = 0;
+      if (tsrat.size())
+	ts_[j]   = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
+      else
+	ts_[j]   = 0;
+      if (tseln.size())
+	coll_[j] = tseln [(unsigned)floor(quantiles[j]*tseln.size()) ];
+      else
+	coll_[j] = 0;
+      if (derat.size())
+	rate_[j] = derat [(unsigned)floor(quantiles[j]*derat.size()) ];
+      else
+	rate_[j] = 0;
     }
 
     if (SORTED) {
@@ -927,6 +940,8 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     
   } else {
     unsigned num = tmfpst.size();
+    unsigned nmb = derat.size();
+    MPI_Send(&nmb, 1, MPI_UNSIGNED, 0, 38, MPI_COMM_WORLD);
     MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
     MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
     MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
@@ -934,7 +949,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     MPI_Send(&ttemp[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
     MPI_Send(&tdelt[0],  num, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
     MPI_Send(&tseln[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
-    MPI_Send(&derat[0],  num, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
+    MPI_Send(&derat[0],  nmb, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
 
     vector<double> tmp(num);
 

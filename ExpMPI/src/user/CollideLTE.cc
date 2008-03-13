@@ -41,30 +41,6 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 
   HeatCool::initialize();
 
-  if (myid==0) {
-    const double levels [13] = 
-      {0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99};
-
-    // Attempt open for read     
-    fstream fs("collideL.debug", ios_base::in);
-    if (!fs)
-      {
-	// File doesn't exist; create a new one
-	fs.open("collideL.debug", ios_base::out); 
-	fs << "#" << endl
-	   << "# " << setw(13) << "Time"
-	   << setw(15) << "Min T"
-	   << setw(15) << "Avg T"
-	   << setw(15) << "Max T"
-	   << setw(15) << "Disp T";
-	for (int n=0; n<13; n++) fs << setw(15) << levels[n];
-	fs << endl << "# " << setw(13) << 1;
-	for (int n=1; n<18; n++) fs << "| " << setw(13) << n+1;
-	fs << endl << "#" << endl;
-      }
-    
-  }
-
   cellcnt = vector<unsigned>(nthrds, 0);
   minT = vector<double>(nthrds, 1e30);
   maxT = vector<double>(nthrds, 0.0);
@@ -327,7 +303,8 @@ void CollideLTE::Debug(double t)
 {
   unsigned cellcnt0;
   double minT0, maxT0, avgT0, dispT0;
-  const double levels [13] = {0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99};
+  const double levels [13] = 
+    {0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99};
   double values[13], values0[13];
   
   // Combine from threads . . .
@@ -370,6 +347,26 @@ void CollideLTE::Debug(double t)
   MPI_Reduce(&cellcnt1, &cellcnt0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
   if (myid==0) {
+
+    // Attempt open for read     
+    {
+      fstream fs("collideL.debug", ios_base::in);
+      if (!fs) {
+	// File doesn't exist; create a new one
+	fs.open("collideL.debug", ios_base::out); 
+	fs << "#" << endl
+	   << "# " << setw(13) << "Time"
+	   << setw(15) << "Min T"
+	   << setw(15) << "Avg T"
+	   << setw(15) << "Max T"
+	   << setw(15) << "Disp T";
+	for (int n=0; n<13; n++) fs << setw(15) << levels[n];
+	fs << endl << "# " << setw(13) << 1;
+	for (int n=1; n<18; n++) fs << "| " << setw(13) << n+1;
+	fs << endl << "#" << endl;
+      }
+    }
+    
     ofstream out("collideL.debug", ios::app);
     double avg=0.0, disp=0.0;
     if (cellcnt0>0) avg  = avgT0/cellcnt0;
