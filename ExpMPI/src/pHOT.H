@@ -72,6 +72,7 @@ public:
   //@{
   void makeTree();
   void Repartition();
+  void Rectify();
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
 

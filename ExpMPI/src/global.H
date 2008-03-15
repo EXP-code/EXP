@@ -122,9 +122,6 @@ extern vector<int> mintvl;
 //! Lowest synchronized level at a step
 extern vector<int> mfirst;
 
-//! Particles at each level
-extern vector<int> levpop;
-
 //! Sub steps for last coefficient evaluation
 extern vector<int> stepL;
 

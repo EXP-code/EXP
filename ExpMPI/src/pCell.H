@@ -40,6 +40,7 @@ public:
   double volume;
   unsigned level;
   unsigned count;
+  unsigned maxplev;
 
   /**
      @param 0 mass
@@ -65,6 +66,19 @@ public:
 
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&);
+
+  /**
+     Find the cell node in the current frontier that should contain 
+     this body and return null if not found
+  */
+  pCell* findNode(const key_type&);
+
+  //! Check that this key belongs to this branch
+  bool isMine(const key_type& key) {
+    key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
+    if (sig!=0) return false;
+    return true;
+  }
 
   //! Recursively zero the tree's state vector
   void zeroState();

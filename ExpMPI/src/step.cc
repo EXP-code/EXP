@@ -232,6 +232,15 @@ void do_step(int n)
     //
     if (VERBOSE>4) {
       
+      vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
+      for (list<Component*>::iterator cc=comp.components.begin(); 
+	   cc != comp.components.end(); cc++) {
+	for (int n=0; n<=multistep; n++) levpop[n] += (*cc)->levlist[n].size();
+      }
+
+      MPI_Reduce(&levpop[0], &levtot[0], multistep+1, MPI_INT, MPI_SUM, 0,
+		 MPI_COMM_WORLD);
+
       if (myid==0) {
 	cout << endl
 	     << setw(70) << setfill('-') << '-' << endl
@@ -247,9 +256,7 @@ void do_step(int n)
 	}
 	MPI_Barrier(MPI_COMM_WORLD);
       }
-      vector<int> levtot(multistep+1, 0);
-      MPI_Reduce(&levpop[0], &levtot[0], multistep+1, MPI_INT, MPI_SUM, 0, 
-		 MPI_COMM_WORLD);
+
       if (myid==0) {
 	cout << endl;
 	cout << setw(4) << "T" << ": ";

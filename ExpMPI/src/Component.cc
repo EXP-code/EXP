@@ -267,7 +267,8 @@ void Component::reset_level_lists()
       for (int n=0; n<=multistep; n++) {
 	sum += lev0[n];
 	out << setw(3) << n << setw(10) << lev0[n] 
-	     << setw(10) << sum/tot << endl;
+	    << setw(10) << static_cast<double>(lev0[n])/tot
+	    << setw(10) << sum/tot << endl;
       }
       out << endl << setw(3) << "T" << setw(10) << tot << endl << right;
       out << setw(70) << setfill('-') << '-' << endl << setfill(' ');

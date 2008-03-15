@@ -55,7 +55,7 @@ double dynfracV = 0.01;
 double dynfracA = 0.03;
 int Mstep = 0;
 int mstep = 0;
-vector<int> mfirst, mintvl, levpop, stepL, stepN;
+vector<int> mfirst, mintvl, stepL, stepN;
 vector< vector<bool> > mactive;
 
 

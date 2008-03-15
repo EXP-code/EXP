@@ -339,6 +339,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->makeTree();
     c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
 
+#ifdef RECTIFICATION
+    c0->Tree()->Rectify();	// This is only a test!
+#endif
+
     stepnum = 0;
     curtime = tnow;
 
@@ -383,6 +387,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	 << __FILE__ << ": " << __LINE__;
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
+
+#ifdef RECTIFICATION
+  c0->Tree()->Rectify();	// This is only a test!
+#endif
 
   c0->Tree()->Repartition();
   {

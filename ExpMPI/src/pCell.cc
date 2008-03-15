@@ -124,13 +124,11 @@ pCell* pCell::Add(const key_pair& keypair)
     key_set::iterator n;
     for (n=keys.begin(); n!=keys.end(); n++) {
       key2 = childId(n->first);
-				// Create the node
       if (children.find(key2) == children.end())
 	children[key2] = new pCell(this, key2);
       
       children[key2]->Add(*n);
     }
-
 				// Erase my list
     keys.clear();
     bods.clear();
@@ -146,6 +144,34 @@ pCell* pCell::Add(const key_pair& keypair)
     children[key2] = new pCell(this, key2);
 
   return children[key2]->Add(keypair);
+}
+
+pCell* pCell::findNode(const key_type& key)
+{
+				// Check that this key belongs to this branch
+  key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
+  
+  if (sig!=0) {
+    
+    if (parent == 0) {
+      cout << "pHOT::findNode: impossible condition, process " 
+	   << myid << ": level=" << level 
+	   << " key=" << hex << key << endl
+	   << " sig=" << hex << sig << endl << dec;
+    }
+
+    return parent->findNode(key);
+  }
+
+				// You found me!
+  if (isLeaf) return this;
+				// Which child
+  key_type key2 = childId(key);
+				// Not in my tree?
+  if (children.find(key2)==children.end()) return 0;
+
+				// Look for node amongst children
+  return children[key2]->findNode(key);
 }
 
 void pCell::zeroState()

@@ -38,7 +38,6 @@ struct thrd_pass_sync
 
 /// Count offgrid particles in the threads
 vector< vector<unsigned> > off1;
-vector< vector<int> > dlev;
 vector< double > mindt1;
 vector< double > maxdt1;
 
@@ -112,12 +111,6 @@ void * adjust_multistep_level_thread(void *ptr)
 
     if (lev != level) {
       //
-      // Adjust level counts
-      //
-      dlev[id][level]--;
-      dlev[id][lev  ]++;
-
-      //
       // Update coefficients
       //
       c->force->multistep_update(c->Part(n)->level, lev, c, n, id);
@@ -150,8 +143,6 @@ void adjust_multistep_level(bool all)
   mindt1 = vector< double > (nthrds,  1.0e20);
   maxdt1 = vector< double > (nthrds, -1.0e20);
   off1 = vector< vector<unsigned> > (nthrds);
-  dlev = vector< vector<int> > (nthrds);
-  for (int i=0; i<nthrds; i++) dlev[i] = vector<int>(multistep+1, 0);
 
   thrd_pass_sync* td = new thrd_pass_sync [nthrds];
 
@@ -239,10 +230,6 @@ void adjust_multistep_level(bool all)
   delete [] td;
   delete [] t;
 
-  for (int m=0; m<=multistep; m++)
-    for (int i=0; i<nthrds; i++)
-      levpop[m] += dlev[i][m];
-
   //
   // Finish the update
   //
@@ -326,10 +313,6 @@ void initialize_multistep()
 
   stepL  = vector<int>(multistep+1);
   stepN  = vector<int>(multistep+1);
-  levpop = vector<int>(multistep+1, 0);
-
-  for (list<Component*>::iterator cc=comp.components.begin(); 
-       cc != comp.components.end(); cc++) levpop[0] = (*cc)->Number();
 
   mfirst = vector<int>(Mstep);
 				// Lowest active level at each step
@@ -355,7 +338,7 @@ void initialize_multistep()
       cout << setw(3) << mfirst[ms-1] << ": ";
       for (int mlevel=0; mlevel<=multistep; mlevel++)
 	if (mactive[ms-1][mlevel]) cout << setw(3) << "+";
-	else                          cout << setw(3) << "-";
+	else                       cout << setw(3) << "-";
       cout << endl;
     }
     cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');

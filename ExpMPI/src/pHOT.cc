@@ -1449,7 +1449,7 @@ void pHOT::Repartition()
   if (myid==0 && oab)
     cout << endl << "pHOT::Repartition: " << oab << " out of bounds" << endl;
 
-  if (false) {			// Sanity checks for bad particle indecies
+  if (false) {			// Sanity checks for bad particle indices
     bool ok = true;		// and bad particle counts
     map<unsigned long, Particle>::iterator ip;
     for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
@@ -1481,6 +1481,364 @@ void pHOT::Repartition()
       cout << "Process " << myid 
 	   << ": particle key not in keybods list at T=" << tnow << endl;
   }
+}
+
+void pHOT::Rectify()
+{
+  MPI_Status s;
+  map<unsigned long, Particle>::iterator it;
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
+
+
+  // BEGIN DEBUG
+  vector<unsigned long> erased;
+  // END DEBUG
+
+  // checkBounds(2.0, "BEFORE Rectify");
+
+  //
+  // Recompute keys
+  //
+  vector<unsigned long> changelist;
+  key_type newkey, celkey;
+  unsigned inown=0;
+  for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
+    newkey = getKey(&(it->second.pos[0]));
+    if (newkey != it->second.key) {
+      // Check that this key belongs to the current cell
+      // If so, do nothing; otherwise, delete from current cell, and 
+      // delete from bodycell sturcture, put it on the changelist
+      if (bodycell.find(it->second.key) != bodycell.end())
+	celkey = bodycell[it->second.key];
+      else
+	cout << "Process " << myid << ": pHOT::Rectify logic error in bodycell"
+	     << endl;
+      pCell *c;
+      if (frontier.find(celkey) != frontier.end())
+	c = frontier[celkey];
+      else
+	cout << "Process " << myid << ": pHOT::Rectify logic error in frontier"
+	     << endl;
+      if ( !c->isMine(newkey) ) {
+				// Look for the right cell in our tree
+	pCell *c2 = c->findNode(newkey);
+	if (c2) {		// It IS in our tree, add the body
+	  c2->bods.push_back(it->first);
+	  bodycell[newkey] = c2->mykey;
+	  keybods.push_back(pair<key_type, unsigned>(newkey, it->first));
+	  inown++;
+	} else {		// It is NOT in our tree
+	  changelist.push_back(it->first);
+	} 
+				// Remove the key from the index list
+	keybods.erase(lower_bound(keybods.begin(), keybods.end(),
+				  it->second.key, ltULL()));
+				// Remove the key from the cell list
+	bodycell.erase(it->first);
+				// Assign the new key
+	it->second.key = newkey;
+      }
+    }
+    
+    if (it->second.key == 0) {
+      cout << "pHOT::Rectify [" << myid << "]: out of bounds,"
+	   << " indx=" << setw(12) << it->second.indx
+	   << " mass=" << setw(18) << it->second.mass
+	   << " pos=";
+      for (int k=0; k<3; k++)
+	cout << setw(18) << it->second.pos[k];
+      for (int k=0; k<3; k++)
+	cout << setw(18) << it->second.vel[k];
+      cout << endl;
+    }
+  }
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  //
+  // Accumulate global list by broadcast
+  //
+  vector<key_type> change_key;
+  vector<unsigned long> change_indx;
+  vector<unsigned short> old_own;
+  vector<unsigned short> new_own, new_own0;
+  vector<unsigned short> checkme, checkme0;
+  unsigned cnt;
+  
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid) cnt=changelist.size();
+    MPI_Bcast(&cnt, 1, MPI_UNSIGNED, n, MPI_COMM_WORLD);
+    if (cnt) {
+      vector<unsigned long> indx(cnt);
+      if (n==myid) indx = changelist;
+      MPI_Bcast(&indx[0], cnt, MPI_UNSIGNED_LONG, n,  MPI_COMM_WORLD);
+      change_indx.insert(change_indx.end(), indx.begin(), indx.end());
+
+      vector<unsigned long long> key(cnt);
+      if (n==myid) {
+	for (unsigned k=0; k<cnt; k++)
+	  key[k] = cc->Particles()[changelist[k]].key;
+      }
+      MPI_Bcast(&key[0], cnt, MPI_UNSIGNED_LONG_LONG, n, MPI_COMM_WORLD);
+      change_key.insert(change_key.end(), key.begin(), key.end());
+
+      for (unsigned k=0; k<cnt; k++) {
+	old_own.push_back(n+1);
+	new_own.push_back(0);
+	checkme.push_back(0);
+      }
+    }
+  }
+
+  //
+  // Each node looks for owner
+  //
+  key_cell keycache;
+  unsigned csize = change_indx.size();
+  for (unsigned n=0; n<csize; n++) {
+    if (old_own[n]-1==myid) continue;
+    pCell *c = root->findNode(change_key[n]);
+    if (c) {
+      /*
+      cout << "Process " << myid << ": found match key=" 
+	   << hex << change_key[n] << dec << " whose owner was "
+	   << old_own[n]-1 << endl;
+      */
+      new_own[n] = myid+1;
+      checkme[n] = 1;
+      keycache[change_key[n]] = c;
+    }
+  }
+
+  //
+  // Distribute new list to all processes
+  //
+  new_own0 = new_own;
+  MPI_Allreduce(&new_own[0], &new_own0[0], csize, MPI_UNSIGNED_SHORT, MPI_SUM, 
+		MPI_COMM_WORLD);
+
+  checkme0 = checkme;
+  MPI_Allreduce(&checkme[0], &checkme0[0], csize, MPI_UNSIGNED_SHORT, MPI_SUM, 
+		MPI_COMM_WORLD);
+
+  unsigned sum=0;
+  for (unsigned k=0; k<csize; k++) sum += checkme0[k];
+
+  //
+  // Do the sanity check
+  //
+  if (true) {
+    if (myid==0) {
+      bool check_ok = true;
+      unsigned bad_val, unclaimed=0, overclaimed=0;
+      for (unsigned n=0; n<csize; n++) {
+	if (checkme0[n] != 1) {
+	  if (check_ok) bad_val = checkme0[n];
+	  else          bad_val = max<unsigned>(checkme0[n], bad_val);
+	  check_ok = false;
+	  if (checkme0[n]==0) unclaimed++;
+	  if (checkme0[n] >1) overclaimed++;
+	}
+      }
+      if (!check_ok) {
+	cout << endl 
+	     << "pHOT::Rectify: error in check, largest val=" << bad_val
+	     << ", " << unclaimed << " unclaimed, " 
+	     << overclaimed << " overclaimed" << endl;
+      }
+    }
+  }
+
+  //
+  // Make the shipping lists
+  //
+  vector<unsigned> sendlist(numprocs*numprocs, 0);
+  vector< vector<unsigned> > bodylist(numprocs);
+  for (unsigned k=0; k<csize; k++) {
+    if (old_own[k]-1 == myid)
+      bodylist[new_own[k]-1].push_back(change_indx[k]);
+    sendlist[numprocs*(old_own[k]-1) + new_own[k]-1]++;
+  }
+  
+  unsigned Tcnt=0, Fcnt=0;
+  for (int i=0; i<numprocs; i++) {
+    Tcnt += sendlist[numprocs*myid + i   ];
+    Fcnt += sendlist[numprocs*i    + myid];
+  }
+
+				// DEBUG OUTPUT
+  if (false) {			// If true, write send and 
+				// receive list for each node
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	cout << "--------------------------------------------------------" << endl;
+	cout << "Process " << myid << ": Tcnt=" << Tcnt << " Fcnt=" << Fcnt << endl;
+	for (int m=0; m<numprocs; m++)
+	  cout << setw(5) << m 
+	       << setw(8) << sendlist[numprocs*n+m]
+	       << setw(8) << sendlist[numprocs*m+n]
+	       << endl;
+	cout << "--------------------------------------------------------" << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+				// END DEBUG OUTPUT
+
+  static unsigned debug_ctr=0;
+  unsigned ps=0, pr=0;
+  Partstruct *psend, *precv = 0;
+  int ierr;
+
+  if (Tcnt) psend = new Partstruct [Tcnt];
+  if (Fcnt) precv = new Partstruct [Fcnt];
+
+  //
+  // Exchange particles between processes
+  //
+  for (int frID=0; frID<numprocs; frID++) {
+    for (int toID=0; toID<numprocs; toID++) {
+				// 
+				// Current process sends particles 
+				// (non-blocking)
+      if (myid==frID) {		// 
+	unsigned To = sendlist[numprocs*frID+toID];
+	if (To) {
+	  for (unsigned i=0; i<To; i++) {
+	    pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
+	    cc->Particles().erase(bodylist[toID][i]);
+	    erased.push_back(bodylist[toID][i]);
+	  }
+	  for (unsigned i=0; i<To; i++) {
+	    if (psend[ps+i].indx == 0) {
+	      cerr << "pHOT::Rectify[" << debug_ctr
+		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
+		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
+	    }
+	  }
+	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
+			      MPI_COMM_WORLD)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in Reparition sending "
+		   << To << " particles to #" << toID << " ierr=" << ierr << endl;
+	    }
+	  ps += To;
+	}
+      }
+				// 
+				// Current process receives particles 
+				// (blocking)
+      if (myid==toID) {		// 
+	unsigned From = sendlist[numprocs*frID+toID];
+	if (From) {
+	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
+			      MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in Reparition receiving "
+		   << From << " particles from #" << frID << " ierr=" << ierr << endl;
+	    }
+	  pr += From;
+	}
+      }
+
+    } // Receipt loop
+
+    MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
+  }
+
+  //
+  // Buffer size sanity check
+  //
+  if (true) {			// Enabled if true
+
+    if (Tcnt-ps) {
+      cout << "Process " << myid 
+	   << ": [Tcnt] found <" << ps << "> but expected <" 
+	   << Tcnt << ">" << endl;
+    }
+    
+    if (Fcnt-pr) {
+      cout << "Process " << myid 
+	   << ": [Fcnt] found <" << pr << "> but expected <" 
+	   << Fcnt << ">" << endl;
+    }
+
+  }
+
+  //
+  // DEBUG
+  //
+  pr = 0;
+  for (int id=0; id<numprocs; id++) {
+    unsigned From = sendlist[numprocs*id+myid];
+    if (From) {
+      for (int i=0; i<From; i++) {
+	if (precv[pr+i].indx == 0) {
+	  cerr << "pHOT::Rectify[" << debug_ctr 
+	       << "]: RECV to=" << myid << " from=" << id << " #=" << From
+	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass << endl;
+	}
+      }
+      pr += From;
+    }
+  }
+
+  debug_ctr++;
+
+  // END DEBUG
+
+  Particle part;
+  for (unsigned i=0; i<Fcnt; i++) {
+    pf.part_to_Particle(precv[i], part);
+    cc->Particles()[part.indx] = part;
+    keybods.push_back(pair<key_type, unsigned>(part.key, part.indx));
+    keycache[part.key]->bods.push_back(part.indx);
+    bodycell[part.key] = keycache[part.key]->mykey;
+  }
+  sort(keybods.begin(), keybods.end());
+  cc->nbodies = cc->particles.size();
+      
+  //
+  // Clean up temporary body storage
+  //
+  if (Tcnt) delete [] psend;
+  if (Fcnt) delete [] precv;
+
+  // checkBounds(2.0, "AFTER Rectify");
+
+  if (true) {			// Sanity checks for bad particle indices
+    bool ok = true;		// and bad particle counts
+    map<unsigned long, Particle>::iterator ip;
+    for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
+      if (ip->second.indx==0) {
+	cout << "pHOT::Rectify BAD particle in proc=" << myid
+	     << " key=" << ip->second.key << endl;
+	ok = false;
+      }
+    }
+    if (ok) cout << "pHOT::Rectify: leaving with good indx" << endl;
+
+    if (cc->particles.size() != cc->nbodies) 
+      cout << "pHOT::Rectify: leaving with # mismatch!" << endl;
+
+    int nbodies1 = cc->nbodies, nbodies0=0;
+    MPI_Reduce(&nbodies1, &nbodies0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) {
+      if (nbodies0 != cc->nbodies_tot)
+	cout << "pHOT::Rectify: leaving with total # mismatch!" << endl;
+    }
+
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // #ifdef DEBUG
+  checkDupes();
+  checkIndices();
+  // #endif
 }
 
 void pHOT::checkDupes()
