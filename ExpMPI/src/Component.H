@@ -338,6 +338,9 @@ public:
   */
   vector< vector<int> > levlist;
 
+  //! Multstep dt type counter
+  vector< vector<unsigned> > mdt_ctr;
+
   //! Points to associated force instance
   PotAccel *force;
 

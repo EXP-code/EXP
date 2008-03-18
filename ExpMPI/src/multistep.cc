@@ -41,6 +41,9 @@ vector< vector<unsigned> > off1;
 vector< double > mindt1;
 vector< double > maxdt1;
 
+/// Type counter
+vector< vector< vector<unsigned> > > tmdt;
+
 //
 // The threaded routine
 //
@@ -58,7 +61,7 @@ void * adjust_multistep_level_thread(void *ptr)
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  double dt;
+  double dt, dtv, dta, dtr;
   int npart = c->levlist[level].size();
   int offgrid = 0, lev;
 
@@ -88,12 +91,29 @@ void * adjust_multistep_level_thread(void *ptr)
     vtot = sqrt(vtot) + 1.0e-18;
     atot = sqrt(atot) + 1.0e-18;
 
-    dt = min<double>(dynfracV*rtot/vtot, dynfracA*sqrt(rtot/atot));
-    if (c->Part(n)->dtreq>0) dt = min<double>(dt, c->Part(n)->dtreq);
+    dtv = dynfracV*rtot/vtot;
+    dta = dynfracA*sqrt(rtot/atot);
+    dtr = c->Part(n)->dtreq;
+
+    dt = min<double>(dtv, dta);
+    if (dtr>0) dt = min<double>(dt, dtr);
 
     mindt1[id] = min<double>(mindt1[id], dt);
     maxdt1[id] = max<double>(maxdt1[id], dt);
 	
+    // Tally smallest (e.g. controlling) timestep
+    if (dtv<dta) {
+      if (dtr<=0 || dtv<dtr)
+	tmdt[id][level][0]++;  
+      else
+	tmdt[id][level][2]++;
+    } else {
+      if (dtr<=0 || dta<dtr)
+	tmdt[id][level][1]++;  
+      else
+	tmdt[id][level][2]++;
+    }
+
     if (dt>dtime) lev = 0;
     else lev = (int)floor(log(dtime/dt)/log(2.0));
     
@@ -160,11 +180,22 @@ void adjust_multistep_level(bool all)
     exit(18);
   }
   
+
+  tmdt = vector< vector< vector<unsigned> > >(nthrds);
+  for (int n=0; n<nthrds; n++) {
+    tmdt[n] = vector< vector<unsigned> >(multistep+1);
+    for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(3);
+  }
+
   for (list<Component*>::iterator cc=comp.components.begin();
        cc != comp.components.end(); cc++) {
     
-    for (int level=0; level<=multistep; level++) {
+    for (int n=0; n<nthrds; n++)
+      for (int k=0; k<=multistep; k++) 
+	for (int j=0; j<=3; j++) tmdt[n][k][j] = 0;
 
+    for (int level=0; level<=multistep; level++) {
+      
       if (all || mactive[mstep-1][level]) {
 
 	if (nthrds==1) {
@@ -225,6 +256,11 @@ void adjust_multistep_level(bool all)
 	
       }
     }
+
+    for (int n=0; n<nthrds; n++)
+      for (int k=0; k<=multistep; k++) 
+	for (int j=0; j<=3; j++) 
+	  (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
   }
 
   delete [] td;
