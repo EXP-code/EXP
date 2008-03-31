@@ -45,6 +45,9 @@ public:
   //! Internal process time step (<0 means ignore)
   float dtreq;
 
+  //! Internal size scale (<0 means ignore)
+  float scale;
+
   //! Index for ordering
   unsigned long indx;
 

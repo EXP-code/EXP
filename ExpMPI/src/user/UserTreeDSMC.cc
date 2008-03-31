@@ -97,7 +97,7 @@ void * UserTreeDSMC::timestep_thread(void * arg)
   // for each particle
 
   unsigned ncells = tree->Number(), nbods;
-  double L, DT;
+  double L, DT, mscale;
 
   pHOT_iterator pt(*tree);
 
@@ -108,10 +108,15 @@ void * UserTreeDSMC::timestep_thread(void * arg)
       for (unsigned i=0; i<nbods; i++) {
 				// Time of flight criterion
 	DT = 1.0e40;
+	mscale = 1.0e40;
 	for (unsigned k=0; k<3; k++) {
 	  DT = min<double>
 	    (pHOT::sides[k]*L/(fabs(pt.Body(i)->vel[k])+1.0e-40), DT);
+	  mscale = min<double>(pHOT::sides[k]*L, mscale);
 	}
+				// Size scale for multistep timestep calc.
+	pt.Body(i)->scale = mscale;
+
 				// Cooling criterion
 	int sz = pt.Body(i)->dattrib.size();
 	if (use_delt>=0 && use_delt<sz)

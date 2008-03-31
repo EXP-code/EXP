@@ -91,6 +91,9 @@ void * adjust_multistep_level_thread(void *ptr)
     vtot = sqrt(vtot) + 1.0e-18;
     atot = sqrt(atot) + 1.0e-18;
 
+    if (c->Part(n)->scale>0) 
+      rtot = min<double>(rtot, c->Part(n)->scale);
+
     dtv = dynfracV*rtot/vtot;
     dta = dynfracA*sqrt(rtot/atot);
     dtr = c->Part(n)->dtreq;

@@ -23,13 +23,14 @@ struct Partstruct
   double pot;                 ///< 4        10
   double potext;              ///< 5        11
   float  dtreq;               ///< 6        12
-  unsigned level;             ///< 7        13
-  unsigned long indx;         ///< 8        14
-  unsigned long long key;     ///< 9        15
-  unsigned nicnt;             ///< 10       16
-  unsigned ndcnt;             ///< 11       17
-  int    iatr[nimax];         ///< 12       18,19,20,21,22 (e.g.)
-  double datr[ndmax];         ///< 13       23,24,25,26,27 (e.g.)
+  float  scale;               ///< 7        13
+  unsigned level;             ///< 8        14
+  unsigned long indx;         ///< 9        15
+  unsigned long long key;     ///< 10       16
+  unsigned nicnt;             ///< 11       17
+  unsigned ndcnt;             ///< 12       18
+  int    iatr[nimax];         ///< 13       19,20,21,22,23 (e.g.)
+  double datr[ndmax];         ///< 14       24,25,26,27,28 (e.g.)
 };
 
 class ParticleFerry

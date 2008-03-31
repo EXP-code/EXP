@@ -11,6 +11,7 @@ Particle::Particle()
     pos[k] = vel[k] = acc[k] = 0.0;
   level = 0;
   dtreq = -1;
+  scale = -1;
   indx = 0;
   key = 0;
 }
@@ -24,6 +25,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
     pos[k] = vel[k] = acc[k] = 0.0;
   level = 0;
   dtreq = -1;
+  scale = -1;
   indx = 0;
   key = 0;
   iattrib = vector<int>(niatr, 0);
@@ -44,6 +46,7 @@ Particle::Particle(const Particle &p)
   dattrib = p.dattrib;
   level   = p.level;
   dtreq   = p.dtreq;
+  scale   = p.scale;
   indx    = p.indx;
   key     = p.key;
 }
