@@ -192,7 +192,7 @@ void adjust_multistep_level(bool all)
     
     for (int n=0; n<nthrds; n++)
       for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<=3; j++) tmdt[n][k][j] = 0;
+	for (int j=0; j<3; j++) tmdt[n][k][j] = 0;
 
     for (int level=0; level<=multistep; level++) {
       
@@ -259,7 +259,7 @@ void adjust_multistep_level(bool all)
 
     for (int n=0; n<nthrds; n++)
       for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<=3; j++) 
+	for (int j=0; j<3; j++) 
 	  (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
   }
 

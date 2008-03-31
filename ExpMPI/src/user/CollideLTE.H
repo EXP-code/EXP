@@ -26,6 +26,8 @@ protected:
   static unsigned trhocnt;
   vector< vector<double> > trho;
 
+  bool debug_enabled;
+
 protected:
   vector<double> deltaE;
 
@@ -38,6 +40,9 @@ protected:
   //
   double totalSoFar;
   vector<double> lostSoFar;
+
+  virtual void list_sizes();
+  void list_sizes_proc(ostream*);
 
 public:
 

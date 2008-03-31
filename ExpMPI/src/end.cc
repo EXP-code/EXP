@@ -36,6 +36,8 @@ void clean_up(void)
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ') << endl;
 
+  delete parse;
+
   MPI_Finalize();
 
 }

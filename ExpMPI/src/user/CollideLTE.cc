@@ -8,6 +8,8 @@
 #include <vector>
 #include <cmath>
 
+#include "global.H"
+
 using namespace std;
 
 				// Proton mass (g)
@@ -47,6 +49,8 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
   avgT = vector<double>(nthrds, 0.0);
   dispT = vector<double>(nthrds, 0.0);
   tlist = vector< vector<double> >(nthrds);
+
+  debug_enabled = false;
 
   numt = 20;
   tmin = log(5000.0);
@@ -95,7 +99,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   totalSoFar += mass*KEdsp;
 
 				// RMS relative velocity
-  double rvrel = sqrt(4.0*KEdsp);
+  // double rvrel = sqrt(4.0*KEdsp);
 
   double Mass = mass * UserTreeDSMC::Munit;
 				// Mean mass per particle
@@ -127,12 +131,14 @@ void CollideLTE::initialize_cell(pCell* cell,
     trho[indx1][indx2] += samp->Mass();
   }
 
-  cellcnt[id]++;
-  minT[id] = min<double>(minT[id], T);
-  maxT[id] = max<double>(maxT[id], T);
-  avgT[id] += T;
-  dispT[id] += T*T;
-  tlist[id].push_back(T);
+  if (debug_enabled) {
+    cellcnt[id]++;
+    minT[id] = min<double>(minT[id], T);
+    maxT[id] = max<double>(maxT[id], T);
+    avgT[id] += T;
+    dispT[id] += T*T;
+    tlist[id].push_back(T);
+  }
 
   // Mean effective number of of collisions
   //
@@ -307,6 +313,12 @@ void CollideLTE::Debug(double t)
     {0.01, 0.05, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.95, 0.99};
   double values[13], values0[13];
   
+				// Will begin accumulating now . . .
+  if (!debug_enabled) {
+    debug_enabled = true;
+    return;
+  }
+
   // Combine from threads . . .
 
   unsigned cellcnt1 = 0;
@@ -441,4 +453,41 @@ void CollideLTE::Debug(double t)
   for (unsigned n=0; n<numt; n++) 
     for (unsigned m=0; m<numn; m++) trho[n][m] = 0.0;
   
+}
+
+
+void CollideLTE::list_sizes()
+{
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      ofstream out("Collide_storage.size", ios::app);
+      if (out) {
+	out << setw(18) << tnow
+	    << setw(6)  << myid;
+	list_sizes_proc(&out);
+	Collide::list_sizes_proc(&out);
+	out << endl;
+	if (myid==numprocs-1) out << endl;
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+void CollideLTE::list_sizes_proc(ostream* out)
+{
+  *out << setw(12) << prec.size()
+       << setw(12) << cellcnt.size()
+       << setw(12) << minT.size()
+       << setw(12) << maxT.size()
+       << setw(12) << avgT.size()
+       << setw(12) << dispT.size()
+       << setw(12) << thisto1.size()
+       << setw(12) << thisto2.size()
+       << setw(12) << nhisto1.size()
+       << setw(12) << nhisto2.size()
+       << setw(12) << deltaE.size()
+       << setw(12) << lostSoFar.size()
+       << setw(12) << (trho.size() ? trho[0].size() : (size_t)0)
+       << setw(12) << (tlist.size() ? tlist[0].size() : (size_t)0);
 }

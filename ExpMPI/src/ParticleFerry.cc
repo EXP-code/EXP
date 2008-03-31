@@ -44,6 +44,10 @@ ParticleFerry::ParticleFerry()
   MPI_Type_commit(&Particletype);
 }
 
+ParticleFerry::~ParticleFerry()
+{
+  delete [] buf;
+}
 
 void ParticleFerry::part_to_Particle(Partstruct& str, Particle& cls)
 {

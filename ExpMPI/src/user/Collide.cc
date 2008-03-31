@@ -274,6 +274,9 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   if (use_delt>=0) 
     for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
 
+  // DEBUG
+  list_sizes();
+
 				// Make cellist
   unsigned ncells = tree.Number();
   pHOT_iterator c(tree);
@@ -1222,3 +1225,65 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   Nepsm1T[id]++;
 }
 
+void Collide::list_sizes()
+{
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      ofstream out("Collide_storage.size", ios::app);
+      if (out) {
+	out << setw(18) << tnow
+	    << setw(6)  << myid;
+	list_sizes_proc(&out);
+	out << endl;
+	if (myid==numprocs-1) out << endl;
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+
+void Collide::list_sizes_proc(ostream* out)
+{
+  *out << setw(12) << numcnt.size()
+       << setw(12) << colcnt.size()
+       << setw(12) << tsrat.size()
+       << setw(12) << derat.size()
+       << setw(12) << tdens.size()
+       << setw(12) << tvolc.size()
+       << setw(12) << ttemp.size()
+       << setw(12) << tdelt.size()
+       << setw(12) << tseln.size()
+       << setw(12) << tphase.size()
+       << setw(12) << (tphaseT.size() ? tphaseT[0].size() : (size_t)0)
+       << setw(12) << tmfpst.size()
+       << setw(12) << (tmfpstT.size() ? tmfpstT[0].size() : (size_t)0)
+       << setw(12) << (numcntT.size() ? numcntT[0].size() : (size_t)0)
+       << setw(12) << (colcntT.size() ? colcntT[0].size() : (size_t)0)
+       << setw(12) << error1T.size()
+       << setw(12) << col1T.size()
+       << setw(12) << epsm1T.size()
+       << setw(12) << Nepsm1T.size()
+       << setw(12) << KEtotT.size()
+       << setw(12) << KElostT.size()
+       << setw(12) << tmassT.size()
+       << setw(12) << decelT.size()
+       << setw(12) << (mfpratT.size() ? mfpratT[0].size() : (size_t)0)
+       << setw(12) << (tsratT.size() ? tsratT[0].size() : (size_t)0)
+       << setw(12) << (tdensT.size() ? tdensT[0].size() : (size_t)0)
+       << setw(12) << (tvolcT.size() ? tvolcT[0].size() : (size_t)0)
+       << setw(12) << (ttempT.size() ? ttempT[0].size() : (size_t)0)
+       << setw(12) << (tselnT.size() ? tselnT[0].size() : (size_t)0)
+       << setw(12) << (deratT.size() ? deratT[0].size() : (size_t)0)
+       << setw(12) << (tdeltT.size() ? tdeltT[0].size() : (size_t)0)
+       << setw(12) << (tdispT.size() ? tdispT[0].size() : (size_t)0)
+       << setw(12) << tdiag.size()
+       << setw(12) << tdiag1.size()
+       << setw(12) << tdiag0.size()
+       << setw(12) << tcool.size()
+       << setw(12) << tcool1.size()
+       << setw(12) << tcool0.size()
+       << setw(12) << (cellist.size() ? cellist[0].size() : (size_t)0)
+       << setw(12) << disptot.size()
+       << setw(12) << lostSoFar_EPSM.size();
+}

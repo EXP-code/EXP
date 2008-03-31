@@ -24,7 +24,7 @@ protected:
   key_cell frontier;
   key_key bodycell;
 
-  vector<Particle> *data;
+  //  vector<Particle> *data;
   pCell *root;
   
   double volume;

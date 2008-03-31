@@ -85,7 +85,7 @@ void OutLog::Run(int n, bool last)
 {
   list<Component*>::iterator cc;
   Component *c;
-  ofstream *out;
+  ofstream *out = 0;
   const int cwid = 20;
 
   if (myid==0) {
@@ -542,6 +542,7 @@ void OutLog::Run(int n, bool last)
     *out << endl;
 
     out->close();
+    delete out;
   }
 
 }

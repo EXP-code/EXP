@@ -117,6 +117,8 @@ protected:
   vector<double> lostSoFar_EPSM;
 
   void debug_list(pHOT& tree);
+  virtual void list_sizes();
+  void list_sizes_proc(ostream*);
 
 public:
 

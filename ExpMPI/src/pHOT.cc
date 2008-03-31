@@ -49,7 +49,7 @@ pHOT::~pHOT()
   delete root;
   delete unit;
   delete gen;
-  delete offset;
+  delete [] offset;
 }
 
 
@@ -123,6 +123,25 @@ void pHOT::makeTree()
   delete root;
 
   //
+  // DEBUG
+  //
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      ofstream out("pHOT_storage.size", ios::app);
+      if (out) {
+	out << setw(18) << tnow
+	    << setw(6)  << myid
+	    << setw(12) << keybods.size()
+	    << setw(12) << frontier.size()
+	    << setw(12) << bodycell.size()
+	    << endl;
+	if (myid==numprocs-1) out << endl;
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  //
   // Make the root
   //
   root = new pCell(this);
@@ -190,7 +209,7 @@ void pHOT::makeTree()
 
   MPI_Status status;
 				// Exchange boundary keys
-  key_type headKey, tailKey, prevKey, nextKey;
+  key_type headKey=0, tailKey=0, prevKey=0, nextKey=0;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
 
 				// Do the boundaries sequentially to prevent
@@ -226,7 +245,7 @@ void pHOT::makeTree()
       MPI_Recv(&nextKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD, &status);
       MPI_Recv(&next_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD, &status);
 
-      if (tailKey && tailKey == nextKey) {
+      if (tailKey && (tailKey == nextKey)) {
 	if (tail_num <= next_num) {
 	  if (tail_num)
 	    sendCell(tailKey, n, tail_num);
@@ -1871,9 +1890,19 @@ void pHOT::checkIndices()
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
 
+  /*
+  if (myid==0)
+    cout << "Process " << myid << ": # indices=" << indices.size() << endl;
+  */
+
   // All processes send the index list to the master node
   //
   for (int n=1; n<numprocs; n++) {
+    /*
+    if (myid==n)
+      cout << "Process " << myid << ": # indices=" << indices.size() << endl;
+    */
+
     if (myid==0) {
       unsigned icnt;
       MPI_Recv(&icnt, 1, MPI_UNSIGNED, n, 392, MPI_COMM_WORLD, &s);
@@ -1903,7 +1932,9 @@ void pHOT::checkIndices()
       if (n!=indices[n-1]) {
 	cout << "pHOT::checkIndices ERROR: found=" << indices[n-1] 
 	     << " expected " << n
-	     << " total=" << indices.size() << endl;
+	     << " total=" << indices.size() 
+	     << " time=" << tnow
+	     << endl;
 	break;
       }
     }
@@ -1911,7 +1942,8 @@ void pHOT::checkIndices()
     // Check the total body count
     //
     if (indices.size() != cc->nbodies_tot)
-      cout << "pHOT::checkIndices ERROR: index count=" << indices.size() 
+      cout << "pHOT::checkIndices ERROR: time=" << tnow
+	   << " index count=" << indices.size() 
 	   << " body count=" << cc->nbodies_tot << endl;
   }
 }
@@ -2004,6 +2036,11 @@ unsigned pHOT::find_proc(vector<key_type>& keys, key_type key)
 {
   unsigned num = keys.size();
   unsigned beg=0, end=num-1, cur;
+
+  if (num==0) {
+    cerr << "pHOT::find_proc: crazy input, no keys!" << endl;
+    return 0;
+  }
 
   if (key<=keys[beg])   return beg;
   if (key>=keys[num-1]) return num-1;

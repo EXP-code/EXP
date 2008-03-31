@@ -89,6 +89,7 @@ void ComponentContainer::initialize(void)
       
     cout << "ComponentContainer: process " << myid << ", restart complete\n";
 
+    delete in;
   }
   else {
     
@@ -184,7 +185,10 @@ void ComponentContainer::initialize(void)
       }
     }
 
-    if (!curr->l.empty()) interaction.push_back(curr);
+    if (!curr->l.empty()) 
+      interaction.push_back(curr);
+    else
+      delete curr;
 
   }
 
@@ -249,6 +253,8 @@ ComponentContainer::~ComponentContainer(void)
     delete p2;
   }
 
+  delete [] gcom1;
+  delete [] gcov1;
 }
 
 void ComponentContainer::compute_potential(unsigned mlevel)

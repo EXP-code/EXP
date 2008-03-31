@@ -369,7 +369,6 @@ Component::Component(istream *in)
   tree = new pHOT(this);
 
   pbuf = new Particle [PFbufsz];
-
 }
 
 
@@ -785,6 +784,7 @@ Component::~Component(void)
   delete [] covI;
 
   delete tree;
+  delete [] td;
 }
 
 void Component::bomb(const string& msg)

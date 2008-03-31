@@ -87,7 +87,7 @@ CoefHeader2 coefheader2;
 ComponentContainer comp;
 ExternalCollection external;
 OutputContainer output;
-ParamParseMPI *parse;
+ParamParseMPI *parse = 0;
 
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;

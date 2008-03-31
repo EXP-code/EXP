@@ -50,6 +50,8 @@ public:
 
   ParticleFerry();
 
+  ~ParticleFerry();
+
   void ShipParticles(int to, int from, unsigned& total);
 
   void SendParticle(Particle& part, unsigned seq, unsigned long long key);

@@ -249,7 +249,7 @@ ACG::reset()
 
 ACG::~ACG()
 {
-  if (state) delete state;
+  if (state) delete [] state;
   state = 0;
   // don't delete auxState, it's really an alias for state.
 }

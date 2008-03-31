@@ -73,7 +73,7 @@ main(int argc, char** argv)
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
 				// Make SLAVE group 
-/*
+#ifdef SLAVE_GROUP
   slaves = numprocs - 1;
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
   nslaves = new int [slaves];
@@ -95,7 +95,8 @@ main(int argc, char** argv)
 		     << " on " << processor_name
 		     << "   pid=" << getpid()
 		     << "   MASTER NODE\t Ready to go!\n";
-*/
+#endif
+#ifdef DEBUG
   MPI_Barrier(MPI_COMM_WORLD);
   for (int j=1; j<numprocs; j++) {
     if (myid==j) cerr << "Process " << setw(4) << right << myid 
@@ -104,10 +105,9 @@ main(int argc, char** argv)
 		      << "   rank in SLAVE: " << j << "\t Ready to go!\n";
     MPI_Barrier(MPI_COMM_WORLD);
   }
-
   if (myid==0)  cerr << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ') << endl;
-
+#endif
 
   //====================================
   // Set signal handler on HUP and TERM
