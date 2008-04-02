@@ -125,9 +125,10 @@ void pHOT::makeTree()
   //
   // DEBUG
   //
+  string sname =  runtag + ".pHOT_storage";
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
-      ofstream out("pHOT_storage.size", ios::app);
+      ofstream out(sname.c_str(), ios::app);
       if (out) {
 	out << setw(18) << tnow
 	    << setw(6)  << myid
@@ -136,6 +137,7 @@ void pHOT::makeTree()
 	    << setw(12) << bodycell.size()
 	    << endl;
 	if (myid==numprocs-1) out << endl;
+	out.close();
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);

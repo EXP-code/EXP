@@ -61,7 +61,7 @@ void * adjust_multistep_level_thread(void *ptr)
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  double dt, dtv, dta, dtr;
+  double dt, dtv, dta, dtr, dsr;
   int npart = c->levlist[level].size();
   int offgrid = 0, lev;
 
@@ -91,14 +91,14 @@ void * adjust_multistep_level_thread(void *ptr)
     vtot = sqrt(vtot) + 1.0e-18;
     atot = sqrt(atot) + 1.0e-18;
 
-    if (c->Part(n)->scale>0) 
-      rtot = min<double>(rtot, c->Part(n)->scale);
+    dsr = c->Part(n)->scale;
+    if (dsr>0) rtot = min<double>(rtot, dsr);
 
     dtv = dynfracV*rtot/vtot;
     dta = dynfracA*sqrt(rtot/atot);
-    dtr = c->Part(n)->dtreq;
+    dt  = min<double>(dtv, dta);
 
-    dt = min<double>(dtv, dta);
+    dtr = c->Part(n)->dtreq;
     if (dtr>0) dt = min<double>(dt, dtr);
 
     mindt1[id] = min<double>(mindt1[id], dt);
