@@ -364,6 +364,9 @@ Component::Component(istream *in)
 
   read_bodies_and_distribute_binary(in);
 
+  mdt_ctr = vector< vector<unsigned> > (multistep+1);
+  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(3, 0);
+
   reset_level_lists();
 
   tree = new pHOT(this);
