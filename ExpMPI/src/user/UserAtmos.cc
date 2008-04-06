@@ -102,6 +102,7 @@ void * UserAtmos::determine_acceleration_and_potential_thread(void * arg)
     if (multistep && (cC->Part(i)->level < mlevel)) continue;
 
 
+    // Compute potential (up to a some constant)
     pot = 0.0;
     for (int k=0; k<3; k++) {
       pos[k] = cC->Pos(i, k);	// Inertial by default
