@@ -54,6 +54,9 @@
 	Compared against expsl routines
 
 	Removed orphaned parameters
+
+ Updated to include gas disk using local Euler solution 04/08 by MDW
+
 */
 
                                 // System libs
@@ -80,6 +83,9 @@
 #include <SphericalSL.h>
 #include <interp.h>
 #include <EmpOrth9thd.h>
+
+#include <norminv.H>
+
 
                                 // For debugging
 #ifdef DEBUG
@@ -135,6 +141,7 @@ double DR_DF=5.0;
 double scale_height = 0.1;
 double scale_length = 2.0;
 double disk_mass = 1.0;
+double gas_mass = 1.0;
 double ToomreQ = 1.2;
 
 int SEED = 11;
@@ -165,6 +172,7 @@ main(int argc, char **argv)
   bool zero = false;
   int nhalo = 1000;             // Halo particles
   int ndisk = 1000;             // Disk particles
+  int ngas  = 1000;             // Gas particles
 
   //========================= Parse command line ==============================
 
@@ -191,7 +199,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "H:D:L:M:X:N:n:f:Q:A:Z:m:r:R:1:2:s:S:bBzh",
+		       "H:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:bBzh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -220,6 +228,10 @@ main(int argc, char **argv)
 
         case 'D':
           ndisk = atoi(optarg);
+          break;
+
+        case 'G':
+          ngas = atoi(optarg);
           break;
 
         case 'L':
@@ -256,6 +268,10 @@ main(int argc, char **argv)
 
         case 'm':
           disk_mass = atof(optarg);
+          break;
+
+        case 'g':
+          gas_mass = atof(optarg);
           break;
 
         case 's':
@@ -300,6 +316,7 @@ main(int argc, char **argv)
                << " -- [options]\n\n"
                << "  -H num     number of halo particles (1000)\n"
                << "  -D num     number of disk particles (1000)\n"
+               << "  -G num     number of gas particles (1000)\n"
                << "  -L lmax    spherical harmonic order (4)\n"
                << "  -M mmax    cylindrical harmonic order (4)\n"
                << "  -X lmax    maximum l for cylindrical expansion (26)\n"
@@ -330,10 +347,11 @@ main(int argc, char **argv)
 
   local_init_mpi(argc, argv);   // Inialize MPI stuff
 
-  int n_particlesH, n_particlesD;
+  int n_particlesH, n_particlesD, n_particlesG;
 
   MPI_Bcast(&nhalo,  1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndisk,  1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ngas,   1, MPI_INT, 0, MPI_COMM_WORLD);
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -344,13 +362,17 @@ main(int argc, char **argv)
   n_particlesD = ndisk/numprocs;
   if (myid==0) n_particlesD = ndisk - n_particlesD*(numprocs-1);
 
+  n_particlesG = ngas/numprocs;
+  if (myid==0) n_particlesG = ngas  - n_particlesG*(numprocs-1);
+
 
 #ifdef DEBUG  
   cout << "Processor " << myid << ": n_particlesH=" << n_particlesH << "\n";
   cout << "Processor " << myid << ": n_particlesD=" << n_particlesD << "\n";
+  cout << "Processor " << myid << ": n_particlesG=" << n_particlesG << "\n";
 #endif
 
-  if (n_particlesH + n_particlesD <= 0) {
+  if (n_particlesH + n_particlesD + n_particlesG <= 0) {
     if (myid==0) cout << "You have specified zero particles!\n";
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
@@ -697,12 +719,231 @@ main(int argc, char **argv)
                                 // Diagnostic . . .
   diskhalo.virial_ratio(hparticles, dparticles);
 
+  //====================Compute gas particles==================================
+
+  if (myid==0 && n_particlesG) {
+    cout << "Computing gas particles . . . " << flush;
+
+				// UNITS
+				// -------------------
+
+				// cm
+    const double pc = 3.08568025e18;
+				// proton mass
+    const double m_p = 1.67262158e-24;
+				// g
+    const double msun = 1.98892e33; //
+				// cgs
+    const double G = 6.67300e-08;
+				// cgs
+    const double boltz = 1.3806503e-16;
+
+    double T = 10000;
+
+    
+    double Lunit = 3.0e5*pc;	// Virial radius
+    double Munit = 1.0e12*msun;	// Virial mass
+    double Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*G));
+    double Vunit = Lunit/Tunit;
+
+    // Fac = kT*R_vir/(G*m_p*M_vir)
+    // where M_vir = 1e12 Msun, R_vir=300 kpc
+    //
+    double fac = T/(G*m_p*Munit/(Lunit*boltz));
+
+    // Thermal velocity in system units
+    //
+    double vthermal = sqrt( (boltz*T)/m_p ) / (Vunit);
+
+    // Compute using Jeans theorem
+    //
+    double rmax = 10.0*scale_length;
+    double zmax = 10.0*scale_height;
+    int nrint = 100;
+    int nzint = 400;
+    vector< vector<double> > zrho;
+    vector<double> vcirc;
+    double r, R, dR = rmax/(nrint-1);
+    double z, dz = zmax/(nzint-1);
+
+    double p0, p, fr, fz, fp, dens, potl, potr, pott, potp;
+
+    for (int i=0; i<nrint; i++) {
+      R = dR*i;
+
+      double pot0=0.0, frt0=0.0;
+      if (expandd) {
+	expandd->accumulated_eval(R, 0, 0, p0, p, fr, fz, fp);
+	pot0 += p0;
+	frt0 += -fr;
+      }
+      if (expandh) {
+	expandh->determine_fields_at_point(R, acos(0.0), 0.0,
+					   &dens, &potl, 
+					   &potr, &pott, &potp);
+	pot0 += potl;
+	frt0 += potr;
+      }
+
+      vcirc.push_back(sqrt(max<double>(r*frt0, 0.0)));
+
+      vector<double> trho(nzint);
+
+      for (int j=0; j<nzint; j++) {
+	z = dz*j;
+	r = sqrt(R*R + z*z);
+	
+	double pot=0.0;
+	if (expandd) {
+	  expandd->accumulated_eval(R, 0, z, p0, p, fr, fz, fp);
+	  pot += p0;
+	}
+	if (expandh) {
+          expandh->determine_fields_at_point(r, acos(z/(r+1.0e-8)), 0.0,
+                                             &dens, &potl, 
+                                             &potr, &pott, &potp);
+	  pot += potl;
+	}
+        
+	trho[j] = exp(-fac*(pot-pot0));
+      }
+
+      double mass = 0.0;
+      for (int j=1; j<nrint; j++) mass += 0.5*dz*(trho[j-1] + trho[j]);
+      for (int j=0; j<nrint; j++) trho[j] /= mass;
+      zrho.push_back(trho);
+    }
+
+
+    //
+    // Vcirc table
+    //
+    ofstream ttest("vcirc.dat");
+    for (int i=0; i<nrint; i++) {
+      ttest << setw(15) << dR*i
+	    << setw(15) << vcirc[i]
+	    << endl;
+    }
+    ttest.close();
+
+    // 
+    // Prepare output stream
+    //
+    ofstream outps("gas.bods");
+    if (!outps) {
+      cerr << "Couldn't open <" << "gas.bods" << "> for output\n";
+      exit (-1);
+    }
+  
+
+    const int ITMAX=1000;
+    const int NREPORT=1000;
+    const int nparam = 3;
+    
+    //
+    // Maximum enclosed disk mass given rmax
+    //
+    double rmx2 = 1.5*rmax;
+    double mmx2 = 1.0 - (1.0 + rmx2/scale_length)*exp(-rmx2/scale_length);
+    double mmax = 1.0 - (1.0 + rmax/scale_length)*exp(-rmax/scale_length);
+
+    //
+    // Random generators
+    //
+    ACG gen(10, 20);
+    Uniform unit(0.0, 1.0, &gen);
+
+    //
+    // Trimmed Gaussian
+    //
+    double minK=0.0, maxK=1.0, sigma = 3.0;
+    if (sigma>0) {
+      minK = 0.5*(1.0+erf(-0.5*sigma));
+      maxK = 0.5*(1.0+erf( 0.5*sigma));
+    }
+    Uniform unitN(minK, maxK, &gen);
+
+
+    outps << setw(8) << ngas
+	  << setw(6) << 0 << setw(6) << nparam << endl;
+
+    for (int n=0; n<ngas; n++) {
+
+      double F, dF, M=mmax*unit(), Z=unit();
+      double r = M*rmax, phi=2.0*M_PI*unit(), z;
+
+
+				// Narrow with bisection
+      double rm = 0.0, rp = rmx2;
+      double fm = -M, fp = mmx2 - M;
+      for (int j=0; j<15; j++) {
+	r = 0.5*(rm + rp);
+	F = 1.0 - M - (1.0 + r/scale_length)*exp(-r/scale_length);
+	if (fm*F<0.0) {
+	  rp = r;
+	  fp = F;
+	} else {
+	  rm = r;
+	  fm = F;
+	}
+      }
+				// Polish with Newton-Raphson
+      for (int j=0; j<ITMAX; j++) {
+	F = 1.0 - M - (1.0 + r/scale_length)*exp(-r/scale_length);
+	dF = r/(scale_length*scale_length)*exp(-r/scale_length);
+	r += -F/dF;
+	if (fabs(F/dF)<1.0e-12) break;
+      }
+    
+      int indr = static_cast<int>(floor(r/dR));
+      if (indr<0) indr=0;
+      if (indr>nrint-2) indr=nrint-2;
+      double a = (dR*(indr+1) - r)/dR;
+      double b = (r - indr*dR)/dR;
+      double vc = sqrt(fabs(a*vcirc[indr] + b*vcirc[indr+1]));
+      
+      vector<double> mz(nzint);
+      for (int j=0; j<nzint; j++) 
+	mz[j] = a*zrho[indr][j] + b*zrho[indr+1][j];
+      double mass = 0.0;
+      for (int j=1; j<nzint; j++) 
+	mass += 0.5*dz*(mz[j-1]+mz[j]);
+      for (int j=0; j<nzint; j++) 
+	mz[j] /= mass;
+      
+      int indz = Vlocate(Z, mz);
+      a = (mz[indz+1] - Z)/(mz[indz+1] - mz[indz]);
+      b = (Z - mz[indz  ])/(mz[indz+1] - mz[indz]);
+      z = dz*(a*indz + b*(indz+1));
+
+
+      double u = -vc*sin(phi) + vthermal*norminv(unitN());
+      double v =  vc*cos(phi) + vthermal*norminv(unitN());
+      double w =  vthermal*norminv(unitN());
+      
+      outps << setw(18) << mass
+	    << setw(18) << r*cos(phi)
+	    << setw(18) << r*sin(phi)
+	    << setw(18) << z
+	    << setw(18) << u
+	    << setw(18) << v
+	    << setw(18) << w;
+      for (int k=0; k<nparam; k++) outps << setw(18) << 0.0;
+      outps << endl;
+    
+      if (!((n+1)%NREPORT)) cout << "\r." << n+1 << flush;
+    }
+
+    cout << endl;
+  }
+
   //===========================================================================
+
+  MPI_Barrier(MPI_COMM_WORLD);
 
   delete expandh;
   delete expandd;
 
-  MPI_Barrier(MPI_COMM_WORLD);
   MPI_Finalize();
 
   return 0;

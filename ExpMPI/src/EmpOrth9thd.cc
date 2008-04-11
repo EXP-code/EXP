@@ -4,6 +4,7 @@
 // #define STURM 1
 // #define EIGEN 1
 // #define DEBUG_PCA
+#define VAROUTPUT
 
 #include <iostream>
 #include <iomanip>
@@ -1507,6 +1508,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 	 << id << " calling setup_eof()\n";
 #endif      
     setup_eof();
+    setup_accumulation();
   }
 
   double rr = sqrt(r*r + z*z);
@@ -1866,6 +1868,12 @@ void EmpCylSL::make_eof(void)
 	  ev = var[M].Symmetric_Eigenvalues(ef);
 	  ef = ef.Transpose();
 #endif
+#if defined(VAROUTPUT)
+	  ostringstream sout;
+	  sout << "var_sc.debug." << M;
+	  ofstream tout(sout.str().c_str());
+	  var[M].print(tout);
+#endif
 	}
 	catch (char const *msg) {
 	  cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
@@ -1943,6 +1951,12 @@ void EmpCylSL::make_eof(void)
 #else
 	  ev = var[M].Symmetric_Eigenvalues(ef);
 	  ef = ef.Transpose();
+#endif
+#if defined(VAROUTPUT)
+	  ostringstream sout;
+	  sout << "var_sc.debug." << M;
+	  ofstream tout(sout.str().c_str());
+	  var[M].print(tout);
 #endif
 	}
 	catch (char const *msg) {

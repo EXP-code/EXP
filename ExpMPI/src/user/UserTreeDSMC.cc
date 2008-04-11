@@ -180,7 +180,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  list<Component*>::iterator cc;
+ list<Component*>::iterator cc;
   Component *c;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -333,6 +333,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 {
   static bool firstime = true;
   static unsigned nrep = 0;
+
+  //
+  // Only compute DSMC when passed the fiducial component
+  //
+
+  if (cC != c0) return;
 
   //
   // Make the cells

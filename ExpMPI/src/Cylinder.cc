@@ -369,13 +369,12 @@ void Cylinder::determine_coefficients(void)
 
   }
 
-  if (eof) {
-    ortho->setup_eof();
-    cylmass = 0.0;
-    if (myid==0) cerr << "Cylinder: setup for eof\n";
-  }
-
   if (multistep==0) {
+    if (eof) {
+      ortho->setup_eof();
+      cylmass = 0.0;
+      if (myid==0) cerr << "Cylinder: setup for eof\n";
+    }
     ortho->setup_accumulation();
   }
 
@@ -436,11 +435,6 @@ void Cylinder::determine_coefficients(void)
   if (multistep==0 || stepN[mlevel]==Mstep) {
     used += use0;
     cylmass += cylmassT0;
-  }
-  
-  if (eof) {
-    ortho->make_eof();
-    eof = 0;
   }
   
   MPL_start_timer();
@@ -586,6 +580,11 @@ void Cylinder::determine_acceleration_and_potential(void)
 {
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
+  if (eof) {
+    ortho->make_eof();
+    eof = 0;
+  }
+
   ortho->make_coefficients();
 
 				// Interpolation
