@@ -864,6 +864,8 @@ main(int argc, char **argv)
     Uniform unitN(minK, maxK, &gen);
 
 
+    double gmass = gas_mass/ngas;
+
     outps << setw(8) << ngas
 	  << setw(6) << 0 << setw(6) << nparam << endl;
 
@@ -905,11 +907,11 @@ main(int argc, char **argv)
       vector<double> mz(nzint);
       for (int j=0; j<nzint; j++) 
 	mz[j] = a*zrho[indr][j] + b*zrho[indr+1][j];
-      double mass = 0.0;
+      double tmass = 0.0;
       for (int j=1; j<nzint; j++) 
-	mass += 0.5*dz*(mz[j-1]+mz[j]);
+	tmass += 0.5*dz*(mz[j-1]+mz[j]);
       for (int j=0; j<nzint; j++) 
-	mz[j] /= mass;
+	mz[j] /= tmass;
       
       int indz = Vlocate(Z, mz);
       a = (mz[indz+1] - Z)/(mz[indz+1] - mz[indz]);
@@ -921,7 +923,7 @@ main(int argc, char **argv)
       double v =  vc*cos(phi) + vthermal*norminv(unitN());
       double w =  vthermal*norminv(unitN());
       
-      outps << setw(18) << mass
+      outps << setw(18) << gmass
 	    << setw(18) << r*cos(phi)
 	    << setw(18) << r*sin(phi)
 	    << setw(18) << z
