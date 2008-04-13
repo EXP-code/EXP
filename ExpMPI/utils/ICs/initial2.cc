@@ -546,6 +546,7 @@ main(int argc, char **argv)
     if (myid==0) cout << "done\n";
   
     if (myid==0) cout << "Making the EOF . . . " << flush;
+    expandd->setup_accumulation();
     expandd->make_eof();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
@@ -758,13 +759,13 @@ main(int argc, char **argv)
     // Compute using Jeans theorem
     //
     double rmax = 10.0*scale_length;
-    double zmax = 10.0*scale_height;
+    double zmin = 0.01*scale_height;
     int nrint = 100;
     int nzint = 400;
     vector< vector<double> > zrho;
     vector<double> vcirc;
     double r, R, dR = rmax/(nrint-1);
-    double z, dz = zmax/(nzint-1);
+    double z, dz = (log(rmax) - log(zmin))/(nzint-1);
 
     double p0, p, fr, fz, fp, dens, potl, potr, pott, potp;
 
@@ -790,7 +791,7 @@ main(int argc, char **argv)
       vector<double> trho(nzint);
 
       for (int j=0; j<nzint; j++) {
-	z = dz*j;
+	z = zmin*exp(dz*j);
 	r = sqrt(R*R + z*z);
 	
 	double pot=0.0;
@@ -805,12 +806,15 @@ main(int argc, char **argv)
 	  pot += potl;
 	}
         
-	trho[j] = exp(-fac*(pot-pot0));
+	trho[j] = exp(-(pot-pot0)/fac);
       }
 
       double mass = 0.0;
-      for (int j=1; j<nrint; j++) mass += 0.5*dz*(trho[j-1] + trho[j]);
-      for (int j=0; j<nrint; j++) trho[j] /= mass;
+      double zfac = 1.0 - exp(-dz);
+				    
+      for (int j=1; j<nzint; j++) 
+	mass += 0.5*(trho[j-1] + trho[j]) * zmin*exp(dz*j)*zfac;
+      for (int j=0; j<nzint; j++) trho[j] /= mass;
       zrho.push_back(trho);
     }
 
@@ -825,6 +829,21 @@ main(int argc, char **argv)
 	    << endl;
     }
     ttest.close();
+
+    //
+    // Vertical table
+    //
+    ofstream ztest("ztable.dat");
+    for (int i=0; i<nrint; i++) {
+      for (int j=0; j<nzint; j++) {
+	ztest << setw(15) << dR*i
+	      << setw(15) << zmin*exp(dz*j)
+	      << setw(15) << zrho[i][j]
+	      << endl;
+      }
+      ztest << endl;
+    }
+    ztest.close();
 
     // 
     // Prepare output stream
@@ -913,11 +932,12 @@ main(int argc, char **argv)
       for (int j=0; j<nzint; j++) 
 	mz[j] /= tmass;
       
-      int indz = Vlocate(Z, mz);
+      int indz = max<int>(0, min<int>(nzint-2, Vlocate(Z, mz)));
+
       a = (mz[indz+1] - Z)/(mz[indz+1] - mz[indz]);
       b = (Z - mz[indz  ])/(mz[indz+1] - mz[indz]);
-      z = dz*(a*indz + b*(indz+1));
-
+      z = zmin*exp(dz*(a*indz + b*(indz+1)));
+      if (unit()<0.5) z *= -1.0;
 
       double u = -vc*sin(phi) + vthermal*norminv(unitN());
       double v =  vc*cos(phi) + vthermal*norminv(unitN());
