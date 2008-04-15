@@ -762,7 +762,7 @@ main(int argc, char **argv)
     double zmin = 0.01*scale_height;
     int nrint = 100;
     int nzint = 400;
-    vector< vector<double> > zrho;
+    vector< vector<double> > zrho, zmas;
     vector<double> vcirc;
     double r, R, dR = rmax/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
@@ -788,7 +788,7 @@ main(int argc, char **argv)
 
       vcirc.push_back(sqrt(max<double>(r*frt0, 0.0)));
 
-      vector<double> trho(nzint);
+      vector<double> trho(nzint), tmas(nzint, 0);
 
       for (int j=0; j<nzint; j++) {
 	z = zmin*exp(dz*j);
@@ -813,9 +813,13 @@ main(int argc, char **argv)
       double zfac = 1.0 - exp(-dz);
 				    
       for (int j=1; j<nzint; j++) 
-	mass += 0.5*(trho[j-1] + trho[j]) * zmin*exp(dz*j)*zfac;
-      for (int j=0; j<nzint; j++) trho[j] /= mass;
+	tmas[j] = tmas[j-1] + 0.5*(trho[j-1] + trho[j]) * zmin*exp(dz*j)*zfac;
+      for (int j=0; j<nzint; j++) {
+	trho[j] /= tmas[nzint-1];
+	tmas[j] /= tmas[nzint-1];
+      }
       zrho.push_back(trho);
+      zmas.push_back(tmas);
     }
 
 
@@ -839,6 +843,7 @@ main(int argc, char **argv)
 	ztest << setw(15) << dR*i
 	      << setw(15) << zmin*exp(dz*j)
 	      << setw(15) << zrho[i][j]
+	      << setw(15) << zmas[i][j]
 	      << endl;
       }
       ztest << endl;
@@ -921,16 +926,12 @@ main(int argc, char **argv)
       if (indr>nrint-2) indr=nrint-2;
       double a = (dR*(indr+1) - r)/dR;
       double b = (r - indr*dR)/dR;
-      double vc = sqrt(fabs(a*vcirc[indr] + b*vcirc[indr+1]));
+      double vc = fabs(a*vcirc[indr] + b*vcirc[indr+1]);
       
       vector<double> mz(nzint);
       for (int j=0; j<nzint; j++) 
-	mz[j] = a*zrho[indr][j] + b*zrho[indr+1][j];
-      double tmass = 0.0;
-      for (int j=1; j<nzint; j++) 
-	tmass += 0.5*dz*(mz[j-1]+mz[j]);
-      for (int j=0; j<nzint; j++) 
-	mz[j] /= tmass;
+	mz[j] = a*zmas[indr][j] + b*zmas[indr+1][j];
+      for (int j=0; j<nzint; j++) mz[j] /= mz[nzint-1];
       
       int indz = max<int>(0, min<int>(nzint-2, Vlocate(Z, mz)));
 
