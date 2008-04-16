@@ -723,7 +723,7 @@ main(int argc, char **argv)
   //====================Compute gas particles==================================
 
   if (myid==0 && n_particlesG) {
-    cout << "Computing gas particles . . . " << flush;
+    cout << "Computing gas particles . . . " << endl;
 
 				// UNITS
 				// -------------------
@@ -786,7 +786,7 @@ main(int argc, char **argv)
 	frt0 += potr;
       }
 
-      vcirc.push_back(sqrt(max<double>(r*frt0, 0.0)));
+      vcirc.push_back(sqrt(max<double>(R*frt0-vthermal*vthermal, 0.0)));
 
       vector<double> trho(nzint), tmas(nzint, 0);
 
@@ -889,45 +889,54 @@ main(int argc, char **argv)
 
 
     double gmass = gas_mass/ngas;
+    double KE=0.0, VC=0.0;
+
+    fr = fz = potr = 0.0;
 
     outps << setw(8) << ngas
 	  << setw(6) << 0 << setw(6) << nparam << endl;
 
+    ofstream otest("test.dat");
+    otest << "# vthermal=" << vthermal << endl;
+
     for (int n=0; n<ngas; n++) {
 
       double F, dF, M=mmax*unit(), Z=unit();
-      double r = M*rmax, phi=2.0*M_PI*unit(), z;
+      double R = M*rmax, phi=2.0*M_PI*unit(), x, y, z, rr;
+      double ax, ay, az;
 
 
 				// Narrow with bisection
       double rm = 0.0, rp = rmx2;
       double fm = -M, fp = mmx2 - M;
       for (int j=0; j<15; j++) {
-	r = 0.5*(rm + rp);
-	F = 1.0 - M - (1.0 + r/scale_length)*exp(-r/scale_length);
+	R = 0.5*(rm + rp);
+	F = 1.0 - M - (1.0 + R/scale_length)*exp(-R/scale_length);
 	if (fm*F<0.0) {
-	  rp = r;
+	  rp = R;
 	  fp = F;
 	} else {
-	  rm = r;
+	  rm = R;
 	  fm = F;
 	}
       }
 				// Polish with Newton-Raphson
       for (int j=0; j<ITMAX; j++) {
-	F = 1.0 - M - (1.0 + r/scale_length)*exp(-r/scale_length);
-	dF = r/(scale_length*scale_length)*exp(-r/scale_length);
-	r += -F/dF;
+	F = 1.0 - M - (1.0 + R/scale_length)*exp(-R/scale_length);
+	dF = R/(scale_length*scale_length)*exp(-R/scale_length);
+	R += -F/dF;
 	if (fabs(F/dF)<1.0e-12) break;
       }
     
-      int indr = static_cast<int>(floor(r/dR));
+      int indr = static_cast<int>(floor(R/dR));
       if (indr<0) indr=0;
       if (indr>nrint-2) indr=nrint-2;
-      double a = (dR*(indr+1) - r)/dR;
-      double b = (r - indr*dR)/dR;
+      double a = (dR*(indr+1) - R)/dR;
+      double b = (R - indr*dR)/dR;
       double vc = fabs(a*vcirc[indr] + b*vcirc[indr+1]);
       
+      otest << setw(18) << r << setw(18) << vc << endl;
+
       vector<double> mz(nzint);
       for (int j=0; j<nzint; j++) 
 	mz[j] = a*zmas[indr][j] + b*zmas[indr+1][j];
@@ -939,14 +948,19 @@ main(int argc, char **argv)
       b = (Z - mz[indz  ])/(mz[indz+1] - mz[indz]);
       z = zmin*exp(dz*(a*indz + b*(indz+1)));
       if (unit()<0.5) z *= -1.0;
+      rr = sqrt(R*R + z*z);
 
-      double u = -vc*sin(phi) + vthermal*norminv(unitN());
-      double v =  vc*cos(phi) + vthermal*norminv(unitN());
+      double sinp = sin(phi), cosp = cos(phi);
+      x = R*cosp;
+      y = R*sinp;
+
+      double u = -vc*sinp + vthermal*norminv(unitN());
+      double v =  vc*cosp + vthermal*norminv(unitN());
       double w =  vthermal*norminv(unitN());
       
       outps << setw(18) << gmass
-	    << setw(18) << r*cos(phi)
-	    << setw(18) << r*sin(phi)
+	    << setw(18) << R*cos(phi)
+	    << setw(18) << R*sin(phi)
 	    << setw(18) << z
 	    << setw(18) << u
 	    << setw(18) << v
@@ -954,10 +968,29 @@ main(int argc, char **argv)
       for (int k=0; k<nparam; k++) outps << setw(18) << 0.0;
       outps << endl;
     
+      if (expandd)
+	expandd->accumulated_eval(R, phi, z, p0, p, fr, fz, fp);
+
+      if (expandh)
+	expandh->determine_fields_at_point(rr, acos(z/(rr+1.0e-8)), 0.0,
+					   &dens, &potl, 
+					   &potr, &pott, &potp);
+      KE += 0.5*gmass*(u*u + v*v + z*z);
+      VC += gmass*(-rr*potr + R*fr + z*fz);
+
       if (!((n+1)%NREPORT)) cout << "\r." << n+1 << flush;
     }
 
-    cout << endl;
+    cout << endl << "Done!" << endl;
+
+    cout << "****************************" << endl
+	 << "  Gas disk" << endl
+	 << "----------------------------" << endl
+	 << "  KE       = " << KE << endl
+	 << "  VC       = " << VC << endl;
+    if (VC<0.0)
+      cout << " -2T/W     = " << -2.0*KE/VC << endl;
+    cout << "****************************" << endl;
   }
 
   //===========================================================================

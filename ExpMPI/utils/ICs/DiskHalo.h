@@ -90,6 +90,9 @@ class DiskHalo
 
   static int LOGSCALE;		// Log DF in SphericalModelTable
 
+  static unsigned NBUF;		// Number of particles in MPI buffer
+				// default: 8192
+
   static int SEED;		// Initial seed
 
   //! Constructor
