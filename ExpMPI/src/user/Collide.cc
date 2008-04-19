@@ -236,7 +236,7 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, double Fn, double tau)
+unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel)
 {
   snglTime.start();
 
@@ -278,16 +278,22 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau)
   list_sizes();
 
 				// Make cellist
-  unsigned ncells = tree.Number();
-  pHOT_iterator c(tree);
-  for (int n=0; n<nthrds; n++) {
-    cellist[n].clear();
-    int nbeg = ncells*(n  )/nthrds;
-    int nend = ncells*(n+1)/nthrds;
-    for (int j=nbeg; j<nend; j++) {
-      c.nextCell();
-      cellist[n].push_back(c.Cell());
-    }
+  for (int n=0; n<nthrds; n++) cellist[n].clear();
+  unsigned ncells = 0;
+  list<pCell*>::iterator ic;
+  for (unsigned M=mlevel; M<=multistep; M++) {
+    if (tree.clevels[M].size())	// Don't queue null cells
+      for (ic=tree.clevels[M].begin(); ic!=tree.clevels[M].end(); ic++) {
+	cellist[(ncells++)%nthrds].push_back(*ic);
+	/*
+	if (static_cast<pCell*>(*ic)->bods.size() == 0)
+	  cout << "Collide: M=" << M << ", tot=" << tree.clevels[M].size()
+	       << ", ptr=" << hex << *ic << dec
+	       << ", bods=" << (*ic)->bods.size()
+	       << ", cells so far=" << ncells
+	       << ", loading a null cell!" << endl;
+	*/
+      }
   }
       
 #ifdef DEBUG

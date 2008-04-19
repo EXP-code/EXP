@@ -39,6 +39,7 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
   parent = 0;
   mykey = 1;
   level = 0;
+  maxplev = 0;
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
@@ -55,6 +56,8 @@ pCell::pCell(pCell* mom, unsigned id) :
   mykey = (parent->mykey << 3) + id;
 				// My level
   level = parent->level + 1;
+				// Maximum particle level
+  maxplev = 0;
 				// My body mask
   mask = mykey << 3*(nbits - level);
 				// Initialize state
@@ -105,7 +108,6 @@ pCell* pCell::Add(const key_pair& keypair)
     }
 
     return parent->Add(keypair);
-
   }
 
   
@@ -116,6 +118,7 @@ pCell* pCell::Add(const key_pair& keypair)
       keys.insert(keypair);
       tree->bodycell[key] = mykey;
       bods.push_back(keypair.second);
+      maxplev = max<int>(maxplev, tree->cc->Particles()[keypair.second].level);
       
       return this;
     }
@@ -146,6 +149,51 @@ pCell* pCell::Add(const key_pair& keypair)
   return children[key2]->Add(keypair);
 }
 
+bool pCell::Remove(const key_pair& keypair)
+{
+  bool ret = false;
+				// Sanity check
+  if (isMine(keypair.first)) {
+				// Remove keypair from cell list
+    keys.erase(keypair);
+				// Remove from body-cell list
+    tree->bodycell.erase(keypair.first);
+				// Remove the key-body entry
+    key_indx::iterator p = 
+      find(tree->keybods.begin(), tree->keybods.end(), keypair);
+    if (p==tree->keybods.end()) {
+      cout << "pCell::error: mising keypair entry in keybods" << endl;
+    } else {
+      tree->keybods.erase(p);
+    }
+				// Remove the index from the cell body list
+    sort(bods.begin(), bods.end());
+    vector<unsigned>::iterator 
+      ib = find(bods.begin(), bods.end(), keypair.second);
+    if (ib!=bods.end()) bods.erase(ib);
+
+    // Remove this cell if it is now empty
+    if (bods.size()==0) {
+      // Find the parent delete the cell from the parent list
+      map<unsigned, pCell*>::iterator ic;
+      for (ic=parent->children.begin(); ic!=parent->children.end(); ic++) {
+	if (ic->second == this) {
+	  parent->children.erase(ic);
+	  break;
+	}
+      }
+      // Remove it from the frontier
+      tree->frontier.erase(mykey);
+      ret = true;
+    }
+  } else {
+    cout << "Process " << myid 
+	 << ": pCell::Remove: body not in my cell!" << endl;
+  }
+
+  return ret;
+}
+
 pCell* pCell::findNode(const key_type& key)
 {
 				// Check that this key belongs to this branch
@@ -173,6 +221,7 @@ pCell* pCell::findNode(const key_type& key)
 				// Look for node amongst children
   return children[key2]->findNode(key);
 }
+ 
 
 void pCell::zeroState()
 {
@@ -357,4 +406,14 @@ Particle* pCell::Body(unsigned k)
 { 
   if (k<0 || k>=bods.size()) return 0;
   return &(tree->cc->Particles()[bods[k]]); 
+}
+
+unsigned pCell::remake_plev()
+{
+  maxplev = 0;
+  vector<unsigned>::iterator it;
+  for (it=bods.begin(); it!=bods.end(); it++) {
+    maxplev = max<unsigned>(maxplev, tree->cc->Particles()[*it].level);
+  }
+  return maxplev;
 }

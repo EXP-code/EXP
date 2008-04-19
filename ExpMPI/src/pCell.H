@@ -67,6 +67,9 @@ public:
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&);
 
+  //! Remove a body
+  bool Remove(const key_pair&);
+
   /**
      Find the cell node in the current frontier that should contain 
      this body and return null if not found
@@ -120,6 +123,9 @@ public:
   void MeanVel(double &x, double &y, double& z);
   void MeanVel(vector<double>& v);
   //@}
+
+  //! Remake the maxplev variable from the particles
+  unsigned remake_plev();
 
   //! Find the cells whose body number is "just" larger than Bucket
   pCell* findSampleCell();

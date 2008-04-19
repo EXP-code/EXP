@@ -64,7 +64,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   if (density) EmpCylSL::DENS = true;
 
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
-
+  
   if (selector) {
     EmpCylSL::SELECT = true;
     ortho->setHall(hallfile, hallfreq);
@@ -74,19 +74,25 @@ Cylinder::Cylinder(string& line) : Basis(line)
 
   
 #ifdef DEBUG
-  cout << endl << "Process " << myid << ": Cylinder parameters: "
-       << " nmax=" << nmax
-       << " lmax=" << lmax
-       << " mmax=" << mmax
-       << " ncylorder=" << ncylorder
-       << " rcylmin=" << rcylmin
-       << " rcylmax=" << rcylmax
-       << " acyl=" << acyl
-       << " hcyl=" << hcyl
-       << " selector=" << selector
-       << " hallfreq=" << hallfreq
-       << " hallfile=" << hallfile
-       << endl << endl;
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      cout << endl << "Process " << myid << ": Cylinder parameters: "
+	   << " nmax=" << nmax
+	   << " lmax=" << lmax
+	   << " mmax=" << mmax
+	   << " ncylorder=" << ncylorder
+	   << " rcylmin=" << rcylmin
+	   << " rcylmax=" << rcylmax
+	   << " acyl=" << acyl
+	   << " hcyl=" << hcyl
+	   << " selector=" << selector
+	   << " hallfreq=" << hallfreq
+	   << " hallfile=" << hallfile
+	   << " logarithmic=" << logarithmic
+	   << endl << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 #else
   if (myid==0) {
     cout << endl << "Cylinder parameters: "
@@ -101,6 +107,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 	 << " selector=" << selector
 	 << " hallfreq=" << hallfreq
 	 << " hallfile=" << hallfile
+	 << " logarithmic=" << logarithmic
 	 << endl << endl;
   }
 #endif
@@ -585,10 +592,11 @@ void Cylinder::determine_acceleration_and_potential(void)
     eof = 0;
   }
 
-  ortho->make_coefficients();
-
-				// Interpolation
-  if (multistep) compute_multistep_coefficients();
+  if (!use_external) {
+    ortho->make_coefficients();
+    // Interpolation
+    if (multistep) compute_multistep_coefficients();
+  }
 
 #ifdef DEBUG
   for (int i=0; i<nthrds; i++) offgrid[i] = 0;

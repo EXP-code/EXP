@@ -392,23 +392,25 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Test repartition
   //
   partnTime.start();
-  {
-    ostringstream sout;
-    sout << "before Repartition [" << nrep << "], " 
-	 << __FILE__ << ": " << __LINE__;
-    c0->Tree()->checkBounds(2.0, sout.str().c_str());
-  }
-
+  if (mlevel==0) {
+    {
+      ostringstream sout;
+      sout << "before Repartition [" << nrep << "], " 
+	   << __FILE__ << ": " << __LINE__;
+      c0->Tree()->checkBounds(2.0, sout.str().c_str());
+    }
+    
 #ifdef RECTIFICATION
-  c0->Tree()->Rectify();	// This is only a test!
+    c0->Tree()->Rectify();	// This is only a test!
 #endif
 
-  c0->Tree()->Repartition();
-  {
-    ostringstream sout;
-    sout << "after Repartition [" << nrep << "], " 
-	 << __FILE__ << ": " << __LINE__;
-    c0->Tree()->checkBounds(2.0, sout.str().c_str());
+    c0->Tree()->Repartition();
+    {
+      ostringstream sout;
+      sout << "after Repartition [" << nrep << "], " 
+	   << __FILE__ << ": " << __LINE__;
+      c0->Tree()->checkBounds(2.0, sout.str().c_str());
+    }
   }
   MPI_Barrier(MPI_COMM_WORLD);
   partnSoFar = partnTime.stop();
@@ -417,7 +419,30 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Sort the particles into cells
   //
   treeTime.start();
-  c0->Tree()->makeTree();
+  if (mlevel==0) {
+    c0->Tree()->makeTree();
+    c0->Tree()->makeCellLevelList();
+  } else {
+    c0->Tree()->adjustTree(mlevel);
+    c0->Tree()->adjustCellLevelList(mlevel);
+  }
+
+  if (0) {
+    cout << "Process " << myid << ": sanity check" << endl;;
+    int cnt=0;
+    for (unsigned M=0; M<=multistep; M++) {
+      if (c0->Tree()->clevels[M].size()) {
+	for (list<pCell*>::iterator it=c0->Tree()->clevels[M].begin();
+	     it!=c0->Tree()->clevels[M].end(); it++) {
+	  cout << hex << (*it) << "/" << &((*it)->bods) << dec 
+	       << ": M=" << M << ", bods=" << (*it)->bods.size() << endl;
+	  if (cnt++>10) break;
+	}
+      }
+      if (cnt>10) break;
+    }
+  }
+
   {
     ostringstream sout;
     sout << "after makeTree [" << nrep << "], " 
@@ -442,7 +467,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
   // unsigned col = 
-  collide->collide(*c0->Tree(), collfrac, tau);
+  collide->collide(*c0->Tree(), collfrac, tau, mlevel);
     
   {
     ostringstream sout;

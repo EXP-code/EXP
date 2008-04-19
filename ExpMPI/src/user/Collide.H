@@ -164,7 +164,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, double Fn, double tau);
+  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_, vector<double>& coll_,

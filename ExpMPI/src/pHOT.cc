@@ -1862,6 +1862,156 @@ void pHOT::Rectify()
   // #endif
 }
 
+void pHOT::makeCellLevelList()
+{
+				// Make new lists
+  clevels = vector< list<pCell*> >(multistep+1);
+
+  unsigned ng=0, nt=0;
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
+    nt++;
+    it->second->remake_plev();
+    if (it->second->maxplev>=0 && it->second->maxplev<=multistep) {
+      clevels[it->second->maxplev].push_back(it->second);
+      if (it->second->bods.size() == 0) {
+	cerr << "Process " << myid 
+	     << ": makeCellLevelList has a broken frontier!\n";
+      } else {
+	ng++;
+      }
+    } else {
+      cout << "Process " << myid << ": makeCellLevelList, level ["
+	   << it->second->maxplev << " out of bounds" << endl;
+    }
+  }
+  if (nt!=ng)
+    cout << "Process " << myid << ": made level list with " << ng
+	 << " good cells out of " << nt << " expected" << endl;
+
+  if (0) {
+    cout << "In makeCellLevelList:" << endl;
+    int cnt=0;
+    for (unsigned M=0; M<=multistep; M++) {
+      if (clevels[M].size()) {
+	for (list<pCell*>::iterator it=clevels[M].begin();
+	     it!=clevels[M].end(); it++) {
+	  cout << hex << (*it) << "/" << &((*it)->bods) << dec 
+	       << ": M=" << M << ", bods=" << (*it)->bods.size() << endl;
+	  if (cnt++>10) break;
+	}
+      }
+      if (cnt>10) break;
+    }
+  }
+}
+
+void pHOT::adjustCellLevelList(unsigned mlevel)
+{
+  if (multistep==0) return;	// No need to bother if multistepping is off
+				// Otherwise . . . 
+  unsigned ng=0, nt=0, ns=0, m, cnt;
+  for (unsigned M=mlevel; M<=multistep; M++) {
+    nt += clevels[M].size();
+    cnt = 0;
+    if (clevels[M].size()>0) {
+      list<pCell*>::iterator it = clevels[M].begin();
+      while (it != clevels[M].end()) {
+	cnt++;
+	if ((*it)->bods.size()) ng++;
+	else {
+	  cout << "Process " << myid
+	       << ": " << cnt << "/" << clevels[M].size()
+	       << " zero!" << endl;
+	}
+	m = (*it)->remake_plev();
+	if (M!=m && m>=mlevel) {
+	  clevels[m].push_back((*it));
+	  clevels[M].erase(it);
+	  ns++;
+	  if ((*it)->bods.size() == 0) {
+	    cerr << "Process " << myid 
+		 << ": adjustCellLevelList has a broken frontier!\n";
+	  } 
+	} else it++;
+      }
+    }
+  }
+
+  if (nt!=ng)
+    cout << "Process " << myid << ": adjusted level list with " << ng
+	 << " good cells out of " << nt << " expected, " << ns
+	 << " cells moved" << endl;
+}
+
+void pHOT::adjustTree(unsigned mlevel)
+{
+  if (!multistep) return;
+
+  MPI_Status s;
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
+
+  // checkBounds(2.0, "BEFORE adjustTree");
+
+  //
+  // Recompute keys
+  //
+  list<pCell*>::iterator it;
+  vector<unsigned>::iterator ib;
+  key_type newkey, oldkey;
+  unsigned inown=0;
+  bool remove_cell;
+
+  for (unsigned M=mlevel; M<=multistep; M++) {
+				// While loops take advantage of iterator logic
+    it=clevels[M].begin();	// and prevent bad iterators after deletion
+    while (it!=clevels[M].end()) {
+      remove_cell = false;	// Initially, cell not queued for deletion
+
+      ib=(*it)->bods.begin();
+      while (ib!=(*it)->bods.end()) {
+	Particle *p = cc->Part(*ib);
+
+	oldkey = p->key;
+	newkey = getKey(&(p->pos[0]));
+
+	if (newkey != oldkey) {
+	  key_pair newpair(newkey, p->indx);
+	  key_pair oldpair(oldkey, p->indx);
+	  //
+	  // Put the particle in a new cell?
+	  //
+	  if ( (*it)->isMine(newkey) ) 
+	    ib++;		// No
+	  else {		// Yes . . .add the new key-index entry
+	    keybods.push_back(newpair);
+	    sort(keybods.begin(), keybods.end());
+				// Add the new pair to the tree
+	    (*it)->Add(newpair);
+				// Remove the old pair from the current cell
+	    if ((*it)->Remove(oldpair)) remove_cell = true;
+	  }
+	  p->key = newkey;	// Assign the new key to the particle
+	}
+      }
+	
+      if (remove_cell) {
+	delete *it;
+	clevels[M].erase(it);
+      }
+      else it++;
+    }
+  }
+  
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // #ifdef DEBUG
+  checkDupes();
+  checkIndices();
+  // #endif
+}
+
 void pHOT::checkDupes()
 {
   MPI_Status s;

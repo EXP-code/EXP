@@ -73,6 +73,7 @@ public:
   void makeTree();
   void Repartition();
   void Rectify();
+  void adjustTree(unsigned);
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
 
@@ -80,6 +81,10 @@ public:
   unsigned Number() { return frontier.size(); }
   unsigned TotalNumber() { return total_cells; }
   unsigned CellCount(double pctl);
+
+  vector< list<pCell*> > clevels;
+  void makeCellLevelList();
+  void adjustCellLevelList(unsigned);
 
   /**
      Density routines
