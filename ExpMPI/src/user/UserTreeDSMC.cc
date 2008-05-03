@@ -105,7 +105,8 @@ void * UserTreeDSMC::timestep_thread(void * arg)
     nbods = pt.nextCell();
     if ( (int)(j%nthrds) == id ) {
       L = pt.Cell()->Scale();
-      for (unsigned i=0; i<nbods; i++) {
+      for (set<unsigned>::iterator i=pt.Cell()->bods.begin(); 
+	   i!=pt.Cell()->bods.end(); i++) {
 				// Time of flight criterion
 	DT = 1.0e40;
 	mscale = 1.0e40;
@@ -348,6 +349,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->Repartition();
     MPI_Barrier(MPI_COMM_WORLD);
     c0->Tree()->makeTree();
+    c0->Tree()->makeCellLevelList();
     c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
 
 #ifdef RECTIFICATION
@@ -356,9 +358,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     stepnum = 0;
     curtime = tnow;
+    llevel = 0;
+    clevel = 0;
 
     firstime = false;
 
+#ifdef DEBUG
+    cout << "Computed partition and tree [firstime]" << endl;
+#endif
   } else {
 
     if (tnow-curtime < 1.0e-14) {
@@ -370,11 +377,21 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     stepnum++;
     curtime = tnow;
+    clevel = llevel;
+    llevel = mlevel;
   }
 
   // DEBUG
   // tree.densCheck();
   
+#ifdef DEBUG
+  if (c0->Tree()->checkParticles()) {
+    cout << "After init only: Particle check ok [" << clevel << "]" << endl;
+  } else {
+    cout << "After init only: Particle check FAILED [" << clevel << "]" << endl;
+  }
+#endif
+
   //
   // Compute time step
   //
@@ -411,6 +428,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << __FILE__ << ": " << __LINE__;
       c0->Tree()->checkBounds(2.0, sout.str().c_str());
     }
+
+#ifdef DEBUG
+    cout << "Computed partition and tree [" << mlevel << "]" << endl;
+#endif
   }
   MPI_Barrier(MPI_COMM_WORLD);
   partnSoFar = partnTime.stop();
@@ -422,9 +443,26 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (mlevel==0) {
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
+#ifdef DEBUG
+    cout << "Made tree and level list [" << mlevel << "]" << endl;
+    if (c0->Tree()->checkParticles()) {
+      cout << "Particle check on new tree ok [" << mlevel << "]" << endl;
+    } else {
+      cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
+    }
+#endif
   } else {
-    c0->Tree()->adjustTree(mlevel);
-    c0->Tree()->adjustCellLevelList(mlevel);
+#ifdef DEBUG
+    cout << "About to adjust tree [" << clevel << "]" << endl;
+#endif
+    c0->Tree()->adjustTree(clevel);
+#ifdef DEBUG
+    cout << "About to adjust level list [" << clevel << "]" << endl;
+#endif
+    c0->Tree()->adjustCellLevelList(clevel);
+#ifdef DEBUG
+    cout << "Adjusted tree and level list [" << clevel << "]" << endl;
+#endif
   }
 
   if (0) {
@@ -432,7 +470,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     int cnt=0;
     for (unsigned M=0; M<=multistep; M++) {
       if (c0->Tree()->clevels[M].size()) {
-	for (list<pCell*>::iterator it=c0->Tree()->clevels[M].begin();
+	for (set<pCell*>::iterator it=c0->Tree()->clevels[M].begin();
 	     it!=c0->Tree()->clevels[M].end(); it++) {
 	  cout << hex << (*it) << "/" << &((*it)->bods) << dec 
 	       << ": M=" << M << ", bods=" << (*it)->bods.size() << endl;
@@ -624,10 +662,27 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 
   }
+
+#ifdef DEBUG
+  if (c0->Tree()->checkParticles()) {
+    cout << "Before level list: Particle check ok [" << clevel << "]" << endl;
+  } else {
+    cout << "Before level list: Particle check FAILED [" << clevel << "]" << endl;
+  }
+#endif
+
 				// Remake level lists because particles
 				// will (usually) have been exchanged 
 				// between nodes
   c0->reset_level_lists();
+
+#ifdef DEBUG
+  if (c0->Tree()->checkParticles()) {
+    cout << "After level list: Particle check ok [" << clevel << "]" << endl;
+  } else {
+    cout << "After level list: Particle check FAILED [" << clevel << "]" << endl;
+  }
+#endif
 
 				// Debugging disk
 				//
@@ -647,7 +702,7 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
   pHOT_iterator c(*c0->Tree());
 
   for (unsigned n=0; n<c0->Tree()->Number(); n++) {
-    unsigned tnum = c.nextCell();
+    c.nextCell();
     double r2 = 0.0;
 
     c.Cell()->MeanPos(p);
@@ -658,11 +713,12 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
       ostr << runtag << ".testcell." << myid << "." << cnt++;
       ofstream out(ostr.str().c_str());
 
-      for (unsigned j=0; j<tnum; j++) {
+      for (set<unsigned>::iterator j=c.Cell()->bods.begin();
+	   j!=c.Cell()->bods.end(); j++) {
 	for (unsigned k=0; k<3; k++) 
-	  out << setw(18) << c0->Tree()->Body(c.Cell()->bods[j])->pos[k];
+	  out << setw(18) << c0->Tree()->Body(*j)->pos[k];
 	for (unsigned k=0; k<3; k++) 
-	  out << setw(18) << c0->Tree()->Body(c.Cell()->bods[j])->vel[k];
+	  out << setw(18) << c0->Tree()->Body(*j)->vel[k];
 	out << endl;
       }
     }

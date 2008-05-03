@@ -59,11 +59,20 @@ struct Partstruct;
 
 typedef unsigned long long key_type;
 typedef pair<unsigned long long, unsigned> key_pair;
+typedef pair<unsigned long long, unsigned long long> key_item;
 
-typedef vector< pair<unsigned long long, unsigned> > key_indx;
+				// Use a multimap because a single key may
+				//  point to multiple particles in principle
+typedef multimap<unsigned long long, unsigned> key_indx;
+				// Cell key points to cell pointer
 typedef hash_map<unsigned long long, pCell*, hashULL, eqULL> key_cell;
-typedef hash_map<unsigned long long, unsigned long long, hashULL, eqULL> key_key;
+				// Particle key points to cell key
+				// multimap permits multiple identical pairs
+typedef multimap<unsigned long long, unsigned long long> key_key;
+				// Particle index points to particle key
 typedef hash_map<unsigned, unsigned long long, hash<unsigned> > indx_key;
+				// Cell keeps a list of key/index pairs 
+				// for its particles
 typedef hash_set< pair<unsigned long long, unsigned> , hashPAIR, eqPAIR> key_set;
 
 

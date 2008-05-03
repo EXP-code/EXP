@@ -280,7 +280,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel)
 				// Make cellist
   for (int n=0; n<nthrds; n++) cellist[n].clear();
   unsigned ncells = 0;
-  list<pCell*>::iterator ic;
+  set<pCell*>::iterator ic;
   for (unsigned M=mlevel; M<=multistep; M++) {
     if (tree.clevels[M].size())	// Don't queue null cells
       for (ic=tree.clevels[M].begin(); ic!=tree.clevels[M].end(); ic++) {
@@ -428,6 +428,12 @@ void * Collide::collide_thread(void * arg)
     unsigned number = c->bods.size();
     numcntT[id].push_back(number);
 
+    // Nbody list
+    //
+    vector<unsigned> bodx;
+    set<unsigned>::iterator ib = c->bods.begin();
+    for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) bodx.push_back(*ib);
+
     // Skip cells with only one particle
     //
     if( number < 2 ) {
@@ -536,6 +542,7 @@ void * Collide::collide_thread(void * arg)
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
     
+
 				// No collisions, primarily for testing . . .
     if (DRYRUN) continue;
 
@@ -557,8 +564,8 @@ void * Collide::collide_thread(void * arg)
 	//
 	unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
 	unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
-	Particle* p1 = tree->Body(c->bods[k1]); // First particle
-	Particle* p2 = tree->Body(c->bods[k2]); // Second particle
+	Particle* p1 = tree->Body(bodx[k1]); // First particle
+	Particle* p2 = tree->Body(bodx[k2]); // Second particle
 	
 	// Calculate pair's relative speed (pre-collision)
 	//
@@ -650,7 +657,7 @@ void * Collide::collide_thread(void * arg)
     double tmass = 0.0;
     vector<double> velm(3, 0.0), velm2(3, 0.0);
     for (unsigned j=0; j<number; j++) {
-      Particle* p = tree->Body(c->bods[j]);
+      Particle* p = tree->Body(bodx[j]);
       for (unsigned k=0; k<3; k++) {
 	velm[k]  += p->mass*p->vel[k];
 	velm2[k] += p->mass*p->vel[k]*p->vel[k];
@@ -678,7 +685,7 @@ void * Collide::collide_thread(void * arg)
 	if (use_exes>=0) {
 	  double dE = (decelT[id] - coolrate[id])/mass;
 	  for (unsigned j=0; j<number; j++) {
-	    Particle* p = tree->Body(c->bods[j]);
+	    Particle* p = tree->Body(bodx[j]);
 	    if (use_exes<static_cast<int>(p->dattrib.size())) {
 	      p->dattrib[use_exes] += dE*p->mass;
 	    }
@@ -987,9 +994,12 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   vector<double> mvel(3, 0.0), disp(3, 0.0);
   double mass = 0.0;
   double Exes = 0.0;
+  set<unsigned>::iterator ib;
   unsigned nbods = cell->bods.size();
-  for (unsigned j=0; j<nbods; j++) {
-    Particle* p = tree->Body(cell->bods[j]);
+  vector<unsigned> bodx;
+  for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+    Particle* p = tree->Body(*ib);
+    bodx.push_back(*ib);
     for (unsigned k=0; k<3; k++) {
       mvel[k] += p->mass*p->vel[k];
       disp[k] += p->mass*p->vel[k]*p->vel[k];
@@ -1054,8 +1064,8 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     const double sqrt3 = sqrt(3.0);
 
     if (nbods==2) {
-      Particle* p1 = tree->Body(cell->bods[0]);
-      Particle* p2 = tree->Body(cell->bods[1]);
+      Particle* p1 = tree->Body(bodx[0]);
+      Particle* p2 = tree->Body(bodx[1]);
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
 	if ((*unit)()>0.5)
@@ -1066,9 +1076,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       }
 
     } else if (nbods==3) {
-      Particle* p1 = tree->Body(cell->bods[0]);
-      Particle* p2 = tree->Body(cell->bods[1]);
-      Particle* p3 = tree->Body(cell->bods[2]);
+      Particle* p1 = tree->Body(bodx[0]);
+      Particle* p2 = tree->Body(bodx[1]);
+      Particle* p3 = tree->Body(bodx[2]);
       double v2, v3;
       for (unsigned k=0; k<3; k++) {
 	T = 2.0*M_PI*(*unit)();
@@ -1079,10 +1089,10 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	p3->vel[k] = p2->vel[k] + M_SQRT2*v3;
       }
     } else if (nbods==4) {
-      Particle* p1 = tree->Body(cell->bods[0]);
-      Particle* p2 = tree->Body(cell->bods[1]);
-      Particle* p3 = tree->Body(cell->bods[2]);
-      Particle* p4 = tree->Body(cell->bods[3]);
+      Particle* p1 = tree->Body(bodx[0]);
+      Particle* p2 = tree->Body(bodx[1]);
+      Particle* p3 = tree->Body(bodx[2]);
+      Particle* p4 = tree->Body(bodx[3]);
       double v2, v3, e2, e4, v4;
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
@@ -1128,8 +1138,8 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	v[1] = sqrt(2.0*e[1])*cos(T);
 	v[2] = sqrt(2.0*e[1])*sin(T);
 
-	P00 = tree->Body(cell->bods[0]);
-	Pp1 = tree->Body(cell->bods[1]);
+	P00 = tree->Body(bodx[0]);
+	Pp1 = tree->Body(bodx[1]);
 
 	P00->vel[k] = mvel[k] - sqrt(nbods-1)*v[1]/sqrt(nbods);
 	Pp1->vel[k] = P00->vel[k] + (sqrt(nbods)*v[1] - sqrt(nbods-2)*v[2])/sqrt(nbods-1);
@@ -1138,9 +1148,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	for (int j=4; j<kmax-1; j+=2) {
 	  jj = j-1;
 
-	  Pm1 = tree->Body(cell->bods[jj-2]);
-	  P00 = tree->Body(cell->bods[jj-1]);
-	  Pp1 = tree->Body(cell->bods[jj  ]);
+	  Pm1 = tree->Body(bodx[jj-2]);
+	  P00 = tree->Body(bodx[jj-1]);
+	  Pp1 = tree->Body(bodx[jj  ]);
 
 	  prod *= Tk[j/2-2];
 	  e[jj] = mdisp*mdisp*(1.0 - Tk[j/2-1])*prod;
@@ -1165,15 +1175,15 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	  v[nbods-2] = sqrt(2.0*e[kmax-1])*cos(T);
 	  v[nbods-1] = sqrt(2.0*e[kmax-1])*sin(T);
 
-	  Pm1 = tree->Body(cell->bods[nbods-4]);
-	  P00 = tree->Body(cell->bods[nbods-3]);
+	  Pm1 = tree->Body(bodx[nbods-4]);
+	  P00 = tree->Body(bodx[nbods-3]);
 
 	  P00->vel[k] = Pm1->vel[k] + (2.0*v[nbods-3] - M_SQRT2*v[nbods-2])/sqrt3;
 	}
 
-	Pm1 = tree->Body(cell->bods[nbods-3]);
-	P00 = tree->Body(cell->bods[nbods-2]);
-	Pp1 = tree->Body(cell->bods[nbods-1]);
+	Pm1 = tree->Body(bodx[nbods-3]);
+	P00 = tree->Body(bodx[nbods-2]);
+	Pp1 = tree->Body(bodx[nbods-1]);
 
 	P00->vel[k] = Pm1->vel[k] + (sqrt3*v[nbods-2] - v[nbods-1])/M_SQRT2;
 	Pp1->vel[k] = P00->vel[k] + M_SQRT2*v[nbods-1];
@@ -1189,7 +1199,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     vector<double> Tmvel(3, 0.0);
     vector<double> Tdisp(3, 0.0);
     for (unsigned j=0; j<nbods; j++) {
-      Particle* p = tree->Body(cell->bods[j]);
+      Particle* p = tree->Body(bodx[j]);
       for (unsigned k=0; k<3; k++) {
 	p->vel[k] = mdisp*(*norm)();
 	Tmvel[k] += p->mass*p->vel[k];
@@ -1217,7 +1227,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Enforce energy and momentum conservation
 				// 
     for (unsigned j=0; j<nbods; j++) {
-      Particle* p = tree->Body(cell->bods[j]);
+      Particle* p = tree->Body(bodx[j]);
       for (unsigned k=0; k<3; k++)
 	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*mdisp/Tmdisp;
     }

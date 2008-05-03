@@ -165,23 +165,23 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   if (use_exes>=0) {
     double Excess = 0.0;
-    unsigned nbods = cell->bods.size();
-    for (unsigned n=0; n<nbods; n++) {
-      Particle* p = cell->Body(n);
+    set<unsigned>::iterator ib;
+    for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+      Particle* p = cell->Body(ib);
       if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
 	Excess += p->dattrib[use_exes];
     }
 
     if (coolrate[id]-Excess > 0.0) {
       coolrate[id] -= Excess;
-      for (unsigned n=0; n<nbods; n++) {
-	Particle* p = cell->Body(n);
+      for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+	Particle* p = cell->Body(ib);
 	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
 	  p->dattrib[use_exes] = 0;
       }
     } else {
-      for (unsigned n=0; n<nbods; n++) {
-	Particle* p = cell->Body(n);
+      for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+	Particle* p = cell->Body(ib);
 	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
 	  p->dattrib[use_exes] *= (Excess - coolrate[id])/Excess;
       }
@@ -207,13 +207,13 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   if (use_temp>=0 || use_dens>=0) {
     
-    unsigned nbods = cell->bods.size();
-    for (unsigned j=0; j<nbods; j++) {
-      if (cell->bods[j] == 0) {
+    set<unsigned>::iterator j = cell->bods.begin();
+    while (j != cell->bods.end()) {
+      if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
 	     << " ptr=" << hex << cell << dec
-	     << " j=" << j << " indx=" << cell->bods[j] 
-	     << "/" << cell->bods.size() << endl;
+	     << " indx=" << *j << "/" << cell->bods.size() << endl;
+	j++;
 	continue;
       }
 
@@ -222,6 +222,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 	cell->Body(j)->dattrib[use_temp] = T;
       if (use_dens>=0 && use_dens<sz) 
 	cell->Body(j)->dattrib[use_dens] = mass/volume;
+      j++;
     }
   }
 
@@ -239,12 +240,12 @@ void CollideLTE::initialize_cell(pCell* cell,
     tcoolT[id][indx]++;
 
 				// Assign per body time step requests
-    unsigned nbods = cell->bods.size();
-    for (unsigned j=0; j<nbods; j++) {
-      if (cell->bods[j] == 0) {
+    set<unsigned>::iterator j;
+    for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
+      if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
 	     << " ptr=" << hex << cell << dec
-	     << " j=" << j << " indx=" << cell->bods[j] 
+	     << " indx=" << *j
 	     << "/" << cell->bods.size() << endl;
 	continue;
       }

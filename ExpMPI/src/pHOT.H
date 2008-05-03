@@ -82,7 +82,8 @@ public:
   unsigned TotalNumber() { return total_cells; }
   unsigned CellCount(double pctl);
 
-  vector< list<pCell*> > clevels;
+  map<pCell*, unsigned> clevlst;
+  vector< set<pCell*> > clevels;
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
 
@@ -108,8 +109,11 @@ public:
   */
   //@{
   bool checkKeybods();
+  bool checkBodycell();
+  bool checkParticles(bool pc=true);
+  bool checkDupes();
+  bool checkFrontier();
   void checkIndices();
-  void checkDupes();
   void dumpFrontier();
   void densEmit(unsigned lev, pCell *p);
   void densCheck();
@@ -152,17 +156,27 @@ public:
   { 
     if (first) first = false;
     else       fit++;
+    if (fit==tr->frontier.end()) {
+      cout << "End of cell list!" << endl;
+      return 0;
+    }
     return fit->second->bods.size(); 
   }
 
-  pCell* Cell() { return fit->second; }
+  pCell* Cell() { 
+    if (fit==tr->frontier.end()) {
+      cout << "No cell!" << endl;
+      return 0;
+    }
+    return fit->second; 
+  }
 
   double Volume() { return volume/((key_type)1 << (3*fit->second->level)); }
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }
 
-  Particle *Body(unsigned k) { return fit->second->Body(k); }
+  Particle *Body(set<unsigned>::iterator k) { return fit->second->Body(k); }
 
 };
 

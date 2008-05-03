@@ -75,6 +75,7 @@ private:
   vector<double> quant, mfp_, ts_, coll_, nsel_, rate_;
 
   unsigned stepnum;
+  unsigned llevel, clevel;
   double curtime;
 
   CollideLTE *collide;

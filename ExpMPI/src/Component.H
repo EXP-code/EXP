@@ -489,6 +489,7 @@ public:
 
   //! Access to particle
   Particle *Part(unsigned long i) {
+    if (particles.find(i) == particles.end()) return 0;
     return &particles[i];
   }
 

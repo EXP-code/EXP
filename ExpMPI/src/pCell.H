@@ -2,6 +2,7 @@
 #define _pCell_H
 
 #include <vector>
+#include <set>
 #include <map>
 
 #include "pHOT_types.H"
@@ -37,7 +38,6 @@ public:
   int owner;
   key_type mykey;
   key_type mask;
-  double volume;
   unsigned level;
   unsigned count;
   unsigned maxplev;
@@ -62,13 +62,14 @@ public:
   bool isLeaf;
   
   key_set keys;
-  vector<unsigned> bods;
+  set<unsigned> bods;
 
   //! Add a body, return the current frontier node
-  pCell* Add(const key_pair&);
+  pCell* Add(const key_pair&, set<pCell*>* create=0, set<pCell*>* remove=0,
+	     set<pCell*>* recomp=0);
 
   //! Remove a body
-  bool Remove(const key_pair&);
+  bool Remove(const key_pair&, set<pCell*>* recomp);
 
   /**
      Find the cell node in the current frontier that should contain 
@@ -82,6 +83,9 @@ public:
     if (sig!=0) return false;
     return true;
   }
+
+  //! Update keys list
+  void UpdateKeys(const key_pair& oldpair, const key_pair& newpair);
 
   //! Recursively zero the tree's state vector
   void zeroState();
@@ -133,11 +137,8 @@ public:
   //! Return number of bodies in Sample Cell
   unsigned SampleBodyNumber() { return sample->bods.size(); }
 
-  //! Return bodies from Sample Cell
-  Particle* SampleBody(unsigned int k);
-
   //! Return bodies from this cell
-  Particle* Body(unsigned int k);
+  Particle* Body(set<unsigned>::iterator k);
 
 };
 
