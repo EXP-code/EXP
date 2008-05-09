@@ -2012,11 +2012,10 @@ void pHOT::adjustTree(unsigned mlevel)
   key_type newkey, oldkey;
   list<key_type> oldp;
   list<key_type>::iterator ip;
-  bool delcel;
   pCell* c;
 
   // 
-  // Make body list for this level
+  // Make body list from frontier cells for this level
   //
   for (unsigned M=mlevel; M<=multistep; M++) {
     for (set<pCell*>::iterator it=clevels[M].begin(); it!=clevels[M].end(); it++) {
@@ -2047,7 +2046,10 @@ void pHOT::adjustTree(unsigned mlevel)
     // Get this particle's cell
     //
 
-    // DEBUG
+    // DEBUG sanity check
+    //
+    // Look for keys . . .
+    //
     if (bodycell.find(oldkey) == bodycell.end()) {
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find cell for particle"
@@ -2058,6 +2060,8 @@ void pHOT::adjustTree(unsigned mlevel)
       checkBodycell();
 #endif
     }
+    // Look for cell in frontier . . .
+    //
     if (frontier.find(bodycell.find(oldkey)->second) == frontier.end()) {
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find expected cell"
@@ -2072,7 +2076,7 @@ void pHOT::adjustTree(unsigned mlevel)
     // END DEBUG
     
     //
-    // Find this particle's cell
+    // Find this particle's previous cell assignment
     //
     c = frontier[bodycell.find(oldkey)->second];
     
@@ -2084,6 +2088,9 @@ void pHOT::adjustTree(unsigned mlevel)
     }    
 #endif
 
+    //
+    // Is the key the same?
+    //
     if (newkey != oldkey) {
 				// Key pairs
       key_pair newpair(newkey, p->indx);
@@ -2096,17 +2103,18 @@ void pHOT::adjustTree(unsigned mlevel)
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": body cell check FAILED before removal!" << endl;
-	}    
+	}
 #endif
 				// Remove the old pair from the current cell
+				// (only transactions added are sample cells)
 	if (c->Remove(oldpair, &change)) {
 				// queue for removal from level lists
 	  change.push_back(cell_indx(c, REMOVE));
 				// queue for deletion
 	  change.push_back(cell_indx(c, KILL));
 	}
-				// Add the new pair to the tree unless it's
-				// out of bounds
+				// Add the new pair to the tree 
+				// (unless it's out of bounds)
 	if (newkey != 0) {
 	  keybods.insert(newpair);
 	  c->Add(newpair, &change);
@@ -2127,7 +2135,8 @@ void pHOT::adjustTree(unsigned mlevel)
 	       << hex << newkey << ", index=" << dec << p->indx << endl;
 	}
 #endif
-      } else {			// Update body cell index for the new key
+      } else {			// Same cell: update body cell index 
+				// for the new key
 	key_key::iterator ij = bodycell.find(oldkey);
 	// DEBUG
 	if (ij == bodycell.end()) {

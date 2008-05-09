@@ -46,7 +46,7 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 bin_PROGRAMS = exp
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lpthread -ldl -lg2c -lm
+SYS_LIBS = -lpthread -ldl -lgfortran -lm
 MPI_LIBS = -lmpi
 
 LIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS)
