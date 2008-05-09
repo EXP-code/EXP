@@ -160,12 +160,12 @@ extern "C" {
   }
 }
 
-class proxyhalo { 
+class proxyrotate { 
 public:
-  proxyhalo()
+  proxyrotate()
   {
     factory["userrotation"] = makerRotation;
   }
 };
 
-proxyhalo p;
+proxyrotate p;

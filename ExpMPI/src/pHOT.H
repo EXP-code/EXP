@@ -46,8 +46,9 @@ protected:
   //! For debugging
   key_type key_min, key_max;
 
-  unsigned min_cell, max_cell;
+  unsigned min_cell, max_cell, adjcnt;
   vector<unsigned> chist;
+  change_list change;
 
   ACG *gen;
   Uniform *unit;
@@ -82,6 +83,7 @@ public:
   unsigned TotalNumber() { return total_cells; }
   unsigned CellCount(double pctl);
 
+  enum ChangeFlag {CREATE, REMOVE, KILL, RECOMP};
   map<pCell*, unsigned> clevlst;
   vector< set<pCell*> > clevels;
   void makeCellLevelList();

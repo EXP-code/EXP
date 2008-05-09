@@ -58,14 +58,14 @@ key_type pHOT::getKey(double *p)
 {
   // Out of bounds?
   //
-  if (false) {			// Set to true for check
-    for (unsigned k=0; k<3; k++) { 
-      if (fabs((p[k]+offset[k])/sides[k])> 1.0) {
-	cout << "Coordinate out of pbounds in pHOT::key: ";
-	for (int l=0; l<3; l++) cout << setw(18) << p[l];
-	cout << endl;
-	return 0;
-      }
+  for (unsigned k=0; k<3; k++) { 
+    if (fabs((p[k]+offset[k])/sides[k])> 1.0) {
+#ifdef DEBUG
+      cout << "Coordinate out of pbounds in pHOT::key: ";
+      for (int l=0; l<3; l++) cout << setw(18) << p[l];
+      cout << endl;
+#endif
+      return 0;
     }
   }
 
@@ -120,6 +120,7 @@ void pHOT::makeTree()
   // 
   frontier.clear();
   bodycell.clear();
+  adjcnt = 0;
 
   delete root;
 
@@ -235,6 +236,12 @@ void pHOT::makeTree()
 	}
 	tailKey = bodycell.find(it->first)->second;
 				// Number of bodies in my tail cell
+	// Debug: check for key in frontier
+	if (frontier.find(tailKey) == frontier.end()) {
+	  cout << "Process " << myid << ": tailKey=" 
+	       << tailKey << dec << " not in frontier!" << endl;
+	}
+	//
 	tail_num = frontier[tailKey]->bods.size();
       } else {
 	tailKey = 0;
@@ -265,7 +272,7 @@ void pHOT::makeTree()
 
 				// Send the previous node my head value
 				// to compare with its tail
-    if (myid==n) {
+  if (myid==n) {
 
       if (keybods.size()) {
 
@@ -279,6 +286,12 @@ void pHOT::makeTree()
 	}
 	headKey = bodycell.find(keybods.begin()->first)->second;
 				// Number of bodies in my head cell
+	// Debug: check for key in frontier
+	if (frontier.find(headKey) == frontier.end()) {
+	  cout << "Process " << myid << ": headKey=" 
+	       << headKey << dec << " not in frontier!" << endl;
+	}
+	//
 	head_num = frontier[headKey]->bods.size();
       } else {
 	headKey = 0;
@@ -823,6 +836,13 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     // Delete this cell from the parent
     p->parent->children.erase(p->mykey & 0x7);
 	
+    // DEBUG
+    if (frontier.find(p->mykey)==frontier.end()) {
+        cout << "Process " << myid << ": in pHOT:sendCell: "
+	     << " key not on frontier as expected" << endl;
+    }
+    // END
+
     // Delete this cell from the frontier
     frontier.erase(p->mykey);
 
@@ -1265,7 +1285,6 @@ void pHOT::Repartition()
   vector<key_type> keys, kbeg(numprocs), kfin(numprocs);
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
-    keys.push_back(it->second.key);
     if (it->second.key == 0) {
       cout << "pHOT::Repartition [" << myid << "]: out of bounds,"
 	   << " indx=" << setw(12) << it->second.indx
@@ -1276,6 +1295,8 @@ void pHOT::Repartition()
       for (int k=0; k<3; k++)
 	cout << setw(18) << it->second.vel[k];
       cout << endl;
+    } else {
+      keys.push_back(it->second.key);
     }
   }
   partitionKeys(keys, kbeg, kfin);
@@ -1966,22 +1987,28 @@ void pHOT::adjustTree(unsigned mlevel)
   if (!multistep) return;
 
 #ifdef DEBUG
-  if (!checkParticles()) {
-    cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	 << ": initial particle check FAILED!" << endl;
+  if (!checkKeybods()) {
+    cout << "Process " << myid 
+	 << ": adjustTree: ERROR particle key not in keybods BEFORE adjustTree(), T=" 
+	 << tnow << endl;
   }
-  if (checkBodycell()) {
-    cout << "pHOT::adjustTree: mlevel=" << mlevel 
-	 << ": initial body cell check OK!" << endl;
-  } else {    
-    cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	 << ": initial body cell check FAILED!" << endl;
+#endif
+
+  adjcnt++;			// For debug labeling only . . .
+
+#ifdef DEBUG
+  if (!checkParticles()) {
+    cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
+	 << mlevel << ": initial particle check FAILED!" << endl;
+  }
+  if (!checkBodycell()) {
+    cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
+	 << mlevel << ": initial body cell check FAILED!" << endl;
   }    
 #endif
 
   MPI_Barrier(MPI_COMM_WORLD);
 
-  set<pCell*> create, remove, kill, recomp;
   key_type newkey, oldkey;
   list<key_type> oldp;
   list<key_type>::iterator ip;
@@ -2002,14 +2029,13 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   // Update body by body using the list without regard to level
   //
-  unsigned pcnt=0;
   for (ip=oldp.begin(); ip!=oldp.end(); ip++) {
 
     Particle *p = cc->Part(*ip);
     if (p==0) {			// Sanity check
-      cout << "pHOT::adjustTree: ERROR crazy particle index!" << endl;
+      cout << "Process " << myid 
+	   << ": pHOT::adjustTree: ERROR crazy particle index!" << endl;
     }
-    pcnt++;
 
     //
     // Get and recompute keys
@@ -2020,17 +2046,31 @@ void pHOT::adjustTree(unsigned mlevel)
     //
     // Get this particle's cell
     //
-#ifdef DEBUG			// Sanity check
+
+    // DEBUG
     if (bodycell.find(oldkey) == bodycell.end()) {
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find cell for particle"
 	   << " key=" << hex << oldkey << ", index=" << dec << p->indx
 	   << " pnumber=" << cc->Number() << " bodycell=" << bodycell.size() 
 	   << endl;
-
+#ifdef DEBUG
       checkBodycell();
-    }
 #endif
+    }
+    if (frontier.find(bodycell.find(oldkey)->second) == frontier.end()) {
+      cout << "Process " << myid 
+	   << ": pHOT::adjustTree: ERROR could not find expected cell"
+	   << " on frontier, count=" << adjcnt << hex
+	   << " oldbody=" << oldkey 
+	   << " newbody=" << newkey 
+	   << " cell="    << bodycell.find(oldkey)->second << dec
+	   << " index="   << p->indx 
+	   << endl;
+      continue;
+    }
+    // END DEBUG
+    
     //
     // Find this particle's cell
     //
@@ -2038,7 +2078,8 @@ void pHOT::adjustTree(unsigned mlevel)
     
 #ifdef DEBUG
     if (!checkBodycell()) {
-      cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
+      cout << "Process " << myid 
+	   << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	   << ": body cell check FAILED before key check!" << endl;
     }    
 #endif
@@ -2052,47 +2093,60 @@ void pHOT::adjustTree(unsigned mlevel)
       if ( !(c->isMine(newkey)) ) {
 #ifdef DEBUG
 	if (!checkBodycell()) {
-	  cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": body cell check FAILED before removal!" << endl;
 	}    
 #endif
 				// Remove the old pair from the current cell
-	if (c->Remove(oldpair, &recomp)) {
-	  remove.insert(c);	// queue for removal from level lists
-	  kill.insert(c);	// queue for deletion
+	if (c->Remove(oldpair, &change)) {
+				// queue for removal from level lists
+	  change.push_back(cell_indx(c, REMOVE));
+				// queue for deletion
+	  change.push_back(cell_indx(c, KILL));
 	}
-				// Add the new pair to the tree
-	keybods.insert(newpair);
-	c->Add(newpair, &create, &remove, &recomp);
+				// Add the new pair to the tree unless it's
+				// out of bounds
+	if (newkey != 0) {
+	  keybods.insert(newpair);
+	  c->Add(newpair, &change);
+	}
 
 	p->key = newkey;	// Assign the new key to the particle
 #ifdef DEBUG
 	if (!checkBodycell()) {
-	  cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": body cell check FAILED after removal and add!" << endl;
 	}    
 				// Sanity check: is this particle
 				// *now* on the body/cell list?
-	if (bodycell.find(newkey) == bodycell.end()) {
-	  cout << "pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
+	if (newkey && bodycell.find(newkey) == bodycell.end()) {
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
 	       << hex << newkey << ", index=" << dec << p->indx << endl;
 	}
 #endif
       } else {			// Update body cell index for the new key
 	key_key::iterator ij = bodycell.find(oldkey);
-#ifdef DEBUG			// Sanity check
+	// DEBUG
 	if (ij == bodycell.end()) {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR could not find cell for"
 	       << " key=" << hex << oldkey << ", index=" << dec << p->indx
 	       << endl;
 	}
-#endif
+	// END DEBUG
 	if (ij != bodycell.end()) bodycell.erase(ij);
 	bodycell.insert(key_item(newkey, c->mykey));
 				// Update key list
 	c->UpdateKeys(oldpair, newpair);
 				// Update key body index for the new key
+	/*
+	key_indx::iterator ik = 
+	  lower_bound(tree->keybods.begin(), tree->keybods.end(), 
+		      oldpair, ltPAIR());
+	*/
 	key_indx::iterator ik = keybods.lower_bound(oldkey);
 	bool found = false;
 	while (ik->first == oldkey) {
@@ -2106,13 +2160,17 @@ void pHOT::adjustTree(unsigned mlevel)
 	
 	p->key = newkey;	// Assign the new key to the particle
 
-#ifdef DEBUG
+	// DEBUG
 	if (!found) {
-	  cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": could not find keybods entry" << endl;
 	}
+	// END DEBUG
+#ifdef DEBUG
 	if (!checkBodycell()) {
-	  cout << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
+	  cout << "Process " << myid 
+	       << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": body cell check FAILED after key update!" << endl;
 	}    
 #endif
@@ -2122,82 +2180,100 @@ void pHOT::adjustTree(unsigned mlevel)
     
   }
   
+#define DEBUG
   
   // Create, remove and delete changed cells
   // ---------------------------------------
   // Need to do the creates first in case that cells enter and exit
   // the frontier during the Add() step
   //
-  if (create.size()) {
-    for (set<pCell*>::iterator it=create.begin(); it!=create.end(); it++) {
-      unsigned m = max<unsigned>((*it)->maxplev, mlevel);
-      clevlst[*it] = m;
-      clevels[m].insert(*it);
-    }
-  }
+  for (list<cell_indx>::iterator 
+	 it=change.begin(); it!=change.end(); it++) {
+      
+    pCell *c = it->first;	// This is the cell pointer
 
-
-  if (remove.size()) {
-    for (set<pCell*>::iterator it=remove.begin(); it!=remove.end(); it++) {
-#ifdef DEBUG
-      if (clevlst.find(*it) == clevlst.end()) {
-	cout << "pHOT::adjustTree: cell=" << hex << *it 
-	     << dec << " not in level list";
-	if (frontier.find((*it)->mykey) == frontier.end())
-	  cout << " and gone from frontier";
-	else
-	  cout << " but is in frontier";
-	cout << endl;
-	continue;
+    switch(it->second) {	// Add this one to the active lists
+    case CREATE:
+      {
+	unsigned m = max<unsigned>(c->maxplev, mlevel);
+	clevlst[c] = m;
+	clevels[m].insert(c);
       }
-#endif
-      unsigned m = clevlst[*it];
-      clevlst.erase(*it);
+      break;
+
+    case REMOVE:		// Remove this cell from the active list
+      {
 #ifdef DEBUG
-      if (clevels[m].find(*it) == clevels[m].end()) {
-	cout << "pHOT::adjustTree: cell=" << hex << *it 
-	     << dec << " not in level " << m << endl;
-      }
+	if (clevlst.find(c) == clevlst.end()) {
+	  cout << "pHOT::adjustTree: cell=" << hex << c
+	       << dec << " not in level list";
+	  if (frontier.find(c->mykey) == frontier.end())
+	    cout << " and gone from frontier";
+	  else
+	    cout << " but is in frontier";
+	  cout << endl;
+	  continue;
+	}
 #endif
-      clevels[m].erase(*it);
+	unsigned m = clevlst[c];
+	clevlst.erase(c);
+#ifdef DEBUG
+	if (clevels[m].find(c) == clevels[m].end()) {
+	  cout << "pHOT::adjustTree: cell=" << hex << c
+	       << dec << " not in level " << m << endl;
+	}
+#endif
+	clevels[m].erase(c);
+      }
+      break;
+
+    case KILL:			// Delete the cell
+      delete c;
+      break;
+
+    case RECOMP:		// Find the sample cell
+      c->findSampleCell();
+      break;
+
+    default:
+      cout << "Process " << myid << ": unknown action in pHOT::adjustTree()!!"
+	   << endl;
     }
   }
 
-  if (kill.size()) {
-    for (set<pCell*>::iterator it=kill.begin(); it!=kill.end(); it++) {
-      delete *it;
-    }
-  }
+#undef DEBUG
 
-  if (recomp.size()) {
-    for (set<pCell*>::iterator it=recomp.begin(); it!=recomp.end(); it++) {
-      if (frontier.find((*it)->mykey) != frontier.end())
-	(*it)->findSampleCell();
-    }
-  }
+  change.clear();		// Reset the change list for next time
   
   MPI_Barrier(MPI_COMM_WORLD);
 
 #ifdef DEBUG
-  if (checkBodycell()) {
-    cout << "adjustTree: mlevel=" << mlevel 
-	 << " completed: body cell check OK!" << endl;
-  } else {
-    cout << "adjustTree: ERROR mlevel=" << mlevel 
+  if (!checkBodycell()) {
+    cout << "Process " << myid << ": "
+	 << "adjustTree: ERROR mlevel=" << mlevel 
 	 << " completed: body cell check FAILED!" << endl;
   }    
   if (!checkParticles()) {
-    cout << "adjustTree: ERROR mlevel=" << mlevel 
+    cout << "Process " << myid << ": "
+	 << "adjustTree: ERROR mlevel=" << mlevel 
 	 << " completed: initial particle check FAILED!" << endl;
   }    
   if (!checkFrontier()) {
-    cout << "adjustTree: ERROR mlevel=" << mlevel
+    cout << "Process " << myid << ": "
+	 << "adjustTree: ERROR mlevel=" << mlevel
 	 << ": frontier check FAILED!" << endl;
   }
-  
+
   checkDupes();
   checkIndices();
+
+  if (!checkKeybods()) {
+    cout << "Process " << myid 
+	 << ": adjustTree: ERROR particle key not in keybods AFTER adjustTree(), T=" 
+	 << tnow << endl;
+  }
 #endif
+  
 }
 
 
@@ -2379,7 +2455,8 @@ void pHOT::checkIndices()
     //
     for (unsigned n=1; n<=indices.size(); n++) {
       if (n!=indices[n-1]) {
-	cout << "pHOT::checkIndices ERROR: found=" << indices[n-1] 
+	cout << "Process " << myid << ": "
+	     << "pHOT::checkIndices ERROR: found=" << indices[n-1] 
 	     << " expected " << n
 	     << " total=" << indices.size() 
 	     << " time=" << tnow
@@ -2391,7 +2468,8 @@ void pHOT::checkIndices()
     // Check the total body count
     //
     if (indices.size() != cc->nbodies_tot)
-      cout << "pHOT::checkIndices ERROR: time=" << tnow
+      cout << "Process " << myid << ": "
+	   << "pHOT::checkIndices ERROR: time=" << tnow
 	   << " index count=" << indices.size() 
 	   << " body count=" << cc->nbodies_tot << endl;
   }
@@ -2404,11 +2482,25 @@ bool pHOT::checkKeybods()
   map<unsigned long, Particle>::iterator n = cc->Particles().begin();
   for (; n!=cc->Particles().end(); n++) {
     key_indx::iterator it = keybods.lower_bound(n->second.key);
-    if (it==keybods.end()) {
+
+    bool found = false;
+    if (it==keybods.end()) found = false;
+    else {
+      while (it->first == n->second.key) {
+	if (it->second == n->second.indx) {
+	  found = true;
+	  break;
+	}
+	it++;
+      }
+    }
+
+    if (!found) { 
       ok = false;
       cnt++;
     }
   }
+  
 #ifdef DEBUG
   if (cnt) {
     cout << "Process " << myid << ": checkKeybods: " 

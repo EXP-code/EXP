@@ -60,6 +60,10 @@ struct Partstruct;
 typedef unsigned long long key_type;
 typedef pair<unsigned long long, unsigned> key_pair;
 typedef pair<unsigned long long, unsigned long long> key_item;
+typedef pair<pCell*, unsigned> cell_indx;
+
+				// For cell transaction list
+typedef list<cell_indx> change_list;
 
 				// Use a multimap because a single key may
 				//  point to multiple particles in principle

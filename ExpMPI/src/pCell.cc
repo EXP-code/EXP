@@ -48,6 +48,11 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
   state = vector<double>(10, 0.0);
 
   tree->frontier[mykey] = this;	// Root is born on the frontier
+  // DEBUG
+  if (this==0) {
+    cout << "pCell::pCell: I am null [root]" << endl;
+  }
+  //
 }
 
 pCell::pCell(pCell* mom, unsigned id) : 
@@ -69,6 +74,11 @@ pCell::pCell(pCell* mom, unsigned id) :
   sample = 0;
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
+  // DEBUG
+  if (this==0) {
+    cout << "pCell::pCell: I am null [branch/node]" << endl;
+  }
+  //
 }
 
 pCell::~pCell()
@@ -86,11 +96,7 @@ unsigned pCell::childId(key_type key)
 }
 
 
-pCell* pCell::Add(const key_pair& keypair,
-		  set<pCell*>* create,
-		  set<pCell*>* remove,
-		  set<pCell*>* recomp
-		  )
+pCell* pCell::Add(const key_pair& keypair, change_list* change)
 {
   key_type key=keypair.first, key2;
 
@@ -116,7 +122,7 @@ pCell* pCell::Add(const key_pair& keypair,
       }
     }
 
-    return parent->Add(keypair, create, remove, recomp);
+    return parent->Add(keypair, change);
   }
   
   if (isLeaf && keys.find(keypair)==keys.end()) {
@@ -127,7 +133,7 @@ pCell* pCell::Add(const key_pair& keypair,
       tree->bodycell.insert(key_item(key, mykey));
       bods.insert(keypair.second);
 				// Flag to recompute sample cell
-      if (recomp) recomp->insert(this);
+      if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
       maxplev = max<int>(maxplev, tree->cc->Particles()[keypair.second].level);
       
       return this;
@@ -138,19 +144,19 @@ pCell* pCell::Add(const key_pair& keypair,
       key2 = childId(n->first);
       if (children.find(key2) == children.end()) {
 	children[key2] = new pCell(this, key2);
-	if (create) create->insert(children[key2]);
+	if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
       }
       
       key_key::iterator ik = tree->bodycell.find(n->first);
       if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
-      children[key2]->Add(*n, create, remove, recomp);
+      children[key2]->Add(*n, change);
     }
 				// Erase my list
     keys.clear();
     bods.clear();
 				// Erase my key from the frontier
     tree->frontier.erase(mykey);
-    if (remove) remove->insert(this);
+    if (change) change->push_back(cell_indx(this, pHOT::REMOVE));
 				// I'm a branch now . . .
     isLeaf = false;
   }
@@ -159,10 +165,10 @@ pCell* pCell::Add(const key_pair& keypair,
   key2 = childId(key);
   if (children.find(key2) == children.end()) {
     children[key2] = new pCell(this, key2);
-    if (create) create->insert(children[key2]);
+    if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
   }
 
-  return children[key2]->Add(keypair, create, remove, recomp);
+  return children[key2]->Add(keypair, change);
 }
   
 
@@ -173,7 +179,7 @@ void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
   keys.insert(newpair);
 }
 
-bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
+bool pCell::Remove(const key_pair& keypair, change_list* change)
 {
   bool ret = false;
 				// Sanity check
@@ -181,7 +187,9 @@ bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
 				// Remove keypair from cell list
 #ifdef DEBUG
     if (keys.find(keypair) == keys.end()) {
-      cout << "pCell::Remove: ERROR finding keypair in cell's list" << endl;
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR finding keypair in cell's list" << endl;
+      return ret;
     }
 #endif
     keys.erase(keypair);
@@ -189,20 +197,34 @@ bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
     key_key::iterator ik = tree->bodycell.find(keypair.first);
 #ifdef DEBUG
     if (ik == tree->bodycell.end()) {
-      cout << "pCell::Remove: ERROR finding key in bodycell" << endl;
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR finding key in bodycell" << endl;
+      return ret;
     }
 #endif
     if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
 				// Remove the key-body entry
+    /*
     key_indx::iterator p = 
       lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, ltPAIR());
+    */
+    key_indx::iterator p = tree->keybods.lower_bound(keypair.first);
+
 #ifdef DEBUG
     if (p==tree->keybods.end()) {
-      cout << "pCell::Remove: ERROR missing keypair entry in keybods" << endl;
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR missing keypair entry in keybods [1]" << endl;
+      return ret;
+    }
+    if (p->first != keypair.first) {
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR missing keypair entry in keybods [2]" << endl;
+      return ret;
     }
 #endif
-    bool found = false;
+    bool found = false, kfound = false;
     while (p->first == keypair.first) {
+      kfound = true;
       if (p->second == keypair.second) {
 	tree->keybods.erase(p);
 	found = true;
@@ -212,7 +234,12 @@ bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
     }
 #ifdef DEBUG
     if (!found) {
-      cout << "pCell::Remove: ERROR pair was NOT removed from keybods" << endl;
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR pair was NOT removed from keybods";
+      if (kfound)
+	cout << " but key was found" << endl;
+      else
+	cout << " and key was NOT found" << endl;
     }
 #endif
 				// Remove the index from the cell body list
@@ -220,7 +247,9 @@ bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
     if (ib!=bods.end()) bods.erase(ib);
 #ifdef DEBUG
     else {
-      cout << "pCell::Remove: ERROR missing index in bods" << endl;
+      cout << "Process " << myid << ": "
+	   << "pCell::Remove: ERROR missing index in bods" << endl;
+      return ret;
     }
 #endif
 
@@ -249,7 +278,7 @@ bool pCell::Remove(const key_pair& keypair, set<pCell*>* recomp)
 // 	   << bods.size() << endl;
 #endif
       ret = true;
-    } else recomp->insert(this);
+    } else change->push_back(cell_indx(this, pHOT::RECOMP));
     
   } else {
     cout << "Process " << myid 
@@ -328,6 +357,14 @@ void pCell::accumState(unsigned _count, vector<double>& _state)
 void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 		 vector<double>& st)
 {
+  if (key==0) {
+    curcnt = 0;
+    lev    = 0;
+    for (vector<double>::iterator s=st.begin(); s!=st.end(); s++) *s = 0;
+    return;
+  }
+    
+
   // Check to see if this key belongs to one of the children
   //
   key_type cid = key - mask;

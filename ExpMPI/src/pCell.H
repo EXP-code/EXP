@@ -2,6 +2,7 @@
 #define _pCell_H
 
 #include <vector>
+#include <list>
 #include <set>
 #include <map>
 
@@ -65,11 +66,10 @@ public:
   set<unsigned> bods;
 
   //! Add a body, return the current frontier node
-  pCell* Add(const key_pair&, set<pCell*>* create=0, set<pCell*>* remove=0,
-	     set<pCell*>* recomp=0);
+  pCell* Add(const key_pair&, change_list* change=0);
 
   //! Remove a body
-  bool Remove(const key_pair&, set<pCell*>* recomp);
+  bool Remove(const key_pair&, change_list* change=0);
 
   /**
      Find the cell node in the current frontier that should contain 
