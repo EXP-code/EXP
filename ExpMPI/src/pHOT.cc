@@ -423,8 +423,6 @@ void pHOT::densCheck()
     }
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
   if (myid==0) {
     cout << endl << "Density check " << setw(60) << setfill('=') << '='
 	 << setfill(' ') << endl;
@@ -936,7 +934,6 @@ void pHOT::State(double *x, double& dens, double& temp,
   MPI_Reduce(&stt1[0], &stt0[0], numprocs*5, MPI_DOUBLE,   MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
-  MPI_Barrier(MPI_COMM_WORLD);
 
   // Compute the state variables for the "deepest" cell(s)
   //
@@ -976,8 +973,6 @@ void pHOT::State(double *x, double& dens, double& temp,
     }
 
   }
-
-  MPI_Barrier(MPI_COMM_WORLD);
 
 }
 
@@ -1270,8 +1265,6 @@ void pHOT::Repartition()
   MPI_Status s;
   map<unsigned long, Particle>::iterator it;
   
-  MPI_Barrier(MPI_COMM_WORLD);
-
   volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
 
 
@@ -1308,8 +1301,6 @@ void pHOT::Repartition()
   for (unsigned i=0; i<numprocs; i++) 
     loclist[i] = kbeg[i];
   loclist[numprocs] = kfin[numprocs-1];	// End point for binary search
-
-  MPI_Barrier(MPI_COMM_WORLD);
 
   vector<unsigned> sndlist1(numprocs*numprocs, 0);
   vector<unsigned> sendlist(numprocs*numprocs);
@@ -1515,8 +1506,6 @@ void pHOT::Repartition()
 
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
   if (false) {
     checkIndices();
     if (!checkKeybods())
@@ -1530,7 +1519,6 @@ void pHOT::Rectify()
   MPI_Status s;
   map<unsigned long, Particle>::iterator it;
   
-  MPI_Barrier(MPI_COMM_WORLD);
 
   volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
 
@@ -1606,8 +1594,6 @@ void pHOT::Rectify()
     }
   }
   
-  MPI_Barrier(MPI_COMM_WORLD);
-
   //
   // Accumulate global list by broadcast
   //
@@ -1884,8 +1870,6 @@ void pHOT::Rectify()
 
   }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef DEBUG
   checkParticles();
   checkDupes();
@@ -2006,8 +1990,6 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << mlevel << ": initial body cell check FAILED!" << endl;
   }    
 #endif
-
-  MPI_Barrier(MPI_COMM_WORLD);
 
   key_type newkey, oldkey;
   list<key_type> oldp;
@@ -2254,8 +2236,6 @@ void pHOT::adjustTree(unsigned mlevel)
 
   change.clear();		// Reset the change list for next time
   
-  MPI_Barrier(MPI_COMM_WORLD);
-
 #ifdef DEBUG
   if (!checkBodycell()) {
     cout << "Process " << myid << ": "

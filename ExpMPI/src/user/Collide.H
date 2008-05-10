@@ -50,12 +50,13 @@ private:
 
   thrd_pass_Collide *td;
   pthread_t *t;
-  Timer forkTime, snglTime, waitTime, joinTime;
-  TimeElapsed forkSoFar, snglSoFar, waitSoFar, joinSoFar;
+  Timer forkTime, snglTime, waitTime, joinTime, diagTime;
+  TimeElapsed forkSoFar, snglSoFar, waitSoFar;
+  TimeElapsed diagSoFar, joinSoFar;
 
-  vector<Timer> collTime;
+  vector<Timer> collTime, elasTime;
   vector<int> collCnt;
-  vector<TimeElapsed> collSoFar;
+  vector<TimeElapsed> collSoFar, elasSoFar;
 
   ACG *gen;
   Uniform *unit;
@@ -164,7 +165,8 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0);
+  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0, 
+		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_, vector<double>& coll_,
@@ -178,18 +180,43 @@ public:
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);
 
+  /// Debug timing routines
+  //@{
+  double dgnoscTime() { diagTime.reset(); return diagSoFar()*1.0e-6; }
   double threadTime() { forkTime.reset(); return forkSoFar()*1.0e-6; }
   double joinedTime() { snglTime.reset(); return snglSoFar()*1.0e-6; }
   double waitngTime() { waitTime.reset(); return waitSoFar()*1.0e-6; }
   double joinngTime() { joinTime.reset(); return joinSoFar()*1.0e-6; }
+  //@}
 
-  void colldeTime() { 
+  void colldeTime(ostream& out) { 
+    out << "-----------------------------------------------------" << endl;
+    out << "-----Collide timing----------------------------------" << endl;
+    out << "-----------------------------------------------------" << endl;
+    out << left
+	<< setw(18) << "Thread time"  << setw(18) << threadTime() << endl
+	<< setw(18) << "Joined time"  << setw(18) << joinedTime() << endl
+	<< setw(18) << "Waiting time" << setw(18) << waitngTime() << endl
+	<< setw(18) << "Join time"    << setw(18) << joinngTime() << endl
+	<< setw(18) << "Diag time"    << setw(18) << dgnoscTime() << endl
+	<< endl;
+
+    out << left << setw(10) << "Thread#"
+	<< setw(16) << "Collide tot"
+	<< setw(16) << "Inelastic"
+	<< setw(16) << "Cell count"
+	<< endl;
+
     for (int n=0; n<nthrds; n++) {
-      cout << "   " << setw(3) << n << setw(18)
-	   << collSoFar[n]()*1.0e-6 << setw(10) << collCnt[n] << endl;
+      out << setw(10) << n 
+	  << setw(16) << collSoFar[n]()*1.0e-6 
+	  << setw(16) << elasSoFar[n]()*1.0e-6 
+	  << setw(10) << collCnt[n] << endl;
       collTime[n].reset(); 
+      elasTime[n].reset(); 
       collCnt[n] = 0;
     }
+    out << "-----------------------------------------------------" << endl;
   }
 
   void tsdiag(ostream& out) {
@@ -211,6 +238,7 @@ public:
       if (use_delt>=0) tcool[k] = 0;
     }
     out << "-----------------------------------------------------" << endl;
+    out << left;
   }
 
 };

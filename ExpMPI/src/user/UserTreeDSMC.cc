@@ -248,7 +248,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collideTime.Microseconds();
 
   //
-  // Quantiles for distribution diagnostic
+  // Quantiles for distribution diagnstic
   //
   quant.push_back(0.01);
   quant.push_back(0.05);
@@ -335,6 +335,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   static bool firstime = true;
   static unsigned nrep = 0;
 
+  bool diagstep = (nsteps>1 && stepnum%nsteps == 0);
+  diagstep = false;
+
   //
   // Only compute DSMC when passed the fiducial component
   //
@@ -347,10 +350,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   if (firstime) {
     c0->Tree()->Repartition();
-    MPI_Barrier(MPI_COMM_WORLD);
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
+#ifdef DEBUG
     c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
+#endif
 
 #ifdef RECTIFICATION
     c0->Tree()->Rectify();	// This is only a test!
@@ -381,8 +385,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     llevel = mlevel;
   }
 
-  // DEBUG
-  // tree.densCheck();
+#ifdef DEBUG
+  tree.densCheck();
+#endif
   
 #ifdef DEBUG
   if (c0->Tree()->checkParticles()) {
@@ -410,7 +415,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   partnTime.start();
   if (mlevel==0) {
-    {
+    if (0) {
       ostringstream sout;
       sout << "before Repartition [" << nrep << "], " 
 	   << __FILE__ << ": " << __LINE__;
@@ -422,7 +427,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
 
     c0->Tree()->Repartition();
-    {
+    if (0) {
       ostringstream sout;
       sout << "after Repartition [" << nrep << "], " 
 	   << __FILE__ << ": " << __LINE__;
@@ -433,7 +438,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     cout << "Computed partition and tree [" << mlevel << "]" << endl;
 #endif
   }
-  MPI_Barrier(MPI_COMM_WORLD);
   partnSoFar = partnTime.stop();
   
   //
@@ -481,7 +485,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
   }
 
-  {
+  if (0) {
     ostringstream sout;
     sout << "after makeTree [" << nrep << "], " 
 	 << __FILE__ << ": " << __LINE__;
@@ -497,7 +501,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   collideTime.start();
 
-  {
+  if (0) {
     ostringstream sout;
     sout << "before Collide [" << nrep << "], " 
 	 << __FILE__ << ": " << __LINE__;
@@ -505,9 +509,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
   // unsigned col = 
-  collide->collide(*c0->Tree(), collfrac, tau, mlevel);
+  collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
-  {
+  if (0) {
     ostringstream sout;
     sout << "after Collide [" << nrep << "], " 
 	 << __FILE__ << ": " << __LINE__;
@@ -520,8 +524,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Periodically display the current progress
   //
   //
-  if(nsteps>1 && stepnum%nsteps == 0 ) {
-    
+  if (diagstep) {
 				// Uncomment for debug
     // collide->Debug(tnow);
 
@@ -599,6 +602,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setprecision(2) << fixed 
 	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl;
 
+      collide->colldeTime(mout);
+
+
       if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total 
 		       << "EPSM particles ("
 		       << 100.0*epsm_total/c0->nbodies_tot << "%)" 
@@ -648,7 +654,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
-      mout << "Timing (secs):" << endl
+      mout << "Timing (secs) at mlevel=" << mlevel << ":" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "       tree=" << treeSoFar()*1.0e-6 << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl
