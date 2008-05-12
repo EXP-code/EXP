@@ -335,8 +335,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   static bool firstime = true;
   static unsigned nrep = 0;
 
-  bool diagstep = (nsteps>1 && stepnum%nsteps == 0);
-  diagstep = false;
+  //
+  // Only run diagnostis every nsteps
+  //
+  bool diagstep = (nsteps>0 && stepnum%nsteps == 0);
 
   //
   // Only compute DSMC when passed the fiducial component
@@ -349,7 +351,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
-    c0->Tree()->Repartition();
+    c0->Tree()->Repartition(); nrep++;
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
@@ -426,7 +428,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->Rectify();	// This is only a test!
 #endif
 
-    c0->Tree()->Repartition();
+    c0->Tree()->Repartition(); nrep++;
     if (0) {
       ostringstream sout;
       sout << "after Repartition [" << nrep << "], " 
@@ -581,10 +583,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (myid==0) {
 
-      unsigned coll_total = collide->total()/nsteps;
-      unsigned coll_error = collide->errors()/nsteps;
-      unsigned epsm_total = collide->EPSMtotal()/nsteps;
-      unsigned epsm_cells = collide->EPSMcells()/nsteps;
+      unsigned coll_total = collide->total();
+      unsigned coll_error = collide->errors();
+      unsigned epsm_total = collide->EPSMtotal();
+      unsigned epsm_cells = collide->EPSMcells();
 
       vector<double> disp;
       collide->dispersion(disp);
