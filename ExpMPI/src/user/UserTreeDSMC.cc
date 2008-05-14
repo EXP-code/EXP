@@ -336,11 +336,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   static unsigned nrep = 0;
 
   //
-  // Only run diagnostis every nsteps
-  //
-  bool diagstep = (nsteps>0 && stepnum%nsteps == 0);
-
-  //
   // Only compute DSMC when passed the fiducial component
   //
 
@@ -398,6 +393,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     cout << "After init only: Particle check FAILED [" << clevel << "]" << endl;
   }
 #endif
+
+  //
+  // Only run diagnostis every nsteps
+  //
+  bool diagstep = (nsteps>0 && stepnum%nsteps == 0);
 
   //
   // Compute time step

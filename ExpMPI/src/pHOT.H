@@ -111,6 +111,7 @@ public:
   */
   //@{
   bool checkKeybods();
+  bool checkPartKeybods(unsigned mlev);
   bool checkBodycell();
   bool checkParticles(bool pc=true);
   bool checkDupes();

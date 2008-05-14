@@ -30,6 +30,7 @@ private:
   list<void *> dl_list;		// list to hold handles for dynamic libs 
   list<void *>::iterator itr; 
   void dynamicload(void);
+  vector<string> getlibs(void);
 
   void bomb(string& msg);
 

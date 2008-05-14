@@ -140,7 +140,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     }
     
 				// I need to make leaves and become a branch
-    for (key_set::iterator n=keys.begin(); n!=keys.end(); n++) {
+    for (key_indx::iterator n=keys.begin(); n!=keys.end(); n++) {
       key2 = childId(n->first);
       if (children.find(key2) == children.end()) {
 	children[key2] = new pCell(this, key2);
@@ -174,7 +174,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 
 void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
 {
-  key_set::iterator it=keys.find(oldpair);
+  key_indx::iterator it=keys.find(oldpair);
   if (it != keys.end()) keys.erase(it);
   keys.insert(newpair);
 }
@@ -204,44 +204,16 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
 #endif
     if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
 				// Remove the key-body entry
-    /*
-    key_indx::iterator p = 
-      lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, ltPAIR());
-    */
-    key_indx::iterator p = tree->keybods.lower_bound(keypair.first);
-
+    key_indx::iterator p = tree->keybods.find(keypair);
 #ifdef DEBUG
     if (p==tree->keybods.end()) {
       cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR missing keypair entry in keybods [1]" << endl;
-      return ret;
-    }
-    if (p->first != keypair.first) {
-      cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR missing keypair entry in keybods [2]" << endl;
+	   << "pCell::Remove: ERROR missing keypair entry in keybods" << endl;
       return ret;
     }
 #endif
-    bool found = false, kfound = false;
-    while (p->first == keypair.first) {
-      kfound = true;
-      if (p->second == keypair.second) {
-	tree->keybods.erase(p);
-	found = true;
-	break;
-      }
-      p++;
-    }
-#ifdef DEBUG
-    if (!found) {
-      cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR pair was NOT removed from keybods";
-      if (kfound)
-	cout << " but key was found" << endl;
-      else
-	cout << " and key was NOT found" << endl;
-    }
-#endif
+    if (p!=tree->keybods.end()) tree->keybods.erase(p);
+    
 				// Remove the index from the cell body list
     set<unsigned>::iterator ib = bods.find(keypair.second);
     if (ib!=bods.end()) bods.erase(ib);
@@ -272,13 +244,9 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
       }
       // Remove me from the frontier
       tree->frontier.erase(mykey);
-#ifdef DEBUG
-//       cout << "pCell::Remove: cell=" << hex << this 
-// 	   << ", erased key=" << mykey << dec << " bods="
-// 	   << bods.size() << endl;
-#endif
       ret = true;
-    } else change->push_back(cell_indx(this, pHOT::RECOMP));
+    } 
+    else change->push_back(cell_indx(this, pHOT::RECOMP));
     
   } else {
     cout << "Process " << myid 

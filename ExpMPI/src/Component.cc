@@ -211,11 +211,11 @@ void Component::reset_level_lists()
   for (int i=0; i<nthrds; i++) {
     for (int n=0; n<=multistep; n++) {
       levlist[n].insert(levlist[n].end(),
-		td[i].newlist[n].begin(), 
-		td[i].newlist[n].end());
+			td[i].newlist[n].begin(), 
+			td[i].newlist[n].end());
     }
   }
-
+  
 #ifdef LEVCHECK
 				// Level creation check
   for (int n=0; n<numprocs; n++) {
@@ -1182,7 +1182,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     int icount;
     for (int n=1; n<numprocs; n++) {
 
-      cout << "Loading node <" << n << ">\n";
+      cout << "Component [" << name << "]: loading node <" << n << ">\n";
 
       pf.ShipParticles(n, 0, nbodies_table[n]);
 
@@ -1430,7 +1430,9 @@ struct Particle * Component::get_particles(int* number)
 
     if (counter > nbodies_tot) {
       if (seq_state_ok)
+#ifdef DEBUG
 	cout << "get_particles [" << name << "]: GOOD sequence!" << endl;
+#endif
       else
 	cout << "get_particles [" << name << "]: sequence ERROR!" << endl;
     }

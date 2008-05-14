@@ -364,7 +364,7 @@ void initialize_multistep()
     }
   }
 
-  if (VERBOSE>0 && myid==0 && multistep) {
+  if (VERBOSE>10 && myid==0 && multistep) {
     cout << setw(70) << setfill('-') << '-' << endl
 	 << setw(70) << left << "--- Multistep level control structure " << endl
 	 << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;

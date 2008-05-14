@@ -62,7 +62,7 @@ public:
   map<unsigned, pCell*> children;
   bool isLeaf;
   
-  key_set keys;
+  key_indx keys;
   set<unsigned> bods;
 
   //! Add a body, return the current frontier node

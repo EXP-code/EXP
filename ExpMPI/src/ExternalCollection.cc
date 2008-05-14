@@ -1,7 +1,8 @@
 #include "expand.h"
 
+#include <dirent.h>
 #include <dlfcn.h> 
-#include <stdio.h> 
+#include <stdlib.h> 
 #include <unistd.h> 
 
 #include <iostream> 
@@ -104,57 +105,62 @@ ExternalCollection::~ExternalCollection(void)
 
 }
 
+
+vector<string> ExternalCollection::getlibs(void)
+{
+  vector<string> ret;
+  struct dirent **namelist;
+
+  int n = scandir(ldlibdir.c_str(), &namelist, 0, alphasort);
+  if (n < 0)
+    perror("scandir");
+  else {
+    for (int i=0; i<n; i++) {
+      char *s = namelist[i]->d_name;
+      unsigned sz = strlen(s);
+      if (sz>3) {
+	if (strncmp(s, "lib", 3) ==0 && 
+	    strncmp(&s[sz-3], ".so", 3)==0  ) 
+	  ret.push_back(namelist[i]->d_name);
+      }
+      free(namelist[i]);
+    }
+    free(namelist);
+  }
+  
+  return ret;
+}
+
 void ExternalCollection::dynamicload(void)
 {
-  // size of buffer for reading in directory entries 
-  const unsigned int BUF_SIZE = 1024;
-
-				// command
-  string command;
-  command = "cd " + ldlibdir + "; ls *.so";
-
-				// string to get dynamic lib names
-  char in_buf[BUF_SIZE];	// input buffer for lib
-  
-
-				// get the names of all the dynamic libs (.so 
-				// files) in the current dir 
-  FILE *dl = popen(command.c_str(), "r");
-  if(!dl) {
-    perror("popen");
-    exit(-1);
-  }
- 
 #ifdef DEBUG
   ostringstream ostr;
   ostr << "extcoll.log." << myid;
   ofstream tout(ostr.str().c_str());
-  tout << "Process " << myid << ": opened <" << command << ">" << endl;
 #endif
 
   if (myid==0) cout << "ExternalCollection:" << endl
 		    << setw(71) << setfill('-') << "-" << endl
 		    <<  "Loaded user libraries <";
   void *dlib; 
-  char name[1024];
   bool first = true
 ;
   for (int i=0; i<numprocs; i++) {
-    if (i==myid) {		// Put dlopen in a loop with an barrier to prevent swamping 
-				// slow NFS servers that plague some compute clusters
-      while(fgets(in_buf, BUF_SIZE, dl)) {
-				// trim off the whitespace 
-	char *ws = strpbrk(in_buf, " \t\n"); 
-	if (ws) *ws = '\0';
-	// preappend ldlibdir to the front of 
-				// the lib name
-	sprintf(name, "%s/%s", ldlibdir.c_str(), in_buf); 
-
+    // Put dlopen in a loop with an barrier to prevent swamping 
+    // slow NFS servers that plague some compute clusters    
+    if (i==myid) {		
+      // get the names of all the dynamic libs (.so files)
+      vector<string> liblist = getlibs();
+      vector<string>::iterator s = liblist.begin();
+      while (s != liblist.end()) {
+	// preappend ldlibdir to the front of the lib name
+	ostringstream name;
+	name << ldlibdir << "/" << *s;
 #ifdef DEBUG
-	tout << "Process " << myid << ": call dlopen on <" << name << ">" << endl;
+	tout << "Process " << myid << ": call dlopen on <" 
+	     << name.str() << ">" << endl;
 #endif
-
-	dlib = dlopen(name, RTLD_NOW | RTLD_GLOBAL);
+	dlib = dlopen(name.str().c_str(), RTLD_NOW | RTLD_GLOBAL);
 	if(dlib == NULL) {
 	  cerr << dlerror() << endl; 
 	  exit(-1);
@@ -162,13 +168,14 @@ void ExternalCollection::dynamicload(void)
 
 	if (myid==0) {
 	  if (first) {
-	    cout << in_buf;
+	    cout << *s;
 	    first = false;
 	  } else 
-	    cout << " " << in_buf;
+	    cout << " " << *s;
 	}
 				// add the handle to our list
 	dl_list.insert(dl_list.end(), dlib);
+	s++;
       }
     }
     MPI_Barrier(MPI_COMM_WORLD);

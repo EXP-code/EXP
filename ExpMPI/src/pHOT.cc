@@ -798,31 +798,27 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 
   pf.ShipParticles(to, myid, num);
 
-  key_type tkey;
+  key_pair tpair;
   set<unsigned>::iterator ib = p->bods.begin();
   for (unsigned j=0; j<num; j++) {
 
     pf.SendParticle(cc->particles[*ib]);
     
 				// Find the record and delete it
-    tkey = cc->particles[*ib].key;
-    key_indx::iterator it = keybods.lower_bound(tkey);
+    tpair.first  = cc->particles[*ib].key;
+    tpair.second = cc->particles[*ib].indx;
+    key_indx::iterator it = keybods.find(tpair);
 
-    bool testme = false;
-    while (it->first == tkey) {
-      if (it->second == *ib) {
-	keybods.erase(it);
-	cc->particles.erase(*ib);
+    if (it != keybods.end()) {
+				// Remove the key from the cell list
+      key_key::iterator ij = bodycell.find(it->first);
+      if (ij != bodycell.end()) bodycell.erase(ij);
+      cc->particles.erase(*ib);
+      keybods.erase(it);
 #ifdef DEBUG
-	erased.push_back(*ib);
+      erased.push_back(*ib);
 #endif
-	testme = true;
-	break;
-      }
-      it++;
-    }
-
-    if (!testme) {
+    } else {
       cerr << "Process " << myid << ": error! " << endl;
     }
     ib++;
@@ -887,8 +883,9 @@ void pHOT::recvCell(int from, unsigned num)
 	   << hex << part.key << endl << dec;
     }
     if (part.indx==0) cout << "pHOT::recvCell bad particle indx=0!" << endl;
-    keybods.insert(pair<key_type, unsigned>(part.key, part.indx));
-    p = p->Add(pair<key_type, unsigned>(part.key, part.indx));
+    key_pair tpair(part.key, part.indx);
+    keybods.insert(tpair);
+    p = p->Add(tpair);
   }
 
   cc->nbodies = cc->particles.size();
@@ -1473,7 +1470,7 @@ void pHOT::Repartition()
       continue;
     }
     if (n->second.indx==0) cout << "pHOT::Repartition bad particle indx=0!" << endl;
-    keybods.insert(pair<key_type, unsigned>(n->second.key, n->second.indx));
+    keybods.insert(key_pair(n->second.key, n->second.indx));
   }
 
   // checkBounds(2.0, "AFTER repartition");
@@ -1558,20 +1555,15 @@ void pHOT::Rectify()
 	if (c2) {		// It IS in our tree, add the body
 	  c2->bods.insert(it->first);
 	  bodycell.insert(key_item(newkey, c2->mykey));
-	  keybods.insert(pair<key_type, unsigned>(newkey, it->first));
+	  keybods.insert(key_pair(newkey, it->first));
 	  inown++;
 	} else {		// It is NOT in our tree
 	  changelist.push_back(it->first);
 	} 
 				// Remove the key from the index list
-	key_indx::iterator kb = keybods.lower_bound(it->second.key);
-	while (kb->first == it->second.key) {
-	  if (kb->second == it->second.indx) {
-	    keybods.erase(kb);
-	    break;
-	  }
-	  kb++;
-	}
+	key_indx::iterator kb = keybods.find(key_pair(it->second.key, it->second.indx));
+	if (kb != keybods.end()) keybods.erase(kb);
+
 				// Remove the key from the cell list
 	key_key::iterator ij = bodycell.find(it->first);
 	if (ij != bodycell.end()) bodycell.erase(ij);
@@ -1604,7 +1596,7 @@ void pHOT::Rectify()
   vector<unsigned short> checkme, checkme0;
   unsigned cnt;
   
-  for (int n=0; n<numprocs; n++) {
+for (int n=0; n<numprocs; n++) {
     if (n==myid) cnt=changelist.size();
     MPI_Bcast(&cnt, 1, MPI_UNSIGNED, n, MPI_COMM_WORLD);
     if (cnt) {
@@ -1969,6 +1961,13 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 void pHOT::adjustTree(unsigned mlevel)
 {
   if (!multistep) return;
+  
+  if (!checkPartKeybods(mlevel)) {
+    cout << "Process " << myid 
+	 << ": adjustTree: ERROR particle/keybods BEFORE adjustTree(), T=" 
+	 << tnow << " mlevel=" << mlevel << endl;
+  }
+    
 
 #ifdef DEBUG
   if (!checkKeybods()) {
@@ -1991,10 +1990,10 @@ void pHOT::adjustTree(unsigned mlevel)
   }    
 #endif
 
-  key_type newkey, oldkey;
-  list<key_type> oldp;
-  list<key_type>::iterator ip;
   pCell* c;
+  key_type newkey, oldkey;
+  list<key_type>::iterator ip;
+  list<key_type> oldp;
 
   // 
   // Make body list from frontier cells for this level
@@ -2133,31 +2132,18 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Update key list
 	c->UpdateKeys(oldpair, newpair);
 				// Update key body index for the new key
-	/*
-	key_indx::iterator ik = 
-	  lower_bound(tree->keybods.begin(), tree->keybods.end(), 
-		      oldpair, ltPAIR());
-	*/
-	key_indx::iterator ik = keybods.lower_bound(oldkey);
-	bool found = false;
-	while (ik->first == oldkey) {
-	  if (ik->second == p->indx) {
-	    keybods.erase(ik);
-	    found = true;
-	    break;
-	  }
-	  ik++;
-	}
-	
-	p->key = newkey;	// Assign the new key to the particle
-
+	key_indx::iterator ik = keybods.find(oldpair);
+	if (ik != keybods.end()) keybods.erase(ik);
 	// DEBUG
-	if (!found) {
+	else {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": could not find keybods entry" << endl;
 	}
 	// END DEBUG
+	
+	p->key = newkey;	// Assign the new key to the particle
+
 #ifdef DEBUG
 	if (!checkBodycell()) {
 	  cout << "Process " << myid 
@@ -2263,6 +2249,12 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 #endif
   
+  if (!checkPartKeybods(mlevel)) {
+    cout << "Process " << myid 
+	 << ": adjustTree: ERROR particle/keybods AFTER adjustTree(), T=" 
+	 << tnow << " mlevel=" << mlevel << endl;
+  }
+    
 }
 
 
@@ -2470,21 +2462,10 @@ bool pHOT::checkKeybods()
   unsigned cnt=0;
   map<unsigned long, Particle>::iterator n = cc->Particles().begin();
   for (; n!=cc->Particles().end(); n++) {
-    key_indx::iterator it = keybods.lower_bound(n->second.key);
+    key_pair tpair(n->second.key, n->second.indx);
+    key_indx::iterator it = keybods.find(tpair);
 
-    bool found = false;
-    if (it==keybods.end()) found = false;
-    else {
-      while (it->first == n->second.key) {
-	if (it->second == n->second.indx) {
-	  found = true;
-	  break;
-	}
-	it++;
-      }
-    }
-
-    if (!found) { 
+    if (it==keybods.end()) {
       ok = false;
       cnt++;
     }
@@ -2496,6 +2477,50 @@ bool pHOT::checkKeybods()
 	 << cnt << " unmatched particles" << endl;
   }
 #endif
+
+  return ok;
+}
+
+
+bool pHOT::checkPartKeybods(unsigned mlevel)
+{
+  unsigned bcelbod = 0;
+  unsigned bfrontr = 0;
+  bool ok = true;
+
+  // 
+  // Make body list from frontier cells for this level
+  //
+  for (unsigned M=mlevel; M<=multistep; M++) {
+    for (set<pCell*>::iterator it=clevels[M].begin(); it!=clevels[M].end(); it++) {
+      for (set<unsigned>::iterator ib=(*it)->bods.begin(); ib!=(*it)->bods.end(); ib++) {
+	key_type key  = cc->Particles()[*ib].key;
+	unsigned indx = cc->Particles()[*ib].indx;
+
+	// Look for cell for this body
+	//
+	if (bodycell.find(key) == bodycell.end()) {
+	  bcelbod++;
+	  ok = false;
+	}
+	// Look for cell in frontier . . .
+	//
+	if (frontier.find(bodycell.find(key)->second) == frontier.end()) {
+	  bfrontr++;
+	  ok = false;
+	}
+      }
+    }
+  }
+  //
+  // Report
+  //
+  if (!ok) {
+    cout << "Process " << myid 
+	 << ": pHOT::checkPartKeybods: ERROR bad bodycell=" << bcelbod
+	 << " bad frontier=" << bfrontr << endl;
+
+  }
 
   return ok;
 }
