@@ -89,7 +89,7 @@ private:
   double sigA, sigC, sigCz;
 
   int many, used;
-  double lasttime;
+  double lasttime, deltaT;
   double Ecurr, Elast, Egrad;
   int Nlast;
   unsigned int oflags;
@@ -113,7 +113,8 @@ public:
 
   //! Constructor
   Orient(int number_to_keep, int target, double rinit, 
-	 unsigned orient_flags, unsigned control_flags, string logfile);
+	 unsigned orient_flags, unsigned control_flags, string logfile,
+	 double dt=0.0);
 
   //! Destructor
   ~Orient();

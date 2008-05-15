@@ -21,7 +21,7 @@
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
-	       string Logfile)
+	       string Logfile, double dt)
 {
   keep = n;
   current = 0;
@@ -31,6 +31,7 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
   oflags = Oflg;
   cflags = Cflg;
   logfile = Logfile;
+  deltaT = dt;
   Nlast = 0;
   linear = false;
 				// Random variates
@@ -312,6 +313,9 @@ void Orient::accumulate(double time, Component *c)
 {
 				// Do not register a duplicate entry
   if (fabs(lasttime - time) < 1.0e-12) return;
+				// Space entries by at least deltaT
+  if (time - deltaT - lasttime < 0.0 ) return;
+
   lasttime = time;
 
   if (linear) {

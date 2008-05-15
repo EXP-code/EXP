@@ -276,21 +276,25 @@ void pHOT::makeTree()
 
       if (keybods.size()) {
 
+#ifdef DEBUG
 	{
-	  // Debug: check validity of key
+				// check validity of key
 	  if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
 	    cout << "Process " << myid << ": bad key=" 
 		 << hex << keybods.begin()->first << dec
 		 << " #cells=" << bodycell.size() << endl;
 	  }
 	}
+#endif
 	headKey = bodycell.find(keybods.begin()->first)->second;
 				// Number of bodies in my head cell
+#ifdef DEBUG
 	// Debug: check for key in frontier
 	if (frontier.find(headKey) == frontier.end()) {
 	  cout << "Process " << myid << ": headKey=" 
 	       << headKey << dec << " not in frontier!" << endl;
 	}
+#endif
 	//
 	head_num = frontier[headKey]->bods.size();
       } else {

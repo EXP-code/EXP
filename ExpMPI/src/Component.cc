@@ -49,6 +49,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJu0 = 0.0;
   EJv0 = 0.0;
   EJw0 = 0.0;
+  EJdT = 0.0;
   EJlinear = false;
 
   binary = false;
@@ -249,7 +250,7 @@ void Component::reset_level_lists()
 #endif  
 
 				// Sanity check
-  if (nlevel>0 && (this_step % nlevel == 0)) {
+  if (nlevel>0 && (this_step % nlevel == 0) && mstep == 0) {
     vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
     for (int n=0; n<=multistep; n++) lev1[n] = levlist[n].size();
     MPI_Reduce(&lev1[0], &lev0[0], multistep+1, MPI_UNSIGNED,
@@ -326,6 +327,7 @@ Component::Component(istream *in)
   EJu0 = 0.0;
   EJv0 = 0.0;
   EJw0 = 0.0;
+  EJdT = 0.0;
   EJlinear = false;
 
   binary = true;
@@ -413,6 +415,8 @@ void Component::initialize(void)
     if (!datum.first.compare("EJv0"))     EJv0 = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJw0"))     EJw0 = atof(datum.second.c_str());
+
+    if (!datum.first.compare("EJdT"))     EJdT = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJkinE"))   EJkinE = atoi(datum.second.c_str()) ? true : false;
 
@@ -723,7 +727,7 @@ void Component::initialize(void)
     if (EJkinE)		EJctl |= Orient::KE;
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
-    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile);
+    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile, EJdT);
 
     if (restart && (EJ & Orient::CENTER)) {
       for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];
@@ -1429,11 +1433,11 @@ struct Particle * Component::get_particles(int* number)
     }
 
     if (counter > nbodies_tot) {
-      if (seq_state_ok)
 #ifdef DEBUG
+      if (seq_state_ok)
 	cout << "get_particles [" << name << "]: GOOD sequence!" << endl;
 #endif
-      else
+      if (!seq_state_ok)
 	cout << "get_particles [" << name << "]: sequence ERROR!" << endl;
     }
   }

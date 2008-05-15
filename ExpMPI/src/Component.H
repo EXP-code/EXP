@@ -99,6 +99,8 @@ struct loadb_datum
 
   @param EJw0 is the initial EJ center w-velocity   (default: 0)
 
+  @param EJdT is the spacing in time between samples   (default: 0)
+
   @param EJkinE set true includes kinetic energy in the energy
   determination, otherwise potential energy alone is used
 
@@ -384,6 +386,9 @@ public:
   //! z-coord
   double EJw0;
   //@}
+
+  //! Spacing between EJ samples
+  double EJdT;
 
   //! Print verbose diagnostics
   bool EJdiag;
