@@ -17,9 +17,9 @@ static char rcsid[] = "$Id$";
 
 static Timer timer_posn(true), timer_gcom(true), timer_angmom(true);
 static Timer timer_zero(true), timer_accel(true), timer_inter(true);
-static Timer timer_total(true), timer_fixp(true);
+static Timer timer_total(true), timer_fixp(true), timer_clock(false);
+static long tinterval = 120;	// Seconds between timer dumps
 static bool timing = false;
-static unsigned tskip = 1;
 
 
 ComponentContainer::ComponentContainer(void)
@@ -268,47 +268,51 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   if (VERBOSE>3) timing = true;
 
-  if (timing) timer_total.start();
+  if (timing) {
+    timer_clock.start();
+    timer_total.start();
+  }
 
-  //
-  // Compute new center
-  //
-  if (timing) timer_posn.start();
-  fix_positions();
-  if (timing) timer_posn.stop();
+  if (mlevel<=maxlev) {
+    //
+    // Compute new center
+    //
+    if (timing) timer_posn.start();
+    fix_positions();
+    if (timing) timer_posn.stop();
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": returned from <fix_positions>\n";
+    cout << "Process " << myid << ": returned from <fix_positions>\n";
 #endif
 
-  //
-  // Recompute global com
-  //
-  if (timing) timer_gcom.start();
-  for (int k=0; k<3; k++) gcom[k] = 0.0;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    for (int k=0; k<3; k++) gcom[k] += c->com[k];
-  }
-  if (timing) timer_gcom.stop();
+    //
+    // Recompute global com
+    //
+    if (timing) timer_gcom.start();
+    for (int k=0; k<3; k++) gcom[k] = 0.0;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      for (int k=0; k<3; k++) gcom[k] += c->com[k];
+    }
+    if (timing) timer_gcom.stop();
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": gcom computed\n";
+    cout << "Process " << myid << ": gcom computed\n";
 #endif
 
   //
   // Compute angular momentum for each component
   //
-  if (timing) timer_angmom.start();
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->get_angmom();
-  }
-  if (timing) timer_angmom.stop();
+    if (timing) timer_angmom.start();
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      (*cc)->get_angmom();
+    }
+    if (timing) timer_angmom.stop();
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": angmom computed\n";
+    cout << "Process " << myid << ": angmom computed\n";
 #endif
-
+  }
 
   //
   // Compute accel for each component
@@ -354,10 +358,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Compute new center
   //
-  if (timing) timer_posn.start();
-  fix_positions();
-  if (timing) timer_posn.stop();
-
+  if (mlevel<=maxlev) {
+    if (timing) timer_posn.start();
+    fix_positions();
+    if (timing) timer_posn.stop();
+  }
 
   //
   // Do the component interactions
@@ -403,14 +408,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Update center of mass system coordinates
   //
-  if (timing) timer_gcom.start();
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if (c->com_system) c->update_accel();
+  if (mlevel<=maxlev) {
+    if (timing) timer_gcom.start();
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if (c->com_system) c->update_accel();
+    }
+    if (timing) timer_gcom.stop();
   }
-  if (timing) timer_gcom.stop();
   
-  if (timing && this_step!=0 && (this_step % tskip) == 0) {
+  if (timing && timer_clock.getTime().getRealTime()>tinterval) {
     if (myid==0) {
       ostringstream sout;
       sout << "--- Timer info in comp, mlevel=" << mlevel;
@@ -448,6 +455,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_accel.reset();
     timer_inter.reset();
     timer_total.reset();
+    timer_clock.reset();
   }
 
   gottapot = true;
@@ -475,7 +483,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
-    c->force->determine_coefficients(c);
+    if (mlevel<=maxlev) c->force->determine_coefficients(c);
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
 	 << c->id << "> done\n";

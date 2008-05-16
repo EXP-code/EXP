@@ -66,6 +66,9 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
+//! Maximum level for expansion interpolation (default: 100)
+extern unsigned maxlev;
+
 //! Synchronize multistep positions at each substep (default: true)
 extern int posnsync;
 

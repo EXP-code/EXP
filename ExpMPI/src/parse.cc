@@ -47,6 +47,7 @@ void initialize(void)
   if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());
 
   if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());
+  if (parse->find_item("maxlev", val))		maxlev = atoi(val.c_str());
 
   if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
 
@@ -104,6 +105,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
 
   out << comment << " " << "multistep"  << " = " << multistep   << endl;
+  out << comment << " " << "maxlev"     << " = " << maxlev      << endl;
   out << comment << " " << "posnsync"   << " = " << posnsync    << endl;
   out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
   out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
