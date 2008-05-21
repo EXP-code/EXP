@@ -175,13 +175,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   nocool = false;
   use_multi = false;
   use_pullin = false;
+  ntc = true;
   cba = true;
 				// Initialize using input parameters
   initialize();
 
 				// Look for the fiducial component
   bool found = false;
- list<Component*>::iterator cc;
+  list<Component*>::iterator cc;
   Component *c;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -226,12 +227,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
+  Collide::NTC = ntc;
   Collide::CBA = cba;
   Collide::PULLIN = use_pullin;
   Collide::CNUM = cnum;
   Collide::EPSMratio = epsm;
   Collide::DRYRUN = dryrun;
   Collide::NOCOOL = nocool;
+  Collide::MFPDIAG = mfpstat;
 				// Create the collision instance
   collide = new CollideLTE(diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
@@ -244,7 +247,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   
   partnTime.Microseconds();
-  treeTime.Microseconds();
+  tree1Time.Microseconds();
+  tree2Time.Microseconds();
+  tstepTime.Microseconds();
+  llistTime.Microseconds();
   collideTime.Microseconds();
 
   //
@@ -288,6 +294,8 @@ void UserTreeDSMC::userinfo()
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
+  if (ntc)         cout << ", using NTC";
+  else             cout << ", NTC disabled";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -327,6 +335,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
   if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
+  if (get_value("ntc", val))		ntc = atoi(val.c_str()) ? true : false;
 }
 
 
@@ -410,7 +419,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  TimeElapsed partnSoFar, treeSoFar, collideSoFar;
+  TimeElapsed partnSoFar, tree1SoFar, tree2SoFar, tstepSoFar, collideSoFar;
 
   //
   // Test repartition
@@ -445,8 +454,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Sort the particles into cells
   //
-  treeTime.start();
   if (mlevel==0) {
+    tree1Time.start();
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
@@ -457,7 +466,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
     }
 #endif
+    tree1SoFar = tree1Time.stop();
   } else {
+    tree2Time.start();
 #ifdef DEBUG
     cout << "About to adjust tree [" << clevel << "]" << endl;
 #endif
@@ -469,6 +480,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #ifdef DEBUG
     cout << "Adjusted tree and level list [" << clevel << "]" << endl;
 #endif
+    tree2SoFar = tree2Time.stop();
   }
 
   if (0) {
@@ -494,8 +506,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
 				// Time step request
+  tstepTime.start();
   if (use_multi) dsmc_thread_fork(c0->Tree());
-  treeSoFar = treeTime.stop();
+  tstepSoFar = tstepTime.stop();
   
   //
   // Evaluate collisions among the particles
@@ -583,6 +596,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (myid==0) {
 
+      unsigned sell_total = collide->select();
       unsigned coll_total = collide->total();
       unsigned coll_error = collide->errors();
       unsigned epsm_total = collide->EPSMtotal();
@@ -599,6 +613,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "Summary:" << endl << left << "--------" << endl << scientific
 	   << setw(6) << " " << setw(20) << tnow << "current time" << endl
 	   << setw(6) << " " << setw(20) << stepnum << "step number" << endl
+	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
 	   << setw(6) << " " << setw(20) << coll_error << "collision errors (" 
 	   << setprecision(2) << fixed 
@@ -620,9 +635,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() 
 		       << "%)" << scientific << endl;
 
-      mout << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
-	   << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
-	   << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl;
+      if (mfpstat)
+	mout << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl;
 
       mout << fixed << setprecision(0)
 	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
@@ -658,14 +674,21 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	
       mout << "Timing (secs) at mlevel=" << mlevel << ":" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
-	   << "       tree=" << treeSoFar()*1.0e-6 << endl
+	   << "  make tree=" << tree1SoFar()*1.0e-6 << endl
+	   << "adjust tree=" << tree2SoFar()*1.0e-6 << endl
+	   << "  timesteps=" << tstepSoFar()*1.0e-6 << endl
+	   << "  step list=" << llistTime.getTime().getRealTime()*1.0e-6 
+	   << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl
 	   << endl;
 
       collide->tsdiag(mout);
 
       partnTime.reset();
-      treeTime.reset();
+      tree1Time.reset();
+      tree2Time.reset();
+      tstepTime.reset();
+      llistTime.reset();
       collideTime.reset();
     }
 
@@ -682,7 +705,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// Remake level lists because particles
 				// will (usually) have been exchanged 
 				// between nodes
+  llistTime.start();
   c0->reset_level_lists();
+  llistTime.stop();
 
 #ifdef DEBUG
   if (c0->Tree()->checkParticles()) {

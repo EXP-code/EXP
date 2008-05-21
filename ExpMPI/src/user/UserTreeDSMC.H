@@ -69,7 +69,7 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool;
+  bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool, ntc;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, rate_;
@@ -93,7 +93,7 @@ private:
   double volume;
 
 				// Timers
-  Timer partnTime, treeTime, collideTime;
+  Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, collideTime;
 
   void userinfo();
 

@@ -125,18 +125,22 @@ void * adjust_multistep_level_thread(void *ptr)
       offgrid++;
     }
     
+    unsigned plev = min<unsigned>(maxlev, c->Part(n)->level);
+    unsigned nlev = min<unsigned>(maxlev, lev);
+
     // Sanity check
-    if (level != c->Part(n)->level) {
+    if (level != plev) {
       cerr << "Process " << myid << " id=" << id 
-	   << ": n=" << n << " level=" << level << " plevel="
-	   << c->Part(n)->level << endl;
+	   << ": n=" << n << " level=" << level 
+	   << " tlevel=" << plev
+	   << " plevel=" << c->Part(n)->level << endl;
     }
 
-    if (lev != level) {
+    if (nlev != level) {
       //
       // Update coefficients
       //
-      c->force->multistep_update(c->Part(n)->level, lev, c, n, id);
+      c->force->multistep_update(plev, nlev, c, n, id);
       c->Part(n)->level = lev;
     }
   }

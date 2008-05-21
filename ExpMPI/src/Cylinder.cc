@@ -373,6 +373,7 @@ void Cylinder::determine_coefficients(void)
   } else {
 
     if (!self_consistent) return;
+    if (mlevel>maxlev) return;
 
   }
 
@@ -593,9 +594,9 @@ void Cylinder::determine_acceleration_and_potential(void)
   }
 
   if (!use_external) {
-    ortho->make_coefficients();
+    if (!multistep || mlevel<=maxlev) ortho->make_coefficients();
     // Interpolation
-    if (multistep) compute_multistep_coefficients();
+    if (multistep && mlevel<=maxlev) compute_multistep_coefficients();
   }
 
 #ifdef DEBUG

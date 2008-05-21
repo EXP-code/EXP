@@ -193,15 +193,17 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   deltaE[id] = coolrate[id] / number;
 
-  ttempT[id].push_back(T);
-  tdeltT[id].push_back(deltaE[id]);
+  if (MFPDIAG) {
+    ttempT[id].push_back(T);
+    tdeltT[id].push_back(deltaE[id]);
 
-  prec[id].first = mass/volume;
-  prec[id].second[0] = T;
-  prec[id].second[1] = cell->bods.size();
-  prec[id].second[2] = cell->Mass();
-  prec[id].second[3] = cell->Volume();
-  tphaseT[id].push_back(prec[id]);
+    prec[id].first = mass/volume;
+    prec[id].second[0] = T;
+    prec[id].second[1] = cell->bods.size();
+    prec[id].second[2] = cell->Mass();
+    prec[id].second[3] = cell->Volume();
+    tphaseT[id].push_back(prec[id]);
+  }
 
   // Assign temp and/or density to particles
   //

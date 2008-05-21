@@ -47,17 +47,23 @@ public:
 private:
 
   // Threading stuff
-
+  //
   thrd_pass_Collide *td;
   pthread_t *t;
+
+  // Timing and debug
+  //
+  unsigned bodycount, stepcount;
   Timer forkTime, snglTime, waitTime, joinTime, diagTime;
   TimeElapsed forkSoFar, snglSoFar, waitSoFar;
   TimeElapsed diagSoFar, joinSoFar;
 
-  vector<Timer> collTime, elasTime;
+  vector<Timer> initTime, collTime, elasTime, stat1Time, stat2Time, stat3Time;
   vector<int> collCnt;
-  vector<TimeElapsed> collSoFar, elasSoFar;
+  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, stat1SoFar, stat2SoFar, stat3SoFar;
 
+  // Pseudorandom generation
+  //
   ACG *gen;
   Uniform *unit;
   Normal *norm;
@@ -69,6 +75,7 @@ protected:
   int nthrds;
 
   std::vector<unsigned> numcnt;
+  std::vector<unsigned> selcnt;
   std::vector<unsigned> colcnt;
   std::vector<double>   tsrat, derat, tdens, tvolc, ttemp, tdelt, tseln;
 
@@ -79,7 +86,7 @@ protected:
   std::vector< vector<unsigned> > numcntT;
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
-  std::vector<unsigned> col1T, epsm1T, Nepsm1T;
+  std::vector<unsigned> sel1T, col1T, epsm1T, Nepsm1T;
   std::vector<double> KEtotT, KElostT, tmassT, decelT;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, deratT;
@@ -96,6 +103,7 @@ protected:
   double masstot;
 
   double diam0, diam;
+  unsigned seltot;
   unsigned coltot;
   unsigned epsmtot;
   unsigned epsmcells;
@@ -137,10 +145,17 @@ public:
 
   static bool PHASE;		// Print out T-rho plane for cells will mass weighting
   
-  static bool DRYRUN;		// Turn off collisions (for testing, debugging, etc.)
+  static bool DRYRUN;           // Turn off collisions (for testing, debugging, etc.)
 				// Set cooling to zero for testing
 				// (default: false)
   static bool NOCOOL;
+
+  static bool NTC;	        // Sample based on maximum (true) or estimate
+				// from variance (false);
+
+  static bool TSDIAG;	        // Accumulate time step diagnostics (default: false)
+
+  static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
 
 				// Use EPSM when mean free path/cell size ratio 
 				// is below EPSMratio (default = -1.0, never)
@@ -158,6 +173,7 @@ public:
   set_excess(int Epos) { use_exes=Epos; }
   virtual void set_timestep(int DTpos) { }
 
+  unsigned select() { unsigned t=seltot; seltot=0; return t; }
   unsigned total()  { unsigned t=coltot; coltot=0; return t; }
   unsigned EPSMtotal()  { unsigned t=epsmtot; epsmtot=0; return t; }
   unsigned EPSMcells()  { unsigned t=epsmcells; epsmcells=0; return t; }
@@ -189,58 +205,11 @@ public:
   double joinngTime() { joinTime.reset(); return joinSoFar()*1.0e-6; }
   //@}
 
-  void colldeTime(ostream& out) { 
-    out << "-----------------------------------------------------" << endl;
-    out << "-----Collide timing----------------------------------" << endl;
-    out << "-----------------------------------------------------" << endl;
-    out << left
-	<< setw(18) << "Thread time"  << setw(18) << threadTime() << endl
-	<< setw(18) << "Joined time"  << setw(18) << joinedTime() << endl
-	<< setw(18) << "Waiting time" << setw(18) << waitngTime() << endl
-	<< setw(18) << "Join time"    << setw(18) << joinngTime() << endl
-	<< setw(18) << "Diag time"    << setw(18) << dgnoscTime() << endl
-	<< endl;
-
-    out << left << setw(10) << "Thread#"
-	<< setw(16) << "Collide tot"
-	<< setw(16) << "Inelastic"
-	<< setw(16) << "Cell count"
-	<< endl;
-
-    for (int n=0; n<nthrds; n++) {
-      out << setw(10) << n 
-	  << setw(16) << collSoFar[n]()*1.0e-6 
-	  << setw(16) << elasSoFar[n]()*1.0e-6 
-	  << setw(10) << collCnt[n] << endl;
-      collTime[n].reset(); 
-      elasTime[n].reset(); 
-      collCnt[n] = 0;
-    }
-    out << "-----------------------------------------------------" << endl;
-  }
-
-  void tsdiag(ostream& out) {
-    out << "-----------------------------------------------------" << endl;
-    out << "-----Time step diagnostics---------------------------" << endl;
-    out << "-----------------------------------------------------" << endl;
-    out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
-	<< setw(15) << "Size/Flight";
-    if (use_delt>=0) out << setw(15) << "Cool/Tau";
-    out << endl;
-    out << "-----------------------------------------------------" << endl;
-    for (unsigned k=0; k<numdiag; k++) {
-      out << setw(8)  << -10+2*static_cast<int>(k)
-	  << setw(15) << pow(4.0, -5.0+k)
-	  << setw(15) << tdiag[k];
-      if (use_delt>=0) out << setw(15) << tcool[k];
-      out << endl;
-      tdiag[k] = 0;
-      if (use_delt>=0) tcool[k] = 0;
-    }
-    out << "-----------------------------------------------------" << endl;
-    out << left;
-  }
-
+  /// Debug output routines
+  //@{
+  void colldeTime(ostream& out);
+  void tsdiag(ostream& out);
+  //@}
 };
 
 #endif

@@ -13,6 +13,7 @@
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
 unsigned pCell::nbits = 16;	// Number of bits per dimension
+unsigned pCell::CRMcnt = 8;	// Number of entries in CRM stack
 
 string printKey(key_type p)
 {
@@ -488,4 +489,37 @@ unsigned pCell::remake_plev()
   }
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;
+}
+
+double pCell::CRMavg()
+{
+  if (CRMlist.size()==0) return -1.0;
+  return CRMsum/CRMnum;
+}
+
+void pCell::CRMadd(double crm)
+{
+  unsigned sz = CRMlist.size();
+
+  // Initialize running average
+  //
+  if (sz==0) {
+    CRMsum = 0.0;
+    CRMnum = 0;
+  }
+
+  // Add new element
+  //
+  CRMlist.push_back(crm);
+  CRMsum += crm;
+  CRMnum += 1;
+
+  // Push out the oldest element
+  // if deque is full
+  //
+  if (sz==CRMnum) {
+    CRMsum -= CRMlist.front();
+    CRMlist.pop_front();
+    CRMnum -= 1;
+  }
 }

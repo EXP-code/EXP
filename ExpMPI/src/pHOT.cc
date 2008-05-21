@@ -1202,13 +1202,13 @@ void pHOT::Slab
 
 double pHOT::minVol()
 {
-  unsigned maxlev = 0;
+  unsigned MaxLev = 0;
   key_cell::iterator it;
   for (it=frontier.begin(); it!=frontier.end(); it++)
-    maxlev = max<unsigned>(maxlev, it->second->level);
+    MaxLev = max<unsigned>(MaxLev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((key_type)1 << (3*maxlev));
+  vol1 = volume/((key_type)1 << (3*MaxLev));
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
   return vol;
@@ -1216,13 +1216,13 @@ double pHOT::minVol()
 
 double pHOT::maxVol()
 {
-  unsigned minlev = MAXINT;
+  unsigned MinLev = MAXINT;
   key_cell::iterator it;
   for (it=frontier.begin(); it!=frontier.end(); it++)
-    minlev = min<unsigned>(minlev, it->second->level);
+    MinLev = min<unsigned>(MinLev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((key_type)1 << (3*minlev));
+  vol1 = volume/((key_type)1 << (3*MinLev));
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
   return vol;

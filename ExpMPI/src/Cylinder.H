@@ -49,7 +49,8 @@ private:
       intermediate time step
   */
   void compute_multistep_coefficients() {
-    ortho->compute_multistep_coefficients(mlevel);
+    if (mlevel<=maxlev)
+      ortho->compute_multistep_coefficients(mlevel);
   }
 
   //! Reset used particle counter and mass registers

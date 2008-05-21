@@ -5,6 +5,7 @@
 #include <list>
 #include <set>
 #include <map>
+#include <deque>
 
 #include "pHOT_types.H"
 
@@ -17,6 +18,9 @@ class pCell
 private:
 
   pHOT* tree;
+  deque<double> CRMlist;
+  double CRMsum;
+  unsigned CRMnum;
 
 public:
 
@@ -28,6 +32,12 @@ public:
 
   //! Number of bits per dimension
   static unsigned nbits;
+
+  //! Number of entries in running CRM average (default: 8)
+  static unsigned CRMcnt;
+
+  //! Sampling method
+  static bool NTC;
 
   //! Constructors
   pCell(pHOT* tr);
@@ -139,6 +149,12 @@ public:
 
   //! Return bodies from this cell
   Particle* Body(set<unsigned>::iterator k);
+
+  //! Maximum relative velocity average (<0 if no entries)
+  double CRMavg();
+
+  //! Add maximum to list
+  void CRMadd(double crm);
 
 };
 

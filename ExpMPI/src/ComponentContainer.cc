@@ -17,8 +17,10 @@ static char rcsid[] = "$Id$";
 
 static Timer timer_posn(true), timer_gcom(true), timer_angmom(true);
 static Timer timer_zero(true), timer_accel(true), timer_inter(true);
-static Timer timer_total(true), timer_fixp(true), timer_clock(false);
-static long tinterval = 120;	// Seconds between timer dumps
+static Timer timer_total(true), timer_fixp(true), timer_extrn(true);
+static Timer timer_clock(false);
+static vector<unsigned> levcnt;
+static long tinterval = 300;	// Seconds between timer dumps
 static bool timing = false;
 
 
@@ -271,6 +273,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (timing) {
     timer_clock.start();
     timer_total.start();
+    if (levcnt.size()==0) levcnt = vector<unsigned>(multistep+1, 0);
+    levcnt[mlevel]++;
   }
 
   if (mlevel<=maxlev) {
@@ -323,11 +327,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
-  if (timing) timer_zero.start();
+    if (timing) timer_zero.start();
     for (int lev=mlevel; lev<=multistep; lev++) {
-
+      
       ntot = c->levlist[lev].size();
-
+      
       for (unsigned n=0; n<ntot; n++) {
 				// Particle index
 	indx = c->levlist[lev][n];
@@ -370,6 +374,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   list<Interaction*>::iterator inter;
   list<Component*>::iterator other;
   
+  if (timing) timer_inter.start();
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
@@ -380,13 +385,14 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     }
   }
+  if (timing) timer_inter.stop();
       
   //
   // Do the external forces (if there are any . . .)
   //
-  if (timing) timer_inter.start();
+  if (timing) timer_extrn.start();
   if (!external.force_list.empty()) {
-
+    
     unsigned cnt=0;
     list<ExternalForce*>::iterator ext;
 
@@ -401,7 +407,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   }
 
-  if (timing) timer_inter.stop();
+  if (timing) timer_extrn.stop();
 
   if (timing) timer_total.stop();
   
@@ -440,9 +446,24 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
 	     << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
+	     << setw(20) << "External: "
+	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl
 	     << setw(20) << "Total: "
 	     << setw(18) << 1.0e-6*timer_total.getTime().getRealTime() << endl;
 
+      }
+      cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+      cout << endl << "mstep/Mstep=" << mstep << "/" << Mstep << endl;
+      unsigned n = 0;
+      while (n<=multistep) {
+	for (int i=0; i<5; i++) {
+	  if (n<=multistep) {
+	    cout << left << setw(3) << n << "|" 
+		 << setw(8) << levcnt[n];
+	    levcnt[n++] = 0;
+	  }
+	}
+	cout << endl;
       }
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     }
@@ -454,6 +475,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_zero.reset();
     timer_accel.reset();
     timer_inter.reset();
+    timer_extrn.reset();
     timer_total.reset();
     timer_clock.reset();
   }
@@ -483,7 +505,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
-    if (mlevel<=maxlev) c->force->determine_coefficients(c);
+    c->force->determine_coefficients(c);
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
 	 << c->id << "> done\n";
