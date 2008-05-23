@@ -184,12 +184,14 @@ Collide::Collide(double diameter, int nth)
   stat1Time = vector<Timer>(nthrds);
   stat2Time = vector<Timer>(nthrds);
   stat3Time = vector<Timer>(nthrds);
+  coolTime = vector<Timer>(nthrds);
   initSoFar = vector<TimeElapsed>(nthrds);
   collSoFar = vector<TimeElapsed>(nthrds);
   elasSoFar = vector<TimeElapsed>(nthrds);
   stat1SoFar = vector<TimeElapsed>(nthrds);
   stat2SoFar = vector<TimeElapsed>(nthrds);
   stat3SoFar = vector<TimeElapsed>(nthrds);
+  coolSoFar = vector<TimeElapsed>(nthrds);
   collCnt = vector<int>(nthrds, 0);
   for (int n=0; n<nthrds; n++) {
     initTime[n].Microseconds();
@@ -198,6 +200,7 @@ Collide::Collide(double diameter, int nth)
     stat1Time[n].Microseconds();
     stat2Time[n].Microseconds();
     stat3Time[n].Microseconds();
+    coolTime[n].Microseconds();
   }
   
   if (TSDIAG) {
@@ -1427,6 +1430,7 @@ void Collide::colldeTime(ostream& out)
       << setw(10) << "Stat1"
       << setw(10) << "Stat2"
       << setw(10) << "Stat3"
+      << setw(10) << "Cool"
       << setw(10) << "Inelastic"
       << setw(10) << "Cell count"
       << endl;
@@ -1438,23 +1442,27 @@ void Collide::colldeTime(ostream& out)
 	<< setw(10) << stat1SoFar[n]()*1.0e-6 
 	<< setw(10) << stat2SoFar[n]()*1.0e-6 
 	<< setw(10) << stat3SoFar[n]()*1.0e-6 
+	<< setw(10) << coolSoFar[n]()*1.0e-6 
 	<< setw(10) << elasSoFar[n]()*1.0e-6 
 	<< setw(10) << collCnt[n] << endl
-	<< setw(4) << "*" 
+	<< setw(4) << "*" << setprecision(4)
 	<< setw(10) << initSoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << collSoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << stat1SoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << stat2SoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << stat3SoFar[n]()*1.0e-6/stepcount
+	<< setw(10) << coolSoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << elasSoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << collCnt[n]/stepcount << endl
-	<< endl;
+	<< endl << setprecision(2);
     initTime[n].reset(); 
     collTime[n].reset(); 
     stat1Time[n].reset();
     stat2Time[n].reset();
     stat3Time[n].reset();
+    coolTime[n].reset(); 
     elasTime[n].reset(); 
+    coolTime[n].reset(); 
     collCnt[n] = 0;
   }
 

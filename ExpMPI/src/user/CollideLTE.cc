@@ -98,11 +98,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   
   totalSoFar += mass*KEdsp;
 
-				// RMS relative velocity
-  // double rvrel = sqrt(4.0*KEdsp);
-
-  double Mass = mass * UserTreeDSMC::Munit;
 				// Mean mass per particle
+  double Mass = mass * UserTreeDSMC::Munit;
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double T = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
@@ -142,13 +139,13 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Mean effective number of of collisions
   //
-  // number *= min<double>(1.0, rvrel/rvmax);
   number *= 0.5;
 
   // Hydrogen number density
   //
   double n_h = n0*f_H;
 
+  coolTime[id].start();
   HeatCool heatcool(n0, T);
 
   // CoolRate has units erg*cm^3/t
@@ -160,6 +157,8 @@ void CollideLTE::initialize_cell(pCell* cell,
     UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 
   if (NOCOOL) coolrate[id] = 0.0;
+
+  coolSoFar[id] = coolTime[id].stop();
 
   // Get excess for particles in this cell and redistribute if possible
   //

@@ -51,17 +51,6 @@ private:
   thrd_pass_Collide *td;
   pthread_t *t;
 
-  // Timing and debug
-  //
-  unsigned bodycount, stepcount;
-  Timer forkTime, snglTime, waitTime, joinTime, diagTime;
-  TimeElapsed forkSoFar, snglSoFar, waitSoFar;
-  TimeElapsed diagSoFar, joinSoFar;
-
-  vector<Timer> initTime, collTime, elasTime, stat1Time, stat2Time, stat3Time;
-  vector<int> collCnt;
-  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, stat1SoFar, stat2SoFar, stat3SoFar;
-
   // Pseudorandom generation
   //
   ACG *gen;
@@ -69,6 +58,14 @@ private:
   Normal *norm;
 
   vector<Precord> prec;
+
+  // Timing and debug
+  //
+  unsigned bodycount, stepcount;
+  Timer forkTime, snglTime, waitTime, joinTime, diagTime;
+  TimeElapsed forkSoFar, snglSoFar, waitSoFar;
+  TimeElapsed diagSoFar, joinSoFar;
+
 
 protected:
 
@@ -128,6 +125,14 @@ protected:
   void debug_list(pHOT& tree);
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
+
+  // Timing and debug (access for derived classes)
+  //
+  vector<Timer> initTime, collTime, elasTime;
+  vector<Timer> stat1Time, stat2Time, stat3Time, coolTime;
+  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar;
+  vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar;
+  vector<int> collCnt;
 
 public:
 
