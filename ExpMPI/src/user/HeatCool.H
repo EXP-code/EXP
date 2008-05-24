@@ -1,11 +1,20 @@
+#include <vector>
 
 class HeatCool
 {
   typedef double(*func_1d)(double);
   
+  struct Rates 
+  {
+    double crate;
+    double hrate;
+    double cmpcrate;
+    double trate;
+  };
+  
 private:
   double n_h, g0, g1, g2, r;
-  double crate, hrate, compcrate, trate;
+  double crate, hrate, cmpcrate, trate;
 
   static double gp0_H, gp0_He, gp0_Hep;
   static double eps_H, eps_He, eps_Hep;
@@ -36,15 +45,32 @@ private:
   static void ionize();
 
 
+  bool table;
+  double Nmin, Nmax, Tmin, Tmax, dN, dT;
+  unsigned Nnum, Tnum;
+  string Cache;
+
+  vector< vector<Rates> > data;
+
+  void compute(double n, double T);
+
+  bool readCache();
+  void writeCache();
+
 public:
 
 
-  HeatCool(double n, double T);
+  HeatCool(double n, double T) : table(false) { compute(n, T); }
+
+  HeatCool(double nmin, double nmax, double Tmin, double Tmax,
+	   unsigned nnum, unsigned Tnum, string cache="");
 
   static void initialize();
 
+  void setPoint(double n, double T);
+
   double CoolRate() { return crate; }
   double HeatRate() { return hrate; }
-  double CompCRate() { return compcrate; }
+  double Compcrate() { return cmpcrate; }
   double TotalRate() { return trate; }
 };

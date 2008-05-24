@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <iomanip>
 
@@ -505,7 +506,95 @@ void HeatCool::initialize()
 }
 
 
-HeatCool::HeatCool(double density, double temp)
+HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
+		   unsigned nnum, unsigned tnum, string cache)
+  : Nmin(nmin), Nmax(nmax), Tmin(tmin), Tmax(tmax), 
+    Nnum(nnum), Tnum(tnum), Cache(cache), table(true)
+{
+
+  if (readCache()) return;
+
+  dN = (log(Nmax) - log(Nmin))/(Nnum-1);
+  dT = (log(Tmax) - log(Tmin))/(Tnum-1);
+
+  double N, T;
+  Rates r;
+
+  for (unsigned n=0; n<Nnum; n++) {
+
+    N = Nmin*exp(dN*n);
+
+    vector<Rates> tmp;
+    for (unsigned t=0; t<Tnum; t++) {
+
+      T = Tmin*exp(dT*t);
+
+      compute(N, T);
+      
+      r.crate = crate;
+      r.hrate = hrate;
+      r.cmpcrate = cmpcrate;
+      r.trate = trate;
+
+      tmp.push_back(r);
+    }
+    data.push_back(tmp);
+  }
+
+  writeCache();
+}
+
+
+//
+// Bilinear interpolation
+//
+void HeatCool::setPoint(double N, double T)
+{
+  unsigned n_indx, t_indx;
+  double aN, bN, aT, bT;
+  double lN=log(N/Nmin), lT=log(T/Tmin);
+
+  if (N < Nmin) n_indx = 0;
+  else if (N >= Nmax) n_indx = Nnum-2;
+  else n_indx = min<unsigned>(Nnum-2, static_cast<unsigned>(floor(lN/dN)));
+
+  aN = (dN*(n_indx+1) - lN)/dN;
+  bN = (lN - dN*n_indx    )/dN;
+
+  if (T <  Tmin) t_indx = 0;
+  else if (T >= Tmax) t_indx = Tnum-2;
+  else t_indx = min<unsigned>(Tnum-2, static_cast<unsigned>(floor(lT/dT)));
+
+  aT = (dT*(t_indx+1) - lT)/dT;
+  bT = (lT - dT*t_indx    )/dT;
+  
+  crate = 
+    aN*(aT*data[n_indx  ][t_indx  ].crate + 
+	bT*data[n_indx  ][t_indx+1].crate   ) +
+    bN*(aT*data[n_indx+1][t_indx  ].crate + 
+	bT*data[n_indx+1][t_indx+1].crate   ) ;
+
+  hrate = 
+    aN*(aT*data[n_indx  ][t_indx  ].hrate + 
+	bT*data[n_indx  ][t_indx+1].hrate   ) +
+    bN*(aT*data[n_indx+1][t_indx  ].hrate + 
+	bT*data[n_indx+1][t_indx+1].hrate   ) ;
+
+  cmpcrate = 
+    aN*(aT*data[n_indx  ][t_indx  ].cmpcrate + 
+	bT*data[n_indx  ][t_indx+1].cmpcrate   ) +
+    bN*(aT*data[n_indx+1][t_indx  ].cmpcrate +
+	bT*data[n_indx+1][t_indx+1].cmpcrate   ) ;
+
+  trate = 
+    aN*(aT*data[n_indx  ][t_indx  ].trate + 
+	bT*data[n_indx  ][t_indx+1].trate   ) +
+    bN*(aT*data[n_indx+1][t_indx  ].trate +
+	bT*data[n_indx+1][t_indx+1].trate   ) ;
+}
+
+
+void HeatCool::compute(double density, double temp)
 {
   double h0, h1, h2;
   double x, x_1, x_2, x_3, f_e, n_e;
@@ -557,7 +646,7 @@ HeatCool::HeatCool(double density, double temp)
   try {
     xion(temp, &x, &x_1, &x_2, &x_3, &n_e);
   } catch (string msg) {
-    crate = hrate = compcrate = trate = 0.0;
+    crate = hrate = cmpcrate = trate = 0.0;
     cerr << msg << ", no heating or cooling for this step" << endl;
     return;
   }
@@ -576,8 +665,107 @@ HeatCool::HeatCool(double density, double temp)
   //
   // see Ikeuchi and Ostriker 1986, Ap. J. 301, 522. 
   //
-  compcrate = 5.41e-36*f_e*temp*n_h;
-  trate = crate + compcrate - hrate;
+  cmpcrate = 5.41e-36*f_e*temp*n_h;
+  trate = crate + cmpcrate - hrate;
 }
 
 
+bool HeatCool::readCache()
+{
+  if (Cache.size()==0) return false;
+
+  ifstream in(Cache.c_str());
+  if (!in) {
+    cerr << "HeatCool::readCache: could not open <" << Cache << ">"
+	 << endl;
+    return false;
+  }
+
+  // Read header info
+
+  char cid[14];
+  in.read((char*)cid, 14*sizeof(char));
+  if (string(cid).compare("HeatCool data")) {
+    cerr << "HeatCool::readCache: bad magic string <" << cid << ">"
+	 << endl;
+    return false;
+  }
+  
+  double nmin, nmax, tmin, tmax;
+  unsigned nnum, tnum;
+  Rates r;
+
+  in.read((char *)&nmin, sizeof(double));
+  in.read((char *)&nmax, sizeof(double));
+  in.read((char *)&tmin, sizeof(double));
+  in.read((char *)&tmax, sizeof(double));
+  in.read((char *)&nnum, sizeof(unsigned));
+  in.read((char *)&tnum, sizeof(unsigned));
+
+  if (fabs(Nmin-nmin)>1.0e-18 ||
+      fabs(Nmax-nmax)>1.0e-18 ||
+      fabs(Tmin-tmin)>1.0e-18 ||
+      fabs(Tmax-tmax)>1.0e-18 ||
+      Nnum != nnum            ||
+      Tnum != tnum            ) {
+    cerr << "HeatCool::readCache: header value mismatch"
+	 << endl;
+    return false;
+  }
+
+  in.read((char *)&dN, sizeof(double));
+  in.read((char *)&dT, sizeof(double));
+
+  for (unsigned n=0; n<Nnum; n++) {
+    vector<Rates> tmp;
+    for (unsigned t=0; t<Tnum; t++) {
+      in.read((char *)&r.crate,    sizeof(double));
+      in.read((char *)&r.hrate,    sizeof(double));
+      in.read((char *)&r.cmpcrate, sizeof(double));
+      in.read((char *)&r.trate,    sizeof(double));
+      if (!in) {
+	cerr << "HeatCool::readCache: error reading data values"
+	     << endl;
+	return false;
+      }
+    }
+    data.push_back(tmp);
+  }
+  
+  return true;
+}
+
+
+void HeatCool::writeCache()
+{
+  if (Cache.size()==0) return;
+
+  ofstream out(Cache.c_str());
+  if (!out) {
+    cerr << "HeatCool::writeCache: could not open <" << Cache << ">"
+	 << endl;
+    return;
+  }
+
+  char cid[14] = "HeatCool data";
+
+  out.write((const char*)cid,   14*sizeof(char));
+  out.write((const char*)&Nmin, sizeof(double));
+  out.write((const char*)&Nmax, sizeof(double));
+  out.write((const char*)&Tmin, sizeof(double));
+  out.write((const char*)&Tmax, sizeof(double));
+  out.write((const char*)&Nnum, sizeof(unsigned));
+  out.write((const char*)&Tnum, sizeof(unsigned));
+  out.write((const char*)&dN,   sizeof(double));
+  out.write((const char*)&dT,   sizeof(double));
+  
+  for (unsigned n=0; n<Nnum; n++) {
+    for (unsigned t=0; t<Tnum; t++) {
+      out.write((const char*)&data[n][t].crate,    sizeof(double));
+      out.write((const char*)&data[n][t].hrate,    sizeof(double));
+      out.write((const char*)&data[n][t].cmpcrate, sizeof(double));
+      out.write((const char*)&data[n][t].trate,    sizeof(double));
+    }
+  }
+  // Done!
+}
