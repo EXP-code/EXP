@@ -201,7 +201,7 @@ int main(int argc, char** argv)
     N = Nmin*exp(dN*n);
     for (unsigned t=0; t<tnum; t++) {
       T = Tmin*exp(dT*t);
-      hc.setPoint(N, T);
+      hc.CoolRate(N, T);
     }
   }
   oneSoFar = one.stop();
@@ -218,6 +218,57 @@ int main(int argc, char** argv)
 
   cout << "Interpolate = " << oneSoFar.getTotalTime() << endl;
   cout << "Computation = " << twoSoFar.getTotalTime() << endl;
+
+  //=====================
+  // Test accuracy
+  //=====================
+
+  double interp, exact, maxrel=0.0, maxabs=0.0;
+  double worst_rel[4], worst_abs[4], tst;
+  for (unsigned n=0; n<nnum; n++) {
+    N = Nmin*exp(dN*n);
+    for (unsigned t=0; t<tnum; t++) {
+      T = Tmin*exp(dT*t);
+      interp = hc.CoolRate(N, T);
+      HeatCool tmp(N, T);
+      exact = tmp.CoolRate();
+
+      tst = fabs(interp-exact);
+      if (maxabs < tst) {
+	maxabs = tst;
+	worst_abs[0] = N;
+	worst_abs[1] = T;
+	worst_abs[2] = exact;
+	worst_abs[3] = interp;
+      }
+
+      if (exact>0.0) {
+	tst /= exact;
+	if (maxrel < tst) {
+	  maxrel = tst;
+	  worst_rel[0] = N;
+	  worst_rel[1] = T;
+	  worst_rel[2] = exact;
+	  worst_rel[3] = interp;
+	}
+      }
+    }
+  }
+
+  cout << "Maximum relative error = " << maxrel << endl;
+  cout << "    " 
+       << setw(14) << worst_rel[0]
+       << setw(14) << worst_rel[1]
+       << setw(14) << worst_rel[2]
+       << setw(14) << worst_rel[3]
+       << endl;
+  cout << "Maximum absolute error = " << maxabs << endl;
+  cout << "    " 
+       << setw(14) << worst_abs[0]
+       << setw(14) << worst_abs[1]
+       << setw(14) << worst_abs[2]
+       << setw(14) << worst_abs[3]
+       << endl;
 
   return 0;
 }
