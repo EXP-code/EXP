@@ -550,6 +550,11 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
 //
 void HeatCool::setPoint(double N, double T)
 {
+  if (!table) {
+    compute(N, T);
+    return;
+  }
+
   unsigned n_indx, t_indx;
   double aN, bN, aT, bT;
   double lN=log(N/Nmin), lT=log(T/Tmin);
@@ -591,6 +596,39 @@ void HeatCool::setPoint(double N, double T)
 	bT*data[n_indx  ][t_indx+1].trate   ) +
     bN*(aT*data[n_indx+1][t_indx  ].trate +
 	bT*data[n_indx+1][t_indx+1].trate   ) ;
+}
+
+
+double HeatCool::CoolRate(double N, double T)
+{
+  if (!table) {
+    compute(N, T);
+    return crate;
+  }
+
+  unsigned n_indx, t_indx;
+  double aN, bN, aT, bT;
+  double lN=log(N/Nmin), lT=log(T/Tmin);
+
+  if (N < Nmin) n_indx = 0;
+  else if (N >= Nmax) n_indx = Nnum-2;
+  else n_indx = min<unsigned>(Nnum-2, static_cast<unsigned>(floor(lN/dN)));
+
+  aN = (dN*(n_indx+1) - lN)/dN;
+  bN = (lN - dN*n_indx    )/dN;
+
+  if (T <  Tmin) t_indx = 0;
+  else if (T >= Tmax) t_indx = Tnum-2;
+  else t_indx = min<unsigned>(Tnum-2, static_cast<unsigned>(floor(lT/dT)));
+
+  aT = (dT*(t_indx+1) - lT)/dT;
+  bT = (lT - dT*t_indx    )/dT;
+  
+  return
+    aN*(aT*data[n_indx  ][t_indx  ].crate + 
+	bT*data[n_indx  ][t_indx+1].crate   ) +
+    bN*(aT*data[n_indx+1][t_indx  ].crate + 
+	bT*data[n_indx+1][t_indx+1].crate   ) ;
 }
 
 

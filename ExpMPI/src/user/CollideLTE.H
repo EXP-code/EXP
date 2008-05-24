@@ -8,6 +8,7 @@ class CollideLTE : public Collide
 {
 private:
   vector<Precord> prec;
+  HeatCool *hc;
 
 protected:
   // For debugging
@@ -45,6 +46,14 @@ protected:
   void list_sizes_proc(ostream*);
 
 public:
+				// Cooling table
+  static double Nmin;
+  static double Nmax;
+  static double Tmin;
+  static double Tmax;
+  static unsigned Nnum;
+  static unsigned Tnum;
+  static string cache;
 
   CollideLTE(double diameter, int nth=1);
 

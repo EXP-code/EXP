@@ -60,6 +60,8 @@ private:
 public:
 
 
+  HeatCool() : table(false) {}
+
   HeatCool(double n, double T) : table(false) { compute(n, T); }
 
   HeatCool(double nmin, double nmax, double Tmin, double Tmax,
@@ -73,4 +75,6 @@ public:
   double HeatRate() { return hrate; }
   double Compcrate() { return cmpcrate; }
   double TotalRate() { return trate; }
+
+  double CoolRate(double N, double T);
 };

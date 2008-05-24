@@ -36,12 +36,20 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 const double f_H = 0.76;
 
 
+double CollideLTE::Nmin = 1.0e-08;
+double CollideLTE::Nmax = 1.0e+08;
+double CollideLTE::Tmin = 1.0e+03;
+double CollideLTE::Tmax = 1.0e+06;
+unsigned CollideLTE::Nnum = 200;
+unsigned CollideLTE::Tnum = 200;
+string CollideLTE::cache = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
 
 CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 {
 
   HeatCool::initialize();
+  hc = new HeatCool(Nmin, Nmax, Tmin, Tmax, Nnum, Tnum, cache);
 
   cellcnt = vector<unsigned>(nthrds, 0);
   minT = vector<double>(nthrds, 1e30);
@@ -146,14 +154,13 @@ void CollideLTE::initialize_cell(pCell* cell,
   double n_h = n0*f_H;
 
   coolTime[id].start();
-  HeatCool heatcool(n0, T);
 
   // CoolRate has units erg*cm^3/t
   // So CoolRate*n_h*n_h*Volume*Time = ergs
 
   // Total energy lost (for both collisions and EPSM)
   //
-  coolrate[id] = heatcool.CoolRate() * n_h*n_h * CellVolume * tau *
+  coolrate[id] = hc->CoolRate(n0, T) * n_h*n_h * CellVolume * tau *
     UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 
   if (NOCOOL) coolrate[id] = 0.0;
