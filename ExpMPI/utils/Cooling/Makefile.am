@@ -28,13 +28,10 @@ bin_PROGRAMS = hctest
 
 hctest_SOURCES =  hctest.cc HeatCool.cc
 
-HeatCool.H:	$(top_srcdir)/src/user/HeatCool.H
-		cp $(top_srcdir)/src/user/$@ .
-
 HeatCool.cc:	$(top_srcdir)/src/user/HeatCool.cc
 		cp $(top_srcdir)/src/user/$@ .
 
-CLEANFILES = 	HeatCool.cc HeatCool.H
+CLEANFILES = 	HeatCool.cc
 
 ## utils/Cooling/Makefile.am ends here
 

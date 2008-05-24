@@ -195,13 +195,14 @@ int main(int argc, char** argv)
   //=====================
   Timer one(true), two(true);
   TimeElapsed oneSoFar, twoSoFar;
+  double tst;
 
   one.start();
   for (unsigned n=0; n<nnum; n++) {
     N = Nmin*exp(dN*n);
     for (unsigned t=0; t<tnum; t++) {
       T = Tmin*exp(dT*t);
-      hc.CoolRate(N, T);
+      tst = hc.CoolRate(N, T);
     }
   }
   oneSoFar = one.stop();
@@ -224,7 +225,7 @@ int main(int argc, char** argv)
   //=====================
 
   double interp, exact, maxrel=0.0, maxabs=0.0;
-  double worst_rel[4], worst_abs[4], tst;
+  double worst_rel[4], worst_abs[4];
   for (unsigned n=0; n<nnum; n++) {
     N = Nmin*exp(dN*n);
     for (unsigned t=0; t<tnum; t++) {
