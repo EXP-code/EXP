@@ -93,6 +93,11 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 }
 
 
+ColliteLTE::~CollideLTE()
+{
+  delete hc;
+}
+
 void CollideLTE::initialize_cell(pCell* cell, 
 				 double rvmax, double tau, double number, int id)
 {

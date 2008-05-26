@@ -56,6 +56,7 @@ public:
   static string cache;
 
   CollideLTE(double diameter, int nth=1);
+  ~CollideLTE();
 
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
 
