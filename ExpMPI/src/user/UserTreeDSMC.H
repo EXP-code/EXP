@@ -9,25 +9,6 @@
 
 #include "CollideLTE.H"
 
-//! Helper class to pass info to threaded member
-struct dsmc_pass_arguments
-{
-  //! Pointer to iterator
-  pHOT *tree;
-  //! Thread counter id
-  int id;
-};
-  
-class UserTreeDSMC;
-
-struct thrd_pass_dsmc
-{
-  UserTreeDSMC *p;
-  //! Arguments
-  dsmc_pass_arguments arg;
-};
-
-
 /** DSMC particle routine
     @param Lunit is the physical scale in cm per system units (default: 300 kpc)
     @param Tunit is the physical time scale in years per system unit (default: gravitational)
@@ -97,10 +78,6 @@ private:
 
   void userinfo();
 
-				// Threading
-  thrd_pass_dsmc *td;
-  pthread_t *t;
-  void dsmc_thread_fork(pHOT *tree);
 
 				// Debugging
   void triggered_cell_body_dump(double time, double radios);
@@ -123,9 +100,6 @@ public:
 
   //! Destructor
   ~UserTreeDSMC();
-
-  //! For threading
-  void *timestep_thread(void *arg);
 
 };
 

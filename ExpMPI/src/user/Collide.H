@@ -37,6 +37,25 @@ struct thrd_pass_Collide
 };
 
 
+//! Helper class to pass info to threaded member
+struct tstep_pass_arguments
+{
+  //! Pointer to iterator
+  pHOT *tree;
+  //! Cooling fraction
+  double coolfrac;
+  //! Thread counter id
+  int id;
+};
+  
+struct thrd_pass_tstep
+{
+  Collide *p;
+  //! Arguments
+  tstep_pass_arguments arg;
+};
+
+
 class Collide
 {
 
@@ -49,6 +68,7 @@ private:
   // Threading stuff
   //
   thrd_pass_Collide *td;
+  thrd_pass_tstep   *tdT;
   pthread_t *t;
 
   // Pseudorandom generation
@@ -198,8 +218,17 @@ public:
   virtual void Elost(double* collide, double* epsm)  
   { cerr << "Oops [2]" << endl; *collide=0; *epsm=0; }
 
+  // Collision thread
+  //@{
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);
+  //@}
+
+  // Timestep thread
+  //@{
+  void *timestep_thread(void *arg);
+  void compute_timestep(pHOT* tree, double coolfrac);
+  //@}
 
   /// Debug timing routines
   //@{

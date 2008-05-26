@@ -1498,3 +1498,127 @@ void Collide::tsdiag(ostream& out)
 }
 
 
+// For timestep computation
+
+extern "C"
+void *
+tstep_thread_call(void *atp)
+{
+  thrd_pass_tstep *tp = (thrd_pass_tstep *)atp;
+  Collide *p = (Collide *)tp->p;
+  p->timestep_thread((void*)&tp->arg);
+  return NULL;
+}
+
+void Collide::compute_timestep(pHOT* tree, double coolfrac)
+{
+  int errcode;
+  void *retval;
+  
+  if (nthrds==1) {
+    thrd_pass_tstep td;
+
+    td.p = this;
+    td.arg.tree = tree;
+    td.arg.coolfrac = coolfrac;
+    td.arg.id = 0;
+
+    tstep_thread_call(&td);
+    
+    return;
+  }
+
+  tdT = new thrd_pass_tstep [nthrds];
+  t = new pthread_t [nthrds];
+
+  if (!tdT) {
+    cerr << "Process " << myid 
+         << ": Collide::tstep_thread_call: error allocating memory for thread counters\n";
+    exit(18);
+  }
+  if (!t) {
+    cerr << "Process " << myid
+         << ": Collide::tstep_thread_call: error allocating memory for thread\n";
+    exit(18);
+  }
+
+                                // Make the <nthrds> threads
+  for (int i=0; i<nthrds; i++) {
+    tdT[i].p = this;
+    tdT[i].arg.tree = tree;
+    tdT[i].arg.coolfrac = coolfrac;
+    tdT[i].arg.id = i;
+
+    errcode =  pthread_create(&t[i], 0, tstep_thread_call, &tdT[i]);
+    if (errcode) {
+      cerr << "Process " << myid;
+      cerr << " Collide: cannot make thread " << i
+	   << ", errcode=" << errcode << endl;
+      exit(19);
+    }
+  }
+    
+                                // Collapse the threads
+  for (int i=0; i<nthrds; i++) {
+    if ((errcode=pthread_join(t[i], &retval))) {
+      cerr << "Process " << myid;
+      cerr << " Collide::tstep_thread_call: thread join " << i
+           << " failed, errcode=" << errcode << endl;
+      exit(20);
+    }
+  }
+  
+  delete [] tdT;
+  delete [] t;
+}
+
+
+void * Collide::timestep_thread(void * arg)
+{
+  pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
+  double coolfrac = (int)((tstep_pass_arguments*)arg)->coolfrac;
+  int id = (int)((tstep_pass_arguments*)arg)->id;
+
+  // Loop over cells, cell time-of-flight time
+  // for each particle
+
+  pCell *c;
+  Particle *p;
+  unsigned nbods;
+  double L, DT, mscale;
+
+  // Loop over cells, processing collisions in each cell
+  //
+  for (unsigned j=0; j<cellist[id].size(); j++ ) {
+
+    // Number of particles in this cell
+    //
+    c = cellist[id][j];
+    nbods = c->bods.size();
+    L = c->Scale();
+    
+    for (set<unsigned>::iterator i=c->bods.begin(); i!=c->bods.end(); i++) {
+				// Current particle
+      p = tree->Body(*i);
+				// Compute time of flight criterion
+      DT = 1.0e40;
+      mscale = 1.0e40;
+      for (unsigned k=0; k<3; k++) {
+	DT = min<double>
+	  (pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+	mscale = min<double>(pHOT::sides[k]*L, mscale);
+      }
+				// Size scale for multistep timestep calc.
+      p->scale = mscale;
+				// Compute cooling criterion
+      int sz = p->dattrib.size();
+      if (use_delt>=0 && use_delt<sz)
+	DT = min<double>(DT, coolfrac*p->dattrib[use_delt]);
+      
+      p->dtreq = DT;
+    }
+  }
+  
+  return (NULL);
+}
+

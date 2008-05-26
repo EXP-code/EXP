@@ -93,7 +93,7 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 }
 
 
-ColliteLTE::~CollideLTE()
+CollideLTE::~CollideLTE()
 {
   delete hc;
 }

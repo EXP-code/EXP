@@ -17,121 +17,6 @@
 
 using namespace std;
 
-extern "C"
-void *
-dsmc_thread_call(void *atp)
-{
-  thrd_pass_dsmc *tp = (thrd_pass_dsmc *)atp;
-  UserTreeDSMC *p = (UserTreeDSMC *)tp->p;
-  p->timestep_thread((void*)&tp->arg);
-  return NULL;
-}
-
-void UserTreeDSMC::dsmc_thread_fork(pHOT* tree)
-{
-  int errcode;
-  void *retval;
-  
-  if (nthrds==1) {
-    thrd_pass_dsmc td;
-
-    td.p = this;
-    td.arg.tree = tree;
-    td.arg.id = 0;
-
-    dsmc_thread_call(&td);
-    
-    return;
-  }
-
-  td = new thrd_pass_dsmc [nthrds];
-  t = new pthread_t [nthrds];
-
-  if (!td) {
-    cerr << "Process " << myid 
-         << ": dsmc_thread_fork: error allocating memory for thread counters\n";
-    exit(18);
-  }
-  if (!t) {
-    cerr << "Process " << myid
-         << ": dsmc_thread_fork: error allocating memory for thread\n";
-    exit(18);
-  }
-
-                                // Make the <nthrds> threads
-  for (int i=0; i<nthrds; i++) {
-    td[i].p = this;
-    td[i].arg.tree = tree;
-    td[i].arg.id = i;
-
-    errcode =  pthread_create(&t[i], 0, dsmc_thread_call, &td[i]);
-    if (errcode) {
-      cerr << "Process " << myid;
-      cerr << " UserTreeDSMC: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
-    }
-  }
-    
-                                // Collapse the threads
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(t[i], &retval))) {
-      cerr << "Process " << myid;
-      cerr << " UserTreeDSMC: thread join " << i
-           << " failed, errcode=" << errcode << endl;
-      exit(20);
-    }
-  }
-  
-  delete [] td;
-  delete [] t;
-}
-
-
-void * UserTreeDSMC::timestep_thread(void * arg)
-{
-  pHOT *tree = (pHOT*)((dsmc_pass_arguments*)arg)->tree;
-  int id = (int)((dsmc_pass_arguments*)arg)->id;
-
-  // Loop over cells, cell time-of-flight time
-  // for each particle
-
-  unsigned ncells = tree->Number(), nbods;
-  double L, DT, mscale;
-
-  pHOT_iterator pt(*tree);
-
-  for (unsigned j=0; j<ncells; j++) {
-    nbods = pt.nextCell();
-    if ( (int)(j%nthrds) == id ) {
-      L = pt.Cell()->Scale();
-      for (set<unsigned>::iterator i=pt.Cell()->bods.begin(); 
-	   i!=pt.Cell()->bods.end(); i++) {
-				// Time of flight criterion
-	DT = 1.0e40;
-	mscale = 1.0e40;
-	for (unsigned k=0; k<3; k++) {
-	  DT = min<double>
-	    (pHOT::sides[k]*L/(fabs(pt.Body(i)->vel[k])+1.0e-40), DT);
-	  mscale = min<double>(pHOT::sides[k]*L, mscale);
-	}
-				// Size scale for multistep timestep calc.
-	pt.Body(i)->scale = mscale;
-
-				// Cooling criterion
-	int sz = pt.Body(i)->dattrib.size();
-	if (use_delt>=0 && use_delt<sz)
-	  DT = min<double>(DT, coolfrac*pt.Body(i)->dattrib[use_delt]);
-	
-	pt.Body(i)->dtreq = DT;
-      }
-    }
-  }
-
-  return (NULL);
-}
-
-
 //
 // Physical units
 //
@@ -505,11 +390,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	 << __FILE__ << ": " << __LINE__;
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
-				// Time step request
-  tstepTime.start();
-  if (use_multi) dsmc_thread_fork(c0->Tree());
-  tstepSoFar = tstepTime.stop();
-  
+
   //
   // Evaluate collisions among the particles
   //
@@ -535,6 +416,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   collideSoFar = collideTime.stop();
 
+
+				// Time step request
+  tstepTime.start();
+  if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
+  tstepSoFar = tstepTime.stop();
+  
   //
   // Periodically display the current progress
   //
