@@ -260,6 +260,37 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
   return ret;
 }
 
+
+void pCell::RemoveAll()
+{
+  key_indx::iterator k;
+  key_key ::iterator ik;
+  key_indx::iterator p;
+
+  while (keys.size()) {
+    k = keys.begin();
+    ik = tree->bodycell.find(k->first);
+    if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+    p = tree->keybods.find(*k);
+    if (p!=tree->keybods.end()) tree->keybods.erase(p);
+    keys.erase(k);
+  }
+
+  bods.clear();
+
+  for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
+       ic!=parent->children.end(); ic++) {
+    if (ic->second == this) {
+      parent->children.erase(ic);
+      return;
+    }
+  }
+
+  cout << "Process " << myid 
+       << ": pCell::RemoveAll: "
+       << "ERROR child not found on parent's list!" << endl;
+}
+
 pCell* pCell::findNode(const key_type& key)
 {
 				// Check that this key belongs to this branch

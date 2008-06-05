@@ -40,8 +40,15 @@ pHOT::pHOT(Component *C)
   unit = new Uniform(-1.0, 1.0, gen);
   offset = new double [3];
 
+  kbeg = vector<key_type>(numprocs);
+  kfin = vector<key_type>(numprocs);
+
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
+
+  timer_keymake.Microseconds();
+  timer_xchange.Microseconds();
+  timer_overlap.Microseconds();
 } 
 
 
@@ -222,31 +229,6 @@ void pHOT::makeTree()
 				// Send the next node my tail value
 				// to compare with its head
     if (myid==n-1) {
-
-      if (keybods.size()) {
-
-	key_indx::reverse_iterator it = keybods.rbegin();
-	{
-	  // Debug: check validity of key
-	  if (bodycell.find(it->first) == bodycell.end()) {
-	    cout << "Process " << myid << ": bad key=" 
-		 << hex << it->first << dec
-		 << " #cells=" << bodycell.size() << endl;
-	  }
-	}
-	tailKey = bodycell.find(it->first)->second;
-				// Number of bodies in my tail cell
-	// Debug: check for key in frontier
-	if (frontier.find(tailKey) == frontier.end()) {
-	  cout << "Process " << myid << ": tailKey=" 
-	       << tailKey << dec << " not in frontier!" << endl;
-	}
-	//
-	tail_num = frontier[tailKey]->bods.size();
-      } else {
-	tailKey = 0;
-	tail_num = 0;
-      }
 
       MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD);
@@ -1276,7 +1258,7 @@ void pHOT::Repartition()
   //
   // Recompute keys and compute new partition
   //
-  vector<key_type> keys, kbeg(numprocs), kfin(numprocs);
+  vector<key_type> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
@@ -1298,10 +1280,8 @@ void pHOT::Repartition()
   //
   // Nodes compute send list
   //
-  vector<key_type> loclist(numprocs+1);
-  for (unsigned i=0; i<numprocs; i++) 
-    loclist[i] = kbeg[i];
-  loclist[numprocs] = kfin[numprocs-1];	// End point for binary search
+  loclist = kbeg;
+  loclist.push_back(kfin[numprocs-1]);	// End point for binary search
 
   vector<unsigned> sndlist1(numprocs*numprocs, 0);
   vector<unsigned> sendlist(numprocs*numprocs);
@@ -1361,7 +1341,7 @@ void pHOT::Repartition()
   for (int frID=0; frID<numprocs; frID++) {
     for (int toID=0; toID<numprocs; toID++) {
 				// 
-				// Current process sends particles (non-blocking)
+				// Current process sends particles
       if (myid==frID) {		// 
 	unsigned To = sendlist[numprocs*frID+toID];
 	if (To) {
@@ -1515,363 +1495,6 @@ void pHOT::Repartition()
   }
 }
 
-void pHOT::Rectify()
-{
-  MPI_Status s;
-  map<unsigned long, Particle>::iterator it;
-  
-
-  volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
-
-
-#ifdef DEBUG
-  vector<unsigned long> erased;
-#endif
-
-  // checkBounds(2.0, "BEFORE Rectify");
-
-  //
-  // Recompute keys
-  //
-  vector<unsigned long> changelist;
-  key_type newkey, celkey;
-  unsigned inown=0;
-  for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
-    newkey = getKey(&(it->second.pos[0]));
-    if (newkey != it->second.key) {
-      // Check that this key belongs to the current cell
-      // If so, do nothing; otherwise, delete from current cell, and 
-      // delete from bodycell sturcture, put it on the changelist
-      if (bodycell.find(it->second.key) != bodycell.end())
-	celkey = bodycell.find(it->second.key)->second;
-      else
-	cout << "Process " << myid << ": pHOT::Rectify logic error in bodycell"
-	     << endl;
-      pCell *c;
-      if (frontier.find(celkey) != frontier.end())
-	c = frontier[celkey];
-      else
-	cout << "Process " << myid << ": pHOT::Rectify logic error in frontier"
-	     << endl;
-      if ( !c->isMine(newkey) ) {
-				// Look for the right cell in our tree
-	pCell *c2 = c->findNode(newkey);
-	if (c2) {		// It IS in our tree, add the body
-	  c2->bods.insert(it->first);
-	  bodycell.insert(key_item(newkey, c2->mykey));
-	  keybods.insert(key_pair(newkey, it->first));
-	  inown++;
-	} else {		// It is NOT in our tree
-	  changelist.push_back(it->first);
-	} 
-				// Remove the key from the index list
-	key_indx::iterator kb = keybods.find(key_pair(it->second.key, it->second.indx));
-	if (kb != keybods.end()) keybods.erase(kb);
-
-				// Remove the key from the cell list
-	key_key::iterator ij = bodycell.find(it->first);
-	if (ij != bodycell.end()) bodycell.erase(ij);
-
-				// Assign the new key
-	it->second.key = newkey;
-      }
-    }
-    
-    if (it->second.key == 0) {
-      cout << "pHOT::Rectify [" << myid << "]: out of bounds,"
-	   << " indx=" << setw(12) << it->second.indx
-	   << " mass=" << setw(18) << it->second.mass
-	   << " pos=";
-      for (int k=0; k<3; k++)
-	cout << setw(18) << it->second.pos[k];
-      for (int k=0; k<3; k++)
-	cout << setw(18) << it->second.vel[k];
-      cout << endl;
-    }
-  }
-  
-  //
-  // Accumulate global list by broadcast
-  //
-  vector<key_type> change_key;
-  vector<unsigned long> change_indx;
-  vector<unsigned short> old_own;
-  vector<unsigned short> new_own, new_own0;
-  vector<unsigned short> checkme, checkme0;
-  unsigned cnt;
-  
-for (int n=0; n<numprocs; n++) {
-    if (n==myid) cnt=changelist.size();
-    MPI_Bcast(&cnt, 1, MPI_UNSIGNED, n, MPI_COMM_WORLD);
-    if (cnt) {
-      vector<unsigned long> indx(cnt);
-      if (n==myid) indx = changelist;
-      MPI_Bcast(&indx[0], cnt, MPI_UNSIGNED_LONG, n,  MPI_COMM_WORLD);
-      change_indx.insert(change_indx.end(), indx.begin(), indx.end());
-
-      vector<unsigned long long> key(cnt);
-      if (n==myid) {
-	for (unsigned k=0; k<cnt; k++)
-	  key[k] = cc->Particles()[changelist[k]].key;
-      }
-      MPI_Bcast(&key[0], cnt, MPI_UNSIGNED_LONG_LONG, n, MPI_COMM_WORLD);
-      change_key.insert(change_key.end(), key.begin(), key.end());
-
-      for (unsigned k=0; k<cnt; k++) {
-	old_own.push_back(n+1);
-	new_own.push_back(0);
-	checkme.push_back(0);
-      }
-    }
-  }
-
-  //
-  // Each node looks for owner
-  //
-  key_cell keycache;
-  unsigned csize = change_indx.size();
-  for (unsigned n=0; n<csize; n++) {
-    if (old_own[n]-1==myid) continue;
-    pCell *c = root->findNode(change_key[n]);
-    if (c) {
-      /*
-      cout << "Process " << myid << ": found match key=" 
-	   << hex << change_key[n] << dec << " whose owner was "
-	   << old_own[n]-1 << endl;
-      */
-      new_own[n] = myid+1;
-      checkme[n] = 1;
-      keycache[change_key[n]] = c;
-    }
-  }
-
-  //
-  // Distribute new list to all processes
-  //
-  new_own0 = new_own;
-  MPI_Allreduce(&new_own[0], &new_own0[0], csize, MPI_UNSIGNED_SHORT, MPI_SUM, 
-		MPI_COMM_WORLD);
-
-  checkme0 = checkme;
-  MPI_Allreduce(&checkme[0], &checkme0[0], csize, MPI_UNSIGNED_SHORT, MPI_SUM, 
-		MPI_COMM_WORLD);
-
-  unsigned sum=0;
-  for (unsigned k=0; k<csize; k++) sum += checkme0[k];
-
-  //
-  // Do the sanity check
-  //
-  if (true) {
-    if (myid==0) {
-      bool check_ok = true;
-      unsigned bad_val, unclaimed=0, overclaimed=0;
-      for (unsigned n=0; n<csize; n++) {
-	if (checkme0[n] != 1) {
-	  if (check_ok) bad_val = checkme0[n];
-	  else          bad_val = max<unsigned>(checkme0[n], bad_val);
-	  check_ok = false;
-	  if (checkme0[n]==0) unclaimed++;
-	  if (checkme0[n] >1) overclaimed++;
-	}
-      }
-      if (!check_ok) {
-	cout << endl 
-	     << "pHOT::Rectify: error in check, largest val=" << bad_val
-	     << ", " << unclaimed << " unclaimed, " 
-	     << overclaimed << " overclaimed" << endl;
-      }
-    }
-  }
-
-  //
-  // Make the shipping lists
-  //
-  vector<unsigned> sendlist(numprocs*numprocs, 0);
-  vector< vector<unsigned> > bodylist(numprocs);
-  for (unsigned k=0; k<csize; k++) {
-    if (old_own[k]-1 == myid)
-      bodylist[new_own[k]-1].push_back(change_indx[k]);
-    sendlist[numprocs*(old_own[k]-1) + new_own[k]-1]++;
-  }
-  
-  unsigned Tcnt=0, Fcnt=0;
-  for (int i=0; i<numprocs; i++) {
-    Tcnt += sendlist[numprocs*myid + i   ];
-    Fcnt += sendlist[numprocs*i    + myid];
-  }
-
-				// DEBUG OUTPUT
-  if (false) {			// If true, write send and 
-				// receive list for each node
-    for (int n=0; n<numprocs; n++) {
-      if (myid==n) {
-	cout << "--------------------------------------------------------" << endl;
-	cout << "Process " << myid << ": Tcnt=" << Tcnt << " Fcnt=" << Fcnt << endl;
-	for (int m=0; m<numprocs; m++)
-	  cout << setw(5) << m 
-	       << setw(8) << sendlist[numprocs*n+m]
-	       << setw(8) << sendlist[numprocs*m+n]
-	       << endl;
-	cout << "--------------------------------------------------------" << endl;
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-  }
-				// END DEBUG OUTPUT
-
-  static unsigned debug_ctr=0;
-  unsigned ps=0, pr=0;
-  Partstruct *psend, *precv = 0;
-  int ierr;
-
-  if (Tcnt) psend = new Partstruct [Tcnt];
-  if (Fcnt) precv = new Partstruct [Fcnt];
-
-  //
-  // Exchange particles between processes
-  //
-  for (int frID=0; frID<numprocs; frID++) {
-    for (int toID=0; toID<numprocs; toID++) {
-				// 
-				// Current process sends particles 
-				// (non-blocking)
-      if (myid==frID) {		// 
-	unsigned To = sendlist[numprocs*frID+toID];
-	if (To) {
-	  for (unsigned i=0; i<To; i++) {
-	    pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
-	    cc->Particles().erase(bodylist[toID][i]);
-#ifdef DEBUG
-	    erased.push_back(bodylist[toID][i]);
-#endif
-	  }
-	  for (unsigned i=0; i<To; i++) {
-	    if (psend[ps+i].indx == 0) {
-	      cerr << "pHOT::Rectify[" << debug_ctr
-		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
-		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
-	    }
-	  }
-	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
-			      MPI_COMM_WORLD)) != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in Reparition sending "
-		   << To << " particles to #" << toID << " ierr=" << ierr << endl;
-	    }
-	  ps += To;
-	}
-      }
-				// 
-				// Current process receives particles 
-				// (blocking)
-      if (myid==toID) {		// 
-	unsigned From = sendlist[numprocs*frID+toID];
-	if (From) {
-	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
-			      MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in Reparition receiving "
-		   << From << " particles from #" << frID << " ierr=" << ierr << endl;
-	    }
-	  pr += From;
-	}
-      }
-
-    } // Receipt loop
-
-    MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
-  }
-
-  //
-  // Buffer size sanity check
-  //
-  if (true) {			// Enabled if true
-
-    if (Tcnt-ps) {
-      cout << "Process " << myid 
-	   << ": [Tcnt] found <" << ps << "> but expected <" 
-	   << Tcnt << ">" << endl;
-    }
-    
-    if (Fcnt-pr) {
-      cout << "Process " << myid 
-	   << ": [Fcnt] found <" << pr << "> but expected <" 
-	   << Fcnt << ">" << endl;
-    }
-
-  }
-
-  //
-  // DEBUG
-  //
-  pr = 0;
-  for (int id=0; id<numprocs; id++) {
-    unsigned From = sendlist[numprocs*id+myid];
-    if (From) {
-      for (int i=0; i<From; i++) {
-	if (precv[pr+i].indx == 0) {
-	  cerr << "pHOT::Rectify[" << debug_ctr 
-	       << "]: RECV to=" << myid << " from=" << id << " #=" << From
-	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass << endl;
-	}
-      }
-      pr += From;
-    }
-  }
-
-  debug_ctr++;
-
-  // END DEBUG
-
-  Particle part;
-  for (unsigned i=0; i<Fcnt; i++) {
-    pf.part_to_Particle(precv[i], part);
-    cc->Particles()[part.indx] = part;
-    keybods.insert(pair<key_type, unsigned>(part.key, part.indx));
-    keycache[part.key]->bods.insert(part.indx);
-    bodycell.insert(key_item(part.key, keycache[part.key]->mykey));
-  }
-  cc->nbodies = cc->particles.size();
-      
-  //
-  // Clean up temporary body storage
-  //
-  if (Tcnt) delete [] psend;
-  if (Fcnt) delete [] precv;
-
-  // checkBounds(2.0, "AFTER Rectify");
-
-  if (true) {			// Sanity checks for bad particle indices
-    bool ok = true;		// and bad particle counts
-    map<unsigned long, Particle>::iterator ip;
-    for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
-      if (ip->second.indx==0) {
-	cout << "pHOT::Rectify BAD particle in proc=" << myid
-	     << " key=" << ip->second.key << endl;
-	ok = false;
-      }
-    }
-    if (ok) cout << "pHOT::Rectify: leaving with good indx" << endl;
-
-    if (cc->particles.size() != cc->nbodies) 
-      cout << "pHOT::Rectify: leaving with # mismatch!" << endl;
-
-    int nbodies1 = cc->nbodies, nbodies0=0;
-    MPI_Reduce(&nbodies1, &nbodies0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (myid==0) {
-      if (nbodies0 != cc->nbodies_tot)
-	cout << "pHOT::Rectify: leaving with total # mismatch!" << endl;
-    }
-
-  }
-
-#ifdef DEBUG
-  checkParticles();
-  checkDupes();
-  checkIndices();
-#endif
-}
 
 void pHOT::makeCellLevelList()
 {
@@ -1964,47 +1587,55 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 
 void pHOT::adjustTree(unsigned mlevel)
 {
-  if (!multistep) return;
-  
+
+#ifdef DEBUG
   if (!checkPartKeybods(mlevel)) {
     cout << "Process " << myid 
 	 << ": adjustTree: ERROR particle/keybods BEFORE adjustTree(), T=" 
 	 << tnow << " mlevel=" << mlevel << endl;
   }
     
-
-#ifdef DEBUG
   if (!checkKeybods()) {
     cout << "Process " << myid 
-	 << ": adjustTree: ERROR particle key not in keybods BEFORE adjustTree(), T=" 
-	 << tnow << endl;
+	 << ": adjustTree: ERROR particle key not in keybods"
+	 << " BEFORE adjustTree(), T=" << tnow << endl;
   }
 #endif
 
   adjcnt++;			// For debug labeling only . . .
-
+  
 #ifdef DEBUG
   if (!checkParticles()) {
     cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
 	 << mlevel << ": initial particle check FAILED!" << endl;
   }
+
   if (!checkBodycell()) {
     cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
 	 << mlevel << ": initial body cell check FAILED!" << endl;
   }    
 #endif
 
+  timer_keymake.start();
+
   pCell* c;
   key_type newkey, oldkey;
-  list<key_type>::iterator ip;
-  list<key_type> oldp;
+  list<unsigned long>::iterator ip;
+  list<unsigned long> oldp;
+
+  //
+  // Exchange list
+  //
+  vector< vector<unsigned long> > exchange(numprocs);
 
   // 
   // Make body list from frontier cells for this level
   //
   for (unsigned M=mlevel; M<=multistep; M++) {
-    for (set<pCell*>::iterator it=clevels[M].begin(); it!=clevels[M].end(); it++) {
-      for (set<unsigned>::iterator ib=(*it)->bods.begin(); ib!=(*it)->bods.end(); ib++) {
+    for (set<pCell*>::iterator it=clevels[M].begin(); 
+	 it!=clevels[M].end(); it++) {
+      for (set<unsigned>::iterator ib=(*it)->bods.begin(); 
+	   ib!=(*it)->bods.end(); ib++) {
 	oldp.push_back(*ib);
       }
     }
@@ -2013,6 +1644,7 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   // Update body by body using the list without regard to level
   //
+  unsigned newproc;
   for (ip=oldp.begin(); ip!=oldp.end(); ip++) {
 
     Particle *p = cc->Part(*ip);
@@ -2044,7 +1676,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #ifdef DEBUG
       checkBodycell();
 #endif
-    }
+      }
     // Look for cell in frontier . . .
     //
     if (frontier.find(bodycell.find(oldkey)->second) == frontier.end()) {
@@ -2059,7 +1691,7 @@ void pHOT::adjustTree(unsigned mlevel)
       continue;
     }
     // END DEBUG
-    
+      
     //
     // Find this particle's previous cell assignment
     //
@@ -2098,28 +1730,41 @@ void pHOT::adjustTree(unsigned mlevel)
 				// queue for deletion
 	  change.push_back(cell_indx(c, KILL));
 	}
+
+
+				// Same processor?
+	newproc = find_proc(loclist, newkey);
+
+	if (newproc != myid) {	// Ship this particle elsewhere
+	  
+	  exchange[newproc].push_back(*ip);
+	  p->key = newkey;	// Assign the new key to the particle
+	  
+	} else {
 				// Add the new pair to the tree 
 				// (unless it's out of bounds)
-	if (newkey != 0) {
-	  keybods.insert(newpair);
-	  c->Add(newpair, &change);
-	}
+	  if (newkey != 0) {
+	    keybods.insert(newpair);
+	    c->Add(newpair, &change);
+	  }
 
-	p->key = newkey;	// Assign the new key to the particle
+	  p->key = newkey;	// Assign the new key to the particle
 #ifdef DEBUG
-	if (!checkBodycell()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	       << ": body cell check FAILED after removal and add!" << endl;
-	}    
+	  if (!checkBodycell()) {
+	    cout << "Process " << myid 
+		 << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
+		 << ": body cell check FAILED after removal and add!" << endl;
+	  }    
 				// Sanity check: is this particle
 				// *now* on the body/cell list?
-	if (newkey && bodycell.find(newkey) == bodycell.end()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
-	       << hex << newkey << ", index=" << dec << p->indx << endl;
-	}
+	  if (newkey && bodycell.find(newkey) == bodycell.end()) {
+	    cout << "Process " << myid 
+		 << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
+		 << hex << newkey << ", index=" << dec << p->indx << endl;
+	  }
 #endif
+	}
+
       } else {			// Same cell: update body cell index 
 				// for the new key
 	key_key::iterator ij = bodycell.find(oldkey);
@@ -2161,6 +1806,304 @@ void pHOT::adjustTree(unsigned mlevel)
     
   }
   
+  timer_keymake.stop();
+  timer_xchange.start();
+
+
+  //
+  // Exchange particles
+  //
+
+  vector<unsigned long> templist(numprocs*numprocs, 0);
+  vector<unsigned long> sendlist(numprocs*numprocs, 0);
+
+  for (unsigned k=0; k<numprocs; k++)
+    templist[numprocs*myid + k] = exchange[k].size();
+
+  MPI_Allreduce(&templist[0], &sendlist[0], numprocs*numprocs,
+		MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+
+  unsigned Tcnt=0, Fcnt=0;
+  for (unsigned k=0; k<numprocs; k++) {
+    Tcnt += sendlist[numprocs*myid + k   ];
+    Fcnt += sendlist[numprocs*k    + myid];
+  }
+
+
+  static unsigned debug_ctr=0;
+  unsigned ps=0, pr=0;
+  Partstruct *psend, *precv = 0;
+  MPI_Status s;
+  int ierr;
+
+  if (Tcnt) psend = new Partstruct [Tcnt];
+  if (Fcnt) precv = new Partstruct [Fcnt];
+
+  //
+  // Exchange particles between processes
+  //
+
+  for (int frID=0; frID<numprocs; frID++) {
+
+    for (int toID=0; toID<numprocs; toID++) {
+				// 
+				// Current process sends particles 
+				// (non-blocking)
+      if (myid==frID) {		// 
+	unsigned To = sendlist[numprocs*frID+toID];
+	if (To) {
+	  for (unsigned i=0; i<To; i++) {
+	    pf.Particle_to_part(psend[ps+i], 
+				cc->Particles()[exchange[toID][i]]);
+	    cc->Particles().erase(exchange[toID][i]);
+	  }
+	  for (unsigned i=0; i<To; i++) {
+	    if (psend[ps+i].indx == 0) {
+	      cerr << "pHOT::adjustTree[" << debug_ctr
+		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
+		   << " ps=" << ps+i 
+		   << " mass=" << scientific << psend[ps+i].mass << endl;
+	    }
+	  }
+	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, 
+			       toID, 49, MPI_COMM_WORLD)) 
+	       != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in adjustTree sending"
+		   << To << " particles to #" << toID 
+		   << " ierr=" << ierr << endl;
+	    }
+	  ps += To;
+	}
+      }	// Send block
+
+				// Current process receives particles 
+				// (non-blocking)
+      if (myid==toID) {		// 
+	unsigned From = sendlist[numprocs*frID+toID];
+	if (From) {
+	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, 
+			      frID, 49, MPI_COMM_WORLD, &s)) 
+	       != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in adjustTree receiving "
+		   << From << " particles from #" << frID 
+		   << " ierr=" << ierr << endl;
+	    }
+	  pr += From;
+	}
+      }
+
+    } // Receipt block
+
+  }
+
+  //
+  // Buffer size sanity check
+  //
+  if (true) {			// Enabled if true
+
+    if (Tcnt-ps) {
+      cout << "Process " << myid 
+	   << ": [Tcnt] found <" << ps << "> but expected <" 
+	   << Tcnt << ">" << endl;
+    }
+    
+    if (Fcnt-pr) {
+      cout << "Process " << myid 
+	   << ": [Fcnt] found <" << pr << "> but expected <" 
+	   << Fcnt << ">" << endl;
+    }
+
+  }
+
+  //
+  // DEBUG
+  //
+  if (false) {			// Enabled if true
+
+    pr = 0;
+    for (int id=0; id<numprocs; id++) {
+      unsigned From = sendlist[numprocs*id+myid];
+      if (From) {
+	for (int i=0; i<From; i++) {
+	  if (precv[pr+i].indx == 0) {
+	    cerr << "pHOT::adjustTree[" << debug_ctr 
+		 << "]: RECV to=" << myid << " from=" << id << " #=" << From
+		 << " pr=" << pr+i << " mass=" << scientific 
+		 << precv[pr+i].mass << endl;
+	  }
+	}
+	pr += From;
+      }
+    }
+  }
+
+  debug_ctr++;
+
+  // END DEBUG
+
+  Particle part;
+  for (unsigned i=0; i<Fcnt; i++) {
+    pf.part_to_Particle(precv[i], part);
+    cc->Particles()[part.indx] = part;
+    
+    key_pair newpair(part.key, part.indx);
+    keybods.insert(newpair);
+    root->Add(newpair, &change);
+  }
+  cc->nbodies = cc->particles.size();
+
+
+  timer_xchange.stop();
+  timer_overlap.start();
+
+  //
+  // Cell overlap?
+  //
+
+  key_type headKey=0, tailKey=0;
+  unsigned head_num=0, tail_num=0;
+
+  for (int n=0; n<numprocs-1; n++) {
+
+    if (n==myid) {
+      if (keybods.size()) {
+	key_indx::reverse_iterator it = keybods.rbegin();
+	tailKey = bodycell.find(it->first)->second;
+	tail_num = frontier[tailKey]->bods.size();
+      } else {
+	tailKey = 0;
+	tail_num = 0;
+      }
+
+      // Send my tail cell info to next node
+      MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 131, MPI_COMM_WORLD);
+      MPI_Send(&tail_num, 1, MPI_UNSIGNED, n+1, 132, MPI_COMM_WORLD);
+      
+      // Get next node's head cell info
+      MPI_Recv(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 133, 
+	       MPI_COMM_WORLD, &s);
+      MPI_Recv(&head_num, 1, MPI_UNSIGNED, n+1, 134, MPI_COMM_WORLD, &s);
+
+      if (tailKey==headKey && tailKey!=0) {
+
+	c = frontier[tailKey];	// Cell in question: my last cell
+
+	if (tail_num>head_num) { 
+	  //
+	  // Receive particles
+	  //
+	  vector<Partstruct> Precv(head_num);
+	  MPI_Recv(&Precv[0], head_num, ParticleFerry::Particletype, 
+		   n+1, 136, MPI_COMM_WORLD, &s);
+	  
+	  for (int i=0; i<head_num; i++) {
+	    pf.part_to_Particle(Precv[i], part);
+	    cc->Particles()[part.indx] = part;
+	    key_pair newpair(part.key, part.indx);
+	    keybods.insert(newpair);
+	    c->Add(newpair, &change);
+	  }
+
+	} else {
+	  //
+	  // Send particles
+	  //
+	  unsigned k=0;
+	  vector<Partstruct> Psend(tail_num);
+	  set<unsigned>::iterator ib;
+	  for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) {
+	    pf.Particle_to_part(Psend[k++], cc->Particles()[*ib]);
+	    cc->Particles().erase(*ib);
+	  }
+
+	  c->RemoveAll();
+
+	  // queue for removal from level lists
+	  change.push_back(cell_indx(c, REMOVE));
+
+	  // queue for deletion
+	  change.push_back(cell_indx(c, KILL));
+
+	  MPI_Send(&Psend[0], tail_num, ParticleFerry::Particletype, 
+		   n+1, 135, MPI_COMM_WORLD);
+	}
+      }
+    }
+    
+    if (n+1==myid) {
+      if (keybods.size()) {
+	key_indx::iterator it = keybods.begin();
+	headKey = bodycell.find(it->first)->second;
+	head_num = frontier[headKey]->bods.size();
+      } else {
+	headKey = 0;
+	head_num = 0;
+      }
+
+      // Get previous nodes tail cell info
+      MPI_Recv(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 131, 
+	       MPI_COMM_WORLD, &s);
+      MPI_Recv(&tail_num, 1, MPI_UNSIGNED, n, 132, MPI_COMM_WORLD, &s);
+
+      // Send head node into to previous node
+      MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n, 133, MPI_COMM_WORLD);
+      MPI_Send(&head_num, 1, MPI_UNSIGNED, n, 134, MPI_COMM_WORLD);
+
+      if (tailKey==headKey && tailKey!=0) {
+
+	c = frontier[headKey];	// Cell in question
+
+	if (tail_num>head_num) { 
+	  //
+	  // Send particles
+	  //
+	  unsigned k=0;
+	  vector<Partstruct> Psend(head_num);
+	  set<unsigned>::iterator ib;
+	  for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) {
+	    pf.Particle_to_part(Psend[k++], cc->Particles()[*ib]);
+	    cc->Particles().erase(*ib);
+	  }
+
+	  c->RemoveAll();
+
+	  // queue for removal from level lists
+	  change.push_back(cell_indx(c, REMOVE));
+
+	  // queue for deletion
+	  change.push_back(cell_indx(c, KILL));
+	  
+	  MPI_Send(&Psend[0], head_num, ParticleFerry::Particletype, 
+		   n, 136, MPI_COMM_WORLD);
+	  
+	} else {		
+	  //
+	  // Receive particles
+	  //
+	  vector<Partstruct> Precv(tail_num);
+	  MPI_Recv(&Precv[0], tail_num, ParticleFerry::Particletype, 
+		   n, 135, MPI_COMM_WORLD, &s);
+
+	  for (int i=0; i<tail_num; i++) {
+	    pf.part_to_Particle(Precv[i], part);
+	    cc->Particles()[part.indx] = part;
+	    key_pair newpair(part.key, part.indx);
+	    keybods.insert(newpair);
+	    c->Add(newpair, &change);
+	  }
+	}
+      }
+    }
+    
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+
+  timer_overlap.stop();
+
 #define DEBUG
   
   // Create, remove and delete changed cells
@@ -2251,16 +2194,16 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << ": adjustTree: ERROR particle key not in keybods AFTER adjustTree(), T=" 
 	 << tnow << endl;
   }
-#endif
   
   if (!checkPartKeybods(mlevel)) {
     cout << "Process " << myid 
 	 << ": adjustTree: ERROR particle/keybods AFTER adjustTree(), T=" 
 	 << tnow << " mlevel=" << mlevel << endl;
   }
-    
+#endif
+  
 }
-
+  
 
 bool pHOT::checkParticles(bool pc)
 {
@@ -2777,3 +2720,14 @@ unsigned pHOT::checkNumber()
   return nbods;
 }
 
+
+void pHOT::adjustTiming(double &keymake, double &exchange, double &overlap)
+{
+  keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
+  exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
+  overlap  = timer_overlap.getTime().getRealTime()*1.0e-6;
+
+  timer_keymake.reset();
+  timer_xchange.reset();
+  timer_overlap.reset();
+}

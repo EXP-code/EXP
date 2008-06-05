@@ -8,6 +8,8 @@
 #include <pHOT_types.H>
 #include <pCell.H>
 
+#include <Timer.h>
+
 class pHOT
 {
 
@@ -49,10 +51,15 @@ protected:
   unsigned min_cell, max_cell, adjcnt;
   vector<unsigned> chist;
   change_list change;
+  vector<key_type> kbeg, kfin, loclist;
 
   ACG *gen;
   Uniform *unit;
   double *offset;
+
+
+  Timer timer_keymake, timer_xchange, timer_overlap;
+
 
 public:
 
@@ -73,7 +80,6 @@ public:
   //@{
   void makeTree();
   void Repartition();
-  void Rectify();
   void adjustTree(unsigned);
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
@@ -129,6 +135,7 @@ public:
 	    vector<double>&    x, vector<double>& dens, vector<double>& temp, 
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
   void checkBounds(double, const char *);
+  void adjustTiming(double &keymake, double &xchange, double &overlap);
 
   //@}
 };

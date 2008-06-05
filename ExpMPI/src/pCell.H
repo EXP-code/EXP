@@ -81,6 +81,9 @@ public:
   //! Remove a body
   bool Remove(const key_pair&, change_list* change=0);
 
+  //! Remove all bodies
+  void RemoveAll();
+
   /**
      Find the cell node in the current frontier that should contain 
      this body and return null if not found

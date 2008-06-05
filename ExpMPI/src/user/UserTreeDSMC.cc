@@ -559,10 +559,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
+      double keymake, xchange, overlap;
+      c0->Tree()->adjustTiming(keymake, xchange, overlap);      
+
       mout << "Timing (secs) at mlevel=" << mlevel << ":" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "  make tree=" << tree1SoFar()*1.0e-6 << endl
 	   << "adjust tree=" << tree2SoFar()*1.0e-6 << endl
+	   << "      *** keymake=" << keymake << endl
+	   << "      *** xchange=" << xchange << endl
+	   << "      *** overlap=" << overlap << endl
 	   << "  timesteps=" << tstepSoFar()*1.0e-6 << endl
 	   << "  step list=" << llistTime.getTime().getRealTime()*1.0e-6 
 	   << endl
