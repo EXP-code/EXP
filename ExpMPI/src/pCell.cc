@@ -277,6 +277,7 @@ void pCell::RemoveAll()
   }
 
   bods.clear();
+  tree->frontier.erase(mykey);
 
   for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
        ic!=parent->children.end(); ic++) {
