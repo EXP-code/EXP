@@ -32,23 +32,24 @@ struct hashULL {
 class pCell;
 struct Partstruct;
 
+typedef unsigned long indx_type;
 typedef unsigned long long key_type;
-typedef pair<unsigned long long, unsigned> key_pair;
-typedef pair<unsigned long long, unsigned long long> key_item;
-typedef pair<pCell*, unsigned> cell_indx;
+typedef pair<key_type, unsigned> key_pair;
+typedef pair<key_type, key_type> key_item;
+typedef pair<pCell*, indx_type> cell_indx;
 
 				// For cell transaction list
 typedef list<cell_indx> change_list;
 
 				// A list of key/index pairs for particles
-typedef set< pair<unsigned long long, unsigned>, ltPAIR> key_indx;
+typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;
 				// Cell key points to cell pointer
-typedef hash_map<unsigned long long, pCell*, hashULL, eqULL> key_cell;
+typedef hash_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle key points to cell key
 				// multimap permits multiple identical pairs
-typedef multimap<unsigned long long, unsigned long long> key_key;
+typedef multimap<key_type, key_type> key_key;
 				// Particle index points to particle key
-typedef hash_map<unsigned, unsigned long long, hash<unsigned> > indx_key;
+typedef hash_map<unsigned, key_type, hash<indx_type> > indx_key;
 
 
 #endif

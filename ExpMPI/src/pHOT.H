@@ -26,6 +26,9 @@ protected:
   key_cell frontier;
   key_key bodycell;
 
+				// Out of bounds list
+  vector<indx_type> oob;
+
   //  vector<Particle> *data;
   pCell *root;
   
@@ -37,6 +40,7 @@ protected:
   void parallelMerge(vector<key_type>& in, vector<key_type>& out);
   void sortCombine(vector<key_type>& one, vector<key_type>& two, vector<key_type>& comb);
   unsigned find_proc(vector<key_type>& keys, key_type key);
+  void spreadOOB();
 
   //! Frontier iterator
   key_cell::iterator fit;
@@ -59,6 +63,7 @@ protected:
 
 
   Timer timer_keymake, timer_xchange, timer_overlap;
+
 
 
 public:

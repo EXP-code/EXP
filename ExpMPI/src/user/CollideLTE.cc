@@ -280,17 +280,21 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 				// Reduced mass in system units
   double Mu = p1->mass*p2->mass/(p1->mass + p2->mass);
 
+				// Energy floor
+  const double tolV = 1.0e-03;
+  double dE = 0.5*Mu*(*cr)*(*cr)*tolV*tolV;
+
 				// Consistent: KE in coll. frame is
-  if ((*cr)*(*cr) > 2.0*deltaE[id]/Mu) {
+  if (0.5*Mu*(*cr)*(*cr)-dE > deltaE[id]) {
     lostSoFar[id] += deltaE[id];	// larger than the energy radiated
     decelT[id]    += deltaE[id];
     (*cr) = sqrt((*cr)*(*cr) - 2.0*deltaE[id]/Mu);
     ret = 0;			// No error
   }
   else {			// Inconsistent: too much energy lost!
-    lostSoFar[id] += 0.5*Mu*(*cr)*(*cr);
-    decelT[id]    += 0.5*Mu*(*cr)*(*cr);
-    (*cr) = 0.0;
+    lostSoFar[id] += dE;
+    decelT[id]    += dE;
+    (*cr) *= tolV;
     ret = 1;			// Set error flag
   }
 

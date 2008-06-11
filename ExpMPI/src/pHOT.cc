@@ -1262,20 +1262,13 @@ void pHOT::Repartition()
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
-      cout << "pHOT::Repartition [" << myid << "]: out of bounds,"
-	   << " indx=" << setw(12) << it->second.indx
-	   << " mass=" << setw(18) << it->second.mass
-	   << " pos=";
-      for (int k=0; k<3; k++)
-	cout << setw(18) << it->second.pos[k];
-      for (int k=0; k<3; k++)
-	cout << setw(18) << it->second.vel[k];
-      cout << endl;
+      oob.push_back(it->first);
     } else {
       keys.push_back(it->second.key);
     }
   }
   partitionKeys(keys, kbeg, kfin);
+  spreadOOB();
 
   //
   // Nodes compute send list
@@ -1949,9 +1942,11 @@ void pHOT::adjustTree(unsigned mlevel)
     pf.part_to_Particle(precv[i], part);
     cc->Particles()[part.indx] = part;
     
-    key_pair newpair(part.key, part.indx);
-    keybods.insert(newpair);
-    root->Add(newpair, &change);
+    if (part.key) {
+      key_pair newpair(part.key, part.indx);
+      keybods.insert(newpair);
+      root->Add(newpair, &change);
+    }
   }
   cc->nbodies = cc->particles.size();
 
@@ -2516,6 +2511,119 @@ void pHOT::checkBounds(double rmax, const char *msg)
     else cout << endl;
   }
 }
+
+void pHOT::spreadOOB()
+{
+  MPI_Status s;
+  const unsigned long tol = 33; // 3% tolerance
+  vector<unsigned long> list1(numprocs), list0(numprocs, 0);
+  vector<unsigned long> delta(numprocs);
+
+  list1[myid] = oob.size();
+  MPI_Allreduce(&list1[0], &list0[0], numprocs, 
+		MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+  double tot = 0.5;		// Round off
+  for (unsigned n=0; n<numprocs; n++) tot += list0[n];
+  unsigned long avg = static_cast<unsigned long>(floor(tot/numprocs));
+
+  unsigned long maxdif=0;
+  map<unsigned, unsigned> nsend, nrecv;
+  for (unsigned n=0; n<numprocs; n++) {
+    delta[n] = avg - list0[n];
+    /* 
+       Positive delta ===> Receive some
+       Negative delta ===> Send some
+       Zero delta     ===> Just right
+    */
+    maxdif = max<unsigned long>(maxdif, delta[n]);
+    if (delta[n]>0) nrecv[n] =  delta[n];
+    if (delta[n]<0) nsend[n] = -delta[n];
+  }
+
+				// Don't bother if changes are small
+  if (maxdif < cc->Number()/tol) return;
+
+
+  map<unsigned, unsigned>::iterator isnd = nsend.begin();
+  map<unsigned, unsigned>::iterator ircv = nrecv.begin();
+  vector<unsigned> sendlist(numprocs*numprocs, 0);
+
+  while (1) {
+    sendlist[numprocs*isnd->first + ircv->first]++;
+    if (--(isnd->second) == 0) isnd++;
+    if (--(ircv->second) == 0) ircv++;
+    if (isnd == nsend.end() || ircv == nrecv.end()) break;
+  }
+
+  unsigned Tcnt=0, Fcnt=0;
+  for (int i=0; i<numprocs; i++) {
+    Tcnt += sendlist[numprocs*myid + i];
+    Fcnt += sendlist[numprocs*i + myid];
+  }
+
+
+  unsigned ps=0, pr=0;
+  Partstruct *psend, *precv = 0;
+  int ierr;
+
+  if (Tcnt) psend = new Partstruct [Tcnt];
+  if (Fcnt) precv = new Partstruct [Fcnt];
+
+  //
+  // Exchange particles between processes
+  //
+  for (int frID=0; frID<numprocs; frID++) {
+    for (int toID=0; toID<numprocs; toID++) {
+				// 
+				// Current process sends particles
+      if (myid==frID) {		// 
+	unsigned To = sendlist[numprocs*frID+toID];
+	if (To) {
+	  for (unsigned i=0; i<To; i++) {
+	    pf.Particle_to_part(psend[ps+i], cc->Particles()[oob[ps+i]]);
+	    cc->Particles().erase(oob[ps+i]);
+	  }
+	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
+			      MPI_COMM_WORLD)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in spreadOOP sending "
+		   << To << " particles to #" << toID 
+		   << " ierr=" << ierr << endl;
+	    }
+	  ps += To;
+	}
+      }
+				// 
+				// Current process receives particles (blocking)
+      if (myid==toID) {		// 
+	unsigned From = sendlist[numprocs*frID+toID];
+	if (From) {
+	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, 
+			      frID, 49, MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
+	    {
+	      cout << "Process " << myid << ": error in spreadOOP receiving "
+		   << From << " particles from #" << frID 
+		   << " ierr=" << ierr << endl;
+	    }
+	  pr += From;
+	}
+      }
+
+    } // Receipt loop
+  }
+
+  Particle part;
+  for (unsigned i=0; i<Fcnt; i++) {
+    pf.part_to_Particle(precv[i], part);
+    cc->Particles()[part.indx] = part;
+  }
+  cc->nbodies = cc->particles.size();
+
+  delete [] psend;
+  delete [] precv;
+}
+
 
 void pHOT::partitionKeys(vector<key_type>& keys, 
 			 vector<key_type>& kbeg, vector<key_type>& kfin)
