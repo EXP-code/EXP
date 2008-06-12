@@ -1258,17 +1258,18 @@ void pHOT::Repartition()
   //
   // Recompute keys and compute new partition
   //
+  oob.clear();
   vector<key_type> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
-      oob.push_back(it->first);
+      oob.insert(it->first);
     } else {
       keys.push_back(it->second.key);
     }
   }
-  partitionKeys(keys, kbeg, kfin);
   spreadOOB();
+  partitionKeys(keys, kbeg, kfin);
 
   //
   // Nodes compute send list
@@ -1724,6 +1725,9 @@ void pHOT::adjustTree(unsigned mlevel)
 	  change.push_back(cell_indx(c, KILL));
 	}
 
+	if (oldkey==0) {	// Update oob list
+	  oob.erase(p->indx);
+	}
 
 				// Same processor?
 	newproc = find_proc(loclist, newkey);
@@ -1739,6 +1743,8 @@ void pHOT::adjustTree(unsigned mlevel)
 	  if (newkey != 0) {
 	    keybods.insert(newpair);
 	    c->Add(newpair, &change);
+	  } else {
+	    oob.insert(p->indx);
 	  }
 
 	  p->key = newkey;	// Assign the new key to the particle
@@ -2512,6 +2518,13 @@ void pHOT::checkBounds(double rmax, const char *msg)
   }
 }
 
+unsigned pHOT::oobNumber()
+{
+  unsigned number=0, number1=oob.size();
+  MPI_Reduce(&number1, &number, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  return number;
+}
+
 void pHOT::spreadOOB()
 {
   MPI_Status s;
@@ -2564,6 +2577,7 @@ void pHOT::spreadOOB()
 
 
   unsigned ps=0, pr=0;
+  set<indx_type>::iterator ioob = oob.begin();
   Partstruct *psend, *precv = 0;
   int ierr;
 
@@ -2581,16 +2595,16 @@ void pHOT::spreadOOB()
 	unsigned To = sendlist[numprocs*frID+toID];
 	if (To) {
 	  for (unsigned i=0; i<To; i++) {
-	    pf.Particle_to_part(psend[ps+i], cc->Particles()[oob[ps+i]]);
-	    cc->Particles().erase(oob[ps+i]);
+	    pf.Particle_to_part(psend[ps+i], cc->Particles()[*ioob]);
+	    cc->Particles().erase(*ioob);
+	    ioob++;
 	  }
-	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
-			      MPI_COMM_WORLD)) != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in spreadOOP sending "
-		   << To << " particles to #" << toID 
-		   << " ierr=" << ierr << endl;
-	    }
+	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, 
+			      toID, 49, MPI_COMM_WORLD)) != MPI_SUCCESS) {
+	    cout << "Process " << myid << ": error in spreadOOP sending "
+		 << To << " particles to #" << toID 
+		 << " ierr=" << ierr << endl;
+	  }
 	  ps += To;
 	}
       }

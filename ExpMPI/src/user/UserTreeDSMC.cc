@@ -480,6 +480,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     unsigned cellBods = c0->Tree()->checkNumber();
+    unsigned oobBods  = c0->Tree()->oobNumber();
 
     if (myid==0) {
 
@@ -504,7 +505,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
 	   << setw(6) << " " << setw(20) << coll_error << "collision errors (" 
 	   << setprecision(2) << fixed 
-	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl;
+	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl
+	   << setw(6) << " " << setw(20) << oobBods << "out-of-bounds" << endl
+	   << endl;
 
       collide->colldeTime(mout);
 

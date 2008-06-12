@@ -27,7 +27,7 @@ protected:
   key_key bodycell;
 
 				// Out of bounds list
-  vector<indx_type> oob;
+  set<indx_type> oob;
 
   //  vector<Particle> *data;
   pCell *root;
@@ -133,6 +133,7 @@ public:
   void densCheck();
   void statFrontier();
   unsigned checkNumber();
+  unsigned oobNumber();
   void testFrontier(string& filename);
   void Slice(int nx, int ny, int nz, string cut, string prefix);
   void Slab(vector<int>& n, vector<double>& pmin, vector<double>& pmax,
