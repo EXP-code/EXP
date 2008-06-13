@@ -1268,6 +1268,10 @@ void pHOT::Repartition()
       keys.push_back(it->second.key);
     }
   }
+  cout << "Process " << myid 
+       << ": part #=" << cc->Particles().size()
+       << "  key size=" << keys.size()
+       << "  oob size=" << oob.size() << endl;
   spreadOOB();
   partitionKeys(keys, kbeg, kfin);
 
@@ -1282,6 +1286,9 @@ void pHOT::Repartition()
   vector< vector<unsigned> > bodylist(numprocs);
   unsigned t;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
+				// Skip of OOB particle
+    if (it->second.key == 0) continue;
+				// Look for key in my list
     t = find_proc(loclist, it->second.key);
     if (t == numprocs) {
       cerr << "Process " << myid << ": loclist found last entry, "
@@ -2528,7 +2535,9 @@ unsigned pHOT::oobNumber()
 void pHOT::spreadOOB()
 {
   MPI_Status s;
-  const unsigned long tol = 33; // 3% tolerance
+				// 3% tolerance
+  const unsigned long tol = 33;
+
   vector<unsigned long> list1(numprocs), list0(numprocs, 0);
   vector<unsigned long> delta(numprocs);
 
@@ -2575,10 +2584,42 @@ void pHOT::spreadOOB()
     Fcnt += sendlist[numprocs*i + myid];
   }
 
+  // DEBUG (set to "true" to enable send/recv list diagnostic)
+  if (false) {
+    if (myid==0) {
+      cout << setw(70) << setfill('-') << "-" << endl << setfill(' ')
+	   << left << setw(5) << "P" << setw(10) << "Orig"
+	   << setw(10) << "To" << setw(10) << "From" 
+	   << setw(10) << "Target"
+	   << endl
+	   << setw(70) << setfill('-') << "-" << endl << setfill(' ');    
+      int tto=0, tfr=0;
+      for (int j=0; j<numprocs; j++) {
+	cout << setw(5) << j << setw(10) << list0[j];
+	int to=0, fr=0;
+	for (int i=0; i<numprocs; i++) {
+	  to += sendlist[numprocs*j + i];
+	  fr += sendlist[numprocs*i + j];
+	}
+	cout << setw(10) << to << setw(10) << fr 
+	     << setw(10) << list0[j] - to + fr << endl;
+	tto += to;
+	tfr += fr;
+      }
+      cout << setw(70) << setfill('-') << "-" << endl << setfill(' ')
+	   << left << setw(5) << "T" 
+	   << setw(10) << tto << setw(10) << tfr << setw(10) << tto-tfr << endl
+	   << setw(70) << setfill('-') << "-" << endl << setfill(' ');    
+    }
+  }
+  // END DEBUG
+
+
+  if (Tcnt==0 || Fcnt==0) return;
 
   unsigned ps=0, pr=0;
   set<indx_type>::iterator ioob = oob.begin();
-  Partstruct *psend, *precv = 0;
+  Partstruct *psend = 0, *precv = 0;
   int ierr;
 
   if (Tcnt) psend = new Partstruct [Tcnt];
