@@ -2618,7 +2618,7 @@ void pHOT::spreadOOB()
   if (Tcnt==0 || Fcnt==0) return;
 
   unsigned ps=0, pr=0;
-  set<indx_type>::iterator ioob = oob.begin();
+  set<indx_type>::iterator ioob;
   Partstruct *psend = 0, *precv = 0;
   int ierr;
 
@@ -2636,9 +2636,13 @@ void pHOT::spreadOOB()
 	unsigned To = sendlist[numprocs*frID+toID];
 	if (To) {
 	  for (unsigned i=0; i<To; i++) {
+	    ioob = oob.begin();
 	    pf.Particle_to_part(psend[ps+i], cc->Particles()[*ioob]);
 	    cc->Particles().erase(*ioob);
-	    ioob++;
+	    if (oob.find(*ioob) == oob.end())
+	      cerr << "Process " << myid << ": serious error, oob="
+		   << *ioob << endl;
+	    else oob.erase(ioob);
 	  }
 	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, 
 			      toID, 49, MPI_COMM_WORLD)) != MPI_SUCCESS) {
@@ -2667,6 +2671,10 @@ void pHOT::spreadOOB()
 
     } // Receipt loop
   }
+
+  //
+  // Add particles
+  //
 
   Particle part;
   for (unsigned i=0; i<Fcnt; i++) {
