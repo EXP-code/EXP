@@ -1286,9 +1286,9 @@ void pHOT::Repartition()
   vector< vector<unsigned> > bodylist(numprocs);
   unsigned t;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
-				// Skip of OOB particle
+				// Skip an OOB particle
     if (it->second.key == 0) continue;
-				// Look for key in my list
+				// Look for key in this node's list
     t = find_proc(loclist, it->second.key);
     if (t == numprocs) {
       cerr << "Process " << myid << ": loclist found last entry, "
@@ -1447,22 +1447,26 @@ void pHOT::Repartition()
   // Remake key body index
   //
   keybods.clear();
-  unsigned oab1=0, oab=0;
+  unsigned oob1_cnt=0, oob_cnt=0;
   map<unsigned long, Particle>::iterator n;
   for (n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     if (n->second.key==0) {
-      oab1++;
+      oob1_cnt++;
       continue;
     }
-    if (n->second.indx==0) cout << "pHOT::Repartition bad particle indx=0!" << endl;
+    if (n->second.indx==0) 
+      cout << "pHOT::Repartition bad particle indx=0!" << endl;
+
     keybods.insert(key_pair(n->second.key, n->second.indx));
   }
 
   // checkBounds(2.0, "AFTER repartition");
 
-  MPI_Reduce(&oab1, &oab, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-  if (myid==0 && oab)
-    cout << endl << "pHOT::Repartition: " << oab << " out of bounds" << endl;
+  MPI_Reduce(&oob1_cnt, &oob_cnt, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  unsigned oob_tot = oobNumber();
+  if (myid==0 && oob_cnt)
+    cout << endl << "pHOT::Repartition: " << oob_cnt << " out of bounds," 
+	 << " expected " << oob_tot << endl;
 
   if (false) {			// Sanity checks for bad particle indices
     bool ok = true;		// and bad particle counts
@@ -1708,11 +1712,12 @@ void pHOT::adjustTree(unsigned mlevel)
 
     //
     // Is the key the same?
-    //
+    // 
     if (newkey != oldkey) {
 				// Key pairs
       key_pair newpair(newkey, p->indx);
       key_pair oldpair(oldkey, p->indx);
+
 				// Put the particle in a new cell?
 				// 
       if ( !(c->isMine(newkey)) ) {
@@ -1723,54 +1728,49 @@ void pHOT::adjustTree(unsigned mlevel)
 	       << ": body cell check FAILED before removal!" << endl;
 	}
 #endif
+
+	if (c->Remove(oldpair, &change)) {
 				// Remove the old pair from the current cell
 				// (only transactions added are sample cells)
-	if (c->Remove(oldpair, &change)) {
 				// queue for removal from level lists
 	  change.push_back(cell_indx(c, REMOVE));
 				// queue for deletion
 	  change.push_back(cell_indx(c, KILL));
 	}
 
-	if (oldkey==0) {	// Update oob list
-	  oob.erase(p->indx);
-	}
+				// Same processor and in bounds?
+	if (newkey) {
+	  newproc = find_proc(loclist, newkey);
+	  if (newproc != myid) {
+				// Ship this particle elsewhere	  
+	    exchange[newproc].push_back(*ip);
 
-				// Same processor?
-	newproc = find_proc(loclist, newkey);
-
-	if (newproc != myid) {	// Ship this particle elsewhere
-	  
-	  exchange[newproc].push_back(*ip);
-	  p->key = newkey;	// Assign the new key to the particle
-	  
-	} else {
+	  } else {
 				// Add the new pair to the tree 
-				// (unless it's out of bounds)
-	  if (newkey != 0) {
 	    keybods.insert(newpair);
 	    c->Add(newpair, &change);
-	  } else {
-	    oob.insert(p->indx);
 	  }
 
-	  p->key = newkey;	// Assign the new key to the particle
+	} else {		// Out of bounds
+	  oob.insert(p->indx);
+	}
+	
+	p->key = newkey;	// Assign the new key to the particle
 #ifdef DEBUG
-	  if (!checkBodycell()) {
-	    cout << "Process " << myid 
-		 << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-		 << ": body cell check FAILED after removal and add!" << endl;
-	  }    
+	if (!checkBodycell()) {
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
+	       << ": body cell check FAILED after removal and add!" << endl;
+	}    
 				// Sanity check: is this particle
 				// *now* on the body/cell list?
-	  if (newkey && bodycell.find(newkey) == bodycell.end()) {
-	    cout << "Process " << myid 
-		 << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
-		 << hex << newkey << ", index=" << dec << p->indx << endl;
-	  }
-#endif
+	if (newkey && bodycell.find(newkey) == bodycell.end()) {
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
+	       << hex << newkey << ", index=" << dec << p->indx << endl;
 	}
-
+#endif
+	
       } else {			// Same cell: update body cell index 
 				// for the new key
 	key_key::iterator ij = bodycell.find(oldkey);
@@ -2487,6 +2487,9 @@ bool pHOT::checkBodycell()
   unsigned cnt=0;
   map<unsigned long, Particle>::iterator n;
   for (n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
+    // Ignore OOB particle
+    if (n->second.key==0) continue;
+    // Look for the bodycell
     key_key::iterator it = bodycell.find(n->second.key);
     if (it==bodycell.end()) {
       ok = false;

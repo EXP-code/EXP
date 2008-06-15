@@ -92,6 +92,7 @@ public:
 
   //! Check that this key belongs to this branch
   bool isMine(const key_type& key) {
+    if (key==0) return false;
     key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
     if (sig!=0) return false;
     return true;
