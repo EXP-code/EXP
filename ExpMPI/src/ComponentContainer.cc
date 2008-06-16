@@ -812,11 +812,19 @@ bool ComponentContainer::bad_values()
     for (it=(*cc)->Particles().begin(); it!=(*cc)->Particles().end(); it++) {
       if (isnan(it->second.mass)) badval=true;
       for (int k=0; k<3; k++) {
-	if (isnan(it->second.pos[k])) badval=true;
-	if (isnan(it->second.vel[k])) badval=true;
+	if (isnan(it->second.pos[k]))  badval=true;
+	if (isnan(it->second.vel[k]))  badval=true;
       }
       if (badval) {
-	cout << "Bad value in <" << (*cc)->name << ">" << endl;
+	cout << "Bad value in <" << (*cc)->name << ">: ";
+	cout << setw(12) << it->second.indx
+	     << setw(16) << it->second.key
+	     << setw(18) << it->second.mass;
+	for (int k=0; k<3; k++)
+	  cout << setw(18) << it->second.pos[k];
+	for (int k=0; k<3; k++)
+	  cout << setw(18) << it->second.vel[k];
+	cout << endl;
 	bad = true;
 	break;
       }

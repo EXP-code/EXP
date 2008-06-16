@@ -1103,9 +1103,18 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
     Particle* p = tree->Body(*ib);
     bodx.push_back(*ib);
+    if (p->mass<=0.0 || isnan(p->mass)) {
+      cout << "[crazy mass]";
+    }
     for (unsigned k=0; k<3; k++) {
       mvel[k] += p->mass*p->vel[k];
       disp[k] += p->mass*p->vel[k]*p->vel[k];
+      if (fabs(p->pos[k])>1.0e6 || isnan(p->pos[k])) {
+	cout << "[crazy pos]";
+      }
+      if (fabs(p->vel[k])>1.0e6 || isnan(p->vel[k])) {
+	cout << "[crazy vel]";
+      }
     }
     mass += p->mass;
     if (use_exes>=0) {
@@ -1307,6 +1316,10 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	p->vel[k] = mdisp*(*norm)();
 	Tmvel[k] += p->mass*p->vel[k];
 	Tdisp[k] += p->mass*p->vel[k]*p->vel[k];
+	if (fabs(p->vel[k])>1e6 || isnan(p->vel[k])) {
+	  cout << "[Collide crazy vel indx=" << p->indx 
+	       << ", key=" << hex << p->key << dec << "]";
+	}
       }
     }
 				// Compute mean and variance

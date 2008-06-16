@@ -2,10 +2,11 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cmath>
 
 using namespace std;
 
-#include <math.h>
+#include <values.h>
 #include <stdlib.h>
 #include <limits.h>
 #include <assert.h>
@@ -531,9 +532,21 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
 
       compute(N, T);
       
-      r.crate = crate;
-      r.hrate = hrate;
-      r.cmpcrate = cmpcrate;
+      if (crate > 0.0) 
+	r.crate = log(crate);
+      else
+	r.crate = log(MINDOUBLE);
+
+      if (hrate > 0.0)
+	r.hrate = log(hrate);
+      else
+	r.hrate = log(MINDOUBLE);
+
+      if (cmpcrate > 0.0)
+	r.cmpcrate = cmpcrate;
+      else
+	r.cmpcrate = log(MINDOUBLE);
+
       r.trate = trate;
 
       tmp.push_back(r);
@@ -579,17 +592,23 @@ void HeatCool::setPoint(double N, double T)
     bN*(aT*data[n_indx+1][t_indx  ].crate + 
 	bT*data[n_indx+1][t_indx+1].crate   ) ;
 
+  crate = exp(crate);
+
   hrate = 
     aN*(aT*data[n_indx  ][t_indx  ].hrate + 
 	bT*data[n_indx  ][t_indx+1].hrate   ) +
     bN*(aT*data[n_indx+1][t_indx  ].hrate + 
 	bT*data[n_indx+1][t_indx+1].hrate   ) ;
 
+  hrate = exp(hrate);
+
   cmpcrate = 
     aN*(aT*data[n_indx  ][t_indx  ].cmpcrate + 
 	bT*data[n_indx  ][t_indx+1].cmpcrate   ) +
     bN*(aT*data[n_indx+1][t_indx  ].cmpcrate +
 	bT*data[n_indx+1][t_indx+1].cmpcrate   ) ;
+
+  cmpcrate = exp(cmpcrate);
 
   trate = 
     aN*(aT*data[n_indx  ][t_indx  ].trate + 
@@ -624,11 +643,13 @@ double HeatCool::CoolRate(double N, double T)
   aT = (dT*(t_indx+1) - lT)/dT;
   bT = (lT - dT*t_indx    )/dT;
   
-  return
+  double ans = 
     aN*(aT*data[n_indx  ][t_indx  ].crate + 
 	bT*data[n_indx  ][t_indx+1].crate   ) +
     bN*(aT*data[n_indx+1][t_indx  ].crate + 
 	bT*data[n_indx+1][t_indx+1].crate   ) ;
+
+  return exp(ans);
 }
 
 

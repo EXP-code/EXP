@@ -862,6 +862,10 @@ void pHOT::recvCell(int from, unsigned num)
 
   for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
+      if (part.mass<=0.0 || isnan(part.mass)) {
+	cout << "[recvCell crazy mass indx=" << part.indx 
+	     << ", key=" << hex << part.key << dec << "]";
+      }
     cc->particles[part.indx] = part;
     if (part.key == 0) continue;
     if (part.key < key_min || part.key >= key_max) {
@@ -1268,10 +1272,12 @@ void pHOT::Repartition()
       keys.push_back(it->second.key);
     }
   }
+#ifdef DEBUG
   cout << "Process " << myid 
        << ": part #=" << cc->Particles().size()
        << "  key size=" << keys.size()
        << "  oob size=" << oob.size() << endl;
+#endif
   spreadOOB();
   partitionKeys(keys, kbeg, kfin);
 
@@ -1330,7 +1336,7 @@ void pHOT::Repartition()
 
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
-  Partstruct *psend, *precv = 0;
+  Partstruct *psend=0, *precv=0;
   int ierr;
 
   if (Tcnt) psend = new Partstruct [Tcnt];
@@ -1430,12 +1436,18 @@ void pHOT::Repartition()
 
   // END DEBUG
 
-  Particle part;
-  for (unsigned i=0; i<Fcnt; i++) {
-    pf.part_to_Particle(precv[i], part);
-    cc->Particles()[part.indx] = part;
+  if (Fcnt) {
+    Particle part;
+    for (unsigned i=0; i<Fcnt; i++) {
+      pf.part_to_Particle(precv[i], part);
+      if (part.mass<=0.0 || isnan(part.mass)) {
+	cout << "[adjustTree crazy mass indx=" << part.indx 
+	     << ", key=" << hex << part.key << dec << "]";
+      }
+      cc->Particles()[part.indx] = part;
+    }
+    cc->nbodies = cc->particles.size();
   }
-  cc->nbodies = cc->particles.size();
       
   //
   // Clean up temporary body storage
@@ -1839,7 +1851,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
-  Partstruct *psend, *precv = 0;
+  Partstruct *psend=0, *precv=0;
   MPI_Status s;
   int ierr;
 
@@ -1953,6 +1965,11 @@ void pHOT::adjustTree(unsigned mlevel)
   Particle part;
   for (unsigned i=0; i<Fcnt; i++) {
     pf.part_to_Particle(precv[i], part);
+      if (part.mass<=0.0 || isnan(part.mass)) {
+	cout << "[spreadOOB crazy mass indx=" << part.indx 
+	     << ", key=" << hex << part.key << dec << "]";
+      }
+
     cc->Particles()[part.indx] = part;
     
     if (part.key) {
@@ -2619,12 +2636,9 @@ void pHOT::spreadOOB()
   }
   // END DEBUG
 
-
-  if (Tcnt==0 || Fcnt==0) return;
-
   unsigned ps=0, pr=0;
   set<indx_type>::iterator ioob;
-  Partstruct *psend = 0, *precv = 0;
+  Partstruct *psend=0, *precv=0;
   int ierr;
 
   if (Tcnt) psend = new Partstruct [Tcnt];
@@ -2681,15 +2695,21 @@ void pHOT::spreadOOB()
   // Add particles
   //
 
-  Particle part;
-  for (unsigned i=0; i<Fcnt; i++) {
-    pf.part_to_Particle(precv[i], part);
-    cc->Particles()[part.indx] = part;
+  if (Fcnt) {
+    Particle part;
+    for (unsigned i=0; i<Fcnt; i++) {
+      pf.part_to_Particle(precv[i], part);
+      if (part.mass<=0.0 || isnan(part.mass)) {
+	cout << "[spreadOOB crazy mass indx=" << part.indx 
+	     << ", key=" << hex << part.key << dec << "]";
+      }
+      cc->Particles()[part.indx] = part;
+    }
+    cc->nbodies = cc->particles.size();
   }
-  cc->nbodies = cc->particles.size();
 
-  delete [] psend;
-  delete [] precv;
+  if (Tcnt) delete [] psend;
+  if (Fcnt) delete [] precv;
 }
 
 
