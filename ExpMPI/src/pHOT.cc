@@ -1464,7 +1464,7 @@ void pHOT::Repartition()
 
   MPI_Reduce(&oob1_cnt, &oob_cnt, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   unsigned oob_tot = oobNumber();
-  if (myid==0 && oob_cnt)
+  if (myid==0 && oob_cnt != oob_tot)
     cout << endl << "pHOT::Repartition: " << oob_cnt << " out of bounds," 
 	 << " expected " << oob_tot << endl;
 
@@ -2541,8 +2541,8 @@ void pHOT::spreadOOB()
 				// 3% tolerance
   const unsigned long tol = 33;
 
-  vector<unsigned long> list1(numprocs), list0(numprocs, 0);
-  vector<unsigned long> delta(numprocs);
+  vector<long> list1(numprocs), list0(numprocs, 0);
+  vector<long> delta(numprocs);
 
   list1[myid] = oob.size();
   MPI_Allreduce(&list1[0], &list0[0], numprocs, 
@@ -2561,7 +2561,7 @@ void pHOT::spreadOOB()
        Negative delta ===> Send some
        Zero delta     ===> Just right
     */
-    maxdif = max<unsigned long>(maxdif, delta[n]);
+    maxdif = max<unsigned long>(maxdif, abs(delta[n]));
     if (delta[n]>0) nrecv[n] =  delta[n];
     if (delta[n]<0) nsend[n] = -delta[n];
   }
@@ -2569,6 +2569,8 @@ void pHOT::spreadOOB()
 				// Don't bother if changes are small
   if (maxdif < cc->Number()/tol) return;
 
+				// Nothing to send or receive
+  if (nsend.size()==0 || nrecv.size()==0) return;
 
   map<unsigned, unsigned>::iterator isnd = nsend.begin();
   map<unsigned, unsigned>::iterator ircv = nrecv.begin();
