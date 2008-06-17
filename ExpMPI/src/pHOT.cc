@@ -1255,6 +1255,14 @@ void pHOT::Repartition()
   volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
 
 
+				// No need to repartition 
+				// if there are no bodies
+  if (cc->nbodies_tot==0) {
+    if (myid==0) 
+      cout << "pHOT::Repartition with ZERO bodies, continuing" << endl;
+    return;
+  }
+
 #ifdef DEBUG
   vector<unsigned long> erased;
 #endif
@@ -1340,6 +1348,8 @@ void pHOT::Repartition()
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
   Partstruct *psend=0, *precv=0;
+  vector<MPI_Request> rql;
+  MPI_Request req;
   int ierr;
 
   if (Tcnt) psend = new Partstruct [Tcnt];
@@ -1369,34 +1379,42 @@ void pHOT::Repartition()
 		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
 	    }
 	  }
-	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, 
-			      MPI_COMM_WORLD)) != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in Reparition sending "
-		   << To << " particles to #" << toID << " ierr=" << ierr << endl;
-	    }
+	  rql.push_back(req);
+	  if ( (ierr=MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS  ) {
+	    cout << "Process " << myid << ": error in Reparition sending "
+		 << To << " particles to #" << toID << " ierr=" << ierr << endl;
+	  }
 	  ps += To;
 	}
       }
 				// 
-				// Current process receives particles (blocking)
+				// Current process receives particles (non blocking)
       if (myid==toID) {		// 
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
-	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, 
-			      MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in Reparition receiving "
-		   << From << " particles from #" << frID << " ierr=" << ierr << endl;
-	    }
+	  rql.push_back(req);
+	  if ( (ierr=MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
+	    cout << "Process " << myid << ": error in Reparition receiving "
+		 << From << " particles from #" << frID << " ierr=" << ierr << endl;
+	  }
 	  pr += From;
 	}
       }
-
+      
     } // Receipt loop
-
+    
     MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
   }
+
+  //
+  // Wait for completion of sends and receives
+  //
+
+  if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
+    {
+      cout << "Process " << myid << ": error in Reparition Waitall"
+	   << ", ierr=" << ierr << endl;
+    }
 
   //
   // Buffer size sanity check
@@ -1405,13 +1423,13 @@ void pHOT::Repartition()
 
     if (Tcnt-ps) {
       cout << "Process " << myid 
-	   << ": [Tcnt] found <" << ps << "> but expected <" 
+	   << ": Repartition [Tcnt] found <" << ps << "> but expected <" 
 	   << Tcnt << ">" << endl;
     }
     
     if (Fcnt-pr) {
       cout << "Process " << myid 
-	   << ": [Fcnt] found <" << pr << "> but expected <" 
+	   << ": Repartition [Fcnt] found <" << pr << "> but expected <" 
 	   << Fcnt << ">" << endl;
     }
 
@@ -1856,6 +1874,8 @@ void pHOT::adjustTree(unsigned mlevel)
   static unsigned debug_ctr=0;
   unsigned ps=0, pr=0;
   Partstruct *psend=0, *precv=0;
+  vector<MPI_Request> rql;
+  MPI_Request r;
   MPI_Status s;
   int ierr;
 
@@ -1888,14 +1908,12 @@ void pHOT::adjustTree(unsigned mlevel)
 		   << " mass=" << scientific << psend[ps+i].mass << endl;
 	    }
 	  }
-	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, 
-			       toID, 49, MPI_COMM_WORLD)) 
-	       != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in adjustTree sending"
-		   << To << " particles to #" << toID 
-		   << " ierr=" << ierr << endl;
-	    }
+	  rql.push_back(r);
+	  if ( (ierr=MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
+	    cout << "Process " << myid << ": error in adjustTree sending"
+		 << To << " particles to #" << toID 
+		 << " ierr=" << ierr << endl;
+	  }
 	  ps += To;
 	}
       }	// Send block
@@ -1905,14 +1923,12 @@ void pHOT::adjustTree(unsigned mlevel)
       if (myid==toID) {		// 
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
-	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, 
-			      frID, 49, MPI_COMM_WORLD, &s)) 
-	       != MPI_SUCCESS)
-	    {
-	      cout << "Process " << myid << ": error in adjustTree receiving "
-		   << From << " particles from #" << frID 
-		   << " ierr=" << ierr << endl;
-	    }
+	  rql.push_back(r);
+	  if ( (ierr=MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
+	    cout << "Process " << myid << ": error in adjustTree receiving "
+		 << From << " particles from #" << frID 
+		 << " ierr=" << ierr << endl;
+	  }
 	  pr += From;
 	}
       }
@@ -1922,19 +1938,29 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 
   //
+  // Wait for completion of sends and receives
+  //
+
+  if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
+    {
+      cout << "Process " << myid << ": error in adjustTree Waitall"
+	   << ", ierr=" << ierr << endl;
+    }
+
+  //
   // Buffer size sanity check
   //
   if (true) {			// Enabled if true
 
     if (Tcnt-ps) {
       cout << "Process " << myid 
-	   << ": [Tcnt] found <" << ps << "> but expected <" 
+	   << ": adjustTree [Tcnt] found <" << ps << "> but expected <" 
 	   << Tcnt << ">" << endl;
     }
     
     if (Fcnt-pr) {
       cout << "Process " << myid 
-	   << ": [Fcnt] found <" << pr << "> but expected <" 
+	   << ": adjustTree [Fcnt] found <" << pr << "> but expected <" 
 	   << Fcnt << ">" << endl;
     }
 
@@ -2556,6 +2582,34 @@ unsigned pHOT::oobNumber()
   return number;
 }
 
+void pHOT::checkOOB(vector<unsigned>& sendlist)
+{
+  bool aok = true;
+  if (myid==0) {
+    MPI_Status status;
+    vector<unsigned> recvlist(numprocs*numprocs);
+    for (unsigned n=1; n<numprocs; n++) {
+      MPI_Recv(&recvlist[0], numprocs*numprocs, MPI_UNSIGNED, n, 321, 
+	       MPI_COMM_WORLD, &status);
+      bool ok = true;
+      for (unsigned j=0; j<numprocs*numprocs; j++)
+	if (sendlist[j] != recvlist[j]) ok = false;
+      if (!ok) {
+	cout << "checkOOB: sendlist from #" << n << " is in error" << endl;
+	aok = false;
+      }
+    }
+
+  } else {
+    MPI_Send(&sendlist[0], numprocs*numprocs, MPI_UNSIGNED, 0, 321, 
+	     MPI_COMM_WORLD);
+  }
+
+  if (myid==0 && aok)
+    cout << "checkOOB: all sendlists match!" << endl;
+}
+
+
 void pHOT::spreadOOB()
 {
   MPI_Status s;
@@ -2566,13 +2620,13 @@ void pHOT::spreadOOB()
 
   list1[myid] = oob.size();
   MPI_Allreduce(&list1[0], &list0[0], numprocs, 
-		MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
+		MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
 
   double tot = 0.5;		// Round off
   for (unsigned n=0; n<numprocs; n++) tot += list0[n];
-  unsigned long avg = static_cast<unsigned long>(floor(tot/numprocs));
+  long avg = static_cast<long>(floor(tot/numprocs));
 
-  unsigned long maxdif=0;
+  long maxdif=0;
   map<unsigned, unsigned> nsend, nrecv;
   for (unsigned n=0; n<numprocs; n++) {
     delta[n] = avg - list0[n];
@@ -2581,7 +2635,7 @@ void pHOT::spreadOOB()
        Negative delta ===> Send some
        Zero delta     ===> Just right
     */
-    maxdif = max<unsigned long>(maxdif, abs(delta[n]));
+    maxdif = max<long>(maxdif, abs(delta[n]));
     if (delta[n]>0) nrecv[n] =  delta[n];
     if (delta[n]<0) nsend[n] = -delta[n];
   }
@@ -2604,6 +2658,10 @@ void pHOT::spreadOOB()
     if (--(ircv->second) == 0) ircv++;
     if (isnd == nsend.end() || ircv == nrecv.end()) break;
   }
+
+  // DEBUG
+  checkOOB(sendlist);
+  // END DEBUG
 
   unsigned Tcnt=0, Fcnt=0;
   for (int i=0; i<numprocs; i++) {
@@ -2648,6 +2706,8 @@ void pHOT::spreadOOB()
   unsigned ps=0, pr=0;
   set<indx_type>::iterator ioob;
   Partstruct *psend=0, *precv=0;
+  vector<MPI_Request> rql;
+  MPI_Request r;
   int ierr;
 
   if (Tcnt) psend = new Partstruct [Tcnt];
@@ -2672,8 +2732,10 @@ void pHOT::spreadOOB()
 		   << *ioob << endl;
 	    else oob.erase(ioob);
 	  }
-	  if ( (ierr=MPI_Send(&psend[ps], To, ParticleFerry::Particletype, 
-			      toID, 49, MPI_COMM_WORLD)) != MPI_SUCCESS) {
+	  rql.push_back(r);
+	  if ( (ierr=MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, 
+			       toID, 49, MPI_COMM_WORLD, &rql.back()))
+	       != MPI_SUCCESS) {
 	    cout << "Process " << myid << ": error in spreadOOP sending "
 		 << To << " particles to #" << toID 
 		 << " ierr=" << ierr << endl;
@@ -2686,8 +2748,10 @@ void pHOT::spreadOOB()
       if (myid==toID) {		// 
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
-	  if ( (ierr=MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, 
-			      frID, 49, MPI_COMM_WORLD, &s)) != MPI_SUCCESS)
+	  rql.push_back(r);
+	  if ( (ierr=MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, 
+			       frID, 49, MPI_COMM_WORLD, &rql.back())) 
+	       != MPI_SUCCESS)
 	    {
 	      cout << "Process " << myid << ": error in spreadOOP receiving "
 		   << From << " particles from #" << frID 
@@ -2699,6 +2763,16 @@ void pHOT::spreadOOB()
 
     } // Receipt loop
   }
+
+  //
+  // Wait for completion of sends and receives
+  //
+
+  if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
+    {
+      cout << "Process " << myid << ": error in spreadOOB Waitall"
+	   << ", ierr=" << ierr << endl;
+    }
 
   //
   // Add particles
@@ -2737,10 +2811,15 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 
 				// Number of samples
   unsigned nsamp = keys.size()/srate;
-				// Sanity checks
-  if (nsamp < 10000/numprocs) nsamp = 10000/numprocs; // Too few samples
-  if (nsamp > keys.size())    nsamp = keys.size();    // Too many for particle count
-  if (nsamp) srate = keys.size()/nsamp;	              // Consistent sampling rate
+				
+  if (nsamp < 10000/numprocs)	// Too few samples
+    nsamp = 10000/numprocs; 
+				
+  if (nsamp > keys.size())	// Too many for particle count
+    nsamp = keys.size();
+
+  if (nsamp)			// Consistent sampling rate
+    srate = keys.size()/nsamp;
 
   // Require: srate*(2*nsamp-1)/2 < keys.size()
   //
@@ -2766,10 +2845,66 @@ void pHOT::partitionKeys(vector<key_type>& keys,
       keylist1.push_back(keys[srate*(2*i+1)/2]);
   }
 
+  //
+  // DEBUG (set to "true" to enable key list diagnostic)
+  //
+  if (false) {
+    const unsigned cols = 3;	// # of columns in output
+    const unsigned cwid = 35;	// column width
+
+    if (myid==0) {
+      cout << "--------------------------" << endl;
+      cout << "----- Partition keys -----" << endl;
+      cout << "--------------------------" << endl;
+
+      for (unsigned q=0; q<cols; q++) {
+	ostringstream sout;
+	sout << left << setw(4) << "Id" << setw(8) 
+	     << "Size" << setw(8) << "Tot" << setw(8) << "Order";
+	cout << left << setw(cwid) << sout.str();
+      }
+      cout << endl;
+	
+      for (unsigned q=0; q<cols; q++) {
+	ostringstream sout;
+	sout << setfill('-') << setw(cwid-5) << '-';
+	cout << left << setw(cwid) << sout.str();
+      }
+      cout << endl;
+    }
+
+    for (unsigned n=0; n<numprocs; n++) {
+      if (myid==n) {
+	bool ok = true;
+	if (keylist1.size()>1) {
+	  for (unsigned j=1; j<keylist1.size(); j++)
+	    if (keylist1[j-1]>keylist1[j]) ok = false;
+	}
+	ostringstream sout;
+	sout << left 
+	     << setw(4) << myid 
+	     << setw(8) << keylist1.size() 
+	     << setw(8) << keys.size();
+	if (ok) sout << left << setw(8) << "GOOD";
+	else sout << left << setw(8) << "BAD";
+
+	cout << left << setw(cwid) << sout.str() << flush;
+	if (n % cols == cols-1 || n == numprocs-1) cout << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+  //
+  // END DEBUG
+  //
+
 				// Tree aggregation (merge sort) of the
 				// entire key list
+
+				// <keylist1> is (and must be) sorted to start
   parallelMerge(keylist1, keylist);
 
+  MPI_Barrier(MPI_COMM_WORLD);
 
   if (myid==0) {
 
@@ -2899,8 +3034,10 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
   if (myid >= M2) {
     n = initl.size();
     MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
-    MPI_Send(&initl[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
-	     MPI_COMM_WORLD);
+    if (n) {
+      MPI_Send(&initl[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+	       MPI_COMM_WORLD);
+    }
     return;
   }
 
@@ -2911,11 +3048,13 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
   //
   if (myid + M2 < numprocs) {
     MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
-    vector<key_type> recv(n);
-    MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
-	     MPI_COMM_WORLD, &status);
+    if (n) {
+      vector<key_type> recv(n);
+      MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
+	       MPI_COMM_WORLD, &status);
 				// data=data+new_data
-    sortCombine(initl, recv, data);
+      sortCombine(initl, recv, data);
+    }
   }
     
   //
@@ -2934,19 +3073,23 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
     if (myid >= M2) {
       n = data.size();
       MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
-      MPI_Send(&data[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
-	       MPI_COMM_WORLD);
+      if (n) {
+	MPI_Send(&data[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+		 MPI_COMM_WORLD);
+      }
       return;
     } else {
       MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
-      vector<key_type> recv(n);
-      MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
-	       MPI_COMM_WORLD, &status);
-      //
-      // The lower half sorts and loop again
-      //
-      sortCombine(data, recv, work);
-      data = work;
+      if (n) {
+	vector<key_type> recv(n);
+	MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, myid+M2, 12, 
+		 MPI_COMM_WORLD, &status);
+	//
+	// The lower half sorts and loop again
+	//
+	sortCombine(data, recv, work);
+	data = work;
+      }
     }
   }
 

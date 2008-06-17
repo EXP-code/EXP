@@ -41,6 +41,7 @@ protected:
   void sortCombine(vector<key_type>& one, vector<key_type>& two, vector<key_type>& comb);
   unsigned find_proc(vector<key_type>& keys, key_type key);
   void spreadOOB();
+  void checkOOB(vector<unsigned>&);
 
   //! Frontier iterator
   key_cell::iterator fit;
