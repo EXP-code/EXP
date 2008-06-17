@@ -1320,8 +1320,11 @@ void pHOT::Repartition()
   if (false) {			// If true, write send and receive list for each node
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
-	cout << "--------------------------------------------------------" << endl;
-	cout << "Process " << myid << ": Tcnt=" << Tcnt << " Fcnt=" << Fcnt << endl;
+	cout<<"--------------------------------------------------------"<<endl
+	    <<"---- Repartition"<<endl
+	    <<"--------------------------------------------------------"<<endl
+	    << "Process " << myid << ": Tcnt=" << Tcnt 
+	    << " Fcnt=" << Fcnt << endl;
 	for (int m=0; m<numprocs; m++)
 	  cout << setw(5) << m 
 	       << setw(8) << sendlist[numprocs*n+m]
@@ -1425,7 +1428,8 @@ void pHOT::Repartition()
 	if (precv[pr+i].indx == 0) {
 	  cerr << "pHOT::Repartition[" << debug_ctr 
 	       << "]: RECV to=" << myid << " from=" << id << " #=" << From
-	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass << endl;
+	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass 
+	       << endl;
 	}
       }
       pr += From;
@@ -1466,7 +1470,7 @@ void pHOT::Repartition()
       oob1_cnt++;
       continue;
     }
-    if (n->second.indx==0) 
+    if (n->second.indx==0)
       cout << "pHOT::Repartition bad particle indx=0!" << endl;
 
     keybods.insert(key_pair(n->second.key, n->second.indx));
@@ -2558,8 +2562,7 @@ void pHOT::spreadOOB()
 				// 3% tolerance
   const unsigned long tol = 33;
 
-  vector<long> list1(numprocs), list0(numprocs, 0);
-  vector<long> delta(numprocs);
+  vector<long> list1(numprocs, 0), list0(numprocs), delta(numprocs);
 
   list1[myid] = oob.size();
   MPI_Allreduce(&list1[0], &list0[0], numprocs, 
@@ -2589,6 +2592,8 @@ void pHOT::spreadOOB()
 				// Nothing to send or receive
   if (nsend.size()==0 || nrecv.size()==0) return;
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   map<unsigned, unsigned>::iterator isnd = nsend.begin();
   map<unsigned, unsigned>::iterator ircv = nrecv.begin();
   vector<unsigned> sendlist(numprocs*numprocs, 0);
@@ -2607,9 +2612,13 @@ void pHOT::spreadOOB()
   }
 
   // DEBUG (set to "true" to enable send/recv list diagnostic)
+  //
   if (false) {
     if (myid==0) {
-      cout << setw(70) << setfill('-') << "-" << endl << setfill(' ')
+      cout <<"--------------------------------------------------------"<< endl
+	   <<"---- spreadOOB" << endl
+	   <<"--------------------------------------------------------"<< endl
+	   << setw(70) << setfill('-') << "-" << endl << setfill(' ')
 	   << left << setw(5) << "P" << setw(10) << "Orig"
 	   << setw(10) << "To" << setw(10) << "From" 
 	   << setw(10) << "Target"
@@ -2704,12 +2713,16 @@ void pHOT::spreadOOB()
 	     << ", key=" << hex << part.key << dec << "]";
       }
       cc->Particles()[part.indx] = part;
+      oob.insert(part.indx);
     }
     cc->nbodies = cc->particles.size();
   }
 
   if (Tcnt) delete [] psend;
   if (Fcnt) delete [] precv;
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
 }
 
 
@@ -2729,9 +2742,29 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   if (nsamp > keys.size())    nsamp = keys.size();    // Too many for particle count
   if (nsamp) srate = keys.size()/nsamp;	              // Consistent sampling rate
 
+  // Require: srate*(2*nsamp-1)/2 < keys.size()
+  //
+  if (keys.size()) {
+    unsigned decr=0;
+    while (srate*(2*nsamp-1)/2 >= keys.size()) {
+      nsamp--;
+      // DEBUG
+      decr++;
+      // END DEBUG
+    }
+    // DEBUG
+    if (decr) 
+      cout << "partitionKeys: process " << myid 
+	   << ": decreased nsamp by " << decr  << " to " << nsamp 
+	   << endl;
+    // END DEBUG
+  }
+  
   vector<key_type> keylist1, keylist;
-  for (unsigned i=0; i<nsamp; i++)
-    keylist1.push_back(keys[srate*(2*i+1)/2]);
+  if (keys.size()) {
+    for (unsigned i=0; i<nsamp; i++)
+      keylist1.push_back(keys[srate*(2*i+1)/2]);
+  }
 
 				// Tree aggregation (merge sort) of the
 				// entire key list
@@ -2740,23 +2773,44 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 
   if (myid==0) {
 
-    for (unsigned i=0; i<numprocs-1; i++)
-      kfin[i] = keylist[static_cast<unsigned>(keylist.size()*(i+1)/numprocs)];
+    for (unsigned i=0; i<numprocs-1; i++) {
+      if (keylist.size())
+	kfin[i] = keylist[static_cast<unsigned>(keylist.size()*(i+1)/numprocs)];
+      else
+	kfin[i] = key_min;
+    }
+
     kfin[numprocs-1] = key_max;
 
     kbeg[0] = key_min;
     for (unsigned i=1; i<numprocs; i++)
       kbeg[i] = kfin[i-1];
-
+      
     if (false) {	 // If true, print key ranges for each process
       cout << "--------------------------------------------------" << endl
-	   << "partitionKeys: keys in list=" << keylist.size() << endl
+	   << "---- partitionKeys: keys in list=" << keylist.size() << endl
 	   << "--------------------------------------------------" << endl;
       for (int i=0; i<numprocs; i++)
 	cout << setw(5) << i << hex << setw(15) << kbeg[i] 
 	     << setw(15) << kfin[i] << dec << endl;
       cout << "--------------------------------------------------" << endl;
     }
+  }
+
+  if (false) {			// If true, print key totals
+    unsigned oobn = oobNumber();
+    unsigned tkey1 = keys.size(), tkey0 = 0;
+    MPI_Reduce(&tkey1, &tkey0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) 
+      cout << endl
+	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	   << "---- partitionKeys" << endl
+	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	   << "----  list size=" << setw(10) << keylist.size() << endl
+	   << "---- total keys=" << setw(10) << tkey0 << endl
+	   << "----  total oob=" << setw(10) << oobn << endl
+	   << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
+	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
   }
 
   MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
