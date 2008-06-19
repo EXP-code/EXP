@@ -65,7 +65,8 @@ protected:
 
   Timer timer_keymake, timer_xchange, timer_overlap;
 
-
+  // For debugging sychronization
+  void debug_ts(const char* msg);
 
 public:
 
