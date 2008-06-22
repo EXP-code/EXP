@@ -110,6 +110,38 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 
   //
+  // Sanity check on excess attribute if excess calculation is
+  // desired
+  //
+  if (use_exes>=0) {
+
+    int ok1 = 1, ok;
+
+    map<unsigned long, Particle>::iterator p = c0->Particles().begin();
+    map<unsigned long, Particle>::iterator pend = c0->Particles().end();
+    for (; p!=pend; p++) {
+      if (use_exes >= static_cast<int>(p->second.dattrib.size())) {
+	ok1 = 0;
+	break;
+      }
+    }
+
+    MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
+
+    // Turn off excess calculation
+    // if particles have incompatible attributes
+    if (ok==0) {
+      if (myid==0) {
+	cout << "UserTreeDSMC: excess calculation requested but some" << endl
+	     << "particles have incompatible float attribute counts." << endl
+	     << "Attribute #" << use_exes << ". Continuing without excess."
+	     << endl;
+      }
+      use_exes = -1;
+    }
+  }
+
+  //
   // Set collision parameters
   //
   Collide::NTC = ntc;

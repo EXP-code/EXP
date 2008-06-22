@@ -172,34 +172,6 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   coolSoFar[id] = coolTime[id].stop();
 
-  // Get excess for particles in this cell and redistribute if possible
-  //
-  if (use_exes>=0) {
-    double Excess = 0.0;
-    set<unsigned>::iterator ib;
-    for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
-      Particle* p = cell->Body(ib);
-      if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
-	Excess += p->dattrib[use_exes];
-    }
-
-    if (coolrate[id]-Excess > 0.0) {
-      coolrate[id] -= Excess;
-      for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
-	Particle* p = cell->Body(ib);
-	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
-	  p->dattrib[use_exes] = 0;
-      }
-    } else {
-      for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
-	Particle* p = cell->Body(ib);
-	if (use_exes>=0 && use_exes < static_cast<int>(p->dattrib.size()))
-	  p->dattrib[use_exes] *= (Excess - coolrate[id])/Excess;
-      }
-      coolrate[id] = 0;
-    }
-  } 
-
   // Energy per encounter
   //
   deltaE[id] = coolrate[id] / number;
@@ -282,20 +254,35 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 
 				// Energy floor
   const double tolV = 1.0e-03;
-  double dE = 0.5*Mu*(*cr)*(*cr)*tolV*tolV;
+  double kE = 0.5*Mu*(*cr)*(*cr);
+  double dE = kE*tolV*tolV;
+  double remE = kE - dE;
+  double delE = deltaE[id];
+
+  if (use_exes>=0) delE += p1->dattrib[use_exes] + p2->dattrib[use_exes];
 
 				// Consistent: KE in coll. frame is
-  if (0.5*Mu*(*cr)*(*cr)-dE > deltaE[id]) {
-    lostSoFar[id] += deltaE[id];	// larger than the energy radiated
-    decelT[id]    += deltaE[id];
-    (*cr) = sqrt((*cr)*(*cr) - 2.0*deltaE[id]/Mu);
+  if (remE > delE) {
+    lostSoFar[id] += delE;	// larger than the energy radiated
+    decelT[id]    += delE;
+    (*cr) = sqrt( 2.0*(kE - delE)/Mu );
     ret = 0;			// No error
+
+				// Reset internal energy excess
+    if (use_exes>=0) p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
   }
   else {			// Inconsistent: too much energy lost!
-    lostSoFar[id] += dE;
-    decelT[id]    += dE;
+    remE = kE - dE;
+    lostSoFar[id] += remE;
+    decelT[id]    += remE;
     (*cr) *= tolV;
     ret = 1;			// Set error flag
+
+				// Reset internal energy excess
+    if (use_exes>=0) {
+      p1->dattrib[use_exes] =  p1->mass*(delE - remE)/(p1->mass+p2->mass);
+      p1->dattrib[use_exes] =  p2->mass*(delE - remE)/(p1->mass+p2->mass);
+    }
   }
 
   return ret;

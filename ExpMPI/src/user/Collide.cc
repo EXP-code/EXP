@@ -238,6 +238,7 @@ Collide::Collide(double diameter, int nth)
     for (int n=0; n<nthrds; n++)
       prec[n].second = vector<double>(Nmfp, 0);
   }
+
 }
 
 Collide::~Collide()
@@ -518,6 +519,7 @@ void * Collide::collide_thread(void * arg)
     pCell *samp = c->sample;
     double crm=samp->CRMavg(), crmax=0.0;
     if (!NTC || crm<0.0) {
+      crm = 0.0;
       if (samp->state[0]>0.0) {
 	for (unsigned k=0; k<3; k++) 
 	  crm += (samp->state[1+k] - 
