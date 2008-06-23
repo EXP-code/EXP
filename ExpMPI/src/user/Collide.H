@@ -175,6 +175,10 @@ public:
 				// (default: false)
   static bool NOCOOL;
 
+  static bool ENSEXES;		// Use ensemble excess method: share uncooled internal
+				// energy among all particles in a cell.  If false,
+				// compute this on a particle-by-particle basis.
+
   static bool NTC;	        // Sample based on maximum (true) or estimate
 				// from variance (false);
 

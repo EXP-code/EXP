@@ -1,3 +1,5 @@
+#include <fcntl.h> // for open()
+
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -29,6 +31,7 @@ static double alphaj=-1.2;
 static double fhydrogen=0.76;
 static double jnu21=0.1;
 
+bool   HeatCool::useCache = false;
 double HeatCool::gp0_H;
 double HeatCool::gp0_He;
 double HeatCool::gp0_Hep;
@@ -513,7 +516,7 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
     Nnum(nnum), Tnum(tnum), Cache(cache), table(true)
 {
 
-  if (readCache()) return;
+  if (useCache && readCache()) return;
 
   dN = (log(Nmax) - log(Nmin))/(Nnum-1);
   dT = (log(Tmax) - log(Tmin))/(Tnum-1);
@@ -554,7 +557,15 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
     data.push_back(tmp);
   }
 
-  writeCache();
+  if (useCache) {
+				// Try to make a lock file
+    int fd = open(".HeatCoolExp.lck", O_WRONLY | O_CREAT | O_EXCL);
+				// Someelse has it . . . 
+    if (fd<0) return;
+				// Owner writes the cache and clears the lock
+    writeCache();
+    remove(".HeatCoolExp.lck");
+  }
 }
 
 
@@ -648,6 +659,10 @@ double HeatCool::CoolRate(double N, double T)
 	bT*data[n_indx  ][t_indx+1].crate   ) +
     bN*(aT*data[n_indx+1][t_indx  ].crate + 
 	bT*data[n_indx+1][t_indx+1].crate   ) ;
+
+  if (ans>-0.5) {
+    cout << "Craziness in HeatCool" << endl;
+  }
 
   return exp(ans);
 }

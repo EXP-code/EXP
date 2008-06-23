@@ -25,6 +25,8 @@ bool Collide::EXTRA = false;
 bool Collide::DRYRUN = false;
 				// Turn off cooling for testing
 bool Collide::NOCOOL = false;
+				// Ensemble-based excess cooling
+bool Collide::ENSEXES = true;
 				// Time step diagnostics
 bool Collide::TSDIAG = false;
 				// Mean free path diagnostics
@@ -518,6 +520,7 @@ void * Collide::collide_thread(void * arg)
     //
     pCell *samp = c->sample;
     double crm=samp->CRMavg(), crmax=0.0;
+
     if (!NTC || crm<0.0) {
       crm = 0.0;
       if (samp->state[0]>0.0) {
@@ -618,7 +621,7 @@ void * Collide::collide_thread(void * arg)
     stat2SoFar[id] = stat2Time[id].stop();
     
 
-    double length = pow(c->Volume(), 0.3333333);
+    // double length = pow(c->Volume(), 0.3333333);
 
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
@@ -784,7 +787,7 @@ void * Collide::collide_thread(void * arg)
       if (mass>0.0) {
 	if (MFPDIAG && kedsp>0.0) 
 	  deratT[id].push_back( (decelT[id] - coolrate[id])/kedsp );
-	if (use_exes>=0) {
+	if (ENSEXES && use_exes>=0) {
 	  double dE = (decelT[id] - coolrate[id])/mass;
 	  for (unsigned j=0; j<number; j++) {
 	    Particle* p = tree->Body(bodx[j]);

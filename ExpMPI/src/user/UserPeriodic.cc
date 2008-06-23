@@ -197,7 +197,7 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 
 				// If we are multistepping, compute BC
 				// only at or above this level
-    if (multistep && (cC->Part(i)->level >= mlevel)) {
+    if (!multistep || (cC->Part(i)->level >= mlevel)) {
 
       for (int k=0; k<3; k++) {
 				// Increment so that the positions range

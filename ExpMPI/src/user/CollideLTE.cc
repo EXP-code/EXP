@@ -40,6 +40,7 @@ double CollideLTE::Nmin = 1.0e-08;
 double CollideLTE::Nmax = 1.0e+08;
 double CollideLTE::Tmin = 1.0e+03;
 double CollideLTE::Tmax = 1.0e+06;
+double CollideLTE::TolV = 1.0e-03;
 unsigned CollideLTE::Nnum = 200;
 unsigned CollideLTE::Tnum = 200;
 string CollideLTE::cache = ".HeatCool";
@@ -174,7 +175,18 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Energy per encounter
   //
-  deltaE[id] = coolrate[id] / number;
+  if (number>0.0)
+    deltaE[id] = coolrate[id] / number;
+  else
+    deltaE[id] = 0.0;
+
+  if (deltaE[id]<0.0) {
+    cout << "deltaE below zero" << endl;
+  }
+
+  if (fabs(deltaE[id])>1000.0) {
+    cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
+  }
 
   if (MFPDIAG) {
     ttempT[id].push_back(T);
@@ -253,36 +265,53 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
   double Mu = p1->mass*p2->mass/(p1->mass + p2->mass);
 
 				// Energy floor
-  const double tolV = 1.0e-03;
   double kE = 0.5*Mu*(*cr)*(*cr);
-  double dE = kE*tolV*tolV;
+  double dE = kE*TolV*TolV;
   double remE = kE - dE;
   double delE = deltaE[id];
+  double cr0 = *cr;
 
-  if (use_exes>=0) delE += p1->dattrib[use_exes] + p2->dattrib[use_exes];
+  if (!ENSEXES && use_exes>=0) {
+    delE += p1->dattrib[use_exes] + p2->dattrib[use_exes];
+    if (delE < 0.0) {
+      cout << "How did this happen?" << endl;
+    }
+  }
 
 				// Consistent: KE in coll. frame is
-  if (remE > delE) {
+  if (remE >= delE) {
     lostSoFar[id] += delE;	// larger than the energy radiated
     decelT[id]    += delE;
     (*cr) = sqrt( 2.0*(kE - delE)/Mu );
     ret = 0;			// No error
 
 				// Reset internal energy excess
-    if (use_exes>=0) p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
+    if (!ENSEXES && use_exes>=0) p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
   }
   else {			// Inconsistent: too much energy lost!
-    remE = kE - dE;
     lostSoFar[id] += remE;
     decelT[id]    += remE;
-    (*cr) *= tolV;
+    (*cr) *= TolV;
     ret = 1;			// Set error flag
 
 				// Reset internal energy excess
-    if (use_exes>=0) {
+    if (!ENSEXES && use_exes>=0) {
       p1->dattrib[use_exes] =  p1->mass*(delE - remE)/(p1->mass+p2->mass);
-      p1->dattrib[use_exes] =  p2->mass*(delE - remE)/(p1->mass+p2->mass);
+      p2->dattrib[use_exes] =  p2->mass*(delE - remE)/(p1->mass+p2->mass);
+      if (delE - remE < 0.0) {
+	cout << "Oops: delE < remE" << endl;
+      }
+      if (p1->dattrib[use_exes] < 0.0) {
+	cout << "Oops: p1 excess < 0" << endl;
+      }
+      if (p2->dattrib[use_exes] < 0.0) {
+	cout << "Oops: p2 excess < 0" << endl;
+      }
     }
+  }
+
+  if (fabs(*cr/cr0) > 1.0001) {
+    cout << "Oops: *cr/cr0=" << *cr/cr0 << " > 1.0001" << endl;
   }
 
   return ret;

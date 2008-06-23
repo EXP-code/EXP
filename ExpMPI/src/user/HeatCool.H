@@ -45,10 +45,10 @@ private:
   static void ionize();
 
 
-  bool table;
   double Nmin, Nmax, Tmin, Tmax, dN, dT;
   unsigned Nnum, Tnum;
   string Cache;
+  bool table;
 
   vector< vector<Rates> > data;
 
@@ -59,6 +59,7 @@ private:
 
 public:
 
+  static bool useCache;
 
   HeatCool() : table(false) {}
 

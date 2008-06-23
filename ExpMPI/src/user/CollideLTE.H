@@ -51,6 +51,7 @@ public:
   static double Nmax;
   static double Tmin;
   static double Tmax;
+  static double TolV;
   static unsigned Nnum;
   static unsigned Tnum;
   static string cache;
