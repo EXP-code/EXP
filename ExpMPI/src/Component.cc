@@ -252,7 +252,7 @@ void Component::reset_level_lists()
 #endif  
 
 				// Sanity check
-  if (nlevel>0 && (this_step % nlevel == 0) && mstep == 0) {
+  if (nlevel>0 && (this_step % nlevel == 0) && (mstep==Mstep)) {
     vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
     for (int n=0; n<=multistep; n++) lev1[n] = levlist[n].size();
     MPI_Reduce(&lev1[0], &lev0[0], multistep+1, MPI_UNSIGNED,
@@ -263,8 +263,8 @@ void Component::reset_level_lists()
       cntr[n] = vector<unsigned>(3, 0);
       MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], 3, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
-      if (mstep==Mstep)
-	for (int k=0; k<3; k++) mdt_ctr[n][k] = 0;
+      
+      for (int k=0; k<3; k++) mdt_ctr[n][k] = 0;
     }
     
     if (myid==0) {
