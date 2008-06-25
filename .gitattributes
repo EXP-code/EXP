@@ -1,3 +1,4 @@
 * text=auto !eol
 ExpMPI/doc/doxygen.gif svneol=native#unset
 ExpMPI/doc/exp_logo.gif svneol=native#unset
+ExpMPI/doc/multistep.doc -text

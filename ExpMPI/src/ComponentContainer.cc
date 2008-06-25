@@ -277,47 +277,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     levcnt[mlevel]++;
   }
 
-  if (mlevel<=maxlev) {
-    //
-    // Compute new center
-    //
-    if (timing) timer_posn.start();
-    fix_positions();
-    if (timing) timer_posn.stop();
-
-#ifdef DEBUG
-    cout << "Process " << myid << ": returned from <fix_positions>\n";
-#endif
-
-    //
-    // Recompute global com
-    //
-    if (timing) timer_gcom.start();
-    for (int k=0; k<3; k++) gcom[k] = 0.0;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
-      for (int k=0; k<3; k++) gcom[k] += c->com[k];
-    }
-    if (timing) timer_gcom.stop();
-
-#ifdef DEBUG
-    cout << "Process " << myid << ": gcom computed\n";
-#endif
-
-  //
-  // Compute angular momentum for each component
-  //
-    if (timing) timer_angmom.start();
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      (*cc)->get_angmom();
-    }
-    if (timing) timer_angmom.stop();
-
-#ifdef DEBUG
-    cout << "Process " << myid << ": angmom computed\n";
-#endif
-  }
-
   //
   // Compute accel for each component
   //
@@ -328,7 +287,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     c = *cc;
 
     if (timing) timer_zero.start();
-    for (int lev=mlevel; lev<=multistep; lev++) {
+    for (int lev=mlevel; lev<=min<int>(maxlev, multistep); lev++) {
       
       ntot = c->levlist[lev].size();
       
@@ -345,27 +304,21 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (timing) timer_zero.stop();
 
 				// Compute new accelerations and potential
+    if (mlevel<=maxlev) {
 #ifdef DEBUG
-    cout << "Process " << myid << ": about to call force <"
-	 << c->id << ">\n";
+      cout << "Process " << myid << ": about to call force <"
+	   << c->id << ">\n";
 #endif
-    if (timing) timer_accel.start();
-    c->force->set_multistep_level(mlevel);
-    c->force->get_acceleration_and_potential(c);
-    if (timing) timer_accel.stop();
-#ifdef DEBUG
-    cout << "Process " << myid << ": force <"
-	 << c->id << "> done\n";
-#endif
-  }
+      if (timing) timer_accel.start();
+      c->force->set_multistep_level(mlevel);
+      c->force->get_acceleration_and_potential(c);
+      if (timing) timer_accel.stop();
 
-  //
-  // Compute new center
-  //
-  if (mlevel<=maxlev) {
-    if (timing) timer_posn.start();
-    fix_positions();
-    if (timing) timer_posn.stop();
+#ifdef DEBUG
+      cout << "Process " << myid << ": force <"
+	   << c->id << "> done\n";
+#endif
+    }
   }
 
   //
@@ -411,6 +364,49 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (timing) timer_total.stop();
   
+
+  if (mlevel<=maxlev) {
+    //
+    // Compute new center
+    //
+    if (timing) timer_posn.start();
+    fix_positions();
+    if (timing) timer_posn.stop();
+
+#ifdef DEBUG
+    cout << "Process " << myid << ": returned from <fix_positions>\n";
+#endif
+
+    //
+    // Recompute global com
+    //
+    if (timing) timer_gcom.start();
+    for (int k=0; k<3; k++) gcom[k] = 0.0;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      for (int k=0; k<3; k++) gcom[k] += c->com[k];
+    }
+    if (timing) timer_gcom.stop();
+
+#ifdef DEBUG
+    cout << "Process " << myid << ": gcom computed\n";
+#endif
+
+  //
+  // Compute angular momentum for each component
+  //
+    if (timing) timer_angmom.start();
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      (*cc)->get_angmom();
+    }
+    if (timing) timer_angmom.stop();
+
+#ifdef DEBUG
+    cout << "Process " << myid << ": angmom computed\n";
+#endif
+  }
+
+
   //
   // Update center of mass system coordinates
   //

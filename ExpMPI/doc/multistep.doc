@@ -1,0 +1,18 @@
+/*! \page multistep Multiple time stepping
+
+<H2>Basic algorithm</H2>
+
+<ol>
+<li> The global variable #multistep sets the number of
+     time step levels.  Each successive level has time step \f[t_0/2^l\f
+     where \fl\f is the level counter and \ft_0\f is dtime.  Therfore the
+     smallest stepping interval is \ft_0/2^{multistep}\f.
+<li> All bodies start on highest level \fl=\f#multistep.
+</ol>	
+
+<H2>Expansion bases</H2>
+
+<H2>External time step variable</H2>
+
+*/
+

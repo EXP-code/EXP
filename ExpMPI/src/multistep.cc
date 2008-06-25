@@ -125,8 +125,12 @@ void * adjust_multistep_level_thread(void *ptr)
       offgrid++;
     }
     
+    /*
     unsigned plev = min<unsigned>(maxlev, c->Part(n)->level);
     unsigned nlev = min<unsigned>(maxlev, lev);
+    */
+    unsigned plev = c->Part(n)->level;
+    unsigned nlev = lev;
 
     // Sanity check
     if (level != plev) {

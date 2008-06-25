@@ -122,14 +122,12 @@ void * reset_level_lists_thrd(void *ptr)
   int nbodies = c->Number();
   int nbeg = nbodies*(id  )/nthrds;
   int nend = nbodies*(id+1)/nthrds;
-  unsigned lev;
-
+  
   map<unsigned long, Particle>::iterator it = c->Particles().begin();
 
   for (int n=0; n<nbeg; n++) it++;
   for (int n=nbeg; n<nend; n++) {
-    lev = min<unsigned>(it->second.level, maxlev);
-    (static_cast<thrd_pass_reset*>(ptr)->newlist)[lev].push_back(it->first);
+    (static_cast<thrd_pass_reset*>(ptr)->newlist)[it->second.level].push_back(it->first);
     it++;
   }
   
