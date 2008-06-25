@@ -1656,18 +1656,6 @@ void pHOT::adjustTree(unsigned mlevel)
 
   adjcnt++;			// For debug labeling only . . .
   
-#ifdef DEBUG
-  if (!checkParticles()) {
-    cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
-	 << mlevel << ": initial particle check FAILED!" << endl;
-  }
-
-  if (!checkBodycell()) {
-    cout << "Process " << myid << ": pHOT::adjustTree: ERROR mlevel=" 
-	 << mlevel << ": initial body cell check FAILED!" << endl;
-  }    
-#endif
-
   timer_keymake.start();
 
   pCell* c;
@@ -1715,7 +1703,6 @@ void pHOT::adjustTree(unsigned mlevel)
     // Get this particle's cell
     //
 
-    // DEBUG sanity check
     //
     // Look for keys . . .
     //
@@ -1725,10 +1712,8 @@ void pHOT::adjustTree(unsigned mlevel)
 	   << " key=" << hex << oldkey << ", index=" << dec << p->indx
 	   << " pnumber=" << cc->Number() << " bodycell=" << bodycell.size() 
 	   << endl;
-#ifdef DEBUG
-      checkBodycell();
-#endif
-      }
+    }
+    //
     // Look for cell in frontier . . .
     //
     if (frontier.find(bodycell.find(oldkey)->second) == frontier.end()) {
@@ -1742,21 +1727,12 @@ void pHOT::adjustTree(unsigned mlevel)
 	   << endl;
       continue;
     }
-    // END DEBUG
       
     //
     // Find this particle's previous cell assignment
     //
     c = frontier[bodycell.find(oldkey)->second];
     
-#ifdef DEBUG
-    if (!checkBodycell()) {
-      cout << "Process " << myid 
-	   << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	   << ": body cell check FAILED before key check!" << endl;
-    }    
-#endif
-
     //
     // Is the key the same?
     // 
@@ -1768,13 +1744,6 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Put the particle in a new cell?
 				// 
       if ( !(c->isMine(newkey)) ) {
-#ifdef DEBUG
-	if (!checkBodycell()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	       << ": body cell check FAILED before removal!" << endl;
-	}
-#endif
 
 	if (c->Remove(oldpair, &change)) {
 				// Remove the old pair from the current cell
@@ -1803,21 +1772,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	}
 	
 	p->key = newkey;	// Assign the new key to the particle
-#ifdef DEBUG
-	if (!checkBodycell()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	       << ": body cell check FAILED after removal and add!" << endl;
-	}    
-				// Sanity check: is this particle
-				// *now* on the body/cell list?
-	if (newkey && bodycell.find(newkey) == bodycell.end()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR could not find cell for the NEW particle key="
-	       << hex << newkey << ", index=" << dec << p->indx << endl;
-	}
-#endif
-	
+
       } else {			// Same cell: update body cell index 
 				// for the new key
 	key_key::iterator ij = bodycell.find(oldkey);
@@ -1845,14 +1800,6 @@ void pHOT::adjustTree(unsigned mlevel)
 	// END DEBUG
 	
 	p->key = newkey;	// Assign the new key to the particle
-
-#ifdef DEBUG
-	if (!checkBodycell()) {
-	  cout << "Process " << myid 
-	       << "pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	       << ": body cell check FAILED after key update!" << endl;
-	}    
-#endif
 	keybods.insert(newpair);
       }
     }
@@ -2173,7 +2120,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_overlap.stop();
 
-#define DEBUG
+  // #define DEBUG
   
   // Create, remove and delete changed cells
   // ---------------------------------------
@@ -2234,7 +2181,7 @@ void pHOT::adjustTree(unsigned mlevel)
     }
   }
 
-#undef DEBUG
+  // #undef DEBUG
 
   change.clear();		// Reset the change list for next time
   
@@ -2557,10 +2504,10 @@ bool pHOT::checkBodycell()
       ok = false;
       cnt++;
 #ifdef DEBUG
-    cout << "Process " << myid << ": checkBodycell: " 
-	 << cnt << " unmatched particle: key=" << hex
-	 << n->second.key << dec << " index=" 
-	 << n->second.indx << endl;
+      cout << "Process " << myid << ": checkBodycell: " 
+	   << cnt << " unmatched particle: key=" << hex
+	   << n->second.key << dec << " index=" 
+	   << n->second.indx << endl;
 #endif
     }
   }

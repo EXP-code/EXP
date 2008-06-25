@@ -726,13 +726,6 @@ void * Collide::collide_thread(void * arg)
 	      double displ;
 	      for (int k=0; k<3; k++) {
 		displ = crel[k]*diamCBA/cr;
-#ifdef DEBUG		
-		if (displ > 0.5*length) {
-		  cout << endl << "Huge displacement in CBA, process " << myid << endl
-		       << "   id=" << id << ": displ=" << displ << endl
-		       << "   len=" << length << " diam=" << diamCBA << endl;
-		}
-#endif
 		p1->pos[k] += displ;
 		p2->pos[k] -= displ;
 	      }

@@ -309,7 +309,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
 #ifdef DEBUG
-  tree.densCheck();
+  c0->Tree()->densCheck();
 #endif
   
 #ifdef DEBUG
