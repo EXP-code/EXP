@@ -59,7 +59,7 @@ EmpCylSL::EmpCylSL(void)
   NORDER=0;
   MPIset = false;
   MPIset_eof = false;
-  coefs_made = vector<bool>(multistep+1, false);
+  coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
 
   if (DENS)
@@ -247,7 +247,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   MPIset = false;
   MPIset_eof = false;
-  coefs_made = vector<bool>(multistep+1, false);
+  coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
 
   accum_cos = 0;
@@ -292,7 +292,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   MPIset = false;
   MPIset_eof = false;
-  coefs_made = vector<bool>(multistep+1, false);
+  coefs_made = vector<short>(multistep+1, false);
   eof_made = false;
 
   if (DENS)
@@ -637,7 +637,7 @@ int EmpCylSL::read_cache(void)
 
 
   eof_made = true;
-  coefs_made = vector<bool>(multistep+1, false);
+  coefs_made = vector<short>(multistep+1, false);
 
   return 1;
 }
@@ -1286,7 +1286,7 @@ void EmpCylSL::setup_accumulation(void)
     }
   }
   
-  coefs_made = vector<bool>(multistep+1, false);
+  coefs_made = vector<short>(multistep+1, false);
 }
 
 void EmpCylSL::setup_accumulation(int M)
@@ -1994,7 +1994,7 @@ void EmpCylSL::make_eof(void)
   if (myid==0) cache_grid(1);
 
   eof_made = true;
-  coefs_made = vector<bool>(multistep+1, true);
+  coefs_made = vector<short>(multistep+1, true);
 }
 
 
@@ -2044,9 +2044,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 {
 
   if (coefs_made[mlevel]) {
-    cerr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
-	 << ": calling setup_accumulation from accumulate\n";
-    MPI_Abort(MPI_COMM_WORLD, -1);
+    ostringstream ostr;
+    ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
+	 << ": calling setup_accumulation from accumulate, aborting\n";
+    bomb(ostr.str());
   }
 
   double rr = sqrt(r*r+z*z);
@@ -2100,10 +2101,8 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 }
 
 
-void EmpCylSL::make_coefficients(int M)
+void EmpCylSL::make_coefficients(int M0)
 {
-  if (coefs_made[M]) return;
-
   int mm, nn;
 
   if (!MPIset) {
@@ -2113,56 +2112,62 @@ void EmpCylSL::make_coefficients(int M)
   }
   
 
+  for (unsigned M=0; M<=M0; M++) {
+    
+    if (coefs_made[M]) continue;
+
 				// Sum up over threads
-  for (int nth=1; nth<nthrds; nth++) {
+    for (int nth=1; nth<nthrds; nth++) {
 
-    howmany1[M][0] += howmany1[M][nth];
+      howmany1[M][0] += howmany1[M][nth];
 
-    for (mm=0; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++) {
-	accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
-      }
+      for (mm=0; mm<=MMAX; mm++)
+	for (nn=0; nn<rank3; nn++) {
+	  accum_cosN[M][0][mm][nn] += accum_cosN[M][nth][mm][nn];
+	}
 
-
-    for (mm=1; mm<=MMAX; mm++)
-      for (nn=0; nn<rank3; nn++) {
-	accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
-      }
-  }
-
+      
+      for (mm=1; mm<=MMAX; mm++)
+	for (nn=0; nn<rank3; nn++) {
+	  accum_sinN[M][0][mm][nn] += accum_sinN[M][nth][mm][nn];
+	}
+    }
+    
 				// Begin distribution loop
 
 
-  for (mm=0; mm<=MMAX; mm++)
-    for (nn=0; nn<rank3; nn++)
-      MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
-  
-  MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
-		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    for (mm=0; mm<=MMAX; mm++)
+      for (nn=0; nn<rank3; nn++)
+	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
+    
+    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  for (mm=0; mm<=MMAX; mm++)
-    for (nn=0; nn<rank3; nn++)
-      if (multistep)
-	accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
-      else
-	accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
+    for (mm=0; mm<=MMAX; mm++)
+      for (nn=0; nn<rank3; nn++)
+	if (multistep)
+	  accum_cosN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	else
+	  accum_cos[mm][nn] = MPIout[mm*rank3 + nn];
+    
+    for (mm=1; mm<=MMAX; mm++)
+      for (nn=0; nn<rank3; nn++)
+	MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
+    
+    MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
 
-  for (mm=1; mm<=MMAX; mm++)
-    for (nn=0; nn<rank3; nn++)
-      MPIin[mm*rank3 + nn] = accum_sinN[M][0][mm][nn];
+    for (mm=1; mm<=MMAX; mm++)
+      for (nn=0; nn<rank3; nn++)
+	if (multistep)
+	  accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
+	else
+	  accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
+    
+    coefs_made[M] = true;
+  }
   
-  MPI_Allreduce ( MPIin, MPIout, rank3*(MMAX+1),
-		  MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  
-
-  for (mm=1; mm<=MMAX; mm++)
-    for (nn=0; nn<rank3; nn++)
-      if (multistep)
-	accum_sinN[M][0][mm][nn] = MPIout[mm*rank3 + nn];
-      else
-	accum_sin[mm][nn] = MPIout[mm*rank3 + nn];
-  
-  coefs_made[M] = true;
 }
 
 void EmpCylSL::reset_mass(void)
@@ -2192,7 +2197,7 @@ void EmpCylSL::make_coefficients(void)
   
 
 				// Sum up over threads
-  for (int M=0; M<=multistep; M++) {
+  for (int M=0; M<=min<unsigned>(maxlev, multistep); M++) {
 
     if (coefs_made[M]) continue;
 
@@ -2294,7 +2299,7 @@ void EmpCylSL::make_coefficients(void)
   
   if (SELECT) pca_hall();
 
-  coefs_made = vector<bool>(multistep+1, true);
+  coefs_made = vector<short>(multistep+1, true);
 }
 
 
@@ -3816,6 +3821,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
     }
   }
 
+  coefs_made = vector<short>(multistep+1, true);
 }
 
 //

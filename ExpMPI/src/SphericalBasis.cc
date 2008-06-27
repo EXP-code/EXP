@@ -287,11 +287,8 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   //======================
 
   if (firstime_accel || self_consistent) {
-    if (multistep==0) {
-      determine_coefficients();
-    } else {
-      if (mlevel<=maxlev) compute_multistep_coefficients();
-    }
+    if (mlevel<=maxlev) determine_coefficients();
+    if (multistep)      compute_multistep_coefficients();
     firstime_accel = false;
   }
   

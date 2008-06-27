@@ -201,7 +201,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
-  if (firstime || multistep==0) determine_coefficients();
+  if (mlevel<=maxlev) determine_coefficients();
 
   //============
   // Dump basis
@@ -384,6 +384,8 @@ void Cylinder::determine_coefficients(void)
       if (myid==0) cerr << "Cylinder: setup for eof\n";
     }
     ortho->setup_accumulation();
+  } else {
+    ortho->setup_accumulation(mlevel);
   }
 
   cylmass0 = new double [nthrds];
@@ -593,10 +595,9 @@ void Cylinder::determine_acceleration_and_potential(void)
     eof = 0;
   }
 
-  if (!use_external) {
-    if (!multistep || mlevel<=maxlev) ortho->make_coefficients();
-    // Interpolation
-    if (multistep && mlevel<=maxlev) compute_multistep_coefficients();
+  if (use_external == false) {
+    if (mlevel <= maxlev) ortho->make_coefficients(mlevel);
+    if (multistep)        compute_multistep_coefficients();
   }
 
 #ifdef DEBUG

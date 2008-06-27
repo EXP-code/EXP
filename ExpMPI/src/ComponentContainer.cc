@@ -328,16 +328,20 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   list<Component*>::iterator other;
   
   if (timing) timer_inter.start();
-  for (inter=interaction.begin(); inter != interaction.end(); inter++) {
-    for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
-      (*inter)->c->force->SetExternal();
-      (*inter)->c->force->set_multistep_level(mlevel);
-      (*inter)->c->force->get_acceleration_and_potential(*other);
+  if (mlevel<=maxlev) {
+    for (inter=interaction.begin(); inter != interaction.end(); inter++) {
+      for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
+
+	(*inter)->c->force->SetExternal();
+	(*inter)->c->force->set_multistep_level(mlevel);
+	(*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
-
+      
+      }
     }
   }
+
   if (timing) timer_inter.stop();
       
   //

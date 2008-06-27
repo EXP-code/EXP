@@ -16,6 +16,7 @@
 #include <SLGridMP2.h>
 
 #ifndef STANDALONE
+#include <global.H>
 #include "expand.h"
 #include <global.H>
 #else
@@ -115,7 +116,7 @@ private:
 
   Vector* hold;
 
-  vector<bool> coefs_made;
+  vector<short> coefs_made;
   bool eof_made;
 
   SphericalModelTable* make_sl();
