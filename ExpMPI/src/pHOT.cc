@@ -1,3 +1,8 @@
+// Uncomment to use non-blocking sends and receives in adjustTree particle
+// exchange
+
+#define NON_BLOCK
+
 #include <values.h>
 
 # include <cstdlib>
@@ -1392,8 +1397,16 @@ void pHOT::Repartition()
 		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
 	    }
 	  }
+#ifdef NON_BLOCK
 	  rql.push_back(req);
-	  if ( (ierr=MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS  ) {
+#endif
+	  if ( (ierr=
+#ifdef NON_BLOCK
+		MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())
+#else
+		MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD)
+#endif
+		) != MPI_SUCCESS  ) {
 	    cout << "Process " << myid << ": error in Reparition sending "
 		 << To << " particles to #" << toID << " ierr=" << ierr << endl;
 	  }
@@ -1402,11 +1415,19 @@ void pHOT::Repartition()
       }
 				// 
 				// Current process receives particles (non blocking)
-      if (myid==toID) {		// 
+	if (myid==toID) {		// 
 	unsigned From = sendlist[numprocs*frID+toID];
 	if (From) {
+#ifdef NON_BLOCK
 	  rql.push_back(req);
-	  if ( (ierr=MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
+#endif
+	  if ( (ierr=
+#ifdef NON_BLOCK
+		MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())
+#else
+		MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, MPI_STATUS_IGNORE)
+#endif
+		) != MPI_SUCCESS ) {
 	    cout << "Process " << myid << ": error in Reparition receiving "
 		 << From << " particles from #" << frID << " ierr=" << ierr << endl;
 	  }
@@ -1423,11 +1444,13 @@ void pHOT::Repartition()
   // Wait for completion of sends and receives
   //
 
+#ifdef NON_BLOCK
   if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
     {
       cout << "Process " << myid << ": error in Reparition Waitall"
 	   << ", ierr=" << ierr << endl;
     }
+#endif
 
   //
   // Buffer size sanity check
