@@ -1,7 +1,7 @@
 // Uncomment to use non-blocking sends and receives in adjustTree particle
 // exchange
 
-#define NON_BLOCK
+// #define NON_BLOCK
 
 #include <values.h>
 
