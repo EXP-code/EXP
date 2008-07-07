@@ -1,9 +1,11 @@
-// #define DEBUG 1
-// #define DEBUG_NAN 1
-#define GHQL 1
-// #define STURM 1
-// #define EIGEN 1
+// #define DEBUG
+// #define DEBUG_NAN
+#define USESVD
+// #define GHQL
+// #define STURM
+// #define EIGEN
 // #define DEBUG_PCA
+
 #define VAROUTPUT
 
 #include <iostream>
@@ -1861,6 +1863,42 @@ void EmpCylSL::make_eof(void)
 #if defined(STURM)
 	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
 	  
+#elif defined(USESVD)
+	  {
+	    // Make temporary variables
+	    //
+	    int r1 = var[M].getrlow();
+	    int r2 = var[M].getrhigh();
+	    int nn = r2 - r1 + 1;
+
+	    Matrix tvar(0, nn-1, 0, nn-1);
+	    Matrix tu(0, nn-1, 0, nn-1), tv(0, nn-1, 0, nn-1);
+	    Vector td(0, nn-1);
+
+	    // Copy variance matrix to temporary
+	    //
+	    for (int i=r1; i<=r2; i++)
+	      for (int j=r1; j<=r2; j++)
+		tvar[i-1][j-1] = var[M][i][j];
+
+	    // Compute the SVD
+	    //
+	    if (!SVD(tvar, tu, tv, td)) {
+	      cerr << "EmpCylSL: Error in SVD" << endl;
+	      MPI_Abort(MPI_COMM_WORLD, -155);
+	    }
+	  
+	    // Copy back the eigenvectors and eigenvalues
+	    //
+	    ef.setsize(r1, r2, r1, r2);
+	    ev.setsize(r1, r2);
+	    for (int i=r1; i<=r2; i++) {
+	      ev[i] = td[i-1];
+	      for (int j=r1; j<=r2; j++) ef[i][j] = tu[i-1][j-1];
+	    }
+	  }
+	  ef = ef.Transpose();
+
 #elif defined(GHQL)
 	  ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
 	  ef = ef.Transpose();
@@ -1868,6 +1906,7 @@ void EmpCylSL::make_eof(void)
 	  ev = var[M].Symmetric_Eigenvalues(ef);
 	  ef = ef.Transpose();
 #endif
+
 #if defined(VAROUTPUT)
 	  ostringstream sout;
 	  sout << "var_sc.debug." << M;
@@ -1932,6 +1971,42 @@ void EmpCylSL::make_eof(void)
 
 #if defined(STURM)
 	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
+	  
+#elif defined(USESVD)
+	  {
+	    // Make temporary variables
+	    //
+	    int r1 = var[M].getrlow();
+	    int r2 = var[M].getrhigh();
+	    int nn = r2 - r1 + 1;
+
+	    Matrix tvar(0, nn-1, 0, nn-1);
+	    Matrix tu(0, nn-1, 0, nn-1), tv(0, nn-1, 0, nn-1);
+	    Vector td(0, nn-1);
+
+	    // Copy variance matrix to temporary
+	    //
+	    for (int i=r1; i<=r2; i++)
+	      for (int j=r1; j<=r2; j++)
+		tvar[i-1][j-1] = var[M][i][j];
+
+	    // Compute the SVD
+	    //
+	    if (!SVD(tvar, tu, tv, td)) {
+	      cerr << "EmpCylSL: Error in SVD" << endl;
+	      MPI_Abort(MPI_COMM_WORLD, -155);
+	    }
+	  
+	    // Copy back the eigenvectors and eigenvalues
+	    //
+	    ef.setsize(r1, r2, r1, r2);
+	    ev.setsize(r1, r2);
+	    for (int i=r1; i<=r2; i++) {
+	      ev[i] = td[i-1];
+	      for (int j=r1; j<=r2; j++) ef[i][j] = tu[i-1][j-1];
+	    }
+	  }		
+	  ef.Transpose();
 
 #elif defined(GHQL)
 #ifdef DEBUG	  

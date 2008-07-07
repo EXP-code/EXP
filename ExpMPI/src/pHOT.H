@@ -63,7 +63,7 @@ protected:
   double *offset;
 
 
-  Timer timer_keymake, timer_xchange, timer_overlap;
+  Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
 
   // For debugging sychronization
   void debug_ts(const char* msg);
@@ -143,7 +143,7 @@ public:
 	    vector<double>&    x, vector<double>& dens, vector<double>& temp, 
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
   void checkBounds(double, const char *);
-  void adjustTiming(double &keymake, double &xchange, double &overlap);
+  void adjustTiming(double &keymake, double &xchange, double &convert, double &overlap);
 
   //@}
 };

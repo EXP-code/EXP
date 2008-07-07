@@ -146,6 +146,9 @@ double ToomreQ = 1.2;
 
 int SEED = 11;
 
+string hbods = "halo.bods";
+string dbods = "disk.bods";
+string gbods = "gas.bods";
 string centerfile = "center.dat";
   
 // Global variables
@@ -168,7 +171,17 @@ double tnow = 0.0;
 int 
 main(int argc, char **argv)
 {
+  //
+  // Inialize MPI stuff
+  //
+  local_init_mpi(argc, argv);
+  
+  //
+  // Now parse the rest of the arguments
+  //
+
   static string halofile = "SLGridSph.model";
+  string suffix;
   bool basis = false;
   bool zero = false;
   int nhalo = 1000;             // Halo particles
@@ -200,7 +213,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "H:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:bBzh",
+		       "H:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:bBzh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -225,10 +238,12 @@ main(int argc, char **argv)
 
         case 'H':
           nhalo = atoi(optarg);
+	  cout << "Parse nhalo: " << optarg << endl;
           break;
 
         case 'D':
           ndisk = atoi(optarg);
+	  cout << "Parse ndisk: " << optarg << endl;
           break;
 
         case 'G':
@@ -306,6 +321,10 @@ main(int argc, char **argv)
           zero = true;
           break;
 
+        case 't':
+          suffix = optarg;
+          break;
+
         case 'h':
         case '?':
         default:
@@ -334,6 +353,7 @@ main(int argc, char **argv)
                << "  -2 rmax    maximum radius for change over to DF\n"
                << "  -b         print out basis images (false)\n"
                << "  -z         zero center of mass and velocity (false)\n"
+               << "  -t tag     suffix string appended to output files\n"
                << endl;
           exit(0);
         }
@@ -346,15 +366,26 @@ main(int argc, char **argv)
   set_fpu_handler();            // Make gdb trap FPU exceptions
 #endif
 
-  local_init_mpi(argc, argv);   // Inialize MPI stuff
-
   int n_particlesH, n_particlesD, n_particlesG;
+
+  if (suffix.size()>0) {
+    hbods = hbods + "." + suffix;
+    dbods = dbods + "." + suffix;
+    gbods = gbods + "." + suffix;
+  }
 
   MPI_Bcast(&nhalo,  1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndisk,  1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ngas,   1, MPI_INT, 0, MPI_COMM_WORLD);
 
+  cout << flush;
   MPI_Barrier(MPI_COMM_WORLD);
+  for (int n=0; n<numprocs; n++) {
+    if (n==myid)
+      cout << "#" << setw(3) << myid 
+	   << ": " << nhalo << ", " << ndisk << ", " << ngas << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 
                                 // Divvy up the particles
   n_particlesH = nhalo/numprocs;
@@ -405,7 +436,6 @@ main(int argc, char **argv)
 
   // SLGridSph::diverge = DIVERGE;
   // SLGridSph::divergexp = DIVERGE_RFAC;
-  // SLGridSph::cmap = 1;
     
   SphericalSL::RMIN = RMIN;
   SphericalSL::RMAX = RSPHSL;
@@ -428,6 +458,7 @@ main(int argc, char **argv)
   EmpCylSL::NUMX = NUMX;
   EmpCylSL::NUMY = NUMY;
   EmpCylSL::CMAP = true;
+  EmpCylSL::logarithmic = true;
 
   if (basis)
     EmpCylSL::DENS = true;
@@ -502,16 +533,16 @@ main(int argc, char **argv)
                                 // before realizing a large phase space)
   ofstream out_halo, out_disk;
   if (myid==0) {
-    out_halo.open("out.halo");
+    out_halo.open(hbods.c_str());
     if (!out_halo) {
-      cout << "Could not open <out.halo> for output\n";
+      cout << "Could not open <" << hbods << "> for output\n";
       MPI_Abort(MPI_COMM_WORLD, 4);
       exit(0);
     }
 
-    out_disk.open("out.disk");
+    out_disk.open(dbods.c_str());
     if (!out_disk) {
-      cout << "Could not open <out.disk> for output\n";
+      cout << "Could not open <" << dbods << "> for output\n";
       MPI_Abort(MPI_COMM_WORLD, 4);
       exit(0);
     }

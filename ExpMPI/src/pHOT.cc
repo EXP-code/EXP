@@ -56,6 +56,7 @@ pHOT::pHOT(Component *C)
 
   timer_keymake.Microseconds();
   timer_xchange.Microseconds();
+  timer_convert.Microseconds();
   timer_overlap.Microseconds();
 } 
 
@@ -1337,9 +1338,20 @@ void pHOT::Repartition()
   MPI_Allreduce(&sndlist1[0], &sendlist[0], ntot, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
   
   unsigned Tcnt=0, Fcnt=0;
-  for (int i=0; i<numprocs; i++) {
-    Tcnt += sendlist[numprocs*myid + i];
-    Fcnt += sendlist[numprocs*i + myid];
+  vector<int> sendcounts(numprocs), recvcounts(numprocs);
+  vector<int> sdispls(numprocs), rdispls(numprocs);
+  
+  for (unsigned k=0; k<numprocs; k++) {
+    sendcounts[k] = sendlist[numprocs*myid + k];
+    Tcnt += sendcounts[k];
+    recvcounts[k] = sendlist[numprocs*k + myid];
+    Fcnt += recvcounts[k];
+    if (k==0) {
+      sdispls[0] = rdispls[0] = 0;
+    } else {
+      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
+      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+    }
   }
 
 				// DEBUG OUTPUT
@@ -1361,138 +1373,54 @@ void pHOT::Repartition()
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
+
+  if (false) {	 // If true, write send and receive list for each node
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	cout<<"--------------------------------------------------------"<<endl
+	    <<"---- Repartition"<<endl
+	    <<"--------------------------------------------------------"<<endl
+	    << "Process " << myid << ": Tcnt=" << Tcnt 
+	    << " Fcnt=" << Fcnt << endl;
+	for (int m=0; m<numprocs; m++)
+	  cout << setw(5) << m 
+	       << setw(8) << sendcounts[m]
+	       << setw(8) << sdispls[m]
+	       << setw(8) << recvcounts[m]
+	       << setw(8) << rdispls[m]
+	       << endl;
+	cout << "--------------------------------------------------------" << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+
+
 				// END DEBUG OUTPUT
-
-  static unsigned debug_ctr=0;
-  unsigned ps=0, pr=0;
-  Partstruct *psend=0, *precv=0;
-  vector<MPI_Request> rql;
-  MPI_Request req;
-  int ierr;
-
-  if (Tcnt) psend = new Partstruct [Tcnt];
-  if (Fcnt) precv = new Partstruct [Fcnt];
 
   //
   // Exchange particles between processes
   //
-  for (int frID=0; frID<numprocs; frID++) {
-    for (int toID=0; toID<numprocs; toID++) {
-				// 
-				// Current process sends particles
-      if (myid==frID) {		// 
-	unsigned To = sendlist[numprocs*frID+toID];
-	if (To) {
-	  for (unsigned i=0; i<To; i++) {
-	    pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
-	    cc->Particles().erase(bodylist[toID][i]);
-#ifdef DEBUG
-	    erased.push_back(bodylist[toID][i]);
-#endif
-	  }
-	  for (unsigned i=0; i<To; i++) {
-	    if (psend[ps+i].indx == 0) {
-	      cerr << "pHOT::Repartition[" << debug_ctr
-		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
-		   << " ps=" << ps+i << " mass=" << scientific << psend[ps+i].mass << endl;
-	    }
-	  }
-#ifdef NON_BLOCK
-	  rql.push_back(req);
-#endif
-	  if ( (ierr=
-#ifdef NON_BLOCK
-		MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())
-#else
-		MPI_Send(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD)
-#endif
-		) != MPI_SUCCESS  ) {
-	    cout << "Process " << myid << ": error in Reparition sending "
-		 << To << " particles to #" << toID << " ierr=" << ierr << endl;
-	  }
-	  ps += To;
-	}
-      }
-				// 
-				// Current process receives particles (non blocking)
-	if (myid==toID) {		// 
-	unsigned From = sendlist[numprocs*frID+toID];
-	if (From) {
-#ifdef NON_BLOCK
-	  rql.push_back(req);
-#endif
-	  if ( (ierr=
-#ifdef NON_BLOCK
-		MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())
-#else
-		MPI_Recv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, MPI_STATUS_IGNORE)
-#endif
-		) != MPI_SUCCESS ) {
-	    cout << "Process " << myid << ": error in Reparition receiving "
-		 << From << " particles from #" << frID << " ierr=" << ierr << endl;
-	  }
-	  pr += From;
-	}
-      }
-      
-    } // Receipt loop
-    
-    MPI_Barrier(MPI_COMM_WORLD); // Ok, everybody move on to next sending node
+
+  int ps;
+  vector<Partstruct> psend(Tcnt), precv(Fcnt);
+
+  for (int toID=0; toID<numprocs; toID++) {
+    timer_convert.start();
+    ps = sdispls[toID];
+    for (unsigned i=0; i<sendcounts[toID]; i++) {
+      pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
+      cc->Particles().erase(bodylist[toID][i]);
+    }
+    timer_convert.stop();
   }
 
-  //
-  // Wait for completion of sends and receives
-  //
+  MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
+		ParticleFerry::Particletype, 
+		&precv[0], &recvcounts[0], &rdispls[0], 
+		ParticleFerry::Particletype, 
+		MPI_COMM_WORLD);
 
-#ifdef NON_BLOCK
-  if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
-    {
-      cout << "Process " << myid << ": error in Reparition Waitall"
-	   << ", ierr=" << ierr << endl;
-    }
-#endif
-
-  //
-  // Buffer size sanity check
-  //
-  if (true) {			// Enabled if true
-
-    if (Tcnt-ps) {
-      cout << "Process " << myid 
-	   << ": Repartition [Tcnt] found <" << ps << "> but expected <" 
-	   << Tcnt << ">" << endl;
-    }
-    
-    if (Fcnt-pr) {
-      cout << "Process " << myid 
-	   << ": Repartition [Fcnt] found <" << pr << "> but expected <" 
-	   << Fcnt << ">" << endl;
-    }
-
-  }
-
-  //
-  // DEBUG
-  //
-  pr = 0;
-  for (int id=0; id<numprocs; id++) {
-    unsigned From = sendlist[numprocs*id+myid];
-    if (From) {
-      for (int i=0; i<From; i++) {
-	if (precv[pr+i].indx == 0) {
-	  cerr << "pHOT::Repartition[" << debug_ctr 
-	       << "]: RECV to=" << myid << " from=" << id << " #=" << From
-	       << " pr=" << pr+i << " mass=" << scientific << precv[pr+i].mass 
-	       << endl;
-	}
-      }
-      pr += From;
-    }
-  }
-
-  debug_ctr++;
-
-  // END DEBUG
 
   if (Fcnt) {
     Particle part;
@@ -1507,12 +1435,6 @@ void pHOT::Repartition()
     cc->nbodies = cc->particles.size();
   }
       
-  //
-  // Clean up temporary body storage
-  //
-  if (Tcnt) delete [] psend;
-  if (Fcnt) delete [] precv;
-
   //
   // Remake key body index
   //
@@ -1846,139 +1768,55 @@ void pHOT::adjustTree(unsigned mlevel)
   MPI_Allreduce(&templist[0], &sendlist[0], numprocs*numprocs,
 		MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
 
-
   unsigned Tcnt=0, Fcnt=0;
+  vector<int> sendcounts(numprocs), recvcounts(numprocs);
+  vector<int> sdispls(numprocs), rdispls(numprocs);
+  
   for (unsigned k=0; k<numprocs; k++) {
-    Tcnt += sendlist[numprocs*myid + k   ];
-    Fcnt += sendlist[numprocs*k    + myid];
+    sendcounts[k] = sendlist[numprocs*myid + k];
+    Tcnt += sendcounts[k];
+    recvcounts[k] = sendlist[numprocs*k + myid];
+    Fcnt += recvcounts[k];
+    if (k==0) {
+      sdispls[0] = rdispls[0] = 0;
+    } else {
+      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
+      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+    }
   }
-
-
-  static unsigned debug_ctr=0;
-  unsigned ps=0, pr=0;
-  Partstruct *psend=0, *precv=0;
-  vector<MPI_Request> rql;
-  MPI_Request r;
-  int ierr;
-
-  if (Tcnt) psend = new Partstruct [Tcnt];
-  if (Fcnt) precv = new Partstruct [Fcnt];
 
   //
   // Exchange particles between processes
   //
 
-  for (int frID=0; frID<numprocs; frID++) {
+  int ps;
+  vector<Partstruct> psend(Tcnt), precv(Fcnt);
 
-    for (int toID=0; toID<numprocs; toID++) {
-				// 
-				// Current process sends particles 
-				// (non-blocking)
-      if (myid==frID) {		// 
-	unsigned To = sendlist[numprocs*frID+toID];
-	if (To) {
-	  for (unsigned i=0; i<To; i++) {
-	    pf.Particle_to_part(psend[ps+i], 
-				cc->Particles()[exchange[toID][i]]);
-	    cc->Particles().erase(exchange[toID][i]);
-	  }
-	  for (unsigned i=0; i<To; i++) {
-	    if (psend[ps+i].indx == 0) {
-	      cerr << "pHOT::adjustTree[" << debug_ctr
-		   << "]: SEND from=" << frID << " to=" << toID << " #=" << To
-		   << " ps=" << ps+i 
-		   << " mass=" << scientific << psend[ps+i].mass << endl;
-	    }
-	  }
-	  rql.push_back(r);
-	  if ( (ierr=MPI_Isend(&psend[ps], To, ParticleFerry::Particletype, toID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
-	    cout << "Process " << myid << ": error in adjustTree sending"
-		 << To << " particles to #" << toID 
-		 << " ierr=" << ierr << endl;
-	  }
-	  ps += To;
-	}
-      }	// Send block
-
-				// Current process receives particles 
-				// (non-blocking)
-      if (myid==toID) {		// 
-	unsigned From = sendlist[numprocs*frID+toID];
-	if (From) {
-	  rql.push_back(r);
-	  if ( (ierr=MPI_Irecv(&precv[pr], From, ParticleFerry::Particletype, frID, 49, MPI_COMM_WORLD, &rql.back())) != MPI_SUCCESS ) {
-	    cout << "Process " << myid << ": error in adjustTree receiving "
-		 << From << " particles from #" << frID 
-		 << " ierr=" << ierr << endl;
-	  }
-	  pr += From;
-	}
-      }
-
-    } // Receipt block
-
+  for (int toID=0; toID<numprocs; toID++) {
+    timer_convert.start();
+    ps = sdispls[toID];
+    for (unsigned i=0; i<sendcounts[toID]; i++) {
+      pf.Particle_to_part(psend[ps+i], cc->Particles()[exchange[toID][i]]);
+      cc->Particles().erase(exchange[toID][i]);
+    }
+    timer_convert.stop();
   }
 
-  //
-  // Wait for completion of sends and receives
-  //
-
-  if ( (ierr=MPI_Waitall(rql.size(), &rql[0], MPI_STATUSES_IGNORE)) != MPI_SUCCESS ) 
-    {
-      cout << "Process " << myid << ": error in adjustTree Waitall"
-	   << ", ierr=" << ierr << endl;
-    }
-
-  //
-  // Buffer size sanity check
-  //
-  if (true) {			// Enabled if true
-
-    if (Tcnt-ps) {
-      cout << "Process " << myid 
-	   << ": adjustTree [Tcnt] found <" << ps << "> but expected <" 
-	   << Tcnt << ">" << endl;
-    }
-    
-    if (Fcnt-pr) {
-      cout << "Process " << myid 
-	   << ": adjustTree [Fcnt] found <" << pr << "> but expected <" 
-	   << Fcnt << ">" << endl;
-    }
-
-  }
-
-  //
-  // DEBUG
-  //
-  if (false) {			// Enabled if true
-
-    pr = 0;
-    for (int id=0; id<numprocs; id++) {
-      unsigned From = sendlist[numprocs*id+myid];
-      if (From) {
-	for (int i=0; i<From; i++) {
-	  if (precv[pr+i].indx == 0) {
-	    cerr << "pHOT::adjustTree[" << debug_ctr 
-		 << "]: RECV to=" << myid << " from=" << id << " #=" << From
-		 << " pr=" << pr+i << " mass=" << scientific 
-		 << precv[pr+i].mass << endl;
-	  }
-	}
-	pr += From;
-      }
-    }
-  }
-
-  debug_ctr++;
+  MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
+		ParticleFerry::Particletype, 
+		&precv[0], &recvcounts[0], &rdispls[0], 
+		ParticleFerry::Particletype, 
+		MPI_COMM_WORLD);
 
   // END DEBUG
+
+  timer_convert.start();
 
   Particle part;
   for (unsigned i=0; i<Fcnt; i++) {
     pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[spreadOOB crazy mass indx=" << part.indx 
+	cout << "[adjustTree crazy mass indx=" << part.indx 
 	     << ", key=" << hex << part.key << dec << "]";
       }
 
@@ -1993,6 +1831,7 @@ void pHOT::adjustTree(unsigned mlevel)
   cc->nbodies = cc->particles.size();
 
 
+  timer_convert.stop();
   timer_xchange.stop();
   timer_overlap.start();
 
@@ -2801,9 +2640,6 @@ void pHOT::spreadOOB()
     cc->nbodies = cc->particles.size();
   }
 
-  if (Tcnt) delete [] psend;
-  if (Fcnt) delete [] precv;
-
 }
 
 
@@ -2850,6 +2686,31 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   if (keys.size()) {
     for (unsigned i=0; i<nsamp; i++)
       keylist1.push_back(keys[srate*(2*i+1)/2]);
+  }
+
+  //
+  // DEBUG (set to "true" to enable key range diagnostic)
+  //
+
+  if (false) {
+    if (myid==0) {
+      cout << "--------------------------" << endl;
+      cout << "------ Sampled keys ------" << endl;
+      cout << "--------------------------" << endl;
+    }
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	cout << setw(5) << n << setw(10) << keys.size() << hex
+	     << setw(15) << keys[0]
+	     << setw(15) << keys[keys.size()/4]
+	     << setw(15) << keys[keys.size()/2]
+	     << setw(15) << keys[keys.size()*3/4]
+	     << setw(15) << keys[keys.size()-1]
+	     << dec << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      
+    }
   }
 
   //
@@ -3122,14 +2983,17 @@ unsigned pHOT::checkNumber()
 }
 
 
-void pHOT::adjustTiming(double &keymake, double &exchange, double &overlap)
+void pHOT::adjustTiming(double &keymake, double &exchange, 
+			double &convert, double &overlap)
 {
   keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
   exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
+  convert  = timer_convert.getTime().getRealTime()*1.0e-6;
   overlap  = timer_overlap.getTime().getRealTime()*1.0e-6;
 
   timer_keymake.reset();
   timer_xchange.reset();
+  timer_convert.reset();
   timer_overlap.reset();
 }
 
