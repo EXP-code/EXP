@@ -1657,6 +1657,34 @@ void EmpCylSL::make_eof(void)
   }
 
   //
+  // DEBUG: check for nan
+  //
+
+  for (int mm=0; mm<=MMAX; mm++) {
+    bool bad = false;
+    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	if (isnan(SC[0][mm][i][j])) bad = true;
+
+    if (bad) {
+      cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+	   << endl;
+    }
+  }
+
+  for (int mm=1; mm<=MMAX; mm++) {
+    bool bad = false;
+    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	if (isnan(SS[0][mm][i][j])) bad = true;
+
+    if (bad) {
+      cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+	   << endl;
+    }
+  }
+
+  //
   //  Distribute mean and covariance to all processes
   //
 
@@ -1727,6 +1755,42 @@ void EmpCylSL::make_eof(void)
       for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
 	SS[0][mm][i][j] = MPIout_eof[icnt++];
   }
+
+
+  //
+  // DEBUG: check for nan
+  //
+
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      for (int mm=0; mm<=MMAX; mm++) {
+	bool bad = false;
+	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	    if (isnan(SC[0][mm][i][j])) bad = true;
+	
+	if (bad) {
+	  cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+	       << endl;
+	}
+      }
+      
+      for (int mm=1; mm<=MMAX; mm++) {
+	bool bad = false;
+	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	  for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	    if (isnan(SS[0][mm][i][j])) bad = true;
+	
+	if (bad) {
+	  cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+	       << endl;
+	}
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  // END DEBUG
 
 
   if (myid==0) {
@@ -1848,7 +1912,8 @@ void EmpCylSL::make_eof(void)
 	  }
 	}
 
-	var[M] /= maxV;
+	if (maxV>1.0e-5)
+	  var[M] /= maxV;
     
     /*==========================*/
     /* Solve eigenvalue problem */
@@ -1877,14 +1942,33 @@ void EmpCylSL::make_eof(void)
 
 	    // Copy variance matrix to temporary
 	    //
+	    bool bad = false;
 	    for (int i=r1; i<=r2; i++)
-	      for (int j=r1; j<=r2; j++)
+	      for (int j=r1; j<=r2; j++) {
 		tvar[i-1][j-1] = var[M][i][j];
+		if (isnan(var[M][i][j])) bad = true;
+	      }
+
+	    if (bad)
+	      cerr << "EmpCylSL: M=" << M << ", isnan in variance C matrix"
+		   << ", maxV=" << maxV << endl;
+
 
 	    // Compute the SVD
 	    //
 	    if (!SVD(tvar, tu, tv, td)) {
 	      cerr << "EmpCylSL: Error in SVD" << endl;
+	      cerr << setw(70) << setfill('-') << '-' << endl
+		   << "---- M=" << M << endl
+		   << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	      for (int i=r1; i<=r2; i++) {
+		for (int j=r1; j<=r2; j++)
+		  cerr << setw(16) << var[M][i][j];
+		cerr << endl;
+	      }
+	      cerr << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+		   << flush;
+	      system("sleep 2");
 	      MPI_Abort(MPI_COMM_WORLD, -155);
 	    }
 	  
@@ -1957,7 +2041,8 @@ void EmpCylSL::make_eof(void)
 	  }
 	}
 	
-	var[M] /= maxV;
+	if (maxV>1.0e-5)
+	  var[M] /= maxV;
     
     /*==========================*/
     /* Solve eigenvalue problem */
@@ -1986,14 +2071,33 @@ void EmpCylSL::make_eof(void)
 
 	    // Copy variance matrix to temporary
 	    //
+	    bool bad = false;
 	    for (int i=r1; i<=r2; i++)
-	      for (int j=r1; j<=r2; j++)
+	      for (int j=r1; j<=r2; j++) {
 		tvar[i-1][j-1] = var[M][i][j];
+		if (isnan(var[M][i][j])) bad = true;
+	      }
+
+	    if (bad)
+	      cerr << "EmpCylSL: M=" << M << ", isnan in variance S matrix"
+		   << ", maxV=" << maxV << endl;
+
 
 	    // Compute the SVD
 	    //
 	    if (!SVD(tvar, tu, tv, td)) {
 	      cerr << "EmpCylSL: Error in SVD" << endl;
+	      cerr << setw(70) << setfill('-') << '-' << endl
+		   << "---- M=" << M << endl
+		   << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	      for (int i=r1; i<=r2; i++) {
+		for (int j=r1; j<=r2; j++)
+		  cerr << setw(16) << var[M][i][j];
+		cerr << endl;
+	      }
+	      cerr << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+		   << flush;
+	      system("sleep 2");
 	      MPI_Abort(MPI_COMM_WORLD, -155);
 	    }
 	  

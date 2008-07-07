@@ -2,6 +2,7 @@
 // exchange
 
 // #define NON_BLOCK
+// #define USE_SCATTER
 
 #include <values.h>
 
@@ -54,10 +55,14 @@ pHOT::pHOT(Component *C)
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
 
+  m_xchange = n_xchange = 0;
+
   timer_keymake.Microseconds();
   timer_xchange.Microseconds();
+  timer_prepare.Microseconds();
   timer_convert.Microseconds();
   timer_overlap.Microseconds();
+  timer_cupdate.Microseconds();
 } 
 
 
@@ -1308,14 +1313,18 @@ void pHOT::Repartition()
   partitionKeys(keys, kbeg, kfin);
   // debug_ts("After partitionKeys");
 
+  timer_prepare.start();
+
   //
   // Nodes compute send list
   //
   loclist = kbeg;
   loclist.push_back(kfin[numprocs-1]);	// End point for binary search
 
-  vector<unsigned> sndlist1(numprocs*numprocs, 0);
-  vector<unsigned> sendlist(numprocs*numprocs);
+  unsigned Tcnt=0, Fcnt=0, Icnt, sum=0;
+  vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
+  vector<int> sdispls(numprocs), rdispls(numprocs);
+  
   vector< vector<unsigned> > bodylist(numprocs);
   unsigned t;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
@@ -1331,54 +1340,76 @@ void pHOT::Repartition()
     }
     if (t == myid) continue;
     bodylist[t].push_back(it->first);
-    sndlist1[numprocs*myid + t]++;
+    sendcounts[t]++;
   }
 
-  int ntot = numprocs*numprocs;
-  MPI_Allreduce(&sndlist1[0], &sendlist[0], ntot, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
-  
-  unsigned Tcnt=0, Fcnt=0;
-  vector<int> sendcounts(numprocs), recvcounts(numprocs);
-  vector<int> sdispls(numprocs), rdispls(numprocs);
-  
+  for (unsigned k=0; k<numprocs; k++) Tcnt += sendcounts[k];
+
   for (unsigned k=0; k<numprocs; k++) {
-    sendcounts[k] = sendlist[numprocs*myid + k];
-    Tcnt += sendcounts[k];
-    recvcounts[k] = sendlist[numprocs*k + myid];
-    Fcnt += recvcounts[k];
+    Icnt = Tcnt;
+    MPI_Bcast(&Icnt, 1, MPI_UNSIGNED, k, MPI_COMM_WORLD);
+    if (Icnt) {
+#ifdef USE_SCATTER
+      MPI_Scatter(&sendcounts[0], 1, MPI_INT,
+		  &recvcounts[k], 1, MPI_INT, k, MPI_COMM_WORLD);
+#else
+      // It's hard to believe that this is a faster replacement for the
+      // MPI_Scatter but it seems to be . . . 
+      if (myid==k) {
+	for (int j=0; j<numprocs; j++) {
+	  if (j==k) continue;
+	  MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
+	}
+      }
+      else MPI_Recv(&recvcounts[k], 1, MPI_INT, k, 58+k, MPI_COMM_WORLD,
+		    MPI_STATUS_IGNORE);
+#endif
+      Fcnt += recvcounts[k];
+    }
     if (k==0) {
       sdispls[0] = rdispls[0] = 0;
     } else {
       sdispls[k] = sdispls[k-1] + sendcounts[k-1];
       rdispls[k] = rdispls[k-1] + recvcounts[k-1];
     }
+    if (myid==0) sum += Icnt;
   }
 
 				// DEBUG OUTPUT
-  if (false) {			// If true, write send and receive list for each node
-    for (int n=0; n<numprocs; n++) {
-      if (myid==n) {
-	cout<<"--------------------------------------------------------"<<endl
-	    <<"---- Repartition"<<endl
-	    <<"--------------------------------------------------------"<<endl
-	    << "Process " << myid << ": Tcnt=" << Tcnt 
-	    << " Fcnt=" << Fcnt << endl;
-	for (int m=0; m<numprocs; m++)
-	  cout << setw(5) << m 
-	       << setw(8) << sendlist[numprocs*n+m]
-	       << setw(8) << sendlist[numprocs*m+n]
-	       << endl;
-	cout << "--------------------------------------------------------" << endl;
+  if (false) {			// Set to "true" to enable
+
+    if (myid==0){
+      cout <<"--------------------------------------------------------"<< endl
+	   <<"---- Send and receive counts for each process "<< endl
+	   <<"--------------------------------------------------------"<< endl;
+    }
+
+    for (unsigned k=0; k<numprocs; k++) {
+      if (myid==k) {
+	cout << "Process " << k << endl;
+	for (unsigned m=0; m<numprocs; m++) {
+	  cout << setw(4) << m << setw(15) << sendcounts[m]
+	       << setw(15) << recvcounts[m] << endl;
+	}
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
   }
-
+				// END DEBUG OUTPUT
+      
+  //
+  // Debug counter
+  //
+  if (myid==0) {
+    n_xchange += sum;
+    m_xchange++;
+  }
+				// DEBUG OUTPUT
   if (false) {	 // If true, write send and receive list for each node
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
 	cout<<"--------------------------------------------------------"<<endl
-	    <<"---- Repartition"<<endl
+	    <<"---- Repartition: send and receive counts"<<endl
 	    <<"--------------------------------------------------------"<<endl
 	    << "Process " << myid << ": Tcnt=" << Tcnt 
 	    << " Fcnt=" << Fcnt << endl;
@@ -1405,15 +1436,16 @@ void pHOT::Repartition()
   int ps;
   vector<Partstruct> psend(Tcnt), precv(Fcnt);
 
+  timer_convert.start();
   for (int toID=0; toID<numprocs; toID++) {
-    timer_convert.start();
     ps = sdispls[toID];
     for (unsigned i=0; i<sendcounts[toID]; i++) {
       pf.Particle_to_part(psend[ps+i], cc->Particles()[bodylist[toID][i]]);
       cc->Particles().erase(bodylist[toID][i]);
     }
-    timer_convert.stop();
   }
+  timer_convert.stop();
+  timer_xchange.start();
 
   MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
 		ParticleFerry::Particletype, 
@@ -1421,6 +1453,8 @@ void pHOT::Repartition()
 		ParticleFerry::Particletype, 
 		MPI_COMM_WORLD);
 
+  timer_xchange.stop();
+  timer_convert.start();
 
   if (Fcnt) {
     Particle part;
@@ -1434,7 +1468,9 @@ void pHOT::Repartition()
     }
     cc->nbodies = cc->particles.size();
   }
-      
+  timer_convert.stop();
+  timer_prepare.stop();
+
   //
   // Remake key body index
   //
@@ -1752,55 +1788,79 @@ void pHOT::adjustTree(unsigned mlevel)
   }
   
   timer_keymake.stop();
-  timer_xchange.start();
-
 
   //
   // Exchange particles
   //
 
-  vector<unsigned long> templist(numprocs*numprocs, 0);
-  vector<unsigned long> sendlist(numprocs*numprocs, 0);
-
-  for (unsigned k=0; k<numprocs; k++)
-    templist[numprocs*myid + k] = exchange[k].size();
-
-  MPI_Allreduce(&templist[0], &sendlist[0], numprocs*numprocs,
-		MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
-
-  unsigned Tcnt=0, Fcnt=0;
-  vector<int> sendcounts(numprocs), recvcounts(numprocs);
+  unsigned Tcnt=0, Fcnt=0, sum=0, Icnt;
   vector<int> sdispls(numprocs), rdispls(numprocs);
-  
+  vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
+
+  timer_prepare.start();
+
   for (unsigned k=0; k<numprocs; k++) {
-    sendcounts[k] = sendlist[numprocs*myid + k];
+    sendcounts[k] = exchange[k].size();
     Tcnt += sendcounts[k];
-    recvcounts[k] = sendlist[numprocs*k + myid];
-    Fcnt += recvcounts[k];
+  }
+
+  for (unsigned k=0; k<numprocs; k++) {
+    Icnt = Tcnt;
+    MPI_Bcast(&Icnt, 1, MPI_UNSIGNED, k, MPI_COMM_WORLD);
+    if (Icnt) {
+#ifdef USE_SCATTER
+      MPI_Scatter(&sendcounts[0], 1, MPI_INT,
+		  &recvcounts[k], 1, MPI_INT, k, MPI_COMM_WORLD);
+#else
+      // It's hard to believe that this is a faster replacement for the
+      // MPI_Scatter but it seems to be . . . 
+      if (myid==k) {
+	for (int j=0; j<numprocs; j++) {
+	  if (j==k) continue;
+	  MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
+	}
+      }
+      else MPI_Recv(&recvcounts[k], 1, MPI_INT, k, 58+k, MPI_COMM_WORLD,
+		    MPI_STATUS_IGNORE);
+#endif
+      Fcnt += recvcounts[k];
+    }
     if (k==0) {
       sdispls[0] = rdispls[0] = 0;
     } else {
       sdispls[k] = sdispls[k-1] + sendcounts[k-1];
       rdispls[k] = rdispls[k-1] + recvcounts[k-1];
     }
+    if (myid==0) sum += Icnt;
   }
+
+  //
+  // Debug counter
+  //
+  if (myid==0) {
+    n_xchange += sum;
+    m_xchange++;
+  }
+    
+  timer_prepare.stop();
 
   //
   // Exchange particles between processes
   //
-
   int ps;
   vector<Partstruct> psend(Tcnt), precv(Fcnt);
 
+  timer_convert.start();
   for (int toID=0; toID<numprocs; toID++) {
-    timer_convert.start();
     ps = sdispls[toID];
     for (unsigned i=0; i<sendcounts[toID]; i++) {
       pf.Particle_to_part(psend[ps+i], cc->Particles()[exchange[toID][i]]);
       cc->Particles().erase(exchange[toID][i]);
     }
-    timer_convert.stop();
   }
+  timer_convert.stop();
+
+  timer_xchange.start();
 
   MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
 		ParticleFerry::Particletype, 
@@ -1808,7 +1868,7 @@ void pHOT::adjustTree(unsigned mlevel)
 		ParticleFerry::Particletype, 
 		MPI_COMM_WORLD);
 
-  // END DEBUG
+  timer_xchange.stop();
 
   timer_convert.start();
 
@@ -1832,7 +1892,6 @@ void pHOT::adjustTree(unsigned mlevel)
 
 
   timer_convert.stop();
-  timer_xchange.stop();
   timer_overlap.start();
 
   //
@@ -1982,6 +2041,8 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_overlap.stop();
 
+  timer_cupdate.start();
+
   // #define DEBUG
   
   // Create, remove and delete changed cells
@@ -2080,6 +2141,8 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 #endif
   
+  timer_cupdate.stop();
+
 }
   
 
@@ -2447,11 +2510,10 @@ void pHOT::spreadOOB()
 				// 3% tolerance
   const unsigned long tol = 33;
 
-  vector<long> list1(numprocs, 0), list0(numprocs), delta(numprocs);
+  vector<long> list0(numprocs, 0), delta(numprocs);
 
-  list1[myid] = oob.size();
-  MPI_Allreduce(&list1[0], &list0[0], numprocs, 
-		MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+  long list1 = oob.size();
+  MPI_Allgather(&list1, 1, MPI_LONG, &list0[0], 1, MPI_LONG, MPI_COMM_WORLD);
 
   // debug_ts("In spreadOOB, after reduce");
 
@@ -2984,17 +3046,22 @@ unsigned pHOT::checkNumber()
 
 
 void pHOT::adjustTiming(double &keymake, double &exchange, 
-			double &convert, double &overlap)
+			double &prepare, double &convert, 
+			double &overlap, double &update)
 {
   keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
   exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
+  prepare  = timer_prepare.getTime().getRealTime()*1.0e-6;
   convert  = timer_convert.getTime().getRealTime()*1.0e-6;
   overlap  = timer_overlap.getTime().getRealTime()*1.0e-6;
+  update   = timer_cupdate.getTime().getRealTime()*1.0e-6;
 
   timer_keymake.reset();
   timer_xchange.reset();
+  timer_prepare.reset();
   timer_convert.reset();
   timer_overlap.reset();
+  timer_cupdate.reset();
 }
 
 

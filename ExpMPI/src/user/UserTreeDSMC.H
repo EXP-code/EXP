@@ -28,6 +28,7 @@
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
     @param use_multi attempts to set the time step (if multistep is enabled)
+    @param use_repair repairs the tree rather than remakes the tree
     @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
     @param use_exes track energy loss per particle for exact energy conservation
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
@@ -50,7 +51,8 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, mfpstat, use_multi, use_pullin, cba, dryrun, nocool, ntc;
+  bool frontier, mfpstat, use_multi, use_pullin, use_repair;
+  bool cba, dryrun, nocool, ntc;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, rate_;
