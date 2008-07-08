@@ -270,73 +270,117 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   double xx, yy, zz, mas;
   double Rmax2 = rcylmax*rcylmax*acyl*acyl;
 
-  unsigned nbodies = cC->levlist[mlevel].size();
   int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
-  double adb = component->Adiabatic();
-  int indx;
+  int indx, nbeg, nend, nbodies;
 
   use[id] = 0;
   cylmass0[id] = 0.0;
 
-  for (int i=nbeg; i<nend; i++) {
+  if (eof) {
 
-    indx = cC->levlist[mlevel][i];
+    nbodies = cC->Number();
+    nbeg = nbodies*id/nthrds;
+    nend = nbodies*(id+1)/nthrds;
 
-    // Frozen particles don't contribute to field
-    //
-    if (cC->freeze(indx)) continue;
+    for (int indx=nbeg; indx<nend; indx++) {
+
+      // Frozen particles don't contribute to field
+      //
+      if (cC->freeze(indx)) continue;
     
-    for (int j=0; j<3; j++) 
-      pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
+      for (int j=0; j<3; j++) 
+	pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
+      
+      if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
+	pos[id] = cC->orient->transformBody() * pos[id];
 
-    if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
-      pos[id] = cC->orient->transformBody() * pos[id];
+      xx = pos[id][1];
+      yy = pos[id][2];
+      zz = pos[id][3];
 
-    xx = pos[id][1];
-    yy = pos[id][2];
-    zz = pos[id][3];
-
-    r2 = xx*xx + yy*yy;
-    r = sqrt(r2) + DSMALL;
-    R2 = r2 + zz*zz;
+      r2 = xx*xx + yy*yy;
+      r = sqrt(r2) + DSMALL;
+      R2 = r2 + zz*zz;
     
-    if ( R2 < Rmax2) {
+      if ( R2 < Rmax2) {
 
-      mas = cC->Mass(indx) * adb;
-      phi = atan2(yy, xx);
+	mas = cC->Mass(indx);
+	phi = atan2(yy, xx);
 
-      if (eof)
-	ortho->accumulate_eof(r, zz, phi, mas, id, mlevel);
-      else
-	ortho->accumulate(r, zz, phi, mas, id, mlevel);
-
-      use[id]++;
-      cylmass0[id] += mas;
-
-    } else {
-      if (VERBOSE>3) {
-	cout << "Process " << myid 
-	     << ": r^2=" << R2
-	     << " max r^2=" << Rmax2 
-	     << " r2=" << r2 
-	     << " z2=" << zz*zz 
-	     << " m=" << cylmass0[id] 
-	     << " eof=" << eof
-	     << endl;
-
-	if (isnan(R2)) {
-	  cout << endl;
-	  cC->orient->transformBody().print(cout);
-	  cout << endl;
-	  cC->orient->currentAxis().print(cout);
-	  cout << endl;
-	  MPI_Abort(MPI_COMM_WORLD, -1);
-	}
+	ortho->accumulate_eof(r, zz, phi, mas, id, cC->Part(indx)->level);
+	
+	use[id]++;
+	cylmass0[id] += mas;
+	
       }
     }
+
+  } else {
+
+    nbodies = cC->levlist[mlevel].size();
+    nbeg = nbodies*id/nthrds;
+    nend = nbodies*(id+1)/nthrds;
+
+    double adb = component->Adiabatic();
+
+    for (int i=nbeg; i<nend; i++) {
+
+      indx = cC->levlist[mlevel][i];
+
+      // Frozen particles don't contribute to field
+      //
+      if (cC->freeze(indx)) continue;
     
+      for (int j=0; j<3; j++) 
+	pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
+
+      if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
+	pos[id] = cC->orient->transformBody() * pos[id];
+
+      xx = pos[id][1];
+      yy = pos[id][2];
+      zz = pos[id][3];
+
+      r2 = xx*xx + yy*yy;
+      r = sqrt(r2) + DSMALL;
+      R2 = r2 + zz*zz;
+    
+      if ( R2 < Rmax2) {
+
+	mas = cC->Mass(indx) * adb;
+	phi = atan2(yy, xx);
+
+	if (eof)
+	  ortho->accumulate_eof(r, zz, phi, mas, id, mlevel);
+	else
+	  ortho->accumulate(r, zz, phi, mas, id, mlevel);
+
+	use[id]++;
+	cylmass0[id] += mas;
+	
+      } else {
+	if (VERBOSE>3) {
+	  cout << "Process " << myid 
+	       << ": r^2=" << R2
+	       << " max r^2=" << Rmax2 
+	       << " r2=" << r2 
+	       << " z2=" << zz*zz 
+	       << " m=" << cylmass0[id] 
+	       << " eof=" << eof
+	       << endl;
+
+	  if (isnan(R2)) {
+	    cout << endl;
+	    cC->orient->transformBody().print(cout);
+	    cout << endl;
+	    cC->orient->currentAxis().print(cout);
+	    cout << endl;
+	    MPI_Abort(MPI_COMM_WORLD, -1);
+	  }
+	}
+      }
+      
+    }
   }
 
   return (NULL);
@@ -377,15 +421,20 @@ void Cylinder::determine_coefficients(void)
 
   }
 
-  if (multistep==0) {
-    if (eof) {
-      ortho->setup_eof();
-      cylmass = 0.0;
-      if (myid==0) cerr << "Cylinder: setup for eof\n";
-    }
-    ortho->setup_accumulation();
+  if (eof) {
+
+    ortho->setup_eof();
+    cylmass = 0.0;
+    if (myid==0) cerr << "Cylinder: setup for eof\n";
+
   } else {
-    ortho->setup_accumulation(mlevel);
+
+    if (multistep==0) {
+      ortho->setup_accumulation();
+    } else {
+      ortho->setup_accumulation(mlevel);
+    }
+
   }
 
   cylmass0 = new double [nthrds];
@@ -448,6 +497,19 @@ void Cylinder::determine_coefficients(void)
   }
   
   MPL_start_timer();
+
+  //
+  // Compute the EOF coefficients independent of multilevel, 
+  // if eof is flagged
+  //
+  if (eof) {
+
+    ortho->make_eof();
+    if (myid==0) cerr << "Cylinder: eof computed\n";
+    eof = 0;
+
+  }
+
 }
 
 void check_force_values(double phi, double p, double fr, double fz, double fp)
@@ -484,6 +546,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   for (int lev=mlevel; lev<=multistep; lev++) {
 
     unsigned nbodies = cC->levlist[lev].size();
+
+    if (nbodies==0) continue;
+
     int nbeg = nbodies*id/nthrds;
     int nend = nbodies*(id+1)/nthrds;
     
@@ -590,11 +655,6 @@ void Cylinder::determine_acceleration_and_potential(void)
 {
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
-  if (eof) {
-    ortho->make_eof();
-    eof = 0;
-  }
-
   if (use_external == false) {
     if (mlevel <= maxlev) ortho->make_coefficients(mlevel);
     if (multistep)        compute_multistep_coefficients();

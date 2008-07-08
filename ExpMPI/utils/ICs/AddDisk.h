@@ -3,11 +3,6 @@
 
 #include <vector>
 
-//#include <AxiSymModel.h>
-//#include <SphericalModelTable.h>
-
-//???can I replace these 2 with massmodel?
-
 #include <massmodel.h>
 
 class AddDisk

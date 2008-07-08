@@ -36,13 +36,10 @@ gendisk2_SOURCES =  initial2.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 
-Particle.cc:	$(top_srcdir)/src/Particle.cc
-	cp $(top_srcdir)/src/$@ .
-
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
 
-CLEANFILES = 	Particle.cc EmpOrth9thd.cc 
+CLEANFILES = 	EmpOrth9thd.cc 
 
 ## utils/ICs/Makefile.am ends here
 

@@ -14,12 +14,12 @@
 #include <Random.h>
 
 #include <exponential.h>
-// #include <SphericalModelTable.h>
 
 #include <gaussQ.h>
 #include <localmpi.h>
 #include <Vector.h>
 
+#include "Particle.h"
 #include "AddDisk.h"
 #include "SphericalSL.h"
 #include "EmpOrth9thd.h"

@@ -5,7 +5,7 @@
 
 #include <vector>
 
-#include <Particle.H>
+#include <Particle.h>
 #include <Vector.h>
 #include <logic.h>
 #include <SLGridMP2.h>

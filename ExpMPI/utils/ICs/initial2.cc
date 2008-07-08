@@ -58,7 +58,6 @@
  Updated to include gas disk using local Euler solution 04/08 by MDW
 
 */
-
                                 // System libs
 #include <math.h>
 #include <unistd.h>
@@ -238,12 +237,10 @@ main(int argc, char **argv)
 
         case 'H':
           nhalo = atoi(optarg);
-	  cout << "Parse nhalo: " << optarg << endl;
           break;
 
         case 'D':
           ndisk = atoi(optarg);
-	  cout << "Parse ndisk: " << optarg << endl;
           break;
 
         case 'G':
@@ -377,15 +374,6 @@ main(int argc, char **argv)
   MPI_Bcast(&nhalo,  1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndisk,  1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ngas,   1, MPI_INT, 0, MPI_COMM_WORLD);
-
-  cout << flush;
-  MPI_Barrier(MPI_COMM_WORLD);
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid)
-      cout << "#" << setw(3) << myid 
-	   << ": " << nhalo << ", " << ndisk << ", " << ngas << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
 
                                 // Divvy up the particles
   n_particlesH = nhalo/numprocs;

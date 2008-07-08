@@ -10,6 +10,7 @@
 
 static const char rcsid_biorth[] = "$Id$";
 
+#include <cstdlib>
 #include <string>
 #include <Vector.h>
 #include <logic.h>

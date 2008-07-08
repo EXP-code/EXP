@@ -198,8 +198,6 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
 
   p.mass = dmass/ndisk;
 
-  // cout << "Process " << myid << ": disk mass = " << p.mass << endl;
-
   model = disk;
 
   for (int i=0; i<npart; i++) {
@@ -1206,31 +1204,30 @@ void DiskHalo::write_file(ofstream &fou_halo,  ofstream &fou_disk,
   int l  = hpart.size();
   int l1 = dpart.size();
   
-  vector<struct Particle> buf(NBUF), pbuf(NBUF);
+  vector<Particle> buf(NBUF);
   
 				// Make MPI datatype
   MPI_Datatype Particletype;
-  MPI_Datatype type[3] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
+  MPI_Datatype type[4] = {MPI_UNSIGNED, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
   
   // Get displacements
-  MPI_Aint	disp[3];
-  MPI_Get_address(&buf[0].mass,	&disp[0]);
-  MPI_Get_address(&buf[0].pos,	&disp[1]);
-  MPI_Get_address(&buf[0].vel,	&disp[2]);
+  MPI_Aint disp[4];
+  MPI_Get_address(&buf[0].level,	&disp[0]);
+  MPI_Get_address(&buf[0].mass,		&disp[1]);
+  MPI_Get_address(&buf[0].pos[0],	&disp[2]);
+  MPI_Get_address(&buf[0].vel[0],	&disp[3]);
   
-  for (int i=2; i>=0; i--) disp[i] -= disp[0];
+  for (int i=3; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[3] = {1, 3, 3};
+  int blocklen[4] = {1, 1, 3, 3};
   
   // Make and register the new type
-  MPI_Type_create_struct(3, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(4, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
   
-  // 
-  MPI_Status status;
-  
   // Get particle totals
+  //
   int ndisk=0, nhalo=0;
   MPI_Reduce(&l,  &nhalo, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&l1, &ndisk, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -1249,56 +1246,60 @@ void DiskHalo::write_file(ofstream &fou_halo,  ofstream &fou_disk,
     for (int i=0; i<l1; i++)
       write_record(fou_disk, dpart[i]);
     
-    for (int n=1; n<numprocs; n++) {
-      int imany, icur, ccnt;
+    int imany, icur, ccnt;
 
-      MPI_Recv(&imany, 1, MPI_INT, n, 10, MPI_COMM_WORLD, &status);
+    for (int n=1; n<numprocs; n++) {
+
+      MPI_Recv(&imany, 1, MPI_INT, n, 10, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       ccnt=0;
       while (ccnt<imany) {
-	MPI_Recv(&icur, 1, MPI_INT, n, 11, MPI_COMM_WORLD, &status);
-	MPI_Recv(&buf[0], icur, Particletype, n, 12, MPI_COMM_WORLD, &status);
+	MPI_Recv(&icur, 1, MPI_INT, n, 11, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&buf[0], icur, Particletype, n, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<icur; i++) write_record(fou_halo, buf[i]);
 	ccnt += icur;
       }
       
-      MPI_Recv(&imany, 1, MPI_INT, n, 10, MPI_COMM_WORLD, &status);
+      MPI_Recv(&imany, 1, MPI_INT, n, 13, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       ccnt = 0;
       while (ccnt<imany) {
-	MPI_Recv(&icur, 1, MPI_INT, n, 11, MPI_COMM_WORLD, &status);
-	MPI_Recv(&buf[0], icur, Particletype, n, 12, MPI_COMM_WORLD, &status);
+	MPI_Recv(&icur, 1, MPI_INT, n, 14, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&buf[0], icur, Particletype, n, 15, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<icur; i++) write_record(fou_disk, buf[i]);
 	ccnt += icur;
       }
       
+      MPI_Barrier(MPI_COMM_WORLD);
     }
     
   } else {
     
+    int icur, ipack;
+
     for (int n=1; n<numprocs; n++) {
-      
-      if (myid == n) {
-	int icur, ipack;
+
+      if (myid==n) {
 
 	MPI_Send(&l, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
 	icur = 0;
 	while (icur<l) {
 	  ipack = min<int>(l-icur, NBUF);
-	  for (int j=0; j<ipack; j++) pbuf[j] = hpart[icur+j];
+	  for (int j=0; j<ipack; j++) buf[j] = hpart[icur+j];
 	  MPI_Send(&ipack, 1, MPI_INT, 0, 11, MPI_COMM_WORLD);
-	  MPI_Send(&pbuf[0], ipack, Particletype, 0, 12, MPI_COMM_WORLD);
+	  MPI_Send(&buf[0], ipack, Particletype, 0, 12, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
 
-	MPI_Send(&l1, 1, MPI_INT, 0, 10, MPI_COMM_WORLD);
+	MPI_Send(&l1, 1, MPI_INT, 0, 13, MPI_COMM_WORLD);
 	icur = 0;
 	while (icur<l1) {
 	  ipack = min<int>(l1-icur, NBUF);
-	  for (int j=0; j<ipack; j++) pbuf[j] = dpart[icur+j];
-	  MPI_Send(&ipack, 1, MPI_INT, 0, 11, MPI_COMM_WORLD);
-	  MPI_Send(&pbuf[0], ipack, Particletype, 0, 12, MPI_COMM_WORLD);
+	  for (int j=0; j<ipack; j++) buf[j] = dpart[icur+j];
+	  MPI_Send(&ipack, 1, MPI_INT, 0, 14, MPI_COMM_WORLD);
+	  MPI_Send(&buf[0], ipack, Particletype, 0, 15, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
   }
   
