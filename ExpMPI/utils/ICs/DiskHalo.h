@@ -30,7 +30,7 @@ class DiskHalo
   AddDisk *newmod;
   SphericalModelTable *halo, *halo2;
   ExponentialDisk *disk;
-  double scaleheight, dmass;
+  double scaleheight, hmass, dmass;
   double center_pos[3], center_vel[3];
 
   SphericalSL* expandh;
@@ -83,6 +83,9 @@ class DiskHalo
   static double SHFACTOR;	// Minimum vertical integration size
 				// in units of scale height
 
+  static double DMFACTOR;	// Increase/decrease the deprojected disk
+				// mass by this factor. Default: 1.0
+
   static double Q;		// Toomre Q
 
   static double R_DF;		// Change over points for DF and Jeans
@@ -97,7 +100,7 @@ class DiskHalo
 
   //! Constructor
   DiskHalo(SphericalSL* expandh, EmpCylSL* expandd,
-	   double dz0, double dh, double dMd, string& filename,
+	   double dz0, double dh, double dMh, double dMd, string& filename,
 	   int DF=0, int DIVERGE=0, double DIVERGE_RFAC=1.0);
 
   //! Destructor

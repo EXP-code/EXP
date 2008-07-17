@@ -111,6 +111,7 @@ double HSCALE=0.1;
 double RDISK=10.0;
 double ZMAX=10.0;
 double TIME=0.0;
+double DMFAC=1.0;
 
 double X0=0.0;
 double Y0=0.0;
@@ -119,9 +120,11 @@ double U0=0.0;
 double V0=0.0;
 double W0=0.0;
 
-int NDR=200;
+int NDR=800;
 int NDZ=200;
-double SHFACTOR=16.0;
+int NHR=800;
+int NHT=200;
+double SHFAC=16.0;
 
 int NMAX2=8;
 int LMAX2=36;
@@ -139,6 +142,7 @@ double DR_DF=5.0;
 
 double scale_height = 0.1;
 double scale_length = 2.0;
+double halo_mass = 1.0;
 double disk_mass = 1.0;
 double gas_mass = 1.0;
 double ToomreQ = 1.2;
@@ -197,6 +201,7 @@ main(int argc, char **argv)
       // int this_option_optind = optind ? optind : 1;
       int option_index = 0;
       static struct option long_options[] = {
+	{"halo_mass", 1, 0, 0},
 	{"rcylmin", 1, 0, 0},
 	{"rcylmax", 1, 0, 0},
 	{"rmin", 1, 0, 0},
@@ -212,7 +217,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "H:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:bBzh",
+		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:d:bBzh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -223,19 +228,20 @@ main(int argc, char **argv)
         {
 	case 0:			// Long options
 	  optname = string(long_options[option_index].name);
-	  if (!optname.compare("rcylmin")) RCYLMIN = atof(optarg);
-	  if (!optname.compare("rcylmax")) RCYLMAX = atof(optarg);
-	  if (!optname.compare("rmin"))    RMIN = atof(optarg);
-	  if (!optname.compare("scsph"))   SCSPH = atof(optarg);
-	  if (!optname.compare("ascale"))  ASCALE = atof(optarg);
-	  if (!optname.compare("hscale"))  HSCALE = atof(optarg);
-	  if (!optname.compare("numr"))    NUMR = atoi(optarg);
-	  if (!optname.compare("norder"))  NORDER = atoi(optarg);
-	  if (!optname.compare("seed"))    SEED = atoi(optarg);
-	  if (!optname.compare("cfile"))   centerfile = string(optarg);
+	  if (!optname.compare("halo_mass")) halo_mass = atof(optarg);
+	  if (!optname.compare("rcylmin"))   RCYLMIN = atof(optarg);
+	  if (!optname.compare("rcylmax"))   RCYLMAX = atof(optarg);
+	  if (!optname.compare("rmin"))      RMIN = atof(optarg);
+	  if (!optname.compare("scsph"))     SCSPH = atof(optarg);
+	  if (!optname.compare("ascale"))    ASCALE = atof(optarg);
+	  if (!optname.compare("hscale"))    HSCALE = atof(optarg);
+	  if (!optname.compare("numr"))      NUMR = atoi(optarg);
+	  if (!optname.compare("norder"))    NORDER = atoi(optarg);
+	  if (!optname.compare("seed"))      SEED = atoi(optarg);
+	  if (!optname.compare("cfile"))     centerfile = string(optarg);
 	  break;
 
-        case 'H':
+        case 'I':
           nhalo = atoi(optarg);
           break;
 
@@ -320,6 +326,10 @@ main(int argc, char **argv)
 
         case 't':
           suffix = optarg;
+          break;
+
+        case 'd':
+          DMFAC = atof(optarg);
           break;
 
         case 'h':
@@ -411,7 +421,10 @@ main(int argc, char **argv)
   DiskHalo::RDMAX = RDISK*scale_length;
   DiskHalo::NDR = NDR;
   DiskHalo::NDZ = NDZ;
-  DiskHalo::SHFACTOR = SHFACTOR;
+  DiskHalo::NHR = NHR;
+  DiskHalo::NHT = NHT;
+  DiskHalo::SHFACTOR = SHFAC;
+  DiskHalo::DMFACTOR = DMFAC;
   DiskHalo::Q = ToomreQ;        // Toomre Q
   DiskHalo::R_DF = R_DF;
   DiskHalo::DR_DF = DR_DF;
@@ -472,7 +485,8 @@ main(int argc, char **argv)
 
 
   DiskHalo diskhalo(expandh, expandd,
-                    scale_height, scale_length, disk_mass, halofile,
+                    scale_height, scale_length, 
+		    halo_mass, disk_mass, halofile,
                     DF, DIVERGE, DIVERGE_RFAC);
 
   ifstream center(centerfile.c_str());
@@ -561,12 +575,13 @@ main(int argc, char **argv)
   
   if (n_particlesD) {
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
+    expandd->setup_eof();
+    expandd->setup_accumulation();
     expandd->accumulate_eof(dparticles);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
   
     if (myid==0) cout << "Making the EOF . . . " << flush;
-    expandd->setup_accumulation();
     expandd->make_eof();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";

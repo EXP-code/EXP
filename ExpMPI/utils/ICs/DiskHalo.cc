@@ -21,6 +21,7 @@ double DiskHalo::RDMIN = 1.0e-4;
 double DiskHalo::RDMAX = 20.0;
 double DiskHalo::Q = 1.2;
 double DiskHalo::SHFACTOR = 16.0;
+double DiskHalo::DMFACTOR = 1.0;
 unsigned DiskHalo::NBUF = 8192;
 int DiskHalo::NDP = 16;
 int DiskHalo::NDZ = 40;
@@ -45,7 +46,7 @@ double mass_func(double r)
 
 DiskHalo::
 DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
-	 double H, double A, double DMass, 
+	 double H, double A, double HMass, double DMass, 
 	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC)
 {
   disktableP = NULL;
@@ -60,6 +61,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 
   if (DF1) DF = true;
 
+  hmass = HMass;
   dmass = DMass;
   scaleheight = H;
 
@@ -88,7 +90,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
     AxiSymModel::gen_N = 800;
     AxiSymModel::gen_itmax = 40000;
     AxiSymModel::gen_rmin = RHMIN;
-    newmod = new AddDisk(halo, disk, dmass); 
+    newmod = new AddDisk(halo, disk, DMFACTOR*dmass); 
     halo2 = newmod->get_model();
     halo2->setup_df(800, 1.0e10);
 #ifdef DEBUG
@@ -138,7 +140,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 
   Particle p;
 
-  p.mass = (mtot-mmin)/nhalo;
+  p.mass = hmass*(mtot-mmin)/nhalo;
 
   model = halo;
 

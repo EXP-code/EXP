@@ -134,6 +134,7 @@ double DR_DF=5.0;
 
 double scale_height = 0.1;
 double scale_length = 2.0;
+double halo_mass = 1.0;
 double disk_mass = 1.0;
 double ToomreQ = 1.2;
 
@@ -431,7 +432,7 @@ main(int argc, char **argv)
 
 
   DiskHalo diskhalo(expandh, expandd,
-                    scale_height, scale_length, disk_mass, halofile,
+                    scale_height, scale_length, halo_mass, disk_mass, halofile,
                     DF, DIVERGE, DIVERGE_RFAC);
 
   ifstream center(centerfile.c_str());

@@ -282,7 +282,14 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
-    for (int indx=nbeg; indx<nend; indx++) {
+    unsigned indx;
+    map<unsigned long, Particle>::iterator n = cC->Particles().begin();
+    for (int i=0; i<nbeg; i++) n++;
+
+    for (int i=nbeg; i<nend; i++) {
+
+      indx = n->first;
+      n++;
 
       // Frozen particles don't contribute to field
       //
@@ -311,8 +318,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	
 	use[id]++;
 	cylmass0[id] += mas;
-	
-      }
+
+      } 
     }
 
   } else {
@@ -350,10 +357,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	mas = cC->Mass(indx) * adb;
 	phi = atan2(yy, xx);
 
-	if (eof)
-	  ortho->accumulate_eof(r, zz, phi, mas, id, mlevel);
-	else
-	  ortho->accumulate(r, zz, phi, mas, id, mlevel);
+	ortho->accumulate(r, zz, phi, mas, id, mlevel);
 
 	use[id]++;
 	cylmass0[id] += mas;
@@ -424,6 +428,7 @@ void Cylinder::determine_coefficients(void)
   if (eof) {
 
     ortho->setup_eof();
+    ortho->setup_accumulation();
     cylmass = 0.0;
     if (myid==0) cerr << "Cylinder: setup for eof\n";
 
@@ -504,8 +509,13 @@ void Cylinder::determine_coefficients(void)
   //
   if (eof) {
 
+    if (myid==0)
+      cerr << "Cylinder: eof grid mass=" << cylmassT0 
+	   << ", number=" << use0 << "\n";
     ortho->make_eof();
     if (myid==0) cerr << "Cylinder: eof computed\n";
+    ortho->make_coefficients();
+    if (myid==0) cerr << "Cylinder: coefs computed\n";
     eof = 0;
 
   }
