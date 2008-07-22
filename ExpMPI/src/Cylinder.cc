@@ -214,7 +214,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
       ostringstream dumpname;
       dumpname << "images" << "." << runtag << "." << this_step;
       ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-      dump_mzero(runtag.c_str(), this_step);
+      // dump_mzero(runtag.c_str(), this_step);
     }
   }
 
@@ -279,6 +279,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   if (eof) {
 
     nbodies = cC->Number();
+    
+    if (nbodies==0) return (NULL);
+
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
@@ -325,6 +328,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   } else {
 
     nbodies = cC->levlist[mlevel].size();
+    
+    if (nbodies==0) return (NULL);
+
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 

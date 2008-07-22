@@ -18,6 +18,25 @@
 #include <Orient.H>
 
 
+void EL3::debug() const 
+{
+  if (myid==0) {
+    cerr << left << setfill('-') 
+	 << setw(60) << '--- EL3 ' << endl << setfill(' ');
+    cerr.precision(4);
+    cerr << setw(12) << T
+	 << setw(12) << M
+	 << setw(12) << E;
+    cerr << " [";
+    for (int i=1; i<=3; i++) cerr << setw(12) << L[i];
+    cerr << "] [";
+    for (int i=1; i<=3; i++) cerr << setw(12) << R[i];
+    cerr << "]" << endl;
+    cerr << left << setfill('-') 
+	 << setw(60) << '-' << endl << setfill(' ');
+  }
+}
+
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
@@ -387,6 +406,8 @@ void Orient::accumulate(double time, Component *c)
       t.R[3] = mass*pos[2];
 
       angm.push_back(t);
+
+      t.debug();
     }
   }
 

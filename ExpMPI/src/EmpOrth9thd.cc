@@ -3355,6 +3355,7 @@ void EmpCylSL::dump_images(const string& OUTFILE,
 			   bool logscale)
 {
   if (myid!=0) return;
+  if (!coefs_made_all()) return;
   
   double p, d, rf, zf, pf;
   double dr, dz = 2.0*ZOUT/(OUTZ-1);

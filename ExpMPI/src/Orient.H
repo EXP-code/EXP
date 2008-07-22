@@ -3,7 +3,6 @@
 #ifndef _Orient_H
 #define _Orient_H
 
-
 #include <vector>
 #include <deque>
 #include <algorithm>
@@ -42,6 +41,9 @@ public:
   bool operator<(const EL3& x) const {
     return E < x.E;
   }
+
+  //! Debug output
+  void debug() const;
 };
 
 /** Class to keep track of orientation 
