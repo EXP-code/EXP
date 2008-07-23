@@ -84,9 +84,6 @@ struct loadb_datum
   ensemble used to determine the paramters.  The energy cutoff is
   dynamically adjusted to achieve this target.
 
-  @param eEJ0 is the initial guess for the largest energy particle to
-  keep in the ensemble
-
   @param EJx0 is the initial EJ center x-coordinate (default: 0)
 
   @param EJy0 is the initial EJ center y-coordinate (default: 0)
@@ -360,9 +357,6 @@ public:
 
   //! Target number of particles for average
   int nEJwant;
-
-  //! Initial guess for energy cutoff
-  double eEJ0;
 
   //! Initial EJ center
   //@{

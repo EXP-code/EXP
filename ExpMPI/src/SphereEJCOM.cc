@@ -28,14 +28,14 @@ void SphereEJCOM::initialize()
 }
 
 
-double SphereEJCOM::mixture(Particle& p)
+double SphereEJCOM::mixture(double* pos)
 {
   double dej=0.0, dif=0.0;
 
   for (int k=0; k<3; k++) {
     dej += 
-      (p.pos[k] - component->center[k]) *
-      (p.pos[k] - component->center[k]) ;
+      (pos[k] - component->center[k]) *
+      (pos[k] - component->center[k]) ;
 
     if (component->com_system)
       dif += 
@@ -47,5 +47,9 @@ double SphereEJCOM::mixture(Particle& p)
 	(component->com[k] - component->center[k]) ;
   }
 
-  return erf(cfac*pow(dej/(dif+1.0e-10), 0.5*alpha));
+  double value = erf(cfac*pow(dej/(dif+1.0e-10), 0.5*alpha));
+
+  accum_histo(value);
+
+  return value;
 }

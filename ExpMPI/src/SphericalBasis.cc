@@ -1,6 +1,7 @@
 #include "expand.h"
 #include <sstream>
 #include <SphericalBasis.H>
+#include <MixtureSL.H>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";
@@ -10,9 +11,11 @@ static char rcsid[] = "$Id$";
 static pthread_mutex_t io_lock;
 #endif
 
-SphericalBasis::SphericalBasis(string& line) : AxisymmetricBasis(line)
+SphericalBasis::SphericalBasis(string& line, MixtureSL *m) : 
+  AxisymmetricBasis(line)
 {
   dof = 3;
+  mix = m;
   geometry = sphere;
   coef_dump = true;
   NO_L0 = false;
@@ -287,8 +290,10 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   //======================
 
   if (firstime_accel || self_consistent) {
-    if (mlevel<=maxlev) determine_coefficients();
-    if (multistep)      compute_multistep_coefficients();
+    if (multistep)
+      compute_multistep_coefficients();
+    else
+      determine_coefficients();
     firstime_accel = false;
   }
   
@@ -348,6 +353,9 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   pthread_mutex_unlock(&io_lock);
 #endif
 
+  vector<double> ctr;
+  if (mix) mix->getCenter(ctr);
+
 				// Compute potential using a 
 				// subset of particles
   if (subset) nend = (int)floor(ssfrac*nend);
@@ -365,9 +373,15 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 				// Adjust mass for subset
     if (subset) mass /= ssfrac;
     
-    xx = cC->Pos(indx, 0, Component::Local | Component::Centered);
-    yy = cC->Pos(indx, 1, Component::Local | Component::Centered);
-    zz = cC->Pos(indx, 2, Component::Local | Component::Centered);
+    if (mix) {
+      xx = cC->Pos(indx, 0, Component::Local) - ctr[0];
+      yy = cC->Pos(indx, 1, Component::Local) - ctr[1];
+      zz = cC->Pos(indx, 2, Component::Local) - ctr[2];
+    } else {
+      xx = cC->Pos(indx, 0, Component::Local | Component::Centered);
+      yy = cC->Pos(indx, 1, Component::Local | Component::Centered);
+      zz = cC->Pos(indx, 2, Component::Local | Component::Centered);
+    }
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + DSMALL;
@@ -476,6 +490,7 @@ void SphericalBasis::determine_coefficients(void)
 #endif
 
 #ifdef LEVCHECK
+  MPI_Barrier(MPI_COMM_WORLD);
   for (int n=0; n<numprocs; n++) {
     if (n==myid) {
       if (myid==0) cout << "-------------------------------" << endl
@@ -712,12 +727,13 @@ void SphericalBasis::compute_multistep_coefficients()
     ofstream out("multistep_update.debug", ios::app);
     out << setw(70) << setfill('-') << '-' << endl;
     ostringstream sout;
-    sout << "--- mlevel=" << mlevel << " T=" << tnow << " ";
+    sout << "--- mlevel=" << mlevel << "/" << multistep
+	 << " T=" << tnow << " ";
     out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
-    out << setw(70) << setfill('-') << '-' << endl;
+    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     ostringstream sout2;
     sout2 << left << setw(5) << "# l" << setw(5) << "| n"
-	  << setw(18) << "| coef" << endl << setfill(' ') << right;
+	  << setw(18) << "| coef" << endl << right;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	out << setw(5) << l << setw(5) << n 
@@ -738,7 +754,10 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
   double dfac=0.25/M_PI;
 
   double pos[3];
-  double xx, yy, zz;
+  double xx, yy, zz, mfactor=1.0;
+
+  vector<double> ctr;
+  if (mix) mix->getCenter(ctr);
 
   int id = *((int*)arg);
 
@@ -774,11 +793,18 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
       } else
 	cC->Pos(pos, indx, Component::Local | Component::Centered);
 
-      fac1 = dfac;
+      if (mix) {
+	mfactor = mix->Mixture(pos);
+	xx = pos[0] - ctr[0];
+	yy = pos[1] - ctr[1];
+	zz = pos[2] - ctr[2];
+      } else {
+	xx = pos[0];
+	yy = pos[1];
+	zz = pos[2];
+      }	
 
-      xx = pos[0];
-      yy = pos[1];
-      zz = pos[2];
+      fac1 = dfac * mfactor;
 
       r = sqrt(xx*xx + yy*yy + zz*zz) + DSMALL;
       costh = zz/r;
@@ -824,7 +850,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 	//		m loop
 	//		------
 	for (m=0, moffset=0; m<=l; m++) {
-	  fac1 = (2.0*l+1.0)/(4.0*M_PI);
+	  fac1 = (2.0*l+1.0)/(4.0*M_PI) * mfactor;
 	  if (m==0) {
 	    fac2 = fac1*legs[id][l][m];
 	    get_pot_coefs_safe(l, expcoef[loffset+moffset], &p, &dp,

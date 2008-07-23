@@ -163,7 +163,7 @@ public:
   virtual void multistep_update_finish() {}
 
   //! Set the level for evaluating acceleration (or coefficients) at level n
-  void set_multistep_level(unsigned n) { mlevel=n; }
+  virtual void set_multistep_level(unsigned n) { mlevel=n; }
 
   //! Exchange data for interpolating the next sub time step
   virtual void multistep_swap(unsigned M) {}

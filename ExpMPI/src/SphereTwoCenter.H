@@ -2,80 +2,58 @@
 #define _SphereTwoCenter_H
 
 #include <SLGridMP2.h>
-#include <SphericalBasisMixtureSL.H>
+#include <Sphere.H>
+
+class MixtureSL;
 
 /** Computes the potential, acceleration and density using the Sturm
-    Liouville direct solution
+    Liouville direct solution.
 
-    \param rmin is the minimum value in the table for the 
-    radial basis functions (default is 0.001)
+    This class provides a virtual member "mixture(double *pos)" that
+    must be implemented by a derived class to provide the mixture
+    function for associating particles with a force center for
+    gravitational field determination.
 
-    \param rmax is the minimum value in the table for the 
-    radial basis functions (default is 0.001)
+    All parameters are parsed by the underlying Sphere basis instances
+    for the two centers.  There is only one diagnostic parameter:
 
-    \param cmap should be 1 for coordinate scaling, 2 for log
-    coordinate scaling, and 0 for no scaling
-
-    \param Lmax is maximum order for the harmonic expansion (\f$Y_{lm}\f$)
-
-    \param nmax is radial maximum order in the expansion basis
-
-    \param rs is the halo scale length (default is 0.067*rmax)
-
-    \param numr is the number radial coordinate knots in the table 
-    (default is 1000)
-
-    \param self_consistent = 0 flags the expansion to fix the coefficients
-    after the first time step
+    \param nhisto enables diagnostic output of mixture distribution if set to a value larger than 1
 */
 class SphereTwoCenter : public PotAccel
 {
 
-  friend class SphericalBasisMixtureSL;
-
 private:
 
-  SphericalBasisMixtureSL *exp_ej, *exp_com;
+  Sphere * exp_ej;
+  Sphere * exp_com;
 
   void initialize(void);
 
-				// Parameters
-  double rsphSL;
-  double rmax;
-  double rmin;
-  double rs;
-  int numr;
-  int cmap;
-  int Lmax;
-  int nmax;
+  MixtureSL *mix_ej, *mix_com;
 
-				// Will call SphericalBasisMixtureSL members
-				// to do this
-  void determine_coefficients(void) {};
-  
 				// Will not multithread directly
   void * determine_coefficients_thread(void * arg) {};
   void * determine_acceleration_and_potential_thread(void * arg) {};
 
-  //! Flag whether or not a call has taken place yet
-  bool firstime_accel;
-
-  //! If set, coefficients will only be computed once
-  bool self_consistent;
-
-  //! Model file name
-  string model_file;
+  void reset_histo();
+  void write_histo();
 
 protected:
 
-  //! Points at the instance of SL grid shared between SphericalBasis instances
-  SLGridSph* ortho;
+  void accum_histo(double value);
+
+  double dz;
+  string ohisto;
+  unsigned nhisto;
+  vector<double> histo;
 
 public:
 
+  typedef double (SphereTwoCenter::*mixFunc)(double *p);
+
 				// Global parameters
   //! Center for current component
-  double *center;
+  vector<double> center;
 
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */
@@ -84,21 +62,77 @@ public:
   //! Destructor
   ~SphereTwoCenter();
 
+
+  //! Call SphereSL routines to make coefficients
+  //@{
+  void determine_coefficients(Component *c);
+  void determine_coefficients(void);
+  //@}
+    
   //! Main force evaluation routine: cycle through each grid
   void get_acceleration_and_potential(Component*);
 
   //! Mixture function for the two expansions
-  virtual double mixture(Particle& p) = 0;
-
+  //@{
+  /// To be provided: must return a value in [0,1]
+  virtual double mixture(double* p) = 0;
+  /// The complement of the mixture function, also in [0,1]
+  double Cmixture(double *p) { return 1.0 - mixture(p); }
+  //@}
+  
   //! For access to parent component
   virtual void RegisterComponent(Component *c) { 
     component = c; 
-    exp_ej->RegisterComponent(c);
-    exp_com->RegisterComponent(c);
+    exp_ej  -> RegisterComponent(c);
+    exp_com -> RegisterComponent(c);
   }
+
+  //! Multistepping routines: call SphereSL members
+  //@}
+  virtual void set_multistep_level(unsigned n) 
+  { 
+    mlevel = n;
+    exp_ej  -> set_multistep_level(n);
+    exp_com -> set_multistep_level(n);
+  }
+
+  virtual void multistep_update_begin()
+  {
+    exp_ej  -> multistep_update_begin();
+    exp_com -> multistep_update_begin();
+  }
+
+  virtual void multistep_update(int cur, int next, Component* c, int i, int id) 
+  {
+    exp_ej  -> multistep_update(cur, next, c, i, id);
+    exp_com -> multistep_update(cur, next, c, i, id);
+  }
+
+  virtual void multistep_update_finish()
+  {
+    exp_ej  -> multistep_update_finish();
+    exp_com -> multistep_update_finish();
+  }
+
+  virtual void multistep_swap(unsigned M)
+  {
+    exp_ej  -> multistep_swap(M);
+    exp_com -> multistep_swap(M);
+  }
+
+  virtual void multistep_reset()
+  {
+    exp_ej  -> multistep_reset();
+    exp_com -> multistep_reset();
+  }
+
+  virtual void multistep_debug()
+  {
+    exp_ej  -> multistep_debug();
+    exp_com -> multistep_debug();
+  }
+  //@}
 
 };
 
 #endif
-
-

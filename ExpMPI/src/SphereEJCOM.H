@@ -39,7 +39,7 @@ public:
   SphereEJCOM(string& line);
 
   //! Mixture function for the two expansions
-  double mixture(Particle& p);
+  double mixture(double* p);
 
 };
 

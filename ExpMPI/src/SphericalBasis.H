@@ -3,6 +3,8 @@
 
 #include <AxisymmetricBasis.H>
 
+class MixtureSL;
+
 //! Defines a spherical basis with members specific to spherical symmetry
 class SphericalBasis : public AxisymmetricBasis
 {
@@ -137,10 +139,12 @@ protected:
   */
   void dump_coefs_all(ostream &);
 
+  MixtureSL *mix;
+
 public:
 
   //! Constructor (<code>line</code> contains the paramter list)
-  SphericalBasis(string& line);
+  SphericalBasis(string& line, MixtureSL *m=0);
 
   //! Copy constructor
   SphericalBasis(const SphericalBasis& p);
@@ -155,6 +159,10 @@ public:
   //! Required member to compute coeifficients with threading
   /** The thread member must be supplied by the derived class */
   virtual void determine_coefficients(void);
+
+  //! Compute coeifficients with threading using the  provided component
+  virtual void determine_coefficients(Component *c) 
+  { cC = c; determine_coefficients(); }
 
   //! Required member to compute accleration and potential with threading
   /** The thread member must be supplied by the derived class */

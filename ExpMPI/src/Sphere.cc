@@ -10,7 +10,7 @@
 static char rcsid[] = "$Id$";
 #endif
 
-Sphere::Sphere(string&line) : SphericalBasis(line)
+Sphere::Sphere(string& line, MixtureSL* m) : SphericalBasis(line, m)
 {
   id = "Sphere SL";
 				// Defaults
@@ -21,13 +21,14 @@ Sphere::Sphere(string&line) : SphericalBasis(line)
   diverge = 0;
   dfac = 1.0;
   model_file = "SLGridSph.model";
+  cache_file = "SLGridSph.cache";
 
 				// Get initialization info
   initialize();
 
   SLGridSph::mpi = 1;		// Turn on MPI
   SLGridSph::model_file_name = model_file;
-  SLGridSph::sph_cache_name += "." + runtag;
+  SLGridSph::sph_cache_name = cache_file + "." + runtag;
   
 
 				// Generate Sturm-Liouville grid
@@ -41,13 +42,14 @@ void Sphere::initialize()
 {
   string val;
 
-  if (get_value("rmin", val)) rmin = atof(val.c_str());
-  if (get_value("rs", val)) rs = atof(val.c_str());
-  if (get_value("numr", val)) numr = atoi(val.c_str());
-  if (get_value("cmap", val)) cmap = atoi(val.c_str());
-  if (get_value("diverge", val)) diverge = atoi(val.c_str());
-  if (get_value("dfac", val)) dfac = atof(val.c_str());
+  if (get_value("rmin", val))      rmin = atof(val.c_str());
+  if (get_value("rs", val))        rs = atof(val.c_str());
+  if (get_value("numr", val))      numr = atoi(val.c_str());
+  if (get_value("cmap", val))      cmap = atoi(val.c_str());
+  if (get_value("diverge", val))   diverge = atoi(val.c_str());
+  if (get_value("dfac", val))      dfac = atof(val.c_str());
   if (get_value("modelname", val)) model_file = val.c_str();
+  if (get_value("cachename", val)) cache_file = val.c_str();
 
 }
 

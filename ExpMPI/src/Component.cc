@@ -38,7 +38,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
-  eEJ0 = -0.5;
   EJkinE = true;
   EJext = false;
   EJdiag = false;
@@ -316,7 +315,6 @@ Component::Component(istream *in)
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
-  eEJ0 = -0.5;
   EJkinE = true;
   EJext = false;
   EJdiag = false;
@@ -398,11 +396,11 @@ void Component::initialize(void)
 
     if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
     
+    if (!datum.first.compare("EJ0"))      {if (myid==0) cout << "Component: EJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << endl;}
+
     if (!datum.first.compare("nEJkeep"))  nEJkeep = atoi(datum.second.c_str());
 
     if (!datum.first.compare("nEJwant"))  nEJwant = atoi(datum.second.c_str());
-
-    if (!datum.first.compare("eEJ0"))     eEJ0 = atof(datum.second.c_str());
 
     if (!datum.first.compare("EJx0"))     EJx0 = atof(datum.second.c_str());
 
@@ -707,7 +705,6 @@ void Component::initialize(void)
     if (EJdiag) cout << "Process " << myid << ": about to create Orient with"
 		     << " nkeep=" << nEJkeep
 		     << " nwant=" << nEJwant
-		     << " eEJ=" << eEJ0
 		     << " EJkinE=" << EJkinE
 		     << " EJext=" << EJext;
 
@@ -727,7 +724,7 @@ void Component::initialize(void)
     if (EJkinE)		EJctl |= Orient::KE;
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
-    orient = new Orient(nEJkeep, nEJwant, eEJ0, EJ, EJctl, EJlogfile, EJdT);
+    orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT);
 
     if (restart && (EJ & Orient::CENTER)) {
       for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];

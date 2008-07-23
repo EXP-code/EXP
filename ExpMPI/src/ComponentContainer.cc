@@ -307,7 +307,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     if (mlevel<=maxlev) {
 #ifdef DEBUG
       cout << "Process " << myid << ": about to call force <"
-	   << c->id << ">\n";
+	   << c->id << "> for mlevel=" << mlevel << endl;
 #endif
       if (timing) timer_accel.start();
       c->force->set_multistep_level(mlevel);
@@ -316,7 +316,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef DEBUG
       cout << "Process " << myid << ": force <"
-	   << c->id << "> done\n";
+	   << c->id << "> for mlevel=" << mlevel << "done" << endl;
 #endif
     }
   }
@@ -501,14 +501,14 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
     
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
-	 << c->id << ">\n";
+	 << c->id << "> for mlevel=" << mlevel << endl;
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
     c->force->determine_coefficients(c);
 #ifdef DEBUG
     cout << "Process " << myid << ": coefficients <"
-	 << c->id << "> done\n";
+	 << c->id << "> for mlevel=" << mlevel << " done" << endl;
 #endif
   }
 
@@ -518,7 +518,8 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 void ComponentContainer::multistep_swap(unsigned M)
   {
 #ifdef DEBUG
-  cout << "Process " << myid << ": entered <multistep_swap>\n";
+    cout << "Process " << myid << ": entered <multistep_swap> for M=" 
+	 << M << endl;
 #endif
   //
   // Do swap for each component
@@ -529,7 +530,8 @@ void ComponentContainer::multistep_swap(unsigned M)
   }
 
 #ifdef DEBUG
-  cout << "Process " << myid << ": exiting <multistep_swap>\n";
+  cout << "Process " << myid << ": exiting <multistep_swap> for M="
+       << M << endl;
 #endif
 }
 

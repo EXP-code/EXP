@@ -1,12 +1,10 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <string>
 #include <sstream>
+#include <cmath>
+#include <cstdlib>
 
 #include "expand.h"
 #include <localmpi.h>
@@ -21,8 +19,10 @@
 void EL3::debug() const 
 {
   if (myid==0) {
-    cerr << left << setfill('-') 
-	 << setw(60) << '--- EL3 ' << endl << setfill(' ');
+    cerr << left << setfill('-');
+    ostringstream ostr;
+    ostr << "--- EL3 [" << myid << "] ";
+    cerr << setw(60) << ostr.str() << endl << setfill(' ');
     cerr.precision(4);
     cerr << setw(12) << T
 	 << setw(12) << M
@@ -39,23 +39,18 @@ void EL3::debug() const
 
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
-Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
+Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	       string Logfile, double dt)
 {
   keep = n;
   current = 0;
   many = nwant;
-  Egrad = 0.0;
-  Ecurr = Einit;
   oflags = Oflg;
   cflags = Cflg;
   logfile = Logfile;
   deltaT = dt;
   Nlast = 0;
   linear = false;
-				// Random variates
-  gen = new ACG(11, 20);
-  gauss = new Normal (0.0, 1.0, gen);
 
 				// Work vectors
   axis1.setsize(1, 3);
@@ -255,8 +250,6 @@ Orient::Orient(int n, int nwant, double Einit, unsigned Oflg, unsigned Cflg,
 	    << setw(15) << "| X-com(eff)"
 	    << setw(15) << "| Y-com(eff)"
 	    << setw(15) << "| Z-com(eff)"
-	    << setw(15) << "| E-grad"
-	    << setw(15) << "| Delta E"
 	    << endl;
 	out.fill('-');
 
@@ -340,22 +333,17 @@ void Orient::accumulate(double time, Component *c)
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;
-      if (myid==0) write_log(time, 0.0, 0.0, c);
+      if (myid==0) write_log(time, c);
       return;
   }
 
-  double energy, mass;
-  double Emin1= 1.0e20, Emin0= 1.0e20;
-  double Emax1=-1.0e20, Emax0=-1.0e20;
-  Normal g = *gauss;	// Seems to be a compiler bug or a C++ feature
-				// that I don't understand
-
-
   angm.clear();
 
-  double v2;
+  double energy, mass, v2;
   unsigned nbodies = c->Number();
   map<unsigned long, Particle>::iterator it = c->Particles().begin();
+  unsigned tkeep = many/numprocs;
+  set<EL3, ltEL3>::reverse_iterator el3last = angm.rbegin();
 
   for (int q=0; q<nbodies; q++) {
 
@@ -386,10 +374,13 @@ void Orient::accumulate(double time, Component *c)
 
     if (cflags & EXTERNAL) energy += c->Part(i)->potext;
 
-    Emin1 = min<double>(energy, Emin1);
-    Emax1 = max<double>(energy, Emax1);
+    unsigned size0 = angm.size();
+    bool test1 = (size0 < tkeep);
+    bool test2 = true;
+
+    if (size0) test2 = (energy < el3last->E);
     
-    if (energy < Ecurr) {
+    if (test1 || test2) {
 
       mass = c->Part(i)->mass;
 
@@ -405,90 +396,57 @@ void Orient::accumulate(double time, Component *c)
       t.R[2] = mass*pos[1];
       t.R[3] = mass*pos[2];
 
-      angm.push_back(t);
+      // Trim the list by removing the element with the largest energy
+      //
+      if (test2 && !test1) angm.erase(*el3last);
 
+      // Insert the new element
+      //
+      angm.insert(t);
+
+      // Reset the iterator at the top of the heap
+      //
+      el3last = angm.rbegin();
+
+#ifdef DEBUG      
       t.debug();
+#endif
     }
   }
-
-  // Sanity check
-
-  int size0=0, size1=(int)angm.size();
 
   // Propagate minimum energy and current cached low energy particles
   // with nodes
+  double Emin0, Emin1=angm.begin()->E, Emax1=angm.rbegin()->E;
+
   MPI_Allreduce(&Emin1, &Emin0, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&Emax1, &Emax0, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  MPI_Allreduce(&size1, &size0, 1, MPI_INT,    MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&Emax1, &Ecurr, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
-  if (size0 == 0) {
-    
-    if (myid==0) {
-      cout << " Orient: Ecurr error, current value=" << Ecurr 
-	   << " but Min(Phi)=" << Emin0 << endl;
-    }
-    
-    Ecurr = Emin0*0.98;
-    
-    map<unsigned long, Particle>::iterator it = c->Particles().begin();
-    unsigned long i;
-
-    for (int q=0; q<nbodies; q++) {
-      
-      i = (it++)->first;
-
-      v2 = 0.0;
-      for (int k=0; k<3; k++) {
-	pos[k] = c->Pos(i, k, Component::Local);
-	vel[k] = c->Vel(i, k, Component::Local);
-	psa[k] = pos[k] - center[k+1];
-	v2 += vel[k]*vel[k];
-      }
-
-      energy = c->Part(i)->pot;
-      
-      if (cflags & KE) energy += 0.5*v2;
-      
-      if (cflags & EXTERNAL) energy += c->Part(i)->potext;
-
-      if (energy < Ecurr) {
-	
-	mass = c->Part(i)->mass;
-	
-	t.E = energy;
-	t.T = time;
-	t.M = mass;
-
-	t.L[1] = mass*(psa[1]*vel[2] - psa[2]*vel[1]);
-	t.L[2] = mass*(psa[2]*vel[0] - psa[0]*vel[2]);
-	t.L[3] = mass*(psa[0]*vel[1] - psa[1]*vel[0]);
-	
-	t.R[1] = mass*pos[0];
-	t.R[2] = mass*pos[1];
-	t.R[3] = mass*pos[2];
-
-	angm.push_back(t);
-      }
-    }
-  }
 				// Compute values for this step
   axis1.zero();
   center1.zero();
-  double mtot=0.0, mtot1=0.0, dE=1.0e06;
-  for (vector<EL3>::iterator i=angm.begin(); i!=angm.end(); i++) {
+
+  double mtot=0.0, mtot1=0.0;
+  int cnum = 0;
+  for (set<EL3, ltEL3>::iterator i=angm.begin(); i!=angm.end() && i->E<Ecurr; i++) {
     axis1   += i->L;
     center1 += i->R;
     mtot1   += i->M;
+    cnum++;
   }
 
 #ifdef DEBUG
   for (int n=0; n<numprocs; n++) {
     if (n==myid) {
       if (myid==0) cout << "------------------------" << endl
-			<< "Center check in Orient:" << endl 
+			<< "Center check in Orient: " << endl 
 			<< "------------------------" << endl;
       cout << setw(4) << myid << setw(4);
-      for (int k=1; k<=3; k++) cout << setw(18) << center1[k];
+      for (int k=1; k<=3; k++) {
+	if (mtot1>0.0)
+	  cout << setw(18) << center1[k]/mtot1;
+	else
+	  cout << setw(18) << 0.0;
+      }
       cout << endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -497,7 +455,6 @@ void Orient::accumulate(double time, Component *c)
   if (myid==0) cout << endl;
 #endif
 
-  int cnum = angm.size();
   Vector inA = axis1;
   Vector inC = center1;
 
@@ -515,278 +472,192 @@ void Orient::accumulate(double time, Component *c)
   MPI_Allreduce(inC.array(0, 2), center1.array(0, 2), 3, 
 		MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  dE = 0.0;			// Default, will trigger computation
-				// based on current and minimum value below
+  // Push current value onto stack
 
-  if (used && Nlast) {
-    Egrad = Ecurr - Elast;
-				// Don't divide by zero
-    if (used != Nlast) Egrad /= used - Nlast;
+  Nlast = used;
+  Elast = Ecurr;
 
-    dE = (double)(many - used) * Egrad;
+  axis1   /= mtot;
+  center1 /= mtot;
+  if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
+  if (oflags & CENTER) sumsC.push_back(DV(time, center1));
 
-    if ((cflags & DIAG) && myid==0) {
-      cout << " Orient info [" << time << ", " << c->name << "]: " 
-	   << used << " particles used, Ecurr=" << Ecurr 
-	   << " Elast=" << Elast << " used=" << used << " Nlast=" << Nlast
-	   << " Egrad=" << Egrad << " dE=" << dE << endl;
-    }
+
+  if ((cflags & DIAG) && myid==0) {
+    cout << " Orient info [" << time << ", " << c->name << "]: " 
+	 << used << " particles used, Ecurr=" << Ecurr 
+	 << " Center=" 
+	 << center1[1] << ", "
+	 << center1[2] << ", "
+	 << center1[3] << endl;
   }
 
-  if (fabs(dE) <= 1.0e-10)
-    dE = (Ecurr - Emin0)*0.01*g();
+  if (sumsA.size() > keep) {
 
-				// Push current value onto stack
-  if (used) {
+    sumsA.pop_front();
 
-    Nlast = used;
-    Elast = Ecurr;
-
-    axis1   /= mtot;
-    center1 /= mtot;
-    if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
-    if (oflags & CENTER) sumsC.push_back(DV(time, center1));
-
-
-    if ((cflags & DIAG) && myid==0) {
-      cout << " Orient info [" << time << ", " << c->name << "]: " 
-	   << used << " particles used, Ecurr=" << Ecurr 
-	   << " Center=" 
-	   << center1[1] << ", "
-	   << center1[2] << ", "
-	   << center1[3] << endl;
+    double x;
+    int i=0;
+    
+    sumX = 0.0;
+    sumX2 = 0.0;
+    sumY.zero();
+    sumXY.zero();
+    sumY2.zero();
+    
+    int N = sumsC.size();
+    
+    deque<DV>::iterator j;
+    for (j = sumsA.begin(); j != sumsA.end(); j++) {
+      x = j->first;
+      sumX += x;
+      sumX2 += x*x;
+      sumY += j->second;
+      sumXY += j->second * x;
+      sumY2 += j->second & j->second;
+      
+      i++;
     }
+    
+    // Linear least squares estimate for axis
 
-				// Compute delta energy for next step
-    if (sumsA.size() > keep) {
-
-      sumsA.pop_front();
-
-      double x;
-      int i=0;
-
-      sumX = 0.0;
-      sumX2 = 0.0;
-      sumY.zero();
-      sumXY.zero();
-      sumY2.zero();
-
-      int N = sumsC.size();
-
-      deque<DV>::iterator j;
-      for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	x = j->first;
-	sumX += x;
-	sumX2 += x*x;
-	sumY += j->second;
-	sumXY += j->second * x;
-	sumY2 += j->second & j->second;
-
-	i++;
-      }
-
-				// Linear least squares estimate for axis
-
-      slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
-      intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-      axis = intercept + slope*time;
-
-      i = 0;
-      sigA = 0.0;
-      for (j = sumsA.begin(); j != sumsA.end(); j++) {
-	sigA += 
-	  (j->second - intercept - slope*j->first) *
-	  (j->second - intercept - slope*j->first) ;
-	i++;
-      }
-      sigA /= i;
-
-      double phi = atan2(axis[2], axis[1]);
-      double theta = -acos(axis[3]/sqrt(axis*axis));
-      double psi = 0.0;
-
-      body = return_euler_slater(phi, theta, psi, 0);
-      orig = return_euler_slater(phi, theta, psi, 1);
+    slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+    intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
+    axis = intercept + slope*time;
+    
+    i = 0;
+    sigA = 0.0;
+    for (j = sumsA.begin(); j != sumsA.end(); j++) {
+      sigA += 
+	(j->second - intercept - slope*j->first) *
+	(j->second - intercept - slope*j->first) ;
+      i++;
     }
+    sigA /= i;
+    
+    double phi = atan2(axis[2], axis[1]);
+    double theta = -acos(axis[3]/sqrt(axis*axis));
+    double psi = 0.0;
+    
+    body = return_euler_slater(phi, theta, psi, 0);
+    orig = return_euler_slater(phi, theta, psi, 1);
+  }
 
 
-    if (sumsC.size() > 1) {
+  if (sumsC.size() > 1) {
+    
+    if (sumsC.size() > keep) sumsC.pop_front();
 
-      if (sumsC.size() > keep) sumsC.pop_front();
+    double x;
+    int i=0;
+    sumX = 0.0;
+    sumX2 = 0.0;
+    sumY.zero();
+    sumXY.zero();
+    sumY2.zero();
+    
+    int N = sumsC.size();
+      
+    deque<DV>::iterator j;
+    for (j = sumsC.begin(); j != sumsC.end(); j++) {
+      x = j->first;
+      sumX += x;
+      sumX2 += x*x;
+      sumY += j->second;
+      sumXY += j->second * x;
+      sumY2 += j->second & j->second;
 
-      double x;
-      int i=0;
-      sumX = 0.0;
-      sumX2 = 0.0;
-      sumY.zero();
-      sumXY.zero();
-      sumY2.zero();
+      i++;
 
-      int N = sumsC.size();
-
-      deque<DV>::iterator j;
-      for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	x = j->first;
-	sumX += x;
-	sumX2 += x*x;
-	sumY += j->second;
-	sumXY += j->second * x;
-	sumY2 += j->second & j->second;
-
-	i++;
-
-	if ((cflags & DIAG) && myid==0)
-	  cout << " Orient debug [" << time << ", " << c->name << "] i=" 
-	       << i << ":"
-	       << "      t=" << setw(15) << x
-	       << "      x=" << setw(15) << j->second[1]
-	       << "      y=" << setw(15) << j->second[2]
-	       << "      z=" << setw(15) << j->second[3]
-	       << "   SumX=" << setw(15) << sumX 
-	       << "  SumX2=" << setw(15) << sumX2 
-	       << "  Delta=" << setw(15) << sumX2*i - sumX*sumX 
-	       << endl;
-      }
-				// Linear least squares estimate for center
-
-      slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
-      intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-      center = intercept + slope*time;
-
-      i = 0;
-      sigC = 0.0;
-      sigCz = 0.0;
-      for (j = sumsC.begin(); j != sumsC.end(); j++) {
-	sigC += 
-	  (j->second - intercept - slope*j->first) *
-	  (j->second - intercept - slope*j->first) ;
-	sigCz += 
-	  ( j->second[3] - intercept[3] - slope[3]*j->first ) *
-	  ( j->second[3] - intercept[3] - slope[3]*j->first ) ;
-	i++;
-      }
-      sigC  /= i;
-      sigCz /= i;
-
+      if ((cflags & DIAG) && myid==0)
+	cout << " Orient debug [" << time << ", " << c->name << "] i=" 
+	     << i << ":"
+	     << "      t=" << setw(15) << x
+	     << "      x=" << setw(15) << j->second[1]
+	     << "      y=" << setw(15) << j->second[2]
+	     << "      z=" << setw(15) << j->second[3]
+	     << "   SumX=" << setw(15) << sumX 
+	     << "  SumX2=" << setw(15) << sumX2 
+	     << "  Delta=" << setw(15) << sumX2*i - sumX*sumX 
+	     << endl;
     }
-
-    if (keep>1) {
-      if (sumsC.size()>1) {
-	double factor = (double)((int)sumsC.size() - keep)/keep;
-	factor = factor*factor;
-	center = center0*factor + center*(1.0 - factor);
-      } else
-	center = center0;
+    // Linear least squares estimate for center
+    
+    slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+    intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
+    center = intercept + slope*time;
+    
+    i = 0;
+    sigC = 0.0;
+    sigCz = 0.0;
+    for (j = sumsC.begin(); j != sumsC.end(); j++) {
+      sigC += 
+	(j->second - intercept - slope*j->first) *
+	(j->second - intercept - slope*j->first) ;
+      sigCz += 
+	( j->second[3] - intercept[3] - slope[3]*j->first ) *
+	( j->second[3] - intercept[3] - slope[3]*j->first ) ;
+      i++;
+    }
+    sigC  /= i;
+    sigCz /= i;
+    
+  }
+  
+  if (keep>1) {
+    if (sumsC.size()>1) {
+      double factor = (double)((int)sumsC.size() - keep)/keep;
+      factor = factor*factor;
+      center = center0*factor + center*(1.0 - factor);
     } else
-      center = center1;
-
-				// Increment initial center according 
-				// to user specified velocity
-    center0 += cenvel0*dtime;
-
-    if ((cflags & DIAG) && myid==0) {
-      cout << "===================================================" << endl
-	   << " Orient info [" << time << ", " << c->name << "]:" 
-	   << " size=" << sumsC.size()
-	   << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
-	   << "  SumY="
-	   << sumY[1] << " "
-	   << sumY[2] << " "
-	   << sumY[3] << endl
-	   << "  SumXY="
-	   << sumXY[1] << " "
-	   << sumXY[2] << " "
-	   << sumXY[3] << endl
-	   << "  SumY2="
-	   << sumY2[1] << " "
-	   << sumY2[2] << " "
-	   << sumY2[3] << endl
-	   << "  slope="
-	   << slope[1] << " "
-	   << slope[2] << " "
-	   << slope[3] << endl
-	   << "  center=" 
-	   << center[1] << " "
-	   << center[2] << " "
-	   << center[3] << endl
-	   << "===================================================" << endl;
-    }
-    
-    // Will force center to be last minimum energy average
-    // rather than pooled average of the last "keep" states
-    if (keep == 0) {
-      for (int i=1; i<=3; i++) center[i] = sumsC.begin()->second[i];
-      sumsC.pop_front();
-    }
-    
+      center = center0;
+  } else
+    center = center1;
+  
+  // Increment initial center according 
+  // to user specified velocity
+  center0 += cenvel0*dtime;
+  
+  if ((cflags & DIAG) && myid==0) {
+    cout << "===================================================" << endl
+	 << " Orient info [" << time << ", " << c->name << "]:"   << endl
+	 << " size=" << sumsC.size() << " sigC=" << sigC  << " sigCz=" << sigCz << endl
+	 << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
+	 << "  SumY="
+	 << sumY[1] << " "
+	 << sumY[2] << " "
+	 << sumY[3] << endl
+	 << "  SumXY="
+	 << sumXY[1] << " "
+	 << sumXY[2] << " "
+	 << sumXY[3] << endl
+	 << "  SumY2="
+	 << sumY2[1] << " "
+	 << sumY2[2] << " "
+	 << sumY2[3] << endl
+	 << "  slope="
+	 << slope[1] << " "
+	 << slope[2] << " "
+	 << slope[3] << endl
+	 << "  center=" 
+	 << center[1] << " "
+	 << center[2] << " "
+	 << center[3] << endl
+	 << "===================================================" << endl;
   }
-
-  // Energy for next iteration
-  // =======================================================
-  // Will use the secant method computation from above to
-  // update.  This makes sure that estimate stays in bounds
-  // =======================================================
-  //
-  if (Ecurr+dE < Emin0 || Ecurr+dE > Emax0) {
-
-    int dtype = 0;
-				// Ecurr error, algorithm failure!!
-    if (Ecurr < Emin0 || Ecurr > Emax0) {
-      if (myid==0)
-	cerr << "\nOrient: Ecurr pre-step out of bounds!!! dE=" << dE 
-	     << "  Emin0=" << Emin0 
-	     << "  Emax0=" << Emax0 
-	     << "  Ecurr=" << Ecurr << "\n";
-      Ecurr = 0.99*Emin0;
-    }
-				// Try to take a smaller step
-				// using secant gradient
-    else if (Ecurr+0.2*dE > Emin0 && Ecurr+0.2*dE < Emax0) {
-      Ecurr += 0.2*dE;
-      dtype = 1;
-    }
-    
-    else {
-				// Final strategy: take small steps
-				// based on distance to minimum
-      if (used > many)
-	Ecurr += 0.06*(Emin0-Ecurr);
-      else
-	Ecurr -= 0.10*(Emin0-Ecurr);
-
-      dtype = 2;
-    } 
-    
-				// Ecurr error, algorithm failure!!
-    if (Ecurr < Emin0 && myid==0) {
-      cerr << "Orient: Ecurr post-step out of bounds: "
-	   << "  dE=" << dE 
-	   << "  Emin0=" << Emin0 
-	   << "  Emax0=" << Emax0 
-	   << "  Ecurr=" << Ecurr;
-
-      switch (dtype) {
-      case 0:
-	cout << "  Case: out of bounds to start\n";
-	break;
-      case 1: 
-	cout << "  Case: small gradient step\n";
-	break;
-      case 2:
-	cout << "  Case: small distance from center step\n";
-	break;
-      }
-    }
-
+  
+  // Will force center to be last minimum energy average
+  // rather than pooled average of the last "keep" states
+  if (keep == 0) {
+    for (int i=1; i<=3; i++) center[i] = sumsC.begin()->second[i];
+    sumsC.pop_front();
   }
-  else				// Secant method: use approx. gradient
-    Ecurr += dE;
+    
 
-
-  if (myid==0) write_log(time, Egrad, dE, c);
+  if (myid==0) write_log(time, c);
 }
 
-void Orient::write_log(double time, double Egrad, double dE, Component *c)
+void Orient::write_log(double time, Component *c)
 {
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
@@ -810,7 +681,6 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
 
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k] - c->comI[k];
 
-    outl << setw(15) << Egrad << setw(15) << dE;
     outl << endl;
   }
 }
@@ -818,6 +688,4 @@ void Orient::write_log(double time, double Egrad, double dE, Component *c)
 
 Orient::~Orient()
 {
-  delete gauss;
-  delete gen;
 }

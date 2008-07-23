@@ -61,12 +61,13 @@ private:
   int diverge;
   double dfac;
   string model_file;
+  string cache_file;
 
 public:
 				// Global parameters
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */
-  Sphere(string& line);
+  Sphere(string& line, MixtureSL* m=0);
 
   //! Destructor
   virtual ~Sphere();
