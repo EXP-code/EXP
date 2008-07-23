@@ -419,7 +419,10 @@ void Orient::accumulate(double time, Component *c)
   double Emin0, Emin1=angm.begin()->E, Emax1=angm.rbegin()->E;
 
   MPI_Allreduce(&Emin1, &Emin0, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(&Emax1, &Ecurr, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+  MPI_Allreduce(&Emax1, &Ecurr, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+				//
+				// Ecurr is now the mean of Emax on all nodes
+  Ecurr /= numprocs;
 
 				// Compute values for this step
   axis1.zero();
