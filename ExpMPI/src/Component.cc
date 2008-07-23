@@ -396,7 +396,7 @@ void Component::initialize(void)
 
     if (!datum.first.compare("EJ"))       EJ = atoi(datum.second.c_str());
     
-    if (!datum.first.compare("EJ0"))      {if (myid==0) cout << "Component: EJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << endl;}
+    if (!datum.first.compare("eEJ0"))     {if (myid==0) cout << "Component: eEJ0 is no longer used, Ecurr is computed from the bodies using the expansion directly" << endl;}
 
     if (!datum.first.compare("nEJkeep"))  nEJkeep = atoi(datum.second.c_str());
 

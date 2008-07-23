@@ -255,7 +255,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 
 	int icnt = 1;
 	out << "# " << setw(13) << icnt++;
-	for (int i=0; i<22; i++) out << "| " << setw(13) << icnt++;
+	for (int i=0; i<20; i++) out << "| " << setw(13) << icnt++;
 	out << endl;
 
 	out.close();
