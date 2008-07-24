@@ -1,6 +1,7 @@
 * text=auto !eol
 ExpMPI/doc/doxygen.gif svneol=native#unset
 ExpMPI/doc/exp_logo.gif svneol=native#unset
+ExpMPI/doc/global.doc -text
 ExpMPI/doc/multistep.doc -text
 ExpMPI/src/MixtureSL.H -text
 ExpMPI/utils/ICs/Particle.cc -text

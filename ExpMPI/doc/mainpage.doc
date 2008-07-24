@@ -1,6 +1,6 @@
 /*! \mainpage EXP
 
-<p> I wrote the EXP code over about 10 years, incorporating published
+<p> I wrote the EXP code over about 15 years, incorporating published
 biorthogonal expansions and my own published and unpublished work on
 n-body methodology.  This version has been rewritten to exploit the
 similarity in overall structure of all biorthogonal expansions and
@@ -21,10 +21,9 @@ galactic interactions to be studied
 includes dynamic loading of user libraries with a standard interface,
 allowing independent development and testing of force routines,
 component interactions, etc. without recompiling or affecting the main
-code (see: \ref modules).  The source is maintained with Concurrent
-Versions System <A HREF="http://www.cvshome.org">(CVS)</A> to
-facilitate collaborative development.
-</p>
+code (see: \ref modules).  The source is maintained with SUBVERSION <A
+HREF="http://subversion.tigris.org">(SVN)</A> to facilitate
+collaborative development.  </p>
 
 <p>
 Note: this code is <em>NOT</em> in the public domain.  You need permission

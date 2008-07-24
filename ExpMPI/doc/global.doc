@@ -1,0 +1,33 @@
+/*! \page global Global variables
+	These variables are specified in the leading (unnamed stanza)
+	of the input file, see \ref config for details.
+
+  @param nbodmax	is the maximum number of bodies per process
+  @param nsteps		is the maximum number of steps to execute
+  @param nthrds		is the number of threads per process (e.g. one per processor)
+  @param nbalance	is the number of steps between load balancing (use 0 for none)
+  @param dbthresh	is the load balancing threshold (larger difference initiates balancing)
+  @param tnow		is the current time
+  @param dtime		is the timestep
+  @param PFbufsz	is the particle ferry buffer size
+  @param NICE		is the process priority
+  @param VERBOSE	is the output logging level
+  @param multistep	is the number of time step levels
+  @param maxlev		is the maximum level for expansion interpolation (default: 100)
+  @param ctrlev		is the maximum level for center determination (default: 0)
+  @param dynfracV	is the time step velocity coefficient (default: 0.01)
+  @param dynfracA	is the time step accelration coefficient (default: 0.03)
+  @param use_cwd	uses Node 0's home dir for the working dir on all nodes
+  @param posnsync	synchronizes multistep positions at each substep (default: true)
+  @param eqmotion	toggles phase space advance (e.g. for use with externally supplied mapping).  On by default.
+  @param global_cov	resets total center of velocity to zero if true
+  @param restart	global set on restart (to used by initializers and user modules)
+  @param homedir	is the home directory for configuration files, etc.
+  @param ldlibdir	is the directory containing loadable modules
+  @param infile		is the input file for restart
+  @param parmfile	is the parameter dump file
+  @param ratefile	is the initial processor rate file
+  @param outdir		is the directory for output
+  @param runtag		is a suffix or prefix used for labeling report files
+*/
+

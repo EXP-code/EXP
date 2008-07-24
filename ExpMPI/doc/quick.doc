@@ -5,7 +5,7 @@
 You will need the following libraries:
 <ol>
 <li> Some MPI implementation. I use LAM. Your success may vary
-	with other implemenations.
+	with other implementations.
 <li> C++ compiler for most of the code and f77 for one subroutine.
 <li> POSIX threads (<code>pthreads</code> in GNU/Linux).
 </ol>
@@ -44,16 +44,17 @@ Here are the basic steps you need to start a simulation:
 
 <li> Decide the type of output you would like to see.  A typical
 	choice would be OutLog and OutPS or OutPSN.  You can
-	browse the list of decendents in the abstract class Output.
+	browse the list of descendents in the abstract class Output.
 
 <li> Decide whether or not you need an external force.  All of these
-	are derived from ExternalForce (browse the decendent list).
+	are derived from ExternalForce (browse the descendent list).
 	You can add your own ExternalForce type without recompiling
 	the code as a user module (advanced topic: \ref modules).
 
 <li> Make the main configuration file.  Here, you specify the
 	global parameters, the components, the output, and the 
-	external forces.  See \ref config for details.  You can
+	external forces.  See \ref config for details and \ref global 
+	for an enumeration of overall global variables.  You can
 	look at the example(s) in examples directory and use IN.FILE 
 	as a template.
 

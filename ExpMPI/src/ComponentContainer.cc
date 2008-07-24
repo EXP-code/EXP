@@ -374,7 +374,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Compute new center
     //
     if (timing) timer_posn.start();
-    fix_positions();
+    fix_positions(mlevel);
     if (timing) timer_posn.stop();
 
 #ifdef DEBUG
@@ -614,7 +614,7 @@ void ComponentContainer::fix_acceleration(void)
 
 
 
-void ComponentContainer::fix_positions(void)
+void ComponentContainer::fix_positions(int mlevel)
 {
   double mtot1, mtot0;
   MPI_Status status;
@@ -640,7 +640,7 @@ void ComponentContainer::fix_positions(void)
 
     if (c->EJ) {
       if (gottapot || restart) 
-	c->orient->accumulate(tnow, c);
+	if (mlevel<=ctrlev) c->orient->accumulate(tnow, c);
       else
 	if (myid==0) c->orient->logEntry(tnow, c);
     }

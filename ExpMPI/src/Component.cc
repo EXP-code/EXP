@@ -707,16 +707,22 @@ void Component::initialize(void)
 		     << " nwant=" << nEJwant
 		     << " EJkinE=" << EJkinE
 		     << " EJext=" << EJext;
-
-    else if (myid==0) {
-      cout << name << ": EJ centering *ON*";
-      if (EJkinE) cout << ", using particle kinetic energy";
-      if (EJext)  cout << ", using external potential";
-      if (EJdryrun) cout << ", dryrun";
-      cout << "\n";
+    
+    if (myid==0) {
+      if (EJ & Orient::CENTER) {
+	cout << name << ": EJ center finding is *ON*";
+	if (EJkinE) cout << ", using particle kinetic energy";
+	if (EJext)  cout << ", using external potential";
+	if (EJdryrun) cout << ", dryrun";
+	cout << endl;
+      }
+      if (EJ & Orient::AXIS) {
+	cout << name << ": AXIS orientation is *ON*";
+	if (EJdryrun) cout << ", dryrun";
+	cout << endl;
+      }
     }
       
-    
     string EJlogfile = outdir + name + ".orient." + runtag;
 
     unsigned EJctl = 0;
@@ -725,7 +731,7 @@ void Component::initialize(void)
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
     orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT);
-
+    
     if (restart && (EJ & Orient::CENTER)) {
       for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];
     } else {
@@ -740,29 +746,21 @@ void Component::initialize(void)
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
   }
 
-  if (myid == 0) {		// Flag messages for diagnostics
-    
-    if (EJ & Orient::AXIS)
-      cout << name << ": AXIS orientation is *ON*\n";
-
-    if (EJ & Orient::CENTER) {
-      cout << name 
-	   << ": CENTER finding is *ON*";
-
-      if (restart)
-	cout << ", current center on restart: x, y, z: " 
-	     << EJcen[0] << ", " 
-	     << EJcen[1] << ", " 
-	     << EJcen[2] << "\n";
-      else
-	cout << ", user specified initial center: x, y, z: " 
-	     << EJx0 << ", " 
-	     << EJy0 << ", " 
-	     << EJz0 << "\n";
-    }
-
+  if (myid == 0) {		// Center status
+    cout << name;
+    if (restart)
+      cout << ": current center on restart: x, y, z: " 
+	   << EJcen[0] << ", " 
+	   << EJcen[1] << ", " 
+	   << EJcen[2];
+    else
+      cout << ": user specified initial center: x, y, z: " 
+	   << EJx0 << ", " 
+	   << EJy0 << ", " 
+	   << EJz0;
+    cout << endl << endl;
   }
-    
+  
 }
 
 
