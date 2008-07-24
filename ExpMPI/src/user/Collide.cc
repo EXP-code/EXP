@@ -1146,11 +1146,13 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
     UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
 
-  if (Einternal - Emin > coolrate[id]+Exes)
+  if (Einternal - Emin > coolrate[id]+Exes) {
     Eratio = (Einternal - coolrate[id]-Exes)/Einternal;
-  else
+    Exes = 0.0;
+  } else {
     Eratio = min<double>(Emin, Einternal)/Einternal;
-  
+    Exes = coolrate[id] + Exes - min<double>(Emin, Einternal);
+  }
 				// Compute the mean 1d vel.disp. from the
 				// distribution
   double mdisp = 0.0;
@@ -1346,6 +1348,17 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*mdisp/Tmdisp;
     }
 
+  }
+
+  				// Distribute excess energy
+				// 
+  if (use_exes>=0 && Exes>0.0) {
+    for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+      Particle* p = tree->Body(*ib);
+      if (use_exes < static_cast<int>(p->dattrib.size())) {
+	p->dattrib[use_exes] += p->mass*Exes/mass;
+      }
+    }
   }
 				// Record diagnostics
 				// 
