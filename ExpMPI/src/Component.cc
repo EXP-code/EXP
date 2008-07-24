@@ -223,7 +223,7 @@ void Component::reset_level_lists()
       if (myid==0) 
 	cout << endl
 	     << "----------------------------------------------" << endl
-	     << "Level creation in <" << name << ">:" << endl 
+	     << "Level creation in Component <" << name << ">:" << endl 
 	     << "----------------------------------------------" << endl
 	     << setw(4) << left << "ID" << setw(4) << "lev"
 	     << setw(12) << "first" << setw(12) << "last" 
@@ -274,7 +274,8 @@ void Component::reset_level_lists()
       for (int n=0; n<=multistep; n++) tot += lev0[n];
       out << setw(70) << setfill('-') << '-' << endl;
       ostringstream sout;
-      sout << "--- Component <" << id << ">, T=" << tnow;
+      sout << "--- Component <" << name 
+	   << ", " << id  << ">, T=" << tnow;
       out << setw(70) << left << sout.str().c_str() << endl;
       out << setw(70) << '-' << endl << setfill(' ');
       out << setw(3)  << "L" 
@@ -530,7 +531,8 @@ void Component::initialize(void)
     initialize_com_system();
 
     if (myid==0) {
-      cout << name << ": center of mass system is *ON*, rtrunc=" << rtrunc;
+      cout << " Component <" <<  name 
+	   << ">: center of mass system is *ON*, rtrunc=" << rtrunc;
       if (consp) cout << ", conserving com momentum [iattr #=" << tidal << "]";
       cout << ", computed COM system:";
       cout << endl << "\t\t(x, y, z)=("
@@ -617,8 +619,8 @@ void Component::initialize(void)
 		  for (int k=0; k<3; k++) istr >> acc0[k];
 		  for (int k=0; k<3; k++) istr >> center[k];
 	    
-		  cout << "\t\tRead com log for " << name 
-		       << " at T=" << ttim << ", using:";
+		  cout << "\t\tRead com log for Component <" << name 
+		       << "> at T=" << ttim << ", using:";
 
 		  cout << endl << "\t\t(x, y, z)=("
 		       << setw(15) << com0[0] << ", "
@@ -703,21 +705,21 @@ void Component::initialize(void)
   if (EJ) {
 
     if (EJdiag) cout << "Process " << myid << ": about to create Orient with"
-		     << " nkeep=" << nEJkeep
-		     << " nwant=" << nEJwant
+		     << " nkeep="  << nEJkeep
+		     << " nwant="  << nEJwant
 		     << " EJkinE=" << EJkinE
-		     << " EJext=" << EJext;
+		     << " EJext="  << EJext;
     
     if (myid==0) {
       if (EJ & Orient::CENTER) {
-	cout << name << ": EJ center finding is *ON*";
-	if (EJkinE) cout << ", using particle kinetic energy";
-	if (EJext)  cout << ", using external potential";
+	cout << "Component <" << name << ">: EJ center finding is *ON*";
+	if (EJkinE)   cout << ", using particle kinetic energy";
+	if (EJext)    cout << ", using external potential";
 	if (EJdryrun) cout << ", dryrun";
 	cout << endl;
       }
       if (EJ & Orient::AXIS) {
-	cout << name << ": AXIS orientation is *ON*";
+	cout << "Component <" << name << ">: AXIS orientation is *ON*";
 	if (EJdryrun) cout << ", dryrun";
 	cout << endl;
       }
@@ -747,14 +749,14 @@ void Component::initialize(void)
   }
 
   if (myid == 0) {		// Center status
-    cout << name;
+    cout << "Component <" << name;
     if (restart)
-      cout << ": current center on restart: x, y, z: " 
+      cout << ">: current center on restart: x, y, z: " 
 	   << EJcen[0] << ", " 
 	   << EJcen[1] << ", " 
 	   << EJcen[2];
     else
-      cout << ": user specified initial center: x, y, z: " 
+      cout << ">: user specified initial center: x, y, z: " 
 	   << EJx0 << ", " 
 	   << EJy0 << ", " 
 	   << EJz0;
@@ -791,7 +793,7 @@ Component::~Component(void)
 
 void Component::bomb(const string& msg)
 {
-  cerr << "Component [" << name << ", " << id << "]: " << msg << endl;
+  cerr << "Component <" << name << ", " << id << ">: " << msg << endl;
   exit(-1);
 }
 
