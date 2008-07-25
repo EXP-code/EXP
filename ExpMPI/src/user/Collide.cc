@@ -134,16 +134,16 @@ Collide::Collide(double diameter, int nth)
 
   colcntT = vector< vector<unsigned> > (nthrds);
   numcntT = vector< vector<unsigned> > (nthrds);
+  tdispT  = vector< vector<double> >   (nthrds);
   error1T = vector<unsigned> (nthrds, 0);
-  sel1T = vector<unsigned> (nthrds, 0);
-  col1T = vector<unsigned> (nthrds, 0);
-  epsm1T = vector<unsigned> (nthrds, 0);
+  sel1T   = vector<unsigned> (nthrds, 0);
+  col1T   = vector<unsigned> (nthrds, 0);
+  epsm1T  = vector<unsigned> (nthrds, 0);
   Nepsm1T = vector<unsigned> (nthrds, 0);
-  tmassT = vector<double> (nthrds, 0);
-  decelT = vector<double> (nthrds, 0);
-  tdispT  = vector< vector<double> > (nthrds);
-  exsCT   = vector<double> (nthrds, 0);
-  exsET   = vector<double> (nthrds, 0);
+  tmassT  = vector<double>   (nthrds, 0);
+  decelT  = vector<double>   (nthrds, 0);
+  exsCT   = vector<double>   (nthrds, 0);
+  exsET   = vector<double>   (nthrds, 0);
 
   if (MFPDIAG) {
     tsratT  = vector< vector<double> > (nthrds);
@@ -1149,12 +1149,12 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
     UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
 
-  if (Einternal - Emin > coolrate[id]+Exes) {
-    Eratio = (Einternal - coolrate[id]-Exes)/Einternal;
+  if (Einternal + Exes - Emin > coolrate[id]) {
+    Eratio = (Einternal + Exes - coolrate[id])/Einternal;
     Exes = 0.0;
   } else {
     Eratio = min<double>(Emin, Einternal)/Einternal;
-    Exes = coolrate[id] + Exes - min<double>(Emin, Einternal);
+    Exes = min<double>(Emin, Einternal) + Exes - coolrate[id];
   }
 				// Compute the mean 1d vel.disp. from the
 				// distribution
@@ -1355,7 +1355,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   				// Distribute excess energy
 				// 
-  if (use_exes>=0 && Exes>0.0) {
+  if (use_exes>=0) {
     for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
       Particle* p = tree->Body(*ib);
       if (use_exes < static_cast<int>(p->dattrib.size())) {
