@@ -104,11 +104,10 @@ protected:
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> sel1T, col1T, epsm1T, Nepsm1T;
-  std::vector<double> KEtotT, KElostT, tmassT, decelT;
+  std::vector<double> KEtotT, KElostT, tmassT, decelT, exsCT, exsET;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, deratT;
   std::vector< vector<double> > tdeltT, tdispT;
-
   const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
   std::vector<unsigned> tcool, tcool1, tcool0;
@@ -118,6 +117,7 @@ protected:
 
   std::vector<double> disptot;
   double masstot;
+  double excessCtot, excessEtot;
 
   double diam0, diam;
   unsigned seltot;
@@ -216,6 +216,7 @@ public:
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_, vector<double>& coll_,
 		       vector<double>& rate_) ;
+  void energyExcess(double& ExesColl, double& ExesEPSM);
   void dispersion(vector<double>& disp);
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }

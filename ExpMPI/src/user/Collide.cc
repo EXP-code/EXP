@@ -142,6 +142,8 @@ Collide::Collide(double diameter, int nth)
   tmassT = vector<double> (nthrds, 0);
   decelT = vector<double> (nthrds, 0);
   tdispT  = vector< vector<double> > (nthrds);
+  exsCT   = vector<double> (nthrds, 0);
+  exsET   = vector<double> (nthrds, 0);
 
   if (MFPDIAG) {
     tsratT  = vector< vector<double> > (nthrds);
@@ -786,6 +788,7 @@ void * Collide::collide_thread(void * arg)
 	    Particle* p = tree->Body(bodx[j]);
 	    if (use_exes<static_cast<int>(p->dattrib.size())) {
 	      p->dattrib[use_exes] += dE*p->mass;
+	      exsCT[id] += dE*p->mass;
 	    }
 	  }
 	}
@@ -1357,6 +1360,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       Particle* p = tree->Body(*ib);
       if (use_exes < static_cast<int>(p->dattrib.size())) {
 	p->dattrib[use_exes] += p->mass*Exes/mass;
+	exsET[id] += p->mass*Exes/mass;
       }
     }
   }
@@ -1648,3 +1652,20 @@ void * Collide::timestep_thread(void * arg)
   return (NULL);
 }
 
+void Collide::energyExcess(double& ExesColl, double& ExesEPSM)
+{
+				// Sum up from all the threads
+				// 
+  for (int n=1; n<nthrds; n++) {
+    exsCT[0] += exsCT[n];
+    exsET[0] += exsET[n];
+  }
+				// Sum reduce result to root node
+				// 
+  MPI_Reduce(&exsCT[0], &ExesColl, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&exsCT[0], &ExesEPSM, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+				// Zero out the thread accumulators
+				// 
+  for (int n=0; n<nthrds; n++) exsCT[0] = exsET[n] = 0.0;
+}

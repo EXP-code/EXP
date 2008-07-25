@@ -465,6 +465,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     unsigned medianNumb = collide->medianNumber();
     collide->collQuantile(quant, coll_);
     collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
+
+    double ExesCOLL, ExesEPSM;
+    if (use_exes>=0) collide->energyExcess(ExesCOLL, ExesEPSM);
       
     if (frontier) {
       ostringstream sout;
@@ -585,6 +588,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "   Total loss =" << ElostTotCollide+ElostTotEPSM << endl;
       if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;
       mout << "     Total KE =" << KEtot << endl;
+      if (use_exes>=0) {
+	mout << "  COLL excess =" << ExesCOLL << endl;
+	if (epsm>0) mout << "  EPSM excess =" << ExesEPSM << endl;
+      }
       if (KEtot<=0.0) mout << "         Ratio= XXXX" << endl;
       else mout << "    Ratio lost=" << (ElostC+ElostE)/KEtot << endl;
       mout << "     3-D disp =" << disp[0] << ", " << disp[1] 
