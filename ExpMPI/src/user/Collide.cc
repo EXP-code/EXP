@@ -141,9 +141,10 @@ Collide::Collide(double diameter, int nth)
   epsm1T  = vector<unsigned> (nthrds, 0);
   Nepsm1T = vector<unsigned> (nthrds, 0);
   tmassT  = vector<double>   (nthrds, 0);
+  decolT  = vector<double>   (nthrds, 0);
   decelT  = vector<double>   (nthrds, 0);
-  exsCT   = vector<double>   (nthrds, 0);
-  exsET   = vector<double>   (nthrds, 0);
+  exesCT  = vector<double>   (nthrds, 0);
+  exesET  = vector<double>   (nthrds, 0);
 
   if (MFPDIAG) {
     tsratT  = vector< vector<double> > (nthrds);
@@ -296,6 +297,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
       epsm1T[n] = 0;
       Nepsm1T[n] = 0;
       tmassT[n] = 0;
+      decolT[n] = 0;
       decelT[n] = 0;
 				// For computing cell occupation #
       colcntT[n].clear();	// and collision counts
@@ -516,6 +518,7 @@ void * Collide::collide_thread(void * arg)
 
     // Energy lost in this cell
     //
+    decolT[id] = 0.0;
     decelT[id] = 0.0;
 
     // Compute 1.5 times the mean relative velocity in each MACRO cell
@@ -780,20 +783,30 @@ void * Collide::collide_thread(void * arg)
     //
     if (coolrate[id]>0.0) {
       if (mass>0.0) {
+	double dE, excessT = decolT[id] + decelT[id];
+				// Diagnostic
 	if (MFPDIAG && kedsp>0.0) 
-	  deratT[id].push_back( (decelT[id] - coolrate[id])/kedsp );
-	if (ENSEXES && use_exes>=0) {
-	  double dE = (decelT[id] - coolrate[id])/mass;
+	  deratT[id].push_back( (excessT - coolrate[id])/kedsp );
+	
+	if (use_exes>=0) {	// Spread excess energy into the cell
+
+	  if (ENSEXES) 		// All the energy is spread
+	    dE = (excessT    - coolrate[id])/mass;
+	  else			// Only the EPSM excess is spread
+	    dE = (decelT[id] - coolrate[id])/mass;
+
 	  for (unsigned j=0; j<number; j++) {
 	    Particle* p = tree->Body(bodx[j]);
 	    if (use_exes<static_cast<int>(p->dattrib.size())) {
 	      p->dattrib[use_exes] += dE*p->mass;
-	      exsCT[id] += dE*p->mass;
 	    }
 	  }
 	}
       }
     }
+    exesCT[id] += decolT[id];
+    exesET[id] += decelT[id];
+
     stat3SoFar[id] = stat3Time[id].stop();
 
   } // Loop over cells
@@ -1118,6 +1131,11 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       }
     }
     mass += p->mass;
+				// Compute the total 
+				// undercooled (-) or overcooled (+) 
+				// energy.  That is Exes must be added
+				// to the internal energy before cooling
+				// at this step.
     if (use_exes>=0) {
       if (use_exes < static_cast<int>(p->dattrib.size())) {
 	Exes += p->dattrib[use_exes];
@@ -1149,12 +1167,18 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
     UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
 
+				// Einternal+Exes is the amount that
+				// is *really* available for cooling
+				// after excess or deficit is included
+				//
+				// Exes will be - if more energy still
+				// needs to be removed and + if too much
+				// energy was removed by cooling last step
+				// 
   if (Einternal + Exes - Emin > coolrate[id]) {
     Eratio = (Einternal + Exes - coolrate[id])/Einternal;
-    Exes = 0.0;
   } else {
     Eratio = min<double>(Emin, Einternal)/Einternal;
-    Exes = min<double>(Emin, Einternal) + Exes - coolrate[id];
   }
 				// Compute the mean 1d vel.disp. from the
 				// distribution
@@ -1353,17 +1377,6 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   }
 
-  				// Distribute excess energy
-				// 
-  if (use_exes>=0) {
-    for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
-      Particle* p = tree->Body(*ib);
-      if (use_exes < static_cast<int>(p->dattrib.size())) {
-	p->dattrib[use_exes] += p->mass*Exes/mass;
-	exsET[id] += p->mass*Exes/mass;
-      }
-    }
-  }
 				// Record diagnostics
 				// 
   lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);
@@ -1657,15 +1670,15 @@ void Collide::energyExcess(double& ExesColl, double& ExesEPSM)
 				// Sum up from all the threads
 				// 
   for (int n=1; n<nthrds; n++) {
-    exsCT[0] += exsCT[n];
-    exsET[0] += exsET[n];
+    exesCT[0] += exesCT[n];
+    exesET[0] += exesET[n];
   }
 				// Sum reduce result to root node
 				// 
-  MPI_Reduce(&exsCT[0], &ExesColl, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&exsET[0], &ExesEPSM, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&exesCT[0], &ExesColl, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&exesET[0], &ExesEPSM, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Zero out the thread accumulators
 				// 
-  for (int n=0; n<nthrds; n++) exsCT[0] = exsET[n] = 0.0;
+  for (int n=0; n<nthrds; n++) exesCT[0] = exesET[n] = 0.0;
 }

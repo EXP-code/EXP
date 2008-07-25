@@ -233,7 +233,6 @@ void CollideLTE::initialize_cell(pCell* cell,
     //                                                     ^
     // to prevent inf values ------------------------------|
     //
-
 				// Diagnose cooling time step in this cell
     int indx = (int)floor(log(Ctime/tau)/log(4.0) + 5);
     if (indx<0 ) indx = 0;
@@ -275,11 +274,12 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
   double delE = deltaE[id];
   double cr0 = *cr;
 
-  if (!ENSEXES && use_exes>=0) {
-    delE += p1->dattrib[use_exes] + p2->dattrib[use_exes];
-    if (delE < 0.0) {
-      cout << "How did this happen?" << endl;
-    }
+  if (use_exes>=0) {
+				// (-/+) value means under/overcooled: 
+				// positive/negative increment to delE
+    delE -= p1->dattrib[use_exes] + p2->dattrib[use_exes];
+				// NV: delE may be < 0 if too much energy 
+				// wasradiated previously . . .
   }
 
 				// Consistent: KE in coll. frame is
@@ -289,27 +289,23 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
     (*cr) = sqrt( 2.0*(kE - delE)/Mu );
     ret = 0;			// No error
 
-				// Reset internal energy excess
-    if (!ENSEXES && use_exes>=0) p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
+				// Zero out internal energy excess
+    if (use_exes>=0)		// since excess is now used up
+      p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
   }
   else {			// Inconsistent: too much energy lost!
     lostSoFar[id] += remE;
-    decelT[id]    += remE;
+    decolT[id]    += remE - delE;
     (*cr) *= TolV;
     ret = 1;			// Set error flag
 
 				// Reset internal energy excess
-    if (!ENSEXES && use_exes>=0) {
-      p1->dattrib[use_exes] =  p1->mass*(delE - remE)/(p1->mass+p2->mass);
-      p2->dattrib[use_exes] =  p2->mass*(delE - remE)/(p1->mass+p2->mass);
-      if (delE - remE < 0.0) {
-	cout << "Oops: delE < remE" << endl;
-      }
-      if (p1->dattrib[use_exes] < 0.0) {
-	cout << "Oops: p1 excess < 0" << endl;
-      }
-      if (p2->dattrib[use_exes] < 0.0) {
-	cout << "Oops: p2 excess < 0" << endl;
+    if (use_exes>=0) {
+      if (ENSEXES) 		// Energy will be spread later
+	p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
+      else {			// Energy excess incorporated now
+	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/(p1->mass+p2->mass);
+	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/(p1->mass+p2->mass);
       }
     }
   }

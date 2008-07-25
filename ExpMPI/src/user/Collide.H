@@ -104,7 +104,7 @@ protected:
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
   std::vector<unsigned> sel1T, col1T, epsm1T, Nepsm1T;
-  std::vector<double> KEtotT, KElostT, tmassT, decelT, exsCT, exsET;
+  std::vector<double> KEtotT, KElostT, tmassT, decolT, decelT, exesCT, exesET;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, deratT;
   std::vector< vector<double> > tdeltT, tdispT;
