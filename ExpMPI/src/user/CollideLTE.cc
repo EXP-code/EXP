@@ -166,10 +166,13 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Total energy lost (for both collisions and EPSM)
   //
-  coolrate[id] = hc->CoolRate(n0, T) * n_h*n_h * CellVolume * tau *
-    UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
-
-  if (NOCOOL) coolrate[id] = 0.0;
+  if (NOCOOL || n0<=0.0 || T <=0.0)
+    coolrate[id] = 0.0;
+  else {
+    coolrate[id] = hc->CoolRate(n0, T) * n_h*n_h * CellVolume * tau *
+      UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+    if (isnan(coolrate[id])) coolrate[id] = 0.0;
+  }
 
   coolSoFar[id] = coolTime[id].stop();
 
@@ -230,6 +233,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     //                                                     ^
     // to prevent inf values ------------------------------|
     //
+
 				// Diagnose cooling time step in this cell
     int indx = (int)floor(log(Ctime/tau)/log(4.0) + 5);
     if (indx<0 ) indx = 0;

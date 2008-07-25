@@ -1545,6 +1545,8 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   int errcode;
   void *retval;
   
+  cout << "compute_timestep: coolfrac=" << coolfrac << endl;
+
   if (nthrds==1) {
     thrd_pass_tstep td;
 
@@ -1606,7 +1608,7 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
 void * Collide::timestep_thread(void * arg)
 {
   pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
-  double coolfrac = (int)((tstep_pass_arguments*)arg)->coolfrac;
+  double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
   int id = (int)((tstep_pass_arguments*)arg)->id;
 
   // Loop over cells, cell time-of-flight time
@@ -1663,7 +1665,7 @@ void Collide::energyExcess(double& ExesColl, double& ExesEPSM)
 				// Sum reduce result to root node
 				// 
   MPI_Reduce(&exsCT[0], &ExesColl, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&exsCT[0], &ExesEPSM, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&exsET[0], &ExesEPSM, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Zero out the thread accumulators
 				// 

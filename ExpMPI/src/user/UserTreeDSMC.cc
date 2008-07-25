@@ -589,7 +589,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;
       mout << "     Total KE =" << KEtot << endl;
       if (use_exes>=0) {
-	mout << "  COLL excess =" << ExesCOLL << endl;
+	mout << " TOTAL excess =" << ExesCOLL << endl;
 	if (epsm>0) mout << "  EPSM excess =" << ExesEPSM << endl;
       }
       if (KEtot<=0.0) mout << "         Ratio= XXXX" << endl;
