@@ -1380,7 +1380,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Record diagnostics
 				// 
   lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);
-  decelT[id] += Einternal*(1.0 - Eratio);
+  decelT[id] += min<double>(Emin, Einternal) + Exes - coolrate[id];
   epsm1T[id] += nbods;
   Nepsm1T[id]++;
 }

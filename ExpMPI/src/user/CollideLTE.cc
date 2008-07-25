@@ -272,14 +272,15 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
   double dE = kE*TolV*TolV;
   double remE = kE - dE;
   double delE = deltaE[id];
-  double cr0 = *cr;
+  // double cr0 = *cr;
 
   if (use_exes>=0) {
 				// (-/+) value means under/overcooled: 
 				// positive/negative increment to delE
+				// NB: delE may be < 0 if too much energy 
+				// was radiated previously . . .
+				//
     delE -= p1->dattrib[use_exes] + p2->dattrib[use_exes];
-				// NV: delE may be < 0 if too much energy 
-				// wasradiated previously . . .
   }
 
 				// Consistent: KE in coll. frame is
@@ -310,9 +311,11 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
     }
   }
 
+  /*
   if (fabs(*cr/cr0) > 1.0001) {
     cout << "Oops: *cr/cr0=" << *cr/cr0 << " > 1.0001" << endl;
   }
+  */
 
   return ret;
 }
