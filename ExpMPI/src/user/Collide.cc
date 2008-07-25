@@ -1545,8 +1545,6 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   int errcode;
   void *retval;
   
-  cout << "compute_timestep: coolfrac=" << coolfrac << endl;
-
   if (nthrds==1) {
     thrd_pass_tstep td;
 
