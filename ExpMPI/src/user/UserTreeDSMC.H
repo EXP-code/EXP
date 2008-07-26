@@ -23,6 +23,7 @@
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
     @param frontier enables printing of active cell list (for debugging)
+    @param tsdiag enables printing gas time step diagnostics (for debugging)
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
     @param use_temp is the particle attribute position for temperature
@@ -41,7 +42,7 @@ private:
   int ncell, Ncell;
   int cnum;
   int nsteps;
-  int use_temp, use_dens, use_delt, use_exes;
+  int use_temp, use_dens, use_delt, use_exes, tspow;
   double diamfac;
   double diam;
   double collfrac;
@@ -51,7 +52,7 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, mfpstat, use_multi, use_pullin, use_repair;
+  bool frontier, tsdiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, dryrun, nocool, ntc;
 
 				// For MFP and time step statistics

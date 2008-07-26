@@ -107,10 +107,11 @@ protected:
   std::vector<double> KEtotT, KElostT, tmassT, decolT, decelT, exesCT, exesET;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, deratT;
-  std::vector< vector<double> > tdeltT, tdispT;
+  std::vector< vector<double> > tdeltT, tdispT, EoverT;
   const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
   std::vector<unsigned> tcool, tcool1, tcool0;
+  std::vector<double>   Eover, Eover1, Eover0;
   std::vector< vector<unsigned> > tdiagT, tcoolT;
 
   std::vector< vector<pCell*> > cellist;
@@ -183,6 +184,7 @@ public:
 				// from variance (false);
 
   static bool TSDIAG;	        // Accumulate time step diagnostics (default: false)
+  static int TSPOW;	        // Power of two interval for ke/cool ratio histogram (default: 4)
 
   static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
 

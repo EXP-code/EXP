@@ -55,9 +55,11 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_exes = -1;
   coolfrac = 0.1;
   frontier = false;
-  mfpstat = false;
-  dryrun = false;
-  nocool = false;
+  tsdiag   = false;
+  tspow    = 4;
+  mfpstat  = false;
+  dryrun   = false;
+  nocool   = false;
   use_multi = false;
   use_pullin = false;
   ntc = true;
@@ -151,6 +153,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::EPSMratio = epsm;
   Collide::DRYRUN = dryrun;
   Collide::NOCOOL = nocool;
+  Collide::TSDIAG = tsdiag;
+  Collide::TSPOW  = tspow;
   Collide::MFPDIAG = mfpstat;
 				// Create the collision instance
   collide = new CollideLTE(diam, nthrds);
@@ -246,6 +250,8 @@ void UserTreeDSMC::initialize()
   if (get_value("use_delt", val))	use_delt = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes = atoi(val.c_str());
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
+  if (get_value("tspow", val))		tspow = atoi(val.c_str());
+  if (get_value("tsdiag", val))		tsdiag = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
   if (get_value("dryrun", val))		dryrun = atoi(val.c_str()) ? true : false;
   if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;

@@ -7,6 +7,7 @@
 #include <sstream>
 #include <vector>
 #include <cmath>
+#include <cfloat>
 
 #include "global.H"
 
@@ -229,7 +230,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Energy ratio for time step estimation
   if (use_delt>=0) {
 
-    double Ctime =  tau*cell->Mass()*KEdsp/(coolrate[id]+1.0e-20);
+    double Ctime =  tau*cell->Mass()*KEdsp/(coolrate[id]+DBL_MIN);
     //                                                     ^
     // to prevent inf values ------------------------------|
     //
@@ -272,7 +273,6 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
   double dE = kE*TolV*TolV;
   double remE = kE - dE;
   double delE = deltaE[id];
-  // double cr0 = *cr;
 
   if (use_exes>=0) {
 				// (-/+) value means under/overcooled: 
@@ -309,13 +309,17 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/(p1->mass+p2->mass);
       }
     }
-  }
 
-  /*
-  if (fabs(*cr/cr0) > 1.0001) {
-    cout << "Oops: *cr/cr0=" << *cr/cr0 << " > 1.0001" << endl;
+    if (TSDIAG) {
+      if (delE>0.0) {
+	int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
+	if (indx<0 ) indx = 0;
+	if (indx>10) indx = 10;
+
+	EoverT[id][indx] += p1->mass+p2->mass;
+      }
+    }
   }
-  */
 
   return ret;
 }

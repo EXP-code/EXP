@@ -36,6 +36,9 @@ bool Collide::NTC = false;	// from variance (false);
 
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
+
+int Collide::TSPOW = 4;		// Power of two interval for KE/cool histogram
+
 				// Proton mass (g)
 const double mp = 1.67262158e-24;
 				// Boltzmann constant (cgs)
@@ -213,6 +216,11 @@ Collide::Collide(double diameter, int nth)
     tdiag1 = vector<unsigned>(numdiag, 0);
     tdiag0 = vector<unsigned>(numdiag, 0);
     tdiagT = vector< vector<unsigned> > (nthrds);
+
+    Eover  = vector<double>(numdiag, 0);
+    Eover1 = vector<double>(numdiag, 0);
+    Eover0 = vector<double>(numdiag, 0);
+    EoverT = vector< vector<double> > (nthrds);
   }
 
   tcool  = vector<unsigned>(numdiag, 0);
@@ -221,7 +229,10 @@ Collide::Collide(double diameter, int nth)
   tcoolT = vector< vector<unsigned> > (nthrds);
 
   for (int n=0; n<nthrds; n++) {
-    if (TSDIAG) tdiagT[n] = vector<unsigned>(numdiag, 0);
+    if (TSDIAG) {
+      tdiagT[n] = vector<unsigned>(numdiag, 0);
+      EoverT[n] = vector<double>(numdiag, 0);
+    }
     tcoolT[n] = vector<unsigned>(numdiag, 0);
     tdispT[n] = vector<double>(3, 0);
   }
@@ -317,14 +328,19 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
       }
 
       for (unsigned k=0; k<numdiag; k++) {
-	if (TSDIAG) tdiagT[n][k] = 0;
+	if (TSDIAG) {
+	  tdiagT[n][k] = 0;
+	  EoverT[n][k] = 0;
+	}
 	if (use_delt>=0) tcoolT[n][k] = 0;
       }
       
       for (unsigned k=0; k<3; k++) tdispT[n][k] = 0;
     }
-    if (TSDIAG)
+    if (TSDIAG) {
       for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
+      for (unsigned k=0; k<numdiag; k++) Eover1[k] = Eover0[k] = 0;
+    }
     if (use_delt>=0) 
       for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
     
@@ -400,8 +416,10 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
       Nepsm1 += Nepsm1T[n];
       numcnt.insert(numcnt.end(), numcntT[n].begin(), numcntT[n].end());
       colcnt.insert(colcnt.end(), colcntT[n].begin(), colcntT[n].end());
-      if (TSDIAG)
+      if (TSDIAG) {
 	for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
+	for (unsigned k=0; k<numdiag; k++) Eover1[k] += EoverT[n][k];
+      }
       if (use_delt>=0) 
 	for (unsigned k=0; k<numdiag; k++) tcool1[k] += tcoolT[n][k];
     }
@@ -443,9 +461,12 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
     MPI_Reduce(&Nepsm1, &Nepsm, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&error1, &error, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&ncells, &numtot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (TSDIAG)
+    if (TSDIAG) {
       MPI_Reduce(&tdiag1[0], &tdiag0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
 		 MPI_COMM_WORLD);
+      MPI_Reduce(&Eover1[0], &Eover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
+		 MPI_COMM_WORLD);
+    }
     if (use_delt>=0)
       MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
 		 MPI_COMM_WORLD);
@@ -457,7 +478,12 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
     epsmtot   += epsm;
     epsmcells += Nepsm;
     errtot    += error;
-    if (TSDIAG) for (unsigned k=0; k<numdiag; k++) tdiag[k] += tdiag0[k];
+    if (TSDIAG) {
+      for (unsigned k=0; k<numdiag; k++) {
+	tdiag[k] += tdiag0[k];
+	Eover[k] += Eover0[k];
+      }
+    }
     if (use_delt>=0)
       for (unsigned k=0; k<numdiag; k++) tcool[k] += tcool0[k];
     for (unsigned k=0; k<3; k++) disptot[k] += disp0[k];
@@ -609,9 +635,10 @@ void * Collide::collide_thread(void * arg)
       c->Vel(vmass, V1, V2);
       double scale = c->Scale();
       double taudiag = 1.0e40;
-      for (int k=0; k<3; k++) {
+      for (int k=0; k<3; k++) {	// Time of flight
 	taudiag = min<double>
-	  (pHOT::sides[k]*scale/(sqrt(V2[k]/vmass)+1.0e-40), taudiag);
+	  (pHOT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
+	   taudiag);
       }
       
       int indx = (int)floor(log(taudiag/tau)/log(4.0) + 5);
@@ -784,9 +811,11 @@ void * Collide::collide_thread(void * arg)
     if (coolrate[id]>0.0) {
       if (mass>0.0) {
 	double dE, excessT = decolT[id] + decelT[id];
+
 				// Diagnostic
-	if (MFPDIAG && kedsp>0.0) 
-	  deratT[id].push_back( (excessT - coolrate[id])/kedsp );
+	if (MFPDIAG && kedsp>0.0) {
+	  deratT[id].push_back((excessT - coolrate[id])/kedsp);
+	}
 	
 	if (use_exes>=0) {	// Spread excess energy into the cell
 
@@ -1179,6 +1208,17 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     Eratio = (Einternal + Exes - coolrate[id])/Einternal;
   } else {
     Eratio = min<double>(Emin, Einternal)/Einternal;
+
+    if (TSDIAG) {
+      if (coolrate[id]-Exes>0.0) {
+	int indx = (int)floor(log(Einternal/(coolrate[id]-Exes)) /
+			      (log(2.0)*TSPOW) + 5);
+	if (indx<0 ) indx = 0;
+	if (indx>10) indx = 10;
+
+	EoverT[id][indx] += mass;
+      }
+    }
   }
 				// Compute the mean 1d vel.disp. from the
 				// distribution
@@ -1523,13 +1563,15 @@ void Collide::tsdiag(ostream& out)
   out << "-----Time step diagnostics---------------------------" << endl;
   out << "-----------------------------------------------------" << endl;
   out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
-      << setw(15) << "Size/Flight";
-  if (use_delt>=0) out << setw(15) << "Cool/Tau";
-  out << endl;
+      << setw(15) << "Size/Vel";
+  if (use_delt>=0) out << setw(15) << "Kinetic/Cool";
+  out << endl << setprecision(3);
   out << "-----------------------------------------------------" << endl;
   for (unsigned k=0; k<numdiag; k++) {
+    double rat = pow(4.0, -5.0+k);
     out << setw(8)  << -10+2*static_cast<int>(k)
-	<< setw(15) << pow(4.0, -5.0+k)
+	<< ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	<< setw(15) << rat
 	<< setw(15) << tdiag[k];
     if (use_delt>=0) out << setw(15) << tcool[k];
     out << endl;
@@ -1537,6 +1579,30 @@ void Collide::tsdiag(ostream& out)
     if (use_delt>=0) tcool[k] = 0;
   }
   out << "-----------------------------------------------------" << endl;
+  out << left;
+
+
+  double emass = 0.0;
+  for (unsigned k=0; k<numdiag; k++) emass += Eover[k];
+  if (emass>0.0) {
+    out << "-----Cooling rate diagnostics------------------------" << endl;
+    out << "-----------------------------------------------------" << endl;
+    out << right << setw(8) << "2^n" << setw(15) << "Ratio"
+	<< setw(15) << "KE/Cool(%)" << endl;
+    out << "-----------------------------------------------------" << endl;
+
+    for (unsigned k=0; k<numdiag; k++) {
+      double rat = pow(pow(2.0, TSPOW), -5.0+k);
+      double val = Eover[k]*100.0/emass;
+      out << setw(8)  << TSPOW*(-5 + static_cast<int>(k))
+	  << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	  << setw(15) << rat
+	  << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
+	  << setw(15) << val << endl;
+      Eover[k] = 0;
+    }
+    out << "-----------------------------------------------------" << endl;
+  }
   out << left;
 }
 
