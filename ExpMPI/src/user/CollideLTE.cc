@@ -286,7 +286,7 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 				// Consistent: KE in coll. frame is
   if (remE >= delE) {
     lostSoFar[id] += delE;	// larger than the energy radiated
-    decelT[id]    += delE;
+    decelT[id]    += delE;	// so all required cooling is complete
     (*cr) = sqrt( 2.0*(kE - delE)/Mu );
     ret = 0;			// No error
 
@@ -304,8 +304,10 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
     if (use_exes>=0) {
       if (ENSEXES) 		// Energy will be spread later
 	p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
-      else {			// Energy excess incorporated now
+      else {			// Energy excess incorporated now:
+				// distribute by mass fraction
 	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/(p1->mass+p2->mass);
+
 	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/(p1->mass+p2->mass);
       }
     }
