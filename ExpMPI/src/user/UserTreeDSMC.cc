@@ -132,6 +132,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
     // Turn off excess calculation
     // if particles have incompatible attributes
+    //
     if (ok==0) {
       if (myid==0) {
 	cout << "UserTreeDSMC: excess calculation requested but some" << endl
@@ -146,10 +147,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
-  Collide::NTC = ntc;
-  Collide::CBA = cba;
+  Collide::NTC    = ntc;
+  Collide::CBA    = cba;
   Collide::PULLIN = use_pullin;
-  Collide::CNUM = cnum;
+  Collide::CNUM   = cnum;
   Collide::EPSMratio = epsm;
   Collide::DRYRUN = dryrun;
   Collide::NOCOOL = nocool;
@@ -469,8 +470,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     // collide->Debug(tnow);
 
     unsigned medianNumb = collide->medianNumber();
-    collide->collQuantile(quant, coll_);
-    collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
+    if (mfpstat) {
+      collide->collQuantile(quant, coll_);
+      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
+    }
 
     double ExesCOLL, ExesEPSM;
     if (use_exes>=0) collide->energyExcess(ExesCOLL, ExesEPSM);
@@ -481,6 +484,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       string filen = sout.str();
       c0->Tree()->testFrontier(filen);
     }
+
+    vector<unsigned> ncells, bodies;
+    c0->Tree()->countFrontier(ncells, bodies);
 
     if (mfpstat && myid==0) {
 
@@ -566,24 +572,25 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << 100.0*epsm_cells/c0->Tree()->TotalNumber() 
 		       << "%)" << scientific << endl;
 
-      if (mfpstat)
+      if (mfpstat) {
 	mout << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
 	     << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
 	     << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl;
 
-      mout << fixed << setprecision(0)
-	   << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
-	   << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
-	   << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
-	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.05) 
-	   << "occupation @ 5%" << endl
-	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.50) 
-	   << "occupation @ 50%" << endl
-	   << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.95) 
-	   << "occupation @ 95%" << endl
-	   << setw(6) << " " << setw(20) << cellBods
-	   << "total number in cells" << endl
-	   << endl << setprecision(4);
+	mout << fixed << setprecision(0)
+	     << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
+	     << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
+	     << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
+	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.05) 
+	     << "occupation @ 5%" << endl
+	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.50) 
+	     << "occupation @ 50%" << endl
+	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.95) 
+	     << "occupation @ 95%" << endl
+	     << setw(6) << " " << setw(20) << cellBods
+	     << "total number in cells" << endl
+	     << endl << setprecision(4);
+      }
 	
       ElostTotCollide += ElostC;
       ElostTotEPSM    += ElostE;
@@ -607,6 +614,28 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
+      unsigned sumcells=0, sumbodies=0;
+      mout << endl;
+      mout << "-----------------------------------------------------" << endl;
+      mout << "-----Cell/body diagnostics---------------------------" << endl;
+      mout << "-----------------------------------------------------" << endl;
+      mout << right << setw(8) << "Level" << setw(15) << "Scale(x)"
+	   << setw(10) << "Cells" << setw(10) << "Bodies" << endl;
+      mout << "-----------------------------------------------------" << endl;
+      for (unsigned n=0; n<ncells.size(); n++) {
+	mout << setw(8) << n << setw(15) << pHOT::sides[0]/(1<<n)
+	     << setw(10) << ncells[n] << setw(10) << bodies[n]
+	     << endl;
+	sumcells  += ncells[n];
+	sumbodies += bodies[n];
+      }
+      mout << "-----------------------------------------------------" << endl;
+      mout << setw(8) << "TOTALS" 
+	   << setw(15) << "**********"
+	   << setw(10) << sumcells << setw(10) << sumbodies << endl;
+      mout << "-----------------------------------------------------" << endl;
+      mout << left << endl;
+      
       double keymake, xchange, prepare, convert, overlap, update;
       c0->Tree()->adjustTiming(keymake, xchange, prepare, 
 			       convert, overlap, update);      

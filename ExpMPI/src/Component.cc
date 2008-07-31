@@ -89,7 +89,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(3, 0);
+  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
 
   reset_level_lists();
 
@@ -250,62 +250,62 @@ void Component::reset_level_lists()
 
 				// Sanity check
   if (nlevel>0 && (this_step % nlevel == 0) && (mstep==Mstep)) {
-    vector<unsigned> lev0(multistep+1,0), lev1(multistep+1);
-    for (int n=0; n<=multistep; n++) lev1[n] = levlist[n].size();
-    MPI_Reduce(&lev1[0], &lev0[0], multistep+1, MPI_UNSIGNED,
-	       MPI_SUM, 0, MPI_COMM_WORLD);
 
     vector< vector<unsigned> > cntr(multistep+1);
     for (int n=0; n<=multistep; n++) {
-      cntr[n] = vector<unsigned>(3, 0);
-      MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], 3, MPI_UNSIGNED,
+      cntr[n] = vector<unsigned>(4, 0);
+      MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], 4, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
       
-      for (int k=0; k<3; k++) mdt_ctr[n][k] = 0;
+      for (int k=0; k<4; k++) mdt_ctr[n][k] = 0;
     }
     
     if (myid==0) {
-      ostringstream ofil;
-      ofil << runtag << ".levels";
-      ofstream out(ofil.str().c_str(), ios::app);
 
       unsigned tot=0;
-      unsigned sum=0;
-      for (int n=0; n<=multistep; n++) tot += lev0[n];
-      out << setw(70) << setfill('-') << '-' << endl;
-      ostringstream sout;
-      sout << "--- Component <" << name 
-	   << ", " << id  << ">, T=" << tnow;
-      out << setw(70) << left << sout.str().c_str() << endl;
-      out << setw(70) << '-' << endl << setfill(' ');
-      out << setw(3)  << "L" 
-	  << setw(10) << "Number" 
-	  << setw(10) << "dN/dL" 
-	  << setw(10) << "N(<=L)"
-	  << setw(10) << "f(r/v)" 
-	  << setw(10) << "f(r/a)" 
-	  << setw(10) << "f(ext)" << endl;
-      out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-      for (int n=0; n<=multistep; n++) {
-	unsigned scnt = 0;
-	for (int k=0; k<3; k++) scnt += cntr[n][k];
-	sum += lev0[n];
-	out << setw(3)  << n 
-	    << setw(10) << lev0[n] << setprecision(3) << fixed
-	    << setw(10) << static_cast<double>(lev0[n])/tot
-	    << setw(10) << static_cast<double>(sum)/tot;
-	if (scnt)
-	  out << setw(10) << static_cast<double>(cntr[n][0])/scnt
-	      << setw(10) << static_cast<double>(cntr[n][1])/scnt
-	      << setw(10) << static_cast<double>(cntr[n][2])/scnt;
-	else
-	  out << setw(10) << "*"
-	      << setw(10) << "*"
-	      << setw(10) << "*";
-	out << endl;
+      for (int n=0; n<=multistep; n++) tot += cntr[n][3];
+
+      if (tot) {
+
+	ostringstream ofil;
+	ofil << runtag << ".levels";
+	ofstream out(ofil.str().c_str(), ios::app);
+
+	unsigned curn, sum=0;
+	out << setw(70) << setfill('-') << '-' << endl;
+	ostringstream sout;
+	sout << "--- Component <" << name 
+	     << ", " << id  << ">, T=" << tnow;
+	out << setw(70) << left << sout.str().c_str() << endl;
+	out << setw(70) << '-' << endl << setfill(' ');
+	out << setw(3)  << "L" 
+	    << setw(10) << "Number" 
+	    << setw(10) << "dN/dL" 
+	    << setw(10) << "N(<=L)"
+	    << setw(10) << "f(r/v)" 
+	    << setw(10) << "f(r/a)" 
+	    << setw(10) << "f(ext)" << endl;
+	out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	for (int n=0; n<=multistep; n++) {
+	  curn = cntr[n][3];
+	  sum += curn;
+	  out << setw(3)  << n 
+	      << setw(10) << curn << setprecision(3) << fixed
+	      << setw(10) << static_cast<double>(curn)/tot
+	      << setw(10) << static_cast<double>(sum)/tot;
+	  if (curn)		// If there are counts at this level:
+	    out << setw(10) << static_cast<double>(cntr[n][0])/curn
+		<< setw(10) << static_cast<double>(cntr[n][1])/curn
+		<< setw(10) << static_cast<double>(cntr[n][2])/curn;
+	  else			// No counts at this level:
+	    out << setw(10) << "*"
+		<< setw(10) << "*"
+		<< setw(10) << "*";
+	  out << endl;
+	}
+	out << endl << setw(3) << "T" << setw(10) << tot << endl << endl 
+	    << right;
       }
-      out << endl << setw(3) << "T" << setw(10) << tot << endl << endl 
-	  << right;
     }
   }
 }
@@ -366,7 +366,7 @@ Component::Component(istream *in)
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(3, 0);
+  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
 
   reset_level_lists();
 

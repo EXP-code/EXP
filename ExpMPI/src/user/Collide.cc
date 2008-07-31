@@ -826,9 +826,7 @@ void * Collide::collide_thread(void * arg)
 
 	  for (unsigned j=0; j<number; j++) {
 	    Particle* p = tree->Body(bodx[j]);
-	    if (use_exes<static_cast<int>(p->dattrib.size())) {
-	      p->dattrib[use_exes] += dE*p->mass;
-	    }
+	    p->dattrib[use_exes] += dE*p->mass;
 	  }
 	}
       }
@@ -1166,10 +1164,8 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// to the internal energy before cooling
 				// at this step.
     if (use_exes>=0) {
-      if (use_exes < static_cast<int>(p->dattrib.size())) {
-	Exes += p->dattrib[use_exes];
-	p->dattrib[use_exes] = 0;
-      }
+      Exes += p->dattrib[use_exes];
+      p->dattrib[use_exes] = 0;
     }
   }
 
@@ -1719,12 +1715,11 @@ void * Collide::timestep_thread(void * arg)
       }
 				// Size scale for multistep timestep calc.
       p->scale = mscale;
-				// Compute cooling criterion
-      int sz = p->dattrib.size();
-      if (use_delt>=0 && use_delt<sz)
-	DT = min<double>(DT, coolfrac*p->dattrib[use_delt]);
+				// Compute cooling criterion timestep
+      double v = p->dattrib[use_delt];
+      if (use_delt>=0 && v>0.0)	DT = min<double>(DT, v);
       
-      p->dtreq = DT;
+      p->dtreq = coolfrac*DT;
     }
   }
   

@@ -136,6 +136,7 @@ public:
   void densEmit(unsigned lev, pCell *p);
   void densCheck();
   void statFrontier();
+  void countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies);
   unsigned checkNumber();
   unsigned oobNumber();
   void testFrontier(string& filename);

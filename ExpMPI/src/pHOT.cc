@@ -787,6 +787,47 @@ void pHOT::testFrontier(string& filename)
 }
 
 
+void pHOT::countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies)
+{
+  pCell *p;
+  key_cell::iterator it;
+  map<unsigned, pair<unsigned, unsigned> > data;
+  map<unsigned, pair<unsigned, unsigned> >::iterator d;
+  unsigned maxLev1=0, maxLev=0;
+  
+  for (it=frontier.begin(); it != frontier.end(); it++) {
+    p = it->second;
+    maxLev1 = max<unsigned>(maxLev1, p->level);
+    if ((d=data.find(p->level)) == data.end()) {
+      data[p->level] = pair<unsigned, unsigned>(1, p->bods.size());
+    } else {
+      d->second.first++;
+      d->second.second += p->bods.size();
+    }
+  }
+
+  MPI_Allreduce(&maxLev1, &maxLev, 1, MPI_UNSIGNED, MPI_MAX, 
+		MPI_COMM_WORLD);
+
+  vector<unsigned> tcellcnts(maxLev+1, 0), tbodscnts(maxLev+1, 0);
+  if (myid==0) {
+    ncells = vector<unsigned>(maxLev+1);
+    bodies = vector<unsigned>(maxLev+1);
+  }
+
+  for (d=data.begin(); d!=data.end(); d++) {
+    tcellcnts[d->first] = d->second.first;
+    tbodscnts[d->first] = d->second.second;
+  }
+
+  MPI_Reduce(&tcellcnts[0], &ncells[0], maxLev+1, MPI_UNSIGNED, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+
+  MPI_Reduce(&tbodscnts[0], &bodies[0], maxLev+1, MPI_UNSIGNED, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+}
+
+
 void pHOT::sendCell(key_type key, int to, unsigned num)
 {
   pCell *p = frontier.find(key)->second;
@@ -1621,7 +1662,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 void pHOT::adjustTree(unsigned mlevel)
 {
 
-#ifdef DEBUG
+#ifdef DEBUG_ADJUST
   if (!checkPartKeybods(mlevel)) {
     cout << "Process " << myid 
 	 << ": adjustTree: ERROR particle/keybods BEFORE adjustTree(), T=" 
@@ -2108,7 +2149,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   change.clear();		// Reset the change list for next time
   
-#ifdef DEBUG
+#ifdef DEBUG_ADJUST
   if (!checkBodycell()) {
     cout << "Process " << myid << ": "
 	 << "adjustTree: ERROR mlevel=" << mlevel 

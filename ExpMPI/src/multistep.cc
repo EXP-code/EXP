@@ -116,6 +116,8 @@ void * adjust_multistep_level_thread(void *ptr)
       else
 	tmdt[id][level][2]++;
     }
+    // Counter
+    tmdt[id][level][3]++;
 
     if (dt>dtime) lev = 0;
     else lev = (int)floor(log(dtime/dt)/log(2.0));
@@ -125,10 +127,6 @@ void * adjust_multistep_level_thread(void *ptr)
       offgrid++;
     }
     
-    /*
-    unsigned plev = min<unsigned>(maxlev, c->Part(n)->level);
-    unsigned nlev = min<unsigned>(maxlev, lev);
-    */
     unsigned plev = c->Part(n)->level;
     unsigned nlev = lev;
 
@@ -195,7 +193,7 @@ void adjust_multistep_level(bool all)
   tmdt = vector< vector< vector<unsigned> > >(nthrds);
   for (int n=0; n<nthrds; n++) {
     tmdt[n] = vector< vector<unsigned> >(multistep+1);
-    for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(3);
+    for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(4);
   }
 
   for (list<Component*>::iterator cc=comp.components.begin();
@@ -203,7 +201,7 @@ void adjust_multistep_level(bool all)
     
     for (int n=0; n<nthrds; n++)
       for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<3; j++) tmdt[n][k][j] = 0;
+	for (int j=0; j<4; j++) tmdt[n][k][j] = 0;
 
     for (int level=0; level<=multistep; level++) {
       
@@ -270,7 +268,7 @@ void adjust_multistep_level(bool all)
 
     for (int n=0; n<nthrds; n++)
       for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<3; j++) 
+	for (int j=0; j<4; j++) 
 	  (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
   }
 
