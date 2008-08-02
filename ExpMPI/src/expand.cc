@@ -215,62 +215,52 @@ main(int argc, char** argv)
   begin_run();
 
 
-  //===========
-  // MAIN LOOP 
-  //===========
+  try {
 
-  for (this_step=1; this_step<=nsteps; this_step++) {
+    //===========
+    // MAIN LOOP 
+    //===========
 
-    // Remove this permanently??
-    /*
-    if (multistep && VERBOSE>3) {
-      if (myid==0) {
-	cout << endl;
-	cout << setw(70) << setfill('-') << '-' << endl;
-	ostringstream sout;
-	sout << "--- MASTER: step=" << this_step << " ";
-	cout << setw(70) << left << sout.str() << endl << right;
-	cout << setw(70) << '-' << setfill(' ') << endl;
-      }
+    for (this_step=1; this_step<=nsteps; this_step++) {
 
-      comp.multistep_debug();
-
-      if (myid==0) {
-	cout << endl;
-	cout << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
-      }
-    }
-    */
-
-    do_step(this_step);
+      do_step(this_step);
     
-    //
-    // Synchronize and check for signals
-    //
+      //
+      // Synchronize and check for signals
+      //
 
 				// Signal will only be set after the step
-    dump_signal = dump_signal0;
-    stop_signal = stop_signal0;
+      dump_signal = dump_signal0;
+      stop_signal = stop_signal0;
 				// Reset signals
-    stop_signal0 = 0;
-    dump_signal0 = 0;
+      stop_signal0 = 0;
+      dump_signal0 = 0;
 				// Broadcast the signal
-    MPI_Bcast(&dump_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
-    MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&dump_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&stop_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
-    if (stop_signal) {
-      cout << "Process " << myid << ": have stop signal\n";
-      this_step++; 
-      break;
-    }
+      if (stop_signal) {
+	cout << "Process " << myid << ": have stop signal\n";
+	this_step++; 
+	break;
+      }
     
-    if (dump_signal) {
-      cout << "Process " << myid << ": dump signal received,"
-	   << " will dump on Step " << this_step+1 << ", continuing . . .\n";
+      if (dump_signal) {
+	cout << "Process " << myid << ": dump signal received,"
+	     << " will dump on Step " << this_step+1 << ", continuing . . .\n";
+      }
+
     }
 
   }
+  catch (EXPException& e) {
 
+    cerr << "Process " << myid << ": uncaught EXP exception" << endl
+	 << e.getErrorMessage() << endl;
+
+				// Try to force all process to exit!
+    MPI_Abort(MPI_COMM_WORLD, -1);
+  }
 
   //===========
   // Finish up 

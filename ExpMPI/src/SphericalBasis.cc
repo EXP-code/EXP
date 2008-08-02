@@ -483,6 +483,7 @@ void SphericalBasis::determine_coefficients(void)
 
   use0 = 0;
   use1 = 0;
+
   if (multistep==0) used = 0;
     
 #ifdef DEBUG
@@ -525,8 +526,11 @@ void SphericalBasis::determine_coefficients(void)
   for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-  if (multistep && (stepN[mlevel]==Mstep)) used += use0;
-  
+
+  if (multistep==0 || stepN[mlevel]==Mstep) {
+    used += use0;
+  }
+
   if (!selector) {
     
     for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {

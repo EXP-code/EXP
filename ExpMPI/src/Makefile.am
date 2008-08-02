@@ -27,11 +27,11 @@ AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 exp_SOURCES = \
-     Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc		     \
+     Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc                 \
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc                \
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc                    \
-     Sphere.cc SphereTwoCenter.cc SphereEJCOM.cc  \
+     Sphere.cc SphereTwoCenter.cc SphereEJCOM.cc EXPException.cc             \
      global.cc begin.cc ddplgndr.cc Direct.cc NoForce.cc end.cc              \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \

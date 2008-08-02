@@ -1022,13 +1022,19 @@ void Component::read_bodies_and_distribute_ascii(void)
   if (myid==0) delete fin;
 
 #ifdef DEBUG
-  cout << "read_bodies_and_distribute_ascii: process " << myid 
-       << " name=" << name << " bodies ["
-       << particles.begin()->second.indx << ", "
-       << particles.rbegin()->second.indx << "], ["
-       << particles.begin()->first << ", "
-       << particles.rbegin()->first << "]"
-       << " #=" << particles.size() << endl;
+  if (particles.size()) {
+    cout << "read_bodies_and_distribute_ascii: process " << myid 
+	 << " name=" << name << " bodies ["
+	 << particles.begin()->second.indx << ", "
+	 << particles.rbegin()->second.indx << "], ["
+	 << particles.begin()->first << ", "
+	 << particles.rbegin()->first << "]"
+	 << " #=" << particles.size() << endl;
+  } else {
+    cout << "read_bodies_and_distribute_ascii: process " << myid 
+	 << " name=" << name
+	 << " #=" << particles.size() << endl;
+  }
 #endif
 }
 
@@ -1250,13 +1256,18 @@ struct Particle * Component::get_particles(int* number)
   
 #ifdef DEBUG
   if (*number < 0) {
-    cout << "get_particles: process " << myid 
-	 << " <name=" << name << "> bodies ["
-	 << particles.begin()->second.indx << ", "
-	 << particles.rbegin()->second.indx << "], ["
-	 << particles.begin()->first << ", "
-	 << particles.rbegin()->first << "]" 
-	 << " #=" << particles.size() << endl;
+    if (particles.size())
+      cout << "get_particles: process " << myid 
+	   << " <name=" << name << "> bodies ["
+	   << particles.begin()->second.indx << ", "
+	   << particles.rbegin()->second.indx << "], ["
+	   << particles.begin()->first << ", "
+	   << particles.rbegin()->first << "]" 
+	   << " #=" << particles.size() << endl;
+    else
+      cout << "get_particles: process " << myid 
+	   << " <name=" << name << "> #=" 
+	   << particles.size() << endl;
   }
 #endif
 				// Reset
@@ -1271,13 +1282,13 @@ struct Particle * Component::get_particles(int* number)
     return 0;
   }
 
-  map<unsigned int, Particle> tlist;
-  map<unsigned int, Particle>::iterator cur;
+  map<unsigned int,  Particle> tlist;
+  map<unsigned int,  Particle>::iterator cur;
   map<unsigned long, Particle>::iterator icur, ibeg, iend;
 
   unsigned icount;
   int beg = counter;
-  int end = counter + PFbufsz;
+  int end = counter + PFbufsz - 1;
 
   MPI_Bcast(&beg, 1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&end, 1, MPI_INT, 0, MPI_COMM_WORLD);
@@ -1298,7 +1309,7 @@ struct Particle * Component::get_particles(int* number)
       if (node==0) {
       
 	ibeg = particles.lower_bound(beg);
-	iend = particles.lower_bound(end);
+	iend = particles.lower_bound(end+1);
 
 	icount = 0;
 	for (icur=ibeg; icur!=iend; icur++)
@@ -1307,7 +1318,23 @@ struct Particle * Component::get_particles(int* number)
 	cout << "get_particles: master loaded " 
 	     << icount << " of its own particles" << endl << flush;
 #endif    
-	
+
+#ifdef SANITY
+	cout << "Process " << myid << ": count=" << icount
+	     << ": want [" << beg << ", " << end << "]";
+	if (particles.size()) {
+	  cout << ": have [";
+	  if (ibeg != particles.end()) cout << ibeg->first << ", ";
+	  else cout << "end, ";
+	  if (iend != particles.end()) cout << iend->first << "]";
+	  else cout << "end)";
+	  cout << ": cnts [" << particles.begin()->first << ", " << particles.rbegin()->first << "]"
+	       << endl;
+	} else {
+	  cout << ": have none!" << endl;
+	}
+#endif
+
       } else {
 	  
 	unsigned number;
@@ -1335,10 +1362,27 @@ struct Particle * Component::get_particles(int* number)
       
 	
       ibeg = particles.lower_bound(beg);
-      iend = particles.lower_bound(end);
+      iend = particles.lower_bound(end+1);
 
       icount = 0;
       for (icur=ibeg; icur!=iend; icur++) icount++;
+
+#ifdef SANITY
+				// Sanity
+      cout << "Process " << myid << ": count=" << icount
+	   << ": want [" << beg << ", " << end << "]";
+      if (particles.size()) {
+	cout << ": have [";
+	if (ibeg != particles.end()) cout << ibeg->first << ", ";
+	else cout << "end, ";
+	if (iend != particles.end()) cout << iend->first << "]";
+	else cout << "end)";
+	cout << ": cnts [" << particles.begin()->first << ", " << particles.rbegin()->first << "]"
+	     << endl;
+      } else {
+	cout << ": have none!" << endl;
+      }
+#endif
 
       pf.ShipParticles(0, myid, icount);
 #ifdef DEBUG
@@ -1362,14 +1406,15 @@ struct Particle * Component::get_particles(int* number)
 #ifdef DEBUG
       cout << "get_particles: process " << myid 
 	   << ": sent " << icount << " particles to master"
-	   << ", counter value=" << counter
-	   << ", nbodies_index=" << nbodies_index[node]
-	   << ", seq_beg=" << ibeg->second.indx
-	   << ", seq_end=" << iend->second.indx
-	   << ", number found =" << icount
-	   << ", first=" << particles.begin()->second.indx
-	   << ", last=" << particles.rbegin()->second.indx
-	   << endl << flush;
+	   << ", counter value=" << counter;
+      if (particles.size())
+	cout << ", nbodies_index=" << nbodies_index[node]
+	     << ", seq_beg=" << ibeg->second.indx
+	     << ", seq_end=" << iend->second.indx
+	     << ", number found =" << icount
+	     << ", first=" << particles.begin()->second.indx
+	     << ", last=" << particles.rbegin()->second.indx;
+      cout << endl << flush;
 #endif    
 	
     }

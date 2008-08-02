@@ -2,6 +2,7 @@
 #define _Component_H
 
 #include <mpi.h>
+#include <EXPException.H>
 #include <PotAccel.H>
 #include <Orient.H>
 #include <header.H>
@@ -245,7 +246,7 @@ protected:
   void restart_com_system(void);
 
   //! Points to associated particles using sequence number
-  map<unsigned long, Particle> particles;
+  PartMap particles;
 
   //! Oct tree
   pHOT *tree;
@@ -482,14 +483,18 @@ public:
   bool escape_com(const Particle&);
 
   //! Access to particle vector
-  map<unsigned long, Particle>& Particles() {
+  PartMap& Particles() {
     return particles;
   }
 
   //! Access to particle
   Particle *Part(unsigned long i) {
-    if (particles.find(i) == particles.end()) return 0;
-    return &particles[i];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return 0;
+    }
+    return &(tp->second);
   }
 
   //! Particle vector size
@@ -499,12 +504,22 @@ public:
 
   //! Access to mass
   inline double Mass(int i) {
-    return particles[i].mass;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return 0;
+    }
+    return tp->second.mass;
   }
 
   //! Access to positions
   inline double Pos(int i, int j, unsigned flags=Inertial) {
-    double val = particles[i].pos[j];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return 0;
+    }
+    double val = tp->second.pos[j];
     if (com_system) {
       if (flags & Local)
 	val -= comI[j];
@@ -517,7 +532,12 @@ public:
 
   //! Access to velocities
   inline double Vel(int i, int j, unsigned flags=Inertial) {
-    double val = particles[i].vel[j];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return 0;
+    }
+    double val = tp->second.vel[j];
     if (com_system) {
       if (flags & Local)
 	val -= covI[j];
@@ -529,8 +549,13 @@ public:
   
   //! Get positions
   inline void Pos(double *pos, int i, unsigned flags=Inertial) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
     for (int k=0; k<3; k++) {
-      pos[k] = particles[i].pos[k];
+      pos[k] = tp->second.pos[k];
       if (com_system) {
 	if (flags & Local) 
 	  pos[k] -= comI[k];
@@ -543,8 +568,13 @@ public:
 
   //! Get velocities
   inline void Vel(double *vel, int i, unsigned flags=Inertial) {
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
     for (int k=0; k<3; k++) {
-      vel[k] = particles[i].vel[k];
+      vel[k] = tp->second.vel[k];
       if (com_system) {
 	if (flags & Local)
 	  vel[k] -= covI[k];
@@ -580,64 +610,124 @@ public:
 
   //! Access to acceleration
   inline double Acc(int i, int j, unsigned flags=Inertial) {
-    double val = particles[i].acc[j];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return 0;
+    }
+    double val = tp->second.acc[j];
     if (com_system && (flags & Inertial)) val += acc0[j];
     return val;
   }
   
   //! Add to position (by component)
   inline void AddPos(int i, int j, double val) {
-    particles[i].pos[j] += val;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    tp->second.pos[j] += val;
   }
   
   //! Add to position (by array)
   inline void AddPos(int i, double* val) {
-    for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
   }
   
   //! Add to position (by vector)
   inline void AddPos(int i, vector<double>& val) {
-    for (int k=0; k<3; k++) particles[i].pos[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.pos[k] += val[k];
   }
   
   //! Add to velocity (by component)
   inline void AddVel(int i, int j, double val) {
-    particles[i].vel[j] += val;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    tp->second.vel[j] += val;
   }
   
   //! Add to velocity (by array)
   inline void AddVel(int i, double* val) {
-    for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
   }
   
   //! Add to velocity (by vector)
   inline void AddVel(int i, vector<double>& val) {
-    for (int k=0; k<3; k++) particles[i].vel[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.vel[k] += val[k];
   }
   
   //! Add to accerlation (by component)
   inline void AddAcc(int i, int j, double val) {
-    particles[i].acc[j] += val;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    tp->second.acc[j] += val;
   }
   
   //! Add to acceleration (by array)
   inline void AddAcc(int i, double *val) {
-    for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
   }
   
   //! Add to accerlation (by vector)
   inline void AddAcc(int i, vector<double>& val) {
-    for (int k=0; k<3; k++) particles[i].acc[k] += val[k];
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    for (int k=0; k<3; k++) tp->second.acc[k] += val[k];
   }
   
   //! Add to potential
   inline void AddPot(int i, double val) {
-    particles[i].pot += val;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    tp->second.pot += val;
   }
   
   //! Add to external potential
   inline void AddPotExt(int i, double val) {
-    particles[i].potext += val;
+    PartMap::iterator tp = particles.find(i);
+    if (tp == particles.end()) {
+      throw BadIndexException(i, particles.size(), __FILE__, __LINE__);
+      return;
+    }
+    tp->second.potext += val;
   }
   
   //! Reset the level lists

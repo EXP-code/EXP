@@ -3,6 +3,7 @@
 #define Particle_H
 
 #include <vector>
+#include <map>
 
 using namespace std;
 
@@ -64,5 +65,8 @@ public:
   Particle(const Particle &);
 
 };
+
+typedef map<unsigned long, Particle> PartMap;
+
 
 #endif

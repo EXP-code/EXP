@@ -1,5 +1,3 @@
-static char rcsid[] = "$Id$";
-
 #include "expand.h"
 #include <localmpi.h>
 
@@ -73,8 +71,10 @@ void Direct::determine_acceleration_and_potential(void)
   }
 				// Determine size of largest nbody list
   ninteract = component->Number();
-  max_bodies = ninteract;
   MPI_Allreduce(&ninteract, &max_bodies, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(&ninteract, &used,       1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+
+  if (max_bodies==0) return;
 
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -91,17 +91,18 @@ void Direct::determine_acceleration_and_potential(void)
 				// Allocate buffers to handle largest list
   delete [] tmp_buffer;
   delete [] bod_buffer;
+
   int buffer_size = max_bodies*ndim;
   tmp_buffer = new double [buffer_size];
   bod_buffer = new double [buffer_size];
   
   // Load body buffer with local interactors
   double *p = bod_buffer;
-  map<unsigned long, Particle>::iterator it = component->Particles().begin();
   unsigned long i;
+  map<unsigned long, Particle>::iterator it = component->Particles().begin();
 
   for (int q=0; q<ninteract; q++) {
-    i = it->first; it++;
+    i = (it++)->first;
     *(p++) = component->Mass(i);
     *(p++) = component->Pos(i, 0);
     *(p++) = component->Pos(i, 1);
@@ -111,10 +112,6 @@ void Direct::determine_acceleration_and_potential(void)
 
 				// Do the local interactors
   exp_thread_fork(false);
-
-				// Add up the particle interactions
-  int use1 = 0;			// [First time]
-  for (int id=0; id<nthrds; id++) use1 += use[id];
 
 				// Do the ring . . . 
   for(int n=1; n<numprocs; n++) {
@@ -143,15 +140,7 @@ void Direct::determine_acceleration_and_potential(void)
 				// Accumulate the interactions
     exp_thread_fork(false);
 
-				// Add up the particle interactions
-
-    for (int id=0; id<nthrds; id++) use1 += use[id];
   }
-
-				// Accumulate total particle used
-  used = 0;
-  MPI_Allreduce (&use1, &used,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
 				// Clear external potential flag
   use_external = false;
 }
@@ -162,34 +151,30 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   double mass, pos[3], eps = soft;
   double *p;
 
-  unsigned nbodies = cC->Number();
+  unsigned nbodies = cC->levlist[mlevel].size();
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
   double adb = component->Adiabatic();
 
-  use[id] = 0;
-    
 #ifdef DEBUG
   double tclausius[nthrds];
   for (int i=0; i<nthrds; i++) tclausius[id] = 0.0;
 #endif
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
-  unsigned long j;
+  unsigned long j;		// Index of the current local particle
 
-  for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
     
-    j = it->first; it++;
+    j = cC->levlist[mlevel][i];
 
-    // if (cC->freeze(j)) continue;
+				// Don't need acceleration for frozen particles
+    if (cC->freeze(j)) continue;
     
-    if (!use_external) use[id]++;
-
+				// Loop through the particle list
     p = bod_buffer;
-    for (int j=0; j<ninteract; j++) {
+    for (int n=0; n<ninteract; n++) {
 				// Get current interaction particle
       mass = *(p++) * adb;
       for (int k=0; k<3; k++) pos[k] = *(p++);
@@ -216,7 +201,8 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 	cC->AddPotExt(j, -mass/rr );
 #ifdef DEBUG
       for (int k=0; k<3; k++)
-	tclausius[id] += -mass *(cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
+	tclausius[id] += -mass *
+	  (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
       }
       else if (rr0 > 1.0e-16)	// Ignore "self" potential
