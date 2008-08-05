@@ -94,7 +94,7 @@ protected:
   std::vector<unsigned> numcnt;
   std::vector<unsigned> selcnt;
   std::vector<unsigned> colcnt;
-  std::vector<double>   tsrat, derat, tdens, tvolc, ttemp, tdelt, tseln;
+  std::vector<double>   tsrat, kerat, derat, tdens, tvolc, ttemp, tdelt, tseln;
 
   static const unsigned Nphase = 4, Nmfp = 5;
   std::vector<Precord> tphase, tmfpst;
@@ -106,7 +106,7 @@ protected:
   std::vector<unsigned> sel1T, col1T, epsm1T, Nepsm1T;
   std::vector<double> KEtotT, KElostT, tmassT, decolT, decelT, exesCT, exesET;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
-  std::vector< vector<double> > ttempT, tselnT, deratT;
+  std::vector< vector<double> > ttempT, tselnT, keratT, deratT;
   std::vector< vector<double> > tdeltT, tdispT, EoverT;
   const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
@@ -216,8 +216,8 @@ public:
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
-		       vector<double>& ts_, vector<double>& coll_,
-		       vector<double>& rate_) ;
+		       vector<double>& ts_,       vector<double>& coll_,
+		       vector<double>& cool_,     vector<double>& rate_) ;
   void energyExcess(double& ExesColl, double& ExesEPSM);
   void dispersion(vector<double>& disp);
 

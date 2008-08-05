@@ -54,11 +54,11 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
   hc = new HeatCool(Nmin, Nmax, Tmin, Tmax, Nnum, Tnum, cache);
 
   cellcnt = vector<unsigned>(nthrds, 0);
-  minT = vector<double>(nthrds, 1e30);
-  maxT = vector<double>(nthrds, 0.0);
-  avgT = vector<double>(nthrds, 0.0);
-  dispT = vector<double>(nthrds, 0.0);
-  tlist = vector< vector<double> >(nthrds);
+  minT    = vector<double>(nthrds, 1e30);
+  maxT    = vector<double>(nthrds, 0.0);
+  avgT    = vector<double>(nthrds, 0.0);
+  dispT   = vector<double>(nthrds, 0.0);
+  tlist   = vector< vector<double> >(nthrds);
 
   debug_enabled = false;
 
@@ -87,7 +87,7 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 
 				// Energy diagnostics
   totalSoFar = 0.0;
-  lostSoFar = vector<double>(nthrds, 0.0);
+  lostSoFar  = vector<double>(nthrds, 0.0);
 
   prec = vector<Precord>(nthrds);
   for (int n=0; n<nthrds; n++)
@@ -101,7 +101,8 @@ CollideLTE::~CollideLTE()
 }
 
 void CollideLTE::initialize_cell(pCell* cell, 
-				 double rvmax, double tau, double number, int id)
+				 double rvmax, double tau, double number, 
+				 int id)
 {
   pCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -115,14 +116,14 @@ void CollideLTE::initialize_cell(pCell* cell,
 
 				// Mean mass per particle
   double Mass = mass * UserTreeDSMC::Munit;
-  double mm = f_H*mp + (1.0-f_H)*4.0*mp;
-  double T = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
+  double T    = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
 				// Volume in sample cell
-  double volume = samp->Volume();
-  double Volume = volume * pow(UserTreeDSMC::Lunit, 3);
+  double volume  = samp->Volume();
+  double Volume  = volume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
-  double n0 = Density/mp;
+  double n0      = Density/mp;
 				// Volume in real cell
   double CellVolume = cell->Volume() * pow(UserTreeDSMC::Lunit, 3);
 
@@ -152,7 +153,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     tlist[id].push_back(T);
   }
 
-  // Mean effective number of of collisions
+  // Mean effective number of collisions
   //
   number *= 0.5;
 
@@ -172,6 +173,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   else {
     coolrate[id] = hc->CoolRate(n0, T) * n_h*n_h * CellVolume * tau *
       UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+				// Sanity: failure of implicit solution
     if (isnan(coolrate[id])) coolrate[id] = 0.0;
   }
 
@@ -286,7 +288,7 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 				// Consistent: KE in coll. frame is
   if (remE >= delE) {
     lostSoFar[id] += delE;	// larger than the energy radiated
-    decelT[id]    += delE;	// so all required cooling is complete
+    decelT[id]    += delE;
     (*cr) = sqrt( 2.0*(kE - delE)/Mu );
     ret = 0;			// No error
 
@@ -304,10 +306,8 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
     if (use_exes>=0) {
       if (ENSEXES) 		// Energy will be spread later
 	p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
-      else {			// Energy excess incorporated now:
-				// distribute by mass fraction
+      else {			// Energy excess incorporated now
 	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/(p1->mass+p2->mass);
-
 	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/(p1->mass+p2->mass);
       }
     }

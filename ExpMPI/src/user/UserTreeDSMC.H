@@ -56,7 +56,7 @@ private:
   bool cba, dryrun, nocool, ntc;
 
 				// For MFP and time step statistics
-  vector<double> quant, mfp_, ts_, coll_, nsel_, rate_;
+  vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;
 
   unsigned stepnum;
   unsigned llevel, clevel;

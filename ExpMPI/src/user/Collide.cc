@@ -151,6 +151,7 @@ Collide::Collide(double diameter, int nth)
 
   if (MFPDIAG) {
     tsratT  = vector< vector<double> > (nthrds);
+    keratT  = vector< vector<double> > (nthrds);
     deratT  = vector< vector<double> > (nthrds);
     tdensT  = vector< vector<double> > (nthrds);
     tvolcT  = vector< vector<double> > (nthrds);
@@ -317,6 +318,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
 				// and drift ratio
       if (MFPDIAG) {
 	tsratT[n].clear();
+	keratT[n].clear();
 	deratT[n].clear();
 	tdensT[n].clear();
 	tvolcT[n].clear();
@@ -428,6 +430,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
 				// and drift ratio (diagnostic only)
     if (MFPDIAG) {
       tsrat.clear();
+      kerat.clear();
       derat.clear();
       tdens.clear();
       tvolc.clear();
@@ -439,6 +442,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
 
       for (int n=0; n<nthrds; n++) {
 	tsrat. insert(tsrat.end(),   tsratT[n].begin(),  tsratT[n].end());
+	kerat. insert(kerat.end(),   keratT[n].begin(),  keratT[n].end());
 	derat. insert(derat.end(),   deratT[n].begin(),  deratT[n].end());
 	tdens. insert(tdens.end(),   tdensT[n].begin(),  tdensT[n].end());
 	tvolc. insert(tvolc.end(),   tvolcT[n].begin(),  tvolcT[n].end());
@@ -814,6 +818,7 @@ void * Collide::collide_thread(void * arg)
 
 				// Diagnostic
 	if (MFPDIAG && kedsp>0.0) {
+	  keratT[id].push_back((kedsp   - coolrate[id])/kedsp);
 	  deratT[id].push_back((excessT - coolrate[id])/kedsp);
 	}
 	
@@ -948,6 +953,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 			      vector<double>& mfp_, 
 			      vector<double>& ts_,
 			      vector<double>& coll_,
+			      vector<double>& cool_,
 			      vector<double>& rate_) 
 {
   if (!MFPDIAG) return;
@@ -973,11 +979,13 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
       tseln.insert(tseln.end(), tmp.begin(), tmp.end());
       MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
+      kerat.insert(kerat.end(), tmb.begin(), tmb.end());
+      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
       derat.insert(derat.end(), tmb.begin(), tmb.end());
 
       vector<Precord> tmp2(num);
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
 				// Load density
 	tmp2[k].first = tmp[k];
@@ -985,12 +993,12 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	tmp2[k].second = vector<double>(Nphase, 0);
       }
       for (unsigned l=0; l<Nphase; l++) {
-	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48+l, MPI_COMM_WORLD, &s);
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
       tphase.insert(tphase.end(), tmp2.begin(), tmp2.end());
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48+Nphase, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+Nphase, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
 				// Load mfp
 	tmp2[k].first = tmp[k];
@@ -998,7 +1006,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	tmp2[k].second = vector<double>(Nmfp, 0);
       }
       for (unsigned l=0; l<Nmfp; l++) {
-	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+Nphase+l, MPI_COMM_WORLD, &s);
+	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 50+Nphase+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
       tmfpst.insert(tmfpst.end(), tmp2.begin(), tmp2.end());
@@ -1012,11 +1020,13 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     std::sort(tseln.begin(),  tseln.end()); 
     std::sort(tphase.begin(), tphase.end());
     std::sort(tmfpst.begin(), tmfpst.end());
+    std::sort(kerat.begin(),  kerat.end());
     std::sort(derat.begin(),  derat.end());
 
     mfp_  = vector<double>(quantiles.size());
     ts_   = vector<double>(quantiles.size());
     coll_ = vector<double>(quantiles.size());
+    cool_ = vector<double>(quantiles.size());
     rate_ = vector<double>(quantiles.size());
     for (unsigned j=0; j<quantiles.size(); j++) {
       if (tmfpst.size())
@@ -1031,6 +1041,10 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	coll_[j] = tseln [(unsigned)floor(quantiles[j]*tseln.size()) ];
       else
 	coll_[j] = 0;
+      if (kerat.size())
+	cool_[j] = kerat [(unsigned)floor(quantiles[j]*kerat.size()) ];
+      else
+	cool_[j] = 0;
       if (derat.size())
 	rate_[j] = derat [(unsigned)floor(quantiles[j]*derat.size()) ];
       else
@@ -1109,22 +1123,23 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     MPI_Send(&ttemp[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
     MPI_Send(&tdelt[0],  num, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
     MPI_Send(&tseln[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
-    MPI_Send(&derat[0],  nmb, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
+    MPI_Send(&kerat[0],  nmb, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
+    MPI_Send(&derat[0],  nmb, MPI_DOUBLE, 0, 47, MPI_COMM_WORLD);
 
     vector<double> tmp(num);
 
     for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 47, MPI_COMM_WORLD);
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 48, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nphase; l++) {
       for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 48+l, MPI_COMM_WORLD);
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 49+l, MPI_COMM_WORLD);
     }
 
     for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 48+Nphase, MPI_COMM_WORLD);
+    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 49+Nphase, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nmfp; l++) {
       for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 49+Nphase+l, MPI_COMM_WORLD);
+      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 50+Nphase+l, MPI_COMM_WORLD);
     }
   }
 }

@@ -472,7 +472,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     unsigned medianNumb = collide->medianNumber();
     if (mfpstat) {
       collide->collQuantile(quant, coll_);
-      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, rate_);
+      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, cool_, rate_);
     }
 
     double ExesCOLL, ExesEPSM;
@@ -502,6 +502,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	    << setw(18) << "Collions/cell"
 	    << setw(18) << "Number/Nsel"
 	    << setw(18) << "Energy ratio"
+	    << setw(18) << "Excess ratio"
 	    << endl;
 	for (unsigned nq=0; nq<quant.size(); nq++)
 	  out << setw(18) << quant[nq] << ": " 
@@ -509,6 +510,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	      << setw(18) << ts_[nq] 
 	      << setw(18) << coll_[nq] 
 	      << setw(18) << nsel_[nq] 
+	      << setw(18) << cool_[nq] 
 	      << setw(18) << rate_[nq] 
 	      << endl;
       }
