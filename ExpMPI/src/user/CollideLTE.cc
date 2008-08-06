@@ -36,15 +36,15 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 
-
-double CollideLTE::Nmin = 1.0e-08;
-double CollideLTE::Nmax = 1.0e+08;
-double CollideLTE::Tmin = 1.0e+03;
-double CollideLTE::Tmax = 1.0e+06;
-double CollideLTE::TolV = 1.0e-03;
-unsigned CollideLTE::Nnum = 200;
-unsigned CollideLTE::Tnum = 200;
-string CollideLTE::cache = ".HeatCool";
+				// Default global class parameters
+double   CollideLTE::Nmin    = 1.0e-08;
+double   CollideLTE::Nmax    = 1.0e+08;
+double   CollideLTE::Tmin    = 1.0e+03;
+double   CollideLTE::Tmax    = 1.0e+06;
+double   CollideLTE::TolV    = 1.0e-03;
+unsigned CollideLTE::Nnum    = 200;
+unsigned CollideLTE::Tnum    = 200;
+string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
 
 CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
@@ -108,40 +108,44 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Cell temperature and mass (cgs)
 				// 
   double KEtot, KEdsp;
-  samp->KE(KEtot, KEdsp);	// These are already specific in mass
+  // samp->KE(KEtot, KEdsp);	// These are already specific in mass
+  cell->KE(KEtot, KEdsp);
 
-  double mass = samp->Mass();	// Mass in sample cell
-  
-  totalSoFar += mass*KEdsp;
+  double cmass = cell->Mass();	// Mass in real cell
+  double smass = samp->Mass();	// Mass in sample cell
+
+  totalSoFar += cmass*KEdsp;
 
 				// Mean mass per particle
-  double Mass = mass * UserTreeDSMC::Munit;
+  double Mass = cmass * UserTreeDSMC::Munit;
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
   double T    = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
-				// Volume in sample cell
-  double volume  = samp->Volume();
-  double Volume  = volume * pow(UserTreeDSMC::Lunit, 3);
+				// Volume in cells
+  double cvolume = cell->Volume();
+  double svolume = samp->Volume();
+
+  double Volume  = cvolume * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0      = Density/mp;
 				// Volume in real cell
-  double CellVolume = cell->Volume() * pow(UserTreeDSMC::Lunit, 3);
+  double CellVolume = cvolume * pow(UserTreeDSMC::Lunit, 3);
 
   if (log(T)>tmin && log(T)<tmax) {
     int indx = (int)float( (log(T) - tmin)/dtmp );
-    thisto2[indx] += samp->Mass();
+    thisto2[indx] += cmass;
   }
 
   if (log(n0)>nmin && log(n0)<nmax) {
     int indx = (int)float( (log(n0) - nmin)/ntmp );
-    nhisto2[indx] += samp->Mass();
+    nhisto2[indx] += cmass;
   }
 
   if (log(T) >tmin && log(T) <tmax &&
       log(n0)>nmin && log(n0)<nmax) {
     int indx1 = (int)float( (log(T)  - tmin)/dtmp );
     int indx2 = (int)float( (log(n0) - nmin)/ntmp );
-    trho[indx1][indx2] += samp->Mass();
+    trho[indx1][indx2] += cmass;
   }
 
   if (debug_enabled) {
@@ -152,10 +156,6 @@ void CollideLTE::initialize_cell(pCell* cell,
     dispT[id] += T*T;
     tlist[id].push_back(T);
   }
-
-  // Mean effective number of collisions
-  //
-  number *= 0.5;
 
   // Hydrogen number density
   //
@@ -198,7 +198,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     ttempT[id].push_back(T);
     tdeltT[id].push_back(deltaE[id]);
 
-    prec[id].first = mass/volume;
+    prec[id].first = cmass/cvolume;
     prec[id].second[0] = T;
     prec[id].second[1] = cell->bods.size();
     prec[id].second[2] = cell->Mass();
@@ -210,6 +210,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   if (use_temp>=0 || use_dens>=0) {
     
+    double dens = smass/svolume;
+    // double dens = cmass/cvolume;
     set<unsigned>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       if (*j == 0) {
@@ -224,7 +226,7 @@ void CollideLTE::initialize_cell(pCell* cell,
       if (use_temp>=0 && use_temp<sz) 
 	cell->Body(j)->dattrib[use_temp] = T;
       if (use_dens>=0 && use_dens<sz) 
-	cell->Body(j)->dattrib[use_dens] = mass/volume;
+	cell->Body(j)->dattrib[use_dens] = dens;
       j++;
     }
   }

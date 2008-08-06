@@ -81,7 +81,7 @@ private:
 
   // Timing and debug
   //
-  unsigned bodycount, stepcount;
+  unsigned ncells, bodycount, stepcount;
   Timer forkTime, snglTime, waitTime, joinTime, diagTime;
   TimeElapsed forkSoFar, snglSoFar, waitSoFar;
   TimeElapsed diagSoFar, joinSoFar;
@@ -146,6 +146,8 @@ protected:
   void debug_list(pHOT& tree);
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
+  void pre_collide_diag();
+  unsigned post_collide_diag();
 
   // Timing and debug (access for derived classes)
   //
@@ -217,7 +219,9 @@ public:
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_,       vector<double>& coll_,
-		       vector<double>& cool_,     vector<double>& rate_) ;
+		       vector<double>& cool_,     vector<double>& rate_,
+		       unsigned& collnum,         unsigned& coolnum     );
+  
   void energyExcess(double& ExesColl, double& ExesEPSM);
   void dispersion(vector<double>& disp);
 
@@ -225,13 +229,13 @@ public:
   virtual void Elost(double* collide, double* epsm)  
   { cerr << "Oops [2]" << endl; *collide=0; *epsm=0; }
 
-  // Collision thread
+  /// Collision thread
   //@{
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, double Fn, double tau);
   //@}
 
-  // Timestep thread
+  /// Timestep thread
   //@{
   void *timestep_thread(void *arg);
   void compute_timestep(pHOT* tree, double coolfrac);

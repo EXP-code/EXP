@@ -667,20 +667,22 @@ void pHOT::testFrontier(string& filename)
   key_cell::iterator c;
   pCell *p;
 
-  const unsigned fields = 14;
+  const unsigned fields = 15;
   vector<unsigned> prec(fields, 18);
-  for (unsigned n=0; n<4; n++) prec[n] = 10;
-  prec[1] = 14;
+  for (unsigned n=0; n<5; n++) prec[n] = 10;
+  prec[0] = 14;
+  prec[2] = 14;
 
   vector<ios_base::fmtflags> fmt(fields, ios::dec);
   fmt[1] = ios::hex;
 
   vector<ios_base::fmtflags> typ(fields, ios::fixed);
-  typ[4] = typ[5] = ios::scientific;
+  typ[0] = typ[5] = typ[6] = ios::scientific;
 
   if (myid==0) {
 
     char labels[][18] = {
+      "Time |",
       "Proc |",
       "Key |",
       "Level |",
@@ -696,23 +698,29 @@ void pHOT::testFrontier(string& filename)
       "Mean V |",
       "Mean W |"};
     
-    ofstream out(filename.c_str());
+    ifstream in(filename.c_str());
+    in.close();
 
-    out << right;
+    if (in.fail()) {
+
+      ofstream out(filename.c_str());
+
+      out << right;
     
-    out << "#" << endl << "#";
-    for (unsigned n=0; n<fields; n++)
-      out << setw(prec[n]) << setiosflags(fmt[n]) << labels[n];
-    out << endl;
-    out << "#";
-    for (unsigned n=0; n<fields; n++) {
-      ostringstream sout;
-      sout << n+1 << " |";
-      out << setw(prec[n]) << setiosflags(fmt[n]) << sout.str();
+      out << "#" << endl << "#";
+      for (unsigned n=0; n<fields; n++)
+	out << setw(prec[n]) << setiosflags(fmt[n]) << labels[n];
+      out << endl;
+      out << "#";
+      for (unsigned n=0; n<fields; n++) {
+	ostringstream sout;
+	sout << n+1 << " |";
+	out << setw(prec[n]) << setiosflags(fmt[n]) << sout.str();
+      }
+      out << endl << "#" << endl;
     }
-    out << endl << "#" << endl;
   }
-  
+
 
   for (int n=0; n<numprocs; n++) {
 
@@ -754,6 +762,8 @@ void pHOT::testFrontier(string& filename)
 	double vol = volume/((key_type)1 << (3*p->level)); 
 
 	out << " ";
+	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << tnow;
+	n++;
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << myid;
 	n++;
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << c->first;

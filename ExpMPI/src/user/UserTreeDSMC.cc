@@ -335,8 +335,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Compute time step
   //
-  // double tau = dtime*mintvl[mlevel]/Mstep;
-
   // Now, DSMC is computed on the smallest step, every step
   double tau = dtime*mintvl[multistep]/Mstep;
 
@@ -470,9 +468,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     // collide->Debug(tnow);
 
     unsigned medianNumb = collide->medianNumber();
+    unsigned collnum=0, coolnum=0;
     if (mfpstat) {
       collide->collQuantile(quant, coll_);
-      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, cool_, rate_);
+      collide->mfpsizeQuantile(quant, mfp_, ts_, nsel_, cool_, rate_,
+			       collnum, coolnum);
     }
 
     double ExesCOLL, ExesEPSM;
@@ -480,7 +480,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       
     if (frontier) {
       ostringstream sout;
-      sout << runtag << ".DSMC.frontier." << stepnum;
+      sout << runtag << ".DSMC_frontier";
       string filen = sout.str();
       c0->Tree()->testFrontier(filen);
     }
@@ -490,35 +490,54 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     if (mfpstat && myid==0) {
 
+				// Generate the file name
       ostringstream sout;
-      sout << runtag << ".DSMC.mfpstat." << stepnum;
+      sout << runtag << ".DSMC_mfpstat";
       string filen = sout.str();
-      ofstream out(filen.c_str());
-      if (out) {
-	  
-	out << setw(18) << "Quantiles: " 
-	    << setw(18) << "MFP/size"
-	    << setw(18) << "Flight/size"
-	    << setw(18) << "Collions/cell"
-	    << setw(18) << "Number/Nsel"
-	    << setw(18) << "Energy ratio"
-	    << setw(18) << "Excess ratio"
-	    << endl;
-	for (unsigned nq=0; nq<quant.size(); nq++)
-	  out << setw(18) << quant[nq] << ": " 
-	      << setw(18) << mfp_[nq] 
-	      << setw(18) << ts_[nq] 
-	      << setw(18) << coll_[nq] 
-	      << setw(18) << nsel_[nq] 
-	      << setw(18) << cool_[nq] 
-	      << setw(18) << rate_[nq] 
+
+				// Check for existence
+      ifstream in(filen.c_str());
+      if (in.fail()) {
+				// Write a new file
+	ofstream out(filen.c_str());
+	if (out) {
+	  out << left
+	      << setw(14) << "# Time"
+	      << setw(14) << "Quantiles" 
+	      << setw(14) << "Bodies"
+	      << setw(14) << "MFP/size"
+	      << setw(14) << "Flight/size"
+	      << setw(14) << "Collions/cell"
+	      << setw(14) << "Number/Nsel"
+	      << setw(14) << "Energy ratio"
+	      << setw(14) << "Excess ratio"
 	      << endl;
+	}
+      }
+      in.close();
+
+				// Open old file to write a stanza
+				// 
+      ofstream out(filen.c_str(), ios::app);
+      if (out) {
+	for (unsigned nq=0; nq<quant.size(); nq++) {
+	  out << setw(14) << tnow
+	      << setw(14) << quant[nq]
+	      << setw(14) << collnum
+	      << setw(14) << mfp_[nq] 
+	      << setw(14) << ts_[nq] 
+	      << setw(14) << coll_[nq] 
+	      << setw(14) << nsel_[nq] 
+	      << setw(14) << cool_[nq] 
+	      << setw(14) << rate_[nq] 
+	      << endl;
+	}
+	out << endl;
       }
     }
 
-				// Begin frontier iteration to add up KE
-    // pHOT_iterator ic(*c0->Tree());
-
+				// Overall statistics
+				// 
     double KEtot1=collide->Etotal(), KEtot=0.0;
     double Elost1, Elost2, ElostC=0.0, ElostE=0.0;
 
