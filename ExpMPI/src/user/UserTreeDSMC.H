@@ -25,6 +25,7 @@
     @param frontier enables printing of active cell list (for debugging)
     @param tsdiag enables printing gas time step diagnostics (for debugging)
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
+    @param cbadiag enables printing of length-scale statistics for the CBA algorithm (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
@@ -53,7 +54,7 @@ private:
   double coolfrac;
 
   bool frontier, tsdiag, mfpstat, use_multi, use_pullin, use_repair;
-  bool cba, dryrun, nocool, ntc;
+  bool cba, cbadiag, dryrun, nocool, ntc;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

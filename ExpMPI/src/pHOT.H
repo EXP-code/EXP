@@ -131,6 +131,8 @@ public:
   bool checkParticles(bool pc=true);
   bool checkDupes();
   bool checkFrontier();
+  double totalKE(double& KEtot, double& KEdsp);
+  void totalMass(unsigned& Counts, double& Mass);
   void checkIndices();
   void dumpFrontier();
   void densEmit(unsigned lev, pCell *p);

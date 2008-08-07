@@ -331,7 +331,9 @@ void pCell::zeroState()
 
 void pCell::accumState()
 {
-  unsigned count = 0;
+  count = 0;
+  for (int k=0; k<10; k++) state[k] = 0.0;
+
   set<unsigned>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
     state[0] += tree->cc->Particles()[*j].mass;

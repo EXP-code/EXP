@@ -87,6 +87,7 @@ CollideLTE::CollideLTE(double diameter, int Nth) : Collide(diameter, Nth)
 
 				// Energy diagnostics
   totalSoFar = 0.0;
+  massSoFar = 0.0;
   lostSoFar  = vector<double>(nthrds, 0.0);
 
   prec = vector<Precord>(nthrds);
@@ -115,6 +116,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   double smass = samp->Mass();	// Mass in sample cell
 
   totalSoFar += cmass*KEdsp;
+  massSoFar += cmass;
 
 				// Mean mass per particle
   double Mass = cmass * UserTreeDSMC::Munit;
@@ -270,13 +272,25 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
   int ret = 0;			// No error (flag)
 
 				// Reduced mass in system units
-  double Mu = p1->mass*p2->mass/(p1->mass + p2->mass);
+  double Mt = p1->mass + p2->mass;
+  double Mu = p1->mass*p2->mass/Mt;
 
 				// Energy floor
   double kE = 0.5*Mu*(*cr)*(*cr);
   double dE = kE*TolV*TolV;
   double remE = kE - dE;
   double delE = deltaE[id];
+
+				// Cooling rate diagnostic
+  if (TSDIAG) {
+    if (delE>0.0) {
+      int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
+      if (indx<0 ) indx = 0;
+      if (indx>10) indx = 10;
+      
+      EoverT[id][indx] += Mt;
+    }
+  }
 
   if (use_exes>=0) {
 				// (-/+) value means under/overcooled: 
@@ -309,18 +323,8 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
       if (ENSEXES) 		// Energy will be spread later
 	p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
       else {			// Energy excess incorporated now
-	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/(p1->mass+p2->mass);
-	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/(p1->mass+p2->mass);
-      }
-    }
-
-    if (TSDIAG) {
-      if (delE>0.0) {
-	int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
-	if (indx<0 ) indx = 0;
-	if (indx>10) indx = 10;
-
-	EoverT[id][indx] += p1->mass+p2->mass;
+	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/Mt;
+	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/Mt;
       }
     }
   }
@@ -333,6 +337,13 @@ double CollideLTE::Etotal()
 { 
   double ret = totalSoFar;
   totalSoFar = 0.0;
+  return ret; 
+}
+
+double CollideLTE::Mtotal()
+{ 
+  double ret = massSoFar;
+  massSoFar = 0.0;
   return ret; 
 }
 
@@ -535,6 +546,6 @@ void CollideLTE::list_sizes_proc(ostream* out)
        << setw(12) << nhisto2.size()
        << setw(12) << deltaE.size()
        << setw(12) << lostSoFar.size()
-       << setw(12) << (trho.size() ? trho[0].size() : (size_t)0)
+       << setw(12) << (trho.size()  ? trho[0].size()  : (size_t)0)
        << setw(12) << (tlist.size() ? tlist[0].size() : (size_t)0);
 }

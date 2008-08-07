@@ -29,6 +29,8 @@ bool Collide::NOCOOL = false;
 bool Collide::ENSEXES = true;
 				// Time step diagnostics
 bool Collide::TSDIAG = false;
+				// CBA length scale diagnostics
+bool Collide::CBADIAG = false;
 				// Mean free path diagnostics
 bool Collide::MFPDIAG = false;
 				// Sample based on maximum (true) or estimate
@@ -229,10 +231,20 @@ Collide::Collide(double diameter, int nth)
   tcool0 = vector<unsigned>(numdiag, 0);
   tcoolT = vector< vector<unsigned> > (nthrds);
 
+  if (CBADIAG) {
+    Cover  = vector<double>(numdiag, 0);
+    Cover1 = vector<double>(numdiag, 0);
+    Cover0 = vector<double>(numdiag, 0);
+    CoverT = vector< vector<double> > (nthrds);
+  }
+
   for (int n=0; n<nthrds; n++) {
     if (TSDIAG) {
       tdiagT[n] = vector<unsigned>(numdiag, 0);
       EoverT[n] = vector<double>(numdiag, 0);
+    }
+    if (CBADIAG) {
+      CoverT[n] = vector<double>(numdiag, 0);
     }
     tcoolT[n] = vector<unsigned>(numdiag, 0);
     tdispT[n] = vector<double>(3, 0);
@@ -607,6 +619,17 @@ void * Collide::collide_thread(void * arg)
 		displ = crel[k]*diamCBA/cr;
 		p1->pos[k] += displ;
 		p2->pos[k] -= displ;
+	      }
+
+	      if (CBADIAG) {
+
+		double rat = fabs(displ)/pow(volc,0.33333333);
+		int indx = (int)floor(log(rat)/log(4.0) + 5);
+
+		if (indx<0 ) indx = 0;
+		if (indx>10) indx = 10;
+
+		CoverT[id][indx] += tmass;
 	      }
 	    }
 	  }
@@ -1050,7 +1073,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Can't do anything if the gas has no mass
   if (mass<=0.0) return;
 
-  double Einternal = 0.0, Eratio;
+  double Einternal = 0.0, Enew;
   for (unsigned k=0; k<3; k++) {
     mvel[k] /= mass;
 				// Disp is variance here
@@ -1079,13 +1102,19 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// energy was removed by cooling last step
 				// 
   if (Einternal + Exes - Emin > coolrate[id]) {
-    Eratio = (Einternal + Exes - coolrate[id])/Einternal;
+    Enew = Einternal + Exes - coolrate[id];
   } else {
-    Eratio = min<double>(Emin, Einternal)/Einternal;
+    Enew = min<double>(Emin, Einternal);
+
+    decelT[id] += Einternal - Enew + Exes - coolrate[id];
 
     if (TSDIAG) {
       if (coolrate[id]-Exes>0.0) {
+	/*
 	int indx = (int)floor(log(Einternal/(coolrate[id]-Exes)) /
+			      (log(2.0)*TSPOW) + 5);
+	*/
+	int indx = (int)floor(log(Einternal/coolrate[id]) /
 			      (log(2.0)*TSPOW) + 5);
 	if (indx<0 ) indx = 0;
 	if (indx>10) indx = 10;
@@ -1095,18 +1124,14 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
     }
   }
 				// Compute the mean 1d vel.disp. from the
-				// distribution
-  double mdisp = 0.0;
-  for (unsigned k=0; k<3; k++) {
-    if (disp[k]>0.0) mdisp += disp[k];
-  }
-  mdisp = sqrt(Eratio*mdisp/3.0);
+				// new internal energy value
+  double mdisp = sqrt(Enew/mass/3.0);
 
 				// Sanity check
 				// 
   if (mdisp<=0.0 || isnan(mdisp) || isinf(mdisp)) {
     cout << "Process " << myid  << " id " << id 
-	 << ": crazy values, mdisp=" << mdisp << " Eratio=" << Eratio 
+	 << ": crazy values, mdisp=" << mdisp << " Enew=" << Enew
 	 << " Eint=" << Einternal << " nbods=" << nbods << endl;
     return;
   }
@@ -1293,8 +1318,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
 				// Record diagnostics
 				// 
-  lostSoFar_EPSM[id] += Einternal*(1.0 - Eratio);
-  decelT[id] += min<double>(Emin, Einternal) + Exes - coolrate[id];
+  lostSoFar_EPSM[id] += Einternal - Enew;
   epsm1T[id] += nbods;
   Nepsm1T[id]++;
 }
@@ -1381,6 +1405,7 @@ void Collide::colldeTime(ostream& out)
       << setw(18) << "Step count"   << stepcount    << endl
       << endl;
   
+#ifdef DEBUG
   out << left << setw(4) << "#"
       << setw(10) << "Init"
       << setw(10) << "Collide"
@@ -1391,8 +1416,10 @@ void Collide::colldeTime(ostream& out)
       << setw(10) << "Inelastic"
       << setw(10) << "Cell count"
       << endl;
+#endif
   
   for (int n=0; n<nthrds; n++) {
+#ifdef DEBUG
     out << setw(4) << n 
 	<< setw(10) << initSoFar[n]()*1.0e-6 
 	<< setw(10) << collSoFar[n]()*1.0e-6 
@@ -1412,6 +1439,7 @@ void Collide::colldeTime(ostream& out)
 	<< setw(10) << elasSoFar[n]()*1.0e-6/stepcount
 	<< setw(10) << collCnt[n]/stepcount << endl
 	<< endl << setprecision(2);
+#endif
     initTime[n].reset(); 
     collTime[n].reset(); 
     stat1Time[n].reset();
@@ -1433,51 +1461,84 @@ void Collide::tsdiag(ostream& out)
 {
   if (!TSDIAG) return;
 
-  out << "-----------------------------------------------------" << endl;
-  out << "-----Time step diagnostics---------------------------" << endl;
-  out << "-----------------------------------------------------" << endl;
-  out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
-      << setw(15) << "Size/Vel";
-  if (use_delt>=0) out << setw(15) << "Kinetic/Cool";
-  out << endl << setprecision(3);
-  out << "-----------------------------------------------------" << endl;
-  for (unsigned k=0; k<numdiag; k++) {
-    double rat = pow(4.0, -5.0+k);
-    out << setw(8)  << -10+2*static_cast<int>(k)
-	<< ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
-	<< setw(15) << rat
-	<< setw(15) << tdiag[k];
-    if (use_delt>=0) out << setw(15) << tcool[k];
-    out << endl;
-    tdiag[k] = 0;
-    if (use_delt>=0) tcool[k] = 0;
-  }
-  out << "-----------------------------------------------------" << endl;
-  out << left;
+  if (tdiag.size()==numdiag) {
 
-
-  double emass = 0.0;
-  for (unsigned k=0; k<numdiag; k++) emass += Eover[k];
-  if (emass>0.0) {
-    out << "-----Cooling rate diagnostics------------------------" << endl;
     out << "-----------------------------------------------------" << endl;
-    out << right << setw(8) << "2^n" << setw(15) << "Ratio"
-	<< setw(15) << "KE/Cool(%)" << endl;
+    out << "-----Time step diagnostics---------------------------" << endl;
     out << "-----------------------------------------------------" << endl;
-
+    out << right << setw(8) << "2^n" << setw(15) << "TS ratio"
+	<< setw(15) << "Size/Vel";
+    if (use_delt>=0) out << setw(15) << "Kinetic/Cool";
+    out << endl << setprecision(3);
+    out << "-----------------------------------------------------" << endl;
     for (unsigned k=0; k<numdiag; k++) {
-      double rat = pow(pow(2.0, TSPOW), -5.0+k);
-      double val = Eover[k]*100.0/emass;
-      out << setw(8)  << TSPOW*(-5 + static_cast<int>(k))
+      double rat = pow(4.0, -5.0+k);
+      out << setw(8)  << -10+2*static_cast<int>(k)
 	  << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
 	  << setw(15) << rat
-	  << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
-	  << setw(15) << val << endl;
-      Eover[k] = 0;
+	  << setw(15) << tdiag[k];
+      if (use_delt>=0) out << setw(15) << tcool[k];
+      out << endl;
+      tdiag[k] = 0;
+      if (use_delt>=0) tcool[k] = 0;
     }
     out << "-----------------------------------------------------" << endl;
+    out << left;
   }
-  out << left;
+
+
+  if (Eover.size()==numdiag) {
+
+    double emass = 0.0;
+    for (unsigned k=0; k<numdiag; k++) emass += Eover[k];
+    if (emass>0.0) {
+      out << "-----Cooling rate diagnostics------------------------" << endl;
+      out << "-----------------------------------------------------" << endl;
+      out << right << setw(8) << "2^n" << setw(15) << "Ratio"
+	  << setw(15) << "KE/Cool(%)" << endl;
+      out << "-----------------------------------------------------" << endl;
+      
+      for (unsigned k=0; k<numdiag; k++) {
+	double rat = pow(pow(2.0, TSPOW), -5.0+k);
+	double val = Eover[k]*100.0/emass;
+	out << setw(8)  << TSPOW*(-5 + static_cast<int>(k))
+	    << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	    << setw(15) << rat
+	    << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
+	    << setw(15) << val << endl;
+	Eover[k] = 0;
+      }
+      out << "-----------------------------------------------------" << endl;
+    }
+    out << left;
+  }
+
+  if (Cover.size()==numdiag) {
+
+    double cmass = 0.0;
+    for (unsigned k=0; k<numdiag; k++) cmass += Cover[k];
+    if (cmass>0.0) {
+      out << "-----CBA scale diagnostics--------------------------" << endl;
+      out << "-----------------------------------------------------" << endl;
+      out << right << setw(8) << "2^n" << setw(15) << "Ratio"
+	  << setw(15) << "Diam/Side(%)" << endl;
+      out << "-----------------------------------------------------" << endl;
+      
+      for (unsigned k=0; k<numdiag; k++) {
+	double rat = pow(4.0, -5.0+k);
+	double val = Cover[k]*100.0/cmass;
+	out << setw(8)  << -10+2*static_cast<int>(k)
+	    << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	    << setw(15) << rat
+	    << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
+	    << setw(15) << val << endl;
+	Cover[k] = 0;
+      }
+      out << "-----------------------------------------------------" << endl;
+    }
+    out << left;
+  }
+
 }
 
 
@@ -1661,6 +1722,7 @@ void Collide::pre_collide_diag()
 	tdiagT[n][k] = 0;
 	EoverT[n][k] = 0;
       }
+      if (CBADIAG)     CoverT[n][k] = 0;
       if (use_delt>=0) tcoolT[n][k] = 0;
     }
       
@@ -1669,6 +1731,9 @@ void Collide::pre_collide_diag()
   if (TSDIAG) {
     for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
     for (unsigned k=0; k<numdiag; k++) Eover1[k] = Eover0[k] = 0;
+  }
+  if (CBADIAG) {
+    for (unsigned k=0; k<numdiag; k++) Cover1[k] = Cover0[k] = 0;
   }
   if (use_delt>=0) 
     for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
@@ -1711,6 +1776,8 @@ unsigned Collide::post_collide_diag()
       for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
       for (unsigned k=0; k<numdiag; k++) Eover1[k] += EoverT[n][k];
     }
+    if (CBADIAG)
+      for (unsigned k=0; k<numdiag; k++) Cover1[k] += CoverT[n][k];
     if (use_delt>=0) 
       for (unsigned k=0; k<numdiag; k++) tcool1[k] += tcoolT[n][k];
   }
@@ -1760,6 +1827,10 @@ unsigned Collide::post_collide_diag()
     MPI_Reduce(&Eover1[0], &Eover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
   }
+  if (CBADIAG) {
+    MPI_Reduce(&Cover1[0], &Cover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+  }
   if (use_delt>=0)
     MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
@@ -1777,6 +1848,10 @@ unsigned Collide::post_collide_diag()
       Eover[k] += Eover0[k];
     }
   }
+  if (CBADIAG) {
+    for (unsigned k=0; k<numdiag; k++)
+      Cover[k] += Cover0[k];
+  }
   if (use_delt>=0)
     for (unsigned k=0; k<numdiag; k++) tcool[k] += tcool0[k];
   for (unsigned k=0; k<3; k++) disptot[k] += disp0[k];
@@ -1785,3 +1860,4 @@ unsigned Collide::post_collide_diag()
 
   return col;
 }
+

@@ -3135,3 +3135,56 @@ void pHOT::debug_ts(const char* msg)
   }
 }
 
+
+double pHOT::totalKE(double& KEtot, double& KEdsp)
+{
+  vector<double> state(10);
+
+  // Test
+  //
+  vector<double> state1(10, 0.0);
+
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
+    {
+      for (unsigned k=0; k<10; k++) 
+	state1[k] += it->second->state[k];
+    }
+
+  MPI_Reduce(&state1[0], &state[0], 10, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+  //
+  // End test
+
+  /*
+  MPI_Reduce(&(root->state[0]), &state[0], 10, MPI_DOUBLE, MPI_SUM,
+	     0, MPI_COMM_WORLD);
+  */
+
+  KEtot = KEdsp = 0.0;
+
+  double mass  = state[0];
+  double *vel2 = &state[1];
+  double *vel1 = &state[4];
+
+  if (mass>0.0) {
+    for (int k=0; k<3; k++) {
+      KEtot += 0.5*vel2[k];
+      KEdsp += 0.5*(vel2[k] - vel1[k]*vel1[k]/mass);
+    }
+
+    KEtot /= mass;
+    KEdsp /= mass;
+  }
+
+  return mass;
+}
+
+void pHOT::totalMass(unsigned& Counts, double& Mass)
+{
+  double mass1 = root->state[0];
+  unsigned count1 = root->count;
+
+  MPI_Reduce(&mass1,  &Mass,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&count1, &Counts, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+}
+

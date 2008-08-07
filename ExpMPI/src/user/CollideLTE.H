@@ -39,7 +39,7 @@ protected:
 
   // Diagnostic output
   //
-  double totalSoFar;
+  double totalSoFar, massSoFar;
   vector<double> lostSoFar;
 
   virtual void list_sizes();
@@ -62,10 +62,11 @@ public:
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
 
   virtual double Etotal();
+  virtual double Mtotal();
+
   virtual void Elost(double* collide, double* epsm);
 
   void Debug(double t);
-
 };
 
 #endif

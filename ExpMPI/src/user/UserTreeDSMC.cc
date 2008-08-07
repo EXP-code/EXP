@@ -23,7 +23,7 @@ using namespace std;
 
 static double pc = 3.086e18;		// cm
 static double a0 = 2.0*0.054e-7;	// cm (2xBohr radius)
-// static double boltz = 1.381e-16;	// cgs
+static double boltz = 1.381e-16;	// cgs
 // static double year = 365.25*24*3600;	// seconds
 static double mp = 1.67e-24;		// g
 static double msun = 1.989e33;		// g
@@ -58,6 +58,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   tsdiag   = false;
   tspow    = 4;
   mfpstat  = false;
+  cbadiag  = false;
   dryrun   = false;
   nocool   = false;
   use_multi = false;
@@ -147,15 +148,16 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
-  Collide::NTC    = ntc;
-  Collide::CBA    = cba;
-  Collide::PULLIN = use_pullin;
-  Collide::CNUM   = cnum;
+  Collide::NTC     = ntc;
+  Collide::CBA     = cba;
+  Collide::CBADIAG = cbadiag;
+  Collide::PULLIN  = use_pullin;
+  Collide::CNUM    = cnum;
   Collide::EPSMratio = epsm;
-  Collide::DRYRUN = dryrun;
-  Collide::NOCOOL = nocool;
-  Collide::TSDIAG = tsdiag;
-  Collide::TSPOW  = tspow;
+  Collide::DRYRUN  = dryrun;
+  Collide::NOCOOL  = nocool;
+  Collide::TSDIAG  = tsdiag;
+  Collide::TSPOW   = tspow;
   Collide::MFPDIAG = mfpstat;
 				// Create the collision instance
   collide = new CollideLTE(diam, nthrds);
@@ -218,6 +220,10 @@ void UserTreeDSMC::userinfo()
   if (nocool)      cout << ", cooling disabled";
   if (ntc)         cout << ", using NTC";
   else             cout << ", NTC disabled";
+  if (cba)         cout << ", using CBA";
+  else             cout << ", CBA disabled";
+  if (cba && cbadiag)     
+                   cout << " with diagnostics";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -254,6 +260,7 @@ void UserTreeDSMC::initialize()
   if (get_value("tspow", val))		tspow = atoi(val.c_str());
   if (get_value("tsdiag", val))		tsdiag = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
+  if (get_value("cbadiag", val))	cbadiag = atoi(val.c_str()) ? true : false;
   if (get_value("dryrun", val))		dryrun = atoi(val.c_str()) ? true : false;
   if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
@@ -538,17 +545,29 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 				// Overall statistics
 				// 
-    double KEtot1=collide->Etotal(), KEtot=0.0;
+    double KEtotl=collide->Etotal(), KEtot=0.0;
+    double Mtotal=collide->Mtotal(), Mtotl=0.0;
     double Elost1, Elost2, ElostC=0.0, ElostE=0.0;
 
     collide->Elost(&Elost1, &Elost2);
 
-    MPI_Reduce(&KEtot1, &KEtot,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&KEtotl, &KEtot,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Mtotal, &Mtotl,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost1, &ElostC, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+				// Computing mass-weighted temperature
+    const double f_H = 0.76;
+    double mm = f_H*mp + (1.0-f_H)*4.0*mp;
+    double meanT = 0.0;
+    if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
+
     unsigned cellBods = c0->Tree()->checkNumber();
     unsigned oobBods  = c0->Tree()->oobNumber();
+
+    double Mass;
+    unsigned Counts;
+    c0->Tree()->totalMass(Counts, Mass);
 
     if (myid==0) {
 
@@ -567,7 +586,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       ofstream mout(sout.str().c_str(), ios::app);
 
       mout << "Summary:" << endl << left << "--------" << endl << scientific
-	   << setw(6) << " " << setw(20) << tnow << "current time" << endl
+	   << setw(6) << " " << setw(20) << tnow  << "current time" << endl
+	   << setw(6) << " " << setw(20) << Counts << "total counts" << endl
+	   << setw(6) << " " << setw(20) << Mass << "total mass" << endl
+	   << setw(6) << " " << setw(20) << meanT << "mass-weighted temperature" << endl
 	   << setw(6) << " " << setw(20) << stepnum << "step number" << endl
 	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl

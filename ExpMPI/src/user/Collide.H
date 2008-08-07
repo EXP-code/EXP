@@ -107,11 +107,12 @@ protected:
   std::vector<double> KEtotT, KElostT, tmassT, decolT, decelT, exesCT, exesET;
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, keratT, deratT;
-  std::vector< vector<double> > tdeltT, tdispT, EoverT;
+  std::vector< vector<double> > tdeltT, tdispT, EoverT, CoverT;
   const static unsigned numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
   std::vector<unsigned> tcool, tcool1, tcool0;
   std::vector<double>   Eover, Eover1, Eover0;
+  std::vector<double>   Cover, Cover1, Cover0;
   std::vector< vector<unsigned> > tdiagT, tcoolT;
 
   std::vector< vector<pCell*> > cellist;
@@ -131,7 +132,7 @@ protected:
   int use_temp, use_dens, use_delt, use_exes;
 
   virtual void initialize_cell(pCell* cell, double vrelmax,
-			       double dt, double number, int id=0) { }
+			       double dt, double number, int id=0) {}
 
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
@@ -156,6 +157,7 @@ protected:
   vector<TimeElapsed> initSoFar, collSoFar, elasSoFar;
   vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar;
   vector<int> collCnt;
+
 
 public:
 
@@ -186,6 +188,7 @@ public:
 				// from variance (false);
 
   static bool TSDIAG;	        // Accumulate time step diagnostics (default: false)
+  static bool CBADIAG;	        // Accumulate length scale diagnostics for the DBA algorithm (default: false)
   static int TSPOW;	        // Power of two interval for ke/cool ratio histogram (default: 4)
 
   static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
@@ -226,8 +229,9 @@ public:
   void dispersion(vector<double>& disp);
 
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
+  virtual double Mtotal() { cerr << "Oops [2]" << endl; return 0.0; }
   virtual void Elost(double* collide, double* epsm)  
-  { cerr << "Oops [2]" << endl; *collide=0; *epsm=0; }
+  { cerr << "Oops [3]" << endl; *collide=0; *epsm=0; }
 
   /// Collision thread
   //@{
