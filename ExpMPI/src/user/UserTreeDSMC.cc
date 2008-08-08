@@ -515,7 +515,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	      << setw(14) << "MFP/size"
 	      << setw(14) << "Flight/size"
 	      << setw(14) << "Collions/cell"
-	      << setw(14) << "Number/Nsel"
+	      << setw(14) << "Nsel/Number"
 	      << setw(14) << "Energy ratio"
 	      << setw(14) << "Excess ratio"
 	      << endl;
@@ -586,11 +586,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       ofstream mout(sout.str().c_str(), ios::app);
 
       mout << "Summary:" << endl << left << "--------" << endl << scientific
-	   << setw(6) << " " << setw(20) << tnow  << "current time" << endl
-	   << setw(6) << " " << setw(20) << Counts << "total counts" << endl
-	   << setw(6) << " " << setw(20) << Mass << "total mass" << endl
-	   << setw(6) << " " << setw(20) << meanT << "mass-weighted temperature" << endl
-	   << setw(6) << " " << setw(20) << stepnum << "step number" << endl
+	   << setw(6) << " " << setw(20) << tnow       << "current time" << endl
+	   << setw(6) << " " << setw(20) << Counts     << "total counts" << endl
+	   << setw(6) << " " << setw(20) << Mass       << "total mass" << endl
+	   << setw(6) << " " << setw(20) << meanT      << "mass-weighted temperature" << endl
+	   << setw(6) << " " << setw(20) << stepnum    << "step number" << endl
 	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
 	   << setw(6) << " " << setw(20) << coll_error << "collision errors (" 
@@ -616,9 +616,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << "%)" << scientific << endl;
 
       if (mfpstat) {
-	mout << setw(6) << " " << setw(20) << nsel_[1] << "body/collision @ 5%" << endl
-	     << setw(6) << " " << setw(20) << nsel_[4] << "body/collision @ 50%" << endl
-	     << setw(6) << " " << setw(20) << nsel_[7] << "body/collision @ 95%" << endl;
+	mout << setw(6) << " " << setw(20) << nsel_[1] << "collision/body @ 5%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[4] << "collision/body @ 50%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[7] << "collision/body @ 95%" << endl;
 
 	mout << fixed << setprecision(0)
 	     << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl

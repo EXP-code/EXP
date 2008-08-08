@@ -444,6 +444,8 @@ void * Collide::collide_thread(void * arg)
     //
     double mass = c->Mass();
 
+    if (mass <= 0.0) continue;
+
     // Fiducial cross section
     //
     diam = diam0;
@@ -507,7 +509,7 @@ void * Collide::collide_thread(void * arg)
     }
 				// Number per selection ratio
     if (MFPDIAG)
-      tselnT[id].push_back(static_cast<double>(number)/select);
+      tselnT[id].push_back(select/number);
 
     stat2SoFar[id] = stat2Time[id].stop();
     
