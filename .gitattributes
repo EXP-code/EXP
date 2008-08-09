@@ -6,4 +6,7 @@ ExpMPI/doc/multistep.doc -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
 ExpMPI/src/MixtureSL.H -text
+ExpMPI/src/user/UserReflect.H -text
+ExpMPI/src/user/UserReflect.cc -text
 ExpMPI/utils/ICs/Particle.cc -text
+ExpMPI/utils/ICs/bonnerebert.cc -text

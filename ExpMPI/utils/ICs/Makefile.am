@@ -24,7 +24,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk shrinkics gendisk2
+bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere
 
 shrinkics_SOURCES = shrinkics.cc
 
@@ -35,6 +35,8 @@ gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
 gendisk2_SOURCES =  initial2.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
+
+gsphere_SOURCES = bonnerebert.cc
 
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
