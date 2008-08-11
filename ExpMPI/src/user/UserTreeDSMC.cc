@@ -180,15 +180,17 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Quantiles for distribution diagnstic
   //
-  quant.push_back(0.01);
-  quant.push_back(0.05);
-  quant.push_back(0.1);
-  quant.push_back(0.2);
-  quant.push_back(0.5);
-  quant.push_back(0.8);
-  quant.push_back(0.9);
-  quant.push_back(0.95);
-  quant.push_back(0.99);
+  quant.push_back(0.0);		// 0
+  quant.push_back(0.01);	// 1
+  quant.push_back(0.05);	// 2
+  quant.push_back(0.1);		// 3
+  quant.push_back(0.2);		// 4
+  quant.push_back(0.5);		// 5
+  quant.push_back(0.8);		// 6
+  quant.push_back(0.9);		// 7
+  quant.push_back(0.95);	// 8
+  quant.push_back(0.99);	// 9
+  quant.push_back(1.0);		// 10
 
   userinfo();
 }
@@ -569,6 +571,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     unsigned Counts;
     c0->Tree()->totalMass(Counts, Mass);
 
+				// Check frontier for mass at or below 
+				// current level
+    double cmass1=0.0, cmass=0.0;
+    pHOT_iterator pit(*(c0->Tree()));
+
+    while (pit.nextCell()) {
+      pCell *cc = pit.Cell();
+      if (cc->maxplev >= mlevel && cc->count > 1) cmass1 += cc->state[0];
+    }
+
+    MPI_Reduce(&cmass1, &cmass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
     if (myid==0) {
 
       unsigned sell_total = collide->select();
@@ -590,6 +604,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(6) << " " << setw(20) << Counts     << "total counts" << endl
 	   << setw(6) << " " << setw(20) << Mass       << "total mass" << endl
 	   << setw(6) << " " << setw(20) << meanT      << "mass-weighted temperature" << endl
+	   << setw(6) << " " << setw(20) << Mtotl      << "mass at this level [" << mlevel << "], expected=" << cmass <<  endl
 	   << setw(6) << " " << setw(20) << stepnum    << "step number" << endl
 	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl
@@ -616,20 +631,34 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << "%)" << scientific << endl;
 
       if (mfpstat) {
-	mout << setw(6) << " " << setw(20) << nsel_[1] << "collision/body @ 5%" << endl
-	     << setw(6) << " " << setw(20) << nsel_[4] << "collision/body @ 50%" << endl
-	     << setw(6) << " " << setw(20) << nsel_[7] << "collision/body @ 95%" << endl;
+	mout << setw(6) << " " << setw(20) << "--------" << "--------------------" << endl
+	     << setw(6) << " " << setw(20) << nsel_[0] << "collision/body @  0%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[2] << "collision/body @  5%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[5] << "collision/body @ 50%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[8] << "collision/body @ 95%" << endl
+	     << setw(6) << " " << setw(20) << nsel_[10] << "collision/body @100%" << endl;
 
 	mout << fixed << setprecision(0)
-	     << setw(6) << " " << setw(20) << coll_[1] << "collision/cell @ 5%" << endl
-	     << setw(6) << " " << setw(20) << coll_[4] << "collision/cell @ 50%" << endl
-	     << setw(6) << " " << setw(20) << coll_[7] << "collision/cell @ 95%" << endl
+	     << setw(6) << " " << setw(20) << "--------" << "--------------------" << endl
+
+	     << setw(6) << " " << setw(20) << coll_[0] << "collision/cell @  0%" << endl
+	     << setw(6) << " " << setw(20) << coll_[2] << "collision/cell @  5%" << endl
+	     << setw(6) << " " << setw(20) << coll_[5] << "collision/cell @ 50%" << endl
+	     << setw(6) << " " << setw(20) << coll_[8] << "collision/cell @ 95%" << endl
+	     << setw(6) << " " << setw(20) << coll_[10] << "collision/cell @100%" << endl
+	     << setw(6) << " " << setw(20) << "--------" << "--------------------" << endl
+
+	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.0) 
+	     << "occupation @  0%" << endl
 	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.05) 
-	     << "occupation @ 5%" << endl
+	     << "occupation @  5%" << endl
 	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.50) 
 	     << "occupation @ 50%" << endl
 	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(0.95) 
 	     << "occupation @ 95%" << endl
+	     << setw(6) << " " << setw(20) << c0->Tree()->CellCount(1.0) 
+	     << "occupation @100%" << endl
+	     << setw(6) << " " << setw(20) << "--------" << "--------------------" << endl
 	     << setw(6) << " " << setw(20) << cellBods
 	     << "total number in cells" << endl
 	     << endl << setprecision(4);

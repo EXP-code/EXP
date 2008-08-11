@@ -185,7 +185,9 @@ public:
     if (first) first = false;
     else       fit++;
     if (fit==tr->frontier.end()) {
+#ifdef DEBUG
       cout << "End of cell list!" << endl;
+#endif
       return 0;
     }
     return fit->second->bods.size(); 
@@ -193,7 +195,9 @@ public:
 
   pCell* Cell() { 
     if (fit==tr->frontier.end()) {
+#ifdef DEBUG
       cout << "No cell!" << endl;
+#endif
       return 0;
     }
     return fit->second; 

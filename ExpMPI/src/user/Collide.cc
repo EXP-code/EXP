@@ -753,24 +753,25 @@ unsigned Collide::medianColl()
 
   if (myid==0) {
     unsigned num;
+    vector<unsigned> coltmp(colcnt);
     for (int n=1; n<numprocs; n++) {
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
       vector<unsigned> tmp(num);
       MPI_Recv(&tmp[0], num, MPI_UNSIGNED, n, 40, MPI_COMM_WORLD, &s);
-      colcnt.insert(colcnt.end(), tmp.begin(), tmp.end());
+      coltmp.insert(coltmp.end(), tmp.begin(), tmp.end());
     }
 
-    std::sort(colcnt.begin(), colcnt.end()); 
+    std::sort(coltmp.begin(), coltmp.end()); 
 
     if (EXTRA) {
       ostringstream ostr;
       ostr << runtag << ".colcnt";
       ofstream out(ostr.str().c_str());
-      for (unsigned j=0; j<colcnt.size(); j++)
-	out << setw(8) << j << setw(18) << colcnt[j] << endl;
+      for (unsigned j=0; j<coltmp.size(); j++)
+	out << setw(8) << j << setw(18) << coltmp[j] << endl;
     }
 
-    return colcnt[colcnt.size()/2]; 
+    return coltmp[coltmp.size()/2]; 
 
   } else {
     unsigned num = colcnt.size();
@@ -787,18 +788,21 @@ void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
 
   if (myid==0) {
     unsigned num;
+    vector<unsigned> coltmp(colcnt);
     for (int n=1; n<numprocs; n++) {
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
       vector<unsigned> tmp(num);
       MPI_Recv(&tmp[0], num, MPI_UNSIGNED, n, 40, MPI_COMM_WORLD, &s);
-      colcnt.insert(colcnt.end(), tmp.begin(), tmp.end());
+      coltmp.insert(coltmp.end(), tmp.begin(), tmp.end());
     }
 
-    std::sort(colcnt.begin(), colcnt.end()); 
+    std::sort(coltmp.begin(), coltmp.end()); 
 
-    coll_ = vector<double>(quantiles.size());
-    for (unsigned j=0; j<quantiles.size(); j++)
-      coll_[j] = colcnt[(unsigned)floor(quantiles[j]*colcnt.size())];
+    coll_ = vector<double>(quantiles.size(), 0);
+    if (coltmp.size()) {
+      for (unsigned j=0; j<quantiles.size(); j++)
+	coll_[j] = coltmp[Qi(quantiles[j],coltmp.size())];
+    }
 
     ostringstream ostr;
     ostr << runtag << ".coll_counts";
@@ -814,17 +818,12 @@ void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
     }
 
     ofstream out(ostr.str().c_str(), ios::app);
-    out << setw(14) << tnow
-	<< setw(10) << 0.0
-	<< setw(10) << colcnt.front() << endl;
     for (unsigned j=0; j<quantiles.size(); j++) {
       out << setw(14) << tnow
 	  << setw(10) << quantiles[j] 
 	  << setw(10) << coll_[j] << endl;
     }
-    out << setw(14) << tnow
-	<< setw(10) << 1.0
-	<< setw(10) << colcnt.back() << endl << endl;
+    out << endl;
     
   } else {
     unsigned num = colcnt.size();
@@ -847,28 +846,47 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 
   if (myid==0) {
     unsigned nmb, num;
+
+				// Temporaries so we don't touch the
+				// root node's counters
+
+    vector<Precord> phsI(tphase), mfpI(tmfpst);
+    vector<double>  ratI(tsrat), denI(tdens), volI(tvolc);
+    vector<double>  temI(ttemp), selI(tseln), kerI(kerat);
+    vector<double>  delI(tdelt), derI(derat);
+
+
     for (int n=1; n<numprocs; n++) {
       MPI_Recv(&nmb, 1, MPI_UNSIGNED, n, 38, MPI_COMM_WORLD, &s);
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
-      vector<double> tmb(nmb), tmp(num);
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
-      tsrat.insert(tsrat.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
-      tdens.insert(tdens.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
-      tvolc.insert(tvolc.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
-      ttemp.insert(ttemp.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
-      tdelt.insert(tdelt.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
-      tseln.insert(tseln.end(), tmp.begin(), tmp.end());
-      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
-      kerat.insert(kerat.end(), tmb.begin(), tmb.end());
-      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
-      derat.insert(derat.end(), tmb.begin(), tmb.end());
 
-      vector<Precord> tmp2(num);
+      vector<double> tmb(nmb), tmp(num);
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
+      ratI.insert(ratI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 41, MPI_COMM_WORLD, &s);
+      denI.insert(denI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
+      volI.insert(volI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      temI.insert(temI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
+      delI.insert(delI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
+      selI.insert(selI.end(), tmp.begin(), tmp.end());
+
+      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 46, MPI_COMM_WORLD, &s);
+      kerI.insert(kerI.end(), tmb.begin(), tmb.end());
+
+      MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
+      derI.insert(derI.end(), tmb.begin(), tmb.end());
+
+      vector<Precord> tmp2(num), phsI(tphase);
 
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
@@ -881,7 +899,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
-      tphase.insert(tphase.end(), tmp2.begin(), tmp2.end());
+      phsI.insert(phsI.end(), tmp2.begin(), tmp2.end());
 
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+Nphase, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
@@ -894,22 +912,24 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 50+Nphase+l, MPI_COMM_WORLD, &s);
 	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
       }
-      tmfpst.insert(tmfpst.end(), tmp2.begin(), tmp2.end());
+      mfpI.insert(mfpI.end(), tmp2.begin(), tmp2.end());
     }
 
-    std::sort(tsrat.begin(),  tsrat.end()); 
-    std::sort(tdens.begin(),  tdens.end()); 
-    std::sort(tvolc.begin(),  tvolc.end()); 
-    std::sort(ttemp.begin(),  ttemp.end()); 
-    std::sort(tdelt.begin(),  tdelt.end()); 
-    std::sort(tseln.begin(),  tseln.end()); 
-    std::sort(tphase.begin(), tphase.end());
-    std::sort(tmfpst.begin(), tmfpst.end());
-    std::sort(kerat.begin(),  kerat.end());
-    std::sort(derat.begin(),  derat.end());
+				// Sort the counters in prep for quantiles
+				// 
+    std::sort(ratI.begin(),  ratI.end()); 
+    std::sort(denI.begin(),  denI.end()); 
+    std::sort(volI.begin(),  volI.end()); 
+    std::sort(temI.begin(),  temI.end()); 
+    std::sort(delI.begin(),  delI.end()); 
+    std::sort(selI.begin(),  selI.end()); 
+    std::sort(phsI.begin(),  phsI.end());
+    std::sort(mfpI.begin(),  mfpI.end());
+    std::sort(kerI.begin(),  kerI.end());
+    std::sort(derI.begin(),  derI.end());
 
-    collnum = tseln.size();
-    coolnum = kerat.size();
+    collnum = selI.size();
+    coolnum = kerI.size();
 
     mfp_  = vector<double>(quantiles.size());
     ts_   = vector<double>(quantiles.size());
@@ -917,24 +937,24 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     cool_ = vector<double>(quantiles.size());
     rate_ = vector<double>(quantiles.size());
     for (unsigned j=0; j<quantiles.size(); j++) {
-      if (tmfpst.size())
-	mfp_[j]  = tmfpst[(unsigned)floor(quantiles[j]*tmfpst.size())].first;
+      if (mfpI.size())
+	mfp_[j]  = mfpI [Qi(quantiles[j],mfpI.size())].first;
       else
 	mfp_[j] = 0;
-      if (tsrat.size())
-	ts_[j]   = tsrat [(unsigned)floor(quantiles[j]*tsrat.size()) ];
+      if (ratI.size())
+	ts_[j]   = ratI [Qi(quantiles[j],ratI.size()) ];
       else
 	ts_[j]   = 0;
-      if (tseln.size())
-	coll_[j] = tseln [(unsigned)floor(quantiles[j]*tseln.size()) ];
+      if (selI.size())
+	coll_[j] = selI [Qi(quantiles[j],selI.size()) ];
       else
 	coll_[j] = 0;
-      if (kerat.size())
-	cool_[j] = kerat [(unsigned)floor(quantiles[j]*kerat.size()) ];
+      if (kerI.size())
+	cool_[j] = ratI [Qi(quantiles[j],kerI.size()) ];
       else
 	cool_[j] = 0;
-      if (derat.size())
-	rate_[j] = derat [(unsigned)floor(quantiles[j]*derat.size()) ];
+      if (derI.size())
+	rate_[j] = derI [Qi(quantiles[j],derI.size()) ];
       else
 	rate_[j] = 0;
     }
@@ -960,20 +980,20 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       out << "# " << setw(6) << 1;
       for (unsigned k=2; k<13; k++) out << "| " << setw(16) << k;
       out << endl;
-      for (unsigned j=0; j<tmfpst.size(); j++)
+      for (unsigned j=0; j<mfpI.size(); j++)
 	out << setw(8) << j 
-	    << setw(18) << tmfpst[j].first
-	    << setw(18) << tmfpst[j].second[0]
-	    << setw(18) << tmfpst[j].second[1]
-	    << setw(18) << tmfpst[j].second[2]
-	    << setw(18) << tmfpst[j].second[3]
-	    << setw(18) << tmfpst[j].second[4]
-	    << setw(18) << tsrat[j] 
-	    << setw(18) << tdens[j] 
-	    << setw(18) << tvolc[j] 
-	    << setw(18) << ttemp[j] 
-	    << setw(18) << tdelt[j] 
-	    << setw(18) << tseln[j] 
+	    << setw(18) << mfpI[j].first
+	    << setw(18) << mfpI[j].second[0]
+	    << setw(18) << mfpI[j].second[1]
+	    << setw(18) << mfpI[j].second[2]
+	    << setw(18) << mfpI[j].second[3]
+	    << setw(18) << mfpI[j].second[4]
+	    << setw(18) << ratI[j] 
+	    << setw(18) << denI[j] 
+	    << setw(18) << volI[j] 
+	    << setw(18) << temI[j] 
+	    << setw(18) << delI[j] 
+	    << setw(18) << selI[j] 
 	    << endl;
     }
 
@@ -992,10 +1012,10 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       out << "# " << setw(6) << 1;
       for (unsigned k=2; k<7; k++) out << "| " << setw(16) << k;
       out << endl;
-      for (unsigned j=0; j<tphase.size(); j++) {
-	out << setw(8) << j << setw(18) << tphase[j].first;
+      for (unsigned j=0; j<phsI.size(); j++) {
+	out << setw(8) << j << setw(18) << phsI[j].first;
 	for (unsigned k=0; k<Nphase; k++) 
-	  out << setw(18) << tphase[j].second[k];
+	  out << setw(18) << phsI[j].second[k];
 	out << endl;
       }
     }

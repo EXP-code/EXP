@@ -71,6 +71,7 @@ static struct option const long_options[] =
   {"temp",    required_argument, 0,    'T'},
   {"runit",   required_argument, 0,    'R'},
   {"number",  required_argument, 0,    'N'},
+  {"msun",    required_argument, 0,    'M'},
   {"help",    no_argument,       0,    'h'},
   {"version", no_argument,       0,    'V'},
   {NULL,      0,                 NULL,  0 }
@@ -78,9 +79,11 @@ static struct option const long_options[] =
 
 static int decode_switches (int argc, char **argv);
 
+
 double X = 1000.0;
 double h = 0.01;
-double M = 1.0;			// units of 10^10 solar masses
+double Nmsun = 1.0e12;		// Number of solar masses per unit
+double M = 1.0;			// units of 10^12 (Nmsun) solar masses
 double ratio = 14.0;		// rho_c/rho_t
 double T = 10000.0;		// degrees kelvin
 double R = 300.0;		// Unit dimension in kpc
@@ -260,7 +263,7 @@ main (int argc, char **argv)
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double cs2 = boltz*T/mm;
 
-  double Pt = mt*cs2*cs2/(pow(G, 1.5)*M*1e10*msun); Pt *= Pt;
+  double Pt = mt*cs2*cs2/(pow(G, 1.5)*M*Nmsun*msun); Pt *= Pt;
   double Rhot = Pt/cs2;
   double Rhoc = Rhot*ratio;
 
@@ -269,7 +272,7 @@ main (int argc, char **argv)
 				// solar masses/kpc^3
   double rhofac = Rhoc*pow(1.0e3*pc, 3.0)/msun;
 				// in units of 10^10 solar masses
-  double mfac   = cs2*cs2/(sqrt(Pt)*pow(G, 1.5))/(1e10*msun);
+  double mfac   = cs2*cs2/(sqrt(Pt)*pow(G, 1.5))/(Nmsun*msun);
 
   if (N==0) {
 
@@ -287,7 +290,7 @@ main (int argc, char **argv)
   } else {
 
 				// Circ velocity unit at edge in cgs
-    double vcirc = sqrt(G*M*1.0e10*msun/(R*1e3*pc));
+    double vcirc = sqrt(G*M*Nmsun*msun/(R*1e3*pc));
     double vfac = sqrt(cs2)/vcirc;
 
     ACG gen(S);
@@ -351,6 +354,7 @@ decode_switches (int argc, char **argv)
 			   "T:"	/* temp    */
 			   "R:"	/* runit   */
 			   "N:"	/* number  */
+			   "M:"	/* msun  */
 			   "S:"	/* seed    */
 			   "h"	/* help    */
 			   "V",	/* version */
@@ -375,6 +379,9 @@ decode_switches (int argc, char **argv)
 	  break;
 	case 'm':		/* --mass */
 	  M = atof(optarg);
+	  break;
+	case 'M':		/* --msun */
+	  Nmsun = atof(optarg);
 	  break;
 	case 'T':		/* --temp */
 	  T = atof(optarg);

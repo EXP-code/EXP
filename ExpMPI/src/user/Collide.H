@@ -85,7 +85,14 @@ private:
   Timer forkTime, snglTime, waitTime, joinTime, diagTime;
   TimeElapsed forkSoFar, snglSoFar, waitSoFar;
   TimeElapsed diagSoFar, joinSoFar;
-
+  
+  // Quantile index function
+  //
+  unsigned Qi(double q, unsigned sz) {
+    if (q>=1.0) return sz-1;
+    if (q<=0.0) return 0;
+    return (unsigned)floor(q*sz);
+  }
 
 protected:
 
