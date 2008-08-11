@@ -310,7 +310,7 @@ main (int argc, char **argv)
   } else {
 
 				// Circ velocity unit at edge in cgs
-    double vcirc = sqrt(G*M*1.0e10*msun/(R*1e3*pc));
+    double vcirc = sqrt(G*M*Munit*msun/(R*1e3*pc));
     double vfac = sqrt(cs2)/vcirc;
 
     ACG gen(S);
