@@ -87,6 +87,7 @@
 
 #include <norminv.H>
 
+#define M_SQRT1_3 (0.5773502691896257645091487)
 
                                 // For debugging
 #ifdef DEBUG
@@ -814,7 +815,7 @@ main(int argc, char **argv)
     //
     double mm   = f_H*m_p + (1.0-f_H)*4.0*m_p;
     double vthermal = sqrt( (boltz*T)/mm ) / Vunit;
-    double vmin2 = (boltz*Tmin/mm) / Vunit;
+    double vmin2 = (boltz*Tmin/mm) / (Vunit*Vunit);
 
     // Compute using Jeans theorem
     //
@@ -823,8 +824,7 @@ main(int argc, char **argv)
     double zmin = 0.001*scale_height;
     int nrint = 200;
     int nzint = 400;
-    vector< vector<double> > zrho, zmas;
-    vector<double> vcirc;
+    vector< vector<double> > zrho, zmas, vcir;
     double r, R, dR = (rmax - rmin)/(nrint-1);
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
 
@@ -835,15 +835,16 @@ main(int argc, char **argv)
       for (int i=0; i<nrint; i++) {
 	R = rmin + dR*i;
 
-	vector<double> lrho(nzint), trho(nzint), tmas(nzint, 0);
+	vector<double> lrho(nzint), trho(nzint), tcir(nzint), tmas(nzint, 0);
 
 	for (int j=0; j<nzint; j++) {
 	  z = zmin*exp(dz*j);
 	  r = sqrt(R*R + z*z);
 	  
-	  double pot=0.0, fzt0=0.0;
+	  double pot=0.0, frt0=0.0, fzt0=0.0;
 	  if (expandd) {
-	    expandd->accumulated_eval(R, 0, z, p0, p, fr, fz, fp);
+	    expandd->accumulated_eval(R, z, 0, p0, p, fr, fz, fp);
+	    frt0 += -fr;
 	    fzt0 += -fz;
 	    pot += p0;
 	  }
@@ -852,11 +853,13 @@ main(int argc, char **argv)
 					       &dens, &potl, 
 					       &potr, &pott, &potp);
 	    
+	    frt0 += potr;
 	    fzt0 += (potr*z + pott*R*R/(r*r))/r;
 	    pot += potl;
 	  }
 	  
 	  trho[j] = fzt0*scale_height;
+	  tcir[j] = sqrt(max<double>(R*frt0-R*trho[j]/scale_length, 0.0));
 	}
 	
 	for (int j=0; j<nzint; j++) 
@@ -864,42 +867,16 @@ main(int argc, char **argv)
 	
 	zrho.push_back(trho);
 	zmas.push_back(tmas);
-
-	double pot0=0.0, frt0=0.0;
-	if (expandd) {
-	  expandd->accumulated_eval(R, 0, 0, p0, p, fr, fz, fp);
-	  pot0 += p0;
-	  frt0 += -fr;
-	}
-	if (expandh) {
-	  expandh->determine_fields_at_point(R, acos(0.0), 0.0,
-					     &dens, &potl, 
-					     &potr, &pott, &potp);
-	  pot0 += potl;
-	  frt0 += potr;
-	}
-
-	vcirc.push_back(sqrt(max<double>(R*frt0-R*trho[0]/scale_length, 0.0)));
+	vcir.push_back(tcir);
       }
 
-      //
-      // Vcirc table
-      //
-      cout << "Writing vcirc.dat [gas] . . . " << flush;
-      ofstream ttest("vcirc.dat");
-      for (int i=0; i<nrint; i++) {
-	ttest << setw(15) << rmin + dR*i
-	      << setw(15) << vcirc[i]
-	      << endl;
-      }
-      ttest.close();
-      cout << "done" << endl;
-      
       //
       // Vertical table
       //
-      cout << "Writing ztable.dat [gas] . . . " << flush;
-      ofstream ztest("ztable.dat");
+      string ztable("ztable.dat");
+      cout << "Writing " << setw(15) << right << ztable
+	   << " [gas] . . . " << flush;
+      ofstream ztest(ztable.c_str());
       for (int i=0; i<nrint; i++) {
 	for (int j=0; j<nzint; j++) {
 	  ztest << setw(15) << rmin + dR*i
@@ -907,6 +884,7 @@ main(int argc, char **argv)
 		<< setw(15) << zrho[i][j]
 		<< setw(15) << zrho[i][j]*Vunit*Vunit*mm/boltz
 		<< setw(15) << zmas[i][j]
+		<< setw(15) << vcir[i][j]
 		<< endl;
 	}
 	ztest << endl;
@@ -919,44 +897,30 @@ main(int argc, char **argv)
       for (int i=0; i<nrint; i++) {
 	R = rmin + dR*i;
 
-	double pot0=0.0, frt0=0.0;
-	if (expandd) {
-	  expandd->accumulated_eval(R, 0, 0, p0, p, fr, fz, fp);
-	  pot0 += p0;
-	  frt0 += -fr;
-	}
-	if (expandh) {
-	  expandh->determine_fields_at_point(R, acos(0.0), 0.0,
-					     &dens, &potl, 
-					     &potr, &pott, &potp);
-	  pot0 += potl;
-	  frt0 += potr;
-	}
 
-	vcirc.push_back(sqrt(max<double>(R*frt0-R*vthermal*vthermal/scale_length, 0.0)));
 
-	vector<double> lrho(nzint), trho(nzint), tmas(nzint, 0);
+	vector<double> lrho(nzint), trho(nzint), tcir(nzint), tmas(nzint, 0);
 
 	for (int j=0; j<nzint; j++) {
 	  z = zmin*exp(dz*j);
 	  r = sqrt(R*R + z*z);
 	  
-	  double pot=0.0, fzt0=0.0;
+	  double frt0=0.0, fzt0=0.0;
 	  if (expandd) {
-	    expandd->accumulated_eval(R, 0, z, p0, p, fr, fz, fp);
+	    expandd->accumulated_eval(R, z, 0, p0, p, fr, fz, fp);
+	    frt0 += -fr;
 	    fzt0 += -fz;
-	    pot += p0;
 	  }
 	  if (expandh) {
 	    expandh->determine_fields_at_point(r, acos(z/(r+1.0e-8)), 0.0,
 					       &dens, &potl, 
 					       &potr, &pott, &potp);
-	    
+	    frt0 += potr;
 	    fzt0 += (potr*z + pott*R*R/(r*r))/r;
-	    pot += potl;
 	  }
 	  
 	  trho[j] = -fzt0/(vthermal*vthermal);
+	  tcir[j] = sqrt(max<double>(R*frt0-R*vthermal*vthermal/scale_length, 0.0));
 	}
 	
 	double mass = 0.0;
@@ -971,7 +935,7 @@ main(int argc, char **argv)
 	
 	for (int j=0; j<nzint; j++) {
 	  if (tmas[nzint-1]>0.0 && !isnan(tmas[nzint-1])) {
-	    trho[j] = exp(lrho[j])/tmas[nzint-1];
+	    trho[j]  = exp(lrho[j])/tmas[nzint-1];
 	    tmas[j] /= tmas[nzint-1];
 	  } else {
 	    trho[j] = 0.0;
@@ -981,22 +945,10 @@ main(int argc, char **argv)
 	}
 	zrho.push_back(trho);
 	zmas.push_back(tmas);
+	vcir.push_back(tcir);
       }
 
 
-      //
-      // Vcirc table
-      //
-      cout << "Writing vcirc.dat [gas] . . . " << flush;
-      ofstream ttest("vcirc.dat");
-      for (int i=0; i<nrint; i++) {
-	ttest << setw(15) << rmin + dR*i
-	      << setw(15) << vcirc[i]
-	      << endl;
-      }
-      ttest.close();
-      cout << "done" << endl;
-      
       //
       // Vertical table
       //
@@ -1008,6 +960,7 @@ main(int argc, char **argv)
 		<< setw(15) << zmin*exp(dz*j)
 		<< setw(15) << zrho[i][j]
 		<< setw(15) << zmas[i][j]
+		<< setw(15) << vcir[i][j]
 		<< endl;
 	}
 	ztest << endl;
@@ -1056,23 +1009,18 @@ main(int argc, char **argv)
 
     double gmass = gas_mass/ngas;
     double KE=0.0, VC=0.0;
+    vector<double> mc2(nzint);
 
     fr = fz = potr = 0.0;
 
     outps << setw(8) << ngas
 	  << setw(6) << 0 << setw(6) << nparam << endl;
 
-#ifdef DEBUG
-    ofstream otest("test.dat");
-    otest << "# vthermal=" << vthermal << endl;
-#endif
-
     for (int n=0; n<ngas; n++) {
 
       double F, dF, M=mmax*unit(), Z=unit();
-      double R = M*rmax, phi=2.0*M_PI*unit(), x, y, z, rr;
+      double R = M*rmax, phi=2.0*M_PI*unit(), x, y, z, rr, vc;
       double ax, ay, az;
-
 
 				// Narrow with bisection
       double rm = 0.0, rp = rmx2;
@@ -1101,35 +1049,33 @@ main(int argc, char **argv)
       if (indr>nrint-2) indr=nrint-2;
       double a = (dR*(indr+1) - R)/dR;
       double b = (R - indr*dR)/dR;
-      double vc = fabs(a*vcirc[indr] + b*vcirc[indr+1]);
-      
-#ifdef DEBUG
-      otest << setw(18) << r << setw(18) << vc << endl;
-#endif
 
-      vector<double> mz(nzint), mc2;
-      for (int j=0; j<nzint; j++) 
+      vector<double> mz(nzint), vz(nzint);
+      for (int j=0; j<nzint; j++) {
 	mz[j] = a*zmas[indr][j] + b*zmas[indr+1][j];
+	vz[j] = a*vcir[indr][j] + b*vcir[indr+1][j];
+      }
       for (int j=0; j<nzint; j++) mz[j] /= mz[nzint-1];
       
       if (const_height) {
-	mc2 = vector<double>(nzint);
 	for (int j=0; j<nzint; j++) 
-	  mc2[j] = max<double>(a*zrho[indr][j] + b*zrho[indr+1][j],
-			       vmin2);
+	  mc2[j] = max<double>(a*zrho[indr][j] + b*zrho[indr+1][j], vmin2);
       }
 
       int indz = max<int>(0, min<int>(nzint-2, Vlocate(Z, mz)));
 
       a = (mz[indz+1] - Z)/(mz[indz+1] - mz[indz]);
       b = (Z - mz[indz  ])/(mz[indz+1] - mz[indz]);
+
+      vc = fabs(a*vz[indr] + b*vz[indr+1]);
+
       z = zmin*exp(dz*(a*indz + b*(indz+1)));
       if (unit()<0.5) z *= -1.0;
       rr = sqrt(R*R + z*z);
 
       if (const_height) {
 	vthermal = a*mc2[indz] + b*mc2[indz+1];
-	vthermal = sqrt(max<double>(0.0, vthermal));
+	vthermal = sqrt(max<double>(vmin2, vthermal));
       }
 
       double sinp = sin(phi), cosp = cos(phi);
@@ -1151,7 +1097,7 @@ main(int argc, char **argv)
       outps << endl;
     
       if (expandd)
-	expandd->accumulated_eval(R, phi, z, p0, p, fr, fz, fp);
+	expandd->accumulated_eval(R, z, phi, p0, p, fr, fz, fp);
 
       if (expandh)
 	expandh->determine_fields_at_point(rr, acos(z/(rr+1.0e-8)), 0.0,
