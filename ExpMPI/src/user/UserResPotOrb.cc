@@ -471,6 +471,9 @@ void UserResPotOrb::determine_acceleration_and_potential(void)
 
   }
 
+				// Multistepping level check
+  if (mlevel > maxlev) return;
+
 				// Store current state
   tlast = tnow;
   omlast = omega;

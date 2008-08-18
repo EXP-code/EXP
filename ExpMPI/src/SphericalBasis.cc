@@ -719,7 +719,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mlevel; M<=multistep; M++) {
+  for (int M=mlevel; M<=min<unsigned>(maxlev, multistep); M++) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	expcoef[l][n] += (*expcoefN[M])[l][n];
@@ -765,9 +765,9 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   int id = *((int*)arg);
 
-  // If we are multistepping, compute accel only at or below <mlevel>
+  // If we are multistepping, compute accel only at or above <mlevel>
   //
-  for (int lev=mlevel; lev<=multistep; lev++) {
+  for (int lev=mlevel; lev<=max<unsigned>(maxlev, multistep); lev++) {
 
     nbodies = cC->levlist[lev].size();
 
@@ -925,6 +925,8 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 #ifdef DEBUG
   cout << "Process " << myid << ": in determine_acceleration_and_potential\n";
 #endif
+
+  if (mlevel>maxlev) return;
 
   exp_thread_fork(false);
 

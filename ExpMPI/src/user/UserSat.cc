@@ -160,6 +160,8 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   double pos[3], rs[3], fac, ffac, phi;
   double satmass;
   
+  if (mlevel > maxlev) return;
+
   int nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = 1+nbodies*id/nthrds;

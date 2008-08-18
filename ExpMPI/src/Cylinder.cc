@@ -201,7 +201,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
-  if (mlevel<=maxlev) determine_coefficients();
+  determine_coefficients();
 
   //============
   // Dump basis
@@ -671,8 +671,10 @@ void Cylinder::determine_acceleration_and_potential(void)
 {
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
+  if (mlevel>maxlev) return;
+
   if (use_external == false) {
-    if (mlevel <= maxlev) ortho->make_coefficients(mlevel);
+    ortho->make_coefficients(mlevel);
     if (multistep)        compute_multistep_coefficients();
   }
 

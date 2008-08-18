@@ -489,6 +489,8 @@ void UserEBarS::determine_acceleration_and_potential(void)
     }
   }
 
+  if (mlevel > maxlev) return;
+
 				// Zero out thread variables
   for (int n=0; n<nthrds; n++) {
     TzN[n] = 0.0;

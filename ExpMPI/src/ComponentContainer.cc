@@ -287,6 +287,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     c = *cc;
 
     if (timing) timer_zero.start();
+    //
+    // NB: potential and acceleration should not be computed for
+    // timesteps at levels larger than 'maxlev'
+    //
     for (int lev=mlevel; lev<=min<int>(maxlev, multistep); lev++) {
       
       ntot = c->levlist[lev].size();
@@ -346,6 +350,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
   //
   // Do the external forces (if there are any . . .)
+  //
+  // The external forces must be called for all levels independent of
+  // of "maxlev" to incorporate any internal forces
   //
   if (timing) timer_extrn.start();
   if (!external.force_list.empty()) {

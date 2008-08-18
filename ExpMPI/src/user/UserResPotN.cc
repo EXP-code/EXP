@@ -476,10 +476,15 @@ void UserResPotN::determine_acceleration_and_potential(void)
       
       phase = phase0;	// Initial phase 
     }
+  } else {
+				// Multistepping check
+    if (mlevel > maxlev) return;
 
-				// Do next for every time except the first
+				// Otherwise, do next for every time 
+				// except the first
 				// ----------------------------------------
-  } else {			// Trapezoidal rule integration
+
+				// Trapezoidal rule integration
     phase += (tnow - tlast)*0.5*(omega + omlast);
   }
 

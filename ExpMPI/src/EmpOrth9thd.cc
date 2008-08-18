@@ -2376,6 +2376,7 @@ void EmpCylSL::make_coefficients(void)
   
 
 				// Sum up over threads
+				// 
   for (int M=0; M<=min<unsigned>(maxlev, multistep); M++) {
 
     if (coefs_made[M]) continue;

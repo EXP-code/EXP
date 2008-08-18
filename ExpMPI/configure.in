@@ -56,16 +56,12 @@ dnl Replace 'main' with a function in -lexputil:
 AC_CHECK_LIB(exputil, main)
 dnl Replace 'main' with a function in -lpthread:
 AC_CHECK_LIB(pthread, main)
-dnl Replace 'main' with a function in -lsrnd:
-AC_CHECK_LIB(srnd, main)
+dnl Replace 'main' with a function in -lexpgnu:
+AC_CHECK_LIB(expgnu, main)
 dnl Replace 'main' with a function in -lstdc:
 AC_CHECK_LIB(stdc, main)
 dnl Replace 'main' with a function in -lt:
 AC_CHECK_LIB(t, main)
-dnl Replace 'main' with a function in -ltrillium:
-AC_CHECK_LIB(trillium, main)
-dnl Replace 'main' with a function in -ltstdio:
-AC_CHECK_LIB(tstdio, main)
 
 dnl Checks for header files.
 AC_HEADER_STDC
