@@ -1496,7 +1496,7 @@ void Collide::tsdiag(ostream& out)
     for (unsigned k=0; k<numdiag; k++) {
       double rat = pow(4.0, -5.0+k);
       out << setw(8)  << -10+2*static_cast<int>(k)
-	  << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	  << (((rat<1.0e-02 || rat>1.0e+06) && rat>0.0) ? scientific : fixed)
 	  << setw(15) << rat
 	  << setw(15) << tdiag[k];
       if (use_delt>=0) out << setw(15) << tcool[k];
@@ -1524,9 +1524,9 @@ void Collide::tsdiag(ostream& out)
 	double rat = pow(pow(2.0, TSPOW), -5.0+k);
 	double val = Eover[k]*100.0/emass;
 	out << setw(8)  << TSPOW*(-5 + static_cast<int>(k))
-	    << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	    << (((rat<1.0e-02 || rat>1.0e+06) && rat>0.0) ? scientific : fixed)
 	    << setw(15) << rat
-	    << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
+	    << (((val<1.0e-02 || val>1.0e+06) && val>0.0) ? scientific : fixed)
 	    << setw(15) << val << endl;
 	Eover[k] = 0;
       }
@@ -1550,9 +1550,9 @@ void Collide::tsdiag(ostream& out)
 	double rat = pow(4.0, -5.0+k);
 	double val = Cover[k]*100.0/cmass;
 	out << setw(8)  << -10+2*static_cast<int>(k)
-	    << ((rat<1.0e-02 && rat>0.0) ? scientific : fixed)
+	    << (((rat<1.0e-02 || rat>1.0e+06) && rat>0.0) ? scientific : fixed)
 	    << setw(15) << rat
-	    << ((val<1.0e-02 && val>0.0) ? scientific : fixed)
+	    << (((val<1.0e-02 || val>1.0e+06) && val>0.0) ? scientific : fixed)
 	    << setw(15) << val << endl;
 	Cover[k] = 0;
       }

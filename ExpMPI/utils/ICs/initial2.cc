@@ -111,7 +111,6 @@ double SCSPH=1.0;
 double RSPHSL=47.5;
 double ASCALE=1.0;
 double HSCALE=0.1;
-double RDISK=10.0;
 double ZMAX=10.0;
 double TIME=0.0;
 double DMFAC=1.0;
@@ -439,10 +438,10 @@ main(int argc, char **argv)
   
 
                                 // Disk halo grid parameters
-  DiskHalo::RDMIN = RMIN;
+  DiskHalo::RDMIN = RCYLMIN*scale_length;
   DiskHalo::RHMIN = RMIN;
   DiskHalo::RHMAX = RSPHSL;
-  DiskHalo::RDMAX = RDISK*scale_length;
+  DiskHalo::RDMAX = RCYLMAX*scale_length;
   DiskHalo::NDR = NDR;
   DiskHalo::NDZ = NDZ;
   DiskHalo::NHR = NHR;
