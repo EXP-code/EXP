@@ -477,9 +477,6 @@ void UserResPotN::determine_acceleration_and_potential(void)
       phase = phase0;	// Initial phase 
     }
   } else {
-				// Multistepping check
-    if (mlevel > maxlev) return;
-
 				// Otherwise, do next for every time 
 				// except the first
 				// ----------------------------------------

@@ -25,7 +25,6 @@ extern int this_step;
 extern int Mstep;
 extern int mstep;
 extern unsigned multistep;
-extern unsigned maxlev;
 extern vector<int> stepL, stepN;
 extern pthread_mutex_t coef_lock;
 #endif
@@ -138,8 +137,7 @@ private:
 
   bool coefs_made_all() 
   {
-    unsigned maxl = min<unsigned>(maxlev, multistep);
-    for (unsigned M=0; M<=maxl; M++) 
+    for (unsigned M=0; M<=multistep; M++) 
       if (!coefs_made[M]) return false;
     return true;
   }

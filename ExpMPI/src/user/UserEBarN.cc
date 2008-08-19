@@ -795,8 +795,6 @@ void UserEBarN::determine_acceleration_and_potential(void)
     }
   }
 
-  if (mlevel > maxlev) return;
-
 				// Zero thread variables
   for (int n=0; n<nthrds; n++) {
     for (int k=0; k<3; k++) tacc[n][k] = 0.0;

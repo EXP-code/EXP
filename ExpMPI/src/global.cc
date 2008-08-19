@@ -50,7 +50,6 @@ unsigned char stop_signal = 0;
 unsigned char dump_signal = 0;
 				// Multistep variables
 unsigned multistep = 0;
-unsigned maxlev = 100;
 unsigned ctrlev = 0;
 bool posnsync = true;
 double dynfracV = 0.01;

@@ -48,8 +48,8 @@ private:
       a complete set of coefficients for force evaluation at an
       intermediate time step
   */
-  void compute_multistep_coefficients() {
-    if (mlevel<=maxlev)
+  void compute_multistep_coefficients() 
+  {
       ortho->compute_multistep_coefficients(mlevel);
   }
 

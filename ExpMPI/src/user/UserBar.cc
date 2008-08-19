@@ -353,8 +353,6 @@ void UserBar::determine_acceleration_and_potential(void)
     }
   }
 
-  if (mlevel > maxlev) return;
-
   exp_thread_fork(false);
 
   if (myid==0 && update) 

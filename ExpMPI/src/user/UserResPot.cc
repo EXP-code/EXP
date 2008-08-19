@@ -421,7 +421,6 @@ void UserResPot::determine_acceleration_and_potential(void)
     }
 
   } else {			
-    if (mlevel > maxlev) return;
 				// Trapezoidal rule integration
     phase += (tnow - tlast)*0.5*(omega + omlast);
   }

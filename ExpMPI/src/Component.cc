@@ -91,6 +91,11 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
 
+  angmom_lev = vector<double>(3*(multistep+1), 0);
+  com_lev    = vector<double>(3*(multistep+1), 0);
+  cov_lev    = vector<double>(3*(multistep+1), 0);
+  com_mas    = vector<double>(multistep+1, 0);
+
   reset_level_lists();
 
   tree = new pHOT(this);
@@ -1660,8 +1665,8 @@ struct thrd_pass_posn
   bool consp;
   bool tidal;
   bool com_system;
-  vector<double> com, cov;
-  double mtot;
+  unsigned mlevel;
+  vector<double> com, cov, mtot;
 };
 
 
@@ -1675,52 +1680,55 @@ void * fix_positions_thread(void *ptr)
   bool tidal = static_cast<thrd_pass_posn*>(ptr)->tidal;
   bool com_system = static_cast<thrd_pass_posn*>(ptr)->com_system;
 
+  unsigned mlevel = static_cast<thrd_pass_posn*>(ptr)->mlevel;
+
   double *com = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
   double *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
-  double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot);
+  double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
 
-  int nbodies = c->Number();
-  int nbeg = nbodies*(id  )/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
+  for (unsigned mm=mlevel; mm<=multistep; mm++) {
 
-  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    int nbodies = c->levlist[mm].size();
+    int nbeg = nbodies*(id  )/nthrds;
+    int nend = nbodies*(id+1)/nthrds;
 
 				// Particle loop
-  for (int q=0   ; q<nbeg; q++) it++;
-  for (int q=nbeg; q<nend; q++) {
+    for (int q=nbeg; q<nend; q++) {
     
-    unsigned long n = (it++)->first;
+      unsigned long n = c->levlist[mm][q];
 
-    if (consp) {
-      if (c->escape_com(*c->Part(n))) {
+      if (consp) {
+	if (c->escape_com(*c->Part(n))) {
 				// Set flag indicating escaped particle
-	if (c->Part(n)->iattrib[tidal]==0) {
+	  if (c->Part(n)->iattrib[tidal]==0) {
 
-	  c->Part(n)->iattrib[tidal] = 1;
+	    c->Part(n)->iattrib[tidal] = 1;
 
-	  if (com_system) {	// Conserve momentum of center of mass
-	    *mtot += c->Part(n)->mass;
-	    for (int i=0; i<3; i++) 
-	      cov[i] += c->Part(n)->mass*c->Part(n)->vel[i]; 
+	    if (com_system) {	// Conserve momentum of center of mass
+	      mtot[mm] += c->Part(n)->mass;
+	      for (unsigned k=0; k<3; k++) 
+		cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k]; 
+	    }
 	  }
 	}
-      }
       
-    } else {
+      } else {
     
-      *mtot += c->Part(n)->mass;
+	mtot[mm] += c->Part(n)->mass;
 
-      for (int k=0; k<c->dim; k++) {
-	com[k] += c->Part(n)->mass*c->Part(n)->pos[k];
-	cov[k] += c->Part(n)->mass*c->Part(n)->vel[k];
-      }
+	for (unsigned k=0; k<c->dim; k++) {
+	  com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
+	  cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
+	}
       
+      }
     }
   }
+
 }
   
 
-void Component::fix_positions(void)
+void Component::fix_positions(unsigned mlevel)
 {
 				// Zero center
   for (int i=0; i<3; i++) center[i] = 0.0;
@@ -1730,10 +1738,15 @@ void Component::fix_positions(void)
   for (int k=0; k<dim; k++)
     com[k] = cov[k] = 0.0;
 
+				// Zero multistep counters at and
+				// above this level
+  for (unsigned mm=mlevel; mm<=multistep; mm++) {
+    com_mas[mm] = 0.0;
+    for (unsigned k=0; k<3; k++) com_lev[3*mm+k] = cov_lev[3*mm+k] = 0.0;
+  }
+
   vector<thrd_pass_posn> data(nthrds);
   vector<pthread_t>      thrd(nthrds);
-  vector<double>         com1(3, 0.0), cov1(3, 0.0);
-  double                 mtot1 = 0.0;
 
   if (nthrds==1) {
 
@@ -1742,12 +1755,21 @@ void Component::fix_positions(void)
     data[0].consp = consp;
     data[0].tidal = tidal;
     data[0].com_system = com_system;
+    data[0].mlevel = mlevel;
 
-    data[0].com = vector<double>(3, 0.0);
-    data[0].cov = vector<double>(3, 0.0);
-    data[0].mtot = 0.0;
+    data[0].com  = vector<double>(3*(multistep+1), 0.0);
+    data[0].cov  = vector<double>(3*(multistep+1), 0.0);
+    data[0].mtot = vector<double>(multistep+1, 0.0);
 
     fix_positions_thread(&data[0]);
+
+    for (unsigned mm=mlevel; mm<=multistep; mm++) {
+      for (unsigned k=0; k<3; k++) {
+	com_lev[3*mm + k] += data[0].com[3*mm + k];
+	cov_lev[3*mm + k] += data[0].cov[3*mm + k];
+      }
+      com_mas[mm] += data[0].mtot[mm];
+    }
 
   } else {
 
@@ -1761,10 +1783,11 @@ void Component::fix_positions(void)
       data[i].consp = consp;
       data[i].tidal = tidal;
       data[i].com_system = com_system;
+      data[i].mlevel = mlevel;
 
-      data[i].com = vector<double>(3, 0.0);
-      data[i].cov = vector<double>(3, 0.0);
-      data[i].mtot = 0.0;
+      data[i].com  = vector<double>(3*(multistep+1), 0.0);
+      data[i].cov  = vector<double>(3*(multistep+1), 0.0);
+      data[i].mtot = vector<double>(multistep+1, 0.0);
 
       errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
 
@@ -1786,14 +1809,30 @@ void Component::fix_positions(void)
 	     << " failed, errcode=" << errcode << endl;
 	exit(20);
       }
-      for (int k=0; k<3; k++) {
-	com1[k] += data[i].com[k];
-	cov1[k] += data[i].cov[k];
+
+      for (unsigned mm=mlevel; mm<=multistep; mm++) {
+	for (unsigned k=0; k<3; k++) {
+	  com_lev[3*mm + k] += data[i].com[3*mm + k];
+	  cov_lev[3*mm + k] += data[i].cov[3*mm + k];
+	}
+	com_mas[mm] += data[i].mtot[mm];
       }
-      mtot1 += data[i].mtot;
     }
   }
 
+  //
+  // Sum levels
+  //
+  vector<double> com1(3, 0.0), cov1(3, 0.0);
+  double         mtot1 = 0.0;
+
+  for (unsigned mm=0; mm<=multistep; mm++) {
+    for (int k=0; k<3; k++) {
+      com1[k] += com_lev[3*mm + k];
+      cov1[k] += com_lev[3*mm + k];
+    }
+    mtot1 += com_mas[mm];
+  }
 
   MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&com1[0], com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -1879,7 +1918,6 @@ void Component::update_accel(void)
   }
 
   delete [] acc1;
-
 }
 
 
@@ -1888,8 +1926,11 @@ struct thrd_pass_angmom
   //! Thread counter id
   int id;
 
-  //! Angular momentum for this thread
+  //! Angular momentum for all levels for this thread
   vector<double> angm1;
+
+  //! Current multistep level
+  unsigned mlevel;
 
   //! Component
   Component *c;
@@ -1911,43 +1952,53 @@ void * get_angmom_thread(void *ptr)
   // Component
   //
   Component *c = static_cast<thrd_pass_angmom*>(ptr)->c;
+  //
+  // Level
+  //
+  unsigned mlevel = static_cast<thrd_pass_angmom*>(ptr)->mlevel;
 
 
-  unsigned ntot = c->Number();
-  int nbeg = ntot*(id  )/nthrds;
-  int nend = ntot*(id+1)/nthrds;
-  double mass, *pos, *vel;
+  for (unsigned mm=mlevel; mm<=multistep; mm++) {
+
+    unsigned ntot = c->levlist[mm].size();
+    int nbeg = ntot*(id  )/nthrds;
+    int nend = ntot*(id+1)/nthrds;
+    double mass, *pos, *vel;
   
-				// Create and advance the iterator
-  map<unsigned long, Particle>::iterator it = c->Particles().begin();
-  for (int q=0; q<nbeg; q++) it++;
+    //
+    // Particle loop
+    //
+    for (int q=nbeg; q<nend; q++) {
+      
+      unsigned long n = c->levlist[mm][q];
 
-  //
-  // Particle loop
-  //
-  for (int q=nbeg; q<nend; q++) {
+      if (c->freeze(n)) continue;
 
-    unsigned long n = (it++)->first;
-
-    if (c->freeze(n)) continue;
-
-    mass = c->Part(n)->mass;
-    pos  = c->Part(n)->pos;
-    vel  = c->Part(n)->vel;
+      mass = c->Part(n)->mass;
+      pos  = c->Part(n)->pos;
+      vel  = c->Part(n)->vel;
     
-    angm1[0] += mass*(pos[1]*vel[2] - pos[2]*vel[1]);
+      angm1[3*mm + 0] += mass*(pos[1]*vel[2] - pos[2]*vel[1]);
 
-    angm1[1] += mass*(pos[2]*vel[0] - pos[0]*vel[2]);
-
-    angm1[2] += mass*(pos[0]*vel[1] - pos[1]*vel[0]);
+      angm1[3*mm + 1] += mass*(pos[2]*vel[0] - pos[0]*vel[2]);
+      
+      angm1[3*mm + 2] += mass*(pos[0]*vel[1] - pos[1]*vel[0]);
+    }
   }
   
 }
 
 
-void Component::get_angmom(void)
+void Component::get_angmom(unsigned mlevel)
 {
   
+  //
+  // Zero variables
+  //
+  for (unsigned mm=mlevel; mm<=multistep; mm++) {
+    for (int i=0; i<3; i++) angmom_lev[3*mm+i] = 0.0;
+  }
+
   //
   // Make the <nthrds> threads
   //
@@ -1956,24 +2007,29 @@ void Component::get_angmom(void)
 
   vector<thrd_pass_angmom> data(nthrds);
   vector<pthread_t>        thrd(nthrds);
-  vector<double>           angm1(3, 0);
 
   if (nthrds==1) {
 
-    data[0].id = 0;
-    data[0].c  = this;
-    for (int k=0; k<3; k++) data[0].angm1.push_back(0);
+    data[0].id     = 0;
+    data[0].c      = this;
+    data[0].mlevel = mlevel;
+    data[0].angm1  = vector<double>(3*(multistep+3), 0);
     
     get_angmom_thread(&data[0]);
+
+    for (unsigned mm=mlevel; mm<=multistep; mm++) {
+      for (unsigned k=0; k<3; k++) 
+	angmom_lev[3*mm + k] += data[0].angm1[3*mm + k];
+    }
 
   } else {
 
     for (int i=0; i<nthrds; i++) {
 
-      data[i].id = i;
-      data[i].c  = this;
-      for (int k=0; k<3; k++) data[i].angm1.push_back(0);
-  
+      data[i].id     = i;
+      data[i].c      = this;
+      data[i].mlevel = mlevel;
+      data[i].angm1  = vector<double>(3*(multistep+3), 0);
 
       errcode =  pthread_create(&thrd[i], 0, get_angmom_thread, &data[i]);
 
@@ -1995,10 +2051,21 @@ void Component::get_angmom(void)
 	     << " failed, errcode=" << errcode << endl;
 	exit(20);
       }
-      for (int k=0; k<3; k++) angm1[k] += data[i].angm1[k];
+      for (unsigned mm=mlevel; mm<=multistep; mm++) {
+	for (unsigned k=0; k<3; k++) 
+	  angmom_lev[3*mm + k] += data[i].angm1[3*mm + k];
+      }
     }
   }
 
+
+  //
+  // Sum up over all levels
+  //
+  vector<double> angm1(3, 0);
+  for (unsigned mm=0; mm<=multistep; mm++) {
+    for (unsigned k=0; k<3; k++) angm1[k] += angmom_lev[3*mm + k];
+  }
 
   MPI_Allreduce(&angm1[0], angmom, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 

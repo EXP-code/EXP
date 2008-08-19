@@ -196,6 +196,7 @@ private:
 
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
+  vector<double> com_lev, cov_lev, com_mas, angmom_lev;
 
   // Momentum tracking
   bool consp;
@@ -446,7 +447,7 @@ public:
   void redistribute_particles(void);
 
   //! Compute center of mass and center of velocity
-  void fix_positions(void);
+  void fix_positions(unsigned mlevel=0);
 
   /** Redistribute particle by list
 
@@ -471,7 +472,7 @@ public:
   void update_accel(void);
 
   //! Update angular momentum values
-  void get_angmom(void);
+  void get_angmom(unsigned mlevel=0);
 
   //! Adiabatic turn on factor, range in [0, 1]
   double Adiabatic(void);

@@ -97,7 +97,6 @@ void UserHalo::initialize()
 
 void UserHalo::determine_acceleration_and_potential(void)
 {
-  if (mlevel > maxlev) return;
   exp_thread_fork(false);
 }
 

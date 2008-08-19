@@ -66,9 +66,6 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
-//! Maximum level for expansion interpolation (default: 100)
-extern unsigned maxlev;
-
 //! Maximum level for center determination (default: 0)
 extern unsigned ctrlev;
 

@@ -192,8 +192,6 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
   double pos[3], vel[3], ll[3], rr, vv;
   double E, J, K, torque, phi;
   
-  if (mlevel > maxlev) return (NULL);
-
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
   int nbeg = 1+nbodies*id/nthrds;

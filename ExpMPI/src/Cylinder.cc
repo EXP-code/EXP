@@ -427,7 +427,6 @@ void Cylinder::determine_coefficients(void)
   } else {
 
     if (!self_consistent) return;
-    if (mlevel>maxlev) return;
 
   }
 
@@ -671,8 +670,6 @@ void Cylinder::determine_acceleration_and_potential(void)
 {
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
-  if (mlevel>maxlev) return;
-
   if (use_external == false) {
     ortho->make_coefficients(mlevel);
     if (multistep)        compute_multistep_coefficients();
