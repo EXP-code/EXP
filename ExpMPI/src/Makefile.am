@@ -39,11 +39,17 @@ exp_SOURCES = \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
      multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
-     OutCalbr.cc pHOT.cc ParticleFerry.cc pCell.cc
+     OutCalbr.cc ParticleFerry.cc pCell.cc
+
+exp_LDADD = libpHOT.a
+
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = exp
+
+	
+
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lpthread -ldl -lgfortran -lm
@@ -59,6 +65,10 @@ noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
 	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H \
 	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h \
         version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H
+
+noinst_LIBRARIES = libpHOT.a
+libpHOT_a_SOURCES = pHOT.cc pHOT.H pHOT_types.H
+libpHOT_a_CXXFLAGS = -g
 
 # special case for f77 for now
 
