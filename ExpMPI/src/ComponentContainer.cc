@@ -19,6 +19,7 @@ static Timer timer_posn(true), timer_gcom(true), timer_angmom(true);
 static Timer timer_zero(true), timer_accel(true), timer_inter(true);
 static Timer timer_total(true), timer_fixp(true), timer_extrn(true);
 static Timer timer_clock(false);
+static vector< pair<string, Timer> > timer_sext;
 static vector<unsigned> levcnt;
 static long tinterval = 300;	// Seconds between timer dumps
 static bool timing = false;
@@ -344,18 +345,34 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Do the external forces (if there are any . . .)
   //
-  if (timing) timer_extrn.start();
+  if (timing) {
+    timer_extrn.start();
+				// Initialize external force timers?
+				// [One for each in external force list]
+    if (external.force_list.size() != timer_sext.size()) {
+      timer_sext.clear();	// Clear the list
+      list<ExternalForce *>::iterator ext;
+      for (ext =  external.force_list.begin(); 
+	   ext != external.force_list.end(); ext++) {
+	timer_sext.push_back( pair<string, Timer>((*ext)->id, Timer(true)) );
+      }
+    }
+  }
   if (!external.force_list.empty()) {
     
     unsigned cnt=0;
     list<ExternalForce*>::iterator ext;
+    vector< pair<string, Timer> >::iterator itmr;
 
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
+      if (timing) itmr = timer_sext.begin();
       for (ext=external.force_list.begin(); 
 	   ext != external.force_list.end(); ext++) {
+	if (timing) itmr->second.start();
 	(*ext)->set_multistep_level(mlevel);
 	(*ext)->get_acceleration_and_potential(c);
+	if (timing) (itmr++)->second.stop();
       }
     }
 
@@ -440,8 +457,15 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
 	     << setw(20) << "External: "
-	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl
-	     << setw(20) << "Total: "
+	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
+
+	vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
+	for (; itmr != timer_sext.end(); itmr++) {
+	  cout << setw(10) << "      *** " << setw(20) << itmr->first << ": "
+	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+	       << endl;
+	}
+	cout << setw(20) << "Total: "
 	     << setw(18) << 1.0e-6*timer_total.getTime().getRealTime() << endl;
 
       }
@@ -471,6 +495,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_extrn.reset();
     timer_total.reset();
     timer_clock.reset();
+    vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
+    for (; itmr != timer_sext.end(); itmr++) itmr->second.reset();
+
   }
 
   gottapot = true;

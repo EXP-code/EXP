@@ -79,6 +79,20 @@ private:
       this->precision = precision;
     }
 
+  // Copy consructor
+  Timer(const Timer& t) 
+    {
+      begin      = t.begin;
+      end        = t.end;
+      beginusage = t.beginusage;
+      endusage   = t.endusage;
+      utime      = t.utime;
+      stime      = t.stime;
+      rtime      = t.rtime;
+      started    = t.started;
+      precision  = t.precision;
+    }
+
   // Set precision to seconds
   void Seconds() { precision = false; }
 

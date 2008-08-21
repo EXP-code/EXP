@@ -65,7 +65,7 @@ protected:
 
   unsigned n_xchange, m_xchange;
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
-  Timer timer_prepare, timer_cupdate;
+  Timer timer_prepare, timer_cupdate, timer_scatter;
 
   // For debugging sychronization
   void debug_ts(const char* msg);
@@ -149,7 +149,8 @@ public:
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
   void checkBounds(double, const char *);
   void adjustTiming(double &keymake, double &xchange, double &prepare, 
-		    double &convert, double &overlap, double &update);
+		    double &convert, double &overlap, double &update,
+		    double &scatter);
   void Xchange(unsigned int& nX, unsigned int& mX) { 
     nX = n_xchange;
     mX = m_xchange;
