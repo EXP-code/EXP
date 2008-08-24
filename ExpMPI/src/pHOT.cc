@@ -1,22 +1,3 @@
-// Define one of: USE_MATRIX, USE_BOOLMAT, USE_PICKOFF, USE_ORIGINAL
-// If USE_ORIGINAL is defined, one may define USE_SCATTER to use 
-// MPI_Scatter rather than a sequence of MPI_Send/Recv pairs.  Tests
-// show that MPI_Scatter is slower
-
-// If USE_BOOLMAT is defined, one may define USE_BITVEC to use packed
-// bit vectors rather than an array of bytes.  
-
-// Even more tests show that that fasted scheme is USE_BOOLMAT with 
-// USE_BITVEC
-
-// #define USE_MATRIX
-// #define USE_BOOLMAT 
-// #define USE_BITVEC
-#define USE_ALLTOALL
-// #define USE_PICKOFF
-// #define USE_ORIGINAL
-// #define USE_SCATTER
-
 #include <values.h>
 
 # include <cstdlib>
@@ -35,71 +16,6 @@ using namespace std;
 
 #include "global.H"
 #include "pHOT.H"
-
-
-class bit_array
-{
-private:
-  unsigned nbit, ndat;
-  vector<unsigned char> data;
-  static const unsigned bmap[8];
-
-public:
-
-  //! Initialize N bits to false
-  bit_array(unsigned N) {
-    nbit = N;			// Number of bits
-    ndat = nbit/8;		// Number of full bytes
-    if (nbit-8*ndat) ndat++;	// Add another byte if some bits left over
-    data = vector<unsigned char>(ndat, 0);
-  }
-
-  //! Copy constructor
-  bit_array(const bit_array& p) {
-    nbit = p.nbit;
-    ndat = p.ndat;
-    data = p.data;
-  }
-
-  //! Set a bit value
-  void set(unsigned j, bool value) {
-    if (j>=nbit) throw "bit_array: requested index is out of bounds on set";
-    unsigned i1 = j/8;		// This locates the byte in the arraw
-    unsigned i2 = j - 8*i1;	// This locates the bit in the byte
-    if (value == (data[i1] & bmap[i2])) return;
-    if (value)			// Want true, is false
-      data[i1] += bmap[i2];
-    else			// Want false, is true
-      data[i1] -= bmap[i2];
-  }
-
-  //! Access a bit value
-  bool operator[](unsigned j) {
-    if (j>=nbit) throw "bit_array: requested index is out of bounds on access";
-    unsigned i1 = j/8;		// Which byte
-    unsigned i2 = j - 8*i1;	// Which bit
-    return data[i1] & bmap[i2];	// Is it on or off?
-  }
-
-  //! The size of the unsigned char data array
-  unsigned data_size() { return ndat; }
-
-  //! Get a copy of the data array (for serialization)
-  vector<unsigned char> get_data() { return data; }
-
-  //! Reinitialize from a unsigned char array (for serialization)
-  void set_data(vector<unsigned char>& tdata, unsigned N) {
-    nbit = N;
-    ndat = nbit/8;
-    if (nbit-8*ndat) ndat++;
-    if (ndat > tdata.size()) 
-      throw "bit_array: data vector is too small for array size [set_data]";
-    data = tdata;
-  }
-};
-
-const unsigned bit_array::bmap[8] = {1, 2, 4, 8, 16, 32, 64, 128};
-
 
 double pHOT::sides[] = {2.0, 2.0, 2.0};
 double pHOT::offst[] = {1.0, 1.0, 1.0};
@@ -1933,13 +1849,12 @@ void pHOT::adjustTree(unsigned mlevel)
     sendcounts[k] = exchange[k].size();
     Tcnt += sendcounts[k];
   }
+  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
-#ifdef USE_ALLTOALL
   timer_scatter.start();
-  MPI_Alltoall(&sendcounts[0], 1, MPI_INT,
+  MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
 	       &recvcounts[0], 1, MPI_INT,
 	       MPI_COMM_WORLD);
-  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   timer_scatter.stop();
 
   for (unsigned k=0; k<numprocs; k++) {
@@ -1951,164 +1866,6 @@ void pHOT::adjustTree(unsigned mlevel)
     }
     Fcnt += recvcounts[k];
   }
-#endif
-
-#ifdef USE_MATRIX
-  //
-  // New strategy: reduce a matrix in one fell swoop.
-  // This seems wasteful but will have lower latency.
-  //
-  vector<unsigned short> tofrom(numprocs*numprocs, 0);
-
-  //
-  // Load the matrix
-  //
-  for (unsigned k=0; k<numprocs; k++)
-    tofrom[numprocs*myid + k] = sendcounts[k];
-
-  //
-  // Gather up all the results
-  //
-  MPI_Allreduce(MPI_IN_PLACE, &tofrom[0], numprocs*numprocs, 
-		MPI_UNSIGNED_SHORT, MPI_SUM, MPI_COMM_WORLD);
-
-  //
-  // Unload the matrix
-  //
-  for (unsigned k=0; k<numprocs; k++) {
-    recvcounts[k] = tofrom[numprocs*k + myid];
-    Fcnt += recvcounts[k];
-  }
-
-  for (unsigned k=0; k<numprocs; k++) {
-    if (k==0) {
-      sdispls[0] = rdispls[0] = 0;
-    } else {
-      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
-      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
-    }
-
-    if (myid==0)
-      for (unsigned j=0; j<numprocs; j++) sum += tofrom[numprocs*k+j];
-  }
-
-#endif
-
-#ifdef USE_BOOLMAT 
-  
-#ifdef USE_BITVEC
-  bit_array tofrom(numprocs*numprocs); // All set to false to start
-  for (unsigned k=0; k<numprocs; k++) {
-    if (sendcounts[k]) tofrom.set(numprocs*myid + k, true);
-  }
-
-  //
-  // Gather up all the results
-  //
-  timer_scatter.start();
-  vector<unsigned char> bbuf=tofrom.get_data();
-  MPI_Allreduce(MPI_IN_PLACE, &bbuf[0], tofrom.data_size(),
-		MPI_BYTE, MPI_BOR, MPI_COMM_WORLD);
-  tofrom.set_data(bbuf, numprocs*numprocs);
-#else
-  vector<char> tofrom(numprocs*numprocs, 0);
-  for (unsigned k=0; k<numprocs; k++)
-    if (sendcounts[k]) tofrom[numprocs*myid + k] =  1;
-  
-  //
-  // Gather up all the results
-  //
-  MPI_Allreduce(MPI_IN_PLACE, &tofrom[0], numprocs*numprocs,
-		MPI_UNSIGNED_CHAR, MPI_LOR, MPI_COMM_WORLD);
-#endif
-
-  timer_scatter.stop();
-
-  for (unsigned k=0; k<numprocs; k++) {
-    if (myid==k) {
-      if (Tcnt) {		// There *is* something to send
-	for (int j=0; j<numprocs; j++) {
-	  if (j==k) continue;	// Don't try to send to self
-	  if (tofrom[numprocs*k + j]) {
-	    MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
-	  }
-	}
-      }
-    } else {			// There *is* something to receive
-      if (tofrom[numprocs*k + myid])
-	MPI_Recv(&recvcounts[k], 1, MPI_INT, k, 58+k, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-      Fcnt += recvcounts[k];
-    }
-    if (k==0) {
-      sdispls[0] = rdispls[0] = 0;
-    } else {
-      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
-      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
-    }
-  }
-
-  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-
-#endif
-
-#ifdef USE_PICKOFF
-
-  vector<int> tmprcounts(numprocs);
-
-  for (unsigned k=0; k<numprocs; k++) {
-    if (myid==k)
-      MPI_Bcast(&sendcounts[0], numprocs, MPI_INT, k, MPI_COMM_WORLD);
-    else {
-      MPI_Bcast(&tmprcounts[0], numprocs, MPI_INT, k, MPI_COMM_WORLD);
-      recvcounts[k] = tmprcounts[myid];
-      Fcnt += recvcounts[k];
-    }
-    if (k==0) {
-      sdispls[0] = rdispls[0] = 0;
-    } else {
-      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
-      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
-    }
-    if (myid==0) {
-      if (k==0) sum = Tcnt;
-      for (unsigned j=0; j<numprocs; j++) sum += tmprcounts[j];
-    }
-  }
-#endif
-
-#ifdef USE_ORIGINAL
-
-  for (unsigned k=0; k<numprocs; k++) {
-    Icnt = Tcnt;
-    MPI_Bcast(&Icnt, 1, MPI_UNSIGNED, k, MPI_COMM_WORLD);
-    if (Icnt) {
-#ifdef USE_SCATTER
-      MPI_Scatter(&sendcounts[0], 1, MPI_INT,
-		  &recvcounts[k], 1, MPI_INT, k, MPI_COMM_WORLD);
-#else
-      // It's hard to believe that this is a faster replacement for the
-      // MPI_Scatter but it seems to be . . . 
-      if (myid==k) {
-	for (int j=0; j<numprocs; j++) {
-	  if (j==k) continue;
-	  MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
-	}
-      }
-      else MPI_Recv(&recvcounts[k], 1, MPI_INT, k, 58+k, MPI_COMM_WORLD,
-		    MPI_STATUS_IGNORE);
-#endif
-      Fcnt += recvcounts[k];
-    }
-    if (k==0) {
-      sdispls[0] = rdispls[0] = 0;
-    } else {
-      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
-      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
-    }
-    if (myid==0) sum += Icnt;
-  }
-#endif
 
   //
   // Debug counter
