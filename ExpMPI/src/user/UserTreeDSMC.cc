@@ -601,10 +601,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       mout << "Summary:" << endl << left << "--------" << endl << scientific
 	   << setw(6) << " " << setw(20) << tnow       << "current time" << endl
+	   << setw(6) << " " << setw(20) << mlevel     << "current level" << endl
 	   << setw(6) << " " << setw(20) << Counts     << "total counts" << endl
 	   << setw(6) << " " << setw(20) << Mass       << "total mass" << endl
 	   << setw(6) << " " << setw(20) << meanT      << "mass-weighted temperature" << endl
-	   << setw(6) << " " << setw(20) << Mtotl      << "mass at this level [" << mlevel << "], expected=" << cmass <<  endl
+	   << setw(6) << " " << setw(20) << Mtotl      << "accumulated mass" << endl
+	   << setw(6) << " " << setw(20) << cmass      << "mass at this level" << endl
 	   << setw(6) << " " << setw(20) << stepnum    << "step number" << endl
 	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl

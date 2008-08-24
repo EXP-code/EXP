@@ -1,8 +1,3 @@
-// Uncomment to use non-blocking sends and receives in adjustTree particle
-// exchange
-
-// #define NON_BLOCK
-
 // Define one of: USE_MATRIX, USE_BOOLMAT, USE_PICKOFF, USE_ORIGINAL
 // If USE_ORIGINAL is defined, one may define USE_SCATTER to use 
 // MPI_Scatter rather than a sequence of MPI_Send/Recv pairs.  Tests
@@ -15,8 +10,9 @@
 // USE_BITVEC
 
 // #define USE_MATRIX
-#define USE_BOOLMAT 
-#define USE_BITVEC
+// #define USE_BOOLMAT 
+// #define USE_BITVEC
+#define USE_ALLTOALL
 // #define USE_PICKOFF
 // #define USE_ORIGINAL
 // #define USE_SCATTER
@@ -58,14 +54,11 @@ public:
     data = vector<unsigned char>(ndat, 0);
   }
 
-  //! Initialze N bits from array
-  bit_array(vector<unsigned char>& tdata, unsigned N) {
-    nbit = N;
-    ndat = nbit/8;
-    if (nbit-8*ndat) ndat++;
-    if (ndat > tdata.size()) 
-      throw "bit_array: data vector is too small for array size [constructor]";
-    data = tdata;
+  //! Copy constructor
+  bit_array(const bit_array& p) {
+    nbit = p.nbit;
+    ndat = p.ndat;
+    data = p.data;
   }
 
   //! Set a bit value
@@ -91,10 +84,10 @@ public:
   //! The size of the unsigned char data array
   unsigned data_size() { return ndat; }
 
-  //! Get a copy of the data array
+  //! Get a copy of the data array (for serialization)
   vector<unsigned char> get_data() { return data; }
 
-  //! Reinitialize from a unsigned char array
+  //! Reinitialize from a unsigned char array (for serialization)
   void set_data(vector<unsigned char>& tdata, unsigned N) {
     nbit = N;
     ndat = nbit/8;
@@ -1935,12 +1928,30 @@ void pHOT::adjustTree(unsigned mlevel)
   vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
 
   timer_prepare.start();
-  timer_scatter.start();
 
   for (unsigned k=0; k<numprocs; k++) {
     sendcounts[k] = exchange[k].size();
     Tcnt += sendcounts[k];
   }
+
+#ifdef USE_ALLTOALL
+  timer_scatter.start();
+  MPI_Alltoall(&sendcounts[0], 1, MPI_INT,
+	       &recvcounts[0], 1, MPI_INT,
+	       MPI_COMM_WORLD);
+  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  timer_scatter.stop();
+
+  for (unsigned k=0; k<numprocs; k++) {
+    if (k==0) {
+      sdispls[0] = rdispls[0] = 0;
+    } else {
+      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
+      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+    }
+    Fcnt += recvcounts[k];
+  }
+#endif
 
 #ifdef USE_MATRIX
   //
@@ -1994,6 +2005,7 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   // Gather up all the results
   //
+  timer_scatter.start();
   vector<unsigned char> bbuf=tofrom.get_data();
   MPI_Allreduce(MPI_IN_PLACE, &bbuf[0], tofrom.data_size(),
 		MPI_BYTE, MPI_BOR, MPI_COMM_WORLD);
@@ -2010,13 +2022,16 @@ void pHOT::adjustTree(unsigned mlevel)
 		MPI_UNSIGNED_CHAR, MPI_LOR, MPI_COMM_WORLD);
 #endif
 
+  timer_scatter.stop();
+
   for (unsigned k=0; k<numprocs; k++) {
     if (myid==k) {
       if (Tcnt) {		// There *is* something to send
 	for (int j=0; j<numprocs; j++) {
 	  if (j==k) continue;	// Don't try to send to self
-	  if (tofrom[numprocs*k + j])
+	  if (tofrom[numprocs*k + j]) {
 	    MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
+	  }
 	}
       }
     } else {			// There *is* something to receive
@@ -2034,6 +2049,7 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 
   MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
 #endif
 
 #ifdef USE_PICKOFF
@@ -2103,7 +2119,6 @@ void pHOT::adjustTree(unsigned mlevel)
   }
     
   timer_prepare.stop();
-  timer_scatter.stop();
 
   //
   // Exchange particles between processes
