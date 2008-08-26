@@ -28,14 +28,18 @@ void begin_run(void)
     MPI_Abort(MPI_COMM_WORLD, 115);
   }
 
-
-  
   //===================================
   // Make the kick/drift thread vectors
   //===================================
   
   posvel_data = vector<thrd_pass_posvel>(nthrds);
   posvel_thrd = vector<pthread_t>       (nthrds);
+
+  //==============================
+  // Initialize multistepping
+  //==============================
+
+  initialize_multistep();
 
   //===================================
   // Initialize phase-space components 
@@ -49,12 +53,6 @@ void begin_run(void)
 
   external.initialize();
   
-  //==============================
-  // Initialize multistepping
-  //==============================
-
-  initialize_multistep();
-
   //===============================
   // Compute initial accereration  
   //===============================

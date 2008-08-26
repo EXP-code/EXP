@@ -42,6 +42,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ncell = 7;
   Ncell = 64;
   cnum = 0;
+  madj = 0;
   epsm = -1.0;
   diamfac = 1.0;
   boxsize = 1.0;
@@ -209,7 +210,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
-       << ", epsm=" << epsm << ", boxsize=" << boxsize 
+       << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell
        << ", boxratio=" << boxratio << ", jitter=" << jitter 
        << ", compname=" << comp_name;
@@ -244,6 +245,7 @@ void UserTreeDSMC::initialize()
   if (get_value("Tunit", val))		Tunit = atof(val.c_str());
   if (get_value("Munit", val))		Munit = atof(val.c_str());
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
+  if (get_value("madj", val))		madj = atoi(val.c_str());
   if (get_value("epsm", val))		epsm = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize = atof(val.c_str());
@@ -293,10 +295,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
     c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
-#endif
-
-#ifdef RECTIFICATION
-    c0->Tree()->Rectify();	// This is only a test!
 #endif
 
     stepnum = 0;
@@ -353,44 +351,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   TimeElapsed partnSoFar, tree1SoFar, tree2SoFar, tstepSoFar, collideSoFar;
 
   //
-  // Test repartition
-  //
-  partnTime.start();
-  if (mlevel==0) {
-    if (0) {
-      ostringstream sout;
-      sout << "before Repartition [" << nrep << "], " 
-	   << __FILE__ << ": " << __LINE__;
-      c0->Tree()->checkBounds(2.0, sout.str().c_str());
-    }
-    
-#ifdef RECTIFICATION
-    c0->Tree()->Rectify();	// This is only a test!
-#endif
-
-    c0->Tree()->Repartition(); nrep++;
-    if (0) {
-      ostringstream sout;
-      sout << "after Repartition [" << nrep << "], " 
-	   << __FILE__ << ": " << __LINE__;
-      c0->Tree()->checkBounds(2.0, sout.str().c_str());
-    }
-
-#ifdef DEBUG
-    cout << "Computed partition and tree [" << mlevel << "]" << endl;
-#endif
-  }
-  partnSoFar = partnTime.stop();
-  
-  //
   // Sort the particles into cells
   //
-  if (mlevel==0) {
+  if (mlevel<=madj) {
+
+    partnTime.start();
+    c0->Tree()->Repartition(); nrep++;
+    partnSoFar = partnTime.stop();
+
     tree1Time.start();
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
-    cout << "Made tree and level list [" << mlevel << "]" << endl;
+    cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
     if (c0->Tree()->checkParticles()) {
       cout << "Particle check on new tree ok [" << mlevel << "]" << endl;
     } else {
@@ -398,7 +371,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 #endif
     tree1SoFar = tree1Time.stop();
+    
   } else {
+
     tree2Time.start();
 #ifdef DEBUG
     cout << "About to adjust tree [" << clevel << "]" << endl;
@@ -412,6 +387,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     cout << "Adjusted tree and level list [" << clevel << "]" << endl;
 #endif
     tree2SoFar = tree2Time.stop();
+    
   }
 
   if (0) {
@@ -571,6 +547,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     unsigned Counts;
     c0->Tree()->totalMass(Counts, Mass);
 
+    double zerorate = c0->Tree()->checkAdjust();
+
 				// Check frontier for mass at or below 
 				// current level
     double cmass1=0.0, cmass=0.0;
@@ -607,6 +585,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(6) << " " << setw(20) << meanT      << "mass-weighted temperature" << endl
 	   << setw(6) << " " << setw(20) << Mtotl      << "accumulated mass" << endl
 	   << setw(6) << " " << setw(20) << cmass      << "mass at this level" << endl
+	   << setw(6) << " " << setw(20) << zerorate   << "zero partition" << endl
 	   << setw(6) << " " << setw(20) << stepnum    << "step number" << endl
 	   << setw(6) << " " << setw(20) << sell_total << "targets" << endl
 	   << setw(6) << " " << setw(20) << coll_total << "collisions" << endl

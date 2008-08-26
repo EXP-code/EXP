@@ -373,6 +373,11 @@ Component::Component(istream *in)
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
 
+  angmom_lev = vector<double>(3*(multistep+1), 0);
+  com_lev    = vector<double>(3*(multistep+1), 0);
+  cov_lev    = vector<double>(3*(multistep+1), 0);
+  com_mas    = vector<double>(multistep+1, 0);
+
   reset_level_lists();
 
   tree = new pHOT(this);

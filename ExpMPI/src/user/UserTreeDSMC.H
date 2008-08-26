@@ -35,6 +35,7 @@
     @param use_exes track energy loss per particle for exact energy conservation
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
+    @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -43,6 +44,7 @@ private:
   int ncell, Ncell;
   int cnum;
   int nsteps;
+  unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, tspow;
   double diamfac;
   double diam;

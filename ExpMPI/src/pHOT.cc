@@ -51,6 +51,8 @@ pHOT::pHOT(Component *C)
 
   m_xchange = n_xchange = 0;
 
+  sumstep = sumzero = 0;
+
   timer_keymake.Microseconds();
   timer_xchange.Microseconds();
   timer_prepare.Microseconds();
@@ -1367,7 +1369,7 @@ void pHOT::Repartition()
   loclist = kbeg;
   loclist.push_back(kfin[numprocs-1]);	// End point for binary search
 
-  unsigned Tcnt=0, Fcnt=0, Icnt, sum=0;
+  unsigned Tcnt=0, Fcnt, sum;
   vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
   vector<int> sdispls(numprocs), rdispls(numprocs);
   
@@ -1390,35 +1392,23 @@ void pHOT::Repartition()
   }
 
   for (unsigned k=0; k<numprocs; k++) Tcnt += sendcounts[k];
+  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  timer_scatter.start();
+  MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
+	       &recvcounts[0], 1, MPI_INT,
+	       MPI_COMM_WORLD);
+  timer_scatter.stop();
 
   for (unsigned k=0; k<numprocs; k++) {
-    Icnt = Tcnt;
-    MPI_Bcast(&Icnt, 1, MPI_UNSIGNED, k, MPI_COMM_WORLD);
-    if (Icnt) {
-#ifdef USE_SCATTER
-      MPI_Scatter(&sendcounts[0], 1, MPI_INT,
-		  &recvcounts[k], 1, MPI_INT, k, MPI_COMM_WORLD);
-#else
-      // It's hard to believe that this is a faster replacement for the
-      // MPI_Scatter but it seems to be . . . 
-      if (myid==k) {
-	for (int j=0; j<numprocs; j++) {
-	  if (j==k) continue;
-	  MPI_Send(&sendcounts[j], 1, MPI_INT, j, 58+k, MPI_COMM_WORLD);
-	}
-      }
-      else MPI_Recv(&recvcounts[k], 1, MPI_INT, k, 58+k, MPI_COMM_WORLD,
-		    MPI_STATUS_IGNORE);
-#endif
-      Fcnt += recvcounts[k];
-    }
     if (k==0) {
       sdispls[0] = rdispls[0] = 0;
+      Fcnt = recvcounts[0];
     } else {
       sdispls[k] = sdispls[k-1] + sendcounts[k-1];
       rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+      Fcnt += recvcounts[k];
     }
-    if (myid==0) sum += Icnt;
   }
 
 				// DEBUG OUTPUT
@@ -1507,7 +1497,7 @@ void pHOT::Repartition()
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[adjustTree crazy mass indx=" << part.indx 
+	cout << "[Repartition: crazy mass indx=" << part.indx 
 	     << ", key=" << hex << part.key << dec << "]";
       }
       cc->Particles()[part.indx] = part;
@@ -1839,103 +1829,113 @@ void pHOT::adjustTree(unsigned mlevel)
   // Exchange particles
   //
 
-  unsigned Tcnt=0, Fcnt=0, sum=0, Icnt;
+  Particle part;
+  unsigned Tcnt=0, Fcnt, sum;
   vector<int> sdispls(numprocs), rdispls(numprocs);
   vector<int> sendcounts(numprocs, 0), recvcounts(numprocs, 0);
 
   timer_prepare.start();
-
   for (unsigned k=0; k<numprocs; k++) {
     sendcounts[k] = exchange[k].size();
     Tcnt += sendcounts[k];
   }
-  MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  timer_scatter.start();
-  MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
-	       &recvcounts[0], 1, MPI_INT,
-	       MPI_COMM_WORLD);
-  timer_scatter.stop();
+  MPI_Allreduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  timer_prepare.stop();
 
-  for (unsigned k=0; k<numprocs; k++) {
-    if (k==0) {
-      sdispls[0] = rdispls[0] = 0;
-    } else {
-      sdispls[k] = sdispls[k-1] + sendcounts[k-1];
-      rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+  if (sum) {
+    
+    timer_prepare.start();
+    timer_scatter.start();
+    
+    MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
+		 &recvcounts[0], 1, MPI_INT,
+		 MPI_COMM_WORLD);
+    timer_scatter.stop();
+    
+    for (unsigned k=0; k<numprocs; k++) {
+      if (k==0) {
+	sdispls[0] = rdispls[0] = 0;
+	Fcnt = recvcounts[0];
+      } else {
+	sdispls[k] = sdispls[k-1] + sendcounts[k-1];
+	rdispls[k] = rdispls[k-1] + recvcounts[k-1];
+	Fcnt += recvcounts[k];
+      }
     }
-    Fcnt += recvcounts[k];
+    
+    timer_prepare.stop();
+    
+    //
+    // Exchange particles between processes
+    //
+    int ps;
+    vector<Partstruct> psend(Tcnt), precv(Fcnt);
+    
+    timer_convert.start();
+    for (int toID=0; toID<numprocs; toID++) {
+      ps = sdispls[toID];
+      for (unsigned i=0; i<sendcounts[toID]; i++) {
+	pf.Particle_to_part(psend[ps+i], cc->Particles()[exchange[toID][i]]);
+	cc->Particles().erase(exchange[toID][i]);
+      }
+    }
+    timer_convert.stop();
+    
+    timer_xchange.start();
+    
+    MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
+		  ParticleFerry::Particletype, 
+		  &precv[0], &recvcounts[0], &rdispls[0], 
+		  ParticleFerry::Particletype, 
+		  MPI_COMM_WORLD);
+    
+    timer_xchange.stop();
+    
+    timer_convert.start();
+    
+    for (unsigned i=0; i<Fcnt; i++) {
+      pf.part_to_Particle(precv[i], part);
+      if (part.mass<=0.0 || isnan(part.mass)) {
+	cout << "[adjustTree: crazy mass indx=" << part.indx 
+	     << ", key=" << hex << part.key << dec << "]";
+      }
+      
+      cc->Particles()[part.indx] = part;
+      
+      if (part.key) {
+	key_pair newpair(part.key, part.indx);
+	keybods.insert(newpair);
+	root->Add(newpair, &change);
+      }
+    }
+    cc->nbodies = cc->particles.size();
+    
+    
+    timer_convert.stop();
   }
-
+  
   //
   // Debug counter
   //
   if (myid==0) {
     n_xchange += sum;
     m_xchange++;
+    sumstep++;
+    if (sum==0) sumzero++;
   }
-    
-  timer_prepare.stop();
-
-  //
-  // Exchange particles between processes
-  //
-  int ps;
-  vector<Partstruct> psend(Tcnt), precv(Fcnt);
-
-  timer_convert.start();
-  for (int toID=0; toID<numprocs; toID++) {
-    ps = sdispls[toID];
-    for (unsigned i=0; i<sendcounts[toID]; i++) {
-      pf.Particle_to_part(psend[ps+i], cc->Particles()[exchange[toID][i]]);
-      cc->Particles().erase(exchange[toID][i]);
-    }
-  }
-  timer_convert.stop();
-
-  timer_xchange.start();
-
-  MPI_Alltoallv(&psend[0], &sendcounts[0], &sdispls[0], 
-		ParticleFerry::Particletype, 
-		&precv[0], &recvcounts[0], &rdispls[0], 
-		ParticleFerry::Particletype, 
-		MPI_COMM_WORLD);
-
-  timer_xchange.stop();
-
-  timer_convert.start();
-
-  Particle part;
-  for (unsigned i=0; i<Fcnt; i++) {
-    pf.part_to_Particle(precv[i], part);
-      if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[adjustTree crazy mass indx=" << part.indx 
-	     << ", key=" << hex << part.key << dec << "]";
-      }
-
-    cc->Particles()[part.indx] = part;
-    
-    if (part.key) {
-      key_pair newpair(part.key, part.indx);
-      keybods.insert(newpair);
-      root->Add(newpair, &change);
-    }
-  }
-  cc->nbodies = cc->particles.size();
-
-
-  timer_convert.stop();
-  timer_overlap.start();
 
   //
   // Cell overlap?
   //
-
+  
   key_type headKey=0, tailKey=0;
   unsigned head_num=0, tail_num=0;
-
+  
+  timer_overlap.start();
+  
   for (int n=0; n<numprocs-1; n++) {
-
+    
     if (n==myid) {
       if (keybods.size()) {
 	key_indx::reverse_iterator it = keybods.rbegin();
@@ -1945,7 +1945,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	tailKey = 0;
 	tail_num = 0;
       }
-
+      
       // Send my tail cell info to next node
       MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 131, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n+1, 132, MPI_COMM_WORLD);
@@ -1955,11 +1955,11 @@ void pHOT::adjustTree(unsigned mlevel)
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&head_num, 1, MPI_UNSIGNED, n+1, 134,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+      
       if (tailKey==headKey && tailKey!=0) {
-
+	
 	c = frontier[tailKey];	// Cell in question: my last cell
-
+	
 	if (tail_num>head_num) { 
 	  //
 	  // Receive particles
@@ -1975,7 +1975,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	    keybods.insert(newpair);
 	    c->Add(newpair, &change);
 	  }
-
+	  
 	} else {
 	  //
 	  // Send particles
@@ -1987,15 +1987,15 @@ void pHOT::adjustTree(unsigned mlevel)
 	    pf.Particle_to_part(Psend[k++], cc->Particles()[*ib]);
 	    cc->Particles().erase(*ib);
 	  }
-
+	  
 	  c->RemoveAll();
-
+	  
 	  // queue for removal from level lists
 	  change.push_back(cell_indx(c, REMOVE));
-
+	  
 	  // queue for deletion
 	  change.push_back(cell_indx(c, KILL));
-
+	  
 	  MPI_Send(&Psend[0], tail_num, ParticleFerry::Particletype, 
 		   n+1, 135, MPI_COMM_WORLD);
 	}
@@ -2011,21 +2011,21 @@ void pHOT::adjustTree(unsigned mlevel)
 	headKey = 0;
 	head_num = 0;
       }
-
+      
       // Get previous nodes tail cell info
       MPI_Recv(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 131, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&tail_num, 1, MPI_UNSIGNED, n, 132,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
+      
       // Send head node into to previous node
       MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n, 133, MPI_COMM_WORLD);
       MPI_Send(&head_num, 1, MPI_UNSIGNED, n, 134, MPI_COMM_WORLD);
-
+      
       if (tailKey==headKey && tailKey!=0) {
-
+	
 	c = frontier[headKey];	// Cell in question
-
+	
 	if (tail_num>head_num) { 
 	  //
 	  // Send particles
@@ -2037,12 +2037,12 @@ void pHOT::adjustTree(unsigned mlevel)
 	    pf.Particle_to_part(Psend[k++], cc->Particles()[*ib]);
 	    cc->Particles().erase(*ib);
 	  }
-
+	  
 	  c->RemoveAll();
-
+	  
 	  // queue for removal from level lists
 	  change.push_back(cell_indx(c, REMOVE));
-
+	  
 	  // queue for deletion
 	  change.push_back(cell_indx(c, KILL));
 	  

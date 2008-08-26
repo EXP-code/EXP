@@ -147,7 +147,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	istringstream line(cbuffer);
 
 	line >> time;
-	if (tnow+0.1*dtime < time) break;
+	if (tnow+0.1*dtime/Mstep < time) break;
 
 	out << cbuffer << "\n";
 

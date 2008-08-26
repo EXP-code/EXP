@@ -57,6 +57,7 @@ protected:
   vector<unsigned> chist;
   change_list change;
   vector<key_type> kbeg, kfin, loclist;
+  unsigned sumstep, sumzero;
 
   ACG *gen;
   Uniform *unit;
@@ -151,6 +152,15 @@ public:
   void adjustTiming(double &keymake, double &xchange, double &prepare, 
 		    double &convert, double &overlap, double &update,
 		    double &scatter);
+  double checkAdjust() {
+    double result = 0.0;
+    if (myid) return result;
+    if (sumstep) {
+      result = static_cast<double>(sumzero)/sumstep;
+      sumstep = sumzero = 0;
+    }
+    return result;
+  }
   void Xchange(unsigned int& nX, unsigned int& mX) { 
     nX = n_xchange;
     mX = m_xchange;
