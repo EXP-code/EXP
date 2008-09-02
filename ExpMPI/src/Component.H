@@ -113,6 +113,9 @@ struct loadb_datum
   @param EJlinear set true moves center with constant velocity.  For
   testing only!! (default: false)
 
+  @param EJdamp multiplies the least squares slope to prevent instability
+  (default: 1.0, no damping)
+
   @param rmax is the maximum radius particle.  This is determined
   dynamically from the initial conditions but can be overridden as a
   parameter.
@@ -400,6 +403,9 @@ public:
 
   //! Move center at constant velocity specified by (EJu0, EJv0, EJw0)
   bool EJlinear;
+
+  //! Damping factor for center determination (< 1.0 for damping)
+  double EJdamp;
 
   //! Use center of mass coordinate system
   bool com_system;

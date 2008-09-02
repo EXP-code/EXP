@@ -38,9 +38,9 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
-  EJkinE = true;
-  EJext = false;
-  EJdiag = false;
+  EJkinE   = true;
+  EJext    = false;
+  EJdiag   = false;
   EJdryrun = false;
   EJx0 = 0.0;
   EJy0 = 0.0;
@@ -50,6 +50,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   EJw0 = 0.0;
   EJdT = 0.0;
   EJlinear = false;
+  EJdamp = 1.0;
 
   binary = false;
 
@@ -321,9 +322,9 @@ Component::Component(istream *in)
   EJ = 0;
   nEJkeep = 100;
   nEJwant = 500;
-  EJkinE = true;
-  EJext = false;
-  EJdiag = false;
+  EJkinE   = true;
+  EJext    = false;
+  EJdiag   = false;
   EJdryrun = false;
   EJx0 = 0.0;
   EJy0 = 0.0;
@@ -333,6 +334,7 @@ Component::Component(istream *in)
   EJw0 = 0.0;
   EJdT = 0.0;
   EJlinear = false;
+  EJdamp = 1.0;
 
   binary = true;
 
@@ -436,6 +438,8 @@ void Component::initialize(void)
     if (!datum.first.compare("EJdryrun")) EJdryrun = atoi(datum.second.c_str()) ? true : false;
 
     if (!datum.first.compare("EJlinear")) EJlinear = atoi(datum.second.c_str()) ? true : false;
+
+    if (!datum.first.compare("EJdamp"))   EJdamp = atof(datum.second.c_str());
 
     if (!datum.first.compare("rmax"))     rmax = atof(datum.second.c_str());
 
@@ -723,6 +727,7 @@ void Component::initialize(void)
     if (myid==0) {
       if (EJ & Orient::CENTER) {
 	cout << "Component <" << name << ">: EJ center finding is *ON*";
+	cout << " with damping=" << EJdamp;
 	if (EJkinE)   cout << ", using particle kinetic energy";
 	if (EJext)    cout << ", using external potential";
 	if (EJdryrun) cout << ", dryrun";
@@ -742,7 +747,7 @@ void Component::initialize(void)
     if (EJkinE)		EJctl |= Orient::KE;
     if (EJext)		EJctl |= Orient::EXTERNAL;
 
-    orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT);
+    orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT, EJdamp);
     
     if (restart && (EJ & Orient::CENTER)) {
       for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];

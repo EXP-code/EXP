@@ -40,7 +40,7 @@ void EL3::debug() const
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
-	       string Logfile, double dt)
+	       string Logfile, double dt, double damping)
 {
   keep = n;
   current = 0;
@@ -50,6 +50,7 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
   logfile = Logfile;
   deltaT = dt;
   Nlast = 0;
+  damp = damping;
   linear = false;
 
 				// Work vectors
@@ -526,7 +527,7 @@ void Orient::accumulate(double time, Component *c)
 
     slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    axis = intercept + slope*time;
+    axis = intercept + slope*damp*time;
     
     i = 0;
     sigA = 0.0;
@@ -588,7 +589,7 @@ void Orient::accumulate(double time, Component *c)
     
     slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    center = intercept + slope*time;
+    center = intercept + slope*damp*time;
     
     i = 0;
     sigC = 0.0;

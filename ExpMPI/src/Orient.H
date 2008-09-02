@@ -94,6 +94,7 @@ private:
   set<EL3, ltEL3> angm;
   deque<DV> sumsA, sumsC;
   int keep, current;
+  double damp;
   Matrix body, orig;
   Vector axis, center, axis1, center1, center0, cenvel0;
   double sumX, sumX2;
@@ -123,7 +124,7 @@ public:
   //! Constructor
   Orient(int number_to_keep, int target,
 	 unsigned orient_flags, unsigned control_flags, string logfile,
-	 double dt=0.0);
+	 double dt=0.0, double damping=1.0);
   
   //! Destructor
   ~Orient();
