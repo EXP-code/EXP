@@ -13,9 +13,7 @@ private:
 
   Component *c0;
 
-  int begin, end;
-  vector<unsigned int> ncount, last;
-  vector<int> send, recv;
+  vector<int> owner;
 
   void initialize();
   void userinfo();
@@ -25,10 +23,7 @@ private:
   void compute_list();
 				// For debugging
   void check_body(int);
-  void check_send();
-  void check_recv();
-  void print_send();
-  void print_recv();
+  void print_body(int, string&);
 
 public:
 

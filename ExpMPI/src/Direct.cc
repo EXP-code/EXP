@@ -161,6 +161,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 #ifdef DEBUG
   double tclausius[nthrds];
   for (int i=0; i<nthrds; i++) tclausius[id] = 0.0;
+  unsigned ncnt=0;
 #endif
 
   unsigned long j;		// Index of the current local particle
@@ -200,9 +201,10 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
       if (use_external) {
 	cC->AddPotExt(j, -mass/rr );
 #ifdef DEBUG
-      for (int k=0; k<3; k++)
-	tclausius[id] += -mass *
-	  (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
+	ncnt++;
+	for (int k=0; k<3; k++)
+	  tclausius[id] += -mass *
+	    (cC->Pos(j, k) - pos[k]) * cC->Pos(j, k) * rfac;
 #endif
       }
       else if (rr0 > 1.0e-16)	// Ignore "self" potential
@@ -214,7 +216,7 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
   if (use_external) {
     pthread_mutex_lock(&iolock);
     cout << "Process " << myid << ", id=" << id << ": ninteract=" << ninteract
-	 << "  VC=" << tclausius[id] << endl;
+	 << "  nexterna=" << ncnt << "  VC=" << tclausius[id] << endl;
     pthread_mutex_unlock(&iolock);
   }
 #endif
