@@ -803,7 +803,6 @@ Component::~Component(void)
   delete [] covI;
 
   delete tree;
-  delete [] td;
 }
 
 void Component::bomb(const string& msg)

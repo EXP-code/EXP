@@ -50,7 +50,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 				// Make orblist
     int ncur = nbeg;
     for (int i=0; i<norb; i++) {
-      if (ncur<tcomp->nbodies_tot) orblist.push_back(ncur);
+      if (ncur<=tcomp->nbodies_tot) orblist.push_back(ncur);
       ncur += nskip;
     }
   }
