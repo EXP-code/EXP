@@ -369,7 +369,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	cylmass0[id] += mas;
 	
       } else {
-	if (VERBOSE>3) {
+	if (VERBOSE>5) {
 	  cout << "Process " << myid 
 	       << ": r^2=" << R2
 	       << " max r^2=" << Rmax2 

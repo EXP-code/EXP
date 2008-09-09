@@ -836,6 +836,7 @@ bool ComponentContainer::bad_values()
       for (int k=0; k<3; k++) {
 	if (isnan(it->second.pos[k]))  badval=true;
 	if (isnan(it->second.vel[k]))  badval=true;
+	if (isnan(it->second.acc[k]))  badval=true;
       }
       if (badval) {
 	cout << "Bad value in <" << (*cc)->name << ">: ";
@@ -846,6 +847,8 @@ bool ComponentContainer::bad_values()
 	  cout << setw(18) << it->second.pos[k];
 	for (int k=0; k<3; k++)
 	  cout << setw(18) << it->second.vel[k];
+	for (int k=0; k<3; k++)
+	  cout << setw(18) << it->second.acc[k];
 	cout << endl;
 	bad = true;
 	break;

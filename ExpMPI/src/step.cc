@@ -141,6 +141,10 @@ void do_step(int n)
       comp.compute_potential(mfirst[mstep-1]);
       if (timing) timer_pot.stop();
 
+      if (comp.bad_values())
+	cout << "Process " << myid
+	     << ": found BAD values after compute_potential" << endl;
+
 				// For all active levels . . .
 				// Advance velocity by 1/2 step:
 				// Second K_{1/2}
@@ -168,7 +172,7 @@ void do_step(int n)
 
       if (comp.bad_values())
 	cout << "Process " << myid
-	     << ": found BAD values after multstep advance" << endl;
+	     << ": found BAD values after multistep advance" << endl;
     }
 
   } else {

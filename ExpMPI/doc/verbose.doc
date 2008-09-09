@@ -1,0 +1,34 @@
+/*! \page verbose Diagnostic output for various VERBOSE values
+
+<ul>
+<li> VERBOSE=0
+   <ul>
+      <li> No output
+   </ul>
+<li> VERBOSE=1 (default value)
+   <ul>
+      <li> Output timestep diagnostics for each component (<code>multistep.cc</code>)
+   </ul>
+<li> VERBOSE=2
+<li> VERBOSE=4
+   <ul>
+      <li> multistep output timestep diagnostics for each component (<code>multistep.cc</code>)
+      <li> use cputime counters for timing each part of the force computation and time step advance (<code>ComponentContainer.cc</code>)
+      <li> use cputime counters for each part of the step (<code>step.cc</code>)
+      <li> log each center and axis computation (<code>Cylinder.cc</code>)
+   </ul>
+<li> VERBOSE=5
+   <ul>
+      <li> output the multistep level totals for each component (<code>step.cc</code>)
+   </ul>
+<li> VERBOSE=6
+   <ul>
+      <li> log force calls that are off the basis grid to stdout (<code>Cylinder.cc</code>)
+   </ul>
+<li> VERBOSE=11
+   <ul>
+      <li> write out multistep control structure (no one really needs this level of detail unless one is debugging (<code>multistep.cc</code>)
+   </ul>
+</ul>
+
+*/

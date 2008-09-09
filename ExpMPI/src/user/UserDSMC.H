@@ -68,11 +68,10 @@ public:
     @param NP is the number of azimuthal bins
     @param Rmax is the maximum radius of the binned cylinders
     @param Zmax is the maximum extent of the cylinder above and below the midplane
-    @param efftol is the minimum efficient allowed before 
-    triggering a repartition
+    @param efftol is the minimum efficient allowed before triggering a repartition
     @param vfrac is the fraction of the mean velocity used to estimate the peak relative particle velocity
-    @seed is the random number seed
-    @debug may be set to true (non-zero value) to turn on debugging output
+    @param seed is the random number seed
+    @param debug may be set to true (non-zero value) to turn on debugging output
 */
 class UserDSMC : public ExternalForce
 {

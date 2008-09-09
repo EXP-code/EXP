@@ -65,8 +65,10 @@ private:
 
 public:
 				// Global parameters
-  //! Constructor
-  /*! \param line passes any parameters (rsphSL, rmin and numr) */
+  /** Constructor
+      @param line passes any parameters to basis instance (rsphSL, rmin and numr
+      @param m allows the spherical basis to be used for multiple center expansions 
+  */
   Sphere(string& line, MixtureSL* m=0);
 
   //! Destructor
