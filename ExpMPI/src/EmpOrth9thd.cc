@@ -1,7 +1,7 @@
 // #define DEBUG
 // #define DEBUG_NAN
-#define USESVD
-// #define GHQL
+// #define USESVD
+#define GHQL
 // #define STURM
 // #define EIGEN
 // #define DEBUG_PCA

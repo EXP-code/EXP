@@ -145,9 +145,14 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	in.getline(cbuffer, cbufsiz);
 	if (in.rdstate() & (ios::failbit | ios::eofbit)) break;
 
+				// Skip comment lines
+				//
+	if (cbuffer[0] == '#') continue;
+
 	istringstream line(cbuffer);
 
-	line >> time;
+				// Read until current time is reached
+	line >> time;		// 
 	if (tnow+0.1*dtime/Mstep < time) break;
 
 	out << cbuffer << "\n";
@@ -438,26 +443,37 @@ void Orient::accumulate(double time, Component *c)
     cnum++;
   }
 
-#ifdef DEBUG
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid) {
-      if (myid==0) cout << "------------------------" << endl
-			<< "Center check in Orient: " << endl 
-			<< "------------------------" << endl;
-      cout << setw(4) << myid << setw(4);
-      for (int k=1; k<=3; k++) {
-	if (mtot1>0.0)
-	  cout << setw(18) << center1[k]/mtot1;
-	else
-	  cout << setw(18) << 0.0;
+  if (0) {
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	if (myid==0) cout << "------------------------" << endl
+			  << "Center check in Orient  " << endl
+			  << setw(15) << left << "Component: "
+			  << c->name << endl
+			  << setw(15) << left << "Time: "
+			  << time << endl
+			  << "------------------------" << endl 
+			  << right;
+	cout << setw(4) << myid << setw(4);
+
+	for (int k=1; k<=3; k++) {
+	  if (mtot1>0.0)
+	    cout << setw(18) << center1[k]/mtot1;
+	  else
+	    cout << setw(18) << 0.0;
+	}
+
+	for (int k=1; k<=3; k++) 
+	  cout << setw(18) << angm.begin()->R[k]/angm.begin()->M;
+
+	cout << setw(18) << Emin0 << setw(18) << Ecurr 
+	     << setw(18) << Emin1 << setw(18) << Emax1 << endl;
       }
-      cout << endl;
+      MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) cout << endl;
   }
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << endl;
-#endif
 
   Vector inA = axis1;
   Vector inC = center1;
