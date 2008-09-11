@@ -390,7 +390,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     cC->AddAcc(j, 0, -potr*xx/r);
     cC->AddAcc(j, 1, -potr*yy/r);
     cC->AddAcc(j, 2, -potr*zz/r);
-    if (fac > DSMALL2) {
+    if (fac > DSMALL) {
       cC->AddAcc(j, 0,  potp*yy/fac);
       cC->AddAcc(j, 1, -potp*xx/fac);
     }
@@ -402,7 +402,6 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     it++;
   }
-
 
 }
 

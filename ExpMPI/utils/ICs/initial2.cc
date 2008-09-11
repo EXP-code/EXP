@@ -632,8 +632,14 @@ main(int argc, char **argv)
     cout << "Dumping basis images . . . " << flush;
     
     if (n_particlesD) {
+      int nout = 200;
       char dumpname[] = "basis.dump";
       expandd->dump_basis(dumpname, 0);
+      string prefix = "gendisk2";
+      expandd->dump_images(prefix, 5.0*scale_length, 5.0*scale_height,
+			   nout, nout, false);
+      expandd->dump_images_basis(prefix, 5.0*scale_length, 5.0*scale_height,
+				 nout, nout, false, 0, MMAX, 0, NORDER-1);
     }
 
 

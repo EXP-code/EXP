@@ -38,6 +38,8 @@ private:
 
   void determine_coefficients();
 
+  void determine_coefficients_eof();
+
   void determine_acceleration_and_potential();
 
   void * determine_coefficients_thread(void * arg);

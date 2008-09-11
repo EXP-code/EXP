@@ -123,10 +123,9 @@ double factrl(int n);
 
 // Constants
 
-#define DSMALL  1.0e-8
-#define DSMALL2 1.0e-8
+#define DSMALL  1.0e-16
 
-// parallel prototypes
+// Parallel prototypes
 
 void setup_distribution(void);
 void redistribute_particles(void);
@@ -139,7 +138,7 @@ void MPL_start_timer(void);
 void MPL_stop_timer(void);
 double MPL_read_timer(int reset);
 
-// utilities
+// Utilities
 
 void get_ultra(int nmax, double l, double x, Vector& p);
 string trimRight(const string);

@@ -135,13 +135,6 @@ private:
   double massR(double R);
   double densR(double R);
 
-  bool coefs_made_all() 
-  {
-    for (unsigned M=0; M<=multistep; M++) 
-      if (!coefs_made[M]) return false;
-    return true;
-  }
-
   void bomb(string oops);
 
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
@@ -261,6 +254,13 @@ public:
   void make_coefficients(int mlevel);
   //! Make empirical orthgonal functions
   void make_eof(void);
+  //! True if coefficients are made at all levels
+  bool coefs_made_all() 
+  {
+    for (unsigned M=0; M<=multistep; M++) 
+      if (!coefs_made[M]) return false;
+    return true;
+  }
   //@}
 
   //! Necessary member function currently unused (change design?)

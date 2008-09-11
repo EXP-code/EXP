@@ -902,7 +902,7 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
       cC->AddAcc(indx, 0, -(potr*xx/r - pott*xx*zz/(r*r*r)) );
       cC->AddAcc(indx, 1, -(potr*yy/r - pott*yy*zz/(r*r*r)) );
       cC->AddAcc(indx, 2, -(potr*zz/r + pott*fac/(r*r*r))   );
-      if (fac > DSMALL2) {
+      if (fac > DSMALL) {
 	cC->AddAcc(indx, 0,  potp*yy/fac );
 	cC->AddAcc(indx, 1, -potp*xx/fac );
       }

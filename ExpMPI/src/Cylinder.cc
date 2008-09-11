@@ -15,9 +15,6 @@ using namespace std;
 #include <Timer.h>
 Timer timer_debug(true);
 
-pthread_mutex_t Cylinder::used_lock;
-pthread_mutex_t Cylinder::cos_coef_lock;
-pthread_mutex_t Cylinder::sin_coef_lock;
 
 Cylinder::Cylinder(string& line) : Basis(line)
 {
@@ -142,21 +139,22 @@ void Cylinder::initialize()
   string val;
 
   // These should not be user settable . . . but need them for now
-  if (get_value("rcylmin", val)) rcylmin = atof(val.c_str());
-  if (get_value("rcylmax", val)) rcylmax = atof(val.c_str());
+  if (get_value("rcylmin", val))    rcylmin = atof(val.c_str());
+  if (get_value("rcylmax", val))    rcylmax = atof(val.c_str());
 
-  if (get_value("acyl", val)) acyl = atof(val.c_str());
-  if (get_value("hcyl", val)) hcyl = atof(val.c_str());
-  if (get_value("nmax", val)) nmax = atoi(val.c_str());
-  if (get_value("lmax", val)) lmax = atoi(val.c_str());
-  if (get_value("mmax", val)) mmax = atoi(val.c_str());
-  if (get_value("ncylnx", val)) ncylnx = atoi(val.c_str());
-  if (get_value("ncylny", val)) ncylny = atoi(val.c_str());
-  if (get_value("ncylr", val)) ncylr = atoi(val.c_str());
-  if (get_value("ncylorder", val)) ncylorder = atoi(val.c_str());
+  if (get_value("acyl", val))       acyl = atof(val.c_str());
+  if (get_value("hcyl", val))       hcyl = atof(val.c_str());
+  if (get_value("nmax", val))       nmax = atoi(val.c_str());
+  if (get_value("lmax", val))       lmax = atoi(val.c_str());
+  if (get_value("mmax", val))       mmax = atoi(val.c_str());
+  if (get_value("ncylnx", val))     ncylnx = atoi(val.c_str());
+  if (get_value("ncylny", val))     ncylny = atoi(val.c_str());
+  if (get_value("ncylr", val))      ncylr = atoi(val.c_str());
+  if (get_value("ncylorder", val))  ncylorder = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
-  if (get_value("hallfreq", val)) hallfreq = atoi(val.c_str());
-  if (get_value("hallfile", val)) hallfile = val;
+  if (get_value("hallfreq", val))   hallfreq = atoi(val.c_str());
+  if (get_value("hallfile", val))   hallfile = val;
+
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true; 
     else self_consistent = false;
@@ -207,7 +205,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Dump basis
   //============
 
-  if (ncompcyl==0) {
+  if (ncompcyl==0 && ortho->coefs_made_all()) {
     if (myid == 0 && density) {
       ortho->dump_basis(runtag.c_str(), this_step);
       
@@ -234,11 +232,15 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Recompute PCA analysis
   //=======================
 
-  ncompcyl++;
-  if (ncompcyl == ncylrecomp) {
-    ncompcyl = 0;
-    eof = 1;
-    determine_coefficients();
+				// Only do this once per multistep
+				//
+  if (multistep==0 || (mstep==Mstep && mlevel==multistep)) {
+    ncompcyl++;
+    if (ncompcyl == ncylrecomp) {
+      ncompcyl = 0;
+      eof = 1;
+      determine_coefficients();
+    }
   }
 
 
@@ -289,10 +291,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     map<unsigned long, Particle>::iterator n = cC->Particles().begin();
     for (int i=0; i<nbeg; i++) n++;
 
-    for (int i=nbeg; i<nend; i++) {
+    for (int i=nbeg; i<nend; i++, n++) {
 
       indx = n->first;
-      n++;
 
       // Frozen particles don't contribute to field
       //
@@ -309,7 +310,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
       zz = pos[id][3];
 
       r2 = xx*xx + yy*yy;
-      r = sqrt(r2) + DSMALL;
+      r = sqrt(r2);
       R2 = r2 + zz*zz;
     
       if ( R2 < Rmax2) {
@@ -355,7 +356,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
       zz = pos[id][3];
 
       r2 = xx*xx + yy*yy;
-      r = sqrt(r2) + DSMALL;
+      r = sqrt(r2);
       R2 = r2 + zz*zz;
     
       if ( R2 < Rmax2) {
@@ -369,6 +370,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	cylmass0[id] += mas;
 	
       } else {
+
 	if (VERBOSE>5) {
 	  cout << "Process " << myid 
 	       << ": r^2=" << R2
@@ -400,16 +402,10 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 void Cylinder::determine_coefficients(void)
 {
   static char routine[] = "determine_coefficients_Cylinder";
-  int i;
-  int use0, use1;
-  double cylmassT1=0.0, cylmassT0=0.0;
 
-  use0 = 0;
-  use1 = 0;
-  
   if (firstime) {
-    bool cache_ok = false;
 				// Try to read cache
+    bool cache_ok = false;
     if (try_cache || restart) {
       cache_ok = ortho->read_cache();
 				// For a restart, cache must be read
@@ -423,6 +419,14 @@ void Cylinder::determine_coefficients(void)
 
     eof = cache_ok ? 0 : 1;
     firstime = false;
+				// If we can't read the cache, or the cache
+				// does not match the requested parameters,
+				// remake the emperical orthogonal basis 
+				// and return
+    if (eof) {
+      determine_coefficients_eof();
+      return;
+    }
 
   } else {
 
@@ -430,33 +434,16 @@ void Cylinder::determine_coefficients(void)
 
   }
 
-  if (eof) {
-
-    ortho->setup_eof();
+  if (multistep==0)
     ortho->setup_accumulation();
-    cylmass = 0.0;
-    if (myid==0) cerr << "Cylinder: setup for eof\n";
-
-  } else {
-
-    if (multistep==0) {
-      ortho->setup_accumulation();
-    } else {
-      ortho->setup_accumulation(mlevel);
-    }
-
-  }
+  else
+    ortho->setup_accumulation(mlevel);
 
   cylmass0 = new double [nthrds];
   if (!cylmass0) {
     cerr << "Cylinder: problem allocating <cylmass0>\n";
     exit(-1);
   }
-
-				// Initialize locks
-  make_mutex(&used_lock, routine, "used_lock");
-  make_mutex(&cos_coef_lock, routine, "cos_coef_lock");
-  make_mutex(&sin_coef_lock, routine, "sin_coef_lock");
 
 #ifdef LEVCHECK
   for (int n=0; n<numprocs; n++) {
@@ -480,13 +467,15 @@ void Cylinder::determine_coefficients(void)
   if (myid==0) cout << endl;
 #endif
 
+				// Threaded coefficient accumulation loop
   exp_thread_fork(true);
-  
-  kill_mutex(&used_lock, routine, "used_lock");
-  kill_mutex(&cos_coef_lock, routine, "cos_coef_lock");
-  kill_mutex(&sin_coef_lock, routine, "sin_coef_lock");
 
-  for (i=0; i<nthrds; i++) {
+				// Accumulate counts and mass used to
+				// determine coefficients
+  int use0=0, use1=0;
+  double cylmassT1=0.0, cylmassT0=0.0;
+
+  for (int i=0; i<nthrds; i++) {
     use1 += use[i];
     cylmassT1 += cylmass0[i];
   }
@@ -498,8 +487,8 @@ void Cylinder::determine_coefficients(void)
   MPL_stop_timer();
 
   MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
-
-  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
+		  MPI_COMM_WORLD );
 
   if (multistep==0 || stepN[mlevel]==Mstep) {
     used += use0;
@@ -508,24 +497,64 @@ void Cylinder::determine_coefficients(void)
   
   MPL_start_timer();
 
-  //
-  // Compute the EOF coefficients independent of multilevel, 
-  // if eof is flagged
-  //
-  if (eof) {
+				// Make the coefficients for this level
+  ortho->make_coefficients(mlevel);
+}
 
-    if (myid==0)
-      cerr << "Cylinder: eof grid mass=" << cylmassT0 
-	   << ", number=" << use0 << "\n";
-    ortho->make_eof();
-    if (myid==0) cerr << "Cylinder: eof computed\n";
-    ortho->make_coefficients();
-    if (myid==0) cerr << "Cylinder: coefs computed\n";
-    eof = 0;
+void Cylinder::determine_coefficients_eof(void)
+{
+  if (eof==0) return;
 
+  static char routine[] = "determine_coefficients_eof_Cylinder";
+  
+  ortho->setup_eof();
+  ortho->setup_accumulation();
+
+  cylmass = 0.0;
+  if (myid==0) cerr << "Cylinder: setup for eof\n";
+
+  cylmass0 = new double [nthrds];
+  if (!cylmass0) {
+    cerr << "Cylinder: problem allocating <cylmass0>\n";
+    exit(-1);
   }
 
-}
+				// Threaded coefficient accumulation loop
+  exp_thread_fork(true);
+
+				// Accumulate counts and mass used to
+				// determine coefficients
+  int use0=0, use1=0;
+  double cylmassT1=0.0, cylmassT0=0.0;
+
+  for (int i=0; i<nthrds; i++) {
+    use1 += use[i];
+    cylmassT1 += cylmass0[i];
+  }
+
+  delete [] cylmass0;
+				// Turn off timer so as not bias by 
+				// communication barrier
+  MPL_stop_timer();
+
+  MPI_Allreduce ( &use1, &use0, 1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
+		  MPI_COMM_WORLD );
+
+  MPL_start_timer();
+
+  if (myid==0) cerr << "Cylinder: eof grid mass=" << cylmassT0 
+		    << ", number=" << use0 << "\n";
+
+  ortho->make_eof();
+  if (myid==0) cerr << "Cylinder: eof computed\n";
+
+  ortho->make_coefficients();
+  if (myid==0) cerr << "Cylinder: coefs computed\n";
+
+  eof = 0;
+}    
+
 
 void check_force_values(double phi, double p, double fr, double fz, double fp)
 {
@@ -671,8 +700,7 @@ void Cylinder::determine_acceleration_and_potential(void)
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
   if (use_external == false) {
-    ortho->make_coefficients(mlevel);
-    if (multistep)        compute_multistep_coefficients();
+    if (multistep) compute_multistep_coefficients();
   }
 
 #ifdef DEBUG
