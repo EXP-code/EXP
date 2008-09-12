@@ -55,11 +55,14 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::NUMY = ncylny;
   EmpCylSL::NUMR = ncylr;
   EmpCylSL::logarithmic = logarithmic;
-  EmpCylSL::CMAP = true;	// Always use coordinate mapping
+  EmpCylSL::CMAP = true;	// Always use coordinate mapping!
 
-				// For debugging
+				// For debugging; no use by force
+				// algorithm
   if (density) EmpCylSL::DENS = true;
 
+				// Make the empirical orthogonal basis
+				// instance
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
   if (selector) {
@@ -67,6 +70,10 @@ Cylinder::Cylinder(string& line) : Basis(line)
     ortho->setHall(hallfile, hallfreq);
   }
 
+				// Make sure that all structures are 
+				// initialized to start (e.g. for multi-
+				// stepping but this should be done on
+				// 1st call to determine coefs by default
   ortho->setup_accumulation();
 
   
@@ -201,9 +208,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   
   determine_coefficients();
 
-  //============
-  // Dump basis
-  //============
+  //=========================
+  // Dump basis on first call
+  //=========================
 
   if (ncompcyl==0 && ortho->coefs_made_all()) {
     if (myid == 0 && density) {
@@ -212,6 +219,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
       ostringstream dumpname;
       dumpname << "images" << "." << runtag << "." << this_step;
       ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+      //
+      // This next call is ONLY for deep debug
+      //
       // dump_mzero(runtag.c_str(), this_step);
     }
   }
@@ -232,9 +242,10 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Recompute PCA analysis
   //=======================
 
-				// Only do this once per multistep
-				//
-  if (multistep==0 || (mstep==Mstep && mlevel==multistep)) {
+				// Only do this check only once per
+				// multistep; might as well be at 
+				// the end of the multistep sequence
+  if (multistep==0 || mstep==Mstep) {
     ncompcyl++;
     if (ncompcyl == ncylrecomp) {
       ncompcyl = 0;
@@ -244,7 +255,9 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   }
 
 
-  // Debug
+  //=================
+  // Debugging output
+  //=================
   if (VERBOSE>3 && myid==1 && component->EJ) {
     string toutfile = string(homedir) + "test.orientation." + runtag;
     ofstream debugf(toutfile.c_str(), ios::app);
@@ -280,6 +293,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
   if (eof) {
 
+    // Will use all of the bodies independent of level
+    //
     nbodies = cC->Number();
     
     if (nbodies==0) return (NULL);
@@ -289,7 +304,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
     unsigned indx;
     map<unsigned long, Particle>::iterator n = cC->Particles().begin();
-    for (int i=0; i<nbeg; i++) n++;
+    for (int i=0; i<nbeg; i++) n++; // Move to beginning iterator
 
     for (int i=nbeg; i<nend; i++, n++) {
 
