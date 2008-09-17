@@ -15,7 +15,16 @@ Direct::Direct(string& line) : PotAccel(line)
   fixed_soft = true;
   ndim = 4;
 
+  // Parameters for extended pm model
+  pm_model = false;
+  pmmodel_file = "SLGridSph.model";   // Table od the Extended pm model
+  diverge = 0;                        // Use analytic divergence (true/false)
+  diverge_rfac = 1.0;                 // Exponent for profile divergence
+
   initialize();
+
+  if (pm_model) pmmodel = new SphericalModelTable(pmmodel_file, diverge, diverge_rfac);
+
 				// Assign the ring topology
   to_proc = (myid+1) % numprocs;
   from_proc = (myid+numprocs-1) % numprocs;
@@ -46,6 +55,11 @@ void Direct::initialize(void)
     fixed_soft = true;
     ndim = 4;
   }
+
+  if (get_value("pm_model",val))          pm_model = atoi(val.c_str()) ? true : false;
+  if (get_value("diverge", val))          diverge = atoi(val.c_str());
+  if (get_value("diverge_rfac", val))     diverge_rfac = atof(val.c_str());
+  if (get_value("pmmodel_file", val))     pmmodel_file = val;
 
 }
 
@@ -191,6 +205,14 @@ void * Direct::determine_acceleration_and_potential_thread(void * arg)
 				// Compute softened distance
       rr = sqrt(rr0+eps*eps);
 
+                                // Extended model for point masses
+                                // Given model provides normalized mass distrbution
+      if(pm_model && pmmodel->get_max_radius() > rr) 
+	{
+	  double mass_frac;
+	  mass_frac = pmmodel->get_mass(rr) / pmmodel->get_mass(pmmodel->get_max_radius());
+	  mass *= mass_frac;
+	}
 				// Acceleration
       rfac = 1.0/(rr*rr*rr);
 	
