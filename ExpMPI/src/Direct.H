@@ -17,6 +17,10 @@
    used even if a value is specified in the particle attribute array.
 
 */
+
+/* provide an extended spherical model for point mass */
+#include <AxisymmetricBasis.H>
+
 class Direct : public PotAccel
 {
 private:
@@ -32,6 +36,13 @@ private:
 
   double soft;
   bool fixed_soft;
+
+  bool pm_model;
+  double diverge_rfac;
+  int diverge;
+  string pmmodel_file;
+  SphericalModelTable *pmmodel;
+
 
   void initialize();
 
