@@ -28,12 +28,12 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
   }
 				// Generate two expansion grids
   mix_ej  = new MixtureSL(*this, "EJ",
-			  static_cast<mixFunc>(&SphereTwoCenter::mixture));
+			  static_cast<mixFunc>(&SphereTwoCenter::Cmixture));
   exp_ej  = new Sphere(line, mix_ej);
   exp_ej->RegisterComponent(component);
 
   mix_com = new MixtureSL(*this, "COM",
-			  static_cast<mixFunc>(&SphereTwoCenter::Cmixture));
+			  static_cast<mixFunc>(&SphereTwoCenter::mixture));
   exp_com = new Sphere(line, mix_com);
   exp_com->RegisterComponent(component);
 
