@@ -790,18 +790,24 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
       if (cC->freeze(indx)) continue;
 
-      if (use_external) {
-	cC->Pos(pos, indx, Component::Inertial);
-	component->ConvertPos(pos, Component::Local | Component::Centered);
-      } else
-	cC->Pos(pos, indx, Component::Local | Component::Centered);
-
       if (mix) {
+	if (use_external) {
+	  cC->Pos(pos, indx, Component::Inertial);
+	  component->ConvertPos(pos, Component::Local);
+	} else
+	  cC->Pos(pos, indx, Component::Local);
+
 	mfactor = mix->Mixture(pos);
 	xx = pos[0] - ctr[0];
 	yy = pos[1] - ctr[1];
 	zz = pos[2] - ctr[2];
       } else {
+	if (use_external) {
+	  cC->Pos(pos, indx, Component::Inertial);
+	  component->ConvertPos(pos, Component::Local | Component::Centered);
+	} else
+	  cC->Pos(pos, indx, Component::Local | Component::Centered);
+
 	xx = pos[0];
 	yy = pos[1];
 	zz = pos[2];
