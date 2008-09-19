@@ -1,6 +1,7 @@
 #include <math.h>
 #include "expand.h"
 #include <localmpi.h>
+#include <UnboundOrbit.H>
 #include <SatelliteOrbit.h>
 
 #include <AxisymmetricBasis.H>
@@ -14,20 +15,22 @@ private:
   string com_name, config, orbfile;
   Component *c0;
 
-  SatelliteOrbit *orb;
+  Trajectory *traj;
 
   void * determine_acceleration_and_potential_thread(void * arg);
   void initialize();
 
   double core, mass, ton, toff, delta, toffset;
 
-  bool circ, orbit;
+  bool orbit;
   double omega, phase, r0, tlast;
 
   void userinfo();
 
-public:
+  enum TrajType {circ, bound, unbound} traj_type;
 
+public:
+  
 				// For debugging . . .
   static int instances;
 
@@ -50,13 +53,13 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
 
   orbit = false;		// Print out orbit for debugging
-  circ = false;			// Assume circular orbit on x-y plane
   r0 = 1.0;			// Radius
   phase = 0.0;			// Initial position angle
   omega = 1.0;			// Angular frequency
 
   com_name = "sphereSL";	// Default component for com
   config   = "conf.file";	// Configuration file for spherical orbit
+  traj_type = circ;		// Trajectory type (default is circ)
 
   initialize();
 
@@ -79,8 +82,23 @@ UserSat::UserSat(string &line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
 
-  if (circ) orb = 0;
-  else      orb = new SatelliteOrbit(config);
+  switch (traj_type) {
+  case circ:
+    traj = 0;
+    break;
+  case bound:
+    traj = new SatelliteOrbit(config);
+    break;
+  case unbound:
+    traj = new UnboundOrbit(config);
+    break;
+  default:
+    if (myid==0) {
+      cerr << "UserSat: no such trjectory type="
+	   << traj_type << endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 36);
+  }
 
   if (orbit && myid==0) {
     ostringstream sout;
@@ -112,7 +130,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
 
 UserSat::~UserSat()
 {
-  delete orb;
+  delete traj;
 }
 
 void UserSat::userinfo()
@@ -120,18 +138,31 @@ void UserSat::userinfo()
   if (myid) return;		// Return if node master node
   print_divider();
   cout << "** User routine SATELLITE IN FIXED POTENTIAL initialized using ";
-  if (circ)
+  if (traj_type==circ)
     cout << "fixed circular orbit with mass=" << mass 
 	 << ", core=" << core
 	 << ", r=" << r0 
 	 << ", p(0)=" << phase 
 	 << ", Omega=" << omega 
 	 << endl;
-  else
-    cout << "specified orbit with mass=" << mass 
+  else {
+    cout << "specified trjectory of type ";
+    switch (traj_type) {
+    case bound:
+      cout << "<BOUND>";
+      break;
+    case unbound:
+      cout << "<UNBOUND>";
+      break;
+    default:
+      cout << "<UNKNOWN>";
+      break;
+    }
+    cout << " with mass=" << mass 
 	 << ", core=" << core
 	 << ", config=" << config
 	 << endl;
+  }
 
   print_divider();
 }
@@ -149,10 +180,31 @@ void UserSat::initialize()
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
   if (get_value("orbit", val))    orbit = atoi(val.c_str()) ? true : false;
-  if (get_value("circ", val))     circ = atoi(val.c_str()) ? true : false;
   if (get_value("r0", val))       r0 = atof(val.c_str());
   if (get_value("phase", val))    phase = atof(val.c_str());
   if (get_value("omega", val))    omega = atof(val.c_str());
+
+				// Set trajectory type
+  if (get_value("trajtype", val)) {
+    switch (atoi(val.c_str())) {
+    case circ:
+      traj_type = circ;
+      break;
+    case bound:
+      traj_type = bound;
+      break;
+    case unbound:
+      traj_type = unbound;
+      break;
+    default:
+      if (myid==0) {
+	cerr << "UserSat: no such trjectory type="
+	     << val << endl;
+      }
+	MPI_Abort(MPI_COMM_WORLD, 36);
+    }
+  }
+
 }
 
 void * UserSat::determine_acceleration_and_potential_thread(void * arg) 
@@ -165,14 +217,14 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = 1+nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  if (circ) {
+  if (traj_type==circ) {
     phi = phase + omega*tnow;
     rs[0] = r0*cos(phi);
     rs[1] = r0*sin(phi);
     rs[2] = 0.0;
   }
   else
-    orb->get_satellite_orbit(tnow - toffset, &rs[0]);
+    traj->get_satellite_orbit(tnow - toffset, &rs[0]);
 
   satmass = mass * 
     0.5*(1.0 + erf( (tnow - ton) /delta )) *

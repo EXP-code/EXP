@@ -16,12 +16,12 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
 	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la \
-	libreflect.la
+	libreflect.la libsatwake.la
 
 #
 # Convenience library for duplicated source components (static)
 #
-noinst_LIBRARIES = libcommon.a libdsmc.a
+noinst_LIBRARIES = libcommon.a libdsmc.a libwake.a
 
 noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	CircularOrbit.H ResPot.H UserDisk.H UserResPotN.H Collide.H \
@@ -32,9 +32,12 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	UserDiffRot.H UserRPtest.H UserAtmos.H UserReflect.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
-	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc
+	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc \
+	UnboundOrbit.cc
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
+
+libwake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc UnboundCoefs.cc
 
 #
 # Shared (loadable) libraries
@@ -103,3 +106,7 @@ libatmos_la_SOURCES = UserAtmos.cc
 libatmos_la_LIBADD = libcommon.a
 
 libreflect_la_SOURCES = UserReflect.cc 
+
+libsatwake_la_SOURCES = UserSatWake.cc
+libsatwake_la_LIBADD = libcommon.a libwake.a
+

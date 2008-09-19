@@ -7,16 +7,11 @@
 //
 // 	o Returns position and force in halo frame
 //
-//      o Compute tidal force in satellite frame 
-//
 //	o Arbitrary orientation of satellite body specified by Euler angles
 //
 // ======================================================================
 
 #ifndef _SatelliteOrbit_h
-#ifdef __GNUG__
-#pragma interface
-#endif
 #define _SatelliteOrbit_h
 
 #include <string>
@@ -27,9 +22,10 @@
 
 #include <FindOrb.H>
 #include <ParamDatabase.H>
+#include <Trajectory.H>
 
 //! Computes an satellite orbits and tidal forces in fixed halo
-class SatelliteOrbit
+class SatelliteOrbit : public Trajectory
 {
 private:
 
@@ -47,18 +43,7 @@ private:
 
 				// Keep current satellte position
   double currentTime;
-  Three_Vector currentR, currentF;
-
-				// Private members
-
-  void parse_args(void);	// Set parameters from parmFile
-  void set_parm(string& word, string& alu);
-
-				// General function for double and Vector input
-  Vector get_tidal_force();
-  Vector get_tidal_force_non_inertial();
-
-  ParamDatabase *config;
+  Three_Vector currentR;
 
 public:
 
@@ -75,35 +60,6 @@ public:
 
   //! Get satellite position in halo frame
   void get_satellite_orbit(double T, double *v);
-
-  //! Get force on satellite in halo frame
-  Vector get_satellite_force(double T);
-
-
-				// Member functions
-				// for TIDAL calculation
-
-  //! Call once to set satelliet body orientation
-  void setTidalOrientation(double phi, double theta, double psi);
-
-  //! Call to set satellite position
-  void setTidalPosition(double T, int NI=0);
-
-  //! Retrieve satellite time
-  double Time(void) { return currentTime; }
-
-  //! Get tidal force
-  Vector tidalForce(const Vector p);
-
-  //! Get tidal force
-  Vector tidalForce(const double x, const double y, const double z);
-
-  //! Get tidal force
-  Vector tidalForce(const Vector p, const Vector q);
-
-  //! Get tidal force
-  Vector tidalForce(const double x, const double y, const double z,
-		    const double u, const double v, const double w);
 
 };
 
