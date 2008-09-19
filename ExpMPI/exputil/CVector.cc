@@ -72,6 +72,9 @@ CVector::CVector(const CVector &v)
   low=0;
   high=0;
   elements = NULL;
+
+  if (v.elements == NULL) return;
+
   setsize(v.low, v.high);
   
   for (i=low; i<=high; i++) elements[i] = v.elements[i];
@@ -84,6 +87,9 @@ CVector::CVector(const Vector &v)
   low=0;
   high=0;
   elements = NULL;
+
+  if (v.elements == NULL) return;
+
   setsize(v.low, v.high);
   
   for (i=low; i<=high; i++) elements[i] = v.elements[i];
@@ -608,6 +614,9 @@ CMatrix::CMatrix(const CMatrix &m)
   clow=0;
   chigh=0;
   rows = NULL;
+
+  if (m.rows == NULL) return;
+
   setsize(m.rlow, m.rhigh, m.clow, m.chigh);
   
   for (i=rlow; i<=rhigh; i++)

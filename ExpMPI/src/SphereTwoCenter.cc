@@ -1,7 +1,3 @@
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #include <values.h>
 
 #include "expand.h"
@@ -10,14 +6,12 @@ static char rcsid[] = "$Id$";
 #include <SphereTwoCenter.H>
 #include <MixtureSL.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
 {
   id = "SphereTwoCenter SL";
   nhisto = 0;
+  center  = vector<double>(3, 0);
+
 				// Get initialization info
   initialize();
 				// Create dianostic output
@@ -27,17 +21,17 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
     ohisto = "histo_stc." + runtag;
   }
 				// Generate two expansion grids
-  mix_ej  = new MixtureSL(*this, "EJ",
+  mix_ej  = new MixtureSL(*this, &center, "EJ",
 			  static_cast<mixFunc>(&SphereTwoCenter::Cmixture));
+
   exp_ej  = new Sphere(line, mix_ej);
   exp_ej->RegisterComponent(component);
 
-  mix_com = new MixtureSL(*this, "COM",
+  mix_com = new MixtureSL(*this, &center, "COM",
 			  static_cast<mixFunc>(&SphereTwoCenter::mixture));
+
   exp_com = new Sphere(line, mix_com);
   exp_com->RegisterComponent(component);
-
-  center  = vector<double>(3, 0);
 }
 
 
@@ -59,32 +53,28 @@ void SphereTwoCenter::determine_coefficients(Component *c)
 {
   for (int k=0; k<3; k++) center[k] = component->center[k];
 
-  mix_ej -> setCenter(center);
-  exp_ej  -> determine_coefficients(c);
-
+  exp_ej->determine_coefficients(c);
+  
   if (component->com_system)
     for (int k=0; k<3; k++) center[k] = 0.0;
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
 
-  mix_com -> setCenter(center);
-  exp_com -> determine_coefficients(c);
+  exp_com->determine_coefficients(c);
 }
 
 void SphereTwoCenter::determine_coefficients(void) 
 {
   for (int k=0; k<3; k++) center[k] = component->center[k];
 
-  mix_ej -> setCenter(center);
-  exp_ej  -> determine_coefficients();
+  exp_ej->determine_coefficients();
 
   if (component->com_system)
     for (int k=0; k<3; k++) center[k] = 0.0;
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
 
-  mix_com -> setCenter(center);
-  exp_com -> determine_coefficients();
+  exp_com->determine_coefficients();
 }
 
 void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
@@ -93,19 +83,18 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
   nbodies = cC->Number();	// And retrieve number of bodies
 
 				// Reset diagnostic distribution
-  reset_histo();
+  if (multistep==0 || mstep==0) reset_histo();
   
   bool use_external1 = use_external;
 
 				// Set center to Component center
   for (int k=0; k<3; k++) center[k] = component->center[k];
   if (use_external) exp_ej -> SetExternal();
-  mix_ej -> setCenter(center);
-  exp_ej -> get_acceleration_and_potential(cC);
-  exp_ej -> ClearExternal();
+  exp_ej->get_acceleration_and_potential(cC);
+  exp_ej->ClearExternal();
 
 				// Reset external force flag
-  use_external  = use_external1;
+  use_external = use_external1;
 
 				// Set center to Component center of mass
   if (component->com_system)
@@ -113,18 +102,16 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
   else
     for (int k=0; k<3; k++) center[k] = component->com[k];
 
-  if (use_external) exp_com ->  SetExternal();
-  mix_com -> setCenter(center);
-  exp_com -> get_acceleration_and_potential(cC);
-  exp_com -> ClearExternal();
+  if (use_external) exp_com -> SetExternal();
+  exp_com->get_acceleration_and_potential(cC);
+  exp_com->ClearExternal();
 
 
   // Clear external potential flag
   use_external = false;
 
   // Write diagnostic file
-  write_histo();
-
+  if (multistep==0 || mstep==0) write_histo();
 }
 
 void SphereTwoCenter::accum_histo(double value)
@@ -143,7 +130,8 @@ void SphereTwoCenter::accum_histo(double value)
 void SphereTwoCenter::reset_histo()
 {
   if (nhisto) {
-    for (unsigned n=0; n<nhisto; n++) histo[n] = 0;
+    if (multistep==0 || mstep==0)
+      for (unsigned n=0; n<nhisto; n++) histo[n] = 0;
   }
 } 
 
@@ -153,6 +141,7 @@ void SphereTwoCenter::reset_histo()
 void SphereTwoCenter::write_histo()
 {
   if (nhisto) {
+
     vector<double> histo0(nhisto);
     MPI_Reduce(&histo[0], &histo0[0], nhisto, MPI_DOUBLE, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);

@@ -12,7 +12,7 @@ class MixtureSL
 
 private:
 
-  vector<double> ctr;
+  vector<double>* ctr;
   SphereTwoCenter *p;
   mixFunc f;
 
@@ -21,11 +21,11 @@ private:
 
 public:
 
-  MixtureSL(SphereTwoCenter& instance, string ID, mixFunc func) : 
-    p(&instance), id(ID), f(func) {}
+  MixtureSL(SphereTwoCenter& instance, vector<double> *c,
+	    string ID, mixFunc func) : 
+    p(&instance), ctr(c), id(ID), f(func) {}
 
-  void setCenter(vector<double>& c) { ctr = c; }
-  void getCenter(vector<double>& c) { c = ctr; }
+  void getCenter(vector<double>& c) { c = *ctr; }
   double Mixture(double* pos) { return CALL_MEMBER_FN(*p, f)(pos); }
   
 };

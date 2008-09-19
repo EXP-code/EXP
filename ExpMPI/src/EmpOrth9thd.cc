@@ -53,8 +53,6 @@ double EmpCylSL::RMIN=0.001;
 double EmpCylSL::RMAX=20.0;
 double EmpCylSL::HFAC=0.2;
 string EmpCylSL::CACHEFILE = ".eof.cache.file";
-string EmpCylSL::TABLEFILE = ".eof.table.file";
-
 
 EmpCylSL::EmpCylSL(void)
 {

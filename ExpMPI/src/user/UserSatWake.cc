@@ -21,6 +21,7 @@
 
 #include <RespMat3.h>
 #include <model3d.h>
+#include <sphereSL.h>
 #include <UnboundCoefs.H>
 
 #include "expand.h"
@@ -59,7 +60,6 @@ double plgndr(int, int, double);
 
 UserSatWake::UserSatWake(string &line) : ExternalForce(line)
 {
-
   id = "SatelliteWake";
 
   Number = 8;
@@ -79,7 +79,8 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   DIVERGE = 0;
   DIVEXPON = 1.0;
   OLD = 0;
-  VERBOSE = 1;
+  VERBOSE = 0;
+  HALO_TYPE = 3;
   SITYPE = ITOSIT(2);
   RMODMAX = 20.0;
   RGRID = 1000;
@@ -99,19 +100,23 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   E = 0.0;
   Rperi = 0.1;
   Redge = 2.0;
+  rmin = -1.0;
+  rmax = -1.0;
+  scale = 0.06667;
+  numr = 400;
   deltaR = 0.01;
   deltaT = 0.01;
+  Toffset = 0.0;
   satmass = 0.1;
   INFILE = "SLGridSph.model";
-  RUNTAG = "movie";
   CACHEDIR = "./";
-  SERIES = "test";
-  SAVERESP = ".disk_response";
 
   I = KComplex(0.0, 1.0);
   rtol = 1.0e-2;
 
   ctr_name = "";		// Default component for center
+
+  cachefile = string(".halo_response.") + runtag;
 
   initialize();
 							      
@@ -166,6 +171,34 @@ void UserSatWake::userinfo()
     cout << ", center on component <" << ctr_name << ">";
   else
     cout << ", using inertial center";
+  cout << setw(50) << setfill('-') << '-' << endl << setfill(' ');
+  cout << "Main parameters:" << endl;
+  cout << setw(9) << "" << setw(15) << "NUMT"     << " = " << NUMT     << endl;
+  cout << setw(9) << "" << setw(15) << "LMIN"     << " = " << LMIN     << endl;
+  cout << setw(9) << "" << setw(15) << "LMAX"     << " = " << LMAX     << endl;
+  cout << setw(9) << "" << setw(15) << "M"        << " = " << M        << endl;
+  cout << setw(9) << "" << setw(15) << "lmax"     << " = " << lmax     << endl;
+  cout << setw(9) << "" << setw(15) << "nmax"     << " = " << nmax     << endl;
+  cout << setw(9) << "" << setw(15) << "INCLINE"  << " = " << INCLINE  << endl;
+  cout << setw(9) << "" << setw(15) << "PSI"      << " = " << PSI      << endl;
+  cout << setw(9) << "" << setw(15) << "PHIP"     << " = " << PHIP     << endl;
+  cout << setw(9) << "" << setw(15) << "E"        << " = " << E        << endl;
+  cout << setw(9) << "" << setw(15) << "Rperi"    << " = " << Rperi    << endl;
+  cout << setw(9) << "" << setw(15) << "Redge"    << " = " << Redge    << endl;
+  cout << setw(9) << "" << setw(15) << "rmin"     << " = " << rmin     << endl;
+  cout << setw(9) << "" << setw(15) << "rmax"     << " = " << rmax     << endl;
+  cout << setw(9) << "" << setw(15) << "scale"    << " = " << scale    << endl;
+  cout << setw(9) << "" << setw(15) << "numr"     << " = " << numr     << endl;
+  cout << setw(9) << "" << setw(15) << "MASS"     << " = " << satmass  << endl;
+  cout << setw(50) << setfill('-') << '-' << endl << setfill(' ');
+
+  I = KComplex(0.0, 1.0);
+  rtol = 1.0e-2;
+
+  ctr_name = "";		// Default component for center
+
+
+
   cout << endl;
 
   print_divider();
@@ -183,6 +216,10 @@ void UserSatWake::initialize()
   if (get_value("M", val))		M = atoi(val);
   if (get_value("lmax", val))		lmax = atoi(val);
   if (get_value("nmax", val))		nmax = atoi(val);
+  if (get_value("numr", val))		numr = atoi(val);
+  if (get_value("rmin", val))		rmin = atof(val);
+  if (get_value("rmax", val))		rmax = atof(val);
+  if (get_value("scale", val))		scale = atof(val);
   if (get_value("HALO_TRUNC", val))	HALO_TRUNC = atoi(val);
   if (get_value("nptsE", val))		nptsE = atoi(val);
   if (get_value("nptsK", val))		nptsK = atoi(val);
@@ -200,12 +237,10 @@ void UserSatWake::initialize()
   if (get_value("Redge", val))		Redge = atof(val);
   if (get_value("deltaR", val))		deltaR = atof(val);
   if (get_value("deltaT", val))		deltaT = atof(val);
+  if (get_value("Toffset", val))	Toffset = atof(val);
   if (get_value("MASS", val))		satmass = atof(val);
   if (get_value("INFILE", val))		INFILE = val;
-  if (get_value("RUNTAG", val))		RUNTAG = val;
   if (get_value("CACHEDIR", val))	CACHEDIR = val;
-  if (get_value("SERIES", val))		SERIES = val;
-  if (get_value("SAVERESP", val))	SAVERESP = val;
   if (get_value("ctrname", val))	ctr_name = val;
 }
 
@@ -225,10 +260,10 @@ void UserSatWake::initialize_coefficients()
   // Sanity checks
   //=================
   
-  if (M<0) cerr << "Warning: M should be >0 . . . fixing\n";
+  if (M<0 && myid==0) cerr << "Warning: M should be >0 . . . fixing\n";
   M = abs(M);
   if (M>LMIN) {
-    cout << "Setting LMIN=M=" << M << endl;
+    if (myid==0) cout << "Setting LMIN=M=" << M << endl;
     LMIN = M;
   }
   
@@ -259,8 +294,19 @@ void UserSatWake::initialize_coefficients()
   case hernquist:
     u = new HQSphere;
     break;
+  case sturm:
+    if (rmin<0.0) 
+      rmin = halo_model->get_min_radius() * 1.2;
+    if (rmax<0.0) 
+      rmax = halo_model->get_max_radius() * 0.99;
+
+    SLGridSph::sph_cache_name = ".slgrid_sph_cache." + runtag;
+    SphereSL::mpi = 1;
+    u = new SphereSL(LMAX, nmax, numr, rmin, rmax, scale, m);
+    break;
   default:
-    cerr << "Illegal spherical biorthongal series: " << HALO_TYPE << '\n';
+    if (myid==0) 
+      cerr << "Illegal spherical biorthongal series: " << HALO_TYPE << '\n';
     exit(-1);
   }
   
@@ -290,16 +336,17 @@ void UserSatWake::initialize_coefficients()
   map< int, map<int, vector<CMatrix> > > coefs;
   CVector tcoefs;
   
-  cout << "Computing Laplace coefficients . . ." << endl;
+  if (myid==0) cout << "Computing Laplace coefficients . . ." << endl;
   for (int L=LMIN; L<=LMAX; L++) {
-    cout << "L=" << L << endl;
+    if (myid==0) cout << "L=" << L << endl;
     for (int L2=(isEven(L)?0:1);L2<=L; L2++) {
       Coefs.coefs(L, L2, nmax, Times, deltaT, u, coefs[L][L2], freqs);
-      cout << "    L2=" << L2 << " r=" << coefs[L][L2][0].getrlow()
-	   << ", " << coefs[L][L2][0].getrhigh() << endl;
+      if (myid==0)
+	cout << "    L2=" << L2 << " r=" << coefs[L][L2][0].getrlow()
+	     << ", " << coefs[L][L2][0].getrhigh() << endl;
     }
   }
-  cout << "done" << endl;
+  if (myid==0) cout << "done" << endl;
   
   // Factor for point mass expansion for
   // orbit in x-y plane
@@ -316,61 +363,98 @@ void UserSatWake::initialize_coefficients()
   
   ofstream to_save;
   ifstream from_save;
-  bool reading = true;
+  unsigned short reading = 1;
 
-  from_save.open(SAVERESP.c_str());
-  if (!from_save) {
-    cerr << "Couldn't open <" << SAVERESP <<
-      "> to read cached data" << endl;
-    cerr << ". . .  will attempt to write a cache file." << endl;
-    reading = false;
-  } else {
+  if (myid==0) {
     
-#ifdef ID_STRING
-    // Read ID string and check version #
-    int tid;
-    from_save.read((char *)&tid, sizeof(int));
-    if (tid != id) {
-
-      cerr << "Incompatible save file!\n";
-      MPI_Abort(MPI_COMM_WORLD, -34);
+    from_save.open(cachefile.c_str());
+    if (!from_save) {
+      if (myid==0) {
+	cerr << "Couldn't open <" << cachefile <<
+	  "> to read cached data" << endl;
+	cerr << ". . .  will attempt to write a cache file." << endl;
+      }
+      reading = false;
 
     } else {
     
+#ifdef ID_STRING
+      // Read ID string and check version #
+      int tid;
+      from_save.read((char *)&tid, sizeof(int));
+      if (tid != id) {
+	
+	cerr << "Incompatible save file!\n";
+	MPI_Abort(MPI_COMM_WORLD, -34);
+	
+      } else {
+    
+	char tbuf[255];
+	from_save.read(tbuf, 255);
+	cout << tbuf << endl;
+#endif // ID_STRING
+      }
+    }
+
+    if (!reading) {
+
+      to_save.open(cachefile.c_str());
+      if (!to_save) {
+	if (myid==0)
+	  cerr << "Couldn't open <" << cachefile <<
+	    "> to write cached data" << endl;
+	MPI_Abort(MPI_COMM_WORLD, -35);
+	exit(-1);
+      }
+    
+#ifdef ID_STRING
+      // Write ID string and version #
+      time_t tp = time(NULL);
+      string stime = string("UserSatWake") + ": " + ctime(&tp);
+      cout << "ID string: " << stime<< endl;
+    
+      to_save.write((const char *)&id, sizeof(int));
       char tbuf[255];
-      from_save.read(tbuf, 255);
-      cout << tbuf << endl;
+      strncpy(tbuf, stime.c_str(), 255);
+      to_save.write(tbuf, 255);
+      
 #endif // ID_STRING
     }
   }
 
-  if (!reading) {
+  MPI_Bcast(&reading, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  
+  if (myid && reading) {
 
-    to_save.open(SAVERESP.c_str());
-    if (!to_save) {
-      cerr << "Couldn't open <" << SAVERESP <<
-	"> to write cached data" << endl;
-      MPI_Abort(MPI_COMM_WORLD, -35);
-      exit(-1);
-    }
+    from_save.open(cachefile.c_str());
+    if (!from_save) {
+      cerr << "Process " << myid << " couldn't open <" << cachefile <<
+	"> to read cached data!" << endl;
+      MPI_Abort(MPI_COMM_WORLD, -32);
+    } else {
     
 #ifdef ID_STRING
-    // Write ID string and version #
-    time_t tp = time(NULL);
-    string stime = string("UserSatWake") + ": " + ctime(&tp);
-    cout << "ID string: " << stime<< endl;
+      // Read ID string and check version #
+      int tid;
+      from_save.read((char *)&tid, sizeof(int));
+      if (tid != id) {
+	
+	cerr << "Process " << myid << " claims an incompatible save file!"
+	     << endl;
+	MPI_Abort(MPI_COMM_WORLD, -34);
+	
+      } else {
     
-    to_save.write((const char *)&id, sizeof(int));
-    char tbuf[255];
-    strncpy(tbuf, stime.c_str(), 255);
-    to_save.write(tbuf, 255);
-    
+	char tbuf[255];
+	from_save.read(tbuf, 255);
 #endif // ID_STRING
+      }
+    }
   }
   
   
   KComplex I(0.0, 1.0);
-  string CACHE = CACHEDIR + "/" + SERIES;
+  string CACHE = CACHEDIR + "/" + runtag;
   
   for (int L=LMIN; L<=LMAX; L++) Lhalo.push_back(L);
   Nhalo = Lhalo.size();
@@ -382,7 +466,7 @@ void UserSatWake::initialize_coefficients()
     ompr = freqs[nf];
     omp_halo = Omega[nf] = KComplex(ompr, OMPI*OMPS) * OMPS;
     
-    cout << "Halo frequency: " << omp_halo << endl;
+    if (myid==0) cout << "Halo frequency: " << omp_halo << endl;
     
     
     if (reading) {
@@ -413,8 +497,9 @@ void UserSatWake::initialize_coefficients()
 	  mab_halo[ihalo].make_matrix();
 	
 #ifdef DEBUG
-	cout << "Main: finished ihalo=" << ihalo << "/" << Nhalo 
-	     << endl << flush;
+	if (myid==0) 
+	  cout << "Main: finished ihalo=" << ihalo << "/" << Nhalo 
+	       << endl << flush;
 #endif
       }
       
@@ -422,8 +507,10 @@ void UserSatWake::initialize_coefficients()
       
       // Save to cache
       //
-      for (int ihalo=0; ihalo<Nhalo; ihalo++)
-	mab_halo[ihalo].write_out(to_save);
+      if (myid==0) {
+	for (int ihalo=0; ihalo<Nhalo; ihalo++)
+	  mab_halo[ihalo].write_out(to_save);
+      }
     }
     
   }
@@ -434,13 +521,13 @@ void UserSatWake::initialize_coefficients()
   if (reading)
     from_save.close();
   else
-    to_save.close();
+    if (myid==0) to_save.close();
   
   // ===================================================================
   // Make movie!
   // ===================================================================
   
-  ofstream tlog((RUNTAG + ".timelog").c_str());
+  ofstream tlog((runtag  + ".satwake.timelog").c_str());
   
   CVector tmp(1, nmax); tmp.zero();
 
@@ -615,20 +702,22 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
 void UserSatWake::compute_coefficients()
 {
   int indx;
-  double a, b;
+  double a, b, curT = tnow - Toffset;
 
   // Find time index
 
-  if (tnow<Times.front()) {
+  if (curT<Times.front()) {
     indx = 0;
-    a = 1.0;
+    // a = 1.0;
+    a = 0.0;
     b = 0.0;
-  } else if (tnow>Times.back()) {
+  } else if (curT>Times.back()) {
     indx = Times.size()-2;
     a = 0.0;
-    b = 1.0;
+    // b = 1.0;
+    b = 0.0;
   } else {
-    indx = Vlocate(tnow, Times);
+    indx = Vlocate(curT, Times);
     a = (Times[indx+1] - tnow)/(Times[indx+1] - Times[indx]);
     b = (tnow - Times[indx+1])/(Times[indx+1] - Times[indx]);
   }

@@ -6,10 +6,6 @@
 #include <gaussQ.h>
 #include <Sphere.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 Sphere::Sphere(string& line, MixtureSL* m) : SphericalBasis(line, m)
 {
   id = "Sphere SL";

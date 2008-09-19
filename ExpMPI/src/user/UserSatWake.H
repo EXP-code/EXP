@@ -15,6 +15,10 @@
     @param M:			Azimuthal spherical harmonic index
     @param lmax:		Maximum L1 index
     @param nmax:		Maximum radial index
+    @param numr:		Maximum radial grid for SphereSL
+    @param rmin:		Minimum radius for SphereSL
+    @param rmax:		Maximum radius for SphereSL
+    @param scale:		Coordinate scale for SphereSL
     @param HALO_TRUNC:		Truncate halo expansion
     @param nptsE:		Power of 2 quadrature index for Energy integral in response matrices
     @param nptsK:		Power of 2 quadrature index for Kappa integral in response matrices
@@ -26,7 +30,7 @@
     @param DIVERGE:		Use power law extrapolation
     @param DIVEXPON:		Power law exponent for extrapolation
     @param OLD:			Old response type calculation
-    @param VERBOSE:		Verbose diagnostic output
+    @param VERBOSE:		Verbose diagnostic output (default: 0)
     @param SITYPE:		Non-singular integration method (default: 2=rombint)
     @param RMODMAX:		Maximum radius for halo model
     @param ROFFSET:		Radial offset for EmbededDisk
@@ -55,12 +59,10 @@
     @param Redge:		Outer radius
     @param deltaR:		Radial spacing
     @param deltaT:		Temporal spacing
+    @param Toffset:		Offset from pericenter (which is T=0 by default)
     @param MASS:		Satellite mass
     @param INFILE:		Model file
-    @param RUNTAG:		Output tag name
     @param CACHEDIR:		Directory containing cache files
-    @param SERIES:		Series name labelling cache file
-    @param SAVERESP:		Cache file for response matricies
 */
 class UserSatWake : public ExternalForce
 {
@@ -76,11 +78,12 @@ private:
 
   int Number, Pmax, LMIN, LMAX, M, lmax, nmax, HALO_TRUNC;
   int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS;
-  int OLD, VERBOSE, RGRID, HALO_MODEL, OMPS, NUMDF;
+  int OLD, VERBOSE, RGRID, HALO_MODEL, OMPS, NUMDF, numr;
   double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Redge;
-  double DIVEXPON, DELTA, OMPI, deltaR, deltaT, satmass;
+  double DIVEXPON, DELTA, OMPI, deltaR, deltaT, satmass, Toffset;
+  double rmin, rmax, scale;
   int TYPE, MODEL, NUMT, DIVERGE;
-  string INFILE, RUNTAG, CACHEDIR, SERIES, SAVERESP, ctr_name;
+  string INFILE, CACHEDIR, ctr_name;
   IntegrationType SITYPE;
 
   //============================================================
@@ -101,6 +104,7 @@ private:
   KComplex I;
   double rtol;
   int Nhalo;
+  string cachefile;
 
 public:
   

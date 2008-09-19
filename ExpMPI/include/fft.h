@@ -31,12 +31,9 @@
  */
 
 #include <math.h>
-#ifndef _Vector.h
 #include <Vector.h>
-#endif
-#ifndef _k_complex_h
 #include <kevin_complex.h>
-#endif
+
 
 class FFT
 {

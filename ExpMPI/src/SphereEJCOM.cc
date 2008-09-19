@@ -12,7 +12,7 @@ SphereEJCOM::SphereEJCOM(string&line) : SphereTwoCenter(line)
 {
   id = "SphereEJCOM";
 				// Defaults
-  cfac = 1.0;
+  cfac  = 1.0;
   alpha = 1.0;
 
   				// Get initialization info
@@ -23,7 +23,7 @@ void SphereEJCOM::initialize()
 {
   string val;
 
-  if (get_value("cfac", val)) cfac = atof(val.c_str());
+  if (get_value("cfac",  val)) cfac  = atof(val.c_str());
   if (get_value("alpha", val)) alpha = atof(val.c_str());
 }
 
@@ -49,7 +49,7 @@ double SphereEJCOM::mixture(double* pos)
 
   double value = erf(cfac*pow(dej/(dif+1.0e-10), 0.5*alpha));
 
-  accum_histo(value);
+  if (multistep==0 || mstep==0) accum_histo(value);
 
   return value;
 }

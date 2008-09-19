@@ -3,10 +3,6 @@
 #include <SphericalBasis.H>
 #include <MixtureSL.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #ifdef DEBUG
 static pthread_mutex_t io_lock;
 #endif

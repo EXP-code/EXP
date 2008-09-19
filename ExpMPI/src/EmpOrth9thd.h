@@ -190,9 +190,6 @@ public:
   //! Name of cache file
   static string CACHEFILE;
 
-  //! Name of cache table file
-  static string TABLEFILE;
-
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
 

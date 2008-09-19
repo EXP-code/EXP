@@ -54,8 +54,9 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::NUMX = ncylnx;
   EmpCylSL::NUMY = ncylny;
   EmpCylSL::NUMR = ncylr;
-  EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CMAP = true;	// Always use coordinate mapping!
+  EmpCylSL::logarithmic = logarithmic;
+  EmpCylSL::CACHEFILE = ".eof.cache." + runtag;
 
 				// For debugging; no use by force
 				// algorithm

@@ -1,6 +1,3 @@
-# CCLD  = --tag=F77  mpif77
-# CXXLD = --tag=F77 mpif77
-
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 AM_CFLAGS = -fPIC -Wall -D_REENTRANT
@@ -21,7 +18,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 #
 # Convenience library for duplicated source components (static)
 #
-noinst_LIBRARIES = libcommon.a libdsmc.a libwake.a
+noinst_LIBRARIES = libcommon.a libdsmc.a libswake.a
 
 noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	CircularOrbit.H ResPot.H UserDisk.H UserResPotN.H Collide.H \
@@ -37,7 +34,7 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
 
-libwake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc UnboundCoefs.cc
+libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc UnboundCoefs.cc
 
 #
 # Shared (loadable) libraries
@@ -107,6 +104,6 @@ libatmos_la_LIBADD = libcommon.a
 
 libreflect_la_SOURCES = UserReflect.cc 
 
-libsatwake_la_SOURCES = UserSatWake.cc
-libsatwake_la_LIBADD = libcommon.a libwake.a
+libsatwake_la_SOURCES = UserSatWake.cc invsvd.cc
+libsatwake_la_LIBADD = libswake.a libcommon.a -llapack-3 -lblas-3
 

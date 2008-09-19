@@ -159,6 +159,25 @@ double plgndr(int l, int m, double x)
   }
 }
 
+
+double dplgndr(int l, int m, double x)
+{
+  if (m < 0 || m > l || fabs(x) > 1.0) {
+    cerr << "Bad arguments in routine DPLGNDR\n";
+    exit(-1);
+  }
+
+  if (l==0 && m==0) return 0.0;
+
+  double somx2 = 1.0/(x*x - 1.0);
+
+  if (m<l)
+    return somx2*(x*l*plgndr(l, m, x) - plgndr(l-1, m, x)*(l+m));
+  else
+    return somx2*x*l*plgndr(l, l, x);
+}
+
+
 double factrl(int n)
 {
   if (n<=1)
