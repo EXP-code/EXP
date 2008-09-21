@@ -1,6 +1,5 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include <mpi.h>
 #include <Vector.h>
 #include <kevin_complex.h>

@@ -28,9 +28,10 @@
  *
  ***************************************************************************/
 
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
-#include <math.h>
+#include <cmath>
 #include <Vector.h>
 #include <OrthoPoly.h>
 #include <CauchyPV.h>

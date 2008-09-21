@@ -265,6 +265,8 @@ void * UserDiffRot::determine_acceleration_and_potential_thread(void * arg)
     for (int q=nbeg; q<nend; q++) {
       i = (it++)->first;
 
+      dt = get_dtime(*(cC->Part(i)));
+
       cC->Part(i)->dattrib.push_back(tnow + dt/rate);
 
       dtmin = min<double>(dt, dtmin);

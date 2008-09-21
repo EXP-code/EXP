@@ -46,6 +46,7 @@ HISTORY
 
 using namespace std;
 
+#include <cstdlib>
 #include <string>
 #include <Vector.h>
 

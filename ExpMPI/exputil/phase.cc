@@ -1,6 +1,6 @@
-#include <math.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 #include <numerical.h>
 #include <Vector.h>
 #include <phase.h>

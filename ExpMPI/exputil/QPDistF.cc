@@ -34,12 +34,13 @@
 
 using namespace std;
 
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <string>
+#include <cmath>
 
 #include <malloc.h>
-#include <math.h>
 
 #include <numerical.h>
 #include <Vector.h>

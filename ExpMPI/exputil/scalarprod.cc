@@ -30,7 +30,9 @@
  ***************************************************************************/
 
 
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
+
 #include <Vector.h>
 #include <gaussQ.h>
 #include <biorth2d.h>

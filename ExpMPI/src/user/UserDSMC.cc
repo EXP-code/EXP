@@ -637,7 +637,7 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
         vrel[id][0] = rvel*cos_th;
         vrel[id][1] = rvel*sin_th*cos(phi);
         vrel[id][2] = rvel*sin_th*sin(phi);
-        for (int  k=1; k<=3; k++ ) {
+        for (int  k=0; k<3; k++ ) {
           p1->vel[k] = vcom[id][k] + 0.5*vrel[id][k];  // Update post-collision
           p2->vel[k] = vcom[id][k] - 0.5*vrel[id][k];  // velocities
         }

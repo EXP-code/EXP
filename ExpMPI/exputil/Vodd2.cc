@@ -38,8 +38,8 @@
  *
  ***************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
+#include <cstring>
+#include <cstdlib>
 
 #include <Vector.h>
 #include <interp.h>

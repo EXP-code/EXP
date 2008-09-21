@@ -6,7 +6,6 @@
 #define _interp_h
 
 #include <Vector.h>
-// #include <Matrix.h>
 #include <vector>
 
 void Spline(const Vector &x, const Vector &y, double yp1, double ypn, Vector &y2);
@@ -124,7 +123,7 @@ public:
 
   double deriv2(const double& x)
   {if (defined) return chebev(x, c1); else bomb("no data!"); return 0.0;}
-  void bomb(char *, ...);
+  void bomb(const char *, ...);
 };
 
 

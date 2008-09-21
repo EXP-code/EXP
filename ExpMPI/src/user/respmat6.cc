@@ -70,6 +70,7 @@
 #define SVD_INVERSE 1
 
 #include <cstdlib>
+#include <cstring>
 
 #include <RespMat3.h>
 #include <interp.h>

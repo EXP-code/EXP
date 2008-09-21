@@ -204,7 +204,7 @@ double Cheby1d::chebev(double x, vector<double>& cin)
   return y*d-dd+0.5*cin[0];
 }
 
-void Cheby1d::bomb(char *a, ...)
+void Cheby1d::bomb(const char *a, ...)
 {
   va_list ap;
   char *b, *c;
@@ -222,3 +222,4 @@ void Cheby1d::bomb(char *a, ...)
 
   exit(-1);
 }
+

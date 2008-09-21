@@ -1,4 +1,5 @@
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include <iostream>
 
 #define ITMAX 500

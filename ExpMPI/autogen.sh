@@ -39,5 +39,5 @@ automake-1.7 --add-missing
 automake-1.7
 autoconf
 ./configure $*
-$MAKE CXXFLAGS="-O3" CFLAGS="-O3"
+$MAKE CXXFLAGS="-O3" CFLAGS="-O3" -j3
 

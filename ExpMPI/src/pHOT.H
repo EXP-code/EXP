@@ -114,7 +114,7 @@ public:
 
   //! Evaluate the kinetic state for the given input position
   void State(double *pos, double& dens, double& temp, 
-	     double& vx, double& vx, double& vz);
+	     double& vx, double& vy, double& vz);
   double minVol();
   double maxVol();
   double medianVol();

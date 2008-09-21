@@ -1,6 +1,8 @@
 
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include <string>
+
 #include <Vector.h>
 #include <gaussQ.h>
 

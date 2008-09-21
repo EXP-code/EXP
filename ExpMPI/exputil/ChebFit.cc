@@ -2,11 +2,12 @@
 // Chebyshev fitting and smoothing class
 //
 
+#include <cstdlib>
 #include <iostream>
 #include <string>
 #include <vector>
+#include <cmath>
 
-#include <math.h>
 #include <stdarg.h>
 #include <interp.h>
 #include <ChebFit.h>

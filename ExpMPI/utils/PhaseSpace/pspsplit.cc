@@ -4,9 +4,9 @@
   MDWeinberg 03/17/02
 */
 
-#include <unistd.h>
-#include <stdlib.h>
-
+#include <cstdlib>
+#include <cstring>
+#include <cmath>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
