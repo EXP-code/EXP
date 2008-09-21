@@ -21,6 +21,7 @@ ExpMPI/src/user/UserRotF.cc -text
 ExpMPI/src/user/UserSatWake.H -text
 ExpMPI/src/user/UserSatWake.cc -text
 ExpMPI/src/user/cratint.cc -text
+ExpMPI/src/user/invsvd.cc -text
 ExpMPI/src/user/respmat6.cc -text
 ExpMPI/src/user/rombeveccmp.cc -text
 ExpMPI/utils/ICs/Particle.cc -text
