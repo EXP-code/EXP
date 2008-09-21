@@ -4,6 +4,7 @@ ExpMPI/doc/exp_logo.gif svneol=native#unset
 ExpMPI/doc/global.doc -text
 ExpMPI/doc/multistep.doc -text
 ExpMPI/doc/verbose.doc -text
+ExpMPI/exputil/Cheby1d.cc -text
 ExpMPI/exputil/Interp1d.cc -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
