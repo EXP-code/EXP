@@ -17,20 +17,23 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 bin_PROGRAMS = slcheck slshift orthochk
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lstdc++ -lpthread -ldl -lg2c -lm
+SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
 
-LIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
+EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
 slcheck_SOURCES = slcheck.cc
+slcheck_LDADD = $(EXPLIBS)
 
 slshift_SOURCES = slshift.cc SLSphere.cc
+slshift_LDADD = $(EXPLIBS)
 
 orthochk_SOURCES = orthochk.cc biorth1d.cc
+orthochk_LDADD = $(EXPLIBS)
 
 biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 	cp $(top_srcdir)/src/$@ .

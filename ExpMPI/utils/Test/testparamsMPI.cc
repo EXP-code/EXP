@@ -31,11 +31,13 @@
 
 #define IS_MAIN
 
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <cstring>
 #include <vector>
 
 #include <unistd.h>

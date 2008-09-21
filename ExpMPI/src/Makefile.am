@@ -41,7 +41,7 @@ exp_SOURCES = \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
      OutCalbr.cc ParticleFerry.cc pCell.cc
 
-exp_LDADD = libpHOT.a
+exp_LDADD = libpHOT.a $(EXPLIBS)
 
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
@@ -52,10 +52,10 @@ bin_PROGRAMS = exp
 
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lpthread -ldl -lgfortran -lm
+SYS_LIBS = -lpthread -ldl
 MPI_LIBS = -lmpi
 
-LIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS)
+EXPLIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD = $(COMMON_LIBS) $(ADD_LIBS3) 
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 

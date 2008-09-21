@@ -15,10 +15,10 @@ AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -L -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lpthread -ldl -lg2c -lm
+SYS_LIBS = -L -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lpthread -ldl
 MPI_LIBS = -lmpi
 
-LIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
+EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3) $(LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -27,16 +27,20 @@ noinst_HEADERS =
 bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere
 
 shrinkics_SOURCES = shrinkics.cc
+shrinkics_LDADD = $(EXPLIBS)
 
 gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
+gendisk_LDADD = $(EXPLIBS)
 
 gendisk2_SOURCES =  initial2.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
+gendisk2_LDADD = $(EXPLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
+gsphere_LDADD = $(EXPLIBS)
 
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .

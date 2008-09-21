@@ -15,10 +15,10 @@ AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/src/user
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -L -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lpthread -ldl -lg2c -lm
+SYS_LIBS = -L -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lpthread -ldl
 MPI_LIBS = -lmpi
 
-LIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
+EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3) $(LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -27,6 +27,7 @@ noinst_HEADERS =
 bin_PROGRAMS = hctest
 
 hctest_SOURCES =  hctest.cc HeatCool.cc
+hctest_LDADD   = $(EXPLIBS)
 
 HeatCool.cc:	$(top_srcdir)/src/user/HeatCool.cc
 		cp $(top_srcdir)/src/user/$@ .

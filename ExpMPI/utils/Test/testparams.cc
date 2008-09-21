@@ -31,6 +31,8 @@
 
 #define IS_MAIN
 
+#include <cstdlib>
+#include <cstring>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
