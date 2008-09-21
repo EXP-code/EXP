@@ -82,6 +82,7 @@ EmpCylSL::EmpCylSL(void)
   cylmass = 0.0;
   cylmass_made = false;
   cylmass1 = vector<double>(nthrds);
+  cylmassE = vector<double>(nthrds);
 
   mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
@@ -258,6 +259,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   cylmass = 0.0;
   cylmass1 = vector<double>(nthrds);
+  cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf1 = 0;
@@ -308,6 +310,7 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   cylmass = 0.0;
   cylmass1 = vector<double>(nthrds);
+  cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf1 = 0;
@@ -1476,6 +1479,7 @@ void EmpCylSL::setup_eof()
   }
 
   for (int nth=0; nth<nthrds; nth++) {
+    cylmassE[nth] = 0.0;
     for (int M=0; M<=multistep; M++)  {
       for (int m=0; m<=MMAX; m++)  {
 	accum_cos0[M][nth][m].zero();
@@ -1514,6 +1518,8 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
   double rr = sqrt(r*r + z*z);
 
   if (rr/ASCALE>Rtable) return;
+
+  cylmassE[id] += mass;
 
   double fac0 = 4.0*M_PI, ylm;
 
@@ -2165,11 +2171,28 @@ void EmpCylSL::make_eof(void)
 				// Send grid to all processes
   send_eof_grid();
 
+				// Diagnostic write of mass used to make
+				// EOF grid
+  if (1) {
+    double Min=cylmassE[0], Mout=0.0;
+    for (int nth=1; nth<nthrds; nth++) Min += cylmassE[nth];
+    MPI_Reduce(&Min, &Mout, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) cout << "EmpCylSL: eof grid mass=" << Mout 
+		      << ", sanity check" << endl;
+
+    // I don't understand why a
+    //
+    // MPI_Reduce(MPI_IN_PLACE, &cylmassE[0], 1, MPI_DOUBLE, MPI_SUM, 
+    //            0, MPI_COMM_WORLD);
+    //
+    // emits an invalid argument error at runtime.
+  }
+
 				// Cache table for restarts
 				// (it would be nice to multithread or fork
 				//  this call . . . )
   if (myid==0) cache_grid(1);
-
+  
   eof_made = true;
   coefs_made = vector<short>(multistep+1, true);
 }

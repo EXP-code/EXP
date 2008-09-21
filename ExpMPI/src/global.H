@@ -66,7 +66,7 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
-//! Maximum level for center determination (default: 0)
+//! Maximum level for center determination (default: 100)
 extern unsigned ctrlev;
 
 //! Synchronize multistep positions at each substep (default: true)

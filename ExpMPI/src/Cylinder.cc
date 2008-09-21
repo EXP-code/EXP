@@ -219,6 +219,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
       
       ostringstream dumpname;
       dumpname << "images" << "." << runtag << "." << this_step;
+      if (multistep) compute_multistep_coefficients();
       ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
       //
       // This next call is ONLY for deep debug

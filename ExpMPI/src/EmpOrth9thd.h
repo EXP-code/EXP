@@ -45,7 +45,7 @@ private:
   double YMIN, YMAX;
   double dX, dY;
   int M, cylused, cylused1;
-  vector<double> cylmass1;
+  vector<double> cylmass1,  cylmassE;
   bool cylmass_made;
   double cylmass;
 

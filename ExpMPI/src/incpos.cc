@@ -122,23 +122,20 @@ void incr_position(double dt, int mlevel)
 #endif
     }
   }
-
-  //
-  // Only do this once per multistep
-  //
-  if (multistep==0 || (mstep==Mstep && mlevel==multistep)) {
-
-    list<Component*>::iterator cc;
-    Component *c;
-  
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
-
-      if (c->com_system) {
-	for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dt;
-      }
-    }
-    
-  }
   
 }
+
+void incr_com_position(double dt)
+{
+  list<Component*>::iterator cc;
+  Component *c;
+  
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
+    
+    if (c->com_system) {
+      for (int k=0; k<c->dim; k++) c->com0[k] += c->cov0[k]*dt;
+    }
+  }
+}
+

@@ -123,24 +123,21 @@ void incr_velocity(double dt, int mlevel)
 #endif
     }
   }
-  
+}
 
-  // Only do this once per multistep
-  if (multistep==0 || (mstep==Mstep && mlevel==multistep)) {
-
-    list<Component*>::iterator cc;
-    Component *c;
+void incr_com_velocity(double dt)
+{
+  list<Component*>::iterator cc;
+  Component *c;
   
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
     
-      if (c->com_system) {
-	for (int k=0; k<c->dim; k++) c->cov0[k] += c->acc0[k]*dt;
-      }
-    
+    if (c->com_system) {
+      for (int k=0; k<c->dim; k++) c->cov0[k] += c->acc0[k]*dt;
     }
+    
   }
 
-  
 }
 

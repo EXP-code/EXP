@@ -91,6 +91,8 @@ void init_velocity(void);
 void begin_run(void);
 void incr_position(double dt, int mlevel=0);
 void incr_velocity(double dt, int mlevel=0);
+void incr_com_position(double dt);
+void incr_com_velocity(double dt);
 void write_parm(void);
 void initialize_multistep();
 void sync_eval_multistep();

@@ -40,6 +40,11 @@ void do_step(int n)
 
     double dt = dtime/Mstep;	// Smallest time step
 
+				// COM update
+    if (timing) timer_vel.start();
+    incr_com_velocity(0.5*dt);
+    if (timing) timer_vel.stop();
+
 				// March through all the substeps
 				// of the hierarchy
     for (mstep=1; mstep<=Mstep; mstep++) {
@@ -55,7 +60,7 @@ void do_step(int n)
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
 	  if (timing) timer_vel.start();
-	  incr_velocity(0.5*DT, M);
+	  incr_velocity(0.5*DT);
 	  if (timing) timer_vel.stop();
 
 	  if (comp.bad_values()) 
@@ -134,6 +139,9 @@ void do_step(int n)
       //                              ^
       //                              |
       //           ignoring levels----/
+
+				// COM update
+      incr_com_position(dt);
       if (timing) timer_drift.stop();
 
 				// Compute potential at active levels
@@ -163,10 +171,11 @@ void do_step(int n)
 	}
 	*/
       }
+				// COM update
+      incr_com_velocity(0.5*dt);
       if (timing) timer_vel.stop();
 
       if (timing) timer_adj.start();
-      // if (myid==0) cout << "Calling adjust" << endl;
       adjust_multistep_level(false);
       if (timing) timer_adj.stop();
 
@@ -181,10 +190,12 @@ void do_step(int n)
 				// Velocity by 1/2 step
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
+    incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
 				// Position by whole step
     if (timing) timer_drift.start();
     incr_position(dtime);
+    incr_com_position(dtime);
     if (timing) timer_drift.start();
 				// Compute acceleration
     if (timing) timer_pot.start();
@@ -193,6 +204,7 @@ void do_step(int n)
 				// Velocity by 1/2 step
     if (timing) timer_vel.start();
     incr_velocity(0.5*dtime);
+    incr_com_velocity(0.5*dtime);
     if (timing) timer_vel.stop();
   }
 
