@@ -621,8 +621,8 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  double pos[3], rr, r, x, y, z, phi, pot0, pot1, dpot;
-  double potr, potl, pott, potp, RR2;
+  double pos[3], rr, r, x, y, z, phi, costh, pot0, pot1, dpot;
+  double potr, potl, pott, potp, R2, fac, Ylm, dYlm;
   Vector f, g;
   
   map<unsigned long, Particle>::iterator it = cC->Particles().begin();
@@ -647,19 +647,23 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
     potr = potl = pott = potp = 0.0;
 
     if (r <= halo_model->get_max_radius()) {
+      
+      x = pos[0];
+      y = pos[1];
+      z = pos[2];
 
-      phi = atan2(pos[1], pos[0]);
+      phi = atan2(y, x);
+      costh = z/(r+DSMALL);
+      R2 = x*x + y*y;
       
       for (unsigned ihalo=0; ihalo<Lhalo.size(); ihalo++) {
 
 	int L = Lhalo[ihalo];
 
-	double fac = sqrt( (0.5*L + 0.25)/M_PI * 
-			   exp(lgamma(1.0+L-M) - lgamma(1.0+L+M)) ) * satmass;
-
-	double Ylm = fac * plgndr(L, M, 0.0);
-
-	double dYlm = fac * dplgndr(L, M, 0.0);
+	fac = sqrt( (0.5*L + 0.25)/M_PI * 
+		    exp(lgamma(1.0+L-M) - lgamma(1.0+L+M)) ) * satmass;
+	Ylm = fac * plgndr(L, M, costh);
+	dYlm = fac * dplgndr(L, M, costh);
 
 	f = Re( exp(I*phi*M) * curcoefs[ihalo] );
 	g = Re( I*M*exp(I*phi*M) * curcoefs[ihalo] );
@@ -669,33 +673,28 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
 	dpot = (u->get_potl(r*(1.0+rtol), L, f) - 
 		u->get_potl(r*(1.0-rtol), L, f) ) / ( 2.0*rtol*r );
 	
-	potl += Ylm*pot0;
-	potr += Ylm*dpot;
-	pott += dYlm*pot0;
-	potp += Ylm*pot1;
+	potl += Ylm  * pot0;
+	potr += Ylm  * dpot;
+	pott += dYlm * pot0;
+	potp += Ylm  * pot1;
       }
+      
+      cC->AddAcc(indx, 0, -(potr*x/r - pott*x*z/(r*r*r)) );
+      cC->AddAcc(indx, 1, -(potr*y/r - pott*y*z/(r*r*r)) );
+      cC->AddAcc(indx, 2, -(potr*z/r + pott*R2 /(r*r*r))   );
+      
+      if (R2 > DSMALL) {
+	cC->AddAcc(indx, 0,  potp*y/R2 );
+	cC->AddAcc(indx, 1, -potp*x/R2 );
+      }
+      if (use_external)
+	cC->AddPotExt(indx, potl);
+      else
+	cC->AddPot(indx, potl);
     }
-
-    x = pos[0];
-    y = pos[1];
-    z = pos[2];
-
-    RR2 = x*x + y*y;
-
-    cC->AddAcc(indx, 0, -(potr*x/r - pott*x*z/(r*r*r)) );
-    cC->AddAcc(indx, 1, -(potr*y/r - pott*y*z/(r*r*r)) );
-    cC->AddAcc(indx, 2, -(potr*z/r + pott*RR2/(r*r*r))   );
-    if (RR2 > DSMALL) {
-      cC->AddAcc(indx, 0,  potp*y/RR2 );
-      cC->AddAcc(indx, 1, -potp*x/RR2 );
-    }
-    if (use_external)
-      cC->AddPotExt(indx, potl);
-    else
-      cC->AddPot(indx, potl);
   }
 
-  return (0);
+  return (NULL);
 }
 
 
