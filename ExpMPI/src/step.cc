@@ -14,6 +14,8 @@ static bool timing = false;
 static char rcsid[] = "$Id$";
 #endif
 
+static bool multistep_com_dt = false;
+
 void do_step(int n)
 {
   // Turn on step timers or VERBOSE level 4 or greater
@@ -41,9 +43,18 @@ void do_step(int n)
     double dt = dtime/Mstep;	// Smallest time step
 
 				// COM update
-    if (timing) timer_vel.start();
-    incr_com_velocity(0.5*dt);
-    if (timing) timer_vel.stop();
+    if (multistep_com_dt) {
+
+      if (timing) timer_vel.start();
+      incr_com_velocity(0.5*dt);
+      if (timing) timer_vel.stop();
+
+    } else {
+				// Velocity half-kick
+      if (timing) timer_vel.start();
+      incr_com_velocity(0.5*dtime);
+      if (timing) timer_vel.stop();
+    }
 
 				// March through all the substeps
 				// of the hierarchy
@@ -172,7 +183,7 @@ void do_step(int n)
 	*/
       }
 				// COM update
-      incr_com_velocity(0.5*dt);
+      if (multistep_com_dt) incr_com_velocity(0.5*dt);
       if (timing) timer_vel.stop();
 
       if (timing) timer_adj.start();
@@ -182,6 +193,12 @@ void do_step(int n)
       if (comp.bad_values())
 	cout << "Process " << myid
 	     << ": found BAD values after multistep advance" << endl;
+    }
+
+    if (!multistep_com_dt) {
+      if (timing) timer_vel.start();
+      incr_com_velocity(0.5*dtime);
+      if (timing) timer_vel.stop();
     }
 
   } else {

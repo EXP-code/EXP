@@ -44,6 +44,7 @@ int UserSat::instances = 0;
 
 UserSat::UserSat(string &line) : ExternalForce(line)
 {
+  id = "UserSat";		// ID string
 
   core = 0.5;			// Satellite core size
   mass = 0.3;			// Satellite mass
@@ -211,11 +212,24 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 {
   double pos[3], rs[3], fac, ffac, phi;
   double satmass;
-  
+				// Sanity check
   int nbodies = cC->Number();
+  if (nbodies != static_cast<int>(cC->Particles().size())) {
+    cerr << "UserSat: ooops! number=" << nbodies
+	 << " but particle size=" << cC->Particles().size() << endl;
+    nbodies = static_cast<int>(cC->Particles().size());
+  }
+
   int id = *((int*)arg);
-  int nbeg = 1+nbodies*id/nthrds;
+  int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  if (nbodies==0) {		// Return if there are no particles
+    if (id==0) {
+      cout << "Process " << myid << ": in UserSat, nbodies=0!" << endl;
+    }
+    return (NULL);
+  }
 
   if (traj_type==circ) {
     phi = phase + omega*tnow;
