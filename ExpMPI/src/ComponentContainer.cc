@@ -426,10 +426,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Update center of mass system coordinates
   //
-  if (timing) timer_gcom.start();
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if (c->com_system) c->update_accel();
+  if (mstep==Mstep) {
+    if (timing) timer_gcom.start();
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if (c->com_system) c->update_accel();
+    }
   }
   if (timing) timer_gcom.stop();
   
@@ -658,12 +660,13 @@ void ComponentContainer::fix_positions(int mlevel)
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
-    if (c->EJ) {
-      if (gottapot || restart) 
-	if (mlevel<=ctrlev) c->orient->accumulate(tnow, c);
-      else
-	if (myid==0) c->orient->logEntry(tnow, c);
+    if (c->EJ && mstep==Mstep) {
+      if (gottapot || restart) {
+	if (mstep==Mstep) c->orient->accumulate(tnow, c);
+	if (myid==0)      c->orient->logEntry(tnow, c);
+      }
     }
+    
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
