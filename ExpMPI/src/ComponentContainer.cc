@@ -384,56 +384,57 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   
 
   //
-  // Compute new center
-  //
-  if (timing) timer_posn.start();
-  fix_positions(mlevel);
-  if (timing) timer_posn.stop();
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": returned from <fix_positions>\n";
-#endif
-
-  //
-  // Recompute global com
-  //
-  if (timing) timer_gcom.start();
-  for (int k=0; k<3; k++) gcom[k] = 0.0;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    for (int k=0; k<3; k++) gcom[k] += c->com[k];
-  }
-  if (timing) timer_gcom.stop();
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": gcom computed\n";
-#endif
-
-  //
-  // Compute angular momentum for each component
-  //
-  if (timing) timer_angmom.start();
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->get_angmom();
-  }
-  if (timing) timer_angmom.stop();
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": angmom computed\n";
-#endif
-
-
-  //
-  // Update center of mass system coordinates
+  // Compute new center(s)
   //
   if (mstep==Mstep) {
+
+    if (timing) timer_posn.start();
+    fix_positions();
+    if (timing) timer_posn.stop();
+
+#ifdef DEBUG
+    cout << "Process " << myid << ": returned from <fix_positions>\n";
+#endif
+
+    //
+    // Recompute global com
+    //
+    if (timing) timer_gcom.start();
+    for (int k=0; k<3; k++) gcom[k] = 0.0;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      for (int k=0; k<3; k++) gcom[k] += c->com[k];
+    }
+    if (timing) timer_gcom.stop();
+    
+#ifdef DEBUG
+    cout << "Process " << myid << ": gcom computed\n";
+#endif
+
+    //
+    // Compute angular momentum for each component
+    //
+    if (timing) timer_angmom.start();
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      (*cc)->get_angmom();
+    }
+    if (timing) timer_angmom.stop();
+    
+#ifdef DEBUG
+    cout << "Process " << myid << ": angmom computed\n";
+#endif
+    
+    
+    //
+    // Update center of mass system coordinates
+    //
     if (timing) timer_gcom.start();
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
       if (c->com_system) c->update_accel();
     }
+    if (timing) timer_gcom.stop();
   }
-  if (timing) timer_gcom.stop();
   
   if (timing && timer_clock.getTime().getRealTime()>tinterval) {
     if (myid==0) {
@@ -448,7 +449,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
 	     << setw(20) << "Position: "
 	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
-	     << setw(20) << "Component position: "
+	     << setw(10) << "      *** " << setw(20) << "fix pos" << ": "
 	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
 	     << setw(20) << "Ang mom: "
 	     << setw(18) << 1.0e-6*timer_angmom.getTime().getRealTime() << endl
@@ -636,7 +637,7 @@ void ComponentContainer::fix_acceleration(void)
 
 
 
-void ComponentContainer::fix_positions(int mlevel)
+void ComponentContainer::fix_positions()
 {
   double mtot1, mtot0;
   MPI_Status status;

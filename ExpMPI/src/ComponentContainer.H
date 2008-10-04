@@ -104,7 +104,7 @@ public:
      Recompute the center of mass and centers of velocity for all
      components.  These may be used (if flagged) to center the phase
      space on each grid either globally or per component */
-  void fix_positions(int lev=0);
+  void fix_positions();
 
   //! Remove the center of mass accelration from the overall phase space
   void fix_acceleration();
