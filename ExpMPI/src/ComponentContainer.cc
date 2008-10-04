@@ -661,11 +661,9 @@ void ComponentContainer::fix_positions()
     for (int k=0; k<3; k++) gcom1[k] += c->com[k];
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
-    if (c->EJ && mstep==Mstep) {
-      if (gottapot || restart) {
-	if (mstep==Mstep) c->orient->accumulate(tnow, c);
-	if (myid==0)      c->orient->logEntry(tnow, c);
-      }
+    if (c->EJ && (gottapot || restart)) {
+      if (mstep==Mstep) c->orient->accumulate(tnow, c);
+      if (myid==0)      c->orient->logEntry(tnow, c);
     }
     
   }
