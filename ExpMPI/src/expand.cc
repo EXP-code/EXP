@@ -11,6 +11,8 @@ void clean_up(void);
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/types.h>
+
+#include <fenv.h>
 #include <fpetrap.h>
 
 //===========================================
@@ -54,9 +56,10 @@ main(int argc, char** argv)
   const int hdbufsize=1024;
   char hdbuffer[hdbufsize];
 
-#ifdef DEBUG
+  // #ifdef DEBUG
   set_fpu_handler();
-#endif
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW ); 
+  // #endif
 
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;

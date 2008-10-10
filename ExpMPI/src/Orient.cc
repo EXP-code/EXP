@@ -497,11 +497,12 @@ void Orient::accumulate(double time, Component *c)
   Nlast = used;
   Elast = Ecurr;
 
-  axis1   /= mtot;
-  center1 /= mtot;
-  if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
-  if (oflags & CENTER) sumsC.push_back(DV(time, center1));
-
+  if (mtot>0.0) {
+    axis1   /= mtot;
+    center1 /= mtot;
+    if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
+    if (oflags & CENTER) sumsC.push_back(DV(time, center1));
+  }
 
   if ((cflags & DIAG) && myid==0) {
     cout << " Orient info [" << time << ", " << c->name << "]: " 

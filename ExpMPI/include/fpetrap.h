@@ -21,13 +21,14 @@ static void my_fpu_handler(int err)
 static void (*oldhandler)(int);	// keep a reference to the initial value
 				// so it can be restored later
 
-/**Turns on exceptions for invalid, div by zero and overflow, other  
-   bits default.  This will only work for ix86 architecture.
+/**
+   Turns on exceptions for invalid, div by zero and overflow, other  
+   bits default.  This will only work for x86 architecture.
  */
 void set_fpu_handler(void)
 {
 				// Set control flag (see fpu_control.h)
-  short cw = 0x1372;
+  short cw = 0x0372;
   _FPU_SETCW(cw);
   
   oldhandler = signal(SIGFPE, my_fpu_handler);
