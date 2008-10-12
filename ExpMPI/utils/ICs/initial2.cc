@@ -61,16 +61,17 @@
 
 */
                                 // System libs
-#include <math.h>
 #include <unistd.h>
 #include <getopt.h>
-#include <stdlib.h>
 #include <values.h>
 
                                 // C++/STL headers
+#include <cmath>
+#include <cstdlib>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
+#include <sstream>
 #include <string>
 #include <vector>
 
@@ -151,6 +152,7 @@ double ToomreQ = 1.2;
 double Tmin = 500.0;
 
 bool const_height = true;
+bool images = false;
 
 int SEED = 11;
 
@@ -229,7 +231,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:d:c:T:bBzh",
+		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:d:c:T:bBzih",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -352,6 +354,10 @@ main(int argc, char **argv)
 
         case 'd':
           DMFAC = atof(optarg);
+          break;
+
+        case 'i':
+          images = true;
           break;
 
         case 'h':
@@ -619,6 +625,14 @@ main(int argc, char **argv)
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
+
+    if (images && myid==0) {
+      cout << "Images . . . " << flush;
+      ostringstream dumpname;
+      dumpname << "images.0";
+      expandd->dump_images(dumpname.str(), 5.0*ASCALE, 5.0*HSCALE, 64, 64, true);
+      cout << "done\n";
+    }
   }
   
 

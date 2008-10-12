@@ -104,20 +104,23 @@ void * adjust_multistep_level_thread(void *ptr)
     mindt1[id] = min<double>(mindt1[id], dt);
     maxdt1[id] = max<double>(maxdt1[id], dt);
 	
-    // Tally smallest (e.g. controlling) timestep
-    if (dtv<dta) {
-      if (dtr<=0 || dtv<dtr)
-	tmdt[id][level][0]++;  
-      else
-	tmdt[id][level][2]++;
-    } else {
-      if (dtr<=0 || dta<dtr)
-	tmdt[id][level][1]++;  
-      else
-	tmdt[id][level][2]++;
+    if (mstep == Mstep) {
+
+      // Tally smallest (e.g. controlling) timestep
+      if (dtv<dta) {
+	if (dtr<=0 || dtv<dtr)
+	  tmdt[id][level][0]++;  
+	else
+	  tmdt[id][level][2]++;
+      } else {
+	if (dtr<=0 || dta<dtr)
+	  tmdt[id][level][1]++;  
+	else
+	  tmdt[id][level][2]++;
+      }
+      // Counter
+      tmdt[id][level][3]++;
     }
-    // Counter
-    tmdt[id][level][3]++;
 
     if (dt>dtime) lev = 0;
     else lev = (int)floor(log(dtime/dt)/log(2.0));

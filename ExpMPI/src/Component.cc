@@ -254,7 +254,8 @@ void Component::reset_level_lists()
   if (myid==0) cout << endl;
 #endif  
 
-				// Sanity check
+				// Print out level info
+				// Only done at the end of a step . . .
   if (nlevel>0 && (this_step % nlevel == 0) && (mstep==Mstep)) {
 
     vector< vector<unsigned> > cntr(multistep+1);
