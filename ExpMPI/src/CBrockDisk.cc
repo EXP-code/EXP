@@ -100,7 +100,7 @@ CBrockDisk::CBrockDisk(string& line) : AxisymmetricBasis(line)
     sinm[i].setsize(0,Lmax);
   }
 
-  if (!self_consistent) determine_coefficients();
+  if (!self_consistent || initializing) determine_coefficients();
 
 }
 
@@ -161,7 +161,7 @@ void CBrockDisk::get_acceleration_and_potential(Component* curComp)
   /* Compute coefficients */
   /*======================*/
 
-  if (self_consistent) determine_coefficients();
+  if (self_consistent || initializing) determine_coefficients();
 
   /*======================================*/
   /* Determine potential and acceleration */

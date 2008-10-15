@@ -54,8 +54,10 @@ void begin_run(void)
   external.initialize();
   
   //===============================
-  // Compute initial accereration  
+  // Compute initial acceleration
   //===============================
+
+  initializing = true;
 
   if (multistep) {
     sync_eval_multistep();	// Use last coefficient evaluation
@@ -92,6 +94,8 @@ void begin_run(void)
   }
 
   comp.compute_potential(0);
+
+  initializing = false;
 
   //===================================
   // Initialize output routines

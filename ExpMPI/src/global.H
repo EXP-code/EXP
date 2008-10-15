@@ -113,6 +113,9 @@ extern bool global_cov;
 //! Maximum number of multistep steps
 extern int Mstep;
 
+//! True when initializing before first time step
+extern bool initializing;
+
 //! Current point in multistepping
 extern int mstep;
 

@@ -370,6 +370,12 @@ public:
     hallfreq = n;
   }
 
+  vector<double> sanity() { 
+    vector<double> ret;
+    for (int m=0; m<=MMAX; m++) ret.push_back(accum_cos[0][m]);
+    return ret;
+  }
+
 };
 
 extern void legendre_R(int lmax, double x, Matrix& p);

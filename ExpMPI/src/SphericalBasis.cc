@@ -285,7 +285,7 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
   // Compute coefficients 
   //======================
 
-  if (firstime_accel || self_consistent) {
+  if (firstime_accel || self_consistent || initializing) {
     if (multistep)
       compute_multistep_coefficients();
     else
@@ -455,7 +455,7 @@ void SphericalBasis::determine_coefficients(void)
 {
   // Return if we should leave the coefficients fixed
   //
-  if (!self_consistent && !firstime_accel) return;
+  if (!self_consistent && !firstime_accel && !initializing) return;
 
   int loffset, moffset, use0, use1;
 

@@ -213,13 +213,12 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Dump basis on first call
   //=========================
 
-  if (ncompcyl==0 && ortho->coefs_made_all()) {
+  if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
     if (myid == 0 && density) {
       ortho->dump_basis(runtag.c_str(), this_step);
       
       ostringstream dumpname;
       dumpname << "images" << "." << runtag << "." << this_step;
-      if (multistep && self_consistent) compute_multistep_coefficients();
       ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
       //
       // This next call is ONLY for deep debug
@@ -247,7 +246,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 				// Only do this check only once per
 				// multistep; might as well be at 
 				// the end of the multistep sequence
-  if (multistep==0 || mstep==Mstep) {
+  if ((multistep==0 || mstep==Mstep) && !initializing ) {
     ncompcyl++;
     if (ncompcyl == ncylrecomp) {
       ncompcyl = 0;
@@ -420,6 +419,8 @@ void Cylinder::determine_coefficients(void)
 {
   static char routine[] = "determine_coefficients_Cylinder";
 
+  if (!self_consistent && !initializing) return;
+
   if (firstime) {
 				// Try to read cache
     bool cache_ok = false;
@@ -444,17 +445,13 @@ void Cylinder::determine_coefficients(void)
       determine_coefficients_eof();
       return;
     }
-
-  } else {
-
-    if (!self_consistent) return;
-
   }
 
-  if (multistep==0 || !self_consistent)
+  if (multistep==0)
     ortho->setup_accumulation();
-  else
+  else {
     ortho->setup_accumulation(mlevel);
+  }
 
   cylmass0 = new double [nthrds];
   if (!cylmass0) {
@@ -515,10 +512,12 @@ void Cylinder::determine_coefficients(void)
   MPL_start_timer();
 
 				// Make the coefficients for this level
-  if (multistep==0 || !self_consistent)
+  if (multistep==0) {
     ortho->make_coefficients();
-  else
+  } else {
     ortho->make_coefficients(mlevel);
+  }
+
 }
 
 void Cylinder::determine_coefficients_eof(void)
@@ -720,7 +719,19 @@ void Cylinder::determine_acceleration_and_potential(void)
   static char routine[] = "determine_acceleration_and_potential_Cyl";
   
   if (use_external == false) {
-    if (multistep && self_consistent) compute_multistep_coefficients();
+
+    if (multistep && (self_consistent || initializing)) 
+      compute_multistep_coefficients();
+
+    /* DEBUG
+    if (myid==0 && !initializing) {
+      cerr << "Cylinder: coef==>";
+      vector<double> ret = ortho->sanity();
+      for (vector<double>::iterator it=ret.begin(); it!=ret.end(); it++)
+	cerr << setw(18) << *it;
+      cerr << endl;
+    }
+    */
   }
 
 #ifdef DEBUG

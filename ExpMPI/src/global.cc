@@ -27,6 +27,10 @@ bool restart = false;		// Restart from a checkpoint
 bool use_cwd = false;		// Use Node 0's current working directory on all nodes
 int NICE = 10;			// Default niceness level
 int VERBOSE = 1;		// Chattiness for standard output
+bool initializing = false;	// Used by force methods to do "private things"
+				// before the first step (e.g. run through
+				// coefficient evaluations even when
+				// self_consistent=false)
 
 				// Files
 string homedir = "./";
