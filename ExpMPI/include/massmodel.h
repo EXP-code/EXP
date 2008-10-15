@@ -316,6 +316,53 @@ public:
   double d2fde2(double E, double L);
 };
 
+
+class SphericalModelMulti : public AxiSymModel
+{
+protected:
+  AxiSymModel* real;
+  AxiSymModel* fake;
+
+  SphericalOrbit orb, gen_orb;
+
+  double rmin_gen, rmax_gen;
+
+public:
+
+  SphericalModelMulti(AxiSymModel* Real, AxiSymModel* Fake);
+
+  // Required member functions
+
+  double get_mass(const double r) { return real->get_mass(r); }
+  double get_density(const double r) { return real->get_density(r); }
+  double get_pot(const double r) { return real->get_pot(r); }
+  double get_dpot(const double r)  { return real->get_dpot(r); }
+  double get_dpot2(const double r)  { return real->get_dpot2(r); }
+  void get_pot_dpot(const double r, double& p, double& dp) 
+    { real->get_pot_dpot(r, p, dp); }
+  
+  // Additional member functions
+
+  double get_min_radius(void) { return real->get_min_radius(); }
+  double get_max_radius(void) { return real->get_max_radius(); }
+
+  double distf(double E, double L)  { return real->distf(E, L); }
+  double dfde(double E, double L)   { return real->dfde(E, L); }
+  double dfdl(double E, double L)   { return real->dfdl(E, L); }
+  double d2fde2(double E, double L) { return real->d2fde2(E, L); }
+
+  // Overloaded to provide mass distribution from Real and Number distribution from Fake
+  Vector gen_point(int& ierr);
+  Vector gen_point(double r, int& ierr);
+  Vector gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr);
+
+
+  // Set new minimum and maximum for realization
+  void set_min_radius(const double& r) { rmin_gen = r; }
+  void set_max_radius(const double& r) { rmax_gen = r; }
+};
+
+
 #include <QPDistF.h>
 
 #endif

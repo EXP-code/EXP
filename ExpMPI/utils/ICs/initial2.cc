@@ -1,3 +1,5 @@
+// #define DEBUG
+
 /*
   Generates a Monte Carlo realization of a halo with an embedded
   disk using Jeans' equations.
@@ -97,7 +99,7 @@
 
                                 // Local headers
 #include "SphericalSL.h"
-#include "DiskHalo.h" 
+#include "DiskHalo2.h" 
 #include "localmpi.h"
 void local_init_mpi(int argc, char **argv);
 
@@ -123,9 +125,9 @@ double U0=0.0;
 double V0=0.0;
 double W0=0.0;
 
-int NDR=800;
-int NDZ=200;
-int NHR=800;
+int NDR=1600;
+int NDZ=400;
+int NHR=1600;
 int NHT=200;
 double SHFAC=16.0;
 
@@ -138,6 +140,8 @@ int NORDER=16;
 
 int DIVERGE=0;
 double DIVERGE_RFAC=1.0;
+int DIVERGE2=0;
+double DIVERGE_RFAC2=1.0;
 
 int DF=0;
 double R_DF=20.0;
@@ -145,7 +149,6 @@ double DR_DF=5.0;
 
 double scale_height = 0.1;
 double scale_length = 2.0;
-double halo_mass = 1.0;
 double disk_mass = 1.0;
 double gas_mass = 1.0;
 double ToomreQ = 1.2;
@@ -153,6 +156,7 @@ double Tmin = 500.0;
 
 bool const_height = true;
 bool images = false;
+bool multi = false;
 
 int SEED = 11;
 
@@ -195,7 +199,8 @@ main(int argc, char **argv)
   // Now parse the rest of the arguments
   //
 
-  static string halofile = "SLGridSph.model";
+  static string halofile1 = "SLGridSph.model";
+  static string halofile2 = "SLGridSph.model.fake";
   string suffix;
   bool basis = false;
   bool zero = false;
@@ -213,7 +218,7 @@ main(int argc, char **argv)
       // int this_option_optind = optind ? optind : 1;
       int option_index = 0;
       static struct option long_options[] = {
-	{"halo_mass", 1, 0, 0},
+	{"multi", 1, 0, 0},
 	{"rcylmin", 1, 0, 0},
 	{"rcylmax", 1, 0, 0},
 	{"rmin", 1, 0, 0},
@@ -231,7 +236,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:1:2:s:S:t:d:c:T:bBzih",
+		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:F:1:2:s:S:t:d:c:T:bBzih",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -242,7 +247,7 @@ main(int argc, char **argv)
         {
 	case 0:			// Long options
 	  optname = string(long_options[option_index].name);
-	  if (!optname.compare("halo_mass")) halo_mass = atof(optarg);
+	  if (!optname.compare("multi"))     multi = atoi(optarg) ? true : false;
 	  if (!optname.compare("rcylmin"))   RCYLMIN = atof(optarg);
 	  if (!optname.compare("rcylmax"))   RCYLMAX = atof(optarg);
 	  if (!optname.compare("rmin"))      RMIN = atof(optarg);
@@ -320,6 +325,11 @@ main(int argc, char **argv)
         case 'R':
           DIVERGE = 1;
           DIVERGE_RFAC = atof(optarg);
+          break;
+
+        case 'F':
+          DIVERGE2 = 1;
+          DIVERGE_RFAC2 = atof(optarg);
           break;
 
         case '1':
@@ -453,7 +463,7 @@ main(int argc, char **argv)
   DiskHalo::NHR = NHR;
   DiskHalo::NHT = NHT;
   DiskHalo::SHFACTOR = SHFAC;
-  DiskHalo::DMFACTOR = DMFAC;
+  DiskHalo::COMPRESSION = DMFAC;
   DiskHalo::Q = ToomreQ;        // Toomre Q
   DiskHalo::R_DF = R_DF;
   DiskHalo::DR_DF = DR_DF;
@@ -499,7 +509,8 @@ main(int argc, char **argv)
   EmpCylSL* expandd = NULL;
   if (n_particlesD) 
     expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
-  cout << "Proccess " << myid << ": "
+#ifdef DEBUG
+  cout << "Process " << myid << ": "
        << " rmin=" << EmpCylSL::RMIN
        << " rmax=" << EmpCylSL::RMAX
        << " a=" << ASCALE
@@ -509,15 +520,30 @@ main(int argc, char **argv)
        << " mmax=" << MMAX
        << " nordz=" << NORDER
        << endl << flush;
+#endif
 
   //====================Create the disk & halo model===========================
 
+  DiskHalo *diskhalo;
 
-  DiskHalo diskhalo(expandh, expandd,
-                    scale_height, scale_length, 
-		    halo_mass, disk_mass, halofile,
-                    DF, DIVERGE, DIVERGE_RFAC);
+  if (multi) {
+    if (myid==0) cout << "Initializing a MULTIMASS halo . . . " << flush;
+    diskhalo = new DiskHalo (expandh, expandd,
+			     scale_height, scale_length, disk_mass, 
+			     halofile1, DIVERGE,  DIVERGE_RFAC,
+			     halofile2, DIVERGE2, DIVERGE_RFAC2);
+    if (myid==0) cout << "done" << endl;
 
+  } else {
+
+    if (myid==0) cout << "Initializing a SINGLE halo . . . " << flush;
+    diskhalo = new DiskHalo (expandh, expandd,
+			     scale_height, scale_length, 
+			     disk_mass, halofile1,
+			     DF, DIVERGE, DIVERGE_RFAC);
+    if (myid==0) cout << "done" << endl;
+  }
+  
   ifstream center(centerfile.c_str());
   if (center) {
 
@@ -533,7 +559,7 @@ main(int argc, char **argv)
     if (center.fail()) ok = false;
 
     if (ok) {
-      diskhalo.set_pos_origin(X0, Y0, Z0);
+      diskhalo->set_pos_origin(X0, Y0, Z0);
       if (myid==0) cout << "Using position origin: " 
 			<< X0 << ", " << Y0 << ", " << Z0 << endl;
     }
@@ -548,7 +574,7 @@ main(int argc, char **argv)
     if (center.fail()) ok = false;
 
     if (ok) {
-      diskhalo.set_vel_origin(U0, V0, W0);
+      diskhalo->set_vel_origin(U0, V0, W0);
       if (myid==0) cout << "Using velocity origin: " 
 			<< U0 << ", " << V0 << ", " << W0 << endl;
     }
@@ -556,7 +582,8 @@ main(int argc, char **argv)
 
                                 // Make zero center of mass and
                                 // center of velocity
-  diskhalo.zero_com_cov(zero);
+  diskhalo->zero_com(zero);
+  diskhalo->zero_cov(zero);
   
   //===========================================================================
 
@@ -582,15 +609,21 @@ main(int argc, char **argv)
   //=================Make the phase space coordinates==========================
 
   if (n_particlesH) {
-    if (myid==0) cout << "Generating halo coordinates . . . " << flush;
-    diskhalo.set_halo_coordinates(hparticles, nhalo, n_particlesH);
+    if (multi) {
+      if (myid==0) cout << "Generating halo phase space . . . " << flush;
+      diskhalo->set_halo(hparticles, nhalo, n_particlesH);
+    } else {
+      if (myid==0) cout << "Generating halo coordinates . . . " << flush;
+      diskhalo->set_halo_coordinates(hparticles, nhalo, n_particlesH);
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
   }
 
   if (n_particlesD) {
     if (myid==0) cout << "Generating disk coordinates . . . " << flush;
-    diskhalo.set_disk_coordinates(dparticles, ndisk, n_particlesD);
+    diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done\n";
   }
@@ -777,12 +810,14 @@ main(int argc, char **argv)
 
   //====================Make the phase space velocities========================
 
-  if (myid==0) cout << "Generating halo velocities . . . " << flush;
-  diskhalo.set_vel_halo(hparticles);
-  if (myid==0) cout << "done\n";
+  if (!multi) {
+    if (myid==0) cout << "Generating halo velocities . . . " << flush;
+    diskhalo->set_vel_halo(hparticles);
+    if (myid==0) cout << "done\n";
+  }
   
   if (myid==0) cout << "Generating disk velocities . . . " << flush;
-  diskhalo.set_vel_disk(dparticles);
+  diskhalo->set_vel_disk(dparticles);
   if (myid==0) cout << "done\n";
   
 
@@ -790,13 +825,13 @@ main(int argc, char **argv)
 
   if (myid==0) cout << "Writing phase space file . . . " << flush;
 
-  diskhalo.write_file(out_halo, out_disk, hparticles, dparticles);
+  diskhalo->write_file(out_halo, out_disk, hparticles, dparticles);
   if (myid==0) cout << "done\n";
 
   out_halo.close();
   out_disk.close();
                                 // Diagnostic . . .
-  diskhalo.virial_ratio(hparticles, dparticles);
+  diskhalo->virial_ratio(hparticles, dparticles);
 
   //====================Compute gas particles==================================
 

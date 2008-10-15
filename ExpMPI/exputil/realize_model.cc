@@ -61,6 +61,7 @@ int AxiSymModel::gen_logr = 1;
 double AxiSymModel::gen_kmin = 0.0;
 unsigned int AxiSymModel::gen_seed = 11;
 int AxiSymModel::gen_itmax = 4000;
+const bool verbose = true;
 const double ftol = 0.01;
 
 
@@ -1039,4 +1040,557 @@ void AxiSymModel::gen_velocity(double* pos, double* vel, int& ierr)
   vel[1] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   vel[2] = vr * cost      - vt1 * sint;
 }
+
+Vector SphericalModelMulti::gen_point(int& ierr)
+{
+  if (!real->dist_defined || !fake->dist_defined) {
+    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    exit (-1);
+  }
+
+  double r, pot, vmax, xxx, yyy;
+  double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax, emax;
+  double mass, phi, sint, cost, sinp, cosp, azi;
+
+  double Emax = get_pot(get_max_radius());
+
+  if (gen_firstime) {
+    double zzz;
+    double tol = 1.0e-5;
+    double dx = (1.0 - 2.0*tol)/(numr-1);
+    double dy = (1.0 - 2.0*tol)/(numj-1);
+    double dr;
+
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+
+    gen_mass.setsize(1, gen_N);
+    gen_rloc.setsize(1, gen_N);
+    gen_fmax.setsize(1, gen_N);
+    vector<double> gen_emax, gen_vmax;
+
+    if (rmin_gen <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(rmax_gen) - log(rmin_gen))/(gen_N-1);
+    else
+      dr = (rmax_gen - rmin_gen)/(gen_N-1);
+
+    for (int i=1; i<=gen_N; i++) {
+
+      if (gen_logr) {
+	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = rmin_gen + dr*(i-1);
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = fake->get_mass(r);
+
+      pot = get_pot(r);
+      vmax = sqrt(2.0*fabs(Emax - pot));
+
+      emax = pot;
+      fmax = 0.0;
+      for (int j=0; j<numr; j++) {
+	xxx = tol + dx*j;
+
+	for (int k=0; k<numj; k++) {
+	  yyy = tol + dy*k;
+
+	  vr = vmax*xxx;
+	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
+	  eee = pot + 0.5*(vr*vr + vt*vt);
+
+	  zzz = fake->distf(eee, r*vt);
+	  if (zzz>fmax) {
+	    emax = eee;
+	  }
+	  fmax = zzz>fmax ? zzz : fmax;
+	}
+      }
+      gen_emax.push_back(emax);
+      gen_vmax.push_back(vmax);
+      gen_fmax[i] = fmax*(1.0 + ftol);
+
+    }
+
+    // Debug
+    
+    ofstream test("test_multi.grid");
+    if (test) {
+
+      test << "# Rmin=" << rmin_gen
+	   << "  Rmax=" << rmax_gen
+	   << endl;
+
+      test << left 
+	   << endl << setfill('-') // Separator
+	   << setw(15) << "#"	
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << endl << setfill(' ') // Labels
+	   << setw(15) << "# radius"
+	   << setw(15) << "+ mass"
+	   << setw(15) << "+ Emax"
+	   << setw(15) << "+ Vmax"
+	   << setw(15) << "+ Fmax"
+	   << setw(15) << "+ Phi(r)"
+	   << setw(15) << "+ F(Phi)"
+	   << endl
+	   << setw(15) << "# [1]" // Column number
+	   << setw(15) << "+ [2]"
+	   << setw(15) << "+ [3]"
+	   << setw(15) << "+ [4]"
+	   << setw(15) << "+ [5]"
+	   << setw(15) << "+ [6]"
+	   << setw(15) << "+ [7]"
+	   << endl << setfill('-') // Separator
+	   << setw(15) << "#"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << setw(15) << "+"
+	   << endl << setfill(' ');
+
+      for (int i=1; i<=gen_N; i++) {
+	test << setw(15) << gen_rloc[i]
+	     << setw(15) << gen_mass[i]
+	     << setw(15) << gen_emax[i]
+	     << setw(15) << gen_vmax[i]
+	     << setw(15) << gen_fmax[i]
+	     << setw(15) << get_pot(exp(gen_rloc[i]))
+	     << setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << endl;
+      }
+    }
+
+    gen_firstime = false;
+  }
+
+#if 1
+  mass = gen_mass[1] + (*Unit)()*(gen_mass[gen_N]-gen_mass[1]);
+  r = odd2(mass, gen_mass, gen_rloc, 0);
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
+  pot = get_pot(r);
+  vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
+
+                                // Trial velocity point
+    
+  int it;
+  for (it=0; it<gen_itmax; it++) {
+#else
+  int it;
+  for (it=0; it<gen_itmax; it++) {
+
+  mass = gen_mass[1] + (*Unit)()*(gen_mass[gen_N]-gen_mass[1]);
+  r = odd2(mass, gen_mass, gen_rloc, 0);
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
+  pot = get_pot(r);
+  vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
+
+#endif
+
+    xxx = 2.0*sin(asin((*Unit)())/3.0);
+    yyy = (1.0 - xxx*xxx)*(*Unit)();
+
+    vr = vmax*xxx;
+    vt = vmax*sqrt(yyy);
+    eee = pot + 0.5*(vr*vr + vt*vt);
+
+    if (fmax<=0.0) continue;
+    if ((*Unit)() > fake->distf(eee, r*vt)/fmax ) continue;
+
+    if ((*Unit)()<0.5) vr *= -1.0;
+    
+    azi = 2.0*M_PI*(*Unit)();
+    vt1 = vt*cos(azi);
+    vt2 = vt*sin(azi);
+
+    break;
+  }
+                
+  Vector out(0, 6);
+
+  if (it==gen_itmax) {
+    if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
+    ierr = 1;
+    out.zero();
+    return out;
+  }
+
+  ierr = 0;
+  
+  if ((*Unit)()>=0.5) vr *= -1.0;
+
+  phi = 2.0*M_PI*(*Unit)();
+  cost = 2.0*((*Unit)() - 0.5);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  out[0] = real->distf(eee, r*vt)/fake->distf(eee, r*vt);
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+
+  return out;
+}
+
+
+Vector SphericalModelMulti::gen_point(double radius, int& ierr)
+{
+  if (!real->dist_defined || !fake->dist_defined) {
+    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    exit (-1);
+  }
+
+  double r, pot, vmax, xxx, yyy;
+  double vr=0.0, vt=0.0, eee=0.0, vt1=0.0, vt2=0.0, fmax;
+  double phi, sint, cost, sinp, cosp, azi;
+
+  double Emax = get_pot(get_max_radius());
+
+  if (gen_firstime) {
+    double zzz;
+    double tol = 1.0e-5;
+    double dx = (1.0 - 2.0*tol)/(numr-1);
+    double dy = (1.0 - 2.0*tol)/(numj-1);
+    double dr;
+
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+
+    gen_mass.setsize(1, gen_N);
+    gen_rloc.setsize(1, gen_N);
+    gen_fmax.setsize(1, gen_N);
+
+    if (rmin_gen <= 1.0e-16) gen_logr = 0;
+    
+    if (gen_logr)
+      dr = (log(rmax_gen) - log(rmin_gen))/(gen_N-1);
+    else
+      dr = (rmax_gen - rmin_gen)/(gen_N-1);
+
+    for (int i=1; i<=gen_N; i++) {
+
+      if (gen_logr) {
+	gen_rloc[i] = log(rmin_gen) + dr*(i-1);
+	r = exp(gen_rloc[i]);
+      }
+      else {
+	gen_rloc[i] = rmin_gen + dr*(i-1);
+	r = gen_rloc[i];
+      }
+
+      gen_mass[i] = fake->get_mass(r);
+
+      pot = get_pot(r);
+      vmax = sqrt(2.0*fabs(Emax - pot));
+
+      fmax = 0.0;
+      for (int j=0; j<numr; j++) {
+	xxx = tol + dx*j;
+
+	for (int k=0; k<numj; k++) {
+	  yyy = tol + dy*k;
+
+	  vr = vmax*xxx;
+	  vt = vmax*sqrt((1.0 - xxx*xxx)*yyy);
+	  eee = pot + 0.5*(vr*vr + vt*vt);
+
+	  zzz = fake->distf(eee, r*vt);
+	  fmax = zzz>fmax ? zzz : fmax;
+	}
+      }
+      gen_fmax[i] = fmax*(1.0 + ftol);
+
+    }
+
+    // Debug
+    
+    ofstream test("test_multi.grid");
+    if (test) {
+
+      test << "# Rmin=" << rmin_gen
+	   << "  Rmax=" << rmax_gen
+	   << endl;
+
+      for (int i=1; i<=gen_N; i++) {
+	test << setw(15) << gen_rloc[i]
+	     << setw(15) << gen_mass[i]
+	     << setw(15) << gen_fmax[i]
+	     << setw(15) << get_pot(exp(gen_rloc[i]))
+	     << setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << endl;
+      }
+    }
+
+    gen_firstime = false;
+  }
+
+  r = max<double>(rmin_gen, min<double>(rmax_gen, radius));
+  fmax = odd2(r, gen_rloc, gen_fmax, 1);
+  if (gen_logr) r = exp(r);
+  
+  pot = get_pot(r);
+  vmax = sqrt(2.0*max<double>(Emax - pot, 0.0));
+
+                                // Trial velocity point
+    
+  int it;
+  for (it=0; it<gen_itmax; it++) {
+
+    xxx = 2.0*sin(asin((*Unit)())/3.0);
+    yyy = (1.0 - xxx*xxx)*(*Unit)();
+
+    vr = vmax*xxx;
+    vt = vmax*sqrt(yyy);
+    eee = pot + 0.5*(vr*vr + vt*vt);
+
+    if (fmax<=0.0) continue;
+    if ((*Unit)() > fake->distf(eee, r*vt)/fmax ) continue;
+
+    if ((*Unit)()<0.5) vr *= -1.0;
+    
+    azi = 2.0*M_PI*(*Unit)();
+    vt1 = vt*cos(azi);
+    vt2 = vt*sin(azi);
+
+    break;
+  }
+                
+  Vector out(0, 6);
+
+  if (it==gen_itmax) {
+    if (verbose) cerr << "Velocity selection failed, r=" << r << "\n";
+    ierr = 1;
+    out.zero();
+    return out;
+  }
+
+  ierr = 0;
+  
+  if ((*Unit)()>=0.5) vr *= -1.0;
+
+  phi = 2.0*M_PI*(*Unit)();
+  cost = 2.0*((*Unit)() - 0.5);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  out[0] = real->distf(eee, r*vt)/fake->distf(eee, r*vt);
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+
+  return out;
+}
+
+
+Vector SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin, double Kmax, int& ierr)
+{
+  if (!real->dist_defined || !fake->dist_defined) {
+    cerr << "SphericalModelMulti: input distribution functions must be defined before realizing!\n";
+    exit (-1);
+  }
+  
+  double r, vr, vt, vt1, vt2, E, K, J, jmax, w1t, pot;
+  double phi, sint, cost, sinp, cosp, azi;
+  double rmin = max<double>(get_min_radius(), gen_rmin);
+  double rmax = get_max_radius();
+
+
+  if (gen_firstime_E) {
+    
+    gen_orb = SphericalOrbit(this);
+    gen = new ACG(gen_seed, 20);
+    Unit = new Uniform(0.0, 1.0, gen);
+    
+    Emin_grid = get_pot(rmin)*(1.0 - gen_tolE);
+    Emax_grid = get_pot(rmax)*(1.0 + gen_tolE);
+
+    if (verbose) {
+      cout << "Initial radial bounds: " << rmin
+	   << ", " << rmax << endl;
+
+      cout << "Initial energy bounds: " << Emin_grid 
+	   << ", " << Emax_grid << " [" << gen_tolE << "]" << endl;
+    }
+
+				// Enforce limits
+    Emin_grid = max<double>(Emin, Emin_grid);
+    Emin_grid = min<double>(Emax, Emin_grid);
+    Emax_grid = max<double>(Emin, Emax_grid);
+    Emax_grid = min<double>(Emax, Emax_grid);
+
+    dEgrid = (Emax_grid - Emin_grid)/(gen_E-1);
+    dKgrid = (1.0 - 2.0*gen_tolK)/(gen_K-1);
+
+    for (int i=0; i<gen_E; i++) Egrid.push_back(Emin_grid + dEgrid*i);
+    for (int i=0; i<gen_K; i++) Kgrid.push_back(gen_tolK  + dKgrid*i);
+
+    double ans, K, angles = 2.0*pow(2.0*M_PI, 3.0), tfac;
+    vector<double> tmass;
+    ANGLE_GRID *agrid;
+
+    for (int i=0; i<gen_E; i++) {
+      ans = 0.0;
+
+      vector<WRgrid> wrvec;
+      for (int j=0; j<gen_K; j++) {
+				// Trapezoidal rule factor
+	if (j==0 || j==gen_K) tfac = 0.5;
+	else tfac = 1.0;
+
+	K = gen_tolK + dKgrid*j;
+	gen_orb.new_orbit(Egrid[i], K);
+	ans += K*gen_orb.Jmax()*gen_orb.Jmax() /
+	  gen_orb.get_freq(1) * fake->distf(Egrid[i], gen_orb.AngMom()) * tfac;
+
+	WRgrid wr;
+	agrid = gen_orb.get_angle_grid();
+
+	for (int n=0; n<agrid->num; n++) {
+	  wr.w1.push_back(agrid->w1[1][n]);
+	  wr.r.push_back(agrid->r[1][n]);
+	}
+	wrvec.push_back(wr);
+
+      } // End Kappa loop
+
+      Jmax.push_back(gen_orb.Jmax());
+      tmass.push_back(ans*angles*dKgrid*dEgrid);
+      Rgrid.push_back(wrvec);
+
+    } // Energy E loop
+
+    EgridMass.push_back(0.0);
+    for (int i=1; i<gen_E; i++) 
+      EgridMass.push_back(EgridMass[i-1]+tmass[i]);
+
+    // Debug
+    
+    ofstream test("test.grid");
+    if (test) {
+
+      test << "# Emin=" << Emin_grid
+	   << "  Emax=" << Emax_grid
+	   << endl;
+
+      for (int i=0; i<gen_E; i++) {
+	test << setw(15) << Egrid[i]
+	     << setw(15) << EgridMass[i]
+	     << setw(15) << Jmax[i]
+	     << endl;
+      }
+    }
+    
+    gen_firstime_E = false;
+  }
+
+				// Enforce limits
+  Emin = max<double>(Emin, Emin_grid);
+  Emin = min<double>(Emin, Emax_grid);
+  Emax = max<double>(Emax, Emin_grid);
+  Emax = min<double>(Emax, Emax_grid);
+
+  double Mmin = odd2(Emin, Egrid, EgridMass, 1);
+  double Mmax = odd2(Emax, Egrid, EgridMass, 1);
+  double kmin = max<double>(Kmin, gen_tolK);
+  double kmax = min<double>(Kmax, 1.0 - gen_tolK);
+
+  E = odd2(Mmin + (Mmax-Mmin)*(*Unit)(), EgridMass, Egrid, 0);
+  K = sqrt(kmin*kmin + (kmax*kmax - kmin*kmin)*(*Unit)());
+
+  int indxE = int( (E - Emin_grid)/dEgrid );
+  int indxK = int( (K - gen_tolK)/dKgrid );
+  
+  indxE = max<int>(0, min<int>(gen_E-2, indxE));
+  indxK = max<int>(0, min<int>(gen_K-2, indxK));
+
+  double cE[2], cK[2];
+
+  cE[1] = (E - (Emin_grid + dEgrid*indxE))/dEgrid;
+  cE[0] = 1.0 - cE[1];
+
+  cK[1] = (K - (gen_tolK + dKgrid*indxK))/dKgrid;
+  cK[0] = 1.0 - cK[1];
+
+
+  r = 0.0;
+  J = 0.0;
+  jmax = 0.0;
+  w1t = M_PI*(*Unit)();
+
+  for (int ie=0; ie<2; ie++) {
+    J += cE[ie]*Jmax[indxE+ie] * K;
+    jmax += cE[ie]*Jmax[indxE+ie];
+    for (int ik=0; ik<2; ik++) {
+      r += cE[ie]*cK[ik]*odd2(w1t, Rgrid[indxE+ie][indxK+ik].w1, 
+			     Rgrid[indxE+ie][indxK+ik].r, 0);
+    }
+  }
+      
+  pot = get_pot(r);
+  vt = J/r;
+  ierr = 0;
+				// Interpolation check (should be rare)
+				// Error condition is set
+  if (2.0*(E - pot) - vt*vt < 0.0) {
+    ierr = 1;
+    if (E < pot) E = pot;
+    vt = sqrt(E - pot);
+  }
+  vr = sqrt( 2.0*(E - pot) - vt*vt );
+
+  if ((*Unit)()<0.5) vr *= -1.0;
+    
+  azi = 2.0*M_PI*(*Unit)();
+  vt1 = vt*cos(azi);
+  vt2 = vt*sin(azi);
+
+  Vector out(0, 6);
+
+  phi = 2.0*M_PI*(*Unit)();
+  cost = 2.0*((*Unit)() - 0.5);
+  sint = sqrt(1.0 - cost*cost);
+  cosp = cos(phi);
+  sinp = sin(phi);
+
+  out[0] = real->distf(E, r*vt)/fake->distf(E, r*vt);
+  out[1] = r * sint*cosp;
+  out[2] = r * sint*sinp;
+  out[3] = r * cost;
+  out[4] = vr * sint*cosp + vt1 * cost*cosp - vt2*sinp;
+  out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
+  out[6] = vr * cost      - vt1 * sint;
+    
+  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+
+  return out;
+}
+
 

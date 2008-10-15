@@ -12,6 +12,7 @@ using namespace std;
 #include <Timer.h>
 #include "HeatCool.H"
 
+int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 

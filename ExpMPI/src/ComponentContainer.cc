@@ -10,7 +10,6 @@ static char rcsid[] = "$Id$";
 
 #include <vector>
 
-#include <localmpi.h>
 #include <ComponentContainer.H>
 #include <StringTok.H>
 #include <Timer.h>

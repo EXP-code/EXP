@@ -2,19 +2,14 @@
 #include <iomanip>
 #include <algorithm>
 #include <string>
+#include <cmath>
 
-#include <math.h>
 #include <getopt.h>
 
 #include <biorth1d.h>
 #include <SLGridMP2.h>
 #include <gaussQ.h>
 #include <localmpi.h>
-
-int numprocs, myid, proc_namelen;
-char* processor_name;
-
-MPI_Comm MPI_COMM_SLAVE;
 
 char threading_on = 0;
 pthread_mutex_t mem_lock;
@@ -165,11 +160,7 @@ main(int argc, char** argv)
   //===================
 
   if (use_mpi) {
-    processor_name = new char [MPI_MAX_PROCESSOR_NAME];
-    MPI_Init(&argc,&argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    MPI_Get_processor_name(processor_name, &proc_namelen);
+    local_init_mpi(argc, argv);
   }
 
   //===================

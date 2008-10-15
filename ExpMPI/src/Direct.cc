@@ -1,5 +1,4 @@
 #include "expand.h"
-#include <localmpi.h>
 
 #include <Direct.H>
 

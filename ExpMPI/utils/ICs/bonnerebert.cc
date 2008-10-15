@@ -49,6 +49,7 @@ using namespace std;
 
 #define EXIT_FAILURE 1
 
+int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 

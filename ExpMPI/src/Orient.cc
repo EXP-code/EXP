@@ -7,7 +7,6 @@
 #include <cstdlib>
 
 #include "expand.h"
-#include <localmpi.h>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>

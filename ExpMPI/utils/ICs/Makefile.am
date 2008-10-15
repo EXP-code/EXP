@@ -34,7 +34,7 @@ gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk_LDADD = $(EXPLIBS)
 
-gendisk2_SOURCES =  initial2.cc DiskHalo.cc EmpOrth9thd.cc \
+gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDADD = $(EXPLIBS)
@@ -45,7 +45,10 @@ gsphere_LDADD = $(EXPLIBS)
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
 
-CLEANFILES = 	EmpOrth9thd.cc 
+localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
+	cp $(top_srcdir)/exputil/$@ .
+
+CLEANFILES = 	EmpOrth9thd.cc localmpi.cc
 
 ## utils/ICs/Makefile.am ends here
 

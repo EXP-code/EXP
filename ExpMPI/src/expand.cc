@@ -68,8 +68,6 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
 
-  processor_name = new char [MPI_MAX_PROCESSOR_NAME];
-
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
@@ -270,8 +268,6 @@ main(int argc, char** argv)
   //===========
 
   clean_up();
-
-  delete [] processor_name;
 
   return 0;
 }

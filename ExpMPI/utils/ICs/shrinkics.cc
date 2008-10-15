@@ -6,12 +6,12 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <cmath>
 
-#include <math.h>
 #include <getopt.h>
-
 #include <pthread.h>
 
+int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 
@@ -100,7 +100,7 @@ int main(int argc, char** argv)
   }
 
   //===================
-  // MPI preliminaries 
+  // Check input file
   //===================
   ifstream in(filename.c_str());
   if (!in) {

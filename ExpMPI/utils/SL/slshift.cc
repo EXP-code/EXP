@@ -2,24 +2,18 @@
 #include <iomanip>
 #include <sstream>
 #include <string>
-
 #include <vector>
+#include <cmath>
 
-#include <math.h>
 #include <getopt.h>		// For long options
 
+#include <localmpi.h>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.h>		// Gauss-Legendre quadrature
 
 //===========================================================================
 
-				// MPI global variables
 				// so one can link to exp libraries
-int numprocs, myid, proc_namelen;
-char* processor_name;
-
-MPI_Comm MPI_COMM_SLAVE;
-
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 
@@ -438,11 +432,7 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
   if (use_mpi) {
-    processor_name = new char [MPI_MAX_PROCESSOR_NAME];
-    MPI_Init(&argc,&argv);
-    MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
-    MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-    MPI_Get_processor_name(processor_name, &proc_namelen);
+    local_init_mpi(argc, argv);
   }
 
   if (use_mpi) {

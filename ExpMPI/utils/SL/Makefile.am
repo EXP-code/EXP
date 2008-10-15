@@ -26,13 +26,13 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-slcheck_SOURCES = slcheck.cc
+slcheck_SOURCES = slcheck.cc localmpi.cc
 slcheck_LDADD = $(EXPLIBS)
 
-slshift_SOURCES = slshift.cc SLSphere.cc
+slshift_SOURCES = slshift.cc SLSphere.cc localmpi.cc
 slshift_LDADD = $(EXPLIBS)
 
-orthochk_SOURCES = orthochk.cc biorth1d.cc
+orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc
 orthochk_LDADD = $(EXPLIBS)
 
 biorth1d.h:	$(top_srcdir)/src/biorth1d.h
@@ -41,6 +41,9 @@ biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 biorth1d.cc:	$(top_srcdir)/src/biorth1d.cc
 	cp $(top_srcdir)/src/$@ .
 
-CLEANFILES = 	biorth1d.h biorth1d.cc 
+localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
+	cp $(top_srcdir)/exputil/$@ .
+
+CLEANFILES = 	biorth1d.h biorth1d.cc localmpi.cc
 
 ## utils/SL/Makefile.am ends here

@@ -22,15 +22,12 @@ ODE_SRC = rk4.cc bs.cc odesolve.cc
 SYMP_SRC = sia4.cc
 ROOT_SRC = rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc
 QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
-#UTIL_SRC = elemfunc.cc sort.cc cmdparse.cc locate.cc nrutil.cc single.cc
-#RANDOM_SRC = random.cc
 RANDOM_SRC =
 UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc \
 	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc \
-	localmpi.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
-	svd.cc # ghql.cc
+	svd.cc
 COMPLEX_SRC = Complex.cc
 CVECTOR_SRC = CVector.cc clinalg.cc mix.cc
 POLY_SRC = zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc

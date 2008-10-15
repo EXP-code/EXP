@@ -4,7 +4,6 @@
 #include <sstream>
 #include <string>
 
-#include "localmpi.h"
 #include "ParticleFerry.H"
 #include "pCell.H"
 #include "pHOT.H"

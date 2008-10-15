@@ -11,13 +11,17 @@
 // elsewhere . . . 
 //
 #ifndef _global_H
+extern MPI_Comm MPI_COMM_SLAVE;
 extern int numprocs, slaves, myid, proc_namelen;
-extern char* processor_name;
+extern char processor_name[MPI_MAX_PROCESSOR_NAME];
 #endif
 
 #include <iostream>
 #include <iomanip>
 #include <string>
+
+//! Initialize MPI
+void local_init_mpi(int argc, char **argv);
 
 //! For MPI debugging
 inline void mpi_report_location(const std::string& msg)
