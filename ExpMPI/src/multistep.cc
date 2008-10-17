@@ -304,7 +304,7 @@ void adjust_multistep_level(bool all)
 
     MPI_Reduce(&mindt1[0], &mindt, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
     MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&off1[0][0], &off[0], off1.size(), MPI_UNSIGNED, MPI_SUM, 0, 
+    MPI_Reduce(&off1[0][0], &off[0], off1[0].size(), MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
     
     if (myid==0) {

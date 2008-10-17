@@ -2592,7 +2592,12 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
 				double &p0, double& p, 
 				double& fr, double& fz, double &fp)
 {
-  if (!coefs_made_all()) make_coefficients();
+  if (!coefs_made_all()) {
+    if (VERBOSE>3)
+      cerr << "Process " << myid << ": in EmpCylSL::accumlated_eval, "
+	   << "calling make_coefficients()" << endl;
+    make_coefficients();
+  }
 
   fr = 0.0;
   fz = 0.0;
@@ -2736,7 +2741,12 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
 {
   if (!DENS) return 0.0;
 
-  if (!coefs_made_all()) make_coefficients();
+  if (!coefs_made_all()) {
+    if (VREBOSE>3) 
+      cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
+	   << "calling make_coefficients()" << endl;
+    make_coefficients();
+  }
 
   double ans = 0.0;
 
@@ -2901,7 +2911,12 @@ void EmpCylSL::get_all(int mm, int nn,
 		       double& p, double& d, 
 		       double& fr, double& fz, double &fp)
 {
-  if (!coefs_made_all()) make_coefficients();
+  if (!coefs_made_all()) {
+    if (VERBOSE>3) 
+      cerr << "Process " << myid << ": in EmpCylSL::gel_all, "
+	   << "calling make_coefficients()" << endl;
+    make_coefficients();
+  }
 
   fr = 0.0;
   fz = 0.0;

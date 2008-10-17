@@ -512,7 +512,7 @@ void Cylinder::determine_coefficients(void)
   MPL_start_timer();
 
 				// Make the coefficients for this level
-  if (multistep==0) {
+  if (multistep==0 || !self_consistent) {
     ortho->make_coefficients();
   } else {
     ortho->make_coefficients(mlevel);
@@ -723,15 +723,6 @@ void Cylinder::determine_acceleration_and_potential(void)
     if (multistep && (self_consistent || initializing)) 
       compute_multistep_coefficients();
 
-    /* DEBUG
-    if (myid==0 && !initializing) {
-      cerr << "Cylinder: coef==>";
-      vector<double> ret = ortho->sanity();
-      for (vector<double>::iterator it=ret.begin(); it!=ret.end(); it++)
-	cerr << setw(18) << *it;
-      cerr << endl;
-    }
-    */
   }
 
 #ifdef DEBUG
@@ -868,6 +859,8 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
+
+  if (!self_consistent) return;
 
   if (c->freeze(i)) return;
 

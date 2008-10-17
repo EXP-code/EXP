@@ -704,12 +704,15 @@ void SphericalBasis::compute_multistep_coefficients()
       for (int n=1; n<=nmax; n++) 
 	expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
     }
-    // Sanity debug check
+				// Sanity debug check
+				// 
     if (a<0.0 && a>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
+      cout << "Process " << myid << ": interpolation error in multistep [a]" 
+	   << endl;
     }
     if (b<0.0 && b>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
+      cout << "Process " << myid << ": interpolation error in multistep [b]" 
+	   << endl;
     }
   }
 				// Add coefficients at or below this level
@@ -722,6 +725,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 
 #ifdef DEBUG
+  /*
   if (myid==0) {
     ofstream out("multistep_update.debug", ios::app);
     out << setw(70) << setfill('-') << '-' << endl;
@@ -740,6 +744,7 @@ void SphericalBasis::compute_multistep_coefficients()
     }
     out << endl;
   }
+  */
 #endif
 
 }
@@ -1281,17 +1286,17 @@ void SphericalBasis::multistep_swap(unsigned M)
   expcoefN[M] = p;
 #ifdef DEBUG
   if (myid==0) {
-    cout << "Process " << myid << ": in multistep_swap" << endl;
     ofstream out("multistep_swap.debug", ios::app);
-    out << setw(70) << setfill('-') << '-' << endl;
+    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     ostringstream sout;
     sout << "--- level=" << M << " T=" << tnow << " ";
-    out << setw(70) << left << sout.str().c_str() << endl << setfill(' ');
-    out << setw(70) << setfill('-') << '-' << endl;
-    ostringstream sout2;
-    sout2 << left << setw(5) << "# n_r" << setw(5) << "| n_l"
-	  << setw(18) << "| last coef" << setw(18) << "| cur coef"
-	  << setw(18) << "| rel diff" << endl << setfill(' ') << right;
+    out << setw(70) << left << sout.str().c_str() << endl
+	<< setw(70) << setfill('-') << '-' << endl << setfill(' ');
+    sout.str("");
+    sout << left << setw(5) << "# n_r" << setw(5) << "| n_l"
+	 << setw(18) << "| last coef" << setw(18) << "| cur coef"
+	 << setw(18) << "| rel diff";
+    out << sout.str() << endl;
     for (int ir=1; ir<=nmax; ir++) {
       for (int l=0; l<=Lmax*(Lmax+2); l++)
 	out << setw(5) << ir << setw(5) << l
@@ -1299,7 +1304,8 @@ void SphericalBasis::multistep_swap(unsigned M)
 	    << setw(18) << (*expcoefN[M])[l][ir]
 	    << setw(18) << fabs((*expcoefN[M])[l][ir] - (*expcoefL[M])[l][ir])/(fabs((*expcoefL[M])[l][ir])+1.0e-18) << endl;
     }
-    out << setw(70) << setfill('-') << '-' << endl;
+    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
   }
+  cout << "Process " << myid << ": exiting multistep_swap" << endl;
 #endif
 }

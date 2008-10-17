@@ -40,6 +40,8 @@ void * incr_velocity_thread(void *ptr)
     else			// Use ALL levels
       ntot = c->Number();
 
+    if (ntot==0) continue;
+
     //
     // Compute the beginning and end points in the particle vector 
     // for each thread
@@ -91,8 +93,8 @@ void incr_velocity(double dt, int mlevel)
       posvel_data[i].mlevel = mlevel;
       posvel_data[i].id = i;
       
-      errcode =  pthread_create(&posvel_thrd[i], 0, incr_velocity_thread, 
-				&posvel_data[i]);
+      pthread_t *p = &posvel_thrd[i];
+      errcode =  pthread_create(p, 0, incr_velocity_thread, &posvel_data[i]);
 
       if (errcode) {
 	cerr << "Process " << myid
@@ -111,7 +113,8 @@ void incr_velocity(double dt, int mlevel)
     // Collapse the threads
     //
     for (int i=0; i<nthrds; i++) {
-      if ((errcode=pthread_join(posvel_thrd[i], &retval))) {
+      pthread_t p = posvel_thrd[i];
+      if ((errcode=pthread_join(p, &retval))) {
 	cerr << "Process " << myid
 	     << " incr_velocity: thread join " << i
 	     << " failed, errcode=" << errcode << endl;

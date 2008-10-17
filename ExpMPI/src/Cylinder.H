@@ -93,16 +93,20 @@ public:
 
   /** Update the multi time step coefficient table when moving particle 
       <code>i</code> from level <code>cur</code> to level 
-      <code>next</code>
+      <code>next</code>.
   */
   //@{
-  virtual void multistep_update_begin() { ortho->multistep_update_begin(); }
+  virtual void multistep_update_begin() { 
+    if (self_consistent) ortho->multistep_update_begin(); }
+
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
-  virtual void multistep_update_finish() { ortho->multistep_update_finish(); }
+  virtual void multistep_update_finish() { 
+    if (self_consistent) ortho->multistep_update_finish(); }
   //@}
 
   //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(unsigned M) { ortho->multistep_swap(M); }
+  virtual void multistep_swap(unsigned M) { 
+    if (self_consistent) ortho->multistep_swap(M); }
 
   //! Print debug info
   virtual void multistep_debug();
