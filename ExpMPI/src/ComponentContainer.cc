@@ -12,23 +12,29 @@ static char rcsid[] = "$Id$";
 
 #include <ComponentContainer.H>
 #include <StringTok.H>
-#include <Timer.h>
 
-static Timer timer_posn(true), timer_gcom(true), timer_angmom(true);
-static Timer timer_zero(true), timer_accel(true), timer_inter(true);
-static Timer timer_total(true), timer_fixp(true), timer_extrn(true);
-static Timer timer_clock(false);
-static vector< pair<string, Timer> > timer_sext;
-static vector<unsigned> levcnt;
-static long tinterval = 300;	// Seconds between timer dumps
-static bool timing = false;
-
+long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
 ComponentContainer::ComponentContainer(void)
 {
   gottapot = false;
   gcom1 = new double [3];
   gcov1 = new double [3];
+
+  bool timing = false;
+
+  // Fine resolution for these timers (default reselution is 1 sec)
+  //
+  timer_posn.	Microseconds();
+  timer_gcom.	Microseconds();
+  timer_angmom.	Microseconds();
+  timer_zero.	Microseconds();
+  timer_accel.	Microseconds();
+  timer_thrds.	Microseconds();
+  timer_inter.	Microseconds();
+  timer_total.	Microseconds();
+  timer_fixp.	Microseconds();
+  timer_extrn.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -456,6 +462,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
 	     << setw(20) << "Accel: "
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "Threading" << ": "
+	     << setw(18) << 1.0e-6*timer_thrds.getTime().getRealTime() << endl
 	     << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
 	     << setw(20) << "External: "
@@ -493,6 +501,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_angmom.reset();
     timer_zero.reset();
     timer_accel.reset();
+    timer_thrds.reset();
     timer_inter.reset();
     timer_extrn.reset();
     timer_total.reset();

@@ -20,6 +20,7 @@ int PotAccel::compute;
 
 void PotAccel::exp_thread_fork(bool coef)
 {
+  if (comp.timing) comp.timer_thrds.start();
   if (nthrds==1) {
 
     thrd_pass_PotAccel td;
@@ -93,6 +94,8 @@ void PotAccel::exp_thread_fork(bool coef)
 
   delete [] td;
   delete [] t;
+
+  if (comp.timing) comp.timer_thrds.stop();
 }
 
 

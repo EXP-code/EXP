@@ -3,6 +3,7 @@
 
 #include <list>
 #include <Component.H>
+#include <Timer.h>
 
 //! Class to keep track of the interactions between components
 /** Maintains a list of component that feel the force from 
@@ -53,7 +54,26 @@ private:
   int ifile;
   double *gcom1, *gcov1;
 
+  //! Counts steps at each level for timing output
+  vector<unsigned> levcnt;
+
 public:
+
+  //! Performance timers (enabled with VERBOSE>3)
+  //@{
+  Timer timer_posn, timer_gcom, timer_angmom;
+  Timer timer_zero, timer_accel, timer_inter;
+  Timer timer_total, timer_fixp, timer_extrn;
+  Timer timer_thrds, timer_clock;
+  vector< pair<string, Timer> > timer_sext;
+  //@}
+
+  //! Seconds between timer dumps
+  static long tinterval;
+
+  //! Timing in use
+  bool timing;
+
   //! Total number of bodies
   int ntot;
 

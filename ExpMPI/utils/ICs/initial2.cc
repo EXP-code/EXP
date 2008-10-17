@@ -174,6 +174,7 @@ const double f_H = 0.76;
 
 #include <Particle.H>
 
+int VERBOSE = 4;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;

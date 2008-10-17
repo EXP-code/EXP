@@ -22,10 +22,11 @@
 #ifndef STANDALONE
 #include "expand.h"
 #else  
-				// Constants from expand.h
+				// Constants from expand.h & global.H
 extern int nthrds;
 extern double tnow;
 extern unsigned multistep;
+extern int VERBOSE;
 #endif
 
 #include <numerical.h>
@@ -2742,7 +2743,7 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
   if (!DENS) return 0.0;
 
   if (!coefs_made_all()) {
-    if (VREBOSE>3) 
+    if (VERBOSE>3) 
       cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
 	   << "calling make_coefficients()" << endl;
     make_coefficients();

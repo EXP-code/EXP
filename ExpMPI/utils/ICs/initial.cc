@@ -146,6 +146,7 @@ string centerfile = "center.dat";
 
 #include <Particle.H>
 
+int VERBOSE = 4;
 int nthrds = 1;
 int this_step = 0;
 unsigned multistep = 0;
