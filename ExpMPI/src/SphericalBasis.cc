@@ -349,6 +349,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   pthread_mutex_unlock(&io_lock);
 #endif
 
+  thread_timing_beg(id);
+
   vector<double> ctr;
   if (mix) mix->getCenter(ctr);
 
@@ -446,6 +448,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
     }
 
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }
@@ -580,6 +584,8 @@ void SphericalBasis::determine_coefficients(void)
     
     firstime_coef = 0;
   }
+
+  print_timings("SphericalBasis: coefficient timings");
 
 }
 
@@ -765,6 +771,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   int id = *((int*)arg);
 
+  thread_timing_beg(id);
+
   // If we are multistepping, compute accel only at or above <mlevel>
   //
   for (int lev=mlevel; lev<=multistep; lev++) {
@@ -922,6 +930,8 @@ void * SphericalBasis::determine_acceleration_and_potential_thread(void * arg)
 
   }
 
+  thread_timing_end(id);
+
   return (NULL);
 }
 
@@ -943,6 +953,9 @@ void SphericalBasis::determine_acceleration_and_potential(void)
        << cC->Particles().rbegin()->first << "]"
        << " #=" << cC->Particles().size() << endl;
 #endif
+
+  print_timings("SphericalBasis: acceleration timings");
+
 }
 
 

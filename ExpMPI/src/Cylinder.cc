@@ -292,14 +292,18 @@ void * Cylinder::determine_coefficients_thread(void * arg)
   use[id] = 0;
   cylmass0[id] = 0.0;
 
+  thread_timing_beg(id);
+
   if (eof) {
 
     // Will use all of the bodies independent of level
     //
     nbodies = cC->Number();
     
-    if (nbodies==0) return (NULL);
-
+    if (nbodies==0) {
+      thread_timing_end(id);
+      return (NULL);
+    }
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
@@ -346,8 +350,10 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
     nbodies = cC->levlist[mlevel].size();
     
-    if (nbodies==0) return (NULL);
-
+    if (nbodies==0) {
+      thread_timing_end(id);
+      return (NULL);
+    }
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
@@ -410,6 +416,8 @@ void * Cylinder::determine_coefficients_thread(void * arg)
       
     }
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }
@@ -518,7 +526,9 @@ void Cylinder::determine_coefficients(void)
     ortho->make_coefficients(mlevel);
   }
 
+  print_timings("Cylinder: coefficient timings");
 }
+
 
 void Cylinder::determine_coefficients_eof(void)
 {
@@ -603,6 +613,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   int flg;
   if (firstime && myid==0 && id==0) out.open("debug.tst");
 #endif
+
+  thread_timing_beg(id);
 
   // If we are multistepping, compute accel only at or below <mlevel>
   //
@@ -709,6 +721,9 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 #ifdef DEBUG
   firstime = false;		// DEBUG
 #endif
+
+  thread_timing_end(id);
+
   return (NULL);
 }
 
@@ -751,6 +766,7 @@ void Cylinder::determine_acceleration_and_potential(void)
        << " #=" << cC->Particles().size() << endl;
 #endif
 
+  print_timings("Cylinder: acceleration timings");
 }
 
 void Cylinder::

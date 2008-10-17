@@ -21,7 +21,8 @@ ComponentContainer::ComponentContainer(void)
   gcom1 = new double [3];
   gcov1 = new double [3];
 
-  bool timing = false;
+  timing = false;
+  state = NONE;
 
   // Fine resolution for these timers (default reselution is 1 sec)
   //
@@ -30,7 +31,9 @@ ComponentContainer::ComponentContainer(void)
   timer_angmom.	Microseconds();
   timer_zero.	Microseconds();
   timer_accel.	Microseconds();
-  timer_thrds.	Microseconds();
+  timer_thr_acc.Microseconds();
+  timer_thr_int.Microseconds();
+  timer_thr_ext.Microseconds();
   timer_inter.	Microseconds();
   timer_total.	Microseconds();
   timer_fixp.	Microseconds();
@@ -289,6 +292,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   int nbeg, nend, indx;
   unsigned ntot;
 
+  state = SELF;
+
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
@@ -332,6 +337,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   list<Interaction*>::iterator inter;
   list<Component*>::iterator other;
   
+  state = INTERACTION;
+
   if (timing) timer_inter.start();
 
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
@@ -350,6 +357,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Do the external forces (if there are any . . .)
   //
+
+  state = EXTERNAL;
+
   if (timing) {
     timer_extrn.start();
 				// Initialize external force timers?
@@ -387,6 +397,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (timing) timer_total.stop();
   
+
+  state = NONE;
 
   //
   // Compute new center(s)
@@ -462,12 +474,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
 	     << setw(20) << "Accel: "
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "Threading" << ": "
-	     << setw(18) << 1.0e-6*timer_thrds.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
+	     << setw(18) << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl
 	     << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
+	     << setw(18) << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl
 	     << setw(20) << "External: "
-	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
+	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
+	     << setw(18) << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
 
 	vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
 	for (; itmr != timer_sext.end(); itmr++) {
@@ -501,7 +517,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_angmom.reset();
     timer_zero.reset();
     timer_accel.reset();
-    timer_thrds.reset();
+    timer_thr_acc.reset();
+    timer_thr_int.reset();
+    timer_thr_ext.reset();
     timer_inter.reset();
     timer_extrn.reset();
     timer_total.reset();

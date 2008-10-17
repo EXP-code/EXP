@@ -64,9 +64,13 @@ public:
   Timer timer_posn, timer_gcom, timer_angmom;
   Timer timer_zero, timer_accel, timer_inter;
   Timer timer_total, timer_fixp, timer_extrn;
-  Timer timer_thrds, timer_clock;
+  Timer timer_thr_acc, timer_thr_int, timer_thr_ext;
+  Timer timer_clock;
   vector< pair<string, Timer> > timer_sext;
   //@}
+
+  //! For timers in PotAcc to hook the type of acceleration
+  enum State {NONE, SELF, INTERACTION, EXTERNAL} state;
 
   //! Seconds between timer dumps
   static long tinterval;

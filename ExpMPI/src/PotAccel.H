@@ -1,8 +1,11 @@
 
-#ifndef PotAccel_H
-#define PotAccel_H
+#ifndef _PotAccel_H
+#define _PotAccel_H
 
 #include <pthread.h>
+#include <sys/time.h>
+#include <time.h>
+
 #include <string>
 #include <list>
 #include <map>
@@ -72,7 +75,18 @@ protected:
   //! Current level for multistepping
   unsigned mlevel;
 
+  //! For thread timing
+  vector<struct timeval> tv_list;
+  vector<double> timer_list;
+
 public:
+
+  //! For timing data
+  struct NData {
+    int node;
+    int tid;
+    string name;
+  };
 
   //! Id string
   string id;
@@ -174,6 +188,34 @@ public:
   //! Print debug info
   virtual void multistep_debug() {}
 
+  //! For timing the fraction spent in threaded force methods
+  //@{
+  void print_timings(const string&);
+  inline void thread_timing_beg(int id)
+  {
+#ifdef THREAD_TIMING
+    gettimeofday(&tv_list[id], 0);
+    timer_list[2*id] = 
+      tv_list[id].tv_usec*1.0e-6 +
+      (tv_list[id].tv_sec % 1000);
+#endif
+  }
+  inline void thread_timing_end(int id)
+  {
+#ifdef THREAD_TIMING
+    gettimeofday(&tv_list[id], 0);
+    timer_list[2*id+1] = 
+      tv_list[id].tv_usec*1.0e-6 +
+      (tv_list[id].tv_sec % 1000);
+#endif
+  }
+  //@}
+
 };
 
-#endif
+//! Used for thread timing only (compile with -DTHREAD_TIMING)
+bool ltdub(const pair<double, PotAccel::NData>& A, 
+	   const pair<double, PotAccel::NData>& B);
+
+
+#endif // _PotAccel_H

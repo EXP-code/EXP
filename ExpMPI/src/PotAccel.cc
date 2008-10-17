@@ -20,7 +20,9 @@ int PotAccel::compute;
 
 void PotAccel::exp_thread_fork(bool coef)
 {
-  if (comp.timing) comp.timer_thrds.start();
+  //
+  // If only one thread, skip pthread call
+  //
   if (nthrds==1) {
 
     thrd_pass_PotAccel td;
@@ -50,9 +52,25 @@ void PotAccel::exp_thread_fork(bool coef)
 	 << ": exp_thread_fork: error allocating memory for thread\n";
     exit(18);
   }
-				// Enable the memory mutex
-  // threading_on = 1;
 
+  //
+  // For determining time in threaded routines
+  //
+  if (comp.timing) {
+
+    switch (comp.state) {
+    case ComponentContainer::SELF:
+      comp.timer_thr_acc.start();
+      break;
+    case ComponentContainer::INTERACTION:
+      comp.timer_thr_int.start();
+      break;
+    case ComponentContainer::EXTERNAL:
+      comp.timer_thr_ext.start();
+      break;
+    }
+
+  }
 
 				// Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
@@ -88,14 +106,28 @@ void PotAccel::exp_thread_fork(bool coef)
     }
   }
   
-				// Disable the memory mutex
-  // threading_on = 0;
+  //
+  // For determining time in threaded routines
+  //
+  if (comp.timing) {
 
+    switch (comp.state) {
+    case ComponentContainer::SELF:
+      comp.timer_thr_acc.stop();
+      break;
+    case ComponentContainer::INTERACTION:
+      comp.timer_thr_int.stop();
+      break;
+    case ComponentContainer::EXTERNAL:
+      comp.timer_thr_ext.stop();
+      break;
+    }
+
+  }
 
   delete [] td;
   delete [] t;
 
-  if (comp.timing) comp.timer_thrds.stop();
 }
 
 
@@ -163,12 +195,17 @@ PotAccel::PotAccel(string& line)
     token = tokens(",");
   }
 
+#ifdef THREAD_TIMING
+  tv_list = vector<struct timeval>(nthrds);
+  timer_list = vector<double>(2*nthrds);
+#endif
 }
 
 PotAccel::~PotAccel(void)
 {
   delete [] use;
 }
+
 
 int PotAccel::get_value(const string& name, string& value)
 {
@@ -181,3 +218,113 @@ int PotAccel::get_value(const string& name, string& value)
   }
   return 0;
 }
+
+
+void PotAccel::print_timings(const string& label)
+{
+#ifdef THREAD_TIMING
+  if (myid==0) {
+
+    NData nbeg, nend;
+
+    nbeg.name = "beg";
+    nend.name = "end";
+
+    vector< pair<double, NData> > total_list;
+    nbeg.node = nend.node = 0;
+    for (int n=0; n<nthrds; n++) {
+      nbeg.tid = nend.tid = n;
+      total_list.push_back(pair<double, NData>(timer_list[2*n+0], nbeg));
+      total_list.push_back(pair<double, NData>(timer_list[2*n+1], nend));
+    }
+    vector<double> from(2*nthrds);
+    for (int np=1; np<numprocs; np++) {
+      MPI_Recv(&from[0], 2*nthrds, MPI_DOUBLE, np, 37, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      nbeg.node = nend.node = np;
+      for (int n=0; n<nthrds; n++) {
+	nbeg.tid = nend.tid = n;
+	total_list.push_back(pair<double, NData>(timer_list[2*n+0], nbeg));
+	total_list.push_back(pair<double, NData>(timer_list[2*n+1], nend));
+      }
+    }
+
+    sort(total_list.begin(), total_list.end(), ltdub);
+
+    string labl = label + " [" + component->name + "==>" + cC->name + "]";
+    
+    cout << setw(70) << setfill('-') << "-" << endl << setfill(' ')
+	 << labl << endl
+	 << setfill('-') << setw(labl.size()) << "-" << setfill(' ') << endl;
+
+    if (1) {
+      double bmean=0.0, bdisp=0.0, emean=0.0, edisp=0.0;
+      bool first_end=false, ok=true;
+      int cnt=0;
+      for (vector<pair<double, NData> >::iterator 
+	     it=total_list.begin(); it!=total_list.end(); it++) {
+
+	cnt++;
+	if (it->second.name.compare("beg")==0) {
+	  bmean += it->first;
+	  bdisp += it->first * it->first;
+	  if (first_end) ok = false;
+	} else {
+	  emean += it->first;
+	  edisp += it->first * it->first;
+	  first_end = true;
+	}
+      }
+
+      cnt   /= 2;
+      bmean /= cnt;
+      bdisp = fabs(bdisp - bmean*bmean*cnt);
+      if (cnt>1) bdisp /= cnt-1;
+
+      emean /= cnt;
+      edisp = fabs(edisp - emean*emean*cnt);
+      if (cnt>1) edisp /= cnt-1;
+
+      cout << "Mean(beg) = " << setw(12) << setprecision(6) << bmean
+	   << "     " << setw(12) 
+	   << "Stdv(beg) = " << setw(12) << setprecision(6) << sqrt(bdisp)
+	   << endl
+	   << "Mean(end) = " << setw(12) << setprecision(6) << emean
+	   << "     " << setw(12)
+	   << "Stdv(end) = " << setw(12) << setprecision(6) << sqrt(edisp)
+	   << endl
+	   << "Step time = " << setw(12) << setprecision(6) << emean - bmean
+	   << "     " << setw(12) 
+	   << "Distance  = " << setw(12) << (emean - bmean)/sqrt(0.5*(bdisp+edisp) + 1.0e-14)
+	   << "  ";
+
+      if (!ok) cout << "[OVERLAP!]" << endl;
+      else     cout << endl;
+
+    } else {
+
+      cout << setw(5) << "Node" << setw(5) << "Tid" 
+	   << setw(12) << "Time" << endl;
+      for (vector<pair<double, NData> >::iterator 
+	     it=total_list.begin(); it!=total_list.end(); it++) {
+	cout << setw(5)  << it->second.node
+	     << setw(5)  << it->second.tid
+	     << setw(12) << setprecision(6) << fixed << it->first
+	     << setw(5)  << it->second.name
+	     << endl;
+      }
+    }
+    cout << setw(70) << setfill('-') << "-" << endl << setfill(' ');
+    
+  } else {
+    MPI_Send(&timer_list[0], 2*nthrds, MPI_DOUBLE, 0, 37, MPI_COMM_WORLD);
+  }
+#endif
+}
+
+bool ltdub(const pair<double, PotAccel::NData>& A, 
+	   const pair<double, PotAccel::NData>& B)
+{
+  return A.first < B.first;
+} 
+

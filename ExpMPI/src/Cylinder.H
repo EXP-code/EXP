@@ -8,7 +8,9 @@
 #include <Orient.H>
 #include <Basis.H>
 
-//! This routine computes the potential, acceleration and density using the Cylindrical biorthogonal expansion
+/** This routine computes the potential, acceleration and density 
+    using the Cylindrical biorthogonal expansion 
+*/
 class Cylinder : public Basis
 {
 private:
