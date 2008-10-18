@@ -556,6 +556,8 @@ void UserResPotN::determine_acceleration_and_potential(void)
   }
 
   first = false;
+
+  print_timings("UserResPotN: acceleration timings");
 }
 
 
@@ -568,6 +570,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  thread_timing_beg(id);
 
   amp = AMP *
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
@@ -716,6 +720,8 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 #endif
 
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

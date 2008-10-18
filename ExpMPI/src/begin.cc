@@ -7,7 +7,9 @@
   4) write parameter file
 */
 
-#include "expand.h"
+#include <expand.h>
+#include <ExternalCollection.H>
+#include <OutputContainer.H>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";

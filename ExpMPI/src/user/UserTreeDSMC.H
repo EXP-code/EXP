@@ -3,11 +3,11 @@
 
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
-#include <ExternalCollection.H>
+#include <ExternalForce.H>
 
 #include <Timer.h>
 
-#include "CollideLTE.H"
+class CollideLTE;
 
 /** DSMC particle routine
     @param Lunit is the physical scale in cm per system units (default: 300 kpc)

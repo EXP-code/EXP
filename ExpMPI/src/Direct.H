@@ -20,6 +20,7 @@
 
 /* provide an extended spherical model for point mass */
 #include <AxisymmetricBasis.H>
+#include <massmodel.h>
 
 class Direct : public PotAccel
 {
@@ -42,7 +43,6 @@ private:
   int diverge;
   string pmmodel_file;
   SphericalModelTable *pmmodel;
-
 
   void initialize();
 

@@ -7,6 +7,7 @@
 #include <vector>
 #include <string>
 
+#include <list>
 #include <coef.H>
 
 using namespace std;
@@ -205,22 +206,19 @@ extern pthread_mutex_t mem_lock;
 
 // Particle components
 
-#include <list>
-#include <ComponentContainer.H>
-
 //! One component container per simulation
+class ComponentContainer;
 extern ComponentContainer comp;
 
 // External forces
 
-#include <ExternalCollection.H>
-
 //! One external force container per simulation
+class ExternalCollection;
 extern ExternalCollection external;
 
 // Output list
 
-#include <OutputContainer.H>
+class OutputContainer;
 //! One output routine container per simulation
 extern OutputContainer output;
 

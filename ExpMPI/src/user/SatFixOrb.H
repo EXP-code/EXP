@@ -1,6 +1,8 @@
-#include <math.h>
-#include "SatelliteOrbit.h"
-#include "expand.h"
+#include <cmath>
+#include <expand.h>
+#include <SatelliteOrbit.h>
+
+#include <ExternalCollection.H>
 
 /**
    Force dual satellites to be inversion symmetric about the origin

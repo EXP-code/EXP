@@ -616,6 +616,8 @@ void UserEBar::determine_acceleration_and_potential(void)
     timer_tot.reset();
     timer_thrd.reset();
   }
+
+  print_timings("UserEBar: acceleration timings");
 }
 
 
@@ -627,6 +629,8 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
   vector<double> pos(3), acct(3); 
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
+
+  thread_timing_beg(id);
 
   double fraction_on =   0.5*(1.0 + erf( (tnow - Ton )/DeltaT )) ;
   double fraction_off =  0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
@@ -731,6 +735,8 @@ void * UserEBar::determine_acceleration_and_potential_thread(void * arg)
 
     }
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

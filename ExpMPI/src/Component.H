@@ -2,14 +2,14 @@
 #define _Component_H
 
 #include <mpi.h>
+#include <utility>
+
 #include <EXPException.H>
-#include <PotAccel.H>
 #include <Orient.H>
 #include <header.H>
 #include <localmpi.h>
-#include <utility>
-
 #include <ParticleFerry.H>
+#include <PotAccel.H>
 
 class pHOT;
 

@@ -541,6 +541,8 @@ void UserEBarP::determine_acceleration_and_potential(void)
       out << endl;
     }
 
+  print_timings("UserEBarP: acceleration timings");
+
 }
 
 
@@ -550,6 +552,8 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  thread_timing_beg(id);
 
   double fac, ffac, amp = 0.0;
   double xx, yy, zz, rr, nn, pp, extpot, M0=0.0;
@@ -664,6 +668,8 @@ void * UserEBarP::determine_acceleration_and_potential_thread(void * arg)
     cC->AddPotExt(i, extpot);
 
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

@@ -168,6 +168,7 @@ void do_output_init(void);
 // Parameter database
 
 #include <ParamParseMPI.H>
+#include <ComponentContainer.H>
 #include <global.H>
 
 // Exception handler

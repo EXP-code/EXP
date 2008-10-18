@@ -133,8 +133,9 @@ int Collide::CNUM = 0;
 bool Collide::CBA = true;
 double Collide::EPSMratio = -1.0;
 
-Collide::Collide(double diameter, int nth)
+Collide::Collide(ExternalForce *force, double diameter, int nth)
 {
+  caller = force;
   nthrds = nth;
 
   colcntT = vector< vector<unsigned> > (nthrds);
@@ -268,6 +269,11 @@ Collide::Collide(double diameter, int nth)
       prec[n].second = vector<double>(Nmfp, 0);
   }
 
+  if (VERBOSE>5) {
+    tv_list = vector<struct timeval>(nthrds);
+    timer_list = vector<double>(2*nthrds);
+  }
+
 }
 
 Collide::~Collide()
@@ -351,6 +357,9 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
   if (diag) col = post_collide_diag();
   snglSoFar = snglTime.stop();
 
+
+  caller->print_timings("Collide: collision thread timings", timer_list);
+
   return( col );
 }
 
@@ -375,6 +384,8 @@ void * Collide::collide_thread(void * arg)
 				// Work vectors
   vector<double> vcm(3), vrel(3), crel(3);
   pCell *c;
+
+  thread_timing_beg(id);
 
   // Loop over cells, processing collisions in each cell
   //
@@ -710,6 +721,8 @@ void * Collide::collide_thread(void * arg)
     stat3SoFar[id] = stat3Time[id].stop();
 
   } // Loop over cells
+
+  thread_timing_end(id);
 
   return (NULL);
 }
@@ -1636,6 +1649,8 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   
   delete [] tdT;
   delete [] t;
+
+  caller->print_timings("Collide: timestep thread timings", timer_list);
 }
 
 
@@ -1644,6 +1659,8 @@ void * Collide::timestep_thread(void * arg)
   pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
   int id = (int)((tstep_pass_arguments*)arg)->id;
+
+  thread_timing_beg(id);
 
   // Loop over cells, cell time-of-flight time
   // for each particle
@@ -1684,6 +1701,8 @@ void * Collide::timestep_thread(void * arg)
     }
   }
   
+  thread_timing_end(id);
+
   return (NULL);
 }
 

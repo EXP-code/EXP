@@ -485,6 +485,8 @@ void UserResPot::determine_acceleration_and_potential(void)
   }
 
   first = false;
+
+  print_timings("UserResPot: acceleration timings");
 }
 void * UserResPot::determine_acceleration_and_potential_thread(void * arg) 
 {
@@ -495,6 +497,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  thread_timing_beg(id);
 
   amp = AMP *
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
@@ -599,6 +603,8 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
     }
     
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

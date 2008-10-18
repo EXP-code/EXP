@@ -134,6 +134,7 @@ void UserPeriodic::determine_acceleration_and_potential(void)
   if (nbin && tnow>=Tnext) trace = true;
   exp_thread_fork(false);
   if (trace) write_trace();
+  print_timings("UserPeriodic: thread timings");
 }
 
 void UserPeriodic::write_trace()
@@ -184,6 +185,8 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   
+  thread_timing_beg(id);
+
   double pos, delta;
   map<unsigned long, Particle>::iterator it = cC->Particles().begin();
   
@@ -260,6 +263,8 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 
   }
   
+  thread_timing_end(id);
+
   return (NULL);
 }
 

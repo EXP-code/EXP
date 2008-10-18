@@ -28,6 +28,7 @@ void ExternalForce::get_acceleration_and_potential(Component *C)
 void ExternalForce::determine_coefficients(void)
 {
   exp_thread_fork(true);
+  print_timings(id + ": coefficient timings");
 }
 
 void * ExternalForce::determine_coefficients_thread(void * arg)
@@ -38,6 +39,7 @@ void * ExternalForce::determine_coefficients_thread(void * arg)
 void ExternalForce::determine_acceleration_and_potential(void)
 {
   exp_thread_fork(false);
+  print_timings(id + ": acceleration timings");
 }
 
 void ExternalForce::print_divider(void)

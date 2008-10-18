@@ -393,7 +393,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	
       } else {
 
-	if (VERBOSE>5) {
+	if (VERBOSE>6) {
 	  cout << "Process " << myid 
 	       << ": r^2=" << R2
 	       << " max r^2=" << Rmax2 

@@ -14,7 +14,8 @@
 
 #include <Vector.h>
 #include <Particle.H>
-#include <Component.H>
+
+class Component;
 
 /** Class to hold energy and angular momentum for use in centering
     a component.  Helper class for class Orient. */

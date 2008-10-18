@@ -65,6 +65,9 @@ public:
 
 private:
 
+  // Calling force
+  ExternalForce *caller;
+
   // Threading stuff
   //
   thrd_pass_Collide *td;
@@ -93,6 +96,31 @@ private:
     if (q<=0.0) return 0;
     return (unsigned)floor(q*sz);
   }
+
+  //! For timing the fraction spent in threaded force methods
+  //@{
+  vector<struct timeval> tv_list;
+  vector<double> timer_list;
+
+  inline void thread_timing_beg(int id)
+  {
+    if (VERBOSE>5) {
+      gettimeofday(&tv_list[id], 0);
+      timer_list[2*id] = 
+	tv_list[id].tv_usec*1.0e-6 +
+	(tv_list[id].tv_sec % 1000);
+    }
+  }
+  inline void thread_timing_end(int id)
+  {
+    if (VERBOSE>5) {
+      gettimeofday(&tv_list[id], 0);
+      timer_list[2*id+1] = 
+	tv_list[id].tv_usec*1.0e-6 +
+	(tv_list[id].tv_sec % 1000);
+    }
+  }
+  //@}
 
 protected:
 
@@ -207,7 +235,7 @@ public:
   static double TFLOOR;
 
 
-  Collide(double diameter, int nth=1);
+  Collide(ExternalForce *force, double diameter, int nth=1);
   ~Collide();
 
   virtual void 

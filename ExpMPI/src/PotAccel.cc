@@ -1,3 +1,6 @@
+#include <pthread.h>
+#include <sys/time.h>
+#include <time.h>
 
 #include "expand.h"
 #include <PotAccel.H>
@@ -168,6 +171,7 @@ PotAccel::PotAccel(string& line)
 {
   used = 0;
   component = NULL;
+  cC = NULL;
   geometry = other;
   use_external = false;
   coef_dump = false;
@@ -195,10 +199,10 @@ PotAccel::PotAccel(string& line)
     token = tokens(",");
   }
 
-#ifdef THREAD_TIMING
-  tv_list = vector<struct timeval>(nthrds);
-  timer_list = vector<double>(2*nthrds);
-#endif
+  if (VERBOSE>5) {
+    tv_list = vector<struct timeval>(nthrds);
+    timer_list = vector<double>(2*nthrds);
+  }
 }
 
 PotAccel::~PotAccel(void)
@@ -220,9 +224,35 @@ int PotAccel::get_value(const string& name, string& value)
 }
 
 
-void PotAccel::print_timings(const string& label)
+void PotAccel::print_timings(const string& label) 
 {
-#ifdef THREAD_TIMING
+  if (VERBOSE>5) print_timings(label, timer_list);
+}
+
+void PotAccel::thread_timing_beg(int id)
+{
+  if (VERBOSE>5) {
+    gettimeofday(&tv_list[id], 0);
+    timer_list[2*id] = 
+      tv_list[id].tv_usec*1.0e-6 +
+      (tv_list[id].tv_sec % 1000);
+  }
+}
+
+void PotAccel::thread_timing_end(int id)
+{
+  if (VERBOSE>5) {
+    gettimeofday(&tv_list[id], 0);
+    timer_list[2*id+1] = 
+      tv_list[id].tv_usec*1.0e-6 +
+      (tv_list[id].tv_sec % 1000);
+  }
+}
+
+void PotAccel::print_timings(const string& label, vector<double>& tlist)
+{
+  if (VERBOSE<=5) return;
+
   if (myid==0) {
 
     NData nbeg, nend;
@@ -234,8 +264,8 @@ void PotAccel::print_timings(const string& label)
     nbeg.node = nend.node = 0;
     for (int n=0; n<nthrds; n++) {
       nbeg.tid = nend.tid = n;
-      total_list.push_back(pair<double, NData>(timer_list[2*n+0], nbeg));
-      total_list.push_back(pair<double, NData>(timer_list[2*n+1], nend));
+      total_list.push_back(pair<double, NData>(tlist[2*n+0], nbeg));
+      total_list.push_back(pair<double, NData>(tlist[2*n+1], nend));
     }
     vector<double> from(2*nthrds);
     for (int np=1; np<numprocs; np++) {
@@ -244,17 +274,31 @@ void PotAccel::print_timings(const string& label)
       nbeg.node = nend.node = np;
       for (int n=0; n<nthrds; n++) {
 	nbeg.tid = nend.tid = n;
-	total_list.push_back(pair<double, NData>(timer_list[2*n+0], nbeg));
-	total_list.push_back(pair<double, NData>(timer_list[2*n+1], nend));
+	total_list.push_back(pair<double, NData>(tlist[2*n+0], nbeg));
+	total_list.push_back(pair<double, NData>(tlist[2*n+1], nend));
       }
     }
 
     sort(total_list.begin(), total_list.end(), ltdub);
 
-    string labl = label + " [" + component->name + "==>" + cC->name + "]";
+    string labl(label);
+    if (component && cC) {	// Standard case
+      if (component->name.size()>0 && cC->name.size()>0) 
+	labl = labl + " [" + component->name + "==>" + cC->name + "]";
+      else if (component->name.size()>0)
+	labl = labl + " [" + component->name + "]";
+      else if (cC->name.size()>0) 
+	labl = labl + " [" + cC->name + "]";
+    } else if (component) {	// I don't think this ever happens . . . 
+      if (component->name.size()>0)
+	labl = labl + " [" + component->name + "]";
+    } else if (cC) {		// Case for external force
+      if (cC->name.size()>0)
+	labl = labl + " [" + cC->name + "]";
+    }
+      
     
-    cout << setw(70) << setfill('-') << "-" << endl << setfill(' ')
-	 << labl << endl
+    cout << labl << endl
 	 << setfill('-') << setw(labl.size()) << "-" << setfill(' ') << endl;
 
     if (1) {
@@ -293,9 +337,9 @@ void PotAccel::print_timings(const string& label)
 	   << "     " << setw(12)
 	   << "Stdv(end) = " << setw(12) << setprecision(6) << sqrt(edisp)
 	   << endl
-	   << "Step time = " << setw(12) << setprecision(6) << emean - bmean
+	   << "DelT mean = " << setw(12) << setprecision(6) << emean - bmean
 	   << "     " << setw(12) 
-	   << "Distance  = " << setw(12) << (emean - bmean)/sqrt(0.5*(bdisp+edisp) + 1.0e-14)
+	   << "DelT/Stdv = " << setw(12) << (emean - bmean)/sqrt(bdisp + edisp + 1.0e-14)
 	   << "  ";
 
       if (!ok) cout << "[OVERLAP!]" << endl;
@@ -314,12 +358,11 @@ void PotAccel::print_timings(const string& label)
 	     << endl;
       }
     }
-    cout << setw(70) << setfill('-') << "-" << endl << setfill(' ');
+    cout << setw(70) << setfill('=') << "=" << endl << setfill(' ');
     
   } else {
-    MPI_Send(&timer_list[0], 2*nthrds, MPI_DOUBLE, 0, 37, MPI_COMM_WORLD);
+    MPI_Send(&tlist[0], 2*nthrds, MPI_DOUBLE, 0, 37, MPI_COMM_WORLD);
   }
-#endif
 }
 
 bool ltdub(const pair<double, PotAccel::NData>& A, 

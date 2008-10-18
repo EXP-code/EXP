@@ -11,9 +11,10 @@
 
 #include <Timer.h>
 
-#include "expand.h"
-#include "UserTreeDSMC.H"
-#include "CollideLTE.H"
+#include <expand.h>
+#include <ExternalCollection.H>
+#include <UserTreeDSMC.H>
+#include <CollideLTE.H>
 
 using namespace std;
 
@@ -161,7 +162,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::TSPOW   = tspow;
   Collide::MFPDIAG = mfpstat;
 				// Create the collision instance
-  collide = new CollideLTE(diam, nthrds);
+  collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
   collide->set_timestep(use_delt);
   collide->set_excess(use_exes);

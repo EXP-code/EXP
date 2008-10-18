@@ -23,6 +23,10 @@
    </ul>
 <li> VERBOSE=6
    <ul>
+      <li> thread timing in force routines
+   </ul>
+<li> VERBOSE=7
+   <ul>
       <li> log force calls that are off the basis grid to stdout (<code>Cylinder.cc</code>)
    </ul>
 <li> VERBOSE=11

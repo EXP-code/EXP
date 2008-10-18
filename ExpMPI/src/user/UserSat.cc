@@ -224,10 +224,13 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
+  thread_timing_beg(id);
+
   if (nbodies==0) {		// Return if there are no particles
     if (id==0) {
       cout << "Process " << myid << ": in UserSat, nbodies=0!" << endl;
     }
+    thread_timing_end(id);
     return (NULL);
   }
 
@@ -279,6 +282,8 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     // Add external potential
     cC->AddPotExt(i, -satmass*fac );
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

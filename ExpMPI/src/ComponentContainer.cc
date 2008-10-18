@@ -6,11 +6,12 @@
 static char rcsid[] = "$Id$";
 #endif
 
-#include "expand.h"
+#include <expand.h>
 
 #include <vector>
 
 #include <ComponentContainer.H>
+#include <ExternalCollection.H>
 #include <StringTok.H>
 
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps

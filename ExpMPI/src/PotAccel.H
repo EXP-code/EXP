@@ -1,10 +1,5 @@
-
 #ifndef _PotAccel_H
 #define _PotAccel_H
-
-#include <pthread.h>
-#include <sys/time.h>
-#include <time.h>
 
 #include <string>
 #include <list>
@@ -13,20 +8,10 @@
 #include <Particle.H>
 #include <StringTok.H>
 
-class PotAccel;
 class Component;
+struct thrd_pass_PotAccel;
 
 using namespace std;
-
-//! Helper class to pass info to threaded member
-struct thrd_pass_PotAccel {
-  //! Pointer to force
-  PotAccel *t;
-  //! Call coefficient thread member (true) or acceleration/potential (false)
-  bool coef;
-  //! Thread counter id
-  int id;
-};
 
 //! Defines the basic components of the Force class
 /*!
@@ -190,32 +175,28 @@ public:
 
   //! For timing the fraction spent in threaded force methods
   //@{
-  void print_timings(const string&);
-  inline void thread_timing_beg(int id)
-  {
-#ifdef THREAD_TIMING
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
-#endif
-  }
-  inline void thread_timing_end(int id)
-  {
-#ifdef THREAD_TIMING
-    gettimeofday(&tv_list[id], 0);
-    timer_list[2*id+1] = 
-      tv_list[id].tv_usec*1.0e-6 +
-      (tv_list[id].tv_sec % 1000);
-#endif
-  }
+  void print_timings(const string&, vector<double>& tlist);
+  void print_timings(const string& label);
+  void thread_timing_beg(int id);
+  void thread_timing_end(int id);
   //@}
 
 };
 
-//! Used for thread timing only (compile with -DTHREAD_TIMING)
+//! Helper class to pass info to threaded member
+struct thrd_pass_PotAccel 
+{
+  //! Pointer to force
+  PotAccel *t;
+  //! Call coefficient thread member (true) or acceleration/potential (false)
+  bool coef;
+  //! Thread counter id
+  int id;
+};
+
+
+//! Used for thread timing only (VERBOSE>5)
 bool ltdub(const pair<double, PotAccel::NData>& A, 
 	   const pair<double, PotAccel::NData>& B);
-
 
 #endif // _PotAccel_H

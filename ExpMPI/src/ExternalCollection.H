@@ -3,6 +3,7 @@
 
 #include <map>
 
+#include <ComponentContainer.H>
 #include <ExternalForce.H>
 
 using namespace std;

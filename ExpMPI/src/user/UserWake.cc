@@ -1,13 +1,16 @@
-#include <math.h>
-#include "expand.h"
+#include <cmath>
+#include <sstream>
+
+#include <expand.h>
 #include <localmpi.h>
 
+#include <ExternalCollection.H>
 #include <Basis.H>
 #include <UserWake.H>
 
-#include <sstream>
-
 #include <pthread.h>  
+
+using namespace std;
 
 UserWake::UserWake(string &line) : ExternalForce(line)
 {

@@ -34,6 +34,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <cmath>
 #include <string>
@@ -50,7 +51,9 @@
 
 #include <UnboundOrbit.H>
 
-#include "global.H"
+using namespace std;
+
+#include <global.H>
 				// External prototype for Euler matrix
 
 Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);

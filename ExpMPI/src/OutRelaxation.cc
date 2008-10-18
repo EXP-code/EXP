@@ -1,8 +1,10 @@
 #include <iostream>
 #include <iomanip>
 #include <fstream>
-#include <global.H>
 
+#include <global.H>
+#include <Component.H>
+#include <ComponentContainer.H>
 #include <OutRelaxation.H>
 
 OutRelaxation::OutRelaxation(string& line) : Output(line)

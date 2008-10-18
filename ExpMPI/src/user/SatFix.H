@@ -1,5 +1,6 @@
-#include <math.h>
-#include "expand.h"
+#include <cmath>
+#include <expand.h>
+#include <ExternalCollection.H>
 
 //! Force dual satellites to be inversion symmetric about the origin
 class SatFix : public ExternalForce

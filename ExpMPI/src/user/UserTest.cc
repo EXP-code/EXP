@@ -1,4 +1,5 @@
-#include "expand.h"
+#include <expand.h>
+#include <global.H>
 #include <localmpi.h>
 #include <ExternalCollection.H>
 

@@ -377,6 +377,7 @@ void UserBar::determine_acceleration_and_potential(void)
 	  << endl;
     }
   
+  print_timings("UserBar: acceleration timings");
 }
 
 
@@ -386,6 +387,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  thread_timing_beg(id);
 
   double fac, ffac, amp = afac * amplitude/fabs(amplitude) 
     * 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ))
@@ -444,6 +447,8 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
     cC->AddPotExt(i, -ffac*pp*fac );
     
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

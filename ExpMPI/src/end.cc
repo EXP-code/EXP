@@ -4,8 +4,9 @@
   Global flag "finish" is set to 1
 */
 
-#include "expand.h"
+#include <expand.h>
 #include <global.H>
+#include <OutputContainer.H>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";

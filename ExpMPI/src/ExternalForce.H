@@ -2,6 +2,7 @@
 #define _ExternalForce_H
 
 #include <PotAccel.H>
+#include <Component.H>
 
 //! External force PotAccel members
 /*! 
@@ -31,6 +32,7 @@ protected:
   void print_divider(void);
 
 public:
+
   //! Name of external force (mnemonic)
   string id;
   

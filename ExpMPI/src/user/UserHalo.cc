@@ -98,6 +98,8 @@ void UserHalo::initialize()
 void UserHalo::determine_acceleration_and_potential(void)
 {
   exp_thread_fork(false);
+
+  print_timings("UserHalo: accleration timings");
 }
 
 
@@ -107,6 +109,8 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
+  thread_timing_beg(id);
 
   double pos[3], rr, r, pot, dpot;
   double qq[3];
@@ -189,6 +193,8 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
     cC->AddPotExt(i, pot );
 
   }
+
+  thread_timing_end(id);
 
   return (NULL);
 }

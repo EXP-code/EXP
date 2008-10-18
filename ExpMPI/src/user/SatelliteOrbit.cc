@@ -54,11 +54,10 @@
 #include <toomre.h>
 #include <exponential.h>
 
-#include <SatelliteOrbit.h>
-
-#include <ParamDatabase.H>
 #include <localmpi.h>
-#include "global.H"
+#include <global.H>
+#include <SatelliteOrbit.h>
+#include <ParamDatabase.H>
 				// External prototype for Euler matrix
 
 Matrix return_euler(double PHI, double THETA, double PSI, int BODY);

@@ -2,7 +2,8 @@
   Call necessary routines to advance phase-space one step
 */
 
-#include "expand.h"
+#include <expand.h>
+#include <OutputContainer.H>
 
 #include <Timer.h>
 static Timer timer_coef(true), timer_drift(true), timer_vel(true);
