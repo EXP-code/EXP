@@ -35,7 +35,7 @@ int    DiskHalo::SEED = 11;
 
 double DiskHalo::RA = 1.0e20;
 int    DiskHalo::NUMDF = 800;
-int    DiskHalo::RNUM = 1000;
+int    DiskHalo::RNUM = 4000;
 
 double DiskHalo::R_DF = 20.0;
 double DiskHalo::DR_DF = 5.0;
@@ -183,7 +183,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   AxiSymModel::numr = 400;
   AxiSymModel::numj = 400;
   AxiSymModel::gen_N = 800;
-  AxiSymModel::gen_itmax = 400000;
+  AxiSymModel::gen_itmax = 4000000;
   AxiSymModel::gen_rmin = RHMIN;
   newmod = new AddDisk(halo, disk, dmass*COMPRESSION); 
   halo2 = newmod->get_model();
@@ -238,7 +238,8 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 				  DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
   if (VERBOSE) {
-    halo3->print_df("diskhalo2.dfmulti");
+    halo3->print_model("diskhalo2_model.multi");
+    halo3->print_df("diskhalo2_df.multi");
   }
     
   delete [] r2;

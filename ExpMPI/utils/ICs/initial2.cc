@@ -465,6 +465,8 @@ main(int argc, char **argv)
   DiskHalo::NHT = NHT;
   DiskHalo::SHFACTOR = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
+  DiskHalo::LOGSCALE = 1;
+  DiskHalo::NUMDF = 4000;
   DiskHalo::Q = ToomreQ;        // Toomre Q
   DiskHalo::R_DF = R_DF;
   DiskHalo::DR_DF = DR_DF;

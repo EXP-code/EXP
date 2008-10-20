@@ -390,25 +390,27 @@ void SphericalModelTable::print_model(char const *name)
   out.setf(ios::left);
 
   out << "# ModelID=" << ModelID << endl;
-  out << setw(18) << "# Radius" 
-      << setw(18) << "Density" 
-      << setw(18) << "Mass" 
-      << setw(18) << "Potential" 
+  out << setw(22) << "# Radius" 
+      << setw(22) << "Density" 
+      << setw(22) << "Mass" 
+      << setw(22) << "Potential" 
       << endl;
 
   char c = out.fill('-');
-  out << setw(18) << "#-[1]"
-      << setw(18) << "|-[2]"
-      << setw(18) << "|-[3]"
-      << setw(18) << "|-[4]"
+  out << setw(22) << "# [1]"
+      << setw(22) << "| [2]"
+      << setw(22) << "| [3]"
+      << setw(22) << "| [4]"
       << endl;
   out.fill(c);
 
+  out << density.num << endl;
+  out << setprecision(12) << scientific;
   for (int i=1; i<=density.num; i++) {
-    out << setw(18) << density.x[i]
-	<< setw(18) << density.y[i]
-	<< setw(18) << mass.y[i]
-	<< setw(18) << pot.y[i]
+    out << setw(22) << density.x[i]
+	<< setw(22) << density.y[i]
+	<< setw(22) << mass.y[i]
+	<< setw(22) << pot.y[i]
 	<< endl;
   }
 
