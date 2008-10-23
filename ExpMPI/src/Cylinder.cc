@@ -899,6 +899,7 @@ void Cylinder::multistep_reset()
   used = 0; 
   cylmass = 0.0;
   ortho->reset_mass();
+  ortho->multistep_reset();
 }
 
 

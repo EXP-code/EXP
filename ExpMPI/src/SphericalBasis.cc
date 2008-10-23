@@ -817,7 +817,7 @@ void SphericalBasis::compute_multistep_coefficients()
     }
   }
 
-  if (1) {
+  if (0) {
     if (myid==0) {
       cerr << "Interpolated value:"
 	   << " mlev="  << setw(4) << mlevel

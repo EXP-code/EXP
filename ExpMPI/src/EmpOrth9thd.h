@@ -306,6 +306,7 @@ public:
   virtual void multistep_update_begin();
   virtual void multistep_update(int from, int to, double r, double z, double phi, double mass, int id);
   virtual void multistep_update_finish();
+  virtual void multistep_reset();
   //@}
 
   //! Print debug info

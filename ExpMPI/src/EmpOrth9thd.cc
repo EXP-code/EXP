@@ -2398,6 +2398,11 @@ void EmpCylSL::make_coefficients(int M0)
   
 }
 
+void EmpCylSL::multistep_reset()
+{
+  for (int M=0; M<=multistep; M++) dstepN[M] = 0;
+}
+
 void EmpCylSL::reset_mass(void)
 { 
   cylmass=0.0; 
