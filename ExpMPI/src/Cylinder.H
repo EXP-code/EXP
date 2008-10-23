@@ -106,10 +106,6 @@ public:
     if (self_consistent) ortho->multistep_update_finish(); }
   //@}
 
-  //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(unsigned M) { 
-    if (self_consistent) ortho->multistep_swap(M); }
-
   //! Print debug info
   virtual void multistep_debug();
 

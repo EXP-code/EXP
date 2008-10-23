@@ -21,6 +21,7 @@
 
 #ifndef STANDALONE
 #include "expand.h"
+#include "global.H"
 #else  
 				// Constants from expand.h & global.H
 extern int nthrds;
@@ -1226,12 +1227,16 @@ void EmpCylSL::setup_accumulation(void)
   for (int nth=0; nth<nthrds; nth++) {
     differC1[nth] = vector<Matrix>(multistep+1);
     differS1[nth] = vector<Matrix>(multistep+1); 
-    if (nth==0) {
-      differC = vector<Matrix>(multistep+1);
-      differS = vector<Matrix>(multistep+1);
-    }
   }
 
+  unsigned sz = (multistep+1)*(MMAX+1)*NORDER;
+  workC1 = vector<double>(sz);
+  workC  = vector<double>(sz);
+  workS1 = vector<double>(sz);
+  workS  = vector<double>(sz);
+
+  dstepL  = vector<unsigned>(multistep+1, 0); 
+  dstepN  = vector<unsigned>(multistep+1, 0); 
 
   cylused = cylused1 = 0;
   cylmass = 0.0;
@@ -1295,8 +1300,28 @@ void EmpCylSL::setup_accumulation(void)
 
 void EmpCylSL::setup_accumulation(int M)
 {
+#ifndef STANDALONE
   howmany[M] = 0;
 
+  //
+  // Swap buffers
+  //
+  Vector **p;
+
+  p = accum_cosL[M];
+  accum_cosL[M] = accum_cosN[M];
+  accum_cosN[M] = p;
+
+  p = accum_sinL[M];
+  accum_sinL[M] = accum_sinN[M];
+  accum_sinN[M] = p;
+
+  dstepL[M]  = dstepN[M];
+  dstepN[M] += mintvl[M];
+
+  //
+  // Clean current coefficient files
+  //
   for (int nth=0; nth<nthrds; nth++) {
 
     howmany1[M][nth] = 0;
@@ -1315,6 +1340,7 @@ void EmpCylSL::setup_accumulation(int M)
   }
   
   coefs_made[M] = false;
+#endif
 }
 
 void EmpCylSL::setup_eof()
@@ -1460,6 +1486,7 @@ void EmpCylSL::setup_eof()
   }
 
   if (accum_cos0.size()==0) {
+
     for (int M=0; M<=multistep; M++) {
 
       accum_cos0.push_back(new Vector* [nthrds]);
@@ -3903,59 +3930,85 @@ void EmpCylSL::sinecosine_R(int mmax, double phi, Vector& c, Vector& s)
 
 void EmpCylSL::multistep_update_begin()
 {
+#ifndef STANDALONE
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
-    for (int M=0; M<=multistep; M++) {
+    for (int M=mfirst[mstep]; M<=multistep; M++) {
       differC1[nth][M].setsize(0, MMAX, 0, rank3-1);
       differS1[nth][M].setsize(0, MMAX, 0, rank3-1);
-      if (nth==0) {
-	differC[M].setsize(0, MMAX, 0, rank3-1);
-	differS[M].setsize(0, MMAX, 0, rank3-1);
-      }
 
       for (int mm=0; mm<=MMAX; mm++) {
 	for (int nn=0; nn<rank3; nn++) {
 	  differC1[nth][M][mm][nn] = differS1[nth][M][mm][nn] = 0.0;
-	  if (nth==0) differC[M][mm][nn] = differS[M][mm][nn] = 0.0;
 	}
       }
     }
   }
 
+#endif // STANDALONE
 }
 
 void EmpCylSL::multistep_update_finish()
 {
-  vector<double> work1(rank3), work(rank3);
+#ifndef STANDALONE
+
+  unsigned offset0, offset1;
+  unsigned sz = (multistep - mfirst[mstep]+1)*(MMAX+1)*rank3;
+  for (unsigned j=0; j<sz; j++) 
+    workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
 				// Combine the update matricies
-  for (int M=0; M<=multistep; M++) {
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+
+    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 
     for (int mm=0; mm<=MMAX; mm++) {
       
-      for (int k=0; k<rank3; k++) work1[k] = differC1[0][M][mm][k];
+      offset1 = mm*rank3;
+
+      for (int k=0; k<rank3; k++) 
+	workC1[offset0+offset1+k] = differC1[0][M][mm][k];
       for (int nth=1; nth<nthrds; nth++)
-	for (int k=0; k<rank3; k++) work1[k] += differC1[nth][M][mm][k];
-
-      MPI_Allreduce (&work1[0], &work[0],
-		     rank3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-      for (int nn=0; nn<rank3; nn++) accum_cos[mm][nn] += work[nn];
+	for (int k=0; k<rank3; k++) 
+	  workC1[offset0+offset1+k] += differC1[nth][M][mm][k];
 
       if (mm) {
-	for (int k=0; k<rank3; k++) work1[k] = differS1[0][M][mm][k];
+	for (int k=0; k<rank3; k++) 
+	  workS1[offset0+offset1+k] = differS1[0][M][mm][k];
 	for (int nth=1; nth<nthrds; nth++)
-	  for (int k=0; k<rank3; k++) work1[k] += differS1[nth][M][mm][k];
+	  for (int k=0; k<rank3; k++) 
+	    workS1[offset0+offset1+k] += differS1[nth][M][mm][k];
 
-	MPI_Allreduce (&work1[0], &work[0],
-		       rank3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      }
+    }
+  }
 
-	for (int nn=0; nn<rank3; nn++) accum_sin[mm][nn] += work[nn];
+  MPI_Allreduce (&workC1[0], &workC[0], sz,
+		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  MPI_Allreduce (&workS1[0], &workS[0], sz, 
+		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+
+    offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
+
+    for (int mm=0; mm<=MMAX; mm++) {
+      
+      offset1 = mm*rank3;
+
+      for (int nn=0; nn<rank3; nn++) 
+	accum_cos[mm][nn] += workC[offset0+offset1+nn];
+
+      if (mm) {
+	for (int nn=0; nn<rank3; nn++) 
+	  accum_sin[mm][nn] += workS[offset0+offset1+nn];
       }
     }
 
   }
 
+#endif // STANDALONE
 }
 
 void EmpCylSL::multistep_update(int from, int to, double r, double z, double phi, double mass, int id)
@@ -4010,21 +4063,36 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
 				// Interpolate to get coefficients above
   double a, b;			// 
   for (int M=0; M<mlevel; M++) {
-    b = (double)(mstep - stepL[M])/(double)(stepN[M] - stepL[M]);
-    a = 1.0 - b;
-    for (int mm=0; mm<=MMAX; mm++) {
-      for (int nn=0; nn<rank3; nn++) {
-	accum_cos[mm][nn] += a*accum_cosL[M][0][mm][nn] + b*accum_cosN[M][0][mm][nn];
-	if (mm)
-	  accum_sin[mm][nn] += a*accum_sinL[M][0][mm][nn] + b*accum_sinN[M][0][mm][nn];
+
+				// No interpolation? Should never happen!
+    if (dstepN[M] == dstepL[M]) {
+
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  accum_cos[mm][nn] += accum_cosN[M][0][mm][nn];
+	  if (mm)
+	    accum_sin[mm][nn] += accum_sinN[M][0][mm][nn];
+	}
       }
-    }
-    // Sanity debug check
-    if (a<0.0 && a>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
-    }
-    if (b<0.0 && b>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
+
+    } else {
+
+      b = (double)(mstep - dstepL[M])/(double)(dstepN[M] - dstepL[M]);
+      a = 1.0 - b;
+      for (int mm=0; mm<=MMAX; mm++) {
+	for (int nn=0; nn<rank3; nn++) {
+	  accum_cos[mm][nn] += a*accum_cosL[M][0][mm][nn] + b*accum_cosN[M][0][mm][nn];
+	  if (mm)
+	    accum_sin[mm][nn] += a*accum_sinL[M][0][mm][nn] + b*accum_sinN[M][0][mm][nn];
+	}
+      }
+      // Sanity debug check
+      if (a<0.0 && a>1.0) {
+	cout << "Process " << myid << ": interpolation error in multistep [a]" << endl;
+      }
+      if (b<0.0 && b>1.0) {
+	cout << "Process " << myid << ": interpolation error in multistep [b]" << endl;
+      }
     }
   }
 				// Add coefficients at or below this level
@@ -4042,23 +4110,6 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   coefs_made = vector<short>(multistep+1, true);
 }
 
-//
-// Swap pointers rather than copy
-//
-void EmpCylSL::multistep_swap(unsigned M)
-{
-  Vector **p;
-
-  p = accum_cosL[M];
-  accum_cosL[M] = accum_cosN[M];
-  accum_cosN[M] = p;
-
-  p = accum_sinL[M];
-  accum_sinL[M] = accum_sinN[M];
-  accum_sinN[M] = p;
-
-  setup_accumulation(M);
-}
 
 void EmpCylSL::multistep_debug()
 {

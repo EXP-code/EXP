@@ -3,6 +3,8 @@
 #include <SphericalBasis.H>
 #include <MixtureSL.H>
 
+#define TMP_DEBUG
+
 #ifdef DEBUG
 static pthread_mutex_t io_lock;
 #endif
@@ -101,15 +103,23 @@ SphericalBasis::SphericalBasis(string& line, MixtureSL *m) :
       differ1[n][i].setsize(0, Lmax*(Lmax+2), 1, nmax);
   }
 
-  differ0 = vector<Matrix>(multistep+1);
+  // MPI buffer space
+  //
+  unsigned sz = (multistep+1)*(Lmax+1)*(Lmax+1)*nmax;
+  pack   = vector<double>(sz);
+  unpack = vector<double>(sz);
+
+  // Coefficient evaluation times
+  // 
+  dstepL  = vector<unsigned>(multistep+1, 0);
+  dstepN  = vector<unsigned>(multistep+1, 0);
+
   for (int i=0; i<=multistep; i++) {
     expcoefN.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
     expcoefL.push_back(new Matrix(0, Lmax*(Lmax+2), 1, nmax));
 
     (*expcoefN.back()).zero();
     (*expcoefL.back()).zero();
-
-    differ0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
   }
     
   expcoef .setsize(0, Lmax*(Lmax+2), 1, nmax);
@@ -470,6 +480,25 @@ void SphericalBasis::determine_coefficients(void)
 #endif
 
   //
+  // Swap arrays
+  //
+
+  Matrix *p = expcoefL[mlevel];
+
+  expcoefL[mlevel] = expcoefN[mlevel];
+  expcoefN[mlevel] = p;
+  
+  dstepL[mlevel]   = dstepN[mlevel];
+  dstepN[mlevel]  += mintvl[mlevel];
+
+  if (0) {
+    if (myid==0) cout << "swapping"
+		      << ": minS="    << dstepL[mlevel]
+		      << ", maxS="    << dstepN[mlevel] 
+		      << ", M="       << mlevel 
+		      << ", delstep=" << mintvl[mlevel] << endl;
+  }
+  //
   // Clean arrays for current level
   //
   expcoefN[mlevel]->zero();
@@ -526,7 +555,7 @@ void SphericalBasis::determine_coefficients(void)
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (multistep==0 || stepN[mlevel]==Mstep) {
+  if (multistep==0 || mstep==Mstep) {
     used += use0;
   }
 
@@ -589,15 +618,20 @@ void SphericalBasis::determine_coefficients(void)
 
 }
 
+void SphericalBasis::multistep_reset()
+{
+  for (int M=0; M<=multistep; M++) dstepN[M] = 0;
+}
+
+
 void SphericalBasis::multistep_update_begin()
 {
 				// Clear the update matricies
   for (int n=0; n<nthrds; n++) {
-    for (int M=0; M<=multistep; M++)
+    for (int M=mfirst[mstep]; M<=multistep; M++)
       for (int l=0; l<=Lmax*(Lmax+2); l++)
 	for (int ir=1; ir<=nmax; ir++) {
 	  differ1[n][M][l][ir] = 0.0;
-	  if (n==0) differ0[M][l][ir] = 0.0;
 	}
   }
 
@@ -606,21 +640,39 @@ void SphericalBasis::multistep_update_begin()
 void SphericalBasis::multistep_update_finish()
 {
 				// Combine the update matricies
-  for (int M=0; M<=multistep; M++) {
+				// from all nodes
+  unsigned sz = (multistep - mfirst[mstep]+1)*(Lmax+1)*(Lmax+1)*nmax;
+  unsigned offset0, offset1;
+
+				// Zero the buffer space
+				//
+  for (unsigned j=0; j<sz; j++) pack[j] = unpack[j] = 0.0;
+
+				// Pack the difference matrices
+				//
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      vector<double> tmp(nmax, 0.0);
+      offset1 = l*nmax;
       for (int n=1; n<nthrds; n++) 
-	for (int ir=1; ir<=nmax; ir++) tmp[ir-1] += differ1[n][M][l][ir];
-      
-      MPI_Allreduce (&tmp[0], &differ0[M][l][1],
-		     nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	for (int ir=1; ir<=nmax; ir++) 
+	  pack[offset0+offset1+ir-1] += differ1[n][M][l][ir];
     }
   }
+
+  MPI_Allreduce (&pack[0], &unpack[0], sz, 
+		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  
 				// Update the local coefficients
-  for (int M=0; M<=multistep; M++)
-    for (int l=0; l<=Lmax*(Lmax+2); l++)
-      for (int ir=1; ir<=nmax; ir++) 
-	(*expcoefN[M])[l][ir] += differ0[M][l][ir];
+				//
+  for (int M=mfirst[mstep]; M<=multistep; M++) {
+    offset0 = (M - mfirst[mstep])*(Lmax+1)*(Lmax+1)*nmax;
+    for (int l=0; l<=Lmax*(Lmax+2); l++) {
+      offset1 = l*nmax;
+      for (int ir=1; ir<=nmax; ir++)
+	(*expcoefN[M])[l][ir] += unpack[offset0+offset1+ir-1];
+    }
+  }
 
 }
 
@@ -693,9 +745,11 @@ void SphericalBasis::multistep_update(int from, int to, Component *c, int i, int
 }
 
 
-
 void SphericalBasis::compute_multistep_coefficients()
 {
+#ifdef TMP_DEBUG
+  Matrix tmpcoef = expcoef;
+#endif
 				// Clean coefficient matrix
 				// 
   for (int l=0; l<=Lmax*(Lmax+2); l++)
@@ -704,21 +758,54 @@ void SphericalBasis::compute_multistep_coefficients()
 				// Interpolate to get coefficients above
   double a, b;			// 
   for (int M=0; M<mlevel; M++) {
-    b = (double)(mstep - stepL[M])/(double)(stepN[M] - stepL[M]);
-    a = 1.0 - b;
-    for (int l=0; l<=Lmax*(Lmax+2); l++) {
-      for (int n=1; n<=nmax; n++) 
-	expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
-    }
+
+    				// No interpolation? Should never happen!
+    if ( dstepN[M] == dstepL[M] ) {
+      
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	for (int n=1; n<=nmax; n++) 
+	  expcoef[l][n] += (*expcoefN[M])[l][n];
+      }
+
+      if (myid==0)		// Print warning
+	cerr << "Process " << myid << " SphericalBasis: "
+	     << "interpolation override in compute_multistep_coefficients()"
+	     << ", mstep=" << mstep 
+	     << ", delstep=" << mintvl[M] << ", M=" << M
+	     << ", N=" << dstepN[M] << ", L=" << dstepL[M] << endl;
+
+    } else {
+
+      b = (double)(mstep - dstepL[M])/(double)(dstepN[M] - dstepL[M]);
+      a = 1.0 - b;
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	for (int n=1; n<=nmax; n++) 
+	  expcoef[l][n] += a*(*expcoefL[M])[l][n] + b*(*expcoefN[M])[l][n];
+      }
+
+      if (0) {
+	if (myid==0) {
+	  cerr << "Interpolate:"
+	       << " M="     << setw(4) << M
+	       << " minS="  << setw(4) << dstepL[M] 
+	       << " maxS="  << setw(4) << dstepN[M]
+	       << " mstep=" << setw(4) << mstep 
+	       << " a="     << setw(8) << a 
+	       << " b="     << setw(8) << b 
+	       << " c01="   << setw(8) << expcoef[0][1]
+	       << endl;
+	}
+      }
 				// Sanity debug check
 				// 
-    if (a<0.0 && a>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [a]" 
-	   << endl;
-    }
-    if (b<0.0 && b>1.0) {
-      cout << "Process " << myid << ": interpolation error in multistep [b]" 
-	   << endl;
+      if (a<0.0 && a>1.0) {
+	cout << "Process " << myid << ": interpolation error in multistep [a]" 
+	     << endl;
+      }
+      if (b<0.0 && b>1.0) {
+	cout << "Process " << myid << ": interpolation error in multistep [b]" 
+	     << endl;
+      }
     }
   }
 				// Add coefficients at or below this level
@@ -727,6 +814,16 @@ void SphericalBasis::compute_multistep_coefficients()
     for (int l=0; l<=Lmax*(Lmax+2); l++) {
       for (int n=1; n<=nmax; n++) 
 	expcoef[l][n] += (*expcoefN[M])[l][n];
+    }
+  }
+
+  if (1) {
+    if (myid==0) {
+      cerr << "Interpolated value:"
+	   << " mlev="  << setw(4) << mlevel
+	   << " T="     << setw(4) << tnow
+	   << " c01="   << setw(8) << expcoef[0][1]
+	   << endl;
     }
   }
 
@@ -751,6 +848,50 @@ void SphericalBasis::compute_multistep_coefficients()
     out << endl;
   }
   */
+#endif
+
+#ifdef TMP_DEBUG
+  if (myid==0) {
+
+    double maxval=0.0, maxdif=0.0, maxreldif=0.0, val;
+    int irmax=1, lmax=0, irmaxdif=1, lmaxdif=0, irmaxrel=1, lmaxrel=0;
+    for (int ir=1; ir<=nmax; ir++) {
+      for (int l=0; l<=Lmax*(Lmax+2); l++) {
+	val = expcoef[l][ir] - tmpcoef[l][ir];
+
+	if (fabs(expcoef[l][ir]) > maxval) {
+	  maxval = expcoef[l][ir];
+	  irmax = ir;
+	  lmax = l;
+	}
+	if (fabs(val) > maxdif) {
+	  maxdif = val;
+	  irmaxdif = ir;
+	  lmaxdif = l;
+	}
+
+	if (fabs(val/expcoef[l][ir]) > maxreldif) {
+	  maxreldif = val/expcoef[l][ir];
+	  irmaxrel = ir;
+	  lmaxrel = l;
+	}
+      }
+    }
+
+    ofstream out("coefs.diag", ios::app);
+    out << setw(15) << tnow
+	<< setw(10) << mstep
+	<< setw(18) << maxval
+	<< setw(8)  << lmax
+	<< setw(8)  << irmax
+	<< setw(18) << maxdif
+	<< setw(8)  << lmaxdif
+	<< setw(8)  << irmaxdif
+	<< setw(18) << maxreldif
+	<< setw(8)  << lmaxrel
+	<< setw(8)  << irmaxrel
+	<< endl;
+  }
 #endif
 
 }
@@ -1288,37 +1429,3 @@ void SphericalBasis::dump_coefs_all(ostream& out)
 
 }
 
-
-//
-// Swap pointers rather than copy
-//
-void SphericalBasis::multistep_swap(unsigned M)
-{
-  Matrix *p = expcoefL[M];
-  expcoefL[M] = expcoefN[M];
-  expcoefN[M] = p;
-#ifdef DEBUG
-  if (myid==0) {
-    ofstream out("multistep_swap.debug", ios::app);
-    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-    ostringstream sout;
-    sout << "--- level=" << M << " T=" << tnow << " ";
-    out << setw(70) << left << sout.str().c_str() << endl
-	<< setw(70) << setfill('-') << '-' << endl << setfill(' ');
-    sout.str("");
-    sout << left << setw(5) << "# n_r" << setw(5) << "| n_l"
-	 << setw(18) << "| last coef" << setw(18) << "| cur coef"
-	 << setw(18) << "| rel diff";
-    out << sout.str() << endl;
-    for (int ir=1; ir<=nmax; ir++) {
-      for (int l=0; l<=Lmax*(Lmax+2); l++)
-	out << setw(5) << ir << setw(5) << l
-	    << setw(18) << (*expcoefL[M])[l][ir]
-	    << setw(18) << (*expcoefN[M])[l][ir]
-	    << setw(18) << fabs((*expcoefN[M])[l][ir] - (*expcoefL[M])[l][ir])/(fabs((*expcoefL[M])[l][ir])+1.0e-18) << endl;
-    }
-    out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-  }
-  cout << "Process " << myid << ": exiting multistep_swap" << endl;
-#endif
-}

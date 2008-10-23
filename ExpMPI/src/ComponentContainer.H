@@ -109,9 +109,6 @@ public:
       Those without expansions, should return without working */
   void compute_expansion(unsigned mlevel=0);
 
-  //! Swap states or multilevel time step interpolation
-  void multistep_swap(unsigned M);
-
   //! Reset data before a multistep step
   void multistep_reset();
 

@@ -114,12 +114,6 @@ public:
     exp_com -> multistep_update_finish();
   }
 
-  virtual void multistep_swap(unsigned M)
-  {
-    exp_ej  -> multistep_swap(M);
-    exp_com -> multistep_swap(M);
-  }
-
   virtual void multistep_reset()
   {
     exp_ej  -> multistep_reset();

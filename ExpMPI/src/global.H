@@ -126,12 +126,6 @@ extern vector<int> mintvl;
 //! Lowest synchronized level at a step
 extern vector<int> mfirst;
 
-//! Sub steps for last coefficient evaluation
-extern vector<int> stepL;
-
-//! Sub steps for current coefficient evaluation
-extern vector<int> stepN;
-
 //! Multistep level flag: levels currently synchronized
 extern vector< vector<bool> > mactive;
 

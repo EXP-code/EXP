@@ -88,7 +88,6 @@ void begin_run(void)
   if (multistep) {
     sync_eval_multistep();	// Use last coefficient evaluation
     for (int M=0; M<=multistep; M++) {
-      comp.multistep_swap(M);
       comp.compute_expansion(M);
     }
   } else {

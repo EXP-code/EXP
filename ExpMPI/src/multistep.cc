@@ -16,10 +16,6 @@ void sync_eval_multistep(void)
 				// This forces interpolation to evaluate to 
 				// the last set of computed coefficients
   mstep = Mstep;
-  for (int M=0; M<=multistep; M++) {
-    stepL[M] = 0;
-    stepN[M] = Mstep;
-  }
 }
 
 
@@ -208,7 +204,7 @@ void adjust_multistep_level(bool all)
 
     for (int level=0; level<=multistep; level++) {
       
-      if (all || mactive[mstep-1][level]) {
+      if (all || mactive[mstep][level]) {
 
 	if (nthrds==1) {
 
@@ -348,26 +344,24 @@ void initialize_multistep()
   for (int n=1; n<=multistep; n++) mintvl.push_back(mintvl.back()/2);
 
 				// Set up the step-level bool array
-  for (int ms=0; ms<Mstep; ms++)
+  mactive.push_back(vector<bool>(multistep+1, true));
+  for (int ms=1; ms<=Mstep; ms++)
     mactive.push_back(vector<bool>(multistep+1, false));
 
 				// Find and save the active levels at each step
   for (int ms=1; ms<=Mstep; ms++) {
     for (unsigned mlevel=0; mlevel<=multistep; mlevel++) {
       if ( (ms % (1 << (multistep-mlevel))) == 0) 
-	mactive[ms-1][mlevel] = true;
+	mactive[ms][mlevel] = true;
     }
   }
 
-  stepL  = vector<int>(multistep+1);
-  stepN  = vector<int>(multistep+1);
-
   mfirst = vector<int>(Mstep);
 				// Lowest active level at each step
-  for (int ms=1; ms<=Mstep; ms++) {
+  for (int ms=0; ms<=Mstep; ms++) {
     for (int mlevel=0; mlevel<=multistep; mlevel++) {
-      if (mactive[ms-1][mlevel]) {
-	mfirst[ms-1] = mlevel;
+      if (mactive[ms][mlevel]) {
+	mfirst[ms] = mlevel;
 	break;
       }
     }
@@ -381,12 +375,12 @@ void initialize_multistep()
     cout << setw(4) << "Step" << "/" << setw(3)<< "1st" << "  ";
     for (int mlevel=0; mlevel<=multistep; mlevel++) cout << setw(3) << mlevel;
     cout << endl;
-    for (int ms=1; ms<=Mstep; ms++) {
+    for (int ms=0; ms<=Mstep; ms++) {
       cout << setw(4) << ms << "/";
-      cout << setw(3) << mfirst[ms-1] << ": ";
+      cout << setw(3) << mfirst[ms] << ": ";
       for (int mlevel=0; mlevel<=multistep; mlevel++)
-	if (mactive[ms-1][mlevel]) cout << setw(3) << "+";
-	else                       cout << setw(3) << "-";
+	if (mactive[ms][mlevel]) cout << setw(3) << "+";
+	else                     cout << setw(3) << "-";
       cout << endl;
     }
     cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');

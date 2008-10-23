@@ -129,10 +129,11 @@ protected:
   void compute_multistep_coefficients();
 
   //! For updating levels
+  //@{
   vector< vector<Matrix> > differ1;
-
-  //! For updating levels
-  vector<Matrix> differ0;
+  vector< double > pack, unpack;
+  vector< unsigned > dstepL, dstepN;
+  //@}
 
   /** Dump current coefficients (all multistep levels)
       For debugging . . .
@@ -173,13 +174,11 @@ public:
       <code>next</code>
   */
   //@{
+  virtual void multistep_reset();
   virtual void multistep_update_begin();
   virtual void multistep_update(int cur, int next, Component* c, int i, int id);
   virtual void multistep_update_finish();
   //@}
-
-  //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(unsigned M);
 
   /** Get derivative of potential
     \param lmax is the maximum harmonic order

@@ -551,7 +551,8 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
     
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
-	 << c->id << "> for mlevel=" << mlevel << endl;
+	 << c->id << "> for mlevel=" << mlevel 
+	 << ", interval=" << intvl << endl;
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
@@ -562,27 +563,6 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
   }
 
-}
-
-
-void ComponentContainer::multistep_swap(unsigned M)
-  {
-#ifdef DEBUG
-    cout << "Process " << myid << ": entered <multistep_swap> for M=" 
-	 << M << endl;
-#endif
-  //
-  // Do swap for each component
-  //
-  list<Component*>::iterator cc;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->force->multistep_swap(M);
-  }
-
-#ifdef DEBUG
-  cout << "Process " << myid << ": exiting <multistep_swap> for M="
-       << M << endl;
-#endif
 }
 
 

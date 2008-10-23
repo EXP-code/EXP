@@ -512,8 +512,8 @@ void Cylinder::determine_coefficients(void)
   MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
 		  MPI_COMM_WORLD );
 
-  if (multistep==0 || stepN[mlevel]==Mstep) {
-    used += use0;
+  if (multistep==0 || mstep==Mstep) {
+    used    += use0;
     cylmass += cylmassT0;
   }
   

@@ -2,20 +2,40 @@
   Call necessary routines to advance phase-space one step
 */
 
-#include <expand.h>
-#include <OutputContainer.H>
-
-#include <Timer.h>
-static Timer timer_coef(true), timer_drift(true), timer_vel(true);
-static Timer timer_pot(true), timer_adj(true);
-static unsigned tskip = 1;
-static bool timing = false;
-
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
 
-static bool multistep_com_dt = false;
+// Uncomment for time step debugging
+//
+#define CHK_STEP
+
+#include <expand.h>
+#include <OutputContainer.H>
+
+// Substep timing
+//
+#include <Timer.h>
+
+static Timer timer_coef(true), timer_drift(true), timer_vel(true);
+static Timer timer_pot(true), timer_adj(true);
+static unsigned tskip = 1;
+static bool timing = false;
+static bool multistep_com_dt = true;
+
+void check_bad(const char *msg)
+{
+  if (comp.bad_values()) 
+    cout << "Process " << myid 
+	 << ": found BAD values " << msg << endl;
+}
+
+void check_bad(const char *msg, int v)
+{
+  if (comp.bad_values()) 
+    cout << "Process " << myid 
+	 << ": found BAD values " << msg << ", M=" << v << endl;
+}
 
 void do_step(int n)
 {
@@ -32,15 +52,10 @@ void do_step(int n)
 
   comp.multistep_reset();
 
-  if (comp.bad_values()) 
-    cout << "Process " << myid 
-	 << ": found BAD values before multistep" << endl;
+  check_bad("before multistep");
 
   if (multistep) {
     
-				// Sub step markers
-    for (int M=0; M<=multistep; M++) stepL[M] = stepN[M] = 0;
-
     double dt = dtime/Mstep;	// Smallest time step
 
 				// COM update
@@ -57,133 +72,108 @@ void do_step(int n)
       if (timing) timer_vel.stop();
     }
 
+#ifdef CHK_STEP
+    vector<double> pos_check(multistep+1);
+    vector<double> vel_check(multistep+1);
+#endif
+    
 				// March through all the substeps
 				// of the hierarchy
-    for (mstep=1; mstep<=Mstep; mstep++) {
+    for (mstep=0; mstep<Mstep; mstep++) {
 
-      for (int M=0; M<=multistep; M++) {
+				// Compute next coefficients for
+				// active steps
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
 
 	if (timing) timer_coef.start();
-	if (stepN[M]<mstep) {
+
 				// Time step at this level
 				// 
-	  double DT = dt*mintvl[M];
+	double DT = dt*mintvl[M];
 
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
-	  if (timing) timer_vel.start();
-	  incr_velocity(0.5*DT);
-	  if (timing) timer_vel.stop();
+	if (timing) timer_vel.start();
+	incr_velocity(0.5*DT, M);
+#ifdef CHK_STEP
+	vel_check[M] += 0.5*DT;
+#endif
+	if (timing) timer_vel.stop();
 
-	  if (comp.bad_values()) 
-	    cout << "Process " << myid 
-		 << ": found BAD values after incr_vel M=" << M << endl;
+	check_bad("after incr_vel", M);
 
 				// Advance position by whole step:
 				// D_1
-	  if (timing) timer_drift.start();
-	  incr_position(DT, M);
-	  if (timing) timer_drift.stop();
+	if (timing) timer_drift.start();
+	incr_position(DT, M);
+#ifdef CHK_STEP
+	pos_check[M] += DT;
+#endif
+	if (timing) timer_drift.stop();
 
-	  if (comp.bad_values()) 
-	    cout << "Process " << myid 
-		 << ": found BAD values after incr_posl M=" << M << endl;
-
-				// Do the swap
-				//
-	  comp.multistep_swap(M);
-
-	  if (comp.bad_values()) 
-	    cout << "Process " << myid 
-		 << ": found BAD values after swap M=" << M << endl;
-
-				// Update the markers
-				// 
-	  stepL[M]  =  stepN[M];
-	  stepN[M] += mintvl[M];
+	check_bad("after incr_pos", M);
 
 				// Compute the coefficients
 				// for this level
-	  comp.compute_expansion(M);
+	comp.compute_expansion(M);
 
-	  if (comp.bad_values()) 
-	    cout << "Process " << myid 
-		 << ": found BAD values after expansion M=" << M << endl;
-
-				// Reset the particle positions;
+	check_bad("after expansion", M);
+	
+				// Reset the particle positions by a whole step
 				// they will be drifted sycrhonously below
-	  if (timing) timer_drift.start();
-	  if (posnsync) incr_position(-DT, M);
-	  if (timing) timer_drift.stop();
-
-	  if (comp.bad_values()) 
-	    cout << "Process " << myid 
-		 << ": found BAD values after second incr pos M=" << M << endl;
-	  /*
-	  if (myid==0) {
-	    if (mstep==1 && M==0) cout << endl;
-	    cout << "Step=" << setw(3) << n
-		 << " | Substep=" << setw(3) << mstep
-		 << " | Mlevel=" << setw(3) << M
-		 << " | Mfirst=" << setw(3) << mfirst[mstep-1]
-		 << " | deltaM=" << setw(3) << mintvl[M]
-		 << " | stepL=" << setw(3) << stepL[M]
-		 << " | stepN=" << setw(3) << stepN[M]
-		 << " | T=" << setw(18) << tnow
-		 << " | DT=" << setw(18) << DT
-		 << " | advT=" << setw(18) << tnow+DT
-		 << endl;
-	  }
-	  */
+	if (timing) timer_drift.start();
+	if (posnsync) {
+	  incr_position(-DT, M);
+#ifdef CHK_STEP
+	  pos_check[M] -= DT;
+#endif
 	}
+	if (timing) timer_drift.stop();
+
+	check_bad("after second incr pos", M);
+	  
 	if (timing) timer_coef.stop();
-
-	if (comp.bad_values())  
-	  cout << "Process " << myid
-	       << ": found BAD values after multistep coef" << endl;
       }
-
+      
       tnow += dt;		// Time at the end of the current step
 
 				// Drift all positions by the substep size
       if (timing) timer_drift.start();
+#ifdef CHK_STEP
+      if (posnsync) {
+	for (int M=0; M<=multistep; M++) pos_check[M] += dt;
+      }
+#endif
       if (posnsync) incr_position(dt, -1);
       //                              ^
       //                              |
       //           ignoring levels----/
 
 				// COM update
+				// 
       incr_com_position(dt);
       if (timing) timer_drift.stop();
 
 				// Compute potential at active levels
+				// 
       if (timing) timer_pot.start();
-      comp.compute_potential(mfirst[mstep-1]);
+      comp.compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
 
-      if (comp.bad_values())
-	cout << "Process " << myid
-	     << ": found BAD values after compute_potential" << endl;
+      check_bad("after compute_potential");
 
 				// For all active levels . . .
 				// Advance velocity by 1/2 step:
 				// Second K_{1/2}
       if (timing) timer_vel.start();
-      for (int M=mfirst[mstep-1]; M<=multistep; M++) {
+      for (int M=mfirst[mstep]; M<=multistep; M++) {
 	incr_velocity(0.5*dt*mintvl[M], M);
-	// For low-level debugging . . .
-	/*
-	if (myid==0) {
-	  cout << "Step=" << setw(3) << n
-	       << " | Substep=" << setw(3) << mstep
-	       << " | Mlevel=" << setw(3) << M
-	       << " | Mfirst=" << setw(3) << mfirst[mstep-1]
-	       << " | velocity advanced by DT=" << 0.5*dt*mintvl[M]
-	       << endl;
-	}
-	*/
+#ifdef CHK_STEP
+	vel_check[M] += 0.5*dt*mintvl[M];
+#endif
       }
 				// COM update
+				// 
       if (multistep_com_dt) incr_com_velocity(0.5*dt);
       if (timing) timer_vel.stop();
 
@@ -191,9 +181,7 @@ void do_step(int n)
       adjust_multistep_level(false);
       if (timing) timer_adj.stop();
 
-      if (comp.bad_values())
-	cout << "Process " << myid
-	     << ": found BAD values after multistep advance" << endl;
+      check_bad("after multistep advance");
     }
 
     if (!multistep_com_dt) {
@@ -201,6 +189,26 @@ void do_step(int n)
       incr_com_velocity(0.5*dtime);
       if (timing) timer_vel.stop();
     }
+
+#ifdef CHK_STEP
+				// Check steps
+    if (myid==0) {		// 
+      bool chk = true;
+      for (int M=0; M<=multistep; M++) {
+	if (fabs(dtime - pos_check[M]) > 1.0e-8*dtime) {
+	  cerr << "Pos step error[" << M << "]: T=" << tnow << " found="
+	       << pos_check[M] << ", expected=" << dtime << endl;
+	  chk = false;
+	}
+	if (fabs(dtime - vel_check[M]) > 1.0e-8*dtime) {
+	  cerr << "Vel step error[" << M << "]: T=" << tnow << " found="
+	       << pos_check[M] << ", expected=" << dtime << endl;
+	  chk = false;
+	}
+      }
+      if (chk) cerr << "Incremental steps OK at T=" << tnow << endl;
+    }
+#endif
 
   } else {
 				// Time at the end of the step
@@ -250,18 +258,11 @@ void do_step(int n)
 	     << setw(18) << 1.0e-6*timer_pot.getTime().getRealTime() << endl
 	     << setw(20) << "Adjust: "
 	     << setw(18) << 1.0e-6*timer_adj.getTime().getRealTime() << endl;
-
-      } else {
-	cout << setw(20) << "Drift: "
-	     << setw(18) << 1.0e-6*timer_drift.getTime().getRealTime() << endl
-	     << setw(20) << "Velocity: "
-	     << setw(18) << 1.0e-6*timer_vel.getTime().getRealTime() << endl
-	     << setw(20) << "Force: "
-	     << setw(18) << 1.0e-6*timer_pot.getTime().getRealTime() << endl;
       }
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     }
 
+    //
     // DEBUG
     //
     if (VERBOSE>4) {
@@ -301,6 +302,7 @@ void do_step(int n)
     }
     //
     // END DEBUG
+    //
 
     timer_coef.reset();
     timer_drift.reset();

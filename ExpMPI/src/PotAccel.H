@@ -161,11 +161,8 @@ public:
   //! Execute to finish level shifts for particles
   virtual void multistep_update_finish() {}
 
-  //! Set the level for evaluating acceleration (or coefficients) at level n
+  //! Set the level for evaluating acceleration at level n
   virtual void set_multistep_level(unsigned n) { mlevel=n; }
-
-  //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(unsigned M) {}
 
   //! Reset data for multistep
   virtual void multistep_reset() {}

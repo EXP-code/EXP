@@ -103,6 +103,7 @@ private:
   vector<Vector**> accum_sinL, accum_sinN;
   vector< vector<unsigned> > howmany1;
   vector<unsigned> howmany;
+  vector<unsigned> dstepL, dstepN;
 
   Vector* accum_cos;
   Vector* accum_sin;
@@ -294,9 +295,9 @@ public:
   //! For updating levels
   //@{
   vector< vector<Matrix> > differS1, differC1;
-  vector<Matrix> differS, differC;
+  vector<double> workC1, workC, workS1, workS;
   //@}
-  
+
   /** Update the multi time step coefficient table when moving particle 
       <code>i</code> from level <code>cur</code> to level 
       <code>next</code>
@@ -306,9 +307,6 @@ public:
   virtual void multistep_update(int from, int to, double r, double z, double phi, double mass, int id);
   virtual void multistep_update_finish();
   //@}
-
-  //! Exchange data for interpolating the next sub time step
-  virtual void multistep_swap(unsigned M);
 
   //! Print debug info
   void multistep_debug();
