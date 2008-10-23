@@ -39,6 +39,8 @@ ComponentContainer::ComponentContainer(void)
   timer_total.	Microseconds();
   timer_fixp.	Microseconds();
   timer_extrn.	Microseconds();
+  timer_coef.	Microseconds();
+  timer_multi.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -477,6 +479,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
 	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
 	     << setw(18) << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "coef" << ": "
+	     << setw(18) << 1.0e-6*timer_coef.getTime().getRealTime() << endl
+	     << setw(10) << "      *** " << setw(20) << "multi" << ": "
+	     << setw(18) << 1.0e-6*timer_multi.getTime().getRealTime() << endl
 	     << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
 	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
@@ -517,14 +523,21 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_fixp.reset();
     timer_angmom.reset();
     timer_zero.reset();
+
     timer_accel.reset();
+    timer_coef.reset();
+    timer_multi.reset();
+
     timer_thr_acc.reset();
     timer_thr_int.reset();
     timer_thr_ext.reset();
+
     timer_inter.reset();
     timer_extrn.reset();
     timer_total.reset();
+
     timer_clock.reset();
+
     vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
     for (; itmr != timer_sext.end(); itmr++) itmr->second.reset();
 

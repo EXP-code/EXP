@@ -429,6 +429,8 @@ void Cylinder::determine_coefficients(void)
 
   if (!self_consistent && !initializing) return;
 
+  comp.timer_coef.start();
+
   if (firstime) {
 				// Try to read cache
     bool cache_ok = false;
@@ -525,6 +527,8 @@ void Cylinder::determine_coefficients(void)
   } else {
     ortho->make_coefficients(mlevel);
   }
+
+  comp.timer_coef.stop();
 
   print_timings("Cylinder: coefficient timings");
 }
@@ -735,8 +739,11 @@ void Cylinder::determine_acceleration_and_potential(void)
   
   if (use_external == false) {
 
-    if (multistep && (self_consistent || initializing)) 
+    if (multistep && (self_consistent || initializing)) {
+      comp.timer_multi.start();
       compute_multistep_coefficients();
+      comp.timer_multi.stop();
+    }
 
   }
 
@@ -875,10 +882,11 @@ void Cylinder::dump_mzero(const string& name, int step)
 
 void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 {
-
   if (!self_consistent) return;
 
   if (c->freeze(i)) return;
+
+  comp.timer_multi.start();
 
   double mass = c->Mass(i) * component->Adiabatic();
 
@@ -891,6 +899,8 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
   double phi = atan2(yy, xx);
 
   ortho->multistep_update(from, to, r, zz, phi, mass, id);
+
+  comp.timer_multi.stop();
 }
 
 

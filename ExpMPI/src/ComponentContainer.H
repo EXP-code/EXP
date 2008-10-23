@@ -65,7 +65,7 @@ public:
   Timer timer_zero, timer_accel, timer_inter;
   Timer timer_total, timer_fixp, timer_extrn;
   Timer timer_thr_acc, timer_thr_int, timer_thr_ext;
-  Timer timer_clock;
+  Timer timer_clock, timer_coef, timer_multi;
   vector< pair<string, Timer> > timer_sext;
   //@}
 
