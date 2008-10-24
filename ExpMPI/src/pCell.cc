@@ -11,7 +11,7 @@
 
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
-unsigned pCell::nbits = 16;	// Number of bits per dimension
+unsigned pCell::nbits  = 16;	// Number of bits per dimension
 unsigned pCell::CRMcnt = 8;	// Number of entries in CRM stack
 
 string printKey(key_type p)
@@ -269,26 +269,48 @@ void pCell::RemoveAll()
   while (keys.size()) {
     k = keys.begin();
     ik = tree->bodycell.find(k->first);
-    if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+    if (ik != tree->bodycell.end()) {
+      tree->bodycell.erase(ik);
+    }
     p = tree->keybods.find(*k);
-    if (p!=tree->keybods.end()) tree->keybods.erase(p);
+    if (p!=tree->keybods.end()) {
+      tree->keybods.erase(p);
+    }
     keys.erase(k);
   }
 
   bods.clear();
-  tree->frontier.erase(mykey);
+  if (mykey!=1) tree->frontier.erase(mykey);
 
-  for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
-       ic!=parent->children.end(); ic++) {
-    if (ic->second == this) {
-      parent->children.erase(ic);
-      return;
+  if (parent) {
+    for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
+	 ic!=parent->children.end(); ic++) {
+      if (ic->second == this) {
+	parent->children.erase(ic);
+	return;
+      }
+    }
+
+    cout << "Process " << myid 
+	 << ": pCell::RemoveAll: "
+	 << "ERROR child not found on parent's list!" << endl;
+    
+  } else {
+
+    if (mykey!=1) {
+      cout << "Process "  << myid  << ": ERROR no parent and not root!"
+	   << " owner="   << owner
+	   << " mykey="   << mykey   
+	   << " mask="    << hex << mask << dec
+	   << " level="   << level   
+	   << " count="   << count 
+	   << " maxplev=" << maxplev << endl;
+      
     }
   }
 
-  cout << "Process " << myid 
-       << ": pCell::RemoveAll: "
-       << "ERROR child not found on parent's list!" << endl;
+  maxplev = 0;
+  count = 0;
 }
 
 pCell* pCell::findNode(const key_type& key)

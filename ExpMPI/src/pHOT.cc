@@ -1573,7 +1573,10 @@ void pHOT::makeCellLevelList()
 
   unsigned ng=0, nt=0;
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
-    nt++;
+				// Check for empty root node
+    if (it->second->mykey==1 && it->second->count==0) continue;
+
+    nt++;			// Otherwise, count this one
     it->second->remake_plev();
     clevlst[it->second] = it->second->maxplev;
     clevels[it->second->maxplev].insert(it->second);
@@ -1617,16 +1620,18 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     if (clevels[M].size()>0) {
       set<pCell*>::iterator it = clevels[M].begin(), nit;
       while (it != clevels[M].end()) {
-	cnt++;			// Count the cells
+				// Skip an empty root cell (lazy kludge)
+	if ( (*it)->mykey==1 && (*it)->count==0 ) { nt--; continue; }
 
-				// Debugging: This shouldn't happen
+	cnt++;			// Count the (presumably good) cells
+	
+				// Debugging
 	if ((*it)->bods.size()) ng++;
-	else {
+	else {			// This shouldn't happen
 	  cout << "Process " << myid << ": pHOT::adjustCellLevelList: "
 	       << cnt << "/" << clevels[M].size()
 	       << " zero!" << endl;
 	}
-
 				// Newly computed level:
 				// we may move cell down but not up . . .
 	m = max<unsigned>(mlevel, (*it)->remake_plev());
@@ -1989,13 +1994,16 @@ void pHOT::adjustTree(unsigned mlevel)
 	  }
 	  
 	  c->RemoveAll();
+			
+	  if (c->mykey!=1) {	// Don't remove the root node
+	    
+	    // queue for removal from level lists
+	    change.push_back(cell_indx(c, REMOVE));
 	  
-	  // queue for removal from level lists
-	  change.push_back(cell_indx(c, REMOVE));
-	  
-	  // queue for deletion
-	  change.push_back(cell_indx(c, KILL));
-	  
+	    // queue for deletion
+	    change.push_back(cell_indx(c, KILL));
+	  }
+
 	  MPI_Send(&Psend[0], tail_num, ParticleFerry::Particletype, 
 		   n+1, 135, MPI_COMM_WORLD);
 	}
@@ -2004,9 +2012,16 @@ void pHOT::adjustTree(unsigned mlevel)
     
     if (n+1==myid) {
       if (keybods.size()) {
-	key_indx::iterator it = keybods.begin();
-	headKey = bodycell.find(it->first)->second;
-	head_num = frontier[headKey]->bods.size();
+	key_indx::iterator it = keybods.begin(); // Sanity check:
+	if (bodycell.find(it->first) == bodycell.end()) {
+	  cerr << "In adjustTree: No cell for body=" << hex << it->first 
+	       << dec << " bodycell size=" << bodycell.size() << endl;
+	  headKey = 0;
+	  head_num = 0;
+	} else {
+	  headKey = bodycell.find(it->first)->second;
+	  head_num = frontier[headKey]->bods.size();
+	}
       } else {
 	headKey = 0;
 	head_num = 0;
@@ -2040,12 +2055,15 @@ void pHOT::adjustTree(unsigned mlevel)
 	  
 	  c->RemoveAll();
 	  
-	  // queue for removal from level lists
-	  change.push_back(cell_indx(c, REMOVE));
+	  if (c->mykey!=1) { // Dont remove the root node!
+
+	    // queue for removal from level lists
+	    change.push_back(cell_indx(c, REMOVE));
 	  
-	  // queue for deletion
-	  change.push_back(cell_indx(c, KILL));
-	  
+	    // queue for deletion
+	    change.push_back(cell_indx(c, KILL));
+	  }
+
 	  MPI_Send(&Psend[0], head_num, ParticleFerry::Particletype, 
 		   n, 136, MPI_COMM_WORLD);
 	  

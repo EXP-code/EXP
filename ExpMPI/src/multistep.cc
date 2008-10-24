@@ -322,7 +322,7 @@ void adjust_multistep_level(bool all)
 	  //	  if (*it > 0) {
 	    ostringstream sout;
 	    sout << "Component <" << (*cc)->name << ">";
-	    cout << setw(20) << sout.str() << ": "
+	    cout << setw(30) << sout.str() << ": "
 		 << *it << "/" << (*cc)->nbodies_tot << endl;
 	    // }
 	  it++;
