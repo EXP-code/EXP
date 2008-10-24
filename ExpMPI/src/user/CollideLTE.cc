@@ -133,23 +133,29 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Volume in real cell
   double CellVolume = cvolume * pow(UserTreeDSMC::Lunit, 3);
 
-  if (log(T)>tmin && log(T)<tmax) {
-    int indx = (int)float( (log(T) - tmin)/dtmp );
-    thisto2[indx] += cmass;
+  if (T>0.0) {
+    if (log(T)>tmin && log(T)<tmax) {
+      int indx = (int)float( (log(T) - tmin)/dtmp );
+      thisto2[indx] += cmass;
+    }
   }
 
-  if (log(n0)>nmin && log(n0)<nmax) {
-    int indx = (int)float( (log(n0) - nmin)/ntmp );
-    nhisto2[indx] += cmass;
+  if (n0>0.0) {
+    if (log(n0)>nmin && log(n0)<nmax) {
+      int indx = (int)float( (log(n0) - nmin)/ntmp );
+      nhisto2[indx] += cmass;
+    }
   }
 
-  if (log(T) >tmin && log(T) <tmax &&
-      log(n0)>nmin && log(n0)<nmax) {
-    int indx1 = (int)float( (log(T)  - tmin)/dtmp );
-    int indx2 = (int)float( (log(n0) - nmin)/ntmp );
-    trho[indx1][indx2] += cmass;
+  if (T>0.0 && n0>0.0) {
+    if (log(T) >tmin && log(T) <tmax &&
+	log(n0)>nmin && log(n0)<nmax) {
+      int indx1 = (int)float( (log(T)  - tmin)/dtmp );
+      int indx2 = (int)float( (log(n0) - nmin)/ntmp );
+      trho[indx1][indx2] += cmass;
+    }
   }
-
+    
   if (debug_enabled) {
     cellcnt[id]++;
     minT[id] = min<double>(minT[id], T);
