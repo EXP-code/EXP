@@ -247,9 +247,10 @@ void CollideLTE::initialize_cell(pCell* cell,
     // to prevent inf values ------------------------------|
     //
 				// Diagnose cooling time step in this cell
-    int indx = (int)floor(log(Ctime/tau)/log(4.0) + 5);
-    if (indx<0 ) indx = 0;
-    if (indx>10) indx = 10;
+    int indx = 0;
+    if (Ctime>0.0) indx = (int)floor(log(Ctime/tau)/log(4.0) + 5);
+    if (indx<0 )   indx = 0;
+    if (indx>10)   indx = 10;
     tcoolT[id][indx]++;
 
 				// Assign per body time step requests
