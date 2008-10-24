@@ -116,7 +116,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   double smass = samp->Mass();	// Mass in sample cell
 
   totalSoFar += cmass*KEdsp;
-  massSoFar += cmass;
+  massSoFar  += cmass;
 
 				// Mean mass per particle
   double Mass = cmass * UserTreeDSMC::Munit;
@@ -280,13 +280,18 @@ int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, in
 
 				// Reduced mass in system units
   double Mt = p1->mass + p2->mass;
+  if (Mt<=0.0) return ret;
+
   double Mu = p1->mass*p2->mass/Mt;
+  if (Mu<=0.0) return ret;
 
 				// Energy floor
   double kE = 0.5*Mu*(*cr)*(*cr);
   double dE = kE*TolV*TolV;
   double remE = kE - dE;
   double delE = deltaE[id];
+
+  if (remE<=0.0 || delE<=0.0) return ret;
 
 				// Cooling rate diagnostic
   if (TSDIAG) {
