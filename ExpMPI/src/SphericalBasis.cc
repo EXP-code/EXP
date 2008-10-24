@@ -3,7 +3,7 @@
 #include <SphericalBasis.H>
 #include <MixtureSL.H>
 
-#define TMP_DEBUG
+// #define TMP_DEBUG
 
 #ifdef DEBUG
 static pthread_mutex_t io_lock;
