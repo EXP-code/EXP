@@ -1087,12 +1087,16 @@ void SphericalBasis::determine_acceleration_and_potential(void)
 
 #ifdef DEBUG
   cout << "SphericalBasis: process " << myid << " returned from fork" << endl;
-  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << "> bodies ["
+  cout << "SphericalBasis: process " << myid << " name=<" << cC->name << ">";
+  if (cC->Particles().size())
+    cout << " bodies ["
        << cC->Particles().begin()->second.indx << ", "
        << cC->Particles().rbegin()->second.indx << "], ["
        << cC->Particles().begin()->first << ", "
        << cC->Particles().rbegin()->first << "]"
        << " #=" << cC->Particles().size() << endl;
+  else
+    cout << " zero bodies!" << endl;
 #endif
 
   print_timings("SphericalBasis: acceleration timings");

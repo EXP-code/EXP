@@ -1446,7 +1446,7 @@ void pHOT::Repartition()
       if (myid==n) {
 	cout<<"--------------------------------------------------------"<<endl
 	    <<"---- Repartition: send and receive counts"<<endl
-	    <<"--------------------------------------------------------"<<endl
+	    <<"--------------------------------------------------------" << endl
 	    << "Process " << myid << ": Tcnt=" << Tcnt 
 	    << " Fcnt=" << Fcnt << endl;
 	for (int m=0; m<numprocs; m++)
@@ -1620,12 +1620,17 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     if (clevels[M].size()>0) {
       set<pCell*>::iterator it = clevels[M].begin(), nit;
       while (it != clevels[M].end()) {
-				// Skip an empty root cell (lazy kludge)
-	if ( (*it)->mykey==1 && (*it)->count==0 ) { nt--; continue; }
+				// Skip the root cell if it's empty
+				// (lazy kludge)
+	if ( (*it)->mykey==1 && (*it)->count==0 ) { 
+	  nt--; 		// Reduce the node count by one
+	  it++;			// Go the next set in the set . . .
+	  continue; 
+	}
 
 	cnt++;			// Count the (presumably good) cells
 	
-				// Debugging
+				// For diagnostic info only
 	if ((*it)->bods.size()) ng++;
 	else {			// This shouldn't happen
 	  cout << "Process " << myid << ": pHOT::adjustCellLevelList: "
@@ -1649,7 +1654,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     }
   }
 
-				// Debugging . . .
+				// Diagnostic output . . .
   if (nt!=ng)
     cout << "Process " << myid << ": adjusted level list with " << ng
 	 << " good cells out of " << nt << " expected, " << ns
