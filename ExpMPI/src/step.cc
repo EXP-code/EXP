@@ -8,7 +8,7 @@ static char rcsid[] = "$Id$";
 
 // Uncomment for time step debugging
 //
-#define CHK_STEP
+// #define CHK_STEP
 
 #include <expand.h>
 #include <OutputContainer.H>
@@ -85,9 +85,6 @@ void do_step(int n)
 				// active steps
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 
-	if (timing) timer_coef.start();
-
-				// Time step at this level
 				// 
 	double DT = dt*mintvl[M];
 
@@ -115,7 +112,9 @@ void do_step(int n)
 
 				// Compute the coefficients
 				// for this level
+	if (timing) timer_coef.start();
 	comp.compute_expansion(M);
+	if (timing) timer_coef.stop();
 
 	check_bad("after expansion", M);
 	
@@ -132,7 +131,6 @@ void do_step(int n)
 
 	check_bad("after second incr pos", M);
 	  
-	if (timing) timer_coef.stop();
       }
       
       tnow += dt;		// Time at the end of the current step
