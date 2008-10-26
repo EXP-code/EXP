@@ -23,6 +23,7 @@ ComponentContainer::ComponentContainer(void)
   gcov1 = new double [3];
 
   timing = false;
+  thread_timing = false;
   state = NONE;
 
   // Fine resolution for these timers (default reselution is 1 sec)
@@ -36,11 +37,10 @@ ComponentContainer::ComponentContainer(void)
   timer_thr_int.Microseconds();
   timer_thr_ext.Microseconds();
   timer_inter.	Microseconds();
-  timer_total.	Microseconds();
+  timer_force.	Microseconds();
+  timer_expand.	Microseconds();
   timer_fixp.	Microseconds();
   timer_extrn.	Microseconds();
-  timer_coef.	Microseconds();
-  timer_multi.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -281,10 +281,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   // Turn on step timers or VERBOSE level 4 or greater
   //
   if (VERBOSE>3) timing = true;
+  if (VERBOSE>4) thread_timing = true;
 
   if (timing) {
     timer_clock.start();
-    timer_total.start();
+    timer_force.start();
     if (levcnt.size()==0) levcnt = vector<unsigned>(multistep+1, 0);
     levcnt[mlevel]++;
   }
@@ -347,10 +348,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
+      if (timing) timer_accel.start();
       (*inter)->c->force->SetExternal();
       (*inter)->c->force->set_multistep_level(mlevel);
       (*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
+      if (timing) timer_accel.stop();
       
     }
   }
@@ -398,7 +401,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (timing) timer_extrn.stop();
 
-  if (timing) timer_total.stop();
+  if (timing) timer_force.stop();
   
 
   state = NONE;
@@ -464,43 +467,49 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	   << setw(70) << setfill('-') << '-' << endl
 	   << setw(70) << left << sout.str().c_str() << endl
 	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
+      
       if (multistep) {
 	cout << setw(20) << "COM: "
 	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
 	     << setw(20) << "Position: "
 	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "fix pos" << ": "
+	     << setw(20) << "*** " << setw(20) << left << "fix pos" << ": " 
+	     << right
 	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
 	     << setw(20) << "Ang mom: "
 	     << setw(18) << 1.0e-6*timer_angmom.getTime().getRealTime() << endl
 	     << setw(20) << "Zero: "
 	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
 	     << setw(20) << "Accel: "
-	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
-	     << setw(18) << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "coef" << ": "
-	     << setw(18) << 1.0e-6*timer_coef.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "multi" << ": "
-	     << setw(18) << 1.0e-6*timer_multi.getTime().getRealTime() << endl
-	     << setw(20) << "Interaction: "
-	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
-	     << setw(18) << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl
-	     << setw(20) << "External: "
-	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl
-	     << setw(10) << "      *** " << setw(20) << "threaded" << ": "
-	     << setw(18) << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
+	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl;
+	if (thread_timing)
+	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
+	       << right << setw(18) 
+	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl;
+	cout << setw(20) << "Interaction: "
+	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl;
+	if (thread_timing)
+	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": "
+	     << right << setw(18) 
+	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl;
+	cout << setw(20) << "External: "
+	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
+	if (thread_timing)
+	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
+	     << right << setw(18) 
+	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
 
 	vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
 	for (; itmr != timer_sext.end(); itmr++) {
-	  cout << setw(10) << "      *** " << setw(20) << itmr->first << ": "
+	  cout << setw(20) << "*** " << setw(20) << left << itmr->first 
+	       << ": " << right
 	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
 	       << endl;
 	}
-	cout << setw(20) << "Total: "
-	     << setw(18) << 1.0e-6*timer_total.getTime().getRealTime() << endl;
-
+	cout << setw(20) << "Expand: "
+	     << setw(18) << 1.0e-6*timer_expand.getTime().getRealTime() << endl;
+	cout << setw(20) << "Force: "
+	     << setw(18) << 1.0e-6*timer_force.getTime().getRealTime() << endl;
       }
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
       cout << endl << "mstep/Mstep=" << mstep << "/" << Mstep << endl;
@@ -525,8 +534,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     timer_zero.reset();
 
     timer_accel.reset();
-    timer_coef.reset();
-    timer_multi.reset();
 
     timer_thr_acc.reset();
     timer_thr_int.reset();
@@ -534,7 +541,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     timer_inter.reset();
     timer_extrn.reset();
-    timer_total.reset();
+    timer_force.reset();
+    timer_expand.reset();
 
     timer_clock.reset();
 
@@ -551,6 +559,8 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 {
   list<Component*>::iterator cc;
   Component *c;
+  
+  if (timing) timer_expand.start();
 
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_expansion>\n";
@@ -576,6 +586,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 #endif
   }
 
+  if (timing) timer_expand.stop();
 }
 
 

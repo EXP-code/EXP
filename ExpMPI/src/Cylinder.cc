@@ -3,16 +3,15 @@ static char rcsid[] = "$Id$";
 using namespace std;
 
 #include <values.h>
-#include "expand.h"
 
 #include <sstream>
 
+#include "expand.h"
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
-
 #include <Cylinder.H>
-
 #include <Timer.h>
+
 Timer timer_debug(true);
 
 
@@ -445,8 +444,6 @@ void Cylinder::determine_coefficients(void)
 
   if (!self_consistent && !initializing) return;
 
-  comp.timer_coef.start();
-
   if (firstime) {
 				// Try to read cache
     bool cache_ok = false;
@@ -543,8 +540,6 @@ void Cylinder::determine_coefficients(void)
   } else {
     ortho->make_coefficients(mlevel);
   }
-
-  comp.timer_coef.stop();
 
   print_timings("Cylinder: coefficient timings");
 }
@@ -756,9 +751,7 @@ void Cylinder::determine_acceleration_and_potential(void)
   if (use_external == false) {
 
     if (multistep && (self_consistent || initializing)) {
-      comp.timer_multi.start();
       compute_multistep_coefficients();
-      comp.timer_multi.stop();
     }
 
   }
@@ -902,8 +895,6 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
   if (c->freeze(i)) return;
 
-  comp.timer_multi.start();
-
   double mass = c->Mass(i) * component->Adiabatic();
 
   double xx = c->Pos(i, 0, Component::Local | Component::Centered);
@@ -916,7 +907,6 @@ void Cylinder::multistep_update(int from, int to, Component* c, int i, int id)
 
   ortho->multistep_update(from, to, r, zz, phi, mass, id);
 
-  comp.timer_multi.stop();
 }
 
 
