@@ -182,6 +182,11 @@ void do_step(int n)
       if (timing) timer_adj.stop();
 
       check_bad("after multistep advance");
+
+				// DEBUG
+#ifdef DEBUG
+      comp.multistep_debug();
+#endif
     }
 
     if (!multistep_com_dt) {

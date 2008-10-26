@@ -187,8 +187,17 @@ void Cylinder::initialize()
 
 void Cylinder::get_acceleration_and_potential(Component* C)
 {
+#ifdef DEBUG
+  cout << "Process " << myid 
+       << ": in Cylinder::get_acceleration_and_potential" << endl;
+#endif
+				
   cC = C;
-				// External particles only
+
+  //====================================================
+  // Accel & pot using previously computed coefficients 
+  //====================================================
+
   if (use_external) {
     
     MPL_start_timer();
@@ -207,23 +216,30 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // On first call, will try to read cached tables rather
   // than recompute from distribution
   
-  determine_coefficients();
-
+  if (self_consistent || initializing) {
+    if (multistep)
+      compute_multistep_coefficients();
+    else
+      determine_coefficients();
+  }
+  
   //=========================
   // Dump basis on first call
   //=========================
 
   if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
     if (myid == 0 && density) {
-      ortho->dump_basis(runtag.c_str(), this_step);
+      if (multistep==0 || mstep==Mstep) {
+	ortho->dump_basis(runtag.c_str(), this_step);
       
-      ostringstream dumpname;
-      dumpname << "images" << "." << runtag << "." << this_step;
-      ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
-      //
-      // This next call is ONLY for deep debug
-      //
-      // dump_mzero(runtag.c_str(), this_step);
+	ostringstream dumpname;
+	dumpname << "images" << "." << runtag << "." << this_step;
+	ortho->dump_images(dumpname.str(), 5.0*acyl, 5.0*hcyl, 64, 64, true);
+	//
+	// This next call is ONLY for deep debug
+	//
+	// dump_mzero(runtag.c_str(), this_step);
+      }
     }
   }
 

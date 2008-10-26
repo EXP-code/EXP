@@ -269,7 +269,8 @@ void SphericalBasis::check_range()
 void SphericalBasis::get_acceleration_and_potential(Component* C)
 {
 #ifdef DEBUG
-  cout << "Process " << myid << ": in get_acceleration_and_potential\n";
+  cout << "Process " << myid 
+       << ": in SphericalBasis::get_acceleration_and_potential" << endl;
 #endif
 				
   cC = C;			// "Register" component
