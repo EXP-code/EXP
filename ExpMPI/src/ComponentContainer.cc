@@ -409,7 +409,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Compute new center(s)
   //
-  if (mstep==Mstep) {
+  if (mstep==Mstep-1) {
 
     if (timing) timer_posn.start();
     fix_positions();
@@ -602,6 +602,18 @@ void ComponentContainer::multistep_reset()
 }
 
 
+void ComponentContainer::print_level_lists()
+  {
+  //
+  // Do reset for each component
+  //
+  list<Component*>::iterator cc;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    (*cc)->print_level_lists();
+  }
+}
+
+
 void ComponentContainer::multistep_debug()
 {
   list<Component*>::iterator cc;
@@ -693,8 +705,8 @@ void ComponentContainer::fix_positions()
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
     if (c->EJ && (gottapot || restart)) {
-      if (mstep==Mstep) c->orient->accumulate(tnow, c);
-      if (myid==0)      c->orient->logEntry(tnow, c);
+      if (mstep==Mstep-1) c->orient->accumulate(tnow, c);
+      if (myid==0)        c->orient->logEntry(tnow, c);
     }
     
   }

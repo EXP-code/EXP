@@ -213,6 +213,8 @@ void do_step(int n)
     }
 #endif
 
+    comp.print_level_lists();
+
   } else {
 				// Time at the end of the step
     tnow += dtime;

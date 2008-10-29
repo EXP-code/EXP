@@ -228,7 +228,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
   if (ncompcyl==0 && ortho->coefs_made_all() && !initializing) {
     if (myid == 0 && density) {
-      if (multistep==0 || mstep==Mstep) {
+      if (multistep==0 || mstep==Mstep-1) {
 	ortho->dump_basis(runtag.c_str(), this_step);
       
 	ostringstream dumpname;
@@ -261,7 +261,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 				// Only do this check only once per
 				// multistep; might as well be at 
 				// the end of the multistep sequence
-  if ((multistep==0 || mstep==Mstep) && !initializing ) {
+  if ((multistep==0 || mstep==Mstep-1) && !initializing ) {
     ncompcyl++;
     if (ncompcyl == ncylrecomp) {
       ncompcyl = 0;
@@ -527,7 +527,7 @@ void Cylinder::determine_coefficients(void)
   MPI_Allreduce ( &cylmassT1, &cylmassT0, 1, MPI_DOUBLE, MPI_SUM, 
 		  MPI_COMM_WORLD );
 
-  if (multistep==0 || mstep==Mstep) {
+  if (multistep==0 || mstep==Mstep-1) {
     used    += use0;
     cylmass += cylmassT0;
   }

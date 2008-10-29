@@ -112,6 +112,10 @@ public:
   //! Reset data before a multistep step
   void multistep_reset();
 
+  /** Print out the level lists for all components to stdout 
+      for diagnostic purposes */
+  void print_level_lists();
+
   //! Print debug info
   void multistep_debug();
 

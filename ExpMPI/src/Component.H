@@ -740,6 +740,9 @@ public:
   //! Reset the level lists
   void reset_level_lists();
 
+  //! Print out the level lists to stdout for diagnostic purposes
+  void print_level_lists();
+
   //! Temporary access to tree (until I figure out what is really needed)
   pHOT* Tree() { return tree; }
 

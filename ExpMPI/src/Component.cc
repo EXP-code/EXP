@@ -254,9 +254,12 @@ void Component::reset_level_lists()
   if (myid==0) cout << endl;
 #endif  
 
+}
+
+void Component::print_level_lists()
+{
 				// Print out level info
-				// Only done at the end of a step . . .
-  if (nlevel>0 && (this_step % nlevel == 0) && (mstep==Mstep)) {
+  if (nlevel>0 && (this_step % nlevel == 0)) {
 
     vector< vector<unsigned> > cntr(multistep+1);
     for (int n=0; n<=multistep; n++) {
@@ -316,7 +319,6 @@ void Component::reset_level_lists()
     }
   }
 }
-
 
 Component::Component(istream *in)
 {

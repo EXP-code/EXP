@@ -100,7 +100,7 @@ void * adjust_multistep_level_thread(void *ptr)
     mindt1[id] = min<double>(mindt1[id], dt);
     maxdt1[id] = max<double>(maxdt1[id], dt);
 	
-    if (mstep == Mstep) {
+    if (mstep >= Mstep-1) {
 
       // Tally smallest (e.g. controlling) timestep
       if (dtv<dta) {
@@ -189,19 +189,23 @@ void adjust_multistep_level(bool all)
   }
   
 
-  tmdt = vector< vector< vector<unsigned> > >(nthrds);
-  for (int n=0; n<nthrds; n++) {
-    tmdt[n] = vector< vector<unsigned> >(multistep+1);
-    for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(4);
+  if (tmdt.size() == 0) {
+    tmdt = vector< vector< vector<unsigned> > >(nthrds);
+    for (int n=0; n<nthrds; n++) {
+      tmdt[n] = vector< vector<unsigned> >(multistep+1);
+      for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(4);
+    }
   }
 
   for (list<Component*>::iterator cc=comp.components.begin();
        cc != comp.components.end(); cc++) {
     
-    for (int n=0; n<nthrds; n++)
-      for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<4; j++) tmdt[n][k][j] = 0;
-
+    if (mstep >= Mstep-1) {
+      for (int n=0; n<nthrds; n++)
+	for (int k=0; k<=multistep; k++) 
+	  for (int j=0; j<4; j++) tmdt[n][k][j] = 0;
+    }
+    
     for (int level=0; level<=multistep; level++) {
       
       if (all || mactive[mstep][level]) {
@@ -265,10 +269,12 @@ void adjust_multistep_level(bool all)
       }
     }
 
-    for (int n=0; n<nthrds; n++)
-      for (int k=0; k<=multistep; k++) 
-	for (int j=0; j<4; j++) 
-	  (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
+    if (mstep >= Mstep-1) {
+      for (int n=0; n<nthrds; n++)
+	for (int k=0; k<=multistep; k++) 
+	  for (int j=0; j<4; j++) 
+	    (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
+    }
   }
 
   delete [] td;

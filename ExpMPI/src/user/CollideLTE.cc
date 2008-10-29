@@ -108,20 +108,20 @@ void CollideLTE::initialize_cell(pCell* cell,
   pCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
 				// 
-  double KEtot, KEdsp;
-  // samp->KE(KEtot, KEdsp);	// These are already specific in mass
-  cell->KE(KEtot, KEdsp);
+  double KEtot, KEdspS, KEdspC;
+  samp->KE(KEtot, KEdspS);	// These are already specific in mass
+  cell->KE(KEtot, KEdspC);
 
   double cmass = cell->Mass();	// Mass in real cell
   double smass = samp->Mass();	// Mass in sample cell
 
-  totalSoFar += cmass*KEdsp;
+  totalSoFar += cmass*KEdspC;
   massSoFar  += cmass;
 
 				// Mean mass per particle
   double Mass = cmass * UserTreeDSMC::Munit;
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
-  double T    = 2.0*KEdsp*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
 				// Volume in cells
   double cvolume = cell->Volume();
@@ -242,7 +242,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Energy ratio for time step estimation
   if (use_delt>=0) {
 
-    double Ctime =  tau*cell->Mass()*KEdsp/(coolrate[id]+DBL_MIN);
+    double Ctime =  tau*cell->Mass()*KEdspC/(coolrate[id]+DBL_MIN);
     //                                                     ^
     // to prevent inf values ------------------------------|
     //
