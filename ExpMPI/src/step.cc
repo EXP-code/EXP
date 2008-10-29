@@ -87,7 +87,7 @@ void do_step(int n)
 
 				// 
 	double DT = dt*mintvl[M];
-
+	
 				// Advance velocity by 1/2 step:
 				// First K_{1/2}
 	if (timing) timer_vel.start();
@@ -132,7 +132,9 @@ void do_step(int n)
 	check_bad("after second incr pos", M);
 	  
       }
+
       
+      double tlast = tnow;	// Time before current step
       tnow += dt;		// Time at the end of the current step
 
 				// Drift all positions by the substep size
@@ -177,6 +179,9 @@ void do_step(int n)
 
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
+      if (mstep==0) {		// Print the level lists
+	comp.print_level_lists(tlast);
+      }
       if (timing) timer_adj.stop();
 
       check_bad("after multistep advance");
@@ -212,8 +217,6 @@ void do_step(int n)
       if (chk) cerr << "Incremental steps OK at T=" << tnow << endl;
     }
 #endif
-
-    comp.print_level_lists();
 
   } else {
 				// Time at the end of the step
@@ -309,10 +312,10 @@ void do_step(int n)
     // END DEBUG
     //
 
-    timer_coef.reset();
+    timer_coef .reset();
     timer_drift.reset();
-    timer_vel.reset();
-    timer_pot.reset();
-    timer_adj.reset();
+    timer_vel  .reset();
+    timer_pot  .reset();
+    timer_adj  .reset();
   }
 }

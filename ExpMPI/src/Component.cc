@@ -235,14 +235,16 @@ void Component::reset_level_lists()
 	     << setw(12) << "first" << setw(12) << "last" 
 	     << setw(12) << "count" << endl;
       for (int j=0; j<=multistep; j++) {
-	cout << setw(4) << myid << setw(4) << j;
+	cout << left << setw(4) << myid << setw(4) << j;
 	if (levlist[j].size())
-	  cout << setw(12) << levlist[j].front()
+	  cout << left
+	       << setw(12) << levlist[j].front()
 	       << setw(12) << levlist[j].back() 
 	       << setw(12) << levlist[j].size()
 	       << endl;
 	else
-	  cout << setw(12) << (int)(-1)
+	  cout << left
+	       << setw(12) << (int)(-1)
 	       << setw(12) << (int)(-1) 
 	       << setw(12) << levlist[j].size()
 	       << endl;
@@ -256,9 +258,10 @@ void Component::reset_level_lists()
 
 }
 
-void Component::print_level_lists()
+void Component::print_level_lists(double T)
 {
 				// Print out level info
+
   if (nlevel>0 && (this_step % nlevel == 0)) {
 
     vector< vector<unsigned> > cntr(multistep+1);
@@ -275,6 +278,9 @@ void Component::print_level_lists()
       unsigned tot=0;
       for (int n=0; n<=multistep; n++) tot += cntr[n][3];
 
+      if (!tot && myid==0) cout << "print_level_lists [" << name 
+				<< ", T=" << tnow << "]: tot=" << tot << endl;
+
       if (tot) {
 
 	ostringstream ofil;
@@ -285,7 +291,7 @@ void Component::print_level_lists()
 	out << setw(70) << setfill('-') << '-' << endl;
 	ostringstream sout;
 	sout << "--- Component <" << name 
-	     << ", " << id  << ">, T=" << tnow;
+	     << ", " << id  << ">, T=" << T;
 	out << setw(70) << left << sout.str().c_str() << endl;
 	out << setw(70) << '-' << endl << setfill(' ');
 	out << setw(3)  << "L" 

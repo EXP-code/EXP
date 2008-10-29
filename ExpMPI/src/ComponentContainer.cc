@@ -591,7 +591,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 
 
 void ComponentContainer::multistep_reset()
-  {
+{
   //
   // Do reset for each component
   //
@@ -602,14 +602,14 @@ void ComponentContainer::multistep_reset()
 }
 
 
-void ComponentContainer::print_level_lists()
-  {
+void ComponentContainer::print_level_lists(double T)
+{
   //
   // Do reset for each component
   //
   list<Component*>::iterator cc;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->print_level_lists();
+    (*cc)->print_level_lists(T);
   }
 }
 

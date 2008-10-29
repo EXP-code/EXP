@@ -83,9 +83,6 @@ void begin_run(void)
   //                     |
   // Do all particles---/
 
-  // Print the currently assigned timestep levels
-  //
-  if (multistep) comp.print_level_lists();
 
   // Then recompute coefficients . . . 
   //

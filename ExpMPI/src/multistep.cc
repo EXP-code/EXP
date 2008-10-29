@@ -100,9 +100,10 @@ void * adjust_multistep_level_thread(void *ptr)
     mindt1[id] = min<double>(mindt1[id], dt);
     maxdt1[id] = max<double>(maxdt1[id], dt);
 	
-    if (mstep >= Mstep-1) {
+    if (mstep == 0) {
 
       // Tally smallest (e.g. controlling) timestep
+      //
       if (dtv<dta) {
 	if (dtr<=0 || dtv<dtr)
 	  tmdt[id][level][0]++;  
@@ -200,7 +201,7 @@ void adjust_multistep_level(bool all)
   for (list<Component*>::iterator cc=comp.components.begin();
        cc != comp.components.end(); cc++) {
     
-    if (mstep >= Mstep-1) {
+    if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<4; j++) tmdt[n][k][j] = 0;
@@ -269,7 +270,7 @@ void adjust_multistep_level(bool all)
       }
     }
 
-    if (mstep >= Mstep-1) {
+    if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<4; j++) 

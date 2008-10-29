@@ -114,7 +114,7 @@ public:
 
   /** Print out the level lists for all components to stdout 
       for diagnostic purposes */
-  void print_level_lists();
+  void print_level_lists(double T);
 
   //! Print debug info
   void multistep_debug();
