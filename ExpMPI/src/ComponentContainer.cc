@@ -705,8 +705,8 @@ void ComponentContainer::fix_positions()
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
     if (c->EJ && (gottapot || restart)) {
-      if (mstep==Mstep-1) c->orient->accumulate(tnow, c);
-      if (myid==0)        c->orient->logEntry(tnow, c);
+      if (mstep == 0) c->orient->accumulate(tnow, c);
+      if (myid  == 0) c->orient->logEntry  (tnow, c);
     }
     
   }

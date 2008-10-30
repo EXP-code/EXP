@@ -338,7 +338,6 @@ void Orient::accumulate(double time, Component *c)
   if (linear) {
       center = center0;
       center0 += cenvel0*dtime;
-      if (myid==0) write_log(time, c);
       return;
   }
 
@@ -673,8 +672,6 @@ void Orient::accumulate(double time, Component *c)
     sumsC.pop_front();
   }
     
-
-  if (myid==0) write_log(time, c);
 }
 
 void Orient::write_log(double time, Component *c)
