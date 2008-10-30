@@ -102,7 +102,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   tree = new pHOT(this);
 
   pbuf = new Particle [PFbufsz];
-
 }
 
 struct thrd_pass_reset

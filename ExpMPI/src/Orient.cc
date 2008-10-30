@@ -674,8 +674,10 @@ void Orient::accumulate(double time, Component *c)
     
 }
 
-void Orient::write_log(double time, Component *c)
+void Orient::logEntry(double time, Component *c)
 {
+  if (myid) return;
+
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;

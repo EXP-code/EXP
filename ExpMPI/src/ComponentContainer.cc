@@ -47,6 +47,11 @@ void ComponentContainer::initialize(void)
 {
   Component *c, *c1;
 
+				// Set centerlevl variable
+
+  if (centerlevl < 0) centerlevl = multistep/2;
+  centerlevl = min<int>(centerlevl, multistep);
+
 
   read_rates();			// Read initial processor rates
 
@@ -409,7 +414,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Compute new center(s)
   //
-  if (mstep==Mstep-1) {
+  if (mactive[mstep][centerlevl]) {
 
     if (timing) timer_posn.start();
     fix_positions();
@@ -705,8 +710,8 @@ void ComponentContainer::fix_positions()
     for (int k=0; k<3; k++) gcov1[k] += c->cov[k];
 
     if (c->EJ && (gottapot || restart)) {
-      if (mstep == 0) c->orient->accumulate(tnow, c);
-      if (myid  == 0) c->orient->logEntry  (tnow, c);
+      c->orient->accumulate(tnow, c);
+      c->orient->logEntry(tnow, c);
     }
     
   }

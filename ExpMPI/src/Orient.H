@@ -113,8 +113,6 @@ private:
   
   vector<double> pos, psa, vel;
   
-  void write_log(double time, Component *c);
-  
 public:
   //! Mask flags for Orient type
   enum OrientFlags {AXIS=1, CENTER=2};
@@ -145,7 +143,7 @@ public:
   }
   
   //! Write log entry
-  void logEntry(double time, Component *c) { write_log(time, c); }
+  void logEntry(double time, Component *c);
   
   //! Set center to move at constant velocity
   void set_linear() { linear = true; }

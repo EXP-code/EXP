@@ -67,6 +67,9 @@ extern bool eqmotion;
 //! Multistep levels (default: 0 means no multistepping)
 extern unsigned multistep;
 
+//! Lowest level for centering recomputation (default: multistep/2)
+extern int centerlevl;
+
 //! Synchronize multistep positions at each substep (default: true)
 extern int posnsync;
 
