@@ -465,8 +465,7 @@ void pCell::KE(double &total, double &dispr)
 
     if (count<2) dispr=0.0;
 
-    // DEBUG
-    //
+#ifdef DEBUG
     static int cnt = 0;
     if (dispr<0.0) {
       ostringstream sout;
@@ -476,6 +475,9 @@ void pCell::KE(double &total, double &dispr)
       for (unsigned i=0; i<10; i++) 
 	out << setw(3) << i << setw(15) << state[i] << endl;
     }
+#endif
+
+    dispr = max<double>(0.0, dispr);
     
     // Return energy per unit mass
     //

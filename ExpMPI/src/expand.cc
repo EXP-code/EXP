@@ -155,6 +155,29 @@ main(int argc, char** argv)
     cout << setw(50) << "%" << setfill(' ') << endl << endl;
   }
 
+  //====================================
+  // Make node PID list
+  //====================================
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl 
+		     << setfill(' ') << endl
+		     << setw(4) << left << "#" << setw(proc_namelen+5) 
+		     << "Node name" << setw(12) << "PID" << endl
+		     << setw(4) << left << "-" << setw(proc_namelen+5) 
+		     << "---------" << setw(12) << "---" << endl;
+
+  for (int j=0; j<numprocs; j++) {
+    if (myid==j)  cout << setw(4) << left << j
+		       << setw(proc_namelen+5) << processor_name
+		       << setw(12) << getpid()
+		       << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  
+  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ') << endl;
 
   //============================
   // Parse command line:        
