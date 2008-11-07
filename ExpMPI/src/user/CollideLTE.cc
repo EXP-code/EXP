@@ -112,38 +112,38 @@ void CollideLTE::initialize_cell(pCell* cell,
   samp->KE(KEtot, KEdspS);	// These are already specific in mass
   cell->KE(KEtot, KEdspC);
 
-  double cmass = cell->Mass();	// Mass in real cell
-  double smass = samp->Mass();	// Mass in sample cell
+  double massC = cell->Mass();	// Mass in real cell
+  double massS = samp->Mass();	// Mass in sample cell
 
-  totalSoFar += cmass*KEdspC;
-  massSoFar  += cmass;
+  totalSoFar += massC*KEdspC;
+  massSoFar  += massC;
 
 				// Mean mass per particle
-  double Mass = cmass * UserTreeDSMC::Munit;
+  double Mass = massC * UserTreeDSMC::Munit;
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
   double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
 				// Volume in cells
-  double cvolume = cell->Volume();
-  double svolume = samp->Volume();
+  double volumeC = cell->Volume();
+  double volumeS = samp->Volume();
 
-  double Volume  = cvolume * pow(UserTreeDSMC::Lunit, 3);
+  double Volume  = volumeC * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0      = Density/mp;
 				// Volume in real cell
-  double CellVolume = cvolume * pow(UserTreeDSMC::Lunit, 3);
+  double CellVolume = volumeC * pow(UserTreeDSMC::Lunit, 3);
 
   if (T>0.0) {
     if (log(T)>tmin && log(T)<tmax) {
       int indx = (int)float( (log(T) - tmin)/dtmp );
-      thisto2[indx] += cmass;
+      thisto2[indx] += massC;
     }
   }
 
   if (n0>0.0) {
     if (log(n0)>nmin && log(n0)<nmax) {
       int indx = (int)float( (log(n0) - nmin)/ntmp );
-      nhisto2[indx] += cmass;
+      nhisto2[indx] += massC;
     }
   }
 
@@ -152,7 +152,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 	log(n0)>nmin && log(n0)<nmax) {
       int indx1 = (int)float( (log(T)  - tmin)/dtmp );
       int indx2 = (int)float( (log(n0) - nmin)/ntmp );
-      trho[indx1][indx2] += cmass;
+      trho[indx1][indx2] += massC;
     }
   }
     
@@ -202,11 +202,29 @@ void CollideLTE::initialize_cell(pCell* cell,
     cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
   }
 
+  if (T<1000.0) {
+    vector<double> pos(3);
+    cell->MeanPos(pos);
+
+    ostringstream sout;
+    sout << "CollideLTE_diag." << runtag << "." << id << "." << myid;
+    ofstream out(sout.str().c_str(), ios::app);
+    out << setw(16) << tnow
+	<< setw(16) << T
+	<< setw(16) << coolrate[id]
+	<< setw(16) << Density
+	<< setw(16) << massC
+	<< setw(16) << massC/volumeC
+	<< setw(16) << massS/volumeS;
+    for (int i=0; i<3; i++) out << setw(16) << pos[i];
+    out << endl;
+  }
+
   if (MFPDIAG) {
     ttempT[id].push_back(T);
     tdeltT[id].push_back(deltaE[id]);
 
-    prec[id].first = cmass/cvolume;
+    prec[id].first = massC/volumeC;
     prec[id].second[0] = T;
     prec[id].second[1] = cell->bods.size();
     prec[id].second[2] = cell->Mass();
@@ -218,8 +236,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   if (use_temp>=0 || use_dens>=0) {
     
-    double dens = smass/svolume;
-    // double dens = cmass/cvolume;
+    // double dens = massS/volumeS;
+    double dens = massC/volumeC;
     set<unsigned>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       if (*j == 0) {

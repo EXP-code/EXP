@@ -47,6 +47,53 @@ void signal_handler_dump(int sig)
 //! Sync argument lists on all processes
 void MPL_parse_args(int argc, char** argv);
 
+//! Print multicomputer process info
+void make_node_list(int argc, char **argv)
+{
+  MPI_Barrier(MPI_COMM_WORLD);
+  
+  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl 
+		     << setfill(' ') << endl
+		     << setw(4) << left << "#" << setw(proc_namelen+5) 
+		     << "Node name" << setw(12) << "PID" 
+		     << setw(40) << "Exe name" << endl
+		     << setw(4) << left << "-" << setw(proc_namelen+5) 
+		     << "---------" << setw(12) << "---" 
+		     << setw(40) << "--------" << endl;
+
+  char procn[proc_namelen+1], cmdnm[40];
+  long pid = getpid();
+
+  strncpy(procn, processor_name, proc_namelen+1);
+  strncpy(cmdnm, argv[0], 40);
+
+  for (int j=0; j<numprocs; j++) {
+    if (myid==0) {
+      if (j>0) {
+	MPI_Recv(procn, proc_namelen, MPI_CHAR, j, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(cmdnm,           40, MPI_CHAR, j, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&pid,             1, MPI_LONG, j, 63, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+
+      cout << setw(4) << left << j
+	   << setw(proc_namelen+5) << string(procn)
+	   << setw(12) << pid 
+	   << setw(40) << cmdnm << endl;
+    }
+    else if (myid==j) {
+      MPI_Send(procn, proc_namelen, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
+      MPI_Send(cmdnm,           40, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
+      MPI_Send(&pid,             1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+  
+  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
+		     << setfill(' ') << endl << endl;
+
+}
+
 /**
    The MAIN routine
 */
@@ -159,25 +206,7 @@ main(int argc, char** argv)
   // Make node PID list
   //====================================
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl 
-		     << setfill(' ') << endl
-		     << setw(4) << left << "#" << setw(proc_namelen+5) 
-		     << "Node name" << setw(12) << "PID" << endl
-		     << setw(4) << left << "-" << setw(proc_namelen+5) 
-		     << "---------" << setw(12) << "---" << endl;
-
-  for (int j=0; j<numprocs; j++) {
-    if (myid==j)  cout << setw(4) << left << j
-		       << setw(proc_namelen+5) << processor_name
-		       << setw(12) << getpid()
-		       << endl;
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-  
-  if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
-		     << setfill(' ') << endl;
+  make_node_list(argc, argv);
 
   //============================
   // Parse command line:        

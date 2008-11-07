@@ -23,8 +23,10 @@ void local_init_mpi(int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   MPI_Get_processor_name(processor_name, &proc_namelen);
 
+  //=========================
   // Make SLAVE communicator
-  //
+  //=========================
+
   slaves = numprocs - 1;
   MPI_Comm_group(MPI_COMM_WORLD, &world_group);
   int *nslaves = new int [slaves];
@@ -34,8 +36,10 @@ void local_init_mpi(int argc, char **argv)
   MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
   delete [] nslaves;
     
+  //==========
   // Debug id
-  //
+  //==========
+
   MPI_Group_rank ( slave_group, &n );
   cerr << "Process " << myid << " on " << processor_name 
        << "   rank in SLAVE: "
@@ -43,3 +47,4 @@ void local_init_mpi(int argc, char **argv)
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
+
