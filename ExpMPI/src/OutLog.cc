@@ -491,7 +491,10 @@ void OutLog::Run(int n, bool last)
     for (int i=0; i<comp.ncomp; i++) clausius0 += clausius[i];
     *out << "|" << setw(cwid) << clausius0;
     *out << "|" << setw(cwid) << ektot0 + clausius0;
-    *out << "|" << setw(cwid) << -2.0*ektot0/clausius0;
+    if (clausius0 != 0.0)
+      *out << "|" << setw(cwid) << -2.0*ektot0/clausius0;
+    else
+      *out << "|" << setw(cwid) << 0.0;
 
     *out << "|" << setw(cwid) << wtime;
     int usedT = 0;
@@ -535,7 +538,10 @@ void OutLog::Run(int n, bool last)
       *out << "|" << setw(cwid) << eptot[i] + eptotx[i];
       *out << "|" << setw(cwid) << clausius[i];
       *out << "|" << setw(cwid) << ektot[i] + clausius[i];
-      *out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
+      if (clausius[i] != 0.0)
+	*out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
+      else
+	*out << "|" << setw(cwid) << 0.0;
       *out << "|" << setw(cwid) << used0[i];
     }
 

@@ -525,6 +525,8 @@ void * Collide::collide_thread(void * arg)
     stat2SoFar[id] = stat2Time[id].stop();
     
 
+    if (select<1.0e-4) return (NULL);
+
     // double length = pow(c->Volume(), 0.3333333);
 
 				// Number of pairs to be selected
@@ -858,7 +860,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   MPI_Status s;
 
   if (myid==0) {
-    unsigned nmb, num;
+    unsigned nmt, nmb, num;
 
 				// Temporaries so we don't touch the
 				// root node's counters
@@ -870,10 +872,11 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 
 
     for (int n=1; n<numprocs; n++) {
+      MPI_Recv(&nmt, 1, MPI_UNSIGNED, n, 37, MPI_COMM_WORLD, &s);
       MPI_Recv(&nmb, 1, MPI_UNSIGNED, n, 38, MPI_COMM_WORLD, &s);
       MPI_Recv(&num, 1, MPI_UNSIGNED, n, 39, MPI_COMM_WORLD, &s);
 
-      vector<double> tmb(nmb), tmp(num);
+      vector<double> tmb(nmb), tmt(nmt), tmp(num);
 
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 40, MPI_COMM_WORLD, &s);
       ratI.insert(ratI.end(), tmp.begin(), tmp.end());
@@ -884,10 +887,10 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 42, MPI_COMM_WORLD, &s);
       volI.insert(volI.end(), tmp.begin(), tmp.end());
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 43, MPI_COMM_WORLD, &s);
       temI.insert(temI.end(), tmp.begin(), tmp.end());
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
+      MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 44, MPI_COMM_WORLD, &s);
       delI.insert(delI.end(), tmp.begin(), tmp.end());
 
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 45, MPI_COMM_WORLD, &s);
@@ -899,33 +902,33 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       MPI_Recv(&tmb[0], nmb, MPI_DOUBLE, n, 47, MPI_COMM_WORLD, &s);
       derI.insert(derI.end(), tmb.begin(), tmb.end());
 
-      vector<Precord> tmp2(num), phsI(tphase);
+      vector<Precord> tmp2(nmt), tmp3(num), phsI(tphase);
 
-      MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 48, MPI_COMM_WORLD, &s);
-      for (unsigned k=0; k<num; k++) {
+      MPI_Recv(&tmt[0], nmt, MPI_DOUBLE, n, 48, MPI_COMM_WORLD, &s);
+      for (unsigned k=0; k<nmt; k++) {
 				// Load density
-	tmp2[k].first = tmp[k];
+	tmp2[k].first = tmt[k];
 				// Initialize record
 	tmp2[k].second = vector<double>(Nphase, 0);
       }
       for (unsigned l=0; l<Nphase; l++) {
-	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
-	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
+	MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
+	for (unsigned k=0; k<nmt; k++) tmp2[k].second[l] = tmp[k];
       }
       phsI.insert(phsI.end(), tmp2.begin(), tmp2.end());
 
       MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 49+Nphase, MPI_COMM_WORLD, &s);
       for (unsigned k=0; k<num; k++) {
 				// Load mfp
-	tmp2[k].first = tmp[k];
+	tmp3[k].first = tmp[k];
 				// Initialize record
-	tmp2[k].second = vector<double>(Nmfp, 0);
+	tmp3[k].second = vector<double>(Nmfp, 0);
       }
       for (unsigned l=0; l<Nmfp; l++) {
 	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 50+Nphase+l, MPI_COMM_WORLD, &s);
-	for (unsigned k=0; k<num; k++) tmp2[k].second[l] = tmp[k];
+	for (unsigned k=0; k<num; k++) tmp3[k].second[l] = tmp[k];
       }
-      mfpI.insert(mfpI.end(), tmp2.begin(), tmp2.end());
+      mfpI.insert(mfpI.end(), tmp3.begin(), tmp3.end());
     }
 
 				// Sort the counters in prep for quantiles
@@ -1035,32 +1038,35 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     
   } else {
     unsigned num = tmfpst.size();
+    unsigned nmt = tdelt.size();
     unsigned nmb = derat.size();
+
+    MPI_Send(&nmt, 1, MPI_UNSIGNED, 0, 37, MPI_COMM_WORLD);
     MPI_Send(&nmb, 1, MPI_UNSIGNED, 0, 38, MPI_COMM_WORLD);
     MPI_Send(&num, 1, MPI_UNSIGNED, 0, 39, MPI_COMM_WORLD);
     MPI_Send(&tsrat[0],  num, MPI_DOUBLE, 0, 40, MPI_COMM_WORLD);
     MPI_Send(&tdens[0],  num, MPI_DOUBLE, 0, 41, MPI_COMM_WORLD);
     MPI_Send(&tvolc[0],  num, MPI_DOUBLE, 0, 42, MPI_COMM_WORLD);
-    MPI_Send(&ttemp[0],  num, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
-    MPI_Send(&tdelt[0],  num, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
+    MPI_Send(&ttemp[0],  nmt, MPI_DOUBLE, 0, 43, MPI_COMM_WORLD);
+    MPI_Send(&tdelt[0],  nmt, MPI_DOUBLE, 0, 44, MPI_COMM_WORLD);
     MPI_Send(&tseln[0],  num, MPI_DOUBLE, 0, 45, MPI_COMM_WORLD);
     MPI_Send(&kerat[0],  nmb, MPI_DOUBLE, 0, 46, MPI_COMM_WORLD);
     MPI_Send(&derat[0],  nmb, MPI_DOUBLE, 0, 47, MPI_COMM_WORLD);
 
-    vector<double> tmp(num);
+    vector<double> tmt(nmt), tmp(num);
 
-    for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 48, MPI_COMM_WORLD);
+    for (unsigned k=0; k<nmt; k++) tmt[k] = tphase[k].first;
+    MPI_Send(&tmt[0], nmt, MPI_DOUBLE, 0, 48, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nphase; l++) {
-      for (unsigned k=0; k<num; k++) tmp[k] = tphase[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 49+l, MPI_COMM_WORLD);
+      for (unsigned k=0; k<nmt; k++) tmt[k] = tphase[k].second[l];
+      MPI_Send(&tmt[0], nmt, MPI_DOUBLE, 0, 49+l, MPI_COMM_WORLD);
     }
 
     for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].first;
-    MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 49+Nphase, MPI_COMM_WORLD);
+    MPI_Send(&tmp[0], num, MPI_DOUBLE, 0, 49+Nphase, MPI_COMM_WORLD);
     for (unsigned l=0; l<Nmfp; l++) {
       for (unsigned k=0; k<num; k++) tmp[k] = tmfpst[k].second[l];
-      MPI_Send(&tmp[0],  num, MPI_DOUBLE, 0, 50+Nphase+l, MPI_COMM_WORLD);
+      MPI_Send(&tmp[0], num, MPI_DOUBLE, 0, 50+Nphase+l, MPI_COMM_WORLD);
     }
   }
 }
