@@ -50,40 +50,41 @@ void MPL_parse_args(int argc, char** argv);
 //! Print multicomputer process info
 void make_node_list(int argc, char **argv)
 {
-  MPI_Barrier(MPI_COMM_WORLD);
-  
   if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl 
 		     << setfill(' ') << endl
-		     << setw(4) << left << "#" << setw(proc_namelen+5) 
+		     << setw(4) << left << "#" << setw(20) 
 		     << "Node name" << setw(12) << "PID" 
 		     << setw(40) << "Exe name" << endl
-		     << setw(4) << left << "-" << setw(proc_namelen+5) 
+		     << setw(4) << left << "-" << setw(20) 
 		     << "---------" << setw(12) << "---" 
 		     << setw(40) << "--------" << endl;
 
-  char procn[proc_namelen+1], cmdnm[40];
+  MPI_Status stat;
+  unsigned nprocn = MPI_MAX_PROCESSOR_NAME, ncmd=40;
+  char *procn = new char [nprocn];
+  char *cmdnm = new char [ncmd];
   long pid = getpid();
-
-  strncpy(procn, processor_name, proc_namelen+1);
-  strncpy(cmdnm, argv[0], 40);
+  
+  strncpy(procn, processor_name, nprocn);
+  strncpy(cmdnm, argv[0], ncmd);
 
   for (int j=0; j<numprocs; j++) {
     if (myid==0) {
       if (j>0) {
-	MPI_Recv(procn, proc_namelen, MPI_CHAR, j, 61, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(cmdnm,           40, MPI_CHAR, j, 62, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(&pid,             1, MPI_LONG, j, 63, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(procn, nprocn, MPI_CHAR, j, 61, MPI_COMM_WORLD, &stat);
+	MPI_Recv(cmdnm,   ncmd, MPI_CHAR, j, 62, MPI_COMM_WORLD, &stat);
+	MPI_Recv(&pid,       1, MPI_LONG, j, 63, MPI_COMM_WORLD, &stat);
       }
 
       cout << setw(4) << left << j
-	   << setw(proc_namelen+5) << string(procn)
+	   << setw(20) << string(procn)
 	   << setw(12) << pid 
-	   << setw(40) << cmdnm << endl;
-    }
-    else if (myid==j) {
-      MPI_Send(procn, proc_namelen, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
-      MPI_Send(cmdnm,           40, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
-      MPI_Send(&pid,             1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
+	   << setw(ncmd) << cmdnm << endl;
+
+    } else if (myid==j) {
+      MPI_Send(procn, nprocn, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
+      MPI_Send(cmdnm,   ncmd, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
+      MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
@@ -92,6 +93,8 @@ void make_node_list(int argc, char **argv)
   if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ') << endl << endl;
 
+  delete [] procn;
+  delete [] cmdnm;
 }
 
 /**
