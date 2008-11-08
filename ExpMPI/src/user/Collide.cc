@@ -524,9 +524,6 @@ void * Collide::collide_thread(void * arg)
 
     stat2SoFar[id] = stat2Time[id].stop();
     
-
-    if (select<1.0e-4) return (NULL);
-
     // double length = pow(c->Volume(), 0.3333333);
 
 				// Number of pairs to be selected
@@ -543,7 +540,7 @@ void * Collide::collide_thread(void * arg)
     collTime[id].start();
 				// If more than EPSMratio collisions per
 				// particle, assume equipartition
-    if (static_cast<double>(number)/select < EPSMratio) {
+    if (static_cast<double>(number)/(0.0001+select) < EPSMratio) {
 
       EPSM(tree, c, id);
 

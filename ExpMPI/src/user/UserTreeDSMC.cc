@@ -393,8 +393,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   if (0) {
     cout << "Process " << myid << ": sanity check" << endl;;
-    int cnt=0;
     for (unsigned M=0; M<=multistep; M++) {
+      int cnt=0;
       if (c0->Tree()->clevels[M].size()) {
 	for (set<pCell*>::iterator it=c0->Tree()->clevels[M].begin();
 	     it!=c0->Tree()->clevels[M].end(); it++) {
@@ -402,8 +402,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	       << ": M=" << M << ", bods=" << (*it)->bods.size() << endl;
 	  if (cnt++>10) break;
 	}
+	if (cnt>10) break;
       }
-      if (cnt>10) break;
     }
   }
 
