@@ -1077,10 +1077,11 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   vector<double> mvel(3, 0.0), disp(3, 0.0);
   double mass = 0.0;
   double Exes = 0.0;
-  set<unsigned>::iterator ib;
   unsigned nbods = cell->bods.size();
   vector<unsigned> bodx;
-  for (ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+  for (set<unsigned>::iterator
+	 ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+    
     Particle* p = tree->Body(*ib);
     bodx.push_back(*ib);
     if (p->mass<=0.0 || isnan(p->mass)) {
@@ -1097,20 +1098,24 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
       }
     }
     mass += p->mass;
-				// Compute the total 
-				// undercooled (-) or overcooled (+) 
-				// energy.  That is Exes must be added
-				// to the internal energy before cooling
-				// at this step.
+
+    // Compute the total  undercooled (-) or overcooled (+) energy.
+    // That is Exes must be added to the internal energy before cooling
+    // at this step.  If use_exes<0, Exes will remain zero (0).
     if (use_exes>=0) {
       Exes += p->dattrib[use_exes];
       p->dattrib[use_exes] = 0;
     }
   }
 
-				// Can't do anything if the gas has no mass
+  //
+  // Can't do anything if the gas has no mass
+  //
   if (mass<=0.0) return;
 
+  //
+  // Compute the thermal (e.g. internal) energy
+  //
   double Einternal = 0.0, Enew;
   for (unsigned k=0; k<3; k++) {
     mvel[k] /= mass;
@@ -1123,11 +1128,15 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Total kinetic energy in COV frame
     Einternal += 0.5*mass*disp[k];
   }
-				// Can't collide if with no internal energy
+
+  //
+  // Can't collide if with no internal energy
+  //
   if (Einternal<=0.0) return;
 
-				// Correct 1d vel. disp. after cooling
-				// 
+  //
+  // Correct 1d vel. disp. after cooling
+  // 
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
     UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
 
@@ -1148,10 +1157,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
     if (TSDIAG) {
       if (coolrate[id]-Exes>0.0) {
-	/*
-	int indx = (int)floor(log(Einternal/(coolrate[id]-Exes)) /
-			      (log(2.0)*TSPOW) + 5);
-	*/
+
 	int indx = (int)floor(log(Einternal/coolrate[id]) /
 			      (log(2.0)*TSPOW) + 5);
 	if (indx<0 ) indx = 0;
@@ -1310,12 +1316,15 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   } else {
 
-				// Realize a distribution with internal
-				// dispersion only
+    //
+    // Realize a distribution with internal dispersion only
+    //
     vector<double> Tmvel(3, 0.0);
     vector<double> Tdisp(3, 0.0);
+
     for (unsigned j=0; j<nbods; j++) {
       Particle* p = tree->Body(bodx[j]);
+      
       for (unsigned k=0; k<3; k++) {
 	p->vel[k] = mdisp*(*norm)();
 	Tmvel[k] += p->mass*p->vel[k];
@@ -1326,26 +1335,31 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	}
       }
     }
-				// Compute mean and variance
-				// 
+
+    //
+    // Compute mean and variance
+    // 
     double Tmdisp = 0.0;
     for (unsigned k=0; k<3; k++) {
       Tmvel[k] /= mass;
       Tdisp[k] = (Tdisp[k] - Tmvel[k]*Tmvel[k]*mass)/mass;
       Tmdisp += Tdisp[k];
     }
-    Tmdisp = sqrt(Tmdisp/3.0);
+    Tmdisp = sqrt(0.5*Tmdisp/3.0);
 
-				// Sanity check
-				// 
+    //
+    // Sanity check
+    // 
     if (Tmdisp<=0.0 || isnan(Tmdisp) || isinf(Tmdisp)) {
       cout << "Process " << myid  << " id " << id 
 	   << ": crazy values, Tmdisp=" << Tmdisp << " mdisp=" << mdisp 
 	   << " nbods=" << nbods << endl;
       return;
     }
-				// Enforce energy and momentum conservation
-				// 
+
+    //
+    // Enforce energy and momentum conservation
+    // 
     for (unsigned j=0; j<nbods; j++) {
       Particle* p = tree->Body(bodx[j]);
       for (unsigned k=0; k<3; k++)
@@ -1354,8 +1368,58 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
   }
 
-				// Record diagnostics
-				// 
+
+  //
+  // Debugging sanity check
+  // 
+  if (0) {
+    vector<double> mvel1(3, 0.0), disp1(3, 0.0);
+    double dvel = 0.0;
+    double mass1 = 0.0;
+    double Efinal = 0.0;
+    double mdisp1 = 0.0;
+
+    for (unsigned j=0; j<nbods; j++) {
+      Particle* p = tree->Body(bodx[j]);
+      for (unsigned k=0; k<3; k++) {
+	mvel1[k] += p->mass*p->vel[k];
+	disp1[k] += p->mass*p->vel[k]*p->vel[k];
+      }
+      mass1 += p->mass;
+    }
+
+    for (unsigned k=0; k<3; k++) {
+      mvel1[k] /= mass1;
+				// Disp is variance here
+      disp1[k] = (disp1[k] - mvel1[k]*mvel1[k]*mass1)/mass1;
+      mdisp1 += disp1[k];
+
+				// Crazy value?
+      if (disp1[k]<0.0) disp1[k] = 0.0;
+
+				// Total kinetic energy in COV frame
+      Efinal += 0.5*mass1*disp1[k];
+      dvel += (mvel[k] - mvel1[k])*(mvel[k] - mvel1[k]);
+    }
+
+    if (fabs(Efinal - Einternal)>1.0e-8*Einternal) {
+      cerr << "Process " << myid << ": Collide::EPSM: energy boo-boo,"
+	   << "  nbods="    << nbods
+	   << "  Efinal="   << Efinal
+	   << "  Einter="   << Einternal
+	   << "  mass="     << mass1
+	   << "  delta D="  << (mdisp - sqrt(mdisp1/3.0))/mdisp
+	   << "  delta E="  << Enew - Einternal
+	   << "  delta F="  << (Efinal - Einternal)/Einternal
+	   << "  delta V="  << sqrt(dvel)
+	   << ")"
+	   << endl;
+    }
+  }
+
+  //
+  // Record diagnostics
+  // 
   lostSoFar_EPSM[id] += Einternal - Enew;
   epsm1T[id] += nbods;
   Nepsm1T[id]++;

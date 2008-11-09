@@ -222,6 +222,8 @@ void UserTreeDSMC::userinfo()
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
+  if (epsm>0.0)    cout << ", using EPSM";
+  else             cout << ", EPSM disabled";
   if (ntc)         cout << ", using NTC";
   else             cout << ", NTC disabled";
   if (cba)         cout << ", using CBA";
