@@ -540,7 +540,7 @@ void * Collide::collide_thread(void * arg)
     collTime[id].start();
 				// If more than EPSMratio collisions per
 				// particle, assume equipartition
-    if (static_cast<double>(number)/(0.0001+select) < EPSMratio) {
+    if (2.0*select/static_cast<double>(number) > EPSMratio) {
 
       EPSM(tree, c, id);
 
