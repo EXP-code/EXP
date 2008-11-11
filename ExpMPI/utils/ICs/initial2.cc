@@ -149,6 +149,7 @@ double DR_DF=5.0;
 
 double scale_height = 0.1;
 double scale_length = 2.0;
+double scale_lenfkN = -1.0;
 double disk_mass = 1.0;
 double gas_mass = 1.0;
 double ToomreQ = 1.2;
@@ -220,6 +221,7 @@ main(int argc, char **argv)
       int option_index = 0;
       static struct option long_options[] = {
 	{"multi", 1, 0, 0},
+	{"gmulti", 1, 0, 0},
 	{"rcylmin", 1, 0, 0},
 	{"rcylmax", 1, 0, 0},
 	{"rmin", 1, 0, 0},
@@ -249,6 +251,7 @@ main(int argc, char **argv)
 	case 0:			// Long options
 	  optname = string(long_options[option_index].name);
 	  if (!optname.compare("multi"))     multi = atoi(optarg) ? true : false;
+	  if (!optname.compare("gmulti"))    scale_lenfkN = atof(optarg);
 	  if (!optname.compare("rcylmin"))   RCYLMIN = atof(optarg);
 	  if (!optname.compare("rcylmax"))   RCYLMAX = atof(optarg);
 	  if (!optname.compare("rmin"))      RMIN = atof(optarg);
@@ -1043,9 +1046,13 @@ main(int argc, char **argv)
     //
     // Maximum enclosed disk mass given rmax
     //
+    double Scale_Length = scale_length;
+    if (scale_lenfkN > 0.0) scale_length = scale_lenfkN;
+
     double rmx2 = 1.5*rmax;
     double mmx2 = 1.0 - (1.0 + rmx2/scale_length)*exp(-rmx2/scale_length);
     double mmax = 1.0 - (1.0 + rmax/scale_length)*exp(-rmax/scale_length);
+    double mfac = 1.0 - (1.0 + rmax/Scale_Length)*exp(-rmax/Scale_Length);
 
     //
     // Random generators
@@ -1064,10 +1071,11 @@ main(int argc, char **argv)
     Uniform unitN(minK, maxK, &gen);
 
 
-    double gmass = gas_mass/ngas;
+    double gmass, gmass0 = gas_mass/ngas;
     double KE=0.0, VC=0.0;
     vector<double> mc2(nzint);
 
+    gmass = gmass0;
     fr = fz = potr = 0.0;
 
     outps << setw(8) << ngas
@@ -1143,6 +1151,8 @@ main(int argc, char **argv)
       double v =  vc*cosp + vthermal*norminv(unitN());
       double w =  vthermal*norminv(unitN());
       
+      gmass = gmass0*exp(-R*(Scale_Length - scale_length))*mmax/mfac;
+
       outps << setw(18) << gmass
 	    << setw(18) << R*cos(phi)
 	    << setw(18) << R*sin(phi)
