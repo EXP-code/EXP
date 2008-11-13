@@ -106,10 +106,10 @@ main(int argc, char** argv)
   const int hdbufsize=1024;
   char hdbuffer[hdbufsize];
 
-  // #ifdef DEBUG
+#ifdef DEBUG
   set_fpu_handler();
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW ); 
-  // #endif
+#endif
 
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;
