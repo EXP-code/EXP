@@ -21,7 +21,6 @@ static Timer timer_coef(true), timer_drift(true), timer_vel(true);
 static Timer timer_pot(true), timer_adj(true);
 static unsigned tskip = 1;
 static bool timing = false;
-static bool multistep_com_dt = true;
 
 void check_bad(const char *msg)
 {
@@ -58,19 +57,11 @@ void do_step(int n)
     
     double dt = dtime/Mstep;	// Smallest time step
 
-				// COM update
-    if (multistep_com_dt) {
-
-      if (timing) timer_vel.start();
-      incr_com_velocity(0.5*dt);
-      if (timing) timer_vel.stop();
-
-    } else {
-				// Velocity half-kick
-      if (timing) timer_vel.start();
-      incr_com_velocity(0.5*dtime);
-      if (timing) timer_vel.stop();
-    }
+				// COM update:
+				// First velocity half-kick
+    if (timing) timer_vel.start();
+    incr_com_velocity(0.5*dtime);
+    if (timing) timer_vel.stop();
 
 #ifdef CHK_STEP
     vector<double> pos_check(multistep+1);
@@ -149,8 +140,8 @@ void do_step(int n)
       //                              |
       //           ignoring levels----/
 
-				// COM update
-				// 
+				// COM update:
+				// Position drift
       incr_com_position(dt);
       if (timing) timer_drift.stop();
 
@@ -172,9 +163,6 @@ void do_step(int n)
 	vel_check[M] += 0.5*dt*mintvl[M];
 #endif
       }
-				// COM update
-				// 
-      if (multistep_com_dt) incr_com_velocity(0.5*dt);
       if (timing) timer_vel.stop();
 
       if (timing) timer_adj.start();
@@ -192,11 +180,11 @@ void do_step(int n)
 #endif
     }
 
-    if (!multistep_com_dt) {
-      if (timing) timer_vel.start();
-      incr_com_velocity(0.5*dtime);
-      if (timing) timer_vel.stop();
-    }
+				// COM update:
+				// Second velocity half-kick
+    if (timing) timer_vel.start();
+    incr_com_velocity(0.5*dtime);
+    if (timing) timer_vel.stop();
 
 #ifdef CHK_STEP
 				// Check steps
