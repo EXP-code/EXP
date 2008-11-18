@@ -620,6 +620,13 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   double xx, yy, zz;
   double p, p0, fr, fz, fp;
 
+  const double ratmin = 0.75;
+  const double maxerf = 3.0;
+  const double midpt = ratmin + 0.5*(1.0 - ratmin);
+  const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
+
+  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac;
+
   int id = *((int*)arg);
 
 #ifdef DEBUG
@@ -677,29 +684,44 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
       r = sqrt(r2) + DSMALL;
       phi = atan2(yy, xx);
 
-      if (r2 + zz*zz < rcylmax*rcylmax*acyl*acyl) {
+      ratio = sqrt( (r2 + zz*zz)/R2 );
+
+      if (ratio >= 1.0) {
+	cfrac = 1.0;
+	frc[id][1] = 0.0;
+	frc[id][2] = 0.0;
+	frc[id][3] = 0.0;
+      } else if (ratio > ratmin) {
+	frac = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
+	cfrac = 1.0 - frac;
+      } else {
+	frac = 1.0;
+      }
+	
+      if (ratio < 1.0) {
 
 	ortho->accumulated_eval(r, zz, phi, p0, p, fr, fz, fp);
 #ifdef DEBUG
 	check_force_values(phi, p, fr, fz, fp);
 #endif
-	frc[id][1] = fr*xx/r - fp*yy/r2;
-	frc[id][2] = fr*yy/r + fp*xx/r2;
-	frc[id][3] = fz;
+	frc[id][1] = ( fr*xx/r - fp*yy/r2 ) * frac;
+	frc[id][2] = ( fr*yy/r + fp*xx/r2 ) * frac;
+	frc[id][3] = fz * frac;
 	
 #ifdef DEBUG
 	flg = 1;
 #endif
       }
-      else {
+
+      if (ratio > ratmin) {
 
 	r3 = r2 + zz*zz;
 	p = -cylmass/sqrt(r3);	// -M/r
 	fr = p/r3;		// -M/r^3
 
-	frc[id][1] = xx*fr;
-	frc[id][2] = yy*fr;
-	frc[id][3] = zz*fr;
+	frc[id][1] += xx*fr * cfrac;
+	frc[id][2] += yy*fr * cfrac;
+	frc[id][3] += zz*fr * cfrac;
 
 #ifdef DEBUG
 	offgrid[id]++;
