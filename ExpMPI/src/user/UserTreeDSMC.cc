@@ -429,7 +429,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
 
-  // unsigned col = 
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
   if (0) {
@@ -693,20 +692,32 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << left << endl;
       
       double keymake, xchange, prepare, convert, overlap, update, scatter;
+      double repartn, tadjust, keycall, keycomp, keybods, keywait;
+      unsigned numbods;
       c0->Tree()->adjustTiming(keymake, xchange, prepare, 
-			       convert, overlap, update, scatter);
+			       convert, overlap, update, 
+			       scatter, repartn, tadjust,
+			       keycall, keycomp, keybods,
+			       keywait, numbods);
 
       mout << "Timing (secs) at mlevel=" << mlevel << ":" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
 	   << "  make tree=" << tree1SoFar()*1.0e-6 << endl
 	   << "adjust tree=" << tree2SoFar()*1.0e-6 << endl
 	   << "      *** keymake=" << keymake << endl
+	   << "      *** keycall=" << keycall << endl
+	   << "      *** keycomp=" << keycomp << endl
+	   << "      *** keybods=" << keybods << endl
+	   << "      *** keywait=" << keywait << endl
 	   << "      *** xchange=" << xchange << endl
 	   << "      *** prepare=" << prepare << endl
 	   << "      *** convert=" << convert << endl
 	   << "      *** overlap=" << overlap << endl
 	   << "      *** cupdate=" << update  << endl
 	   << "      *** scatter=" << scatter << endl
+	   << "      *** repartn=" << repartn << endl
+	   << "      *** tadjust=" << tadjust << endl
+	   << "      *** numbods=" << numbods << endl
 	   << "  timesteps=" << tstepSoFar()*1.0e-6 << endl
 	   << "  step list=" << llistTime.getTime().getRealTime()*1.0e-6 
 	   << endl
@@ -721,6 +732,37 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       tstepTime.reset();
       llistTime.reset();
       collideTime.reset();
+    } else {
+      
+      ostringstream sout;
+      sout << runtag << ".DSMC_log." << myid;
+      ofstream mout(sout.str().c_str(), ios::app);
+
+      double keymake, xchange, prepare, convert, overlap, update, scatter;
+      double repartn, tadjust, keycall, keycomp, keybods, keywait;
+      unsigned numbods;
+      c0->Tree()->adjustTiming(keymake, xchange, prepare, 
+			       convert, overlap, update, 
+			       scatter, repartn, tadjust,
+			       keycall, keycomp, keybods,
+			       keywait, numbods);
+
+      mout << "Timing (secs) at mlevel=" << mlevel << " and T=" << tnow << endl
+	   << "      *** keymake=" << keymake << endl
+	   << "      *** keycall=" << keycall << endl
+	   << "      *** keycomp=" << keycomp << endl
+	   << "      *** keybods=" << keybods << endl
+	   << "      *** keywait=" << keywait << endl
+	   << "      *** xchange=" << xchange << endl
+	   << "      *** prepare=" << prepare << endl
+	   << "      *** convert=" << convert << endl
+	   << "      *** overlap=" << overlap << endl
+	   << "      *** cupdate=" << update  << endl
+	   << "      *** scatter=" << scatter << endl
+	   << "      *** repartn=" << repartn << endl
+	   << "      *** tadjust=" << tadjust << endl
+	   << "      *** numbods=" << numbods << endl
+	   << endl;
     }
 
   }

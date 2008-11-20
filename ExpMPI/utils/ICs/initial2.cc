@@ -61,6 +61,8 @@
 
  Both constant scale height and isothermal gas disks 08/08 by MDW
 
+ Multimass gas disk 11/08 by MDW
+
 */
                                 // System libs
 #include <unistd.h>
@@ -877,6 +879,11 @@ main(int argc, char **argv)
     double vthermal = sqrt( (boltz*T)/mm ) / Vunit;
     double vmin2 = (boltz*Tmin/mm) / (Vunit*Vunit);
 
+    // Adjust scale for multimass gas
+    //
+    double Scale_Length = scale_length;
+    if (scale_lenfkN > 0.0) scale_length = scale_lenfkN;
+
     // Compute using Jeans theorem
     //
     double rmin = RMIN;
@@ -919,7 +926,7 @@ main(int argc, char **argv)
 	  }
 	  
 	  trho[j] = fzt0*scale_height;
-	  tcir[j] = sqrt(max<double>(R*frt0-R*trho[j]/scale_length, 0.0));
+	  tcir[j] = sqrt(max<double>(R*frt0-R*trho[j]/Scale_Length, 0.0));
 	}
 	
 	for (int j=0; j<nzint; j++) 
@@ -980,7 +987,7 @@ main(int argc, char **argv)
 	  }
 	  
 	  trho[j] = -fzt0/(vthermal*vthermal);
-	  tcir[j] = sqrt(max<double>(R*frt0-R*vthermal*vthermal/scale_length, 0.0));
+	  tcir[j] = sqrt(max<double>(R*frt0-R*vthermal*vthermal/Scale_Length, 0.0));
 	}
 	
 	double mass = 0.0;
@@ -1046,9 +1053,6 @@ main(int argc, char **argv)
     //
     // Maximum enclosed disk mass given rmax
     //
-    double Scale_Length = scale_length;
-    if (scale_lenfkN > 0.0) scale_length = scale_lenfkN;
-
     double rmx2 = 1.5*rmax;
     double mmx2 = 1.0 - (1.0 + rmx2/scale_length)*exp(-rmx2/scale_length);
     double mmax = 1.0 - (1.0 + rmax/scale_length)*exp(-rmax/scale_length);
@@ -1151,7 +1155,8 @@ main(int argc, char **argv)
       double v =  vc*cosp + vthermal*norminv(unitN());
       double w =  vthermal*norminv(unitN());
       
-      gmass = gmass0*exp(-R*(Scale_Length - scale_length))*mmax/mfac;
+      gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/scale_length)) * 
+	mmax*scale_length*scale_length/(mfac*Scale_Length*Scale_Length);
 
       outps << setw(18) << gmass
 	    << setw(18) << R*cos(phi)

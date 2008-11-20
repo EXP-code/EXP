@@ -53,6 +53,13 @@ pHOT::pHOT(Component *C)
 
   sumstep = sumzero = 0;
 
+  numkeys = 0;
+  timer_repartn.Microseconds();
+  timer_tadjust.Microseconds();
+  timer_keywait.Microseconds();
+  timer_keybods.Microseconds();
+  timer_keycall.Microseconds();
+  timer_keycomp.Microseconds();
   timer_keymake.Microseconds();
   timer_xchange.Microseconds();
   timer_prepare.Microseconds();
@@ -88,9 +95,9 @@ key_type pHOT::getKey(double *p)
   }
 
   const unsigned nbits = 16;
-  // const double factor = 1<<(nbits-1);
   const double factor = 1<<nbits;
   const unsigned mask = 0x1;
+
   vector<unsigned long> bins(3, 0);
 
 				// Reverse the order
@@ -98,7 +105,8 @@ key_type pHOT::getKey(double *p)
     bins[2-k] = (unsigned)floor( ((p[k]+offset[k])/sides[k]+neg_half)*factor );
   
   key_type place = 1;
-  key_type _key = 0;
+  key_type  _key = 0;
+
   for (unsigned i=0; i<nbits; i++) {
     for (unsigned k=0; k<3; k++) {
       _key |= (bins[k] & mask)*place;
@@ -1336,6 +1344,8 @@ void pHOT::Repartition()
   vector<unsigned long> erased;
 #endif
 
+  timer_repartn.start();
+
   //
   // Recompute keys and compute new partition
   //
@@ -1562,6 +1572,9 @@ void pHOT::Repartition()
       cout << "Process " << myid 
 	   << ": particle key not in keybods list at T=" << tnow << endl;
   }
+
+  timer_repartn.stop();
+
 }
 
 
@@ -1666,6 +1679,8 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 
 void pHOT::adjustTree(unsigned mlevel)
 {
+  MPI_Barrier(MPI_COMM_WORLD);	// Test!
+  timer_tadjust.start();
 
 #ifdef DEBUG_ADJUST
   if (!checkPartKeybods(mlevel)) {
@@ -1698,6 +1713,7 @@ void pHOT::adjustTree(unsigned mlevel)
   // 
   // Make body list from frontier cells for this level
   //
+  timer_keybods.start();
   for (unsigned M=mlevel; M<=multistep; M++) {
     for (set<pCell*>::iterator it=clevels[M].begin(); 
 	 it!=clevels[M].end(); it++) {
@@ -1707,6 +1723,7 @@ void pHOT::adjustTree(unsigned mlevel)
       }
     }
   }
+  timer_keybods.stop();
   
   //
   // Update body by body using the list without regard to level
@@ -1719,52 +1736,57 @@ void pHOT::adjustTree(unsigned mlevel)
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR crazy particle index!" << endl;
     }
+    numkeys++;
 
     //
     // Get and recompute keys
     //
     oldkey = p->key;
+    timer_keycall.start();
     newkey = getKey(&(p->pos[0]));
+    timer_keycall.stop();
 
     //
     // Get this particle's cell
     //
 
-    //
-    // Look for keys . . .
-    //
-    if (bodycell.find(oldkey) == bodycell.end()) {
+    timer_keybods.start();
+    key_key ::iterator ij = bodycell.find(oldkey);
+
+				// Bad key?
+    if (ij == bodycell.end()) {	//
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find cell for particle"
 	   << " key=" << hex << oldkey << ", index=" << dec << p->indx
 	   << " pnumber=" << cc->Number() << " bodycell=" << bodycell.size() 
 	   << endl;
-    }
-    //
-    // Look for cell in frontier . . .
-    //
-    if (frontier.find(bodycell.find(oldkey)->second) == frontier.end()) {
-      cout << "Process " << myid 
-	   << ": pHOT::adjustTree: ERROR could not find expected cell"
-	   << " on frontier, count=" << adjcnt << hex
-	   << " oldbody=" << oldkey 
-	   << " newbody=" << newkey 
-	   << " cell="    << bodycell.find(oldkey)->second << dec
-	   << " index="   << p->indx 
-	   << endl;
-      continue;
-    }
+    } else {
+				// Bad cell?
+      if (0) {			//
+	if ( frontier.find(ij->second) == frontier.end() ) {
+	  cout << "Process " << myid 
+	       << ": pHOT::adjustTree: ERROR could not find expected cell"
+	       << " on frontier, count=" << adjcnt << hex
+	       << " oldbody=" << oldkey 
+	       << " newbody=" << newkey 
+	       << " cell="    << bodycell.find(oldkey)->second << dec
+	       << " index="   << p->indx 
+	       << endl;
+	  continue;
+	}
+      }
       
-    //
-    // Find this particle's previous cell assignment
-    //
-    c = frontier[bodycell.find(oldkey)->second];
-    
+      c = frontier[ij->second];
+    }
+    timer_keybods.stop();
+      
     //
     // Is the key the same?
     // 
+    timer_keycomp.start();
     if (newkey != oldkey) {
 				// Key pairs
+				//
       key_pair newpair(newkey, p->indx);
       key_pair oldpair(oldkey, p->indx);
 
@@ -1802,15 +1824,14 @@ void pHOT::adjustTree(unsigned mlevel)
 
       } else {			// Same cell: update body cell index 
 				// for the new key
-	key_key::iterator ij = bodycell.find(oldkey);
-	// DEBUG
+#ifdef DEBUG
 	if (ij == bodycell.end()) {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR could not find cell for"
 	       << " key=" << hex << oldkey << ", index=" << dec << p->indx
 	       << endl;
 	}
-	// END DEBUG
+#endif
 	if (ij != bodycell.end()) bodycell.erase(ij);
 	bodycell.insert(key_item(newkey, c->mykey));
 				// Update key list
@@ -1818,22 +1839,26 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Update key body index for the new key
 	key_indx::iterator ik = keybods.find(oldpair);
 	if (ik != keybods.end()) keybods.erase(ik);
-	// DEBUG
+#if DEBUG
 	else {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
 	       << ": could not find keybods entry" << endl;
 	}
-	// END DEBUG
+#endif
 	
 	p->key = newkey;	// Assign the new key to the particle
 	keybods.insert(newpair);
       }
     }
+    timer_keycomp.stop();
     
   }
-  
   timer_keymake.stop();
+  
+  timer_keywait.start();       // Barrier to make sure that the timer
+  MPI_Barrier(MPI_COMM_WORLD); // gives a sensible measurement of key time
+  timer_keywait.stop();
 
   //
   // Exchange particles
@@ -1855,13 +1880,13 @@ void pHOT::adjustTree(unsigned mlevel)
 
   if (sum) {
     
-    timer_prepare.start();
+    // timer_prepare.start();
     timer_scatter.start();
     
     MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
 		 &recvcounts[0], 1, MPI_INT,
 		 MPI_COMM_WORLD);
-    timer_scatter.stop();
+    // timer_scatter.stop();
     
     for (unsigned k=0; k<numprocs; k++) {
       if (k==0) {
@@ -1874,7 +1899,8 @@ void pHOT::adjustTree(unsigned mlevel)
       }
     }
     
-    timer_prepare.stop();
+    timer_scatter.stop();
+    // timer_prepare.stop();
     
     //
     // Exchange particles between processes
@@ -2199,6 +2225,7 @@ void pHOT::adjustTree(unsigned mlevel)
   
   timer_cupdate.stop();
 
+  timer_tadjust.stop();
 }
   
 
@@ -3104,7 +3131,10 @@ unsigned pHOT::checkNumber()
 void pHOT::adjustTiming(double &keymake, double &exchange, 
 			double &prepare, double &convert, 
 			double &overlap, double &update,
-			double &scatter)
+			double &scatter, double &repartn,
+			double &tadjust, double &keycall,
+			double &keycomp, double &keybods,
+			double &keywait, unsigned &numk)
 {
   keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
   exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
@@ -3113,6 +3143,12 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   overlap  = timer_overlap.getTime().getRealTime()*1.0e-6;
   update   = timer_cupdate.getTime().getRealTime()*1.0e-6;
   scatter  = timer_scatter.getTime().getRealTime()*1.0e-6;
+  repartn  = timer_repartn.getTime().getRealTime()*1.0e-6;
+  tadjust  = timer_tadjust.getTime().getRealTime()*1.0e-6;
+  keycall  = timer_keycall.getTime().getRealTime()*1.0e-6;
+  keycomp  = timer_keycomp.getTime().getRealTime()*1.0e-6;
+  keybods  = timer_keybods.getTime().getRealTime()*1.0e-6;
+  keywait  = timer_keywait.getTime().getRealTime()*1.0e-6;
 
   timer_keymake.reset();
   timer_xchange.reset();
@@ -3121,6 +3157,15 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   timer_overlap.reset();
   timer_cupdate.reset();
   timer_scatter.reset();
+  timer_repartn.reset();
+  timer_tadjust.reset();
+  timer_keycall.reset();
+  timer_keycomp.reset();
+  timer_keybods.reset();
+  timer_keywait.reset();
+
+  numk = numkeys;
+  numkeys = 0;
 }
 
 
