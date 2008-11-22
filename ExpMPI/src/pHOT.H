@@ -29,7 +29,6 @@ protected:
 				// Out of bounds list
   set<indx_type> oob;
 
-  //  vector<Particle> *data;
   pCell *root;
   
   double volume;
@@ -58,6 +57,9 @@ protected:
   change_list change;
   vector<key_type> kbeg, kfin, loclist;
   unsigned sumstep, sumzero;
+  // For load balancing
+  vector<unsigned long> nbodcount;
+  unsigned long nbodlocal;
 
   ACG *gen;
   Uniform *unit;

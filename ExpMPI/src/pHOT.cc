@@ -45,6 +45,8 @@ pHOT::pHOT(Component *C)
 
   kbeg = vector<key_type>(numprocs);
   kfin = vector<key_type>(numprocs);
+  nbodcount = vector<unsigned long>(numprocs);
+  nbodlocal = 0;
 
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
@@ -1708,17 +1710,20 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   // Exchange list
   //
+  timer_keybods.start();
   vector< vector<unsigned long> > exchange(numprocs);
 
   // 
   // Make body list from frontier cells for this level
   //
-  timer_keybods.start();
   for (unsigned M=mlevel; M<=multistep; M++) {
-    for (set<pCell*>::iterator it=clevels[M].begin(); 
-	 it!=clevels[M].end(); it++) {
-      for (set<unsigned>::iterator ib=(*it)->bods.begin(); 
-	   ib!=(*it)->bods.end(); ib++) {
+				// For speed efficiency (I hope)
+    set<pCell*>::iterator it    =clevels[M].begin();
+    set<pCell*>::iterator itend =clevels[M].end();
+    for (;it!=itend; it++) {
+      set<unsigned>::iterator ib    =(*it)->bods.begin(); 
+      set<unsigned>::iterator ibend =(*it)->bods.end(); 
+      for (; ib!=ibend; ib++) {
 	oldp.push_back(*ib);
       }
     }
@@ -1731,18 +1736,21 @@ void pHOT::adjustTree(unsigned mlevel)
   unsigned newproc;
   for (ip=oldp.begin(); ip!=oldp.end(); ip++) {
 
+    timer_keybods.start();
     Particle *p = cc->Part(*ip);
     if (p==0) {			// Sanity check
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR crazy particle index!" << endl;
     }
     numkeys++;
+    nbodlocal++;
+    timer_keybods.stop();
 
     //
     // Get and recompute keys
     //
-    oldkey = p->key;
     timer_keycall.start();
+    oldkey = p->key;
     newkey = getKey(&(p->pos[0]));
     timer_keycall.stop();
 
@@ -2919,11 +2927,30 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   parallelMerge(keylist1, keylist);
   MPI_Barrier(MPI_COMM_WORLD);
 
-  if (myid==0) {
+  MPI_Gather(&nbodlocal,    1, MPI_UNSIGNED_LONG, 
+	     &nbodcount[0], 1, MPI_UNSIGNED_LONG, 
+	     0, MPI_COMM_WORLD);
 
+  nbodlocal = 0;		// Reset the count
+
+  if (myid==0) {
+				// Use the number of frontier bodies to
+				// partition the cells
+				//
+				// If we don't have a count yet, nbodcount[i]=0
+				// this will be a uniform partition
+    vector<double> frate(numprocs);
+    frate[0] = 1.0/(nbodcount[0]+1);
+    for (unsigned i=1; i<numprocs; i++) 
+      frate[i] = frate[i-1] + 1.0/(nbodcount[i]+1);
+
+				// Compute the key boundaries in the partition
+				//
     for (unsigned i=0; i<numprocs-1; i++) {
-      if (keylist.size())
-	kfin[i] = keylist[static_cast<unsigned>(keylist.size()*(i+1)/numprocs)];
+      if (keylist.size()) {
+	double kindex  = frate[i]*keylist.size()/frate[numprocs-1];
+	kfin[i] = keylist[static_cast<unsigned>(floor(kindex))];
+      }
       else
 	kfin[i] = key_min;
     }
