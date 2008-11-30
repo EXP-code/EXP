@@ -1,10 +1,25 @@
-#include <math.h>
 
 #include <PSP.H>
 
 #include <StringTok.H>
 extern string trimLeft(const string);
 extern string trimRight(const string);
+
+
+void checkstatus(istream *in)
+{
+  ios::iostate i = in->rdstate();
+
+  if(i & ios::eofbit) {
+    cout << "EOF encountered" << endl;
+  }
+  else if(i & ios::failbit) {
+    cout << "Non-Fatal I/O error" << endl;;
+  }  
+  else if(i & ios::badbit) {
+    cout << "Fatal I/O error" << endl;
+  }
+}
 
 
 PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
@@ -293,7 +308,6 @@ SParticle *PSPDump::GetParticle(istream* in)
 				// Position to beginning of particles
   in->seekg(spos->pspos);
   pcount = 0;
-
 				// Clear particle
   part.iatr.erase(part.iatr.begin(), part.iatr.end()); 
   if (spos->niatr) part.iatr = vector<int>(spos->niatr);
@@ -306,6 +320,8 @@ SParticle *PSPDump::GetParticle(istream* in)
 
 SParticle *PSPDump::NextParticle(istream* in)
 {
+  checkstatus(in);		// DEBUG
+
 				// Read partcle
   if (pcount < spos->nbod) {
     in->read((char *)&part.mass, sizeof(double));

@@ -6,6 +6,7 @@
 #include <list>
 #include <vector>
 #include <string>
+#include <cmath>
 
 #include <header.H>
 

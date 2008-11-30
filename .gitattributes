@@ -6,6 +6,7 @@ ExpMPI/doc/multistep.doc -text
 ExpMPI/doc/verbose.doc -text
 ExpMPI/exputil/Cheby1d.cc -text
 ExpMPI/exputil/Interp1d.cc -text
+ExpMPI/include/ProgramParam.H -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
 ExpMPI/src/MixtureSL.H -text
@@ -24,6 +25,10 @@ ExpMPI/src/user/cratint.cc -text
 ExpMPI/src/user/invsvd.cc -text
 ExpMPI/src/user/respmat6.cc -text
 ExpMPI/src/user/rombeveccmp.cc -text
+ExpMPI/utils/Analysis/Makefile.am -text
+ExpMPI/utils/Analysis/Particle.cc -text
+ExpMPI/utils/Analysis/Particle.h -text
+ExpMPI/utils/Analysis/diskprof.cc -text
 ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
 ExpMPI/utils/ICs/Particle.cc -text
