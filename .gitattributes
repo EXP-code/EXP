@@ -6,6 +6,7 @@ ExpMPI/doc/multistep.doc -text
 ExpMPI/doc/verbose.doc -text
 ExpMPI/exputil/Cheby1d.cc -text
 ExpMPI/exputil/Interp1d.cc -text
+ExpMPI/exputil/ProgramParam.cc -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
