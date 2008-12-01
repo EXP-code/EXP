@@ -24,10 +24,14 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof
+bin_PROGRAMS = diskprof haloprof
 
 diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
 diskprof_LDADD = $(EXPLIBS)
+
+haloprof_SOURCES =  PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
+haloprof_CXXFLAGS = -I$(top_srcdir)/include
+haloprof_LDADD = $(EXPLIBS)
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
 

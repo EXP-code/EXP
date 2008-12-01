@@ -48,7 +48,6 @@ using namespace std;
 				// MDW classes
 #include <Vector.h>
 #include <numerical.h>
-#include <gaussQ.h>
 #include <Particle.h>
 #include <PSP.H>
 #include <interp.h>
@@ -56,29 +55,30 @@ using namespace std;
 
 #include <localmpi.h>
 #include <ProgramParam.H>
+#include <foarray.H>
 
 program_option init[] = {
   {"NICE",		"int",		"0",		"system priority"},
   {"DENS",		"bool",		"true",		"compute density"},
-  {"RMAX",		"double",	"1.0",		"maximum radius for output"},
-  {"ZMAX",		"double",	"1.0",		"maximum height for output"},
+  {"RMAX",		"double",	"0.1",		"maximum radius for output"},
+  {"ZMAX",		"double",	"0.1",		"maximum height for output"},
   {"RCYLMIN",		"double",	"0.001",	"number of scale lengths for minimum radius in table"},
   {"RCYLMAX",		"double",	"20.0",		"number of scale lengths for maximum radius in table"},
   {"NUMX",		"int",		"128",		"number of radial table entries"},
   {"NUMY",		"int",		"64",		"number of vertical table entries"},
-  {"EXPSCALE",		"double",	"0.01",		"Radial scale length for basis expansion"},
+  {"RSCALE",		"double",	"0.01",		"Radial scale length for basis expansion"},
   {"VSCALE",		"double",	"0.001",	"Vertical Scale length for basis expansion"},
   {"TINIT",		"double",	"0.0",		"Initial time for basis"},
   {"TIME",		"double",	"0.0",		"Desired time slice"},
   {"LMAX",		"int",		"36",		"Maximum harmonic order for spherical expansion"},
-  {"NMAX",		"int",		"12",		"Maximum radial order for spherical expansion"},
-  {"MMAX",		"int",		"2",		"Maximum harmonic order"},
-  {"NORDER",		"int",		"8",		"Number of basis functions per azimuthal harmonic"},
+  {"NMAX",		"int",		"8",		"Maximum radial order for spherical expansion"},
+  {"MMAX",		"int",		"4",		"Maximum harmonic order"},
+  {"NORDER",		"int",		"4",		"Number of basis functions per azimuthal harmonic"},
   {"OUTR",		"int",		"40",		"Number of radial points for output"},
   {"OUTZ",		"int",		"40",		"Number of vertical points for output"},
   {"SURFACE",		"bool",		"true",		"Make equitorial and vertical slices"},
   {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
-  {"AXIHGHT",		"bool",		"false",	"Compute midplane height profiles"},
+  {"AXIHGT",		"bool",		"false",	"Compute midplane height profiles"},
   {"VHEIGHT",		"bool",		"false",	"Compute height profiles"},
   {"ALL",		"bool",		"false",	"Compute output for every time slice"},
   {"INITFLAG",		"int",		"1",		"Train set on Component (1=stars)"},
@@ -120,15 +120,16 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
     int nbody = nbods/numprocs;
     int nbody0 = nbods - nbody*(numprocs-1);
 
+				// Send number of bodies to be received
+				// by eacn non-root node
     MPI_Bcast(&nbody, 1, MPI_INT, 0, MPI_COMM_WORLD);
 
     vector<Particle> t(nbody);
     vector<double> val(nbody);
+
     SParticle *part = psp->GetParticle(in);
     Particle bod;
     
-    p = vector<Particle>(nbody0);
-
     //
     // Root's particles
     //
@@ -148,7 +149,7 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 
 
     //
-    // Send the rest of the particles
+    // Send the rest of the particles to the other nodes
     //
     for (int n=1; n<numprocs; n++) {
       
@@ -161,29 +162,30 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 	t[i].mass = part->mass;
 	for (int k=0; k<3; k++) t[i].pos[k] = part->pos[k];
 	for (int k=0; k<3; k++) t[i].vel[k] = part->vel[k];
+
 	part = psp->NextParticle(in);
       }
   
       for (int i=0; i<nbody; i++) val[i] = t[i].mass;
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 11, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 11, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].pos[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 12, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 12, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].pos[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 13, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 13, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].pos[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 14, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 14, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].vel[0];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 15, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 15, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].vel[1];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 16, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 16, MPI_COMM_WORLD);
 
       for (int i=0; i<nbody; i++) val[i] = t[i].vel[2];
-      MPI_Send(&val[0], nbody, MPI_DOUBLE, 1, 17, MPI_COMM_WORLD);
+      MPI_Send(&val[0], nbody, MPI_DOUBLE, n, 17, MPI_COMM_WORLD);
     }
 
   } else {
@@ -384,8 +386,6 @@ Vector get_quart_truncated(Vector& vv, double dz)
 
 void write_output(EmpCylSL& ortho, int icnt, double time)
 {
-  ofstream *out0, **out1;
-  ofstream **out2, **out3;
   unsigned ncnt = 0;
   int nout;
   
@@ -400,86 +400,21 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
   bool VHEIGHT    = config.get<bool>("VHEIGHT");
   bool VOLUME     = config.get<bool>("VOLUME");
   bool SURFACE    = config.get<bool>("SURFACE");
+
+  // ==================================================
+  // Setup for output files
+  // ==================================================
   
-  if (myid==0) {
-    
-    ostringstream sstr;
-    sstr << "." << icnt;
-    
-    // ==================================================
-    // Setup output files
-    // ==================================================
-    
-    string OUTF;
-    
-    if (AXIHGT) {
-      
-      OUTF = OUTFILE + ".profile";
-      if (ALL) OUTF += sstr.str();
-      out0 = new ofstream(OUTF.c_str(), ios::out | ios::app);
-      if (!out0) {
-	cerr << "Error opening <" << OUTF << "> for output\n";
-	exit(-1);
-      }
-      out0->setf(ios::scientific);
-      out0->precision(5);
-    }
-    
-    if (VHEIGHT) {
-      
-      string nsuffx[3] = {".surf", ".height", ".mid"};
-      out1 = new ofstream* [3];
-      
-      for (int i=0; i<3; i++) {
-	OUTF = OUTFILE + nsuffx[i];
-	if (ALL) OUTF += sstr.str();
-	out1[i] = new ofstream(OUTF.c_str());
-	if (!out1[i]) {
-	  cerr << "Error opening <" << OUTF << "> for output\n";
-	  exit(-1);
-	}
-      }
-      
-    }
-    
-    nout = 5;
-    string suffix[5] = {"p", "fr", "fz", "fp", "d"};
-    
-    if (VOLUME) {
-      
-      out2 = new ofstream* [nout];
-      
-      for (int i=0; i<nout; i++) {
-	OUTF = OUTFILE + "." + suffix[i] + ".vol";
-	if (ALL) OUTF += sstr.str();
-	out2[i] = new ofstream(OUTF.c_str());
-	if (!out2[i]) {
-	  cerr << "Error opening <" << OUTF << "> for output\n";
-	  exit(-1);
-	}
-      }
-    }
-    
-    if (SURFACE) {
-      
-      out3 = new ofstream* [nout];
-      
-      for (int i=0; i<nout; i++) {
-	OUTF = OUTFILE + "." + suffix[i] + ".surf";
-	if (ALL) OUTF += sstr.str();
-	out3[i] = new ofstream(OUTF.c_str());
-	if (!out3[i]) {
-	  cerr << "Error opening <" << OUTF << "> for output\n";
-	  exit(-1);
-	}
-      }
-    }
-  }
-  
-  
+  ostringstream sstr;
+  sstr << "." << icnt;
+
+  nout = 7;
+  string suffix[7] = {"p0", "p", "fr", "fz", "fp", "d0", "d"};
+
   // ==================================================
   // Axisymmetric structure (for GNUPLOT)
   // ==================================================
+
   if (AXIHGT) {
     
     double dR = RMAX/(OUTR-1);
@@ -492,7 +427,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
     
     for (int l=0; l<OUTR; l++) {
       
-      if ( (ncnt++)%numprocs == 0 ) {
+      if ( (ncnt++)%numprocs == myid ) {
 	
 	r = dR*l;
 	
@@ -514,19 +449,31 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
 	       MPI_COMM_WORLD);
     
     if (myid==0) {
+
+      string OUTF = OUTFILE + ".profile";
+      if (ALL) OUTF += sstr.str();
+      ofstream out(OUTF.c_str(), ios::out | ios::app);
+      if (!out) {
+	cerr << "Error opening <" << OUTF << "> for output\n";
+	exit(-1);
+      }
+      out.setf(ios::scientific);
+      out.precision(5);
+
       for (int l=0; l<OUTR; l++) {
 	r = dR*l;
-	*out0
+	out
 	  << setw(15) << time
 	  << setw(15) << r
-	  << setw(15) << otdat[0*OUTR+l-1]
-	  << setw(15) << otdat[1*OUTR+l-1]
-	  << setw(15) << otdat[2*OUTR+l-1]
+	  << setw(15) << otdat[0*OUTR+l]
+	  << setw(15) << otdat[1*OUTR+l]
+	  << setw(15) << otdat[2*OUTR+l]
 	  << endl;
       }
-      *out0 << endl;
+      out << endl;
     }
   }
+
   
   // ==================================================
   // Write vertical position of peak
@@ -549,7 +496,7 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
 	
 	x = -RMAX + dR*j;
 	
-	if ( (ncnt++)%numprocs == 0 ) {
+	if ( (ncnt++)%numprocs == myid ) {
 	  
 	  r = sqrt(x*x + y*y);
 	  phi = atan2(y, x);
@@ -560,152 +507,79 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
 	  // q = get_quart(vv, dz);
 	  q = get_quart_truncated(vv, dz);
 	  
-	  indat[0*OUTR*OUTR + l*OUTR + j] =  get_max_dens(vv, dz);
-	  indat[1*OUTR*OUTR + l*OUTR + j] =  q[1] - q[-1];
-	  indat[2*OUTR*OUTR + l*OUTR + j] =  q[0];
-	}
-      }
-      
-      
-      MPI_Reduce(&indat[0], &otdat[0], 3*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 0, 
-		 MPI_COMM_WORLD);
-      
-      if (myid==0) {
-	for (int i=0; i<3; i++) {
-	  out1[i]->write((char *)&OUTR, sizeof(int));
-	  out1[i]->write((char *)&OUTR, sizeof(int));
-	}
-	
-	for (int l=0; l<OUTR; l++) {
-	  y = -RMAX + dR*l;
-	  
-	  for (int j=0; j<OUTR; j++) {
-	    
-	    x = -RMAX + dR*j;
-	    
-	    if ( (ncnt++)%numprocs == 0 ) {
-	      
-	      r = sqrt(x*x + y*y);
-	      phi = atan2(y, x);
-	      
-	      for (int i=0; i<3; i++) {
-		out1[i]->write((char *)&x, sizeof(double));
-		out1[i]->write((char *)&y, sizeof(double));
-		z = otdat[i*OUTR*OUTR + l*OUTR + j];
-		out1[i]->write((char *)&z, sizeof(double));
-	      }
-	    }
-	  }
+	  indat[(0*OUTR + l)*OUTR + j] =  get_max_dens(vv, dz);
+	  indat[(1*OUTR + l)*OUTR + j] =  q[1] - q[-1];
+	  indat[(2*OUTR + l)*OUTR + j] =  q[0];
 	}
       }
     }
-    
-    if (VOLUME) {
       
-      // ==================================================
-      // Write volume density
-      // ==================================================
       
-      double v;
-      int valid = 1;
+    MPI_Reduce(&indat[0], &otdat[0], 3*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
       
-      double dR = 2.0*RMAX/(OUTR-1);
-      double dz = 2.0*ZMAX/(OUTZ-1);
-      double x, y, z, r, phi;
-      double p0, p, fr, fz, fp;
+    if (myid==0) {
+
+      string nsuffx[3] = {".surf", ".height", ".mid"};
+      vector<string> names(3);
       
-      vector<double> indat(nout*OUTZ*OUTR*OUTR, 0.0), otdat(nout*OUTZ*OUTR*OUTR);
+      for (int i=0; i<3; i++) {
+	names[i] = OUTFILE + nsuffx[i];
+	if (ALL) names[i] += sstr.str();
+      }
       
-      for (int k=0; k<OUTZ; k++) {
+      foarray out(names);
+
+
+      for (int i=0; i<3; i++) {
+	out[i].write((char *)&OUTR, sizeof(int));
+	out[i].write((char *)&OUTR, sizeof(int));
+      }
 	
-	z = -ZMAX + dz*k;
+      for (int l=0; l<OUTR; l++) {
+	y = -RMAX + dR*l;
 	
-	for (int l=0; l<OUTR; l++) {
-	  
-	  y = -RMAX + dR*l;
-	  
-	  for (int j=0; j<OUTR; j++) {
+	for (int j=0; j<OUTR; j++) {
 	    
-	    x = -RMAX + dR*j;
+	  x = -RMAX + dR*j;
+	    
+	  if ( (ncnt++)%numprocs == myid ) {
 	    
 	    r = sqrt(x*x + y*y);
 	    phi = atan2(y, x);
 	    
-	    ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
-	    v = ortho.accumulated_dens_eval(r, z, phi, d0);
-	    
-	    indat[0*OUTZ*OUTR*OUTR + k*OUTR*OUTR + l*OUTR + j] = p;
-	    indat[1*OUTZ*OUTR*OUTR + k*OUTR*OUTR + l*OUTR + j] = fr;
-	    indat[2*OUTZ*OUTR*OUTR + k*OUTR*OUTR + l*OUTR + j] = fz;
-	    indat[3*OUTZ*OUTR*OUTR + k*OUTR*OUTR + l*OUTR + j] = fp;
-	    indat[4*OUTZ*OUTR*OUTR + k*OUTR*OUTR + l*OUTR + j] = v;
-	  }
-	}
-      }
-      
-      
-      MPI_Reduce(&indat[0], &otdat[0], nout*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
-		 0, MPI_COMM_WORLD);
-      
-      for (int i=0; i<nout; i++) {
-	out2[i]->write((char *)&OUTR, sizeof(int));
-	out2[i]->write((char *)&OUTR, sizeof(int));
-	out2[i]->write((char *)&OUTZ, sizeof(int));
-      }
-      
-      int t, tn=OUTZ*OUTR*OUTR;
-      
-      for (int k=0; k<OUTZ; k++) {
-	
-	z = -ZMAX + dz*k;
-	
-	for (int l=0; l<OUTR; l++) {
-	  
-	  y = -RMAX + dR*l;
-	  
-	  for (int j=0; j<OUTR; j++) {
-	    
-	    x = -RMAX + dR*j;
-	    
-	    for (int i=0; i<nout; i++) {
-	      out2[i]->write((char *)&x, sizeof(double));
-	      out2[i]->write((char *)&y, sizeof(double));
-	      out2[i]->write((char *)&z, sizeof(double));
+	    for (int i=0; i<3; i++) {
+	      out[i].write((char *)&x, sizeof(double));
+	      out[i].write((char *)&y, sizeof(double));
+	      z = otdat[(i*OUTR + l)*OUTR + j];
+	      out[i].write((char *)&z, sizeof(double));
 	    }
-	    
-	    t = k*OUTR*OUTR + l*OUTR + j;
-	    
-	    out2[0]->write((char *)&(otdat[0*tn+t]) , sizeof(double));
-	    out2[0]->write((char *)&valid, sizeof(int));
-	    out2[1]->write((char *)&(otdat[1*tn+t]), sizeof(double));
-	    out2[1]->write((char *)&valid, sizeof(int));
-	    out2[2]->write((char *)&(otdat[2*tn+t]), sizeof(double));
-	    out2[2]->write((char *)&valid, sizeof(int));
-	    out2[3]->write((char *)&(otdat[3*tn+t]), sizeof(double));
-	    out2[3]->write((char *)&valid, sizeof(int));
-	    out2[4]->write((char *)&(otdat[4*tn+t]), sizeof(double));
-	    out2[4]->write((char *)&valid, sizeof(int));
 	  }
 	}
       }
     }
+  }
+
+
+  if (VOLUME) {
+      
+    // ==================================================
+    // Write volume density
+    // ==================================================
     
+    double v;
+    int valid = 1;
+      
+    double dR = 2.0*RMAX/(OUTR-1);
+    double dz = 2.0*ZMAX/(OUTZ-1);
+    double x, y, z, r, phi;
+    double p0, d0, p, fr, fz, fp;
     
-    if (SURFACE) {
+    vector<double> indat(nout*OUTZ*OUTR*OUTR, 0.0), otdat(nout*OUTZ*OUTR*OUTR);
+    
+    for (int k=0; k<OUTZ; k++) {
       
-      // ==================================================
-      // Write surface profile
-      //   --- in plane ---
-      // ==================================================
-      
-      double v;
-      float f;
-      
-      double dR = 2.0*RMAX/(OUTR-1);
-      double x, y, z=0.0, r, phi;
-      double p0, d0, p, fr, fz, fp;
-      
-      vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+      z = -ZMAX + dz*k;
       
       for (int l=0; l<OUTR; l++) {
 	
@@ -713,42 +587,50 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
 	
 	for (int j=0; j<OUTR; j++) {
 	  
-	  if ((ncnt++)%numprocs == 0) {
-	    
-	    x = -RMAX + dR*j;
-	    
-	    r = sqrt(x*x + y*y);
-	    phi = atan2(y, x);
-	    
-	    ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
-	    v = ortho.accumulated_dens_eval(r, z, phi, d0);
-	    
-	    indat[0*OUTR*OUTR+l*OUTR+j] = p;
-	    indat[1*OUTR*OUTR+l*OUTR+j] = fr;
-	    indat[2*OUTR*OUTR+l*OUTR+j] = fz;
-	    indat[3*OUTR*OUTR+l*OUTR+j] = fp;
-	    indat[4*OUTR*OUTR+l*OUTR+j] = v;
-	  }
+	  x = -RMAX + dR*j;
+	  
+	  r = sqrt(x*x + y*y);
+	  phi = atan2(y, x);
+	  
+	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
+	  
+	  indat[((0*OUTZ + k)*OUTR + l)*OUTR + j] = p0;
+	  indat[((1*OUTZ + k)*OUTR + l)*OUTR + j] = p;
+	  indat[((2*OUTZ + k)*OUTR + l)*OUTR + j] = fr;
+	  indat[((3*OUTZ + k)*OUTR + l)*OUTR + j] = fz;
+	  indat[((4*OUTZ + k)*OUTR + l)*OUTR + j] = fp;
+	  indat[((5*OUTZ + k)*OUTR + l)*OUTR + j] = d0;
+	  indat[((6*OUTZ + k)*OUTR + l)*OUTR + j] = v;
 	}
       }
+    }
+    
+    
+    MPI_Reduce(&indat[0], &otdat[0], nout*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
+	       0, MPI_COMM_WORLD);
+    
+    if (myid==0) {
+
+      vector<string> names(nout);
       
-      MPI_Reduce(&indat[0], &otdat[0], nout*OUTZ*OUTR*OUTR, MPI_DOUBLE, MPI_SUM, 
-		 0, MPI_COMM_WORLD);
-      
-      
-      if (myid==0) {
+      for (int i=0; i<nout; i++) {
+	names[i] = OUTFILE + "." + suffix[i] + ".vol";
+	if (ALL) names[i] += sstr.str();
+      }
+
+      foarray out(names);
+
+      for (int i=0; i<nout; i++) {
+	out[i].write((char *)&OUTR, sizeof(int));
+	out[i].write((char *)&OUTR, sizeof(int));
+	out[i].write((char *)&OUTZ, sizeof(int));
+      }
+    
+    
+      for (int k=0; k<OUTZ; k++) {
 	
-	for (int i=0; i<nout; i++) {
-	  out3[i]->write((char *)&OUTR, sizeof(int));
-	  out3[i]->write((char *)&OUTR, sizeof(int));
-	  out3[i]->write((char *)&(f=-RMAX), sizeof(float));
-	  out3[i]->write((char *)&(f= RMAX), sizeof(float));
-	  out3[i]->write((char *)&(f=-RMAX), sizeof(float));
-	  out3[i]->write((char *)&(f= RMAX), sizeof(float));
-	}
-	
-	
-	int t, tn=OUTR*OUTR;
+	z = -ZMAX + dz*k;
 	
 	for (int l=0; l<OUTR; l++) {
 	  
@@ -758,68 +640,126 @@ void write_output(EmpCylSL& ortho, int icnt, double time)
 	    
 	    x = -RMAX + dR*j;
 	    
-	    t = l*OUTR + j;
-	    
-	    out3[0]->write((char *)&(f=otdat[0*tn+t]), sizeof(float));
-	    out3[1]->write((char *)&(f=otdat[1*tn+t]), sizeof(float));
-	    out3[2]->write((char *)&(f=otdat[2*tn+t]), sizeof(float));
-	    out3[3]->write((char *)&(f=otdat[3*tn+t]), sizeof(float));
-	    out3[4]->write((char *)&(f=otdat[4*tn+t]), sizeof(float));
+	    for (int n=0; n<nout; n++) {
+	      out[n].write((char *)&x, sizeof(double));
+	      out[n].write((char *)&y, sizeof(double));
+	      out[n].write((char *)&z, sizeof(double));
+	      out[n].write(
+			   (char *)&(otdat[((n*OUTZ + k)*OUTR + l)*OUTR + j]), 
+			   sizeof(double)
+			   );
+	      out[n].write((char *)&valid, sizeof(int));
+	    }
 	  }
 	}
       }
     }
-    
-    
-    if (AXIHGT) {
-      out0->close();
-      delete out0;
-    }
-    
-    if (VHEIGHT) {
-      for (int i=0; i<3; i++) {
-	out1[i]->close();
-	delete out1[i];
-      }
-      delete [] out1;
-    }
-    
-    if (VOLUME) {
-      for (int i=0; i<nout; i++) {
-	out2[i]->close();
-	delete out2[i];
-      }
-      delete [] out2;
-    }
-    
-    if (SURFACE) {
-      for (int i=0; i<nout; i++) {
-	out3[i]->close();
-	delete out3[i];
-      }
-      delete [] out3;
-    }
 
   }
+  
+  if (SURFACE) {
+    
+    // ==================================================
+    // Write surface profile
+    //   --- in plane ---
+    // ==================================================
+    
+    double v;
+    float f;
+    
+    double dR = 2.0*RMAX/(OUTR-1);
+    double x, y, z=0.0, r, phi;
+    double p0, d0, p, fr, fz, fp;
+    
+    vector<double> indat(nout*OUTR*OUTR, 0.0), otdat(nout*OUTR*OUTR);
+    
+    for (int l=0; l<OUTR; l++) {
+      
+      y = -RMAX + dR*l;
+      
+      for (int j=0; j<OUTR; j++) {
+	
+	if ((ncnt++)%numprocs == myid) {
+	  
+	  x = -RMAX + dR*j;
+	  
+	  r = sqrt(x*x + y*y);
+	  phi = atan2(y, x);
+	  
+	  ortho.accumulated_eval(r, z, phi, p0, p, fr, fz, fp);
+	  v = ortho.accumulated_dens_eval(r, z, phi, d0);
+	  
+	  indat[(0*OUTR+l)*OUTR+j] = p0;
+	  indat[(1*OUTR+l)*OUTR+j] = p;
+	  indat[(2*OUTR+l)*OUTR+j] = fr;
+	  indat[(3*OUTR+l)*OUTR+j] = fz;
+	  indat[(4*OUTR+l)*OUTR+j] = fp;
+	  indat[(5*OUTR+l)*OUTR+j] = d0;
+	  indat[(6*OUTR+l)*OUTR+j] = v;
+	}
+      }
+    }
+    
+    MPI_Reduce(&indat[0], &otdat[0], nout*OUTR*OUTR,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    
+    if (myid==0) {
+      
+      vector<string> names(nout);
+      for (int i=0; i<nout; i++) {
+	names[i] = OUTFILE + "." + suffix[i] + ".surf";
+	if (ALL) names[i] += sstr.str();
+      }
 
+      foarray out(names);
+
+      for (int i=0; i<nout; i++) {
+	out[i].write((char *)&OUTR, sizeof(int));
+	out[i].write((char *)&OUTR, sizeof(int));
+	out[i].write((char *)&(f=-RMAX), sizeof(float));
+	out[i].write((char *)&(f= RMAX), sizeof(float));
+	out[i].write((char *)&(f=-RMAX), sizeof(float));
+	out[i].write((char *)&(f= RMAX), sizeof(float));
+      }
+      
+      
+      for (int l=0; l<OUTR; l++) {
+	
+	y = -RMAX + dR*l;
+	
+	for (int j=0; j<OUTR; j++) {
+	  
+	  x = -RMAX + dR*j;
+	  
+	  for (int n=0; n<nout; n++)
+	    out[n].write(
+			 (char *)&(f=otdat[(n*OUTR+l)*OUTR+j]), 
+			 sizeof(float)
+			 );
+	}
+      }
+    }
+  }
 }
 
-				// Global variables
+
+
 int
 main(int argc, char **argv)
 {
-
+  
 #ifdef DEBUG
   sleep(20);
 #endif  
-
+  
   // ==================================================
   // Parse command line or input parameter file
   // ==================================================
-
+  
   if (config.parse_args(argc,argv)) return -1;
-
-
+  
+  
   // ==================================================
   // MPI preliminaries
   // ==================================================
@@ -882,20 +822,24 @@ main(int argc, char **argv)
 		 config.get<int>("LMAX"), 
 		 config.get<int>("MMAX"), 
 		 config.get<int>("NORDER"),
-		 config.get<double>("EXPSCALE"),
+		 config.get<double>("RSCALE"),
 		 config.get<double>("VSCALE"));
 
   vector<Particle> particles;
   PSPDump *psp = 0;
 
-  if (!ortho.read_cache()) {
+  if (ortho.read_cache()==0) {
+
+    //------------------------------------------------------------ 
 
     if (myid==0) {
-      cout << "Beginning disk partition . . . " << flush;
       psp = new PSPDump (&in0, true);
-      cout << "Time=" << psp->SetTime(config.get<double>("TINIT"));
+      cout << "Beginning disk partition [time="
+	   << psp->SetTime(config.get<double>("TINIT"))
+	   << "] . . . " << flush;
     }
 
+    // Do we need to close and reopen?
     if (in0.rdstate() & ios::eofbit) {
       in0.close();
       in0.open(config.get<string>("INITIAL").c_str());
@@ -904,22 +848,47 @@ main(int argc, char **argv)
     partition(&in0, psp, config.get<int>("INITFLAG"), particles);
     if (myid==0) cout << "done" << endl;
 
+    if (myid==0) {
+      cout << endl
+	   << setw(4) << "#" << "  " << setw(8) << "Number" << endl 
+	   << setfill('-')
+	   << setw(4) << "-" << "  " << setw(8) << "-" << endl
+	   << setfill(' ');
+    }
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	cout << setw(4) << myid << "  "
+	     << setw(8) << particles.size() << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+    if (myid==0) cout << endl;
+
+    //------------------------------------------------------------ 
+
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
     ortho.setup_eof();
     ortho.setup_accumulation();
-    ortho.accumulate_eof(particles);
+    ortho.accumulate_eof(particles, true);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
+
+    //------------------------------------------------------------ 
   
     if (myid==0) cout << "Making the EOF . . . " << flush;
     ortho.make_eof();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
     
+    //------------------------------------------------------------ 
+
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
     ortho.make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
+
+    //------------------------------------------------------------ 
+
   }
       
 
@@ -940,19 +909,18 @@ main(int argc, char **argv)
   Dump *dump = psp->GetDump();
   bool ALL = config.get<bool>("ALL");
 
-  if (!ALL) {
-    cout << "Time=" << psp->SetTime(config.get<double>("TIME"));
-    dump = psp->CurrentDump();
-  }
+  if (!ALL) dump = psp->CurrentDump();
 
   int icnt = 0;
 
-  while(dump) {
+  while (dump) {
+
+    //------------------------------------------------------------ 
 
     if (myid==0) {
-      cout << "Time=" << dump->header.time << endl;
-      cout << "Beginning disk partition . . . " << flush;
-      if (ALL)
+      cout << "Beginning disk partition [time="
+	   << dump->header.time << "] . . . " << flush;
+      if (ALL) 
 	indx << setw(15) << icnt << setw(15) << dump->header.time << endl;
     }
 
@@ -962,21 +930,30 @@ main(int argc, char **argv)
     }
 
     partition(&in1, psp, config.get<int>("PARTFLAG"), particles);
+    if (myid==0) cout << "done" << endl;
 
-    ortho.setup_accumulation();
-    ortho.accumulate(particles);
+    //------------------------------------------------------------ 
+
+    if (myid==0) cout << "Accumulating for basis . . . " << flush;
+    ortho.accumulate(particles, 0, true);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
   
+    //------------------------------------------------------------ 
+
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
     ortho.make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
 
+    //------------------------------------------------------------ 
+
     if (myid==0) cout << "Writing output . . . " << flush;
     write_output(ortho, icnt++, dump->header.time);
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
+
+    //------------------------------------------------------------ 
 
     dump = psp->NextDump();
   }

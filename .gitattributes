@@ -29,7 +29,11 @@ ExpMPI/src/user/rombeveccmp.cc -text
 ExpMPI/utils/Analysis/Makefile.am -text
 ExpMPI/utils/Analysis/Particle.cc -text
 ExpMPI/utils/Analysis/Particle.h -text
+ExpMPI/utils/Analysis/SphereSL.H -text
+ExpMPI/utils/Analysis/SphereSL.cc -text
 ExpMPI/utils/Analysis/diskprof.cc -text
+ExpMPI/utils/Analysis/foarray.H -text
+ExpMPI/utils/Analysis/haloprof.cc -text
 ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
 ExpMPI/utils/ICs/Particle.cc -text
