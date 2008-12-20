@@ -45,6 +45,7 @@ unsigned CollideLTE::Nnum    = 200;
 unsigned CollideLTE::Tnum    = 200;
 string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
+bool     CollideLTE::frost_warning = false;
 
 CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
@@ -202,7 +203,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
   }
 
-  if (T<1000.0) {
+  if (frost_warning && T<1000.0) {
     vector<double> pos(3);
     cell->MeanPos(pos);
 

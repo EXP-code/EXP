@@ -603,6 +603,7 @@ void Component::initialize(void)
 	    const int cbufsiz = 16384;
 	    char *cbuffer = new char [cbufsiz];
 	    double ttim, ttim0;
+	    int tarrow = 1;
 	    bool first_data = true;
 
 	    while (in) {
@@ -631,7 +632,11 @@ void Component::initialize(void)
 		  first_data = false;
 		}
 
-		if ( fabs(tnow - ttim) < 1.0e-8 ) {
+		// Compute the direction of time
+		
+		if (ttim != ttim0) tarrow = ttim - ttim0 ? 1 : -1;
+
+		if ( (tnow - ttim)*tarrow < 1.0e-8 ) {
 		  istringstream istr(line);
 
 		  istr >> ttim;

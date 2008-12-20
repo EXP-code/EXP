@@ -55,6 +55,7 @@ public:
   static unsigned Nnum;
   static unsigned Tnum;
   static string cache;
+  static bool frost_warning;
 
   CollideLTE(ExternalForce *force, double diameter, int nth=1);
   ~CollideLTE();
