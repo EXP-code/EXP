@@ -2226,10 +2226,13 @@ void EmpCylSL::make_eof(void)
 }
 
 
-void EmpCylSL::accumulate_eof(vector<Particle>& part)
+void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 {
 
   double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && verbose) cout << endl;
 
   setup_eof();
 
@@ -2242,14 +2245,21 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part)
     z = p->pos[2];
     
     accumulate_eof(r, z, phi, mass, 0, p->level);
+    if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
   }
 
 }
   
 
-void EmpCylSL::accumulate(vector<Particle>& part, int mlevel)
+void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 {
   double r, phi, z, mass;
+
+  int ncnt=0;
+  if (myid==0 && verbose) cout << endl;
 
   setup_accumulation();
 
@@ -2262,6 +2272,11 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel)
     z = p->pos[2];
     
     accumulate(r, z, phi, mass, 0, mlevel);
+
+    if (myid==0 && verbose) {
+      if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
+      ncnt++;
+    }
   }
 
 }

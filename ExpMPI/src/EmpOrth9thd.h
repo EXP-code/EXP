@@ -267,10 +267,10 @@ public:
   void determine_acceleration_and_potential() {};
 
   //! Accumulate coefficients from particle distribution
-  void accumulate(vector<Particle>& p, int mlev=0);
+  void accumulate(vector<Particle>& p, int mlev=0, bool verbose=false);
 
   //! Make EOF from particle distribution
-  void accumulate_eof(vector<Particle>& p);
+  void accumulate_eof(vector<Particle>& p, bool verbose=false);
 
   //! Add single particle to coefficients
   void accumulate(double r, double z, double phi, double mass, int id, int mlev=0);
