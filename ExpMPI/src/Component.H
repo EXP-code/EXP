@@ -199,7 +199,7 @@ private:
 
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
-  vector<double> com_lev, cov_lev, com_mas, angmom_lev;
+  vector<double> com_lev, cov_lev, coa_lev, com_mas, angmom_lev;
 
   // Momentum tracking
   bool consp;
@@ -238,7 +238,7 @@ protected:
   //@}
 
   //! Binary read flag
-  bool binary;
+ bool binary;
 
   //! COM log file
   string comfile;
@@ -306,6 +306,8 @@ public:
   double *com;
   //! Center of velocity
   double *cov;
+  //! Center of accelration
+  double *coa;
   //! Center (e.g. set by Orient)
   double *center;
   //! Angular momentum vector

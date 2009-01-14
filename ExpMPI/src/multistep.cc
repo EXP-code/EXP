@@ -79,7 +79,9 @@ void * adjust_multistep_level_thread(void *ptr)
     int n = c->levlist[level][i];
     
     for (int k=0; k<c->dim; k++) {
-      rtot += c->Part(n)->pos[k]*c->Part(n)->pos[k];
+      rtot += 
+	c->Pos(n, k, Component::Local | Component::Centered) *
+	c->Pos(n, k, Component::Local | Component::Centered) ;
       vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
       atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
     }

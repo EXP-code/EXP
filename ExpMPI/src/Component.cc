@@ -72,6 +72,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   com     = 0;
   cov     = 0;
+  coa     = 0;
   center  = 0;
   EJcen   = 0;
   angmom  = 0;
@@ -95,6 +96,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
   cov_lev    = vector<double>(3*(multistep+1), 0);
+  coa_lev    = vector<double>(3*(multistep+1), 0);
   com_mas    = vector<double>(multistep+1, 0);
 
   reset_level_lists();
@@ -221,39 +223,39 @@ void Component::reset_level_lists()
     }
   }
   
-#ifdef LEVCHECK
+  if (VERBOSE>10) {
 				// Level creation check
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid) {
-      if (myid==0) 
-	cout << endl
-	     << "----------------------------------------------" << endl
-	     << "Level creation in Component <" << name << ">:" << endl 
-	     << "----------------------------------------------" << endl
-	     << setw(4) << left << "ID" << setw(4) << "lev"
-	     << setw(12) << "first" << setw(12) << "last" 
-	     << setw(12) << "count" << endl;
-      for (int j=0; j<=multistep; j++) {
-	cout << left << setw(4) << myid << setw(4) << j;
-	if (levlist[j].size())
-	  cout << left
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	if (myid==0) 
+	  cout << endl
+	       << "----------------------------------------------" << endl
+	       << "Level creation in Component <" << name << ">:" << endl 
+	       << "----------------------------------------------" << endl
+	       << setw(4) << left << "ID" << setw(4) << "lev"
+	       << setw(12) << "first" << setw(12) << "last" 
+	       << setw(12) << "count" << endl;
+	for (int j=0; j<=multistep; j++) {
+	  cout << left << setw(4) << myid << setw(4) << j;
+	  if (levlist[j].size())
+	    cout << left
 	       << setw(12) << levlist[j].front()
-	       << setw(12) << levlist[j].back() 
-	       << setw(12) << levlist[j].size()
-	       << endl;
-	else
-	  cout << left
-	       << setw(12) << (int)(-1)
-	       << setw(12) << (int)(-1) 
-	       << setw(12) << levlist[j].size()
-	       << endl;
+		 << setw(12) << levlist[j].back() 
+		 << setw(12) << levlist[j].size()
+		 << endl;
+	  else
+	    cout << left
+		 << setw(12) << (int)(-1)
+		 << setw(12) << (int)(-1) 
+		 << setw(12) << levlist[j].size()
+		 << endl;
+	}
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) cout << endl;
   }
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) cout << endl;
-#endif  
 
 }
 
@@ -365,6 +367,7 @@ Component::Component(istream *in)
 
   com     = 0;
   cov     = 0;
+  coa     = 0;
   center  = 0;
   EJcen   = 0;
   angmom  = 0;
@@ -386,6 +389,7 @@ Component::Component(istream *in)
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
   cov_lev    = vector<double>(3*(multistep+1), 0);
+  coa_lev    = vector<double>(3*(multistep+1), 0);
   com_mas    = vector<double>(multistep+1, 0);
 
   reset_level_lists();
@@ -532,6 +536,7 @@ void Component::initialize(void)
   com    = new double [3];
   center = new double [3];
   cov    = new double [3];
+  coa    = new double [3];
   angmom = new double [3];
   ps     = new double [6];
   EJcen  = new double [3];
@@ -544,7 +549,8 @@ void Component::initialize(void)
   covI   = new double[3];
 
   for (int k=0; k<3; k++) 
-    com[k] = center[k] = cov[k] = com0[k] = cov0[k] = acc0[k] = 
+    com[k] = center[k] = cov[k] = coa[k] = 
+      com0[k] = cov0[k] = acc0[k] = 
       comI[k] = covI[k] = angmom[k] = EJcen[k] = 0.0;
   
 
@@ -805,6 +811,7 @@ Component::~Component(void)
   delete [] com;
   delete [] center;
   delete [] cov;
+  delete [] coa;
   delete [] angmom;
   delete [] ps;
   delete [] EJcen;
@@ -1688,7 +1695,7 @@ struct thrd_pass_posn
   bool tidal;
   bool com_system;
   unsigned mlevel;
-  vector<double> com, cov, mtot;
+  vector<double> com, cov, coa, mtot;
 };
 
 
@@ -1706,6 +1713,7 @@ void * fix_positions_thread(void *ptr)
 
   double *com = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
   double *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
+  double *coa = &(static_cast<thrd_pass_posn*>(ptr)->coa[0]);
   double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
 
   for (unsigned mm=mlevel; mm<=multistep; mm++) {
@@ -1727,9 +1735,12 @@ void * fix_positions_thread(void *ptr)
 	    c->Part(n)->iattrib[tidal] = 1;
 
 	    if (com_system) {	// Conserve momentum of center of mass
+				// and compute center of acceleration
 	      mtot[mm] += c->Part(n)->mass;
-	      for (unsigned k=0; k<3; k++) 
+	      for (unsigned k=0; k<3; k++) {
 		cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k]; 
+		coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
+	      }
 	    }
 	  }
 	}
@@ -1738,9 +1749,12 @@ void * fix_positions_thread(void *ptr)
     
 	mtot[mm] += c->Part(n)->mass;
 
+	// Compute new center of mass quantities
+	//
 	for (unsigned k=0; k<c->dim; k++) {
 	  com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
 	  cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
+	  coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
 	}
       
       }
@@ -1758,13 +1772,14 @@ void Component::fix_positions(unsigned mlevel)
   				// Zero variables
   mtot = 0.0;
   for (int k=0; k<dim; k++)
-    com[k] = cov[k] = 0.0;
+    com[k] = cov[k] = coa[k] = 0.0;
 
 				// Zero multistep counters at and
 				// above this level
   for (unsigned mm=mlevel; mm<=multistep; mm++) {
     com_mas[mm] = 0.0;
-    for (unsigned k=0; k<3; k++) com_lev[3*mm+k] = cov_lev[3*mm+k] = 0.0;
+    for (unsigned k=0; k<3; k++) 
+      com_lev[3*mm+k] = cov_lev[3*mm+k] = coa_lev[3*mm+k] = 0.0;
   }
 
   vector<thrd_pass_posn> data(nthrds);
@@ -1781,6 +1796,7 @@ void Component::fix_positions(unsigned mlevel)
 
     data[0].com  = vector<double>(3*(multistep+1), 0.0);
     data[0].cov  = vector<double>(3*(multistep+1), 0.0);
+    data[0].coa  = vector<double>(3*(multistep+1), 0.0);
     data[0].mtot = vector<double>(multistep+1, 0.0);
 
     fix_positions_thread(&data[0]);
@@ -1789,6 +1805,7 @@ void Component::fix_positions(unsigned mlevel)
       for (unsigned k=0; k<3; k++) {
 	com_lev[3*mm + k] += data[0].com[3*mm + k];
 	cov_lev[3*mm + k] += data[0].cov[3*mm + k];
+	coa_lev[3*mm + k] += data[0].coa[3*mm + k];
       }
       com_mas[mm] += data[0].mtot[mm];
     }
@@ -1809,6 +1826,7 @@ void Component::fix_positions(unsigned mlevel)
 
       data[i].com  = vector<double>(3*(multistep+1), 0.0);
       data[i].cov  = vector<double>(3*(multistep+1), 0.0);
+      data[i].coa  = vector<double>(3*(multistep+1), 0.0);
       data[i].mtot = vector<double>(multistep+1, 0.0);
 
       errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
@@ -1836,6 +1854,7 @@ void Component::fix_positions(unsigned mlevel)
 	for (unsigned k=0; k<3; k++) {
 	  com_lev[3*mm + k] += data[i].com[3*mm + k];
 	  cov_lev[3*mm + k] += data[i].cov[3*mm + k];
+	  coa_lev[3*mm + k] += data[i].coa[3*mm + k];
 	}
 	com_mas[mm] += data[i].mtot[mm];
       }
@@ -1845,13 +1864,14 @@ void Component::fix_positions(unsigned mlevel)
   //
   // Sum levels
   //
-  vector<double> com1(3, 0.0), cov1(3, 0.0);
+  vector<double> com1(3, 0.0), cov1(3, 0.0), coa1(3, 0.0);
   double         mtot1 = 0.0;
 
   for (unsigned mm=0; mm<=multistep; mm++) {
     for (int k=0; k<3; k++) {
       com1[k] += com_lev[3*mm + k];
-      cov1[k] += com_lev[3*mm + k];
+      cov1[k] += cov_lev[3*mm + k];
+      coa1[k] += coa_lev[3*mm + k];
     }
     mtot1 += com_mas[mm];
   }
@@ -1859,19 +1879,24 @@ void Component::fix_positions(unsigned mlevel)
   MPI_Allreduce(&mtot1, &mtot, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&com1[0], com, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&cov1[0], cov, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&coa1[0], coa, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     
-  // #ifdef DEBUG
+  if (VERBOSE>5) {
 				// Check for NaN
-  bool com_nan = false, cov_nan = false;
-  for (int k=0; k<3; k++)
-    if (isnan(com[k])) com_nan = true;
-  for (int k=0; k<3; k++)
-    if (isnan(cov[k])) cov_nan = true;
-  if (com_nan && myid==0)
-    cerr << "Component [" << name << "] com has a NaN" << endl;
-  if (cov_nan && myid==0)
-    cerr << "Component [" << name << "] cov has a NaN" << endl;
-  // #endif
+    bool com_nan = false, cov_nan = false, coa_nan = false;
+    for (int k=0; k<3; k++)
+      if (isnan(com[k])) com_nan = true;
+    for (int k=0; k<3; k++)
+      if (isnan(cov[k])) cov_nan = true;
+    for (int k=0; k<3; k++)
+      if (isnan(coa[k])) coa_nan = true;
+    if (coa_nan && myid==0)
+      cerr << "Component [" << name << "] com has a NaN" << endl;
+    if (cov_nan && myid==0)
+      cerr << "Component [" << name << "] cov has a NaN" << endl;
+    if (coa_nan && myid==0)
+      cerr << "Component [" << name << "] coa has a NaN" << endl;
+  }
 
   if (consp && com_system) {
     for (int i=0; i<3; i++) {
@@ -1884,8 +1909,13 @@ void Component::fix_positions(unsigned mlevel)
 				// center of velocity, and center of accel
 
   if (mtot > 0.0) {
-    for (int k=0; k<dim; k++) com[k] /= mtot;
-    for (int k=0; k<dim; k++) cov[k] /= mtot;
+    for (int k=0; k<dim; k++) com[k]  /= mtot;
+    for (int k=0; k<dim; k++) cov[k]  /= mtot;
+    for (int k=0; k<dim; k++) coa[k]  /= mtot;
+				// Use local center of accel for com update
+    for (int k=0; k<dim; k++) acc0[k]  = coa[k];
+  } else {			// No mass, no acceleration?
+    for (int k=0; k<dim; k++) acc0[k]  = 0.0;
   }
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
@@ -1898,30 +1928,6 @@ void Component::fix_positions(unsigned mlevel)
 
 void Component::update_accel(void)
 {
-  double *acc1 = new double [3];
-
-  
-  map<unsigned long, Particle>::iterator p;
-
-  for (int k=0; k<dim; k++) acc0[k] = acc1[k] = 0.0;
-
-				// Particle loop
-  for (p=particles.begin(); p != particles.end(); p++) {
-    
-    if (escape_com(p->second)) continue;
-    
-    for (int k=0; k<dim; k++) acc1[k] += p->second.mass*p->second.acc[k];
-  }
-  
-  MPI_Allreduce(acc1, acc0, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    
-
-				// Compute component center of accel
-  if (mtot > 0.0) {
-    for (int k=0; k<dim; k++) acc0[k] /= mtot;
-  }
-  
-
   if (myid==0 && com_log) {
 				// Open output stream for writing
     ofstream out(comfile.c_str(), ios::out | ios::app);
@@ -1939,7 +1945,6 @@ void Component::update_accel(void)
 
   }
 
-  delete [] acc1;
 }
 
 
