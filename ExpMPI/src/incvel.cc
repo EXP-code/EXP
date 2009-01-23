@@ -58,9 +58,15 @@ void * incr_velocity_thread(void *ptr)
 	indx = c->levlist[mlevel][q];
       else 
 	indx = (it++)->first;
+      
+      if (c->com_system) {
+	for (int k=0; k<c->dim; k++) 
+	  c->Part(indx)->vel[k] += (c->Part(indx)->acc[k] - c->acc0[k])*dt;
+      } else {
+	for (int k=0; k<c->dim; k++) 
+	  c->Part(indx)->vel[k] += c->Part(indx)->acc[k]*dt;
+      }
 
-      for (int k=0; k<c->dim; k++) 
-	c->Part(indx)->vel[k] += (c->Part(indx)->acc[k] - c->acc0[k])*dt;
     }
       
   }

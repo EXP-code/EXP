@@ -1912,7 +1912,9 @@ void Component::fix_positions(unsigned mlevel)
     for (int k=0; k<dim; k++) com[k]  /= mtot;
     for (int k=0; k<dim; k++) cov[k]  /= mtot;
     for (int k=0; k<dim; k++) coa[k]  /= mtot;
-				// Use local center of accel for com update
+  }
+
+  if (com_system) {	   // Use local center of accel for com update
     for (int k=0; k<dim; k++) acc0[k]  = coa[k];
   } else {			// No mass, no acceleration?
     for (int k=0; k<dim; k++) acc0[k]  = 0.0;

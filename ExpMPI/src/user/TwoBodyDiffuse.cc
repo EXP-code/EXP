@@ -1,4 +1,6 @@
-#include <math.h>
+#include <cmath>
+#include <cstdlib>
+
 #include <pthread.h>
 
 #include <ACG.h>
