@@ -9,12 +9,14 @@
 
 OrbTrace::OrbTrace(string& line) : Output(line)
 {
-  nint = 1;
-  norb = 5;
-  nbeg = 1;
-  nskip = 0;
+  nint    = 1;
+  norb    = 5;
+  nbeg    = 1;
+  nskip   = 0;
   use_acc = false;
   use_pot = false;
+  local   = false;
+
   filename = outdir + "ORBTRACE." + runtag;
   orbitlist = "";
   tcomp = NULL;
@@ -26,6 +28,11 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       bomb("OrbTrace: no component to trace\n");
     }
   }
+
+  if (local)
+    flags = Component::Local;
+  else
+    flags = Component::Inertial;
 
   norb = min<int>(tcomp->nbodies_tot, norb);
   if (nskip==0) nskip = (int)tcomp->nbodies_tot/norb;
@@ -202,6 +209,11 @@ void OrbTrace::initialize()
     else                   use_pot = false;
   }
 
+  if (get_value(string("local"), tmp)) {
+    if (atoi(tmp.c_str())) local   = true;
+    else                   local   = false;
+  }
+
 				// Search for desired component
   if (get_value(string("name"), tmp)) {
     list<Component*>::iterator cc;
@@ -245,10 +257,10 @@ void OrbTrace::Run(int n, bool last)
       
       // Copy particle to buffer
       int icnt=0;
-      for (int k=0; k<3; k++) pbuf[icnt++] = it->second.pos[k];
-      for (int k=0; k<3; k++) pbuf[icnt++] = it->second.vel[k];
+      for (int k=0; k<3; k++) pbuf[icnt++] = tcomp->Pos(orblist[i], k, flags);
+      for (int k=0; k<3; k++) pbuf[icnt++] = tcomp->Vel(orblist[i], k, flags);
       if (use_acc) {
-	for (int k=0; k<3; k++) pbuf[icnt++] = it->second.acc[k];
+	for (int k=0; k<3; k++) pbuf[icnt++] = tcomp->Acc(orblist[i], k, flags);
       }
       if (use_acc) {
 	pbuf[icnt++] = it->second.pot + it->second.potext;

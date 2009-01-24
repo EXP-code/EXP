@@ -38,10 +38,12 @@ private:
   int norb;
   bool use_acc;
   bool use_pot;
+  bool local;
   Component *tcomp;
   vector<int> orblist;
   vector<double> pbuf;
   int nbuf;
+  int flags;
 
   void initialize(void);
 
