@@ -1,7 +1,7 @@
 #include <SLSphere.H>
 
 SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
-		   int cmap, double rs)
+		   int cmap, double rs, SphericalModelTable *mod)
 {
   dof = 3;
 
@@ -12,8 +12,12 @@ SLSphere::SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
   rmax = Rmax;
 
 				// Generate Sturm-Liouville grid
-  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
-			cmap, rs);
+  if (mod)
+    ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
+			  mod, cmap, rs);
+  else
+    ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, 
+			  cmap, rs);
 
   xmin = ortho->r_to_xi(rmin);
   xmax = ortho->r_to_xi(rmax);

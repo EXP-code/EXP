@@ -14,7 +14,7 @@ AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
-bin_PROGRAMS = slcheck slshift orthochk
+bin_PROGRAMS = slcheck slshift orthochk diskpot
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
@@ -34,6 +34,9 @@ slshift_LDADD = $(EXPLIBS)
 
 orthochk_SOURCES = orthochk.cc biorth1d.cc localmpi.cc
 orthochk_LDADD = $(EXPLIBS)
+
+diskpot_SOURCES = diskpot.cc CylindricalDisk.cc SLSphere.cc localmpi.cc
+diskpot_LDADD = $(EXPLIBS)
 
 biorth1d.h:	$(top_srcdir)/src/biorth1d.h
 	cp $(top_srcdir)/src/$@ .

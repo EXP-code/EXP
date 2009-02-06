@@ -38,3 +38,6 @@ ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
 ExpMPI/utils/ICs/Particle.cc -text
 ExpMPI/utils/ICs/bonnerebert.cc -text
+ExpMPI/utils/SL/CylindricalDisk.H -text
+ExpMPI/utils/SL/CylindricalDisk.cc -text
+ExpMPI/utils/SL/diskpot.cc -text

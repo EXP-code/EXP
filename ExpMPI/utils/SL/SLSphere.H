@@ -19,7 +19,7 @@ private:
 public:
   
   SLSphere(int Lmax, int Nmax, int Numr, double Rmin, double Rmax,
-	   int cmap, double rs);
+	   int cmap, double rs, SphericalModelTable *mod=0);
   ~SLSphere();
 
   double potl(const int n, const int l, const double x) 
