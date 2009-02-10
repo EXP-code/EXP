@@ -24,22 +24,22 @@ public:
 
   double potl(const int n, const int l, const double x) 
   {
-    ortho->get_pot(x, l, n, 0);
+    return ortho->get_pot(x, l, n, 0);
   }
 
   double dens(const int n, const int l, const double x)
   {
-    ortho->get_dens(x, l, n, 0);
+    return ortho->get_dens(x, l, n, 0);
   }
 
   double potlR(const int n, const int l, const double r)
   {
-    ortho->get_pot(r, l, n, 1);
+    return ortho->get_pot(r, l, n, 1);
   }
 
   double potlRZ(const int n, const int l, const double R, const double Z)
   {
-    ortho->get_pot(sqrt(R*R+Z*Z), l, n, 1);
+    return ortho->get_pot(sqrt(R*R+Z*Z), l, n, 1);
   }
 				// Fast for expansion! 
 				// (using recursion relation)

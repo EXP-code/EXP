@@ -12,21 +12,27 @@ CylindricalDisk::~CylindricalDisk()
 }
 
 CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
-				 int Nmax, int numR, int numt)
+				 int Nmax, int numR, int numT, int numG,
+				 vector<double> param) :
+  M(0.1), A(0.01), H(0.001) 
 {
+  if (param.size()) SetParameters(param);
+
+  grid = false;
+
   //
   // First compute spherical model from cylindrical distribution
   //
-  LegeQuad lq(numt);
-  double dR = (Rmax - 0.3*Rmin)/(numR - 1), cost, sint;
+  LegeQuad lq(numT);
+  double dRR = (Rmax - 0.3*Rmin)/(numR - 1), cost, sint;
   vector<double> r(numR), d(numR), m(numR,0), p(numR), p2(numR,0);
   vector<double> X(3, 0);
 
   // Compute density
   for (int i=0; i<numR; i++) {
-    r[i] = 0.3*Rmin + dR*i;
+    r[i] = 0.3*Rmin + dRR*i;
     d[i] = 0.0;
-    for (int t=1; t<=numt; t++) {
+    for (int t=1; t<=numT; t++) {
       cost = lq.knot(t);
       sint = sqrt(1.0 - cost*cost);
       X[0] = sint*r[i];
@@ -37,8 +43,8 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
   
   // Compute mass and potential integral
   for (int i=1; i<numR; i++) {
-    m[i]  = m[i-1]  + 2.0*M_PI*dR*(r[i]*r[i]*d[i] + r[i-1]*r[i-1]*d[i-1]);
-    p2[i] = p2[i-1] + 2.0*M_PI*dR*(r[i]*d[i] + r[i-1]*d[i-1]);
+    m[i]  = m[i-1]  + 2.0*M_PI*dRR*(r[i]*r[i]*d[i] + r[i-1]*r[i-1]*d[i-1]);
+    p2[i] = p2[i-1] + 2.0*M_PI*dRR*(r[i]*d[i] + r[i-1]*d[i-1]);
   }
 
   // Compute potential
@@ -73,6 +79,8 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
   lmax = Lmax;
   nmax = Nmax;
   numr = numR;
+  numt = numT;
+  numg = numG;
 
   model = new SphericalModelTable(numR, 
 				  &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1,
@@ -83,18 +91,21 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
 
   // Compute coefficients
 
-  dR = (log(rmax) - log(rmin))/numr;
+  dRR = log(rmax) - log(rmin);
 
   coefs = vector< Vector >(lmax+1);
-  for (int l=0; l<=lmax; l++) coefs[l] = Vector(1, nmax);
+  for (int l=0; l<=lmax; l++) {
+    coefs[l] = Vector(1, nmax);
+    coefs[l].zero();
+  }
   
   double theta, phi, rho, facp;
   double x, y, z, R;
   Vector vec(1, nmax);
 
-  for (int i=0; i<numr; i++) {
+  for (int i=1; i<=numt; i++) {
 
-    R = rmin*exp(dR*i);
+    R = rmin*exp(dRR*lq.knot(i));
     
     for (int k=1; k<=numt; k++) {
 	
@@ -106,29 +117,98 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
 	
       R = sqrt(x*x + y*y + z*z);
 
+      //
       // 4Pi needed for correct sol'n to Poisson's eqn
-      rho = 4.0 * M_PI * Density(X);
+      //
+      rho = 4.0*M_PI * Density(X);
       
       for (int l=0; l<=lmax; l++) {
 
+	//
 	// Get ortho fcts
+	//
 	ortho->potl(nmax, l, R, vec);
 
-	coefs[l] += 2.0*lq.weight(k) *
-	  (0.5*l+0.25)/M_PI *
-	  plgndr(l, 0, 2.0*(lq.knot(k)-0.5)) * rho * vec;
+	coefs[l] += 2.0*lq.weight(k) * dRR*R*R*R*lq.weight(i) * 
+	  2.0*M_PI * (0.5*l+0.25)/M_PI * plgndr(l, 0, 2.0*(lq.knot(k)-0.5)) *
+	  rho * vec;
       }
     }
   }
 }
 
+void CylindricalDisk::make_grids()
+{
+  linear = (rmin<=0.0) ? true : false;
+  if (linear) {
+    rgmin = rmin;
+    rgmax = rmax;
+  } else {
+    rgmin = log(rmin);
+    rgmax = log(rmax);
+  }
+  
+  //
+  // Use 3% mesh spacing for derivative stencil
+  //
+  const double frac = 0.03;
+  dR = (rgmax - rgmin)/(numg - 1);
+
+  frc = vector< vector< vector<double> > >(numg);
+  for (int i=0; i<numg; i++) {
+    frc[i] = vector< vector<double> >(numg);
+    for (int j=0; j<numg; j++)
+      frc[i][j] = vector<double>(4);
+  }
+  
+  //
+  // Compute derivatives with 5-pt formula
+  //
+  double r, z, hr, hz;
+  for (int i=0; i<numg; i++) {
+    for (int j=0; j<numg; j++) {
+      r = rgmin + dR*i; 
+      z = rgmin + dR*j;
+      if (!linear) {
+	r = exp(r);
+	z = exp(z);
+      }
+      
+      hr = r*frac;
+      hz = z*frac;
+
+      frc[i][j][0] = density_eval(r, 0.0, z);
+
+      frc[i][j][1] = potential_eval(r, 0.0, z);
+
+      frc[i][j][2] = -(
+		          -potential_eval(r+2.0*hr, 0.0, z)
+		      +8.0*potential_eval(r+hr    , 0.0, z)
+		      -8.0*potential_eval(r-hr    , 0.0, z)
+		          +potential_eval(r-2.0*hr, 0.0, z)
+		      )/(12.0*hr);
+
+      frc[i][j][3] = -(
+		          -potential_eval(r, 0.0, z+2.0*hz)
+		      +8.0*potential_eval(r, 0.0, z+hz    )
+		      -8.0*potential_eval(r, 0.0, z-hz    )
+			  +potential_eval(r, 0.0, z-2.0*hz)
+		      )/(12.0*hz);
+    }
+  }
+  
+  indx = vector<int>   (4);
+  aint = vector<double>(4);
+  grid = true;
+}
+
 double CylindricalDisk::density_eval(double x, double y, double z)
 {
-  double r = sqrt(x*x + y*y + z*z);
+  double r     = sqrt(x*x + y*y + z*z);
   double costh = z/(r+1.0e-18);
-  double phi = atan2(y, x);
+  double phi   = atan2(y, x);
+  double ans   = 0.0;
 
-  double ans = 0.0;
   for (int l=0; l<=lmax; l++) {
     ans += -ortho->get_dens(r, l, coefs[l]) * 
       plgndr(l, 0, costh) / (4.0*M_PI);
@@ -140,16 +220,117 @@ double CylindricalDisk::density_eval(double x, double y, double z)
 
 double CylindricalDisk::potential_eval(double x, double y, double z)
 {
-  double r = sqrt(x*x + y*y + z*z);
+  double r     = sqrt(x*x + y*y + z*z);
   double costh = z/(r+1.0e-18);
-  double phi = atan2(y, x);
+  double phi   = atan2(y, x);
+  double ans   = 0.0;
 
-  double ans = 0.0;
   for (int l=0; l<=lmax; l++) {
     ans += ortho->get_potl(r, l, coefs[l]) * plgndr(l, 0, costh);
   }
     
   return ans;
+}
+
+void CylindricalDisk::force_eval(double x, double y, double z, 
+				 double &fr, double &fz)
+{
+  if (!grid) make_grids();
+
+  double rr = sqrt(x*x + y*y);
+  double zz = fabs(z);
+
+  if (get_interp(rr, zz)) {
+    fr = 
+      aint[0] * aint[2] * frc[indx[0]][indx[2]][2] +
+      aint[1] * aint[2] * frc[indx[1]][indx[2]][2] +
+      aint[0] * aint[3] * frc[indx[0]][indx[3]][2] +
+      aint[1] * aint[3] * frc[indx[1]][indx[3]][2] ;
+
+    fz = 
+      aint[0] * aint[2] * frc[indx[0]][indx[2]][3] +
+      aint[1] * aint[2] * frc[indx[1]][indx[2]][3] +
+      aint[0] * aint[3] * frc[indx[0]][indx[3]][3] +
+      aint[1] * aint[3] * frc[indx[1]][indx[3]][3] ;
+
+    if (z<0.0) fz *= -1.0;
+
+  } else {
+    double r3 = sqrt(rr*rr + zz*zz);
+    double ff = -model->get_mass(r3)/(r3*r3*r3);
+    fr = -ff*rr;
+    fz = -ff*z;
+  }
+}
+
+
+void CylindricalDisk::pot_dens_eval(double x, double y, double z, 
+				    double &potl, double &dens)
+{
+  if (!grid) make_grids();
+
+  double rr = sqrt(x*x + y*y);
+  double zz = fabs(z);
+
+  if (get_interp(rr, zz)) {
+
+    dens = 
+      aint[0] * aint[2] * frc[indx[0]][indx[2]][0] +
+      aint[1] * aint[2] * frc[indx[1]][indx[2]][0] +
+      aint[0] * aint[3] * frc[indx[0]][indx[3]][0] +
+      aint[1] * aint[3] * frc[indx[1]][indx[3]][0] ;
+
+    potl = 
+      aint[0] * aint[2] * frc[indx[0]][indx[2]][1] +
+      aint[1] * aint[2] * frc[indx[1]][indx[2]][1] +
+      aint[0] * aint[3] * frc[indx[0]][indx[3]][1] +
+      aint[1] * aint[3] * frc[indx[1]][indx[3]][1] ;
+
+  } else {
+    double r3 = sqrt(rr*rr + zz*zz);
+    dens = 0.0;
+    potl = -model->get_mass(r3)/r3;
+  }
+}
+
+
+bool CylindricalDisk::get_interp(double x, double z)
+{
+  if (!linear) {
+    if (x==0.0) x = rgmin;
+    else        x = log(x);
+
+    if (z==0.0) z = rgmin;
+    else        z = log(z);
+  }
+
+  if (x>=rgmax || z>=rgmax) return false;
+
+  if (x<rgmin) {
+    indx[0] = 0;
+    indx[1] = 1;
+    aint[0] = 1.0;
+    aint[1] = 0.0;
+  } else {
+    indx[0] = static_cast<int>(floor((x - rgmin)/dR));
+    indx[1] = indx[0] + 1;
+    aint[0] = (rgmin + dR*indx[1] - x)/dR;
+    aint[1] = (x - rgmin - dR*indx[0])/dR;
+  }
+
+  if (z<rgmin) {
+    indx[2] = 0;
+    indx[3] = 1;
+    aint[2] = 1.0;
+    aint[3] = 0.0;
+  } else {
+    indx[2] = static_cast<int>(floor((z - rgmin)/dR));
+    indx[3] = indx[2] + 1;
+    aint[2] = (rgmin + dR*indx[3] - z)/dR;
+    aint[3] = (z - rgmin - dR*indx[2])/dR;
+  }
+
+  return true;
 }
 
 void CylindricalDisk::dump_coefficients(string file)
