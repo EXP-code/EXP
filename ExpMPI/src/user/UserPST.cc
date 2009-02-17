@@ -97,12 +97,6 @@ double UserPST::get_fid_bulge_dens()
   
   Mscale = Mencl/(Mdisk + Mleft);
 
-  cout << "r_max = " << r_max << endl;
-  cout << "Mdisk = " << Mdisk << endl;
-  cout << "Rho_b = " << rhoB  << endl;
-  cout << "M_b   = " << Mleft << endl;
-  cout << "Mbar  = " << Mbar  << endl;
-
   double r_b;
   ZBrent< vector<double> > zb;
   vector<double> param;
@@ -116,9 +110,6 @@ double UserPST::get_fid_bulge_dens()
   param.push_back(Mleft);
 
   zb.find(fit_mass, param, 1.0e-5, 1.0, 1.0e-8, r_b);
-
-  cout << "R_b   = " << r_b << endl;
-  cout << "Fit   = " << fit_mass(r_b, param) << endl;
 
   return r_b;
 }
@@ -196,8 +187,6 @@ UserPST::UserPST(string &line) : ExternalForce(line)
   rhoC /= Munit/(Lunit*Lunit*Lunit);
   rL   /= Lunit;
   
-  cout << "Temp  = " << T    << endl;
-
 				// Bar semi-major axis
   double a = 5.0/Lunit;
   double b = a/arat;
@@ -266,7 +255,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
     pp[i] = -mm[i]/(rr[i]+1.0e-14) + p2[i] -  p2[numr-1];
   
 
-  if (myid==0) {
+  if (myid==0 && VERBOSE > 5) {
 
     ofstream out("bulgemod.dat");
     for (int i=0; i<numr; i++) 
@@ -281,7 +270,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 				  &rr[0]-1, &dd[0]-1, &mm[0]-1, &pp[0]-1,
 				  0, 0.0, 0, "Bulge model");
 
-  if (myid==0) cout << "Bulge created" << endl;
+  if (myid==0 && VERBOSE > 5) cout << "Bulge created" << endl;
 
   //
   // Bar model
@@ -293,10 +282,10 @@ UserPST::UserPST(string &line) : ExternalForce(line)
   bar = new EllipsoidForce(a, b, b, Mbar, rmin, 5.0*a, 
 			   bartype, false, nu, num, numr);
 
-  cout << "Bar created" << endl;
-  cout << "Table creation . . . " << flush;
+  if (myid==0 && VERBOSE>5) cout << "Bar created" << endl;
+  if (myid==0 && VERBOSE>5) cout << "Table creation . . . " << flush;
   bar->MakeTable(rmin, rmax, numT, numT, numT);
-  cout << "done" << endl;
+  if (myid==0 && VERBOSE>5) cout << "done" << endl;
 
   //
   // Disk model
@@ -312,7 +301,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 
   disk.Initialize(rmin, rmax, dlog, Nmax, Lmax, numR, numt, numg, mparam);
     
-  cout << "Disk created" << endl;
+  if (myid==0 && VERBOSE>5) cout << "Disk created" << endl;
 
 
   //
@@ -321,10 +310,9 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 
   double bfrc = -bulge->get_mass(rL)/(rL*rL), fr, fz;
   disk.force_eval(rL, 0.0, 0.0, fr, fz);
-  double velc = sqrt(-(bfrc+fr)*rL*Mscale);
-  
-  omega = velc/rL;
 
+  omega = sqrt(-(bfrc+fr)*Mscale/rL);
+  
   userinfo();
 
   //
@@ -370,8 +358,8 @@ void UserPST::initialize()
   if (get_value("rmin", val))	        rmin    = atof(val.c_str());
   if (get_value("rmax", val))	        rmax    = atof(val.c_str());
   if (get_value("numr", val))	        numr    = atoi(val.c_str());
-  if (get_value("numr", val))	        blog    = atoi(val.c_str()) ? true : false;
-  if (get_value("numr", val))	        dlog    = atoi(val.c_str()) ? true : false;
+  if (get_value("blog", val))	        blog    = atoi(val.c_str()) ? true : false;
+  if (get_value("dlog", val))	        dlog    = atoi(val.c_str()) ? true : false;
   if (get_value("arat", val))		arat    = atof(val.c_str());
   if (get_value("Qm", val))		Qm      = atof(val.c_str());
   if (get_value("rL", val))		rL      = atof(val.c_str());
@@ -415,7 +403,7 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg), nbodies, nbeg, nend, indx;
   double fac, ffac, amp = 0.0;
   double xx, yy, zz, rr, bfrc, fr, fz, extpot;
-  vector<double> pos(3), pos1(3), acct(3), force(4), acc1(3);
+  vector<double> pos(3), pos1(3), acct(3), force(4), acc(3);
 
   double posang = omega*tnow;
 
@@ -425,7 +413,16 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   double elip_frac = 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ));
-  double disk_frac = (1.0 + (Mscale - 1.0)*(1.0 - elip_frac));
+  double disk_frac = 1.0 + (Mscale - 1.0)*(1.0 - elip_frac);
+
+  if (myid==0 && id==0) {
+    ofstream out("test.frac", ios::app);
+    out << setw(16) << tnow 
+	<< setw(16) << elip_frac
+	<< setw(16) << disk_frac
+	<< setw(16) << Mscale
+	<< endl;
+  }
 
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
@@ -453,9 +450,9 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
 
       bar->TableEval(pos1, force);
 
-      acc1[0] = force[1]*cosp - force[2]*sinp;
-      acc1[1] = force[1]*sinp + force[2]*cosp;
-      acc1[2] = force[3];
+      acc[0] = force[1]*cosp - force[2]*sinp;
+      acc[1] = force[1]*sinp + force[2]*cosp;
+      acc[2] = force[3];
       
       //
       // Bulge force
@@ -465,15 +462,16 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
       
 
       for (int k=0; k<3; k++) 
-	acct[k] = (fr/(rr+1.0e-10) + bfrc)*pos[k] * disk_frac +
-	  acc[k]*elip_frac;
+	acct[k] = 
+	  (fr/(rr+1.0e-10) + bfrc)*pos[k] * disk_frac + acc[k]*elip_frac;
     
-      extpot = (bulge->get_pot(rr) + disk.potential_eval(xx, yy, zz)) *
-	disk_frac + force[0]*elip_frac;
+      extpot = 
+	(bulge->get_pot(rr) + disk.potential_eval(xx, yy, zz)) * disk_frac + 
+	force[0]*elip_frac;
     
 				// Add bar acceleration to particle
       cC->AddAcc(indx, acct);
-    
+
 				// Add external potential
       cC->AddPotExt(indx, extpot);
 

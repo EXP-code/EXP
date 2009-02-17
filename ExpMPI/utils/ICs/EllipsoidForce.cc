@@ -1,3 +1,4 @@
+#include <localmpi.h>
 #include <EllipsoidForce.H>
 #include <ZBrent.H>
 
@@ -102,7 +103,6 @@ EllipsoidForce::~EllipsoidForce()
   delete gq;
   delete gz;
   delete gt;
-
 }
 
 
@@ -432,21 +432,24 @@ MakeTable(double rmin, double rmax, int n1, int n2, int n3)
 
   if (!read_cache()) {
 
+    unsigned cnt = 0;
     vector<double> x(3), x1(3);
     double h;
     int indx;
 
     for (int i=0; i<n1; i++)  {
-    
-      x[0] = rtmin + dX[0]*i;
-      if (tlog) x[0] = exp(x[0]);
       
       for (int j=0; j<n2; j++) {
 
-	x[1] = rtmin + dX[1]*j;
-	if (tlog) x[1] = exp(x[1]);
-      
 	for (int k=0; k<n3; k++) {
+
+	  if (cnt++ % numprocs) continue;
+
+	  x[0] = rtmin + dX[0]*i;
+	  if (tlog) x[0] = exp(x[0]);
+      
+	  x[1] = rtmin + dX[1]*j;
+	  if (tlog) x[1] = exp(x[1]);
   
 	  x[2] = rtmin + dX[2]*k;
 	  if (tlog) x[2] = exp(x[2]);
@@ -483,7 +486,13 @@ MakeTable(double rmin, double rmax, int n1, int n2, int n3)
       }
     }
 
+    if (numprocs>1) {
+      MPI_Allreduce(MPI_IN_PLACE, &table[0], 4*ntot, MPI_DOUBLE, MPI_SUM,
+		    MPI_COMM_WORLD);
+    }
+
     write_cache();
+
   }
       
   tmade = true;
@@ -588,6 +597,8 @@ TableEval(vector<double> x, vector<double>& force)
 
 void EllipsoidForce::write_cache()
 {
+  if (myid) return;
+
   const char name[] = "EllipsoidForce::write_cache(): ";
 
   ofstream out(cache_file.c_str());
@@ -622,6 +633,7 @@ void EllipsoidForce::write_cache()
 
 #define ERR1(N, V0, V1)					    \
   {							    \
+    if (myid==0)                                            \
     cerr << "EllipsoidForce::read_cache(): " << N	    \
 	 << "(" << V0 << ") != " << N << "1(" << V1	    \
 	 << "), recomputing and caching the table" << endl; \
@@ -630,6 +642,7 @@ void EllipsoidForce::write_cache()
 
 #define ERR2(N, I, V0, V1)				    \
   {							    \
+    if (myid==0)                                            \
     cerr << "EllipsoidForce::read_cache(): " << N	    \
 	 << "[" << I << "](" << V0 << ") != "		    \
 	 << N << "1[" << I << "](" << V1 << ")"		    \
@@ -643,8 +656,9 @@ bool EllipsoidForce::read_cache()
 
   ifstream in(cache_file.c_str());
   if (!in) {
-    cerr << name << "error opening cache file, "	 
-	 << "file=" << __FILE__ << " line=" << __LINE__ << endl;
+    if (myid==0)
+      cerr << name << "error opening cache file, myid=" <<  myid 
+	   << " file=" << __FILE__ << " line=" << __LINE__ << endl;
     return false;
   }
 

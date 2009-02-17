@@ -213,6 +213,7 @@ void epi2(double r, SphericalModelTable& bulge, CylindricalDisk& disk,
 }
 
 int myid = 0;
+int numprocs = 1;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
@@ -418,6 +419,7 @@ main(int argc, char **argv)
 
   */
 				// Input parameters to system units
+  H    /= Lunit;
   Qm   /= Lunit*Lunit*Munit;
   rhoC /= Munit/(Lunit*Lunit*Lunit);
   rL   /= Lunit;
@@ -538,7 +540,7 @@ main(int argc, char **argv)
   vector<double> mparam;
   mparam.push_back(v_o);
   mparam.push_back(r_o);
-  mparam.push_back(H/Lunit);
+  mparam.push_back(H);
 
   int Lmax = 32, Nmax = 16;
   int numR = 10000;

@@ -406,7 +406,9 @@ int SLGridCyl::read_cached_table(void)
   int MMAX, NMAX, NUMR, NUMK, i, j, CMAP;
   double RMIN, RMAX, L, AA, SCL;
 
-  cerr << "SLGridCyl::read_cached_table: trying to read cached table . . . \n";
+  if (myid==0)
+    cerr << "SLGridCyl::read_cached_table: trying to read cached table . . ."
+	 << endl;
 
   in.read((char *)&MMAX, sizeof(int));		if(!in || MMAX!=mmax) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
@@ -448,7 +450,8 @@ int SLGridCyl::read_cached_table(void)
     }
   }
 
-  cerr << "SLGridCyl::read_cached_table: Success!!\n";
+  if (myid==0)
+    cerr << "SLGridCyl::read_cached_table: Success!!" << endl;
   return 1;
 }
 
