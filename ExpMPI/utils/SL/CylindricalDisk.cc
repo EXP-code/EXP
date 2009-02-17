@@ -11,40 +11,41 @@ CylindricalDisk::~CylindricalDisk()
   delete ortho;
 }
 
-CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
-				 int Nmax, int numR, int numT, int numG,
-				 vector<double> param) :
-  M(0.1), A(0.01), H(0.001) 
+void CylindricalDisk::Initialize(double Rmin, double Rmax, bool logR,
+				 int Nmax, int Lmax,
+				 int numR, int numT, int numG,
+				 vector<double> param)
 {
   if (param.size()) SetParameters(param);
-
-  grid = false;
 
   //
   // First compute spherical model from cylindrical distribution
   //
-  LegeQuad lq(numT);
-  double dRR = (Rmax - 0.3*Rmin)/(numR - 1), cost, sint;
+  LegeQuad lr(numR), lt(numT);
   vector<double> r(numR), d(numR), m(numR,0), p(numR), p2(numR,0);
   vector<double> X(3, 0);
+  double trmin = 0.3*Rmin;
+  double trmax = Rmax;
+    
+  if (logR) {
+    trmin = log(0.3*Rmin);
+    trmax = log(Rmax);
+  }
+
+  double dRR = (trmax - trmin)/(numR - 1), cost, sint;
 
   // Compute density
   for (int i=0; i<numR; i++) {
-    r[i] = 0.3*Rmin + dRR*i;
-    d[i] = 0.0;
-    for (int t=1; t<=numT; t++) {
-      cost = lq.knot(t);
-      sint = sqrt(1.0 - cost*cost);
-      X[0] = sint*r[i];
-      X[2] = cost*r[i];
-      d[i] += lq.weight(t) * Density(X);
-    }
+    r[i] = trmin + dRR*i;
+    if (logR) r[i] = exp(r[i]);
+    d[i] = 0.5*Density(r[i])/r[i];
   }
   
   // Compute mass and potential integral
   for (int i=1; i<numR; i++) {
-    m[i]  = m[i-1]  + 2.0*M_PI*dRR*(r[i]*r[i]*d[i] + r[i-1]*r[i-1]*d[i-1]);
-    p2[i] = p2[i-1] + 2.0*M_PI*dRR*(r[i]*d[i] + r[i-1]*d[i-1]);
+    double dr = r[i] - r[i-1];
+    m[i]  = m[i-1]  + 2.0*M_PI*dr*(r[i]*r[i]*d[i] + r[i-1]*r[i-1]*d[i-1]);
+    p2[i] = p2[i-1] + 2.0*M_PI*dr*(r[i]*d[i] + r[i-1]*d[i-1]);
   }
 
   // Compute potential
@@ -103,13 +104,13 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
   double x, y, z, R;
   Vector vec(1, nmax);
 
-  for (int i=1; i<=numt; i++) {
+  for (int i=1; i<=numr; i++) {
 
-    R = rmin*exp(dRR*lq.knot(i));
+    R = rmin*exp(dRR*lr.knot(i));
     
     for (int k=1; k<=numt; k++) {
 	
-      theta = acos(2.0*(lq.knot(k)-0.5));
+      theta = acos(2.0*(lt.knot(k)-0.5));
 	
       x = X[0] = R * sin(theta);
       y = X[1] = 0.0;
@@ -129,16 +130,21 @@ CylindricalDisk::CylindricalDisk(double Rmin, double Rmax, int Lmax,
 	//
 	ortho->potl(nmax, l, R, vec);
 
-	coefs[l] += 2.0*lq.weight(k) * dRR*R*R*R*lq.weight(i) * 
-	  2.0*M_PI * (0.5*l+0.25)/M_PI * plgndr(l, 0, 2.0*(lq.knot(k)-0.5)) *
+	coefs[l] += 2.0*lt.weight(k) * dRR*R*R*R*lr.weight(i) * 
+	  2.0*M_PI * (0.5*l+0.25)/M_PI * plgndr(l, 0, 2.0*(lt.knot(k)-0.5)) *
 	  rho * vec;
       }
     }
   }
+
+  initialized = true;
 }
 
 void CylindricalDisk::make_grids()
 {
+  if (!initialized) 
+    throw "CylindricalDisk::make_grids(): you must call Initialize(...) before attemping any field evaluations!";
+
   linear = (rmin<=0.0) ? true : false;
   if (linear) {
     rgmin = rmin;

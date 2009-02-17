@@ -7,6 +7,7 @@ ExpMPI/doc/verbose.doc -text
 ExpMPI/exputil/Cheby1d.cc -text
 ExpMPI/exputil/Interp1d.cc -text
 ExpMPI/exputil/ProgramParam.cc -text
+ExpMPI/exputil/toomre.cc -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
@@ -17,6 +18,8 @@ ExpMPI/src/user/UnboundCoefs.H -text
 ExpMPI/src/user/UnboundCoefs.cc -text
 ExpMPI/src/user/UnboundOrbit.H -text
 ExpMPI/src/user/UnboundOrbit.cc -text
+ExpMPI/src/user/UserPST.H -text
+ExpMPI/src/user/UserPST.cc -text
 ExpMPI/src/user/UserReflect.H -text
 ExpMPI/src/user/UserReflect.cc -text
 ExpMPI/src/user/UserRotF.cc -text
@@ -36,8 +39,11 @@ ExpMPI/utils/Analysis/foarray.H -text
 ExpMPI/utils/Analysis/haloprof.cc -text
 ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
+ExpMPI/utils/ICs/EllipsoidForce.H -text
+ExpMPI/utils/ICs/EllipsoidForce.cc -text
 ExpMPI/utils/ICs/Particle.cc -text
 ExpMPI/utils/ICs/bonnerebert.cc -text
+ExpMPI/utils/ICs/pst_model.cc -text
 ExpMPI/utils/SL/CylindricalDisk.H -text
 ExpMPI/utils/SL/CylindricalDisk.cc -text
 ExpMPI/utils/SL/diskpot.cc -text

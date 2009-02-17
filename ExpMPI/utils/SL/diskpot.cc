@@ -11,6 +11,8 @@
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <CylindricalDisk.H>	// The axisymmetric potential solver
 #include <gaussQ.h>		// Gauss-Legendre quadrature
+#include <exponential.h>	// Exponential disk
+#include <toomre.h>		// Toomre disk (including Kuzmin)
 
 //===========================================================================
 
@@ -31,7 +33,8 @@ void usage(char *prog)
        << endl
        << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Turn on MPI for SL computation" << endl << resetiosflags(ios::left)
        << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use mapped rather than linear coordinates" << endl << resetiosflags(ios::left)
-       << setw(15) << "--Mestel" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use the Mestel disk surface density" << endl << resetiosflags(ios::left)
+       << setw(15) << "--Kuzmin" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use the Kuzmin disk surface density" << endl << resetiosflags(ios::left)
+       << setw(15) << "--PST" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use the Kuzmin/R (Piner-Stone-Teuben) disk surface density" << endl << resetiosflags(ios::left)
        << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Dump coefficients, if desired" << endl << resetiosflags(ios::left)
        << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number of points in radial table" << endl << resetiosflags(ios::left)
        << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Lmax (spherical harmonic expansion)" << endl << resetiosflags(ios::left)
@@ -57,16 +60,17 @@ main(int argc, char** argv)
 {
 				// Default values defined here
   bool use_mpi = false;
-  bool Mestel = false;
-  bool dump = false;
-  int cmap = 0;
+  bool Kuzmin  = false;
+  bool PST     = false;
+  bool dump    = false;
+  int cmap     = 0;
   double scale = 1.0;
 
   int Lmax=16, Nmax=10;
   int numr=10000;
   double rmin=0.0001, rmax=1.0;
   double delr=0.01, xmax=1.0, zmax=0.1;
-  int numx=100, numz=100, numt = 400, numg = 100;
+  int numx=100, numz=100, numt=1000, numg= 100;
 
   string outfile = "diskpot";
 
@@ -77,7 +81,8 @@ main(int argc, char** argv)
     static struct option long_options[] = {
       {"mpi", 0, 0, 0},		// Turn on MPI for SL computation
       {"cmap", 0, 0, 0},	// Use mapped rather than linear coordinates
-      {"Mestel", 0, 0, 0},	// Use a Mestel rather than Exponential disk
+      {"Kuzmin", 0, 0, 0},	// Use a Kuzmin rather than Exponential disk
+      {"PST", 0, 0, 0},	        // Use a Kuzmin/R rather than Exponential disk
       {"coefs", 0, 0, 0},	// Dump coefficients, if desired
       {"numr", 1, 0, 0},	// Number of points in radial table
       {"lmax", 1, 0, 0},	// Lmax (spherical harmonic expansion)
@@ -110,8 +115,10 @@ main(int argc, char** argv)
 	  use_mpi = true;
 	} else if (!optname.compare("cmap")) {
 	  cmap = 1;
-	} else if (!optname.compare("Mestel")) {
-	  Mestel = true;
+	} else if (!optname.compare("Kuzmin")) {
+	  Kuzmin = true;
+	} else if (!optname.compare("PST")) {
+	  PST = true;
 	} else if (!optname.compare("coefs")) {
 	  dump = true;
 	} else if (!optname.compare("numr")) {
@@ -187,18 +194,25 @@ main(int argc, char** argv)
   vector<double> param(3);
   CylindricalDisk *disk;
 
-  if (Mestel) {
-    param[0] = 1.0;
-    param[1] = 0.01;
-    param[2] = 0.001;
-    disk = new MestelDisk(rmin, rmax, Nmax, Lmax, numr, numt, numg, param);
+  if (Kuzmin || PST) {
+    param[0] = 1.0;		// Velocity scale
+    param[1] = 0.01;		// Scale length
+    param[2] = 0.001;		// Scale height
+    
+    if (Kuzmin)
+      disk = new KuzminDisk;
+    else
+      disk = new PSTDisk;
+
   } else {
-    param[0] = 0.1;
-    param[1] = 0.01;
-    param[2] = 0.001;
-    disk = new CylindricalDisk(rmin, rmax, Nmax, Lmax, numr, numt, numg, param);
+    param[0] = 0.1;		// Disk mass
+    param[1] = 0.01;		// Scale length
+    param[2] = 0.001;		// Scale height
+
+    disk = new CylindricalDisk;
   }
 
+  disk->Initialize(rmin, rmax, true, Nmax, Lmax, numr, numt, numg, param);
 
   //=====================
   // Print the expansion
@@ -207,16 +221,16 @@ main(int argc, char** argv)
   double x, dx = 2.0*xmax/(numx-1);
   double z, dz = 2.0*zmax/(numz-1);
   
-  const int nfiles = 3;
+  const int nfiles = 4;
   ofstream *out = new ofstream [nfiles];
-  string suffix[nfiles] = {".potl", ".dens", ".force"};
+  string suffix[nfiles] = {".potl", ".dens", ".force", ".force0"};
   for (int i=0; i<nfiles; i++) {
     string ostr(outfile);
     ostr += suffix[i];
     out[i].open(ostr.c_str());
   }
       
-  double fx, fz, fx1, fz1;
+  double fx, fz, fx1, fz1, mf;
   double dfx, dfz;
   const double frac = 0.03;
 
@@ -226,7 +240,7 @@ main(int argc, char** argv)
     for (int i=0; i<numx; i++) {
       x = -xmax + dx*i;
       
-      for (int k=0; k<nfiles; k++) out[k] << setw(16) << x << setw(16) << z;
+      for (int k=0; k<nfiles-1; k++) out[k] << setw(16) << x << setw(16) << z;
       out[0] << setw(16) << disk->potential_eval(x, 0.0, z);
       out[1] << setw(16) << disk->density_eval(x, 0.0, z);
 
@@ -270,9 +284,58 @@ main(int argc, char** argv)
       out[2] << setw(16) << fx << setw(16) << fz
 	     << setw(16) << fx - fx1 << setw(16) << fz - fz1;
 
-      for (int k=0; k<nfiles; k++) out[k] << endl;
+      for (int k=0; k<nfiles-1; k++) out[k] << endl;
     }
-    for (int k=0; k<nfiles; k++) out[k] << endl;
+    for (int k=0; k<nfiles-1; k++) out[k] << endl;
+  }
+  
+  
+  AxiSymModel *edisk;
+  double A, mass;
+
+  if (Kuzmin) {
+    edisk = new ToomreDisk();
+    A = param[1];
+    mass = param[0]*param[0];
+  } else {
+    edisk = new ExponentialDisk(param[1]);
+    A = param[1];
+    mass = param[0];
+  }
+
+  for (int i=0; i<numx; i++) {
+
+    x = -xmax + dx*i;
+      
+    //
+    // Set the derivative mesh spacing
+    //
+    dfx = max<double>(1.0e-5, x*frac);
+
+    fx = -(
+	   -disk->potential_eval(x+2.0*dfx, 0.0, 0.0)
+	   +8.0*disk->potential_eval(x+dfx, 0.0, 0.0)
+	   -8.0*disk->potential_eval(x-dfx, 0.0, 0.0)
+	   +disk->potential_eval(x-2.0*dfx, 0.0, 0.0)
+	   )/(12.0*dfx);
+
+    disk->force_eval(x, 0.0, 0.0, fx1, fz1);
+    if (x<0.0) fx1 *= -1.0;
+
+    // Force from 2-d model
+    double xx = fabs(x);
+    double y = xx/A;
+    
+    out[3] << setw(16) << x << setw(16) << fx
+	   << setw(16) << fx - fx1;
+    
+    if (Kuzmin) {
+      out[3] << setw(16) << -mass/A*edisk->get_dpot(y)*y/x;
+    } else if (!PST) {
+      out[3] << setw(16) << -mass*edisk->get_dpot(xx)*x/(xx+1.0e-10);
+    }
+    out[3] << endl;
+
   }
   
   if (dump) {

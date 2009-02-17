@@ -39,7 +39,7 @@ SPECFUNC_SRC = gammln.cc bessel.cc OrthoPoly.cc CauchyPV.cc # modbessel.cc
 INTERP_SRC = Spline.cc Splint.cc SplintE.cc Vodd2.cc Vlocate.cc levsurf.cc \
 	ChebFit.cc Interp1d.cc Cheby1d.cc
 MASSMODEL_SRC = massmodel.cc massmodel_dist.cc embedded.cc isothermal.cc \
-        realize_model.cc
+        realize_model.cc toomre.cc
 ORBIT_SRC = orbit.cc orbit_trans.cc FindOrb.cc
 BIORTH_SRC = biorth_wake.cc biorth.cc biorth2d.cc biorth_grid.cc \
 	sbessz.cc ultra.cc jnsph.cc bessz.cc sphereSL.cc biorth1d.cc \

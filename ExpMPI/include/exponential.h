@@ -27,13 +27,16 @@ private:
 
 public:
 
-  ExponentialDisk(double RSCALE=1.0, double RMAX=20.0) { a=RSCALE; 
-						   rmin = 1.0e-10;
-						   rmax = RMAX;
-						   den0 = 0.5/M_PI/a/a;
-						   dist_defined = false;
-						   dim = 2;
-						   ModelID = "ExponentialDisk"; }
+  ExponentialDisk(double RSCALE=1.0, double RMAX=20.0) 
+  { 
+    a       = RSCALE; 
+    rmin    = 1.0e-10;
+    rmax    = RMAX;
+    den0    = 0.5/M_PI/a/a;
+    dist_defined = false;
+    dim     = 2;
+    ModelID = "ExponentialDisk"; 
+  }
       
 
   // Required member functions

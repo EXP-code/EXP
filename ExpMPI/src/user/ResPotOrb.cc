@@ -74,14 +74,14 @@ AxiSymModel *hmod;
 
 // Circular orbit
 //
-static double get_rc(double r, double J)
+static double get_rc(double r, double& J)
 {
   return J*J - hmod->get_mass(r)*r;
 }
 
 // Turning points
 //
-static double adj_r(double r, vector<double> p)
+static double adj_r(double r, vector<double>& p)
 {
   return p[1] - 0.5*p[0]*p[0]/(r*r) - hmod->get_pot(r);
 }

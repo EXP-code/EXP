@@ -15,7 +15,7 @@ enum ZBrentReturn {
 template <class T>
 class ZBrent 
 {
-  typedef double (*func_T)(double, T);
+  typedef double (*func_T)(double, T&);
 
 public:
   static int ITMAX;

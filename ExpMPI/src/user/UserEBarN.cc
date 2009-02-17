@@ -261,7 +261,7 @@ void UserEBarN::initialize()
 
 vector<double> a(3);
 
-double find_fct(double u, vector<double> z)
+double find_fct(double u, vector<double>& z)
 {
   double ans = -1.0;
   for (int k=0; k<3; k++) ans += z[k]*z[k]/(a[k]*a[k] + u);

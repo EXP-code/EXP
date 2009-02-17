@@ -38,7 +38,9 @@ private:
   double M;
   double A;
   double H;
-  double norm;
+  double norm, normS;
+
+protected:
 
   SphericalModelTable *model;
   SLSphere *ortho;
@@ -55,16 +57,22 @@ private:
   vector<int> indx;
   vector<double> aint;
   bool grid, linear;
+  bool initialized;
 
 public:
 
   /// Constructor
-  CylindricalDisk(double rmin, double rmax, 
-		  int nmax, int lmax, int numr, int numt, int numg,
-		  vector<double> param);
+  CylindricalDisk() : M(0.1), A(0.01), H(0.001), 
+		      normS(M/(2.0*M_PI*A*A)), norm(normS/(2.0*H)),
+		      grid(false), initialized(false) {}
 
   /// Destructor
-  ~CylindricalDisk();
+  virtual ~CylindricalDisk();
+
+  /// Compute the force grid
+  void Initialize(double rmin, double rmax, bool logr,
+		  int nmax, int lmax, int numr, int numt, int numg,
+		  vector<double> param);
 
   /// Evaluation of density profile
   double density_eval(double x, double y, double z);
@@ -81,24 +89,31 @@ public:
   /// Dump coefficients
   void dump_coefficients(string filename);
 
-  /// The disk density
+  /// The disk volume density
   virtual double Density(vector<double>& x)
   {
-    
     double z = 1.0/cosh(x[2]/H);
     double R = sqrt(x[0]*x[0]+x[1]*x[1]);
-    return exp(-R/A)*z*z/norm;
+    return norm * exp(-R/A)*z*z;
+  }
+
+  /// The disk surface density
+  virtual double Density(double r)
+  {
+    return normS * exp(-r/A);
   }
 
   /// For setting the disk parameters
   virtual void SetParameters(vector<double>& p) 
   {
     if (p.size()<3) 
-      throw "DiskDensityProfile: parameter vector size must be >=3";
-    M = p[0];
-    A = p[1];
-    H = p[2];
-    norm = 4.0*M_PI*A*A*H/M;
+      throw "CylindricalDisk: parameter vector size must be >=3";
+
+    M     = p[0];
+    A     = p[1];
+    H     = p[2];
+    normS = M/(2.0*M_PI*A*A);
+    norm  = normS/(2.0*H);
   }
 
 };
@@ -106,23 +121,17 @@ public:
 
 /**
    Class to compute multipole profiles for a cylindrical disk
-   with an Mestel surface density and sech^2 vertical density
+   with an Kuzmin surface density and sech^2 vertical density
 */
-class MestelDisk : public CylindricalDisk
+class KuzminDisk : public CylindricalDisk
 {
 private:
-  double V, A, H, norm;
+  double V, A, H, norm, normS;
 
 public:
 
-  MestelDisk(double rmin, double rmax, 
-	     int nmax, int lmax, int numr, int numt, int numg,
-	     vector<double> param) :
-    V(1.0), A(0.01), H(0.001), 
-    CylindricalDisk(rmin, rmax, nmax, lmax, numr, numt, numg, param)
-  {
-    norm = V*V/(4.0*M_PI*H);
-  }
+  KuzminDisk() : V(1.0), A(0.01), H(0.001), 
+		 normS(V*V/(2.0*M_PI*A)), norm(normS/(2.0*H)) {}
 
   virtual double Density(vector<double>& x)
   {
@@ -131,14 +140,22 @@ public:
     return norm*pow(1.0 + R*R, -1.5)*z*z;
   }
 
+  virtual double Density(double r)
+  {
+    double R = r/A;
+    return normS*pow(1.0 + R*R, -1.5);
+  }
+
   virtual void SetParameters(vector<double>& p) 
   {
     if (p.size()<3) 
-      throw "MestelDisk: parameter vector size must be >=3";
-    V = p[0];
-    A = p[1];
-    H = p[2];
-    norm = V*V/(4.0*M_PI*H);
+      throw "KuzminDisk: parameter vector size must be >=3";
+
+    V     = p[0];
+    A     = p[1];
+    H     = p[2];
+    normS = V*V/(2.0*M_PI*A);
+    norm  = normS/(2.0*H);
   }
 
 };

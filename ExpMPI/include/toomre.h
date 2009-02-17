@@ -30,11 +30,12 @@ private:
 
 public:
 
-  inline ToomreDisk(int M=0, double RMAX=1.0e6) { m = M+1.0e-10;
-					   rmax = RMAX;
-					   dist_defined = true;
-					   dim = 2;
-					   ModelID = "ToomreDisk"; }
+  inline ToomreDisk(int M=0, double RMAX=1.0e6) { 
+    m = M+1.0e-10;
+    rmax = RMAX;
+    dist_defined = true;
+    dim = 2;
+    ModelID = "ToomreDisk"; }
       
 
   // Required member functions
@@ -70,7 +71,5 @@ public:
   double d2fde2(double E, double L);
 
 };
-
-
 
 #endif

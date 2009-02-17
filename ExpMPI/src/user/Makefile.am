@@ -13,7 +13,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
 	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la \
-	libreflect.la libsatwake.la
+	libreflect.la libsatwake.la libpst.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -26,7 +26,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 	UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H \
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H \
 	UserBar.H UserHalo.H HeatCool.H UserDSMC.H UserLogPot.H \
-	UserDiffRot.H UserRPtest.H UserAtmos.H UserReflect.H
+	UserDiffRot.H UserRPtest.H UserAtmos.H UserReflect.H UserPST.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc \
@@ -107,3 +107,17 @@ libreflect_la_SOURCES = UserReflect.cc
 libsatwake_la_SOURCES = UserSatWake.cc invsvd.cc
 libsatwake_la_LIBADD = libswake.a libcommon.a -llapack-3 -lblas-3
 
+libpst_la_SOURCES = UserPST.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
+libpst_la_CXXFLAGS = -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs
+libpst_la_LIBADD = libcommon.a
+
+CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
+			cp $(top_srcdir)/utils/SL/$@ .
+
+SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
+			cp $(top_srcdir)/utils/SL/$@ .
+
+EllipsoidForce.cc:	$(top_srcdir)/utils/ICs/EllipsoidForce.cc
+			cp $(top_srcdir)/utils/ICs/$@ .
+
+CLEANFILES = 	CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc

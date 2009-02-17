@@ -12,7 +12,7 @@ endif
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
+INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL
 
 COMMON_LIBS = -lexputil -lexpgnu
 SYS_LIBS = -L -L/usr/lib/gcc/i486-linux-gnu/4.0.1 -lstdc++ -lpthread -ldl
@@ -24,7 +24,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere
+bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -42,13 +42,22 @@ gendisk2_LDADD = $(EXPLIBS)
 gsphere_SOURCES = bonnerebert.cc
 gsphere_LDADD = $(EXPLIBS)
 
-EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
-	cp $(top_srcdir)/src/$@ .
+pstmod_SOURCES = pst_model.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
+pstmod_LDADD = $(EXPLIBS)
 
-localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
-	cp $(top_srcdir)/exputil/$@ .
+CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
+			cp $(top_srcdir)/utils/SL/$@ .
 
-CLEANFILES = 	EmpOrth9thd.cc localmpi.cc
+SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
+			cp $(top_srcdir)/utils/SL/$@ .
+
+EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc
+			cp $(top_srcdir)/src/$@ .
+
+localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
+			cp $(top_srcdir)/exputil/$@ .
+
+CLEANFILES = 	EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc SLSphere.cc
 
 ## utils/ICs/Makefile.am ends here
 
