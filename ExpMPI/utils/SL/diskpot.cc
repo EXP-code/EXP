@@ -34,7 +34,6 @@ void usage(char *prog)
        << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Turn on MPI for SL computation" << endl << resetiosflags(ios::left)
        << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use mapped rather than linear coordinates" << endl << resetiosflags(ios::left)
        << setw(15) << "--Kuzmin" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use the Kuzmin disk surface density" << endl << resetiosflags(ios::left)
-       << setw(15) << "--PST" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use the Kuzmin/R (Piner-Stone-Teuben) disk surface density" << endl << resetiosflags(ios::left)
        << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Dump coefficients, if desired" << endl << resetiosflags(ios::left)
        << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number of points in radial table" << endl << resetiosflags(ios::left)
        << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Lmax (spherical harmonic expansion)" << endl << resetiosflags(ios::left)
@@ -61,7 +60,6 @@ main(int argc, char** argv)
 				// Default values defined here
   bool use_mpi = false;
   bool Kuzmin  = false;
-  bool PST     = false;
   bool dump    = false;
   int cmap     = 0;
   double scale = 1.0;
@@ -82,7 +80,6 @@ main(int argc, char** argv)
       {"mpi", 0, 0, 0},		// Turn on MPI for SL computation
       {"cmap", 0, 0, 0},	// Use mapped rather than linear coordinates
       {"Kuzmin", 0, 0, 0},	// Use a Kuzmin rather than Exponential disk
-      {"PST", 0, 0, 0},	        // Use a Kuzmin/R rather than Exponential disk
       {"coefs", 0, 0, 0},	// Dump coefficients, if desired
       {"numr", 1, 0, 0},	// Number of points in radial table
       {"lmax", 1, 0, 0},	// Lmax (spherical harmonic expansion)
@@ -117,8 +114,6 @@ main(int argc, char** argv)
 	  cmap = 1;
 	} else if (!optname.compare("Kuzmin")) {
 	  Kuzmin = true;
-	} else if (!optname.compare("PST")) {
-	  PST = true;
 	} else if (!optname.compare("coefs")) {
 	  dump = true;
 	} else if (!optname.compare("numr")) {
@@ -194,15 +189,12 @@ main(int argc, char** argv)
   vector<double> param(3);
   CylindricalDisk *disk;
 
-  if (Kuzmin || PST) {
+  if (Kuzmin) {
     param[0] = 1.0;		// Velocity scale
     param[1] = 0.01;		// Scale length
     param[2] = 0.001;		// Scale height
     
-    if (Kuzmin)
-      disk = new KuzminDisk;
-    else
-      disk = new PSTDisk;
+    disk = new KuzminDisk;
 
   } else {
     param[0] = 0.1;		// Disk mass
@@ -331,7 +323,7 @@ main(int argc, char** argv)
     
     if (Kuzmin) {
       out[3] << setw(16) << -mass/A*edisk->get_dpot(y)*y/x;
-    } else if (!PST) {
+    } else {
       out[3] << setw(16) << -mass*edisk->get_dpot(xx)*x/(xx+1.0e-10);
     }
     out[3] << endl;
