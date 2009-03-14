@@ -7,6 +7,9 @@
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
+
+#include <stdlib.h>
+#include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -86,44 +89,77 @@ void initialize(void)
   if (parse->find_item("parmfile", val))	parmfile = val;
   if (parse->find_item("ratefile", val))	ratefile = val;
   if (parse->find_item("runtag", val))		runtag = val;
+
   if (parse->find_item("outdir", val)) {
-    struct stat sbuf;
-    if (stat(val.c_str(), &sbuf) == -1) {
-      if (myid==0) {
-	cerr << "parse: error opening directory <" << val 
+    bool ok = true;
+				// Root node with check existence and try
+				// to create directory if need be . . .
+    if (myid == 0) {
+      struct stat sb;		// Stat buffer structure
+      if (stat(val.c_str(), &sb) == -1) {
+				// Error in opening the candidate directory
+	cout << "parse: error opening directory <" << val 
 	     << ">, will attempt creation" << endl;
+				// Maybe we need to create it?
 	if (mkdir(val.c_str(), 0755) == -1) {
-	  cerr << "parse: error creating directory <" << val 
+	  cout << "parse: error creating directory <" << val 
 	       << ">, aborting" << endl;
 	  perror("mkdir");
 	  MPI_Abort(MPI_COMM_WORLD, 10);
 	  exit(EXIT_SUCCESS);
 	}
+      } else {
+	cout << "parse: output path <" << val << "> is "; // 
+	switch (sb.st_mode & S_IFMT) {
+	case S_IFBLK:  cout << "a block device";     ok=false;  break;
+	case S_IFCHR:  cout << "a character device"; ok=false;  break;
+	case S_IFDIR:  cout << "a directory";        ok=true;   break;
+	case S_IFIFO:  cout << "a FIFO/pipe";        ok=false;  break;
+	case S_IFLNK:  cout << "a symlink";          ok=false;  break;
+	case S_IFREG:  cout << "a regular file";     ok=false;  break;
+	case S_IFSOCK: cout << "a socket";           ok=false;  break;
+	default:       cout << "an unknown type";    ok=false;  break;
+	}
+	if (ok) cout << " . . . good"     << endl;
+	else    cout << " . . . very bad" << endl;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
     }
-    if (myid==0) cout << "parse: output path <" << val << "> is a "; // 
-    bool ok = true;
-    switch (sbuf.st_mode & S_IFMT) {
-    case S_IFBLK:  if (myid==0) cout << "block device";      ok=false;  break;
-    case S_IFCHR:  if (myid==0) cout << "character device";  ok=false;  break;
-    case S_IFDIR:  if (myid==0) cout << "directory";         ok=true;   break;
-    case S_IFIFO:  if (myid==0) cout << "FIFO/pipe";         ok=false;  break;
-    case S_IFLNK:  if (myid==0) cout << "symlink";           ok=true;   break;
-    case S_IFREG:  if (myid==0) cout << "regular file";      ok=false;  break;
-    case S_IFSOCK: if (myid==0) cout << "socket";            ok=false;  break;
-    default:       if (myid==0) cout << "unknown?";          ok=false;  break;
-    }
-    if (myid==0) {
-      if (ok) cout << " . . . good";
-      else    cout << " . . . we don't know how to open files in this path";
+
+    MPI_Barrier(MPI_COMM_WORLD);
+				// Append "/" if necessary
+    if (val[val.size()-1] != '/') val += "/";
+    
+    ostringstream tfile;
+    if (myid==0 && ok) {	// Try to open a file in this path
+      tfile << val << ".test.file." << rand();
+
+      if (mknod(tfile.str().c_str(),  S_IFREG | 0666, 0)==-1) {
+				// If the file exists, ok, otherwise NOT ok
+	if (errno != EEXIST) ok = false;
+      }
+				// Clean up
+      unlink(tfile.str().c_str()); 
+
+				// Print results to output log
+      cout << "parse: ";
+      if (ok) 
+	cout << "test file opened and deleted in output directory, good!";
+      else    
+	cout << "we can't open files in this path, attempted to create: " 
+	     << tfile.str();
       cout << endl;
     }
+
+				// Send directory status to all processes
+    int iok = static_cast<int>(ok);
+    MPI_Bcast(&iok, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
     if (!ok) {
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(255);
     }
-    if (val[val.size()-1] != '/') val += '/';
+
+				// Ok, we have an output directory!
     outdir = val;
   }
 
