@@ -406,8 +406,7 @@ bool EllipsoidForce::quadpot(double r, double& f, double& fr, double& M)
 }
 
 
-void EllipsoidForce::
-MakeTable(double rmin, double rmax, int n1, int n2, int n3)
+void EllipsoidForce::MakeTable(int n1, int n2, int n3)
 {
   if (tmade) return;
 

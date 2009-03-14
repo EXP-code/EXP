@@ -257,7 +257,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 
   if (myid==0 && VERBOSE > 5) {
 
-    ofstream out("bulgemod.dat");
+    ofstream out(string(outdir + "bulgemod.dat").c_str());
     for (int i=0; i<numr; i++) 
       out << setw(16) << rr[i]
 	  << setw(16) << dd[i]
@@ -284,7 +284,7 @@ UserPST::UserPST(string &line) : ExternalForce(line)
 
   if (myid==0 && VERBOSE>5) cout << "Bar created" << endl;
   if (myid==0 && VERBOSE>5) cout << "Table creation . . . " << flush;
-  bar->MakeTable(rmin, rmax, numT, numT, numT);
+  bar->MakeTable(numT, numT, numT);
   if (myid==0 && VERBOSE>5) cout << "done" << endl;
 
   //
@@ -444,8 +444,8 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
       //
       // Rotation for bar force
       //
-      pos1[0] = xx*cosp + yy*sinp;
-      pos1[1] = xx*sinp - yy*cosp;
+      pos1[0] =  xx*cosp + yy*sinp;
+      pos1[1] = -xx*sinp + yy*cosp;
       pos1[2] = zz;
 
       bar->TableEval(pos1, force);

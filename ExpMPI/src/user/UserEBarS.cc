@@ -76,10 +76,10 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
 
   if (table_name.size()>0) {
 				// Read in data
-    ifstream in(table_name.c_str());
+    ifstream in(string(outdir+table_name).c_str());
     if (!in) {
       cerr << "Process " << myid << ": error opening quadrupole file <"
-	   << table_name << ">" << endl;
+	   << outdir + table_name << ">" << endl;
       MPI_Abort(MPI_COMM_WORLD, 35);
     }
     
@@ -341,7 +341,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
       cout << "====================================================\n" 
 	   << flush;
 
-      name = filename;
+      name = outdir + filename;
       name += ".barstat";
 
       if (!restart) {
@@ -386,16 +386,16 @@ void UserEBarS::determine_acceleration_and_potential(void)
       if (myid == 0) {
 	
 	// Backup up old file
-	string backupfile = name + ".bak";
+	string backupfile = outdir + name + ".bak";
 	string command("cp ");
-	command += name + " " + backupfile;
+	command += outdir + name + " " + backupfile;
 	system(command.c_str());
 
 	// Open new output stream for writing
-	ofstream out(name.c_str());
+	ofstream out(string(outdir+name).c_str());
 	if (!out) {
 	  cout << "UserEBarS: error opening new log file <" 
-	       << filename << "> for writing\n";
+	       << outdir + name << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -554,7 +554,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
     if (myid==0) 
       {
-	ofstream out(name.c_str(), ios::out | ios::app);
+	ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
 	out.setf(ios::scientific);
 
 	out << setw(15) << tnow

@@ -608,7 +608,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
     if (myid==0) {
 
       if (VERBOSE>3) {
-	string name = "UserEBarN." + runtag + ".debug";
+	string name = outdir + "UserEBarN." + runtag + ".debug";
 	ofstream out(name.c_str());
 
 	out << "# a1, a2, a3=" << a[0] << ", " << a[1] << ", " << a[2] << endl;
@@ -638,7 +638,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
       cout << "Omega(0)=" << omega0 << endl;
       cout << "====================================================\n";
       
-      name = filename;
+      name = outdir + filename;
       name += ".barstat";
 
       if (!restart) {
@@ -682,16 +682,16 @@ void UserEBarN::determine_acceleration_and_potential(void)
       if (myid == 0) {
 	
 	// Backup up old file
-	string backupfile = name + ".bak";
+	string backupfile = outdir + name + ".bak";
 	string command("cp ");
-	command += name + " " + backupfile;
+	command += outdir + name + " " + backupfile;
 	system(command.c_str());
 
 	// Open new output stream for writing
-	ofstream out(name.c_str());
+	ofstream out(string(outdir+name).c_str());
 	if (!out) {
 	  cout << "UserEBarN: error opening new log file <" 
-	       << filename << "> for writing\n";
+	       << outdir+name << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -824,7 +824,7 @@ void UserEBarN::determine_acceleration_and_potential(void)
 
   if (myid==0 && update) 
     {
-      ofstream out(name.c_str(), ios::out | ios::app);
+      ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
       out << setw(15) << tnow

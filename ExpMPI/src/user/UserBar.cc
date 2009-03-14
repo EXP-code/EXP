@@ -233,7 +233,7 @@ void UserBar::determine_acceleration_and_potential(void)
       cout << "====================================================\n" 
 	   << flush;
 
-      name = filename;
+      name = outdir + filename;
       name += ".barstat";
 
       if (!restart) {
@@ -266,16 +266,16 @@ void UserBar::determine_acceleration_and_potential(void)
       if (myid == 0) {
 	
 	// Backup up old file
-	string backupfile = name + ".bak";
+	string backupfile = outdir + name + ".bak";
 	string command("cp ");
-	command += name + " " + backupfile;
+	command += outdir + name + " " + backupfile;
 	system(command.c_str());
 
 	// Open new output stream for writing
-	ofstream out(name.c_str());
+	ofstream out(string(outdir+name).c_str());
 	if (!out) {
 	  cout << "UserEBar: error opening new log file <" 
-	       << filename << "> for writing\n";
+	       << outdir + name << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -357,7 +357,7 @@ void UserBar::determine_acceleration_and_potential(void)
 
   if (myid==0 && update) 
     {
-      ofstream out(name.c_str(), ios::out | ios::app);
+      ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
       out << setw(15) << tnow

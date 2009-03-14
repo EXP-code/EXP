@@ -7,6 +7,8 @@
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <getopt.h>
 
@@ -83,8 +85,47 @@ void initialize(void)
   if (parse->find_item("infile", val))		infile = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
   if (parse->find_item("ratefile", val))	ratefile = val;
-  if (parse->find_item("outdir", val))		outdir = val;
   if (parse->find_item("runtag", val))		runtag = val;
+  if (parse->find_item("outdir", val)) {
+    struct stat sbuf;
+    if (stat(val.c_str(), &sbuf) == -1) {
+      if (myid==0) {
+	cerr << "parse: error opening directory <" << val 
+	     << ">, will attempt creation" << endl;
+	if (mkdir(val.c_str(), 0755) == -1) {
+	  cerr << "parse: error creating directory <" << val 
+	       << ">, aborting" << endl;
+	  perror("mkdir");
+	  MPI_Abort(MPI_COMM_WORLD, 10);
+	  exit(EXIT_SUCCESS);
+	}
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+    if (myid==0) cout << "parse: output path <" << val << "> is a "; // 
+    bool ok = true;
+    switch (sbuf.st_mode & S_IFMT) {
+    case S_IFBLK:  if (myid==0) cout << "block device";      ok=false;  break;
+    case S_IFCHR:  if (myid==0) cout << "character device";  ok=false;  break;
+    case S_IFDIR:  if (myid==0) cout << "directory";         ok=true;   break;
+    case S_IFIFO:  if (myid==0) cout << "FIFO/pipe";         ok=false;  break;
+    case S_IFLNK:  if (myid==0) cout << "symlink";           ok=true;   break;
+    case S_IFREG:  if (myid==0) cout << "regular file";      ok=false;  break;
+    case S_IFSOCK: if (myid==0) cout << "socket";            ok=false;  break;
+    default:       if (myid==0) cout << "unknown?";          ok=false;  break;
+    }
+    if (myid==0) {
+      if (ok) cout << " . . . good";
+      else    cout << " . . . we don't know how to open files in this path";
+      cout << endl;
+    }
+    if (!ok) {
+      MPI_Abort(MPI_COMM_WORLD, 11);
+      exit(255);
+    }
+    if (val[val.size()-1] != '/') val += '/';
+    outdir = val;
+  }
 
 }
 

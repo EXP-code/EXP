@@ -103,7 +103,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
 
   if (orbit && myid==0) {
     ostringstream sout;
-    sout << "UserSat." << runtag << "." << ++instances;
+    sout << outdir << "UserSat." << runtag << "." << ++instances;
     orbfile = sout.str();
     ofstream out (orbfile.c_str());
     out << left << setfill('-')
@@ -248,7 +248,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
   if (orbit && myid==0 && id==0 && tnow>tlast) {
-    ofstream out (orbfile.c_str(), ios::app);
+    ofstream out (string(outdir+orbfile).c_str(), ios::app);
     out << setw(15) << tnow;
     for (int k=0; k<3; k++) out << setw(15) << rs[k];
     out << endl;

@@ -183,16 +183,17 @@ void UserRotF::determine_acceleration_and_potential(void)
       if (myid==0) {
 
 	// Backup up old file
-	string backupfile = name + ".bak";
+	string curfile = outdir + name;
+	string backupfile = curfile + ".bak";
 	string command("cp ");
-	command += name + " " + backupfile;
+	command += curfile + " " + backupfile;
 	system(command.c_str());
 
 	// Open new output stream for writing
-	ofstream out(name.c_str());
+	ofstream out(curfile.c_str());
 	if (!out) {
 	  cout << "UserRotF: error opening new log file <"
-	       << filename << "> for writing\n";
+	       << curfile << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -232,7 +233,7 @@ void UserRotF::determine_acceleration_and_potential(void)
       firstime=false;
     } else {
       if(myid == 0) {
-        ofstream out(name.c_str(), ios::out | ios::app);
+        ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
 
         out << setw(15) << "# Time"
             << setw(15) << "Tidal radius"
@@ -318,7 +319,7 @@ void UserRotF::determine_acceleration_and_potential(void)
       }
 
       // Write onto Tidal output
-      ofstream out(name.c_str(), ios::out | ios::app);
+      ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
       out << setw(15) << tnow

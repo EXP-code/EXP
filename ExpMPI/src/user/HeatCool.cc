@@ -13,6 +13,7 @@ using namespace std;
 #include <limits.h>
 #include <assert.h>
 
+#include "global.H"
 #include "HeatCool.H"
 
 //
@@ -748,9 +749,9 @@ bool HeatCool::readCache()
 {
   if (Cache.size()==0) return false;
 
-  ifstream in(Cache.c_str());
+  ifstream in((outdir + Cache).c_str());
   if (!in) {
-    cerr << "HeatCool::readCache: could not open <" << Cache << ">"
+    cerr << "HeatCool::readCache: could not open <" << outdir + Cache << ">"
 	 << endl;
     return false;
   }
@@ -814,9 +815,9 @@ void HeatCool::writeCache()
 {
   if (Cache.size()==0) return;
 
-  ofstream out(Cache.c_str());
+  ofstream out(string(outdir + Cache).c_str());
   if (!out) {
-    cerr << "HeatCool::writeCache: could not open <" << Cache << ">"
+    cerr << "HeatCool::writeCache: could not open <" << outdir + Cache << ">"
 	 << endl;
     return;
   }

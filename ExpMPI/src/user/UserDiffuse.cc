@@ -517,7 +517,7 @@ void UserDiffuse::compute_diffuse()
 
   ofstream *out = NULL;
   if (myid==0) {
-    string outfile = "diffusion.grid" + runtag;
+    string outfile = outdir + "diffusion.grid" + runtag;
     out = new ofstream(outfile.c_str());
 
     out->setf(ios::left);

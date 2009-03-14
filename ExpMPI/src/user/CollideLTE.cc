@@ -208,7 +208,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     cell->MeanPos(pos);
 
     ostringstream sout;
-    sout << "CollideLTE_diag." << runtag << "." << id << "." << myid;
+    sout << outdir << "CollideLTE_diag." << runtag << "." << id << "." << myid;
     ofstream out(sout.str().c_str(), ios::app);
     out << setw(16) << tnow
 	<< setw(16) << T
@@ -466,7 +466,7 @@ void CollideLTE::Debug(double t)
       }
     }
     
-    ofstream out("collideL.debug", ios::app);
+    ofstream out(string(outdir + "collideL.debug").c_str(), ios::app);
     double avg=0.0, disp=0.0;
     if (cellcnt0>0) avg  = avgT0/cellcnt0;
     if (cellcnt0>1) disp = sqrt((dispT0 - avgT0*avgT0/cellcnt0)/(cellcnt0-1));
@@ -485,7 +485,7 @@ void CollideLTE::Debug(double t)
 
     double cum = 0.0;
 
-    ofstream out2("collideH.thisto", ios::app);
+    ofstream out2(string(outdir + "collideH.thisto").c_str(), ios::app);
     for (unsigned n=0; n<numt; n++) {
       cum += thist20[n];
       out2 << setw(18) << t
@@ -496,7 +496,7 @@ void CollideLTE::Debug(double t)
     }
     out2 << endl;
 
-    ofstream out3("collideH.nhisto", ios::app);
+    ofstream out3(string(outdir + "collideH.nhisto").c_str(), ios::app);
     cum = 0.0;
     for (unsigned n=0; n<numn; n++) {
       cum += nhist20[n];
@@ -510,7 +510,7 @@ void CollideLTE::Debug(double t)
 
     if ( (trhocnt % 10) == 0) {
       ostringstream sout;
-      sout << "collideH.trho." << trhocnt;
+      sout << outdir << "collideH.trho." << trhocnt;
       ofstream out4(sout.str().c_str());
       out4 << "# T=" << t << endl;
       for (unsigned n=0; n<numt; n++) {
@@ -545,7 +545,7 @@ void CollideLTE::Debug(double t)
 
 void CollideLTE::list_sizes()
 {
-  string sname = runtag + ".collide_storage";
+  string sname = outdir + runtag + ".collide_storage";
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
       ofstream out(sname.c_str(), ios::app);

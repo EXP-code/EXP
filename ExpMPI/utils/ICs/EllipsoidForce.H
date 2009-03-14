@@ -114,7 +114,7 @@ public:
   bool quadpot(double r, double& f, double& fr, double& M);
 
   //! Tabulate the potential and force
-  void MakeTable(double rmin, double rmax, int n1, int n2, int n3);
+  void MakeTable(int n1, int n2, int n3);
 
   //! Evaluate the force (indices 0,1,2) potential (index 3) on the table
   void TableEval(vector<double> x, vector<double>& forcepot);

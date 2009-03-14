@@ -154,7 +154,7 @@ void UserPeriodic::write_trace()
 
   if (myid==0) {
     ostringstream fout;
-    fout << runtag << ".shocktube_trace";
+    fout << outdir << runtag << ".shocktube_trace";
     ofstream out(fout.str().c_str(), ios::app);
     for (int k=0; k<nbin; k++)
       out << setw(18) << tnow

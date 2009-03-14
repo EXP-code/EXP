@@ -72,6 +72,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include <global.H>
 #include <RespMat3.h>
 #include <interp.h>
 #include <clinalg.h>
@@ -1542,9 +1543,9 @@ bool RespMat::get_chkpnt(void)
   int ll1,mm1,llmax1,nnmax1,nptsK1,nptsE1;
   int i,j,k;
 
-  ifstream fin(CHK_NAME.c_str());
+  ifstream fin((outdir + CHK_NAME).c_str());
   if (!fin) {
-    cerr << "Couldn't open " << CHK_NAME << '\n';
+    cerr << "Couldn't open " << outdir + CHK_NAME << '\n';
     cerr << "continuing . . . \n";
     return false;
   }
@@ -1602,14 +1603,14 @@ void RespMat::put_chkpnt(void)
   
   if (CHK_NAME.size()) {
 				// Make unique check.point name
-    ifstream fin(CHK_NAME.c_str());
+    ifstream fin(string(outdir+CHK_NAME).c_str());
     ostringstream sout;
     i = 0;
     while(fin) {
       fin.close();
       sout.str("");
       sout << i;
-      chkname = "" + CHK_NAME + "_" + sout.str();
+      chkname = "" + outdir + CHK_NAME + "_" + sout.str();
       fin.open(chkname.c_str());
       if (i++>99) {
 	cerr << "Too many CHECK POINT files!\n";

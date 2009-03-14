@@ -160,7 +160,8 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
 				// Construct debug file names
   for (int i=0; i<numRes; i++) {
     ostringstream sout;
-    sout << runtag << ".respot_dbg." << L1[i] << "_" << L2[i] << "." << myid;
+    sout << outdir << runtag 
+	 << ".respot_dbg." << L1[i] << "_" << L2[i] << "." << myid;
     respot[i]->set_debug_file(sout.str());
   }
 
@@ -169,7 +170,7 @@ UserResPotN::UserResPotN(string &line) : ExternalForce(line)
     diffuse = new TwoBodyDiffuse (pmass);
     if (debug) {
       ostringstream file;
-      file << "diffusion_grid." << runtag << "." << myid;
+      file << outdir << "diffusion_grid." << runtag << "." << myid;
       ofstream out(file.str().c_str());
       if (out) diffuse->dump_grid(&out);
     }
@@ -369,13 +370,13 @@ void UserResPotN::determine_acceleration_and_potential(void)
 
       if (myid == 0) {
 				// Backup up old file
-	string backupfile = filename + ".bak";
+	string backupfile = outdir + filename + ".bak";
 	string command("cp ");
-	command += filename + " " + backupfile;
+	command += outdir + filename + " " + backupfile;
 	system(command.c_str());
 	
 				// Open new output stream for writing
-	ofstream out(filename.c_str());
+	ofstream out(string(outdir+filename).c_str());
 	if (!out) {
 	  cout << "UserResPotN: error opening new log file <" 
 	       << filename << "> for writing\n";
@@ -443,7 +444,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
     if (!restart) {
 
       if (myid==0) {		// Write header
-	ofstream out(filename.c_str(), ios::out | ios::app);
+	ofstream out(string(outdir+filename).c_str(), ios::out | ios::app);
 	out.setf(ios::left);
 	out << setw(15) << "# Time"
 	    << setw(15) << "Phase"
@@ -542,7 +543,7 @@ void UserResPotN::determine_acceleration_and_potential(void)
   if (myid==0) {
     int btot=0;
     for (int j=0; j<ResPot::NumDesc-1; j++) btot += btotn[j];
-    ofstream out(filename.c_str(), ios::out | ios::app);
+    ofstream out(string(outdir+filename).c_str(), ios::out | ios::app);
     out.setf(ios::left);
     out << setw(15) << tnow
 	<< setw(15) << phase
@@ -696,7 +697,7 @@ void * UserResPotN::determine_acceleration_and_potential_thread(void * arg)
 #if 1
     if (i==10) {
       ostringstream sout;
-      sout << "test_orbit.respot." << myid;
+      sout << outdir << "test_orbit.respot." << myid;
       ofstream out(sout.str().c_str(), ios::app | ios::out);
       if (out) {
 	out << setw(15) << tnow;

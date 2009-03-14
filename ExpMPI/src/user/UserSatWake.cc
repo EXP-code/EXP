@@ -367,7 +367,7 @@ void UserSatWake::initialize_coefficients()
 
   if (myid==0) {
     
-    from_save.open(cachefile.c_str());
+    from_save.open(string(outdir + cachefile).c_str());
     if (!from_save) {
       if (myid==0) {
 	cerr << "Couldn't open <" << cachefile <<
@@ -398,7 +398,7 @@ void UserSatWake::initialize_coefficients()
 
     if (!reading) {
 
-      to_save.open(cachefile.c_str());
+      to_save.open(string(outdir + cachefile).c_str());
       if (!to_save) {
 	if (myid==0)
 	  cerr << "Couldn't open <" << cachefile <<
@@ -527,7 +527,7 @@ void UserSatWake::initialize_coefficients()
   // Make movie!
   // ===================================================================
   
-  ofstream tlog((runtag  + ".satwake.timelog").c_str());
+  ofstream tlog((outdir + runtag  + ".satwake.timelog").c_str());
   
   CVector tmp(1, nmax); tmp.zero();
 

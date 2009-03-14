@@ -467,7 +467,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       
     if (frontier) {
       ostringstream sout;
-      sout << runtag << ".DSMC_frontier";
+      sout << outdir << runtag << ".DSMC_frontier";
       string filen = sout.str();
       c0->Tree()->testFrontier(filen);
     }
@@ -479,7 +479,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 				// Generate the file name
       ostringstream sout;
-      sout << runtag << ".DSMC_mfpstat";
+      sout << outdir << runtag << ".DSMC_mfpstat";
       string filen = sout.str();
 
 				// Check for existence
@@ -576,7 +576,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       double dmean = (disp[0]+disp[1]+disp[2])/3.0;
 
       ostringstream sout;
-      sout << runtag << ".DSMC_log";
+      sout << outdir << runtag << ".DSMC_log";
       ofstream mout(sout.str().c_str(), ios::app);
 
       mout << "Summary:" << endl << left << "--------" << endl << scientific
@@ -735,7 +735,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     } else {
       
       ostringstream sout;
-      sout << runtag << ".DSMC_log." << myid;
+      sout << outdir << runtag << ".DSMC_log." << myid;
       ofstream mout(sout.str().c_str(), ios::app);
 
       double keymake, xchange, prepare, convert, overlap, update, scatter;
@@ -816,7 +816,7 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
 
     if (r2 < radius*radius) {
       ostringstream ostr;
-      ostr << runtag << ".testcell." << myid << "." << cnt++;
+      ostr << outdir << runtag << ".testcell." << myid << "." << cnt++;
       ofstream out(ostr.str().c_str());
 
       for (set<unsigned>::iterator j=c.Cell()->bods.begin();

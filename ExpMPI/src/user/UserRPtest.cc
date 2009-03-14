@@ -140,16 +140,17 @@ void UserRPtest::determine_acceleration_and_potential(void)
 
       if (myid == 0) {
 				// Backup up old file
-	string backupfile = filename + ".bak";
+	string curfile = outdir + filename;
+	string backupfile = curfile + ".bak";
 	string command("cp ");
-	command += filename + " " + backupfile;
+	command += curfile + " " + backupfile;
 	system(command.c_str());
 	
 				// Open new output stream for writing
-	ofstream out(filename.c_str());
+	ofstream out(curfile.c_str());
 	if (!out) {
 	  cout << "UserRPtest: error opening new log file <" 
-	       << filename << "> for writing\n";
+	       << curfile << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -198,7 +199,7 @@ void UserRPtest::determine_acceleration_and_potential(void)
     if (!restart) {
 
       if (myid == 0) {		// Write header
-	ofstream out(filename.c_str(), ios::out | ios::app);
+	ofstream out(string(outdir+filename).c_str(), ios::out | ios::app);
 	out.setf(ios::left);
 	out << setw(15) << "# Time";
 
@@ -266,7 +267,7 @@ void * UserRPtest::determine_acceleration_and_potential_thread(void * arg)
   ofstream out;
 
   if (myid==0 && id==0) {
-    out.open(filename.c_str(), ios::out | ios::app);
+    out.open(string(outdir+filename).c_str(), ios::out | ios::app);
     out.setf(ios::left);
   }
 

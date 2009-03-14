@@ -377,6 +377,7 @@ main(int argc, char **argv)
                << "  -l, --logB       use logarithmic grid for bulge model"
 	       << endl
                << "  --logD           use logarithmic grid for disk model"
+	       << endl
                << "  --Number         Number of gas particles"
 	       << endl
 	       << "  -h               this help message"
@@ -531,7 +532,7 @@ main(int argc, char **argv)
 
   cout << "Bar created" << endl;
   cout << "Table creation . . . " << flush;
-  bar.MakeTable(rmin, rmax, numT, numT, numT);
+  bar.MakeTable(numT, numT, numT);
   cout << "done" << endl;
 
   //
@@ -632,12 +633,12 @@ main(int argc, char **argv)
       Uniform unit(0.0, 1.0, &gen);
       Normal  vel1(0.0, k*T/mp*Vunit*Vunit/1e10, &gen);
       double R, z, phi, bfrc, fr, fz, velc;
-      double mass = M_PI*rL*rL*gasD/Number;
+      double mass = M_PI*r_max*r_max*gasD/Number;
 
       for (int n=0; n<Number; n++) {
 				// Pick a particle in the disk
-	R = rL*sqrt(unit());
-	z = H*atanh(2.0*(unit() - 0.5));
+	R = r_max*sqrt(unit());
+	z = 1.0e-3*H/Lunit*atanh(2.0*(unit() - 0.5));
 	r = sqrt(R*R + z*z);
 	phi = 2.0*M_PI*unit();
 

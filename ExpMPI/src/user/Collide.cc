@@ -743,7 +743,8 @@ unsigned Collide::medianNumber()
     std::sort(numcnt.begin(), numcnt.end()); 
 
     if (EXTRA) {
-      ofstream out("tmp.numcnt");
+      string file = outdir + "tmp.numcnt";
+      ofstream out(file.c_str());
       for (unsigned j=0; j<numcnt.size(); j++)
 	out << setw(8) << j << setw(18) << numcnt[j] << endl;
     }
@@ -777,7 +778,7 @@ unsigned Collide::medianColl()
 
     if (EXTRA) {
       ostringstream ostr;
-      ostr << runtag << ".colcnt";
+      ostr << outdir << runtag << ".colcnt";
       ofstream out(ostr.str().c_str());
       for (unsigned j=0; j<coltmp.size(); j++)
 	out << setw(8) << j << setw(18) << coltmp[j] << endl;
@@ -817,7 +818,7 @@ void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
     }
 
     ostringstream ostr;
-    ostr << runtag << ".coll_counts";
+    ostr << outdir << runtag << ".coll_counts";
     ifstream in(ostr.str().c_str());
     in.close();
     if (in.fail()) {
@@ -974,7 +975,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 
     if (SORTED) {
       ostringstream ostr;
-      ostr << runtag << ".collide." << this_step;
+      ostr << outdir << runtag << ".collide." << this_step;
       ofstream out(ostr.str().c_str());
       out << left << setw(8) << "# N" // Header
 	  << setw(18) << "| MFP/L"
@@ -1013,7 +1014,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 
     if (PHASE) {
       ostringstream ostr;
-      ostr << runtag << ".phase." << this_step;
+      ostr << outdir << runtag << ".phase." << this_step;
       ofstream out(ostr.str().c_str());
       out << left << setw(8) << "# N" // Header
 	  << setw(18) << "| Density"
@@ -1427,7 +1428,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 
 void Collide::list_sizes()
 {
-  string sname = runtag + ".collide_storage";
+  string sname = outdir + runtag + ".collide_storage";
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
       ofstream out(sname.c_str(), ios::app);

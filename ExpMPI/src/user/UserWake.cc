@@ -203,7 +203,7 @@ void UserWake::determine_acceleration_and_potential(void)
 
 	for (count=0; count<10000; count++) {
 	  ostringstream ostr;
-	  ostr << runtag << "." << filename << "." 
+	  ostr << outdir << runtag << "." << filename << "." 
 	       << names[0] << "." << count;
 	  
 	  // Try to open stream for writing
@@ -279,7 +279,7 @@ void UserWake::determine_acceleration_and_potential(void)
 	  for (unsigned i=0; i<names.size(); i++) {
 
 	    ostringstream ostr;
-	    ostr << runtag << "." << filename 
+	    ostr << outdir << runtag << "." << filename 
 		 << "." << names[i] << "." << count;
 	  
 	    // Try to open stream for writing

@@ -26,7 +26,7 @@ string respot_mpi_id()
 
   if (first) {
     ostringstream sout;
-    sout << runtag << ".respot_dbg." << myid;
+    sout << outdir << runtag << ".respot_dbg." << myid;
     id = sout.str();
     first = false;
   }
@@ -153,7 +153,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 
 				// Construct debug file name
   ostringstream sout;
-  sout << runtag << ".respot_dbg." << myid;
+  sout << outdir << runtag << ".respot_dbg." << myid;
   respot->set_debug_file(sout.str());
 
   btotn = vector<int>(ResPot::NumDesc-1);
@@ -318,13 +318,13 @@ void UserResPot::determine_acceleration_and_potential(void)
 
       if (myid == 0) {
 				// Backup up old file
-	string backupfile = filename + ".bak";
+	string backupfile = outdir + filename + ".bak";
 	string command("cp ");
-	command += filename + " " + backupfile;
+	command += outdir + filename + " " + backupfile;
 	system(command.c_str());
 	
 				// Open new output stream for writing
-	ofstream out(filename.c_str());
+	ofstream out(string(outdir+filename).c_str());
 	if (!out) {
 	  cout << "UserResPot: error opening new log file <" 
 	       << filename << "> for writing\n";
@@ -392,7 +392,7 @@ void UserResPot::determine_acceleration_and_potential(void)
     if (!restart) {
 
       if (myid==0) {		// Write header
-	ofstream out(filename.c_str(), ios::out | ios::app);
+	ofstream out(string(outdir+filename).c_str(), ios::out | ios::app);
 	out.setf(ios::left);
 	out << setw(15) << "# Time"
 	    << setw(15) << "Phase"
@@ -472,7 +472,7 @@ void UserResPot::determine_acceleration_and_potential(void)
   if (myid==0) {
     int btot=0;
     for (int j=0; j<ResPot::NumDesc-1; j++) btot += btotn[j];
-    ofstream out(filename.c_str(), ios::out | ios::app);
+    ofstream out(string(outdir+filename).c_str(), ios::out | ios::app);
     out.setf(ios::left);
     out << setw(15) << tnow
 	<< setw(15) << phase

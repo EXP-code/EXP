@@ -8,6 +8,7 @@ using namespace std;
 #include <fft.h>
 #include <interp.h>
 
+#include <global.H>
 #include <massmodel.h>
 #include <biorth.h>
 #include <UnboundCoefs.H>
@@ -81,7 +82,7 @@ UnboundCoefs::UnboundCoefs(double Energy, double rperi,
   tmax = T.back();
 
   if (OUTFILE.length()) {
-    string outfile = OUTFILE + ".orbit";
+    string outfile = outdir + OUTFILE + ".orbit";
     ofstream out(outfile.c_str());
     if (out) {
       for (unsigned i=R.size()-1; i>=1; i--)

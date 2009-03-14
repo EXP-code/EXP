@@ -164,7 +164,7 @@ void SatFixOrb::enforce()
       for (int k=0; k<3; k++) c0->Part(n)->pos[k] = rs[k];
 #if 1				// For debugging orbit fixing
       ostringstream sout;
-      sout << "SatFixOrb.test." << myid;
+      sout << outdir << "SatFixOrb.test." << myid;
       ofstream out(sout.str().c_str(), ios::app);
       out << setw(15) << tnow;
       for (int k=0; k<3; k++) out << setw(15) << c0->Part(n)->pos[k];
