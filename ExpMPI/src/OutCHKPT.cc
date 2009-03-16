@@ -1,3 +1,4 @@
+#include <cstdio>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -42,10 +43,14 @@ void OutCHKPT::Run(int n, bool last)
   if (myid==0) {
     
 				// Attempt to move file to backup
-    ostringstream msg;
-    msg << "mv " << filename << " " << filename << ".bak";
-    system(msg.str().c_str());
-
+    string backfile = filename + ".bak";
+    if (rename(filename.c_str(), backfile.c_str())) {
+      perror("OutCHKPT::Run()");
+      ostringstream message;
+      message << "OutCHKPT: error creating backup file <" << backfile << ">";
+      // bomb(message.str());
+    }
+	
 				// Open file and write master header
     out = new ofstream(filename.c_str());
 

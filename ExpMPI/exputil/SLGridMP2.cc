@@ -1553,7 +1553,7 @@ double sphdens(double r)
 
 void SLGridSph::bomb(string oops)
 {
-  cerr << "SLGridSph: " << oops << endl; 
+  cerr << "SLGridSph [#=" << myid << "]: " << oops << endl; 
   exit(-1);
 }
 
@@ -1778,7 +1778,9 @@ int SLGridSph::read_cached_table(void)
   int LMAX, NMAX, NUMR, i, j, CMAP;
   double RMIN, RMAX, SCL;
 
-  cerr << "SLGridSph::read_cached_table: trying to read cached table . . . \n";
+  if (myid==0) 
+    cerr << "SLGridSph::read_cached_table: trying to read cached table . . ."
+	 << endl;
 
   in.read((char *)&LMAX, sizeof(int));		if(!in || LMAX!=lmax) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
@@ -1794,8 +1796,10 @@ int SLGridSph::read_cached_table(void)
 
 				// Double check
     if (table[l].l != l) {
-      cerr << "SLGridSph: error reading <" << sph_cache_name << ">\n";
-      cerr << "SLGridSph: l: read value (" << table[l].l << ") != internal value (" << l << ")\n";
+      if (myid==0)
+	cerr << "SLGridSph: error reading <" << sph_cache_name << ">" << endl
+	     << "SLGridSph: l: read value (" << table[l].l 
+	     << ") != internal value (" << l << ")" << endl;
 	return 0;
     }
 
@@ -1817,7 +1821,9 @@ int SLGridSph::read_cached_table(void)
     }
   }
 
-  cerr << "SLGridSph::read_cached_table: Success!!\n";
+  if (myid==0)
+    cerr << "SLGridSph::read_cached_table: Success!!\n";
+
   return 1;
 }
 
@@ -2925,7 +2931,9 @@ int SLGridSlab::read_cached_table(void)
   int NUMK, NMAX, NUMZ, i, j;
   double ZMAX, HH, LL, zbeg, zend;
 
-  cerr << "SLGridSlab::read_cached_table: trying to read cached table . . . \n";
+  if (myid==0)
+    cerr << "SLGridSlab::read_cached_table: trying to read cached table . . ."
+	 << endl;
 
   in.read((char *)&NUMK, sizeof(int));		if(!in || NUMK!=numk) return 0;
   in.read((char *)&NMAX, sizeof(int));		if(!in || NMAX!=nmax) return 0;
@@ -2944,13 +2952,19 @@ int SLGridSlab::read_cached_table(void)
 
 				// Double check
       if (table[kx][ky].kx != kx) {
-	cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">\n";
-	cerr << "SLGridSlab: kx: read value (" << table[kx][ky].kx << ") != internal value (" << kx << ")\n";
+	if (myid==0)
+	  cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	       << endl
+	       << "SLGridSlab: kx: read value (" << table[kx][ky].kx 
+	       << ") != internal value (" << kx << ")" << endl;
 	return 0;
       }
       if (table[kx][ky].ky != ky) {
-	cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">\n";
-	cerr << "SLGridSlab: ky: read value (" << table[kx][ky].ky << ") != internal value (" << ky << ")\n";
+	if (myid==0) 
+	  cerr << "SLGridSlab: error reading <" << Slab_cache_name << ">"
+	       << endl
+	       << "SLGridSlab: ky: read value (" << table[kx][ky].ky 
+	       << ") != internal value (" << ky << ")" << endl;
 	return 0;
       }
 
@@ -2973,7 +2987,9 @@ int SLGridSlab::read_cached_table(void)
     }
   }
 
-  cerr << "SLGridSlab::read_cached_table: Success!!\n";
+  if (myid==0)
+    cerr << "SLGridSlab::read_cached_table: Success!!\n";
+
   return 1;
 }
 
@@ -4035,10 +4051,12 @@ extern "C" int coeff_(doublereal* x, doublereal* px, doublereal* qx,
     *qx = (L2*f - rho*(*x)*(*x))*f;
     *rx = -rho*(*x)*(*x)*f;
 
-    if (*px<=0)
-      cerr << "px<=0: x=" << *x << " f=" << f << "\n";
+    if (*px<=0) 
+      cerr << "Process " << myid << ": "
+	   << "px<=0: x=" << *x << " f=" << f << "\n";
     if (*rx<=0)
-      cerr << "rx<=0: x=" << *x << " f=" << f << " rho=" << rho <<  "\n";
+      cerr << "Process " << myid << ": "
+	   << "rx<=0: x=" << *x << " f=" << f << " rho=" << rho <<  "\n";
 
   }
 

@@ -1,6 +1,7 @@
 #include <values.h>
 
 # include <cstdlib>
+# include <cstdio>
 # include <ctime>
 
 #include <iostream>
@@ -28,6 +29,12 @@ struct pair_compare
   bool operator()(const pair<U, V>& a, const pair<U, V>& b)
   { return a.first<=b.first; }
 };
+
+void pHOT::bomb(const string& membername, const string& msg)
+{
+  cerr << "pHOT::" << membername << "(): " << msg << endl;
+  MPI_Abort(MPI_COMM_WORLD, 497);
+}
 
 /*
   Constructor: initialize domain
@@ -1681,7 +1688,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 
 void pHOT::adjustTree(unsigned mlevel)
 {
-  MPI_Barrier(MPI_COMM_WORLD);	// Test!
+  // MPI_Barrier(MPI_COMM_WORLD);	// Test!
   timer_tadjust.start();
 
 #ifdef DEBUG_ADJUST
@@ -1865,8 +1872,10 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_keymake.stop();
   
   timer_keywait.start();       // Barrier to make sure that the timer
-  MPI_Barrier(MPI_COMM_WORLD); // gives a sensible measurement of key time
+  //MPI_Barrier(MPI_COMM_WORLD); // gives a sensible measurement of key time
   timer_keywait.stop();
+
+  timer_cupdate.start();
 
   //
   // Exchange particles
@@ -1888,13 +1897,11 @@ void pHOT::adjustTree(unsigned mlevel)
 
   if (sum) {
     
-    // timer_prepare.start();
     timer_scatter.start();
     
     MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
 		 &recvcounts[0], 1, MPI_INT,
 		 MPI_COMM_WORLD);
-    // timer_scatter.stop();
     
     for (unsigned k=0; k<numprocs; k++) {
       if (k==0) {
@@ -1908,7 +1915,6 @@ void pHOT::adjustTree(unsigned mlevel)
     }
     
     timer_scatter.stop();
-    // timer_prepare.stop();
     
     //
     // Exchange particles between processes
@@ -2125,13 +2131,13 @@ void pHOT::adjustTree(unsigned mlevel)
       }
     }
     
-    MPI_Barrier(MPI_COMM_WORLD);
+    // MPI_Barrier(MPI_COMM_WORLD);
   }
 
 
   timer_overlap.stop();
 
-  timer_cupdate.start();
+  // timer_cupdate.start();
 
   // #define DEBUG
   
@@ -2240,6 +2246,7 @@ void pHOT::adjustTree(unsigned mlevel)
 bool pHOT::checkParticles(bool pc)
 {
   unsigned cnt, badb=0, badc=0;
+  const string membername = "checkParticles";
 
   // FOR CELL OUTPUT
   map<pCell*, pair<unsigned, unsigned> > outdat;
@@ -2276,19 +2283,42 @@ bool pHOT::checkParticles(bool pc)
   }
   
   // OUTPUT CELL LIST
-  ostringstream cmd1, cmd2;
+  ostringstream origfile1, backfile1;
 
-  cmd1 << "mv chkcell." << myid << " chkcell." << myid << ".bak";
-  system(cmd1.str().c_str());
+  origfile1 << "chkcell." << myid;
+  backfile1 << "chkcell." << myid << ".bak";
+  if (rename(origfile1.str().c_str(), backfile1.str().c_str())) {
+    perror("pHOT");
+    ostringstream message;
+    message << "error creating backup file <" << backfile1 << ">";
+    // bomb(membername, message.str());
+  }
+  
+  ostringstream origfile2, backfile2;
 
-  cmd2 << "mv chklist." << myid << " chklist." << myid << ".bak";
-  system(cmd2.str().c_str());
+  origfile2 << "chklist." << myid;
+  backfile2 << "chklist." << myid << ".bak";
+  if (rename(origfile2.str().c_str(), backfile2.str().c_str())) {
+    perror("pHOT");
+    ostringstream message;
+    message << "error creating backup file <" << backfile2 << ">";
+    // bomb(membername, message.str());
+  }
+  
+  ofstream out1(origfile1.str().c_str());
+  ofstream out2(origfile2.str().c_str());
 
-  ostringstream newf1, newf2;
-  newf1 << "chkcell." << myid;
-  newf2 << "chklist." << myid;
-  ofstream out1(newf1.str().c_str());
-  ofstream out2(newf2.str().c_str());
+  if (!out1) {
+    ostringstream message;
+    message << "error opening output file <" << origfile1 << ">";
+    bomb(membername, message.str());
+  }
+
+  if (!out2) {
+    ostringstream message;
+    message << "error opening output file <" << origfile2 << ">";
+    bomb(membername, message.str());
+  }
 
   for (map<pCell*, pair<unsigned, unsigned> >::iterator
 	 lit=outdat.begin(); lit!=outdat.end(); lit++) {

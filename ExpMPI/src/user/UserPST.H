@@ -8,6 +8,18 @@
 #include <EllipsoidForce.H>
 
 /** Piner-Stone-Teuben model for a fixed rotating bar potential for gas forcing
+    Following their paper (1995, ApJ 449,508), their model has a Kuzmin
+    disk,
+    \f[
+    \Sigma(r) = \left(\frac{v_o^2}{2\pi G r_o}\right)
+    \left(1 + \frac{r^2}{r_o^2}\right)^{-3/2},
+    \f]
+    where the constants \f$v_o=200\hbox{km/s}\f$ and \f$r_o=14.1\hbox{kpc}\f$,
+    a bulge with the density
+    \f[
+    \rho(r) = \rho_o\left(1 + \frac{r^2}{r_o^2}\right)^{-3/2},
+    \f]
+    and a Ferrer's ellipsoid with \f$a=5\hbox{kpc}\f$ and \f$b=c\f$.
 
     @param rmin is the minimum model radius
     @param rmax is the maximum model radius
@@ -27,31 +39,14 @@
     @param DeltaT is the spread of the turn on
     @param Ton is the time at the center of the <code>erf</code> turn on
 
-
-    The logic for pattern speed determination is as follows:
-    <ul>
-    <li> By default the pattern speed is determined from the bar length
-    <code>length</code>, <code>Fcorot</code> using the background potential.
-    If <code>omega</code>>0, then this value is used rather than the default
-    one.
-    <li> If <code>fixed</code> is <code>false</code>, then the pattern speed
-    changes are determined self-consistently from the torque
-    <li> if <code>self</code> is <code>true</code> and <code>dtom</code>>0,
-    then the pattern speed is determined as follows:
-
+    The slow bar turn on uses the following function:
     \f[
-    \Omega = \Omega_0\left[1 + {\Delta\Omega\over 2}\left\{
-    1+\hbox{erf}\left({t_{now}-T_0\over\delta t_{om}}\right)\right\}\right]
+    \eta(t) = \frac12\left[
+    1+\hbox{erf}\left({t_{now}-T_{on}\over\delta T_{on}}\right)\right].
     \f]
-
-    <li> If <code>self</code> is <code>false</code>, then the pattern speed
-    is determined as follows:
-
-    \f[
-    \Omega = \Omega_0\left[1 + \Delta\Omega(t_{now}-T_0)\right]
-    \f]
-
-    </ul>
+    The total mass of the model is held fixed during turn on by
+    letting the bar mass be \f$M_{bar}\eta(t)\f$ and increasing the
+    mass of the disk+bulge by \f$M_{bar}[1-\eta(t)]\f$.
 */
 class UserPST : public ExternalForce
 {
@@ -70,11 +65,17 @@ private:
   bool   blog;		// Use log spacing for bulge model
   bool   dlog;		// Use log spacing for disk model
 
-  double arat;		// Maximum to minimum axis ratio for bar
-  double Qm  ;		// Quadrupole strength
-  double rL  ;		// Corotation radius
-  double rhoC;		// Central density
-  double nu  ;		// Ferrer's index
+  double arat ;		// Maximum to minimum axis ratio for bar
+  double Qm   ;		// Quadrupole strength
+  double rL   ;		// Corotation radius
+  double rhoC ;		// Central density
+  double nu   ;		// Ferrer's index
+
+  double Mbar ;		// Implied bar mass
+  double a    ;		// Implied semimajor axis
+  double b    ;		// Implied semiminor axis
+  double rho0 ;		// Implied central bar density
+  double rhoB ;		// Implied central bulge density
 
   int Lmax;		// Maximum harmonic index for disk pot expansion
   int Nmax;		// Maximum radial index for expansion

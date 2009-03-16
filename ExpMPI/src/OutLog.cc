@@ -2,6 +2,7 @@ static char rcsid[] = "$Id$";
 
 using namespace std;
 
+#include <cstdio>
 #include <sstream>
 #include "expand.h"
 
@@ -161,17 +162,21 @@ void OutLog::Run(int n, bool last)
 
 	// Backup up old file
 	string backupfile = filename + ".bak";
-	string command("cp ");
-	command += filename + " " + backupfile;
-	system(command.c_str());
-
+	if (rename(filename.c_str(), backupfile.c_str())) {
+	  perror("OutLog::Run()");
+	  ostringstream message;
+	  message << "OutLog: error creating backup file <" 
+		  << backupfile << ">";
+	  // bomb(message.str());
+	}
+	
 	// Open new output stream for writing
 	out = new ofstream(filename.c_str());
 	if (!*out) {
 	  ostringstream message;
 	  message << "OutLog: error opening new log file <" 
-		  << filename << "> for writing\n";
-	  bomb(message.str().c_str());
+		  << filename << "> for writing";
+	  bomb(message.str());
 	}
 	  
 	// Open old file for reading
@@ -179,7 +184,7 @@ void OutLog::Run(int n, bool last)
 	if (!in) {
 	  ostringstream message;
 	  message << "OutLog: error opening original log file <" 
-		  << backupfile << "> for reading\n";
+		  << backupfile << "> for reading";
 	  bomb(message.str());
 	}
 

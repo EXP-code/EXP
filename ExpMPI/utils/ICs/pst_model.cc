@@ -90,8 +90,8 @@ double get_fid_bulge_dens()
   rL   /= Lunit;
 
 				// Bar semi-major axis
-  double a = 5.0/Lunit;
-  double b = a/arat;
+  double a    = 5.0/Lunit;
+  double b    = a/arat;
   double Mbar = Qm*(5.0 + 2.0*nu)/(a*a*(1.0 - 1.0/(arat*arat)));
 
   double rho0 = Mbar/( 2.0*M_PI*a*b*b *
@@ -103,8 +103,8 @@ double get_fid_bulge_dens()
   // Disk surface density coef: v_o^2/(2*pi*G*r_o) where v_o = 200 km/s
   // Disk surface density scaling: r_o = 14.1 kpc
   //
-  double v_o = 200.0 * Vunit;
-  double r_o = 14.1 / Lunit;
+  double v_o  = 200.0 * Vunit;
+  double r_o  = 14.1 / Lunit;
 
   //
   // Mass within 16kpc
@@ -241,7 +241,7 @@ main(int argc, char **argv)
   bool   blog = false;
   bool   dlog = false;
 
-  double H    = 100.0;
+  double H    = 0.1;
   double arat = 2.5;
   double Qm   = 4.5e10;
   double rL   = 6.0;
@@ -250,6 +250,8 @@ main(int argc, char **argv)
   double gasD = 10.0;
   double spd  = 5.0;
   double Rgas = 30.0;
+
+  string file = "gas.bods";
 
   //========================= Parse command line ==============================
 
@@ -273,13 +275,14 @@ main(int argc, char **argv)
 	{"rhoC",      1, 0, 0},
 	{"nu",        1, 0, 0},
 	{"SEED",      1, 0, 0},
+	{"file",      1, 0, 0},
 	{"logB",      0, 0, 0},
 	{"logD",      0, 0, 0},
 	{0, 0, 0, 0}
       };
 
       c = getopt_long (argc, argv, 
-		       "a:r:R:n:N:Q:L:C:S:G:lh",
+		       "a:r:R:n:N:Q:L:C:S:G:o:lh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -302,6 +305,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("Number"))    Number = atoi(optarg);
 	  if (!optname.compare("Rgas"))      Rgas   = atoi(optarg);
 	  if (!optname.compare("SEED"))      SEED   = atoi(optarg);
+	  if (!optname.compare("file"))      file   = optarg;
 	  if (!optname.compare("logD"))      dlog   = true;
 	  if (!optname.compare("logB"))      blog   = true;
 	  break;
@@ -346,6 +350,10 @@ main(int argc, char **argv)
           SEED = atoi(optarg);
           break;
 
+        case 'o':
+          file = optarg;
+          break;
+
         case 'l':
           blog = true;
           break;
@@ -382,6 +390,8 @@ main(int argc, char **argv)
                << "  -L, --rL    f    corotation radius"
 	       << endl
                << "  -C, --rhoC  f    central density"
+	       << endl
+               << "  -o, --file  s     file name for gas particle ICs"
 	       << endl
                << "  -l, --logB       use logarithmic grid for bulge model"
 	       << endl
@@ -632,10 +642,9 @@ main(int argc, char **argv)
   if (Number) {
     cout << "Particle output begin . . . " << flush;
 
-    const string fname("gas.particles");
     const int niatr = 0;
     const int ndatr = 3;
-    ofstream nout(fname.c_str());
+    ofstream nout(file.c_str());
     if (nout) {
       nout << setw(12) << Number << setw(12) << niatr << setw(12) << ndatr
 	   << endl;
@@ -670,7 +679,7 @@ main(int argc, char **argv)
 	nout << endl;
       }
     } else {
-      cerr << "Could not open <" << fname << "> for gas particles"
+      cerr << "Could not open <" << file << "> for gas particles"
 	   << endl;
     }
 

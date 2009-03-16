@@ -726,12 +726,36 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       collide->tsdiag(mout);
 
+      {
+	sout.str("");
+	sout << outdir << runtag << ".DSMC_log.0";
+	ofstream nout(sout.str().c_str(), ios::app);
+
+	nout << "Timing (secs) at mlevel=" << mlevel << " and T=" << tnow << endl
+	     << "      *** keymake=" << keymake << endl
+	     << "      *** keycall=" << keycall << endl
+	     << "      *** keycomp=" << keycomp << endl
+	     << "      *** keybods=" << keybods << endl
+	     << "      *** keywait=" << keywait << endl
+	     << "      *** xchange=" << xchange << endl
+	     << "      *** prepare=" << prepare << endl
+	     << "      *** convert=" << convert << endl
+	     << "      *** overlap=" << overlap << endl
+	     << "      *** cupdate=" << update  << endl
+	     << "      *** scatter=" << scatter << endl
+	     << "      *** repartn=" << repartn << endl
+	     << "      *** tadjust=" << tadjust << endl
+	     << "      *** numbods=" << numbods << endl
+	     << endl;
+      }
+      
       partnTime.reset();
       tree1Time.reset();
       tree2Time.reset();
       tstepTime.reset();
       llistTime.reset();
       collideTime.reset();
+
     } else {
       
       ostringstream sout;

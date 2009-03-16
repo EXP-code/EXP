@@ -75,6 +75,8 @@ protected:
   // For debugging sychronization
   void debug_ts(const char* msg);
 
+  void bomb(const string& membername, const string& msg);
+
 public:
 
   static unsigned neg_half;

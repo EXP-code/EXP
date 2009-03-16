@@ -98,9 +98,9 @@ void initialize(void)
       struct stat sb;		// Stat buffer structure
       if (stat(val.c_str(), &sb) == -1) {
 				// Error in opening the candidate directory
-	cout << "parse: error opening directory <" << val 
-	     << ">, will attempt creation" << endl;
+	cout << "parse: I can't open directory <" << val << ">" << endl;
 				// Maybe we need to create it?
+	cout << "parse: I will attempt to create it" << endl;
 	if (mkdir(val.c_str(), 0755) == -1) {
 	  cout << "parse: error creating directory <" << val 
 	       << ">, aborting" << endl;

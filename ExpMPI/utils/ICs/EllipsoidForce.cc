@@ -509,15 +509,14 @@ bool EllipsoidForce::nindx(vector<double>& x, vector<int>& n)
     }
 
 				// Sanity bounds
-    n[i] = min<int>(n[i], ntab[i]-1);
+    n[i] = min<int>(n[i], ntab[i]-2);
     n[i] = max<int>(n[i], 0);
   }
 
   return true;
 }
 
-void EllipsoidForce::
-TableEval(vector<double> x, vector<double>& force)
+void EllipsoidForce::TableEval(vector<double> x, vector<double>& force)
 {
   //
   // Use an array rather than computing the terms on the fly . . .

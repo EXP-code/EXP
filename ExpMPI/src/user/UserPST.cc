@@ -63,7 +63,7 @@ double UserPST::get_fid_bulge_dens()
   rhoC /= Munit/(Lunit*Lunit*Lunit);
   rL   /= Lunit;
 
-				// Bar semi-major axis
+				// Implied bar parameters
   double a = 5.0/Lunit;
   double b = a/arat;
   double Mbar = Qm*(5.0 + 2.0*nu)/(a*a*(1.0 - 1.0/(arat*arat)));
@@ -116,7 +116,7 @@ double UserPST::get_fid_bulge_dens()
 
 UserPST::UserPST(string &line) : ExternalForce(line)
 {
-  id = "Piner-Stone-Teuben fixed bar potential";
+  id = "Piner-Stone-Teuben";
 
                                 // Parameters
 				// ----------
@@ -187,13 +187,13 @@ UserPST::UserPST(string &line) : ExternalForce(line)
   rhoC /= Munit/(Lunit*Lunit*Lunit);
   rL   /= Lunit;
   
-				// Bar semi-major axis
-  double a = 5.0/Lunit;
-  double b = a/arat;
-  double Mbar = Qm*(5.0 + 2.0*nu)/(a*a*(1.0 - 1.0/(arat*arat)));
-  double rho0 = Mbar/( 2.0*M_PI*a*b*b *
+				// Implied bar and bulge parameters
+  a    = 5.0/Lunit;
+  b    = a/arat;
+  Mbar = Qm*(5.0 + 2.0*nu)/(a*a*(1.0 - 1.0/(arat*arat)));
+  rho0 = Mbar/( 2.0*M_PI*a*b*b *
 		       exp(lgamma(nu+1.0)+lgamma(1.5)-lgamma(nu+2.5)) );
-  double rhoB = rhoC - rho0;
+  rhoB = rhoC - rho0;
 
   //
   // Disk surface density coef: v_o^2/(2*pi*G*r_o) where v_o = 200 km/s
@@ -335,10 +335,11 @@ void UserPST::userinfo()
 
   cout << "** User routine Piner-Stone-Teuben disk & bar model, " ;
   cout << "prescribed pattern speed with"
-       << " omega=" <<  omega << ", t_on=" << Ton << ", delta_t=" 
-       << DeltaT << "," << endl
-       << " b/a=" << arat << ", Qm=" << Qm << ", rL=" << rL
-       << ", rho_c=" << rhoC << ", Ferrer's index=" << nu;
+       << " omega=" <<  omega << ", t_on=" << Ton << ", delta_t=" << DeltaT
+       << ", a=" << a << ", b=c=" << b
+       << ", Qm=" << Qm << ", rL=" << rL << ", Mbar=" << Mbar
+       << ", rho(total)=" << rhoC << ", rho(bar)=" << rho0 
+       << ", rho(bulge)=" << rhoB << ", Ferrer's index=" << nu;
 
   if (blog)
     cout << ", using log spacing for bulge model";
@@ -415,15 +416,6 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
   double elip_frac = 0.5*(1.0 + erf( (tnow - Ton )/DeltaT ));
   double disk_frac = 1.0 + (Mscale - 1.0)*(1.0 - elip_frac);
 
-  if (myid==0 && id==0) {
-    ofstream out("test.frac", ios::app);
-    out << setw(16) << tnow 
-	<< setw(16) << elip_frac
-	<< setw(16) << disk_frac
-	<< setw(16) << Mscale
-	<< endl;
-  }
-
   for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
     nbodies = cC->levlist[lev].size();
@@ -446,7 +438,7 @@ void * UserPST::determine_acceleration_and_potential_thread(void * arg)
       //
       pos1[0] =  xx*cosp + yy*sinp;
       pos1[1] = -xx*sinp + yy*cosp;
-      pos1[2] = zz;
+      pos1[2] =  zz;
 
       bar->TableEval(pos1, force);
 
@@ -491,12 +483,12 @@ extern "C" {
   }
 }
 
-class proxyebar { 
+class proxypst { 
 public:
-  proxyebar()
+  proxypst()
   {
     factory["userpst"] = makerPST;
   }
 };
 
-proxyebar p;
+proxypst p;

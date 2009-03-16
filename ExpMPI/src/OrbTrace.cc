@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -83,16 +84,20 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       
       // Backup up old file
       string backupfile = filename + ".bak";
-      string command("cp ");
-      command += filename + " " + backupfile;
-      system(command.c_str());
-
+      if (rename(filename.c_str(), backupfile.c_str())) {
+	perror("OrbTrace");
+	ostringstream message;
+	message << "OutTrace: error creating backup file <" 
+		<< backupfile << ">";
+	// bomb(message.str());
+      }
+	
       // Open new output stream for writing
       ofstream out(filename.c_str());
       if (!out) {
 	ostringstream message;
 	message << "OrbTrace: error opening new trace file <" 
-		<< filename << "> for writing\n";
+		<< filename << "> for writing";
 	bomb(message.str());
       }
 	  
@@ -101,7 +106,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
       if (!in) {
 	ostringstream message;
 	message << "OrbTrace: error opening original trace file <" 
-		<< backupfile << "> for reading\n";
+		<< backupfile << "> for reading";
 	bomb(message.str());
       }
 
