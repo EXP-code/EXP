@@ -249,6 +249,7 @@ main(int argc, char **argv)
   double nu   = 1.0;
   double gasD = 10.0;
   double spd  = 5.0;
+  double Rgas = 30.0;
 
   //========================= Parse command line ==============================
 
@@ -265,6 +266,7 @@ main(int argc, char **argv)
 	{"rmax",      1, 0, 0},
 	{"numr",      1, 0, 0},
 	{"Number",    1, 0, 0},
+	{"Rgas",      1, 0, 0},
 	{"H",         1, 0, 0},
 	{"Qm",        1, 0, 0},
 	{"rL",        1, 0, 0},
@@ -277,7 +279,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "a:r:R:n:N:Q:L:C:S:lh",
+		       "a:r:R:n:N:Q:L:C:S:G:lh",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -298,6 +300,7 @@ main(int argc, char **argv)
 	  if (!optname.compare("rhoC"))      rhoC   = atof(optarg);
 	  if (!optname.compare("nexp"))      nu     = atof(optarg);
 	  if (!optname.compare("Number"))    Number = atoi(optarg);
+	  if (!optname.compare("Rgas"))      Rgas   = atoi(optarg);
 	  if (!optname.compare("SEED"))      SEED   = atoi(optarg);
 	  if (!optname.compare("logD"))      dlog   = true;
 	  if (!optname.compare("logB"))      blog   = true;
@@ -335,6 +338,10 @@ main(int argc, char **argv)
           H = atof(optarg);
           break;
 
+        case 'G':
+          Rgas = atof(optarg);
+          break;
+
         case 'S':
           SEED = atoi(optarg);
           break;
@@ -356,23 +363,25 @@ main(int argc, char **argv)
                << "  disk component\n\n"
                << "\nUsage : mpirun -v -np <# of nodes> " << argv[0] 
                << " -- [options]\n\n"
-               << "  -a, --arat f     semi-major/semi-minor ratio"
+               << "  -a, --arat  f    semi-major/semi-minor ratio"
 	       << endl
-               << "  -H, --H    f     scale height"
+               << "  -H, --H     f    scale height"
 	       << endl
-               << "  -r, --rmin f     minimum model radius"
+               << "  -r, --rmin  f    minimum model radius"
 	       << endl
-               << "  -R, --rmax f     maximum model radius"
+               << "  -R, --rmax  f    maximum model radius"
 	       << endl
-               << "  -n, --numr i     number of mesh points for bulge model"
+               << "  -G, --Rgas  f    radius of realized disk"
 	       << endl
-               << "  -N, --nexp f     Ferrer's model index"
+               << "  -n, --numr  i    number of mesh points for bulge model"
 	       << endl
-               << "  -Q, --Qm   f     quadrupole amplitude"
+               << "  -N, --nexp  f    Ferrer's model index"
 	       << endl
-               << "  -L, --rL   f     corotation radius"
+               << "  -Q, --Qm    f    quadrupole amplitude"
 	       << endl
-               << "  -C, --rhoC f     central density"
+               << "  -L, --rL    f    corotation radius"
+	       << endl
+               << "  -C, --rhoC  f    central density"
 	       << endl
                << "  -l, --logB       use logarithmic grid for bulge model"
 	       << endl
@@ -431,6 +440,8 @@ main(int argc, char **argv)
   double mp = 1.67e-24;
   double k  = 1.381e-16;
   double T  = (mp*pow(spd*1e5, 2.0))/k;
+
+  double r_disk = Rgas/Lunit;   // Radius of disk for particle realization
 
   cout << "Dens  = " << gasD << endl;
   cout << "Temp  = " << T    << endl;
@@ -633,11 +644,11 @@ main(int argc, char **argv)
       Uniform unit(0.0, 1.0, &gen);
       Normal  vel1(0.0, k*T/mp*Vunit*Vunit/1e10, &gen);
       double R, z, phi, bfrc, fr, fz, velc;
-      double mass = M_PI*r_max*r_max*gasD/Number;
+      double mass = M_PI*r_disk*r_disk*gasD/Number;
 
       for (int n=0; n<Number; n++) {
 				// Pick a particle in the disk
-	R = r_max*sqrt(unit());
+	R = r_disk*sqrt(unit());
 	z = 1.0e-3*H/Lunit*atanh(2.0*(unit() - 0.5));
 	r = sqrt(R*R + z*z);
 	phi = 2.0*M_PI*unit();
