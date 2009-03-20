@@ -154,6 +154,7 @@ double scale_length = 2.0;
 double scale_lenfkN = -1.0;
 double disk_mass = 1.0;
 double gas_mass = 1.0;
+double gscal_length = 4.0;
 double ToomreQ = 1.2;
 double Tmin = 500.0;
 
@@ -241,7 +242,7 @@ main(int argc, char **argv)
       };
 
       c = getopt_long (argc, argv, 
-		       "I:D:G:L:M:X:N:n:f:Q:A:Z:m:g:r:R:F:1:2:s:S:t:d:c:T:bBzih",
+		       "I:D:G:L:M:X:N:n:f:Q:a:A:Z:m:g:r:R:F:1:2:s:S:t:d:c:T:bBzih",
 		       long_options, &option_index);
       if (c == -1)
         break;
@@ -306,6 +307,10 @@ main(int argc, char **argv)
 
         case 'A':
           scale_length = atof(optarg);
+          break;
+
+        case 'a':
+          gscal_length = atof(optarg);
           break;
 
         case 'Z':
@@ -881,13 +886,13 @@ main(int argc, char **argv)
 
     // Adjust scale for multimass gas
     //
-    double Scale_Length = scale_length;
-    if (scale_lenfkN > 0.0) scale_length = scale_lenfkN;
+    double Scale_Length = gscal_length;
+    if (scale_lenfkN > 0.0) gscal_length = scale_lenfkN;
 
     // Compute using Jeans theorem
     //
     double rmin = RMIN;
-    double rmax = 10.0*scale_length;
+    double rmax = 10.0*gscal_length;
     double zmin = 0.001*scale_height;
     int nrint = 200;
     int nzint = 400;
@@ -1054,8 +1059,8 @@ main(int argc, char **argv)
     // Maximum enclosed disk mass given rmax
     //
     double rmx2 = 1.5*rmax;
-    double mmx2 = 1.0 - (1.0 + rmx2/scale_length)*exp(-rmx2/scale_length);
-    double mmax = 1.0 - (1.0 + rmax/scale_length)*exp(-rmax/scale_length);
+    double mmx2 = 1.0 - (1.0 + rmx2/gscal_length)*exp(-rmx2/gscal_length);
+    double mmax = 1.0 - (1.0 + rmax/gscal_length)*exp(-rmax/gscal_length);
     double mfac = 1.0 - (1.0 + rmax/Scale_Length)*exp(-rmax/Scale_Length);
 
     //
@@ -1096,7 +1101,7 @@ main(int argc, char **argv)
       double fm = -M, fp = mmx2 - M;
       for (int j=0; j<15; j++) {
 	R = 0.5*(rm + rp);
-	F = 1.0 - M - (1.0 + R/scale_length)*exp(-R/scale_length);
+	F = 1.0 - M - (1.0 + R/gscal_length)*exp(-R/gscal_length);
 	if (fm*F<0.0) {
 	  rp = R;
 	  fp = F;
@@ -1107,8 +1112,8 @@ main(int argc, char **argv)
       }
 				// Polish with Newton-Raphson
       for (int j=0; j<ITMAX; j++) {
-	F = 1.0 - M - (1.0 + R/scale_length)*exp(-R/scale_length);
-	dF = R/(scale_length*scale_length)*exp(-R/scale_length);
+	F = 1.0 - M - (1.0 + R/gscal_length)*exp(-R/gscal_length);
+	dF = R/(gscal_length*gscal_length)*exp(-R/gscal_length);
 	R += -F/dF;
 	if (fabs(F/dF)<1.0e-12) break;
       }
@@ -1155,8 +1160,8 @@ main(int argc, char **argv)
       double v =  vc*cosp + vthermal*norminv(unitN());
       double w =  vthermal*norminv(unitN());
       
-      gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/scale_length)) * 
-	mmax*scale_length*scale_length/(mfac*Scale_Length*Scale_Length);
+      gmass = gmass0*exp(-R*(1.0/Scale_Length - 1.0/gscal_length)) * 
+	mmax*gscal_length*gscal_length/(mfac*Scale_Length*Scale_Length);
 
       outps << setw(18) << gmass
 	    << setw(18) << R*cos(phi)
