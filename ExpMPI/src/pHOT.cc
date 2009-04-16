@@ -1582,6 +1582,37 @@ void pHOT::Repartition()
 	   << ": particle key not in keybods list at T=" << tnow << endl;
   }
 
+  if (true) {			// Summary/diaganostic  output
+				//
+    unsigned int nsiz = cc->Particles().size();
+    unsigned int ksiz = keys.size();
+    vector<unsigned> nsize(numprocs), ksize(numprocs);
+
+    MPI_Gather(&nsiz, 1, MPI_UNSIGNED, &nsize[0], 1, MPI_UNSIGNED, 
+	       0, MPI_COMM_WORLD);
+
+    MPI_Gather(&ksiz, 1, MPI_UNSIGNED, &ksize[0], 1, MPI_UNSIGNED, 
+	       0, MPI_COMM_WORLD);
+    
+    if (myid==0) {
+      ofstream out("pHOT.debug", ios::app);
+
+      out << "--------------------------------------------------" << endl
+	  << "---- Post-scatter summary, T = " << tnow            << endl
+	  << "--------------------------------------------------" << endl;
+      out << setw(5) << "#" 
+	  << setw(15) << "kbeg" << setw(15) << "kfin" 
+	  << setw(15) << "nkeys"
+	  << setw(15) << "bodies" << endl << "#" << endl;
+      for (int i=0; i<numprocs; i++)
+	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	    << setw(15) << kfin[i] << dec 
+	    << setw(15) << ksize[i] << setw(15) << nsize[i]
+	    << endl;
+      out << "--------------------------------------------------" << endl;
+    }
+  }
+
   timer_repartn.stop();
 
 }
@@ -2240,6 +2271,34 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_cupdate.stop();
 
   timer_tadjust.stop();
+
+  if (true) {			// Summary/diaganostic  output
+				//
+    unsigned int nsiz = cc->Particles().size();
+    vector<unsigned> nsize(numprocs);
+
+    MPI_Gather(&nsiz, 1, MPI_UNSIGNED, &nsize[0], 1, MPI_UNSIGNED, 
+	       0, MPI_COMM_WORLD);
+
+    if (myid==0) {
+      ofstream out("pHOT.debug", ios::app);
+
+      out << "--------------------------------------------------" << endl
+	  << "---- Post-adjustTree summary [" << mlevel << "], T = "  
+	  << tnow                                                 << endl
+	  << "--------------------------------------------------" << endl;
+      out << setw(5) << "#" 
+	  << setw(15) << "kbeg" << setw(15) << "kfin" 
+	  << setw(15) << "bodies" << endl << "#" << endl;
+      for (int i=0; i<numprocs; i++)
+	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	    << setw(15) << kfin[i] << dec 
+	    << setw(15) << nsize[i]
+	    << endl;
+      out << "--------------------------------------------------" << endl;
+    }
+  }
+
 }
   
 

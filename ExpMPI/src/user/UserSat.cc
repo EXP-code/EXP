@@ -23,6 +23,7 @@ private:
   double core, mass, ton, toff, delta, toffset;
 
   bool orbit;
+  bool shadow;
   double omega, phase, r0, tlast;
 
   void userinfo();
@@ -54,6 +55,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   toffset = 0.0;		// Time offset for orbit
 
   orbit = false;		// Print out orbit for debugging
+  shadow = false;		// Simulate an inverse symmetric satellite
   r0 = 1.0;			// Radius
   phase = 0.0;			// Initial position angle
   omega = 1.0;			// Angular frequency
@@ -162,7 +164,9 @@ void UserSat::userinfo()
     cout << " with mass=" << mass 
 	 << ", core=" << core
 	 << ", config=" << config
-	 << endl;
+	 << ", centered on Component <" << c0->name << ">";
+    if (shadow) cout << ", shadowing is on";
+    cout << endl;
   }
 
   print_divider();
@@ -181,6 +185,7 @@ void UserSat::initialize()
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
   if (get_value("orbit", val))    orbit = atoi(val.c_str()) ? true : false;
+  if (get_value("shadow", val))   shadow = atoi(val.c_str()) ? true : false;
   if (get_value("r0", val))       r0 = atof(val.c_str());
   if (get_value("phase", val))    phase = atof(val.c_str());
   if (get_value("omega", val))    omega = atof(val.c_str());
@@ -228,7 +233,9 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
 
   if (nbodies==0) {		// Return if there are no particles
     if (id==0) {
-      cout << "Process " << myid << ": in UserSat, nbodies=0!" << endl;
+      cout << "Process " << myid << ": in UserSat, nbodies=0" 
+	   << " for Component <" << cC->name << "> at T=" << tnow
+	   << endl;
     }
     thread_timing_end(id);
     return (NULL);
@@ -247,6 +254,8 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     0.5*(1.0 + erf( (tnow - ton) /delta )) *
     0.5*(1.0 + erf( (toff - tnow)/delta )) ;
     
+  if (shadow) satmass *= 0.5;
+
   if (orbit && myid==0 && id==0 && tnow>tlast) {
     ofstream out (string(outdir+orbfile).c_str(), ios::app);
     out << setw(15) << tnow;
@@ -268,6 +277,7 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     if (multistep && (cC->Part(i)->level < mlevel)) continue;
 
     fac = core*core;
+
     for (int k=0; k<3; k++) {
       pos[k] = cC->Pos(i, k, Component::Inertial) - c0->com[k];
       fac += (pos[k] - rs[k])*(pos[k] - rs[k]);
@@ -281,6 +291,24 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     
     // Add external potential
     cC->AddPotExt(i, -satmass*fac );
+
+    // Add the shadow satellite
+    if (shadow) {
+
+      fac = core*core;
+      for (int k=0; k<3; k++)
+	fac += (pos[k] + rs[k])*(pos[k] + rs[k]);
+      fac = pow(fac, -0.5);
+    
+      ffac = -satmass*fac*fac*fac;
+
+      // Add acceration
+      for (int k=0; k<3; k++) cC->AddAcc(i, k, ffac*(pos[k]+rs[k]) );
+    
+      // Add external potential
+      cC->AddPotExt(i, -satmass*fac );
+    }
+
   }
 
   thread_timing_end(id);
