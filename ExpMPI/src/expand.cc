@@ -288,6 +288,7 @@ main(int argc, char** argv)
       if (chktimer.done()) {
 	if (myid==0) {
 	  cout << "Checkpoint timer says: quit now!" << endl;
+	  cout << "Restart command is: " << restart_cmd << endl;
 	}
       }
 

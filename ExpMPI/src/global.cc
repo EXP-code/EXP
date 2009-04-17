@@ -101,3 +101,4 @@ map<string, maker_t *, less<string> >::iterator fitr;
 
 string lastPS;
 CheckpointTimer chktimer;
+string restart_cmd;

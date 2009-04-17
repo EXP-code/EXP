@@ -90,6 +90,7 @@ void initialize(void)
   if (parse->find_item("parmfile", val))	parmfile = val;
   if (parse->find_item("ratefile", val))	ratefile = val;
   if (parse->find_item("runtag", val))		runtag = val;
+  if (parse->find_item("command", val))         restart_cmd = val;
 
   if (parse->find_item("outdir", val)) {
     bool ok = true;
@@ -201,6 +202,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "ratefile"   << " = " << ratefile    << endl;
   out << comment << " " << "outdir"     << " = " << outdir      << endl;
   out << comment << " " << "runtag"     << " = " << runtag      << endl;
+  out << comment << " " << "command"    << " = " << restart_cmd << endl;
 }
 
 

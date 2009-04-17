@@ -24,6 +24,7 @@ private:
 
   bool orbit;
   bool shadow;
+  bool verbose;
   bool zbflag;
   double omega, phase, r0, tlast;
 
@@ -57,6 +58,7 @@ UserSat::UserSat(string &line) : ExternalForce(line)
 
   orbit = false;		// Print out orbit for debugging
   shadow = false;		// Simulate an inverse symmetric satellite
+  verbose = false;		// Print messages on zero particles
   r0 = 1.0;			// Radius
   phase = 0.0;			// Initial position angle
   omega = 1.0;			// Angular frequency
@@ -169,6 +171,7 @@ void UserSat::userinfo()
 	 << ", config=" << config
 	 << ", centered on Component <" << c0->name << ">";
     if (shadow) cout << ", shadowing is on";
+    if (verbose) cout << ", verbose messages are on";
     cout << endl;
   }
 
@@ -189,6 +192,7 @@ void UserSat::initialize()
   if (get_value("toffset", val))  toffset = atof(val.c_str());
   if (get_value("orbit", val))    orbit = atoi(val.c_str()) ? true : false;
   if (get_value("shadow", val))   shadow = atoi(val.c_str()) ? true : false;
+  if (get_value("verbose", val))  verbose = atoi(val.c_str()) ? true : false;
   if (get_value("r0", val))       r0 = atof(val.c_str());
   if (get_value("phase", val))    phase = atof(val.c_str());
   if (get_value("omega", val))    omega = atof(val.c_str());
@@ -235,11 +239,13 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   if (nbodies==0) {		// Return if there are no particles
-    if (id==0 && zbflag) {	// Only print message on state change
-      cout << "Process " << myid << ": in UserSat, nbodies=0" 
-	   << " for Component <" << cC->name << "> at T=" << tnow
-	   << endl;
-      zbflag = false;
+    if (verbose) {
+      if (id==0 && zbflag) {	// Only print message on state change
+	cout << "Process " << myid << ": in UserSat, nbodies=0" 
+	     << " for Component <" << cC->name << "> at T=" << tnow
+	     << endl;
+	zbflag = false;
+      }
     }
     thread_timing_end(id);
     return (NULL);

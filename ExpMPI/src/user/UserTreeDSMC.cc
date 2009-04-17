@@ -43,7 +43,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ncell = 7;
   Ncell = 64;
   cnum = 0;
-  madj = 0;
+  madj = 512;			// No tree pruning by default
   epsm = -1.0;
   diamfac = 1.0;
   boxsize = 1.0;

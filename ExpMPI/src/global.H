@@ -240,4 +240,8 @@ extern string lastPS;
 //! Checkpoint timer
 extern CheckpointTimer chktimer;
 
+//! Restart command on successful completion but early termination
+//! according to the checkpoint timer
+extern string restart_cmd;
+
 #endif
