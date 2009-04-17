@@ -23,6 +23,12 @@ double pHOT::offst[] = {1.0, 1.0, 1.0};
 double pHOT::jittr[] = {0.0, 0.0, 0.0};
 unsigned pHOT::neg_half = 0;
 
+//
+// Write verbose output to a file if true (for debugging)
+// [set to false for production]
+//
+static bool keys_debug = true;
+
 template<class U, class V>
 struct pair_compare
 {
@@ -52,8 +58,6 @@ pHOT::pHOT(Component *C)
 
   kbeg = vector<key_type>(numprocs);
   kfin = vector<key_type>(numprocs);
-  nbodcount = vector<unsigned long>(numprocs);
-  nbodlocal = 0;
 
   key_min = (key_type)1 << 48;
   key_max = (key_type)1 << 49;
@@ -1582,7 +1586,7 @@ void pHOT::Repartition()
 	   << ": particle key not in keybods list at T=" << tnow << endl;
   }
 
-  if (true) {			// Summary/diaganostic  output
+  if (keys_debug) {		// Summary/diaganostic  output
 				//
     unsigned int nsiz = cc->Particles().size();
     unsigned int ksiz = keys.size();
@@ -1596,10 +1600,11 @@ void pHOT::Repartition()
     
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-
-      out << "--------------------------------------------------" << endl
-	  << "---- Post-scatter summary, T = " << tnow            << endl
-	  << "--------------------------------------------------" << endl;
+      
+      out << "------------------------------------------------------------" 
+	  << endl  << "---- Post-scatter summary, T = " << tnow << endl
+	  << "------------------------------------------------------------" 
+	  << endl;
       out << left
 	  << setw(5) << "#" 
 	  << setw(15) << "kbeg" << setw(15) << "kfin" 
@@ -1610,7 +1615,8 @@ void pHOT::Repartition()
 	    << setw(15) << kfin[i] << dec 
 	    << setw(15) << ksize[i] << setw(15) << nsize[i]
 	    << endl;
-      out << "--------------------------------------------------" << endl;
+      out << "------------------------------------------------------------" 
+	  << endl;
     }
   }
 
@@ -1782,7 +1788,6 @@ void pHOT::adjustTree(unsigned mlevel)
 	   << ": pHOT::adjustTree: ERROR crazy particle index!" << endl;
     }
     numkeys++;
-    nbodlocal++;
     timer_keybods.stop();
 
     //
@@ -2273,7 +2278,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_tadjust.stop();
 
-  if (true) {			// Summary/diaganostic  output
+  if (keys_debug) {		// Summary/diaganostic  output
 				//
     unsigned int nsiz = cc->Particles().size();
     vector<unsigned> nsize(numprocs);
@@ -2288,11 +2293,11 @@ void pHOT::adjustTree(unsigned mlevel)
 	  << "---- Post-adjustTree summary [" << mlevel << "], T = "  
 	  << tnow                                                 << endl
 	  << "--------------------------------------------------" << endl;
-      out << setw(5) << "#" 
+      out << left << setw(5) << "#" 
 	  << setw(15) << "kbeg" << setw(15) << "kfin" 
 	  << setw(15) << "bodies" << endl << "#" << endl;
       for (int i=0; i<numprocs; i++)
-	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
 	    << setw(15) << kfin[i] << dec 
 	    << setw(15) << nsize[i]
 	    << endl;
@@ -2903,38 +2908,43 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   unsigned nsamp = keys.size()/srate;
 				
   // DEBUG
-  if (true) {
+  if (keys_debug) {
+    if (myid==0) {
+	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	out << endl
+	    << "-------------------------------------------" << endl
+	    << "--- Sampling stats ------------------------" << endl
+	    << "-------------------------------------------" << endl << left
+	    << setw(5)  << "Id"
+	    << setw(10) << "#keys" 
+	    << setw(10) << "rate" 
+	    << setw(10) << "samples"
+	    << endl
+	    << setw(5)  << "--"
+	    << setw(10) << "-----" 
+	    << setw(10) << "----" 
+	    << setw(10) << "-------"
+	    << endl;
+    }
     for (int n=0; n<numprocs; n++) {
       if (n==myid) {
 	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-	if (n==0) {
-	  out << endl
-	      << "-------------------------------------------" << endl
-	      << "--- Sampling stats ------------------------" << endl
-	      << "-------------------------------------------" << endl << left
-	      << setw(5)  << "Id"
-	      << setw(10) << "#keys" 
-	      << setw(10) << "rate" 
-	      << setw(10) << "samples"
-	      << endl
-	      << setw(5)  << "--"
-	      << setw(10) << "-----" 
-	      << setw(10) << "----" 
-	      << setw(10) << "-------"
-	      << endl;
-	}
 	out << left
 	    << setw(5)  << myid
 	    << setw(10) << keys.size()
 	    << setw(10) << srate
 	    << setw(10) << nsamp
 	    << endl;
-	if (n==numprocs-1)
-	  out << "-------------------------------------------" << endl;
       }
+
       MPI_Barrier(MPI_COMM_WORLD);
     }
+    if (myid==0) {
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << "-------------------------------------------" << endl;
+    }
   }
+  //
   // END DEBUG
 
   if (nsamp > keys.size())	// Too many for particle count
@@ -2971,24 +2981,44 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   // DEBUG (set to "true" to enable key range diagnostic)
   //
 
-  if (false) {
+  if (keys_debug) {
     if (myid==0) {
-      cout << "--------------------------" << endl;
-      cout << "------ Sampled keys ------" << endl;
-      cout << "--------------------------" << endl;
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << "-------------------------------------------" << endl;
+      out << "------ Sampled keys -----------------------" << endl;
+      out << "-------------------------------------------" << endl;
+      out << left << setw(5) << "#"
+	  << setw(10) << "#keys"
+	  << setw(15) << "First"
+	  << setw(15) << "Q1"
+	  << setw(15) << "Median"
+	  << setw(15) << "Q3"
+	  << setw(15) << "Last"
+	  << endl
+	  << setw(5)  << "-"
+	  << setw(10) << "-----"
+	  << setw(15) << "-----"
+	  << setw(15) << "--"
+	  << setw(15) << "------"
+	  << setw(15) << "--"
+	  << setw(15) << "----"
+	  << endl;
     }
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
-	cout << setw(5) << n << setw(10) << keys.size() << hex
-	     << setw(15) << keys[0]
-	     << setw(15) << keys[keys.size()/4]
-	     << setw(15) << keys[keys.size()/2]
-	     << setw(15) << keys[keys.size()*3/4]
-	     << setw(15) << keys[keys.size()-1]
-	     << dec << endl;
+	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	out << left << setw(5) << n << setw(10) << keys.size();
+	if (keys.size()>0) {
+	  out << hex
+	      << setw(15) << keys[0]
+	      << setw(15) << keys[keys.size()/4]
+	      << setw(15) << keys[keys.size()/2]
+	      << setw(15) << keys[keys.size()*3/4]
+	      << setw(15) << keys[keys.size()-1]
+	      << dec << endl;
+	}
       }
       MPI_Barrier(MPI_COMM_WORLD);
-      
     }
   }
 
@@ -3000,28 +3030,30 @@ void pHOT::partitionKeys(vector<key_type>& keys,
     const unsigned cwid = 35;	// column width
 
     if (myid==0) {
-      cout << "--------------------------" << endl;
-      cout << "----- Partition keys -----" << endl;
-      cout << "--------------------------" << endl;
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << "--------------------------" << endl;
+      out << "----- Partition keys -----" << endl;
+      out << "--------------------------" << endl;
 
       for (unsigned q=0; q<cols; q++) {
 	ostringstream sout;
 	sout << left << setw(4) << "Id" << setw(8) 
 	     << "Size" << setw(8) << "Tot" << setw(8) << "Order";
-	cout << left << setw(cwid) << sout.str();
+	out << left << setw(cwid) << sout.str();
       }
-      cout << endl;
+      out << endl;
 	
       for (unsigned q=0; q<cols; q++) {
 	ostringstream sout;
 	sout << setfill('-') << setw(cwid-5) << '-';
-	cout << left << setw(cwid) << sout.str();
+	out << left << setw(cwid) << sout.str();
       }
-      cout << endl;
+      out << endl;
     }
 
     for (unsigned n=0; n<numprocs; n++) {
       if (myid==n) {
+	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
 	bool ok = true;
 	if (keylist1.size()>1) {
 	  for (unsigned j=1; j<keylist1.size(); j++)
@@ -3035,8 +3067,8 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 	if (ok) sout << left << setw(8) << "GOOD";
 	else sout << left << setw(8) << "BAD";
 
-	cout << left << setw(cwid) << sout.str() << flush;
-	if (n % cols == cols-1 || n == numprocs-1) cout << endl;
+	out << left << setw(cwid) << sout.str() << flush;
+	if (n % cols == cols-1 || n == numprocs-1) out << endl;
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -3053,22 +3085,21 @@ void pHOT::partitionKeys(vector<key_type>& keys,
   parallelMerge(keylist1, keylist);
   MPI_Barrier(MPI_COMM_WORLD);
 
-  MPI_Gather(&nbodlocal,    1, MPI_UNSIGNED_LONG, 
-	     &nbodcount[0], 1, MPI_UNSIGNED_LONG, 
-	     0, MPI_COMM_WORLD);
-
-  nbodlocal = 0;		// Reset the count
-
   if (myid==0) {
-				// Use the number of frontier bodies to
-				// partition the cells
-				//
-				// If we don't have a count yet, nbodcount[i]=0
-				// this will be a uniform partition
+
     vector<double> frate(numprocs);
-    frate[0] = 1.0/(nbodcount[0]+1);
+
+				// Use an even rate
+    frate[0] = 1.0;
     for (unsigned i=1; i<numprocs; i++) 
-      frate[i] = frate[i-1] + 1.0/(nbodcount[i]+1);
+      frate[i] = frate[i-1] + 1.0;
+    //                        ^
+    //                        |
+    //                        |
+    // Replace with the computation rate for the node <i>
+    // for load balancing
+    //
+    
 
 				// Compute the key boundaries in the partition
 				//
@@ -3087,31 +3118,38 @@ void pHOT::partitionKeys(vector<key_type>& keys,
     for (unsigned i=1; i<numprocs; i++)
       kbeg[i] = kfin[i-1];
       
-    if (false) {	 // If true, print key ranges for each process
-      cout << "--------------------------------------------------" << endl
-	   << "---- partitionKeys: keys in list=" << keylist.size() << endl
-	   << "--------------------------------------------------" << endl;
-      for (int i=0; i<numprocs; i++)
-	cout << setw(5) << i << hex << setw(15) << kbeg[i] 
-	     << setw(15) << kfin[i] << dec << endl;
-      cout << "--------------------------------------------------" << endl;
+    if (keys_debug) {	 // If true, print key ranges for each process
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << "--------------------------------------------------------" << endl
+	  << "---- partitionKeys: keys in list=" << keylist.size()      << endl
+	  << "--------------------------------------------------------" << endl;
+      for (int i=0; i<numprocs; i++) {
+	key_type kdif = kfin[i] - kbeg[i];
+	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	    << setw(15) << kfin[i] << dec 
+	    << setw(15) << kdif
+	    << endl;
+      }
+      out << "--------------------------------------------------------" << endl;
     }
   }
 
-  if (false) {			// If true, print key totals
+  if (keys_debug) {		// If true, print key totals
     unsigned oobn = oobNumber();
     unsigned tkey1 = keys.size(), tkey0 = 0;
     MPI_Reduce(&tkey1, &tkey0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (myid==0) 
-      cout << endl
-	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	   << "---- partitionKeys" << endl
-	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	   << "----  list size=" << setw(10) << keylist.size() << endl
-	   << "---- total keys=" << setw(10) << tkey0 << endl
-	   << "----  total oob=" << setw(10) << oobn << endl
-	   << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
-	   << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+    if (myid==0) {
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << endl
+	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	  << "---- partitionKeys" << endl
+	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	  << "----  list size=" << setw(10) << keylist.size() << endl
+	  << "---- total keys=" << setw(10) << tkey0 << endl
+	  << "----  total oob=" << setw(10) << oobn << endl
+	  << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
+	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+    }
   }
 
   MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);

@@ -282,6 +282,16 @@ main(int argc, char** argv)
       do_step(this_step);
     
       //
+      // Checking for exit time
+      //
+
+      if (chktimer.done()) {
+	if (myid==0) {
+	  cout << "Checkpoint timer says: quit now!" << endl;
+	}
+      }
+
+      //
       // Synchronize and check for signals
       //
 

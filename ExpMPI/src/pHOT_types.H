@@ -48,30 +48,57 @@ typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;
 typedef multimap<key_type, key_type> key_key;
 
 
+/*
+  Now, deal with the transition to ANSI undordered_maps from pre-ANSI
+  hash_maps using the config variables
+*/
 
-#ifdef   HAVE_CXX0X
+#ifdef HAVE_CXX0X
+//============================================================================
 #include <unordered_map>
 				// Cell key points to cell pointer
 typedef std::unordered_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle index points to particle key
-typedef std::unordered_map<unsigned, key_type, hash<indx_type> > indx_key;
-#elifdef HAVE_TR1
+typedef std::unordered_map<unsigned, key_type, std::hash<indx_type> > indx_key;
+//============================================================================
+
+#else
+
+#ifdef HAVE_TR1
+
+//============================================================================
 #include <tr1/unordered_map>
 				// Cell key points to cell pointer
 typedef std::tr1::unordered_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle index points to particle key
-typedef std::tr1::unordered_map<unsigned, key_type, hash<indx_type> > indx_key;
-#elifdef HAVE_HASH
+typedef std::tr1::unordered_map<unsigned, key_type, std::tr1::hash<indx_type> > indx_key;
+//============================================================================
+
+#else
+
+#ifdef HAVE_HASH
+
+//============================================================================
 #include <ext/hash_map>
 				// Cell key points to cell pointer
 typedef hash_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle index points to particle key
 typedef hash_map<unsigned, key_type, hash<indx_type> > indx_key;
+//============================================================================
+
 #else
+
+//============================================================================
 				// Cell key points to cell pointer
 typedef std::map<key_type, pCell*, eqULL> key_cell;
 				// Particle index points to particle key
 typedef std::map<unsigned, key_type> indx_key;
-#endif
+//============================================================================
+
+#endif // HAVE_HASH
+
+#endif // HAVE_TR1
+
+#endif // HAVE_CXX0X
 
 #endif

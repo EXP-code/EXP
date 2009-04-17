@@ -7,10 +7,11 @@
 #include <ExternalCollection.H>
 #include <OutputContainer.H>
 #include <ParamParseMPI.H>
+#include <chkTimer.H>
 
 				// Numerical parameters
 
-int nbodmax = 20000;		// Maximum number of bodies; this is not
+unsigned nbodmax = 1000000;	// Maximum number of bodies; this is not
 				// an intrinsic limitation just a sanity
 				// value
 
@@ -31,6 +32,7 @@ bool initializing = false;	// Used by force methods to do "private things"
 				// before the first step (e.g. run through
 				// coefficient evaluations even when
 				// self_consistent=false)
+double runtime = 72.0;		// Total alloted runtime
 
 				// Files
 string homedir = "./";
@@ -43,7 +45,7 @@ string ldlibdir = ".";
 
 double tnow;			// Per step variables
 int this_step;
-
+int psdump = -1;
 				// Global center of mass
 double mtot;
 double *gcom = new double [3];
@@ -97,3 +99,5 @@ ParamParseMPI *parse = 0;
 map<string, maker_t *, less<string> > factory;
 map<string, maker_t *, less<string> >::iterator fitr;
 
+string lastPS;
+CheckpointTimer chktimer;

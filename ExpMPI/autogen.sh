@@ -32,11 +32,11 @@ if test ! -x `which libtoolize`
 then echo you need libtoolize to generate the Makefile
 fi
 
-aclocal-1.7
+aclocal
 autoheader
 libtoolize
-automake-1.7 --add-missing
-automake-1.7
+automake --add-missing
+automake
 autoconf
 ./configure $*
 $MAKE CXXFLAGS="-O3" CFLAGS="-O3" -j3

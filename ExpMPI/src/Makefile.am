@@ -39,7 +39,7 @@ exp_SOURCES = \
      OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
      multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
-     OutCalbr.cc ParticleFerry.cc pCell.cc
+     OutCalbr.cc ParticleFerry.cc pCell.cc chkTimer.cc
 
 exp_LDADD = libpHOT.a $(EXPLIBS)
 

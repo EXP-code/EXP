@@ -10,6 +10,8 @@
 #include <list>
 #include <coef.H>
 
+#include <chkTimer.H>
+
 using namespace std;
 
 /*! \file global.H
@@ -20,7 +22,7 @@ using namespace std;
 */
 
 //! Maximum number of bodies per process
-extern int nbodmax;
+extern unsigned nbodmax;
 
 //! Maximum number of steps to execute
 extern int nsteps;
@@ -101,6 +103,9 @@ extern double tnow;
 
 //! Current step number
 extern int this_step;
+
+//! Last phase space dump step
+extern int psdump;
 
 //! Total mass in simulation (used by Orient and log diagnostics)
 extern double mtot;
@@ -225,5 +230,14 @@ extern OutputContainer output;
 
 //! Parameter database
 extern ParamParseMPI *parse;
+
+//! Total alloted runtime
+extern double runtime;
+
+//! Last PS file name
+extern string lastPS;
+
+//! Checkpoint timer
+extern CheckpointTimer chktimer;
 
 #endif

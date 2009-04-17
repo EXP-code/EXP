@@ -35,6 +35,27 @@ void OutCHKPT::initialize()
 void OutCHKPT::Run(int n, bool last)
 {
   if (n % nint && !last) return;
+  if (myid==0) {
+    cout << "OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
+  }
+  if (n == psdump) {       
+    if (myid==0) {
+      string backfile = filename + ".bak";
+      if (unlink(backfile.c_str())) {
+	perror("OutCHKPT::Run()");
+	ostringstream message;
+	message << "OutCHKPT: error unlinking old backup file <" 
+		<< backfile << ">";
+      }
+      if (symlink(lastPS.c_str(), backfile.c_str())) {
+	perror("OutCHKPT::Run()");
+	ostringstream message;
+	message << "OutCHKPT: error symlinking new backup file <" 
+		<< backfile << ">";
+      }
+    }
+    return;
+  }
 
   ofstream *out;
   list<Component*>::iterator cc;
@@ -89,6 +110,8 @@ void OutCHKPT::Run(int n, bool last)
     out->close();
     delete out;
   }
+
+  chktimer.mark();
 
 }
 

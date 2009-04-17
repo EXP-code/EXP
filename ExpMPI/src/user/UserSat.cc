@@ -24,6 +24,7 @@ private:
 
   bool orbit;
   bool shadow;
+  bool zbflag;
   double omega, phase, r0, tlast;
 
   void userinfo();
@@ -127,6 +128,8 @@ UserSat::UserSat(string &line) : ExternalForce(line)
       
     tlast = tnow;
   }
+
+  zbflag = true;
 
   userinfo();
 }
@@ -232,14 +235,17 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   if (nbodies==0) {		// Return if there are no particles
-    if (id==0) {
+    if (id==0 && zbflag) {	// Only print message on state change
       cout << "Process " << myid << ": in UserSat, nbodies=0" 
 	   << " for Component <" << cC->name << "> at T=" << tnow
 	   << endl;
+      zbflag = false;
     }
     thread_timing_end(id);
     return (NULL);
   }
+
+  if (id==0) zbflag = true;
 
   if (traj_type==circ) {
     phi = phase + omega*tnow;

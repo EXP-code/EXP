@@ -899,7 +899,8 @@ void Component::read_bodies_and_distribute_ascii(void)
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
       cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax should be at least "
+      cerr << "nbodmax is currently " << nbodmax*numprocs
+	   << " but should be at least "
 	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
     }
     MPI_Finalize();
@@ -1179,7 +1180,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
       cerr << "Not enough space on all processors to hold phase space\n";
-      cerr << "nbodmax should be at least "
+      cerr << "nbodmax is currently " << nbodmax*numprocs
+	   << " but should be at least "
 	   << (int)( (double)nbodies_tot/numprocs + 1) << endl;
     }
     MPI_Finalize();

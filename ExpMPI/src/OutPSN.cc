@@ -64,6 +64,8 @@ void OutPSN::Run(int n, bool last)
   list<Component*>::iterator cc;
   Component* c;
 
+  psdump = n;
+
   if (myid==0) {
 				// Output name
     ostringstream fname;
@@ -77,6 +79,8 @@ void OutPSN::Run(int n, bool last)
 	   << "> . . . quitting\n";
       MPI_Abort(MPI_COMM_WORLD, 33);
     }
+				// Used by OutCHKPT to not duplicate a dump
+    lastPS = fname.str();
 				// Open file and write master header
     
     struct MasterHeader header;
@@ -96,6 +100,8 @@ void OutPSN::Run(int n, bool last)
     out->close();
     delete out;
   }
+
+  chktimer.mark();
 
   dump_signal = 0;
 }
