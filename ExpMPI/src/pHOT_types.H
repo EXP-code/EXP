@@ -1,10 +1,10 @@
 #ifndef _pHOT_types_H
 #define _pHOT_types_H
 
+#include "../config.h"
+
 #include <map>
 #include <set>
-#include <ext/hash_map>
-#include <ext/hash_set>
 
 using namespace std;
 using namespace __gnu_cxx;
@@ -43,13 +43,35 @@ typedef list<cell_indx> change_list;
 
 				// A list of key/index pairs for particles
 typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;
-				// Cell key points to cell pointer
-typedef hash_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle key points to cell key
 				// multimap permits multiple identical pairs
 typedef multimap<key_type, key_type> key_key;
+
+
+
+#ifdef   HAVE_CXX0X
+#include <unordered_map>
+				// Cell key points to cell pointer
+typedef std::unordered_map<key_type, pCell*, hashULL, eqULL> key_cell;
+				// Particle index points to particle key
+typedef std::unordered_map<unsigned, key_type, hash<indx_type> > indx_key;
+#elifdef HAVE_TR1
+#include <tr1/unordered_map>
+				// Cell key points to cell pointer
+typedef std::tr1::unordered_map<key_type, pCell*, hashULL, eqULL> key_cell;
+				// Particle index points to particle key
+typedef std::tr1::unordered_map<unsigned, key_type, hash<indx_type> > indx_key;
+#elifdef HAVE_HASH
+#include <ext/hash_map>
+				// Cell key points to cell pointer
+typedef hash_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle index points to particle key
 typedef hash_map<unsigned, key_type, hash<indx_type> > indx_key;
-
+#else
+				// Cell key points to cell pointer
+typedef std::map<key_type, pCell*, eqULL> key_cell;
+				// Particle index points to particle key
+typedef std::map<unsigned, key_type> indx_key;
+#endif
 
 #endif

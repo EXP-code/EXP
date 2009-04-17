@@ -1595,17 +1595,18 @@ void pHOT::Repartition()
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
-      ofstream out("pHOT.debug", ios::app);
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
 
       out << "--------------------------------------------------" << endl
 	  << "---- Post-scatter summary, T = " << tnow            << endl
 	  << "--------------------------------------------------" << endl;
-      out << setw(5) << "#" 
+      out << left
+	  << setw(5) << "#" 
 	  << setw(15) << "kbeg" << setw(15) << "kfin" 
 	  << setw(15) << "nkeys"
 	  << setw(15) << "bodies" << endl << "#" << endl;
       for (int i=0; i<numprocs; i++)
-	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
 	    << setw(15) << kfin[i] << dec 
 	    << setw(15) << ksize[i] << setw(15) << nsize[i]
 	    << endl;
@@ -2281,7 +2282,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	       0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      ofstream out("pHOT.debug", ios::app);
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
 
       out << "--------------------------------------------------" << endl
 	  << "---- Post-adjustTree summary [" << mlevel << "], T = "  
@@ -2901,6 +2902,41 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 				// Number of samples
   unsigned nsamp = keys.size()/srate;
 				
+  // DEBUG
+  if (true) {
+    for (int n=0; n<numprocs; n++) {
+      if (n==myid) {
+	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	if (n==0) {
+	  out << endl
+	      << "-------------------------------------------" << endl
+	      << "--- Sampling stats ------------------------" << endl
+	      << "-------------------------------------------" << endl << left
+	      << setw(5)  << "Id"
+	      << setw(10) << "#keys" 
+	      << setw(10) << "rate" 
+	      << setw(10) << "samples"
+	      << endl
+	      << setw(5)  << "--"
+	      << setw(10) << "-----" 
+	      << setw(10) << "----" 
+	      << setw(10) << "-------"
+	      << endl;
+	}
+	out << left
+	    << setw(5)  << myid
+	    << setw(10) << keys.size()
+	    << setw(10) << srate
+	    << setw(10) << nsamp
+	    << endl;
+	if (n==numprocs-1)
+	  out << "-------------------------------------------" << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+  }
+  // END DEBUG
+
   if (nsamp > keys.size())	// Too many for particle count
     nsamp = keys.size();
 
@@ -2909,7 +2945,7 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 
   // Require: srate*(2*nsamp-1)/2 < keys.size()
   //
-  if (keys.size()) {
+  if (nsamp && keys.size()) {
     unsigned decr=0;
     while (srate*(2*nsamp-1)/2 >= keys.size()) {
       nsamp--;
