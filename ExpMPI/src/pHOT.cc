@@ -2891,14 +2891,15 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 				// Sort the keys
   sort(keys.begin(), keys.end());
 
+				// Even number per processor
+  unsigned equal = cc->nbodies_tot/numprocs;
+
 				// Sample keys at desired rate
-  unsigned srate = 1000;	// e.g. every srate^th key is sampled
+				// e.g. every srate^th key is sampled
+  unsigned srate = static_cast<unsigned>(floor(sqrt(equal)+0.5));
 
 				// Number of samples
   unsigned nsamp = keys.size()/srate;
-				
-  if (nsamp < 10000/numprocs)	// Too few samples
-    nsamp = 10000/numprocs; 
 				
   if (nsamp > keys.size())	// Too many for particle count
     nsamp = keys.size();

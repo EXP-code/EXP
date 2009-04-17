@@ -40,8 +40,8 @@
 #include <cstring>
 #include <vector>
 
-#include <unistd.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 
 #include <ParamParseMPI.H>
 

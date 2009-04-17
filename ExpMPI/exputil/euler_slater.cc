@@ -37,9 +37,8 @@
  *
  ***************************************************************************/
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 #include "Vector.h"
 
 // #define TEST for test program
@@ -82,12 +81,17 @@ Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY)
 
 main(int argc, char **argv)
 {
+  const double onedeg = M_PI/180.0;
   double phi, theta, psi;
 
-  cout << "Phi, Theta, Psi: ";
+  cout << "Phi, Theta, Psi (in degrees): ";
   cin >> phi;
   cin >> theta;
   cin >> psi;
+
+  phi   *= onedeg;
+  theta *= onedeg;
+  psi   *= onedeg;
 
   Matrix euler0 = return_euler_slater(phi, theta, psi, 0);
   Matrix euler1 = return_euler_slater(phi, theta, psi, 1);

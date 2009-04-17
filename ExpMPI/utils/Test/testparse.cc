@@ -4,7 +4,6 @@
 #include <fstream>
 #include <string>
 
-#include <unistd.h>
 #include <getopt.h>
 
 #include <ParamParse.H>

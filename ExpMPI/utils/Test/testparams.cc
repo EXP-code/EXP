@@ -40,8 +40,8 @@
 #include <string>
 #include <vector>
 
-#include <unistd.h>
-#include <math.h>
+#include <cstdlib>
+#include <cmath>
 
 #include <ParamParse.H>
 

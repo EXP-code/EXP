@@ -4,6 +4,7 @@
 #include <sstream>
 #include <algorithm>
 #include <typeinfo>
+#include <cstring>
 
 #include <time.h>
 
