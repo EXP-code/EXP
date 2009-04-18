@@ -12,6 +12,8 @@ ExpMPI/include/ProgramParam.H -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
 ExpMPI/src/MixtureSL.H -text
+ExpMPI/src/chkTimer.H -text
+ExpMPI/src/chkTimer.cc -text
 ExpMPI/src/user/RespMat3.h -text
 ExpMPI/src/user/Trajectory.H -text
 ExpMPI/src/user/UnboundCoefs.H -text
