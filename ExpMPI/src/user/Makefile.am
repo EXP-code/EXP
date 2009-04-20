@@ -13,7 +13,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
 	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la \
-	libreflect.la libsatwake.la libpst.la
+	libreflect.la libsatwake.la libpst.la libuserslab.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -110,6 +110,8 @@ libsatwake_la_LIBADD = libswake.a libcommon.a -llapack-3 -lblas-3
 libpst_la_SOURCES = UserPST.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
 libpst_la_CXXFLAGS = -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs
 libpst_la_LIBADD = libcommon.a
+
+libuserslab_la_SOURCES = UserSlabHalo.cc 
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
