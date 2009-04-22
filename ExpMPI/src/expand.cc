@@ -105,6 +105,7 @@ main(int argc, char** argv)
 {
   const int hdbufsize=1024;
   char hdbuffer[hdbufsize];
+  bool final_cmd = false;
 
 #ifdef DEBUG
   set_fpu_handler();
@@ -289,6 +290,7 @@ main(int argc, char** argv)
 	if (myid==0) {
 	  cout << "Checkpoint timer says: quit now!" << endl;
 	  cout << "Restart command is: " << restart_cmd << endl;
+	  final_cmd = true;
 	}
       }
 
@@ -334,6 +336,14 @@ main(int argc, char** argv)
   //===========
 
   clean_up();
+
+  //=================
+  // Epilogue command
+  //=================
+
+  if (final_cmd && myid==0) {
+    cout << "I would now execute the command: " << restart_cmd << endl;
+  }
 
   return 0;
 }

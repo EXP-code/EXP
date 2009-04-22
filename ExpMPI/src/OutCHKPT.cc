@@ -43,15 +43,28 @@ void OutCHKPT::Run(int n, bool last)
       string backfile = filename + ".bak";
       if (unlink(backfile.c_str())) {
 	perror("OutCHKPT::Run()");
-	ostringstream message;
-	message << "OutCHKPT: error unlinking old backup file <" 
-		<< backfile << ">";
+	cout << "OutCHKPT::Run(): error unlinking old backup file <" 
+	     << backfile << ">" << endl;
+      } else {
+	cout << "OutCHKPT::Run(): successfully unlinked <"
+	     << backfile << ">" << endl;
       }
-      if (symlink(lastPS.c_str(), backfile.c_str())) {
+      if (rename(filename.c_str(), backfile.c_str())) {
 	perror("OutCHKPT::Run()");
-	ostringstream message;
-	message << "OutCHKPT: error symlinking new backup file <" 
-		<< backfile << ">";
+	cout << "OutCHKPT: error creating backup file <" 
+	     << backfile << ">" << endl;
+      } else {
+	cout << "OutCHKPT::Run(): successfully renamed <"
+	     << filename << "> to <" << backfile << ">" << endl;
+      }
+      if (symlink(lastPS.c_str(), filename.c_str())) {
+	perror("OutCHKPT::Run()");
+	cout << "OutCHKPT::Run(): error symlinking new backup file <" 
+	     << filename << ">" << endl;
+      } else {
+	cout << "OutCHKPT::Run(): successfully linked <"
+	     << lastPS << "> to new backup file <" 
+	     << filename << ">" << endl;
       }
     }
     return;
@@ -67,9 +80,8 @@ void OutCHKPT::Run(int n, bool last)
     string backfile = filename + ".bak";
     if (rename(filename.c_str(), backfile.c_str())) {
       perror("OutCHKPT::Run()");
-      ostringstream message;
-      message << "OutCHKPT: error creating backup file <" << backfile << ">";
-      // bomb(message.str());
+      cout << "OutCHKPT::Run(): error creating backup file <" 
+	   << backfile << ">";
     }
 	
 				// Open file and write master header

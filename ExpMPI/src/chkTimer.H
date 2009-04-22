@@ -44,6 +44,12 @@ private:
   double mean, var;
   bool firstime;
 
+  //! Execute a command and pipe the results to string
+  string exec(string& cmd);
+
+  //! Get the remaining execution time from PBS
+  double time_remaining();
+
 public:
   
   //! Safety time interval [Default: 10 minute warning]

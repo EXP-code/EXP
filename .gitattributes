@@ -41,6 +41,7 @@ ExpMPI/utils/Analysis/SphereSL.cc -text
 ExpMPI/utils/Analysis/diskprof.cc -text
 ExpMPI/utils/Analysis/foarray.H -text
 ExpMPI/utils/Analysis/haloprof.cc -text
+ExpMPI/utils/Analysis/slabprof.cc -text
 ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
 ExpMPI/utils/ICs/EllipsoidForce.H -text

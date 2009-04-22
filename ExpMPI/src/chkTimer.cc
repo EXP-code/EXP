@@ -1,3 +1,11 @@
+#include <cstdlib>
+#include <cstdio>
+#include <string>
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <vector>
+
 #include <expand.h>
 #include <chkTimer.H>
 
@@ -6,16 +14,9 @@ time_t CheckpointTimer::delta = 600;
 
 CheckpointTimer::CheckpointTimer()
 {
-  // Get and store the current time
-  
-  initial = time(0);
-
-  // Compute the final time based on input variable
-
-  final   = initial + static_cast<time_t>(floor(runtime*3600 + 0.5));
-
   // Initialization
 
+  initial = final = 0;
   last = current = 0;
   mean = var = 0;
   nsteps = 0;
@@ -28,6 +29,27 @@ void  CheckpointTimer::mark()
   // DEBUG
   //
   if (firstime && myid==0) {
+
+    // Get and store the current time
+    initial = time(0);
+
+    // Look for PBS environment
+    double runtime0;
+
+    try {
+      runtime0 = time_remaining();
+    } 
+    catch (string& msg) {
+      cout << "CheckpointTimer: PBS problem, " << msg << endl;
+      cout << "CheckpointTimer: continuing using default runtime=" 
+	   << runtime << endl;
+
+      runtime0 = runtime;
+    }
+
+    // Compute the final time based on input variable
+    final   = initial + static_cast<time_t>(floor(runtime0*3600 + 0.5));
+
     string s_initial = ctime(&initial);
     string s_final   = ctime(&final);
     cout << "----------------------------------------------------"
@@ -93,7 +115,8 @@ bool CheckpointTimer::done()
 	mean = (mean*(nsteps-1) + tr)/nsteps;
       }
 
-      cout << "-------------------------------------------"
+      cout << endl
+	   << "-------------------------------------------"
 	   << "---------------------------" << endl
 	   << "--- Checkpoint timer info -----------------"
 	   << "---------------------------" << endl
@@ -112,4 +135,107 @@ bool CheckpointTimer::done()
   //
 
   return flg ? true : false;
+}
+
+string CheckpointTimer::exec(string& cmd) 
+{
+  FILE* pipe = popen(cmd.c_str(), "r");
+  if (!pipe) return "ERROR";
+
+  char buffer[128];
+  std::string result;
+
+  while(!feof(pipe)) {
+    if(fgets(buffer, 128, pipe) != NULL)
+      result += buffer;
+  }
+  pclose(pipe);
+
+  return result;
+}
+
+
+double CheckpointTimer::time_remaining()
+{
+  string env("PBS_JOBID");
+
+  if (getenv(env.c_str()) == 0)
+    throw string("No environment variable: PBS_JOBID");
+
+  string job = getenv(env.c_str());
+
+  string command = "showstart " + job;
+  string result = exec(command);
+
+  istringstream sin(result);
+  char line[128];
+  string tag("Earliest completion in ");
+  bool found = false;
+  double ret = 0.0;
+
+  while (sin) {
+    sin.getline(line, 128);
+    string sline(line);
+    
+    if (sline.find(tag) != string::npos) {
+
+      found = true;
+
+      string chop = sline.substr(sline.find(tag)+tag.length());
+      chop = chop.substr(0, chop.find("on"));
+      chop = chop.substr(chop.find_first_not_of(" "));
+      chop = chop.substr(0, chop.find(" "));
+
+#ifdef DEBUG
+      cout << "String: " << chop << endl;
+#endif
+
+      vector<string> items;
+      int days=0, hours=0, mins=0, secs=0;
+      
+      while (chop.size()) {
+	if (chop.find(":") != string::npos) {
+	  items.push_back(chop.substr(0, chop.find(":")));
+	} else {
+	  items.push_back(chop);
+	  break;
+	}
+	chop = chop.substr(chop.find(":")+1);
+      }
+
+#ifdef DEBUG
+      for (unsigned n=0; n<items.size(); n++)
+	cout << setw(3) << n << " <" << items[n] << ">" << endl;
+#endif
+
+      if (items.size()) {
+	secs = atoi(items.back().c_str());
+	items.pop_back();
+      }
+
+      if (items.size()) {
+	mins = atoi(items.back().c_str());
+	items.pop_back();
+      }
+
+      if (items.size()) {
+	hours = atoi(items.back().c_str());
+	items.pop_back();
+      }
+
+      if (items.size()) {
+	days = atoi(items.back().c_str());
+	items.pop_back();
+      }
+
+      ret = static_cast<double>(((days*24 + hours)*60 + mins)*60 + secs) / 3600.0;
+
+      break;
+    }
+
+  }
+
+  if (!found) throw string("PBS command failure, no PBS??");
+
+  return ret;
 }

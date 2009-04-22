@@ -6,9 +6,11 @@
 
 /** Sech^2 external 1-dimensional halo model
 
-    @param model_file is the filename
-    @param diverge set to 1 uses a power law inner profile
-    @param diverge_rfac is the value of power law exponent
+    @param ctrname component will be used to define the center
+    @param h0 is the slab scale height
+    @param rho0 is the slab central density
+    @param v0 is the midplane velocity for a turning point at h0
+    @param z0 is the midplane position
 */
 class UserSlabHalo : public ExternalForce
 {
@@ -19,7 +21,7 @@ private:
   void initialize();
 
   string ctr_name;
-  double h0, rho0, sig20, U0, v0, v20;
+  double h0, rho0, sig20, U0, v0, v20, z0;
   Component *c0;
 
   void userinfo();

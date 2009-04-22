@@ -3119,17 +3119,20 @@ void pHOT::partitionKeys(vector<key_type>& keys,
       kbeg[i] = kfin[i-1];
       
     if (keys_debug) {	 // If true, print key ranges for each process
+      key_type kdif;
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
       out << "--------------------------------------------------------" << endl
 	  << "---- partitionKeys: keys in list=" << keylist.size()      << endl
-	  << "--------------------------------------------------------" << endl;
-      for (int i=0; i<numprocs; i++) {
-	key_type kdif = kfin[i] - kbeg[i];
-	out << setw(5) << i << hex << setw(15) << kbeg[i] 
+	  << "--------------------------------------------------------" << endl
+	  << left << setw(5) << "proc #" << setw(15) << "kfin"
+	  << setw(15) << "kfin" << setw(15) << "# keys" << endl
+	  << left << setw(5) << "------" << setw(15) << "----"
+	  << setw(15) << "----" << setw(15) << "------" << endl;
+      for (int i=0; i<numprocs; i++)
+	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
 	    << setw(15) << kfin[i] << dec 
-	    << setw(15) << kdif
+	    << setw(15) << (kdif = kfin[i] - kbeg[i])
 	    << endl;
-      }
       out << "--------------------------------------------------------" << endl;
     }
   }
