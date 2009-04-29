@@ -180,6 +180,8 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
 
 				// EPSM diagnostics
   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
+  if (EPSMratio> 0) use_epsm = true;
+  else              use_epsm = false;
 
   diagTime.Microseconds();
   snglTime.Microseconds();
@@ -529,6 +531,19 @@ void * Collide::collide_thread(void * arg)
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
     
+				// Debug
+    if (0) {
+      cerr << left << setprecision(2)
+	   << "MFP/L=" << setw(8) << prec[id].first 
+	   << " Edsp=" << setw(8) << kedsp
+	   << " Rate=" << setw(8) << coolrate[id]
+	   << " Time=" << setw(8) << tnow
+	   << " Nsel=" << setw(6) << nsel 
+	   << " Numb=" << setw(6) << number 
+	   << endl;
+    }
+
+
     initTime[id].start();
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
@@ -540,7 +555,7 @@ void * Collide::collide_thread(void * arg)
     collTime[id].start();
 				// If more than EPSMratio collisions per
 				// particle, assume equipartition
-    if (2.0*select/static_cast<double>(number) > EPSMratio) {
+    if (use_epsm && 2.0*select/static_cast<double>(number) > EPSMratio) {
 
       EPSM(tree, c, id);
 

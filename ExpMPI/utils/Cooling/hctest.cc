@@ -15,6 +15,7 @@ using namespace std;
 int myid = 0;
 char threading_on = 0;
 string outdir = "";
+string runtag = "test";
 pthread_mutex_t mem_lock;
 
 //===========================================================================

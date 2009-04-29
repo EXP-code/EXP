@@ -37,15 +37,15 @@ const double f_H = 0.76;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
-double   CollideLTE::Nmax    = 1.0e+08;
+double   CollideLTE::Nmax    = 1.0e+25;
 double   CollideLTE::Tmin    = 1.0e+03;
-double   CollideLTE::Tmax    = 1.0e+06;
+double   CollideLTE::Tmax    = 1.0e+08;
 double   CollideLTE::TolV    = 1.0e-03;
-unsigned CollideLTE::Nnum    = 200;
+unsigned CollideLTE::Nnum    = 400;
 unsigned CollideLTE::Tnum    = 200;
 string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
-bool     CollideLTE::frost_warning = false;
+bool     CollideLTE::frost_warning = true;
 
 CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
@@ -61,7 +61,7 @@ CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) :
   dispT   = vector<double>(nthrds, 0.0);
   tlist   = vector< vector<double> >(nthrds);
 
-  debug_enabled = false;
+  debug_enabled = true;
 
   numt = 20;
   tmin = log(5000.0);
@@ -180,7 +180,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   if (NOCOOL || n0<=0.0 || T <=0.0)
     coolrate[id] = 0.0;
   else {
-    coolrate[id] = hc->CoolRate(n0, T) * n_h*n_h * CellVolume * tau *
+    coolrate[id] = hc->CoolRate(n0, T) * CellVolume * tau *
       UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 				// Sanity: failure of implicit solution
     if (isnan(coolrate[id])) coolrate[id] = 0.0;

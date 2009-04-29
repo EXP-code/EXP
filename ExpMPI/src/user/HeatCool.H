@@ -56,9 +56,11 @@ private:
 
   bool readCache();
   void writeCache();
+  void debugCache();
 
 public:
 
+  static bool dbgCache;
   static bool useCache;
 
   HeatCool() : table(false) {}

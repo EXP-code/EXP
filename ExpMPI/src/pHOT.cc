@@ -1120,7 +1120,7 @@ void pHOT::Slice(int nx, int ny, int nz, string cut, string prefix)
 
   if (cut.compare("YZ")==0) {
 
-				// X-Y slice
+				// Y-Z slice
     pt[0] = 0.5*sides[0] - offset[0];
     for (int i=0; i<ny; i++) {
       pt[1] = (0.5+i)*dy;

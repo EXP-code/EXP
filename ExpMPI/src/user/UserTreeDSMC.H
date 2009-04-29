@@ -27,6 +27,8 @@ class CollideLTE;
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param cbadiag enables printing of length-scale statistics for the CBA algorithm (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
+    @param nsteps is the number of steps between diagnostic output (default: -1)
+    @param msteps is the maximum level for diagnostic output (default: -1)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
     @param use_multi attempts to set the time step (if multistep is enabled)
@@ -43,7 +45,7 @@ private:
   
   int ncell, Ncell;
   int cnum;
-  int nsteps;
+  int nsteps, msteps;
   unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, tspow;
   double diamfac;
@@ -56,7 +58,7 @@ private:
   double coolfrac;
 
   bool frontier, tsdiag, mfpstat, use_multi, use_pullin, use_repair;
-  bool cba, cbadiag, dryrun, nocool, ntc;
+  bool cba, cbadiag, dryrun, nocool, ntc, tube;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

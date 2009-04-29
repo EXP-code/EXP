@@ -40,33 +40,35 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   id = "TreeDSMC";		// ID string
 
 				// Default parameter values
-  ncell = 7;
-  Ncell = 64;
-  cnum = 0;
-  madj = 512;			// No tree pruning by default
-  epsm = -1.0;
-  diamfac = 1.0;
-  boxsize = 1.0;
-  boxratio = 1.0;
-  jitter = 0.0;
-  comp_name = "gas disk";
-  nsteps = -1;
-  use_temp = -1;
-  use_dens = -1;
-  use_delt = -1;
-  use_exes = -1;
-  coolfrac = 0.1;
-  frontier = false;
-  tsdiag   = false;
-  tspow    = 4;
-  mfpstat  = false;
-  cbadiag  = false;
-  dryrun   = false;
-  nocool   = false;
-  use_multi = false;
+  ncell      = 7;		// 
+  Ncell      = 64;
+  cnum       = 0;
+  madj       = 512;		// No tree pruning by default
+  epsm       = -1.0;
+  diamfac    = 1.0;
+  boxsize    = 1.0;
+  boxratio   = 1.0;
+  jitter     = 0.0;
+  comp_name  = "gas disk";
+  nsteps     = -1;
+  msteps     = -1;
+  use_temp   = -1;
+  use_dens   = -1;
+  use_delt   = -1;
+  use_exes   = -1;
+  coolfrac   = 0.1;
+  frontier   = false;
+  tsdiag     = false;
+  tspow      = 4;
+  mfpstat    = false;
+  cbadiag    = false;
+  dryrun     = false;
+  nocool     = false;
+  use_multi  = false;
   use_pullin = false;
-  ntc = true;
-  cba = true;
+  ntc        = true;
+  cba        = true;
+  tube       = false;
 				// Initialize using input parameters
   initialize();
 
@@ -97,16 +99,23 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Number of protons per mass unit
   collfrac = Munit/mp;
 
-  pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
-  pHOT::offst[0] = pHOT::offst[1] = pHOT::offst[2] = boxsize;
+  if (tube) {
+    pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = boxsize;
+    pHOT::offst[0] = pHOT::offst[1] = pHOT::offst[2] = 0.0;
+    pHOT::sides[2] *= boxratio;
+  } else {
 
-				// For cylindrical disk
-  pHOT::sides[2] *= boxratio;
-  pHOT::offst[2] *= boxratio;
+    pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = 2.0*boxsize;
+    pHOT::offst[0] = pHOT::offst[1] = pHOT::offst[2] = boxsize;
 
-				// Jitter factor of the origin offset
+				// For rectangular slab
+    pHOT::sides[2] *= boxratio;
+    pHOT::offst[2] *= boxratio;
+  }
+
+				// Jitter factor of the dimensions
 				// 
-  for (unsigned k=0; k<3; k++) pHOT::jittr[k] = jitter*pHOT::offst[k];
+  for (unsigned k=0; k<3; k++) pHOT::jittr[k] = jitter*pHOT::sides[k];
 
   pCell::bucket = ncell;
   pCell::Bucket = Ncell;
@@ -215,7 +224,10 @@ void UserTreeDSMC::userinfo()
        << ", ncell=" << ncell << ", Ncell=" << Ncell
        << ", boxratio=" << boxratio << ", jitter=" << jitter 
        << ", compname=" << comp_name;
-  if (nsteps>0) cout << ", with diagnostic output";
+  if (msteps>=0) 
+    cout << ", with diagnostic output at levels <= " << msteps;
+  else if (nsteps>0) 
+    cout << ", with diagnostic output every " << nsteps << " steps";
   if (use_temp>=0) cout << ", temp at pos=" << use_temp;
   if (use_dens>=0) cout << ", dens at pos=" << use_dens;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
@@ -230,6 +242,7 @@ void UserTreeDSMC::userinfo()
   else             cout << ", CBA disabled";
   if (cba && cbadiag)     
                    cout << " with diagnostics";
+  if (tube)         cout << ", using TUBE mode";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -256,6 +269,7 @@ void UserTreeDSMC::initialize()
   if (get_value("jitter", val))		jitter = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps = atoi(val.c_str());
+  if (get_value("msteps", val))		msteps = atoi(val.c_str());
   if (get_value("ncell", val))		ncell = atoi(val.c_str());
   if (get_value("Ncell", val))		Ncell = atoi(val.c_str());
   if (get_value("compname", val))	comp_name = val;
@@ -274,6 +288,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
   if (get_value("ntc", val))		ntc = atoi(val.c_str()) ? true : false;
+  if (get_value("tube", val))		tube = atoi(val.c_str()) ? true : false;
 }
 
 
@@ -338,9 +353,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
 
   //
-  // Only run diagnostis every nsteps
+  // Only run diagnostics every nsteps
   //
   bool diagstep = (nsteps>0 && stepnum%nsteps == 0);
+
+  //
+  // Diagnostics run at levels <= msteps (takes prececdence over nsteps)
+  //
+  if (msteps>=0) diagstep = (mlevel <= msteps) ? true : false;
 
   //
   // Compute time step
@@ -452,7 +472,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   if (diagstep) {
 				// Uncomment for debug
-    // collide->Debug(tnow);
+    collide->Debug(tnow);
 
     unsigned medianNumb = collide->medianNumber();
     unsigned collnum=0, coolnum=0;
@@ -562,7 +582,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 
     MPI_Reduce(&cmass1, &cmass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
+    
     if (myid==0) {
 
       unsigned sell_total = collide->select();

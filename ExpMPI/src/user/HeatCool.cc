@@ -32,6 +32,7 @@ static double alphaj=-1.2;
 static double fhydrogen=0.76;
 static double jnu21=0.1;
 
+bool   HeatCool::dbgCache = true;
 bool   HeatCool::useCache = false;
 double HeatCool::gp0_H;
 double HeatCool::gp0_He;
@@ -558,15 +559,28 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
     data.push_back(tmp);
   }
 
+  if (dbgCache) {
+				// Try to make a lock file
+    int fd = open(".HeatCoolDbg.lck", O_WRONLY | O_CREAT | O_EXCL);
+
+    if (fd>=0) {	 // Owner writes the cache and clears the lock
+      debugCache();
+      remove(".HeatCoolDbg.lck");
+    }
+
+  }
+
   if (useCache) {
 				// Try to make a lock file
     int fd = open(".HeatCoolExp.lck", O_WRONLY | O_CREAT | O_EXCL);
-				// Someelse has it . . . 
-    if (fd<0) return;
+
+    if (fd<0) return;		// Someone else has it . . . 
+
 				// Owner writes the cache and clears the lock
     writeCache();
     remove(".HeatCoolExp.lck");
   }
+
 }
 
 
@@ -841,6 +855,40 @@ void HeatCool::writeCache()
       out.write((const char*)&data[n][t].cmpcrate, sizeof(double));
       out.write((const char*)&data[n][t].trate,    sizeof(double));
     }
+  }
+  // Done!
+}
+
+void HeatCool::debugCache()
+{
+  ostringstream dfile;
+  dfile << outdir << "HeatCool_" << runtag << ".debug";
+  ofstream out(dfile.str().c_str());
+  if (!out) {
+    cerr << "HeatCool::writeCache: could not open <" << dfile.str() << ">"
+	 << endl;
+    return;
+  }
+
+  for (unsigned n=0; n<Nnum; n++) {
+
+    double N = Nmin + exp(dN*n);
+
+    for (unsigned t=0; t<Tnum; t++) {
+
+      double T = Tmin * exp(dT*t);
+
+      out << setw(18) << N
+	  << setw(18) << T
+	  << setw(18) << data[n][t].crate
+	  << setw(18) << data[n][t].hrate
+	  << setw(18) << data[n][t].cmpcrate
+	  << setw(18) << data[n][t].trate
+	  << endl;
+
+    }
+
+    out << endl;
   }
   // Done!
 }

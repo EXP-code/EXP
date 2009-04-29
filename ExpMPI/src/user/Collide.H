@@ -174,6 +174,7 @@ protected:
 
   virtual void EPSM(pHOT* tree, pCell* cell, int id);
   vector<double> coolrate;
+  bool use_epsm;
 
   // For diagnostic output
   //
