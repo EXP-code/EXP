@@ -32,7 +32,7 @@ exp_SOURCES = \
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc                    \
      Sphere.cc SphereTwoCenter.cc SphereEJCOM.cc EXPException.cc             \
-     global.cc begin.cc ddplgndr.cc Direct.cc NoForce.cc end.cc              \
+     global.cc begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc    \
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
      expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
      incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc       \

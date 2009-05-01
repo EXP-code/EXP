@@ -18,6 +18,7 @@
 #include <Slab.H>
 #include <SlabSL.H>
 #include <Direct.H>
+#include <Shells.H>
 #include <NoForce.H>
 #include <Orient.H>
 #include <pHOT.H>
@@ -519,6 +520,10 @@ void Component::initialize(void)
   }
   else if ( !id.compare("direct") ) {
     force = new Direct(fparam);
+    dim = 3;
+  }
+  else if ( !id.compare("shells") ) {
+    force = new Shells(fparam);
     dim = 3;
   }
   else if ( !id.compare("noforce") ) {
