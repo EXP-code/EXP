@@ -168,7 +168,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Hydrogen number density
   //
-  double n_h = n0*f_H;
+  // double n_h = n0*f_H;
 
   coolTime[id].start();
 

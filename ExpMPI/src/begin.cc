@@ -95,6 +95,8 @@ void begin_run(void)
     comp.multistep_reset();
   }
 
+  cout << "Computing potential . . . " << endl;
+
   comp.compute_potential(0);
 
   initializing = false;
