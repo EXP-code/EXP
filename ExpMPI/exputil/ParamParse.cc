@@ -76,6 +76,7 @@ void ParamParse::parse_istream(istream* in)
   char lbuf[lbufsize];
 
   spair cpair;
+  string theEnd("\n");
 				// Default name for first stanza
   if (database.size() == 0) {
     curstanza = new Stanza();
@@ -131,7 +132,7 @@ void ParamParse::parse_istream(istream* in)
 
       StringTok<string> tokens(line);
       cpair.first = trimLeft(trimRight(tokens(delim)));
-      cpair.second = trimLeft(trimRight(tokens(delim)));
+      cpair.second = trimLeft(trimRight(tokens(theEnd)));
       
       curstanza->elist.push_back(cpair);
     }

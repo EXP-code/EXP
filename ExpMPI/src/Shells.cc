@@ -441,8 +441,10 @@ void Shells::multistep_update_finish()
 //
 void Shells::multistep_update(int fr, int to, Component *c, int ii, int id)
 {
-  update_fr[id].push_back(fr);
-  update_to[id].push_back(to);
-  update_ii[id].push_back(ii);
+  if (rgrid[fr].find(ii) != rgrid[fr].end()) {
+    update_fr[id].push_back(fr);
+    update_to[id].push_back(to);
+    update_ii[id].push_back(ii);
+  }
 }
 

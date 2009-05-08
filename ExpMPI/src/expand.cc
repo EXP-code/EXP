@@ -271,7 +271,6 @@ main(int argc, char** argv)
 
   begin_run();
 
-
   try {
 
     //===========
@@ -290,9 +289,11 @@ main(int argc, char** argv)
 	if (myid==0) {
 	  cout << "Checkpoint timer says: quit now!" << endl;
 	  cout << "Restart command is: " << restart_cmd << endl;
-	  final_cmd = true;
+	  quit_signal = 1;
 	}
       }
+      MPI_Bcast(&quit_signal, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);      
+      if (quit_signal)  break;
 
       //
       // Synchronize and check for signals
@@ -341,8 +342,9 @@ main(int argc, char** argv)
   // Epilogue command
   //=================
 
-  if (final_cmd && myid==0) {
-    cout << "I would now execute the command: " << restart_cmd << endl;
+  if (quit_signal && myid==0) {
+    cout << "Executing the epilogue command: " << restart_cmd << endl;
+    system(restart_cmd.c_str());
   }
 
   return 0;

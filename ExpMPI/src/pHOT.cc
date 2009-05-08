@@ -27,7 +27,7 @@ unsigned pHOT::neg_half = 0;
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
 //
-static bool keys_debug = true;
+static bool keys_debug = false;
 
 template<class U, class V>
 struct pair_compare

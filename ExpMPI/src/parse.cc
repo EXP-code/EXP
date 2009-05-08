@@ -79,18 +79,13 @@ void initialize(void)
     else global_cov = false;
   }
 
-  if (parse->find_item("restart", val)) {
-    if (atoi(val.c_str())) restart = true;
-    else restart = false;
-  }
-
   if (parse->find_item("homedir", val))		homedir = val;
   if (parse->find_item("ldlibdir", val))	ldlibdir = val;
   if (parse->find_item("infile", val))		infile = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
   if (parse->find_item("ratefile", val))	ratefile = val;
   if (parse->find_item("runtag", val))		runtag = val;
-  if (parse->find_item("command", val))         restart_cmd = val;
+  if (parse->find_item("restart_cmd", val))     restart_cmd = val;
 
   if (parse->find_item("outdir", val)) {
     bool ok = true;
@@ -193,7 +188,6 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
   out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;
   out << comment << " " << "global_cov" << " = " << global_cov  << endl;
-  out << comment << " " << "restart"    << " = " << restart     << endl;
 
   out << comment << " " << "homedir"    << " = " << homedir     << endl;
   out << comment << " " << "ldlibdir"   << " = " << ldlibdir    << endl;

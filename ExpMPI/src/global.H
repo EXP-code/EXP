@@ -169,8 +169,14 @@ extern unsigned char dump_signal;
 
    This flag is set by signalling the root process with SIGTERM
 */
-
 extern unsigned char stop_signal;
+
+/**
+   Quit now
+
+   This flag is set by checkpoint itmer
+*/
+extern unsigned char quit_signal;
 
 				// MPI variables
 

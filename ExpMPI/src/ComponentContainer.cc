@@ -56,9 +56,27 @@ void ComponentContainer::initialize(void)
   read_rates();			// Read initial processor rates
 
 
+				// Look for a restart file
+  unsigned char ir = 0;
+  if (myid==0) {
+    string resfile = outdir + infile;
+    ifstream in(resfile.c_str());
+    if (in) {
+      cerr << "ComponentContainer::initialize: successfully opened <"
+	   << resfile << ">, assuming a restart" << endl;
+      ir = 1;
+    } else {
+      cerr << "ComponentContainer::initialize: could not open <"
+	   << resfile << ">, assuming a new run" << endl;
+      ir = 0;
+    }
+  }
+
+  MPI_Bcast(&ir, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  restart = ir ? true : false;
+
   spair data;
 
-				// Initialize individual components
   if (restart) {
 
     struct MasterHeader master;
@@ -186,7 +204,7 @@ void ComponentContainer::initialize(void)
 				// but there will not be that many . . .
     parse->find_list("interaction");
     while (parse->get_next(data)) {
-      
+
 				// Are we talking about THIS component?
       if (c->name.compare(data.first) == 0) {
 	

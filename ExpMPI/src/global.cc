@@ -26,7 +26,7 @@ unsigned PFbufsz = 40000;	// ParticleFerry buffer size in particles
 
 bool restart = false;		// Restart from a checkpoint
 bool use_cwd = false;		// Use Node 0's current working directory on all nodes
-int NICE = 10;			// Default niceness level
+int NICE = 0;			// Niceness level (default: 0)
 int VERBOSE = 1;		// Chattiness for standard output
 bool initializing = false;	// Used by force methods to do "private things"
 				// before the first step (e.g. run through
@@ -54,6 +54,7 @@ bool global_cov = false;
 bool eqmotion = true;
 unsigned char stop_signal = 0;
 unsigned char dump_signal = 0;
+unsigned char quit_signal = 0;
 				// Multistep variables
 unsigned multistep = 0;
 int centerlevl = -1;
