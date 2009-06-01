@@ -330,6 +330,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   state = SELF;
 
+#ifdef USE_GPTL
+  GPTLstart("ComponentContainer::acceleration");
+#endif
+
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
@@ -367,6 +371,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #endif
   }
 
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::acceleration");
+  GPTLstart("ComponentContainer::interactions");
+#endif
+
+
   //
   // Do the component interactions
   //
@@ -376,10 +386,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   state = INTERACTION;
 
   if (timing) timer_inter.start();
-
-#ifdef USE_GPTL
-  GPTLstart("ComponentContainer::external");
-#endif
 
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
@@ -394,12 +400,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
   }
 
-#ifdef USE_GPTL
-  GPTLstop("ComponentContainer::external");
-#endif
-
   if (timing) timer_inter.stop();
       
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::interactions");
+  GPTLstart("ComponentContainer::external");
+#endif
+
   //
   // Do the external forces (if there are any . . .)
   //
@@ -438,6 +445,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 
   }
+
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::external");
+  GPTLstart("ComponentContainer::centering");
+#endif
+
+
 
   if (timing) timer_extrn.stop();
 
@@ -498,7 +512,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
     if (timing) timer_gcom.stop();
   }
-  
+
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::centering");
+  GPTLstart("ComponentContainer::timing");
+#endif
+
   if (timing && timer_clock.getTime().getRealTime()>tinterval) {
     if (myid==0) {
       ostringstream sout;
@@ -592,6 +611,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   }
 
 #ifdef USE_GPTL
+  GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
 #endif
 

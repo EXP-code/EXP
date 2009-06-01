@@ -397,6 +397,10 @@ void * Collide::collide_thread(void * arg)
   //
   for (unsigned j=0; j<cellist[id].size(); j++ ) {
 
+#ifdef USE_GPTL
+    GPTLstart("Collide::bodylist");
+#endif
+
     // Number of particles in this cell
     //
     c = cellist[id][j];
@@ -409,12 +413,21 @@ void * Collide::collide_thread(void * arg)
     set<unsigned>::iterator ib = c->bods.begin();
     for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) bodx.push_back(*ib);
 
+#ifdef USE_GPTL
+    GPTLstop("Collide::bodylist");
+#endif
+
     // Skip cells with only one particle
     //
     if( number < 2 ) {
       colcntT[id].push_back(0);
       continue;  // Skip to the next cell
     }
+
+#ifdef USE_GPTL
+    GPTLstart("Collide::prelim");
+    GPTLstart("Collide::energy");
+#endif
 
     stat1Time[id].start();
 
@@ -441,6 +454,11 @@ void * Collide::collide_thread(void * arg)
     
     stat1SoFar[id] = stat1Time[id].stop();
     stat2Time[id].start();
+
+#ifdef USE_GPTL
+    GPTLstop ("Collide::energy");
+    GPTLstart("Collide::mfp");
+#endif
 
     // KE in the cell
     //
@@ -476,6 +494,14 @@ void * Collide::collide_thread(void * arg)
     }
 
     double diamCBA = sqrt(Fn*mass)*diam;
+
+#ifdef USE_GPTL
+    GPTLstop("Collide::mfp");
+#endif
+
+#ifdef USE_GPTL
+    GPTLstart("Collide::mfp_diag");
+#endif
 
     if (MFPDIAG) {
 
@@ -548,11 +574,20 @@ void * Collide::collide_thread(void * arg)
     }
 
 
+#ifdef USE_GPTL
+    GPTLstop("Collide::mfp_diag");
+    GPTLstart("Collide::cell_init");
+#endif
+
     initTime[id].start();
     initialize_cell(c, crm, tau, select, id);
     collCnt[id]++;
     initSoFar[id] = initTime[id].stop();
 
+#ifdef USE_GPTL
+    GPTLstop("Collide::cell_init");
+    GPTLstop("Collide::prelim");
+#endif
 				// No collisions, primarily for testing . . .
     if (DRYRUN) continue;
 

@@ -396,6 +396,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 #ifdef USE_GPTL
     GPTLstart("UserTreeDSMC::pHOT_1");
+    GPTLstart("UserTreeDSMC::repart");
 #endif
 
     partnTime.start();
@@ -403,8 +404,20 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     partnSoFar = partnTime.stop();
 
     tree1Time.start();
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::repart");
+    GPTLstart("UserTreeDSMC::makeTree");
+#endif
     c0->Tree()->makeTree();
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::makeTree");
+    GPTLstart("UserTreeDSMC::makeCLL");
+#endif
     c0->Tree()->makeCellLevelList();
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::makeCLL");
+    GPTLstart("UserTreeDSMC::pcheck");
+#endif
 #ifdef DEBUG
     cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
     if (c0->Tree()->checkParticles()) {
@@ -416,6 +429,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree1SoFar = tree1Time.stop();
     
 #ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::pcheck");
     GPTLstop("UserTreeDSMC::pHOT_1");
 #endif
 
@@ -423,6 +437,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 #ifdef USE_GPTL
     GPTLstart("UserTreeDSMC::pHOT_2");
+    GPTLstart("UserTreeDSMC::adjustTree");
 #endif
 
     tree2Time.start();
@@ -433,6 +448,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #ifdef DEBUG
     cout << "About to adjust level list [" << clevel << "]" << endl;
 #endif
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::adjustTree");
+    GPTLstart("UserTreeDSMC::adjustCLL");
+#endif
     c0->Tree()->adjustCellLevelList(clevel);
 #ifdef DEBUG
     cout << "Adjusted tree and level list [" << clevel << "]" << endl;
@@ -440,6 +459,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree2SoFar = tree2Time.stop();
     
 #ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::adjustCLL");
     GPTLstop("UserTreeDSMC::pHOT_2");
 #endif
 
