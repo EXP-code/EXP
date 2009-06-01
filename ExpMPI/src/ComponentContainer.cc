@@ -14,6 +14,11 @@ static char rcsid[] = "$Id$";
 #include <ExternalCollection.H>
 #include <StringTok.H>
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
+
 long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
 ComponentContainer::ComponentContainer(void)
@@ -301,6 +306,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
 
+#ifdef USE_GPTL
+  GPTLstart("ComponentContainer::compute_potential");
+#endif
+
   // Turn on step timers or VERBOSE level 4 or greater
   //
   if (VERBOSE>3) timing = true;
@@ -368,6 +377,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (timing) timer_inter.start();
 
+#ifdef USE_GPTL
+  GPTLstart("ComponentContainer::external");
+#endif
+
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
@@ -380,6 +393,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
     }
   }
+
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::external");
+#endif
 
   if (timing) timer_inter.stop();
       
@@ -574,6 +591,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   }
 
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::compute_potential");
+#endif
+
   gottapot = true;
 }
 
@@ -583,6 +604,10 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   list<Component*>::iterator cc;
   Component *c;
   
+#ifdef USE_GPTL
+  GPTLstart("ComponentContainer::compute_expansion");
+#endif
+
   if (timing) timer_expand.start();
 
 #ifdef DEBUG
@@ -608,6 +633,10 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
 	 << c->id << "> for mlevel=" << mlevel << " done" << endl;
 #endif
   }
+
+#ifdef USE_GPTL
+  GPTLstop("ComponentContainer::compute_expansion");
+#endif
 
   if (timing) timer_expand.stop();
 }

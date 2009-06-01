@@ -16,6 +16,10 @@
 #include <UserTreeDSMC.H>
 #include <CollideLTE.H>
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 using namespace std;
 
 //
@@ -294,6 +298,10 @@ void UserTreeDSMC::initialize()
 
 void UserTreeDSMC::determine_acceleration_and_potential(void)
 {
+#ifdef USE_GPTL
+  GPTLstart("UserTreeDSMC::determine_acceleration_and_potential");
+#endif
+
   static bool firstime = true;
   static unsigned nrep = 0;
 
@@ -301,7 +309,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Only compute DSMC when passed the fiducial component
   //
 
-  if (cC != c0) return;
+  if (cC != c0) {
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+#endif
+    return;
+  }
 
   //
   // Make the cells
@@ -331,6 +344,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       if (myid==0) {
 	cout << "UserTreeDSMC: attempt to redo step at T=" << tnow << endl;
       }
+#ifdef USE_GPTL
+      GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+#endif
       return; 			// Don't do this time step again!
     }
 
@@ -378,6 +394,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   if (mlevel<=madj) {
 
+#ifdef USE_GPTL
+    GPTLstart("UserTreeDSMC::pHOT_1");
+#endif
+
     partnTime.start();
     c0->Tree()->Repartition(); nrep++;
     partnSoFar = partnTime.stop();
@@ -395,7 +415,15 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tree1SoFar = tree1Time.stop();
     
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::pHOT_1");
+#endif
+
   } else {
+
+#ifdef USE_GPTL
+    GPTLstart("UserTreeDSMC::pHOT_2");
+#endif
 
     tree2Time.start();
 #ifdef DEBUG
@@ -411,6 +439,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tree2SoFar = tree2Time.stop();
     
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::pHOT_2");
+#endif
+
   }
 
   if (0) {
@@ -449,8 +481,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
 
+#ifdef USE_GPTL
+  GPTLstart("UserTreeDSMC::collide");
+#endif
+
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
+#ifdef USE_GPTL
+  GPTLstop("UserTreeDSMC::collide");
+#endif
+
   if (0) {
     ostringstream sout;
     sout << "after Collide [" << nrep << "], " 
@@ -462,15 +502,28 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 
 				// Time step request
+#ifdef USE_GPTL
+  GPTLstart("UserTreeDSMC::collide_timestep");
+#endif
+
+
   tstepTime.start();
   if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
   tstepSoFar = tstepTime.stop();
   
+#ifdef USE_GPTL
+  GPTLstop("UserTreeDSMC::collide_timestep");
+#endif
+
   //
   // Periodically display the current progress
   //
   //
   if (diagstep) {
+#ifdef USE_GPTL
+    GPTLstart("UserTreeDSMC::collide_diag");
+#endif
+
 				// Uncomment for debug
     collide->Debug(tnow);
 
@@ -809,6 +862,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << endl;
     }
 
+#ifdef USE_GPTL
+    GPTLstop("UserTreeDSMC::collide_diag");
+#endif
+
   }
 
 #ifdef DEBUG
@@ -834,11 +891,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 #endif
 
+#ifdef USE_GPTL
+  GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+#endif
+
 				// Debugging disk
 				//
   // triggered_cell_body_dump(0.01, 0.002);
 
   MPI_Barrier(MPI_COMM_WORLD);
+
 }
 
 void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)

@@ -17,6 +17,10 @@ static char rcsid[] = "$Id$";
 //
 #include <Timer.h>
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 static Timer timer_coef(true), timer_drift(true), timer_vel(true);
 static Timer timer_pot(true), timer_adj(true);
 static unsigned tskip = 1;
@@ -38,6 +42,11 @@ void check_bad(const char *msg, int v)
 
 void do_step(int n)
 {
+#ifdef USE_GPTL
+  GPTLstart("dostep");
+#endif
+
+
   // Turn on step timers or VERBOSE level 4 or greater
   //
   if (VERBOSE>3) timing = true;
@@ -306,4 +315,8 @@ void do_step(int n)
     timer_pot  .reset();
     timer_adj  .reset();
   }
+
+#ifdef USE_GPTL
+  GPTLstop("dostep");
+#endif
 }

@@ -13,6 +13,10 @@
 #include <algorithm>
 #include <cmath>
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 using namespace std;
 
 #include "global.H"
@@ -94,6 +98,10 @@ pHOT::~pHOT()
 
 key_type pHOT::getKey(double *p)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::getKey");
+#endif
+
   // Out of bounds?
   //
   for (unsigned k=0; k<3; k++) { 
@@ -130,6 +138,10 @@ key_type pHOT::getKey(double *p)
 
   _key += place;		// Leading placeholder for cell masking
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::getKey");
+#endif
+
   return _key;
 }
 
@@ -154,6 +166,9 @@ string pHOT::printKey(key_type p)
 
 void pHOT::makeTree()
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::makeTree");
+#endif
   //
   // Clean up
   // 
@@ -386,6 +401,9 @@ void pHOT::makeTree()
   unsigned my_cells = frontier.size();
   MPI_Allreduce(&my_cells, &total_cells, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::makeTree");
+#endif
 }
 
 unsigned pHOT::CellCount(double pctl)
@@ -1338,6 +1356,9 @@ double pHOT::medianVol()
 
 void pHOT::Repartition()
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::Repartition");
+#endif
   // debug_ts("Entering Repartition");
 
   map<unsigned long, Particle>::iterator it;
@@ -1622,6 +1643,9 @@ void pHOT::Repartition()
 
   timer_repartn.stop();
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::Repartition");
+#endif
 }
 
 
@@ -1671,6 +1695,10 @@ void pHOT::makeCellLevelList()
 
 void pHOT::adjustCellLevelList(unsigned mlevel)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::adjustCellLevelList");
+#endif
+
   if (multistep==0) return;	// No need to bother if multistepping is off
 				// Otherwise . . . 
   unsigned ng=0, nt=0, ns=0, m, cnt;
@@ -1722,10 +1750,18 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 #ifdef DEBUG
   checkParticles();
 #endif
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::adjustCellLevelList");
+#endif
 }
 
 void pHOT::adjustTree(unsigned mlevel)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::adjustTree");
+#endif
+
   // MPI_Barrier(MPI_COMM_WORLD);	// Test!
   timer_tadjust.start();
 
@@ -2305,6 +2341,9 @@ void pHOT::adjustTree(unsigned mlevel)
     }
   }
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::adjustTree");
+#endif
 }
   
 
@@ -2894,6 +2933,10 @@ void pHOT::spreadOOB()
 void pHOT::partitionKeys(vector<key_type>& keys, 
 			 vector<key_type>& kbeg, vector<key_type>& kfin)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::partitionKeys");
+#endif
+
 				// Sort the keys
   sort(keys.begin(), keys.end());
 
@@ -3157,6 +3200,10 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 
   MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
   MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::partitionKeys");
+#endif
 }
 
 

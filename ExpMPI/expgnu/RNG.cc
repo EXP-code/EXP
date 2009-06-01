@@ -17,6 +17,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <assert.h>
 #include <builtin.h>
 #include <RNG.h>
+#include <stdint.h>
 
 // These two static fields get initialized by RNG::RNG().
 PrivateRNGSingleType RNG::singleMantissa;
@@ -37,7 +38,7 @@ RNG::RNG()
   if (!initialized)
   {
 
-	assert (sizeof(double) == 2 * sizeof(_G_uint32_t)); 
+	assert (sizeof(double) == 2 * sizeof(uint32_t)); 
 
 	//
 	//	The following is a hack that I attribute to

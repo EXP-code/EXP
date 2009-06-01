@@ -4,10 +4,13 @@
 
 #include "expand.h"
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
-
 
 void * incr_velocity_thread(void *ptr)
 {
@@ -77,6 +80,11 @@ void incr_velocity(double dt, int mlevel)
 {
   if (!eqmotion) return;
 
+#ifdef USE_GPTL
+    GPTLstart("incr_velocity");
+#endif
+
+
   if (nthrds==1) {
 
     posvel_data[0].dt = dt;
@@ -132,6 +140,11 @@ void incr_velocity(double dt, int mlevel)
 #endif
     }
   }
+
+#ifdef USE_GPTL
+  GPTLstop("incr_velocity");
+#endif
+
 }
 
 void incr_com_velocity(double dt)

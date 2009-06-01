@@ -2,6 +2,7 @@
 #include <fstream>
 #include <sstream>
 #include <iomanip>
+#include <cassert>
 
 #include <values.h>
 #include <global.H>

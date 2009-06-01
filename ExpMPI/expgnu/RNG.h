@@ -13,23 +13,22 @@
    PURPOSE.  See the GNU Library General Public License for more details.
    You should have received a copy of the GNU Library General Public
    License along with this library; if not, write to the Free Software
-   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+x   Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _RNG_h
-#define _RNG_h 1
+#define _RNG_h
 
-#include <assert.h>
-#include <math.h>
-#include <_G_config.h>
+#include <stdint.h>
+#include <cmath>
 
 union PrivateRNGSingleType {		   	// used to access floats as unsigneds
   float s;
-  _G_uint32_t u;
+  uint32_t u;
 };
 
 union PrivateRNGDoubleType {		   	// used to access doubles as unsigneds
   double d;
-  _G_uint32_t u[2];
+  uint32_t u[2];
 };
 
 //
@@ -44,7 +43,7 @@ public:
   //
   // Return a long-words word of random bits
   //
-  virtual _G_uint32_t asLong() = 0;
+  virtual uint32_t asLong() = 0;
   virtual void reset() = 0;
   //
   // Return random bits converted to either a float or a double

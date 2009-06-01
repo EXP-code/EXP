@@ -19,45 +19,46 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #define _MLCG_h
 
 #include <RNG.h>
-#include <math.h>
+#include <cmath>
 
 //
 //	Multiplicative Linear Conguential Generator
 //
 
-class MLCG : public RNG {
-    _G_int32_t initialSeedOne;
-    _G_int32_t initialSeedTwo;
-    _G_int32_t seedOne;
-    _G_int32_t seedTwo;
+class MLCG : public RNG 
+{
+  int32_t initialSeedOne;
+  int32_t initialSeedTwo;
+  int32_t seedOne;
+  int32_t seedTwo;
 
 protected:
 
 public:
-    MLCG(_G_int32_t seed1 = 0, _G_int32_t seed2 = 1);
-    //
-    // Return a long-words word of random bits
-    //
-    virtual _G_uint32_t asLong();
-    virtual void reset();
+  MLCG(int32_t seed1 = 0, int32_t seed2 = 1);
+  //
+  // Return a long-words word of random bits
+  //
+  virtual uint32_t asLong();
+  virtual void reset();
 
-  _G_int32_t seed1() {return(seedOne);}
+  int32_t seed1() {return(seedOne);}
   
-  void seed1(_G_int32_t s)
+  void seed1(int32_t s)
   {
     initialSeedOne = s;
     reset();
   }
+  
+  int32_t seed2() {return(seedTwo);}
 
-  _G_int32_t seed2() {return(seedTwo);}
-
-  void seed2(_G_int32_t s)
+  void seed2(int32_t s)
   {
     initialSeedTwo = s;
     reset();
   }
 
-  void reseed(_G_int32_t s1, _G_int32_t s2)
+  void reseed(int32_t s1, int32_t s2)
   {
     initialSeedOne = s1;
     initialSeedTwo = s2;

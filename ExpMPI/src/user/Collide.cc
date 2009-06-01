@@ -11,6 +11,10 @@ using namespace std;
 #include "UserTreeDSMC.H"
 #include "Collide.H"
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN = false;
@@ -557,10 +561,19 @@ void * Collide::collide_thread(void * arg)
 				// particle, assume equipartition
     if (use_epsm && 2.0*select/static_cast<double>(number) > EPSMratio) {
 
+#ifdef USE_GPTL
+      GPTLstart("Collide::EPSM");
+#endif
       EPSM(tree, c, id);
+#ifdef USE_GPTL
+      GPTLstop("Collide::EPSM");
+#endif
 
     } else {
 
+#ifdef USE_GPTL
+      GPTLstart("Collide::inelastic");
+#endif
       unsigned colc = 0;
 
       // Loop over total number of candidate collision pairs
@@ -674,8 +687,15 @@ void * Collide::collide_thread(void * arg)
       sel1T[id] += nsel;
       col1T[id] += colc;
 
+#ifdef USE_GPTL
+      GPTLstop("Collide::inelastic");
+#endif
     }
     collSoFar[id] = collTime[id].stop();
+
+#ifdef USE_GPTL
+      GPTLstart("Collide::diag");
+#endif
 
     // Compute dispersion diagnostics
     //
@@ -734,6 +754,9 @@ void * Collide::collide_thread(void * arg)
 
     stat3SoFar[id] = stat3Time[id].stop();
 
+#ifdef USE_GPTL
+    GPTLstop("Collide::diag");
+#endif
   } // Loop over cells
 
   thread_timing_end(id);
@@ -1088,6 +1111,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 {
   if (cell->bods.size()<2) return;
 
+#ifdef USE_GPTL
+  GPTLstart("Collide::EPSM");
+#endif
 				// Compute mean and variance in each dimension
 				// 
   vector<double> mvel(3, 0.0), disp(3, 0.0);
@@ -1439,6 +1465,11 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   lostSoFar_EPSM[id] += Einternal - Enew;
   epsm1T[id] += nbods;
   Nepsm1T[id]++;
+
+#ifdef USE_GPTL
+  GPTLstop("Collide::EPSM");
+#endif
+
 }
 
 void Collide::list_sizes()

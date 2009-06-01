@@ -1,4 +1,5 @@
 #include <mpi.h>
+#include <cassert>
 #include <SatFixOrb.H>
 
 SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)

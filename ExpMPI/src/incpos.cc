@@ -8,6 +8,11 @@
 static char rcsid[] = "$Id$";
 #endif
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
+
 void * incr_position_thread(void *ptr)
 {
   // Current time step
@@ -70,6 +75,11 @@ void incr_position(double dt, int mlevel)
 {
   if (!eqmotion) return;
 
+#ifdef USE_GPTL
+    GPTLstart("incr_position");
+#endif
+
+
   if (nthrds==1) {
 
     posvel_data[0].dt = dt;
@@ -126,6 +136,10 @@ void incr_position(double dt, int mlevel)
     }
   }
   
+#ifdef USE_GPTL
+  GPTLstop("incr_position");
+#endif
+
 }
 
 void incr_com_position(double dt)

@@ -15,6 +15,10 @@ void clean_up(void);
 #include <fenv.h>
 #include <fpetrap.h>
 
+#ifdef USE_GPTL
+#include <gptl.h>
+#endif
+
 //===========================================
 // Clean stop on a SIGTERM or SIGHUP
 //===========================================
@@ -194,6 +198,23 @@ main(int argc, char** argv)
 #endif
 
 
+  //============
+  // Start GPTL
+  //============
+
+#ifdef USE_GPTL
+  {
+    int ret;
+
+    ret = GPTLsetoption (GPTLoverhead,       1);
+    ret = GPTLsetoption (GPTLpercent,        1);
+    ret = GPTLsetoption (GPTLabort_on_error, 0);
+
+    ret = GPTLinitialize();
+    ret = GPTLstart("main");
+  }
+#endif
+
   //================
   // Print welcome  
   //================
@@ -332,11 +353,24 @@ main(int argc, char** argv)
     MPI_Abort(MPI_COMM_WORLD, -1);
   }
 
-  //===========
-  // Finish up 
-  //===========
+  //=============
+  // Finish GPTL
+  //=============
+
+#ifdef USE_GPTL
+  {
+    int ret;
+    ret = GPTLstop("main");
+    ret = GPTLpr(myid);
+  }
+#endif
+
+  //===============
+  // Finish up MPI
+  //===============
 
   clean_up();
+
 
   //=================
   // Epilogue command

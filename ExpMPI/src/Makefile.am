@@ -6,23 +6,26 @@ CC = mpicc
 CXX = mpiCC
 
 if ENABLE_SEQCHECK
-ADD_CFLAGS1 = -DSEQCHECK
-ADD_CXXFLAGS1 = -DSEQCHECK
+ADD_CFLAGS1  = -DSEQCHECK
 endif
 
 if ENABLE_DEBUG
-ADD_CFLAGS2 = -DDEBUG
-ADD_CXXFLAGS2 = -DDEBUG
+ADD_CFLAGS2  = -DDEBUG
 endif
 
 if ENABLE_DMALLOC
-ADD_CFLAGS3 = -DUSE_DMALLOC -g
-ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
-ADD_LIBS3 = -ldmallocth -ldmallocthcxx
+ADD_CFLAGS3  = -DUSE_DMALLOC -g
+ADD_LIBS3    = -ldmallocth -ldmallocthcxx
 endif
 
-AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+if ENABLE_GPTL
+ADD_CFLAGS4  = -DUSE_GPTL
+ADD_LIBS4    = -lgptl
+endif
+
+AM_CFLAGS    = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
+AM_CXXFLAGS  = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
+
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -41,7 +44,7 @@ exp_SOURCES = \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
      OutCalbr.cc ParticleFerry.cc pCell.cc chkTimer.cc
 
-exp_LDADD = libpHOT.a $(EXPLIBS)
+exp_LDADD = libpHOT.a $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4)
 
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
@@ -56,7 +59,7 @@ SYS_LIBS = -lpthread -ldl
 MPI_LIBS = -lmpi
 
 EXPLIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
-LDADD = $(COMMON_LIBS) $(ADD_LIBS3) 
+LDADD = $(COMMON_LIBS) $(ADD_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
@@ -78,10 +81,3 @@ sledge.o:	sledge.f
 SUBDIRS = user
 
 ## src/Makefile.am ends here
-
-
-
-
-
-
-
