@@ -201,7 +201,7 @@ void * UserTorque::determine_acceleration_and_potential_thread(void * arg)
     (1.0 + erf((tnow-ton )/delta)) *
     (1.0 + erf((toff-tnow)/delta)) ;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0   ; q<nbeg; q++) it++;

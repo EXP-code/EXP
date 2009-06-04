@@ -252,7 +252,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double adb = component->Adiabatic();
 
-  map<unsigned long, Particle>::iterator it=cC->Particles().begin();
+  PartMapItr it=cC->Particles().begin();
   unsigned long j;
 
   for (int i=0; i<nbeg; i++) it++;
@@ -343,7 +343,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  map<unsigned long, Particle>::iterator it=cC->Particles().begin();
+  PartMapItr it=cC->Particles().begin();
   unsigned long j;
 
   for (int i=0; i<nbeg; i++) it++;

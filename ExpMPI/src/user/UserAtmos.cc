@@ -91,7 +91,7 @@ void * UserAtmos::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   double pot, pos[3];
   
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
 
   for (int q=0   ; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {

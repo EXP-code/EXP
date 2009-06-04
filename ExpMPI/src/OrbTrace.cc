@@ -248,7 +248,7 @@ void OrbTrace::Run(int n, bool last)
   }
 
   int curproc, nflag;
-  map<unsigned long, Particle>::iterator it; 
+  PartMapItr it; 
 
   for (int i=0; i<norb; i++) {
 

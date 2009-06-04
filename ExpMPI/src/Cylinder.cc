@@ -323,7 +323,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
     nend = nbodies*(id+1)/nthrds;
 
     unsigned indx;
-    map<unsigned long, Particle>::iterator n = cC->Particles().begin();
+    PartMapItr n = cC->Particles().begin();
     for (int i=0; i<nbeg; i++) n++; // Move to beginning iterator
 
     for (int i=nbeg; i<nend; i++, n++) {

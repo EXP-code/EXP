@@ -45,7 +45,7 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
     nbeg = nbodies*id/nthrds;
     nend = nbodies*(id+1)/nthrds;
 
-    map<unsigned long, Particle>::iterator it = cp->Particles().begin();
+    PartMapItr it = cp->Particles().begin();
     unsigned long i;
 
     for (int q=0   ; q<nbeg; q++) it++;

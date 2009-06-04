@@ -119,7 +119,7 @@ void * UserHalo::determine_acceleration_and_potential_thread(void * arg)
   qq[1]=q2*q2;
   qq[2]=q3*q3;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
 
   /*
   if (myid==0) {

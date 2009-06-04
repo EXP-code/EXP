@@ -52,7 +52,7 @@ void * incr_velocity_thread(void *ptr)
     nbeg = ntot*(id  )/nthrds;
     nend = ntot*(id+1)/nthrds;
     
-    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    PartMapItr it = c->Particles().begin();
     
     for (int q=0   ; q<nbeg; q++) it++;
     for (int q=nbeg; q<nend; q++) {

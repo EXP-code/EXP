@@ -398,7 +398,7 @@ void * UserBar::determine_acceleration_and_potential_thread(void * arg)
   double cos2p = cos(2.0*posang);
   double sin2p = sin(2.0*posang);
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
 
   for (int q=0   ; q<nbeg; q++) it++;
 

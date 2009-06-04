@@ -533,7 +533,7 @@ void * UserDSMC::determine_acceleration_and_potential_thread(void * arg)
   double Vc, rho, Rmin, Rmax, Zmin, Zmax;
   int ir, iz, iw, ncount, Nc;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0   ; q<nbeg; q++) it++;

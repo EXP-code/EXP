@@ -135,8 +135,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
     int ok1 = 1, ok;
 
-    map<unsigned long, Particle>::iterator p = c0->Particles().begin();
-    map<unsigned long, Particle>::iterator pend = c0->Particles().end();
+    PartMapItr p = c0->Particles().begin();
+    PartMapItr pend = c0->Particles().end();
     for (; p!=pend; p++) {
       if (use_exes >= static_cast<int>(p->second.dattrib.size())) {
 	ok1 = 0;

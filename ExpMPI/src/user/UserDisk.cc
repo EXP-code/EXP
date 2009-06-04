@@ -327,7 +327,7 @@ void * UserDisk::determine_acceleration_and_potential_thread(void * arg)
     * 0.5*(1.0 - erf( (tnow - Toff)/DeltaT )) ;
 
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0   ; q<nbeg; q++) it++;

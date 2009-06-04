@@ -74,7 +74,7 @@ void * Cube::determine_coefficients_thread(void * arg)
 
   use[id] = 0;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0; q<nbeg; q++) it++;
@@ -176,7 +176,7 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0; q<nbeg; q++) it++;

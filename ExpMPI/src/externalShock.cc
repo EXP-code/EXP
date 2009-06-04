@@ -55,7 +55,7 @@ void * externalShock::determine_acceleration_and_potential_thread(void * arg)
 
   w2 = get_tidal_shock(tnow);
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
 

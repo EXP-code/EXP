@@ -33,7 +33,7 @@ void OutCalbr::set_energies()
     
     double Emin1=1e30, Emax1=-1e30, v2, E;
 
-    map<unsigned long, Particle>::iterator it = tcomp->Particles().begin();
+    PartMapItr it = tcomp->Particles().begin();
     unsigned long n;
 
     for (int q=0; q<tcomp->Number(); q++) {
@@ -177,7 +177,7 @@ void OutCalbr::Run(int ns, bool last)
 				// Compute energies and angmom
   double E, Lx, Ly, Lz, v2;
   int indx;
-  map<unsigned long, Particle>::iterator it = tcomp->Particles().begin();
+  PartMapItr it = tcomp->Particles().begin();
   unsigned long n;
 
   for (int q=0; q<tcomp->Number(); q++) {

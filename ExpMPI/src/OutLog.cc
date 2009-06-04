@@ -361,7 +361,7 @@ void OutLog::Run(int n, bool last)
   
     nbodies1[indx] = c->Number();
 
-    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    PartMapItr it = c->Particles().begin();
     unsigned long i;
 
     for (int q=0; q<nbodies1[indx]; q++) {

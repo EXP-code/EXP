@@ -67,6 +67,7 @@ public:
 };
 
 typedef map<unsigned long, Particle> PartMap;
+typedef map<unsigned long, Particle>::iterator PartMapItr;
 
 
 #endif

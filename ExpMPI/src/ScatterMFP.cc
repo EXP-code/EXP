@@ -56,7 +56,7 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
 
   if (c->ndattrib < mfp_index+1) {
     c->ndattrib = mfp_index+1;
-    map<unsigned long, Particle>::iterator it;
+    PartMapItr it;
     for (it=c->particles.begin(); it!=c->particles.end(); it++)
       it->second.dattrib.resize(c->ndattrib);
     

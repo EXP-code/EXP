@@ -112,7 +112,7 @@ void Direct::determine_acceleration_and_potential(void)
   // Load body buffer with local interactors
   double *p = bod_buffer;
   unsigned long i;
-  map<unsigned long, Particle>::iterator it = component->Particles().begin();
+  PartMapItr it = component->Particles().begin();
 
   for (int q=0; q<ninteract; q++) {
     i = (it++)->first;

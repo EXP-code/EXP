@@ -1361,7 +1361,7 @@ void pHOT::Repartition()
 #endif
   // debug_ts("Entering Repartition");
 
-  map<unsigned long, Particle>::iterator it;
+  PartMapItr it;
   
   volume = sides[0]*sides[1]*sides[2]; // Total volume of oct-tree region
 
@@ -1400,10 +1400,21 @@ void pHOT::Repartition()
        << "  oob size=" << oob.size() << endl;
 #endif
   // debug_ts("Before spreadOOB");
+#ifdef USE_GPTL
+  GPTLstart("pHOT::spreadOOB");
+#endif
   spreadOOB();
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB");
+  GPTLstart("pHOT::partitionKeys");
+#endif
   // debug_ts("Before partitionKeys");
   partitionKeys(keys, kbeg, kfin);
   // debug_ts("After partitionKeys");
+#ifdef USE_GPTL
+  GPTLstop("pHOT::partitionKeys");
+  GPTLstart("pHOT::bodyList");
+#endif
 
   timer_prepare.start();
 
@@ -1437,6 +1448,11 @@ void pHOT::Repartition()
 
   for (unsigned k=0; k<numprocs; k++) Tcnt += sendcounts[k];
   MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::bodyList");
+  GPTLstart("pHOT::scatter");
+#endif
 
   timer_scatter.start();
   MPI_Alltoall(&sendcounts[0], 1, MPI_INT, 
@@ -1477,6 +1493,11 @@ void pHOT::Repartition()
   }
 				// END DEBUG OUTPUT
       
+#ifdef USE_GPTL
+  GPTLstop("pHOT::scatter");
+  GPTLstart("pHOT::exchange");
+#endif
+
   //
   // Debug counter
   //
@@ -1556,8 +1577,7 @@ void pHOT::Repartition()
   //
   keybods.clear();
   unsigned oob1_cnt=0, oob_cnt=0;
-  map<unsigned long, Particle>::iterator n;
-  for (n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
+  for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     if (n->second.key==0) {
       oob1_cnt++;
       continue;
@@ -1578,8 +1598,7 @@ void pHOT::Repartition()
 
   if (false) {			// Sanity checks for bad particle indices
     bool ok = true;		// and bad particle counts
-    map<unsigned long, Particle>::iterator ip;
-    for (ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
+    for (PartMapItr ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
       if (ip->second.indx==0) {
 	cout << "pHOT::Repartition BAD particle in proc=" << myid
 	     << " key=" << ip->second.key << endl;
@@ -1644,6 +1663,7 @@ void pHOT::Repartition()
   timer_repartn.stop();
 
 #ifdef USE_GPTL
+  GPTLstop("pHOT::exchange");
   GPTLstop("pHOT::Repartition");
 #endif
 }
@@ -1760,6 +1780,7 @@ void pHOT::adjustTree(unsigned mlevel)
 {
 #ifdef USE_GPTL
   GPTLstart("pHOT::adjustTree");
+  GPTLstart("pHOT::keyBods");
 #endif
 
   // MPI_Barrier(MPI_COMM_WORLD);	// Test!
@@ -1811,6 +1832,11 @@ void pHOT::adjustTree(unsigned mlevel)
   }
   timer_keybods.stop();
   
+#ifdef USE_GPTL
+  GPTLstop("pHOT::keyBods");
+  GPTLstart("pHOT::keyCells");
+#endif
+
   //
   // Update body by body using the list without regard to level
   //
@@ -1950,6 +1976,12 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_cupdate.start();
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::keyCells");
+  GPTLstart("pHOT::adjExchange");
+#endif
+
+
   //
   // Exchange particles
   //
@@ -2047,6 +2079,13 @@ void pHOT::adjustTree(unsigned mlevel)
     sumstep++;
     if (sum==0) sumzero++;
   }
+
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::adjExchange");
+  GPTLstart("pHOT::overlap");
+#endif
+
 
   //
   // Cell overlap?
@@ -2210,6 +2249,11 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_overlap.stop();
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::overlap");
+  GPTLstart("pHOT::cUpdate");
+#endif
+
   // timer_cupdate.start();
 
   // #define DEBUG
@@ -2342,6 +2386,7 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 
 #ifdef USE_GPTL
+  GPTLstop("pHOT::cUpdate");
   GPTLstop("pHOT::adjustTree");
 #endif
 }
@@ -2574,8 +2619,7 @@ bool pHOT::checkKeybods()
 {
   bool ok = true;
   unsigned cnt=0;
-  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-  for (; n!=cc->Particles().end(); n++) {
+  for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     key_pair tpair(n->second.key, n->second.indx);
     key_indx::iterator it = keybods.find(tpair);
 
@@ -2644,8 +2688,7 @@ bool pHOT::checkBodycell()
 {
   bool ok = true;
   unsigned cnt=0;
-  map<unsigned long, Particle>::iterator n;
-  for (n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
+  for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     // Ignore OOB particle
     if (n->second.key==0) continue;
     // Look for the bodycell
@@ -2676,8 +2719,7 @@ bool pHOT::checkBodycell()
 void pHOT::checkBounds(double rmax, const char *msg)
 {
   int bad = 0;
-  map<unsigned long, Particle>::iterator n = cc->Particles().begin();
-  for (; n!=cc->Particles().end(); n++) {
+  for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     for (int k=0; k<3; k++) if (fabs(n->second.pos[k])>rmax) bad++;
   }
   if (bad) {

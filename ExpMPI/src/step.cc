@@ -10,6 +10,10 @@ static char rcsid[] = "$Id$";
 //
 // #define CHK_STEP
 
+// Uncomment for bad value checking
+//
+// #define CHK_BADV
+
 #include <expand.h>
 #include <OutputContainer.H>
 
@@ -60,7 +64,9 @@ void do_step(int n)
 
   comp.multistep_reset();
 
+#ifdef CHK_BADV
   check_bad("before multistep");
+#endif
 
   if (multistep) {
     
@@ -97,7 +103,9 @@ void do_step(int n)
 #endif
 	if (timing) timer_vel.stop();
 
+#ifdef CHK_BADV
 	check_bad("after incr_vel", M);
+#endif
 
 				// Advance position by whole step:
 				// D_1
@@ -108,16 +116,18 @@ void do_step(int n)
 #endif
 	if (timing) timer_drift.stop();
 
+#ifdef CHK_BADV
 	check_bad("after incr_pos", M);
-
+#endif
 				// Compute the coefficients
 				// for this level
 	if (timing) timer_coef.start();
 	comp.compute_expansion(M);
 	if (timing) timer_coef.stop();
 
+#ifdef CHK_BADV
 	check_bad("after expansion", M);
-	
+#endif	
 				// Reset the particle positions by a whole step
 				// they will be drifted sycrhonously below
 	if (timing) timer_drift.start();
@@ -129,8 +139,9 @@ void do_step(int n)
 	}
 	if (timing) timer_drift.stop();
 
+#ifdef CHK_BADV
 	check_bad("after second incr pos", M);
-	  
+#endif
       }
 
       
@@ -160,7 +171,9 @@ void do_step(int n)
       comp.compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
 
+#ifdef CHK_BADV
       check_bad("after compute_potential");
+#endif
 
 				// For all active levels . . .
 				// Advance velocity by 1/2 step:
@@ -181,7 +194,9 @@ void do_step(int n)
       }
       if (timing) timer_adj.stop();
 
+#ifdef CHK_BADV
       check_bad("after multistep advance");
+#endif
 
 				// DEBUG
 #ifdef DEBUG

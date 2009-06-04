@@ -129,7 +129,7 @@ void * UserReflect::determine_acceleration_and_potential_thread(void * arg)
   int nend = nbodies*(id+1)/nthrds;
   
   vector<double> pos(3), vel(3), dif(3);
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   double rr, rv, delr;
   
   for (int q=0   ; q<nbeg; q++) it++;

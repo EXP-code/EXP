@@ -65,7 +65,7 @@ void OutRelaxation::Run(int n, bool final)
 
     nbodies = c->Number();
 
-    map<unsigned long, Particle>::iterator it = c->Particles().begin();
+    PartMapItr it = c->Particles().begin();
     unsigned long i;
 
     for (int q=1; q<=nbodies; q++) {

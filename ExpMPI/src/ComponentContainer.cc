@@ -705,7 +705,7 @@ void ComponentContainer::fix_acceleration(void)
 
   list<Component*>::iterator cc;
   Component *c;
-  map<unsigned long, Particle>::iterator p, pend;
+  PartMapItr p, pend;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -763,7 +763,7 @@ void ComponentContainer::fix_positions()
 
   list<Component*>::iterator cc;
   Component *c;
-  map<unsigned long, Particle>::iterator p, pend;
+  PartMapItr p, pend;
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
@@ -944,7 +944,7 @@ void ComponentContainer::load_balance(void)
 bool ComponentContainer::bad_values()
 {
   bool bad = false;
-  map<unsigned long, Particle>::iterator it;
+  PartMapItr it;
   list<Component*>::iterator cc;
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     bool badval = false;

@@ -30,7 +30,7 @@ void * generateRelaxation::determine_acceleration_and_potential_thread
 
   double esave;
 
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
   unsigned long i;
 
   for (int q=0   ; q<nbeg; q++) it++;

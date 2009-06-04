@@ -345,7 +345,7 @@ void Orient::accumulate(double time, Component *c)
 
   double energy, mass, v2;
   unsigned nbodies = c->Number();
-  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+  PartMapItr it = c->Particles().begin();
   unsigned tkeep = many/numprocs;
   set<EL3, ltEL3>::reverse_iterator el3last = angm.rbegin();
 

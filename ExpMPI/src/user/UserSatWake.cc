@@ -625,7 +625,7 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
   double potr, potl, pott, potp, R2, fac, Ylm, dYlm;
   Vector f, g;
   
-  map<unsigned long, Particle>::iterator it = cC->Particles().begin();
+  PartMapItr it = cC->Particles().begin();
 
   for (int q=0   ; q<nbeg; q++) it++;
   for (int q=nbeg; q<nend; q++) {

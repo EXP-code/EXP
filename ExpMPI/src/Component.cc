@@ -130,7 +130,7 @@ void * reset_level_lists_thrd(void *ptr)
   int nbeg = nbodies*(id  )/nthrds;
   int nend = nbodies*(id+1)/nthrds;
   
-  map<unsigned long, Particle>::iterator it = c->Particles().begin();
+  PartMapItr it = c->Particles().begin();
 
   for (int n=0; n<nbeg; n++) it++;
   for (int n=nbeg; n<nend; n++) {
@@ -1325,7 +1325,7 @@ struct Particle * Component::get_particles(int* number)
 
   map<unsigned int,  Particle> tlist;
   map<unsigned int,  Particle>::iterator cur;
-  map<unsigned long, Particle>::iterator icur, ibeg, iend;
+  PartMapItr icur, ibeg, iend;
 
   unsigned icount;
   int beg = counter;
@@ -1632,7 +1632,7 @@ void Component::initialize_com_system()
   double *cov1 = new double [3];
   
   
-  map<unsigned long, Particle>::iterator p, pend;
+  PartMapItr p, pend;
 
 				// Zero stuff out
   mtot0 = mtot1 = 0.0;
@@ -1680,7 +1680,7 @@ void Component::restart_com_system()
     MPI_Bcast(&center[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
 				// Particle loop
-    map<unsigned long, Particle>::iterator p, pend = particles.end();
+    PartMapItr p, pend = particles.end();
     for (p=particles.begin(); p != pend; p++) {
 
       for (int i=0; i<3; i++) {
@@ -2389,7 +2389,7 @@ void Component::load_balance(void)
 
       nlist.erase(nlist.begin(), nlist.end());
 
-      map<unsigned long, Particle>::iterator it = particles.begin();
+      PartMapItr it = particles.begin();
       for (int n=0; n<nump; n++) {
 	nlist.push_back(it->first);
 	it++;
