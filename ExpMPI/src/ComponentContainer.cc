@@ -724,8 +724,9 @@ void ComponentContainer::print_level_list_header()
 	  << setw(15) << "f(ext)"
 	  << ": fraction with dt=dt(internal)" << endl;
     
-    out << "NB: simple particles, such as stars or dark matter, will have not" 
-	<< endl << "have internal length scales or times steps" << endl;
+    out << endl
+	<< "NB: simple particles, such as stars or dark matter, will have not" 
+	<< endl << "have internal length scales or time steps" << endl << endl;
     
   }
 
