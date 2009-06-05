@@ -235,7 +235,9 @@ double CheckpointTimer::time_remaining()
 
   }
 
-  if (!found) throw string("PBS command failure, no PBS??");
+  if (!found) 
+    throw string("PBS command failure, no PBS?? ") +
+      "[" + command + "]==>[" + result + "]";
 
   return ret;
 }

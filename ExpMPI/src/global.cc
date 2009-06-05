@@ -59,6 +59,7 @@ unsigned char quit_signal = 0;
 unsigned multistep = 0;
 int centerlevl = -1;
 bool posnsync = true;
+bool DTold = false;
 double dynfracV = 0.01;
 double dynfracA = 0.03;
 int Mstep = 0;

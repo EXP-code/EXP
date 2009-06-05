@@ -92,7 +92,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
+  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
@@ -268,17 +268,17 @@ void Component::print_level_lists(double T)
 
     vector< vector<unsigned> > cntr(multistep+1);
     for (int n=0; n<=multistep; n++) {
-      cntr[n] = vector<unsigned>(4, 0);
-      MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], 4, MPI_UNSIGNED,
+      cntr[n] = vector<unsigned>(mdtDim, 0);
+      MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], mdtDim, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
       
-      for (int k=0; k<4; k++) mdt_ctr[n][k] = 0;
+      for (int k=0; k<mdtDim; k++) mdt_ctr[n][k] = 0;
     }
     
     if (myid==0) {
 
       unsigned tot=0;
-      for (int n=0; n<=multistep; n++) tot += cntr[n][3];
+      for (int n=0; n<=multistep; n++) tot += cntr[n][mdtDim-1];
 
       if (!tot && myid==0) cout << "print_level_lists [" << name 
 				<< ", T=" << tnow << "]: tot=" << tot << endl;
@@ -290,33 +290,39 @@ void Component::print_level_lists(double T)
 	ofstream out(ofil.str().c_str(), ios::app);
 
 	unsigned curn, sum=0;
-	out << setw(70) << setfill('-') << '-' << endl;
+	out << setw(80) << setfill('-') << '-' << endl;
 	ostringstream sout;
 	sout << "--- Component <" << name 
 	     << ", " << id  << ">, T=" << T;
-	out << setw(70) << left << sout.str().c_str() << endl;
-	out << setw(70) << '-' << endl << setfill(' ');
+	out << setw(80) << left << sout.str().c_str() << endl;
+	out << setw(80) << '-' << endl << setfill(' ');
 	out << setw(3)  << "L" 
 	    << setw(10) << "Number" 
 	    << setw(10) << "dN/dL" 
 	    << setw(10) << "N(<=L)"
 	    << setw(10) << "f(r/v)" 
+	    << setw(10) << "f(s/v)" 
+	    << setw(10) << "f(v/a)" 
 	    << setw(10) << "f(r/a)" 
-	    << setw(10) << "f(ext)" << endl;
-	out << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	    << setw(10) << "f(int)" << endl;
+	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	for (int n=0; n<=multistep; n++) {
-	  curn = cntr[n][3];
+	  curn = cntr[n][mdtDim-1];
 	  sum += curn;
 	  out << setw(3)  << n 
 	      << setw(10) << curn << setprecision(3) << fixed
 	      << setw(10) << static_cast<double>(curn)/tot
-	      << setw(10) << static_cast<double>(sum)/tot;
+	      << setw(10) << static_cast<double>(sum) /tot;
 	  if (curn)		// If there are counts at this level:
 	    out << setw(10) << static_cast<double>(cntr[n][0])/curn
 		<< setw(10) << static_cast<double>(cntr[n][1])/curn
-		<< setw(10) << static_cast<double>(cntr[n][2])/curn;
+		<< setw(10) << static_cast<double>(cntr[n][2])/curn
+		<< setw(10) << static_cast<double>(cntr[n][3])/curn
+		<< setw(10) << static_cast<double>(cntr[n][4])/curn;
 	  else			// No counts at this level:
 	    out << setw(10) << "*"
+		<< setw(10) << "*"
+		<< setw(10) << "*"
 		<< setw(10) << "*"
 		<< setw(10) << "*";
 	  out << endl;
@@ -385,7 +391,7 @@ Component::Component(istream *in)
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(4, 0);
+  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
@@ -1499,11 +1505,11 @@ struct Particle * Component::get_particles(int* number)
 	     << " found=" << cur->first
 	     << endl << flush;
 	unsigned n = beg;
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	cout << setw(10) << "Expect" << setw(10) << "Found" << endl;
 	for (cur=tlist.begin(); cur!=tlist.end(); cur++)
 	  cout << setw(10) << n++ << setw(10) << cur->first << endl;
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
+	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	seq_ok = false;
 	break;
       }

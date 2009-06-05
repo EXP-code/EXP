@@ -31,7 +31,7 @@ ComponentContainer::ComponentContainer(void)
   thread_timing = false;
   state = NONE;
 
-  // Fine resolution for these timers (default reselution is 1 sec)
+  // Fine resolution for these timers (default resolution is 1 sec)
   //
   timer_posn.	Microseconds();
   timer_gcom.	Microseconds();
@@ -674,8 +674,72 @@ void ComponentContainer::multistep_reset()
 }
 
 
+void ComponentContainer::print_level_list_header()
+{
+  ostringstream ofil;
+  ofil << runtag << ".levels";
+
+  ifstream in(ofil.str().c_str());
+  if (!in) {
+    in.close();
+    ofstream out(ofil.str().c_str());
+    out << setw(80) << setfill('-') << '-' << endl << setfill(' ')
+	<< "--- Column explanations" << endl
+	<< setw(80) << setfill('-') << '-' << endl << setfill(' ');
+    out << left
+	<< setw(15) << "L"       << ": level" << endl
+	<< setw(15) << "Number"  << ": number of particles on L" << endl
+	<< setw(15) << "dN/dL"   << ": fractional occupation on L" << endl
+	<< setw(15) << "N(<=L)"  << ": cumulative occupation on L" << endl
+	<< setw(15) << "s"       << ": per particle scale" << endl
+	<< setw(15) << "v"       << ": per particle velocity" << endl
+	<< setw(15) << "a"       << ": per particle acceleration" << endl
+	<< setw(15) << "int"     << ": internal time step (e.g. cooling)" 
+	<< endl;
+    
+    if (DTold)
+      out << left << setw(15) << "r" 
+	  << ": coordinate radius" << endl
+	  << setw(15) << "f(r/v)"
+	  << ": fraction with dt=|r|/|v|" << endl
+	  << setw(15) << "f(s/v)" 
+	  << ": fraction with dt=s/|v|" << endl
+	  << setw(15) << "f(v/a)" 
+	  << ": fraction with dt=|v|/|a|" << endl
+	  << setw(15) << "f(r/a)" 
+	  << ": fraction with dt=sqrt(|r|/|a|)" << endl
+	  << setw(15) << "f(ext)"
+	  << ": fraction with dt=dt(internal)" << endl;
+    else
+      out << left  << setw(15) << "r" 
+	  << ": grav. potential scale length, |phi|/|d(phi)/dx|"  << endl
+	  << setw(15) << "f(r/v)"
+	  << ": fraction with dt=|phi|/|d(phi)/dx * v|" << endl
+	  << setw(15) << "f(s/v)" 
+	  << ": fraction with dt=s/|v|" << endl
+	  << setw(15) << "f(v/a)" 
+	  << ": fraction with dt=|v|/|a|" << endl
+	  << setw(15) << "f(r/a)" 
+	  << ": fraction with dt=sqrt(|phi|/|a*a|)" << endl
+	  << setw(15) << "f(ext)"
+	  << ": fraction with dt=dt(internal)" << endl;
+    
+    out << "NB: simple particles, such as stars or dark matter, will have not" 
+	<< endl << "have internal length scales or times steps" << endl;
+    
+  }
+
+}
+
+
 void ComponentContainer::print_level_lists(double T)
 {
+  static bool firstime = true;
+  if (firstime) {
+    print_level_list_header();
+    firstime = false;
+  }
+
   //
   // Do reset for each component
   //

@@ -59,12 +59,12 @@ EXPLIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
 LDADD = $(COMMON_LIBS) $(ADD_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 
-noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H \
-	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H \
-	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H \
-	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H \
-	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h \
-        version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H \
+noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
+	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H          \
+	Particle.H PotAccel.H ScatterMFP.H SphericalBasis.H externalShock.H  \
+	generateRelaxation.H tidalField.H EmpOrth9thd.h Orient.H OutPS.H     \
+	OutMulti.H coef.H exp_thread.h expand.h sltableMP2.h tipsydefs.h     \
+        version.h pHOT.H pCell.H pHOT_types.H ParticleFerry.H                \
 	pHOT.H pHOT_types.H
 
 # special case for f77 for now

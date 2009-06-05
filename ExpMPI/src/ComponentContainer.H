@@ -116,6 +116,9 @@ public:
       for diagnostic purposes */
   void print_level_lists(double T);
 
+  //! Print column explanation for level lists output
+  void print_level_list_header();
+
   //! Print debug info
   void multistep_debug();
 

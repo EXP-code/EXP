@@ -59,6 +59,15 @@ void initialize(void)
 
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
 
+  if (parse->find_item("DTold", val)) {
+    if (atoi(val.c_str())) {
+      DTold = true;
+      if (myid==0)
+	cout << "parse: using original (old) time-step algorithm" << endl;
+    }
+    else DTold = false;
+  }
+
   if (parse->find_item("use_cwd", val)) {
     if (atoi(val.c_str())) use_cwd = true;
     else use_cwd = false;
@@ -182,6 +191,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "multistep"  << " = " << multistep   << endl;
   out << comment << " " << "centerlevl" << " = " << centerlevl  << endl;
   out << comment << " " << "posnsync"   << " = " << posnsync    << endl;
+  out << comment << " " << "DTold"      << " = " << DTold       << endl;
   out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
   out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
 

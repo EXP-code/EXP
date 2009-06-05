@@ -60,12 +60,12 @@
 
 #include <mpi.h>
 
-#include <stdlib.h>
-#include <unistd.h>
-#include <math.h>
 #include <values.h>
 #include <pthread.h>
 
+#include <cstdlib>
+#include <cmath>
+#include <cstring>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -125,7 +125,8 @@ double factrl(int n);
 
 // Constants
 
-#define DSMALL  1.0e-16
+static const double DSMALL = 1.0e-16;
+static const int    mdtDim = 6;
 
 // Parallel prototypes
 

@@ -4,6 +4,7 @@
 
 #include "expand.h"
 #include <sstream>
+#include <map>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";
@@ -57,7 +58,7 @@ void * adjust_multistep_level_thread(void *ptr)
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  double dt, dtv, dta, dtr, dsr;
+  double dt, dts, dtv, dta, dtA, dtr, dsr, rtot, vtot, atot;
   int npart = c->levlist[level].size();
   int offgrid = 0, lev;
 
@@ -68,57 +69,85 @@ void * adjust_multistep_level_thread(void *ptr)
   int nend = npart*(id+1)/nthrds;
 
   //
+  // Small positive constant
+  //
+  const double eps = 1.0e-20;
+
+  //
   // The particle loop
   //
   for (int i=nbeg; i<nend; i++) {
 
-    double rtot = 0.0;
-    double vtot = 0.0;
-    double atot = 0.0;
-      
     int n = c->levlist[level][i];
-    
-    for (int k=0; k<c->dim; k++) {
-      rtot += 
-	c->Pos(n, k, Component::Local | Component::Centered) *
-	c->Pos(n, k, Component::Local | Component::Centered) ;
-      vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
-      atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+
+    if (DTold) {
+
+      rtot = 0.0;
+      vtot = 0.0;
+      atot = 0.0;
+      
+      for (int k=0; k<c->dim; k++) {
+	rtot += 
+	  c->Pos(n, k, Component::Local | Component::Centered) *
+	  c->Pos(n, k, Component::Local | Component::Centered) ;
+	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
+	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+      }
+      rtot = sqrt(rtot);
+      vtot = sqrt(vtot) + 1.0e-18;
+      atot = sqrt(atot) + 1.0e-18;
+
+      dsr = c->Part(n)->scale;
+      if (dsr>0) dts = dynfracV*dsr/vtot;
+      else       dts = 1.0/eps;
+
+      dtv = dynfracV*rtot/vtot;
+      dta = dynfracA*vtot/atot;
+      dtA = dynfracA*sqrt(rtot/atot);
+
+    } else {
+
+      dtv  = 1.0/eps;
+      dtr  = 0.0;
+      vtot = 0.0;
+      atot = 0.0;
+
+      for (int k=0; k<c->dim; k++) {
+	dtv = min<double>
+	  (dtv, fabs(c->Part(n)->vel[k])/(fabs(c->Part(n)->acc[k])+eps));
+	dtr  += c->Part(n)->vel[k]*c->Part(n)->acc[k];
+	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
+	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+      }
+
+
+      dsr = c->Part(n)->scale;
+      if (dsr>0) dts = dynfracV*dsr/fabs(sqrt(vtot)+eps);
+      else       dts = 1.0/eps;
+      
+      dtv = dynfracV*dtv;
+      dta = dynfracA*fabs(c->Part(n)->pot)/(fabs(dtr)+eps);
+      dtA = dynfracA*sqrt(fabs(c->Part(n)->pot)/(atot+eps));
+
     }
-    rtot = sqrt(rtot);
-    vtot = sqrt(vtot) + 1.0e-18;
-    atot = sqrt(atot) + 1.0e-18;
 
-    dsr = c->Part(n)->scale;
-    if (dsr>0) rtot = min<double>(rtot, dsr);
+    map<double, int> dseq;
+    dseq[dtv] = 0;
+    dseq[dts] = 1;
+    dseq[dta] = 2;
+    dseq[dtA] = 3;
+    if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
 
-    dtv = dynfracV*rtot/vtot;
-    dta = dynfracA*sqrt(rtot/atot);
-    dt  = min<double>(dtv, dta);
+    // Smallest time step
+    //
+    dt = mindt1[id] = dseq.begin()->first;
 
-    dtr = c->Part(n)->dtreq;
-    if (dtr>0) dt = min<double>(dt, dtr);
-
-    mindt1[id] = min<double>(mindt1[id], dt);
-    maxdt1[id] = max<double>(maxdt1[id], dt);
-	
     if (mstep == 0) {
-
       // Tally smallest (e.g. controlling) timestep
       //
-      if (dtv<dta) {
-	if (dtr<=0 || dtv<dtr)
-	  tmdt[id][level][0]++;  
-	else
-	  tmdt[id][level][2]++;
-      } else {
-	if (dtr<=0 || dta<dtr)
-	  tmdt[id][level][1]++;  
-	else
-	  tmdt[id][level][2]++;
-      }
+      tmdt[id][level][dseq.begin()->second]++;
       // Counter
-      tmdt[id][level][3]++;
+      tmdt[id][level][mdtDim-1]++;
     }
 
     if (dt>dtime) lev = 0;
@@ -196,7 +225,7 @@ void adjust_multistep_level(bool all)
     tmdt = vector< vector< vector<unsigned> > >(nthrds);
     for (int n=0; n<nthrds; n++) {
       tmdt[n] = vector< vector<unsigned> >(multistep+1);
-      for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(4);
+      for (int k=0; k<=multistep; k++) tmdt[n][k] = vector<unsigned>(mdtDim);
     }
   }
 
@@ -206,7 +235,7 @@ void adjust_multistep_level(bool all)
     if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
-	  for (int j=0; j<4; j++) tmdt[n][k][j] = 0;
+	  for (int j=0; j<mdtDim; j++) tmdt[n][k][j] = 0;
     }
     
     for (int level=0; level<=multistep; level++) {
@@ -275,7 +304,7 @@ void adjust_multistep_level(bool all)
     if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
-	  for (int j=0; j<4; j++) 
+	  for (int j=0; j<mdtDim; j++) 
 	    (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
     }
   }

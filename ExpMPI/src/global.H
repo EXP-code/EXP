@@ -77,6 +77,8 @@ extern int posnsync;
 
 //! Fraction of dynamical time for determining multistep level
 //@{
+//! Use old (original) timestep criteria
+extern bool DTold;
 //! Velocity coefficient (default: 0.01)
 extern double dynfracV;
 //! Acceleration coefficient (default: 0.03)

@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-CC = mpicc
+CC  = mpicc
 CXX = mpiCC
 
 if ENABLE_DMALLOC
