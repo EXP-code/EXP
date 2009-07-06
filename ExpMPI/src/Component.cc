@@ -1166,14 +1166,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   cparam = trimLeft(trimRight(tokens(":")));
   fparam = trimLeft(trimRight(tokens(":")));
 
-				// Backward compatibility
-  /*
-  if (fparam.size() == 0) {
-    fparam = cparam;
-    cparam = "";
-  }
-  */
-
   delete [] info;
 
 				// Informational output

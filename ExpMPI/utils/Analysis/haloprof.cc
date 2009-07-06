@@ -61,16 +61,18 @@ using namespace std;
 program_option init[] = {
   {"NICE",		"int",		"0",		"system priority"},
   {"DENS",		"bool",		"true",		"compute density"},
+  {"RMIN",		"double",	"0.0",		"minimum radius for output"},
   {"RMAX",		"double",	"0.1",		"maximum radius for output"},
   {"TIME",		"double",	"0.0",		"Desired time slice"},
   {"LMAX",		"int",		"4",		"Maximum harmonic order for spherical expansion"},
   {"NMAX",		"int",		"12",		"Maximum radial order for spherical expansion"},
   {"MMAX",		"int",		"4",		"Maximum harmonic order"},
   {"OUTR",		"int",		"40",		"Number of radial points for output"},
+  {"PROBE",		"bool",		"true",		"Make traces along axes"},
   {"SURFACE",		"bool",		"true",		"Make equitorial and vertical slices"},
   {"VOLUME",		"bool",		"false",	"Make volume for VTK"},
   {"ALL",		"bool",		"false",	"Compute output for every time slice"},
-  {"PARTFLAG",		"int",		"4",		"Wakes using Component(s) [1=stars | 2=gas]"},
+  {"PARTFLAG",		"int",		"4",		"Wakes using Component(s) [1=stars | 2=gas | 4=halo]"},
   {"OUTFILE",		"string",	"haloprof",	"Filename prefix"},
   {"MODFILE",		"string",	"SLGridSph.model",
    							"Model file"},
@@ -265,12 +267,14 @@ void write_output(SphereSL& ortho, int icnt, double time)
   int nout;
   
   string OUTFILE  = config.get<string>("OUTFILE");
+  double RMIN     = config.get<double>("RMIN");
   double RMAX     = config.get<double>("RMAX");
   int OUTR        = config.get<int   >("OUTR");
   
   bool ALL        = config.get<bool>("ALL");
   bool VOLUME     = config.get<bool>("VOLUME");
   bool SURFACE    = config.get<bool>("SURFACE");
+  bool PROBE      = config.get<bool>("PROBE");
 
   // ==================================================
   // Setup for output files
@@ -461,6 +465,114 @@ void write_output(SphereSL& ortho, int icnt, double time)
       }
     }
   }
+
+  if (PROBE) {
+    
+    // ==================================================
+    // Write line profile along three axes
+    // ==================================================
+    
+    double v;
+    float f;
+    bool use_log;
+    double dR;
+
+    if (RMIN>0.0) {
+      use_log = true;
+      dR = (log(RMAX) - log(RMIN))/(OUTR-1);
+    } else {
+      use_log = false;
+      dR = RMAX/(OUTR-1);
+    }
+      
+    double r, phi, costh;
+    double p0, p1, d0, d1, fr, ft, fp;
+    int indx;
+    
+    vector<double> indat(3*nout*OUTR, 0.0), otdat(3*nout*OUTR);
+    
+    for (int l=0; l<OUTR; l++) {
+      
+      r = dR*l;
+      if (use_log) r = RMIN*exp(r);
+      
+      if ((ncnt++)%numprocs == myid) {
+	  
+	indx = 3*nout*l;
+
+	costh = 0.0;
+	phi   = 0.0;
+	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  
+	indat[indx + 0] = p0;
+	indat[indx + 1] = p1;
+	indat[indx + 2] = fr;
+	indat[indx + 3] = ft;
+	indat[indx + 4] = fp;
+	indat[indx + 5] = d0;
+	indat[indx + 6] = d1;
+
+	costh = 0.0;
+	phi   = 0.5*M_PI;
+	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  
+	indx += nout;
+	indat[indx + 0] = p0;
+	indat[indx + 1] = p1;
+	indat[indx + 2] = fr;
+	indat[indx + 3] = ft;
+	indat[indx + 4] = fp;
+	indat[indx + 5] = d0;
+	indat[indx + 6] = d1;
+
+	costh = 1.0;
+	phi   = 0.0;
+	ortho.all_eval(r, costh, phi, d0, d1, p0, p1, fr, ft, fp);
+	  
+	indx += nout;
+	indat[indx + 0] = p0;
+	indat[indx + 1] = p1;
+	indat[indx + 2] = fr;
+	indat[indx + 3] = ft;
+	indat[indx + 4] = fp;
+	indat[indx + 5] = d0;
+	indat[indx + 6] = d1;
+
+      }
+    }
+    
+    MPI_Reduce(&indat[0], &otdat[0], 3*nout*OUTR, MPI_DOUBLE, MPI_SUM, 
+	       0, MPI_COMM_WORLD);
+    
+    
+    if (myid==0) {
+      
+      vector<string> names(nout);
+      for (int i=0; i<nout; i++) {
+	names[i] = OUTFILE + "." + suffix[i] + ".cut";
+	if (ALL) names[i] += sstr.str();
+      }
+
+      foarray out(names, true);
+
+      for (int l=0; l<OUTR; l++) {
+	
+	r = dR*l;
+	if (use_log) r = RMIN*exp(r);
+      
+	indx = 3*nout*l;
+	
+	for (int n=0; n<nout; n++)
+	  out[n] << setw(18) << time << setw(18) << r
+		 << setw(18) << otdat[indx + 0*nout + n]
+		 << setw(18) << otdat[indx + 1*nout + n]
+		 << setw(18) << otdat[indx + 2*nout + n]
+		 << endl;
+      }
+      
+      for (int n=0; n<nout; n++) out[n] << endl;
+    }
+  }
 }
 
 
@@ -499,6 +611,7 @@ main(int argc, char **argv)
 
   SphericalModelTable halo(config.get<string>("MODFILE"));
   SphereSL::mpi = true;
+  SphereSL::NUMR = 4000;
   SphereSL ortho(&halo, config.get<int>("LMAX"), config.get<int>("NMAX"));
 
   // ==================================================
@@ -542,7 +655,7 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
 
     if (myid==0) {
-      cout << "Beginning disk partition [time="
+      cout << "Beginning particle partition [time="
 	   << dump->header.time << "] . . . " << flush;
       if (ALL) 
 	indx << setw(15) << icnt << setw(15) << dump->header.time << endl;
@@ -569,7 +682,7 @@ main(int argc, char **argv)
   
     //------------------------------------------------------------ 
 
-    if (myid==0) cout << "Making disk coefficients . . . " << flush;
+    if (myid==0) cout << "Making coefficients . . . " << flush;
     ortho.make_coefs();
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;

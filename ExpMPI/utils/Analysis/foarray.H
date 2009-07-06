@@ -15,12 +15,15 @@ private:
 
 public:
 
-  foarray(vector<string>& names)
+  foarray(vector<string>& names, bool append=false)
   {
     fnum = names.size();
     fo = vector<ofstream*>(fnum);
     for (unsigned n=0; n<fnum; n++) {
-      fo[n] = new ofstream(names[n].c_str());
+      if (append)
+	fo[n] = new ofstream(names[n].c_str(), ios::app);
+      else
+	fo[n] = new ofstream(names[n].c_str());
       if (!*fo[n]) {
 	cerr << "Error opening <" << names[n] << "> for output\n";
 	exit(-1);
