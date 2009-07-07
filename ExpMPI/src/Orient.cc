@@ -346,7 +346,7 @@ void Orient::accumulate(double time, Component *c)
   double energy, mass, v2;
   unsigned nbodies = c->Number();
   PartMapItr it = c->Particles().begin();
-  unsigned tkeep = many/numprocs;
+  unsigned tkeep = (many+myid)/numprocs;
   set<EL3, ltEL3>::reverse_iterator el3last = angm.rbegin();
 
   for (int q=0; q<nbodies; q++) {
@@ -379,7 +379,7 @@ void Orient::accumulate(double time, Component *c)
     if (cflags & EXTERNAL) energy += c->Part(i)->potext;
 
     unsigned size0 = angm.size();
-    bool test1 = (size0 < tkeep);
+    bool test1 = (size0 <= tkeep);
     bool test2 = true;
 
     if (size0) test2 = (energy < el3last->E);
