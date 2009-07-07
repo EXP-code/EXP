@@ -6,10 +6,6 @@
 #include <sstream>
 #include <map>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 
 void sync_eval_multistep(void)
 {
@@ -58,7 +54,7 @@ void * adjust_multistep_level_thread(void *ptr)
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  double dt, dts, dtv, dta, dtA, dtr, dsr, rtot, vtot, atot;
+  double dt, dts, dtv, dta, dtA, dtr, dsr, rtot, vtot, atot, ptot;
   int npart = c->levlist[level].size();
   int offgrid = 0, lev;
 
@@ -81,6 +77,10 @@ void * adjust_multistep_level_thread(void *ptr)
     int n = c->levlist[level][i];
 
     if (DTold) {
+
+      // dtv = eps* r/v         -- roughly, crossing time
+      // dta = eps* v/a         -- force scale
+      // dtA = eps* sqrt(r/a)   -- acceleration time
 
       rtot = 0.0;
       vtot = 0.0;
@@ -107,6 +107,11 @@ void * adjust_multistep_level_thread(void *ptr)
 
     } else {
 
+      // dtv = eps* min(v_i/a_i)  -- largest force scale
+      // dta = eps* phi/(v * a)   -- char. work time scale
+      // dtA = eps* sqrt(phi/a)   -- char."escape" time
+
+
       dtv  = 1.0/eps;
       dtr  = 0.0;
       vtot = 0.0;
@@ -119,6 +124,7 @@ void * adjust_multistep_level_thread(void *ptr)
 	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
 	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
       }
+      ptot = fabs(c->Part(n)->pot + c->Part(n)->potext);
 
 
       dsr = c->Part(n)->scale;
@@ -126,8 +132,8 @@ void * adjust_multistep_level_thread(void *ptr)
       else       dts = 1.0/eps;
       
       dtv = dynfracV*dtv;
-      dta = dynfracA*fabs(c->Part(n)->pot)/(fabs(dtr)+eps);
-      dtA = dynfracA*sqrt(fabs(c->Part(n)->pot)/(atot+eps));
+      dta = dynfracA*ptot/(fabs(dtr)+eps);
+      dtA = dynfracA*sqrt(ptot/(atot+eps));
 
     }
 

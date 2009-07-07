@@ -58,10 +58,10 @@ void make_node_list(int argc, char **argv)
 		     << setfill(' ') << endl
 		     << setw(4) << left << "#" << setw(20) 
 		     << "Node name" << setw(12) << "PID" 
-		     << setw(40) << "Exe name" << endl
+		     << setw(40) << "Executable" << endl
 		     << setw(4) << left << "-" << setw(20) 
 		     << "---------" << setw(12) << "---" 
-		     << setw(40) << "--------" << endl;
+		     << setw(40) << "----------" << endl;
 
   MPI_Status stat;
   unsigned nprocn = MPI_MAX_PROCESSOR_NAME, ncmd=40;

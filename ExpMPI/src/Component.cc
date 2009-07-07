@@ -299,12 +299,19 @@ void Component::print_level_lists(double T)
 	out << setw(3)  << "L" 
 	    << setw(10) << "Number" 
 	    << setw(10) << "dN/dL" 
-	    << setw(10) << "N(<=L)"
-	    << setw(10) << "f(r/v)" 
-	    << setw(10) << "f(s/v)" 
-	    << setw(10) << "f(v/a)" 
-	    << setw(10) << "f(r/a)" 
-	    << setw(10) << "f(int)" << endl;
+	    << setw(10) << "N(<=L)";
+	if (DTold) {
+	  out << setw(10) << "f(r/v)"
+	      << setw(10) << "f(s/v)"
+	      << setw(10) << "f(v/a)"
+	      << setw(10) << "f(r/a)";
+	} else {
+	  out << setw(10) << "f(v/a)"
+	      << setw(10) << "f(s/v)"
+	      << setw(10) << "f(p/v*a)" 
+	      << setw(10) << "f([p/a])";
+	}
+	out << setw(10) << "f(int)" << endl;
 	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	for (int n=0; n<=multistep; n++) {
 	  curn = cntr[n][mdtDim-1];

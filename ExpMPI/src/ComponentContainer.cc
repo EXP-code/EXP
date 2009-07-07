@@ -2,10 +2,6 @@
   Compute accelerations, potential, and density.
 */
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #include <expand.h>
 
 #include <vector>

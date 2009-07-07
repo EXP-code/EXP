@@ -11,6 +11,8 @@
 
 				// 10 minute warning
 time_t CheckpointTimer::delta = 600;
+				// 2 hours between diagnostic messages
+time_t CheckpointTimer::diag  = 7200;
 
 CheckpointTimer::CheckpointTimer()
 {
@@ -18,6 +20,7 @@ CheckpointTimer::CheckpointTimer()
 
   initial = final = 0;
   last = current = 0;
+  last_diag = time(0);
   mean = var = 0;
   nsteps = 0;
   firstime = true;
@@ -96,43 +99,43 @@ bool CheckpointTimer::done()
 
   MPI_Bcast(&flg, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
+
   //
-  // DEBUG
+  // Diagnostics
   //
-  if (true) {
+  if (myid==0 && last>0) {
 
-    if (myid==0 && last>0) {
+    if (nsteps == 0) {
+      nsteps++;			// First datum (nsteps=1)
+      var = 0.0;
+      mean = tr;
+    } else {
+      nsteps++;			// Update variance and mean (nsteps>1)
 
-      if (nsteps == 0) {
-	nsteps++;		// First datum (nsteps=1)
-	var = 0.0;
-	mean = tr;
-      } else {
-	nsteps++;		// Update variance and mean (nsteps>1)
+      var = ( var*(nsteps-2) + (tr - mean)*(tr - mean)*(nsteps-1)/nsteps ) /
+	(nsteps - 1);
+      mean = (mean*(nsteps-1) + tr)/nsteps;
+    }
 
-	var = ( var*(nsteps-2) + (tr - mean)*(tr - mean)*(nsteps-1)/nsteps ) /
-	  (nsteps - 1);
-	mean = (mean*(nsteps-1) + tr)/nsteps;
-      }
+    time_t right_now = time(0);
+    if (right_now - last_diag > diag) {
 
       cout << endl
 	   << "-------------------------------------------"
-	   << "---------------------------" << endl
+	   << "---------------------------"        << endl
 	   << "--- Checkpoint timer info -----------------"
-	   << "---------------------------" << endl
+	   << "---------------------------"        << endl
 	   << "-------------------------------------------"
-	   << "---------------------------" << endl
+	   << "---------------------------"        << endl
 	   << "Last step: " << Time(tr)            << endl
 	   << "Remaining: " << Time(final-time(0)) << endl
 	   << "Mean step: " << Time(mean)          << endl
 	   << "Root var:  " << Time(sqrt(var))     << endl
 	   << "-------------------------------------------"
-	   << "---------------------------" << endl;
+	   << "---------------------------"        << endl;
+      last_diag = right_now;
     }
   }
-  //
-  // END DEBUG
-  //
 
   return flg ? true : false;
 }

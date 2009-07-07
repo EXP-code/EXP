@@ -39,7 +39,7 @@ class CheckpointTimer
 {
 private:
 
-  time_t initial, final, last, current;
+  time_t initial, final, last, current, last_diag;
   unsigned nsteps;
   double mean, var;
   bool firstime;
@@ -52,8 +52,11 @@ private:
 
 public:
   
-  //! Safety time interval [Default: 10 minute warning]
+  //! Safety time interval       [Default: 10 minute warning]
   static time_t delta;
+
+  //! Diagnostic output interval [Default: 2 hours]
+  static time_t diag;
 
   //! Constructor
   CheckpointTimer();

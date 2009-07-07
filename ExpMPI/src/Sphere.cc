@@ -10,7 +10,7 @@ Sphere::Sphere(string& line, MixtureSL* m) : SphericalBasis(line, m)
 {
   id = "Sphere SL";
 				// Defaults
-  rmin = min<double>(1.0e-4, 1.0e-4*rmax);
+  rmin = min<double>(1.0e-6, 1.0e-6*rmax);
   rs = 0.067*rmax;
   numr = 2000;
   cmap = 1;

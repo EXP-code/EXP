@@ -1,4 +1,3 @@
-// This may look like C code, but it is really -*- C++ -*-
 
 /*****************************************************************************
  *  Description:
@@ -77,7 +76,7 @@ program_option init[] = {
   {"MODFILE",		"string",	"SLGridSph.model",
    							"Model file"},
   {"INFILE",		"string",	"OUT",		"Phase space file"},
-  {"INDEX",		"string",	"frame.indx",	"File containing desirecd indices for PSP output"},
+  {"INDEX",		"string",	"frame.indx",	"File containing desired indices for PSP output"},
   {"",			"",		"",		""}
 };
 
