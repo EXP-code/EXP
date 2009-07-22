@@ -1,10 +1,7 @@
-// #define DEBUG
-// #define DEBUG_NAN
 // #define USESVD
 #define GHQL
 // #define STURM
 // #define EIGEN
-// #define DEBUG_PCA
 
 #define VAROUTPUT
 
@@ -41,20 +38,23 @@ Vector Symmetric_Eigenvalues_MSRCH(Matrix& a, Matrix& ef, int M);
 #define TINY 1.0e-16
 
 
-bool EmpCylSL::DENS=false;
-bool EmpCylSL::SELECT=false;
-bool EmpCylSL::CMAP=false;
-bool EmpCylSL::logarithmic=false;
-bool EmpCylSL::enforce_limits=false;
+bool     EmpCylSL::DENS            = false;
+bool     EmpCylSL::SELECT          = false;
+bool     EmpCylSL::CMAP            = false;
+bool     EmpCylSL::logarithmic     = false;
+bool     EmpCylSL::enforce_limits  = false;
+int      EmpCylSL::NUMX            = 256;
+int      EmpCylSL::NUMY            = 128;
+int      EmpCylSL::NOUT            = 12;
+int      EmpCylSL::NUMR            = 2000;
+unsigned EmpCylSL::VFLAG           = 0;
+double   EmpCylSL::RMIN            = 0.001;
+double   EmpCylSL::RMAX            = 20.0;
+double   EmpCylSL::HFAC            = 0.2;
+string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
+
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
-int EmpCylSL::NUMX=128;
-int EmpCylSL::NUMY=64;
-int EmpCylSL::NOUT=12;
-int EmpCylSL::NUMR=2000;
-double EmpCylSL::RMIN=0.001;
-double EmpCylSL::RMAX=20.0;
-double EmpCylSL::HFAC=0.2;
-string EmpCylSL::CACHEFILE = ".eof.cache.file";
+
 
 EmpCylSL::EmpCylSL(void)
 {
@@ -86,7 +86,6 @@ EmpCylSL::EmpCylSL(void)
   cylmass1 = vector<double>(nthrds);
   cylmassE = vector<double>(nthrds);
 
-  mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
 
@@ -131,7 +130,6 @@ EmpCylSL::~EmpCylSL(void)
     delete [] tzforce;
     if (DENS) delete [] tdens;
 
-    delete [] mpi_double_buf1;
     delete [] mpi_double_buf2;
     delete [] mpi_double_buf3;
 
@@ -258,7 +256,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
-  mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
 
@@ -309,7 +306,6 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
-  mpi_double_buf1 = 0;
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
 }
@@ -404,21 +400,21 @@ SphericalModelTable* EmpCylSL::make_sl()
   for (int i=0; i<number; i++) 
     p[i] = -mm[i]/(r[i]+1.0e-10) - (pw[number-1] - pw[i]);
 
-#ifdef DEBUG
-  ostringstream outf;
-  outf << "test_adddisk_sl." << myid;
-  ofstream out(outf.str().c_str());
-  for (int i=0; i<number; i++) {
-    out 
-      << setw(15) << r[i] 
-      << setw(15) << d[i] 
-      << setw(15) << m[i] 
-      << setw(15) << p[i] 
-      << setw(15) << mm[i] 
-      << endl;
+  if (VFLAG & 1) {
+    ostringstream outf;
+    outf << "test_adddisk_sl." << myid;
+    ofstream out(outf.str().c_str());
+    for (int i=0; i<number; i++) {
+      out 
+	<< setw(15) << r[i] 
+	<< setw(15) << d[i] 
+	<< setw(15) << m[i] 
+	<< setw(15) << p[i] 
+	<< setw(15) << mm[i] 
+	<< endl;
+    }
+    out.close();
   }
-  out.close();
-#endif
 
   model = new SphericalModelTable(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1); 
 
@@ -429,20 +425,9 @@ void EmpCylSL::send_eof_grid()
 {
   double *MPIbuf  = new double [MPIbufsz];
 
-#ifdef DEBUG
-  cerr << "Process " << myid << ": size=" << MPIbufsz << "\n";
-#endif
-
 				// Send to slaves
   if (myid==0) {
     
-    for (int M=0; M<=multistep; M++) {
-				// Coefficients for current step
-      for (int m=0; m<=MMAX; m++) {
-	for (int v=0; v<rank3; v++) mpi_double_buf3[v] = accum_cosN[M][0][m][v];
-	MPI_Bcast(mpi_double_buf3, rank3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      }
-    }
 				// Grids in X--Y
     for (int m=0; m<=MMAX; m++) {
       
@@ -478,14 +463,7 @@ void EmpCylSL::send_eof_grid()
 
     }
 
-    for (int M=0; M<=multistep; M++) {
-				// Coefficients for current step
-      for (int m=1; m<=MMAX; m++) {
-	for (int v=0; v<rank3; v++) mpi_double_buf3[v] = accum_sinN[M][0][m][v];
-	MPI_Bcast(mpi_double_buf3, rank3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-      }
-    }
-    
+
     for (int m=1; m<=MMAX; m++) {
 				// Grids in X--Y
       for (int v=0; v<rank3; v++) {
@@ -522,14 +500,6 @@ void EmpCylSL::send_eof_grid()
 
   } else {
 
-    for (int M=0; M<=multistep; M++) {
-				// Coefficients for current step
-      for (int m=0; m<=MMAX; m++) {
-	MPI_Bcast(mpi_double_buf3, rank3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	for (int v=0; v<rank3; v++) accum_cosN[M][0][m][v] = mpi_double_buf3[v];
-      }
-    }
-
 				// Get tables from Master
     for (int m=0; m<=MMAX; m++) {
 
@@ -565,17 +535,6 @@ void EmpCylSL::send_eof_grid()
       }
     }
 
-    for (int M=0; M<=multistep; M++) {
-
-				// Coefficients for current step
-      for (int m=1; m<=MMAX; m++) {
-	
-	MPI_Bcast(mpi_double_buf3, rank3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	for (int v=0; v<rank3; v++) accum_sinN[M][0][m][v] = mpi_double_buf3[v];
-      }
-    }
-    
-    
     for (int m=1; m<=MMAX; m++) {
 				// Grids in X--Y
 
@@ -632,7 +591,7 @@ int EmpCylSL::read_cache(void)
   send_eof_grid();
 
   if (myid==0) 
-    cerr << "EmpCylSL::read_cache: table forwarded to all processes\n";
+    cerr << "EmpCylSL::read_cache: table forwarded to all processes" << endl;
 
 
   eof_made = true;
@@ -861,39 +820,35 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   int type, icnt, off;
   int mm;
 
-#ifdef DEBUG
-  cerr << "master listening . . . \n";
-#endif
+  if (VFLAG & 8)
+    cerr << "master listening . . . " << endl;
 
   MPI_Recv(&type, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
 
   int current_source = status.MPI_SOURCE;
 
-#ifdef DEBUG
-  cerr << "master beginning to receive from " << current_source << " . . . \n";
-#endif
+  if (VFLAG & 8)
+    cerr << "master beginning to receive from " << current_source 
+	 << " . . . " << endl;
 
   MPI_Recv(&mm, 1, MPI_INT, current_source, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
 
-#ifdef DEBUG	
-  cerr << "master receiving from " << current_source << ": type=" << type 
-       << "   M=" << mm << "\n";
-#endif
+  if (VFLAG & 8)
+    cerr << "master receiving from " << current_source << ": type=" << type 
+	 << "   M=" << mm << endl;
 
 				// Receive rest of data
-
-  MPI_Recv(mpi_double_buf1, NORDER*(multistep+1), MPI_DOUBLE, current_source,
-	    13, MPI_COMM_WORLD, &status);
-
   for (int n=0; n<NORDER; n++) {
     MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+0)], 
 	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+1, 
 	     MPI_COMM_WORLD, &status);
+
     MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+1)], 
 	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+2, 
 	     MPI_COMM_WORLD, &status);
+
     MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+2)], 
 	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+3, 
 	     MPI_COMM_WORLD, &status);
@@ -915,17 +870,6 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   
 
 				// Read from buffers
-
-  for (int M=0; M<=multistep; M++) {
-    for (int n=0; n<NORDER; n++) {
-      if (type) {
-	accum_cosN[M][0][mm][n] = mpi_double_buf1[M*NORDER+n];
-      }
-      else {
-	accum_sinN[M][0][mm][n] = mpi_double_buf1[M*NORDER+n];
-      }
-    }
-  }
 
   for (int n=0; n<NORDER; n++) {
   
@@ -972,10 +916,9 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     }
   }
   
-#ifdef DEBUG
-  cerr << "master finished receiving: type=" << type << "   M=" 
-       << mm << "\n";
-#endif
+  if (VFLAG & 8)
+    cerr << "master finished receiving: type=" << type << "   M=" 
+	 << mm << endl;
 
   return;
 
@@ -987,14 +930,16 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 #ifdef EIGEN
   static Vector sum(ev.getlow(), ev.gethigh());
   {
-    cerr << "Node " << myid 
-	 << ": m=" << m << " dimen=" << ev.getlength() << "\n";
+    if (VFLAG & 8)
+      cerr << "Node " << myid 
+	   << ": m=" << m << " dimen=" << ev.getlength() << endl;
     sum[ev.getlow()] = ev[ev.getlow()];
     for (int nk=ev.getlow()+1; nk<=ev.gethigh(); nk++) sum[nk] = sum[nk-1] +
 							 ev[nk];
     for (int nk=ev.getlow(); nk<=ev.gethigh(); nk++) {
-      cerr << "       " << m << "," << nk << ">    "
-	   << ev[nk] << "    " << sum[nk] << "\n";
+      if (VFLAG & 8)
+	cerr << "       " << m << "," << nk << ">    "
+	     << ev[nk] << "    " << sum[nk] << endl;
       if (sum[nk]/sum[ev.gethigh()] > 1.0 - 1.0e-5) break;
     }
   }
@@ -1093,10 +1038,9 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
   MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
       
-#ifdef DEBUG
-  cerr << "Slave " << myid << ": sending type=" << request_id << "   M=" 
-       << m << "\n";
-#endif
+  if (VFLAG & 8)
+    cerr << "Slave " << myid << ": sending type=" << request_id << "   M=" 
+	 << m << endl;
     
   for (int n=0; n<NORDER; n++) {
 
@@ -1196,9 +1140,8 @@ void EmpCylSL::setup_accumulation(void)
       howmany.push_back(0);
     }
     
-#ifdef DEBUG_NAN
-    cerr << "Slave " << myid << ": tables allocated, MMAX=" << MMAX << "\n";
-#endif // DEBUG_NAN
+    if (VFLAG & 8)
+      cerr << "Slave " << myid << ": tables allocated, MMAX=" << MMAX << endl;
   }
 
   differC1 = vector< vector<Matrix> >(nthrds);
@@ -1459,7 +1402,6 @@ void EmpCylSL::setup_eof()
 
     MPIbufsz = (NUMX+1)*(NUMY+1);
 
-    mpi_double_buf1 = new double [NORDER*(multistep+1)];
     mpi_double_buf2 = new double [MPIbufsz*NORDER*MPItable];
     mpi_double_buf3 = new double [rank3];
   }
@@ -1613,10 +1555,9 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 			      int id, int mlevel)
 {
   if (eof_made) {
-#ifdef DEBUG
-    cerr << "accumulate_eof: Process " << myid << ", Thread " 
-	 << id << " calling setup_eof()\n";
-#endif      
+    if (VFLAG & 2)
+      cerr << "accumulate_eof: Process " << myid << ", Thread " 
+	   << id << " calling setup_eof()" << endl;
     setup_eof();
     setup_accumulation();
   }
@@ -1868,9 +1809,9 @@ void EmpCylSL::make_eof(void)
 	  request_id = 0;
 	}
 	
-#ifdef DEBUG
-	cerr << "master in make_eof: done waiting on Slave " << slave << "\n";
-#endif
+	if (VFLAG & 8)
+	  cerr << "master in make_eof: done waiting on Slave " 
+	       << slave << endl;
       }
 	
 				// If M>MMAX before processor queue exhausted,
@@ -1919,11 +1860,6 @@ void EmpCylSL::make_eof(void)
 
     while (1) {
 
-#ifdef DEBUG
-      cerr << "Slave " << myid << ": listening . . . \n";
-#endif
-
-
       MPI_Recv(&request_id, 1, 
 	       MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
       
@@ -1934,10 +1870,9 @@ void EmpCylSL::make_eof(void)
 	       MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	
 
-#ifdef DEBUG
-      cerr << "Slave " << myid << ": received orders type="
-	   << request_id << "  M=" << M << "\n";
-#endif
+      if (VFLAG & 8)
+	cerr << "Slave " << myid << ": received orders type="
+	     << request_id << "  M=" << M << endl;
 
       if (request_id) {
 
@@ -2164,18 +2099,17 @@ void EmpCylSL::make_eof(void)
 	  ef.Transpose();
 
 #elif defined(GHQL)
-#ifdef DEBUG	  
-	  cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
-	       << endl
-	       << "ev=[" << ev.getlow() << ", " << ev.gethigh() << "],"
-	       << endl
-	       << "ef=[ [" << ef.getrlow() << ", " << ef.getrhigh() << "]"
-	       << "[" << ef.getclow() << ", " << ef.getchigh() << "] ]"
-	       << endl
-	       << "var=[ [" << var[M].getrlow() << ", " << var[M].getrhigh() << "]"
-	       << ", [" << var[M].getclow() << ", " << var[M].getchigh() << "] ]"
-	       << endl;
-#endif
+	  if (VFLAG & 2)
+	    cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
+		 << endl
+		 << "ev=[" << ev.getlow() << ", " << ev.gethigh() << "],"
+		 << endl
+		 << "ef=[ [" << ef.getrlow() << ", " << ef.getrhigh() << "]"
+		 << "[" << ef.getclow() << ", " << ef.getchigh() << "] ]"
+		 << endl
+		 << "var=[ [" << var[M].getrlow() << ", " << var[M].getrhigh() << "]"
+		 << ", [" << var[M].getclow() << ", " << var[M].getchigh() << "] ]"
+		 << endl;
 	  ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
 	  ef = ef.Transpose();
 #else
@@ -2241,7 +2175,7 @@ void EmpCylSL::make_eof(void)
   if (myid==0) cache_grid(1);
   
   eof_made = true;
-  coefs_made = vector<short>(multistep+1, true);
+  coefs_made = vector<short>(multistep+1, false);
 }
 
 
@@ -2308,7 +2242,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
   if (coefs_made[mlevel]) {
     ostringstream ostr;
     ostr << "EmpCylSL::accumulate: Process " << myid << ", Thread " << id 
-	 << ": calling setup_accumulation from accumulate, aborting\n";
+	 << ": calling setup_accumulation from accumulate, aborting" << endl;
     bomb(ostr.str());
   }
 
@@ -2576,27 +2510,26 @@ void EmpCylSL::pca_hall(void)
   double sqr, var, fac, tot;
   int mm, nn;
 
-#ifdef DEBUG_PCA
-  cerr << "Process " << myid << ": made it to pca_hall\n";
-#endif
+  if (VFLAG & 4)
+    cerr << "Process " << myid << ": made it to pca_hall" << endl;
 
   
 				// Need number of particles to compute variance
   MPI_Allreduce ( &cylused1, &cylused, 1,
 		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-#ifdef DEBUG_PCA
-  cerr << "Process " << myid << ": using " << cylused << " particles\n";
-#endif
+  if (VFLAG & 4)
+    cerr << "Process " << myid << ": using " << cylused << " particles" << endl;
 
   ofstream *hout = NULL;
   if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
     hout = new ofstream(hallfile.c_str(), ios::out | ios::app);
     if (!hout) {
-      cerr << "Could not open <" << hallfile << "> for appending output\n";
+      cerr << "Could not open <" << hallfile << "> for appending output" 
+	   << endl;
     }
-    *hout << "# Time = " << tnow << "  Step=" << hallcount << "\n";
-    *hout << "#\n";
+    *hout << "# Time = " << tnow << "  Step=" << hallcount << endl;
+    *hout << "#" << endl;
   }
 
   for (mm=0; mm<=MMAX; mm++)
@@ -2643,9 +2576,8 @@ void EmpCylSL::pca_hall(void)
       }
     }
   
-#ifdef DEBUG_PCA
-  cerr << "Process " << myid << ": exiting to pca_hall\n";
-#endif
+  if (VFLAG & 4)
+    cerr << "Process " << myid << ": exiting to pca_hall" << endl;
 
   if (hout) {
     hout->close();
@@ -2660,7 +2592,7 @@ void EmpCylSL::accumulated_eval(double r, double z, double phi,
 				double& fr, double& fz, double &fp)
 {
   if (!coefs_made_all()) {
-    if (VERBOSE>3)
+    if (VFLAG>3)
       cerr << "Process " << myid << ": in EmpCylSL::accumlated_eval, "
 	   << "calling make_coefficients()" << endl;
     make_coefficients();
@@ -2809,7 +2741,7 @@ double EmpCylSL::accumulated_dens_eval(double r, double z, double phi,
   if (!DENS) return 0.0;
 
   if (!coefs_made_all()) {
-    if (VERBOSE>3) 
+    if (VFLAG>3) 
       cerr << "Process " << myid << ": in EmpCylSL::accumlated_dens_eval, "
 	   << "calling make_coefficients()" << endl;
     make_coefficients();
@@ -2979,7 +2911,7 @@ void EmpCylSL::get_all(int mm, int nn,
 		       double& fr, double& fz, double &fp)
 {
   if (!coefs_made_all()) {
-    if (VERBOSE>3) 
+    if (VFLAG & 4) 
       cerr << "Process " << myid << ": in EmpCylSL::gel_all, "
 	   << "calling make_coefficients()" << endl;
     make_coefficients();
@@ -3401,7 +3333,7 @@ void EmpCylSL::dump_images(const string& OUTFILE,
     Name = OUTFILE + Types[j] + ".eof_recon";
     out[j].open(Name.c_str());
     if (!out[j]) {
-      cerr << "Couldn't open <" << Name << ">\n";
+      cerr << "Couldn't open <" << Name << ">" << endl;
       break;
     }
   }
@@ -3523,7 +3455,7 @@ void EmpCylSL::dump_images(const string& OUTFILE,
     Name = OUTFILE + Types[j] + ".eof_recon_face";
     out[j].open(Name.c_str());
     if (!out[j]) {
-      cerr << "Couldn't open <" << Name << ">\n";
+      cerr << "Couldn't open <" << Name << ">" << endl;
       break;
     }
   }
@@ -3794,7 +3726,7 @@ void EmpCylSL::legendre_R(int lmax, double x, Matrix& p)
       pll *= -fact*somx2;
       p[m][m] = pll;
       if (isnan(p[m][m]))
-	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << "\n";
+	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << endl;
       fact += 2.0;
     }
   }
@@ -3805,7 +3737,7 @@ void EmpCylSL::legendre_R(int lmax, double x, Matrix& p)
     for (l=m+2; l<=lmax; l++) {
       p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
       if (isnan(p[l][m]))
-	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << "\n";
+	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << endl;
 
       pl2 = pl1;
       pl1 = pll;
@@ -3813,12 +3745,12 @@ void EmpCylSL::legendre_R(int lmax, double x, Matrix& p)
   }
 
   if (isnan(x))
-    cerr << "legendre_R: x\n";
+    cerr << "legendre_R: x" << endl;
   for(l=0; l<=lmax; l++)
     for (m=0; m<=l; m++)
       if (isnan(p[l][m]))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
-	     << lmax << "\n";
+	     << lmax << endl;
 
 }
 

@@ -61,7 +61,7 @@ private:
 
   double *MPIin, *MPIout;
   double *MPIin_eof, *MPIout_eof;
-  double *mpi_double_buf1, *mpi_double_buf2, *mpi_double_buf3;
+  double *mpi_double_buf2, *mpi_double_buf3;
   int MPIbufsz, MPItable;
   bool MPIset, MPIset_eof;
   MPI_Status status;
@@ -192,6 +192,17 @@ public:
 
   //! Fraction of table range for basis images (for debug)
   static double HFAC;
+
+  /** Verbose level flags
+      bit   Action
+      ---   ------
+      0   = quiet
+      1   = SL model output
+      2   = EOF diagnostics
+      4   = Accumulation, PCA Hall, and all other diagnostics
+      8   = Debug-level output
+  */
+  static unsigned VFLAG;		// Default=0
 
 
   //! Constructor (reset must called later)

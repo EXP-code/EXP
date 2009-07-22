@@ -58,12 +58,12 @@ Cylinder::Cylinder(string& line) : Basis(line)
   rcylmin     = 0.001;		// Should only change these two in
   rcylmax     = 20.0;		// extreme circumstances
 
-  ncylnx      = 512;		// These defaults should do fine in
-  ncylny      = 256;		// most cases, as well
+  ncylnx      = 128;		// These defaults should do fine in
+  ncylny      = 128;		// most cases, as well
   ncylr       = 2000;
 
   acyl        = 1.0;
-  nmax        = 10;
+  nmax        = 20;
   lmax        = 36;
   mmax        = 4;
   hcyl        = 1.0;
@@ -542,10 +542,8 @@ void Cylinder::determine_coefficients(void)
 				// If we can't read the cache, or the cache
 				// does not match the requested parameters,
 				// remake the emperical orthogonal basis 
-				// and return
     if (eof) {
       determine_coefficients_eof();
-      return;
     }
   }
 
