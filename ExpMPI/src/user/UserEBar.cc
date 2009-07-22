@@ -12,34 +12,35 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
 {
   id = "RotatingBarWithMonopole";
 
-  length = 1.0;			// Bar length
-  bratio = 0.5;			// Ratio of b to a
-  cratio = 0.1;			// Ratio of c to b
-  amplitude = 0.3;		// Bar quadrupole amplitude
-  angmomfac = 1.0;		// Artifically change the total bar ang mom
-  barmass = 1.0;		// Total bar mass
-  Ton = -20.0;			// Turn on start time
-  Toff = 200.0;			// Turn off start time
-  TmonoOn = -20.0;		// Turn on start time for monopole
-  TmonoOff = 200.0;		// Turn off start time monopole
-  DeltaT = 1.0;			// Turn on duration
-  DeltaMonoT = 1.0;		// Turn on duration for monopole
-  DOmega = 0.0;			// Change in pattern speed
-  dtom = -1.0;			// Width of forced bar slow down
-  T0 = 10.0;			// Center of pattern speed change
-  Fcorot  = 1.0;		// Corotation factor
-  fixed = false;		// Constant pattern speed
-  alpha = 5.0;			// Variable sharpness bar potential
-  table = false;		// Not using tabled quadrupole
-  monopole = true;		// Use the monopole part of the potential
-  monopole_follow = true;	// Follow monopole center
-  monopole_onoff = false;	// To apply turn-on and turn-off to monopole
-  monopole_frac = 1.0;		// Fraction of monopole to turn off
-  quadrupole_frac = 1.0;	// Fraction of quadrupole to turn off
+  length            = 1.0;	// Bar length
+  bratio            = 0.5;	// Ratio of b to a
+  cratio            = 0.1;	// Ratio of c to b
+  amplitude         = 0.3;	// Bar quadrupole amplitude
+  angmomfac         = 1.0;	// Artifically change the total bar ang mom
+  barmass           = 1.0;	// Total bar mass
+  Ton               = -20.0;	// Turn on start time
+  Toff              = 200.0;	// Turn off start time
+  TmonoOn           = -20.0;	// Turn on start time for monopole
+  TmonoOff          = 200.0;	// Turn off start time monopole
+  DeltaT            = 1.0;	// Turn on duration
+  DeltaMonoT        = 1.0;	// Turn on duration for monopole
+  DOmega            = 0.0;	// Change in pattern speed
+  dtom              = -1.0;	// Width of forced bar slow down
+  T0                = 10.0;	// Center of pattern speed change
+  Fcorot            = 1.0;	// Corotation factor
+  fixed             = false;	// Constant pattern speed
+  alpha             = 5.0;	// Variable sharpness bar potential
+  table             = false;	// Not using tabled quadrupole
+  monopole          = true;	// Use the monopole part of the potential
+  monopole_follow   = true;	// Follow monopole center
+  monopole_onoff    = false;	// To apply turn-on and turn-off to monopole
+  monopole_frac     = 1.0;	// Fraction of monopole to turn off
+  quadrupole_frac   = 1.0;	// Fraction of quadrupole to turn off
+  mupdate           = 0;	// Report bar diagnostics for levels <= value
 
-  oscil = false;		// Oscillate quadrupole amplitude
-  Oamp = 0.5;			// Relative strength of amplitude oscillations
-  Ofreq = 2.0;			// Frequency of amplitude oscillations
+  oscil             = false;	// Oscillate quadrupole amplitude
+  Oamp              = 0.5;	// Relative strength of amplitude oscillations
+  Ofreq             = 2.0;	// Frequency of amplitude oscillations
 
 				// Output file name
   filename = outdir + "BarRot." + runtag;
@@ -222,6 +223,11 @@ void UserEBar::userinfo()
   if (oscil)
     cout << "oscillation freq=" << Ofreq << " and oscillation amp=" << Oamp << ", ";
 
+  if (mupdate<0)
+    cout << "no log output, ";
+  else 
+    if (multistep)
+      cout << "log output at levels " << mupdate << " and below, ";
   if (c0) 
     cout << "center on component <" << ctr_name << ">, ";
   else
@@ -525,7 +531,7 @@ void UserEBar::determine_acceleration_and_potential(void)
     }
 
     firstime = false;
-    update = true;
+    if (mstep <= mupdate) update = true;
 
   } else {
 

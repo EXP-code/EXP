@@ -429,38 +429,64 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
     if (myid==0) {
       
-      vector<string> names(nout);
-      for (int i=0; i<nout; i++) {
-	names[i] = OUTFILE + "." + suffix[i] + ".surf";
-	if (ALL) names[i] += sstr.str();
-      }
+      string name = OUTFILE + ".surf";
 
-      foarray out(names);
+      ofstream out(name.c_str());
 
-      for (int i=0; i<nout; i++) {
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&OUTR, sizeof(int));
-	out[i].write((char *)&(f=-RMAX), sizeof(float));
-	out[i].write((char *)&(f= RMAX), sizeof(float));
-	out[i].write((char *)&(f=-RMAX), sizeof(float));
-	out[i].write((char *)&(f= RMAX), sizeof(float));
-      }
-      
-      
-      for (int l=0; l<OUTR; l++) {
+      if (out) {
+
+	// ==================================================
+	// Horizontal line
+	// ==================================================
+	for (int n=0; n<nout+2; n++)
+	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
+	  else out << "|" << setw(17) << setfill('-') << '-';
+	out << endl << setfill(' ');
+	// ==================================================
+	// Field names
+	// ==================================================
+	out << "# " << setw(16) << left << "x"
+	    << "| " << setw(16) << left << "y";
+	for (int n=0; n<nout; n++)
+	  out << "| " << setw(16) << left << suffix[n];
+	out << endl;
+	// ==================================================
+	// Field index
+	// ==================================================
+	for (int n=0; n<nout+2; n++)
+	  if (n==0) out << "# " << setw(16) << n+1;
+	  else out << "| " << setw(16) << n+1;
+	out << endl;
+	// ==================================================
+	// Horizontal line
+	// ==================================================
+	for (int n=0; n<nout+2; n++)
+	  if (n==0) out << "#" << setw(17) << setfill('-') << '-';
+	  else out << "|" << setw(17) << setfill('-') << '-';
+	out << endl << setfill(' ');
 	
-	y = -RMAX + dR*l;
+	// ==================================================
+	// Surface data in GNUPLOT format
+	// ==================================================
+	for (int l=0; l<OUTR; l++) {
+	  y = -RMAX + dR*l;
 	
-	for (int j=0; j<OUTR; j++) {
-	  
-	  x = -RMAX + dR*j;
-	  
-	  for (int n=0; n<nout; n++)
-	    out[n].write(
-			 (char *)&(f=otdat[(n*OUTR+l)*OUTR+j]), 
-			 sizeof(float)
-			 );
+	  for (int j=0; j<OUTR; j++) {
+	    x = -RMAX + dR*j;
+	    
+	    out << setw(18) << x << setw(18) << y;
+	    for (int n=0; n<nout; n++)
+	      out << setw(18) << otdat[(n*OUTR+l)*OUTR+j];
+	    out << endl;
+	  }
+
+	  out << endl;
+
 	}
+
+      } else {
+	cout << "Error opening surface file <" << name << "> for output"
+	     << endl;
       }
     }
   }

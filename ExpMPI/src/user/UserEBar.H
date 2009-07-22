@@ -39,6 +39,7 @@
     @param ctrname defines the component that defines the center (defeats inertial centering)
     @param angmname defines the component that defines the L_z reservoir (null name: L_z[init]=0)
     @param tblname sets and defines the name of a file containing a list of <code>time, b1, b5</code> values (off by default)
+    @param mupdate is the level at and below which diagnostic reports are written to the output file.  mupdate<0 will turn off reporting.  mupdate>=multistep will write at all levels (default: 0)
 
     The logic for pattern speed determination is as follows:
     <ul>
@@ -94,6 +95,7 @@ private:
   double T0, DOmega, dtom;
   vector<double> timeq, ampq, b5q;
   int qlast;
+  int mupdate;
   string name;
 
   void userinfo();

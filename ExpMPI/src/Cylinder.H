@@ -15,6 +15,10 @@ class Cylinder : public Basis
 {
 private:
 
+  bool expcond;
+  int rnum, pnum, tnum;
+  double ashift;
+
   EmpCylSL *ortho;
   int eof, ncompcyl;
   double cylmass;

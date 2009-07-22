@@ -190,18 +190,12 @@ EmpCylSL::~EmpCylSL(void)
   for (int M=0; M<accum_cosL.size(); M++) {
     
     for (int nth=0; nth<nthrds; nth++) {
-      delete [] accum_cos0[M][nth];
-      delete [] accum_sin0[M][nth];
-
       delete [] accum_cosL[M][nth];
       delete [] accum_sinL[M][nth];
 
       delete [] accum_cosN[M][nth];
       delete [] accum_sinN[M][nth];
     }
-
-    delete [] accum_cos0[M];
-    delete [] accum_sin0[M];
 
     delete [] accum_cosL[M];
     delete [] accum_sinL[M];
@@ -1103,21 +1097,6 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
   cerr << "Slave " << myid << ": sending type=" << request_id << "   M=" 
        << m << "\n";
 #endif
-				// First send back part of accum
-
-  for (int M=0; M<=multistep; M++) {
-    for (int n=0; n<NORDER; n++) {
-      mpi_double_buf1[M*NORDER+n] = 0.0;
-      for (int i=1; i<=NMAX*(LMAX-m+1); i++) {
-	if (request_id)
-	  mpi_double_buf1[M*NORDER+n] += -ef[n+1][i]*accum_cos0[M][0][m][i];
-	else
-	  mpi_double_buf1[M*NORDER+n] += -ef[n+1][i]*accum_sin0[M][0][m][i];
-      }
-    }
-  }
-  
-  MPI_Send(mpi_double_buf1, NORDER*(multistep+1), MPI_DOUBLE, 0, 13, MPI_COMM_WORLD);
     
   for (int n=0; n<NORDER; n++) {
 
@@ -1485,36 +1464,7 @@ void EmpCylSL::setup_eof()
     mpi_double_buf3 = new double [rank3];
   }
 
-  if (accum_cos0.size()==0) {
-
-    for (int M=0; M<=multistep; M++) {
-
-      accum_cos0.push_back(new Vector* [nthrds]);
-      accum_sin0.push_back(new Vector* [nthrds]);
-
-      for (int nth=0; nth<nthrds; nth++) {
-
-	accum_cos0[M][nth] = new Vector [MMAX+1];
-	accum_sin0[M][nth] = new Vector [MMAX+1];
-
-	for (int m=0; m<=MMAX; m++) {
-	  accum_cos0[M][nth][m].setsize(1, NMAX*(LMAX-m+1));
-
-	  if (m) accum_sin0[M][nth][m].setsize(1, NMAX*(LMAX-m+1));
-	}
-      }
-    }
-  }
-
-  for (int nth=0; nth<nthrds; nth++) {
-    cylmassE[nth] = 0.0;
-    for (int M=0; M<=multistep; M++)  {
-      for (int m=0; m<=MMAX; m++)  {
-	accum_cos0[M][nth][m].zero();
-	if (m>0) accum_sin0[M][nth][m].zero();
-      }
-    }
-  }
+  for (int nth=0; nth<nthrds; nth++) cylmassE[nth] = 0.0;
 
   for (int nth=0; nth<nthrds; nth++) {
       for (int m=0; m<=MMAX; m++)  {
@@ -1528,6 +1478,134 @@ void EmpCylSL::setup_eof()
   }
 
   eof_made = false;
+}
+
+
+void EmpCylSL::generate_eof(int numr, int nump, int numt, 
+			    double (*func)
+			    (double R, double z, double phi, int M) )
+{
+  if (eof_made) setup_eof();
+
+  LegeQuad lq(numr);
+  LegeQuad lt(numt);
+  double dphi = 2.0*M_PI/nump;
+
+  double xi, rr, costh, phi, R, z, dens, ylm, jfac;
+
+  int id = 0;			// Not multithreaded
+  int nn1, nn2;
+
+  int nbeg = numr*(myid+0)/numprocs;
+  int nend = numr*(myid+1)/numprocs;
+
+  double XMAX = r_to_xi(Rtable*ASCALE);
+
+  // *** Radial quadrature loop
+  for (int qr=nbeg+1; qr<=nend; qr++) { 
+
+    xi = XMAX * lq.knot(qr);
+    rr = xi_to_r(xi);
+
+    ortho->get_pot(table[id], rr/ASCALE);
+
+    // *** cos(theta) quadrature loop
+    for (int qt=1; qt<=numt; qt++) {
+
+      costh = -1.0 + 2.0*lt.knot(qt);
+      legendre_R(LMAX, costh, legs[id]);
+
+      R = sqrt(1.0 - costh*costh)*rr;
+      z = costh*rr;
+      
+      jfac = dphi*2.0*lt.weight(qt)*XMAX*lq.weight(qr) * rr*rr / d_xi_to_r(xi);
+
+      // *** Phi quadrature loop
+      for (int qp=0; qp<nump; qp++) {
+
+	phi = dphi*qp;
+	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
+	
+
+	// *** m loop
+	for (int m=0; m<=MMAX; m++) {
+
+	  dens = (*func)(R, z, phi, m) * jfac;
+
+	  // *** ir loop
+	  for (int ir=1; ir<=NMAX; ir++) {
+
+	    // *** l loop
+	    for (int l=m; l<=LMAX; l++) {
+
+	      // Only the l dependence is important here . . .
+	      
+	      ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
+		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
+
+	      if (m==0) {
+
+		facC[id][ir][l-m] = ylm*table[id][l][ir];
+
+	      }
+	      else {
+	  
+		facC[id][ir][l-m] = ylm*table[id][l][ir]*cosm[id][m];
+		facS[id][ir][l-m] = ylm*table[id][l][ir]*sinm[id][m];
+
+	      }
+
+	    } // *** l loop
+
+	  } // *** ir loop
+
+	  for (int ir1=1; ir1<=NMAX; ir1++) {
+	    for (int l1=m; l1<=LMAX; l1++) {
+	      nn1 = ir1 + NMAX*(l1-m);
+
+	      if (m==0) {
+		
+		for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int l2=m; l2<=LMAX; l2++) {
+		    nn2 = ir2 + NMAX*(l2-m);
+
+		    SC[id][m][nn1][nn2] += 
+		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		  }
+		}
+		
+	      } else {
+		
+		for (int ir2=1; ir2<=NMAX; ir2++) {
+		  for (int l2=m; l2<=LMAX; l2++) {
+		    nn2 = ir2 + NMAX*(l2-m);
+
+		    SC[id][m][nn1][nn2] += 
+		      facC[id][ir1][l1-m]*facC[id][ir2][l2-m] * dens;
+		    
+		    SS[id][m][nn1][nn2] += 
+		      facS[id][ir1][l1-m]*facS[id][ir2][l2-m] * dens;
+		  }
+		}
+	      }
+	      
+	    } // *** l loop
+	    
+	  } // *** ir loop
+	  
+	} // *** m loop
+
+      } // *** phi quadrature loop
+
+    } // *** cos(theta) quadrature loop
+
+  } // *** r quadrature loop
+  
+  //
+  // Now, we are ready to make the EOF basis
+  //
+  make_eof();
+
 }
 
 
@@ -1594,8 +1672,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
 	if (m==0) {
 	  
-	  accum_cos0[mlevel][id][m][nn1] += facC[id][ir1][l1-m]*mass*fac0;
-
 	  for (int ir2=1; ir2<=NMAX; ir2++) {
 	    for (int l2=m; l2<=LMAX; l2++) {
 	      nn2 = ir2 + NMAX*(l2-m);
@@ -1607,9 +1683,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
 	} else {
 
-	  accum_cos0[mlevel][id][m][nn1] += facC[id][ir1][l1-m]*mass*fac0;
-	  accum_sin0[mlevel][id][m][nn1] += facS[id][ir1][l1-m]*mass*fac0;
-	  
 	  for (int ir2=1; ir2<=NMAX; ir2++) {
 	    for (int l2=m; l2<=LMAX; l2++) {
 	      nn2 = ir2 + NMAX*(l2-m);
@@ -1648,16 +1721,6 @@ void EmpCylSL::make_eof(void)
 
   for (int nth=1; nth<nthrds; nth++) {
 
-    for (int M=0; M<=multistep; M++) {
-
-      for (int mm=0; mm<=MMAX; mm++) {
-
-				// Mean
-	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	  accum_cos0[M][0][mm][i] += accum_cos0[M][nth][mm][i];
-      }
-    }
-
 				// Covariance
     for (int mm=0; mm<=MMAX; mm++) {
 
@@ -1665,16 +1728,6 @@ void EmpCylSL::make_eof(void)
 	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
 	  SC[0][mm][i][j] += SC[nth][mm][i][j];
   
-    }
-
-    for (int M=0; M<=multistep; M++) {
-      for (int mm=1; mm<=MMAX; mm++) {
-	
-				// Mean
-	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	  accum_sin0[M][0][mm][i] += accum_sin0[M][nth][mm][i];
-
-      }
     }
 
 				// Covariance
@@ -1720,24 +1773,6 @@ void EmpCylSL::make_eof(void)
   //  Distribute mean and covariance to all processes
   //
 
-  for (int M=0; M<=multistep; M++) {
-
-    for (int mm=0; mm<=MMAX; mm++) {
-				// Mean
-      icnt=0;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++) 
-	MPIin_eof[icnt++] = accum_cos0[M][0][mm][i];
-
-      MPI_Allreduce ( MPIin_eof, MPIout_eof, NMAX*(LMAX-mm+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      
-      icnt=0;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	accum_cos0[M][0][mm][i] = MPIout_eof[icnt++];
-    }
-
-  }
-
   for (int mm=0; mm<=MMAX; mm++) {
 				// Covariance
     icnt=0;
@@ -1755,22 +1790,6 @@ void EmpCylSL::make_eof(void)
     
   }
   
-  for (int M=0; M<=multistep; M++) {
-
-    for (int mm=1; mm<=MMAX; mm++) {
-
-				// Mean
-      icnt=0;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	MPIin_eof[icnt++] = accum_sin0[M][0][mm][i];
-
-      MPI_Allreduce ( MPIin_eof, MPIout_eof, NMAX*(LMAX-mm+1),
-		      MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-      icnt=0;
-      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	accum_sin0[M][0][mm][i] = MPIout_eof[icnt++];
-    }
-  }
 
   for (int mm=1; mm<=MMAX; mm++) {
 				// Covariance
@@ -3104,80 +3123,21 @@ void EmpCylSL::get_all(int mm, int nn,
 
 void EmpCylSL::dump_coefs(ostream& out)
 {
-  double znorm = 1.0;
-
-  out.setf(ios::scientific);
-
-  for (int M=0; M<=multistep; M++) {
-
-    for (int mm=0; mm<=MMAX; mm++) {
-
-      for (int l=mm; l<=LMAX; l++) {
-
-	out << setw(4) << M << setw(4) << mm << setw(4) << l << endl;
-
-	for (int j=1; j<=NMAX; j++)
-	  out << " " << setw(15) << accum_cos0[M][0][mm][j + NMAX*(l-mm)]*znorm;
-	out << endl;
-
-	if (mm) {
-
-	  out << setw(4) << M << setw(4) << mm << setw(4) << l << endl;
-
-	  for (int j=1; j<=NMAX; j++)
-	    out << " " << setw(15) << accum_sin0[M][0][mm][j + NMAX*(l-mm)]*znorm;
-	  out << endl;
-	  
-	}
-      }
-    }
-  }
-
-  out << endl;
-
   for (int mm=0; mm<=MMAX; mm++) {
 
-    out << setw(4) << mm << setw(5) << "C" << endl;
+    out << setw(4) << M << setw(4) << mm;
 
-    for (int n=0; n<rank3; n++) 
-      out << " " << setw(15) << accum_cos[mm][n];
+    for (int j=0; j<rank3; j++)
+      out << " " << setw(15) << accum_cos[mm][j];
     out << endl;
 
     if (mm) {
-
-      out << setw(4) << mm << setw(5) << "S" << endl;
-
-      for (int n=0; n<rank3; n++) 
-	out << " " << setw(15) << accum_sin[mm][n];
+      out << setw(4) << M << setw(4) << mm;
+      for (int j=0; j<rank3; j++)
+	out << " " << setw(15) << accum_sin[mm][j];
       out << endl;
-	  
     }
   }
-
-  out << endl;
-
-  for (int M=0; M<=multistep; M++) {
-
-    for (int mm=0; mm<=MMAX; mm++) {
-
-      out << setw(4) << M << setw(4) << mm << setw(5) << "C" << endl;
-
-      for (int n=0; n<rank3; n++)
-	out << " " << setw(15) << accum_cosN[M][0][mm][n];
-      out << endl;
-
-      if (mm) {
-	  
-	out << setw(4) << M << setw(4) << mm << setw(5) << "S" << endl;
-	
-	for (int n=0; n<rank3; n++)
-	  out << " " << setw(15) << accum_sinN[M][0][mm][n];
-	out << endl;
-	  
-      }
-    }
-  }
-
 }
 
 
@@ -3187,36 +3147,7 @@ static CoefHeader coefheader;
 static CoefHeader2 coefheader2;
 #endif
 
-void EmpCylSL::dump_coefs_binary_last(ostream& out, double time)
-{
-  double p, znorm = 1.0;
-
-  coefheader.time = time;
-  coefheader.mmax = MMAX;
-  coefheader.nord = NORDER;
-  coefheader.nmax = NMAX;
-
-  out.write((const char *)&coefheader, sizeof(CoefHeader));
-
-  for (int mm=0; mm<=MMAX; mm++) {
-
-    for (int l=mm; l<=LMAX; l++) {
-      
-      for (int j=1; j<=NMAX; j++)
-	out.write((const char *)&(p=accum_cos0[M][0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
-      
-      if (mm) {
-
-	for (int j=1; j<=NMAX; j++)
-	  out.write((const char *)&(p=accum_sin0[M][0][mm][j+NMAX*(l-mm)]*znorm), sizeof(double));
-
-      }
-      
-    }
-  }
-}
-
-void EmpCylSL::dump_coefs_binary_curr(ostream& out, double time)
+void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 {
   coefheader2.time = time;
   coefheader2.mmax = MMAX;

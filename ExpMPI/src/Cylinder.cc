@@ -14,36 +14,76 @@ using namespace std;
 
 Timer timer_debug(true);
 
+double EXPSCALE=1.0, HSCALE=1.0, ASHIFT=0.25;
+
+double DiskDens(double R, double z, double phi)
+{
+  double f = cosh(z/HSCALE);
+  return exp(-R/EXPSCALE)/(4.0*M_PI*EXPSCALE*EXPSCALE*HSCALE*f*f);
+}
+
+
+double dcond(double R, double z, double phi, int M)
+{
+  //
+  // No shift for M==0
+  //
+  if (M==0) return DiskDens(R, z, phi);
+
+  //
+  // Fold into [-PI/M, PI/M] for M>=1
+  //
+  double dmult = M_PI/M, phiS;
+  if (phi>M_PI)
+    phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
+  else
+    phiS = phi - dmult*(int)(phi/dmult);
+  
+  //
+  // Apply a shift along the x-axis
+  //
+  double x = R*cos(phiS) - ASHIFT*EXPSCALE;
+  double y = R*sin(phiS);
+  return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
+}
+
 
 Cylinder::Cylinder(string& line) : Basis(line)
 {
-  id = "Cylinder";
-  geometry = cylinder;
+  id          = "Cylinder";
+  geometry    = cylinder;
 
 				// Default values
 
-  rcylmin = 0.001;		// Should only change these two in
-  rcylmax = 20.0;		// extreme circumstances
+  rcylmin     = 0.001;		// Should only change these two in
+  rcylmax     = 20.0;		// extreme circumstances
 
-  ncylnx = 128;			// These defaults should do fine in
-  ncylny = 64;			// most cases, as well
-  ncylr = 2000;
+  ncylnx      = 512;		// These defaults should do fine in
+  ncylny      = 256;		// most cases, as well
+  ncylr       = 2000;
 
-  acyl = 1.0;
-  nmax = 10;
-  lmax = 36;
-  mmax = 4;
-  hcyl = 1.0;
-  ncylorder = 10;
-  ncylrecomp = -1;
-  hallfile = "disk";
-  hallfreq = 50;
+  acyl        = 1.0;
+  nmax        = 10;
+  lmax        = 36;
+  mmax        = 4;
+  hcyl        = 1.0;
+  ncylorder   = 10;
+  ncylrecomp  = -1;
+
+  rnum        = 100;
+  pnum        = 40;
+  tnum        = 40;
+  ashift      = 0.25;
+
+  hallfile    = "disk";
+  hallfreq    = 50;
   self_consistent = true;
+  expcond     = true;
   logarithmic = false;
-  selector = false;
-  density = false;
-  coef_dump = true;
-  try_cache = true;
+  selector    = false;
+  density     = false;
+  coef_dump   = true;
+  try_cache   = true;
 
   initialize();
 
@@ -65,6 +105,27 @@ Cylinder::Cylinder(string& line) : Basis(line)
 				// instance
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
+  if (expcond) {
+				// Set parameters for external dcond function
+    EXPSCALE = acyl;
+    HSCALE   = hcyl;
+    ASHIFT   = ashift;
+
+    bool cache_ok;		// Try to read the cache
+
+    if (try_cache || restart)
+      cache_ok = ortho->read_cache();
+
+				// On restart, abort of the cache is gone
+    if (restart && !cache_ok) {
+      if (myid==0) 
+	cerr << "Cylinder: can not read cache file on restart" << endl;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+    if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
+  }
+
   if (selector) {
     EmpCylSL::SELECT = true;
     ortho->setHall(hallfile, hallfreq);
@@ -89,6 +150,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 	   << " rcylmax=" << rcylmax
 	   << " acyl=" << acyl
 	   << " hcyl=" << hcyl
+	   << " expcond="  << expcond
 	   << " selector=" << selector
 	   << " hallfreq=" << hallfreq
 	   << " hallfile=" << hallfile
@@ -108,6 +170,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 	 << " rcylmax=" << rcylmax
 	 << " acyl=" << acyl
 	 << " hcyl=" << hcyl
+	 << " expcond="  << expcond
 	 << " selector=" << selector
 	 << " hallfreq=" << hallfreq
 	 << " hallfile=" << hallfile
@@ -149,22 +212,32 @@ void Cylinder::initialize()
   if (get_value("rcylmin", val))    rcylmin = atof(val.c_str());
   if (get_value("rcylmax", val))    rcylmax = atof(val.c_str());
 
-  if (get_value("acyl", val))       acyl = atof(val.c_str());
-  if (get_value("hcyl", val))       hcyl = atof(val.c_str());
-  if (get_value("nmax", val))       nmax = atoi(val.c_str());
-  if (get_value("lmax", val))       lmax = atoi(val.c_str());
-  if (get_value("mmax", val))       mmax = atoi(val.c_str());
+  if (get_value("acyl",   val))     acyl = atof(val.c_str());
+  if (get_value("hcyl",   val))     hcyl = atof(val.c_str());
+  if (get_value("nmax",   val))     nmax = atoi(val.c_str());
+  if (get_value("lmax",   val))     lmax = atoi(val.c_str());
+  if (get_value("mmax",   val))     mmax = atoi(val.c_str());
   if (get_value("ncylnx", val))     ncylnx = atoi(val.c_str());
   if (get_value("ncylny", val))     ncylny = atoi(val.c_str());
-  if (get_value("ncylr", val))      ncylr = atoi(val.c_str());
-  if (get_value("ncylorder", val))  ncylorder = atoi(val.c_str());
+  if (get_value("ncylr",  val))     ncylr = atoi(val.c_str());
+  if (get_value("ncylorder",  val)) ncylorder = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val))   hallfreq = atoi(val.c_str());
   if (get_value("hallfile", val))   hallfile = val;
 
+  if (get_value("rnum",   val))     rnum   = atoi(val.c_str());
+  if (get_value("pnum",   val))     pnum   = atoi(val.c_str());
+  if (get_value("tnum",   val))     tnum   = atoi(val.c_str());
+  if (get_value("ashift", val))     ashift = atof(val.c_str());
+  
+
   if (get_value("self_consistent", val)) {
     if (atoi(val.c_str())) self_consistent = true; 
     else self_consistent = false;
+  }
+  if (get_value("expcond", val)) {
+    if (atoi(val.c_str())) expcond = true; 
+    else expcond = false;
   }
   if (get_value("logr", val)) {
     if (atoi(val.c_str())) logarithmic = true; 
@@ -258,16 +331,22 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Recompute PCA analysis
   //=======================
 
+				// No recomputation ever if the
+  if (!expcond) {		// basis has been precondtioned
+
+
 				// Only do this check only once per
 				// multistep; might as well be at 
 				// the end of the multistep sequence
-  if ((multistep==0 || mstep==Mstep-1) && !initializing ) {
-    ncompcyl++;
-    if (ncompcyl == ncylrecomp) {
-      ncompcyl = 0;
-      eof = 1;
-      determine_coefficients();
+    if ((multistep==0 || mstep==Mstep-1) && !initializing) {
+      ncompcyl++;
+      if (ncompcyl == ncylrecomp) {
+	ncompcyl = 0;
+	eof = 1;
+	determine_coefficients();
+      }
     }
+
   }
 
 
@@ -444,7 +523,7 @@ void Cylinder::determine_coefficients(void)
 
   if (!self_consistent && !initializing) return;
 
-  if (firstime) {
+  if (!expcond && firstime) {
 				// Try to read cache
     bool cache_ok = false;
     if (try_cache || restart) {
@@ -847,10 +926,7 @@ void Cylinder::determine_fields_at_point_cyl(double r, double z, double phi,
 				// Dump coefficients to a file
 void Cylinder::dump_coefs(ostream& out)
 {
-  /*
-  ortho->dump_coefs_binary_last(out, cyltime);
-  */
-  ortho->dump_coefs_binary_curr(out, tnow);
+  ortho->dump_coefs_binary(out, tnow);
 }
 
 				// Density debug

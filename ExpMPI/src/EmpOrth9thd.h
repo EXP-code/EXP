@@ -98,7 +98,6 @@ private:
   Matrix* trforce;
   Matrix* tzforce;
 
-  vector<Vector**> accum_cos0, accum_sin0;
   vector<Vector**> accum_cosL, accum_cosN;
   vector<Vector**> accum_sinL, accum_sinN;
   vector< vector<unsigned> > howmany1;
@@ -228,6 +227,12 @@ public:
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }
 
+  /** Generate EOF by direct integration conditioned on a user
+      supplied function
+   */
+  void generate_eof(int numr, int nump, int numt, 
+		    double (*func)(double R, double z, double phi, int M) );
+
   //! Get basis function value
   void get_all(int m, int n, double r, double z, double phi,
 	       double& p, double& d, double& fr, double& fz, double& fp);
@@ -316,10 +321,7 @@ public:
   void dump_coefs(ostream& out);
 
   //! Dump out coefficients to stream in bianry format
-  void dump_coefs_binary_last(ostream& out, double time);
-
-  //! Dump out coefficients to stream in bianry format
-  void dump_coefs_binary_curr(ostream& out, double time);
+  void dump_coefs_binary(ostream& out, double time);
 
   //! Plot basis
   void dump_basis(const string& name, int step);
