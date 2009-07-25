@@ -19,29 +19,33 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp \
 		tipstd2psp
 
-COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lstdc++ -lpthread -ldl -lm
-MPI_LIBS = -lmpi
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-LIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
 pspinfo_SOURCES = pspinfo.cc PSP.cc header.cc
+pspinfo_LDADD   = $(COMMON_LIBS)
 
 pspstat_SOURCES = pspstat.cc PSP.cc header.cc
+pspstat_LDADD   = $(COMMON_LIBS)
 
 psp2tipsy_SOURCES = psp2tipsy.cc PSP.cc header.cc
+psp2tipsy_LDADD   = $(COMMON_LIBS)
 
 pspsplit_SOURCES = pspsplit.cc PSP.cc header.cc
+pspsplit_LDADD   = $(COMMON_LIBS)
 
 psp2ascii_SOURCES = psp2ascii.cc PSP.cc header.cc
+psp2ascii_LDADD   = $(COMMON_LIBS)
 
 ascii2psp_SOURCES = ascii2psp.cc PSP.cc header.cc
+ascii2psp_LDADD   = $(COMMON_LIBS)
 
 tipstd2psp_SOURCES = tipstd2psp.cc PSP.cc header.cc tipsyxdr.c
+tipstd2psp_LDADD   = $(COMMON_LIBS)
 
 *.cc:		header.H
 

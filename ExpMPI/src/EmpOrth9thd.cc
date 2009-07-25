@@ -1,10 +1,3 @@
-// #define USESVD
-#define GHQL
-// #define STURM
-// #define EIGEN
-
-#define VAROUTPUT
-
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -13,7 +6,7 @@
 #include <algorithm>
 
 #include <interp.h>
-
+#include <Timer.h>
 #include "exp_thread.h"
 
 #ifndef STANDALONE
@@ -31,10 +24,9 @@ extern int VERBOSE;
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
 
-Vector Symmetric_Eigenvalues_MSRCH(Matrix& a, Matrix& ef, int M);
+extern Vector Symmetric_Eigenvalues_SYEVD(Matrix& a, Matrix& ef, int M);
 
-
-#undef TINY
+#undef  TINY
 #define TINY 1.0e-16
 
 
@@ -54,7 +46,6 @@ double   EmpCylSL::HFAC            = 0.2;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
-
 
 EmpCylSL::EmpCylSL(void)
 {
@@ -84,7 +75,6 @@ EmpCylSL::EmpCylSL(void)
   cylmass = 0.0;
   cylmass_made = false;
   cylmass1 = vector<double>(nthrds);
-  cylmassE = vector<double>(nthrds);
 
   mpi_double_buf2 = 0;
   mpi_double_buf3 = 0;
@@ -177,12 +167,12 @@ EmpCylSL::~EmpCylSL(void)
 	delete [] accum_sin2[nth];
       }
     }
-      
+
     delete [] accum_cos;
     delete [] accum_sin;
-
     delete [] accum_cos2;
     delete [] accum_sin2;
+
   }
   
   for (int M=0; M<accum_cosL.size(); M++) {
@@ -253,7 +243,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   cylmass = 0.0;
   cylmass1 = vector<double>(nthrds);
-  cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf2 = 0;
@@ -303,7 +292,6 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
 
   cylmass = 0.0;
   cylmass1 = vector<double>(nthrds);
-  cylmassE = vector<double>(nthrds);
   cylmass_made = false;
 
   mpi_double_buf2 = 0;
@@ -426,17 +414,18 @@ void EmpCylSL::send_eof_grid()
   double *MPIbuf  = new double [MPIbufsz];
 
 				// Send to slaves
+				// 
   if (myid==0) {
-    
-				// Grids in X--Y
+
     for (int m=0; m<=MMAX; m++) {
-      
+				// Grids in X--Y
+				// 
       for (int v=0; v<rank3; v++) {
-	  
+
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
 	    MPIbuf[ix*(NUMY+1) + iy] = potC[m][v][ix][iy];
-	
+
 	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	
 	for (int ix=0; ix<=NUMX; ix++)
@@ -463,9 +452,10 @@ void EmpCylSL::send_eof_grid()
 
     }
 
-
     for (int m=1; m<=MMAX; m++) {
+
 				// Grids in X--Y
+
       for (int v=0; v<rank3; v++) {
 
 	for (int ix=0; ix<=NUMX; ix++)
@@ -504,6 +494,7 @@ void EmpCylSL::send_eof_grid()
     for (int m=0; m<=MMAX; m++) {
 
 				// Grids in X--Y
+
       for (int v=0; v<rank3; v++) {
 
 	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -513,7 +504,7 @@ void EmpCylSL::send_eof_grid()
 	    potC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
   
 	MPI_Bcast(MPIbuf, MPIbufsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-	
+
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
 	    rforceC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
@@ -532,10 +523,12 @@ void EmpCylSL::send_eof_grid()
 	    for (int iy=0; iy<=NUMY; iy++)
 	      densC[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
 	}
+
       }
     }
 
     for (int m=1; m<=MMAX; m++) {
+
 				// Grids in X--Y
 
       for (int v=0; v<rank3; v++) {
@@ -567,19 +560,18 @@ void EmpCylSL::send_eof_grid()
 	      densS[m][v][ix][iy] = MPIbuf[ix*(NUMY+1) + iy];
   
 	}
-
       }
     }
 
   }
-  
+
   delete [] MPIbuf;
+  
 }
 
 
 int EmpCylSL::read_cache(void)
 {
-  setup_eof();
   setup_accumulation();
 
 				// Master tries to read table
@@ -739,7 +731,6 @@ int EmpCylSL::cache_grid(int readwrite)
 	return 0;
       }
     
-
     double time;
     in.read((char *)&cylmass, sizeof(double));
     in.read((char *)&time, sizeof(double));
@@ -788,7 +779,7 @@ int EmpCylSL::cache_grid(int readwrite)
 	for (int ix=0; ix<=NUMX; ix++)
 	  for (int iy=0; iy<=NUMY; iy++)
 	    in.read((char *)&zforceS[m][v][ix][iy], sizeof(double));
-
+	
 	if (DENS) {
 	  for (int ix=0; ix<=NUMX; ix++)
 	    for (int iy=0; iy<=NUMY; iy++)
@@ -808,7 +799,7 @@ int EmpCylSL::cache_grid(int readwrite)
     YMAX = z_to_y( Rtable*ASCALE);
     dY = (YMAX - YMIN)/NUMY;
     
-    cerr << "EmpCylSL::cache_grid: cache file read successfully" << endl;
+    cerr << "EmpCylSL::cache_grid: file read successfully" << endl;
   }
 
   return 1;
@@ -816,12 +807,8 @@ int EmpCylSL::cache_grid(int readwrite)
 
 void EmpCylSL::receive_eof(int request_id, int MM)
 {
-
   int type, icnt, off;
   int mm;
-
-  if (VFLAG & 8)
-    cerr << "master listening . . . " << endl;
 
   MPI_Recv(&type, 1, MPI_INT, MPI_ANY_SOURCE, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
@@ -829,17 +816,18 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   int current_source = status.MPI_SOURCE;
 
   if (VFLAG & 8)
-    cerr << "master beginning to receive from " << current_source 
+    cerr << "Master beginning to receive from " << current_source 
 	 << " . . . " << endl;
 
   MPI_Recv(&mm, 1, MPI_INT, current_source, MPI_ANY_TAG, 
 	   MPI_COMM_WORLD, &status);
 
   if (VFLAG & 8)
-    cerr << "master receiving from " << current_source << ": type=" << type 
+    cerr << "Master receiving from " << current_source << ": type=" << type 
 	 << "   M=" << mm << endl;
 
 				// Receive rest of data
+
   for (int n=0; n<NORDER; n++) {
     MPI_Recv(&mpi_double_buf2[MPIbufsz*(MPItable*n+0)], 
 	     MPIbufsz, MPI_DOUBLE, current_source, 13 + MPItable*n+1, 
@@ -868,7 +856,6 @@ void EmpCylSL::receive_eof(int request_id, int MM)
     MPI_Send(&request_id, 1, MPI_INT, current_source, 1, MPI_COMM_WORLD);
   }
   
-
 				// Read from buffers
 
   for (int n=0; n<NORDER; n++) {
@@ -917,7 +904,7 @@ void EmpCylSL::receive_eof(int request_id, int MM)
   }
   
   if (VFLAG & 8)
-    cerr << "master finished receiving: type=" << type << "   M=" 
+    cerr << "Master finished receiving: type=" << type << "   M=" 
 	 << mm << endl;
 
   return;
@@ -926,30 +913,8 @@ void EmpCylSL::receive_eof(int request_id, int MM)
 
 void EmpCylSL::compute_eof_grid(int request_id, int m)
 {
-
-#ifdef EIGEN
-  static Vector sum(ev.getlow(), ev.gethigh());
-  {
-    if (VFLAG & 8)
-      cerr << "Node " << myid 
-	   << ": m=" << m << " dimen=" << ev.getlength() << endl;
-    sum[ev.getlow()] = ev[ev.getlow()];
-    for (int nk=ev.getlow()+1; nk<=ev.gethigh(); nk++) sum[nk] = sum[nk-1] +
-							 ev[nk];
-    for (int nk=ev.getlow(); nk<=ev.gethigh(); nk++) {
-      if (VFLAG & 8)
-	cerr << "       " << m << "," << nk << ">    "
-	     << ev[nk] << "    " << sum[nk] << endl;
-      if (sum[nk]/sum[ev.gethigh()] > 1.0 - 1.0e-5) break;
-    }
-  }
-#endif
-
-  static int mpi_in_progress = 0;
-
   //  Read in coefficient matrix or
   //  make grid if needed
-
 
 				// Sin/cos normalization
   double x, y, r, z;
@@ -1029,18 +994,11 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     }
   }
 
-				// Wait for previous delivery?
-
-  mpi_in_progress = 0;
-
 				// Send stuff back to master
       
   MPI_Send(&request_id, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
   MPI_Send(&m, 1, MPI_INT, 0, 12, MPI_COMM_WORLD);
       
-  if (VFLAG & 8)
-    cerr << "Slave " << myid << ": sending type=" << request_id << "   M=" 
-	 << m << endl;
     
   for (int n=0; n<NORDER; n++) {
 
@@ -1055,7 +1013,11 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     for (int ix=0; ix<=NUMX; ix++)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tpot[n][ix][iy];
-      
+    
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << M << " send Potential" << endl;
+
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	     13 + MPItable*n+1, MPI_COMM_WORLD);
 
@@ -1067,6 +1029,10 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = trforce[n][ix][iy];
     
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << M << " sending R force" << endl;
+
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	     13 + MPItable*n+2, MPI_COMM_WORLD);
 
@@ -1078,6 +1044,11 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       for (int iy=0; iy<=NUMY; iy++)
 	mpi_double_buf2[off + icnt++] = tzforce[n][ix][iy];
     
+    if (VFLAG & 8)
+      cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
+	   << ", M=" << M << " sending Z force" << endl;
+
+
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	     13 + MPItable*n+3, MPI_COMM_WORLD);
 
@@ -1090,14 +1061,17 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 	for (int iy=0; iy<=NUMY; iy++)
 	  mpi_double_buf2[off + icnt++] = tdens[n][ix][iy];
     
+      if (VFLAG & 8)
+	cerr << "Slave " << setw(4) << myid 
+	     << ": with request_id=" << request_id
+	     << ", M=" << M << " sending Density" << endl;
+
       MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	       13 + MPItable*n+4, MPI_COMM_WORLD);
 
     }
 
   }
-
-  mpi_in_progress = 1;
 
 }
 
@@ -1139,9 +1113,9 @@ void EmpCylSL::setup_accumulation(void)
       howmany1.push_back(vector<unsigned>(nthrds, 0));
       howmany.push_back(0);
     }
-    
     if (VFLAG & 8)
-      cerr << "Slave " << myid << ": tables allocated, MMAX=" << MMAX << endl;
+      cerr << "Slave " << setw(4) << myid 
+	   << ": tables allocated, MMAX=" << MMAX << endl;
   }
 
   differC1 = vector< vector<Matrix> >(nthrds);
@@ -1406,17 +1380,15 @@ void EmpCylSL::setup_eof()
     mpi_double_buf3 = new double [rank3];
   }
 
-  for (int nth=0; nth<nthrds; nth++) cylmassE[nth] = 0.0;
-
   for (int nth=0; nth<nthrds; nth++) {
-      for (int m=0; m<=MMAX; m++)  {
-	for (int i=1; i<=NMAX*(LMAX-m+1); i++)  {
-	  for (int j=1; j<=NMAX*(LMAX-m+1); j++)  {
-	    SC[nth][m][i][j] = 0.0;
-	    if (m>0) SS[nth][m][i][j] = 0.0;
-	  }
+    for (int m=0; m<=MMAX; m++)  {
+      for (int i=1; i<=NMAX*(LMAX-m+1); i++)  {
+	for (int j=1; j<=NMAX*(LMAX-m+1); j++)  {
+	  SC[nth][m][i][j] = 0.0;
+	  if (m>0) SS[nth][m][i][j] = 0.0;
 	}
       }
+    }
   }
 
   eof_made = false;
@@ -1427,9 +1399,12 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 			    double (*func)
 			    (double R, double z, double phi, int M) )
 {
-  if (eof_made) setup_eof();
+  Timer timer;
+  if (VFLAG & 16) timer.start();
 
-  LegeQuad lq(numr);
+  setup_eof();
+
+  LegeQuad lr(numr);
   LegeQuad lt(numt);
   double dphi = 2.0*M_PI/nump;
 
@@ -1438,36 +1413,44 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   int id = 0;			// Not multithreaded
   int nn1, nn2;
 
-  int nbeg = numr*(myid+0)/numprocs;
-  int nend = numr*(myid+1)/numprocs;
-
   double XMAX = r_to_xi(Rtable*ASCALE);
+  
+  if (VFLAG & 16 && myid==0)
+    cout << left
+	 << setw(4) << " r"
+	 << setw(4) << " t"
+	 << setw(4) << " p" << "  Elapsed" << endl
+	 << setw(4) << "---"
+	 << setw(4) << "---"
+	 << setw(4) << "---" << " ---------" << endl;
+
+  int cntr = 0;
 
   // *** Radial quadrature loop
-  for (int qr=nbeg+1; qr<=nend; qr++) { 
-
-    xi = XMAX * lq.knot(qr);
-    rr = xi_to_r(xi);
-
+  for (int qr=1; qr<=numr; qr++) { 
+    
+    xi = XMAX * lr.knot(qr);
+    rr  = xi_to_r(xi);
     ortho->get_pot(table[id], rr/ASCALE);
 
     // *** cos(theta) quadrature loop
     for (int qt=1; qt<=numt; qt++) {
 
+      if (cntr++ % numprocs != myid) continue;
+
       costh = -1.0 + 2.0*lt.knot(qt);
+      R = rr * sqrt(1.0 - costh*costh);
+      z = rr * costh;
+
       legendre_R(LMAX, costh, legs[id]);
 
-      R = sqrt(1.0 - costh*costh)*rr;
-      z = costh*rr;
+      jfac = dphi*2.0*lt.weight(qt)*XMAX*lr.weight(qr) * rr*rr / d_xi_to_r(xi);
       
-      jfac = dphi*2.0*lt.weight(qt)*XMAX*lq.weight(qr) * rr*rr / d_xi_to_r(xi);
-
       // *** Phi quadrature loop
       for (int qp=0; qp<nump; qp++) {
 
 	phi = dphi*qp;
 	sinecosine_R(LMAX, phi, cosm[id], sinm[id]);
-	
 
 	// *** m loop
 	for (int m=0; m<=MMAX; m++) {
@@ -1502,7 +1485,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	  } // *** ir loop
 
 	  for (int ir1=1; ir1<=NMAX; ir1++) {
+
 	    for (int l1=m; l1<=LMAX; l1++) {
+
 	      nn1 = ir1 + NMAX*(l1-m);
 
 	      if (m==0) {
@@ -1519,7 +1504,9 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	      } else {
 		
 		for (int ir2=1; ir2<=NMAX; ir2++) {
+
 		  for (int l2=m; l2<=LMAX; l2++) {
+		    
 		    nn2 = ir2 + NMAX*(l2-m);
 
 		    SC[id][m][nn1][nn2] += 
@@ -1537,16 +1524,46 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	  
 	} // *** m loop
 
+      if (VFLAG & 16 && myid==0)
+	cout << left << '\r'
+	     << setw(4) << qr
+	     << setw(4) << qt
+	     << setw(4) << qp << " Secs="
+	     << timer.getTime().getTotalTime() << flush;
+
       } // *** phi quadrature loop
 
     } // *** cos(theta) quadrature loop
 
   } // *** r quadrature loop
   
+  if (VFLAG & 16) {
+    long t = timer.stop().getTotalTime();
+    if (myid==0) cout << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+    cout << "Process " << setw(4) << myid << ": completed quadrature in " 
+	 << t << " seconds" << endl;
+    timer.reset();
+    timer.start();
+  }
+
   //
   // Now, we are ready to make the EOF basis
   //
+
   make_eof();
+
+  if (VFLAG & 16) {
+    cout << "Process " << setw(4) << myid << ": completed basis in " 
+	 << timer.stop().getTotalTime() << " seconds"
+	 << endl;
+  }
+
+  //
+  // We still need to make the coefficients
+  //
+
+  coefs_made = vector<short>(multistep+1, false);
 
 }
 
@@ -1556,17 +1573,14 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 {
   if (eof_made) {
     if (VFLAG & 2)
-      cerr << "accumulate_eof: Process " << myid << ", Thread " 
+      cerr << "accumulate_eof: Process " << setw(4) << myid << ", Thread " 
 	   << id << " calling setup_eof()" << endl;
     setup_eof();
-    setup_accumulation();
   }
 
   double rr = sqrt(r*r + z*z);
 
   if (rr/ASCALE>Rtable) return;
-
-  cylmassE[id] += mass;
 
   double fac0 = 4.0*M_PI, ylm;
 
@@ -1647,6 +1661,7 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
 void EmpCylSL::make_eof(void)
 {
+  Timer timer;
   int icnt;
   double tmp;
 
@@ -1662,7 +1677,6 @@ void EmpCylSL::make_eof(void)
 
   for (int nth=1; nth<nthrds; nth++) {
 
-				// Covariance
     for (int mm=0; mm<=MMAX; mm++) {
 
       for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
@@ -1671,7 +1685,6 @@ void EmpCylSL::make_eof(void)
   
     }
 
-				// Covariance
     for (int mm=1; mm<=MMAX; mm++) {
 
       for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
@@ -1682,40 +1695,39 @@ void EmpCylSL::make_eof(void)
 
   }
 
-  //
-  // DEBUG: check for nan
-  //
+  if (VFLAG & 8) {
 
-  for (int mm=0; mm<=MMAX; mm++) {
-    bool bad = false;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
-	if (isnan(SC[0][mm][i][j])) bad = true;
-
-    if (bad) {
-      cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
-	   << endl;
+    for (int mm=0; mm<=MMAX; mm++) {
+      bool bad = false;
+      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	  if (isnan(SC[0][mm][i][j])) bad = true;
+      
+      if (bad) {
+	cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+	     << endl;
+      }
     }
+    
+    for (int mm=1; mm<=MMAX; mm++) {
+      bool bad = false;
+      for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	  if (isnan(SS[0][mm][i][j])) bad = true;
+      
+      if (bad) {
+	cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+	     << endl;
+      }
+    }
+
   }
 
-  for (int mm=1; mm<=MMAX; mm++) {
-    bool bad = false;
-    for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-      for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
-	if (isnan(SS[0][mm][i][j])) bad = true;
-
-    if (bad) {
-      cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
-	   << endl;
-    }
-  }
-
   //
-  //  Distribute mean and covariance to all processes
+  //  Distribute covariance to all processes
   //
-
   for (int mm=0; mm<=MMAX; mm++) {
-				// Covariance
+
     icnt=0;
     for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
       for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
@@ -1731,9 +1743,8 @@ void EmpCylSL::make_eof(void)
     
   }
   
-
   for (int mm=1; mm<=MMAX; mm++) {
-				// Covariance
+
     icnt=0;
     for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
       for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
@@ -1753,33 +1764,37 @@ void EmpCylSL::make_eof(void)
   // DEBUG: check for nan
   //
 
-  for (int n=0; n<numprocs; n++) {
-    if (myid==n) {
-      for (int mm=0; mm<=MMAX; mm++) {
-	bool bad = false;
-	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	  for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
-	    if (isnan(SC[0][mm][i][j])) bad = true;
+  if (VFLAG & 8) {
+
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	for (int mm=0; mm<=MMAX; mm++) {
+	  bool bad = false;
+	  for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	    for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	      if (isnan(SC[0][mm][i][j])) bad = true;
 	
-	if (bad) {
-	  cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
-	       << endl;
+	  if (bad) {
+	    cerr << "Process " << myid << ": EmpCylSL has nan in C[" << mm << "]"
+		 << endl;
+	  }
+	}
+	
+	for (int mm=1; mm<=MMAX; mm++) {
+	  bool bad = false;
+	  for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
+	    for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
+	      if (isnan(SS[0][mm][i][j])) bad = true;
+	  
+	  if (bad) {
+	    cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
+		 << endl;
+	  }
 	}
       }
-      
-      for (int mm=1; mm<=MMAX; mm++) {
-	bool bad = false;
-	for (int i=1; i<=NMAX*(LMAX-mm+1); i++)
-	  for (int j=i; j<=NMAX*(LMAX-mm+1); j++)
-	    if (isnan(SS[0][mm][i][j])) bad = true;
-	
-	if (bad) {
-	  cerr << "Process " << myid << ": EmpCylSL has nan in S[" << mm << "]"
-	       << endl;
-	}
-      }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+
   }
 
   // END DEBUG
@@ -1810,8 +1825,8 @@ void EmpCylSL::make_eof(void)
 	}
 	
 	if (VFLAG & 8)
-	  cerr << "master in make_eof: done waiting on Slave " 
-	       << slave << endl;
+	  cerr << "master in make_eof: done waiting on Slave " << slave 
+	       << ", next M=" << M << endl;
       }
 	
 				// If M>MMAX before processor queue exhausted,
@@ -1823,7 +1838,6 @@ void EmpCylSL::make_eof(void)
 	//
 	// <Wait and receive and send new request>
 	//
-	  
 	receive_eof(request_id, M);
 	  
 	// Increment counters
@@ -1839,6 +1853,9 @@ void EmpCylSL::make_eof(void)
     //
     // <Wait for all slaves to return and flag to continue>
     //
+    if (VFLAG & 8)
+      cerr << "master in make_eof: now waiting for all slaves to finish" 
+	   << endl;
       
 				// Dispatch resting slaves
     if (slave < numprocs-1) {
@@ -1859,25 +1876,27 @@ void EmpCylSL::make_eof(void)
     int M, request_id;
 
     while (1) {
-
+				// Wait for request . . .
       MPI_Recv(&request_id, 1, 
 	       MPI_INT, 0, 1, MPI_COMM_WORLD, &status);
       
 				// Done!
-      if (request_id<0) break;
+      if (request_id<0) {
+	if (VFLAG & 8)
+	  cerr << "Slave " << setw(4) << myid 
+	       << ": received DONE signal" << endl;
+	break;
+      }
 
       MPI_Recv(&M, 1, 
 	       MPI_INT, 0, 2, MPI_COMM_WORLD, &status);
 	
-
       if (VFLAG & 8)
-	cerr << "Slave " << myid << ": received orders type="
+	cerr << "Slave " << setw(4) << myid << ": received orders type="
 	     << request_id << "  M=" << M << endl;
 
       if (request_id) {
-
 				// Complete symmetric part
-    
 
 	for (int i=1; i<NMAX*(LMAX-M+1); i++) {
 	  for (int j=i; j<=NMAX*(LMAX-M+1); j++)
@@ -1898,109 +1917,26 @@ void EmpCylSL::make_eof(void)
 	  }
 	}
 
-	if (maxV>1.0e-5)
-	  var[M] /= maxV;
+	var[M] /= maxV;
     
-    /*==========================*/
-    /* Solve eigenvalue problem */
-    /*==========================*/
+	/*==========================*/
+	/* Solve eigenvalue problem */
+	/*==========================*/
     
-	try {
-				// Set sizes
-	  int i1 = var[M].getrlow(), i2 = var[M].getrhigh();
-	  ev.setsize(i1, i2);
-	  ef.setsize(i1, i2, i1, i2);
-
-#if defined(STURM)
-	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
-	  
-#elif defined(USESVD)
-	  {
-	    // Make temporary variables
-	    //
-	    int r1 = var[M].getrlow();
-	    int r2 = var[M].getrhigh();
-	    int nn = r2 - r1 + 1;
-
-	    Matrix tvar(0, nn-1, 0, nn-1);
-	    Matrix tu(0, nn-1, 0, nn-1), tv(0, nn-1, 0, nn-1);
-	    Vector td(0, nn-1);
-
-	    // Copy variance matrix to temporary
-	    //
-	    bool bad = false;
-	    for (int i=r1; i<=r2; i++)
-	      for (int j=r1; j<=r2; j++) {
-		tvar[i-1][j-1] = var[M][i][j];
-		if (isnan(var[M][i][j])) bad = true;
-	      }
-
-	    if (bad)
-	      cerr << "EmpCylSL: M=" << M << ", isnan in variance C matrix"
-		   << ", maxV=" << maxV << endl;
-
-
-	    // Compute the SVD
-	    //
-	    if (!SVD(tvar, tu, tv, td)) {
-	      cerr << "EmpCylSL: Error in SVD" << endl;
-	      cerr << setw(70) << setfill('-') << '-' << endl
-		   << "---- M=" << M << endl
-		   << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-	      for (int i=r1; i<=r2; i++) {
-		for (int j=r1; j<=r2; j++)
-		  cerr << setw(16) << var[M][i][j];
-		cerr << endl;
-	      }
-	      cerr << setw(70) << setfill('-') << '-' << endl << setfill(' ')
-		   << flush;
-	      system("sleep 2");
-	      MPI_Abort(MPI_COMM_WORLD, -155);
-	    }
-	  
-	    // Copy back the eigenvectors and eigenvalues
-	    //
-	    ef.setsize(r1, r2, r1, r2);
-	    ev.setsize(r1, r2);
-	    for (int i=r1; i<=r2; i++) {
-	      ev[i] = td[i-1];
-	      for (int j=r1; j<=r2; j++) ef[i][j] = tu[i-1][j-1];
-	    }
-	  }
-	  ef = ef.Transpose();
-
-#elif defined(GHQL)
-	  ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
-	  ef = ef.Transpose();
-#else
-	  ev = var[M].Symmetric_Eigenvalues(ef);
-	  ef = ef.Transpose();
-#endif
-
-#if defined(VAROUTPUT)
-	  ostringstream sout;
-	  sout << "var_sc.debug." << M;
-	  ofstream tout(sout.str().c_str());
-	  var[M].print(tout);
-#endif
+	if (VFLAG & 16) {
+	  cout << "Process " << setw(4) << myid 
+	       << ": in eigenvalue problem with "
+	       << "rank=[" << var[M].getncols() << ", " 
+	       << var[M].getnrows() << "]" << endl;
+	  timer.reset();
+	  timer.start();
 	}
-	catch (char const *msg) {
-	  cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
-	       << ", request=" << request_id
-	       << ", error string=" << msg << endl;
-
-	  ostringstream sout;
-	  sout << "eigenvalue.error." << myid;
-	  ofstream out(sout.str().c_str());
-
-	  out << "# M=" << M << " request=" << request_id << endl;
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	      out << setw(18) << var[M][i][j];
-	    out << endl;
-	  }
-
-	  MPI_Abort(MPI_COMM_WORLD, -1);
+	ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	if (VFLAG & 16) {
+	  cout << "Process " << setw(4) << myid 
+	       << ": completed eigenproblem in " 
+	       << timer.stop().getTotalTime() << " seconds"
+	       << endl;
 	}
 
       } else {
@@ -2034,148 +1970,83 @@ void EmpCylSL::make_eof(void)
     /* Solve eigenvalue problem */
     /*==========================*/
     
-	try {
-				// Set sizes
-	  int i1 = var[M].getrlow(), i2 = var[M].getrhigh();
-	  ev.setsize(i1, i2);
-	  ef.setsize(i1, i2, i1, i2);
-
-#if defined(STURM)
-	  ev = Symmetric_Eigenvalues_MSRCH(var[M], ef, NORDER);
-	  
-#elif defined(USESVD)
-	  {
-	    // Make temporary variables
-	    //
-	    int r1 = var[M].getrlow();
-	    int r2 = var[M].getrhigh();
-	    int nn = r2 - r1 + 1;
-
-	    Matrix tvar(0, nn-1, 0, nn-1);
-	    Matrix tu(0, nn-1, 0, nn-1), tv(0, nn-1, 0, nn-1);
-	    Vector td(0, nn-1);
-
-	    // Copy variance matrix to temporary
-	    //
-	    bool bad = false;
-	    for (int i=r1; i<=r2; i++)
-	      for (int j=r1; j<=r2; j++) {
-		tvar[i-1][j-1] = var[M][i][j];
-		if (isnan(var[M][i][j])) bad = true;
-	      }
-
-	    if (bad)
-	      cerr << "EmpCylSL: M=" << M << ", isnan in variance S matrix"
-		   << ", maxV=" << maxV << endl;
-
-
-	    // Compute the SVD
-	    //
-	    if (!SVD(tvar, tu, tv, td)) {
-	      cerr << "EmpCylSL: Error in SVD" << endl;
-	      cerr << setw(70) << setfill('-') << '-' << endl
-		   << "---- M=" << M << endl
-		   << setw(70) << setfill('-') << '-' << endl << setfill(' ');
-	      for (int i=r1; i<=r2; i++) {
-		for (int j=r1; j<=r2; j++)
-		  cerr << setw(16) << var[M][i][j];
-		cerr << endl;
-	      }
-	      cerr << setw(70) << setfill('-') << '-' << endl << setfill(' ')
-		   << flush;
-	      system("sleep 2");
-	      MPI_Abort(MPI_COMM_WORLD, -155);
-	    }
-	  
-	    // Copy back the eigenvectors and eigenvalues
-	    //
-	    ef.setsize(r1, r2, r1, r2);
-	    ev.setsize(r1, r2);
-	    for (int i=r1; i<=r2; i++) {
-	      ev[i] = td[i-1];
-	      for (int j=r1; j<=r2; j++) ef[i][j] = tu[i-1][j-1];
-	    }
-	  }		
-	  ef.Transpose();
-
-#elif defined(GHQL)
-	  if (VFLAG & 2)
-	    cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
-		 << endl
-		 << "ev=[" << ev.getlow() << ", " << ev.gethigh() << "],"
-		 << endl
-		 << "ef=[ [" << ef.getrlow() << ", " << ef.getrhigh() << "]"
-		 << "[" << ef.getclow() << ", " << ef.getchigh() << "] ]"
-		 << endl
-		 << "var=[ [" << var[M].getrlow() << ", " << var[M].getrhigh() << "]"
-		 << ", [" << var[M].getclow() << ", " << var[M].getchigh() << "] ]"
-		 << endl;
-	  ev = var[M].Symmetric_Eigenvalues_GHQL(ef);
-	  ef = ef.Transpose();
-#else
-	  ev = var[M].Symmetric_Eigenvalues(ef);
-	  ef = ef.Transpose();
-#endif
-#if defined(VAROUTPUT)
-	  ostringstream sout;
-	  sout << "var_sc.debug." << M;
-	  ofstream tout(sout.str().c_str());
-	  var[M].print(tout);
-#endif
+	if (VFLAG & 16) {
+	  cout << "Process " << setw(4) << myid 
+	       << ": in eigenvalue problem with "
+	       << "rank=[" << var[M].getncols() << ", " 
+	       << var[M].getnrows() << "]" << endl;
+	  timer.reset();
+	  timer.start();
 	}
-	catch (char const *msg) {
-	  cerr << "Process " << myid << ": in eigenvalues problem, M=" << M
-	       << ", request=" << request_id
-	       << ", error string=" << msg << endl;
-
-	  ostringstream sout;
-	  sout << "eigenvalue.error." << myid;
-	  ofstream out(sout.str().c_str());
-
-	  out << "# M=" << M << " request_id=" << request_id << endl;
-	  for (int i=1; i<=NMAX*(LMAX-M+1); i++) {
-	    for (int j=i; j<=NMAX*(LMAX-M+1); j++)
-	      out << setw(18) << var[M][i][j];
-	    out << endl;
-	  }
-
-	  MPI_Abort(MPI_COMM_WORLD, -1);
+	ev = Symmetric_Eigenvalues_SYEVD(var[M], ef, NORDER);
+	if (VFLAG & 16) {
+	  cout << "Process " << setw(4) << myid 
+	       << ": completed eigenproblem in " 
+	       << timer.stop().getTotalTime() << " seconds"
+	       << endl;
 	}
+      }
 
+      if (VFLAG & 2)
+	cerr << "Slave " << setw(4) << myid 
+	     << ": with request_id=" << request_id
+	     << ", M=" << M << " calling compute_eof_grid" << endl;
+
+      if (VFLAG & 16) {
+	timer.reset();
+	timer.start();
       }
 
       compute_eof_grid(request_id, M);
 
+      if (VFLAG & 16) {
+	cout << "Process " << setw(4) << myid << ": completed EOF grid for id="
+	     << request_id << " and M=" << M << " in " 
+	     << timer.stop().getTotalTime() << " seconds"
+	     << endl;
+      }
+      else if (VFLAG & 2)
+	cerr << "Slave " << setw(4) << myid 
+	     << ": with request_id=" << request_id
+	     << ", M=" << M << " COMPLETED compute_eof_grid" << endl;
     }
 
   }
 				// Send grid to all processes
+  if (VFLAG & 2) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    cerr << "Process " << setw(4) << myid 
+	 << ": about to enter send_eof_grid" << endl;
+  }
+
+  if (VFLAG & 16) {
+    timer.reset();
+    timer.start();
+  }
+
   send_eof_grid();
 
-				// Diagnostic write of mass used to make
-				// EOF grid
-  if (1) {
-    double Min=cylmassE[0], Mout=0.0;
-    for (int nth=1; nth<nthrds; nth++) Min += cylmassE[nth];
-    MPI_Reduce(&Min, &Mout, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (myid==0) cout << "EmpCylSL: eof grid mass=" << Mout 
-		      << ", sanity check" << endl;
-
-    // I don't understand why a
-    //
-    // MPI_Reduce(MPI_IN_PLACE, &cylmassE[0], 1, MPI_DOUBLE, MPI_SUM, 
-    //            0, MPI_COMM_WORLD);
-    //
-    // emits an invalid argument error at runtime.
-  }
+  if (VFLAG & 16) {
+    cout << "Process " << setw(4) << myid << ": grid reduced in " 
+	 << timer.stop().getTotalTime() << " seconds"
+	 << endl;
+  } 
+  else if (VFLAG & 2)
+    cerr << "Process " << setw(4) << myid << ": grid reduce completed" << endl;
 
 				// Cache table for restarts
 				// (it would be nice to multithread or fork
 				//  this call . . . )
   if (myid==0) cache_grid(1);
   
-  eof_made = true;
-  coefs_made = vector<short>(multistep+1, false);
+  eof_made      = true;
+  coefs_made    = vector<short>(multistep+1, false);
+
+  if (VFLAG & 2) {
+    MPI_Barrier(MPI_COMM_WORLD);
+    cerr << "Process " << setw(4) << myid 
+	 << ": EOF computation completed" << endl;
+  }
 }
 
 
@@ -2209,7 +2080,7 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 
 void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 {
-  double r, phi, z, mass;
+   double r, phi, z, mass;
 
   int ncnt=0;
   if (myid==0 && verbose) cout << endl;
@@ -2313,6 +2184,7 @@ void EmpCylSL::make_coefficients(int M0)
     if (coefs_made[M]) continue;
 
 				// Sum up over threads
+				//
     for (int nth=1; nth<nthrds; nth++) {
 
       howmany1[M][0] += howmany1[M][nth];
@@ -2330,8 +2202,7 @@ void EmpCylSL::make_coefficients(int M0)
     }
     
 				// Begin distribution loop
-
-
+				//
     for (mm=0; mm<=MMAX; mm++)
       for (nn=0; nn<rank3; nn++)
 	MPIin[mm*rank3 + nn] = accum_cosN[M][0][mm][nn];
@@ -2511,7 +2382,7 @@ void EmpCylSL::pca_hall(void)
   int mm, nn;
 
   if (VFLAG & 4)
-    cerr << "Process " << myid << ": made it to pca_hall" << endl;
+    cerr << "Process " << setw(4) << myid << ": made it to pca_hall" << endl;
 
   
 				// Need number of particles to compute variance
@@ -2519,7 +2390,8 @@ void EmpCylSL::pca_hall(void)
 		  MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
   if (VFLAG & 4)
-    cerr << "Process " << myid << ": using " << cylused << " particles" << endl;
+    cerr << "Process " << setw(4) << myid << ": using " 
+	 << cylused << " particles" << endl;
 
   ofstream *hout = NULL;
   if (hallcount++%hallfreq==0 && myid==0 && hallfile.length()>0) {
@@ -2577,7 +2449,7 @@ void EmpCylSL::pca_hall(void)
     }
   
   if (VFLAG & 4)
-    cerr << "Process " << myid << ": exiting to pca_hall" << endl;
+    cerr << "Process " << setw(4) << myid << ": exiting to pca_hall" << endl;
 
   if (hout) {
     hout->close();
@@ -3055,20 +2927,22 @@ void EmpCylSL::get_all(int mm, int nn,
 
 void EmpCylSL::dump_coefs(ostream& out)
 {
+  out.setf(ios::scientific);
+
   for (int mm=0; mm<=MMAX; mm++) {
 
-    out << setw(4) << M << setw(4) << mm;
-
+    out << setw(4) << mm;
     for (int j=0; j<rank3; j++)
       out << " " << setw(15) << accum_cos[mm][j];
     out << endl;
 
     if (mm) {
-      out << setw(4) << M << setw(4) << mm;
+      out << setw(4) << mm;
       for (int j=0; j<rank3; j++)
 	out << " " << setw(15) << accum_sin[mm][j];
       out << endl;
     }
+
   }
 }
 
@@ -3102,63 +2976,38 @@ void EmpCylSL::dump_coefs_binary(ostream& out, double time)
 }
 
 
-void EmpCylSL::dump_basis(const string& name, int step)
+void EmpCylSL::dump_basis(const string& name, int step, double Rmax)
 {
-  static string labels [] = {"pot.", "fr.", "fz.", "dens."};
   static int numx = 60;
   static int numy = 60;
   
-  double rmax = 0.33*Rtable;
+  double rmax;
+  if (Rmax>0.0) rmax = Rmax;
+  else rmax = 0.33*Rtable*max<double>(ASCALE, HSCALE);
+  
   double r, dr = rmax/(numx-1);
   double z, dz = 2.0*rmax/(numy-1);
-
-  float zz;
-
   double fac=1;
-  int n, mm;
-  ofstream** outC = new ofstream* [MPItable];
-  ofstream** outS = new ofstream* [MPItable];
   
-  for (mm=0; mm<=MMAX; mm++) {
+  ofstream outC, outS;
 
-    for (n=0; n<=min<int>(NOUT, rank3-1); n++) {
+  for (int mm=0; mm<=MMAX; mm++) {
 
-				// Make output streams
-      for (int i=0; i<MPItable; i++) {
+    for (int n=0; n<=min<int>(NOUT, rank3-1); n++) {
 
-	ostringstream ins;
-	ins << name << ".C." << labels[i] << mm << "." << n
-	    << "." << step;
-	
-	outC[i] = new ofstream(ins.str().c_str());
-	outC[i]->write((const char *)&numx, sizeof(int));
-	outC[i]->write((const char *)&numy, sizeof(int));
-	outC[i]->write((const char *)&(zz=  0.0), sizeof(float));
-	outC[i]->write((const char *)&(zz= rmax), sizeof(float));
-	outC[i]->write((const char *)&(zz=-rmax), sizeof(float));
-	outC[i]->write((const char *)&(zz= rmax), sizeof(float));
-      }
-
+      ostringstream ins;
+      ins << name << ".C." << mm << "." << n << "." << step;
+      
+      outC.open(ins.str().c_str());
+      
       if (mm) {
 
-	for (int i=0; i<MPItable; i++) {
-
-	  ostringstream ins;
-	  ins << name << ".S." << labels[i] << mm << "." << n 
-	      << "." << step;
+	ostringstream ins;
+	ins << name << ".S." << mm << "." << n << "." << step;
 	
-	  outS[i] = new ofstream(ins.str().c_str());
-	  outS[i]->write((const char *)&numx,       sizeof(int));
-	  outS[i]->write((const char *)&numy,       sizeof(int));
-	  outS[i]->write((const char *)&(zz=  0.0), sizeof(float));
-	  outS[i]->write((const char *)&(zz= rmax), sizeof(float));
-	  outS[i]->write((const char *)&(zz=-rmax), sizeof(float));
-	  outS[i]->write((const char *)&(zz= rmax), sizeof(float));
-	}
-
+	outS.open(ins.str().c_str());
       }
-
-
+      
 				// Ok, write data
 
       for (int k=0; k<numy; k++) {
@@ -3168,6 +3017,8 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	for (int j=0; j<numx; j++) {
 	  
 	  r = dr*j;
+
+	  outC << setw(15) << r << setw(15) << z;
 
 	  double X = (r_to_xi(r) - XMIN)/dX;
 	  double Y = ( z_to_y(z) - YMIN)/dY;
@@ -3203,98 +3054,77 @@ void EmpCylSL::dump_basis(const string& name, int step)
 	  double c01 = delx0*dely1;
 	  double c11 = delx1*dely1;
 
-	  zz = fac*(
-	    potC[mm][n][ix  ][iy  ] * c00 +
-	    potC[mm][n][ix+1][iy  ] * c10 +
-	    potC[mm][n][ix  ][iy+1] * c01 +
-	    potC[mm][n][ix+1][iy+1] * c11 );
+	  outC << setw(15) 
+	       << fac*(
+		       potC[mm][n][ix  ][iy  ] * c00 +
+		       potC[mm][n][ix+1][iy  ] * c10 +
+		       potC[mm][n][ix  ][iy+1] * c01 +
+		       potC[mm][n][ix+1][iy+1] * c11 )
+	       << setw(15)
+	       << fac*(
+		       rforceC[mm][n][ix  ][iy  ] * c00 +
+		       rforceC[mm][n][ix+1][iy  ] * c10 +
+		       rforceC[mm][n][ix  ][iy+1] * c01 +
+		       rforceC[mm][n][ix+1][iy+1] * c11 )
+	       << setw(15)
+	       << fac*(
+		       zforceC[mm][n][ix  ][iy  ] * c00 +
+		       zforceC[mm][n][ix+1][iy  ] * c10 +
+		       zforceC[mm][n][ix  ][iy+1] * c01 +
+		       zforceC[mm][n][ix+1][iy+1] * c11 );
+	  
+	  if (DENS)
+	    outC << setw(15)
+		 << fac*(
+			 densC[mm][n][ix  ][iy  ] * c00 +
+			 densC[mm][n][ix+1][iy  ] * c10 +
+			 densC[mm][n][ix  ][iy+1] * c01 +
+			 densC[mm][n][ix+1][iy+1] * c11 );
 
-	  outC[0]->write((const char *)&zz, sizeof(float));
-	    
-	  zz = fac*(
-	    rforceC[mm][n][ix  ][iy  ] * c00 +
-	    rforceC[mm][n][ix+1][iy  ] * c10 +
-	    rforceC[mm][n][ix  ][iy+1] * c01 +
-	    rforceC[mm][n][ix+1][iy+1] * c11 );
-
-	  outC[1]->write((const char *)&zz, sizeof(float));
-
-	  zz = fac*(
-	    zforceC[mm][n][ix  ][iy  ] * c00 +
-	    zforceC[mm][n][ix+1][iy  ] * c10 +
-	    zforceC[mm][n][ix  ][iy+1] * c01 +
-	    zforceC[mm][n][ix+1][iy+1] * c11 );
-
-	  outC[2]->write((const char *)&zz, sizeof(float));
-
-	  if (DENS) {
-	    zz = fac*(
-	      densC[mm][n][ix  ][iy  ] * c00 +
-	      densC[mm][n][ix+1][iy  ] * c10 +
-	      densC[mm][n][ix  ][iy+1] * c01 +
-	      densC[mm][n][ix+1][iy+1] * c11 );
-
-	    outC[3]->write((const char *)&zz, sizeof(float));
-	  }
+	  outC << endl;
 
 	  if (mm) {
       
-	    zz = fac*(
-	      potS[mm][n][ix  ][iy  ] * c00 +
-	      potS[mm][n][ix+1][iy  ] * c10 +
-	      potS[mm][n][ix  ][iy+1] * c01 +
-	      potS[mm][n][ix+1][iy+1] * c11 );
-
-	    outS[0]->write((const char *)&zz, sizeof(float));
+	    outS << setw(15) << r << setw(15) << z
+		 << setw(15)
+		 << fac*(
+			 potS[mm][n][ix  ][iy  ] * c00 +
+			 potS[mm][n][ix+1][iy  ] * c10 +
+			 potS[mm][n][ix  ][iy+1] * c01 +
+			 potS[mm][n][ix+1][iy+1] * c11 )
+		 << setw(15)
+		 << fac*(
+			 rforceS[mm][n][ix  ][iy  ] * c00 +
+			 rforceS[mm][n][ix+1][iy  ] * c10 +
+			 rforceS[mm][n][ix  ][iy+1] * c01 +
+			 rforceS[mm][n][ix+1][iy+1] * c11 )
+		 << setw(15)
+		 << fac*(
+			 zforceS[mm][n][ix  ][iy  ] * c00 +
+			 zforceS[mm][n][ix+1][iy  ] * c10 +
+			 zforceS[mm][n][ix  ][iy+1] * c01 +
+			 zforceS[mm][n][ix+1][iy+1] * c11 );
 	    
-	    zz = fac*(
-	      rforceS[mm][n][ix  ][iy  ] * c00 +
-	      rforceS[mm][n][ix+1][iy  ] * c10 +
-	      rforceS[mm][n][ix  ][iy+1] * c01 +
-	      rforceS[mm][n][ix+1][iy+1] * c11 );
-
-	    outS[1]->write((const char *)&zz, sizeof(float));
-
-	    zz = fac*(
-	      zforceS[mm][n][ix  ][iy  ] * c00 +
-	      zforceS[mm][n][ix+1][iy  ] * c10 +
-	      zforceS[mm][n][ix  ][iy+1] * c01 +
-	      zforceS[mm][n][ix+1][iy+1] * c11 );
-	    
-	    outS[2]->write((const char *)&zz, sizeof(float));
-	    
-	    if (DENS) {
-	      zz = fac*(
-		densS[mm][n][ix  ][iy  ] * c00 +
-		densS[mm][n][ix+1][iy  ] * c10 +
-		densS[mm][n][ix  ][iy+1] * c01 +
-		densS[mm][n][ix+1][iy+1] * c11 );
-	      
-	      outS[3]->write((const char *)&zz, sizeof(float));
-	    }
-
+	    if (DENS)
+	      outS << setw(15) 
+		   << fac*(
+			   densS[mm][n][ix  ][iy  ] * c00 +
+			   densS[mm][n][ix+1][iy  ] * c10 +
+			   densS[mm][n][ix  ][iy+1] * c01 +
+			   densS[mm][n][ix+1][iy+1] * c11 );
+	    outS << endl;
 	  }
 
 	}
+	outC << endl;
+	if (mm) outS << endl;
       }
       
-				// Close and delete output streams
-      for (int i=0; i<MPItable; i++) {
-	outC[i]->close();
-	delete outC[i];
-
-	if (mm) {
-	  outS[i]->close();
-	  delete outS[i];
-	}
-      }
-
+				// Close output streams
+      outC.close();      
+      if (mm) outS.close();
     }
   }
-
-  delete [] outC;
-  delete [] outS;
-
 
 }
 
@@ -3658,7 +3488,6 @@ void EmpCylSL::dump_images_basis(const string& OUTFILE,
   
   delete [] out;
 }
-
 
 double EmpCylSL::r_to_xi(double r)
 {

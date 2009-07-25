@@ -44,7 +44,7 @@ exp_SOURCES = \
      tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
      OutCalbr.cc ParticleFerry.cc pCell.cc chkTimer.cc pHOT.cc
 
-exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4)
+exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src

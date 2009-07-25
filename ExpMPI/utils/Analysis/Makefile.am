@@ -14,11 +14,10 @@ AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
-COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -L -lstdc++ -lpthread -ldl
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 MPI_LIBS = -lmpi
 
-EXPLIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3) $(LIBS)
+EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -27,7 +26,7 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof slabprof
 
 diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(EXPLIBS)
+diskprof_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 haloprof_SOURCES =  PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof_CXXFLAGS = -I$(top_srcdir)/include

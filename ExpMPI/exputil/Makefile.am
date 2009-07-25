@@ -28,7 +28,7 @@ UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc \
 	ProgramParam.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
-	svd.cc
+	svd.cc eigencc.cc
 COMPLEX_SRC = Complex.cc
 CVECTOR_SRC = CVector.cc clinalg.cc mix.cc
 POLY_SRC = zroots.cc laguer.cc poly.cc cpoly.cc horner.cc syndiv.cc

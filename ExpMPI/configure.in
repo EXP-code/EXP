@@ -26,6 +26,11 @@ AC_CHECK_HEADER(tr1/unordered_map,[AC_DEFINE([HAVE_TR1],[],["Have tr1"])],[])
 AC_CHECK_HEADER(unordered_map,[AC_DEFINE([HAVE_CXX0X],[],["Have C++0x"])],[])
 AC_CHECK_HEADER(hash_map,[AC_DEFINE([HAVE_HASH],[],["Have GNU C++"])],[])
 
+dnl Look for lapack and blas
+
+ACX_BLAS
+ACX_LAPACK
+
 dnl Arguments
 
 AC_ARG_ENABLE(gptl,
@@ -54,32 +59,61 @@ AC_PATH_PROG(DOXYGEN, doxygen, notfound)
 AM_CONDITIONAL(DOXYGEN_FOUND, test x$DOXYGEN != xnotfound)
 
 dnl Checks for libraries.
+
 dnl Replace 'main' with a function in -largs:
 AC_CHECK_LIB(args, main)
+
 dnl Replace 'main' with a function in -leigen:
 AC_CHECK_LIB(eigen, main)
+
 dnl Replace 'main' with a function in -lfft:
 AC_CHECK_LIB(fft, main)
-dnl Replace 'main' with a function in -lm:
-AC_CHECK_LIB(m, main)
-dnl Replace 'main' with a function in -lmpi:
-#AC_CHECK_LIB(mpi, main)
+
 dnl Replace 'main' with a function in -lexputil:
 AC_CHECK_LIB(exputil, main)
+
 dnl Replace 'main' with a function in -lpthread:
 AC_CHECK_LIB(pthread, main)
+
 dnl Replace 'main' with a function in -lexpgnu:
 AC_CHECK_LIB(expgnu, main)
+
 dnl Replace 'main' with a function in -lstdc:
 AC_CHECK_LIB(stdc, main)
+
 dnl Replace 'main' with a function in -lg2c:
 AC_CHECK_LIB(g2c, main)
+
 dnl Replace 'main' with a function in -lgfortran:
 AC_CHECK_LIB(gfortran, main)
+
+dnl Replace `main' with a function in -llapack:
+AC_CHECK_LIB(lapack, main, [have_lapack=yes], [have_lapack=no])
+
+dnl Replace `main' with a function in -llapack-3:
+AC_CHECK_LIB(lapack-3, main, [have_lapack=yes], [have_lapack=no])
+
+dnl Replace `main' with a function in -lblas:
+AC_CHECK_LIB(blas, main, , [have_blas=no])
+
+dnl Replace `main' with a function in -lmpi:
+AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
+
+if test x$have_lapack != xyes; then
+   AC_MSG_FAILURE([Error! You need to have Lapack installed!])
+fi
+
+if test x$have_blas = xno; then
+   AC_MSG_FAILURE([Error! You need to have BLAS installed!])
+fi
+
+if test x$have_mpi = xno; then
+   AC_MSG_FAILURE([Error! You need to have MPI installed!])
+fi
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST

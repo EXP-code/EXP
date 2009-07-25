@@ -2,9 +2,7 @@
 #define _Cylinder_H
 
 #include <Vector.h>
-
 #include <EmpOrth9thd.h>
-
 #include <Orient.H>
 #include <Basis.H>
 
@@ -18,6 +16,7 @@ private:
   bool expcond;
   int rnum, pnum, tnum;
   double ashift;
+  unsigned int vflag;
 
   EmpCylSL *ortho;
   int eof, ncompcyl;

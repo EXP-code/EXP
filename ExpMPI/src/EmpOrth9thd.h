@@ -45,7 +45,7 @@ private:
   double YMIN, YMAX;
   double dX, dY;
   int M, cylused, cylused1;
-  vector<double> cylmass1,  cylmassE;
+  vector<double> cylmass1;
   bool cylmass_made;
   double cylmass;
 
@@ -56,7 +56,7 @@ private:
   double pfac, dfac, ffac;
 
   Matrix *facC, *facS;
-
+  
   int rank2, rank3;
 
   double *MPIin, *MPIout;
@@ -200,7 +200,8 @@ public:
       1   = SL model output
       2   = EOF diagnostics
       4   = Accumulation, PCA Hall, and all other diagnostics
-      8   = Debug-level output
+      8   = Debug-level communication details
+      16  = Timing info
   */
   static unsigned VFLAG;		// Default=0
 
@@ -227,16 +228,14 @@ public:
 
 				// Z coordinate transformation
 
-  /*
-  inline double z_to_y(double z) { return asinh(z/HSCALE); }
-  inline double y_to_z(double y) { return HSCALE*sinh(y); }
-  */
-
   //! Compute non-dimensional vertical coordinate from Z
   double z_to_y(double z) { return z/(fabs(z)+DBL_MIN)*asinh(fabs(z/HSCALE)); }
 
   //! Compute Z from non-dimensional vertical coordinate
   double y_to_z(double y) { return HSCALE*sinh(y); }
+
+  //! For measure transformation
+  double d_y_to_z(double y) { return HSCALE*cosh(y); }
 
   /** Generate EOF by direct integration conditioned on a user
       supplied function
@@ -335,7 +334,7 @@ public:
   void dump_coefs_binary(ostream& out, double time);
 
   //! Plot basis
-  void dump_basis(const string& name, int step);
+  void dump_basis(const string& name, int step, double Rmax=-1.0);
 
   //! Plot full fields for debugging
   void dump_images(const string& OUTFILE,

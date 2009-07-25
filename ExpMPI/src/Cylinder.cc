@@ -1,5 +1,3 @@
-static char rcsid[] = "$Id$";
-
 using namespace std;
 
 #include <values.h>
@@ -75,6 +73,8 @@ Cylinder::Cylinder(string& line) : Basis(line)
   tnum        = 40;
   ashift      = 0.25;
 
+  vflag       = 0;
+  eof         = 1;
   hallfile    = "disk";
   hallfreq    = 50;
   self_consistent = true;
@@ -88,14 +88,15 @@ Cylinder::Cylinder(string& line) : Basis(line)
   initialize();
 
 
-  EmpCylSL::RMIN = rcylmin;
-  EmpCylSL::RMAX = rcylmax;
-  EmpCylSL::NUMX = ncylnx;
-  EmpCylSL::NUMY = ncylny;
-  EmpCylSL::NUMR = ncylr;
-  EmpCylSL::CMAP = true;	// Always use coordinate mapping!
+  EmpCylSL::RMIN        = rcylmin;
+  EmpCylSL::RMAX        = rcylmax;
+  EmpCylSL::NUMX        = ncylnx;
+  EmpCylSL::NUMY        = ncylny;
+  EmpCylSL::NUMR        = ncylr;
+  EmpCylSL::CMAP        = true;	// Always use coordinate mapping!
   EmpCylSL::logarithmic = logarithmic;
-  EmpCylSL::CACHEFILE = ".eof.cache." + runtag;
+  EmpCylSL::CACHEFILE   = ".eof.cache." + runtag;
+  EmpCylSL::VFLAG       = vflag;
 
 				// For debugging; no use by force
 				// algorithm
@@ -110,6 +111,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
     EXPSCALE = acyl;
     HSCALE   = hcyl;
     ASHIFT   = ashift;
+    eof      = 0;
 
     bool cache_ok;		// Try to read the cache
 
@@ -142,19 +144,20 @@ Cylinder::Cylinder(string& line) : Basis(line)
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
       cout << endl << "Process " << myid << ": Cylinder parameters: "
-	   << " nmax=" << nmax
-	   << " lmax=" << lmax
-	   << " mmax=" << mmax
-	   << " ncylorder=" << ncylorder
-	   << " rcylmin=" << rcylmin
-	   << " rcylmax=" << rcylmax
-	   << " acyl=" << acyl
-	   << " hcyl=" << hcyl
-	   << " expcond="  << expcond
-	   << " selector=" << selector
-	   << " hallfreq=" << hallfreq
-	   << " hallfile=" << hallfile
+	   << " nmax="        << nmax
+	   << " lmax="        << lmax
+	   << " mmax="        << mmax
+	   << " ncylorder="   << ncylorder
+	   << " rcylmin="     << rcylmin
+	   << " rcylmax="     << rcylmax
+	   << " acyl="        << acyl
+	   << " hcyl="        << hcyl
+	   << " expcond="     << expcond
+	   << " selector="    << selector
+	   << " hallfreq="    << hallfreq
+	   << " hallfile="    << hallfile
 	   << " logarithmic=" << logarithmic
+	   << " vflag="       << vflag
 	   << endl << endl;
     }
     MPI_Barrier(MPI_COMM_WORLD);
@@ -162,19 +165,20 @@ Cylinder::Cylinder(string& line) : Basis(line)
 #else
   if (myid==0) {
     cout << endl << "Cylinder parameters: "
-	 << " nmax=" << nmax
-	 << " lmax=" << lmax
-	 << " mmax=" << mmax
-	 << " ncylorder=" << ncylorder
-	 << " rcylmin=" << rcylmin
-	 << " rcylmax=" << rcylmax
-	 << " acyl=" << acyl
-	 << " hcyl=" << hcyl
-	 << " expcond="  << expcond
-	 << " selector=" << selector
-	 << " hallfreq=" << hallfreq
-	 << " hallfile=" << hallfile
+	 << " nmax="        << nmax
+	 << " lmax="        << lmax
+	 << " mmax="        << mmax
+	 << " ncylorder="   << ncylorder
+	 << " rcylmin="     << rcylmin
+	 << " rcylmax="     << rcylmax
+	 << " acyl="        << acyl
+	 << " hcyl="        << hcyl
+	 << " expcond="     << expcond
+	 << " selector="    << selector
+	 << " hallfreq="    << hallfreq
+	 << " hallfile="    << hallfile
 	 << " logarithmic=" << logarithmic
+	 << " vflag="       << vflag
 	 << endl << endl;
   }
 #endif
@@ -208,27 +212,28 @@ void Cylinder::initialize()
 {
   string val;
 
-  // These should not be user settable . . . but need them for now
-  if (get_value("rcylmin", val))    rcylmin = atof(val.c_str());
-  if (get_value("rcylmax", val))    rcylmax = atof(val.c_str());
+  // These first two should not be user settable . . . but need them for now
+  if (get_value("rcylmin", val))    rcylmin    = atof(val.c_str());
+  if (get_value("rcylmax", val))    rcylmax    = atof(val.c_str());
 
-  if (get_value("acyl",   val))     acyl = atof(val.c_str());
-  if (get_value("hcyl",   val))     hcyl = atof(val.c_str());
-  if (get_value("nmax",   val))     nmax = atoi(val.c_str());
-  if (get_value("lmax",   val))     lmax = atoi(val.c_str());
-  if (get_value("mmax",   val))     mmax = atoi(val.c_str());
-  if (get_value("ncylnx", val))     ncylnx = atoi(val.c_str());
-  if (get_value("ncylny", val))     ncylny = atoi(val.c_str());
-  if (get_value("ncylr",  val))     ncylr = atoi(val.c_str());
-  if (get_value("ncylorder",  val)) ncylorder = atoi(val.c_str());
+  if (get_value("acyl",   val))     acyl       = atof(val.c_str());
+  if (get_value("hcyl",   val))     hcyl       = atof(val.c_str());
+  if (get_value("nmax",   val))     nmax       = atoi(val.c_str());
+  if (get_value("lmax",   val))     lmax       = atoi(val.c_str());
+  if (get_value("mmax",   val))     mmax       = atoi(val.c_str());
+  if (get_value("ncylnx", val))     ncylnx     = atoi(val.c_str());
+  if (get_value("ncylny", val))     ncylny     = atoi(val.c_str());
+  if (get_value("ncylr",  val))     ncylr      = atoi(val.c_str());
+  if (get_value("ncylorder",  val)) ncylorder  = atoi(val.c_str());
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
-  if (get_value("hallfreq", val))   hallfreq = atoi(val.c_str());
-  if (get_value("hallfile", val))   hallfile = val;
+  if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
+  if (get_value("hallfile", val))   hallfile   = val;
+  if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
 
-  if (get_value("rnum",   val))     rnum   = atoi(val.c_str());
-  if (get_value("pnum",   val))     pnum   = atoi(val.c_str());
-  if (get_value("tnum",   val))     tnum   = atoi(val.c_str());
-  if (get_value("ashift", val))     ashift = atof(val.c_str());
+  if (get_value("rnum",   val))     rnum       = atoi(val.c_str());
+  if (get_value("pnum",   val))     pnum       = atoi(val.c_str());
+  if (get_value("tnum",   val))     tnum       = atoi(val.c_str());
+  if (get_value("ashift", val))     ashift     = atof(val.c_str());
   
 
   if (get_value("self_consistent", val)) {
@@ -333,7 +338,6 @@ void Cylinder::get_acceleration_and_potential(Component* C)
 
 				// No recomputation ever if the
   if (!expcond) {		// basis has been precondtioned
-
 
 				// Only do this check only once per
 				// multistep; might as well be at 

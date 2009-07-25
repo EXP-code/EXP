@@ -16,7 +16,7 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = slcheck slshift orthochk diskpot
 
-COMMON_LIBS = -lexputil -lexpgnu
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 SYS_LIBS = -lstdc++ -lpthread -ldl $(LIBS)
 MPI_LIBS = -lmpi
 

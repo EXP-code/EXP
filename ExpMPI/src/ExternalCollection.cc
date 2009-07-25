@@ -146,14 +146,20 @@ void ExternalCollection::dynamicload(void)
   bool first = true
 ;
   for (int i=0; i<numprocs; i++) {
+    //
     // Put dlopen in a loop with an barrier to prevent swamping 
-    // slow NFS servers that plague some compute clusters    
+    // slow NFS server problems that seem to plague our cluster
+    //
     if (i==myid) {		
+      //
       // get the names of all the dynamic libs (.so files)
+      //
       vector<string> liblist = getlibs();
       vector<string>::iterator s = liblist.begin();
       while (s != liblist.end()) {
+	//
 	// preappend ldlibdir to the front of the lib name
+	//
 	ostringstream name;
 	name << ldlibdir << "/" << *s;
 #ifdef DEBUG

@@ -18,21 +18,20 @@ INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 bin_PROGRAMS = testparse testparams testparamsMPI
 
-COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lstdc++ -lpthread -ldl -lm
-MPI_LIBS = -lmpi
-
-LIBS = $(MPI_LIBS) $(SYS_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
+COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
 testparse_SOURCES = testparse.cc
+testparse_LDADD   = $(COMMON_LIBS)
 
 testparams_SOURCES = testparams.cc
+testparams_LDADD   = $(COMMON_LIBS)
 
 testparamsMPI_SOURCES = testparamsMPI.cc
+testparamsMPI_LDADD   = $(COMMON_LIBS)
 
 CLEANFILES	=
 
