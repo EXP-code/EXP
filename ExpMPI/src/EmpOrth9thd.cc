@@ -919,9 +919,9 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
 				// Sin/cos normalization
   double x, y, r, z;
   double costh, fac1, fac2, dens, potl, potr, pott, fac3, fac4;
-
+  
   int icnt, off;
-
+  
   for (int v=0; v<NORDER; v++) {
     tpot[v].zero();
     trforce[v].zero();
@@ -1016,7 +1016,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << M << " send Potential" << endl;
+	   << ", M=" << m << " send Potential" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	     13 + MPItable*n+1, MPI_COMM_WORLD);
@@ -1031,7 +1031,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << M << " sending R force" << endl;
+	   << ", M=" << m << " sending R force" << endl;
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	     13 + MPItable*n+2, MPI_COMM_WORLD);
@@ -1046,7 +1046,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
     
     if (VFLAG & 8)
       cerr << "Slave " << setw(4) << myid << ": with request_id=" << request_id
-	   << ", M=" << M << " sending Z force" << endl;
+	   << ", M=" << m << " sending Z force" << endl;
 
 
     MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
@@ -1064,7 +1064,7 @@ void EmpCylSL::compute_eof_grid(int request_id, int m)
       if (VFLAG & 8)
 	cerr << "Slave " << setw(4) << myid 
 	     << ": with request_id=" << request_id
-	     << ", M=" << M << " sending Density" << endl;
+	     << ", M=" << m << " sending Density" << endl;
 
       MPI_Send(&mpi_double_buf2[off], MPIbufsz, MPI_DOUBLE, 0, 
 	       13 + MPItable*n+4, MPI_COMM_WORLD);
