@@ -103,71 +103,244 @@
 #include "SphericalSL.h"
 #include "DiskHalo2.h" 
 #include "localmpi.h"
-void local_init_mpi(int argc, char **argv);
+#include "ProgramParam.H"
+//
+// Parameter definition stanza
+//
+program_option init[] = {
+  {"LMAX",            "int",       "4",               "Number of harmonics for halo expansion"},
+  {"NMAX",            "int",       "10",              "Number of radial basis functions for halo expansion"},
+  {"NUMR",            "int",       "2000",            "Size of radial grid for Spherical SL"},
+  {"RMIN",            "double",    "0.005",           "Minimum halo radius"},
+  {"RCYLMIN",         "double",    "0.001",           "Minimum disk radius"},
+  {"RCYLMAX",         "double",    "20.0",            "Maximum disk radius"},
+  {"SCSPH",           "double",    "1.0",             "Scale for Spherical SL coordinate mapping"},
+  {"RSPHSL",          "double",    "47.5",            "Maximum halo expansion radius"},
+  {"ASCALE",          "double",    "1.0",             "Radial scale length for disk basis construction"},
+  {"ASHIFT",          "double",    "0.0",             "Fraction of scale length for shift in conditioning function"},
+  {"HSCALE",          "double",    "0.1",             "Vertical scale length for disk basis construction"},
+  {"DMFAC",           "double",    "1.0",             "Disk mass scaling factor for spherical deprojection model"},
+  {"X0",              "double",    "0.0",             "Disk-Halo x center position"},
+  {"Y0",              "double",    "0.0",             "Disk-Halo y center position"},
+  {"Z0",              "double",    "0.0",             "Disk-Halo z center position"},
+  {"U0",              "double",    "0.0",             "Disk-Halo x velocity center position"},
+  {"V0",              "double",    "0.0",             "Disk-Halo y velocity center position"},
+  {"W0",              "double",    "0.0",             "Disk-Halo z velocity center position"},
+  {"RNUM",            "int",       "200",             "Number of radial knots for EmpCylSL basis construction quadrature"},
+  {"PNUM",            "int",       "80",              "Number of azimthal knots for EmpCylSL basis construction quadrature"},
+  {"TNUM",            "int",       "80",              "Number of cos(theta) knots for EmpCylSL basis construction quadrature"},
+  {"CMAP",            "bool",      "false",           "Map coordinates from radius to tabled grid"},
+  {"LOGR",            "bool",      "false",           "Make a logarithmic coordinate mapping"},
+  {"NDR",             "int",       "1600",            "Number of points in DiskHalo radial table for disk"},
+  {"NDZ",             "int",       "400",             "Number of points in DiskHalo vertical table for disk"},
+  {"NHR",             "int",       "1600",            "Number of points in DiskHalo radial table for halo"},
+  {"NHT",             "int",       "200",             "Number of points in DiskHalo cos(theta) table for halo"},
+  {"SHFAC",           "double",    "16.0",            "Scale height factor for assigning vertical table size"},
+  {"NMAX2",           "int",       "36",              "Number of radial basis functions in Spherical SL for determining disk basis"},
+  {"LMAX2",           "int",       "36",              "Number of harmonics for Spherial SL for determining disk basis"},
+  {"MMAX",            "int",       "4",               "Number of azimuthal harmonics for disk basis"},
+  {"NUMX",            "int",       "256",             "Radial grid size for disk basis table"},
+  {"NUMY",            "int",       "128",             "Vertical grid size for disk basis table"},
+  {"NORDER",          "int",       "16",              "Number of disk basis functions per M-order"},
+  {"DIVERGE",         "int",       "0",               "Cusp extrapolation for primary halo model"},
+  {"DIVERGE_RFAC",    "double",    "1.0",             "Extrapolation exponent for primary mass model"},
+  {"DIVERGE2",        "int",       "0",               "Cusp extrapolation for number model"},
+  {"DIVERGE_RFAC2",   "double",    "1.0",             "Extrapolation exponent for number model"},
+  {"DF",              "int",       "0",               "Use change-over from Jeans to Eddington"},
+  {"R_DF",            "double",    "20.0",            "Change over radius for Eddington"},
+  {"DR_DF",           "double",    "5.0",             "Width of change for to Eddington"},
+  {"scale_height",    "double",    "0.1",             "Scale length for disk realization"},
+  {"scale_length",    "double",    "2.0",             "Scale height for disk realization"},
+  {"scale_lenfkN",    "double",    "-1.0",            "Scale for multimass gas"},
+  {"disk_mass",       "double",    "1.0",             "Mass of stellar adisk"},
+  {"gas_mass",        "double",    "1.0",             "Mass of gaseous disk"},
+  {"gscal_length",    "double",    "4.0",             "Gas disk scale length"},
+  {"ToomreQ",         "double",    "1.2",             "Toomre Q parameter for stellar disk generation"},
+  {"Tmin",            "double",    "500.0",           "Temperature floor (in K) for gas disk generation"},
+  {"const_height",    "bool",      "true",            "Use constant disk scale height"},
+  {"images",          "bool",      "false",           "Print out reconstructed disk profiles"},
+  {"multi",           "bool",      "false",           "Use multimass halo"},
+  {"SEED",            "int",       "11",              "Random number seed"},
+  {"basis",           "bool",      "false",           "Print out disk basis"},
+  {"zero",            "bool",      "false",           "zero center of mass and velocity"},
+  {"nhalo",           "int",       "1000",            "Number of halo particles"},
+  {"ndisk",           "int",       "1000",            "Number of disk particles"},
+  {"ngas",            "int",       "1000",            "Number of gass particles"},
+  {"hbods",           "string",    "halo.bods",       "Halo particle output file"},
+  {"dbods",           "string",    "disk.bods",       "Disk particle output file"},
+  {"gbods",           "string",    "gas.bods",        "Gas particle output file"},
+  {"suffix",          "string",    "",                "Suffix appended for body files"},
+  {"VFLAG",           "int",       "0",               "Output flags for EmpCylSL"},
+  {"expcond",         "bool",      "true",            "Use analytic density function for computing EmpCylSL basis"},
+  {"CONSTANT",        "bool",      "false",           "Check basis with a constant density"},
+  {"GAUSSIAN",        "bool",      "false",           "Use Gaussian disk profile rather than exponential disk profile"},
+  {"PLUMMER",         "bool",      "false",           "Use Plummer disk profile rather than exponential disk profile"},
+  {"centerfile",      "string",    "center.dat",      "Read position and velocity center from this file"},
+  {"halofile1",       "string",    "SLGridSph.model", "File with input halo model"},
 
-                                // Parameters
-int LMAX=4;
-int NMAX=10;
-int NUMR=2000;
-double RMIN=0.005;
-double RCYLMIN=0.001;
-double RCYLMAX=20.0;
-double SCSPH=1.0;
-double RSPHSL=47.5;
-double ASCALE=1.0;
-double HSCALE=0.1;
-double ZMAX=10.0;
-double TIME=0.0;
-double DMFAC=1.0;
+  {"halofile2",       "string",    "SLGridSph.model.fake", "File with input halo model for multimass"},
+  {"\0",              "\0",        "\0",              "\0"}
+};
 
-double X0=0.0;
-double Y0=0.0;
-double Z0=0.0;
-double U0=0.0;
-double V0=0.0;
-double W0=0.0;
 
-int NDR=1600;
-int NDZ=400;
-int NHR=1600;
-int NHT=200;
-double SHFAC=16.0;
+const char *desc = "Generates a Monte Carlo realization of a halo\nwith an embedded disk using Jeans' equations.";
 
-int NMAX2=8;
-int LMAX2=36;
-int MMAX=4;
-int NUMX=128;
-int NUMY=64;
-int NORDER=16;
 
-int DIVERGE=0;
-double DIVERGE_RFAC=1.0;
-int DIVERGE2=0;
-double DIVERGE_RFAC2=1.0;
+ProgramParam config(desc, init);
 
-int DF=0;
-double R_DF=20.0;
-double DR_DF=5.0;
 
-double scale_height = 0.1;
-double scale_length = 2.0;
-double scale_lenfkN = -1.0;
-double disk_mass = 1.0;
-double gas_mass = 1.0;
-double gscal_length = 4.0;
-double ToomreQ = 1.2;
-double Tmin = 500.0;
+//
+// Global variables
+//
+int          LMAX;
+int          NMAX;
+int          NUMR;
+double       RMIN;
+double       RCYLMIN;
+double       RCYLMAX;
+double       SCSPH;
+double       RSPHSL;
+double       ASCALE;
+double       ASHIFT;
+double       HSCALE;
+double       DMFAC;
+double       X0;
+double       Y0;
+double       Z0;
+double       U0;
+double       V0;
+double       W0;
+int          RNUM;
+int          PNUM;
+int          TNUM;
+int          VFLAG;
+bool         expcond;
+bool         CONSTANT;
+bool         GAUSSIAN;
+bool         PLUMMER;
+bool         CMAP;
+bool         LOGR;
+int          NDR;
+int          NDZ;
+int          NHR;
+int          NHT;
+double       SHFAC;
+int          NMAX2;
+int          LMAX2;
+int          MMAX;
+int          NUMX;
+int          NUMY;
+int          NORDER;
+int          DIVERGE;
+double       DIVERGE_RFAC;
+int          DIVERGE2;
+double       DIVERGE_RFAC2;
+int          DF;
+double       R_DF;
+double       DR_DF;
+double       scale_height;
+double       scale_length;
+double       scale_lenfkN;
+double       disk_mass;
+double       gas_mass;
+double       gscal_length;
+double       ToomreQ;
+double       Tmin;
+bool         const_height;
+bool         images;
+bool         multi;
+int          SEED;
+bool         basis;
+bool         zero;
+int          nhalo;
+int          ndisk;
+int          ngas;
+string       hbods;
+string       dbods;
+string       gbods;
+string       suffix;
+string       centerfile;
+string       halofile1;
+string       halofile2;
 
-bool const_height = true;
-bool images = false;
-bool multi = false;
 
-int SEED = 11;
 
-string hbods = "halo.bods";
-string dbods = "disk.bods";
-string gbods = "gas.bods";
-string centerfile = "center.dat";
+//
+// Assign the global variables from the database
+//
+void param_assign()
+{
+   LMAX               = config.get<int>     ("LMAX");
+   NMAX               = config.get<int>     ("NMAX");
+   NUMR               = config.get<int>     ("NUMR");
+   RMIN               = config.get<double>  ("RMIN");
+   RCYLMIN            = config.get<double>  ("RCYLMIN");
+   RCYLMAX            = config.get<double>  ("RCYLMAX");
+   SCSPH              = config.get<double>  ("SCSPH");
+   RSPHSL             = config.get<double>  ("RSPHSL");
+   ASCALE             = config.get<double>  ("ASCALE");
+   ASHIFT             = config.get<double>  ("ASHIFT");
+   HSCALE             = config.get<double>  ("HSCALE");
+   DMFAC              = config.get<double>  ("DMFAC");
+   X0                 = config.get<double>  ("X0");
+   Y0                 = config.get<double>  ("Y0");
+   Z0                 = config.get<double>  ("Z0");
+   U0                 = config.get<double>  ("U0");
+   V0                 = config.get<double>  ("V0");
+   W0                 = config.get<double>  ("W0");
+   RNUM               = config.get<int>     ("RNUM");
+   PNUM               = config.get<int>     ("PNUM");
+   TNUM               = config.get<int>     ("TNUM");
+   VFLAG              = config.get<int>     ("VFLAG");
+   expcond            = config.get<bool>    ("expcond");
+   CMAP               = config.get<bool>    ("CMAP");
+   LOGR               = config.get<bool>    ("LOGR");
+   NDR                = config.get<int>     ("NDR");
+   NDZ                = config.get<int>     ("NDZ");
+   NHR                = config.get<int>     ("NHR");
+   NHT                = config.get<int>     ("NHT");
+   SHFAC              = config.get<double>  ("SHFAC");
+   NMAX2              = config.get<int>     ("NMAX2");
+   LMAX2              = config.get<int>     ("LMAX2");
+   MMAX               = config.get<int>     ("MMAX");
+   NUMX               = config.get<int>     ("NUMX");
+   NUMY               = config.get<int>     ("NUMY");
+   NORDER             = config.get<int>     ("NORDER");
+   DIVERGE            = config.get<int>     ("DIVERGE");
+   DIVERGE_RFAC       = config.get<double>  ("DIVERGE_RFAC");
+   DIVERGE2           = config.get<int>     ("DIVERGE2");
+   DIVERGE_RFAC2      = config.get<double>  ("DIVERGE_RFAC2");
+   DF                 = config.get<int>     ("DF");
+   R_DF               = config.get<double>  ("R_DF");
+   DR_DF              = config.get<double>  ("DR_DF");
+   scale_height       = config.get<double>  ("scale_height");
+   scale_length       = config.get<double>  ("scale_length");
+   scale_lenfkN       = config.get<double>  ("scale_lenfkN");
+   disk_mass          = config.get<double>  ("disk_mass");
+   gas_mass           = config.get<double>  ("gas_mass");
+   gscal_length       = config.get<double>  ("gscal_length");
+   ToomreQ            = config.get<double>  ("ToomreQ");
+   Tmin               = config.get<double>  ("Tmin");
+   const_height       = config.get<bool>    ("const_height");
+   images             = config.get<bool>    ("images");
+   multi              = config.get<bool>    ("multi");
+   SEED               = config.get<int>     ("SEED");
+   basis              = config.get<bool>    ("basis");
+   zero               = config.get<bool>    ("zero");
+   nhalo              = config.get<int>     ("nhalo");
+   ndisk              = config.get<int>     ("ndisk");
+   ngas               = config.get<int>     ("ngas");
+   hbods              = config.get<string>  ("hbods");
+   dbods              = config.get<string>  ("dbods");
+   gbods              = config.get<string>  ("gbods");
+   suffix             = config.get<string>  ("suffix");
+   centerfile         = config.get<string>  ("centerfile");
+   halofile1          = config.get<string>  ("halofile1");
+   halofile2          = config.get<string>  ("halofile2");
+}
+
+
+
   
 // Hydrogen fraction
 //
@@ -192,6 +365,55 @@ pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
   
+double DiskDens(double R, double z, double phi)
+{
+  double ans = 0.0;
+
+  if (CONSTANT) {
+      
+    if (R < ASCALE && fabs(z) < HSCALE)
+      ans = 1.0/(2.0*HSCALE*M_PI*ASCALE*ASCALE);
+  }
+  else if (GAUSSIAN) {
+      
+    if (fabs(z) < HSCALE)
+      ans = 1.0/(2.0*HSCALE*2.0*M_PI*ASCALE*ASCALE)*
+	exp(-R*R/(2.0*ASCALE*ASCALE));
+    
+  } else {			// EXPONENTIAL
+
+    double f = cosh(z/HSCALE);
+    ans = exp(-R/ASCALE)/(4.0*M_PI*ASCALE*ASCALE*HSCALE*f*f);
+    
+  }
+
+  return ans;
+}
+
+double dcond(double R, double z, double phi, int M)
+{
+  //
+  // No shift for M==0
+  //
+  if (M==0) return DiskDens(R, z, phi);
+
+  //
+  // Fold into [-PI/M, PI/M] for M>=1
+  //
+  double dmult = M_PI/M, phiS;
+  if (phi>M_PI)
+    phiS = phi + dmult*(int)((2.0*M_PI - phi)/dmult);
+  else
+    phiS = phi - dmult*(int)(phi/dmult);
+  
+  //
+  // Apply a shift along the x-axis
+  //
+  double x = R*cos(phiS) - ASHIFT*ASCALE;
+  double y = R*sin(phiS);
+  return DiskDens(sqrt(x*x + y*y), z, atan2(y, x));
+}
+
 int 
 main(int argc, char **argv)
 {
@@ -200,223 +422,19 @@ main(int argc, char **argv)
   //
   local_init_mpi(argc, argv);
   
-  //
-  // Now parse the rest of the arguments
-  //
+  /*====================*/
+  /* Parse command line */
+  /*====================*/
 
-  static string halofile1 = "SLGridSph.model";
-  static string halofile2 = "SLGridSph.model.fake";
-  string suffix;
-  bool basis = false;
-  bool zero = false;
-  int nhalo = 1000;             // Halo particles
-  int ndisk = 1000;             // Disk particles
-  int ngas  = 1000;             // Gas particles
+  try {
+    if (config.parse_args(argc, argv)) return -1;
+    param_assign();
+  }
+  catch (const char *msg) {
+    cerr << msg << endl;
+    return -1;
+  }
 
-  //========================= Parse command line ==============================
-
-  int c;
-  // int digit_optind = 0;
-
-  while (1)
-    {
-      // int this_option_optind = optind ? optind : 1;
-      int option_index = 0;
-      static struct option long_options[] = {
-	{"multi", 1, 0, 0},
-	{"gmulti", 1, 0, 0},
-	{"rcylmin", 1, 0, 0},
-	{"rcylmax", 1, 0, 0},
-	{"rmin", 1, 0, 0},
-	{"scsph", 1, 0, 0},
-	{"sccyl", 1, 0, 0},
-	{"ascale", 1, 0, 0},
-	{"hscale", 1, 0, 0},
-	{"numr", 1, 0, 0},
-	{"norder", 1, 0, 0},
-	{"cfile", 1, 0, 0},
-	{"seed", 1, 0, 0},
-	{"tmin", 1, 0, 0},
-	{"constant", 1, 0, 0},
-	{0, 0, 0, 0}
-      };
-
-      c = getopt_long (argc, argv, 
-		       "I:D:G:L:M:X:N:n:f:Q:a:A:Z:m:g:r:R:F:1:2:s:S:t:d:c:T:bBzih",
-		       long_options, &option_index);
-      if (c == -1)
-        break;
-
-      string optname;
-
-      switch (c)
-        {
-	case 0:			// Long options
-	  optname = string(long_options[option_index].name);
-	  if (!optname.compare("multi"))     multi = atoi(optarg) ? true : false;
-	  if (!optname.compare("gmulti"))    scale_lenfkN = atof(optarg);
-	  if (!optname.compare("rcylmin"))   RCYLMIN = atof(optarg);
-	  if (!optname.compare("rcylmax"))   RCYLMAX = atof(optarg);
-	  if (!optname.compare("rmin"))      RMIN = atof(optarg);
-	  if (!optname.compare("scsph"))     SCSPH = atof(optarg);
-	  if (!optname.compare("ascale"))    ASCALE = atof(optarg);
-	  if (!optname.compare("hscale"))    HSCALE = atof(optarg);
-	  if (!optname.compare("numr"))      NUMR = atoi(optarg);
-	  if (!optname.compare("norder"))    NORDER = atoi(optarg);
-	  if (!optname.compare("seed"))      SEED = atoi(optarg);
-	  if (!optname.compare("tmin"))      Tmin = atof(optarg);
-	  if (!optname.compare("cfile"))     centerfile = string(optarg);
-	  if (!optname.compare("constant"))  const_height = atoi(optarg)?true:false;
-	  break;
-
-        case 'I':
-          nhalo = atoi(optarg);
-          break;
-
-        case 'D':
-          ndisk = atoi(optarg);
-          break;
-
-        case 'G':
-          ngas = atoi(optarg);
-          break;
-
-        case 'L':
-          LMAX = atoi(optarg);
-          break;
-
-        case 'X':
-          LMAX2 = atoi(optarg);
-          break;
-
-        case 'M':
-          MMAX = atoi(optarg);
-          break;
-
-        case 'N':
-          NMAX = atoi(optarg);
-          break;
-
-        case 'n':
-          NMAX2 = atoi(optarg);
-          break;
-
-        case 'Q':
-          ToomreQ = atof(optarg);
-          break;
-
-        case 'A':
-          scale_length = atof(optarg);
-          break;
-
-        case 'a':
-          gscal_length = atof(optarg);
-          break;
-
-        case 'Z':
-          scale_height = atof(optarg);
-          break;
-
-        case 'm':
-          disk_mass = atof(optarg);
-          break;
-
-        case 'g':
-          gas_mass = atof(optarg);
-          break;
-
-        case 's':
-          SCSPH = atof(optarg);
-          break;
-
-	case 'r':
-	  RSPHSL = atof(optarg);
-	  break;
-
-        case 'R':
-          DIVERGE = 1;
-          DIVERGE_RFAC = atof(optarg);
-          break;
-
-        case 'F':
-          DIVERGE2 = 1;
-          DIVERGE_RFAC2 = atof(optarg);
-          break;
-
-        case '1':
-	  DF = 1;
-          R_DF= atof(optarg);
-          break;
-
-        case '2':
-	  DF = 1;
-          DR_DF = atof(optarg);
-          break;
-
-        case 'c':
-          const_height = atoi(optarg) ? true : false;
-          break;
-
-        case 'T':
-          Tmin = atof(optarg);
-          break;
-
-        case 'b':
-          basis = true;
-          break;
-
-        case 'z':
-          zero = true;
-          break;
-
-        case 't':
-          suffix = optarg;
-          break;
-
-        case 'd':
-          DMFAC = atof(optarg);
-          break;
-
-        case 'i':
-          images = true;
-          break;
-
-        case 'h':
-        case '?':
-        default:
-          cout << "\nGenerates a spherical phase space with an embedded disk\n"
-               << "  using Jeans' equations assuming velocity isotropy for\n"
-               << "  the spherical component and in-plane isotropy for the\n"
-               << "  disk component\n\n"
-               << "\nUsage : mpirun -v -np <# of nodes> " << argv[0] 
-               << " -- [options]\n\n"
-               << "  -H num     number of halo particles (1000)\n"
-               << "  -D num     number of disk particles (1000)\n"
-               << "  -G num     number of gas particles (1000)\n"
-               << "  -L lmax    spherical harmonic order (4)\n"
-               << "  -M mmax    cylindrical harmonic order (4)\n"
-               << "  -X lmax    maximum l for cylindrical expansion (26)\n"
-               << "  -N nmax    spherical radial order (10)\n"
-               << "  -n nmax2   cylindrical radial order (8)\n"
-               << "  -Q value   Toomre Q for radial dispersion (1.2)\n"
-               << "  -l a       scale length (2.0)\n"
-               << "  -Z h       scale height (0.1)\n"
-               << "  -m mass    disk mass (1.0)\n"
-               << "  -r rsphsl  edge for SL expansion (47.5)\n"
-               << "  -R expon   power law divergence exponent (unset)\n"
-               << "  -s scale   halo coordinate scale\n"
-               << "  -1 rmin    minimum radius for change over to DF\n"
-               << "  -2 rmax    maximum radius for change over to DF\n"
-	       << "  -c bool    assume constant gas disk scale height if true, isothermal with T=10000 if false\n"
-               << "  -b         print out basis images (false)\n"
-               << "  -z         zero center of mass and velocity (false)\n"
-               << "  -t tag     suffix string appended to output files\n"
-               << endl;
-          exit(0);
-        }
-    }
-
-  //===========================================================================
 
 #ifdef DEBUG                    // For gdb . . . 
   sleep(20);
@@ -430,10 +448,6 @@ main(int argc, char **argv)
     dbods = dbods + "." + suffix;
     gbods = gbods + "." + suffix;
   }
-
-  MPI_Bcast(&nhalo,  1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ndisk,  1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ngas,   1, MPI_INT, 0, MPI_COMM_WORLD);
 
                                 // Divvy up the particles
   n_particlesH = nhalo/numprocs;
@@ -506,12 +520,14 @@ main(int argc, char **argv)
   //===========================Cylindrical expansion===========================
 
 
-  EmpCylSL::RMIN = RCYLMIN;
-  EmpCylSL::RMAX = RCYLMAX;
-  EmpCylSL::NUMX = NUMX;
-  EmpCylSL::NUMY = NUMY;
-  EmpCylSL::CMAP = true;
-  EmpCylSL::logarithmic = true;
+  EmpCylSL::RMIN        = RCYLMIN;
+  EmpCylSL::RMAX        = RCYLMAX;
+  EmpCylSL::NUMX        = NUMX;
+  EmpCylSL::NUMY        = NUMY;
+  EmpCylSL::NUMR        = NUMR;
+  EmpCylSL::CMAP        = CMAP;
+  EmpCylSL::VFLAG       = VFLAG;
+  EmpCylSL::logarithmic = LOGR;
 
   if (basis)
     EmpCylSL::DENS = true;
@@ -534,6 +550,10 @@ main(int argc, char **argv)
        << " nordz=" << NORDER
        << endl << flush;
 #endif
+
+  if (expcond)
+    expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
+
 
   //====================Create the disk & halo model===========================
 

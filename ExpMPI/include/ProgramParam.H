@@ -38,7 +38,7 @@ struct program_option
 {
   char name[20];
   char type[20];
-  char dflt[20];
+  char dflt[40];
   char desc[160];
 };
 
