@@ -572,6 +572,7 @@ void EmpCylSL::send_eof_grid()
 
 int EmpCylSL::read_cache(void)
 {
+  setup_eof();
   setup_accumulation();
 
 				// Master tries to read table

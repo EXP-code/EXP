@@ -1,4 +1,3 @@
-// #define DEBUG
 				// System
 #include <values.h>
 				// C++/STL
@@ -42,8 +41,8 @@ double DiskHalo::DR_DF = 5.0;
 
 int    DiskHalo::LOGSCALE = 0;
 bool   DiskHalo::LOGR = true;
-bool   DiskHalo::VERBOSE = true;
 
+unsigned DiskHalo::VFLAG = 0;
 unsigned DiskHalo::NBUF = 8192;
 
 static AxiSymModel *model;
@@ -104,15 +103,13 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 
   disk = new ExponentialDisk(A, RDMAX);
 
-#ifdef DEBUG
-  if (myid==0) {
-    cerr << "DEBUG: DIVERGE=" << DIVERGE
+  if (myid==0 && VFLAG & 1) {
+    cerr << "DiskHalo: DIVERGE=" << DIVERGE
 	 << " A=" << A
 	 << " RDMAX=" << RDMAX
 	 << " filename=" << filename
-	 << "\n";
+	 << endl;
   }
-#endif
 
   if (DF) {
     AddDisk::logarithmic = true;
@@ -125,12 +122,12 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
     newmod = new AddDisk(halo, disk, dmass*COMPRESSION); 
     halo2 = newmod->get_model();
     halo2->setup_df(NUMDF, RA);
-#ifdef DEBUG
-    if (myid==0) {
+    if (myid==0 && VFLAG & 2) {
       char debugname[] = "df.debug";
       halo2->print_df(debugname);
     }
-#endif
+  } else {
+    halo2 = halo;
   }
 }
 
@@ -166,9 +163,8 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 
   disk = new ExponentialDisk(A, RDMAX);
 
-#ifdef DEBUG
-  if (myid==0) {
-    cerr << "DEBUG: DIVERGE=" << DIVERGE
+  if (myid==0 && VFLAG & 1) {
+    cerr << "DiskHalo: DIVERGE=" << DIVERGE
 	 << " DIVERGE2=" << DIVERGE2
 	 << " A=" << A
 	 << " RDMAX=" << RDMAX
@@ -176,7 +172,6 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 	 << " filename2=" << filename2
 	 << "\n";
   }
-#endif
 
   AddDisk::logarithmic = true;
   AddDisk::Rmin = RHMIN;
@@ -188,12 +183,10 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   newmod = new AddDisk(halo, disk, dmass*COMPRESSION); 
   halo2 = newmod->get_model();
   halo2->setup_df(NUMDF, RA);
-#ifdef DEBUG
-  if (myid==0) {
+  if (myid==0 && VFLAG & 2) {
     char debugname[] = "df.debug";
     halo2->print_df(debugname);
   }
-#endif
 
   //
   // Generate "fake" profile
@@ -237,7 +230,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   halo3 = new SphericalModelTable(RNUM, r2-1, d2-1, m2-1, p2-1, 
 				  DIVERGE2, DIVERGE_RFAC2);
   halo3->setup_df(NUMDF, RA);
-  if (VERBOSE) {
+  if (VFLAG & 2) {
     halo3->print_model("diskhalo2_model.multi");
     halo3->print_df("diskhalo2_df.multi");
   }
@@ -435,11 +428,9 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   //
   table_halo_disp();
 
-#ifdef DEBUG
-  cout << "Process " << myid << ": made " << phalo.size() << " particles"
-       << endl;
-#endif
-
+  if (VFLAG & 1)
+    cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << endl;
 }      
 
 void DiskHalo::
@@ -456,12 +447,10 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 				// Diagnostics
   double radmin1=1.0e30, radmax1=0.0, radmin, radmax;
 
-#ifdef DEBUG
-  if (myid==0) cout << "  rmin=" << rmin
-		    << "  rmax=" << rmax
-		    << "  mmin=" << mmin
-		    << "  mtot=" << mtot;
-#endif
+  if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
+				 << "  rmax=" << rmax
+				 << "  mmin=" << mmin
+				 << "  mtot=" << mtot;
 
   for (int k=0; k<3; k++) pos[k] = pos1[k] = 0.0;
   massp = massp1 = 0.0;
@@ -527,11 +516,9 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
     }
   }
 
-#ifdef DEBUG
-  cout << "Process " << myid << ": made " << phalo.size() << " particles"
-       << endl;
-#endif
-
+  if (VFLAG & 1)
+    cout << "Process " << myid << ": made " << phalo.size() << " particles"
+	 << endl;
 }      
 
 void DiskHalo::
@@ -1412,9 +1399,10 @@ void DiskHalo::table_halo_disp()
 		MPI_SUM, MPI_COMM_WORLD);
   
   
-  // DEBUG
   //
-  if (myid==0) {
+  // DEBUG output
+  //
+  if (myid==0 && VFLAG & 4) {
     ofstream out("disp_halo.dat");
     out.setf(ios::scientific);
     out.precision(2);
@@ -1517,9 +1505,10 @@ table_halo(vector<Particle>& part)
     }
   }
   
-  // DEBUG
-  
-  if (myid==0 && expandh) {
+  //
+  // DEBUG output
+  //
+  if (myid==0 && expandh && VFLAG & 4) {
     ofstream out("table_halo.dat");
     out.setf(ios::scientific);
     out.precision(2);
@@ -1748,27 +1737,26 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
   
   if (myid==0) {
     
-#ifdef DEBUG    
-    cout << endl
-	 << "Total number of particles: nhalo=" << nhalo
-	 << " ndisk=" << ndisk << endl;
-#endif
-
+    if (VFLAG & 1)
+      cout << endl
+	   << "Total number of particles: nhalo=" << nhalo
+	   << " ndisk=" << ndisk << endl;
+    
     fou_halo.setf(ios::scientific);
     fou_disk.setf(ios::scientific);
     
     fou_halo << nhalo << " " << 0 << " " << 0 << endl;
     fou_disk << ndisk << " " << 0 << " " << 0 << endl;
     
-#ifdef DEBUG
-    cout << "Halo stream is ";
-    if (fou_halo.good()) cout << "GOOD\n";
-    else cout << "BAD\n";
+    if (VFLAG & 1) {
+      cout << "Halo stream is ";
+      if (fou_halo.good()) cout << "GOOD\n";
+      else cout << "BAD\n";
 
-    cout << "Disk stream is ";
-    if (fou_disk.good()) cout << "GOOD\n";
-    else cout << "BAD\n";
-#endif
+      cout << "Disk stream is ";
+      if (fou_disk.good()) cout << "GOOD\n";
+      else cout << "BAD\n";
+    }
 
     for (int i=0; i<l; i++)
       write_record(fou_halo, hpart[i]);
@@ -1776,10 +1764,10 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
     for (int i=0; i<l1; i++)
       write_record(fou_disk, dpart[i]);
     
-#ifdef DEBUG
-    cout << "Wrote " << l  << " HALO particles from Node 0" << endl;
-    cout << "Wrote " << l1 << " DISK particles fron Node 0" << endl;
-#endif
+    if (VFLAG & 1) {
+      cout << "Wrote " << l  << " HALO particles from Node 0" << endl;
+      cout << "Wrote " << l1 << " DISK particles fron Node 0" << endl;
+    }
 
     int imany, icur, ccnt;
 
@@ -1794,9 +1782,8 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	ccnt += icur;
       }
       
-#ifdef DEBUG
-      cout << "Wrote " << ccnt << " HALO particles from Node " << n << endl;
-#endif
+      if (VFLAG & 1)
+	cout << "Wrote " << ccnt << " HALO particles from Node " << n << endl;
 
       MPI_Recv(&imany, 1, MPI_INT, n, 13, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       ccnt = 0;
@@ -1807,9 +1794,8 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	ccnt += icur;
       }
       
-#ifdef DEBUG
-      cout << "Wrote " << ccnt << " DISK particles from Node " << n << endl;
-#endif
+      if (VFLAG & 1)
+	cout << "Wrote " << ccnt << " DISK particles from Node " << n << endl;
 
       MPI_Barrier(MPI_COMM_WORLD);
     }
@@ -1832,9 +1818,9 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	  icur += ipack;
 	}
 
-#ifdef DEBUG
-	cout << "Sent " << icur << " HALO particles from Node " << n << endl;
-#endif
+	if (VFLAG & 1)
+	  cout << "Sent " << icur << " HALO particles from Node " << n << endl;
+
 	MPI_Send(&l1, 1, MPI_INT, 0, 13, MPI_COMM_WORLD);
 	icur = 0;
 	while (icur<l1) {
@@ -1844,9 +1830,10 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	  MPI_Send(&buf[0], ipack, Particletype, 0, 15, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
-#ifdef DEBUG
-	cout << "Sent " << icur << " DISK particles from Node " << n << endl;
-#endif
+
+	if (VFLAG & 1)
+	  cout << "Sent " << icur << " DISK particles from Node " << n << endl;
+
       }
       MPI_Barrier(MPI_COMM_WORLD);
     }

@@ -171,6 +171,7 @@ program_option init[] = {
   {"gbods",           "string",    "gas.bods",        "Gas particle output file"},
   {"suffix",          "string",    "",                "Suffix appended for body files"},
   {"VFLAG",           "int",       "0",               "Output flags for EmpCylSL"},
+  {"DFLAG",           "int",       "0",               "Output flags for DiskHalo"},
   {"expcond",         "bool",      "true",            "Use analytic density function for computing EmpCylSL basis"},
   {"CONSTANT",        "bool",      "false",           "Check basis with a constant density"},
   {"GAUSSIAN",        "bool",      "false",           "Use Gaussian disk profile rather than exponential disk profile"},
@@ -214,6 +215,7 @@ int          RNUM;
 int          PNUM;
 int          TNUM;
 int          VFLAG;
+int          DFLAG;
 bool         expcond;
 bool         CONSTANT;
 bool         GAUSSIAN;
@@ -292,6 +294,7 @@ void param_assign()
    PNUM               = config.get<int>     ("PNUM");
    TNUM               = config.get<int>     ("TNUM");
    VFLAG              = config.get<int>     ("VFLAG");
+   DFLAG              = config.get<int>     ("DFLAG");
    expcond            = config.get<bool>    ("expcond");
    CMAP               = config.get<bool>    ("CMAP");
    LOGR               = config.get<bool>    ("LOGR");
@@ -417,14 +420,14 @@ double dcond(double R, double z, double phi, int M)
 int 
 main(int argc, char **argv)
 {
-  //
+  //====================
   // Inialize MPI stuff
-  //
+  //====================
   local_init_mpi(argc, argv);
   
-  /*====================*/
-  /* Parse command line */
-  /*====================*/
+  //====================
+  // Parse command line 
+  //====================
 
   try {
     if (config.parse_args(argc, argv)) return -1;
@@ -476,28 +479,30 @@ main(int argc, char **argv)
                                 // Particle structure is defined in
                                 // Particle.h
   vector<Particle> dparticles, hparticles;
-  
 
+				//
                                 // Disk halo grid parameters
-  DiskHalo::RDMIN = RCYLMIN*scale_length;
-  DiskHalo::RHMIN = RMIN;
-  DiskHalo::RHMAX = RSPHSL;
-  DiskHalo::RDMAX = RCYLMAX*scale_length;
-  DiskHalo::NDR = NDR;
-  DiskHalo::NDZ = NDZ;
-  DiskHalo::NHR = NHR;
-  DiskHalo::NHT = NHT;
-  DiskHalo::SHFACTOR = SHFAC;
+				//
+  DiskHalo::RDMIN       = RCYLMIN*scale_length;
+  DiskHalo::RHMIN       = RMIN;
+  DiskHalo::RHMAX       = RSPHSL;
+  DiskHalo::RDMAX       = RCYLMAX*scale_length;
+  DiskHalo::NDR         = NDR;
+  DiskHalo::NDZ         = NDZ;
+  DiskHalo::NHR         = NHR;
+  DiskHalo::NHT         = NHT;
+  DiskHalo::SHFACTOR    = SHFAC;
   DiskHalo::COMPRESSION = DMFAC;
-  DiskHalo::LOGSCALE = 1;
-  DiskHalo::NUMDF = 4000;
-  DiskHalo::Q = ToomreQ;        // Toomre Q
-  DiskHalo::R_DF = R_DF;
-  DiskHalo::DR_DF = DR_DF;
-  DiskHalo::SEED = SEED;
+  DiskHalo::LOGSCALE    = 1;
+  DiskHalo::NUMDF       = 4000;
+  DiskHalo::Q           = ToomreQ;
+  DiskHalo::R_DF        = R_DF;
+  DiskHalo::DR_DF       = DR_DF;
+  DiskHalo::SEED        = SEED;
+  DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
 
-  AddDisk::use_mpi = true;
-  AddDisk::Rmin = RMIN;
+  AddDisk::use_mpi      = true;
+  AddDisk::Rmin         = RMIN;
 
   //===========================Spherical expansion=============================
 
@@ -536,23 +541,27 @@ main(int argc, char **argv)
 
                                 // Create expansion only if needed . . .
   EmpCylSL* expandd = NULL;
-  if (n_particlesD) 
+  if (n_particlesD) {
     expandd = new EmpCylSL(NMAX2, LMAX2, MMAX, NORDER, ASCALE, HSCALE);
 #ifdef DEBUG
-  cout << "Process " << myid << ": "
-       << " rmin=" << EmpCylSL::RMIN
-       << " rmax=" << EmpCylSL::RMAX
-       << " a=" << ASCALE
-       << " h=" << HSCALE
-       << " nmax2=" << NMAX2
-       << " lmax2=" << LMAX2
-       << " mmax=" << MMAX
-       << " nordz=" << NORDER
-       << endl << flush;
+    cout << "Process " << myid << ": "
+	 << " rmin=" << EmpCylSL::RMIN
+	 << " rmax=" << EmpCylSL::RMAX
+	 << " a=" << ASCALE
+	 << " h=" << HSCALE
+	 << " nmax2=" << NMAX2
+	 << " lmax2=" << LMAX2
+	 << " mmax=" << MMAX
+	 << " nordz=" << NORDER
+	 << endl << flush;
 #endif
 
-  if (expcond)
-    expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
+    if (expandd->read_cache() == 0) {
+      if (expcond)
+	expandd->generate_eof(RNUM, PNUM, TNUM, dcond);
+    }
+
+  }
 
 
   //====================Create the disk & halo model===========================
@@ -670,16 +679,19 @@ main(int argc, char **argv)
   
   if (n_particlesD) {
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
-    expandd->setup_eof();
-    expandd->setup_accumulation();
-    expandd->accumulate_eof(dparticles);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (!expcond) {
+      expandd->setup_eof();
+      expandd->setup_accumulation();
+      expandd->accumulate_eof(dparticles);
+      MPI_Barrier(MPI_COMM_WORLD);
+
+      if (myid==0) cout << "done\n";
   
-    if (myid==0) cout << "Making the EOF . . . " << flush;
-    expandd->make_eof();
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+      if (myid==0) cout << "Making the EOF . . . " << flush;
+      expandd->make_eof();
+      MPI_Barrier(MPI_COMM_WORLD);
+      if (myid==0) cout << "done\n";
+    }
   
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
     expandd->make_coefficients();

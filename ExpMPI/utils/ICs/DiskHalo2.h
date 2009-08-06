@@ -1,3 +1,5 @@
+// This is -*- C++ -*-
+
 #ifndef _DiskHalo_H
 #define _DiskHalo_H
 
@@ -115,8 +117,6 @@ class DiskHalo
 
   static bool LOGR;		// Radial grid for Eddington inversion
 
-  static bool VERBOSE;		// Diagnostic output (default: false)
-
   static int SEED;		// Initial seed
 
   static double RA;		// Anisotropy radius (default: 1e20)
@@ -125,6 +125,14 @@ class DiskHalo
 
   static int RNUM;		// Number of model grid points for added
 				// component (default: 1000)
+
+  static unsigned VFLAG;	// Verbose debugging flags
+				//
+				// Bit		Action
+				// ---		------
+				//  1		Informational
+				//  2		Model diagnostics
+				//  4		Table diagnostics
 
   //! Dummy Constructor
   DiskHalo();
