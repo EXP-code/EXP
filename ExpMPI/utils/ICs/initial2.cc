@@ -161,7 +161,7 @@ program_option init[] = {
   {"images",          "bool",      "false",           "Print out reconstructed disk profiles"},
   {"multi",           "bool",      "false",           "Use multimass halo"},
   {"SEED",            "int",       "11",              "Random number seed"},
-  {"basis",           "bool",      "false",           "Print out disk basis"},
+  {"basis",           "bool",      "false",           "Print out disk and halo basis"},
   {"zero",            "bool",      "false",           "zero center of mass and velocity"},
   {"nhalo",           "int",       "1000",            "Number of halo particles"},
   {"ndisk",           "int",       "1000",            "Number of disk particles"},

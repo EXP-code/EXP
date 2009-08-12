@@ -845,7 +845,7 @@ double DiskHalo::get_dispdz(double xp,double yp, double zp)
 double DiskHalo::vr_disp(double xp, double yp,double zp)
 {
   double r = sqrt(xp*xp + yp*yp);
-  double sigmar = 3.36*dmass*disk->get_density(r)*sqrt(Q)/epi(xp,yp,zp);
+  double sigmar = 3.36*dmass*disk->get_density(r)*Q/sqrt(epi(xp,yp,zp));
   return sigmar*sigmar;
 }
 

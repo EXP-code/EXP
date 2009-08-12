@@ -53,7 +53,7 @@ class DiskHalo
   SphericalSL* expandh;
   EmpCylSL* expandd;
 
-  Matrix *disktableP, *disktableN, epitable;
+  Matrix *disktableP, *disktableN, epitable, dv2table;
   double dP, dR, dZ, epiRmin;
 
   Matrix halotable;
@@ -116,6 +116,9 @@ class DiskHalo
 				// default: 8192
 
   static bool LOGR;		// Radial grid for Eddington inversion
+
+  static bool JEANS_VR;		// Use Jeans' equations for radial
+				// disk dispersion1
 
   static int SEED;		// Initial seed
 
