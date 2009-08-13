@@ -29,6 +29,7 @@ void Usage(char* prog) {
   cerr << prog << ": [-v -t] filename\n";
   cerr << "        -v    verbose output\n";
   cerr << "        -t    print tipsy info\n";
+  cerr << "        -T    print time info only\n";
   exit(-1);
 }
 
@@ -36,11 +37,12 @@ int
 main(int argc, char *argv[])
 {
   bool tipsy = false;
+  bool timeonly = false;
   bool verbose = false;
   int c;
   
   while (1) {
-    c = getopt(argc, argv, "vt");
+    c = getopt(argc, argv, "vtTh");
     if (c == -1) break;
 
     switch (c) {
@@ -53,9 +55,12 @@ main(int argc, char *argv[])
       tipsy = true;
       break;
 
-    case '?':
+    case 'T':
+      timeonly = true;
       break;
 
+    case 'h':
+    case '?':
     default:
       Usage(argv[0]); 
     
@@ -68,7 +73,7 @@ main(int argc, char *argv[])
   ifstream* in = new ifstream(argv[optind]);
 
   PSPDump psp(in, tipsy, verbose);
-  psp.PrintSummary(cout);
+  psp.PrintSummary(cout, timeonly);
 
   return 0;
 }

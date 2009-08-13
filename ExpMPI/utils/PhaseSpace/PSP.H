@@ -73,8 +73,8 @@ public:
 
   double SetTime(double time);
   double CurrentTime() {return fid->header.time;}
-  void PrintSummaryCurrent(ostream &out);
-  void PrintSummary(ostream &out);
+  void PrintSummaryCurrent(ostream &out, bool timeonly=false);
+  void PrintSummary(ostream &out, bool timeonly=false);
 
   Dump *CurrentDump() {return fid;}
 

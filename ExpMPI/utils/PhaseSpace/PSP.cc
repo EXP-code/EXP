@@ -190,7 +190,7 @@ double PSPDump::SetTime(double time)
 }
 
 
-void PSPDump::PrintSummary(ostream &out)
+void PSPDump::PrintSummary(ostream &out, bool timeonly)
 {
   list<Dump>::iterator itd;
   list<PSPstanza>::iterator its;
@@ -198,26 +198,65 @@ void PSPDump::PrintSummary(ostream &out)
   for (itd = dumps.begin(); itd != dumps.end(); itd++) {
 
     out << "Time=" << itd->header.time << "   [" << itd->pos << "]" << endl;
-    out << "   Total particle number: " << itd->header.ntot  << endl;
-    out << "   Number of components:  " << itd->header.ncomp << endl;
-    if (TIPSY) {
-      out << "          Gas particles:  " << itd->ngas << endl;
-      out << "         Dark particles:  " << itd->ndark << endl;
-      out << "         Star particles:  " << itd->nstar << endl;
-    }
+    if (!timeonly) {
+      out << "   Total particle number: " << itd->header.ntot  << endl;
+      out << "   Number of components:  " << itd->header.ncomp << endl;
+      if (TIPSY) {
+	out << "          Gas particles:  " << itd->ngas << endl;
+	out << "         Dark particles:  " << itd->ndark << endl;
+	out << "         Star particles:  " << itd->nstar << endl;
+      }
 
-    int cnt=1;
+      int cnt=1;
 
-    for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
+      for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
 	
 				// Print the info for this stanza
 				// ------------------------------
+	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+	out << "--- Component #" << setw(2) << cnt++ << endl;
+	out << setw(20) << " name :: "  << its->name   << endl
+	    << setw(20) << " id :: "    << its->id     << endl
+	    << setw(20) << " cparam :: " << its->cparam << endl
+	    << setw(20) << " fparam :: " << its->fparam << endl;
+	if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
+	out << setw(20) << " nbod :: "  << its->nbod  << endl
+	    << setw(20) << " niatr :: " << its->niatr << endl
+	    << setw(20) << " ndatr :: " << its->ndatr << endl;
+	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+	
+      }
+    }
+  }
+
+}
+  
+void PSPDump::PrintSummaryCurrent(ostream &out, bool timeonly)
+{
+  list<PSPstanza>::iterator its;
+
+  out << "Time=" << fid->header.time << "   [" << fid->pos << "]" << endl;
+  if (!timeonly) {
+    out << "   Total particle number: " << fid->header.ntot  << endl;
+    out << "   Number of components:  " << fid->header.ncomp << endl;
+    if (TIPSY) {
+      out << "          Gas particles:  " << fid->ngas << endl;
+      out << "         Dark particles:  " << fid->ndark << endl;
+      out << "         Star particles:  " << fid->nstar << endl;
+    }
+    
+    int cnt=1;
+
+    for (its = fid->stanzas.begin(); its != fid->stanzas.end(); its++) {
+	
+      // Print the info for this stanza
+      // ------------------------------
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
       out << "--- Component #" << setw(2) << cnt++ << endl;
       out << setw(20) << " name :: "  << its->name   << endl
 	  << setw(20) << " id :: "    << its->id     << endl
-	  << setw(20) << " cparam :: " << its->cparam << endl
-	  << setw(20) << " fparam :: " << its->fparam << endl;
+	  << setw(20) << " cparam :: " << its->cparam  << endl
+	  << setw(20) << " fparam :: " << its->fparam  << endl;
       if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
       out << setw(20) << " nbod :: "  << its->nbod  << endl
 	  << setw(20) << " niatr :: " << its->niatr << endl
@@ -225,40 +264,6 @@ void PSPDump::PrintSummary(ostream &out)
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
       
     }
-  }
-}
-
-void PSPDump::PrintSummaryCurrent(ostream &out)
-{
-  list<PSPstanza>::iterator its;
-
-  out << "Time=" << fid->header.time << "   [" << fid->pos << "]" << endl;
-  out << "   Total particle number: " << fid->header.ntot  << endl;
-  out << "   Number of components:  " << fid->header.ncomp << endl;
-  if (TIPSY) {
-    out << "          Gas particles:  " << fid->ngas << endl;
-    out << "         Dark particles:  " << fid->ndark << endl;
-    out << "         Star particles:  " << fid->nstar << endl;
-  }
-
-  int cnt=1;
-
-  for (its = fid->stanzas.begin(); its != fid->stanzas.end(); its++) {
-	
-    // Print the info for this stanza
-    // ------------------------------
-    out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-    out << "--- Component #" << setw(2) << cnt++ << endl;
-    out << setw(20) << " name :: "  << its->name   << endl
-	<< setw(20) << " id :: "    << its->id     << endl
-	<< setw(20) << " cparam :: " << its->cparam  << endl
-	<< setw(20) << " fparam :: " << its->fparam  << endl;
-    if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
-    out << setw(20) << " nbod :: "  << its->nbod  << endl
-	<< setw(20) << " niatr :: " << its->niatr << endl
-	<< setw(20) << " ndatr :: " << its->ndatr << endl;
-    out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-    
   }
 }
 
