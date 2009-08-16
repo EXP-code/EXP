@@ -1414,8 +1414,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   int id = 0;			// Not multithreaded
   int nn1, nn2;
 
-  double XMAX = r_to_xi(Rtable*ASCALE);
-  
   if (VFLAG & 16 && myid==0)
     cout << left
 	 << setw(4) << " r"
@@ -1430,7 +1428,7 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
   // *** Radial quadrature loop
   for (int qr=1; qr<=numr; qr++) { 
     
-    xi = XMAX * lr.knot(qr);
+    xi = XMIN + (XMAX - XMIN) * lr.knot(qr);
     rr  = xi_to_r(xi);
     ortho->get_pot(table[id], rr/ASCALE);
 
@@ -1445,7 +1443,8 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 
       legendre_R(LMAX, costh, legs[id]);
 
-      jfac = dphi*2.0*lt.weight(qt)*XMAX*lr.weight(qr) * rr*rr / d_xi_to_r(xi);
+      jfac = dphi*2.0*lt.weight(qt)*(XMAX - XMIN)*lr.weight(qr) 
+	* rr*rr / d_xi_to_r(xi);
       
       // *** Phi quadrature loop
       for (int qp=0; qp<nump; qp++) {
@@ -1464,8 +1463,6 @@ void EmpCylSL::generate_eof(int numr, int nump, int numt,
 	    // *** l loop
 	    for (int l=m; l<=LMAX; l++) {
 
-	      // Only the l dependence is important here . . .
-	      
 	      ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 		exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
 
@@ -1600,8 +1597,6 @@ void EmpCylSL::accumulate_eof(double r, double z, double phi, double mass,
 
       // *** l loop
       for (int l=m; l<=LMAX; l++) {
-
-	// Only the l dependence is important here . . .
 
 	ylm = sqrt((2.0*l+1.0)/(4.0*M_PI)) * pfac *
 	  exp(0.5*(lgamma(l-m+1) - lgamma(l+m+1))) * legs[0][l][m];
