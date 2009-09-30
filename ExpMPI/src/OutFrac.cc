@@ -34,29 +34,90 @@ OutFrac::OutFrac(string& line) : Output(line)
   }
 
 				// If not a restart, make quantile header
-  if (!restart && myid==0) {
-    ofstream out(filename.c_str());
-    if (!out) {
-      cout << "OutFrac: can't open file <" << filename << ">\n";
-    }
+  if (myid==0) {
 
-    out.setf(ios::left);
-    out << setw(18) << "# Time";
-    for (int i=0; i<numQuant; i++) {
-      ostringstream label;
-      label << "| " << Quant[i];
-      out << setw(18) << label.str();
+    if (restart) {
+      string backfile = filename + ".bak";
+				// Remove an old backup files
+      if (unlink(backfile.c_str())) {
+	perror("OutFrac::Run()");
+	cout << "OutFrac::Run(): error unlinking old backup file <" 
+	     << backfile << ">" << endl;
+      } else {
+	cout << "OutFrac::Run(): successfully unlinked <"
+	     << backfile << ">" << endl;
+      }
+      if (rename(filename.c_str(), backfile.c_str())) {
+	perror("OutFrac::Run()");
+	cout << "OutFrac: error renaming the current file <"
+	     << filename << "> to the backup file <" 
+	     << backfile << ">" << endl;
+	MPI_Abort(MPI_COMM_WORLD, 114);
+      } else {
+	cout << "OutFrac::Run(): successfully renamed <"
+	     << filename << "> to <" << backfile << ">" << endl;
+      }
+
+      ifstream in(backfile.c_str());
+      if (!in) {
+	cout << "OutFrac: error opening backup file <" 
+	     << backfile << "> for input" << endl;
+	MPI_Abort(MPI_COMM_WORLD, 115);
+      }
+
+      ofstream out(filename.c_str());
+      if (!out) {
+	cout << "OutFrac: error opening new file <" 
+	     << filename << "> for output" << endl;
+	MPI_Abort(MPI_COMM_WORLD, 116);
+      }
+
+      const unsigned linesz = 4196;
+      char line[linesz];
+      double time;
+
+      in.get(line, linesz);	// Copy over the header
+      while (line[0] = '#') {
+	out << line;
+	in.get(line, linesz);
+      }
+				// Copy all records with times earlier
+				// than the current time
+      while (in.good() && !in.eof())  {
+	istringstream sin(line);
+	sin >> time;
+	if (time>=tnow) break;
+	out << line;
+	in.get(line, linesz);
+      }
+
+    } else {			// Make the header
+
+      ofstream out(filename.c_str());
+      if (!out) {
+	cout << "OutFrac: can't open file <" << filename << ">\n";
+      }
+
+      out.setf(ios::left);
+      out << setw(18) << "# Time";
+      for (int i=0; i<numQuant; i++) {
+	ostringstream label;
+	label << "| " << Quant[i];
+	out << setw(18) << label.str();
+      }
+      out << setw(18) << "| elapsed time" << endl;
+      out.fill('-');
+      out << setw(18) << "# 1 ";
+      for (int i=0; i<=numQuant; i++) {
+	ostringstream label;
+	label << "| " << i+2 << " ";
+	out << setw(18) << label.str();
+      }
+      out << endl;
+
     }
-    out << setw(18) << "| elapsed time" << endl;
-    out.fill('-');
-    out << setw(18) << "# 1 ";
-    for (int i=0; i<=numQuant; i++) {
-      ostringstream label;
-      label << "| " << i+2 << " ";
-      out << setw(18) << label.str();
-    }
-    out << endl;
   }
+
 }
 
 void OutFrac::initialize()

@@ -16,11 +16,11 @@ fi
 echo This script runs configure and make...
 echo You did remember necessary arguments for configure, right?
 
-if test ! -x `which aclocal-1.7`
+if test ! -x `which aclocal`
 then echo you need autoconfig and automake to generate the Makefile
 fi
 
-if test ! -x `which automake-1.7`
+if test ! -x `which automake`
 then echo you need automake to generate the Makefile
 fi
 
@@ -32,7 +32,7 @@ if test ! -x `which libtoolize`
 then echo you need libtoolize to generate the Makefile
 fi
 
-aclocal
+aclocal -I m4
 autoheader
 libtoolize
 automake --add-missing
