@@ -87,29 +87,12 @@ AC_CHECK_LIB(g2c, main)
 dnl Replace 'main' with a function in -lgfortran:
 AC_CHECK_LIB(gfortran, main)
 
-dnl Replace `main' with a function in -llapack:
-AC_CHECK_LIB(lapack, main, [have_lapack=yes], [have_lapack=no])
-
-dnl Replace `main' with a function in -llapack-3:
-AC_CHECK_LIB(lapack-3, main, [have_lapack=yes], [have_lapack=no])
-
-dnl Replace `main' with a function in -lblas:
-AC_CHECK_LIB(blas, main, , [have_blas=no])
-
 dnl Replace `main' with a function in -lmpi:
 AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
-
-if test x$have_lapack != xyes; then
-   AC_MSG_FAILURE([Error! You need to have Lapack installed!])
-fi
-
-if test x$have_blas = xno; then
-   AC_MSG_FAILURE([Error! You need to have BLAS installed!])
-fi
 
 if test x$have_mpi = xno; then
    AC_MSG_FAILURE([Error! You need to have MPI installed!])
