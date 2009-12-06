@@ -257,6 +257,9 @@ void do_step(int n)
 				// Write output
   output.Run(n);
 
+				// Summarize processor particle load
+  comp.report_numbers();
+
 				// Load balance
   comp.load_balance();
 

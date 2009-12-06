@@ -5,10 +5,12 @@ ExpMPI/doc/global.doc -text
 ExpMPI/doc/multistep.doc -text
 ExpMPI/doc/verbose.doc -text
 ExpMPI/exputil/Cheby1d.cc -text
+ExpMPI/exputil/FileUtils.cc -text
 ExpMPI/exputil/Interp1d.cc -text
 ExpMPI/exputil/ProgramParam.cc -text
 ExpMPI/exputil/eigencc.cc -text
 ExpMPI/exputil/toomre.cc -text
+ExpMPI/include/FileUtils.H -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/m4/acx_blas.m4 -text
 ExpMPI/m4/acx_lapack.m4 -text

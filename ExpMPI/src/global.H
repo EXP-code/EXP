@@ -30,6 +30,9 @@ extern int nsteps;
 //! Number of threads per process (e.g. one per processor)
 extern int nthrds;
 
+//! Number of steps between particle number reports (use 0 for none)
+extern int nreport;
+
 //! Number of steps between load balancing (use 0 for none)
 extern int nbalance;
 

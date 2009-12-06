@@ -264,6 +264,10 @@ void pHOT::makeTree()
   // Adjust boundaries bodies to prevent cell duplication on the boundary
   //
 
+#ifdef USE_GPTL
+  GPTLstart("pHOT::makeTree::adjustBoundaries");
+#endif
+
 				// Exchange boundary keys
   key_type headKey=0, tailKey=0, prevKey=0, nextKey=0;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
@@ -359,6 +363,11 @@ void pHOT::makeTree()
   }
 
 
+#ifdef USE_GPTL
+  GPTLstop("pHOT::makeTree::adjustBoundaries");
+  GPTLstart("pHOT::makeTree::getFrontier");
+#endif
+
   // Each node start at root and walk down the tree to zero the counts
   //
   root->zeroState();
@@ -402,6 +411,7 @@ void pHOT::makeTree()
   MPI_Allreduce(&my_cells, &total_cells, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
 
 #ifdef USE_GPTL
+  GPTLstop("pHOT::makeTree::getFrontier");
   GPTLstop("pHOT::makeTree");
 #endif
 }
@@ -876,6 +886,10 @@ void pHOT::countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies)
 
 void pHOT::sendCell(key_type key, int to, unsigned num)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::sendCell");
+#endif
+
   pCell *p = frontier.find(key)->second;
   
 #ifdef DEBUG
@@ -951,11 +965,19 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 #endif
 
   cc->nbodies = cc->particles.size();
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::sendCell");
+#endif
 }
 
 
 void pHOT::recvCell(int from, unsigned num)
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::recvCell");
+#endif
+
 #ifdef DEBUG
   cout << "Process " << myid << ": receiving " << num 
        << " from " << from << endl;
@@ -986,6 +1008,9 @@ void pHOT::recvCell(int from, unsigned num)
   }
 
   cc->nbodies = cc->particles.size();
+#ifdef USE_GPTL
+  GPTLstop("pHOT::recvCell");
+#endif
 }
 
 void pHOT::makeState()
@@ -1354,12 +1379,14 @@ double pHOT::medianVol()
   return volume/((key_type)1 << (3*mlev));
 }
 
-void pHOT::Repartition()
+void pHOT::Repartition(unsigned mlevel)
 {
 #ifdef USE_GPTL
   GPTLstart("pHOT::Repartition");
+  GPTLstart("pHOT::Repartition::entrance_waiting");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("pHOT::Repartition::entrance_waiting");
 #endif
-  // debug_ts("Entering Repartition");
 
   PartMapItr it;
   
@@ -1383,6 +1410,10 @@ void pHOT::Repartition()
   //
   // Recompute keys and compute new partition
   //
+#ifdef USE_GPTL
+  GPTLstart("pHOT::Repartition::compute_keys");
+#endif
+
   oob.clear();
   vector<key_type> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
@@ -1399,20 +1430,20 @@ void pHOT::Repartition()
        << "  key size=" << keys.size()
        << "  oob size=" << oob.size() << endl;
 #endif
-  // debug_ts("Before spreadOOB");
+
 #ifdef USE_GPTL
-  GPTLstart("pHOT::spreadOOB");
+  GPTLstop("pHOT::Repartition::compute_keys");
+  GPTLstart("pHOT::Repartition::compute_keys_waiting");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("pHOT::Repartition::compute_keys_waiting");
 #endif
-  spreadOOB();
-#ifdef USE_GPTL
-  GPTLstop("pHOT::spreadOOB");
-  GPTLstart("pHOT::partitionKeys");
-#endif
-  // debug_ts("Before partitionKeys");
+
+  // if (mlevel == 0) spreadOOB();
+  // spreadOOB();
+
   partitionKeys(keys, kbeg, kfin);
-  // debug_ts("After partitionKeys");
+
 #ifdef USE_GPTL
-  GPTLstop("pHOT::partitionKeys");
   GPTLstart("pHOT::bodyList");
 #endif
 
@@ -2774,6 +2805,10 @@ void pHOT::checkOOB(vector<unsigned>& sendlist)
 
 void pHOT::spreadOOB()
 {
+#ifdef USE_GPTL
+  GPTLstart("pHOT::spreadOOB");
+  GPTLstart("pHOT::spreadOOB::in_reduce");
+#endif
 				// 3% tolerance
   const unsigned long tol = 33;
 
@@ -2782,8 +2817,10 @@ void pHOT::spreadOOB()
   long list1 = oob.size();
   MPI_Allgather(&list1, 1, MPI_LONG, &list0[0], 1, MPI_LONG, MPI_COMM_WORLD);
 
-  // debug_ts("In spreadOOB, after reduce");
-
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB::in_reduce");
+  GPTLstart("pHOT::spreadOOB::spread_comp");
+#endif
 
   double tot = 0.5;		// Round off
   for (unsigned n=0; n<numprocs; n++) tot += list0[n];
@@ -2808,14 +2845,21 @@ void pHOT::spreadOOB()
     ostringstream sout;
     sout << "In spreadOOB, maxdif=" << maxdif << " #=" << cc->nbodies_tot
 	 << " ns=" << nsend.size() << " rs=" << nrecv.size();
-    debug_ts(sout.str().c_str());
   }
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB::spread_comp");
+#endif
 
 				// Don't bother if changes are small
   if (maxdif < cc->nbodies_tot/tol) return;
 
 				// Nothing to send or receive
   if (nsend.size()==0 || nrecv.size()==0) return;
+
+#ifdef USE_GPTL
+  GPTLstart("pHOT::spreadOOB::make_list");
+#endif
 
   map<unsigned, unsigned>::iterator isnd = nsend.begin();
   map<unsigned, unsigned>::iterator ircv = nrecv.begin();
@@ -2829,9 +2873,7 @@ void pHOT::spreadOOB()
   }
 
   // DEBUG
-  // debug_ts("Before checkOOB");
   checkOOB(sendlist);
-  // debug_ts("After checkOOB");
   // END DEBUG
 
   unsigned Tcnt=0, Fcnt=0;
@@ -2839,6 +2881,10 @@ void pHOT::spreadOOB()
     Tcnt += sendlist[numprocs*myid + i];
     Fcnt += sendlist[numprocs*i + myid];
   }
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB::make_list");
+#endif
 
   // DEBUG (set to "true" to enable send/recv list diagnostic)
   //
@@ -2874,6 +2920,10 @@ void pHOT::spreadOOB()
   }
   // END DEBUG
 
+#ifdef USE_GPTL
+  GPTLstart("pHOT::spreadOOB::exchange_particles");
+#endif
+
   unsigned ps=0, pr=0;
   set<indx_type>::iterator ioob;
   Partstruct *psend=0, *precv=0;
@@ -2883,8 +2933,6 @@ void pHOT::spreadOOB()
 
   if (Tcnt) psend = new Partstruct [Tcnt];
   if (Fcnt) precv = new Partstruct [Fcnt];
-
-  // debug_ts("In spreadOOB, before exchange");
 
   //
   // Exchange particles between processes
@@ -2937,8 +2985,6 @@ void pHOT::spreadOOB()
     } // Receipt loop
   }
 
-  // debug_ts("In spreadOOB, after exchange, before completion");
-
   //
   // Wait for completion of sends and receives
   //
@@ -2949,7 +2995,10 @@ void pHOT::spreadOOB()
 	   << ", ierr=" << ierr << endl;
     }
 
-  // debug_ts("In spreadOOB, after completion");
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB::exchange_particles");
+  GPTLstart("pHOT::spreadOOB::add_to_particles");
+#endif
 
   //
   // Add particles
@@ -2968,6 +3017,11 @@ void pHOT::spreadOOB()
     }
     cc->nbodies = cc->particles.size();
   }
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::spreadOOB::add_to_particles");
+  GPTLstop("pHOT::spreadOOB");
+#endif
 
 }
 
@@ -3450,27 +3504,6 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   numk = numkeys;
   numkeys = 0;
 }
-
-
-void pHOT::debug_ts(const char* msg)
-{
-  struct timeval tv;
-  struct timezone tz;
-
-  for (int n=0; n<numprocs; n++) {
-    if (n==myid) {
-      
-      gettimeofday(&tv, &tz);
-
-      cout << "Process " << myid << ": " << msg 
-	   << ", " << tv.tv_sec << "." 
-	   << setw(6) << setfill('0') << tv.tv_usec 
-	   << setfill(' ') << endl;
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-}
-
 
 double pHOT::totalKE(double& KEtot, double& KEdsp)
 {

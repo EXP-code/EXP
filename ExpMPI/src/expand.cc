@@ -19,6 +19,8 @@ void clean_up(void);
 #include <gptl.h>
 #endif
 
+#include <FileUtils.H>
+
 //===========================================
 // Clean stop on a SIGTERM or SIGHUP
 //===========================================
@@ -359,9 +361,20 @@ main(int argc, char** argv)
 
 #ifdef USE_GPTL
   {
-    int ret;
+    int ret, cnt = 0;
+    const int safety = 10000;
     ret = GPTLstop("main");
-    ret = GPTLpr(myid);
+    ostringstream sout;
+    sout << runtag << "_timing." << myid;
+    string tfile = sout.str();
+    if (FileExists(tfile)) {
+      do {
+	sout.str("");
+	sout << tfile << ".bak." << cnt++;
+      } while (FileExists(sout.str().c_str()) && cnt<safety);
+      FileRename(tfile, sout.str().c_str());
+    }
+    ret = GPTLpr_file(tfile.c_str());
   }
 #endif
 

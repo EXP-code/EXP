@@ -321,7 +321,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
-    c0->Tree()->Repartition(); nrep++;
+    c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
@@ -376,7 +376,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Diagnostics run at levels <= msteps (takes prececdence over nsteps)
   //
-  if (msteps>=0) diagstep = (mlevel <= msteps) ? true : false;
+  if (msteps>=0) 
+    diagstep = (mlevel <= static_cast<unsigned>(msteps)) ? true : false;
 
   //
   // Compute time step
@@ -396,11 +397,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 #ifdef USE_GPTL
     GPTLstart("UserTreeDSMC::pHOT_1");
+    GPTLstart("UserTreeDSMC::waiting");
+    MPI_Barrier(MPI_COMM_WORLD);
+    GPTLstop("UserTreeDSMC::waiting");
     GPTLstart("UserTreeDSMC::repart");
 #endif
 
     partnTime.start();
-    c0->Tree()->Repartition(); nrep++;
+    c0->Tree()->Repartition(mlevel); nrep++;
     partnSoFar = partnTime.stop();
 
     tree1Time.start();

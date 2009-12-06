@@ -65,8 +65,8 @@ public:
   Timer timer_zero, timer_accel, timer_inter;
   Timer timer_force, timer_fixp, timer_extrn;
   Timer timer_thr_acc, timer_thr_int, timer_thr_ext;
-  Timer timer_clock, timer_expand;
-  vector< pair<string, Timer> > timer_sext;
+  Timer timer_clock, timer_expand, timer_wait;
+  vector< pair<string, Timer> > timer_sntr, timer_sext;
   //@}
 
   //! For timers in PotAcc to hook the type of acceleration
@@ -136,6 +136,9 @@ public:
 
   //! Read initial processor rates
   void read_rates();
+
+  //! Diagnostic report of number from each component and process
+  void report_numbers();
 
   //! Compute duty for each processor and initiate load balancing
   void load_balance();

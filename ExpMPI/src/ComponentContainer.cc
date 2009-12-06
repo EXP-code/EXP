@@ -42,6 +42,7 @@ ComponentContainer::ComponentContainer(void)
   timer_expand.	Microseconds();
   timer_fixp.	Microseconds();
   timer_extrn.	Microseconds();
+  timer_wait.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -266,7 +267,7 @@ void ComponentContainer::initialize(void)
 
 ComponentContainer::~ComponentContainer(void)
 {
-  Component *p1;
+  Component   *p1;
   Interaction *p2;
 
   list<Component*>::iterator c;
@@ -326,14 +327,21 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   state = SELF;
 
+  if (timing) timer_wait.start();
 #ifdef USE_GPTL
+  GPTLstart("ComponentContainer::waiting_acceleration");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("ComponentContainer::waiting_acceleration");
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
 
-    if (timing) timer_zero.start();
+    if (timing) {
+      timer_wait.stop();
+      timer_zero.start();
+    }
 
     for (int lev=mlevel; lev<=multistep; lev++) {
       
@@ -349,18 +357,26 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
       }
     }
-    if (timing) timer_zero.stop();
+    if (timing) {
+      timer_zero.stop();
+      timer_wait.start();
+    }
 
 				// Compute new accelerations and potential
 #ifdef DEBUG
     cout << "Process " << myid << ": about to call force <"
 	 << c->id << "> for mlevel=" << mlevel << endl;
 #endif
-    if (timing) timer_accel.start();
+    if (timing) {
+      timer_wait.stop();
+      timer_accel.start();
+    }
     c->force->set_multistep_level(mlevel);
     c->force->get_acceleration_and_potential(c);
-    if (timing) timer_accel.stop();
-
+    if (timing) {
+      timer_accel.stop();
+      timer_wait.start();
+    }
 #ifdef DEBUG
     cout << "Process " << myid << ": force <"
 	 << c->id << "> for mlevel=" << mlevel << "done" << endl;
@@ -369,6 +385,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::acceleration");
+  GPTLstart("ComponentContainer::waiting_interactions");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("ComponentContainer::waiting_interactions");
   GPTLstart("ComponentContainer::interactions");
 #endif
 
@@ -378,21 +397,69 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   list<Interaction*>::iterator inter;
   list<Component*>::iterator other;
+  vector< pair<string, Timer> >::iterator itmr;
   
   state = INTERACTION;
 
-  if (timing) timer_inter.start();
+  if (timing) {			// Initialize interaction timers?
+				// [One for each pair in the list]
+				//
+    unsigned npairs = 0;	// Count the pairs
+    for (inter=interaction.begin(); inter != interaction.end(); inter++) {
+      for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
+	npairs++;
+      }
+    }
+
+				// Remake the timer list?
+    if (npairs != timer_sntr.size()) {
+      timer_sntr.clear();	// Clear the list and make a new one
+      for (inter=interaction.begin(); inter != interaction.end(); inter++) {
+	for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
+	  ostringstream sout;
+	  sout << (*inter)->c->name << "-->" << (*other)->name;
+	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
+	}
+      }
+    }
+    
+    timer_inter.start();
+    itmr = timer_sntr.begin();
+  }
 
   for (inter=interaction.begin(); inter != interaction.end(); inter++) {
     for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 
-      if (timing) timer_accel.start();
+#ifdef USE_GPTL
+      ostringstream sout;
+      sout <<"ComponentContainer::interation run<"
+	   << (*inter)->c->name << "-->" << (*other)->name << ">";
+      GPTLstart(sout.str().c_str());
+#endif
+
+      if (timing) {
+	timer_accel.start();
+	itmr->second.start();
+      }
       (*inter)->c->force->SetExternal();
       (*inter)->c->force->set_multistep_level(mlevel);
       (*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
-      if (timing) timer_accel.stop();
-      
+      if (timing) {
+	timer_accel.stop();
+	itmr->second.stop();
+	itmr++;
+      }
+
+#ifdef USE_GPTL
+      GPTLstop(sout.str().c_str());
+      sout.str("");
+      sout <<"ComponentContainer::interation wait<"
+	   << (*inter)->c->name << "-->" << (*other)->name << ">";
+      GPTLstart(sout.str().c_str());
+      MPI_Barrier(MPI_COMM_WORLD);
+      GPTLstop(sout.str().c_str());
+#endif      
     }
   }
 
@@ -400,6 +467,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::interactions");
+  GPTLstart("ComponentContainer::waiting_external");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("ComponentContainer::waiting_external");
   GPTLstart("ComponentContainer::external");
 #endif
 
@@ -426,7 +496,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     
     unsigned cnt=0;
     list<ExternalForce*>::iterator ext;
-    vector< pair<string, Timer> >::iterator itmr;
 
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
@@ -444,6 +513,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::external");
+  GPTLstart("ComponentContainer::waiting_centering");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("ComponentContainer::waiting_centering");
   GPTLstart("ComponentContainer::centering");
 #endif
 
@@ -511,6 +583,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop("ComponentContainer::centering");
+  GPTLstart("ComponentContainer::waiting_timing");
+  MPI_Barrier(MPI_COMM_WORLD);
+  GPTLstop("ComponentContainer::waiting_timing");
   GPTLstart("ComponentContainer::timing");
 #endif
 
@@ -537,35 +612,51 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
 	     << setw(20) << "Accel: "
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl;
+
 	if (thread_timing)
 	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
 	       << right << setw(18) 
 	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl;
+
 	cout << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl;
-	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": "
-	     << right << setw(18) 
-	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl;
-	cout << setw(20) << "External: "
-	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
-	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
-	     << right << setw(18) 
-	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
 
-	vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
-	for (; itmr != timer_sext.end(); itmr++) {
+	vector< pair<string, Timer> >::iterator itmr = timer_sntr.begin();
+	for (; itmr != timer_sntr.end(); itmr++) {
 	  cout << setw(20) << "*** " << setw(20) << left << itmr->first 
 	       << ": " << right
 	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
 	       << endl;
 	}
+
+	if (thread_timing)
+	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": "
+	     << right << setw(18) 
+	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl;
+
+	cout << setw(20) << "External: "
+	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
+
+	if (thread_timing)
+	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
+	     << right << setw(18) 
+	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
+
+	
+	for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
+	  cout << setw(20) << "*** " << setw(20) << left << itmr->first 
+	       << ": " << right
+	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+	       << endl;
+	}
+
 	cout << setw(20) << "Expand: "
 	     << setw(18) << 1.0e-6*timer_expand.getTime().getRealTime() << endl;
+
 	cout << setw(20) << "Force: "
 	     << setw(18) << 1.0e-6*timer_force.getTime().getRealTime() << endl;
       }
+
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
       cout << endl << "mstep/Mstep=" << mstep << "/" << Mstep << endl;
       unsigned n = 0;
@@ -601,8 +692,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     timer_clock.reset();
 
-    vector< pair<string, Timer> >::iterator itmr = timer_sext.begin();
-    for (; itmr != timer_sext.end(); itmr++) itmr->second.reset();
+    vector< pair<string, Timer> >::iterator itmr;
+
+    for (itmr=timer_sntr.begin(); itmr != timer_sntr.end(); itmr++) 
+      itmr->second.reset();
+
+    for (itmr=timer_sext.begin(); itmr != timer_sext.end(); itmr++) 
+      itmr->second.reset();
 
   }
 
@@ -904,6 +1000,44 @@ void ComponentContainer::read_rates(void)
 
   MPI_Bcast(&rates[0], numprocs, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
+}
+
+
+void ComponentContainer::report_numbers(void)
+{
+  if (!nreport || this_step % nreport)  return;
+
+  for (int num=0; num<numprocs; num++) {
+
+    if (myid==num) {
+      string fout = outdir + runtag + ".number";
+      ofstream out(fout.c_str(), ios::out | ios::app);
+      list<Component*>::iterator cc;
+      if (out) {
+	if (myid==0) {
+	  out << "# Step: " << this_step << endl;
+	  out << "# " << setw(5)  << "Proc";
+	  for (cc=comp.components.begin(); 
+	       cc != comp.components.end(); cc++) {
+	    out << setw(20) << (*cc)->name;
+	  }
+	  out << endl << "# ";
+	  for (cc=comp.components.begin(); 
+	       cc != comp.components.end(); cc++) {
+	    out << setw(20) << "----------";
+	  }
+	  out << endl;
+	}
+	out << setw(7) << num;
+	for (cc=comp.components.begin(); 
+	     cc != comp.components.end(); cc++) {
+	  out << setw(20) << (*cc)->Number();
+	}
+	out << endl;
+      }
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
 }
 
 

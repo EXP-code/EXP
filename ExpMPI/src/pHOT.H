@@ -69,9 +69,6 @@ protected:
   Timer timer_tadjust, timer_keycall, timer_keycomp, timer_keybods;
   Timer timer_keywait;
 
-  // For debugging sychronization
-  void debug_ts(const char* msg);
-
   void bomb(const string& membername, const string& msg);
 
 public:
@@ -92,7 +89,7 @@ public:
   */
   //@{
   void makeTree();
-  void Repartition();
+  void Repartition(unsigned);
   void adjustTree(unsigned);
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 

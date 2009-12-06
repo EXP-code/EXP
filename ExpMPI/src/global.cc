@@ -19,6 +19,7 @@ int nsteps = 500;		// Number of steps to execute
 int nscale = 20;		// Number of steps between rescaling
 int nthrds = 2;			// Number of POSIX threads (minimum: 1)
 int nbalance = 0;		// Steps between load balancing
+int nreport = 0;		// Steps between particle reporting
 double dbthresh = 0.05;		// Load balancing threshold (5% by default)
 double dtime = 0.1;		// Default time step size
 unsigned PFbufsz = 40000;	// ParticleFerry buffer size in particles
