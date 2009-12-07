@@ -37,15 +37,16 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
 {
   owner = myid;
 				// I am the root node
-  parent = 0;
-  sample = 0;
-  mykey = 1;
-  level = 0;
+  parent  = 0;
+  sample  = 0;
+  mykey   = 1;
+  level   = 0;
   maxplev = 0;
+  effort  = 1.0e-12;
 				// My body mask
-  mask = mykey << 3*(nbits - level);
+  mask    = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(10, 0.0);
+  state   = vector<double>(10, 0.0);
 
   tree->frontier[mykey] = this;	// Root is born on the frontier
   // DEBUG
@@ -58,20 +59,22 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
 pCell::pCell(pCell* mom, unsigned id) : 
   tree(mom->tree), parent(mom), isLeaf(true)
 {
-  owner = myid;
+  owner   = myid;
 				// My map key
-  mykey = (parent->mykey << 3) + id;
+  mykey   = (parent->mykey << 3) + id;
 				// My level
-  level = parent->level + 1;
+  level   = parent->level + 1;
 				// Maximum particle level
   maxplev = 0;
+				// Effort for this cell
+  effort  = 1.0e-12;
 				// My body mask
-  mask = mykey << 3*(nbits - level);
+  mask    = mykey << 3*(nbits - level);
 				// Initialize state
-  state = vector<double>(10, 0.0);
+  state   = vector<double>(10, 0.0);
 
 				// Uninitialized sample cell
-  sample = 0;
+  sample  = 0;
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
   // DEBUG
@@ -310,7 +313,8 @@ void pCell::RemoveAll()
   }
 
   maxplev = 0;
-  count = 0;
+  count   = 0;
+  effort  = 1.0e-12;
 }
 
 pCell* pCell::findNode(const key_type& key)

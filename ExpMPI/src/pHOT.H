@@ -35,12 +35,25 @@ protected:
 
   void sendCell(key_type key, int to, unsigned num);
   void recvCell(int from, unsigned num);
-  void partitionKeys(vector<key_type>& keys, vector<key_type>& kbeg, vector<key_type>& kfin);
+
+  void partitionKeys(vector<key_type>& keys, vector<key_type>& kbeg, 
+		     vector<key_type>& kfin);
   void parallelMerge(vector<key_type>& in, vector<key_type>& out);
-  void sortCombine(vector<key_type>& one, vector<key_type>& two, vector<key_type>& comb);
+  void sortCombine(vector<key_type>& one, vector<key_type>& two, 
+		   vector<key_type>& comb);
+
+  void partitionKeysWght(vector<key_type>& keys, vector<double>& wght,
+		     vector<key_type>& kbeg, vector<key_type>& kfin);
+  void parallelMergeWght(vector<key_wght>& in, vector<key_wght>& out);
+  void sortCombineWght(vector<key_wght>& one, vector<key_wght>& two, 
+		       vector<key_wght>& comb);
+
   unsigned find_proc(vector<key_type>& keys, key_type key);
   void spreadOOB();
   void checkOOB(vector<unsigned>&);
+
+  //! For repartition
+  bool use_weight;
 
   //! Frontier iterator
   key_cell::iterator fit;
@@ -83,6 +96,9 @@ public:
 
   key_type getKey(double *);
   static string printKey(key_type);
+
+  //! Turn on/off weighted partitioning
+  void setWeights(bool onoff) { use_weight = onoff; }
 
   /**
      Particle handling

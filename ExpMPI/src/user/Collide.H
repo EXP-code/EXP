@@ -188,7 +188,7 @@ protected:
 
   // Timing and debug (access for derived classes)
   //
-  vector<Timer> initTime, collTime, elasTime;
+  vector<Timer> initTime, collTime, elasTime, cellTime;
   vector<Timer> stat1Time, stat2Time, stat3Time, coolTime;
   vector<TimeElapsed> initSoFar, collSoFar, elasSoFar;
   vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar;

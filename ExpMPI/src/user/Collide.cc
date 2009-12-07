@@ -203,6 +203,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   stat2Time = vector<Timer>(nthrds);
   stat3Time = vector<Timer>(nthrds);
   coolTime = vector<Timer>(nthrds);
+  cellTime = vector<Timer>(nthrds);
   initSoFar = vector<TimeElapsed>(nthrds);
   collSoFar = vector<TimeElapsed>(nthrds);
   elasSoFar = vector<TimeElapsed>(nthrds);
@@ -219,6 +220,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
     stat2Time[n].Microseconds();
     stat3Time[n].Microseconds();
     coolTime[n].Microseconds();
+    cellTime[n].Microseconds();
   }
   
   if (TSDIAG) {
@@ -400,6 +402,11 @@ void * Collide::collide_thread(void * arg)
 #ifdef USE_GPTL
     GPTLstart("Collide::bodylist");
 #endif
+
+    // Reset and start the effort time
+    //
+    cellTime[id].reset();
+    cellTime[id].start();
 
     // Number of particles in this cell
     //
@@ -792,6 +799,11 @@ void * Collide::collide_thread(void * arg)
 #ifdef USE_GPTL
     GPTLstop("Collide::diag");
 #endif
+
+    // Record effort per cell per particle in microseconds
+    //
+    c->effort = cellTime[id].stop()()/number;
+
   } // Loop over cells
 
   thread_timing_end(id);

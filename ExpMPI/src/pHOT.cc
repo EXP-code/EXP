@@ -27,6 +27,12 @@ double pHOT::offst[] = {1.0, 1.0, 1.0};
 double pHOT::jittr[] = {0.0, 0.0, 0.0};
 unsigned pHOT::neg_half = 0;
 
+static bool wghtDBL(const pair<unsigned long long, double>& a, 
+		    const pair<unsigned long long, double>& b)
+{ 
+  return a.second < b.second; 
+}
+
 //
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
@@ -84,6 +90,8 @@ pHOT::pHOT(Component *C)
   timer_overlap.Microseconds();
   timer_cupdate.Microseconds();
   timer_scatter.Microseconds();
+
+  use_weight = true;
 } 
 
 
@@ -1416,7 +1424,12 @@ void pHOT::Repartition(unsigned mlevel)
 
   oob.clear();
   vector<key_type> keys;
+  vector<double>   weights;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
+
+    if (use_weight) 
+      weights.push_back(frontier.find(it->first)->second->effort);
+
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
       oob.insert(it->first);
@@ -1439,9 +1452,12 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 
   // if (mlevel == 0) spreadOOB();
-  // spreadOOB();
+  spreadOOB();
 
-  partitionKeys(keys, kbeg, kfin);
+  if (use_weight)
+    partitionKeysWght(keys, weights, kbeg, kfin);
+  else
+    partitionKeys(keys, kbeg, kfin);
 
 #ifdef USE_GPTL
   GPTLstart("pHOT::bodyList");
@@ -3302,6 +3318,104 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 #endif
 }
 
+void pHOT::partitionKeysWght(vector<key_type>& keys,  vector<double>& wght,
+			     vector<key_type>& kbeg, vector<key_type>& kfin)
+{
+#ifdef USE_GPTL
+  GPTLstart("pHOT::partitionKeysWght");
+#endif
+
+				// Sort the keys
+  sort(keys.begin(), keys.end());
+
+				// Even number per processor
+  unsigned equal = cc->nbodies_tot/numprocs;
+
+				// Sample keys at desired rate
+				// e.g. every srate^th key is sampled
+  unsigned srate = static_cast<unsigned>(floor(sqrt(equal)+0.5));
+
+				// Number of samples
+  unsigned nsamp = keys.size()/srate;
+				
+  if (nsamp > keys.size())	// Too many for particle count
+    nsamp = keys.size();
+
+  if (nsamp)			// Consistent sampling rate
+    srate = keys.size()/nsamp;
+
+  // Require: srate*(2*nsamp-1)/2 < keys.size()
+  //
+  if (nsamp && keys.size()) {
+    while (srate*(2*nsamp-1)/2 >= keys.size()) nsamp--;
+  }
+  
+  vector<key_wght> keylist1, keylist;
+  if (keys.size()) {
+    for (unsigned i=0; i<nsamp; i++) {
+      unsigned j = srate*(2*i+1)/2;
+      keylist1.push_back(key_wght(keys[j], wght[j]));
+    }
+  }
+				// Tree aggregation (merge sort) of the
+				// entire key list
+
+				// <keylist1> is (and must be) sorted to start
+  MPI_Barrier(MPI_COMM_WORLD);
+  parallelMergeWght(keylist1, keylist);
+  MPI_Barrier(MPI_COMM_WORLD);
+
+				// Accumulate weight list
+  for (unsigned i=1; i<keylist.size(); i++) 
+    keylist[i].second += keylist[i-1].second;
+
+				// Normalize weight list
+  double ktop = keylist.back().second;
+  for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
+
+  if (myid==0) {
+
+    vector<double> frate(numprocs);
+
+				// Use an even rate
+    frate[0] = 1.0;
+    for (unsigned i=1; i<numprocs; i++) 
+      frate[i] = frate[i-1] + 1.0;
+    //                        ^
+    //                        |
+    //                        |
+    // Replace with the computation rate for the node <i>
+    // for load balancing
+    //
+    
+
+				// Compute the key boundaries in the partition
+				//
+    for (unsigned i=0; i<numprocs-1; i++) {
+      if (keylist.size()) {
+	key_wght k(0, frate[i]/frate[numprocs-1]);
+	kfin[i] = 
+	  lower_bound(keylist.begin(), keylist.end(), k, wghtDBL)->first;
+      }
+      else
+	kfin[i] = key_min;
+    }
+
+    kfin[numprocs-1] = key_max;
+
+    kbeg[0] = key_min;
+    for (unsigned i=1; i<numprocs; i++)
+      kbeg[i] = kfin[i-1];
+  }
+
+  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::partitionKeysWght");
+#endif
+}
+
 
 //
 // Binary search
@@ -3351,6 +3465,29 @@ void pHOT::sortCombine(vector<key_type>& one, vector<key_type>& two,
       comb[k] = one[i++];
     else {
       if(one[i] < two[j])
+	comb[k] = one[i++];
+      else
+	comb[k] = two[j++];
+    }
+  }
+}
+
+void pHOT::sortCombineWght(vector<key_wght>& one, vector<key_wght>& two,
+		       vector<key_wght>& comb)
+{
+  int i=0, j=0;
+  int n = one.size()-1;
+  int m = two.size()-1;
+  
+  comb = vector<key_wght>(one.size()+two.size());
+
+  for(int k=0; k<n+m+2; k++) {
+    if (i > n)
+      comb[k] = two[j++];
+    else if(j > m)
+      comb[k] = one[i++];
+    else {
+      if(one[i].first < two[j].first)
 	comb[k] = one[i++];
       else
 	comb[k] = two[j++];
@@ -3439,6 +3576,141 @@ void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
 	// The lower half sorts and loop again
 	//
 	sortCombine(data, recv, work);
+	data = work;
+      }
+    }
+  }
+
+  //
+  // We are done, return the result
+  //
+  final = data;
+
+  return;
+}
+
+void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
+{
+  MPI_Status status;
+  vector<key_wght> work;
+  unsigned n;
+
+  // Find the largest power of two smaller than
+  // the number of processors
+  // 
+  int M2 = 1;
+  while (2*M2 < numprocs) M2 = M2*2;
+
+  // Combine the particles of the high nodes
+  // with those of the lower nodes so that
+  // all particles are within M2 nodes
+  //
+  // NB: if M2 == numprocs, no particles
+  // will be sent or received
+  //
+  if (myid >= M2) {
+    n = initl.size();
+    MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
+    if (n) {
+      vector<key_type> one(n);
+      vector<double>   two(n);
+
+      for (unsigned k=0; k<n; k++) {
+	one[k] = initl[k].first;
+	two[k] = initl[k].second;
+      }
+	
+      MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+	       MPI_COMM_WORLD);
+      MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 12, 
+	       MPI_COMM_WORLD);
+    }
+    return;
+  }
+
+  vector<key_wght> data = initl;
+
+  //
+  // Retrieve the excess particles
+  //
+  if (myid + M2 < numprocs) {
+    MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
+    if (n) {
+      vector<key_type> recv1(n);
+      vector<double>   recv2(n);
+
+      MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
+	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+      MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 12, 
+	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      
+      vector<key_wght> recv(n);
+      for (unsigned k=0; k<n; k++) {
+	recv[k].first  = recv1[k];
+	recv[k].second = recv2[k];
+      }
+				// data=data+new_data
+
+      sortCombineWght(initl, recv, data);
+    }
+  }
+    
+  //
+  // Now do the iterative binary merge
+  //
+  while (M2 > 1) {
+
+    M2 = M2/2;
+
+    // When M2 = 1, we are on the the last iteration.
+    // The final node left will be the root with the entire sorted array.
+
+    //
+    // The upper half of the nodes send to the lower half and is done
+    //
+    if (myid >= M2) {
+      n = data.size();
+      MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
+      if (n) {
+	vector<key_type> one(n);
+	vector<double>   two(n);
+
+	for (unsigned k=0; k<n; k++) {
+	  one[k] = initl[k].first;
+	  two[k] = initl[k].second;
+	}
+	
+	MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+		 MPI_COMM_WORLD);
+	MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 12, 
+		 MPI_COMM_WORLD);
+      }
+      return;
+    } else {
+      MPI_Recv(&n, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 11, MPI_COMM_WORLD, 
+	       &status);
+      if (n) {
+
+	vector<key_type> recv1(n);
+	vector<double>   recv2(n);
+
+	MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
+		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 12, 
+		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      
+	vector<key_wght> recv(n);
+	for (unsigned k=0; k<n; k++) {
+	  recv[k].first  = recv1[k];
+	  recv[k].second = recv2[k];
+	}
+
+	//
+	// The lower half sorts and loop again
+	//
+	sortCombineWght(data, recv, work);
 	data = work;
       }
     }

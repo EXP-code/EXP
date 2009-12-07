@@ -47,6 +47,9 @@ typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;
 				// multimap permits multiple identical pairs
 typedef multimap<key_type, key_type> key_key;
 
+				// For load balancing and partitioning
+typedef pair<key_type, double> key_wght;
+
 
 /*
   Now, deal with the transition to ANSI undordered_maps from pre-ANSI
