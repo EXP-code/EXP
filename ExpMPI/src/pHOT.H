@@ -42,7 +42,7 @@ protected:
   void sortCombine(vector<key_type>& one, vector<key_type>& two, 
 		   vector<key_type>& comb);
 
-  void partitionKeysWght(vector<key_type>& keys, vector<double>& wght,
+  void partitionKeysWght(vector<key_wght>& keys,
 		     vector<key_type>& kbeg, vector<key_type>& kfin);
   void parallelMergeWght(vector<key_wght>& in, vector<key_wght>& out);
   void sortCombineWght(vector<key_wght>& one, vector<key_wght>& two, 

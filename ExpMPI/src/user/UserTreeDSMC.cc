@@ -48,6 +48,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Ncell      = 64;
   cnum       = 0;
   madj       = 512;		// No tree pruning by default
+  wght       = 1;		// Cell time partitioning by default
   epsm       = -1.0;
   diamfac    = 1.0;
   boxsize    = 1.0;
@@ -225,7 +226,7 @@ void UserTreeDSMC::userinfo()
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
-       << ", ncell=" << ncell << ", Ncell=" << Ncell
+       << ", ncell=" << ncell << ", Ncell=" << Ncell << ", wght=" << wght
        << ", boxratio=" << boxratio << ", jitter=" << jitter 
        << ", compname=" << comp_name;
   if (msteps>=0) 
@@ -266,6 +267,7 @@ void UserTreeDSMC::initialize()
   if (get_value("Munit", val))		Munit = atof(val.c_str());
   if (get_value("cnum", val))		cnum = atoi(val.c_str());
   if (get_value("madj", val))		madj = atoi(val.c_str());
+  if (get_value("wght", val))		wght = atoi(val.c_str());
   if (get_value("epsm", val))		epsm = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize = atof(val.c_str());
@@ -321,6 +323,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
+    c0->Tree()->setWeights(wght ? true : false);
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();

@@ -800,9 +800,10 @@ void * Collide::collide_thread(void * arg)
     GPTLstop("Collide::diag");
 #endif
 
-    // Record effort per cell per particle in microseconds
+    // Record effort per particle in microseconds
     //
-    c->effort = cellTime[id].stop()()/number;
+    double effort = cellTime[id].stop()()/number;
+    for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort = effort;
 
   } // Loop over cells
 

@@ -27,6 +27,12 @@ double pHOT::offst[] = {1.0, 1.0, 1.0};
 double pHOT::jittr[] = {0.0, 0.0, 0.0};
 unsigned pHOT::neg_half = 0;
 
+static bool wghtKEY(const pair<unsigned long long, double>& a, 
+		    const pair<unsigned long long, double>& b)
+{ 
+  return a.first < b.first; 
+}
+
 static bool wghtDBL(const pair<unsigned long long, double>& a, 
 		    const pair<unsigned long long, double>& b)
 { 
@@ -1424,23 +1430,24 @@ void pHOT::Repartition(unsigned mlevel)
 
   oob.clear();
   vector<key_type> keys;
-  vector<double>   weights;
+  vector<key_wght> kewt;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
-
-    if (use_weight) 
-      weights.push_back(frontier.find(it->first)->second->effort);
 
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
       oob.insert(it->first);
     } else {
-      keys.push_back(it->second.key);
+      if (use_weight)
+	kewt.push_back(key_wght(it->second.key, it->second.effort));
+      else
+	keys.push_back(it->second.key);
     }
   }
+  
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": part #=" << cc->Particles().size()
-       << "  key size=" << keys.size()
+       << "  key size=" << (use_wght ? kewt.size() : keys.size())
        << "  oob size=" << oob.size() << endl;
 #endif
 
@@ -1455,7 +1462,7 @@ void pHOT::Repartition(unsigned mlevel)
   spreadOOB();
 
   if (use_weight)
-    partitionKeysWght(keys, weights, kbeg, kfin);
+    partitionKeysWght(kewt, kbeg, kfin);
   else
     partitionKeys(keys, kbeg, kfin);
 
@@ -3318,7 +3325,7 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 #endif
 }
 
-void pHOT::partitionKeysWght(vector<key_type>& keys,  vector<double>& wght,
+void pHOT::partitionKeysWght(vector<key_wght>& keys,
 			     vector<key_type>& kbeg, vector<key_type>& kfin)
 {
 #ifdef USE_GPTL
@@ -3326,7 +3333,7 @@ void pHOT::partitionKeysWght(vector<key_type>& keys,  vector<double>& wght,
 #endif
 
 				// Sort the keys
-  sort(keys.begin(), keys.end());
+  sort(keys.begin(), keys.end(), wghtKEY);
 
 				// Even number per processor
   unsigned equal = cc->nbodies_tot/numprocs;
@@ -3352,10 +3359,8 @@ void pHOT::partitionKeysWght(vector<key_type>& keys,  vector<double>& wght,
   
   vector<key_wght> keylist1, keylist;
   if (keys.size()) {
-    for (unsigned i=0; i<nsamp; i++) {
-      unsigned j = srate*(2*i+1)/2;
-      keylist1.push_back(key_wght(keys[j], wght[j]));
-    }
+    for (unsigned i=0; i<nsamp; i++)
+      keylist1.push_back(keys[srate*(2*i+1)/2]);
   }
 				// Tree aggregation (merge sort) of the
 				// entire key list
@@ -3365,15 +3370,15 @@ void pHOT::partitionKeysWght(vector<key_type>& keys,  vector<double>& wght,
   parallelMergeWght(keylist1, keylist);
   MPI_Barrier(MPI_COMM_WORLD);
 
+  if (myid==0) {
+
 				// Accumulate weight list
-  for (unsigned i=1; i<keylist.size(); i++) 
-    keylist[i].second += keylist[i-1].second;
+    for (unsigned i=1; i<keylist.size(); i++) 
+      keylist[i].second += keylist[i-1].second;
 
 				// Normalize weight list
-  double ktop = keylist.back().second;
-  for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
-
-  if (myid==0) {
+    double ktop = keylist.back().second;
+    for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
 
     vector<double> frate(numprocs);
 
@@ -3473,7 +3478,7 @@ void pHOT::sortCombine(vector<key_type>& one, vector<key_type>& two,
 }
 
 void pHOT::sortCombineWght(vector<key_wght>& one, vector<key_wght>& two,
-		       vector<key_wght>& comb)
+			   vector<key_wght>& comb)
 {
   int i=0, j=0;
   int n = one.size()-1;
@@ -3481,7 +3486,7 @@ void pHOT::sortCombineWght(vector<key_wght>& one, vector<key_wght>& two,
   
   comb = vector<key_wght>(one.size()+two.size());
 
-  for(int k=0; k<n+m+2; k++) {
+  for (int k=0; k<n+m+2; k++) {
     if (i > n)
       comb[k] = two[j++];
     else if(j > m)
@@ -3622,7 +3627,8 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
 	
       MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
 	       MPI_COMM_WORLD);
-      MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 12, 
+
+      MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
 	       MPI_COMM_WORLD);
     }
     return;
@@ -3642,7 +3648,7 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
       MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-      MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 12, 
+      MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 13, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
       vector<key_wght> recv(n);
@@ -3677,13 +3683,13 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
 	vector<double>   two(n);
 
 	for (unsigned k=0; k<n; k++) {
-	  one[k] = initl[k].first;
-	  two[k] = initl[k].second;
+	  one[k] = data[k].first;
+	  two[k] = data[k].second;
 	}
 	
 	MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
 		 MPI_COMM_WORLD);
-	MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 12, 
+	MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
 		 MPI_COMM_WORLD);
       }
       return;
@@ -3698,7 +3704,7 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
 	MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
 		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 12, 
+	MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 13, 
 		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
 	vector<key_wght> recv(n);

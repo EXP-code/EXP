@@ -52,7 +52,6 @@ public:
   unsigned level;
   unsigned count;
   unsigned maxplev;
-  double   effort;
 
   /**
      @param 0 mass

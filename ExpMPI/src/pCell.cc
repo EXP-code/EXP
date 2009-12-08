@@ -42,7 +42,6 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
   mykey   = 1;
   level   = 0;
   maxplev = 0;
-  effort  = 1.0e-12;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
 				// Initialize state
@@ -66,8 +65,6 @@ pCell::pCell(pCell* mom, unsigned id) :
   level   = parent->level + 1;
 				// Maximum particle level
   maxplev = 0;
-				// Effort for this cell
-  effort  = 1.0e-12;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
 				// Initialize state
@@ -314,7 +311,6 @@ void pCell::RemoveAll()
 
   maxplev = 0;
   count   = 0;
-  effort  = 1.0e-12;
 }
 
 pCell* pCell::findNode(const key_type& key)

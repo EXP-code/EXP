@@ -417,7 +417,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       for (inter=interaction.begin(); inter != interaction.end(); inter++) {
 	for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 	  ostringstream sout;
-	  sout << (*inter)->c->name << "-->" << (*other)->name;
+	  sout << (*inter)->c->name << " <> " << (*other)->name;
 	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
 	}
       }
@@ -603,7 +603,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
 	     << setw(20) << "Position: "
 	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
-	     << setw(20) << "*** " << setw(20) << left << "fix pos" << ": " 
+	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
 	     << right
 	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
 	     << setw(20) << "Ang mom: "
@@ -614,7 +614,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl;
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
+	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
 	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl;
 
@@ -623,14 +623,14 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 	vector< pair<string, Timer> >::iterator itmr = timer_sntr.begin();
 	for (; itmr != timer_sntr.end(); itmr++) {
-	  cout << setw(20) << "*** " << setw(20) << left << itmr->first 
+	  cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 	       << ": " << right
 	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
 	       << endl;
 	}
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": "
+	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
 	     << right << setw(18) 
 	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl;
 
@@ -638,13 +638,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(20) << left << "threaded" << ": " 
+	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	     << right << setw(18) 
 	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
 
 	
 	for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
-	  cout << setw(20) << "*** " << setw(20) << left << itmr->first 
+	  cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 	       << ": " << right
 	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
 	       << endl;

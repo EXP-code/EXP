@@ -38,13 +38,14 @@ class CollideLTE;
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
     @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
+    @param wght sets the cell time partitioning (default: 1 = on)
 */
 class UserTreeDSMC : public ExternalForce
 {
 private:
   
   int ncell, Ncell;
-  int cnum;
+  int cnum, wght;
   int nsteps, msteps;
   unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, tspow;

@@ -49,6 +49,9 @@ public:
   //! Internal size scale (<0 means ignore)
   float scale;
 
+  //! Scale factor for partitioning work
+  float effort;
+
   //! Index for ordering
   unsigned long indx;
 
