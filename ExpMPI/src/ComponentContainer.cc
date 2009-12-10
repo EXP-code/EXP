@@ -335,9 +335,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   if (timing) timer_wait.start();
 #ifdef USE_GPTL
+#ifdef GPTL_WAIT
   GPTLstart("ComponentContainer::waiting_acceleration");
   MPI_Barrier(MPI_COMM_WORLD);
   GPTLstop ("ComponentContainer::waiting_acceleration");
+#endif
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
@@ -391,9 +393,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop ("ComponentContainer::acceleration");
+#ifdef GPTL_WAIT
   GPTLstart("ComponentContainer::waiting_interactions");
   MPI_Barrier(MPI_COMM_WORLD);
   GPTLstop ("ComponentContainer::waiting_interactions");
+#endif
   GPTLstart("ComponentContainer::interactions");
 #endif
 
@@ -459,12 +463,14 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
       GPTLstop (sout.str().c_str());
+#ifdef GPTL_WAIT
       sout.str("");
       sout <<"ComponentContainer::interation wait<"
 	   << (*inter)->c->name << "-->" << (*other)->name << ">";
       GPTLstart(sout.str().c_str());
       MPI_Barrier(MPI_COMM_WORLD);
       GPTLstop (sout.str().c_str());
+#endif
 #endif      
     }
   }
@@ -473,9 +479,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
 #ifdef USE_GPTL
   GPTLstop ("ComponentContainer::interactions");
+#ifdef GPTL_WAIT
   GPTLstart("ComponentContainer::waiting_external");
   MPI_Barrier(MPI_COMM_WORLD);
   GPTLstop ("ComponentContainer::waiting_external");
+#endif
   GPTLstart("ComponentContainer::external");
 #endif
 
@@ -519,9 +527,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop ("ComponentContainer::external");
+#ifdef GPTL_WAIT
   GPTLstart("ComponentContainer::waiting_centering");
   MPI_Barrier(MPI_COMM_WORLD);
   GPTLstop ("ComponentContainer::waiting_centering");
+#endif
   GPTLstart("ComponentContainer::centering");
 #endif
 
@@ -589,9 +599,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 #ifdef USE_GPTL
   GPTLstop ("ComponentContainer::centering");
+#ifdef GPTL_WAIT
   GPTLstart("ComponentContainer::waiting_timing");
   MPI_Barrier(MPI_COMM_WORLD);
   GPTLstop ("ComponentContainer::waiting_timing");
+#endif
   GPTLstart("ComponentContainer::timing");
 #endif
 
