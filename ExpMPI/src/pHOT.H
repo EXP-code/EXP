@@ -36,17 +36,11 @@ protected:
   void sendCell(key_type key, int to, unsigned num);
   void recvCell(int from, unsigned num);
 
-  void partitionKeys(vector<key_type>& keys, vector<key_type>& kbeg, 
-		     vector<key_type>& kfin);
-  void parallelMerge(vector<key_type>& in, vector<key_type>& out);
-  void sortCombine(vector<key_type>& one, vector<key_type>& two, 
-		   vector<key_type>& comb);
-
-  void partitionKeysWght(vector<key_wght>& keys,
+  void partitionKeys(vector<key_wght>& keys,
 		     vector<key_type>& kbeg, vector<key_type>& kfin);
-  void parallelMergeWght(vector<key_wght>& in, vector<key_wght>& out);
-  void sortCombineWght(vector<key_wght>& one, vector<key_wght>& two, 
-		       vector<key_wght>& comb);
+  void parallelMerge(vector<key_wght>& in, vector<key_wght>& out);
+  void sortCombine(vector<key_wght>& one, vector<key_wght>& two, 
+		   vector<key_wght>& comb);
 
   unsigned find_proc(vector<key_type>& keys, key_type key);
   void spreadOOB();

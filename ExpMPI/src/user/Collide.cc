@@ -503,7 +503,7 @@ void * Collide::collide_thread(void * arg)
     double diamCBA = sqrt(Fn*mass)*diam;
 
 #ifdef USE_GPTL
-    GPTLstop("Collide::mfp");
+    GPTLstop ("Collide::mfp");
 #endif
 
 #ifdef USE_GPTL
@@ -582,7 +582,7 @@ void * Collide::collide_thread(void * arg)
 
 
 #ifdef USE_GPTL
-    GPTLstop("Collide::mfp_diag");
+    GPTLstop ("Collide::mfp_diag");
     GPTLstart("Collide::cell_init");
 #endif
 
@@ -608,7 +608,7 @@ void * Collide::collide_thread(void * arg)
 #endif
       EPSM(tree, c, id);
 #ifdef USE_GPTL
-      GPTLstop("Collide::EPSM");
+      GPTLstop ("Collide::EPSM");
 #endif
 
     } else {
@@ -803,7 +803,7 @@ void * Collide::collide_thread(void * arg)
     // Record effort per particle in microseconds
     //
     double effort = cellTime[id].stop()()/number;
-    for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort = effort;
+    for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort += effort;
 
   } // Loop over cells
 

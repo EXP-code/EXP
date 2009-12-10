@@ -319,6 +319,15 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
   //
+  // Get timing for entire step so far to load balancing the partition
+  //
+
+  double pot_time = comp.timeSoFar()/max<unsigned>(1, c0->Number());
+  PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
+  for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+
+
+  //
   // Make the cells
   //
 
@@ -402,7 +411,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("UserTreeDSMC::pHOT_1");
     GPTLstart("UserTreeDSMC::waiting");
     MPI_Barrier(MPI_COMM_WORLD);
-    GPTLstop("UserTreeDSMC::waiting");
+    GPTLstop ("UserTreeDSMC::waiting");
     GPTLstart("UserTreeDSMC::repart");
 #endif
 
@@ -412,17 +421,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     tree1Time.start();
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::repart");
+    GPTLstop ("UserTreeDSMC::repart");
     GPTLstart("UserTreeDSMC::makeTree");
 #endif
     c0->Tree()->makeTree();
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::makeTree");
+    GPTLstop ("UserTreeDSMC::makeTree");
     GPTLstart("UserTreeDSMC::makeCLL");
 #endif
     c0->Tree()->makeCellLevelList();
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::makeCLL");
+    GPTLstop ("UserTreeDSMC::makeCLL");
     GPTLstart("UserTreeDSMC::pcheck");
 #endif
 #ifdef DEBUG
@@ -456,7 +465,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     cout << "About to adjust level list [" << clevel << "]" << endl;
 #endif
 #ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::adjustTree");
+    GPTLstop ("UserTreeDSMC::adjustTree");
     GPTLstart("UserTreeDSMC::adjustCLL");
 #endif
     c0->Tree()->adjustCellLevelList(clevel);

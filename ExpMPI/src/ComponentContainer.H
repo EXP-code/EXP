@@ -69,6 +69,9 @@ public:
   vector< pair<string, Timer> > timer_sntr, timer_sext;
   //@}
 
+  //! Running clock on the current potential/force evaluation
+  Timer pot_so_far;
+
   //! For timers in PotAcc to hook the type of acceleration
   enum State {NONE, SELF, INTERACTION, EXTERNAL} state;
 
@@ -143,6 +146,8 @@ public:
   //! Compute duty for each processor and initiate load balancing
   void load_balance();
 
+  //! Time in potential/force computation so far
+  double timeSoFar() { return 1.0e-6*pot_so_far.getTime().getRealTime(); }
 };
 
 #endif

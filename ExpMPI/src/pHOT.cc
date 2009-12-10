@@ -125,6 +125,9 @@ key_type pHOT::getKey(double *p)
       for (int l=0; l<3; l++) cout << setw(18) << p[l];
       cout << endl;
 #endif
+#ifdef USE_GPTL
+      GPTLstop("pHOT::getKey");
+#endif
       return 0;
     }
   }
@@ -378,7 +381,7 @@ void pHOT::makeTree()
 
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::makeTree::adjustBoundaries");
+  GPTLstop ("pHOT::makeTree::adjustBoundaries");
   GPTLstart("pHOT::makeTree::getFrontier");
 #endif
 
@@ -1399,7 +1402,7 @@ void pHOT::Repartition(unsigned mlevel)
   GPTLstart("pHOT::Repartition");
   GPTLstart("pHOT::Repartition::entrance_waiting");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("pHOT::Repartition::entrance_waiting");
+  GPTLstop ("pHOT::Repartition::entrance_waiting");
 #endif
 
   PartMapItr it;
@@ -1412,6 +1415,9 @@ void pHOT::Repartition(unsigned mlevel)
   if (cc->nbodies_tot==0) {
     if (myid==0) 
       cout << "pHOT::Repartition with ZERO bodies, continuing" << endl;
+#ifdef USE_GPTL
+    GPTLstop("pHOT::Repartition");
+#endif
     return;
   }
 
@@ -1429,44 +1435,47 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 
   oob.clear();
-  vector<key_type> keys;
-  vector<key_wght> kewt;
+  vector<key_wght> keys;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
 
     it->second.key = getKey(&(it->second.pos[0]));
     if (it->second.key == 0) {
       oob.insert(it->first);
     } else {
-      if (use_weight)
-	kewt.push_back(key_wght(it->second.key, it->second.effort));
-      else
-	keys.push_back(it->second.key);
+      if (use_weight) {
+	keys.push_back(key_wght(it->second.key, it->second.effort));
+      } else {
+	keys.push_back(key_wght(it->second.key, 1.0));
+      }
     }
   }
-  
+
 #ifdef DEBUG
   cout << "Process " << myid 
        << ": part #=" << cc->Particles().size()
-       << "  key size=" << (use_wght ? kewt.size() : keys.size())
+       << "  key size=" << keys.size()
        << "  oob size=" << oob.size() << endl;
 #endif
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::Repartition::compute_keys");
+  GPTLstop ("pHOT::Repartition::compute_keys");
   GPTLstart("pHOT::Repartition::compute_keys_waiting");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("pHOT::Repartition::compute_keys_waiting");
+  GPTLstop ("pHOT::Repartition::compute_keys_waiting");
+  GPTLstart("pHOT::Repartition::spreadOOB");
 #endif
 
-  // if (mlevel == 0) spreadOOB();
   spreadOOB();
 
-  if (use_weight)
-    partitionKeysWght(kewt, kbeg, kfin);
-  else
-    partitionKeys(keys, kbeg, kfin);
+#ifdef USE_GPTL
+  GPTLstop ("pHOT::Repartition::spreadOOB");
+  GPTLstart("pHOT::Repartition::partitionKeys");
+#endif
+
+  partitionKeys(keys, kbeg, kfin);
 
 #ifdef USE_GPTL
+  GPTLstop ("pHOT::Repartition::partitionKeys");
   GPTLstart("pHOT::bodyList");
 #endif
 
@@ -1504,7 +1513,7 @@ void pHOT::Repartition(unsigned mlevel)
   MPI_Reduce(&Tcnt, &sum, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::bodyList");
+  GPTLstop ("pHOT::bodyList");
   GPTLstart("pHOT::scatter");
 #endif
 
@@ -1548,7 +1557,7 @@ void pHOT::Repartition(unsigned mlevel)
 				// END DEBUG OUTPUT
       
 #ifdef USE_GPTL
-  GPTLstop("pHOT::scatter");
+  GPTLstop ("pHOT::scatter");
   GPTLstart("pHOT::exchange");
 #endif
 
@@ -1722,7 +1731,6 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 }
 
-
 void pHOT::makeCellLevelList()
 {
 				// Make new lists
@@ -1769,12 +1777,13 @@ void pHOT::makeCellLevelList()
 
 void pHOT::adjustCellLevelList(unsigned mlevel)
 {
+  if (multistep==0) return;	// No need to bother if multistepping is off
+				// Otherwise . . . 
+
 #ifdef USE_GPTL
   GPTLstart("pHOT::adjustCellLevelList");
 #endif
 
-  if (multistep==0) return;	// No need to bother if multistepping is off
-				// Otherwise . . . 
   unsigned ng=0, nt=0, ns=0, m, cnt;
   for (unsigned M=mlevel; M<=multistep; M++) {
     nt += clevels[M].size();
@@ -1887,7 +1896,7 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_keybods.stop();
   
 #ifdef USE_GPTL
-  GPTLstop("pHOT::keyBods");
+  GPTLstop ("pHOT::keyBods");
   GPTLstart("pHOT::keyCells");
 #endif
 
@@ -2031,7 +2040,7 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_cupdate.start();
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::keyCells");
+  GPTLstop ("pHOT::keyCells");
   GPTLstart("pHOT::adjExchange");
 #endif
 
@@ -2136,7 +2145,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::adjExchange");
+  GPTLstop ("pHOT::adjExchange");
   GPTLstart("pHOT::overlap");
 #endif
 
@@ -2304,7 +2313,7 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_overlap.stop();
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::overlap");
+  GPTLstop ("pHOT::overlap");
   GPTLstart("pHOT::cUpdate");
 #endif
 
@@ -2829,7 +2838,6 @@ void pHOT::checkOOB(vector<unsigned>& sendlist)
 void pHOT::spreadOOB()
 {
 #ifdef USE_GPTL
-  GPTLstart("pHOT::spreadOOB");
   GPTLstart("pHOT::spreadOOB::in_reduce");
 #endif
 				// 3% tolerance
@@ -2841,7 +2849,7 @@ void pHOT::spreadOOB()
   MPI_Allgather(&list1, 1, MPI_LONG, &list0[0], 1, MPI_LONG, MPI_COMM_WORLD);
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::spreadOOB::in_reduce");
+  GPTLstop ("pHOT::spreadOOB::in_reduce");
   GPTLstart("pHOT::spreadOOB::spread_comp");
 #endif
 
@@ -3019,7 +3027,7 @@ void pHOT::spreadOOB()
     }
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::spreadOOB::exchange_particles");
+  GPTLstop ("pHOT::spreadOOB::exchange_particles");
   GPTLstart("pHOT::spreadOOB::add_to_particles");
 #endif
 
@@ -3043,13 +3051,11 @@ void pHOT::spreadOOB()
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::spreadOOB::add_to_particles");
-  GPTLstop("pHOT::spreadOOB");
 #endif
 
 }
 
-
-void pHOT::partitionKeys(vector<key_type>& keys, 
+void pHOT::partitionKeys(vector<key_wght>& keys,
 			 vector<key_type>& kbeg, vector<key_type>& kfin)
 {
 #ifdef USE_GPTL
@@ -3057,7 +3063,7 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 #endif
 
 				// Sort the keys
-  sort(keys.begin(), keys.end());
+  sort(keys.begin(), keys.end(), wghtKEY);
 
 				// Even number per processor
   unsigned equal = cc->nbodies_tot/numprocs;
@@ -3133,7 +3139,7 @@ void pHOT::partitionKeys(vector<key_type>& keys,
     // END DEBUG
   }
   
-  vector<key_type> keylist1, keylist;
+  vector<key_wght> keylist1, keylist;
   if (keys.size()) {
     for (unsigned i=0; i<nsamp; i++)
       keylist1.push_back(keys[srate*(2*i+1)/2]);
@@ -3172,11 +3178,11 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 	out << left << setw(5) << n << setw(10) << keys.size();
 	if (keys.size()>0) {
 	  out << hex
-	      << setw(15) << keys[0]
-	      << setw(15) << keys[keys.size()/4]
-	      << setw(15) << keys[keys.size()/2]
-	      << setw(15) << keys[keys.size()*3/4]
-	      << setw(15) << keys[keys.size()-1]
+	      << setw(15) << keys[0].first
+	      << setw(15) << keys[keys.size()/4].first
+	      << setw(15) << keys[keys.size()/2].first
+	      << setw(15) << keys[keys.size()*3/4].first
+	      << setw(15) << keys[keys.size()-1].first
 	      << dec << endl;
 	}
       }
@@ -3249,6 +3255,14 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 
   if (myid==0) {
 
+				// Accumulate weight list
+    for (unsigned i=1; i<keylist.size(); i++) 
+      keylist[i].second += keylist[i-1].second;
+
+				// Normalize weight list
+    double ktop = keylist.back().second;
+    for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
+
     vector<double> frate(numprocs);
 
 				// Use an even rate
@@ -3267,8 +3281,9 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 				//
     for (unsigned i=0; i<numprocs-1; i++) {
       if (keylist.size()) {
-	double kindex  = frate[i]*keylist.size()/frate[numprocs-1];
-	kfin[i] = keylist[static_cast<unsigned>(floor(kindex))];
+	key_wght k(0, frate[i]/frate[numprocs-1]);
+	kfin[i] = 
+	  lower_bound(keylist.begin(), keylist.end(), k, wghtDBL)->first;
       }
       else
 	kfin[i] = key_min;
@@ -3325,102 +3340,6 @@ void pHOT::partitionKeys(vector<key_type>& keys,
 #endif
 }
 
-void pHOT::partitionKeysWght(vector<key_wght>& keys,
-			     vector<key_type>& kbeg, vector<key_type>& kfin)
-{
-#ifdef USE_GPTL
-  GPTLstart("pHOT::partitionKeysWght");
-#endif
-
-				// Sort the keys
-  sort(keys.begin(), keys.end(), wghtKEY);
-
-				// Even number per processor
-  unsigned equal = cc->nbodies_tot/numprocs;
-
-				// Sample keys at desired rate
-				// e.g. every srate^th key is sampled
-  unsigned srate = static_cast<unsigned>(floor(sqrt(equal)+0.5));
-
-				// Number of samples
-  unsigned nsamp = keys.size()/srate;
-				
-  if (nsamp > keys.size())	// Too many for particle count
-    nsamp = keys.size();
-
-  if (nsamp)			// Consistent sampling rate
-    srate = keys.size()/nsamp;
-
-  // Require: srate*(2*nsamp-1)/2 < keys.size()
-  //
-  if (nsamp && keys.size()) {
-    while (srate*(2*nsamp-1)/2 >= keys.size()) nsamp--;
-  }
-  
-  vector<key_wght> keylist1, keylist;
-  if (keys.size()) {
-    for (unsigned i=0; i<nsamp; i++)
-      keylist1.push_back(keys[srate*(2*i+1)/2]);
-  }
-				// Tree aggregation (merge sort) of the
-				// entire key list
-
-				// <keylist1> is (and must be) sorted to start
-  MPI_Barrier(MPI_COMM_WORLD);
-  parallelMergeWght(keylist1, keylist);
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  if (myid==0) {
-
-				// Accumulate weight list
-    for (unsigned i=1; i<keylist.size(); i++) 
-      keylist[i].second += keylist[i-1].second;
-
-				// Normalize weight list
-    double ktop = keylist.back().second;
-    for (unsigned i=0; i<keylist.size(); i++)  keylist[i].second /= ktop;
-
-    vector<double> frate(numprocs);
-
-				// Use an even rate
-    frate[0] = 1.0;
-    for (unsigned i=1; i<numprocs; i++) 
-      frate[i] = frate[i-1] + 1.0;
-    //                        ^
-    //                        |
-    //                        |
-    // Replace with the computation rate for the node <i>
-    // for load balancing
-    //
-    
-
-				// Compute the key boundaries in the partition
-				//
-    for (unsigned i=0; i<numprocs-1; i++) {
-      if (keylist.size()) {
-	key_wght k(0, frate[i]/frate[numprocs-1]);
-	kfin[i] = 
-	  lower_bound(keylist.begin(), keylist.end(), k, wghtDBL)->first;
-      }
-      else
-	kfin[i] = key_min;
-    }
-
-    kfin[numprocs-1] = key_max;
-
-    kbeg[0] = key_min;
-    for (unsigned i=1; i<numprocs; i++)
-      kbeg[i] = kfin[i-1];
-  }
-
-  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-
-#ifdef USE_GPTL
-  GPTLstop("pHOT::partitionKeysWght");
-#endif
-}
-
 
 //
 // Binary search
@@ -3454,31 +3373,8 @@ unsigned pHOT::find_proc(vector<key_type>& keys, key_type key)
 // This routine combines two sorted vectors into one
 // larger sorted vector
 //
-void pHOT::sortCombine(vector<key_type>& one, vector<key_type>& two,
-		       vector<key_type>& comb)
-{
-  int i=0, j=0;
-  int n = one.size()-1;
-  int m = two.size()-1;
-  
-  comb = vector<key_type>(one.size()+two.size());
-
-  for(int k=0; k<n+m+2; k++) {
-    if (i > n)
-      comb[k] = two[j++];
-    else if(j > m)
-      comb[k] = one[i++];
-    else {
-      if(one[i] < two[j])
-	comb[k] = one[i++];
-      else
-	comb[k] = two[j++];
-    }
-  }
-}
-
-void pHOT::sortCombineWght(vector<key_wght>& one, vector<key_wght>& two,
-			   vector<key_wght>& comb)
+void pHOT::sortCombine(vector<key_wght>& one, vector<key_wght>& two,
+		       vector<key_wght>& comb)
 {
   int i=0, j=0;
   int n = one.size()-1;
@@ -3504,97 +3400,7 @@ void pHOT::sortCombineWght(vector<key_wght>& one, vector<key_wght>& two,
 // This routine combines the initial input vector on
 // each node (sorted to start) by a binary merge algorithm
 //
-void pHOT::parallelMerge(vector<key_type>& initl, vector<key_type>& final)
-{
-  MPI_Status status;
-  vector<key_type> work;
-  unsigned n;
-
-  // Find the largest power of two smaller than
-  // the number of processors
-  // 
-  int M2 = 1;
-  while (2*M2 < numprocs) M2 = M2*2;
-
-  // Combine the particles of the high nodes
-  // with those of the lower nodes so that
-  // all particles are within M2 nodes
-  //
-  // NB: if M2 == numprocs, no particles
-  // will be sent or received
-  //
-  if (myid >= M2) {
-    n = initl.size();
-    MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
-    if (n) {
-      MPI_Send(&initl[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
-	       MPI_COMM_WORLD);
-    }
-    return;
-  }
-
-  vector<key_type> data = initl;
-
-  //
-  // Retrieve the excess particles
-  //
-  if (myid + M2 < numprocs) {
-    MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
-    if (n) {
-      vector<key_type> recv(n);
-      MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
-	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-				// data=data+new_data
-      sortCombine(initl, recv, data);
-    }
-  }
-    
-  //
-  // Now do the iterative binary merge
-  //
-  while (M2 > 1) {
-
-    M2 = M2/2;
-
-    // When M2 = 1, we are on the the last iteration.
-    // The final node left will be the root with the entire sorted array.
-
-    //
-    // The upper half of the nodes send to the lower half and is done
-    //
-    if (myid >= M2) {
-      n = data.size();
-      MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
-      if (n) {
-	MPI_Send(&data[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
-		 MPI_COMM_WORLD);
-      }
-      return;
-    } else {
-      MPI_Recv(&n, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 11, MPI_COMM_WORLD, 
-	       &status);
-      if (n) {
-	vector<key_type> recv(n);
-	MPI_Recv(&recv[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
-		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	//
-	// The lower half sorts and loop again
-	//
-	sortCombine(data, recv, work);
-	data = work;
-      }
-    }
-  }
-
-  //
-  // We are done, return the result
-  //
-  final = data;
-
-  return;
-}
-
-void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
+void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 {
   MPI_Status status;
   vector<key_wght> work;
@@ -3658,7 +3464,7 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
       }
 				// data=data+new_data
 
-      sortCombineWght(initl, recv, data);
+      sortCombine(initl, recv, data);
     }
   }
     
@@ -3716,7 +3522,7 @@ void pHOT::parallelMergeWght(vector<key_wght>& initl, vector<key_wght>& final)
 	//
 	// The lower half sorts and loop again
 	//
-	sortCombineWght(data, recv, work);
+	sortCombine(data, recv, work);
 	data = work;
       }
     }

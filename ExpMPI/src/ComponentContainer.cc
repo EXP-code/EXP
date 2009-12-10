@@ -43,6 +43,7 @@ ComponentContainer::ComponentContainer(void)
   timer_fixp.	Microseconds();
   timer_extrn.	Microseconds();
   timer_wait.	Microseconds();
+  pot_so_far.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -319,6 +320,11 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     levcnt[mlevel]++;
   }
 
+  // Potential/force clock
+  //
+  pot_so_far.reset();
+  pot_so_far.start();
+
   //
   // Compute accel for each component
   //
@@ -331,7 +337,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstart("ComponentContainer::waiting_acceleration");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("ComponentContainer::waiting_acceleration");
+  GPTLstop ("ComponentContainer::waiting_acceleration");
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
@@ -384,10 +390,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   }
 
 #ifdef USE_GPTL
-  GPTLstop("ComponentContainer::acceleration");
+  GPTLstop ("ComponentContainer::acceleration");
   GPTLstart("ComponentContainer::waiting_interactions");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("ComponentContainer::waiting_interactions");
+  GPTLstop ("ComponentContainer::waiting_interactions");
   GPTLstart("ComponentContainer::interactions");
 #endif
 
@@ -417,7 +423,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       for (inter=interaction.begin(); inter != interaction.end(); inter++) {
 	for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
 	  ostringstream sout;
-	  sout << (*inter)->c->name << " <> " << (*other)->name;
+	  sout << (*inter)->c->name << " <=> " << (*other)->name;
 	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
 	}
       }
@@ -452,13 +458,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       }
 
 #ifdef USE_GPTL
-      GPTLstop(sout.str().c_str());
+      GPTLstop (sout.str().c_str());
       sout.str("");
       sout <<"ComponentContainer::interation wait<"
 	   << (*inter)->c->name << "-->" << (*other)->name << ">";
       GPTLstart(sout.str().c_str());
       MPI_Barrier(MPI_COMM_WORLD);
-      GPTLstop(sout.str().c_str());
+      GPTLstop (sout.str().c_str());
 #endif      
     }
   }
@@ -466,10 +472,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   if (timing) timer_inter.stop();
       
 #ifdef USE_GPTL
-  GPTLstop("ComponentContainer::interactions");
+  GPTLstop ("ComponentContainer::interactions");
   GPTLstart("ComponentContainer::waiting_external");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("ComponentContainer::waiting_external");
+  GPTLstop ("ComponentContainer::waiting_external");
   GPTLstart("ComponentContainer::external");
 #endif
 
@@ -512,10 +518,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   }
 
 #ifdef USE_GPTL
-  GPTLstop("ComponentContainer::external");
+  GPTLstop ("ComponentContainer::external");
   GPTLstart("ComponentContainer::waiting_centering");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("ComponentContainer::waiting_centering");
+  GPTLstop ("ComponentContainer::waiting_centering");
   GPTLstart("ComponentContainer::centering");
 #endif
 
@@ -582,15 +588,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   }
 
 #ifdef USE_GPTL
-  GPTLstop("ComponentContainer::centering");
+  GPTLstop ("ComponentContainer::centering");
   GPTLstart("ComponentContainer::waiting_timing");
   MPI_Barrier(MPI_COMM_WORLD);
-  GPTLstop("ComponentContainer::waiting_timing");
+  GPTLstop ("ComponentContainer::waiting_timing");
   GPTLstart("ComponentContainer::timing");
 #endif
 
   if (timing && timer_clock.getTime().getRealTime()>tinterval) {
     if (myid==0) {
+      vector< pair<string, Timer> >::iterator itmr;
       ostringstream sout;
       sout << "--- Timer info in comp, mlevel=" << mlevel;
       cout << endl
@@ -603,9 +610,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
 	     << setw(20) << "Position: "
 	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
+	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	     << setfill(' ') << right
 	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
-	     << right
 	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
+	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	     << setfill(' ') << right
 	     << setw(20) << "Ang mom: "
 	     << setw(18) << 1.0e-6*timer_angmom.getTime().getRealTime() << endl
 	     << setw(20) << "Zero: "
@@ -614,42 +624,65 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl;
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right
+	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl;
+	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl
+	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
 
 	cout << setw(20) << "Interaction: "
 	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl;
 
-	vector< pair<string, Timer> >::iterator itmr = timer_sntr.begin();
-	for (; itmr != timer_sntr.end(); itmr++) {
-	  cout << setw(20) << "*** " << setw(30) << left << itmr->first 
-	       << ": " << right
-	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
-	       << endl;
+	if (timer_sntr.size()) {
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
+	  for (itmr=timer_sntr.begin(); itmr != timer_sntr.end(); itmr++) {
+	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
+		 << ": " << right
+		 << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+		 << endl;
+	  }
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
 	}
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
-	     << right << setw(18) 
-	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl;
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right
+	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
+	       << right << setw(18) 
+	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl
+	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
 
 	cout << setw(20) << "External: "
 	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
 
 	if (thread_timing)
-	  cout << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
-	     << right << setw(18) 
-	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl;
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right
+	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
+	       << right << setw(18) 
+	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl
+	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
 
 	
-	for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
-	  cout << setw(20) << "*** " << setw(30) << left << itmr->first 
-	       << ": " << right
-	       << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
-	       << endl;
+	if (timer_sext.size()) {
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
+	  for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
+	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
+		 << ": " << right
+		 << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+		 << endl;
+	  }
+	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
+	       << setfill(' ') << right;
 	}
-
+	  
 	cout << setw(20) << "Expand: "
 	     << setw(18) << 1.0e-6*timer_expand.getTime().getRealTime() << endl;
 
@@ -706,6 +739,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
 #endif
+
+  pot_so_far.stop();
 
   gottapot = true;
 }
