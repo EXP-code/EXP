@@ -8,8 +8,86 @@
 #include <getopt.h>		// For long options
 
 #include <localmpi.h>
+#include <ProgramParam.H>
 #include <SLSphere.H>		// Defines biorthogonal SL class
 #include <gaussQ.h>		// Gauss-Legendre quadrature
+
+
+//===========================================================================
+
+bool     use_mpi;
+bool     check_bio;
+bool     surface;
+bool     dump;
+int      cmap;
+int      Lmax;
+int      nmax;
+int      numr;
+double   rmin;
+double   rmax;
+double   rs;
+double   scale;
+double   delr;
+double   delta;
+double   xmax;
+int      numx;
+int      numt;
+int      nump;
+string   outfile;
+
+
+program_option init[] = {
+  {"use_mpi",	"bool",		"false",	"using parallel computation"},
+  {"check_bio",	"bool",		"false",	"check consistency of biorthogonal set"},
+  {"surface",	"bool",		"false",	"print out surface cuts of the reconstructed shift"},
+  {"dump",	"bool",		"false",	"print the coefficients to a file"},
+  {"cmap",	"int",		"0",		"coordinate scaling in SphereSL"},
+  {"scale",	"double",	"1.0",		"scaling from real coordinates to table"},
+  {"Lmax",	"int",		"2",		"maximum number of angular harmonics in the expansion"},
+  {"nmax",	"int",		"10",		"maximum number of radial harmonics in the expansion"},
+  {"numr",	"int",		"1000",		"radial knots in the shift operator"},
+  {"rmin",	"double",	"0.0001",	"minimum radius for the shift operator"},
+  {"rmax",	"double",	"1.95",		"maximum radius for the shift operator"},
+  {"rs",	"double",	"0.067",	"cmap scale factor"},
+  {"delr",	"double",	"0.003",	"horizontal shift for test"},
+  {"xmax",	"double",	"1.0",		"radial scale for output"},
+  {"numx",	"int",		"100",		"number of output knots per side"},
+  {"numt",	"int",		"40",		"number of theta knots in shift operator"},
+  {"nump",	"int",		"40",		"number of phi knots in shift operator"},
+  {"delta",	"double",	"0.05",		"fractional displacement for two-point numerical derivative"},
+  {"outfile",	"string",	"slshift",	"output file prefix"},
+  {"\0",	"\0",		"\0",		"\0"}
+};
+
+
+const char *desc = "Check the consistency of a linear shift in the basis";
+
+ProgramParam config(desc, init);
+
+
+void assign_values()
+{
+  use_mpi   = config.get<bool>  ("use_mpi");
+  check_bio = config.get<bool>  ("check_bio");
+  surface   = config.get<bool>  ("surface");
+  dump      = config.get<bool>  ("dump");
+  cmap      = config.get<int>   ("cmap");
+  scale     = config.get<double>("scale");
+  Lmax      = config.get<int>   ("Lmax");
+  nmax      = config.get<int>   ("nmax");
+  numr      = config.get<int>   ("numr");
+  rmin      = config.get<double>("rmin");
+  rmax      = config.get<double>("rmax");
+  rs        = config.get<double>("rs");
+  delr      = config.get<double>("delr");
+  xmax      = config.get<double>("xmax");
+  numx      = config.get<int>   ("numx");
+  numt      = config.get<int>   ("numt");
+  nump      = config.get<int>   ("nump");
+  delta     = config.get<double>("delta");
+  outfile   = config.get<string>("outfile");
+};
+
 
 //===========================================================================
 
@@ -283,149 +361,41 @@ void Reconstruct::dump_coefficients(string file)
   }
 }
 
-//===========================================================================
 
-void usage(char *prog)
+void profile_header(ostream& out)
 {
-  cout << "Usage:" << endl << endl
-       << prog << " [options]" << endl << endl
-       << setw(15) << "Option" << setw(10) << "Argument" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Description" << endl << resetiosflags(ios::left)
-       << endl
-       << setw(15) << "-m or --mpi" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Turn on MPI for SL computation" << endl << resetiosflags(ios::left)
-       << setw(15) << "-c or --cmap" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Use mapped rather than linear coordinates" << endl << resetiosflags(ios::left)
-       << setw(15) << "--cbio" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Print out basis, if desired" << endl << resetiosflags(ios::left)
-       << setw(15) << "--coefs" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Dump coefficients, if desired" << endl << resetiosflags(ios::left)
-       << setw(15) << "--surface" << setw(10) << "No" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Print out surface plots (SM 'ch' style)" << endl << resetiosflags(ios::left)
-       << setw(15) << "--numr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number of points in radial table" << endl << resetiosflags(ios::left)
-       << setw(15) << "--lmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Lmax (spherical harmonic expansion)" << endl << resetiosflags(ios::left)
-       << setw(15) << "--nmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Nmax (radial basis function expansion)" << endl << resetiosflags(ios::left)
-       << setw(15) << "--rmin" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Minimum radius for SL basis" << endl << resetiosflags(ios::left)
-       << setw(15) << "--rmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Maximum radius for SL basis" << endl << resetiosflags(ios::left)
-       << setw(15) << "--rs"<< setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Scale length for radial coordinate mapping" << endl << resetiosflags(ios::left)
-       << setw(15) << "--delr" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "X-axis offset multipole expansions" << endl << resetiosflags(ios::left)
-       << setw(15) << "--delta" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Fractional offset for difference derivatives" << endl << resetiosflags(ios::left)
-       << setw(15) << "--xmax" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Length of \"box\" for output profiles" << endl << resetiosflags(ios::left)
-       << setw(15) << "--numx" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number pts for output profiles" << endl << resetiosflags(ios::left)
-       << setw(15) << "--numt" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number knots for cos(theta) integral" << endl << resetiosflags(ios::left)
-       << setw(15) << "--nump" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "Number knots for phi integral" << endl << resetiosflags(ios::left)
-       << setw(15) << "--file" << setw(10) << "Yes" << setw(10) << " " << setiosflags(ios::left) << setw(40) << "File name prefix for output" << endl << resetiosflags(ios::left)
-       << endl;
+  const int ncol = 6, siz = 15;
+  const char *lab[] = {"Position", "Dens(x)", "Potl(x)", 
+		       "Dens(y)", "Potl(y)", "Dpot(x)"};
+  const char *sep[] = {"#", "+", "+", "+", "+", "+"};
+  const char *cnt[] = {"[1]", "[2]", "[3]", "[4]", "[5]", "[6]"};
 
-  exit(0);
+  out << left << setfill('-');
+  for (int i=0; i<ncol; i++) out << sep[i] << setw(siz-1) << '-';
+  out << endl << setfill(' ');
+  for (int i=0; i<ncol; i++) out << setw(2) << sep[i] << setw(siz-2) << lab[i];
+  out << endl;
+  for (int i=0; i<ncol; i++) out << setw(2) << sep[i] << setw(siz-2) << cnt[i];
+  out << endl << setfill('-');
+  for (int i=0; i<ncol; i++) out << sep[i] << setw(siz-1) << '-';
+  out << endl << setfill(' ');
 }
+
 
 int 
 main(int argc, char** argv)
 {
-				// Default values defined here
-  bool use_mpi = false;
-  bool check_bio = false;
-  bool surface = false;
-  bool dump = false;
-  int cmap = 0;
-  double scale = 1.0;
+  //====================
+  // Parse command line
+  //====================
 
-  int Lmax=2, nmax=10;
-  int numr=1000;
-  double rmin=0.001, rmax=1.95, rs=0.067;
-  double delr=0.01, xmax=1.0;
-  int numx=100, numt = 40, nump = 40;
-  double delta = 0.05;
-
-  string outfile = "slshift";
-
-  int c;
-  while (1) {
-    int this_option_optind = optind ? optind : 1;
-    int option_index = 0;
-    static struct option long_options[] = {
-      {"mpi", 0, 0, 0},		// Turn on MPI for SL computation
-      {"cmap", 0, 0, 0},	// Use mapped rather than linear coordinates
-      {"cbio", 0, 0, 0},	// Print out basis, if desired
-      {"coefs", 0, 0, 0},	// Dump coefficients, if desired
-      {"surface", 0, 0, 0},	// Print out surface plots (SM 'ch' style)
-      {"numr", 1, 0, 0},	// Number of points in radial table
-      {"lmax", 1, 0, 0},	// Lmax (spherical harmonic expansion)
-      {"nmax", 1, 0, 0},	// Nmax (radial basis function expansion)
-      {"rmin", 1, 0, 0},	// Minimum radius for SL basis
-      {"rmax", 1, 0, 0},	// Maximum radius for SL basis
-      {"rs", 1, 0, 0},		// Scale length for radial coordinate mapping
-      {"delr", 1, 0, 0},	// X-axis offset multipole expansions
-      {"delta", 1, 0, 0},	// Fractional offset for difference derivs
-      {"xmax", 1, 0, 0},	// Length of "box" for output profiles
-      {"numx", 1, 0, 0},	// Number pts for output profiles
-      {"numt", 1, 0, 0},	// Number knots for cos(theta) integral
-      {"nump", 1, 0, 0},	// Number knots for phi integral
-      {"file", 1, 0, 0},	// File name prefix for output
-      {0, 0, 0, 0}
-    };
-
-    c = getopt_long (argc, argv, "cmh",
-		     long_options, &option_index);
-
-    if (c == -1) break;
-
-    switch (c) {
-    case 0:
-      {
-	string optname(long_options[option_index].name);
-
-	if (!optname.compare("mpi")) {
-	  use_mpi = true;
-	} else if (!optname.compare("cbio")) {
-	  check_bio = true;
-	} else if (!optname.compare("cmap")) {
-	  cmap = 1;
-	} else if (!optname.compare("surface")) {
-	  surface = true;
-	} else if (!optname.compare("coefs")) {
-	  dump = true;
-	} else if (!optname.compare("numr")) {
-	  numr = atoi(optarg);
-	} else if (!optname.compare("lmax")) {
-	  Lmax = atoi(optarg);
-	} else if (!optname.compare("nmax")) {
-	  nmax = atoi(optarg);
-	} else if (!optname.compare("rmin")) {
-	  rmin = atof(optarg);
-	} else if (!optname.compare("rmax")) {
-	  rmax = atof(optarg);
-	} else if (!optname.compare("rs")) {
-	  rs = atof(optarg);
-	} else if (!optname.compare("delr")) {
-	  delr = atof(optarg);
-	} else if (!optname.compare("xmax")) {
-	  xmax = atof(optarg);
-	} else if (!optname.compare("numx")) {
-	  numx = atoi(optarg);
-	} else if (!optname.compare("nump")) {
-	  nump = atoi(optarg);
-	} else if (!optname.compare("numt")) {
-	  numt = atoi(optarg);
-	} else if (!optname.compare("file")) {
-	  outfile = string(optarg);
-	} else {
-	  cout << "Option " << long_options[option_index].name;
-	  if (optarg) cout << " with arg " << optarg;
-	  cout << " is not defined" << endl;
-	  exit(0);
-	}
-      }
-      break;
-
-    case 'c':
-      cmap = 1;
-      break;
-
-    case 'm':
-      use_mpi = true;
-      break;
-
-    case 'h':
-    default:
-      usage(argv[0]);
-    }
-
+  try {
+    if (config.parse_args(argc, argv)) return -1;
+    assign_values();
+  }
+  catch (const char *msg) {
+    cerr << msg << endl;
+    return -1;
   }
 
   //===================
@@ -499,6 +469,9 @@ main(int argc, char** argv)
     ostr += ".profile";
     ofstream out(ostr.c_str());
 
+    profile_header(cout);
+    profile_header(out);
+
     double x, dx = 2.0*xmax/(numx-1);
     double xm, xp, dp;
     for (int i=0; i<numx; i++) {
@@ -529,27 +502,23 @@ main(int argc, char** argv)
       double x, y, dxy = 2.0*xmax/(numx-1);
       float z;
 
-      ofstream *out = new ofstream [2];
-      string suffix[2] = {".potl\0", ".dens\0"};
-      for (int i=0; i<2; i++) {
-	string ostr(outfile);
-	ostr += suffix[i];
-	out[i].open(ostr.c_str());
-	for (int j=0; j<2; j++) out[i].write((char *)&numx, sizeof(int));
-	for (int j=0; j<2; j++) {
-	  out[i].write((char *)&(z=-xmax), sizeof(float));
-	  out[i].write((char *)&(z= xmax), sizeof(float));
-	}
-      }
-      
-      for (int j=0; j<numx; j++) {
-	y = -xmax + dxy*j;
-	for (int i=0; i<numx; i++) {
-	  x = -xmax + dxy*i;
+      ofstream out(string(outfile + ".surf").c_str());
+
+      if (out) {
+	for (int j=0; j<numx; j++) {
+	  y = -xmax + dxy*j;
+	  for (int i=0; i<numx; i++) {
+	    x = -xmax + dxy*i;
 	  
-	  out[0].write((char *)&(z=recon.potential_eval(x, y, 0.0)), sizeof(float));
-	  out[1].write((char *)&(z=recon.density_eval(x, y, 0.0)), sizeof(float));
+	    out << setw(15) << x << setw(15) << y
+		<< setw(15) << recon.potential_eval(x, y, 0.0)
+		<< setw(15) << recon.density_eval(x, y, 0.0) << endl;
+	  }
+	  out << endl;
 	}
+
+      } else {
+	cerr << "Could not open <" << outfile + ".surf" << ">" << endl;
       }
     }
 
