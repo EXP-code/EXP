@@ -208,61 +208,56 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     
     Particle *p = cC->Part(i);
 
-				// If we are multistepping, compute BC
-				// only at or above this level
-    // if (!multistep || (cC->Part(i)->level >= mlevel)) {
-
-      for (int k=0; k<3; k++) {
+    
+    for (int k=0; k<3; k++) {
 				// Increment so that the positions range
 				// between 0 and L[k]
-	pos = p->pos[k] + offset[k];
+      pos = p->pos[k] + offset[k];
 
-	//
-	// Reflection BC
-	//
-	if (bc[k] == 'r') {
-	  if (pos < 0.0) {
-	    delta = -pos - L[k]*floor(-pos/L[k]);
-	    p->pos[k] = delta;
-	    p->vel[k] = -p->vel[k];
-	  } 
-	  if (pos >= L[k]) {
-	    delta = pos - L[k]*floor(pos/L[k]);
-	    p->pos[k] =  L[k] - delta;
-	    p->vel[k] = -p->vel[k];
-	  }
+      //
+      // Reflection BC
+      //
+      if (bc[k] == 'r') {
+	if (pos < 0.0) {
+	  delta = -pos - L[k]*floor(-pos/L[k]);
+	  p->pos[k] = delta;
+	  p->vel[k] = -p->vel[k];
+	} 
+	if (pos >= L[k]) {
+	  delta = pos - L[k]*floor(pos/L[k]);
+	  p->pos[k] =  L[k] - delta;
+	  p->vel[k] = -p->vel[k];
 	}
+      }
 	
-	//
-	// Periodic BC
-	//
-	if (bc[k] == 'p') {
-	  if (pos < 0.0) {
-	    p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
-	  }
-	  if (pos >= L[k]) {
-	    p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
-	  }
+      //
+      // Periodic BC
+      //
+      if (bc[k] == 'p') {
+	if (pos < 0.0) {
+	  p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
 	}
+	if (pos >= L[k]) {
+	  p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
+	}
+      }
 	
 				// Replace the offset
-	pos = p->pos[k] - offset[k];
-      }
+      pos = p->pos[k] - offset[k];
+    }
 
-      //
-      // Sanity check for this particle
-      //
-      for (int k=0; k<3; k++) {
-	if (bc[k] != 'v') {
-	  if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
-	    cout << "Process " << myid << " id=" << id 
-		 << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
-	  }
+    //
+    // Sanity check for this particle
+    //
+    for (int k=0; k<3; k++) {
+      if (bc[k] != 'v') {
+	if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
+	  cout << "Process " << myid << " id=" << id 
+	       << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
 	}
       }
-
-      // }
-
+    }
+    
     //
     // Acccumlate data for shocktube trace
     //
