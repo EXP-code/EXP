@@ -82,17 +82,17 @@ void UserPeriodic::userinfo()
 		 << ", nbin=" << nbin << ", tcol=" << tcol;
   cout << endl;
 
-  cout << "Cube sides (x , y , x) = (" 
+  cout << "Cube sides (x , y , z) = (" 
        << L[0] << " , " 
        << L[1] << " , " 
        << L[2] << " ) " << endl; 
 
-  cout << "Center offset (x , y , x) = (" 
+  cout << "Center offset (x , y , z) = (" 
        << offset[0] << " , " 
        << offset[1] << " , " 
        << offset[2] << " ) " << endl; 
 
-  cout << "Boundary type (x , y , x) = (" 
+  cout << "Boundary type (x , y , z) = (" 
        << bc[0] << " , " 
        << bc[1] << " , " 
        << bc[2] << " ) " << endl;
@@ -121,11 +121,21 @@ void UserPeriodic::initialize()
   if (get_value("btype", val)) {
     if (strlen(val.c_str()) >= 3) {
       for (int k=0; k<3; k++) {
-	if (val.c_str()[k] == 'p') bc[k] = 'p';	// Periodic
-	else                       bc[k] = 'r';	// Reflection
+	switch (val.c_str()[k]) {
+	case 'p':
+	  bc[k] = 'p';		// Periodic
+	  break;
+	case 'r':
+	  bc[k] = 'r';		// Reflection
+	  break;
+	default:
+	  bc[k] = 'v';		// Vacuum
+	  break;
+	}
       }
     }
   }
+  
 }
 
 
@@ -241,9 +251,11 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
       // Sanity check for this particle
       //
       for (int k=0; k<3; k++) {
-	if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
-	  cout << "Process " << myid << " id=" << id 
-	       << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
+	if (bc[k] != 'v') {
+	  if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
+	    cout << "Process " << myid << " id=" << id 
+		 << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
+	  }
 	}
       }
 
