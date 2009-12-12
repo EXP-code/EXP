@@ -82,7 +82,7 @@ void UserPeriodic::userinfo()
 		 << ", nbin=" << nbin << ", tcol=" << tcol;
   cout << endl;
 
-  cout << "Cube sides (x , y , z) = (" 
+  cout << "   Cube sides (x , y , z) = (" 
        << L[0] << " , " 
        << L[1] << " , " 
        << L[2] << " ) " << endl; 
@@ -223,12 +223,12 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	if (bc[k] == 'r') {
 	  if (pos < 0.0) {
 	    delta = -pos - L[k]*floor(-pos/L[k]);
-	    p->pos[k] = delta - offset[k];
+	    p->pos[k] = delta;
 	    p->vel[k] = -p->vel[k];
 	  } 
 	  if (pos >= L[k]) {
 	    delta = pos - L[k]*floor(pos/L[k]);
-	    p->pos[k] =  L[k] - delta - offset[k];
+	    p->pos[k] =  L[k] - delta;
 	    p->vel[k] = -p->vel[k];
 	  }
 	}
@@ -245,6 +245,8 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	  }
 	}
 	
+				// Replace the offset
+	pos = p->pos[k] - offset[k];
       }
 
       //
