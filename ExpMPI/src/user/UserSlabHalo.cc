@@ -18,10 +18,7 @@ UserSlabHalo::UserSlabHalo(string &line) : ExternalForce(line)
 
   z0   = 0.5;			// Position of the midplane
 
-				// Midplane squared velocity for 
-  v20  = 2.0*U0*log(cosh(1.0));	// turning point at h0
-
-  v0   = sqrt(v20);	        // Midplane velocity for turning point at h0
+  v0   = sqrt(0.5*U0);	        // Isothermal velocity dispersion
 
   ctr_name = "";		// Default component for center (none)
 
@@ -68,7 +65,8 @@ void UserSlabHalo::userinfo()
   print_divider();
 
   cout << "** User routine SLAB HALO initialized, v0=" << v0 
-       << ", rho0=" << rho0 << ", h0=" << h0 << ", z0=" << z0;
+       << ", rho0=" << rho0 << ", h0=" << h0 << ", z0=" << z0
+       << ", U0=" << U0;
   if (c0) 
     cout << ", center on component <" << ctr_name << ">";
   else
@@ -91,14 +89,12 @@ void UserSlabHalo::initialize()
   if (get_value("rho0", val)) {
     rho0 = atof(val.c_str());
     U0  = 4.0*M_PI*rho0*h0*h0;
-    v20 = 2.0*U0*log(cosh(1.0));
-    v0 = sqrt(v20);
+    v0 = sqrt(0.5*U0);
   }
 
   if (get_value("v0", val)) {
     v0 = atof(val.c_str());
-    v20 = v0*v0;
-    U0 = 0.5*v20/log(cosh(1.0));
+    U0 = 2.0*v0*v0;
     rho0 = U0/(4.0*M_PI*h0*h0);
   }
 
@@ -138,7 +134,7 @@ void * UserSlabHalo::determine_acceleration_and_potential_thread(void * arg)
       if (c0) pos[k] -= c0->center[k];
     }
     
-    // Add external accerlation
+    // Add external acceleration
     cC->AddAcc(i, 2, -U0/h0*tanh((pos[2]-z0)/h0));
     
     // Add external potential

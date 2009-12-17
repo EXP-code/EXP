@@ -9,7 +9,7 @@
     @param ctrname component will be used to define the center
     @param h0 is the slab scale height
     @param rho0 is the slab central density
-    @param v0 is the midplane velocity for a turning point at h0
+    @param v0 is the one-dimensional isothermal velocity dispersion
     @param z0 is the midplane position
 */
 class UserSlabHalo : public ExternalForce
