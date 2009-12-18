@@ -35,8 +35,8 @@ void OutCHKPT::initialize()
 void OutCHKPT::Run(int n, bool last)
 {
   if (n % nint && !last) return;
-  if (myid==0) {
-    cout << "OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
+  if (VERBOSE>5 && myid==0) {
+    cout << " OutCHKPT::Run(): n=" << n << " psdump=" << psdump << endl;
   }
   if (n == psdump) {       
     if (myid==0) {
@@ -46,25 +46,31 @@ void OutCHKPT::Run(int n, bool last)
 	cout << "OutCHKPT::Run(): error unlinking old backup file <" 
 	     << backfile << ">" << endl;
       } else {
-	cout << "OutCHKPT::Run(): successfully unlinked <"
-	     << backfile << ">" << endl;
+	if (VERBOSE>5) {
+	  cout << "OutCHKPT::Run(): successfully unlinked <"
+	       << backfile << ">" << endl;
+	}
       }
       if (rename(filename.c_str(), backfile.c_str())) {
 	perror("OutCHKPT::Run()");
 	cout << "OutCHKPT: error creating backup file <" 
 	     << backfile << ">" << endl;
       } else {
-	cout << "OutCHKPT::Run(): successfully renamed <"
-	     << filename << "> to <" << backfile << ">" << endl;
+	if (VERBOSE>5) {
+	  cout << "OutCHKPT::Run(): successfully renamed <"
+	       << filename << "> to <" << backfile << ">" << endl;
+	}
       }
       if (symlink(lastPS.c_str(), filename.c_str())) {
 	perror("OutCHKPT::Run()");
 	cout << "OutCHKPT::Run(): error symlinking new backup file <" 
 	     << filename << ">" << endl;
       } else {
-	cout << "OutCHKPT::Run(): successfully linked <"
-	     << lastPS << "> to new backup file <" 
-	     << filename << ">" << endl;
+	if (VERBOSE>5) {
+	  cout << "OutCHKPT::Run(): successfully linked <"
+	       << lastPS << "> to new backup file <" 
+	       << filename << ">" << endl;
+	}
       }
     }
     return;
