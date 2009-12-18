@@ -156,24 +156,24 @@ main(int argc, char **argv)
 
     for (int j=0; j<its->nbod; j++) {
       in->read((char *)&rtmp, sizeof(double));
-      out << setw(18) << rtmp;
+      out << setw(20) << rtmp;
       for (int i=0; i<3; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
-	  out << setw(18) << rtmp;
+	  out << setw(20) << rtmp;
       }
       for (int i=0; i<3; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
-	  out << setw(18) << rtmp;
+	  out << setw(20) << rtmp;
       }
       in->read((char *)&rtmp, sizeof(double));
-      out << setw(18) << rtmp;
+      out << setw(20) << rtmp;
       for (int i=0; i<its->niatr; i++) {
 	in->read((char *)&itmp, sizeof(int));
 	out << setw(12) << itmp;
       }
       for (int i=0; i<its->ndatr; i++) {
 	in->read((char *)&rtmp, sizeof(double));
-	out << setw(18) << rtmp;
+	out << setw(20) << rtmp;
       }      
 
       out << endl;		// End the record
