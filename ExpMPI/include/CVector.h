@@ -1,3 +1,5 @@
+// This is really -*- C++ -*-
+
 #ifndef _CVector_h
 #define _CVector_h 1
 

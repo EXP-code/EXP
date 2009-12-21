@@ -20,7 +20,14 @@
 #include <gptl.h>
 #endif
 
+#include <BarrierWrapper.H>
+
 using namespace std;
+
+//
+// Debugging syncrhonization
+//
+static bool barrier_debug = true;
 
 //
 // Physical units
@@ -300,6 +307,8 @@ void UserTreeDSMC::initialize()
 
 void UserTreeDSMC::determine_acceleration_and_potential(void)
 {
+  BarrierWrapper barrier(MPI_COMM_WORLD, barrier_debug);
+
 #ifdef USE_GPTL
   GPTLstart("UserTreeDSMC::determine_acceleration_and_potential");
 #endif
@@ -325,6 +334,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   double pot_time = comp.timeSoFar()/max<unsigned>(1, c0->Number());
   PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
   for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+
+
+  barrier("TreeDSMC: after initialization");
 
 
   //
@@ -380,6 +392,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 #endif
 
+  barrier("TreeDSMC: after cell computation");
+
   //
   // Only run diagnostics every nsteps
   //
@@ -410,14 +424,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #ifdef USE_GPTL
     GPTLstart("UserTreeDSMC::pHOT_1");
     GPTLstart("UserTreeDSMC::waiting");
-    MPI_Barrier(MPI_COMM_WORLD);
+    barrier("TreeDSMC: pHOT_1 waiting");
     GPTLstop ("UserTreeDSMC::waiting");
     GPTLstart("UserTreeDSMC::repart");
 #endif
 
+    barrier("TreeDSMC: after pHOT_1 wait");
+
     partnTime.start();
     c0->Tree()->Repartition(mlevel); nrep++;
     partnSoFar = partnTime.stop();
+
+    barrier("TreeDSMC: after repartition");
 
     tree1Time.start();
 #ifdef USE_GPTL
@@ -425,11 +443,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("UserTreeDSMC::makeTree");
 #endif
     c0->Tree()->makeTree();
+    barrier("TreeDSMC: after makeTree");
 #ifdef USE_GPTL
     GPTLstop ("UserTreeDSMC::makeTree");
     GPTLstart("UserTreeDSMC::makeCLL");
 #endif
     c0->Tree()->makeCellLevelList();
+    barrier("TreeDSMC: after makeCellLevelList");
 #ifdef USE_GPTL
     GPTLstop ("UserTreeDSMC::makeCLL");
     GPTLstart("UserTreeDSMC::pcheck");
@@ -461,6 +481,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     cout << "About to adjust tree [" << clevel << "]" << endl;
 #endif
     c0->Tree()->adjustTree(clevel);
+    barrier("TreeDSMC: after adjustTree");
 #ifdef DEBUG
     cout << "About to adjust level list [" << clevel << "]" << endl;
 #endif
@@ -469,6 +490,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("UserTreeDSMC::adjustCLL");
 #endif
     c0->Tree()->adjustCellLevelList(clevel);
+    barrier("TreeDSMC: after adjustCellLevelList");
 #ifdef DEBUG
     cout << "Adjusted tree and level list [" << clevel << "]" << endl;
 #endif
@@ -480,6 +502,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
 
   }
+
+  barrier("TreeDSMC: before sanity checks");
 
   if (0) {
     cout << "Process " << myid << ": sanity check" << endl;;
@@ -508,6 +532,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Evaluate collisions among the particles
   //
 
+  barrier("TreeDSMC: after sanity checks");
+
   collideTime.start();
 
   if (0) {
@@ -523,6 +549,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
+  barrier("TreeDSMC: after colide");
+
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide");
 #endif
@@ -542,6 +570,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   GPTLstart("UserTreeDSMC::collide_timestep");
 #endif
 
+
+  barrier("TreeDSMC: before collide timestep");
 
   tstepTime.start();
   if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
@@ -632,6 +662,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       }
     }
 
+    barrier("TreeDSMC: after mfp stats");
+
 				// Overall statistics
 				// 
     double KEtotl=collide->Etotal(), KEtot=0.0;
@@ -664,6 +696,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// current level
     double cmass1=0.0, cmass=0.0;
     pHOT_iterator pit(*(c0->Tree()));
+
+    barrier("TreeDSMC: checkAdjust");
 
     while (pit.nextCell()) {
       pCell *cc = pit.Cell();
@@ -707,7 +741,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << endl;
 
       collide->colldeTime(mout);
-
 
       if (epsm>0) mout << setw(6) << " " << setw(20) << epsm_total 
 		       << "EPSM particles ("
@@ -912,6 +945,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 #endif
 
+  barrier("TreeDSMC: after collision diags");
+
 				// Remake level lists because particles
 				// will (usually) have been exchanged 
 				// between nodes
@@ -935,7 +970,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				//
   // triggered_cell_body_dump(0.01, 0.002);
 
-  MPI_Barrier(MPI_COMM_WORLD);
+  barrier("TreeDSMC: end of accel routine");
 
 }
 

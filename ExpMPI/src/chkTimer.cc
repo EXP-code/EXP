@@ -28,6 +28,8 @@ CheckpointTimer::CheckpointTimer()
 
 void  CheckpointTimer::mark()
 {
+  if (runtime<0.0) return;
+
   //
   // DEBUG
   //
@@ -85,6 +87,8 @@ ostream& operator<<(ostream& out, Time const& T)
 
 bool CheckpointTimer::done()
 {
+  if (runtime<0.0) return false;
+
   char flg = 0;
   time_t tr = current - last;
 
