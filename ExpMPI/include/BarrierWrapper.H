@@ -23,7 +23,9 @@ private:
 public:
 
   BarrierWrapper(MPI_Comm comm, bool label=false);
+  BarrierWrapper(const BarrierWrapper& inst);
   ~BarrierWrapper();
+
   void operator()(const string &label);
 };
 

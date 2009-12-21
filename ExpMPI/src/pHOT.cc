@@ -98,6 +98,8 @@ pHOT::pHOT(Component *C)
   timer_scatter.Microseconds();
 
   use_weight = true;
+
+  barrier = new BarrierWrapper(MPI_COMM_WORLD, true);
 } 
 
 
@@ -211,7 +213,7 @@ void pHOT::makeTree()
 	out.close();
       }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    (*barrier)("pHOT: pHOT_storage");
   }
 #endif
 
@@ -264,7 +266,7 @@ void pHOT::makeTree()
       }
       for (int i=0; i<numprocs; i++) {
 	if (myid==i) cout << setw(4) << i << setw(15) << cc->Particles().size() << endl;
-	MPI_Barrier(MPI_COMM_WORLD);
+	(*barrier)("pHOT: body count report");
       }
       if (myid==0) 
 	cout << setfill('-') << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ');
@@ -557,7 +559,7 @@ void pHOT::densCheck()
       MPI_Send(&maslev[0], MaxLev+1, MPI_DOUBLE, 0,   146, MPI_COMM_WORLD);
       MPI_Send(&vollev[0], MaxLev+1, MPI_DOUBLE, 0,   147, MPI_COMM_WORLD);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    (*barrier)("pHOT: density check report");
   }
 
   vector<unsigned> cntlev0(MaxLev+1, 0);
@@ -661,7 +663,7 @@ void pHOT::dumpFrontier()
 	cnt++;
       }
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    (*barrier)("pHOT: dump frontier");
   }
 
   unsigned sum0=0, cnt0=0;
@@ -855,7 +857,7 @@ void pHOT::testFrontier(string& filename)
       }
     }
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    (*barrier)("HOT: test frontier");
   }
 }
 
@@ -1401,7 +1403,7 @@ void pHOT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstart("pHOT::Repartition");
   GPTLstart("pHOT::Repartition::entrance_waiting");
-  MPI_Barrier(MPI_COMM_WORLD);
+  (*barrier)("pHOT: repartition entrance wait");
   GPTLstop ("pHOT::Repartition::entrance_waiting");
 #endif
 
@@ -1460,7 +1462,7 @@ void pHOT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstop ("pHOT::Repartition::compute_keys");
   GPTLstart("pHOT::Repartition::compute_keys_waiting");
-  MPI_Barrier(MPI_COMM_WORLD);
+  (*barrier)("pHOT: repartition key wait");
   GPTLstop ("pHOT::Repartition::compute_keys_waiting");
   GPTLstart("pHOT::Repartition::spreadOOB");
 #endif
@@ -1551,7 +1553,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       << setw(15) << recvcounts[m] << endl;
 	}
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      (*barrier)("pHOT: repartition send/receive report");
     }
   }
 				// END DEBUG OUTPUT
@@ -1586,7 +1588,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       << endl;
 	cout << "--------------------------------------------------------" << endl;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      (*barrier)("pHOT: repartition send/receive counts");
     }
   }
 
@@ -1846,7 +1848,6 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::keyBods");
 #endif
 
-  // MPI_Barrier(MPI_COMM_WORLD);	// Test!
   timer_tadjust.start();
 
 #ifdef DEBUG_ADJUST
@@ -2033,8 +2034,10 @@ void pHOT::adjustTree(unsigned mlevel)
   }
   timer_keymake.stop();
   
-  timer_keywait.start();       // Barrier to make sure that the timer
-  //MPI_Barrier(MPI_COMM_WORLD); // gives a sensible measurement of key time
+  timer_keywait.start();   
+				// Barrier to make sure that the timer
+				// gives a sensible measurement of key time
+  (*barrier)("pHOT: repartition key timer");
   timer_keywait.stop();
 
   timer_cupdate.start();
@@ -2172,10 +2175,12 @@ void pHOT::adjustTree(unsigned mlevel)
       }
       
       // Send my tail cell info to next node
+      //
       MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 131, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n+1, 132, MPI_COMM_WORLD);
       
       // Get next node's head cell info
+      //
       MPI_Recv(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 133, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&head_num, 1, MPI_UNSIGNED, n+1, 134,
@@ -2231,6 +2236,7 @@ void pHOT::adjustTree(unsigned mlevel)
     }
     
     if (n+1==myid) {
+
       if (keybods.size()) {
 	key_indx::iterator it = keybods.begin(); // Sanity check:
 	if (bodycell.find(it->first) == bodycell.end()) {
@@ -2306,7 +2312,6 @@ void pHOT::adjustTree(unsigned mlevel)
       }
     }
     
-    // MPI_Barrier(MPI_COMM_WORLD);
   }
 
 
@@ -2616,18 +2621,9 @@ void pHOT::checkIndices()
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
 
-  /*
-  if (myid==0)
-    cout << "Process " << myid << ": # indices=" << indices.size() << endl;
-  */
-
   // All processes send the index list to the master node
   //
   for (int n=1; n<numprocs; n++) {
-    /*
-    if (myid==n)
-      cout << "Process " << myid << ": # indices=" << indices.size() << endl;
-    */
 
     if (myid==0) {
       unsigned icnt;
@@ -2645,7 +2641,7 @@ void pHOT::checkIndices()
       MPI_Send(&icnt, 1, MPI_UNSIGNED, 0, 392, MPI_COMM_WORLD);
       MPI_Send(&indices[0], icnt, MPI_UNSIGNED, 0, 393, MPI_COMM_WORLD);
     }
-    MPI_Barrier(MPI_COMM_WORLD);
+    (*barrier)("pHOT: check indicies");
   }
 
   if (myid==0) {
@@ -3105,7 +3101,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	    << endl;
       }
 
-      MPI_Barrier(MPI_COMM_WORLD);
+      (*barrier)("pHOT: partitionKeys debug 1");
     }
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
@@ -3186,7 +3182,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	      << dec << endl;
 	}
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      (*barrier)("pHOT: partitionKeys debug 2");
     }
   }
 
@@ -3238,7 +3234,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	out << left << setw(cwid) << sout.str() << flush;
 	if (n % cols == cols-1 || n == numprocs-1) out << endl;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
+      (*barrier)("pHOT: partitionKeys debug 3");
     }
   }
   //
@@ -3249,9 +3245,9 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 				// entire key list
 
 				// <keylist1> is (and must be) sorted to start
-  MPI_Barrier(MPI_COMM_WORLD);
+  (*barrier)("pHOT: partitionKeys before pMerge");
   parallelMerge(keylist1, keylist);
-  MPI_Barrier(MPI_COMM_WORLD);
+  (*barrier)("pHOT: partitionKeys after pMerge");
 
   if (myid==0) {
 

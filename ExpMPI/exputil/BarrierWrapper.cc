@@ -13,6 +13,18 @@ BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
   if (localid==0) bufferT = new char [cbufsz*commsize];
 }
 
+BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
+{
+  comm        = p.comm;
+  check_label = p.check_label;
+  commsize    = p.commsize;
+  localid     = p.localid;
+
+  buffer = new char [cbufsz];
+  bufferT = 0;
+  if (localid==0) bufferT = new char [cbufsz*commsize];
+}
+
 BarrierWrapper::~BarrierWrapper()
 {
   delete [] buffer;
@@ -24,10 +36,13 @@ void BarrierWrapper::operator()(const string& label)
   MPI_Barrier(comm);
 
   if (check_label) {
+				// Copy the label to the send buffer
     strncpy(buffer, label.c_str(), cbufsz);
+
+				// Gather to the root node (0)
     MPI_Gather(buffer, cbufsz, MPI_CHAR, bufferT, cbufsz, MPI_CHAR, 0, comm); 
 
-				// Compare strings
+				// Compare adjacent strings in the list
     if (localid==0) {
       char tmp[cbufsz];		// Working buffer
       bool firstime = true;

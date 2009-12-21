@@ -9,6 +9,7 @@
 #include <pCell.H>
 
 #include <Timer.h>
+#include <BarrierWrapper.H>
 
 class pHOT
 {
@@ -64,6 +65,7 @@ protected:
   change_list change;
   vector<key_type> kbeg, kfin, loclist;
   unsigned sumstep, sumzero;
+  BarrierWrapper *barrier;
 
   ACG *gen;
   Uniform *unit;

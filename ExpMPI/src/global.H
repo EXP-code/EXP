@@ -242,7 +242,7 @@ extern OutputContainer output;
 //! Parameter database
 extern ParamParseMPI *parse;
 
-//! Total alloted runtime
+//! Total alloted runtime (runtime < 0 turns off timer)
 extern double runtime;
 
 //! Last PS file name
