@@ -75,6 +75,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   tsdiag     = false;
   tspow      = 4;
   mfpstat    = false;
+  statall    = false;
   cbadiag    = false;
   dryrun     = false;
   nocool     = false;
@@ -362,6 +363,7 @@ void UserTreeDSMC::initialize()
   if (get_value("tspow", val))		tspow = atoi(val.c_str());
   if (get_value("tsdiag", val))		tsdiag = atoi(val.c_str()) ? true : false;
   if (get_value("mfpstat", val))	mfpstat = atoi(val.c_str()) ? true : false;
+  if (get_value("statall", val))	statall = atoi(val.c_str()) ? true : false;
   if (get_value("cbadiag", val))	cbadiag = atoi(val.c_str()) ? true : false;
   if (get_value("dryrun", val))		dryrun = atoi(val.c_str()) ? true : false;
   if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;
@@ -936,7 +938,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
       collide->tsdiag(mout);
 
-      {
+      if (statall) {
 	sout.str("");
 	sout << outdir << runtag << ".DSMC_log.0";
 	ofstream nout(sout.str().c_str(), ios::app);
@@ -968,35 +970,39 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     } else {
       
-      ostringstream sout;
-      sout << outdir << runtag << ".DSMC_log." << myid;
-      ofstream mout(sout.str().c_str(), ios::app);
+      if (statall) {
 
-      double keymake, xchange, prepare, convert, overlap, update, scatter;
-      double repartn, tadjust, keycall, keycomp, keybods, keywait;
-      unsigned numbods;
-      c0->Tree()->adjustTiming(keymake, xchange, prepare, 
-			       convert, overlap, update, 
-			       scatter, repartn, tadjust,
-			       keycall, keycomp, keybods,
-			       keywait, numbods);
+	ostringstream sout;
+	sout << outdir << runtag << ".DSMC_log." << myid;
+	ofstream mout(sout.str().c_str(), ios::app);
 
-      mout << "Timing (secs) at mlevel=" << mlevel << " and T=" << tnow << endl
-	   << "      *** keymake=" << keymake << endl
-	   << "      *** keycall=" << keycall << endl
-	   << "      *** keycomp=" << keycomp << endl
-	   << "      *** keybods=" << keybods << endl
-	   << "      *** keywait=" << keywait << endl
-	   << "      *** xchange=" << xchange << endl
-	   << "      *** prepare=" << prepare << endl
-	   << "      *** convert=" << convert << endl
-	   << "      *** overlap=" << overlap << endl
-	   << "      *** cupdate=" << update  << endl
-	   << "      *** scatter=" << scatter << endl
-	   << "      *** repartn=" << repartn << endl
-	   << "      *** tadjust=" << tadjust << endl
-	   << "      *** numbods=" << numbods << endl
-	   << endl;
+	double keymake, xchange, prepare, convert, overlap, update, scatter;
+	double repartn, tadjust, keycall, keycomp, keybods, keywait;
+	unsigned numbods;
+	c0->Tree()->adjustTiming(keymake, xchange, prepare, 
+				 convert, overlap, update, 
+				 scatter, repartn, tadjust,
+				 keycall, keycomp, keybods,
+				 keywait, numbods);
+	
+	mout << "Timing (secs) at mlevel=" << mlevel 
+	     << " and T=" << tnow << endl
+	     << "      *** keymake=" << keymake << endl
+	     << "      *** keycall=" << keycall << endl
+	     << "      *** keycomp=" << keycomp << endl
+	     << "      *** keybods=" << keybods << endl
+	     << "      *** keywait=" << keywait << endl
+	     << "      *** xchange=" << xchange << endl
+	     << "      *** prepare=" << prepare << endl
+	     << "      *** convert=" << convert << endl
+	     << "      *** overlap=" << overlap << endl
+	     << "      *** cupdate=" << update  << endl
+	     << "      *** scatter=" << scatter << endl
+	     << "      *** repartn=" << repartn << endl
+	     << "      *** tadjust=" << tadjust << endl
+	     << "      *** numbods=" << numbods << endl
+	     << endl;
+      }
     }
 
 #ifdef USE_GPTL

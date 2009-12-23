@@ -45,7 +45,7 @@ unsigned CollideLTE::Nnum    = 400;
 unsigned CollideLTE::Tnum    = 200;
 string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
-bool     CollideLTE::frost_warning = true;
+bool     CollideLTE::frost_warning = false;
 
 CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)

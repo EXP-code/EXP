@@ -60,7 +60,7 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, tsdiag, mfpstat, use_multi, use_pullin, use_repair;
+  bool frontier, tsdiag, mfpstat, statall, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube;
 
 				// For MFP and time step statistics
