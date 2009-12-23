@@ -4,10 +4,9 @@
   MDWeinberg 12/23/09
 */
 
-#include <unistd.h>
-#include <stdlib.h>
-
+#include <cstdlib>
 #include <iostream>
+#include <sstream>
 #include <fstream>
 #include <iomanip>
 #include <vector>
@@ -55,12 +54,10 @@ void write_array(ifstream *in, PSPDump &psp)
   string filename = string(compnames[comp]) + "." + suffix;
   ofstream out(filename.c_str());
   if (!out) {
-    string msg = "write_array: could not open <" + filename + ">";
+    string msg = "could not open <" + filename + ">";
     throw msg.c_str();
   }
 
-  double rtmp;
-  int itmp;
   
   PSPstanza *stanza;
   SParticle *part;
@@ -73,11 +70,23 @@ void write_array(ifstream *in, PSPDump &psp)
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 	if (use_int) {
-	  if (use_pos<part->iatr.size())
-	    out << setw(20) << part->iatr[use_pos];
+	  if (use_pos<static_cast<int>(part->iatr.size()))
+	    out << setw(20) << part->iatr[use_pos] << endl;
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->iatr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	} else {
-	  if (use_pos<part->datr.size())
-	    out << setw(20) << part->datr[use_pos];
+	  if (use_pos<static_cast<int>(part->datr.size()))
+	    out << setw(20) << part->datr[use_pos] << endl;
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->datr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	}
       }
 
@@ -93,11 +102,23 @@ void write_array(ifstream *in, PSPDump &psp)
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 	if (use_int) {
-	  if (use_pos<part->iatr.size())
-	    out << setw(20) << part->iatr[use_pos];
+	  if (use_pos<static_cast<int>(part->iatr.size()))
+	    out << setw(20) << part->iatr[use_pos] << endl;
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->datr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	} else {
-	  if (use_pos<part->datr.size())
-	    out << setw(20) << part->datr[use_pos];
+	  if (use_pos<static_cast<int>(part->datr.size()))
+	    out << setw(20) << part->datr[use_pos] << endl;
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->datr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	}
       }
 	
@@ -114,11 +135,23 @@ void write_array(ifstream *in, PSPDump &psp)
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 	if (use_int) {
-	  if (use_pos<part->iatr.size())
+	  if (use_pos<static_cast<int>(part->iatr.size()))
 	    out << setw(20) << part->iatr[use_pos];
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->datr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	} else {
-	  if (use_pos<part->datr.size())
+	  if (use_pos<static_cast<int>(part->datr.size()))
 	    out << setw(20) << part->datr[use_pos];
+	  else {
+	    ostringstream msg;
+	    msg << "attribute size is " << part->datr.size()
+		<< " and you can not use pos="  << use_pos;
+	    throw msg.str().c_str();
+	  }
 	}
       }
 	
@@ -134,7 +167,6 @@ main(int argc, char **argv)
   char *prog = argv[0];
   double time=1e20;
   bool verbose = false;
-  bool all = false;
 
   // Parse command line
 
@@ -209,18 +241,25 @@ main(int argc, char **argv)
   in->close();
   delete in;
 				// Reopen file
+				// -----------
   in = new ifstream(argv[optind]);
 
-  cerr << "\nBest fit dump to <" << time << "> has time <" 
-       << psp.SetTime(time) << ">\n";
+  cerr << endl << "Best fit dump to <" << time << "> has time <" 
+       << psp.SetTime(time) << ">" << endl;
   
 				// Write a summary
-				// -------------------
+				// ---------------
   if (verbose) psp.PrintSummaryCurrent(cerr);
   
-  write_array(in, psp);
-  
-  cerr << "Done\n";
+  try {
+    write_array(in, psp);
+  }
+  catch (const char *error) {
+    cout << "*** Error: " << error << endl;
+    exit(1);
+  }
+
+  cerr << "Done" << endl;
 
   return 0;
 }
