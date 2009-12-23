@@ -35,6 +35,8 @@ class CollideLTE;
     @param use_repair repairs the tree rather than remakes the tree
     @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
     @param use_exes track energy loss per particle for exact energy conservation
+    @param use_Kn track Knudsen number in attribute position n (default: -1)
+    @param use_St track Strouhal number in attribute position n (default: -1)
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
     @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
@@ -48,7 +50,7 @@ private:
   int cnum, wght;
   int nsteps, msteps;
   unsigned madj;
-  int use_temp, use_dens, use_delt, use_exes, tspow;
+  int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, tspow;
   double diamfac;
   double diam;
   double collfrac;

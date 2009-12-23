@@ -1062,13 +1062,13 @@ void ComponentContainer::report_numbers(void)
       list<Component*>::iterator cc;
       if (out) {
 	if (myid==0) {
-	  out << "# Step: " << this_step << endl;
+	  out << "# Step: " << this_step << endl << right;
 	  out << "# " << setw(5)  << "Proc";
 	  for (cc=comp.components.begin(); 
 	       cc != comp.components.end(); cc++) {
 	    out << setw(20) << (*cc)->name;
 	  }
-	  out << endl << "# ";
+	  out << endl << "# " << setw(5) << "-----";
 	  for (cc=comp.components.begin(); 
 	       cc != comp.components.end(); cc++) {
 	    out << setw(20) << "----------";

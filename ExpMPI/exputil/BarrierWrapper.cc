@@ -33,7 +33,7 @@ BarrierWrapper::~BarrierWrapper()
 
 void BarrierWrapper::operator()(const string& label)
 {
-  MPI_Barrier(comm);
+  // MPI_Barrier(comm);
 
   if (check_label) {
 				// Copy the label to the send buffer
@@ -45,7 +45,7 @@ void BarrierWrapper::operator()(const string& label)
 				// Compare adjacent strings in the list
     if (localid==0) {
       char tmp[cbufsz];		// Working buffer
-      bool firstime = true;
+      bool firstime   = true;
       string one, two = strncpy(tmp, &bufferT[0], cbufsz);
       for (int n=1; n<commsize; n++) {
 	one = two;
@@ -65,8 +65,11 @@ void BarrierWrapper::operator()(const string& label)
       }
 
       if (!firstime)
-	cout << setfill('-') << setw(60) << '-' << endl << setfill(' ');
+	cout << setfill('-') << setw(60) << '-' << endl 
+	     << setfill(' ') << flush;
     }
+
+    MPI_Barrier(comm);
   }
 
 }

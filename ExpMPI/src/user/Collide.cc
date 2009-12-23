@@ -207,6 +207,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   initSoFar = vector<TimeElapsed>(nthrds);
   collSoFar = vector<TimeElapsed>(nthrds);
   elasSoFar = vector<TimeElapsed>(nthrds);
+  cellSoFar = vector<TimeElapsed>(nthrds);
   stat1SoFar = vector<TimeElapsed>(nthrds);
   stat2SoFar = vector<TimeElapsed>(nthrds);
   stat3SoFar = vector<TimeElapsed>(nthrds);
@@ -796,13 +797,28 @@ void * Collide::collide_thread(void * arg)
 
     stat3SoFar[id] = stat3Time[id].stop();
 
+    //
+    // Compute Knudsen and/or Strouhal number
+    //
+    if (use_Kn>=0 || use_St>=0) {
+      double cL = pow(volc, 0.33333333);
+      double Kn = cL*cL/(Fn*mass*cross*number);
+      double St = cL/(tau*samp->CRMavg());
+      for (unsigned j=0; j<number; j++) {
+	Particle* p = tree->Body(bodx[j]);
+	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
+	if (use_St>=0) p->dattrib[use_St] = St;
+      }
+    }
+
 #ifdef USE_GPTL
     GPTLstop("Collide::diag");
 #endif
 
     // Record effort per particle in microseconds
     //
-    double effort = cellTime[id].stop()()/number;
+    cellSoFar[id] = cellTime[id].stop();
+    double effort = cellSoFar[id]()/number;
     for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort += effort;
 
   } // Loop over cells
@@ -1893,13 +1909,13 @@ void Collide::pre_collide_diag()
   diagTime.start();
   for (int n=0; n<nthrds; n++) {
     error1T[n] = 0;
-    sel1T[n] = 0;
-    col1T[n] = 0;
-    epsm1T[n] = 0;
+    sel1T[n]   = 0;
+    col1T[n]   = 0;
+    epsm1T[n]  = 0;
     Nepsm1T[n] = 0;
-    tmassT[n] = 0;
-    decolT[n] = 0;
-    decelT[n] = 0;
+    tmassT[n]  = 0;
+    decolT[n]  = 0;
+    decelT[n]  = 0;
 
     // For computing cell occupation #
     colcntT[n].clear();	// and collision counts

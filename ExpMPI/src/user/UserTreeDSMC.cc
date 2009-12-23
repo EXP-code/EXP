@@ -67,6 +67,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_temp   = -1;
   use_dens   = -1;
   use_delt   = -1;
+  use_Kn     = -1;
+  use_St     = -1;
   use_exes   = -1;
   coolfrac   = 0.1;
   frontier   = false;
@@ -169,6 +171,70 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   }
 
   //
+  // Sanity check on Knudsen number calculation
+  //
+  if (use_Kn>=0) {
+
+    int ok1 = 1, ok;
+
+    PartMapItr p = c0->Particles().begin();
+    PartMapItr pend = c0->Particles().end();
+    for (; p!=pend; p++) {
+      if (use_Kn >= static_cast<int>(p->second.dattrib.size())) {
+	ok1 = 0;
+	break;
+      }
+    }
+
+    MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
+
+    // Turn off excess calculation
+    // if particles have incompatible attributes
+    //
+    if (ok==0) {
+      if (myid==0) {
+	cout << "UserTreeDSMC: Knudsen number calculation requested but some" << endl
+	     << "particles have incompatible float attribute counts." << endl
+	     << "Attribute #" << use_Kn << ". Continuing without Knudsen number computation."
+	     << endl;
+      }
+      use_Kn = -1;
+    }
+  }
+
+  //
+  // Sanity check on Strouhal number calculation
+  //
+  if (use_St>=0) {
+
+    int ok1 = 1, ok;
+
+    PartMapItr p = c0->Particles().begin();
+    PartMapItr pend = c0->Particles().end();
+    for (; p!=pend; p++) {
+      if (use_St >= static_cast<int>(p->second.dattrib.size())) {
+	ok1 = 0;
+	break;
+      }
+    }
+
+    MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
+
+    // Turn off Strouhal number calculation
+    // if particles have incompatible attributes
+    //
+    if (ok==0) {
+      if (myid==0) {
+	cout << "UserTreeDSMC: Strouhal number calculation requested but some" << endl
+	     << "particles have incompatible float attribute counts." << endl
+	     << "Attribute #" << use_St << ". Continuing without Strouhal number computation."
+	     << endl;
+      }
+      use_St = -1;
+    }
+  }
+
+  //
   // Set collision parameters
   //
   Collide::NTC     = ntc;
@@ -240,8 +306,10 @@ void UserTreeDSMC::userinfo()
     cout << ", with diagnostic output at levels <= " << msteps;
   else if (nsteps>0) 
     cout << ", with diagnostic output every " << nsteps << " steps";
-  if (use_temp>=0) cout << ", temp at pos=" << use_temp;
-  if (use_dens>=0) cout << ", dens at pos=" << use_dens;
+  if (use_temp>=0) cout << ", temp at pos="   << use_temp;
+  if (use_dens>=0) cout << ", dens at pos="   << use_dens;
+  if (use_Kn>=0)   cout << ", Kn at pos="     << use_Kn;
+  if (use_St>=0)   cout << ", St at pos="     << use_St;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
@@ -549,7 +617,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
-  barrier("TreeDSMC: after colide");
+  barrier("TreeDSMC: after collide");
 
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide");

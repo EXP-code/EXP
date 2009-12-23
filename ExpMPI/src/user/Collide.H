@@ -164,7 +164,7 @@ protected:
   unsigned errtot;
   unsigned numtot;
 
-  int use_temp, use_dens, use_delt, use_exes;
+  int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
 
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) {}
@@ -190,7 +190,7 @@ protected:
   //
   vector<Timer> initTime, collTime, elasTime, cellTime;
   vector<Timer> stat1Time, stat2Time, stat3Time, coolTime;
-  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar;
+  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar;
   vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar;
   vector<int> collCnt;
 
@@ -241,9 +241,17 @@ public:
 
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
+
   virtual void
-  set_excess(int Epos) { use_exes=Epos; }
-  virtual void set_timestep(int DTpos) { }
+  set_excess(int pos) { use_exes=pos; }
+
+  virtual void set_timestep(int pos) { }
+
+  virtual void
+  set_Kn(int pos) { use_Kn=pos; }
+
+  virtual void
+  set_St(int pos) { use_St=pos; }
 
   unsigned select() { unsigned t=seltot; seltot=0; return t; }
   unsigned total()  { unsigned t=coltot; coltot=0; return t; }

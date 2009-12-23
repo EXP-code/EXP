@@ -98,13 +98,15 @@ pHOT::pHOT(Component *C)
   timer_scatter.Microseconds();
 
   use_weight = true;
-
+ 
+  // Change "true" to "false" to disable the barrier checking
   barrier = new BarrierWrapper(MPI_COMM_WORLD, true);
 } 
 
 
 pHOT::~pHOT()
 {
+  delete barrier;
   delete root;
   delete unit;
   delete gen;
