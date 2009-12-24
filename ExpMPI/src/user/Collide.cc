@@ -447,7 +447,8 @@ void * Collide::collide_thread(void * arg)
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
     pCell *samp = c->sample;
-    double crm=samp->CRMavg(), crmax=0.0;
+    double crm=samp->CRMavg();
+    double mvel=crm, crmax=0.0;
 
     if (!NTC || crm<0.0) {
       crm = 0.0;
@@ -456,7 +457,8 @@ void * Collide::collide_thread(void * arg)
 	  crm += (samp->state[1+k] - 
 		  samp->state[4+k]*samp->state[4+k]/samp->state[0])/samp->state[0];
       }
-      crm = sqrt(fabs(2.0*crm));
+      mvel = fabs(crm);
+      crm  = sqrt(2.0*mvel);
       if (NTC) crm *= 1.5;
     }
     
@@ -803,7 +805,7 @@ void * Collide::collide_thread(void * arg)
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
       double Kn = cL*cL/(Fn*mass*cross*number);
-      double St = cL/(tau*samp->CRMavg());
+      double St = cL/fabs(tau*mvel);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(bodx[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;

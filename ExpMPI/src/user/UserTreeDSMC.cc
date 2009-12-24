@@ -253,6 +253,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
   collide->set_timestep(use_delt);
+  collide->set_Kn(use_Kn);
+  collide->set_St(use_St);
   collide->set_excess(use_exes);
   ElostTotCollide = ElostTotEPSM = 0.0;
 
@@ -358,6 +360,8 @@ void UserTreeDSMC::initialize()
   if (get_value("use_temp", val))	use_temp = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens = atoi(val.c_str());
   if (get_value("use_delt", val))	use_delt = atoi(val.c_str());
+  if (get_value("use_Kn", val))		use_Kn   = atoi(val.c_str());
+  if (get_value("use_St", val))		use_St   = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes = atoi(val.c_str());
   if (get_value("frontier", val))	frontier = atoi(val.c_str()) ? true : false;
   if (get_value("tspow", val))		tspow = atoi(val.c_str());
