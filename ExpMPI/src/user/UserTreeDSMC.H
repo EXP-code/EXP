@@ -37,6 +37,7 @@ class CollideLTE;
     @param use_exes track energy loss per particle for exact energy conservation
     @param use_Kn track Knudsen number in attribute position n (default: -1)
     @param use_St track Strouhal number in attribute position n (default: -1)
+    @param esol solves the LTE cooling rate equation for each cell
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
     @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
@@ -61,7 +62,7 @@ private:
   double coolfrac;
 
   bool frontier, tsdiag, mfpstat, statall, use_multi, use_pullin, use_repair;
-  bool cba, cbadiag, dryrun, nocool, ntc, tube;
+  bool cba, cbadiag, dryrun, nocool, ntc, tube, esol;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

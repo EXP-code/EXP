@@ -81,6 +81,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   nocool     = false;
   use_multi  = false;
   use_pullin = false;
+  esol       = false;
   ntc        = true;
   cba        = true;
   tube       = false;
@@ -243,6 +244,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::CBADIAG = cbadiag;
   Collide::PULLIN  = use_pullin;
   Collide::CNUM    = cnum;
+  Collide::ESOL    = esol;
   Collide::EPSMratio = epsm;
   Collide::DRYRUN  = dryrun;
   Collide::NOCOOL  = nocool;
@@ -373,6 +375,7 @@ void UserTreeDSMC::initialize()
   if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
   if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
+  if (get_value("esol", val))		esol = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
   if (get_value("ntc", val))		ntc = atoi(val.c_str()) ? true : false;
   if (get_value("tube", val))		tube = atoi(val.c_str()) ? true : false;

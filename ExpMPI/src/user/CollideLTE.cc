@@ -34,6 +34,8 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 
 				// Hydrogen fraction
 const double f_H = 0.76;
+				// Time step control for energy solution
+const double rfac = 0.05;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -175,13 +177,49 @@ void CollideLTE::initialize_cell(pCell* cell,
   // CoolRate has units erg*cm^3/t
   // So CoolRate*n_h*n_h*Volume*Time = ergs
 
+  double KEdspF;		// Final KE, used for ESOL only
+
   // Total energy lost (for both collisions and EPSM)
   //
   if (NOCOOL || n0<=0.0 || T <=0.0)
     coolrate[id] = 0.0;
   else {
-    coolrate[id] = hc->CoolRate(n0, T) * CellVolume * tau *
-      UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+				// Convert to energy rate in system units
+    double Cfac = CellVolume * UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+
+				// Energy to lose/gain
+    coolrate[id] = hc->CoolRate(n0, T) * Cfac * tau;
+
+    if (ESOL) {
+				// Instantaneous loss rate
+      double h = rfac*tau*cell->Mass()*KEdspS/(coolrate[id]+DBL_MIN);
+
+				// Energy to temperature
+      double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
+	cell->Mass()*boltz/mm;
+
+				// Initial temperature
+      double E = cell->Mass()*KEdspS;
+
+      double k1, k2, k3, k4, t=0.0;
+      while (t<=tau) {
+	h = min<double>(h, tau-t);
+                                // RK4
+	k1 = -h * hc->CoolRate(n0, E/Tfac);
+	k2 = -h * hc->CoolRate(n0, E/Tfac+k1*0.5);
+	k3 = -h * hc->CoolRate(n0, E/Tfac+k2*0.5);
+	k4 = -h * hc->CoolRate(n0, E/Tfac+k3);
+
+	E += Cfac * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+	t += h;
+      }
+
+      KEdspF = Tfac*T;
+
+				// Sanity: failure of implicit solution
+      if (isnan(KEdspF)) KEdspF = KEdspS;
+
+    }
 				// Sanity: failure of implicit solution
     if (isnan(coolrate[id])) coolrate[id] = 0.0;
   }
@@ -191,7 +229,10 @@ void CollideLTE::initialize_cell(pCell* cell,
   // Energy per encounter
   //
   if (number>0.0)
-    deltaE[id] = coolrate[id] / number;
+    if (ESOL)
+      deltaE[id] = cell->Mass()*(KEdspS - KEdspF) / number;
+    else
+      deltaE[id] = coolrate[id] / number;
   else
     deltaE[id] = 0.0;
 
@@ -212,8 +253,9 @@ void CollideLTE::initialize_cell(pCell* cell,
     ofstream out(sout.str().c_str(), ios::app);
     out << setw(16) << tnow
 	<< setw(16) << T
-	<< setw(16) << coolrate[id]
-	<< setw(16) << Density
+	<< setw(16) << coolrate[id];
+    if (ESOL) out << setw(16) << cell->Mass()*(KEdspS - KEdspF);
+    out << setw(16) << Density
 	<< setw(16) << massC
 	<< setw(16) << massC/volumeC
 	<< setw(16) << massS/volumeS;

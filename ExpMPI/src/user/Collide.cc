@@ -1874,8 +1874,10 @@ void * Collide::timestep_thread(void * arg)
 				// Size scale for multistep timestep calc.
       p->scale = mscale;
 				// Compute cooling criterion timestep
-      double v = p->dattrib[use_delt];
-      if (use_delt>=0 && v>0.0)	DT = min<double>(DT, v);
+      if (use_delt>=0) {
+	double v = p->dattrib[use_delt];
+	if (v>0.0) DT = min<double>(DT, v);
+      }
       
       p->dtreq = coolfrac*DT;
     }

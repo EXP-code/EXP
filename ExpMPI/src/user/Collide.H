@@ -200,6 +200,8 @@ public:
   static int CNUM;		// Target CNUM collisions if nonzero
 				// default: 0
 
+  static bool ESOL;		// Integrate the cooling solution
+
   static bool PULLIN;		// Use the origina Pullin velocity selection algorithm
 
   static bool CBA;		// Use the Consistent Boltzmann Algorithm
