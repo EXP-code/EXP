@@ -254,7 +254,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Create the collision instance
   collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
-  collide->set_timestep(use_delt);
+  if (esol) collide->set_timestep(-1);
+  else      collide->set_timestep(use_delt);
   collide->set_Kn(use_Kn);
   collide->set_St(use_St);
   collide->set_excess(use_exes);

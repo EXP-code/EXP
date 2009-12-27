@@ -177,22 +177,23 @@ void CollideLTE::initialize_cell(pCell* cell,
   // CoolRate has units erg*cm^3/t
   // So CoolRate*n_h*n_h*Volume*Time = ergs
 
-  double KEdspF;		// Final KE, used for ESOL only
+  double KEdspF = 0.0;		// Final KE, used for ESOL only
 
   // Total energy lost (for both collisions and EPSM)
   //
   if (NOCOOL || n0<=0.0 || T <=0.0)
-    coolrate[id] = 0.0;
+    coolheat[id] = 0.0;
   else {
 				// Convert to energy rate in system units
-    double Cfac = CellVolume * UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
+    double Cfac = CellVolume * n0 * n0 *
+      UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 
 				// Energy to lose/gain
-    coolrate[id] = hc->CoolRate(n0, T) * Cfac * tau;
+    coolheat[id] = hc->CoolRate(n0, T) * Cfac * tau;
 
     if (ESOL) {
 				// Instantaneous loss rate
-      double h = rfac*tau*cell->Mass()*KEdspS/(coolrate[id]+DBL_MIN);
+      double h = rfac*tau*cell->Mass()*KEdspS/(coolheat[id]+DBL_MIN);
 
 				// Energy to temperature
       double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
@@ -201,8 +202,9 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Initial temperature
       double E = cell->Mass()*KEdspS;
 
+      int icnt=0;
       double k1, k2, k3, k4, t=0.0;
-      while (t<=tau) {
+      while (t<tau*(1.0-2.0*DBL_MIN)) {
 	h = min<double>(h, tau-t);
                                 // RK4
 	k1 = -h * hc->CoolRate(n0, E/Tfac);
@@ -212,16 +214,24 @@ void CollideLTE::initialize_cell(pCell* cell,
 
 	E += Cfac * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
 	t += h;
+	icnt++;
       }
 
-      KEdspF = Tfac*T;
+      double T0=T;
 
-				// Sanity: failure of implicit solution
-      if (isnan(KEdspF)) KEdspF = KEdspS;
+      KEdspF = E/cell->Mass();
+      T      = E/Tfac;
 
+      if (icnt > 1000) 
+	cout << "Process " << setw(4) << myid 
+	     << " [" << setw(2) << id << "]:" << left
+	     << " #="      << setw(4) << icnt
+	     << " T_0="    << setw(15) << T0
+	     << " T_F="    << setw(15) << T 
+	     << endl << right;
     }
 				// Sanity: failure of implicit solution
-    if (isnan(coolrate[id])) coolrate[id] = 0.0;
+    if (isnan(coolheat[id])) coolheat[id] = 0.0;
   }
 
   coolSoFar[id] = coolTime[id].stop();
@@ -232,13 +242,15 @@ void CollideLTE::initialize_cell(pCell* cell,
     if (ESOL)
       deltaE[id] = cell->Mass()*(KEdspS - KEdspF) / number;
     else
-      deltaE[id] = coolrate[id] / number;
+      deltaE[id] = coolheat[id] / number;
   else
     deltaE[id] = 0.0;
 
+  /*
   if (deltaE[id]<0.0) {
     cout << "deltaE below zero" << endl;
   }
+  */
 
   if (fabs(deltaE[id])>1000.0) {
     cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
@@ -253,7 +265,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     ofstream out(sout.str().c_str(), ios::app);
     out << setw(16) << tnow
 	<< setw(16) << T
-	<< setw(16) << coolrate[id];
+	<< setw(16) << coolheat[id];
     if (ESOL) out << setw(16) << cell->Mass()*(KEdspS - KEdspF);
     out << setw(16) << Density
 	<< setw(16) << massC
@@ -303,7 +315,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Energy ratio for time step estimation
   if (use_delt>=0) {
 
-    double Ctime =  tau*cell->Mass()*KEdspC/(coolrate[id]+DBL_MIN);
+    double Ctime =  tau*cell->Mass()*KEdspC/(coolheat[id]+DBL_MIN);
     //                                                     ^
     // to prevent inf values ------------------------------|
     //

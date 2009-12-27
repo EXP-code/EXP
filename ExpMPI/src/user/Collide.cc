@@ -18,6 +18,8 @@ using namespace std;
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN = false;
+				// Use the explicit energy solution
+bool Collide::ESOL = false;
 				// Print out sorted cell parameters
 bool Collide::SORTED = false;
 				// Print out T-rho plane for cells 
@@ -180,7 +182,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
 
 				// Default cooling rate 
 				// (if not set by derived class)
-  coolrate = vector<double>(nthrds, 0.0);
+  coolheat = vector<double>(nthrds, 0.0);
 
 				// EPSM diagnostics
   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
@@ -576,7 +578,7 @@ void * Collide::collide_thread(void * arg)
       cerr << left << setprecision(2)
 	   << "MFP/L=" << setw(8) << prec[id].first 
 	   << " Edsp=" << setw(8) << kedsp
-	   << " Rate=" << setw(8) << coolrate[id]
+	   << " Rate=" << setw(8) << coolheat[id]
 	   << " Time=" << setw(8) << tnow
 	   << " Nsel=" << setw(6) << nsel 
 	   << " Numb=" << setw(6) << number 
@@ -770,22 +772,22 @@ void * Collide::collide_thread(void * arg)
     
     // Energy lost from this cell compared to target
     //
-    if (coolrate[id]>0.0) {
+    if (coolheat[id]>0.0) {
       if (mass>0.0) {
 	double dE, excessT = decolT[id] + decelT[id];
 
 				// Diagnostic
 	if (MFPDIAG && kedsp>0.0) {
-	  keratT[id].push_back((kedsp   - coolrate[id])/kedsp);
-	  deratT[id].push_back((excessT - coolrate[id])/kedsp);
+	  keratT[id].push_back((kedsp   - coolheat[id])/kedsp);
+	  deratT[id].push_back((excessT - coolheat[id])/kedsp);
 	}
 	
 	if (use_exes>=0) {	// Spread excess energy into the cell
 
 	  if (ENSEXES) 		// All the energy is spread
-	    dE = (excessT    - coolrate[id])/mass;
+	    dE = (excessT    - coolheat[id])/mass;
 	  else			// Only the EPSM excess is spread
-	    dE = (decelT[id] - coolrate[id])/mass;
+	    dE = (decelT[id] - coolheat[id])/mass;
 
 	  for (unsigned j=0; j<number; j++) {
 	    Particle* p = tree->Body(bodx[j]);
@@ -1256,17 +1258,17 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// needs to be removed and + if too much
 				// energy was removed by cooling last step
 				// 
-  if (Einternal + Exes - Emin > coolrate[id]) {
-    Enew = Einternal + Exes - coolrate[id];
+  if (Einternal + Exes - Emin > coolheat[id]) {
+    Enew = Einternal + Exes - coolheat[id];
   } else {
     Enew = min<double>(Emin, Einternal);
 
-    decelT[id] += Einternal - Enew + Exes - coolrate[id];
+    decelT[id] += Einternal - Enew + Exes - coolheat[id];
 
     if (TSDIAG) {
-      if (coolrate[id]-Exes>0.0) {
+      if (coolheat[id]-Exes>0.0) {
 
-	int indx = (int)floor(log(Einternal/coolrate[id]) /
+	int indx = (int)floor(log(Einternal/coolheat[id]) /
 			      (log(2.0)*TSPOW) + 5);
 	if (indx<0 ) indx = 0;
 	if (indx>10) indx = 10;
