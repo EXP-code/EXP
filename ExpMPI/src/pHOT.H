@@ -80,6 +80,8 @@ protected:
 
   void bomb(const string& membername, const string& msg);
 
+  static unsigned klen;
+
 public:
 
   static unsigned neg_half;

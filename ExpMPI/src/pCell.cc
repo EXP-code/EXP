@@ -11,7 +11,6 @@
 
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
-unsigned pCell::nbits  = 16;	// Number of bits per dimension
 unsigned pCell::CRMcnt = 8;	// Number of entries in CRM stack
 
 string printKey(key_type p)
@@ -19,8 +18,8 @@ string printKey(key_type p)
   ostringstream sout, sret;
 
   unsigned short cnt = 0;
-  unsigned nbits = sizeof(p)*8;
-  for (unsigned k=0; k<nbits; k++) {
+  unsigned Nbits = sizeof(p)*8;
+  for (unsigned k=0; k<Nbits; k++) {
     sout << ( (p & 0x1) ? '1' : '0' );
     if (++cnt==3) {sout << '.'; cnt = 0;}
     p = p>>1;

@@ -48,6 +48,7 @@ void initialize(void)
 
   if (parse->find_item("time", val))		tnow = atof(val.c_str());
   if (parse->find_item("dtime", val))		dtime = atof(val.c_str());
+  if (parse->find_item("nbits", val))           nbits = atoi(val.c_str());
   if (parse->find_item("PFbufsz", val))         PFbufsz = atoi(val.c_str());
   if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
   if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());

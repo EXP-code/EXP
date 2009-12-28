@@ -2,6 +2,7 @@
 #include <iomanip>
 #include "global.H"
 #include "ParticleFerry.H"
+#include "pHOT.H"
 
 MPI_Datatype ParticleFerry::Particletype;
 
@@ -209,11 +210,11 @@ void ParticleFerry::BufferRecv()
 
 void ParticleFerry::bufferKeyCheck()
 {
-				// Sanity check
+				// Sanity check for pHOT keys
   unsigned long long maxexp = 1;
-  maxexp = maxexp << 48;
+  maxexp = maxexp << (3*nbits);
   unsigned long long minkey = 1;
-  minkey = minkey << 63;
+  minkey = minkey << (sizeof(key_type)*8 - 1);
   unsigned long long maxkey = 0;
   for (unsigned n=0; n<ibufcount; n++) {
     minkey = min<unsigned long long>(minkey, buf[n].key);

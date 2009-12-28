@@ -7,6 +7,7 @@
 #include <map>
 #include <deque>
 
+#include "global.H"
 #include "pHOT_types.H"
 
 using namespace std;
@@ -29,9 +30,6 @@ public:
 
   //! Target macroscopic bucket size
   static unsigned Bucket;
-
-  //! Number of bits per dimension
-  static unsigned nbits;
 
   //! Number of entries in running CRM average (default: 8)
   static unsigned CRMcnt;

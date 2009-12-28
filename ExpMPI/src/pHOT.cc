@@ -1,3 +1,4 @@
+
 #include <values.h>
 
 # include <cstdlib>
@@ -43,7 +44,11 @@ static bool wghtDBL(const pair<unsigned long long, double>& a,
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
 //
-static bool keys_debug = false;
+static bool keys_debug = true;
+
+// For formatting
+unsigned pHOT::klen = 3*nbits/4+6;
+
 
 template<class U, class V>
 struct pair_compare
@@ -65,6 +70,16 @@ pHOT::pHOT(Component *C)
 {
   cc = C;			// Register the calling component
 
+				// Sanity check
+  if (nbits*3 >= sizeof(key_type)*8) {
+    unsigned maxb = sizeof(key_type)*8/3;
+    if (maxb*3 >= sizeof(key_type)*8) maxb--;
+    ostringstream mesg;
+    mesg << "nbits=" << nbits << " but must be less than " << maxb;
+    bomb("pHOT::pHOT", mesg.str());
+  }
+  klen = 3*nbits/4+6;
+
   volume = sides[0]*sides[1]*sides[2];	// Total volume of oct-tree region
   root = 0;
 
@@ -75,8 +90,8 @@ pHOT::pHOT(Component *C)
   kbeg = vector<key_type>(numprocs);
   kfin = vector<key_type>(numprocs);
 
-  key_min = (key_type)1 << 48;
-  key_max = (key_type)1 << 49;
+  key_min = (key_type)1 << (nbits*3);
+  key_max = (key_type)1 << (nbits*3+1);
 
   m_xchange = n_xchange = 0;
 
@@ -136,8 +151,6 @@ key_type pHOT::getKey(double *p)
     }
   }
 
-  // const unsigned nbits = 21;
-  const unsigned nbits = 16;
   const double factor = 1<<nbits;
   const unsigned mask = 0x1;
 
@@ -172,7 +185,6 @@ string pHOT::printKey(key_type p)
   ostringstream sout, sret;
 
   unsigned short cnt = 0;
-  unsigned nbits = sizeof(p)*8;
   for (unsigned k=0; k<nbits; k++) {
     sout << ( (p & 0x1) ? '1' : '0' );
     if (++cnt==3) {sout << '.'; cnt = 0;}
@@ -1708,23 +1720,23 @@ void pHOT::Repartition(unsigned mlevel)
     
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      
-      out << "------------------------------------------------------------" 
-	  << endl  << "---- Post-scatter summary, T = " << tnow << endl
-	  << "------------------------------------------------------------" 
-	  << endl;
-      out << left
-	  << setw(5) << "#" 
-	  << setw(15) << "kbeg" << setw(15) << "kfin" 
-	  << setw(15) << "nkeys"
-	  << setw(15) << "bodies" << endl << "#" << endl;
+      unsigned nhead = 35+2*klen;
+
+      out << setfill('-') << setw(nhead) << '-' << endl  
+	  << "---- Post-scatter summary, T = " << tnow << endl
+	  << setw(nhead) << '-' << endl << setfill(' ') << left
+	  << setw(5)    << "#" << right
+	  << setw(klen) << "kbeg" 
+	  << setw(klen) << "kfin" 
+	  << setw(15)   << "nkeys"
+	  << setw(15)   << "bodies" << endl << "#" << endl;
       for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
-	    << setw(15) << kfin[i] << dec 
-	    << setw(15) << ksize[i] << setw(15) << nsize[i]
+	out << left << setw(5) << i << right
+	    << hex << setw(klen) << kbeg[i] << setw(klen) << kfin[i] 
+	    << dec << setw(15) << ksize[i] << setw(15) << nsize[i]
 	    << endl;
-      out << "------------------------------------------------------------" 
-	  << endl;
+      out << setfill('-') << setw(nhead) << '-' << endl << setfill(' ') << left
+	  << endl << endl;
     }
   }
 
@@ -2439,20 +2451,22 @@ void pHOT::adjustTree(unsigned mlevel)
 
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      unsigned nhead = 20 + 2*klen;
 
-      out << "--------------------------------------------------" << endl
-	  << "---- Post-adjustTree summary [" << mlevel << "], T = "  
-	  << tnow                                                 << endl
-	  << "--------------------------------------------------" << endl;
+      out << left << setfill('-') << setw(nhead) << '-' << endl
+	  << "---- Post-adjustTree summary [" << mlevel << "], T = " 
+	  << tnow << endl << setw(nhead) << '-' << endl << setfill(' ');
       out << left << setw(5) << "#" 
-	  << setw(15) << "kbeg" << setw(15) << "kfin" 
+	  << setw(klen) << right << "kbeg" << setw(klen) << "kfin" 
 	  << setw(15) << "bodies" << endl << "#" << endl;
       for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
-	    << setw(15) << kfin[i] << dec 
+	out << left << setw(5) << i << hex << right
+	    << setw(klen) << kbeg[i] 
+	    << setw(klen) << kfin[i] << dec 
 	    << setw(15) << nsize[i]
 	    << endl;
-      out << "--------------------------------------------------" << endl;
+      out << left << setfill('-') << setw(nhead) << '-' << endl
+	  << setfill(' ') << endl;
     }
   }
 
@@ -3108,7 +3122,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     }
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      out << "-------------------------------------------" << endl;
+      out << "-------------------------------------------" << endl << endl;
     }
   }
   //
@@ -3149,26 +3163,28 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
   //
 
   if (keys_debug) {
+    unsigned nhead = 15 + 5*klen;
+
     if (myid==0) {
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      out << "-------------------------------------------" << endl;
-      out << "------ Sampled keys -----------------------" << endl;
-      out << "-------------------------------------------" << endl;
-      out << left << setw(5) << "#"
-	  << setw(10) << "#keys"
-	  << setw(15) << "First"
-	  << setw(15) << "Q1"
-	  << setw(15) << "Median"
-	  << setw(15) << "Q3"
-	  << setw(15) << "Last"
+      out << left << setfill('-') << setw(nhead) << "-" << endl
+	  << setw(nhead) << "------ Sampled keys " << endl
+	  << setw(nhead) << "-" << setfill(' ') << endl
+	  << left << setw(5) << "#"
+	  << setw(10) << "#keys" << right
+	  << setw(klen) << "First"
+	  << setw(klen) << "Q1"
+	  << setw(klen) << "Median"
+	  << setw(klen) << "Q3"
+	  << setw(klen) << "Last"
 	  << endl
-	  << setw(5)  << "-"
+	  << left << setw(5)  << "-"
 	  << setw(10) << "-----"
-	  << setw(15) << "-----"
-	  << setw(15) << "--"
-	  << setw(15) << "------"
-	  << setw(15) << "--"
-	  << setw(15) << "----"
+	  << right << setw(klen) << "-----"
+	  << setw(klen) << "--"
+	  << setw(klen) << "------"
+	  << setw(klen) << "--"
+	  << setw(klen) << "----"
 	  << endl;
     }
     for (int n=0; n<numprocs; n++) {
@@ -3176,17 +3192,24 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
 	out << left << setw(5) << n << setw(10) << keys.size();
 	if (keys.size()>0) {
-	  out << hex
-	      << setw(15) << keys[0].first
-	      << setw(15) << keys[keys.size()/4].first
-	      << setw(15) << keys[keys.size()/2].first
-	      << setw(15) << keys[keys.size()*3/4].first
-	      << setw(15) << keys[keys.size()-1].first
+	  out << hex << right
+	      << setw(klen) << keys[0].first
+	      << setw(klen) << keys[keys.size()/4].first
+	      << setw(klen) << keys[keys.size()/2].first
+	      << setw(klen) << keys[keys.size()*3/4].first
+	      << setw(klen) << keys[keys.size()-1].first
 	      << dec << endl;
 	}
       }
       (*barrier)("pHOT: partitionKeys debug 2");
     }
+
+    if (myid==0) {
+      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      out << left << setfill('-') << setw(nhead) << "-" << endl 
+	  << setfill('-') << endl;
+    }
+
   }
 
   //
@@ -3215,7 +3238,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	sout << setfill('-') << setw(cwid-5) << '-';
 	out << left << setw(cwid) << sout.str();
       }
-      out << endl;
+      out << endl << endl;
     }
 
     for (unsigned n=0; n<numprocs; n++) {
@@ -3297,19 +3320,21 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     if (keys_debug) {	 // If true, print key ranges for each process
       key_type kdif;
       ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      out << "--------------------------------------------------------" << endl
-	  << "---- partitionKeys: keys in list=" << keylist.size()      << endl
-	  << "--------------------------------------------------------" << endl
-	  << left << setw(5) << "proc #" << setw(15) << "kfin"
-	  << setw(15) << "kfin" << setw(15) << "# keys" << endl
-	  << left << setw(5) << "------" << setw(15) << "----"
-	  << setw(15) << "----" << setw(15) << "------" << endl;
+      unsigned nhead = 5 + 3*klen;
+      out << setw(nhead) << setfill('-') << '-' << endl
+	  << "---- partitionKeys: keys in list=" << keylist.size() << endl
+	  << setw(nhead) << setfill('-') << '-' << endl << setfill(' ')
+	  << left << setw(5) << "proc" << right << setw(klen) << "kbeg"
+	  << setw(klen) << "kfin" << setw(klen) << "# keys" << endl
+	  << left << setw(5) << "----" << right << setw(klen) << "----"
+	  << setw(klen) << "----" << setw(klen) << "------" << endl;
       for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << hex << setw(15) << kbeg[i] 
-	    << setw(15) << kfin[i] << dec 
-	    << setw(15) << (kdif = kfin[i] - kbeg[i])
+	out << left << setw(5) << i << hex << right << setw(klen) << kbeg[i] 
+	    << setw(klen) << kfin[i] << dec 
+	    << setw(klen) << (kdif = kfin[i] - kbeg[i])
 	    << endl;
-      out << "--------------------------------------------------------" << endl;
+      out << setw(nhead) << setfill('-') << '-' << endl << setfill(' ')
+	  << endl;
     }
   }
 
@@ -3327,7 +3352,8 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	  << "---- total keys=" << setw(10) << tkey0 << endl
 	  << "----  total oob=" << setw(10) << oobn << endl
 	  << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
-	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	  << endl;
     }
   }
 
