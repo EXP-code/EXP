@@ -35,7 +35,7 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.05;
+const double rfac = 0.1;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -201,6 +201,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
 				// Initial temperature
       double E = cell->Mass()*KEdspS;
+      double E0 = E;
 
       int icnt=0;
       double k1, k2, k3, k4, t=0.0;
@@ -218,6 +219,9 @@ void CollideLTE::initialize_cell(pCell* cell,
       }
 
       double T0=T;
+
+				// Sanity: failure of explicit solution
+      if (isnan(E)) E = E0;
 
       KEdspF = E/cell->Mass();
       T      = E/Tfac;

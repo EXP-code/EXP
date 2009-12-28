@@ -136,6 +136,7 @@ key_type pHOT::getKey(double *p)
     }
   }
 
+  // const unsigned nbits = 21;
   const unsigned nbits = 16;
   const double factor = 1<<nbits;
   const unsigned mask = 0x1;
