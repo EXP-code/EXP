@@ -84,12 +84,24 @@ protected:
 
 public:
 
-  static unsigned neg_half;
-  static double sides[];
-  static double offst[];
-  static double jittr[];
+  //! 3-vector of sides of rectangular prism (default: [2, 2, 2])
+  static double   sides[];
+  //! Origin of the prism (default: [1, 1, 1])
+  //! E.g. the default selction defines a cube with coordinates [-1, 1]^3
+  static double   offst[];
+  //! Additional randomly selected offset with given extent to prevent
+  //! gridding effects (default: none)
+  static double   jittr[];
+  //! Use key subsampling to improve run time in the key partioning step
+  //! (default: true)
+  static bool     sub_sample;
+  //! Print out partition diagnostics (default: false)
+  static bool     keys_debug;
 
+  //! Constructor
   pHOT(Component* C);
+
+  //! Destructor
   ~pHOT();
 
   key_type getKey(double *);

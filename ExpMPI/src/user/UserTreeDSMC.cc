@@ -85,6 +85,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ntc        = true;
   cba        = true;
   tube       = false;
+  sub_sample = true;
 				// Initialize using input parameters
   initialize();
 
@@ -114,6 +115,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   diam = diamfac*a0/(Lunit);
 				// Number of protons per mass unit
   collfrac = Munit/mp;
+
+  pHOT::sub_sample = sub_sample;
 
   if (tube) {
     pHOT::sides[0] = pHOT::sides[1] = pHOT::sides[2] = boxsize;
@@ -380,6 +383,7 @@ void UserTreeDSMC::initialize()
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
   if (get_value("ntc", val))		ntc = atoi(val.c_str()) ? true : false;
   if (get_value("tube", val))		tube = atoi(val.c_str()) ? true : false;
+  if (get_value("sub_sample", val))	sub_sample = atoi(val.c_str()) ? true : false;
 }
 
 

@@ -42,6 +42,7 @@ class CollideLTE;
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
     @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
     @param wght sets the cell time partitioning (default: 1 = on)
+    @param sub_sample toggles the key partition algorithm that uses only a subsample of the key list to decompose the domaine (default: true)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -62,7 +63,7 @@ private:
   double coolfrac;
 
   bool frontier, tsdiag, mfpstat, statall, use_multi, use_pullin, use_repair;
-  bool cba, cbadiag, dryrun, nocool, ntc, tube, esol;
+  bool cba, cbadiag, dryrun, nocool, ntc, tube, esol, sub_sample;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

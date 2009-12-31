@@ -26,7 +26,6 @@ using namespace std;
 double pHOT::sides[] = {2.0, 2.0, 2.0};
 double pHOT::offst[] = {1.0, 1.0, 1.0};
 double pHOT::jittr[] = {0.0, 0.0, 0.0};
-unsigned pHOT::neg_half = 0;
 
 static bool wghtKEY(const pair<unsigned long long, double>& a, 
 		    const pair<unsigned long long, double>& b)
@@ -44,7 +43,12 @@ static bool wghtDBL(const pair<unsigned long long, double>& a,
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
 //
-static bool keys_debug = true;
+bool pHOT::keys_debug = false;
+
+//
+// Turn on/off subsampling the key list for partitioning
+//
+bool pHOT::sub_sample = true;
 
 // For formatting
 unsigned pHOT::klen = 3*nbits/4+6;
@@ -158,7 +162,7 @@ key_type pHOT::getKey(double *p)
 
 				// Reverse the order
   for (unsigned k=0; k<3; k++)
-    bins[2-k] = (unsigned)floor( ((p[k]+offset[k])/sides[k]+neg_half)*factor );
+    bins[2-k] = (unsigned)floor( ((p[k]+offset[k])/sides[k])*factor );
   
   key_type place = 1;
   key_type  _key = 0;
@@ -1719,7 +1723,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       unsigned nhead = 35+2*klen;
 
       out << setfill('-') << setw(nhead) << '-' << endl  
@@ -2450,7 +2454,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	       0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       unsigned nhead = 20 + 2*klen;
 
       out << left << setfill('-') << setw(nhead) << '-' << endl
@@ -3074,99 +3078,105 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 #ifdef USE_GPTL
   GPTLstart("pHOT::partitionKeys");
 #endif
+				// For diagnostics
+  Timer *timer_debug;
+  if (keys_debug && myid==0) {
+    timer_debug = new Timer(true);
+    timer_debug->start();
+  }
 
 				// Sort the keys
   sort(keys.begin(), keys.end(), wghtKEY);
 
-				// Even number per processor
-  unsigned equal = cc->nbodies_tot/numprocs;
+  vector<key_wght> keylist1, keylist;
 
-				// Sample keys at desired rate
-				// e.g. every srate^th key is sampled
-  unsigned srate = static_cast<unsigned>(floor(sqrt(equal)+0.5));
+  double srate = 1;		// Only used for subsampling
 
-				// Number of samples
-  unsigned nsamp = keys.size()/srate;
-				
-  // DEBUG
+				// Set to <true> to enable subsampling
+  if (sub_sample) {
+				// Default rate (a bit more than
+				// one per DSMC cell)
+    const double subsample = 0.1; 
+
+    srate = subsample;		// Actual value, may be reset for
+				// consistency
+
+				// Desired number of samples
+				//
+				// Want at least 32, if possible
+				// since this is a good number for
+				// a DSMC cell
+    unsigned nsamp = 
+      max<unsigned>(32, static_cast<unsigned>(floor(srate*keys.size())));
+    
+				// Too many for particle count
+    if (nsamp > keys.size()) nsamp = keys.size();
+
+				// Consistent sampling rate
+    if (nsamp) srate = static_cast<double>(nsamp)/keys.size();
+
+    // Subsample the key list, with weight accumulation
+    //
+    if (keys.size()) {
+      double twght = 0.0;
+      unsigned j = 1;
+      for (unsigned i=0; i<keys.size(); i++) {
+	twght += keys[i].second;
+	if (static_cast<unsigned>(floor(srate*(i+1)-DBL_MIN)) == j) {
+	  keylist1.push_back(key_wght(keys[i].first, twght));
+	  twght = 0.0;
+	  j++;
+	}
+      }
+    }
+  } else {
+    keylist1 = keys;
+  }
+
+  // DEBUG 
+  // (set to keys_debug "true" at top of file to enable key range diagnostic)
+  //
   if (keys_debug) {
+
     if (myid==0) {
-	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
 	out << endl
 	    << "-------------------------------------------" << endl
 	    << "--- Sampling stats ------------------------" << endl
 	    << "-------------------------------------------" << endl << left
 	    << setw(5)  << "Id"
 	    << setw(10) << "#keys" 
-	    << setw(10) << "rate" 
+	    << setw(15) << "rate" 
 	    << setw(10) << "samples"
 	    << endl
 	    << setw(5)  << "--"
 	    << setw(10) << "-----" 
-	    << setw(10) << "----" 
+	    << setw(15) << "----" 
 	    << setw(10) << "-------"
 	    << endl;
     }
     for (int n=0; n<numprocs; n++) {
       if (n==myid) {
-	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
 	out << left
 	    << setw(5)  << myid
 	    << setw(10) << keys.size()
-	    << setw(10) << srate
-	    << setw(10) << nsamp
+	    << setw(15) << srate
+	    << setw(10) << keylist1.size()
 	    << endl;
       }
 
       (*barrier)("pHOT: partitionKeys debug 1");
     }
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       out << "-------------------------------------------" << endl << endl;
     }
-  }
-  //
-  // END DEBUG
 
-  if (nsamp > keys.size())	// Too many for particle count
-    nsamp = keys.size();
-
-  if (nsamp)			// Consistent sampling rate
-    srate = keys.size()/nsamp;
-
-  // Require: srate*(2*nsamp-1)/2 < keys.size()
-  //
-  if (nsamp && keys.size()) {
-    unsigned decr=0;
-    while (srate*(2*nsamp-1)/2 >= keys.size()) {
-      nsamp--;
-      // DEBUG
-      decr++;
-      // END DEBUG
-    }
-    // DEBUG
-    if (decr) 
-      cout << "partitionKeys: process " << myid 
-	   << ": decreased nsamp by " << decr  << " to " << nsamp 
-	   << endl;
-    // END DEBUG
-  }
-  
-  vector<key_wght> keylist1, keylist;
-  if (keys.size()) {
-    for (unsigned i=0; i<nsamp; i++)
-      keylist1.push_back(keys[srate*(2*i+1)/2]);
-  }
-
-  //
-  // DEBUG (set to "true" to enable key range diagnostic)
-  //
-
-  if (keys_debug) {
     unsigned nhead = 15 + 5*klen;
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       out << left << setfill('-') << setw(nhead) << "-" << endl
 	  << setw(nhead) << "------ Sampled keys " << endl
 	  << setw(nhead) << "-" << setfill(' ') << endl
@@ -3189,7 +3199,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     }
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
-	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
 	out << left << setw(5) << n << setw(10) << keys.size();
 	if (keys.size()>0) {
 	  out << hex << right
@@ -3205,68 +3215,66 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     }
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       out << left << setfill('-') << setw(nhead) << "-" << endl 
 	  << setfill('-') << endl;
     }
 
-  }
+    //
+    // set to "true" to enable key list diagnostic
+    //
+    if (false) {
+      const unsigned cols = 3;	// # of columns in output
+      const unsigned cwid = 35;	// column width
 
-  //
-  // DEBUG (set to "true" to enable key list diagnostic)
-  //
-  if (false) {
-    const unsigned cols = 3;	// # of columns in output
-    const unsigned cwid = 35;	// column width
+      if (myid==0) {
+	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	out << "--------------------------" << endl;
+	out << "----- Partition keys -----" << endl;
+	out << "--------------------------" << endl;
 
-    if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      out << "--------------------------" << endl;
-      out << "----- Partition keys -----" << endl;
-      out << "--------------------------" << endl;
-
-      for (unsigned q=0; q<cols; q++) {
-	ostringstream sout;
-	sout << left << setw(4) << "Id" << setw(8) 
-	     << "Size" << setw(8) << "Tot" << setw(8) << "Order";
-	out << left << setw(cwid) << sout.str();
-      }
-      out << endl;
-	
-      for (unsigned q=0; q<cols; q++) {
-	ostringstream sout;
-	sout << setfill('-') << setw(cwid-5) << '-';
-	out << left << setw(cwid) << sout.str();
-      }
-      out << endl << endl;
-    }
-
-    for (unsigned n=0; n<numprocs; n++) {
-      if (myid==n) {
-	ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-	bool ok = true;
-	if (keylist1.size()>1) {
-	  for (unsigned j=1; j<keylist1.size(); j++)
-	    if (keylist1[j-1]>keylist1[j]) ok = false;
+	for (unsigned q=0; q<cols; q++) {
+	  ostringstream sout;
+	  sout << left << setw(4) << "Id" << setw(8) 
+	       << "Size" << setw(8) << "Tot" << setw(8) << "Order";
+	  out << left << setw(cwid) << sout.str();
 	}
-	ostringstream sout;
-	sout << left 
-	     << setw(4) << myid 
-	     << setw(8) << keylist1.size() 
-	     << setw(8) << keys.size();
-	if (ok) sout << left << setw(8) << "GOOD";
-	else sout << left << setw(8) << "BAD";
-
-	out << left << setw(cwid) << sout.str() << flush;
-	if (n % cols == cols-1 || n == numprocs-1) out << endl;
+	out << endl;
+	
+	for (unsigned q=0; q<cols; q++) {
+	  ostringstream sout;
+	  sout << setfill('-') << setw(cwid-5) << '-';
+	  out << left << setw(cwid) << sout.str();
+	}
+	out << endl << endl;
       }
-      (*barrier)("pHOT: partitionKeys debug 3");
+      
+      for (unsigned n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	  bool ok = true;
+	  if (keylist1.size()>1) {
+	    for (unsigned j=1; j<keylist1.size(); j++)
+	      if (keylist1[j-1]>keylist1[j]) ok = false;
+	  }
+	  ostringstream sout;
+	  sout << left 
+	       << setw(4) << myid 
+	       << setw(8) << keylist1.size() 
+	       << setw(8) << keys.size();
+	  if (ok) sout << left << setw(8) << "GOOD";
+	  else sout << left << setw(8) << "BAD";
+	  
+	  out << left << setw(cwid) << sout.str() << flush;
+	  if (n % cols == cols-1 || n == numprocs-1) out << endl;
+	}
+	(*barrier)("pHOT: partitionKeys debug 3");
+      }
     }
   }
   //
   // END DEBUG
   //
-
 				// Tree aggregation (merge sort) of the
 				// entire key list
 
@@ -3299,51 +3307,76 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     //
     
 
+				// The overhead for computing these is small so
+				// no matter if they are not used below
+    vector<double>   wbeg(numprocs), wfin(numprocs); // Weights for debugging
+    vector<unsigned> pbeg(numprocs), pfin(numprocs); // Counts  for debugging
+
 				// Compute the key boundaries in the partition
 				//
     for (unsigned i=0; i<numprocs-1; i++) {
       if (keylist.size()) {
 	key_wght k(0, frate[i]/frate[numprocs-1]);
-	kfin[i] = 
-	  lower_bound(keylist.begin(), keylist.end(), k, wghtDBL)->first;
+	vector<key_wght>::iterator
+	  ret = lower_bound(keylist.begin(), keylist.end(), k, wghtDBL);
+	kfin[i] = ret->first;
+	wfin[i] = ret->second;
+	pfin[i] = ret - keylist.begin();
       }
-      else
+      else {
 	kfin[i] = key_min;
+	wfin[i] = 0.0;
+	pfin[i] = 0;
+      }
     }
 
     kfin[numprocs-1] = key_max;
+    wfin[numprocs-1] = 1.0;
+    pfin[numprocs-1] = keylist.size();
 
     kbeg[0] = key_min;
-    for (unsigned i=1; i<numprocs; i++)
+    wbeg[0] = 0.0;
+    pbeg[0] = 0;
+    for (unsigned i=1; i<numprocs; i++) {
       kbeg[i] = kfin[i-1];
+      wbeg[i] = wfin[i-1];
+      pbeg[i] = pfin[i-1];
+    }
       
     if (keys_debug) {	 // If true, print key ranges for each process
       key_type kdif;
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
-      unsigned nhead = 5 + 3*klen;
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      unsigned nhead = 5 + 15 + 10 + 3*klen;
       out << setw(nhead) << setfill('-') << '-' << endl
 	  << "---- partitionKeys: keys in list=" << keylist.size() << endl
 	  << setw(nhead) << setfill('-') << '-' << endl << setfill(' ')
 	  << left << setw(5) << "proc" << right << setw(klen) << "kbeg"
-	  << setw(klen) << "kfin" << setw(klen) << "# keys" << endl
+	  << setw(klen) << "kfin" << setw(klen) << "# keys" 
+	  << setw(15) << "wdif" << setw(10) << "pdif" << endl
 	  << left << setw(5) << "----" << right << setw(klen) << "----"
-	  << setw(klen) << "----" << setw(klen) << "------" << endl;
+	  << setw(klen) << "----" << setw(klen) << "------" 
+	  << setw(15) << "----"  << setw(10) << "----"  << endl;
       for (int i=0; i<numprocs; i++)
 	out << left << setw(5) << i << hex << right << setw(klen) << kbeg[i] 
 	    << setw(klen) << kfin[i] << dec 
 	    << setw(klen) << (kdif = kfin[i] - kbeg[i])
+	    << setw(15) << wfin[i] - wbeg[i]
+	    << setw(10) << pfin[i] - pbeg[i]
 	    << endl;
-      out << setw(nhead) << setfill('-') << '-' << endl << setfill(' ')
+      out << setw(nhead) << setfill('-') << '-' << endl << setfill(' ') 
 	  << endl;
     }
   }
+
+  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
   if (keys_debug) {		// If true, print key totals
     unsigned oobn = oobNumber();
     unsigned tkey1 = keys.size(), tkey0 = 0;
     MPI_Reduce(&tkey1, &tkey0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT.debug").c_str(), ios::app);
+      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
       out << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << "---- partitionKeys" << endl
@@ -3353,12 +3386,13 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	  << "----  total oob=" << setw(10) << oobn << endl
 	  << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	  << "----   Time (s)=" << setw(10) << 1.0e-6*timer_debug->stop().getTotalTime()
+	  << endl
+	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << endl;
+      delete timer_debug;
     }
   }
-
-  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::partitionKeys");
@@ -3662,7 +3696,7 @@ void pHOT::totalMass(unsigned& Counts, double& Mass)
   double mass1 = root->state[0];
   unsigned count1 = root->count;
 
-  MPI_Reduce(&mass1,  &Mass,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&mass1,  &Mass,   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&count1, &Counts, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
