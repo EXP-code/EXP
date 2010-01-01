@@ -249,13 +249,14 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Energy per encounter
   //
-  if (number>0.0)
+  if (number <=0.0 || NOCOOL)
+    deltaE[id] = 0.0;
+  else {
     if (ESOL)
       deltaE[id] = cell->Mass()*(KEdspS - KEdspF) / number;
     else
       deltaE[id] = coolheat[id] / number;
-  else
-    deltaE[id] = 0.0;
+  }
 
   if (fabs(deltaE[id])>1000.0) {
     cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
@@ -296,7 +297,6 @@ void CollideLTE::initialize_cell(pCell* cell,
   //
   if (use_temp>=0 || use_dens>=0) {
     
-    // double dens = massS/volumeS;
     double dens = massC/volumeC;
     set<unsigned>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
