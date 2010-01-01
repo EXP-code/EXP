@@ -34,22 +34,37 @@ ACX_LAPACK
 dnl Arguments
 
 AC_ARG_ENABLE(gptl,
-    [  --enable-gptl            add General Purpose Timing Library],
+    [  --enable-gptl           add General Purpose Timing Library],
     enable_gptl=yes,
     enable_gptl=no)
 
+AC_ARG_WITH(gptl,
+	[  --with-gptl=DIR         location of GPTL library],
+	[   GPTL_LOCATION="$withval"],
+	[   GPTL_LOCATION=""])
+
+if test "$GPTL_LOCATION" != ""; then
+   LIBS="-L$BIE_MPI_LOCATION/lib $LIBS"
+   gptl_include="-I$GPTL_LOCATION/include"
+   gptl_lib="-L$GPTL_LOCATION/lib"
+fi
+
+AC_SUBST(gptl_include) 
+AC_SUBST(gptl_lib) 
+
+
 AC_ARG_ENABLE(seqcheck,
-    [  --enable-seqcheck        add code to check particle sequence on repartition],
+    [  --enable-seqcheck       add code to check particle sequence on repartition],
     enable_seqcheck=yes,
     enable_seqcheck=no)
 
 AC_ARG_ENABLE(debug,
-    [  --enable-debug                  compile with verbose output and debugging flags],
+    [  --enable-debug          compile with verbose output and debugging flags],
     enable_debug=yes,
     enable_debug=no)
 
 AC_ARG_ENABLE(dmalloc,
-    [  --enable-dmalloc                link in the dmalloc package for memory debugging],
+    [  --enable-dmalloc        link in the dmalloc package for memory debugging],
     enable_dmalloc=yes,
     enable_dmalloc=no)
 
@@ -107,7 +122,6 @@ AM_CONDITIONAL(ENABLE_GPTL, test "$enable_gptl" = "yes")
 AM_CONDITIONAL(ENABLE_SEQCHECK, test "$enable_seqcheck" = "yes")
 AM_CONDITIONAL(ENABLE_DEBUG, test "$enable_debug" = "yes")
 AM_CONDITIONAL(ENABLE_DMALLOC, test "$enable_dmalloc" = "yes")
-
 
 dnl Make the makefiles
 AC_OUTPUT(expgnu/Makefile exputil/Makefile src/Makefile Makefile doc/Makefile src/user/Makefile utils/Makefile utils/PhaseSpace/Makefile utils/SL/Makefile utils/Test/Makefile utils/ICs/Makefile utils/Cooling/Makefile utils/Analysis/Makefile)

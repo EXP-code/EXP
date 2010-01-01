@@ -35,7 +35,7 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.1;
+const double rfac = 0.3;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -203,7 +203,9 @@ void CollideLTE::initialize_cell(pCell* cell,
       double E = cell->Mass()*KEdspS;
       double E0 = E;
 
+#ifdef DEBUG
       int icnt=0;
+#endif
       double k1, k2, k3, k4, t=0.0;
       while (t<tau*(1.0-2.0*DBL_MIN)) {
 	h = min<double>(h, tau-t);
@@ -215,24 +217,29 @@ void CollideLTE::initialize_cell(pCell* cell,
 
 	E += Cfac * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
 	t += h;
+#ifdef DEBUG
 	icnt++;
+#endif
       }
 
+#ifdef DEBUG
       double T0=T;
-
+#endif
 				// Sanity: failure of explicit solution
       if (isnan(E)) E = E0;
 
       KEdspF = E/cell->Mass();
       T      = E/Tfac;
 
-      if (icnt > 1000) 
+#ifdef DEBUG
+      if (icnt > 10000) 
 	cout << "Process " << setw(4) << myid 
 	     << " [" << setw(2) << id << "]:" << left
 	     << " #="      << setw(4) << icnt
 	     << " T_0="    << setw(15) << T0
 	     << " T_F="    << setw(15) << T 
 	     << endl << right;
+#endif
     }
 				// Sanity: failure of implicit solution
     if (isnan(coolheat[id])) coolheat[id] = 0.0;
@@ -249,12 +256,6 @@ void CollideLTE::initialize_cell(pCell* cell,
       deltaE[id] = coolheat[id] / number;
   else
     deltaE[id] = 0.0;
-
-  /*
-  if (deltaE[id]<0.0) {
-    cout << "deltaE below zero" << endl;
-  }
-  */
 
   if (fabs(deltaE[id])>1000.0) {
     cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;

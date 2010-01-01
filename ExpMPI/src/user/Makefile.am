@@ -1,7 +1,7 @@
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 if ENABLE_GPTL
-ADD_CFLAGS4 = -DUSE_GPTL
+ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
 AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4)

@@ -19,8 +19,8 @@ ADD_LIBS3    = -ldmallocth -ldmallocthcxx
 endif
 
 if ENABLE_GPTL
-ADD_CFLAGS4  = -DUSE_GPTL
-ADD_LIBS4    = -lgptl
+ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
+ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
 AM_CFLAGS    = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
