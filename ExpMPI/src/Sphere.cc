@@ -23,8 +23,8 @@ Sphere::Sphere(string& line, MixtureSL* m) : SphericalBasis(line, m)
   initialize();
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  SLGridSph::model_file_name = model_file;
-  SLGridSph::sph_cache_name = cache_file + "." + runtag;
+  SLGridSph::model_file_name = homedir + "/" + model_file;
+  SLGridSph::sph_cache_name  = homedir + "/" + cache_file + "." + runtag;
   
 
 				// Generate Sturm-Liouville grid

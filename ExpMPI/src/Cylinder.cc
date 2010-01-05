@@ -95,7 +95,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::NUMR        = ncylr;
   EmpCylSL::CMAP        = true;	// Always use coordinate mapping!
   EmpCylSL::logarithmic = logarithmic;
-  EmpCylSL::CACHEFILE   = ".eof.cache." + runtag;
+  EmpCylSL::CACHEFILE   = homedir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
 
 				// For debugging; no use by force
