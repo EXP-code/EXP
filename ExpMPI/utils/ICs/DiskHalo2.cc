@@ -1186,10 +1186,11 @@ double DiskHalo::vphi(double xp, double yp, double zp)
 
   vc = v_circ(xp, yp, 0.0);
 
-  ans = sqrt(max<double>(0.0, vc*vc + 
-			 vr_disp(xp, yp, 0.0) * 
-			 (log(t1)-log(t2))/(log(R1)-log(R2))));
+  ans = vc*vc + 
+    vr_disp(xp, yp, 0.0) * (1.0 + (log(t1)-log(t2))/(log(R1)-log(R2)));
   
+  ans = sqrt(max<double>(0.0, ans));
+
 				// For debugging
   if (isnan(ans)) {
     cout << "Process " << myid << ": in vvP has bad answer, x=" << xp
