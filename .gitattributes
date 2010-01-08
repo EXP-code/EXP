@@ -35,6 +35,8 @@ ExpMPI/src/user/UnboundCoefs.H -text
 ExpMPI/src/user/UnboundCoefs.cc -text
 ExpMPI/src/user/UnboundOrbit.H -text
 ExpMPI/src/user/UnboundOrbit.cc -text
+ExpMPI/src/user/UserBarTrigger.H -text
+ExpMPI/src/user/UserBarTrigger.cc -text
 ExpMPI/src/user/UserPST.H -text
 ExpMPI/src/user/UserPST.cc -text
 ExpMPI/src/user/UserReflect.H -text

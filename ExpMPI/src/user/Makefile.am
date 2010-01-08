@@ -17,7 +17,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
 	libebarp.la librespot.la librespotn.la librespotorb.la \
 	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
 	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la \
-	libreflect.la libsatwake.la libpst.la libuserslab.la
+	libreflect.la libsatwake.la libpst.la libuserslab.la libtrigger.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -116,6 +116,8 @@ libpst_la_CXXFLAGS = -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs
 libpst_la_LIBADD = libcommon.a
 
 libuserslab_la_SOURCES = UserSlabHalo.cc 
+
+libtrigger_la_SOURCES = UserBarTrigger.cc
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
