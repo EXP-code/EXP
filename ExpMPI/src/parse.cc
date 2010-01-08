@@ -90,7 +90,12 @@ void initialize(void)
     else global_cov = false;
   }
 
-  if (parse->find_item("homedir", val))		homedir = val;
+  if (parse->find_item("homedir", val)) {
+    // Check for and add trailing slash
+    if (*val.rbegin() != '/') val += '/';
+    homedir = val;
+  }
+
   if (parse->find_item("ldlibdir", val))	ldlibdir = val;
   if (parse->find_item("infile", val))		infile = val;
   if (parse->find_item("parmfile", val))	parmfile = val;
@@ -100,6 +105,9 @@ void initialize(void)
 
   if (parse->find_item("outdir", val)) {
     bool ok = true;
+				// Check for and add trailing slash
+    if (*val.rbegin() != '/') val += '/';
+
 				// Root node with check existence and try
 				// to create directory if need be . . .
     if (myid == 0) {

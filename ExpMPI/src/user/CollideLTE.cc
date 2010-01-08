@@ -181,7 +181,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Total energy lost (for both collisions and EPSM)
   //
-  if (NOCOOL || n0<=0.0 || T <=0.0)
+  if (NOCOOL || n0<=0.0 || T<=0.0)
     coolheat[id] = 0.0;
   else {
 				// Convert to energy rate in system units
@@ -249,7 +249,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Energy per encounter
   //
-  if (number <=0.0 || NOCOOL)
+  if (number<=0.0 || NOCOOL)
     deltaE[id] = 0.0;
   else {
     if (ESOL)
@@ -272,7 +272,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     out << setw(16) << tnow
 	<< setw(16) << T
 	<< setw(16) << coolheat[id];
-    if (ESOL) out << setw(16) << cell->Mass()*(KEdspS - KEdspF);
+    if (ESOL && !NOCOOL) out << setw(16) << cell->Mass()*(KEdspS - KEdspF);
     out << setw(16) << Density
 	<< setw(16) << massC
 	<< setw(16) << massC/volumeC

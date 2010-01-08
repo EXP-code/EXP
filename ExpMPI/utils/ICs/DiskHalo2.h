@@ -47,7 +47,7 @@ class DiskHalo
   SphericalModelTable *halo, *halo2, *halo3;
   SphericalModelMulti *multi;
   ExponentialDisk *disk;
-  double scaleheight, dmass;
+  double scalelength, scaleheight, dmass;
   double center_pos[3], center_vel[3];
 
   SphericalSL* expandh;
@@ -119,6 +119,10 @@ class DiskHalo
 
   static bool JEANS_VR;		// Use Jeans' equations for radial
 				// disk dispersion1
+
+  static bool CHEBY;		// Use Cheybshev fit for epicylic derivatives
+
+  static int  NCHEB;		// Order for Cheybshev fit
 
   static int SEED;		// Initial seed
 

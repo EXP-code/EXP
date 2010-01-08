@@ -95,7 +95,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
   EmpCylSL::NUMR        = ncylr;
   EmpCylSL::CMAP        = true;	// Always use coordinate mapping!
   EmpCylSL::logarithmic = logarithmic;
-  EmpCylSL::CACHEFILE   = homedir + ".eof.cache." + runtag;
+  EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
 
 				// For debugging; no use by force
@@ -358,7 +358,7 @@ void Cylinder::get_acceleration_and_potential(Component* C)
   // Debugging output
   //=================
   if (VERBOSE>3 && myid==1 && component->EJ) {
-    string toutfile = string(homedir) + "test.orientation." + runtag;
+    string toutfile = homedir + "test.orientation." + runtag;
     ofstream debugf(toutfile.c_str(), ios::app);
     Vector axis = component->orient->currentAxis();
     debugf << tnow << " "

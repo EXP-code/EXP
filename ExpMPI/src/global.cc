@@ -41,7 +41,7 @@ string homedir = "./";
 string infile = "restart.in";
 string parmfile = "PARAM";
 string ratefile = "processor.rates";
-string outdir = "";
+string outdir = "./";
 string runtag = "newrun";
 string ldlibdir = ".";
 
