@@ -1066,12 +1066,12 @@ void ComponentContainer::report_numbers(void)
 	  out << "# " << setw(5)  << "Proc";
 	  for (cc=comp.components.begin(); 
 	       cc != comp.components.end(); cc++) {
-	    out << setw(20) << (*cc)->name;
+	    out << setw(20) << (*cc)->name << setw(20) << "Effort";
 	  }
 	  out << endl << "# " << setw(5) << "-----";
 	  for (cc=comp.components.begin(); 
 	       cc != comp.components.end(); cc++) {
-	    out << setw(20) << "----------";
+	    out << setw(20) << "----------" << setw(20) << "----------";
 	  }
 	  out << endl;
 	}
@@ -1079,6 +1079,10 @@ void ComponentContainer::report_numbers(void)
 	for (cc=comp.components.begin(); 
 	     cc != comp.components.end(); cc++) {
 	  out << setw(20) << (*cc)->Number();
+	  double toteff = 0.0;
+	  for (unsigned n=0; n<(*cc)->Number(); n++) 
+	    toteff += (*cc)->Part(n)->effort;
+	  out << setw(20) << toteff;
 	}
 	out << endl;
       }
