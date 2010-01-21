@@ -13,6 +13,7 @@ This header is followed by <code>nbodies</code> rows each containing
 <li> Mass (one real value)
 <li> Position (three real values)
 <li> Velocity (three real values)
+<li> Gravitational potential (one real value)
 <li> Integer attributes (<code>niattrib</code>) values
 <li> Real attributes (<code>ndattrib</code>) values
 </ul>
