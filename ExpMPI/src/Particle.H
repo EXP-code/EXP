@@ -16,6 +16,9 @@ class Particle
 {
 public:
 
+  //! Default effort value
+  static float effort_default;
+
   //! Mass of particle
   double mass;
 

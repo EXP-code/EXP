@@ -845,7 +845,7 @@ table_disk(vector<Particle>& part)
 
   if (myid==0) {
     cout << endl
-	 << "Table disk epi parametersZ:" << endl
+	 << "Table disk epi parameters:" << endl
 	 << "  RDMIN=" << RDMIN           << endl
 	 << "   maxr=" << maxr            << endl
 	 << "   maxz=" << maxz            << endl
@@ -1044,15 +1044,17 @@ table_disk(vector<Particle>& part)
   for (int i=0; i<NDP; i++) {
     bool first = true;
     for (int j=0; j<NDR; j++) {
-      if (epitable[i][j] < 0.0 && first) {
-	epirmin = min<double>(epirmin, RDMIN*exp(dR*(j-1)));
-	first = false;
+      if (first) {
+	if (epitable[i][j] < 0.0) {
+	  epirmin = min<double>(epirmin, RDMIN*exp(dR*(j-1)));
+	  first = false;
+	} else {
+	  epivmin = min<double>(epivmin, epitable[i][j]);
+	}
       }
-      else
-	epivmin = min<double>(epivmin, epitable[i][j]);
     }
   }
-
+  
   MPI_Allreduce(&epirmin, &epiRmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&epivmin, &epiVmin, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
   if (myid==0) 
@@ -1061,7 +1063,7 @@ table_disk(vector<Particle>& part)
   for (int i=0; i<NDP; i++) {
     for (int j=0; j<NDR; j++) {
       if (epitable[i][j] < epiVmin) {
-	if (myid==0) {
+	if (myid==0 && RDMIN*exp(dR*j) <= epiRmin) {
 	  cout << "Epitable error: R=" << RDMIN*exp(dR*j)
 	       << " Phi=" << dP*i << " ep2=" << epitable[i][j] << endl;
 	}

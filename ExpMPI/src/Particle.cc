@@ -2,6 +2,8 @@
 
 #include <Particle.H>
 
+float Particle::effort_default = 1.0e-12;
+
 Particle::Particle()
 {
   // Initialize basic fields
@@ -12,7 +14,7 @@ Particle::Particle()
   level   = 0;
   dtreq   = -1;
   scale   = -1;
-  effort  = 1.0e-12;
+  effort  = effort_default;
   indx    = 0;
   key     = 0;
 }
@@ -27,7 +29,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   level   = 0;
   dtreq   = -1;
   scale   = -1;
-  effort  = 1.0e-12;
+  effort  = effort_default;
   indx    = 0;
   key     = 0;
   iattrib = vector<int>(niatr, 0);

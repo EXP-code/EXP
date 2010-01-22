@@ -43,7 +43,7 @@ static bool wghtDBL(const pair<unsigned long long, double>& a,
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
 //
-bool pHOT::keys_debug = false;
+bool pHOT::keys_debug = true;
 
 //
 // Turn on/off subsampling the key list for partitioning
@@ -3465,6 +3465,10 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   vector<key_wght> work;
   unsigned n;
 
+#ifdef USE_GPTL
+  GPTLstart("pHOT::parallelMerge");
+#endif
+
   // Find the largest power of two smaller than
   // the number of processors
   // 
@@ -3496,6 +3500,9 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
       MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
 	       MPI_COMM_WORLD);
     }
+#ifdef USE_GPTL
+    GPTLstop("pHOT::parallelMerge");
+#endif
     return;
   }
 
@@ -3557,6 +3564,9 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 	MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
 		 MPI_COMM_WORLD);
       }
+#ifdef USE_GPTL
+      GPTLstop("pHOT::parallelMerge");
+#endif
       return;
     } else {
       MPI_Recv(&n, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 11, MPI_COMM_WORLD, 
@@ -3591,6 +3601,10 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   // We are done, return the result
   //
   final = data;
+
+#ifdef USE_GPTL
+  GPTLstop("pHOT::parallelMerge");
+#endif
 
   return;
 }

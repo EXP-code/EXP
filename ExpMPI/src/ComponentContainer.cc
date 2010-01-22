@@ -363,6 +363,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 				// Zero-out potential and acceleration
 	c->Part(indx)->pot = 0.0;
 	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
+				// Replace by default effort value
+	c->Part(indx)->effort = Particle::effort_default;
       }
     }
     if (timing) {
@@ -1076,12 +1078,12 @@ void ComponentContainer::report_numbers(void)
 	  out << endl;
 	}
 	out << setw(7) << num;
-	for (cc=comp.components.begin(); 
-	     cc != comp.components.end(); cc++) {
+	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	  out << setw(20) << (*cc)->Number();
 	  double toteff = 0.0;
-	  for (unsigned n=0; n<(*cc)->Number(); n++) 
-	    toteff += (*cc)->Part(n)->effort;
+	  PartMap::iterator tp;
+	  for (tp=(*cc)->particles.begin(); tp!=(*cc)->particles.end(); tp++)
+	    toteff += tp->second.effort;
 	  out << setw(20) << toteff;
 	}
 	out << endl;
