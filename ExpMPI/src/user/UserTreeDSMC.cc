@@ -9,8 +9,6 @@
 #include <fstream>
 #include <sstream>
 
-#include <Timer.h>
-
 #include <expand.h>
 #include <ExternalCollection.H>
 #include <UserTreeDSMC.H>
@@ -412,10 +410,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Get timing for entire step so far to load balancing the partition
   //
-
-  double pot_time = comp.timeSoFar()/max<unsigned>(1, c0->Number());
-  PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
-  for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+  double pot_time = c0->get_time_sofar();
 
 
   barrier("TreeDSMC: after initialization");
@@ -497,6 +492,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   TimeElapsed partnSoFar, tree1SoFar, tree2SoFar, tstepSoFar, collideSoFar;
+
+  overhead.Start();
 
   //
   // Sort the particles into cells
@@ -609,6 +606,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	 << __FILE__ << ": " << __LINE__;
     c0->Tree()->checkBounds(2.0, sout.str().c_str());
   }
+
+  overhead.Stop();
+  pot_time += overhead.getTime();
+  pot_time /= max<unsigned>(1, c0->Number());
+
+  PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
+  for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
 
   //
   // Evaluate collisions among the particles

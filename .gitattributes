@@ -14,6 +14,7 @@ ExpMPI/exputil/toomre.cc -text
 ExpMPI/include/BarrierWrapper.H -text
 ExpMPI/include/FileUtils.H -text
 ExpMPI/include/ProgramParam.H -text
+ExpMPI/include/RunningTime.H -text
 ExpMPI/m4/acx_blas.m4 -text
 ExpMPI/m4/acx_lapack.m4 -text
 ExpMPI/m4/ax_boost_base.m4 -text

@@ -10,6 +10,7 @@
 #include <localmpi.h>
 #include <ParticleFerry.H>
 #include <PotAccel.H>
+#include <Timer.h>
 
 class pHOT;
 
@@ -747,6 +748,12 @@ public:
 
   //! Temporary access to tree (until I figure out what is really needed)
   pHOT* Tree() { return tree; }
+
+  //! Running clock on the current potential/force evaluation
+  Timer time_so_far;
+
+  //! Time in potential/force computation so far
+  double get_time_sofar() { return 1.0e-6*time_so_far.getTime().getRealTime(); }
 
 };
 

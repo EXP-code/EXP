@@ -43,7 +43,6 @@ ComponentContainer::ComponentContainer(void)
   timer_fixp.	Microseconds();
   timer_extrn.	Microseconds();
   timer_wait.	Microseconds();
-  pot_so_far.	Microseconds();
 }
 
 void ComponentContainer::initialize(void)
@@ -322,8 +321,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   // Potential/force clock
   //
-  pot_so_far.reset();
-  pot_so_far.start();
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++)
+    (*cc)->time_so_far.reset();
 
   //
   // Compute accel for each component
@@ -381,8 +380,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_wait.stop();
       timer_accel.start();
     }
+    c->time_so_far.start();
     c->force->set_multistep_level(mlevel);
     c->force->get_acceleration_and_potential(c);
+    c->time_so_far.stop();
     if (timing) {
       timer_accel.stop();
       timer_wait.start();
@@ -453,10 +454,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	timer_accel.start();
 	itmr->second.start();
       }
+      (*other)->time_so_far.start();
       (*inter)->c->force->SetExternal();
       (*inter)->c->force->set_multistep_level(mlevel);
       (*inter)->c->force->get_acceleration_and_potential(*other);
       (*inter)->c->force->ClearExternal();
+      (*other)->time_so_far.stop();
       if (timing) {
 	timer_accel.stop();
 	itmr->second.stop();
@@ -515,6 +518,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
     for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
       c = *cc;
+      c->time_so_far.start();
       if (timing) itmr = timer_sext.begin();
       for (ext=external.force_list.begin(); 
 	   ext != external.force_list.end(); ext++) {
@@ -523,6 +527,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	(*ext)->get_acceleration_and_potential(c);
 	if (timing) (itmr++)->second.stop();
       }
+      c->time_so_far.stop();
     }
 
   }
@@ -753,8 +758,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstop("ComponentContainer::timing");
   GPTLstop("ComponentContainer::compute_potential");
 #endif
-
-  pot_so_far.stop();
 
   gottapot = true;
 }

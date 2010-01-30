@@ -5,7 +5,7 @@
 #include <AxisymmetricBasis.H>
 #include <ExternalForce.H>
 
-#include <Timer.h>
+#include <RunningTime.H>
 
 class CollideLTE;
 
@@ -88,6 +88,7 @@ private:
 
 				// Timers
   Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, collideTime;
+  RunningTime overhead;
 
   void userinfo();
 

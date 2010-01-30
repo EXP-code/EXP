@@ -880,9 +880,18 @@ table_disk(vector<Particle>& part)
 				// Compute this table in parallel
 
   vector<int> ibeg(numprocs), iend(numprocs);
+  int curid = -1;
   for (int i=0; i<numprocs; i++) {
     ibeg[i] = (i  )*NDP/numprocs;
     iend[i] = (i+1)*NDP/numprocs;
+    if (curid<0 && iend[i]-ibeg[i]>0) curid = i;
+    if (myid==0) {
+      if (i==0) cout << endl << " *** Processor phi angles *** " << endl;
+      cout << "# " << setw(3) << i << ": " 
+	   << setw(10) << ibeg[i]
+	   << setw(10) << iend[i]
+	   << endl;
+    }
   }
 
   Cheby1d *cheb = 0;
@@ -1057,13 +1066,13 @@ table_disk(vector<Particle>& part)
   
   MPI_Allreduce(&epirmin, &epiRmin, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
   MPI_Allreduce(&epivmin, &epiVmin, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
-  if (myid==0) 
+  if (myid==curid) 
     cout << "Epitable: Rmin=" << epiRmin << " Vmin=" << epiVmin << endl;
 
   for (int i=0; i<NDP; i++) {
     for (int j=0; j<NDR; j++) {
       if (epitable[i][j] < epiVmin) {
-	if (myid==0 && RDMIN*exp(dR*j) <= epiRmin) {
+	if (myid==curid && RDMIN*exp(dR*j) <= epiRmin) {
 	  cout << "Epitable error: R=" << RDMIN*exp(dR*j)
 	       << " Phi=" << dP*i << " ep2=" << epitable[i][j] << endl;
 	}
@@ -1073,7 +1082,7 @@ table_disk(vector<Particle>& part)
   }
 
 				// Check solution
-  if (myid==0 && expandh) {
+  if (myid==curid && expandh) {
     ofstream out("ep_test.dat");
     out.setf(ios::scientific);
     out.precision(4);
@@ -1098,8 +1107,8 @@ table_disk(vector<Particle>& part)
       if (CHEBY)
 	deriv2 = cheb->deriv(workR[j]);
       else
-	deriv2 = drv2(workR[j], workR, workE);
-
+        deriv2 = drv2(workR[j], workR, workE);
+	
       vrq0 = 3.36*dmass*disk->get_density(r)*Q/epi(r, 0.0, 0.0);
       vrq1 = 3.36*dmass*disk->get_density(r)*Q/sqrt(epitable[0][j]);
 
@@ -1151,7 +1160,7 @@ table_disk(vector<Particle>& part)
     }
   }
     
-  if (myid==0)
+  if (myid==curid)
   {
     ofstream out("ep_disk.dat");
     out.setf(ios::scientific);
@@ -1174,7 +1183,7 @@ table_disk(vector<Particle>& part)
     out.close();
   }
 
-  if (myid==0)
+  if (myid==curid)
     {
     ofstream out("table_disk.dat");
     out.setf(ios::scientific);
