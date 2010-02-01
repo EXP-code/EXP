@@ -104,7 +104,8 @@ pHOT::pHOT(Component *C)
   numkeys = 0;
   timer_repartn.Microseconds();
   timer_tadjust.Microseconds();
-  timer_keywait.Microseconds();
+  timer_waiton1.Microseconds();
+  timer_waiton2.Microseconds();
   timer_keybods.Microseconds();
   timer_keycall.Microseconds();
   timer_keycomp.Microseconds();
@@ -1920,6 +1921,12 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::keyCells");
 #endif
 
+				// Barrier to make sure that the timer
+				// gives a sensible measurement of key time
+  timer_waiton1.start();   
+  (*barrier)("pHOT: repartition key timer [1]");
+  timer_waiton1.stop();
+
   //
   // Update body by body using the list without regard to level
   //
@@ -2052,12 +2059,11 @@ void pHOT::adjustTree(unsigned mlevel)
     
   }
   timer_keymake.stop();
-  
-  timer_keywait.start();   
 				// Barrier to make sure that the timer
 				// gives a sensible measurement of key time
-  (*barrier)("pHOT: repartition key timer");
-  timer_keywait.stop();
+  timer_waiton2.start();   
+  (*barrier)("pHOT: repartition key timer [2]");
+  timer_waiton2.stop();
 
   timer_cupdate.start();
 
@@ -3628,7 +3634,7 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
 			double &scatter, double &repartn,
 			double &tadjust, double &keycall,
 			double &keycomp, double &keybods,
-			double &keywait, unsigned &numk)
+			double &waiton1, double &waiton2, unsigned &numk)
 {
   keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
   exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
@@ -3642,7 +3648,8 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   keycall  = timer_keycall.getTime().getRealTime()*1.0e-6;
   keycomp  = timer_keycomp.getTime().getRealTime()*1.0e-6;
   keybods  = timer_keybods.getTime().getRealTime()*1.0e-6;
-  keywait  = timer_keywait.getTime().getRealTime()*1.0e-6;
+  waiton1  = timer_waiton1.getTime().getRealTime()*1.0e-6;
+  waiton2  = timer_waiton2.getTime().getRealTime()*1.0e-6;
 
   timer_keymake.reset();
   timer_xchange.reset();
@@ -3656,7 +3663,8 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   timer_keycall.reset();
   timer_keycomp.reset();
   timer_keybods.reset();
-  timer_keywait.reset();
+  timer_waiton1.reset();
+  timer_waiton2.reset();
 
   numk = numkeys;
   numkeys = 0;

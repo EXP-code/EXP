@@ -231,6 +231,8 @@ public:
 
   static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
 
+  static bool EFFORT;		// Augment effort value by work done in collisions (default: true)
+
 				// Use EPSM when mean free path/cell size ratio 
 				// is below EPSMratio (default = -1.0, never)
   static double EPSMratio;

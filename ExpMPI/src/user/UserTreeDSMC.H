@@ -43,6 +43,7 @@ class CollideLTE;
     @param madj levels and below perform a full domain decomposition and above madj the tree is repaired (default: 0)
     @param wght sets the cell time partitioning (default: 1 = on)
     @param sub_sample toggles the key partition algorithm that uses only a subsample of the key list to decompose the domaine (default: true)
+    @param effort sets the use of DSMC effort to partition particles (default: 1=true)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -108,6 +109,8 @@ public:
   static double Vunit;
   static double Munit;
   static double Eunit;
+				// Use timing info to compute effort
+  static bool use_effort;
 
   //! Constructor
   UserTreeDSMC(string &line);

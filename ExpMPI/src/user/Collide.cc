@@ -42,6 +42,8 @@ bool Collide::MFPDIAG = false;
 				// Sample based on maximum (true) or estimate
 bool Collide::NTC = false;	// from variance (false);
 
+bool Collide::EFFORT = true;	// Use cpu work to augment per particle effort
+
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 
@@ -822,8 +824,10 @@ void * Collide::collide_thread(void * arg)
     // Record effort per particle in microseconds
     //
     cellSoFar[id] = cellTime[id].stop();
-    double effort = cellSoFar[id]()/number;
-    for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort += effort;
+    if (EFFORT) {
+      double effort = cellSoFar[id]()/number;
+      for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort += effort;
+    }
 
   } // Loop over cells
 

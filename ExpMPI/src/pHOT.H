@@ -76,7 +76,7 @@ protected:
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
   Timer timer_prepare, timer_cupdate, timer_scatter, timer_repartn;
   Timer timer_tadjust, timer_keycall, timer_keycomp, timer_keybods;
-  Timer timer_keywait;
+  Timer timer_waiton1, timer_waiton2;
 
   void bomb(const string& membername, const string& msg);
 
@@ -179,7 +179,7 @@ public:
 		    double &convert, double &overlap, double &update,
 		    double &scatter, double &repartn, double &tadjust,
 		    double &keycall, double &keycomp, double &keybods,
-		    double &keywait, unsigned &numkeys);
+		    double &waiton1, double &waiton2, unsigned &numkeys);
   double checkAdjust() {
     double result = 0.0;
     if (myid) return result;

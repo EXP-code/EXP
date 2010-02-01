@@ -43,6 +43,7 @@ double UserTreeDSMC::Munit = 1.0e12*msun;
 double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.673e-08));
 double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
+bool   UserTreeDSMC::use_effort = true;
 
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 {
@@ -252,6 +253,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::TSDIAG  = tsdiag;
   Collide::TSPOW   = tspow;
   Collide::MFPDIAG = mfpstat;
+  Collide::EFFORT  = use_effort;
 				// Create the collision instance
   collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
@@ -329,7 +331,9 @@ void UserTreeDSMC::userinfo()
   else             cout << ", CBA disabled";
   if (cba && cbadiag)     
                    cout << " with diagnostics";
-  if (tube)         cout << ", using TUBE mode";
+  if (tube)        cout << ", using TUBE mode";
+  if (use_effort)  cout << ", with effort-based load";
+  else             cout << ", with uniform load";
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -377,6 +381,7 @@ void UserTreeDSMC::initialize()
   if (get_value("nocool", val))		nocool = atoi(val.c_str()) ? true : false;
   if (get_value("use_multi", val))	use_multi = atoi(val.c_str()) ? true : false;
   if (get_value("use_pullin", val))	use_pullin = atoi(val.c_str()) ? true : false;
+  if (get_value("use_effort", val))	use_effort = atoi(val.c_str()) ? true : false;
   if (get_value("esol", val))		esol = atoi(val.c_str()) ? true : false;
   if (get_value("cba", val))		cba = atoi(val.c_str()) ? true : false;
   if (get_value("ntc", val))		ntc = atoi(val.c_str()) ? true : false;
@@ -611,8 +616,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   pot_time += overhead.getTime();
   pot_time /= max<unsigned>(1, c0->Number());
 
-  PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
-  for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+  if (use_effort) {
+    PartMapItr pitr = c0->Particles().begin(), pend = c0->Particles().end();
+    for (; pitr!= pend; pitr++) pitr->second.effort = pot_time;
+  }
 
   //
   // Evaluate collisions among the particles
@@ -920,13 +927,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << left << endl;
       
       double keymake, xchange, prepare, convert, overlap, update, scatter;
-      double repartn, tadjust, keycall, keycomp, keybods, keywait;
+      double repartn, tadjust, keycall, keycomp, keybods, waiton1, waiton2;
       unsigned numbods;
       c0->Tree()->adjustTiming(keymake, xchange, prepare, 
 			       convert, overlap, update, 
 			       scatter, repartn, tadjust,
 			       keycall, keycomp, keybods,
-			       keywait, numbods);
+			       waiton1, waiton2, numbods);
 
       mout << "Timing (secs) at mlevel=" << mlevel << ":" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6 << endl
@@ -936,7 +943,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "      *** keycall=" << keycall << endl
 	   << "      *** keycomp=" << keycomp << endl
 	   << "      *** keybods=" << keybods << endl
-	   << "      *** keywait=" << keywait << endl
+	   << "      *** wait #1=" << waiton1 << endl
+	   << "      *** wait #2=" << waiton2 << endl
 	   << "      *** xchange=" << xchange << endl
 	   << "      *** prepare=" << prepare << endl
 	   << "      *** convert=" << convert << endl
@@ -964,7 +972,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << "      *** keycall=" << keycall << endl
 	     << "      *** keycomp=" << keycomp << endl
 	     << "      *** keybods=" << keybods << endl
-	     << "      *** keywait=" << keywait << endl
+	     << "      *** wait #1=" << waiton1 << endl
+	     << "      *** wait #2=" << waiton2 << endl
 	     << "      *** xchange=" << xchange << endl
 	     << "      *** prepare=" << prepare << endl
 	     << "      *** convert=" << convert << endl
@@ -993,13 +1002,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	ofstream mout(sout.str().c_str(), ios::app);
 
 	double keymake, xchange, prepare, convert, overlap, update, scatter;
-	double repartn, tadjust, keycall, keycomp, keybods, keywait;
+	double repartn, tadjust, keycall, keycomp, keybods, waiton1, waiton2;
 	unsigned numbods;
 	c0->Tree()->adjustTiming(keymake, xchange, prepare, 
 				 convert, overlap, update, 
 				 scatter, repartn, tadjust,
 				 keycall, keycomp, keybods,
-				 keywait, numbods);
+				 waiton1, waiton2, numbods);
 	
 	mout << "Timing (secs) at mlevel=" << mlevel 
 	     << " and T=" << tnow << endl
@@ -1007,7 +1016,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << "      *** keycall=" << keycall << endl
 	     << "      *** keycomp=" << keycomp << endl
 	     << "      *** keybods=" << keybods << endl
-	     << "      *** keywait=" << keywait << endl
+	     << "      *** wait #1=" << waiton1 << endl
+	     << "      *** wait #2=" << waiton1 << endl
 	     << "      *** xchange=" << xchange << endl
 	     << "      *** prepare=" << prepare << endl
 	     << "      *** convert=" << convert << endl
