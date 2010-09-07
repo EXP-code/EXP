@@ -156,11 +156,13 @@ program_option init[] = {
   {"gas_mass",        "double",    "1.0",             "Mass of gaseous disk"},
   {"gscal_length",    "double",    "4.0",             "Gas disk scale length"},
   {"ToomreQ",         "double",    "1.2",             "Toomre Q parameter for stellar disk generation"},
+  {"Temp",            "double",    "2000.0",          "Gas temperature (in K)"},
   {"Tmin",            "double",    "500.0",           "Temperature floor (in K) for gas disk generation"},
   {"const_height",    "bool",      "true",            "Use constant disk scale height"},
   {"images",          "bool",      "false",           "Print out reconstructed disk profiles"},
   {"multi",           "bool",      "false",           "Use multimass halo"},
   {"SEED",            "int",       "11",              "Random number seed"},
+  {"DENS",            "bool",      "true",            "Compute the density basis functions"},
   {"basis",           "bool",      "false",           "Print out disk and halo basis"},
   {"zero",            "bool",      "false",           "zero center of mass and velocity"},
   {"nhalo",           "int",       "1000",            "Number of halo particles"},
@@ -247,11 +249,13 @@ double       disk_mass;
 double       gas_mass;
 double       gscal_length;
 double       ToomreQ;
+double       Temp;
 double       Tmin;
 bool         const_height;
 bool         images;
 bool         multi;
 int          SEED;
+bool         DENS;
 bool         basis;
 bool         zero;
 int          nhalo;
@@ -323,11 +327,13 @@ void param_assign()
    gas_mass           = config.get<double>  ("gas_mass");
    gscal_length       = config.get<double>  ("gscal_length");
    ToomreQ            = config.get<double>  ("ToomreQ");
+   Temp               = config.get<double>  ("Temp");
    Tmin               = config.get<double>  ("Tmin");
    const_height       = config.get<bool>    ("const_height");
    images             = config.get<bool>    ("images");
    multi              = config.get<bool>    ("multi");
    SEED               = config.get<int>     ("SEED");
+   DENS               = config.get<bool>    ("DENS");
    basis              = config.get<bool>    ("basis");
    zero               = config.get<bool>    ("zero");
    nhalo              = config.get<int>     ("nhalo");
@@ -500,6 +506,7 @@ main(int argc, char **argv)
   DiskHalo::DR_DF       = DR_DF;
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
+  DiskHalo::CHEBY       = false;
 
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -533,11 +540,9 @@ main(int argc, char **argv)
   EmpCylSL::CMAP        = CMAP;
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
+  EmpCylSL::DENS        = DENS;
 
-  if (basis)
-    EmpCylSL::DENS = true;
-  else
-    EmpCylSL::DENS = false;
+  if (basis) EmpCylSL::DENS = true;
 
                                 // Create expansion only if needed . . .
   EmpCylSL* expandd = NULL;
@@ -897,7 +902,7 @@ main(int argc, char **argv)
 				// cgs
     const double boltz = 1.3806503e-16;
 
-    double T = 10000;
+    double T = Temp;
 
     
     double Lunit = 3.0e5*pc;	// Virial radius

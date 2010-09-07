@@ -259,11 +259,23 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
 }
 
 
+typedef struct {
+  double  x;
+  double  y;
+  double  z;
+  double  value;
+  int valid;
+} Node;
+
+
 void write_output(SphereSL& ortho, int icnt, double time)
 {
   unsigned ncnt = 0;
+  Node node;
   int nout;
   
+  node.valid = 1;
+
   string OUTFILE  = config.get<string>("OUTFILE");
   double RMIN     = config.get<double>("RMIN");
   double RMAX     = config.get<double>("RMAX");
@@ -352,25 +364,20 @@ void write_output(SphereSL& ortho, int icnt, double time)
     
       for (int k=0; k<OUTR; k++) {
 	
-	z = -RMAX + dR*k;
+	node.z = -RMAX + dR*k;
 	
 	for (int l=0; l<OUTR; l++) {
 	  
-	  y = -RMAX + dR*l;
+	  node.y = -RMAX + dR*l;
 	  
 	  for (int j=0; j<OUTR; j++) {
 	    
-	    x = -RMAX + dR*j;
+	    node.x = -RMAX + dR*j;
 	    
 	    for (int n=0; n<nout; n++) {
-	      out[n].write((char *)&x, sizeof(double));
-	      out[n].write((char *)&y, sizeof(double));
-	      out[n].write((char *)&z, sizeof(double));
-	      out[n].write(
-			   (char *)&(otdat[((n*OUTR + k)*OUTR + l)*OUTR + j]), 
-			   sizeof(double)
-			   );
-	      out[n].write((char *)&valid, sizeof(int));
+	      node.value  = otdat[((n*OUTR + k)*OUTR + l)*OUTR + j];
+
+	      out[n].write((char *)&node, sizeof(Node));
 	    }
 	  }
 	}

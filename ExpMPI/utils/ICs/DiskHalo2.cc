@@ -43,8 +43,7 @@ int    DiskHalo::LOGSCALE = 0;
 bool   DiskHalo::LOGR = true;
 
 int    DiskHalo::NCHEB    = 16;
-bool   DiskHalo::CHEBY    = true;
-bool   DiskHalo::JEANS_VR = false;
+bool   DiskHalo::CHEBY    = false;
 
 unsigned DiskHalo::VFLAG = 0;
 unsigned DiskHalo::NBUF = 8192;
@@ -297,6 +296,7 @@ DiskHalo::DiskHalo(const DiskHalo &p)
   disktableN = p.disktableN;
   epitable = p.epitable;
   dv2table = p.dv2table;
+  asytable = p.asytable;
 
   dP = p.dP;
   dR = p.dR;
@@ -331,10 +331,10 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     throw DiskHaloException(msg, __FILE__, __LINE__);
   }
 
-  double rmin = max<double>(halo2->get_min_radius(), RHMIN);
-  double rmax = halo2->get_max_radius();
-  double mmin = halo2->get_mass(rmin);
-  double mtot = halo2->get_mass(rmax);
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
 
   double pos[3], pos1[3], vel[3], vel1[3], massp, massp1;
 				// Diagnostics
@@ -443,10 +443,10 @@ void DiskHalo::
 set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 {
   const double tol = 1.0e-8;
-  double rmin = max<double>(halo2->get_min_radius(), RHMIN);
-  double rmax = halo2->get_max_radius();
-  double mmin = halo2->get_mass(rmin);
-  double mtot = halo2->get_mass(rmax);
+  double rmin = max<double>(halo->get_min_radius(), RHMIN);
+  double rmax = halo->get_max_radius();
+  double mmin = halo->get_mass(rmin);
+  double mtot = halo->get_mass(rmax);
 
   double r, phi, costh, sinth;
   double massp, massp1, pos[3], pos1[3];
@@ -465,7 +465,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 
   p.mass = (mtot - mmin)/nhalo;
 
-  model = halo2;
+  model = halo;
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -626,7 +626,7 @@ get_hpot(double xp, double yp, double zp)
   theta = acos(zp/(r+1.0e-14));
 
   expandh->determine_fields_at_point(r, theta, phi,
-				    &dens, &potl, &potr, &pott, &potp);
+				     &dens, &potl, &potr, &pott, &potp);
 
   return potl;
 }
@@ -765,30 +765,32 @@ epi(double xp, double yp, double zp)
   }
 
   double lR, phi, cp[2], cr[2], ans;
-  int iphi1, iphi2, ir;
+  int iphi1, iphi2, ir1, ir2;
 
 				// Azimuth
   phi = atan2(yp, xp);
   if (phi<0.0) phi = 2.0*M_PI + phi;
 
-  iphi1 = (int)( phi/dP );
+  iphi1 = floor( phi/dP );
   if (iphi1==NDP-1) iphi2 = 0;	// Modulo 2Pi
   else iphi2 = iphi1+1;
   cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
 				// Cylindrical radius
-  lR = log(max<double>(RDMIN, min<double>(epiRmin, sqrt(xp*xp + yp*yp))));
-  ir = (int)( (lR - log(RDMIN))/dR );
-  ir = min<int>( ir, NDR-2 );
-  ir = max<int>( ir, 0 );
-  cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
+  lR = log(max<double>(RDMIN, max<double>(epiRmin, sqrt(xp*xp + yp*yp))));
+  ir1 = floor( (lR - log(RDMIN))/dR );
+  ir1 = min<int>( ir1, NDR-2 );
+  ir1 = max<int>( ir1, 0 );
+  ir2 = ir1 + 1;
+  
+  cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
   cr[0] = 1.0 - cr[1];
 
   ans = 
-    cp[0]*cr[0]* epitable[iphi1][ir  ] +
-    cp[0]*cr[1]* epitable[iphi1][ir+1] +
-    cp[1]*cr[0]* epitable[iphi2][ir  ] +
-    cp[1]*cr[1]* epitable[iphi2][ir+1] ;
+    cp[0]*cr[0]* epitable[iphi1][ir1] +
+    cp[0]*cr[1]* epitable[iphi1][ir2] +
+    cp[1]*cr[0]* epitable[iphi2][ir1] +
+    cp[1]*cr[1]* epitable[iphi2][ir2] ;
     
   if (ans>0.0) return sqrt(ans);
   else {
@@ -798,10 +800,10 @@ epi(double xp, double yp, double zp)
 	 << "    cp="  << cp[0] << ", " << cp[1] << endl
 	 << "    cr="  << cr[0] << ", " << cr[1] << endl
 	 << "    ans=" << ans                   << endl
-	 << "    ep1=" << epitable[iphi1][ir  ] << endl
-	 << "    ep2=" << epitable[iphi1][ir+1] << endl
-	 << "    ep3=" << epitable[iphi2][ir  ] << endl
-	 << "    ep4=" << epitable[iphi2][ir+1] << endl
+	 << "    ep1=" << epitable[iphi1][ir1] << endl
+	 << "    ep2=" << epitable[iphi1][ir2] << endl
+	 << "    ep3=" << epitable[iphi2][ir1] << endl
+	 << "    ep4=" << epitable[iphi2][ir2] << endl
 	 << endl;
     return 1.0e-8;
   }
@@ -824,7 +826,8 @@ table_disk(vector<Particle>& part)
   }
     
   epitable.setsize(0, NDP-1, 0, NDR-1);
-  if (JEANS_VR) dv2table.setsize(0, NDP-1, 0, NDR-1);
+  dv2table.setsize(0, NDP-1, 0, NDR-1);
+  asytable.setsize(0, NDP-1, 0, NDR-1);
 
   dP = 2.0*M_PI/NDP;
   double maxr1 = 0.0, maxz1 = 0.0;
@@ -862,19 +865,19 @@ table_disk(vector<Particle>& part)
 				// Add no force if no component exists
   pot = fr = fz = fp = dens = potl = dpr = dpt = dpp = 0.0;
 
-  Vector workP(0, NDZ-1);
-  Vector workN(0, NDZ-1);
-  Vector workA(0, NDZ-1);
-  Vector workZ(0, NDZ-1);
+  Vector workP (0, NDZ-1);
+  Vector workN (0, NDZ-1);
+  Vector workA (0, NDZ-1);
+  Vector workZ (0, NDZ-1);
 
-  Vector workR(0, NDR-1);
-  Vector workE(0, NDR-1);
+  Vector workR (0, NDR-1);
+  Vector workE (0, NDR-1);
   Vector workE2(0, NDR-1);
 
-  Matrix workV(0, 3, 0, NDR-1);
+  Matrix workV (0, 4, 0, NDR-1);
 
 				// For debugging
-  Matrix workD(0, 4, 0, NDR-1);
+  Matrix workD (0, 5, 0, NDR-1);
   Matrix workDZ(0, 6, 0, NDZ-1);
 
 				// Compute this table in parallel
@@ -894,7 +897,8 @@ table_disk(vector<Particle>& part)
     }
   }
 
-  Cheby1d *cheb = 0;
+  Cheby1d *cheb = 0, *cheb2 = 0;
+
 
   for (int i=ibeg[myid]; i<iend[myid]; i++) {
 
@@ -914,15 +918,13 @@ table_disk(vector<Particle>& part)
       if (expandh)		//
 	expandh->determine_fields_at_point(R, 0.5*M_PI, phi,
 					   &dens, &potl, &dpr, &dpt, &dpp);
-      workE[j] = -fr + dpr;
-      if (JEANS_VR) {
-	workV[0][j] = R;
-	workV[1][j] = disk_density(R, 0.0);
-	workV[2][j] = workV[1][j]*workE[j];
-      }
+      workE[j]    = -fr + dpr;
+      workV[0][j] = log(RDMIN) + dR*j;
+      workV[1][j] = disk_density(R, 0.0);
+      workV[2][j] = workV[1][j]*workE[j]*R;
       if (i==0) {
-	workD[3][j] = -fr;
-	workD[4][j] = dpr;
+	workD[4][j] = -fr;
+	workD[5][j] = dpr;
       }
 
       for (int k=0; k<NDZ; k++) {
@@ -1013,34 +1015,51 @@ table_disk(vector<Particle>& part)
 
 				// Compute epicylic freqs
     for (int j=0; j<NDR; j++) {
+      if (i==0) {
+	if (CHEBY)
+	  workD[0][j] += cheb->eval(workR[j]);
+	else
+	  workD[0][j] += workE[j];
+      }
       if (CHEBY)
 	epitable[i][j] = cheb->deriv(workR[j]);
       else
 	epitable[i][j] = drv2(workR[j], workR, workE);
-      if (i==0) workD[0][j] = epitable[0][j];
+      if (i==0) workD[1][j] = epitable[0][j];
       if (CHEBY)
 	epitable[i][j] += 3.0*cheb->eval(workR[j]);
       else
 	epitable[i][j] += 3.0*workE[j];
-      if (i==0) workD[1][j] = epitable[0][j];
-      epitable[i][j] /= exp(workR[j]);
       if (i==0) workD[2][j] = epitable[0][j];
+      epitable[i][j] /= exp(workR[j]);
+      if (i==0) workD[3][j] = epitable[0][j];
     }
     
-    if (JEANS_VR) {
-      Trapsum(workV[0], workV[2], workV[3]);
-      for (int j=0; j<NDR; j++) 
-	dv2table[i][j] = (workV[3][NDR-1] - workV[3][j])/workV[1][j];
+				// Cylindrical Jeans' equations
+    for (int j=0; j<NDR; j++) {
+      double vr = 3.36*workV[1][j]*Q/sqrt(epitable[i][j]);
+      workV[4][j] = log(workV[1][j]*vr*vr);
     }
 
+    if (CHEBY) cheb2 = new Cheby1d(workV[0], workV[4], NCHEB);
+  
+
+    Trapsum(workV[0], workV[2], workV[3]);
+    for (int j=0; j<NDR; j++) {
+      dv2table[i][j] = (workV[3][NDR-1] - workV[3][j])/workV[1][j];
+      if (CHEBY)
+	asytable[i][j] = -cheb2->deriv(workV[0][j]);
+      else
+	asytable[i][j] = -drv2(workV[0][j], workV[0], workV[4], 1);
+    }
   }
 
 				// Update tables on all nodes
   for (int k=0; k<numprocs; k++) {
     for (int i=ibeg[k]; i<iend[k]; i++) {
       MPI_Bcast(&epitable[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
-      if (JEANS_VR)
-	MPI_Bcast(&dv2table[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&dv2table[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
+      MPI_Bcast(&asytable[i][0], NDR, MPI_DOUBLE, k, MPI_COMM_WORLD);
       for (int j=0; j<NDR; j++) {
 	MPI_Bcast(&disktableP[i][j][0], NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
 	MPI_Bcast(&disktableN[i][j][0], NDZ, MPI_DOUBLE, k, MPI_COMM_WORLD);
@@ -1120,16 +1139,17 @@ table_disk(vector<Particle>& part)
 	  << setw(14) << vrq0                   // #6
 	  << setw(14) << vrq1                   // #7
 	  << setw(14) << v_circ(r, 0.0, 0.0)    // #8
-	  << setw(14) << workD[0][j]		// #9
-	  << setw(14) << workD[1][j]		// #10
-	  << setw(14) << workD[2][j]		// #11
-	  << setw(14) << workD[3][j]		// #12
-	  << setw(14) << workD[4][j]		// #13
-	  << setw(14) << rho			// #14
-	  << setw(14) << deriv			// #15
-	  << setw(14) << lhs			// #16
-	  << setw(14) << rhs			// #17
-	  << setw(14) << lhs - rhs		// #18
+	  << setw(14) << workD[0][j]		// #9   dV(tot)/dR
+	  << setw(14) << workD[1][j]		// #10  d^2V(tot)/dlnR
+	  << setw(14) << workD[2][j]		// #11  d^2V(tot)/dlnR + 3V(tot)
+	  << setw(14) << workD[3][j]		// #12  kappa^2
+	  << setw(14) << workD[4][j]		// #13  dV(disk)/dR
+	  << setw(14) << workD[5][j]		// #14  dV(halo)/dR
+	  << setw(14) << rho			// #15
+	  << setw(14) << deriv			// #16
+	  << setw(14) << lhs			// #17
+	  << setw(14) << rhs			// #18
+	  << setw(14) << lhs - rhs		// #19
 	  << endl;
     }
 
@@ -1145,19 +1165,24 @@ table_disk(vector<Particle>& part)
     }
     dump.close();
 
-    if (JEANS_VR) {
-      dump.open("dv2table.dump");
-      for (int i=0; i<NDP; i++) {
-	phi = dP*i;
-	for (int j=0; j<NDR; j++)
-	  dump << setw(18) << phi 
-	       << setw(18) << RDMIN*exp(dR*j)
-	       << setw(18) << dv2table[i][j]
-	       << endl;
+    dump.open("dv2table.dump");
+    for (int i=0; i<NDP; i++) {
+      phi = dP*i;
+      double c = cos(phi), s = sin(phi);
+      for (int j=0; j<NDR; j++) {
+	double rr = RDMIN*exp(dR*j);
+	double vc = v_circ(rr*c, rr*s, 0.0);
+	dump << setw(18) << phi 
+	     << setw(18) << rr
+	     << setw(18) << dv2table[i][j]
+	     << setw(18) << asytable[i][j]
+	     << setw(18) << workV[4][j];
+	if (CHEBY) dump << setw(18) << cheb2->eval(workV[0][j]);
 	dump << endl;
       }
-      dump.close();
+      dump << endl;
     }
+    dump.close();
   }
     
   if (myid==curid)
@@ -1205,6 +1230,7 @@ table_disk(vector<Particle>& part)
   if (myid==0) cout << "[table] " << flush;
 
   delete cheb;
+  delete cheb2;
 }
 
 
@@ -1271,57 +1297,65 @@ double DiskHalo::get_dispdz(double xp,double yp, double zp)
   }
 
   double R, lR, phi, cp[2], cr[2], cz[2], resvd, zz;
-  int iphi, ir, iz;
+  int iphi1, iphi2, ir1, ir2, iz1, iz2;
 
 				// Azimuth
-  phi = atan2(yp, xp) + M_PI;
-  iphi = (int)( phi/dP );
-  iphi = min<int>( iphi, NDP-2 );
-  cp[1] = (phi - dP*iphi)/dP;
+  phi = atan2(yp, xp);
+  if (phi<0.0) phi = 2.0*M_PI + phi;
+  iphi1 = floor( phi/dP );
+  iphi1 = min<int>( iphi1, NDP-1 );
+  if (iphi1==NDP-1) iphi2 = 0;
+  else iphi2 = iphi1+1;
+  
+  cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
 				// Cylindrical radius
-  R = sqrt(xp*xp + yp*yp);
+  R  = max<double>(sqrt(xp*xp + yp*yp), RDMIN);
   lR = log(R);
-  ir = (int)( (lR - log(RDMIN))/dR );
-  ir = min<int>( ir, NDR-2 );
-  ir = max<int>( ir, 0 );
-  cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
+  ir1 = (int)( (lR - log(RDMIN))/dR );
+  ir1 = min<int>( ir1, NDR-2 );
+  ir1 = max<int>( ir1, 0 );
+  ir2 = ir1 + 1;
+
+  cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
   cr[0] = 1.0 - cr[1];
 
 				// Zed
   zz = fabs(zp);
-  iz = (int)( zz/dZ );
-  iz = min<int>( iz, NDZ-2 );
-  cz[1] = (zz - dZ*iz)/dZ;
+  iz1 = floor( zz/dZ );
+  iz1 = min<int>( iz1, NDZ-2 );
+  iz2 = iz1 + 1;
+
+  cz[1] = (zz - dZ*iz1)/dZ;
   cz[0] = 1.0 - cz[1];
 
   if (zp > 0.0) {
 
     resvd = 
 
-      cp[0]*cr[0]*cz[0] * disktableP[iphi  ][ir  ][iz  ]  +
-      cp[0]*cr[0]*cz[1] * disktableP[iphi  ][ir  ][iz+1]  +
-      cp[0]*cr[1]*cz[0] * disktableP[iphi  ][ir+1][iz  ]  +
-      cp[0]*cr[1]*cz[1] * disktableP[iphi  ][ir+1][iz+1]  +
+      cp[0]*cr[0]*cz[0] * disktableP[iphi1][ir1][iz1]  +
+      cp[0]*cr[0]*cz[1] * disktableP[iphi1][ir1][iz2]  +
+      cp[0]*cr[1]*cz[0] * disktableP[iphi1][ir2][iz1]  +
+      cp[0]*cr[1]*cz[1] * disktableP[iphi1][ir2][iz2]  +
 
-      cp[1]*cr[0]*cz[0] * disktableP[iphi+1][ir  ][iz  ]  +
-      cp[1]*cr[0]*cz[1] * disktableP[iphi+1][ir  ][iz+1]  +
-      cp[1]*cr[1]*cz[0] * disktableP[iphi+1][ir+1][iz  ]  +
-      cp[1]*cr[1]*cz[1] * disktableP[iphi+1][ir+1][iz+1]  ;
+      cp[1]*cr[0]*cz[0] * disktableP[iphi2][ir1][iz1]  +
+      cp[1]*cr[0]*cz[1] * disktableP[iphi2][ir1][iz2]  +
+      cp[1]*cr[1]*cz[0] * disktableP[iphi2][ir2][iz1]  +
+      cp[1]*cr[1]*cz[1] * disktableP[iphi2][ir2][iz2]  ;
 
   } else {
 
     resvd = 
 
-      cp[0]*cr[0]*cz[0] * disktableN[iphi  ][ir  ][iz  ]  +
-      cp[0]*cr[0]*cz[1] * disktableN[iphi  ][ir  ][iz+1]  +
-      cp[0]*cr[1]*cz[0] * disktableN[iphi  ][ir+1][iz  ]  +
-      cp[0]*cr[1]*cz[1] * disktableN[iphi  ][ir+1][iz+1]  +
+      cp[0]*cr[0]*cz[0] * disktableN[iphi1][ir1][iz1]  +
+      cp[0]*cr[0]*cz[1] * disktableN[iphi1][ir1][iz2]  +
+      cp[0]*cr[1]*cz[0] * disktableN[iphi1][ir2][iz1]  +
+      cp[0]*cr[1]*cz[1] * disktableN[iphi1][ir2][iz2]  +
 
-      cp[1]*cr[0]*cz[0] * disktableN[iphi+1][ir  ][iz  ]  +
-      cp[1]*cr[0]*cz[1] * disktableN[iphi+1][ir  ][iz+1]  +
-      cp[1]*cr[1]*cz[0] * disktableN[iphi+1][ir+1][iz  ]  +
-      cp[1]*cr[1]*cz[1] * disktableN[iphi+1][ir+1][iz+1]  ;
+      cp[1]*cr[0]*cz[0] * disktableN[iphi2][ir1][iz1]  +
+      cp[1]*cr[0]*cz[1] * disktableN[iphi2][ir1][iz2]  +
+      cp[1]*cr[1]*cz[0] * disktableN[iphi2][ir2][iz1]  +
+      cp[1]*cr[1]*cz[1] * disktableN[iphi2][ir2][iz2]  ;
 
   }
 
@@ -1336,37 +1370,61 @@ double DiskHalo::get_dispdz(double xp,double yp, double zp)
 */
 double DiskHalo::vr_disp(double xp, double yp,double zp)
 {
-  if (JEANS_VR) {
-				// Azimuth
-    double phi = atan2(yp, xp) + M_PI;
-    int iphi = min<int>( (int)( phi/dP ), NDP-2 );
-    double cp[2], cr[2];
-
-    cp[1] = (phi - dP*iphi)/dP;
-    cp[0] = 1.0 - cp[1];
-				// Cylindrical radius
-    double R = sqrt(xp*xp + yp*yp);
-    double lR = log(R);
-    int ir = (int)( (lR - log(RDMIN))/dR );
-    ir = min<int>( ir, NDR-2 );
-    ir = max<int>( ir, 0 );
-
-    cr[1] = (lR - log(RDMIN) - dR*ir)/dR;
-    cr[0] = 1.0 - cr[1];
-
-    return
-      cp[0]*cr[0] * dv2table[iphi  ][ir  ] +
-      cp[0]*cr[1] * dv2table[iphi  ][ir+1] +
-      cp[1]*cr[0] * dv2table[iphi+1][ir  ] +
-      cp[1]*cr[1] * dv2table[iphi+1][ir+1] ;
-
-  } else {
-    double r = sqrt(xp*xp + yp*yp);
-    if (r > 10.0*scalelength) return 0.0;
-    double sigmar = 3.36*dmass*disk->get_density(r)*Q/epi(xp, yp, zp);
-    return sigmar*sigmar;
-  }
+  double r = sqrt(xp*xp + yp*yp);
+  if (r > 10.0*scalelength) return 0.0;
+  double sigmar = 3.36*dmass*disk->get_density(r)*Q/epi(xp, yp, zp);
+  return sigmar*sigmar;
 }
+
+/*
+  Asymmetric drift equation: returns (v_p^2 - v_c^2)/sigma_rr^2
+*/
+double DiskHalo::a_drift(double xp, double yp,double zp)
+{
+				// Azimuth
+  double phi = atan2(yp, xp);
+  if (phi<0.0) phi = 2.0*M_PI + phi;
+
+  int iphi1 = floor( phi/dP );
+  iphi1 = min<int>(iphi1, NDP-1);
+  int iphi2 = iphi1 + 1;
+  if (iphi1==NDP-1) iphi2 = 0; // Modulo 2Pi
+
+  double cp[2], cr[2];
+
+  cp[1] = (phi - dP*iphi1)/dP;
+  cp[0] = 1.0 - cp[1];
+				// Cylindrical radius
+  double R  = max<double>(sqrt(xp*xp + yp*yp), RDMIN);
+  double lR = log(R);
+  int ir1 = floor( (lR - log(RDMIN))/dR );
+  ir1 = min<int>( ir1, NDR-2 );
+  ir1 = max<int>( ir1, 0 );
+  int ir2 = ir1 + 1;
+  
+  cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
+  cr[0] = 1.0 - cr[1];
+  
+  // DEBUG
+  if (1) {
+    if (cp[1]>1.0 || cp[1] < 0.0 ||
+	cp[0]>1.0 || cp[0] < 0.0 )
+      cerr << "DiskHalo::a_drift: phi=" << phi
+	   << ", cp=(" << cp[0] << ", " << cp[1] << ")" << endl;
+    if (cr[1]>1.0 || cr[1] < 0.0 ||
+	cr[0]>1.0 || cr[0] < 0.0 )
+      cerr << "DiskHalo::a_drift: R=" << R
+	   << ", cr=(" << cr[0] << ", " << cr[1] << ")" << endl;
+  }
+  // END DEBUG
+  
+  return
+    cp[0]*cr[0] * asytable[iphi1][ir1] +
+    cp[0]*cr[1] * asytable[iphi1][ir2] +
+    cp[1]*cr[0] * asytable[iphi2][ir1] +
+    cp[1]*cr[1] * asytable[iphi2][ir2] ;
+}
+
 
 /*
   Analytic rotation curve
@@ -1399,7 +1457,7 @@ set_vel_disk(vector<Particle>& part)
   double maxVR=-1.0e20, RVR=1e20;
   double maxVP=-1.0e20, RVP=1e20;
   double maxVZ=-1.0e20, RVZ=1e20;
-  double vz, vr, vp, R, x, y, z;
+  double vz, vr, vp, R, x, y, z, ac, vc, va;
   double vel[3], vel1[3], massp, massp1;
 
   for (int k=0; k<3; k++) vel[k] = vel1[k] = 0.0;
@@ -1446,15 +1504,47 @@ set_vel_disk(vector<Particle>& part)
       RVP   = R;
     }
 
-    vz   = rn()*sqrt(vvZ);
-    vr   = rn()*sqrt(vvR);
-    vp   = rn()*sqrt(vvP) + v_circ(x, y, z);
+    // Asymmetric drift correction
+    ac   = vvR*a_drift(x, y, z);
+    // No asymmetric drift correction
+    // ac   = 0.0;
+    vc   = v_circ(x, y, z);
+    if (isnan(vc))
+      {
+	cout << "V_c is NaN" << endl;
+	vc = 0.0;
+      }
+    
+
+    if (isnan(ac)) 
+      {
+	cout << "V_a is NaN" << endl;
+	va = vc;
+      }
+    else
+      va = sqrt(max<double>(vc*vc + ac, MINDOUBLE));
+    
+
+    vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
+    vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
+    vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
     
     if (myid==0) 
       out << setw(14) << R   << setw(14) << z   << setw(14) << v_circ(x, y, z)
 	  << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
 	  << setw(14) << vvZ << setw(14) << vvR << setw(14) << vvP
 	  << endl;
+
+    if (isnan(vr)) 
+      {
+	cout << "Error: vr is NaN, R=" << R << " vvR=" << vvR << endl;
+      }
+	
+    if (isnan(vp)) 
+      {
+	cout << "Error: vp is NaN, R=" << R << ", ac=" << ac << ", vc=" << vc
+	     << ", vvP=" << vvP << endl;
+      }
 
     p->vel[0] = vr*x/R - vp*y/R;
     p->vel[1] = vr*y/R + vp*x/R;

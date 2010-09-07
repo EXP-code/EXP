@@ -433,6 +433,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #ifdef DEBUG
     c0->Tree()->checkBounds(2.0, "AFTER makeTree (first time)");
 #endif
+    if (use_temp || use_dens) assignTempDens();
+
 
     stepnum = 0;
     curtime = tnow;
@@ -1109,6 +1111,140 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
 
   done = true;
 }
+
+#define DEBUG
+
+void UserTreeDSMC::assignTempDens()
+{
+  const double f_H = 0.76;
+  double mm = f_H*mp + (1.0-f_H)*4.0*mp;
+  double KEtot, KEdsp, T;
+  double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  pCell *cell;
+#ifdef DEBUG
+  unsigned nbod=0, ntot, zbod=0, ztot, sing=0, stot, zero=0, none;
+  double n2=0.0, n1=0.0, N2, N1, M=0.0;
+  double KE1[]={0.0, 0.0, 0.0};
+  double KE2[]={0.0, 0.0, 0.0};
+  double MinT, MaxT, MeanT, VarT;
+  double minT=1e20, maxT=0.0, meanT=0.0, varT=0.0;
+  bool firstone = true;
+
+  ostringstream sout;
+  sout << "single_bods." << myid;
+  ofstream out(sout.str().c_str());
+#endif
+
+  
+  pHOT_iterator fit(*(c0->Tree()));
+  while (fit.nextCell()) {
+
+    cell = fit.Cell();
+    cell->sample->KE(KEtot, KEdsp);
+      
+    T = KEdsp * Tfac;
+      
+    // Assign temp and/or density to particles
+    //
+    if (use_temp>=0 || use_dens>=0) {
+      
+      unsigned bsz = cell->bods.size();
+      double dens = cell->Mass()/cell->Volume();
+      set<unsigned>::iterator j = cell->bods.begin();
+      while (j != cell->bods.end()) {
+	if (*j == 0) {
+	  cout << "proc=" << myid << " id=" << id 
+	       << " ptr=" << hex << cell << dec
+	       << " indx=" << *j << "/" << bsz << endl;
+	  j++;
+	  continue;
+	}
+	  
+	int sz = cell->Body(j)->dattrib.size();
+	if (use_temp>=0 && use_temp<sz) 
+	  cell->Body(j)->dattrib[use_temp] = T;
+	if (use_dens>=0 && use_dens<sz) 
+	  cell->Body(j)->dattrib[use_dens] = dens;
+	j++;
+      }
+#ifdef DEBUG
+      if (T>0.0) {
+	minT = min<double>(T, minT);
+	maxT = max<double>(T, maxT);
+	meanT += bsz*T;
+	varT  += bsz*T*T;
+	nbod  += bsz;
+      }
+      else {
+	if (bsz>1) {
+	  zbod++;
+	  n1 += bsz;
+	  n2 += bsz * bsz;
+	  // Compute the temperature . . . 
+	  if (firstone) {
+	    double m, v;
+	    for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
+	      m = c0->Mass(*j);
+	      for (int k=0; k<3; k++) {
+		v = c0->Vel(*j, k);
+		KE1[k] += m * v;
+		KE2[k] += m * v*v;
+	      }
+	      M += m;
+	    }
+	    cout << "#" << setw(3) << myid << ": N=" << setw(4) << bsz;
+	    double ketot = 0.0;
+	    for (int k=0; k<3; k++) 
+	      ketot += 0.5*(KE2[k] - KE1[k]*KE1[k]/M)/M;
+	    cout << ", T=" << ketot * Tfac << endl << flush;
+	    firstone = false;
+	  }
+	} else if (bsz==1) {
+	  j = cell->bods.begin();
+	  for (int k=0; k<3; k++) out << setw(18) << c0->Pos(*j, k);
+	  out << endl;
+	  sing++;
+	} else {
+	  zero++;
+	}
+      }
+#endif
+    }
+  }
+  
+#ifdef DEBUG
+  MPI_Reduce(&nbod,  &ntot,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&zbod,  &ztot,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&sing,  &stot,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&zero,  &none,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&n1,    &N1,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&n2,    &N2,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&meanT, &MeanT, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&varT,  &VarT,  1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&minT,  &MinT,  1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&maxT,  &MaxT,  1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+
+
+  if (myid==0) {
+    cout << setfill('-') << setw(70) << '-' << setfill(' ') << endl;
+    cout << "Non-zero temperature assigned for " << ntot << " bodies"  << endl
+	 << stot << " cells are singletons" << endl
+	 << none << " cells are empty" << endl
+	 << "Zero temperature assigned for " << ztot << " bodies" << endl;
+    if (ztot>1)
+      cout << ", mean(N) = " << N1/ztot << endl
+	   << " stdev(N) = " << sqrt( (N2 - N1*N1/ztot)/(ztot-1) ) << endl;
+    cout << "    MinT = " << MinT << endl << "    MaxT = " << MaxT << endl;
+    if (ntot>0)
+      cout << " mean(T) = " << MeanT/ntot << endl;
+    if (ntot>1) 
+      cout << "stdev(T) = " 
+	   << sqrt( (VarT - MeanT*MeanT/ntot)/(ntot-1) ) << endl;
+    cout << setfill('-') << setw(70) << '-' << setfill(' ') << endl;
+  }
+#endif
+}
+
 
 extern "C" {
   ExternalForce *makerTreeDSMC(string& line)

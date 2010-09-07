@@ -82,6 +82,7 @@ private:
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg) 
   { return (NULL); }
+  void assignTempDens();
   void initialize();
 
 				// The tree

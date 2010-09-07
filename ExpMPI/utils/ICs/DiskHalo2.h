@@ -53,7 +53,7 @@ class DiskHalo
   SphericalSL* expandh;
   EmpCylSL* expandd;
 
-  Matrix *disktableP, *disktableN, epitable, dv2table;
+  Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
   double dP, dR, dZ, epiRmin;
 
   Matrix halotable;
@@ -116,9 +116,6 @@ class DiskHalo
 				// default: 8192
 
   static bool LOGR;		// Radial grid for Eddington inversion
-
-  static bool JEANS_VR;		// Use Jeans' equations for radial
-				// disk dispersion1
 
   static bool CHEBY;		// Use Cheybshev fit for epicylic derivatives
 
@@ -203,6 +200,8 @@ class DiskHalo
   double get_dispdz(double xp,double yp,double zp);
 
   double vr_disp(double xp, double yp,double zp);
+
+  double a_drift(double xp, double yp,double zp);
 
   double vphi(double xp, double yp, double zp);
 
