@@ -35,7 +35,7 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.3;
+const double rfac = 0.2;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -108,7 +108,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 				 double rvmax, double tau, double number, 
 				 int id)
 {
-  pCell *samp = cell->sample;
+  sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
 				// 
   double KEtot, KEdspS, KEdspC;
@@ -118,7 +118,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   double massC = cell->Mass();	// Mass in real cell
   double massS = samp->Mass();	// Mass in sample cell
 
-  totalSoFar += massC*KEdspC;
+  totalSoFar += massC * KEdspC;
   massSoFar  += massC;
 
 				// Mean mass per particle
@@ -193,7 +193,8 @@ void CollideLTE::initialize_cell(pCell* cell,
 
     if (ESOL) {
 				// Instantaneous loss rate
-      double h = rfac*tau*cell->Mass()*KEdspS/(coolheat[id]+DBL_MIN);
+      double h = tau*cell->Mass()*KEdspS/(coolheat[id]+DBL_MIN);
+      h = rfac * min<double>(tau, h);
 
 				// Energy to temperature
       double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
@@ -203,19 +204,23 @@ void CollideLTE::initialize_cell(pCell* cell,
       double E = cell->Mass()*KEdspS;
       double E0 = E;
 
+
 #ifdef DEBUG
       int icnt=0;
 #endif
-      double k1, k2, k3, k4, t=0.0;
+      double k1, k2, k3, k4, t=0.0, TT;
       while (t<tau*(1.0-2.0*DBL_MIN)) {
 	h = min<double>(h, tau-t);
+				// Safety
+	h = max<double>(h, 1.0e-4*tau);
                                 // RK4
-	k1 = -h * hc->CoolRate(n0, E/Tfac);
-	k2 = -h * hc->CoolRate(n0, E/Tfac+k1*0.5);
-	k3 = -h * hc->CoolRate(n0, E/Tfac+k2*0.5);
-	k4 = -h * hc->CoolRate(n0, E/Tfac+k3);
+	TT = max<double>(1.0e-8, E/Tfac);
+	k1 = -h * Cfac * hc->CoolRate(n0, TT);
+	k2 = -h * Cfac * hc->CoolRate(n0, TT+k1*0.5/Tfac);
+	k3 = -h * Cfac * hc->CoolRate(n0, TT+k2*0.5/Tfac);
+	k4 = -h * Cfac * hc->CoolRate(n0, TT+k3/Tfac);
 
-	E += Cfac * (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
+	E += (k1 + 2.0*k2 + 2.0*k3 + k4)/6.0;
 	t += h;
 #ifdef DEBUG
 	icnt++;
@@ -227,18 +232,33 @@ void CollideLTE::initialize_cell(pCell* cell,
 #endif
 				// Sanity: failure of explicit solution
       if (isnan(E)) E = E0;
+      E = max<double>(E, 3.0*Tfac);
 
       KEdspF = E/cell->Mass();
       T      = E/Tfac;
 
 #ifdef DEBUG
-      if (icnt > 10000) 
+      if (icnt > 10000) {
 	cout << "Process " << setw(4) << myid 
 	     << " [" << setw(2) << id << "]:" << left
-	     << " #="      << setw(4) << icnt
+	     << " #="      << setw(8) << icnt
 	     << " T_0="    << setw(15) << T0
 	     << " T_F="    << setw(15) << T 
 	     << endl << right;
+      }
+      if (T > T0) {
+	cout << "Process " << setw(4) << myid 
+	     << " [" << setw(2) << id << "]:" << left
+	     << " #="      << setw(8) << icnt
+	     << " E_0="    << setw(15) << E0
+	     << " E_F="    << setw(15) << E
+	     << " T_0="    << setw(15) << T0
+	     << " T_F="    << setw(15) << T 
+	     << " k_1="    << setw(15) << k1/Tfac 
+	     << " k_4="    << setw(15) << k4/Tfac 
+	     << endl << right;
+	T = T0;
+      }
 #endif
     }
 				// Sanity: failure of implicit solution
@@ -298,7 +318,7 @@ void CollideLTE::initialize_cell(pCell* cell,
   if (use_temp>=0 || use_dens>=0) {
     
     double dens = massC/volumeC;
-    set<unsigned>::iterator j = cell->bods.begin();
+    set<unsigned long>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
@@ -332,7 +352,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     tcoolT[id][indx]++;
 
 				// Assign per body time step requests
-    set<unsigned>::iterator j;
+    set<unsigned long>::iterator j;
     for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
       if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
@@ -352,7 +372,8 @@ void CollideLTE::initialize_cell(pCell* cell,
 }
 
 
-int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, double *cr, int id)
+int CollideLTE::inelastic(pH2OT *tree, Particle* p1, Particle* p2, 
+			  double *cr, int id)
 {
   int ret = 0;			// No error (flag)
 
@@ -542,34 +563,47 @@ void CollideLTE::Debug(double t)
     for (unsigned n=0; n<numt; n++) mast += thist20[n];
 
 
+    const char marker[] = "XXXXXX";
     double cum = 0.0;
 
-    ofstream out2(string(outdir + "collideH.thisto").c_str(), ios::app);
+    ofstream out2(string(outdir + runtag + ".collideH.thisto").c_str(), 
+		  ios::app);
     for (unsigned n=0; n<numt; n++) {
       cum += thist20[n];
       out2 << setw(18) << t
-	   << setw(18) << exp(thisto1[n])
-	   << setw(18) << thist20[n]/mast
-	   << setw(18) << cum/mast
-	   << endl;
+	   << setw(18) << exp(thisto1[n]);
+      if (mast>0.0)
+	out2 << setw(18) << thist20[n]/mast
+	     << setw(18) << cum/mast
+	     << endl;
+      else
+	out2 << setw(18) << marker
+	     << setw(18) << marker
+	     << endl;
     }
     out2 << endl;
 
-    ofstream out3(string(outdir + "collideH.nhisto").c_str(), ios::app);
+    ofstream out3(string(outdir + runtag + ".collideH.nhisto").c_str(), 
+		  ios::app);
     cum = 0.0;
     for (unsigned n=0; n<numn; n++) {
       cum += nhist20[n];
       out3 << setw(18) << t
-	   << setw(18) << exp(nhisto1[n])
-	   << setw(18) << nhist20[n]/mast
-	   << setw(18) << cum/mast
-	   << endl;
+	   << setw(18) << exp(nhisto1[n]);
+      if (mast>0.0)
+	out3 << setw(18) << nhist20[n]/mast
+	     << setw(18) << cum/mast
+	     << endl;
+      else
+	out3 << setw(18) << marker
+	     << setw(18) << marker
+	     << endl;
     }
     out3 << endl;
 
     if ( (trhocnt % 10) == 0) {
       ostringstream sout;
-      sout << outdir << "collideH.trho." << trhocnt;
+      sout << outdir << runtag << ".collideH.trho." << trhocnt;
       ofstream out4(sout.str().c_str());
       out4 << "# T=" << t << endl;
       for (unsigned n=0; n<numt; n++) {

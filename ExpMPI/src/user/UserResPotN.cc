@@ -338,17 +338,17 @@ void UserResPotN::initialize()
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
   if (get_value("fileomega", val))	fileomega = val;
-  if (get_value("debug",val))	  debug = atoi(val.c_str()) ? true : false;
+  if (get_value("debug",val))	  debug = atol(val);
   if (get_value("usetag", val))   usetag = atoi(val.c_str());
   if (get_value("usebar", val))   
     {
-      usebar = atoi(val.c_str()) ? true  : false;
-      useorb = atoi(val.c_str()) ? false : true;
+      usebar = atol(val);
+      useorb = atol(val);
     }
   if (get_value("useorb", val))   
     {
-      useorb = atoi(val.c_str()) ? true  : false;
-      usebar = atoi(val.c_str()) ? false : true;
+      useorb = atol(val);
+      usebar = atol(val);
     }
 }
 

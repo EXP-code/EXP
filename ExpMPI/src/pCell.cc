@@ -6,21 +6,27 @@
 
 #include "ParticleFerry.H"
 #include "pCell.H"
-#include "pHOT.H"
+#include "pH2OT.H"
 #include "global.H"
+
+int pCell::live = 0;		// Track number of instances
 
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
-unsigned pCell::CRMcnt = 8;	// Number of entries in CRM stack
 
 string printKey(key_type p)
 {
+  const key_type one(1u);
   ostringstream sout, sret;
 
   unsigned short cnt = 0;
   unsigned Nbits = sizeof(p)*8;
   for (unsigned k=0; k<Nbits; k++) {
-    sout << ( (p & 0x1) ? '1' : '0' );
+#ifdef I128
+    sout << ( (p & one).toUint() ? '1' : '0' );
+#else
+    sout << ( (p & one) ? '1' : '0' );
+#endif
     if (++cnt==3) {sout << '.'; cnt = 0;}
     p = p>>1;
   }
@@ -32,14 +38,17 @@ string printKey(key_type p)
 }
 
 
-pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
+pCell::pCell(pTree* tr) : tree(tr), C(tr->ph->cc), isLeaf(true)
 {
-  owner = myid;
+  live++;
+
+  owner   = myid;
 				// I am the root node
   parent  = 0;
   sample  = 0;
-  mykey   = 1;
+  mykey   = 1u;
   level   = 0;
+  count   = 0;
   maxplev = 0;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
@@ -55,8 +64,10 @@ pCell::pCell(pHOT* tr) : tree(tr), isLeaf(true)
 }
 
 pCell::pCell(pCell* mom, unsigned id) : 
-  tree(mom->tree), parent(mom), isLeaf(true)
+  tree(mom->tree), C(mom->C), parent(mom), isLeaf(true)
 {
+  live++;
+
   owner   = myid;
 				// My map key
   mykey   = (parent->mykey << 3) + id;
@@ -66,11 +77,13 @@ pCell::pCell(pCell* mom, unsigned id) :
   maxplev = 0;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
+
 				// Initialize state
   state   = vector<double>(10, 0.0);
 
 				// Uninitialized sample cell
   sample  = 0;
+  count   = 0;
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
   // DEBUG
@@ -82,6 +95,8 @@ pCell::pCell(pCell* mom, unsigned id) :
 
 pCell::~pCell()
 {
+  live--;
+
   // Recursively kill all the cells
   for (map<unsigned, pCell*>::iterator it=children.begin(); 
        it!=children.end(); it++) delete it->second;
@@ -90,24 +105,41 @@ pCell::~pCell()
 unsigned pCell::childId(key_type key)
 {
   key_type id = key - mask;
-  id = id >> 3*(nbits - 1 - level);
-  return id;
+  id >>= 3*(nbits - 1 - level);
+#ifdef I128
+  unsigned cid = id.toUint();
+#else
+  unsigned cid = static_cast<unsigned>(id);
+#endif
+  if (cid>7) {
+    cout << "Process " << myid << ": crazy cid value: " << cid
+	 << " level=" << level << "  id=" << hex << id << dec << endl;
+  }
+  return cid;
 }
 
 
 pCell* pCell::Add(const key_pair& keypair, change_list* change)
 {
-  key_type key=keypair.first, key2;
+  key_type key = keypair.first;
+  key_type dif = key - mask;
+  unsigned key2;
 
 				// Check that this key belongs to this branch
-  key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
+  key_type sig = dif >> 3*(nbits-level);
 
-  if (sig!=0) {
-
+				// Wrong branch!
+  if (!!sig) {
+				// Sanity check . . . if this is the root,
+				// we might be in the wrong tree (a bug)
     if (parent == 0) {
-      cout << "Process " << myid << ": ERROR level=" << level 
-	   << " key=" << hex << key << endl
-	   << " sig=" << hex << sig << endl << dec;
+      cout << "Process " << myid << ": ERROR level=" << level << endl << hex
+	   << "  key=" << key   << endl
+	   << " mask=" << mask  << endl
+	   << " diff=" << dif   << endl
+	   << "  sig=" << sig   << endl
+	   << " xsig=" << ( (key - mask) >> 3*(nbits-level) ) << endl << dec
+	   << " shft=" << 3*(nbits-level)   << endl;
 				// Get the particle info
       key_indx::iterator p =
 	lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, ltPAIR());
@@ -115,15 +147,17 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       while (p->first==keypair.first && p->second==keypair.second ) {
 	cout << "pos=";
 	for (int k=0; k<3; k++) 
-	  cout << setw(18) << tree->cc->Particles()[p->second].pos[k];
+	  cout << setw(18) << C->Particles()[p->second].pos[k];
 	cout << endl;
 	p++;
       }
     }
-
+				// Move up the tree . . .
     return parent->Add(keypair, change);
   }
   
+				// If this cell is a leaf, try to add the
+				// new body
   if (isLeaf && keys.find(keypair)==keys.end()) {
 
 				// I am still a leaf . . .
@@ -132,18 +166,21 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       tree->bodycell.insert(key_item(key, mykey));
       bods.insert(keypair.second);
 				// Flag to recompute sample cell
-      if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
-      maxplev = max<int>(maxplev, tree->cc->Particles()[keypair.second].level);
+      if (change) change->push_back(cell_indx(this, pTree::RECOMP));
+      maxplev = max<int>(maxplev, C->Particles()[keypair.second].level);
       
       return this;
     }
     
-				// I need to make leaves and become a branch
+				// Bucket is full, I need to make
+				// leaves and become a branch
     for (key_indx::iterator n=keys.begin(); n!=keys.end(); n++) {
+				// Give all of my body keys to my
+				// children
       key2 = childId(n->first);
       if (children.find(key2) == children.end()) {
 	children[key2] = new pCell(this, key2);
-	if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
+	if (change) change->push_back(cell_indx(children[key2], pTree::CREATE));
       }
       
       key_key::iterator ik = tree->bodycell.find(n->first);
@@ -153,9 +190,9 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 				// Erase my list
     keys.clear();
     bods.clear();
-				// Erase my key from the frontier
+				// Erase my cell key from the frontier
     tree->frontier.erase(mykey);
-    if (change) change->push_back(cell_indx(this, pHOT::REMOVE));
+    if (change) change->push_back(cell_indx(this, pTree::REMOVE));
 				// I'm a branch now . . .
     isLeaf = false;
   }
@@ -164,70 +201,155 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
   key2 = childId(key);
   if (children.find(key2) == children.end()) {
     children[key2] = new pCell(this, key2);
-    if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
+    if (change) change->push_back(cell_indx(children[key2], pTree::CREATE));
   }
 
   return children[key2]->Add(keypair, change);
 }
   
 
-void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
+void pCell::RemoveKey(const key_pair& oldpair)
 {
+				// Erase pair from my keys list
   key_indx::iterator it=keys.find(oldpair);
   if (it != keys.end()) keys.erase(it);
+#ifdef DEBUG
+  else {
+    //-----------------------------------------------------------------      
+    cout << "Process " << myid << ": tree=" << tree->tkey 
+	 << " cell=" << mykey.toHex() << " key not in keys list!" << endl;
+    //-----------------------------------------------------------------      
+  }
+#endif
+				// Erase the body from this tree's
+				// cell list
+  key_key::iterator ik = tree->bodycell.find(oldpair.first);
+  if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+#ifdef DEBUG
+  else {
+    //-----------------------------------------------------------------      
+    cout << "Process " << myid << ": tree=" << tree->tkey 
+	 << " cell=" << mykey.toHex() << " key not in cell list!" << endl;
+    //-----------------------------------------------------------------      
+  }
+#endif
+
+				// Erase the key from the tree's
+				// key-body index
+  key_indx::iterator ip = tree->keybods.find(oldpair);
+  if (ip != tree->keybods.end()) tree->keybods.erase(ip);
+#ifdef DEBUG
+  else {
+    //-----------------------------------------------------------------      
+    cout << "Process " << myid << ": tree=" << tree->tkey
+	 << " cell=" << mykey.toHex()
+	 << " missing keypair entry in keybods,";
+    cout << " key="   << oldpair.first.toHex() 
+	 << " index=" << oldpair.second
+	 << endl;
+    //-----------------------------------------------------------------      
+  }
+#endif
+#ifdef ADJUST_INFO
+  //-----------------------------------------------------------------      
+  cout << "Process " << myid << ": "
+       << "pCell::REMOVED KEY=" << oldpair.first.toHex()
+       << " index=" << oldpair.second << endl;
+  //-----------------------------------------------------------------      
+#endif
+}
+
+void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
+{
+  RemoveKey(oldpair);
   keys.insert(newpair);
+  tree->keybods.insert(newpair);
+  tree->bodycell.insert(key_item(newpair.first, mykey));
+#ifdef ADJUST_INFO
+  //-----------------------------------------------------------------      
+  cout << "Process " << myid << ": "
+       << "pCell::INSERTED KEY=" << newpair.first.toHex()
+       << " index=" << newpair.second << endl;
+  //-----------------------------------------------------------------      
+#endif
 }
 
 bool pCell::Remove(const key_pair& keypair, change_list* change)
 {
   bool ret = false;
-				// Sanity check
+				// Sanity check: is this really my
+				// key?
   if (isMine(keypair.first)) {
 				// Remove keypair from cell list
 #ifdef DEBUG
+    //-----------------------------------------------------------------      
     if (keys.find(keypair) == keys.end()) {
       cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR finding keypair in cell's list" << endl;
+	   << "pCell::Remove: ERROR finding keypair in cell's list" 
+	   << " cur=" << mykey.toHex();
+      cout << " key=" << keypair.first.toHex() 
+	   << " index=" << keypair.second
+	   << endl;
       return ret;
     }
+    //-----------------------------------------------------------------      
 #endif
     keys.erase(keypair);
 				// Remove from body/cell key list
     key_key::iterator ik = tree->bodycell.find(keypair.first);
 #ifdef DEBUG
+    //-----------------------------------------------------------------      
     if (ik == tree->bodycell.end()) {
       cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR finding key in bodycell" << endl;
+	   << "pCell::Remove: ERROR finding key in bodycell"
+	   << " key="   << keypair.first.toHex() 
+	   << " index=" << keypair.second
+	   << endl;
       return ret;
     }
+    //-----------------------------------------------------------------      
 #endif
     if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
 				// Remove the key-body entry
     key_indx::iterator p = tree->keybods.find(keypair);
 #ifdef DEBUG
+    //-----------------------------------------------------------------      
     if (p==tree->keybods.end()) {
       cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR missing keypair entry in keybods" << endl;
+	   << "pCell::Remove: ERROR missing keypair entry in keybods," 
+	   << " key="   << keypair.first.toHex() 
+	   << " index=" << keypair.second
+	   << endl;
       return ret;
     }
+    //-----------------------------------------------------------------      
 #endif
     if (p!=tree->keybods.end()) tree->keybods.erase(p);
     
-				// Remove the index from the cell body list
-    set<unsigned>::iterator ib = bods.find(keypair.second);
+    // Remove the index from the cell body list
+    //
+    set<unsigned long>::iterator ib = bods.find(keypair.second);
     if (ib!=bods.end()) bods.erase(ib);
 #ifdef DEBUG
     else {
+    //-----------------------------------------------------------------      
       cout << "Process " << myid << ": "
-	   << "pCell::Remove: ERROR missing index in bods" << endl;
+	   << "pCell::Remove: ERROR missing index in bods,"
+	   << " key="   << keypair.first.toHex() 
+	   << " index=" << keypair.second
+	   << endl;
       return ret;
+    //-----------------------------------------------------------------      
     }
 #endif
 
-    // Remove this cell if it is now empty
-    if (bods.empty()) {
-      bool found = false;
+    // Remove this cell if it is now empty (and not the root node)
+    //
+    if (bods.empty() && parent!=NULL) {
+
       // Find the parent delete the cell from the parent list
+      //
+      bool found = false;
       for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
 	   ic!=parent->children.end(); ic++) {
 	if (ic->second == this) {
@@ -238,21 +360,36 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
       }
       if (!found) {
 	cout << "Process " << myid 
-	     << ": pCell::Remove: ERROR child not found on parent's list!" << endl;
-
+	     << ": pCell::Remove: ERROR child not found on parent's list!" 
+	     << endl;
       }
+
       // Remove me from the frontier
+      //
       tree->frontier.erase(mykey);
+
+      // Remove the old pair from the current cell
+      // (only transactions added are sample cells)
+      // queue for removal from level lists
+      //
+      change->push_back(cell_indx(this, pTree::REMOVE));
+      
+      // queue for deletion
+      //
+      change->push_back(cell_indx(this, pTree::KILL));
+    
       ret = true;
-    } 
-    else change->push_back(cell_indx(this, pHOT::RECOMP));
+    }
+    else change->push_back(cell_indx(this, pTree::RECOMP));
     
   } else {
     cout << "Process " << myid 
-	 << ": pCell::Remove: ERROR body not in my cell, cell key=" 
-	 << hex << mykey << ", body key=" << keypair.first 
-	 << ", sig=" << ((key_type)(keypair.first - mask) >> 3*(nbits-level))
-	 << dec << " body index=" << keypair.second << endl;
+	 << ": pCell::Remove: ERROR body not in my cell"
+	 << ", cell key=" << hex << mykey
+	 << ", body key=" << keypair.first
+	 << ", sig=" 
+	 << ((key_type)(keypair.first - mask) >> 3*(nbits-level)) << dec
+	 << " body index=" << keypair.second << endl;
   }
 
   return ret;
@@ -279,7 +416,7 @@ void pCell::RemoveAll()
   }
 
   bods.clear();
-  if (mykey!=1) tree->frontier.erase(mykey);
+  if (mykey!=1u) tree->frontier.erase(mykey);
 
   if (parent) {
     for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
@@ -296,12 +433,12 @@ void pCell::RemoveAll()
     
   } else {
 
-    if (mykey!=1) {
+    if (mykey!=1u) {
       cout << "Process "  << myid  << ": ERROR no parent and not root!"
-	   << " owner="   << owner
-	   << " mykey="   << mykey   
-	   << " mask="    << hex << mask << dec
-	   << " level="   << level   
+	   << " owner="   << owner << hex
+	   << " mykey="   << mykey
+	   << " mask="    << mask  << dec
+	   << " level="   << level    
 	   << " count="   << count 
 	   << " maxplev=" << maxplev << endl;
       
@@ -317,13 +454,13 @@ pCell* pCell::findNode(const key_type& key)
 				// Check that this key belongs to this branch
   key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
   
-  if (sig!=0) {
+  if (!!sig) {
     
     if (parent == 0) {
-      cout << "pHOT::findNode: impossible condition, process " 
-	   << myid << ": level=" << level 
-	   << " key=" << hex << key << endl
-	   << " sig=" << hex << sig << endl << dec;
+      cout << "pH2OT::findNode: impossible condition, process " 
+	   << myid << ": level=" << level  << hex
+	   << " key=" << key << endl
+	   << " sig=" << sig << endl << dec;
     }
 
     return parent->findNode(key);
@@ -332,7 +469,7 @@ pCell* pCell::findNode(const key_type& key)
 				// You found me!
   if (isLeaf) return this;
 				// Which child
-  key_type key2 = childId(key);
+  unsigned key2 = childId(key);
 				// Not in my tree?
   if (children.find(key2)==children.end()) return 0;
 
@@ -345,26 +482,46 @@ void pCell::zeroState()
 {
   count = 0;
   for (int k=0; k<10; k++) state[k] = 0.0;
+
   for (map<unsigned, pCell*>::iterator it = children.begin();
        it != children.end(); it++) it->second->zeroState();
 }
 
-void pCell::accumState()
+void pCell::computeState()
 {
   count = 0;
   for (int k=0; k<10; k++) state[k] = 0.0;
+  
+  if (children.size()) {
+    // I am a branch, keep going!
+    for (map<unsigned, pCell*>::iterator it = children.begin();
+	 it != children.end(); it++) it->second->computeState();
+  } else {
+    // I am a leaf!
+    accumState();
+  }
+}
 
-  set<unsigned>::iterator j;
+
+void pCell::accumState()
+{
+				// Zero out the state records
+  count = 0;
+  for (int k=0; k<10; k++) state[k] = 0.0;
+
+				// March through the body list
+  set<unsigned long>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
-    state[0] += tree->cc->Particles()[*j].mass;
+    state[0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
-      state[1+k] += tree->cc->Particles()[*j].mass * 
-	tree->cc->Particles()[*j].vel[k]*tree->cc->Particles()[*j].vel[k];
-      state[4+k] += tree->cc->Particles()[*j].mass * tree->cc->Particles()[*j].vel[k];
-      state[7+k] += tree->cc->Particles()[*j].mass * tree->cc->Particles()[*j].pos[k];
+      state[1+k] += C->Particles()[*j].mass * 
+	C->Particles()[*j].vel[k]*C->Particles()[*j].vel[k];
+      state[4+k] += C->Particles()[*j].mass * C->Particles()[*j].vel[k];
+      state[7+k] += C->Particles()[*j].mass * C->Particles()[*j].pos[k];
     }
     count++;
   }
+				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
 }
 
@@ -380,7 +537,7 @@ void pCell::accumState(unsigned _count, vector<double>& _state)
 void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 		 vector<double>& st)
 {
-  if (key==0) {
+  if (key==0u) {
     curcnt = 0;
     lev    = 0;
     for (vector<double>::iterator s=st.begin(); s!=st.end(); s++) *s = 0;
@@ -410,12 +567,12 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
   return;
 }
 
-double pCell::Mass()
+double sCell::Mass()
 {
   return state[0]; 
 }
 
-void pCell::MeanPos(double &x, double &y, double& z)
+void sCell::MeanPos(double &x, double &y, double& z)
 {
   if (state[0]<=0.0) {
     x = y = z = 0.0;
@@ -426,14 +583,14 @@ void pCell::MeanPos(double &x, double &y, double& z)
   z = state[9]/state[0];
 }
 
-void pCell::MeanPos(vector<double> &p)
+void sCell::MeanPos(vector<double> &p)
 {
   p = vector<double>(3, 0);
   if (state[0]<=0.0) return;
   for (int k=0; k<3; k++) p[k] = state[7+k]/state[0];
 }
 
-void pCell::MeanVel(double &u, double &v, double& w)
+void sCell::MeanVel(double &u, double &v, double& w)
 {
   if (state[0]<=0.0) {
     u = v = w = 0.0;
@@ -444,14 +601,14 @@ void pCell::MeanVel(double &u, double &v, double& w)
   w = state[6]/state[0];
 }
 
-void pCell::MeanVel(vector<double> &p)
+void sCell::MeanVel(vector<double> &p)
 {
   p = vector<double>(3, 0);
   if (state[0]<=0.0) return;
   for (int k=0; k<3; k++) p[k] = state[4+k]/state[0];
 }
 
-void pCell::KE(double &total, double &dispr)
+void sCell::KE(double &total, double &dispr)
 {
   total = 0.0;
   dispr = 0.0;
@@ -465,6 +622,7 @@ void pCell::KE(double &total, double &dispr)
     if (count<2) dispr=0.0;
 
 #ifdef DEBUG
+    //-----------------------------------------------------------------      
     static int cnt = 0;
     if (dispr<0.0) {
       ostringstream sout;
@@ -474,6 +632,7 @@ void pCell::KE(double &total, double &dispr)
       for (unsigned i=0; i<10; i++) 
 	out << setw(3) << i << setw(15) << state[i] << endl;
     }
+    //-----------------------------------------------------------------      
 #endif
 
     dispr = max<double>(0.0, dispr);
@@ -493,15 +652,16 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
   v2 = vector<double>(3, 0.0);
 
   if (isLeaf) {
-    for (set<unsigned>::iterator i=bods.begin(); i!=bods.end(); i++) {
+    for (set<unsigned long>::iterator 
+	   i=bods.begin(); i!=bods.end(); i++) {
       for (int k=0; k<3; k++) {
-	v1[k] += tree->cc->Particles()[*i].mass * 
-	  tree->cc->Particles()[*i].vel[k];
+	v1[k] += C->Particles()[*i].mass * 
+	  C->Particles()[*i].vel[k];
 
-	v2[k] += tree->cc->Particles()[*i].mass * 
-	  tree->cc->Particles()[*i].vel[k] * tree->cc->Particles()[*i].vel[k];
+	v2[k] += C->Particles()[*i].mass * 
+	  C->Particles()[*i].vel[k] * C->Particles()[*i].vel[k];
       }
-      mass += tree->cc->Particles()[*i].mass;
+      mass += C->Particles()[*i].mass;
     }
   }
 
@@ -509,51 +669,66 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
 
 double pCell::Volume()
 {
-  return tree->volume/((unsigned long long)1 << 3*level);
+#ifdef I128
+  return tree->ph->volume/(key_type(1u) << 3*level).toDouble();
+#else
+  return tree->ph->volume/(key_type(1u) << 3*level);
+#endif
 }
 
 double pCell::Scale()
 {
-  return 1.0/((unsigned long long)1 << level);
+#ifdef I128
+  return 1.0/(key_type(1u) << level).toDouble();
+#else
+  return 1.0/(key_type(1u) << level);
+#endif
 }
 
-pCell* pCell::findSampleCell()
+sCell* pCell::findSampleCell()
 {
   pCell *cur = this;		// Begin with this cell
   while(cur->count < Bucket) {
 				// We are at the root
-    if (cur->parent == 0) break;
+    if (cur->parent == 0) {
+      sample = tree->pc->findSampleCell(Bucket);
+      return sample;
+    }
+    
 				// Keep walking up the tree . . 
     cur = cur->parent;
   }
 				// The answer.
   sample = cur;
+
+  return sample;
 }
 
 
-Particle* pCell::Body(set<unsigned>::iterator k)
+Particle* pCell::Body(set<unsigned long>::iterator k)
 { 
   if (k==bods.end()) return 0;
-  return &(tree->cc->Particles()[*k]); 
+  return &(C->Particles()[*k]); 
 }
 
 unsigned pCell::remake_plev()
 {
   maxplev = 0;
-  for (set<unsigned>::iterator i=bods.begin(); i!=bods.end(); i++) {
-    maxplev = max<unsigned>(maxplev, tree->cc->Particles()[*i].level);
+  for (set<unsigned long>::iterator 
+	 i=bods.begin(); i!=bods.end(); i++) {
+    maxplev = max<unsigned>(maxplev, C->Particles()[*i].level);
   }
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;
 }
 
-double pCell::CRMavg()
+double sCell::CRMavg()
 {
   if (CRMlist.size()==0) return -1.0;
   return CRMsum/CRMnum;
 }
 
-void pCell::CRMadd(double crm)
+void sCell::CRMadd(double crm)
 {
   unsigned sz = CRMlist.size();
 

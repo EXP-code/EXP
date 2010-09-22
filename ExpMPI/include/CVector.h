@@ -5,6 +5,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 #ifdef USE_DMALLOC
 #include <dmalloc.h>
@@ -25,10 +26,13 @@ class CVector
   friend class Matrix;
   friend class Vector;
   friend class CMatrix;
-  //	private:
+
  protected:
-  int low, high;
-  Complex *elements;
+  int low, high, size;
+  // memory management uses STL vector
+  Complex* pelement;
+  vector<Complex> elements;
+
  public:
   // constructors
   
@@ -38,13 +42,6 @@ class CVector
   CVector(int, int, Complex *);
   CVector(const CVector &);
   CVector(const Vector &);
-  
-  
-  // the destructor
-  
-  ~CVector(void);
-  
-  
   
   
   // assignment, access, resizing
@@ -186,9 +183,12 @@ class CMatrix
   friend class Vector;
   //	private:
  protected:
-  int rlow, rhigh;	// low and high row indices
-  int clow, chigh;	// low and high column indices
-  CVector *rows;
+  int rlow,  rhigh;	// low and high row indices
+  int clow,  chigh;	// low and high column indices
+  int rsize, csize;
+  // memory management uses STL vector
+  CVector *prow;
+  vector<CVector> rows;
   
   // fast (but unsafe) access functions
   
@@ -207,9 +207,7 @@ class CMatrix
   CMatrix(int, int, int, int, Complex **);
   CMatrix(const CMatrix &);
   CMatrix(const Matrix &);
-  ~CMatrix(void);
-  
-  
+
   
   // assignment and access
   

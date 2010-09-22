@@ -22,44 +22,34 @@ extern pthread_mutex_t mem_lock;
 
 CVector::CVector()
 {
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
 }
-
 
 CVector::CVector(int l, int h)
 {
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
   setsize(l, h);
 }
 
 CVector::CVector(int l, int h, double *v)
 {
-  int i;
-  
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
   setsize(l, h);
   
-  for (i=low; i<=high; i++) elements[i] = v[i];
+  for (int i=0; i<size; i++) pelement[i] = v[i+low];
 }
 
 CVector::CVector(int l, int h, Complex *v)
 {
-  int i;
-  
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
   setsize(l, h);
   
-  for (i=low; i<=high; i++) elements[i] = v[i];
+  for (int i=0; i<size; i++) pelement[i] = v[i+low];
 }
-
 
 /*
   Copy constructor; create a new vector which is a copy of another.
@@ -67,48 +57,28 @@ CVector::CVector(int l, int h, Complex *v)
 
 CVector::CVector(const CVector &v)
 {
-  int i;
-  
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
 
-  if (v.elements == NULL) return;
+  if (v.elements.size()==0) return;
 
   setsize(v.low, v.high);
   
-  for (i=low; i<=high; i++) elements[i] = v.elements[i];
+  elements = v.elements;
+  pelement = &elements[0];
 }
 
 CVector::CVector(const Vector &v)
 {
-  int i;
-  
-  low=0;
-  high=0;
-  elements = NULL;
+  low  = 0;
+  high = 0;
 
-  if (v.elements == NULL) return;
+  if (v.elements.size()==0) return;
 
   setsize(v.low, v.high);
   
-  for (i=low; i<=high; i++) elements[i] = v.elements[i];
+  for (int i=0; i<size; i++) pelement[i] = v.pelement[i];
 }
-
-
-
-
-/*
-  Destructor. Free elements if it exists.
-*/
-
-CVector::~CVector()
-{
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  delete [] (elements+low);
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-}
-
 
 
 /*
@@ -122,38 +92,32 @@ CVector &CVector::operator=(const CVector &v)
   int i;
   
   // Allow assignment of null vector
-  if (v.elements==NULL) {
-    elements = NULL;
+  if (v.elements.size() == 0) {
     low = high = 0;
     return *this;
   }
   
   if (low!=v.low && high!=v.high 
-      && (high != 0 || (elements+low) != NULL))
-    {
-      bomb_CVector_operation("=");
-    }
+      && (high != 0 || (elements.size() == 0))) {
+    bomb_CVector_operation("=");
+  }
   
-  if (high == 0 && low==0 && elements == NULL)
-    {
-      setsize(v.low, v.high);
-    }
-  
-  for (i=low; i<=high; i++) elements[i] = v.elements[i];
+  low      = v.low;
+  high     = v.high;
+  elements = v.elements;
+  pelement = &elements[0];
   
   return *this;
 }
 
 
-
 Complex &CVector::operator[](int i) const
 {
-  if (i<low || i>high)
-    {
-      bomb_CVector("subscript out of range");
-    }
+  if (i<low || i>high) {
+    bomb_CVector("subscript out of range");
+  }
   
-  return elements[i];
+  return pelement[i-low];
 }
 
 void CVector::setsize(int l, int h)
@@ -161,9 +125,6 @@ void CVector::setsize(int l, int h)
   // do we need to resize at all?
   
   if (l==low && h==high) return;
-  
-  
-  
   
   // is the requested size positive?
   
@@ -173,118 +134,84 @@ void CVector::setsize(int l, int h)
     bomb_CVector(mesg.str());
   }
   
-  
-  // delete the old elements if they already exist
-  
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  delete [] (elements + low);
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-  
-  
-  
   // set the new size
   
-  low = l;
+  low  = l;
   high = h;
+  size = high - low + 1;
   
+  // allocate the new elements, and make a pointer
   
-  
-  // allocate the new elements, and offset the pointer
-  
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  elements = new Complex[high-low+1];
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-  if (elements == NULL) bomb_CVector("could not allocate");
-  elements -= low;
+  elements = vector<Complex>(size, 0.0);
+  pelement = &elements[0];
 }
 
 
 void CVector::zero(void)
 {
-  int i;
-  
-  for (i=low; i<=high; i++) elements[i] = 0.0;
+  for (int i=0; i<size; i++) pelement[i] = 0.0;
 }
 
 Complex *CVector::array(int l, int h)
 {
-  return elements+low-l;
+  return pelement - l;
 }
 
 
 
 CVector CVector::operator-(void)
 {
-  int i;
-  
   CVector tmp(low, high);
   
-  for (i=low; i<=high; i++) tmp.elements[i] = -elements[i];
+  for (int i=0; i<size; i++) tmp.pelement[i] = -pelement[i];
   
   return tmp;
 }
 
-
-
-
 CVector operator+(const CVector &v1, const CVector &v2)
 {
-  int i;
-  
   if (v1.low != v2.low || v1.high != v2.high) bomb_CVector_operation("+");
   
   CVector tmp(v1.low, v1.high);
   
-  for (i=v1.low; i<=v1.high; i++)
-    {
-      tmp.elements[i] = v1.elements[i] + v2.elements[i];
-    }
+  for (int i=0; i<v1.size; i++)
+    tmp.pelement[i] = v1.pelement[i] + v2.pelement[i];
   
   return tmp;
 }
 
 CVector operator-(const CVector &v1, const CVector &v2)
 {
-  int i;
-  
   if (v1.low != v2.low || v1.high != v2.high) bomb_CVector_operation("-");
   
   CVector tmp(v1.low, v1.high);
   
-  for (i=v1.low; i<=v1.high; i++)
-    {
-      tmp.elements[i] = v1.elements[i] - v2.elements[i];
-    }
+  for (int i=0; i<v1.size; i++)
+    tmp.pelement[i] = v1.pelement[i] - v2.pelement[i];
   
   return tmp;
 }
 
 CVector operator*(const Complex &a, const CVector &v)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = a * v.elements[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
 
 CVector operator*(const CVector &v, const Complex &a)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = a * v.elements[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
 
 CVector operator/(const CVector &v, const Complex &a)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = v.elements[i]/a;
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = v.pelement[i]/a;
   
   return tmp;
 }
@@ -292,15 +219,12 @@ CVector operator/(const CVector &v, const Complex &a)
 
 CVector operator&(const CVector &v1, const Vector &v2)
 {
-  int i;
-  
-  if (v1.high != v2.gethigh() || v1.low != v2.getlow())
-    {
-      bomb_CVector_operation("&");
-    }
+  if (v1.high != v2.gethigh() || v1.low != v2.getlow()) {
+    bomb_CVector_operation("&");
+  }
   
   CVector tmp(v1.low, v1.high);
-  for (i=v1.low; i<=v1.high; i++)
+  for (int i=0; i<v1.size; i++)
     tmp[i] = v1[i]*v2[i];
   
   return tmp;
@@ -309,16 +233,13 @@ CVector operator&(const CVector &v1, const Vector &v2)
 
 CVector operator&(const Vector &v1, const CVector &v2)
 {
-  int i;
-  
-  if (v1.gethigh() != v2.high || v1.getlow() != v2.low)
-    {
-      bomb_CVector_operation("&");
-    }
+  if (v1.gethigh() != v2.high || v1.getlow() != v2.low) {
+    bomb_CVector_operation("&");
+  }
   
   CVector tmp(v2.low, v2.high);
-  for (i=v2.low; i<=v2.high; i++)
-    tmp[i] = v1[i]*v2[i];
+  for (int i=0; i<v2.size; i++)
+    tmp[i] = v1[i] * v2[i];
   
   return tmp;
 }
@@ -326,30 +247,24 @@ CVector operator&(const Vector &v1, const CVector &v2)
 
 CVector operator*(double a, const CVector &v)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = a * v.elements[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
 
 CVector operator*(const CVector &v, double a)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = a * v.elements[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
 
 CVector operator/(const CVector &v, double a)
 {
-  int i;
-  
   CVector tmp(v.low, v.high);
-  for (i=v.low; i<=v.high; i++) tmp.elements[i] = v.elements[i]/a;
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = v.pelement[i]/a;
   
   return tmp;
 }
@@ -357,119 +272,90 @@ CVector operator/(const CVector &v, double a)
 
 CVector &CVector::operator+=(const CVector &v)
 {
-  int i;
-  
   if (low != v.low || high != v.high) bomb_CVector_operation("+=");
   
-  for (i=low; i<=high; i++) elements[i] += v[i];
-  
+  for (int i=0; i<size; i++) pelement[i] += v[i];
   
   return *this;
 }	
 
 CVector &CVector::operator-=(const CVector &v)
 {
-  int i;
-  
   if (low != v.low || high != v.high) bomb_CVector_operation("-=");
   
-  for (i=low; i<=high; i++) elements[i] -= v[i];
-  
+  for (int i=0; i<size; i++) pelement[i] -= v[i];
   
   return *this;
 }	
 
 CVector &CVector::operator*=(double a)
 {
-  int i;
-  
-  for (i=low; i<=high; i++) elements[i] *= a;
-  
+  for (int i=0; i<size; i++) pelement[i] *= a;
   
   return *this;
 }
 
 CVector &CVector::operator/=(double a)
 {
-  int i;
-  
-  for (i=low; i<=high; i++) elements[i] /= a;
-  
+  for (int i=0; i<size; i++) pelement[i] /= a;
   
   return *this;
 }
 
 CVector &CVector::operator*=(const Complex &a)
 {
-  int i;
-  
-  for (i=low; i<=high; i++) elements[i] *= a;
-  
+  for (int i=0; i<size; i++) pelement[i] *= a;
   
   return *this;
 }
 
 CVector &CVector::operator/=(const Complex &a)
 {
-  int i;
-  
-  for (i=low; i<=high; i++) elements[i] /= a;
+  for (int i=0; i<size; i++) pelement[i] /= a;
   
   return *this;
 }
 
-
-
 Complex operator*(const CVector &v1, const CVector &v2)
 {
-  int i;
-  Complex tmp;
-  
   if (v1.low != v2.low || v1.high != v2.high) bomb_CVector_operation("*");
   
-  tmp = 0.0;
-  for (i=v1.low; i<=v1.high; i++)
-    {
-      tmp += v1.elements[i] * v2.elements[i];
-    }
+  Complex tmp = 0.0;
+  for (int i=0; i<v1.size; i++) {
+    tmp += v1.pelement[i] * v2.pelement[i];
+  }
   return tmp;
 }
 
-
-
 void CVector::print(ostream& out)
 {
-  int i;
-  
-  for (i=low; i<=high; i++)
+  for (int i=0; i<size; i++)
     out << "(" 
-	<< elements[i].real() << " + " 
-	<< elements[i].imag() << " I) ";
+	<< pelement[i].real() << " + " 
+	<< pelement[i].imag() << " I) ";
   out << endl;
 }
 
 void CVector::binwrite(ostream& out)
 {
-  out.write((char *)&low, sizeof(int));
+  out.write((char *)&low,  sizeof(int));
   out.write((char *)&high, sizeof(int));
-  out.write((char *)(elements+low), (high-low+1)*sizeof(Complex));
+  out.write((char *)pelement, (high-low+1)*sizeof(Complex));
 }
 
 CVector CVector_binread(istream& in)
 {
   int low, high;
   
-  in.read((char *)&low, sizeof(int));
+  in.read((char *)&low,  sizeof(int));
   in.read((char *)&high, sizeof(int));
   
   CVector tmp(low, high);
   
-  in.read((char *)(tmp.elements+low), (high-low+1)*sizeof(Complex));
+  in.read((char *)tmp.pelement, (high-low+1)*sizeof(Complex));
   
   return tmp;
 }
-
-
 
 
 void bomb_CVector(const string& msg)
@@ -487,20 +373,18 @@ void bomb_CVector_operation(const string& op)
 
 Vector CVector::Re(void)
 {
-  int i;
   Vector tmp(low, high);
   
-  for (i=low; i<=high; i++) tmp[i] = elements[i].real();
+  for (int i=0; i<size; i++) tmp[i] = pelement[i].r;
   
   return tmp;
 }	
 
 Vector CVector::Im(void)
 {
-  int i;
   Vector tmp(low, high);
   
-  for (i=low; i<=high; i++) tmp[i] = elements[i].imag();
+  for (int i=0; i<size; i++) tmp[i] = pelement[i].imag();
   
   return tmp;
 }	
@@ -508,14 +392,12 @@ Vector CVector::Im(void)
 
 CVector CVector::Conjg(void)
 {
-  int i;
   static Complex I(0.0, 1.0);
   CVector tmp(low, high);
   
-  for (i=low; i<=high; i++) 
-    {
-      tmp.elements[i] = elements[i].real() - I * elements[i].imag();
-    }
+  for (int i=0; i<size; i++) {
+    tmp.pelement[i] = pelement[i].real() - I * pelement[i].imag();
+  }
   
   return tmp;
 }	
@@ -540,134 +422,93 @@ Vector Im(const CVector &c)
 }
 
 
-
-
-
-
 CMatrix::CMatrix()
 {
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
 }
-
 
 CMatrix::CMatrix(int rl, int rh, int cl, int ch)
 {
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
   setsize(rl, rh, cl, ch);
 }
 
 
 CMatrix::CMatrix(int rl, int rh, int cl, int ch, Complex **array)
 {
-  int i, j;
-  
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
   setsize(rl, rh, cl, ch);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] = array[i][j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] = array[i+rlow][j+clow];
     }
+  }
 }
 
 CMatrix::CMatrix(int rl, int rh, int cl, int ch, double **array)
 {
-  int i, j;
-  
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
   setsize(rl, rh, cl, ch);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] = array[i][j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] = array[i+rlow][j+clow];
     }
+  }
 }
 
 CMatrix::CMatrix(const CMatrix &m)
 {
-  int i, j;
-  
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
 
-  if (m.rows == NULL) return;
+  if (m.rows.size() == 0) return;
 
   setsize(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] = m.rows[i].elements[j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] = m.rows[i].pelement[j];
     }
+  }
 }	
 
 
 CMatrix::CMatrix(const Matrix &m)
 {
-  int i, j;
-  
-  rlow=0;
-  rhigh=0;
-  clow=0;
-  chigh=0;
-  rows = NULL;
+  rlow  = 0;
+  rhigh = 0;
+  clow  = 0;
+  chigh = 0;
   setsize(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] = m.rows[i].elements[j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] = m.rows[i].pelement[j];
     }
+  }
 }	
-
-
-CMatrix::~CMatrix(void)
-{
-  rows += rlow;
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  delete [] rows;
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-}
-
 
 void CMatrix::setsize(int rl, int rh, int cl, int ch)
 {
-  int i;
-  
   // do we need to resize at all?
   
   if (rl==rlow && cl==clow && rh==rhigh && ch==chigh) return;
-  
-  
   
   // is the new size positive?
   
@@ -679,36 +520,23 @@ void CMatrix::setsize(int rl, int rh, int cl, int ch)
   }
   
   
-  // delete old storage if it exists
-  
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  delete [] (rows+rlow);
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-  
-  
-  
   // set the new size
   
-  rlow = rl;
+  rlow  = rl;
   rhigh = rh;
-  clow = cl;
+  clow  = cl;
   chigh = ch;
   
-  
+  rsize = rhigh - rlow + 1;
+  csize = chigh - clow + 1;
   
   // allocate the array of rows
   
-  if (threading_on) pthread_mutex_lock(&mem_lock);
-  rows = new CVector[rhigh+1-rlow];
-  if (threading_on) pthread_mutex_unlock(&mem_lock);
-  if (rows==NULL) bomb_CMatrix("could not allocate rows");
-  rows -= rlow;
-  
-  
-  
+  rows = vector<CVector>(rsize);
+
   // create the individual rows
   
-  for (i=rlow; i<=rhigh; i++) rows[i].setsize(clow, chigh);
+  for (int i=0; i<rsize; i++) rows[i].setsize(clow, chigh);
 }
 
 
@@ -726,27 +554,10 @@ void bomb_CMatrix_operation(const string& op)
 }
 
 
-
-
-
-
 CVector CMatrix::fastcol(int j) const
 {
-  /*
-    Complex *array;
-    int i;
-    
-    if (threading_on) pthread_mutex_lock(&mem_lock);
-    array = new Complex[rhigh-rlow+1];
-    if (threading_on) pthread_mutex_unlock(&mem_lock);
-    if (array == NULL) bomb_CMatrix("could not allocate in fastcol");
-    array -= rlow;
-    
-    for (i=rlow; i<=rhigh; i++) array[i] = rows[i].elements[j];
-  */
-  
   CVector tmp(rlow, rhigh);
-  for (int i=rlow; i<=rhigh; i++) tmp[i] = rows[i].elements[j];
+  for (int i=0; i<rsize; i++) tmp[i] = rows[i].pelement[j];
   
   return tmp;
 }
@@ -766,15 +577,13 @@ CVector &CMatrix::row(int i)
 {
   if (i<rlow || i>rhigh) bomb_CMatrix("row subscript out of range");
   
-  return rows[i];
+  return rows[i-rlow];
 }
 
 CVector &CMatrix::fastrow(int i) const
 {
-  return rows[i];
+  return prow[i-rlow];
 }
-
-
 
 void CMatrix::fastsetrow(int i, const CVector &v)
 {
@@ -785,18 +594,16 @@ void CMatrix::setrow(int i, const CVector &v)
 {
   if (v.low != clow || v.high != chigh) 
     bomb_CMatrix("row-vector size mismatch");
+
   if (i<rlow || i>rhigh) bomb_CMatrix("row subscript out of range");
-  rows[i] = v;
+
+  rows[i-rlow] = v;
 }
 
 void CMatrix::fastsetcol(int j, const CVector &v)
 {
-  int i;
-  
-  for (i=rlow; i<=rhigh; i++)
-    {
-      rows[i].elements[j] = v.elements[i];
-    }
+  for (int i=0; i<rsize; i++)
+    rows[i].pelement[j] = v.pelement[i];
 }
 
 void CMatrix::setcol(int j, const CVector &v)
@@ -810,99 +617,80 @@ void CMatrix::setcol(int j, const CVector &v)
 
 void CMatrix::zero(void)
 {
-  int i;
-  
-  for (i=rlow; i<=rhigh; i++) rows[i].zero();
+  for (int i=0; i<rsize; i++) rows[i].zero();
 }
 
 
 CVector &CMatrix::operator[](int i) const
 {
   if (i<rlow || i>rhigh) bomb_CMatrix("row subscript out of range");
-  return rows[i];
+  return prow[i-rlow];
 }
 
 CMatrix &CMatrix::operator=(const CMatrix &m)
 {
-  int i;
-  
   // Allow assignment of null matrix
-  if (m.rows==NULL) {
-    rows = NULL;
+  if (m.rows.size() == 0) {
     rlow = rhigh = clow = chigh = 0;
     return *this;
   }
   
-  if ((rows+rlow)==NULL) 
-    {
-      setsize(m.rlow, m.rhigh, m.clow, m.chigh);
-    }
+  setsize(m.rlow, m.rhigh, m.clow, m.chigh);
   
   if (m.rlow!=rlow || m.rhigh!=rhigh || m.clow!=clow || m.chigh!=chigh) 
     bomb_CMatrix_operation("=");
   
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      fastsetrow(i, m.rows[i]);
-    }
+  for (int i=rlow; i<=rhigh; i++) fastsetrow(i, m.rows[i-rlow]);
+
   return *this;
 }
 
 
 CMatrix CMatrix::operator-(void)
 {
-  int i, j;
   CMatrix tmp(rlow, rhigh, clow, chigh);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      for (j=clow; j<=chigh; j++) 
-	tmp.rows[i].elements[j] = -rows[i].elements[j];
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      tmp.rows[i].pelement[j] = -rows[i].pelement[j];
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator+(const CMatrix &m1, const CMatrix &m2)
 {
-  int i, j;
-  
   if (m1.rlow!=m2.rlow || m1.rhigh!=m2.rhigh || 
       m1.clow!=m2.clow || m1.chigh!=m2.chigh) 
     bomb_CMatrix_operation("+");
   
   CMatrix tmp(m1.rlow, m1.rhigh, m1.clow, m1.chigh);
   
-  for (i=m1.rlow; i<=m1.rhigh; i++) 
-    {
-      for (j=m1.clow; j<=m1.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m1.rows[i].elements[j]
-	    + m2.rows[i].elements[j];
-	}
+  for (int i=0; i<m1.rsize; i++) {
+    for (int j=0; j<m1.csize; j++) {
+      tmp.rows[i].pelement[j] = 
+	m1.rows[i].pelement[j] + m2.rows[i].pelement[j];
     }
+  }
   
   return tmp;
 }
 
 CMatrix operator-(const CMatrix &m1, const CMatrix &m2)
 {
-  int i, j;
-  
   if (m1.rlow!=m2.rlow || m1.rhigh!=m2.rhigh || 
       m1.clow!=m2.clow || m1.chigh!=m2.chigh) 
     bomb_CMatrix_operation("-");
   
   CMatrix tmp(m1.rlow, m1.rhigh, m1.clow, m1.chigh);
   
-  for (i=m1.rlow; i<=m1.rhigh; i++) 
-    {
-      for (j=m1.clow; j<=m1.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m1.rows[i].elements[j]
-	    - m2.rows[i].elements[j];
-	}
+  for (int i=0; i<m1.rsize; i++) {
+    for (int j=0; j<m1.csize; j++) {
+      tmp.rows[i].pelement[j] = 
+	m1.rows[i].pelement[j] - m2.rows[i].pelement[j];
     }
+  }
   
   return tmp;
 }
@@ -911,102 +699,78 @@ CMatrix operator-(const CMatrix &m1, const CMatrix &m2)
 
 CMatrix operator*(const CMatrix &m, double a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] * a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] * a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator*(double a, const CMatrix &m)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] * a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] * a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator+(const CMatrix &m, double a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i][j] += a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i][j] += a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator+(double a, const CMatrix &m)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i][j] += a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i][j] += a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator-(const CMatrix &m, double a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i][j] -= a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i][j] -= a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator-(double a, const CMatrix &m)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp[i][j] = a - m[i][j];
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp[i][j] = a - m[i][j];
     }
+  }
   return tmp;
 }
 
@@ -1014,64 +778,46 @@ CMatrix operator-(double a, const CMatrix &m)
 
 CMatrix operator/(const CMatrix &m, double a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] / a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] / a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix &CMatrix::operator*=(double a)
 {
-  int i, j;
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] *= a;
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] *= a;
     }
+  }
   return *this;
 }
 
 CMatrix &CMatrix::operator/=(double a)
 {
-  int i, j;
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] /= a;
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++){
+      rows[i].pelement[j] /= a;
     }
+  }
   return *this;
 }
 
-
-
 CMatrix operator*(const CMatrix &m, const Complex &a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] * a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] * a;
     }
+  }
   return tmp;
 }
 
@@ -1080,17 +826,13 @@ CMatrix operator*(const CMatrix &m, const Complex &a)
 
 CMatrix operator*(const Complex &a, const CMatrix &m)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] * a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] * a;
     }
+  }
   return tmp;
 }
 
@@ -1099,170 +841,131 @@ CMatrix operator*(const Complex &a, const CMatrix &m)
 
 CMatrix operator/(const CMatrix &m, const Complex &a)
 {
-  int i, j;
-  
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++) 
-    {
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = m.rows[i].elements[j] / a;
-	}
+  for (int i=0; i<m.rsize; i++) {
+    for (int j=0; j<m.csize; j++) {
+      tmp.rows[i].pelement[j] = m.rows[i].pelement[j] / a;
     }
+  }
   return tmp;
 }
 
 
 CMatrix &CMatrix::operator*=(const Complex &a)
 {
-  int i, j;
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] *= a;
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] *= a;
     }
+  }
   return *this;
 }
 
 CMatrix &CMatrix::operator/=(const Complex &a)
 {
-  int i, j;
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] /= a;
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] /= a;
     }
+  }
   return *this;
 }
 
 
 CMatrix &CMatrix::operator+=(const CMatrix &m)
 {
-  int i, j;
-  
   if (m.rlow!=rlow || m.rhigh!=rhigh || m.clow!=clow || m.chigh!=chigh) 
     bomb_CMatrix_operation("+=");
   
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] += m.rows[i].elements[j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] += m.rows[i].pelement[j];
     }
+  }
   return *this;
 }
 
 
 CMatrix &CMatrix::operator-=(const CMatrix &m)
 {
-  int i, j;
-  
   if (m.rlow!=rlow || m.rhigh!=rhigh || m.clow!=clow || m.chigh!=chigh) 
     bomb_CMatrix_operation("+=");
   
-  
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++)
-	{
-	  rows[i].elements[j] -= m.rows[i].elements[j];
-	}
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) {
+      rows[i].pelement[j] -= m.rows[i].pelement[j];
     }
+  }
   return *this;
 }
 
 
 CVector operator*(const CMatrix &m, const CVector &v)
 {
-  int i, j;
-  
   if (m.clow != v.low || m.chigh != v.high) bomb_CMatrix_operation("M*v");
   
   CVector tmp(m.rlow, m.rhigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++)
-    {
-      tmp.elements[i] = 0.0;
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.elements[i] += 
-	    m.rows[i].elements[j]*v.elements[j];
-	}
+  for (int i=0; i<m.rsize; i++) {
+    tmp.pelement[i] = 0.0;
+    for (int j=0; j<m.csize; j++) {
+      tmp.pelement[i] += 
+	m.rows[i].pelement[j]*v.pelement[j];
     }
+  }
   return tmp;
 }
 
 CVector operator*(const CMatrix &m, const Vector &v)
 {
-  int i, j;
-  
   if (m.clow != v.low || m.chigh != v.high) bomb_CMatrix_operation("M*v");
   
   CVector tmp(m.rlow, m.rhigh);
   
-  for (i=m.rlow; i<=m.rhigh; i++)
-    {
-      tmp.elements[i] = 0.0;
-      for (j=m.clow; j<=m.chigh; j++)
-	{
-	  tmp.elements[i] += 
-	    m.rows[i].elements[j]*v.elements[j];
-	}
+  for (int i=0; i<m.rsize; i++) {
+    tmp.pelement[i] = 0.0;
+    for (int j=0; j<m.csize; j++) {
+      tmp.pelement[i] += 
+	m.rows[i].pelement[j]*v.pelement[j];
     }
+  }
   return tmp;
 }
 
 CVector operator*(const CVector &v, const CMatrix &m)
 {
-  int i, j;
-  
   if (m.rlow != v.low || m.rhigh != v.high) bomb_CMatrix_operation("v*M");
   
   CVector tmp(m.clow, m.chigh);
   
-  for (j=m.clow; j<=m.chigh; j++)
-    {
-      tmp.elements[j] = 0.0;
-      for (i=m.rlow; i<=m.rhigh; i++) 
-	{
-	  tmp.elements[j] +=
-	    m.rows[i].elements[j]*v.elements[i];
-	}
+  for (int j=0; j<m.csize; j++) {
+    tmp.pelement[j] = 0.0;
+    for (int i=0; i<m.rsize; i++) {
+      tmp.pelement[j] +=
+	m.rows[i].pelement[j]*v.pelement[i];
     }
+  }
   return tmp;
 }
 
 
 CMatrix operator*(const CMatrix &m1, const CMatrix &m2)
 {
-  int i, j, k;
-  
   if (m1.clow != m2.rlow || m1.chigh != m2.rhigh)
     bomb_CMatrix_operation("M*M");
   
   CMatrix tmp(m1.rlow, m1.rhigh, m2.clow, m2.chigh);
   
-  for (i=m1.rlow; i<=m1.rhigh; i++)
-    {
-      for (j=m2.clow; j<=m2.chigh; j++)
-	{
-	  tmp.rows[i].elements[j] = 0.0;
-	  for (k=m1.clow; k<=m1.chigh; k++) 
-	    {
-	      tmp.rows[i].elements[j] += m1.rows[i].elements[k]
-		*m2.rows[k].elements[j];
-	    }
-	}
+  for (int i=0; i<m1.rsize; i++) {
+    for (int j=0; j<m2.csize; j++) {
+      tmp.rows[i].pelement[j] = 0.0;
+      for (int k=0; k<m1.csize; k++){
+	tmp.rows[i].pelement[j] += 
+	  m1.rows[i].pelement[k] * m2.rows[k].pelement[j];
+      }
     }
+  }
   return tmp;
   
 }
@@ -1270,13 +973,14 @@ CMatrix operator*(const CMatrix &m1, const CMatrix &m2)
 
 CMatrix CMatrix::Conjg(void) const
 {
-  int i;
   CMatrix tmp(rlow, rhigh, clow, chigh);
   
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      tmp.rows[i] = rows[i].Conjg();
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; i<csize; i++) {
+      tmp.rows[i][j].r =  rows[i][j].r;
+      tmp.rows[i][j].r = -rows[i][j].i;
     }
+  }      
   
   return tmp;
 }
@@ -1287,33 +991,26 @@ CMatrix CMatrix::Conjg(void) const
 
 CMatrix CMatrix::Transpose(void) const
 {
-  int i;
   CMatrix t(clow, chigh, rlow, rhigh);
   
-  t.rlow = clow;
+  t.rlow  = clow;
   t.rhigh = chigh;
   t.chigh = rhigh;
   t.clow = rlow;
   
-  for (i=t.rlow; i<=t.rhigh; i++)
-    {
-      t.fastsetrow(i, fastcol(i));
-    }
+  for (int i=t.rlow; i<=t.rhigh; i++) t.fastsetrow(i, fastcol(i));
   
   return t;
 }
 
 Complex CMatrix::Trace(void) const
 {
-  Complex t;
-  int i;
-  
   if (rlow != clow || rhigh != chigh) 
     bomb_CVector("cannot take trace of non-square matrix");
   
   
-  t = 0.0;
-  for (i=rlow; i<=rhigh; i++) t += rows[i][i];
+  Complex t = 0.0;
+  for (int i=0; i<rsize; i++) t += rows[i][i];
   
   return t;
 }
@@ -1322,26 +1019,24 @@ Complex CMatrix::Trace(void) const
 
 Matrix CMatrix::Re(void) const
 {
-  int i, j;
   Matrix tmp(rlow, rhigh, clow, chigh);
   
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++) tmp.rows[i].elements[j] = rows[i].elements[j].real();
-    }
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) 
+      tmp.rows[i].pelement[j] = rows[i].pelement[j].r;
+  }
   return tmp;
 }	
 
 
 Matrix CMatrix::Im(void) const
 {
-  int i, j;
   Matrix tmp(rlow, rhigh, clow, chigh);
   
-  for (i=rlow; i<=rhigh; i++) 
-    {
-      for (j=clow; j<=chigh; j++) tmp.rows[i].elements[j] = rows[i].elements[j].imag();
-    }
+  for (int i=0; i<rsize; i++) {
+    for (int j=0; j<csize; j++) 
+      tmp.rows[i].pelement[j] = rows[i].pelement[j].i;
+  }
   
   return tmp;
 }	
@@ -1365,6 +1060,7 @@ CMatrix Transpose(const CMatrix &c)
 {
   return c.Transpose();
 }
+
 CMatrix Adjoint(const CMatrix &c)
 {
   return c.Conjg().Transpose();
@@ -1375,34 +1071,21 @@ Complex Trace(const CMatrix &c)
   return c.Trace();
 }
 
-
-
-
-
-
-
 void CMatrix::print(ostream& out)
 {
-  int i;
-  
-  for (i=rlow; i<=rhigh; i++) rows[i].print(out);
+  for (int i=0; i<rsize; i++) rows[i].print(out);
 }
 
 
 
 void CMatrix::binwrite(ostream& out)
 {
-  int i;
-  
-  out.write((char *)&rlow, sizeof(int));
+  out.write((char *)&rlow,  sizeof(int));
   out.write((char *)&rhigh, sizeof(int));
-  out.write((char *)&clow, sizeof(int));
+  out.write((char *)&clow,  sizeof(int));
   out.write((char *)&chigh, sizeof(int));
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      rows[i].binwrite(out);
-    }
+  for (int i=0; i<rsize; i++) rows[i].binwrite(out);
 }
 
 
@@ -1410,19 +1093,16 @@ CMatrix CMatrix_binread(istream& in)
 {
   
   int rlow, rhigh, clow, chigh;
-  int i;
   
-  in.read((char *)&rlow, sizeof(int));
+  in.read((char *)&rlow,  sizeof(int));
   in.read((char *)&rhigh, sizeof(int));
-  in.read((char *)&clow, sizeof(int));
+  in.read((char *)&clow,  sizeof(int));
   in.read((char *)&chigh, sizeof(int));
   
   CMatrix tmp(rlow, rhigh, clow, chigh);
   
-  for (i=rlow; i<=rhigh; i++)
-    {
-      tmp.rows[i] = CVector_binread(in);
-    }
+  for (int i=0; i<tmp.rsize; i++)
+    tmp.rows[i] = CVector_binread(in);
   
   return tmp;
 }

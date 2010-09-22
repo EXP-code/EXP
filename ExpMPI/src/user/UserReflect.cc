@@ -85,7 +85,7 @@ void UserReflect::initialize()
 
   if (get_value("compname", val))	comp_name = val;
   if (get_value("radius", val))	        radius = atof(val.c_str());
-  if (get_value("debug", val))	        debug = atoi(val.c_str()) ? true : false;
+  if (get_value("debug", val))	        debug = atol(val);
 }
 
 

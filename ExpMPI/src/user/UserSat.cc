@@ -2,6 +2,7 @@
 #include "expand.h"
 #include <localmpi.h>
 #include <UnboundOrbit.H>
+#include <LinearOrbit.H>
 #include <SatelliteOrbit.h>
 
 #include <AxisymmetricBasis.H>
@@ -30,7 +31,7 @@ private:
 
   void userinfo();
 
-  enum TrajType {circ, bound, unbound} traj_type;
+  enum TrajType {circ, bound, unbound, linear} traj_type;
 
 public:
   
@@ -98,6 +99,9 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   case unbound:
     traj = new UnboundOrbit(config);
     break;
+  case linear:
+    traj = new LinearOrbit(config);
+    break;
   default:
     if (myid==0) {
       cerr << "UserSat: no such trjectory type="
@@ -151,8 +155,7 @@ void UserSat::userinfo()
 	 << ", core=" << core
 	 << ", r=" << r0 
 	 << ", p(0)=" << phase 
-	 << ", Omega=" << omega 
-	 << endl;
+	 << ", Omega=" << omega;
   else {
     cout << "specified trjectory of type ";
     switch (traj_type) {
@@ -161,6 +164,9 @@ void UserSat::userinfo()
       break;
     case unbound:
       cout << "<UNBOUND>";
+      break;
+    case linear:
+      cout << "<LINEAR>";
       break;
     default:
       cout << "<UNKNOWN>";
@@ -172,8 +178,8 @@ void UserSat::userinfo()
 	 << ", centered on Component <" << c0->name << ">";
     if (shadow) cout << ", shadowing is on";
     if (verbose) cout << ", verbose messages are on";
-    cout << endl;
   }
+  if (orbit) cout << ", with trajectory logging" << endl;
 
   print_divider();
 }
@@ -190,9 +196,9 @@ void UserSat::initialize()
   if (get_value("toff", val))     toff = atof(val.c_str());
   if (get_value("delta", val))    delta = atof(val.c_str());
   if (get_value("toffset", val))  toffset = atof(val.c_str());
-  if (get_value("orbit", val))    orbit = atoi(val.c_str()) ? true : false;
-  if (get_value("shadow", val))   shadow = atoi(val.c_str()) ? true : false;
-  if (get_value("verbose", val))  verbose = atoi(val.c_str()) ? true : false;
+  if (get_value("orbit", val))    orbit = atol(val);
+  if (get_value("shadow", val))   shadow = atol(val);
+  if (get_value("verbose", val))  verbose = atol(val);
   if (get_value("r0", val))       r0 = atof(val.c_str());
   if (get_value("phase", val))    phase = atof(val.c_str());
   if (get_value("omega", val))    omega = atof(val.c_str());
@@ -208,6 +214,9 @@ void UserSat::initialize()
       break;
     case unbound:
       traj_type = unbound;
+      break;
+    case linear:
+      traj_type = linear;
       break;
     default:
       if (myid==0) {

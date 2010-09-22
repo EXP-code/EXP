@@ -1,5 +1,7 @@
 #include <BarrierWrapper.H>
 
+int BarrierWrapper::cbufsz = 128;
+
 BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
 {
   comm = communicator;
@@ -11,6 +13,8 @@ BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
   buffer = new char [cbufsz];
   bufferT = 0;
   if (localid==0) bufferT = new char [cbufsz*commsize];
+  timer.Microseconds();
+  onoff = true;
 }
 
 BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
@@ -19,20 +23,27 @@ BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
   check_label = p.check_label;
   commsize    = p.commsize;
   localid     = p.localid;
+  onoff       = p.onoff;
 
   buffer = new char [cbufsz];
   bufferT = 0;
-  if (localid==0) bufferT = new char [cbufsz*commsize];
+  // if (localid==0) bufferT = new char [cbufsz*commsize];
+  bufferT = new char [cbufsz*commsize];
+  timer.Microseconds();
 }
 
 BarrierWrapper::~BarrierWrapper()
 {
   delete [] buffer;
-  if (localid==0) delete [] bufferT;
+  // if (localid==0) delete [] bufferT;
+  delete [] bufferT;
 }
 
 void BarrierWrapper::operator()(const string& label)
 {
+  if (!onoff) return;
+
+  timer.start();
   // MPI_Barrier(comm);
 
   if (check_label) {
@@ -72,4 +83,5 @@ void BarrierWrapper::operator()(const string& label)
     MPI_Barrier(comm);
   }
 
+  timer.stop();
 }

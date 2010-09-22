@@ -10,11 +10,15 @@ ExpMPI/exputil/FileUtils.cc -text
 ExpMPI/exputil/Interp1d.cc -text
 ExpMPI/exputil/ProgramParam.cc -text
 ExpMPI/exputil/eigencc.cc -text
+ExpMPI/exputil/int128.cc -text
 ExpMPI/exputil/toomre.cc -text
+ExpMPI/exputil/uint128.cc -text
 ExpMPI/include/BarrierWrapper.H -text
 ExpMPI/include/FileUtils.H -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/include/RunningTime.H -text
+ExpMPI/include/int128.H -text
+ExpMPI/include/uint128.H -text
 ExpMPI/m4/acx_blas.m4 -text
 ExpMPI/m4/acx_lapack.m4 -text
 ExpMPI/m4/ax_boost_base.m4 -text
@@ -30,6 +34,10 @@ ExpMPI/src/Shells.H -text
 ExpMPI/src/Shells.cc -text
 ExpMPI/src/chkTimer.H -text
 ExpMPI/src/chkTimer.cc -text
+ExpMPI/src/pH2OT.H -text
+ExpMPI/src/pH2OT.cc -text
+ExpMPI/src/user/LinearOrbit.H -text
+ExpMPI/src/user/LinearOrbit.cc -text
 ExpMPI/src/user/RespMat3.h -text
 ExpMPI/src/user/Trajectory.H -text
 ExpMPI/src/user/UnboundCoefs.H -text
@@ -67,6 +75,7 @@ ExpMPI/utils/ICs/EllipsoidForce.cc -text
 ExpMPI/utils/ICs/Particle.cc -text
 ExpMPI/utils/ICs/bonnerebert.cc -text
 ExpMPI/utils/ICs/pst_model.cc -text
+ExpMPI/utils/PhaseSpace/psp2histo.cc -text
 ExpMPI/utils/PhaseSpace/psp2tarray.cc -text
 ExpMPI/utils/PhaseSpace/pspprocess.cc -text
 ExpMPI/utils/SL/CylindricalDisk.H -text

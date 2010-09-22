@@ -1,9 +1,8 @@
-
 #include <values.h>
 
-# include <cstdlib>
-# include <cstdio>
-# include <ctime>
+#include <cstdlib>
+#include <cstdio>
+#include <ctime>
 
 #include <iostream>
 #include <iomanip>
@@ -27,16 +26,16 @@ double pHOT::sides[] = {2.0, 2.0, 2.0};
 double pHOT::offst[] = {1.0, 1.0, 1.0};
 double pHOT::jittr[] = {0.0, 0.0, 0.0};
 
-static bool wghtKEY(const pair<unsigned long long, double>& a, 
-		    const pair<unsigned long long, double>& b)
+static bool wghtKEY(const pair<key_type, double>& a, 
+		    const pair<key_type, double>& b)
 { 
-  return a.first < b.first; 
+  return (a.first < b.first); 
 }
 
-static bool wghtDBL(const pair<unsigned long long, double>& a, 
-		    const pair<unsigned long long, double>& b)
+static bool wghtDBL(const pair<key_type, double>& a, 
+		    const pair<key_type, double>& b)
 { 
-  return a.second < b.second; 
+  return (a.second < b.second); 
 }
 
 //
@@ -58,7 +57,7 @@ template<class U, class V>
 struct pair_compare
 {
   bool operator()(const pair<U, V>& a, const pair<U, V>& b)
-  { return a.first<=b.first; }
+  { return (a.first<=b.first); }
 };
 
 void pHOT::bomb(const string& membername, const string& msg)
@@ -90,26 +89,32 @@ pHOT::pHOT(Component *C)
   gen = new ACG(11+myid);
   unit = new Uniform(-1.0, 1.0, gen);
   offset = new double [3];
+  for (unsigned k=0; k<3; k++) offset[k] = offst[k];
 
   kbeg = vector<key_type>(numprocs);
   kfin = vector<key_type>(numprocs);
 
-  key_min = (key_type)1 << (nbits*3);
-  key_max = (key_type)1 << (nbits*3+1);
+  key_min = key_type(1u) << (nbits*3);
+  key_max = key_type(1u) << (nbits*3+1);
 
   m_xchange = n_xchange = 0;
 
   sumstep = sumzero = 0;
 
+  cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
+
   numkeys = 0;
   timer_repartn.Microseconds();
   timer_tadjust.Microseconds();
+  timer_waiton0.Microseconds();
   timer_waiton1.Microseconds();
   timer_waiton2.Microseconds();
   timer_keybods.Microseconds();
   timer_keycall.Microseconds();
   timer_keycomp.Microseconds();
   timer_keymake.Microseconds();
+  timer_keynewc.Microseconds();
+  timer_keyoldc.Microseconds();
   timer_xchange.Microseconds();
   timer_prepare.Microseconds();
   timer_convert.Microseconds();
@@ -143,7 +148,7 @@ key_type pHOT::getKey(double *p)
   // Out of bounds?
   //
   for (unsigned k=0; k<3; k++) { 
-    if (fabs((p[k]+offset[k])/sides[k])> 1.0) {
+    if (fabs((p[k]+offset[k])/sides[k])> 1.0) {	
 #ifdef DEBUG
       cout << "Coordinate out of pbounds in pHOT::key: ";
       for (int l=0; l<3; l++) cout << setw(18) << p[l];
@@ -152,21 +157,21 @@ key_type pHOT::getKey(double *p)
 #ifdef USE_GPTL
       GPTLstop("pHOT::getKey");
 #endif
-      return 0;
+      return key_type(0u);
     }
   }
 
-  const double factor = 1<<nbits;
-  const unsigned mask = 0x1;
+  const double factor = (key_type(1u)<<nbits).toDouble();
+  const key_type mask = 0x1u;
 
-  vector<unsigned long> bins(3, 0);
+  vector<key_type> bins(3, 0u);
 
 				// Reverse the order
   for (unsigned k=0; k<3; k++)
-    bins[2-k] = (unsigned)floor( ((p[k]+offset[k])/sides[k])*factor );
+    bins[2-k] = key_type( floor( ((p[k]+offset[k])/sides[k])*factor ) );
   
-  key_type place = 1;
-  key_type  _key = 0;
+  key_type place = 1u;
+  key_type  _key = 0u;
 
   for (unsigned i=0; i<nbits; i++) {
     for (unsigned k=0; k<3; k++) {
@@ -191,7 +196,7 @@ string pHOT::printKey(key_type p)
 
   unsigned short cnt = 0;
   for (unsigned k=0; k<nbits; k++) {
-    sout << ( (p & 0x1) ? '1' : '0' );
+    sout << ( (p & 1u).toUint() ? '1' : '0' );
     if (++cnt==3) {sout << '.'; cnt = 0;}
     p = p>>1;
   }
@@ -243,7 +248,7 @@ void pHOT::makeTree()
   root = new pCell(this);
 
   //
-  // Make new offset (only 0 node's values matter, obviously)
+  // Make new offset
   //
   for (unsigned k=0; k<3; k++) offset[k] = offst[k] + (*unit)()*jittr[k];
   MPI_Bcast(&offset[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -255,9 +260,12 @@ void pHOT::makeTree()
   pCell* p = root;
   for (it=keybods.begin(); it!=keybods.end(); it++)  {
 
+    bool a = (it->first < key_min);
+    bool b = (it->first >= key_max);
+
     if (it->first < key_min || it->first >= key_max) {
       cout << "Process " << myid << ": in makeTree, key=" 
-	   << hex << it->first << endl << dec;
+	   << it->first.toHex() << endl << dec;
     }
     p = p->Add(*it);		// Do the work
   }
@@ -308,7 +316,7 @@ void pHOT::makeTree()
 #endif
 
 				// Exchange boundary keys
-  key_type headKey=0, tailKey=0, prevKey=0, nextKey=0;
+  key_type headKey=0u, tailKey=0u, prevKey=0u, nextKey=0u;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
 
 				// Do the boundaries sequentially to prevent
@@ -319,15 +327,15 @@ void pHOT::makeTree()
 				// to compare with its head
     if (myid==n-1) {
 
-      MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD);
-      MPI_Send(&tail_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD);
+      MPI_Send(&tailKey,  1, MPI_EXP_KEYTYPE, n, 1000, MPI_COMM_WORLD);
+      MPI_Send(&tail_num, 1, MPI_UNSIGNED,    n, 1001, MPI_COMM_WORLD);
 
-      MPI_Recv(&nextKey, 1, MPI_UNSIGNED_LONG_LONG, n, 1000, MPI_COMM_WORLD,
+      MPI_Recv(&nextKey, 1, MPI_EXP_KEYTYPE,  n, 1000, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
-      MPI_Recv(&next_num, 1, MPI_UNSIGNED, n, 1001, MPI_COMM_WORLD,
+      MPI_Recv(&next_num, 1, MPI_UNSIGNED,    n, 1001, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
 
-      if (tailKey && (tailKey == nextKey)) {
+      if (tailKey != 0u && tailKey == nextKey) {
 	if (tail_num <= next_num) {
 	  if (tail_num)
 	    sendCell(tailKey, n, tail_num);
@@ -371,19 +379,19 @@ void pHOT::makeTree()
 	//
 	head_num = frontier[headKey]->bods.size();
       } else {
-	headKey = 0;
-	head_num = 0;
+	headKey  = 0u;
+	head_num = 0u;
       }
 
-      MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n-1, 1000, MPI_COMM_WORLD);
-      MPI_Send(&head_num, 1, MPI_UNSIGNED, n-1, 1001, MPI_COMM_WORLD);
+      MPI_Send(&headKey,  1, MPI_EXP_KEYTYPE, n-1, 1000, MPI_COMM_WORLD);
+      MPI_Send(&head_num, 1, MPI_UNSIGNED,    n-1, 1001, MPI_COMM_WORLD);
 
-      MPI_Recv(&prevKey, 1, MPI_UNSIGNED_LONG_LONG, n-1, 1000, MPI_COMM_WORLD,
+      MPI_Recv(&prevKey,  1, MPI_EXP_KEYTYPE, n-1, 1000, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
-      MPI_Recv(&prev_num, 1, MPI_UNSIGNED, n-1, 1001, MPI_COMM_WORLD,
+      MPI_Recv(&prev_num, 1, MPI_UNSIGNED,    n-1, 1001, MPI_COMM_WORLD,
 	       MPI_STATUS_IGNORE);
 
-      if (headKey && headKey == prevKey) {
+      if (headKey != 0u && headKey == prevKey) {
 	if (head_num < prev_num) {
 	  if (head_num)
 	    sendCell(headKey, n-1, head_num);
@@ -487,7 +495,7 @@ void pHOT::densEmit(unsigned lev, pCell *p)
     cntlev[lev]++;
     if (p->parent) kidlev[lev] += p->parent->children.size();
     maslev[lev] += p->state[0];
-    vollev[lev] += volume/((key_type)1 << (3*p->level));
+    vollev[lev] += volume/(key_type(1u) << (3*p->level)).toDouble();
   } else {
     map<unsigned, pCell*>::iterator it;
     for (it=p->children.begin(); it!=p->children.end(); it++) 
@@ -657,14 +665,14 @@ void pHOT::dumpFrontier()
 	}
 	
 	totmass += mass;
-	totvol  += volume/((key_type)1<<(3*it->second->level));
+	totvol  += volume/(key_type(1u)<<(3*it->second->level)).toDouble();
 
 	cout << setw(4)  << myid
-	     << setw(12) << hex << it->first << dec
+	     << setw(12) << it->first.toHex()
 	     << setw(8)  << it->second->level
 	     << setw(18) << num
 	     << setw(18) << mass
-	     << setw(18) << mass/(volume/((key_type)1<<(3*it->second->level)));
+	     << setw(18) << mass/(volume/(key_type(1u)<<(3*it->second->level))).toDouble();
 	
 	for (unsigned k=0; k<3; k++) {
 	  mpos[k] /= num;
@@ -844,14 +852,14 @@ void pHOT::testFrontier(string& filename)
 	temp = 0.333333333333*(temp/mass - v2);
 
 	unsigned n=0;
-	double vol = volume/((key_type)1 << (3*p->level)); 
+	double vol = volume/( key_type(1u) << (3*p->level)).toDouble(); 
 
 	out << " ";
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << tnow;
 	n++;
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << myid;
 	n++;
-	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << c->first;
+	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << c->first.toHex();
 	n++;
 	out << setw(prec[n]) << setiosflags(fmt[n]|typ[n]) << p->level;
 	n++;
@@ -974,7 +982,7 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
   //
   if (p->parent) {
     // Delete this cell from the parent
-    p->parent->children.erase(p->mykey & 0x7);
+    p->parent->children.erase( (p->mykey & 0x7u).toUint());
 	
     // DEBUG
     if (frontier.find(p->mykey)==frontier.end()) {
@@ -1032,13 +1040,13 @@ void pHOT::recvCell(int from, unsigned num)
     pf.RecvParticle(part);
       if (part.mass<=0.0 || isnan(part.mass)) {
 	cout << "[recvCell crazy mass indx=" << part.indx 
-	     << ", key=" << hex << part.key << dec << "]";
+	     << ", key=" << part.key.toHex() << "]";
       }
     cc->particles[part.indx] = part;
-    if (part.key == 0) continue;
+    if (part.key == 0u) continue;
     if (part.key < key_min || part.key >= key_max) {
       cout << "Process " << myid << ": in recvCell, key=" 
-	   << hex << part.key << endl << dec;
+	   << part.key.toHex() << endl;
     }
     if (part.indx==0) cout << "pHOT::recvCell bad particle indx=0!" << endl;
     key_pair tpair(part.key, part.indx);
@@ -1120,7 +1128,7 @@ void pHOT::State(double *x, double& dens, double& temp,
       for (int k=0; k<3; k++)
 	disp += (state[1+k] - state[4+k]*state[4+k]/state[0])/state[0];
       
-      dens = state[0] * ((key_type)1 << (3*clv))/(volume*cnt);
+      dens = state[0] * (key_type(1u) << (3*clv)).toDouble()/(volume*cnt);
       temp = 0.333333333333*disp;
       velx = state[4]/state[0];
       vely = state[5]/state[0];
@@ -1365,7 +1373,7 @@ double pHOT::minVol()
     MaxLev = max<unsigned>(MaxLev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((key_type)1 << (3*MaxLev));
+  vol1 = volume/(key_type(1u) << (3*MaxLev)).toDouble();
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
 
   return vol;
@@ -1379,7 +1387,7 @@ double pHOT::maxVol()
     MinLev = min<unsigned>(MinLev, it->second->level);
 
   double vol1, vol;
-  vol1 = volume/((key_type)1 << (3*MinLev));
+  vol1 = volume/(key_type(1u) << (3*MinLev)).toDouble();
   MPI_Allreduce(&vol1, &vol, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
 
   return vol;
@@ -1415,7 +1423,7 @@ double pHOT::medianVol()
 
   MPI_Bcast(&mlev, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-  return volume/((key_type)1 << (3*mlev));
+  return volume/(key_type(1u) << (3*mlev)).toDouble();
 }
 
 void pHOT::Repartition(unsigned mlevel)
@@ -1461,7 +1469,7 @@ void pHOT::Repartition(unsigned mlevel)
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
 
     it->second.key = getKey(&(it->second.pos[0]));
-    if (it->second.key == 0) {
+    if (it->second.key == 0u) {
       oob.insert(it->first);
     } else {
       if (use_weight) {
@@ -1471,6 +1479,60 @@ void pHOT::Repartition(unsigned mlevel)
       }
     }
   }
+
+  // Check for duplicate keys, duplicate sequence numbers
+  if (keys_debug) {
+    key_indx keylist;
+    set<key_type, less<key_type> > keydup;
+    set<indx_type> indxdup;
+
+#ifdef USE_GPTL
+    GPTLstart("pHOT::Repartition::duplicate_check");
+#endif
+
+    for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++)
+      keylist.insert(pair<key_type, indx_type>(it->second.key, it->first));
+
+    vector<indx_type> dups;
+    key_indx::iterator k, kl;
+    k = kl = keylist.begin();
+
+    for (k++; k!=keylist.end(); k++) {
+      if (k->first == kl->first) {
+	dups.push_back(k->second);
+	indxdup.insert(k->second);
+	keydup. insert(k->first);
+      }
+      kl = k;
+    }
+
+    if (dups.size()) {
+      ostringstream sout;
+      sout << runtag << ".pHOT_crazy." << myid;
+      ofstream out(sout.str().c_str(), ios::app);
+      out << endl
+	  << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	  << "#---- Time=" << tnow 
+	  << ", N=" << cc->Number() 
+	  << ",  Duplicates=" << dups.size() 
+	  << ", Unique keys=" << keydup.size() 
+	  << ", Unique indx=" << indxdup.size() 
+	  << endl
+	  << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+      for (vector<indx_type>::iterator 
+	     ib=dups.begin(); ib!=dups.end(); ib++) {
+	out << setw(10) << *ib << setw(18) << cc->Mass(*ib);
+	for (int k=0; k<3; k++) out << setw(18) << cc->Pos(*ib, k);
+	out << setw(10) << cc->Part(*ib)->indx
+	    << "    "   << cc->Part(*ib)->key.toHex() << endl;
+      }
+      out << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+    }
+#ifdef USE_GPTL
+    GPTLstop("pHOT::Repartition::duplicate_check");
+#endif
+  }
+
 
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -1517,13 +1579,13 @@ void pHOT::Repartition(unsigned mlevel)
   unsigned t;
   for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++) {
 				// Skip an OOB particle
-    if (it->second.key == 0) continue;
+    if (it->second.key == 0u) continue;
 				// Look for key in this node's list
     t = find_proc(loclist, it->second.key);
     if (t == numprocs) {
       cerr << "Process " << myid << ": loclist found last entry, "
-	   << " key=" << hex << it->second.key 
-	   << ", end pt=" << loclist.back() << dec
+	   << " key=" << it->second.key.toHex();
+      cerr << ", end pt=" << loclist.back().toHex()
 	   << ", index=" << t << endl;
     }
     if (t == myid) continue;
@@ -1648,7 +1710,7 @@ void pHOT::Repartition(unsigned mlevel)
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
 	cout << "[Repartition: crazy mass indx=" << part.indx 
-	     << ", key=" << hex << part.key << dec << "]";
+	     << ", key=" << part.key.toHex() << "]";
       }
       cc->Particles()[part.indx] = part;
     }
@@ -1663,7 +1725,7 @@ void pHOT::Repartition(unsigned mlevel)
   keybods.clear();
   unsigned oob1_cnt=0, oob_cnt=0;
   for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
-    if (n->second.key==0) {
+    if (n->second.key==0u) {
       oob1_cnt++;
       continue;
     }
@@ -1686,7 +1748,7 @@ void pHOT::Repartition(unsigned mlevel)
     for (PartMapItr ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
       if (ip->second.indx==0) {
 	cout << "pHOT::Repartition BAD particle in proc=" << myid
-	     << " key=" << ip->second.key << endl;
+	     << " key=" << ip->second.key.toHex() << endl;
 	ok = false;
       }
     }
@@ -1735,11 +1797,12 @@ void pHOT::Repartition(unsigned mlevel)
 	  << setw(klen) << "kfin" 
 	  << setw(15)   << "nkeys"
 	  << setw(15)   << "bodies" << endl << "#" << endl;
-      for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << right
-	    << hex << setw(klen) << kbeg[i] << setw(klen) << kfin[i] 
-	    << dec << setw(15) << ksize[i] << setw(15) << nsize[i]
-	    << endl;
+      for (int i=0; i<numprocs; i++) {
+	out << left << setw(5) << i << right;
+	out << setw(klen) << kbeg[i].toHex();
+	out << setw(klen) << kfin[i].toHex() 
+	    << dec << setw(15) << ksize[i] << setw(15) << nsize[i] << endl;
+      }
       out << setfill('-') << setw(nhead) << '-' << endl << setfill(' ') << left
 	  << endl << endl;
     }
@@ -1755,14 +1818,26 @@ void pHOT::Repartition(unsigned mlevel)
 
 void pHOT::makeCellLevelList()
 {
+  ostringstream sout;
+  sout << "pHOT_cells." << runtag << "." << myid;
+  ofstream out(sout.str().c_str(), ios::out | ios::app);
+
 				// Make new lists
   clevlst.clear();
   clevels = vector< set<pCell*> >(multistep+1);
 
+  out << "Process " << myid << " in makeCellLevelList()" 
+      << ", frontier size=" << frontier.size() << endl;
+
   unsigned ng=0, nt=0;
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
 				// Check for empty root node
-    if (it->second->mykey==1 && it->second->count==0) continue;
+    if (it->second->mykey==1u && it->second->count==0u) {
+      out << "Process " << myid << " in makeCellLevelList()" 
+	  << ", empty root node" << endl;
+
+      continue;
+    }
 
     nt++;			// Otherwise, count this one
     it->second->remake_plev();
@@ -1776,31 +1851,39 @@ void pHOT::makeCellLevelList()
     }
   }
   if (nt!=ng)
-    cout << "Process " << myid << ": made level list with " << ng
-	 << " good cells out of " << nt << " expected" << endl;
+    out << "Process " << myid << ": made level list with " << ng
+	<< " good cells out of " << nt << " expected" << endl;
 
-#ifdef DEBUG
+  // #ifdef DEBUG
+  printCellLevelList(out);
+  checkParticles(out);
+  // #endif
+}
+
+void pHOT::printCellLevelList(ostream& out)
+{
   vector<unsigned> pcnt(multistep+1, 0);
   for (map<pCell*, unsigned>::iterator
-	 pit=clevlst.begin(); pit!=clevlst.end(); pit++)
-    pcnt[pit->second]++;
+	 pit=clevlst.begin(); pit!=clevlst.end(); pit++) pcnt[pit->second]++;
 
-  cout << left << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-       << setw(10) << "M" << setw(10) << "number" 
-       << setw(10) << "counts" << endl;
+  out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ')
+      << "*** T=" << tnow << "  N=" << cc->particles.size() << endl
+      << setw(10) << "M" << setw(10) << "number" 
+      << setw(10) << "counts" << endl;
   for (unsigned M=0; M<=multistep; M++)
-    cout << setw(10) << M << setw(10) << clevels[M].size() 
-	 << setw(10) << pcnt[M] << endl;
-  cout << left << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-  
-  checkParticles();
-#endif // END DEBUG
+    out << setw(10) << M << setw(10) << clevels[M].size() 
+	<< setw(10) << pcnt[M] << endl;
+  out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 }
 
 void pHOT::adjustCellLevelList(unsigned mlevel)
 {
   if (multistep==0) return;	// No need to bother if multistepping is off
 				// Otherwise . . . 
+
+  ostringstream sout;
+  sout << "pHOT_cells." << runtag << "." << myid;
+  ofstream out(sout.str().c_str(), ios::out | ios::app);
 
 #ifdef USE_GPTL
   GPTLstart("pHOT::adjustCellLevelList");
@@ -1815,7 +1898,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
       while (it != clevels[M].end()) {
 				// Skip the root cell if it's empty
 				// (lazy kludge)
-	if ( (*it)->mykey==1 && (*it)->count==0 ) { 
+	if ( (*it)->mykey==1u && (*it)->count==0 ) { 
 	  nt--; 		// Reduce the node count by one
 	  it++;			// Go the next set in the set . . .
 	  continue; 
@@ -1852,9 +1935,10 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     cout << "Process " << myid << ": adjusted level list with " << ng
 	 << " good cells out of " << nt << " expected, " << ns
 	 << " cells moved" << endl;
-#ifdef DEBUG
-  checkParticles();
-#endif
+  // #ifdef DEBUG
+  printCellLevelList(out);
+  checkParticles(out);
+  // #endif
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::adjustCellLevelList");
@@ -1867,6 +1951,11 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::adjustTree");
   GPTLstart("pHOT::keyBods");
 #endif
+				// Barrier to make sure that the timer
+				// gives a sensible measurement of key time
+  timer_waiton0.start();   
+  (*barrier)("pHOT: repartition key timer [0]");
+  timer_waiton0.stop();
 
   timer_tadjust.start();
 
@@ -1961,7 +2050,7 @@ void pHOT::adjustTree(unsigned mlevel)
     if (ij == bodycell.end()) {	//
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find cell for particle"
-	   << " key=" << hex << oldkey << ", index=" << dec << p->indx
+	   << " key=" << oldkey.toHex() << ", index=" << p->indx
 	   << " pnumber=" << cc->Number() << " bodycell=" << bodycell.size() 
 	   << endl;
     } else {
@@ -1970,10 +2059,10 @@ void pHOT::adjustTree(unsigned mlevel)
 	if ( frontier.find(ij->second) == frontier.end() ) {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR could not find expected cell"
-	       << " on frontier, count=" << adjcnt << hex
-	       << " oldbody=" << oldkey 
-	       << " newbody=" << newkey 
-	       << " cell="    << bodycell.find(oldkey)->second << dec
+	       << " on frontier, count=" << adjcnt;
+	  cout << " oldbody=" << oldkey.toHex();
+	  cout << " newbody=" << newkey.toHex();
+	  cout << " cell="    << bodycell.find(oldkey)->second.toHex()
 	       << " index="   << p->indx 
 	       << endl;
 	  continue;
@@ -1984,11 +2073,15 @@ void pHOT::adjustTree(unsigned mlevel)
     }
     timer_keybods.stop();
       
+    cntr_total++;
+
     //
     // Is the key the same?
     // 
     timer_keycomp.start();
     if (newkey != oldkey) {
+
+      cntr_new_key++;
 				// Key pairs
 				//
       key_pair newpair(newkey, p->indx);
@@ -1997,6 +2090,9 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Put the particle in a new cell?
 				// 
       if ( !(c->isMine(newkey)) ) {
+	
+	timer_keynewc.start();
+	cntr_not_mine++;
 
 	if (c->Remove(oldpair, &change)) {
 				// Remove the old pair from the current cell
@@ -2008,9 +2104,10 @@ void pHOT::adjustTree(unsigned mlevel)
 	}
 
 				// Same processor and in bounds?
-	if (newkey) {
+	if (newkey != 0u) {
 	  newproc = find_proc(loclist, newkey);
 	  if (newproc != myid) {
+	    cntr_ship++;
 				// Ship this particle elsewhere	  
 	    exchange[newproc].push_back(*ip);
 
@@ -2026,8 +2123,13 @@ void pHOT::adjustTree(unsigned mlevel)
 	
 	p->key = newkey;	// Assign the new key to the particle
 
+	timer_keynewc.stop();
+
       } else {			// Same cell: update body cell index 
 				// for the new key
+	timer_keyoldc.start();
+	cntr_mine++;
+
 #ifdef DEBUG
 	if (ij == bodycell.end()) {
 	  cout << "Process " << myid 
@@ -2053,6 +2155,8 @@ void pHOT::adjustTree(unsigned mlevel)
 	
 	p->key = newkey;	// Assign the new key to the particle
 	keybods.insert(newpair);
+
+	timer_keyoldc.stop();
       }
     }
     timer_keycomp.stop();
@@ -2144,12 +2248,12 @@ void pHOT::adjustTree(unsigned mlevel)
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
 	cout << "[adjustTree: crazy mass indx=" << part.indx 
-	     << ", key=" << hex << part.key << dec << "]";
+	     << ", key=" << part.key.toHex() << "]";
       }
       
       cc->Particles()[part.indx] = part;
       
-      if (part.key) {
+      if (part.key != 0u) {
 	key_pair newpair(part.key, part.indx);
 	keybods.insert(newpair);
 	root->Add(newpair, &change);
@@ -2182,7 +2286,7 @@ void pHOT::adjustTree(unsigned mlevel)
   // Cell overlap?
   //
   
-  key_type headKey=0, tailKey=0;
+  key_type headKey=0u, tailKey=0u;
   unsigned head_num=0, tail_num=0;
   
   timer_overlap.start();
@@ -2192,26 +2296,26 @@ void pHOT::adjustTree(unsigned mlevel)
     if (n==myid) {
       if (keybods.size()) {
 	key_indx::reverse_iterator it = keybods.rbegin();
-	tailKey = bodycell.find(it->first)->second;
+	tailKey  = bodycell.find(it->first)->second;
 	tail_num = frontier[tailKey]->bods.size();
       } else {
-	tailKey = 0;
+	tailKey  = 0u;
 	tail_num = 0;
       }
       
       // Send my tail cell info to next node
       //
-      MPI_Send(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 131, MPI_COMM_WORLD);
+      MPI_Send(&tailKey, 1, MPI_EXP_KEYTYPE, n+1, 131, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED, n+1, 132, MPI_COMM_WORLD);
       
       // Get next node's head cell info
       //
-      MPI_Recv(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n+1, 133, 
+      MPI_Recv(&headKey, 1, MPI_EXP_KEYTYPE, n+1, 133, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&head_num, 1, MPI_UNSIGNED, n+1, 134,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
-      if (tailKey==headKey && tailKey!=0) {
+      if (tailKey==headKey && tailKey!=0u) {
 	
 	c = frontier[tailKey];	// Cell in question: my last cell
 	
@@ -2245,7 +2349,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	  
 	  c->RemoveAll();
 			
-	  if (c->mykey!=1) {	// Don't remove the root node
+	  if (c->mykey!=1u) {	// Don't remove the root node
 	    
 	    // queue for removal from level lists
 	    change.push_back(cell_indx(c, REMOVE));
@@ -2265,30 +2369,31 @@ void pHOT::adjustTree(unsigned mlevel)
       if (keybods.size()) {
 	key_indx::iterator it = keybods.begin(); // Sanity check:
 	if (bodycell.find(it->first) == bodycell.end()) {
-	  cerr << "In adjustTree: No cell for body=" << hex << it->first 
-	       << dec << " bodycell size=" << bodycell.size() << endl;
-	  headKey = 0;
+	  cerr << "In adjustTree: No cell for body=" 
+	       << it->first.toHex()
+	       << " bodycell size=" << bodycell.size() << endl;
+	  headKey  = 0u;
 	  head_num = 0;
 	} else {
-	  headKey = bodycell.find(it->first)->second;
+	  headKey  = bodycell.find(it->first)->second;
 	  head_num = frontier[headKey]->bods.size();
 	}
       } else {
-	headKey = 0;
+	headKey  = 0u;
 	head_num = 0;
       }
       
       // Get previous nodes tail cell info
-      MPI_Recv(&tailKey, 1, MPI_UNSIGNED_LONG_LONG, n, 131, 
+      MPI_Recv(&tailKey, 1, MPI_EXP_KEYTYPE, n, 131, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&tail_num, 1, MPI_UNSIGNED, n, 132,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
       // Send head node into to previous node
-      MPI_Send(&headKey, 1, MPI_UNSIGNED_LONG_LONG, n, 133, MPI_COMM_WORLD);
+      MPI_Send(&headKey, 1, MPI_EXP_KEYTYPE, n, 133, MPI_COMM_WORLD);
       MPI_Send(&head_num, 1, MPI_UNSIGNED, n, 134, MPI_COMM_WORLD);
       
-      if (tailKey==headKey && tailKey!=0) {
+      if (tailKey==headKey && tailKey!=0u) {
 	
 	c = frontier[headKey];	// Cell in question
 	
@@ -2306,7 +2411,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	  
 	  c->RemoveAll();
 	  
-	  if (c->mykey!=1) { // Dont remove the root node!
+	  if (c->mykey!=1u) { // Dont remove the root node!
 
 	    // queue for removal from level lists
 	    change.push_back(cell_indx(c, REMOVE));
@@ -2420,7 +2525,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << "adjustTree: ERROR mlevel=" << mlevel 
 	 << " completed: body cell check FAILED!" << endl;
   }    
-  if (!checkParticles()) {
+  if (!checkParticles(cout)) {
     cout << "Process " << myid << ": "
 	 << "adjustTree: ERROR mlevel=" << mlevel 
 	 << " completed: initial particle check FAILED!" << endl;
@@ -2469,12 +2574,13 @@ void pHOT::adjustTree(unsigned mlevel)
       out << left << setw(5) << "#" 
 	  << setw(klen) << right << "kbeg" << setw(klen) << "kfin" 
 	  << setw(15) << "bodies" << endl << "#" << endl;
-      for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << hex << right
-	    << setw(klen) << kbeg[i] 
-	    << setw(klen) << kfin[i] << dec 
+      for (int i=0; i<numprocs; i++) {
+	out << left << setw(5) << i << right
+	    << setw(klen) << kbeg[i].toHex(); 
+	out << setw(klen) << kfin[i].toHex()
 	    << setw(15) << nsize[i]
 	    << endl;
+      }
       out << left << setfill('-') << setw(nhead) << '-' << endl
 	  << setfill(' ') << endl;
     }
@@ -2487,7 +2593,7 @@ void pHOT::adjustTree(unsigned mlevel)
 }
   
 
-bool pHOT::checkParticles(bool pc)
+bool pHOT::checkParticles(ostream& out, bool pc)
 {
   unsigned cnt, badb=0, badc=0;
   const string membername = "checkParticles";
@@ -2509,7 +2615,7 @@ bool pHOT::checkParticles(bool pc)
 	    for (set<unsigned>::iterator ib=(*it)->bods.begin();
 		 ib!=(*it)->bods.end(); ib++) {
 	      if (!cc->Part(*ib)) {
-		cout << "pHOT::checkParticles:: M=" << M << ", bad body at "
+		out << "pHOT::checkParticles:: M=" << M << ", bad body at "
 		     << cnt << "/" << clevels[M].size() 
 		     << " cell=" << hex << (*it) << dec << endl;
 		badb++;
@@ -2517,7 +2623,7 @@ bool pHOT::checkParticles(bool pc)
 	    }
 	  }
 	} else {
-	  cout << "pHOT::checkParticles:: M=" << M << ", zero bods at "
+	  out << "pHOT::checkParticles:: M=" << M << ", zero bods at "
 	       << cnt << "/" << clevels[M].size() 
 	       << " cell=" << hex << (*it) << dec << endl;
 	  badc++;
@@ -2581,17 +2687,17 @@ bool pHOT::checkParticles(bool pc)
   // END OUTPUT CELL LIST
 
   if (badb || badc) {
-    cout << "Process " << myid << ": pHOT::checkParticles, bad cell=" 
+    out << "Process " << myid << ": pHOT::checkParticles, bad cell=" 
 	 << badc ;
-    if (pc) cout << " bad bod=" << badb;
-    cout << endl;
+    if (pc) out << " bad bod=" << badb;
+    out << endl;
     return false;
   }
   else return true;
 }
 
 
-bool pHOT::checkFrontier()
+bool pHOT::checkFrontier(ostream& out)
 {
   unsigned bad=0;
   bool good=true;
@@ -2601,7 +2707,7 @@ bool pHOT::checkFrontier()
       for (set<pCell*>::iterator 
 	     it=clevels[M].begin(); it!=clevels[M].end(); it++) {
 	if (frontier.find((*it)->mykey) == frontier.end()) {
-	  cout << "pHOT::checkFrontier error on M=" << M
+	  out << "pHOT::checkFrontier error on M=" << M
 	       << ", cell=" << hex << *it << dec << endl;
 	  bad++;
 	  good = false;
@@ -2611,7 +2717,7 @@ bool pHOT::checkFrontier()
   }
   
   if (bad) {
-    cout << "Process " << myid << ": pHOT::checkFrontier, bad cell=" 
+    out << "Process " << myid << ": pHOT::checkFrontier, bad cell=" 
 	 << bad << endl;
   }
 
@@ -2776,7 +2882,7 @@ bool pHOT::checkBodycell()
   unsigned cnt=0;
   for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     // Ignore OOB particle
-    if (n->second.key==0) continue;
+    if (n->second.key==0u) continue;
     // Look for the bodycell
     key_key::iterator it = bodycell.find(n->second.key);
     if (it==bodycell.end()) {
@@ -3064,7 +3170,7 @@ void pHOT::spreadOOB()
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
 	cout << "[spreadOOB crazy mass indx=" << part.indx 
-	     << ", key=" << hex << part.key << dec << "]";
+	     << ", key=" << part.key.toHex() << "]";
       }
       cc->Particles()[part.indx] = part;
       oob.insert(part.indx);
@@ -3208,13 +3314,13 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
 	out << left << setw(5) << n << setw(10) << keys.size();
 	if (keys.size()>0) {
-	  out << hex << right
-	      << setw(klen) << keys[0].first
-	      << setw(klen) << keys[keys.size()/4].first
-	      << setw(klen) << keys[keys.size()/2].first
-	      << setw(klen) << keys[keys.size()*3/4].first
-	      << setw(klen) << keys[keys.size()-1].first
-	      << dec << endl;
+	  out << right
+	      << setw(klen) << keys[0].first.toHex();
+	  out << setw(klen) << keys[keys.size()/4].first.toHex();
+	  out << setw(klen) << keys[keys.size()/2].first.toHex();
+	  out << setw(klen) << keys[keys.size()*3/4].first.toHex();
+	  out << setw(klen) << keys[keys.size()-1].first.toHex()
+	      << endl;
 	}
       }
       (*barrier)("pHOT: partitionKeys debug 2");
@@ -3315,14 +3421,15 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 
 				// The overhead for computing these is small so
 				// no matter if they are not used below
+
     vector<double>   wbeg(numprocs), wfin(numprocs); // Weights for debugging
     vector<unsigned> pbeg(numprocs), pfin(numprocs); // Counts  for debugging
-
+    
 				// Compute the key boundaries in the partition
 				//
     for (unsigned i=0; i<numprocs-1; i++) {
       if (keylist.size()) {
-	key_wght k(0, frate[i]/frate[numprocs-1]);
+	key_wght k(0u, frate[i]/frate[numprocs-1]);
 	vector<key_wght>::iterator
 	  ret = lower_bound(keylist.begin(), keylist.end(), k, wghtDBL);
 	kfin[i] = ret->first;
@@ -3350,32 +3457,42 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
     }
       
     if (keys_debug) {	 // If true, print key ranges for each process
-      key_type kdif;
       ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
-      unsigned nhead = 5 + 15 + 10 + 3*klen;
+      unsigned nhead = 5 + 3*15 + 3*10 + 3*klen;
       out << setw(nhead) << setfill('-') << '-' << endl
-	  << "---- partitionKeys: keys in list=" << keylist.size() << endl
+	  << "---- partitionKeys: keys in list="<< keylist.size() << endl
 	  << setw(nhead) << setfill('-') << '-' << endl << setfill(' ')
 	  << left << setw(5) << "proc" << right << setw(klen) << "kbeg"
 	  << setw(klen) << "kfin" << setw(klen) << "# keys" 
-	  << setw(15) << "wdif" << setw(10) << "pdif" << endl
+	  << setw(15) << "wbeg" << setw(15) << "wend" << setw(15) << "wdif" 
+	  << setw(10) << "pbeg" << setw(10) << "pend" << setw(10) << "pdif" 
+	  << endl
 	  << left << setw(5) << "----" << right << setw(klen) << "----"
 	  << setw(klen) << "----" << setw(klen) << "------" 
-	  << setw(15) << "----"  << setw(10) << "----"  << endl;
-      for (int i=0; i<numprocs; i++)
-	out << left << setw(5) << i << hex << right << setw(klen) << kbeg[i] 
-	    << setw(klen) << kfin[i] << dec 
-	    << setw(klen) << (kdif = kfin[i] - kbeg[i])
+	  << setw(15) << "----" << setw(15) << "----" << setw(15) << "----"  
+	  << setw(10) << "----" << setw(10) << "----" << setw(10) << "----"  
+	  << endl;
+      for (int i=0; i<numprocs; i++) {
+	out << left << setw(5) << i << right
+	    << setw(klen) << kbeg[i].toHex(); 
+	out << setw(klen) << kfin[i].toHex();
+	out << setw(klen) << (kfin[i] - kbeg[i]).toDec()
+	    << setw(15) << wbeg[i]
+	    << setw(15) << wfin[i]
 	    << setw(15) << wfin[i] - wbeg[i]
+	    << setw(10) << pbeg[i]
+	    << setw(10) << pfin[i]
 	    << setw(10) << pfin[i] - pbeg[i]
 	    << endl;
+      }
       out << setw(nhead) << setfill('-') << '-' << endl << setfill(' ') 
 	  << endl;
     }
   }
 
-  MPI_Bcast(&kbeg[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&kfin[0], numprocs, MPI_UNSIGNED_LONG_LONG, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&kbeg[0], numprocs, MPI_EXP_KEYTYPE, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&kfin[0], numprocs, MPI_EXP_KEYTYPE, 0, MPI_COMM_WORLD);
+
 
   if (keys_debug) {		// If true, print key totals
     unsigned oobn = oobNumber();
@@ -3500,7 +3617,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 	two[k] = initl[k].second;
       }
 	
-      MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+      MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12, 
 	       MPI_COMM_WORLD);
 
       MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
@@ -3523,7 +3640,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
       vector<key_type> recv1(n);
       vector<double>   recv2(n);
 
-      MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
+      MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12, 
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
       MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 13, 
@@ -3565,7 +3682,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 	  two[k] = data[k].second;
 	}
 	
-	MPI_Send(&one[0], n, MPI_UNSIGNED_LONG_LONG, myid-M2, 12, 
+	MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12, 
 		 MPI_COMM_WORLD);
 	MPI_Send(&two[0], n, MPI_DOUBLE,             myid-M2, 13, 
 		 MPI_COMM_WORLD);
@@ -3582,10 +3699,11 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 	vector<key_type> recv1(n);
 	vector<double>   recv2(n);
 
-	MPI_Recv(&recv1[0], n, MPI_UNSIGNED_LONG_LONG, status.MPI_SOURCE, 12, 
+
+	MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12, 
 		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-	MPI_Recv(&recv2[0], n, MPI_DOUBLE,             status.MPI_SOURCE, 13, 
+	MPI_Recv(&recv2[0], n, MPI_DOUBLE,      status.MPI_SOURCE, 13, 
 		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
 	vector<key_wght> recv(n);
@@ -3634,7 +3752,9 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
 			double &scatter, double &repartn,
 			double &tadjust, double &keycall,
 			double &keycomp, double &keybods,
-			double &waiton1, double &waiton2, unsigned &numk)
+			double &keynewc, double &keyoldc,
+			double &waiton0, double &waiton1, 
+			double &waiton2, unsigned &numk)
 {
   keymake  = timer_keymake.getTime().getRealTime()*1.0e-6;
   exchange = timer_xchange.getTime().getRealTime()*1.0e-6;
@@ -3648,6 +3768,9 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   keycall  = timer_keycall.getTime().getRealTime()*1.0e-6;
   keycomp  = timer_keycomp.getTime().getRealTime()*1.0e-6;
   keybods  = timer_keybods.getTime().getRealTime()*1.0e-6;
+  keynewc  = timer_keynewc.getTime().getRealTime()*1.0e-6;
+  keyoldc  = timer_keyoldc.getTime().getRealTime()*1.0e-6;
+  waiton0  = timer_waiton0.getTime().getRealTime()*1.0e-6;
   waiton1  = timer_waiton1.getTime().getRealTime()*1.0e-6;
   waiton2  = timer_waiton2.getTime().getRealTime()*1.0e-6;
 
@@ -3663,6 +3786,9 @@ void pHOT::adjustTiming(double &keymake, double &exchange,
   timer_keycall.reset();
   timer_keycomp.reset();
   timer_keybods.reset();
+  timer_keynewc.reset();
+  timer_keyoldc.reset();
+  timer_waiton0.reset();
   timer_waiton1.reset();
   timer_waiton2.reset();
 
@@ -3722,3 +3848,21 @@ void pHOT::totalMass(unsigned& Counts, double& Mass)
   MPI_Reduce(&count1, &Counts, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
+
+void pHOT::adjustCounts(ostream& out)
+{
+  out << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+  out << "  " << left << setw(20) << "Total"       << " : " << cntr_total 
+      << endl;
+  out << "  " << left << setw(20) << "New key"     << " : " << cntr_new_key 
+      << endl;
+  out << "  " << left << setw(20) << "Same cell"   << " : " << cntr_mine 
+      << endl;
+  out << "  " << left << setw(20) << "New cell"    << " : " << cntr_not_mine 
+      << endl;
+  out << "  " << left << setw(20) << "Shipped"     << " : " << cntr_ship
+      << endl;
+  out << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+
+  cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
+}

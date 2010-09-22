@@ -54,7 +54,7 @@ class DiskHalo
   EmpCylSL* expandd;
 
   Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
-  double dP, dR, dZ, epiRmin;
+  double dP, dR, dZ;
 
   Matrix halotable;
   double dr, dc;
@@ -138,6 +138,9 @@ class DiskHalo
 				//  2		Model diagnostics
 				//  4		Table diagnostics
 
+				// ID string for debugging output
+  static string RUNTAG;		// Default: "debug"
+
   //! Dummy Constructor
   DiskHalo();
 
@@ -203,7 +206,7 @@ class DiskHalo
 
   double a_drift(double xp, double yp,double zp);
 
-  double vphi(double xp, double yp, double zp);
+  double vp_disp(double xp, double yp, double zp);
 
   double v_circ(double xp, double yp, double zp);
 

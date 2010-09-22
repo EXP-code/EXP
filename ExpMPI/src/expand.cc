@@ -74,34 +74,69 @@ void make_node_list(int argc, char **argv)
   strncpy(procn, processor_name, nprocn);
   strncpy(cmdnm, argv[0], ncmd);
 
-  for (int j=0; j<numprocs; j++) {
-    if (myid==0) {
-      if (j>0) {
+  if (myid==0) {
+    for (int j=0; j<numprocs; j++) {
+      if (j) {
 	MPI_Recv(procn, nprocn, MPI_CHAR, j, 61, MPI_COMM_WORLD, &stat);
 	MPI_Recv(cmdnm,   ncmd, MPI_CHAR, j, 62, MPI_COMM_WORLD, &stat);
 	MPI_Recv(&pid,       1, MPI_LONG, j, 63, MPI_COMM_WORLD, &stat);
       }
-
-      cout << setw(4) << left << j
+      cout << setw(4)  << left << j
 	   << setw(20) << string(procn)
 	   << setw(12) << pid 
 	   << setw(ncmd) << cmdnm << endl;
-
-    } else if (myid==j) {
-      MPI_Send(procn, nprocn, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
-      MPI_Send(cmdnm,   ncmd, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
-      MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
     }
-
-    MPI_Barrier(MPI_COMM_WORLD);
+  } else {
+    MPI_Send(procn, nprocn, MPI_CHAR, 0, 61, MPI_COMM_WORLD);
+    MPI_Send(cmdnm,   ncmd, MPI_CHAR, 0, 62, MPI_COMM_WORLD);
+    MPI_Send(&pid,       1, MPI_LONG, 0, 63, MPI_COMM_WORLD);
   }
   
   if (myid==0)  cout << setfill('-') << setw(70) << "-" << endl
 		     << setfill(' ') << endl << endl;
 
+  // Make MPI datatype
+  
+  int ityp = 2;
+  MPI_Aint kdsp = 0;
+  MPI_Datatype ktyp = MPI_UNSIGNED_LONG;
+  MPI_Type_create_struct(1, &ityp, &kdsp, &ktyp, &MPI_EXP_KEYTYPE);
+  MPI_Type_commit(&MPI_EXP_KEYTYPE);
+
   delete [] procn;
   delete [] cmdnm;
 }
+
+
+bool set_memlock_limits()
+{
+  struct rlimit rlim;
+  
+  rlim.rlim_cur = RLIM_INFINITY;
+  rlim.rlim_max = RLIM_INFINITY;
+  
+  if (setrlimit(RLIMIT_MEMLOCK, &rlim) != 0) return false;
+  return true;
+}
+
+
+
+void report_memlock_limits()
+{
+  struct rlimit rlim;
+  ostringstream sout;
+
+  sout << "Node " << processor_name << ", pid=" << getpid();
+  if (getrlimit(RLIMIT_MEMLOCK, &rlim) == 0) {
+    sout << ", using MEMLOCK limits (soft, hard) = (" 
+	 << rlim.rlim_cur << ", " << rlim.rlim_max << ")";
+  } else {
+    sout << ", could not get RLIMIT_MEMLOCK!";
+  }
+
+  cout << sout.str() << endl << flush;
+}
+
 
 /**
    The MAIN routine
@@ -125,10 +160,14 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
 
+  bool mstat = set_memlock_limits();
+
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   MPI_Get_processor_name(processor_name, &proc_namelen);
+
+  if (!mstat) report_memlock_limits();
 
 				// Make SLAVE group 
 #ifdef SLAVE_GROUP

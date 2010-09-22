@@ -16,7 +16,8 @@ Particle::Particle()
   scale   = -1;
   effort  = effort_default;
   indx    = 0;
-  key     = 0;
+  tree    = 0u;
+  key     = 0u;
 }
 
 Particle::Particle(unsigned niatr, unsigned ndatr)
@@ -31,7 +32,8 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   scale   = -1;
   effort  = effort_default;
   indx    = 0;
-  key     = 0;
+  tree    = 0u;
+  key     = 0u;
   iattrib = vector<int>(niatr, 0);
   dattrib = vector<double>(ndatr, 0);
 }
@@ -53,6 +55,7 @@ Particle::Particle(const Particle &p)
   scale   = p.scale;
   effort  = p.effort;
   indx    = p.indx;
+  tree    = p.tree;
   key     = p.key;
 }
 

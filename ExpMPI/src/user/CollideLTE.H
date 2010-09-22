@@ -35,7 +35,7 @@ protected:
   void initialize_cell(pCell* cell, double vrelmax, 
 		       double dt, double number, int id=0);
 
-  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  int inelastic(pH2OT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
   // Diagnostic output
   //

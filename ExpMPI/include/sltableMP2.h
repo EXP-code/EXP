@@ -1,7 +1,8 @@
 #include <Vector.h>
 
-struct TableCyl {
-
+class TableCyl 
+{
+ public:
   int m;
   int k;
 
@@ -9,16 +10,18 @@ struct TableCyl {
   Matrix ef;
 };
 
-struct TableSph {
-
+class TableSph 
+{
+ public:
   int l;
 
   Vector ev;
   Matrix ef;
 };
 
-struct TableSlab {
-
+class TableSlab 
+{
+public:
   int kx;
   int ky;
 

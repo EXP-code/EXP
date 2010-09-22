@@ -2,6 +2,8 @@
 
 if test ! -f install-sh ; then touch install-sh ; fi
 
+NPROC=`cat /proc/cpuinfo | grep processor | wc -l`
+
 MAKE=`which gnumake`
 if test ! -x "$MAKE" ; then MAKE=`which gmake` ; fi
 if test ! -x "$MAKE" ; then MAKE=`which make` ; fi
@@ -39,5 +41,5 @@ automake --add-missing
 automake
 autoconf
 ./configure $*
-$MAKE CXXFLAGS="-O3" CFLAGS="-O3" -j3
+$MAKE CXXFLAGS="-O3" CFLAGS="-O3" -j$NPROC
 

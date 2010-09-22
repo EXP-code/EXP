@@ -48,6 +48,8 @@ bool   DiskHalo::CHEBY    = false;
 unsigned DiskHalo::VFLAG = 0;
 unsigned DiskHalo::NBUF = 8192;
 
+string DiskHalo::RUNTAG = "debug";
+
 static AxiSymModel *model;
 double targetmass;
 				// Determine radius with given enclosed mass
@@ -289,25 +291,24 @@ DiskHalo::DiskHalo(const DiskHalo &p)
     center_vel[k] = p.center_vel[k];
   }
 
-  expandh = p.expandh;
-  expandd = p.expandd;
+  expandh    = p.expandh;
+  expandd    = p.expandd;
 
   disktableP = p.disktableP;
   disktableN = p.disktableN;
-  epitable = p.epitable;
-  dv2table = p.dv2table;
-  asytable = p.asytable;
+  epitable   = p.epitable;
+  dv2table   = p.dv2table;
+  asytable   = p.asytable;
 
   dP = p.dP;
   dR = p.dR;
   dZ = p.dZ;
-  epiRmin = p.epiRmin;
 
   halotable = p.halotable;
   dr = p.dr;
   dc = p.dc;
 
-  gen = new ACG(SEED+myid, 20);
+  gen  = new ACG(SEED+myid, 20);
   rndU = new Uniform(0.0, 1.0, gen);
   rndN = new Normal(0.0, 1.0, gen);
 
@@ -777,7 +778,7 @@ epi(double xp, double yp, double zp)
   cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
 				// Cylindrical radius
-  lR = log(max<double>(RDMIN, max<double>(epiRmin, sqrt(xp*xp + yp*yp))));
+  lR = log(max<double>(RDMIN, sqrt(xp*xp + yp*yp)));
   ir1 = floor( (lR - log(RDMIN))/dR );
   ir1 = min<int>( ir1, NDR-2 );
   ir1 = max<int>( ir1, 0 );
@@ -794,17 +795,24 @@ epi(double xp, double yp, double zp)
     
   if (ans>0.0) return sqrt(ans);
   else {
-    cout << "Process " << myid << " epi range error" << endl
-	 << "     R="  << sqrt(xp*xp + yp*yp)    << endl
-	 << "   Phi="  << phi                    << endl
-	 << "    cp="  << cp[0] << ", " << cp[1] << endl
-	 << "    cr="  << cr[0] << ", " << cr[1] << endl
-	 << "    ans=" << ans                   << endl
-	 << "    ep1=" << epitable[iphi1][ir1] << endl
-	 << "    ep2=" << epitable[iphi1][ir2] << endl
-	 << "    ep3=" << epitable[iphi2][ir1] << endl
-	 << "    ep4=" << epitable[iphi2][ir2] << endl
-	 << endl;
+    ostringstream sout;
+    sout << "epi_range_error." << RUNTAG << "." << myid;
+    ofstream out(sout.str().c_str(), ios::app);
+    out << "Process " << myid << " epi range error" << endl
+	<< "     R="  << sqrt(xp*xp + yp*yp)    << endl
+	<< "  Rmax="  << RDMIN*exp(dR*NDR)      << endl
+	<< "   del="  << (lR - log(RDMIN))/dR   << endl
+	<< "   ir1="  << ir1 << "/" << NDR      << endl
+	<< "   ir2="  << ir2 << "/" << NDR      << endl
+	<< "    cr="  << cr[0] << ", " << cr[1] << endl
+	<< "   Phi="  << phi                    << endl
+	<< "    cp="  << cp[0] << ", " << cp[1] << endl
+	<< "    ans=" << ans                    << endl
+	<< "    ep1=" << epitable[iphi1][ir1]   << endl
+	<< "    ep2=" << epitable[iphi1][ir2]   << endl
+	<< "    ep3=" << epitable[iphi2][ir1]   << endl
+	<< "    ep4=" << epitable[iphi2][ir2]   << endl
+	<< endl;
     return 1.0e-8;
   }
 }
@@ -980,7 +988,7 @@ table_disk(vector<Particle>& part)
 
       if (i==ibeg[myid] && j==0) {
 	ostringstream ofile;
-	ofile << "intgr_disk_P.d" << myid;
+	ofile << "intgr_disk_P." << RUNTAG << ".d" << myid;
 	ofstream dout(ofile.str().c_str());
 	for (int k=0; k<NDZ; k++) {
 	  dout << setw(15) << workZ[k] 
@@ -999,7 +1007,7 @@ table_disk(vector<Particle>& part)
 
       if (i==ibeg[myid] && j==0) {
 	ostringstream ofile;
-	ofile << "intgr_disk_N.d" << myid;
+	ofile << "intgr_disk_N." << RUNTAG << ".d" << myid;
 	ofstream dout(ofile.str().c_str());
 	for (int k=0; k<NDZ; k++) 
 	  dout << setw(15) << workZ[k] 
@@ -1068,7 +1076,7 @@ table_disk(vector<Particle>& part)
   }
 
 				// Check epitable
-  double epirmin=1.0e20, epivmin=1.0e20, epiVmin=0.0;
+  double epirmin=1.0e20, epivmin=1.0e20, epiRmin, epiVmin;
   for (int i=0; i<NDP; i++) {
     bool first = true;
     for (int j=0; j<NDR; j++) {
@@ -1102,7 +1110,9 @@ table_disk(vector<Particle>& part)
 
 				// Check solution
   if (myid==curid && expandh) {
-    ofstream out("ep_test.dat");
+    ostringstream sout;
+    sout << "ep_test." << RUNTAG;
+    ofstream out(sout.str().c_str());
     out.setf(ios::scientific);
     out.precision(4);
 
@@ -1153,7 +1163,9 @@ table_disk(vector<Particle>& part)
 	  << endl;
     }
 
-    ofstream dump("epitable.dump");
+    ostringstream sout2;
+    sout2 << "epitable." << RUNTAG;
+    ofstream dump(sout2.str().c_str());
     for (int i=0; i<NDP; i++) {
       phi = dP*i;
       for (int j=0; j<NDR; j++)
@@ -1185,9 +1197,10 @@ table_disk(vector<Particle>& part)
     dump.close();
   }
     
-  if (myid==curid)
-  {
-    ofstream out("ep_disk.dat");
+  if (myid==curid) {
+    ostringstream sout;
+    sout << "ep_disk." << RUNTAG;
+    ofstream out(sout.str().c_str());
     out.setf(ios::scientific);
     out.precision(8);
 
@@ -1208,9 +1221,10 @@ table_disk(vector<Particle>& part)
     out.close();
   }
 
-  if (myid==curid)
-    {
-    ofstream out("table_disk.dat");
+  if (myid==curid) {
+    ostringstream sout;
+    sout << "table_disk." << RUNTAG;
+    ofstream out(sout.str().c_str());
     out.setf(ios::scientific);
     out.precision(8);
     
@@ -1236,17 +1250,16 @@ table_disk(vector<Particle>& part)
 
 /*
   Given assertion that $\sigma_r$ follows from Toomre Q condition, solve
-  Jeans' equation to get ${\bar v_\phi}$ assume that 
-  $\sigma_\phi^2 = \bar{v_\phi^2}$
+  Jeans' equation to get ${\bar v_\phi}$ and $\sigma_\phi$.
 */
-double DiskHalo::vphi(double xp, double yp, double zp)
+double DiskHalo::vp_disp(double xp, double yp, double zp)
 {
-  double R, ans, R1, R2, X1, Y1, X2, Y2, t2, t1, phi, vc;
+  double R, ans, R1, R2, X1, Y1, X2, Y2, t2, t1, phi;
 
   R = sqrt(xp*xp + yp*yp);
   phi = atan2(yp, xp);
   
-  const double DR = 0.01;
+  const double DR = 0.1;
   R1 = R*(1.0 - DR);
   R2 = R*(1.0 + DR);
 
@@ -1259,10 +1272,7 @@ double DiskHalo::vphi(double xp, double yp, double zp)
   t1 = disk_density(R1, 0.0)*vr_disp(X1, Y1, 0.0);
   t2 = disk_density(R2, 0.0)*vr_disp(X2, Y2, 0.0);
 
-  vc = v_circ(xp, yp, 0.0);
-
-  ans = vc*vc + 
-    vr_disp(xp, yp, 0.0) * (1.0 + (log(t1)-log(t2))/(log(R1)-log(R2)));
+  ans = vr_disp(xp, yp, 0.0) * (1.0 + (log(t1)-log(t2))/(log(R1)-log(R2)));
   
   ans = sqrt(max<double>(0.0, ans));
 
@@ -1469,7 +1479,11 @@ set_vel_disk(vector<Particle>& part)
   
 				// Debugging
   ofstream out;
-  if (myid==0) out.open("test_vel.dat");
+  if (myid==0) {
+    ostringstream sout;
+    sout << "test_vel." << RUNTAG;
+    out.open(sout.str().c_str());
+  }
 
 
   vector<Particle>::iterator p;
@@ -1484,7 +1498,7 @@ set_vel_disk(vector<Particle>& part)
 
     vvZ = get_dispdz(x, y, z);
     vvR = vr_disp(x, y, z);
-    vvP = vvR;
+    vvP = vp_disp(x, y, z);
 				 // For safety; should only be a problem
 				 // on extrapolating the range
     vvZ = max<double>(vvZ, MINDOUBLE);
@@ -1507,7 +1521,7 @@ set_vel_disk(vector<Particle>& part)
     // Asymmetric drift correction
     ac   = vvR*a_drift(x, y, z);
     // No asymmetric drift correction
-    // ac   = 0.0;
+    ac   = 0.0;
     vc   = v_circ(x, y, z);
     if (isnan(vc))
       {
@@ -1685,7 +1699,9 @@ void DiskHalo::table_halo_disp()
   // DEBUG output
   //
   if (myid==0 && VFLAG & 4) {
-    ofstream out("disp_halo.dat");
+    ostringstream sout;
+    sout << "disp_halo." << RUNTAG;
+    ofstream out(sout.str().c_str());
     out.setf(ios::scientific);
     out.precision(2);
     
@@ -1792,7 +1808,9 @@ table_halo(vector<Particle>& part)
   // DEBUG output
   //
   if (myid==0 && expandh && VFLAG & 4) {
-    ofstream out("table_halo.dat");
+    ostringstream sout;
+    sout << "table_halo." << RUNTAG;
+    ofstream out(sout.str().c_str());
     out.setf(ios::scientific);
     out.precision(8);
     
@@ -1805,7 +1823,9 @@ table_halo(vector<Particle>& part)
       out << endl;
     }
     
-    ofstream out2("test_halo_pot.dat");
+    ostringstream sout2;
+    sout2 << "test_halo_pot." << RUNTAG;
+    ofstream out2(sout2.str().c_str());
     out2.setf(ios::scientific);
     out2.precision(2);
     
@@ -1823,7 +1843,9 @@ table_halo(vector<Particle>& part)
     }
     
     
-    ofstream out3("disp_diff.dat");
+    ostringstream sout3;
+    sout3 << "disp_diff." << RUNTAG;
+    ofstream out3(sout3.str().c_str());
     double xx, zz, costh;
     
     for (int j=0; j<NHT; j++) {

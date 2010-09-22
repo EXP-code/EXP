@@ -4,26 +4,22 @@ using namespace std;
 #include <iostream>
 #include <iomanip>
 #include <sstream>
+#include <vector>
 
-void testme(istream* ins)
+
+void set_element(int *i, int j)
 {
-  const int nbuf = 1024;
-  char line[nbuf];
-  int icnt=0;
-  while (!ins->eof()) {
-    ins->getline(line, nbuf);
-    cout << setw(5) << ++icnt << ": " << line << endl;
-  }
+  *i = j;
 }
 
 int
 main()
 {
-  string data("This is the first test!\n");
-  data += "This is the second test!\n";
-  data += "This is the third test!";
+  vector<int> t(3, 3);
 
-  istringstream ins(data);
-  testme(&ins);
+  cout << t[2] << endl;
+  int *i = &t[2];
+  set_element(i, 18);
+  cout << t[2] << endl;
 }
 

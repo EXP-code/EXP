@@ -131,6 +131,7 @@ program_option init[] = {
   {"TNUM",            "int",       "80",              "Number of cos(theta) knots for EmpCylSL basis construction quadrature"},
   {"CMAP",            "bool",      "false",           "Map coordinates from radius to tabled grid"},
   {"LOGR",            "bool",      "false",           "Make a logarithmic coordinate mapping"},
+  {"CHEBY",           "bool",      "false",           "Use Chebyshev smoothing for epicyclic and asymmetric drift"},
   {"NDR",             "int",       "1600",            "Number of points in DiskHalo radial table for disk"},
   {"NDZ",             "int",       "400",             "Number of points in DiskHalo vertical table for disk"},
   {"NHR",             "int",       "1600",            "Number of points in DiskHalo radial table for halo"},
@@ -224,6 +225,7 @@ bool         GAUSSIAN;
 bool         PLUMMER;
 bool         CMAP;
 bool         LOGR;
+bool         CHEBY;
 int          NDR;
 int          NDZ;
 int          NHR;
@@ -302,6 +304,7 @@ void param_assign()
    expcond            = config.get<bool>    ("expcond");
    CMAP               = config.get<bool>    ("CMAP");
    LOGR               = config.get<bool>    ("LOGR");
+   CHEBY              = config.get<bool>    ("CHEBY");
    NDR                = config.get<int>     ("NDR");
    NDZ                = config.get<int>     ("NDZ");
    NHR                = config.get<int>     ("NHR");
@@ -506,7 +509,9 @@ main(int argc, char **argv)
   DiskHalo::DR_DF       = DR_DF;
   DiskHalo::SEED        = SEED;
   DiskHalo::VFLAG       = static_cast<unsigned int>(DFLAG);
-  DiskHalo::CHEBY       = false;
+  DiskHalo::CHEBY       = CHEBY;
+  if (suffix.size())
+      DiskHalo::RUNTAG  = suffix;
 
   AddDisk::use_mpi      = true;
   AddDisk::Rmin         = RMIN;
@@ -938,6 +943,8 @@ main(int argc, char **argv)
     double z, dz = (log(rmax) - log(zmin))/(nzint-1);
 
     double p0, p, fr, fz, fp, dens, potl, potr, pott, potp;
+
+    cout << "Const_height=" << (const_height ? "True" : "False") << endl;
 
     if (const_height) {
 

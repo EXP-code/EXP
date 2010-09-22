@@ -141,6 +141,7 @@ void UserPeriodic::initialize()
 
 void UserPeriodic::determine_acceleration_and_potential(void)
 {
+  if (cC != c0) return;
   if (nbin && tnow>=Tnext) trace = true;
   exp_thread_fork(false);
   if (trace) write_trace();
@@ -210,8 +211,14 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 
     
     for (int k=0; k<3; k++) {
-				// Increment so that the positions range
-				// between 0 and L[k]
+
+      // Ignore vacuum boundary dimensions
+      //
+      if (bc[k] == 'v') continue;
+
+      // Increment so that the positions range
+      // between 0 and L[k]
+      //
       pos = p->pos[k] + offset[k];
 
       //
@@ -220,44 +227,38 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
       if (bc[k] == 'r') {
 	if (pos < 0.0) {
 	  delta = -pos - L[k]*floor(-pos/L[k]);
-	  p->pos[k] = delta;
+	  p->pos[k] = delta - offset[k];
 	  p->vel[k] = -p->vel[k];
 	} 
 	if (pos >= L[k]) {
 	  delta = pos - L[k]*floor(pos/L[k]);
-	  p->pos[k] =  L[k] - delta;
+	  p->pos[k] =  L[k] - delta - offset[k];
 	  p->vel[k] = -p->vel[k];
 	}
       }
-	
+
       //
       // Periodic BC
       //
       if (bc[k] == 'p') {
 	if (pos < 0.0) {
 	  p->pos[k] = p->pos[k] + L[k]*floor(1.0+fabs(pos/L[k]));
+	  
 	}
 	if (pos >= L[k]) {
 	  p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
 	}
       }
-	
-				// Replace the offset
-      pos = p->pos[k] - offset[k];
-    }
-
-    //
-    // Sanity check for this particle
-    //
-    for (int k=0; k<3; k++) {
-      if (bc[k] != 'v') {
-	if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
-	  cout << "Process " << myid << " id=" << id 
-	       << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
-	}
+      
+      //
+      // Sanity check
+      //
+      if (p->pos[k] < -offset[k] || p->pos[k] >= L[k]-offset[k]) {
+	cout << "Process " << myid << " id=" << id 
+	     << ": Error in pos[" << k << "]=" << p->pos[k] << endl;
       }
     }
-    
+
     //
     // Acccumlate data for shocktube trace
     //

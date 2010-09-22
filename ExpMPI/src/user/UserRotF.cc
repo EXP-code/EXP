@@ -148,7 +148,7 @@ void UserRotF::initialize()
   if (get_value("RROT", val))       RROT = atof(val.c_str());
   if (RROT <= 0.0) RROT_Flag = 0;
   
-  if (get_value("TidalON",val))         TidalON = atoi(val.c_str()) ? true : false;
+  if (get_value("TidalON",val))         TidalON = atol(val);
   if (get_value("Nint",val))            Nint = atoi(val.c_str());
   if (get_value("Ngrid",val))           Ngrid = atoi(val.c_str());
   if (get_value("alpha", val))          alpha = atof(val.c_str());
@@ -160,8 +160,8 @@ void UserRotF::initialize()
   if (get_value("diverge_rfac", val))   diverge_rfac = atof(val.c_str());
   if (get_value("filename", val))       filename = val;
 
-  if (get_value("CentrifugalON",val))    CentrifugalON = atoi(val.c_str()) ? true : false;
-  if (get_value("CoriolisON",val))       CoriolisON = atoi(val.c_str()) ? true : false;
+  if (get_value("CentrifugalON",val))   CentrifugalON = atol(val);
+  if (get_value("CoriolisON",val))      CoriolisON = atol(val);
 
 
 }

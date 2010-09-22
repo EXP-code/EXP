@@ -176,12 +176,12 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	  
 	if (oflags & AXIS) {
 	  sumsA.push_back(DV(time, axis1));
-	  if (sumsA.size() > keep) sumsA.pop_front();
+	  if (static_cast<int>(sumsA.size()) > keep) sumsA.pop_front();
 	}
 
 	if (oflags & CENTER) {
 	  sumsC.push_back(DV(time, center1));
-	  if (sumsC.size() > keep) sumsC.pop_front();
+	  if (static_cast<int>(sumsC.size()) > keep) sumsC.pop_front();
 	}
 	
       }
@@ -349,7 +349,7 @@ void Orient::accumulate(double time, Component *c)
   unsigned tkeep = (many+myid)/numprocs;
   set<EL3, ltEL3>::reverse_iterator el3last = angm.rbegin();
 
-  for (int q=0; q<nbodies; q++) {
+  for (unsigned q=0; q<nbodies; q++) {
 
     unsigned long i = (it++)->first;
 
@@ -511,7 +511,7 @@ void Orient::accumulate(double time, Component *c)
 	 << center1[3] << endl;
   }
 
-  if (sumsA.size() > keep) {
+  if (static_cast<int>(sumsA.size()) > keep) {
 
     sumsA.pop_front();
 
@@ -565,7 +565,7 @@ void Orient::accumulate(double time, Component *c)
 
   if (sumsC.size() > 1) {
     
-    if (sumsC.size() > keep) sumsC.pop_front();
+    if (static_cast<int>(sumsC.size()) > keep) sumsC.pop_front();
 
     double x;
     int i=0;

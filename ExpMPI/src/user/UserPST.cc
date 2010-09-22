@@ -356,23 +356,23 @@ void UserPST::initialize()
 {
   string val;
 
-  if (get_value("rmin", val))	        rmin    = atof(val.c_str());
-  if (get_value("rmax", val))	        rmax    = atof(val.c_str());
-  if (get_value("numr", val))	        numr    = atoi(val.c_str());
-  if (get_value("blog", val))	        blog    = atoi(val.c_str()) ? true : false;
-  if (get_value("dlog", val))	        dlog    = atoi(val.c_str()) ? true : false;
-  if (get_value("arat", val))		arat    = atof(val.c_str());
-  if (get_value("Qm", val))		Qm      = atof(val.c_str());
-  if (get_value("rL", val))		rL      = atof(val.c_str());
-  if (get_value("rhoC", val))		rhoC    = atof(val.c_str());
-  if (get_value("nu", val))		nu      = atof(val.c_str());
-  if (get_value("Lmax", val))		Lmax    = atoi(val.c_str());
-  if (get_value("Nmax", val))		Nmax    = atoi(val.c_str());
-  if (get_value("numR", val))		numR    = atoi(val.c_str());
-  if (get_value("numt", val))		numt    = atoi(val.c_str());
-  if (get_value("numg", val))		numg    = atoi(val.c_str());
-  if (get_value("Ton", val))		Ton = atof(val.c_str());
-  if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
+  if (get_value("rmin", val))	        rmin     = atof(val.c_str());
+  if (get_value("rmax", val))	        rmax     = atof(val.c_str());
+  if (get_value("numr", val))	        numr     = atoi(val.c_str());
+  if (get_value("blog", val))	        blog     = atol(val);
+  if (get_value("dlog", val))	        dlog     = atol(val);
+  if (get_value("arat", val))		arat     = atof(val.c_str());
+  if (get_value("Qm", val))		Qm       = atof(val.c_str());
+  if (get_value("rL", val))		rL       = atof(val.c_str());
+  if (get_value("rhoC", val))		rhoC     = atof(val.c_str());
+  if (get_value("nu", val))		nu       = atof(val.c_str());
+  if (get_value("Lmax", val))		Lmax     = atoi(val.c_str());
+  if (get_value("Nmax", val))		Nmax     = atoi(val.c_str());
+  if (get_value("numR", val))		numR     = atoi(val.c_str());
+  if (get_value("numt", val))		numt     = atoi(val.c_str());
+  if (get_value("numg", val))		numg     = atoi(val.c_str());
+  if (get_value("Ton", val))		Ton      = atof(val.c_str());
+  if (get_value("DeltaT", val))		DeltaT   = atof(val.c_str());
   if (get_value("filename", val))	filename = val;
 }
 
@@ -402,7 +402,6 @@ void UserPST::determine_acceleration_and_potential(void)
 void * UserPST::determine_acceleration_and_potential_thread(void * arg) 
 {
   int id = *((int*)arg), nbodies, nbeg, nend, indx;
-  double fac, ffac, amp = 0.0;
   double xx, yy, zz, rr, bfrc, fr, fz, extpot;
   vector<double> pos(3), pos1(3), acct(3), force(4), acc(3);
 

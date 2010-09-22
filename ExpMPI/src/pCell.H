@@ -7,49 +7,26 @@
 #include <map>
 #include <deque>
 
-#include "global.H"
-#include "pHOT_types.H"
+#include <global.H>
+#include <pHOT_types.H>
 
 using namespace std;
 
-class pHOT;
+class pTree;
+class Component;
 
-class pCell
+class sCell
 {
-private:
-
-  pHOT* tree;
+protected:
   deque<double> CRMlist;
   double CRMsum;
   unsigned CRMnum;
 
 public:
 
-  //! Target collision bucket size
-  static unsigned bucket;
-
-  //! Target macroscopic bucket size
-  static unsigned Bucket;
-
-  //! Number of entries in running CRM average (default: 8)
-  static unsigned CRMcnt;
-
-  //! Sampling method
-  static bool NTC;
-
-  //! Constructors
-  pCell(pHOT* tr);
-  pCell(pCell* mom, unsigned id);
-
-  //! Destructor
-  ~pCell();
-
   int owner;
-  key_type mykey;
-  key_type mask;
   unsigned level;
   unsigned count;
-  unsigned maxplev;
 
   /**
      @param 0 mass
@@ -65,13 +42,76 @@ public:
   */
   vector<double> state;
 
+  //! Maximum relative velocity average (<0 if no entries)
+  double CRMavg();
+
+  //! Add maximum to list
+  void CRMadd(double crm);
+
+  //! Return kinetic energy per unit mass per cell (total & temperature)
+  void KE(double &tot, double &dsp);
+
+  //! Return total mass in cell;
+  double Mass();
+
+  //! Return total volume of cell
+  virtual double Volume() = 0;
+
+  //! Return the length scale factor from the quad tree
+  virtual double Scale() = 0;
+
+  //! Mean position
+  //@{
+  void MeanPos(double &x, double &y, double& z);
+  void MeanPos(vector<double>& p);
+  //@}
+
+  //! Mean velocity
+  //@{
+  void MeanVel(double &x, double &y, double& z);
+  void MeanVel(vector<double>& v);
+  //@}
+};
+
+class pCell : public sCell
+{
+private:
+
+  pTree* tree;
+  Component *C;
+
+public:
+
+  //! Track number of instances
+  static int live;
+
+  //! Target collision bucket size
+  static unsigned bucket;
+
+  //! Target macroscopic bucket size
+  static unsigned Bucket;
+
+  //! Sampling method
+  static bool NTC;
+
+  //! Constructors
+  pCell(pTree* tr);
+  pCell(pCell* mom, unsigned id);
+
+  //! Destructor
+  ~pCell();
+
+  key_type mykey;
+  key_type mask;
+  unsigned maxplev;
+
   pCell* parent;
-  pCell* sample;
+  sCell* sample;
   map<unsigned, pCell*> children;
   bool isLeaf;
   
   key_indx keys;
-  set<unsigned> bods;
+  set<unsigned long> bods;
 
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&, change_list* change=0);
@@ -90,17 +130,24 @@ public:
 
   //! Check that this key belongs to this branch
   bool isMine(const key_type& key) {
-    if (key==0) return false;
+    if (key==0u) return false;
     key_type sig = (key_type)(key - mask) >> 3*(nbits-level);
-    if (sig!=0) return false;
+    if (sig!=0u) return false;
     return true;
   }
+
+  //! Remove key from list
+  void RemoveKey(const key_pair& oldpair);
 
   //! Update keys list
   void UpdateKeys(const key_pair& oldpair, const key_pair& newpair);
 
   //! Recursively zero the tree's state vector
   void zeroState();
+  
+  //! Recursively zero the tree's state vector and accumulate the
+  //! state for the entire tree
+  void computeState();
   
   //! Walk down, accumulating state
   void accumState();
@@ -113,50 +160,23 @@ public:
   //! Compute the node key at the child level
   unsigned childId(key_type key);
 
-  //! Return kinetic energy per unit mass per cell (total & temperature)
-  void KE(double &tot, double &dsp);
+  //! Remake the maxplev variable from the particles
+  unsigned remake_plev();
 
-  //! Return velocity statistics
+  //! Find the cells whose body number is "just" larger than Bucket
+  sCell* findSampleCell();
+
+  //! Return bodies from this cell
+  Particle* Body(set<unsigned long>::iterator k);
+
+  //! Return velocity statistics for particles in the cell
   void Vel(double &mass, vector<double>& v, vector<double>& v2);
-
-  //! Return total mass in cell;
-  double Mass();
 
   //! Return total volume of cell
   double Volume();
 
   //! Return the length scale factor from the quad tree
   double Scale();
-
-  //! Mean position
-  //@{
-  void MeanPos(double &x, double &y, double& z);
-  void MeanPos(vector<double>& p);
-  //@}
-
-  //! Mean velocity
-  //@{
-  void MeanVel(double &x, double &y, double& z);
-  void MeanVel(vector<double>& v);
-  //@}
-
-  //! Remake the maxplev variable from the particles
-  unsigned remake_plev();
-
-  //! Find the cells whose body number is "just" larger than Bucket
-  pCell* findSampleCell();
-
-  //! Return number of bodies in Sample Cell
-  unsigned SampleBodyNumber() { return sample->bods.size(); }
-
-  //! Return bodies from this cell
-  Particle* Body(set<unsigned>::iterator k);
-
-  //! Maximum relative velocity average (<0 if no entries)
-  double CRMavg();
-
-  //! Add maximum to list
-  void CRMadd(double crm);
 
 };
 

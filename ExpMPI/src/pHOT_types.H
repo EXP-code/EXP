@@ -6,37 +6,52 @@
 #include <map>
 #include <set>
 
+#ifdef INT128
+#include <uint128.H>
+#endif
+
 using namespace std;
 using namespace __gnu_cxx;
 
+class pCell;
+struct Partstruct;
+
+typedef unsigned long indx_type;
+#ifdef INT128
+typedef uint128 key_type;
+#else
+typedef unsigned long key_type;
+#endif
+typedef pair<key_type, indx_type> key_pair;
+typedef pair<key_type, key_type> key_item;
+typedef pair<pCell*, indx_type> cell_indx;
+
 struct eqULL {
-  bool operator()(const unsigned long long __i1, 
-		  const unsigned long long __i2) const
+  bool operator()(const key_type __i1, 
+		  const key_type __i2) const
   { return (__i1==__i2); }
 };
 
 struct ltPAIR {
-  bool operator()(const pair<unsigned long long, unsigned> __p1,
-		  const pair<unsigned long long, unsigned> __p2) const
+  bool operator()(const pair<key_type, indx_type> __p1,
+		  const pair<key_type, indx_type> __p2) const
   { 
     if (__p1.first==__p2.first) return (__p1.second<__p2.second); 
     else return (__p1.first<__p2.first);
   }
 };
 
+#ifdef I128
 struct hashULL {
-  size_t operator()(unsigned long long __i) const
+  size_t operator()(uint128 __i) const
+  { return static_cast<size_t>(__i.toUint()); }
+};
+#else
+struct hashULL {
+  size_t operator()(unsigned long __i) const
   { return static_cast<size_t>(__i); }
 };
-
-class pCell;
-struct Partstruct;
-
-typedef unsigned long indx_type;
-typedef unsigned long long key_type;
-typedef pair<key_type, unsigned> key_pair;
-typedef pair<key_type, key_type> key_item;
-typedef pair<pCell*, indx_type> cell_indx;
+#endif
 
 				// For cell transaction list
 typedef list<cell_indx> change_list;
@@ -62,7 +77,7 @@ typedef pair<key_type, double> key_wght;
 				// Cell key points to cell pointer
 typedef std::unordered_map<key_type, pCell*, hashULL, eqULL> key_cell;
 				// Particle index points to particle key
-typedef std::unordered_map<unsigned, key_type, std::hash<indx_type> > indx_key;
+typedef std::unordered_map<indx_type, key_type, std::hash<indx_type> > indx_key;
 //============================================================================
 
 #else

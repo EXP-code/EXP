@@ -117,15 +117,15 @@ void UserDiffuse::initialize()
   if (get_value("nfreq", val))		nfreq = atoi(val.c_str());
   if (get_value("rmin", val))		rmin = atof(val.c_str());
   if (get_value("rmax", val))		rmax = atof(val.c_str());
-  if (get_value("logr", val))		logr = atoi(val.c_str()) ? true : false;
+  if (get_value("logr", val))		logr = atol(val);
   if (get_value("numr", val))		numr = atoi(val.c_str());
   if (get_value("numv", val))		numv = atoi(val.c_str());
 
-  if (get_value("use_file", val))	use_file = atoi(val.c_str()) ? true : false;
+  if (get_value("use_file", val))	use_file = atol(val);
   if (get_value("modfile", val))	modfile = val;
   if (get_value("diverge", val))	diverge = atoi(val.c_str());
   if (get_value("diverge_rfac", val))	diverge_rfac = atof(val.c_str());
-  if (get_value("check_ev", val))	check_ev = atoi(val.c_str()) ? true : false;
+  if (get_value("check_ev", val))	check_ev = atol(val);
 
   gen = new ACG(seed+myid);
   urand = new Uniform(0.0, 1.0, gen);

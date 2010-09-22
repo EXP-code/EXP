@@ -34,6 +34,7 @@ void ExternalForce::determine_coefficients(void)
 void * ExternalForce::determine_coefficients_thread(void * arg)
 {
 				// Do nothing
+  return (NULL);
 }
 
 void ExternalForce::determine_acceleration_and_potential(void)

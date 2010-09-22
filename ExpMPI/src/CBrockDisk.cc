@@ -320,6 +320,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
     }
   }
 
+  return (NULL);
 }
 
 
@@ -403,6 +404,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     it++;
   }
 
+  return (NULL);
 }
 
 void 
@@ -702,7 +704,7 @@ void CBrockDisk::dump_coefs(ostream& out)
   sout << id;
 
   char buf[64];
-  for (int i=0; i<64; i++) {
+  for (unsigned i=0; i<64; i++) {
     if (i<sout.str().length()) 
       buf[i] = sout.str().c_str()[i];
     else 

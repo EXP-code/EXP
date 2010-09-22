@@ -66,10 +66,11 @@
 
 #include <iostream>
 #include <iomanip>
-
-#include <gaussQ.h>
+#include <vector>
 
 using namespace std;
+
+#include <gaussQ.h>
 
                               /* if DEBUG is set, weights and abscissas are
                                  printed on stderr */

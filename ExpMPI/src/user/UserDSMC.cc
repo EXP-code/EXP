@@ -130,7 +130,7 @@ void UserDSMC::initialize()
   if (get_value("NZ", val))		NZ = atoi(val.c_str());
   if (get_value("NP", val))		NP = atoi(val.c_str());
   if (get_value("seed", val))		seed = atoi(val.c_str());
-  if (get_value("debug", val))		debug = atoi(val.c_str()) ? true : false;
+  if (get_value("debug", val))		debug = atol(val);
 }
 
 
@@ -290,7 +290,7 @@ void UserDSMC::makeGrid()
   // Resize the particle buffers
   // 
   if (myid==0) {
-    if ((int)radii.size() != c0->nbodies_tot) radii.resize(c0->nbodies_tot);
+    if (radii.size() != c0->nbodies_tot) radii.resize(c0->nbodies_tot);
     int nb = 0;
     for (int n=1; n<numprocs; n++) nb = max<int>(nb, counts[n]);
     if ((int)radiiT.size() == nb) radiiT.resize(nb);

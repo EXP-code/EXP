@@ -266,9 +266,9 @@ void UserEBar::initialize()
   if (get_value("T0", val))		T0 = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
   if (get_value("omega", val))		omega0 = atof(val.c_str());
-  if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
-  if (get_value("self", val))		fixed = atoi(val.c_str()) ? false:true;
-  if (get_value("oscil", val))		oscil = atoi(val.c_str()) ? true:false;
+  if (get_value("fixed", val))		fixed = atol(val);
+  if (get_value("self", val))		fixed = atol(val);
+  if (get_value("oscil", val))		oscil = atol(val);
   if (get_value("Ofreq", val))		Ofreq = atof(val.c_str());
   if (get_value("Oamp", val))		Oamp = atof(val.c_str());
   if (get_value("alpha", val))		alpha = atof(val.c_str());
@@ -278,9 +278,9 @@ void UserEBar::initialize()
   if (get_value("u0", val))     	vel[0] = atof(val.c_str());
   if (get_value("v0", val))     	vel[1] = atof(val.c_str());
   if (get_value("w0", val))     	vel[2] = atof(val.c_str());
-  if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;  
-  if (get_value("follow", val))		monopole_follow = atoi(val.c_str()) ? true:false;
-  if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
+  if (get_value("monopole", val))	monopole = atol(val);
+  if (get_value("follow", val))		monopole_follow = atol(val);
+  if (get_value("onoff", val))		monopole_onoff = atol(val);
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;

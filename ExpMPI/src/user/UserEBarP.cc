@@ -263,10 +263,10 @@ void UserEBarP::initialize()
   if (get_value("TmonoOff", val))	TmonoOff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("DeltaMonoT", val))	DeltaMonoT = atof(val.c_str());
-  if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
-  if (get_value("monopole", val))	monopole = atoi(val.c_str()) ? true:false;
+  if (get_value("soft", val))		soft = atol(val);
+  if (get_value("monopole", val))	monopole = atol(val);
   if (get_value("fileomega", val))	fileomega = val;
-  if (get_value("onoff", val))		monopole_onoff = atoi(val.c_str()) ? true:false;
+  if (get_value("onoff", val))		monopole_onoff = atol(val);
   if (get_value("monofrac", val))	monopole_frac = atof(val.c_str());
   if (get_value("quadfrac", val))	quadrupole_frac = atof(val.c_str());
   if (get_value("filename", val))	filename = val;

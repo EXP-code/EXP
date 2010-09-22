@@ -2,25 +2,55 @@
 #include <iomanip>
 #include "global.H"
 #include "ParticleFerry.H"
-#include "pHOT.H"
+#include "pH2OT.H"
 
-MPI_Datatype ParticleFerry::Particletype;
+Partstruct::Partstruct()
+{
+  // Start with all fields initialized
+  mass = 0.0;
+  for (int i=0; i<3; i++) pos[i] = vel[i] = acc[i] = 0.0;
+  pot = potext = 0.0;
+  dtreq = scale = effort = 0.0;
+  level = 0;
+  indx  = 0;
+  tree  = 0u;
+  key   = 0u;
+  nicnt = 0;
+  ndcnt = 0;
+  for (int i=0; i<nimax; i++) iatr[i] = 0;
+  for (int i=0; i<ndmax; i++) datr[i] = 0.0;
+}
+
 
 ParticleFerry::ParticleFerry()
 {
 				// Assign particle structure buffer
   buf = new Partstruct [PFbufsz];
   ibufcount = 0;
+
+  const int nf = 17;		// Number of fields
+
 				// Make MPI datatype
-  
-  MPI_Datatype type[16] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE,
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_FLOAT,  MPI_FLOAT, MPI_FLOAT,
-			   MPI_UNSIGNED, MPI_UNSIGNED_LONG, MPI_UNSIGNED_LONG_LONG, 
-			   MPI_UNSIGNED, MPI_UNSIGNED,
-			   MPI_INT, MPI_DOUBLE};
+#ifdef I128
+  MPI_Datatype type[nf] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
+			   MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
+			   MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
+			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
+			   MPI_UNSIGNED, MPI_EXP_KEYTYPE,      // 2 (13)
+			   MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
+			   MPI_INT, MPI_DOUBLE};               // 2 (17)
+#else
+  MPI_Datatype type[nf] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
+			   MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
+			   MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
+			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
+			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (13)
+			   MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
+			   MPI_INT, MPI_DOUBLE};               // 2 (17)
+#endif
 
 				// Get displacements
-  MPI_Aint disp[15];
+  MPI_Aint disp[nf];
   MPI_Get_address(&buf[0].mass,		&disp[0]);
   MPI_Get_address(&buf[0].pos,		&disp[1]);
   MPI_Get_address(&buf[0].vel,		&disp[2]);
@@ -28,23 +58,40 @@ ParticleFerry::ParticleFerry()
   MPI_Get_address(&buf[0].pot,		&disp[4]);
   MPI_Get_address(&buf[0].potext,	&disp[5]);
   MPI_Get_address(&buf[0].dtreq,	&disp[6]);
-  MPI_Get_address(&buf[0].scale,	&disp[7]);  
+  MPI_Get_address(&buf[0].scale,	&disp[7]);
   MPI_Get_address(&buf[0].effort,	&disp[8]);  
   MPI_Get_address(&buf[0].level,	&disp[9]);
   MPI_Get_address(&buf[0].indx,		&disp[10]);
-  MPI_Get_address(&buf[0].key,		&disp[11]);
-  MPI_Get_address(&buf[0].nicnt,	&disp[12]);
-  MPI_Get_address(&buf[0].ndcnt,	&disp[13]);
-  MPI_Get_address(&buf[0].iatr,		&disp[14]);
-  MPI_Get_address(&buf[0].datr,		&disp[15]);
-
-  for (int i=15; i>=0; i--) disp[i] -= disp[0];
+  MPI_Get_address(&buf[0].tree,		&disp[11]);
+  MPI_Get_address(&buf[0].key,		&disp[12]);
+  MPI_Get_address(&buf[0].nicnt,	&disp[13]);
+  MPI_Get_address(&buf[0].ndcnt,	&disp[14]);
+  MPI_Get_address(&buf[0].iatr,		&disp[15]);
+  MPI_Get_address(&buf[0].datr,		&disp[16]);
+  
+  for (int i=nf-1; i>=0; i--) disp[i] -= disp[0];
   
 				// Block offsets
-  int blocklen[16] = {1, 3, 3, 3, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, nimax, ndmax};
+				// 
+  int blocklen[nf] = {1, 3, 3, 3, 1, 1, // Doubles
+		      1, 1, 1,	        // Floats
+		      1, 1,	        // Uint, Ulong
+		      1, 1,	        // Uint, U2long
+		      1, 1,	        // Uint, Uing
+		      nimax, ndmax};    // Uint, Double
   
-  MPI_Type_create_struct(16, blocklen, disp, type, &Particletype);
+  MPI_Type_create_struct(nf, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
+
+
+  pk_lo = 1u << (3*pkbits);
+  pk_hi = 1u << (3*pkbits+1);
+
+  key_lo = 1u;
+  key_lo <<= (3*nbits);
+  key_hi = 1u;
+  key_hi <<= (3*nbits+1);
+
 }
 
 ParticleFerry::~ParticleFerry()
@@ -68,14 +115,25 @@ void ParticleFerry::part_to_Particle(Partstruct& str, Particle& cls)
   cls.effort = str.effort;
   cls.level  = str.level;
   cls.indx   = str.indx;
+  cls.tree   = str.tree;
   cls.key    = str.key;
 
   cls.iattrib = vector<int>(str.nicnt);
-  for (int j=0; j<str.nicnt; j++) cls.iattrib[j] = str.iatr[j];
-
+  for (unsigned j=0; j<str.nicnt; j++) cls.iattrib[j] = str.iatr[j];
+  
   cls.dattrib = vector<double>(str.ndcnt);
-  for (int j=0; j<str.ndcnt; j++) cls.dattrib[j] = str.datr[j];
+  for (unsigned j=0; j<str.ndcnt; j++) cls.dattrib[j] = str.datr[j];
 
+  if (cls.tree > 0) {
+    if ( (cls.tree < pk_lo) || (cls.tree >= pk_hi) ) {
+      cout << "Error!! [4], id=" << myid 
+	   << ": tree_0=" << str.tree << " tree_1=" << cls.tree
+	   << " seq=" << cls.indx
+	   << " (x, y, z)={" << cls.pos[0] << ", " << cls.pos[1]
+	   << ", " << cls.pos[2]
+	   << endl;
+    }
+  }
 }
 
 void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
@@ -94,18 +152,31 @@ void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
   str.effort = cls.effort;
   str.level  = cls.level;
   str.indx   = cls.indx;
+  str.tree   = cls.tree;
   str.key    = cls.key;
 
   str.nicnt  = min<int>(nimax, cls.iattrib.size());
   str.ndcnt  = min<int>(ndmax, cls.dattrib.size());
 
-  for (int j=0; j<str.nicnt; j++) str.iatr[j] = cls.iattrib[j];
+  for (unsigned j=0; j<str.nicnt; j++) str.iatr[j] = cls.iattrib[j];
 
-  for (int j=0; j<str.ndcnt; j++) str.datr[j] = cls.dattrib[j];
+  for (unsigned j=0; j<str.ndcnt; j++) str.datr[j] = cls.dattrib[j];
+
+  if (str.tree > 0) {
+    if ( (str.tree < pk_lo) || (str.tree >= pk_hi) ) {
+      cout << "Error!! [5], id=" << myid 
+	   << ": tree_0=" << cls.tree << " tree_1=" << str.tree
+	   << " seq=" << str.indx
+	   << " (x, y, z)={" << cls.pos[0] << ", " << cls.pos[1]
+	   << ", " << cls.pos[2]
+	   << endl;
+    }
+  }
+
 }
 
 
-void ParticleFerry::ShipParticles(int to, int from, unsigned& total)
+void ParticleFerry::ShipParticles(unsigned to, unsigned from, unsigned& total)
 {
   MPI_Status status;
 
@@ -127,8 +198,11 @@ void ParticleFerry::ShipParticles(int to, int from, unsigned& total)
   }
 }
 
-void ParticleFerry::SendParticle(Particle& ptc, 
-				 unsigned seq, unsigned long long key)
+#ifdef I128
+void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, uint128 key)
+#else
+void ParticleFerry::SendParticle(Particle& ptc, unsigned seq, unsigned long key)
+#endif
 {
   // Add particle to buffer
   //
@@ -156,8 +230,11 @@ void ParticleFerry::SendParticle(Particle& part)
   if (ibufcount == PFbufsz || itotcount == _total) BufferSend();
 }
 
-bool ParticleFerry::RecvParticle(Particle& ptc,
-				  unsigned& seq, unsigned long long& key)
+#ifdef I128
+bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, uint128& key)
+#else
+bool ParticleFerry::RecvParticle(Particle& ptc, unsigned& seq, unsigned long& key)
+#endif
 {
   if (itotcount++ == _total) return false;
 
@@ -191,7 +268,7 @@ void ParticleFerry::BufferSend()
   MPI_Send(buf,        ibufcount, Particletype, _to, 3, MPI_COMM_WORLD);
 #ifdef DEBUG
   cout << "ParticleFerry: process " << myid  << " send, tot=" << itotcount << endl;
-  // bufferKeyCheck();
+  bufferKeyCheck();
 #endif
   ibufcount = 0;
 }
@@ -204,29 +281,58 @@ void ParticleFerry::BufferRecv()
   MPI_Recv(buf,        ibufcount, Particletype, _from, 3, MPI_COMM_WORLD, &s);
 #ifdef DEBUG
   cout << "ParticleFerry: process " << myid  << " recv, tot=" << itotcount-1+ibufcount << endl;
-  // bufferKeyCheck();
+  bufferKeyCheck();
 #endif
 }
 
+
 void ParticleFerry::bufferKeyCheck()
 {
-				// Sanity check for pHOT keys
-  unsigned long long maxexp = 1;
-  maxexp = maxexp << (3*nbits);
-  unsigned long long minkey = 1;
-  minkey = minkey << (sizeof(key_type)*8 - 1);
-  unsigned long long maxkey = 0;
+				// Sanity check for pH2OT keys
+#ifdef I128
+  uint128 minkey = 1u;
+  minkey <<= 128 - 1;
+  uint128 maxkey = 0u;
+  unsigned err0 = 0;
   for (unsigned n=0; n<ibufcount; n++) {
-    minkey = min<unsigned long long>(minkey, buf[n].key);
-    maxkey = max<unsigned long long>(maxkey, buf[n].key);
-    if (buf[n].key < maxexp) {
-      cerr << "oops" << endl;
-    }
+    minkey = min<uint128>(minkey, buf[n].key);
+    maxkey = max<uint128>(maxkey, buf[n].key);
+    if ((buf[n].key < key_lo || buf[n].key >= key_hi) && buf[n].key > 0u) err0++;
   }
-  cout << "min key=" << hex << right << setw(12) << minkey << endl 
-       << "max key=" << hex << right << setw(12) << maxkey << endl
-       << "max exp=" << hex << right << setw(12) << maxexp << endl
-       << dec;
+#else
+  unsigned long minkey = 1u;
+  minkey <<= sizeof(unsigned long)*8 - 1;
+  unsigned long maxkey = 0u;
+  unsigned err0 = 0;
+  for (unsigned n=0; n<ibufcount; n++) {
+    minkey = min<unsigned long>(minkey, buf[n].key);
+    maxkey = max<unsigned long>(maxkey, buf[n].key);
+    if ((buf[n].key < key_lo || buf[n].key >= key_hi) && buf[n].key > 0u) err0++;
+  }
+#endif
+
+  unsigned maxpexp = 1u;
+  maxpexp <<= (3*pkbits);
+  unsigned minpkey = 1u;
+  minpkey <<= (32 - 1);
+  unsigned maxpkey = 0u;
+  unsigned err1 = 0;
+  for (unsigned n=0; n<ibufcount; n++) {
+    minpkey = min<unsigned>(minpkey, buf[n].tree);
+    maxpkey = max<unsigned>(maxpkey, buf[n].tree);
+    if ((buf[n].tree < pk_lo || buf[n].tree >= pk_hi) && buf[n].tree > 0u) err1++;
+  }
+
+  unsigned wid = 3*nbits/4 + 3;
+
+  if (err0)
+    cerr << "ParticleFerry: Key err=" << err0 << endl << hex
+	 << "ParticleFerry: min key=" << right << setw(wid) << minkey << endl 
+	 << "ParticleFerry: max key=" << right << setw(wid) << maxkey << endl;
+  if (err1)
+    cout << "ParticleFerry: Cel err=" << dec << err1 << endl
+	 << "ParticleFerry: min cel=" << right << setw(12) << minpkey << endl 
+	 << "ParticleFerry: max cel=" << right << setw(12) << maxpkey << endl;
 
   return;
 }

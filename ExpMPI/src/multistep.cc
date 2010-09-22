@@ -400,7 +400,7 @@ void initialize_multistep()
     }
   }
 
-  mfirst = vector<int>(Mstep);
+  mfirst = vector<int>(Mstep+1);
 				// Lowest active level at each step
   for (int ms=0; ms<=Mstep; ms++) {
     for (int mlevel=0; mlevel<=multistep; mlevel++) {

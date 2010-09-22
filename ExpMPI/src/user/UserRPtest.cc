@@ -124,7 +124,7 @@ void UserRPtest::initialize()
   if (get_value("NUME", val))     NUME = atoi(val.c_str());
   if (get_value("RECS", val))     RECS = atoi(val.c_str());
 
-  if (get_value("with_ps", val))  with_ps = atoi(val.c_str()) ? true : false;
+  if (get_value("with_ps", val))  with_ps = atol(val);
   if (get_value("npart", val))    npart = atoi(val.c_str());
 
   if (get_value("model", val))    model_file = val;

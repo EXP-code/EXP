@@ -17,7 +17,7 @@ AM_CXXFLAGS = -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 bin_PROGRAMS = pspinfo pspstat psp2tipsy pspsplit psp2ascii ascii2psp \
-		tipstd2psp psp2ta pspgas
+		tipstd2psp psp2ta pspgas psp2histo
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
@@ -52,6 +52,10 @@ tipstd2psp_LDADD   = $(COMMON_LIBS)
 
 pspgas_SOURCES = pspprocess.cc PSP.cc header.cc
 pspgas_LDADD   = $(COMMON_LIBS)
+
+psp2histo_SOURCES = psp2histo.cc PSP.cc header.cc
+psp2histo_LDADD   = $(COMMON_LIBS)
+
 
 
 *.cc:		header.H

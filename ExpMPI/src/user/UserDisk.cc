@@ -107,7 +107,7 @@ void UserDisk::initialize()
   if (get_value("Ngrid", val))		Ngrid = atoi(val.c_str());
   if (get_value("Nint", val))		Nint = atoi(val.c_str());
 
-  if (get_value("debug", val))	        debug = atoi(val.c_str()) ? true : false;
+  if (get_value("debug", val))	        debug = atol(val);
   if (get_value("dfac", val))	        dfac = atof(val.c_str());}
 
 

@@ -75,7 +75,7 @@ void SatFix::get_acceleration_and_potential(Component* C)
   //
   // Begin list
   //
-  for (int n=0; n<c0->nbodies_tot-1; n+=2) {
+  for (unsigned n=0; n<c0->nbodies_tot-1; n+=2) {
 
 				// Who has the odd particle?
     if (myid==owner[n]) {
@@ -125,7 +125,7 @@ void SatFix::get_acceleration_and_potential(Component* C)
 void SatFix::compute_list()
 {
 				// Get body list
-  for (int n=0; n<c0->nbodies_tot; n++) {
+  for (unsigned n=0; n<c0->nbodies_tot; n++) {
     if (c0->Particles().find(n+1) != c0->Particles().end())
       owner[n] = myid+1;
     else
@@ -135,7 +135,7 @@ void SatFix::compute_list()
   MPI_Allreduce(MPI_IN_PLACE, &owner[0], c0->nbodies_tot, MPI_UNSIGNED,
 		MPI_SUM, MPI_COMM_WORLD);
   
-  for (int n=0; n<c0->nbodies_tot; n++) {
+  for (unsigned n=0; n<c0->nbodies_tot; n++) {
     owner[n] -= 1;
     if (owner[n]<0) {
       cout << "SatFix: error in ownership list" << endl;

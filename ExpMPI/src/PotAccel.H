@@ -1,6 +1,7 @@
 #ifndef _PotAccel_H
 #define _PotAccel_H
 
+#include <cstdlib>
 #include <string>
 #include <list>
 #include <map>
@@ -177,6 +178,9 @@ public:
   void thread_timing_beg(int id);
   void thread_timing_end(int id);
   //@}
+
+  //! For parameter parsing
+  bool atol(string& val) { return atoi(val.c_str()) ? true : false; }
 
 };
 

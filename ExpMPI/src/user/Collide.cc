@@ -7,7 +7,7 @@ using namespace std;
 
 #include "Timer.h"
 #include "global.H"
-#include "pHOT.H"
+#include "pH2OT.H"
 #include "UserTreeDSMC.H"
 #include "Collide.H"
 
@@ -17,42 +17,44 @@ using namespace std;
 
 				// Use the original Pullin velocity 
 				// selection algorithm
-bool Collide::PULLIN = false;
+bool Collide::PULLIN   = false;
 				// Use the explicit energy solution
-bool Collide::ESOL = false;
+bool Collide::ESOL     = false;
 				// Print out sorted cell parameters
-bool Collide::SORTED = false;
+bool Collide::SORTED   = false;
 				// Print out T-rho plane for cells 
 				// with mass weighting
-bool Collide::PHASE = false;
+bool Collide::PHASE    = false;
 				// Extra debugging output
-bool Collide::EXTRA = false;
+bool Collide::EXTRA    = false;
 				// Turn off collisions for testing
-bool Collide::DRYRUN = false;
+bool Collide::DRYRUN   = false;
 				// Turn off cooling for testing
-bool Collide::NOCOOL = false;
+bool Collide::NOCOOL   = false;
 				// Ensemble-based excess cooling
-bool Collide::ENSEXES = true;
+bool Collide::ENSEXES  = true;
 				// Time step diagnostics
-bool Collide::TSDIAG = false;
+bool Collide::TSDIAG   = false;
+				// Cell-volume diagnostics
+bool Collide::VOLDIAG  = false;
 				// CBA length scale diagnostics
-bool Collide::CBADIAG = false;
+bool Collide::CBADIAG  = false;
 				// Mean free path diagnostics
-bool Collide::MFPDIAG = false;
+bool Collide::MFPDIAG  = false;
 				// Sample based on maximum (true) or estimate
-bool Collide::NTC = false;	// from variance (false);
-
-bool Collide::EFFORT = true;	// Use cpu work to augment per particle effort
-
+				// from variance (false);
+bool Collide::NTC      = false;
+				// Use cpu work to augment per particle effort
+bool Collide::EFFORT   = true;	
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
-
-int Collide::TSPOW = 4;		// Power of two interval for KE/cool histogram
-
+				// Power of two interval for KE/cool histogram
+int Collide::TSPOW     = 4;
 				// Proton mass (g)
-const double mp = 1.67262158e-24;
+const double mp        = 1.67262158e-24;
 				// Boltzmann constant (cgs)
-const double boltz = 1.3810e-16;
+const double boltz     = 1.3810e-16;
+
 
 extern "C"
 void *
@@ -64,7 +66,7 @@ collide_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
+void Collide::collide_thread_fork(pH2OT* tree, double Fn, double tau)
 {
   int errcode;
   void *retval;
@@ -161,14 +163,14 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   exesET  = vector<double>   (nthrds, 0);
 
   if (MFPDIAG) {
-    tsratT  = vector< vector<double> > (nthrds);
-    keratT  = vector< vector<double> > (nthrds);
-    deratT  = vector< vector<double> > (nthrds);
-    tdensT  = vector< vector<double> > (nthrds);
-    tvolcT  = vector< vector<double> > (nthrds);
-    ttempT  = vector< vector<double> > (nthrds);
-    tdeltT  = vector< vector<double> > (nthrds);
-    tselnT  = vector< vector<double> > (nthrds);
+    tsratT  = vector< vector<double> >  (nthrds);
+    keratT  = vector< vector<double> >  (nthrds);
+    deratT  = vector< vector<double> >  (nthrds);
+    tdensT  = vector< vector<double> >  (nthrds);
+    tvolcT  = vector< vector<double> >  (nthrds);
+    ttempT  = vector< vector<double> >  (nthrds);
+    tdeltT  = vector< vector<double> >  (nthrds);
+    tselnT  = vector< vector<double> >  (nthrds);
     tphaseT = vector< vector<Precord> > (nthrds);
     tmfpstT = vector< vector<Precord> > (nthrds);
   }
@@ -200,23 +202,24 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   stepcount = 0;
   bodycount = 0;
 
-  initTime = vector<Timer>(nthrds);
-  collTime = vector<Timer>(nthrds);
-  elasTime = vector<Timer>(nthrds);
-  stat1Time = vector<Timer>(nthrds);
-  stat2Time = vector<Timer>(nthrds);
-  stat3Time = vector<Timer>(nthrds);
-  coolTime = vector<Timer>(nthrds);
-  cellTime = vector<Timer>(nthrds);
-  initSoFar = vector<TimeElapsed>(nthrds);
-  collSoFar = vector<TimeElapsed>(nthrds);
-  elasSoFar = vector<TimeElapsed>(nthrds);
-  cellSoFar = vector<TimeElapsed>(nthrds);
+  initTime   = vector<Timer>(nthrds);
+  collTime   = vector<Timer>(nthrds);
+  elasTime   = vector<Timer>(nthrds);
+  stat1Time  = vector<Timer>(nthrds);
+  stat2Time  = vector<Timer>(nthrds);
+  stat3Time  = vector<Timer>(nthrds);
+  coolTime   = vector<Timer>(nthrds);
+  cellTime   = vector<Timer>(nthrds);
+  initSoFar  = vector<TimeElapsed>(nthrds);
+  collSoFar  = vector<TimeElapsed>(nthrds);
+  elasSoFar  = vector<TimeElapsed>(nthrds);
+  cellSoFar  = vector<TimeElapsed>(nthrds);
   stat1SoFar = vector<TimeElapsed>(nthrds);
   stat2SoFar = vector<TimeElapsed>(nthrds);
   stat3SoFar = vector<TimeElapsed>(nthrds);
-  coolSoFar = vector<TimeElapsed>(nthrds);
-  collCnt = vector<int>(nthrds, 0);
+  coolSoFar  = vector<TimeElapsed>(nthrds);
+  collCnt    = vector<int>(nthrds, 0);
+
   for (int n=0; n<nthrds; n++) {
     initTime[n].Microseconds();
     collTime[n].Microseconds();
@@ -245,6 +248,17 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   tcool0 = vector<unsigned>(numdiag, 0);
   tcoolT = vector< vector<unsigned> > (nthrds);
 
+  if (VOLDIAG) {
+    Vcnt  = vector<unsigned>(nbits, 0);
+    Vcnt1 = vector<unsigned>(nbits, 0);
+    Vcnt0 = vector<unsigned>(nbits, 0);
+    VcntT = vector< vector<unsigned> > (nthrds);
+    Vdbl  = vector<double  >(nbits*nvold, 0.0);
+    Vdbl1 = vector<double  >(nbits*nvold, 0.0);
+    Vdbl0 = vector<double  >(nbits*nvold, 0.0);
+    VdblT = vector< vector<double> >(nthrds);
+  }
+
   if (CBADIAG) {
     Cover  = vector<double>(numdiag, 0);
     Cover1 = vector<double>(numdiag, 0);
@@ -256,6 +270,10 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
     if (TSDIAG) {
       tdiagT[n] = vector<unsigned>(numdiag, 0);
       EoverT[n] = vector<double>(numdiag, 0);
+    }
+    if (VOLDIAG) {
+      VcntT[n] = vector<unsigned>(nbits, 0);
+      VdblT[n] = vector<double>(nbits*nvold, 0.0);
     }
     if (CBADIAG) {
       CoverT[n] = vector<double>(numdiag, 0);
@@ -296,10 +314,12 @@ Collide::~Collide()
   delete norm;
 }
 
-void Collide::debug_list(pHOT& tree)
+void Collide::debug_list(pH2OT& tree)
 {
+  return;
+
   unsigned ncells = tree.Number();
-  pHOT_iterator c(tree);
+  pH2OT_iterator c(tree);
   for (int cid=0; cid<numprocs; cid++) {
     if (myid == cid) {
       ostringstream sout;
@@ -325,24 +345,33 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
+unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
 			  bool diag)
 {
   snglTime.start();
 				// Initialize diagnostic counters
 				// 
   if (diag) pre_collide_diag();
+
 				// Make cellist
 				// 
   for (int n=0; n<nthrds; n++) cellist[n].clear();
   ncells = 0;
-  set<pCell*>::iterator ic;
+  set<pCell*>::iterator ic, icb, ice;
+  map<unsigned, tCell*>::iterator t;
+
   for (unsigned M=mlevel; M<=multistep; M++) {
-    if (tree.clevels[M].size())	// Don't queue null cells
-      for (ic=tree.clevels[M].begin(); ic!=tree.clevels[M].end(); ic++) {
-	cellist[(ncells++)%nthrds].push_back(*ic);
-	bodycount += (*ic)->bods.size();
+    for (t=tree.trees.frontier.begin(); t!=tree.trees.frontier.end(); t++) {
+				// Don't queue null cells
+      if (t->second->ptree->clevels[M].size()) {
+	icb = t->second->ptree->clevels[M].begin(); 
+	ice = t->second->ptree->clevels[M].end(); 
+	for (ic=icb; ic!=ice; ic++) {
+	  cellist[(ncells++)%nthrds].push_back(*ic);
+	  bodycount += (*ic)->bods.size();
+	}
       }
+    }
   }
   stepcount++;
       
@@ -389,7 +418,7 @@ void Collide::dispersion(vector<double>& disp)
 
 void * Collide::collide_thread(void * arg)
 {
-  pHOT *tree = (pHOT*)((thrd_pass_arguments*)arg)->tree;
+  pH2OT *tree = (pH2OT*)((thrd_pass_arguments*)arg)->tree;
   double Fn = (double)((thrd_pass_arguments*)arg)->fn;
   double tau = (double)((thrd_pass_arguments*)arg)->tau;
   int id = (int)((thrd_pass_arguments*)arg)->id;
@@ -422,7 +451,7 @@ void * Collide::collide_thread(void * arg)
     // Nbody list
     //
     vector<unsigned> bodx;
-    set<unsigned>::iterator ib = c->bods.begin();
+    set<unsigned long>::iterator ib = c->bods.begin();
     for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) bodx.push_back(*ib);
 
 #ifdef USE_GPTL
@@ -450,7 +479,7 @@ void * Collide::collide_thread(void * arg)
 
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
-    pCell *samp = c->sample;
+    sCell *samp = c->sample;
     double crm=samp->CRMavg();
     double mvel=crm, crmax=0.0;
 
@@ -493,7 +522,14 @@ void * Collide::collide_thread(void * arg)
     //
     double mass = c->Mass();
 
+    // Mass density in the cell
+    double dens = mass/volc;
+
     if (mass <= 0.0) continue;
+
+    // Cell length
+    //
+    double cL = pow(volc, 0.33333333);
 
     // Fiducial cross section
     //
@@ -503,7 +539,7 @@ void * Collide::collide_thread(void * arg)
     // Determine cross section based on fixed number of collisions
     //
     if (CNUM) {
-      cross = 2.0*CNUM*volc/(Fn*mass*tau*crm*number*(number-1));
+      cross = 2.0*CNUM/(Fn*dens*tau*crm*(number-1));
       diam = sqrt(cross/M_PI);
     }
 
@@ -522,7 +558,7 @@ void * Collide::collide_thread(void * arg)
       // Diagnostic: MFP to linear cell size ratio 
       //
       tsratT[id].push_back(crm*tau/pow(volc,0.33333333));
-      tdensT[id].push_back(number/volc);
+      tdensT[id].push_back(dens);
       tvolcT[id].push_back(volc);
     
       double posx, posy, posz;
@@ -531,7 +567,7 @@ void * Collide::collide_thread(void * arg)
       // MFP = 1/(n*cross_section)
       // MFP/side = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
       
-      prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross*number);
+      prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross);
       prec[id].second[0] = sqrt(posx*posx + posy*posy);
       prec[id].second[1] = posz;
       prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
@@ -541,11 +577,18 @@ void * Collide::collide_thread(void * arg)
       tmfpstT[id].push_back(prec[id]);
     }
       
+    // Mean free paths per cell dimension
+    //
+    double mfpCL = Fn*dens*cross*cL;
+
+    // Collision probability per particle
+    //
+    double collP = Fn*dens*cross*crm*tau;
+
     // Determine number of candidate collision pairs
     // to be selected in this cell
     //
-    double coeff  = 0.5*number*(number-1)*Fn*mass/volc*cross*tau;
-    double select = coeff*crm;
+    double select = 0.5*(number-1)*collP;
 
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
@@ -555,7 +598,7 @@ void * Collide::collide_thread(void * arg)
       double taudiag = 1.0e40;
       for (int k=0; k<3; k++) {	// Time of flight
 	taudiag = min<double>
-	  (pHOT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
+	  (pH2OT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
 	   taudiag);
       }
       
@@ -564,14 +607,24 @@ void * Collide::collide_thread(void * arg)
       if (indx>10) indx = 10;
       tdiagT[id][indx]++;
     }
+
+    if (VOLDIAG) {
+      if (c->level<nbits) {
+	VcntT[id][c->level]++;
+	VdblT[id][c->level*nvold+0] += dens;
+	VdblT[id][c->level*nvold+1] += 1.0 / mfpCL;
+	VdblT[id][c->level*nvold+2] += collP;
+	VdblT[id][c->level*nvold+3] += crm*tau / cL;
+	VdblT[id][c->level*nvold+4] += number;
+	VdblT[id][c->level*nvold+5] += number*number;
+      }
+    }
 				// Number per selection ratio
     if (MFPDIAG)
       tselnT[id].push_back(select/number);
 
     stat2SoFar[id] = stat2Time[id].stop();
     
-    // double length = pow(c->Volume(), 0.3333333);
-
 				// Number of pairs to be selected
     unsigned nsel = (int)floor(select+0.5);
     
@@ -606,9 +659,9 @@ void * Collide::collide_thread(void * arg)
     if (DRYRUN) continue;
 
     collTime[id].start();
-				// If more than EPSMratio collisions per
-				// particle, assume equipartition
-    if (use_epsm && 2.0*select/static_cast<double>(number) > EPSMratio) {
+				// Number of collisions per particle:
+				// assume equipartition if large
+    if (use_epsm && collP > EPSMratio) {
 
 #ifdef USE_GPTL
       GPTLstart("Collide::EPSM");
@@ -808,7 +861,7 @@ void * Collide::collide_thread(void * arg)
     //
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
-      double Kn = cL*cL/(Fn*mass*cross*number);
+      double Kn = cL*cL/(Fn*mass*cross);
       double St = cL/fabs(tau*mvel);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(bodx[j]);
@@ -1179,7 +1232,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(pHOT* tree, pCell* cell, int id)
+void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 {
   if (cell->bods.size()<2) return;
 
@@ -1193,7 +1246,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   double Exes = 0.0;
   unsigned nbods = cell->bods.size();
   vector<unsigned> bodx;
-  for (set<unsigned>::iterator
+  for (set<unsigned long>::iterator
 	 ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
     
     Particle* p = tree->Body(*ib);
@@ -1445,7 +1498,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 	Tdisp[k] += p->mass*p->vel[k]*p->vel[k];
 	if (fabs(p->vel[k])>1e6 || isnan(p->vel[k])) {
 	  cout << "[Collide crazy vel indx=" << p->indx 
-	       << ", key=" << hex << p->key << dec << "]";
+	       << hex << ", key=" << p->key << dec << "]";
 	}
       }
     }
@@ -1763,6 +1816,50 @@ void Collide::tsdiag(ostream& out)
 }
 
 
+void Collide::voldiag(ostream& out) 
+{
+  if (!VOLDIAG) return;
+
+  if (Vcnt.size()==nbits) {
+				// Find the smallest cell size
+    unsigned nlast;
+    for (nlast=nbits; nlast>0; nlast--)
+      if (Vcnt[nlast-1]) break;
+
+    out << "-----------------------------------------------------"
+	<< "-----------------------------------------------------" << endl;
+    out << "-----Volume cell diagnostics-------------------------"
+	<< "-----------------------------------------------------" << endl;
+    out << "-----------------------------------------------------"
+      	<< "-----------------------------------------------------" << endl;
+    out << right << setw(8) << "n" << setw(8) << "#"
+	<< setw(12) << "Factor"
+	<< setw(12) << "Density"   << setw(12) << "MFP/L"
+	<< setw(12) << "Coll prob" << setw(12) << "Flight/L"
+	<< setw(12) << "Particles" << setw(12) << "Root var";
+    out << endl << setprecision(3) << scientific;
+    out << "-----------------------------------------------------"
+      	<< "-----------------------------------------------------" << endl;
+
+    for (unsigned k=0; k<nlast; k++) {
+      unsigned n  = k*nvold;
+      unsigned nn = n + nvold - 1;
+      double rat  = pow(2.0, -3.0*k);
+      double nrm  = Vcnt[k] ? 1.0/Vcnt[k] : 0.0;
+      out << setw(8) << k << setw(8) << Vcnt[k] << setw(12) << rat;
+      for (unsigned l=0; l<nvold-1; l++) out << setw(12) << Vdbl[n+l]*nrm;
+				// Variance term
+      Vdbl[nn] = fabs(Vdbl[nn] - Vdbl[nn-1]*Vdbl[nn-1]*nrm);
+      out << setw(12) << sqrt(Vdbl[nn]*nrm) << endl;
+    }
+    out << "-----------------------------------------------------"
+	<< "-----------------------------------------------------" << endl;
+    out << left;
+  }
+
+}
+
+
 // For timestep computation
 
 extern "C"
@@ -1775,7 +1872,7 @@ tstep_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::compute_timestep(pHOT* tree, double coolfrac)
+void Collide::compute_timestep(pH2OT* tree, double coolfrac)
 {
   int errcode;
   void *retval;
@@ -1842,7 +1939,7 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
 
 void * Collide::timestep_thread(void * arg)
 {
-  pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
+  pH2OT* tree = (pH2OT* )((tstep_pass_arguments*)arg)->tree;
   double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
   int id = (int)((tstep_pass_arguments*)arg)->id;
 
@@ -1866,7 +1963,8 @@ void * Collide::timestep_thread(void * arg)
     nbods = c->bods.size();
     L = c->Scale();
     
-    for (set<unsigned>::iterator i=c->bods.begin(); i!=c->bods.end(); i++) {
+    for (set<unsigned long>::iterator 
+	   i=c->bods.begin(); i!=c->bods.end(); i++) {
 				// Current particle
       p = tree->Body(*i);
 				// Compute time of flight criterion
@@ -1874,8 +1972,8 @@ void * Collide::timestep_thread(void * arg)
       mscale = 1.0e40;
       for (unsigned k=0; k<3; k++) {
 	DT = min<double>
-	  (pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
-	mscale = min<double>(pHOT::sides[k]*L, mscale);
+	  (pH2OT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+	mscale = min<double>(pH2OT::sides[k]*L, mscale);
       }
 				// Size scale for multistep timestep calc.
       p->scale = mscale;
@@ -1946,6 +2044,13 @@ void Collide::pre_collide_diag()
       tmfpstT[n].clear();
     }
     
+    if (VOLDIAG) {
+      for (unsigned k=0; k<nbits; k++) {
+	VcntT[n][k] = 0;
+	for (unsigned l=0; l<nvold; l++) VdblT[n][k*nvold+l] = 0.0;
+      }
+    }
+
     for (unsigned k=0; k<numdiag; k++) {
       if (TSDIAG) {
 	tdiagT[n][k] = 0;
@@ -1961,6 +2066,14 @@ void Collide::pre_collide_diag()
     for (unsigned k=0; k<numdiag; k++) tdiag1[k] = tdiag0[k] = 0;
     for (unsigned k=0; k<numdiag; k++) Eover1[k] = Eover0[k] = 0;
   }
+  if (VOLDIAG) {
+    for (unsigned k=0; k<nbits; k++) {
+      Vcnt1[k] = Vcnt0[k] = 0;
+      for (unsigned l=0; l<nvold; l++) 
+	Vdbl1[k*nvold+l] = Vdbl0[k*nvold+l] = 0.0;
+    }
+  }
+
   if (CBADIAG) {
     for (unsigned k=0; k<numdiag; k++) Cover1[k] = Cover0[k] = 0;
   }
@@ -2004,6 +2117,13 @@ unsigned Collide::post_collide_diag()
     if (TSDIAG) {
       for (unsigned k=0; k<numdiag; k++) tdiag1[k] += tdiagT[n][k];
       for (unsigned k=0; k<numdiag; k++) Eover1[k] += EoverT[n][k];
+    }
+    if (VOLDIAG) {
+      for (unsigned k=0; k<nbits; k++) {
+	Vcnt1[k] += VcntT[n][k];
+	for (unsigned l=0; l<nvold; l++)
+	  Vdbl1[k*nvold+l] += VdblT[n][k*nvold+l];
+      }
     }
     if (CBADIAG)
       for (unsigned k=0; k<numdiag; k++) Cover1[k] += CoverT[n][k];
@@ -2056,6 +2176,12 @@ unsigned Collide::post_collide_diag()
     MPI_Reduce(&Eover1[0], &Eover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
   }
+  if (VOLDIAG) {
+    MPI_Reduce(&Vcnt1[0], &Vcnt0[0], nbits, MPI_UNSIGNED, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+    MPI_Reduce(&Vdbl1[0], &Vdbl0[0], nbits*nvold, MPI_DOUBLE, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+  }
   if (CBADIAG) {
     MPI_Reduce(&Cover1[0], &Cover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
@@ -2077,6 +2203,13 @@ unsigned Collide::post_collide_diag()
       Eover[k] += Eover0[k];
     }
   }
+  if (VOLDIAG) {
+    for (unsigned k=0; k<nbits; k++) {
+      Vcnt[k] += Vcnt0[k];
+      for (unsigned l=0; l<nvold; l++)
+	Vdbl[k*nvold+l] += Vdbl0[k*nvold+l];
+    }
+  }
   if (CBADIAG) {
     for (unsigned k=0; k<numdiag; k++)
       Cover[k] += Cover0[k];
@@ -2089,4 +2222,4 @@ unsigned Collide::post_collide_diag()
 
   return col;
 }
-
+  

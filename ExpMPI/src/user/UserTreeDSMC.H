@@ -24,6 +24,7 @@ class CollideLTE;
     @param collfrac is a multiplicative fraction for collsion number
     @param frontier enables printing of active cell list (for debugging)
     @param tsdiag enables printing gas time step diagnostics (for debugging)
+    @param voldiag enables printing volume-cell diagnostics (for debugging)
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param cbadiag enables printing of length-scale statistics for the CBA algorithm (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
@@ -37,6 +38,7 @@ class CollideLTE;
     @param use_exes track energy loss per particle for exact energy conservation
     @param use_Kn track Knudsen number in attribute position n (default: -1)
     @param use_St track Strouhal number in attribute position n (default: -1)
+    @param use_vol track cell volume number in attribute position n (default: -1)
     @param esol solves the LTE cooling rate equation for each cell
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
@@ -44,6 +46,9 @@ class CollideLTE;
     @param wght sets the cell time partitioning (default: 1 = on)
     @param sub_sample toggles the key partition algorithm that uses only a subsample of the key list to decompose the domaine (default: true)
     @param effort sets the use of DSMC effort to partition particles (default: 1=true)
+    @param treechk turns on particle and cell checking in the tree (may be very time consuming) (default: 0 = off)
+    @param mpichk turns on barriers for timing and sync checking (default: 0 = off)
+    @param remap sets the processor remapping frequency in full steps (default: 0)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -51,9 +56,9 @@ private:
   
   int ncell, Ncell;
   int cnum, wght;
-  int nsteps, msteps;
+  int nsteps, msteps, remap;
   unsigned madj;
-  int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, tspow;
+  int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, use_vol, tspow;
   double diamfac;
   double diam;
   double collfrac;
@@ -63,14 +68,14 @@ private:
   double epsm;
   double coolfrac;
 
-  bool frontier, tsdiag, mfpstat, statall, use_multi, use_pullin, use_repair;
-  bool cba, cbadiag, dryrun, nocool, ntc, tube, esol, sub_sample;
+  bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
+  bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
+  bool sub_sample, treechk, mpichk;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;
 
   unsigned stepnum;
-  unsigned llevel, clevel;
   double curtime;
 
   CollideLTE *collide;
@@ -82,14 +87,15 @@ private:
   void determine_acceleration_and_potential(void);
   void * determine_acceleration_and_potential_thread(void * arg) 
   { return (NULL); }
-  void assignTempDens();
+  void assignTempDensVol();
   void initialize();
 
 				// The tree
   double volume;
 
 				// Timers
-  Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, collideTime;
+  Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, clldeTime;
+  Timer partnWait, tree1Wait, tree2Wait, timerDiag;
   RunningTime overhead;
 
   void userinfo();
@@ -97,6 +103,7 @@ private:
 
 				// Debugging
   void triggered_cell_body_dump(double time, double radios);
+  void TempHisto();
 
 #ifdef TIMER
   Timer *timer;

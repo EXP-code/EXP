@@ -11,7 +11,7 @@
 #include <Normal.h>
 
 #include "Particle.H"
-#include "pHOT.H"
+#include "pH2OT.H"
 #include "Timer.h"
 
 class Collide;
@@ -20,7 +20,7 @@ class Collide;
 struct thrd_pass_arguments
 {
   //! Pointer to iterator
-  pHOT *tree;
+  pH2OT *tree;
   //! Effective number of particles
   double fn;
   //! Time step
@@ -41,7 +41,7 @@ struct thrd_pass_Collide
 struct tstep_pass_arguments
 {
   //! Pointer to iterator
-  pHOT *tree;
+  pH2OT *tree;
   //! Cooling fraction
   double coolfrac;
   //! Thread counter id
@@ -143,12 +143,16 @@ protected:
   std::vector< vector<double> > mfpratT, tsratT, tdensT, tvolcT;
   std::vector< vector<double> > ttempT, tselnT, keratT, deratT;
   std::vector< vector<double> > tdeltT, tdispT, EoverT, CoverT;
-  const static unsigned numdiag = 11;
+  const static unsigned nvold = 6, numdiag = 11;
   std::vector<unsigned> tdiag, tdiag1, tdiag0;
   std::vector<unsigned> tcool, tcool1, tcool0;
   std::vector<double>   Eover, Eover1, Eover0;
   std::vector<double>   Cover, Cover1, Cover0;
   std::vector< vector<unsigned> > tdiagT, tcoolT;
+  std::vector<unsigned> Vcnt, Vcnt1, Vcnt0;
+  std::vector< vector<unsigned> > VcntT;
+  std::vector<double>   Vdbl, Vdbl1, Vdbl0;
+  std::vector< vector<double> > VdblT;
 
   std::vector< vector<pCell*> > cellist;
 
@@ -169,10 +173,10 @@ protected:
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) {}
 
-  virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
+  virtual int inelastic(pH2OT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
 
-  virtual void EPSM(pHOT* tree, pCell* cell, int id);
+  virtual void EPSM(pH2OT* tree, pCell* cell, int id);
   vector<double> coolheat;
   bool use_epsm;
 
@@ -180,7 +184,7 @@ protected:
   //
   vector<double> lostSoFar_EPSM;
 
-  void debug_list(pHOT& tree);
+  void debug_list(pH2OT& tree);
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
   void pre_collide_diag();
@@ -226,6 +230,7 @@ public:
 				// from variance (false);
 
   static bool TSDIAG;	        // Accumulate time step diagnostics (default: false)
+  static bool VOLDIAG;	        // Accumulate cell-volume diagnostics (default: false)
   static bool CBADIAG;	        // Accumulate length scale diagnostics for the DBA algorithm (default: false)
   static int TSPOW;	        // Power of two interval for ke/cool ratio histogram (default: 4)
 
@@ -265,7 +270,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0, 
+  unsigned collide(pH2OT& cl, double Fn, double tau, int mlev=0, 
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
@@ -284,13 +289,13 @@ public:
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, double Fn, double tau);
+  void collide_thread_fork(pH2OT *tree, double Fn, double tau);
   //@}
 
   /// Timestep thread
   //@{
   void *timestep_thread(void *arg);
-  void compute_timestep(pHOT* tree, double coolfrac);
+  void compute_timestep(pH2OT* tree, double coolfrac);
   //@}
 
   /// Debug timing routines
@@ -305,6 +310,7 @@ public:
   /// Debug output routines
   //@{
   void colldeTime(ostream& out);
+  void voldiag(ostream& out);
   void tsdiag(ostream& out);
   //@}
 };

@@ -61,6 +61,7 @@ protected:
   key_type key_min, key_max;
 
   unsigned min_cell, max_cell, adjcnt;
+  unsigned cntr_total, cntr_new_key, cntr_mine, cntr_not_mine, cntr_ship;
   vector<unsigned> chist;
   change_list change;
   vector<key_type> kbeg, kfin, loclist;
@@ -76,7 +77,9 @@ protected:
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
   Timer timer_prepare, timer_cupdate, timer_scatter, timer_repartn;
   Timer timer_tadjust, timer_keycall, timer_keycomp, timer_keybods;
-  Timer timer_waiton1, timer_waiton2;
+  Timer timer_waiton1, timer_waiton2, timer_keynewc, timer_keyoldc;
+  Timer timer_waiton0;
+
 
   void bomb(const string& membername, const string& msg);
 
@@ -86,15 +89,20 @@ public:
 
   //! 3-vector of sides of rectangular prism (default: [2, 2, 2])
   static double   sides[];
+
   //! Origin of the prism (default: [1, 1, 1])
   //! E.g. the default selction defines a cube with coordinates [-1, 1]^3
   static double   offst[];
+
   //! Additional randomly selected offset with given extent to prevent
   //! gridding effects (default: none)
   static double   jittr[];
+
   //! Use key subsampling to improve run time in the key partioning step
   //! (default: true)
+
   static bool     sub_sample;
+
   //! Print out partition diagnostics (default: false)
   static bool     keys_debug;
 
@@ -120,6 +128,18 @@ public:
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
 
+  //! Tree geometry
+  void setSides(double x, double y, double z) 
+  {
+    sides[0] = x; sides[1] = y; sides[2] = z; 
+  }
+
+  void setOffset(double x, double y, double z) 
+  { 
+    offst[0] = x; offst[1] = y; offst[2] = z; 
+    for (int k=0; k<3; k++) offset[k] = offst[k];
+  }
+
   //! Number of cells in tree
   unsigned Number() { return frontier.size(); }
   unsigned TotalNumber() { return total_cells; }
@@ -130,6 +150,7 @@ public:
   vector< set<pCell*> > clevels;
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
+  void printCellLevelList(ostream& out);
 
   /**
      Density routines
@@ -155,9 +176,9 @@ public:
   bool checkKeybods();
   bool checkPartKeybods(unsigned mlev);
   bool checkBodycell();
-  bool checkParticles(bool pc=true);
+  bool checkParticles(ostream &out, bool pc=true);
   bool checkDupes();
-  bool checkFrontier();
+  bool checkFrontier(ostream &out);
   double totalKE(double& KEtot, double& KEdsp);
   void totalMass(unsigned& Counts, double& Mass);
   void checkIndices();
@@ -179,7 +200,9 @@ public:
 		    double &convert, double &overlap, double &update,
 		    double &scatter, double &repartn, double &tadjust,
 		    double &keycall, double &keycomp, double &keybods,
+		    double &keynewc, double &keyoldc, double &waiton0, 
 		    double &waiton1, double &waiton2, unsigned &numkeys);
+  void adjustCounts(ostream& out);
   double checkAdjust() {
     double result = 0.0;
     if (myid) return result;
@@ -242,7 +265,7 @@ public:
     return fit->second; 
   }
 
-  double Volume() { return volume/((key_type)1 << (3*fit->second->level)); }
+  double Volume() { return volume/(( (key_type)1u << (3*fit->second->level) ).toDouble()); }
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }

@@ -34,7 +34,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
 	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc \
-	UnboundOrbit.cc
+	UnboundOrbit.cc LinearOrbit.cc
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
 

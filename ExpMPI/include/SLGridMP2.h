@@ -39,10 +39,10 @@ private:
   Vector p0;
   Vector d0;
 
-  struct TableCyl** table;
+  TableCyl** table;
 
   void init_table(void);
-  void compute_table(struct TableCyl* table, int M, int K);
+  void compute_table(TableCyl* table, int M, int K);
   void compute_table_slave(void);
   int read_cached_table(void);
   void write_cached_table(void);
@@ -51,7 +51,7 @@ private:
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(struct TableCyl* table, int m, int k);
+  int mpi_pack_table(TableCyl* table, int m, int k);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
@@ -138,26 +138,28 @@ private:
   Vector p0;
   Vector d0;
 
-  struct TableSph* table;
+  TableSph* table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
 		  double RMIN, double RMAX, int CMAP, double SCALE);
 
   void init_table(void);
-  void compute_table(struct TableSph* table, int L);
+  void compute_table(TableSph* table, int L);
   void compute_table_slave(void);
 
 
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(struct TableSph* table, int l);
+  int mpi_pack_table(TableSph* table, int l);
   int read_cached_table(void);
   void write_cached_table(void);
 
   int mpi_myid, mpi_numprocs;
   int mpi_bufsz;
   char *mpi_buf;
+
+  bool my_model;
 
   void bomb(string oops);
 
@@ -252,17 +254,17 @@ private:
   Vector p0;
   Vector d0;
 
-  struct TableSlab** table;
+  TableSlab** table;
 
   void init_table(void);
-  void compute_table(struct TableSlab* table, int kx, int ky);
+  void compute_table(TableSlab* table, int kx, int ky);
   void compute_table_slave(void);
 
 
 				// Local MPI stuff
   void mpi_setup(void);
   void mpi_unpack_table(void);
-  int mpi_pack_table(struct TableSlab* table, int kx, int ky);
+  int mpi_pack_table(TableSlab* table, int kx, int ky);
   int read_cached_table(void);
   void write_cached_table(void);
 

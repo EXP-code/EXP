@@ -79,9 +79,9 @@ void UserRotation::initialize()
 {
   string val;
 
-  if (get_value("Omega", val))      Omega = atof(val.c_str());
-  if (get_value("RROT", val))      RROT = atof(val.c_str());
-  if (get_value("EJ",val))       EJ = atoi(val.c_str()) ? true : false;
+  if (get_value("Omega", val))   Omega = atof(val.c_str());
+  if (get_value("RROT", val))    RROT = atof(val.c_str());
+  if (get_value("EJ",val))       EJ = atol(val);
 
   if(RROT < 0.0) RROT =0.0;
 }

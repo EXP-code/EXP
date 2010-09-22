@@ -12,7 +12,7 @@
 #include <PotAccel.H>
 #include <Timer.h>
 
-class pHOT;
+class pH2OT;
 
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
@@ -166,7 +166,7 @@ class Component
   friend class ScatterMFP;
   friend class OrbTrace;
   friend class ComponentContainer;
-  friend class pHOT;
+  friend class pH2OT;
 
 private:
 
@@ -254,7 +254,7 @@ protected:
   PartMap particles;
 
   //! Oct tree
-  pHOT *tree;
+  pH2OT *tree;
 
   //! Level occupation output
   int nlevel;
@@ -264,9 +264,6 @@ public:
   //! Describe the phase space coordinates
   enum PSTYPE {Inertial=1, Local=2, Centered=4};
 
-  //! Particle file
-  string pfile;
-
   //! Identify this component
   string name;
 
@@ -275,6 +272,9 @@ public:
 
   //! Parameter string for component
   string cparam;
+
+  //! Particle file
+  string pfile;
 
   //! Parameter string for force
   string fparam;
@@ -337,7 +337,7 @@ public:
   int dim;
 
   //! Bodies on all nodes
-  int nbodies_tot;
+  unsigned nbodies_tot;
 
   /** Particle list per level
       This will be a sorted list for each level.  We use a vector rather
@@ -747,13 +747,19 @@ public:
   void print_level_lists(double T);
 
   //! Temporary access to tree (until I figure out what is really needed)
-  pHOT* Tree() { return tree; }
+  pH2OT* Tree() { return tree; }
 
   //! Running clock on the current potential/force evaluation
   Timer time_so_far;
 
   //! Time in potential/force computation so far
   double get_time_sofar() { return 1.0e-6*time_so_far.getTime().getRealTime(); }
+
+  //! Create a hashed octree for this component
+  void HOTcreate();
+
+  //! Delete the hashed octree for this component
+  void HOTdelete();
 
 };
 

@@ -264,7 +264,7 @@ public:
   //! All levels
   void make_coefficients(void);
   //! Single level
-  void make_coefficients(int mlevel);
+  void make_coefficients(unsigned mlevel);
   //! Make empirical orthgonal functions
   void make_eof(void);
   //! True if coefficients are made at all levels

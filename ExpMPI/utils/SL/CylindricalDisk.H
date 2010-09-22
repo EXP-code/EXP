@@ -38,7 +38,7 @@ private:
   double M;
   double A;
   double H;
-  double norm, normS;
+  double normS, norm;
 
 protected:
 
@@ -126,7 +126,7 @@ public:
 class KuzminDisk : public CylindricalDisk
 {
 private:
-  double V, A, H, norm, normS;
+  double V, A, H, normS, norm;
 
 public:
 

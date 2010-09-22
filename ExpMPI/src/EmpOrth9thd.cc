@@ -129,12 +129,12 @@ EmpCylSL::~EmpCylSL(void)
       
 	for (int j1=1; j1<=NMAX*(LMAX-mm+1); j1++) {
 
-	  delete [] (SC[nth][mm][j1] + 1);
-	  if (mm) delete [] (SS[nth][mm][j1] + 1);
+	  delete [] &SC[nth][mm][j1][1];
+	  if (mm) delete [] &SS[nth][mm][j1][1];
 	}
 	  
-	delete [] (SC[nth][mm] + 1);
-	if (mm) delete [] (SS[nth][mm] + 1);
+	delete [] &SC[nth][mm][1];
+	if (mm) delete [] &SS[nth][mm][1];
       }
 	
       delete [] SC[nth];
@@ -175,7 +175,7 @@ EmpCylSL::~EmpCylSL(void)
 
   }
   
-  for (int M=0; M<accum_cosL.size(); M++) {
+  for (unsigned M=0; M<accum_cosL.size(); M++) {
     
     for (int nth=0; nth<nthrds; nth++) {
       delete [] accum_cosL[M][nth];
@@ -202,6 +202,7 @@ EmpCylSL::~EmpCylSL(void)
     delete [] MPIout_eof;
   }
 
+  cerr << "Exiting EmpCylSL destructor" << endl;
 }
 
 
@@ -221,6 +222,7 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
 
   SLGridSph::mpi = 1;		// Turn on MPI
   ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
+  model = 0;
 
   if (DENS)
     MPItable = 4;
@@ -1098,7 +1100,7 @@ void EmpCylSL::setup_accumulation(void)
 
   if (accum_cosL.size() == 0) {
 
-    for (int M=0; M<=multistep; M++) {
+    for (unsigned M=0; M<=multistep; M++) {
       accum_cosL.push_back(new Vector* [nthrds]);
       accum_cosN.push_back(new Vector* [nthrds]);
       accum_sinL.push_back(new Vector* [nthrds]);
@@ -1139,7 +1141,7 @@ void EmpCylSL::setup_accumulation(void)
   cylmass = 0.0;
   cylmass_made = false;
 
-  for (int M=0; M<=multistep; M++) {
+  for (unsigned M=0; M<=multistep; M++) {
 
     for (int nth=0; nth<nthrds; nth++) {
 
@@ -2164,7 +2166,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 }
 
 
-void EmpCylSL::make_coefficients(int M0)
+void EmpCylSL::make_coefficients(unsigned M0)
 {
   int mm, nn;
 
@@ -2235,7 +2237,7 @@ void EmpCylSL::make_coefficients(int M0)
 
 void EmpCylSL::multistep_reset()
 {
-  for (int M=0; M<=multistep; M++) dstepN[M] = 0;
+  for (unsigned M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
 void EmpCylSL::reset_mass(void)
@@ -2266,7 +2268,7 @@ void EmpCylSL::make_coefficients(void)
 
 				// Sum up over threads
 				// 
-  for (int M=0; M<=multistep; M++) {
+  for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
 
@@ -2294,7 +2296,7 @@ void EmpCylSL::make_coefficients(void)
 
 				// Begin distribution loop
 
-  for (int M=0; M<=multistep; M++) {
+  for (unsigned M=0; M<=multistep; M++) {
 
     if (coefs_made[M]) continue;
 
@@ -2332,7 +2334,7 @@ void EmpCylSL::make_coefficients(void)
   }  
 
 
-  for (int M=0; M<=multistep; M++) {
+  for (unsigned M=0; M<=multistep; M++) {
     
     if (coefs_made[M]) continue;
 
@@ -2404,7 +2406,7 @@ void EmpCylSL::pca_hall(void)
     for (nn=0; nn<rank3; nn++) {
 
       tot = 0.0;
-      for (int M=0; M<=multistep; M++) tot += accum_cosN[M][0][mm][nn];
+      for (unsigned M=0; M<=multistep; M++) tot += accum_cosN[M][0][mm][nn];
 
       sqr = tot*tot;
       // fac = (accum_cos2[0][mm][nn] - cylmass*sqr + 1.0e-10)/(sqr + 1.0e-18);
@@ -2416,7 +2418,7 @@ void EmpCylSL::pca_hall(void)
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << '\n';
 
-      for (int M=0; M<=multistep; M++) {
+      for (unsigned M=0; M<=multistep; M++) {
 	// accum_cosN[M][0][mm][nn] *= 1.0/(1.0 + fac);
 	accum_cosN[M][0][mm][nn] *= fac;
       }
@@ -2427,7 +2429,7 @@ void EmpCylSL::pca_hall(void)
     for (nn=0; nn<rank3; nn++) {
 
       tot = 0.0;
-      for (int M=0; M<=multistep; M++) tot += accum_sinN[M][0][mm][nn];
+      for (unsigned M=0; M<=multistep; M++) tot += accum_sinN[M][0][mm][nn];
 
       sqr = tot*tot;
       // fac = (accum_sin2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
@@ -2438,7 +2440,7 @@ void EmpCylSL::pca_hall(void)
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << '\n';
-      for (int M=0; M<=multistep; M++) {
+      for (unsigned M=0; M<=multistep; M++) {
 	// accum_sinN[M][0][mm][nn] *= 1.0/(1.0 + fac);
 	accum_sinN[M][0][mm][nn] *= fac;
       }
@@ -3641,7 +3643,7 @@ void EmpCylSL::multistep_update_begin()
 #ifndef STANDALONE
 				// Clear the update matricies
   for (int nth=0; nth<nthrds; nth++) {
-    for (int M=mfirst[mstep]; M<=multistep; M++) {
+    for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
       differC1[nth][M].setsize(0, MMAX, 0, rank3-1);
       differS1[nth][M].setsize(0, MMAX, 0, rank3-1);
 
@@ -3666,7 +3668,7 @@ void EmpCylSL::multistep_update_finish()
     workC1[j] = workC[j] = workS1[j] = workS[j] = 0.0;
 
 				// Combine the update matricies
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 
@@ -3697,7 +3699,7 @@ void EmpCylSL::multistep_update_finish()
   MPI_Allreduce (&workS1[0], &workS[0], sz, 
 		 MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-  for (int M=mfirst[mstep]; M<=multistep; M++) {
+  for (unsigned M=mfirst[mstep]; M<=multistep; M++) {
 
     offset0 = (M - mfirst[mstep])*(MMAX+1)*rank3;
 
@@ -3770,7 +3772,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   
 				// Interpolate to get coefficients above
   double a, b;			// 
-  for (int M=0; M<mlevel; M++) {
+  for (unsigned M=0; M<mlevel; M++) {
 
 				// No interpolation? Should never happen!
     if (dstepN[M] == dstepL[M]) {
@@ -3805,7 +3807,7 @@ void EmpCylSL::compute_multistep_coefficients(unsigned mlevel)
   }
 				// Add coefficients at or below this level
 				// 
-  for (int M=mlevel; M<=multistep; M++) {
+  for (unsigned M=mlevel; M<=multistep; M++) {
     for (int mm=0; mm<=MMAX; mm++) {
       for (int nn=0; nn<rank3; nn++) {
 	accum_cos[mm][nn] += accum_cosN[M][0][mm][nn];
@@ -3831,7 +3833,7 @@ void EmpCylSL::multistep_debug()
 
       cout.setf(ios::scientific);
       int c = cout.precision(2);
-      for (int M=0; M<=multistep; M++) {
+      for (unsigned M=0; M<=multistep; M++) {
 	cout << "   M=" << M << ": #part=" << howmany[M] << endl;
 
 	cout << "   M=" << M << ", m=0, C_N: ";

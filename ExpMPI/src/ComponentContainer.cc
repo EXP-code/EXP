@@ -786,8 +786,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
     
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
-	 << c->id << "> for mlevel=" << mlevel 
-	 << ", interval=" << intvl << endl;
+	 << c->id << "> for mlevel=" << mlevel << endl;
 #endif
 				// Compute coefficients
     c->force->set_multistep_level(mlevel);
@@ -1209,7 +1208,7 @@ bool ComponentContainer::bad_values()
       if (badval) {
 	cout << "Bad value in <" << (*cc)->name << ">: ";
 	cout << setw(12) << it->second.indx
-	     << setw(16) << it->second.key
+	     << setw(16) << hex << it->second.key << dec
 	     << setw(18) << it->second.mass;
 	for (int k=0; k<3; k++)
 	  cout << setw(18) << it->second.pos[k];

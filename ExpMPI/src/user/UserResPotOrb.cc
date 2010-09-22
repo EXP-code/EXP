@@ -326,7 +326,7 @@ void UserResPotOrb::initialize()
   if (get_value("data", val))     data_file = val;
   if (get_value("ctrname", val))  ctr_name = val;
   if (get_value("filename", val)) filename = val;
-  if (get_value("debug",val))	  debug = atoi(val.c_str()) ? true : false;
+  if (get_value("debug",val))	  debug = atol(val);
 }
 
 double UserResPotOrb::get_radius(double t)

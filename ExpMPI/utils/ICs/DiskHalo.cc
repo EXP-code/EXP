@@ -641,21 +641,21 @@ table_disk(vector<Particle>& part)
       lhs = halo->get_mass(r);
       rhs = -r*r*deriv/rho;
 
-      out << setw(14) << r
-	  << setw(14) << epitable[0][j]
-	  << setw(14) << workR[j]
-	  << setw(14) << workE[j]
-	  << setw(14) << workD[0][j]
-	  << setw(14) << workD[1][j]
-	  << setw(14) << workD[2][j]
-	  << setw(14) << workD[3][j]
-	  << setw(14) << workD[4][j]
-	  << setw(14) << vr2
-	  << setw(14) << rho
-	  << setw(14) << deriv
-	  << setw(14) << lhs
-	  << setw(14) << rhs
-	  << setw(14) << lhs - rhs
+      out << setw(14) << r	             // 1
+	  << setw(14) << epitable[0][j]      // 2
+	  << setw(14) << workR[j]            // 3
+	  << setw(14) << workE[j]            // 4
+	  << setw(14) << workD[0][j]         // 5
+	  << setw(14) << workD[1][j]         // 6
+	  << setw(14) << workD[2][j]         // 7
+	  << setw(14) << workD[3][j]         // 8
+	  << setw(14) << workD[4][j]         // 9
+	  << setw(14) << vr2                 // 10
+	  << setw(14) << rho                 // 11
+	  << setw(14) << deriv               // 12
+	  << setw(14) << lhs                 // 13
+	  << setw(14) << rhs                 // 14
+	  << setw(14) << lhs - rhs           // 15
 	  << endl;
     }
   }

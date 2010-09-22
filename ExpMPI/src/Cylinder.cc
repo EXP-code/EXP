@@ -201,6 +201,7 @@ Cylinder::Cylinder(string& line) : Basis(line)
 
 Cylinder::~Cylinder()
 {
+  delete ortho;
   delete [] pos;
   delete [] frc;
 #ifdef DEBUG
@@ -721,7 +722,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 
   // If we are multistepping, compute accel only at or below <mlevel>
   //
-  for (int lev=mlevel; lev<=multistep; lev++) {
+  for (unsigned lev=mlevel; lev<=multistep; lev++) {
 
     unsigned nbodies = cC->levlist[lev].size();
 

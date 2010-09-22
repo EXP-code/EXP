@@ -9,12 +9,17 @@ using namespace std;
 
 //! Maximum number of *extra* integer components
 const static int nimax = 5;
+
 //! Maximum number of *extra* double components
 const static int ndmax = 12;
 
 //! For interprocess communication, need static structure for MPI mapping
-struct Partstruct
+class Partstruct
 {
+public:
+  /// Constructor
+  Partstruct();
+
   ///< Type:                  Offsets:
   double mass;                ///< 0        0
   double pos[3];              ///< 1        1,2,3
@@ -27,11 +32,16 @@ struct Partstruct
   float  effort;              ///< 8        14
   unsigned level;             ///< 9        15
   unsigned long indx;         ///< 10       16
-  unsigned long long key;     ///< 11       17
-  unsigned nicnt;             ///< 12       18
-  unsigned ndcnt;             ///< 13       19
-  int    iatr[nimax];         ///< 14       20,21,22,23,24 (e.g.)
-  double datr[ndmax];         ///< 15       25,26,27,28,29 (e.g.)
+  unsigned tree;	      ///< 11       17
+#ifdef I128
+  uint128 key;		      ///< 12       18
+#else
+  unsigned long key;	      ///< 12       18
+#endif
+  unsigned nicnt;             ///< 13       19
+  unsigned ndcnt;             ///< 14       20
+  int    iatr[nimax];         ///< 15       21,22,23,24,25 (e.g.)
+  double datr[ndmax];         ///< 16       26,27,28,29,30 (e.g.)
 };
 
 class ParticleFerry
@@ -41,24 +51,35 @@ private:
   Partstruct *buf;
   unsigned ibufcount, itotcount;
   unsigned _to, _from, _total;
+  unsigned pk_lo, pk_hi;
+#ifdef I128
+  uint128  key_lo, key_hi;
+#else
+  unsigned long key_lo, key_hi;
+#endif
 
   void BufferSend();
   void BufferRecv();
   void bufferKeyCheck();	// For debugging
+  void PartstructInit(Partstruct*);
 
 public:
-
-  static MPI_Datatype Particletype;
 
   ParticleFerry();
 
   ~ParticleFerry();
 
-  void ShipParticles(int to, int from, unsigned& total);
+  void ShipParticles(unsigned to, unsigned from, unsigned& total);
 
-  void SendParticle(Particle& part, unsigned seq, unsigned long long key);
+#ifdef I128
+  void SendParticle(Particle& part, unsigned seq,  uint128  key);
 
-  bool RecvParticle(Particle& part, unsigned& seq, unsigned long long& key);
+  bool RecvParticle(Particle& part, unsigned& seq, uint128& key);
+#else
+  void SendParticle(Particle& part, unsigned seq,  unsigned long  key);
+
+  bool RecvParticle(Particle& part, unsigned& seq, unsigned long& key);
+#endif
 
   void SendParticle(Particle& part);
 
@@ -67,6 +88,8 @@ public:
   void part_to_Particle(Partstruct& str, Particle& cls);
 
   void Particle_to_part(Partstruct& str, Particle& cls);
+
+  MPI_Datatype Particletype;
 };
 
 #endif

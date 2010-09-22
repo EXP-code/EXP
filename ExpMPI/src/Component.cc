@@ -21,7 +21,7 @@
 #include <Shells.H>
 #include <NoForce.H>
 #include <Orient.H>
-#include <pHOT.H>
+#include <pH2OT.H>
 
 #include "expand.h"
 
@@ -92,7 +92,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
@@ -104,19 +104,33 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   time_so_far.Microseconds();
 
-  tree = new pHOT(this);
+  tree = 0;
 
   pbuf = new Particle [PFbufsz];
 }
 
-struct thrd_pass_reset
+void Component::HOTcreate()
 {
+  delete tree;
+  tree = new pH2OT(this);
+}
+
+
+void Component::HOTdelete()
+{
+  delete tree;
+}
+
+
+class thrd_pass_reset
+{
+public:
   int id;
   Component *c;
   vector< vector<int> > newlist;
 };
 
-static thrd_pass_reset* td = 0;
+static vector<thrd_pass_reset> td;
 static pthread_t* t  = 0;
 
 void * reset_level_lists_thrd(void *ptr)
@@ -145,15 +159,9 @@ void * reset_level_lists_thrd(void *ptr)
 
 void Component::reset_level_lists()
 {
-  if (td==0) {
-    td = new thrd_pass_reset [nthrds];
+  if (td.size()==0) {
+    td = vector<thrd_pass_reset>(nthrds);
 
-    if (!td) {
-      cerr << "Process " << myid
-	   << ": reset_level_lists: error allocating memory for thread data\n";
-      exit(18);
-    }
-  
     t  = new pthread_t [nthrds];
 
     if (!t) {
@@ -219,7 +227,7 @@ void Component::reset_level_lists()
 				// Begin with empty lists . . .
   levlist = vector< vector<int> > (multistep+1);
   for (int i=0; i<nthrds; i++) {
-    for (int n=0; n<=multistep; n++) {
+    for (unsigned n=0; n<=multistep; n++) {
       levlist[n].insert(levlist[n].end(),
 			td[i].newlist[n].begin(), 
 			td[i].newlist[n].end());
@@ -238,7 +246,7 @@ void Component::reset_level_lists()
 	       << setw(4) << left << "ID" << setw(4) << "lev"
 	       << setw(12) << "first" << setw(12) << "last" 
 	       << setw(12) << "count" << endl;
-	for (int j=0; j<=multistep; j++) {
+	for (unsigned j=0; j<=multistep; j++) {
 	  cout << left << setw(4) << myid << setw(4) << j;
 	  if (levlist[j].size())
 	    cout << left
@@ -269,7 +277,7 @@ void Component::print_level_lists(double T)
   if (nlevel>0 && (this_step % nlevel == 0)) {
 
     vector< vector<unsigned> > cntr(multistep+1);
-    for (int n=0; n<=multistep; n++) {
+    for (unsigned n=0; n<=multistep; n++) {
       cntr[n] = vector<unsigned>(mdtDim, 0);
       MPI_Reduce(&mdt_ctr[n][0], &cntr[n][0], mdtDim, MPI_UNSIGNED,
 		 MPI_SUM, 0, MPI_COMM_WORLD);
@@ -280,7 +288,7 @@ void Component::print_level_lists(double T)
     if (myid==0) {
 
       unsigned tot=0;
-      for (int n=0; n<=multistep; n++) tot += cntr[n][mdtDim-1];
+      for (unsigned n=0; n<=multistep; n++) tot += cntr[n][mdtDim-1];
 
       if (!tot && myid==0) cout << "print_level_lists [" << name 
 				<< ", T=" << tnow << "]: tot=" << tot << endl;
@@ -315,7 +323,7 @@ void Component::print_level_lists(double T)
 	}
 	out << setw(10) << "f(int)" << endl;
 	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');
-	for (int n=0; n<=multistep; n++) {
+	for (unsigned n=0; n<=multistep; n++) {
 	  curn = cntr[n][mdtDim-1];
 	  sum += curn;
 	  out << setw(3)  << n 
@@ -400,7 +408,7 @@ Component::Component(istream *in)
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
-  for (int n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
+  for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
   angmom_lev = vector<double>(3*(multistep+1), 0);
   com_lev    = vector<double>(3*(multistep+1), 0);
@@ -410,7 +418,7 @@ Component::Component(istream *in)
 
   reset_level_lists();
 
-  tree = new pHOT(this);
+  tree = 0;
 
   pbuf = new Particle [PFbufsz];
 }
@@ -826,8 +834,6 @@ Component::~Component(void)
 
   delete orient;
 
-  delete [] pbuf;
-
   delete [] com;
   delete [] center;
   delete [] cov;
@@ -842,6 +848,8 @@ Component::~Component(void)
   delete [] comI;
   delete [] covI;
 
+  delete [] pbuf;
+
   delete tree;
 }
 
@@ -853,8 +861,6 @@ void Component::bomb(const string& msg)
 
 void Component::read_bodies_and_distribute_ascii(void)
 {
-				// MPI buffers
-  MPI_Status status0;
 				// Open file
 
   ifstream *fin;
@@ -969,7 +975,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 				// Remainder of Node 0's particles
 
-    for (int i=2; i<=nbodies_table[0]; i++) {
+    for (unsigned i=2; i<=nbodies_table[0]; i++) {
       
       fin->getline(line, nline);
       istringstream ins(line);
@@ -1002,7 +1008,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 
     nbodies = nbodies_table[0];
 
-    int icount, ibufcount;
+    unsigned icount, ibufcount;
     for (int n=1; n<numprocs; n++) {
 
       pf.ShipParticles(n, 0, nbodies_table[n]);
@@ -1111,9 +1117,6 @@ void Component::get_next_particle_from_file(Particle* part, istream *in)
 
 void Component::read_bodies_and_distribute_binary(istream *in)
 {
-				// MPI buffers
-  MPI_Status status0;
-
 				// Get component header
   ComponentHeader header;
 
@@ -1187,7 +1190,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 	 << setw(20) << " fparam :: " << fparam         << endl
 	 << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
-  double rmax1, r2;
+  double rmax1=0.0, r2;
 
   if (nbodies_tot > nbodmax*numprocs) {
     if (myid==0) {
@@ -1217,7 +1220,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     seq_cur = 0;
 
     rmax1 = 0.0;
-    for (int i=1; i<=nbodies_table[0]; i++)
+    for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
       get_next_particle_from_file(&part, in);
 
@@ -1234,7 +1237,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 
 				// Now load the other nodes
-    int icount;
+    unsigned icount;
     for (int n=1; n<numprocs; n++) {
 
       cout << "Component [" << name << "]: loading node <" << n << ">\n";
@@ -1294,9 +1297,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 struct Particle * Component::get_particles(int* number)
 {
-  MPI_Status status;
-
-  static int counter = 1;	// Sequence begins at 1
+  static unsigned counter = 1;	// Sequence begins at 1
   static Particle part;
   static bool seq_state_ok = true;
   
@@ -1399,7 +1400,7 @@ struct Particle * Component::get_particles(int* number)
       }
 
       // Load the ordered array
-      for (int n=0; n<icount; n++) {
+      for (unsigned n=0; n<icount; n++) {
 	tlist[pbuf[n].indx] = pbuf[n];
 	curcount++;
 	counter++;
@@ -1442,7 +1443,7 @@ struct Particle * Component::get_particles(int* number)
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
 	       << setw(14) << icur->second.mass
-	       << setw(18) << icur->second.key;
+	       << setw(18) << icur->second.key.toHex();
 	  for (int k=0; k<3; k++) cout << setw(14) << icur->second.pos[k];
 	  cout << endl;
 	}
@@ -1765,7 +1766,7 @@ void * fix_positions_thread(void *ptr)
 
 	// Compute new center of mass quantities
 	//
-	for (unsigned k=0; k<c->dim; k++) {
+	for (int k=0; k<c->dim; k++) {
 	  com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
 	  cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
 	  coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
@@ -1775,6 +1776,7 @@ void * fix_positions_thread(void *ptr)
     }
   }
 
+  return (NULL);
 }
   
 
@@ -2029,6 +2031,7 @@ void * get_angmom_thread(void *ptr)
     }
   }
   
+  return (NULL);
 }
 
 
@@ -2118,7 +2121,7 @@ void Component::get_angmom(unsigned mlevel)
 
 int Component::round_up(double dnumb)
 {
-  int numb = (int)(dnumb + 1.0);
+  unsigned numb = (unsigned)(dnumb + 1.0);
   if (numb >= nbodmax) numb = nbodmax;
   return numb;
 }
@@ -2127,7 +2130,6 @@ int Component::round_up(double dnumb)
 void Component::setup_distribution(void)
 {
   ofstream *out;
-  ifstream *in;
   int n;
 
 				// Needed for both master and slaves
@@ -2461,8 +2463,8 @@ void Component::load_balance(void)
     
 				// Explicit check
     int nbad1 = 0, nbad=0;
-    for (int i=0; i<nbodies; i++) {
-      if (particles[i].iattrib[0] != seq_beg+i) {
+    for (unsigned i=0; i<nbodies; i++) {
+      if (particles[i].iattrib[0] != static_cast<int>(seq_beg+i)) {
 	cout << "Process " << myid << ": sequence error on load balance,"
 	     << " component=" << name
 	     << " i=" << i
@@ -2497,12 +2499,10 @@ void Component::load_balance(void)
 
 void Component::add_particles(int from, int to, vector<int>& plist)
 {
-  MPI_Status status;
-
   unsigned number = plist.size();
   vector<int>::iterator it=plist.begin();
 
-  int icount, counter=0;
+  unsigned icount, counter=0;
 
   pf.ShipParticles(to, from, number);
 
@@ -2586,7 +2586,6 @@ double Component::Adiabatic()
 
 void Component::redistributeByList(vector<int>& redist)
 {
-  MPI_Status status;
   Particle part(niattrib, ndattrib);
 
   vector<int>::iterator it = redist.begin();

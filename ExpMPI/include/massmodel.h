@@ -16,14 +16,18 @@ const char rcsid_massmodel[] = "$Id$";
 
 class QPDistF;
 
-struct RUN {
+class RUN 
+{
+public:
   Vector x;
   Vector y;
   Vector y2;
   int num;
 };
 
-struct FDIST {
+class FDIST 
+{
+public:
   Vector Q;
   Vector fQ;
   Vector ffQ;
@@ -258,9 +262,9 @@ public:
 class SphericalModelTable : public AxiSymModel
 {
 private:
-  struct RUN mass;
-  struct RUN density;
-  struct RUN pot;
+  RUN mass;
+  RUN density;
+  RUN pot;
   struct FDIST df;
   int num;
   int numdf;

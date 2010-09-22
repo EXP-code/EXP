@@ -127,8 +127,8 @@ void UserBar::initialize()
   if (get_value("Toff", val))		Toff = atof(val.c_str());
   if (get_value("DeltaT", val))		DeltaT = atof(val.c_str());
   if (get_value("Fcorot", val))		Fcorot = atof(val.c_str());
-  if (get_value("fixed", val))		fixed = atoi(val.c_str()) ? true:false;
-  if (get_value("soft", val))		soft = atoi(val.c_str()) ? true:false;
+  if (get_value("fixed", val))		fixed = atol(val);
+  if (get_value("soft", val))		soft = atoi(val);
   if (get_value("filename", val))	filename = val;
 
 }

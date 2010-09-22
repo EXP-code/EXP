@@ -218,6 +218,9 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
   dk = 0.5*M_PI/L;
   for (k=0; k<=NUMK; k++) kv[k] = dk*k;
 
+  table   = 0;
+  mpi_buf = 0;
+
   init_table();
 
 
@@ -245,10 +248,6 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
 
       for (m=0; m<=mmax; m++) {
 	for (k=0; k<=numk; k++) {
-	  /*
-	  MPI_Recv(mpi_buf, mpi_bufsz, MPI_PACKED, 0,
-		   MPI_ANY_TAG, MPI_COMM_WORLD, &status);
-		   */
 	  MPI_Bcast(mpi_buf, mpi_bufsz, MPI_PACKED, 0, MPI_COMM_WORLD);
     
 	  mpi_unpack_table();      
@@ -364,10 +363,6 @@ SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK,
       for (m=0; m<=mmax; m++) {
 	for (k=0; k<=numk; k++) {
 	  int position = mpi_pack_table(&table[m][k], m, k);
-	  /*
-	  for (slave=1; slave < mpi_numprocs; slave++)
-	    MPI_Send(mpi_buf, position, MPI_PACKED, slave, 11, MPI_COMM_WORLD);
-	    */
 	  MPI_Bcast(mpi_buf, position, MPI_PACKED, 0, MPI_COMM_WORLD);
 	}
       }
@@ -499,8 +494,11 @@ void SLGridCyl::write_cached_table(void)
 
 SLGridCyl::~SLGridCyl()
 {
-  for (int m=0; m<=mmax; m++) delete [] table[m];
-  delete [] table;
+  if (table) {
+    for (int m=0; m<=mmax; m++) delete [] table[m];
+    delete [] table;
+  }
+  delete [] mpi_buf;
 }
 
 				// Members
@@ -1563,7 +1561,9 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, int CMAP, double SCALE,
 		     int DIVERGE, double DFAC)
 {
-  model = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
+  mpi_buf  = 0;
+  my_model = true;
+  model    = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
 }
@@ -1572,7 +1572,9 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, SphericalModelTable *mod,
 		     int CMAP, double SCALE)
 {
-  model = mod;
+  mpi_buf  = 0;
+  my_model = false;
+  model    = mod;
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
 }
@@ -1602,6 +1604,8 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
   else
     cout << "Process " << myid << ": MPI is off!\n";
 #endif
+
+  table = 0;
 
   if (mpi) {
 
@@ -1865,7 +1869,9 @@ void SLGridSph::write_cached_table(void)
 
 SLGridSph::~SLGridSph()
 {
+  if (my_model) delete model;
   delete [] table;
+  delete [] mpi_buf;
 }
 
 				// Members

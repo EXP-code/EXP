@@ -42,6 +42,9 @@ extern double dbthresh;
 //! Number of bits per dimension for hash key
 extern unsigned nbits;
 
+//! Number of bits per dimension for partition
+extern unsigned pkbits;
+
 //! Particle ferry buffer size
 extern unsigned PFbufsz;
 
@@ -257,5 +260,8 @@ extern CheckpointTimer chktimer;
 //! Restart command on successful completion but early termination
 //! according to the checkpoint timer
 extern string restart_cmd;
+
+//! MPI datatype for pHOT key
+extern MPI_Datatype MPI_EXP_KEYTYPE;
 
 #endif

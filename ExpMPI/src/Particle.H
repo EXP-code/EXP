@@ -4,6 +4,9 @@
 
 #include <vector>
 #include <map>
+#ifdef I128
+#include <uint128.H>
+#endif
 
 using namespace std;
 
@@ -58,8 +61,15 @@ public:
   //! Index for ordering
   unsigned long indx;
 
+  //! Tree key
+  unsigned tree;
+
   //! Hash key
-  unsigned long long key;
+#ifdef I128
+  uint128 key;
+#else
+  unsigned long key;
+#endif
 
   //! Constructor
   Particle();
