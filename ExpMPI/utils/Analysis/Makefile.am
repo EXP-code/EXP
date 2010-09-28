@@ -23,7 +23,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof slabprof
+bin_PROGRAMS = diskprof haloprof slabprof gasprof
 
 diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
 diskprof_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
@@ -35,6 +35,10 @@ haloprof_LDADD = $(EXPLIBS)
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
 slabprof_CXXFLAGS = -I$(top_srcdir)/include
 slabprof_LDADD = $(COMMON_LIBS)
+
+gasprof_SOURCES =  gasprof.cc PSP.cc header.cc localmpi.cc Particle.cc
+gasprof_CXXFLAGS = -I$(top_srcdir)/include
+gasprof_LDADD = $(COMMON_LIBS)
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
 
