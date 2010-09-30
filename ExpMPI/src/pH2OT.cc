@@ -172,7 +172,8 @@ pH2OT::pH2OT(Component *C)
     = vector<float>(numprocs);
 
   numk3    = vector<unsigned>(numprocs);
-  numfront = vector<unsigned>(numprocs);
+  numfront = vector<int>(numprocs);
+  displace = vector<int>(numprocs);
 
   //
   // Generate the initial particle partition; this inializes the map
@@ -877,32 +878,66 @@ void pH2OT::computeCellStates()
   //
   // Each node now broadcasts its root cell states
   //
-  unsigned nf = trees.frontier.size(), sz=0;
-  MPI_Allgather(&nf, 1, MPI_UNSIGNED, &numfront[0], 1, MPI_UNSIGNED,
+  const int stateSize = 10;
+  int nf = trees.frontier.size()*stateSize, sz=0;
+  MPI_Allgather(&nf, 1, MPI_INT, &numfront[0], 1, MPI_INT,
 		MPI_COMM_WORLD);
 
-  for (int n=0; n<numprocs; n++) sz = max<unsigned>(sz, numfront[n]*10);
-  vector<double> sbuf(sz);
+  //
+  // Set (0) to (1) for MPI_Allgatherv instead of blocked broadcasts
+  //
+  if (0) {
 
-  for (int n=0; n<numprocs; n++) {
+    for (int n=0; n<numprocs; n++) sz = max<int>(sz, numfront[n]);
+    vector<double> sbuf(sz);
 
-    if (n==myid) {
-      map<unsigned, tCell*>::iterator it;
-      unsigned icnt = 0;
-      for (it=trees.frontier.begin(); it!=trees.frontier.end(); it++) {
-	for (int k=0; k<10; k++) {
-	  if (icnt >= sz) {
-	    cerr << "Bad ERROR!!!  About to overwrite in statebuf!" << endl;
-	  } else {
-	    sbuf[icnt++] = it->second->ptree->root->state[k];
+    for (int n=0; n<numprocs; n++) {
+      
+      if (n==myid) {
+	map<unsigned, tCell*>::iterator it;
+	unsigned icnt = 0;
+	for (it=trees.frontier.begin(); it!=trees.frontier.end(); it++) {
+	  for (int k=0; k<stateSize; k++) {
+	    if (icnt >= sz) {
+	      cerr << "Bad ERROR!!!  About to overwrite in statebuf!" << endl;
+	    } else {
+	      sbuf[icnt++] = it->second->ptree->root->state[k];
+	    }
 	  }
 	}
       }
+      
+      MPI_Bcast(&sbuf[0], numfront[n], MPI_DOUBLE, n, MPI_COMM_WORLD);
+      
+      for (int j=0; j<numfront[n]/stateSize; j++) trees.AddState(&sbuf[j*stateSize]);
     }
 
-    MPI_Bcast(&sbuf[0], numfront[n]*10, MPI_DOUBLE, n, MPI_COMM_WORLD);
+  } else {
 
-    for (int j=0; j<numfront[n]; j++) trees.AddState(&sbuf[j*10]);
+    vector<double> sbuf(nf);
+
+    map<unsigned, tCell*>::iterator it;
+    unsigned icnt = 0;
+    for (it=trees.frontier.begin(); it!=trees.frontier.end(); it++) {
+      for (unsigned k=0; k<stateSize; k++) {
+	sbuf[icnt++] = it->second->ptree->root->state[k];
+      }
+    }
+
+    unsigned s = 0;
+    displace[0] = 0;
+    for (int n=0; n<numprocs; n++) {
+      if (n>0) displace[n] = displace[n-1] + numfront[n-1];
+      s += numfront[n];
+    }
+
+    vector<double> sbuf0(s);
+
+
+    MPI_Allgatherv(&sbuf[0], nf, MPI_DOUBLE, &sbuf0[0], &numfront[0],
+		   &displace[0], MPI_DOUBLE, MPI_COMM_WORLD);
+
+    for (int j=0; j<s/stateSize; j++) trees.AddState(&sbuf0[j*stateSize]);
   }
 
   timer_getsta2.stop();

@@ -938,15 +938,24 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 			 waiton0, waiton1, waiton2, bodlist, celladj, 
 			 getsta1, getsta2, getsta3, treebar, numbods);
 
+      double totalTime = 
+	partnSoFar() +
+	tree1SoFar() +
+	tree2SoFar() +
+	tstepSoFar() +
+	llistTime.getTime().getRealTime() +
+	collideSoFar() +
+	timerSoFar() ;
+
       mout << "-----------------------------" << endl
-	   << "Timing (secs) at mlevel="       << mlevel << endl
+	   << "Timing (secs) at mlevel="      << mlevel << endl
 	   << "-----------------------------" << endl
 	   << "  partition=" << partnSoFar()*1.0e-6
-	   << "  [" << waitpSoFar()*1.0e-6 << "]" << endl
+	   << "  [" << waitpSoFar()*1.0e-6 << "]  " << fixed << 100.0*partnSoFar()/totalTime << "%" << endl
 	   << "  make tree=" << tree1SoFar()*1.0e-6 
-	   << "  [" << wait1SoFar()*1.0e-6 << "]" << endl
+	   << "  [" << wait1SoFar()*1.0e-6 << "]  " << fixed << 100.0*tree1SoFar()/totalTime << "%" << endl
 	   << "adjust tree=" << tree2SoFar()*1.0e-6
-	   << "  [" << wait2SoFar()*1.0e-6 << "]" << endl << endl
+	   << "  [" << wait2SoFar()*1.0e-6 << "]  " << fixed << 100.0*wait2SoFar()/totalTime << "%" << endl
 	   << "                    " 
 	   << "    " << setw(2) << pH2OT::qtile[0] << "%     " 
 	   << "    " << setw(2) << pH2OT::qtile[1] << "%     " 
@@ -973,11 +982,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "      *** barrier: [" << treebar[0] << ", " << treebar[1] << ", " << treebar[2] << "]" << endl;
 
       mout << "      *** numbods: [" << setw(10) << numbods[0] << ", " << setw(10) << numbods[1] << ", " << setw(10) << numbods[2] << "]" << endl << endl
-	   << "  timesteps=" << tstepSoFar()*1.0e-6 << endl
+	   << "  timesteps=" << tstepSoFar()*1.0e-6 << "  " << fixed << 100.0*tstepSoFar()/totalTime << "%" << endl
 	   << "  step list=" << llistTime.getTime().getRealTime()*1.0e-6 
+	   << "  " << fixed << 100.0*llistTime.getTime().getRealTime()/totalTime << "%" << endl
 	   << endl
 	   << "    collide=" << collideSoFar()*1.0e-6 << endl
+	   << "  " << fixed << 100.0*collideSoFar()/totalTime << "%" << endl
 	   << "   overhead=" << timerSoFar()*1.0e-6 << endl
+	   << "  " << fixed << 100.0*timerSoFar()/totalTime << "%" << endl
 	   << endl;
 
       collide->tsdiag(mout);

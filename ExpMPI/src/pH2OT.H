@@ -250,7 +250,8 @@ protected:
 
   //! State accumulation
   //@{
-  vector<unsigned> numfront;
+  vector<int> numfront;
+  vector<int> displace;
   //@}
 
   ParticleFerry pf;
