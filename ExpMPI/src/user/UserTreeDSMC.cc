@@ -268,6 +268,15 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ElostTotCollide = ElostTotEPSM = 0.0;
 
   //
+  // Type of load balancing
+  //
+
+  if (use_effort)
+    c0->Tree()->LoadBalanceEffort();
+  else
+    c0->Tree()->LoadBalanceNumber();
+
+  //
   // Timers: set precision to microseconds
   //
   
@@ -277,6 +286,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   tstepTime.Microseconds();
   llistTime.Microseconds();
   clldeTime.Microseconds();
+  clldeWait.Microseconds();
   partnWait.Microseconds();
   tree1Wait.Microseconds();
   tree2Wait.Microseconds();
@@ -463,8 +473,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     stepnum = 0;
     curtime = tnow;
 
-    firstime = false;
-
 #ifdef DEBUG
     cout << "Computed partition and tree [firstime on #" 
 	 << setw(4) << left << myid << "]" << endl;
@@ -523,14 +531,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   TimeElapsed partnSoFar, tree1SoFar, tree2SoFar, tstepSoFar, collideSoFar;
-  TimeElapsed waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
+  TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
 
   overhead.Start();
 
   //
   // Load balancing
   //
-  if (remap>0 && mlevel==0) {
+  if (remap>0 && mlevel==0 && !firstime) {
     if ( (this_step % remap) == 0) {
 #ifdef USE_GPTL
       GPTLstart("UserTreeDSMC::remap");
@@ -648,14 +656,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
+  collideSoFar = clldeTime.stop();
+
+  clldeWait.start();
   barrier("TreeDSMC: after collide");
 
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide");
 #endif
 
-  collideSoFar = clldeTime.stop();
-
+  waitcSoFar = clldeWait.stop();
 
 				// Time step request
 #ifdef USE_GPTL
@@ -672,6 +682,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide_timestep");
 #endif
+
+  //
+  // Repartition and remake the tree after first step to adjust load
+  // balancing for work queue effort method
+  //
+  if (0 && firstime && remap>0 && use_effort && mlevel==0) {
+    c0->Tree()->Remap();
+    c0->Tree()->Repartition(0);
+    c0->Tree()->makeTree();
+    c0->Tree()->checkCellTree();
+  }
+
+  firstime = false;
 
   //
   // Periodically display the current progress
@@ -798,7 +821,41 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     timerDiag.start();
     MPI_Reduce(&cmass1, &cmass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     c0->Tree()->CollectTiming();
+    collide->CollectTiming();
     timerSoFar = timerDiag.stop();
+
+    const int nf = 11;
+    vector<double> in(nf);
+    vector< vector<double> > out(3);
+    for (int i=0; i<3; i++) out[i] = vector<double>(nf);
+
+    in[ 0] = partnSoFar() * 1.0e-6;
+    in[ 1] = tree1SoFar() * 1.0e-6;
+    in[ 2] = tree2SoFar() * 1.0e-6;
+    in[ 3] = tstepSoFar() * 1.0e-6;
+    in[ 4] = llistTime.getTime().getRealTime() * 1.0e-6;
+    in[ 5] = collideSoFar() * 1.0e-6;
+    in[ 6] = timerSoFar() * 1.0e-6;
+    in[ 7] = waitpSoFar() * 1.0e-6;
+    in[ 8] = waitcSoFar() * 1.0e-6;
+    in[ 9] = wait1SoFar() * 1.0e-6;
+    in[10] = wait2SoFar() * 1.0e-6;
+
+    MPI_Reduce(&in[0], &out[0][0], nf, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&in[0], &out[1][0], nf, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&in[0], &out[2][0], nf, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    vector<double> tot(3, 0.0);
+    for (int i=0; i<nf; i++) {
+      out[1][i] /= numprocs;
+      //
+      tot[0] += out[0][i];
+      tot[1] += out[1][i];
+      tot[2] += out[2][i];
+    }
+
+    int pCellTot;
+    MPI_Reduce(&pCell::live, &pCellTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
 
@@ -887,21 +944,22 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       ElostTotEPSM    += ElostE;
 
       mout << scientific << "Energy (system):" << endl 
-	   << " Lost collide =" << ElostC << endl;
-      if (epsm>0) mout << "    Lost EPSM =" << ElostE << endl;
-      mout << "   Total loss =" << ElostTotCollide+ElostTotEPSM << endl;
-      if (epsm>0) mout << "   Total EPSM =" << ElostTotEPSM << endl;
-      mout << "     Total KE =" << KEtot << endl;
+	   << "----------------" << endl 
+	   << " Lost collide = " << ElostC << endl;
+      if (epsm>0) mout << "    Lost EPSM = " << ElostE << endl;
+      mout << "   Total loss = " << ElostTotCollide+ElostTotEPSM << endl;
+      if (epsm>0) mout << "   Total EPSM = " << ElostTotEPSM << endl;
+      mout << "     Total KE = " << KEtot << endl;
       if (use_exes>=0) {
 	mout << "  COLL excess =" << ExesCOLL << endl;
-	if (epsm>0) mout << "  EPSM excess =" << ExesEPSM << endl;
+	if (epsm>0) mout << "  EPSM excess = " << ExesEPSM << endl;
       }
       if (KEtot<=0.0) mout << "         Ratio= XXXX" << endl;
-      else mout << "    Ratio lost=" << (ElostC+ElostE)/KEtot << endl;
-      mout << "     3-D disp =" << disp[0] << ", " << disp[1] 
+      else mout << "   Ratio lost = " << (ElostC+ElostE)/KEtot << endl;
+      mout << "     3-D disp = " << disp[0] << ", " << disp[1] 
 	   << ", " << disp[2] << endl;
       if (dmean>0.0) {
-	mout << "   Disp ratio =" << disp[0]/dmean << ", " 
+	mout << "   Disp ratio = " << disp[0]/dmean << ", " 
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
@@ -938,59 +996,53 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 			 waiton0, waiton1, waiton2, bodlist, celladj, 
 			 getsta1, getsta2, getsta3, treebar, numbods);
 
-      double totalTime = 
-	partnSoFar() +
-	tree1SoFar() +
-	tree2SoFar() +
-	tstepSoFar() +
-	llistTime.getTime().getRealTime() +
-	collideSoFar() +
-	timerSoFar() ;
-
       mout << "-----------------------------" << endl
 	   << "Timing (secs) at mlevel="      << mlevel << endl
-	   << "-----------------------------" << endl
-	   << "  partition=" << partnSoFar()*1.0e-6
-	   << "  [" << waitpSoFar()*1.0e-6 << "]  " << fixed << 100.0*partnSoFar()/totalTime << "%" << endl
-	   << "  make tree=" << tree1SoFar()*1.0e-6 
-	   << "  [" << wait1SoFar()*1.0e-6 << "]  " << fixed << 100.0*tree1SoFar()/totalTime << "%" << endl
-	   << "adjust tree=" << tree2SoFar()*1.0e-6
-	   << "  [" << wait2SoFar()*1.0e-6 << "]  " << fixed << 100.0*wait2SoFar()/totalTime << "%" << endl
-	   << "                    " 
+	   << "-----------------------------" << endl;
+
+      outHelper0(mout, "partition",    0, out, tot);
+      outHelper0(mout, "partn wait",   7, out, tot);
+      outHelper0(mout, "make tree",    1, out, tot);
+      outHelper0(mout, "make wait",    9, out, tot);
+      outHelper0(mout, "adjust tree",  2, out, tot);
+      outHelper0(mout, "adjust wait", 10, out, tot);
+      mout << endl;
+
+      mout << "                    " 
 	   << "    " << setw(2) << pH2OT::qtile[0] << "%     " 
 	   << "    " << setw(2) << pH2OT::qtile[1] << "%     " 
-	   << "    " << setw(2) << pH2OT::qtile[2] << "%" << endl
-	   << "      *** cstatus: [" << cstatus[0] << ", " << cstatus[1] << ", " << cstatus[2] << "]" << endl
-	   << "      *** keybods: [" << keybods[0] << ", " << keybods[1] << ", " << keybods[2] << "]" << endl
-	   << "      *** xchange: [" << xchange[0] << ", " << xchange[1] << ", " << xchange[2] << "]" << endl
-	   << "      *** prepare: [" << prepare[0] << ", " << prepare[1] << ", " << prepare[2] << "]" << endl
-	   << "      *** convert: [" << convert[0] << ", " << convert[1] << ", " << convert[2] << "]" << endl
-	   << "      *** tadjust: [" << tadjust[0] << ", " << tadjust[1] << ", " << tadjust[2] << "]" << endl
-	   << "      *** cupdate: [" << cupdate[0] << ", " << cupdate[1] << ", " << cupdate[2] << "]" << endl
-	   << "      *** scatter: [" << scatter[0] << ", " << scatter[1] << ", " << scatter[2] << "]" << endl
-	   << "      *** repartn: [" << repartn[0] << ", " << repartn[1] << ", " << repartn[2] << "]" << endl
-	   << "      *** schecks: [" << schecks[0] << ", " << schecks[1] << ", " << schecks[2] << "]" << endl
-	   << "      *** celladj: [" << celladj[0] << ", " << celladj[1] << ", " << celladj[2] << "]" << endl
-	   << "      *** bodlist: [" << bodlist[0] << ", " << bodlist[1] << ", " << bodlist[2] << "]" << endl
-	   << "      *** stats#1: [" << getsta1[0] << ", " << getsta1[1] << ", " << getsta1[2] << "]" << endl
-	   << "      *** stats#2: [" << getsta2[0] << ", " << getsta2[1] << ", " << getsta2[2] << "]" << endl
-	   << "      *** stats#3: [" << getsta3[0] << ", " << getsta3[1] << ", " << getsta3[2] << "]" << endl;
-      if (mpichk) 
-      mout << "      *** wait #0: [" << waiton0[0] << ", " << waiton0[1] << ", " << waiton0[2] << "]" << endl
-	   << "      *** wait #1: [" << waiton1[0] << ", " << waiton1[1] << ", " << waiton1[2] << "]" << endl
-	   << "      *** wait #2: [" << waiton2[0] << ", " << waiton2[1] << ", " << waiton2[2] << "]" << endl
-	   << "      *** barrier: [" << treebar[0] << ", " << treebar[1] << ", " << treebar[2] << "]" << endl;
+	   << "    " << setw(2) << pH2OT::qtile[2] << "%" << endl;
 
-      mout << "      *** numbods: [" << setw(10) << numbods[0] << ", " << setw(10) << numbods[1] << ", " << setw(10) << numbods[2] << "]" << endl << endl
-	   << "  timesteps=" << tstepSoFar()*1.0e-6 << "  " << fixed << 100.0*tstepSoFar()/totalTime << "%" << endl
-	   << "  step list=" << llistTime.getTime().getRealTime()*1.0e-6 
-	   << "  " << fixed << 100.0*llistTime.getTime().getRealTime()/totalTime << "%" << endl
-	   << endl
-	   << "    collide=" << collideSoFar()*1.0e-6 << endl
-	   << "  " << fixed << 100.0*collideSoFar()/totalTime << "%" << endl
-	   << "   overhead=" << timerSoFar()*1.0e-6 << endl
-	   << "  " << fixed << 100.0*timerSoFar()/totalTime << "%" << endl
-	   << endl;
+      outHelper1<float>(mout, "cstatus", cstatus);
+      outHelper1<float>(mout, "keybods", keybods);
+      outHelper1<float>(mout, "xchange", xchange);
+      outHelper1<float>(mout, "prepare", prepare);
+      outHelper1<float>(mout, "convert", convert);
+      outHelper1<float>(mout, "tadjust", tadjust);
+      outHelper1<float>(mout, "cupdate", cupdate);
+      outHelper1<float>(mout, "scatter", scatter);
+      outHelper1<float>(mout, "repartn", repartn);
+      outHelper1<float>(mout, "schecks", schecks);
+      outHelper1<float>(mout, "celladj", celladj);
+      outHelper1<float>(mout, "bodlist", bodlist);
+      outHelper1<float>(mout, "stats#1", getsta1);
+      outHelper1<float>(mout, "stats#2", getsta2);
+      outHelper1<float>(mout, "stats#3", getsta3);
+
+      if (mpichk) {
+	outHelper1<float>(mout, "wait #0", waiton0);
+	outHelper1<float>(mout, "wait #1", waiton1);
+	outHelper1<float>(mout, "wait #2", waiton2);
+	outHelper1<float>(mout, "barrier", treebar);
+      }
+      outHelper1<unsigned int>(mout, "numbods", numbods);
+      mout << endl;
+
+      outHelper0(mout, "timesteps", 3, out, tot);
+      outHelper0(mout, "step list", 4, out, tot);
+      outHelper0(mout, "collide  ", 5, out, tot);
+      outHelper0(mout, "coll wait", 8, out, tot);
+      outHelper0(mout, "overhead ", 6, out, tot);
 
       collide->tsdiag(mout);
       collide->voldiag(mout);
@@ -998,24 +1050,32 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       partnTime.reset();
       tree1Time.reset();
       tree2Time.reset();
-      partnWait.reset();
-      tree1Wait.reset();
-      tree2Wait.reset();
       tstepTime.reset();
       llistTime.reset();
       clldeTime.reset();
       timerDiag.reset();
+      partnWait.reset();
+      tree1Wait.reset();
+      tree2Wait.reset();
+      clldeWait.reset();
 
+      //
       // Cell instance diagnostics
+      //
       mout << "-----------------------------" << endl
-	   << "Cell counts at mlevel="       << mlevel << endl
+	   << "Object counts at mlevel="      << mlevel << endl
 	   << "-----------------------------" << endl
-	   << "# pCell = " << pCell::live << endl
-	   << "# tCell = " << tCell::live << endl
-	   << "# tTree = " << tTree::live << endl
-	   << "# pTree = " << pTree::live << endl
+	   << " pCell # = " << pCellTot    << endl
+	   << " tCell # = " << tCell::live << endl
+	   << " tTree # = " << tTree::live << endl
+	   << " pTree # = " << pTree::live << endl
 	   << "-----------------------------" << endl;
     }
+
+				// Debugging usage
+				//
+    collide->EPSMtiming(cout);
+    collide->getCPUHog(cout);
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");
@@ -1088,7 +1148,8 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
       ostr << outdir << runtag << ".testcell." << myid << "." << cnt++;
       ofstream out(ostr.str().c_str());
 
-      for (set<unsigned long>::iterator j=c.Cell()->bods.begin();
+      // for (set<unsigned long>::iterator j=c.Cell()->bods.begin();
+      for (vector<unsigned long>::iterator j=c.Cell()->bods.begin();
 	   j!=c.Cell()->bods.end(); j++) {
 	for (unsigned k=0; k<3; k++) 
 	  out << setw(18) << c0->Tree()->Body(*j)->pos[k];
@@ -1145,7 +1206,8 @@ void UserTreeDSMC::assignTempDensVol()
 	    unsigned csz = cell->count;
 	    double  volm = cell->Volume();
 	    double  dens = cell->Mass()/volm;
-	    set<unsigned long>::iterator j = cell->bods.begin();
+	    // set<unsigned long>::iterator j = cell->bods.begin();
+	    vector<unsigned long>::iterator j = cell->bods.begin();
 	    while (j != cell->bods.end()) {
 	      if (*j == 0) {
 		cout << "proc=" << myid << " id=" << id 
@@ -1251,7 +1313,8 @@ void UserTreeDSMC::TempHisto()
       for (it = itb; it != ite; it++)
 	{
 	  cell = it->second;
-	  set<unsigned long>::iterator j = cell->bods.begin();
+	  // set<unsigned long>::iterator j = cell->bods.begin();
+	  vector<unsigned long>::iterator j = cell->bods.begin();
 	  V = cell->Volume();
 	  while (j != cell->bods.end()) {
 	    T = cell->Body(j)->dattrib[use_temp];

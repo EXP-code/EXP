@@ -88,6 +88,7 @@ private:
   Timer forkTime, snglTime, waitTime, joinTime, diagTime;
   TimeElapsed forkSoFar, snglSoFar, waitSoFar;
   TimeElapsed diagSoFar, joinSoFar;
+  vector<double> forkSum, snglSum, waitSum, diagSum, joinSum;
   
   // Quantile index function
   //
@@ -111,6 +112,7 @@ private:
 	(tv_list[id].tv_sec % 1000);
     }
   }
+
   inline void thread_timing_end(int id)
   {
     if (VERBOSE>5) {
@@ -190,15 +192,26 @@ protected:
   void pre_collide_diag();
   unsigned post_collide_diag();
 
+  template<typename T>
+  void colldeHelper(ostream& out, const char* lab, vector<T>& v);
+
   // Timing and debug (access for derived classes)
   //
-  vector<Timer> initTime, collTime, elasTime, cellTime;
-  vector<Timer> stat1Time, stat2Time, stat3Time, coolTime;
-  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar;
-  vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar;
-  vector<int> collCnt;
+  vector<Timer> initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
+  vector<Timer> stat1Time, stat2Time, stat3Time, coolTime, listTime;
+  vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar, epsmSoFar;
+  vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar, listSoFar;
+  vector<TimeElapsed> curcSoFar;
+  vector<int>    collCnt, numbSum;
+  vector<double> initSum, collSum, elasSum, cellSum, epsmSum;
+  vector<double> stat1Sum, stat2Sum, stat3Sum, coolSum, listSum;
 
+  vector<long> minUsage, maxUsage, minPart, maxPart, minCollP, maxCollP;
 
+  static const int nEPSMT = 6;
+  vector< vector<Timer> > EPSMT;
+  vector< vector<TimeElapsed> > EPSMTSoFar;
+  
 public:
 
   static int CNUM;		// Target CNUM collisions if nonzero
@@ -237,10 +250,13 @@ public:
   static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
 
   static bool EFFORT;		// Augment effort value by work done in collisions (default: true)
-
+				// Print out additional CPU timing detail
+  static bool TIMING;
 				// Use EPSM when mean free path/cell size ratio 
 				// is below EPSMratio (default = -1.0, never)
   static double EPSMratio;
+				// Minimum number of particles for EPSM
+  static unsigned EPSMmin;
 				// Temperature floor in resampling dispersion for EPSM
   static double TFLOOR;
 
@@ -300,15 +316,18 @@ public:
 
   /// Debug timing routines
   //@{
-  double dgnoscTime() { diagTime.reset(); return diagSoFar()*1.0e-6; }
-  double threadTime() { forkTime.reset(); return forkSoFar()*1.0e-6; }
-  double joinedTime() { snglTime.reset(); return snglSoFar()*1.0e-6; }
-  double waitngTime() { waitTime.reset(); return waitSoFar()*1.0e-6; }
-  double joinngTime() { joinTime.reset(); return joinSoFar()*1.0e-6; }
+  vector<double> dgnoscTime() { return diagSum; }
+  vector<double> threadTime() { return forkSum; }
+  vector<double> joinedTime() { return snglSum; }
+  vector<double> waitngTime() { return waitSum; }
+  vector<double> joinngTime() { return joinSum; }
+  void EPSMtiming(ostream& out);
+  void getCPUHog(ostream& out);
   //@}
 
   /// Debug output routines
   //@{
+  void CollectTiming();
   void colldeTime(ostream& out);
   void voldiag(ostream& out);
   void tsdiag(ostream& out);

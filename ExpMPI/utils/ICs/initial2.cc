@@ -168,7 +168,8 @@ program_option init[] = {
   {"zero",            "bool",      "false",           "zero center of mass and velocity"},
   {"nhalo",           "int",       "1000",            "Number of halo particles"},
   {"ndisk",           "int",       "1000",            "Number of disk particles"},
-  {"ngas",            "int",       "1000",            "Number of gass particles"},
+  {"ngas",            "int",       "1000",            "Number of gas particles"},
+  {"ngparam",         "int",       "3",               "Number of gas particle parameters"},
   {"hbods",           "string",    "halo.bods",       "Halo particle output file"},
   {"dbods",           "string",    "disk.bods",       "Disk particle output file"},
   {"gbods",           "string",    "gas.bods",        "Gas particle output file"},
@@ -263,6 +264,7 @@ bool         zero;
 int          nhalo;
 int          ndisk;
 int          ngas;
+int          ngparam;
 string       hbods;
 string       dbods;
 string       gbods;
@@ -342,6 +344,7 @@ void param_assign()
    nhalo              = config.get<int>     ("nhalo");
    ndisk              = config.get<int>     ("ndisk");
    ngas               = config.get<int>     ("ngas");
+   ngparam            = config.get<int>     ("ngparam");
    hbods              = config.get<string>  ("hbods");
    dbods              = config.get<string>  ("dbods");
    gbods              = config.get<string>  ("gbods");
@@ -1097,7 +1100,6 @@ main(int argc, char **argv)
 
     const int ITMAX=1000;
     const int NREPORT=1000;
-    const int nparam = 3;
     
     //
     // Maximum enclosed disk mass given rmax
@@ -1132,7 +1134,7 @@ main(int argc, char **argv)
     fr = fz = potr = 0.0;
 
     outps << setw(8) << ngas
-	  << setw(6) << 0 << setw(6) << nparam << endl;
+	  << setw(6) << 0 << setw(6) << ngparam << endl;
 
     for (int n=0; n<ngas; n++) {
 
@@ -1214,7 +1216,7 @@ main(int argc, char **argv)
 	    << setw(18) << u
 	    << setw(18) << v
 	    << setw(18) << w;
-      for (int k=0; k<nparam; k++) outps << setw(18) << 0.0;
+      for (int k=0; k<ngparam; k++) outps << setw(18) << 0.0;
       outps << endl;
     
       if (expandd)

@@ -336,6 +336,8 @@ public:
   void makeTree();
   void adjustTree(unsigned);
   void Repartition(unsigned);
+  void LoadBalanceNumber() { use_number = true; }
+  void LoadBalanceEffort() { use_number = false; }
 
   Particle *Body(unsigned k) { return &cc->particles[k]; }
 
@@ -520,7 +522,8 @@ public:
 
   double Mass() { return fit->second->Mass(); }
 
-  Particle *Body(set<unsigned long>::iterator k) { return fit->second->Body(k); }
+  // Particle *Body(set<unsigned long>::iterator k) { return fit->second->Body(k); }
+Particle *Body(vector<unsigned long>::iterator k) { return fit->second->Body(k); }
 
 };
 

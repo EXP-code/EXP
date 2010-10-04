@@ -100,7 +100,13 @@ void ProgramParam::add_entry(const string &name, const string& type,
 	{
 	  it->type = type;
 	  it->help = help;
-	  it->parse(0, deflt);
+	  try {
+	    it->parse(0, deflt);
+	  }
+	  catch (char *msg) {
+	    cerr << "On parsing <" << name << ">" << endl;
+	    cerr << msg << endl;
+	  }
 	  return;
 	}
     }
@@ -114,6 +120,7 @@ void ProgramParam::add_entry(const string &name, const string& type,
     pp2.parse(0, deflt);
   }
   catch (char *msg) {
+    cerr << "On parsing <" << name << "> [2]" << endl;
     cerr << msg << endl;
   }
 

@@ -46,6 +46,8 @@ bool Collide::MFPDIAG  = false;
 bool Collide::NTC      = false;
 				// Use cpu work to augment per particle effort
 bool Collide::EFFORT   = true;	
+				// Verbose timing
+bool Collide::TIMING   = true;
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 				// Power of two interval for KE/cool histogram
@@ -142,6 +144,7 @@ void Collide::collide_thread_fork(pH2OT* tree, double Fn, double tau)
 int Collide::CNUM = 0;
 bool Collide::CBA = true;
 double Collide::EPSMratio = -1.0;
+unsigned Collide::EPSMmin = 0;
 
 Collide::Collide(ExternalForce *force, double diameter, int nth)
 {
@@ -202,6 +205,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   stepcount = 0;
   bodycount = 0;
 
+  listTime   = vector<Timer>(nthrds);
   initTime   = vector<Timer>(nthrds);
   collTime   = vector<Timer>(nthrds);
   elasTime   = vector<Timer>(nthrds);
@@ -210,25 +214,41 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   stat3Time  = vector<Timer>(nthrds);
   coolTime   = vector<Timer>(nthrds);
   cellTime   = vector<Timer>(nthrds);
+  curcTime   = vector<Timer>(nthrds);
+  epsmTime   = vector<Timer>(nthrds);
+  listSoFar  = vector<TimeElapsed>(nthrds);
   initSoFar  = vector<TimeElapsed>(nthrds);
   collSoFar  = vector<TimeElapsed>(nthrds);
   elasSoFar  = vector<TimeElapsed>(nthrds);
   cellSoFar  = vector<TimeElapsed>(nthrds);
+  curcSoFar  = vector<TimeElapsed>(nthrds);
+  epsmSoFar  = vector<TimeElapsed>(nthrds);
   stat1SoFar = vector<TimeElapsed>(nthrds);
   stat2SoFar = vector<TimeElapsed>(nthrds);
   stat3SoFar = vector<TimeElapsed>(nthrds);
   coolSoFar  = vector<TimeElapsed>(nthrds);
   collCnt    = vector<int>(nthrds, 0);
 
+  EPSMT      = vector< vector<Timer> >(nthrds);
+  EPSMTSoFar = vector< vector<TimeElapsed> >(nthrds);
   for (int n=0; n<nthrds; n++) {
-    initTime[n].Microseconds();
-    collTime[n].Microseconds();
-    elasTime[n].Microseconds();
+    EPSMT[n] = vector<Timer>(nEPSMT);
+    for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
+    EPSMTSoFar[n] = vector<TimeElapsed>(nEPSMT);
+  }  
+
+  for (int n=0; n<nthrds; n++) {
+    listTime [n].Microseconds();
+    initTime [n].Microseconds();
+    collTime [n].Microseconds();
+    elasTime [n].Microseconds();
     stat1Time[n].Microseconds();
     stat2Time[n].Microseconds();
     stat3Time[n].Microseconds();
-    coolTime[n].Microseconds();
-    cellTime[n].Microseconds();
+    coolTime [n].Microseconds();
+    cellTime [n].Microseconds();
+    curcTime [n].Microseconds();
+    epsmTime [n].Microseconds();
   }
   
   if (TSDIAG) {
@@ -301,10 +321,37 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   }
 
   if (VERBOSE>5) {
-    tv_list = vector<struct timeval>(nthrds);
+    tv_list    = vector<struct timeval>(nthrds);
     timer_list = vector<double>(2*nthrds);
   }
 
+  forkSum  = vector<double>(3);
+  snglSum  = vector<double>(3);
+  waitSum  = vector<double>(3);
+  diagSum  = vector<double>(3);
+  joinSum  = vector<double>(3);
+
+  if (TIMING) {
+    listSum  = vector<double>(3);
+    initSum  = vector<double>(3);
+    collSum  = vector<double>(3);
+    elasSum  = vector<double>(3);
+    cellSum  = vector<double>(3);
+    epsmSum  = vector<double>(3);
+    stat1Sum = vector<double>(3);
+    stat2Sum = vector<double>(3);
+    stat3Sum = vector<double>(3);
+    coolSum  = vector<double>(3);
+    numbSum  = vector<int   >(3);
+  }
+
+  // Debug maximum work per cell
+  minUsage = vector<long>(nthrds*2, MAXLONG);
+  maxUsage = vector<long>(nthrds*2, 0);
+  minPart  = vector<long>(nthrds*2, -1);
+  maxPart  = vector<long>(nthrds*2, -1);
+  minCollP = vector<long>(nthrds*2, -1);
+  maxCollP = vector<long>(nthrds*2, -1);
 }
 
 Collide::~Collide()
@@ -380,6 +427,11 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
 #endif
   snglTime.stop();
 
+				// Needed for meaningful timing results
+  waitTime.start();
+  MPI_Barrier(MPI_COMM_WORLD);
+  waitTime.stop();
+
   forkTime.start();
   if (0) {
     ostringstream sout;
@@ -400,6 +452,8 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
   snglSoFar = snglTime.stop();
 
 
+  
+
   caller->print_timings("Collide: collision thread timings", timer_list);
 
   return( col );
@@ -419,15 +473,17 @@ void Collide::dispersion(vector<double>& disp)
 void * Collide::collide_thread(void * arg)
 {
   pH2OT *tree = (pH2OT*)((thrd_pass_arguments*)arg)->tree;
-  double Fn = (double)((thrd_pass_arguments*)arg)->fn;
-  double tau = (double)((thrd_pass_arguments*)arg)->tau;
-  int id = (int)((thrd_pass_arguments*)arg)->id;
+  double Fn   = (double)((thrd_pass_arguments*)arg)->fn;
+  double tau  = (double)((thrd_pass_arguments*)arg)->tau;
+  int id      = (int)   ((thrd_pass_arguments*)arg)->id;
 
 				// Work vectors
   vector<double> vcm(3), vrel(3), crel(3);
   pCell *c;
 
   thread_timing_beg(id);
+
+  cellTime[id].start();
 
   // Loop over cells, processing collisions in each cell
   //
@@ -437,22 +493,29 @@ void * Collide::collide_thread(void * arg)
     GPTLstart("Collide::bodylist");
 #endif
 
-    // Reset and start the effort time
+    int EPSMused = 0;
+
+    // Start the effort time
     //
-    cellTime[id].reset();
-    cellTime[id].start();
+    curcTime[id].reset();
+    curcTime[id].start();
 
     // Number of particles in this cell
     //
+    listTime[id].start();
     c = cellist[id][j];
     unsigned number = c->bods.size();
     numcntT[id].push_back(number);
 
     // Nbody list
     //
-    vector<unsigned> bodx;
+    /**
+    vector<unsigned long> bodx;
+    unsigned bcnt=0;
     set<unsigned long>::iterator ib = c->bods.begin();
-    for (ib=c->bods.begin(); ib!=c->bods.end(); ib++) bodx.push_back(*ib);
+    for (ib=c->bods.begin(); ib!=c->bods.end(); ib++, bcnt++) 
+      bodx[bcnt] = *ib;
+    **/
 
 #ifdef USE_GPTL
     GPTLstop("Collide::bodylist");
@@ -460,9 +523,13 @@ void * Collide::collide_thread(void * arg)
 
     // Skip cells with only one particle
     //
-    if( number < 2 ) {
+    if ( number < 2 ) {
       colcntT[id].push_back(0);
-      continue;  // Skip to the next cell
+				// Stop timers
+      curcTime[id].stop();
+      listSoFar[id] = listTime[id].stop();
+				// Skip to the next cell
+      continue;
     }
 
 #ifdef USE_GPTL
@@ -470,6 +537,7 @@ void * Collide::collide_thread(void * arg)
     GPTLstart("Collide::energy");
 #endif
 
+    listSoFar[id] = listTime[id].stop();
     stat1Time[id].start();
 
     // Energy lost in this cell
@@ -488,7 +556,8 @@ void * Collide::collide_thread(void * arg)
       if (samp->state[0]>0.0) {
 	for (unsigned k=0; k<3; k++) 
 	  crm += (samp->state[1+k] - 
-		  samp->state[4+k]*samp->state[4+k]/samp->state[0])/samp->state[0];
+		  samp->state[4+k]*samp->state[4+k]/samp->state[0])
+	    /samp->state[0];
       }
       mvel = fabs(crm);
       crm  = sqrt(2.0*mvel);
@@ -661,12 +730,16 @@ void * Collide::collide_thread(void * arg)
     collTime[id].start();
 				// Number of collisions per particle:
 				// assume equipartition if large
-    if (use_epsm && collP > EPSMratio) {
+    if (use_epsm && collP > EPSMratio && number > EPSMmin) {
+
+      EPSMused = 1;
 
 #ifdef USE_GPTL
       GPTLstart("Collide::EPSM");
 #endif
+      epsmTime[id].start();
       EPSM(tree, c, id);
+      epsmSoFar[id] = epsmTime[id].stop();
 #ifdef USE_GPTL
       GPTLstop ("Collide::EPSM");
 #endif
@@ -686,8 +759,8 @@ void * Collide::collide_thread(void * arg)
 	//
 	unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
 	unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
-	Particle* p1 = tree->Body(bodx[k1]); // First particle
-	Particle* p2 = tree->Body(bodx[k2]); // Second particle
+	Particle* p1 = tree->Body(c->bods[k1]); // First particle
+	Particle* p2 = tree->Body(c->bods[k2]); // Second particle
 	
 	// Calculate pair's relative speed (pre-collision)
 	//
@@ -806,7 +879,7 @@ void * Collide::collide_thread(void * arg)
     double tmass = 0.0;
     vector<double> velm(3, 0.0), velm2(3, 0.0);
     for (unsigned j=0; j<number; j++) {
-      Particle* p = tree->Body(bodx[j]);
+      Particle* p = tree->Body(c->bods[j]);
       for (unsigned k=0; k<3; k++) {
 	velm[k]  += p->mass*p->vel[k];
 	velm2[k] += p->mass*p->vel[k]*p->vel[k];
@@ -845,7 +918,7 @@ void * Collide::collide_thread(void * arg)
 	    dE = (decelT[id] - coolheat[id])/mass;
 
 	  for (unsigned j=0; j<number; j++) {
-	    Particle* p = tree->Body(bodx[j]);
+	    Particle* p = tree->Body(c->bods[j]);
 	    p->dattrib[use_exes] += dE*p->mass;
 	  }
 	}
@@ -864,7 +937,7 @@ void * Collide::collide_thread(void * arg)
       double Kn = cL*cL/(Fn*mass*cross);
       double St = cL/fabs(tau*mvel);
       for (unsigned j=0; j<number; j++) {
-	Particle* p = tree->Body(bodx[j]);
+	Particle* p = tree->Body(c->bods[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
 	if (use_St>=0) p->dattrib[use_St] = St;
       }
@@ -876,13 +949,35 @@ void * Collide::collide_thread(void * arg)
 
     // Record effort per particle in microseconds
     //
-    cellSoFar[id] = cellTime[id].stop();
+    curcSoFar[id] = curcTime[id].stop();
+    long tt = curcSoFar[id].getRealTime();
     if (EFFORT) {
-      double effort = cellSoFar[id]()/number;
-      for (unsigned k=0; k<number; k++) tree->Body(bodx[k])->effort += effort;
+      double effort = static_cast<double>(tt)/number;
+      for (unsigned k=0; k<number; k++) 
+	tree->Body(c->bods[k])->effort += effort;
+    }
+
+    // Usage debuging
+    //
+    if (tt==0) { 
+      cout << "T=0" << ", precision=" 
+	   << (curcTime[id].Precision() ? "microseconds" : "seconds")
+	   << endl;
+    }
+    if (minUsage[id*2+EPSMused] > tt) {
+      minUsage[id*2+EPSMused] = tt;
+      minPart [id*2+EPSMused] = number;
+      minCollP[id*2+EPSMused] = collP;
+    }
+    if (maxUsage[id*2+EPSMused] < tt) {
+      maxUsage[id*2+EPSMused] = tt;
+      maxPart [id*2+EPSMused] = number;
+      maxCollP[id*2+EPSMused] = collP;
     }
 
   } // Loop over cells
+
+  cellSoFar[id] = cellTime[id].stop();
 
   thread_timing_end(id);
 
@@ -1241,16 +1336,16 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 #endif
 				// Compute mean and variance in each dimension
 				// 
+  EPSMT[id][0].start();
+  
   vector<double> mvel(3, 0.0), disp(3, 0.0);
   double mass = 0.0;
   double Exes = 0.0;
   unsigned nbods = cell->bods.size();
-  vector<unsigned> bodx;
-  for (set<unsigned long>::iterator
+  for (vector<unsigned long>::iterator
 	 ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
     
     Particle* p = tree->Body(*ib);
-    bodx.push_back(*ib);
     if (p->mass<=0.0 || isnan(p->mass)) {
       cout << "[crazy mass]";
     }
@@ -1274,6 +1369,7 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
       p->dattrib[use_exes] = 0;
     }
   }
+  EPSMTSoFar[id][0] = EPSMT[id][0].stop();
 
   //
   // Can't do anything if the gas has no mass
@@ -1283,6 +1379,8 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
   //
   // Compute the thermal (e.g. internal) energy
   //
+  EPSMT[id][1].start();
+
   double Einternal = 0.0, Enew;
   for (unsigned k=0; k<3; k++) {
     mvel[k] /= mass;
@@ -1296,6 +1394,8 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
     Einternal += 0.5*mass*disp[k];
   }
 
+  EPSMTSoFar[id][1] = EPSMT[id][1].stop();
+
   //
   // Can't collide if with no internal energy
   //
@@ -1304,6 +1404,8 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
   //
   // Correct 1d vel. disp. after cooling
   // 
+  EPSMT[id][2].start();
+
   double Emin = 1.5*boltz*TFLOOR * mass/mp * 
     UserTreeDSMC::Munit/UserTreeDSMC::Eunit;
 
@@ -1338,6 +1440,8 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 				// new internal energy value
   double mdisp = sqrt(Enew/mass/3.0);
 
+  EPSMTSoFar[id][2] = EPSMT[id][2].stop();
+
 				// Sanity check
 				// 
   if (mdisp<=0.0 || isnan(mdisp) || isinf(mdisp)) {
@@ -1349,12 +1453,14 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 				// Realize new velocities for all particles
 				// 
   if (PULLIN) {
+    EPSMT[id][3].start();
+
     double R=0.0, T=0.0;	// [Shuts up the compile-time warnings]
     const double sqrt3 = sqrt(3.0);
 
     if (nbods==2) {
-      Particle* p1 = tree->Body(bodx[0]);
-      Particle* p2 = tree->Body(bodx[1]);
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
 	if ((*unit)()>0.5)
@@ -1365,9 +1471,9 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
       }
 
     } else if (nbods==3) {
-      Particle* p1 = tree->Body(bodx[0]);
-      Particle* p2 = tree->Body(bodx[1]);
-      Particle* p3 = tree->Body(bodx[2]);
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
+      Particle* p3 = tree->Body(cell->bods[2]);
       double v2, v3;
       for (unsigned k=0; k<3; k++) {
 	T = 2.0*M_PI*(*unit)();
@@ -1378,10 +1484,10 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 	p3->vel[k] = p2->vel[k] + M_SQRT2*v3;
       }
     } else if (nbods==4) {
-      Particle* p1 = tree->Body(bodx[0]);
-      Particle* p2 = tree->Body(bodx[1]);
-      Particle* p3 = tree->Body(bodx[2]);
-      Particle* p4 = tree->Body(bodx[3]);
+      Particle* p1 = tree->Body(cell->bods[0]);
+      Particle* p2 = tree->Body(cell->bods[1]);
+      Particle* p3 = tree->Body(cell->bods[2]);
+      Particle* p4 = tree->Body(cell->bods[3]);
       double v2, v3, e2, e4, v4;
       for (unsigned k=0; k<3; k++) {
 	R = (*unit)();
@@ -1399,7 +1505,7 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
       }
 
     } else {
-
+      
       Particle *Pm1, *P00, *Pp1;
       vector<double> Tk, v(nbods), e(nbods);
       int kmax, dim, jj;
@@ -1427,8 +1533,8 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 	v[1] = sqrt(2.0*e[1])*cos(T);
 	v[2] = sqrt(2.0*e[1])*sin(T);
 
-	P00 = tree->Body(bodx[0]);
-	Pp1 = tree->Body(bodx[1]);
+	P00 = tree->Body(cell->bods[0]);
+	Pp1 = tree->Body(cell->bods[1]);
 
 	P00->vel[k] = mvel[k] - sqrt(nbods-1)*v[1]/sqrt(nbods);
 	Pp1->vel[k] = P00->vel[k] + (sqrt(nbods)*v[1] - sqrt(nbods-2)*v[2])/sqrt(nbods-1);
@@ -1437,9 +1543,9 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 	for (int j=4; j<kmax-1; j+=2) {
 	  jj = j-1;
 
-	  Pm1 = tree->Body(bodx[jj-2]);
-	  P00 = tree->Body(bodx[jj-1]);
-	  Pp1 = tree->Body(bodx[jj  ]);
+	  Pm1 = tree->Body(cell->bods[jj-2]);
+	  P00 = tree->Body(cell->bods[jj-1]);
+	  Pp1 = tree->Body(cell->bods[jj  ]);
 
 	  prod *= Tk[j/2-2];
 	  e[jj] = mdisp*mdisp*(1.0 - Tk[j/2-1])*prod;
@@ -1464,15 +1570,15 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 	  v[nbods-2] = sqrt(2.0*e[kmax-1])*cos(T);
 	  v[nbods-1] = sqrt(2.0*e[kmax-1])*sin(T);
 
-	  Pm1 = tree->Body(bodx[nbods-4]);
-	  P00 = tree->Body(bodx[nbods-3]);
+	  Pm1 = tree->Body(cell->bods[nbods-4]);
+	  P00 = tree->Body(cell->bods[nbods-3]);
 
 	  P00->vel[k] = Pm1->vel[k] + (2.0*v[nbods-3] - M_SQRT2*v[nbods-2])/sqrt3;
 	}
 
-	Pm1 = tree->Body(bodx[nbods-3]);
-	P00 = tree->Body(bodx[nbods-2]);
-	Pp1 = tree->Body(bodx[nbods-1]);
+	Pm1 = tree->Body(cell->bods[nbods-3]);
+	P00 = tree->Body(cell->bods[nbods-2]);
+	Pp1 = tree->Body(cell->bods[nbods-1]);
 
 	P00->vel[k] = Pm1->vel[k] + (sqrt3*v[nbods-2] - v[nbods-1])/M_SQRT2;
 	Pp1->vel[k] = P00->vel[k] + M_SQRT2*v[nbods-1];
@@ -1481,7 +1587,11 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 
     // End Pullin algorithm
 
+    EPSMTSoFar[id][1] = EPSMT[id][3].stop();
+
   } else {
+
+    EPSMT[id][4].start();
 
     //
     // Realize a distribution with internal dispersion only
@@ -1490,7 +1600,7 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
     vector<double> Tdisp(3, 0.0);
 
     for (unsigned j=0; j<nbods; j++) {
-      Particle* p = tree->Body(bodx[j]);
+      Particle* p = tree->Body(cell->bods[j]);
       
       for (unsigned k=0; k<3; k++) {
 	p->vel[k] = mdisp*(*norm)();
@@ -1528,13 +1638,15 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
     // Enforce energy and momentum conservation
     // 
     for (unsigned j=0; j<nbods; j++) {
-      Particle* p = tree->Body(bodx[j]);
+      Particle* p = tree->Body(cell->bods[j]);
       for (unsigned k=0; k<3; k++)
 	p->vel[k] = mvel[k] + (p->vel[k]-Tmvel[k])*mdisp/Tmdisp;
     }
 
+    EPSMTSoFar[id][4] = EPSMT[id][4].stop();
   }
 
+  EPSMT[id][5].start();
 
   //
   // Debugging sanity check
@@ -1547,7 +1659,7 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
     double mdisp1 = 0.0;
 
     for (unsigned j=0; j<nbods; j++) {
-      Particle* p = tree->Body(bodx[j]);
+      Particle* p = tree->Body(cell->bods[j]);
       for (unsigned k=0; k<3; k++) {
 	mvel1[k] += p->mass*p->vel[k];
 	disp1[k] += p->mass*p->vel[k]*p->vel[k];
@@ -1595,6 +1707,45 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
   GPTLstop("Collide::EPSM");
 #endif
 
+  EPSMTSoFar[id][5] = EPSMT[id][5].stop();
+
+}
+
+void Collide::EPSMtiming(ostream& out)
+{
+  const char labels[nEPSMT][20] = {"Mean/Var",
+				   "Energy",
+				   "1-d vel",
+				   "Pullin",
+				   "Standard",
+				   "Final"};
+  vector<long> r(nEPSMT, 0);
+  for (int n=0; n<nthrds; n++) {
+    for (int i=0; i<nEPSMT; i++) {
+      r[i] += EPSMTSoFar[n][i]();
+      EPSMT[n][i].reset();
+    }
+  }
+  
+  if (myid==0) {
+    MPI_Reduce(MPI_IN_PLACE, &r[0], nEPSMT, MPI_LONG, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+
+    long sum = 0;
+    for (int i=0; i<nEPSMT; i++) sum += r[i];
+
+    out << setfill('-') << setw(40) << '-' << setfill(' ') << endl
+	<< "EPSM timing" << endl
+	<< "-----------" << endl;
+    for (int i=0; i<nEPSMT; i++)
+      out << left << setw(20) << labels[i] << setw(10) << r[i] 
+	  << setw(10) << fixed << 100.0*r[i]/sum << "%" << endl;
+    out << setfill('-') << setw(40) << '-' << setfill(' ') << endl;
+
+  } else {
+    MPI_Reduce(&r[0], MPI_IN_PLACE, nEPSMT, MPI_LONG, MPI_SUM, 0,
+	       MPI_COMM_WORLD);
+  }
 }
 
 void Collide::list_sizes()
@@ -1663,68 +1814,196 @@ void Collide::list_sizes_proc(ostream* out)
 }
 
 
+void Collide::CollectTiming()
+{
+  int nf = 5, c;
+  if (TIMING) nf += 11;
+
+  vector<double> in(nf, 0.0);
+  vector< vector<double> > out(3);
+  for (int i=0; i<3; i++) out[i] = vector<double>(nf);
+  
+  in[0] += forkSoFar() * 1.0e-6;
+  in[1] += snglSoFar() * 1.0e-6;
+  in[2] += waitSoFar() * 1.0e-6;
+  in[3] += diagSoFar() * 1.0e-6;
+  in[4] += joinSoFar() * 1.0e-6;
+
+  for (int n=0; n<nthrds; n++) {
+    c = 5;
+    in[c++] += listSoFar[n]()  * 1.0e-6;
+    in[c++] += initSoFar[n]()  * 1.0e-6;
+    in[c++] += collSoFar[n]()  * 1.0e-6;
+    in[c++] += elasSoFar[n]()  * 1.0e-6;
+    in[c++] += cellSoFar[n]()  * 1.0e-6;
+    in[c++] += epsmSoFar[n]()  * 1.0e-6;
+    in[c++] += coolSoFar[n]()  * 1.0e-6;
+    in[c++] += stat1SoFar[n]() * 1.0e-6;
+    in[c++] += stat2SoFar[n]() * 1.0e-6;
+    in[c++] += stat3SoFar[n]() * 1.0e-6;
+    in[c++] += collCnt[n];
+  }
+    
+  // Minimum
+  MPI_Reduce(&in[0], &out[0][0], nf, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+  
+  // Sum
+  MPI_Reduce(&in[0], &out[1][0], nf, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  
+  // Maximum
+  MPI_Reduce(&in[0], &out[2][0], nf, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+  
+  
+  c = 0;
+  forkSum[0]  = out[0][c];
+  forkSum[1]  = out[1][c]/numprocs;
+  forkSum[2]  = out[2][c];
+  
+  c++;
+  snglSum[0]  = out[0][c];
+  snglSum[1]  = out[1][c]/numprocs;
+  snglSum[2]  = out[2][c];
+
+  c++;
+  waitSum[0]  = out[0][c];
+  waitSum[1]  = out[1][c]/numprocs;
+  waitSum[2]  = out[2][c];
+
+  c++;
+  diagSum[0]  = out[0][c];
+  diagSum[1]  = out[1][c]/numprocs;
+  diagSum[2]  = out[2][c];
+  
+  c++;
+  joinSum[0]  = out[0][c];
+  joinSum[1]  = out[1][c]/numprocs;
+  joinSum[2]  = out[2][c];
+  
+  if (TIMING) {
+
+    c++;
+    listSum[0]  = out[0][c];
+    listSum[1]  = out[1][c]/numprocs;
+    listSum[2]  = out[2][c];
+    
+    c++;
+    initSum[0]  = out[0][c];
+    initSum[1]  = out[1][c]/numprocs;
+    initSum[2]  = out[2][c];
+    
+    c++;
+    collSum[0]  = out[0][c];
+    collSum[1]  = out[1][c]/numprocs;
+    collSum[2]  = out[2][c];
+    
+    c++;
+    elasSum[0]  = out[0][c];
+    elasSum[1]  = out[1][c]/numprocs;
+    elasSum[2]  = out[2][c];
+    
+    c++;
+    cellSum[0]  = out[0][c];
+    cellSum[1]  = out[1][c]/numprocs;
+    cellSum[2]  = out[2][c];
+    
+    c++;
+    epsmSum[0]  = out[0][c];
+    epsmSum[1]  = out[1][c]/numprocs;
+    epsmSum[2]  = out[2][c];
+    
+    c++;
+    coolSum[0]  = out[0][c];
+    coolSum[1]  = out[1][c]/numprocs;
+    coolSum[2]  = out[2][c];
+    
+    c++;
+    stat1Sum[0] = out[0][c];
+    stat1Sum[1] = out[1][c]/numprocs;
+    stat1Sum[2] = out[2][c];
+    
+    c++;
+    stat2Sum[0] = out[0][c];
+    stat2Sum[1] = out[1][c]/numprocs;
+    stat2Sum[2] = out[2][c];
+    
+    c++;
+    stat3Sum[0] = out[0][c];
+    stat3Sum[1] = out[1][c]/numprocs;
+    stat3Sum[2] = out[2][c];
+
+    c++;
+    numbSum[0]  = out[0][c];
+    numbSum[1]  = floor(out[1][c]/numprocs+0.5);
+    numbSum[2]  = out[2][c];
+  }
+
+  // Reset the timers
+
+  forkTime.reset();
+  snglTime.reset();
+  waitTime.reset();
+  joinTime.reset();
+  diagTime.reset();
+
+  for (int n=0; n<nthrds; n++) {
+    listTime [n].reset(); 
+    initTime [n].reset(); 
+    collTime [n].reset(); 
+    stat1Time[n].reset();
+    stat2Time[n].reset();
+    stat3Time[n].reset();
+    coolTime [n].reset(); 
+    elasTime [n].reset(); 
+    cellTime [n].reset(); 
+    epsmTime [n].reset(); 
+    collCnt  [n] = 0;
+  }
+  
+}
+
+
+template<typename T>
+void Collide::colldeHelper(ostream& out, const char* lab, vector<T>& v)
+{
+  out << left << fixed << setw(18) << lab 
+      << right << "[" << setprecision(6)
+      << setw(10) << v[0] << ", " 
+      << setw(10) << v[1] << ", "
+      << setw(10) << v[2] << "]" << endl << left;
+}
+
 void Collide::colldeTime(ostream& out) 
 { 
   out << "-----------------------------------------------------" << endl;
   out << "-----Collide timing----------------------------------" << endl;
   out << "-----------------------------------------------------" << endl;
-  out << left
-      << setw(18) << "Thread time"  << threadTime() << endl
-      << setw(18) << "Joined time"  << joinedTime() << endl
-      << setw(18) << "Waiting time" << waitngTime() << endl
-      << setw(18) << "Join time"    << joinngTime() << endl
-      << setw(18) << "Diag time"    << dgnoscTime() << endl
+
+  colldeHelper<double>(out, "Thread time",  forkSum); 
+  colldeHelper<double>(out, "Joined time",  snglSum);
+  colldeHelper<double>(out, "Waiting time", waitSum);
+  colldeHelper<double>(out, "Join time",    joinSum);
+  colldeHelper<double>(out, "Diag time",    diagSum);
+
+  out << left 
       << setw(18) << "Body count"   << bodycount    
       << " [" << bodycount/stepcount << "]" << endl
       << setw(18) << "Step count"   << stepcount    << endl
       << endl;
   
-#ifdef DEBUG
-  out << left << setw(4) << "#"
-      << setw(10) << "Init"
-      << setw(10) << "Collide"
-      << setw(10) << "Stat1"
-      << setw(10) << "Stat2"
-      << setw(10) << "Stat3"
-      << setw(10) << "Cool"
-      << setw(10) << "Inelastic"
-      << setw(10) << "Cell count"
-      << endl;
-#endif
-  
-  for (int n=0; n<nthrds; n++) {
-#ifdef DEBUG
-    out << setw(4) << n 
-	<< setw(10) << initSoFar[n]()*1.0e-6 
-	<< setw(10) << collSoFar[n]()*1.0e-6 
-	<< setw(10) << stat1SoFar[n]()*1.0e-6 
-	<< setw(10) << stat2SoFar[n]()*1.0e-6 
-	<< setw(10) << stat3SoFar[n]()*1.0e-6 
-	<< setw(10) << coolSoFar[n]()*1.0e-6 
-	<< setw(10) << elasSoFar[n]()*1.0e-6 
-	<< setw(10) << collCnt[n] << endl
-	<< setw(4) << "*" << setprecision(4)
-	<< setw(10) << initSoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << collSoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << stat1SoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << stat2SoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << stat3SoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << coolSoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << elasSoFar[n]()*1.0e-6/stepcount
-	<< setw(10) << collCnt[n]/stepcount << endl
-	<< endl << setprecision(2);
-#endif
-    initTime[n].reset(); 
-    collTime[n].reset(); 
-    stat1Time[n].reset();
-    stat2Time[n].reset();
-    stat3Time[n].reset();
-    coolTime[n].reset(); 
-    elasTime[n].reset(); 
-    coolTime[n].reset(); 
-    collCnt[n] = 0;
+  if (TIMING) {
+     colldeHelper<double>(out, "All cells",  cellSum); 
+     colldeHelper<double>(out, "List bods",  listSum);
+     colldeHelper<double>(out, "Init",       initSum);
+     colldeHelper<double>(out, "Collide",    collSum); 
+     colldeHelper<double>(out, "Inelastic",  elasSum); 
+     colldeHelper<double>(out, "EPSM",       epsmSum); 
+     colldeHelper<double>(out, "Stat#1",     stat1Sum); 
+     colldeHelper<double>(out, "Stat#2",     stat2Sum); 
+     colldeHelper<double>(out, "Stat#3",     stat3Sum); 
+     colldeHelper<int   >(out, "Cell count", numbSum); 
+     out << endl;
   }
-
+    
   stepcount = 0;
   bodycount = 0;
 
@@ -1963,7 +2242,8 @@ void * Collide::timestep_thread(void * arg)
     nbods = c->bods.size();
     L = c->Scale();
     
-    for (set<unsigned long>::iterator 
+    // for (set<unsigned long>::iterator 
+    for (vector<unsigned long>::iterator 
 	   i=c->bods.begin(); i!=c->bods.end(); i++) {
 				// Current particle
       p = tree->Body(*i);
@@ -2223,3 +2503,89 @@ unsigned Collide::post_collide_diag()
   return col;
 }
   
+void Collide::getCPUHog(ostream& out)
+{
+  vector<long> data(12);
+
+  for (int i=0; i<2; i++) {
+    data[i]   = MAXLONG;
+    data[6+i] = 0;
+    data[2+i] = data[4+i] = data[8+i] = data[10+i] = -1;
+  }
+
+  for (int n=0; n<nthrds; n++) {
+    for (int i=0; i<2; i++) {
+      if (data[i] > minUsage[n*2+i]) {
+	data[i]    = minUsage[n*2+i];
+	data[2+i]  = minPart [n*2+i];
+	data[4+i]  = minCollP[n*2+i];
+      }
+      if (data[6+i] < maxUsage[n*2+i]) {
+	data[6+i]  = maxUsage[n*2+i];
+	data[8+i]  = maxPart [n*2+i];
+	data[10+i] = maxCollP[n*2+i];
+      }
+      // Clear values for next call
+      minUsage[n*2+i] = MAXLONG;
+      maxUsage[n*2+i] = 0;
+      minPart [n*2+i] = -1;
+      maxPart [n*2+i] = -1;
+      minCollP[n*2+i] = -1;
+      maxCollP[n*2+i] = -1;
+    }
+  }
+
+  vector<long> U(12*numprocs);
+  
+  MPI_Gather(&data[0], 12, MPI_LONG, &U[0], 12, MPI_LONG, 0, MPI_COMM_WORLD);
+  
+  for (int i=0; i<2; i++) {
+    data[i]   = MAXLONG;
+    data[6+i] = 0;
+    data[2+i] = data[4+i] = data[8+i] = data[10+i] = -1;
+  }
+
+  for (int n=0; n<numprocs; n++) {
+    for (int i=0; i<2; i++) {
+      if (data[i] > U[n*12+i]) {
+	data[i]   = U[n*12+i];
+	data[2+i] = U[n*12+2+i];
+	data[4+i] = U[n*12+4+i];
+      }
+    }
+    for (int i=6; i<8; i++) {
+      if (data[i] < U[n*12+i]) {
+	data[i]   = U[n*12+i];
+	data[2+i] = U[n*12+2+i];
+	data[4+i] = U[n*12+4+i];
+      }
+    }
+  }
+  
+  if (myid==0) {
+    const unsigned f = 8;
+    out << "Extremal cell timing" << endl
+	<< "--------------------" << endl
+	<< "T=" << tnow << ",  mstep=" << mstep << endl << right
+	<< "                 "
+	<< setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
+	<< "      " 
+	<< setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
+	<< "      " 
+	<< setw(f) << "DSMC"   << ", " << setw(f) << "EPSM" << endl
+	<< "  Minimum usage=(" 
+	<< setw(f) << data[ 0] << ", " << setw(f) << data[ 1]
+	<< ")  N=(" 
+	<< setw(f) << data[ 2] << ", " << setw(f) << data[ 3]
+	<< ")  C=(" 
+	<< setw(f) << data[ 4] << ", " << setw(f) << data[ 5] << ")" << endl
+	<< "  Maximum usage=(" 
+	<< setw(f) << data[ 6] << ", " << setw(f) << data[ 7]
+	<< ")  N=("
+	<< setw(f) << data[ 8] << ", " << setw(f) << data[ 9]
+	<< ")  C=(" 
+	<< setw(f) << data[10] << ", " << setw(f) << data[11] << ")" << endl;
+    out << endl;
+  }
+}
+

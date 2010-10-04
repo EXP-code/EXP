@@ -427,7 +427,7 @@ void pH2OT::Remap_by_number()
 
   // Done!
 
-  Remap_diag<unsigned>(counts);
+  Remap_diag<unsigned>(counts0);
 
 }
 
@@ -535,7 +535,7 @@ void pH2OT::Remap_by_effort()
 
   // Done!
 
-  Remap_diag<double>(counts);
+  Remap_diag<double>(counts0);
 }
 
 
@@ -557,23 +557,56 @@ void pH2OT::Remap_diag(map<unsigned, T>& counts)
 {
   if (myid) return;
 
+// Dynamic range for tables
+  const int maxlog0 = 6;
+  const int maxlog1 = 18;
+
+  // Precision for entries
+  const double lfac = 0.5;
+
+  // Logarithmic half range (base 10)
+  const double delta0 = 0.5*lfac*maxlog0;
+  const double delta1 = 0.5*lfac*maxlog1;
+  const double Flog10 = 1.0/log(10.0);
+
+  //
+  // Find the modal value
+  //
+  vector<T> mode;
+  typename map<unsigned, T>::iterator q;
+  for (q=counts.begin(); q!=counts.end(); q++) 
+    mode.push_back(q->second);
+  sort(mode.begin(), mode.end());
+  T mval = mode[mode.size()/2];
+
   //
   // Make a log table
   //
-  const int maxlog = 6;
-  const double lfac = 0.5;
   vector< vector<unsigned> > report(numprocs);
-  for (int n=0; n<numprocs; n++) report[n] = vector<unsigned>(maxlog+2, 0);
-  typename map<unsigned, T>::iterator q;
+  for (int n=0; n<numprocs; n++) report[n] = vector<unsigned>(maxlog0+2, 0);
+  vector<unsigned> report1(maxlog1+2);
   for (q=counts.begin(); q!=counts.end(); q++) {
-    int proc = keyproc[q->first], indx;
-    if (q->second == 0) report[proc][0]++;
-    else {
-      indx = floor(log(q->second)/lfac) + 1;
-      if (indx>maxlog) indx = maxlog+1; 
-      report[proc][indx]++;
+
+    double val = static_cast<double>(q->second)/mval, val0, val1;
+    int indx0 = 0, indx1 = 0;
+    if (val > 0.0) {
+      val0 = log(val)*Flog10 + delta0;
+      val1 = log(val)*Flog10 + delta1;
+      indx0 = 1;
+      indx1 = 1;
+      if (val0>0.0) {
+	indx0 = floor(val0/lfac) + 1;
+	if (indx0>maxlog0) indx0 = maxlog0+1; 
+      }
+      if (val1>0.0) {
+	indx1 = floor(val1/lfac) + 1;
+	if (indx1>maxlog1) indx1 = maxlog1+1; 
+      }
     }
+    report[keyproc[q->first]][indx0]++;
+    report1[indx1]++;
   }
+
   //
   // Print it out
   //
@@ -581,26 +614,44 @@ void pH2OT::Remap_diag(map<unsigned, T>& counts)
   ofstream out(filename.c_str(), ios::out | ios::app);
   if (out) {
     ostringstream sout;
-    out << setw(5+8*(maxlog+2)) << setfill('-') << '-' 
+    out << setw(5+8*(maxlog0+2)) << setfill('-') << '-' 
 	<< setfill(' ') << endl << "# T=" << tnow 
-	<< " Step #=" << this_step << endl;
+	<< " Step #=" << this_step << " Mode=" << mval << endl;
     out << setw(5) << "ID #";
-    for (int i=0; i<=maxlog; i++) {
+    for (int i=0; i<=maxlog0; i++) {
       sout.str("");
-      if (i) sout << "<" << setprecision(1) << pow(10.0, lfac*i);
+      if (i) sout << "<" << setprecision(1) << pow(10.0, lfac*i-delta0);
       else   sout << "0";
       out << setw(8) << sout.str();
     }
     sout.str("");
-    sout << ">" << setprecision(1) << pow(10.0, lfac*maxlog);
+    sout << ">" << setprecision(1) << pow(10.0, lfac*maxlog0);
     out << setw(8) << sout.str() << endl;
     for (int n=0; n<numprocs; n++) {
       out << setw(5) << n;
-      for (int i=0; i<=maxlog+1; i++)
+      for (int i=0; i<=maxlog0+1; i++)
 	out << setw(8) << report[n][i];
       out << endl;
     }
-    out << setw(5+8*(maxlog+2)) << setfill('-') << '-' 
+
+    out << endl
+	<< "----------------" << endl
+	<< "All-node summary" << endl
+	<< "----------------" << endl
+	<< left << setw(20) << "Value" << "Count" << endl;
+
+    for (int i=0; i<=maxlog1+1; i++) {
+      sout.str("");
+      if (i==maxlog1+1)
+	sout << " >" << setprecision(3) << pow(10.0, lfac*maxlog1-delta1);
+      else if (i>0) 
+	sout << " <" << setprecision(3) << pow(10.0, lfac*i-delta1);
+      else
+	sout << " 0";
+
+      out << left << setw(20) << sout.str() << report1[i] << endl;
+    }
+    out << setw(5+8*(maxlog0+2)) << setfill('-') << '-' 
 	<< setfill(' ') << endl << setprecision(6);
   } else {
     cout << "Error opening remap log file <" << filename << ">" 
@@ -884,7 +935,7 @@ void pH2OT::computeCellStates()
 		MPI_COMM_WORLD);
 
   //
-  // Set (0) to (1) for MPI_Allgatherv instead of blocked broadcasts
+  // Set (1) to (0) for MPI_Allgatherv instead of blocked broadcasts
   //
   if (0) {
 
@@ -1102,7 +1153,8 @@ void pTree::computeStatus(unsigned mlevel, vector< vector<unsigned long> >& exch
   // Make body list from frontier cells for this level
   //
   set<pCell*>::iterator it;
-  set<unsigned long>::iterator ib;
+  // set<unsigned long>::iterator ib;
+  vector<unsigned long>::iterator ib;
   
   ph->timer_bodlist.start();
 
@@ -1285,7 +1337,8 @@ bool pTree::checkLevelList()
   bool ok = true;
   unsigned cnt=0;
   set<pCell*>::iterator it;
-  set<unsigned long>::iterator ib;
+  // set<unsigned long>::iterator ib;
+  vector<unsigned long>::iterator ib;
   list<unsigned long>::iterator ip;
 
   //
@@ -1916,7 +1969,8 @@ void pH2OT::testFrontier(string& filename)
 	  
 	  double mass=0, temp=0, pos[]={0,0,0}, vel[]={0,0,0};
 	  p = c->second;
-	  set<unsigned long>::iterator ib = p->bods.begin();
+	  // set<unsigned long>::iterator ib = p->bods.begin();
+	  vector<unsigned long>::iterator ib = p->bods.begin();
 	  while (ib != p->bods.end()) {
 	    mass += cc->particles[*ib].mass;
 	    for (int k=0; k<3; k++) {
@@ -2522,7 +2576,8 @@ bool pH2OT::checkParticles(ostream& out, bool pc)
 
 	  if ((*it)->bods.size()) {
 	    if (pc) {
-	      for (set<unsigned long>::iterator ib=(*it)->bods.begin();
+	      // for (set<unsigned long>::iterator ib=(*it)->bods.begin();
+	      for (vector<unsigned long>::iterator ib=(*it)->bods.begin();
 		   ib!=(*it)->bods.end(); ib++) {
 		if (!cc->Part(*ib)) {
 		  out << "pH2OT::checkParticles:: M=" << M << ", bad body at "

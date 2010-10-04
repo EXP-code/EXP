@@ -61,10 +61,12 @@ program_option init[] = {
   {"RMAX",		"double",	"0.1",		"maximum radius for output"},
   {"ZCENTER",		"double",	"0.0",		"gas disk midplane"},
   {"ZWIDTH",		"double",	"0.05",		"gas disk halfwidth"},
-  {"NBIN",		"int",		"0",		"number of bins"},
-  {"IBEG",		"int",		"0",		"first index"},
-  {"IEND",		"int",		"100",		"last index"},
-  {"ISKIP",		"int",		"1",		"skip interval"},
+  {"NBINS",		"int",		"0",		"number of bins"},
+  {"IBEG",		"int",		"0",		"first PSP index"},
+  {"IEND",		"int",		"100",		"last PSP index"},
+  {"ISKIP",		"int",		"1",		"skip PSP interval"},
+  {"PBEG",		"int",		"0",		"first particle index"},
+  {"PEND",		"int",		"-1",		"last particle index"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
   {"OUTFILE",		"string",	"gasprof",	"filename prefix"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
@@ -126,11 +128,15 @@ main(int argc, char **argv)
   if (myid==0) {
     for (int i=config.get<int>("IBEG"); i<=config.get<int>("IEND"); i++) {
       ostringstream lab;
-      lab << config.get<string>("INFILE") << "." << config.get<string>("RUNTAG") << "." 
-	  << setw(6) << right << setfill('0') << i;
+      lab << config.get<string>("INFILE") << "." 
+	  << config.get<string>("RUNTAG") << "." 
+	  << setw(5) << right << setfill('0') << i;
       ifstream in(lab.str().c_str());
       if (in) files.push_back(lab.str());
+      else break;
+      cout << "." << i << flush;
     }
+    cout << endl;
   }
 
   unsigned nfiles = files.size();
@@ -144,9 +150,10 @@ main(int argc, char **argv)
       MPI_Bcast(c, sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
     } else {
       char l[sz+1];
-      MPI_Bcast(&l[0], sz, MPI_CHAR, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&l[0], sz+1, MPI_CHAR, 0, MPI_COMM_WORLD);
       files.push_back(l);
     }
+    MPI_Barrier(MPI_COMM_WORLD);
   }
 
   double rmin = config.get<double>("RMIN");
@@ -155,6 +162,8 @@ main(int argc, char **argv)
   bool   rlog = config.get<bool>  ("LOG");
   double zcen = config.get<double>("ZCENTER");
   double zwid = config.get<double>("ZWIDTH");
+  int    pbeg = config.get<int>   ("PBEG");
+  int    pend = config.get<int>   ("PEND");
 
   if (rmin>0 && rmax > 0 && rlog) {
     rmin = log(rmin);
@@ -163,8 +172,8 @@ main(int argc, char **argv)
 
   double dR = (rmax - rmin)/(nbins-1);
 
-  vector< vector<double> > histo(nbins);
-  for (int n=0; n<nbins; n++) histo[n] = vector<double>(nfiles, 0.0);
+  vector< vector<double> > histo(nfiles);
+  for (int n=0; n<nfiles; n++) histo[n] = vector<double>(nbins, 0.0);
 
   vector<double> times(nfiles);
   vector<double> rvals(nbins);
@@ -182,53 +191,77 @@ main(int argc, char **argv)
       PSPDump psp(&in, true);
 
       Dump *dump = psp.GetDump();
-      dump = psp.CurrentDump();
+      
+      if (dump) {
 
-      int icnt = 0;
-      vector<Particle> particles;
+	times[n] = psp.CurrentTime();
 
-      while (dump) {
+	// Do we need to close and reopen?
+	if (in.rdstate() & ios::eofbit) {
+	  in.close();
+	  in.open(files[n].c_str());
+	}
+
+	int icnt = 0;
+	vector<Particle> particles;
 
 	PSPstanza *gas = psp.GetGas();
 	SParticle *p = psp.GetParticle(&in);
-
+	
 	while (p) {
 
-	  if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
-	    double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-	    if (rlog) {
-	      if (R>0.0) {
-		R = log(R);
+	  if (icnt > pbeg) {
+	    if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
+	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      if (rlog) {
+		if (R>0.0) {
+		  R = log(R);
+		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		  if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		}
+	      } else {
 		int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		if (indx >0 && indx < nbins) histo[n][indx] += p->mass;
+		if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
 	      }
-	    } else {
-	      int indx = static_cast<int>(floor( (R - rmin)/dR ));
-	      if (indx >0 && indx < nbins) histo[n][indx] += p->mass;
 	    }
 	  }
-
+	    
+	  if (pend>0 && icnt>pend) break;
 	  p = psp.NextParticle(&in);
+	  icnt++;
 	}
       }
     }
   }
-
-  for (int n=0; n<nbins; n++)
-    MPI_Reduce(MPI_IN_PLACE, &histo[n][0], nbins, 
+  
+  if (myid==0) {
+    MPI_Reduce(MPI_IN_PLACE, &times[0], nfiles,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    for (int n=0; n<nfiles; n++)
+      MPI_Reduce(MPI_IN_PLACE, &histo[n][0], nbins, 
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(&times[0], 0, nfiles,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    for (int n=0; n<nfiles; n++)
+      MPI_Reduce(&histo[n][0], 0, nbins, 
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 
   if (myid==0) {
     string outf = config.get<string>("OUTFILE") + ".dat";
     ofstream out(outf.c_str());
 
-    for (int n=0; n<nbins; n++) {
-      for (unsigned j=0; j<files.size(); j++)
-	out << setw(18) << times[j] << setw(18) << rvals[n] 
-	    << setw(18) << histo[n][j] << endl;
+    for (int n=0; n<nfiles; n++) {
+      double sum = 0.0;
+      for (unsigned j=0; j<nbins; j++)
+	out << setw(18) << times[n] << setw(18) << rvals[j]
+	    << setw(18) << histo[n][j]
+	    << setw(18) << (sum += histo[n][j])
+	    << endl;
       out << endl;
     }
-
+    
   }
 
  

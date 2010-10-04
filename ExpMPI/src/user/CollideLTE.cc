@@ -318,7 +318,8 @@ void CollideLTE::initialize_cell(pCell* cell,
   if (use_temp>=0 || use_dens>=0) {
     
     double dens = massC/volumeC;
-    set<unsigned long>::iterator j = cell->bods.begin();
+    // set<unsigned long>::iterator j = cell->bods.begin();
+    vector<unsigned long>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
@@ -352,7 +353,8 @@ void CollideLTE::initialize_cell(pCell* cell,
     tcoolT[id][indx]++;
 
 				// Assign per body time step requests
-    set<unsigned long>::iterator j;
+    // set<unsigned long>::iterator j;
+    vector<unsigned long>::iterator j;
     for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
       if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 

@@ -164,7 +164,8 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     if (bods.size() < bucket || level+1==nbits) {
       keys.insert(keypair);
       tree->bodycell.insert(key_item(key, mykey));
-      bods.insert(keypair.second);
+      // bods.insert(keypair.second);
+      bods.push_back(keypair.second);
 				// Flag to recompute sample cell
       if (change) change->push_back(cell_indx(this, pTree::RECOMP));
       maxplev = max<int>(maxplev, C->Particles()[keypair.second].level);
@@ -328,7 +329,9 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     
     // Remove the index from the cell body list
     //
-    set<unsigned long>::iterator ib = bods.find(keypair.second);
+    // set<unsigned long>::iterator ib = bods.find(keypair.second);
+    vector<unsigned long>::iterator ib = find(bods.begin(), bods.end(), 
+					      keypair.second);
     if (ib!=bods.end()) bods.erase(ib);
 #ifdef DEBUG
     else {
@@ -510,7 +513,8 @@ void pCell::accumState()
   for (int k=0; k<10; k++) state[k] = 0.0;
 
 				// March through the body list
-  set<unsigned long>::iterator j;
+  // set<unsigned long>::iterator j;
+  vector<unsigned long>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
     state[0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
@@ -652,7 +656,8 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
   v2 = vector<double>(3, 0.0);
 
   if (isLeaf) {
-    for (set<unsigned long>::iterator 
+    // for (set<unsigned long>::iterator 
+    for (vector<unsigned long>::iterator 
 	   i=bods.begin(); i!=bods.end(); i++) {
       for (int k=0; k<3; k++) {
 	v1[k] += C->Particles()[*i].mass * 
@@ -705,7 +710,8 @@ sCell* pCell::findSampleCell()
 }
 
 
-Particle* pCell::Body(set<unsigned long>::iterator k)
+// Particle* pCell::Body(set<unsigned long>::iterator k)
+Particle* pCell::Body(vector<unsigned long>::iterator k)
 { 
   if (k==bods.end()) return 0;
   return &(C->Particles()[*k]); 
@@ -714,7 +720,8 @@ Particle* pCell::Body(set<unsigned long>::iterator k)
 unsigned pCell::remake_plev()
 {
   maxplev = 0;
-  for (set<unsigned long>::iterator 
+  // for (set<unsigned long>::iterator 
+  for (vector<unsigned long>::iterator 
 	 i=bods.begin(); i!=bods.end(); i++) {
     maxplev = max<unsigned>(maxplev, C->Particles()[*i].level);
   }

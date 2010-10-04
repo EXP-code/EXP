@@ -90,12 +90,39 @@ private:
   void assignTempDensVol();
   void initialize();
 
+  void outHelper0(ostream& out, const char* lab, int c,
+		  vector< vector<double> >& v, vector<double>& t)
+  {
+    out << left << scientific << "   "
+	<< setw(18) << lab << "[" << setprecision(2)
+	<< setw(8) << v[0][c] << ", " 
+	<< setw(8) << v[1][c] << ", "
+	<< setw(8) << v[2][c] << "] [" 
+	<< right << fixed
+	<< setw(6) << v[0][c]/(t[0]+1.0e-10)*100.0 << ", " 
+	<< setw(6) << v[1][c]/(t[1]+1.0e-10)*100.0 << ", "
+	<< setw(6) << v[2][c]/(t[2]+1.0e-10)*100.0 << "]%" 
+	<< endl << left;
+  }
+
+
+
+  template<typename T>
+  void outHelper1(ostream& out, const char* lab, vector<T>& v)
+  {
+    out << left << setprecision(6) << right
+	<< "      *** " << lab << ": [" 
+	<< setw(10) << v[0] << ", " 
+	<< setw(10) << v[1] << ", " 
+	<< setw(10) << v[2] << "]" << endl << left;
+  }
+
 				// The tree
   double volume;
 
 				// Timers
   Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, clldeTime;
-  Timer partnWait, tree1Wait, tree2Wait, timerDiag;
+  Timer clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
   RunningTime overhead;
 
   void userinfo();

@@ -111,7 +111,7 @@ public:
   bool isLeaf;
   
   key_indx keys;
-  set<unsigned long> bods;
+  vector<unsigned long> bods;
 
   //! Add a body, return the current frontier node
   pCell* Add(const key_pair&, change_list* change=0);
@@ -167,7 +167,8 @@ public:
   sCell* findSampleCell();
 
   //! Return bodies from this cell
-  Particle* Body(set<unsigned long>::iterator k);
+  // Particle* Body(set<unsigned long>::iterator k);
+  Particle* Body(vector<unsigned long>::iterator k);
 
   //! Return velocity statistics for particles in the cell
   void Vel(double &mass, vector<double>& v, vector<double>& v2);
