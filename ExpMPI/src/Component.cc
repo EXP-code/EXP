@@ -864,7 +864,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Open file
 
   ifstream *fin;
-  const int nline = 256;
+  const int nline = 2048;
   char line[nline];
   
   if (myid == 0) {

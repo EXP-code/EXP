@@ -1075,7 +1075,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// Debugging usage
 				//
     collide->EPSMtiming(cout);
-    collide->getCPUHog(cout);
+    collide->getCPUHog (cout);
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");
@@ -1284,7 +1284,7 @@ void UserTreeDSMC::assignTempDensVol()
     cout << setfill('-') << setw(70) << '-' << setfill(' ') << endl;
   }
 
-druv  TempHisto();
+  TempHisto();
 #endif
 }
 
