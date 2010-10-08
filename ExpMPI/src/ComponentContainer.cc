@@ -1066,8 +1066,8 @@ void ComponentContainer::report_numbers(void)
       list<Component*>::iterator cc;
       if (out) {
 	if (myid==0) {
-	  out << "# Step: " << this_step << endl << right;
-	  out << "# " << setw(5)  << "Proc";
+	  out << "# Step: " << this_step << " Time: " << tnow << endl 
+	      << right << "# " << setw(5)  << "Proc";
 	  for (cc=comp.components.begin(); 
 	       cc != comp.components.end(); cc++) {
 	    out << setw(20) << (*cc)->name << setw(20) << "Effort";

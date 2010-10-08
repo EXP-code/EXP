@@ -687,7 +687,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Repartition and remake the tree after first step to adjust load
   // balancing for work queue effort method
   //
-  if (0 && firstime && remap>0 && use_effort && mlevel==0) {
+  if (firstime && remap>0 && use_effort && mlevel==0) {
     c0->Tree()->Remap();
     c0->Tree()->Repartition(0);
     c0->Tree()->makeTree();
@@ -854,8 +854,49 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       tot[2] += out[2][i];
     }
 
-    int pCellTot;
+    int pCellTot, pTreeTot, tCellTot, tTreeTot;
     MPI_Reduce(&pCell::live, &pCellTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&pTree::live, &pTreeTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&tCell::live, &tCellTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&tTree::live, &tTreeTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    collide->EPSMtimingGather();
+    collide->CPUHogGather();
+
+    const int ebins = 1000;
+    vector<unsigned> efrt(ebins, 0);
+    double minEff, maxEff;
+
+    if (use_effort) {
+      PartMapItr pitr, pend = c0->Particles().end();
+      double minEff1 = 1.0e20, maxEff1 = 0.0;
+      for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
+	minEff1 = min<double>(pitr->second.effort, minEff1);
+	maxEff1 = max<double>(pitr->second.effort, maxEff1);
+      }
+
+      MPI_Allreduce(&minEff1, &minEff, 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
+      MPI_Allreduce(&maxEff1, &maxEff, 1, MPI_DOUBLE, MPI_MAX, MPI_COMM_WORLD);
+
+      if (minEff>0.0) {
+	minEff = log(minEff);
+	maxEff = log(maxEff);
+
+	int indx;
+	double Lvalue;
+	vector<unsigned> efrt1(ebins, 0);
+	for (pitr=c0->Particles().begin(); pitr!= pend; pitr++) {
+	  Lvalue = log(pitr->second.effort);
+	  indx   = floor((Lvalue - minEff) / (maxEff - minEff) * ebins);
+	  if (indx<0)      indx = 0;
+	  if (indx>=ebins) indx = ebins-1;
+	  efrt1[indx]++;
+	}
+
+	MPI_Reduce(&efrt1[0], &efrt[0], ebins, MPI_UNSIGNED, MPI_SUM, 0, 
+		   MPI_COMM_WORLD);
+      }
+    }
 
     if (myid==0) {
 
@@ -1060,22 +1101,79 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       clldeWait.reset();
 
       //
+      // Debugging usage
+      //
+      collide->EPSMtiming(mout);
+      collide->CPUHog (mout);
+
+      //
+      // Collision effort
+      //
+      if (use_effort) {
+	const int nlst = 15;
+	const int lst[] = {0  ,   4,   9,  19,  49,  99, 199, 
+			   499, 799, 899, 949, 979, 989, 994, 998};
+
+				// Cumulate
+	for (int i=1; i<ebins; i++) efrt[i] += efrt[i-1];
+	if (efrt[ebins]>0) {
+	  double norm = 1.0/efrt[ebins-1];
+	  mout << "-----------------------------" << endl
+	       << "Collision effort, mlevel="     << mlevel << endl
+	       << "-----------------------------" << endl << left
+	       << setw(12) << "Effort"
+	       << setw(10) << "Count"
+	       << setw(10) << "Sum"
+	       << setw(12) << "Fraction"
+	       << setw(12) << "Cumulate" << endl
+	       << setw(12) << "------"
+	       << setw(10) << "-----"
+	       << setw(10) << "---"
+	       << setw(12) << "--------"
+	       << setw(12) << "--------" << endl;
+
+	  
+	  mout << setprecision(3) << scientific;
+
+	  double ptile = exp(minEff + (maxEff - minEff)*(0.5+lst[0])/ebins);
+
+	  mout << setw(12) << ptile
+	       << setw(10) << efrt[lst[0]]
+	       << setw(10) << efrt[lst[0]]
+	       << setw(12) << norm*efrt[lst[0]]
+	       << setw(12) << norm*efrt[lst[0]]
+	       << endl;
+	  
+	  for (int i=1; i<nlst; i++) {
+	    ptile = exp(minEff + (maxEff - minEff)*(0.5+lst[i])/ebins);
+	    mout << setw(12) << ptile
+		 << setw(10) << efrt[lst[i]] - efrt[lst[i-1]]
+		 << setw(10) << efrt[lst[i]]
+		 << setw(12) << norm*(efrt[lst[i]] - efrt[lst[i-1]])
+		 << setw(12) << norm*efrt[lst[i]]
+		 << endl;
+	  }
+
+	} else {
+	  mout << "-----------------------------" << endl
+	       << "Empty effort list, mlevel="    << mlevel << endl
+	       << "-----------------------------" << endl;
+	}
+      }
+
+      //
       // Cell instance diagnostics
       //
       mout << "-----------------------------" << endl
 	   << "Object counts at mlevel="      << mlevel << endl
 	   << "-----------------------------" << endl
-	   << " pCell # = " << pCellTot    << endl
-	   << " tCell # = " << tCell::live << endl
-	   << " tTree # = " << tTree::live << endl
-	   << " pTree # = " << pTree::live << endl
+	   << " pCell # = " << pCellTot       << endl
+	   << " pTree # = " << pTreeTot       << endl
+	   << " tCell # = " << tCellTot       << endl
+	   << " tTree # = " << tTreeTot       << endl
 	   << "-----------------------------" << endl;
+      
     }
-
-				// Debugging usage
-				//
-    collide->EPSMtiming(cout);
-    collide->getCPUHog (cout);
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");

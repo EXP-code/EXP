@@ -176,10 +176,10 @@ void UserSat::userinfo()
 	 << ", core=" << core
 	 << ", config=" << config
 	 << ", centered on Component <" << c0->name << ">";
-    if (shadow) cout << ", shadowing is on";
-    if (verbose) cout << ", verbose messages are on";
   }
-  if (orbit) cout << ", with trajectory logging" << endl;
+  if (shadow)  cout << ", shadowing is on";
+  if (verbose) cout << ", verbose messages are on";
+  if (orbit)   cout << ", with trajectory logging" << endl;
 
   print_divider();
 }

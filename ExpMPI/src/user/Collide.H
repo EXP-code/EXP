@@ -89,6 +89,8 @@ private:
   TimeElapsed forkSoFar, snglSoFar, waitSoFar;
   TimeElapsed diagSoFar, joinSoFar;
   vector<double> forkSum, snglSum, waitSum, diagSum, joinSum;
+  vector< list< pair<long, unsigned> > > effortNumber;
+  bool effortAccum;
   
   // Quantile index function
   //
@@ -211,6 +213,7 @@ protected:
   static const int nEPSMT = 6;
   vector< vector<Timer> > EPSMT;
   vector< vector<TimeElapsed> > EPSMTSoFar;
+  vector<long> EPSMtime, CPUH;
   
 public:
 
@@ -321,8 +324,10 @@ public:
   vector<double> joinedTime() { return snglSum; }
   vector<double> waitngTime() { return waitSum; }
   vector<double> joinngTime() { return joinSum; }
+  void EPSMtimingGather();
+  void CPUHogGather();
   void EPSMtiming(ostream& out);
-  void getCPUHog(ostream& out);
+  void CPUHog(ostream& out);
   //@}
 
   /// Debug output routines

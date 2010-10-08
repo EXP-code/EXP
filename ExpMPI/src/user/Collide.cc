@@ -141,10 +141,10 @@ void Collide::collide_thread_fork(pH2OT* tree, double Fn, double tau)
 }
 
 
-int Collide::CNUM = 0;
-bool Collide::CBA = true;
-double Collide::EPSMratio = -1.0;
-unsigned Collide::EPSMmin = 0;
+int      Collide::CNUM      = 0;
+bool     Collide::CBA       = true;
+double   Collide::EPSMratio = -1.0;
+unsigned Collide::EPSMmin   = 0;
 
 Collide::Collide(ExternalForce *force, double diameter, int nth)
 {
@@ -345,6 +345,9 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
     numbSum  = vector<int   >(3);
   }
 
+  EPSMtime = vector<long>(nEPSMT);
+  CPUH = vector<long>(12);
+
   // Debug maximum work per cell
   minUsage = vector<long>(nthrds*2, MAXLONG);
   maxUsage = vector<long>(nthrds*2, 0);
@@ -352,6 +355,9 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   maxPart  = vector<long>(nthrds*2, -1);
   minCollP = vector<long>(nthrds*2, -1);
   maxCollP = vector<long>(nthrds*2, -1);
+
+  effortAccum  = false;
+  effortNumber = vector< list< pair<long, unsigned> > >(2);
 }
 
 Collide::~Collide()
@@ -432,6 +438,9 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
   MPI_Barrier(MPI_COMM_WORLD);
   waitTime.stop();
 
+				// For effort debugging
+  if (mlevel==0) effortAccum = true;
+
   forkTime.start();
   if (0) {
     ostringstream sout;
@@ -451,8 +460,33 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
   if (diag) col = post_collide_diag();
   snglSoFar = snglTime.stop();
 
+				// Effort diagnostics
+				//
+  if (mlevel==0 && effortAccum) {
 
-  
+				// Write to the file in process order
+    list< pair<long, unsigned> >::iterator it;
+    for (int i=0; i<numprocs; i++) {
+      if (myid==i) {
+	ofstream out("collide.effort", ios::app);
+	if (out) {
+	  if (myid==0) out << "# Time=" << tnow << endl;
+	  for (int n=0; n<nthrds; n++) {
+	    for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++)
+	      out << setw(12) << it->first << setw(12) << it->second << endl;
+	  }
+	} else {
+	  cerr << "Process " << myid << ": error opening <collide.effort>"
+	       << endl;
+	}
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+				// Reset the list
+    effortAccum = false;
+    for (int n=0; n<nthrds; n++) 
+      effortNumber[n].erase(effortNumber[n].begin(), effortNumber[n].end());
+  }
 
   caller->print_timings("Collide: collision thread timings", timer_list);
 
@@ -506,16 +540,6 @@ void * Collide::collide_thread(void * arg)
     c = cellist[id][j];
     unsigned number = c->bods.size();
     numcntT[id].push_back(number);
-
-    // Nbody list
-    //
-    /**
-    vector<unsigned long> bodx;
-    unsigned bcnt=0;
-    set<unsigned long>::iterator ib = c->bods.begin();
-    for (ib=c->bods.begin(); ib!=c->bods.end(); ib++, bcnt++) 
-      bodx[bcnt] = *ib;
-    **/
 
 #ifdef USE_GPTL
     GPTLstop("Collide::bodylist");
@@ -869,7 +893,7 @@ void * Collide::collide_thread(void * arg)
     collSoFar[id] = collTime[id].stop();
 
 #ifdef USE_GPTL
-      GPTLstart("Collide::diag");
+    GPTLstart("Collide::diag");
 #endif
 
     // Compute dispersion diagnostics
@@ -952,6 +976,8 @@ void * Collide::collide_thread(void * arg)
     curcSoFar[id] = curcTime[id].stop();
     long tt = curcSoFar[id].getRealTime();
     if (EFFORT) {
+      if (effortAccum) 
+	effortNumber[id].push_back(pair<long, unsigned>(tt, number));
       double effort = static_cast<double>(tt)/number;
       for (unsigned k=0; k<number; k++) 
 	tree->Body(c->bods[k])->effort += effort;
@@ -1711,40 +1737,48 @@ void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
 
 }
 
-void Collide::EPSMtiming(ostream& out)
+
+void Collide::EPSMtimingGather()
 {
-  const char labels[nEPSMT][20] = {"Mean/Var",
-				   "Energy",
-				   "1-d vel",
-				   "Pullin",
-				   "Standard",
-				   "Final"};
-  vector<long> r(nEPSMT, 0);
+  for (int i=0; i<nEPSMT; i++) EPSMtime[i] = 0;
+
   for (int n=0; n<nthrds; n++) {
     for (int i=0; i<nEPSMT; i++) {
-      r[i] += EPSMTSoFar[n][i]();
+      EPSMtime[i] += EPSMTSoFar[n][i]();
       EPSMT[n][i].reset();
     }
   }
   
   if (myid==0) {
-    MPI_Reduce(MPI_IN_PLACE, &r[0], nEPSMT, MPI_LONG, MPI_SUM, 0, 
+    MPI_Reduce(MPI_IN_PLACE, &EPSMtime[0], nEPSMT, MPI_LONG, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(&EPSMtime[0], MPI_IN_PLACE, nEPSMT, MPI_LONG, MPI_SUM, 0,
+	       MPI_COMM_WORLD);
+  }
+}
 
+void Collide::EPSMtiming(ostream& out)
+{
+  if (myid==0) {
+
+    const char labels[nEPSMT][20] = {"Mean/Var",
+				     "Energy",
+				     "1-d vel",
+				     "Pullin",
+				     "Standard",
+				     "Final"};
     long sum = 0;
-    for (int i=0; i<nEPSMT; i++) sum += r[i];
-
+    for (int i=0; i<nEPSMT; i++) sum += EPSMtime[i];
+    
     out << setfill('-') << setw(40) << '-' << setfill(' ') << endl
 	<< "EPSM timing" << endl
 	<< "-----------" << endl;
     for (int i=0; i<nEPSMT; i++)
-      out << left << setw(20) << labels[i] << setw(10) << r[i] 
-	  << setw(10) << fixed << 100.0*r[i]/sum << "%" << endl;
+      out << left << setw(20) << labels[i] << setw(10) << EPSMtime[i] 
+	  << setw(10) << fixed << 100.0*EPSMtime[i]/sum << "%" << endl;
     out << setfill('-') << setw(40) << '-' << setfill(' ') << endl;
-
-  } else {
-    MPI_Reduce(&r[0], MPI_IN_PLACE, nEPSMT, MPI_LONG, MPI_SUM, 0,
-	       MPI_COMM_WORLD);
+    
   }
 }
 
@@ -2503,27 +2537,25 @@ unsigned Collide::post_collide_diag()
   return col;
 }
   
-void Collide::getCPUHog(ostream& out)
+void Collide::CPUHogGather()
 {
-  vector<long> data(12);
-
   for (int i=0; i<2; i++) {
-    data[i]   = MAXLONG;
-    data[6+i] = 0;
-    data[2+i] = data[4+i] = data[8+i] = data[10+i] = -1;
+    CPUH[i]   = MAXLONG;
+    CPUH[6+i] = 0;
+    CPUH[2+i] = CPUH[4+i] = CPUH[8+i] = CPUH[10+i] = -1;
   }
 
   for (int n=0; n<nthrds; n++) {
     for (int i=0; i<2; i++) {
-      if (data[i] > minUsage[n*2+i]) {
-	data[i]    = minUsage[n*2+i];
-	data[2+i]  = minPart [n*2+i];
-	data[4+i]  = minCollP[n*2+i];
+      if (CPUH[i] > minUsage[n*2+i]) {
+	CPUH[i]    = minUsage[n*2+i];
+	CPUH[2+i]  = minPart [n*2+i];
+	CPUH[4+i]  = minCollP[n*2+i];
       }
-      if (data[6+i] < maxUsage[n*2+i]) {
-	data[6+i]  = maxUsage[n*2+i];
-	data[8+i]  = maxPart [n*2+i];
-	data[10+i] = maxCollP[n*2+i];
+      if (CPUH[6+i] < maxUsage[n*2+i]) {
+	CPUH[6+i]  = maxUsage[n*2+i];
+	CPUH[8+i]  = maxPart [n*2+i];
+	CPUH[10+i] = maxCollP[n*2+i];
       }
       // Clear values for next call
       minUsage[n*2+i] = MAXLONG;
@@ -2537,31 +2569,38 @@ void Collide::getCPUHog(ostream& out)
 
   vector<long> U(12*numprocs);
   
-  MPI_Gather(&data[0], 12, MPI_LONG, &U[0], 12, MPI_LONG, 0, MPI_COMM_WORLD);
+  MPI_Gather(&CPUH[0], 12, MPI_LONG, &U[0], 12, MPI_LONG, 0, MPI_COMM_WORLD);
   
-  for (int i=0; i<2; i++) {
-    data[i]   = MAXLONG;
-    data[6+i] = 0;
-    data[2+i] = data[4+i] = data[8+i] = data[10+i] = -1;
-  }
+  if (myid==0) {
 
-  for (int n=0; n<numprocs; n++) {
     for (int i=0; i<2; i++) {
-      if (data[i] > U[n*12+i]) {
-	data[i]   = U[n*12+i];
-	data[2+i] = U[n*12+2+i];
-	data[4+i] = U[n*12+4+i];
-      }
+      CPUH[i]   = MAXLONG;
+      CPUH[6+i] = 0;
+      CPUH[2+i] = CPUH[4+i] = CPUH[8+i] = CPUH[10+i] = -1;
     }
-    for (int i=6; i<8; i++) {
-      if (data[i] < U[n*12+i]) {
-	data[i]   = U[n*12+i];
-	data[2+i] = U[n*12+2+i];
-	data[4+i] = U[n*12+4+i];
+    
+    for (int n=0; n<numprocs; n++) {
+      for (int i=0; i<2; i++) {
+	if (CPUH[i] > U[n*12+i]) {
+	  CPUH[i]   = U[n*12+i];
+	  CPUH[2+i] = U[n*12+2+i];
+	  CPUH[4+i] = U[n*12+4+i];
+	}
+      }
+      for (int i=6; i<8; i++) {
+	if (CPUH[i] < U[n*12+i]) {
+	  CPUH[i]   = U[n*12+i];
+	  CPUH[2+i] = U[n*12+2+i];
+	  CPUH[4+i] = U[n*12+4+i];
+	}
       }
     }
   }
   
+}
+
+void Collide::CPUHog(ostream& out)
+{
   if (myid==0) {
     const unsigned f = 8;
     out << "Extremal cell timing" << endl
@@ -2574,17 +2613,17 @@ void Collide::getCPUHog(ostream& out)
 	<< "      " 
 	<< setw(f) << "DSMC"   << ", " << setw(f) << "EPSM" << endl
 	<< "  Minimum usage=(" 
-	<< setw(f) << data[ 0] << ", " << setw(f) << data[ 1]
+	<< setw(f) << CPUH[ 0] << ", " << setw(f) << CPUH[ 1]
 	<< ")  N=(" 
-	<< setw(f) << data[ 2] << ", " << setw(f) << data[ 3]
+	<< setw(f) << CPUH[ 2] << ", " << setw(f) << CPUH[ 3]
 	<< ")  C=(" 
-	<< setw(f) << data[ 4] << ", " << setw(f) << data[ 5] << ")" << endl
+	<< setw(f) << CPUH[ 4] << ", " << setw(f) << CPUH[ 5] << ")" << endl
 	<< "  Maximum usage=(" 
-	<< setw(f) << data[ 6] << ", " << setw(f) << data[ 7]
+	<< setw(f) << CPUH[ 6] << ", " << setw(f) << CPUH[ 7]
 	<< ")  N=("
-	<< setw(f) << data[ 8] << ", " << setw(f) << data[ 9]
+	<< setw(f) << CPUH[ 8] << ", " << setw(f) << CPUH[ 9]
 	<< ")  C=(" 
-	<< setw(f) << data[10] << ", " << setw(f) << data[11] << ")" << endl;
+	<< setw(f) << CPUH[10] << ", " << setw(f) << CPUH[11] << ")" << endl;
     out << endl;
   }
 }

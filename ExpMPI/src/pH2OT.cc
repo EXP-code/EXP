@@ -363,6 +363,16 @@ void pH2OT::Remap_by_number()
   for (int n=0; n<numprocs; n++) csize0 = max<unsigned>(csize0, csize[n]);
 
 
+  //
+  // Order the key list by cell counts
+  //
+  multimap<unsigned, unsigned> m;
+  //          ^         ^
+  // counts---/         |
+  //                    |
+  // key----------------/
+  //
+
   vector<unsigned> one(csize0), two(csize0);
   for (int n=0; n<numprocs; n++) {
     if (n==myid) {
@@ -377,34 +387,14 @@ void pH2OT::Remap_by_number()
     MPI_Bcast(&one[0], csize[n], MPI_UNSIGNED, n, MPI_COMM_WORLD);
     MPI_Bcast(&two[0], csize[n], MPI_UNSIGNED, n, MPI_COMM_WORLD);
 
-    for (unsigned i=0; i<csize[n]; i++) {
-      if (counts0.find(one[i]) == counts0.end())
-	counts0[one[i]]  = two[i];
-      else
-	counts0[one[i]] += two[i];
-    }
+    for (unsigned i=0; i<csize[n]; i++)
+      m.insert(pair<unsigned, unsigned>(two[i], one[i]));
   }
-
-  // The map 'counts0' now contains the total counts for populated cells
-
-  //
-  // Order the key list by cell counts
-  //
-  multimap<unsigned, unsigned> m;
-  //          ^         ^
-  // counts---/         |
-  //                    |
-  // key----------------/
-  //
-  map<unsigned, unsigned>::iterator q;
-  for (q=counts0.begin(); q!=counts0.end(); q++) 
-    m.insert(pair<unsigned, unsigned>(q->second, q->first));
 
   //
   // Assign processors round-robin in cell count order
   //
   int cnt = 0;
-  // map<unsigned, int> keyproc;  // define this in the header
   keyproc.clear();
   for (multimap<unsigned, unsigned>::iterator k=m.begin(); k!=m.end(); k++)
     keyproc[k->second] = (cnt++ % numprocs);
@@ -471,6 +461,16 @@ void pH2OT::Remap_by_effort()
   for (int n=0; n<numprocs; n++) csize0 = max<unsigned>(csize0, csize[n]);
 
 
+  //
+  // Order the key list by cell weight
+  //
+  multimap<double, unsigned> m;
+  //          ^         ^
+  // counts---/         |
+  //                    |
+  // key----------------/
+  //
+
   vector<unsigned> one(csize0);
   vector<double>   two(csize0);
   for (int n=0; n<numprocs; n++) {
@@ -486,34 +486,12 @@ void pH2OT::Remap_by_effort()
     MPI_Bcast(&one[0], csize[n], MPI_UNSIGNED, n, MPI_COMM_WORLD);
     MPI_Bcast(&two[0], csize[n], MPI_DOUBLE,   n, MPI_COMM_WORLD);
 
-    for (unsigned i=0; i<csize[n]; i++) {
-      if (counts0.find(one[i]) == counts0.end())
-	counts0[one[i]]  = two[i];
-      else
-	counts0[one[i]] += two[i];
-    }
+    for (unsigned i=0; i<csize[n]; i++)
+      m.insert(pair<double, unsigned>(two[i], one[i]));
   }
 
-  // The map 'counts0' now contains the total counts for populated cells
-
-
   //
-  // Order the key list by cell weight
-  //
-  multimap<double, unsigned> m;
-  //          ^         ^
-  // counts---/         |
-  //                    |
-  // key----------------/
-  //
-  map<unsigned, double>::iterator q;
-  for (q=counts0.begin(); q!=counts0.end(); q++) 
-    m.insert(pair<double, unsigned>(q->second, q->first));
-
-  
-
-  //
-  // Assign processors round-robin in cell count order
+  // Assign processors round-robin in effort order
   //
   int cnt = 0;
   keyproc.clear();
