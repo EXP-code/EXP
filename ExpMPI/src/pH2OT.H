@@ -31,6 +31,7 @@ protected:
   void getRange(vector<double>& min3, vector<double>& max3);
 
 public:
+  static unsigned ndim, idim[3];
 
   //! Track number of instances
   static int live;
@@ -41,6 +42,9 @@ public:
 
   //! Destructor
   ~tCell();
+
+  //! Change the dimensions
+  static void setDimensions(const string& dims);
 
   //! Walk up to find the cell with at least @param bucket entries
   sCell *findSampleCell(unsigned bucket);
@@ -232,8 +236,6 @@ protected:
   map<unsigned, int> keyproc;
   void Remap_by_number();
   void Remap_by_effort();
-  template <typename T> 
-  void Remap_diag(map<unsigned, T>& count);
 
   int getProc(unsigned key);
   vector<double> getCorner(unsigned);

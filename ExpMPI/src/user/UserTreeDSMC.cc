@@ -54,7 +54,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Ncell      = 64;
   cnum       = 0;
   madj       = 512;		// No tree pruning by default
-  wght       = 1;		// Cell time partitioning by default
   epsm       = -1.0;
   diamfac    = 1.0;
   boxsize    = 1.0;
@@ -71,7 +70,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_vol    = -1;
   use_exes   = -1;
   coolfrac   = 0.1;
-  remap      = 0;
   frontier   = false;
   tsdiag     = false;
   voldiag    = false;
@@ -90,6 +88,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   sub_sample = true;
   treechk    = false;
   mpichk     = false;
+  sdim       = "xyz";
 				// Initialize using input parameters
   initialize();
 
@@ -120,7 +119,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Number of protons per mass unit
   collfrac = Munit/mp;
 
-  pH2OT::sub_sample = sub_sample;
+  pHOT::sub_sample = sub_sample;
 
   c0->HOTcreate();
 
@@ -140,7 +139,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   pCell::bucket = ncell;
   pCell::Bucket = Ncell;
 
-  volume = pH2OT::box[0] * pH2OT::box[1] * pH2OT::box[2];
+  volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
 
 
   //
@@ -268,15 +267,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   ElostTotCollide = ElostTotEPSM = 0.0;
 
   //
-  // Type of load balancing
-  //
-
-  if (use_effort)
-    c0->Tree()->LoadBalanceEffort();
-  else
-    c0->Tree()->LoadBalanceNumber();
-
-  //
   // Timers: set precision to microseconds
   //
   
@@ -325,14 +315,12 @@ void UserTreeDSMC::userinfo()
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
-       << ", ncell=" << ncell << ", Ncell=" << Ncell << ", wght=" << wght
-       << ", boxratio=" << boxratio << ", jitter=" << jitter 
-       << ", compname=" << comp_name;
+       << ", ncell=" << ncell << ", Ncell=" << Ncell << ", sdim=" << sdim
+       << ", boxratio=" << boxratio << ", compname=" << comp_name;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
   else if (nsteps>0) 
     cout << ", with diagnostic output every " << nsteps << " steps";
-  if (remap>0)     cout << ", remap every " << remap << " steps";
   if (use_temp>=0) cout << ", temp at pos="   << use_temp;
   if (use_dens>=0) cout << ", dens at pos="   << use_dens;
   if (use_Kn>=0)   cout << ", Kn at pos="     << use_Kn;
@@ -373,7 +361,6 @@ void UserTreeDSMC::initialize()
   if (get_value("Munit", val))		Munit      = atof(val.c_str());
   if (get_value("cnum", val))		cnum       = atoi(val.c_str());
   if (get_value("madj", val))		madj       = atoi(val.c_str());
-  if (get_value("wght", val))		wght       = atoi(val.c_str());
   if (get_value("epsm", val))		epsm       = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac    = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize    = atof(val.c_str());
@@ -385,7 +372,6 @@ void UserTreeDSMC::initialize()
   if (get_value("ncell", val))		ncell      = atoi(val.c_str());
   if (get_value("Ncell", val))		Ncell      = atoi(val.c_str());
   if (get_value("compname", val))	comp_name  = val;
-  if (get_value("remap", val))		remap      = atoi(val.c_str());
   if (get_value("use_temp", val))	use_temp   = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens   = atoi(val.c_str());
   if (get_value("use_delt", val))	use_delt   = atoi(val.c_str());
@@ -412,6 +398,7 @@ void UserTreeDSMC::initialize()
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
+  if (get_value("sdim", val))		sdim       = val;
 }
 
 
@@ -447,27 +434,35 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 
   //
-  // Turn off/on diagnostic sanity checking
-  // (scans particle and cell lists and can be very time consuming)
-  //
-
-  c0->Tree()->list_check = treechk;
-
-  //
-  // Turn off/on diagnostic barrier in the tree
-  //
-
-  c0->Tree()->MPIchk(mpichk);
-
-  //
   // Make the cells
   //
 
   if (firstime) {
-    c0->Tree()->setWeights(wght ? true : false);
+    c0->Tree()->setWeights(use_effort);
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
-    c0->Tree()->checkCellTree();
+    c0->Tree()->makeCellLevelList();
+#ifdef DEBUG
+    if (!c0->Tree()->checkBodycell()) {
+      cout << "Process " << myid << ": "
+	   << "makeTree completed: body cell check FAILED!" << endl;
+    }    
+    if (!c0->Tree()->checkParticles(cout)) {
+      cout << "Process " << myid << ": "
+	   << "makeTree completed: initial particle check FAILED!" << endl;
+    }    
+    if (!c0->Tree()->checkFrontier(cout)) {
+      cout << "Process " << myid << ": "
+	   << "makeTree completed: frontier check FAILED!" << endl;
+    }
+
+    if (!c0->Tree()->checkKeybods()) {
+      cout << "Process " << myid 
+	   << ": makeTree: ERROR particle key not in keybods AFTER makeTree(), T=" 
+	   << tnow << endl;
+    }
+#endif
+
     if (use_temp || use_dens || use_vol) assignTempDensVol();
 
     stepnum = 0;
@@ -498,7 +493,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
   
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles()) {
+  if (c0->Tree()->checkParticles(cout)) {
     cout << "After init only: Particle check ok [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
 
@@ -536,34 +531,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   overhead.Start();
 
   //
-  // Load balancing
-  //
-  if (remap>0 && mlevel==0 && !firstime) {
-    if ( (this_step % remap) == 0) {
-#ifdef USE_GPTL
-      GPTLstart("UserTreeDSMC::remap");
-#endif
-      c0->Tree()->Remap();
-#ifdef USE_GPTL
-      GPTLstop("UserTreeDSMC::remap");
-#endif
-    }
-  }
-
-  //
   // Sort the particles into cells
   //
   if (mlevel<=madj) {
 
 #ifdef USE_GPTL
-    GPTLstart("UserTreeDSMC::pH2OT");
+    GPTLstart("UserTreeDSMC::pHOT");
     GPTLstart("UserTreeDSMC::waiting");
     barrier("TreeDSMC: pHOT waiting");
     GPTLstop ("UserTreeDSMC::waiting");
     GPTLstart("UserTreeDSMC::repart");
 #endif
 
-    barrier("TreeDSMC: after pH2OT wait");
+    barrier("TreeDSMC: after pHOT wait");
 
     partnTime.start();
     c0->Tree()->Repartition(mlevel); nrep++;
@@ -579,6 +559,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tree1Time.start();
     c0->Tree()->makeTree();
+    c0->Tree()->makeCellLevelList();
     tree1Time.stop();
     tree1Wait.start();
     barrier("TreeDSMC: after makeTree");
@@ -588,10 +569,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("UserTreeDSMC::pcheck");
 #endif
     tree1Time.start();
-    c0->Tree()->checkCellTree();
 #ifdef DEBUG
     cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
-    if (c0->Tree()->checkParticles()) {
+    if (c0->Tree()->checkParticles(cout)) {
       cout << "Particle check on new tree ok [" << mlevel << "]" << endl;
     } else {
       cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
@@ -601,7 +581,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::pcheck");
-    GPTLstop("UserTreeDSMC::pH2OT");
+    GPTLstop("UserTreeDSMC::pHOT");
 #endif
 
   } else {
@@ -616,6 +596,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tree2Time.start();
     c0->Tree()->adjustTree(mlevel);
+    c0->Tree()->adjustCellLevelList(mlevel);
     tree2SoFar = tree2Time.stop();
     tree2Wait.start();
     barrier("TreeDSMC: after adjustTree");
@@ -687,11 +668,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Repartition and remake the tree after first step to adjust load
   // balancing for work queue effort method
   //
-  if (firstime && remap>0 && use_effort && mlevel==0) {
-    c0->Tree()->Remap();
-    c0->Tree()->Repartition(0);
+  if (firstime && use_effort && mlevel==0) {
+    c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
-    c0->Tree()->checkCellTree();
+    c0->Tree()->makeCellLevelList();
   }
 
   firstime = false;
@@ -803,12 +783,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     double Mass = 0.0;
     unsigned Counts = 0;
-    // c0->Tree()->totalMass(Counts, Mass);
+    c0->Tree()->totalMass(Counts, Mass);
 
 				// Check frontier for mass at or below 
 				// current level
     double cmass1=0.0, cmass=0.0;
-    pH2OT_iterator pit(*(c0->Tree()));
+    pHOT_iterator pit(*(c0->Tree()));
 
     barrier("TreeDSMC: checkAdjust");
 
@@ -854,11 +834,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       tot[2] += out[2][i];
     }
 
-    int pCellTot, pTreeTot, tCellTot, tTreeTot;
+    int pCellTot;
     MPI_Reduce(&pCell::live, &pCellTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&pTree::live, &pTreeTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&tCell::live, &tCellTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&tTree::live, &tTreeTot, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
 
     collide->EPSMtimingGather();
     collide->CPUHogGather();
@@ -1013,7 +990,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << setw(10) << "Cells" << setw(10) << "Bodies" << endl;
       mout << "-----------------------------------------------------" << endl;
       for (unsigned n=0; n<ncells.size(); n++) {
-	mout << setw(8) << n << setw(15) << pH2OT::box[0]/(1<<n)
+	mout << setw(8) << n << setw(15) << pHOT::sides[0]/(1<<n)
 	     << setw(10) << ncells[n] << setw(10) << bodies[n]
 	     << endl;
 	sumcells  += ncells[n];
@@ -1026,16 +1003,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "-----------------------------------------------------" << endl;
       mout << left << endl;
       
-      vector<float> cstatus, xchange, prepare, convert, cupdate, tadjust;
-      vector<float> scatter, repartn, keybods, schecks, waiton0, waiton1;
-      vector<float> waiton2, bodlist, celladj, getsta1, getsta2, getsta3;
-      vector<float> treebar;
+      vector<float>    keymake, xchange, convert, overlap, prepare;
+      vector<float>    cupdate, scatter, repartn, tadjust, keycall;
+      vector<float>    keycomp, keybods, waiton0, waiton1, waiton2;
+      vector<float>    keynewc, keyoldc, treebar;
       vector<unsigned> numbods;
 
-      c0->Tree()->Timing(cstatus, xchange, prepare, convert, tadjust, 
-			 cupdate, scatter, repartn, keybods, schecks, 
-			 waiton0, waiton1, waiton2, bodlist, celladj, 
-			 getsta1, getsta2, getsta3, treebar, numbods);
+      c0->Tree()->Timing(keymake, xchange, convert, overlap, prepare,
+			 cupdate, scatter, repartn, tadjust, keycall,
+			 keycomp, keybods, waiton0, waiton1, waiton2,
+			 keynewc, keyoldc, treebar, numbods);
 
       mout << "-----------------------------" << endl
 	   << "Timing (secs) at mlevel="      << mlevel << endl
@@ -1050,25 +1027,24 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << endl;
 
       mout << "                    " 
-	   << "    " << setw(2) << pH2OT::qtile[0] << "%     " 
-	   << "    " << setw(2) << pH2OT::qtile[1] << "%     " 
-	   << "    " << setw(2) << pH2OT::qtile[2] << "%" << endl;
+	   << "    " << setw(2) << pHOT::qtile[0] << "%     " 
+	   << "    " << setw(2) << pHOT::qtile[1] << "%     " 
+	   << "    " << setw(2) << pHOT::qtile[2] << "%" << endl;
 
-      outHelper1<float>(mout, "cstatus", cstatus);
-      outHelper1<float>(mout, "keybods", keybods);
+      outHelper1<float>(mout, "keymake", keymake);
       outHelper1<float>(mout, "xchange", xchange);
-      outHelper1<float>(mout, "prepare", prepare);
       outHelper1<float>(mout, "convert", convert);
-      outHelper1<float>(mout, "tadjust", tadjust);
+      outHelper1<float>(mout, "overlap", overlap);
+      outHelper1<float>(mout, "prepare", prepare);
       outHelper1<float>(mout, "cupdate", cupdate);
       outHelper1<float>(mout, "scatter", scatter);
       outHelper1<float>(mout, "repartn", repartn);
-      outHelper1<float>(mout, "schecks", schecks);
-      outHelper1<float>(mout, "celladj", celladj);
-      outHelper1<float>(mout, "bodlist", bodlist);
-      outHelper1<float>(mout, "stats#1", getsta1);
-      outHelper1<float>(mout, "stats#2", getsta2);
-      outHelper1<float>(mout, "stats#3", getsta3);
+      outHelper1<float>(mout, "tadjust", tadjust);
+      outHelper1<float>(mout, "keycall", keycall);
+      outHelper1<float>(mout, "keycomp", keycomp);
+      outHelper1<float>(mout, "keybods", keybods);
+      outHelper1<float>(mout, "new key", keynewc);
+      outHelper1<float>(mout, "old key", keyoldc);
 
       if (mpichk) {
 	outHelper1<float>(mout, "wait #0", waiton0);
@@ -1168,9 +1144,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "Object counts at mlevel="      << mlevel << endl
 	   << "-----------------------------" << endl
 	   << " pCell # = " << pCellTot       << endl
-	   << " pTree # = " << pTreeTot       << endl
-	   << " tCell # = " << tCellTot       << endl
-	   << " tTree # = " << tTreeTot       << endl
 	   << "-----------------------------" << endl;
       
     }
@@ -1182,7 +1155,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles()) {
+  if (c0->Tree()->checkParticles(cout)) {
     cout << "Before level list: Particle check ok [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   } else {
@@ -1201,7 +1174,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   llistTime.stop();
 
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles()) {
+  if (c0->Tree()->checkParticles(cout)) {
     cout << "After level list: Particle check ok [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   } else {
@@ -1232,7 +1205,7 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
 
   unsigned cnt=0;
   vector<double> p(3);
-  pH2OT_iterator c(*c0->Tree());
+  pHOT_iterator c(*c0->Tree());
 
   for (unsigned n=0; n<c0->Tree()->Number(); n++) {
     c.nextCell();
@@ -1277,78 +1250,67 @@ void UserTreeDSMC::assignTempDensVol()
   double minT=1e20, maxT=0.0, meanT=0.0, varT=0.0;
 #endif
 
-  map<unsigned, tCell*>::iterator n, nb, ne;
-  key_cell::iterator it, itb, ite;
+  pHOT_iterator it(*c0->Tree());
 
-  nb = c0->Tree()->trees.frontier.begin(); 
-  ne = c0->Tree()->trees.frontier.end(); 
-  for (n = nb; n != ne; n++)
-    {
-      
-      itb = n->second->ptree->frontier.begin(); 
-      ite = n->second->ptree->frontier.end();;
+  while (it.nextCell()) {
+    cell = it.Cell();
+    cell->sample->KE(KEtot, KEdsp);
+    
+    T = KEdsp * Tfac;
 
-      for (it = itb; it != ite; it++)
-	{
-	  cell = it->second;
-	  cell->sample->KE(KEtot, KEdsp);
-
-	  T = KEdsp * Tfac;
-
-	  // Assign temp and/or density to particles
-	  //
-	  if (use_temp>=0 || use_dens>=0 || use_vol>=0) {
+    // Assign temp and/or density to particles
+    //
+    if (use_temp>=0 || use_dens>=0 || use_vol>=0) {
 #ifdef DEBUG
-	    unsigned ssz = cell->sample->count;
+      unsigned ssz = cell->sample->count;
 #endif
-	    unsigned csz = cell->count;
-	    double  volm = cell->Volume();
-	    double  dens = cell->Mass()/volm;
-	    // set<unsigned long>::iterator j = cell->bods.begin();
-	    vector<unsigned long>::iterator j = cell->bods.begin();
-	    while (j != cell->bods.end()) {
-	      if (*j == 0) {
-		cout << "proc=" << myid << " id=" << id 
-		     << " ptr=" << hex << cell << dec
-		     << " indx=" << *j << "/" << csz << endl;
-		j++;
-		continue;
-	      }
-	      
-	      int sz = cell->Body(j)->dattrib.size();
-	      if (use_temp>=0 && use_temp<sz) 
-		cell->Body(j)->dattrib[use_temp] = T;
-	      if (use_dens>=0 && use_dens<sz) 
-		cell->Body(j)->dattrib[use_dens] = dens;
-	      if ((use_vol>=0) && use_vol<sz)
-		cell->Body(j)->dattrib[use_dens] = volm;
-	      j++;
-	    }
-#ifdef DEBUG
-	    if (T>0.0) {
-	      nbod += csz;
-	      minT = min<double>(T, minT);
-	      maxT = max<double>(T, maxT);
-	      meanT += csz*T;
-	      varT  += csz*T*T;
-	    } else {
-	      zbod += csz;
-	      if (ssz>1) {	// Sample cell has more than 1?
-		n1 += ssz;
-		n2 += ssz * ssz;
-		pcel++;
-				// Singletons sample cells
-	      } else if (ssz==1) {
-		sing++;
-		if (cell->sample == cell) ceqs++;
-	      } else {		// Empty cells
-		zero++;
-	      }
-	    }
-#endif
-	  }
+      unsigned csz = cell->count;
+      double  volm = cell->Volume();
+      double  dens = cell->Mass()/volm;
+      // set<unsigned long>::iterator j = cell->bods.begin();
+      vector<unsigned long>::iterator j = cell->bods.begin();
+      while (j != cell->bods.end()) {
+	if (*j == 0) {
+	  cout << "proc=" << myid << " id=" << id 
+	       << " ptr=" << hex << cell << dec
+	       << " indx=" << *j << "/" << csz << endl;
+	  j++;
+	  continue;
 	}
+	
+	int sz = cell->Body(j)->dattrib.size();
+	if (use_temp>=0 && use_temp<sz) 
+	  cell->Body(j)->dattrib[use_temp] = T;
+	if (use_dens>=0 && use_dens<sz) 
+	  cell->Body(j)->dattrib[use_dens] = dens;
+	if ((use_vol>=0) && use_vol<sz)
+	  cell->Body(j)->dattrib[use_dens] = volm;
+	j++;
+      }
+#ifdef DEBUG
+      if (T>0.0) {
+	nbod += csz;
+	minT = min<double>(T, minT);
+	maxT = max<double>(T, maxT);
+	meanT += csz*T;
+	varT  += csz*T*T;
+      } else {
+	zbod += csz;
+	if (ssz>1) {	// Sample cell has more than 1?
+	  n1 += ssz;
+	  n2 += ssz * ssz;
+	  pcel++;
+	  // Singletons sample cells
+	} else if (ssz==1) {
+	  sing++;
+	  if (cell->sample == cell) ceqs++;
+	} else {		// Empty cells
+	  zero++;
+	}
+      }
+#endif
     }
+  }
 
 #ifdef DEBUG
   MPI_Reduce(&nbod,  &ntot,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -1397,46 +1359,35 @@ void UserTreeDSMC::TempHisto()
   vector<double> td1(numT+2, 0), td0(numT+2);
   vector<double> vd1(numT+2, 0), vd0(numT+2);
 
-  map<unsigned, tCell*>::iterator n, nb, ne;
-  key_cell::iterator it, itb, ite;
+  pHOT_iterator pit(*(c0->Tree()));
 
-  nb = c0->Tree()->trees.frontier.begin(); 
-  ne = c0->Tree()->trees.frontier.end(); 
-  for (n = nb; n != ne; n++)
-    {
-      
-      itb = n->second->ptree->frontier.begin(); 
-      ite = n->second->ptree->frontier.end();;
-
-      for (it = itb; it != ite; it++)
-	{
-	  cell = it->second;
-	  // set<unsigned long>::iterator j = cell->bods.begin();
-	  vector<unsigned long>::iterator j = cell->bods.begin();
-	  V = cell->Volume();
-	  while (j != cell->bods.end()) {
-	    T = cell->Body(j)->dattrib[use_temp];
-	    if (T>0.0) {
-	      M = cell->Body(j)->mass;
-	      totalM1 += M;
-	      Tlog = log(T)/log(10.0);
-	      if (Tlog<TlogMin) {
-		td1[0] += M;
-		vd1[0] += V*M;
-	      } else if (Tlog>=TlogMax) {
-		td1[numT+1] += M;
-		vd1[numT+1] += V*M;
-	      } else {
-		int indx = floor((log(T)/log(10.0) - TlogMin) /
-				 (TlogMax - TlogMin)*numT) + 1;
-		td1[indx] += M;
-		vd1[indx] += V*M;
-	      }
-	    }
-	    j++;
-	  }
+  while (pit.nextCell()) {
+    cell = pit.Cell();
+    // set<unsigned long>::iterator j = cell->bods.begin();
+    vector<unsigned long>::iterator j = cell->bods.begin();
+    V = cell->Volume();
+    while (j != cell->bods.end()) {
+      T = cell->Body(j)->dattrib[use_temp];
+      if (T>0.0) {
+	M = cell->Body(j)->mass;
+	totalM1 += M;
+	Tlog = log(T)/log(10.0);
+	if (Tlog<TlogMin) {
+	  td1[0] += M;
+	  vd1[0] += V*M;
+	} else if (Tlog>=TlogMax) {
+	  td1[numT+1] += M;
+	  vd1[numT+1] += V*M;
+	} else {
+	  int indx = floor((log(T)/log(10.0) - TlogMin) /
+			   (TlogMax - TlogMin)*numT) + 1;
+	  td1[indx] += M;
+	  vd1[indx] += V*M;
 	}
+      }
+      j++;
     }
+  }
 
   
   MPI_Reduce(&totalM1, &totalM0, 1,      MPI_DOUBLE, MPI_SUM, 0, 

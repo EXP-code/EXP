@@ -12,7 +12,7 @@
 
 using namespace std;
 
-class pTree;
+class pHOT;
 class Component;
 
 class sCell
@@ -77,7 +77,7 @@ class pCell : public sCell
 {
 private:
 
-  pTree* tree;
+  pHOT* tree;
   Component *C;
 
 public:
@@ -95,7 +95,7 @@ public:
   static bool NTC;
 
   //! Constructors
-  pCell(pTree* tr);
+  pCell(pHOT* tr);
   pCell(pCell* mom, unsigned id);
 
   //! Destructor
@@ -167,7 +167,7 @@ public:
   sCell* findSampleCell();
 
   //! Return bodies from this cell
-  // Particle* Body(set<unsigned long>::iterator k);
+  // Particle* Body(set<unsigned long>::iterator k); // Deprecated
   Particle* Body(vector<unsigned long>::iterator k);
 
   //! Return velocity statistics for particles in the cell

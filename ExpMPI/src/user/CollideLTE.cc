@@ -374,7 +374,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 }
 
 
-int CollideLTE::inelastic(pH2OT *tree, Particle* p1, Particle* p2, 
+int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
 			  double *cr, int id)
 {
   int ret = 0;			// No error (flag)

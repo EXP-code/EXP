@@ -11,7 +11,7 @@
 #include <Normal.h>
 
 #include "Particle.H"
-#include "pH2OT.H"
+#include "pHOT.H"
 #include "Timer.h"
 
 class Collide;
@@ -20,7 +20,7 @@ class Collide;
 struct thrd_pass_arguments
 {
   //! Pointer to iterator
-  pH2OT *tree;
+  pHOT *tree;
   //! Effective number of particles
   double fn;
   //! Time step
@@ -41,7 +41,7 @@ struct thrd_pass_Collide
 struct tstep_pass_arguments
 {
   //! Pointer to iterator
-  pH2OT *tree;
+  pHOT *tree;
   //! Cooling fraction
   double coolfrac;
   //! Thread counter id
@@ -177,10 +177,10 @@ protected:
   virtual void initialize_cell(pCell* cell, double vrelmax,
 			       double dt, double number, int id=0) {}
 
-  virtual int inelastic(pH2OT* tree, Particle* p1, Particle* p2,
+  virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
 
-  virtual void EPSM(pH2OT* tree, pCell* cell, int id);
+  virtual void EPSM(pHOT* tree, pCell* cell, int id);
   vector<double> coolheat;
   bool use_epsm;
 
@@ -188,7 +188,7 @@ protected:
   //
   vector<double> lostSoFar_EPSM;
 
-  void debug_list(pH2OT& tree);
+  void debug_list(pHOT& tree);
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
   void pre_collide_diag();
@@ -289,7 +289,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pH2OT& cl, double Fn, double tau, int mlev=0, 
+  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0, 
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
@@ -308,13 +308,13 @@ public:
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
-  void collide_thread_fork(pH2OT *tree, double Fn, double tau);
+  void collide_thread_fork(pHOT *tree, double Fn, double tau);
   //@}
 
   /// Timestep thread
   //@{
   void *timestep_thread(void *arg);
-  void compute_timestep(pH2OT* tree, double coolfrac);
+  void compute_timestep(pHOT* tree, double coolfrac);
   //@}
 
   /// Debug timing routines

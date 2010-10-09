@@ -1,3 +1,4 @@
+#include <values.h>
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -7,7 +8,7 @@ using namespace std;
 
 #include "Timer.h"
 #include "global.H"
-#include "pH2OT.H"
+#include "pHOT.H"
 #include "UserTreeDSMC.H"
 #include "Collide.H"
 
@@ -68,7 +69,7 @@ collide_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::collide_thread_fork(pH2OT* tree, double Fn, double tau)
+void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
 {
   int errcode;
   void *retval;
@@ -367,12 +368,12 @@ Collide::~Collide()
   delete norm;
 }
 
-void Collide::debug_list(pH2OT& tree)
+void Collide::debug_list(pHOT& tree)
 {
   return;
 
   unsigned ncells = tree.Number();
-  pH2OT_iterator c(tree);
+  pHOT_iterator c(tree);
   for (int cid=0; cid<numprocs; cid++) {
     if (myid == cid) {
       ostringstream sout;
@@ -398,7 +399,7 @@ void Collide::debug_list(pH2OT& tree)
 }
 
 
-unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
+unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
 			  bool diag)
 {
   snglTime.start();
@@ -411,18 +412,15 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
   for (int n=0; n<nthrds; n++) cellist[n].clear();
   ncells = 0;
   set<pCell*>::iterator ic, icb, ice;
-  map<unsigned, tCell*>::iterator t;
 
   for (unsigned M=mlevel; M<=multistep; M++) {
-    for (t=tree.trees.frontier.begin(); t!=tree.trees.frontier.end(); t++) {
 				// Don't queue null cells
-      if (t->second->ptree->clevels[M].size()) {
-	icb = t->second->ptree->clevels[M].begin(); 
-	ice = t->second->ptree->clevels[M].end(); 
-	for (ic=icb; ic!=ice; ic++) {
-	  cellist[(ncells++)%nthrds].push_back(*ic);
-	  bodycount += (*ic)->bods.size();
-	}
+    if (tree.clevels[M].size()) {
+      icb = tree.clevels[M].begin(); 
+      ice = tree.clevels[M].end(); 
+      for (ic=icb; ic!=ice; ic++) {
+	cellist[(ncells++)%nthrds].push_back(*ic);
+	bodycount += (*ic)->bods.size();
       }
     }
   }
@@ -466,9 +464,11 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
 
 				// Write to the file in process order
     list< pair<long, unsigned> >::iterator it;
+    ostringstream ostr;
+    ostr << outdir << runtag << ".collide.effort";
     for (int i=0; i<numprocs; i++) {
       if (myid==i) {
-	ofstream out("collide.effort", ios::app);
+	ofstream out(ostr.str().c_str(), ios::app);
 	if (out) {
 	  if (myid==0) out << "# Time=" << tnow << endl;
 	  for (int n=0; n<nthrds; n++) {
@@ -476,8 +476,8 @@ unsigned Collide::collide(pH2OT& tree, double Fn, double tau, int mlevel,
 	      out << setw(12) << it->first << setw(12) << it->second << endl;
 	  }
 	} else {
-	  cerr << "Process " << myid << ": error opening <collide.effort>"
-	       << endl;
+	  cerr << "Process " << myid 
+	       << ": error opening <" << ostr.str() << ">" << endl;
 	}
       }
       MPI_Barrier(MPI_COMM_WORLD);
@@ -506,7 +506,7 @@ void Collide::dispersion(vector<double>& disp)
 
 void * Collide::collide_thread(void * arg)
 {
-  pH2OT *tree = (pH2OT*)((thrd_pass_arguments*)arg)->tree;
+  pHOT *tree = (pHOT*)((thrd_pass_arguments*)arg)->tree;
   double Fn   = (double)((thrd_pass_arguments*)arg)->fn;
   double tau  = (double)((thrd_pass_arguments*)arg)->tau;
   int id      = (int)   ((thrd_pass_arguments*)arg)->id;
@@ -691,7 +691,7 @@ void * Collide::collide_thread(void * arg)
       double taudiag = 1.0e40;
       for (int k=0; k<3; k++) {	// Time of flight
 	taudiag = min<double>
-	  (pH2OT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
+	  (pHOT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
 	   taudiag);
       }
       
@@ -1353,7 +1353,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(pH2OT* tree, pCell* cell, int id)
+void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 {
   if (cell->bods.size()<2) return;
 
@@ -2185,7 +2185,7 @@ tstep_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::compute_timestep(pH2OT* tree, double coolfrac)
+void Collide::compute_timestep(pHOT* tree, double coolfrac)
 {
   int errcode;
   void *retval;
@@ -2252,7 +2252,7 @@ void Collide::compute_timestep(pH2OT* tree, double coolfrac)
 
 void * Collide::timestep_thread(void * arg)
 {
-  pH2OT* tree = (pH2OT* )((tstep_pass_arguments*)arg)->tree;
+  pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
   int id = (int)((tstep_pass_arguments*)arg)->id;
 
@@ -2286,8 +2286,8 @@ void * Collide::timestep_thread(void * arg)
       mscale = 1.0e40;
       for (unsigned k=0; k<3; k++) {
 	DT = min<double>
-	  (pH2OT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
-	mscale = min<double>(pH2OT::sides[k]*L, mscale);
+	  (pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+	mscale = min<double>(pHOT::sides[k]*L, mscale);
       }
 				// Size scale for multistep timestep calc.
       p->scale = mscale;

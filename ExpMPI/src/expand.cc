@@ -96,8 +96,12 @@ void make_node_list(int argc, char **argv)
 		     << setfill(' ') << endl << endl;
 
   // Make MPI datatype
-  
+
+#ifdef INT128
   int ityp = 2;
+#else
+  int ityp = 1;
+#endif
   MPI_Aint kdsp = 0;
   MPI_Datatype ktyp = MPI_UNSIGNED_LONG;
   MPI_Type_create_struct(1, &ityp, &kdsp, &ktyp, &MPI_EXP_KEYTYPE);

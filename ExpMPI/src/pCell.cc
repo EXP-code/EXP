@@ -6,7 +6,7 @@
 
 #include "ParticleFerry.H"
 #include "pCell.H"
-#include "pH2OT.H"
+#include "pHOT.H"
 #include "global.H"
 
 int pCell::live = 0;		// Track number of instances
@@ -38,7 +38,7 @@ string printKey(key_type p)
 }
 
 
-pCell::pCell(pTree* tr) : tree(tr), C(tr->ph->cc), isLeaf(true)
+pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
 {
   live++;
 
@@ -167,7 +167,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       // bods.insert(keypair.second);
       bods.push_back(keypair.second);
 				// Flag to recompute sample cell
-      if (change) change->push_back(cell_indx(this, pTree::RECOMP));
+      if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
       maxplev = max<int>(maxplev, C->Particles()[keypair.second].level);
       
       return this;
@@ -181,7 +181,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       key2 = childId(n->first);
       if (children.find(key2) == children.end()) {
 	children[key2] = new pCell(this, key2);
-	if (change) change->push_back(cell_indx(children[key2], pTree::CREATE));
+	if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
       }
       
       key_key::iterator ik = tree->bodycell.find(n->first);
@@ -193,7 +193,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     bods.clear();
 				// Erase my cell key from the frontier
     tree->frontier.erase(mykey);
-    if (change) change->push_back(cell_indx(this, pTree::REMOVE));
+    if (change) change->push_back(cell_indx(this, pHOT::REMOVE));
 				// I'm a branch now . . .
     isLeaf = false;
   }
@@ -202,7 +202,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
   key2 = childId(key);
   if (children.find(key2) == children.end()) {
     children[key2] = new pCell(this, key2);
-    if (change) change->push_back(cell_indx(children[key2], pTree::CREATE));
+    if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
   }
 
   return children[key2]->Add(keypair, change);
@@ -375,15 +375,15 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
       // (only transactions added are sample cells)
       // queue for removal from level lists
       //
-      change->push_back(cell_indx(this, pTree::REMOVE));
+      change->push_back(cell_indx(this, pHOT::REMOVE));
       
       // queue for deletion
       //
-      change->push_back(cell_indx(this, pTree::KILL));
+      change->push_back(cell_indx(this, pHOT::KILL));
     
       ret = true;
     }
-    else change->push_back(cell_indx(this, pTree::RECOMP));
+    else change->push_back(cell_indx(this, pHOT::RECOMP));
     
   } else {
     cout << "Process " << myid 
@@ -460,7 +460,7 @@ pCell* pCell::findNode(const key_type& key)
   if (!!sig) {
     
     if (parent == 0) {
-      cout << "pH2OT::findNode: impossible condition, process " 
+      cout << "pHOT::findNode: impossible condition, process " 
 	   << myid << ": level=" << level  << hex
 	   << " key=" << key << endl
 	   << " sig=" << sig << endl << dec;
@@ -675,9 +675,9 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
 double pCell::Volume()
 {
 #ifdef I128
-  return tree->ph->volume/(key_type(1u) << 3*level).toDouble();
+  return tree->volume/(key_type(1u) << 3*level).toDouble();
 #else
-  return tree->ph->volume/(key_type(1u) << 3*level);
+  return tree->volume/static_cast<double>(key_type(1u) << 3*level);
 #endif
 }
 
@@ -686,7 +686,7 @@ double pCell::Scale()
 #ifdef I128
   return 1.0/(key_type(1u) << level).toDouble();
 #else
-  return 1.0/(key_type(1u) << level);
+  return 1.0/static_cast<double>(key_type(1u) << level);
 #endif
 }
 
@@ -695,10 +695,7 @@ sCell* pCell::findSampleCell()
   pCell *cur = this;		// Begin with this cell
   while(cur->count < Bucket) {
 				// We are at the root
-    if (cur->parent == 0) {
-      sample = tree->pc->findSampleCell(Bucket);
-      return sample;
-    }
+    if (cur->parent == 0) return cur;
     
 				// Keep walking up the tree . . 
     cur = cur->parent;

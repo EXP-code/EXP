@@ -32,7 +32,6 @@ int tCell::live = 0;		// Track number of instances
 int tTree::live = 0;		// Track number of instances
 int pTree::live = 0;		// Track number of instances
 
-
 pTree::pTree(pH2OT *p, tCell *q, unsigned key)
 {
   live++;
@@ -92,9 +91,9 @@ pH2OT::pH2OT(Component *C)
 
 				// Sanity checks
 
-  if (pkbits*3 >= sizeof(unsigned)*8) {
-    unsigned maxb = sizeof(unsigned)*8/3;
-    if (maxb*3 >= sizeof(unsigned)*8) maxb--;
+  if (pkbits*tCell::ndim >= sizeof(unsigned)*8) {
+    unsigned maxb = sizeof(unsigned)*8/tCell::ndim;
+    if (maxb*tCell::ndim >= sizeof(unsigned)*8) maxb--;
     ostringstream mesg;
     mesg << "pkbits=" << pkbits << " but must be less than " << maxb;
     bomb("pH2OT::pH2OT", mesg.str());
@@ -112,7 +111,16 @@ pH2OT::pH2OT(Component *C)
 				// pkfactor is the fractional length
 				// scale for each HOT side
   pkfactor = 1.0/static_cast<double>(1u<<pkbits);
-  for (int k=0; k<3; k++) box[k] = sides[k]*pkfactor;
+  for (unsigned k=0; k<tCell::ndim; k++) {
+    unsigned j = tCell::idim[k];
+    box[j] = sides[j]*pkfactor;
+  }
+  for (unsigned j=0; j<3; j++) {
+    bool unclaimed = true;
+    for (unsigned k=0; k<tCell::ndim; k++) 
+      if (tCell::idim[k]==j) unclaimed = false;
+    if (unclaimed) box[j] = sides[j];
+  }
 
   pkmask = 0u;			// Mask per dimension
   for (unsigned k=0; k<pkbits; k++) {
@@ -121,13 +129,13 @@ pH2OT::pH2OT(Component *C)
   }
 
   tkmask = 0u;			// Total mask
-  for (int k=0; k<3; k++) {
+  for (unsigned k=0; k<tCell::ndim; k++) {
     tkmask <<= pkbits;
     tkmask |= pkmask;
   }
 
 				// Total # of regions in primary partition
-  tottrees = (1u << pkbits*3);
+  tottrees = (1u << pkbits*tCell::ndim);
 
 				// Total volume
   total_volume = sides[0]*sides[1]*sides[2];
@@ -329,7 +337,7 @@ void pH2OT::Remap_by_number()
   //
   // Make a map containing the keys from the full frontier
   //
-  map<unsigned, unsigned> counts, counts0;
+  map<unsigned, unsigned> counts;
   //      ^         ^
   // key--/         |
   //                |
@@ -413,12 +421,6 @@ void pH2OT::Remap_by_number()
 	  << setw(9) << dec << keyproc[it->second]
 	  << endl;
   }
-
-
-  // Done!
-
-  Remap_diag<unsigned>(counts0);
-
 }
 
 
@@ -427,7 +429,7 @@ void pH2OT::Remap_by_effort()
   //
   // Make a map containing the keys from the full frontier
   //
-  map<unsigned, double> counts, counts0;
+  map<unsigned, double> counts;
   //      ^         ^
   // key--/         |
   //                |
@@ -491,12 +493,38 @@ void pH2OT::Remap_by_effort()
   }
 
   //
-  // Assign processors round-robin in effort order
+  // Heuristic balanced partition solution
+  // -------------------------------------
+  // (1) Put on object in each bin (from biggest to smallest)
   //
-  int cnt = 0;
+  // (2) In reverse, put as many objects in each bin as possible to
+  //     bring measure upto the first (largest) bin, but not
+  //     exceeding.
+  //
+  // (3) Repeat (1) and (2) until list is exhausted
+  //
   keyproc.clear();
-  for (multimap<double, unsigned>::iterator k=m.begin(); k!=m.end(); k++)
-    keyproc[k->second] = (cnt++ % numprocs);
+  vector<double> buckets(numprocs, 0.0);
+  vector<unsigned> ncell(numprocs, 0);
+  multimap<double, unsigned>::reverse_iterator k=m.rbegin(); 
+  while (k!=m.rend()) {
+    // Step 1
+    for (int i=0; i<numprocs; i++) {
+      buckets[i] += k->first;
+      keyproc[k->second] = i;
+      ncell[i]++;
+      if (++k == m.rend()) break;
+    }
+    // Step 2
+    for (int i=numprocs-1; i>0 && k!=m.rend(); i--) {
+      while (buckets[i]+k->first <= buckets[0]) {
+	buckets[i] += k->first;
+	keyproc[k->second] = i;
+	ncell[i]++;
+	if (++k == m.rend()) break;
+      };
+    }
+  }
 
   //
   // Diagnostic
@@ -504,16 +532,36 @@ void pH2OT::Remap_by_effort()
   if (myid==0) {
     ostringstream sout;
     sout << outdir << runtag << ".counts." << cc->id;
-    ofstream out(sout.str().c_str());
-    multimap<double, unsigned>::iterator it;
-    for (it=m.begin(); it!=m.end(); it++)
-      out << setw(9) << it->first 
-	  << setw(9) << hex << it->second << endl;
+    ofstream out(sout.str().c_str(), ios::app);
+    // Compute mean and std. dev.
+    vector<double> sum(2, 0), sum2(2, 0);
+    for (int i=0; i<numprocs; i++) {
+      sum [0] += ncell[i];
+      sum2[0] += ncell[i]*ncell[i];
+      sum [1] += buckets[i];
+      sum2[1] += buckets[i]*buckets[i];
+    }
+    for (int j=0; j<2; j++) {
+      sum[j] /= numprocs;
+      if (numprocs>1)
+	sum2[j] = sqrt((sum2[j] - sum[j]*sum[j]*numprocs)/(numprocs-1));
+      else
+	sum2[j] = 0.0;
+    }
+    out << "# Time=" << tnow << endl
+	<< "#  Ncells(mean)=" << sum[0] << "  Ncells(stdev)=" << sum2[0]
+	<< endl
+	<< "#  Effort(mean)=" << sum[1] << "  Effort(stdev)=" << sum2[1]
+	<< endl;
+    // Data
+    for (int i=0; i<numprocs; i++) {
+      out << setw(9)  << i
+	  << setw(9)  << ncell[i]
+	  << setw(12) << buckets[i]
+	  << endl;
+    }
   }
 
-  // Done!
-
-  Remap_diag<double>(counts0);
 }
 
 
@@ -529,113 +577,6 @@ int pH2OT::getProc(unsigned key)
   return q->second;
 }
 
-
-template<typename T>
-void pH2OT::Remap_diag(map<unsigned, T>& counts)
-{
-  if (myid) return;
-
-// Dynamic range for tables
-  const int maxlog0 = 6;
-  const int maxlog1 = 18;
-
-  // Precision for entries
-  const double lfac = 0.5;
-
-  // Logarithmic half range (base 10)
-  const double delta0 = 0.5*lfac*maxlog0;
-  const double delta1 = 0.5*lfac*maxlog1;
-  const double Flog10 = 1.0/log(10.0);
-
-  //
-  // Find the modal value
-  //
-  vector<T> mode;
-  typename map<unsigned, T>::iterator q;
-  for (q=counts.begin(); q!=counts.end(); q++) 
-    mode.push_back(q->second);
-  sort(mode.begin(), mode.end());
-  T mval = mode[mode.size()/2];
-
-  //
-  // Make a log table
-  //
-  vector< vector<unsigned> > report(numprocs);
-  for (int n=0; n<numprocs; n++) report[n] = vector<unsigned>(maxlog0+2, 0);
-  vector<unsigned> report1(maxlog1+2);
-  for (q=counts.begin(); q!=counts.end(); q++) {
-
-    double val = static_cast<double>(q->second)/mval, val0, val1;
-    int indx0 = 0, indx1 = 0;
-    if (val > 0.0) {
-      val0 = log(val)*Flog10 + delta0;
-      val1 = log(val)*Flog10 + delta1;
-      indx0 = 1;
-      indx1 = 1;
-      if (val0>0.0) {
-	indx0 = floor(val0/lfac) + 1;
-	if (indx0>maxlog0) indx0 = maxlog0+1; 
-      }
-      if (val1>0.0) {
-	indx1 = floor(val1/lfac) + 1;
-	if (indx1>maxlog1) indx1 = maxlog1+1; 
-      }
-    }
-    report[keyproc[q->first]][indx0]++;
-    report1[indx1]++;
-  }
-
-  //
-  // Print it out
-  //
-  string filename = outdir + runtag + "." + cc->id + ".remap_log";
-  ofstream out(filename.c_str(), ios::out | ios::app);
-  if (out) {
-    ostringstream sout;
-    out << setw(5+8*(maxlog0+2)) << setfill('-') << '-' 
-	<< setfill(' ') << endl << "# T=" << tnow 
-	<< " Step #=" << this_step << " Mode=" << mval << endl;
-    out << setw(5) << "ID #";
-    for (int i=0; i<=maxlog0; i++) {
-      sout.str("");
-      if (i) sout << "<" << setprecision(1) << pow(10.0, lfac*i-delta0);
-      else   sout << "0";
-      out << setw(8) << sout.str();
-    }
-    sout.str("");
-    sout << ">" << setprecision(1) << pow(10.0, lfac*maxlog0);
-    out << setw(8) << sout.str() << endl;
-    for (int n=0; n<numprocs; n++) {
-      out << setw(5) << n;
-      for (int i=0; i<=maxlog0+1; i++)
-	out << setw(8) << report[n][i];
-      out << endl;
-    }
-
-    out << endl
-	<< "----------------" << endl
-	<< "All-node summary" << endl
-	<< "----------------" << endl
-	<< left << setw(20) << "Value" << "Count" << endl;
-
-    for (int i=0; i<=maxlog1+1; i++) {
-      sout.str("");
-      if (i==maxlog1+1)
-	sout << " >" << setprecision(3) << pow(10.0, lfac*maxlog1-delta1);
-      else if (i>0) 
-	sout << " <" << setprecision(3) << pow(10.0, lfac*i-delta1);
-      else
-	sout << " 0";
-
-      out << left << setw(20) << sout.str() << report1[i] << endl;
-    }
-    out << setw(5+8*(maxlog0+2)) << setfill('-') << '-' 
-	<< setfill(' ') << endl << setprecision(6);
-  } else {
-    cout << "Error opening remap log file <" << filename << ">" 
-	 << endl;
-  }
-}
 
 void pH2OT::makeTree()
 {
@@ -2351,7 +2292,8 @@ void pH2OT::Repartition(unsigned mlevel)
 	cout << endl;
       }
       if ((tcel=cc->Particles()[bodylist[toID][i]].tree)>0u) {
-	if (tcel > (1u<<(3*pkbits+1)) || tcel < (1u<<(3*pkbits+0)) ) {
+	if (tcel > (1u<<(tCell::ndim*pkbits+1)) || 
+	    tcel < (1u<<(tCell::ndim*pkbits+0)) ) {
 	  cout << "Tree out of bounds  Indx=" << bodylist[toID][i]
 	       << "  #" <<  myid << "  Tree=" << tcel;
 	  if (firstime) cout << " [first time]";
@@ -3317,8 +3259,11 @@ unsigned pH2OT_iterator::nextCell()
 }
 
 
-unsigned tCell::pbits = 0;
-tTree*   tCell::tr    = 0;
+unsigned tCell::pbits   = 0;
+tTree*   tCell::tr      = 0;
+unsigned tCell::ndim    = 3;
+unsigned tCell::idim[3] = {0, 1, 2};
+
 
 tCell::tCell(tTree* tree, unsigned nb)
 {
@@ -3334,7 +3279,7 @@ tCell::tCell(tTree* tree, unsigned nb)
   count   = 0;
   ptree   = 0;
 				// My body mask
-  mask    = mykey << 3*(pbits - level);
+  mask    = mykey << ndim*(pbits - level);
 				// Initialize state
   state   = vector<double>(10, 0.0);
 }
@@ -3345,11 +3290,11 @@ tCell::tCell(tCell* mom, unsigned id) : parent(mom)
 
   owner   = 0;
 				// My map key
-  mykey   = (parent->mykey << 3) + id;
+  mykey   = (parent->mykey << ndim) + id;
 				// My level
   level   = parent->level + 1;
 				// My body mask
-  mask    = mykey << 3*(pbits - level);
+  mask    = mykey << ndim*(pbits - level);
 				// Initialize state
   state   = vector<double>(10, 0.0);
 
@@ -3367,21 +3312,47 @@ tCell::~tCell()
 }
 
 
+// Change the dimensions
+void tCell::setDimensions(const string& dims)
+{
+  ndim = dims.length();
+  for (unsigned k=0; k<ndim; k++) {
+    switch (dims[k]) {
+    case 'x':
+    case 'X':
+      idim[k] = 0;
+      break;
+    case 'y':
+    case 'Y':
+      idim[k] = 1;
+      break;
+    case 'z':
+    case 'Z':
+      idim[k] = 2;
+      break;
+    default:
+      throw string("Dimension indicator must be in [xyzXYZ]");
+    };
+  }
+}
+
 unsigned tCell::getKey(const double *p)
 {
   const double tol = 1.0e-12;
 
   // Out of bounds?
   //
-  double z[3];
-  for (unsigned k=0; k<3; k++) { 
-    z[k] = (p[k] + pH2OT::offset[k])/pH2OT::sides[k];
+  double z[ndim];
+  unsigned j;
+  for (unsigned k=0; k<ndim; k++) {
+    j = idim[k];
+    z[k] = (p[j] + pH2OT::offset[j])/pH2OT::sides[j];
 				// Deal with some roundoff/truncation error
-    if (z[k] < 0.0 && z[k] > -tol)  
-      z[k] = 0.0;
-    else if (z[k] >= 1.0 && z[k] < 1.0+tol)
-      z[k] = 1.0 - tol;
-    else if (z[k] < 0.0 || z[k] >=1.0) {
+    if (z[j] < 0.0 && z[j] > -tol)  
+      z[j] = 0.0;
+    else if (z[j] >= 1.0 && z[j] < 1.0+tol)
+      z[j] = 1.0 - tol;
+    else if (z[j] < 0.0 || z[j] >=1.0) {
       return 0u;
     }
   }
@@ -3389,17 +3360,17 @@ unsigned tCell::getKey(const double *p)
   const double factor = static_cast<double>(1u<<pbits);
   const unsigned mask = 0x1u;
 
-  vector<unsigned> bins(3, 0u);
+  vector<unsigned> bins(ndim, 0u);
 
 				// Reverse the order
-  for (unsigned k=0; k<3; k++)
-    bins[2-k] = unsigned( floor(z[k]*factor) );
+  for (unsigned k=0; k<ndim; k++)
+    bins[ndim-1-k] = unsigned( floor(z[idim[k]]*factor) );
   
   unsigned place = 1u;
   unsigned  _key = 0u;
 
   for (unsigned i=0; i<pbits; i++) {
-    for (unsigned k=0; k<3; k++) {
+    for (unsigned k=0; k<ndim; k++) {
       _key |= (bins[k] & mask)*place;
       place = place << 1;
       bins[k] = bins[k] >> 1;
@@ -3423,7 +3394,7 @@ tCell* tCell::findNode(const double *p)
 tCell* tCell::findNode(const unsigned& key)
 {
 				// Check that this key belongs to this branch
-  unsigned sig = (unsigned)(key - mask) >> 3*(pbits-level);
+  unsigned sig = (unsigned)(key - mask) >> ndim*(pbits-level);
   
   if (sig) {
     
@@ -3460,7 +3431,7 @@ tCell* tCell::findAddNode(const double *p)
 tCell* tCell::findAddNode(const unsigned& key)
 {
 				// Check that this key belongs to this branch
-  unsigned sig = (unsigned)(key - mask) >> 3*(pbits-level);
+  unsigned sig = (unsigned)(key - mask) >> ndim*(pbits-level);
   
   if (sig) {
     
@@ -3503,19 +3474,32 @@ void tCell::getRange(vector<double>& xyz, vector<double>& XYZ)
   unsigned _key   = mykey;
 
   for (unsigned i=0; i<level; i++) {
-    for (unsigned k=0; k<3; k++) {
+    for (unsigned j=0; j<ndim; j++) {
+      unsigned k=idim[j];
       xyz[2-k] += (_key & 1u)*_place;
       _key >>= 1;
     }
     _place <<= 1;
   }
-
+    
   unsigned _range = 1u << pbits;
-  for (int k=0; k<3; k++) {
+  for (unsigned j=0; j<ndim; j++) {
+    unsigned k=idim[j];
     XYZ[k] = xyz[k] + static_cast<double>(_range)/(1u<<level);
     xyz[k] = xyz[k]/_range * pH2OT::sides[k] - pH2OT::offset[k];
     XYZ[k] = XYZ[k]/_range * pH2OT::sides[k] - pH2OT::offset[k];
   }
+
+  for (unsigned k=0; k<3; k++) {
+    bool nope = true;
+    for (unsigned j=0; j<ndim; j++)
+      if (idim[j] == k) nope = false;
+    if (nope) {
+      xyz[k] = -pH2OT::offset[k];
+      XYZ[k] = pH2OT::sides[k] - pH2OT::offset[k];
+    }
+  }
+
 }
 
 vector<double> tCell::getCorner()
@@ -3526,7 +3510,8 @@ vector<double> tCell::getCorner()
   unsigned _key   = mykey;
 
   for (unsigned i=0; i<level; i++) {
-    for (unsigned k=0; k<3; k++) {
+    for (unsigned j=0; j<ndim; j++) {
+      unsigned k=idim[j];
       xyz[2-k] += (_key & 1u)*_place;
       _key >>= 1;
     }
@@ -3534,8 +3519,18 @@ vector<double> tCell::getCorner()
   }
 
   unsigned _range = 1u << pbits;
-  for (int k=0; k<3; k++)
+  for (unsigned j=0; j<ndim; j++) {
+    unsigned k=idim[j];
     xyz[k] = xyz[k]/_range * pH2OT::sides[k] - pH2OT::offset[k];
+  }
+  for (unsigned k=0; k<3; k++) {
+    bool nope = true;
+    for (unsigned j=0; j<ndim; j++)
+      if (idim[j] == k) nope = false;
+    if (nope) {
+      xyz[k] = -pH2OT::offset[k];
+    }
+  }
 
   return xyz;
 }
@@ -3558,7 +3553,7 @@ sCell* tCell::findSampleCell(unsigned Bucket)
 
 double tCell::Volume()
 {
-  return tr->ph->TotalVolume()/(1u << 3*level);
+  return tr->ph->TotalVolume()/(1u << ndim*level);
 }
 
 double tCell::Scale()

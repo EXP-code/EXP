@@ -1,6 +1,8 @@
 #ifndef _pHOT_H
 #define _pHOT_H
 
+#include <values.h>		// For MAXINT
+
 #include <localmpi.h>
 #include <Particle.H>
 #include <Component.H>
@@ -10,6 +12,19 @@
 
 #include <Timer.h>
 #include <BarrierWrapper.H>
+
+class CellDiag
+{
+public:
+  unsigned ntre, bcel, btot, mind, maxd;
+  double   navg, nvar, bavg, bvar;
+
+  CellDiag(unsigned nt=0) : ntre(nt),  bcel(0),   btot(0),
+			    mind(MAXINT),         maxd(0),
+			    navg(0.0), nvar(0.0), bavg(0.0), bvar(0.0)
+  {}
+};
+
 
 class pHOT
 {
@@ -44,8 +59,16 @@ protected:
 		   vector<key_wght>& comb);
 
   unsigned find_proc(vector<key_type>& keys, key_type key);
+  //! Parition the out-of-bounds particles among the procesors
   void spreadOOB();
   void checkOOB(vector<unsigned>&);
+
+
+  //! State accumulation
+  //@{
+  vector<int> numfront;
+  vector<int> displace;
+  //@}
 
   //! For repartition
   bool use_weight;
@@ -60,7 +83,7 @@ protected:
   //! For debugging
   key_type key_min, key_max;
 
-  unsigned min_cell, max_cell, adjcnt;
+  unsigned min_cell, max_cell, adjcnt, d_val, d_pval;
   unsigned cntr_total, cntr_new_key, cntr_mine, cntr_not_mine, cntr_ship;
   vector<unsigned> chist;
   change_list change;
@@ -68,18 +91,22 @@ protected:
   unsigned sumstep, sumzero;
   BarrierWrapper *barrier;
 
-  ACG *gen;
-  Uniform *unit;
   double *offset;
 
-
-  unsigned n_xchange, m_xchange, numkeys;
+  unsigned n_xchange, m_xchange, numkeys, numk;
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
   Timer timer_prepare, timer_cupdate, timer_scatter, timer_repartn;
   Timer timer_tadjust, timer_keycall, timer_keycomp, timer_keybods;
   Timer timer_waiton1, timer_waiton2, timer_keynewc, timer_keyoldc;
   Timer timer_waiton0;
 
+  vector<float>    keymk3, exchg3, cnvrt3, tovlp3, prepr3, updat3;
+  vector<float>    scatr3, reprt3, tadjt3, keycl3, keycm3, keybd3;
+  vector<float>    wait03, wait13, wait23, keync3, keyoc3, barri3;
+  vector<unsigned> numk3;
+
+  template <typename T> 
+  void getQuant(vector<T>& in, vector<T>& out);
 
   void bomb(const string& membername, const string& msg);
 
@@ -94,9 +121,8 @@ public:
   //! E.g. the default selction defines a cube with coordinates [-1, 1]^3
   static double   offst[];
 
-  //! Additional randomly selected offset with given extent to prevent
-  //! gridding effects (default: none)
-  static double   jittr[];
+  //! Quantiles for reporting distribution of time per process
+  static unsigned qtile[];
 
   //! Use key subsampling to improve run time in the key partioning step
   //! (default: true)
@@ -105,6 +131,9 @@ public:
 
   //! Print out partition diagnostics (default: false)
   static bool     keys_debug;
+
+  //! For communication
+  static MPI_Datatype CellDiagType;
 
   //! Constructor
   pHOT(Component* C);
@@ -173,21 +202,34 @@ public:
      Debugging and diagostics
   */
   //@{
+  //! Check that every particle has an entry in the key-body list
   bool checkKeybods();
+  //! Check that every particle has an entry in the key-body list (at
+  //! this level and below)
   bool checkPartKeybods(unsigned mlev);
+  //! Check that every particle has an entry in the key-cell list
   bool checkBodycell();
+  //! Check that every body in the tree points to a body in the particle list
   bool checkParticles(ostream &out, bool pc=true);
+  //! Check that bodies are not duplicated in multiple cells
   bool checkDupes();
+  //! Check that every cell in the level list is on the frontier
   bool checkFrontier(ostream &out);
+  //! Get the total kinetic energy and dispersion
   double totalKE(double& KEtot, double& KEdsp);
+  //! Get the total gass mass
   void totalMass(unsigned& Counts, double& Mass);
+  //! Sanity count check for body indices
   void checkIndices();
+  //! Print the frontier and summary statistics
   void dumpFrontier();
+  //! 
   void densEmit(unsigned lev, pCell *p);
   void densCheck();
   void statFrontier();
   void countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies);
   unsigned checkNumber();
+  //! Return the cached number of out-of-bounds particles
   unsigned oobNumber();
   void testFrontier(string& filename);
   void Slice(int nx, int ny, int nz, string cut, string prefix);
@@ -195,13 +237,8 @@ public:
 	    string cut, 
 	    vector<double>&    x, vector<double>& dens, vector<double>& temp, 
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
+  //! Scan for and count out-of-bounds particles
   void checkBounds(double, const char *);
-  void adjustTiming(double &keymake, double &xchange, double &prepare, 
-		    double &convert, double &overlap, double &update,
-		    double &scatter, double &repartn, double &tadjust,
-		    double &keycall, double &keycomp, double &keybods,
-		    double &keynewc, double &keyoldc, double &waiton0, 
-		    double &waiton1, double &waiton2, unsigned &numkeys);
   void adjustCounts(ostream& out);
   double checkAdjust() {
     double result = 0.0;
@@ -218,6 +255,26 @@ public:
     n_xchange = m_xchange = 0;
   }
   //@}
+
+
+  //! Return timing info for essential routines
+  //@{
+  //! Collect timing from all processes
+  void CollectTiming();
+
+  //! Process and return timing stats from all processes
+  void Timing(vector<float>    &keymake, vector<float>    &exchange, 
+	      vector<float>    &convert, vector<float>    &overlap, 
+	      vector<float>    &prepare, vector<float>    &update,
+	      vector<float>    &scatter, vector<float>    &repartn,
+	      vector<float>    &tadjust, vector<float>    &keycall,
+	      vector<float>    &keycomp, vector<float>    &keybods,
+	      vector<float>    &waiton0, vector<float>    &waiton1,
+	      vector<float>    &waiton2, vector<float>    &keynewc,
+	      vector<float>    &keyoldc, vector<float>    &treebar, 
+	      vector<unsigned> &numk);
+  //@}
+
 };
 
 /**
@@ -265,12 +322,16 @@ public:
     return fit->second; 
   }
 
+#ifdef INT128
   double Volume() { return volume/(( (key_type)1u << (3*fit->second->level) ).toDouble()); }
+#else
+  double Volume() { return volume/( (key_type)1u << (3*fit->second->level) ); }
+#endif
   void KE(double &tot, double &dsp) { fit->second->KE(tot, dsp); }
 
   double Mass() { return fit->second->Mass(); }
 
-  Particle *Body(set<unsigned>::iterator k) { return fit->second->Body(k); }
+  Particle *Body(vector<unsigned long>::iterator k) { return fit->second->Body(k); }
 
 };
 

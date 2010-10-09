@@ -72,6 +72,8 @@ private:
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
   bool sub_sample, treechk, mpichk;
 
+  string sdim;
+
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;
 

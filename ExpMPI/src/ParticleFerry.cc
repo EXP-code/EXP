@@ -2,7 +2,7 @@
 #include <iomanip>
 #include "global.H"
 #include "ParticleFerry.H"
-#include "pH2OT.H"
+#include "pHOT.H"
 
 Partstruct::Partstruct()
 {
@@ -288,7 +288,7 @@ void ParticleFerry::BufferRecv()
 
 void ParticleFerry::bufferKeyCheck()
 {
-				// Sanity check for pH2OT keys
+				// Sanity check for pHOT keys
 #ifdef I128
   uint128 minkey = 1u;
   minkey <<= 128 - 1;

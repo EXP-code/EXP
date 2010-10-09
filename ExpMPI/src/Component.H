@@ -12,7 +12,7 @@
 #include <PotAccel.H>
 #include <Timer.h>
 
-class pH2OT;
+class pHOT;
 
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
@@ -166,7 +166,7 @@ class Component
   friend class ScatterMFP;
   friend class OrbTrace;
   friend class ComponentContainer;
-  friend class pH2OT;
+  friend class pHOT;
 
 private:
 
@@ -254,7 +254,7 @@ protected:
   PartMap particles;
 
   //! Oct tree
-  pH2OT *tree;
+  pHOT *tree;
 
   //! Level occupation output
   int nlevel;
@@ -747,7 +747,7 @@ public:
   void print_level_lists(double T);
 
   //! Temporary access to tree (until I figure out what is really needed)
-  pH2OT* Tree() { return tree; }
+  pHOT* Tree() { return tree; }
 
   //! Running clock on the current potential/force evaluation
   Timer time_so_far;

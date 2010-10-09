@@ -41,7 +41,7 @@ struct ltPAIR {
   }
 };
 
-#ifdef I128
+#ifdef INT128
 struct hashULL {
   size_t operator()(uint128 __i) const
   { return static_cast<size_t>(__i.toUint()); }

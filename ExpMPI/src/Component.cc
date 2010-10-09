@@ -21,7 +21,7 @@
 #include <Shells.H>
 #include <NoForce.H>
 #include <Orient.H>
-#include <pH2OT.H>
+#include <pHOT.H>
 
 #include "expand.h"
 
@@ -112,7 +112,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 void Component::HOTcreate()
 {
   delete tree;
-  tree = new pH2OT(this);
+  tree = new pHOT(this);
 }
 
 
