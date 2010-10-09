@@ -246,7 +246,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 	     << " T_F="    << setw(15) << T 
 	     << endl << right;
       }
-      if (T > T0) {
+      if (T > T0*0.995) {
 	cout << "Process " << setw(4) << myid 
 	     << " [" << setw(2) << id << "]:" << left
 	     << " #="      << setw(8) << icnt

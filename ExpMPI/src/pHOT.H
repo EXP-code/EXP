@@ -202,6 +202,8 @@ public:
      Debugging and diagostics
   */
   //@{
+  //! Check that clevlst and frontier are consistent
+  void checkCellLevelList(const char *);
   //! Check that every particle has an entry in the key-body list
   bool checkKeybods();
   //! Check that every particle has an entry in the key-body list (at
@@ -303,12 +305,7 @@ public:
   { 
     if (first) first = false;
     else       fit++;
-    if (fit==tr->frontier.end()) {
-#ifdef DEBUG
-      cout << "End of cell list!" << endl;
-#endif
-      return 0;
-    }
+    if (fit==tr->frontier.end()) return 0;
     return fit->second->bods.size(); 
   }
 

@@ -1956,6 +1956,43 @@ void pHOT::Repartition(unsigned mlevel)
 #endif
 }
 
+void pHOT::checkCellLevelList(const char *msg)
+{
+  unsigned missing_frontier_cell = 0;
+  unsigned missing_clevlst_cell  = 0;
+
+  for (key_cell::iterator 
+	 it=frontier.begin(); it != frontier.end(); it++) 
+    {
+      if (it->second->mykey==1u && it->second->count==0u) {
+	cout << "Process " << myid 
+	     << ": empty root node in checkCellLevelList" << endl;
+	continue;
+      }
+      if (clevlst.find(it->second) == clevlst.end()) 
+	missing_frontier_cell++;
+    }
+
+  for (map<pCell*, unsigned>::iterator 
+	 it=clevlst.begin(); it != clevlst.end(); it++) 
+    {
+      if (frontier.find(it->first->mykey) == frontier.end())
+	missing_clevlst_cell++;
+    }
+
+  if (missing_frontier_cell)
+    cout << "Process " << myid << ": " << msg << ", "
+	 << missing_frontier_cell
+	 << " frontier cells not in level list" << endl;
+
+  if (missing_clevlst_cell)
+    cout << "Process " << myid << ": " << msg << ", "
+	 << missing_clevlst_cell
+	 << " level list cells not on frontier" << endl;
+
+}
+
+
 void pHOT::makeCellLevelList()
 {
   ostringstream sout;
@@ -2116,6 +2153,8 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << ": adjustTree: ERROR particle key not in keybods"
 	 << " BEFORE adjustTree(), T=" << tnow << endl;
   }
+
+  checkCellLevelList("BEFORE adjustTree()");
 #endif
 
   adjcnt++;			// For debug labeling only . . .
@@ -2249,14 +2288,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	timer_keynewc.start();
 	cntr_not_mine++;
 
-	if (c->Remove(oldpair, &change)) {
-				// Remove the old pair from the current cell
-				// (only transactions added are sample cells)
-				// queue for removal from level lists
-	  change.push_back(cell_indx(c, REMOVE));
-				// queue for deletion
-	  change.push_back(cell_indx(c, KILL));
-	}
+	c->Remove(oldpair, &change);
 
 				// Same processor and in bounds?
 	if (newkey != 0u) {
@@ -2289,27 +2321,16 @@ void pHOT::adjustTree(unsigned mlevel)
 	if (ij == bodycell.end()) {
 	  cout << "Process " << myid 
 	       << ": pHOT::adjustTree: ERROR could not find cell for"
-	       << " key=" << hex << oldkey << ", index=" << dec << p->indx
-	       << endl;
+	       << " key=" << hex << oldkey << ", index=" << dec << p->indx;
+	  if (!c->isMine(oldkey))
+	    cout << ", this IS NOT my key!";
+	  cout << endl;
 	}
 #endif
-
-	if (ij != bodycell.end()) bodycell.erase(ij);
-	bodycell.insert(key_item(newkey, c->mykey));
 				// Update key list
 	c->UpdateKeys(oldpair, newpair);
-				// Update key body index for the new key
-	key_indx::iterator ik = keybods.find(oldpair);
-	if (ik != keybods.end()) keybods.erase(ik);
-#ifdef DEBUG
-	else {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR mlevel=" << mlevel 
-	       << ": could not find keybods entry" << endl;
-	}
-#endif	
-	p->key = newkey;	// Assign the new key to the particle
-	keybods.insert(newpair);
+				// Assign the new key to the particle
+	p->key = newkey;
 
 	timer_keyoldc.stop();
       }
@@ -2697,6 +2718,7 @@ void pHOT::adjustTree(unsigned mlevel)
   
   checkDupes();
   checkIndices();
+  checkCellLevelList("AFTER adjustTree()");
   
   if (!checkKeybods()) {
     cout << "Process " << myid 

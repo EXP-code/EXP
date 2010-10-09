@@ -217,8 +217,13 @@ void pCell::RemoveKey(const key_pair& oldpair)
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
-    cout << "Process " << myid << ": tree=" << tree->tkey 
-	 << " cell=" << mykey.toHex() << " key not in keys list!" << endl;
+    cout << "Process " << myid << ": cell=" 
+#ifdef INT128
+	 << mykey.toHex() 
+#else
+	 << hex << mykey << dec
+#endif
+	 << " key not in keys list!" << endl;
     //-----------------------------------------------------------------      
   }
 #endif
@@ -229,8 +234,13 @@ void pCell::RemoveKey(const key_pair& oldpair)
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
-    cout << "Process " << myid << ": tree=" << tree->tkey 
-	 << " cell=" << mykey.toHex() << " key not in cell list!" << endl;
+    cout << "Process " << myid << ": cell=" 
+#ifdef INT128
+	 << mykey.toHex() 
+#else
+	 << hex << mykey << dec
+#endif
+	 << " key not in cell list!" << endl;
     //-----------------------------------------------------------------      
   }
 #endif
@@ -242,10 +252,19 @@ void pCell::RemoveKey(const key_pair& oldpair)
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
-    cout << "Process " << myid << ": tree=" << tree->tkey
-	 << " cell=" << mykey.toHex()
+    cout << "Process " << myid << ": cell=" 
+#ifdef INT128
+	 << mykey.toHex()
+#else
+	 << hex << mykey << dec
+#endif
 	 << " missing keypair entry in keybods,";
-    cout << " key="   << oldpair.first.toHex() 
+    cout << "key=" 
+#ifdef INT128
+	 << oldpair.first.toHex() 
+#else
+	 << hex << oldpair.first << dec
+#endif
 	 << " index=" << oldpair.second
 	 << endl;
     //-----------------------------------------------------------------      
@@ -253,8 +272,12 @@ void pCell::RemoveKey(const key_pair& oldpair)
 #endif
 #ifdef ADJUST_INFO
   //-----------------------------------------------------------------      
-  cout << "Process " << myid << ": "
-       << "pCell::REMOVED KEY=" << oldpair.first.toHex()
+  cout << "Process " << myid << ": pCell::REMOVED KEY=" 
+#ifdef INT128
+       << oldpair.first.toHex()
+#else
+       << hex << oldpair.first << dec
+#endif
        << " index=" << oldpair.second << endl;
   //-----------------------------------------------------------------      
 #endif
@@ -287,8 +310,13 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (keys.find(keypair) == keys.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR finding keypair in cell's list" 
-	   << " cur=" << mykey.toHex();
-      cout << " key=" << keypair.first.toHex() 
+#ifdef INT128
+	   << " cur=" << mykey.toHex()
+	   << " key=" << keypair.first.toHex() 
+#else
+	   << hex << " cur=" << mykey
+	   << " key=" << keypair.first << dec
+#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -303,7 +331,11 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (ik == tree->bodycell.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR finding key in bodycell"
+#ifdef INT128
 	   << " key="   << keypair.first.toHex() 
+#else
+	   << " key="   << hex << keypair.first << dec
+#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -318,7 +350,11 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     if (p==tree->keybods.end()) {
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR missing keypair entry in keybods," 
+#ifdef INT128
 	   << " key="   << keypair.first.toHex() 
+#else
+	   << " key="   << hex << keypair.first << dec
+#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;
@@ -338,7 +374,11 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     //-----------------------------------------------------------------      
       cout << "Process " << myid << ": "
 	   << "pCell::Remove: ERROR missing index in bods,"
+#ifdef INT128
 	   << " key="   << keypair.first.toHex() 
+#else
+	   << " key="   << hex << keypair.first << dec
+#endif
 	   << " index=" << keypair.second
 	   << endl;
       return ret;

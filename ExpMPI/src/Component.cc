@@ -1443,7 +1443,12 @@ struct Particle * Component::get_particles(int* number)
 	  cout << "Component [" << myid << "]: sending ";
 	  cout << setw(3) << icount
 	       << setw(14) << icur->second.mass
-	       << setw(18) << icur->second.key.toHex();
+#ifdef INT128
+	       << setw(18) << icur->second.key.toHex()
+#else
+	       << setw(18) << hex << icur->second.key << dec
+#endif
+	    ;
 	  for (int k=0; k<3; k++) cout << setw(14) << icur->second.pos[k];
 	  cout << endl;
 	}
