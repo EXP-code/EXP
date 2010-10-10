@@ -154,6 +154,8 @@ string CheckpointTimer::exec(string& cmd)
 
   while(!feof(pipe)) {
     if(fgets(buffer, 128, pipe) != NULL)
+      // DEBUG
+      cout << "CheckpointTimer: buffer=" << buffer << endl;
       result += buffer;
   }
   pclose(pipe);

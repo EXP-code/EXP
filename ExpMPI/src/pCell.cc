@@ -768,7 +768,7 @@ unsigned pCell::remake_plev()
 
 double sCell::CRMavg()
 {
-  if (CRMlist.size()==0) return -1.0;
+  if (CRMlist.size()==0 || CRMnum<=0) return -1.0;
   return CRMsum/CRMnum;
 }
 

@@ -362,8 +362,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 				// Zero-out potential and acceleration
 	c->Part(indx)->pot = 0.0;
 	for (int k=0; k<c->dim; k++) c->Part(indx)->acc[k] = 0.0;
-				// Replace by default effort value
-	c->Part(indx)->effort = Particle::effort_default;
       }
     }
     if (timing) {

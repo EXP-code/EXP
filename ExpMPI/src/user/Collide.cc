@@ -572,7 +572,21 @@ void * Collide::collide_thread(void * arg)
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
     sCell *samp = c->sample;
-    double crm=samp->CRMavg();
+    double crm = -1.0;
+    //
+    // Sanity check
+    //
+    if (samp == 0x0) {
+      cout << "Process "  << myid << ": no sample cell for cell="
+	   << " owner="   << c->owner << hex
+	   << " mykey="   << c->mykey
+	   << " mask="    << c->mask  << dec
+	   << " level="   << c->level    
+	   << " count="   << c->count 
+	   << " maxplev=" << c->maxplev << endl;
+    } else {
+      crm=samp->CRMavg();
+    }
     double mvel=crm, crmax=0.0;
 
     if (!NTC || crm<0.0) {

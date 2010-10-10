@@ -52,8 +52,14 @@ protected:
   void sendCell(key_type key, int to, unsigned num);
   void recvCell(int from, unsigned num);
 
+  void partitionKeysHilbert(vector<key_wght>& keys,
+			    vector<key_type>& kbeg, vector<key_type>& kfin);
+  enum PartitionType {Hilbert} partType;
   void partitionKeys(vector<key_wght>& keys,
-		     vector<key_type>& kbeg, vector<key_type>& kfin);
+		     vector<key_type>& kbeg, vector<key_type>& kfin) {
+    if (partType==Hilbert)       partitionKeysHilbert (keys, kbeg, kfin);
+    else                         partitionKeysHilbert (keys, kbeg, kfin);
+  }
   void parallelMerge(vector<key_wght>& in, vector<key_wght>& out);
   void sortCombine(vector<key_wght>& one, vector<key_wght>& two, 
 		   vector<key_wght>& comb);

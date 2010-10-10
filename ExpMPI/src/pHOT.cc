@@ -76,6 +76,8 @@ void pHOT::bomb(const string& membername, const string& msg)
 pHOT::pHOT(Component *C)
 {
   cc = C;			// Register the calling component
+			
+  partType = Hilbert;		// Partition type
 
 				// Sanity check
   if (nbits*3 >= sizeof(key_type)*8) {
@@ -480,7 +482,6 @@ void pHOT::makeTree()
   //
   for (key_cell::iterator it=frontier.begin(); 
        it != frontier.end(); it++) it->second->accumState();
-
 
   // March through the frontier to find the sample cells
   //
@@ -1584,6 +1585,8 @@ void pHOT::Repartition(unsigned mlevel)
     } else {
       if (use_weight) {
 	keys.push_back(key_wght(it->second.key, it->second.effort));
+	// Reset effort value
+	it->second.effort = Particle::effort_default;
       } else {
 	keys.push_back(key_wght(it->second.key, 1.0));
       }
@@ -2648,12 +2651,14 @@ void pHOT::adjustTree(unsigned mlevel)
       
     pCell *c = it->first;	// This is the cell pointer
 
-    switch(it->second) {	// Add this one to the active lists
-    case CREATE:
+    switch(it->second) {
+    case CREATE:		// Add this one to the active lists
       {
 	unsigned m = max<unsigned>(c->maxplev, mlevel);
 	clevlst[c] = m;
 	clevels[m].insert(c);
+				// And locate the sample cell
+	c->findSampleCell();
       }
       break;
 
@@ -2687,7 +2692,7 @@ void pHOT::adjustTree(unsigned mlevel)
       delete c;
       break;
 
-    case RECOMP:		// Find the sample cell
+    case RECOMP:		// Relocate the sample cell (changes)
       c->findSampleCell();
       break;
 
@@ -3389,12 +3394,14 @@ void pHOT::spreadOOB()
 
 }
 
-void pHOT::partitionKeys(vector<key_wght>& keys,
-			 vector<key_type>& kbeg, vector<key_type>& kfin)
+
+void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
+				vector<key_type>& kbeg, vector<key_type>& kfin)
 {
 #ifdef USE_GPTL
-  GPTLstart("pHOT::partitionKeys");
+  GPTLstart("pHOT::partitionKeysHilbert");
 #endif
+
 				// For diagnostics
   Timer *timer_debug;
   if (keys_debug && myid==0) {
@@ -3405,7 +3412,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
 				// Sort the keys
   sort(keys.begin(), keys.end(), wghtKEY);
 
-  vector<key_wght> keylist1, keylist;
+  vector<key_wght> keylist, keylist1;
 
   double srate = 1;		// Only used for subsampling
 
@@ -3740,7 +3747,7 @@ void pHOT::partitionKeys(vector<key_wght>& keys,
   }
 
 #ifdef USE_GPTL
-  GPTLstop("pHOT::partitionKeys");
+  GPTLstop("pHOT::partitionKeysHilbert");
 #endif
 }
 
