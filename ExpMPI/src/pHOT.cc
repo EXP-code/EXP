@@ -2254,7 +2254,7 @@ void pHOT::adjustTree(unsigned mlevel)
     //
 
     timer_keybods.start();
-    key_key ::iterator ij = bodycell.find(oldkey);
+    key_key::iterator ij = bodycell.find(oldkey);
 
 				// Bad key?
     if (ij == bodycell.end()) {	//
@@ -2271,10 +2271,10 @@ void pHOT::adjustTree(unsigned mlevel)
       continue;
     }
 
-    c = frontier[ij->second];
+    key_cell::iterator cit = frontier.find(ij->second);
 
 				// Bad cell?
-    if (c == frontier.end() ) {	//
+    if (cit == frontier.end() ) {	//
       cout << "Process " << myid 
 	   << ": pHOT::adjustTree: ERROR could not find expected cell"
 	   << " on frontier, count=" << adjcnt
@@ -2293,14 +2293,20 @@ void pHOT::adjustTree(unsigned mlevel)
       continue;
     }
 
+    //
+    // This is the cell for this body
+    //
+    c = cit->second;
+
     timer_keybods.stop();
       
     cntr_total++;
 
     //
-    // Is the key the same?
+    // Are the new and old keys the same?  I.e. same cell?
     // 
     timer_keycomp.start();
+
     if (newkey != oldkey) {
 
       cntr_new_key++;
