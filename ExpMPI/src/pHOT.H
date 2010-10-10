@@ -52,26 +52,43 @@ protected:
   void sendCell(key_type key, int to, unsigned num);
   void recvCell(int from, unsigned num);
 
+  //@{
+  /** Allow for adding multiple types of partitioning variants.  So
+      far, I have implemented only the initial Hilbert curve
+      partition.
+  */
+  enum PartitionType {Hilbert} partType;
+
+  //! Standard Hibert curve partitioning algorithm
   void partitionKeysHilbert(vector<key_wght>& keys,
 			    vector<key_type>& kbeg, vector<key_type>& kfin);
-  enum PartitionType {Hilbert} partType;
+
+  //! Call the requested algorithm
   void partitionKeys(vector<key_wght>& keys,
 		     vector<key_type>& kbeg, vector<key_type>& kfin) {
     if (partType==Hilbert)       partitionKeysHilbert (keys, kbeg, kfin);
     else                         partitionKeysHilbert (keys, kbeg, kfin);
   }
+  //@}
+
+  //@{
+  //! For combining key-weight lists for partitioning
   void parallelMerge(vector<key_wght>& in, vector<key_wght>& out);
   void sortCombine(vector<key_wght>& one, vector<key_wght>& two, 
 		   vector<key_wght>& comb);
+  //@}
 
+  //! Which processor owns the cell
   unsigned find_proc(vector<key_type>& keys, key_type key);
-  //! Parition the out-of-bounds particles among the procesors
+
+  //@{
+  //! Partition the out-of-bounds particles among the procesors
   void spreadOOB();
   void checkOOB(vector<unsigned>&);
+  //@}
 
-
-  //! State accumulation
   //@{
+  //! State accumulation
   vector<int> numfront;
   vector<int> displace;
   //@}
@@ -208,6 +225,8 @@ public:
      Debugging and diagostics
   */
   //@{
+  //! Check that sample cells exist for all frontier cells
+  void checkSampleCells(const char *);
   //! Check that clevlst and frontier are consistent
   void checkCellLevelList(const char *);
   //! Check that every particle has an entry in the key-body list
@@ -262,6 +281,12 @@ public:
     mX = m_xchange;
     n_xchange = m_xchange = 0;
   }
+
+  bool onFrontier(key_type k) {
+    if (frontier.find(k) == frontier.end()) return false;
+    else return true;
+  }
+
   //@}
 
 

@@ -1158,6 +1158,7 @@ void pHOT::recvCell(int from, unsigned num)
 
 void pHOT::makeState()
 {
+  // Currently unused
 }
 
 
@@ -1995,6 +1996,27 @@ void pHOT::checkCellLevelList(const char *msg)
 
 }
 
+void pHOT::checkSampleCells(const char *msg)
+{
+  unsigned cnt=0;
+  vector<unsigned> missing(multistep+1, 0);
+  for (key_cell::iterator 
+	 it=frontier.begin(); it != frontier.end(); it++) 
+    {
+      if (it->second->sample == 0x0) {
+	cnt++;
+	missing[it->second->level]++;
+      }
+    }
+
+  if (cnt) {
+    cout << "Process " << myid << ": " << msg << 
+      ", " << cnt << " missing sample cells" << endl;
+    for (unsigned k=0; k<=multistep; k++)
+      cout << left << setw(5) << k << missing[k] << endl;
+  }
+}
+
 
 void pHOT::makeCellLevelList()
 {
@@ -2157,6 +2179,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << " BEFORE adjustTree(), T=" << tnow << endl;
   }
 
+  checkSampleCells  ("BEFORE adjustTree()");
   checkCellLevelList("BEFORE adjustTree()");
 #endif
 
@@ -2244,30 +2267,32 @@ void pHOT::adjustTree(unsigned mlevel)
 #endif
 	   << " pnumber=" << cc->Number() << " bodycell=" << bodycell.size() 
 	   << endl;
-    } else {
-				// Bad cell?
-      if (0) {			//
-	if ( frontier.find(ij->second) == frontier.end() ) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR could not find expected cell"
-	       << " on frontier, count=" << adjcnt;
-#ifdef INT128
-	  cout << " oldbody=" << oldkey.toHex();
-	  cout << " newbody=" << newkey.toHex();
-	  cout << " cell="    << bodycell.find(oldkey)->second.toHex()
-#else
-	  cout << " oldbody=" << hex << oldkey << dec;
-	  cout << " newbody=" << hex << newkey << dec;
-	  cout << " cell="    << hex << bodycell.find(oldkey)->second<< dec
-#endif
-	       << " index="   << p->indx 
-	       << endl;
-	  continue;
-	}
-      }
-      
-      c = frontier[ij->second];
+      timer_keybods.stop();
+      continue;
     }
+
+    c = frontier[ij->second];
+
+				// Bad cell?
+    if (c == frontier.end() ) {	//
+      cout << "Process " << myid 
+	   << ": pHOT::adjustTree: ERROR could not find expected cell"
+	   << " on frontier, count=" << adjcnt
+#ifdef INT128
+	   << " oldbody=" << oldkey.toHex()
+	   << " newbody=" << newkey.toHex()
+	   << " cell="    << bodycell.find(oldkey)->second.toHex()
+#else
+	   << " oldbody=" << hex << oldkey << dec
+	   << " newbody=" << hex << newkey << dec
+	   << " cell="    << hex << bodycell.find(oldkey)->second<< dec
+#endif
+	   << " index="   << p->indx 
+	   << endl;
+      timer_keybods.stop();
+      continue;
+    }
+
     timer_keybods.stop();
       
     cntr_total++;
@@ -2319,17 +2344,6 @@ void pHOT::adjustTree(unsigned mlevel)
 				// for the new key
 	timer_keyoldc.start();
 	cntr_mine++;
-
-#ifdef DEBUG
-	if (ij == bodycell.end()) {
-	  cout << "Process " << myid 
-	       << ": pHOT::adjustTree: ERROR could not find cell for"
-	       << " key=" << hex << oldkey << ", index=" << dec << p->indx;
-	  if (!c->isMine(oldkey))
-	    cout << ", this IS NOT my key!";
-	  cout << endl;
-	}
-#endif
 				// Update key list
 	c->UpdateKeys(oldpair, newpair);
 				// Assign the new key to the particle
@@ -2639,8 +2653,6 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::cUpdate");
 #endif
 
-  // timer_cupdate.start();
-
   // Create, remove and delete changed cells
   // ---------------------------------------
   // Need to do the creates first in case that cells enter and exit
@@ -2723,6 +2735,7 @@ void pHOT::adjustTree(unsigned mlevel)
   
   checkDupes();
   checkIndices();
+  checkSampleCells  ("AFTER adjustTree()");
   checkCellLevelList("AFTER adjustTree()");
   
   if (!checkKeybods()) {
@@ -2939,11 +2952,16 @@ bool pHOT::checkDupes()
 void pHOT::checkIndices()
 {
 
-  // All prcesses make an index list
+  // All processes make an index list
   //
   vector<unsigned> indices;
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
+
+  // Add oob particles
+  //
+  for (set<indx_type>::iterator it=oob.begin(); it!=oob.end(); it++)
+    indices.push_back(*it);
 
   // All processes send the index list to the master node
   //
@@ -3149,7 +3167,7 @@ void pHOT::checkOOB(vector<unsigned>& sendlist)
 	aok = false;
 	bcnt++;
       } else {
-	cout << "checkOOB: sendlist from #" << n << " is in OK!" << endl;
+	cout << "checkOOB: sendlist from #" << n << " is OK!" << endl;
       }
     }
 

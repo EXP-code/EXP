@@ -577,13 +577,16 @@ void * Collide::collide_thread(void * arg)
     // Sanity check
     //
     if (samp == 0x0) {
-      cout << "Process "  << myid << ": no sample cell for cell="
-	   << " owner="   << c->owner << hex
-	   << " mykey="   << c->mykey
-	   << " mask="    << c->mask  << dec
-	   << " level="   << c->level    
-	   << " count="   << c->count 
-	   << " maxplev=" << c->maxplev << endl;
+      cout << "Process "  << myid << " in collide: no sample cell"
+	   << ", owner="   << c->owner << hex
+	   << ", mykey="   << c->mykey
+	   << ", mask="    << c->mask  << dec
+	   << ", level="   << c->level    
+	   << ", count="   << c->count 
+	   << ", maxplev=" << c->maxplev;
+      if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
+      else cout << ", NOT on frontier" << endl;
+      
     } else {
       crm=samp->CRMavg();
     }

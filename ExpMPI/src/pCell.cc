@@ -164,7 +164,6 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     if (bods.size() < bucket || level+1==nbits) {
       keys.insert(keypair);
       tree->bodycell.insert(key_item(key, mykey));
-      // bods.insert(keypair.second);
       bods.push_back(keypair.second);
 				// Flag to recompute sample cell
       if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
