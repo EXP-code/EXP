@@ -1023,13 +1023,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       vector<float>    keymake, xchange, convert, overlap, prepare;
       vector<float>    cupdate, scatter, repartn, tadjust, keycall;
       vector<float>    keycomp, keybods, waiton0, waiton1, waiton2;
-      vector<float>    keynewc, keyoldc, treebar;
+      vector<float>    keynewc, keyoldc, treebar, diagdbg;
       vector<unsigned> numbods;
 
       c0->Tree()->Timing(keymake, xchange, convert, overlap, prepare,
 			 cupdate, scatter, repartn, tadjust, keycall,
 			 keycomp, keybods, waiton0, waiton1, waiton2,
-			 keynewc, keyoldc, treebar, numbods);
+			 keynewc, keyoldc, treebar, diagdbg, numbods);
 
       mout << "-----------------------------" << endl
 	   << "Timing (secs) at mlevel="      << mlevel << endl
@@ -1062,6 +1062,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       outHelper1<float>(mout, "keybods", keybods);
       outHelper1<float>(mout, "new key", keynewc);
       outHelper1<float>(mout, "old key", keyoldc);
+      outHelper1<float>(mout, "diagnos", diagdbg);
 
       if (mpichk) {
 	outHelper1<float>(mout, "wait #0", waiton0);

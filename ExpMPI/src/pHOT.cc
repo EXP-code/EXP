@@ -131,6 +131,7 @@ pHOT::pHOT(Component *C)
   timer_waiton2.Microseconds();
   timer_keynewc.Microseconds();
   timer_keyoldc.Microseconds();
+  timer_diagdbg.Microseconds();
 
   use_weight = true;
  
@@ -139,7 +140,7 @@ pHOT::pHOT(Component *C)
   keymk3 = exchg3 = cnvrt3 = tovlp3 = prepr3 = updat3 =
     scatr3 = reprt3 = tadjt3 = keycl3 = keycm3 = keybd3 =
     wait03 = wait13 = wait23 = keync3 = keyoc3 = barri3 =
-    vector<float>(numprocs);
+    diagd3 = vector<float>(numprocs);
   
   numk3    = vector<unsigned>(numprocs);
   numfront = vector<int>(numprocs);
@@ -288,27 +289,44 @@ void pHOT::computeCellStates()
 
   // Sanity check
   if (samp_debug) {
-    
+    timer_diagdbg.start();
+
     ostringstream sout;
     sout << "in computeCellStates, time=" << tnow << " [this is a BAD ERROR]";
     checkSampleCells(sout.str().c_str());
 
-    // Look for root on frontier
-    key_cell::iterator it=frontier.find(root->mykey);
-    if (it != frontier.end()) {
-      cout << "computeCellStates, root is on frontier"
-	   << ", owner=" << it->second->owner
-	   << ", count=" << it->second->count
-	   << ", mass="  << it->second->state[0]
-	   << ", sample cell=" << hex << it->second->sample
-	   << dec << endl;
+    static unsigned msgcnt=0, maxcnt=10;
+    if (msgcnt < maxcnt) {
+      // Look for root key on the frontier
+      key_cell::iterator it=frontier.find(root->mykey);
+      if (it != frontier.end()) {
+	cout << "computeCellStates, root on frontier"
+	     << ", T=" << tnow
+	     << ", owner=" << it->second->owner
+	     << ", level=" << it->second->level
+	     << ", count=" << it->second->count
+	     << ", mass="  << it->second->state[0]
+	     << ", root key="    << hex << it->second->mykey
+	     << ", sample key="  << hex << it->second->mykey
+	     << ", sample cell=" << hex << it->second->sample
+	     << dec << endl;
+	if (++msgcnt==maxcnt)
+	  cout << "computeCellStates, suppressing non-fatal "
+	       << "\"root on frontier\" messages after " << maxcnt
+	       << " on Proc# " << myid << endl;
+      }
     }
+
+    timer_diagdbg.stop();
+
   }
 
 }
 
 void pHOT::logFrontierStats()
 {
+  timer_diagdbg.start();
+
   vector<unsigned> fstat1(nbits, 0), fstat(nbits);
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
     fstat1[it->second->level]++;
@@ -345,6 +363,8 @@ void pHOT::logFrontierStats()
     }
     MPI_Barrier(MPI_COMM_WORLD);
   }
+
+  timer_diagdbg.stop();
 }
 
 
@@ -363,6 +383,8 @@ void pHOT::makeTree()
   delete root;
 
 #ifdef DEBUG
+  timer_diagdbg.start();
+
   string sname =  runtag + ".pHOT_storage";
   for (int n=0; n<numprocs; n++) {
     if (myid==n) {
@@ -380,6 +402,9 @@ void pHOT::makeTree()
     }
     (*barrier)("pHOT: pHOT_storage");
   }
+
+  timer_diagdbg.stop();
+
 #endif  
 
   //
@@ -503,22 +528,26 @@ void pHOT::makeTree()
       if (keybods.size()) {
 
 #ifdef DEBUG
+	timer_diagdbg.start();
 				// check validity of key
 	if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
 	  cout << "Process " << myid << ": bad key=" 
 	       << hex << keybods.begin()->first << dec
 	       << " #cells=" << bodycell.size() << endl;
 	}
+	timer_diagdbg.stop();
 #endif
 	
 	headKey = bodycell.find(keybods.begin()->first)->second;
 				// Number of bodies in my head cell
 #ifdef DEBUG
+	timer_diagdbg.start();
 	// Debug: check for key in frontier
 	if (frontier.find(headKey) == frontier.end()) {
 	  cout << "Process " << myid << ": headKey=" 
 	       << headKey << dec << " not in frontier!" << endl;
 	}
+	timer_diagdbg.stop();
 #endif
 	//
 	head_num = frontier[headKey]->bods.size();
@@ -643,6 +672,8 @@ void pHOT::densEmit(unsigned lev, pCell *p)
 
 void pHOT::densCheck()
 {
+  timer_diagdbg.start();
+
   makeState();
 
   unsigned MaxLev = 6;
@@ -773,6 +804,7 @@ void pHOT::densCheck()
 	 << setfill(' ') << endl << endl;
   }
 
+  timer_diagdbg.stop();
 }
 
 void pHOT::dumpFrontier()
@@ -781,6 +813,8 @@ void pHOT::dumpFrontier()
   unsigned sum = 0, cnt=0;
   double mean=0.0, disp=0.0;
   double totmass=0.0, totvol=0.0, tmp;
+
+  timer_diagdbg.start();
 
   if (myid==0) cout << endl << "Frontier info: " << endl;
 
@@ -863,10 +897,13 @@ void pHOT::dumpFrontier()
 	 << sqrt((disp0 - mean0*mean0/cnt0)/cnt0) << endl << endl;
   }
 
+  timer_diagdbg.stop();
 }
 
 void pHOT::statFrontier()
 {
+  timer_diagdbg.start();
+
   key_cell::iterator it;
   unsigned sum1=0, cnt1=0, sum=0, cnt=0, num;
   double mean1=0.0, disp1=0.0, mean=0.0, disp=0.0;
@@ -902,6 +939,7 @@ void pHOT::statFrontier()
     cout << endl;
   }
 
+  timer_diagdbg.stop();
 }
 
 
@@ -909,6 +947,8 @@ void pHOT::testFrontier(string& filename)
 {
   key_cell::iterator c;
   pCell *p;
+
+  timer_diagdbg.start();
 
   const unsigned fields = 15;
   vector<unsigned> prec(fields, 18);
@@ -1045,6 +1085,9 @@ void pHOT::testFrontier(string& filename)
 
     (*barrier)("HOT: test frontier");
   }
+
+  timer_diagdbg.stop();
+
 }
 
 
@@ -1056,6 +1099,8 @@ void pHOT::countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies)
   map<unsigned, pair<unsigned, unsigned> >::iterator d;
   unsigned maxLev1=0, maxLev=0;
   
+  timer_diagdbg.start();
+
   for (it=frontier.begin(); it != frontier.end(); it++) {
     p = it->second;
     maxLev1 = max<unsigned>(maxLev1, p->level);
@@ -1086,6 +1131,8 @@ void pHOT::countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies)
 
   MPI_Reduce(&tbodscnts[0], &bodies[0], maxLev+1, MPI_UNSIGNED, MPI_SUM,
 	     0, MPI_COMM_WORLD);
+
+  timer_diagdbg.stop();
 }
 
 
@@ -1147,10 +1194,12 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 #endif
 	
 #ifdef DEBUG
+    timer_diagdbg.start();
     if (frontier.find(p->mykey)==frontier.end()) {
       cout << "Process " << myid << ": in pHOT:sendCell: "
 	   << " key not on frontier as expected" << endl;
     }
+    timer_diagdbg.stop();
 #endif
 
     // Delete this cell from the frontier
@@ -1165,12 +1214,14 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
   }
 
 #ifdef DEBUG
+  timer_diagdbg.start();
   vector<unsigned long>::iterator iq;
   for (iq=erased.begin(); iq!=erased.end(); iq++) {
     if (cc->particles.find(*iq) != cc->particles.end())
       cout << "pHOT::sendCell proc=" << myid
 	   << " found erased index=" << *iq << endl;
   }
+  timer_diagdbg.stop();
 #endif
 
   cc->nbodies = cc->particles.size();
@@ -1826,6 +1877,8 @@ void pHOT::Repartition(unsigned mlevel)
 				// DEBUG OUTPUT
   if (false) {			// Set to "true" to enable
 
+    timer_diagdbg.start();
+
     if (myid==0){
       cout <<"--------------------------------------------------------"<< endl
 	   <<"---- Send and receive counts for each process "<< endl
@@ -1842,6 +1895,8 @@ void pHOT::Repartition(unsigned mlevel)
       }
       (*barrier)("pHOT: repartition send/receive report");
     }
+
+    timer_diagdbg.stop();
   }
 				// END DEBUG OUTPUT
       
@@ -1859,6 +1914,7 @@ void pHOT::Repartition(unsigned mlevel)
   }
 				// DEBUG OUTPUT
   if (false) {	 // If true, write send and receive list for each node
+    timer_diagdbg.start();
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
 	cout<<"--------------------------------------------------------"<<endl
@@ -1877,6 +1933,7 @@ void pHOT::Repartition(unsigned mlevel)
       }
       (*barrier)("pHOT: repartition send/receive counts");
     }
+    timer_diagdbg.stop();
   }
 
 
@@ -1994,6 +2051,8 @@ void pHOT::Repartition(unsigned mlevel)
     unsigned int ksiz = keys.size();
     vector<unsigned> nsize(numprocs), ksize(numprocs);
 
+    timer_diagdbg.start();
+
     MPI_Gather(&nsiz, 1, MPI_UNSIGNED, &nsize[0], 1, MPI_UNSIGNED, 
 	       0, MPI_COMM_WORLD);
 
@@ -2026,6 +2085,8 @@ void pHOT::Repartition(unsigned mlevel)
       out << setfill('-') << setw(nhead) << '-' << endl << setfill(' ') << left
 	  << endl << endl;
     }
+
+    timer_diagdbg.stop();
   }
 
   timer_repartn.stop();
@@ -2040,6 +2101,8 @@ void pHOT::checkCellLevelList(const char *msg)
 {
   unsigned missing_frontier_cell = 0;
   unsigned missing_clevlst_cell  = 0;
+
+  timer_diagdbg.start();
 
   for (key_cell::iterator 
 	 it=frontier.begin(); it != frontier.end(); it++) {
@@ -2070,10 +2133,13 @@ void pHOT::checkCellLevelList(const char *msg)
 	 << missing_clevlst_cell
 	 << " level list cells not on frontier" << endl;
 
+  timer_diagdbg.stop();
 }
 
 void pHOT::checkSampleCells(const char *msg)
 {
+  timer_diagdbg.start();
+
   unsigned cnt=0;
   map<unsigned, unsigned> missing;
   for (key_cell::iterator 
@@ -2096,6 +2162,8 @@ void pHOT::checkSampleCells(const char *msg)
 	   k=missing.begin(); k!=missing.end(); k++)
       cout << left << setw(6) << k->first << setw(6) << k->second << endl;
   }
+
+  timer_diagdbg.stop();
 }
 
 
@@ -2145,6 +2213,8 @@ void pHOT::makeCellLevelList()
 
 void pHOT::printCellLevelList(ostream& out)
 {
+  timer_diagdbg.start();
+
   vector<unsigned> pcnt(multistep+1, 0);
   for (map<pCell*, unsigned>::iterator
 	 pit=clevlst.begin(); pit!=clevlst.end(); pit++) pcnt[pit->second]++;
@@ -2157,7 +2227,10 @@ void pHOT::printCellLevelList(ostream& out)
     out << setw(10) << M << setw(10) << clevels[M].size() 
 	<< setw(10) << pcnt[M] << endl;
   out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+
+  timer_diagdbg.stop();
 }
+
 
 void pHOT::adjustCellLevelList(unsigned mlevel)
 {
@@ -2893,6 +2966,8 @@ void pHOT::adjustTree(unsigned mlevel)
 
 bool pHOT::checkParticles(ostream& out, bool pc)
 {
+  timer_diagdbg.start();
+
   unsigned cnt, badb=0, badc=0;
   const string membername = "checkParticles";
 
@@ -2984,6 +3059,8 @@ bool pHOT::checkParticles(ostream& out, bool pc)
   }
   // END OUTPUT CELL LIST
 
+  timer_diagdbg.stop();
+
   if (badb || badc) {
     out << "Process " << myid << ": pHOT::checkParticles, bad cell=" 
 	 << badc ;
@@ -2992,6 +3069,7 @@ bool pHOT::checkParticles(ostream& out, bool pc)
     return false;
   }
   else return true;
+
 }
 
 
@@ -2999,6 +3077,8 @@ bool pHOT::checkFrontier(ostream& out)
 {
   unsigned bad=0;
   bool good=true;
+
+  timer_diagdbg.start();
 
   for (unsigned M=0; M<=multistep; M++) {
     if (clevels[M].size()) {
@@ -3019,12 +3099,16 @@ bool pHOT::checkFrontier(ostream& out)
 	 << bad << endl;
   }
 
+  timer_diagdbg.stop();
+
   return good;
 }
 
 
 bool pHOT::checkDupes()
 {
+  timer_diagdbg.start();
+
   vector<unsigned> indices;
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
@@ -3036,6 +3120,8 @@ bool pHOT::checkDupes()
     if (indices[n-1] == indices[n]) dup++;
   }
 
+  timer_diagdbg.stop();
+
   if (dup) {
     cout << "Process " << myid << ": pHOT::checkDupes, dup=" << dup << endl;
     return false;
@@ -3045,6 +3131,7 @@ bool pHOT::checkDupes()
 
 void pHOT::checkIndices()
 {
+  timer_diagdbg.start();
 
   // All processes make an index list
   //
@@ -3108,10 +3195,14 @@ void pHOT::checkIndices()
 	   << " index count=" << indices.size() 
 	   << " body count=" << cc->nbodies_tot << endl;
   }
+
+  timer_diagdbg.stop();
 }
 
 bool pHOT::checkKeybods()
 {
+  timer_diagdbg.start();
+
   bool ok = true;
   unsigned cnt=0;
   for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
@@ -3141,6 +3232,8 @@ bool pHOT::checkKeybods()
   }
 #endif
 
+  timer_diagdbg.stop();
+
   return ok;
 }
 
@@ -3150,6 +3243,8 @@ bool pHOT::checkPartKeybods(unsigned mlevel)
   unsigned bcelbod = 0;
   unsigned bfrontr = 0;
   bool ok = true;
+
+  timer_diagdbg.start();
 
   // 
   // Make body list from frontier cells for this level
@@ -3185,12 +3280,16 @@ bool pHOT::checkPartKeybods(unsigned mlevel)
 
   }
 
+  timer_diagdbg.stop();
+
   return ok;
 }
 
 
 bool pHOT::checkBodycell()
 {
+  timer_diagdbg.start();
+
   bool ok = true;
   unsigned cnt=0;
   for (PartMapItr n=cc->Particles().begin(); n!=cc->Particles().end(); n++) {
@@ -3220,12 +3319,16 @@ bool pHOT::checkBodycell()
   }
 #endif
 
+  timer_diagdbg.stop();
+
   return ok;
 }
 
 
 void pHOT::checkBounds(double rmax, const char *msg)
 {
+  timer_diagdbg.start();
+
   int bad = 0;
   for (PartMapItr n = cc->Particles().begin(); n!=cc->Particles().end(); n++) {
     for (int k=0; k<3; k++) if (fabs(n->second.pos[k])>rmax) bad++;
@@ -3235,6 +3338,8 @@ void pHOT::checkBounds(double rmax, const char *msg)
     if (msg) cout << ", " << msg << endl;
     else cout << endl;
   }
+
+  timer_diagdbg.stop();
 }
 
 unsigned pHOT::oobNumber()
@@ -3246,6 +3351,8 @@ unsigned pHOT::oobNumber()
 
 void pHOT::checkOOB(vector<unsigned>& sendlist)
 {
+  timer_diagdbg.start();
+
   bool aok = true;
   unsigned bcnt=0;
   if (myid==0) {
@@ -3277,6 +3384,8 @@ void pHOT::checkOOB(vector<unsigned>& sendlist)
       cout << "checkOOB: " << bcnt << " sendlists match!" << endl;
     }
   }
+
+  timer_diagdbg.stop();
 }
 
 
@@ -3574,6 +3683,8 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
   //
   if (keys_debug) {
 
+    timer_diagdbg.start();
+
     if (myid==0) {
 	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
 	out << endl
@@ -3716,6 +3827,8 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	(*barrier)("pHOT: partitionKeys debug 3");
       }
     }
+
+    timer_diagdbg.stop();
   }
   //
   // END DEBUG
@@ -4078,11 +4191,15 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 
 unsigned pHOT::checkNumber()
 {
+  timer_diagdbg.start();
+
   unsigned nbods1=0, nbods=0;
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++) 
     nbods1 += it->second->bods.size();
   
   MPI_Reduce(&nbods1, &nbods, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  timer_diagdbg.stop();
 
   return nbods;
 }
@@ -4145,6 +4262,9 @@ void pHOT::CollectTiming()
   fval = barrier->getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &barri3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
+  fval = timer_diagdbg.getTime().getRealTime()*1.0e-6;
+  MPI_Gather(&fval, 1, MPI_FLOAT, &diagd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
+
   MPI_Gather(&numkeys, 1, MPI_UNSIGNED, &numk3[0], 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
 
@@ -4165,6 +4285,7 @@ void pHOT::CollectTiming()
   timer_keynewc.reset();
   timer_keyoldc.reset();
   timer_waiton0.reset();
+  timer_diagdbg.reset();
 
   numk = numkeys;
   numkeys = 0;
@@ -4189,7 +4310,7 @@ void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange,
 		  vector<float>    &waiton0, vector<float>    &waiton1,
 		  vector<float>    &waiton2, vector<float>    &keynewc,
 		  vector<float>    &keyoldc, vector<float>    &treebar,
-		  vector<unsigned> &numk)
+		  vector<float>    &diagdbg, vector<unsigned> &numk)
 {
   getQuant<float   >(keymk3, keymake);
   getQuant<float   >(exchg3, exchange);
@@ -4209,6 +4330,7 @@ void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange,
   getQuant<float   >(keync3, keynewc);
   getQuant<float   >(keyoc3, keyoldc);
   getQuant<float   >(barri3, treebar);
+  getQuant<float   >(diagd3, diagdbg);
   getQuant<unsigned>(numk3,  numk);
 }
 
