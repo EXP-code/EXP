@@ -13,6 +13,8 @@ int pCell::live = 0;		// Track number of instances
 
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
+unsigned pCell::deltaL = 2;     // Maximum number of cell expansions to get 
+				// sample cell
 
 string printKey(key_type p)
 {
@@ -22,7 +24,7 @@ string printKey(key_type p)
   unsigned short cnt = 0;
   unsigned Nbits = sizeof(p)*8;
   for (unsigned k=0; k<Nbits; k++) {
-#ifdef I128
+#ifdef INT128
     sout << ( (p & one).toUint() ? '1' : '0' );
 #else
     sout << ( (p & one) ? '1' : '0' );
@@ -106,7 +108,7 @@ unsigned pCell::childId(key_type key)
 {
   key_type id = key - mask;
   id >>= 3*(nbits - 1 - level);
-#ifdef I128
+#ifdef INT128
   unsigned cid = id.toUint();
 #else
   unsigned cid = static_cast<unsigned>(id);
@@ -364,7 +366,6 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     
     // Remove the index from the cell body list
     //
-    // set<unsigned long>::iterator ib = bods.find(keypair.second);
     vector<unsigned long>::iterator ib = find(bods.begin(), bods.end(), 
 					      keypair.second);
     if (ib!=bods.end()) bods.erase(ib);
@@ -529,30 +530,10 @@ void pCell::zeroState()
        it != children.end(); it++) it->second->zeroState();
 }
 
-void pCell::computeState()
-{
-  count = 0;
-  for (int k=0; k<10; k++) state[k] = 0.0;
-  
-  if (children.size()) {
-    // I am a branch, keep going!
-    for (map<unsigned, pCell*>::iterator it = children.begin();
-	 it != children.end(); it++) it->second->computeState();
-  } else {
-    // I am a leaf!
-    accumState();
-  }
-}
-
 
 void pCell::accumState()
 {
-				// Zero out the state records
-  count = 0;
-  for (int k=0; k<10; k++) state[k] = 0.0;
-
 				// March through the body list
-  // set<unsigned long>::iterator j;
   vector<unsigned long>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
     state[0] += C->Particles()[*j].mass;
@@ -695,7 +676,6 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
   v2 = vector<double>(3, 0.0);
 
   if (isLeaf) {
-    // for (set<unsigned long>::iterator 
     for (vector<unsigned long>::iterator 
 	   i=bods.begin(); i!=bods.end(); i++) {
       for (int k=0; k<3; k++) {
@@ -713,7 +693,7 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
 
 double pCell::Volume()
 {
-#ifdef I128
+#ifdef INT128
   return tree->volume/(key_type(1u) << 3*level).toDouble();
 #else
   return tree->volume/static_cast<double>(key_type(1u) << 3*level);
@@ -722,7 +702,7 @@ double pCell::Volume()
 
 double pCell::Scale()
 {
-#ifdef I128
+#ifdef INT128
   return 1.0/(key_type(1u) << level).toDouble();
 #else
   return 1.0/static_cast<double>(key_type(1u) << level);
@@ -731,22 +711,23 @@ double pCell::Scale()
 
 sCell* pCell::findSampleCell()
 {
-  pCell *cur = this;		// Begin with this cell
+  pCell *cur   = this;		// Begin with this cell
+  unsigned dbl = 0;		// Count the number of levels upwards
   while(cur->count < Bucket) {
-				// We are at the root
-    if (cur->parent == 0) return cur;
-    
-				// Keep walking up the tree . . 
-    cur = cur->parent;
+				// Maximum expansion reached or we are
+				// at the root
+    if (cur->parent==0 || dbl==deltaL) break;
+				
+    cur = cur->parent;		// Keep walking up the tree . . .
+    dbl++;
   }
-				// The answer.
-  sample = cur;
+
+  sample = cur;			// The answer.
 
   return sample;
 }
 
 
-// Particle* pCell::Body(set<unsigned long>::iterator k)
 Particle* pCell::Body(vector<unsigned long>::iterator k)
 { 
   if (k==bods.end()) return 0;
@@ -756,7 +737,6 @@ Particle* pCell::Body(vector<unsigned long>::iterator k)
 unsigned pCell::remake_plev()
 {
   maxplev = 0;
-  // for (set<unsigned long>::iterator 
   for (vector<unsigned long>::iterator 
 	 i=bods.begin(); i!=bods.end(); i++) {
     maxplev = max<unsigned>(maxplev, C->Particles()[*i].level);

@@ -91,6 +91,9 @@ public:
   //! Target macroscopic bucket size
   static unsigned Bucket;
 
+  //! Maximum # of cell expansions to find macroscopic sample cell
+  static unsigned deltaL;
+
   //! Sampling method
   static bool NTC;
 
@@ -144,10 +147,6 @@ public:
 
   //! Recursively zero the tree's state vector
   void zeroState();
-  
-  //! Recursively zero the tree's state vector and accumulate the
-  //! state for the entire tree
-  void computeState();
   
   //! Walk down, accumulating state
   void accumState();

@@ -152,10 +152,13 @@ string CheckpointTimer::exec(string& cmd)
   char buffer[128];
   std::string result;
 
+  // Give it some time . . .
+  sleep(3);
+
   while(!feof(pipe)) {
     if(fgets(buffer, 128, pipe) != NULL)
       // DEBUG
-      cout << "CheckpointTimer: buffer=" << buffer << endl;
+      if (1) cout << "CheckpointTimer: buffer=" << buffer << endl;
       result += buffer;
   }
   pclose(pipe);

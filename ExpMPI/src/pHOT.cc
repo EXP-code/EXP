@@ -47,6 +47,12 @@ static bool wghtDBL(const pair<key_type, double>& a,
 bool pHOT::keys_debug = true;
 
 //
+// Check sample cell sanity (for debugging)
+// [set to false for production]
+//
+bool pHOT::samp_debug = true;
+
+//
 // Turn on/off subsampling the key list for partitioning
 //
 bool pHOT::sub_sample = true;
@@ -263,6 +269,85 @@ string pHOT::printKey(key_type p)
 }
 
 
+void pHOT::computeCellStates()
+{
+
+  // Each node start at root and walk down the tree to zero the counts
+  //
+  root->zeroState();
+
+  // March through the frontier and accumulate the counts
+  //
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
+    it->second->accumState();
+  
+  // March through the frontier to find the sample cells
+  //
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
+    it->second->findSampleCell();
+
+  // Sanity check
+  if (samp_debug) {
+    
+    ostringstream sout;
+    sout << "in computeCellStates, time=" << tnow << " [this is a BAD ERROR]";
+    checkSampleCells(sout.str().c_str());
+
+    // Look for root on frontier
+    key_cell::iterator it=frontier.find(root->mykey);
+    if (it != frontier.end()) {
+      cout << "computeCellStates, root is on frontier"
+	   << ", owner=" << it->second->owner
+	   << ", count=" << it->second->count
+	   << ", mass="  << it->second->state[0]
+	   << ", sample cell=" << hex << it->second->sample
+	   << dec << endl;
+    }
+  }
+
+}
+
+void pHOT::logFrontierStats()
+{
+  vector<unsigned> fstat1(nbits, 0), fstat(nbits);
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
+    fstat1[it->second->level]++;
+  
+  MPI_Reduce(&fstat1[0], &fstat[0], nbits, MPI_UNSIGNED, MPI_SUM, 0,
+	     MPI_COMM_WORLD);
+  
+  if (myid==0) {
+    string filename = outdir + "frontier_debug." + runtag;
+    ofstream out(filename.c_str(), ios::app);
+    out << "# Time=" << tnow << endl;
+    out << setw(6) << left << "Proc";
+    for (unsigned j=0; j<nbits; j++)
+      out << left << setw(8) << j+1;
+    out << endl;
+    out << setw(6) << left << "----";
+    for (unsigned j=0; j<nbits; j++)
+      out << left << setw(8) << "----";
+    out << endl;
+    out << setw(6) << left << "All";
+    for (unsigned j=0; j<nbits; j++) 
+      out << left << setw(8) << fstat[j];
+    out << endl;
+  }
+  
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      string filename = outdir + "frontier_debug." + runtag;
+      ofstream out(filename.c_str(), ios::app);
+      out << endl << left << setw(6) << myid;
+      for (unsigned j=0; j<nbits; j++) 
+	out << left << setw(8) << fstat1[j];
+      out << endl;
+    }
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+}
+
+
 void pHOT::makeTree()
 {
 #ifdef USE_GPTL
@@ -474,19 +559,10 @@ void pHOT::makeTree()
   GPTLstart("pHOT::makeTree::getFrontier");
 #endif
 
-  // Each node start at root and walk down the tree to zero the counts
+  // Compute the physical states in each cell for the entire tree and
+  // find the sample cells
   //
-  root->zeroState();
-
-  // March through the frontier and accumulate the counts
-  //
-  for (key_cell::iterator it=frontier.begin(); 
-       it != frontier.end(); it++) it->second->accumState();
-
-  // March through the frontier to find the sample cells
-  //
-  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
-    it->second->findSampleCell();
+  computeCellStates();
 
   // Find min and max cell occupation
   //
@@ -1966,20 +2042,20 @@ void pHOT::checkCellLevelList(const char *msg)
   unsigned missing_clevlst_cell  = 0;
 
   for (key_cell::iterator 
-	 it=frontier.begin(); it != frontier.end(); it++) 
-    {
-      if (it->second->mykey==1u && it->second->count==0u) {
-	cout << "Process " << myid 
-	     << ": empty root node in checkCellLevelList" << endl;
-	continue;
-      }
-      if (clevlst.find(it->second) == clevlst.end()) 
-	missing_frontier_cell++;
+	 it=frontier.begin(); it != frontier.end(); it++) {
+
+    if (it->second->mykey==1u && it->second->count==0u) {
+      cout << "Process " << myid 
+	   << ": empty root node in checkCellLevelList" << endl;
+      continue;
     }
+    if (clevlst.find(it->second) == clevlst.end()) 
+      missing_frontier_cell++;
+  }
 
   for (map<pCell*, unsigned>::iterator 
-	 it=clevlst.begin(); it != clevlst.end(); it++) 
-    {
+	 it=clevlst.begin(); it != clevlst.end(); it++) {
+
       if (frontier.find(it->first->mykey) == frontier.end())
 	missing_clevlst_cell++;
     }
@@ -1999,21 +2075,26 @@ void pHOT::checkCellLevelList(const char *msg)
 void pHOT::checkSampleCells(const char *msg)
 {
   unsigned cnt=0;
-  vector<unsigned> missing(multistep+1, 0);
+  map<unsigned, unsigned> missing;
   for (key_cell::iterator 
-	 it=frontier.begin(); it != frontier.end(); it++) 
-    {
-      if (it->second->sample == 0x0) {
-	cnt++;
+	 it=frontier.begin(); it != frontier.end(); it++) {
+    if (it->second->sample == 0x0) {
+      cnt++;
+      if (missing.find(it->second->level) == missing.end())
+	missing[it->second->level] = 1;
+      else
 	missing[it->second->level]++;
-      }
     }
-
+  }
+  
   if (cnt) {
-    cout << "Process " << myid << ": " << msg << 
-      ", " << cnt << " missing sample cells" << endl;
-    for (unsigned k=0; k<=multistep; k++)
-      cout << left << setw(5) << k << missing[k] << endl;
+    cout << "Process " << myid << ": " << msg 
+	 << ", " << cnt << " missing sample cells" << endl << left
+	 << setw(6) << "Level" << setw(6) << "Count" << endl
+	 << setw(6) << "-----" << setw(6) << "-----" << endl;
+    for (map<unsigned, unsigned>::iterator 
+	   k=missing.begin(); k!=missing.end(); k++)
+      cout << left << setw(6) << k->first << setw(6) << k->second << endl;
   }
 }
 
@@ -2659,6 +2740,12 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::cUpdate");
 #endif
 
+  // Compute the physical states in each cell for the entire tree and
+  // find the sample cells, if anything changed
+  //
+  computeCellStates();
+
+
   // Create, remove and delete changed cells
   // ---------------------------------------
   // Need to do the creates first in case that cells enter and exit
@@ -2722,6 +2809,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   change.clear();		// Reset the change list for next time
   
+
 #ifdef DEBUG_ADJUST
   if (!checkBodycell()) {
     cout << "Process " << myid << ": "

@@ -155,6 +155,9 @@ public:
   //! Print out partition diagnostics (default: false)
   static bool     keys_debug;
 
+  //! Print out sample cell diagnostics (default: false)
+  static bool     samp_debug;
+
   //! For communication
   static MPI_Datatype CellDiagType;
 
@@ -203,6 +206,7 @@ public:
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
   void printCellLevelList(ostream& out);
+  void computeCellStates();
 
   /**
      Density routines
@@ -225,6 +229,8 @@ public:
      Debugging and diagostics
   */
   //@{
+  //! Print the distribution of cell levels on the frontier
+  void logFrontierStats();
   //! Check that sample cells exist for all frontier cells
   void checkSampleCells(const char *);
   //! Check that clevlst and frontier are consistent

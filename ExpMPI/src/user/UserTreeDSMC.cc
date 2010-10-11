@@ -26,6 +26,7 @@ using namespace std;
 // Debugging syncrhonization
 //
 static bool barrier_debug = true;
+static bool sampcel_debug = true;
 
 //
 // Physical units
@@ -462,6 +463,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << tnow << endl;
     }
 #endif
+    if (sampcel_debug) {
+      ostringstream sout;
+      sout << "after MAKE tree, first time, "
+	   << "[" << 0 << ", " << tnow  << "]";
+      c0->Tree()->checkSampleCells(sout.str().c_str());
+      c0->Tree()->logFrontierStats();
+    }
 
     if (use_temp || use_dens || use_vol) assignTempDensVol();
 
@@ -493,11 +501,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
   
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles(cout)) {
-    cout << "After init only: Particle check ok [" << right
-	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
-
-  } else {
+  if (!c0->Tree()->checkParticles(cout)) {
     cout << "After init only: Particle check FAILED [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   }
@@ -571,12 +575,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree1Time.start();
 #ifdef DEBUG
     cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
-    if (c0->Tree()->checkParticles(cout)) {
-      cout << "Particle check on new tree ok [" << mlevel << "]" << endl;
-    } else {
+    if (!c0->Tree()->checkParticles(cout)) {
       cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
     }
 #endif
+    if (sampcel_debug) {
+      ostringstream sout;
+      sout << "after MAKE tree at level "
+	   << "[" << mlevel << ", " << tnow  << "]";
+      c0->Tree()->checkSampleCells(sout.str().c_str());
+      c0->Tree()->logFrontierStats();
+    }
     tree1SoFar = tree1Time.stop();
     
 #ifdef USE_GPTL
@@ -592,7 +601,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
 
 #ifdef DEBUG
-    cout << "About to adjust tree [" << mlevel << "]" << endl;
+    if (myid==0)
+      cout << "About to adjust tree [" << mlevel << "]" << endl;
 #endif
     tree2Time.start();
     c0->Tree()->adjustTree(mlevel);
@@ -602,8 +612,15 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     barrier("TreeDSMC: after adjustTree");
     wait2SoFar = tree2Wait.stop();
 
+    if (sampcel_debug) {
+      ostringstream sout;
+      sout << "after ADJUST tree at level "
+	   << "[" << mlevel << ", " << tnow  << "]";
+      c0->Tree()->checkSampleCells(sout.str().c_str());
+    }
+
 #ifdef USE_GPTL
-    GPTLstop ("UserTreeDSMC::adjustTree");
+    GPTLstop("UserTreeDSMC::adjustTree");
     GPTLstop("UserTreeDSMC::pHOT_2");
 #endif
 
@@ -1155,14 +1172,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles(cout)) {
-    cout << "Before level list: Particle check ok [" << right
-	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
-  } else {
+  if (!c0->Tree()->checkParticles(cout)) {
     cout << "Before level list: Particle check FAILED [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   }
 #endif
+  if (sampcel_debug) {
+    ostringstream sout;
+    sout << "before LEVEL LIST at level "
+	 << "[" << mlevel << ", " << tnow  << "]";
+    c0->Tree()->checkSampleCells(sout.str().c_str());
+  }
 
   barrier("TreeDSMC: after collision diags");
 
@@ -1174,10 +1194,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   llistTime.stop();
 
 #ifdef DEBUG
-  if (c0->Tree()->checkParticles(cout)) {
-    cout << "After level list: Particle check ok [" << right
-	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
-  } else {
+  if (!c0->Tree()->checkParticles(cout)) {
     cout << "After level list: Particle check FAILED [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
 
