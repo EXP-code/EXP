@@ -26,7 +26,7 @@ using namespace std;
 double   pHOT::sides[] = {2.0, 2.0, 2.0};
 double   pHOT::offst[] = {1.0, 1.0, 1.0};
 unsigned pHOT::qtile[] = {10,  50,  90 };
-
+double   pHOT::hystrs  = 0.25;
 
 static bool wghtKEY(const pair<key_type, double>& a, 
 		    const pair<key_type, double>& b)
@@ -44,13 +44,13 @@ static bool wghtDBL(const pair<key_type, double>& a,
 // Write verbose output to a file if true (for debugging)
 // [set to false for production]
 //
-bool pHOT::keys_debug = true;
+bool pHOT::keys_debug = false;
 
 //
 // Check sample cell sanity (for debugging)
 // [set to false for production]
 //
-bool pHOT::samp_debug = true;
+bool pHOT::samp_debug = false;
 
 //
 // Turn on/off subsampling the key list for partitioning
@@ -321,9 +321,7 @@ void pHOT::computeCellStates()
     }
 
     timer_diagdbg.stop();
-
   }
-
 }
 
 void pHOT::logFrontierStats()
@@ -595,6 +593,24 @@ void pHOT::makeTree()
   // find the sample cells
   //
   computeCellStates();
+
+  // Get the true partition
+  key_type kbeg1 = -1, kfin1 = 0;
+
+  for (key_indx::iterator it=keybods.begin(); it != keybods.end(); it++) {
+    kbeg1 = min<key_type>(kbeg1, it->first);
+    kfin1 = max<key_type>(kfin1, it->first);
+  }
+
+  MPI_Allgather(&kbeg1, 1, MPI_EXP_KEYTYPE, &kbeg[0], 1, MPI_EXP_KEYTYPE,
+		MPI_COMM_WORLD);
+
+  MPI_Allgather(&kfin1, 1, MPI_EXP_KEYTYPE, &kfin[0], 1, MPI_EXP_KEYTYPE,
+		MPI_COMM_WORLD);
+
+  unsigned isiz = loclist.size();
+  loclist = kbeg;
+  loclist.push_back(kfin[numprocs-1]);	// End point for binary search
 
   // Find min and max cell occupation
   //
@@ -1719,71 +1735,25 @@ void pHOT::Repartition(unsigned mlevel)
     } else {
       if (use_weight) {
 	keys.push_back(key_wght(it->second.key, it->second.effort));
-	// Reset effort value
-	it->second.effort = Particle::effort_default;
+	// Reset effort value with some hysteresis
+	it->second.effort = 
+	  hystrs*(1.0 - hystrs)*it->second.effort + Particle::effort_default;
+
       } else {
 	keys.push_back(key_wght(it->second.key, 1.0));
       }
     }
   }
 
-  // Check for duplicate keys, duplicate sequence numbers
-  if (keys_debug) {
-    key_indx keylist;
-    set<key_type, less<key_type> > keydup;
-    set<indx_type> indxdup;
 
-#ifdef USE_GPTL
-    GPTLstart("pHOT::Repartition::duplicate_check");
-#endif
-
-    for (it=cc->Particles().begin(); it!=cc->Particles().end(); it++)
-      keylist.insert(pair<key_type, indx_type>(it->second.key, it->first));
-
-    vector<indx_type> dups;
-    key_indx::iterator k, kl;
-    k = kl = keylist.begin();
-
-    for (k++; k!=keylist.end(); k++) {
-      if (k->first == kl->first) {
-	dups.push_back(k->second);
-	indxdup.insert(k->second);
-	keydup. insert(k->first);
-      }
-      kl = k;
-    }
-
-    if (dups.size()) {
-      ostringstream sout;
-      sout << outdir << runtag << ".pHOT_crazy." << myid;
-      ofstream out(sout.str().c_str(), ios::app);
-      out << endl
-	  << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "#---- Time=" << tnow 
-	  << ", N=" << cc->Number() 
-	  << ",  Duplicates=" << dups.size() 
-	  << ", Unique keys=" << keydup.size() 
-	  << ", Unique indx=" << indxdup.size() 
-	  << endl
-	  << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
-      for (vector<indx_type>::iterator 
-	     ib=dups.begin(); ib!=dups.end(); ib++) {
-	out << setw(10) << *ib << setw(18) << cc->Mass(*ib);
-	for (int k=0; k<3; k++) out << setw(18) << cc->Pos(*ib, k);
-	out << setw(10) << cc->Part(*ib)->indx
-#ifdef INT128
-	    << "    "   << cc->Part(*ib)->key.toHex() << endl;
-#else
-	<< "    "   << hex << cc->Part(*ib)->key << dec << endl;
-#endif
-      }
-      out << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
-    }
-#ifdef USE_GPTL
-    GPTLstop("pHOT::Repartition::duplicate_check");
-#endif
+  static unsigned long d1a=0, d1b=0;
+  if (checkDupes1("pHOT::Repartition: after new keys")) {
+    cout << "Process " << myid << " at T=" << tnow 
+	 << ", L=" << mlevel
+	 << ": duplicate check failed after new keys, cnt="
+	 << d1a << endl;
   }
-
+  d1a++;
 
 #ifdef DEBUG
     cout << "Process " << myid 
@@ -2094,6 +2064,14 @@ void pHOT::Repartition(unsigned mlevel)
 
     timer_diagdbg.stop();
   }
+
+  if (checkDupes1("pHOT::Repartition: after exchange")) {
+    cout << "Process " << myid << " at T=" << tnow 
+	 << ", L=" << mlevel
+	 << ": duplicate check failed after exchange, cnt=" 
+	 << d1b << endl;
+  }
+  d1b++;
 
   timer_repartn.stop();
 
@@ -2905,14 +2883,11 @@ void pHOT::adjustTree(unsigned mlevel)
 	 << " completed: frontier check FAILED!" << endl;
   }
   
-  checkDupes();
+  checkDupes2();
   checkIndices();
   checkSampleCells  ("AFTER adjustTree()");
   checkCellLevelList("AFTER adjustTree()");
 
-  // Check the load balance based on the total effort
-  checkEffort(mlevel);
-  
   if (!checkKeybods()) {
     cout << "Process " << myid 
 	 << ": adjustTree: ERROR particle key not in keybods AFTER adjustTree(), T=" 
@@ -2926,6 +2901,9 @@ void pHOT::adjustTree(unsigned mlevel)
   }
 #endif
   
+  // Check the load balance based on the total effort
+  checkEffort(mlevel);
+
   timer_cupdate.stop();
 
   timer_tadjust.stop();
@@ -3112,8 +3090,102 @@ bool pHOT::checkFrontier(ostream& out)
   return good;
 }
 
+//
+// This big nasty mess should only be used for debugging!
+//
+bool pHOT::checkDupes1(const char *msg)
+{
+  bool ret = false;
+  if (!keys_debug) return ret;
+  
+  timer_diagdbg.start();
 
-bool pHOT::checkDupes()
+  // Check for duplicate keys, duplicate sequence numbers
+  multimap<indx_type, key_type> plist;
+  set<key_type, less<key_type> > keydup;
+
+#ifdef USE_GPTL
+  GPTLstart("pHOT::checkDupes1::duplicate_check");
+#endif
+
+  // Make multimap of all index/key pairs
+  for (PartMapItr it=cc->Particles().begin(); it!=cc->Particles().end(); it++)
+    plist.insert(pair<indx_type, key_type>(it->first, it->second.key));
+  
+  // Hold unique duplicated indices
+  multiset<indx_type> dups;
+  map<indx_type, list<key_type> > kdup;
+  typedef pair<indx_type, list<key_type> > ptype ;
+  multimap<indx_type, key_type>::iterator k=plist.begin(), kl=plist.begin();
+  k++;
+  
+  for (; k!=plist.end(); k++) {
+    while (k->first == kl->first && k!=plist.end()) {
+      // Make a list for this index, if it's a new dup
+      if (kdup.find(kl->first)==kdup.end()) {
+	kdup.insert(ptype(kl->first, list<key_type>()));
+	kdup[kl->first].push_back(kl->second);
+      }
+
+      // Add the key to the list for this index
+      kdup[k->first].push_back(k->second);
+
+      // Add this index to the dup index multiset
+      dups.insert(k->first);
+
+      // Add the key to the unique key map
+      keydup.insert(k->second);
+    }
+    kl = k;
+  }
+  
+  if (dups.size()) {
+    ret = true;
+    ostringstream sout;
+    sout << outdir << runtag << ".pHOT_crazy." << myid;
+    ofstream out(sout.str().c_str(), ios::app);
+    out << endl
+	<< "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl
+	<< "#---- " << msg << endl
+	<< "#---- Time=" << tnow 
+	<< ", N=" << cc->Number() 
+	<< ", Duplicates=" << dups.size() 
+	<< ", Unique keys=" << keydup.size() 
+	<< endl
+	<< "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+    for (map<indx_type, list<key_type> >::iterator
+	   ib=kdup.begin(); ib!=kdup.end(); ib++) {
+      out << setw(10) << ib->first << setw(18) << cc->Mass(ib->first);
+      for (int k=0; k<3; k++) out << setw(18) << cc->Pos(ib->first, k);
+      out << setw(10) << cc->Part(ib->first)->indx
+#ifdef INT128
+	  << "    "   << cc->Part(ib->first)->key.toHex() << endl
+#else
+	  << "    "   << hex << cc->Part(ib->first)->key << dec << endl
+#endif
+	;
+      for (list<key_type>::iterator 
+	     ik=ib->second.begin(); ik!=ib->second.end(); ik++) {
+#ifdef INT128
+	out << left << setw(10) << "---" << ik->toHex() << endl;
+#else
+	out << left << setw(10) << "---" << hex << *ik << dec << endl;
+#endif
+      }
+    }
+    out << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
+  }
+#ifdef USE_GPTL
+  GPTLstop("pHOT::checkDupes1::duplicate_check");
+#endif
+
+  timer_diagdbg.stop();
+
+  return ret;
+}
+
+
+bool pHOT::checkDupes2()
 {
   timer_diagdbg.start();
 
@@ -3954,8 +4026,8 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       if (numprocs>1) {
 	mdif /= numprocs;
 	mdif2 = sqrt((mdif2 - mdif*mdif*numprocs)/(numprocs-1));
-	out << "----  mean wght=" << setw(10) << keylist.size() << endl
-	    << "----  std. dev.=" << setw(10) << keylist.size() << endl;
+	out << "----  mean wght = " << setw(10) << keylist.size() << endl
+	    << "----  std. dev. = " << setw(10) << keylist.size() << endl;
       }
     }
   }
@@ -3974,12 +4046,12 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << "---- partitionKeys" << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "----  list size=" << setw(10) << keylist.size() << endl
-	  << "---- total keys=" << setw(10) << tkey0 << endl
-	  << "----  total oob=" << setw(10) << oobn << endl
-	  << "----      TOTAL=" << setw(10) << tkey0 + oobn << endl
+	  << "----  list size = " << setw(10) << keylist.size() << endl
+	  << "---- total keys = " << setw(10) << tkey0 << endl
+	  << "----  total oob = " << setw(10) << oobn << endl
+	  << "----      TOTAL = " << setw(10) << tkey0 + oobn << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "----   Time (s)=" << setw(10) << 1.0e-6*timer_debug->stop().getTotalTime()
+	  << "----   Time (s) = " << setw(10) << 1.0e-6*timer_debug->stop().getTotalTime()
 	  << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << endl;
@@ -4436,21 +4508,30 @@ void pHOT::checkEffort(unsigned mlevel)
   if (myid==0) {
     ofstream out(string(outdir + runtag + ".pHOT_effort").c_str(), ios::app);
     if (out) {
-      double mean=0.0, mean2=0.0;
+      double mean=0.0, mean2=0.0, emin=1e20, emax=0.0;
       for (int n=0; n<numprocs; n++) {
 	mean  += eq[n];
 	mean2 += eq[n]*eq[n];
+	emin = min<double>(emin, eq[n]);
+	emax = max<double>(emax, eq[n]);
       }
       mean /= numprocs;
       mean2 = mean2 - mean*mean*numprocs;
       if (numprocs>1) mean2 = sqrt(mean2/(numprocs-1));
-      out << "---- Time  =" << tnow   << endl
-	  << "---- Level =" << mlevel << endl
-	  << "---- Mean  =" << mean   << endl
-	  << "---- Stdev =" << mean2  << endl
-	  << setw(6) << left << "Proc #" << setw(12) << "Effort" << endl;
+      out << setw(40) << setfill('-') << '-' << setfill(' ') << endl
+	  << "---- Time  = " << tnow << endl;
+      if (mlevel == -1)
+	out << "---- Level = " << "full tree" << endl;
+      else
+	out << "---- Level = " << mlevel  << endl;
+      out << "---- Mean  = " << mean      << endl
+	  << "---- Stdev = " << mean2     << endl
+	  << "---- E_min = " << emin      << endl
+	  << "---- E_max = " << emax      << endl
+	  << "---- Ratio = " << emax/emin << endl
+	  << setw(8) << left << "Proc #" << setw(12) << "Effort" << endl;
       for (int n=0; n<numprocs; n++)
-	out << left << setw(6) << n << setw(12) << eq[n] << endl;
+	out << left << setw(8) << n << setw(12) << eq[n] << endl;
     }
   }
 

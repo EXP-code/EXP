@@ -25,8 +25,8 @@ using namespace std;
 //
 // Debugging syncrhonization
 //
-static bool barrier_debug = true;
-static bool sampcel_debug = true;
+static bool barrier_debug = false;
+static bool sampcel_debug = false;
 
 //
 // Physical units

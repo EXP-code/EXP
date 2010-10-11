@@ -140,6 +140,9 @@ protected:
 
 public:
 
+  //! Effort value hysteresis (default: 0.25)
+  static double hystrs;
+
   //! 3-vector of sides of rectangular prism (default: [2, 2, 2])
   static double   sides[];
 
@@ -247,8 +250,10 @@ public:
   bool checkBodycell();
   //! Check that every body in the tree points to a body in the particle list
   bool checkParticles(ostream &out, bool pc=true);
+  //! Check that bodies are not duplicated on the particle list
+  bool checkDupes1(const char* msg);
   //! Check that bodies are not duplicated in multiple cells
-  bool checkDupes();
+  bool checkDupes2();
   //! Check that every cell in the level list is on the frontier
   bool checkFrontier(ostream &out);
   //! Get the total kinetic energy and dispersion
