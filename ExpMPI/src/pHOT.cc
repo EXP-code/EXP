@@ -173,6 +173,9 @@ pHOT::pHOT(Component *C)
   
   MPI_Type_create_struct(nf, blocklen, disp, type, &CellDiagType);
   MPI_Type_commit(&CellDiagType);
+
+  				// Filename for debugging info
+  debugf = outdir + runtag + ".pHOT_debug";
 }
 
 pHOT::~pHOT()
@@ -619,6 +622,9 @@ void pHOT::makeTree()
   //
   unsigned my_cells = frontier.size();
   MPI_Allreduce(&my_cells, &total_cells, 1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+
+  // Check the load balance based on the total effort
+  checkEffort(-1);
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::makeTree::getFrontier");
@@ -1749,7 +1755,7 @@ void pHOT::Repartition(unsigned mlevel)
 
     if (dups.size()) {
       ostringstream sout;
-      sout << runtag << ".pHOT_crazy." << myid;
+      sout << outdir << runtag << ".pHOT_crazy." << myid;
       ofstream out(sout.str().c_str(), ios::app);
       out << endl
 	  << "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl
@@ -2060,7 +2066,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       0, MPI_COMM_WORLD);
     
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       unsigned nhead = 35+2*klen;
 
       out << setfill('-') << setw(nhead) << '-' << endl  
@@ -2818,7 +2824,6 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   computeCellStates();
 
-
   // Create, remove and delete changed cells
   // ---------------------------------------
   // Need to do the creates first in case that cells enter and exit
@@ -2904,6 +2909,9 @@ void pHOT::adjustTree(unsigned mlevel)
   checkIndices();
   checkSampleCells  ("AFTER adjustTree()");
   checkCellLevelList("AFTER adjustTree()");
+
+  // Check the load balance based on the total effort
+  checkEffort(mlevel);
   
   if (!checkKeybods()) {
     cout << "Process " << myid 
@@ -2931,7 +2939,7 @@ void pHOT::adjustTree(unsigned mlevel)
 	       0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       unsigned nhead = 20 + 2*klen;
 
       out << left << setfill('-') << setw(nhead) << '-' << endl
@@ -3629,7 +3637,6 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     timer_debug = new Timer(true);
     timer_debug->start();
   }
-
 				// Sort the keys
   sort(keys.begin(), keys.end(), wghtKEY);
 
@@ -3686,7 +3693,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     timer_diagdbg.start();
 
     if (myid==0) {
-	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	ofstream out(debugf.c_str(), ios::app);
 	out << endl
 	    << "-------------------------------------------" << endl
 	    << "--- Sampling stats ------------------------" << endl
@@ -3704,7 +3711,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     }
     for (int n=0; n<numprocs; n++) {
       if (n==myid) {
-	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	ofstream out(debugf.c_str(), ios::app);
 	out << left
 	    << setw(5)  << myid
 	    << setw(10) << keys.size()
@@ -3716,14 +3723,14 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       (*barrier)("pHOT: partitionKeys debug 1");
     }
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       out << "-------------------------------------------" << endl << endl;
     }
 
     unsigned nhead = 15 + 5*klen;
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       out << left << setfill('-') << setw(nhead) << "-" << endl
 	  << setw(nhead) << "------ Sampled keys " << endl
 	  << setw(nhead) << "-" << setfill(' ') << endl
@@ -3746,7 +3753,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     }
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
-	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	ofstream out(debugf.c_str(), ios::app);
 	out << left << setw(5) << n << setw(10) << keys.size();
 	if (keys.size()>0) {
 	  out << right
@@ -3771,7 +3778,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     }
 
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       out << left << setfill('-') << setw(nhead) << "-" << endl 
 	  << setfill('-') << endl;
     }
@@ -3784,7 +3791,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       const unsigned cwid = 35;	// column width
 
       if (myid==0) {
-	ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	ofstream out(debugf.c_str(), ios::app);
 	out << "--------------------------" << endl;
 	out << "----- Partition keys -----" << endl;
 	out << "--------------------------" << endl;
@@ -3807,7 +3814,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       
       for (unsigned n=0; n<numprocs; n++) {
 	if (myid==n) {
-	  ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+	  ofstream out(debugf.c_str(), ios::app);
 	  bool ok = true;
 	  if (keylist1.size()>1) {
 	    for (unsigned j=1; j<keylist1.size(); j++)
@@ -3905,7 +3912,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     }
       
     if (keys_debug) {	 // If true, print key ranges for each process
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       unsigned nhead = 5 + 3*15 + 3*10 + 3*klen;
       out << setw(nhead) << setfill('-') << '-' << endl
 	  << "---- partitionKeys: keys in list="<< keylist.size() << endl
@@ -3920,6 +3927,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  << setw(15) << "----" << setw(15) << "----" << setw(15) << "----"  
 	  << setw(10) << "----" << setw(10) << "----" << setw(10) << "----"  
 	  << endl;
+      double mdif=0.0, mdif2=0.0;
       for (int i=0; i<numprocs; i++) {
 	out << left << setw(5) << i << right
 #ifdef INT128
@@ -3938,9 +3946,17 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	    << setw(10) << pfin[i]
 	    << setw(10) << pfin[i] - pbeg[i]
 	    << endl;
+	mdif  += wfin[i] - wbeg[i];
+	mdif2 += (wfin[i] - wbeg[i])*(wfin[i] - wbeg[i]);
       }
       out << setw(nhead) << setfill('-') << '-' << endl << setfill(' ') 
 	  << endl;
+      if (numprocs>1) {
+	mdif /= numprocs;
+	mdif2 = sqrt((mdif2 - mdif*mdif*numprocs)/(numprocs-1));
+	out << "----  mean wght=" << setw(10) << keylist.size() << endl
+	    << "----  std. dev.=" << setw(10) << keylist.size() << endl;
+      }
     }
   }
 
@@ -3953,7 +3969,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
     unsigned tkey1 = keys.size(), tkey0 = 0;
     MPI_Reduce(&tkey1, &tkey0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     if (myid==0) {
-      ofstream out(string(runtag + ".pHOT_debug").c_str(), ios::app);
+      ofstream out(debugf.c_str(), ios::app);
       out << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << "---- partitionKeys" << endl
@@ -4400,3 +4416,44 @@ void pHOT::adjustCounts(ostream& out)
 
   cntr_total = cntr_new_key = cntr_mine = cntr_not_mine = cntr_ship = 0;
 }
+
+void pHOT::checkEffort(unsigned mlevel)
+{
+  if (!keys_debug) return;
+
+  timer_diagdbg.start();
+
+  double eff=0.0;
+  for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
+    vector<unsigned long>::iterator ib;
+    for (ib=it->second->bods.begin(); ib!=it->second->bods.end(); ib++)
+      eff += cc->Particles()[*ib].effort;
+  }
+
+  vector<double> eq(numprocs);
+  MPI_Gather(&eff, 1, MPI_DOUBLE, &eq[0], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  if (myid==0) {
+    ofstream out(string(outdir + runtag + ".pHOT_effort").c_str(), ios::app);
+    if (out) {
+      double mean=0.0, mean2=0.0;
+      for (int n=0; n<numprocs; n++) {
+	mean  += eq[n];
+	mean2 += eq[n]*eq[n];
+      }
+      mean /= numprocs;
+      mean2 = mean2 - mean*mean*numprocs;
+      if (numprocs>1) mean2 = sqrt(mean2/(numprocs-1));
+      out << "---- Time  =" << tnow   << endl
+	  << "---- Level =" << mlevel << endl
+	  << "---- Mean  =" << mean   << endl
+	  << "---- Stdev =" << mean2  << endl
+	  << setw(6) << left << "Proc #" << setw(12) << "Effort" << endl;
+      for (int n=0; n<numprocs; n++)
+	out << left << setw(6) << n << setw(12) << eq[n] << endl;
+    }
+  }
+
+  timer_diagdbg.stop();
+}
+

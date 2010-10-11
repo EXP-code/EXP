@@ -104,6 +104,8 @@ protected:
   ParticleFerry pf;
 
   //! For debugging
+  string debugf;
+
   key_type key_min, key_max;
 
   unsigned min_cell, max_cell, adjcnt, d_val, d_pval;
@@ -274,6 +276,8 @@ public:
   //! Scan for and count out-of-bounds particles
   void checkBounds(double, const char *);
   void adjustCounts(ostream& out);
+  //! Check effort weighting in current partition
+  void checkEffort(unsigned mlevel);
   double checkAdjust() {
     double result = 0.0;
     if (myid) return result;
