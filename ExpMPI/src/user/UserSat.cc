@@ -179,7 +179,9 @@ void UserSat::userinfo()
   }
   if (shadow)  cout << ", shadowing is on";
   if (verbose) cout << ", verbose messages are on";
-  if (orbit)   cout << ", with trajectory logging" << endl;
+  if (orbit)   cout << ", with trajectory logging";
+
+  cout << endl;
 
   print_divider();
 }
