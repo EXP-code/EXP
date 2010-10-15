@@ -460,7 +460,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
 
 				// Effort diagnostics
 				//
-  if (mlevel==0 && effortAccum) {
+  if (mlevel==0 && EFFORT && effortAccum) {
 
 				// Write to the file in process order
     list< pair<long, unsigned> >::iterator it;

@@ -3,7 +3,7 @@
  *  -----------
  *
  *  Read in PSP files for a run and compute
- *  cylindrical gas distribution
+ *  2-d gas distribution histogram
  *
  *
  *  Call sequence:
@@ -57,7 +57,6 @@ using namespace std;
 #include <foarray.H>
 
 program_option init[] = {
-  {"RMIN",		"double",	"0.0",		"minimum radius for output"},
   {"RMAX",		"double",	"0.1",		"maximum radius for output"},
   {"ZCENTER",		"double",	"0.0",		"gas disk midplane"},
   {"ZWIDTH",		"double",	"0.05",		"gas disk halfwidth"},
@@ -68,7 +67,7 @@ program_option init[] = {
   {"PBEG",		"int",		"0",		"first particle index"},
   {"PEND",		"int",		"-1",		"last particle index"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
-  {"OUTFILE",		"string",	"gasprof",	"filename prefix"},
+  {"OUTFILE",		"string",	"gashisto",	"filename prefix"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
   {"RUNTAG",		"string",	"run",		"file containing desired indices for PSP output"},
   {"",			"",		"",		""}
@@ -156,36 +155,18 @@ main(int argc, char **argv)
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
-  double rmin = config.get<double>("RMIN");
   double rmax = config.get<double>("RMAX");
   int   nbins = config.get<int>   ("NBINS");
-  bool   rlog = config.get<bool>  ("LOG");
   double zcen = config.get<double>("ZCENTER");
   double zwid = config.get<double>("ZWIDTH");
   int    pbeg = config.get<int>   ("PBEG");
   int    pend = config.get<int>   ("PEND");
 
-  if (rmin>0 && rmax > 0 && rlog) {
-    rmin = log(rmin);
-    rmax = log(rmax);
-  }
+  double dR = 2.0*rmax/(nbins-1);
 
-  double dR = (rmax - rmin)/(nbins-1);
-
-  const int nval = 2;
-  vector< vector< vector<double> > > histo(nfiles);
-  for (int n=0; n<nfiles; n++) {
-    histo[n] = vector< vector<double> >(nval);
-    for (int k=0; k<nval; k++) 
-      histo[n][k] = vector<double>(nbins, 0.0);
-  }
-  vector<double> times(nfiles);
-  vector<double> rvals(nbins);
-
-  for (int n=0; n<nbins; n++) {
-    rvals[n] = rmin + dR*n;
-    if (rlog) rvals[n] = exp(rvals[n]);
-  }
+  const int nval = 4;
+  map<int, vector< vector<double> > > histo;
+  map<int, double> times;
 
   for (int n=0; n<nfiles; n++) {
 
@@ -199,6 +180,9 @@ main(int argc, char **argv)
       if (dump) {
 
 	times[n] = psp.CurrentTime();
+	histo[n] = vector< vector<double> >(nval);
+	for (int k=0; k<nval; k++) 
+	  histo[n][k] = vector<double>(nbins*nbins, 0.0);
 
 	// Do we need to close and reopen?
 	if (in.rdstate() & ios::eofbit) {
@@ -216,23 +200,15 @@ main(int argc, char **argv)
 
 	  if (icnt > pbeg) {
 	    if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
-	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-	      double L = p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0];
-	      if (rlog) {
-		if (R>0.0) {
-		  R = log(R);
-		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		  if (indx >=0 && indx<nbins) {
-		    histo[n][0][indx] += p->mass;
-		    histo[n][1][indx] += p->mass * L;
-		  }
-		}
-	      } else {
-		int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		if (indx >=0 && indx<nbins) {
-		  histo[n][0][indx] += p->mass;
-		  histo[n][1][indx] += p->mass * L;
-		}
+	      int indX = static_cast<int>(floor( (p->pos[0] + rmax)/dR ));
+	      int indY = static_cast<int>(floor( (p->pos[1] + rmax)/dR ));
+	      if (indX >=0 && indX<nbins &&
+		  indY >=0 && indY<nbins ) {
+		histo[n][0][indY*nbins+indX] += p->mass;
+		histo[n][1][indY*nbins+indX] += p->mass * p->datr[0];
+		histo[n][2][indY*nbins+indX] += p->mass * p->datr[1];
+		histo[n][3][indY*nbins+indX] += 
+		  p->mass * p->datr[0] * p->datr[1];
 	      }
 	    }
 	  }
@@ -245,44 +221,59 @@ main(int argc, char **argv)
     }
   }
   
-  if (myid==0) {
-    MPI_Reduce(MPI_IN_PLACE, &times[0], nfiles,
-	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    for (int n=0; n<nfiles; n++)
-      for (int k=0; k<nval; k++)
-	MPI_Reduce(MPI_IN_PLACE, &histo[n][k][0], nbins, 
-		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  } else {
-    MPI_Reduce(&times[0], 0, nfiles,
-	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    for (int n=0; n<nfiles; n++)
-      MPI_Reduce(&histo[n][0], 0, nbins, 
-		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
+  cout << "[#" << myid << ", " << times.size() <<  ", " 
+       << histo.size() << "]" << endl;
 
+  for (int n=0; n<nfiles; n++) {
+    int curid = n % numprocs;
+    if (curid==0) continue;
+    if (myid==0) {
+      double time;
+      MPI_Recv(&time, 1, MPI_DOUBLE, curid, 11, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      times[n] = time;
+      histo[n] = vector< vector<double> >(nval);
+      for (int k=0; k<nval; k++) 
+	histo[n][k] = vector<double>(nbins*nbins);
+      for (int k=0; k<nval; k++)
+	MPI_Recv(&histo[n][k][0], nbins*nbins, MPI_DOUBLE, 
+		 curid, 12+k, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+    } else if (curid==myid) {
+      double time;
+      MPI_Send(&times[n], 1, MPI_DOUBLE, 0, 11, MPI_COMM_WORLD);
+      for (int k=0; k<nval; k++)
+	MPI_Send(&histo[n][k][0], nbins*nbins, MPI_DOUBLE, 
+		 0, 12+k, MPI_COMM_WORLD);
+    }
+  }
+    
   if (myid==0) {
     string outf = config.get<string>("OUTFILE") + ".dat";
     ofstream out(outf.c_str());
 
-    for (int n=0; n<nfiles; n++) {
-      double sum = 0.0, val;
-      for (unsigned j=0; j<nbins; j++) {
-	if (histo[n][0][j]>0.0)
-	  val = histo[n][1][j]/histo[n][0][j];
-	else
-	  val = 0.0;
-	out << setw(18) << times[n] << setw(18) << rvals[j]
-	    << setw(18) << histo[n][0][j]
-	    << setw(18) << (sum += histo[n][0][j])
-	    << setw(18) << val
-	    << endl;
-      }
-      out << endl;
-    }
+    out.precision(8);
     
+    out << setw(8) << nval << setw(8) << nbins << setw(8) << times.size()
+	<< setw(18) << rmax << endl;
+    for (int n=0; n<nfiles; n++) {
+      if (times.find(n)==times.end()) continue;
+      out << left << setw(18) << times[n];
+    }
+    out << endl;
+    for (int j=0; j<nbins; j++)
+      out << left << setw(18) << -rmax + (0.5+j)*dR;
+    out << endl;
+    for (int n=0; n<nfiles; n++) {
+      if (times.find(n)==times.end()) continue;
+      for (int i=0; i<nval; i++) {
+	for (unsigned j=0; j<nbins; j++) {
+	  for (unsigned k=0; k<nbins; k++)
+	    out << setw(18) << histo[n][i][j*nbins+k];
+	  out << endl;
+	}
+      }
+    }
   }
-
- 
 
   MPI_Finalize();
 
