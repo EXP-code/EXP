@@ -49,6 +49,7 @@ class CollideLTE;
     @param treechk turns on particle and cell checking in the tree (may be very time consuming) (default: 0 = off)
     @param mpichk turns on barriers for timing and sync checking (default: 0 = off)
     @param remap sets the processor remapping frequency in full steps (default: 0)
+    @param enhance multiplies the standard cooling/heating rate for testing (default: 1)
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -67,6 +68,7 @@ private:
   double jitter;
   double epsm;
   double coolfrac;
+  double enhance;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;

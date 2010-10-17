@@ -262,6 +262,8 @@ public:
   static unsigned EPSMmin;
 				// Temperature floor in resampling dispersion for EPSM
   static double TFLOOR;
+				// Artificially increase or decrease cooling rate (default: 1, no change)
+  static double ENHANCE;
 
 
   Collide(ExternalForce *force, double diameter, int nth=1);

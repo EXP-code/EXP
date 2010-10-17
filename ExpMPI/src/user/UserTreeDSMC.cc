@@ -71,6 +71,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_vol    = -1;
   use_exes   = -1;
   coolfrac   = 0.1;
+  enhance    = 0.1;
   frontier   = false;
   tsdiag     = false;
   voldiag    = false;
@@ -257,6 +258,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::TSPOW   = tspow;
   Collide::MFPDIAG = mfpstat;
   Collide::EFFORT  = use_effort;
+  Collide::ENHANCE = enhance;
 				// Create the collision instance
   collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
@@ -340,9 +342,11 @@ void UserTreeDSMC::userinfo()
   if (cba && cbadiag)     
                    cout << " with diagnostics";
   if (tube)        cout << ", using TUBE mode";
-  else if (slab)  cout << ", using THIN SLAB mode";
+  else if (slab)   cout << ", using THIN SLAB mode";
   if (use_effort)  cout << ", with effort-based load";
   else             cout << ", with uniform load";
+  if (fabs(enhance-1.0)>1.0e-6)
+                   cout << ", with enhanced cooling of " << enhance;
   if (use_multi) {
     cout << ", multistep enabled";
     if (use_delt>=0) 
@@ -368,6 +372,7 @@ void UserTreeDSMC::initialize()
   if (get_value("boxratio", val))	boxratio   = atof(val.c_str());
   if (get_value("jitter", val))		jitter     = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac   = atof(val.c_str());
+  if (get_value("enhance", val))	enhance    = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps     = atoi(val.c_str());
   if (get_value("msteps", val))		msteps     = atoi(val.c_str());
   if (get_value("ncell", val))		ncell      = atoi(val.c_str());

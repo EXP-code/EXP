@@ -51,6 +51,9 @@ bool Collide::EFFORT   = true;
 bool Collide::TIMING   = true;
 				// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
+
+double 				// Enhance (or suppress) fiducial cooling rate
+Collide::ENHANCE       = 1.0;
 				// Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
 				// Proton mass (g)

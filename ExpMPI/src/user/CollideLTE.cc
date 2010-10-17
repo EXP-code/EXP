@@ -189,7 +189,7 @@ void CollideLTE::initialize_cell(pCell* cell,
       UserTreeDSMC::Tunit / UserTreeDSMC::Eunit;
 
 				// Energy to lose/gain
-    coolheat[id] = hc->CoolRate(n0, T) * Cfac * tau;
+    coolheat[id] = hc->CoolRate(n0, T) * Cfac * tau * ENHANCE;
 
     if (ESOL) {
 				// Instantaneous loss rate
