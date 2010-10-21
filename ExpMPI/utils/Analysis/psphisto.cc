@@ -3,7 +3,7 @@
  *  -----------
  *
  *  Read in PSP files for a run and compute
- *  cylindrical gas distribution
+ *  spherical or cylindrical particle distribution
  *
  *
  *  Call sequence:
@@ -61,12 +61,15 @@ program_option init[] = {
   {"RMAX",		"double",	"0.1",		"maximum radius for output"},
   {"ZCENTER",		"double",	"0.0",		"gas disk midplane"},
   {"ZWIDTH",		"double",	"0.05",		"gas disk halfwidth"},
-  {"NBINS",		"int",		"100",		"number of bins"},
+  {"NBINS",		"int",		"0",		"number of bins"},
   {"IBEG",		"int",		"0",		"first PSP index"},
   {"IEND",		"int",		"100",		"last PSP index"},
   {"ISKIP",		"int",		"1",		"skip PSP interval"},
   {"PBEG",		"int",		"0",		"first particle index"},
   {"PEND",		"int",		"-1",		"last particle index"},
+  {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
+  {"PROJ",		"int",		"1",		"projection (1=cyl, 2=ephere)"},
+  {"COMP",		"int",		"1",		"component (1=star, 2=gas, 4=dark)"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
   {"OUTFILE",		"string",	"gasprof",	"filename prefix"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
@@ -77,6 +80,8 @@ program_option init[] = {
 
 const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
 
+enum ProjectionType {Cylindrical=1, Spherical=2};
+enum ComponentType  {Star=1, Gas=2, Halo=4};
 
 ProgramParam config(desc, init);
 
@@ -164,6 +169,8 @@ main(int argc, char **argv)
   double zwid = config.get<double>("ZWIDTH");
   int    pbeg = config.get<int>   ("PBEG");
   int    pend = config.get<int>   ("PEND");
+  int    comp = config.get<int>   ("COMP");
+  int    proj = config.get<int>   ("PROJ");
 
   if (rmin>0 && rmax > 0 && rlog) {
     rmin = log(rmin);
@@ -172,13 +179,9 @@ main(int argc, char **argv)
 
   double dR = (rmax - rmin)/(nbins-1);
 
-  const int nval = 2;
-  vector< vector< vector<double> > > histo(nfiles);
-  for (int n=0; n<nfiles; n++) {
-    histo[n] = vector< vector<double> >(nval);
-    for (int k=0; k<nval; k++) 
-      histo[n][k] = vector<double>(nbins, 0.0);
-  }
+  vector< vector<double> > histo(nfiles);
+  for (int n=0; n<nfiles; n++) histo[n] = vector<double>(nbins, 0.0);
+
   vector<double> times(nfiles);
   vector<double> rvals(nbins);
 
@@ -209,30 +212,46 @@ main(int argc, char **argv)
 	int icnt = 0;
 	vector<Particle> particles;
 
-	PSPstanza *gas = psp.GetGas();
+	if (comp==Star)
+	  psp.GetStar();
+	else if (comp==Gas)
+	  psp.GetGas();
+	else
+	  psp.GetDark();
+
 	SParticle *p = psp.GetParticle(&in);
 	
 	while (p) {
 
 	  if (icnt > pbeg) {
-	    if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
+
+	    if (proj==Cylindrical) {
+	      if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
+		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+		if (rlog) {
+		  if (R>0.0) {
+		    R = log(R);
+		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		    if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		  }
+		} else {
+		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		  if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		}
+	      }
+	    }
+	    else {
+	      // if (PROJ==Spherical) {
 	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
-	      double L = p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0];
 	      if (rlog) {
 		if (R>0.0) {
 		  R = log(R);
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		  if (indx >=0 && indx<nbins) {
-		    histo[n][0][indx] += p->mass;
-		    histo[n][1][indx] += p->mass * L;
-		  }
+		  if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
 		}
 	      } else {
 		int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		if (indx >=0 && indx<nbins) {
-		  histo[n][0][indx] += p->mass;
-		  histo[n][1][indx] += p->mass * L;
-		}
+		if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
 	      }
 	    }
 	  }
@@ -249,9 +268,8 @@ main(int argc, char **argv)
     MPI_Reduce(MPI_IN_PLACE, &times[0], nfiles,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     for (int n=0; n<nfiles; n++)
-      for (int k=0; k<nval; k++)
-	MPI_Reduce(MPI_IN_PLACE, &histo[n][k][0], nbins, 
-		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &histo[n][0], nbins, 
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   } else {
     MPI_Reduce(&times[0], 0, nfiles,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -265,18 +283,12 @@ main(int argc, char **argv)
     ofstream out(outf.c_str());
 
     for (int n=0; n<nfiles; n++) {
-      double sum = 0.0, val;
-      for (unsigned j=0; j<nbins; j++) {
-	if (histo[n][0][j]>0.0)
-	  val = histo[n][1][j]/histo[n][0][j];
-	else
-	  val = 0.0;
+      double sum = 0.0;
+      for (unsigned j=0; j<nbins; j++)
 	out << setw(18) << times[n] << setw(18) << rvals[j]
-	    << setw(18) << histo[n][0][j]
-	    << setw(18) << (sum += histo[n][0][j])
-	    << setw(18) << val
+	    << setw(18) << histo[n][j]
+	    << setw(18) << (sum += histo[n][j])
 	    << endl;
-      }
       out << endl;
     }
     
