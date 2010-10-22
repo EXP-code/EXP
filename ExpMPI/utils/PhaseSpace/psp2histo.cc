@@ -40,7 +40,7 @@ void Usage(char* prog) {
   cerr << "    -z zmin         minimum z component\n";
   cerr << "    -Z zmax         maximum z component\n";
   cerr << "    -1 numx         number of bins in x direction\n";
-  cerr << "    -2 numy         number of bins in x direction\n";
+  cerr << "    -2 numy         number of bins in y direction\n";
   cerr << "    -c comp         value index\n";
   cerr << "    -o name         component name (default: comp)\n";
   cerr << "    -A              areal average\n";

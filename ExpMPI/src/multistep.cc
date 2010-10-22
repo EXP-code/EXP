@@ -140,8 +140,8 @@ void * adjust_multistep_level_thread(void *ptr)
     map<double, int> dseq;
     dseq[dtv] = 0;
     dseq[dts] = 1;
-    dseq[dta] = 2;
-    dseq[dtA] = 3;
+    if ( dta > 0.0 ) dseq[dta] = 2;
+    if ( dtA > 0.0 ) dseq[dtA] = 3;
     if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
 
     // Smallest time step

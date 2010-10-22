@@ -73,6 +73,8 @@ program_option init[] = {
   {"CFLAGS",		"int",		"2",		"component flags (Star=1, Gas=2, Halo=4)"},
   {"TEMP",		"int",		"0",		"temperature (default=0)"},
   {"DENS",		"int",		"1",		"density (default=1)"},
+  {"KNUD",		"int",		"4",		"Knudsen (default=4)"},
+  {"STRL",		"int",		"5",		"Straoul (default=5)"},
   {"Rmin",		"double",	"0.0",		"minimum position"},
   {"Rmax",		"double",	"1.0",		"maximum position"},
   {"Nbins",		"int",		"100",		"number of bins"},
@@ -96,6 +98,8 @@ enum ComponentType {Star=1, Gas=2, Halo=4};
 int    CFLAGS;
 int    TEMP;
 int    DENS;
+int    KNUD;
+int    STRL;
 int    Nbins;
 int    AXIS;
 double Rmin;
@@ -119,6 +123,8 @@ void add_particles(ifstream* in, PSPDump* psp,
     psp->GetGas();
     if (TEMP>=0) nhist++;
     if (DENS>=0) nhist++;
+    if (KNUD>=0) nhist++;
+    if (STRL>=0) nhist++;
   }
 
   if (CFLAGS & Halo) {
@@ -155,6 +161,8 @@ void add_particles(ifstream* in, PSPDump* psp,
       if (CFLAGS & Gas) {
 	if (TEMP>=0) ret[indx][cnt++] += part->mass * part->datr[TEMP];
 	if (DENS>=0) ret[indx][cnt++] += part->mass * part->datr[DENS];
+	if (KNUD>=0) ret[indx][cnt++] += part->mass * part->datr[KNUD];
+	if (STRL>=0) ret[indx][cnt++] += part->mass * part->datr[STRL];
       }
     }
 
@@ -183,6 +191,8 @@ main(int argc, char **argv)
   CFLAGS  = config.get<int>("CFLAGS");
   TEMP    = config.get<int>("TEMP");
   DENS    = config.get<int>("DENS");
+  KNUD    = config.get<int>("KNUD");
+  STRL    = config.get<int>("STRL");
   Nbins   = config.get<int>("Nbins");
   AXIS    = config.get<int>("AXIS");
   Rmin    = config.get<double>("Rmin");

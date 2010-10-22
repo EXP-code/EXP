@@ -1521,7 +1521,7 @@ set_vel_disk(vector<Particle>& part)
     // Asymmetric drift correction
     ac   = vvR*a_drift(x, y, z);
     // No asymmetric drift correction
-    ac   = 0.0;
+    // ac   = 0.0;
     vc   = v_circ(x, y, z);
     if (isnan(vc))
       {

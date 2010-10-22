@@ -1780,6 +1780,8 @@ void Collide::EPSMtimingGather()
 
 void Collide::EPSMtiming(ostream& out)
 {
+  if (EPSMratio<=0.0) return;
+
   if (myid==0) {
 
     const char labels[nEPSMT][20] = {"Mean/Var",
@@ -2625,25 +2627,37 @@ void Collide::CPUHog(ostream& out)
     const unsigned f = 8;
     out << "Extremal cell timing" << endl
 	<< "--------------------" << endl
-	<< "T=" << tnow << ",  mstep=" << mstep << endl << right
-	<< "                 "
-	<< setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
-	<< "      " 
-	<< setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
-	<< "      " 
-	<< setw(f) << "DSMC"   << ", " << setw(f) << "EPSM" << endl
-	<< "  Minimum usage=(" 
-	<< setw(f) << CPUH[ 0] << ", " << setw(f) << CPUH[ 1]
-	<< ")  N=(" 
-	<< setw(f) << CPUH[ 2] << ", " << setw(f) << CPUH[ 3]
-	<< ")  C=(" 
-	<< setw(f) << CPUH[ 4] << ", " << setw(f) << CPUH[ 5] << ")" << endl
-	<< "  Maximum usage=(" 
-	<< setw(f) << CPUH[ 6] << ", " << setw(f) << CPUH[ 7]
-	<< ")  N=("
-	<< setw(f) << CPUH[ 8] << ", " << setw(f) << CPUH[ 9]
-	<< ")  C=(" 
-	<< setw(f) << CPUH[10] << ", " << setw(f) << CPUH[11] << ")" << endl;
+	<< "T=" << tnow << ",  mstep=" << mstep << endl << right;
+    if (EPSMratio>0) {
+      out << "                 "
+	  << setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
+	  << "      " 
+	  << setw(f) << "DSMC"   << "  " << setw(f) << "EPSM"
+	  << "      " 
+	  << setw(f) << "DSMC"   << ", " << setw(f) << "EPSM" << endl
+	  << "  Minimum usage=(" 
+	  << setw(f) << CPUH[ 0] << ", " << setw(f) << CPUH[ 1]
+	  << ")  N=(" 
+	  << setw(f) << CPUH[ 2] << ", " << setw(f) << CPUH[ 3]
+	  << ")  C=(" 
+	  << setw(f) << CPUH[ 4] << ", " << setw(f) << CPUH[ 5] << ")" << endl
+	  << "  Maximum usage=(" 
+	  << setw(f) << CPUH[ 6] << ", " << setw(f) << CPUH[ 7]
+	  << ")  N=("
+	  << setw(f) << CPUH[ 8] << ", " << setw(f) << CPUH[ 9]
+	  << ")  C=(" 
+	  << setw(f) << CPUH[10] << ", " << setw(f) << CPUH[11] << ")" << endl;
+    } else {
+      out << endl
+	  << "  Minimum usage=(" 
+	  << setw(f) << CPUH[ 0] << ")  N=(" 
+	  << setw(f) << CPUH[ 2] << ")  C=(" 
+	  << setw(f) << CPUH[ 4] << ")" << endl
+	  << "  Maximum usage=(" 
+	  << setw(f) << CPUH[ 6] << ")  N=("
+	  << setw(f) << CPUH[ 8] << ")  C=(" 
+	  << setw(f) << CPUH[10] << ")" << endl;
+    }
     out << endl;
   }
 }
