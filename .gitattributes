@@ -67,6 +67,7 @@ ExpMPI/utils/Analysis/SphereSL.cc -text
 ExpMPI/utils/Analysis/diskprof.cc -text
 ExpMPI/utils/Analysis/foarray.H -text
 ExpMPI/utils/Analysis/gas2d.cc -text
+ExpMPI/utils/Analysis/gas2dcyl.cc -text
 ExpMPI/utils/Analysis/haloprof.cc -text
 ExpMPI/utils/Analysis/psphisto.cc -text
 ExpMPI/utils/Analysis/slabprof.cc -text
