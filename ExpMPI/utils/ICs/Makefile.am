@@ -23,7 +23,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod
+bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -37,6 +37,11 @@ gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+
+gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
+	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc \
+	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
+gendisk3_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gsphere_SOURCES = bonnerebert.cc
 gsphere_LDADD = $(EXPLIBS)

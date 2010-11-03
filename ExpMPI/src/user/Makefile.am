@@ -109,7 +109,7 @@ libatmos_la_LIBADD = libcommon.a
 libreflect_la_SOURCES = UserReflect.cc 
 
 libsatwake_la_SOURCES = UserSatWake.cc invsvd.cc
-libsatwake_la_LIBADD = libswake.a libcommon.a -llapack-3 -lblas-3
+libsatwake_la_LIBADD = libswake.a libcommon.a $(LAPACK_LIBS) $(BLAS_LIBS)
 
 libpst_la_SOURCES = UserPST.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
 libpst_la_CXXFLAGS = -I$(top_srcdir)/utils/SL -I$(top_srcdir)/utils/ICs

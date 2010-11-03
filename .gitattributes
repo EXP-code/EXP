@@ -14,6 +14,7 @@ ExpMPI/exputil/int128.cc -text
 ExpMPI/exputil/toomre.cc -text
 ExpMPI/exputil/uint128.cc -text
 ExpMPI/include/BarrierWrapper.H -text
+ExpMPI/include/DiskWithHalo.h -text
 ExpMPI/include/FileUtils.H -text
 ExpMPI/include/ProgramParam.H -text
 ExpMPI/include/RunningTime.H -text
@@ -71,12 +72,17 @@ ExpMPI/utils/Analysis/gas2dcyl.cc -text
 ExpMPI/utils/Analysis/haloprof.cc -text
 ExpMPI/utils/Analysis/psphisto.cc -text
 ExpMPI/utils/Analysis/slabprof.cc -text
+ExpMPI/utils/ICs/CylDisk.cc -text
+ExpMPI/utils/ICs/CylDisk.h -text
 ExpMPI/utils/ICs/DiskHalo2.cc -text
 ExpMPI/utils/ICs/DiskHalo2.h -text
+ExpMPI/utils/ICs/DiskHalo3.cc -text
+ExpMPI/utils/ICs/DiskHalo3.h -text
 ExpMPI/utils/ICs/EllipsoidForce.H -text
 ExpMPI/utils/ICs/EllipsoidForce.cc -text
 ExpMPI/utils/ICs/Particle.cc -text
 ExpMPI/utils/ICs/bonnerebert.cc -text
+ExpMPI/utils/ICs/initial3.cc -text
 ExpMPI/utils/ICs/pst_model.cc -text
 ExpMPI/utils/PhaseSpace/psp2histo.cc -text
 ExpMPI/utils/PhaseSpace/psp2tarray.cc -text

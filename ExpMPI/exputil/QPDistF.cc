@@ -1,13 +1,8 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-// #define TEST
-
 /*****************************************************************************
  *  Description:
  *  -----------
  *
- *  Test QLD program (for 2-dimensional function)
- *  Distribution function for Toomre Disk
+ *  Test QLD program (for 2-dimensional distribution functions)
  *
  *  Call sequence:
  *  -------------
@@ -32,31 +27,26 @@
  *
  ***************************************************************************/
 
-using namespace std;
-
-#include <cstdlib>
 #include <iostream>
 #include <fstream>
 #include <string>
 #include <cmath>
 
-#include <malloc.h>
-
 #include <numerical.h>
 #include <Vector.h>
 #include <gaussQ.h>
 #include <interp.h>
-#include <logic.h>
 
 #include <massmodel.h>
 
 #include <QPDistF.h>
 
-bool QPDistF::MassEGrid = true;
-int QPDistF::ITERMAX = 1000;
-double QPDistF::ITERTOL = 1.0e-6;
-double QPDistF::FSIGE = 1.2;
-double QPDistF::FSIGK = 2.0;
+bool QPDistF::MassEGrid    = true;
+bool QPDistF::MassLinear   = true;
+int QPDistF::ITERMAX       = 1000;
+double QPDistF::ITERTOL    = 1.0e-6;
+double QPDistF::FSIGE      = 1.2;
+double QPDistF::FSIGK      = 2.0;
 
 extern "C" int ql0001_(int *m,int *me,int *mmax,int *n,int *nmax,int *mnn,
             double *c,double *d,double *a,double *b,double *xl,
@@ -75,29 +65,62 @@ double QPDistF::kernel(double x, double y,
   return exp( 
 	     -0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
 	     -0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
-	     )/(2.0*M_PI*sigmax*sigmay);
+	      )/(2.0*M_PI*sigmax*sigmay);
 }
 
 double QPDistF::kernel_x(double x, double y, 
-		       double x0, double y0, 
-		       double sigmax, double sigmay)
+			 double x0, double y0, 
+			 double sigmax, double sigmay)
 {
   return -(x-x0)/(sigmax*sigmax) * 
     exp( 
 	-0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
 	-0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
-	)/(2.0*M_PI*sigmax*sigmay);
+	 )/(2.0*M_PI*sigmax*sigmay);
+}
+
+double QPDistF::kernel_x2(double x, double y, 
+			  double x0, double y0, 
+			  double sigmax, double sigmay)
+{
+  return ( (x-x0)*(x-x0)/(sigmax*sigmax)  - 1.0)/(sigmax*sigmax) *
+    exp( 
+	-0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
+	-0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
+	 )/(2.0*M_PI*sigmax*sigmay);
+}
+
+double QPDistF::kernel_xy(double x, double y, 
+			  double x0, double y0, 
+			  double sigmax, double sigmay)
+{
+  return (x-x0)*(y-y0)/(sigmax*sigmax*sigmay*sigmay) *
+    exp( 
+	-0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
+	-0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
+	 )/(2.0*M_PI*sigmax*sigmay);
 }
 
 double QPDistF::kernel_y(double x, double y, 
-		       double x0, double y0, 
-		       double sigmax, double sigmay)
+			 double x0, double y0, 
+			 double sigmax, double sigmay)
 {
   return -(y-y0)/(sigmay*sigmay) * 
     exp( 
 	-0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
 	-0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
-	)/(2.0*M_PI*sigmax*sigmay);
+	 )/(2.0*M_PI*sigmax*sigmay);
+}
+
+double QPDistF::kernel_y2(double x, double y, 
+			  double x0, double y0, 
+			  double sigmax, double sigmay)
+{
+  return ( (y-y0)*(y-y0)/(sigmay*sigmay)  - 1.0)/(sigmay*sigmay) *
+    exp( 
+	-0.5*(x-x0)*(x-x0)/(sigmax*sigmax) 
+	-0.5*(y-y0)*(y-y0)/(sigmay*sigmay) 
+	 )/(2.0*M_PI*sigmax*sigmay);
 }
 
 
@@ -110,7 +133,8 @@ static double find_rofm(double r)
   return find_rofm_mass - m->get_mass(r);
 }
 
-QPDistF::QPDistF(AxiSymModel *T, double rmmax, double remax, 
+QPDistF::QPDistF(AxiSymModel *T, AxiSymModel *H, 
+		 double rmmax, double remax, 
 		 int egrid, int kgrid, int mgrid,
 		 double sigma, double lambda, double alpha, double beta,
 		 double gama, double roff, double eoff, double koff, 
@@ -118,28 +142,65 @@ QPDistF::QPDistF(AxiSymModel *T, double rmmax, double remax,
 		 int nint, int numt)
 {
 				// Model
-  t = T;
+  t       = new DiskWithHalo(T, H);
+  nt      = true;
 				// Parameters
-  RMMAX = rmmax;
-  REMAX = remax;
-  EGRID = egrid;
-  KGRID = kgrid;
-  MGRID = mgrid;
-  SIGMA = sigma;
-  LAMBDA = lambda;
-  ALPHA = alpha;
-  BETA = beta;
-  GAMA = gama;
-  ROFF = roff;
-  EOFF = eoff;
-  KOFF = koff;
-  KMIN = kmin;
-  KMAX = kmax;
-  NINT = nint;
-  NUMT = numt;
+  RMMAX   = rmmax;
+  REMAX   = remax;
+  EGRID   = egrid;
+  KGRID   = kgrid;
+  MGRID   = mgrid;
+  SIGMA   = sigma;
+  LAMBDA  = lambda;
+  ALPHA   = alpha;
+  BETA    = beta;
+  GAMA    = gama;
+  ROFF    = roff;
+  EOFF    = eoff;
+  KOFF    = koff;
+  KMIN    = kmin;
+  KMAX    = kmax;
+  NINT    = nint;
+  NUMT    = numt;
 
-  NJMAX=100;
-  VERBOSE=0;
+  NJMAX   = 100;
+  verbose = 0;
+
+  df_computed = false;
+}
+
+QPDistF::QPDistF(AxiSymModel *T,
+		 double rmmax, double remax, 
+		 int egrid, int kgrid, int mgrid,
+		 double sigma, double lambda, double alpha, double beta,
+		 double gama, double roff, double eoff, double koff, 
+		 double kmin, double kmax,
+		 int nint, int numt)
+{
+				// Model
+  t       = T;
+  nt      = false;
+				// Parameters
+  RMMAX   = rmmax;
+  REMAX   = remax;
+  EGRID   = egrid;
+  KGRID   = kgrid;
+  MGRID   = mgrid;
+  SIGMA   = sigma;
+  LAMBDA  = lambda;
+  ALPHA   = alpha;
+  BETA    = beta;
+  GAMA    = gama;
+  ROFF    = roff;
+  EOFF    = eoff;
+  KOFF    = koff;
+  KMIN    = kmin;
+  KMAX    = kmax;
+  NINT    = nint;
+  NUMT    = numt;
+
+  NJMAX   = 100;
+  verbose = 0;
 
   df_computed = false;
 }
@@ -147,7 +208,8 @@ QPDistF::QPDistF(AxiSymModel *T, double rmmax, double remax,
 QPDistF::QPDistF(AxiSymModel *T, string file)
 {
 				// Model
-  t = T;
+  t  = T;
+  nt = false;
 
 				// Read in computed model
   read_state(file);
@@ -163,55 +225,80 @@ QPDistF::QPDistF(AxiSymModel *T, string file)
 
 QPDistF::~QPDistF(void)
 {
+  if (nt) delete t;
   if (df_computed) delete orb;
 }
 
 void QPDistF::set_verbose(void)
 {
-  if (VERBOSE) 
-    VERBOSE=0;
+  if (verbose) 
+    verbose=0;
   else
-    VERBOSE=1;
+    verbose=1;
+}
+
+void QPDistF::set_verbose(int verbosity)
+{
+  const int vmin = 0;
+  const int vmax = 5;
+
+  if (verbosity<vmin) 
+    verbose = vmin;
+  else if (verbosity>vmax) 
+    verbose = vmax;
+  else 
+    verbose = verbosity;
+
 }
 
 void QPDistF::compute_distribution(void)
 {
   df_computed = true;
 
-				// Indices
-  int i, j, k;
-
   //
   // Set-up model
   //
 
+  double Rmin = t->get_min_radius();
+  double Rmax = RMMAX;
+  double Mmax = t->get_mass(Rmax);
+  double Mmin = max<double>(t->get_mass(Rmin), 1.0e-6*Mmax);
+
   m = t;
 				// Set up energy and kappa grid
-  Emin = t->get_pot(t->get_min_radius());
-  Emax = t->get_pot(REMAX);
+  Emin = t->get_pot(Rmin);
+  Emax = t->get_pot(Rmax);
+
   double dE = (Emax-Emin)/EGRID;
   double dK = (KMAX-KMIN)/KGRID;
+
   Egrid.setsize(1, EGRID);
   Kgrid.setsize(1, KGRID);
+
   sigma_E.setsize(1, EGRID);
   sigma_K.setsize(1, KGRID);
 
   if (MassEGrid) {
-    double rmin, rmax;
-    double Mmin = t->get_mass((rmin=t->get_min_radius()));
-    double Mmax = t->get_mass((rmax=RMMAX));
-    //    double dM = (Mmax - Mmin)/EGRID;
-    double dM = (log(Mmax) - log(Mmax/300.0))/EGRID;
+    double dM;
 
-#ifdef TEST
-    cerr << "QPDistF: [Mmin, Mmax] = [" << Mmin << ", " << Mmax << "]\n";
-#endif
+    if (MassLinear)
+      dM = (Mmax - Mmin)/EGRID;
+    else
+      dM = (log(Mmax) - log(Mmin))/EGRID;
 
-    double rcur, rlo, rhi, mcur, mlo, mhi;
+    if (verbose>3)
+      cerr << "QPDistF: [Mmin, Mmax] = [" << Mmin 
+	   << ", " << Mmax << "]" << endl;
 
-    for (i=1; i<=EGRID; i++) {
-      double target = Mmax/300.0 * exp(dM * i);
+    double rcur, rlo, rhi, mcur, mlo, mhi, target;
+    double rmin = Rmin, rmax = Rmax;
 
+    for (int i=1; i<=EGRID; i++) {
+      if (MassLinear)
+	target = Mmin + dM*((double)i-0.5);
+      else
+	target = Mmin * exp(dM * i);
+      
       rlo = rmin;
       rhi = rmax;
       for (int it=0; it<ITERMAX; it++) {
@@ -233,9 +320,10 @@ void QPDistF::compute_distribution(void)
       Egrid[i] = t->get_pot(rcur);
       rmin = rcur;
 
-#ifdef TEST
-      cerr << "QPDistF: Egrid[" << target << "[" << rcur << "]] = " << Egrid[i] << ",  eps = " << rhi-rlo << endl;
-#endif
+      if (verbose>3)
+	cerr << "QPDistF: Egrid[ " << setw(9) << target
+	     << "[" << setw(9) << rcur << "]] = " << setw(9) << Egrid[i]
+	     << ",  eps = " << rhi - rlo << endl;
 
       if (i==1)
 	dE = 2.0*(Egrid[i] - Emin);
@@ -244,32 +332,34 @@ void QPDistF::compute_distribution(void)
 
       sigma_E[i] = SIGMA * dE * FSIGE;
     }
-  }
-  else {
-    for (i=1; i<=EGRID; i++) {
-      double fac = ((double)i - EOFF)/EGRID;
+
+  } else {
+
+    for (int i=1; i<=EGRID; i++) {
+      double fac  = ((double)i - EOFF)/EGRID;
       double fac2 = pow(fac, GAMA);
-      Egrid[i] = Emin + (Emax-Emin)*fac2;
-      sigma_E[i] = SIGMA * dE * FSIGE * GAMA*fac2/fac;
+      Egrid[i]    = Emin + (Emax-Emin)*fac2;
+      sigma_E[i]  = SIGMA * dE * FSIGE * GAMA*fac2/fac;
     }
+
   }
 
-  for (i=1; i<=KGRID; i++) {
+  for (int i=1; i<=KGRID; i++) {
     Kgrid[i] = KMIN + dK*((double)i - KOFF);
     sigma_K[i] = SIGMA * dK * FSIGK;
   }
 
 				// Set up radial grid
-  double Rmin = t->get_min_radius();
-  double Mmin = t->get_mass(Rmin);
-  double Mmax = t->get_mass(RMMAX);
   double Mtotal = Mmax - Mmin;
   double dM = Mtotal/MGRID;
+
   Vector Rgrid(1, MGRID);
   Vector Dgrid(1, MGRID);
-  for (i=1; i<=MGRID; i++) {
+
+  for (int i=1; i<=MGRID; i++) {
     find_rofm_mass = Mtotal*pow(dM/Mtotal*((double)i-ROFF), BETA) + Mmin;
-    Rgrid[i] = zbrent(find_rofm, Rmin, 4.0*RMMAX, 1.0e-8);
+
+    Rgrid[i] = zbrent(find_rofm, 0.25*Rmin, 4.0*Rmax, 1.0e-8);
     Dgrid[i] = t->get_density(Rgrid[i]);
   }
 
@@ -277,62 +367,106 @@ void QPDistF::compute_distribution(void)
   LegeQuad wk(NINT);
   orb = new SphericalOrbit(t);
   Matrix *basis = new Matrix [MGRID] - 1;
-  for (k=1; k<=MGRID; k++) {
+  for (int k=1; k<=MGRID; k++) {
 
     basis[k].setsize(1, EGRID, 1, KGRID);
     basis[k].zero();
 
+				// Gravitational potential at R
     pot = t->get_pot(Rgrid[k]);
+				// Maximum ("escape") velocity at R
     vrmax = sqrt(2.0*(Emax - pot));
 
-/*
-    for (int iR=1; iR<=NINT; iR++) {
-      vr = vrmax * wk.knot(iR);
-
-      vtmax = sqrt(vrmax*vrmax - vr*vr);
-      for (int iT=1; iT<=NINT; iT++) {
-	vt = vtmax * wk.knot(iT);
-	
-	E = 0.5*(vr*vr + vt*vt) + pot;
-	orb->new_orbit(E, 0.5);
-	K = Rgrid[k]*vt/orb->Jmax();
-
-	for (i=1; i<=EGRID; i++) {
-	  for (j=1; j<=KGRID; j++) {
-	    basis[k][i][j] += 4.0*wk.weight(iR)*wk.weight(iT)*vrmax*vtmax *
-	      kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
-	  }
-	}
-      }
-    }
-*/
-#ifdef DEBUG
     double ktmax = 0.0;
-#endif
 
-    for (int iR=1; iR<=NINT; iR++) {
-      vv = vrmax * sqrt( wk.knot(iR) );
-      E = 0.5*vv*vv + pot;
+    if (t->dof()==2) {
 
-      for (int iT=1; iT<=NUMT; iT++) {
-	th = dt * ((double)iT - 0.5);
-	orb->new_orbit(E, 0.5);
-	K = Rgrid[k]*vv*sin(th)/orb->Jmax();
+      for (int iR=1; iR<=NINT; iR++) {
 
-#ifdef DEBUG
-	if (K>ktmax) ktmax = K;
-#endif
-	for (i=1; i<=EGRID; i++) {
-	  for (j=1; j<=KGRID; j++) {
-	    basis[k][i][j] += 2.0*dt*wk.weight(iR)*vrmax*vrmax *
-	      kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
+	vv = vrmax * sqrt( wk.knot(iR) );
+	E = 0.5*vv*vv + pot;
+
+	for (int iT=1; iT<=NUMT; iT++) {
+	  th = dt * ((double)iT - 0.5);
+	  orb->new_orbit(E, 0.5);
+	  K = Rgrid[k]*vv*sin(th)/orb->Jmax();
+
+	  if (verbose>4) if (K>ktmax) ktmax = K;
+
+	  for (int i=1; i<=EGRID; i++) {
+	    for (int j=1; j<=KGRID; j++) {
+	      basis[k][i][j] += 2.0*dt*wk.weight(iR)*vrmax*vrmax *
+		kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
+	    }
+	  }
+	  
+	}
+	if (verbose>4)
+	  cout << "QPDistF::compute_distribution: Kmax = " << ktmax << endl;
+      }
+    } else if (t->dof()==3) {
+
+      for (int ix=1; ix<=NINT; ix++) {
+	double x = wk.knot(ix);
+
+	for (int iy=1; iy<=NINT; iy++) {
+	  double y = wk.knot(iy);
+
+	  double E = pot + 0.5*vrmax*vrmax*(x*x + (1.0-x*x)*y*y);
+	  double J = vrmax*sqrt(1.0 - x*x)*y*Rgrid[k];
+
+	  orb->new_orbit(E, 0.5);
+	  K = J/orb->Jmax();
+
+	  if (verbose>4) if (K>ktmax) ktmax = K;
+
+	  double fac = wk.weight(ix)*wk.weight(iy) * 4.0*M_PI *
+	    vrmax*vrmax*vrmax * (1.0 - x*x)*y;
+
+	  for (int i=1; i<=EGRID; i++) {
+	    for (int j=1; j<=KGRID; j++) {
+	      basis[k][i][j] += fac *
+		kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
+	    }
 	  }
 	}
       }
-#ifdef TEST
-      cout << "QPDistF::compute_distirbution: Kmax = " << ktmax << endl;
-#endif
+      
+      if (verbose>4)
+	cout << "QPDistF::compute_distribution: Kmax = " << ktmax << endl;
+    } else {
+      cerr << "QPDistF: dof=" << t->dof() << ", must be 2 or 3" << endl;
     }
+
+    /*
+      for (int iR=1; iR<=NINT; iR++) {
+
+	vv = vrmax * sqrt( wk.knot(iR) );
+	E = 0.5*vv*vv + pot;
+
+	for (int iT=1; iT<=NUMT; iT++) {
+	  th = dt * ((double)iT - 0.5);
+	  orb->new_orbit(E, 0.5);
+	  K = Rgrid[k]*vv*sin(th)/orb->Jmax();
+
+	  if (verbose>4) if (K>ktmax) ktmax = K;
+
+	  for (i=1; i<=EGRID; i++) {
+	    for (j=1; j<=KGRID; j++) {
+	      basis[k][i][j] += 2.0*dt*wk.weight(iR)*vrmax*vrmax * 
+		2.0*M_PI*vv*sin(th) *
+		kernel(E, K, Egrid[i], Kgrid[j], sigma_E[i], sigma_K[j]);
+	    }
+	  }
+	  
+	}
+	if (verbose>4)
+	  cout << "QPDistF::compute_distribution: Kmax = " << ktmax << endl;
+      }
+    } else {
+      cerr << "QPDistF: dof=" << t->dof() << ", must be 2 or 3" << endl;
+    }
+    */
   }
   
 
@@ -387,17 +521,27 @@ void QPDistF::compute_distribution(void)
   
 				// Objective function
   C.zero();
-  int ix, iy, jx, jy;
   
-  for (i=1, ix=1; ix<=EGRID; ix++) {
-    for (iy=1; iy<=KGRID; iy++) {
+  for (int i=1, ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
 
-      for (j=1, jx=1; jx<=EGRID; jx++) {
-	for (jy=1; jy<=KGRID; jy++) {
+      for (int j=1, jx=1; jx<=EGRID; jx++) {
+	for (int jy=1; jy<=KGRID; jy++) {
 	  
-	  for (k=1; k<=MGRID; k++)
+	  for (int k=1; k<=MGRID; k++) {
 	    C[i][j] += basis[k][ix][iy]*basis[k][jx][jy];
-
+	    if (isnan(basis[k][ix][iy])) {
+	      cout << "Basis NaN k=" << k << " ix=" << ix << " iy=" << iy
+		   << endl;
+	      exit(-1);
+	    }
+	    if (isnan(basis[k][jx][jy])) {
+	      cout << "Basis NaN k=" << k << " jx=" << jx << " jy=" << jy
+		   << endl;
+	      exit(-1);
+	    }
+	  
+	  }
 	  j++;
 	}
       }
@@ -409,11 +553,11 @@ void QPDistF::compute_distribution(void)
 
   if (LAMBDA>1.0e-20) {
 
-    for (i=1, ix=1; ix<=EGRID; ix++) {
-      for (iy=1; iy<=KGRID; iy++) {
-
-	for (j=1, jx=1; jx<=EGRID; jx++) {
-	  for (jy=1; jy<=KGRID; jy++) {
+    for (int i=1, ix=1; ix<=EGRID; ix++) {
+      for (int iy=1; iy<=KGRID; iy++) {
+	
+	for (int j=1, jx=1; jx<=EGRID; jx++) {
+	  for (int jy=1; jy<=KGRID; jy++) {
 	    C[i][j] += LAMBDA * pow(Kgrid[iy]*Kgrid[jy], ALPHA);
 	    j++;
 	  }
@@ -426,9 +570,9 @@ void QPDistF::compute_distribution(void)
 
 				// And constant vector
   D.zero();
-  for (i=1, ix=1; ix<=EGRID; ix++) {
-    for (iy=1; iy<=KGRID; iy++) {
-      for (k=1; k<=MGRID; k++)
+  for (int i=1, ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
+      for (int k=1; k<=MGRID; k++)
 	D[i] -= Dgrid[k] *  basis[k][ix][iy];
       i++;
     }
@@ -436,12 +580,12 @@ void QPDistF::compute_distribution(void)
   
 				// Constant
   double constant=0.0;
-  for (k=1; k<=MGRID; k++)
+  for (int k=1; k<=MGRID; k++)
     constant += Dgrid[k] * Dgrid[k];
      
 				// Limits
-  for (i=1, ix=1; ix<=EGRID; ix++) {
-    for (iy=1; iy<=KGRID; iy++) {
+  for (int i=1, ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
       XL[i] = 0.0;
       XU[i] = 1.0e8;
       i++;
@@ -449,6 +593,33 @@ void QPDistF::compute_distribution(void)
   }
   
   delete [] (basis + 1);
+
+
+  if (verbose>2) {
+
+    cout.precision(4);
+
+    cout << endl 
+	 << "-------------------\n"
+	 << "Objective function:\n"
+	 << "-------------------\n";
+      
+    for (int i=1; i<=C.getnrows(); i++) {
+      for (int j=1; j<=C.getncols(); j++) 
+	cout << setw(16) << C[i][j];
+      cout << endl;
+    }
+
+    cout << endl 
+	 << "----------------" << endl
+	 << "Constant vector:" << endl
+	 << "----------------" << endl;
+      
+    for (int i=D.getlow(); i<=D.gethigh(); i++)
+      cout << setw(4) << i << setw(16) << D[i];
+    cout << endl;
+
+  }
 
 
 //======================================================================
@@ -491,8 +662,8 @@ void QPDistF::compute_distribution(void)
 
   obj0 = 0.5*constant;
   obj = obj0;
-  for (i=1; i<=N; i++) {
-    for (j=1; j<=N; j++) {
+  for (int i=1; i<=N; i++) {
+    for (int j=1; j<=N; j++) {
       obj0 += 0.5 * X[i] * C0[i][j] * X[j];
       obj  += 0.5 * X[i] * C[i][j] *  X[j];
     }
@@ -500,16 +671,34 @@ void QPDistF::compute_distribution(void)
     obj  += D[i]*X[i];
   }
 
-  if (VERBOSE) {
-    cout << "Solution vector: " << endl;
-    for (i=1; i<=N; i++)
-      if (fabs(X[i])>1.0e-10) cout << i << "> " << X[i] << endl;
-    cerr << "Objective0: " << obj0 << endl;
-    cerr << "Objective:  " << obj  << endl;
-    cerr << "Condition:  " << IFAIL << endl;
+  if (verbose>0) {
+    cout << "----------------" << endl;
+    cout << "Solution vector:" << endl;
+    cout << "----------------" << endl;
+    int i=1;
+    for (int ix=1; ix<=EGRID; ix++) {
+      for (int iy=1; iy<=KGRID; iy++) {
+	if (X[i] > 1.0e-12)
+	  cout << setw(4) << ix
+	       << setw(4) << iy << "> "
+	       << setw(16) << X[i] 
+	       << setw(16) << Egrid[ix]
+	       << setw(16) << Kgrid[iy]
+	       << endl;
+	else X[i] = 0.0;
+	i++;
+      }
+    }
+
+    cout << "Objective value0: " << obj0 << endl;
+    cout << "Objective value : " << obj  << endl;
+    cout << "Condition       : " << IFAIL << endl;
   }
 
-  if (IFAIL) bomb("distribution function solution did not converge");
+  if (IFAIL) {
+    char msg[] = "distribution function solution did not converge";
+    bomb(msg);
+  }
 
 //======================================================================
 // Set up JMax grid for distribution function
@@ -520,7 +709,7 @@ void QPDistF::compute_distribution(void)
   JMAXE.setsize(1, NJMAX);
   JMAX.setsize(1, NJMAX);
   JMAX2.setsize(1, NJMAX);
-  for (i=1; i<=NJMAX; i++) {
+  for (int i=1; i<=NJMAX; i++) {
     JMAXE[i] = Emin + TOLE + dE*(i-1);
     orb->new_orbit(JMAXE[i], 0.5);
     JMAX[i] = orb->Jmax();
@@ -594,7 +783,29 @@ double QPDistF::dfdE(double E, double L)
 
   dfde = dfdE_EK(E, K);
   dfdk = dfdK_EK(E, K);
-  return dfde - dfdk*djmax/jmax*K;
+  return dfde - dfdk*djmax/jmax*K + 2.0*distf_EK(E, K)*djmax/jmax;
+}
+
+
+double QPDistF::d2fdE2(double E, double L)
+{
+  if (!df_computed) compute_distribution();
+
+  double jmax, djmax, djmax2;
+
+  Splint3(JMAXE, JMAX, JMAX2, E, jmax, djmax, djmax2, 1);
+
+  if (E > Emin+TOLE) {
+    orb->new_orbit(E, 0.5);
+    jmax = orb->Jmax();
+  }
+  double K = L/jmax;
+  double dj  = djmax/jmax;
+  double dj2 = dj*dj;
+
+  return d2fdE2_EK(E, K) + 4.0*dfdE_EK(E, K)*dj - 
+    2.0*d2fdEK_EK(E, K)*K*dj - dfdK_EK(E, K)*(K*djmax2 + 2.0*K*dj2) +
+    d2fdK2_EK(E, K)*K*K*dj2 + distf_EK(E, K)*(2.0*dj2 + djmax2/jmax);
 }
 
 
@@ -647,6 +858,63 @@ double QPDistF::dfdE_EK(double E, double K)
       if (X[i] > 1.0e-10)
 	ans += X[i] * 
 	  kernel_x(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
+      i++;
+    }
+  }
+  
+  return ans;
+}
+
+double QPDistF::d2fdE2_EK(double E, double K)
+{
+  if (!df_computed) compute_distribution();
+
+  double ans = 0.0;
+  int i=1;
+
+  for (int ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
+      if (X[i] > 1.0e-10)
+	ans += X[i] * 
+	  kernel_x2(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
+      i++;
+    }
+  }
+  
+  return ans;
+}
+
+double QPDistF::d2fdK2_EK(double E, double K)
+{
+  if (!df_computed) compute_distribution();
+
+  double ans = 0.0;
+  int i=1;
+
+  for (int ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
+      if (X[i] > 1.0e-10)
+	ans += X[i] * 
+	  kernel_y2(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
+      i++;
+    }
+  }
+  
+  return ans;
+}
+
+double QPDistF::d2fdEK_EK(double E, double K)
+{
+  if (!df_computed) compute_distribution();
+
+  double ans = 0.0;
+  int i=1;
+
+  for (int ix=1; ix<=EGRID; ix++) {
+    for (int iy=1; iy<=KGRID; iy++) {
+      if (X[i] > 1.0e-10)
+	ans += X[i] * 
+	  kernel_xy(E, K, Egrid[ix], Kgrid[iy], sigma_E[ix], sigma_K[iy]);
       i++;
     }
   }
