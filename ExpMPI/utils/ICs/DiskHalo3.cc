@@ -1470,7 +1470,9 @@ void DiskHalo::make_disk_DF(bool diag)
   int QPnumK       = 10;	// kappa  grid number
   int QPnumR       = 40;	// radial grid number
   bool QPmassE     = true;	// energy gridding using mass
-  bool QPmassL     = false;     // energy gridding in mass using linear(true) or log(false) scaling
+  bool QPmassL     = false;     // energy gridding in mass using 
+				// linear(true) or log(false) scaling
+
   double QPsigma   = 1.25;      // kernel width fraction of grid spacing
   double QPlambda  = 3.0;	// kappa power-law bias
   double QPalpha   = -4.0;	// kappa power-law bias exponent
@@ -1485,36 +1487,42 @@ void DiskHalo::make_disk_DF(bool diag)
   int NUMMS        = 200;       // number of integration knots for mass model computation from density
   int NUME         = 800;       // number of energy grid points
 
-  string DTAG("qpdist_");
+  string DTAG("qpdist");
 
-  double rmin = 0.99*disk->get_min_radius();
-  double rmax = disk->get_max_radius();
-
-  CylDisk cdisk(expandd, rmin, rmax);
+  double rmin0 = 1.05*disk->get_min_radius();
+  double rmax0 = 0.95*disk->get_max_radius();
 
   //
   // Compute QPDISTF
   //
 
   delete qp;
-  qp = new QPDistF(&cdisk, halo, rmax, rmax, 
+  qp = new QPDistF(disk, halo, rmax0, rmax0, 
 		   QPnumE, QPnumK, QPnumR, QPsigma, QPlambda, QPalpha, QPbeta,
 		   1.0, 0.01, 0.05, 0.5,
 		   QPkmin, QPkmax);
 
-  qp->compute_distribution();
+  if (diag && myid==0) qp->set_verbose();
 
-  if (!diag) return;
+  SphericalOrbit::ZFRAC=0.5;
+  qp->MassEGrid  = QPmassE;
+  qp->MassLinear = QPmassL; 
+  qp->compute_distribution();
+  qp->make_cum(100, 100);
+
+  if (myid || !diag) return;
+
+  qp->dump_cum(string("qpdist.cdf"));
 
   //
   // Begin integration check
   //
 
-  DiskWithHalo dmodel(&cdisk, halo);
+  DiskWithHalo dmodel(disk, halo);
 
   vector<ofstream*> out(4);
-  out[0] = new ofstream(string(DTAG + "1.dat").c_str());
-  out[1] = new ofstream(string(DTAG + "2.dat").c_str());
+  out[0] = new ofstream(string(DTAG + "_1.dat").c_str());
+  out[1] = new ofstream(string(DTAG + "_2.dat").c_str());
   out[2] = new ofstream(string(DTAG + ".df"  ).c_str());
   out[3] = new ofstream(string(DTAG + ".surf").c_str());
 
@@ -1579,7 +1587,7 @@ void DiskHalo::make_disk_DF(bool diag)
   LegeQuad lq(NINT);
 
   double den, vmax, r, pot, pmax, E, J, x, y, vmean, vdisp;
-  double dr;
+  double dr, rmin, rmax;
 
   vector<double> rv, dv, mv, pw, p0;
 
@@ -1596,7 +1604,7 @@ void DiskHalo::make_disk_DF(bool diag)
   }
   dr = (rmax - rmin)/NUMR;
 
-  pmax = dmodel.get_pot(rmax);
+  pmax = dmodel.get_pot(dmodel.get_max_radius());
 
   for (int i=1; i<=NUMR; i++) {
     if (RLOG)
@@ -1637,7 +1645,7 @@ void DiskHalo::make_disk_DF(bool diag)
 
     dv[i-1] = den;
 
-    if (diag && *out[0])
+    if (*out[0])
       *out[0]  << setw(15) << r 
 	       << setw(15) << dmodel.get_density(r) 
 	       << setw(15) << den 
@@ -1648,7 +1656,7 @@ void DiskHalo::make_disk_DF(bool diag)
     
     pot = dmodel.get_pot(r);
 
-    if (diag && *out[1])
+    if (*out[1])
       *out[1]  << setw(15) << r 
 	       << setw(15) << den 
 	       << setw(15) << pot
@@ -1657,16 +1665,13 @@ void DiskHalo::make_disk_DF(bool diag)
 	       << endl;
 
 
-    if (diag) {
-      cout << setw(15) << r 
-	   << setw(15) << dmodel.get_density(r) 
-	   << setw(15) << den 
-	   << setw(15) << den - dmodel.get_density(r) 
-	   << setw(15) << vmean
-	   << setw(15) << vdisp
-	   << endl;
-    }
-
+    cout << setw(15) << r 
+	 << setw(15) << dmodel.get_density(r) 
+	 << setw(15) << den 
+	 << setw(15) << den - dmodel.get_density(r) 
+	 << setw(15) << vmean
+	 << setw(15) << vdisp
+	 << endl;
   }
     
   LegeQuad lq2(NUMMS);
@@ -1699,8 +1704,8 @@ void DiskHalo::make_disk_DF(bool diag)
   cout << "Mass=" << mass << endl;
   cout << "Energy=" << energy << endl;
 
-  double Emin = dmodel.get_pot(rmin);
-  double Emax = dmodel.get_pot(rmax);
+  double Emin = dmodel.get_pot(rmin0);
+  double Emax = dmodel.get_pot(rmax0);
 
   double dE = (Emax - Emin)/(NUME-1);
   if (*out[2]) {
@@ -1719,8 +1724,8 @@ void DiskHalo::make_disk_DF(bool diag)
     out[3]->precision(6);
     out[3]->setf(ios::scientific, ios::floatfield);
   
-    double Emin = dmodel.get_pot(rmin);
-    double Emax = dmodel.get_pot(rmax);
+    double Emin = dmodel.get_pot(rmin0);
+    double Emax = dmodel.get_pot(rmax0);
 
     double dE = (Emax - Emin)/NUMS;
     double dK = 1.0/NUMS;

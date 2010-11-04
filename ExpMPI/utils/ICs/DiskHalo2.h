@@ -69,8 +69,21 @@ class DiskHalo
   bool cov;
 
   double disk_density(double R, double z);
+  double disk_surface_density(double R);
   void write_record(ostream &out, Particle &p);
   void table_halo_disp();
+
+  // For frequency computation
+  //
+				// Number of mass and number bins, log spaced
+  static const unsigned nh = 200;
+				// Minimum number on grid before computing
+  static const unsigned mh = 100;
+				// Boundaries and delta
+  double hDmin, hDmax, dRh;
+  vector<double>   nhD;		// Mass in bins
+  vector<unsigned> nhN;		// Number in bins
+  unsigned nzero;		// Computed minimum mesh point
 
  public:
   static int NDP;		// Number of knots in disk table phi grid

@@ -202,7 +202,6 @@ EmpCylSL::~EmpCylSL(void)
     delete [] MPIout_eof;
   }
 
-  cerr << "Exiting EmpCylSL destructor" << endl;
 }
 
 

@@ -1,37 +1,30 @@
-// This may look like C code, but it is really -*- C++ -*-
-
-const char rcsid[] = "$Id$";
-
-/*
-
-*/
-
 #define FRECS 16		// # of rectangles for frequency integrals
-#define tol 1.0e-8		// tolerance for root finder
-#define ZFRAC 0.001		// fraction below minimum grid for tp search
-#define RMAXF 3.0		// Fraction beyond grid for r_apo search
-#define tolnr 1.0e-10		// r_apo location using Newton-Raphson refinement
 #define TOLEPI 1.0e-3		// Cut over for epicylic theory
 
+#include <cstdlib>
+#include <sstream>
+#include <cmath>
 
-#include <math.h>
-#include <string>
 #include <numerical.h>
 #include <Vector.h>
 #include <interp.h>
-#include "massmodel.h"
-#include "orbit.h"
-
-using namespace std;
+#include <massmodel.h>
+#include <orbit.h>
+#include <biorth.h>
 
 				// Global variables
 static AxiSymModel *mm;
 static double EE, JJ, KK;
 static double ap, am, sp, sm;
 
+double SphericalOrbit::tol = 1.0e-8;  // root finder tolerance
+double SphericalOrbit::ZFRAC = 0.001; // fraction below minimum grid for tp search
+double SphericalOrbit::RMAXF = 3.0;
+double SphericalOrbit::tolnr = 1.0e-10;	// r_apo location using Newton-Raphson refinement
 
 void SphericalOrbit::compute_freq(void)
 {
+  const string rname("compute_freq");
   double accum0, accum1, accum2, r, s, t, dt, ur, dudr, cost, tmp;
 #ifdef DEBUG
   double tmp2;
@@ -43,28 +36,71 @@ void SphericalOrbit::compute_freq(void)
   EE = energy;
   KK = kappa;
 
-  /*  Find turning points  */
+  //  Find turning points
 
   double xmin, xmax;
   xmin = ZFRAC*model->get_min_radius();
   xmax = model->get_max_radius();
-  if ( Ecirc(xmin)*Ecirc(xmax) < 0.0)
-    r_circ = zbrent(Ecirc, xmin, xmax, tol);
-  else				// Circular radius outside mass distribution
+
+  if ( Ecirc(xmin)*Ecirc(xmax) < 0.0) {
+    try {
+      r_circ = zbrent(Ecirc, xmin, xmax, tol);
+    }
+    catch (const char *error) {
+      cerr << "SphericalOrbit::compute_freq @ r_circ: model=" 
+	   << model->ModelID         << endl
+	   << " energy="   << energy << endl
+	   << " kappa="    << kappa  << endl
+	   << " xmin="     << xmin   << endl
+	   << " xmax="     << xmax   << endl;
+      throw error;
+    }
+  }
+  else {		  // Circular radius outside mass distribution
     r_circ = -0.5*model->get_mass(model->get_max_radius())/EE;
+    cerr << "SphericalOrbit::compute_freq warning: Circular radius outside mass distribution" << endl;
+  }
 
   dudr = model->get_dpot(r_circ);
   jmax = sqrt(r_circ*r_circ*r_circ*dudr);
   JJ = jmax*kappa;
 
-//  r_apo = zbrent(denom,r_circ,model->get_max_radius(),tol);
+  //  r_apo = zbrent(denom,r_circ,model->get_max_radius(),tol);
 
   xmin = r_circ;
   xmax = model->get_max_radius();
-  if ( denom(xmin)*denom(xmax) < 0.0)
-    r_apo = zbrent(denom, xmin, xmax, tol);
+#ifdef DEBUG
+  bool used_asymp = false;
+#endif
+  if ( denom(xmin)*denom(xmax) < 0.0) {
+    try {
+      r_apo = zbrent(denom, xmin, xmax, tol);
+    }
+    catch (const char *error) {
+      cerr << "SphericalOrbit::compute_freq @ r_apo[1]: model=" 
+	   << model->ModelID        << endl
+	   << " energy=" << energy  << endl
+	   << " kappa="  << kappa   << endl
+	   << " xmin="  << xmin     << endl
+	   << " xmax="  << xmax     << endl;
+      throw error;
+    }
+  }
   if (r_circ < model->get_max_radius()) {
-    r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
+    try {
+      r_apo = zbrent(denom, xmin, RMAXF*xmax, tol);
+    }
+    catch (const char *error) {
+      cerr << "SphericalOrbit::compute_freq @ r_apo[2]: model=" 
+	   << model->ModelID        << endl
+	   << " energy=" << energy  << endl
+	   << " pot(max)=" << model->get_pot(xmax) << endl
+	   << " kappa="  << kappa   << endl
+	   << " xmin="   << xmin    << endl
+	   << " xmax="   << xmax*RMAXF << endl
+	   << " rc check=" << energy - model->get_pot(r_circ) - jmax*jmax/(2.0*r_circ*r_circ) << endl;
+      throw error;
+    }
   }
   else {	 		// Circular radius outside mass distribution
     double r0 = -0.5*model->get_mass(model->get_max_radius())/EE;
@@ -80,24 +116,39 @@ void SphericalOrbit::compute_freq(void)
 
 #ifdef DEBUG
     if (fabs(f)>tolnr) {
-      cerr << "compute_freq: r_apo did not converge [f=" << f << "]\n";
+      ostringstream msg;
+      msg << "r_apo did not converge [f=" << f << "]";
+      warn(rname, msg.str());
     }
+    used_asymp = true;
 #endif
   }
 
-  if (denom(ZFRAC*model->get_min_radius())*denom(r_circ) >= 0.0)
+  if (denom(ZFRAC*model->get_min_radius())*denom(r_circ) >= 0.0) {
     r_peri = 0.99*ZFRAC*model->get_min_radius();
-  else
-    r_peri = zbrent(denom,ZFRAC*model->get_min_radius(),r_circ,tol);
+  }
+  else {
+    try {
+      r_peri = zbrent(denom, ZFRAC*model->get_min_radius(), r_circ, tol);
+    }
+    catch (const char *error) {
+      cerr << "SphericalOrbit::compute_freq @ r_peri: model=" << model->ModelID
+	   << " energy=" << energy
+	   << " kappa="  << kappa
+	   << " xmin="  << ZFRAC*model->get_min_radius()
+	   << " xmax="  << r_circ << endl;
+      throw error;
+    }
+  }
 
-  /*  Ok, prepare to do freq. integrals */
+  //  Ok, prepare to do freq. integrals 
 
   ap = 0.5*(r_apo + r_peri);
   am = 0.5*(r_apo - r_peri);
   sp = ap/(r_apo*r_peri);
   sm = am/(r_apo*r_peri);
 
-  /* Do using centered rectangle technique */
+  // Do using centered rectangle technique 
   accum0 = 0.0;
   accum1 = 0.0;
   accum2 = 0.0;
@@ -109,26 +160,29 @@ void SphericalOrbit::compute_freq(void)
 #ifdef DEBUG
     tmp2 = 2.0*(energy-ur) - (jmax*jmax*kappa*kappa)/(r*r);
     if (tmp2 < 0.0) {
-      cerr << "compute_freq: denominator [1] out of bounds\n";
-      cerr << "compute_freq: E=" << EE << "  K=" << KK << 
+      ostringstream msg;
+
+      msg << "\t\tdenominator [1] out of bounds" << endl;
+      msg << "E=" << EE << "  K=" << KK << 
 	" r=" << r << " i=" << i << "/" << FRECS << " val=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_peri)) - 
 	(jmax*jmax*kappa*kappa)/(r_peri*r_peri);
-      cerr << "compute_freq: denom(r_peri)=" << tmp2 << endl;
+      msg << "\t\tdenom(r_peri)=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_apo)) - 
 	(jmax*jmax*kappa*kappa)/(r_apo*r_apo);
-      cerr << "compute_freq: denom(r_apo)=" << tmp2 << endl;
+      msg << "\t\tdenom(r_apo)=" << tmp2 << endl;
 
       tmp2 = (-model->get_dpot(r_peri) +
 	(jmax*jmax*kappa*kappa)/(r_peri*r_peri*r_peri))*(r-r_peri);
-      cerr << "compute_freq: denom_exp(r_peri)=" << tmp2 << endl;
+      msg << "\t\tdenom_exp(r_peri)=" << tmp2 << endl;
 
       tmp2 = (-model->get_dpot(r_apo) +
 	(jmax*jmax*kappa*kappa)/(r_apo*r_apo*r_apo))*(r-r_apo);
-      cerr << "compute_freq: denom_exp(r_apo)=" << tmp2 << endl;
+      msg << "\t\tdenom_exp(r_apo)=" << tmp2 << endl;
 
+      warn(rname, msg.str());
     }
 #endif
     tmp = sqrt(2.0*(energy-ur) - (jmax*jmax*kappa*kappa)/(r*r));
@@ -139,26 +193,29 @@ void SphericalOrbit::compute_freq(void)
 #ifdef DEBUG
     tmp2 = 2.0*(energy-ur) - (jmax*jmax*kappa*kappa*s*s);
     if (tmp2 < 0.0) {
-      cerr << "compute_freq: denominator [2] out of bounds\n";
-      cerr << "compute_freq: E=" << EE << "  K=" << KK << 
+      ostringstream msg;
+
+      msg << "\t\t denominator [2] out of bounds" << endl;
+      msg << "\t\tE=" << EE << "  K=" << KK << 
 	" r=" << r << " i=" << i << "/" << FRECS << " val=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_peri)) - 
 	(jmax*jmax*kappa*kappa)/(r_peri*r_peri);
-      cerr << "compute_freq: denom(r_peri)=" << tmp2 << endl;
+      msg << "\t\tdenom(r_peri)=" << tmp2 << endl;
 
       tmp2 = 2.0*(energy-model->get_pot(r_apo)) - 
 	(jmax*jmax*kappa*kappa)/(r_apo*r_apo);
-      cerr << "compute_freq: denom(r_apo)=" << tmp2 << endl;
+      msg << "\t\tdenom(r_apo)=" << tmp2 << endl;
 
       tmp2 = (-model->get_dpot(r_peri) +
 	(jmax*jmax*kappa*kappa)/(r_peri*r_peri*r_peri))*(r-r_peri);
-      cerr << "compute_freq: denom_exp(r_peri)=" << tmp2 << endl;
+      msg << "\t\tdenom_exp(r_peri)=" << tmp2 << endl;
 
       tmp2 = (-model->get_dpot(r_apo) +
 	(jmax*jmax*kappa*kappa)/(r_apo*r_apo*r_apo))*(r-r_apo);
-      cerr << "compute_freq: denom_exp(r_apo)=" << tmp2 << endl;
+      msg << "\t\tcompute_freq: denom_exp(r_apo)=" << tmp2 << endl;
 
+      warn(rname, msg.str());
     }
 #endif
     accum2 += cost/sqrt(2.0*(energy-ur) - (jmax*jmax*kappa*kappa*s*s));
@@ -181,17 +238,17 @@ void SphericalOrbit::compute_freq(void)
 #undef FRECS
 #undef tol
 
-/* Function to iteratively locate radius of circular orbit with energy EE */
+// Function to iteratively locate radius of circular orbit with energy EE 
 double Ecirc(double r)
 {
   double ur, dudr, dif;
 		
-  mm->get_pot_dpot(r,ur,dudr);
+  mm->get_pot_dpot(r, ur, dudr);
   dif =  EE - 0.5*r*dudr - ur;
   return(dif);
 }
 
-/* Function to iteratively locate turning points for orbit (EE,JJ) */
+// Function to iteratively locate turning points for orbit (EE,JJ) 
 
 double denom(double r)
 {
@@ -199,7 +256,7 @@ double denom(double r)
   return 2.0*(EE-ur)*r*r - JJ*JJ;
 }
 
-/* for testing---frequencies in the epicyclic approx */
+// for testing---frequencies in the epicyclic approx 
 
 void SphericalOrbit::compute_freq_epi(void)
 {
@@ -214,6 +271,7 @@ void SphericalOrbit::compute_freq_epi(void)
 
 }
 
+extern 
 double  rombe2(double a, double b, double (*f) (double), int n);
 
 double dtp, dtm;
@@ -232,11 +290,18 @@ void SphericalOrbit::compute_angles(void)
   angle_grid.f.setsize(1,2,0,recs-1);
   angle_grid.r.setsize(1,2,0,recs-1);
   
-  if (!Gkn) {
-    Gkn = new LegeQuad(recs);
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
-    dtm =  M_PI;
+    dtm = M_PI;
+#ifdef CRAY_VEC
+    cray_sum = dvector(0,recs-1);
+#endif
   } 
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
+  }
+
   
   if (freq_defined) {
     mm = model;
@@ -256,7 +321,7 @@ void SphericalOrbit::compute_angles(void)
   tl = -0.5*M_PI;
   sl =  0.5*M_PI;
   for (i=0; i<recs; i++) {
-    t = dtp + dtm*Gkn->knot(i+1);
+    t = dtp + dtm*Gkn.knot(i+1);
     r = ap + am*sin(t);
     accum1 += rombe2(tl,t,fw1,nbsct);
     s = asin((1.0/r - sp)/sm);
@@ -289,7 +354,7 @@ void SphericalOrbit::compute_angles(void)
   angle_defined = true;
 }
 
-#define tol 1.0e-8       /* tolerance for radicand */
+#define tol 1.0e-8       // tolerance for radicand 
 
 double fw1(double t)
 {
@@ -300,7 +365,7 @@ double fw1(double t)
   radcand = 2.0*(EE-ur)-JJ*JJ/(r*r);
 
   if (radcand < tol) {
-  /* values near turning points */
+  // values near turning points 
     if (t<0)
       sgn = -1.0;
     else
@@ -321,7 +386,7 @@ double ff(double t)
   radcand = 2.0*(EE-ur) - JJ*JJ*s*s;
 
   if (radcand < tol) {
-  /* values near turning points */
+  // values near turning points 
     if (t<0)
       sgn = -1.0;
     else
@@ -333,8 +398,9 @@ double ff(double t)
   return sm*cos(t)/sqrt(radcand);
 }
 
-/* epicyclic test */
-
+//
+// epicyclic test 
+//
 void SphericalOrbit::compute_angles_epi(void)
 {
   double r,t,a,a2,fac,ur;
@@ -347,16 +413,18 @@ void SphericalOrbit::compute_angles_epi(void)
   angle_grid.f.setsize(1,2,0,recs-1);
   angle_grid.r.setsize(1,2,0,recs-1);
   
-  if (!Gkn) {
-    Gkn = new LegeQuad(recs);
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
-    dtm =  M_PI;
-  } 
-  else if (Gkn->get_n() != recs) {
-    delete Gkn;
-    Gkn = new LegeQuad(recs);
-  } 
-  
+    dtm = M_PI;
+#ifdef CRAY_VEC
+    cray_sum = dvector(0,recs-1);
+#endif
+  }
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
+  }
+
   if (freq_defined) {
     mm = model;
     EE = energy;
@@ -371,7 +439,7 @@ void SphericalOrbit::compute_angles_epi(void)
   a = sqrt(a2);
 
   for (i=0; i<recs; i++) {
-    t = dtp + dtm*Gkn->knot(i+1);
+    t = dtp + dtm*Gkn.knot(i+1);
     r = r_circ - a*cos(t);
     fac = sqrt(fabs(a2 - (r-r_circ)*(r-r_circ)));
     angle_grid.t[1][i] = t;
@@ -435,18 +503,14 @@ void SphericalOrbit::compute_biorth(void)
 double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 {
 
-  if (!Gkn) {
-    Gkn = new LegeQuad(recs);
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
-    dtm =  M_PI;
+    dtm = M_PI;
   }
-
-  if (Gkn->get_n() != recs) {
-    delete Gkn;
-    Gkn = new LegeQuad(recs);
-    dtp = -0.5*M_PI;
-    dtm =  M_PI;
-  } 
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
+  }
   
   if (!angle_defined) compute_angles();
 
@@ -454,7 +518,7 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn->weight(i+1)*angle_grid.dw1dt[1][i]*
+      accum += Gkn.weight(i+1)*angle_grid.dw1dt[1][i]*
 	cos(angle_grid.w1[1][i]*l1 + angle_grid.f[1][i]*l2)*
 	  func(angle_grid.r[1][i]);
 
@@ -473,14 +537,13 @@ double SphericalOrbit::pot_trans(int l1, int l2, double (*func)(double))
 double SphericalOrbit::pot_trans(int l1, int l2, int n)
 {
 
-  if (!Gkn) {
-    Gkn = new LegeQuad(recs);
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
-    dtm =  M_PI;
+    dtm = M_PI;
   }
-  else if (Gkn->get_n() != recs) {
-    delete Gkn;
-    Gkn = new LegeQuad(recs);
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
   }
 
   if (!angle_defined) compute_angles();
@@ -498,7 +561,7 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++)
-      accum += Gkn->weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i] * 
+      accum += Gkn.weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i] * 
 	angle_grid.fr[i][n];
 
     accum *= dtm/M_PI;
@@ -516,14 +579,13 @@ double SphericalOrbit::pot_trans(int l1, int l2, int n)
 void SphericalOrbit::pot_trans(int l1, int l2, Vector& t)
 {
 
-  if (!Gkn) {
-    Gkn = new LegeQuad(recs);
+  if (Gkn.n == 0) {
+    Gkn = LegeQuad(recs);
     dtp = -0.5*M_PI;
-    dtm =  M_PI;
+    dtm = M_PI;
   }
-  else if (Gkn->get_n() != recs) {
-    delete Gkn;
-    Gkn = new LegeQuad(recs);
+  else if (Gkn.n != recs) {
+    Gkn = LegeQuad(recs);
   }
 
   if (!angle_defined) compute_angles();
@@ -543,7 +605,7 @@ void SphericalOrbit::pot_trans(int l1, int l2, Vector& t)
 
   if (kappa < 1.0-TOLEPI) {
     for (int i=0; i<angle_grid.num; i++) {
-      tmpi = Gkn->weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i];
+      tmpi = Gkn.weight(i+1)*angle_grid.dw1dt[1][i] * cosvec[i];
       for (int n=1; n<=nm; n++)
 	t[n] += tmpi * angle_grid.fr[i][n];
     }

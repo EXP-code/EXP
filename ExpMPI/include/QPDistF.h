@@ -51,6 +51,11 @@ private:
   int NJMAX;			// Vector grid for JMax
   double Emin, Emax, TOLE;
   Vector JMAXE, JMAX, JMAX2;
+				// Cumulative grid
+  vector<double> pdf, cdf;
+  int NUME, NUMK;
+  double TOLK;
+
 				// Class utility functions
   double kernel(double x, double y, double x0, double y0, 
 		double sx, double sy);
@@ -146,6 +151,10 @@ public:
 
   void get_objective(double* OBJ0, double* OBJ, int* IFLG)
     {*OBJ0=obj0; *OBJ=obj; *IFLG=IFAIL;}
+
+  // Cumulative grid
+  void make_cum(int ENUM, int KNUM, double KTOL=1.0e-3);
+  void dump_cum(const string& file);
 
   // Read in already computed distribution function
   void read_state(string& name);

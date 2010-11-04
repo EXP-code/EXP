@@ -1,22 +1,57 @@
 
+#pragma implementation
+
 const char rcsid[] = "$Id$";
 
 #include <math.h>
-#include <string>
-#include <iostream>
-#include <sstream>
 #include <stdlib.h>
+
+#include <iostream>
+#include <iomanip>
+#include <sstream>
+#include <string>
 
 #include <Vector.h>
 #include <orbit.h>
+#include <massmodel.h>
 #include <interp.h>
 
-using namespace std;
+void RegularOrbit::bomb(const char *s) {
+  cerr << "ERROR from " << OrbitID << ": " << s << endl;
+#ifdef DEBUG
+  abort();
+#endif
+  exit(-1);
+}
+
+void RegularOrbit::bomb(const string& s) {
+  cerr << "ERROR from " << OrbitID << ": " << s << endl;
+#ifdef DEBUG
+  abort();
+#endif
+  exit(-1);
+}
+
+void RegularOrbit::warn(const string& fct, const string& msg) {
+  cerr << fct << ": from " << OrbitID << ": " << msg << endl;
+}
+
+bool SphericalOrbit::guard = true;
 
 SphericalOrbit::SphericalOrbit(void) {
   dof = 3;
   OrbitID = "SphericalOrbit";
-  Gkn = NULL;
+
+  energy = 0.0;
+  kappa = 0.0;
+  beta = 0.0;
+
+  jmax = 0.0;
+  r_peri = 0.0;
+  r_apo = 0.0;
+  r_circ = 0.0;
+
+  model = 0;
 
   model_defined = false;
   action_defined = false;
@@ -31,7 +66,15 @@ SphericalOrbit::SphericalOrbit(AxiSymModel *Model)
 {
   dof = Model->dof();
   OrbitID = "SphericalOrbit";
-  Gkn = NULL;
+
+  energy = 0.0;
+  kappa = 0.0;
+  beta = 0.0;
+
+  jmax = 0.0;
+  r_peri = 0.0;
+  r_apo = 0.0;
+  r_circ = 0.0;
 
   model = Model;
   model_defined = true;
@@ -49,7 +92,15 @@ SphericalOrbit::SphericalOrbit(AxiSymModel *Model,
 {
   dof = Model->dof();
   OrbitID = "SphericalOrbit";
-  Gkn = NULL;
+
+  energy = 0.0;
+  kappa = 0.0;
+  beta = 0.0;
+
+  jmax = 0.0;
+  r_peri = 0.0;
+  r_apo = 0.0;
+  r_circ = 0.0;
 
   model = Model;
   model_defined = true;
@@ -60,14 +111,6 @@ SphericalOrbit::SphericalOrbit(AxiSymModel *Model,
 }
 
 
-SphericalOrbit::~SphericalOrbit()
-{
-  if (Gkn) {
-    delete Gkn;
-  }
-}
-
-/*
 SphericalOrbit::SphericalOrbit(const SphericalOrbit &t)
 {
   energy = t.energy;
@@ -86,8 +129,6 @@ SphericalOrbit::SphericalOrbit(const SphericalOrbit &t)
   freq_defined = t.freq_defined;
   angle_defined = t.angle_defined;
 }
-*/
-
 
 SphericalOrbit &SphericalOrbit::operator=(const SphericalOrbit &t)
 {
@@ -107,10 +148,6 @@ SphericalOrbit &SphericalOrbit::operator=(const SphericalOrbit &t)
   freq_defined = t.freq_defined;
   angle_defined = t.angle_defined;
 
-  if (t.Gkn) {
-    Gkn = new LegeQuad(t.Gkn->get_n());
-  }
-
   return *this;
 }
 
@@ -120,17 +157,17 @@ void SphericalOrbit::new_orbit(double Energy, double Kappa, double Beta)
   if (Kappa < 0.0 || Kappa > 1.0) {
     ostringstream ost;
     ost << "illegal value of Kappa: " << Kappa;
-    bomb(ost.str());
+    bomb(ost.str().c_str());
   }
 
 //  if (Energy < model->get_pot(model->get_min_radius()) || 
 //      Energy > model->get_pot(model->get_max_radius())) {
-  if (Energy < model->get_pot(model->get_min_radius())) {
+  if (guard && Energy < model->get_pot(model->get_min_radius())) {
     ostringstream ost;
     ost << "illegal value of Energy: " << Energy;
     ost << "  Emin[r=" << model->get_min_radius() << "] = " 
 	<< model->get_pot(model->get_min_radius());
-    bomb(ost.str());
+    bomb(ost.str().c_str());
   }
 
 

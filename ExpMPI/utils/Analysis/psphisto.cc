@@ -179,8 +179,11 @@ main(int argc, char **argv)
 
   double dR = (rmax - rmin)/(nbins-1);
 
-  vector< vector<double> > histo(nfiles);
-  for (int n=0; n<nfiles; n++) histo[n] = vector<double>(nbins, 0.0);
+  vector< vector<double> > histo(nfiles), angmom(nfiles);
+  for (int n=0; n<nfiles; n++) {
+    histo[n]  = vector<double>(nbins, 0.0);
+    angmom[n] = vector<double>(nbins*3, 0.0);
+  }
 
   vector<double> times(nfiles);
   vector<double> rvals(nbins);
@@ -225,6 +228,11 @@ main(int argc, char **argv)
 
 	  if (icnt > pbeg) {
 
+	    vector<double> L(3);
+	    L[0] = p->mass*(p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
+	    L[1] = p->mass*(p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
+	    L[2] = p->mass*(p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+
 	    if (proj==Cylindrical) {
 	      if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
 		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
@@ -232,11 +240,17 @@ main(int argc, char **argv)
 		  if (R>0.0) {
 		    R = log(R);
 		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		    if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		    if (indx >=0 && indx<nbins) {
+		      histo[n][indx] += p->mass;
+		      for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		    }
 		  }
 		} else {
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		  if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		  if (indx >=0 && indx<nbins) {
+		    histo[n][indx] += p->mass;
+		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		  }
 		}
 	      }
 	    }
@@ -247,11 +261,17 @@ main(int argc, char **argv)
 		if (R>0.0) {
 		  R = log(R);
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		  if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		  if (indx >=0 && indx<nbins) {
+		    histo[n][indx] += p->mass;
+		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		  }
 		}
 	      } else {
 		int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		if (indx >=0 && indx<nbins) histo[n][indx] += p->mass;
+		if (indx >=0 && indx<nbins) {
+		  histo[n][indx] += p->mass;
+		  for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		}
 	      }
 	    }
 	  }
@@ -267,15 +287,21 @@ main(int argc, char **argv)
   if (myid==0) {
     MPI_Reduce(MPI_IN_PLACE, &times[0], nfiles,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    for (int n=0; n<nfiles; n++)
+    for (int n=0; n<nfiles; n++) {
       MPI_Reduce(MPI_IN_PLACE, &histo[n][0], nbins, 
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(MPI_IN_PLACE, &angmom[n][0], nbins*3, 
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
   } else {
     MPI_Reduce(&times[0], 0, nfiles,
 	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    for (int n=0; n<nfiles; n++)
+    for (int n=0; n<nfiles; n++) {
       MPI_Reduce(&histo[n][0], 0, nbins, 
 		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&angmom[n][0], 0, nbins*3, 
+		 MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
   }
 
   if (myid==0) {
@@ -283,18 +309,41 @@ main(int argc, char **argv)
     ofstream out(outf.c_str());
 
     for (int n=0; n<nfiles; n++) {
-      double sum = 0.0;
-      for (unsigned j=0; j<nbins; j++)
+      double sum = 0.0, LL;
+      vector<double> Lsum(4, 0.0);
+      for (unsigned j=0; j<nbins; j++) {
 	out << setw(18) << times[n] << setw(18) << rvals[j]
 	    << setw(18) << histo[n][j]
-	    << setw(18) << (sum += histo[n][j])
-	    << endl;
+	    << setw(18) << (sum += histo[n][j]);
+	LL = 0.0;
+	for (unsigned k=0; k<3; k++) {
+	  if (histo[n][j]>0.0)
+	    out << setw(18) << angmom[n][j*3+k]/histo[n][j];
+	  else
+	    out << setw(18) << 0.0;
+	  Lsum[k] += angmom[n][j*3+k];
+	  LL += angmom[n][j*3+k]*angmom[n][j*3+k];
+	}
+	LL = sqrt(LL);
+	if (histo[n][j]>0.0)
+	  out << setw(18) << LL/histo[n][j];
+	else
+	  out << setw(18) << 0.0;
+	Lsum[3] += sqrt(LL);
+	if (sum>0.0) {
+	  for (unsigned k=0; k<3; k++)
+	    out << setw(18) << Lsum[k]/sum;
+	  out << setw(18) << Lsum[3]/sum;
+	} else {
+	  for (unsigned k=0; k<4; k++)
+	    out << setw(18) << 0.0;
+	}
+	out << endl;
+      }
       out << endl;
     }
     
   }
-
- 
 
   MPI_Finalize();
 

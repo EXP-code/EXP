@@ -70,6 +70,7 @@ program_option init[] = {
   {"OUTFILE",		"string",	"gashisto",	"filename prefix"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
   {"RUNTAG",		"string",	"run",		"file containing desired indices for PSP output"},
+  {"GNUPLOT",		"bool",		"false",	"Write gnuplot type output"},
   {"",			"",		"",		""}
 };
 
@@ -210,8 +211,7 @@ main(int argc, char **argv)
 		histo[n][0][indZ*rbins+indR] += p->mass;
 		histo[n][1][indZ*rbins+indR] += p->mass * p->datr[0];
 		histo[n][2][indZ*rbins+indR] += p->mass * p->datr[1];
-		histo[n][3][indZ*rbins+indR] += 
-		  p->mass * p->datr[0] * p->datr[1];
+		histo[n][3][indZ*rbins+indR] += p->mass * p->datr[0] * p->datr[1];
 	      }
 	    }
 	  }
@@ -251,6 +251,9 @@ main(int argc, char **argv)
   }
     
   if (myid==0) {
+
+    bool gnuplot = config.get<bool>("GNUPLOT");
+
     for (int n=0; n<nfiles; n++) {
       if (times.find(n)==times.end()) continue;
 
@@ -260,16 +263,46 @@ main(int argc, char **argv)
       
       out.precision(8);
     
-      out << "# Time=" << times[n] << endl;
+      if (gnuplot) {
+	out << "# Time=" << times[n] << endl;
 
-      for (unsigned j=0; j<zbins; j++) {
-	for (unsigned k=0; k<rbins; k++) {
-	  out << setw(18) << dR*(0.5+k) << setw(18) << zmin + dZ*(0.5+j);
-	  for (int i=0; i<nval; i++)
-	    out << setw(18) << histo[n][i][j*rbins+k];
+	for (unsigned j=0; j<zbins; j++) {
+	  for (unsigned k=0; k<rbins; k++) {
+	    out << setw(18) << dR*(0.5+k) << setw(18) << zmin + dZ*(0.5+j);
+	    out << setw(18) << histo[n][0][j*rbins+k];
+	    if (histo[n][0][j*rbins+k]>0.0) {
+	      for (int i=1; i<nval; i++)
+		out << setw(18) 
+		    << histo[n][i][j*rbins+k]/histo[n][0][j*rbins+k];
+	    } else {
+	      for (int i=1; i<nval; i++) out << setw(18) << 0.0;
+	    }
+	    out << endl;
+	  }
 	  out << endl;
 	}
+      } else {
+	out << setw(18) << times[n] << endl
+	    << setw(10) << rbins << setw(10) << zbins << endl;
+	for (unsigned k=0; k<rbins; k++) out << setw(18) << dR*(0.5+k);
 	out << endl;
+	for (unsigned j=0; j<zbins; j++) out << setw(18) << zmin + dZ*(0.5+j);
+	out << endl;
+	for (unsigned k=0; k<rbins; k++) {
+	  for (unsigned j=0; j<zbins; j++) {
+	    for (unsigned k=0; k<rbins; k++) {
+	      out << setw(18) << histo[n][0][j*rbins+k];
+	      if (histo[n][0][j*rbins+k]>0.0) {
+		for (int i=1; i<nval; i++)
+		  out << setw(18) 
+		      << histo[n][i][j*rbins+k]/histo[n][0][j*rbins+k];
+	      } else {
+		for (int i=1; i<nval; i++) out << setw(18) << 0.0;
+	      }
+	      out << endl;
+	    }
+	  }
+	}
       }
     }
   }

@@ -719,6 +719,59 @@ void QPDistF::compute_distribution(void)
 }
 
 
+void QPDistF::make_cum(int ENUM, int KNUM, double KTOL)
+{
+  NUME = ENUM;
+  NUMK = KNUM;
+  TOLK = KTOL;
+  
+  double E, K;
+  double dE = (Emax - Emin)/NUME;
+  double dK = (1.0 - 2*TOLK)/NUMK;
+  cdf = vector<double>(NUME*NUMK, 0.0);
+  pdf = vector<double>(NUME*NUMK);
+  for (int ix=0; ix<NUME; ix++) {
+    E = Emin + dE*ix;
+    for (int iy=0; iy<NUMK; iy++) {
+      K = TOLK + dK*iy;
+      orb->new_orbit(E, K);
+      pdf[ix*NUMK+iy] = distf(E, K)*orb->Jmax()/orb->get_freq(1);
+    }
+  }
+
+  for (int ix=1; ix<NUME; ix++) {
+    for (int iy=1; iy<NUMK; iy++) {
+      cdf[ix*NUMK+iy] += M_PI*M_PI*dE*dK*
+	(pdf[(ix-1)*NUMK+(iy-1)] + pdf[(ix-1)*NUMK+(iy-1)] +
+	 pdf[(ix-1)*NUMK+(iy-1)] + pdf[(ix-1)*NUMK+(iy-1)] )
+	+ cdf[(ix-1)*NUMK+iy] + cdf[ix*NUMK+iy-1];
+    }
+  }
+}
+
+
+void QPDistF::dump_cum(const string& file)
+{
+  ofstream out(file.c_str());
+  if (!out) return;
+
+  double E, K;
+  double dE = (Emax - Emin)/NUME;
+  double dK = (1.0 - 2*TOLK)/NUMK;
+
+  for (int ix=0; ix<NUME; ix++) {
+    E = Emin + dE*ix;
+    for (int iy=0; iy<NUMK; iy++) {
+      K = TOLK + dK*iy;
+      out << setw(18) << E << setw(18) << K 
+	  << setw(18) << pdf[ix*NUMK+iy]
+	  << setw(18) << cdf[ix*NUMK+iy] << endl;
+    }
+    out << endl;
+  }
+}
+
+
 double* QPDistF::convert(Matrix& a, int mm, int nn)
 {
    int m = a.getnrows();
