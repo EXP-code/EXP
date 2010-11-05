@@ -21,27 +21,30 @@ class ExponentialDisk : public AxiSymModel
 private:
   
   double a;
+  double m;
   double rmin;
   double rmax;
   double den0;
 
 public:
 
-  ExponentialDisk(double RSCALE=1.0, double RMAX=20.0) 
+  ExponentialDisk(double RSCALE=1.0, double RMAX=20.0, double DMASS=1.0) 
   { 
     a       = RSCALE; 
     rmin    = 1.0e-8;
     rmax    = RMAX;
-    den0    = 0.5/M_PI/a/a;
-    dist_defined = false;
+    m       = DMASS;
+    den0    = m*0.5/M_PI/a/a;
     dim     = 2;
     ModelID = "ExponentialDisk"; 
+
+    dist_defined = false;
   }
       
 
   // Required member functions
 
-  double get_mass(const double r) { return 1.0 - exp(-r/a)*(1+r/a); }
+  double get_mass(const double r) { return m*(1.0 - exp(-r/a)*(1+r/a)); }
 
   double get_density(const double r) { return den0*exp(-r/a); }
 

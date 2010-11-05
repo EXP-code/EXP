@@ -31,6 +31,7 @@
 #include <fstream>
 #include <string>
 #include <cmath>
+#include <map>
 
 #include <numerical.h>
 #include <Vector.h>
@@ -690,9 +691,9 @@ void QPDistF::compute_distribution(void)
       }
     }
 
-    cout << "Objective value0: " << obj0 << endl;
-    cout << "Objective value : " << obj  << endl;
-    cout << "Condition       : " << IFAIL << endl;
+    cout << "Objective value0 : " << obj0 << endl;
+    cout << "Objective value  : " << obj  << endl;
+    cout << "Condition        : " << IFAIL << endl;
   }
 
   if (IFAIL) {
@@ -719,7 +720,7 @@ void QPDistF::compute_distribution(void)
 }
 
 
-void QPDistF::make_cum(int ENUM, int KNUM, double KTOL)
+void QPDistF::make_cdf(int ENUM, int KNUM, double KTOL)
 {
   NUME = ENUM;
   NUMK = KNUM;
@@ -727,36 +728,98 @@ void QPDistF::make_cum(int ENUM, int KNUM, double KTOL)
   
   double E, K;
   double dE = (Emax - Emin)/NUME;
-  double dK = (1.0 - 2*TOLK)/NUMK;
-  cdf = vector<double>(NUME*NUMK, 0.0);
+  double dK = (1.0 - 2.0*TOLK)/NUMK;
   pdf = vector<double>(NUME*NUMK);
   for (int ix=0; ix<NUME; ix++) {
     E = Emin + dE*ix;
     for (int iy=0; iy<NUMK; iy++) {
       K = TOLK + dK*iy;
       orb->new_orbit(E, K);
-      pdf[ix*NUMK+iy] = distf(E, K)*orb->Jmax()/orb->get_freq(1);
+      pdf[ix*NUMK+iy] = distf_EK(E, K)*orb->Jmax()/orb->get_freq(1) * dE*dK;
     }
   }
 
-  for (int ix=1; ix<NUME; ix++) {
-    for (int iy=1; iy<NUMK; iy++) {
-      cdf[ix*NUMK+iy] += M_PI*M_PI*dE*dK*
-	(pdf[(ix-1)*NUMK+(iy-1)] + pdf[(ix-1)*NUMK+(iy-1)] +
-	 pdf[(ix-1)*NUMK+(iy-1)] + pdf[(ix-1)*NUMK+(iy-1)] )
-	+ cdf[(ix-1)*NUMK+iy] + cdf[ix*NUMK+iy-1];
-    }
-  }
+				// First sum columns 
+  cdf = pdf;
+				// [This can be done in one pass but
+				// this construction is easier to
+				// understand]
+  for (int ix=0; ix<NUME; ix++)
+    for (int iy=1; iy<NUMK; iy++)
+      cdf[ix*NUMK+iy] += cdf[ix*NUMK+iy-1];
+				// Next sum rows
+  for (int iy=0; iy<NUMK; iy++)
+    for (int ix=1; ix<NUME; ix++)
+      cdf[ix*NUMK+iy] += cdf[(ix-1)*NUMK+iy];
+
+				// Normalize
+  double norm = 1.0/cdf[NUME*NUMK-1];
+  for (int iy=0; iy<NUMK; iy++)
+    for (int ix=1; ix<NUME; ix++)
+      cdf[ix*NUMK+iy] *= norm;
+
+				// Make multimap for realization
+  for (int ix=0; ix<NUME; ix++)
+    for (int iy=0; iy<NUMK; iy++)
+      realz.insert(elem(cdf[ix*NUMK+iy], ip(ix, iy)));
 }
 
 
-void QPDistF::dump_cum(const string& file)
+pair<double, double> QPDistF::gen_EK(double r1, double r2)
+{
+  multimap<double, ip>::iterator jj = realz.upper_bound(r1);
+  int ix = jj->second.first;
+  int iy = jj->second.second;
+  
+  double dE = (Emax - Emin)/NUME;
+  double dK = (1.0 - 2.0*TOLK)/NUMK;
+  
+  vector<double> x(2), y(2);
+
+  double a = cdf[(ix-1)*NUMK+(iy-1)];
+  double b = cdf[(ix-0)*NUMK+(iy-1)];
+  double c = cdf[(ix-1)*NUMK+(iy-0)];
+  double d = cdf[(ix-0)*NUMK+(iy-0)];
+
+  // Locate intercepts: vert-horiz segment
+  //
+  if (r1 >= a && r1 < c) {
+    x[0] = Emin + dE*(ix-1);
+    y[0] = TOLK + dK*((r1-a)/(c-a)+iy-1);
+  } else if (r1 >= c && r1 < d) {
+    x[0] = Emin + dE*((r1-c)/(d-c)+ix-1);
+    y[0] = TOLK + dK*(iy-0);
+  } else {
+    x[0] = Emin + dE*(ix-0);
+    y[0] = TOLK + dK*(iy-0);
+  }
+
+  // Locate intercepts: horiz-vert segment
+  //
+  if (r1 >= a && r1 < b) {
+    x[1] = Emin + dE*(ix-1);
+    y[1] = TOLK + dK*((r1-a)/(b-a)+iy-1);
+  } else if (r1 >= c && r1 < d) {
+    x[1] = Emin + dE*((r1-b)/(d-b)+ix-1);
+    y[1] = TOLK + dK*(iy-0);
+  } else {
+    x[1] = Emin + dE*(ix-0);
+    y[1] = TOLK + dK*(iy-0);
+  }
+
+  return pair<double, double> (x[0] + (x[1] - x[0])*r2,
+			       y[0] + (y[1] - y[0])*r2);
+  
+}
+
+
+void QPDistF::dump_cdf(const string& file)
 {
   ofstream out(file.c_str());
   if (!out) return;
 
   double E, K;
-  double dE = (Emax - Emin)/NUME;
+  double dE = (Emax -  Emin)/NUME;
   double dK = (1.0 - 2*TOLK)/NUMK;
 
   for (int ix=0; ix<NUME; ix++) {
@@ -764,11 +827,26 @@ void QPDistF::dump_cum(const string& file)
     for (int iy=0; iy<NUMK; iy++) {
       K = TOLK + dK*iy;
       out << setw(18) << E << setw(18) << K 
+	  << setw(18) << distf_EK(E, K)
 	  << setw(18) << pdf[ix*NUMK+iy]
 	  << setw(18) << cdf[ix*NUMK+iy] << endl;
     }
     out << endl;
   }
+
+  // DEBUG
+  ofstream tst("cdf.tmp");
+  multimap<double, ip>::iterator jj = realz.begin();
+  for (int j=0; jj!=realz.end(); j++, jj++) {
+    tst << setw(4) << j 
+	<< setw(4) << jj->second.first
+	<< setw(4) << jj->second.second
+	<< setw(18) << Emin + dE*jj->second.first
+	<< setw(18) << TOLK + dK*jj->second.second
+	<< setw(18) << jj->first
+	<< endl;
+  }
+  // END
 }
 
 

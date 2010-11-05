@@ -10,6 +10,7 @@
 
 #include <iomanip>
 #include <string>
+#include <map>
 
 // #include <biorth.h>
 #include <massmodel.h>
@@ -55,6 +56,9 @@ private:
   vector<double> pdf, cdf;
   int NUME, NUMK;
   double TOLK;
+  typedef pair<int, int> ip;
+  typedef pair<double, ip> elem;
+  multimap<double, ip> realz;
 
 				// Class utility functions
   double kernel(double x, double y, double x0, double y0, 
@@ -153,9 +157,10 @@ public:
     {*OBJ0=obj0; *OBJ=obj; *IFLG=IFAIL;}
 
   // Cumulative grid
-  void make_cum(int ENUM, int KNUM, double KTOL=1.0e-3);
-  void dump_cum(const string& file);
-
+  void make_cdf(int ENUM, int KNUM, double KTOL=1.0e-3);
+  void dump_cdf(const string& file);
+  pair<double, double> gen_EK(double r1, double r2);
+  
   // Read in already computed distribution function
   void read_state(string& name);
 

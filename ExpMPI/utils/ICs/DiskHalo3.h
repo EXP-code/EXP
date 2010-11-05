@@ -54,7 +54,7 @@ class DiskHalo
   SphericalSL* expandh;
   EmpCylSL* expandd;
 
-  Matrix *disktableP, *disktableN, epitable, dv2table, asytable;
+  Matrix *disktableP, *disktableN;
   double dP, dR, dZ;
 
   Matrix halotable;
@@ -70,11 +70,14 @@ class DiskHalo
   bool com;
   bool cov;
 
+  DiskWithHalo dmodel;
+
   double disk_density(double R, double z);
-  void write_record(ostream &out, Particle &p);
-  void table_halo_disp();
+  void   write_record(ostream &out, Particle &p);
+  void   table_halo_disp();
 
  public:
+
   static int NDP;		// Number of knots in disk table phi grid
 				// Default: 16
 
@@ -165,7 +168,7 @@ class DiskHalo
 
   void set_halo(vector<Particle>& phalo, int nhalo, int npart);
   void set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart);
-  void set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart);
+  void set_disk(vector<Particle>& pdisk, int ndisk, int npart);
 
   void set_pos_origin(double& x, double& y, double& z) 
     { 
@@ -198,23 +201,7 @@ class DiskHalo
   void disk_eval(double R, double z, double phi,
 		 double &p, double &fr, double &fz, double &fp);
 
-  double epi(double xp, double yp, double zp);
-
-  void table_disk(vector<Particle>& part);
-
-  double get_dispdz(double xp,double yp,double zp);
-
-  double vr_disp(double xp, double yp,double zp);
-
-  double a_drift(double xp, double yp,double zp);
-
-  double vp_disp(double xp, double yp, double zp);
-
-  double v_circ(double xp, double yp, double zp);
-
   void make_disk_DF(bool diag);
-
-  void set_vel_disk(vector<Particle>& part);
 
   void table_halo(vector<Particle>& part);
 

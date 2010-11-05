@@ -337,6 +337,7 @@ void SphericalOrbit::compute_angles(void)
     sl = s;
   }
 
+
   Spline(angle_grid.w1[1], angle_grid.t[1], 1.0e30, 1.0e30,
 	 angle_grid.t[2]);
 

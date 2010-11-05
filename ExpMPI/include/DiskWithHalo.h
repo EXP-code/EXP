@@ -18,7 +18,12 @@ private:
 
 public:
 
-  DiskWithHalo(AxiSymModel *D, AxiSymModel* H) {
+  // Null constructor
+  DiskWithHalo() : d(0), h(0) {}
+
+  // Useful constructor
+  DiskWithHalo(AxiSymModel *D, AxiSymModel* H) 
+  {
     d       = D;
     h       = H;
     dim     = 2;
@@ -26,6 +31,15 @@ public:
     dist_defined = false;
   }
       
+  // Copy constructor
+  DiskWithHalo(const DiskWithHalo& t) 
+  {
+    d       = t.d;
+    h       = t.h;
+    dim     = 2;
+    ModelID = t.ModelID;
+    dist_defined = false;
+  }
 
   // Required member functions
 

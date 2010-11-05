@@ -476,13 +476,13 @@ main(int argc, char **argv)
 
 
 #ifdef DEBUG  
-  cout << "Processor " << myid << ": n_particlesH=" << n_particlesH << "\n";
-  cout << "Processor " << myid << ": n_particlesD=" << n_particlesD << "\n";
-  cout << "Processor " << myid << ": n_particlesG=" << n_particlesG << "\n";
+  cout << "Processor " << myid << ": n_particlesH=" << n_particlesH << endl;
+  cout << "Processor " << myid << ": n_particlesD=" << n_particlesD << endl;
+  cout << "Processor " << myid << ": n_particlesG=" << n_particlesG << endl;
 #endif
 
   if (n_particlesH + n_particlesD + n_particlesG <= 0) {
-    if (myid==0) cout << "You have specified zero particles!\n";
+    if (myid==0) cout << "You have specified zero particles!" << endl;
     MPI_Abort(MPI_COMM_WORLD, 3);
     exit(0);
   }
@@ -648,14 +648,14 @@ main(int argc, char **argv)
   if (myid==0) {
     out_halo.open(hbods.c_str());
     if (!out_halo) {
-      cout << "Could not open <" << hbods << "> for output\n";
+      cout << "Could not open <" << hbods << "> for output" << endl;
       MPI_Abort(MPI_COMM_WORLD, 4);
       exit(0);
     }
 
     out_disk.open(dbods.c_str());
     if (!out_disk) {
-      cout << "Could not open <" << dbods << "> for output\n";
+      cout << "Could not open <" << dbods << "> for output" << endl;
       MPI_Abort(MPI_COMM_WORLD, 4);
       exit(0);
     }
@@ -673,24 +673,24 @@ main(int argc, char **argv)
       MPI_Barrier(MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
-  }
-
-  if (n_particlesD) {
-    if (myid==0) cout << "Generating disk coordinates . . . " << flush;
-    diskhalo->set_disk_coordinates(dparticles, ndisk, n_particlesD);
-    MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) cout << "done" << endl;
   }
 
   if (n_particlesH) {
     if (myid==0) cout << "Beginning halo accumulation . . . " << flush;
     expandh->accumulate(hparticles);
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) cout << "done" << endl;
   }
   
   if (n_particlesD) {
+    if (myid==0) cout << "Generating disk distribution function . . . " << flush;
+    diskhalo->make_disk_DF(true);
+    if (myid==0) cout << "done" << endl;
+    if (myid==0) cout << "Generating disk phase space . . . " << flush;
+    diskhalo->set_disk(dparticles, ndisk, n_particlesD);
+    MPI_Barrier(MPI_COMM_WORLD);
+    if (myid==0) cout << "done" << endl;
     if (myid==0) cout << "Beginning disk accumulation . . . " << flush;
     if (!expcond) {
       expandd->setup_eof();
@@ -698,31 +698,31 @@ main(int argc, char **argv)
       expandd->accumulate_eof(dparticles);
       MPI_Barrier(MPI_COMM_WORLD);
 
-      if (myid==0) cout << "done\n";
+      if (myid==0) cout << "done" << endl;
   
       if (myid==0) cout << "Making the EOF . . . " << flush;
       expandd->make_eof();
       MPI_Barrier(MPI_COMM_WORLD);
-      if (myid==0) cout << "done\n";
+      if (myid==0) cout << "done" << endl;
     }
   
     if (myid==0) cout << "Making disk coefficients . . . " << flush;
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) cout << "done" << endl;
 
     if (myid==0) cout << "Reexpand . . . " << flush;
     expandd->accumulate(dparticles);
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) cout << "done" << endl;
 
     if (images && myid==0) {
       cout << "Images . . . " << flush;
       ostringstream dumpname;
       dumpname << "images.0";
       expandd->dump_images(dumpname.str(), 5.0*ASCALE, 5.0*HSCALE, 64, 64, true);
-      cout << "done\n";
+      cout << "done" << endl;
     }
   }
   
@@ -740,7 +740,7 @@ main(int argc, char **argv)
       int nout = 200;
       char dumpname[] = "basis.dump";
       expandd->dump_basis(dumpname, 0);
-      string prefix = "gendisk2";
+      string prefix = "gendisk3";
       expandd->dump_images(prefix, 5.0*scale_length, 5.0*scale_height,
 			   nout, nout, false);
       expandd->dump_images_basis(prefix, 5.0*scale_length, 5.0*scale_height,
@@ -861,7 +861,7 @@ main(int argc, char **argv)
       delete [] out;
     }
     
-    cout << "done\n";
+    cout << "done" << endl;
   }
   
   MPI_Barrier(MPI_COMM_WORLD);
@@ -870,22 +870,16 @@ main(int argc, char **argv)
 
   if (!multi) {
     if (myid==0) cout << "Generating halo velocities . . . " << flush;
-    diskhalo->make_disk_DF(true);
     diskhalo->set_vel_halo(hparticles);
-    if (myid==0) cout << "done\n";
+    if (myid==0) cout << "done" << endl;
   }
   
-  if (myid==0) cout << "Generating disk velocities . . . " << flush;
-  diskhalo->set_vel_disk(dparticles);
-  if (myid==0) cout << "done\n";
-  
-
   //====================All done: write it out=================================
 
   if (myid==0) cout << "Writing phase space file . . . " << flush;
 
   diskhalo->write_file(out_halo, out_disk, hparticles, dparticles);
-  if (myid==0) cout << "done\n";
+  if (myid==0) cout << "done" << endl;
 
   out_halo.close();
   out_disk.close();
@@ -1095,7 +1089,7 @@ main(int argc, char **argv)
     //
     ofstream outps("gas.bods");
     if (!outps) {
-      cerr << "Couldn't open <" << "gas.bods" << "> for output\n";
+      cerr << "Couldn't open <" << "gas.bods" << "> for output" << endl;
       exit (-1);
     }
 

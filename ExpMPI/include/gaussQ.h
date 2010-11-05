@@ -62,6 +62,8 @@ public:
   double beta;
   int n;
 
+  GaussQuad() : alpha(0), beta(0), n(0) {}
+
   double weight(const int i) { if (i<1 || i>n) return bomb("index out of bounds");
   return w[i]; }
 
