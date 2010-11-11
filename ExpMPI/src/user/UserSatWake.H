@@ -10,7 +10,8 @@
 
     @param LMIN:		Minimum spherical harmonic index
     @param LMAX:		Maximum spherical harmonic index
-    @param M:			Azimuthal spherical harmonic index
+    @param MMIN			Minimum azimuthal spherical harmonic index
+    @param MMAX:		Maximum azimuthal spherical harmonic index
     @param lmax:		Maximum L1 index
     @param nmax:		Maximum radial index
     @param numr:		Maximum radial grid for SphereSL
@@ -34,7 +35,6 @@
     @param SITYPE:		Non-singular integration method (default: 2=rombint)
     @param RMODMAX:		Maximum radius for halo model
     @param ROFFSET:		Radial offset for EmbededDisk
-    @param RGRID:		Radial grid size TwoPower
     @param MODRADIUS:		Model radius for TwoPowerSphere
     @param MODMASS:		Model mass for TwoPowerSphere
     @param AEXPON:		Core power law for TwoPowerSphere
@@ -77,9 +77,9 @@ private:
   // Parameters
   //============================================================
 
-  int Number, Pmax, LMIN, LMAX, M, lmax, nmax, HALO_TRUNC;
+  int Number, Pmax, LMIN, LMAX, MMIN, MMAX, lmax, nmax, HALO_TRUNC;
   int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS, nfreqs;
-  int OLD, VERBOSE, RGRID, HALO_MODEL, NUMDF, numr, nint;
+  int OLD, VERBOSE, HALO_MODEL, NUMDF, numr, nint;
   double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
   double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac;
   double rmin, rmax, scale;
@@ -93,7 +93,7 @@ private:
   vector<CVector> curcoefs;
   vector< vector<CVector> > rcoefs;
   vector<double> Times;
-  vector<int> Lhalo;
+  vector<int> Lhalo, Mhalo;
 
   AxiSymModel *halo_model;
   AxiSymBiorth *u;

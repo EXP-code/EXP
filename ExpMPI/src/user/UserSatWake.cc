@@ -61,8 +61,9 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   id = "SatelliteWake";
 
   LMIN = 0;
-  LMAX = 5;
-  M = 2;
+  LMAX = 4;
+  MMIN = 0;
+  MMAX = 4;
   lmax = 4;
   nmax = 10;
   nfreqs = 1200;
@@ -80,7 +81,6 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   HALO_TYPE = 3;
   SITYPE = ITOSIT(2);
   RMODMAX = 20.0;
-  RGRID = 1000;
   DELTA = 0.0;
   OMPI = -0.01;
   NUMDF = 100;
@@ -175,7 +175,8 @@ void UserSatWake::userinfo()
   cout << setw(9) << "" << setw(15) << "NUMT"     << " = " << NUMT     << endl;
   cout << setw(9) << "" << setw(15) << "LMIN"     << " = " << LMIN     << endl;
   cout << setw(9) << "" << setw(15) << "LMAX"     << " = " << LMAX     << endl;
-  cout << setw(9) << "" << setw(15) << "M"        << " = " << M        << endl;
+  cout << setw(9) << "" << setw(15) << "MMIN"     << " = " << MMIN     << endl;
+  cout << setw(9) << "" << setw(15) << "MMAX"     << " = " << MMAX     << endl;
   cout << setw(9) << "" << setw(15) << "lmax"     << " = " << lmax     << endl;
   cout << setw(9) << "" << setw(15) << "nmax"     << " = " << nmax     << endl;
   cout << setw(9) << "" << setw(15) << "nfreqs"   << " = " << nfreqs   << endl;
@@ -216,7 +217,8 @@ void UserSatWake::initialize()
 
   if (get_value("LMIN", val))		LMIN = atoi(val);
   if (get_value("LMAX", val))		LMAX = atoi(val);
-  if (get_value("M", val))		M = atoi(val);
+  if (get_value("MMIN", val))		MMIN = atoi(val);
+  if (get_value("MMAX", val))		MMIN = atoi(val);
   if (get_value("lmax", val))		lmax = atoi(val);
   if (get_value("nmax", val))		nmax = atoi(val);
   if (get_value("nfreqs", val))		nfreqs = atoi(val);
@@ -265,11 +267,11 @@ void UserSatWake::initialize_coefficients()
   // Sanity checks
   //=================
   
-  if (M<0 && myid==0) cerr << "Warning: M should be >0 . . . fixing\n";
-  M = abs(M);
-  if (M>LMIN) {
-    if (myid==0) cout << "Setting LMIN=M=" << M << endl;
-    LMIN = M;
+  if (MMIN<=0 && myid==0) cerr << "Warning: Mmin should be >=0 . . . fixing\n";
+  MMIN = abs(MMIN);
+  if (MMIN>LMIN) {
+    if (myid==0) cout << "Setting LMIN=MMIN=" << MMIN << endl;
+    LMIN = MMIN;
   }
   
   
@@ -383,13 +385,17 @@ void UserSatWake::initialize_coefficients()
       from_save.read(tbuf, 255);
       cout << tbuf << endl;
 
-      int nfreq1, lmin1, lmax1;
+      int nfreq1, lmin1, lmax1, mmin1, mmax1;
       from_save.read((char *)&nfreq1, sizeof(int));
       from_save.read((char *)&lmin1,  sizeof(int));
       from_save.read((char *)&lmax1,  sizeof(int));
+      from_save.read((char *)&mmin1,  sizeof(int));
+      from_save.read((char *)&mmax1,  sizeof(int));
       if (nfreqs != nfreq1) reading = 0;
       if (LMIN   != lmin1 ) reading = 0;
       if (LMAX   != lmax1 ) reading = 0;
+      if (MMIN   != mmin1 ) reading = 0;
+      if (MMAX   != mmax1 ) reading = 0;
       if (reading) {
 	KComplex tmp;
 	for (int i=0; i<nfreqs; i++) {
@@ -422,10 +428,12 @@ void UserSatWake::initialize_coefficients()
       MPI_Abort(MPI_COMM_WORLD, -34);
     } 
 
-    int nfreq1, lmin1, lmax1;
+    int nfreq1, lmin1, lmax1, mmin1, mmax1;
     from_save.read((char *)&nfreq1, sizeof(int));
     from_save.read((char *)&lmin1,  sizeof(int));
     from_save.read((char *)&lmax1,  sizeof(int));
+    from_save.read((char *)&mmin1,  sizeof(int));
+    from_save.read((char *)&mmax1,  sizeof(int));
     KComplex tmp;
     for (int i=0; i<nfreqs; i++) {
       from_save.read((char *)&tmp.real(), sizeof(double));
@@ -456,6 +464,8 @@ void UserSatWake::initialize_coefficients()
     to_save.write((const char *)&nfreqs, sizeof(int));
     to_save.write((const char *)&LMIN,   sizeof(int));
     to_save.write((const char *)&LMAX,   sizeof(int));
+    to_save.write((const char *)&MMIN,   sizeof(int));
+    to_save.write((const char *)&MMAX,   sizeof(int));
     for (int i=0; i<nfreqs; i++) {
       to_save.write((const char *)&freqs[i].real(), sizeof(double));
       to_save.write((const char *)&freqs[i].imag(), sizeof(double));
@@ -512,10 +522,34 @@ void UserSatWake::initialize_coefficients()
   
   KComplex I(0.0, 1.0);
   
-  vector<int> Lhalo;
-  for (int L=LMIN; L<=LMAX; L++) Lhalo.push_back(L);
+  vector<int> Lhalo, Mhalo;
+  for (int L=LMIN; L<=LMAX; L++) {
+    int mmin;
+    if (isOdd(L)) {
+      if (isOdd(MMIN)) mmin = MMIN;
+      else             mmin = MMIN+1;
+    } else {
+      if (isOdd(MMIN)) mmin = MMIN+1;
+      else             mmin = MMIN;
+    }
+    for (int M=MMIN; M<=L; M+=2) {
+      Lhalo.push_back(L);
+      Mhalo.push_back(M);
+    }
+  }
+
   int Nhalo = Lhalo.size();
   vector<RespMat> mab_halo(Nhalo);
+  if (myid==0) {
+    cout << "Harmonics:" << endl << "---------" << endl
+	 << setw(3) << left << "L"
+	 << setw(3) << left << "M"
+	 << endl;
+    for (int i=0; i<Nhalo; i++)
+      cout << setw(3) << left << Lhalo[i]
+	   << setw(3) << left << Mhalo[i]
+	   << endl;
+  }
   
   icnt = 0;
   for (int nf=0; nf<nfreqs; nf++) {
@@ -536,7 +570,7 @@ void UserSatWake::initialize_coefficients()
       //
       for (int ihalo=0; ihalo<Nhalo; ihalo++) {
 	
-	mab_halo[ihalo] = RespMat(freqs[nf], Lhalo[ihalo], M, 
+	mab_halo[ihalo] = RespMat(freqs[nf], Lhalo[ihalo], Mhalo[ihalo], 
 				  lmax, nmax, nptsK, nptsE,
 				  halo_model, u, OLD, 0, 0,
 				  VERBOSE, SITYPE, CAUCHY, RATINT);
@@ -625,6 +659,7 @@ void UserSatWake::initialize_coefficients()
       for (int ihalo=0; ihalo<Nhalo; ihalo++) {
 	
 	int L = Lhalo[ihalo];
+	int M = Mhalo[ihalo];
 	
 	for (int L2=-L; L2<=L; L2+=2) {
 	  // 
@@ -738,6 +773,7 @@ void * UserSatWake::determine_acceleration_and_potential_thread(void * arg)
       for (unsigned ihalo=0; ihalo<Lhalo.size(); ihalo++) {
 
 	int L = Lhalo[ihalo];
+	int M = Mhalo[ihalo];
 
 	fac = sqrt( (0.5*L + 0.25)/M_PI * 
 		    exp(lgamma(1.0+L-M) - lgamma(1.0+L+M)) ) * satmass;
