@@ -2,7 +2,7 @@
 #include <math.h>
 #include "kevin_complex.h"
 
-void laguer_root(CVector& a, int m, Complex *x, double eps, int polish);
+void laguer_root(CVector& a, int m, KComplex *x, double eps, int polish);
 
 double EPS=2.0e-16;
 
@@ -10,7 +10,7 @@ void zroots(CVector& a, CVector& roots, int polish)
 {
   int jj, j, i;
   int m = roots.gethigh();
-  Complex x, b, c;
+  KComplex x, b, c;
   
   CVector ad = a;
   for (j=m; j>=1; j--) {

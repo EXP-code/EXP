@@ -8,8 +8,6 @@
 
 /** Halo model based on SphericalModelTable
 
-    @param Number:		Power of 2 for DFT sampling
-    @param Pmax:		Use only the first Pmax frequencies
     @param LMIN:		Minimum spherical harmonic index
     @param LMAX:		Maximum spherical harmonic index
     @param M:			Azimuthal spherical harmonic index
@@ -18,6 +16,8 @@
     @param numr:		Maximum radial grid for SphereSL
     @param rmin:		Minimum radius for SphereSL
     @param rmax:		Maximum radius for SphereSL
+    @param nfreqs:		Number of points in frequency grid for inverse Laplace transform
+    @param nint:		Number of points in time grid for Laplace transform segments
     @param scale:		Coordinate scale for SphereSL
     @param HALO_TRUNC:		Truncate halo expansion
     @param nptsE:		Power of 2 quadrature index for Energy integral in response matrices
@@ -42,7 +42,6 @@
     @param DELTA:		Delta value for halo response computation
     @param HALO_MODEL:		Halo model index (0=file)
     @param OMPI:		Constant complex frequency offset
-    @param OMPS:		Sign of complex frequency
     @param NUMDF:		Number of points for Eddington inversion
     @param NICE:		Set process priority
     @param RA:			Anistropic radius for Oskipkov-Merritt inversion
@@ -54,15 +53,17 @@
     @param NUMT:		Number of times for wake computatoin (e.g. for movies)
     @param DIVERGE:		Use power law extrapolation
     @param DIVEXPON:		Power law exponent for extrapolation
+    @param Rfac:		Radius for evaluation of characteristic frequency
+    @param Mfac:		Multiplicative factor for maximum frequency
     @param E:			Orbital energy
     @param Rperi:		Pericenter value
-    @param Redge:		Outer radius
-    @param deltaR:		Radial spacing
-    @param deltaT:		Temporal spacing
+    @param Tmax:		Maximum time
+    @param delT:		Orbital time step
     @param Toffset:		Offset from pericenter (which is T=0 by default)
     @param MASS:		Satellite mass
     @param INFILE:		Model file
     @param CACHEDIR:		Directory containing cache files
+    @param UseCache:		Attempt to read and write cache
 */
 class UserSatWake : public ExternalForce
 {
@@ -77,14 +78,15 @@ private:
   //============================================================
 
   int Number, Pmax, LMIN, LMAX, M, lmax, nmax, HALO_TRUNC;
-  int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS;
-  int OLD, VERBOSE, RGRID, HALO_MODEL, OMPS, NUMDF, numr;
-  double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Redge;
-  double DIVEXPON, DELTA, OMPI, deltaR, deltaT, satmass, Toffset;
+  int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS, nfreqs;
+  int OLD, VERBOSE, RGRID, HALO_MODEL, NUMDF, numr, nint;
+  double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
+  double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac;
   double rmin, rmax, scale;
   int TYPE, MODEL, NUMT, DIVERGE;
   string INFILE, CACHEDIR, ctr_name;
   IntegrationType SITYPE;
+  bool UseCache;
 
   //============================================================
 

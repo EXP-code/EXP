@@ -59,7 +59,7 @@ Vector get_horner(double z, Poly &p)
 }
 
 
-CVector Cget_horner(Complex z, CPoly &p)
+CVector Cget_horner(KComplex z, CPoly &p)
 {
   int i, j;
   int order = p.getorder();

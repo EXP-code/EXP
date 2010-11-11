@@ -44,7 +44,7 @@ private:
 
 				// Orientation
 
-  Complex I;
+  KComplex I;
   CVector ylm;
   bool init_orientation;
   double *param;
@@ -66,7 +66,7 @@ private:
 				// Debugging routines only
   void test_transform(void);
   void check_orientation(double, double, double);
-  Complex test_fct(double, double);
+  KComplex test_fct(double, double);
 
 public:
 

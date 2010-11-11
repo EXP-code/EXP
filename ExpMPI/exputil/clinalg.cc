@@ -36,7 +36,7 @@ int lu_decomp(CMatrix& a, int *indx, double& d)
   int i,imax,j,k;
   double big, dum, temp;
   int n = a.getnrows();
-  Complex sum, ctemp;
+  KComplex sum, ctemp;
 
   Vector vv(1,n);
 				// No row interchanges yet
@@ -122,7 +122,7 @@ void lu_backsub(CMatrix& a, int* indx, CVector& b)
   int i,ip,j;
 //  int ii=0;
   int n = a.getnrows();
-  Complex sum;
+  KComplex sum;
 
   for (i=1; i<=n; i++) {
     ip = indx[i];
@@ -210,10 +210,10 @@ int inverse(CMatrix& a, CMatrix& b)
 }
 
 
-Complex lu_determinant(CMatrix& a, double& d)
+KComplex lu_determinant(CMatrix& a, double& d)
 {
   int i, n=a.getnrows();
-  Complex det;
+  KComplex det;
 
   det = d;
   for (i=1; i<=n; i++)
@@ -224,7 +224,7 @@ Complex lu_determinant(CMatrix& a, double& d)
 
 
      
-Complex determinant(CMatrix& a)
+KComplex determinant(CMatrix& a)
 {
   int n = a.getnrows();
 
@@ -243,7 +243,7 @@ Complex determinant(CMatrix& a)
 
   if (iret) return 0.0;
 
-  Complex det = d;
+  KComplex det = d;
   for (int i=1; i<=n; i++)
     det *= m[i][i];
   

@@ -1,7 +1,6 @@
 
 #ifndef _k_complex_h
 #define _k_complex_h
-#define Complex KComplex
 
 #include <iostream>
 
@@ -9,36 +8,36 @@ using namespace std;
 
 class CVector;
 class CMatrix;
-class Complex;
+class KComplex;
 
 // #define CDEBUG 1
 
 
-class Complex
+class KComplex
 {
-protected:
+ protected:
 	double r;
 	double i;
 #ifdef CDEBUG
 	static int nlive;
 #endif
-public:
+ public:
 	friend class CVector;
 	friend class CMatrix;
 
 	/* constructors */
 	
 #ifdef CDEBUG
-	Complex(void) {r=0.0; i=0.0; nlive++;}
-	Complex(const double x) {r=x; i=0.0; nlive++;}
-	Complex(const double x, const double y) {r=x; i=y; nlive++;}
-	Complex(const Complex &z) {r=z.r; i=z.i; nlive++;}
-	~Complex(void) {nlive--;}
+	KComplex(void) {r=0.0; i=0.0; nlive++;}
+	KComplex(const double x) {r=x; i=0.0; nlive++;}
+	KComplex(const double x, const double y) {r=x; i=y; nlive++;}
+	KComplex(const KComplex &z) {r=z.r; i=z.i; nlive++;}
+	~KComplex(void) {nlive--;}
 #else
-	Complex(void) {r=0.0; i=0.0;}
-	Complex(const double x) {r=x; i=0.0;}
-	Complex(const double x, const double y) {r=x; i=y;}
-	Complex(const Complex &z) {r=z.r; i=z.i;}
+	KComplex(void) {r=0.0; i=0.0;}
+	KComplex(const double x) {r=x; i=0.0;}
+	KComplex(const double x, const double y) {r=x; i=y;}
+	KComplex(const KComplex &z) {r=z.r; i=z.i;}
 #endif
 	
 
@@ -46,11 +45,11 @@ public:
 	
 	double & real(void) {return r;}
 	double & imag(void) {return i;}	
-	friend inline double Re(Complex z);
-	friend inline double Im(Complex z);
+	friend inline double Re(KComplex z);
+	friend inline double Im(KComplex z);
+	
 
-
-
+	
 	/* simple output */
 	
 	void print(void)	{cout << r << " + " << i << " I\n";}
@@ -60,128 +59,128 @@ public:
 	}
 #endif	
 	
-
+	
 	/* assignment */
 	
-	Complex &operator=(const Complex &z) {r=z.r; i=z.i; return *this;}
-	Complex &operator=(const double &x) {r=x; i=0.0; return *this;}
+	KComplex &operator=(const KComplex &z) {r=z.r; i=z.i; return *this;}
+	KComplex &operator=(const double &x) {r=x; i=0.0; return *this;}
 
-
+	
 	/* unary minus */
-
-	Complex operator-(void)	
-		{
-			Complex tmp;
+	
+	KComplex operator-(void)	
+	{
+			KComplex tmp;
 			tmp.r = -r;
 			tmp.i = -i;
 			return tmp;
 		}
+	
 
-
-
+	
 	/* reflexive arithmetic operators */
 	
-	Complex &operator+=(const Complex &z) {r+=z.r; i+=z.i; return *this;}
-	Complex &operator+=(double x) {r+=x; return *this;}
-	Complex &operator-=(const Complex &z) {r-=z.r; i-=z.i; return *this;}
-	Complex &operator-=(double x) {r-=x; return *this;}
-	Complex &operator*=(const Complex &z) 
-		{
+	KComplex &operator+=(const KComplex &z) {r+=z.r; i+=z.i; return *this;}
+	KComplex &operator+=(double x) {r+=x; return *this;}
+	KComplex &operator-=(const KComplex &z) {r-=z.r; i-=z.i; return *this;}
+	KComplex &operator-=(double x) {r-=x; return *this;}
+	KComplex &operator*=(const KComplex &z) 
+	  {
 			double tmp=r; 
 			r=r*z.r - i*z.i; 
 			i=i*z.r + tmp*z.i; 
 			return *this;
 		}
-	Complex &operator*=(double x) {r *= x; i *= x; return *this;}
-	Complex &operator/=(double x) {r /= x; i /= x; return *this;}
-	Complex &operator/=(const Complex &z)
+	KComplex &operator*=(double x) {r *= x; i *= x; return *this;}
+	KComplex &operator/=(double x) {r /= x; i /= x; return *this;}
+	KComplex &operator/=(const KComplex &z)
 		{
-			double a, tmp=r;
+		  double a, tmp=r;
 			a = z.r*z.r + z.i*z.i;
 			r = (r*z.r + i*z.i)/a;
 			i = (i*z.r - tmp*z.i)/a;
 			return *this;
 		}
+	
 
-
-
+	
 	/* conjugation, polar angle, and absolute value */
 	
-	friend Complex conjg(const Complex &);
-	friend double arg(const Complex &);
-	friend double fabs(const Complex &);
-			
+	friend KComplex conjg(const KComplex &);
+	friend double arg(const KComplex &);
+	friend double fabs(const KComplex &);
+	
 		
-
+	
 	/* arithmetic with two complex numbers */
 	
-	friend Complex operator+(const Complex &, const Complex &);
-	friend Complex operator-(const Complex &, const Complex &);
-	friend Complex operator*(const Complex &, const Complex &);
-	friend Complex operator/(const Complex &, const Complex &);
+	friend KComplex operator+(const KComplex &, const KComplex &);
+	friend KComplex operator-(const KComplex &, const KComplex &);
+	friend KComplex operator*(const KComplex &, const KComplex &);
+	friend KComplex operator/(const KComplex &, const KComplex &);
 
-
+	
 
 	/* arithmetic with real numbers */
 	
-	friend Complex operator+(const Complex &, const double);
-	friend Complex operator+(const double, const Complex &);
-	friend Complex operator-(const Complex &, const double);
-	friend Complex operator-(const double, const Complex &);
-	friend Complex operator*(const Complex &, const double);
-	friend Complex operator*(const double, const Complex &);
-	friend Complex operator/(const double, const Complex &);
-	friend Complex operator/(const Complex &, const double);
-
-
-
-	/* exponential, logarithm, and powers */
+	friend KComplex operator+(const KComplex &, const double);
+	friend KComplex operator+(const double, const KComplex &);
+	friend KComplex operator-(const KComplex &, const double);
+	friend KComplex operator-(const double, const KComplex &);
+	friend KComplex operator*(const KComplex &, const double);
+	friend KComplex operator*(const double, const KComplex &);
+	friend KComplex operator/(const double, const KComplex &);
+	friend KComplex operator/(const KComplex &, const double);
+	
 
 	
-	friend Complex exp(const Complex &);
-	friend Complex log(const Complex &);
-	friend Complex pow(const Complex &, Complex &);
-	friend Complex pow(const Complex &, const double);
-	friend Complex pow(const double, const Complex &);
-	friend Complex sqrt(const Complex &);
-
+	/* exponential, logarithm, and powers */
+	
+	
+	friend KComplex exp(const KComplex &);
+	friend KComplex log(const KComplex &);
+	friend KComplex pow(const KComplex &, KComplex &);
+	friend KComplex pow(const KComplex &, const double);
+	friend KComplex pow(const double, const KComplex &);
+	friend KComplex sqrt(const KComplex &);
+	
 
 	/* hyperbolic functions */
 	
-	friend Complex cosh(const Complex &);
-	friend Complex sinh(const Complex &);
-	friend Complex tanh(const Complex &);
+	friend KComplex cosh(const KComplex &);
+	friend KComplex sinh(const KComplex &);
+	friend KComplex tanh(const KComplex &);
 
-
+	
 	/* trigonometric functions */
 	
-	friend Complex cos(const Complex &);
-	friend Complex sin(const Complex &);
-	friend Complex tan(const Complex &);
-
+	friend KComplex cos(const KComplex &);
+	friend KComplex sin(const KComplex &);
+	friend KComplex tan(const KComplex &);
+	
 
 	/* inverse hyperbolic functions */
 	
-	friend Complex acosh(const Complex &);
-	friend Complex asinh(const Complex &);
-	friend Complex atanh(const Complex &);
+	friend KComplex acosh(const KComplex &);
+	friend KComplex asinh(const KComplex &);
+	friend KComplex atanh(const KComplex &);
 
-
+	
 	/* inverse trigonometric functions */
 	
-	friend Complex acos(const Complex &);
-	friend Complex asin(const Complex &);
-	friend Complex atan(const Complex &);
+	friend KComplex acos(const KComplex &);
+	friend KComplex asin(const KComplex &);
+	friend KComplex atan(const KComplex &);
 };	
 			
-// inline double Re(Complex &z) {return z.r;}
-// inline double Im(Complex &z) {return z.i;}
-inline double Re(Complex z) {return z.r;}
-inline double Im(Complex z) {return z.i;}
-istream&  operator >> (istream& s, Complex& x);
-ostream&  operator << (ostream& s, Complex& x);
+// inline double Re(KComplex &z) {return z.r;}
+// inline double Im(KComplex &z) {return z.i;}
+inline double Re(KComplex z) {return z.r;}
+inline double Im(KComplex z) {return z.i;}
+istream&  operator >> (istream& s, KComplex& x);
+ostream&  operator << (ostream& s, KComplex& x);
 
 #include <CVector.h>
-		
+
 	
 #endif

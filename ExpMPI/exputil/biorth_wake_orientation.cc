@@ -66,9 +66,9 @@ void BiorthWake::orientation(int L, int M,
       else {
 	fac2 = fac1 * sqrt( factrl(l-m)/factrl(l+m) );
 	ylm[-m] = fac2 * signflip *
-	  Complex(expcoef[loffset+moffset][n], -expcoef[loffset+moffset+1][n]);
+	  KComplex(expcoef[loffset+moffset][n], -expcoef[loffset+moffset+1][n]);
 	ylm[ m] = fac2 * 
-	  Complex(expcoef[loffset+moffset][n],  expcoef[loffset+moffset+1][n]);
+	  KComplex(expcoef[loffset+moffset][n],  expcoef[loffset+moffset+1][n]);
 
 	moffset +=2;
       }
@@ -120,7 +120,7 @@ public:
 
 double BiorthWake::energy(double *params)
 {
-  Complex ansp=0.0, ansm=0.0;
+  KComplex ansp=0.0, ansm=0.0;
   int n;
 
   for (n=-ll; n<=ll; n++) {
@@ -301,7 +301,7 @@ void BiorthWake::amoeba(void)
 #include <gaussQ.h>
 #include <iomanip>
 
-Complex BiorthWake::test_fct(double theta, double phi)
+KComplex BiorthWake::test_fct(double theta, double phi)
 {
   return 
     sqrt( (0.5*ll + 0.25)/M_PI *
@@ -333,7 +333,7 @@ void BiorthWake::test_transform(void)
 
   int it, ip, m, n;
   double cost, sint, theta, phi, theta1, phi1, signflip, psi;
-  Complex fac, fac2;
+  KComplex fac, fac2;
 
   for (it=1; it<=NINT; it++) {
     

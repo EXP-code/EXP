@@ -1,16 +1,13 @@
-#include <assert.h>
-#include <stdlib.h>
-#include <unistd.h>
-
-#include <mpi.h>
+#include <cassert>
+#include <cstdlib>
+#include <sstream>
+#include <string>
 
 #include <Vector.h>
 #include <kevin_complex.h>
 
-#include <sstream>
-#include <string>
-
 #include <pthread.h>
+#include <mpi.h>
 
 using namespace std;
 
@@ -1028,6 +1025,74 @@ Matrix Matrix_binread(istream& in)
   return tmp;
 }
 
+
+void VectorSynchronize(Vector& v, int id)
+{
+  int bb[2], myid;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  if (myid == id) {
+    bb[0] = v.getlow();
+    bb[1] = v.gethigh();
+  }
+
+  MPI_Bcast(bb, 2, MPI_INT, id, MPI_COMM_WORLD);
+  
+  if (bb[0]==0 && bb[1]==0) return;
+  
+  if (myid!=id) v.setsize(bb[0], bb[1]);
+  
+  int sz = bb[1] - bb[0] + 1;
+  vector<double> tmp(sz);
+  
+  if (myid==id) {
+    for (int i=bb[0]; i<=bb[1]; i++) tmp[i-bb[0]] = v[i];
+  }
+
+  MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+  if (myid!=id) {
+    for (int i=bb[0]; i<=bb[1]; i++) v[i] = tmp[i-bb[0]];
+  }
+
+}
+
+void MatrixSynchronize(Matrix& mat, int id)
+{
+  int bb[4], myid;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  if (myid == id) {
+    bb[0] = mat.getrlow();
+    bb[1] = mat.getrhigh();
+    bb[2] = mat.getclow();
+    bb[3] = mat.getchigh();
+  }
+
+  MPI_Bcast(bb, 4, MPI_INT, id, MPI_COMM_WORLD);
+
+  if (bb[0]==0 && bb[1]==0 && bb[2]==0 && bb[3]==0) return;
+
+  if (myid!=id) mat.setsize(bb[0], bb[1], bb[2], bb[3]);
+  
+  int sz = bb[3] - bb[2] + 1;
+  vector<double> tmp(sz);
+  for (int j=bb[0]; j<=bb[1]; j++) {
+
+    if (myid==id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	tmp[i-bb[2]] = mat[j][i];
+    }
+
+    MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+    if (myid!=id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	mat[j][i] = tmp[i-bb[2]];
+    }
+  }
+
+}
 
 inline double fabs(Vector& v) {return sqrt(v*v);}
 

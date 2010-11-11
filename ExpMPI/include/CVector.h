@@ -19,7 +19,7 @@ class Vector;
 class Matrix;
 class CVector;
 class CMatrix;
-class Complex;
+class KComplex;
 
 class CVector
 {
@@ -30,8 +30,8 @@ class CVector
  protected:
   int low, high, size;
   // memory management uses STL vector
-  Complex* pelement;
-  vector<Complex> elements;
+  KComplex* pelement;
+  vector<KComplex> elements;
 
  public:
   // constructors
@@ -39,7 +39,7 @@ class CVector
   CVector(void);
   CVector(int, int);
   CVector(int, int, double *);
-  CVector(int, int, Complex *);
+  CVector(int, int, KComplex *);
   CVector(const CVector &);
   CVector(const Vector &);
   
@@ -48,7 +48,7 @@ class CVector
   
   void setsize(int, int);
   
-  Complex &operator[](int) const;	// safe access
+  KComplex &operator[](int) const;	// safe access
   CVector &operator=(const CVector &);
   
   void zero(void);
@@ -59,7 +59,7 @@ class CVector
   
   // make an array
   
-  Complex *array(int l, int h);
+  KComplex *array(int l, int h);
   
   
   
@@ -89,7 +89,7 @@ class CVector
   
   // dot product
   
-  friend Complex operator*(const CVector &, const CVector &);
+  friend KComplex operator*(const CVector &, const CVector &);
   
   // combine product
   
@@ -99,11 +99,11 @@ class CVector
   
   // operations with scalars
   
-  CVector &operator*=(const Complex &);
-  CVector &operator/=(const Complex &);
-  friend CVector operator*(const CVector &, const Complex &);
-  friend CVector operator*(const Complex &, const CVector &);
-  friend CVector operator/(const CVector &, const Complex &);
+  CVector &operator*=(const KComplex &);
+  CVector &operator/=(const KComplex &);
+  friend CVector operator*(const CVector &, const KComplex &);
+  friend CVector operator*(const KComplex &, const CVector &);
+  friend CVector operator/(const CVector &, const KComplex &);
   
   CVector &operator*=(double);
   CVector &operator/=(double);
@@ -126,9 +126,9 @@ class CVector
   
   // scalar-matrix operations
   
-  friend CMatrix operator*(const CMatrix &, const Complex &);
-  friend CMatrix operator/(const CMatrix &, const Complex &);
-  friend CMatrix operator*(const Complex &, const CMatrix &);
+  friend CMatrix operator*(const CMatrix &, const KComplex &);
+  friend CMatrix operator/(const CMatrix &, const KComplex &);
+  friend CMatrix operator*(const KComplex &, const CMatrix &);
   friend CMatrix operator*(const CMatrix &, double);
   friend CMatrix operator/(const CMatrix &, double);
   friend CMatrix operator*(double, const CMatrix &);
@@ -145,9 +145,9 @@ class CVector
   friend CVector operator*(const CVector &c, const Matrix &m);
   friend CVector operator*(const Vector &v, const CMatrix &c);
   
-  friend CVector operator/(const Vector &v, const Complex &c);
-  friend CVector operator*(const Vector &v, const Complex &c);
-  friend CVector operator*(const Complex &c, const Vector &v);
+  friend CVector operator/(const Vector &v, const KComplex &c);
+  friend CVector operator*(const Vector &v, const KComplex &c);
+  friend CVector operator*(const KComplex &c, const Vector &v);
   
   
   // miscellaneous
@@ -204,7 +204,7 @@ class CMatrix
   CMatrix(void);
   CMatrix(int, int, int, int);
   CMatrix(int, int, int, int, double **);
-  CMatrix(int, int, int, int, Complex **);
+  CMatrix(int, int, int, int, KComplex **);
   CMatrix(const CMatrix &);
   CMatrix(const Matrix &);
 
@@ -283,11 +283,11 @@ class CMatrix
   CMatrix &operator*=(double);
   CMatrix &operator/=(double);
   
-  friend CMatrix operator*(const CMatrix &, const Complex &);
-  friend CMatrix operator*(const Complex &, const CMatrix &);
-  friend CMatrix operator/(const CMatrix &, const Complex &);
-  CMatrix &operator*=(const Complex &);
-  CMatrix &operator/=(const Complex &);
+  friend CMatrix operator*(const CMatrix &, const KComplex &);
+  friend CMatrix operator*(const KComplex &, const CMatrix &);
+  friend CMatrix operator/(const CMatrix &, const KComplex &);
+  CMatrix &operator*=(const KComplex &);
+  CMatrix &operator/=(const KComplex &);
   
   
   // Mixed
@@ -300,9 +300,9 @@ class CMatrix
   friend CMatrix operator-(const Matrix &m, const CMatrix &c);
   friend CMatrix operator-(const CMatrix &c, const Matrix &m);
   
-  friend CMatrix operator*(const Matrix &m, const Complex &c);
-  friend CMatrix operator*(const Complex &c, const Matrix &m);
-  friend CMatrix operator/(const Matrix &m, const Complex &c);
+  friend CMatrix operator*(const Matrix &m, const KComplex &c);
+  friend CMatrix operator*(const KComplex &c, const Matrix &m);
+  friend CMatrix operator/(const Matrix &m, const KComplex &c);
   
   
   
@@ -321,7 +321,7 @@ class CMatrix
   CMatrix Conjg(void) const;	
   CMatrix Transpose(void) const;	
   CMatrix Adjoint(void) const {return Transpose().Conjg();}
-  Complex Trace(void) const;
+  KComplex Trace(void) const;
   
   
 };
@@ -333,8 +333,8 @@ class CMatrix
 // declarations for mixed-type operators
 
 
-Complex operator*(const Vector &v, const CVector &c);
-Complex operator*(const CVector &c, const Vector &v);
+KComplex operator*(const Vector &v, const CVector &c);
+KComplex operator*(const CVector &c, const Vector &v);
 
 
 // miscellaneous functions
@@ -344,11 +344,14 @@ Matrix Im(const CMatrix &c);
 CMatrix Conjg(const CMatrix &c);
 CMatrix Adjoint(const CMatrix &c);
 CMatrix Transpose(const CMatrix &c);
-Complex Trace(const CMatrix &c);
+KComplex Trace(const CMatrix &c);
 
 Vector Re(const CVector &c);
 Vector Im(const CVector &c);
 CVector Conjg(const CVector &c);
 
+void CVectorSynchronize(CVector &c,  int id);
+void CMatrixSynchronize(CMatrix &c,  int id);
+void ComplexSynchronize(KComplex &c, int id);
 
 #endif

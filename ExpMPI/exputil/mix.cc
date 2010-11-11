@@ -9,9 +9,9 @@
 
 // dot product
 
-Complex operator*(const Vector &v, const CVector &c)
+KComplex operator*(const Vector &v, const CVector &c)
 	{CVector tmp(v); return tmp*c;}
-Complex operator*(const CVector &c, const Vector &v)
+KComplex operator*(const CVector &c, const Vector &v)
 	{CVector tmp(v); return tmp*c;}
 
 
@@ -75,22 +75,22 @@ CMatrix operator-(const CMatrix &c, const Matrix &m)
 // multiplication by scalars
 
 
-CMatrix operator*(const Matrix &m, const Complex &c)
+CMatrix operator*(const Matrix &m, const KComplex &c)
 	{CMatrix tmp(m); return tmp*c;}
 
-CMatrix operator*(const Complex &c, const Matrix &m)
+CMatrix operator*(const KComplex &c, const Matrix &m)
 	{CMatrix tmp(m); return tmp*c;}
 
-CVector operator*(const Vector &v, const Complex &c)
+CVector operator*(const Vector &v, const KComplex &c)
 	{CVector tmp(v); return tmp*c;}
 
-CVector operator*(const Complex &c, const Vector &v)
+CVector operator*(const KComplex &c, const Vector &v)
 	{CVector tmp(v); return tmp*c;}
 
-CMatrix operator/(const Matrix &m, const Complex &c)
+CMatrix operator/(const Matrix &m, const KComplex &c)
 	{CMatrix tmp(m); return tmp/c;}
 
-CVector operator/(const Vector &v, const Complex &c)
+CVector operator/(const Vector &v, const KComplex &c)
 	{CVector tmp(v); return tmp/c;}
 
 

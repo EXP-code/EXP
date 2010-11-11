@@ -400,5 +400,7 @@ void jacobi(double **, int, double *, double **, int *) throw (char const*);
 void eigsrt(double *, double **, int);
 int SVD(Matrix &A, Matrix &U, Matrix &V, Vector &Z);
 
+void VectorSynchronize(Vector &c,  int id);
+void MatrixSynchronize(Matrix &c,  int id);
 
 #endif

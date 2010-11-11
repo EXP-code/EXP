@@ -9,19 +9,19 @@ using namespace std;
 int Complex::nlive = 0;
 #endif
 
-Complex conjg(const Complex &z)
+KComplex conjg(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r;
   tmp.i = -z.i;
   return tmp;
 }
 
-double arg(const Complex &z)
+double arg(const KComplex &z)
 {
   double x = z.r, y = z.i;
   static double pi = 3.14159265358979;
@@ -35,55 +35,55 @@ double arg(const Complex &z)
   return atan2(y, x);
 }
 
-double fabs(const Complex &z)
+double fabs(const KComplex &z)
 {
   return sqrt(z.r*z.r + z.i*z.i);
 }
 
 
 
-Complex operator+(const Complex &z1, const Complex &z2)
+KComplex operator+(const KComplex &z1, const KComplex &z2)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif 
   tmp.r=z1.r+z2.r; 
   tmp.i=z1.i+z2.i; 
   return tmp;
 }
 
-Complex operator-(const Complex &z1, const Complex &z2)
+KComplex operator-(const KComplex &z1, const KComplex &z2)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif 
   tmp.r=z1.r-z2.r; 
   tmp.i=z1.i-z2.i; 
   return tmp;
 }
 
-Complex operator*(const Complex &z1, const Complex &z2)
+KComplex operator*(const KComplex &z1, const KComplex &z2)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif 
   tmp.r=z1.r*z2.r-z1.i*z2.i;
   tmp.i = z1.r * z2.i + z1.i * z2.r;
   return tmp;
 }
 
-Complex operator/(const Complex &z1, const Complex &z2)
+KComplex operator/(const KComplex &z1, const KComplex &z2)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   double a;
   a = z2.r*z2.r + z2.i*z2.i;
@@ -92,12 +92,12 @@ Complex operator/(const Complex &z1, const Complex &z2)
   return tmp;
 }
 
-Complex operator+(const Complex &z, const double x)
+KComplex operator+(const KComplex &z, const double x)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r + x;
   tmp.i = z.i;
@@ -105,23 +105,23 @@ Complex operator+(const Complex &z, const double x)
 }
 
 
-Complex operator+(const double x, const Complex &z)
+KComplex operator+(const double x, const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r + x;
   tmp.i = z.i;
   return tmp;
 }
-Complex operator-(const Complex &z, const double x)
+KComplex operator-(const KComplex &z, const double x)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r - x;
   tmp.i = z.i;
@@ -129,47 +129,47 @@ Complex operator-(const Complex &z, const double x)
 }
 
 
-Complex operator-(const double x, const Complex &z)
+KComplex operator-(const double x, const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = x - z.r;
   tmp.i = -z.i;
   return tmp;
 }
 
-Complex operator*(const Complex &z, const double x)
+KComplex operator*(const KComplex &z, const double x)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r*x;
   tmp.i = z.i*x;
   return tmp;
 }
-Complex operator*(const double x, const Complex &z)
+KComplex operator*(const double x, const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r*x;
   tmp.i = z.i*x;
   return tmp;
 }
 
-Complex operator/(const double x, const Complex &z)
+KComplex operator/(const double x, const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   double a;
   a = z.r*z.r + z.i*z.i;
@@ -178,84 +178,84 @@ Complex operator/(const double x, const Complex &z)
   return tmp;
 }
 
-Complex operator/(const Complex &z, const double x)
+KComplex operator/(const KComplex &z, const double x)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = z.r/x;
   tmp.i = z.i/x;
   return tmp;
 }
 
-Complex exp(const Complex &z)
+KComplex exp(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   double e = exp(z.r);
   tmp.r = e * cos(z.i);
   tmp.i = e * sin(z.i);
   return tmp;
 }
-Complex log(const Complex &z)
+KComplex log(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   double a=z.r*z.r + z.i*z.i;
   
   if (a==0.0) 
     {
-      puts("domain error in Complex log");
+      puts("domain error in KComplex log");
       exit(0);
     }
   tmp.r = 0.5*log(a);
   tmp.i = arg(z);
   return tmp;
 }
-Complex pow(const Complex &base, const Complex &e)
+KComplex pow(const KComplex &base, const KComplex &e)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp = exp(e*log(base));
   return tmp;
 }
-Complex pow(const Complex &base, const double e)
+KComplex pow(const KComplex &base, const double e)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp = exp(e*log(base));
   return tmp;
 }
-Complex pow(const double base, const Complex &e)
+KComplex pow(const double base, const KComplex &e)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp = exp(e*log(base));
   return tmp;
 }
-Complex sqrt(const Complex &z)
+KComplex sqrt(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   
   if (fabs(z)==0.0) {tmp.r=0.0; tmp.i=0.0;}
@@ -265,34 +265,34 @@ Complex sqrt(const Complex &z)
 }
 
 
-Complex cosh(const Complex &z)
+KComplex cosh(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = cosh(z.r)*cos(z.i);
   tmp.i = sinh(z.r)*sin(z.i);
   return tmp;
 }
-Complex sinh(const Complex &z)
+KComplex sinh(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = sinh(z.r)*cos(z.i);
   tmp.i = cosh(z.r)*sin(z.i);
   return tmp;
 }
-Complex tanh(const Complex &z)
+KComplex tanh(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex c;
+  KComplex c;
 #else
-  static Complex c;
+  static KComplex c;
 #endif
   c = cosh(z);
   if (fabs(c)==0.0) 
@@ -303,45 +303,45 @@ Complex tanh(const Complex &z)
   return sinh(z)/c;
 }
 
-Complex asinh(const Complex &z)
+KComplex asinh(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp = log(z + sqrt(1.0 + z*z));
   return tmp;
 }
 
-Complex acosh(const Complex &z)
+KComplex acosh(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp = log(z + sqrt(z*z - 1.0));
   return tmp;
 }
 
-Complex atanh(const Complex &z)
+KComplex atanh(const KComplex &z)
 {
 	if (fabs(z-1.0) == 0.0 || fabs(z+1.0) == 0.0)
 	{
-		puts("domain error in Complex atanh()");
+		puts("domain error in KComplex atanh()");
 		exit(0);
 	}
 	return 0.5*log((1.0 + z)/(1.0 - z));
 }
 
 
-Complex cos(const Complex &z)
+KComplex cos(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = cos(z.r)*cosh(z.i);
   tmp.i = -sin(z.r)*sinh(z.i);
@@ -349,24 +349,24 @@ Complex cos(const Complex &z)
 }
 
 
-Complex sin(const Complex &z)
+KComplex sin(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex tmp;
+  KComplex tmp;
 #else
-  static Complex tmp;
+  static KComplex tmp;
 #endif
   tmp.r = sin(z.r)*cosh(z.i);
   tmp.i = cos(z.r)*sinh(z.i);
   return tmp;
 }
 
-Complex tan(const Complex &z)
+KComplex tan(const KComplex &z)
 {
 #if defined _REENTRANT || defined _THREAD_SAFE
-  Complex c;
+  KComplex c;
 #else
-  static Complex c;
+  static KComplex c;
 #endif
 	
   c = cos(z);
@@ -379,34 +379,34 @@ Complex tan(const Complex &z)
 }
 
 
-Complex acos(const Complex &z)
+KComplex acos(const KComplex &z)
 {
-  static Complex i(0., 1.);
+  static KComplex i(0., 1.);
 
   return acosh(z)/i;
 }
 
-Complex asin(const Complex &z)
+KComplex asin(const KComplex &z)
 {
-  static Complex i(0., 1.);
+  static KComplex i(0., 1.);
 
   return asinh(i*z)/i;
 }
 
-Complex atan(const Complex &z)
+KComplex atan(const KComplex &z)
 {
-  static Complex i(0., 1.);
+  static KComplex i(0., 1.);
   
   return atanh(i*z)/i;
 }
 
 
-ostream& operator << (ostream& s, Complex& x)
+ostream& operator << (ostream& s, KComplex& x)
 {
   return s << "(" << x.real() << ", " << x.imag() << ")" ;
 }
 
-istream& operator >> (istream& s, Complex& x)
+istream& operator >> (istream& s, KComplex& x)
 {
 
 #if __GNUC__ && (__GNUC__ < 3)
@@ -445,6 +445,6 @@ istream& operator >> (istream& s, Complex& x)
     s >> r;
     i = 0;
   }
-  x = Complex(r, i);
+  x = KComplex(r, i);
   return s;
 }

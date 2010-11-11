@@ -2406,3 +2406,12 @@ void RespMat::print_wake_volume_cubes
 }
 
 
+void RespMat::MPISynchronize(int id)
+{
+  CMatrixSynchronize(mr,  id);
+  CMatrixSynchronize(mr2, id);
+  ComplexSynchronize(omp, id);
+
+  MPI_Bcast(&matrix_computed, 1, MPI_INT, id, MPI_COMM_WORLD);
+  MPI_Bcast(&matrix_computed_pv, 1, MPI_INT, id, MPI_COMM_WORLD);
+}

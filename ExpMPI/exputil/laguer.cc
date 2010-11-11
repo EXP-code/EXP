@@ -6,11 +6,11 @@
 const double EPSS=6.0e-16;
 const int MAXIT=2000;
 
-void laguer_root(CVector& a, int m, Complex *x, double eps, int polish)
+void laguer_root(CVector& a, int m, KComplex *x, double eps, int polish)
 {
   int j,iter;
   double err,dxold,cdx,abx;
-  Complex sq,h,gp,gm,g2,g,b,d,dx,f,x1;
+  KComplex sq,h,gp,gm,g2,g,b,d,dx,f,x1;
 
   dxold= fabs(*x);
   for (iter=1; iter<=MAXIT; iter++) {
@@ -33,7 +33,7 @@ void laguer_root(CVector& a, int m, Complex *x, double eps, int polish)
     gp = g + sq;
     gm = g - sq;
     if (fabs(gp) < fabs(gm)) gp = gm;
-    dx = Complex((double)m,0.0)/gp;
+    dx = KComplex((double)m,0.0)/gp;
     x1 = *x - dx;
     if (x->real() == x1.real() && x->imag() == x1.imag()) return;
     *x = x1;

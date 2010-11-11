@@ -40,9 +40,9 @@ ExpMPI/src/pH2OT.cc -text
 ExpMPI/src/user/LinearOrbit.H -text
 ExpMPI/src/user/LinearOrbit.cc -text
 ExpMPI/src/user/RespMat3.h -text
+ExpMPI/src/user/TimeSeriesCoefs.H -text
+ExpMPI/src/user/TimeSeriesCoefs.cc -text
 ExpMPI/src/user/Trajectory.H -text
-ExpMPI/src/user/UnboundCoefs.H -text
-ExpMPI/src/user/UnboundCoefs.cc -text
 ExpMPI/src/user/UnboundOrbit.H -text
 ExpMPI/src/user/UnboundOrbit.cc -text
 ExpMPI/src/user/UserBarTrigger.H -text

@@ -1,7 +1,6 @@
 
-#include <math.h>
-#include <unistd.h>
-#include <stdlib.h>
+#include <cmath>
+#include <cstdlib>
 #include <string>
 #include <sstream>
 
@@ -10,6 +9,7 @@
 #include <Vector.h>
 
 #include <pthread.h>
+#include <mpi.h>
 
 using namespace std;
 
@@ -42,7 +42,7 @@ CVector::CVector(int l, int h, double *v)
   for (int i=0; i<size; i++) pelement[i] = v[i+low];
 }
 
-CVector::CVector(int l, int h, Complex *v)
+CVector::CVector(int l, int h, KComplex *v)
 {
   low  = 0;
   high = 0;
@@ -111,7 +111,7 @@ CVector &CVector::operator=(const CVector &v)
 }
 
 
-Complex &CVector::operator[](int i) const
+KComplex &CVector::operator[](int i) const
 {
   if (i<low || i>high) {
     bomb_CVector("subscript out of range");
@@ -142,7 +142,7 @@ void CVector::setsize(int l, int h)
   
   // allocate the new elements, and make a pointer
   
-  elements = vector<Complex>(size, 0.0);
+  elements = vector<KComplex>(size, 0.0);
   pelement = &elements[0];
 }
 
@@ -152,7 +152,7 @@ void CVector::zero(void)
   for (int i=0; i<size; i++) pelement[i] = 0.0;
 }
 
-Complex *CVector::array(int l, int h)
+KComplex *CVector::array(int l, int h)
 {
   return pelement - l;
 }
@@ -192,7 +192,7 @@ CVector operator-(const CVector &v1, const CVector &v2)
   return tmp;
 }
 
-CVector operator*(const Complex &a, const CVector &v)
+CVector operator*(const KComplex &a, const CVector &v)
 {
   CVector tmp(v.low, v.high);
   for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
@@ -200,7 +200,7 @@ CVector operator*(const Complex &a, const CVector &v)
   return tmp;
 }
 
-CVector operator*(const CVector &v, const Complex &a)
+CVector operator*(const CVector &v, const KComplex &a)
 {
   CVector tmp(v.low, v.high);
   for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
@@ -208,7 +208,7 @@ CVector operator*(const CVector &v, const Complex &a)
   return tmp;
 }
 
-CVector operator/(const CVector &v, const Complex &a)
+CVector operator/(const CVector &v, const KComplex &a)
 {
   CVector tmp(v.low, v.high);
   for (int i=0; i<v.size; i++) tmp.pelement[i] = v.pelement[i]/a;
@@ -302,25 +302,25 @@ CVector &CVector::operator/=(double a)
   return *this;
 }
 
-CVector &CVector::operator*=(const Complex &a)
+CVector &CVector::operator*=(const KComplex &a)
 {
   for (int i=0; i<size; i++) pelement[i] *= a;
   
   return *this;
 }
 
-CVector &CVector::operator/=(const Complex &a)
+CVector &CVector::operator/=(const KComplex &a)
 {
   for (int i=0; i<size; i++) pelement[i] /= a;
   
   return *this;
 }
 
-Complex operator*(const CVector &v1, const CVector &v2)
+KComplex operator*(const CVector &v1, const CVector &v2)
 {
   if (v1.low != v2.low || v1.high != v2.high) bomb_CVector_operation("*");
   
-  Complex tmp = 0.0;
+  KComplex tmp = 0.0;
   for (int i=0; i<v1.size; i++) {
     tmp += v1.pelement[i] * v2.pelement[i];
   }
@@ -340,7 +340,7 @@ void CVector::binwrite(ostream& out)
 {
   out.write((char *)&low,  sizeof(int));
   out.write((char *)&high, sizeof(int));
-  out.write((char *)pelement, (high-low+1)*sizeof(Complex));
+  out.write((char *)pelement, (high-low+1)*sizeof(KComplex));
 }
 
 CVector CVector_binread(istream& in)
@@ -352,7 +352,7 @@ CVector CVector_binread(istream& in)
   
   CVector tmp(low, high);
   
-  in.read((char *)tmp.pelement, (high-low+1)*sizeof(Complex));
+  in.read((char *)tmp.pelement, (high-low+1)*sizeof(KComplex));
   
   return tmp;
 }
@@ -392,7 +392,7 @@ Vector CVector::Im(void)
 
 CVector CVector::Conjg(void)
 {
-  static Complex I(0.0, 1.0);
+  static KComplex I(0.0, 1.0);
   CVector tmp(low, high);
   
   for (int i=0; i<size; i++) {
@@ -440,7 +440,7 @@ CMatrix::CMatrix(int rl, int rh, int cl, int ch)
 }
 
 
-CMatrix::CMatrix(int rl, int rh, int cl, int ch, Complex **array)
+CMatrix::CMatrix(int rl, int rh, int cl, int ch, KComplex **array)
 {
   rlow  = 0;
   rhigh = 0;
@@ -809,7 +809,7 @@ CMatrix &CMatrix::operator/=(double a)
   return *this;
 }
 
-CMatrix operator*(const CMatrix &m, const Complex &a)
+CMatrix operator*(const CMatrix &m, const KComplex &a)
 {
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
@@ -824,7 +824,7 @@ CMatrix operator*(const CMatrix &m, const Complex &a)
 
 
 
-CMatrix operator*(const Complex &a, const CMatrix &m)
+CMatrix operator*(const KComplex &a, const CMatrix &m)
 {
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
@@ -839,7 +839,7 @@ CMatrix operator*(const Complex &a, const CMatrix &m)
 
 
 
-CMatrix operator/(const CMatrix &m, const Complex &a)
+CMatrix operator/(const CMatrix &m, const KComplex &a)
 {
   CMatrix tmp(m.rlow, m.rhigh, m.clow, m.chigh);
   
@@ -852,7 +852,7 @@ CMatrix operator/(const CMatrix &m, const Complex &a)
 }
 
 
-CMatrix &CMatrix::operator*=(const Complex &a)
+CMatrix &CMatrix::operator*=(const KComplex &a)
 {
   for (int i=0; i<rsize; i++) {
     for (int j=0; j<csize; j++) {
@@ -862,7 +862,7 @@ CMatrix &CMatrix::operator*=(const Complex &a)
   return *this;
 }
 
-CMatrix &CMatrix::operator/=(const Complex &a)
+CMatrix &CMatrix::operator/=(const KComplex &a)
 {
   for (int i=0; i<rsize; i++) {
     for (int j=0; j<csize; j++) {
@@ -1003,13 +1003,13 @@ CMatrix CMatrix::Transpose(void) const
   return t;
 }
 
-Complex CMatrix::Trace(void) const
+KComplex CMatrix::Trace(void) const
 {
   if (rlow != clow || rhigh != chigh) 
     bomb_CVector("cannot take trace of non-square matrix");
   
   
-  Complex t = 0.0;
+  KComplex t = 0.0;
   for (int i=0; i<rsize; i++) t += rows[i][i];
   
   return t;
@@ -1066,7 +1066,7 @@ CMatrix Adjoint(const CMatrix &c)
   return c.Conjg().Transpose();
 }
 
-Complex Trace(const CMatrix &c)
+KComplex Trace(const CMatrix &c)
 {
   return c.Trace();
 }
@@ -1105,5 +1105,108 @@ CMatrix CMatrix_binread(istream& in)
     tmp.rows[i] = CVector_binread(in);
   
   return tmp;
+}
+
+void ComplexSynchronize(KComplex& c, int id)
+{
+  MPI_Bcast(&c.real(), 1, MPI_DOUBLE, id, MPI_COMM_WORLD);
+  MPI_Bcast(&c.imag(), 1, MPI_DOUBLE, id, MPI_COMM_WORLD);
+}
+
+
+void CVectorSynchronize(CVector& cv, int id)
+{
+  int bb[2], myid;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  if (myid == id) {
+    bb[0] = cv.getlow();
+    bb[1] = cv.gethigh();
+  }
+
+  MPI_Bcast(bb, 2, MPI_INT, id, MPI_COMM_WORLD);
+  
+  if (bb[0]==0 && bb[1]==0) return;
+  
+  if (myid!=id) cv.setsize(bb[0], bb[1]);
+  
+  int sz = bb[1] - bb[0] + 1;
+  vector<double> tmp(sz);
+
+  // Real part
+  
+  if (myid==id) {
+    for (int i=bb[0]; i<=bb[1]; i++) tmp[i-bb[0]] = cv[i].real();
+  }
+
+  MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+  if (myid!=id) {
+    for (int i=bb[0]; i<=bb[1]; i++) cv[i].real() = tmp[i-bb[0]];
+  }
+
+  // Imag part
+    
+  if (myid==id) {
+    for (int i=bb[0]; i<=bb[1]; i++) tmp[i-bb[0]] = cv[i].imag();
+  }
+
+  MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+  if (myid!=id) {
+    for (int i=bb[0]; i<=bb[1]; i++) cv[i].imag() = tmp[i-bb[0]];
+  }
+}
+
+void CMatrixSynchronize(CMatrix& mat, int id)
+{
+  int bb[4], myid;
+  MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+
+  if (myid == id) {
+    bb[0] = mat.getrlow();
+    bb[1] = mat.getrhigh();
+    bb[2] = mat.getclow();
+    bb[3] = mat.getchigh();
+  }
+
+  MPI_Bcast(bb, 4, MPI_INT, id, MPI_COMM_WORLD);
+
+  if (bb[0]==0 && bb[1]==0 && bb[2]==0 && bb[3]==0) return;
+
+  if (myid!=id) mat.setsize(bb[0], bb[1], bb[2], bb[3]);
+  
+  int sz = bb[3] - bb[2] + 1;
+  vector<double> tmp(sz);
+  for (int j=bb[0]; j<=bb[1]; j++) {
+
+    // Real part of column
+
+    if (myid==id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	tmp[i-bb[2]] = mat[j][i].real();
+    }
+
+    MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+    if (myid!=id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	mat[j][i].real() = tmp[i-bb[2]];
+    }
+
+    // Imag part of column
+    
+    if (myid==id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	tmp[i-bb[2]] = mat[j][i].imag();
+    }
+
+    MPI_Bcast(&tmp[0], sz, MPI_DOUBLE, id, MPI_COMM_WORLD);
+
+    if (myid!=id) {
+      for (int i=bb[2]; i<=bb[3]; i++) 
+	mat[j][i].imag() = tmp[i-bb[2]];
+    }
+  }
 }
 

@@ -170,6 +170,7 @@ protected:
   void write_out(ostream& out);
   void write_out(string& file);
 
+  void MPISynchronize(int id);
 
 				// Access
   CMatrix& mat() {

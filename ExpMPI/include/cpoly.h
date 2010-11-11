@@ -53,8 +53,8 @@ public:
 
   // Evaluate polynomial
     
-  Complex eval(Complex z);
-  Complex deriv(Complex z);
+  KComplex eval(KComplex z);
+  KComplex deriv(KComplex z);
 
   /* IO */
 

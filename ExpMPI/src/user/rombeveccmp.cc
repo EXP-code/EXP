@@ -54,12 +54,12 @@
 #define         DMACH 1.0e-8
 #define         NMAX  20
 
-static Complex tc[NMAX];
-static double  tr[NMAX];
+static KComplex tc[NMAX];
+static double   tr[NMAX];
 
-Complex Crombe(double a, double b, CVector& f)
+KComplex Crombe(double a, double b, CVector& f)
 {
-  Complex               ends, x2, x4;
+  KComplex              ends, x2, x4;
   double         	xmesh,d;
   int			nmax,num,i,j,k,index;
 

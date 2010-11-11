@@ -299,20 +299,20 @@ CPoly &CPoly::operator%=(const CPoly &p2)
 }
 */
 
-Complex CPoly::eval(Complex z)
+KComplex CPoly::eval(KComplex z)
 {
   int j;
-  Complex p = (*this)[j=order];
+  KComplex p = (*this)[j=order];
   while (j>0) p = p*z + (*this)[--j];
 
   return p;
 }
 	
-Complex CPoly::deriv(Complex z)
+KComplex CPoly::deriv(KComplex z)
 {
   int j;
-  Complex p = (*this)[j=order];
-  Complex dp = 0.0;
+  KComplex p = (*this)[j=order];
+  KComplex dp = 0.0;
 
   while (j>0) {
     dp = dp*z + p;

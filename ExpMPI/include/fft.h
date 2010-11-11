@@ -42,16 +42,16 @@ class FFT
   int logN;				// log2(N)
   const double dr;			// Mesh size in the r-space
 
-  Complex * A;				// [0:N-1] work array
+  KComplex * A;				// [0:N-1] work array
 					// the transform is placed to
 
-  Complex * A_end;         		// Ptr to the memory location next to
+  KComplex * A_end;         		// Ptr to the memory location next to
 					// the last A element
 
   short * index_conversion_table;	// index_conversion_table[i]
 					// is the bit-inverted i, i=0..N
 
-  Complex * W;				// FFT weight factors
+  KComplex * W;				// FFT weight factors
 					// exp( -I j 2pi/N ), j=0..N-1
 
 			// Private package procedures

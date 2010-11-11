@@ -34,7 +34,7 @@ BiorthWake::BiorthWake(AxiSymBiorth *BIO, int LMAX, int NMAX)
   }
 
 				// Orientation parameters
-  I = Complex(0.0, 1.0);
+  I = KComplex(0.0, 1.0);
   iter = iterDef;
   tol = tolDef;
   init_orientation = false;
