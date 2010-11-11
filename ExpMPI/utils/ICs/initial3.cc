@@ -2,7 +2,8 @@
 
 /*
   Generates a Monte Carlo realization of a halo with an embedded
-  disk using Jeans' equations.
+  disk using Eddington inversion and quadratic programming with a
+  Gaussian DF basis in E and J/J_max.
 
   Assumptions:
 
@@ -13,55 +14,9 @@
 
   3) Halo as spherical velocity ellipsoid
 
-  4) Disk as axisymmetric velocity ellipsoid in the plane (that is,
-     $\sigma_r = \sigma_\phi$ and $\sigma_z$ determined by solving
-     Jeans' equations in cylindrical coordinates.
+  4) Disk DF is determined using quadratic programming
 
- Loosely based on Enrico Vesperini's initial.cc and diskANDhalo.cc
- (mostly rewritten)
-
- Added the basis expansion of the disk: 12/10/01. KHB
-
- Rewritten and debugged by MDW between 12/28/01-12/31/01.  
-
-        Added command line parsing.  "gendisk -h" will list parameters.
-
-        I removed everything but the "disk and halo" case.  Removed
-        multiple inheritance.  Changed interface; expansions registered
-        with DiskHalo class on construction
-
-        Switched from biortho classes to expansion classes from the
-        EXP code.
-
-        Uses a vector of particle structures rather than a Matrix to
-        store an pass phase space.
-
-        Rewrote the particle component foliation code using a more
-        general algorithm.
-
-        Solution to Jeans' equations are now computed in parallel and
-        tabulated.  
-
-        Particles are stored on local nodes and written to disk by
-        master.  
-
-        Removed lots of other cruft.
-
- More debugging 03/05 by MDW
-
-        Repaired EmpCylSL scaling
-
-	Added additional debugging output
-
-	Compared against expsl routines
-
-	Removed orphaned parameters
-
- Updated to include gas disk using local Euler solution 04/08 by MDW
-
- Both constant scale height and isothermal gas disks 08/08 by MDW
-
- Multimass gas disk 11/08 by MDW
+  10/03/10 MDW
 
 */
                                 // System libs
@@ -1087,9 +1042,9 @@ main(int argc, char **argv)
     // 
     // Prepare output stream
     //
-    ofstream outps("gas.bods");
+    ofstream outps(gbods.c_str());
     if (!outps) {
-      cerr << "Couldn't open <" << "gas.bods" << "> for output" << endl;
+      cerr << "Couldn't open <" << gbods << "> for output" << endl;
       exit (-1);
     }
 

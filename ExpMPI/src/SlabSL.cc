@@ -38,9 +38,9 @@ SlabSL::SlabSL(string& line) : PotAccel(line)
   imz = nmaxz;
   jmax = imx*imy*imz;
 
-  expccof = new Complex* [nthrds];
+  expccof = new KComplex* [nthrds];
   for (int i=0; i<nthrds; i++)
-    expccof[i] = new Complex[jmax];
+    expccof[i] = new KComplex[jmax];
   
   expreal  = new double [jmax];
   expreal1 = new double [jmax];
@@ -48,7 +48,7 @@ SlabSL::SlabSL(string& line) : PotAccel(line)
   expimag1 = new double [jmax];
     
   dfac = 2.0*M_PI;
-  kfac = Complex(0.0, dfac);
+  kfac = KComplex(0.0, dfac);
     
   nnmax = (nmaxx > nmaxy) ? nmaxx : nmaxy;
 
@@ -131,15 +131,15 @@ void SlabSL::determine_coefficients(void)
   MPI_Allreduce( expimag1, expimag, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   for (int indx=0; indx<jmax; indx++)
-    expccof[0][indx] = Complex(expreal[indx], expimag[indx]);
+    expccof[0][indx] = KComplex(expreal[indx], expimag[indx]);
 }
 
 void * SlabSL::determine_coefficients_thread(void * arg)
 {
   int ix, iy, iz, iix, iiy, ii, jj, indx;
 
-  Complex startx, starty, facx, facy;
-  Complex stepx, stepy;
+  KComplex startx, starty, facx, facy;
+  KComplex stepx, stepy;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -229,9 +229,9 @@ void SlabSL::get_acceleration_and_potential(Component* C)
 void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 {
   int ix, iy, iz, iix, iiy, ii, jj, indx;
-  Complex fac, startx, starty, facx, facy, potl, facf;
-  Complex stepx, stepy;
-  Complex accx, accy, accz;
+  KComplex fac, startx, starty, facx, facy, potl, facf;
+  KComplex stepx, stepy;
+  KComplex accx, accy, accz;
 
   unsigned nbodies = cC->Number();
   int id = *((int*)arg);
@@ -296,8 +296,8 @@ void * SlabSL::determine_acceleration_and_potential_thread(void * arg)
 	  
 	  potl += fac;
 	  
-	  accx += -dfac*ii*Complex(0.0,1.0)*fac;
-	  accy += -dfac*jj*Complex(0.0,1.0)*fac;
+	  accx += -dfac*ii*KComplex(0.0,1.0)*fac;
+	  accy += -dfac*jj*KComplex(0.0,1.0)*fac;
 	  accz += -facf;
 	  
 	}

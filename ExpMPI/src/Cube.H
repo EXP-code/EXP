@@ -11,13 +11,13 @@ class Cube : public PotAccel
 
 private:
 
-  Complex **expccof;
+  KComplex **expccof;
   double *expreal, *expimag;
   double *expreal1, *expimag1;
 
   int imx, imy, imz, jmax, use1, use0;
   double  dfac;
-  Complex kfac;
+  KComplex kfac;
 
 protected:
 

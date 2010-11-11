@@ -22,9 +22,9 @@ Cube::Cube(string& line) : PotAccel(line)
   imy = 1+2*nmaxy;
   imz = 1+2*nmaxz;
   jmax = imx*imy*imz;
-  expccof = new Complex* [nthrds];
+  expccof = new KComplex* [nthrds];
   for (int i=0; i<nthrds; i++)
-    expccof[i] = new Complex[jmax];
+    expccof[i] = new KComplex[jmax];
 
   expreal = new double [jmax];
   expreal1 = new double [jmax];
@@ -32,7 +32,7 @@ Cube::Cube(string& line) : PotAccel(line)
   expimag1 = new double [jmax];
   
   dfac = 2.0*M_PI;
-  kfac = Complex(0.0,dfac);
+  kfac = KComplex(0.0,dfac);
 }
 
 Cube::~Cube(void)
@@ -62,8 +62,8 @@ void * Cube::determine_coefficients_thread(void * arg)
 {
 
   int ix,iy,iz,indx;
-  Complex startx,starty,startz,facx,facy,facz;
-  Complex stepx,stepy,stepz;
+  KComplex startx,starty,startz,facx,facy,facz;
+  KComplex stepx,stepy,stepz;
   double mass;
 
   unsigned nbodies = cC->Number();
@@ -160,15 +160,15 @@ void Cube::determine_coefficients(void)
   MPI_Allreduce( expimag1, expimag, jmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   for (int indx=0; indx<jmax; indx++)
-    expccof[0][indx] = Complex(expreal[indx], expimag[indx]);
+    expccof[0][indx] = KComplex(expreal[indx], expimag[indx]);
 
 }
 
 void * Cube::determine_acceleration_and_potential_thread(void * arg)
 {
   int ix,iy,iz,ii,jj,kk,indx;
-  Complex fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
-  Complex stepx,stepy,stepz;
+  KComplex fac,startx,starty,startz,facx,facy,facz,dens,potl,accx,accy,accz;
+  KComplex stepx,stepy,stepz;
   double k2;
 
   unsigned nbodies = cC->Number();
@@ -225,9 +225,9 @@ void * Cube::determine_acceleration_and_potential_thread(void * arg)
 	  k2 = 4.0*M_PI/(dfac*dfac*(ii*ii + jj*jj + kk*kk));
 	  potl -= k2*fac;
 	  
-	  accx -= k2*Complex(0.0,-dfac*ii)*fac;
-	  accy -= k2*Complex(0.0,-dfac*jj)*fac;
-	  accz -= k2*Complex(0.0,-dfac*kk)*fac;
+	  accx -= k2*KComplex(0.0,-dfac*ii)*fac;
+	  accy -= k2*KComplex(0.0,-dfac*jj)*fac;
+	  accz -= k2*KComplex(0.0,-dfac*kk)*fac;
 	  
 	}
       }

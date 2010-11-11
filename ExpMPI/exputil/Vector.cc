@@ -94,11 +94,6 @@ Vector &Vector::operator=(const Vector &v)
     return *this;
   }
   
-  if (low!=v.low && high!=v.high 
-      && (high != 0 || elements.size() != 0)) {
-    bomb_Vector_operation("=");
-  }
-  
   low      = v.low;
   high     = v.high;
   size     = high - low + 1;

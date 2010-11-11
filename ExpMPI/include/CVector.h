@@ -186,6 +186,7 @@ class CMatrix
   int rlow,  rhigh;	// low and high row indices
   int clow,  chigh;	// low and high column indices
   int rsize, csize;
+
   // memory management uses STL vector
   CVector *prow;
   vector<CVector> rows;

@@ -23,7 +23,7 @@ struct SlabCoefHeader {
 
 private:
 
-  Complex **expccof;
+  KComplex **expccof;
   double *expreal, *expimag;
   double *expreal1, *expimag1;
   OneDTrig **trig;
@@ -34,7 +34,7 @@ private:
 
   int imx, imy, imz, jmax, nnmax;
   double  dfac;
-  Complex kfac;
+  KComplex kfac;
 
   Vector *zfrc, *zpot;
 

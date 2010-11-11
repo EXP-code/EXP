@@ -97,13 +97,9 @@ CVector &CVector::operator=(const CVector &v)
     return *this;
   }
   
-  if (low!=v.low && high!=v.high 
-      && (high != 0 || (elements.size() == 0))) {
-    bomb_CVector_operation("=");
-  }
-  
   low      = v.low;
   high     = v.high;
+  size     = high - low + 1;
   elements = v.elements;
   pelement = &elements[0];
   
@@ -533,6 +529,7 @@ void CMatrix::setsize(int rl, int rh, int cl, int ch)
   // allocate the array of rows
   
   rows = vector<CVector>(rsize);
+  prow = &rows[0];
 
   // create the individual rows
   
@@ -587,7 +584,7 @@ CVector &CMatrix::fastrow(int i) const
 
 void CMatrix::fastsetrow(int i, const CVector &v)
 {
-  rows[i] = v;
+  rows[i-rlow] = v;
 }
 
 void CMatrix::setrow(int i, const CVector &v)
@@ -603,7 +600,7 @@ void CMatrix::setrow(int i, const CVector &v)
 void CMatrix::fastsetcol(int j, const CVector &v)
 {
   for (int i=0; i<rsize; i++)
-    rows[i].pelement[j] = v.pelement[i];
+    rows[i].pelement[j-clow] = v.pelement[i];
 }
 
 void CMatrix::setcol(int j, const CVector &v)
