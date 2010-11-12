@@ -270,7 +270,7 @@ CVector &CVector::operator+=(const CVector &v)
 {
   if (low != v.low || high != v.high) bomb_CVector_operation("+=");
   
-  for (int i=0; i<size; i++) pelement[i] += v[i];
+  for (int i=0; i<size; i++) pelement[i] += v.pelement[i];
   
   return *this;
 }	
@@ -279,7 +279,7 @@ CVector &CVector::operator-=(const CVector &v)
 {
   if (low != v.low || high != v.high) bomb_CVector_operation("-=");
   
-  for (int i=0; i<size; i++) pelement[i] -= v[i];
+  for (int i=0; i<size; i++) pelement[i] -= v.pelement[i];
   
   return *this;
 }	
@@ -371,7 +371,7 @@ Vector CVector::Re(void)
 {
   Vector tmp(low, high);
   
-  for (int i=0; i<size; i++) tmp[i] = pelement[i].r;
+  for (int i=0; i<size; i++) tmp[i+low] = pelement[i].r;
   
   return tmp;
 }	
@@ -380,7 +380,7 @@ Vector CVector::Im(void)
 {
   Vector tmp(low, high);
   
-  for (int i=0; i<size; i++) tmp[i] = pelement[i].imag();
+  for (int i=0; i<size; i++) tmp[i+low] = pelement[i].imag();
   
   return tmp;
 }	
@@ -554,7 +554,7 @@ void bomb_CMatrix_operation(const string& op)
 CVector CMatrix::fastcol(int j) const
 {
   CVector tmp(rlow, rhigh);
-  for (int i=0; i<rsize; i++) tmp[i] = rows[i].pelement[j];
+  for (int i=rlow; i<=rhigh; i++) tmp[i] = rows[i-rlow].pelement[j-clow];
   
   return tmp;
 }
@@ -973,7 +973,7 @@ CMatrix CMatrix::Conjg(void) const
   CMatrix tmp(rlow, rhigh, clow, chigh);
   
   for (int i=0; i<rsize; i++) {
-    for (int j=0; i<csize; i++) {
+    for (int j=clow; j<=chigh; j++) {
       tmp.rows[i][j].r =  rows[i][j].r;
       tmp.rows[i][j].r = -rows[i][j].i;
     }

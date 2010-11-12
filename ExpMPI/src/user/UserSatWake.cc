@@ -267,7 +267,7 @@ void UserSatWake::initialize_coefficients()
   // Sanity checks
   //=================
   
-  if (MMIN<=0 && myid==0) cerr << "Warning: Mmin should be >=0 . . . fixing\n";
+  if (MMIN<0 && myid==0) cerr << "Warning: Mmin should be >=0 . . . fixing\n";
   MMIN = abs(MMIN);
   if (MMIN>LMIN) {
     if (myid==0) cout << "Setting LMIN=MMIN=" << MMIN << endl;
@@ -331,19 +331,16 @@ void UserSatWake::initialize_coefficients()
   vector< vector<RespMat> > total;
 
   vector<KComplex> freqs(nfreqs);
-  vector<double>   dfreq(nfreqs);
   double dOmega = 2.0*MaxOm/(nfreqs-1);
-  for (int k=0; k<nfreqs; k++) {
+  for (int k=0; k<nfreqs; k++)
     freqs[k] = KComplex(-MaxOm + dOmega*k, OMPI);
-    dfreq[k] = freqs[k].real();
-  }
 
   if (myid==0) {
     cout << "Max(Omega)=" << MaxOm  << endl
 	 << "    NFreqs=" << nfreqs << endl;
   }
 
-  vector<double> Times(NUMT+1);
+  Times = vector<double>(NUMT+1);
   for (int nt=0; nt<=NUMT; nt++) Times[nt] = -Tmax + 2.0*Tmax*nt/NUMT;
   
   TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, runtag);
@@ -522,7 +519,6 @@ void UserSatWake::initialize_coefficients()
   
   KComplex I(0.0, 1.0);
   
-  vector<int> Lhalo, Mhalo;
   for (int L=LMIN; L<=LMAX; L++) {
     int mmin;
     if (isOdd(L)) {
@@ -532,19 +528,19 @@ void UserSatWake::initialize_coefficients()
       if (isOdd(MMIN)) mmin = MMIN+1;
       else             mmin = MMIN;
     }
-    for (int M=MMIN; M<=L; M+=2) {
+    for (int M=mmin; M<=L; M+=2) {
       Lhalo.push_back(L);
       Mhalo.push_back(M);
     }
   }
 
-  int Nhalo = Lhalo.size();
-  vector<RespMat> mab_halo(Nhalo);
+  Nhalo = Lhalo.size();
   if (myid==0) {
     cout << "Harmonics:" << endl << "---------" << endl
 	 << setw(3) << left << "L"
-	 << setw(3) << left << "M"
-	 << endl;
+	 << setw(3) << left << "M" << endl
+	 << setw(3) << left << "-"
+	 << setw(3) << left << "-" << endl;
     for (int i=0; i<Nhalo; i++)
       cout << setw(3) << left << Lhalo[i]
 	   << setw(3) << left << Mhalo[i]
@@ -556,6 +552,8 @@ void UserSatWake::initialize_coefficients()
     
     if (myid==0) cout << "Halo frequency: " << freqs[nf] << endl;
     
+    vector<RespMat> mab_halo(Nhalo);
+
     if (reading) {
       
       for (int ihalo=0; ihalo<Nhalo; ihalo++)
@@ -598,14 +596,21 @@ void UserSatWake::initialize_coefficients()
     icnt = 0;
 
     for (int nf=0; nf<nfreqs; nf++) {
+
       for (int ihalo=0; ihalo<Nhalo; ihalo++) {
+
 	int id = icnt++ % numprocs;
 	total[nf][ihalo].MPISynchronize(id);
+
 	if (UseCache && myid==0)
 	  total[nf][ihalo].write_out(to_save);
+
       }
+
     }
+
   }
+
   
   // ===================================================================
   // For paranoia's sake
@@ -644,10 +649,6 @@ void UserSatWake::initialize_coefficients()
     
     if (myid==0) tlog << setw(8) << nt << setw(16) << Times[nt] << endl;
     
-    int id = icnt++ % numprocs;
-
-    if (id != myid) continue;
-
     //
     // Frequency loop for current time
     //
@@ -658,6 +659,10 @@ void UserSatWake::initialize_coefficients()
       //
       for (int ihalo=0; ihalo<Nhalo; ihalo++) {
 	
+	int id = icnt++ % numprocs;
+
+	if (id != myid) continue;
+
 	int L = Lhalo[ihalo];
 	int M = Mhalo[ihalo];
 	
@@ -711,10 +716,10 @@ void UserSatWake::initialize_coefficients()
 
   for (int nt=0; nt<=NUMT; nt++) {
     
-    int id = icnt++ % numprocs;
-    
-    for (int ihalo=0; ihalo<Nhalo; ihalo++)
+    for (int ihalo=0; ihalo<Nhalo; ihalo++) {
+      int id = icnt++ % numprocs;
       CVectorSynchronize(rcoefs[nt][ihalo], id);
+    }
 
   }
 
@@ -818,32 +823,24 @@ void UserSatWake::compute_coefficients()
   int indx;
   double a, b, curT = tnow - Toffset;
 
+  //
   // Find time index
-
-  if (curT<Times.front()) {
+  //
+  if (curT<Times.front()) {	// No perturbation if time is out of bounds
     indx = 0;
-    // a = 1.0;
     a = 0.0;
     b = 0.0;
-  } else if (curT>Times.back()) {
+  } else if (curT>=Times.back()) {
     indx = Times.size()-2;
     a = 0.0;
-    // b = 1.0;
     b = 0.0;
   } else {
-    indx = Vlocate(curT, Times);
-    a = (Times[indx+1] - tnow)/(Times[indx+1] - Times[indx]);
-    b = (tnow - Times[indx+1])/(Times[indx+1] - Times[indx]);
+				// Index bounds enforcement
+    indx = max<int>(0, min<int>(Vlocate(curT, Times), Times.size()-2));
+    a = (Times[indx+1] - curT)/(Times[indx+1] - Times[indx]);
+    b = (curT - Times[indx])/(Times[indx+1] - Times[indx]);
   }
 
-  CVector tmp(1, nmax); tmp.zero();
-  rcoefs = vector< vector<CVector> >(NUMT+1);
-  for (int nt=0; nt<=NUMT; nt++) {
-    for (int ihalo=0; ihalo<Nhalo; ihalo++)
-      rcoefs[nt].push_back(tmp);
-  }
-
-  curcoefs = vector<CVector>(Nhalo);
   for (int ihalo=0; ihalo<Nhalo; ihalo++)
     curcoefs[ihalo] = a*rcoefs[indx][ihalo] + b*rcoefs[indx+1][ihalo];
 }

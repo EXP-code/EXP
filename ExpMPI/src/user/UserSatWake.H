@@ -80,10 +80,10 @@ private:
   int Number, Pmax, LMIN, LMAX, MMIN, MMAX, lmax, nmax, HALO_TRUNC;
   int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS, nfreqs;
   int OLD, VERBOSE, HALO_MODEL, NUMDF, numr, nint;
+  int TYPE, MODEL, NUMT, DIVERGE;
   double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
   double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac;
   double rmin, rmax, scale;
-  int TYPE, MODEL, NUMT, DIVERGE;
   string INFILE, CACHEDIR, ctr_name;
   IntegrationType SITYPE;
   bool UseCache;
