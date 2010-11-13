@@ -217,8 +217,8 @@ class CMatrix
   
   int getnrows(void) {return rhigh-rlow+1;}
   int getncols(void) {return chigh-clow+1;}
-  int getrlow(void) {return rlow;}
-  int getclow(void) {return clow;}
+  int getrlow (void) {return rlow;}
+  int getclow (void) {return clow;}
   int getrhigh(void) {return rhigh;}
   int getchigh(void) {return chigh;}
   

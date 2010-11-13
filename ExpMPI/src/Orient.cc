@@ -213,13 +213,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	if (oflags & AXIS) {
 	  in1[0] = sumsA[k].first;
 	  for (int j=1; j<=3; j++) in1[j] = sumsA[k].second[j];
-	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in1, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
 
 	if (oflags & CENTER) {
 	  in2[0] = sumsC[k].first;
 	  for (int j=1; j<=3; j++) in2[j] = sumsC[k].second[j];
-	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in2, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	}
       }
 
@@ -289,13 +289,13 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       for (int k=0; k<howmany; k++) {
 
 	if (oflags & AXIS) {
-	  MPI_Bcast(in1, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in1, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  for (int j=1; j<=3; j++) axis1[j] = in1[j];
 	  sumsA.push_back(DV(in1[0], axis1));
 	}
 
 	if (oflags & CENTER) {
-	  MPI_Bcast(in2, 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	  MPI_Bcast(in2, 4, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 	  for (int j=1; j<=3; j++) center1[j] = in2[j];
 	  sumsC.push_back(DV(in2[0], center1));
 	}
@@ -498,7 +498,7 @@ void Orient::accumulate(double time, Component *c)
   if (mtot>0.0) {
     axis1   /= mtot;
     center1 /= mtot;
-    if (oflags & AXIS)   sumsA.push_back(DV(time, axis1));
+    if (oflags & AXIS)   sumsA.push_back(DV(time, axis1  ));
     if (oflags & CENTER) sumsC.push_back(DV(time, center1));
   }
 

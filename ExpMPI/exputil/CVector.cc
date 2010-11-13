@@ -24,12 +24,14 @@ CVector::CVector()
 {
   low  = 0;
   high = 0;
+  size = 0;
 }
 
 CVector::CVector(int l, int h)
 {
   low  = 0;
   high = 0;
+  size = 0;
   setsize(l, h);
 }
 
@@ -37,6 +39,7 @@ CVector::CVector(int l, int h, double *v)
 {
   low  = 0;
   high = 0;
+  size = 0;
   setsize(l, h);
   
   for (int i=0; i<size; i++) pelement[i] = v[i+low];
@@ -46,6 +49,7 @@ CVector::CVector(int l, int h, KComplex *v)
 {
   low  = 0;
   high = 0;
+  size = 0;
   setsize(l, h);
   
   for (int i=0; i<size; i++) pelement[i] = v[i+low];
@@ -59,6 +63,7 @@ CVector::CVector(const CVector &v)
 {
   low  = 0;
   high = 0;
+  size = 0;
 
   if (v.elements.size()==0) return;
 
@@ -72,6 +77,7 @@ CVector::CVector(const Vector &v)
 {
   low  = 0;
   high = 0;
+  size = 0;
 
   if (v.elements.size()==0) return;
 
@@ -94,6 +100,7 @@ CVector &CVector::operator=(const CVector &v)
   // Allow assignment of null vector
   if (v.elements.size() == 0) {
     low = high = 0;
+    size = 0;
     return *this;
   }
   
@@ -220,7 +227,7 @@ CVector operator&(const CVector &v1, const Vector &v2)
   }
   
   CVector tmp(v1.low, v1.high);
-  for (int i=0; i<v1.size; i++)
+  for (int i=v1.low; i<=v1.high; i++)
     tmp[i] = v1[i]*v2[i];
   
   return tmp;
@@ -234,7 +241,7 @@ CVector operator&(const Vector &v1, const CVector &v2)
   }
   
   CVector tmp(v2.low, v2.high);
-  for (int i=0; i<v2.size; i++)
+  for (int i=v2.low; i<=v2.high; i++)
     tmp[i] = v1[i] * v2[i];
   
   return tmp;
@@ -628,7 +635,8 @@ CMatrix &CMatrix::operator=(const CMatrix &m)
 {
   // Allow assignment of null matrix
   if (m.rows.size() == 0) {
-    rlow = rhigh = clow = chigh = 0;
+    rlow  = rhigh = clow = chigh = 0;
+    rsize = csize = 0;
     return *this;
   }
   
@@ -993,7 +1001,7 @@ CMatrix CMatrix::Transpose(void) const
   t.rlow  = clow;
   t.rhigh = chigh;
   t.chigh = rhigh;
-  t.clow = rlow;
+  t.clow  = rlow;
   
   for (int i=t.rlow; i<=t.rhigh; i++) t.fastsetrow(i, fastcol(i));
   

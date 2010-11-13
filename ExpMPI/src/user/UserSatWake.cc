@@ -843,6 +843,7 @@ void UserSatWake::compute_coefficients()
 
   for (int ihalo=0; ihalo<Nhalo; ihalo++)
     curcoefs[ihalo] = a*rcoefs[indx][ihalo] + b*rcoefs[indx+1][ihalo];
+
 }
 
 

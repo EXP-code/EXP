@@ -32,6 +32,7 @@ Vector::Vector(int l, int h)
 {
   low  = 0;
   high = 0;
+  size = 0;
   setsize(l, h);
 }
 
@@ -39,6 +40,7 @@ Vector::Vector(int l, int h, double *v)
 {
   low  = 0;
   high = 0;
+  size = 0;
   setsize(l, h);
   
   for (int i=0; i<size; i++) pelement[i] = v[i+low];
@@ -218,7 +220,8 @@ Vector operator-(const Vector &v1, const Vector &v2)
 
 Vector operator^(const Vector &v1, const Vector &v2)
 {
-  if (v1.high != 3 || v2.high != 3) {
+  if (v1.low  != 1 || v2.low  != 1 ||
+      v1.high != 3 || v2.high != 3) {
     bomb_Vector_operation("^");
   }
 
@@ -405,6 +408,8 @@ Matrix::Matrix(int rl, int rh, int cl, int ch, double **array)
   rhigh = 0;
   clow  = 0;
   chigh = 0;
+  rsize = 0;
+  csize = 0;
   setsize(rl, rh, cl, ch);
   
   for (int i=0; i<rsize; i++) {
@@ -420,6 +425,7 @@ Matrix::Matrix(const Matrix &m)
   // Allow construction of null matrix
   if (m.rows.size() == 0) {
     rlow = rhigh = clow = chigh = 0;
+    rsize = csize = 0;
   }
   else {
     
@@ -427,6 +433,8 @@ Matrix::Matrix(const Matrix &m)
     rhigh = 0;
     clow  = 0;
     chigh = 0;
+    rsize = 0;
+    csize = 0;
     setsize(m.rlow, m.rhigh, m.clow, m.chigh);
     
     for (int i=0; i<rsize; i++) {
@@ -863,8 +871,8 @@ double operator^(const Matrix &m1, const Matrix &m2)
   
   double tmp = 0.0;
   
-  for (int i=0; i<m1.rsize; i++) {
-    for (int j=0; j<m1.csize; j++) {
+  for (int i=m1.getrlow(); i<=m1.getrhigh(); i++) {
+    for (int j=m1.getclow(); j<=m1.getchigh(); j++) {
       tmp +=  m1[i][j]*m2[i][j];
     }
   }
