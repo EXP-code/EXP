@@ -1759,8 +1759,6 @@ void RespMat::write_out(string &file)
 
 void RespMat::write_out(ostream &fout)
 {
-  int i;
-
   if (!matrix_computed) {
     if (pv) make_matrix_pv();
     else make_matrix();
@@ -1768,14 +1766,14 @@ void RespMat::write_out(ostream &fout)
 
   fout.write((char const *)&nmax, sizeof(int));
 
-  for (i=1; i<=nmax; i++) {
+  for (int i=1; i<=nmax; i++) {
     for (int j=1; j<=nmax; j++) {
       fout.write((char const *)&mr[i][j].real(), sizeof(double));
       fout.write((char const *)&mr[i][j].imag(), sizeof(double));
     }
   }
 
-  for (i=1; i<=nmax; i++) {
+  for (int i=1; i<=nmax; i++) {
     for (int j=1; j<=nmax; j++) {
       fout.write((char const *)&mr2[i][j].real(), sizeof(double));
       fout.write((char const *)&mr2[i][j].imag(), sizeof(double));
@@ -1793,8 +1791,10 @@ void RespMat::write_out(ostream &fout)
   fout.write((char const *)&dof, sizeof(int));
   fout.write((char const *)&isotropic, sizeof(int));
   fout.write((char const *)&SITYPE, sizeof(int));
+
   char s[128];
-  for (unsigned i=0; i<ID.length(); i++) s[i] = ID[i];
+  unsigned i;
+  for (i=0; i<ID.length(); i++) s[i] = ID[i];
   if (i<128) s[i] = '\0';
   fout.write((char const *)s, 128);
   
@@ -1803,7 +1803,7 @@ void RespMat::write_out(ostream &fout)
 void RespMat::read_in(istream &fin)
 {
   fin.read((char *)&nmax, sizeof(int));
-  mr.setsize(1, nmax, 1, nmax);
+  mr .setsize(1, nmax, 1, nmax);
   mr2.setsize(1, nmax, 1, nmax);
 
   for (int i=1; i<=nmax; i++) {

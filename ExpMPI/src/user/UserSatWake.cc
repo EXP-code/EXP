@@ -60,62 +60,63 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
 {
   id = "SatelliteWake";
 
-  LMIN = 0;
-  LMAX = 4;
-  MMIN = 0;
-  MMAX = 4;
-  lmax = 4;
-  nmax = 10;
-  nfreqs = 1200;
-  HALO_TRUNC = -1;
-  nptsE = 5;
-  nptsK = 4;
-  CAUCHY = 0;
-  RATINT = 0;
-  PTGRID = 200;
-  NRECS = 512;
-  DIVERGE = 0;
-  DIVEXPON = 1.0;
-  OLD = 0;
-  VERBOSE = 0;
-  HALO_TYPE = 3;
-  SITYPE = ITOSIT(2);
-  RMODMAX = 20.0;
-  DELTA = 0.0;
-  OMPI = -0.01;
-  NUMDF = 100;
-  RA = 1.0e20;
-  INCLINE = 45.0;
-  PSI = 0.0;
-  PHIP = 0.0;
-  TYPE = 3;
-  MODEL = 0;
-  NUMT = 20;
-  DIVERGE = 0;
-  DIVEXPON = 1.0;
-  E = 0.0;
-  Rperi = 0.1;
-  Rfac = 0.1;
-  Mfac = 2.0;
-  rmin = -1.0;
-  rmax = -1.0;
-  scale = 0.06667;
-  numr = 400;
-  nint = 12;
-  Tmax = 4.0;
-  delT = 0.01;
-  Toffset = 0.0;
-  satmass = 0.1;
-  INFILE = "SLGridSph.model";
-  CACHEDIR = "./";
-  UseCache = true;
+  LMIN 		= 0;
+  LMAX 		= 4;
+  MMIN 		= 0;
+  MMAX 		= 4;
+  lmax 		= 4;
+  nmax 		= 10;
+  nfreqs 	= 1200;
+  HALO_TRUNC 	= -1;
+  nptsE 	= 5;
+  nptsK 	= 4;
+  CAUCHY 	= 0;
+  RATINT 	= 0;
+  PTGRID 	= 200;
+  NRECS 	= 512;
+  DIVERGE 	= 0;
+  DIVEXPON 	= 1.0;
+  OLD		= 0;
+  VERBOSE 	= 0;
+  HALO_TYPE 	= 3;
+  SITYPE 	= ITOSIT(2);
+  RMODMAX 	= 20.0;
+  DELTA 	= 0.0;
+  OMPI 		= -0.01;
+  NUMDF 	= 100;
+  RA 		= 1.0e20;
+  INCLINE 	= 45.0;
+  PSI 		= 0.0;
+  PHIP 		= 0.0;
+  TYPE		= 3;
+  MODEL 	= 0;
+  NUMT		= 20;
+  DIVERGE 	= 0;
+  DIVEXPON 	= 1.0;
+  E		= 0.0;
+  Rperi 	= 0.1;
+  Rfac 		= 0.1;
+  Mfac 		= 2.0;
+  rmin 		= -1.0;
+  rmax 		= -1.0;
+  scale 	= 0.06667;
+  numr 		= 400;
+  nint 		= 12;
+  Tmax 		= 4.0;
+  delT 		= 0.01;
+  Toffset 	= 0.0;
+  satmass 	= 0.1;
+  INFILE 	= "SLGridSph.model";
+  CACHEDIR 	= "./";
+  UseCache 	= true;
 
-  I = KComplex(0.0, 1.0);
-  rtol = 1.0e-2;
+  I 		= KComplex(0.0, 1.0);
+  rtol 		= 1.0e-2;
 
-  ctr_name = "";		// Default component for center
+  // Default component for center
+  ctr_name	= "";
 
-  cachefile = string(".halo_response.") + runtag;
+  cachefile 	= string(".halo_response.") + runtag;
 
   initialize();
 							      
@@ -424,6 +425,9 @@ void UserSatWake::initialize_coefficients()
       cerr << "Process " << myid << ": error reading save file!\n";
       MPI_Abort(MPI_COMM_WORLD, -34);
     } 
+
+    char tbuf[255];
+    from_save.read(tbuf, 255);
 
     int nfreq1, lmin1, lmax1, mmin1, mmax1;
     from_save.read((char *)&nfreq1, sizeof(int));

@@ -1,13 +1,15 @@
-
 #include <cmath>
 #include <cstdlib>
 #include <string>
+#include <iostream>
+#include <iomanip>
 #include <sstream>
 
 #include <kevin_complex.h>
 #include <CVector.h>
 #include <Vector.h>
 
+#include <execinfo.h>
 #include <pthread.h>
 #include <mpi.h>
 
@@ -15,6 +17,8 @@ using namespace std;
 
 extern char threading_on;
 extern pthread_mutex_t mem_lock;
+extern int myid;
+
 
 /*
   Default constructor; make a null vector.
@@ -363,7 +367,45 @@ CVector CVector_binread(istream& in)
 
 void bomb_CVector(const string& msg)
 {
-  cerr << "CVECTOR ERROR: " << msg << endl;
+  int numprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+
+  if (numprocs>1)
+    cerr << "CVECTOR ERROR [mpi_id=" << myid << "]: " << msg << endl;
+  else
+    cerr << "CVECTOR ERROR: " << msg << endl;
+
+  const int nlev = 100;
+  void *array[nlev];
+  char **strings;
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, nlev);
+
+  // Get the symbols
+  strings = backtrace_symbols(array, size);
+
+  // print out all the frames
+  if (numprocs>1) {
+    ostringstream ostr;
+    ostr << "traceback." << myid;
+    ofstream tb(ostr.str().c_str());
+    if (tb.good()) {
+      tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+      for (int j=0; j<size; j++) tb << strings[j] << endl;
+      tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+    } else {
+      for (int j=0; j<size; j++) cerr << "[" << myid << "] -- "
+				      << strings[j] << endl;
+    }
+  } else {
+    cerr << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+    for (int j=0; j<size; j++) cerr << strings[j] << endl;
+    cerr << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+  }
+  free(strings);
+
   exit(0);
 }
 
@@ -546,7 +588,45 @@ void CMatrix::setsize(int rl, int rh, int cl, int ch)
 
 void bomb_CMatrix(const string& msg)
 {
-  cerr << "CMATRIX ERROR: " << msg << endl;
+  int numprocs;
+  MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
+
+  if (numprocs>1)
+    cerr << "CMATRIX ERROR [mpi_id=" << myid << "]: " << msg << endl;
+  else
+    cerr << "CMATRIX ERROR: " << msg << endl;
+
+  const int nlev = 100;
+  void *array[nlev];
+  char **strings;
+  size_t size;
+
+  // get void*'s for all entries on the stack
+  size = backtrace(array, nlev);
+
+  // Get the symbols
+  strings = backtrace_symbols(array, size);
+
+  // print out all the frames
+  if (numprocs>1) {
+    ostringstream ostr;
+    ostr << "traceback." << myid;
+    ofstream tb(ostr.str().c_str());
+    if (tb.good()) {
+      tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+      for (int j=0; j<size; j++) tb << strings[j] << endl;
+      tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+    } else {
+      for (int j=0; j<size; j++) cerr << "[" << myid << "] -- "
+				      << strings[j] << endl;
+    }
+  } else {
+    cerr << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+    for (int j=0; j<size; j++) cerr << strings[j] << endl;
+    cerr << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
+  }
+  free(strings);
+
   exit(0);
 }
 
