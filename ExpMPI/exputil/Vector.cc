@@ -384,7 +384,7 @@ void bomb_Vector(const string& msg)
   // print out all the frames
   if (numprocs>1) {
     ostringstream ostr;
-    ostr << "traceback." << myid;
+    ostr << "vector_traceback." << myid;
     ofstream tb(ostr.str().c_str());
     if (tb.good()) {
       tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;
@@ -545,7 +545,7 @@ void bomb_Matrix(const string& msg)
   // print out all the frames
   if (numprocs>1) {
     ostringstream ostr;
-    ostr << "traceback." << myid;
+    ostr << "matrix_traceback." << myid;
     ofstream tb(ostr.str().c_str());
     if (tb.good()) {
       tb << setw(80) << setfill('-') << '-' << setfill(' ') << endl;

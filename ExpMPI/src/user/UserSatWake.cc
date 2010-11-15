@@ -114,8 +114,8 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   rtol 		= 1.0e-2;
 
   // Default component for center
+  //
   ctr_name	= "";
-
   cachefile 	= string(".halo_response.") + runtag;
 
   initialize();
@@ -171,7 +171,7 @@ void UserSatWake::userinfo()
     cout << ", center on component <" << ctr_name << ">";
   else
     cout << ", using inertial center";
-  cout << setw(50) << setfill('-') << '-' << endl << setfill(' ');
+  cout << endl << setw(50) << setfill('-') << '-' << endl << setfill(' ');
   cout << "Main parameters:" << endl;
   cout << setw(9) << "" << setw(15) << "NUMT"     << " = " << NUMT     << endl;
   cout << setw(9) << "" << setw(15) << "LMIN"     << " = " << LMIN     << endl;
@@ -389,11 +389,13 @@ void UserSatWake::initialize_coefficients()
       from_save.read((char *)&lmax1,  sizeof(int));
       from_save.read((char *)&mmin1,  sizeof(int));
       from_save.read((char *)&mmax1,  sizeof(int));
+
       if (nfreqs != nfreq1) reading = 0;
       if (LMIN   != lmin1 ) reading = 0;
       if (LMAX   != lmax1 ) reading = 0;
       if (MMIN   != mmin1 ) reading = 0;
       if (MMAX   != mmax1 ) reading = 0;
+
       if (reading) {
 	KComplex tmp;
 	for (int i=0; i<nfreqs; i++) {
@@ -435,6 +437,7 @@ void UserSatWake::initialize_coefficients()
     from_save.read((char *)&lmax1,  sizeof(int));
     from_save.read((char *)&mmin1,  sizeof(int));
     from_save.read((char *)&mmax1,  sizeof(int));
+
     KComplex tmp;
     for (int i=0; i<nfreqs; i++) {
       from_save.read((char *)&tmp.real(), sizeof(double));
@@ -467,6 +470,7 @@ void UserSatWake::initialize_coefficients()
     to_save.write((const char *)&LMAX,   sizeof(int));
     to_save.write((const char *)&MMIN,   sizeof(int));
     to_save.write((const char *)&MMAX,   sizeof(int));
+
     for (int i=0; i<nfreqs; i++) {
       to_save.write((const char *)&freqs[i].real(), sizeof(double));
       to_save.write((const char *)&freqs[i].imag(), sizeof(double));
@@ -628,7 +632,7 @@ void UserSatWake::initialize_coefficients()
   }  
 
   // ===================================================================
-  // Make movie!
+  // Compute the time series of response vectors
   // ===================================================================
   
   ofstream tlog;
@@ -636,12 +640,20 @@ void UserSatWake::initialize_coefficients()
   
   CVector tmp(1, nmax); tmp.zero();
 
+  //
+  // All the time slices for each (L,M) pair
+  //
+
   rcoefs = vector< vector<CVector> >(NUMT+1);
   for (int nt=0; nt<=NUMT; nt++) {
     for (int ihalo=0; ihalo<Nhalo; ihalo++)
       rcoefs[nt].push_back(tmp);
   }
   
+  //
+  // For interpolation in compute_coefficients()
+  //
+
   curcoefs = vector<CVector>(Nhalo);
   for (int ihalo=0; ihalo<Nhalo; ihalo++)
     curcoefs.push_back(tmp);
@@ -715,6 +727,10 @@ void UserSatWake::initialize_coefficients()
     }
   }
 
+
+  //
+  // Share with all processes
+  //
 
   icnt = 0;
 

@@ -121,25 +121,25 @@ void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
     coefs[it].zero();
   }
 
+  LegeQuad lq(NINT);
   Vector pt(1, Nmax);
   CVector cpt;
-  double rr, pp;
-  LegeQuad lq(NINT);
+  double rr, pp, Tmin=Times.front(), Tmax=Times.back();
 
-  for (unsigned it=1; it<Times.size(); it++) {
+  for (unsigned it=0; it<Times.size(); it++) {
     double tt = Times[it];
     for (unsigned iv=0; iv<Freqs.size(); iv++) {
-      double T = Times[0], TT;
-      while (T<Times[it]) {
-	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), tt-T);
+      double T = Tmin;
+      while (T<Tmax) {
+	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), Tmax-T);
 	for (int jt=1; jt<=NINT; jt++) {
-	TT = T + dT*lq.knot(jt);
-	rr = odd2(TT, Times, RR);
-	pp = odd2(TT, Times, PP);
-	t->potl(Nmax, L, rr, pt);
-	cpt = pt;
-	coefs[it][iv] += cpt * exp(I*Freqs[iv]*(TT-tt)-I*pp*M) * 
-	  dT*lq.weight(jt);
+	  double time = T + dT*lq.knot(jt);
+	  rr = odd2(time, TT, RR);
+	  pp = odd2(time, TT, PP);
+	  t->potl(Nmax, L, rr, pt);
+	  cpt = pt;
+	  coefs[it][iv] += cpt * exp(I*Freqs[iv]*(tt-time)-I*pp*M) * 
+	    dT*lq.weight(jt);
 	}
 	T += dT;
       }
