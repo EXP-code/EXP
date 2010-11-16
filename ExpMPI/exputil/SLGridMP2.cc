@@ -1842,12 +1842,12 @@ void SLGridSph::write_cached_table(void)
 
   int i, j;
 
-  out.write((char *)&lmax, sizeof(int));
-  out.write((char *)&nmax, sizeof(int));
-  out.write((char *)&numr, sizeof(int));
-  out.write((char *)&cmap, sizeof(int));
-  out.write((char *)&rmin, sizeof(double));
-  out.write((char *)&rmax, sizeof(double));
+  out.write((char *)&lmax,  sizeof(int));
+  out.write((char *)&nmax,  sizeof(int));
+  out.write((char *)&numr,  sizeof(int));
+  out.write((char *)&cmap,  sizeof(int));
+  out.write((char *)&rmin,  sizeof(double));
+  out.write((char *)&rmax,  sizeof(double));
   out.write((char *)&scale, sizeof(double));
 
   for (int l=0; l<=lmax; l++) {

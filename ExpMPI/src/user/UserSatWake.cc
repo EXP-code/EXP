@@ -85,14 +85,10 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   OMPI 		= -0.01;
   NUMDF 	= 100;
   RA 		= 1.0e20;
-  INCLINE 	= 45.0;
+  INCLINE 	= 0.0;
   PSI 		= 0.0;
   PHIP 		= 0.0;
-  TYPE		= 3;
-  MODEL 	= 0;
   NUMT		= 20;
-  DIVERGE 	= 0;
-  DIVEXPON 	= 1.0;
   E		= 0.0;
   Rperi 	= 0.1;
   Rfac 		= 0.1;
@@ -106,10 +102,16 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   delT 		= 0.01;
   Toffset 	= 0.0;
   satmass 	= 0.1;
+  XYMAX         = 1.0;
+  NUMXY         = 50;
   INFILE 	= "SLGridSph.model";
   CACHEDIR 	= "./";
   UseCache 	= true;
+  RespChk       = false;
+  Circ          = false;
 
+  // Constants
+  //
   I 		= KComplex(0.0, 1.0);
   rtol 		= 1.0e-2;
 
@@ -173,30 +175,56 @@ void UserSatWake::userinfo()
     cout << ", using inertial center";
   cout << endl << setw(50) << setfill('-') << '-' << endl << setfill(' ');
   cout << "Main parameters:" << endl;
-  cout << setw(9) << "" << setw(15) << "NUMT"     << " = " << NUMT     << endl;
-  cout << setw(9) << "" << setw(15) << "LMIN"     << " = " << LMIN     << endl;
-  cout << setw(9) << "" << setw(15) << "LMAX"     << " = " << LMAX     << endl;
-  cout << setw(9) << "" << setw(15) << "MMIN"     << " = " << MMIN     << endl;
-  cout << setw(9) << "" << setw(15) << "MMAX"     << " = " << MMAX     << endl;
-  cout << setw(9) << "" << setw(15) << "lmax"     << " = " << lmax     << endl;
-  cout << setw(9) << "" << setw(15) << "nmax"     << " = " << nmax     << endl;
-  cout << setw(9) << "" << setw(15) << "nfreqs"   << " = " << nfreqs   << endl;
-  cout << setw(9) << "" << setw(15) << "INCLINE"  << " = " << INCLINE  << endl;
-  cout << setw(9) << "" << setw(15) << "PSI"      << " = " << PSI      << endl;
-  cout << setw(9) << "" << setw(15) << "PHIP"     << " = " << PHIP     << endl;
-  cout << setw(9) << "" << setw(15) << "E"        << " = " << E        << endl;
-  cout << setw(9) << "" << setw(15) << "Rperi"    << " = " << Rperi    << endl;
-  cout << setw(9) << "" << setw(15) << "Rfac"     << " = " << Rfac     << endl;
-  cout << setw(9) << "" << setw(15) << "Mfac"     << " = " << Mfac     << endl;
-  cout << setw(9) << "" << setw(15) << "Tmax "    << " = " << Tmax     << endl;
-  cout << setw(9) << "" << setw(15) << "delT "    << " = " << delT     << endl;
-  cout << setw(9) << "" << setw(15) << "rmin"     << " = " << rmin     << endl;
-  cout << setw(9) << "" << setw(15) << "rmax"     << " = " << rmax     << endl;
-  cout << setw(9) << "" << setw(15) << "scale"    << " = " << scale    << endl;
-  cout << setw(9) << "" << setw(15) << "numr"     << " = " << numr     << endl;
-  cout << setw(9) << "" << setw(15) << "nint"     << " = " << nint     << endl;
-  cout << setw(9) << "" << setw(15) << "MASS"     << " = " << satmass  << endl;
-  cout << setw(9) << "" << setw(15) << "UseCache" << " = " << UseCache << endl;
+  cout << setw(9) << "" << setw(15) << "LMIN"	<< " = " << LMIN	<< endl;
+  cout << setw(9) << "" << setw(15) << "LMAX"	<< " = " << LMAX	<< endl;
+  cout << setw(9) << "" << setw(15) << "MMIN"	<< " = " << MMIN	<< endl;
+  cout << setw(9) << "" << setw(15) << "MMAX"	<< " = " << MMIN	<< endl;
+  cout << setw(9) << "" << setw(15) << "lmax"	<< " = " << lmax	<< endl;
+  cout << setw(9) << "" << setw(15) << "nmax"	<< " = " << nmax	<< endl;
+  cout << setw(9) << "" << setw(15) << "nfreqs"	<< " = " << nfreqs	<< endl;
+  cout << setw(9) << "" << setw(15) << "HALO_TRUNC" << " = " << HALO_TRUNC << endl;
+  cout << setw(9) << "" << setw(15) << "nptsE"	<< " = " << nptsE	<< endl;
+  cout << setw(9) << "" << setw(15) << "nptsK"	<< " = " << nptsK	<< endl;
+  cout << setw(9) << "" << setw(15) << "CAUCHY"	<< " = " << CAUCHY	<< endl;
+  cout << setw(9) << "" << setw(15) << "RATINT"	<< " = " << RATINT	<< endl;
+  cout << setw(9) << "" << setw(15) << "PTGRID"	<< " = " << PTGRID	<< endl;
+  cout << setw(9) << "" << setw(15) << "NRECS"	<< " = " << NRECS	<< endl;
+  cout << setw(9) << "" << setw(15) << "DIVERGE"<< " = " << DIVERGE	<< endl;
+  cout << setw(9) << "" << setw(15) << "DIVEXPON"<< " = " << DIVEXPON	<< endl;
+  cout << setw(9) << "" << setw(15) << "OLD"	<< " = " << OLD		<< endl;
+  cout << setw(9) << "" << setw(15) << "VERBOSE"<< " = " << VERBOSE	<< endl;
+  cout << setw(9) << "" << setw(15) << "HALO_TYPE"<< " = " << HALO_TYPE	<< endl;
+  cout << setw(9) << "" << setw(15) << "SITYPE"	<< " = " << SITYPE	<< endl;
+  cout << setw(9) << "" << setw(15) << "RMODMAX"<< " = " << RMODMAX	<< endl;
+  cout << setw(9) << "" << setw(15) << "DELTA"	<< " = " << DELTA	<< endl;
+  cout << setw(9) << "" << setw(15) << "OMPI"	<< " = " << OMPI	<< endl;
+  cout << setw(9) << "" << setw(15) << "NUMDF"	<< " = " << NUMDF	<< endl;
+  cout << setw(9) << "" << setw(15) << "RA"	<< " = " << RA		<< endl;
+  cout << setw(9) << "" << setw(15) << "INCLINE"<< " = " << INCLINE	<< endl;
+  cout << setw(9) << "" << setw(15) << "PSI"	<< " = " << PSI		<< endl;
+  cout << setw(9) << "" << setw(15) << "PHIP"	<< " = " << PHIP	<< endl;
+  cout << setw(9) << "" << setw(15) << "NUMT"	<< " = " << NUMT	<< endl;
+  cout << setw(9) << "" << setw(15) << "E"	<< " = " << E		<< endl;
+  cout << setw(9) << "" << setw(15) << "Rperi"	<< " = " << Rperi	<< endl;
+  cout << setw(9) << "" << setw(15) << "Rfac"	<< " = " << Rfac	<< endl;
+  cout << setw(9) << "" << setw(15) << "Mfac"	<< " = " << Mfac	<< endl;
+  cout << setw(9) << "" << setw(15) << "rmin"	<< " = " << rmin	<< endl;
+  cout << setw(9) << "" << setw(15) << "rmax"	<< " = " << rmax	<< endl;
+  cout << setw(9) << "" << setw(15) << "scale"	<< " = " << scale	<< endl;
+  cout << setw(9) << "" << setw(15) << "numr"	<< " = " << numr	<< endl;
+  cout << setw(9) << "" << setw(15) << "nint"	<< " = " << nint	<< endl;
+  cout << setw(9) << "" << setw(15) << "Tmax"	<< " = " << Tmax	<< endl;
+  cout << setw(9) << "" << setw(15) << "delT"	<< " = " << delT	<< endl;
+  cout << setw(9) << "" << setw(15) << "Toffset"<< " = " << Toffset	<< endl;
+  cout << setw(9) << "" << setw(15) << "MASS"	<< " = " << satmass	<< endl;
+  cout << setw(9) << "" << setw(15) << "INFILE"	<< " = " << INFILE	<< endl;
+  cout << setw(9) << "" << setw(15) << "CACHEDIR"<< " = " << CACHEDIR	<< endl;
+  cout << setw(9) << "" << setw(15) << "ctrname"<< " = " << ctr_name	<< endl;
+  cout << setw(9) << "" << setw(15) << "UseCache"<< " = " << UseCache	<< endl;
+  cout << setw(9) << "" << setw(15) << "XYMAX"	<< " = " << XYMAX	<< endl;
+  cout << setw(9) << "" << setw(15) << "NUMXY"	<< " = " << NUMXY	<< endl;
+  cout << setw(9) << "" << setw(15) << "RespChk"<< " = " << RespChk	<< endl;
+  cout << setw(9) << "" << setw(15) << "Circ"	<< " = " << Circ	<< endl;
   cout << setw(50) << setfill('-') << '-' << endl << setfill(' ');
 
   I = KComplex(0.0, 1.0);
@@ -216,42 +244,56 @@ void UserSatWake::initialize()
 {
   string val;
 
-  if (get_value("LMIN", val))		LMIN = atoi(val);
-  if (get_value("LMAX", val))		LMAX = atoi(val);
-  if (get_value("MMIN", val))		MMIN = atoi(val);
-  if (get_value("MMAX", val))		MMIN = atoi(val);
-  if (get_value("lmax", val))		lmax = atoi(val);
-  if (get_value("nmax", val))		nmax = atoi(val);
-  if (get_value("nfreqs", val))		nfreqs = atoi(val);
-  if (get_value("numr", val))		numr = atoi(val);
-  if (get_value("nint", val))		nint = atoi(val);
-  if (get_value("rmin", val))		rmin = atof(val);
-  if (get_value("rmax", val))		rmax = atof(val);
-  if (get_value("scale", val))		scale = atof(val);
-  if (get_value("HALO_TRUNC", val))	HALO_TRUNC = atoi(val);
-  if (get_value("nptsE", val))		nptsE = atoi(val);
-  if (get_value("nptsK", val))		nptsK = atoi(val);
-  if (get_value("CAUCHY", val))		CAUCHY = atoi(val);
-  if (get_value("RATINT", val))		RATINT = atoi(val);
-  if (get_value("HALO_TYPE", val))	HALO_TYPE = atoi(val);
-  if (get_value("PTGRID", val))		PTGRID = atoi(val);
-  if (get_value("NRECS", val))		NRECS = atoi(val);
-  if (get_value("DIVERGE", val))	DIVERGE = atoi(val);
-  if (get_value("DIVEXPON", val))	DIVEXPON = atoi(val);
-  if (get_value("OLD", val))		OLD = atoi(val);
-  if (get_value("VERBOSE", val))	VERBOSE = atoi(val);
-  if (get_value("SITYPE", val))		SITYPE = ITOSIT(atoi(val));
-  if (get_value("Rperi", val))		Rperi = atof(val);
-  if (get_value("Rfac", val))		Rfac = atof(val);
-  if (get_value("Mfac", val))		Mfac = atof(val);
-  if (get_value("Tmax", val))		Tmax = atof(val);
-  if (get_value("delT", val))		delT = atof(val);
-  if (get_value("Toffset", val))	Toffset = atof(val);
-  if (get_value("MASS", val))		satmass = atof(val);
-  if (get_value("INFILE", val))		INFILE = val;
-  if (get_value("CACHEDIR", val))	CACHEDIR = val;
-  if (get_value("ctrname", val))	ctr_name = val;
-  if (get_value("UseCache", val))	UseCache = atoi(val) ? true : false;
+  if (get_value("LMIN", val))		LMIN 		= atoi(val);
+  if (get_value("LMAX", val))		LMAX 		= atoi(val);
+  if (get_value("MMIN", val))		MMIN 		= atoi(val);
+  if (get_value("MMAX", val))		MMIN 		= atoi(val);
+  if (get_value("lmax", val))		lmax 		= atoi(val);
+  if (get_value("nmax", val))		nmax 		= atoi(val);
+  if (get_value("nfreqs", val))		nfreqs 		= atoi(val);
+  if (get_value("HALO_TRUNC", val))	HALO_TRUNC 	= atoi(val);
+  if (get_value("nptsE", val))		nptsE 		= atoi(val);
+  if (get_value("nptsK", val))		nptsK 		= atoi(val);
+  if (get_value("CAUCHY", val))		CAUCHY 		= atoi(val);
+  if (get_value("RATINT", val))		RATINT 		= atoi(val);
+  if (get_value("PTGRID", val))		PTGRID 		= atoi(val);
+  if (get_value("NRECS", val))		NRECS 		= atoi(val);
+  if (get_value("DIVERGE", val))	DIVERGE 	= atoi(val);
+  if (get_value("DIVEXPON", val))	DIVEXPON 	= atoi(val);
+  if (get_value("OLD", val))		OLD 		= atoi(val);
+  if (get_value("VERBOSE", val))	VERBOSE 	= atoi(val);
+  if (get_value("HALO_TYPE", val))	HALO_TYPE 	= atoi(val);
+  if (get_value("SITYPE", val))		SITYPE		= ITOSIT(atoi(val));
+  if (get_value("RMODMAX", val))	RMODMAX 	= atof(val);
+  if (get_value("DELTA", val))		DELTA 		= atof(val);
+  if (get_value("OMPI", val))		OMPI 		= atof(val);
+  if (get_value("NUMDF", val))		NUMDF 		= atoi(val);
+  if (get_value("RA", val))		RA 		= atof(val);
+  if (get_value("INCLINE", val))	INCLINE 	= atof(val);
+  if (get_value("PSI", val))		PSI 		= atof(val);
+  if (get_value("PHIP", val))		PHIP 		= atof(val);
+  if (get_value("NUMT", val))		NUMT 		= atoi(val);
+  if (get_value("E", val))		E 		= atof(val);
+  if (get_value("Rperi", val))		Rperi 		= atof(val);
+  if (get_value("Rfac", val))		Rfac 		= atof(val);
+  if (get_value("Mfac", val))		Mfac 		= atof(val);
+  if (get_value("rmin", val))		rmin 		= atof(val);
+  if (get_value("rmax", val))		rmax 		= atof(val);
+  if (get_value("scale", val))		scale 		= atof(val);
+  if (get_value("numr", val))		numr 		= atoi(val);
+  if (get_value("nint", val))		nint 		= atoi(val);
+  if (get_value("Tmax", val))		Tmax 		= atof(val);
+  if (get_value("delT", val))		delT 		= atof(val);
+  if (get_value("Toffset", val))	Toffset 	= atof(val);
+  if (get_value("MASS", val))		satmass 	= atof(val);
+  if (get_value("INFILE", val))		INFILE		= val;
+  if (get_value("CACHEDIR", val))	CACHEDIR	= val;
+  if (get_value("ctrname", val))	ctr_name	= val;
+  if (get_value("UseCache", val))	UseCache 	= atoi(val) ? true : false;
+  if (get_value("XYMAX", val))		XYMAX 		= atof(val);
+  if (get_value("NUMXY", val))		NUMXY 		= atof(val);
+  if (get_value("RespChk", val))	RespChk 	= atoi(val) ? true : false;
+  if (get_value("Circ", val))		Circ 		= atoi(val) ? true : false;
 }
 
 
@@ -323,7 +365,9 @@ void UserSatWake::initialize_coefficients()
   // Setup orbit
   // ===================================================================
   
-  
+  if (Circ)
+    E = 0.5*halo_model->get_mass(Rperi)/Rperi + halo_model->get_pot(Rperi);
+
   double MaxOm = sqrt(halo_model->get_mass(Rfac)/(Rfac*Rfac*Rfac));
   if (myid==0) cout << "Omega(" << Rfac << ")=" << MaxOm  << endl;
 
@@ -344,8 +388,14 @@ void UserSatWake::initialize_coefficients()
   Times = vector<double>(NUMT+1);
   for (int nt=0; nt<=NUMT; nt++) Times[nt] = -Tmax + 2.0*Tmax*nt/NUMT;
   
-  TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, runtag);
+  string coutfile("");
+  if (myid==0) coutfile = outdir + runtag;
+
+  TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, coutfile);
   
+  //
+  // This is a map of maps . . . a nice way to make sparse matrix
+  //
   map< int, map<int, vector<CMatrix> > > coefs;
   CVector tcoefs;
   int icnt;
@@ -480,9 +530,14 @@ void UserSatWake::initialize_coefficients()
 
   if (myid==0) cout << "Computing Laplace coefficients . . ." << endl;
   
+  //
+  // Round-robin work queue
+  //
   icnt = 0;
   for (int L=LMIN; L<=LMAX; L++) {
-    for (int L2=-L;L2<=L; L2+=2) {
+
+    for (int L2=-L; L2<=L; L2+=2) {
+
       int id = icnt++ % numprocs;
       if (id == myid) {
 	Coefs.coefs(L, L2, nmax, nint, u, freqs, Times,  coefs[L][L2]);
@@ -491,17 +546,22 @@ void UserSatWake::initialize_coefficients()
   }
 
 
+  //
+  // Share with all processes
+  //
   icnt = 0;
   for (int L=LMIN; L<=LMAX; L++) {
+
     if (myid==0) cout << "L=" << L << endl;
-    for (int L2=-L;L2<=L; L2+=2) {
+
+    for (int L2=-L; L2<=L; L2+=2) {
       int id = icnt++ % numprocs;
       unsigned sz = coefs[L][L2].size();
       MPI_Bcast(&sz, 1, MPI_UNSIGNED, id, MPI_COMM_WORLD);
+
       if (id==myid) {
-	vector<CMatrix>::iterator it;
-	for (it=coefs[L][L2].begin(); it!=coefs[L][L2].end(); it++)
-	  CMatrixSynchronize(*it, id);
+	for (unsigned j=0; j<sz; j++)
+	  CMatrixSynchronize(coefs[L][L2][j], id);
       } else {
 	CMatrix tmp;
 	for (unsigned j=0; j<sz; j++) {
@@ -511,7 +571,7 @@ void UserSatWake::initialize_coefficients()
       }
       
       if (myid==0) cout << "    L2=" << L2 << " rows=[" 
-			<< coefs[L][L2][0].getrlow() << ", " 
+			<< coefs[L][L2][0].getrlow()  << ", " 
 			<< coefs[L][L2][0].getrhigh() << "]" << endl;
     }
   }
@@ -666,23 +726,24 @@ void UserSatWake::initialize_coefficients()
     if (myid==0) tlog << setw(8) << nt << setw(16) << Times[nt] << endl;
     
     //
-    // Frequency loop for current time
+    // Get satellite perturbation coefficients
     //
-    for (int nf=0; nf<nfreqs; nf++) {
+    for (int ihalo=0; ihalo<Nhalo; ihalo++) {
       
-      //
-      // Get satellite perturbation coefficients
-      //
-      for (int ihalo=0; ihalo<Nhalo; ihalo++) {
-	
-	int id = icnt++ % numprocs;
+      int id = icnt++ % numprocs;
+      
+      if (id != myid) continue;
 
-	if (id != myid) continue;
-
-	int L = Lhalo[ihalo];
-	int M = Mhalo[ihalo];
+      int L = Lhalo[ihalo];
+      int M = Mhalo[ihalo];
 	
-	for (int L2=-L; L2<=L; L2+=2) {
+      for (int L2=-L; L2<=L; L2+=2) {
+
+	//
+	// Frequency loop for current time
+	//
+	for (int nf=0; nf<nfreqs; nf++) {
+	  
 	  // 
 	  // Truncate satellite coefficients
 	  //
@@ -691,6 +752,7 @@ void UserSatWake::initialize_coefficients()
 	    for (int n=HALO_TRUNC+1; n<=nmax; n++) tcoefs[n] = 0.0;
 	  }
 	  
+	  cout << "Coef=" << tcoefs[1] << ", " << tcoefs[2] << endl;
 	  
 	  //
 	  // Factor for norm in density component of biorthogonal pair
@@ -717,34 +779,91 @@ void UserSatWake::initialize_coefficients()
 	  // to be consistent with definition of rotation matrices)
 	  
 	  if (L2>0 && isOdd(L2)) tcoefs *= -1.0;
-	}
 
-	tcoefs *= dOmega/2.0*M_PI;
+	  tcoefs *= dOmega/2.0*M_PI;
 	
-	rcoefs[nt][ihalo] 
-	  += total[nf][ihalo].get_response(tcoefs, RespMat::self);
+	  rcoefs[nt][ihalo] 
+	    += total[nf][ihalo].get_response(tcoefs, RespMat::self);
+	  
+	}
       }
     }
   }
 
-
+  
   //
   // Share with all processes
   //
-
   icnt = 0;
 
   for (int nt=0; nt<=NUMT; nt++) {
     
     for (int ihalo=0; ihalo<Nhalo; ihalo++) {
       int id = icnt++ % numprocs;
+      if (myid==id) {
+	cout << "Process " << myid << ": [orig] nt, L, M=" 
+	     << nt << ", " << Lhalo[ihalo] << ", " << Mhalo[ihalo]
+	     << " val[1]=" << rcoefs[nt][ihalo][1] << endl;
+      }
+	
       CVectorSynchronize(rcoefs[nt][ihalo], id);
+
+      if (myid!=id) {
+	cout << "Process " << myid << ": nt, L, M=" 
+	     << nt << ", " << Lhalo[ihalo] << ", " << Mhalo[ihalo]
+	     << " val[1]=" << rcoefs[nt][ihalo][1] << endl;
+      }
+
     }
 
   }
 
+  if (RespChk) {
+    check_response();
+				// For debugging
+    ostringstream ostr;
+    ostr << outdir << runtag << "_coefs." << myid;
+    ofstream outc(ostr.str().c_str());
+    if (outc) {
+      for (int nt=0; nt<=NUMT; nt++) {
+	for (int ihalo=0; ihalo<Nhalo; ihalo++) {
+	  for (int n=1; n<=nmax; n++) 
+	    outc << setw(18) << Times[nt]
+		 << setw( 5) << Lhalo[ihalo]
+		 << setw( 5) << Mhalo[ihalo]
+		 << setw( 5) << n
+		 << setw(18) << rcoefs[nt][ihalo][n].real()
+		 << setw(18) << rcoefs[nt][ihalo][n].imag()
+		 << setw(18) << fabs(rcoefs[nt][ihalo][n])
+		 << endl;
+	  outc << endl;
+	}
+      }
+    }
+    
+    if (myid==0) {
+      for (int ihalo=0; ihalo<Nhalo; ihalo++) {
+	ostringstream ostr;
+	ostr << outdir << runtag 
+	     << "." << Lhalo[ihalo]
+	     << "." << Mhalo[ihalo]
+	     << ".coefs";
+	ofstream out(ostr.str().c_str());
+	for (int nt=0; nt<=NUMT; nt++) {
+	  for (int n=1; n<=nmax; n++) 
+	    out << setw(18) << Times[nt]
+		<< setw( 5) << n
+		<< setw(18) << rcoefs[nt][ihalo][n].real()
+		<< setw(18) << rcoefs[nt][ihalo][n].imag()
+		<< setw(18) << fabs(rcoefs[nt][ihalo][n])
+		<< endl;
+	  out << endl;
+	}
+      }
+    }
+  }
 }
-
+    
 
 void UserSatWake::determine_acceleration_and_potential(void)
 {
@@ -865,6 +984,120 @@ void UserSatWake::compute_coefficients()
     curcoefs[ihalo] = a*rcoefs[indx][ihalo] + b*rcoefs[indx+1][ihalo];
 
 }
+
+
+void UserSatWake::check_response()
+{
+  int icnt = 0;
+  for (int nt=0; nt<=NUMT; nt++) {
+    
+    int id = icnt++ % numprocs;
+    if (id != myid) continue;
+    
+    cout << "Process " << myid << ": printing T=" << Times[nt] << endl;
+
+    ostringstream suffix;
+    suffix << nt;
+
+    string name1 = outdir + "dens." + runtag + ".abs." + suffix.str();
+    string name2 = outdir + "dens." + runtag + ".rel." + suffix.str();
+    string name3 = outdir + "potl." + runtag + ".abs." + suffix.str();
+    string name4 = outdir + "potl." + runtag + ".rel." + suffix.str();
+    //
+    // Print out wakes
+    //
+    gnuplot_out(rcoefs[nt],
+		RespMat::self, RespMat::density, false, name1);
+
+    gnuplot_out(rcoefs[nt],
+		RespMat::self, RespMat::density, true,  name2);
+
+    gnuplot_out(rcoefs[nt],
+		RespMat::self, RespMat::potential, false, name3);
+
+    gnuplot_out(rcoefs[nt],
+		RespMat::self, RespMat::potential, true,  name4);
+  }
+
+}
+
+void UserSatWake::gnuplot_out(vector<CVector>& coefs, 
+			      RespMat::gravity grav, RespMat::response type,
+			      bool relative, string& file)
+{
+  double x, dx = 2.0*XYMAX/(NUMXY-1);
+  double y, dy = 2.0*XYMAX/(NUMXY-1);
+  double r, phi, ans, back;
+  KComplex I(0.0, 1.0);
+  Vector f;
+  
+  ofstream out(file.c_str());
+  if (!out) {
+    cerr << "Could not open <" << file << "> for output" << endl;
+    return;
+  }
+
+  for (int i=0; i<NUMXY; i++) {
+    x = -XYMAX + dx*i;
+
+    for (int j=0; j<NUMXY; j++) {
+      y = -XYMAX + dy*j;
+      
+      r = sqrt(x*x + y*y);
+      
+      ans = 0.0;
+
+      if (r <= halo_model->get_max_radius()) {
+	phi = atan2(y, x);
+      
+	for (unsigned ihalo=0; ihalo<Lhalo.size(); ihalo++) {
+
+	  int L = Lhalo[ihalo];
+	  int M = Mhalo[ihalo];
+	  if (L<M) {
+	    cerr << "L=" << L << " but M=" << M << endl;
+	  }
+
+	  double Ylm = satmass*
+	    sqrt( (0.5*L + 0.25)/M_PI * 
+		  exp(lgamma(1.0+L-M) - lgamma(1.0+L+M)) ) * plgndr(L, M, 0.0);
+
+	  f = Re( exp(I*phi*M) * coefs[ihalo] );
+	  
+	  switch (type) {
+	  case density:
+	    ans += Ylm*u->get_dens(r, L, f)/(4.0*M_PI);
+	    break;
+	  case potential:
+	    ans += Ylm*u->get_potl(r, L, f);
+	    break;
+	  }
+	}
+      
+	if (relative) {
+	  switch (type) {
+	  case density:
+	    if (relative) {
+	      back = halo_model->get_density(r);
+	      if (fabs(back)>0.0) ans /= back;
+	    }
+	    break;
+	  case potential:
+	    if (relative) {
+	      back = halo_model->get_pot(r);
+	      if (fabs(back)>0.0) ans /= back;
+	    }
+	    break;
+	  }
+	}
+      }
+
+      out << setw(16) << x << setw(16) << y << setw(16) << ans << endl;
+    }
+    out << endl;
+  }
+}
+
 
 
 extern "C" {

@@ -71,23 +71,26 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
     PS.push_back(cur);
   }
   
-  string file = OUTFILE + ".orbit";
-  ofstream out(file.c_str());
-  if (out) {
-    for (unsigned i=PS.size()-1; i>=1; i--)
-      out << setw(18) << -T[i]
-	  << setw(18) <<  PS[i][0]
-	  << setw(18) << -PS[i][1]
-	  << setw(18) << -PS[i][2]
-	  << setw(18) <<  PS[i][3]
-	  << endl;
-    for (unsigned i=0; i<PS.size(); i++)
-      out << setw(18) << T[i]
-	  << setw(18) << PS[i][0]
-	  << setw(18) << PS[i][1]
-	  << setw(18) << PS[i][2]
-	  << setw(18) << PS[i][3]
-	  << endl;
+  if (OUTFILE.size()) {
+
+    string file = OUTFILE + ".orbit";
+    ofstream out(file.c_str());
+    if (out) {
+      for (unsigned i=PS.size()-1; i>=1; i--)
+	out << setw(18) << -T[i]
+	    << setw(18) <<  PS[i][0]
+	    << setw(18) << -PS[i][1]
+	    << setw(18) << -PS[i][2]
+	    << setw(18) <<  PS[i][3]
+	    << endl;
+      for (unsigned i=0; i<PS.size(); i++)
+	out << setw(18) << T[i]
+	    << setw(18) << PS[i][0]
+	    << setw(18) << PS[i][1]
+	    << setw(18) << PS[i][2]
+	    << setw(18) << PS[i][3]
+	    << endl;
+    }
   }
 }
 

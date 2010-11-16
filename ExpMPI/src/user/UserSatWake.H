@@ -64,6 +64,7 @@
     @param INFILE:		Model file
     @param CACHEDIR:		Directory containing cache files
     @param UseCache:		Attempt to read and write cache
+    @param Circ:		Interpret Rperi as the circular orbit radius
 */
 class UserSatWake : public ExternalForce
 {
@@ -80,13 +81,13 @@ private:
   int Number, Pmax, LMIN, LMAX, MMIN, MMAX, lmax, nmax, HALO_TRUNC;
   int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS, nfreqs;
   int OLD, VERBOSE, HALO_MODEL, NUMDF, numr, nint;
-  int TYPE, MODEL, NUMT, DIVERGE;
+  int TYPE, MODEL, NUMT, DIVERGE, NUMXY;
   double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
   double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac;
-  double rmin, rmax, scale;
+  double rmin, rmax, scale, XYMAX;
   string INFILE, CACHEDIR, ctr_name;
   IntegrationType SITYPE;
-  bool UseCache;
+  bool UseCache, RespChk, Circ;
 
   //============================================================
 
@@ -95,14 +96,17 @@ private:
   vector<double> Times;
   vector<int> Lhalo, Mhalo;
 
-  AxiSymModel *halo_model;
+  AxiSymModel  *halo_model;
   AxiSymBiorth *u;
-  Component *c0;
+  Component    *c0;
   
   void userinfo();
   void initialize_coefficients();
   void compute_coefficients();
-  
+  void check_response();
+  void gnuplot_out(vector<CVector>& coefs, 
+		   RespMat::gravity grav, RespMat::response type,
+		   bool relative, string& file);
   KComplex I;
   double rtol;
   int Nhalo;

@@ -1263,6 +1263,7 @@ void CMatrixSynchronize(CMatrix& mat, int id)
   
   int sz = bb[3] - bb[2] + 1;
   vector<double> tmp(sz);
+
   for (int j=bb[0]; j<=bb[1]; j++) {
 
     // Real part of column
@@ -1293,5 +1294,11 @@ void CMatrixSynchronize(CMatrix& mat, int id)
 	mat[j][i].imag() = tmp[i-bb[2]];
     }
   }
+
+  if (myid!=id) {
+    cout << "Process " << myid << ": m[1][1]=" << mat[bb[0]][bb[2]]
+	 << endl;
+  }
+
 }
 
