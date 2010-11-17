@@ -752,8 +752,6 @@ void UserSatWake::initialize_coefficients()
 	    for (int n=HALO_TRUNC+1; n<=nmax; n++) tcoefs[n] = 0.0;
 	  }
 	  
-	  cout << "Coef=" << tcoefs[1] << ", " << tcoefs[2] << endl;
-	  
 	  //
 	  // Factor for norm in density component of biorthogonal pair
 	  //         |
@@ -782,11 +780,21 @@ void UserSatWake::initialize_coefficients()
 
 	  tcoefs *= dOmega/2.0*M_PI;
 	
+	  cout << "Coef=" << tcoefs[1] << ", " << tcoefs[2] << endl;
+	  if (fabs(tcoefs[2]) > 1.0e-6) {
+	    cout << "Non-zero" << endl;
+	  }
+
 	  rcoefs[nt][ihalo] 
 	    += total[nf][ihalo].get_response(tcoefs, RespMat::self);
 	  
 	}
       }
+
+      
+      for (int n=1; n<=nmax; n++)
+	cout << setw(4) << nt << setw(4) << ihalo << rcoefs[nt][ihalo][n]
+	     << endl;
     }
   }
 
@@ -800,20 +808,7 @@ void UserSatWake::initialize_coefficients()
     
     for (int ihalo=0; ihalo<Nhalo; ihalo++) {
       int id = icnt++ % numprocs;
-      if (myid==id) {
-	cout << "Process " << myid << ": [orig] nt, L, M=" 
-	     << nt << ", " << Lhalo[ihalo] << ", " << Mhalo[ihalo]
-	     << " val[1]=" << rcoefs[nt][ihalo][1] << endl;
-      }
-	
       CVectorSynchronize(rcoefs[nt][ihalo], id);
-
-      if (myid!=id) {
-	cout << "Process " << myid << ": nt, L, M=" 
-	     << nt << ", " << Lhalo[ihalo] << ", " << Mhalo[ihalo]
-	     << " val[1]=" << rcoefs[nt][ihalo][1] << endl;
-      }
-
     }
 
   }

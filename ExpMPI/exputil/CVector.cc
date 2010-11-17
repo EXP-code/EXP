@@ -1061,29 +1061,30 @@ CMatrix CMatrix::Conjg(void) const
   CMatrix tmp(rlow, rhigh, clow, chigh);
   
   for (int i=0; i<rsize; i++) {
-    for (int j=clow; j<=chigh; j++) {
-      tmp.rows[i][j].r =  rows[i][j].r;
-      tmp.rows[i][j].r = -rows[i][j].i;
+    for (int j=0; j<csize; j++) {
+      tmp.rows[i].pelement[j].r =  rows[i].pelement[j].r;
+      tmp.rows[i].pelement[j].i = -rows[i].pelement[j].i;
     }
   }      
   
   return tmp;
 }
 
-
-
+CMatrix CMatrix::Adjoint(void) const 
+{
+  CMatrix t(*this);
+  return t.Conjg().Transpose();
+}
 
 
 CMatrix CMatrix::Transpose(void) const
 {
   CMatrix t(clow, chigh, rlow, rhigh);
   
-  t.rlow  = clow;
-  t.rhigh = chigh;
-  t.chigh = rhigh;
-  t.clow  = rlow;
-  
-  for (int i=t.rlow; i<=t.rhigh; i++) t.fastsetrow(i, fastcol(i));
+  for (int i=t.rlow; i<=t.rhigh; i++) {
+    CVector tmp = fastcol(i);
+    t.fastsetrow(i, tmp);
+  }
   
   return t;
 }

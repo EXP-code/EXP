@@ -321,7 +321,7 @@ class CMatrix
   Matrix Im(void) const;
   CMatrix Conjg(void) const;	
   CMatrix Transpose(void) const;	
-  CMatrix Adjoint(void) const {return Transpose().Conjg();}
+  CMatrix Adjoint(void) const;
   KComplex Trace(void) const;
   
   
