@@ -65,16 +65,17 @@ CVector::CVector(int l, int h, KComplex *v)
 
 CVector::CVector(const CVector &v)
 {
-  low  = 0;
-  high = 0;
-  size = 0;
+  // Allow construction of null vector
+  if (v.elements.size()==0) {
+    low = high = size = 0;
+    pelement = 0;		// Null pointer
+  } else {
 
-  if (v.elements.size()==0) return;
-
-  setsize(v.low, v.high);
+    setsize(v.low, v.high);
   
-  elements = v.elements;
-  pelement = &elements[0];
+    elements = v.elements;
+    pelement = &elements[0];
+  }
 }
 
 CVector::CVector(const Vector &v)

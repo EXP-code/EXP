@@ -18,6 +18,7 @@ extern char threading_on;
 extern pthread_mutex_t mem_lock;
 extern int myid;
 
+
 /*
   Default constructor; make a null vector.
 */
@@ -125,7 +126,6 @@ void Vector::setsize(int l, int h)
   // do we need to resize at all?
   
   if (l==low && h==high) return;
-  
   
   // is the requested size positive?
   
@@ -1043,7 +1043,8 @@ Matrix Matrix::Transpose(void)
   
   
   for (int i=t.rlow; i<=t.rhigh; i++) {
-    t.fastsetrow(i, fastcol(i));
+    Vector tmp = fastcol(i);
+    t.fastsetrow(i, tmp);
   }
   
   return t;
