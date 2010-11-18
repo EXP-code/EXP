@@ -736,6 +736,7 @@ void UserSatWake::initialize_coefficients()
 
       int L = Lhalo[ihalo];
       int M = Mhalo[ihalo];
+      double dup = M ? 2.0 : 1.0;
 	
       for (int L2=-L; L2<=L; L2+=2) {
 
@@ -761,7 +762,7 @@ void UserSatWake::initialize_coefficients()
 	  //         |          |     |
 	  //         |          |     |
 	  //         V          V     V
-	  tcoefs *= 4.0*M_PI * 2.0 * sqrt( (0.5*L + 0.25)/M_PI *
+	  tcoefs *= 4.0*M_PI * dup * sqrt( (0.5*L + 0.25)/M_PI *
             exp(lgamma(1.0+L-abs(L2)) - lgamma(1.0+L+abs(L2))) ) *
             plgndr(L, abs(L2), 0.0) * 
             rot_matrix(L, M, L2, INCLINE) * exp(I*L2*PSI)*exp(I*M*PHIP) ;
