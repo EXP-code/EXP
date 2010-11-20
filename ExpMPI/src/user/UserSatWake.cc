@@ -102,6 +102,7 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   delT 		= 0.01;
   Toffset 	= 0.0;
   satmass 	= 0.1;
+  logL          = 0.0;
   XYMAX         = 1.0;
   NUMXY         = 50;
   INFILE 	= "SLGridSph.model";
@@ -217,6 +218,7 @@ void UserSatWake::userinfo()
   cout << setw(9) << "" << setw(15) << "delT"	<< " = " << delT	<< endl;
   cout << setw(9) << "" << setw(15) << "Toffset"<< " = " << Toffset	<< endl;
   cout << setw(9) << "" << setw(15) << "MASS"	<< " = " << satmass	<< endl;
+  cout << setw(9) << "" << setw(15) << "logL"	<< " = " << logL	<< endl;
   cout << setw(9) << "" << setw(15) << "INFILE"	<< " = " << INFILE	<< endl;
   cout << setw(9) << "" << setw(15) << "CACHEDIR"<< " = " << CACHEDIR	<< endl;
   cout << setw(9) << "" << setw(15) << "ctrname"<< " = " << ctr_name	<< endl;
@@ -286,6 +288,7 @@ void UserSatWake::initialize()
   if (get_value("delT", val))		delT 		= atof(val);
   if (get_value("Toffset", val))	Toffset 	= atof(val);
   if (get_value("MASS", val))		satmass 	= atof(val);
+  if (get_value("logL", val))		logL	 	= atof(val);
   if (get_value("INFILE", val))		INFILE		= val;
   if (get_value("CACHEDIR", val))	CACHEDIR	= val;
   if (get_value("ctrname", val))	ctr_name	= val;
@@ -391,7 +394,8 @@ void UserSatWake::initialize_coefficients()
   string coutfile("");
   if (myid==0) coutfile = outdir + runtag;
 
-  TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, coutfile);
+  TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, satmass, logL, 
+			coutfile);
   
   //
   // This is a map of maps . . . a nice way to make sparse matrix

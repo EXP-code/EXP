@@ -5,9 +5,31 @@
 #include <biorth.h>
 #include <TimeSeriesCoefs.H>
 
+vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
+					   vector<double>& ps, AxiSymModel *m)
+{
+  // From usual Chandra formula:
+  //
+  // 4*pi*[erf(x) - 2x/sqrt(pi)*exp(-x*x)]
+  // assuming that x = 1/sqrt(2)
+  //
+  const double cof = 2.49754; 
+
+  double r = sqrt(ps[0]*ps[0] + ps[1]*ps[1]);
+  double v = sqrt(ps[2]*ps[2] + ps[3]*ps[3]) + 1.0e-18;
+
+  double accel = -cof*lnL*smass*m->get_density(r)/(v*v);
+
+  vector<double> ret(2, 0.0);
+  ret[0] = accel*ps[2]/v;
+  ret[1] = accel*ps[3]/v;
+
+  return ret;
+}
+
 TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, 
-				 double dT, double Time,
-				 AxiSymModel *model, string OUTFILE) :
+				 double dT, double Time, AxiSymModel *model, 
+				 double M, double lnL, string OUTFILE) :
   E(Energy), Rperi(rperi), delT(dT), Tmax(Time)
 {
 
@@ -22,8 +44,8 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
   // =================================
 
   double VTperi = sqrt(2.0*deltaE), r, dPot;
-  vector< vector<double> > PS;
-  vector<double> cur(4), lst(4), frc(4);
+  deque< vector<double> > PS;
+  vector<double> cur(4), lst(4), frc(4), drg(2, 0.0);
   
   cur[0] = Rperi;
   cur[1] = 0.0;
@@ -43,23 +65,27 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
 
   while (time < Tmax) {
     
-    r = sqrt(cur[0]*cur[0] + cur[1]*cur[1]);
+    r = sqrt(cur[0]*cur[0] + cur[1]*cur[1]) + 1.0e-18;
     dPot = model->get_dpot(r);
+
+    if (lnL > 0.0) drg = compute_df(M, lnL, cur, model);
 
     frc[0] = cur[2];
     frc[1] = cur[3];
-    frc[2] = -dPot*cur[0]/r;
-    frc[3] = -dPot*cur[1]/r;
+    frc[2] = -dPot*cur[0]/r + drg[0];
+    frc[3] = -dPot*cur[1]/r + drg[1];
 
     for (int i=0; i<4; i++) lst[i] = cur[i] + 0.5*delT*frc[i];
 
-    r = sqrt(lst[0]*lst[0] + lst[1]*lst[1]);
+    r = sqrt(lst[0]*lst[0] + lst[1]*lst[1]) + 1.0e-8;
     dPot = model->get_dpot(r);
+
+    if (lnL > 0.0) drg = compute_df(M, lnL, lst, model);
 
     frc[0] = lst[2];
     frc[1] = lst[3];
-    frc[2] = -dPot*lst[0]/r;
-    frc[3] = -dPot*lst[1]/r;
+    frc[2] = -dPot*lst[0]/r + drg[0];
+    frc[3] = -dPot*lst[1]/r + drg[1];
 
     for (int i=0; i<4; i++) cur[i] += delT*frc[i];
 
@@ -71,20 +97,57 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
     PS.push_back(cur);
   }
   
+  time = 0.0;
+
+  cur[0] = Rperi;
+  cur[1] = 0.0;
+  cur[2] = 0.0;
+  cur[3] = VTperi;
+
+  while (time > -Tmax) {
+    
+    r = sqrt(cur[0]*cur[0] + cur[1]*cur[1]) + 1.0e-18;
+    dPot = model->get_dpot(r);
+
+    if (M>0.0) drg = compute_df(M, lnL, cur, model);
+
+    frc[0] = cur[2];
+    frc[1] = cur[3];
+    frc[2] = -dPot*cur[0]/r + drg[0];
+    frc[3] = -dPot*cur[1]/r + drg[1];
+
+    for (int i=0; i<4; i++) lst[i] = cur[i] - 0.5*delT*frc[i];
+
+    r = sqrt(lst[0]*lst[0] + lst[1]*lst[1]) + 1.0e-18;
+    dPot = model->get_dpot(r);
+
+    if (M>0.0) drg = compute_df(M, lnL, lst, model);
+
+    frc[0] = lst[2];
+    frc[1] = lst[3];
+    frc[2] = -dPot*lst[0]/r + drg[0];
+    frc[3] = -dPot*lst[1]/r + drg[1];
+
+    for (int i=0; i<4; i++) cur[i] -= delT*frc[i];
+
+    time -= delT;
+
+    T.push_front(time);
+    R.push_front(sqrt(cur[0]*cur[0] + cur[1]*cur[1]));
+    PHI.push_front(atan2(cur[1], cur[0]));
+    PS.push_front(cur);
+  }
+
+
   if (OUTFILE.size()) {
 
     string file = OUTFILE + ".orbit";
     ofstream out(file.c_str());
     if (out) {
-      for (unsigned i=PS.size()-1; i>=1; i--)
-	out << setw(18) << -T[i]
-	    << setw(18) <<  PS[i][0]
-	    << setw(18) << -PS[i][1]
-	    << setw(18) << -PS[i][2]
-	    << setw(18) <<  PS[i][3]
-	    << endl;
       for (unsigned i=0; i<PS.size(); i++)
 	out << setw(18) << T[i]
+	    << setw(18) << R[i]
+	    << setw(18) << PHI[i]
 	    << setw(18) << PS[i][0]
 	    << setw(18) << PS[i][1]
 	    << setw(18) << PS[i][2]
@@ -106,18 +169,6 @@ void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
 // Do integrals: begin at Times[min]
 // ===================================================================
 
-  vector<double> TT, RR, PP;
-  for (unsigned i=R.size()-1; i>=1; i--) {
-    TT.push_back(-T[i]);
-    RR.push_back(R[i]);
-    PP.push_back(-PHI[i]);
-  }
-  for (unsigned i=0; i<R.size(); i++) {
-    TT.push_back(T[i]);
-    RR.push_back(R[i]);
-    PP.push_back(PHI[i]);
-  }
-  
   coefs = vector<CMatrix>(Times.size());
   for (unsigned it=0; it<Times.size(); it++) {
     coefs[it] = CMatrix(0, Freqs.size()-1, 1, Nmax);
@@ -132,19 +183,19 @@ void TimeSeriesCoefs::coefs(int L, int M, int Nmax, int NINT,
   for (unsigned it=0; it<Times.size(); it++) {
     double tt = Times[it];
     for (unsigned iv=0; iv<Freqs.size(); iv++) {
-      double T = Tmin;
-      while (T<Tmax) {
-	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), Tmax-T);
+      double Time = Tmin;
+      while (Time<Tmax) {
+	double dT = min<double>(2.0*M_PI/fabs(Freqs[iv]), Tmax-Time);
 	for (int jt=1; jt<=NINT; jt++) {
-	  double time = T + dT*lq.knot(jt);
-	  rr = odd2(time, TT, RR);
-	  pp = odd2(time, TT, PP);
+	  double time = Time + dT*lq.knot(jt);
+	  rr = odd2(time, T, R);
+	  pp = odd2(time, T, PHI);
 	  t->potl(Nmax, L, rr, pt);
 	  cpt = pt;
 	  coefs[it][iv] += cpt * exp(I*Freqs[iv]*(tt-time)-I*pp*M) * 
 	    dT*lq.weight(jt);
 	}
-	T += dT;
+	Time += dT;
       }
     }
   }

@@ -61,6 +61,7 @@
     @param delT:		Orbital time step
     @param Toffset:		Offset from pericenter (which is T=0 by default)
     @param MASS:		Satellite mass
+    @param logL:		Log Lambda value for satellite orbit decay
     @param INFILE:		Model file
     @param CACHEDIR:		Directory containing cache files
     @param UseCache:		Attempt to read and write cache
@@ -83,7 +84,7 @@ private:
   int OLD, VERBOSE, HALO_MODEL, NUMDF, numr, nint;
   int TYPE, MODEL, NUMT, DIVERGE, NUMXY;
   double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
-  double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac;
+  double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac, logL;
   double rmin, rmax, scale, XYMAX;
   string INFILE, CACHEDIR, ctr_name;
   IntegrationType SITYPE;

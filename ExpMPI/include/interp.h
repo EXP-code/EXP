@@ -7,6 +7,7 @@
 
 #include <Vector.h>
 #include <vector>
+#include <deque>
 
 void Spline(const Vector &x, const Vector &y, double yp1, double ypn, Vector &y2);
 
@@ -25,18 +26,27 @@ void Splsum(const Vector& x, const Vector& y, Vector& z);
 double Trapsum(const Vector& x, const Vector& y);
 void Trapsum(const Vector& x, const Vector& y, Vector& z);
 
-double odd2(double x, const Vector &xtab, const Vector &ftab, int even=0);
+// For old Vector class
+//
+double odd2(double x, const Vector & xtab, const Vector &ftab, int even=0);
 
-double odd2(double x, const vector<double> &xtab, const vector<double> &ftab, int even=0);
+// This will work for both STL deque and vector
+//
+template <class V>
+double odd2(double x, const V& xtab, const V& ftab, int even=0);
 
-double drv2(double x, const Vector &xtab, const Vector &ftab, int even=0);
+double drv2(double x, const Vector& xtab, const Vector &ftab, int even=0);
+template <class V>
+double drv2(double x, const V& xtab, const V& ftab, int even=0);
 
-double drv2(double x, const vector<double> &xtab, const vector<double> &ftab, int even=0);
+int Vlocate(double x, const Vector& xtab);
 
+template <class V>
+int Vlocate(double x, const V& xtab);
 
-int Vlocate(double x, const Vector &xtab);
+template <class V>
+int Vlocate_with_guard(double value, const V& vec);
 
-int Vlocate(double x, const vector<double> &xtab);
 
 
 class Interp1d

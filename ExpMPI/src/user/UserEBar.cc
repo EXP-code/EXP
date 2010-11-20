@@ -43,7 +43,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   Ofreq             = 2.0;	// Frequency of amplitude oscillations
 
 				// Output file name
-  filename = outdir + "BarRot." + runtag;
+  filename          = "BarRot";
 
   firstime = true;
   omega0 = -1.0;
@@ -160,6 +160,10 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   for (int n=0; n<nthrds; n++) tacc[n] = new double [3];
 
   userinfo();
+
+  // Log file name
+
+  name = outdir + filename + ".barstat";
 
   // Only turn on bar timing for extreme debugging levels
   if (VERBOSE>49) timing = true;
@@ -401,9 +405,6 @@ void UserEBar::determine_acceleration_and_potential(void)
       cout << "====================================================\n" 
 	   << flush;
 
-      name = outdir + filename;
-      name += ".barstat";
-
       if (!restart) {
 	ofstream out(name.c_str(), ios::out | ios::app);
 
@@ -443,16 +444,16 @@ void UserEBar::determine_acceleration_and_potential(void)
       if (myid == 0) {
 	
 	// Backup up old file
-	string backupfile = outdir + name + ".bak";
+	string backupfile = name + ".bak";
 	string command("cp ");
-	command += outdir + name + " " + backupfile;
+	command += name + " " + backupfile;
 	system(command.c_str());
-
+	
 	// Open new output stream for writing
-	ofstream out(string(outdir+name).c_str());
+	ofstream out(name.c_str());
 	if (!out) {
 	  cout << "UserEBar: error opening new log file <" 
-	       << outdir + name << "> for writing\n";
+	       << name << "> for writing\n";
 	  MPI_Abort(MPI_COMM_WORLD, 121);
 	  exit(0);
 	}
@@ -585,7 +586,7 @@ void UserEBar::determine_acceleration_and_potential(void)
 
   if (myid==0 && update) 
     {
-      ofstream out(string(outdir+name).c_str(), ios::out | ios::app);
+      ofstream out(name.c_str(), ios::out | ios::app);
       out.setf(ios::scientific);
 
       out << setw(15) << tnow

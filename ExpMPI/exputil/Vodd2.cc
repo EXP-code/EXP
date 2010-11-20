@@ -50,8 +50,7 @@ double odd2(double x, const Vector &xtab, const Vector &ftab, int even)
   int index,min,max;
   double ans;
 
-
-  /*  find position in grid  */
+  // find position in grid  */
 
   min = xtab.getlow();
   max = xtab.gethigh();
@@ -77,8 +76,7 @@ double drv2(double x, const Vector &xtab, const Vector &ftab, int even)
   int index,min,max;
   double ans;
 
-
-  /*  find position in grid  */
+  //  find position in grid
 
   min = xtab.getlow();
   max = xtab.gethigh();
@@ -97,13 +95,13 @@ double drv2(double x, const Vector &xtab, const Vector &ftab, int even)
 
 }
 
-double odd2(double x, const vector<double> &xtab, const vector<double> &ftab, int even)
+template <class V>
+double odd2(double x, const V &xtab, const V &ftab, int even)
 {
   int index,min,max;
   double ans;
 
-
-  /*  find position in grid  */
+  // find position in grid
 
   min = 0;
   max = xtab.size() - 1;
@@ -124,13 +122,13 @@ double odd2(double x, const vector<double> &xtab, const vector<double> &ftab, in
 
 }
 
-double drv2(double x, const vector<double> &xtab, const vector<double> &ftab, int even)
+template <class V>
+double drv2(double x, const V &xtab, const V &ftab, int even)
 {
   int index,min,max;
   double ans;
 
-
-  /*  find position in grid  */
+  // find position in grid
 
   min = 0;
   max = xtab.size() - 1;
@@ -148,4 +146,18 @@ double drv2(double x, const vector<double> &xtab, const vector<double> &ftab, in
   return ans;
 
 }
+
+
+template double odd2(double x, const vector<double>& xtab, 
+			    const vector<double>& ftab, int even=0);
+
+template double odd2(double x, const deque<double>& xtab, 
+			    const deque<double>& ftab, int even=0);
+
+template double drv2(double x, const vector<double>& xtab, 
+			    const vector<double>& ftab, int even=0);
+
+template double drv2(double x, const deque<double>& xtab, 
+			    const deque<double>& ftab, int even=0);
+
 

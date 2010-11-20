@@ -1,5 +1,8 @@
 // This may look like C code, but it is really -*- C++ -*-
 
+#include <vector>
+#include <deque>
+
 #include <Vector.h>
 #include <CVector.h>
 
@@ -9,17 +12,21 @@
 class TimeSeriesCoefs
 {
 private:
-  vector<double> R, T, PHI;
+  deque<double> R, T, PHI;
 
   double E, Rperi;
-  double delT, Tmax;
+  double delT, Tmax, lnL, M;
   string outfile;
+
+  vector<double> compute_df(double mass, double logL, 
+			    vector<double>& ps, AxiSymModel* model);
 
 public:
 
   //! Constructor
   TimeSeriesCoefs (double Energy, double rperi, double dT, double T,
-		   AxiSymModel *model, string OUTFILE="");
+		   AxiSymModel *model, double mass, double logL, 
+		   string OUTFILE="");
   
   //! Do the calculation
   void coefs(int L, int M, int Nmax, int NINT, AxiSymBiorth *t, 

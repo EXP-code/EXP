@@ -41,26 +41,28 @@
  *
  ***************************************************************************/
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <Vector.h>
+#include <cstdio>
+#include <cstdlib>
 #include <vector>
+#include <deque>
+
+#include <Vector.h>
 
 int Vlocate(double x, const Vector& xx)
 {
-  int ascnd,ju,jm,jl,min,max;
+  int ascnd, ju, jm, jl, min, max;
   
   min = xx.getlow();
   max = xx.gethigh();
-  jl=min-1;
-  ju=max+1;
-  ascnd=xx[max] > xx[min];
+  jl = min-1;
+  ju = max+1;
+  ascnd = xx[max] > xx[min];
   while (ju-jl > 1) {
-    jm=(ju+jl) >> 1;
+    jm = (ju+jl) >> 1;
     if ((x > xx[jm]) == ascnd)
-      jl=jm;
+      jl = jm;
     else
-      ju=jm;
+      ju = jm;
   }
   return jl;
 }
@@ -68,7 +70,7 @@ int Vlocate(double x, const Vector& xx)
 
 int Vlocate_with_guard(double value, const Vector& vector)
 {
-  int which,min,max;
+  int which, min, max;
 
   min = vector.getlow();
   max = vector.gethigh();
@@ -92,29 +94,31 @@ int Vlocate_with_guard(double value, const Vector& vector)
   }
 }
 
-int Vlocate(double x, const vector<double> &xx)
+template <class V>
+int Vlocate(double x, const V& xx)
 {
-  int ascnd,ju,jm,jl,min,max;
+  int ascnd, ju, jm, jl, min, max;
   
   min = 0;
   max = xx.size() - 1;
-  jl=min-1;
-  ju=max+1;
-  ascnd=xx[max] > xx[min];
+  jl = min-1;
+  ju = max+1;
+  ascnd = xx[max] > xx[min];
   while (ju-jl > 1) {
-    jm=(ju+jl) >> 1;
+    jm = (ju+jl) >> 1;
     if ((x > xx[jm]) == ascnd)
-      jl=jm;
+      jl = jm;
     else
-      ju=jm;
+      ju = jm;
   }
   return jl;
 }
 
 
-int Vlocate_with_guard(double value, const vector<double> &vec)
+template <class V>
+int Vlocate_with_guard(double value, const V& vec)
 {
-  int which,min,max;
+  int which, min, max;
 
   min = 0;
   max = vec.size() - 1;
@@ -137,5 +141,14 @@ int Vlocate_with_guard(double value, const vector<double> &vec)
     }
   }
 }
+
+
+template int Vlocate(double x, const vector<double>& xtab);
+
+template int Vlocate(double x, const deque<double>& xtab);
+
+template int Vlocate_with_guard(double x, const vector<double>& xtab);
+
+template int Vlocate_with_guard(double x, const deque<double>& xtab);
 
 
