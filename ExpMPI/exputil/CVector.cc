@@ -1297,10 +1297,5 @@ void CMatrixSynchronize(CMatrix& mat, int id)
     }
   }
 
-  if (myid!=id) {
-    cout << "Process " << myid << ": m[1][1]=" << mat[bb[0]][bb[2]]
-	 << endl;
-  }
-
 }
 

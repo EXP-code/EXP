@@ -8,15 +8,17 @@
 vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
 					   vector<double>& ps, AxiSymModel *m)
 {
+  double rmin = m->get_min_radius();
+  double r = sqrt(ps[0]*ps[0] + ps[1]*ps[1] + rmin*rmin);
+  double v = sqrt(ps[2]*ps[2] + ps[3]*ps[3]) + 1.0e-18;
+
   // From usual Chandra formula:
   //
   // 4*pi*[erf(x) - 2x/sqrt(pi)*exp(-x*x)]
-  // assuming that x = 1/sqrt(2)
+  // assuming that x = v/vc
   //
-  const double cof = 2.49754; 
-
-  double r = sqrt(ps[0]*ps[0] + ps[1]*ps[1]);
-  double v = sqrt(ps[2]*ps[2] + ps[3]*ps[3]) + 1.0e-18;
+  double x   = v/sqrt(m->get_mass(r)/r);
+  double cof = 4.0*M_PI*(erf(x) - 2.0*x/sqrt(M_PI)*exp(-x*x));
 
   double accel = -cof*lnL*smass*m->get_density(r)/(v*v);
 
@@ -27,13 +29,14 @@ vector<double> TimeSeriesCoefs::compute_df(double smass, double lnL,
   return ret;
 }
 
-TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, 
+TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi, double rsoft,
 				 double dT, double Time, AxiSymModel *model, 
 				 double M, double lnL, string OUTFILE) :
   E(Energy), Rperi(rperi), delT(dT), Tmax(Time)
 {
 
   double deltaE = E - model->get_pot(Rperi);
+  double rmin   = model->get_min_radius();
   if (deltaE<0.0) {
     cerr << "Rperi=" << Rperi << ">Rapo for E=" << E << endl;
     exit(-1);
@@ -43,7 +46,8 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
   // Compute orbit
   // =================================
 
-  double VTperi = sqrt(2.0*deltaE), r, dPot;
+  double VTperi = sqrt(2.0*deltaE), r, rs, dPot;
+
   deque< vector<double> > PS;
   vector<double> cur(4), lst(4), frc(4), drg(2, 0.0);
   
@@ -65,8 +69,9 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
 
   while (time < Tmax) {
     
-    r = sqrt(cur[0]*cur[0] + cur[1]*cur[1]) + 1.0e-18;
-    dPot = model->get_dpot(r);
+    r    = sqrt(cur[0]*cur[0] + cur[1]*cur[1] + rmin*rmin);
+    rs   = r*r + rsoft*rsoft;
+    dPot = model->get_mass(r)/rs;
 
     if (lnL > 0.0) drg = compute_df(M, lnL, cur, model);
 
@@ -77,8 +82,9 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
 
     for (int i=0; i<4; i++) lst[i] = cur[i] + 0.5*delT*frc[i];
 
-    r = sqrt(lst[0]*lst[0] + lst[1]*lst[1]) + 1.0e-8;
-    dPot = model->get_dpot(r);
+    r = sqrt(lst[0]*lst[0] + lst[1]*lst[1] + rmin*rmin);
+    rs   = r*r + rsoft*rsoft;
+    dPot = model->get_mass(r)/rs;
 
     if (lnL > 0.0) drg = compute_df(M, lnL, lst, model);
 
@@ -106,8 +112,9 @@ TimeSeriesCoefs::TimeSeriesCoefs(double Energy, double rperi,
 
   while (time > -Tmax) {
     
-    r = sqrt(cur[0]*cur[0] + cur[1]*cur[1]) + 1.0e-18;
-    dPot = model->get_dpot(r);
+    r    = sqrt(cur[0]*cur[0] + cur[1]*cur[1] + rmin*rmin);
+    rs   = r*r + rsoft*rsoft;
+    dPot = model->get_mass(r)/rs;
 
     if (M>0.0) drg = compute_df(M, lnL, cur, model);
 

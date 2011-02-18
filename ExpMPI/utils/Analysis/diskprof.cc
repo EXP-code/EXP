@@ -82,6 +82,7 @@ program_option init[] = {
   {"INITFLAG",		"int",		"1",		"Train set on Component (1=stars)"},
   {"PARTFLAG",		"int",		"1",		"Wakes using Component(s) [1=stars | 2=gas]"},
   {"OUTFILE",		"string",	"diskprof",	"Filename prefix"},
+  {"CACHEFILE",         "string",       ".eof.cache.file", "Cachefile name"},
   {"INITIAL",		"string",	"OUT.0",	"Initial phase space file"},
   {"INFILE",		"string",	"OUT",		"Phase space file"},
   {"INDEX",		"string",	"frame.indx",	"File containing desirecd indices for PSP output"},
@@ -806,13 +807,14 @@ main(int argc, char **argv)
   // *****Using MPI****
   // ==================================================
 
-  EmpCylSL::RMIN = config.get<double>("RCYLMIN");
-  EmpCylSL::RMAX = config.get<double>("RCYLMAX");
-  EmpCylSL::NUMX = config.get<int>("NUMX");
-  EmpCylSL::NUMY = config.get<int>("NUMY");
-  EmpCylSL::CMAP = true;
+  EmpCylSL::RMIN        = config.get<double>("RCYLMIN");
+  EmpCylSL::RMAX        = config.get<double>("RCYLMAX");
+  EmpCylSL::NUMX        = config.get<int>("NUMX");
+  EmpCylSL::NUMY        = config.get<int>("NUMY");
+  EmpCylSL::CMAP        = true;
   EmpCylSL::logarithmic = true;
-  EmpCylSL::DENS = config.get<bool>("DENS");
+  EmpCylSL::DENS        = config.get<bool>("DENS");
+  EmpCylSL::CACHEFILE   = config.get<string>("CACHEFILE");
 
                                 // Create expansion
 				//

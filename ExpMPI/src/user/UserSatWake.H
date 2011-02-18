@@ -57,6 +57,7 @@
     @param Mfac:		Multiplicative factor for maximum frequency
     @param E:			Orbital energy
     @param Rperi:		Pericenter value
+    @param Rsoft:		Satellite softening radius
     @param Tmax:		Maximum time
     @param delT:		Orbital time step
     @param Toffset:		Offset from pericenter (which is T=0 by default)
@@ -83,7 +84,7 @@ private:
   int nptsE, nptsK, CAUCHY, RATINT, HALO_TYPE, PTGRID, NRECS, nfreqs;
   int OLD, VERBOSE, HALO_MODEL, NUMDF, numr, nint;
   int TYPE, MODEL, NUMT, DIVERGE, NUMXY;
-  double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Tmax, delT;
+  double RMODMAX, RA, INCLINE, PSI, PHIP, E, Rperi, Rsoft, Tmax, delT;
   double DIVEXPON, DELTA, OMPI, satmass, Toffset, Rfac, Mfac, logL;
   double rmin, rmax, scale, XYMAX;
   string INFILE, CACHEDIR, ctr_name;

@@ -24,9 +24,9 @@ private:
 public:
 
   //! Constructor
-  TimeSeriesCoefs (double Energy, double rperi, double dT, double T,
-		   AxiSymModel *model, double mass, double logL, 
-		   string OUTFILE="");
+  TimeSeriesCoefs (double Energy, double rperi, double rsoft,
+		   double dT, double T, AxiSymModel *model, 
+		   double mass, double logL, string OUTFILE="");
   
   //! Do the calculation
   void coefs(int L, int M, int Nmax, int NINT, AxiSymBiorth *t, 

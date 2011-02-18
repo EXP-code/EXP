@@ -91,6 +91,7 @@ UserSatWake::UserSatWake(string &line) : ExternalForce(line)
   NUMT		= 20;
   E		= 0.0;
   Rperi 	= 0.1;
+  Rsoft 	= 0.001;
   Rfac 		= 0.1;
   Mfac 		= 2.0;
   rmin 		= -1.0;
@@ -179,7 +180,7 @@ void UserSatWake::userinfo()
   cout << setw(9) << "" << setw(15) << "LMIN"	<< " = " << LMIN	<< endl;
   cout << setw(9) << "" << setw(15) << "LMAX"	<< " = " << LMAX	<< endl;
   cout << setw(9) << "" << setw(15) << "MMIN"	<< " = " << MMIN	<< endl;
-  cout << setw(9) << "" << setw(15) << "MMAX"	<< " = " << MMIN	<< endl;
+  cout << setw(9) << "" << setw(15) << "MMAX"	<< " = " << MMAX	<< endl;
   cout << setw(9) << "" << setw(15) << "lmax"	<< " = " << lmax	<< endl;
   cout << setw(9) << "" << setw(15) << "nmax"	<< " = " << nmax	<< endl;
   cout << setw(9) << "" << setw(15) << "nfreqs"	<< " = " << nfreqs	<< endl;
@@ -207,6 +208,7 @@ void UserSatWake::userinfo()
   cout << setw(9) << "" << setw(15) << "NUMT"	<< " = " << NUMT	<< endl;
   cout << setw(9) << "" << setw(15) << "E"	<< " = " << E		<< endl;
   cout << setw(9) << "" << setw(15) << "Rperi"	<< " = " << Rperi	<< endl;
+  cout << setw(9) << "" << setw(15) << "Rsoft"	<< " = " << Rsoft	<< endl;
   cout << setw(9) << "" << setw(15) << "Rfac"	<< " = " << Rfac	<< endl;
   cout << setw(9) << "" << setw(15) << "Mfac"	<< " = " << Mfac	<< endl;
   cout << setw(9) << "" << setw(15) << "rmin"	<< " = " << rmin	<< endl;
@@ -249,7 +251,7 @@ void UserSatWake::initialize()
   if (get_value("LMIN", val))		LMIN 		= atoi(val);
   if (get_value("LMAX", val))		LMAX 		= atoi(val);
   if (get_value("MMIN", val))		MMIN 		= atoi(val);
-  if (get_value("MMAX", val))		MMIN 		= atoi(val);
+  if (get_value("MMAX", val))		MMAX 		= atoi(val);
   if (get_value("lmax", val))		lmax 		= atoi(val);
   if (get_value("nmax", val))		nmax 		= atoi(val);
   if (get_value("nfreqs", val))		nfreqs 		= atoi(val);
@@ -277,6 +279,7 @@ void UserSatWake::initialize()
   if (get_value("NUMT", val))		NUMT 		= atoi(val);
   if (get_value("E", val))		E 		= atof(val);
   if (get_value("Rperi", val))		Rperi 		= atof(val);
+  if (get_value("Rsoft", val))		Rsoft 		= atof(val);
   if (get_value("Rfac", val))		Rfac 		= atof(val);
   if (get_value("Mfac", val))		Mfac 		= atof(val);
   if (get_value("rmin", val))		rmin 		= atof(val);
@@ -394,7 +397,7 @@ void UserSatWake::initialize_coefficients()
   string coutfile("");
   if (myid==0) coutfile = outdir + runtag;
 
-  TimeSeriesCoefs Coefs(E, Rperi, delT, Tmax, halo_model, satmass, logL, 
+  TimeSeriesCoefs Coefs(E, Rperi, Rsoft, delT, Tmax, halo_model, satmass, logL, 
 			coutfile);
   
   //
@@ -785,11 +788,6 @@ void UserSatWake::initialize_coefficients()
 
 	  tcoefs *= dOmega/2.0*M_PI;
 	
-	  cout << "Coef=" << tcoefs[1] << ", " << tcoefs[2] << endl;
-	  if (fabs(tcoefs[2]) > 1.0e-6) {
-	    cout << "Non-zero" << endl;
-	  }
-
 	  rcoefs[nt][ihalo] 
 	    += total[nf][ihalo].get_response(tcoefs, RespMat::self);
 	  

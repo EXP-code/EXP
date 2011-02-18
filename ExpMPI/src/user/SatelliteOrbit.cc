@@ -65,7 +65,7 @@ Matrix return_euler(double PHI, double THETA, double PSI, int BODY);
 				// Default input parameters (storage)
 
 static database_record init[] = {
-  {"HALO_MODEL",	"int",		"0"},
+  {"HALO_MODEL",	"int",		"0"  },
   {"PERI",		"double",	"0.5"},
   {"APO",		"double",	"1.0"},
   {"RSAT",		"double",	"1.0"},
