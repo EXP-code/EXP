@@ -8,6 +8,7 @@ using namespace std;
 #include <gaussQ.h>
 #include <EmpOrth9thd.h>
 #include <Cylinder.H>
+#include <MixtureBasis.H>
 #include <Timer.h>
 
 Timer timer_debug(true);
@@ -46,11 +47,12 @@ double dcond(double R, double z, double phi, int M)
 }
 
 
-Cylinder::Cylinder(string& line) : Basis(line)
+Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 {
   id          = "Cylinder";
   geometry    = cylinder;
-
+  mix         = m;
+  dof         = 3;
 				// Default values
 
   rcylmin     = 0.001;		// Should only change these two in
@@ -393,6 +395,9 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 
   thread_timing_beg(id);
 
+  vector<double> ctr;
+  if (mix) mix->getCenter(ctr);
+
   if (eof) {
 
     // Will use all of the bodies independent of level
@@ -418,8 +423,14 @@ void * Cylinder::determine_coefficients_thread(void * arg)
       //
       if (cC->freeze(indx)) continue;
     
-      for (int j=0; j<3; j++) 
-	pos[id][j+1] = cC->Pos(indx, j, Component::Local | Component::Centered);
+      if (mix) {
+	for (int j=0; j<3; j++) 
+	  pos[id][j+1] = cC->Pos(indx, j, Component::Local) - ctr[j];
+      } else {
+	for (int j=0; j<3; j++) 
+	  pos[id][j+1] = cC->Pos(indx, j, 
+				 Component::Local | Component::Centered);
+      }
       
       if ( (cC->EJ & Orient::AXIS) && !cC->EJdryrun) 
 	pos[id] = cC->orient->transformBody() * pos[id];
@@ -707,7 +718,10 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   const double midpt = ratmin + 0.5*(1.0 - ratmin);
   const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
 
-  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac;
+  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor;
+
+  vector<double> ctr;
+  if (mix) mix->getCenter(ctr);
 
   int id = *((int*)arg);
 
@@ -749,35 +763,50 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	     << " indx=" << indx << endl;
       }
 
-      if (use_external) {
-	cC->Pos(&pos[id][1], indx, Component::Inertial);
-	component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
-      } else
-	cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
+      if (mix) {
+
+	if (use_external) {
+	  cC->Pos(&pos[id][1], indx, Component::Inertial);
+	  component->ConvertPos(&pos[id][1], Component::Local);
+	} else
+	  cC->Pos(&pos[id][1], indx, Component::Local);
+
+	mfactor = mix->Mixture(&pos[id][0]);
+	for (int k=0; k<3; k++) pos[id][k] -= ctr[k];
+
+      } else {
+
+	if (use_external) {
+	  cC->Pos(&pos[id][1], indx, Component::Inertial);
+	  component->ConvertPos(&pos[id][1], Component::Local | Component::Centered);
+	} else
+	  cC->Pos(&pos[id][1], indx, Component::Local | Component::Centered);
+
+      }
 
       if ( (component->EJ & Orient::AXIS) && !component->EJdryrun) 
 	pos[id] = component->orient->transformBody() * pos[id];
 
-      xx = pos[id][1];
-      yy = pos[id][2];
-      zz = pos[id][3];
+      xx    = pos[id][1];
+      yy    = pos[id][2];
+      zz    = pos[id][3];
       
-      r2 = xx*xx + yy*yy;
-      r = sqrt(r2) + DSMALL;
-      phi = atan2(yy, xx);
+      r2    = xx*xx + yy*yy;
+      r     = sqrt(r2) + DSMALL;
+      phi   = atan2(yy, xx);
 
       ratio = sqrt( (r2 + zz*zz)/R2 );
 
       if (ratio >= 1.0) {
-	cfrac = 1.0;
+	cfrac      = 1.0 - mfactor;
 	frc[id][1] = 0.0;
 	frc[id][2] = 0.0;
 	frc[id][3] = 0.0;
       } else if (ratio > ratmin) {
-	frac = 0.5*(1.0 - erf( (ratio - midpt)/rsmth ));
+	frac  = 0.5*(1.0 - erf( (ratio - midpt)/rsmth )) * mfactor;
 	cfrac = 1.0 - frac;
       } else {
-	frac = 1.0;
+	frac  = mfactor;
       }
 	
       if (ratio < 1.0) {

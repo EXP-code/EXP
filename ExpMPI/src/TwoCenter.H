@@ -1,35 +1,44 @@
-#ifndef _SphereTwoCenter_H
-#define _SphereTwoCenter_H
+#ifndef _TwoCenter_H
+#define _TwoCenter_H
 
 #include <SLGridMP2.h>
+
+#include <CBrock.H>
 #include <Sphere.H>
+#include <Bessel.H>
+#include <CBrockDisk.H>
+#include <Hernquist.H>
+#include <Cylinder.H>
 
-class MixtureSL;
+class MixtureBasis;
 
-/** Computes the potential, acceleration and density using the Sturm
-    Liouville direct solution.
+/** Computes the potential, acceleration and density using two basis
+    sets with different expansion centers
 
     This class provides a virtual member "mixture(double *pos)" that
     must be implemented by a derived class to provide the mixture
     function for associating particles with a force center for
     gravitational field determination.
 
-    All parameters are parsed by the underlying Sphere basis instances
+    All parameters are parsed by the underlying basis instances
     for the two centers.  There is only one diagnostic parameter:
 
     \param nhisto enables diagnostic output of mixture distribution if set to a value larger than 1
+    \param basis is the name of the force method to use for the two-center expansion.  Available types are: "bessel" (Bessel), "c_brock" (CBrock), "c_brock_disk" (CBrockDisk), "hernq" (Hernquist), "sphereSL" (Sphere), "cylinder" (Cylinder).
 */
-class SphereTwoCenter : public PotAccel
+class TwoCenter : public PotAccel
 {
 
 private:
 
-  Sphere * exp_ej;
-  Sphere * exp_com;
+  Basis * exp_ej;
+  Basis * exp_com;
+
+  string basis;
 
   void initialize(void);
 
-  MixtureSL *mix_ej, *mix_com;
+  MixtureBasis *mix_ej, *mix_com;
 
 				// Will not multithread directly
   void * determine_coefficients_thread(void * arg) {};
@@ -49,7 +58,7 @@ protected:
 
 public:
 
-  typedef double (SphereTwoCenter::*mixFunc)(double *p);
+  typedef double (TwoCenter::*mixFunc)(double *p);
 
 				// Global parameters
   //! Center for current component
@@ -57,13 +66,13 @@ public:
 
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */
-  SphereTwoCenter(string& line);
+  TwoCenter(string& line);
 
   //! Destructor
-  ~SphereTwoCenter();
+  ~TwoCenter();
 
 
-  //! Call SphereSL routines to make coefficients
+  //! Call Basis routines to make coefficients
   //@{
   void determine_coefficients(Component *c);
   void determine_coefficients(void);
@@ -87,7 +96,7 @@ public:
     exp_com -> RegisterComponent(c);
   }
 
-  //! Multistepping routines: call SphereSL members
+  //! Multistepping routines: call Basis members
   //@}
   virtual void set_multistep_level(unsigned n) 
   { 

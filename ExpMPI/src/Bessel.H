@@ -8,6 +8,7 @@
 double *sbessjz(int n, int m);
 double sbessj(int n, double x);
 
+class MixtureBasis;
 
 /** Computes the potential, acceleration and density using eigenfunctions of the Spherical Laplacian: spherical Bessel functions
 */
@@ -73,7 +74,7 @@ public:
   static int RNUM;
 
   //! Constructor
-  Bessel(string& line);
+  Bessel(string& line, MixtureBasis* m=0);
   //! Destructor
   virtual ~Bessel();
 };

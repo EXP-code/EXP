@@ -4,12 +4,15 @@
 #include <vector>
 #include <AxisymmetricBasis.H>
 
+class MixtureBasis;
+
 //! This routine computes the potential, acceleration and density using the Clutton-Brock flat disk expansion
 class CBrockDisk : public AxisymmetricBasis
 {
 
 private:
 
+  MixtureBasis *mix;
   pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
   double *cylmass0;
 
@@ -47,8 +50,9 @@ private:
 public:
 
   //! Constructor
-  /*! \param line is the parameter string */
-  CBrockDisk(string& line);
+  //! \param line is the parameter string
+  //! \param m is the MixtureBasis for a multicenter expansion
+  CBrockDisk(string& line, MixtureBasis* m=0);
   //! Destructor
   virtual ~CBrockDisk(void);
 

@@ -5,7 +5,7 @@
 static char rcsid[] = "$Id$";
 #endif
 
-Hernquist::Hernquist(string& line) : SphericalBasis(line)
+Hernquist::Hernquist(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 {
   id = "Hernquist sphere";
   initialize();

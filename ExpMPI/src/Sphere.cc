@@ -6,7 +6,7 @@
 #include <gaussQ.h>
 #include <Sphere.H>
 
-Sphere::Sphere(string& line, MixtureSL* m) : SphericalBasis(line, m)
+Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 {
   id = "Sphere SL";
 				// Defaults

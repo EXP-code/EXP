@@ -31,7 +31,8 @@ public:
 
   //! Constructor
   /*! \param line is the parameter string */
-  CBrock(string& line);
+  /*! \param m is the MixtureBasis for a multicenter expansion */
+  CBrock(string& line, MixtureBasis* m=0);
 
 };
 

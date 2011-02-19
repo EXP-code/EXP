@@ -2,15 +2,15 @@
 
 #include "expand.h"
 
-#include <SphereEJCOM.H>
+#include <MultiCenter.H>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
 
-SphereEJCOM::SphereEJCOM(string&line) : SphereTwoCenter(line)
+MultiCenter::MultiCenter(string&line) : TwoCenter(line)
 {
-  id = "SphereEJCOM";
+  id = "MultiCenter";
 				// Defaults
   cfac  = 1.0;
   alpha = 1.0;
@@ -19,7 +19,7 @@ SphereEJCOM::SphereEJCOM(string&line) : SphereTwoCenter(line)
   initialize();
 }
 
-void SphereEJCOM::initialize()
+void MultiCenter::initialize()
 {
   string val;
 
@@ -28,7 +28,7 @@ void SphereEJCOM::initialize()
 }
 
 
-double SphereEJCOM::mixture(double* pos)
+double MultiCenter::mixture(double* pos)
 {
   double dej=0.0, dif=0.0;
 

@@ -6,25 +6,27 @@
 #include <sstream>
 
 #include <Particle.H>
+#include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
 #ifdef RCSID
 static char rcsid[] = "$Id$";
 #endif
 
-CBrockDisk::CBrockDisk(string& line) : AxisymmetricBasis(line)
+CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 {
-  id = "Clutton-Brock two-dimensional disk";
+  id    = "Clutton-Brock two-dimensional disk";
+  dof   = 2;			// Two degrees of freedom
+  mix   = m;
 
-  dof = 2;			// Two degrees of freedom
-
-  rmax = 100.0;
+  rmax  = 100.0;
   scale = 1.0;
-  Lmax = 4;
-  nmax = 10;
+  Lmax  = 4;
+  nmax  = 10;
+
   self_consistent = true;
-  selector = false;
-  coef_dump = true;
+  selector        = false;
+  coef_dump       = true;
 
   initialize();
 
@@ -255,6 +257,9 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
   PartMapItr it=cC->Particles().begin();
   unsigned long j;
 
+  vector<double> ctr(3, 0.0);
+  if (mix) mix->getCenter(ctr);
+
   for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
 
@@ -265,8 +270,13 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 
     mass = cC->Mass(j)* adb;
 
-    for (int k=0; k<3; k++) 
-      pos[k] = cC->Pos(j, k) - component->center[k];
+    if (mix) {
+      for (int k=0; k<3; k++) 
+	pos[k] = cC->Pos(j, k, Component::Local) - ctr[k];
+    } else {
+      for (int k=0; k<3; k++) 
+	pos[k] = cC->Pos(j, k, Component::Local | Component::Centered);
+    }
 
     xx = pos[0];
     yy = pos[1];
@@ -337,7 +347,7 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   double potr,potl,pott,potp,p,pc,dpc,ps,dps;
 
   double pos[3];
-  double xx, yy, zz;
+  double xx, yy, zz, mfactor = 1.0;
 
   int nbodies = cC->Number();
   int id = *((int*)arg);
@@ -347,19 +357,36 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
   PartMapItr it=cC->Particles().begin();
   unsigned long j;
 
+  vector<double> ctr(3, 0.0);
+  if (mix) mix->getCenter(ctr);
+
   for (int i=0; i<nbeg; i++) it++;
   for (int i=nbeg; i<nend; i++) {
 
     j = it->first;
 
-    for (int k=0; k<3; k++) 
-      pos[k] = cC->Pos(j, k) - component->center[k];
+    if (mix) {
+      if (use_external) {
+	cC->Pos(pos, i, Component::Inertial);
+	component->ConvertPos(pos, Component::Local);
+      } else
+	cC->Pos(pos, i, Component::Local);
 
-    xx = pos[0];
-    yy = pos[1];
-    zz = pos[2];
+      mfactor = mix->Mixture(pos);
+    } else {
+      if (use_external) {
+	cC->Pos(pos, i, Component::Inertial);
+	component->ConvertPos(pos, Component::Local | Component::Centered);
+      } else
+	cC->Pos(pos, i, Component::Local | Component::Centered);
+    }	
+    
+    xx = pos[0] - ctr[0];
+    yy = pos[1] - ctr[1];
+    zz = pos[2] - ctr[2];
 
     r = sqrt(xx*xx + yy*yy) + DSMALL;
+
     rs = r/scale;
     phi = atan2(yy,xx);
 
@@ -370,7 +397,6 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
     potl = p;
     potr = dp;
     pott = potp = 0.0;
-      
 				// l loop
     
     for (l=1; l<=Lmax; l++) {
@@ -384,9 +410,9 @@ void * CBrockDisk::determine_acceleration_and_potential_thread(void * arg)
 
     fac = xx*xx + yy*yy;
     
-    potr /= scale*scale;
-    potl /= scale;
-    potp /= scale;
+    potr *= mfactor/(scale*scale);
+    potl *= mfactor/scale;
+    potp *= mfactor/scale;
 
     cC->AddAcc(j, 0, -potr*xx/r);
     cC->AddAcc(j, 1, -potr*yy/r);

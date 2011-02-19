@@ -12,7 +12,7 @@
 #include <CBrockDisk.H>
 #include <Hernquist.H>
 #include <Sphere.H>
-#include <SphereEJCOM.H>
+#include <MultiCenter.H>
 #include <Cylinder.H>
 #include <Cube.H>
 #include <Slab.H>
@@ -503,61 +503,50 @@ void Component::initialize(void)
 
   if ( !id.compare("bessel") ) {
     force = new Bessel(fparam);
-    dim = 3;
   }
   else if ( !id.compare("c_brock") ) {
     force = new CBrock(fparam);
-    dim = 3;
   }
   else if ( !id.compare("c_brock_disk") ) {
     force = new CBrockDisk(fparam);
-    dim = 2;
   }
   else if ( !id.compare("hernq") ) {
     force = new Hernquist(fparam);
-    dim = 3;
   }
   else if ( !id.compare("sphereSL") ) {
     force = new Sphere(fparam);
-    dim = 3;
   }
-  else if ( !id.compare("sphereEJCOM") ) {
-    force = new SphereEJCOM(fparam);
-    dim = 3;
+  else if ( !id.compare("multiCenter") ) {
+    force = new MultiCenter(fparam);
   }
   else if ( !id.compare("cube") ) {
     force = new Cube(fparam);
-    dim = 3;
   }
   else if ( !id.compare("slab") ) {
     force = new Slab(fparam);
-    dim = 3;
   }
   else if ( !id.compare("slabSL") ) {
     force = new SlabSL(fparam);
-    dim = 3;
   }
   else if ( !id.compare("cylinder") ) {
     force = new Cylinder(fparam);
-    dim = 3;
   }
   else if ( !id.compare("direct") ) {
     force = new Direct(fparam);
-    dim = 3;
   }
   else if ( !id.compare("shells") ) {
     force = new Shells(fparam);
-    dim = 3;
   }
   else if ( !id.compare("noforce") ) {
     force = new NoForce(fparam);
-    dim = 3;
   }
   else {
     string msg("I don't know about the force: ");
     msg += id;
     bomb(msg);
   }
+
+  dim = force->dof;
 
   force->RegisterComponent(this);
 

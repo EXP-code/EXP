@@ -9,7 +9,7 @@ static char rcsid[] = "$Id$";
 
 int Bessel::RNUM = 1000;
 
-Bessel::Bessel(string& line) : SphericalBasis(line)
+Bessel::Bessel(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 {
   id = "BesselForce";
   initialize();

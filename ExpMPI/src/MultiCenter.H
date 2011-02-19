@@ -1,10 +1,12 @@
-#ifndef _SphereEJCOM_H
-#define _SphereEJCOM_H
+#ifndef _MultiCenter_H
+#define _MultiCenter_H
 
-#include <SphereTwoCenter.H>
+#include <TwoCenter.H>
 
-/** Computes the potential, acceleration and density using the Sturm
-    Liouville direct solution fitting to peak potential and COM.
+/** Computes the potential, acceleration and density using basis
+    expansion solutions fitting to peak potential and COM.  This
+    implements a TwoCenter class by providing a mixture function.
+
     The mixture function is:
     \f[
     f({\bf r}) = \hbox{erf}\left(C\left[{|{\bf r} - {\bf r}_{peak}|\over
@@ -22,7 +24,7 @@
     \param alpha is the exponent in the argument of the erf (\f$\alpha\f$)
 
 */
-class SphereEJCOM : public SphereTwoCenter
+class MultiCenter : public TwoCenter
 {
 
 private:
@@ -36,7 +38,7 @@ public:
 				// Global parameters
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */
-  SphereEJCOM(string& line);
+  MultiCenter(string& line);
 
   //! Mixture function for the two expansions
   double mixture(double* p);

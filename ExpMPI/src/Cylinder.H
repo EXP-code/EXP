@@ -2,9 +2,11 @@
 #define _Cylinder_H
 
 #include <Vector.h>
-#include <EmpOrth9thd.h>
 #include <Orient.H>
 #include <Basis.H>
+#include <EmpOrth9thd.h>
+
+class MixtureBasis;
 
 /** This routine computes the potential, acceleration and density 
     using the Cylindrical biorthogonal expansion 
@@ -63,6 +65,9 @@ private:
   //! Reset used particle counter and mass registers
   virtual void multistep_reset();
 
+  MixtureBasis *mix;
+
+
 public:
 
   //! Mutexes for multithreading
@@ -71,8 +76,9 @@ public:
   //@}
 
   //! Constructor
-  /** \param line contains the parameters passed to the method */
-  Cylinder(string& line);
+  //! \param line contains the parameters passed to the method
+  //! \param m is the MixtureBasis for a multicenter expansion
+  Cylinder(string& line, MixtureBasis *m=0);
 
   //! Destructor
   virtual ~Cylinder();

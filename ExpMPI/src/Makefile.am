@@ -29,20 +29,20 @@ AM_CXXFLAGS  = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_C
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
-exp_SOURCES = \
-     Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc                 \
-     Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc                \
-     ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc         \
-     ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc                    \
-     Sphere.cc SphereTwoCenter.cc SphereEJCOM.cc EXPException.cc             \
-     global.cc begin.cc ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc    \
-     OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc header.cc   \
-     expand.cc externalShock.cc generateRelaxation.cc HaloBulge.cc           \
-     incpos.cc incvel.cc ComponentContainer.cc OutAscii.cc OutMulti.cc       \
-     OutRelaxation.cc OrbTrace.cc OutDiag.cc OutLog.cc OutCoef.cc            \
-     multistep.cc parse.cc Slab.cc SlabSL.cc step.cc sbessj.cc sbessz.cc     \
-     tidalField.cc ultra.cc ultrasphere.cc MPL.cc zbrent.cc OutFrac.cc       \
-     OutCalbr.cc ParticleFerry.cc pCell.cc chkTimer.cc pHOT.cc
+exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
+     Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc		\
+     ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc	\
+     ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
+     TwoCenter.cc MultiCenter.cc EXPException.cc global.cc begin.cc	\
+     ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc			\
+     OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc	\
+     header.cc expand.cc externalShock.cc generateRelaxation.cc		\
+     HaloBulge.cc incpos.cc incvel.cc ComponentContainer.cc		\
+     OutAscii.cc OutMulti.cc OutRelaxation.cc OrbTrace.cc OutDiag.cc	\
+     OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
+     step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
+     MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
+     chkTimer.cc pHOT.cc
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 

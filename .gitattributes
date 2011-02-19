@@ -30,7 +30,7 @@ ExpMPI/m4/ax_boost_serialization.m4 -text
 ExpMPI/m4/ax_boost_system.m4 -text
 ExpMPI/src/EXPException.H -text
 ExpMPI/src/EXPException.cc -text
-ExpMPI/src/MixtureSL.H -text
+ExpMPI/src/MixtureBasis.H -text
 ExpMPI/src/Shells.H -text
 ExpMPI/src/Shells.cc -text
 ExpMPI/src/chkTimer.H -text

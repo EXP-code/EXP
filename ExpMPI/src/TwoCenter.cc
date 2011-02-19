@@ -3,17 +3,20 @@
 #include "expand.h"
 
 #include <gaussQ.h>
-#include <SphereTwoCenter.H>
-#include <MixtureSL.H>
+#include <TwoCenter.H>
+#include <MixtureBasis.H>
 
-SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
+TwoCenter::TwoCenter(string& line) : PotAccel(line)
 {
-  id = "SphereTwoCenter SL";
   nhisto = 0;
   center  = vector<double>(3, 0);
 
 				// Get initialization info
   initialize();
+
+				// Force identity string
+  id = "TwoCenter (" + basis + ")";
+
 				// Create dianostic output
   if (nhisto) {
     dz = 1.0/nhisto;
@@ -21,27 +24,59 @@ SphereTwoCenter::SphereTwoCenter(string& line) : PotAccel(line)
     ohisto = "histo_stc." + runtag;
   }
 				// Generate two expansion grids
-  mix_ej  = new MixtureSL(*this, &center, "EJ",
-			  static_cast<mixFunc>(&SphereTwoCenter::Cmixture));
 
-  exp_ej  = new Sphere(line, mix_ej);
-  exp_ej->RegisterComponent(component);
+  mix_ej  = new MixtureBasis(*this, &center, "EJ",
+			     static_cast<mixFunc>(&TwoCenter::Cmixture));
 
-  mix_com = new MixtureSL(*this, &center, "COM",
-			  static_cast<mixFunc>(&SphereTwoCenter::mixture));
+  mix_com = new MixtureBasis(*this, &center, "COM",
+			     static_cast<mixFunc>(&TwoCenter::mixture));
+  
+				// Instantiate the force ("reflection" by hand)
+  if ( !basis.compare("bessel") ) {
+    exp_ej  = new Bessel(line, mix_ej );
+    exp_com = new Bessel(line, mix_com);
+  }
+  else if ( !basis.compare("c_brock") ) {
+    exp_ej  = new CBrock(line, mix_ej );
+    exp_com = new CBrock(line, mix_com);
+  }
+  else if ( !basis.compare("c_brock_disk") ) {
+    exp_ej  = new CBrockDisk(line, mix_ej );
+    exp_com = new CBrockDisk(line, mix_com);
+  }
+  else if ( !basis.compare("hernq") ) {
+    exp_ej  = new Hernquist(line, mix_ej );
+    exp_com = new Hernquist(line, mix_com);
+  }
+  else if ( !basis.compare("sphereSL") ) {
+    exp_ej  = new Sphere(line, mix_ej );
+    exp_com = new Sphere(line, mix_com);
+  }
+  else if ( !basis.compare("cylinder") ) {
+    exp_ej  = new Cylinder(line, mix_ej );
+    exp_com = new Cylinder(line, mix_com);
+  }
+  else {
+    ostringstream msg;
+    msg << "The basis <" << id << "> cannot be used as a multicenter component";
+    bomb(msg.str());
+  }
 
-  exp_com = new Sphere(line, mix_com);
+  exp_ej ->RegisterComponent(component);
   exp_com->RegisterComponent(component);
+
+  dof = exp_ej->dof;
 }
 
 
-void SphereTwoCenter::initialize()
+void TwoCenter::initialize()
 {
   string val;
   if (get_value("nhisto", val))		nhisto = atoi(val.c_str());
+  if (get_value("basis",  val))		basis  = atoi(val.c_str());
 }
 
-SphereTwoCenter::~SphereTwoCenter(void)
+TwoCenter::~TwoCenter(void)
 {
   delete exp_ej;
   delete exp_com;
@@ -49,7 +84,7 @@ SphereTwoCenter::~SphereTwoCenter(void)
   delete mix_com;
 }
 
-void SphereTwoCenter::determine_coefficients(Component *c) 
+void TwoCenter::determine_coefficients(Component *c) 
 {
   for (int k=0; k<3; k++) center[k] = component->center[k];
 
@@ -63,7 +98,7 @@ void SphereTwoCenter::determine_coefficients(Component *c)
   exp_com->determine_coefficients(c);
 }
 
-void SphereTwoCenter::determine_coefficients(void) 
+void TwoCenter::determine_coefficients(void) 
 {
   for (int k=0; k<3; k++) center[k] = component->center[k];
 
@@ -77,7 +112,7 @@ void SphereTwoCenter::determine_coefficients(void)
   exp_com->determine_coefficients();
 }
 
-void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
+void TwoCenter::get_acceleration_and_potential(Component* curComp)
 {
   cC = curComp;			// "Register" component
   nbodies = cC->Number();	// And retrieve number of bodies
@@ -114,11 +149,11 @@ void SphereTwoCenter::get_acceleration_and_potential(Component* curComp)
   if (multistep==0 || mstep==0) write_histo();
 }
 
-void SphereTwoCenter::accum_histo(double value)
+void TwoCenter::accum_histo(double value)
 {
   if (nhisto) {
     if (value<0.0 || value>1.0) {
-      cerr << "SphereTwoCenter::accum_histo: out of bounds value="
+      cerr << "TwoCenter::accum_histo: out of bounds value="
 	   << value << endl;
     } else {
       unsigned indx = static_cast<unsigned>( floor(value/dz) );
@@ -127,7 +162,7 @@ void SphereTwoCenter::accum_histo(double value)
   }
 }
 
-void SphereTwoCenter::reset_histo()
+void TwoCenter::reset_histo()
 {
   if (nhisto) {
     if (multistep==0 || mstep==0)
@@ -138,7 +173,7 @@ void SphereTwoCenter::reset_histo()
 //
 // GNUPLOT format output
 //
-void SphereTwoCenter::write_histo()
+void TwoCenter::write_histo()
 {
   if (nhisto) {
 

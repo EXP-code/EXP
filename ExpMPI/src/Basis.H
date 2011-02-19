@@ -15,13 +15,8 @@ public:
   //! Constructor
   Basis(string& line);
 
-  //! All derived classes must provide a method to compute the coefficients
-  virtual void determine_coefficients(void) = 0;
-
   //! All derived classes must provide a method to compute the force
   virtual void determine_acceleration_and_potential(void) = 0;
-  
-  
 
   /** Supply density, potential and derivatives at arbitrary point
       in spherical coordinates

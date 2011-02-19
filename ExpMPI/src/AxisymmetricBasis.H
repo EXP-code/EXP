@@ -14,8 +14,6 @@ protected:
   int Lmax;
   //! Maximum radial basis index
   int nmax;
-  //! Number of degrees of freedom (e.g. 3 for sphere)
-  int dof;
   //! Use principal component analysis to select coefficients
   bool pca;
   //! Frequency of PCA recomputation

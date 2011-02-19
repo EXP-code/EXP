@@ -169,13 +169,14 @@ void PotAccel::bomb(const string& msg)
 
 PotAccel::PotAccel(string& line)
 {
-  used = 0;
-  component = NULL;
-  cC = NULL;
-  geometry = other;
+  used         = 0;
+  component    = NULL;
+  cC           = NULL;
+  geometry     = other;
   use_external = false;
-  coef_dump = false;
-  mlevel = 0;
+  coef_dump    = false;
+  dof          = 3;
+  mlevel       = 0;
 
   // Per thread counter
   use = new int [nthrds];

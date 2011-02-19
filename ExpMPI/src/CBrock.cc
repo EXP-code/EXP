@@ -5,7 +5,7 @@
 static char rcsid[] = "$Id$";
 #endif
 
-CBrock::CBrock(string& line) : SphericalBasis(line)
+CBrock::CBrock(string& line, MixtureBasis *m) : SphericalBasis(line, m)
 {
   id = "Clutton-Brock sphere";
 

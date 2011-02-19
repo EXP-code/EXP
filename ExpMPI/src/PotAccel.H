@@ -33,8 +33,9 @@ protected:
 
   //! Contains parameter database
   list< pair<string, string> > namevalue;
-  /*! Call to return <code>value</code> for requested parameter 
-    <code>name</code> */
+
+  /** Call to return <code>value</code> for requested parameter
+      <code>name</code> */
   int get_value(const string& name, string& value);
 
   //! Number of bodies
@@ -82,6 +83,9 @@ public:
 
   //! sphere, cylinder, cube, slab, other
   Geometry geometry;
+
+  //! Dimension of the force vector (degrees of freedom)
+  int dof;
 
   //! Constructor
   /*! \param line is parsed and info is made available to derived 

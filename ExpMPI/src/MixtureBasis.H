@@ -1,19 +1,19 @@
-#ifndef _MixtureSL_H
-#define _MixtureSL_H
+#ifndef _MixtureBasis_H
+#define _MixtureBasis_H
 
 #define CALL_MEMBER_FN(object,ptrToMember)  ((object).*(ptrToMember)) 
 
-#include <SphereTwoCenter.H>
+#include <TwoCenter.H>
 
-class MixtureSL
+class MixtureBasis
 {
 
-  typedef double (SphereTwoCenter::*mixFunc)(double *p);
+  typedef double (TwoCenter::*mixFunc)(double *p);
 
 private:
 
   vector<double>* ctr;
-  SphereTwoCenter *p;
+  TwoCenter *p;
   mixFunc f;
 
   // For debugging
@@ -21,8 +21,8 @@ private:
 
 public:
 
-  MixtureSL(SphereTwoCenter& instance, vector<double> *c,
-	    string ID, mixFunc func) : 
+  MixtureBasis(TwoCenter& instance, vector<double> *c,
+	       string ID, mixFunc func) : 
     p(&instance), ctr(c), id(ID), f(func) {}
 
   void getCenter(vector<double>& c) { c = *ctr; }

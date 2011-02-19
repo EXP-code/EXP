@@ -1,7 +1,7 @@
 #include "expand.h"
 #include <sstream>
 #include <SphericalBasis.H>
-#include <MixtureSL.H>
+#include <MixtureBasis.H>
 
 // #define TMP_DEBUG
 
@@ -9,7 +9,7 @@
 static pthread_mutex_t io_lock;
 #endif
 
-SphericalBasis::SphericalBasis(string& line, MixtureSL *m) : 
+SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) : 
   AxisymmetricBasis(line)
 {
   dof = 3;

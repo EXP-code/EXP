@@ -3,6 +3,8 @@
 
 #include <SphericalBasis.H>
 
+class MixtureBasis;
+
 //! Biorthonormal pairs for the Hernquist model
 class Hernquist : public SphericalBasis
 {
@@ -27,7 +29,7 @@ private:
 public:
 
   //! Constructor
-  Hernquist(string& line);
+  Hernquist(string& line, MixtureBasis* m=0);
 
 };
 
