@@ -36,58 +36,58 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 		     string FPARAM) : 
   name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
 {
-  EJ = 0;
-  nEJkeep = 100;
-  nEJwant = 500;
-  EJkinE   = true;
-  EJext    = false;
-  EJdiag   = false;
-  EJdryrun = false;
-  EJx0 = 0.0;
-  EJy0 = 0.0;
-  EJz0 = 0.0;
-  EJu0 = 0.0;
-  EJv0 = 0.0;
-  EJw0 = 0.0;
-  EJdT = 0.0;
-  EJlinear = false;
-  EJdamp = 1.0;
+  EJ         = 0;
+  nEJkeep    = 100;
+  nEJwant    = 500;
+  EJkinE     = true;
+  EJext      = false;
+  EJdiag     = false;
+  EJdryrun   = false;
+  EJx0       = 0.0;
+  EJy0       = 0.0;
+  EJz0       = 0.0;
+  EJu0       = 0.0;
+  EJv0       = 0.0;
+  EJw0       = 0.0;
+  EJdT       = 0.0;
+  EJlinear   = false;
+  EJdamp     = 1.0;
 
-  binary = false;
+  binary     = false;
 
-  adiabatic = false;
-  ton  = -1.0e20;
-  toff =  1.0e20;
-  twid = 0.1;
+  adiabatic  = false;
+  ton        = -1.0e20;
+  toff       =  1.0e20;
+  twid       = 0.1;
 
-  rtrunc = 1.0e20;
-  rcom = 1.0e20;
-  consp = false;
-  tidal = 0;
+  rtrunc     = 1.0e20;
+  rcom       = 1.0e20;
+  consp      = false;
+  tidal      = 0;
 
   com_system = false;
-  com_log = false;
+  com_log    = false;
 
-  force   = 0;			// Null out pointers
-  orient  = 0;
+  force      = 0;		// Null out pointers
+  orient     = 0;
 
-  com     = 0;
-  cov     = 0;
-  coa     = 0;
-  center  = 0;
-  EJcen   = 0;
-  angmom  = 0;
-  ps      = 0;
+  com        = 0;
+  cov        = 0;
+  coa        = 0;
+  center     = 0;
+  EJcen      = 0;
+  angmom     = 0;
+  ps         = 0;
 
-  com0    = 0;
-  cov0    = 0;
-  acc0    = 0;
-  comI    = 0;
-  covI    = 0;
+  com0       = 0;
+  cov0       = 0;
+  acc0       = 0;
+  comI       = 0;
+  covI       = 0;
 
-  seq_check = false;
+  seq_check  = false;
 
-  nlevel = -1;
+  nlevel     = -1;
 
   read_bodies_and_distribute_ascii();
 
@@ -353,68 +353,68 @@ void Component::print_level_lists(double T)
 
 Component::Component(istream *in)
 {
-  EJ = 0;
-  nEJkeep = 100;
-  nEJwant = 500;
-  EJkinE   = true;
-  EJext    = false;
-  EJdiag   = false;
-  EJdryrun = false;
-  EJx0 = 0.0;
-  EJy0 = 0.0;
-  EJz0 = 0.0;
-  EJu0 = 0.0;
-  EJv0 = 0.0;
-  EJw0 = 0.0;
-  EJdT = 0.0;
-  EJlinear = false;
-  EJdamp = 1.0;
+  EJ          = 0;
+  nEJkeep     = 100;
+  nEJwant     = 500;
+  EJkinE      = true;
+  EJext       = false;
+  EJdiag      = false;
+  EJdryrun    = false;
+  EJx0        = 0.0;
+  EJy0        = 0.0;
+  EJz0        = 0.0;
+  EJu0        = 0.0;
+  EJv0        = 0.0;
+  EJw0        = 0.0;
+  EJdT        = 0.0;
+  EJlinear    = false;
+  EJdamp      = 1.0;
 
-  binary = true;
+  binary      = true;
 
-  adiabatic = false;
-  ton  = -1.0e20;
-  toff =  1.0e20;
-  twid = 0.1;
+  adiabatic   = false;
+  ton         = -1.0e20;
+  toff        =  1.0e20;
+  twid        = 0.1;
 
-  rtrunc = 1.0e20;
-  rcom = 1.0e20;
-  consp = false;
-  tidal = 0;
+  rtrunc      = 1.0e20;
+  rcom        = 1.0e20;
+  consp       = false;
+  tidal       = 0;
 
-  com_system = false;
-  com_log = false;
+  com_system  = false;
+  com_log     = false;
   com_restart = 0;
 
-  force   = 0;			// Null out pointers
-  orient  = 0;
+  force       = 0;		// Null out pointers
+  orient      = 0;
 
-  com     = 0;
-  cov     = 0;
-  coa     = 0;
-  center  = 0;
-  EJcen   = 0;
-  angmom  = 0;
-  ps      = 0;
+  com         = 0;
+  cov         = 0;
+  coa         = 0;
+  center      = 0;
+  EJcen       = 0;
+  angmom      = 0;
+  ps          = 0;
 
-  com0    = 0;
-  cov0    = 0;
-  acc0    = 0;
-  comI    = 0;
-  covI    = 0;
+  com0        = 0;
+  cov0        = 0;
+  acc0        = 0;
+  comI        = 0;
+  covI        = 0;
 
-  nlevel = -1;
+  nlevel      = -1;
 
   read_bodies_and_distribute_binary(in);
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
-  angmom_lev = vector<double>(3*(multistep+1), 0);
-  com_lev    = vector<double>(3*(multistep+1), 0);
-  cov_lev    = vector<double>(3*(multistep+1), 0);
-  coa_lev    = vector<double>(3*(multistep+1), 0);
-  com_mas    = vector<double>(multistep+1, 0);
+  angmom_lev  = vector<double>(3*(multistep+1), 0);
+  com_lev     = vector<double>(3*(multistep+1), 0);
+  cov_lev     = vector<double>(3*(multistep+1), 0);
+  coa_lev     = vector<double>(3*(multistep+1), 0);
+  com_mas     = vector<double>(multistep+1, 0);
 
   reset_level_lists();
 
@@ -572,6 +572,12 @@ void Component::initialize(void)
   
 
   if (com_system) {
+
+    if (consp) {
+      comE_lev = vector<double>(3*(multistep+1), 0);
+      covE_lev = vector<double>(3*(multistep+1), 0);
+      comE_mas = vector<double>(multistep+1, 0);
+    }
 
     initialize_com_system();
 
@@ -1661,8 +1667,8 @@ void Component::initialize_com_system()
   }
 
   for (int k=0; k<dim; k++) {
-    comI[k] = com0[k];
-    covI[k] = cov0[k];
+    comI[k]   = com0[k];
+    covI[k]   = cov0[k];
     center[k] = 0.0;
   }
 
@@ -1704,32 +1710,41 @@ struct thrd_pass_posn
   bool tidal;
   bool com_system;
   unsigned mlevel;
-  vector<double> com, cov, coa, mtot;
+  vector<double> com,  cov,  coa,  mtot;
+  vector<double> comE, covE, mtotE;
 };
 
 
 
 void * fix_positions_thread(void *ptr)
 {
-  int id = static_cast<thrd_pass_posn*>(ptr)->id;
-  Component *c = static_cast<thrd_pass_posn*>(ptr)->c;
+  int id          =   static_cast<thrd_pass_posn*>(ptr)->id;
+  Component *c    =   static_cast<thrd_pass_posn*>(ptr)->c;
 
-  bool consp = static_cast<thrd_pass_posn*>(ptr)->consp;
-  bool tidal = static_cast<thrd_pass_posn*>(ptr)->tidal;
-  bool com_system = static_cast<thrd_pass_posn*>(ptr)->com_system;
+  bool consp      =   static_cast<thrd_pass_posn*>(ptr)->consp;
+  bool tidal      =   static_cast<thrd_pass_posn*>(ptr)->tidal;
+  bool com_system =   static_cast<thrd_pass_posn*>(ptr)->com_system;
 
-  unsigned mlevel = static_cast<thrd_pass_posn*>(ptr)->mlevel;
+  unsigned mlevel =   static_cast<thrd_pass_posn*>(ptr)->mlevel;
 
-  double *com = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
-  double *cov = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
-  double *coa = &(static_cast<thrd_pass_posn*>(ptr)->coa[0]);
-  double *mtot = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
+  double *com     = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
+  double *cov     = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
+  double *coa     = &(static_cast<thrd_pass_posn*>(ptr)->coa[0]);
+  double *mtot    = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
+
+  double *comE, *covE, *mtotE;
+
+  if (consp && com_system) {
+    comE          = &(static_cast<thrd_pass_posn*>(ptr)->com[0]);
+    covE          = &(static_cast<thrd_pass_posn*>(ptr)->cov[0]);
+    mtotE         = &(static_cast<thrd_pass_posn*>(ptr)->mtot[0]);
+  }
 
   for (unsigned mm=mlevel; mm<=multistep; mm++) {
 
     int nbodies = c->levlist[mm].size();
-    int nbeg = nbodies*(id  )/nthrds;
-    int nend = nbodies*(id+1)/nthrds;
+    int nbeg    = nbodies*(id  )/nthrds;
+    int nend    = nbodies*(id+1)/nthrds;
 
 				// Particle loop
     for (int q=nbeg; q<nend; q++) {
@@ -1737,35 +1752,32 @@ void * fix_positions_thread(void *ptr)
       unsigned long n = c->levlist[mm][q];
 
       if (consp) {
-	if (c->escape_com(*c->Part(n))) {
+	if (c->escape_com(*c->Part(n)) && c->Part(n)->iattrib[tidal]==0) {
 				// Set flag indicating escaped particle
-	  if (c->Part(n)->iattrib[tidal]==0) {
+	  c->Part(n)->iattrib[tidal] = 1;
 
-	    c->Part(n)->iattrib[tidal] = 1;
-
-	    if (com_system) {	// Conserve momentum of center of mass
+	  if (com_system) {	// Conserve momentum of center of mass
 				// and compute center of acceleration
-	      mtot[mm] += c->Part(n)->mass;
-	      for (unsigned k=0; k<3; k++) {
-		cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k]; 
-		coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
-	      }
+	    mtotE[mm] += c->Part(n)->mass;
+	    for (unsigned k=0; k<3; k++) {
+	      comE[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k]; 
+	      covE[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k]; 
 	    }
 	  }
+	  continue;
 	}
-      
-      } else {
-    
-	mtot[mm] += c->Part(n)->mass;
+	
+	if (c->Part(n)->iattrib[tidal]==1) continue;
+      }
 
-	// Compute new center of mass quantities
-	//
-	for (int k=0; k<c->dim; k++) {
-	  com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
-	  cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
-	  coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
-	}
-      
+      mtot[mm] += c->Part(n)->mass;
+
+      // Compute new center of mass quantities
+      //
+      for (int k=0; k<c->dim; k++) {
+	com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
+	cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
+	coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
       }
     }
   }
@@ -1781,8 +1793,7 @@ void Component::fix_positions(unsigned mlevel)
 
   				// Zero variables
   mtot = 0.0;
-  for (int k=0; k<dim; k++)
-    com[k] = cov[k] = coa[k] = 0.0;
+  for (int k=0; k<dim; k++) com[k] = cov[k] = coa[k] = 0.0;
 
 				// Zero multistep counters at and
 				// above this level
@@ -1797,17 +1808,23 @@ void Component::fix_positions(unsigned mlevel)
 
   if (nthrds==1) {
 
-    data[0].id = 0;
-    data[0].c  = this;
-    data[0].consp = consp;
-    data[0].tidal = tidal;
+    data[0].id         = 0;
+    data[0].c          = this;
+    data[0].consp      = consp;
+    data[0].tidal      = tidal;
     data[0].com_system = com_system;
-    data[0].mlevel = mlevel;
+    data[0].mlevel     = mlevel;
 
     data[0].com  = vector<double>(3*(multistep+1), 0.0);
     data[0].cov  = vector<double>(3*(multistep+1), 0.0);
     data[0].coa  = vector<double>(3*(multistep+1), 0.0);
     data[0].mtot = vector<double>(multistep+1, 0.0);
+
+    if (consp && com_system) {
+      data[0].comE  = vector<double>(3*(multistep+1), 0.0);
+      data[0].covE  = vector<double>(3*(multistep+1), 0.0);
+      data[0].mtotE = vector<double>(multistep+1, 0.0);
+    }
 
     fix_positions_thread(&data[0]);
 
@@ -1818,6 +1835,14 @@ void Component::fix_positions(unsigned mlevel)
 	coa_lev[3*mm + k] += data[0].coa[3*mm + k];
       }
       com_mas[mm] += data[0].mtot[mm];
+
+      if (consp && com_system) {
+	for (unsigned k=0; k<3; k++) {
+	  comE_lev[3*mm + k] += data[0].comE[3*mm + k];
+	  covE_lev[3*mm + k] += data[0].covE[3*mm + k];
+	}
+	comE_mas[mm] += data[0].mtotE[mm];
+      }
     }
 
   } else {
@@ -1827,17 +1852,23 @@ void Component::fix_positions(unsigned mlevel)
   
     for (int i=0; i<nthrds; i++) {
 
-      data[i].id = i;
-      data[i].c  = this;
-      data[i].consp = consp;
-      data[i].tidal = tidal;
+      data[i].id         = i;
+      data[i].c          = this;
+      data[i].consp      = consp;
+      data[i].tidal      = tidal;
       data[i].com_system = com_system;
-      data[i].mlevel = mlevel;
+      data[i].mlevel     = mlevel;
 
       data[i].com  = vector<double>(3*(multistep+1), 0.0);
       data[i].cov  = vector<double>(3*(multistep+1), 0.0);
       data[i].coa  = vector<double>(3*(multistep+1), 0.0);
       data[i].mtot = vector<double>(multistep+1, 0.0);
+
+      if (consp && com_system) {
+	data[i].comE  = vector<double>(3*(multistep+1), 0.0);
+	data[i].covE  = vector<double>(3*(multistep+1), 0.0);
+	data[i].mtotE = vector<double>(multistep+1, 0.0);
+      }
 
       errcode =  pthread_create(&thrd[i], 0, fix_positions_thread, &data[i]);
 
@@ -1868,6 +1899,17 @@ void Component::fix_positions(unsigned mlevel)
 	}
 	com_mas[mm] += data[i].mtot[mm];
       }
+
+      if (consp && com_system) {
+	for (unsigned mm=mlevel; mm<=multistep; mm++) {
+	  for (unsigned k=0; k<3; k++) {
+	    comE_lev[3*mm + k] += data[i].comE[3*mm + k];
+	    covE_lev[3*mm + k] += data[i].covE[3*mm + k];
+	  }
+	  comE_mas[mm] += data[i].mtotE[mm];
+	}
+      }
+      
     }
   }
 
@@ -1909,11 +1951,32 @@ void Component::fix_positions(unsigned mlevel)
   }
 
   if (consp && com_system) {
-    for (int i=0; i<3; i++) {
-      covI[i] = (mtot0*covI[i] - cov[i])/(mtot0 - mtot);
-      cov0[i] = (mtot0*cov0[i] - cov[i])/(mtot0 - mtot);
+    
+    vector<double> comE(3), covE(3);
+    double         mtotE;
+    
+    mtot1 = 0.0;
+    for (int k=0; k<3; k++) com1[k] = cov1[k] = 0.0;
+
+    for (unsigned mm=mlevel; mm<=multistep; mm++) {
+      for (int k=0; k<3; k++) {
+	com1[k] += comE_lev[3*mm + k];
+	cov1[k] += covE_lev[3*mm + k];
+      }
+      mtot1 += comE_mas[mm];
     }
-    mtot0 -= mtot;
+
+    MPI_Allreduce(&mtot1,   &mtotE,   1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&com1[0], &comE[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    MPI_Allreduce(&cov1[0], &covE[0], 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+    for (int i=0; i<3; i++) {
+      comI[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
+      com0[i] = (mtot0*comI[i] - comE[i])/(mtot0 - mtotE);
+      covI[i] = (mtot0*covI[i] - covE[i])/(mtot0 - mtotE);
+      cov0[i] = (mtot0*cov0[i] - covE[i])/(mtot0 - mtotE);
+    }
+    mtot0 -= mtotE;
   }
 				// Compute component center of mass and
 				// center of velocity, and center of accel
@@ -1932,7 +1995,16 @@ void Component::fix_positions(unsigned mlevel)
 
   if ((EJ & Orient::CENTER) && !EJdryrun) {
     Vector ctr = orient->currentCenter();
-    for (int i=0; i<3; i++) center[i] += ctr[i+1];
+    bool ok    = true;
+    for (int i=0; i<3; i++) {
+      if (isnan(ctr[i+1])) ok = false;
+    } 
+    if (ok) {
+      for (int i=0; i<3; i++) center[i] += ctr[i+1];
+    } else if (myid==0) {
+      cout << "Orient: center failure, T=" << tnow 
+	   << ", adjustment skipped" << endl;
+    }
   }
 
 }

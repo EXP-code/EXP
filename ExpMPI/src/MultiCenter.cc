@@ -51,5 +51,9 @@ double MultiCenter::mixture(double* pos)
 
   if (multistep==0 || mstep==0) accum_histo(value);
 
+  if (isnan(value)) {
+    cout << "Error" << endl;
+  }
+
   return value;
 }

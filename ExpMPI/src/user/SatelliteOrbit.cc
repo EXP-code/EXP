@@ -35,6 +35,8 @@
 
 #include <cstdlib>
 #include <cmath>
+#include <iostream>
+#include <sstream>
 #include <string>
 
 #ifdef USE_DMALLOC
@@ -176,16 +178,23 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
     OrbValues ret = orb->Anneal();
 
     if (myid==0) {
-      cout << left << setw(60) << setfill('-') << '-' << endl << setfill(' ');
-      cout << "Boltzman constant: " << ret.Boltzmann << endl
-	   << "Initial temperature: " << ret.t0 << '\t'
-	   << "Final temperature: " << ret.tf << endl
-	   << "Estimated minumum at: " << ret.energy
-	   << ", " << ret.kappa << endl
-	   << "Functional value = " << ret.value << endl
-	   << "Peri, apo = " << ret.peri << ", " << ret.apo << endl
-	   << "Radial period = " << ret.radial_period << endl
-	   << "Aximuthal period = " << ret.azimuthal_period << endl;
+      cout << left << setw(60) << setfill('-') << '-' << endl << setfill(' ')
+	   << setw(30) << "Boltzmann constant" 
+	   << " | " << ret.Boltzmann << endl
+	   << setw(30) << "Initial temperature" 
+	   << " | " << ret.t0 << endl
+	   << setw(30) << "Final temperature" 
+	   << " | " << ret.tf << endl
+	   << setw(30) << "Estimated minumum" 
+	   << " | " << ret.energy << ", " << ret.kappa << endl
+	   << setw(30) << "Functional value" 
+	   << " | " << ret.value << endl
+	   << setw(30) << "Peri, apo" 
+	   << " | " << ret.peri << ", " << ret.apo << endl
+	   << setw(30) << "Radial period" 
+	   << " | " << ret.radial_period << endl
+	   << setw(30) << "Aximuthal period" 
+	   << " | " << ret.azimuthal_period << endl;
     }
   }
     
@@ -208,8 +217,13 @@ SatelliteOrbit::SatelliteOrbit(const string &conf)
 				// Set current satellite position
     currentR = rotate*v0;
 
-    cout << "Position at T=0: x, y, z = " << currentR[1] << ", "
-	 << currentR[2] << ", " << currentR[3] << endl
+    ostringstream sout;
+    sout << "X, Y, Z, at T=" << tnow;
+
+    cout << setw(30) << left << sout.str() << " | " 
+	 << currentR[1] << ", "
+	 << currentR[2] << ", " 
+	 << currentR[3] << endl
 	 << setw(60) << setfill('-') << '-' << endl << setfill(' ');
   }
 

@@ -73,7 +73,7 @@ void TwoCenter::initialize()
 {
   string val;
   if (get_value("nhisto", val))		nhisto = atoi(val.c_str());
-  if (get_value("basis",  val))		basis  = atoi(val.c_str());
+  if (get_value("basis",  val))		basis  = val.c_str();
 }
 
 TwoCenter::~TwoCenter(void)

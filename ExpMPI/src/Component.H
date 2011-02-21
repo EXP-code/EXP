@@ -201,6 +201,7 @@ private:
   // Compute initial com position and velocity from phase space
   void initialize_com_system();
   vector<double> com_lev, cov_lev, coa_lev, com_mas, angmom_lev;
+  vector<double> comE_lev, covE_lev, comE_mas;
 
   // Momentum tracking
   bool consp;

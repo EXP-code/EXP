@@ -324,6 +324,7 @@ void adjust_multistep_level(bool all)
   for (list<Component*>::iterator cc=comp.components.begin(); 
        cc != comp.components.end(); cc++) {
     (*cc)->reset_level_lists();
+    (*cc)->fix_positions();
     (*cc)->force->multistep_update_finish();
   }
 

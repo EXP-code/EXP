@@ -771,8 +771,8 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
 	} else
 	  cC->Pos(&pos[id][1], indx, Component::Local);
 
-	mfactor = mix->Mixture(&pos[id][0]);
-	for (int k=0; k<3; k++) pos[id][k] -= ctr[k];
+	mfactor = mix->Mixture(&pos[id][1]);
+	for (int k=1; k<=3; k++) pos[id][k] -= ctr[k-1];
 
       } else {
 

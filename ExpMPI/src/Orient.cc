@@ -234,33 +234,36 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
       ofstream out(logfile.c_str());
       if (out) {
 	out.setf(ios::left);
-	out << setw(15) << "# Time"
-	    << setw(15) << "| E_curr"
-	    << setw(15) << "| Used"
-	    << setw(15) << "| X-axis(reg)"
-	    << setw(15) << "| Y-axis(reg)"
-	    << setw(15) << "| Z-axis(reg)"
-	    << setw(15) << "| X-axis(cur)"
-	    << setw(15) << "| Y-axis(cur)"
-	    << setw(15) << "| Z-axis(cur)"
-	    << setw(15) << "| X-center(anl)"
-	    << setw(15) << "| Y-center(anl)"
-	    << setw(15) << "| Z-center(anl)"
-	    << setw(15) << "| X-center(reg)"
-	    << setw(15) << "| Y-center(reg)"
-	    << setw(15) << "| Z-center(reg)"
-	    << setw(15) << "| X-center(cur)"
-	    << setw(15) << "| Y-center(cur)"
-	    << setw(15) << "| Z-center(cur)"
-	    << setw(15) << "| X-com(eff)"
-	    << setw(15) << "| Y-com(eff)"
-	    << setw(15) << "| Z-com(eff)"
+	out << setw(15) << "# Time"		// 1
+	    << setw(15) << "| E_curr"		// 2
+	    << setw(15) << "| Used"		// 3
+	    << setw(15) << "| X-axis(reg)"	// 4
+	    << setw(15) << "| Y-axis(reg)"	// 5
+	    << setw(15) << "| Z-axis(reg)"	// 6
+	    << setw(15) << "| X-axis(cur)"	// 7
+	    << setw(15) << "| Y-axis(cur)"	// 8
+	    << setw(15) << "| Z-axis(cur)"	// 9
+	    << setw(15) << "| X-center(anl)"	// 10
+	    << setw(15) << "| Y-center(anl)"	// 11
+	    << setw(15) << "| Z-center(anl)"	// 12
+	    << setw(15) << "| X-center(reg)"	// 13
+	    << setw(15) << "| Y-center(reg)"	// 14
+	    << setw(15) << "| Z-center(reg)"	// 15
+	    << setw(15) << "| X-center(cur)"	// 16
+	    << setw(15) << "| Y-center(cur)"	// 17
+	    << setw(15) << "| Z-center(cur)"	// 18
+	    << setw(15) << "| X-com(cur)"	// 19
+	    << setw(15) << "| Y-com(cur)"	// 20
+	    << setw(15) << "| Z-com(cur)"	// 21
+	    << setw(15) << "| X-com(dif)"	// 22
+	    << setw(15) << "| Y-com(dif)"	// 23
+	    << setw(15) << "| Z-com(dif)"	// 24
 	    << endl;
 	out.fill('-');
 
 	int icnt = 1;
 	out << "# " << setw(13) << icnt++;
-	for (int i=0; i<20; i++) out << "| " << setw(13) << icnt++;
+	for (int i=0; i<23; i++) out << "| " << setw(13) << icnt++;
 	out << endl;
 
 	out.close();
@@ -680,24 +683,34 @@ void Orient::logEntry(double time, Component *c)
 
   ofstream outl(logfile.c_str(), ios::app);
   if (outl) {
+    // Columns 1 - 3
     outl << setw(15) << time << setw(15) << Ecurr << setw(15) << used;
 
+    // Columns 4 - 6
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
 
+    // Columns 7 - 9
     if (sumsA.size())
       for (int k=0; k<3; k++) outl << setw(15) << sumsA.back().second[k+1];
     else
       for (int k=0; k<3; k++) outl << setw(15) << 0.0;
 
+    // Columns 10 - 12
     for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
 
+    // Columns 13 - 15
     for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
 
+    // Columns 16 - 18
     if (sumsC.size())
       for (int k=0; k<3; k++) outl << setw(15) << sumsC.back().second[k+1];
     else
       for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
 
+    // Columns 19 - 21
+    for (int k=0; k<3; k++) outl << setw(15) << c->com[k];
+
+    // Columns 12 - 24
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k] - c->comI[k];
 
     outl << endl;
