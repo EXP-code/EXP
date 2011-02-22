@@ -161,16 +161,16 @@ Orient::Orient(int n, int nwant, unsigned Oflg, unsigned Cflg,
 	line >> axis[1];	// Last computed axis from regression
 	line >> axis[2];
 	line >> axis[3];
-	line >> axis1[1];	// Last axis from particles
+	line >> axis1[1];	// Last axis from particle algorithm
 	line >> axis1[2];
 	line >> axis1[3];
 	line >> center[1];	// Last computed center from regression
 	line >> center[2];
 	line >> center[3];
-	line >> center0[1];	// Analytic center
+	line >> center0[1];	// Analytic center (from velocity intgration)
 	line >> center0[2];
 	line >> center0[3];
-	line >> center1[1];	// Last center from particles
+	line >> center1[1];	// Last center from particle algorithm
 	line >> center1[2];
 	line >> center1[3];
 	  
@@ -531,10 +531,10 @@ void Orient::accumulate(double time, Component *c)
     
     deque<DV>::iterator j;
     for (j = sumsA.begin(); j != sumsA.end(); j++) {
-      x = j->first;
-      sumX += x;
-      sumX2 += x*x;
-      sumY += j->second;
+      x      = j->first;
+      sumX  += x;
+      sumX2 += x * x;
+      sumY  += j->second;
       sumXY += j->second * x;
       sumY2 += j->second & j->second;
       
@@ -543,9 +543,9 @@ void Orient::accumulate(double time, Component *c)
     
     // Linear least squares estimate for axis
 
-    slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+    slope     = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    axis = intercept + slope*damp*time;
+    axis      = intercept + slope*damp*time;
     
     i = 0;
     sigA = 0.0;
@@ -571,10 +571,10 @@ void Orient::accumulate(double time, Component *c)
     if (static_cast<int>(sumsC.size()) > keep) sumsC.pop_front();
 
     double x;
-    int i=0;
-    sumX = 0.0;
+    int i = 0;
+    sumX  = 0.0;
     sumX2 = 0.0;
-    sumY.zero();
+    sumY. zero();
     sumXY.zero();
     sumY2.zero();
     
@@ -582,10 +582,10 @@ void Orient::accumulate(double time, Component *c)
       
     deque<DV>::iterator j;
     for (j = sumsC.begin(); j != sumsC.end(); j++) {
-      x = j->first;
-      sumX += x;
-      sumX2 += x*x;
-      sumY += j->second;
+      x      = j->first;
+      sumX  += x;
+      sumX2 += x * x;
+      sumY  += j->second;
       sumXY += j->second * x;
       sumY2 += j->second & j->second;
 
@@ -605,9 +605,9 @@ void Orient::accumulate(double time, Component *c)
     }
     // Linear least squares estimate for center
     
-    slope = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
+    slope     = (sumXY*N - sumX*sumY)/(sumX2*N - sumX*sumX);
     intercept = (sumX2*sumY - sumX*sumXY)/(sumX2*N - sumX*sumX);
-    center = intercept + slope*damp*time;
+    center    = intercept + slope*damp*time;
     
     i = 0;
     sigC = 0.0;
@@ -690,10 +690,7 @@ void Orient::logEntry(double time, Component *c)
     for (int k=0; k<3; k++) outl << setw(15) << axis[k+1];
 
     // Columns 7 - 9
-    if (sumsA.size())
-      for (int k=0; k<3; k++) outl << setw(15) << sumsA.back().second[k+1];
-    else
-      for (int k=0; k<3; k++) outl << setw(15) << 0.0;
+    for (int k=0; k<3; k++) outl << setw(15) << axis1[k+1];
 
     // Columns 10 - 12
     for (int k=0; k<3; k++) outl << setw(15) << center[k+1];
@@ -702,10 +699,7 @@ void Orient::logEntry(double time, Component *c)
     for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
 
     // Columns 16 - 18
-    if (sumsC.size())
-      for (int k=0; k<3; k++) outl << setw(15) << sumsC.back().second[k+1];
-    else
-      for (int k=0; k<3; k++) outl << setw(15) << center0[k+1];
+    for (int k=0; k<3; k++) outl << setw(15) << center1[k+1];
 
     // Columns 19 - 21
     for (int k=0; k<3; k++) outl << setw(15) << c->com[k];

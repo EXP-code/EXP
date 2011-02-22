@@ -33,7 +33,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      Cube.cc Cylinder.cc EmpOrth9thd.cc ExternalCollection.cc		\
      ExternalForce.cc Hernquist.cc Orient.cc Particle.cc PotAccel.cc	\
      ScatterMFP.cc SphericalBasis.cc AxisymmetricBasis.cc Sphere.cc	\
-     TwoCenter.cc MultiCenter.cc EXPException.cc global.cc begin.cc	\
+     TwoCenter.cc EJcom.cc EXPException.cc global.cc begin.cc		\
      ddplgndr.cc Direct.cc Shells.cc NoForce.cc end.cc			\
      OutputContainer.cc OutPS.cc OutPSN.cc OutCHKPT.cc Output.cc	\
      header.cc expand.cc externalShock.cc generateRelaxation.cc		\

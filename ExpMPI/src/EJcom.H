@@ -1,5 +1,5 @@
-#ifndef _MultiCenter_H
-#define _MultiCenter_H
+#ifndef _EJcom_H
+#define _EJcom_H
 
 #include <TwoCenter.H>
 
@@ -24,7 +24,7 @@
     \param alpha is the exponent in the argument of the erf (\f$\alpha\f$)
 
 */
-class MultiCenter : public TwoCenter
+class EJcom : public TwoCenter
 {
 
 private:
@@ -38,7 +38,7 @@ public:
 				// Global parameters
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */
-  MultiCenter(string& line);
+  EJcom(string& line);
 
   //! Mixture function for the two expansions
   double mixture(double* p);

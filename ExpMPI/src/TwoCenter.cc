@@ -9,7 +9,8 @@
 TwoCenter::TwoCenter(string& line) : PotAccel(line)
 {
   nhisto = 0;
-  center  = vector<double>(3, 0);
+  inner  = vector<double>(3, 0);
+  outer  = vector<double>(3, 0);
 
 				// Get initialization info
   initialize();
@@ -25,10 +26,10 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
   }
 				// Generate two expansion grids
 
-  mix_ej  = new MixtureBasis(*this, &center, "EJ",
+  mix_ej  = new MixtureBasis(*this, &inner, "EJ",
 			     static_cast<mixFunc>(&TwoCenter::Cmixture));
 
-  mix_com = new MixtureBasis(*this, &center, "COM",
+  mix_com = new MixtureBasis(*this, &outer, "COM",
 			     static_cast<mixFunc>(&TwoCenter::mixture));
   
 				// Instantiate the force ("reflection" by hand)
@@ -86,28 +87,30 @@ TwoCenter::~TwoCenter(void)
 
 void TwoCenter::determine_coefficients(Component *c) 
 {
-  for (int k=0; k<3; k++) center[k] = component->center[k];
+  for (int k=0; k<3; k++) {
+    inner[k] = component->center[k];
+    if (component->com_system) 
+      outer[k] = component->comI[k];
+    else 
+      outer[k] = component->com[k];
+  }
 
   exp_ej->determine_coefficients(c);
   
-  if (component->com_system)
-    for (int k=0; k<3; k++) center[k] = 0.0;
-  else
-    for (int k=0; k<3; k++) center[k] = component->com[k];
-
   exp_com->determine_coefficients(c);
 }
 
 void TwoCenter::determine_coefficients(void) 
 {
-  for (int k=0; k<3; k++) center[k] = component->center[k];
+  for (int k=0; k<3; k++) {
+    inner[k] = component->center[k];
+    if (component->com_system) 
+      outer[k] = component->comI[k];
+    else
+      outer[k] = component->com[k];
+  }
 
   exp_ej->determine_coefficients();
-
-  if (component->com_system)
-    for (int k=0; k<3; k++) center[k] = 0.0;
-  else
-    for (int k=0; k<3; k++) center[k] = component->com[k];
 
   exp_com->determine_coefficients();
 }
@@ -122,20 +125,20 @@ void TwoCenter::get_acceleration_and_potential(Component* curComp)
   
   bool use_external1 = use_external;
 
-				// Set center to Component center
-  for (int k=0; k<3; k++) center[k] = component->center[k];
+  for (int k=0; k<3; k++) {
+    inner[k] = component->center[k];
+    if (component->com_system) 
+      outer[k] = component->comI[k];
+    else 
+      outer[k] = component->com[k];
+  }
+
   if (use_external) exp_ej -> SetExternal();
   exp_ej->get_acceleration_and_potential(cC);
   exp_ej->ClearExternal();
 
 				// Reset external force flag
   use_external = use_external1;
-
-				// Set center to Component center of mass
-  if (component->com_system)
-    for (int k=0; k<3; k++) center[k] = 0.0;
-  else
-    for (int k=0; k<3; k++) center[k] = component->com[k];
 
   if (use_external) exp_com -> SetExternal();
   exp_com->get_acceleration_and_potential(cC);

@@ -12,7 +12,7 @@
 #include <CBrockDisk.H>
 #include <Hernquist.H>
 #include <Sphere.H>
-#include <MultiCenter.H>
+#include <EJcom.H>
 #include <Cylinder.H>
 #include <Cube.H>
 #include <Slab.H>
@@ -516,8 +516,8 @@ void Component::initialize(void)
   else if ( !id.compare("sphereSL") ) {
     force = new Sphere(fparam);
   }
-  else if ( !id.compare("multiCenter") ) {
-    force = new MultiCenter(fparam);
+  else if ( !id.compare("EJcom") ) {
+    force = new EJcom(fparam);
   }
   else if ( !id.compare("cube") ) {
     force = new Cube(fparam);

@@ -18,7 +18,10 @@ class MixtureBasis;
     This class provides a virtual member "mixture(double *pos)" that
     must be implemented by a derived class to provide the mixture
     function for associating particles with a force center for
-    gravitational field determination.
+    gravitational field determination.  EJcom is an example of an
+    implementation using an erf-based ramp whose arguement is the
+    distance from the particle to the inner center and the width is
+    the distance between the centers.
 
     All parameters are parsed by the underlying basis instances
     for the two centers.  There is only one diagnostic parameter:
@@ -61,8 +64,11 @@ public:
   typedef double (TwoCenter::*mixFunc)(double *p);
 
 				// Global parameters
-  //! Center for current component
-  vector<double> center;
+  //! INNER center for current component
+  vector<double> inner;
+
+  //! OUTER center for current component
+  vector<double> outer;
 
   //! Constructor
   /*! \param line passes any parameters (rsphSL, rmin and numr) */

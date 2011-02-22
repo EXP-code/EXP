@@ -301,7 +301,6 @@ void adjust_multistep_level(bool all)
 		 << ": multistep thread <" << i << "> thread exited\n";
 #endif
 	  }
-  
 	}
 	
       }
