@@ -19,48 +19,71 @@ class MixtureBasis;
     must be implemented by a derived class to provide the mixture
     function for associating particles with a force center for
     gravitational field determination.  EJcom is an example of an
-    implementation using an erf-based ramp whose arguement is the
+    implementation using an erf-based ramp whose argument is the
     distance from the particle to the inner center and the width is
     the distance between the centers.
 
     All parameters are parsed by the underlying basis instances
     for the two centers.  There is only one diagnostic parameter:
 
-    \param nhisto enables diagnostic output of mixture distribution if set to a value larger than 1
-    \param basis is the name of the force method to use for the two-center expansion.  Available types are: "bessel" (Bessel), "c_brock" (CBrock), "c_brock_disk" (CBrockDisk), "hernq" (Hernquist), "sphereSL" (Sphere), "cylinder" (Cylinder).
+    \param nhisto enables diagnostic output of mixture distribution if
+    set to a value larger than 1
+
+    \param basis is the name of the force method to use for the
+    two-center expansion.  Available types are: "bessel" (Bessel),
+    "c_brock" (CBrock), "c_brock_disk" (CBrockDisk), "hernq"
+    (Hernquist), "sphereSL" (Sphere), "cylinder" (Cylinder).
 */
 class TwoCenter : public PotAccel
 {
 
 private:
 
-  Basis * exp_ej;
-  Basis * exp_com;
+  //@{
+  // The two basis instances
+  Basis * exp_in;
+  Basis * exp_out;
+  //@}
 
+  //! The name of the basis (for reflection)
   string basis;
 
+  //! Force initialization
   void initialize(void);
 
-  MixtureBasis *mix_ej, *mix_com;
+  //@{
+  //! Mixture containers for each basis
+  MixtureBasis *mix_in, *mix_out;
+  //@}
 
-				// Will not multithread directly
+  //@{
+  //! The required force members, but this class does not multithread directly
   void * determine_coefficients_thread(void * arg) {};
   void * determine_acceleration_and_potential_thread(void * arg) {};
+  //@}
 
+  //! Zero out the histogram bins
   void reset_histo();
+
+  //! Write the current histogram to the log file
   void write_histo();
 
 protected:
 
+  //! Make a histogram for debugging the mixture factor distribution
   void accum_histo(double value);
-
+  //! The bin spacing
   double dz;
+  //! Name for the histogram file
   string ohisto;
+  //! Number of bins
   unsigned nhisto;
+  //! The histogram bins
   vector<double> histo;
 
 public:
 
+  //! The mixture function
   typedef double (TwoCenter::*mixFunc)(double *p);
 
 				// Global parameters
@@ -70,16 +93,17 @@ public:
   //! OUTER center for current component
   vector<double> outer;
 
-  //! Constructor
-  /*! \param line passes any parameters (rsphSL, rmin and numr) */
+  /** Constructor
+      \param line passes any parameters (rsphSL, rmin and numr) 
+  */
   TwoCenter(string& line);
 
   //! Destructor
   ~TwoCenter();
 
 
-  //! Call Basis routines to make coefficients
   //@{
+  //! Call Basis routines to make coefficients
   void determine_coefficients(Component *c);
   void determine_coefficients(void);
   //@}
@@ -87,10 +111,12 @@ public:
   //! Main force evaluation routine: cycle through each grid
   void get_acceleration_and_potential(Component*);
 
-  //! Mixture function for the two expansions
   //@{
+  //! Mixture function for the two expansions
+
   /// To be provided: must return a value in [0,1]
   virtual double mixture(double* p) = 0;
+
   /// The complement of the mixture function, also in [0,1]
   double Cmixture(double *p) { return 1.0 - mixture(p); }
   //@}
@@ -98,47 +124,47 @@ public:
   //! For access to parent component
   virtual void RegisterComponent(Component *c) { 
     component = c; 
-    exp_ej  -> RegisterComponent(c);
-    exp_com -> RegisterComponent(c);
+    exp_in  -> RegisterComponent(c);
+    exp_out -> RegisterComponent(c);
   }
 
-  //! Multistepping routines: call Basis members
-  //@}
+  //@{
+  //! Multistepping routines: call the basis members for each component
   virtual void set_multistep_level(unsigned n) 
   { 
     mlevel = n;
-    exp_ej  -> set_multistep_level(n);
-    exp_com -> set_multistep_level(n);
+    exp_in  -> set_multistep_level(n);
+    exp_out -> set_multistep_level(n);
   }
 
   virtual void multistep_update_begin()
   {
-    exp_ej  -> multistep_update_begin();
-    exp_com -> multistep_update_begin();
+    exp_in  -> multistep_update_begin();
+    exp_out -> multistep_update_begin();
   }
 
   virtual void multistep_update(int cur, int next, Component* c, int i, int id) 
   {
-    exp_ej  -> multistep_update(cur, next, c, i, id);
-    exp_com -> multistep_update(cur, next, c, i, id);
+    exp_in  -> multistep_update(cur, next, c, i, id);
+    exp_out -> multistep_update(cur, next, c, i, id);
   }
 
   virtual void multistep_update_finish()
   {
-    exp_ej  -> multistep_update_finish();
-    exp_com -> multistep_update_finish();
+    exp_in  -> multistep_update_finish();
+    exp_out -> multistep_update_finish();
   }
 
   virtual void multistep_reset()
   {
-    exp_ej  -> multistep_reset();
-    exp_com -> multistep_reset();
+    exp_in  -> multistep_reset();
+    exp_out -> multistep_reset();
   }
 
   virtual void multistep_debug()
   {
-    exp_ej  -> multistep_debug();
-    exp_com -> multistep_debug();
+    exp_in  -> multistep_debug();
+    exp_out -> multistep_debug();
   }
   //@}
 

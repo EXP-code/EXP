@@ -83,7 +83,7 @@ class DiskHalo
   double hDmin, hDmax, dRh;
   vector<double>   nhD;		// Mass in bins
   vector<unsigned> nhN;		// Number in bins
-  unsigned nzero;		// Computed minimum mesh point
+  int nzero;			// Computed minimum mesh point
 
  public:
   static int NDP;		// Number of knots in disk table phi grid

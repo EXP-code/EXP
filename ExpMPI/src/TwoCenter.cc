@@ -12,50 +12,55 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
   inner  = vector<double>(3, 0);
   outer  = vector<double>(3, 0);
 
-				// Get initialization info
+  // Get initialization info
+  //
   initialize();
 
-				// Force identity string
+  // Force identity string
+  //
   id = "TwoCenter (" + basis + ")";
 
-				// Create dianostic output
+  // Create dianostic output
+  //
   if (nhisto) {
     dz = 1.0/nhisto;
     histo = vector<double>(nhisto, 0);
     ohisto = "histo_stc." + runtag;
   }
-				// Generate two expansion grids
-
-  mix_ej  = new MixtureBasis(*this, &inner, "EJ",
+  
+  // Generate two expansion grids
+  //
+  mix_in  = new MixtureBasis(*this, &inner, "EJ",
 			     static_cast<mixFunc>(&TwoCenter::Cmixture));
 
-  mix_com = new MixtureBasis(*this, &outer, "COM",
+  mix_out = new MixtureBasis(*this, &outer, "COM",
 			     static_cast<mixFunc>(&TwoCenter::mixture));
   
-				// Instantiate the force ("reflection" by hand)
+  // Instantiate the force ("reflection" by hand)
+  //
   if ( !basis.compare("bessel") ) {
-    exp_ej  = new Bessel(line, mix_ej );
-    exp_com = new Bessel(line, mix_com);
+    exp_in  = new Bessel(line, mix_in );
+    exp_out = new Bessel(line, mix_out);
   }
   else if ( !basis.compare("c_brock") ) {
-    exp_ej  = new CBrock(line, mix_ej );
-    exp_com = new CBrock(line, mix_com);
+    exp_in  = new CBrock(line, mix_in );
+    exp_out = new CBrock(line, mix_out);
   }
   else if ( !basis.compare("c_brock_disk") ) {
-    exp_ej  = new CBrockDisk(line, mix_ej );
-    exp_com = new CBrockDisk(line, mix_com);
+    exp_in  = new CBrockDisk(line, mix_in );
+    exp_out = new CBrockDisk(line, mix_out);
   }
   else if ( !basis.compare("hernq") ) {
-    exp_ej  = new Hernquist(line, mix_ej );
-    exp_com = new Hernquist(line, mix_com);
+    exp_in  = new Hernquist(line, mix_in );
+    exp_out = new Hernquist(line, mix_out);
   }
   else if ( !basis.compare("sphereSL") ) {
-    exp_ej  = new Sphere(line, mix_ej );
-    exp_com = new Sphere(line, mix_com);
+    exp_in  = new Sphere(line, mix_in );
+    exp_out = new Sphere(line, mix_out);
   }
   else if ( !basis.compare("cylinder") ) {
-    exp_ej  = new Cylinder(line, mix_ej );
-    exp_com = new Cylinder(line, mix_com);
+    exp_in  = new Cylinder(line, mix_in );
+    exp_out = new Cylinder(line, mix_out);
   }
   else {
     ostringstream msg;
@@ -63,10 +68,10 @@ TwoCenter::TwoCenter(string& line) : PotAccel(line)
     bomb(msg.str());
   }
 
-  exp_ej ->RegisterComponent(component);
-  exp_com->RegisterComponent(component);
+  exp_in ->RegisterComponent(component);
+  exp_out->RegisterComponent(component);
 
-  dof = exp_ej->dof;
+  dof = exp_in->dof;
 }
 
 
@@ -79,14 +84,16 @@ void TwoCenter::initialize()
 
 TwoCenter::~TwoCenter(void)
 {
-  delete exp_ej;
-  delete exp_com;
-  delete mix_ej;
-  delete mix_com;
+  delete exp_in ;
+  delete exp_out;
+  delete mix_in ;
+  delete mix_out;
 }
 
 void TwoCenter::determine_coefficients(Component *c) 
 {
+  // Assign the two (inner and outer) centers
+  //
   for (int k=0; k<3; k++) {
     inner[k] = component->center[k];
     if (component->com_system) 
@@ -95,13 +102,16 @@ void TwoCenter::determine_coefficients(Component *c)
       outer[k] = component->com[k];
   }
 
-  exp_ej->determine_coefficients(c);
-  
-  exp_com->determine_coefficients(c);
+  // Compute the two expansions
+  //
+  exp_in ->determine_coefficients(c);
+  exp_out->determine_coefficients(c);
 }
 
 void TwoCenter::determine_coefficients(void) 
 {
+  // Assign the two centers
+  //
   for (int k=0; k<3; k++) {
     inner[k] = component->center[k];
     if (component->com_system) 
@@ -110,9 +120,10 @@ void TwoCenter::determine_coefficients(void)
       outer[k] = component->com[k];
   }
 
-  exp_ej->determine_coefficients();
-
-  exp_com->determine_coefficients();
+  // Compute the two expansions
+  //
+  exp_in ->determine_coefficients();
+  exp_out->determine_coefficients();
 }
 
 void TwoCenter::get_acceleration_and_potential(Component* curComp)
@@ -133,16 +144,16 @@ void TwoCenter::get_acceleration_and_potential(Component* curComp)
       outer[k] = component->com[k];
   }
 
-  if (use_external) exp_ej -> SetExternal();
-  exp_ej->get_acceleration_and_potential(cC);
-  exp_ej->ClearExternal();
+  if (use_external) exp_in -> SetExternal();
+  exp_in->get_acceleration_and_potential(cC);
+  exp_in->ClearExternal();
 
 				// Reset external force flag
   use_external = use_external1;
 
-  if (use_external) exp_com -> SetExternal();
-  exp_com->get_acceleration_and_potential(cC);
-  exp_com->ClearExternal();
+  if (use_external) exp_out -> SetExternal();
+  exp_out->get_acceleration_and_potential(cC);
+  exp_out->ClearExternal();
 
 
   // Clear external potential flag
@@ -160,6 +171,7 @@ void TwoCenter::accum_histo(double value)
 	   << value << endl;
     } else {
       unsigned indx = static_cast<unsigned>( floor(value/dz) );
+      indx = min<unsigned>(indx, nhisto - 1);
       histo[indx] += 1.0;
     }
   }

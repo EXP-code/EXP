@@ -75,7 +75,6 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   cov        = 0;
   coa        = 0;
   center     = 0;
-  EJcen      = 0;
   angmom     = 0;
   ps         = 0;
 
@@ -393,7 +392,6 @@ Component::Component(istream *in)
   cov         = 0;
   coa         = 0;
   center      = 0;
-  EJcen       = 0;
   angmom      = 0;
   ps          = 0;
 
@@ -556,7 +554,6 @@ void Component::initialize(void)
   coa    = new double [3];
   angmom = new double [3];
   ps     = new double [6];
-  EJcen  = new double [3];
 
 				// For COM system
   com0   = new double[3];
@@ -568,7 +565,7 @@ void Component::initialize(void)
   for (int k=0; k<3; k++) 
     com[k] = center[k] = cov[k] = coa[k] = 
       com0[k] = cov0[k] = acc0[k] = 
-      comI[k] = covI[k] = angmom[k] = EJcen[k] = 0.0;
+      comI[k] = covI[k] = angmom[k] = 0.0;
   
 
   if (com_system) {
@@ -792,14 +789,14 @@ void Component::initialize(void)
     orient = new Orient(nEJkeep, nEJwant, EJ, EJctl, EJlogfile, EJdT, EJdamp);
     
     if (restart && (EJ & Orient::CENTER)) {
-      for (int i=0; i<3; i++) EJcen[i] = (orient->currentCenter())[i+1];
+      for (int i=0; i<3; i++) center[i] = (orient->currentCenter())[i+1];
     } else {
       orient -> set_center(EJx0, EJy0, EJz0);
       orient -> set_cenvel(EJu0, EJv0, EJw0);
       if (EJlinear) orient -> set_linear();
-      EJcen[0] = EJx0;
-      EJcen[1] = EJy0;
-      EJcen[2] = EJz0;
+      center[0] = EJx0;
+      center[1] = EJy0;
+      center[2] = EJz0;
     }
 
     if (EJdiag) cout << "Process " << myid << ": Orient successful\n";
@@ -809,9 +806,9 @@ void Component::initialize(void)
     cout << "Component <" << name;
     if (restart)
       cout << ">: current center on restart: x, y, z: " 
-	   << EJcen[0] << ", " 
-	   << EJcen[1] << ", " 
-	   << EJcen[2];
+	   << center[0] << ", " 
+	   << center[1] << ", " 
+	   << center[2];
     else
       cout << ">: user specified initial center: x, y, z: " 
 	   << EJx0 << ", " 
@@ -835,7 +832,6 @@ Component::~Component(void)
   delete [] coa;
   delete [] angmom;
   delete [] ps;
-  delete [] EJcen;
 
   delete [] com0;
   delete [] cov0;

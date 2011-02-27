@@ -377,9 +377,6 @@ public:
   double EJz0;
   //@}
 
-  //! EJ center
-  double *EJcen;
-
   //! Initial EJ velocity
   //@{
   //! x-coord

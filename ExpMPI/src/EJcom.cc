@@ -11,11 +11,14 @@ static char rcsid[] = "$Id$";
 EJcom::EJcom(string&line) : TwoCenter(line)
 {
   id = "EJcom";
-				// Defaults
+
+  // Defaults
+  //
   cfac  = 1.0;
   alpha = 1.0;
 
-  				// Get initialization info
+  // Get initialization info
+  //
   initialize();
 }
 
@@ -30,14 +33,14 @@ void EJcom::initialize()
 
 double EJcom::mixture(double* pos)
 {
-  double dej=0.0, dif=0.0;
+  double del=0.0, dif=0.0;
 
   for (int k=0; k<3; k++) {
-    dej += (pos[k]   - inner[k]) * (pos[k]   - inner[k]) ;
-    dif += (outer[k] - inner[k]) * (outer[k] - inner[k]) ;
+    del += (pos[k]   - inner[k]) * (pos[k]   - inner[k]);
+    dif += (outer[k] - inner[k]) * (outer[k] - inner[k]);
   }
 
-  double value = erf(cfac*pow(dej/(dif+1.0e-10), 0.5*alpha));
+  double value = erf(cfac*pow(del/(dif+1.0e-10), 0.5*alpha));
   
   if (multistep==0 || mstep==0) accum_histo(value);
 

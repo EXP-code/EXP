@@ -820,7 +820,8 @@ epi(double xp, double yp, double zp)
   double lR, phi, cp[2], cr[2], ans;
   int iphi1, iphi2, ir1, ir2;
 
-				// Azimuth
+  // Azimuth
+  //
   phi = atan2(yp, xp);
   if (phi<0.0) phi = 2.0*M_PI + phi;
 
@@ -829,20 +830,25 @@ epi(double xp, double yp, double zp)
   else iphi2 = iphi1+1;
   cp[1] = (phi - dP*iphi1)/dP;
   cp[0] = 1.0 - cp[1];
-				// Cylindrical radius
+
+  // Cylindrical radius
+  //
   lR = log(max<double>(RDMIN, sqrt(xp*xp + yp*yp)));
   ir1 = floor( (lR - log(RDMIN))/dR );
-  ir1 = min<int>( ir1, NDR-2 );
-  ir1 = max<int>( ir1, 0 );
-  ir2 = ir1 + 1;
-  
-  cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
-  cr[0] = 1.0 - cr[1];
 
-				// Mass grid threshold
+  // Make sure that the grid position is good, otherwise truncate to
+  // lowest good radius
   if (ir1 < nzero) {
     ir1 = nzero;
-    ir2 = ir1 + 1;		// Extrapolate
+    ir2 = ir1 + 1; 
+
+    cr[1] = 0.0;
+    cr[0] = 1.0;
+  }  else {
+    ir1 = min<int>( ir1, NDR-2 );
+    ir1 = max<int>( ir1, 0 );
+    ir2 = ir1 + 1;
+  
     cr[1] = (lR - log(RDMIN) - dR*ir1)/dR;
     cr[0] = 1.0 - cr[1];
   }

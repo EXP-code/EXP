@@ -984,7 +984,7 @@ void ComponentContainer::fix_positions()
 
     if (c->EJ && (gottapot || restart)) {
       c->orient->accumulate(tnow, c);
-      c->orient->logEntry(tnow, c);
+      c->orient->logEntry  (tnow, c);
     }
     
   }

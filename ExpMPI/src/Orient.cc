@@ -643,7 +643,8 @@ void Orient::accumulate(double time, Component *c)
   if ((cflags & DIAG) && myid==0) {
     cout << "===================================================" << endl
 	 << " Orient info [" << time << ", " << c->name << "]:"   << endl
-	 << " size=" << sumsC.size() << " sigC=" << sigC  << " sigCz=" << sigCz << endl
+	 << " size=" << sumsC.size() << " sigC=" << sigC  
+	 << " sigCz=" << sigCz << endl
 	 << "  SumX=" << sumX << " SumX2=" << sumX2 << endl
 	 << "  SumY="
 	 << sumY[1] << " "
@@ -704,7 +705,7 @@ void Orient::logEntry(double time, Component *c)
     // Columns 19 - 21
     for (int k=0; k<3; k++) outl << setw(15) << c->com[k];
 
-    // Columns 12 - 24
+    // Columns 22 - 24
     for (int k=0; k<3; k++) outl << setw(15) << c->com0[k] - c->comI[k];
 
     outl << endl;

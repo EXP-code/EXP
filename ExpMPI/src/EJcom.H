@@ -29,15 +29,20 @@ class EJcom : public TwoCenter
 
 private:
 
+  //! Prefactor for the erf ramp
   double cfac;
+
+  //! exponent in the argument of the erf
   double alpha;
 
+  //! Initialize the force
   void initialize();
 
 public:
 				// Global parameters
-  //! Constructor
-  /*! \param line passes any parameters (rsphSL, rmin and numr) */
+  /** Constructor
+      \param line passes any parameters (rsphSL, rmin and numr) 
+  */
   EJcom(string& line);
 
   //! Mixture function for the two expansions
@@ -46,5 +51,3 @@ public:
 };
 
 #endif
-
-
