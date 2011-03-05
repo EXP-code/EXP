@@ -35,7 +35,8 @@ public:
   void off() { onoff = false; }
 
   double getTime() {
-    double ret = timer.getTime().getRealTime()*1.0e-6;
+    // double ret = timer.getTime().getRealTime()*1.0e-6;
+    double ret = timer.getTime()()*1.0e-6;
     timer.reset();
     return ret;
   };

@@ -4,8 +4,8 @@
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalForce.H>
-
 #include <RunningTime.H>
+#include <pHOT.H>
 
 class CollideLTE;
 
@@ -94,39 +94,73 @@ private:
   void assignTempDensVol();
   void initialize();
 
+
+  void outHeader0(ostream& out)
+  {
+    out << left << scientific << "   "
+	<< setw(12) << "" << " " << setw(7) << "  min" << "  ";
+    for (unsigned n=0; n<pHOT::ntile; n++) {
+      ostringstream sout;
+      sout << "  " << setw(2) << pHOT::qtile[n] << "%";
+      out << setw(7) << sout.str() << "  ";
+    }
+    out << setw(7) << "  max" << "   " << right;
+    out << setw(4) << "min" << "  ";
+    for (unsigned n=0; n<pHOT::ntile; n++) {
+      ostringstream sout;
+      sout << setw(2) << pHOT::qtile[n] << "%";
+      out << setw(4) << sout.str() << "  ";
+    }
+    out << setw(4) << "max" << endl << left;
+  }
+    
+  void outHeader1(ostream& out)
+  {
+    out << "                    " 
+	<< "    min     ";
+    for (unsigned n=0; n<pHOT::ntile; n++)
+      out << "    " << setw(2) << pHOT::qtile[n] << "%     ";
+    out << "    max     " << endl;
+  }
+
+
   void outHelper0(ostream& out, const char* lab, int c,
 		  vector< vector<double> >& v, vector<double>& t)
   {
+    unsigned nt = t.size();
     out << left << scientific << "   "
-	<< setw(18) << lab << "[" << setprecision(2)
-	<< setw(8) << v[0][c] << ", " 
-	<< setw(8) << v[1][c] << ", "
-	<< setw(8) << v[2][c] << "] [" 
-	<< right << fixed
-	<< setw(6) << v[0][c]/(t[0]+1.0e-10)*100.0 << ", " 
-	<< setw(6) << v[1][c]/(t[1]+1.0e-10)*100.0 << ", "
-	<< setw(6) << v[2][c]/(t[2]+1.0e-10)*100.0 << "]%" 
+	<< setw(12) << lab << "[" << setprecision(1);
+
+    for (unsigned k=0; k<nt-1; k++) 
+      out << setw(7) << v[k][c] << ", ";
+
+    out << setw(7) << v[nt-1][c] << "] [" << right << fixed;
+
+    for (unsigned k=0; k<nt-1; k++) 
+      out << setw(4) << v[k][c]/(t[k]+1.0e-10)*100.0 << ", ";
+
+    out << setw(4) << v[nt-1][c]/(t[nt-1]+1.0e-10)*100.0 << "]%" 
 	<< endl << left;
   }
-
 
 
   template<typename T>
   void outHelper1(ostream& out, const char* lab, vector<T>& v)
   {
+    unsigned nt = v.size();
     out << left << setprecision(6) << right
-	<< "      *** " << lab << ": [" 
-	<< setw(10) << v[0] << ", " 
-	<< setw(10) << v[1] << ", " 
-	<< setw(10) << v[2] << "]" << endl << left;
+	<< "      *** " << lab << ": [";
+    for (unsigned k=0; k<nt-1; k++) 
+      out << setw(10) << v[k] << ", ";
+    out << setw(10) << v[nt-1] << "]" << endl << left;
   }
 
 				// The tree
   double volume;
 
 				// Timers
-  Timer partnTime, tree1Time, tree2Time, tstepTime, llistTime, clldeTime;
-  Timer clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
+  Timer partnTime, tree1Time, tradjTime, tcellTime, tstepTime, llistTime;
+  Timer clldeTime, clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
   RunningTime overhead;
 
   void userinfo();

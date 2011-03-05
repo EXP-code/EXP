@@ -153,6 +153,9 @@ public:
   //! Quantiles for reporting distribution of time per process
   static unsigned qtile[];
 
+  //! Number of quantiles
+  static unsigned ntile;
+
   //! Use key subsampling to improve run time in the key partioning step
   //! (default: true)
 

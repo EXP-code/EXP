@@ -275,7 +275,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   
   partnTime.Microseconds();
   tree1Time.Microseconds();
-  tree2Time.Microseconds();
+  tradjTime.Microseconds();
+  tcellTime.Microseconds();
   tstepTime.Microseconds();
   llistTime.Microseconds();
   clldeTime.Microseconds();
@@ -534,8 +535,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
-  TimeElapsed partnSoFar, tree1SoFar, tree2SoFar, tstepSoFar, collideSoFar;
+  TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
   TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
+  TimeElapsed collideSoFar;
 
   overhead.Start();
 
@@ -609,10 +611,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     if (myid==0)
       cout << "About to adjust tree [" << mlevel << "]" << endl;
 #endif
-    tree2Time.start();
+    tradjTime.start();
     c0->Tree()->adjustTree(mlevel);
+    tradjSoFar = tradjTime.stop();
+    tcellTime.start();
     c0->Tree()->adjustCellLevelList(mlevel);
-    tree2SoFar = tree2Time.stop();
+    tcellSoFar = tcellTime.stop();
     tree2Wait.start();
     barrier("TreeDSMC: after adjustTree");
     wait2SoFar = tree2Wait.stop();
@@ -826,34 +830,42 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     collide->CollectTiming();
     timerSoFar = timerDiag.stop();
 
-    const int nf = 11;
+    const unsigned nf = 12;
+    const unsigned nt = pHOT::ntile+2;
     vector<double> in(nf);
-    vector< vector<double> > out(3);
-    for (int i=0; i<3; i++) out[i] = vector<double>(nf);
+    vector< vector<double> > out(nt);
+    for (unsigned i=0; i<nt; i++) out[i] = vector<double>(nf);
 
-    in[ 0] = partnSoFar() * 1.0e-6;
-    in[ 1] = tree1SoFar() * 1.0e-6;
-    in[ 2] = tree2SoFar() * 1.0e-6;
-    in[ 3] = tstepSoFar() * 1.0e-6;
-    in[ 4] = llistTime.getTime().getRealTime() * 1.0e-6;
-    in[ 5] = collideSoFar() * 1.0e-6;
-    in[ 6] = timerSoFar() * 1.0e-6;
-    in[ 7] = waitpSoFar() * 1.0e-6;
-    in[ 8] = waitcSoFar() * 1.0e-6;
-    in[ 9] = wait1SoFar() * 1.0e-6;
-    in[10] = wait2SoFar() * 1.0e-6;
+    in[ 0] = partnSoFar();
+    in[ 1] = tree1SoFar();
+    in[ 2] = tradjSoFar();
+    in[ 3] = tcellSoFar();
+    in[ 4] = tstepSoFar();
+    in[ 5] = llistTime.getTime()();
+    in[ 6] = collideSoFar();
+    in[ 7] = timerSoFar();
+    in[ 8] = waitpSoFar();
+    in[ 9] = waitcSoFar();
+    in[10] = wait1SoFar();
+    in[11] = wait2SoFar();
 
-    MPI_Reduce(&in[0], &out[0][0], nf, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&in[0], &out[1][0], nf, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&in[0], &out[2][0], nf, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    // Get the timing info from each process
+    vector<double> valu(numprocs);
+    for (unsigned j=0; j<nf; j++) {
+      MPI_Gather(&in[j], 1, MPI_DOUBLE, &valu[0], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+      // Sort the array
+      sort(valu.begin(), valu.end());
 
-    vector<double> tot(3, 0.0);
-    for (int i=0; i<nf; i++) {
-      out[1][i] /= numprocs;
-      //
-      tot[0] += out[0][i];
-      tot[1] += out[1][i];
-      tot[2] += out[2][i];
+      // Select the quantiles
+      out[0][j]     = valu.front();
+      for (unsigned k=0; k<nt-2; k++)
+	out[k+1][j] = valu[static_cast<int>(floor(in.size()*0.01*pHOT::qtile[k]))];
+      out[nt-1][j]  = valu.back();
+    }
+
+    vector<double> tot(nt, 0.0);
+    for (unsigned k=0; k<nt; k++) {
+      for (unsigned i=0; i<nf; i++) tot[k] += out[k][i];
     }
 
     int pCellTot;
@@ -1040,18 +1052,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "Timing (secs) at mlevel="      << mlevel << endl
 	   << "-----------------------------" << endl;
 
+      outHeader0(mout);
+
       outHelper0(mout, "partition",    0, out, tot);
-      outHelper0(mout, "partn wait",   7, out, tot);
+      outHelper0(mout, "partn wait",   8, out, tot);
       outHelper0(mout, "make tree",    1, out, tot);
-      outHelper0(mout, "make wait",    9, out, tot);
+      outHelper0(mout, "make wait",   10, out, tot);
       outHelper0(mout, "adjust tree",  2, out, tot);
-      outHelper0(mout, "adjust wait", 10, out, tot);
+      outHelper0(mout, "adjust cell",  3, out, tot);
+      outHelper0(mout, "adjust wait", 11, out, tot);
       mout << endl;
 
-      mout << "                    " 
-	   << "    " << setw(2) << pHOT::qtile[0] << "%     " 
-	   << "    " << setw(2) << pHOT::qtile[1] << "%     " 
-	   << "    " << setw(2) << pHOT::qtile[2] << "%" << endl;
+      outHeader1(mout);
 
       outHelper1<float>(mout, "keymake", keymake);
       outHelper1<float>(mout, "xchange", xchange);
@@ -1078,26 +1090,16 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       outHelper1<unsigned int>(mout, "numbods", numbods);
       mout << endl;
 
-      outHelper0(mout, "timesteps", 3, out, tot);
-      outHelper0(mout, "step list", 4, out, tot);
-      outHelper0(mout, "collide  ", 5, out, tot);
-      outHelper0(mout, "coll wait", 8, out, tot);
-      outHelper0(mout, "overhead ", 6, out, tot);
+      outHeader0(mout);
+
+      outHelper0(mout, "timesteps", 4, out, tot);
+      outHelper0(mout, "step list", 5, out, tot);
+      outHelper0(mout, "collide  ", 6, out, tot);
+      outHelper0(mout, "coll wait", 9, out, tot);
+      outHelper0(mout, "overhead ", 7, out, tot);
 
       collide->tsdiag(mout);
       collide->voldiag(mout);
-
-      partnTime.reset();
-      tree1Time.reset();
-      tree2Time.reset();
-      tstepTime.reset();
-      llistTime.reset();
-      clldeTime.reset();
-      timerDiag.reset();
-      partnWait.reset();
-      tree1Wait.reset();
-      tree2Wait.reset();
-      clldeWait.reset();
 
       //
       // Debugging usage
@@ -1170,6 +1172,22 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "-----------------------------" << endl;
       
     }
+
+    //
+    // Reset the timers
+    //
+    partnTime.reset();
+    tree1Time.reset();
+    tradjTime.reset();
+    tcellTime.reset();
+    tstepTime.reset();
+    llistTime.reset();
+    clldeTime.reset();
+    timerDiag.reset();
+    partnWait.reset();
+    tree1Wait.reset();
+    tree2Wait.reset();
+    clldeWait.reset();
 
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");

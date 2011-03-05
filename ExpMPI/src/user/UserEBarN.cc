@@ -855,9 +855,9 @@ void UserEBarN::determine_acceleration_and_potential(void)
   if (timing) {
     timer_tot.stop();
     cout << setw(20) << "Bar total: "
-	 << setw(18) << 1.0e-6*timer_tot.getTime().getRealTime() << endl
+	 << setw(18) << timer_tot.getTime()() << endl
 	 << setw(20) << "Bar threads: "
-	 << setw(18) << 1.0e-6*timer_thrd.getTime().getRealTime() << endl;
+	 << setw(18) << timer_thrd.getTime()() << endl;
     timer_tot.reset();
     timer_thrd.reset();
   }

@@ -272,15 +272,15 @@ void do_step(int n)
 	   << setw(70) << setfill('-') << '-' << endl << setfill(' ') << right;
       if (multistep) {
 	cout << setw(20) << "Coefs: "
-	     << setw(18) << 1.0e-6*timer_coef.getTime().getRealTime() << endl
+	     << setw(18) << timer_coef.getTime()() << endl
 	     << setw(20) << "Drift: "
-	     << setw(18) << 1.0e-6*timer_drift.getTime().getRealTime() << endl
+	     << setw(18) << timer_drift.getTime()() << endl
 	     << setw(20) << "Velocity: "
-	     << setw(18) << 1.0e-6*timer_vel.getTime().getRealTime() << endl
+	     << setw(18) << timer_vel.getTime()() << endl
 	     << setw(20) << "Force: "
-	     << setw(18) << 1.0e-6*timer_pot.getTime().getRealTime() << endl
+	     << setw(18) << timer_pot.getTime()() << endl
 	     << setw(20) << "Adjust: "
-	     << setw(18) << 1.0e-6*timer_adj.getTime().getRealTime() << endl;
+	     << setw(18) << timer_adj.getTime()() << endl;
       }
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
     }

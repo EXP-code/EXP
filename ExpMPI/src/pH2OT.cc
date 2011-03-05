@@ -3009,58 +3009,58 @@ void pH2OT::CollectTiming()
 {
   float fval;
 
-  fval  = timer_cstatus.getTime().getRealTime()*1.0e-6;
+  fval  = timer_cstatus.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cstat3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_xchange.getTime().getRealTime()*1.0e-6;
+  fval = timer_xchange.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &exchg3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_prepare.getTime().getRealTime()*1.0e-6;
+  fval  = timer_prepare.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &prepr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_convert.getTime().getRealTime()*1.0e-6;
+  fval = timer_convert.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cnvrt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_tadjust.getTime().getRealTime()*1.0e-6;
+  fval = timer_tadjust.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tadjt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cupdate.getTime().getRealTime()*1.0e-6;
+  fval = timer_cupdate.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &updat3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_scatter.getTime().getRealTime()*1.0e-6;
+  fval = timer_scatter.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &scatr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_repartn.getTime().getRealTime()*1.0e-6;
+  fval = timer_repartn.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &reprt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keybods.getTime().getRealTime()*1.0e-6;
+  fval = timer_keybods.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keybd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_schecks.getTime().getRealTime()*1.0e-6;
+  fval = timer_schecks.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &schks3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton0.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton0.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait03[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton1.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton1.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait13[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton2.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton2.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait23[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_bodlist.getTime().getRealTime()*1.0e-6;
+  fval = timer_bodlist.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &bodls3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_celladj.getTime().getRealTime()*1.0e-6;
+  fval = timer_celladj.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cladj3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_getsta1.getTime().getRealTime()*1.0e-6;
+  fval = timer_getsta1.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cells1[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_getsta2.getTime().getRealTime()*1.0e-6;
+  fval = timer_getsta2.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cells2[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_getsta3.getTime().getRealTime()*1.0e-6;
+  fval = timer_getsta3.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cells3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   fval = barrier->getTime();

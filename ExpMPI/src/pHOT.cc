@@ -26,6 +26,7 @@ using namespace std;
 double   pHOT::sides[] = {2.0, 2.0, 2.0};
 double   pHOT::offst[] = {1.0, 1.0, 1.0};
 unsigned pHOT::qtile[] = {10,  50,  90 };
+unsigned pHOT::ntile   = sizeof(qtile)/sizeof(unsigned);
 double   pHOT::hystrs  = 0.25;
 
 static bool wghtKEY(const pair<key_type, double>& a, 
@@ -2947,6 +2948,7 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstop("pHOT::cUpdate");
   GPTLstop("pHOT::adjustTree");
 #endif
+
 }
   
 
@@ -4051,7 +4053,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  << "----  total oob = " << setw(10) << oobn << endl
 	  << "----      TOTAL = " << setw(10) << tkey0 + oobn << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
-	  << "----   Time (s) = " << setw(10) << 1.0e-6*timer_debug->stop().getTotalTime()
+	  << "----   Time (s) = " << setw(10) << timer_debug->stop()()
 	  << endl
 	  << setfill('-') << setw(60) << '-' << setfill(' ') << endl
 	  << endl;
@@ -4296,61 +4298,61 @@ void pHOT::CollectTiming()
 {
   float fval;
 
-  fval  = timer_keymake.getTime().getRealTime()*1.0e-6;
+  fval = timer_keymake.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keymk3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_xchange.getTime().getRealTime()*1.0e-6;
+  fval = timer_xchange.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &exchg3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_convert.getTime().getRealTime()*1.0e-6;
+  fval = timer_convert.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &cnvrt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_overlap.getTime().getRealTime()*1.0e-6;
+  fval  = timer_overlap.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tovlp3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval  = timer_prepare.getTime().getRealTime()*1.0e-6;
+  fval  = timer_prepare.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &prepr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_cupdate.getTime().getRealTime()*1.0e-6;
+  fval = timer_cupdate.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &updat3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_scatter.getTime().getRealTime()*1.0e-6;
+  fval = timer_scatter.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &scatr3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_repartn.getTime().getRealTime()*1.0e-6;
+  fval = timer_repartn.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &reprt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_tadjust.getTime().getRealTime()*1.0e-6;
+  fval = timer_tadjust.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &tadjt3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keycall.getTime().getRealTime()*1.0e-6;
+  fval = timer_keycall.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keycl3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keycomp.getTime().getRealTime()*1.0e-6;
+  fval = timer_keycomp.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keycm3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keybods.getTime().getRealTime()*1.0e-6;
+  fval = timer_keybods.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keybd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton0.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton0.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait03[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton1.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton1.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait13[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_waiton2.getTime().getRealTime()*1.0e-6;
+  fval = timer_waiton2.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &wait23[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keynewc.getTime().getRealTime()*1.0e-6;
+  fval = timer_keynewc.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keync3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_keyoldc.getTime().getRealTime()*1.0e-6;
+  fval = timer_keyoldc.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &keyoc3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   fval = barrier->getTime();
   MPI_Gather(&fval, 1, MPI_FLOAT, &barri3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
-  fval = timer_diagdbg.getTime().getRealTime()*1.0e-6;
+  fval = timer_diagdbg.getTime()();
   MPI_Gather(&fval, 1, MPI_FLOAT, &diagd3[0], 1, MPI_FLOAT, 0, MPI_COMM_WORLD);
 
   MPI_Gather(&numkeys, 1, MPI_UNSIGNED, &numk3[0], 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
@@ -4384,9 +4386,11 @@ template <typename T>
 void pHOT::getQuant(vector<T>& in, vector<T>& out)
 {
   sort(in.begin(), in.end());
-  out = vector<T>(3);
-  for (int k=0; k<3; k++)
-    out[k] = in[static_cast<int>(floor(in.size()*0.01*qtile[k]))];
+  out = vector<T>(ntile+2);
+  out[0]       = in.front();
+  for (int k=0; k<ntile; k++)
+    out[k+1]   = in[static_cast<int>(floor(in.size()*0.01*qtile[k]))];
+  out[ntile+1] = in.back();
 }
 
 void pHOT::Timing(vector<float>    &keymake, vector<float>    &exchange, 

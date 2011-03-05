@@ -482,8 +482,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
     if (myid==0) {
       TimeElapsed stime = timer->stop();
 
-      cout << "Grid constructed in " << stime.getTotalTime()*1.0e-6 
-	   << " seconds" << endl;
+      cout << "Grid constructed in " << stime() << " seconds" << endl;
 
       timer->reset();
       timer->start();
@@ -499,8 +498,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
     if (myid==0) {
       TimeElapsed stime = timer->stop();
 
-      cout << "Sort completed in " << stime.getTotalTime()*1.0e-6 
-	   << " seconds" << endl;
+      cout << "Sort completed in " << stime() << " seconds" << endl;
       timer->reset();
       timer->start();
     }
@@ -515,8 +513,7 @@ void UserDSMC::determine_acceleration_and_potential(void)
     if (myid==0) {
       TimeElapsed stime = timer->stop();
 
-      cout << "Collisions completed in " << stime.getTotalTime()*1.0e-6 
-	   << " seconds" << endl;
+      cout << "Collisions completed in " << stime() << " seconds" << endl;
     }
   }
 #endif

@@ -1879,24 +1879,24 @@ void Collide::CollectTiming()
   vector< vector<double> > out(3);
   for (int i=0; i<3; i++) out[i] = vector<double>(nf);
   
-  in[0] += forkSoFar() * 1.0e-6;
-  in[1] += snglSoFar() * 1.0e-6;
-  in[2] += waitSoFar() * 1.0e-6;
-  in[3] += diagSoFar() * 1.0e-6;
-  in[4] += joinSoFar() * 1.0e-6;
+  in[0] += forkSoFar();
+  in[1] += snglSoFar();
+  in[2] += waitSoFar();
+  in[3] += diagSoFar();
+  in[4] += joinSoFar();
 
   for (int n=0; n<nthrds; n++) {
     c = 5;
-    in[c++] += listSoFar[n]()  * 1.0e-6;
-    in[c++] += initSoFar[n]()  * 1.0e-6;
-    in[c++] += collSoFar[n]()  * 1.0e-6;
-    in[c++] += elasSoFar[n]()  * 1.0e-6;
-    in[c++] += cellSoFar[n]()  * 1.0e-6;
-    in[c++] += epsmSoFar[n]()  * 1.0e-6;
-    in[c++] += coolSoFar[n]()  * 1.0e-6;
-    in[c++] += stat1SoFar[n]() * 1.0e-6;
-    in[c++] += stat2SoFar[n]() * 1.0e-6;
-    in[c++] += stat3SoFar[n]() * 1.0e-6;
+    in[c++] += listSoFar[n]();
+    in[c++] += initSoFar[n]();
+    in[c++] += collSoFar[n]();
+    in[c++] += elasSoFar[n]();
+    in[c++] += cellSoFar[n]();
+    in[c++] += epsmSoFar[n]();
+    in[c++] += coolSoFar[n]();
+    in[c++] += stat1SoFar[n]();
+    in[c++] += stat2SoFar[n]();
+    in[c++] += stat3SoFar[n]();
     in[c++] += collCnt[n];
   }
     

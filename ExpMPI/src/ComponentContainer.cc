@@ -624,33 +624,33 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       
       if (multistep) {
 	cout << setw(20) << "COM: "
-	     << setw(18) << 1.0e-6*timer_gcom.getTime().getRealTime() << endl
+	     << setw(18) << timer_gcom.getTime()() << endl
 	     << setw(20) << "Position: "
-	     << setw(18) << 1.0e-6*timer_posn.getTime().getRealTime() << endl
+	     << setw(18) << timer_posn.getTime()() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "*** " << setw(30) << left << "fix pos" << ": " 
-	     << setw(18) << 1.0e-6*timer_fixp.getTime().getRealTime() << endl
+	     << setw(18) << timer_fixp.getTime()() << endl
 	     << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right
 	     << setw(20) << "Ang mom: "
-	     << setw(18) << 1.0e-6*timer_angmom.getTime().getRealTime() << endl
+	     << setw(18) << timer_angmom.getTime()() << endl
 	     << setw(20) << "Zero: "
-	     << setw(18) << 1.0e-6*timer_zero.getTime().getRealTime() << endl
+	     << setw(18) << timer_zero.getTime()() << endl
 	     << setw(20) << "Accel: "
-	     << setw(18) << 1.0e-6*timer_accel.getTime().getRealTime() << endl;
+	     << setw(18) << timer_accel.getTime()() << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << 1.0e-6*timer_thr_acc.getTime().getRealTime() << endl
+	       << timer_thr_acc.getTime()() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "Interaction: "
-	     << setw(18) << 1.0e-6*timer_inter.getTime().getRealTime() << endl;
+	     << setw(18) << timer_inter.getTime()() << endl;
 
 	if (timer_sntr.size()) {
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -658,7 +658,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr=timer_sntr.begin(); itmr != timer_sntr.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+		 << setw(18) << itmr->second.getTime()()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -670,19 +670,19 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": "
 	       << right << setw(18) 
-	       << 1.0e-6*timer_thr_int.getTime().getRealTime() << endl
+	       << timer_thr_int.getTime()() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
 	cout << setw(20) << "External: "
-	     << setw(18) << 1.0e-6*timer_extrn.getTime().getRealTime() << endl;
+	     << setw(18) << timer_extrn.getTime()() << endl;
 
 	if (thread_timing)
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right
 	       << setw(20) << "*** " << setw(30) << left << "threaded" << ": " 
 	       << right << setw(18) 
-	       << 1.0e-6*timer_thr_ext.getTime().getRealTime() << endl
+	       << timer_thr_ext.getTime()() << endl
 	       << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
 	       << setfill(' ') << right;
 
@@ -693,7 +693,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	  for (itmr = timer_sext.begin(); itmr != timer_sext.end(); itmr++) {
 	    cout << setw(20) << "*** " << setw(30) << left << itmr->first 
 		 << ": " << right
-		 << setw(18) << 1.0e-6*itmr->second.getTime().getRealTime()
+		 << setw(18) << itmr->second.getTime()()
 		 << endl;
 	  }
 	  cout << setw(20) << "" << setw(50) << setfill('-') << '-' << endl 
@@ -701,10 +701,10 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	}
 	  
 	cout << setw(20) << "Expand: "
-	     << setw(18) << 1.0e-6*timer_expand.getTime().getRealTime() << endl;
+	     << setw(18) << timer_expand.getTime()() << endl;
 
 	cout << setw(20) << "Force: "
-	     << setw(18) << 1.0e-6*timer_force.getTime().getRealTime() << endl;
+	     << setw(18) << timer_force.getTime()() << endl;
       }
 
       cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');

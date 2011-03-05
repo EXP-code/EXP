@@ -388,7 +388,7 @@ void RespMat::make_matrix(void)
     
     if (VERBOSE) {
 
-      tot_time = timer.getTime().getTotalTime() * 1.0e-6;
+      tot_time = timer.getTime()();
       cout << "\nTime for step #" << ikap << ":            " 
 	   << tot_time << '\n';
       
@@ -612,7 +612,7 @@ void RespMat::make_matrix_pv(void)
     
     if (VERBOSE) {
 
-      tot_time = timer.getTime().getTotalTime() * 1.0e-6;
+      tot_time = timer.getTime()();
       cout << "\nTime for step #" << ikap << ":            " 
 	   << tot_time << '\n';
 
@@ -837,13 +837,13 @@ void OrbitTable::setup_p_array(void)
 
   double t0 = 0.0;
   if (p->VERBOSE) {
-    t0 = timer.getTime().getTotalTime() * 1.0e-6;
+    t0 = timer.getTime()();
   }
 
   for (i=1; i<=p->num_E; i++)
     orbits[i].pot_trans(p->l1, p->l2, PotTrans[i]);
   if (p->VERBOSE) {
-    p->time_in_biorth_gen += timer.getTime().getTotalTime() * 1.0e-6 - t0;
+    p->time_in_biorth_gen += timer.getTime()() - t0;
   }
   
 }
@@ -974,11 +974,11 @@ void OrbResTable::setup_E_array(void)
       ERes[number] = (dfdE*facdf + dfdL*p->l2) * facd;
 
       if (p->VERBOSE) {
-	t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	t0 = timer.getTime()();
       }
       torbit.pot_trans(p->l1, p->l2, PotTrans2[number]);
       if (p->VERBOSE) {
-	p->time_in_biorth_gen += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	p->time_in_biorth_gen += timer.getTime()() - t0;
       }
 				// Jacobian of delta function
 
@@ -995,12 +995,12 @@ void OrbResTable::setup_E_array(void)
   }
   
   if (p->VERBOSE) {
-    t0 = timer.getTime().getTotalTime() * 1.0e-6;
+    t0 = timer.getTime()();
   }
   for (int i=1; i<=p->num_E; i++)
     orbits[i].pot_trans(p->l1, p->l2, PotTrans[i]);
   if (p->VERBOSE) {
-    p->time_in_biorth_gen += timer.getTime().getTotalTime()*1.0e-6  - t0;
+    p->time_in_biorth_gen += timer.getTime()()  - t0;
   }
   
 }
@@ -1044,14 +1044,14 @@ void RespMat::integrand_unroll(void)
 
 	  double t0=0;
 	  if (VERBOSE)
-	    t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	    t0 = timer.getTime()();
 	  if (RATINT)
 	    temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
 	  else
 	    temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), pp_y);
 	  // temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
 	  if (VERBOSE) {
-	    time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	    time_in_inner_loop += timer.getTime()() - t0;
 	  }
 	  mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
 	}
@@ -1125,14 +1125,14 @@ void RespMat::integrand_rolled(void)
 
       double t0=0;
       if (VERBOSE) {
-	t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	t0 = timer.getTime()();
       }
       if (RATINT)
 	temp = compute_rat_integral(Emodmin, Emax, pp_x, hold[alpha][beta]);
       else
 	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), hold[alpha][beta]);
       if (VERBOSE) {
-	time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	time_in_inner_loop += timer.getTime()() - t0;
       }
       mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
 
@@ -1211,7 +1211,7 @@ void RespMat::integrand_pv(void)
       else if (num > 1) {
 
 	if (VERBOSE) {
-	  t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	  t0 = timer.getTime()();
 	}
 
 	int k = 1;
@@ -1345,14 +1345,14 @@ void RespMat::integrand_pv(void)
 	}
 	
 	if (VERBOSE) {
-	  time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	  time_in_inner_loop += timer.getTime()() - t0;
 	}
 
       }
       else {
 
 	if (VERBOSE) {
-	  t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	  t0 = timer.getTime()();
 	}
 
 	// Principal value with singularity subtracted
@@ -1413,7 +1413,7 @@ void RespMat::integrand_pv(void)
 	}
 
 	if (VERBOSE) {
-	  time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	  time_in_inner_loop += timer.getTime()() - t0;
 	}
 
       }
@@ -1426,7 +1426,7 @@ void RespMat::integrand_pv(void)
     for (beta=alpha; beta<=nmax; beta++) {
 
       if (VERBOSE) {
-	t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	t0 = timer.getTime()();
       }
 
       if (RATINT)
@@ -1436,7 +1436,7 @@ void RespMat::integrand_pv(void)
       
 
       if (VERBOSE) {
-	time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+	time_in_inner_loop += timer.getTime()() - t0;
       }
 
       mab[alpha][beta][ikap] += (temp + holdR[alpha][beta]) *
@@ -1499,14 +1499,14 @@ void RespMat::integrand_orig(void)
 
       double t0 = 0;
       if (VERBOSE) {
-	t0 = timer.getTime().getTotalTime() * 1.0e-6;
+	t0 = timer.getTime()();
       }
       if (RATINT)
 	temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
       else
 	temp = Crombe(pp_x[1].real(), pp_x[num_E].real(), pp_y);
       // temp = compute_rat_integral(Emodmin, Emax, pp_x, pp_y);
-      time_in_inner_loop += timer.getTime().getTotalTime()*1.0e-6 - t0;
+      time_in_inner_loop += timer.getTime()() - t0;
       mab[alpha][beta][ikap] += temp*Orb->norm[alpha]*Orb->norm[beta];
     }
   }

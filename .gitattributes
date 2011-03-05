@@ -33,6 +33,7 @@ ExpMPI/src/EXPException.cc -text
 ExpMPI/src/MixtureBasis.H -text
 ExpMPI/src/Shells.H -text
 ExpMPI/src/Shells.cc -text
+ExpMPI/src/Timer.cc -text
 ExpMPI/src/chkTimer.H -text
 ExpMPI/src/chkTimer.cc -text
 ExpMPI/src/pH2OT.H -text

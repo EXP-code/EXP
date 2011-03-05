@@ -42,7 +42,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
      step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
-     chkTimer.cc pHOT.cc
+     chkTimer.cc pHOT.cc Timer.cc
 
 exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
