@@ -832,9 +832,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     const unsigned nf = 12;
     const unsigned nt = pHOT::ntile+2;
-    vector<double> in(nf);
-    vector< vector<double> > out(nt);
-    for (unsigned i=0; i<nt; i++) out[i] = vector<double>(nf);
+    if (tt.size() != nf) tt = vector<TimeElapsed>(nf);
+    vector<double> in(nf), IN(nf);
+    vector< vector<double> > out(nt), OUT(nt);
+    for (unsigned i=0; i<nt; i++) {
+      out[i] = vector<double>(nf);
+      if (mlevel==0) OUT[i] = vector<double>(nf);
+    }
 
     in[ 0] = partnSoFar();
     in[ 1] = tree1SoFar();
@@ -849,6 +853,26 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     in[10] = wait1SoFar();
     in[11] = wait2SoFar();
 
+    tt[ 0] += partnSoFar;
+    tt[ 1] += tree1SoFar;
+    tt[ 2] += tradjSoFar;
+    tt[ 3] += tcellSoFar;
+    tt[ 4] += tstepSoFar;
+    tt[ 5] += llistTime.getTime();
+    tt[ 6] += collideSoFar;
+    tt[ 7] += timerSoFar;
+    tt[ 8] += waitpSoFar;
+    tt[ 9] += waitcSoFar;
+    tt[10] += wait1SoFar;
+    tt[11] += wait2SoFar;
+
+    if (mlevel==0) {
+      for (unsigned k=0; k<nf; k++) {
+	IN[k] = tt[k]();
+	tt[k].zero();
+      }
+    }
+
     // Get the timing info from each process
     vector<double> valu(numprocs);
     for (unsigned j=0; j<nf; j++) {
@@ -861,11 +885,27 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       for (unsigned k=0; k<nt-2; k++)
 	out[k+1][j] = valu[static_cast<int>(floor(in.size()*0.01*pHOT::qtile[k]))];
       out[nt-1][j]  = valu.back();
+
+      if (mlevel==0) {
+
+	MPI_Gather(&IN[j], 1, MPI_DOUBLE, &valu[0], 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+	// Sort the array
+	sort(valu.begin(), valu.end());
+
+	// Select the quantiles
+	OUT[0][j]     = valu.front();
+	for (unsigned k=0; k<nt-2; k++)
+	  OUT[k+1][j] = valu[static_cast<int>(floor(IN.size()*0.01*pHOT::qtile[k]))];
+	OUT[nt-1][j]  = valu.back();
+      }
     }
 
-    vector<double> tot(nt, 0.0);
+    vector<double> tot(nt, 0.0), TOT(nt, 0.0);
     for (unsigned k=0; k<nt; k++) {
-      for (unsigned i=0; i<nf; i++) tot[k] += out[k][i];
+      for (unsigned i=0; i<nf; i++) {
+	tot[k] += out[k][i];
+	if (mlevel==0) TOT[k] += OUT[k][i];
+      }
     }
 
     int pCellTot;
@@ -1160,6 +1200,30 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	       << "Empty effort list, mlevel="    << mlevel << endl
 	       << "-----------------------------" << endl;
 	}
+      }
+
+      
+      if (mlevel==0) {
+
+	mout << "-----------------------------" << endl
+	     << "Totals for the entire step   " << endl
+	     << "-----------------------------" << endl;
+
+	outHeader0(mout);
+
+	outHelper0(mout, "partition",    0, OUT, TOT);
+	outHelper0(mout, "partn wait",   8, OUT, TOT);
+	outHelper0(mout, "make tree",    1, OUT, TOT);
+	outHelper0(mout, "make wait",   10, OUT, TOT);
+	outHelper0(mout, "adjust tree",  2, OUT, TOT);
+	outHelper0(mout, "adjust cell",  3, OUT, TOT);
+	outHelper0(mout, "adjust wait", 11, OUT, TOT);
+	outHelper0(mout, "timesteps",    4, OUT, TOT);
+	outHelper0(mout, "step list",    5, OUT, TOT);
+	outHelper0(mout, "collide  ",    6, OUT, TOT);
+	outHelper0(mout, "coll wait",    9, OUT, TOT);
+	outHelper0(mout, "overhead ",    7, OUT, TOT);
+	mout << endl;
       }
 
       //

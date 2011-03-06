@@ -72,6 +72,11 @@ public:
     return realTime;
   }
   
+  //! Zero out the time container
+  void zero() {
+    userTime = systemTime = realTime = 0;
+  }
+
   /** Return the time in seconds always.  The precision is determined
       by the Timer instance and the type of return value is set by the
       use_real static variable */
@@ -82,6 +87,68 @@ public:
     if (micro)    ret *= 1.0e-6;
     return ret;
   }
+
+  //! Assignment operator
+  TimeElapsed &operator=(const TimeElapsed& p)
+  {
+    userTime   = p.userTime;
+    systemTime = p.systemTime;
+    realTime   = p.realTime;
+    micro      = p.micro;
+
+    return *this;
+  }
+
+  //@{
+  /** Addition operators 
+
+      A value in seconds is promoted to
+      microseconds if one the addends is in microseconds 
+  */
+  TimeElapsed &operator+=(const TimeElapsed& p)
+  {
+    if (micro && !p.micro) {
+      userTime   += p.userTime   * 1000000;
+      systemTime += p.systemTime * 1000000;
+      realTime   += p.realTime   * 1000000;
+    } else if (!micro && p.micro) {
+      micro      = true;
+      userTime   = userTime   * 1000000 + p.userTime   ;
+      systemTime = systemTime * 1000000 + p.systemTime ;
+      realTime   = realTime   * 1000000 + p.realTime   ;
+    } else {
+      userTime   += p.userTime   ;
+      systemTime += p.systemTime ;
+      realTime   += p.realTime   ;
+    }
+
+    return *this;
+  }
+
+  friend TimeElapsed operator+(const TimeElapsed& a, const TimeElapsed& b)
+  {
+    TimeElapsed c;
+    if (a.micro && !b.micro) {
+      c.micro      = true;
+      c.userTime   = a.userTime   + b.userTime   * 1000000;
+      c.systemTime = a.systemTime + b.systemTime * 1000000;
+      c.realTime   = a.realTime   + b.realTime   * 1000000;
+    } else if (b.micro && !a.micro) {
+      c.micro      = true;
+      c.userTime   = b.userTime   + a.userTime   * 1000000;
+      c.systemTime = b.systemTime + a.systemTime * 1000000;
+      c.realTime   = b.realTime   + a.realTime   * 1000000;
+    } else {
+      c.micro      = a.micro;
+      c.userTime   = a.userTime   + b.userTime   ;
+      c.systemTime = a.systemTime + b.systemTime ;
+      c.realTime   = a.realTime   + b.realTime   ;
+    }
+
+    return c;
+  }
+  //@}
+
 };
 
 
@@ -90,8 +157,11 @@ class Timer
 {
 private:
 
+  //@{
+  //! The POSIX time structures
   timeval begin, end; 
   struct rusage beginusage, endusage;
+  //@}
 
   //@{
   //! the time counted so far

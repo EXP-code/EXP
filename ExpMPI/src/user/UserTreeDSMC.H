@@ -163,6 +163,9 @@ private:
   Timer clldeTime, clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
   RunningTime overhead;
 
+				// Full time step counters
+  vector<TimeElapsed> tt;
+
   void userinfo();
 
 
