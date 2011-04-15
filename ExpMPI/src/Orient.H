@@ -62,31 +62,32 @@ struct ltEL3
 /** Class to keep track of orientation 
     
 Log file contents:
-
--#1	Time
--#2	Energy
--#3	Particles used
--#4	Current Axis(x) from regression
--#5	Current Axis(y)
--#6	Current Axis(z)
--#7	Last Axis(x) from particles
--#8	Last Axis(y)
--#9	Last Axis(z)
--#10	Current Center(x) from regression
--#11	Current Center(y)
--#12	Current Center(z)
--#13	Current Center(x) from analytic approx
--#14	Current Center(y)
--#15	Current Center(z)
--#16	Last Center(x) from particles
--#17	Last Center(y)
--#18	Last Center(z)
--#19	COM(x)
--#20	COM(y)
--#21	COM(z)
--#22	System COM(x)
--#23	System COM(y)
--#24	System COM(z)
+<ol>
+<li>1	Time
+<li>2	Energy
+<li>3	Particles used
+<li>4	Current Axis(x) from regression
+<li>5	Current Axis(y)
+<li>6	Current Axis(z)
+<li>7	Last Axis(x) from particles
+<li>8	Last Axis(y)
+<li>9	Last Axis(z)
+<li>10	Current Center(x) from regression
+<li>11	Current Center(y)
+<li>12	Current Center(z)
+<li>13	Current Center(x) from analytic approx
+<li>14	Current Center(y)
+<li>15	Current Center(z)
+<li>16	Last Center(x) from particles
+<li>17	Last Center(y)
+<li>18	Last Center(z)
+<li>19	COM(x)
+<li>20	COM(y)
+<li>21	COM(z)
+<li>22	System COM(x)
+<li>23	System COM(y)
+<li>24	System COM(z)
+</ol>
 .
 */
 class Orient

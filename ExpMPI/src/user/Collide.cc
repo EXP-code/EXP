@@ -656,8 +656,6 @@ void * Collide::collide_thread(void * arg)
       diam = sqrt(cross/M_PI);
     }
 
-    double diamCBA = sqrt(Fn*mass)*diam;
-
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp");
 #endif
@@ -875,7 +873,7 @@ void * Collide::collide_thread(void * arg)
 	    if (cr>0.0) {
 	      double displ;
 	      for (int k=0; k<3; k++) {
-		displ = crel[k]*diamCBA/cr;
+		displ = crel[k]*diam/cr;
 		p1->pos[k] += displ;
 		p2->pos[k] -= displ;
 	      }
