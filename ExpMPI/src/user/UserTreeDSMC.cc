@@ -59,7 +59,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   diamfac    = 1.0;
   boxsize    = 1.0;
   boxratio   = 1.0;
-  jitter     = 0.0;
   comp_name  = "gas disk";
   nsteps     = -1;
   msteps     = -1;
@@ -90,7 +89,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   sub_sample = true;
   treechk    = false;
   mpichk     = false;
-  sdim       = "xyz";
 				// Initialize using input parameters
   initialize();
 
@@ -319,7 +317,7 @@ void UserTreeDSMC::userinfo()
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
-       << ", ncell=" << ncell << ", Ncell=" << Ncell << ", sdim=" << sdim
+       << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
@@ -371,7 +369,6 @@ void UserTreeDSMC::initialize()
   if (get_value("diamfac", val))	diamfac    = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize    = atof(val.c_str());
   if (get_value("boxratio", val))	boxratio   = atof(val.c_str());
-  if (get_value("jitter", val))		jitter     = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac   = atof(val.c_str());
   if (get_value("enhance", val))	enhance    = atof(val.c_str());
   if (get_value("nsteps", val))		nsteps     = atoi(val.c_str());
@@ -405,7 +402,6 @@ void UserTreeDSMC::initialize()
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
-  if (get_value("sdim", val))		sdim       = val;
 }
 
 

@@ -15,10 +15,9 @@ class CollideLTE;
     @param Munit is the physical mass in units of mp per system units (default: 1e12 Msun)
     @param boxsize half the size of a side in system units (default: 1)
     @param boxratio is the ratio of the z box height to the x or y box height (default: 1)
-    @param jitter is the fraction of the box size added to the tree origin (default: 0)
     @param ncell is the desired number of particles per cell (default: 7)
     @param Ncell is the desired number of particles per sample cell (default: 64)
-    @param cnum non-zero adjusts cross section for cnum collisions per cell
+    @param cnum non-zero adjusts cross section to yield cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
     @param collfrac is a multiplicative fraction for collsion number
@@ -28,13 +27,14 @@ class CollideLTE;
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
     @param cbadiag enables printing of length-scale statistics for the CBA algorithm (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
-    @param nsteps is the number of steps between diagnostic output (default: -1)
-    @param msteps is the maximum level for diagnostic output (default: -1)
+    @param nsteps is the number of steps between diagnostic output (default: -1, off)
+    @param msteps is the maximum level for diagnostic output (default: -1, off)
     @param use_temp is the particle attribute position for temperature
     @param use_dens is the particle attribute position for density
-    @param use_multi attempts to set the time step (if multistep is enabled)
-    @param use_repair repairs the tree rather than remakes the tree
     @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
+    @param use_multi attempts to set the time step (if multistep is enabled)
+    @param use_pullin set to true uses the Pullin algorithm for selecting velocities (default: false)
+    @param use_repair repairs the tree rather than remakes the tree
     @param use_exes track energy loss per particle for exact energy conservation
     @param use_Kn track Knudsen number in attribute position n (default: -1)
     @param use_St track Strouhal number in attribute position n (default: -1)
@@ -50,6 +50,15 @@ class CollideLTE;
     @param mpichk turns on barriers for timing and sync checking (default: 0 = off)
     @param remap sets the processor remapping frequency in full steps (default: 0)
     @param enhance multiplies the standard cooling/heating rate for testing (default: 1)
+    @param compname is the name of the component that is evolved using DSCM
+    @param tspow is the power of two spacing between histogram bins in the cooling diagnostic (default: 4)
+    @param nocool set to true turns off cooling for testing purposes
+    @param use_effort set to true (default) uses the effort expended in computing the force per particle from DSMC to load balance the simulation
+    @param ntc set to true (default) uses the no time counter algorithm to select collistions
+    @param tube set to true (default: false) sets the octree region to a 
+    rectangular rather than square region whose different axis is X
+    @param slab set to true (default: false) sets the octree region to a 
+    rectangular rather than square region whose different axis is Z
 */
 class UserTreeDSMC : public ExternalForce
 {
@@ -73,8 +82,6 @@ private:
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
   bool sub_sample, treechk, mpichk;
-
-  string sdim;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

@@ -55,7 +55,9 @@ Matrix return_euler_slater(double PHI, double THETA, double PSI, int BODY);
 
 static database_record init[] = {
   {"Vsat",	"double",	"1.0"},
-  {"Rperi",	"double",	"1.0"},
+  {"X0",	"double",	"0.0"},
+  {"Y0",	"double",	"0.0"},
+  {"Z0",	"double",	"0.0"},
   {"PHIP",	"double",	"0.0"},
   {"THETA",	"double",	"0.0"},
   {"PSI",	"double",	"0.0"},
@@ -86,17 +88,46 @@ LinearOrbit::LinearOrbit(const string &conf)
 
   if (myid==0) {
     
+    Vector ret(1, 3);
+    ret[1] = config->get<double>("X0"); 
+    ret[2] = config->get<double>("Y0");
+    ret[3] = config->get<double>("Z0"); 
+
     cout << "LinearOrbit initiated with:" << endl
-	 << setw(10) << "" << setw(10) << "Rperi" 
-	 << " = " << config->get<double>("Rperi") << endl
-	 << setw(10) << "" << setw(10) << "Vsat" 
-	 << " = " << config->get<double>("Vsat") << endl
 	 << setw(10) << "" << setw(10) << "THETA" 
 	 << " = " << config->get<double>("THETA") << endl
 	 << setw(10) << "" << setw(10) << "PSI" 
 	 << " = " << config->get<double>("PSI") << endl
 	 << setw(10) << "" << setw(10) << "PHIP"
-	 << " = " << config->get<double>("PHIP") << endl;
+	 << " = " << config->get<double>("PHIP") << endl
+	 << "Initial position and velocity is:" << endl
+	 << setw(10) << "" << setw(10) << "(X, Y, Z)" 
+	 << " = (" << ret[1] 
+	 << ", "   << ret[2]
+	 << ", "   << ret[3]
+	 << ")" << endl
+	 << setw(10) << "" << setw(10) << "(U, V, W)" 
+	 << " = (" << 0
+	 << ", "   << Vsat
+	 << ", "   << 0
+	 << ")" << endl
+	 << "Rotated position and velocity is:" << endl;
+
+    ret = rotate * ret;
+    cout << setw(10) << "" << setw(10) << "(X, Y, Z)" 
+	 << " = (" << ret[1] 
+	 << ", "   << ret[2]
+	 << ", "   << ret[3]
+	 << ")" << endl;
+
+    ret[1] = ret[3] = 0.0;
+    ret[2] = Vsat;
+    ret = rotate * ret;
+    cout << setw(10) << "" << setw(10) << "(U, V, W)" 
+	 << " = (" << ret[1]
+	 << ", "   << ret[2]
+	 << ", "   << ret[3]
+	 << ")" << endl;
   }
 
 }
