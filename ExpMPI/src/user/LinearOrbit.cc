@@ -97,13 +97,13 @@ LinearOrbit::LinearOrbit(const string &conf)
     a[2] = config->get<double>("Y0");
     a[3] = config->get<double>("Z0"); 
 
-    cout << "LinearOrbit initiated with:" << endl
-	 << " = " << config->get<double>("THETA") << endl
-	 << " = " << THETA << endl
-	 << " = " << config->get<double>("PSI") << endl
-	 << " = " << PSI << endl
-	 << setw(10) << "" << setw(10) << "PHIP"
-	 << " = " << config->get<double>("PHIP") << endl
+    cout << "LinearOrbit initialized with:" << endl << left
+	 << setw(10) << "" << setw(10) << "THETA" << " = "
+	 << config->get<double>("THETA") << endl
+	 << setw(10) << "" << setw(10) << "PSI "  << " = " 
+	 << config->get<double>("PSI")   << endl
+	 << setw(10) << "" << setw(10) << "PHIP"  << " = " 
+	 << config->get<double>("PHIP") << endl
 	 << "Initial position and velocity is:" << endl
 	 << setw(10) << "" << setw(10) << "(X, Y, Z)" 
 	 << " = (" << a[1]
