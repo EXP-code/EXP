@@ -14,7 +14,7 @@ class LinearOrbit : public Trajectory
 {
 private:
 
-  double Rperi, Vsat;
+  double X0, Y0, Z0, Vsat;
   Matrix rotate;
 
 				// Private members

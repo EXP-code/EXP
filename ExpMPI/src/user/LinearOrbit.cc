@@ -77,7 +77,9 @@ LinearOrbit::LinearOrbit(const string &conf)
 // Initialize parameters
 // =================================
 
-  Rperi = config->get<double>("Rperi");
+  X0 = config->get<double>("X0");
+  Y0 = config->get<double>("Y0");
+  Z0 = config->get<double>("Z0");
   Vsat  = config->get<double>("Vsat");
 
   double THETA   = config->get<double>("THETA")   * M_PI/180.0;
@@ -146,9 +148,9 @@ Vector LinearOrbit::get_satellite_orbit(double t)
 {
   Vector ret(1, 3);
 
-  ret[1] = Rperi;
-  ret[2] = Vsat * t;
-  ret[3] = 0.0;
+  ret[1] = X0;
+  ret[2] = Y0 + Vsat * t;
+  ret[3] = Z0;
 
   ret = rotate * ret;
 
