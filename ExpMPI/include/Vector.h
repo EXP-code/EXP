@@ -34,6 +34,7 @@ class Vector
 
  protected:
   int low, high, size;
+
   // memory management uses STL vector
   double *pelement;
   vector<double> elements;

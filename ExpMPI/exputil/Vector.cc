@@ -75,7 +75,7 @@ Vector::Vector(const Vector &v)
 Vector::operator Three_Vector(void)
 {
   if (low!=1 || high != 3) {
-    bomb_Vector("Vector->3Vector conversion");
+    bomb_Vector("Vector->Three_Vector conversion");
   }
   
   for (int i=0; i<3; i++) (*this)[i+1] = pelement[i];
@@ -102,8 +102,8 @@ Vector &Vector::operator=(const Vector &v)
   low      = v.low;
   high     = v.high;
   size     = high - low + 1;
-  elements = v.elements;
-  pelement = &elements[0];
+  elements = v.elements;	// Copy the std::vector
+  pelement = &elements[0];	// Reset the pointer
   
   return *this;
 }
@@ -251,7 +251,7 @@ Vector operator&(const Vector &v1, const Vector &v2)
 Vector operator*(double a, const Vector &v)
 {
   Vector tmp(v.low, v.high);
-  for (int i=0; i<=v.high-v.low; i++) tmp.pelement[i] = a * v.pelement[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
@@ -259,7 +259,7 @@ Vector operator*(double a, const Vector &v)
 Vector operator*(const Vector &v, double a)
 {
   Vector tmp(v.low, v.high);
-  for (int i=0; i<=v.high-v.low; i++) tmp.pelement[i] = a * v.pelement[i];
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = a * v.pelement[i];
   
   return tmp;
 }
@@ -267,7 +267,7 @@ Vector operator*(const Vector &v, double a)
 Vector operator/(const Vector &v, double a)
 {
   Vector tmp(v.low, v.high);
-  for (int i=0; i<=v.high-v.low; i++) tmp.pelement[i] = v.pelement[i]/a;
+  for (int i=0; i<v.size; i++) tmp.pelement[i] = v.pelement[i]/a;
   
   return tmp;
 }
@@ -340,9 +340,9 @@ void Vector::print(ostream& out)
 
 void Vector::binwrite(ostream& out)
 {
-  out.write((char *)&low,  sizeof(int));
-  out.write((char *)&high, sizeof(int));
-  out.write((char *)pelement, size*sizeof(double));
+  out.write((const char *)&low,  sizeof(int));
+  out.write((const char *)&high, sizeof(int));
+  out.write((const char *)pelement, size*sizeof(double));
 }
 
 Vector Vector_binread(istream& in)
@@ -448,6 +448,7 @@ Matrix::Matrix(int rl, int rh, int cl, int ch, double **array)
   chigh = 0;
   rsize = 0;
   csize = 0;
+
   setsize(rl, rh, cl, ch);
   
   for (int i=0; i<rsize; i++) {
@@ -473,6 +474,7 @@ Matrix::Matrix(const Matrix &m)
     chigh = 0;
     rsize = 0;
     csize = 0;
+
     setsize(m.rlow, m.rhigh, m.clow, m.chigh);
     
     for (int i=0; i<rsize; i++) {
@@ -578,7 +580,7 @@ void bomb_Matrix_operation(const string& op)
 Vector Matrix::fastcol(int j)
 {
   Vector tmp(rlow, rhigh);
-  for (int i=rlow; i<rhigh; i++) tmp[i] = rows[i-rlow].pelement[j-clow];
+  for (int i=0; i<rsize; i++) tmp.pelement[i] = rows[i].pelement[j-clow];
   
   return tmp;
 }
