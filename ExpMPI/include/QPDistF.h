@@ -1,10 +1,5 @@
 // This is really -*- C++ -*-
 
-//
-// Compute distribution function for axisymmetric models 
-// using quadratic programming techniques
-//
-
 #ifndef _QPDistF_h
 #define _QPDistF_h
 
@@ -18,6 +13,8 @@
 #include <orbit.h>
 
 /**
+   Compute distribution function for axisymmetric models 
+   using quadratic programming techniques
  */
 class QPDistF
 {
@@ -98,6 +95,7 @@ public:
 
   /** Constructor
       @param T is a pointer to an axisymmetric model (2 or 3 dim)
+      @param H is a pointer to an axisymmetric model (3-d halo)
       @param rmmax is the maximum radius for the radial QP grid
       @param remax determines the maximum energy Phi(remax) for the energy grid
       @param egrid is the number of energy knots for Gaussian kernels

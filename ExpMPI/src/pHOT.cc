@@ -4073,15 +4073,16 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 unsigned pHOT::find_proc(vector<key_type>& keys, key_type key)
 {
   unsigned num = keys.size();
-  unsigned beg=0, end=num-1, cur;
 
   if (num==0) {
     cerr << "pHOT::find_proc: crazy input, no keys!" << endl;
     return 0;
   }
 
-  if (key<=keys[beg])   return beg;
-  if (key>=keys[num-1]) return num-1;
+  if (key<=keys[0])     return 0;
+  if (key>=keys[num-1]) return num-2;
+
+  unsigned beg=0, end=num-1, cur;
 
   while (end-beg>1) {
     cur = (beg + end)/2;
