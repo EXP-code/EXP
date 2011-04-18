@@ -90,27 +90,25 @@ LinearOrbit::LinearOrbit(const string &conf)
 
   if (myid==0) {
     
-    rotate.print(cout);
-
     Vector a(1, 3), b(1, 3);
     a[1] = config->get<double>("X0"); 
     a[2] = config->get<double>("Y0");
     a[3] = config->get<double>("Z0"); 
 
     cout << "LinearOrbit initialized with:" << endl << left
-	 << setw(10) << "" << setw(10) << "THETA" << " = "
+	 << setw(5) << "" << setw(10) << "THETA" << " = "
 	 << config->get<double>("THETA") << endl
-	 << setw(10) << "" << setw(10) << "PSI "  << " = " 
+	 << setw(5) << "" << setw(10) << "PSI "  << " = " 
 	 << config->get<double>("PSI")   << endl
-	 << setw(10) << "" << setw(10) << "PHIP"  << " = " 
+	 << setw(5) << "" << setw(10) << "PHIP"  << " = " 
 	 << config->get<double>("PHIP") << endl
 	 << "Initial position and velocity is:" << endl
-	 << setw(10) << "" << setw(10) << "(X, Y, Z)" 
+	 << setw(5) << "" << setw(10) << "(X, Y, Z)" 
 	 << " = (" << a[1]
 	 << ", "   << a[2]
 	 << ", "   << a[3]
 	 << ")" << endl
-	 << setw(10) << "" << setw(10) << "(U, V, W)" 
+	 << setw(5) << "" << setw(10) << "(U, V, W)" 
 	 << " = (" << 0
 	 << ", "   << Vsat
 	 << ", "   << 0
@@ -118,7 +116,7 @@ LinearOrbit::LinearOrbit(const string &conf)
 	 << "Rotated position and velocity is:" << endl;
 
     b = rotate * a;
-    cout << setw(10) << "" << setw(10) << "(X, Y, Z)" 
+    cout << setw(5) << "" << setw(10) << "(X, Y, Z)" 
 	 << " = (" << b[1] 
 	 << ", "   << b[2]
 	 << ", "   << b[3]
@@ -127,7 +125,7 @@ LinearOrbit::LinearOrbit(const string &conf)
     a[1] = a[3] = 0.0;
     a[2] = Vsat;
     b = rotate * a;
-    cout << setw(10) << "" << setw(10) << "(U, V, W)" 
+    cout << setw(5) << "" << setw(10) << "(U, V, W)" 
 	 << " = (" << a[1]
 	 << ", "   << a[2]
 	 << ", "   << a[3]
