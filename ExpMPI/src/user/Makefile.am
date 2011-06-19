@@ -12,29 +12,32 @@ libdir = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
 
-lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la libdiffuse.la \
-	libsatfix.la libdiffrot.la liblogpot.la libdisk.la libtorque.la \
-	libebarp.la librespot.la librespotn.la librespotorb.la \
-	librptest.la libhalo.la libebars.la libwake.la libsatfixorb.la \
-	libdsmc.la libebarn.la libtreegas.la libperiodic.la libatmos.la \
-	libreflect.la libsatwake.la libpst.la libuserslab.la libtrigger.la
+lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
+	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
+	libdisk.la libtorque.la libebarp.la librespot.la librespotn.la	\
+	librespotorb.la librptest.la libhalo.la libebars.la libwake.la	\
+	libsatfixorb.la libdsmc.la libebarn.la libtreegas.la		\
+	libperiodic.la libatmos.la libreflect.la libsatwake.la		\
+	libpst.la libuserslab.la libtrigger.la libshear.la
 
 #
 # Convenience library for duplicated source components (static)
 #
 noinst_LIBRARIES = libcommon.a libdsmc.a libswake.a
 
-noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H UserResPot.H \
-	CircularOrbit.H ResPot.H UserDisk.H UserResPotN.H Collide.H \
-	ResPotOrb.H UserEBar.H UserResPotOrb.H SatFix.H UserEBarN.H \
-	UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H \
-	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H EllipForce.H \
-	UserBar.H UserHalo.H HeatCool.H UserDSMC.H UserLogPot.H \
-	UserDiffRot.H UserRPtest.H UserAtmos.H UserReflect.H UserPST.H
+noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
+	UserResPot.H CircularOrbit.H ResPot.H UserDisk.H UserResPotN.H	\
+	Collide.H ResPotOrb.H UserEBar.H UserResPotOrb.H SatFix.H	\
+	UserEBarN.H UserTest.H SatFixOrb.H UserEBarP.H UserTreeDSMC.H	\
+	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H		\
+	EllipForce.H UserBar.H UserHalo.H HeatCool.H UserDSMC.H		\
+	UserLogPot.H UserDiffRot.H UserRPtest.H UserAtmos.H		\
+	UserReflect.H UserPST.H UserShear.H
 
-libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc Perturbation.cc \
-	EllipForce.cc SatelliteOrbit.cc CircularOrbit.cc TwoBodyDiffuse.cc \
-	TimeSeriesCoefs.cc LinearOrbit.cc UnboundOrbit.cc
+libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
+	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
+	CircularOrbit.cc TwoBodyDiffuse.cc TimeSeriesCoefs.cc	\
+	LinearOrbit.cc UnboundOrbit.cc
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
 
@@ -118,6 +121,8 @@ libpst_la_LIBADD = libcommon.a
 libuserslab_la_SOURCES = UserSlabHalo.cc 
 
 libtrigger_la_SOURCES = UserBarTrigger.cc
+
+libshear_la_SOURCES = UserShear.cc
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .

@@ -55,6 +55,8 @@ ExpMPI/src/user/UserReflect.cc -text
 ExpMPI/src/user/UserRotF.cc -text
 ExpMPI/src/user/UserSatWake.H -text
 ExpMPI/src/user/UserSatWake.cc -text
+ExpMPI/src/user/UserShear.H -text
+ExpMPI/src/user/UserShear.cc -text
 ExpMPI/src/user/UserSlabHalo.H -text
 ExpMPI/src/user/UserSlabHalo.cc -text
 ExpMPI/src/user/cratint.cc -text
