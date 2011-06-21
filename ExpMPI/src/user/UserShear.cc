@@ -114,7 +114,7 @@ void * UserShear::determine_acceleration_and_potential_thread(void * arg)
     xd = cC->Vel(i, 0);
     yd = cC->Vel(i, 1);
 
-    ax = 2.0*omega*yd + 4.0*A*omega*x;
+    ax =  2.0*omega*yd + 4.0*A*omega*x;
     ay = -2.0*omega*xd;
 
     cC->AddAcc(i, 0, ax);

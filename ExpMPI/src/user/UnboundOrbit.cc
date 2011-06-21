@@ -253,16 +253,22 @@ UnboundOrbit::UnboundOrbit(const string &conf)
 
   if (myid==0) {
     
-    cout << "UnboundOrbit initiated with:" << endl
-	 << setw(10) << "" << setw(10) << "model" 
+    cout << "UnboundOrbit initialized with:" << endl
+	 << setw(5) << "" << setw(10) << "THETA" << " = "
+	 << config->get<double>("THETA") << endl
+	 << setw(5) << "" << setw(10) << "PSI "  << " = " 
+	 << config->get<double>("PSI")   << endl
+	 << setw(5) << "" << setw(10) << "PHIP"  << " = " 
+	 << config->get<double>("PHIP") << endl
+	 << setw(5 << "" << setw(10) << "model" 
 	 << " = " << config->get<int   >("MODEL") << endl
-	 << setw(10) << "" << setw(10) << "INFILE" 
+	 << setw(5) << "" << setw(10) << "INFILE" 
 	 << " = " << config->get<string>("INFILE") << endl
-	 << setw(10) << "" << setw(10) << "E" 
+	 << setw(5) << "" << setw(10) << "E" 
 	 << " = " << config->get<double>("E") << endl
-	 << setw(10) << "" << setw(10) << "Rperi" 
+	 << setw(5) << "" << setw(10) << "Rperi" 
 	 << " = " << config->get<double>("Rperi") << endl
-	 << setw(10) << "" << setw(10) << "Redge" 
+	 << setw(5) << "" << setw(10) << "Redge" 
 	 << " = " << config->get<double>("Redge") << endl;
   }
 
