@@ -190,7 +190,7 @@ double PSPDump::SetTime(double time)
 }
 
 
-void PSPDump::PrintSummary(ostream &out, bool timeonly)
+void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly)
 {
   list<Dump>::iterator itd;
   list<PSPstanza>::iterator its;
@@ -223,6 +223,26 @@ void PSPDump::PrintSummary(ostream &out, bool timeonly)
 	out << setw(20) << " nbod :: "  << its->nbod  << endl
 	    << setw(20) << " niatr :: " << its->niatr << endl
 	    << setw(20) << " ndatr :: " << its->ndatr << endl;
+	if (stats) {
+	  ComputeStats(in);
+	  out << setw(20) << "Min positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
+	  out << endl;
+	  out << setw(20) << "Med positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmed[k];
+	  out << endl;
+	  out << setw(20) << "Max positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
+	  out << endl;
+	  out << setw(20) << "Min velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
+	  out << endl;
+	  out << setw(20) << "Med velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmed[k];
+	  out << endl;
+	  out << setw(20) << "Max velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmax[k];
+	}
 	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 	
       }
@@ -231,7 +251,7 @@ void PSPDump::PrintSummary(ostream &out, bool timeonly)
 
 }
   
-void PSPDump::PrintSummaryCurrent(ostream &out, bool timeonly)
+void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool timeonly)
 {
   list<PSPstanza>::iterator its;
 
@@ -262,7 +282,26 @@ void PSPDump::PrintSummaryCurrent(ostream &out, bool timeonly)
 	  << setw(20) << " niatr :: " << its->niatr << endl
 	  << setw(20) << " ndatr :: " << its->ndatr << endl;
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-      
+	if (stats) {
+	  ComputeStats(in);
+	  out << setw(20) << "Min positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
+	  out << endl;
+	  out << setw(20) << "Med positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmed[k];
+	  out << endl;
+	  out << setw(20) << "Max positions :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
+	  out << endl;
+	  out << setw(20) << "Min velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
+	  out << endl;
+	  out << setw(20) << "Med velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmed[k];
+	  out << endl;
+	  out << setw(20) << "Max velocities :: ";
+	  for (unsigned k=0; k<3; k++) out << setw(15) << vmax[k];
+	}      
     }
   }
 }
@@ -404,3 +443,43 @@ PSPstanza* PSPDump::NextStar()
   else 
     return 0;
 }
+
+void PSPDump::ComputeStats(istream *in)
+{
+  // Initialize lists
+  vector< vector<float> > plist(3, vector<float>(spos->nbod) );
+  vector< vector<float> > vlist(3, vector<float>(spos->nbod) );
+  mtot = 0.0;
+  
+  SParticle *P = GetParticle(in);
+  unsigned n=0;
+  while (P) {
+    mtot += P->mass;
+    for (unsigned k=0; k<3; k++) {
+      plist[k][n] = P->pos[k];
+      vlist[k][n] = P->vel[k];
+    }
+    P = NextParticle(in);
+    n++;
+  }
+
+  pmin = vector<float>(3);
+  pmed = vector<float>(3);
+  pmax = vector<float>(3);
+
+  vmin = vector<float>(3);
+  vmed = vector<float>(3);
+  vmax = vector<float>(3);
+
+  for (unsigned k=0; k<3; k++) {
+    std::sort(plist[k].begin(), plist[k].end());
+    pmin[k] = plist[k].front();
+    pmed[k] = plist[k][floor(0.5*spos->nbod+0.5)];
+    pmax[k] = plist[k].back();
+    std::sort(vlist[k].begin(), vlist[k].end());
+    vmin[k] = vlist[k].front();
+    vmed[k] = vlist[k][floor(0.5*spos->nbod+0.5)];
+    vmax[k] = vlist[k].back();
+  }
+}
+

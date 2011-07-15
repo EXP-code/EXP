@@ -37,12 +37,13 @@ int
 main(int argc, char *argv[])
 {
   bool tipsy = false;
+  bool stats = false;
   bool timeonly = false;
   bool verbose = false;
   int c;
   
   while (1) {
-    c = getopt(argc, argv, "vtTh");
+    c = getopt(argc, argv, "vstTh");
     if (c == -1) break;
 
     switch (c) {
@@ -53,6 +54,10 @@ main(int argc, char *argv[])
 
     case 't':
       tipsy = true;
+      break;
+
+    case 's':
+      stats = true;
       break;
 
     case 'T':
@@ -73,7 +78,7 @@ main(int argc, char *argv[])
   ifstream* in = new ifstream(argv[optind]);
 
   PSPDump psp(in, tipsy, verbose);
-  psp.PrintSummary(cout, timeonly);
+  psp.PrintSummary(in, cout, stats, timeonly);
 
   return 0;
 }

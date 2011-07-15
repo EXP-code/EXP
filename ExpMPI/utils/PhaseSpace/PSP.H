@@ -1,5 +1,6 @@
 #ifndef _PSP_H
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <iomanip>
@@ -67,14 +68,20 @@ private:
   SParticle part;
   int pcount;
 
+  //! Temporaries for stanza statistics
+  float mtot;
+  vector<float> pmin, pmed, pmax;
+  vector<float> vmin, vmed, vmax;
+  void ComputeStats(istream *in);
+
 public:
 
   PSPDump(ifstream *in, bool tipsy=false, bool verbose=false);
 
   double SetTime(double time);
   double CurrentTime() {return fid->header.time;}
-  void PrintSummaryCurrent(ostream &out, bool timeonly=false);
-  void PrintSummary(ostream &out, bool timeonly=false);
+  void PrintSummaryCurrent(ifstream *in, ostream &out, bool stats=false, bool timeonly=false);
+  void PrintSummary       (ifstream *in, ostream &out, bool stats=false, bool timeonly=false);
 
   Dump *CurrentDump() {return fid;}
 
