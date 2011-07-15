@@ -28,6 +28,7 @@ pthread_mutex_t mem_lock;
 void Usage(char* prog) {
   cerr << prog << ": [-v -t] filename\n";
   cerr << "        -v    verbose output\n";
+  cerr << "        -s    particle and velocity statistics\n";
   cerr << "        -t    print tipsy info\n";
   cerr << "        -T    print time info only\n";
   exit(-1);
@@ -78,6 +79,9 @@ main(int argc, char *argv[])
   ifstream* in = new ifstream(argv[optind]);
 
   PSPDump psp(in, tipsy, verbose);
+
+  in->close();
+  in = new ifstream(argv[optind]);
   psp.PrintSummary(in, cout, stats, timeonly);
 
   return 0;

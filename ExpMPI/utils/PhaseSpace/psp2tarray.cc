@@ -249,7 +249,7 @@ main(int argc, char **argv)
   
 				// Write a summary
 				// ---------------
-  if (verbose) psp.PrintSummaryCurrent(cerr);
+  if (verbose) psp.PrintSummaryCurrent(in, cerr);
   
   try {
     write_array(in, psp);

@@ -193,7 +193,6 @@ double PSPDump::SetTime(double time)
 void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly)
 {
   list<Dump>::iterator itd;
-  list<PSPstanza>::iterator its;
 
   for (itd = dumps.begin(); itd != dumps.end(); itd++) {
 
@@ -209,42 +208,43 @@ void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly
 
       int cnt=1;
 
-      for (its = itd->stanzas.begin(); its != itd->stanzas.end(); its++) {
+      for (spos = itd->stanzas.begin(); spos != itd->stanzas.end(); spos++) {
 	
 				// Print the info for this stanza
 				// ------------------------------
 	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 	out << "--- Component #" << setw(2) << cnt++ << endl;
-	out << setw(20) << " name :: "  << its->name   << endl
-	    << setw(20) << " id :: "    << its->id     << endl
-	    << setw(20) << " cparam :: " << its->cparam << endl
-	    << setw(20) << " fparam :: " << its->fparam << endl;
-	if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
-	out << setw(20) << " nbod :: "  << its->nbod  << endl
-	    << setw(20) << " niatr :: " << its->niatr << endl
-	    << setw(20) << " ndatr :: " << its->ndatr << endl;
+	out << setw(20) << " name :: "  << spos->name   << endl
+	    << setw(20) << " id :: "    << spos->id     << endl
+	    << setw(20) << " cparam :: " << spos->cparam << endl
+	    << setw(20) << " fparam :: " << spos->fparam << endl;
+	if (TIPSY) out << setw(20) << " tipsy :: " << spos->ttype  << endl;
+	out << setw(20) << " nbod :: "  << spos->nbod  << endl
+	    << setw(20) << " niatr :: " << spos->niatr << endl
+	    << setw(20) << " ndatr :: " << spos->ndatr << endl;
 	if (stats) {
 	  ComputeStats(in);
-	  out << setw(20) << "Min positions :: ";
+	  out << setw(20) << "*** Position" << endl;
+	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
 	  out << endl;
-	  out << setw(20) << "Med positions :: ";
+	  out << setw(20) << "Med :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmed[k];
 	  out << endl;
-	  out << setw(20) << "Max positions :: ";
+	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
 	  out << endl;
-	  out << setw(20) << "Min velocities :: ";
+	  out << setw(20) << "*** Velocity" << endl;
+	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
 	  out << endl;
-	  out << setw(20) << "Med velocities :: ";
+	  out << setw(20) << "Med :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmed[k];
 	  out << endl;
-	  out << setw(20) << "Max velocities :: ";
+	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmax[k];
-	}
-	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	
+	  out << endl;
+	}      
       }
     }
   }
@@ -253,8 +253,6 @@ void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly
   
 void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool timeonly)
 {
-  list<PSPstanza>::iterator its;
-
   out << "Time=" << fid->header.time << "   [" << fid->pos << "]" << endl;
   if (!timeonly) {
     out << "   Total particle number: " << fid->header.ntot  << endl;
@@ -267,40 +265,43 @@ void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool t
     
     int cnt=1;
 
-    for (its = fid->stanzas.begin(); its != fid->stanzas.end(); its++) {
+    for (spos = fid->stanzas.begin(); spos != fid->stanzas.end(); spos++) {
 	
       // Print the info for this stanza
       // ------------------------------
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
       out << "--- Component #" << setw(2) << cnt++ << endl;
-      out << setw(20) << " name :: "  << its->name   << endl
-	  << setw(20) << " id :: "    << its->id     << endl
-	  << setw(20) << " cparam :: " << its->cparam  << endl
-	  << setw(20) << " fparam :: " << its->fparam  << endl;
-      if (TIPSY) out << setw(20) << " tipsy :: " << its->ttype  << endl;
-      out << setw(20) << " nbod :: "  << its->nbod  << endl
-	  << setw(20) << " niatr :: " << its->niatr << endl
-	  << setw(20) << " ndatr :: " << its->ndatr << endl;
+      out << setw(20) << " name :: "  << spos->name   << endl
+	  << setw(20) << " id :: "    << spos->id     << endl
+	  << setw(20) << " cparam :: " << spos->cparam  << endl
+	  << setw(20) << " fparam :: " << spos->fparam  << endl;
+      if (TIPSY) out << setw(20) << " tipsy :: " << spos->ttype  << endl;
+      out << setw(20) << " nbod :: "  << spos->nbod  << endl
+	  << setw(20) << " niatr :: " << spos->niatr << endl
+	  << setw(20) << " ndatr :: " << spos->ndatr << endl;
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 	if (stats) {
 	  ComputeStats(in);
-	  out << setw(20) << "Min positions :: ";
+	  out << setw(20) << "*** Position" << endl;
+	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
 	  out << endl;
-	  out << setw(20) << "Med positions :: ";
+	  out << setw(20) << "Med :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmed[k];
 	  out << endl;
-	  out << setw(20) << "Max positions :: ";
+	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
 	  out << endl;
-	  out << setw(20) << "Min velocities :: ";
+	  out << setw(20) << "*** Velocity" << endl;
+	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
 	  out << endl;
-	  out << setw(20) << "Med velocities :: ";
+	  out << setw(20) << "Med :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmed[k];
 	  out << endl;
-	  out << setw(20) << "Max velocities :: ";
+	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmax[k];
+	  out << endl;
 	}      
     }
   }
@@ -446,6 +447,8 @@ PSPstanza* PSPDump::NextStar()
 
 void PSPDump::ComputeStats(istream *in)
 {
+  cur = &(*spos);
+
   // Initialize lists
   vector< vector<float> > plist(3, vector<float>(spos->nbod) );
   vector< vector<float> > vlist(3, vector<float>(spos->nbod) );

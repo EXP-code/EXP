@@ -175,13 +175,12 @@ main(int argc, char **argv)
   PSPDump psp(in);
 
   in->close();
-  delete in;
 
 				// Now write a summary
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(cerr);
+    psp.PrintSummary(in, cerr);
     
     cerr << "\nBest fit dump to <" << time << "> has time <" 
 	 << psp.SetTime(time) << ">\n";
@@ -190,6 +189,7 @@ main(int argc, char **argv)
 
 				// Dump ascii for each component
 				// -----------------------------
+  delete in;
   in = new ifstream(argv[optind]);
 
   

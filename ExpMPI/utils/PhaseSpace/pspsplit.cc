@@ -101,7 +101,7 @@ main(int argc, char **argv)
 				// Now write a summary
 				// -------------------
 
-  if (verbose) psp.PrintSummary(cerr);
+  if (verbose) psp.PrintSummary(in, cerr);
 
     
   cerr << "\nBest fit dump to <" << time << "> has time <" 

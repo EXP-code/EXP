@@ -109,7 +109,7 @@ main(int argc, char **argv)
 				// -------------------
   if (verbose) {
 
-    psp.PrintSummary(cerr);
+    psp.PrintSummary(in, cerr);
     
     cerr << "\nBest fit dump to <" << time << "> has time <" 
 	 << psp.SetTime(time) << ">\n";

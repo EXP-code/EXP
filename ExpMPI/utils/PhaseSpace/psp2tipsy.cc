@@ -247,7 +247,7 @@ main(int argc, char **argv)
 
 				// Write a summary
 				// -------------------
-    if (verbose) psp.PrintSummary(cerr);
+    if (verbose) psp.PrintSummary(in, cerr);
 
     Dump *dump;
     for (dump=psp.GetDump(); dump!=0; dump=psp.NextDump())
@@ -260,7 +260,7 @@ main(int argc, char **argv)
   
 				// Write a summary
 				// -------------------
-    if (verbose) psp.PrintSummaryCurrent(cerr);
+    if (verbose) psp.PrintSummaryCurrent(in, cerr);
 
     write_tipsy(in, psp);
   }

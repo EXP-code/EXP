@@ -179,15 +179,15 @@ main(int argc, char **argv)
     in.close();
     in.open(fname);
     PSPDump psp(&in);
-    in.close();
 
 				// Now write a summary
 				// -------------------
     if (verbose) {
 
-      psp.PrintSummary(cerr);
+      psp.PrintSummary(&in, cerr);
     
     }
+    in.close();
 				// Dump ascii for each component
 				// -----------------------------
     in.open(fname);
