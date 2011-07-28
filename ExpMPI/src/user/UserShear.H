@@ -20,7 +20,7 @@ private:
   void initialize();
 
   string ctr_name;
-  double r0, s0, omega, kappa, A, B;
+  double r0, s0, omega, kappa, A, B, xoff;
   Component *c0;
 
   void userinfo();

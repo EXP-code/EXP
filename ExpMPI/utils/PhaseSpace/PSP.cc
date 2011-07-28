@@ -224,7 +224,9 @@ void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly
 	    << setw(20) << " ndatr :: " << spos->ndatr << endl;
 	if (stats) {
 	  ComputeStats(in);
-	  out << setw(20) << "*** Position" << endl;
+	  out << endl<< setw(20) << "*** Position" 
+	      << setw(15) << "X" << setw(15) << "Y" << setw(15) << "Z"
+	      << endl;
 	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
 	  out << endl;
@@ -234,7 +236,9 @@ void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly
 	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
 	  out << endl;
-	  out << setw(20) << "*** Velocity" << endl;
+	  out << endl << setw(20) << "*** Velocity"
+	      << setw(15) << "U" << setw(15) << "V" << setw(15) << "W"
+	      << endl;
 	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
 	  out << endl;
@@ -282,7 +286,9 @@ void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool t
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 	if (stats) {
 	  ComputeStats(in);
-	  out << setw(20) << "*** Position" << endl;
+	  out << endl << setw(20) << "*** Position" 
+	      << setw(15) << "X" << setw(15) << "Y" << setw(15) << "Z"
+	      << endl;
 	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmin[k];
 	  out << endl;
@@ -292,7 +298,9 @@ void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool t
 	  out << setw(20) << "Max :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << pmax[k];
 	  out << endl;
-	  out << setw(20) << "*** Velocity" << endl;
+	  out << endl << setw(20) << "*** Velocity"
+ 	      << setw(15) << "U" << setw(15) << "Vn" << setw(15) << "W"
+	      << endl;
 	  out << setw(20) << "Min :: ";
 	  for (unsigned k=0; k<3; k++) out << setw(15) << vmin[k];
 	  out << endl;

@@ -260,7 +260,7 @@ UnboundOrbit::UnboundOrbit(const string &conf)
 	 << config->get<double>("PSI")   << endl
 	 << setw(5) << "" << setw(10) << "PHIP"  << " = " 
 	 << config->get<double>("PHIP") << endl
-	 << setw(5 << "" << setw(10) << "model" 
+	 << setw(5) << "" << setw(10) << "model" 
 	 << " = " << config->get<int   >("MODEL") << endl
 	 << setw(5) << "" << setw(10) << "INFILE" 
 	 << " = " << config->get<string>("INFILE") << endl

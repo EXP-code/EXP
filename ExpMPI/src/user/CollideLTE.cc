@@ -35,7 +35,7 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.2;
+const double rfac = 0.05;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -112,7 +112,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 				// Cell temperature and mass (cgs)
 				// 
   double KEtot, KEdspS, KEdspC;
-  samp->KE(KEtot, KEdspS);	// These are already specific in mass
+  samp->KE(KEtot, KEdspS);	// These are already in specific mass
   cell->KE(KEtot, KEdspC);
 
   double massC = cell->Mass();	// Mass in real cell
@@ -200,7 +200,7 @@ void CollideLTE::initialize_cell(pCell* cell,
       double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
 	cell->Mass()*boltz/mm;
 
-				// Initial temperature
+				// Initial energy
       double E = cell->Mass()*KEdspS;
       double E0 = E;
 
@@ -234,7 +234,9 @@ void CollideLTE::initialize_cell(pCell* cell,
       if (isnan(E)) E = E0;
       E = max<double>(E, 3.0*Tfac);
 
+				// Final energy per unit mass in the cell
       KEdspF = E/cell->Mass();
+				// Effective final temperature
       T      = E/Tfac;
 
 #ifdef DEBUG
@@ -278,8 +280,8 @@ void CollideLTE::initialize_cell(pCell* cell,
       deltaE[id] = coolheat[id] / number;
   }
 
-  if (fabs(deltaE[id])>1000.0) {
-    cout << "deltaE=" << deltaE[id] << ", above 1000" << endl;
+  if (fabs((KEdspS - KEdspF)/KEdspS)>1.0) {
+    cout << "deltaE/E=" << (KEdspS - KEdspF)/KEdspS << ", above 1" << endl;
   }
 
   if (frost_warning && T<1000.0) {

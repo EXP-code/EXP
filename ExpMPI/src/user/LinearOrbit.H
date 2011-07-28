@@ -36,7 +36,11 @@ public:
   Vector get_satellite_orbit(double T);
 
   //! Get satellite position in halo frame
-  void get_satellite_orbit(double T, double *v);
+  void get_satellite_orbit(double T, double *v)
+  {
+    Vector ret = get_satellite_orbit(T);
+    for (unsigned i=0; i<3; i++) v[i] = ret[i+1];
+  }
 
 };
 

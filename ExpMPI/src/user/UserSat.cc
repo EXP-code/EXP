@@ -23,10 +23,12 @@ private:
 
   double core, mass, ton, toff, delta, toffset;
 
-  bool orbit;
-  bool shadow;
-  bool verbose;
-  bool zbflag;
+  bool orbit;			//! Print out orbit trajectory
+  bool shadow;			//! Add a reflection-symmetric satellite
+  bool verbose;			//! Print diagnostic messages
+  bool zbflag;			//! Zero body flag
+  bool pinning;			//! Pin center to a component
+
   double omega, phase, r0, tlast;
 
   void userinfo();
@@ -35,7 +37,7 @@ private:
 
 public:
   
-				// For debugging . . .
+				//! For debugging . . .
   static int instances;
 
   UserSat(string &line);
@@ -64,29 +66,31 @@ UserSat::UserSat(string &line) : ExternalForce(line)
   phase = 0.0;			// Initial position angle
   omega = 1.0;			// Angular frequency
 
-  com_name = "sphereSL";	// Default component for com
+  pinning  = false;	        // Pin reference frame to a component
+  com_name = "";		// Default component for com
   config   = "conf.file";	// Configuration file for spherical orbit
   traj_type = circ;		// Trajectory type (default is circ)
 
   initialize();
 
-				// Look for the fiducial component
-  bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    if ( !com_name.compare(c->name) ) {
-      c0 = c;
-      found = true;
-      break;
+  if (pinning) {		// Look for the fiducial component
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !com_name.compare(c->name) ) {
+	c0 = c;
+	found = true;
+	break;
+      }
     }
-  }
-
-  if (!found) {
-    cerr << "Process " << myid << ": can't find desired component <"
-	 << com_name << ">" << endl;
-    MPI_Abort(MPI_COMM_WORLD, 35);
+    
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << com_name << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, 35);
+    }
   }
 
   switch (traj_type) {
@@ -174,8 +178,8 @@ void UserSat::userinfo()
     }
     cout << " with mass=" << mass 
 	 << ", core=" << core
-	 << ", config=" << config
-	 << ", centered on Component <" << c0->name << ">";
+	 << ", config=" << config;
+    if (pinning) cout << ", centered on Component <" << c0->name << ">";
   }
   if (shadow)  cout << ", shadowing is on";
   if (verbose) cout << ", verbose messages are on";
@@ -190,7 +194,7 @@ void UserSat::initialize()
 {
   string val;
 
-  if (get_value("comname", val))  com_name = val;
+  if (get_value("comname", val))  {com_name = val; pinning = true; }
   if (get_value("config", val))   config = val;
   if (get_value("core", val))     core = atof(val.c_str());
   if (get_value("mass", val))     mass = atof(val.c_str());
@@ -280,11 +284,15 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
   if (shadow) satmass *= 0.5;
 
   if (orbit && myid==0 && id==0 && tnow>tlast) {
-    ofstream out (string(outdir+orbfile).c_str(), ios::app);
-    out << setw(15) << tnow;
-    for (int k=0; k<3; k++) out << setw(15) << rs[k];
-    out << endl;
-    tlast = tnow;
+    ofstream out (orbfile.c_str(), ios::app);
+    if (out) {
+      out << setw(15) << tnow;
+      for (int k=0; k<3; k++) out << setw(15) << rs[k];
+      out << endl;
+      tlast = tnow;
+    } else {
+      cout << "Error opening trajectory file: " << orbfile << endl;
+    }
   }
 
 
@@ -302,7 +310,8 @@ void * UserSat::determine_acceleration_and_potential_thread(void * arg)
     fac = core*core;
 
     for (int k=0; k<3; k++) {
-      pos[k] = cC->Pos(i, k, Component::Inertial) - c0->com[k];
+      pos[k] = cC->Pos(i, k, Component::Inertial);
+      if (pinning) pos[k] -= c0->com[k];
       fac += (pos[k] - rs[k])*(pos[k] - rs[k]);
     }
     fac = pow(fac, -0.5);

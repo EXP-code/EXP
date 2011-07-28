@@ -10,9 +10,10 @@
 UserShear::UserShear(string &line) : ExternalForce(line)
 {
 
-  id = "ShearingSheet";		// Shearing sheet
-  r0 = 1;			// R_o in radial units
-  s0 = 1;			// Sigma in velocity units
+  id       = "ShearingSheet";	// Shearing sheet
+  r0       = 1;			// R_o in radial units
+  s0       = 1;			// Sigma in velocity units
+  xoff     = 0.5;	        // Offset in x-direction for shear center
   ctr_name = "";		// Default component for center
 
   initialize();
@@ -56,7 +57,8 @@ void UserShear::userinfo()
   print_divider();
 
   cout << "** User routine SHEARING SHEET initialized, " ;
-  cout << "r_0=" << r0 << "  sigma=" << s0 << "  v_0=" << sqrt(2.0)*s0;
+  cout << "r_0=" << r0 << "  sigma=" << s0 << "  v_0=" << sqrt(2.0)*s0
+       << "  offset=" << xoff;
   if (c0) 
     cout << ", center on component <" << ctr_name << ">";
   else
@@ -70,9 +72,10 @@ void UserShear::initialize()
 {
   string val;
 
-  if (get_value("radius", val))	        r0 = atof(val.c_str());
-  if (get_value("velocity", val))       s0 = atof(val.c_str());
-  if (get_value("ctrname", val))	ctr_name = val;
+  if (get_value("radius",   val))	r0       = atof(val.c_str());
+  if (get_value("velocity", val))       s0       = atof(val.c_str());
+  if (get_value("offset",   val))	xoff     = atof(val.c_str());
+  if (get_value("ctrname",  val))	ctr_name = val;
 
   omega = sqrt(2.0)*s0/r0;
   kappa = 2.0*s0/r0;
@@ -110,7 +113,7 @@ void * UserShear::determine_acceleration_and_potential_thread(void * arg)
 
     if (multistep && (cC->Part(i)->level < mlevel)) continue;
 
-    x  = cC->Pos(i, 0);
+    x  = cC->Pos(i, 0) - xoff;
     xd = cC->Vel(i, 0);
     yd = cC->Vel(i, 1);
 
@@ -118,7 +121,7 @@ void * UserShear::determine_acceleration_and_potential_thread(void * arg)
     ay = -2.0*omega*xd;
 
     cC->AddAcc(i, 0, ax);
-    cC->AddAcc(i, 0, ay);
+    cC->AddAcc(i, 1, ay);
 
     // Add external potential
     pot = -2.0*A*omega*x*x;

@@ -28,7 +28,8 @@
  *  updated to use orbit classes
  *           MDW 07/15/94
  *
- *  major rewrite: incorpated in to SatelliteOrbit class 11/15/98
+ *  major rewrite: incorporated in to SatelliteOrbit class 11/15/98
+ *  changed position spec from impact parameter to full 3d vector
  *
  ****************************************************************************/
 
@@ -126,9 +127,9 @@ LinearOrbit::LinearOrbit(const string &conf)
     a[2] = Vsat;
     b = rotate * a;
     cout << setw(5) << "" << setw(10) << "(U, V, W)" 
-	 << " = (" << a[1]
-	 << ", "   << a[2]
-	 << ", "   << a[3]
+	 << " = (" << b[1]
+	 << ", "   << b[2]
+	 << ", "   << b[3]
 	 << ")" << endl;
   }
 
@@ -155,19 +156,5 @@ Vector LinearOrbit::get_satellite_orbit(double t)
   ret = rotate * ret;
 
   return ret;
-}
-
-void LinearOrbit::get_satellite_orbit(double t, double *v)
-{
-  Vector ret(1, 3);
-
-  ret[1] = 0.0;
-  ret[2] = Vsat; 
-  ret[3] = 0.0;
-
-  ret = rotate * ret;
-  v[0] = ret[1];
-  v[1] = ret[2];
-  v[2] = ret[3];
 }
 

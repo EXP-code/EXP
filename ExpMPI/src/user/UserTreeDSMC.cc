@@ -70,7 +70,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_vol    = -1;
   use_exes   = -1;
   coolfrac   = 0.1;
-  enhance    = 0.1;
+  enhance    = 1.0;
   frontier   = false;
   tsdiag     = false;
   voldiag    = false;
