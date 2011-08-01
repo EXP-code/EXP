@@ -14,6 +14,11 @@
 #include <sstream>
 #include <string>
 
+//! Directory for output
+extern std::string outdir;
+
+//! Used for labeling report files
+extern std::string runtag;
 
 void print_trace(std::ostream& out, const char *file, int line)
 {
@@ -116,7 +121,7 @@ void mpi_print_trace(const std::string& routine, const std::string& msg,
   std::cerr << ": "<< msg << std::endl;
   
   std::ostringstream ostr;
-  ostr << "traceback.";
+  ostr << outdir << runtag << "." << "traceback.";
   if (numprocs>1) ostr << myid;
   else            ostr << "info";
   
