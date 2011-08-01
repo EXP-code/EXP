@@ -80,11 +80,11 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
   if (nthrds==1) {
     thrd_pass_Collide td;
     
-    td.p = this;
+    td.p        = this;
     td.arg.tree = tree;
-    td.arg.fn = Fn;
-    td.arg.tau = tau;
-    td.arg.id = 0;
+    td.arg.fn   = Fn;
+    td.arg.tau  = tau;
+    td.arg.id   = 0;
 
     collide_thread_call(&td);
 
@@ -107,11 +107,11 @@ void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
 
                                 // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
-    td[i].p = this;
+    td[i].p        = this;
     td[i].arg.tree = tree;
-    td[i].arg.fn = Fn;
-    td[i].arg.tau = tau;
-    td[i].arg.id = i;
+    td[i].arg.fn   = Fn;
+    td[i].arg.tau  = tau;
+    td[i].arg.id   = i;
 
     errcode =  pthread_create(&t[i], 0, collide_thread_call, &td[i]);
     if (errcode) {
@@ -666,7 +666,7 @@ void * Collide::collide_thread(void * arg)
 
     if (MFPDIAG) {
 
-      // Diagnostic: MFP to linear cell size ratio 
+      // Diagnostics
       //
       tsratT[id].push_back(crm*tau/pow(volc,0.33333333));
       tdensT[id].push_back(dens);
@@ -730,14 +730,14 @@ void * Collide::collide_thread(void * arg)
 	VdblT[id][c->level*nvold+5] += number*number;
       }
     }
-				// Number per selection ratio
+				// Selection number per particle
     if (MFPDIAG)
       tselnT[id].push_back(select/number);
 
     stat2SoFar[id] = stat2Time[id].stop();
     
 				// Number of pairs to be selected
-    unsigned nsel = (int)floor(select+0.5);
+    unsigned nsel = static_cast<int>(floor(select+0.5));
     
 				// Debug
     if (0) {
@@ -1791,14 +1791,15 @@ void Collide::EPSMtiming(ostream& out)
     long sum = 0;
     for (int i=0; i<nEPSMT; i++) sum += EPSMtime[i];
     
-    out << setfill('-') << setw(40) << '-' << setfill(' ') << endl
-	<< "EPSM timing" << endl
-	<< "-----------" << endl;
-    for (int i=0; i<nEPSMT; i++)
-      out << left << setw(20) << labels[i] << setw(10) << EPSMtime[i] 
-	  << setw(10) << fixed << 100.0*EPSMtime[i]/sum << "%" << endl;
-    out << setfill('-') << setw(40) << '-' << setfill(' ') << endl;
-    
+    if (sum>0.0) {
+      out << setfill('-') << setw(40) << '-' << setfill(' ') << endl
+	  << "EPSM timing" << endl
+	  << "-----------" << endl;
+      for (int i=0; i<nEPSMT; i++)
+	out << left << setw(20) << labels[i] << setw(10) << EPSMtime[i] 
+	    << setw(10) << fixed << 100.0*EPSMtime[i]/sum << "%" << endl;
+      out << setfill('-') << setw(40) << '-' << setfill(' ') << endl;
+    }      
   }
 }
 

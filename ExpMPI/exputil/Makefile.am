@@ -23,9 +23,10 @@ SYMP_SRC = sia4.cc
 ROOT_SRC = rtbis.cc rtsafe.cc brent.cc zbrent.cc mnbrak.cc zbrak.cc zbrac.cc
 QUAD_SRC = qadapt.cc gauleg.cc qadapt2d.cc gint2.cc rombe2d.cc Trapsum.cc
 RANDOM_SRC =
-UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc \
-	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc \
-	ProgramParam.cc FileUtils.cc BarrierWrapper.cc int128.cc uint128.cc
+UTIL_SRC = nrutil.cc elemfunc.cc euler.cc euler_slater.cc rotmatrix.cc	\
+	wordSplit.cc ParamParse.cc ParamParseMPI.cc ParamDatabase.cc	\
+	ProgramParam.cc FileUtils.cc BarrierWrapper.cc int128.cc	\
+	uint128.cc stack.cc
 OPTIMIZATION_SRC = simann2.cc
 VECTOR_SRC = Vector.cc Vector3.cc eigen.cc eigsrt.cc inverse.cc jacobi.cc \
 	svd.cc eigencc.cc

@@ -1,10 +1,10 @@
 /*
-static char rcsid[] = "$Id$";
+  static char rcsid[] = "$Id$";
 */
 
 #include "expand.h"
 
-void do_step(int);
+void do_step (int);
 void clean_up(void);
 
 #include <signal.h>
@@ -19,7 +19,11 @@ void clean_up(void);
 #include <gptl.h>
 #endif
 
+#include <BarrierWrapper.H>
 #include <FileUtils.H>
+
+extern void mpi_print_trace(const string& routine, const string& msg,
+			    const char *file, int line);
 
 //===========================================
 // Clean stop on a SIGTERM or SIGHUP
@@ -27,6 +31,7 @@ void clean_up(void);
 
 //! Abort the time stepping and checkpoint when signaled
 static int stop_signal0 = 0;
+
 void signal_handler_stop(int sig) 
 {
   if (myid==0) {
@@ -35,10 +40,28 @@ void signal_handler_stop(int sig)
   } else {
     cout << endl << "Process " << myid << ": user signaled a STOP but only the root process can stop me . . . continuing" << endl;
   }
+
+  // Check for barrier wrapper failure to provide some additional
+  // debugging info to help with interpreting the backtrace . . .
+  //
+  ostringstream sout;
+  if (BarrierWrapper::inOper) {
+    sout << "BarrierWrapper label is:" 
+	 << left << setw(60) << BarrierWrapper::lbOper;
+    if (BarrierWrapper::flOper.size())
+      sout << " ==> called from " << BarrierWrapper::flOper << ":" 
+	   << BarrierWrapper::lnOper;
+  } else
+    sout << "process called abort";
+
+  // Print the backtrace to per process files or stderr
+  //
+  mpi_print_trace("signal_handler_stop", sout.str(), __FILE__, __LINE__);
 }
 
 //! Dump phase space
 static int dump_signal0 = 0;
+
 void signal_handler_dump(int sig) 
 {
   if (myid==0) {

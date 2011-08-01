@@ -24,13 +24,31 @@ private:
 
 public:
 
-  static int cbufsz;
+  //! Buffer size for checking working labels
+  static int    cbufsz;
 
+  //! Set to true while control is in the wrapper
+  static bool   inOper;
+
+  //! The label supplied by the caller
+  static string lbOper;
+
+  //! The source file containing the call
+  static string flOper;
+
+  //! The source file line number with the call
+  static int    lnOper;
+
+  //! Constructor
   BarrierWrapper(MPI_Comm comm, bool label=false);
+
+  //! Copy constructor
   BarrierWrapper(const BarrierWrapper& inst);
+
+  //! Destructor
   ~BarrierWrapper();
 
-  void operator()(const string &label);
+  void operator()(const string &label, const char* file, const int line);
   void on()  { onoff = true;  }
   void off() { onoff = false; }
 

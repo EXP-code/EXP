@@ -961,7 +961,7 @@ void pH2OT::adjustTree(unsigned mlevel)
 #endif
 
   timer_waiton0.start();   
-  (*barrier)("pH2OT: begin adjust timer");
+  (*barrier)("pH2OT: begin adjust timer", __FILE__, __LINE__);
   timer_waiton0.stop();
 
 
@@ -976,7 +976,7 @@ void pH2OT::adjustTree(unsigned mlevel)
     }
 
   timer_waiton1.start();   
-  (*barrier)("pH2OT: compute status timer");
+  (*barrier)("pH2OT: compute status timer", __FILE__, __LINE__);
   timer_waiton1.stop();
 
   //
@@ -986,7 +986,7 @@ void pH2OT::adjustTree(unsigned mlevel)
   particleExchange(exchange);
   
   timer_waiton2.start();   
-  (*barrier)("pH2OT: particle exchange timer");
+  (*barrier)("pH2OT: particle exchange timer", __FILE__, __LINE__);
   timer_waiton2.stop();
 
   //
@@ -1759,7 +1759,7 @@ void pH2OT::densCheck()
       MPI_Send(&maslev[0], MaxLev+1, MPI_DOUBLE, 0,   146, MPI_COMM_WORLD);
       MPI_Send(&vollev[0], MaxLev+1, MPI_DOUBLE, 0,   147, MPI_COMM_WORLD);
     }
-    (*barrier)("pH2OT: density check report");
+    (*barrier)("pH2OT: density check report", __FILE__, __LINE__);
   }
 
   vector<unsigned> cntlev0(MaxLev+1, 0);
@@ -1955,7 +1955,7 @@ void pH2OT::testFrontier(string& filename)
       }
     }
 
-    (*barrier)("HOT: test frontier");
+    (*barrier)("HOT: test frontier", __FILE__, __LINE__);
   }
 
   timer_schecks.stop();
@@ -2100,7 +2100,7 @@ void pH2OT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstart("pH2OT::Repartition");
   GPTLstart("pH2OT::Repartition::entrance_waiting");
-  (*barrier)("pH2OT: repartition entrance wait");
+  (*barrier)("pH2OT: repartition entrance wait", __FILE__, __LINE__);
   GPTLstop ("pH2OT::Repartition::entrance_waiting");
 #endif
 
@@ -2171,7 +2171,7 @@ void pH2OT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstop ("pH2OT::Repartition::compute_pkeys");
   GPTLstart("pH2OT::Repartition::compute_pkeys_waiting");
-  (*barrier)("pH2OT: repartition pkey wait");
+  (*barrier)("pH2OT: repartition pkey wait", __FILE__, __LINE__);
   GPTLstop ("pH2OT::Repartition::compute_pkeys_waiting");
   GPTLstart("pH2OT::spreadOOB");
 #endif
@@ -2237,7 +2237,7 @@ void pH2OT::Repartition(unsigned mlevel)
 	       << setw(15) << recvcounts[m] << endl;
 	}
       }
-      (*barrier)("pH2OT: repartition send/receive report");
+      (*barrier)("pH2OT: repartition send/receive report", __FILE__, __LINE__);
     }
   }
 				// END DEBUG OUTPUT
@@ -2265,7 +2265,7 @@ void pH2OT::Repartition(unsigned mlevel)
 	       << endl;
 	cout << "--------------------------------------------------------" << endl;
       }
-      (*barrier)("pH2OT: repartition send/receive counts");
+      (*barrier)("pH2OT: repartition send/receive counts", __FILE__, __LINE__);
     }
   }
 

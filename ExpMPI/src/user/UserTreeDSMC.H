@@ -74,7 +74,6 @@ private:
   double collfrac;
   double boxsize;
   double boxratio;
-  double jitter;
   double epsm;
   double coolfrac;
   double enhance;

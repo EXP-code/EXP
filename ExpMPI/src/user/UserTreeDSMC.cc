@@ -433,7 +433,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   double pot_time = c0->get_time_sofar();
 
 
-  barrier("TreeDSMC: after initialization");
+  barrier("TreeDSMC: after initialization", __FILE__, __LINE__);
 
 
   //
@@ -509,7 +509,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   }
 #endif
 
-  barrier("TreeDSMC: after cell computation");
+  barrier("TreeDSMC: after cell computation", __FILE__, __LINE__);
 
   //
   // Only run diagnostics every nsteps
@@ -550,14 +550,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     GPTLstart("UserTreeDSMC::repart");
 #endif
 
-    barrier("TreeDSMC: after pHOT wait");
+    barrier("TreeDSMC: after pHOT wait", __FILE__, __LINE__);
 
     partnTime.start();
     c0->Tree()->Repartition(mlevel); nrep++;
     partnSoFar = partnTime.stop();
 
     partnWait.start();
-    barrier("TreeDSMC: after repartition");
+    barrier("TreeDSMC: after repartition", __FILE__, __LINE__);
     waitpSoFar = partnWait.stop();
 
 #ifdef USE_GPTL
@@ -569,7 +569,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->makeCellLevelList();
     tree1Time.stop();
     tree1Wait.start();
-    barrier("TreeDSMC: after makeTree");
+    barrier("TreeDSMC: after makeTree", __FILE__, __LINE__);
     wait1SoFar = tree1Wait.stop();
 #ifdef USE_GPTL
     GPTLstop ("UserTreeDSMC::makeTree");
@@ -614,7 +614,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->adjustCellLevelList(mlevel);
     tcellSoFar = tcellTime.stop();
     tree2Wait.start();
-    barrier("TreeDSMC: after adjustTree");
+    barrier("TreeDSMC: after adjustTree", __FILE__, __LINE__);
     wait2SoFar = tree2Wait.stop();
 
     if (sampcel_debug) {
@@ -662,7 +662,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   collideSoFar = clldeTime.stop();
 
   clldeWait.start();
-  barrier("TreeDSMC: after collide");
+  barrier("TreeDSMC: after collide", __FILE__, __LINE__);
 
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide");
@@ -676,7 +676,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
 
 
-  barrier("TreeDSMC: before collide timestep");
+  barrier("TreeDSMC: before collide timestep", __FILE__, __LINE__);
 
   tstepTime.start();
   if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
@@ -779,7 +779,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       }
     }
 
-    barrier("TreeDSMC: after mfp stats");
+    barrier("TreeDSMC: after mfp stats", __FILE__, __LINE__);
 
 				// Overall statistics
 				// 
@@ -812,7 +812,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     double cmass1=0.0, cmass=0.0;
     pHOT_iterator pit(*(c0->Tree()));
 
-    barrier("TreeDSMC: checkAdjust");
+    barrier("TreeDSMC: checkAdjust", __FILE__, __LINE__);
 
     while (pit.nextCell()) {
       pCell *cc = pit.Cell();
@@ -1268,7 +1268,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->checkSampleCells(sout.str().c_str());
   }
 
-  barrier("TreeDSMC: after collision diags");
+  barrier("TreeDSMC: after collision diags", __FILE__, __LINE__);
 
 				// Remake level lists because particles
 				// will (usually) have been exchanged 
@@ -1294,7 +1294,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // triggered_cell_body_dump(0.01, 0.002);
   // TempHisto();
 
-  barrier("TreeDSMC: end of accel routine");
+  barrier("TreeDSMC: end of accel routine", __FILE__, __LINE__);
 
 }
 

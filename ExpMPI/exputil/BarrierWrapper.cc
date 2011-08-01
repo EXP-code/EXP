@@ -1,20 +1,34 @@
 #include <BarrierWrapper.H>
 
-int BarrierWrapper::cbufsz = 128;
+// The next four are all for debugging backtraces
+//
+				// true while control is in the wrapper
+bool   BarrierWrapper::inOper  = false;	
+				// the label supplied to this process
+string BarrierWrapper::lbOper;
+				// the source file name with the call
+string BarrierWrapper::flOper;
+				// the source file line number
+int    BarrierWrapper::lnOper;
+
+// Buffer size for checking working labels
+//
+int    BarrierWrapper::cbufsz = 128;
 
 BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
 {
-  comm = communicator;
+  comm        = communicator;
   check_label = label;
 
   MPI_Comm_size(comm, &commsize);
   MPI_Comm_rank(comm, &localid);
 
-  buffer = new char [cbufsz];
-  bufferT = 0;
-  if (localid==0) bufferT = new char [cbufsz*commsize];
+  buffer      = new char [cbufsz];
+  bufferT     = 0;
+  if (localid==0) 
+    bufferT   = new char [cbufsz*commsize];
   timer.Microseconds();
-  onoff = true;
+  onoff       = true;
 }
 
 BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
@@ -25,26 +39,32 @@ BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
   localid     = p.localid;
   onoff       = p.onoff;
 
-  buffer = new char [cbufsz];
-  bufferT = 0;
-  // if (localid==0) bufferT = new char [cbufsz*commsize];
-  bufferT = new char [cbufsz*commsize];
+  buffer      = new char [cbufsz];
+  bufferT     = 0;
+  if (localid==0) 
+    bufferT   = new char [cbufsz*commsize];
   timer.Microseconds();
 }
 
 BarrierWrapper::~BarrierWrapper()
 {
   delete [] buffer;
-  // if (localid==0) delete [] bufferT;
   delete [] bufferT;
 }
 
-void BarrierWrapper::operator()(const string& label)
+void BarrierWrapper::operator()(const string& label, 
+				const char* file, const int line)
 {
   if (!onoff) return;
 
+  // Set the global debug info
+  //
+  inOper = true;
+  lbOper = label;
+  flOper = string(file);
+  lnOper = line;
+
   timer.start();
-  // MPI_Barrier(comm);
 
   if (check_label) {
 				// Copy the label to the send buffer
@@ -84,4 +104,9 @@ void BarrierWrapper::operator()(const string& label)
   }
 
   timer.stop();
+
+  // Reset the global debug info
+  //
+  inOper = false;
+
 }

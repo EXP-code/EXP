@@ -466,7 +466,7 @@ void pHOT::makeTree()
       }
       for (int i=0; i<numprocs; i++) {
 	if (myid==i) cout << setw(4) << i << setw(15) << cc->Particles().size() << endl;
-	(*barrier)("pHOT: body count report");
+	(*barrier)("pHOT: body count report", __FILE__, __LINE__);
       }
       if (myid==0) 
 	cout << setfill('-') << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ');
@@ -779,7 +779,7 @@ void pHOT::densCheck()
       MPI_Send(&maslev[0], MaxLev+1, MPI_DOUBLE, 0,   146, MPI_COMM_WORLD);
       MPI_Send(&vollev[0], MaxLev+1, MPI_DOUBLE, 0,   147, MPI_COMM_WORLD);
     }
-    (*barrier)("pHOT: density check report");
+    (*barrier)("pHOT: density check report", __FILE__, __LINE__);
   }
 
   vector<unsigned> cntlev0(MaxLev+1, 0);
@@ -898,7 +898,7 @@ void pHOT::dumpFrontier()
 	cnt++;
       }
     }
-    (*barrier)("pHOT: dump frontier");
+    (*barrier)("pHOT: dump frontier", __FILE__, __LINE__);
   }
 
   unsigned sum0=0, cnt0=0;
@@ -1106,7 +1106,7 @@ void pHOT::testFrontier(string& filename)
       }
     }
 
-    (*barrier)("HOT: test frontier");
+    (*barrier)("HOT: test frontier", __FILE__, __LINE__);
   }
 
   timer_diagdbg.stop();
@@ -1694,7 +1694,7 @@ void pHOT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstart("pHOT::Repartition");
   GPTLstart("pHOT::Repartition::entrance_waiting");
-  (*barrier)("pHOT: repartition entrance wait");
+  (*barrier)("pHOT: repartition entrance wait", __FILE__, __LINE__);
   GPTLstop ("pHOT::Repartition::entrance_waiting");
 #endif
 
@@ -1766,7 +1766,7 @@ void pHOT::Repartition(unsigned mlevel)
 #ifdef USE_GPTL
   GPTLstop ("pHOT::Repartition::compute_keys");
   GPTLstart("pHOT::Repartition::compute_keys_waiting");
-  (*barrier)("pHOT: repartition key wait");
+  (*barrier)("pHOT: repartition key wait", __FILE__, __LINE__);
   GPTLstop ("pHOT::Repartition::compute_keys_waiting");
   GPTLstart("pHOT::Repartition::spreadOOB");
 #endif
@@ -1870,7 +1870,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       << setw(15) << recvcounts[m] << endl;
 	}
       }
-      (*barrier)("pHOT: repartition send/receive report");
+      (*barrier)("pHOT: repartition send/receive report", __FILE__, __LINE__);
     }
 
     timer_diagdbg.stop();
@@ -1908,7 +1908,7 @@ void pHOT::Repartition(unsigned mlevel)
 	       << endl;
 	cout << "--------------------------------------------------------" << endl;
       }
-      (*barrier)("pHOT: repartition send/receive counts");
+      (*barrier)("pHOT: repartition send/receive counts", __FILE__, __LINE__);
     }
     timer_diagdbg.stop();
   }
@@ -2295,7 +2295,7 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Barrier to make sure that the timer
 				// gives a sensible measurement of key time
   timer_waiton0.start();   
-  (*barrier)("pHOT: repartition key timer [0]");
+  (*barrier)("pHOT: repartition key timer [0]", __FILE__, __LINE__);
   timer_waiton0.stop();
 
   timer_tadjust.start();
@@ -2362,7 +2362,7 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Barrier to make sure that the timer
 				// gives a sensible measurement of key time
   timer_waiton1.start();   
-  (*barrier)("pHOT: repartition key timer [1]");
+  (*barrier)("pHOT: repartition key timer [1]", __FILE__, __LINE__);
   timer_waiton1.stop();
 
   //
@@ -2504,7 +2504,7 @@ void pHOT::adjustTree(unsigned mlevel)
 				// Barrier to make sure that the timer
 				// gives a sensible measurement of key time
   timer_waiton2.start();   
-  (*barrier)("pHOT: repartition key timer [2]");
+  (*barrier)("pHOT: repartition key timer [2]", __FILE__, __LINE__);
   timer_waiton2.stop();
 
   timer_cupdate.start();
@@ -3246,7 +3246,7 @@ void pHOT::checkIndices()
       MPI_Send(&icnt, 1, MPI_UNSIGNED, 0, 392, MPI_COMM_WORLD);
       MPI_Send(&indices[0], icnt, MPI_UNSIGNED, 0, 393, MPI_COMM_WORLD);
     }
-    (*barrier)("pHOT: check indicies");
+    (*barrier)("pHOT: check indicies", __FILE__, __LINE__);
   }
 
   if (myid==0) {
@@ -3794,7 +3794,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	    << endl;
       }
 
-      (*barrier)("pHOT: partitionKeys debug 1");
+      (*barrier)("pHOT: partitionKeys debug 1", __FILE__, __LINE__);
     }
     if (myid==0) {
       ofstream out(debugf.c_str(), ios::app);
@@ -3848,7 +3848,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	      << endl;
 	}
       }
-      (*barrier)("pHOT: partitionKeys debug 2");
+      (*barrier)("pHOT: partitionKeys debug 2", __FILE__, __LINE__);
     }
 
     if (myid==0) {
@@ -3905,7 +3905,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 	  out << left << setw(cwid) << sout.str() << flush;
 	  if (n % cols == cols-1 || n == numprocs-1) out << endl;
 	}
-	(*barrier)("pHOT: partitionKeys debug 3");
+	(*barrier)("pHOT: partitionKeys debug 3", __FILE__, __LINE__);
       }
     }
 
@@ -3918,9 +3918,9 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 				// entire key list
 
 				// <keylist1> is (and must be) sorted to start
-  (*barrier)("pHOT: partitionKeys before pMerge");
+  (*barrier)("pHOT: partitionKeys before pMerge", __FILE__, __LINE__);
   parallelMerge(keylist1, keylist);
-  (*barrier)("pHOT: partitionKeys after pMerge");
+  (*barrier)("pHOT: partitionKeys after pMerge", __FILE__, __LINE__);
 
   MPI_Barrier(MPI_COMM_WORLD);
 

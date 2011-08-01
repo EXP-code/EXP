@@ -11,6 +11,7 @@ ExpMPI/exputil/Interp1d.cc -text
 ExpMPI/exputil/ProgramParam.cc -text
 ExpMPI/exputil/eigencc.cc -text
 ExpMPI/exputil/int128.cc -text
+ExpMPI/exputil/stack.cc -text
 ExpMPI/exputil/toomre.cc -text
 ExpMPI/exputil/uint128.cc -text
 ExpMPI/include/BarrierWrapper.H -text

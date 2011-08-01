@@ -646,6 +646,8 @@ void HeatCool::setPoint(double N, double T)
 
 double HeatCool::CoolRate(double N, double T)
 {
+  if (T<Tmin) return 0.0;
+
   if (!table) {
     compute(N, T);
     return crate;

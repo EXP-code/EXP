@@ -35,7 +35,9 @@ const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 				// Hydrogen fraction
 const double f_H = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.05;
+const double rfac = 0.01;
+				// Minimum kinetic temperature for cooling
+const double Tlow = 100.0;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -133,6 +135,9 @@ void CollideLTE::initialize_cell(pCell* cell,
   double Volume  = volumeC * pow(UserTreeDSMC::Lunit, 3);
   double Density = Mass/Volume;
   double n0      = Density/mp;
+  double T0      = T;
+  double h0      = 0.0;
+
 				// Volume in real cell
   double CellVolume = volumeC * pow(UserTreeDSMC::Lunit, 3);
 
@@ -181,7 +186,7 @@ void CollideLTE::initialize_cell(pCell* cell,
 
   // Total energy lost (for both collisions and EPSM)
   //
-  if (NOCOOL || n0<=0.0 || T<=0.0)
+  if (NOCOOL || n0<=0.0 || T<=Tlow)
     coolheat[id] = 0.0;
   else {
 				// Convert to energy rate in system units
@@ -194,7 +199,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     if (ESOL) {
 				// Instantaneous loss rate
       double h = tau*cell->Mass()*KEdspS/(coolheat[id]+DBL_MIN);
-      h = rfac * min<double>(tau, h);
+      h0 = h = rfac * min<double>(tau, h);
 
 				// Energy to temperature
       double Tfac = 3.0*UserTreeDSMC::Munit/UserTreeDSMC::Eunit/2.0 *
@@ -226,14 +231,9 @@ void CollideLTE::initialize_cell(pCell* cell,
 	icnt++;
 #endif
       }
-
-#ifdef DEBUG
-      double T0=T;
-#endif
 				// Sanity: failure of explicit solution
       if (isnan(E)) E = E0;
       E = max<double>(E, 3.0*Tfac);
-
 				// Final energy per unit mass in the cell
       KEdspF = E/cell->Mass();
 				// Effective final temperature
@@ -281,7 +281,13 @@ void CollideLTE::initialize_cell(pCell* cell,
   }
 
   if (fabs((KEdspS - KEdspF)/KEdspS)>1.0) {
-    cout << "deltaE/E=" << (KEdspS - KEdspF)/KEdspS << ", above 1" << endl;
+    cout << "|deltaE/E|=" << (KEdspS - KEdspF)/KEdspS << " > 1"
+	 << ", T=" << T << ", T0=" << T0 << ", h=" << h0 << ", tau=" << tau
+	 << ", KEdspS=" << KEdspS << ", KEdspF=" << KEdspF << endl;
+  } else if ( (KEdspS - KEdspF)/KEdspS < -0.05 ) {
+    cout << " deltaE/E =" << (KEdspS - KEdspF)/KEdspS << " < -0.05"
+	 << ", T=" << T << ", T0=" << T0 << ", h=" << h0 << ", tau=" << tau
+	 << ", KEdspS=" << KEdspS << ", KEdspF=" << KEdspF << endl;
   }
 
   if (frost_warning && T<1000.0) {
