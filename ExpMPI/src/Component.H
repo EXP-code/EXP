@@ -177,7 +177,7 @@ private:
   void load_balance(void);
 
 
-  bool seq_check, ordered;
+  bool seq_check, ordered, indexing;
   int seq_beg, seq_end, seq_cur;
 
 				// Used in computing target rates for

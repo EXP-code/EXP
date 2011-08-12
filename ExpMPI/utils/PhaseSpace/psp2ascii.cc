@@ -26,6 +26,7 @@ using namespace std;
 int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
+string outdir, runtag;
 
 //-------------
 // Help message

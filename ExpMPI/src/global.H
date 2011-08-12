@@ -88,6 +88,8 @@ extern int posnsync;
 //@{
 //! Use old (original) timestep criteria
 extern bool DTold;
+//! Scale coefficient (default: 1.00)
+extern double dynfracS;
 //! Velocity coefficient (default: 0.01)
 extern double dynfracV;
 //! Acceleration coefficient (default: 0.03)

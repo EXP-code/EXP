@@ -13,31 +13,31 @@
 using namespace std;
 
 				// Proton mass (g)
-const double mp = 1.67262158e-24;
+const double mp      = 1.67262158e-24;
 				// Electron mass (g)
-const double me =  9.1094e-28;
+const double me      =  9.1094e-28;
 				// Speed of light (cm/s)
-const double c =  2.99792458e+10;
+const double c       =  2.99792458e+10;
 				// electron volt in (cgs)
-const double eV =  1.6020e-12;
+const double eV      =  1.6020e-12;
 				// Boltzmann constant (cgs)
-const double boltz = 1.3810e-16;
+const double boltz   = 1.3810e-16;
 				// Planck's constant (cgs)
 const double planck  = 6.6262e-27;
 				// Electron charge (cgs)
-const double esu = 4.8032e-10;
+const double esu     = 4.8032e-10;
 				// Bohr radius
-const double a0 = planck*planck/(4.0*M_PI*M_PI*me*esu*esu);
+const double a0      = planck*planck/(4.0*M_PI*M_PI*me*esu*esu);
 
 				// Neutral Hydrogen binding energy
-const double E1 = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
+const double E1      = 2.0*M_PI*M_PI*me*pow(esu, 4.0)/(planck*planck);
 
 				// Hydrogen fraction
-const double f_H = 0.76;
+const double f_H     = 0.76;
 				// Time step control for energy solution
-const double rfac = 0.01;
+const double rfac    = 0.01;
 				// Minimum kinetic temperature for cooling
-const double Tlow = 100.0;
+const double Tlow    = 100.0;
 
 				// Default global class parameters
 double   CollideLTE::Nmin    = 1.0e-08;
@@ -361,7 +361,7 @@ void CollideLTE::initialize_cell(pCell* cell,
     tcoolT[id][indx]++;
 
 				// Assign per body time step requests
-    // set<unsigned long>::iterator j;
+
     vector<unsigned long>::iterator j;
     for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
       if (*j == 0) {

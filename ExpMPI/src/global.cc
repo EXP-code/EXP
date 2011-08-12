@@ -63,6 +63,7 @@ unsigned multistep = 0;
 int centerlevl = -1;
 bool posnsync = true;
 bool DTold = false;
+double dynfracS = 1.00;
 double dynfracV = 0.01;
 double dynfracA = 0.03;
 int Mstep = 0;

@@ -115,7 +115,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Eunit = Munit*Vunit*Vunit;
 
 				// Diameter*Bohr radius in Lunits
-  diam = diamfac*a0/(Lunit);
+  diam = diamfac*2.0*a0/(Lunit);
 				// Number of protons per mass unit
   collfrac = Munit/mp;
 
@@ -252,7 +252,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::DRYRUN  = dryrun;
   Collide::NOCOOL  = nocool;
   Collide::TSDIAG  = tsdiag;
-  Collide::VOLDIAG  = voldiag;
+  Collide::VOLDIAG = voldiag;
   Collide::TSPOW   = tspow;
   Collide::MFPDIAG = mfpstat;
   Collide::EFFORT  = use_effort;
@@ -744,10 +744,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 				// Write a new file
 	ofstream out(filen.c_str());
 	if (out) {
-	  out << left
-	      << setw(14) << "# Time"
+	  out << "# " << right
+	      << setw(12) << "Time"
 	      << setw(14) << "Quantiles" 
-	      << setw(14) << "Bodies"
+	      << setw(14) << "Cells"
 	      << setw(14) << "MFP/size"
 	      << setw(14) << "Flight/size"
 	      << setw(14) << "Collions/cell"

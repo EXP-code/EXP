@@ -85,6 +85,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   covI       = 0;
 
   seq_check  = false;
+  indexing   = false;
 
   nlevel     = -1;
 
@@ -489,7 +490,10 @@ void Component::initialize(void)
     
     if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
 
+    if (!datum.first.compare("indexing")) indexing = atoi(datum.second.c_str()) ? true : false;
+
     if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
+
 
 
 				// Next parameter
@@ -1092,6 +1096,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 void Component::get_next_particle_from_file(Particle* part, istream *in)
 {
+  if (indexing) in->read((char *)&(part->indx), sizeof(unsigned long));
   in->read((char *)&(part->mass), sizeof(double));
   for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
   for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
@@ -1539,7 +1544,7 @@ void Component::write_binary(ostream* out)
 
   if (myid == 0) {
 
-    header.nbod = nbodies_tot;
+    header.nbod  = nbodies_tot;
     header.niatr = niattrib;
     header.ndatr = ndattrib;
   
@@ -1561,26 +1566,29 @@ void Component::write_binary(ostream* out)
   while (p) {
 
     if (myid == 0) {
-
+      
       for (int k=0; k<number; k++) {
-	out->write((char *)&(p[k].mass), sizeof(double));
+	if (indexing) 
+	  out->write((const char *)&(p[k].indx), sizeof(unsigned long));
+
+	out->write((const char *)&(p[k].mass), sizeof(double));
 
 	for (int i=0; i<3; i++) {
 	  pv = p[k].pos[i] + com0[i] - comI[i];
-	  out->write((char *)&pv, sizeof(double));
+	  out->write((const char *)&pv, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
 	  pv = p[k].vel[i] + cov0[i] - covI[i];
-	  out->write((char *)&pv, sizeof(double));
+	  out->write((const char *)&pv, sizeof(double));
 	}
 
 	pot0 = p[k].pot + p[k].potext;
-	out->write((char *)&pot0, sizeof(double));
+	out->write((const char *)&pot0, sizeof(double));
 
 	for (int i=0; i<header.niatr; i++) 
-	  out->write((char *)&(p[k].iattrib[i]), sizeof(int));
+	  out->write((const char *)&(p[k].iattrib[i]), sizeof(int));
 	for (int i=0; i<header.ndatr; i++) 
-	  out->write((char *)&(p[k].dattrib[i]), sizeof(double));
+	  out->write((const char *)&(p[k].dattrib[i]), sizeof(double));
       }
 
     }
@@ -1603,6 +1611,7 @@ void Component::write_ascii(ostream* out, bool accel)
     if (myid == 0) {
 
       for (int k=0; k<number; k++) {
+	if (indexing) *out << setw(12) << p[k].indx;
 	*out << setw(18) << p[k].mass;
 	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i]+com0[i]-comI[i];
 	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i]-covI[i];

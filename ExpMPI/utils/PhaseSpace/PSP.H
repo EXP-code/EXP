@@ -22,6 +22,7 @@ struct PSPstanza
   int nbod;
   int niatr;
   int ndatr;
+  size_t index_size;
 };
   
 class SParticle 
@@ -31,8 +32,9 @@ public:
   double pos[3];
   double vel[3];
   double phi;
-  vector<int> iatr;
+  vector<int>    iatr;
   vector<double> datr;
+  unsigned long  indx;
 };
 
 class Dump 

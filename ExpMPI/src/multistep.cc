@@ -98,7 +98,7 @@ void * adjust_multistep_level_thread(void *ptr)
       atot = sqrt(atot) + 1.0e-18;
 
       dsr = c->Part(n)->scale;
-      if (dsr>0) dts = dynfracV*dsr/vtot;
+      if (dsr>0) dts = dynfracS*dsr/vtot;
       else       dts = 1.0/eps;
 
       dtv = dynfracV*rtot/vtot;
@@ -107,9 +107,9 @@ void * adjust_multistep_level_thread(void *ptr)
 
     } else {
 
-      // dtv = eps* min(v_i/a_i)  -- largest force scale
+      // dtv = eps* min(v_i/a_i)  -- char. force time scale
       // dta = eps* phi/(v * a)   -- char. work time scale
-      // dtA = eps* sqrt(phi/a)   -- char."escape" time
+      // dtA = eps* sqrt(phi/a)   -- char. "escape" time scale
 
 
       dtv  = 1.0/eps;
@@ -128,7 +128,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
 
       dsr = c->Part(n)->scale;
-      if (dsr>0) dts = dynfracV*dsr/fabs(sqrt(vtot)+eps);
+      if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
       dtv = dynfracV*dtv;

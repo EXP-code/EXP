@@ -646,8 +646,7 @@ void * Collide::collide_thread(void * arg)
 
     // Fiducial cross section
     //
-    diam = diam0;
-    double cross  = M_PI*diam*diam;
+    double cross  = M_PI*diam0*diam0;
 
     // Determine cross section based on fixed number of collisions
     //
@@ -2297,7 +2296,6 @@ void * Collide::timestep_thread(void * arg)
     nbods = c->bods.size();
     L = c->Scale();
     
-    // for (set<unsigned long>::iterator 
     for (vector<unsigned long>::iterator 
 	   i=c->bods.begin(); i!=c->bods.end(); i++) {
 				// Current particle

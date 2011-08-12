@@ -334,6 +334,7 @@ pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
+string outdir, runtag;
   
 double DiskDens(double R, double z, double phi)
 {

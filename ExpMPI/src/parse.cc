@@ -58,8 +58,8 @@ void initialize(void)
   if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());
   if (parse->find_item("centerlevl", val))	centerlevl = atoi(val.c_str());
 
+  if (parse->find_item("dynfracS", val))	dynfracS = atof(val.c_str());
   if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
-
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
 
   if (parse->find_item("DTold", val)) {
@@ -206,6 +206,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "centerlevl" << " = " << centerlevl  << endl;
   out << comment << " " << "posnsync"   << " = " << posnsync    << endl;
   out << comment << " " << "DTold"      << " = " << DTold       << endl;
+  out << comment << " " << "dynfracS"   << " = " << dynfracS    << endl;
   out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
   out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
 

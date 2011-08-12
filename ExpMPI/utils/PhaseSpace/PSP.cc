@@ -53,6 +53,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
     for (int i=0; i<dump.header.ncomp; i++) {
 
+      bool indexing = false;
       PSPstanza stanza;
       stanza.pos = in->tellg();
       
@@ -92,10 +93,33 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 	stanza.cparam = "";
       }
       */
+				// Check for indexing
+				// -------------------
+      size_t pos1 = stanza.cparam.find("indexing");
+      size_t len  = string::npos;
+      if (pos1 != string::npos) {
+	// Look for equals sign
+	size_t pos2 = stanza.cparam.find("=", pos1);
+
+				// No equals sign?!!
+	if (pos2 == string::npos) {
+	  cerr << "Bad syntax in component parameter string" << endl;
+	  exit(-1);
+	}
+
+	// Look for field delimiter
+	size_t pos3 = stanza.cparam.find(",", pos2);
+	if (pos3 != string::npos) pos3 -= pos2+1;
+
+	if (atoi(stanza.cparam.substr(pos2+1, pos3).c_str()))
+	  stanza.index_size = sizeof(unsigned long);
+	else
+	  stanza.index_size = 0;
+      }
 				// Strip of the tipsy type
       StringTok<string> tipsytype(stanza.name);
       stanza.ttype = trimLeft(trimRight(tipsytype(" ")));
-      stanza.nbod = headerC.nbod;
+      stanza.nbod  = headerC.nbod;
       stanza.niatr = headerC.niatr;
       stanza.ndatr = headerC.ndatr;
 
@@ -103,7 +127,8 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 				// Skip forward to next header
 				// ---------------------------
       try {
-	in->seekg(headerC.nbod*(8*sizeof(double)             + 
+	in->seekg(headerC.nbod*(stanza.index_size            +
+				8*sizeof(double)             + 
 				headerC.niatr*sizeof(int)    +
 				headerC.ndatr*sizeof(double)
 				), ios::cur);
@@ -138,12 +163,12 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 	}
 	if (!stanza.ttype.compare("dark")) {
 	  dump.ndark += stanza.nbod;
-	  dump.ntot += stanza.nbod;
+	  dump.ntot  += stanza.nbod;
 	  dump.dark.push_back(stanza);
 	}
 	if (!stanza.ttype.compare("star")) {
 	  dump.nstar += stanza.nbod;
-	  dump.ntot += stanza.nbod;
+	  dump.ntot  += stanza.nbod;
 	  dump.star.push_back(stanza);
 	}
       }
@@ -377,6 +402,8 @@ SParticle *PSPDump::NextParticle(istream* in)
 
 				// Read partcle
   if (pcount < spos->nbod) {
+    if (spos->index_size) in->read((char *)&part.indx, sizeof(unsigned long));
+
     in->read((char *)&part.mass, sizeof(double));
     for (int i=0; i<3; i++) in->read((char *)&part.pos[i], sizeof(double));
     for (int i=0; i<3; i++) in->read((char *)&part.vel[i], sizeof(double));
