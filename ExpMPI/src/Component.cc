@@ -1096,14 +1096,19 @@ void Component::read_bodies_and_distribute_ascii(void)
 
 void Component::get_next_particle_from_file(Particle* part, istream *in)
 {
-  if (indexing) in->read((char *)&(part->indx), sizeof(unsigned long));
+  ++seq_cur;
+
+ if (indexing) 
+    in->read((char *)&(part->indx), sizeof(unsigned long));
+  else
+    part->indx = seq_cur;
+
   in->read((char *)&(part->mass), sizeof(double));
   for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
   for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
   in->read((char *)&(part->pot), sizeof(double));
   part->potext = 0.0;
   part->level = multistep;
-  part->indx = ++seq_cur;
   for (int i=0; i<niattrib; i++) 
     in->read((char *)&(part->iattrib[i]), sizeof(int));
   for (int i=0; i<ndattrib; i++) 
@@ -1129,9 +1134,10 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     }
 
     nbodies_tot = header.nbod;
-    niattrib = header.niatr;
-    ndattrib = header.ndatr;
-    ninfochar = header.ninfochar;
+    niattrib    = header.niatr;
+    ndattrib    = header.ndatr;
+    ninfochar   = header.ninfochar;
+
     info = new char [ninfochar+1];
     memcpy(info, header.info, ninfochar);
     info[ninfochar] = '\0';
@@ -1140,9 +1146,9 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&niattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ndattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ninfochar, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&niattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
   if (myid) info = new char [ninfochar+1];
   MPI_Bcast(info, ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
@@ -1169,8 +1175,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Parse info field to get 
 				// id and parameter strings
   StringTok<string> tokens(info);
-  name = trimLeft(trimRight(tokens(":")));
-  id = trimLeft(trimRight(tokens(":")));
+  name   = trimLeft(trimRight(tokens(":")));
+  id     = trimLeft(trimRight(tokens(":")));
   cparam = trimLeft(trimRight(tokens(":")));
   fparam = trimLeft(trimRight(tokens(":")));
 
@@ -1225,7 +1231,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       rmax1 = max<double>(r2, rmax1);
 
 				// Load the particle
-      part.indx = ++ipart;
       particles[part.indx] = part;
     }
 

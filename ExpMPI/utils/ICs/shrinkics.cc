@@ -14,6 +14,7 @@
 int myid = 0;
 char threading_on = 0;
 pthread_mutex_t mem_lock;
+std::string outdir, runtag;
 
 using namespace std;
 

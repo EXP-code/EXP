@@ -11,6 +11,7 @@
 
 char threading_on = 0;
 pthread_mutex_t mem_lock;
+string outdir, runtag;
 
 
 //===========================================================================

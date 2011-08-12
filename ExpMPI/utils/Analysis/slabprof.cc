@@ -64,6 +64,7 @@ pthread_mutex_t coef_lock;
 double tpos = 0.0;
 double tnow = 0.0;
 int myid = 0;  
+string outdir, runtag;
 //
 //=============================================================================
 // Option database

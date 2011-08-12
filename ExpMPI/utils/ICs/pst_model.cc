@@ -32,7 +32,7 @@
 
 #include "localmpi.h"
 void local_init_mpi(int argc, char **argv);
-
+string outdir, runtag;
 
 /*
   Param 0: r_max

@@ -53,7 +53,6 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
     for (int i=0; i<dump.header.ncomp; i++) {
 
-      bool indexing = false;
       PSPstanza stanza;
       stanza.pos = in->tellg();
       
@@ -96,7 +95,6 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 				// Check for indexing
 				// -------------------
       size_t pos1 = stanza.cparam.find("indexing");
-      size_t len  = string::npos;
       if (pos1 != string::npos) {
 	// Look for equals sign
 	size_t pos2 = stanza.cparam.find("=", pos1);
@@ -402,7 +400,10 @@ SParticle *PSPDump::NextParticle(istream* in)
 
 				// Read partcle
   if (pcount < spos->nbod) {
-    if (spos->index_size) in->read((char *)&part.indx, sizeof(unsigned long));
+    if (spos->index_size) 
+      in->read((char *)&part.indx, sizeof(unsigned long));
+    else
+      part.indx = pcount;
 
     in->read((char *)&part.mass, sizeof(double));
     for (int i=0; i<3; i++) in->read((char *)&part.pos[i], sizeof(double));

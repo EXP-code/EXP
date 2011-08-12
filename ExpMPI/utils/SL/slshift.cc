@@ -94,6 +94,8 @@ void assign_values()
 				// so one can link to exp libraries
 char threading_on = 0;
 pthread_mutex_t mem_lock;
+string outdir, runtag;
+
 
 //===========================================================================
 
