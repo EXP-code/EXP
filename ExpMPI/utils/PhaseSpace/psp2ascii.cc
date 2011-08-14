@@ -125,6 +125,7 @@ main(int argc, char **argv)
 
   
   list<PSPstanza>::iterator its;
+  unsigned long ltmp;
   double rtmp;
   int itmp;
 
@@ -156,6 +157,10 @@ main(int argc, char **argv)
     in->seekg(its->pspos);
 
     for (int j=0; j<its->nbod; j++) {
+      if (its->index_size) {
+	in->read((char *)&ltmp, sizeof(unsigned long));
+	out << setw(14) << ltmp;
+      }
       in->read((char *)&rtmp, sizeof(double));
       out << setw(20) << rtmp;
       for (int i=0; i<3; i++) {

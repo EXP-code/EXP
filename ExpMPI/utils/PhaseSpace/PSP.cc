@@ -83,6 +83,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       stanza.id = trimLeft(trimRight(tokens(":")));
       stanza.cparam = trimLeft(trimRight(tokens(":")));
       stanza.fparam = trimLeft(trimRight(tokens(":")));
+      stanza.index_size = 0;
 
 				// Check for old style
 				// -------------------
@@ -111,8 +112,6 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
 	if (atoi(stanza.cparam.substr(pos2+1, pos3).c_str()))
 	  stanza.index_size = sizeof(unsigned long);
-	else
-	  stanza.index_size = 0;
       }
 				// Strip of the tipsy type
       StringTok<string> tipsytype(stanza.name);
@@ -140,7 +139,9 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
       if (!*in) {
 	cerr << "IO error: can't find next header for time="
-	     << dump.header.time << " . . . quit reading file (corrupted?)" 
+	     << dump.header.time 
+	     << ", stanza.index_size=" << stanza.index_size
+	     << " . . . quit reading file (corrupted?)" 
 	     << endl;
 	ok = false;
 	break;

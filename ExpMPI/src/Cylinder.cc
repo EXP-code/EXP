@@ -81,6 +81,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   hallfreq    = 50;
   self_consistent = true;
   expcond     = true;
+  cmap        = true;
   logarithmic = false;
   selector    = false;
   density     = false;
@@ -95,7 +96,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   EmpCylSL::NUMX        = ncylnx;
   EmpCylSL::NUMY        = ncylny;
   EmpCylSL::NUMR        = ncylr;
-  EmpCylSL::CMAP        = true;	// Always use coordinate mapping!
+  EmpCylSL::CMAP        = cmap;
   EmpCylSL::logarithmic = logarithmic;
   EmpCylSL::CACHEFILE   = outdir + ".eof.cache." + runtag;
   EmpCylSL::VFLAG       = vflag;
@@ -262,6 +263,10 @@ void Cylinder::initialize()
   if (get_value("density", val)) {
     if (atoi(val.c_str())) density = true; 
     else density = false;
+  }
+  if (get_value("cmap", val)) {
+    if (atoi(val.c_str())) cmap = true; 
+    else cmap = false;
   }
 }
 

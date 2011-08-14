@@ -39,7 +39,8 @@ private:
   double hcyl;
   int ncylorder, ncylrecomp, hallfreq;
   string hallfile;
-  bool self_consistent, logarithmic, density, selector, try_cache, firstime;
+  bool self_consistent, logarithmic, density, selector;
+  bool cmap, try_cache, firstime;
 
   // These should be ok for all derived classes, hence declared private
 
