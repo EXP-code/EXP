@@ -60,18 +60,18 @@ private:
   void initialize(void);
   bool firstime;
 
-  vector<int> nbodies, nbodies1;
-  vector<int> used0;
-  vector<double> mtot, mtot1;
+  vector<int>     nbodies, nbodies1;
+  vector<int>     used, used1;
+  vector<double>  mtot, mtot1;
   vector<dvector> com, com1;
   vector<dvector> cov, cov1;
   vector<dvector> angm, angm1;
   vector<dvector> ctr;
-  vector<double> ektot, eptot, eptotx, clausius;
-  vector<double> ektot1, eptot1, eptotx1, clausius1;
+  vector<double>  ektot, eptot, eptotx, clausius;
+  vector<double>  ektot1, eptot1, eptotx1, clausius1;
 
-  vector<double> com0, cov0, angmG, angm0, pos0, vel0;
-  vector<double> comG, covG, comL, covL, posL, velL;
+  vector<double>  com0, cov0, angmG, angm0, pos0, vel0;
+  vector<double>  comG, covG, comL, covL, posL, velL;
 
 public:
 

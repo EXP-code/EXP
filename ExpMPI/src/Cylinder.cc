@@ -723,7 +723,7 @@ void * Cylinder::determine_acceleration_and_potential_thread(void * arg)
   const double midpt = ratmin + 0.5*(1.0 - ratmin);
   const double rsmth = 0.5*(1.0 - ratmin)/maxerf;
 
-  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor;
+  double R2 = rcylmax*rcylmax*acyl*acyl, ratio, frac, cfrac, mfactor = 1.0;
 
   vector<double> ctr;
   if (mix) mix->getCenter(ctr);

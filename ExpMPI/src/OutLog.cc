@@ -103,55 +103,56 @@ void OutLog::Run(int n, bool last)
 
     firstime = false;
 
-    nbodies = vector<int>(comp.ncomp);
+    nbodies  = vector<int>(comp.ncomp);
     nbodies1 = vector<int>(comp.ncomp);
 
-    used0 = vector<int>(comp.ncomp);
+    used     = vector<int>(comp.ncomp);
+    used1    = vector<int>(comp.ncomp);
 
-    mtot = vector<double>(comp.ncomp);
-    mtot1 = vector<double>(comp.ncomp);
+    mtot     = vector<double>(comp.ncomp);
+    mtot1    = vector<double>(comp.ncomp);
 
-    com = vector<dvector>(comp.ncomp);
-    com1 = vector<dvector>(comp.ncomp);
+    com      = vector<dvector>(comp.ncomp);
+    com1     = vector<dvector>(comp.ncomp);
 
-    cov = vector<dvector>(comp.ncomp);
-    cov1 = vector<dvector>(comp.ncomp);
+    cov      = vector<dvector>(comp.ncomp);
+    cov1     = vector<dvector>(comp.ncomp);
 
-    angm = vector<dvector>(comp.ncomp);
-    angm1 = vector<dvector>(comp.ncomp);
+    angm     = vector<dvector>(comp.ncomp);
+    angm1    = vector<dvector>(comp.ncomp);
 
     ctr = vector<dvector>(comp.ncomp);
 
     for (int i=0; i<comp.ncomp; i++) {
-      com[i] = vector<double>(3);
-      com1[i] = vector<double>(3);
-      cov[i] = vector<double>(3);
-      cov1[i] = vector<double>(3);
-      angm[i] = vector<double>(3);
-      angm1[i] = vector<double>(3);
-      ctr[i] = vector<double>(3);
+      com   [i] = vector<double>(3);
+      com1  [i] = vector<double>(3);
+      cov   [i] = vector<double>(3);
+      cov1  [i] = vector<double>(3);
+      angm  [i] = vector<double>(3);
+      angm1 [i] = vector<double>(3);
+      ctr   [i] = vector<double>(3);
     }
 
-    com0 = vector<double>(3);
-    cov0 = vector<double>(3);
-    angmG = vector<double>(3);
-    angm0 = vector<double>(3);
-    pos0 = vector<double>(3);
-    vel0 = vector<double>(3);
-
-    posL = vector<double>(3);
-    velL = vector<double>(3);
+    com0      = vector<double>(3);
+    cov0      = vector<double>(3);
+    angmG     = vector<double>(3);
+    angm0     = vector<double>(3);
+    pos0      = vector<double>(3);
+    vel0      = vector<double>(3);
+	                         
+    posL      = vector<double>(3);
+    velL      = vector<double>(3);
+    	                         
+    comG      = vector<double>(3);
+    covG      = vector<double>(3);
     
-    comG = vector<double>(3);
-    covG = vector<double>(3);
-    
-    ektot = vector<double>(comp.ncomp);
-    ektot1 = vector<double>(comp.ncomp);
-    eptot = vector<double>(comp.ncomp);
-    eptot1 = vector<double>(comp.ncomp);
-    eptotx = vector<double>(comp.ncomp);
-    eptotx1 = vector<double>(comp.ncomp);
-    clausius = vector<double>(comp.ncomp);
+    ektot     = vector<double>(comp.ncomp);
+    ektot1    = vector<double>(comp.ncomp);
+    eptot     = vector<double>(comp.ncomp);
+    eptot1    = vector<double>(comp.ncomp);
+    eptotx    = vector<double>(comp.ncomp);
+    eptotx1   = vector<double>(comp.ncomp);
+    clausius  = vector<double>(comp.ncomp);
     clausius1 = vector<double>(comp.ncomp);
 
     if (myid==0) {
@@ -328,17 +329,17 @@ void OutLog::Run(int n, bool last)
 				// Zero out accumulators
   for (int i=0; i<comp.ncomp; i++) {
 
-    nbodies[i] = nbodies1[i] = 0;
-    used0[i] = 0;
-    mtot[i] = mtot1[i] = 0.0;
-    ektot[i] = ektot1[i] = 0.0;
-    eptot[i] =  eptot1[i] = 0.0;
-    eptotx[i] =  eptotx1[i] = 0.0;
+    nbodies [i] = nbodies1 [i] = 0;
+    used    [i] = used1    [i] = 0;
+    mtot    [i] = mtot1    [i] = 0.0;
+    ektot   [i] = ektot1   [i] = 0.0;
+    eptot   [i] = eptot1   [i] = 0.0;
+    eptotx  [i] = eptotx1  [i] = 0.0;
     clausius[i] = clausius1[i] = 0.0;
 
     for (int j=0; j<3; j++) {
-      com[i][j] = com1[i][j] = 0.0;
-      cov[i][j] = cov1[i][j] = 0.0;
+      com [i][j] = com1 [i][j] = 0.0;
+      cov [i][j] = cov1 [i][j] = 0.0;
       angm[i][j] = angm1[i][j] = 0.0;
     }
 
@@ -346,8 +347,8 @@ void OutLog::Run(int n, bool last)
 
 				// Global
   for (int j=0; j<3; j++) {
-    comG[j] = com0[j] = 0.0;
-    covG[j] = cov0[j] = 0.0;
+    comG [j] = com0 [j] = 0.0;
+    covG [j] = cov0 [j] = 0.0;
     angmG[j] = angm0[j] = 0.0;
   }
 
@@ -396,17 +397,17 @@ void OutLog::Run(int n, bool last)
 
       for (int k=0; k<3; k++) pos0[k] = c->Pos(i, k, Component::Centered);
       
-      eptot1[indx] += 0.5*c->Mass(i)*c->Part(i)->pot;
+      eptot1[indx]  += 0.5*c->Mass(i)*c->Part(i)->pot;
       eptotx1[indx] += c->Mass(i)*c->Part(i)->potext;
       for (int k=0; k<3; k++) {
-	ektot1[indx] += 0.5*c->Mass(i)*velL[k]*velL[k];
+	ektot1[indx]    += 0.5*c->Mass(i)*velL[k]*velL[k];
 	clausius1[indx] += c->Mass(i)*posL[k]*c->Part(i)->acc[k];
       }
     }
 
     for (int k=0; k<3; k++) ctr[indx][k] = c->center[k];
 
-    used0[indx] = c->force->Used();
+    used1[indx] = c->force->Used();
 
     indx++;
   }
@@ -414,8 +415,10 @@ void OutLog::Run(int n, bool last)
 
   MPI_Reduce(&nbodies1[0], &nbodies[0], comp.ncomp, MPI_INT, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
+
   MPI_Reduce(&mtot1[0], &mtot[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
+
   for (int i=0; i<comp.ncomp; i++) {
     MPI_Reduce(&com1[i][0], &com[i][0], 3, MPI_DOUBLE, MPI_SUM, 
 	       0, MPI_COMM_WORLD);
@@ -439,6 +442,9 @@ void OutLog::Run(int n, bool last)
   MPI_Reduce(&eptotx1[0], &eptotx[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
   MPI_Reduce(&clausius1[0], &clausius[0], comp.ncomp, MPI_DOUBLE, MPI_SUM, 
+	     0, MPI_COMM_WORLD);
+
+  MPI_Reduce(&used1[0], &used[0], comp.ncomp, MPI_INT, MPI_SUM, 
 	     0, MPI_COMM_WORLD);
 
 
@@ -503,7 +509,7 @@ void OutLog::Run(int n, bool last)
 
     *out << "|" << setw(cwid) << wtime;
     int usedT = 0;
-    for (int i=0; i<comp.ncomp; i++) usedT += used0[i];
+    for (int i=0; i<comp.ncomp; i++) usedT += used[i];
     *out << "|" << setw(cwid) << usedT;
 
 
@@ -547,7 +553,7 @@ void OutLog::Run(int n, bool last)
 	*out << "|" << setw(cwid) << -2.0*ektot[i]/clausius[i];
       else
 	*out << "|" << setw(cwid) << 0.0;
-      *out << "|" << setw(cwid) << used0[i];
+      *out << "|" << setw(cwid) << used[i];
     }
 
     *out << endl;
