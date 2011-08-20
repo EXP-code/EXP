@@ -107,6 +107,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   tree = 0;
 
   pbuf = new Particle [PFbufsz];
+
+  initialize();
 }
 
 void Component::HOTcreate()
@@ -401,6 +403,9 @@ Component::Component(istream *in)
   acc0        = 0;
   comI        = 0;
   covI        = 0;
+
+  seq_check   = false;
+  indexing    = false;
 
   nlevel      = -1;
 
@@ -931,7 +936,7 @@ void Component::read_bodies_and_distribute_ascii(void)
   is_init = 1;
   setup_distribution();
   is_init = 0;
-
+  initialize();
 
   Particle part(niattrib, ndattrib);
 
@@ -1208,6 +1213,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   is_init = 1;
   setup_distribution();
   is_init = 0;
+  initialize();
 
 				// Form cumulative and differential bodies list
   
@@ -1217,8 +1223,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
   if (myid==0) {
 				// Read root node particles
-
-    cout << "Count=" << nbodies_table[0] << endl;
     seq_cur = 0;
 
     rmax1 = 0.0;

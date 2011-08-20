@@ -19,13 +19,13 @@ long ComponentContainer::tinterval = 300;	// Seconds between timer dumps
 
 ComponentContainer::ComponentContainer(void)
 {
-  gottapot = false;
-  gcom1 = new double [3];
-  gcov1 = new double [3];
+  gottapot      = false;
+  gcom1         = new double [3];
+  gcov1         = new double [3];
 
-  timing = false;
+  timing        = false;
   thread_timing = false;
-  state = NONE;
+  state         = NONE;
 
   // Fine resolution for these timers (default resolution is 1 sec)
   //
@@ -106,20 +106,20 @@ void ComponentContainer::initialize(void)
       }
 
       cout << "Recovering from <" << resfile << ">:"
-	   << "  Tnow=" << master.time
-	   << "  Ntot=" << master.ntot
+	   << "  Tnow="  << master.time
+	   << "  Ntot="  << master.ntot
 	   << "  Ncomp=" << master.ncomp << endl;
 
-      tnow = master.time;
-      ntot = master.ntot;
+      tnow  = master.time;
+      ntot  = master.ntot;
       ncomp = master.ncomp;
     }
 
-    MPI_Bcast(&tnow, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&tnow,  1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     
-    MPI_Bcast(&ntot, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&ntot,  1, MPI_INT,    0, MPI_COMM_WORLD);
       
-    MPI_Bcast(&ncomp, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&ncomp, 1, MPI_INT,    0, MPI_COMM_WORLD);
       
     for (int i=0; i<ncomp; i++) {
       c = new Component(in);
@@ -164,14 +164,14 @@ void ComponentContainer::initialize(void)
 
       string sline(line);
       StringTok<string> tokens(sline);
-      id = tokens(":");
+      id     = tokens(":");
       cparam = tokens(":");
-      pfile = tokens(":");
+      pfile  = tokens(":");
       fparam = tokens(":");
 
-      id = trimLeft(trimRight(id));
+      id     = trimLeft(trimRight(id));
       cparam = trimLeft(trimRight(cparam));
-      pfile = trimLeft(trimRight(pfile));
+      pfile  = trimLeft(trimRight(pfile));
       fparam = trimLeft(trimRight(fparam));
 
       c = new Component(name, id, cparam, pfile, fparam);
@@ -185,10 +185,13 @@ void ComponentContainer::initialize(void)
 				// Initialize components
   list<Component*>::iterator cc, cc1;
 
+  // Do this in the component constructors
+  /*
   for (cc=components.begin(); cc != components.end(); cc++) {
     c = *cc;
     c->initialize();
   }
+  */
 
 				// Initialize interactions between components
   string value;
@@ -309,7 +312,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   // Turn on step timers or VERBOSE level 4 or greater
   //
-  if (VERBOSE>3) timing = true;
+  if (VERBOSE>3) timing        = true;
   if (VERBOSE>4) thread_timing = true;
 
   if (timing) {
