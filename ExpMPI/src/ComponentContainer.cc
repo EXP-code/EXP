@@ -99,7 +99,8 @@ void ComponentContainer::initialize(void)
 
       in->read((char *)&master, sizeof(MasterHeader));
       if (!*in) {
-	cerr << "ComponentContainer::initialize: could not read master header from <"
+	cerr << "ComponentContainer::initialize: "
+	     << "could not read master header from <"
 	     << resfile << ">\n";
 	MPI_Abort(MPI_COMM_WORLD, 6);
 	exit(0);

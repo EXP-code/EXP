@@ -412,7 +412,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     radmax1 = max<double>(radmax1, r);
   }
   
-  MPI_Reduce(&count1, &count, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&count1,  &count,  1, MPI_INT,    MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmin1, &radmin, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
   MPI_Reduce(&radmax1, &radmax, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
@@ -425,8 +425,8 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
 			     << count << " selection failures" << endl;
   
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(pos1, pos, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(vel1, vel, 3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(pos1,    pos,    3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(vel1,    vel,    3, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
   if (massp>0.0) {
     for (int k=0; k<3; k++) pos[k] /= massp;
@@ -580,8 +580,8 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   // Diagnostics
   //
   double radmin1=1.0e30, radmax1=0.0, radmin, radmax, r;
-  vector<double> DD(nh+1, 0.0), DD0(nh+1);
-  vector<unsigned> NN(nh+1, 0), NN0(nh+1);
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
   if (myid==0) cout << endl
 		    << "     *****"
@@ -2284,18 +2284,18 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
   double r, theta, phi, xx, yy, zz, axd, ayd, azd, axh, ayh, azh, R2, R;
   double dens, potl, potr, pott, potp, fr, fp, fz;
   
-  double KE_disk1 = 0.0;
-  double KE_halo1 = 0.0;
+  double KE_disk1      = 0.0;
+  double KE_halo1      = 0.0;
   double PE_disk_disk1 = 0.0;
   double PE_halo_disk1 = 0.0;
   double PE_disk_halo1 = 0.0;
   double PE_halo_halo1 = 0.0;
-  double massd1 = 0.0;
-  double massh1 = 0.0;
+  double massd1        = 0.0;
+  double massh1        = 0.0;
   
   vector<Particle>::iterator p;
   
-  fr = fp = fz = 0.0;
+  fr   = fp   = fz   = 0.0;
   potr = pott = potp = 0.0;
 				// -----------------
 				// Halo contribution
@@ -2603,11 +2603,4 @@ void DiskHalo::virial_ratio(const char *hfile, const char *dfile)
   }
 
 }
-
-
-
-
-
-
-
 

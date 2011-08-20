@@ -197,6 +197,7 @@ ProgramParam config(desc, init);
 //
 // Global variables
 //
+
 int          LMAX;
 int          NMAX;
 int          NUMR;
@@ -272,7 +273,6 @@ string       suffix;
 string       centerfile;
 string       halofile1;
 string       halofile2;
-
 
 
 //
@@ -354,8 +354,6 @@ void param_assign()
    halofile2          = config.get<string>  ("halofile2");
 }
 
-
-
   
 // Hydrogen fraction
 //
@@ -366,19 +364,20 @@ const double f_H = 0.76;
 
 #include <Particle.H>
 
-int VERBOSE = 4;
-int nthrds = 1;
-int this_step = 0;
+int VERBOSE        = 4;
+int nthrds         = 1;
+int this_step      = 0;
 unsigned multistep = 0;
-unsigned maxlev = 100;
-int mstep = 1;
-int Mstep = 1;
+unsigned maxlev    = 100;
+int mstep          = 1;
+int Mstep          = 1;
+char threading_on  = 0;
+double tpos        = 0.0;
+double tnow        = 0.0;
+
 vector<int> stepL(1, 0), stepN(1, 1);
-char threading_on = 0;
 pthread_mutex_t mem_lock;
 pthread_mutex_t coef_lock;
-double tpos = 0.0;
-double tnow = 0.0;
 string outdir, runtag;
   
 double DiskDens(double R, double z, double phi)
@@ -436,6 +435,7 @@ main(int argc, char **argv)
   //====================
   // Inialize MPI stuff
   //====================
+
   local_init_mpi(argc, argv);
   
   //====================

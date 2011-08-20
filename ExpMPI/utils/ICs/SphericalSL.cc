@@ -49,14 +49,14 @@ void dlegendre_R(int lmax, double x, Matrix &p, Matrix &dp);
 void sinecosine_R(int mmax, double phi, Vector& c, Vector& s);
 double factrl(int n);
 
-double SphericalSL::RMIN = 0.001;
-double SphericalSL::RMAX = 100.0;
-int SphericalSL::NUMR = 1000;
+double SphericalSL::RMIN     = 0.001;
+double SphericalSL::RMAX     = 100.0;
+int    SphericalSL::NUMR     = 1000;
 
-int SphericalSL::selector = 0;
-int SphericalSL::tk_type = 2;
+int    SphericalSL::selector = 0;
+int    SphericalSL::tk_type  = 2;
 double SphericalSL::tksmooth = 1.0;
-double SphericalSL::tkcum = 0.95;
+double SphericalSL::tkcum    = 0.95;
 
 SphericalSL::SphericalSL(void)
 {

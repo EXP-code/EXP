@@ -1,6 +1,7 @@
 using namespace std;
 
 #include <iostream>
+#include <vector>
 #include <localmpi.h>
 
 // MPI variables
@@ -11,9 +12,6 @@ char processor_name[MPI_MAX_PROCESSOR_NAME];
 
 void local_init_mpi(int argc, char **argv)
 {
-  MPI_Group world_group, slave_group;
-  int n;
-
   //===================
   // MPI preliminaries
   //===================
@@ -28,22 +26,28 @@ void local_init_mpi(int argc, char **argv)
   //=========================
 
   slaves = numprocs - 1;
-  MPI_Comm_group(MPI_COMM_WORLD, &world_group);
-  int *nslaves = new int [slaves];
 
-  for (n=1; n<numprocs; n++) nslaves[n-1] = n;
-  MPI_Group_incl(world_group, slaves, nslaves, &slave_group);
-  MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
-  delete [] nslaves;
+  if (slaves) {
+
+    MPI_Group world_group, slave_group;
+
+    MPI_Comm_group(MPI_COMM_WORLD, &world_group);
+    vector<int> nslaves (slaves);
+    int n;
+
+    for (n=1; n<numprocs; n++) nslaves[n-1] = n;
+    MPI_Group_incl(world_group, slaves, &nslaves[0], &slave_group);
+    MPI_Comm_create(MPI_COMM_WORLD, slave_group, &MPI_COMM_SLAVE);
     
-  //==========
-  // Debug id
-  //==========
-
-  MPI_Group_rank ( slave_group, &n );
-  cerr << "Process " << myid << " on " << processor_name 
-       << "   rank in SLAVE: "
-       << n << endl;
+    //==========
+    // Debug id
+    //==========
+    
+    MPI_Group_rank ( slave_group, &n );
+    cerr << "Process " << myid << " on " << processor_name 
+	 << "   rank in SLAVE: "
+	 << n << endl;
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
 }
