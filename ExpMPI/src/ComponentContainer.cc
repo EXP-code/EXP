@@ -106,7 +106,7 @@ void ComponentContainer::initialize(void)
 	exit(0);
       }
 
-      cout << "Recovering from <" << resfile << ">:"
+      cout << "Recovering from: "
 	   << "  Tnow="  << master.time
 	   << "  Ntot="  << master.ntot
 	   << "  Ncomp=" << master.ncomp << endl;
@@ -183,18 +183,8 @@ void ComponentContainer::initialize(void)
 
   }
 
-				// Initialize components
-  list<Component*>::iterator cc, cc1;
-
-  // Do this in the component constructors
-  /*
-  for (cc=components.begin(); cc != components.end(); cc++) {
-    c = *cc;
-    c->initialize();
-  }
-  */
-
 				// Initialize interactions between components
+  list<Component*>::iterator cc, cc1;
   string value;
   ntot = 0;
   
