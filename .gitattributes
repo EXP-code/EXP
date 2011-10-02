@@ -2,6 +2,14 @@
 ExpMPI/doc/doxygen.gif svneol=native#unset
 ExpMPI/doc/exp_logo.gif svneol=native#unset
 ExpMPI/doc/global.doc -text
+ExpMPI/doc/ic_example/SLGridSph.model -text
+ExpMPI/doc/ic_example/disk.conf -text
+ExpMPI/doc/ic_example/frame.png -text
+ExpMPI/doc/ic_example/gendisk.in -text
+ExpMPI/doc/ic_example/halo.conf -text
+ExpMPI/doc/ic_example/in.bar -text
+ExpMPI/doc/ic_example/output.avi -text
+ExpMPI/doc/ic_example/pbs_job -text
 ExpMPI/doc/multistep.doc -text
 ExpMPI/doc/verbose.doc -text
 ExpMPI/exputil/BarrierWrapper.cc -text

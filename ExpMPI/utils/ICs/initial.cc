@@ -57,10 +57,10 @@
 */
 
                                 // System libs
-#include <math.h>
+#include <cmath>
 #include <unistd.h>
 #include <getopt.h>
-#include <stdlib.h>
+#include <cstdlib>
 #include <values.h>
 
                                 // C++/STL headers

@@ -1,0 +1,33 @@
+nbodmax : 50000000
+nthrds  : 1
+dtime   : 0.001
+ldlibdir : /home/user/lib/user
+outdir : /lustre/user/run
+nsteps : 1000
+runtag : run4
+runtime : 0.0
+multistep : 12
+nbits  : 20
+pkbits : 6
+infile : OUT.run.chkpt
+dynfracA : 0.001
+dynfracV : 0.003
+NICE : 0
+VERBOSE : 4
+restart_cmd : qsub -q opteron -l nodes=6:ppn=16,walltime=72:00:00 pbs_job
+nreport : 1
+
+[components]
+dark halo : halo.conf
+star disk : disk.conf
+
+[output]
+outlog : nint=1
+outpsn : nint=10
+outchkpt : nint=1
+
+[external]
+
+[interaction]
+star disk : dark halo
+dark halo : star disk

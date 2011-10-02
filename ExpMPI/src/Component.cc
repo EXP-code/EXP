@@ -1598,6 +1598,8 @@ void Component::write_binary(ostream* out)
 	  out->write((const char *)&(p[k].iattrib[i]), sizeof(int));
 	for (int i=0; i<header.ndatr; i++) 
 	  out->write((const char *)&(p[k].dattrib[i]), sizeof(double));
+
+	out->write((char *)&(p[k].indx), sizeof(unsigned long));
       }
 
     }

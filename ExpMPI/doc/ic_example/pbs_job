@@ -1,0 +1,17 @@
+#!/bin/csh -f
+#PBS -M user@astro.umass.edu
+#PBS -m abe
+#PBS -j oe
+#PBS -r n
+
+cat $PBS_NODEFILE
+
+source ~/.cshrc
+
+setenv MYDIR /lustre/user/run
+
+cd $MYDIR
+
+mpirun -v -wdir `pwd` -x LD_LIBRARY_PATH exp -f in.bar >&! out.bar
+
+exit 0
