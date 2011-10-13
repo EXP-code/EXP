@@ -49,7 +49,7 @@ gas2dcyl_CXXFLAGS = -I$(top_srcdir)/include
 gas2dcyl_LDADD = $(COMMON_LIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_CXXFLAGS = -I$(top_srcdir)/include @exp_vtk_include@
+makegrid_CXXFLAGS = -I$(top_srcdir)/include $(BOOST_CPPFLAGS) @exp_vtk_include@
 makegrid_LDADD = $(COMMON_LIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 
 

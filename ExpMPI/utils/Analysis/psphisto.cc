@@ -61,7 +61,7 @@ program_option init[] = {
   {"RMAX",		"double",	"0.1",		"maximum radius for output"},
   {"ZCENTER",		"double",	"0.0",		"gas disk midplane"},
   {"ZWIDTH",		"double",	"0.05",		"gas disk halfwidth"},
-  {"NBINS",		"int",		"0",		"number of bins"},
+  {"NBINS",		"int",		"40",		"number of bins"},
   {"IBEG",		"int",		"0",		"first PSP index"},
   {"IEND",		"int",		"100",		"last PSP index"},
   {"ISKIP",		"int",		"1",		"skip PSP interval"},
