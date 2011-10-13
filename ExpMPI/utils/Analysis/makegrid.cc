@@ -118,13 +118,13 @@ int main(int argc, char**argv)
      "desired PSP time")
     ("dark-name,d", po::value<string>(&dname),
      "PSP dark component name")
-    ("dark-name,d", po::value<string>(&sname),
+    ("star-name,s", po::value<string>(&sname),
      "PSP star component name")
-    ("dark-name,d", po::value<string>(&cname),
+    ("gas-name,g", po::value<string>(&cname),
      "PSP gas component name")
     ("input,i", po::value<string>(&infile)->default_value("OUT.bin"),
      "input file name")
-    ("output,o", po::value<string>(&infile)->default_value("OUT"),
+    ("output,o", po::value<string>(&outfile)->default_value("OUT"),
      "output file ename")
     ("initial-gas", po::value<unsigned long>(&initial_gas)->default_value(0), 
      "initial gas particle index")
@@ -209,7 +209,7 @@ int main(int argc, char**argv)
 
   for (int i=0; i<numx; i++) {
     
-    mass[i]  = vector< vector<float> >(numy);
+    mass [i] = vector< vector<float> >(numy);
     gtemp[i] = vector< vector<float> >(numy);
     gdens[i] = vector< vector<float> >(numy);
     gknud[i] = vector< vector<float> >(numy);
