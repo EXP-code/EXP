@@ -34,6 +34,7 @@ ExpMPI/m4/acx_lapack.m4 -text
 ExpMPI/m4/ax_boost_base.m4 -text
 ExpMPI/m4/ax_boost_filesystem.m4 -text
 ExpMPI/m4/ax_boost_mpi.m4 -text
+ExpMPI/m4/ax_boost_program_options.m4 -text
 ExpMPI/m4/ax_boost_regex.m4 -text
 ExpMPI/m4/ax_boost_serialization.m4 -text
 ExpMPI/m4/ax_boost_system.m4 -text
