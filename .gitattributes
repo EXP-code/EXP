@@ -101,6 +101,7 @@ ExpMPI/utils/ICs/initial3.cc -text
 ExpMPI/utils/ICs/pst_model.cc -text
 ExpMPI/utils/ICs/test.in -text
 ExpMPI/utils/PhaseSpace/psp2histo.cc -text
+ExpMPI/utils/PhaseSpace/psp2histo1d.cc -text
 ExpMPI/utils/PhaseSpace/psp2tarray.cc -text
 ExpMPI/utils/PhaseSpace/pspprocess.cc -text
 ExpMPI/utils/SL/CylindricalDisk.H -text
