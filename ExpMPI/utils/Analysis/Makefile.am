@@ -25,25 +25,25 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid
 
 diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(COMMON_LIBS) $(MPI_LIBS)
+diskprof_LDADD = $(EXPLIBS)
 
 haloprof_SOURCES =  PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof_LDADD = $(EXPLIBS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
-slabprof_LDADD = $(COMMON_LIBS)
+slabprof_LDADD = $(EXPLIBS)
 
 psphisto_SOURCES =  psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
 psphisto_LDADD = $(EXPLIBS)
 
 gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2d_LDADD = $(COMMON_LIBS)
+gas2d_LDADD =    $(EXPLIBS)
 
 gas2dcyl_SOURCES =  gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2dcyl_LDADD = $(COMMON_LIBS)
+gas2dcyl_LDADD = $(EXPLIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_LDADD = $(COMMON_LIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+makegrid_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
