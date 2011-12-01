@@ -48,19 +48,20 @@ static SphericalOrbit orb;
 #endif
 
 
-bool AxiSymModel::gen_EJ = true;
-int AxiSymModel::numr = 50;
-int AxiSymModel::numj = 50;
-int AxiSymModel::gen_N = 400;
-int AxiSymModel::gen_E = 200;
-int AxiSymModel::gen_K = 100;
-double AxiSymModel::gen_tolE = 0.01;
-double AxiSymModel::gen_tolK = 0.02;
-double AxiSymModel::gen_rmin = 0.0;
-int AxiSymModel::gen_logr = 1;
-double AxiSymModel::gen_kmin = 0.0;
-unsigned int AxiSymModel::gen_seed = 11;
-int AxiSymModel::gen_itmax = 4000;
+bool     AxiSymModel::gen_EJ = true;
+int      AxiSymModel::numr = 50;
+int      AxiSymModel::numj = 50;
+int      AxiSymModel::gen_N = 400;
+int      AxiSymModel::gen_E = 200;
+int      AxiSymModel::gen_K = 100;
+double   AxiSymModel::gen_tolE = 0.01;
+double   AxiSymModel::gen_tolK = 0.02;
+double   AxiSymModel::gen_rmin = 0.0;
+int      AxiSymModel::gen_logr = 1;
+double   AxiSymModel::gen_kmin = 0.0;
+uint32_t AxiSymModel::gen_seed = 11;
+int      AxiSymModel::gen_itmax = 4000;
+
 const bool verbose = true;
 const double ftol = 0.01;
 

@@ -87,6 +87,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   density     = false;
   coef_dump   = true;
   try_cache   = true;
+  eof_file    = "";
 
   initialize();
 
@@ -109,7 +110,17 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 				// instance
   ortho = new EmpCylSL(nmax, lmax, mmax, ncylorder, acyl, hcyl);
   
-  if (expcond) {
+				// Read in given EOF file
+  if (eof_file.size()) {
+
+    if (!ortho->read_eof_file(eof_file)) {
+      if (myid==0) 
+	cerr << "Cylinder: can not read EOF file <"
+	     << eof_file << ">" << endl;
+      MPI_Abort(MPI_COMM_WORLD, -1);
+    }
+
+  } else if (expcond) {
 				// Set parameters for external dcond function
     EXPSCALE = acyl;
     HSCALE   = hcyl;
@@ -127,7 +138,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	cerr << "Cylinder: can not read cache file on restart" << endl;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
-
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
   }
 
@@ -135,7 +145,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     EmpCylSL::SELECT = true;
     ortho->setHall(hallfile, hallfreq);
   }
-
 				// Make sure that all structures are 
 				// initialized to start (e.g. for multi-
 				// stepping but this should be done on
@@ -159,6 +168,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	   << " selector="    << selector
 	   << " hallfreq="    << hallfreq
 	   << " hallfile="    << hallfile
+	   << " eof_file="    << eof_file
 	   << " logarithmic=" << logarithmic
 	   << " vflag="       << vflag
 	   << endl << endl;
@@ -180,6 +190,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	 << " selector="    << selector
 	 << " hallfreq="    << hallfreq
 	 << " hallfile="    << hallfile
+	 << " eof_file="    << eof_file
 	 << " logarithmic=" << logarithmic
 	 << " vflag="       << vflag
 	 << endl << endl;
@@ -232,6 +243,7 @@ void Cylinder::initialize()
   if (get_value("ncylrecomp", val)) ncylrecomp = atoi(val.c_str());
   if (get_value("hallfreq", val))   hallfreq   = atoi(val.c_str());
   if (get_value("hallfile", val))   hallfile   = val;
+  if (get_value("eof_file", val))   eof_file   = val;
   if (get_value("vflag",    val))   vflag      = atoi(val.c_str());
 
   if (get_value("rnum",   val))     rnum       = atoi(val.c_str());

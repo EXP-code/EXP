@@ -123,12 +123,15 @@ private:
 
   void make_grid();
   void send_eof_grid();
-  void receive_eof(int request_id, int m);
+  void receive_eof     (int request_id, int m);
   void compute_eof_grid(int request_id, int m);
   void setup_eof_grid(void);
+
+  int read_eof_header(const string& eof_file);
+
 				// 1=write, 0=read
 				// return: 0=failure
-  int cache_grid(int);		
+  int cache_grid(int, string file="");		
   double integral(int, int, int, int);
   void get_pot(Matrix&, Matrix&, double, double);
   void pca_hall(void);
@@ -219,6 +222,9 @@ public:
   //! Reconstruct basis with new parameters
   void reset(int numr, int lmax, int mmax, int nord,
 	     double ascale, double hscale);
+
+  //! Read basis from saved file
+  int read_eof_file(const string& eof_file);
 
   //! Read basis from cache file
   int read_cache(void);

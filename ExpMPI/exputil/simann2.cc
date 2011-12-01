@@ -48,7 +48,7 @@ SimAnneal::SimAnneal (Func1d* f, const int d):
 }
 
 int SimAnneal::
-set_up (Func1d *f, const int d, const int seed)
+set_up (Func1d *f, const int d, const uint32_t seed)
 {
 
   dimension = d;

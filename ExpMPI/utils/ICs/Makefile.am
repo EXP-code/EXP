@@ -23,7 +23,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3
+bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3 empinfo
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -48,6 +48,9 @@ gsphere_LDADD = $(EXPLIBS)
 
 pstmod_SOURCES = pst_model.cc CylindricalDisk.cc EllipsoidForce.cc SLSphere.cc
 pstmod_LDADD = $(EXPLIBS)
+
+empinfo_SOURCES = empinfo.cc EmpOrth9thd.cc localmpi.cc
+empinfo_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .

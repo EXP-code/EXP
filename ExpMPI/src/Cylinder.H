@@ -38,7 +38,7 @@ private:
   int ncylnx, ncylny, ncylr;
   double hcyl;
   int ncylorder, ncylrecomp, hallfreq;
-  string hallfile;
+  string hallfile, eof_file;
   bool self_consistent, logarithmic, density, selector;
   bool cmap, try_cache, firstime;
 

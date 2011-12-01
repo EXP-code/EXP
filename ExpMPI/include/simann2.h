@@ -70,7 +70,7 @@ class SimAnneal
     delete gen; delete number_range; delete number_01; 
   }
   
-  int set_up(Func1d* f, const int d = 1, const int seed=10);
+  int set_up(Func1d* f, const int d = 1, const uint32_t seed=10);
   
   const int operator!() const { return err; }
   

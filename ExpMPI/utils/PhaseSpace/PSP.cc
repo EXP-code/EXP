@@ -79,10 +79,10 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 				// Parse the info string
 				// ---------------------
       StringTok<string> tokens(headerC.info);
-      stanza.name = trimLeft(trimRight(tokens(":")));
-      stanza.id = trimLeft(trimRight(tokens(":")));
-      stanza.cparam = trimLeft(trimRight(tokens(":")));
-      stanza.fparam = trimLeft(trimRight(tokens(":")));
+      stanza.name       = trimLeft(trimRight(tokens(":")));
+      stanza.id         = trimLeft(trimRight(tokens(":")));
+      stanza.cparam     = trimLeft(trimRight(tokens(":")));
+      stanza.fparam     = trimLeft(trimRight(tokens(":")));
       stanza.index_size = 0;
 
 				// Check for old style

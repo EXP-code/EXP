@@ -571,6 +571,74 @@ void EmpCylSL::send_eof_grid()
 }
 
 
+int EmpCylSL::read_eof_header(const string& eof_file)
+{
+  ifstream in(eof_file.c_str());
+  if (!in) {
+    cerr << "EmpCylSL::cache_grid: error opening file named <" 
+	 << eof_file << ">" << endl;
+    return 0;
+  }
+
+  int tmp;
+
+  in.read((char *)&MMAX,   sizeof(int));
+  in.read((char *)&NUMX,   sizeof(int));
+  in.read((char *)&NUMY,   sizeof(int));
+  in.read((char *)&NMAX,   sizeof(int));
+  in.read((char *)&NORDER, sizeof(int));
+  in.read((char *)&tmp,    sizeof(int)); 
+  if (tmp) DENS = true; else DENS = false;
+  in.read((char *)&tmp,    sizeof(int)); 
+  if (tmp) CMAP = true; else CMAP = false;
+  in.read((char *)&RMIN,   sizeof(double));
+  in.read((char *)&RMAX,   sizeof(double));
+  in.read((char *)&ASCALE, sizeof(double));
+  in.read((char *)&HSCALE, sizeof(double));
+  
+  if (myid==0) {
+    cout << setfill('-') << setw(70) << '-' << endl;
+    cout << " Cylindrical parameters read from <" << eof_file << ">" << endl;
+    cout << setw(70) << '-' << endl;
+    cout << "MMAX="   << MMAX << endl;
+    cout << "NUMX="   << NUMX << endl;
+    cout << "NUMY="   << NUMY << endl;
+    cout << "NMAX="   << NMAX << endl;
+    cout << "NORDER=" << NORDER << endl;
+    cout << "DENS="   << DENS << endl;
+    cout << "CMAP="   << CMAP << endl;
+    cout << "RMIN="   << RMIN << endl;
+    cout << "RMAX="   << RMAX << endl;
+    cout << "ASCALE=" << ASCALE << endl;
+    cout << "HSCALE=" << HSCALE << endl;
+    cout << setw(70) << '-' << endl << setfill(' ');
+  }
+}
+
+int EmpCylSL::read_eof_file(const string& eof_file)
+{
+  read_eof_header(eof_file);
+  setup_eof();
+  setup_accumulation();
+
+				// Master tries to read table
+  int retcode;
+  if (myid==0) retcode = cache_grid(0, eof_file);
+  MPI_Bcast(&retcode, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (!retcode) return 0;
+				// Send table to slave processes
+  send_eof_grid();
+
+  if (myid==0) 
+    cerr << "EmpCylSL::read_cache: table forwarded to all processes" << endl;
+
+
+  eof_made = true;
+  coefs_made = vector<short>(multistep+1, false);
+
+  return 1;
+}
+
 int EmpCylSL::read_cache(void)
 {
   setup_eof();
@@ -595,18 +663,20 @@ int EmpCylSL::read_cache(void)
 }
 
 
-int EmpCylSL::cache_grid(int readwrite)
+int EmpCylSL::cache_grid(int readwrite, string cachefile)
 {
+
+  if (cachefile.size()==0) cachefile = CACHEFILE;
 
   if (readwrite) {
 
-    ofstream out(CACHEFILE.c_str());
+    ofstream out(cachefile.c_str());
     if (!out) {
       cerr << "EmpCylSL::cache_grid: error writing file" << endl;
       return 0;
     }
 
-    const int one = 1;
+    const int one  = 1;
     const int zero = 0;
 
     out.write((const char *)&MMAX, sizeof(int));
@@ -683,7 +753,7 @@ int EmpCylSL::cache_grid(int readwrite)
   }
   else {
 
-    ifstream in(CACHEFILE.c_str());
+    ifstream in(cachefile.c_str());
     if (!in) {
       cerr << "EmpCylSL::cache_grid: error opening file" << endl;
       return 0;
@@ -735,7 +805,7 @@ int EmpCylSL::cache_grid(int readwrite)
     
     double time;
     in.read((char *)&cylmass, sizeof(double));
-    in.read((char *)&time, sizeof(double));
+    in.read((char *)&time,    sizeof(double));
 
 				// Read table
 

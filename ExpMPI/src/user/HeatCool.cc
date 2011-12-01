@@ -561,7 +561,7 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
 
   if (dbgCache) {
 				// Try to make a lock file
-    int fd = open(".HeatCoolDbg.lck", O_WRONLY | O_CREAT | O_EXCL);
+    int fd = open(".HeatCoolDbg.lck", O_WRONLY | O_CREAT | O_EXCL, S_IRWXU);
 
     if (fd>=0) {	 // Owner writes the cache and clears the lock
       debugCache();
@@ -572,7 +572,7 @@ HeatCool::HeatCool(double nmin, double nmax, double tmin, double tmax,
 
   if (useCache) {
 				// Try to make a lock file
-    int fd = open(".HeatCoolExp.lck", O_WRONLY | O_CREAT | O_EXCL);
+    int fd = open(".HeatCoolExp.lck", O_WRONLY | O_CREAT | O_EXCL, S_IRWXU);
 
     if (fd<0) return;		// Someone else has it . . . 
 

@@ -1,23 +1,22 @@
 ## Process this file with automake to produce Makefile.in
 
-CC = mpicc
+CC  = mpicc
 CXX = mpiCC
 
 if ENABLE_DMALLOC
-ADD_CFLAGS3 = -DUSE_DMALLOC -g
+ADD_CFLAGS3   = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
-ADD_LIBS3 = -ldmallocth -ldmallocthcxx
+ADD_LIBS3     = -ldmallocth -ldmallocthcxx
 endif
-
-AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
-COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
-MPI_LIBS = -lmpi
+AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
+AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
 
-EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
+COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)
+MPI_LIBS = -lmpi
+EXPLIBS = -lexputil -lexpgnu $(COMMON_LIBS) $(ADD_LIBS3) $(MPI_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -26,30 +25,24 @@ noinst_HEADERS =
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid
 
 diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
-diskprof_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
+diskprof_LDADD = $(COMMON_LIBS) $(MPI_LIBS)
 
 haloprof_SOURCES =  PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
-haloprof_CXXFLAGS = -I$(top_srcdir)/include
 haloprof_LDADD = $(EXPLIBS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
-slabprof_CXXFLAGS = -I$(top_srcdir)/include
 slabprof_LDADD = $(COMMON_LIBS)
 
 psphisto_SOURCES =  psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
-psphisto_CXXFLAGS = -I$(top_srcdir)/include
 psphisto_LDADD = $(EXPLIBS)
 
 gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2d_CXXFLAGS = -I$(top_srcdir)/include
 gas2d_LDADD = $(COMMON_LIBS)
 
 gas2dcyl_SOURCES =  gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
-gas2dcyl_CXXFLAGS = -I$(top_srcdir)/include
 gas2dcyl_LDADD = $(COMMON_LIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
-makegrid_CXXFLAGS = -I$(top_srcdir)/include $(BOOST_CPPFLAGS) @exp_vtk_include@
 makegrid_LDADD = $(COMMON_LIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
 
 
