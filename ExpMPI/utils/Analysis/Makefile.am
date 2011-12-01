@@ -24,10 +24,10 @@ noinst_HEADERS =
 
 bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid
 
-diskprof_SOURCES =  PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
+diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
 diskprof_LDADD = $(EXPLIBS)
 
-haloprof_SOURCES =  PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
+haloprof_SOURCES = PSP.cc header.cc haloprof.cc SphereSL.cc localmpi.cc Particle.cc
 haloprof_LDADD = $(EXPLIBS)
 
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc

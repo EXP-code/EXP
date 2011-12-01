@@ -37,6 +37,12 @@ int
 main(int argc, char **argv)
 {
   //====================
+  // Inialize MPI stuff
+  //====================
+
+  local_init_mpi(argc, argv);
+  
+  //====================
   // Parse command line 
   //====================
 
@@ -45,7 +51,7 @@ main(int argc, char **argv)
   EmpCylSL test;
 
   string eof_file(argv[1]);
-  if (!test.read_eof_file(eof_file)) {
+  if (!test.read_eof_header(eof_file)) {
     cout << "Error reading: " << eof_file << endl;
   }
 

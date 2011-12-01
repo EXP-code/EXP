@@ -618,6 +618,15 @@ int EmpCylSL::read_eof_header(const string& eof_file)
 int EmpCylSL::read_eof_file(const string& eof_file)
 {
   read_eof_header(eof_file);
+
+  pfac = 1.0/sqrt(ASCALE);
+  ffac = pfac/ASCALE;
+  dfac = ffac/ASCALE;
+
+  SLGridSph::mpi = 1;		// Turn on MPI
+  delete ortho;
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
+
   setup_eof();
   setup_accumulation();
 

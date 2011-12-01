@@ -127,8 +127,6 @@ private:
   void compute_eof_grid(int request_id, int m);
   void setup_eof_grid(void);
 
-  int read_eof_header(const string& eof_file);
-
 				// 1=write, 0=read
 				// return: 0=failure
   int cache_grid(int, string file="");		
@@ -223,7 +221,10 @@ public:
   void reset(int numr, int lmax, int mmax, int nord,
 	     double ascale, double hscale);
 
-  //! Read basis from saved file
+  //! Read EOF basis header from saved file
+  int read_eof_header(const string& eof_file);
+
+  //! Read EOF basis from saved file
   int read_eof_file(const string& eof_file);
 
   //! Read basis from cache file
