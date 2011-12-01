@@ -613,6 +613,8 @@ int EmpCylSL::read_eof_header(const string& eof_file)
     cout << "HSCALE=" << HSCALE << endl;
     cout << setw(70) << '-' << endl << setfill(' ');
   }
+
+  return 1;
 }
 
 int EmpCylSL::read_eof_file(const string& eof_file)
