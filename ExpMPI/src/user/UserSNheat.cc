@@ -207,7 +207,6 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
   thread_timing_beg(id);
 
   PartMapItr it = cC->Particles().begin();
-  double pos; 
 
   ke0[id] = ke1[id] = 0.0;
   for (int k=0; k<3; k++) pp0[id][k] = 0.0;
@@ -222,7 +221,7 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
     
     double dist = 0.0;
     for (int k=0; k<3; k++) {
-      pos = p->pos[k] - origin[k];
+      double pos = p->pos[k] - origin[k];
       dist += pos*pos;
     }
     if (dist < radius*radius) {
@@ -234,11 +233,9 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
   
   Pbarrier(id, 37);
 
-  if (id==0) {
-				// Thread 0 add up contributions to
+  if (id==0) {			// Thread 0 add up contributions to
 				// mass and momentum from remaining
 				// threads
-    mass0 = 0.0;
     for (int i=1; i<nthrds; i++) {
       mm0[0] += mm0[i];
       for (int k=0; k<3; k++) pp0[0][k] += pp0[i][k];
@@ -251,15 +248,14 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
   Pbarrier(id, 38);
 
   if (mass0 > 0.0) {
-
 				// Compute the center of mass velocity
     for (int k=0; k<3; k++) mom[k] /= mass0;
 
     for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
       Particle *p = cC->Part(*s);
       for (int k=0; k<3; k++) {
-	pos = p->vel[k] - mom[k];
-	ke0[id] += 0.5*p->mass * pos*pos;
+	double vel = p->vel[k] - mom[k];
+	ke0[id] += 0.5*p->mass * vel*vel;
       }
     }
 
@@ -267,21 +263,22 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
 
     if (id==0) {
       for (int i=1; i<nthrds; i++) ke0[0] += ke0[i];
+      MPI_Allreduce(&ke0[0], &ketot0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
     }
-
-    MPI_Allreduce(&ke0[0], &ketot0, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+    
+    Pbarrier(id, 40);
     
     double disp = sqrt(2.0/3.0*(dE*nSN+ketot0)/mass0);
     for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
       Particle *p = cC->Part(*s);
       for (int k=0; k<3; k++) {
-	pos = disp*(*norm)();
-	p->vel[k] = mom[k] + pos;
-	ke1[id] += 0.5*p->mass * pos*pos;
+	double vel = disp*(*norm)();
+	ke1[id] += 0.5*p->mass * vel*vel;
+	p->vel[k] = mom[k] + vel;
       }
     }
 
-    Pbarrier(id, 40);
+    Pbarrier(id, 41);
     
     if (id == 0) {
       for (int j=1; j<nthrds; j++) ke1[0] += ke1[j];
@@ -289,7 +286,7 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
       factor = sqrt((dE*nSN+ketot0)/ketot1);
     }
 
-    Pbarrier(id, 41);
+    Pbarrier(id, 42);
     
     for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
       Particle *p = cC->Part(*s);
