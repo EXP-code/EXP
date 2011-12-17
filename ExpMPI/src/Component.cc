@@ -108,7 +108,8 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   pbuf = new Particle [PFbufsz];
 
-  initialize();
+  // Already done in read_bodies_and_distribut_ascii()
+  // initialize();
 }
 
 void Component::HOTcreate()

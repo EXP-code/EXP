@@ -80,6 +80,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   hallfile    = "disk";
   hallfreq    = 50;
   self_consistent = true;
+  firstime    = true;
   expcond     = true;
   cmap        = true;
   logarithmic = false;
@@ -119,6 +120,9 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	     << eof_file << ">" << endl;
       MPI_Abort(MPI_COMM_WORLD, -1);
     }
+
+    firstime = false;
+    eof      = 0;
 
   } else if (expcond) {
 				// Set parameters for external dcond function
@@ -210,7 +214,6 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   offgrid = new int [nthrds];
 #endif
 
-  firstime = true;
 }
 
 Cylinder::~Cylinder()

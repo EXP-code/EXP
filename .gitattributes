@@ -63,6 +63,8 @@ ExpMPI/src/user/UserPST.cc -text
 ExpMPI/src/user/UserReflect.H -text
 ExpMPI/src/user/UserReflect.cc -text
 ExpMPI/src/user/UserRotF.cc -text
+ExpMPI/src/user/UserSNheat.H -text
+ExpMPI/src/user/UserSNheat.cc -text
 ExpMPI/src/user/UserSatWake.H -text
 ExpMPI/src/user/UserSatWake.cc -text
 ExpMPI/src/user/UserShear.H -text
