@@ -208,7 +208,7 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
 
   PartMapItr it = cC->Particles().begin();
 
-  ke0[id] = ke1[id] = 0.0;
+  mm0[id] = ke0[id] = ke1[id] = 0.0;
   for (int k=0; k<3; k++) pp0[id][k] = 0.0;
   
   for (int q=0   ; q<nbeg; q++) it++;
