@@ -156,6 +156,7 @@ void UserSNheat::initialize()
   if (get_value("dT", val))	        dT         = atof(val.c_str());
   if (get_value("dE", val))	        dE         = atof(val.c_str());
   if (get_value("radius", val))	        radius     = atof(val.c_str());
+  if (get_value("delay", val))	        delay      = atof(val.c_str());
   if (get_value("number", val))	        N          = atoi(val.c_str());
 
   if (get_value("Lunit", val))		Lunit      = atof(val.c_str());

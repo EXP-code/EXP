@@ -36,69 +36,69 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 		     string FPARAM) : 
   name(NAME), id(ID), cparam(CPARAM), pfile(PFILE), fparam(FPARAM)
 {
-  EJ         = 0;
-  nEJkeep    = 100;
-  nEJwant    = 500;
-  EJkinE     = true;
-  EJext      = false;
-  EJdiag     = false;
-  EJdryrun   = false;
-  EJx0       = 0.0;
-  EJy0       = 0.0;
-  EJz0       = 0.0;
-  EJu0       = 0.0;
-  EJv0       = 0.0;
-  EJw0       = 0.0;
-  EJdT       = 0.0;
-  EJlinear   = false;
-  EJdamp     = 1.0;
+  EJ          = 0;
+  nEJkeep     = 100;
+  nEJwant     = 500;
+  EJkinE      = true;
+  EJext       = false;
+  EJdiag      = false;
+  EJdryrun    = false;
+  EJx0        = 0.0;
+  EJy0        = 0.0;
+  EJz0        = 0.0;
+  EJu0        = 0.0;
+  EJv0        = 0.0;
+  EJw0        = 0.0;
+  EJdT        = 0.0;
+  EJlinear    = false;
+  EJdamp      = 1.0;
 
-  binary     = false;
+  binary      = false;
 
-  adiabatic  = false;
-  ton        = -1.0e20;
-  toff       =  1.0e20;
-  twid       = 0.1;
+  adiabatic   = false;
+  ton         = -1.0e20;
+  toff        =  1.0e20;
+  twid        = 0.1;
 
-  rtrunc     = 1.0e20;
-  rcom       = 1.0e20;
-  consp      = false;
-  tidal      = 0;
+  rtrunc      = 1.0e20;
+  rcom        = 1.0e20;
+  consp       = false;
+  tidal       = 0;
 
-  com_system = false;
-  com_log    = false;
+  com_system  = false;
+  com_log     = false;
 
-  force      = 0;		// Null out pointers
-  orient     = 0;
+  force       = 0;		// Null out pointers
+  orient      = 0;
 
-  com        = 0;
-  cov        = 0;
-  coa        = 0;
-  center     = 0;
-  angmom     = 0;
-  ps         = 0;
+  com         = 0;
+  cov         = 0;
+  coa         = 0;
+  center      = 0;
+  angmom      = 0;
+  ps          = 0;
 
-  com0       = 0;
-  cov0       = 0;
-  acc0       = 0;
-  comI       = 0;
-  covI       = 0;
+  com0        = 0;
+  cov0        = 0;
+  acc0        = 0;
+  comI        = 0;
+  covI        = 0;
 
-  seq_check  = false;
-  indexing   = false;
+  seq_check   = false;
+  indexing    = false;
 
-  nlevel     = -1;
+  nlevel      = -1;
 
   read_bodies_and_distribute_ascii();
 
   mdt_ctr = vector< vector<unsigned> > (multistep+1);
   for (unsigned n=0; n<=multistep; n++) mdt_ctr[n] = vector<unsigned>(mdtDim, 0);
 
-  angmom_lev = vector<double>(3*(multistep+1), 0);
-  com_lev    = vector<double>(3*(multistep+1), 0);
-  cov_lev    = vector<double>(3*(multistep+1), 0);
-  coa_lev    = vector<double>(3*(multistep+1), 0);
-  com_mas    = vector<double>(multistep+1, 0);
+  angmom_lev  = vector<double>(3*(multistep+1), 0);
+  com_lev     = vector<double>(3*(multistep+1), 0);
+  cov_lev     = vector<double>(3*(multistep+1), 0);
+  coa_lev     = vector<double>(3*(multistep+1), 0);
+  com_mas     = vector<double>(multistep+1, 0);
 
   reset_level_lists();
 

@@ -73,7 +73,7 @@ int main(int argc, char**argv)
   unsigned long initial_dark = 0, final_dark = MAXLONG;
   unsigned long initial_star = 0, final_star = MAXLONG;
   unsigned long initial_gas  = 0, final_gas  = MAXLONG;
-  bool mask = false;
+  bool mask    = false;
   bool verbose = false;
 				// Boltzmann constant (cgs)
   const double boltz = 1.3810e-16;
@@ -203,7 +203,7 @@ int main(int argc, char**argv)
   vector<float> xyz(3), uvw(3), dattr;
   vector< vector< vector<float> > > mass(numx), gdens(numx), gtemp(numx);
   vector< vector< vector<float> > > gknud(numx), gstrl(numx), gmach(numx);
-  vector< vector< vector<float> > > sdens(numx), ddens(numx);
+  vector< vector< vector<float> > > sdens(numx), ddens(numx), gnumb(numx);
   vector< vector< vector< vector<double> > > > pos(numx);
   vector< vector< vector< vector<float > > > > vel(numx);
 
@@ -217,6 +217,7 @@ int main(int argc, char**argv)
     gmach[i] = vector< vector<float> >(numy);
     sdens[i] = vector< vector<float> >(numy);
     ddens[i] = vector< vector<float> >(numy);
+    gnumb[i] = vector< vector<float> >(numy);
 
     pos[i]  = vector< vector< vector<double> > >(numy);
     vel[i]  = vector< vector< vector<float> > >(numy);
@@ -231,6 +232,7 @@ int main(int argc, char**argv)
       gmach[i][j] = vector<float>(numz, 0.0);
       sdens[i][j] = vector<float>(numz, 0.0);
       ddens[i][j] = vector<float>(numz, 0.0);
+      gnumb[i][j] = vector<float>(numz, 0.0);
 
       pos[i][j]   = vector< vector<double> >(numz);
       vel[i][j]   = vector< vector<float > >(numz);
@@ -418,7 +420,8 @@ int main(int argc, char**argv)
 	  int jj = (ps[1] - ymin)/dy;
 	  int kk = (ps[2] - zmin)/dz;
 	  
-	  mass[ii][jj][kk] += ms;
+	  mass [ii][jj][kk] += ms;
+	  gnumb[ii][jj][kk] += 1.0;
 	  if (its->ndatr>0) { gtemp[ii][jj][kk] += ms*dattr[0]; btemp=true; }
 	  if (its->ndatr>1) { gdens[ii][jj][kk] += ms*dattr[1]; bdens=true; }
 	  if (its->ndatr>4) { gknud[ii][jj][kk] += ms*dattr[4]; bknud=true; }
@@ -492,6 +495,7 @@ int main(int argc, char**argv)
   dataSet->SetYCoordinates (YY);
   dataSet->SetZCoordinates (ZZ);
 
+  vtkSmartPointer<vtkDataArray> Numb;
   vtkSmartPointer<vtkDataArray> Temp;
   vtkSmartPointer<vtkDataArray> Dens;
   vtkSmartPointer<vtkDataArray> Knud;
@@ -505,6 +509,7 @@ int main(int argc, char**argv)
 
 
   if (found_gas) {
+    Numb       = vtkFloatArray::New();
     Temp       = vtkFloatArray::New();
     Dens       = vtkFloatArray::New();
     Knud       = vtkFloatArray::New();
@@ -514,11 +519,12 @@ int main(int argc, char**argv)
     velocity   = vtkFloatArray::New();
     points     = vtkPoints::New();
 
-    Temp      -> SetName("gas_temp");
-    Dens      -> SetName("gas_dens");
+    Temp      -> SetName("Gas temp");
+    Dens      -> SetName("Gas dens");
     Knud      -> SetName("Knudsen");
     Strl      -> SetName("Strouhal");
     Mach      -> SetName("Mach");
+    Numb      -> SetName("Count");
     density   -> SetName("density");
     velocity  -> SetName("velocity");
     velocity  -> SetNumberOfComponents(3);
@@ -568,6 +574,8 @@ int main(int argc, char**argv)
 	
 	  velocity->InsertTuple(n, &vel[i][j][k][0]);
 	
+	  Numb->InsertTuple(n, &gnumb[i][j][k]);
+
 	  if (btemp) Temp->InsertTuple(n, &gtemp[i][j][k]);
 	  if (bdens) Dens->InsertTuple(n, &gdens[i][j][k]);
 	  if (bknud) Knud->InsertTuple(n, &gknud[i][j][k]);
@@ -604,6 +612,7 @@ int main(int argc, char**argv)
     if (bknud) dataSet->GetPointData()->AddArray(Knud);
     if (bstrl) dataSet->GetPointData()->AddArray(Strl);
     if (btemp) dataSet->GetPointData()->AddArray(Mach);
+    dataSet->GetPointData()->AddArray(Numb);
     dataSet->GetPointData()->AddArray(density);
     dataSet->GetPointData()->SetVectors(velocity);
     // dataSet->SetPointVisibilityArray(visible);

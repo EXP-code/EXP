@@ -7,9 +7,13 @@
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
-/** Set off SN at a specified rate
+/** Set off SN at a specified rate and add thermal energy to the gas
+    within a specified radius of a specified origin.  The supernova
+    fire off stochastically with a rate computed from the specified
+    mean interval between supernova.
     @param ctrname is the name of the component whose particles will be heated
-    @param delay is the time to wait after starting before setting off a SN
+    @param delay is the time to wait after starting before setting off the 
+    first SN
     @param dT is the mean spacing of SN explosion in years
     @param SNe is the energy per supernova in ergs
     @param radius is the radius for selecting particles to heat

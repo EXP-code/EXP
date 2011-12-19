@@ -3953,3 +3953,142 @@ void EmpCylSL::multistep_debug()
   }
 }
 
+
+void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
+{
+  ifstream in(eof_file.c_str());
+  if (!in) {
+    cerr << "EmpCylSL::cache_grid: error opening input file" << endl;
+    return;
+  }
+
+  ofstream out(output.c_str());
+  if (!in) {
+    cerr << "EmpCylSL::cache_grid: error opening outputfile" << endl;
+    return;
+  }
+
+  int mmax, numx, numy, nmax, norder, tmp;
+  bool cmap=false, dens=false;
+  double rmin, rmax, ascl, hscl;
+
+  in.read((char *)&mmax, sizeof(int));
+  in.read((char *)&numx, sizeof(int));
+  in.read((char *)&numy, sizeof(int));
+  in.read((char *)&nmax, sizeof(int));
+  in.read((char *)&norder, sizeof(int));
+  in.read((char *)&tmp, sizeof(int)); if (tmp) dens = true;
+  in.read((char *)&tmp, sizeof(int)); if (tmp) cmap = true;
+  in.read((char *)&rmin, sizeof(double));
+  in.read((char *)&rmax, sizeof(double));
+  in.read((char *)&ascl, sizeof(double));
+  in.read((char *)&hscl, sizeof(double));
+  
+  out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+  out << setw(20) << left << "MMAX"   << " : " << MMAX << endl;
+  out << setw(20) << left << "NUMX"   << " : " << NUMX << endl;
+  out << setw(20) << left << "NUMY"   << " : " << NUMY << endl;
+  out << setw(20) << left << "NMAX"   << " : " << NMAX << endl;
+  out << setw(20) << left << "NORDER" << " : " << NORDER << endl;
+  out << setw(20) << left << "DENS"   << " : " << DENS << endl;
+  out << setw(20) << left << "CMAP"   << " : " << CMAP << endl;
+  out << setw(20) << left << "RMIN"   << " : " << RMIN << endl;
+  out << setw(20) << left << "RMAX"   << " : " << RMAX << endl;
+  out << setw(20) << left << "ASCALE" << " : " << ASCALE << endl;
+  out << setw(20) << left << "HSCALE" << " : " << HSCALE << endl;
+  out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+    
+  double time;
+  in.read((char *)&cylmass, sizeof(double));
+  in.read((char *)&time,    sizeof(double));
+  out << setw(20) << left << "cylmass" << " : " << cylmass << endl;
+  out << setw(20) << left << "time"    << " : " << time    << endl;
+  out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+
+				// Read table
+
+  int nfield = 3;
+  if (DENS) nfield += 1;
+  
+  vector< vector< vector<double> > > mat(nfield);
+  for (int n=0; n<nfield; n++) {
+    mat[n] = vector< vector<double> >(NUMX);
+    for (int j=0; j<NUMX; j++) mat[n][j] = vector<double>(NUMY);
+  }
+
+  for (int m=0; m<=MMAX; m++) {
+    
+    for (int v=0; v<rank3; v++) {
+
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++) {
+	  in.read((char *)&mat[0][ix][iy], sizeof(double));
+	}
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  in.read((char *)&mat[1][ix][iy], sizeof(double));
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  in.read((char *)&mat[2][ix][iy], sizeof(double));
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&mat[v][ix][iy], sizeof(double));
+	
+      }
+      
+      for (int ix=0; ix<NUMX; ix++) {
+	for (int iy=0; iy<NUMY; iy++) {
+	  out << left << setw(4) << m << setw(4) << v 
+	      << setw(4) << ix << setw(4) << iy;
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  out << endl;
+	}
+	
+      }
+      
+    }
+    out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+
+  }
+
+  for (int m=1; m<=MMAX; m++) {
+    
+    for (int v=0; v<rank3; v++) {
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  in.read((char *)&mat[0][ix][iy], sizeof(double));
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  in.read((char *)&mat[1][ix][iy], sizeof(double));
+      
+      for (int ix=0; ix<=NUMX; ix++)
+	for (int iy=0; iy<=NUMY; iy++)
+	  in.read((char *)&mat[2][ix][iy], sizeof(double));
+      
+      if (DENS) {
+	for (int ix=0; ix<=NUMX; ix++)
+	  for (int iy=0; iy<=NUMY; iy++)
+	    in.read((char *)&mat[3][ix][iy], sizeof(double));
+      }
+
+      for (int ix=0; ix<NUMX; ix++) {
+	for (int iy=0; iy<NUMY; iy++) {
+	  out << left << setw(4) << m << setw(4) << v 
+	      << setw(4) << ix << setw(4) << iy;
+	  for (int n=0; n<nfield; n++) out << setw(16) << mat[n][ix][iy]; 
+	  out << endl;
+	}
+      }
+    }
+      
+    out << setw(70) << setfill('-') << '-' << setfill(' ') << endl;
+
+  }
+    
+}

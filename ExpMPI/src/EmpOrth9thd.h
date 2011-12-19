@@ -227,6 +227,9 @@ public:
   //! Read EOF basis from saved file
   int read_eof_file(const string& eof_file);
 
+  //! Dump the EOF basis in ascii format
+  void dump_eof_file(const string& eof_file, const string& dump_file);
+
   //! Read basis from cache file
   int read_cache(void);
 
