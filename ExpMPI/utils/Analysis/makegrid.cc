@@ -43,9 +43,48 @@ public:
   int index;
   double min, max;
   
-  fRecord()      : index(-1), min(MAXDOUBLE), max(0.0) {}
-  fRecord(int i) : index(i),  min(MAXDOUBLE), max(0.0) {}
+  fRecord()      : index(-1), min(MAXDOUBLE), max(-MAXDOUBLE) {}
+  fRecord(int i) : index(i),  min(MAXDOUBLE), max(-MAXDOUBLE) {}
 };
+
+class fPosVel
+{
+  static const size_t nf = 6;
+  static const char* names[];
+
+  std::vector<double> vmin;
+  std::vector<double> vmax;
+  size_t indx, cnt;
+
+public:
+
+  fPosVel() {
+    cnt  = 0;
+    indx = -1;
+    vmin = std::vector<double>(6,  MAXDOUBLE);
+    vmax = std::vector<double>(6, -MAXDOUBLE);
+  }
+
+  void operator()(double* ps, double* vs)
+  {
+    for (size_t i=0; i<3; i++) {
+      vmin[i]   = std::min<double>(vmin[i],   ps[i]);
+      vmax[i]   = std::max<double>(vmax[i],   ps[i]);
+      vmin[i+3] = std::min<double>(vmin[i+3], vs[i]);
+      vmax[i+3] = std::max<double>(vmax[i+3], vs[i]);
+    }
+    cnt++;
+  }
+
+  void begin()      { indx = -1; }
+  bool next()       { indx++; if (indx < 6) return true; else return false; }
+  std::string lab() { return names[indx]; }
+  double min()      { return vmin [indx]; }
+  double max()      { return vmax [indx]; }
+  size_t size()     { return cnt; }
+};
+
+const char* fPosVel::names[] = {"x", "y", "z", "u", "v", "z"};
 
 //
 // PSP stuff
@@ -205,9 +244,10 @@ int main(int argc, char**argv)
   double dy = (ymax - ymin)/numy;
   double dz = (zmax - zmin)/numz;
 
-  cout << "Grid size: [" << numx << ", " << numy << ", " << numz << "]"
+  cout << endl;
+  cout << "Grid size:    [" << numx << ", " << numy << ", " << numz << "]"
        << endl;
-  cout << "Grid bounds: "
+  cout << "Grid bounds:  "
        << "[" << xmin << ", " << xmax << "] "
        << "[" << ymin << ", " << ymax << "] "
        << "[" << zmin << ", " << zmax << "] "
@@ -278,6 +318,7 @@ int main(int argc, char**argv)
 
   bool btemp = false, bdens = false, bknud = false, bstrl = false;
 
+  map<string, fPosVel> posvel;
   map<string, fRecord> fields;
 
   fields["Temp"] = fRecord(0);
@@ -311,6 +352,8 @@ int main(int argc, char**argv)
 
       found_dark = true;
 
+      if (posvel.find("dark") == posvel.end()) posvel["dark"] = fPosVel();
+
       //
       // Position to beginning of particles
       //
@@ -338,6 +381,9 @@ int main(int argc, char**argv)
 	  in->read((char *)&rtmp, sizeof(double));
 	  dattr.push_back(rtmp);
 	}
+
+	if (verbose) posvel["dark"](ps, vs);
+
 				// Accumulate
 				// 
 	if (indx > initial_dark && indx <= final_dark &&
@@ -357,6 +403,8 @@ int main(int argc, char**argv)
 
       found_star = true;
 
+      if (posvel.find("star") == posvel.end()) posvel["star"] = fPosVel();
+
       //
       // Position to beginning of particles
       //
@@ -384,6 +432,9 @@ int main(int argc, char**argv)
 	  in->read((char *)&rtmp, sizeof(double));
 	  dattr.push_back(rtmp);
 	}
+
+	if (verbose) posvel["star"](ps, vs);
+
 				// Accumulate
 				// 
 	if (indx > initial_star && indx <= final_star &&
@@ -403,6 +454,8 @@ int main(int argc, char**argv)
 
       found_gas = true;
 
+      if (posvel.find("gas") == posvel.end()) posvel["gas"] = fPosVel();
+
       //
       // Position to beginning of particles
       //
@@ -431,6 +484,10 @@ int main(int argc, char**argv)
 	  dattr.push_back(rtmp);
 	}
       
+				// Coordinate limits
+				// 
+	if (verbose) posvel["gas"](ps, vs);
+
 				// Accumulate
 				// 
 	if (indx > initial_gas && indx <= final_gas &&
@@ -457,7 +514,7 @@ int main(int argc, char**argv)
 	    for (it=fields.begin(); it!=fields.end(); it++) {
 	      string f = it->first;
 	      int id   = it->second.index;
-	      if (its->ndatr>id) {
+	      if (id>=0 && its->ndatr>id) {
 		fields[f].min = min<double>(dattr[id], fields[f].min);
 		fields[f].max = max<double>(dattr[id], fields[f].max);
 	      }
@@ -676,20 +733,37 @@ int main(int argc, char**argv)
 
   if (verbose) {
     cout << endl
-	 << setw(8)  << left << "Fields"
+	 << setw(42) << left << setfill('-') << '-' << endl << setfill(' ')
+	 << setw(10) << left << "Field"
 	 << setw(15) << left << "Minimum"
 	 << setw(15) << left << "Maximum"
-	 << endl << setfill('-')
-	 << setw(8)  << left << "------"
-	 << setw(15) << left << "-------"
-	 << setw(15) << left << "-------"
-	 << endl << setfill(' ');
-    for (map<string, fRecord>::iterator 
-	   it=fields.begin(); it!=fields.end(); it++)
-      cout << setw(8)  << left << it->first
-	   << setw(15) << left << it->second.min
-	   << setw(15) << left << it->second.max
-	   << endl;
+	 << endl
+      	 << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');
+
+    map<string, fPosVel>::iterator it = posvel.begin();
+    for (it=posvel.begin(); it!=posvel.end(); it++) {
+      it->second.begin();
+      while (it->second.next()) {
+	ostringstream lab;
+	lab << it->second.lab() << "(" << it->first << ")";
+	cout << setw(10) << left << lab.str()
+	     << setw(15) << left << it->second.min()
+	     << setw(15) << left << it->second.max()
+	     << endl;
+      }
+      cout << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');
+    }
+
+    if (fields.size()) {
+      for (map<string, fRecord>::iterator 
+	     it=fields.begin(); it!=fields.end(); it++)
+	cout << setw(8)  << left << it->first
+	     << setw(15) << left << it->second.min
+	     << setw(15) << left << it->second.max
+	     << endl;
+
+      cout << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');
+    }
   }
 
   return (0);
