@@ -8,10 +8,11 @@
 //
 // STL stuff
 //
+#include <algorithm>
 #include <vector>
 #include <string>
 #include <list>
-#include <algorithm>
+#include <map>
 
 //
 // BOOST stuff
@@ -32,6 +33,19 @@ namespace po = boost::program_options;
 #include <vtkPointData.h>
 #include <vtkXMLRectilinearGridWriter.h>
 #include <vtkLookupTable.h>
+
+//
+// Helper class for diagnostics
+//
+class fRecord
+{
+public:
+  int index;
+  double min, max;
+  
+  fRecord()      : index(-1), min(MAXDOUBLE), max(0.0) {}
+  fRecord(int i) : index(i),  min(MAXDOUBLE), max(0.0) {}
+};
 
 //
 // PSP stuff
@@ -93,13 +107,12 @@ int main(int argc, char**argv)
     ("help,h", "produce this help message")
     ("verbose,v", "verbose output")
     ("mask,b", "blank empty cells")
-    ("debug", "turn on debugging output")
     ("numx,1", po::value<int>(&numx)->default_value(20), 
      "number of bins in x direction")
     ("numy,2", po::value<int>(&numy)->default_value(20), 
-     "number of bins in x direction")
+     "number of bins in y direction")
     ("numz,3", po::value<int>(&numz)->default_value(20), 
-     "number of bins in x direction")
+     "number of bins in z direction")
     ("xmin,x", po::value<double>(&xmin)->default_value(-1.0), 
      "minimum x value")
     ("xmax,X", po::value<double>(&xmax)->default_value(1.0), 
@@ -192,6 +205,8 @@ int main(int argc, char**argv)
   double dy = (ymax - ymin)/numy;
   double dz = (zmax - zmin)/numz;
 
+  cout << "Grid size: [" << numx << ", " << numy << ", " << numz << "]"
+       << endl;
   cout << "Grid bounds: "
        << "[" << xmin << ", " << xmax << "] "
        << "[" << ymin << ", " << ymax << "] "
@@ -262,6 +277,13 @@ int main(int argc, char**argv)
   bool found_dark = false;
 
   bool btemp = false, bdens = false, bknud = false, bstrl = false;
+
+  map<string, fRecord> fields;
+
+  fields["Temp"] = fRecord(0);
+  fields["Dens"] = fRecord(1);
+  fields["Knud"] = fRecord(4);
+  fields["Strl"] = fRecord(5);
 
   vtkSmartPointer<vtkPoints>    part  = vtkPoints    ::New();
   vtkSmartPointer<vtkDataArray> dens  = vtkFloatArray::New();
@@ -428,6 +450,20 @@ int main(int argc, char**argv)
 	  if (its->ndatr>5) { gstrl[ii][jj][kk] += ms*dattr[5]; bstrl=true; }
 	  for (int ll=0; ll<3; ll++) vel[ii][jj][kk][ll] += ms*vs[ll];
 	  
+	  // Get ranges
+	  //
+	  if (verbose) {
+	    map<string, fRecord>::iterator it;
+	    for (it=fields.begin(); it!=fields.end(); it++) {
+	      string f = it->first;
+	      int id   = it->second.index;
+	      if (its->ndatr>id) {
+		fields[f].min = min<double>(dattr[id], fields[f].min);
+		fields[f].max = max<double>(dattr[id], fields[f].max);
+	      }
+	    }
+	  }
+
 	  // Pack gas arrays
 	  //
 	  part->InsertPoint(offset, &xyz[0]);
@@ -637,6 +673,24 @@ int main(int argc, char**argv)
 
   if (mask)
     cout << blank << " blank voxels and " << activ << " active ones" << endl;
+
+  if (verbose) {
+    cout << endl
+	 << setw(8)  << left << "Fields"
+	 << setw(15) << left << "Minimum"
+	 << setw(15) << left << "Maximum"
+	 << endl << setfill('-')
+	 << setw(8)  << left << "------"
+	 << setw(15) << left << "-------"
+	 << setw(15) << left << "-------"
+	 << endl << setfill(' ');
+    for (map<string, fRecord>::iterator 
+	   it=fields.begin(); it!=fields.end(); it++)
+      cout << setw(8)  << left << it->first
+	   << setw(15) << left << it->second.min
+	   << setw(15) << left << it->second.max
+	   << endl;
+  }
 
   return (0);
 }
