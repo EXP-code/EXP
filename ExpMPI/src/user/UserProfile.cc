@@ -61,6 +61,10 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
 
   userinfo();
 
+  // -----------------------------------------------------------
+  // Make grid spacing
+  // -----------------------------------------------------------
+
   if (RMIN <= 0.0) {
     LOGR = false;
     RMIN = 0.0;
@@ -71,10 +75,14 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
     RMAX = log(RMAX);
   }
 
-  dR   = (RMAX - RMIN)/(NUMR-1);
+  dR = (RMAX - RMIN)/(NUMR-1);
 
-  vector<int> nbeg, nend, numb;
   int nstep = NUMR/numprocs;
+
+  // -----------------------------------------------------------
+  // Compute the beginning, ending, and grid counts assigned to 
+  // each node
+  // -----------------------------------------------------------
 
   for (int n=0; n<numprocs; n++) {
     nbeg.push_back(nstep*n);
@@ -83,6 +91,10 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
   }
   nend[numprocs-1] = NUMR;
   numb[numprocs-1] = nend[numprocs-1] - nbeg[numprocs-1];
+
+  // -----------------------------------------------------------
+  // Assign array storage
+  // -----------------------------------------------------------
 
   rho1  = vector<double>(numb[myid]);
   mass1 = vector<double>(numb[myid]);
@@ -167,7 +179,6 @@ void UserProfile::initialize()
 
 void UserProfile::determine_acceleration_and_potential(void)
 {
-
   if (first) {
 
     count = 0;
@@ -180,10 +191,11 @@ void UserProfile::determine_acceleration_and_potential(void)
 
 	for (count=0; count<10000; count++) {
 	  ostringstream ostr;
-	  ostr << outdir << runtag << "." << filename << "." 
-	       << "." << count;
+	  ostr << outdir << runtag << "." << filename << "." << count;
 	  
+	  //
 	  // Try to open stream for writing
+	  //
 	  ifstream in(ostr.str().c_str());
 	  if (!in) break;
 	}
@@ -213,32 +225,32 @@ void UserProfile::determine_acceleration_and_potential(void)
     // -----------------------------------------------------------
 
     double r, theta, phi, x;
-    double dens0, potl0, dens, potl, potr, pott, potp;
-    double mass0;
+    double dens0, potl0, dens, potl, potr, pott, potp, mass0;
+    
+    for (int i=0; i<numb[myid]; i++) {
 
-    for (int i=nbeg[myid]; i<nend[myid]; i++) {
-
-      r = RMIN + dR*i;
+      r = RMIN + dR*(nbeg[myid]+i);
       if (LOGR)	r = exp(r);
+
       mass0 = 0.0;
 
       for (int j=0; j<NTHETA; j++) {
 	x = -1.0 + 2.0*(0.5+j)/NTHETA;
 	theta = acos(x);
 
-	for (int k=0; j<NPHI; k++) {
-	  phi = 2.0*M_PI*j/NPHI;
+	for (int k=0; k<NPHI; k++) {
+	  phi = 2.0*M_PI*k/NPHI;
 
 	  ((Basis *)cC->force)->
 	    determine_fields_at_point_sph(r, theta, phi,
 					  &dens0, &potl0, 
 					  &dens, &potl,
 					  &potr, &pott, &potp);
-	  mass0 += potr*r;
+	  mass0 += potr*r*r;
 	}
       }
 
-      rho1 [i] = dens0;
+      rho1 [i] = -dens0;
       mass1[i] = mass0/(NTHETA*NPHI);
       pot1 [i] = potl0;
     }
@@ -251,26 +263,39 @@ void UserProfile::determine_acceleration_and_potential(void)
     if (cC == c0.back()) {
 
       MPI_Gatherv(&rho1[0], numb[myid], MPI_DOUBLE,
-		  &rho[0], &numb[0], &nbeg[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+		  &rho[0],  &numb[0], &nbeg[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      MPI_Gatherv(&mass1[0], numb[myid], MPI_DOUBLE,
+		  &mass[0], &numb[0], &nbeg[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      MPI_Gatherv(&pot1[0], numb[myid], MPI_DOUBLE,
+		  &pot[0],  &numb[0], &nbeg[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
       
-      if (myid==0) {		// Print the file
+      //
+      // Print the file
+      //
+      if (myid==0) {		
 	  
 	ostringstream ostr;
 	ostr << outdir << runtag << "." << filename << "." << count;
 	  
+	//
 	// Try to open stream for writing
+	//
 	ofstream out(ostr.str().c_str());
 	if (out) {
-	  out << "# Profile at T=" << tnow << endl;
-	  out << "#" << setw(17) << right << " 1) = r"
-	      << setw(18) << "2) = rho" << setw(18) << "3) = M(r)"
-	      << setw(18) << "4) U(r)" << endl;
-	  out << setw(10) << NUMR;
+	  out << "# Profile at T=" << tnow << endl
+	      << "#" << setw(17) << right << " 1) = r"
+	      << setw(18) << "2) = rho" 
+	      << setw(18) << "3) = M(r)"
+	      << setw(18) << "4) U(r)" << endl
+	      << setw(10) << NUMR << endl;
 
 	  for (int i=0; i<NUMR; i++) {
+
 	    double r = RMIN + dR*i;
-	    if (LOGR)	r = exp(r);
+	    if (LOGR) r = exp(r);
 
 	    out << setw(18) << r
 		<< setw(18) << rho[i]
