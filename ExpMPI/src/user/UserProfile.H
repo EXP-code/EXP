@@ -12,7 +12,7 @@
     @param LOGR true means logarithmic spacing between RMIN and RMAX
     @param NTHETA is the number of colatitude knots
     @param NPHI is the number of azimuthal knots
-    @param NSTEP is the number of steps between frames
+    @param DT is the time interval between evaluations
     @param filename is the suffix of the output file
     @param C(i) is a component to include in the wake.  The index i must begin at 1 and increase by 1 for each additional component.
 */
@@ -31,7 +31,8 @@ private:
   int NUMR, NTHETA, NPHI;
   double RMIN, RMAX, dR;
 
-  int NSTEP, numComp, count, nlast, nnext;
+  double DT, tnext;
+  int numComp, count;
   vector<int> nbeg, nend, numb;
 
   void determine_acceleration_and_potential(void);

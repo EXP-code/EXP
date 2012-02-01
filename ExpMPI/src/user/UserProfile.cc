@@ -22,7 +22,7 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
   LOGR     = true;
   NTHETA   = 16;
   NPHI     = 16;
-  NSTEP    = 1;			// Steps between frames
+  DT       = 0.01;
 
   initialize();
 
@@ -128,7 +128,7 @@ void UserProfile::userinfo()
        << ", RMIN="     << RMIN
        << ", RMAX="     << RMAX
        << ", LOGR="     << (LOGR ? "True" : "False")
-       << ", NSTEP="    << NSTEP
+       << ", DT="       << DT
        << ", NTHETA="   << NTHETA
        << ", NPHI="     << NPHI
        << ", filename=" << filename
@@ -160,7 +160,7 @@ void UserProfile::initialize()
   if (get_value("NUMR",     val))     NUMR = atoi(val.c_str());
   if (get_value("RMIN",     val))     RMIN = atof(val.c_str());
   if (get_value("RMAX",     val))     RMAX = atof(val.c_str());
-  if (get_value("NSTEP",    val))     NSTEP = atoi(val.c_str());
+  if (get_value("DT",       val))     DT   = atof(val.c_str());
   if (get_value("NTHETA",   val))     NTHETA = atoi(val.c_str());
   if (get_value("NPHI",     val))     NPHI = atoi(val.c_str());
 
@@ -179,11 +179,11 @@ void UserProfile::initialize()
 
 void UserProfile::determine_acceleration_and_potential(void)
 {
+
   if (first) {
 
     count = 0;
-    nlast = this_step;
-    nnext = this_step;
+    tnext = tnow;
 
     if (restart) {
 
@@ -210,7 +210,16 @@ void UserProfile::determine_acceleration_and_potential(void)
     first = false;
   }
   
-  if (this_step == nnext) {
+  // -----------------------------------------------------------
+  // Let the root node make the decision to create the profile
+  // for consistency
+  // -----------------------------------------------------------
+
+  unsigned char doit = 0;
+  if (tnow > tnext*(1 - 1.0e-12)) doit = 1;
+  MPI_Bcast(&doit, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+
+  if (doit) {
 
     // -----------------------------------------------------------
     // Clean the data store before the first component in the list
@@ -309,13 +318,10 @@ void UserProfile::determine_acceleration_and_potential(void)
 	}
       }
       
+      count++;
+      tnext = tnow + DT;
     }
-    
-    // -----------------------------------------------------------
 
-    count++;
-    nlast = this_step;
-    nnext = this_step + NSTEP;
   }
 
 }
