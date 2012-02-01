@@ -268,6 +268,13 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   multi = new SphericalModelMulti(halo2, halo3);
   multi -> gen_tolE = TOLE;
 
+  // For frequency computation
+  //
+  hDmin = log(max<double>(disk->get_min_radius(), RDMIN));
+  hDmax = log(disk->get_max_radius());
+  dRh = (hDmax - hDmin)/nh;
+  nhN = vector<unsigned>(nh+1, 0);
+  nhD = vector<double>  (nh+1, 0.0);
 }
 
 
@@ -1050,9 +1057,9 @@ table_disk(vector<Particle>& part)
       
       workV[0][j] = log(RDMIN) + dR*j;
 				// Use monopole approximation
-      workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
+      // workE[j] = odd2(workV[0][j], nrD, nhD, 1)/(R*R);
 				// Use basis evaluation
-      // workE[j]    = max<double>(-fr + dpr, 1.0e-20);
+      workE[j]    = max<double>(-fr + dpr, 1.0e-20);
 
       workV[1][j] = disk_surface_density(R);
       workV[2][j] = workV[1][j]*workE[j]*R;
@@ -1821,11 +1828,11 @@ void DiskHalo::table_halo_disp()
 
   // Update tables on all nodes
   //
-  MPI_Allreduce(&halotable[0][0], &halotable[0][0], NHR, MPI_DOUBLE, 
+  MPI_Allreduce(MPI_IN_PLACE, &halotable[0][0], NHR, MPI_DOUBLE, 
 		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&halotable[1][0], &halotable[1][0], NHR, MPI_DOUBLE, 
+  MPI_Allreduce(MPI_IN_PLACE, &halotable[1][0], NHR, MPI_DOUBLE, 
 		MPI_SUM, MPI_COMM_WORLD);
-  MPI_Allreduce(&halotable[2][0], &halotable[2][0], NHR, MPI_DOUBLE, 
+  MPI_Allreduce(MPI_IN_PLACE, &halotable[2][0], NHR, MPI_DOUBLE, 
 		MPI_SUM, MPI_COMM_WORLD);
   
   
