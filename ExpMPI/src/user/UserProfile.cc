@@ -19,10 +19,10 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
   NUMR     = 1000;
   RMIN     = 1.0e-4;
   RMAX     = 2.0;
+  DT       = 0.01;
   LOGR     = true;
   NTHETA   = 16;
   NPHI     = 16;
-  DT       = 0.01;
 
   initialize();
 
@@ -127,8 +127,8 @@ void UserProfile::userinfo()
   cout << ", NUMR="     << NUMR
        << ", RMIN="     << RMIN
        << ", RMAX="     << RMAX
-       << ", LOGR="     << (LOGR ? "True" : "False")
        << ", DT="       << DT
+       << ", LOGR="     << (LOGR ? "True" : "False")
        << ", NTHETA="   << NTHETA
        << ", NPHI="     << NPHI
        << ", filename=" << filename
@@ -216,7 +216,7 @@ void UserProfile::determine_acceleration_and_potential(void)
   // -----------------------------------------------------------
 
   unsigned char doit = 0;
-  if (tnow > tnext*(1 - 1.0e-12)) doit = 1;
+  if (tnow >= tnext) doit = 1;
   MPI_Bcast(&doit, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
 
   if (doit) {
