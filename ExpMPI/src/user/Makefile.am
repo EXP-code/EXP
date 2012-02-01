@@ -19,7 +19,7 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libebars.la libwake.la libsatfixorb.la libdsmc.la libebarn.la	\
 	libtreegas.la libperiodic.la libatmos.la libreflect.la		\
 	libsatwake.la libpst.la libuserslab.la libtrigger.la		\
-	libshear.la libsnheat.la
+	libshear.la libsnheat.la libprofile.la
 
 #
 # Convenience library for duplicated source components (static)
@@ -33,7 +33,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H		\
 	EllipForce.H UserBar.H UserHalo.H HeatCool.H UserDSMC.H		\
 	UserLogPot.H UserDiffRot.H UserRPtest.H UserAtmos.H		\
-	UserReflect.H UserPST.H UserShear.H UserSNheat.H
+	UserReflect.H UserPST.H UserShear.H UserSNheat.H UserProfile.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
@@ -127,6 +127,8 @@ libuserslab_la_SOURCES = UserSlabHalo.cc
 libtrigger_la_SOURCES = UserBarTrigger.cc
 
 libshear_la_SOURCES = UserShear.cc
+
+libprofile_la_SOURCES = UserProfile.cc
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .

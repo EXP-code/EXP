@@ -1,0 +1,314 @@
+#include <cmath>
+#include <sstream>
+
+#include <expand.h>
+#include <localmpi.h>
+
+#include <ExternalCollection.H>
+#include <Basis.H>
+#include <UserProfile.H>
+
+#include <pthread.h>  
+
+using namespace std;
+
+UserProfile::UserProfile(string &line) : ExternalForce(line)
+{
+  first    = true;
+  filename = "profile";
+  NUMR     = 1000;
+  RMIN     = 1.0e-4;
+  RMAX     = 2.0;
+  LOGR     = true;
+  NTHETA   = 16;
+  NPHI     = 16;
+  NSTEP    = 1;			// Steps between frames
+
+  initialize();
+
+  if (numComp==0) {
+    if (myid==0) cerr << "You must specify component targets!" << endl;
+    MPI_Abort(MPI_COMM_WORLD, 120);
+  }
+
+				// Search for component by name
+  for (int i=0; i<numComp; i++) {
+    bool found = false;
+    list<Component*>::iterator cc;
+    Component *c;
+    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+      c = *cc;
+      if ( !C[i].compare(c->name) ) {
+	// Check to see that the force can return field values
+	if (dynamic_cast <Basis*> (c->force)) {
+	  c0.push_back(c);
+	  found = true;
+	  break;
+	} else {
+	  cerr << "Process " << myid << ": desired component <"
+	       << C[i] << "> is not a basis type!" << endl;
+
+	  MPI_Abort(MPI_COMM_WORLD, 121);
+	}
+      }
+    }
+
+    if (!found) {
+      cerr << "Process " << myid << ": can't find desired component <"
+	   << C[i] << ">" << endl;
+    }
+  }
+
+  userinfo();
+
+  if (RMIN <= 0.0) {
+    LOGR = false;
+    RMIN = 0.0;
+  }
+
+  if (LOGR) {
+    RMIN = log(RMIN);
+    RMAX = log(RMAX);
+  }
+
+  dR   = (RMAX - RMIN)/(NUMR-1);
+
+  vector<int> nbeg, nend, numb;
+  int nstep = NUMR/numprocs;
+
+  for (int n=0; n<numprocs; n++) {
+    nbeg.push_back(nstep*n);
+    nend.push_back(nstep*(n+1));
+    numb.push_back(nstep);
+  }
+  nend[numprocs-1] = NUMR;
+  numb[numprocs-1] = nend[numprocs-1] - nbeg[numprocs-1];
+
+  rho1  = vector<double>(numb[myid]);
+  mass1 = vector<double>(numb[myid]);
+  pot1  = vector<double>(numb[myid]);
+
+  if (myid==0) {
+    rho  = vector<double>(NUMR);
+    mass = vector<double>(NUMR);
+    pot  = vector<double>(NUMR);
+  }
+  
+}
+
+UserProfile::~UserProfile()
+{
+  // Nothing so far
+}
+
+void UserProfile::userinfo()
+{
+  if (myid) return;		// Return if node master node
+
+  print_divider();
+
+  cout << "** User routine PROFILE initialized"
+       << " with Components <" << C[0];
+  for (int i=1; i<numComp; i++) cout << " " << C[i];
+  cout << ">";
+  
+  cout << ", NUMR="     << NUMR
+       << ", RMIN="     << RMIN
+       << ", RMAX="     << RMAX
+       << ", LOGR="     << (LOGR ? "True" : "False")
+       << ", NSTEP="    << NSTEP
+       << ", NTHETA="   << NTHETA
+       << ", NPHI="     << NPHI
+       << ", filename=" << filename
+       << endl;
+  
+  print_divider();
+}
+
+void UserProfile::initialize()
+{
+  string val;
+
+  for (numComp=0; numComp<1000; numComp++) {
+    ostringstream count;
+    count << "C(" << numComp+1 << ")";
+    if (get_value(count.str(), val))
+      C.push_back(val.c_str());
+    else break;
+  }
+
+  if (numComp != (int)C.size()) {
+    cerr << "UserProfile: error parsing component names, "
+	 << "  Size(C)=" << C.size()
+	 << "  numRes=" << numComp << endl;
+    MPI_Abort(MPI_COMM_WORLD, 122);
+  }
+
+  if (get_value("filename", val))     filename = val;
+  if (get_value("NUMR",     val))     NUMR = atoi(val.c_str());
+  if (get_value("RMIN",     val))     RMIN = atof(val.c_str());
+  if (get_value("RMAX",     val))     RMAX = atof(val.c_str());
+  if (get_value("NSTEP",    val))     NSTEP = atoi(val.c_str());
+  if (get_value("NTHETA",   val))     NTHETA = atoi(val.c_str());
+  if (get_value("NPHI",     val))     NPHI = atoi(val.c_str());
+
+  if (get_value("LOGR",     val)) {
+    if (val[0]=='T' || val[0]=='t') 
+      LOGR = true;
+    else if (val[0]=='F' || val[0]=='f')
+      LOGR = false;
+    else if (atoi(val.c_str()))
+      LOGR = true;
+    else
+      LOGR = false;
+  }
+}
+
+
+void UserProfile::determine_acceleration_and_potential(void)
+{
+
+  if (first) {
+
+    count = 0;
+    nlast = this_step;
+    nnext = this_step;
+
+    if (restart) {
+
+      if (myid == 0) {
+
+	for (count=0; count<10000; count++) {
+	  ostringstream ostr;
+	  ostr << outdir << runtag << "." << filename << "." 
+	       << "." << count;
+	  
+	  // Try to open stream for writing
+	  ifstream in(ostr.str().c_str());
+	  if (!in) break;
+	}
+      }
+
+      if (myid==0) 
+	cout << "UserProfile: beginning at frame=" << count << endl;
+
+      MPI_Bcast(&count, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    }
+
+    first = false;
+  }
+  
+  if (this_step == nnext) {
+
+    // -----------------------------------------------------------
+    // Clean the data store before the first component in the list
+    // -----------------------------------------------------------
+
+    if (cC == c0.front()) {
+      for (int i=0; i<numb[myid]; i++) rho1[i] = mass1[i] = pot1[i] = 0.0;
+    }
+
+    // -----------------------------------------------------------
+    // Compute the profile
+    // -----------------------------------------------------------
+
+    double r, theta, phi, x;
+    double dens0, potl0, dens, potl, potr, pott, potp;
+    double mass0;
+
+    for (int i=nbeg[myid]; i<nend[myid]; i++) {
+
+      r = RMIN + dR*i;
+      if (LOGR)	r = exp(r);
+      mass0 = 0.0;
+
+      for (int j=0; j<NTHETA; j++) {
+	x = -1.0 + 2.0*(0.5+j)/NTHETA;
+	theta = acos(x);
+
+	for (int k=0; j<NPHI; k++) {
+	  phi = 2.0*M_PI*j/NPHI;
+
+	  ((Basis *)cC->force)->
+	    determine_fields_at_point_sph(r, theta, phi,
+					  &dens0, &potl0, 
+					  &dens, &potl,
+					  &potr, &pott, &potp);
+	  mass0 += potr*r;
+	}
+      }
+
+      rho1 [i] = dens0;
+      mass1[i] = mass0/(NTHETA*NPHI);
+      pot1 [i] = potl0;
+    }
+
+    
+    // -----------------------------------------------------------
+    // Gather the data and print the profile after the last comp
+    // -----------------------------------------------------------
+    
+    if (cC == c0.back()) {
+
+      MPI_Gatherv(&rho1[0], numb[myid], MPI_DOUBLE,
+		  &rho[0], &numb[0], &nbeg[0], MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+      
+      if (myid==0) {		// Print the file
+	  
+	ostringstream ostr;
+	ostr << outdir << runtag << "." << filename << "." << count;
+	  
+	// Try to open stream for writing
+	ofstream out(ostr.str().c_str());
+	if (out) {
+	  out << "# Profile at T=" << tnow << endl;
+	  out << "#" << setw(17) << right << " 1) = r"
+	      << setw(18) << "2) = rho" << setw(18) << "3) = M(r)"
+	      << setw(18) << "4) U(r)" << endl;
+	  out << setw(10) << NUMR;
+
+	  for (int i=0; i<NUMR; i++) {
+	    double r = RMIN + dR*i;
+	    if (LOGR)	r = exp(r);
+
+	    out << setw(18) << r
+		<< setw(18) << rho[i]
+		<< setw(18) << mass[i]
+		<< setw(18) << pot[i]
+		<< endl;
+	  }
+	  
+	} else {
+	  cerr << "UserProfile: error opening <" << ostr.str() << ">" << endl;
+	}
+      }
+      
+    }
+    
+    // -----------------------------------------------------------
+
+    count++;
+    nlast = this_step;
+    nnext = this_step + NSTEP;
+  }
+
+}
+
+
+extern "C" {
+  ExternalForce *makerProfile(string& line)
+  {
+    return new UserProfile(line);
+  }
+}
+
+class proxyprof { 
+public:
+  proxyprof()
+  {
+    factory["userprofile"] = makerProfile;
+  }
+};
+
+proxyprof p;

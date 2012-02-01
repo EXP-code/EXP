@@ -60,6 +60,8 @@ ExpMPI/src/user/UserBarTrigger.H -text
 ExpMPI/src/user/UserBarTrigger.cc -text
 ExpMPI/src/user/UserPST.H -text
 ExpMPI/src/user/UserPST.cc -text
+ExpMPI/src/user/UserProfile.H -text
+ExpMPI/src/user/UserProfile.cc -text
 ExpMPI/src/user/UserReflect.H -text
 ExpMPI/src/user/UserReflect.cc -text
 ExpMPI/src/user/UserRotF.cc -text
