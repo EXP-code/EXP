@@ -1136,6 +1136,7 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+"
 	   << setw(15) << "+"
 	   << setw(15) << "+"
+	   << setw(15) << "+"
 	   << endl << setfill(' ') // Labels
 	   << setw(15) << "# radius"
 	   << setw(15) << "+ mass"
@@ -1144,6 +1145,7 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+ Fmax"
 	   << setw(15) << "+ Phi(r)"
 	   << setw(15) << "+ F(Phi)"
+	   << setw(15) << "+ Mass ratio"
 	   << endl
 	   << setw(15) << "# [1]" // Column number
 	   << setw(15) << "+ [2]"
@@ -1152,8 +1154,10 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+ [5]"
 	   << setw(15) << "+ [6]"
 	   << setw(15) << "+ [7]"
+	   << setw(15) << "+ [8]"
 	   << endl << setfill('-') // Separator
 	   << setw(15) << "#"
+	   << setw(15) << "+"
 	   << setw(15) << "+"
 	   << setw(15) << "+"
 	   << setw(15) << "+"
@@ -1169,7 +1173,9 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	     << setw(15) << gen_vmax[i]
 	     << setw(15) << gen_fmax[i]
 	     << setw(15) << get_pot(exp(gen_rloc[i]))
-	     << setw(15) << fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << setw(15) << 
+	  real->distf(get_pot(exp(gen_rloc[i])), 0.5)/
+	  fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
 	     << endl;
       }
     }
