@@ -102,6 +102,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   expandh = haloexp;
   expandd = diskexp;
 
+  AxiSymModel::gen_seed = 11 + myid;
   SphericalModelTable::even = 0;
   SphericalModelTable::logscale = LOGSCALE;
 
@@ -178,6 +179,7 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   expandh = haloexp;
   expandd = diskexp;
 
+  AxiSymModel::gen_seed = 11 + myid;
   SphericalModelTable::even = 0;
   SphericalModelTable::logscale = LOGSCALE;
 
