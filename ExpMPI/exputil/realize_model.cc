@@ -52,15 +52,15 @@ bool     AxiSymModel::gen_EJ = true;
 int      AxiSymModel::numr = 50;
 int      AxiSymModel::numj = 50;
 int      AxiSymModel::gen_N = 400;
-int      AxiSymModel::gen_E = 200;
-int      AxiSymModel::gen_K = 100;
+int      AxiSymModel::gen_E = 400;
+int      AxiSymModel::gen_K = 200;
 double   AxiSymModel::gen_tolE = 0.01;
 double   AxiSymModel::gen_tolK = 0.02;
 double   AxiSymModel::gen_rmin = 0.0;
 int      AxiSymModel::gen_logr = 1;
 double   AxiSymModel::gen_kmin = 0.0;
 uint32_t AxiSymModel::gen_seed = 11;
-int      AxiSymModel::gen_itmax = 4000;
+int      AxiSymModel::gen_itmax = 20000;
 
 const bool verbose = true;
 const double ftol = 0.01;
@@ -1144,8 +1144,9 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+ Vmax"
 	   << setw(15) << "+ Fmax"
 	   << setw(15) << "+ Phi(r)"
-	   << setw(15) << "+ F(Phi)"
-	   << setw(15) << "+ Mass ratio"
+	   << setw(15) << "+ F_real(Phi)"
+	   << setw(15) << "+ F_fake(Phi)"
+	   << setw(15) << "+ Ratio"
 	   << endl
 	   << setw(15) << "# [1]" // Column number
 	   << setw(15) << "+ [2]"
@@ -1155,8 +1156,10 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << setw(15) << "+ [6]"
 	   << setw(15) << "+ [7]"
 	   << setw(15) << "+ [8]"
+	   << setw(15) << "+ [9]"
 	   << endl << setfill('-') // Separator
 	   << setw(15) << "#"
+	   << setw(15) << "+"
 	   << setw(15) << "+"
 	   << setw(15) << "+"
 	   << setw(15) << "+"
@@ -1167,15 +1170,17 @@ Vector SphericalModelMulti::gen_point(int& ierr)
 	   << endl << setfill(' ');
 
       for (int i=1; i<=gen_N; i++) {
+	double r = exp(gen_rloc[i]);
+	double p = get_pot(r);
 	test << setw(15) << gen_rloc[i]
 	     << setw(15) << gen_mass[i]
 	     << setw(15) << gen_emax[i]
 	     << setw(15) << gen_vmax[i]
 	     << setw(15) << gen_fmax[i]
-	     << setw(15) << get_pot(exp(gen_rloc[i]))
-	     << setw(15) << 
-	  real->distf(get_pot(exp(gen_rloc[i])), 0.5)/
-	  fake->distf(get_pot(exp(gen_rloc[i])), 0.5)
+	     << setw(15) << p
+	     << setw(15) << real->distf(p, 0.5)
+	     << setw(15) << fake->distf(p, 0.5)
+	     << setw(15) << real->get_density(r)/fake->get_density(r)
 	     << endl;
       }
     }

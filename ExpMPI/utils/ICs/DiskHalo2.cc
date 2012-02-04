@@ -451,14 +451,23 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
 	 << ", " << vel[2] << ")" << endl;
   }
 
-  if (com || cov) {
-    vector<Particle>::iterator ip;
-    for (ip=phalo.begin(); ip!=phalo.end(); ip++) {
-      if (com) for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
-      if (cov) for (int k=0; k<3; k++) ip->vel[k] -= vel[k];
-    }
-  }
 
+  double massn1 = 0.0, massn = massp, mfac = (mtot - mmin)/massp;
+  for (vector<Particle>::iterator ip=phalo.begin(); ip!=phalo.end(); ip++) {
+    ip->mass *= mfac;
+    massn1   += ip->mass;
+    if (com) for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
+    if (cov) for (int k=0; k<3; k++) ip->vel[k] -= vel[k];
+  }
+  MPI_Reduce(&massn1, &massn, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  
+
+  if (myid==0) cout << "     *****"
+		    << "  M(comp)=" << massp
+		    << "  M(modl)=" << mtot - mmin
+		    << "  M(meas)=" << massn
+		    << endl;
+  
   // Make dispersion vector
   //
   table_halo_disp();
