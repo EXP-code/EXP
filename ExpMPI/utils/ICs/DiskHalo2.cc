@@ -63,30 +63,33 @@ DiskHalo()
 {
   disktableP = NULL;
   disktableN = NULL;
-  gen = NULL;
-  rndU = NULL;
-  rndN = NULL;
-  com = false;
-  cov = false;
-  DF = false;
-  MULTI = false;
-  halo = NULL;
-  halo2 = NULL;
-  disk = NULL;
+  gen        = NULL;
+  rndU       = NULL;
+  rndN       = NULL;
+  com        = false;
+  cov        = false;
+  DF         = false;
+  MULTI      = false;
+  halo       = NULL;
+  halo2      = NULL;
+  disk       = NULL;
+  type       = Asymmetric;
 }
 
 DiskHalo::
 DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 	 double H, double A, double DMass, 
-	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC)
+	 string& filename, int DF1, int DIVERGE, double DIVERGE_RFAC,
+	 DiskGenType type)
 {
   disktableP = NULL;
   disktableN = NULL;
-  gen = new ACG(SEED+myid, 20);
-  rndU = new Uniform(0.0, 1.0, gen);
-  rndN = new Normal (0.0, 1.0, gen);
-  com = false;
-  cov = false;
+  gen        = new ACG(SEED+myid, 20);
+  rndU       = new Uniform(0.0, 1.0, gen);
+  rndN       = new Normal (0.0, 1.0, gen);
+  com        = false;
+  cov        = false;
+  this->type = type;
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
@@ -158,26 +161,29 @@ DiskHalo::
 DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 	 double H, double A, double DMass, 
 	 string& filename1, int DIVERGE, double DIVERGE_RFAC,
-	 string& filename2, int DIVERGE2, double DIVERGE_RFAC2)
+	 string& filename2, int DIVERGE2, double DIVERGE_RFAC2,
+	 DiskGenType type)
 {
   disktableP = NULL;
   disktableN = NULL;
-  gen = new ACG(SEED+myid, 20);
-  rndU = new Uniform(0.0, 1.0, gen);
-  rndN = new Normal(0.0, 1.0, gen);
-  com = false;
-  cov = false;
+  gen        = new ACG(SEED+myid, 20);
+  rndU       = new Uniform(0.0, 1.0, gen);
+  rndN       = new Normal(0.0, 1.0, gen);
+  com        = false;
+  cov        = false;
+  this->type = type;
 
   for (int k=0; k<3; k++) center_pos[k] = center_vel[k] = 0.0;
 
-  DF = false;
-  MULTI = true;
+  DF          = false;
+  MULTI       = true;
 
-  dmass = DMass;
+  dmass       = DMass;
+  scalelength = A;
   scaleheight = H;
 
-  expandh = haloexp;
-  expandd = diskexp;
+  expandh     = haloexp;
+  expandd     = diskexp;
 
   AxiSymModel::gen_seed = 11 + myid;
   SphericalModelTable::even = 0;
@@ -197,13 +203,14 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 	 << "\n";
   }
 
-  AddDisk::logarithmic = true;
-  AddDisk::Rmin = RHMIN;
-  AxiSymModel::numr = 400;
-  AxiSymModel::numj = 400;
-  AxiSymModel::gen_N = 800;
+  AddDisk::logarithmic   = true;
+  AddDisk::Rmin          = RHMIN;
+  AxiSymModel::numr      = 400;
+  AxiSymModel::numj      = 400;
+  AxiSymModel::gen_N     = 800;
   AxiSymModel::gen_itmax = 4000000;
-  AxiSymModel::gen_rmin = RHMIN;
+  AxiSymModel::gen_rmin  = RHMIN;
+
   newmod = new AddDisk(halo, disk, dmass*COMPRESSION); 
   halo2 = newmod->get_model();
   halo2->setup_df(NUMDF, RA);
@@ -215,9 +222,9 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
   //
   // Generate "fake" profile
   //
-  SphericalModelTable::even = 0;
+  SphericalModelTable::even     = 0;
   SphericalModelTable::logscale = LOGSCALE;
-  SphericalModelTable::linear = 0;
+  SphericalModelTable::linear   = 0;
   
   halo3 = new SphericalModelTable(filename2, DIVERGE2, DIVERGE_RFAC2);
 
@@ -1669,48 +1676,107 @@ set_vel_disk(vector<Particle>& part)
     // Circular velocity
     vc   = v_circ(x, y, z);
 
-    // Asymmetric drift correction
-    ac   = vvR*a_drift(x, y, z);
+    // No asymmetric drift correction by default
+    ac = 0.0;
 
-    // No asymmetric drift correction
-    // ac   = 0.0;
+    switch (type) {
+    case Asymmetric:
+      // Asymmetric drift correction
+      ac   = vvR*a_drift(x, y, z);
 
-    if (isnan(vc))
+    case Jeans:
+      if (isnan(vc))
+	{
+	  cout << "V_c is NaN" << endl;
+	  vc = 0.0;
+	}
+      
+      if (isnan(ac)) 
+	{
+	  cout << "V_a is NaN" << endl;
+	  va = vc;
+	}
+      else
+	va = sqrt(max<double>(vc*vc - ac, MINDOUBLE));
+     
+      vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
+      vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
+      vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
+      
+      if (myid==0) 
+	out << setw(14) << R   << setw(14) << z   << setw(14) << va
+	    << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
+	    << endl;
+      break;
+      
+    case Epicyclic:
+      /*
+	Epicyclic theory provides the x position relative to the guiding
+	center for an arbitrary amplitude X for phase alpha = kappa*t:
+
+      		x     = X cos(alpha)
+		dx/dt = -kappa X sin(alpha)
+
+	The phase averaged radial velocity at the guiding center is then:
+
+      		<dx/dt> = 0, <(dx/dt)^2> = kappa*kappa*X*X/2
+
+	Choose X by equating <(dx/dt)^2> = \sigma^2_r:
+
+      		<X>   = 0
+		<X^2> = 2*\sigma^2_r/(kappa*kappa)
+
+	Strictly speaking this is not correct because the contribution
+	to \sigma^2_r comes from many guiding centers.  So this
+	equivlance probably over estimates the second moment in X.
+	Choose X ~ normal with 0 mean and variance <X^2>
+     */
       {
-	cout << "V_c is NaN" << endl;
-	vc = 0.0;
-      }
-    
+				// The normal variant
+	double Xampl = (*rndN)();	
+				// The cylindrical polar angle
+	double phi   = atan2(y, x);
+				// The radial phase (kappa*t)
+	double alpha = 2.0*M_PI*(*rndU)();
 
-    if (isnan(ac)) 
-      {
-	cout << "V_a is NaN" << endl;
-	va = vc;
-      }
-    else
-      va = sqrt(max<double>(vc*vc - ac, MINDOUBLE));
-    
+				// Initial guess for iteration uses
+				// present positions
+	double kappa = epi(x, y, z);
+	double X     = sqrt(2.0*Xampl*Xampl*vvR/(kappa*kappa));
 
-    vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
-    vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
-    vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
-    
-    if (myid==0) 
-      out << setw(14) << R   << setw(14) << z   << setw(14) << v_circ(x, y, z)
-	  << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
-	  << setw(14) << vvZ << setw(14) << vvR << setw(14) << vvP
-	  << endl;
-
-    if (isnan(vr)) 
-      {
-	cout << "Error: vr is NaN, R=" << R << " vvR=" << vvR << endl;
-      }
+				// Iterate to get values at guiding
+				// center
+	double Xl, x1, y1, R1, Omg;
+	for (int i=0; i<10; i++) {
+	  Xl      = X;
+				// Guiding center estimate
+	  R1      = R - X*cos(alpha);
+				// x,y positions w.r.t. this guiding center
+	  x1      = R1*cos(phi);
+	  y1      = R1*sin(phi);
+				// Epicylic freq at guiding center
+	  kappa   = epi(x1, y1, z);
 	
-    if (isnan(vp)) 
-      {
-	cout << "Error: vp is NaN, R=" << R << ", ac=" << ac << ", vc=" << vc
-	     << ", vvP=" << vvP << endl;
+				// New amplitude
+	  X       = sqrt(2.0*Xampl*Xampl*vr_disp(x1, y1, z)/(kappa*kappa));
+
+	  if (fabs((X-Xl)/Xl)<1.0e-6) break;
+	}
+				// Aximuthal freq at guiding center
+	Omg  = v_circ(x1, y1, z)/R1;
+
+				// Compute the final velocities
+	vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
+	vr   = -kappa*X*sin(alpha);
+	vp   = Omg*R1 - 2.0*Omg*X*cos(alpha);
+    
+	if (myid==0) 
+	  out << setw(14) << R1  << setw(14) << z   << setw(14) << Omg*R1
+	      << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
+	      << endl;
       }
+      break;
+    }
 
     p->vel[0] = vr*x/R - vp*y/R;
     p->vel[1] = vr*y/R + vp*x/R;
