@@ -892,6 +892,9 @@ main(int argc, char **argv)
                                 // Diagnostic . . .
   diskhalo->virial_ratio(hparticles, dparticles);
 
+  ofstream outprof("profile.diag");
+  diskhalo->profile(outprof, dparticles, 3.0e-3*ASCALE, 5.0*ASCALE, 100);
+
   //====================Compute gas particles==================================
 
   if (myid==0 && n_particlesG) {

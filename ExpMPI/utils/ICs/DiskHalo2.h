@@ -86,6 +86,10 @@ class DiskHalo
   vector<unsigned> nhN;		// Number in bins
   int nzero;			// Computed minimum mesh point
 
+  // Use Spline integration rather than Trapezoidal rule
+  //
+  static const int use_spline = 0;
+
  public:
   enum DiskGenType { Jeans, Asymmetric, Epicyclic };
 
@@ -218,13 +222,13 @@ class DiskHalo
 
   void table_disk(vector<Particle>& part);
 
-  double get_dispdz(double xp,double yp,double zp);
+  double vz_disp2(double xp,double yp,double zp);
 
-  double vr_disp(double xp, double yp,double zp);
+  double vr_disp2(double xp, double yp,double zp);
 
   double a_drift(double xp, double yp,double zp);
 
-  double vp_disp(double xp, double yp, double zp);
+  double vp_disp2(double xp, double yp, double zp);
 
   double v_circ(double xp, double yp, double zp);
 
@@ -246,6 +250,9 @@ class DiskHalo
   void zero_com(bool val) { com = val; }
 
   void zero_cov(bool val) { cov = val; }
+
+  void profile(ostream &rotfile, vector<Particle>& dpart,
+	       double rmin, double rmax, int numr);
 
 private:
   DiskGenType type;
