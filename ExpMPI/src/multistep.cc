@@ -109,7 +109,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
       // dtv = eps* min(v_i/a_i)  -- char. force time scale
       // dta = eps* phi/(v * a)   -- char. work time scale
-      // dtA = eps* sqrt(phi/a)   -- char. "escape" time scale
+      // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
 
 
       dtv  = 1.0/eps;
@@ -133,7 +133,7 @@ void * adjust_multistep_level_thread(void *ptr)
       
       dtv = dynfracV*dtv;
       dta = dynfracA*ptot/(fabs(dtr)+eps);
-      dtA = dynfracA*sqrt(ptot/(atot+eps));
+      dtA = dynfracA*sqrt(ptot/(atot+eps)/(atot+eps));
 
     }
 
