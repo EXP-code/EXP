@@ -18,9 +18,11 @@
 
     @param nint is the frequency between file updates 
 
-    @param useacc to output the acceleration
+    @param use_acc to output the acceleration
 
-    @param usepot to output the potential
+    @param use_pot to output the potential
+
+    @param use_lev to output the multistep level
 
     @param orbitlist is the list of particle numbers to trace
 
@@ -38,6 +40,7 @@ private:
   int norb;
   bool use_acc;
   bool use_pot;
+  bool use_lev;
   bool local;
   Component *tcomp;
   vector<int> orblist;

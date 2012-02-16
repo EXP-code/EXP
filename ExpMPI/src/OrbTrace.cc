@@ -16,6 +16,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   nskip   = 0;
   use_acc = false;
   use_pot = false;
+  use_lev = false;
   local   = false;
 
   filename = outdir + "ORBTRACE." + runtag;
@@ -74,6 +75,7 @@ OrbTrace::OrbTrace(string& line) : Output(line)
   nbuf = 6;
   if (use_acc) nbuf += 3;
   if (use_pot) nbuf += 1;
+  if (use_lev) nbuf += 1;
   
 
   pbuf = vector<double>(nbuf);
@@ -176,6 +178,10 @@ OrbTrace::OrbTrace(string& line) : Output(line)
 	  out << "# " << setw(4) << npos++ 
 	      << setw(20) << " pot[" << orblist[i] << "]\n";
 	}
+	if (use_lev) {
+	  out << "# " << setw(4) << npos++ 
+	      << setw(20) << " lev[" << orblist[i] << "]\n";
+	}
       }
       out << "# " << endl;
     }
@@ -212,6 +218,11 @@ void OrbTrace::initialize()
   if (get_value(string("use_pot"), tmp)) {
     if (atoi(tmp.c_str())) use_pot = true;
     else                   use_pot = false;
+  }
+
+  if (get_value(string("use_lev"), tmp)) {
+    if (atoi(tmp.c_str())) use_lev = true;
+    else                   use_lev = false;
   }
 
   if (get_value(string("local"), tmp)) {
@@ -267,8 +278,11 @@ void OrbTrace::Run(int n, bool last)
       if (use_acc) {
 	for (int k=0; k<3; k++) pbuf[icnt++] = tcomp->Acc(orblist[i], k, flags);
       }
-      if (use_acc) {
+      if (use_pot) {
 	pbuf[icnt++] = it->second.pot + it->second.potext;
+      }
+      if (use_lev) {
+	pbuf[icnt++] = it->second.level;
       }
 
 #ifdef DEBUG
