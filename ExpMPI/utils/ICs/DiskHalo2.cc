@@ -73,7 +73,7 @@ DiskHalo()
   halo       = NULL;
   halo2      = NULL;
   disk       = NULL;
-  type       = Asymmetric;
+  type       = Jeans;
 }
 
 DiskHalo::
@@ -1483,7 +1483,7 @@ double DiskHalo::vr_disp2(double xp, double yp,double zp)
 }
 
 /*
-  Asymmetric drift equation: returns (v_p^2 - v_c^2)/sigma_rr^2
+  Asymmetric drift equation: returns v_a*(v_a - 2*v_c)/sigma_rr^2
 */
 double DiskHalo::a_drift(double xp, double yp, double zp)
 {
@@ -1582,6 +1582,11 @@ set_vel_disk(vector<Particle>& part)
     ostringstream sout;
     sout << "test_vel." << RUNTAG;
     out.open(sout.str().c_str());
+    out << "# " << right
+        << setw(12) << "R "    << setw(14) << "z"   << setw(14) << "v_circ"
+        << setw(14) << "v_T" << setw(14) << "drift" << setw(14) << "kappa"
+	<< setw(14) << "v_R" << setw(14) << "v_phi" << setw(14) << "v_z"
+	<< endl;
   }
 
 
@@ -1627,7 +1632,7 @@ set_vel_disk(vector<Particle>& part)
     switch (type) {
     case Asymmetric:
       // Asymmetric drift correction
-      ac   = vvR*a_drift(x, y, z);
+      ac   = 0.5*vvR*a_drift(x, y, z)/vc;
 
     case Jeans:
       if (isnan(vc))
@@ -1642,16 +1647,17 @@ set_vel_disk(vector<Particle>& part)
 	  va = vc;
 	}
       else
-	va = sqrt(max<double>(vc*vc + ac, MINDOUBLE));
+	va = max<double>(vc - ac, MINDOUBLE);
      
       vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
       vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
       vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
       
       if (myid==0 && out) 
-	out << setw(14) << R   << setw(14) << z   << setw(14) << va
-	    << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
-	    << endl;
+      out << setw(14) << R   << setw(14) << z   << setw(14) << vc
+          << setw(14) << va  << setw(14) << ac  << setw(14) << epi(x, y, z)
+	  << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
+	  << endl;
       break;
       
     case Epicyclic:
@@ -2640,7 +2646,9 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 {
   if (dpart.size() == 0) return;
 
+  bool logr = false;
   if (rmin>0.0) {
+    logr = true;
     rmin = log(rmin);
     rmax = log(rmax);
   }
@@ -2661,12 +2669,12 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
     double yy = p->pos[1];
     double R  = sqrt(xx*xx + yy*yy);
 
-    if (rmin==0.0) 
-      indx = R/dR;
-    else
+    if (logr) 
       indx = (log(R) - rmin)/dR;
+    else
+      indx = R/dR;
 
-    if (indx < numr) {
+    if (indx < numr && indx >= 0) {
 
       double vr = ( xx*p->vel[0] + yy*p->vel[1])/(R+MINDOUBLE);
       double vt = (-yy*p->vel[0] + xx*p->vel[1])/(R+MINDOUBLE);
@@ -2711,12 +2719,12 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 
     double smass = 0.0, rin, rout, ravg;
     for (int i=0; i<numr; i++) {
-      if (rmin==0) {
-	rin  = dR*i;
-	rout = dR*(i+1);
-      } else {
+      if (logr) {
 	rin  = exp(rmin + dR*i);
 	rout = exp(rmin + dR*(i+1));
+      } else {
+	rin  = dR*i;
+	rout = dR*(i+1);
       }
       ravg = 0.5*(rin + rout);
 

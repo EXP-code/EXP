@@ -587,7 +587,8 @@ main(int argc, char **argv)
     diskhalo = new DiskHalo (expandh, expandd,
 			     scale_height, scale_length, disk_mass, 
 			     halofile1, DIVERGE,  DIVERGE_RFAC,
-			     halofile2, DIVERGE2, DIVERGE_RFAC2);
+			     halofile2, DIVERGE2, DIVERGE_RFAC2,
+			     DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
 
   } else {
@@ -596,7 +597,8 @@ main(int argc, char **argv)
     diskhalo = new DiskHalo (expandh, expandd,
 			     scale_height, scale_length, 
 			     disk_mass, halofile1,
-			     DF, DIVERGE, DIVERGE_RFAC);
+			     DF, DIVERGE, DIVERGE_RFAC,
+			     DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
   }
   
