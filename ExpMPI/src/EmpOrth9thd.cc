@@ -4092,3 +4092,13 @@ void EmpCylSL::dump_eof_file(const string& eof_file, const string& output)
   }
     
 }
+
+void EmpCylSL::restrict_order(int n)
+{
+  for (int m=0; m<=MMAX; m++) {
+    for (int k=n; k<NORDER; k++) {
+      accum_cos[m][k] = 0.0;
+      if (m>0) accum_sin[m][k] = 0.0;
+    }
+  }
+}

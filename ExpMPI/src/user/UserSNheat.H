@@ -35,7 +35,7 @@ private:
   void write_trace();
 
   vector<double> origin;
-  string comp_name;
+  string comp_name, filename;
   double delay, dT, tlast, dE, radius;
   vector< set<int> > plist;
   bool firstime, verbose;

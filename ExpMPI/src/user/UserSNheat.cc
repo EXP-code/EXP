@@ -80,7 +80,6 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
   dT *= year/Tunit;
   dE /= Eunit;
 
-  // DEBUGGING
   if (myid==0 && verbose) {
     cout << "UserSNheat: dT=" << dT << " dE=" << dE << endl;
   }
@@ -97,6 +96,82 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
   for (int k=0; k<nthrds; k++) pp0[k] = vector<double>(3, 0.0);
 
   threading_init();
+
+  // Recover from old log file
+  //
+  if (myid==0) {
+
+    // Name of original and backup log files
+    //
+    filename = outdir + "SNheat." + runtag;
+    string backupfile = filename + ".bak";
+
+    // Attempt to open old log file, does it exist?
+    // If so, backup by renaming
+    //
+    ifstream chk(filename.c_str());
+    if (chk) {
+      chk.close();
+
+      // Attempt to rename
+      //
+      if (rename(filename.c_str(), backupfile.c_str())) {
+	perror("UserSNheat::Run()");
+	ostringstream message;
+	message << "UserSNheat: could not rename log file <" 
+		<< filename << "> to <" << backupfile << ">";
+	bomb(message.str());
+      }
+      
+      // Open (original) backup file for reading
+      //
+      ifstream in(backupfile.c_str());
+      if (!in) {
+	cerr << "UserSNheat: error opening original log file <" 
+	     << backupfile << "> for reading" << endl
+	     << "UserSNheat: assuming no SN so far" << endl;
+      } else {
+	
+	// Open new output stream for writing
+	//
+	ofstream out(filename.c_str());
+	if (!out) {
+	  ostringstream message;
+	  message << "UserSNheat: error opening new log file <" 
+		  << filename << "> for writing";
+	  bomb(message.str());
+	}
+	
+	const size_t cbufsiz = 4096;
+	char cbuffer[cbufsiz];
+	double T, Tphys;
+	int n;
+      
+	// Now read the backup file and write the new log file
+	//
+	while (in) {
+	  in.getline(cbuffer, cbufsiz);
+	  if (!in) break;
+	  
+	  istringstream sin(cbuffer);
+	  
+	  sin >> T;
+	  if (T>tnow) break;
+	  
+	  sin >> Tphys;
+	  sin >> n;
+	  sin >> ncount;
+	  
+	  out.write((const char *)cbuffer, cbufsiz);
+	}
+      }
+    }
+  }
+
+  // Share the current SN count (either initial for from restart)
+  //
+  MPI_Bcast(&ncount, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
 }
 
 UserSNheat::~UserSNheat()
@@ -175,12 +250,21 @@ void UserSNheat::determine_acceleration_and_potential(void)
 
     if (myid==0) {
       nSN = arrivalTime(tnow - tlast);
-      // DEBUGGING
-      if (verbose && nSN)
-	cout << "UserSNheat: T=" << setw(12) << tnow 
-	     << " [" << setw(12) << tnow*Tunit/year << " years]"
-	     << "     SN=" << setw(4) << nSN 
-	     << "     so far=" << setw(4) << ncount << endl;
+      if (nSN) {
+	if (verbose)
+	  cout << "UserSNheat: T=" << setw(12) << tnow 
+	       << " [" << setw(12) << tnow*Tunit/year << " years]"
+	       << "     SN=" << setw(4) << nSN 
+	       << "     so far=" << setw(4) << ncount << endl;
+	ofstream out(filename.c_str(), ios::app | ios::out);
+	if (out) {
+	  out << setw(18) << tnow
+	      << setw(18) << tnow*Tunit/year
+	      << setw(8)  << nSN
+	      << setw(8)  << ncount
+	      << endl;
+	}
+      }
     }
     MPI_Bcast(&nSN, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
@@ -225,6 +309,7 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
       double pos = p->pos[k] - origin[k];
       dist += pos*pos;
     }
+
     if (dist < radius*radius) {
       plist[id].insert(i);
       mm0[id] += p->mass;

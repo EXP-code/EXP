@@ -357,6 +357,9 @@ public:
 			 int OUTR, int OUTZ, bool logscale,
 			 int M1, int M2, int N1, int N2);
 
+  //! Restrict order
+  void restrict_order(int n);
+
   /** @name Utility functions */
   // @{
 

@@ -143,10 +143,6 @@ void ComponentContainer::initialize(void)
       char line[linesize];
 
       if (myid==0) {
-	cout << "Name = " << name << endl;
-      }
-
-      if (myid==0) {
 	ifstream desc(data.second.c_str());
 	if (!desc) {
 	  cerr << "ComponentContainer::initialize: could not open ps description file <"
