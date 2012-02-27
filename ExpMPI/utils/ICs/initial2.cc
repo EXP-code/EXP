@@ -143,6 +143,9 @@ program_option init[] = {
   {"NUMX",            "int",       "256",             "Radial grid size for disk basis table"},
   {"NUMY",            "int",       "128",             "Vertical grid size for disk basis table"},
   {"NORDER",          "int",       "16",              "Number of disk basis functions per M-order"},
+  {"NORDER1",         "int",       "1000",            "Restricts disk basis function to NORDER1<NORDER after basis construction for testing"},
+  {"SELECT",          "bool",      "false",           "Enable signicance selection in coefficient computation"},
+  {"DUMPCOEF",        "bool",      "false",           "Dump disk coefficients"},
   {"DIVERGE",         "int",       "0",               "Cusp extrapolation for primary halo model"},
   {"DIVERGE_RFAC",    "double",    "1.0",             "Extrapolation exponent for primary mass model"},
   {"DIVERGE2",        "int",       "0",               "Cusp extrapolation for number model"},
@@ -239,6 +242,9 @@ int          MMAX;
 int          NUMX;
 int          NUMY;
 int          NORDER;
+int          NORDER1;
+bool         SELECT;
+bool         DUMPCOEF;
 int          DIVERGE;
 double       DIVERGE_RFAC;
 int          DIVERGE2;
@@ -318,6 +324,9 @@ void param_assign()
    NUMX               = config.get<int>     ("NUMX");
    NUMY               = config.get<int>     ("NUMY");
    NORDER             = config.get<int>     ("NORDER");
+   NORDER1            = config.get<int>     ("NORDER1");
+   SELECT             = config.get<bool>    ("SELECT");
+   DUMPCOEF           = config.get<bool>    ("DUMPCOEF");
    DIVERGE            = config.get<int>     ("DIVERGE");
    DIVERGE_RFAC       = config.get<double>  ("DIVERGE_RFAC");
    DIVERGE2           = config.get<int>     ("DIVERGE2");
@@ -550,6 +559,7 @@ main(int argc, char **argv)
   EmpCylSL::VFLAG       = VFLAG;
   EmpCylSL::logarithmic = LOGR;
   EmpCylSL::DENS        = DENS;
+  EmpCylSL::SELECT      = SELECT;
 
   if (basis) EmpCylSL::DENS = true;
 
@@ -718,7 +728,25 @@ main(int argc, char **argv)
     expandd->accumulate(dparticles);
     expandd->make_coefficients();
     MPI_Barrier(MPI_COMM_WORLD);
-    if (myid==0) cout << "done\n";
+    if (myid==0) {
+      cout << "done\n";
+      if (DUMPCOEF) {
+	cout << "Dumping coefficients . . . " << flush;
+	ostringstream sout;
+	sout << "disk_coefs.";
+	if (suffix.size()>0) sout << suffix;
+	else                 sout <<"dump";
+	ofstream out(sout.str().c_str());
+	if (out) expandd->dump_coefs(out);
+	cout << "done\n";
+      }
+    }
+    if (NORDER1<NORDER) {
+      if (myid==0) cout << "Restricting order from " << NORDER 
+			<< " to " << NORDER1 << " . . . " << flush;
+      expandd->restrict_order(NORDER1);
+      if (myid==0) cout << "done\n";
+    }
 
     if (images && myid==0) {
       cout << "Images . . . " << flush;
