@@ -8,12 +8,15 @@
 #include <OutFrac.H>
 
 
+const double default_quant[] = {0.001, 0.003, 0.01, 0.03, 0.1, 0.2, 0.4, 0.5, 0.6, 0.8, 0.9, 0.97, 0.99, 0.993, 0.999};
+
 OutFrac::OutFrac(string& line) : Output(line)
 {
   nint = 10;
   filename = outdir + "OUTFRAC." + runtag;
   tcomp = NULL;
-  numQuant = 0;
+  numQuant = sizeof(default_quant)/sizeof(double);
+  for (int i=0; i<numQuant; i++) Quant[i] = default_quant[i];
 
   initialize();
 
@@ -140,14 +143,16 @@ void OutFrac::initialize()
   }
 
 				// Get quantiles
-
-  string val;
-  for (numQuant=0; numQuant<1000; numQuant++) {
-    ostringstream count;
-    count << "frac(" << numQuant+1 << ")";
-    if (get_value(count.str(), val)) {
-      Quant.push_back(atof(val.c_str()));
-    } else break;
+  if (get_value(string("frac(1)"), tmp)) {
+    Quant.erase(Quant.begin(), Quant.end());
+    string val;
+    for (numQuant=0; numQuant<1000; numQuant++) {
+      ostringstream count;
+      count << "frac(" << numQuant+1 << ")";
+      if (get_value(count.str(), val)) {
+	Quant.push_back(atof(val.c_str()));
+      } else break;
+    }
   }
 
 }
