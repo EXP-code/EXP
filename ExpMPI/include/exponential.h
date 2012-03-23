@@ -44,7 +44,7 @@ public:
 
   // Required member functions
 
-  double get_mass(const double r) { return m*(1.0 - exp(-r/a)*(1+r/a)); }
+  double get_mass(const double r) { return m*(1.0 - exp(-r/a)*(1.0+r/a)); }
 
   double get_density(const double r) { return den0*exp(-r/a); }
 

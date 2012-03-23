@@ -18,15 +18,24 @@ class Component;
 class sCell
 {
 protected:
+
   deque<double> CRMlist;
   double CRMsum;
   unsigned CRMnum;
 
+  map<int, deque<double> > CRMlistM;
+  map<int, double> CRMsumM;
+  map<int, unsigned> CRMnumM;
+
 public:
+
+  // Maximum number of cached relative velocities
+  static size_t CRMsz; 
 
   int owner;
   unsigned level;
-  unsigned count;
+  map<int, unsigned> count;
+  unsigned ctotal;
 
   /**
      @param 0 mass
@@ -40,19 +49,32 @@ public:
      @param 8 posy
      @param 9 posz
   */
-  vector<double> state;
+  map<int, vector<double> > state;
+  vector<double> stotal;
 
+  //@{
   //! Maximum relative velocity average (<0 if no entries)
+  double CRMavg(int indx);
   double CRMavg();
-
+  //@}
+  
+  //@{
   //! Add maximum to list
+  void CRMadd(int indx, double crm);
   void CRMadd(double crm);
+  //@}
 
+  //@{
   //! Return kinetic energy per unit mass per cell (total & temperature)
+  void KE(int indx, double &tot, double &dsp);
   void KE(double &tot, double &dsp);
+  //@}
 
-  //! Return total mass in cell;
+  //@{
+  //! Return total mass in cell
   double Mass();
+  double Mass(int);
+  //@}
 
   //! Return total volume of cell
   virtual double Volume() = 0;
@@ -62,12 +84,16 @@ public:
 
   //! Mean position
   //@{
+  void MeanPos(int indx, double &x, double &y, double& z);
+  void MeanPos(int indx, vector<double>& p);
   void MeanPos(double &x, double &y, double& z);
   void MeanPos(vector<double>& p);
   //@}
 
   //! Mean velocity
   //@{
+  void MeanVel(int indx, double &x, double &y, double& z);
+  void MeanVel(int indx, vector<double>& v);
   void MeanVel(double &x, double &y, double& z);
   void MeanVel(vector<double>& v);
   //@}
@@ -150,11 +176,17 @@ public:
   
   //! Walk down, accumulating state
   void accumState();
-  void accumState(unsigned count, vector<double>& _state);
+  void accumState(map<int, unsigned>& count, map<int, vector<double> >& _state);
 
+  //@{
   //! Compute state values for the maximum level
   void Find(key_type key, unsigned& curcnt, unsigned& lev,
 	    vector<double>& state);
+
+  void Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
+	    map<int, vector<double> >& st);
+  //@}
+
 
   //! Compute the node key at the child level
   unsigned childId(key_type key);
@@ -166,7 +198,6 @@ public:
   sCell* findSampleCell();
 
   //! Return bodies from this cell
-  // Particle* Body(set<unsigned long>::iterator k); // Deprecated
   Particle* Body(vector<unsigned long>::iterator k);
 
   //! Return velocity statistics for particles in the cell

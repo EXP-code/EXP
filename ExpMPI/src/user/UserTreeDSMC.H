@@ -39,6 +39,7 @@ class CollideLTE;
     @param use_Kn track Knudsen number in attribute position n (default: -1)
     @param use_St track Strouhal number in attribute position n (default: -1)
     @param use_vol track cell volume number in attribute position n (default: -1)
+    @param species location of species flag in attribute position n (default: -1)
     @param esol solves the LTE cooling rate equation for each cell
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
@@ -69,6 +70,7 @@ private:
   int nsteps, msteps, remap;
   unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, use_vol, tspow;
+  int species;
   double diamfac;
   double diam;
   double collfrac;
@@ -182,6 +184,11 @@ private:
 #ifdef TIMER
   Timer *timer;
 #endif
+
+protected:
+
+  map<int, unsigned long> spec, spec1;
+  set<int> spec_list;
 
 public:
 

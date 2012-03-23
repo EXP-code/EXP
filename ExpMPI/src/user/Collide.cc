@@ -509,7 +509,7 @@ void Collide::dispersion(vector<double>& disp)
 
 void * Collide::collide_thread(void * arg)
 {
-  pHOT *tree = (pHOT*)((thrd_pass_arguments*)arg)->tree;
+  pHOT *tree  = (pHOT*) ((thrd_pass_arguments*)arg)->tree;
   double Fn   = (double)((thrd_pass_arguments*)arg)->fn;
   double tau  = (double)((thrd_pass_arguments*)arg)->tau;
   int id      = (int)   ((thrd_pass_arguments*)arg)->id;
@@ -585,7 +585,7 @@ void * Collide::collide_thread(void * arg)
 	   << ", mykey="   << c->mykey
 	   << ", mask="    << c->mask  << dec
 	   << ", level="   << c->level    
-	   << ", count="   << c->count 
+	   << ", Count="   << c->ctotal
 	   << ", maxplev=" << c->maxplev;
       if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
       else cout << ", NOT on frontier" << endl;
@@ -597,11 +597,11 @@ void * Collide::collide_thread(void * arg)
 
     if (!NTC || crm<0.0) {
       crm = 0.0;
-      if (samp->state[0]>0.0) {
+      if (samp->stotal[0]>0.0) {
 	for (unsigned k=0; k<3; k++) 
-	  crm += (samp->state[1+k] - 
-		  samp->state[4+k]*samp->state[4+k]/samp->state[0])
-	    /samp->state[0];
+	  crm += (samp->stotal[1+k] - 
+		  samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
+	    /samp->stotal[0];
       }
       mvel = fabs(crm);
       crm  = sqrt(2.0*mvel);
@@ -620,10 +620,10 @@ void * Collide::collide_thread(void * arg)
     //
     double kedsp=0.0;
     if (MFPDIAG) {
-      if (c->state[0]>0.0) {
+      if (c->stotal[0]>0.0) {
 	for (unsigned k=0; k<3; k++) 
 	  kedsp += 
-	    0.5*(c->state[1+k] - c->state[4+k]*c->state[4+k]/c->state[0]);
+	    0.5*(c->stotal[1+k] - c->stotal[4+k]*c->stotal[4+k]/c->stotal[0]);
       }
     }
     
@@ -700,6 +700,29 @@ void * Collide::collide_thread(void * arg)
     //
     double select = 0.5*(number-1)*collP;
 
+    // Per species quantities
+    //
+    map<int, double> densM, colPM;
+    map<int, map<int, double> > selcM;
+    map<int, map<int, unsigned> > nselM;
+    map<int, unsigned>::iterator it1, it2;
+    int i1, i2;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+      i1 = it1->first;
+      densM[i1] = c->Mass(i1)/volc;
+      colPM[i1] = Fn*densM[i1]*cross*crm*tau;
+    }
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+      i1 = it1->first;
+      for (it2=it1; it2!=c->count.end(); it2++) {
+	i2 = it2->first;
+	selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
+	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+      }
+    }
+
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
       vector<double> V1, V2;
@@ -736,7 +759,7 @@ void * Collide::collide_thread(void * arg)
     stat2SoFar[id] = stat2Time[id].stop();
     
 				// Number of pairs to be selected
-    unsigned nsel = static_cast<int>(floor(select+0.5));
+    unsigned nsel = static_cast<unsigned>(floor(select+0.5));
     
 				// Debug
     if (0) {
@@ -792,108 +815,133 @@ void * Collide::collide_thread(void * arg)
 #endif
       unsigned colc = 0;
 
-      // Loop over total number of candidate collision pairs
-      //
-      for (unsigned i=0; i<nsel; i++ ) {
-
-	// Pick two particles at random out of this cell
-	//
-	unsigned k1 = min<int>((int)floor((*unit)()*number), number-1);
-	unsigned k2 = ((int)floor((*unit)()*(number-1)) + k1 + 1) % number;
-	Particle* p1 = tree->Body(c->bods[k1]); // First particle
-	Particle* p2 = tree->Body(c->bods[k2]); // Second particle
-	
-	// Calculate pair's relative speed (pre-collision)
-	//
-	double cr = 0.0;
-	for (int k=0; k<3; k++) {
-	  crel[k] = p1->vel[k] - p2->vel[k];
-	  cr += crel[k]*crel[k];
+      map<int, vector<unsigned long> > bmap;
+      if (tree->species>=0) {
+	for (size_t k=0; k<c->bods.size(); k++) {
+	  unsigned long kk = c->bods[k];
+	  Particle* p = tree->Body(kk);
+	  bmap[p->iattrib[tree->species]].push_back(kk);
 	}
-	cr = sqrt(cr);
-	if (NTC) crmax = max<double>(crmax, cr);
-	
-	// Accept or reject candidate pair according to relative speed
-	//
-	bool ok = false;
-	if (NTC)
-	  ok = ( cr/crm > (*unit)() );
-	else
-	  ok = true;
+      }
 
-	if (ok) {
-	  elasTime[id].start();
+      map<int, unsigned>::iterator it1, it2;
+      
+      for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+	unsigned i1 = it1->first;
+	size_t num1 = bmap[i1].size();
 
-	  // If pair accepted, select post-collision velocities
+	for (it2=it1; it2!=c->count.end(); it2++) {
+	  unsigned i2 = it2->first;
+	  size_t num2 = bmap[i2].size();
+
+	  // Loop over total number of candidate collision pairs
 	  //
-	  colc++;			// Collision counter
+	  for (unsigned i=0; i<nselM[i1][i2]; i++ ) {
 
-	  // Do inelastic stuff
-	  //
-	  error1T[id] += inelastic(tree, p1, p2, &cr, id);
-	  // May update relative velocity to reflect
-	  // excitation of internal degrees of freedom
-	  
-	  // Center of mass velocity
-	  //
-	  double tmass = p1->mass + p2->mass;
-	  for(unsigned k=0; k<3; k++)
-	    vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
-
-
-	  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-	  double sin_th = sqrt(1.0 - cos_th*cos_th); // collision angle theta
-	  double phi = 2.0*M_PI*(*unit)();           // Collision angle phi
-
-	  vrel[0] = cr*cos_th;             // Compute post-collision
-	  vrel[1] = cr*sin_th*cos(phi);    // relative velocity
-	  vrel[2] = cr*sin_th*sin(phi);
-
-	  // Update post-collision velocities
-	  // 
-	  for(unsigned k=0; k<3; k++ ) {
-	    p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
-	    p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
-	  }
-
-	  if (CBA) {
-
-	    // Calculate pair's relative speed (post-collision)
+	    // Pick two particles at random out of this cell
 	    //
-	    cr = 0.0;
+	    unsigned k1 = min<int>((int)floor((*unit)()*num1), num1-1), k2;
+	    if (i1 == i2)
+	      k2 = ((int)floor((*unit)()*(num2-1)) + k1 + 1) % num2;
+	    else
+	      k2 = min<int>((int)floor((*unit)()*num2), num2-1);
+
+	    Particle* p1 = tree->Body(c->bods[k1]); // First particle
+	    Particle* p2 = tree->Body(c->bods[k2]); // Second particle
+	
+	    // Calculate pair's relative speed (pre-collision)
+	    //
+	    double cr = 0.0;
 	    for (int k=0; k<3; k++) {
-	      crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
+	      crel[k] = p1->vel[k] - p2->vel[k];
 	      cr += crel[k]*crel[k];
 	    }
 	    cr = sqrt(cr);
-	    
-	    // Displacement
+	    if (NTC) crmax = max<double>(crmax, cr);
+	
+	    // Accept or reject candidate pair according to relative speed
 	    //
-	    if (cr>0.0) {
-	      double displ;
-	      for (int k=0; k<3; k++) {
-		displ = crel[k]*diam/cr;
-		p1->pos[k] += displ;
-		p2->pos[k] -= displ;
+	    bool ok = false;
+	    if (NTC)
+	      ok = ( cr/crm > (*unit)() );
+	    else
+	      ok = true;
+
+	    if (ok) {
+	      elasTime[id].start();
+
+	      // If pair accepted, select post-collision velocities
+	      //
+	      colc++;			// Collision counter
+
+	      // Do inelastic stuff
+	      //
+	      error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	      // May update relative velocity to reflect
+	      // excitation of internal degrees of freedom
+	  
+	      // Center of mass velocity
+	      //
+	      double tmass = p1->mass + p2->mass;
+	      for(unsigned k=0; k<3; k++)
+		vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
+
+
+	      double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+	      double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+	      double phi = 2.0*M_PI*(*unit)();           // Collision angle phi
+
+	      vrel[0] = cr*cos_th;             // Compute post-collision
+	      vrel[1] = cr*sin_th*cos(phi);    // relative velocity
+	      vrel[2] = cr*sin_th*sin(phi);
+
+	      // Update post-collision velocities
+	      // 
+	      for(unsigned k=0; k<3; k++ ) {
+		p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
+		p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
 	      }
 
-	      if (CBADIAG) {
+	      if (CBA) {
 
-		double rat = fabs(displ)/pow(volc,0.33333333);
-		int indx = (int)floor(log(rat)/log(4.0) + 5);
+		// Calculate pair's relative speed (post-collision)
+		//
+		cr = 0.0;
+		for (int k=0; k<3; k++) {
+		  crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
+		  cr += crel[k]*crel[k];
+		}
+		cr = sqrt(cr);
+		
+		// Displacement
+		//
+		if (cr>0.0) {
+		  double displ;
+		  for (int k=0; k<3; k++) {
+		    displ = crel[k]*diam/cr;
+		    p1->pos[k] += displ;
+		    p2->pos[k] -= displ;
+		  }
 
-		if (indx<0 ) indx = 0;
-		if (indx>10) indx = 10;
+		  if (CBADIAG) {
 
-		CoverT[id][indx] += tmass;
+		    double rat = fabs(displ)/pow(volc,0.33333333);
+		    int indx = (int)floor(log(rat)/log(4.0) + 5);
+		    
+		    if (indx<0 ) indx = 0;
+		    if (indx>10) indx = 10;
+		    
+		    CoverT[id][indx] += tmass;
+		  }
+		}
 	      }
 	    }
-	  }
+	  } // Loop over pairs
 	  
-	  elasSoFar[id] = elasTime[id].stop();
-	} // Loop over pairs
-
+	}
       }
+
+      elasSoFar[id] = elasTime[id].stop();
 
       if (NTC) samp->CRMadd(crmax);
 
@@ -1295,6 +1343,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
       out << "# " << setw(6) << 1;
       for (unsigned k=2; k<13; k++) out << "| " << setw(16) << k;
       out << endl;
+      cout << "SORTED: " << mfpI.size() << " cells" << endl;
       for (unsigned j=0; j<mfpI.size(); j++)
 	out << setw(8) << j 
 	    << setw(18) << mfpI[j].first
@@ -1310,6 +1359,9 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	    << setw(18) << delI[j] 
 	    << setw(18) << selI[j] 
 	    << endl;
+
+      out << flush;
+      out.close();
     }
 
 
@@ -2283,7 +2335,6 @@ void * Collide::timestep_thread(void * arg)
 
   pCell *c;
   Particle *p;
-  unsigned nbods;
   double L, DT, mscale;
 
   // Loop over cells, processing collisions in each cell
@@ -2293,7 +2344,6 @@ void * Collide::timestep_thread(void * arg)
     // Number of particles in this cell
     //
     c = cellist[id][j];
-    nbods = c->bods.size();
     L = c->Scale();
     
     for (vector<unsigned long>::iterator 

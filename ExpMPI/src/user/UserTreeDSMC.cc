@@ -69,6 +69,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_St     = -1;
   use_vol    = -1;
   use_exes   = -1;
+  species    = -1;
   coolfrac   = 0.1;
   enhance    = 1.0;
   frontier   = false;
@@ -111,37 +112,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     MPI_Abort(MPI_COMM_WORLD, 35);
   }
   
-  Vunit = Lunit/Tunit;
-  Eunit = Munit*Vunit*Vunit;
-
-				// Diameter*Bohr radius in Lunits
-  diam = diamfac*2.0*a0/(Lunit);
-				// Number of protons per mass unit
-  collfrac = Munit/mp;
-
-  pHOT::sub_sample = sub_sample;
-
-  c0->HOTcreate();
-
-  if (tube) {
-    c0->Tree()->setSides (boxsize*boxratio, boxsize, boxsize);
-    c0->Tree()->setOffset(0.0,              0.0,     0.0);
-  } 
-  else if (slab) {
-    c0->Tree()->setSides (boxsize, boxsize, boxsize*boxratio);
-    c0->Tree()->setOffset(0.0,              0.0,     0.0);
-  } 
-  else {
-    c0->Tree()->setSides (2.0*boxsize, 2.0*boxsize, 2.0*boxsize*boxratio);
-    c0->Tree()->setOffset(    boxsize,     boxsize,     boxsize*boxratio);
-  }
-
-  pCell::bucket = ncell;
-  pCell::Bucket = Ncell;
-
-  volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
-
-
   //
   // Sanity check on excess attribute if excess calculation is
   // desired
@@ -240,6 +210,127 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   }
 
   //
+  // Make the initial species map
+  //
+  if (species>=0) {
+
+    int ok1 = 1, ok;
+
+    PartMapItr p    = c0->Particles().begin();
+    PartMapItr pend = c0->Particles().end();
+
+    map<int, unsigned long> spec1;
+    for (; p!=pend; p++) {
+      if (species >= static_cast<int>(p->second.iattrib.size())) {
+	ok1 = 0;
+	break;
+      } else {
+	int indx = p->second.iattrib[species];
+	if (spec1.find(indx) == spec1.end()) spec[indx] = 1;
+	else                                 spec[indx]++;
+      }
+    }
+
+    MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
+
+    if (ok) {
+
+      int sizm;
+      int indx;
+      unsigned long cnts;
+      map<int, unsigned long>::iterator it, it2;
+
+      spec = spec1;
+      for (int i=0; i<numprocs; i++) {
+	if (i == myid) {
+	  sizm = spec.size();
+	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
+
+	  for (it=spec1.begin(); it != spec1.end(); it++) {
+	    indx = it->first;
+	    cnts = it->second;
+	    MPI_Bcast(&indx, 1, MPI_INT, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
+	  }
+	} else {
+	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
+	  for (int j=0; j<sizm; j++) {
+	    MPI_Bcast(&indx, 1, MPI_INT, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
+	    if (spec.find(indx) == spec1.end()) spec[indx]  = cnts;
+	    else                                spec[indx] += cnts;
+	  }
+	}
+      }
+      
+      for (it=spec.begin(); it != spec.end(); it++) 
+	spec_list.insert(it->first);
+
+      if (myid==0) {
+	cout << endl
+	     << "--------------" << endl
+	     << "Species counts" << endl
+	     << "--------------" << endl
+	     << endl;
+	cout << setw(4) << right << "#";
+	for (it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << it->first;
+	cout << endl;
+	cout << setw(4) << right << "---";
+	for (it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << "--------";
+	cout << endl;
+      }
+      
+      for (int i=0; i<numprocs; i++) {
+	if (i == myid) {
+	  it2 = spec1.begin();
+	  for (it=spec.begin(); it != spec.end(); it++) {
+	    if (it->first == it2->first) {
+	      cout << setw(12) << right << it2->second;
+	      it2++;
+	    } else {
+	      cout << setw(12) << right << 0;
+	    }
+	  }
+	}
+	cout << endl;
+      }
+      cout << endl;
+    }
+  }
+
+  Vunit = Lunit/Tunit;
+  Eunit = Munit*Vunit*Vunit;
+
+				// Diameter*Bohr radius in Lunits
+  diam = diamfac*2.0*a0/(Lunit);
+				// Number of protons per mass unit
+  collfrac = Munit/mp;
+
+  pHOT::sub_sample = sub_sample;
+
+  c0->HOTcreate(species, spec_list);
+
+  if (tube) {
+    c0->Tree()->setSides (boxsize*boxratio, boxsize, boxsize);
+    c0->Tree()->setOffset(0.0,              0.0,     0.0);
+  } 
+  else if (slab) {
+    c0->Tree()->setSides (boxsize, boxsize, boxsize*boxratio);
+    c0->Tree()->setOffset(0.0,              0.0,     0.0);
+  } 
+  else {
+    c0->Tree()->setSides (2.0*boxsize, 2.0*boxsize, 2.0*boxsize*boxratio);
+    c0->Tree()->setOffset(    boxsize,     boxsize,     boxsize*boxratio);
+  }
+
+  pCell::bucket = ncell;
+  pCell::Bucket = Ncell;
+
+  volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
+
+  //
   // Set collision parameters
   //
   Collide::NTC     = ntc;
@@ -257,6 +348,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::MFPDIAG = mfpstat;
   Collide::EFFORT  = use_effort;
   Collide::ENHANCE = enhance;
+
 				// Create the collision instance
   collide = new CollideLTE(this, diam, nthrds);
   collide->set_temp_dens(use_temp, use_dens);
@@ -329,6 +421,7 @@ void UserTreeDSMC::userinfo()
   if (use_St>=0)   cout << ", St at pos="     << use_St;
   if (use_vol>=0)  cout << ", cell volume at pos=" << use_vol;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
+  if (species>=0)  cout << ", species index at pos=" << use_exes;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
@@ -383,6 +476,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_St", val))		use_St     = atoi(val.c_str());
   if (get_value("use_vol", val))	use_vol    = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes   = atoi(val.c_str());
+  if (get_value("species", val))	species    = atoi(val.c_str());
   if (get_value("frontier", val))	frontier   = atol(val);
   if (get_value("tspow", val))		tspow      = atoi(val.c_str());
   if (get_value("tsdiag", val))		tsdiag     = atol(val);
@@ -816,7 +910,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     while (pit.nextCell()) {
       pCell *cc = pit.Cell();
-      if (cc->maxplev >= mlevel && cc->count > 1) cmass1 += cc->state[0];
+      if (cc->maxplev >= mlevel && cc->ctotal > 1) cmass1 += cc->stotal[0];
     }
 
 				// Collect up info from all processes
@@ -1365,10 +1459,10 @@ void UserTreeDSMC::assignTempDensVol()
 #ifdef DEBUG
       unsigned ssz = cell->sample->count;
 #endif
-      unsigned csz = cell->count;
+      unsigned csz = cell->ctotal;
       double  volm = cell->Volume();
       double  dens = cell->Mass()/volm;
-      // set<unsigned long>::iterator j = cell->bods.begin();
+
       vector<unsigned long>::iterator j = cell->bods.begin();
       while (j != cell->bods.end()) {
 	if (*j == 0) {

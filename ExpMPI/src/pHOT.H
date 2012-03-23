@@ -170,8 +170,14 @@ public:
   //! For communication
   static MPI_Datatype CellDiagType;
 
+  //@{
+  //! Species info
+  int species;
+  set<int> spec_list;
+  //@}
+
   //! Constructor
-  pHOT(Component* C);
+  pHOT(Component* C, int species, set<int> spec_list);
 
   //! Destructor
   ~pHOT();

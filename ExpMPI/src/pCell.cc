@@ -11,6 +11,7 @@
 
 int pCell::live = 0;		// Track number of instances
 
+size_t   sCell::CRMsz  = 128;	// Maximum number of cached relative velocities
 unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
 unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
 unsigned pCell::deltaL = 2;     // Maximum number of cell expansions to get 
@@ -50,12 +51,19 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   sample  = 0;
   mykey   = 1u;
   level   = 0;
-  count   = 0;
   maxplev = 0;
 				// My body mask
   mask    = mykey << 3*(nbits - level);
+
 				// Initialize state
-  state   = vector<double>(10, 0.0);
+  set<int>::iterator it;
+  for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
+    count[*it] = 0;
+    state[*it] = vector<double>(10, 0.0);
+  }
+
+  ctotal  = 0;
+  stotal  = vector<double>(10, 0.0);
 
   tree->frontier[mykey] = this;	// Root is born on the frontier
   // DEBUG
@@ -81,11 +89,16 @@ pCell::pCell(pCell* mom, unsigned id) :
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  state   = vector<double>(10, 0.0);
+  set<int>::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    count[*it] = 0;
+    state[*it] = vector<double>(10, 0.0);
+  }
+  stotal = vector<double>(10, 0.0);
 
 				// Uninitialized sample cell
   sample  = 0;
-  count   = 0;
+  ctotal  = 0;
 
   tree->frontier[mykey] = this;	// All nodes born on the frontier
   // DEBUG
@@ -482,14 +495,14 @@ void pCell::RemoveAll()
 	   << " mykey="   << mykey
 	   << " mask="    << mask  << dec
 	   << " level="   << level    
-	   << " count="   << count 
+	   << " count="   << ctotal
 	   << " maxplev=" << maxplev << endl;
       
     }
   }
 
   maxplev = 0;
-  count   = 0;
+  ctotal  = 0;
 }
 
 pCell* pCell::findNode(const key_type& key)
@@ -523,8 +536,11 @@ pCell* pCell::findNode(const key_type& key)
 
 void pCell::zeroState()
 {
-  count = 0;
-  for (int k=0; k<10; k++) state[k] = 0.0;
+  set<int>::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    count[*it] = 0;
+    for (int k=0; k<10; k++) state[*it][k] = 0.0;
+  }
 
   for (map<unsigned, pCell*>::iterator it = children.begin();
        it != children.end(); it++) it->second->zeroState();
@@ -536,24 +552,38 @@ void pCell::accumState()
 				// March through the body list
   vector<unsigned long>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
-    state[0] += C->Particles()[*j].mass;
+    int spc = C->Particles()[*j].iattrib[tree->species];
+    state[spc][0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
-      state[1+k] += C->Particles()[*j].mass * 
+      state[spc][1+k] += C->Particles()[*j].mass * 
 	C->Particles()[*j].vel[k]*C->Particles()[*j].vel[k];
-      state[4+k] += C->Particles()[*j].mass * C->Particles()[*j].vel[k];
-      state[7+k] += C->Particles()[*j].mass * C->Particles()[*j].pos[k];
+      state[spc][4+k] += C->Particles()[*j].mass * C->Particles()[*j].vel[k];
+      state[spc][7+k] += C->Particles()[*j].mass * C->Particles()[*j].pos[k];
     }
-    count++;
+    count[spc]++;
   }
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
+  else {
+    ctotal = 0;
+    for (int k=0; k<10; k++) stotal[k] = 0.0;
+    set<int>::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      ctotal += count[*it];
+      for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+    }
+  }
+
 }
 
-
-void pCell::accumState(unsigned _count, vector<double>& _state)
+void pCell::accumState(map<int, unsigned>& _count, 
+		       map<int, vector<double> >& _state)
 {
-  count += _count;
-  for (int k=0; k<10; k++) state[k] += _state[k];
+  set<int>::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    count[*it] += _count[*it];
+    for (int k=0; k<10; k++) state[*it][k] += _state[*it][k];
+  }
   if (parent) parent->accumState(_count, _state);
 }
 
@@ -584,6 +614,46 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 
   // Return the values from this cell
   //
+  curcnt = ctotal;
+  lev    = level;
+  st     = stotal;
+
+  return;
+}
+
+
+void pCell::Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
+		 map<int, vector<double> >& st)
+{
+  set<int>::iterator it;
+
+  if (key==0u) {
+    lev = 0;
+
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      curcnt[*it] = 0;
+      for (vector<double>::iterator 
+	     s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
+      return;
+    }
+  }
+    
+
+  // Check to see if this key belongs to one of the children
+  //
+  key_type cid = key - mask;
+  cid = cid >> 3*(nbits - 1 - level);
+
+  for (map<unsigned, pCell*>::iterator it = children.begin();
+       it != children.end(); it++) {
+    if (cid == it->first) {
+      it->second->Find(key, curcnt, lev, st);
+      return;
+    }
+  }
+
+  // Return the values from this cell
+  //
   curcnt = count;
   lev    = level;
   st     = state;
@@ -593,43 +663,149 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 
 double sCell::Mass()
 {
-  return state[0]; 
+  double mass = 0.0;
+  map<int, vector<double> >::iterator it;
+  for (it=state.begin(); it!=state.end(); it++) mass += (it->second)[0];
+  return mass; 
 }
 
-void sCell::MeanPos(double &x, double &y, double& z)
+double sCell::Mass(int indx)
 {
-  if (state[0]<=0.0) {
+  map<int, vector<double> >::iterator it = state.find(indx);
+  if (it != state.end()) return (it->second)[0];
+  else                   return 0.0;
+}
+
+void sCell::MeanPos(int indx, double &x, double &y, double& z)
+{
+  map<int, vector<double> >::iterator it = state.find(indx);
+
+  if (it==state.end()) {
     x = y = z = 0.0;
     return;
   }
-  x = state[7]/state[0];
-  y = state[8]/state[0];
-  z = state[9]/state[0];
+
+  if ((it->second)[0]<=0.0) {
+    x = y = z = 0.0;
+    return;
+  }
+
+  x = (it->second)[7]/(it->second)[0];
+  y = (it->second)[8]/(it->second)[0];
+  z = (it->second)[9]/(it->second)[0];
+}
+
+void sCell::MeanPos(int indx, vector<double> &p)
+{
+  p = vector<double>(3, 0);
+  map<int, vector<double> >::iterator it = state.find(indx);
+  if (it == state.end())    return;
+  if ((it->second)[0]<=0.0) return;
+  for (int k=0; k<3; k++) p[k] = (it->second)[7+k]/(it->second)[0];
+}
+
+void sCell::MeanVel(int indx, double &u, double &v, double& w)
+{
+  map<int, vector<double> >::iterator it = state.find(indx);
+
+  if (it == state.end()) {
+    u = v = w = 0.0;
+    return;
+  }
+
+  if ((it->second)[0]<=0.0) {
+    u = v = w = 0.0;
+    return;
+  }
+  u = (it->second)[4]/(it->second)[0];
+  v = (it->second)[5]/(it->second)[0];
+  w = (it->second)[6]/(it->second)[0];
+}
+
+void sCell::MeanVel(int indx, vector<double> &p)
+{
+  p = vector<double>(3, 0);
+
+  map<int, vector<double> >::iterator it = state.find(indx);
+  if (it == state.end())    return;
+  if ((it->second)[0]<=0.0) return;
+
+  for (int k=0; k<3; k++) p[k] = (it->second)[4+k]/(it->second)[0];
+}
+void sCell::MeanPos(double &x, double &y, double& z)
+{
+  if (stotal[0]<=0.0) {
+    x = y = z = 0.0;
+    return;
+  }
+  x = stotal[7]/stotal[0];
+  y = stotal[8]/stotal[0];
+  z = stotal[9]/stotal[0];
 }
 
 void sCell::MeanPos(vector<double> &p)
 {
   p = vector<double>(3, 0);
-  if (state[0]<=0.0) return;
-  for (int k=0; k<3; k++) p[k] = state[7+k]/state[0];
+  if (stotal[0]<=0.0) return;
+  for (int k=0; k<3; k++) p[k] = stotal[7+k]/stotal[0];
 }
 
 void sCell::MeanVel(double &u, double &v, double& w)
 {
-  if (state[0]<=0.0) {
+  if (stotal[0]<=0.0) {
     u = v = w = 0.0;
     return;
   }
-  u = state[4]/state[0];
-  v = state[5]/state[0];
-  w = state[6]/state[0];
+  u = stotal[4]/stotal[0];
+  v = stotal[5]/stotal[0];
+  w = stotal[6]/stotal[0];
 }
 
 void sCell::MeanVel(vector<double> &p)
 {
   p = vector<double>(3, 0);
-  if (state[0]<=0.0) return;
-  for (int k=0; k<3; k++) p[k] = state[4+k]/state[0];
+  if (stotal[0]<=0.0) return;
+  for (int k=0; k<3; k++) p[k] = stotal[4+k]/stotal[0];
+}
+
+void sCell::KE(int indx, double &total, double &dispr)
+{
+  total = 0.0;
+  dispr = 0.0;
+
+  map<int, vector<double> >::iterator it = state.find(indx);
+  if (it == state.end()) return;
+
+  if ((it->second)[0]>0.0) {
+    for (int k=0; k<3; k++) {
+      total += 0.5*(it->second)[1+k];
+      dispr += 0.5*((it->second)[1+k] - (it->second)[4+k]*(it->second)[4+k]/(it->second)[0]);
+    }
+
+    if (count[indx]<2) dispr=0.0;
+
+#ifdef DEBUG
+    //-----------------------------------------------------------------      
+    static int cnt = 0;
+    if (dispr<0.0) {
+      ostringstream sout;
+      sout << "pCell_tst." << myid << "." << cnt++;
+      ofstream out(sout.str().c_str());
+      out << "# number=" << count << ", index=" << indx << endl;
+      for (unsigned i=0; i<10; i++) 
+	out << setw(3) << i << setw(15) << (it->second)[i] << endl;
+    }
+    //-----------------------------------------------------------------      
+#endif
+
+    dispr = max<double>(0.0, dispr);
+    
+    // Return energy per unit mass
+    //
+    total /= (it->second)[0];
+    dispr /= (it->second)[0];
+  }
+
 }
 
 void sCell::KE(double &total, double &dispr)
@@ -637,13 +813,13 @@ void sCell::KE(double &total, double &dispr)
   total = 0.0;
   dispr = 0.0;
 
-  if (state[0]>0.0) {
+  if (stotal[0]>0.0) {
     for (int k=0; k<3; k++) {
-      total += 0.5*state[1+k];
-      dispr += 0.5*(state[1+k] - state[4+k]*state[4+k]/state[0]);
+      total += 0.5*stotal[1+k];
+      dispr += 0.5*(stotal[1+k] - stotal[4+k]*stotal[4+k]/stotal[0]);
     }
 
-    if (count<2) dispr=0.0;
+    if (ctotal<2) dispr=0.0;
 
 #ifdef DEBUG
     //-----------------------------------------------------------------      
@@ -654,7 +830,7 @@ void sCell::KE(double &total, double &dispr)
       ofstream out(sout.str().c_str());
       out << "# number=" << count << endl;
       for (unsigned i=0; i<10; i++) 
-	out << setw(3) << i << setw(15) << state[i] << endl;
+	out << setw(3) << i << setw(15) << stotal[i] << endl;
     }
     //-----------------------------------------------------------------      
 #endif
@@ -663,8 +839,8 @@ void sCell::KE(double &total, double &dispr)
     
     // Return energy per unit mass
     //
-    total /= state[0];
-    dispr /= state[0];
+    total /= stotal[0];
+    dispr /= stotal[0];
   }
 
 }
@@ -713,7 +889,7 @@ sCell* pCell::findSampleCell()
 {
   pCell *cur   = this;		// Begin with this cell
   unsigned dbl = 0;		// Count the number of levels upwards
-  while(cur->count < Bucket) {
+  while(cur->ctotal < Bucket) {
 				// Maximum expansion reached or we are
 				// at the root
     if (cur->parent==0 || dbl==deltaL) break;
@@ -750,6 +926,47 @@ double sCell::CRMavg()
   if (CRMlist.size()==0 || CRMnum<=0) return -1.0;
   return CRMsum/CRMnum;
 }
+
+double sCell::CRMavg(int indx)
+{
+  map<int, deque<double> >::iterator it = CRMlistM.find(indx);
+  
+  if (it == CRMlistM.end()) return -1.0;
+
+  if (it->second.size()==0 || CRMnumM[indx]<=0) return -1.0;
+
+  return CRMsumM[indx]/CRMnumM[indx];
+}
+
+void sCell::CRMadd(int indx, double crm)
+{
+  unsigned sz = 0;
+
+  if (CRMlistM.find(indx) != CRMlistM.end()) sz = CRMlistM.size();
+
+  // Initialize running average
+  //
+  if (sz==0) {
+    CRMsumM[indx] = 0.0;
+    CRMnumM[indx] = 0;
+  }
+
+  // Add new element
+  //
+  CRMlistM[indx].push_back(crm);
+  CRMsumM[indx] += crm;
+  CRMnumM[indx] += 1;
+
+  // Push out the oldest element
+  // if deque is full
+  //
+  if (sz==CRMsz) {
+    CRMsumM[indx] -= CRMlistM[indx].front();
+    CRMnumM[indx] -= 1;
+    CRMlistM[indx].pop_front();
+  }
+}
+
 
 void sCell::CRMadd(double crm)
 {

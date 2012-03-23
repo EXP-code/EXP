@@ -80,9 +80,13 @@ void pHOT::bomb(const string& membername, const string& msg)
 /*
   Constructor: initialize domain
 */
-pHOT::pHOT(Component *C)
+pHOT::pHOT(Component *C, int species, set<int> spec_list)
 {
   cc = C;			// Register the calling component
+
+  this->species   = species;	// Register multiple species
+  this->spec_list = spec_list;
+  if (spec_list.size() == 0) spec_list.insert(-1);
 			
   partType = Hilbert;		// Partition type
 
@@ -308,8 +312,8 @@ void pHOT::computeCellStates()
 	     << ", T=" << tnow
 	     << ", owner=" << it->second->owner
 	     << ", level=" << it->second->level
-	     << ", count=" << it->second->count
-	     << ", mass="  << it->second->state[0]
+	     << ", count=" << it->second->ctotal
+	     << ", mass="  << it->second->stotal[0]
 	     << ", root key="    << hex << it->second->mykey
 	     << ", sample key="  << hex << it->second->mykey
 	     << ", sample cell=" << hex << it->second->sample
@@ -680,7 +684,7 @@ void pHOT::densEmit(unsigned lev, pCell *p)
   if (p->level == lev) {
     cntlev[lev]++;
     if (p->parent) kidlev[lev] += p->parent->children.size();
-    maslev[lev] += p->state[0];
+    maslev[lev] += p->stotal[0];
 #ifdef INT128
     vollev[lev] += volume/(key_type(1u) << (3*p->level)).toDouble();
 #else
@@ -2092,7 +2096,7 @@ void pHOT::checkCellLevelList(const char *msg)
   for (key_cell::iterator 
 	 it=frontier.begin(); it != frontier.end(); it++) {
 
-    if (it->second->mykey==1u && it->second->count==0u) {
+    if (it->second->mykey==1u && it->second->ctotal==0u) {
       cout << "Process " << myid 
 	   << ": empty root node in checkCellLevelList" << endl;
       continue;
@@ -2168,7 +2172,7 @@ void pHOT::makeCellLevelList()
   unsigned ng=0, nt=0;
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
 				// Check for empty root node
-    if (it->second->mykey==1u && it->second->count==0u) {
+    if (it->second->mykey==1u && it->second->ctotal==0u) {
       out << "Process " << myid << " in makeCellLevelList()" 
 	  << ", empty root node" << endl;
 
@@ -2239,7 +2243,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
       while (it != clevels[M].end()) {
 				// Skip the root cell if it's empty
 				// (lazy kludge)
-	if ( (*it)->mykey==1u && (*it)->count==0 ) { 
+	if ( (*it)->mykey==1u && (*it)->ctotal==0 ) { 
 	  nt--; 		// Reduce the node count by one
 	  it++;			// Go the next set in the set . . .
 	  continue; 
@@ -4439,7 +4443,7 @@ double pHOT::totalKE(double& KEtot, double& KEdsp)
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) 
     {
       for (unsigned k=0; k<10; k++) 
-	state1[k] += it->second->state[k];
+	state1[k] += it->second->stotal[k];
     }
 
   MPI_Reduce(&state1[0], &state[0], 10, MPI_DOUBLE, MPI_SUM,
@@ -4468,8 +4472,8 @@ double pHOT::totalKE(double& KEtot, double& KEdsp)
 
 void pHOT::totalMass(unsigned& Counts, double& Mass)
 {
-  double mass1 = root->state[0];
-  unsigned count1 = root->count;
+  double mass1    = root->stotal[0];
+  unsigned count1 = root->ctotal;
 
   MPI_Reduce(&mass1,  &Mass,   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&count1, &Counts, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
