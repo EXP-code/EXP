@@ -718,7 +718,8 @@ void * Collide::collide_thread(void * arg)
       i1 = it1->first;
       for (it2=it1; it2!=c->count.end(); it2++) {
 	i2 = it2->first;
-	selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
+	if (i1==i2) selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
+	else        selcM[i1][i2] =     (it1->second-1)*colPM[i2];
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
       }
     }
