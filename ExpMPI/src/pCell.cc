@@ -533,7 +533,6 @@ pCell* pCell::findNode(const key_type& key)
   return children[key2]->findNode(key);
 }
  
-
 void pCell::zeroState()
 {
   set<int>::iterator it;
@@ -544,6 +543,9 @@ void pCell::zeroState()
 
   for (map<unsigned, pCell*>::iterator it = children.begin();
        it != children.end(); it++) it->second->zeroState();
+
+  ctotal = 0;
+  for (int k=0; k<10; k++) stotal[k] = 0.0;
 }
 
 
@@ -563,8 +565,6 @@ void pCell::accumState()
     count[spc]++;
   }
 
-  ctotal = 0;
-  for (int k=0; k<10; k++) stotal[k] = 0.0;
   set<int>::iterator it;
   for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
     ctotal += count[*it];
@@ -572,7 +572,6 @@ void pCell::accumState()
   }
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
-
 }
 
 void pCell::accumState(map<int, unsigned>& _count, 
@@ -580,16 +579,12 @@ void pCell::accumState(map<int, unsigned>& _count,
 {
   set<int>::iterator it;
   for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    ctotal     += _count[*it];
     count[*it] += _count[*it];
-    for (int k=0; k<10; k++) state[*it][k] += _state[*it][k];
-  }
-
-  ctotal = 0;
-  for (int k=0; k<10; k++) stotal[k] = 0.0;
-  set<int>::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    ctotal += count[*it];
-    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+    for (int k=0; k<10; k++) {
+      stotal[k]     += state[*it][k];
+      state[*it][k] += _state[*it][k];
+    }
   }
 
   if (parent) parent->accumState(_count, _state);
