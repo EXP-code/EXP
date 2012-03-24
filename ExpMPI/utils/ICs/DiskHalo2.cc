@@ -489,7 +489,7 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
 void DiskHalo::
 set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 {
-  const double tol = 1.0e-8;
+  const double tol = 1.0e-12;
   double rmin = max<double>(halo->get_min_radius(), RHMIN);
   double rmax = halo->get_max_radius();
   double mmin = halo->get_mass(rmin);
@@ -593,7 +593,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 void DiskHalo::
 set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
 {
-  const double tol = 1.0e-8;
+  const double tol = 1.0e-12;
   double rmin = max<double>(disk->get_min_radius(), RDMIN);
   double rmax = disk->get_max_radius();
   double mmin = disk->get_mass(rmin);

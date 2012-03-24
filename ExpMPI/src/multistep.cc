@@ -112,14 +112,11 @@ void * adjust_multistep_level_thread(void *ptr)
       // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
 
 
-      dtv  = 1.0/eps;
       dtr  = 0.0;
       vtot = 0.0;
       atot = 0.0;
 
       for (int k=0; k<c->dim; k++) {
-	dtv = min<double>
-	  (dtv, fabs(c->Part(n)->vel[k])/(fabs(c->Part(n)->acc[k])+eps));
 	dtr  += c->Part(n)->vel[k]*c->Part(n)->acc[k];
 	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
 	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
@@ -131,7 +128,7 @@ void * adjust_multistep_level_thread(void *ptr)
       if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
-      dtv = dynfracV*dtv;
+      dtv = dynfracV*sqrt(vtot/(atot+eps));
       dta = dynfracA*ptot/(fabs(dtr)+eps);
       dtA = dynfracA*sqrt(ptot/(atot+eps));
 

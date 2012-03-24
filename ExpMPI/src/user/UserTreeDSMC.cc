@@ -219,7 +219,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr p    = c0->Particles().begin();
     PartMapItr pend = c0->Particles().end();
 
-    map<int, unsigned long> spec1;
     for (; p!=pend; p++) {
       if (species >= static_cast<int>(p->second.iattrib.size())) {
 	ok1 = 0;
@@ -243,7 +242,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       spec = spec1;
       for (int i=0; i<numprocs; i++) {
 	if (i == myid) {
-	  sizm = spec.size();
+	  sizm = spec1.size();
 	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
 
 	  for (it=spec1.begin(); it != spec1.end(); it++) {
@@ -257,8 +256,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	  for (int j=0; j<sizm; j++) {
 	    MPI_Bcast(&indx, 1, MPI_INT, i, MPI_COMM_WORLD);
 	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
-	    if (spec.find(indx) == spec1.end()) spec[indx]  = cnts;
-	    else                                spec[indx] += cnts;
+	    if (spec.find(indx) == spec.end()) spec[indx]  = cnts;
+	    else                               spec[indx] += cnts;
 	  }
 	}
       }
@@ -266,37 +265,74 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       for (it=spec.begin(); it != spec.end(); it++) 
 	spec_list.insert(it->first);
 
+      map<int, unsigned long> check = spec;
+      for (it=check.begin(); it!=check.end(); it++) it->second = 0;
+
       if (myid==0) {
 	cout << endl
 	     << "--------------" << endl
 	     << "Species counts" << endl
 	     << "--------------" << endl
 	     << endl;
+
 	cout << setw(4) << right << "#";
 	for (it=spec.begin(); it != spec.end(); it++)
 	  cout << setw(12) << right << it->first;
 	cout << endl;
+
 	cout << setw(4) << right << "---";
 	for (it=spec.begin(); it != spec.end(); it++)
 	  cout << setw(12) << right << "--------";
 	cout << endl;
-      }
-      
-      for (int i=0; i<numprocs; i++) {
-	if (i == myid) {
-	  it2 = spec1.begin();
-	  for (it=spec.begin(); it != spec.end(); it++) {
-	    if (it->first == it2->first) {
-	      cout << setw(12) << right << it2->second;
-	      it2++;
-	    } else {
-	      cout << setw(12) << right << 0;
-	    }
+
+	it2 = spec1.begin();
+	cout << setw(4) << right << myid;
+	for (it=spec.begin(); it != spec.end(); it++) {
+	  if (it->first == it2->first) {
+	    cout << setw(12) << right << it2->second;
+	    check[it->first] += it2->second;
+	    it2++;
+	  } else {
+	    cout << setw(12) << right << 0;
 	  }
 	}
 	cout << endl;
       }
-      cout << endl;
+      
+      unsigned val;
+      for (int i=1; i<numprocs; i++) {
+	if (i == myid) {
+	  it2 = spec1.begin();
+	  for (it=spec.begin(); it != spec.end(); it++) {
+	    if (it->first == it2->first) val = (it2++)->second;
+	    else                         val = 0;
+	    MPI_Send(&val, 1, MPI_UNSIGNED, 0, 142, MPI_COMM_WORLD);
+	  }
+	}
+	if (myid == 0) {
+	  cout << setw(4) << right << i;
+	  for (it=spec.begin(); it != spec.end(); it++) {
+	    MPI_Recv(&val, 1, MPI_UNSIGNED, i, 142, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    cout << setw(12) << right << val;
+	    check[it->first] += val;
+	  }
+	  cout << endl;
+	}
+      }
+      if (myid==0) {
+	cout << setw(4) << right << "---";
+	for (it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << "--------";
+	cout << endl;
+	cout << setw(4) << right << "TOT";
+	for (it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << it->second;
+	cout << endl;
+	cout << setw(4) << right << "CHK";
+	for (it=check.begin(); it != check.end(); it++)
+	  cout << setw(12) << right << it->second;
+	cout << endl << endl;
+      }
     }
   }
 
@@ -1479,7 +1515,7 @@ void UserTreeDSMC::assignTempDensVol()
 	if (use_dens>=0 && use_dens<sz) 
 	  cell->Body(j)->dattrib[use_dens] = dens;
 	if ((use_vol>=0) && use_vol<sz)
-	  cell->Body(j)->dattrib[use_dens] = volm;
+	  cell->Body(j)->dattrib[use_vol]  = volm;
 	j++;
       }
 #ifdef DEBUG

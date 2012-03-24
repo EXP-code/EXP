@@ -79,7 +79,7 @@ class DiskHalo
 				// Number of mass and number bins, log spaced
   static const unsigned nh = 200;
 				// Minimum number on grid before computing
-  static const unsigned mh = 100;
+  static const unsigned mh = 1;
 				// Boundaries and delta
   double hDmin, hDmax, dRh;
   vector<double>   nhD;		// Mass in bins
