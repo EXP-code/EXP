@@ -516,7 +516,6 @@ void * Collide::collide_thread(void * arg)
 
 				// Work vectors
   vector<double> vcm(3), vrel(3), crel(3);
-  pCell *c;
 
   thread_timing_beg(id);
 
@@ -536,11 +535,11 @@ void * Collide::collide_thread(void * arg)
     //
     curcTime[id].reset();
     curcTime[id].start();
+    listTime[id].start();
 
     // Number of particles in this cell
     //
-    listTime[id].start();
-    c = cellist[id][j];
+    pCell *c = cellist[id][j];
     unsigned number = c->bods.size();
     numcntT[id].push_back(number);
 
@@ -719,7 +718,7 @@ void * Collide::collide_thread(void * arg)
       for (it2=it1; it2!=c->count.end(); it2++) {
 	i2 = it2->first;
 	if (i1==i2) selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
-	else        selcM[i1][i2] =     (it1->second-1)*colPM[i2];
+	else        selcM[i1][i2] =      it1->second   *colPM[i2];
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
       }
     }

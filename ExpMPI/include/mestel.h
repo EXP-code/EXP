@@ -36,27 +36,38 @@ public:
 
   double get_mass(const double r) { 
     if (r>0.0) return rot*r; 
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0;
+  }
 
   double get_density(const double r) {
     if (r>0.0) return rot/(2.0*M_PI*r);
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0;
+  }
 
   double get_pot(const double r) { 
     if (r>0.0) return rot*log(r);
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0;
+  }
 
   double get_dpot(const double r) {
     if (r>0.0) return rot/r;
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0;
+  }
 
   double get_dpot2(const double r) {
     if (r>0.0) return -rot/(r*r);
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+    return 0;
+  }
   
   void get_pot_dpot(const double r, double &ur, double &dur) {
     if (r>0.0) {ur = rot*log(r); dur = rot/r;}
-    else bomb("radius cannot be zero!");}
+    else bomb("radius cannot be zero!");
+  }
   
   // Addiional member functions
 

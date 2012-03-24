@@ -1688,19 +1688,12 @@ void RespMat::get_emax(void)
 
     double E0 = Emax - dE;
     double E1 = Emax;
-    double f0 = E_max(E0);
-    double f1 = E_max(E1);
 
     for (i=0; i<ITMAX; i++) {
       Emax = 0.5*(E0 + E1);
       ff = E_max(Emax);
-      if (ff < 0.5*tol) {
-	E1 = Emax;
-	f1 = ff;
-      } else {
-	E0 = Emax;
-	f0 = ff;
-      }
+      if (ff < 0.5*tol) E1 = Emax;
+      else              E0 = Emax;
     }
 
     Emax = 0.5*(E1 + E0);

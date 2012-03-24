@@ -60,8 +60,8 @@ static double   tr[NMAX];
 KComplex Crombe(double a, double b, CVector& f)
 {
   KComplex              ends, x2, x4;
-  double         	xmesh,d;
-  int			nmax,num,i,j,k,index;
+  double         	d;
+  int			nmax, num, i, j, k, index;
 
   int n1 = f.getlow();
   int n2 = f.gethigh();
@@ -75,8 +75,6 @@ KComplex Crombe(double a, double b, CVector& f)
     cerr << "Crombe: dimension too large\n";
     exit (-1);
   }
-
-  xmesh = (b-a)/nmax;
 
   d = (b-a)/2.0;
   ends = f[n1] + f[n2];
@@ -114,7 +112,7 @@ KComplex Crombe(double a, double b, CVector& f)
 double Vrombe(double a, double b, Vector& f)
 {
   double		ends, x2, x4;
-  double         	xmesh,d;
+  double         	d;
   int			nmax,num,i,j,k,index;
 
   int n1 = f.getlow();
@@ -129,8 +127,6 @@ double Vrombe(double a, double b, Vector& f)
     cerr << "Vrombe: dimension too large\n";
     exit (-1);
   }
-
-  xmesh = (b-a)/nmax;
 
   d = (b-a)/2.0;
   ends = f[n1] + f[n2];

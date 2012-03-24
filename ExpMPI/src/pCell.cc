@@ -562,17 +562,16 @@ void pCell::accumState()
     }
     count[spc]++;
   }
+
+  ctotal = 0;
+  for (int k=0; k<10; k++) stotal[k] = 0.0;
+  set<int>::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    ctotal += count[*it];
+    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+  }
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
-  else {
-    ctotal = 0;
-    for (int k=0; k<10; k++) stotal[k] = 0.0;
-    set<int>::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      ctotal += count[*it];
-      for (int k=0; k<10; k++) stotal[k] += state[*it][k];
-    }
-  }
 
 }
 
@@ -584,6 +583,15 @@ void pCell::accumState(map<int, unsigned>& _count,
     count[*it] += _count[*it];
     for (int k=0; k<10; k++) state[*it][k] += _state[*it][k];
   }
+
+  ctotal = 0;
+  for (int k=0; k<10; k++) stotal[k] = 0.0;
+  set<int>::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    ctotal += count[*it];
+    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+  }
+
   if (parent) parent->accumState(_count, _state);
 }
 

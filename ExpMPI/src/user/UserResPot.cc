@@ -289,13 +289,13 @@ void UserResPot::initialize()
   if (get_value("usetag", val))   usetag = atoi(val.c_str());
   if (get_value("usebar", val))   
     {
-      usebar = atoi(val.c_str()) ? usebar=true  : usebar=false;
-      useorb = atoi(val.c_str()) ? usebar=false : usebar=true;
+      usebar = atoi(val.c_str()) ? true  : false;
+      useorb = atoi(val.c_str()) ? false : true;
     }
   if (get_value("useorb", val))   
     {
-      useorb = atoi(val.c_str()) ? usebar=true  : usebar=false;
-      usebar = atoi(val.c_str()) ? usebar=false : usebar=true;
+      useorb = atoi(val.c_str()) ? true  : false;
+      usebar = atoi(val.c_str()) ? false : true;
     }
 }
 
