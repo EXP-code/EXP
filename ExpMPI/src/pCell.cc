@@ -582,7 +582,7 @@ void pCell::accumState(map<int, unsigned>& _count,
     ctotal     += _count[*it];
     count[*it] += _count[*it];
     for (int k=0; k<10; k++) {
-      stotal[k]     += state[*it][k];
+      stotal[k]     += _state[*it][k];
       state[*it][k] += _state[*it][k];
     }
   }
