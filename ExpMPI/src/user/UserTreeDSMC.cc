@@ -226,13 +226,13 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	break;
       } else {
 	int indx = p->second.iattrib[species];
-	if (spec1.find(indx) == spec1.end()) spec[indx] = 1;
-	else                                 spec[indx]++;
+	if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
+	else                                 spec1[indx]++;
       }
     }
 
     MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
-
+    
     if (ok) {
 
       int sizm;
