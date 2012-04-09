@@ -22,7 +22,7 @@ CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid
+bin_PROGRAMS = diskprof haloprof slabprof psphisto gas2d gas2dcyl makegrid pspbox
 
 diskprof_SOURCES = PSP.cc header.cc diskprof.cc EmpOrth9thd.cc localmpi.cc Particle.cc
 diskprof_LDADD = $(EXPLIBS)
@@ -44,6 +44,9 @@ gas2dcyl_LDADD = $(EXPLIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
 makegrid_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB) @exp_vtk_ldlib@ @exp_vtk_lib@ 
+
+pspbox_SOURCES = pspbox.cc header.cc PSP.cc localmpi.cc
+pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 
 #	SphericalSL.cc legendre.cc ddplgndr.cc sinecosine.cc 
