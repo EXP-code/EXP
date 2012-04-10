@@ -56,10 +56,16 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  set<int>::iterator it;
-  for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
-    count[*it] = 0;
-    state[*it] = vector<double>(10, 0.0);
+  
+  if (tr->species >= 0) {
+    set<int>::iterator it;
+    for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
+      count[*it] = 0;
+      state[*it] = vector<double>(10, 0.0);
+    }
+  } else {
+    count[-1] = 0;
+    state[-1] = vector<double>(10, 0.0);
   }
 
   ctotal  = 0;
@@ -89,11 +95,17 @@ pCell::pCell(pCell* mom, unsigned id) :
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  set<int>::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    count[*it] = 0;
-    state[*it] = vector<double>(10, 0.0);
+  if (tree->species >= 0) {
+    set<int>::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      count[*it] = 0;
+      state[*it] = vector<double>(10, 0.0);
+    }
+  } else {
+    count[-1] = 0;
+    state[-1] = vector<double>(10, 0.0);
   }
+
   stotal = vector<double>(10, 0.0);
 
 				// Uninitialized sample cell
@@ -535,10 +547,15 @@ pCell* pCell::findNode(const key_type& key)
  
 void pCell::zeroState()
 {
-  set<int>::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    count[*it] = 0;
-    for (int k=0; k<10; k++) state[*it][k] = 0.0;
+  if (tree->species >= 0) {
+    set<int>::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      count[*it] = 0;
+      for (int k=0; k<10; k++) state[*it][k] = 0.0;
+    }
+  } else {
+    count[-1] = 0;
+    for (int k=0; k<10; k++) state[-1][k] = 0.0;
   }
 
   for (map<unsigned, pCell*>::iterator it = children.begin();
@@ -553,8 +570,9 @@ void pCell::accumState()
 {
 				// March through the body list
   vector<unsigned long>::iterator j;
+  int spc = -1;
   for (j=bods.begin(); j!=bods.end(); j++) {
-    int spc = C->Particles()[*j].iattrib[tree->species];
+    if (tree->species>=0) spc = C->Particles()[*j].iattrib[tree->species];
     state[spc][0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
       state[spc][1+k] += C->Particles()[*j].mass * 
@@ -565,11 +583,17 @@ void pCell::accumState()
     count[spc]++;
   }
 
-  set<int>::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    ctotal += count[*it];
-    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+  if (tree->species >= 0) {
+    set<int>::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      ctotal += count[*it];
+      for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+    }
+  } else {
+    ctotal += count[-1];
+    for (int k=0; k<10; k++) stotal[k] += state[-1][k];
   }
+
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
 }
@@ -577,13 +601,22 @@ void pCell::accumState()
 void pCell::accumState(map<int, unsigned>& _count, 
 		       map<int, vector<double> >& _state)
 {
-  set<int>::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    ctotal     += _count[*it];
-    count[*it] += _count[*it];
+  if (tree->species >= 0) {
+    set<int>::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      ctotal     += _count[*it];
+      count[*it] += _count[*it];
+      for (int k=0; k<10; k++) {
+	stotal[k]     += _state[*it][k];
+	state[*it][k] += _state[*it][k];
+      }
+    }
+  } else {
+    ctotal    += _count[-1];
+    count[-1] += _count[-1];
     for (int k=0; k<10; k++) {
-      stotal[k]     += _state[*it][k];
-      state[*it][k] += _state[*it][k];
+      stotal[k]    += _state[-1][k];
+      state[-1][k] += _state[-1][k];
     }
   }
 
@@ -633,12 +666,19 @@ void pCell::Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
   if (key==0u) {
     lev = 0;
 
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      curcnt[*it] = 0;
+    if (tree->species >= 0) {
+      for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+	curcnt[*it] = 0;
+	for (vector<double>::iterator 
+	       s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
+      }
+    } else {
+      curcnt[-1] = 0;
       for (vector<double>::iterator 
-	     s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
-      return;
+	     s=st[-1].begin(); s!=st[-1].end(); s++) *s = 0;
     }
+
+    return;
   }
     
 

@@ -1578,15 +1578,16 @@ set_vel_disk(vector<Particle>& part)
   
 				// Debugging
   ofstream out;
-  if (myid==0 && VFLAG & 4) {
+  if (VFLAG & 4) {
     ostringstream sout;
-    sout << "test_vel." << RUNTAG;
+    sout << "test_vel." << RUNTAG << "." << myid;
     out.open(sout.str().c_str());
     out << "# " << right
         << setw(12) << "R "    << setw(14) << "z"   << setw(14) << "v_circ"
         << setw(14) << "v_T" << setw(14) << "drift" << setw(14) << "kappa"
-	<< setw(14) << "v_R" << setw(14) << "v_phi" << setw(14) << "v_z"
-	<< endl;
+	<< setw(14) << "v_R" << setw(14) << "v_phi" << setw(14) << "v_z";
+    if (type==DiskHalo::Epicyclic) out << setw(14) << "R1" <<  setw(14) << "X";
+    out << endl;
   }
 
 
@@ -1653,7 +1654,7 @@ set_vel_disk(vector<Particle>& part)
       vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
       vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
       
-      if (myid==0 && out) 
+      if (out) 
       out << setw(14) << R   << setw(14) << z   << setw(14) << vc
           << setw(14) << va  << setw(14) << ac  << setw(14) << epi(x, y, z)
 	  << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
@@ -1698,6 +1699,7 @@ set_vel_disk(vector<Particle>& part)
 				// Iterate to get values at guiding
 				// center
 	double Xl, x1, y1, R1, Omg;
+	int cnt = 0;
 	for (int i=0; i<10; i++) {
 	  Xl      = X;
 				// Guiding center estimate
@@ -1712,6 +1714,10 @@ set_vel_disk(vector<Particle>& part)
 	  X       = sqrt(2.0*Xampl*Xampl*vr_disp2(x1, y1, z)/(kappa*kappa));
 
 	  if (fabs((X-Xl)/Xl)<1.0e-6) break;
+	  cnt++;
+	}
+	if (cnt>=10) {
+	  cerr << "OOPS" << endl;
 	}
 				// Aximuthal freq at guiding center
 	Omg  = v_circ(x1, y1, z)/R1;
@@ -1721,9 +1727,10 @@ set_vel_disk(vector<Particle>& part)
 	vr   = -kappa*X*sin(alpha);
 	vp   = Omg*R1 - 2.0*Omg*X*cos(alpha);
     
-	if (myid==0 && out) 
-	  out << setw(14) << R1  << setw(14) << z   << setw(14) << Omg*R1
+	if (out) 
+	  out << setw(14) << R   << setw(14) << z   << setw(14) << Omg*R1
 	      << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
+	      << setw(14) << R1  << setw(14) << X
 	      << endl;
       }
       break;

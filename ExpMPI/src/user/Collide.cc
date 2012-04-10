@@ -822,6 +822,11 @@ void * Collide::collide_thread(void * arg)
 	  Particle* p = tree->Body(kk);
 	  bmap[p->iattrib[tree->species]].push_back(kk);
 	}
+      } else {
+	for (size_t k=0; k<c->bods.size(); k++) {
+	  unsigned long kk = c->bods[k];
+	  bmap[-1].push_back(kk);
+	}
       }
 
       map<int, unsigned>::iterator it1, it2;
