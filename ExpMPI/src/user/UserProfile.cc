@@ -294,22 +294,23 @@ void UserProfile::determine_acceleration_and_potential(void)
 	//
 	ofstream out(ostr.str().c_str());
 	if (out) {
+
 	  out << "# Profile at T=" << tnow << endl
-	      << "#" << setw(17) << right << " 1) = r"
-	      << setw(18) << "2) = rho" 
-	      << setw(18) << "3) = M(r)"
-	      << setw(18) << "4) U(r)" << endl
-	      << setw(10) << NUMR << endl;
+	      << "#" << setw(19) << right << " 1) = r"
+	      << setw(20) << "2) = rho" 
+	      << setw(20) << "3) = M(r)"
+	      << setw(20) << "4) U(r)" << endl
+	      << setw(10) << NUMR << endl << setprecision(12);
 
 	  for (int i=0; i<NUMR; i++) {
 
 	    double r = RMIN + dR*i;
 	    if (LOGR) r = exp(r);
 
-	    out << setw(18) << r
-		<< setw(18) << rho[i]
-		<< setw(18) << mass[i]
-		<< setw(18) << pot[i]
+	    out << setw(20) << r
+		<< setw(20) << rho[i]
+		<< setw(20) << mass[i]
+		<< setw(20) << pot[i]
 		<< endl;
 	  }
 	  
