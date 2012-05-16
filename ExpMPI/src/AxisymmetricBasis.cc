@@ -64,7 +64,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     sqnorm.setsize(0, Lmax, 1, nmax);
       
     for (int l=0; l<=Lmax; l++)
-      for (int n=1; n<=nmax; n++) sqnorm[l][n] = sqrt(normM[l][n]);
+      for (int n=1; n<=nmax; n++) sqnorm[l][n] = 1.0;
 
   }
 }

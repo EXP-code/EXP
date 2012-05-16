@@ -133,7 +133,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
 
   // Allocate normalization matrix
 
-  normM.setsize(0,Lmax,1,nmax);
+  normM.setsize(0, Lmax, 1, nmax);
   for (int l=0; l<=Lmax; l++) {
     for (int n=1; n<=nmax; n++) {
       normM[l][n] = 1.0;
@@ -226,8 +226,9 @@ void SphericalBasis::setup(void)
 {				// Call normalization and kernel
   for (int l=0; l<=Lmax; l++) {	// with current binding from derived class
     for (int n=1; n<=nmax; n++) {
-      normM[l][n] = norm(n-1,l);
-      krnl[l][n] = knl(n-1,l);
+      normM[l][n]  = norm(n-1,l);
+      krnl[l][n]   = knl(n-1,l);
+      sqnorm[l][n] = sqrt(normM[l][n]);
     }
   }
 

@@ -29,9 +29,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   coef_dump       = true;
 
   initialize();
-
-
-  expcoef.setsize(0,2*Lmax+1,1,nmax);
+  
+  expcoef .setsize(0,2*Lmax+1,1,nmax);
   expcoef1.setsize(0,2*Lmax+1,1,nmax);
 
   expcoef0 = new Matrix [nthrds];
@@ -39,7 +38,7 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 
   for (int i=0; i<nthrds; i++)
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
-
+  
   if (selector) {
     cc = new Matrix [Lmax*(Lmax+2)+1];
     if (!cc) bomb("problem allocating <cc>");
@@ -58,8 +57,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   // Allocate and compute normalization matrix
 
   normM.setsize(0,Lmax,1,nmax);
-  dend.setsize(0,Lmax,1,nmax);
-  work.setsize(0,Lmax+1,1,nmax);
+  dend .setsize(0,Lmax,1,nmax);
+  work .setsize(0,Lmax+1,1,nmax);
   
   potd  = new Matrix [nthrds];
   if (!potd) bomb("problem allocating <potd>");
@@ -73,9 +72,9 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   }
 
 				// Work vectors
-  u = new Vector [nthrds];
+  u  = new Vector [nthrds];
   du = new Vector [nthrds];
-  if (!u) bomb("problem allocating <u>");
+  if (!u)  bomb("problem allocating <u>");
   if (!du) bomb("problem allocating <du>");
 
   for (int i=0; i<nthrds; i++) {
@@ -85,7 +84,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 
   for (int l=0; l<=Lmax; l++) {
     for (int n=1; n<=nmax; n++) {
-      normM[l][n] = norm(n-1,l);
+      normM[l][n]  = norm(n-1,l);
+      sqnorm[l][n] = sqrt(normM[l][n]);
     }
   }
     

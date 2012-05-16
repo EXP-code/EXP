@@ -129,7 +129,7 @@ void do_step(int n)
 	check_bad("after expansion", M);
 #endif	
 				// Reset the particle positions by a whole step
-				// they will be drifted sycrhonously below
+				// they will be drifted synchronously below
 	if (timing) timer_drift.start();
 	if (posnsync) {
 	  incr_position(-DT, M);

@@ -71,6 +71,10 @@ public:
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
 
+protected:
+
+  Matrix sqnorm;
+
 private:
 
   int Ldim, L0;
@@ -85,7 +89,6 @@ private:
   Vector cuml;
   Matrix *evec;
   Matrix Tevec;
-  Matrix sqnorm;
 
   Matrix covar;
 

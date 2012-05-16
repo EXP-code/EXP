@@ -1,0 +1,171 @@
+#!/usr/bin/python
+
+""" OUTFRAC parsing.
+
+This standalone module reads a EXP-generated OUTFRAC file and
+generates a mass-fraction versus time plot.
+"""
+
+
+from numpy import *
+
+from matplotlib import rc
+rc('font',**{'family':'sans-serif','sans-serif':['Helvetica']})
+## for Palatino and other serif fonts use:
+#rc('font',**{'family':'serif','serif':['Palatino']})
+rc('text', usetex=True)
+
+import matplotlib.patches as pch
+import matplotlib.pylab as plt
+import matplotlib.colors as colors
+import matplotlib.cm as cmx
+
+import sys
+import getopt
+
+def fill_between(ax, x, y1, y2, **kwargs):
+    """ Fill region between two curves with same abcissa """
+
+    # add x,y2 in reverse order for proper polygon filling
+    verts = zip(x,y1) + [(x[i], y2[i]) for i in range(len(x)-1,-1,-1)]
+    poly = pch.Polygon(verts, **kwargs)
+    ax.add_patch(poly)
+    ax.autoscale_view()
+    return poly
+
+def plot_em(infile, out):
+    """ Reads the input file and plots the mass fractions """
+
+    # Read the lines from the getfrac file
+    # The first two lines are headers
+    header = infile.readline()
+    column = infile.readline()
+
+    # Get all of the data
+    data   = []
+    for line in infile:
+        data.append([float(v) for v in line.split()])
+    a = array(data)
+
+    # Get value array from header
+    values = []
+    ignore = ['#', 'Time', '|', 'elapsed', 'time']
+    for w in header.split():
+        if w not in ignore: values.append(log(float(w))/log(10.0))
+    # Add unity to fill the top line
+    values.append(0.0)
+
+    # Process the data
+    delta = 1.0/(1.0+a.shape[1])
+    rmin  = 1.0e-5
+    rmax  = 1.2
+    t     = a[:,0]
+    data  = []
+    yt    = t*0.0 + rmin
+
+    # Lower range (constant y)
+    data.append(yt.tolist())
+    for j in range(1, a.shape[1]-1):
+        # Append each mass fraction
+        data.append(a[:,j].tolist())
+    # Upper range (constant y)
+    yt = t*0.0 + rmax
+    data.append(yt.tolist())
+    y = array(data)
+
+    # Initialize plot and scalar color mapping
+    ax        = plt.gca()
+    jet       = plt.get_cmap('jet') 
+    cNorm     = colors.Normalize(values)
+    scalarMap = cmx.ScalarMappable(cmap=jet)
+    ppd       = []
+
+    scalarMap.set_array(values)
+    scalarMap.autoscale()
+
+    # Override defaults
+    plt.xlim((t[0], t[-1]))
+    plt.ylim((rmin, rmax))
+
+    axes = ax.get_axes()
+    axes.set_yscale('log')
+    axes.set_xlabel('Time')
+    axes.set_ylabel('Radius')
+
+    # Generate all the fills between levels
+    for j in range(1, y.shape[0]):
+        y0 = y[j-1,:]
+        y1 = y[j-0,:]
+        vv = values[j-1]
+        p = fill_between(ax, t, y0, y1, facecolor=scalarMap.to_rgba(vv))
+        p.set_alpha(0.5)
+        ppd.append(p)
+
+    # Add the color bar
+    cb = plt.colorbar(scalarMap, cmap=jet, ax=ax, alpha=0.5)
+    cb.set_label(r"log$_{10}$ fraction")
+
+    # Save figure to png and show the plot
+    plt.savefig("%s.png" % out)
+    plt.show()
+
+class Usage(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+def usage(name):
+    print "==========================================================="
+    print "===== ", name
+    print "==========================================================="
+    print "Parse OUTFRAC files"
+    print "==========================================================="
+    print "Usage:", name, "[options] [<OUTFRAC.file]"
+    print "where options are:"
+    print "   -i,--infrac   string    input file (default: stdin)"
+    print "   -o,--output   string    output prefix (default: test)"
+    print "   -h,--help               prints this help message"
+
+
+def main(argv=None):
+    """ Main routine: parses options and calls for a plot """
+    
+    if argv is None:
+        argv = sys.argv
+
+    try:
+        try:
+            opts, args = getopt.getopt(argv[1:], "i:o:h", \
+            ["infrac=", "output=", "help"])
+        except getopt.error, msg:
+             raise Usage(msg)
+    except Usage, err:
+        print >>sys.stderr, err.msg
+        print >>sys.stderr, "For usage help, use --help"
+        return 2
+
+    #
+    # process arguments
+    #
+    infile = sys.stdin
+    output = 'test'
+    for o, a in opts:
+        if o in ("-h", "--help"):
+            usage(argv[0])
+            sys.exit(2)
+        elif o in ("-i", "--infrac"):
+            try:
+                infile = open(a)
+            except:
+                infile = sys.stdin
+        elif o in ("-o", "--output"):
+            output = a
+        else:
+            assert False, "unhandled option"
+    #
+    # Do the work
+    #
+    plot_em(infile, output)
+
+if __name__ == "__main__":
+    sys.exit(main())
+

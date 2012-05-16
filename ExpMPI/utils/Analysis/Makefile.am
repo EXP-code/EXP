@@ -65,6 +65,10 @@ header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc
 localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 	cp $(top_srcdir)/exputil/$@ .
 
+# Install and distribute this script
+
+dist_bin_SCRIPTS = parse_outfrac
+
 CLEANFILES = 	EmpOrth9thd.cc localmpi.cc PSP.cc PSP.H header.cc header.H
 
 ## utils/ICs/Makefile.am ends here
