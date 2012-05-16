@@ -6,19 +6,24 @@ extern string trimLeft(const string);
 extern string trimRight(const string);
 
 
-void checkstatus(istream *in)
+bool badstatus(istream *in)
 {
   ios::iostate i = in->rdstate();
 
-  if(i & ios::eofbit) {
+  if (i & ios::eofbit) {
     cout << "EOF encountered" << endl;
+    return true;
   }
   else if(i & ios::failbit) {
     cout << "Non-Fatal I/O error" << endl;;
+    return true;
   }  
   else if(i & ios::badbit) {
     cout << "Fatal I/O error" << endl;
+    return true;
   }
+  else
+    return false;
 }
 
 
@@ -397,7 +402,7 @@ SParticle *PSPDump::GetParticle(istream* in)
 
 SParticle *PSPDump::NextParticle(istream* in)
 {
-  checkstatus(in);		// DEBUG
+  badstatus(in);		// DEBUG
 
 				// Read partcle
   if (pcount < spos->nbod) {

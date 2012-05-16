@@ -603,7 +603,7 @@ void Component::initialize(void)
 	   << setw(15) << covI[1] << ", "
 	   << setw(15) << covI[2] << ") "
 	   << endl;
-
+      
       if (com_log) {
 
 	comfile = outdir + name + ".comlog." + runtag;
@@ -824,6 +824,14 @@ void Component::initialize(void)
 	   << EJx0 << ", " 
 	   << EJy0 << ", " 
 	   << EJz0;
+
+    cout << "Component <" << name << ">: ";
+
+    if (nlevel<0)
+      cout << "no multistep level reporting";
+    else
+      cout << "multistep level reporting every " << nlevel << " steps";
+
     cout << endl << endl;
   }
   

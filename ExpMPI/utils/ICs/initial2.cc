@@ -598,7 +598,9 @@ main(int argc, char **argv)
 			     scale_height, scale_length, disk_mass, 
 			     halofile1, DIVERGE,  DIVERGE_RFAC,
 			     halofile2, DIVERGE2, DIVERGE_RFAC2,
-			     DiskHalo::Jeans);
+			     DiskHalo::Asymmetric);
+    //                       DiskHalo::Epicyclic);
+    //			     DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
 
   } else {
@@ -608,7 +610,9 @@ main(int argc, char **argv)
 			     scale_height, scale_length, 
 			     disk_mass, halofile1,
 			     DF, DIVERGE, DIVERGE_RFAC,
-			     DiskHalo::Jeans);
+			     DiskHalo::Asymmetric);
+    //                       DiskHalo::Epicyclic);
+    //			     DiskHalo::Jeans);
     if (myid==0) cout << "done" << endl;
   }
   

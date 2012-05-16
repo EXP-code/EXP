@@ -16,7 +16,7 @@ OutFrac::OutFrac(string& line) : Output(line)
   filename = outdir + "OUTFRAC." + runtag;
   tcomp = NULL;
   numQuant = sizeof(default_quant)/sizeof(double);
-  for (int i=0; i<numQuant; i++) Quant[i] = default_quant[i];
+  for (int i=0; i<numQuant; i++) Quant.push_back(default_quant[i]);
 
   initialize();
 

@@ -1566,7 +1566,7 @@ set_vel_disk(vector<Particle>& part)
   double maxVR=-1.0e20, RVR=1e20;
   double maxVP=-1.0e20, RVP=1e20;
   double maxVZ=-1.0e20, RVZ=1e20;
-  double vz, vr, vp, R, x, y, z, ac, vc, va;
+  double vz, vr, vp, R, x, y, z, ac, vc, va, as, ad;
   double vel[3], vel1[3], massp, massp1;
 
   for (int k=0; k<3; k++) vel[k] = vel1[k] = 0.0;
@@ -1586,7 +1586,10 @@ set_vel_disk(vector<Particle>& part)
         << setw(12) << "R "    << setw(14) << "z"   << setw(14) << "v_circ"
         << setw(14) << "v_T" << setw(14) << "drift" << setw(14) << "kappa"
 	<< setw(14) << "v_R" << setw(14) << "v_phi" << setw(14) << "v_z";
-    if (type==DiskHalo::Epicyclic) out << setw(14) << "R1" <<  setw(14) << "X";
+    if (type==DiskHalo::Epicyclic) 
+      out << setw(14) << "R1" <<  setw(14) << "X";
+    else
+      out << setw(14) << "vv_R" << setw(14) << "vv_phi" << setw(14) << "vv_z";
     out << endl;
   }
 
@@ -1633,32 +1636,38 @@ set_vel_disk(vector<Particle>& part)
     switch (type) {
     case Asymmetric:
       // Asymmetric drift correction
-      ac   = 0.5*vvR*a_drift(x, y, z)/vc;
+      ad = a_drift(x, y, z);
+      as = 1 + vvR*ad/(vc*vc);
+
+      if (as > 0.0)
+	ac = vc*(1.0-sqrt(as));
+      else {
+	if (as<0.0) ac = vc;
+	int op = cout.precision(3);
+	cout << "ac oab:"
+	     << " as="   << setw(10) << as 
+	     << ", R="   << setw(10) << R
+	     << ", ac="  << setw(10) << ac
+	     << ", ad="  << setw(10) << ad
+	     << ", vc="  << setw(10) << vc
+	     << ", vvR=" << setw(10) << vvR
+	     << endl;
+	cout.precision(op);
+      }
 
     case Jeans:
-      if (isnan(vc))
-	{
-	  cout << "V_c is NaN" << endl;
-	  vc = 0.0;
-	}
-      
-      if (isnan(ac)) 
-	{
-	  if (vvR>1.0e-4*vc) cout << "V_a is NaN" << endl;
-	  va = vc;
-	}
-      else
-	va = max<double>(vc - ac, MINDOUBLE);
+      va = max<double>(vc - ac, MINDOUBLE);
      
       vz   = rn()*sqrt(max<double>(vvZ, MINDOUBLE));
       vr   = rn()*sqrt(max<double>(vvR, MINDOUBLE));
       vp   = rn()*sqrt(max<double>(vvP, MINDOUBLE)) + va;
       
       if (out) 
-      out << setw(14) << R   << setw(14) << z   << setw(14) << vc
-          << setw(14) << va  << setw(14) << ac  << setw(14) << epi(x, y, z)
-	  << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
-	  << endl;
+	out << setw(14) << R   << setw(14) << z   << setw(14) << vc
+	    << setw(14) << va  << setw(14) << ac  << setw(14) << epi(x, y, z)
+	    << setw(14) << vr  << setw(14) << vp  << setw(14) << vz
+	    << setw(14) << vvR << setw(14) << vvP << setw(14) << vvZ
+	    << endl;
       break;
       
     case Epicyclic:
@@ -1716,7 +1725,7 @@ set_vel_disk(vector<Particle>& part)
 	  if (fabs((X-Xl)/Xl)<1.0e-6) break;
 	  cnt++;
 	}
-	if (cnt>=10) {
+	if (cnt>=100) {
 	  cerr << "OOPS" << endl;
 	}
 				// Aximuthal freq at guiding center
