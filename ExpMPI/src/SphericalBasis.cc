@@ -12,21 +12,21 @@ static pthread_mutex_t io_lock;
 SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) : 
   AxisymmetricBasis(line)
 {
-  dof = 3;
-  mix = m;
-  geometry = sphere;
-  coef_dump = true;
-  NO_L0 = false;
-  NO_L1 = false;
-  EVEN_L = false;
-  NOISE = false;
-  noiseN = 1.0e-6;
+  dof              = 3;
+  mix              = m;
+  geometry         = sphere;
+  coef_dump        = true;
+  NO_L0            = false;
+  NO_L1            = false;
+  EVEN_L           = false;
+  NOISE            = false;
+  noiseN           = 1.0e-6;
   noise_model_file = "SLGridSph.model";
-  gen = 0;
-  nrand = 0;
-  seedN = 11;
-  ssfrac = 0.0;
-  subset = false;
+  gen              = 0;
+  nrand            = 0;
+  seedN            = 11;
+  ssfrac           = 0.0;
+  subset           = false;
 
   string val;
 
@@ -106,8 +106,8 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   // MPI buffer space
   //
   unsigned sz = (multistep+1)*(Lmax+1)*(Lmax+1)*nmax;
-  pack   = vector<double>(sz);
-  unpack = vector<double>(sz);
+  pack    = vector<double>(sz);
+  unpack  = vector<double>(sz);
 
   // Coefficient evaluation times
   // 
@@ -195,13 +195,13 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   }
 
   // Work vectors
-  u = new Vector [nthrds];
+  u  = new Vector [nthrds];
   du = new Vector [nthrds];
   if (!u) bomb("problem allocating <u>");
   if (!du) bomb("problem allocating <du>");
 
   for (int i=0; i<nthrds; i++) {
-    u[i].setsize(0,nmax);
+    u[i] .setsize(0,nmax);
     du[i].setsize(0,nmax);
   }
 
@@ -347,10 +347,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   double xx, yy, zz;
 
   unsigned nbodies = cC->levlist[mlevel].size();
-  int id = *((int*)arg);
-  int nbeg = nbodies*id/nthrds;
-  int nend = nbodies*(id+1)/nthrds;
-  double adb = component->Adiabatic();
+  int id           = *((int*)arg);
+  int nbeg         = nbodies*id/nthrds;
+  int nend         = nbodies*(id+1)/nthrds;
+  double adb       = component->Adiabatic();
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -441,7 +441,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
 	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 
-	      if (selector && compute && mlevel==0) {
+	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++) {
 		  cc1[loffset+moffset][n][nn] += 
@@ -469,13 +469,14 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
+  //
   // Return if we should leave the coefficients fixed
   //
   if (!self_consistent && !firstime_accel && !initializing) return;
 
   int loffset, moffset, use0, use1;
 
-  if (selector) compute = !(this_step%npca) || firstime_coef;
+  if (selector) compute = (mlevel == 0) && (!(this_step%npca) || firstime_coef);
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
@@ -484,7 +485,6 @@ void SphericalBasis::determine_coefficients(void)
   //
   // Swap arrays
   //
-
   Matrix *p = expcoefL[mlevel];
 
   expcoefL[mlevel] = expcoefN[mlevel];
@@ -507,7 +507,7 @@ void SphericalBasis::determine_coefficients(void)
 
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-  if (selector && compute && mlevel==0) {
+  if (compute) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
   }
 
@@ -605,7 +605,7 @@ void SphericalBasis::determine_coefficients(void)
     }
   }
   
-  if (selector) {
+  if (compute) {
     
     parallel_gather_coefficients();
 
@@ -774,9 +774,11 @@ void SphericalBasis::compute_multistep_coefficients()
       if (myid==0)		// Print warning
 	cerr << "Process " << myid << " SphericalBasis: "
 	     << "interpolation override in compute_multistep_coefficients()"
-	     << ", mstep=" << mstep 
-	     << ", delstep=" << mintvl[M] << ", M=" << M
-	     << ", N=" << dstepN[M] << ", L=" << dstepL[M] << endl;
+	     << ", mstep="   << mstep 
+	     << ", delstep=" << mintvl[M] 
+	     << ", M="       << M
+	     << ", N="       << dstepN[M] 
+	     << ", L="       << dstepL[M] << endl;
 
     } else {
 

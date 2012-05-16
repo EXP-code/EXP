@@ -19,7 +19,7 @@ call_any_threads_thread_call(void *atp)
 }
                    
 pthread_mutex_t PotAccel::cc_lock;
-int PotAccel::compute;
+bool PotAccel::compute = false;
 
 void PotAccel::exp_thread_fork(bool coef)
 {
@@ -43,7 +43,7 @@ void PotAccel::exp_thread_fork(bool coef)
   void *retval;
   
   td = new thrd_pass_PotAccel [nthrds];
-  t = new pthread_t [nthrds];
+  t  = new pthread_t [nthrds];
 
   if (!td) {
     cerr << "Process " << myid 

@@ -83,7 +83,7 @@ AxisymmetricBasis::~AxisymmetricBasis()
 }
 
 
-void AxisymmetricBasis::pca_hall(int compute)
+void AxisymmetricBasis::pca_hall(bool compute)
 {
 #ifdef DEBUG
   // start_timer();

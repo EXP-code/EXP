@@ -117,7 +117,7 @@ public:
   static pthread_mutex_t cc_lock;
 
   //! Flag to indicate that PCA variance matrix should be recomputed
-  static int compute;
+  static bool compute;
 
   //! For access to parent component
   virtual void RegisterComponent(Component *c) { component = c; }
