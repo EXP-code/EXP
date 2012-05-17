@@ -87,7 +87,7 @@ void do_step(int n)
     
 				// March through all the substeps
 				// of the hierarchy
-    for (mstep=0; mstep<Mstep; mstep++) {
+    for (mstep=1; mstep<=Mstep; mstep++) {
 
 				// Compute next coefficients for
 				// particles that move on this step
@@ -159,7 +159,7 @@ void do_step(int n)
 
       if (timing) timer_adj.start();
       adjust_multistep_level(false);
-      if (mstep==0) {		// Print the level lists
+      if (mstep==0 || mstep==Mstep) { // Print the level lists
 	comp.print_level_lists(tlast);
       }
       if (timing) timer_adj.stop();

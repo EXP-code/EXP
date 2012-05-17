@@ -132,7 +132,7 @@ void TwoCenter::get_acceleration_and_potential(Component* curComp)
   nbodies = cC->Number();	// And retrieve number of bodies
 
 				// Reset diagnostic distribution
-  if (multistep==0 || mstep==0) reset_histo();
+  if (multistep==0 || mstep==0 || mstep==Mstep) reset_histo();
   
   bool use_external1 = use_external;
 
@@ -160,7 +160,7 @@ void TwoCenter::get_acceleration_and_potential(Component* curComp)
   use_external = false;
 
   // Write diagnostic file
-  if (multistep==0 || mstep==0) write_histo();
+  if (multistep==0 || mstep==0 || mstep==Mstep) write_histo();
 }
 
 void TwoCenter::accum_histo(double value)
@@ -180,7 +180,7 @@ void TwoCenter::accum_histo(double value)
 void TwoCenter::reset_histo()
 {
   if (nhisto) {
-    if (multistep==0 || mstep==0)
+    if (multistep==0 || mstep==0 || mstep==Mstep)
       for (unsigned n=0; n<nhisto; n++) histo[n] = 0;
   }
 } 

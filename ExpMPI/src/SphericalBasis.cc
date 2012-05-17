@@ -326,7 +326,7 @@ void SphericalBasis::get_acceleration_and_potential(Component* C)
 
 #ifdef DEBUG
   if (myid==0) {
-    if ( (multistep && mstep==Mstep-1) || !multistep) {
+    if ( (multistep && mstep==0 || mstep==Mstep) || !multistep) {
       static int cnt = 0;
       ostringstream sout;
       sout << "SphericalBasis.debug." << runtag << "." << cnt++;
@@ -557,7 +557,7 @@ void SphericalBasis::determine_coefficients(void)
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 
-  if (multistep==0 || mstep==Mstep-1) {
+  if (multistep==0 || mstep==0 || mstep==Mstep) {
     used += use0;
   }
 
