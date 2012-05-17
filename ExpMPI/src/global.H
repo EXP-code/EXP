@@ -81,19 +81,20 @@ extern unsigned multistep;
 //! Lowest level for centering recomputation (default: multistep/2)
 extern int centerlevl;
 
-//! Synchronize multistep positions at each substep (default: true)
-extern int posnsync;
-
 //! Fraction of dynamical time for determining multistep level
 //@{
 //! Use old (original) timestep criteria
 extern bool DTold;
+
 //! Scale coefficient (default: 1.00)
 extern double dynfracS;
+
 //! Velocity coefficient (default: 0.01)
 extern double dynfracV;
+
 //! Acceleration coefficient (default: 0.03)
 extern double dynfracA;
+
 //@}
 
 
@@ -217,7 +218,7 @@ extern CoefHeader coefheader;
 extern struct CoefHeader2 coefheader2;
 //@}
 
-/** @name Theading variables */
+//! @name Theading variables
 //@{
 //! signal that threading is in use
 extern char threading_on;
@@ -259,8 +260,8 @@ extern string lastPS;
 //! Checkpoint timer
 extern CheckpointTimer chktimer;
 
-//! Restart command on successful completion but early termination
-//! according to the checkpoint timer
+/** Restart command on successful completion but early termination
+    according to the checkpoint timer */
 extern string restart_cmd;
 
 //! MPI datatype for pHOT key

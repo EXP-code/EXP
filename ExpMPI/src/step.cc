@@ -30,18 +30,22 @@ static Timer timer_pot(true), timer_adj(true);
 static unsigned tskip = 1;
 static bool timing = false;
 
-void check_bad(const char *msg)
+inline void check_bad(const char *msg)
 {
+#ifdef CHK_BADV
   if (comp.bad_values()) 
     cout << "Process " << myid 
 	 << ": found BAD values " << msg << endl;
+#endif
 }
 
-void check_bad(const char *msg, int v)
+inline void check_bad(const char *msg, int v)
 {
+#ifdef CHK_BADV
   if (comp.bad_values()) 
     cout << "Process " << myid 
 	 << ": found BAD values " << msg << ", M=" << v << endl;
+#endif
 }
 
 void do_step(int n)
@@ -64,9 +68,7 @@ void do_step(int n)
 
   comp.multistep_reset();
 
-#ifdef CHK_BADV
   check_bad("before multistep");
-#endif
 
   if (multistep) {
     
@@ -75,7 +77,7 @@ void do_step(int n)
 				// COM update:
 				// First velocity half-kick
     if (timing) timer_vel.start();
-    incr_com_velocity(0.5*dtime);
+    incr_com_velocity(0.5*dtime); 
     if (timing) timer_vel.stop();
 
 #ifdef CHK_STEP
@@ -88,10 +90,11 @@ void do_step(int n)
     for (mstep=0; mstep<Mstep; mstep++) {
 
 				// Compute next coefficients for
-				// active steps
+				// particles that move on this step
+				// (the "active" particles)
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 
-				// 
+				// The timestep at level M
 	double DT = dt*mintvl[M];
 	
 				// Advance velocity by 1/2 step:
@@ -103,12 +106,10 @@ void do_step(int n)
 #endif
 	if (timing) timer_vel.stop();
 
-#ifdef CHK_BADV
 	check_bad("after incr_vel", M);
-#endif
 
-				// Advance position by whole step:
-				// D_1
+				// Advance position by the whole time
+				// step at this level: D_1
 	if (timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
@@ -116,67 +117,36 @@ void do_step(int n)
 #endif
 	if (timing) timer_drift.stop();
 
-#ifdef CHK_BADV
 	check_bad("after incr_pos", M);
-#endif
-				// Compute the coefficients
-				// for this level
+
+				// Now, compute the coefficients for
+				// this level
 	if (timing) timer_coef.start();
 	comp.compute_expansion(M);
 	if (timing) timer_coef.stop();
-
-#ifdef CHK_BADV
-	check_bad("after expansion", M);
-#endif	
-				// Reset the particle positions by a whole step
-				// they will be drifted synchronously below
-	if (timing) timer_drift.start();
-	if (posnsync) {
-	  incr_position(-DT, M);
-#ifdef CHK_STEP
-	  pos_check[M] -= DT;
-#endif
-	}
-	if (timing) timer_drift.stop();
-
-#ifdef CHK_BADV
-	check_bad("after second incr pos", M);
-#endif
       }
 
       
       double tlast = tnow;	// Time before current step
       tnow += dt;		// Time at the end of the current step
 
-				// Drift all positions by the substep size
-      if (timing) timer_drift.start();
-#ifdef CHK_STEP
-      if (posnsync) {
-	for (int M=0; M<=multistep; M++) pos_check[M] += dt;
-      }
-#endif
-      if (posnsync) incr_position(dt, -1);
-      //                              ^
-      //                              |
-      //           ignoring levels----/
-
 				// COM update:
 				// Position drift
+      if (timing) timer_drift.start();
       incr_com_position(dt);
       if (timing) timer_drift.stop();
 
-				// Compute potential at active levels
-				// 
+				// Compute potential for all the
+				// particles active at this step
       if (timing) timer_pot.start();
       comp.compute_potential(mfirst[mstep]);
       if (timing) timer_pot.stop();
 
-#ifdef CHK_BADV
       check_bad("after compute_potential");
-#endif
 
 				// For all active levels . . .
-				// Advance velocity by 1/2 step:
+				// Advance velocity by 1/2 step to
+				// bring the velocity in sync: 
 				// Second K_{1/2}
       if (timing) timer_vel.start();
       for (int M=mfirst[mstep]; M<=multistep; M++) {
@@ -194,9 +164,7 @@ void do_step(int n)
       }
       if (timing) timer_adj.stop();
 
-#ifdef CHK_BADV
       check_bad("after multistep advance");
-#endif
 
 				// DEBUG
 #ifdef DEBUG

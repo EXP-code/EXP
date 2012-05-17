@@ -76,11 +76,6 @@ void initialize(void)
     else use_cwd = false;
   }
 
-  if (parse->find_item("posnsync", val)) {
-    if (atoi(val.c_str())) posnsync = true;
-    else posnsync = false;
-  }
-
   if (parse->find_item("eqmotion", val)) {
     if (atoi(val.c_str())) eqmotion = true;
     else eqmotion = false;
@@ -204,7 +199,6 @@ void print_parm(ostream& out, const char *comment)
 
   out << comment << " " << "multistep"  << " = " << multistep   << endl;
   out << comment << " " << "centerlevl" << " = " << centerlevl  << endl;
-  out << comment << " " << "posnsync"   << " = " << posnsync    << endl;
   out << comment << " " << "DTold"      << " = " << DTold       << endl;
   out << comment << " " << "dynfracS"   << " = " << dynfracS    << endl;
   out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
