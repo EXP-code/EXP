@@ -421,7 +421,8 @@ void AxisymmetricBasis::pca_hall(int compute)
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
+	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n
+		  << setw(18) << var;
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
 		    << setw(18) << dd
