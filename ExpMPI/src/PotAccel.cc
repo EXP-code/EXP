@@ -43,7 +43,7 @@ void PotAccel::exp_thread_fork(bool coef)
   void *retval;
   
   td = new thrd_pass_PotAccel [nthrds];
-  t  = new pthread_t [nthrds];
+  t = new pthread_t [nthrds];
 
   if (!td) {
     cerr << "Process " << myid 

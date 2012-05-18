@@ -128,8 +128,8 @@ void ComponentContainer::initialize(void)
     }
       
     delete in;
-  }
-  else {
+
+  } else {
     
     parse->find_list("components");
 
@@ -343,10 +343,8 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_wait.stop();
       timer_zero.start();
     }
-
 				// Look for particles at this and
 				// successive levels
-    
     ntot2 = 0;
     for (int lev=mlevel; lev<=multistep; lev++) {
       

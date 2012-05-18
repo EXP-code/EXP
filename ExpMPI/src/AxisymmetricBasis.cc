@@ -3,14 +3,15 @@
 
 AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line) 
 {
-  Lmax = 4;
-  nmax = 10;
-  dof = 3;
-  npca = 500;
-  pca = false;
-  tksmooth = 3.0;
-  tkcum = 0.95;
-  tk_type = Hall;
+  Lmax      = 4;
+  nmax      = 10;
+  dof       = 3;
+  npca      = 500;
+  pca       = false;
+  pcadiag   = false;
+  tksmooth  = 3.0;
+  tkcum     = 0.95;
+  tk_type   = Null;
 
   string val;
 
@@ -22,14 +23,19 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     if (atoi(val.c_str())) pca = true; 
     else pca = false;
   }
+  if (get_value("pcadiag", val)) {
+    if (atoi(val.c_str())) pcadiag = true; 
+    else pcadiag = false;
+  }
   if (get_value("tksmooth", val)) tksmooth = atof(val.c_str());
   if (get_value("tkcum", val)) tkcum = atof(val.c_str());
   if (get_value("tk_type", val)) {
     switch (atoi(val.c_str())) {
-    case Hall:			tk_type = Hall; break;
-    case VarianceCut:		tk_type = VarianceCut; break;
-    case CumulativeCut:		tk_type = CumulativeCut; break;
+    case Hall:			tk_type = Hall;             break;
+    case VarianceCut:		tk_type = VarianceCut;      break;
+    case CumulativeCut:		tk_type = CumulativeCut;    break;
     case VarianceWeighted:	tk_type = VarianceWeighted; break;
+    case Null:			tk_type = Null;             break;
     default:
       if (myid==0) {
 	cout << "AxisymmetricBasis: no such TK type <" << val << ">"
@@ -47,7 +53,7 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     
     weight = new Vector [Ldim];
     b_Hall = new Vector [Ldim];
-    evec = new Matrix [Ldim];
+    evec   = new Matrix [Ldim];
     
     for (int l=0; l<Ldim; l++) {
       weight[l].setsize(1, nmax);
@@ -83,11 +89,24 @@ AxisymmetricBasis::~AxisymmetricBasis()
 }
 
 
-void AxisymmetricBasis::pca_hall(bool compute)
+void AxisymmetricBasis::pca_hall(int compute)
 {
-#ifdef DEBUG
-  // start_timer();
-#endif
+  ofstream out;
+  if (pcadiag && myid==0) {
+    // Open the diag file
+    ostringstream sout;
+    sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
+    out.open(sout.str().c_str(), ios::out | ios::app);
+    if (out) {
+      out << "# Time=" << tnow << endl;
+      out << "#" << endl;
+      
+    } else {
+      cout << "AxisymmetricBasis::pca_hall: could not open output file <"
+	   << sout.str() << ">" << endl
+	   << "AxisymmetricBasis::pca_hall: continuing" << endl;
+    }
+  }
 
   if (dof==3)
     Ldim = Lmax*(Lmax + 2) + 1;
@@ -106,7 +125,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
   double dd, fac, var, b;
   int loffset, moffset, indx, lm, nn;
 
-
   for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
     for (int m=0, moffset=0; m<=l; m++) {
@@ -123,7 +141,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
       if (m==0) {
 
 	if (compute) {
-
+	  
 	  for(int n=1; n<=nmax; n++) {
 	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
 	      (expcoef[indx][n]*expcoef[indx][n]*used);
@@ -133,14 +151,17 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n]*sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      covar[n][nn] = fac * 
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
 	  }
-
-				/* Diagonalize variance */
-
+	  
+	  //
+	  // Diagonalize the covariance
+	  //
 #ifdef GHQL
 	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
 #else
@@ -148,13 +169,15 @@ void AxisymmetricBasis::pca_hall(bool compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (tk_type == 2) {
+	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
 	    var = cuml[nmax];
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
 
+	  if (out) out << endl;
+      
 	  for (int n=1; n<=nmax; n++) {
 
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
@@ -162,7 +185,16 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	    var = eval[n]/used - dd*dd;
 
-	    if (tk_type == 1) {
+	    if (out) {
+	      if (dof==3) out << setw(5) << l;
+	      out << setw(5) << m << setw(5) << 'c' << setw(5) << n 
+		  << setw(18) << eval[n]/used
+		  << setw(18) << eval[n]
+		  << setw(18) << dd
+		  << endl;
+	    }
+
+	    if (tk_type == VarianceCut) {
 
 	      if (tksmooth*var > dd*dd)
 		weight[indx][n] = 0.0;
@@ -170,7 +202,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 1.0;
 
 	    }
-	    else if (tk_type == 2) {
+	    else if (tk_type == CumulativeCut) {
 	      
 	      if (n==1 || cuml[n] <= tkcum)
 		weight[indx][n] = 1.0;
@@ -178,7 +210,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 0.0;
 		
 	    }
-	    else if (tk_type == 3) {
+	    else if (tk_type == VarianceWeighted) {
 	      
 	      weight[indx][n] = 1.0/(1.0 + var/(dd*dd + 1.0e-14));
 		
@@ -188,9 +220,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	    smth[n] = dd * weight[indx][n];
 	  }
-
-	}
-	else {
+	  
+	} else {
 	  Tevec = evec[indx].Transpose();
 	  for (int n=1; n<=nmax; n++) {
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
@@ -201,13 +232,13 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	    
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]/sqnorm[lm][n];
+	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
 	moffset++;
-      }
-      else {
+	
+      } else {			// m != 0
 
 	if (compute) {
 
@@ -220,7 +251,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      covar[n][nn] = fac * 
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }
@@ -235,12 +268,14 @@ void AxisymmetricBasis::pca_hall(bool compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (tk_type == 2) {
+	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
 	    var = cuml[nmax];
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
+
+	  if (out) out << endl;
 
 	  for (int n=1; n<=nmax; n++) {
 
@@ -249,7 +284,16 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	    var = eval[n]/used - dd*dd;
 
-	    if (tk_type == 1) {
+	    if (out) {
+	      if (dof==3) out << setw(5) << l;
+	      out << setw(5) << m << setw(5) << 'c' << setw(5) << n 
+		  << setw(18) << eval[n]/used
+		  << setw(18) << eval[n]
+		  << setw(18) << dd
+		  << endl;
+	    }
+
+	    if (tk_type == VarianceCut) {
 
 	      if (tksmooth*var > dd*dd)
 		weight[indx][n] = 0.0;
@@ -257,7 +301,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 1.0;
 
 	    }
-	    else if (tk_type == 2) {
+	    else if (tk_type == CumulativeCut) {
 	      
 	      if (n==1 || cuml[n] <= tkcum)
 		weight[indx][n] = 1.0;
@@ -265,7 +309,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 0.0;
 		
 	    }
-	    else if (tk_type == 3) {
+	    else if (tk_type == VarianceWeighted) {
 	      
 	      weight[indx][n] = 1.0/(1.0 + var/(dd*dd + 1.0e-14));
 		
@@ -275,8 +319,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	    smth[n] = dd * weight[indx][n];
 	  }
-	}
-	else {
+
+	} else {
 	  Tevec = evec[indx].Transpose();
 	  for (int n=1; n<=nmax; n++) {
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
@@ -288,7 +332,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
 	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
 	indx++;
@@ -304,7 +348,9 @@ void AxisymmetricBasis::pca_hall(bool compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
+	      covar[n][nn] = fac * 
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -319,12 +365,14 @@ void AxisymmetricBasis::pca_hall(bool compute)
 #endif
 	  Tevec = evec[indx].Transpose();
 
-	  if (tk_type == 2) {
+	  if (tk_type == CumulativeCut) {
 	    cuml = eval;
 	    for (int n=2; n<=nmax; n++) cuml[n] += cuml[n-1];
 	    var = cuml[nmax];
 	    for (int n=1; n<=nmax; n++) cuml[n] /= var;
 	  }
+
+	  if (out) out << endl;
 
 	  for (int n=1; n<=nmax; n++) {
 
@@ -333,7 +381,17 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	    var = eval[n]/used - dd*dd;
 
-	    if (tk_type == 1) {
+	    if (out) {
+	      if (dof==3) out << setw(5) << l;
+	      out << setw(5) << m << setw(5) << 's' << setw(5) << n 
+		  << setw(18) << eval[n]/used
+		  << setw(18) << eval[n]
+		  << setw(18) << dd
+		  << endl;
+	    }
+
+
+	    if (tk_type == VarianceCut) {
 
 	      if (tksmooth*var > dd*dd)
 		weight[indx][n] = 0.0;
@@ -341,7 +399,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 1.0;
 
 	    }
-	    else if (tk_type == 2) {
+	    else if (tk_type == CumulativeCut) {
 	      
 	      if (n==1 || cuml[n] <= tkcum)
 		weight[indx][n] = 1.0;
@@ -349,7 +407,7 @@ void AxisymmetricBasis::pca_hall(bool compute)
 		weight[indx][n] = 0.0;
 		
 	    }
-	    else if (tk_type == 3) {
+	    else if (tk_type == VarianceWeighted) {
 	      
 	      weight[indx][n] = 1.0/(1.0 + var/(dd*dd + 1.0e-14));
 		
@@ -371,8 +429,8 @@ void AxisymmetricBasis::pca_hall(bool compute)
 
 	inv = evec[indx]*smth;
 	for (int n=1; n<=nmax; n++) {
-	  expcoef[indx][n] = inv[n]/sqnorm[lm][n];
-	  if (tk_type == 0) expcoef[indx][n] *= b_Hall[indx][n];
+	  if (tk_type != Null) expcoef[indx][n] = inv[n]/sqnorm[lm][n];
+	  if (tk_type == Hall) expcoef[indx][n] *= b_Hall[indx][n];
 	}
 	
 	moffset += 2;
@@ -380,9 +438,6 @@ void AxisymmetricBasis::pca_hall(bool compute)
     }
   }
 
-#ifdef DEBUG
-  // cerr << "pca_hall cpu_time=" << return_elapsed_time() << endl;
-#endif
 
 }
 
@@ -398,21 +453,13 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
 	if (m==0) {
 	  for (int n=1; n<=nmax; ++n) {
 	    expcoef[loffset+moffset][n] = 0.0;
-
-	    for (int nn=n; nn<=nmax; nn++)
-	      cc[loffset+moffset][n][nn] = 0.0;
 	  }
 	  moffset++;
-	}
-	else {
+
+	} else {
 	  for (int n=1; n<=nmax; ++n) {
 	    expcoef[loffset+moffset][n] = 0.0;
 	    expcoef[loffset+moffset+1][n] = 0.0;
-
-	    for (int nn=n; nn<=nmax; nn++) {
-	      cc[loffset+moffset][n][nn] = 0.0;
-	      cc[loffset+moffset+1][n][nn] = 0.0;
-	    }
 	  }
 	  moffset+=2;
 	}
@@ -429,11 +476,6 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
 	MPI_Reduce(&expcoef1[loffset+moffset][1], 
 		   &expcoef[loffset+moffset][1], nmax, 
 		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-	for (int n=1; n<=nmax; n++)
-	  MPI_Reduce(&cc1[loffset+moffset][n][n],
-		     &cc[loffset+moffset][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	moffset++;
       }
       else {
@@ -445,15 +487,6 @@ void AxisymmetricBasis::parallel_gather_coefficients(void)
 		   &expcoef[loffset+moffset+1][1], nmax, 
 		   MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 	
-	for (int n=1; n<=nmax; n++) {
-	  MPI_Reduce(&cc1[loffset+moffset][n][n],
-		     &cc[loffset+moffset][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	  MPI_Reduce(&cc1[loffset+moffset+1][n][n],
-		     &cc[loffset+moffset+1][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	}
-
 	moffset+=2;
       }
     }
@@ -485,4 +518,62 @@ void AxisymmetricBasis::parallel_distribute_coefficients(void)
 
 }
 
+
+void AxisymmetricBasis::parallel_gather_coef2(void)
+{
+
+  if (myid == 0) {
+
+    for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+
+      for (int m=0, moffset=0; m<=l; m++) {
+
+	if (m==0) {
+	  for (int n=1; n<=nmax; ++n) {
+	    for (int nn=n; nn<=nmax; nn++)
+	      cc[loffset+moffset][n][nn] = 0.0;
+	  }
+	  moffset++;
+
+	} else {
+	  for (int n=1; n<=nmax; ++n) {
+	    for (int nn=n; nn<=nmax; nn++) {
+	      cc[loffset+moffset][n][nn] = 0.0;
+	      cc[loffset+moffset+1][n][nn] = 0.0;
+	    }
+	  }
+	  moffset+=2;
+	}
+      }
+    }
+  }
+
+
+  for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+
+    for (int m=0, moffset=0; m<=l; m++) {
+
+      if (m==0) {
+	for (int n=1; n<=nmax; n++)
+	  MPI_Reduce(&cc1[loffset+moffset][n][n],
+		     &cc[loffset+moffset][n][n], nmax-n+1, 
+		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	moffset++;
+      }
+      else {
+	for (int n=1; n<=nmax; n++) {
+	  MPI_Reduce(&cc1[loffset+moffset][n][n],
+		     &cc[loffset+moffset][n][n], nmax-n+1, 
+		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	  MPI_Reduce(&cc1[loffset+moffset+1][n][n],
+		     &cc[loffset+moffset+1][n][n], nmax-n+1, 
+		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	}
+
+	moffset+=2;
+      }
+    }
+  }
+
+}
 

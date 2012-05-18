@@ -12,10 +12,16 @@ protected:
 
   //! Maximum angular harmonic
   int Lmax;
+
   //! Maximum radial basis index
   int nmax;
+
   //! Use principal component analysis to select coefficients
   bool pca;
+
+  //! Output PCA diagnostics
+  bool pcadiag;
+
   //! Frequency of PCA recomputation
   int npca;
 
@@ -41,32 +47,36 @@ protected:
 
   /** MPI routines to distribution the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
-  void parallel_distribute_coefficients(void);
+  virtual void parallel_distribute_coefficients(void);
+
   /** MPI routines to sum the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
-  void parallel_gather_coefficients(void);
+  virtual void parallel_gather_coefficients(void);
 
-  /** 
-   */
+  /** MPI routines to sum the expansion coefficients variance moments
+      (<code>cc</code>) from all nodes. */
+  virtual void parallel_gather_coef2(void);
 
 public:
 
   /*! Enum listing the possible selection algorithms for coefficient
     selection */
   enum TKType {
-    Hall,             /*!< Tapered signal-to-noise power defined by Hall */
-    VarianceCut,      /*!< Cut all coefficients below some S/N level */
+    Hall,             /*!< Tapered signal-to-noise power defined by Hall   */
+    VarianceCut,      /*!< Cut all coefficients below some S/N level       */
     CumulativeCut,    /*!< Cut coefficients below some cumulative fraction */
-    VarianceWeighted  /*!< Weight coefficients be S/N for S/N<1 */
+    VarianceWeighted, /*!< Weight coefficients be S/N for S/N<1            */
+    Null              /*!< Compute the S/N but do not modify coefficients  */
   };
 
   //! Constructor
   AxisymmetricBasis(string& line);
+
   //! Destructor
   virtual ~AxisymmetricBasis();
 
   //! Compute component noise suppression using PCA analysis
-  void pca_hall(bool compute);
+  void pca_hall(int compute);
 
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
@@ -77,7 +87,7 @@ protected:
 
 private:
 
-  int Ldim, L0;
+  int    Ldim, L0;
   double fac02, tksmooth, tkcum;
   TKType tk_type;
 

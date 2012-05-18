@@ -1,4 +1,4 @@
-/* 
+/**
   Call necessary routines to advance phase-space one step
 */
 
@@ -26,7 +26,8 @@ static char rcsid[] = "$Id$";
 #endif
 
 static Timer timer_coef(true), timer_drift(true), timer_vel(true);
-static Timer timer_pot(true), timer_adj(true);
+static Timer timer_pot (true), timer_adj  (true);
+
 static unsigned tskip = 1;
 static bool timing = false;
 
@@ -92,6 +93,7 @@ void do_step(int n)
 				// Compute next coefficients for
 				// particles that move on this step
 				// (the "active" particles)
+				//
       for (int M=mfirst[mstep]; M<=multistep; M++) {
 
 				// The timestep at level M
@@ -110,6 +112,7 @@ void do_step(int n)
 
 				// Advance position by the whole time
 				// step at this level: D_1
+				//
 	if (timing) timer_drift.start();
 	incr_position(DT, M);
 #ifdef CHK_STEP
@@ -121,6 +124,7 @@ void do_step(int n)
 
 				// Now, compute the coefficients for
 				// this level
+				//
 	if (timing) timer_coef.start();
 	comp.compute_expansion(M);
 	if (timing) timer_coef.stop();

@@ -96,6 +96,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
 
   // Allocate coefficient matrix (one for each multistep level)
   // and zero-out contents
+  //
   differ1 = vector< vector<Matrix> >(nthrds);
   for (int n=0; n<nthrds; n++) {
     differ1[n] = vector<Matrix>(multistep+1);
@@ -106,8 +107,8 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   // MPI buffer space
   //
   unsigned sz = (multistep+1)*(Lmax+1)*(Lmax+1)*nmax;
-  pack    = vector<double>(sz);
-  unpack  = vector<double>(sz);
+  pack   = vector<double>(sz);
+  unpack = vector<double>(sz);
 
   // Coefficient evaluation times
   // 
@@ -132,7 +133,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
 
   // Allocate normalization matrix
-
+  //
   normM.setsize(0, Lmax, 1, nmax);
   for (int l=0; l<=Lmax; l++) {
     for (int n=1; n<=nmax; n++) {
@@ -157,7 +158,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   }
 
   // Potential and deriv matrices
-
+  //
   normM.setsize(0,Lmax,1,nmax);
   krnl.setsize(0,Lmax,1,nmax);
   dend.setsize(0,Lmax,1,nmax);
@@ -174,7 +175,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   }
 
   // Sin, cos, legendre
-
+  //
   cosm = new Vector [nthrds];
   if (!cosm) bomb("problem allocating <cosm>");
 
@@ -195,18 +196,19 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   }
 
   // Work vectors
-  u  = new Vector [nthrds];
+  //
+  u = new Vector [nthrds];
   du = new Vector [nthrds];
   if (!u) bomb("problem allocating <u>");
   if (!du) bomb("problem allocating <du>");
 
   for (int i=0; i<nthrds; i++) {
-    u[i] .setsize(0,nmax);
+    u[i].setsize(0,nmax);
     du[i].setsize(0,nmax);
   }
 
   // Factorial matrix
-
+  //
   factorial.setsize(0, Lmax, 0, Lmax);
 
   for (int l=0; l<=Lmax; l++) {
@@ -347,10 +349,10 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
   double xx, yy, zz;
 
   unsigned nbodies = cC->levlist[mlevel].size();
-  int id           = *((int*)arg);
-  int nbeg         = nbodies*id/nthrds;
-  int nend         = nbodies*(id+1)/nthrds;
-  double adb       = component->Adiabatic();
+  int id = *((int*)arg);
+  int nbeg = nbodies*id/nthrds;
+  int nend = nbodies*(id+1)/nthrds;
+  double adb = component->Adiabatic();
 
 #ifdef DEBUG
   pthread_mutex_lock(&io_lock);
@@ -414,13 +416,13 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	//		m loop
 	for (m=0, moffset=0; m<=l; m++) {
 	  if (m==0) {
-	    if (selector && compute)
+	    if (compute)
 	      facs1 = legs[id][l][m]*legs[id][l][m]*mass;
 	    for (n=1; n<=nmax; n++) {
 	      expcoef0[id][loffset+moffset][n] += potd[id][l][n]*legs[id][l][m]*mass*
 		fac0/normM[l][n];
 
-	      if (selector && compute) {
+	      if (compute) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++)
 		  cc1[loffset+moffset][n][nn] += potd[id][l][n]*potd[id][l][nn]*facs1/(normM[l][n]*normM[l][nn]);
@@ -432,7 +434,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	  else {
 	    fac1 = legs[id][l][m]*cosm[id][m];
 	    fac2 = legs[id][l][m]*sinm[id][m];
-	    if (selector && compute) {
+	    if (compute) {
 	      facs1 = fac1*fac1*mass;
 	      facs2 = fac2*fac2*mass;
 	    }
@@ -441,7 +443,7 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 	      expcoef0[id][loffset+moffset  ][n] += potd[id][l][n]*fac1*mass*fac0/normM[l][n];
 	      expcoef0[id][loffset+moffset+1][n] += potd[id][l][n]*fac2*mass*fac0/normM[l][n];
 
-	      if (compute) {
+	      if (compute && mlevel==0) {
 		pthread_mutex_lock(&cc_lock);
 		for (nn=n; nn<=nmax; nn++) {
 		  cc1[loffset+moffset][n][nn] += 
@@ -469,27 +471,29 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
 void SphericalBasis::determine_coefficients(void)
 {
-  //
   // Return if we should leave the coefficients fixed
   //
   if (!self_consistent && !firstime_accel && !initializing) return;
 
   int loffset, moffset, use0, use1;
 
-  if (selector) compute = (mlevel == 0) && (!(this_step%npca) || firstime_coef);
+  if (selector) compute = (mstep == 0) && (!(this_step%npca) || firstime_coef);
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
 #endif
 
   //
-  // Swap arrays
+  // Swap interpolation arrays
   //
   Matrix *p = expcoefL[mlevel];
 
   expcoefL[mlevel] = expcoefN[mlevel];
   expcoefN[mlevel] = p;
   
+  //
+  // Augment the interpolation step counter for this level
+  //
   dstepL[mlevel]   = dstepN[mlevel];
   dstepN[mlevel]  += mintvl[mlevel];
 
@@ -517,7 +521,9 @@ void SphericalBasis::determine_coefficients(void)
   if (multistep==0) used = 0;
     
 #ifdef DEBUG
-  cout << "Process " << myid << ": in <determine_coefficients>, about to thread, lev=" << mlevel << endl;
+  cout << "Process " << myid 
+       << ": in <determine_coefficients>, about to thread, lev=" 
+       << mlevel << endl;
 #endif
 
 #ifdef LEVCHECK
@@ -561,58 +567,50 @@ void SphericalBasis::determine_coefficients(void)
     used += use0;
   }
 
-  if (!selector) {
-    
-    for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+  for (int l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
       
-      for (int m=0, moffset=0; m<=l; m++) {
+    for (int m=0, moffset=0; m<=l; m++) {
 
-	if (m==0) {
+      if (m==0) {
 	  
-	  if (multistep)
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  else
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &(expcoef[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  
-	  moffset++;
-	}
-	else {
+	if (multistep)
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	else
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &(expcoef[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	
+	moffset++;
 
-	  if (multistep) {
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      } else {
+
+	if (multistep) {
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
-			    &((*expcoefN[mlevel])[loffset+moffset+1][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  } else {
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
-			    &(expcoef[loffset+moffset][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			  &((*expcoefN[mlevel])[loffset+moffset+1][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	} else {
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset][1]),
+			  &(expcoef[loffset+moffset][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	  
-	    MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
-			    &(expcoef[loffset+moffset+1][1]),
-			    nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-	  }
-	  moffset+=2;
+	  MPI_Allreduce ( &(expcoef0[0][loffset+moffset+1][1]),
+			  &(expcoef[loffset+moffset+1][1]),
+			  nmax, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	}
+	moffset+=2;
       }
     }
   }
   
-  if (compute) {
-    
-    parallel_gather_coefficients();
-
-    if (myid == 0) pca_hall(compute);
-
-    parallel_distribute_coefficients();
-    
+  if (compute && multistep==0) {
+    parallel_gather_coef2();
+    pca_hall(1);
     firstime_coef = 0;
   }
 
@@ -622,6 +620,7 @@ void SphericalBasis::determine_coefficients(void)
 
 void SphericalBasis::multistep_reset()
 {
+  used = 0;
   for (int M=0; M<=multistep; M++) dstepN[M] = 0;
 }
 
@@ -778,7 +777,8 @@ void SphericalBasis::compute_multistep_coefficients()
 	     << ", delstep=" << mintvl[M] 
 	     << ", M="       << M
 	     << ", N="       << dstepN[M] 
-	     << ", L="       << dstepL[M] << endl;
+	     << ", L="       << dstepL[M] 
+	     << endl;
 
     } else {
 
@@ -899,6 +899,16 @@ void SphericalBasis::compute_multistep_coefficients()
 	<< endl;
   }
 #endif
+
+  if (selector) {
+    if (compute) {
+      parallel_gather_coef2();
+      pca_hall(1);
+      firstime_coef = 0;
+    } else {
+      pca_hall(0);
+    }
+  }
 
 }
 
