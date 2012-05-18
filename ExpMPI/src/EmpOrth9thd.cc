@@ -2240,7 +2240,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
     }
   }
 
-  if (multistep==0 || mstep==0 || mstep==Mstep)
+  if (multistep==0 || mstep==0)
     cylmass1[id] += mass;
 
 }

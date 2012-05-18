@@ -145,7 +145,7 @@ void * adjust_multistep_level_thread(void *ptr)
     //
     dt = mindt1[id] = dseq.begin()->first;
 
-    if (mstep == 0 || mstep == Mstep) {
+    if (mstep == 0) {
       // Tally smallest (e.g. controlling) timestep
       //
       tmdt[id][level][dseq.begin()->second]++;
@@ -235,7 +235,7 @@ void adjust_multistep_level(bool all)
   for (list<Component*>::iterator cc=comp.components.begin();
        cc != comp.components.end(); cc++) {
     
-    if (mstep == 0 || mstep == Mstep) {
+    if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) tmdt[n][k][j] = 0;
@@ -303,7 +303,7 @@ void adjust_multistep_level(bool all)
       }
     }
 
-    if (mstep == 0 || mstep == Mstep) {
+    if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) 
