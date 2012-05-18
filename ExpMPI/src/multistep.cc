@@ -193,6 +193,10 @@ void adjust_multistep_level(bool all)
 {
   if (!multistep) return;
 
+  // FOR DEBUGGING
+  if (mstep!=0) return;
+  // END DEBUGGING
+
   //
   // Begin the update
   //

@@ -44,6 +44,10 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     }
   }
 
+  sqnorm.setsize(0, Lmax, 1, nmax);
+  for (int l=0; l<=Lmax; l++)
+    for (int n=1; n<=nmax; n++) sqnorm[l][n] = 1.0;
+
   if (pca) {
 
     if (dof==3)
@@ -67,11 +71,26 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     cuml.setsize(1, nmax);
     Tevec.setsize(1, nmax, 1, nmax);
     covar.setsize(1, nmax, 1, nmax);
-    sqnorm.setsize(0, Lmax, 1, nmax);
-      
-    for (int l=0; l<=Lmax; l++)
-      for (int n=1; n<=nmax; n++) sqnorm[l][n] = 1.0;
 
+    if (myid==0) {
+
+      const string types[] = {
+	"Hall", 
+	"VarianceCut", 
+	"CumulativeCut",
+	"VarianceWeighted", 
+	"Null"};
+
+      const string desc[] = {
+	"Tapered signal-to-noise power defined by Hall",
+	"Cut all coefficients below some S/N level",
+	"Cut coefficients below some cumulative fraction",
+	"Weight coefficients be S/N for S/N<1",
+	"Compute the S/N but do not modify coefficients"};
+
+      cout << "AxisymmetricBasis: using Hall type: " << types[tk_type] 
+	   << " >>> " << desc[tk_type] << endl;
+    }
   }
 }
 
@@ -92,15 +111,22 @@ AxisymmetricBasis::~AxisymmetricBasis()
 void AxisymmetricBasis::pca_hall(int compute)
 {
   ofstream out;
-  if (pcadiag && myid==0) {
+  if (pcadiag && myid==0 && compute) {
     // Open the diag file
     ostringstream sout;
     sout << runtag << ".pcadiag." << cC->id << "." << cC->name;
     out.open(sout.str().c_str(), ios::out | ios::app);
     if (out) {
+      out << "#" << endl;
       out << "# Time=" << tnow << endl;
       out << "#" << endl;
-      
+      if (dof==3) out << right << "# " << setw(3) << "l";
+      out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n"
+	  << setw(18) << "variance"
+	  << setw(18) << "sqrt(variance)"
+	  << setw(18) << "coef value"
+	  << setw(18) << "S/N"
+	  << endl;
     } else {
       cout << "AxisymmetricBasis::pca_hall: could not open output file <"
 	   << sout.str() << ">" << endl
@@ -183,15 +209,21 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used - dd*dd;
+	    var = eval[n]/used;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5) << m << setw(5) << 'c' << setw(5) << n 
-		  << setw(18) << eval[n]/used
-		  << setw(18) << eval[n]
-		  << setw(18) << dd
-		  << endl;
+	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n
+		  << setw(18) << var;
+	      if (var>0.0)
+		out << setw(18) << sqrt(var)
+		    << setw(18) << dd
+		    << setw(18) << fabs(dd)/sqrt(var);
+	      else
+		out << setw(18) << "***"
+		    << setw(18) << dd
+		    << setw(18) << "***";
+	      out << endl;
 	    }
 
 	    if (tk_type == VarianceCut) {
@@ -282,15 +314,21 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used - dd*dd;
+	    var = eval[n]/used;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5) << m << setw(5) << 'c' << setw(5) << n 
-		  << setw(18) << eval[n]/used
-		  << setw(18) << eval[n]
-		  << setw(18) << dd
-		  << endl;
+	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n 
+		  << setw(18) << var;
+	      if (var>0.0)
+		out << setw(18) << sqrt(var)
+		    << setw(18) << dd
+		    << setw(18) << fabs(dd)/sqrt(var);
+	      else
+		out << setw(18) << "***"
+		    << setw(18) << dd
+		    << setw(18) << "***";
+	      out << endl;
 	    }
 
 	    if (tk_type == VarianceCut) {
@@ -379,15 +417,20 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used - dd*dd;
+	    var = eval[n]/used;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5) << m << setw(5) << 's' << setw(5) << n 
-		  << setw(18) << eval[n]/used
-		  << setw(18) << eval[n]
-		  << setw(18) << dd
-		  << endl;
+	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
+	      if (var>0.0)
+		out << setw(18) << sqrt(var)
+		    << setw(18) << dd
+		    << setw(18) << fabs(dd)/sqrt(var);
+	      else
+		out << setw(18) << "***"
+		    << setw(18) << dd
+		    << setw(18) << "***";
+	      out << endl;
 	    }
 
 

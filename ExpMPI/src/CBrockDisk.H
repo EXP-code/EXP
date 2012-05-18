@@ -45,7 +45,7 @@ private:
 				// Parameters
   double rmax, scale;
   int Lmax, nmax;
-  bool selector, self_consistent;
+  bool self_consistent;
 
 public:
 

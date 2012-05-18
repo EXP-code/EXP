@@ -19,7 +19,7 @@ call_any_threads_thread_call(void *atp)
 }
                    
 pthread_mutex_t PotAccel::cc_lock;
-bool PotAccel::compute = false;
+int PotAccel::compute;
 
 void PotAccel::exp_thread_fork(bool coef)
 {

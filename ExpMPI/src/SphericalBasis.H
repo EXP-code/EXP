@@ -80,9 +80,6 @@ protected:
   //! Radial scale factor
   double scale;
 
-  //! Flag PCA selection
-  bool selector;
-
   //! Flag self_consitency
   bool self_consistent;
 

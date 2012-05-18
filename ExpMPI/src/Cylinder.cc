@@ -84,7 +84,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
   expcond     = true;
   cmap        = true;
   logarithmic = false;
-  selector    = false;
+  pca         = false;
   density     = false;
   coef_dump   = true;
   try_cache   = true;
@@ -145,7 +145,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
     if (!cache_ok) ortho->generate_eof(rnum, pnum, tnum, dcond);
   }
 
-  if (selector) {
+  if (pca) {
     EmpCylSL::SELECT = true;
     ortho->setHall(hallfile, hallfreq);
   }
@@ -169,7 +169,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	   << " acyl="        << acyl
 	   << " hcyl="        << hcyl
 	   << " expcond="     << expcond
-	   << " selector="    << selector
+	   << " pca="         << pca
 	   << " hallfreq="    << hallfreq
 	   << " hallfile="    << hallfile
 	   << " eof_file="    << eof_file
@@ -191,7 +191,7 @@ Cylinder::Cylinder(string& line, MixtureBasis *m) : Basis(line)
 	 << " acyl="        << acyl
 	 << " hcyl="        << hcyl
 	 << " expcond="     << expcond
-	 << " selector="    << selector
+	 << " pca="         << pca
 	 << " hallfreq="    << hallfreq
 	 << " hallfile="    << hallfile
 	 << " eof_file="    << eof_file
@@ -267,9 +267,9 @@ void Cylinder::initialize()
     if (atoi(val.c_str())) logarithmic = true; 
     else logarithmic = false;
   }
-  if (get_value("selector", val)) {
-    if (atoi(val.c_str())) selector = true; 
-    else selector = false;
+  if (get_value("pca", val)) {
+    if (atoi(val.c_str())) pca = true; 
+    else pca = false;
   }
   if (get_value("try_cache", val)) {
     if (atoi(val.c_str())) try_cache = true; 

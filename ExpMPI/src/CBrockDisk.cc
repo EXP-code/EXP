@@ -25,7 +25,6 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   nmax  = 10;
 
   self_consistent = true;
-  selector        = false;
   coef_dump       = true;
 
   initialize();
@@ -39,7 +38,7 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   for (int i=0; i<nthrds; i++)
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
   
-  if (selector) {
+  if (pca) {
     cc = new Matrix [Lmax*(Lmax+2)+1];
     if (!cc) bomb("problem allocating <cc>");
 
@@ -118,16 +117,12 @@ void CBrockDisk::initialize(void)
     if (atoi(val.c_str())) self_consistent = true; 
     else self_consistent = false;
   }
-  if (get_value("selector", val)) {
-    if (atoi(val.c_str())) selector = true; 
-    else selector = false;
-  }
 }
 
 CBrockDisk::~CBrockDisk(void)
 {
   delete [] expcoef0;
-  if (selector) {
+  if (pca) {
     delete [] cc;
     delete [] cc1;
     pthread_mutex_destroy(&cc_lock);
@@ -184,7 +179,7 @@ void CBrockDisk::determine_coefficients(void)
   int compute;
   int l, i, n, nn;
 
-  if (selector) compute = !(this_step%npca);
+  if (pca) compute = !(this_step%npca);
 
 				// Clean
   for (n=1; n<=nmax; n++) {
@@ -192,7 +187,7 @@ void CBrockDisk::determine_coefficients(void)
       expcoef[l][n] = 0.0;
       expcoef1[l][n] = 0.0;
       for (i=0; i<nthrds; i++) expcoef0[i][l][n] = 0.0;
-      if (selector && compute) {
+      if (pca && compute) {
 	for (nn=n; nn<=nmax; nn++) cc1[l][n][nn] = 0.0;
       }
     }
@@ -213,7 +208,7 @@ void CBrockDisk::determine_coefficients(void)
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
   used = use0;
 
-  if (!selector) {
+  if (!pca) {
 
     MPI_Allreduce ( &expcoef1[0][1],
 		    &expcoef[0][1],
@@ -232,7 +227,7 @@ void CBrockDisk::determine_coefficients(void)
     }
   }
 
-  if (selector) {
+  if (pca) {
 
     parallel_gather_coefficients();
 
@@ -298,7 +293,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 
       for (int n=1; n<=nmax; n++) {
 	expcoef0[id][0][n] += potd[id][0][n]*mass/normM[0][n];
-	if (selector && compute) {
+	if (pca && compute) {
 	  pthread_mutex_lock(&cc_lock);
 	  for (int nn=n; nn<=nmax; nn++)
 	    cc1[0][n][nn] += potd[id][0][n]*potd[id][0][nn]*mass/
@@ -315,7 +310,7 @@ void * CBrockDisk::determine_coefficients_thread(void * arg)
 	for (int n=1; n<=nmax; n++) {
 	  expcoef0[id][2*l - 1][n] +=  potd[id][l][n]*fac1*mass/normM[l][n];
 	  expcoef0[id][2*l    ][n] +=  potd[id][l][n]*fac2*mass/normM[l][n];
-	  if (selector && compute) {
+	  if (pca && compute) {
 	    pthread_mutex_lock(&cc_lock);
 	    for (int nn=n; nn<=nmax; nn++) {
 	      cc1[2*l - 1][n][nn] += potd[id][l][n]*potd[id][l][nn]*fac1*fac1*

@@ -46,12 +46,6 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
   } else
     self_consistent = true;
 
-  if (get_value("selector", val)) {
-    if (atoi(val.c_str())) selector = true; 
-    else selector = false;
-  } else
-    selector = false;
-
   if (get_value("NO_L0", val)) {
     if (atoi(val.c_str())) NO_L0 = true; 
     else NO_L0 = false;
@@ -141,7 +135,7 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
     }
   }
 
-  if (selector) {
+  if (pca) {
     cc = new Matrix [Lmax*(Lmax+2)+1];
     if (!cc) bomb("problem allocating <cc>");
 
@@ -242,7 +236,7 @@ SphericalBasis::~SphericalBasis()
 {
   delete [] expcoef0;
 
-  if (selector) {
+  if (pca) {
     delete [] cc;
     delete [] cc1;
     pthread_mutex_destroy(&cc_lock);
@@ -477,7 +471,7 @@ void SphericalBasis::determine_coefficients(void)
 
   int loffset, moffset, use0, use1;
 
-  if (selector) compute = (mstep == 0) && (!(this_step%npca) || firstime_coef);
+  if (pca) compute = (mstep == 0) && (!(this_step%npca) || firstime_coef);
 
 #ifdef DEBUG
   cout << "Process " << myid << ": in <determine_coefficients>" << endl;
@@ -900,7 +894,7 @@ void SphericalBasis::compute_multistep_coefficients()
   }
 #endif
 
-  if (selector) {
+  if (pca) {
     if (compute) {
       parallel_gather_coef2();
       pca_hall(1);
