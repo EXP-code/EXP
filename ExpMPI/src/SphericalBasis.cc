@@ -148,6 +148,9 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
     for (int l=0; l<=Lmax*(Lmax+2); l++)
       cc1[l].setsize(1, nmax, 1, nmax);
   
+    muse1 = vector<double>(nthrds, 0.0);
+    muse0 = 0.0;
+
     pthread_mutex_init(&cc_lock, NULL);
   }
 
@@ -405,6 +408,8 @@ void * SphericalBasis::determine_coefficients_thread(void * arg)
 
       get_potl(Lmax, nmax, rs, potd[id], id);
 
+      if (compute) muse1[id] += mass;
+
       //		l loop
       for (l=0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 	//		m loop
@@ -505,13 +510,15 @@ void SphericalBasis::determine_coefficients(void)
 
   for (int i=0; i<nthrds; i++) expcoef0[i].zero();
     
-  if (compute) {
+  if (compute && mlevel==0) {
     for (int l=0; l<=Lmax*(Lmax+2); l++) cc1[l].zero();
+    for (int n=0; n<nthrds; n++) muse1[n] = 0.0;
+    muse0 = 0.0;
   }
 
-  use0 = 0;
-  use1 = 0;
-
+  use0  = 0;
+  use1  = 0;
+  
   if (multistep==0) used = 0;
     
 #ifdef DEBUG
@@ -554,6 +561,10 @@ void SphericalBasis::determine_coefficients(void)
   //
   for (int i=0; i<nthrds; i++) use1 += use[i];
   for (int i=1; i<nthrds; i++) expcoef0[0] += expcoef0[i];
+  if (compute) {
+    for (int i=0; i<nthrds; i++) muse0 += muse1[i];
+    MPI_Allreduce ( &muse0, &muse,  1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+  }
   
   MPI_Allreduce ( &use1, &use0,  1, MPI_INT, MPI_SUM, MPI_COMM_WORLD);
 

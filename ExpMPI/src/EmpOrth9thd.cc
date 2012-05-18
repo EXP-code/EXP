@@ -2238,10 +2238,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	  accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
       }
     }
-  }
 
-  if (multistep==0 || mstep==0)
-    cylmass1[id] += mass;
+    if (multistep==0 || mstep==0)
+      cylmass1[id] += mass;
+  }
 
 }
 

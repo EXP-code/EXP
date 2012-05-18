@@ -122,9 +122,11 @@ void AxisymmetricBasis::pca_hall(int compute)
       out << "#" << endl;
       if (dof==3) out << right << "# " << setw(3) << "l";
       out << setw(5)  << "m" << setw(5) << "C/S" << setw(5) << "n"
-	  << setw(18) << "variance"
-	  << setw(18) << "sqrt(variance)"
-	  << setw(18) << "coef value"
+	  << setw(18) << "sqrt(var)"
+	  << setw(18) << "orig coef"
+	  << setw(18) << "S/N"
+	  << setw(18) << "proj sqrt(var)"
+	  << setw(18) << "proj coef"
 	  << setw(18) << "S/N"
 	  << endl;
     } else {
@@ -177,9 +179,9 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n]*sqnorm[lm][nn];
-	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - 
+		 expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -209,18 +211,25 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used;
+	    var = eval[n]/muse;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n
-		  << setw(18) << var;
+	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
+	      if (covar[n][n] > 0.0)
+		out << setw(18) << sqrt(covar[n][n])
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse/used);
+	      else
+		out << setw(18) << covar[n][n]
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
 		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var);
+		    << setw(18) << fabs(dd)/sqrt(var/used);
 	      else
-		out << setw(18) << "***"
+		out << setw(18) << var
 		    << setw(18) << dd
 		    << setw(18) << "***";
 	      out << endl;
@@ -283,16 +292,17 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - 
+		 expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }
 	  }  
 
-				/* Diagonalize variance */
-
+	  //
+	  // Diagonalize the covariance
+	  //
 #ifdef GHQL
 	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
 #else
@@ -314,18 +324,25 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used;
+	    var = eval[n]/muse;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n 
-		  << setw(18) << var;
+	      out << setw(5)  << m << setw(5) << 'c' << setw(5) << n;
+	      if (covar[n][n] > 0.0)
+		out << setw(18) << sqrt(covar[n][n])
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse/used);
+	      else
+		out << setw(18) << covar[n][n]
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
 		    << setw(18) << dd
 		    << setw(18) << fabs(dd)/sqrt(var);
 	      else
-		out << setw(18) << "***"
+		out << setw(18) << var
 		    << setw(18) << dd
 		    << setw(18) << "***";
 	      out << endl;
@@ -386,16 +403,17 @@ void AxisymmetricBasis::pca_hall(int compute)
 	  for(int n=1; n<=nmax; n++) {
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
-	      // covar[n][nn] = fac * expcoef[indx][n]*expcoef[indx][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - 
+		 expcoef[indx][n]*expcoef[indx][nn]/muse);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
 	  }
 
-				/* Diagonalize variance */
-
+	  //
+	  // Diagonalize the covariance
+	  //
 #ifdef GHQL
 	  eval = covar.Symmetric_Eigenvalues_GHQL(evec[indx]);
 #else
@@ -417,18 +435,25 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/used;
+	    var = eval[n]/muse;
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
-	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n
-		  << setw(18) << var;
+	      out << setw(5)  << m << setw(5) << 's' << setw(5) << n;
+	      if (covar[n][n] > 0.0)
+		out << setw(18) << sqrt(covar[n][n])
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse);
+	      else
+		out << setw(18) << covar[n][n]
+		    << setw(18) << expcoef[indx][n]
+		    << setw(18) << "***";
 	      if (var>0.0)
 		out << setw(18) << sqrt(var)
 		    << setw(18) << dd
-		    << setw(18) << fabs(dd)/sqrt(var);
+		    << setw(18) << fabs(dd)/sqrt(var/used);
 	      else
-		out << setw(18) << "***"
+		out << setw(18) << var
 		    << setw(18) << dd
 		    << setw(18) << "***";
 	      out << endl;

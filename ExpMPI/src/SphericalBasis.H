@@ -13,26 +13,43 @@ protected:
 
   //! Will cache values of the kernel required for recursion relations
   Matrix krnl;
+
   //! Work vectors to make recursion evaluations thread safe
   Vector *u;
+
   //! Work vectors to make recursion evaluations thread safe
   Vector *du;
+
   //! Matrices per thread for obtaining potential field
   Matrix *potd;
+
   //! Matrices per thread for obtaining derivative of potential field
   Matrix *dpot;
+
   //! Matrices per thread for obtaining legendre coefficients
   Matrix *legs;
+
   //! Matrices per thread for obtaining derivatives legendre coefficients
   Matrix *dlegs;
+
   //! Matrices per thread for obtaining expansion coefficients
   Matrix *expcoef0;
+
+  //@{
+  //! Mass accumulation for PCA
+  vector<double> muse1;
+  double muse0;
+  //@}
+
   //! Work vectors for cosines for all values <code>m</code>
   Vector *cosm;
+
   //! Work vectors for sines for all values <code>m</code>
   Vector *sinm;
+
   //! Work matrix
   Matrix dend;
+
   //! Cache factorial values
   Matrix factorial;
 

@@ -40,10 +40,14 @@ protected:
 
   //! Normalization for covariance matrix based on the biorthogonal basis norm
   Matrix normM;
-  //! The variance for all nodes and per node (respectively)
+
   //@{
+  //! The variance for all nodes and per node (respectively)
   Matrix *cc, *cc1;
   //@}
+
+  //! Accumulated mass for variance computation
+  double muse;
 
   /** MPI routines to distribution the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
