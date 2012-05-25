@@ -16,7 +16,9 @@ void sync_eval_multistep(void)
 }
 
 
-/// Helper class to pass info to threaded multistep update routine
+//
+// Helper class to pass info to threaded multistep update routine
+//
 struct thrd_pass_sync 
 {
   //! Level
@@ -29,13 +31,15 @@ struct thrd_pass_sync
   Component *c;
 };
 
-/// Count offgrid particles in the threads
-vector< vector<unsigned> > off1;
-vector< double > mindt1;
-vector< double > maxdt1;
+//
+// Count offgrid particles in the threads
+//
+static map< Component*, vector<unsigned> > offlo1, offhi1;
+static vector< double > mindt1;
+static vector< double > maxdt1;
 
-/// Type counter
-vector< vector< vector<unsigned> > > tmdt;
+// Type counter
+static vector< vector< vector<unsigned> > > tmdt;
 
 //
 // The threaded routine
@@ -56,7 +60,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
   double dt, dts, dtv, dta, dtA, dtr, dsr, rtot, vtot, atot, ptot;
   int npart = c->levlist[level].size();
-  int offgrid = 0, lev;
+  int offlo = 0, offhi = 0, lev;
 
   //
   // Compute the beginning and end points for threads
@@ -128,9 +132,9 @@ void * adjust_multistep_level_thread(void *ptr)
       if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
-      dtv = dynfracV*sqrt(vtot/(atot+eps));
-      dta = dynfracA*ptot/(fabs(dtr)+eps);
-      dtA = dynfracA*sqrt(ptot/(atot+eps));
+      dtv = dynfracV * sqrt(vtot/(atot+eps));
+      dta = dynfracA * ptot/(fabs(dtr)+eps);
+      dtA = dynfracA * sqrt(ptot/(atot+eps));
 
     }
 
@@ -143,22 +147,32 @@ void * adjust_multistep_level_thread(void *ptr)
 
     // Smallest time step
     //
-    dt = mindt1[id] = dseq.begin()->first;
+    dt = dseq.begin()->first;
 
     if (mstep == 0) {
+      //
       // Tally smallest (e.g. controlling) timestep
       //
       tmdt[id][level][dseq.begin()->second]++;
+      //
       // Counter
+      //
       tmdt[id][level][mdtDim-1]++;
     }
 
-    if (dt>dtime) lev = 0;
+    // Time step wants to be LARGER than the maximum
+    if (dt>dtime) {
+      lev = 0;
+      maxdt1[id] = max<double>(dt, maxdt1[id]);
+      offhi++;
+    }
     else lev = (int)floor(log(dtime/dt)/log(2.0));
     
+    // Time step wants to be SMALLER than the maximum
     if (lev>multistep) {
       lev = multistep;
-      offgrid++;
+      mindt1[id] = min<double>(dt, mindt1[id]);
+      offlo++;
     }
     
     unsigned plev = c->Part(n)->level;
@@ -181,8 +195,9 @@ void * adjust_multistep_level_thread(void *ptr)
     }
   }
 
-  if (VERBOSE>0 && (this_step % 100 == 0)) {
-    off1[id].push_back(offgrid);
+  if (VERBOSE>0) {
+    offlo1[c][id] += offlo;
+    offhi1[c][id] += offhi;
   }
   
   return (NULL);
@@ -194,7 +209,7 @@ void adjust_multistep_level(bool all)
   if (!multistep) return;
 
   // FOR DEBUGGING
-  if (mstep!=0) return;
+  // if (mstep!=0) return;
   // END DEBUGGING
 
   //
@@ -209,7 +224,20 @@ void adjust_multistep_level(bool all)
   //
   mindt1 = vector< double > (nthrds,  1.0e20);
   maxdt1 = vector< double > (nthrds, -1.0e20);
-  off1 = vector< vector<unsigned> > (nthrds);
+
+  if (VERBOSE>0) {
+
+    if (offhi1.size()==0 || mstep==0) {
+
+      for (list<Component*>::iterator cc=comp.components.begin(); 
+	   cc != comp.components.end(); cc++) {
+	for (int n=0; n<nthrds; n++) {
+	  offhi1[*cc] = vector<unsigned>(nthrds, 0);
+	  offlo1[*cc] = vector<unsigned>(nthrds, 0);
+	}
+      }
+    }
+  }
 
   thrd_pass_sync* td = new thrd_pass_sync [nthrds];
 
@@ -332,50 +360,87 @@ void adjust_multistep_level(bool all)
   //
   // Diagnostic output
   //
-  if (VERBOSE>0) {
+  if (VERBOSE>0 && mstep==0) {
+
+    //
+    // Count offgrid particles in the threads
+    //
+    map< Component*, unsigned > offlo, offhi;
 
     for (int n=1; n<nthrds; n++) {
-      for (unsigned j=0; j<off1[0].size(); j++) off1[0][j] += off1[n][j];
       mindt1[0] = min<double>(mindt1[0], mindt1[n]);
       maxdt1[0] = max<double>(maxdt1[0], maxdt1[n]);
     }
 
-    vector<unsigned> off(off1[0].size(), 0);
     double mindt, maxdt;
 
     MPI_Reduce(&mindt1[0], &mindt, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
     MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&off1[0][0], &off[0], off1[0].size(), MPI_UNSIGNED, MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
+
+    
+    for (list<Component*>::iterator cc=comp.components.begin(); 
+	 cc != comp.components.end(); cc++) {
+
+      unsigned cofflo = 0, coffhi = 0;
+      for (int n=0; n<nthrds; n++) {
+	cofflo += offlo1[*cc][n];
+	coffhi += offhi1[*cc][n];
+      }
+
+      MPI_Reduce(&cofflo, &offlo[*cc], 1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      
+      MPI_Reduce(&coffhi, &offhi[*cc], 1,
+		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    }
+
     
     if (myid==0) {
       
-      unsigned sum=0;
-      for (unsigned i=0; i<off.size(); i++) sum += off[i];
+      unsigned sumlo=0, sumhi=0;
+      for (list<Component*>::iterator cc=comp.components.begin(); 
+	   cc != comp.components.end(); cc++) {
+	sumlo += offlo[*cc];
+	sumhi += offhi[*cc];
+      }
       
-      if (sum) {
-	cout << setw(70) << setfill('-') << '-' << endl
-	     << left << "--- Multistepping overrun" << endl
-	     << left << "--- Min DT=" << mindt << "  Max DT=" << maxdt << endl
-	     << setw(70) << setfill('-') << '-' << endl 
+      if (sumlo || sumhi) {
+	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+	     << left << "--- Multistepping overrun" << endl;
+	if (sumlo)
+	  cout << left << "--- Min DT=" << setw(16) << mindt  
+	       << " < " << setw(16) << dtime/(1<<multistep) 
+	       << " [" << sumlo << "]" << endl;
+	if (sumhi)
+	  cout << left << "--- Max DT=" << setw(16) << maxdt  
+	       << " > " << setw(16) << dtime 
+	       << " [" << sumhi << "]" << endl;
+	cout << setw(70) << setfill('-') << '-' << endl 
 	     << setfill(' ') << right;
 
-	vector<unsigned>::iterator it = off.begin();
-
-	list<Component*>::iterator cc;
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	  //	  if (*it > 0) {
+	if (sumlo) {
+	  list<Component*>::iterator cc;
+	  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
 	    ostringstream sout;
 	    sout << "Component <" << (*cc)->name << ">";
-	    cout << setw(30) << sout.str() << ": "
-		 << *it << "/" << (*cc)->nbodies_tot << endl;
-	    // }
-	  it++;
+	    cout << setw(30) << sout.str() << " |   low: "
+		 << offlo[*cc] << "/" << (*cc)->nbodies_tot << endl;
+	  }
 	}
+
+	if (sumhi) {
+	  list<Component*>::iterator cc;
+	  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	    ostringstream sout;
+	    sout << "Component <" << (*cc)->name << ">";
+	    cout << setw(30) << sout.str() << " |  high: "
+		 << offhi[*cc] << "/" << (*cc)->nbodies_tot << endl;
+	  }
+	}
+
 	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ');
       }
     }
-
   }
 }
 

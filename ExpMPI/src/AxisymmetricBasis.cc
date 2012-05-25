@@ -591,54 +591,50 @@ void AxisymmetricBasis::parallel_distribute_coefficients(void)
 void AxisymmetricBasis::parallel_gather_coef2(void)
 {
 
-  if (myid == 0) {
-
-    for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
-
-      for (int m=0, moffset=0; m<=l; m++) {
-
-	if (m==0) {
-	  for (int n=1; n<=nmax; ++n) {
-	    for (int nn=n; nn<=nmax; nn++)
-	      cc[loffset+moffset][n][nn] = 0.0;
-	  }
-	  moffset++;
-
-	} else {
-	  for (int n=1; n<=nmax; ++n) {
-	    for (int nn=n; nn<=nmax; nn++) {
-	      cc[loffset+moffset][n][nn] = 0.0;
-	      cc[loffset+moffset+1][n][nn] = 0.0;
-	    }
-	  }
-	  moffset+=2;
-	}
-      }
-    }
-  }
-
-
   for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
 
     for (int m=0, moffset=0; m<=l; m++) {
 
       if (m==0) {
 	for (int n=1; n<=nmax; n++)
-	  MPI_Reduce(&cc1[loffset+moffset][n][n],
-		     &cc[loffset+moffset][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	  MPI_Allreduce(&cc1[loffset+moffset][n][n],
+			&cc [loffset+moffset][n][n], nmax-n+1, 
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	moffset++;
       }
       else {
 	for (int n=1; n<=nmax; n++) {
-	  MPI_Reduce(&cc1[loffset+moffset][n][n],
-		     &cc[loffset+moffset][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-	  MPI_Reduce(&cc1[loffset+moffset+1][n][n],
-		     &cc[loffset+moffset+1][n][n], nmax-n+1, 
-		     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+	  MPI_Allreduce(&cc1[loffset+moffset  ][n][n],
+			&cc [loffset+moffset  ][n][n], nmax-n+1, 
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+	  MPI_Allreduce(&cc1[loffset+moffset+1][n][n],
+			&cc [loffset+moffset+1][n][n], nmax-n+1, 
+			MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 	}
 
+	moffset+=2;
+      }
+    }
+  }
+
+  for (int l=L0, loffset=0; l<=Lmax; loffset+=(2*l+1), l++) {
+
+    for (int m=0, moffset=0; m<=l; m++) {
+
+      if (m==0) {
+	for (int n=1; n<=nmax; ++n) {
+	  for (int nn=n+1; nn<=nmax; nn++)
+	    cc[loffset+moffset][nn][n] = cc[loffset+moffset][n][nn];
+	}
+	moffset++;
+	
+      } else {
+	for (int n=1; n<=nmax; ++n) {
+	  for (int nn=n+1; nn<=nmax; nn++) {
+	    cc[loffset+moffset  ][nn][n] = cc[loffset+moffset  ][n][nn];
+	    cc[loffset+moffset+1][nn][n] = cc[loffset+moffset+1][n][nn];
+	  }
+	}
 	moffset+=2;
       }
     }
