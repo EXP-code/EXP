@@ -181,7 +181,6 @@ protected:
 			double *cr, int id=0) { return 0; }
 
   virtual void EPSM(pHOT* tree, pCell* cell, int id);
-  vector<double> coolheat;
   bool use_epsm;
 
   // For diagnostic output

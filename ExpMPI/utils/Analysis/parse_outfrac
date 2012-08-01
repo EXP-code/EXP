@@ -20,6 +20,8 @@ import matplotlib.pylab as plt
 import matplotlib.colors as colors
 import matplotlib.cm as cmx
 
+from matplotlib.ticker import FormatStrFormatter
+
 import sys
 import getopt
 
@@ -75,12 +77,12 @@ def plot_em(infile, args):
     # Lower range (constant y)
     yt    = t*0.0 + rmin
     data.append(yt.tolist())
-    for j in range(1, a.shape[1]-1):
-        # Append each mass fraction
-        data.append(a[:,j].tolist())
+    # Append each mass fraction
+    for j in range(1, a.shape[1]-1): data.append(a[:,j].tolist())
     # Upper range (constant y)
     yt = t*0.0 + rmax
     data.append(yt.tolist())
+
     y = array(data)
 
     # Initialize plot and scalar color mapping
@@ -111,8 +113,9 @@ def plot_em(infile, args):
         ppd.append(p)
 
     # Add the color bar
-    cb = plt.colorbar(scalarMap, cmap=jet, ax=ax, alpha=0.5)
-    cb.set_label(r"log$_{10}$ fraction")
+    ff = FormatStrFormatter('$10^{%d}$')
+    cb = plt.colorbar(scalarMap, cmap=jet, ax=ax, alpha=0.5, format=ff, ticks=[-4,-3,-2,-1,0])
+    cb.set_label("mass fraction")
 
     # Save figure to png and show the plot
     plt.savefig("%s.png" % args["out"])

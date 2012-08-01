@@ -54,6 +54,8 @@ bool     CollideLTE::frost_warning = false;
 CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
 {
+  // Default cooling rates
+  coolheat = vector<double>(nthrds, 0.0);
 
   HeatCool::initialize();
   hc = new HeatCool(Nmin, Nmax, Tmin, Tmax, Nnum, Tnum, cache);

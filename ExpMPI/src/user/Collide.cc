@@ -155,30 +155,74 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   caller = force;
   nthrds = nth;
 
+  // Counts the total number of collisions
   colcntT = vector< vector<unsigned> > (nthrds);
+
+  // Total number of particles processsed
   numcntT = vector< vector<unsigned> > (nthrds);
+
+  // Total velocity dispersion (i.e. mean temperature)
   tdispT  = vector< vector<double> >   (nthrds);
+
+  // Number of collisions with inconsistencies (only meaningful for LTE)
   error1T = vector<unsigned> (nthrds, 0);
+
+  // Number of particles selected for collision
   sel1T   = vector<unsigned> (nthrds, 0);
+
+  // Number of particles actually collided
   col1T   = vector<unsigned> (nthrds, 0);
+
+  // Number of particles processed by the EPSM algorithm
   epsm1T  = vector<unsigned> (nthrds, 0);
+
+  // Number of cells processed by the EPSM algorithm
   Nepsm1T = vector<unsigned> (nthrds, 0);
+
+  // Total mass of processed particles
   tmassT  = vector<double>   (nthrds, 0);
+
+  // True energy lost to dissipation (i.e. radiation)
   decolT  = vector<double>   (nthrds, 0);
+
+  // Full energy lost to dissipation (i.e. radiation) 
   decelT  = vector<double>   (nthrds, 0);
+
+  // Energy excess (true energy)
   exesCT  = vector<double>   (nthrds, 0);
+
+  // Energy excess (full energy)
   exesET  = vector<double>   (nthrds, 0);
 
   if (MFPDIAG) {
+    //
     tsratT  = vector< vector<double> >  (nthrds);
+
+    //
     keratT  = vector< vector<double> >  (nthrds);
+
+    //
     deratT  = vector< vector<double> >  (nthrds);
+
+    //
     tdensT  = vector< vector<double> >  (nthrds);
+
+    //
     tvolcT  = vector< vector<double> >  (nthrds);
+
+    //
     ttempT  = vector< vector<double> >  (nthrds);
+
+    //
     tdeltT  = vector< vector<double> >  (nthrds);
+
+    //
     tselnT  = vector< vector<double> >  (nthrds);
+
+    //
     tphaseT = vector< vector<Precord> > (nthrds);
+
+    //
     tmfpstT = vector< vector<Precord> > (nthrds);
   }
 
@@ -191,9 +235,6 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   epsmcells = 0;		// Count cells in EPSM regime
   epsmtot = 0;			// Count particles in EPSM regime
 
-				// Default cooling rate 
-				// (if not set by derived class)
-  coolheat = vector<double>(nthrds, 0.0);
 
 				// EPSM diagnostics
   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
@@ -761,19 +802,6 @@ void * Collide::collide_thread(void * arg)
 				// Number of pairs to be selected
     unsigned nsel = static_cast<unsigned>(floor(select+0.5));
     
-				// Debug
-    if (0) {
-      cerr << left << setprecision(2)
-	   << "MFP/L=" << setw(8) << prec[id].first 
-	   << " Edsp=" << setw(8) << kedsp
-	   << " Rate=" << setw(8) << coolheat[id]
-	   << " Time=" << setw(8) << tnow
-	   << " Nsel=" << setw(6) << nsel 
-	   << " Numb=" << setw(6) << number 
-	   << endl;
-    }
-
-
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp_diag");
     GPTLstart("Collide::cell_init");
@@ -992,6 +1020,11 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
+    //
+    // The following should be moved to CollideLTE, provide a general
+    // hook for the derived classes for specific diagnostics
+    //
+
     // Energy lost from this cell compared to target
     //
     if (coolheat[id]>0.0) {
@@ -1517,6 +1550,10 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// needs to be removed and + if too much
 				// energy was removed by cooling last step
 				// 
+  
+				// Again, this should be moved to the
+				// derived class
+
   if (Einternal + Exes - Emin > coolheat[id]) {
     Enew = Einternal + Exes - coolheat[id];
   } else {

@@ -10,6 +10,9 @@
 class CollideLTE;
 
 /** DSMC particle routine
+
+    <h2> Parameters </h2>
+
     @param Lunit is the physical scale in cm per system units (default: 300 kpc)
     @param Tunit is the physical time scale in years per system unit (default: gravitational)
     @param Munit is the physical mass in units of mp per system units (default: 1e12 Msun)
@@ -60,6 +63,15 @@ class CollideLTE;
     rectangular rather than square region whose different axis is X
     @param slab set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is Z
+
+    <h2>Note on multiple species</h2>
+
+    Use of multiple species is initiated by setting the
+    <code>species</code> flag to an integer \f$\ge0\f$.  The argument
+    indicates the position of the species index in the per-particle
+    integer parameter vector.  The species indices to not have to be
+    sequential, only unique.  They are stored in the code using a STL
+    <code>map</code> template.
 */
 class UserTreeDSMC : public ExternalForce
 {

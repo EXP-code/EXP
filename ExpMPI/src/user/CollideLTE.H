@@ -41,6 +41,7 @@ protected:
   //
   double totalSoFar, massSoFar;
   vector<double> lostSoFar;
+  vector<double> coolheat;
 
   virtual void list_sizes();
   void list_sizes_proc(ostream*);

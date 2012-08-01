@@ -535,6 +535,13 @@ void UserTreeDSMC::initialize()
 }
 
 
+//  __  __    _    ___ _   _   ____   ___  _   _ _____ ___ _   _ _____ 
+// |  \/  |  / \  |_ _| \ | | |  _ \ / _ \| | | |_   _|_ _| \ | | ____|
+// | |\/| | / _ \  | ||  \| | | |_) | | | | | | | | |  | ||  \| |  _|  
+// | |  | |/ ___ \ | || |\  | |  _ <| |_| | |_| | | |  | || |\  | |___ 
+// |_|  |_/_/   \_\___|_| \_| |_| \_\\___/ \___/  |_| |___|_| \_|_____|
+//                                                                    
+
 void UserTreeDSMC::determine_acceleration_and_potential(void)
 {
   BarrierWrapper barrier(MPI_COMM_WORLD, barrier_debug);
@@ -571,6 +578,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
 
   if (firstime) {
+    //
+    // This is a full repartition tree build
+    //
     c0->Tree()->setWeights(use_effort);
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
@@ -787,6 +797,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   GPTLstart("UserTreeDSMC::collide");
 #endif
 
+  //
+  // So far, all computations have been about repartition and
+  // tessellation.  All of the collision stuff is done by the current
+  // Collide class instance.
+  //
+
   collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
     
   collideSoFar = clldeTime.stop();
@@ -800,7 +816,14 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   waitcSoFar = clldeWait.stop();
 
-				// Time step request
+  // -----------------
+  // Time step request
+  // -----------------
+  //
+  // New timesteps are selected for the cells based on the collision
+  // diagnostics from the current step.
+  //
+
 #ifdef USE_GPTL
   GPTLstart("UserTreeDSMC::collide_timestep");
 #endif
@@ -831,6 +854,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Periodically display the current progress
   //
+  // Lots of diagnostics are computed and emitted here . . .
   //
   if (diagstep) {
 #ifdef USE_GPTL
