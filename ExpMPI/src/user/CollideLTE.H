@@ -60,6 +60,8 @@ protected:
 
   map<int, map<int, double> >& totalCrossSections(double crm, int id);
 
+  bool hasHeatCool() { return true; }
+
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
   double getCoolingRate(int id) { return coolheat[id]; }

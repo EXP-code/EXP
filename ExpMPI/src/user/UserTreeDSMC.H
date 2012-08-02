@@ -1,6 +1,8 @@
 #ifndef _UserTreeDSMC_H
 #define _UserTreeDSMC_H
 
+#include <set>
+
 #include <Particle.H>
 #include <AxisymmetricBasis.H>
 #include <ExternalForce.H>
@@ -10,6 +12,87 @@
 class CollideLTE;
 
 /** DSMC particle routine
+
+    <h2> Introduction </h2>
+
+    Recall that the DSMC technique models a gas by following the
+    trajectories of gas molecules and computes the effects of
+    collisions between particles through probabilistically generated
+    encounters. One of the fundamental assumptions of the DSMC method
+    is that particle movement can be decoupled from collisional
+    behavior.  Particles then move along paths determined by the mean
+    force fields (gravitational and electromagnetic) with discrete
+    changes in velocity and energy caused by collisions. In order to
+    accomplish this, the simulation is broken up into time steps the
+    magnitude of which are small compared to the average time between
+    collisions. In this small interval of time, these two processes
+    can realistically be treated as independent.
+
+    The basic structure of the DSMC algorithm is as follows. In each
+    computational cell, particles are chosen to collide in such a way
+    as to reproduce the required macroscopic collision rate. The
+    relative location of particles in the cell is not considered when
+    selecting collision pairs. This fact restricts the size of a
+    computational cell; it must be smaller than the local average mean
+    free path of the flow field. Each of the colliding pairs can then
+    chemically react or exchange internal energy. All of the colliding
+    pairs then exchange energy elastically. Following the collision
+    routines, each particle is moved throughout the domain for the
+    duration of a single time step.  Particles are introduced at the
+    inflow boundaries, removed at outflow boundaries, and reflected
+    from surfaces. If a steady state has been reached in the
+    simulation, as indicated by constancy of particle number and total
+    energy in the domain, the macroscopic flow variables are sampled
+    in each cell. At this point the algorithm is repeated until a
+    sufficient number of samples has been collected.
+
+    A complete DSMC simulation is a series of discrete time steps or
+    iterations. During each iteration particles are moved and
+    collisions are computed. The algorithm for a single iteration can
+    be broken down into the following operations:
+    <ol>
+    <li> Move particles
+    <li> Sort particles into cells
+    <li> Select collision pairs 
+    <li> Calculate collision mechanics 
+    <li> Sample macroscopic properties 
+    </ol>
+
+    <h2> Structure </h2>
+
+    Step (1) from the list above is performed by EXP internals,
+    typical of an n-body code.  Steps (2) and (3) are initialed by the
+    determine_acceleration_and_potential() member function at each
+    step.  Specifically, this member calls the appropriate members of
+    pHOT to repartition the particles into cells and rebuild the tree,
+    if necessary.  determine_acceleration_and_potential() also
+    accumulates diagnostics and time step information for future
+    repartitioning and time-step level adjustment.
+
+    Then, determine_acceleration_and_potential() requests an estimate
+    for the cross sections for the particles in the cell from the
+    Collide instance  Collide is an abstract base class that provides
+    all of the information about the particle interactions.  Multiple
+    collision schemes may be derived form Collide and selected using
+    the parameter <code>ctype</code>.
+
+    Step (4).  The cross sections are used to estimate the collision
+    rates.  If the collision rates are higher the the EPSM limit, and
+    EPSM is enabled (see the parameter <code>epsm</code>), the Collide
+    instance will be asked for a mean heating/cooling rate and and an
+    EPSM step will be performed.  Otherwise, the DSMC algorithm is
+    invoked to propose collisions among each cells particles at the
+    computed rate.
+
+    Finally, Step(5), final per-cell diagnostics are performed and
+    accumulated.  These are reported in various log files and used for
+    adjusting time-step levels for each cell.
+
+    <h2> See Collide for deriving a new collsion routine </h2> 
+
+    See Collide for deriving a new collsion routine.  Then, add your
+    constructor to the list following the comment <code>Create the
+    collision instance from the allowed list</code>.
 
     <h2> Parameters </h2>
 
@@ -63,6 +146,7 @@ class CollideLTE;
     rectangular rather than square region whose different axis is X
     @param slab set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is Z
+    @param ctype is a string referring to the name of the desired collision type (default: LTE)
 
     <h2>Note on multiple species</h2>
 
@@ -91,6 +175,7 @@ private:
   double epsm;
   double coolfrac;
   double enhance;
+  string ctype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
@@ -205,6 +290,24 @@ protected:
   map<int, double> collFrac;
   set<int> spec_list;
   //@}
+
+  //! Valid collisions types
+  static std::set<std::string> colltypes;
+
+  //! Initialize collision types
+  static void initialize_colltypes()
+  {
+    if (colltypes.size()) return;
+    colltypes.insert("LTE");
+  }
+
+  //! Check for valid collision types (return true if good)
+  bool check_ctype(std::string type)
+  {
+    if (colltypes.find(type) == colltypes.end())  return false;
+    else                                          return true;
+  }
+
 
 public:
 

@@ -57,6 +57,35 @@ struct thrd_pass_tstep
 };
 
 
+/**
+   The collision base class for DSMC
+
+   <h2> Virtual functions that must be implemented by a derived class </h2>
+   <ul>
+
+   <li> initialize_cell_dsmc().  This function initializes cross
+   sections (and possibly) heating and cooling rates for use in DSMC.
+
+   <li> initialize_cell_epsm(). Initializes mean heating and cooling
+   rates for use in EPSM.
+  
+   <li> finalize_cell(). Computes diagnostics for the cell after
+   collisions/cooling.
+
+   <li> totalCrossSections(). Return total cross section "matrix" for
+   species-species interactions.  The "matrix" is implemented as an
+   STL map<int, map<int, double> > so sparse indices do not matter but
+   we can still use the matrix-like syntatic construction
+   matrix[i1][i2].
+   
+   <li> inelastic().  Performs the inelastic computation.  Returns 0 on
+   success.
+
+   <li> hasHeatCool().  Return true if the derived class can provide a
+   heating and cooling function for EPSM.  Otherwise, return false.
+
+   </ul>
+ */
 class Collide
 {
 
@@ -194,6 +223,9 @@ protected:
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
+
+  //! Has LTE heating and cooling algorithm
+  virtual bool hasHeatCool() = 0;
 
   //! Compute the EPSM algorithm for the given cell
   virtual void EPSM(pHOT* tree, pCell* cell, int id);

@@ -48,6 +48,9 @@ double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 bool   UserTreeDSMC::use_effort = true;
 
+std::set<std::string> 
+       UserTreeDSMC:: colltypes;
+
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 {
   id = "TreeDSMC";		// ID string
@@ -62,6 +65,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   boxsize    = 1.0;
   boxratio   = 1.0;
   comp_name  = "gas disk";
+  ctype      = "LTE";
   nsteps     = -1;
   msteps     = -1;
   use_temp   = -1;
@@ -388,8 +392,18 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::EFFORT  = use_effort;
   Collide::ENHANCE = enhance;
 
-				// Create the collision instance
-  collide = new CollideLTE(this, diam, nthrds);
+  //
+  // Create the collision instance from the allowed list
+  //
+  if (ctype.compare("LTE") == 0)
+    collide = new CollideLTE(this, diam, nthrds);
+  /*
+    else if (ctype.compare("Another")
+      collide = new CollideAnother(this, diam, nthrds);
+    else if (ctype.compare("YetAnother")
+      collide = new CollideYetAnother(this, diam, nthrds);
+  */
+
   collide->set_temp_dens(use_temp, use_dens);
   if (esol) collide->set_timestep(-1);
   else      collide->set_timestep(use_delt);
@@ -535,6 +549,19 @@ void UserTreeDSMC::initialize()
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
+
+  if (get_value("ctype", val)) {
+    if (check_ctype(ctype)) ctype = val;
+    else {
+      if (myid==0) {
+	std::cerr << "UserTreeDSMC: invalid ctype <" << ctype << ">" 
+		  << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
   /**
      Look for array values in the parameter string of the form
