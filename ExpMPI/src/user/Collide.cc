@@ -72,7 +72,7 @@ collide_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::collide_thread_fork(pHOT* tree, double Fn, double tau)
+void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
 {
   int errcode;
   void *retval;
@@ -195,51 +195,55 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   exesET  = vector<double>   (nthrds, 0);
 
   if (MFPDIAG) {
-    //
+    // List of ratios of free-flight length to cell size
     tsratT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of fractional changes in KE per cell
     keratT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of cooling excess to KE per cell
     deratT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of densities in each cell
     tdensT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of cell volumes
     tvolcT  = vector< vector<double> >  (nthrds);
 
-    //
+    // Temperature per cell; assigned in derived class instance
     ttempT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of change in energy per cell due to cooling (for LTE only)
     tdeltT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of collision selections per particle
     tselnT  = vector< vector<double> >  (nthrds);
 
-    //
+    // List of cell diagnostic info per cell
     tphaseT = vector< vector<Precord> > (nthrds);
 
-    //
+    // List of mean-free path info per cell
     tmfpstT = vector< vector<Precord> > (nthrds);
   }
 
   cellist = vector< vector<pCell*> > (nthrds);
 
   diam0 = diam = diameter;
-  seltot = 0;			// Count estimated collision targets
-  coltot = 0;			// Count total collisions
-  errtot = 0;			// Count errors in inelastic computation
-  epsmcells = 0;		// Count cells in EPSM regime
-  epsmtot = 0;			// Count particles in EPSM regime
 
+  seltot    = 0;	      // Count estimated collision targets
+  coltot    = 0;	      // Count total collisions
+  errtot    = 0;	      // Count errors in inelastic computation
+  epsmcells = 0;	      // Count cells in EPSM regime
+  epsmtot   = 0;	      // Count particles in EPSM regime
 
 				// EPSM diagnostics
   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
   if (EPSMratio> 0) use_epsm = true;
   else              use_epsm = false;
+
+  // 
+  // TIMERS
+  //
 
   diagTime.Microseconds();
   snglTime.Microseconds();
@@ -297,17 +301,20 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   }
   
   if (TSDIAG) {
+    // Accumulate distribution log ratio of flight time to time step
     tdiag  = vector<unsigned>(numdiag, 0);
     tdiag1 = vector<unsigned>(numdiag, 0);
     tdiag0 = vector<unsigned>(numdiag, 0);
     tdiagT = vector< vector<unsigned> > (nthrds);
 
+    // Accumulate distribution log energy overruns
     Eover  = vector<double>(numdiag, 0);
     Eover1 = vector<double>(numdiag, 0);
     Eover0 = vector<double>(numdiag, 0);
     EoverT = vector< vector<double> > (nthrds);
   }
 
+  // Accumulate the ratio cooling time to time step each cell
   tcool  = vector<unsigned>(numdiag, 0);
   tcool1 = vector<unsigned>(numdiag, 0);
   tcool0 = vector<unsigned>(numdiag, 0);
@@ -443,8 +450,8 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
-			  bool diag)
+unsigned Collide::collide(pHOT& tree, map<int, double>& Fn, 
+			  double tau, int mlevel, bool diag)
 {
   snglTime.start();
 				// Initialize diagnostic counters
@@ -489,7 +496,7 @@ unsigned Collide::collide(pHOT& tree, double Fn, double tau, int mlevel,
     sout << "before fork, " << __FILE__ << ": " << __LINE__;
     tree.checkBounds(2.0, sout.str().c_str());
   }
-  collide_thread_fork(&tree, Fn, tau);
+  collide_thread_fork(&tree, &Fn, tau);
   if (0) {
     ostringstream sout;
     sout << "after fork, " << __FILE__ << ": " << __LINE__;
@@ -550,10 +557,11 @@ void Collide::dispersion(vector<double>& disp)
 
 void * Collide::collide_thread(void * arg)
 {
-  pHOT *tree  = (pHOT*) ((thrd_pass_arguments*)arg)->tree;
-  double Fn   = (double)((thrd_pass_arguments*)arg)->fn;
-  double tau  = (double)((thrd_pass_arguments*)arg)->tau;
-  int id      = (int)   ((thrd_pass_arguments*)arg)->id;
+  pHOT *tree    = static_cast<pHOT*>(((thrd_pass_arguments*)arg)->tree);
+  map<int, double> 
+    *Fn         = static_cast<map<int, double>*>(((thrd_pass_arguments*)arg)->fn);
+  double tau    = static_cast<double>(((thrd_pass_arguments*)arg)->tau);
+  int id        = static_cast<int>(((thrd_pass_arguments*)arg)->id);
 
 				// Work vectors
   vector<double> vcm(3), vrel(3), crel(3);
@@ -684,10 +692,34 @@ void * Collide::collide_thread(void * arg)
     //
     double cL = pow(volc, 0.33333333);
 
-    // Fiducial cross section
-    //
-    double cross  = M_PI*diam0*diam0;
 
+    // Per species quantities
+    //
+    map<int, double>              densM, colPM, crossM;
+    map<int, map<int, double> >   selcM;
+    map<int, map<int, unsigned> > nselM;
+    map<int, unsigned>::iterator  it1, it2;
+
+    crossM = totalCrossSections(crm);
+
+    int i1, i2;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+      i1 = it1->first;
+      densM[i1] = c->Mass(i1)/volc;
+      colPM[i1] = Fn[i1]*densM[i1]*crossM[i1]*crm*tau;
+    }
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+      i1 = it1->first;
+      for (it2=it1; it2!=c->count.end(); it2++) {
+	i2 = it2->first;
+	if (i1==i2) selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
+	else        selcM[i1][i2] =      it1->second   *colPM[i2];
+	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+      }
+    }
+    
     // Determine cross section based on fixed number of collisions
     //
     if (CNUM) {
@@ -740,29 +772,6 @@ void * Collide::collide_thread(void * arg)
     //
     double select = 0.5*(number-1)*collP;
 
-    // Per species quantities
-    //
-    map<int, double> densM, colPM;
-    map<int, map<int, double> > selcM;
-    map<int, map<int, unsigned> > nselM;
-    map<int, unsigned>::iterator it1, it2;
-    int i1, i2;
-
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      i1 = it1->first;
-      densM[i1] = c->Mass(i1)/volc;
-      colPM[i1] = Fn*densM[i1]*cross*crm*tau;
-    }
-
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      i1 = it1->first;
-      for (it2=it1; it2!=c->count.end(); it2++) {
-	i2 = it2->first;
-	if (i1==i2) selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
-	else        selcM[i1][i2] =      it1->second   *colPM[i2];
-	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
-      }
-    }
 
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;

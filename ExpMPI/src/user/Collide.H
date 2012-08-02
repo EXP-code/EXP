@@ -22,7 +22,7 @@ struct thrd_pass_arguments
   //! Pointer to iterator
   pHOT *tree;
   //! Effective number of particles
-  double fn;
+  std::vector<double> *fn;
   //! Time step
   double tau;
   //! Thread counter id
@@ -290,7 +290,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, double Fn, double tau, int mlev=0, 
+  unsigned collide(pHOT& cl, std::vector<double>& Fn, double tau, int mlev=0, 
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
@@ -309,7 +309,7 @@ public:
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, double Fn, double tau);
+  void collide_thread_fork(pHOT *tree, std::vector<double>& Fn, double tau);
   //@}
 
   /// Timestep thread
