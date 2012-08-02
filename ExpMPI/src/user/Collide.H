@@ -1,10 +1,11 @@
 #ifndef _Collide_H
 #define _Collide_H
 
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <vector>
-#include <algorithm>
+#include <map>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -216,12 +217,9 @@ protected:
   
 public:
 
-  static int CNUM;		// Target CNUM collisions if nonzero
-				// default: 0
-
   static bool ESOL;		// Integrate the cooling solution
 
-  static bool PULLIN;		// Use the origina Pullin velocity selection algorithm
+  static bool PULLIN;		// Use the original Pullin velocity selection algorithm
 
   static bool CBA;		// Use the Consistent Boltzmann Algorithm
 				// Alexander, Garcia, Alder 1995, PRL, 74, 5212
@@ -290,7 +288,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, std::vector<double>& Fn, double tau, int mlev=0, 
+  unsigned collide(pHOT& cl, map<int, double>& Fn, double tau, int mlev=0, 
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
@@ -309,7 +307,7 @@ public:
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, std::vector<double>& Fn, double tau);
+  void collide_thread_fork(pHOT *tree, map<int, double>* Fn, double tau);
   //@}
 
   /// Timestep thread

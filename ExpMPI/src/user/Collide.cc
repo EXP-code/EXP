@@ -145,7 +145,6 @@ void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
 }
 
 
-int      Collide::CNUM      = 0;
 bool     Collide::CBA       = true;
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
@@ -695,10 +694,11 @@ void * Collide::collide_thread(void * arg)
 
     // Per species quantities
     //
-    map<int, double>              densM, colPM, crossM;
+    map<int, double>              densM, colPM, lambdaM, crossM;
     map<int, map<int, double> >   selcM;
     map<int, map<int, unsigned> > nselM;
     map<int, unsigned>::iterator  it1, it2;
+    map<int, map<int, double> >   crossM;
 
     crossM = totalCrossSections(crm);
 
@@ -707,25 +707,52 @@ void * Collide::collide_thread(void * arg)
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       i1 = it1->first;
       densM[i1] = c->Mass(i1)/volc;
-      colPM[i1] = Fn[i1]*densM[i1]*crossM[i1]*crm*tau;
     }
+
+    double meanDens=0.0, meanLambda=0.0, meanCross=0.0;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+      i1 = it1->first;
+      crossM [i1] = 0.0;
+      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+	i1 = it2->first;
+	if (i2>=i1) {
+	  crossM[i1] += Fn[i2]*densM[i2]*crossM[i1][i2];
+	} else
+	  crossM[i1] += Fn[i2]*densM[i2]*crossM[i2][i1];
+      }
+
+      lambdaM[i1] = 1.0/(crossM[i1]*crm*tau);
+
+      meanDens   += Fn[i1] * densM[i1];
+      meanCross  += Fn[i1] * densM[i1] * crossM[i1];
+      meanLambda += Fn[i1] * densM[i1] * lambdaM[i1];
+    }
+
+				// This is the density-weighted MFP
+    meanLambda /= meanDens;
+				// This is the density-weighted total
+				// cross section
+    meanCross  /= (meanDens*meanDens);
+
+				// This is the per-species N_{coll}
 
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       i1 = it1->first;
       for (it2=it1; it2!=c->count.end(); it2++) {
 	i2 = it2->first;
-	if (i1==i2) selcM[i1][i2] = 0.5*(it1->second-1)*colPM[i2];
-	else        selcM[i1][i2] =      it1->second   *colPM[i2];
+	if (i1==i2) 
+	  selcM[i1][i2] = 
+	    0.5*(it1->second-1)*Fn[i2]*densM[i2]*crossM[i1][i2] * crm * tau;
+	else        
+	  selcM[i1][i2] = 
+	    0.5*(it1->second*Fn[i2]*densM[i2] + 
+		 it2->second*Fn[i1]*densM[i1])*crossM[i1][i2] * crm * tau;
+
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
       }
     }
     
-    // Determine cross section based on fixed number of collisions
-    //
-    if (CNUM) {
-      cross = 2.0*CNUM/(Fn*dens*tau*crm*(number-1));
-      diam = sqrt(cross/M_PI);
-    }
 
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp");
@@ -749,7 +776,7 @@ void * Collide::collide_thread(void * arg)
       // MFP = 1/(n*cross_section)
       // MFP/side = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
       
-      prec[id].first = pow(volc, 0.66666667)/(Fn*mass*cross);
+      prec[id].first = meanLambda/pow(volc, 0.33333333);
       prec[id].second[0] = sqrt(posx*posx + posy*posy);
       prec[id].second[1] = posz;
       prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
@@ -761,11 +788,11 @@ void * Collide::collide_thread(void * arg)
       
     // Mean free paths per cell dimension
     //
-    double mfpCL = Fn*dens*cross*cL;
+    double mfpCL = meanDens*meanCross*volc*cL;
 
     // Collision probability per particle
     //
-    double collP = Fn*dens*cross*crm*tau;
+    double collP = meanDens*meanCross*volc*crm*tau;
 
     // Determine number of candidate collision pairs
     // to be selected in this cell
