@@ -456,8 +456,11 @@ main(int argc, char** argv)
   //=================
 
   if (quit_signal && myid==0) {
-    cout << "Executing the epilogue command: " << restart_cmd << endl;
-    system(restart_cmd.c_str());
+    std::cout << "Executing the epilogue command: " << restart_cmd << endl;
+    if (system(restart_cmd.c_str()) == -1) {
+      std::cerr << "In MAIN, error executing the restart command <" 
+		<< restart_cmd << ">" << std::endl;
+    }
   }
 
   return 0;

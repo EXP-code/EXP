@@ -1,3 +1,4 @@
+#include <boost/lexical_cast.hpp>
 
 #include "expand.h"
 #include <Output.H>
@@ -39,6 +40,29 @@ int Output::get_value(const string& name, string& value)
   return 0;
 }
 
+
+std::map<int, std::string> Output::get_value_array(const string& name)
+{
+  std::map<int, string> values;
+  int indx;
+
+  list< pair<string, string> >::iterator it;
+  for (it=namevalue.begin(); it!=namevalue.end(); it++) {
+    string key = name + "(";
+    if (it->first.compare(0, key.size(), key) == 0) {
+      string sindx = it->first.substr(key.size(), it->first.find(")"));
+      try {
+	indx = boost::lexical_cast<int>(sindx);
+      } 
+      catch( boost::bad_lexical_cast const& ) {
+	std::cout << "Output::get_value_array: input string <"
+		  << it->first << "> is not valid" << std::endl;
+      }
+      values[indx] = it->second;
+    }
+  }
+  return values;
+}
 
 void Output::bomb(const string& msg)
 {

@@ -144,7 +144,10 @@ void UserRPtest::determine_acceleration_and_potential(void)
 	string backupfile = curfile + ".bak";
 	string command("cp ");
 	command += curfile + " " + backupfile;
-	system(command.c_str());
+	if (system(command.c_str()) == -1) {
+	  std::cerr << "UserRPtest: error in executing <"
+		    << command << ">" << endl;
+	}
 	
 				// Open new output stream for writing
 	ofstream out(curfile.c_str());

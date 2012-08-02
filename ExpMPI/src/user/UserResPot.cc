@@ -321,7 +321,10 @@ void UserResPot::determine_acceleration_and_potential(void)
 	string backupfile = outdir + filename + ".bak";
 	string command("cp ");
 	command += outdir + filename + " " + backupfile;
-	system(command.c_str());
+	if (system(command.c_str()) == -1) {
+	  std::cerr << "UserResPot: error in executing <"
+		    << command << ">" << endl;
+	}
 	
 				// Open new output stream for writing
 	ofstream out(string(outdir+filename).c_str());

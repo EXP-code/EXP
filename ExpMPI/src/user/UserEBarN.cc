@@ -685,7 +685,10 @@ void UserEBarN::determine_acceleration_and_potential(void)
 	string backupfile = outdir + name + ".bak";
 	string command("cp ");
 	command += outdir + name + " " + backupfile;
-	system(command.c_str());
+	if (system(command.c_str()) == -1) {
+	  std::cerr << "UserEBarN: error in executing <"
+		    << command << ">" << endl;
+	}
 
 	// Open new output stream for writing
 	ofstream out(string(outdir+name).c_str());

@@ -11,7 +11,11 @@ private:
   HeatCool *hc;
 
 protected:
-  // For debugging
+  //! List of cross-ections per thread
+  vector< map<int, map<int, double> > > csections;
+
+  //@{
+  //! For debugging
   vector<unsigned> cellcnt;
   vector<double> minT, maxT, avgT, dispT;
   vector< vector<double> > tlist;
@@ -28,23 +32,47 @@ protected:
   vector< vector<double> > trho;
 
   bool debug_enabled;
+  //@}
 
 protected:
+
   vector<double> deltaE;
 
-  void initialize_cell(pCell* cell, double vrelmax, 
-		       double dt, double number, int id=0);
+  void initialize_cell_epsm (pHOT* tree, pCell* cell, 
+			     double vrelmax, double dt, 
+			     map<int, map<int, unsigned> >& nsel, int id=0)
+  {
+    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
+  }
+
+  void initialize_cell_dsmc (pHOT* tree, pCell* cell, 
+			     double vrelmax, double dt, 
+			     map<int, map<int, unsigned> >& nsel, int id=0)
+  {
+    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
+  }
+
+
+  void initialize_cell(pHOT* tree, pCell* cell, double vrelmax, double dt, 
+		       map<int, map<int, unsigned> >& nsel, int id);
+
+  void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
+
+  map<int, map<int, double> >& totalCrossSections(double crm, int id);
 
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
-  // Diagnostic output
-  //
+  double getCoolingRate(int id) { return coolheat[id]; }
+
+  //@{
+  //! Diagnostic output
   double totalSoFar, massSoFar;
   vector<double> lostSoFar;
   vector<double> coolheat;
 
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
+  //@}
 
 public:
 				// Cooling table

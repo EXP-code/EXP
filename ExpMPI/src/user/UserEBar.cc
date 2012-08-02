@@ -447,7 +447,10 @@ void UserEBar::determine_acceleration_and_potential(void)
 	string backupfile = name + ".bak";
 	string command("cp ");
 	command += name + " " + backupfile;
-	system(command.c_str());
+	if (system(command.c_str()) == -1) {
+	  std::cerr << "UserEBar: error in executing <"
+		    << command << ">" << endl;
+	}
 	
 	// Open new output stream for writing
 	ofstream out(name.c_str());

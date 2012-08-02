@@ -34,9 +34,16 @@ protected:
   //! Contains parameter database
   list< pair<string, string> > namevalue;
 
+  //@{
   /** Call to return <code>value</code> for requested parameter
       <code>name</code> */
+
+  //! Returns a single value from a key=value pair
   int get_value(const string& name, string& value);
+
+  //! Returns a map from key(n)=value pairs
+  std::map<int, string> get_value_array(const string& name);
+  //@}
 
   //! Number of bodies
   int nbodies;

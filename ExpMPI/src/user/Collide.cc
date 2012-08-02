@@ -227,7 +227,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
 
   cellist = vector< vector<pCell*> > (nthrds);
 
-  diam0 = diam = diameter;
+  diam = diameter;
 
   seltot    = 0;	      // Count estimated collision targets
   coltot    = 0;	      // Count total collisions
@@ -237,6 +237,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
 
 				// EPSM diagnostics
   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
+
   if (EPSMratio> 0) use_epsm = true;
   else              use_epsm = false;
 
@@ -694,13 +695,13 @@ void * Collide::collide_thread(void * arg)
 
     // Per species quantities
     //
-    map<int, double>              densM, colPM, lambdaM, crossM;
+    map<int, double>              densM, collPM, lambdaM, crossM;
     map<int, map<int, double> >   selcM;
     map<int, map<int, unsigned> > nselM;
     map<int, unsigned>::iterator  it1, it2;
-    map<int, map<int, double> >   crossM;
+    map<int, map<int, double> >   crossIJ;
 
-    crossM = totalCrossSections(crm);
+    crossIJ = totalCrossSections(crm, id);
 
     int i1, i2;
 
@@ -709,7 +710,7 @@ void * Collide::collide_thread(void * arg)
       densM[i1] = c->Mass(i1)/volc;
     }
 
-    double meanDens=0.0, meanLambda=0.0, meanCross=0.0;
+    double meanDens=0.0, meanLambda=0.0, meanCross=0.0, meanCollP=0.0;
 
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       i1 = it1->first;
@@ -717,42 +718,48 @@ void * Collide::collide_thread(void * arg)
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	i1 = it2->first;
 	if (i2>=i1) {
-	  crossM[i1] += Fn[i2]*densM[i2]*crossM[i1][i2];
+	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
 	} else
-	  crossM[i1] += Fn[i2]*densM[i2]*crossM[i2][i1];
+	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
       }
 
-      lambdaM[i1] = 1.0/(crossM[i1]*crm*tau);
-
-      meanDens   += Fn[i1] * densM[i1];
-      meanCross  += Fn[i1] * densM[i1] * crossM[i1];
-      meanLambda += Fn[i1] * densM[i1] * lambdaM[i1];
+      lambdaM[i1] = 1.0/crossM[i1];
+      collPM [i1] = crossM[i1] * crm * tau;
+      
+      meanDens   += (*Fn)[i1] * densM[i1];
+      meanCollP  += (*Fn)[i1] * densM[i1] * collPM[i1];
+      meanCross  += (*Fn)[i1] * densM[i1] * crossM[i1];
+      meanLambda += (*Fn)[i1] * densM[i1] * lambdaM[i1];
     }
 
-				// This is the density-weighted MFP
+				// This is the number density-weighted
+				// MFP
     meanLambda /= meanDens;
-				// This is the density-weighted total
-				// cross section
-    meanCross  /= (meanDens*meanDens);
-
+				// This is the number density-weighted
+				// total cross section times number density
+    meanCross  /= meanDens;
+				// Number-density weighted collision
+				// probability
+    meanCollP  /= meanDens;
 				// This is the per-species N_{coll}
 
+    double totalNsel = 0.0;	// For diagnostics only
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       i1 = it1->first;
       for (it2=it1; it2!=c->count.end(); it2++) {
 	i2 = it2->first;
 	if (i1==i2) 
 	  selcM[i1][i2] = 
-	    0.5*(it1->second-1)*Fn[i2]*densM[i2]*crossM[i1][i2] * crm * tau;
+	    0.5*(it1->second-1)*(*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
 	else        
 	  selcM[i1][i2] = 
-	    0.5*(it1->second*Fn[i2]*densM[i2] + 
-		 it2->second*Fn[i1]*densM[i1])*crossM[i1][i2] * crm * tau;
+	    0.5*(it1->second*(*Fn)[i2]*densM[i2] + 
+		 it2->second*(*Fn)[i1]*densM[i1])*crossIJ[i1][i2] * crm * tau;
 
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+	totalNsel += nselM[i1][i2];
       }
     }
-    
 
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp");
@@ -773,9 +780,8 @@ void * Collide::collide_thread(void * arg)
       double posx, posy, posz;
       c->MeanPos(posx, posy, posz);
       
-      // MFP = 1/(n*cross_section)
-      // MFP/side = MFP/vol^(1/3) = vol^(2/3)/(number*cross_section)
-      
+      // MFP/side = MFP/vol^(1/3)
+
       prec[id].first = meanLambda/pow(volc, 0.33333333);
       prec[id].second[0] = sqrt(posx*posx + posy*posy);
       prec[id].second[1] = posz;
@@ -786,19 +792,9 @@ void * Collide::collide_thread(void * arg)
       tmfpstT[id].push_back(prec[id]);
     }
       
-    // Mean free paths per cell dimension
+    // Ratio of cell size to mean free path
     //
-    double mfpCL = meanDens*meanCross*volc*cL;
-
-    // Collision probability per particle
-    //
-    double collP = meanDens*meanCross*volc*crm*tau;
-
-    // Determine number of candidate collision pairs
-    // to be selected in this cell
-    //
-    double select = 0.5*(number-1)*collP;
-
+    double mfpCL = cL/meanLambda;
 
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
@@ -823,7 +819,7 @@ void * Collide::collide_thread(void * arg)
 	VcntT[id][c->level]++;
 	VdblT[id][c->level*nvold+0] += dens;
 	VdblT[id][c->level*nvold+1] += 1.0 / mfpCL;
-	VdblT[id][c->level*nvold+2] += collP;
+	VdblT[id][c->level*nvold+2] += meanCollP;
 	VdblT[id][c->level*nvold+3] += crm*tau / cL;
 	VdblT[id][c->level*nvold+4] += number;
 	VdblT[id][c->level*nvold+5] += number*number;
@@ -831,22 +827,15 @@ void * Collide::collide_thread(void * arg)
     }
 				// Selection number per particle
     if (MFPDIAG)
-      tselnT[id].push_back(select/number);
+      tselnT[id].push_back(totalNsel/number);
 
     stat2SoFar[id] = stat2Time[id].stop();
-    
-				// Number of pairs to be selected
-    unsigned nsel = static_cast<unsigned>(floor(select+0.5));
     
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp_diag");
     GPTLstart("Collide::cell_init");
 #endif
 
-    initTime[id].start();
-    initialize_cell(c, crm, tau, select, id);
-    collCnt[id]++;
-    initSoFar[id] = initTime[id].stop();
 
 #ifdef USE_GPTL
     GPTLstop("Collide::cell_init");
@@ -856,13 +845,22 @@ void * Collide::collide_thread(void * arg)
     if (DRYRUN) continue;
 
     collTime[id].start();
+    collCnt[id]++;
 				// Number of collisions per particle:
 				// assume equipartition if large
-    if (use_epsm && collP > EPSMratio && number > EPSMmin) {
+    if (use_epsm && meanCollP > EPSMratio && number > EPSMmin) {
 
       EPSMused = 1;
 
 #ifdef USE_GPTL
+      GPTLstart("Collide::cell_init");
+#endif
+      initTime[id].start();
+      initialize_cell_epsm(tree, c, crm, tau, nselM, id);
+      initSoFar[id] = initTime[id].stop();
+
+#ifdef USE_GPTL
+      GPTLstop("Collide::cell_init");
       GPTLstart("Collide::EPSM");
 #endif
       epsmTime[id].start();
@@ -875,6 +873,14 @@ void * Collide::collide_thread(void * arg)
     } else {
 
 #ifdef USE_GPTL
+      GPTLstart("Collide::cell_init");
+#endif
+      initTime[id].start();
+      initialize_cell_dsmc(tree, c, crm, tau, nselM, id);
+      initSoFar[id] = initTime[id].stop();
+
+#ifdef USE_GPTL
+      GPTLstop("Collide::cell_init");
       GPTLstart("Collide::inelastic");
 #endif
       unsigned colc = 0;
@@ -914,7 +920,7 @@ void * Collide::collide_thread(void * arg)
 	      k2 = ((int)floor((*unit)()*(num2-1)) + k1 + 1) % num2;
 	    else
 	      k2 = min<int>((int)floor((*unit)()*num2), num2-1);
-
+	    
 	    Particle* p1 = tree->Body(c->bods[k1]); // First particle
 	    Particle* p2 = tree->Body(c->bods[k2]); // Second particle
 	
@@ -1017,7 +1023,7 @@ void * Collide::collide_thread(void * arg)
       // Count collisions
       //
       colcntT[id].push_back(colc);
-      sel1T[id] += nsel;
+      sel1T[id] += nselM[i1][i2];
       col1T[id] += colc;
 
 #ifdef USE_GPTL
@@ -1057,38 +1063,10 @@ void * Collide::collide_thread(void * arg)
     }
     
     //
-    // The following should be moved to CollideLTE, provide a general
-    // hook for the derived classes for specific diagnostics
+    // General hook for the derived classes for specific diagnostics
     //
 
-    // Energy lost from this cell compared to target
-    //
-    if (coolheat[id]>0.0) {
-      if (mass>0.0) {
-	double dE, excessT = decolT[id] + decelT[id];
-
-				// Diagnostic
-	if (MFPDIAG && kedsp>0.0) {
-	  keratT[id].push_back((kedsp   - coolheat[id])/kedsp);
-	  deratT[id].push_back((excessT - coolheat[id])/kedsp);
-	}
-	
-	if (use_exes>=0) {	// Spread excess energy into the cell
-
-	  if (ENSEXES) 		// All the energy is spread
-	    dE = (excessT    - coolheat[id])/mass;
-	  else			// Only the EPSM excess is spread
-	    dE = (decelT[id] - coolheat[id])/mass;
-
-	  for (unsigned j=0; j<number; j++) {
-	    Particle* p = tree->Body(c->bods[j]);
-	    p->dattrib[use_exes] += dE*p->mass;
-	  }
-	}
-      }
-    }
-    exesCT[id] += decolT[id];
-    exesET[id] += decelT[id];
+    finalize_cell(tree, c, id);
 
     stat3SoFar[id] = stat3Time[id].stop();
 
@@ -1097,7 +1075,7 @@ void * Collide::collide_thread(void * arg)
     //
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
-      double Kn = cL*cL/(Fn*mass*cross);
+      double Kn = cL*cL/(meanCross);
       double St = cL/fabs(tau*mvel);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
@@ -1132,12 +1110,12 @@ void * Collide::collide_thread(void * arg)
     if (minUsage[id*2+EPSMused] > tt) {
       minUsage[id*2+EPSMused] = tt;
       minPart [id*2+EPSMused] = number;
-      minCollP[id*2+EPSMused] = collP;
+      minCollP[id*2+EPSMused] = meanCollP;
     }
     if (maxUsage[id*2+EPSMused] < tt) {
       maxUsage[id*2+EPSMused] = tt;
       maxPart [id*2+EPSMused] = number;
-      maxCollP[id*2+EPSMused] = collP;
+      maxCollP[id*2+EPSMused] = meanCollP;
     }
 
   } // Loop over cells
@@ -1511,6 +1489,8 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   double mass = 0.0;
   double Exes = 0.0;
   unsigned nbods = cell->bods.size();
+  double coolheat = getCoolingRate(id);
+
   for (vector<unsigned long>::iterator
 	 ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
     
@@ -1590,17 +1570,17 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
 				// Again, this should be moved to the
 				// derived class
 
-  if (Einternal + Exes - Emin > coolheat[id]) {
-    Enew = Einternal + Exes - coolheat[id];
+  if (Einternal + Exes - Emin > coolheat) {
+    Enew = Einternal + Exes - coolheat;
   } else {
     Enew = min<double>(Emin, Einternal);
 
-    decelT[id] += Einternal - Enew + Exes - coolheat[id];
+    decelT[id] += Einternal - Enew + Exes - coolheat;
 
     if (TSDIAG) {
-      if (coolheat[id]-Exes>0.0) {
+      if (coolheat-Exes>0.0) {
 
-	int indx = (int)floor(log(Einternal/coolheat[id]) /
+	int indx = (int)floor(log(Einternal/coolheat) /
 			      (log(2.0)*TSPOW) + 5);
 	if (indx<0 ) indx = 0;
 	if (indx>10) indx = 10;

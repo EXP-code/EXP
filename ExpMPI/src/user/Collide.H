@@ -23,7 +23,7 @@ struct thrd_pass_arguments
   //! Pointer to iterator
   pHOT *tree;
   //! Effective number of particles
-  std::vector<double> *fn;
+  map<int, double> *fn;
   //! Time step
   double tau;
   //! Thread counter id
@@ -165,7 +165,7 @@ protected:
   double masstot;
   double excessCtot, excessEtot;
 
-  double diam0, diam;
+  double   diam;
   unsigned seltot;
   unsigned coltot;
   unsigned epsmtot;
@@ -175,17 +175,34 @@ protected:
 
   int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
 
-  virtual void initialize_cell(pCell* cell, double vrelmax,
-			       double dt, double number, int id=0) {}
+  //! Initializes cross sections for use in DSMC
+  virtual void initialize_cell_dsmc
+  (pHOT* tree, pCell* cell, double vrelmax, double dt, 
+   map<int, map<int, unsigned> >& nsel, int id=0) = 0;
+  
+  //! Initializes mean heating and cooling rates for use in EPSM
+  virtual void initialize_cell_epsm
+  (pHOT* tree, pCell* cell, double vrelmax, double dt, 
+   map<int, map<int, unsigned> >& nsel, int id=0) = 0;
+  
+  //! Compute diagnostics for the cell after collisions/cooling
+  virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id=0) {}
 
+  //! Return total cross section "matrix" for species-species interactions
+  virtual map<int, map<int, double> >& totalCrossSections(double crm, int id) = 0;
+
+  //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
 
+  //! Compute the EPSM algorithm for the given cell
   virtual void EPSM(pHOT* tree, pCell* cell, int id);
+
+  //! Use EPSM if true
   bool use_epsm;
 
-  // For diagnostic output
-  //
+  //@{
+  //! For diagnostic output
   vector<double> lostSoFar_EPSM;
 
   void debug_list(pHOT& tree);
@@ -196,9 +213,10 @@ protected:
 
   template<typename T>
   void colldeHelper(ostream& out, const char* lab, vector<T>& v);
+  //@}
 
-  // Timing and debug (access for derived classes)
-  //
+  //@{
+  //! Timing and debug (access for derived classes)
   vector<Timer> initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
   vector<Timer> stat1Time, stat2Time, stat3Time, coolTime, listTime;
   vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar, epsmSoFar;
@@ -214,56 +232,81 @@ protected:
   vector< vector<Timer> > EPSMT;
   vector< vector<TimeElapsed> > EPSMTSoFar;
   vector<long> EPSMtime, CPUH;
+  //@}
   
 public:
 
-  static bool ESOL;		// Integrate the cooling solution
+  //! Integrate the cooling solution
+  static bool ESOL;		
 
-  static bool PULLIN;		// Use the original Pullin velocity selection algorithm
+  //! Use the original Pullin velocity selection algorithm
+  static bool PULLIN;		
 
-  static bool CBA;		// Use the Consistent Boltzmann Algorithm
-				// Alexander, Garcia, Alder 1995, PRL, 74, 5212
+  /** Use the Consistent Boltzmann Algorithm Alexander, Garcia, Alder
+      1995, PRL, 74, 5212 */
+  static bool CBA;
 
-  static bool SORTED;		// Print out sorted cell parameters
+  //! Print out sorted cell parameters
+  static bool SORTED;
 
-  static bool EXTRA;		// Print out extra collision statistics for debugging
+  //! Print out extra collision statistics for debugging
+  static bool EXTRA;
 
-  static bool PHASE;		// Print out T-rho plane for cells will mass weighting
+  //! Print out T-rho plane for cells will mass weighting
+  static bool PHASE;		
   
-  static bool DRYRUN;           // Turn off collisions (for testing, debugging, etc.)
-				// Set cooling to zero for testing
-				// (default: false)
+  //! Turn off collisions (for testing, debugging, etc.)
+  static bool DRYRUN;           
+
+  //! Set cooling to zero for testing (default: false)
   static bool NOCOOL;
 
-  static bool ENSEXES;		// Use ensemble excess method: share uncooled internal
-				// energy among all particles in a cell.  If false,
-				// compute this on a particle-by-particle basis.
+  /** Use ensemble excess method: share uncooled internal energy among
+      all particles in a cell.  If false, compute this on a
+      particle-by-particle basis. */
+  static bool ENSEXES;
 
-  static bool NTC;	        // Sample based on maximum (true) or estimate
-				// from variance (false);
+  //! Sample based on maximum (true) or estimate from variance (false);
+  static bool NTC;	        
 
-  static bool TSDIAG;	        // Accumulate time step diagnostics (default: false)
-  static bool VOLDIAG;	        // Accumulate cell-volume diagnostics (default: false)
-  static bool CBADIAG;	        // Accumulate length scale diagnostics for the DBA algorithm (default: false)
-  static int TSPOW;	        // Power of two interval for ke/cool ratio histogram (default: 4)
+  //! Accumulate time step diagnostics (default: false)
+  static bool TSDIAG;	        
 
-  static bool MFPDIAG;	        // Accumulate mean free path diagnostics (default: false)
+  //! Accumulate cell-volume diagnostics (default: false)
+  static bool VOLDIAG;
 
-  static bool EFFORT;		// Augment effort value by work done in collisions (default: true)
-				// Print out additional CPU timing detail
+  //! Accumulate length scale diagnostics for the DBA algorithm (default: false)
+  static bool CBADIAG;	        
+
+  //! Power of two interval for ke/cool ratio histogram (default: 4)
+  static int TSPOW;	        
+
+  //! Accumulate mean free path diagnostics (default: false)
+  static bool MFPDIAG;
+
+  //! Augment effort value by work done in collisions (default: true)  
+  static bool EFFORT;
+
+  //! Print out additional CPU timing detail
   static bool TIMING;
-				// Use EPSM when mean free path/cell size ratio 
-				// is below EPSMratio (default = -1.0, never)
+
+  /** Use EPSM when mean free path/cell size ratio is below EPSMratio
+      (default = -1.0, never) */
   static double EPSMratio;
-				// Minimum number of particles for EPSM
+
+  //! Minimum number of particles for EPSM
   static unsigned EPSMmin;
-				// Temperature floor in resampling dispersion for EPSM
+
+  //! Temperature floor in resampling dispersion for EPSM
   static double TFLOOR;
-				// Artificially increase or decrease cooling rate (default: 1, no change)
+
+  //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
 
-
+  //! Constructor
   Collide(ExternalForce *force, double diameter, int nth=1);
+
+  //! Destructor
   ~Collide();
 
   virtual void 
@@ -279,6 +322,8 @@ public:
 
   virtual void
   set_St(int pos) { use_St=pos; }
+
+  virtual double getCoolingRate(int id) = 0;
 
   unsigned select() { unsigned t=seltot; seltot=0; return t; }
   unsigned total()  { unsigned t=coltot; coltot=0; return t; }

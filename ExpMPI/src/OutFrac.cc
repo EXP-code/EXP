@@ -143,18 +143,15 @@ void OutFrac::initialize()
   }
 
 				// Get quantiles
-  if (get_value(string("frac(1)"), tmp)) {
+  std::map<int, string> vals;
+  if ((vals=get_value_array(string("frac"))).size()) {
     Quant.erase(Quant.begin(), Quant.end());
-    string val;
-    for (numQuant=0; numQuant<1000; numQuant++) {
-      ostringstream count;
-      count << "frac(" << numQuant+1 << ")";
-      if (get_value(count.str(), val)) {
-	Quant.push_back(atof(val.c_str()));
-      } else break;
-    }
+    for (std::map<int, string>::iterator it=vals.begin(); it!=vals.end(); it++)
+      {
+	Quant.push_back(atof(it->second.c_str()));
+      }
   }
-
+  
 }
 
 void OutFrac::Run(int n, bool last)

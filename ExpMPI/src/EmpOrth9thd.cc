@@ -774,17 +774,17 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
     bool cmap=false, dens=false;
     double rmin, rmax, ascl, hscl;
 
-    in.read((char *)&mmax, sizeof(int));
-    in.read((char *)&numx, sizeof(int));
-    in.read((char *)&numy, sizeof(int));
-    in.read((char *)&nmax, sizeof(int));
+    in.read((char *)&mmax,   sizeof(int));
+    in.read((char *)&numx,   sizeof(int));
+    in.read((char *)&numy,   sizeof(int));
+    in.read((char *)&nmax,   sizeof(int));
     in.read((char *)&norder, sizeof(int));
-    in.read((char *)&tmp, sizeof(int)); if (tmp) dens = true;
-    in.read((char *)&tmp, sizeof(int)); if (tmp) cmap = true;
-    in.read((char *)&rmin, sizeof(double));
-    in.read((char *)&rmax, sizeof(double));
-    in.read((char *)&ascl, sizeof(double));
-    in.read((char *)&hscl, sizeof(double));
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) dens = true;
+    in.read((char *)&tmp,    sizeof(int));    if (tmp) cmap = true;
+    in.read((char *)&rmin,   sizeof(double));
+    in.read((char *)&rmax,   sizeof(double));
+    in.read((char *)&ascl,   sizeof(double));
+    in.read((char *)&hscl,   sizeof(double));
 
 				// Spot check compatibility
     if ( (MMAX    != mmax   ) |
@@ -800,15 +800,15 @@ int EmpCylSL::cache_grid(int readwrite, string cachefile)
 	 (fabs(hscl-HSCALE)>1.0e-12 )
 	 ) 
       {
-	cout << "MMAX=" << MMAX << " mmax=" << mmax << endl;
-	cout << "NUMX=" << NUMX << " numx=" << numx << endl;
-	cout << "NUMY=" << NUMY << " numy=" << numy << endl;
-	cout << "NMAX=" << NMAX << " nmax=" << nmax << endl;
+	cout << "MMAX="   << MMAX   << " mmax=" << mmax << endl;
+	cout << "NUMX="   << NUMX   << " numx=" << numx << endl;
+	cout << "NUMY="   << NUMY   << " numy=" << numy << endl;
+	cout << "NMAX="   << NMAX   << " nmax=" << nmax << endl;
 	cout << "NORDER=" << NORDER << " norder=" << norder << endl;
-	cout << "DENS=" << DENS << " dens=" << dens << endl;
-	cout << "CMAP=" << CMAP << " cmap=" << cmap << endl;
-	cout << "RMIN=" << RMIN << " rmin=" << rmin << endl;
-	cout << "RMAX=" << RMAX << " rmax=" << rmax << endl;
+	cout << "DENS="   << DENS   << " dens=" << dens << endl;
+	cout << "CMAP="   << CMAP   << " cmap=" << cmap << endl;
+	cout << "RMIN="   << RMIN   << " rmin=" << rmin << endl;
+	cout << "RMAX="   << RMAX   << " rmax=" << rmax << endl;
 	cout << "ASCALE=" << ASCALE << " ascale=" << ascl << endl;
 	cout << "HSCALE=" << HSCALE << " hscale=" << hscl << endl;
 	return 0;
@@ -1326,37 +1326,37 @@ void EmpCylSL::setup_eof()
 {
   if (!SC) {
 
-    rank2 = NMAX*(LMAX+1);
-    rank3 = NORDER;
+    rank2   = NMAX*(LMAX+1);
+    rank3   = NORDER;
     
-    Rtable = M_SQRT1_2 * RMAX;
-    XMIN = r_to_xi(RMIN*ASCALE);
-    XMAX = r_to_xi(Rtable*ASCALE);
-    dX = (XMAX - XMIN)/NUMX;
+    Rtable  = M_SQRT1_2 * RMAX;
+    XMIN    = r_to_xi(RMIN*ASCALE);
+    XMAX    = r_to_xi(Rtable*ASCALE);
+    dX      = (XMAX - XMIN)/NUMX;
 
-    YMIN = z_to_y(-Rtable*ASCALE);
-    YMAX = z_to_y( Rtable*ASCALE);
-    dY = (YMAX - YMIN)/NUMY;
+    YMIN    = z_to_y(-Rtable*ASCALE);
+    YMAX    = z_to_y( Rtable*ASCALE);
+    dY      = (YMAX - YMIN)/NUMY;
 
-    potC = new Matrix* [MMAX+1];
+    potC    = new Matrix* [MMAX+1];
     rforceC = new Matrix* [MMAX+1];
     zforceC = new Matrix* [MMAX+1];
     if (DENS) densC = new Matrix* [MMAX+1];
 
-    potS = new Matrix* [MMAX+1];
+    potS    = new Matrix* [MMAX+1];
     rforceS = new Matrix* [MMAX+1];
     zforceS = new Matrix* [MMAX+1];
     if (DENS) densS = new Matrix* [MMAX+1];
 
     for (int m=0; m<=MMAX; m++) {
 
-      potC[m] = new Matrix [rank3];
+      potC[m]    = new Matrix [rank3];
       rforceC[m] = new Matrix [rank3];
       zforceC[m] = new Matrix [rank3];
       if (DENS) densC[m] = new Matrix [rank3];
 
       for (int v=0; v<rank3; v++) {
-	potC[m][v].setsize(0, NUMX, 0, NUMY);
+	potC   [m][v].setsize(0, NUMX, 0, NUMY);
 	rforceC[m][v].setsize(0, NUMX, 0, NUMY);
 	zforceC[m][v].setsize(0, NUMX, 0, NUMY);
 	if (DENS) densC[m][v].setsize(0, NUMX, 0, NUMY);
@@ -1367,13 +1367,13 @@ void EmpCylSL::setup_eof()
 
     for (int m=1; m<=MMAX; m++) {
 
-      potS[m] = new Matrix [rank3];
+      potS[m]    = new Matrix [rank3];
       rforceS[m] = new Matrix [rank3];
       zforceS[m] = new Matrix [rank3];
       if (DENS) densS[m] = new Matrix [rank3];
 
       for (int v=0; v<rank3; v++) {
-	potS[m][v].setsize(0, NUMX, 0, NUMY);
+	potS   [m][v].setsize(0, NUMX, 0, NUMY);
 	rforceS[m][v].setsize(0, NUMX, 0, NUMY);
 	zforceS[m][v].setsize(0, NUMX, 0, NUMY);
 	if (DENS) densS[m][v].setsize(0, NUMX, 0, NUMY);

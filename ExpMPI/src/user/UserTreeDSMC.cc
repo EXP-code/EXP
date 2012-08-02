@@ -9,6 +9,8 @@
 #include <fstream>
 #include <sstream>
 
+#include <boost/lexical_cast.hpp>
+
 #include <expand.h>
 #include <ExternalCollection.H>
 #include <UserTreeDSMC.H>
@@ -341,8 +343,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// Diameter*Bohr radius in Lunits
   diam = diamfac*2.0*a0/(Lunit);
+
 				// Number of protons per mass unit
-  collfrac = Munit/mp;
+  for (std::map<int, double>::iterator 
+	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/mp;
 
   pHOT::sub_sample = sub_sample;
 
@@ -373,7 +377,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Collide::CBA     = cba;
   Collide::CBADIAG = cbadiag;
   Collide::PULLIN  = use_pullin;
-  Collide::CNUM    = cnum;
   Collide::ESOL    = esol;
   Collide::EPSMratio = epsm;
   Collide::DRYRUN  = dryrun;
@@ -532,6 +535,25 @@ void UserTreeDSMC::initialize()
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
+
+  /**
+     Look for array values in the parameter string of the form
+     spc(1)=3.1, spc(3)=5.6, etc.
+  */
+  std::map<int, string> vals;
+  if ((vals=get_value_array("spc")).size()) {
+    std::map<int, string>::iterator it=vals.begin();
+    for (; it != vals.end(); it++)
+      {
+	try {
+	  collFrac[it->first] = boost::lexical_cast<double>(it->second);
+	} 
+	catch( boost::bad_lexical_cast const& ) {
+	  std::cout << "UserTreeDSMC::initialize: bad double value, "
+		    << "input string was: " << it->second << std::endl;
+	}
+      }
+  }
 }
 
 
@@ -803,7 +825,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Collide class instance.
   //
 
-  collide->collide(*c0->Tree(), collfrac, tau, mlevel, diagstep);
+  collide->collide(*c0->Tree(), collFrac, tau, mlevel, diagstep);
     
   collideSoFar = clldeTime.stop();
 

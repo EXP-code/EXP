@@ -23,7 +23,7 @@ class CollideLTE;
     @param cnum non-zero adjusts cross section to yield cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
-    @param collfrac is a multiplicative fraction for collsion number
+    @param spc is a weight for the collision number computation describing the converstion of mass in protons to number
     @param frontier enables printing of active cell list (for debugging)
     @param tsdiag enables printing gas time step diagnostics (for debugging)
     @param voldiag enables printing volume-cell diagnostics (for debugging)
@@ -199,8 +199,12 @@ private:
 
 protected:
 
+  //@{
+  //! Species lists
   map<int, unsigned long> spec, spec1;
+  map<int, double> collFrac;
   set<int> spec_list;
+  //@}
 
 public:
 

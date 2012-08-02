@@ -51,6 +51,9 @@ public:
   //! Get token by name from initialization string
   int get_value(const string& name, string& value);
 
+  //! Returns a map from token(n)=value pairs
+  std::map<int, string> get_value_array(const string& name);
+
   //! Error
   void bomb(const string& msg);
   

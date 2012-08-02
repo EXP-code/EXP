@@ -60,12 +60,13 @@ CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) :
   HeatCool::initialize();
   hc = new HeatCool(Nmin, Nmax, Tmin, Tmax, Nnum, Tnum, cache);
 
-  cellcnt = vector<unsigned>(nthrds, 0);
-  minT    = vector<double>(nthrds, 1e30);
-  maxT    = vector<double>(nthrds, 0.0);
-  avgT    = vector<double>(nthrds, 0.0);
-  dispT   = vector<double>(nthrds, 0.0);
-  tlist   = vector< vector<double> >(nthrds);
+  cellcnt   = vector<unsigned>(nthrds, 0);
+  minT      = vector<double>(nthrds, 1e30);
+  maxT      = vector<double>(nthrds, 0.0);
+  avgT      = vector<double>(nthrds, 0.0);
+  dispT     = vector<double>(nthrds, 0.0);
+  tlist     = vector< vector<double> >(nthrds);
+  csections = vector< map<int, map<int, double> > > (nthrds);
 
   debug_enabled = true;
 
@@ -108,8 +109,14 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-void CollideLTE::initialize_cell(pCell* cell, 
-				 double rvmax, double tau, double number, 
+map<int, map<int, double> >& CollideLTE::totalCrossSections(double crm, int id)
+{
+  return csections[id];
+}
+
+void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
+				 double rvmax, double tau,
+				 map<int, map<int, unsigned> >& nsel,
 				 int id)
 {
   sCell *samp = cell->sample;
@@ -130,6 +137,20 @@ void CollideLTE::initialize_cell(pCell* cell,
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
   double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
+				// Compute geometric cross section
+  double cross = M_PI*diam*diam;
+  for (map<int, map<int, unsigned> >::iterator it1 = nsel.begin();
+       it1 != nsel.end(); it1++) 
+    {
+      int i1 = it1->first;
+      for (map<int, unsigned>::iterator it2 = it1->second.begin();
+	   it2 != it1->second.end(); it2++) 
+	{
+	  int i2 = it2->first;
+	  csections[id][i1][i2] = cross;
+	}
+    }
+  
 				// Volume in cells
   double volumeC = cell->Volume();
   double volumeS = samp->Volume();
@@ -140,6 +161,15 @@ void CollideLTE::initialize_cell(pCell* cell,
   double T0      = T;
   double h0      = 0.0;
 
+				// Total number of encounters
+  unsigned number = 0;
+  for (map<int, map<int, unsigned> >::iterator it1 = nsel.begin();
+       it1 != nsel.end(); it1++) 
+    {
+      for (map<int, unsigned>::iterator it2 = it1->second.begin();
+	   it2 != it1->second.end(); it2++) number += it2->second;
+    }
+    
 				// Volume in real cell
   double CellVolume = volumeC * pow(UserTreeDSMC::Lunit, 3);
 
@@ -684,4 +714,39 @@ void CollideLTE::list_sizes_proc(ostream* out)
        << setw(12) << lostSoFar.size()
        << setw(12) << (trho.size()  ? trho[0].size()  : (size_t)0)
        << setw(12) << (tlist.size() ? tlist[0].size() : (size_t)0);
+}
+
+
+void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
+{
+  //
+  // Energy lost from this cell compared to target
+  //
+  if (coolheat[id]>0.0) {
+    if (cell->Mass()>0.0) {
+      double dE, excessT = decolT[id] + decelT[id];
+      
+      // Diagnostic
+      if (MFPDIAG && kedsp>0.0) {
+	keratT[id].push_back((kedsp   - coolheat[id])/kedsp);
+	deratT[id].push_back((excessT - coolheat[id])/kedsp);
+      }
+	
+      if (use_exes>=0) {	// Spread excess energy into the cell
+	
+	if (ENSEXES) 		// All the energy is spread
+	  dE = (excessT    - coolheat[id])/cell->Mass();
+	else			// Only the EPSM excess is spread
+	  dE = (decelT[id] - coolheat[id])/cell->Mass();
+	
+	for (unsigned j=0; j<cell->bods.size(); j++) {
+	  Particle* p = tree->Body(cell->bods[j]);
+	  p->dattrib[use_exes] += dE*p->mass;
+	}
+      }
+    }
+  }
+
+  exesCT[id] += decolT[id];
+  exesET[id] += decelT[id];
 }
