@@ -19,6 +19,9 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
   if (get_value("nmax", val)) nmax = atoi(val.c_str());
   if (get_value("dof", val)) dof = atoi(val.c_str());
   if (get_value("npca", val)) npca = atoi(val.c_str());
+  if (get_value("selector", val)) {
+    if (atoi(val.c_str())) pca = true; 
+  }
   if (get_value("pca", val)) {
     if (atoi(val.c_str())) pca = true; 
     else pca = false;
@@ -71,6 +74,10 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
     cuml.setsize(1, nmax);
     Tevec.setsize(1, nmax, 1, nmax);
     covar.setsize(1, nmax, 1, nmax);
+    sqnorm.setsize(0, Lmax, 1, nmax);
+      
+    for (int l=0; l<=Lmax; l++)
+      for (int n=1; n<=nmax; n++) sqnorm[l][n] = 1.0;
 
     if (myid==0) {
 

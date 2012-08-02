@@ -4,10 +4,6 @@
 
 #include "expand.h"
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #include <stdlib.h>
 #include <errno.h>
 #include <sys/types.h>

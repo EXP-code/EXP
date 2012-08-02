@@ -4,10 +4,6 @@
 
 #include <EJcom.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 EJcom::EJcom(string&line) : TwoCenter(line)
 {
   id = "EJcom";

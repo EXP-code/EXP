@@ -41,6 +41,9 @@ protected:
   //! Normalization for covariance matrix based on the biorthogonal basis norm
   Matrix normM;
 
+  //! Sqr root of the normalization
+  Matrix sqnorm;
+
   //@{
   //! The variance for all nodes and per node (respectively)
   Matrix *cc, *cc1;
@@ -52,6 +55,7 @@ protected:
   /** MPI routines to distribution the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
   virtual void parallel_distribute_coefficients(void);
+
 
   /** MPI routines to sum the expansion coefficients
       (<code>expcoef</code>) from all nodes. */
@@ -85,10 +89,6 @@ public:
   //! Reset used particle counter
   virtual void multistep_reset() { used=0; }
 
-protected:
-
-  Matrix sqnorm;
-
 private:
 
   int    Ldim, L0;
@@ -103,7 +103,6 @@ private:
   Vector cuml;
   Matrix *evec;
   Matrix Tevec;
-
   Matrix covar;
 
 };

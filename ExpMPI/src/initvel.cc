@@ -4,10 +4,6 @@
 
 #include "expand.h"
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 void init_velocity(void)
 {
   list<Component*>::iterator cc;

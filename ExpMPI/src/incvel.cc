@@ -8,10 +8,6 @@
 #include <gptl.h>
 #endif
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 void * incr_velocity_thread(void *ptr)
 {
   // Current time step

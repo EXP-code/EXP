@@ -1,10 +1,6 @@
 #include <math.h>
 #include <Vector.h>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 void get_ultra(int nmax, double l, double x, Vector& p)
 {
   double a,b,u1,u2,u;

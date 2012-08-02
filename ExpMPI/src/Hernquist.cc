@@ -1,10 +1,6 @@
 #include "expand.h"
 #include <Hernquist.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 Hernquist::Hernquist(string& line, MixtureBasis* m) : SphericalBasis(line, m)
 {
   id = "Hernquist sphere";

@@ -11,10 +11,6 @@
 #include <ExternalCollection.H>
 #include <OutputContainer.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 void begin_run(void)
 {
 

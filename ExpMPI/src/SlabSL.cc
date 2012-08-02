@@ -8,10 +8,6 @@
 
 #include <SlabSL.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 SlabSL::SlabSL(string& line) : PotAccel(line)
 {
   id = "Slab (Sturm-Liouville)";

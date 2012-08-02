@@ -8,10 +8,6 @@
 
 #include <Slab.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 static const double KEPS=1.0e-6;
 
 Slab::Slab(string& line) : PotAccel(line)

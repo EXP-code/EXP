@@ -4,10 +4,6 @@
 
 #include "expand.h"
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif

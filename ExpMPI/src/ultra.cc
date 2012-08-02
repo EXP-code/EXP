@@ -1,9 +1,5 @@
 #include <math.h>
 
-#ifdef RCSID
-static char rcsid[] = "$Id";
-#endif
-
 double ultra(int n, double l, double x)
 {
   double a,b,u1,u2,u;

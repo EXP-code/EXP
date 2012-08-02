@@ -703,20 +703,18 @@ void * Collide::collide_thread(void * arg)
 
     crossIJ = totalCrossSections(crm, id);
 
-    int i1, i2;
-
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      i1 = it1->first;
+      int i1 = it1->first;
       densM[i1] = c->Mass(i1)/volc;
     }
 
     double meanDens=0.0, meanLambda=0.0, meanCross=0.0, meanCollP=0.0;
 
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      i1 = it1->first;
+      int i1 = it1->first;
       crossM [i1] = 0.0;
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-	i1 = it2->first;
+	int i2 = it2->first;
 	if (i2>=i1) {
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
 	} else
@@ -745,9 +743,9 @@ void * Collide::collide_thread(void * arg)
 
     double totalNsel = 0.0;	// For diagnostics only
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      i1 = it1->first;
+      int i1 = it1->first;
       for (it2=it1; it2!=c->count.end(); it2++) {
-	i2 = it2->first;
+	int i2 = it2->first;
 	if (i1==i2) 
 	  selcM[i1][i2] = 
 	    0.5*(it1->second-1)*(*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
@@ -900,18 +898,21 @@ void * Collide::collide_thread(void * arg)
       }
 
       map<int, unsigned>::iterator it1, it2;
+      int totalCount = 0;
       
       for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-	unsigned i1 = it1->first;
+	int i1 = it1->first;
 	size_t num1 = bmap[i1].size();
 
 	for (it2=it1; it2!=c->count.end(); it2++) {
-	  unsigned i2 = it2->first;
+	  int i2 = it2->first;
 	  size_t num2 = bmap[i2].size();
 
 	  // Loop over total number of candidate collision pairs
 	  //
 	  for (unsigned i=0; i<nselM[i1][i2]; i++ ) {
+
+	    totalCount++;
 
 	    // Pick two particles at random out of this cell
 	    //
@@ -1023,7 +1024,7 @@ void * Collide::collide_thread(void * arg)
       // Count collisions
       //
       colcntT[id].push_back(colc);
-      sel1T[id] += nselM[i1][i2];
+      sel1T[id] += totalCount;
       col1T[id] += colc;
 
 #ifdef USE_GPTL

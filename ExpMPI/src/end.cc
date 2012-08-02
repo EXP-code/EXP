@@ -8,9 +8,6 @@
 #include <global.H>
 #include <OutputContainer.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
 
 void clean_up(void)
 {

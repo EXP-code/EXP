@@ -322,7 +322,7 @@ void Component::print_level_lists(double T)
 	  out << setw(10) << "f(v/a)"
 	      << setw(10) << "f(s/v)"
 	      << setw(10) << "f(p/v*a)" 
-	      << setw(10) << "f([p/a])";
+	      << setw(10) << "f([r/a])";
 	}
 	out << setw(10) << "f(int)" << endl;
 	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');

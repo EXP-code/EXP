@@ -1,10 +1,6 @@
 #include "expand.h"
 #include <CBrock.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 CBrock::CBrock(string& line, MixtureBasis *m) : SphericalBasis(line, m)
 {
   id = "Clutton-Brock sphere";

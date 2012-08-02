@@ -5,10 +5,6 @@
 
 #include "expand.h"
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 void synchronize_velocity(int sign)
 {
   double rsign;

@@ -9,10 +9,6 @@
 
 */
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 #include <math.h>
 #include "expand.h"
 #undef RNUM			// Conflict

@@ -2,10 +2,6 @@
   Call necessary routines to advance phase-space one step
 */
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 // Uncomment for time step debugging
 //
 // #define CHK_STEP

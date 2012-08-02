@@ -127,8 +127,9 @@ SphericalBasis::SphericalBasis(string& line, MixtureBasis *m) :
     expcoef0[i].setsize(0, Lmax*(Lmax+2), 1, nmax);
 
   // Allocate normalization matrix
-  //
+
   normM.setsize(0, Lmax, 1, nmax);
+
   for (int l=0; l<=Lmax; l++) {
     for (int n=1; n<=nmax; n++) {
       normM[l][n] = 1.0;

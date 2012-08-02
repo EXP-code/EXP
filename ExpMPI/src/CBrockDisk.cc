@@ -9,28 +9,25 @@
 #include <MixtureBasis.H>
 #include <CBrockDisk.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
 {
-  id    = "Clutton-Brock two-dimensional disk";
-  dof   = 2;			// Two degrees of freedom
-  mix   = m;
+  id              = "Clutton-Brock two-dimensional disk";
 
-  rmax  = 100.0;
-  scale = 1.0;
-  Lmax  = 4;
-  nmax  = 10;
+  dof             = 2;		// Two degrees of freedom
+  mix             = m;
+
+  rmax            = 100.0;
+  scale           = 1.0;
+  Lmax            = 4;
+  nmax            = 10;
 
   self_consistent = true;
   coef_dump       = true;
 
   initialize();
-  
-  expcoef .setsize(0,2*Lmax+1,1,nmax);
-  expcoef1.setsize(0,2*Lmax+1,1,nmax);
+
+  expcoef .setsize(0, 2*Lmax+1, 1, nmax);
+  expcoef1.setsize(0, 2*Lmax+1, 1, nmax);
 
   expcoef0 = new Matrix [nthrds];
   if (!expcoef0) bomb("problem allocating <expcoef0>");
@@ -53,11 +50,12 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   
     pthread_mutex_init(&cc_lock, NULL);
   }
+
   // Allocate and compute normalization matrix
 
-  normM.setsize(0,Lmax,1,nmax);
-  dend .setsize(0,Lmax,1,nmax);
-  work .setsize(0,Lmax+1,1,nmax);
+  normM.setsize(0, Lmax  , 1, nmax);
+  dend .setsize(0, Lmax  , 1, nmax);
+  work .setsize(0, Lmax+1, 1, nmax);
   
   potd  = new Matrix [nthrds];
   if (!potd) bomb("problem allocating <potd>");
@@ -66,8 +64,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   if (!dpot) bomb("problem allocating <dpot>");
 
   for (int i=0; i<nthrds; i++) {
-    potd[i].setsize(0,Lmax,1,nmax);
-    dpot[i].setsize(0,Lmax,1,nmax);
+    potd[i].setsize(0, Lmax, 1, nmax);
+    dpot[i].setsize(0, Lmax, 1, nmax);
   }
 
 				// Work vectors
@@ -77,13 +75,13 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   if (!du) bomb("problem allocating <du>");
 
   for (int i=0; i<nthrds; i++) {
-    u[i].setsize(0,nmax);
-    du[i].setsize(0,nmax);
+    u[i] .setsize(0, nmax);
+    du[i].setsize(0, nmax);
   }
 
   for (int l=0; l<=Lmax; l++) {
     for (int n=1; n<=nmax; n++) {
-      normM[l][n]  = norm(n-1,l);
+      normM [l][n] = norm(n-1,l);
       sqnorm[l][n] = sqrt(normM[l][n]);
     }
   }
@@ -97,8 +95,8 @@ CBrockDisk::CBrockDisk(string& line, MixtureBasis* m) :  AxisymmetricBasis(line)
   if (!sinm) bomb("problem allocating <sinm>");
 
   for (int i=0; i<nthrds; i++) {
-    cosm[i].setsize(0,Lmax);
-    sinm[i].setsize(0,Lmax);
+    cosm[i].setsize(0, Lmax);
+    sinm[i].setsize(0, Lmax);
   }
 
   if (!self_consistent || initializing) determine_coefficients();
@@ -139,9 +137,9 @@ void CBrockDisk::get_acceleration_and_potential(Component* curComp)
 {
   cC = curComp;
 
-  /*========================================*/
-  /* No coefficients for external particles */
-  /*========================================*/
+  //========================================
+  // No coefficients for external particles 
+  //========================================
 
   if (use_external) {
 
@@ -154,15 +152,15 @@ void CBrockDisk::get_acceleration_and_potential(Component* curComp)
     return;
   }
 
-  /*======================*/
-  /* Compute coefficients */
-  /*======================*/
+  //======================
+  // Compute coefficients 
+  //======================
 
   if (self_consistent || initializing) determine_coefficients();
 
-  /*======================================*/
-  /* Determine potential and acceleration */
-  /*======================================*/
+  //======================================
+  // Determine potential and acceleration 
+  //======================================
 
   MPL_start_timer();
 
@@ -482,7 +480,7 @@ void CBrockDisk::determine_fields_at_point_polar
   *tdens0 = dens;
   *tpotl0 = potl;
       
-  /*		l loop */
+  // l loop
     
   for (l=1; l<=Lmax; l++) {
     

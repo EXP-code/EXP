@@ -3,10 +3,6 @@
 #include <interp.h>
 #include <Bessel.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 int Bessel::RNUM = 1000;
 
 Bessel::Bessel(string& line, MixtureBasis* m) : SphericalBasis(line, m)

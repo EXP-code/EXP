@@ -5,10 +5,6 @@
 
 #include <Cube.H>
 
-#ifdef RCSID
-static char rcsid[] = "$Id$";
-#endif
-
 Cube::Cube(string& line) : PotAccel(line)
 {
   id = "Cube";
