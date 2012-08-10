@@ -20,12 +20,12 @@ class sCell
 protected:
 
   deque<double> CRMlist;
-  double CRMsum;
-  unsigned CRMnum;
+  double        CRMsum;
+  unsigned      CRMnum;
 
   map<int, deque<double> > CRMlistM;
-  map<int, double> CRMsumM;
-  map<int, unsigned> CRMnumM;
+  map<int, double>         CRMsumM;
+  map<int, unsigned>       CRMnumM;
 
 public:
 
@@ -74,6 +74,12 @@ public:
   //! Return total mass in cell
   double Mass();
   double Mass(int);
+  //@}
+
+  //@{
+  //! Return total number in cell
+  unsigned Count();
+  unsigned Count(int);
   //@}
 
   //! Return total volume of cell

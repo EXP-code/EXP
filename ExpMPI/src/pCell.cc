@@ -56,7 +56,6 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  
   if (tr->species >= 0) {
     set<int>::iterator it;
     for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
@@ -717,6 +716,21 @@ double sCell::Mass(int indx)
   map<int, vector<double> >::iterator it = state.find(indx);
   if (it != state.end()) return (it->second)[0];
   else                   return 0.0;
+}
+
+unsigned sCell::Count()
+{
+  double number = 0.0;
+  map<int, vector<double> >::iterator it;
+  for (it=state.begin(); it!=state.end(); it++) number += (it->second)[10];
+  return number; 
+}
+
+unsigned sCell::Count(int indx)
+{
+  map<int, vector<double> >::iterator it = count.find(indx);
+  if (it != state.end()) return it->second;
+  else                   return 0;
 }
 
 void sCell::MeanPos(int indx, double &x, double &y, double& z)
