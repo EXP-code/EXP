@@ -16,6 +16,8 @@
 #include <UserTreeDSMC.H>
 #include <CollideLTE.H>
 
+#define DEBUG
+
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif
@@ -1566,7 +1568,7 @@ void UserTreeDSMC::assignTempDensVol()
     //
     if (use_temp>=0 || use_dens>=0 || use_vol>=0) {
 #ifdef DEBUG
-      unsigned ssz = cell->sample->count;
+      unsigned ssz = cell->sample->ctotal;
 #endif
       unsigned csz = cell->ctotal;
       double  volm = cell->Volume();

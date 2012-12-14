@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <cmath>
 
+#define DEBUG
+
 #ifdef USE_GPTL
 #include <gptl.h>
 #endif
@@ -103,7 +105,7 @@ pHOT::pHOT(Component *C, int species, set<int> spec_list)
   volume = sides[0]*sides[1]*sides[2];	// Total volume of oct-tree region
   root = 0;
 
-  offset = new double [3];
+  offset = vector<double>(3);
   for (unsigned k=0; k<3; k++) offset[k] = offst[k];
 
   kbeg = vector<key_type>(numprocs);
@@ -187,7 +189,6 @@ pHOT::~pHOT()
 {
   delete barrier;
   delete root;
-  delete [] offset;
 }
 
 
@@ -406,7 +407,7 @@ void pHOT::makeTree()
 	out.close();
       }
     }
-    (*barrier)("pHOT: pHOT_storage");
+    (*barrier)("pHOT: pHOT_storage", __FILE__, __LINE__);
   }
 
   timer_diagdbg.stop();

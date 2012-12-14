@@ -728,8 +728,8 @@ unsigned sCell::Count()
 
 unsigned sCell::Count(int indx)
 {
-  map<int, vector<double> >::iterator it = count.find(indx);
-  if (it != state.end()) return it->second;
+  map<int, unsigned>::iterator it = count.find(indx);
+  if (it != count.end()) return it->second;
   else                   return 0;
 }
 

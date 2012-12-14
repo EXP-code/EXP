@@ -116,7 +116,7 @@ protected:
   unsigned sumstep, sumzero;
   BarrierWrapper *barrier;
 
-  double *offset;
+  vector<double> offset;
 
   unsigned n_xchange, m_xchange, numkeys, numk;
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
