@@ -64,7 +64,7 @@ void OutPS::Run(int n, bool last)
   
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     c = *cc;
-    c->write_binary(out);
+    c->write_binary(out, true);	// Write floats rather than doubles
   }
 
   if (myid==0) {
