@@ -230,26 +230,26 @@ main(int argc, char **argv)
 	  if (icnt > pbeg) {
 
 	    vector<double> L(3);
-	    L[0] = p->mass*(p->pos[1]*p->vel[2] - p->pos[2]*p->vel[1]);
-	    L[1] = p->mass*(p->pos[2]*p->vel[0] - p->pos[0]*p->vel[2]);
-	    L[2] = p->mass*(p->pos[0]*p->vel[1] - p->pos[1]*p->vel[0]);
+	    L[0] = p->mass()*(p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+	    L[1] = p->mass()*(p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+	    L[2] = p->mass()*(p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
 
 	    if (proj==Cylindrical) {
-	      if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
-		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 		if (rlog) {
 		  if (R>0.0) {
 		    R = log(R);
 		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
 		    if (indx >=0 && indx<nbins) {
-		      histo[n][indx] += p->mass;
+		      histo[n][indx] += p->mass();
 		      for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
 		    }
 		  }
 		} else {
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
 		  if (indx >=0 && indx<nbins) {
-		    histo[n][indx] += p->mass;
+		    histo[n][indx] += p->mass();
 		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
 		  }
 		}
@@ -257,20 +257,20 @@ main(int argc, char **argv)
 	    }
 	    else {
 	      // if (PROJ==Spherical) {
-	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 	      if (rlog) {
 		if (R>0.0) {
 		  R = log(R);
 		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
 		  if (indx >=0 && indx<nbins) {
-		    histo[n][indx] += p->mass;
+		    histo[n][indx] += p->mass();
 		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
 		  }
 		}
 	      } else {
 		int indx = static_cast<int>(floor( (R - rmin)/dR ));
 		if (indx >=0 && indx<nbins) {
-		  histo[n][indx] += p->mass;
+		  histo[n][indx] += p->mass();
 		  for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
 		}
 	      }

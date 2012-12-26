@@ -80,9 +80,7 @@ main(int argc, char *argv[])
   ifstream* in = new ifstream(argv[optind]);
 
   PSPDump psp(in, tipsy, verbose);
-
-  in->close();
-  in = new ifstream(argv[optind]);
+  in->seekg(0, ios::beg);
   psp.PrintSummary(in, cout, stats, timeonly);
 
   return 0;

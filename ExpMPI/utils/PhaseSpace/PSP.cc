@@ -29,7 +29,20 @@ bool badstatus(istream *in)
 
 PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 {
-  TIPSY = tipsy;
+  const static unsigned long magic = 0xadbfabc0;
+  const static unsigned long mmask = 0xfffffff0;
+
+  unsigned long ret;
+  in->read((char *)&ret, sizeof(unsigned long));
+  
+  unsigned rsize = sizeof(double);
+  if ( (ret & mmask) == magic ) {
+    rsize = ret & !mmask;
+  } else {
+    in->seekg(0, ios::beg);
+  }
+
+  TIPSY   = tipsy;
   VERBOSE = verbose;
   
   int idump = 0;
@@ -219,7 +232,8 @@ double PSPDump::SetTime(double time)
 }
 
 
-void PSPDump::PrintSummary(ifstream *in, ostream &out, bool stats, bool timeonly)
+void PSPDump::PrintSummary(ifstream *in, ostream &out, 
+			   bool stats, bool timeonly)
 {
   list<Dump>::iterator itd;
 
@@ -391,11 +405,21 @@ SParticle *PSPDump::GetParticle(istream* in)
   in->seekg(spos->pspos);
   pcount = 0;
 				// Clear particle
-  part.iatr.erase(part.iatr.begin(), part.iatr.end()); 
-  if (spos->niatr) part.iatr = vector<int>(spos->niatr);
+  if (rsize == sizeof(float)) {
+    part.f->iatr.erase(part.f->iatr.begin(), part.f->iatr.end()); 
+    if (spos->niatr) part.f->iatr = vector<int>(spos->niatr);
 
-  part.datr.erase(part.datr.begin(), part.datr.end()); 
-  if (spos->ndatr) part.datr = vector<double>(spos->ndatr);
+    part.f->datr.erase(part.f->datr.begin(), part.f->datr.end()); 
+    if (spos->ndatr) part.f->datr = vector<float>(spos->ndatr);
+
+  } else {
+
+    part.d->iatr.erase(part.d->iatr.begin(), part.d->iatr.end()); 
+    if (spos->niatr) part.d->iatr = vector<int>(spos->niatr);
+
+    part.d->datr.erase(part.d->datr.begin(), part.d->datr.end()); 
+    if (spos->ndatr) part.d->datr = vector<double>(spos->ndatr);
+  }
 
   return NextParticle(in);
 }
@@ -406,19 +430,8 @@ SParticle *PSPDump::NextParticle(istream* in)
 
 				// Read partcle
   if (pcount < spos->nbod) {
-    if (spos->index_size) 
-      in->read((char *)&part.indx, sizeof(unsigned long));
-    else
-      part.indx = pcount;
 
-    in->read((char *)&part.mass, sizeof(double));
-    for (int i=0; i<3; i++) in->read((char *)&part.pos[i], sizeof(double));
-    for (int i=0; i<3; i++) in->read((char *)&part.vel[i], sizeof(double));
-    in->read((char *)&part.phi, sizeof(double));
-    for (int i=0; i<spos->niatr; i++) in->read((char *)&part.iatr[i], sizeof(int));
-    for (int i=0; i<spos->ndatr; i++) in->read((char *)&part.datr[i], sizeof(double));
-
-    pcount++;
+    part.read(in, rsize, pcount++, spos);
 
     return &part;
 
@@ -499,10 +512,18 @@ void PSPDump::ComputeStats(istream *in)
   SParticle *P = GetParticle(in);
   unsigned n=0;
   while (P) {
-    mtot += P->mass;
-    for (unsigned k=0; k<3; k++) {
-      plist[k][n] = P->pos[k];
-      vlist[k][n] = P->vel[k];
+    if (rsize == sizeof(float)) {
+      mtot += P->f->mass;
+      for (unsigned k=0; k<3; k++) {
+	plist[k][n] = P->f->pos[k];
+	vlist[k][n] = P->f->vel[k];
+      }
+    } else {
+      mtot += P->d->mass;
+      for (unsigned k=0; k<3; k++) {
+	plist[k][n] = P->d->pos[k];
+	vlist[k][n] = P->d->vel[k];
+      }
     }
     P = NextParticle(in);
     n++;

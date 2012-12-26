@@ -207,15 +207,15 @@ protected:
   //! Initializes cross sections for use in DSMC
   virtual void initialize_cell_dsmc
   (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   map<int, map<int, unsigned> >& nsel, int id=0) = 0;
+   map<int, map<int, unsigned> >& nsel, int id) = 0;
   
   //! Initializes mean heating and cooling rates for use in EPSM
   virtual void initialize_cell_epsm
   (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   map<int, map<int, unsigned> >& nsel, int id=0) = 0;
+   map<int, map<int, unsigned> >& nsel, int id) = 0;
   
   //! Compute diagnostics for the cell after collisions/cooling
-  virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id=0) {}
+  virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
 
   //! Return total cross section "matrix" for species-species interactions
   virtual map<int, map<int, double> >& totalCrossSections(double crm, int id) = 0;

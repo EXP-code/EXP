@@ -128,14 +128,14 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 	cerr << "Error reading particle [n=" << 0 << ", i=" << i << "]" << endl;
 	exit(-1);
       }
-      bod.mass = part->mass;
-      for (int k=0; k<3; k++) bod.pos[k] = part->pos[k];
-      for (int k=0; k<3; k++) bod.vel[k] = part->vel[k];
-
+      bod.mass = part->mass();
+      for (int k=0; k<3; k++) bod.pos[k] = part->pos(k);
+      for (int k=0; k<3; k++) bod.vel[k] = part->vel(k);
       p.push_back(bod);
 
       part = psp->NextParticle(in);
     }
+
 
 
     //
@@ -149,10 +149,9 @@ void add_particles(ifstream* in, PSPDump* psp, int& nbods, vector<Particle>& p)
 	       << n << ", i=" << i << "]" << endl;
 	  exit(-1);
 	}
-	t[i].mass = part->mass;
-	for (int k=0; k<3; k++) t[i].pos[k] = part->pos[k];
-	for (int k=0; k<3; k++) t[i].vel[k] = part->vel[k];
-
+	t[i].mass = part->mass();
+	for (int k=0; k<3; k++) t[i].pos[k] = part->pos(k);
+	for (int k=0; k<3; k++) t[i].vel[k] = part->vel(k);
 	part = psp->NextParticle(in);
       }
   

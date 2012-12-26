@@ -70,23 +70,46 @@ void write_array(ifstream *in, PSPDump &psp)
       out << setw(20) << stanza->nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
-	if (use_int) {
-	  if (use_pos<static_cast<int>(part->iatr.size()))
-	    out << setw(20) << part->iatr[use_pos] << endl;
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->iatr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+
+	if (part->f.get()) {
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->f->iatr.size()))
+	      out << setw(20) << part->f->iatr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->iatr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->f->datr.size()))
+	      out << setw(20) << part->f->datr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
 	} else {
-	  if (use_pos<static_cast<int>(part->datr.size()))
-	    out << setw(20) << part->datr[use_pos] << endl;
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->datr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->d->iatr.size()))
+	      out << setw(20) << part->d->iatr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->iatr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->d->datr.size()))
+	      out << setw(20) << part->d->datr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
 	}
       }
@@ -102,27 +125,53 @@ void write_array(ifstream *in, PSPDump &psp)
       out << setw(20) << stanza->nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
-	if (use_int) {
-	  if (use_pos<static_cast<int>(part->iatr.size()))
-	    out << setw(20) << part->iatr[use_pos] << endl;
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->datr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+
+	if (part->f.get()) {
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->f->iatr.size()))
+	      out << setw(20) << part->f->iatr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->f->datr.size()))
+	      out << setw(20) << part->f->datr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
+
 	} else {
-	  if (use_pos<static_cast<int>(part->datr.size()))
-	    out << setw(20) << part->datr[use_pos] << endl;
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->datr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->d->iatr.size()))
+	      out << setw(20) << part->d->iatr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->d->datr.size()))
+	      out << setw(20) << part->d->datr[use_pos] << endl;
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
 	}
-      }
 	
+      }
+
     }
 
   }
@@ -135,29 +184,50 @@ void write_array(ifstream *in, PSPDump &psp)
       out << setw(20) << stanza->nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
-	if (use_int) {
-	  if (use_pos<static_cast<int>(part->iatr.size()))
-	    out << setw(20) << part->iatr[use_pos];
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->datr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+	if (part->f.get()) {
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->f->iatr.size()))
+	      out << setw(20) << part->f->iatr[use_pos];
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->f->datr.size()))
+	      out << setw(20) << part->f->datr[use_pos];
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->f->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
 	} else {
-	  if (use_pos<static_cast<int>(part->datr.size()))
-	    out << setw(20) << part->datr[use_pos];
-	  else {
-	    ostringstream msg;
-	    msg << "attribute size is " << part->datr.size()
-		<< " and you can not use pos="  << use_pos;
-	    throw msg.str().c_str();
+	  if (use_int) {
+	    if (use_pos<static_cast<int>(part->d->iatr.size()))
+	      out << setw(20) << part->d->iatr[use_pos];
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
+	  } else {
+	    if (use_pos<static_cast<int>(part->d->datr.size()))
+	      out << setw(20) << part->d->datr[use_pos];
+	    else {
+	      ostringstream msg;
+	      msg << "attribute size is " << part->d->datr.size()
+		  << " and you can not use pos="  << use_pos;
+	      throw msg.str().c_str();
+	    }
 	  }
 	}
-      }
 	
+      }
     }
-      
   }  
 
 }

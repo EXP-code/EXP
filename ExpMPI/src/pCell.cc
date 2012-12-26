@@ -239,6 +239,7 @@ void pCell::RemoveKey(const key_pair& oldpair)
 				// Erase pair from my keys list
   key_indx::iterator it=keys.find(oldpair);
   if (it != keys.end()) keys.erase(it);
+
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
@@ -256,6 +257,7 @@ void pCell::RemoveKey(const key_pair& oldpair)
 				// cell list
   key_key::iterator ik = tree->bodycell.find(oldpair.first);
   if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
@@ -274,6 +276,7 @@ void pCell::RemoveKey(const key_pair& oldpair)
 				// key-body index
   key_indx::iterator ip = tree->keybods.find(oldpair);
   if (ip != tree->keybods.end()) tree->keybods.erase(ip);
+
 #ifdef DEBUG
   else {
     //-----------------------------------------------------------------      
@@ -295,6 +298,7 @@ void pCell::RemoveKey(const key_pair& oldpair)
     //-----------------------------------------------------------------      
   }
 #endif
+
 #ifdef ADJUST_INFO
   //-----------------------------------------------------------------      
   cout << "Process " << myid << ": pCell::REMOVED KEY=" 
@@ -314,6 +318,7 @@ void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
   keys.insert(newpair);
   tree->keybods.insert(newpair);
   tree->bodycell.insert(key_item(newpair.first, mykey));
+
 #ifdef ADJUST_INFO
   //-----------------------------------------------------------------      
   cout << "Process " << myid << ": "
@@ -443,7 +448,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
       
       // queue for deletion
       //
-      change->push_back(cell_indx(this, pHOT::KILL));
+      change->push_back(cell_indx(this, pHOT::DELETE));
     
       ret = true;
     }
@@ -581,18 +586,18 @@ void pCell::accumState()
     }
     count[spc]++;
   }
-
+  
   if (tree->species >= 0) {
     set<int>::iterator it;
     for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
       ctotal += count[*it];
-      for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+	for (int k=0; k<10; k++) stotal[k] += state[*it][k];
     }
   } else {
     ctotal += count[-1];
     for (int k=0; k<10; k++) stotal[k] += state[-1][k];
   }
-
+    
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
 }
@@ -600,22 +605,25 @@ void pCell::accumState()
 void pCell::accumState(map<int, unsigned>& _count, 
 		       map<int, vector<double> >& _state)
 {
-  if (tree->species >= 0) {
-    set<int>::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      ctotal     += _count[*it];
-      count[*it] += _count[*it];
-      for (int k=0; k<10; k++) {
-	stotal[k]     += _state[*it][k];
-	state[*it][k] += _state[*it][k];
+#pragma omp critical
+  {
+    if (tree->species >= 0) {
+      set<int>::iterator it;
+      for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+	ctotal     += _count[*it];
+	count[*it] += _count[*it];
+	for (int k=0; k<10; k++) {
+	  stotal[k]     += _state[*it][k];
+	  state[*it][k] += _state[*it][k];
+	}
       }
-    }
-  } else {
-    ctotal    += _count[-1];
-    count[-1] += _count[-1];
-    for (int k=0; k<10; k++) {
-      stotal[k]    += _state[-1][k];
-      state[-1][k] += _state[-1][k];
+    } else {
+      ctotal    += _count[-1];
+      count[-1] += _count[-1];
+      for (int k=0; k<10; k++) {
+	stotal[k]    += _state[-1][k];
+	state[-1][k] += _state[-1][k];
+      }
     }
   }
 

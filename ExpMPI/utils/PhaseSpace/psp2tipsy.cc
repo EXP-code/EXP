@@ -119,16 +119,28 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       
     for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      gas.mass = part->mass;
-      for (int i=0; i<3; i++) gas.pos[i] = part->pos[i];
-      for (int i=0; i<3; i++) gas.vel[i] = part->vel[i];
-      gas.phi = part->phi;
-      gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
-      if (use_temp>=0 && use_temp<part->datr.size())
-	gas.temp = part->datr[use_temp];
-      if (use_dens>=0 && use_dens<part->datr.size())
-	gas.rho = part->datr[use_dens];
-      
+      if (part->f.get()) {
+	gas.mass = part->f->mass;
+	for (int i=0; i<3; i++) gas.pos[i] = part->f->pos[i];
+	for (int i=0; i<3; i++) gas.vel[i] = part->f->vel[i];
+	gas.phi = part->f->phi;
+	gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
+	if (use_temp>=0 && use_temp<part->f->datr.size())
+	  gas.temp = part->f->datr[use_temp];
+	if (use_dens>=0 && use_dens<part->f->datr.size())
+	  gas.rho = part->f->datr[use_dens];
+      } else {
+	gas.mass = part->d->mass;
+	for (int i=0; i<3; i++) gas.pos[i] = part->d->pos[i];
+	for (int i=0; i<3; i++) gas.vel[i] = part->d->vel[i];
+	gas.phi = part->d->phi;
+	gas.rho = gas.temp = gas.hsmooth = gas.metals = 0.0;
+	if (use_temp>=0 && use_temp<part->d->datr.size())
+	  gas.temp = part->d->datr[use_temp];
+	if (use_dens>=0 && use_dens<part->d->datr.size())
+	  gas.rho = part->d->datr[use_dens];
+      }
+	
       cout.write((char *)&gas, sizeof(gas_particle));
     }
   }
@@ -139,10 +151,18 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       
     for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      dark.mass = part->mass;
-      for (int i=0; i<3; i++) dark.pos[i] = part->pos[i];
-      for (int i=0; i<3; i++) dark.vel[i] = part->vel[i];
-      dark.phi = part->phi;
+      if (part->f.get()) {
+	dark.mass = part->f->mass;
+	for (int i=0; i<3; i++) dark.pos[i] = part->f->pos[i];
+	for (int i=0; i<3; i++) dark.vel[i] = part->f->vel[i];
+	dark.phi = part->f->phi;
+      } else {
+	dark.mass = part->d->mass;
+	for (int i=0; i<3; i++) dark.pos[i] = part->d->pos[i];
+	for (int i=0; i<3; i++) dark.vel[i] = part->d->vel[i];
+	dark.phi = part->d->phi;
+      }
+
       dark.eps = 0.0;
       
       cout.write((char *)&dark, sizeof(dark_particle));
@@ -156,10 +176,17 @@ void write_tipsy(ifstream *in, PSPDump &psp)
       
     for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      star.mass = part->mass;
-      for (int i=0; i<3; i++) star.pos[i] = part->pos[i];
-      for (int i=0; i<3; i++) star.vel[i] = part->vel[i];
-      star.phi = part->phi;
+      if (part->f.get()) {
+	star.mass = part->f->mass;
+	for (int i=0; i<3; i++) star.pos[i] = part->f->pos[i];
+	for (int i=0; i<3; i++) star.vel[i] = part->f->vel[i];
+	star.phi = part->f->phi;
+      } else {
+	star.mass = part->d->mass;
+	for (int i=0; i<3; i++) star.pos[i] = part->d->pos[i];
+	for (int i=0; i<3; i++) star.vel[i] = part->d->vel[i];
+	star.phi = part->d->phi;
+      }
       star.metals = star.tform = star.eps = 0.0;
       
       cout.write((char *)&star, sizeof(star_particle));

@@ -38,9 +38,11 @@ protected:
 
   unsigned number;
 
-  key_indx keybods;
-  key_cell frontier;
-  key_key bodycell;
+				// Tree element lists
+				// ------------------
+  key_indx keybods;		// Link body key to body index
+  key_cell frontier;		// Link cell key to cell ptr
+  key_key bodycell;		// Link body key to cell key
 
 				// Out of bounds list
   set<indx_type> oob;
@@ -121,12 +123,12 @@ protected:
   unsigned n_xchange, m_xchange, numkeys, numk;
   Timer timer_keymake, timer_xchange, timer_convert, timer_overlap;
   Timer timer_prepare, timer_cupdate, timer_scatter, timer_repartn;
-  Timer timer_tadjust, timer_keycall, timer_keycomp, timer_keybods;
+  Timer timer_tadjust, timer_cellcul, timer_keycomp, timer_keybods;
   Timer timer_waiton1, timer_waiton2, timer_keynewc, timer_keyoldc;
   Timer timer_waiton0, timer_diagdbg;
 
   vector<float>    keymk3, exchg3, cnvrt3, tovlp3, prepr3, updat3;
-  vector<float>    scatr3, reprt3, tadjt3, keycl3, keycm3, keybd3;
+  vector<float>    scatr3, reprt3, tadjt3, celcl3, keycm3, keybd3;
   vector<float>    wait03, wait13, wait23, keync3, keyoc3, barri3;
   vector<float>    diagd3;
   vector<unsigned> numk3;
@@ -182,6 +184,7 @@ public:
   //! Destructor
   ~pHOT();
 
+  //! Get the particle key.  Out of bounds (OOB) particles have key "0u"
   key_type getKey(double *);
   static string printKey(key_type);
 
@@ -215,9 +218,11 @@ public:
   unsigned TotalNumber() { return total_cells; }
   unsigned CellCount(double pctl);
 
-  enum ChangeFlag {CREATE, REMOVE, KILL, RECOMP};
-  map<pCell*, unsigned> clevlst;
-  vector< set<pCell*> > clevels;
+  enum ChangeFlag {CREATE, REMOVE, DELETE, RECOMP};
+
+  map<pCell*, unsigned> clevlst; // Map cell ptrs to cell level
+  vector< set<pCell*> > clevels; // List of cells at each level
+
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
   void printCellLevelList(ostream& out);
@@ -246,39 +251,66 @@ public:
   //@{
   //! Print the distribution of cell levels on the frontier
   void logFrontierStats();
+
   //! Check that sample cells exist for all frontier cells
   void checkSampleCells(const char *);
+
   //! Check that clevlst and frontier are consistent
   void checkCellLevelList(const char *);
+
+  //! Check that clevlst and clevels are consistent
+  void checkLevelLists(const char *);
+
+  //! Check that bodies refer to the same cells as the body lists
+  bool checkCellClevelSanity(unsigned mlevel);
+
+  //! Check that cells in the multilevel lists are also on the master list
+  bool checkCellClevel(unsigned mlevel);
+
   //! Check that every particle has an entry in the key-body list
   bool checkKeybods();
+
   //! Check that every particle has an entry in the key-body list (at
   //! this level and below)
   bool checkPartKeybods(unsigned mlev);
+
   //! Check that every particle has an entry in the key-cell list
   bool checkBodycell();
+
+  //! Check that every body in a cell is on the frontier
+  bool checkCellFrontier();
+
   //! Check that every body in the tree points to a body in the particle list
   bool checkParticles(ostream &out, bool pc=true);
+
   //! Check that bodies are not duplicated on the particle list
   bool checkDupes1(const char* msg);
+
   //! Check that bodies are not duplicated in multiple cells
   bool checkDupes2();
+
   //! Check that every cell in the level list is on the frontier
   bool checkFrontier(ostream &out);
+
   //! Get the total kinetic energy and dispersion
   double totalKE(double& KEtot, double& KEdsp);
+
   //! Get the total gass mass
   void totalMass(unsigned& Counts, double& Mass);
+
   //! Sanity count check for body indices
   void checkIndices();
+
   //! Print the frontier and summary statistics
   void dumpFrontier();
+
   //! 
   void densEmit(unsigned lev, pCell *p);
   void densCheck();
   void statFrontier();
   void countFrontier(vector<unsigned>& ncells, vector<unsigned>& bodies);
   unsigned checkNumber();
+
   //! Return the cached number of out-of-bounds particles
   unsigned oobNumber();
   void testFrontier(string& filename);
@@ -287,9 +319,11 @@ public:
 	    string cut, 
 	    vector<double>&    x, vector<double>& dens, vector<double>& temp, 
 	    vector<double>& velx, vector<double>& vely, vector<double>& velz);
+
   //! Scan for and count out-of-bounds particles
   void checkBounds(double, const char *);
   void adjustCounts(ostream& out);
+
   //! Check effort weighting in current partition
   void checkEffort(unsigned mlevel);
   double checkAdjust() {
@@ -325,7 +359,7 @@ public:
 	      vector<float>    &convert, vector<float>    &overlap, 
 	      vector<float>    &prepare, vector<float>    &update,
 	      vector<float>    &scatter, vector<float>    &repartn,
-	      vector<float>    &tadjust, vector<float>    &keycall,
+	      vector<float>    &tadjust, vector<float>    &celcull,
 	      vector<float>    &keycomp, vector<float>    &keybods,
 	      vector<float>    &waiton0, vector<float>    &waiton1,
 	      vector<float>    &waiton2, vector<float>    &keynewc,

@@ -145,7 +145,7 @@ void add_particles(ifstream* in, PSPDump* psp,
       exit(-1);
     }
 
-    pos = part->pos[AXIS];
+    pos = part->pos(AXIS);
 
     if (pos>=Rmin && pos<Rmax) {
     
@@ -154,16 +154,16 @@ void add_particles(ifstream* in, PSPDump* psp,
 
       int cnt = 0;
 
-      ret[indx][cnt++] += part->mass;
-      ret[indx][cnt++] += part->mass * part->vel[0];
-      ret[indx][cnt++] += part->mass * part->vel[1];
-      ret[indx][cnt++] += part->mass * part->vel[2];
+      ret[indx][cnt++] += part->mass();
+      ret[indx][cnt++] += part->mass() * part->vel(0);
+      ret[indx][cnt++] += part->mass() * part->vel(1);
+      ret[indx][cnt++] += part->mass() * part->vel(2);
 
       if (CFLAGS & Gas) {
-	if (TEMP>=0) ret[indx][cnt++] += part->mass * part->datr[TEMP];
-	if (DENS>=0) ret[indx][cnt++] += part->mass * part->datr[DENS];
-	if (KNUD>=0) ret[indx][cnt++] += part->mass * part->datr[KNUD];
-	if (STRL>=0) ret[indx][cnt++] += part->mass * part->datr[STRL];
+	if (TEMP>=0) ret[indx][cnt++] += part->mass() * part->datr(TEMP);
+	if (DENS>=0) ret[indx][cnt++] += part->mass() * part->datr(DENS);
+	if (KNUD>=0) ret[indx][cnt++] += part->mass() * part->datr(KNUD);
+	if (STRL>=0) ret[indx][cnt++] += part->mass() * part->datr(STRL);
       }
     }
 

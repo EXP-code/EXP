@@ -16,6 +16,8 @@ using namespace std;
 #include <gptl.h>
 #endif
 
+bool DEBUG = false;		// False for production
+
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
@@ -122,6 +124,11 @@ void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
     }
   }
     
+  if (DEBUG)
+    cerr << "Process " << myid << ": " << nthrds << " threads created"
+	 << std::endl;
+
+
   waitTime.start();
 
                                 // Collapse the threads
@@ -138,6 +145,11 @@ void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
     }
   }
   
+  if (DEBUG)
+    cerr << "Process " << myid << ": " << nthrds << " threads joined"
+	 << std::endl;
+
+
   joinSoFar = joinTime.stop();
 
   delete [] td;
@@ -409,7 +421,7 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   maxCollP = vector<long>(nthrds*2, -1);
 
   effortAccum  = false;
-  effortNumber = vector< list< pair<long, unsigned> > >(2);
+  effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
 }
 
 Collide::~Collide()
@@ -464,22 +476,34 @@ unsigned Collide::collide(pHOT& tree, map<int, double>& Fn,
   ncells = 0;
   set<pCell*>::iterator ic, icb, ice;
 
+				// For debugging
+  unsigned nullcell = 0, totalcell = 0;
+
   for (unsigned M=mlevel; M<=multistep; M++) {
 				// Don't queue null cells
     if (tree.clevels[M].size()) {
       icb = tree.clevels[M].begin(); 
       ice = tree.clevels[M].end(); 
       for (ic=icb; ic!=ice; ic++) {
-	cellist[(ncells++)%nthrds].push_back(*ic);
-	bodycount += (*ic)->bods.size();
+	if ((*ic)->bods.size()) {
+	  cellist[(ncells++)%nthrds].push_back(*ic);
+	  bodycount += (*ic)->bods.size();
+	} else {
+	  nullcell++;
+	}
+	totalcell++;
       }
     }
   }
   stepcount++;
       
-#ifdef DEBUG
-  debug_list(tree);
-#endif
+  if (DEBUG) {
+    if (nullcell)
+      std::cout << "DEBUG: null cells " << nullcell << "/" 
+		<< totalcell << std::endl;
+    
+    debug_list(tree);
+  }
   snglTime.stop();
 
 				// Needed for meaningful timing results
@@ -1067,7 +1091,7 @@ void * Collide::collide_thread(void * arg)
     // General hook for the derived classes for specific diagnostics
     //
 
-    finalize_cell(tree, c, id);
+    finalize_cell(tree, c, kedsp, id);
 
     stat3SoFar[id] = stat3Time[id].stop();
 
@@ -2524,9 +2548,7 @@ void Collide::pre_collide_diag()
   
   diagTime.stop();
   
-#ifdef DEBUG
-  list_sizes();
-#endif
+  if (DEBUG) list_sizes();
 }
 
 

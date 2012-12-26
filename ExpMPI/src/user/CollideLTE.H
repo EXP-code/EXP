@@ -40,14 +40,14 @@ protected:
 
   void initialize_cell_epsm (pHOT* tree, pCell* cell, 
 			     double vrelmax, double dt, 
-			     map<int, map<int, unsigned> >& nsel, int id=0)
+			     map<int, map<int, unsigned> >& nsel, int id)
   {
     initialize_cell(tree, cell, vrelmax, dt, nsel, id);
   }
 
   void initialize_cell_dsmc (pHOT* tree, pCell* cell, 
 			     double vrelmax, double dt, 
-			     map<int, map<int, unsigned> >& nsel, int id=0)
+			     map<int, map<int, unsigned> >& nsel, int id)
   {
     initialize_cell(tree, cell, vrelmax, dt, nsel, id);
   }

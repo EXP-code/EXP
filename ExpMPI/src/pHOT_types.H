@@ -54,7 +54,7 @@ struct hashULL {
 #endif
 
 				// For cell transaction list
-typedef list<cell_indx> change_list;
+typedef vector<cell_indx> change_list;
 
 				// A list of key/index pairs for particles
 typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;

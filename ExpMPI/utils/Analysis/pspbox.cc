@@ -214,25 +214,25 @@ main(int argc, char **argv)
 	  if (icnt > pbeg) {
 
 	    if (proj==Cylindrical) {
-	      if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
-		double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 		if (R>rmin && R < rmax) {
 		  inside[n]++;
-		  minside[n] += p->mass;
+		  minside[n] += p->mass();
 		} else {
 		  outside[n]++;
-		  moutside[n] += p->mass;
+		  moutside[n] += p->mass();
 		}
 	      }
 	    }
 	    else { // proj==Spherical
-	      double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+	      double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 	      if (R>rmin && R < rmax) {
 		inside [n]++;
-		minside[n] += p->mass;
+		minside[n] += p->mass();
 	      } else {
 		outside [n]++;
-		moutside[n] += p->mass;
+		moutside[n] += p->mass();
 	      }
 	    }
 	  }

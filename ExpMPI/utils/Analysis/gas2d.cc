@@ -200,16 +200,16 @@ main(int argc, char **argv)
 	while (p) {
 
 	  if (icnt > pbeg) {
-	    if (p->pos[2] >= zcen-zwid && p->pos[2] <= zcen+zwid) {
-	      int indX = static_cast<int>(floor( (p->pos[0] + rmax)/dR ));
-	      int indY = static_cast<int>(floor( (p->pos[1] + rmax)/dR ));
+	    if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+	      int indX = static_cast<int>(floor( (p->pos(0) + rmax)/dR ));
+	      int indY = static_cast<int>(floor( (p->pos(1) + rmax)/dR ));
 	      if (indX >=0 && indX<nbins &&
 		  indY >=0 && indY<nbins ) {
-		histo[n][0][indY*nbins+indX] += p->mass;
-		histo[n][1][indY*nbins+indX] += p->mass * p->datr[0];
-		histo[n][2][indY*nbins+indX] += p->mass * p->datr[1];
+		histo[n][0][indY*nbins+indX] += p->mass();
+		histo[n][1][indY*nbins+indX] += p->mass() * p->datr(0);
+		histo[n][2][indY*nbins+indX] += p->mass() * p->datr(1);
 		histo[n][3][indY*nbins+indX] += 
-		  p->mass * p->datr[0] * p->datr[1];
+		  p->mass() * p->datr(0) * p->datr(1);
 	      }
 	    }
 	  }

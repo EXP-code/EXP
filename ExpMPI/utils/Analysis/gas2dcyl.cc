@@ -203,16 +203,16 @@ main(int argc, char **argv)
 	while (p) {
 
 	  if (icnt > pbeg) {
-	    double R = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1] );
-	    if (p->pos[2] >= zmin && p->pos[2] < zmax && R < rmax) {
+	    double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1) );
+	    if (p->pos(2) >= zmin && p->pos(2) < zmax && R < rmax) {
 	      int indR = static_cast<int>(floor( R/dR ));
-	      int indZ = static_cast<int>(floor( (p->pos[2] - zmin)/dZ ));
+	      int indZ = static_cast<int>(floor( (p->pos(2) - zmin)/dZ ));
 	      if (indR >=0 && indR<rbins &&
 		  indZ >=0 && indZ<zbins ) {
-		histo[n][0][indZ*rbins+indR] += p->mass;
-		histo[n][1][indZ*rbins+indR] += p->mass * p->datr[0];
-		histo[n][2][indZ*rbins+indR] += p->mass * p->datr[1];
-		histo[n][3][indZ*rbins+indR] += p->mass * p->datr[0] * p->datr[1];
+		histo[n][0][indZ*rbins+indR] += p->mass();
+		histo[n][1][indZ*rbins+indR] += p->mass() * p->datr(0);
+		histo[n][2][indZ*rbins+indR] += p->mass() * p->datr(1);
+		histo[n][3][indZ*rbins+indR] += p->mass() * p->datr(0) * p->datr(1);
 	      }
 	    }
 	  }

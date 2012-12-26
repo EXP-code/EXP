@@ -177,7 +177,13 @@ private:
   void load_balance(void);
 
 
-  bool seq_check, ordered, indexing;
+  //! Magic number
+  const static unsigned long magic = 0xadbfabc0;
+  const static unsigned long mmask = 0xfffffff0;
+  unsigned rsize;
+
+
+  bool seq_check, ordered, indexing, umagic;
   int seq_beg, seq_end, seq_cur;
 
 				// Used in computing target rates for
@@ -445,7 +451,7 @@ public:
   vector<unsigned int> particle_count() { return nbodies_table; }
 
   //! Write binary component phase-space structure
-  void write_binary(ostream *out);
+  void write_binary(ostream *out, bool real4 = false);
   
   //! Write ascii component phase-space structure
   void write_ascii(ostream *out, bool accel = false);

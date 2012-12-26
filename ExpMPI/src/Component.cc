@@ -86,6 +86,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   seq_check   = false;
   indexing    = false;
+  umagic      = true;
 
   nlevel      = -1;
 
@@ -407,6 +408,7 @@ Component::Component(istream *in)
 
   seq_check   = false;
   indexing    = false;
+  umagic      = true;
 
   nlevel      = -1;
 
@@ -495,6 +497,8 @@ void Component::initialize(void)
     if (!datum.first.compare("rcom"))     {rcom = atof(datum.second.c_str());}
     
     if (!datum.first.compare("scheck"))   seq_check = atoi(datum.second.c_str()) ? true : false;
+
+    if (!datum.first.compare("magic"))    umagic = atoi(datum.second.c_str()) ? true : false;
 
     if (!datum.first.compare("indexing")) indexing = atoi(datum.second.c_str()) ? true : false;
 
@@ -1112,21 +1116,45 @@ void Component::get_next_particle_from_file(Particle* part, istream *in)
 {
   ++seq_cur;
 
- if (indexing) 
+  if (indexing) 
     in->read((char *)&(part->indx), sizeof(unsigned long));
   else
     part->indx = seq_cur;
 
-  in->read((char *)&(part->mass), sizeof(double));
-  for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
-  for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
-  in->read((char *)&(part->pot), sizeof(double));
-  part->potext = 0.0;
-  part->level = multistep;
-  for (int i=0; i<niattrib; i++) 
-    in->read((char *)&(part->iattrib[i]), sizeof(int));
-  for (int i=0; i<ndattrib; i++) 
-    in->read((char *)&(part->dattrib[i]), sizeof(double));
+  if (rsize == sizeof(float)) {
+    float tf;
+    in->read((char *)&tf, sizeof(float));
+    part->mass = tf;
+    for (int i=0; i<3; i++) {
+      in->read((char *)&tf, sizeof(float));
+      part->pos[i] = tf;
+    }
+    for (int i=0; i<3; i++) {
+      in->read((char *)&tf, sizeof(float));
+      part->vel[i] = tf;
+    }
+    in->read((char *)&tf, sizeof(float));
+    part->pot = tf;
+    part->potext = 0.0;
+    part->level = multistep;
+    for (int i=0; i<niattrib; i++) 
+      in->read((char *)&(part->iattrib[i]), sizeof(int));
+    for (int i=0; i<ndattrib; i++) {
+      in->read((char *)&tf, sizeof(float));
+      part->dattrib[i] = tf;
+    }
+  } else {
+    in->read((char *)&(part->mass), sizeof(double));
+    for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
+    for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
+    in->read((char *)&(part->pot), sizeof(double));
+    part->potext = 0.0;
+    part->level = multistep;
+    for (int i=0; i<niattrib; i++) 
+      in->read((char *)&(part->iattrib[i]), sizeof(int));
+    for (int i=0; i<ndattrib; i++) 
+      in->read((char *)&(part->dattrib[i]), sizeof(double));
+  }
 }
 
 
@@ -1140,6 +1168,19 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   char *info;
   
   if (myid == 0) {
+
+    rsize = sizeof(double);
+
+    if (umagic) {
+      unsigned long cmagic;
+      in->read((char*)&cmagic, sizeof(unsigned long));
+      if ( (cmagic & mmask) != magic ) {
+	cerr << "Error identifying new PSP.  Is this an old PSP?\n";
+	MPI_Abort(MPI_COMM_WORLD, 11);
+	exit(-1);
+      }
+      rsize = cmagic & !mmask;
+    }
 
     if(!header.read(in)) {
       cerr << "Error reading component header\n";
@@ -1156,6 +1197,9 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     memcpy(info, header.info, ninfochar);
     info[ninfochar] = '\0';
   }
+
+  if (umagic)
+    MPI_Bcast(&rsize, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
 				// Broadcast attributes for this
 				// phase-space component
@@ -1556,7 +1600,7 @@ struct Particle * Component::get_particles(int* number)
 }
 
 
-void Component::write_binary(ostream* out)
+void Component::write_binary(ostream* out, bool real4)
 {
   ComponentHeader header;
 
@@ -1570,6 +1614,12 @@ void Component::write_binary(ostream* out)
     outs << name << " : " << id << " : " << cparam << " : " << fparam;
     strncpy(header.info, outs.str().c_str(), header.ninfochar);
 
+    if (real4) rsize = sizeof(float);
+    else       rsize = sizeof(double);
+    unsigned long cmagic = magic + rsize;
+
+    out->write((const char*)&cmagic, sizeof(unsigned long));
+
     if (!header.write(out)) {
       cerr << "Component::write_binary: Error writing particle header\n";
       MPI_Abort(MPI_COMM_WORLD, 34);
@@ -1580,6 +1630,7 @@ void Component::write_binary(ostream* out)
   int number = -1;
   Particle *p = get_particles(&number);
 
+  float tf;
   double pot0, pv;
   while (p) {
 
@@ -1589,25 +1640,50 @@ void Component::write_binary(ostream* out)
 	if (indexing) 
 	  out->write((const char *)&(p[k].indx), sizeof(unsigned long));
 
-	out->write((const char *)&(p[k].mass), sizeof(double));
+	if (real4) {
+	  tf = static_cast<float>(p[k].mass);
+	  out->write((const char *)&tf, sizeof(float));
+	}
+	else
+	  out->write((const char *)&(p[k].mass), sizeof(double));
 
 	for (int i=0; i<3; i++) {
 	  pv = p[k].pos[i] + com0[i] - comI[i];
-	  out->write((const char *)&pv, sizeof(double));
+	  if (real4) {
+	    tf = static_cast<float>(pv);
+	    out->write((const char *)&tf, sizeof(float));
+	  }
+	  else
+	    out->write((const char *)&pv, sizeof(double));
 	}
 	for (int i=0; i<3; i++) {
 	  pv = p[k].vel[i] + cov0[i] - covI[i];
+	  if (real4) {
+	    tf = static_cast<float>(pv);
+	    out->write((const char *)&tf, sizeof(float));
+	  }
+	  else
 	  out->write((const char *)&pv, sizeof(double));
 	}
 
 	pot0 = p[k].pot + p[k].potext;
-	out->write((const char *)&pot0, sizeof(double));
+	if (real4) {
+	  tf = static_cast<float>(pot0);
+	  out->write((const char *)&tf, sizeof(float));
+	}
+	else
+	  out->write((const char *)&pot0, sizeof(double));
 
-	for (int i=0; i<header.niatr; i++) 
+	for (int i=0; i<header.niatr; i++)
 	  out->write((const char *)&(p[k].iattrib[i]), sizeof(int));
-	for (int i=0; i<header.ndatr; i++) 
-	  out->write((const char *)&(p[k].dattrib[i]), sizeof(double));
-
+	for (int i=0; i<header.ndatr; i++) {
+	  if (real4) {
+	    tf = static_cast<float>(p[k].dattrib[i]);
+	    out->write((const char *)&tf, sizeof(float));
+	  }
+	  else
+	    out->write((const char *)&(p[k].dattrib[i]), sizeof(double));
+	}
       }
 
     }

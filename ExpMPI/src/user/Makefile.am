@@ -4,9 +4,10 @@ if ENABLE_GPTL
 ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
-AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4)
-AM_CXXFLAGS = -fPIC -Wall -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4)
+AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
+AM_CXXFLAGS = -fPIC -Wall -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
 AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil
+AM_LDADD = -lgomp
 
 libdir = $(prefix)/lib/user
 
