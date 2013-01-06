@@ -16,7 +16,7 @@
 #include <UserTreeDSMC.H>
 #include <CollideLTE.H>
 
-#define DEBUG
+// #define DEBUG
 
 #ifdef USE_GPTL
 #include <gptl.h>

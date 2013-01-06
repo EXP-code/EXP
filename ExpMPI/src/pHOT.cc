@@ -12,12 +12,13 @@
 #include <vector>
 #include <list>
 #include <map>
+#include <set>
 #include <algorithm>
 #include <cmath>
 
-bool DEBUG = true;
+bool DEBUG = false;
 bool DEBUG_ADJUST = false;
-bool BARRIER_DEBUG = true;
+bool BARRIER_DEBUG = false;
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -3029,12 +3030,16 @@ void pHOT::adjustTree(unsigned mlevel)
   //
   // Recompute sample cells for changed leaves
   //
+  std::sort(deleteL.begin(), deleteL.end());
 #pragma omp parallel for default(shared)
   for (int i=0; i<recompL.size(); i++) {
-    recompL[i]->findSampleCell();
+    if (!std::binary_search(deleteL.begin(), deleteL.end(), recompL[i]))
+      {
+	recompL[i]->findSampleCell();
+      }
   }
-  
 
+  
   if (DEBUG_ADJUST) {
     if (!checkBodycell()) {
       cout << "Process " << myid << ": "

@@ -1174,12 +1174,12 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     if (umagic) {
       unsigned long cmagic;
       in->read((char*)&cmagic, sizeof(unsigned long));
-      if ( (cmagic & mmask) != magic ) {
+      if ( (cmagic & nmask) != magic ) {
 	cerr << "Error identifying new PSP.  Is this an old PSP?\n";
 	MPI_Abort(MPI_COMM_WORLD, 11);
 	exit(-1);
       }
-      rsize = cmagic & !mmask;
+      rsize = cmagic & mmask;
     }
 
     if(!header.read(in)) {

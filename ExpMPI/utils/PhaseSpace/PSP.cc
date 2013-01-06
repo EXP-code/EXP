@@ -30,17 +30,8 @@ bool badstatus(istream *in)
 PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 {
   const static unsigned long magic = 0xadbfabc0;
-  const static unsigned long mmask = 0xfffffff0;
-
-  unsigned long ret;
-  in->read((char *)&ret, sizeof(unsigned long));
-  
-  unsigned rsize = sizeof(double);
-  if ( (ret & mmask) == magic ) {
-    rsize = ret & !mmask;
-  } else {
-    in->seekg(0, ios::beg);
-  }
+  const static unsigned long mmask = 0xf;
+  const static unsigned long nmask = ~mmask;
 
   TIPSY   = tipsy;
   VERBOSE = verbose;
@@ -74,6 +65,16 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       PSPstanza stanza;
       stanza.pos = in->tellg();
       
+      unsigned long ret;
+      in->read((char *)&ret, sizeof(unsigned long));
+  
+      unsigned long rsize = sizeof(double);
+      if ( (ret & nmask) == magic ) {
+	rsize = ret & mmask;
+      } else {
+	in->seekg(stanza.pos, ios::beg);
+      }
+
       ComponentHeader headerC;
       try {
 	headerC.read(in);
@@ -143,9 +144,9 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 				// ---------------------------
       try {
 	in->seekg(headerC.nbod*(stanza.index_size            +
-				8*sizeof(double)             + 
+				8*rsize                      + 
 				headerC.niatr*sizeof(int)    +
-				headerC.ndatr*sizeof(double)
+				headerC.ndatr*rsize
 				), ios::cur);
       } 
       catch(...) {

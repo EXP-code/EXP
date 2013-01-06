@@ -179,7 +179,8 @@ private:
 
   //! Magic number
   const static unsigned long magic = 0xadbfabc0;
-  const static unsigned long mmask = 0xfffffff0;
+  const static unsigned long mmask = 0xf;
+  const static unsigned long nmask = ~mmask
   unsigned rsize;
 
 
