@@ -176,24 +176,26 @@ main(int argc, char **argv)
 
     cout << "Comp name: " << its->name << endl
 	 << "     Bodies:\t\t"
-	 << setw(15) << its->nbod 
-	 << setw(10) << its->niatr 
-	 << setw(10) << its->ndatr 
+	 << setw(15) << its->comp.nbod 
+	 << setw(10) << its->comp.niatr 
+	 << setw(10) << its->comp.ndatr 
 	 << endl;
 
-    totbod += its->nbod;
+    totbod += its->comp.nbod;
 
 				// Position to beginning of particles
     in->seekg(its->pspos);
 
-    for (int j=0; j<its->nbod; j++) {
+    for (int j=0; j<its->comp.nbod; j++) {
       in->read((char *)&ms, sizeof(double));
       for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(double));
       for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(double));
       in->read((char *)&pot, sizeof(double));
 				// Dump these . . . 
-      for (int i=0; i<its->niatr; i++) in->read((char *)&itmp, sizeof(int));
-      for (int i=0; i<its->ndatr; i++) in->read((char *)&rtmp, sizeof(double));
+      for (int i=0; i<its->comp.niatr; i++) 
+	in->read((char *)&itmp, sizeof(int));
+      for (int i=0; i<its->comp.ndatr; i++) 
+	in->read((char *)&rtmp, sizeof(double));
 
       mom[0] = pos[1]*vel[2] - pos[2]*vel[1];
       mom[1] = pos[2]*vel[0] - pos[0]*vel[2];

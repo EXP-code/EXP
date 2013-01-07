@@ -4,28 +4,27 @@
 #include <iostream>
 #include <fstream>
 #include <iomanip>
-#include <list>
 #include <vector>
 #include <string>
 #include <cmath>
+#include <list>
 
 #include <boost/shared_ptr.hpp>
 
-#include <header.H>
 #include <StringTok.H>
+#include <header.H>
 
-struct PSPstanza 
+class PSPstanza 
 {
+public:
+  ComponentHeader comp;
   streampos pos, pspos;
   string name;
   string id;
   string cparam;
   string fparam;
   string ttype;
-  int nbod;
-  int niatr;
-  int ndatr;
-  size_t index_size;
+  size_t index_size, r_size;
 };
   
 template <typename real>
@@ -36,6 +35,7 @@ public:
   real pos[3];
   real vel[3];
   real phi;
+
   vector<int>    iatr;
   vector<real>   datr;
   unsigned long  indx;
@@ -51,9 +51,9 @@ public:
     for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(real));
     for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(real));
     in->read((char *)&phi, sizeof(real));
-    for (int i=0; i<spos->niatr; i++) 
+    for (int i=0; i<spos->comp.niatr; i++) 
       in->read((char *)&iatr[i], sizeof(int));
-    for (int i=0; i<spos->ndatr; i++) 
+    for (int i=0; i<spos->comp.ndatr; i++) 
       in->read((char *)&datr[i], sizeof(real));
   }
 
@@ -91,7 +91,21 @@ public:
     return 0.0;
   }
 
-  double iatr(int i) throw(std::string) {
+  int niatr() throw (std::string) {
+    if (f.get()) return f->iatr.size();
+    if (d.get()) return d->iatr.size();
+    throw std::string("Particle not initialized");
+    return 0;
+  }
+
+  int ndatr() throw (std::string) {
+    if (f.get()) return f->datr.size();
+    if (d.get()) return d->datr.size();
+    throw std::string("Particle not initialized");
+    return 0;
+  }
+
+  int iatr(int i) throw(std::string) {
     if (f.get()) {
       if (i<f->iatr.size()) return f->iatr[i];
       else {
@@ -166,6 +180,8 @@ public:
       d->read(in, pcount, spos);
   }
 
+  void write(std::ostream* out, bool real4, size_t isiz);
+
 };
 
 class Dump 
@@ -189,6 +205,10 @@ class PSPDump
 
 private:
 
+  const static unsigned long magic = 0xadbfabc0;
+  const static unsigned long mmask = 0xf;
+  const static unsigned long nmask = ~mmask;
+
   list<Dump> dumps;
   bool TIPSY, VERBOSE;
   
@@ -199,13 +219,15 @@ private:
   PSPstanza *cur;
 
   SParticle part;
-  int pcount, rsize;
+  int pcount;
 
   //! Temporaries for stanza statistics
   float mtot;
   std::vector<float> pmin, pmed, pmax;
   std::vector<float> vmin, vmed, vmax;
-  void ComputeStats(istream *in);
+  void ComputeStats(std::ifstream *in);
+  void write_binary(std::ifstream* in, std::ostream* out, 
+		    list<PSPstanza>::iterator its, bool real4);
 
 public:
 
@@ -233,8 +255,11 @@ public:
   PSPstanza *GetStar();
   PSPstanza *NextStar();
 
-  SParticle *GetParticle (istream* in);
-  SParticle *NextParticle(istream* in);
+  SParticle *GetParticle (std::ifstream* in);
+  SParticle *NextParticle(std::ifstream* in);
+
+  void writePSP(std::ifstream* in, std::ostream* out, bool real4);
+
 };
 
 extern string trimLeft(const string);

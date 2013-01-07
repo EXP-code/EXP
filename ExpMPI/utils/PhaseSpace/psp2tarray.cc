@@ -67,7 +67,7 @@ void write_array(ifstream *in, PSPDump &psp)
     
     for (stanza=psp.GetGas(); stanza!=0; stanza=psp.NextGas()) {
       
-      out << setw(20) << stanza->nbod << endl;
+      out << setw(20) << stanza->comp.nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
@@ -122,7 +122,7 @@ void write_array(ifstream *in, PSPDump &psp)
 
     for (stanza=psp.GetDark(); stanza!=0; stanza=psp.NextDark()) {
       
-      out << setw(20) << stanza->nbod << endl;
+      out << setw(20) << stanza->comp.nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
@@ -181,7 +181,7 @@ void write_array(ifstream *in, PSPDump &psp)
 
     for (stanza=psp.GetStar(); stanza!=0; stanza=psp.NextStar()) {
       
-      out << setw(20) << stanza->nbod << endl;
+      out << setw(20) << stanza->comp.nbod << endl;
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 	if (part->f.get()) {

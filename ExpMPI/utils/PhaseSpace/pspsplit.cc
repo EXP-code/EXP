@@ -150,11 +150,11 @@ main(int argc, char **argv)
 	  its->cparam + delim + 
 	  its->fparam + '\0';
 	if (infostr.size() > headerC.ninfochar) {
-	  delete [] headerC.info;
 	  headerC.ninfochar = infostr.size() + 1;
-	  headerC.info = new char [headerC.ninfochar];
+	  headerC.info = 
+	    boost::shared_array<char>(new char [headerC.ninfochar]);
 	}
-	strcpy(headerC.info, infostr.c_str());
+	strcpy(headerC.info.get(), infostr.c_str());
       }
 
       headerC.write(&cout);
@@ -162,7 +162,7 @@ main(int argc, char **argv)
 				// Position to beginning of particles
       in->seekg(its->pspos);
 
-      for (int i=0; i<its->nbod; i++) {
+      for (int i=0; i<its->comp.nbod; i++) {
 	in->read((char *)&rtmp, sizeof(double));
 	cout.write((char *)&rtmp, sizeof(double));
 	for (int i=0; i<3; i++) {
@@ -175,11 +175,11 @@ main(int argc, char **argv)
 	}
 	in->read((char *)&rtmp, sizeof(double));
 	cout.write((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->niatr; i++) {
+	for (int i=0; i<its->comp.niatr; i++) {
 	  in->read((char *)&itmp, sizeof(double));
 	  cout.write((char *)&itmp, sizeof(int));
 	}
-	for (int i=0; i<its->ndatr; i++) {
+	for (int i=0; i<its->comp.ndatr; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
 	  cout.write((char *)&rtmp, sizeof(double));
 	}      

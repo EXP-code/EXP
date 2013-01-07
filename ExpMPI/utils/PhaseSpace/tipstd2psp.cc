@@ -91,7 +91,7 @@ main(int argc, char **argv)
 
     ostringstream outs;
     outs << cname << " : " << fname << " : " << cparam << " : " << fparam << '\0';
-    strncpy(header_psp.info, outs.str().c_str(), header_psp.ninfochar);
+    strncpy(header_psp.info.get(), outs.str().c_str(), header_psp.ninfochar);
 
     headers.push_back(header_psp);
   }
@@ -112,7 +112,7 @@ main(int argc, char **argv)
 
     ostringstream outs;
     outs << cname << " : " << fname << " : " << cparam << " : " << fparam << '\0';
-    strncpy(header_psp.info, outs.str().c_str(), header_psp.ninfochar);
+    strncpy(header_psp.info.get(), outs.str().c_str(), header_psp.ninfochar);
 
     headers.push_back(header_psp);
   }
@@ -133,7 +133,7 @@ main(int argc, char **argv)
 
     ostringstream outs;
     outs << cname << " : " << fname << " : " << cparam << " : " << fparam << '\0';
-    strncpy(header_psp.info, outs.str().c_str(), header_psp.ninfochar);
+    strncpy(header_psp.info.get(), outs.str().c_str(), header_psp.ninfochar);
 
     headers.push_back(header_psp);
   }

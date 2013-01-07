@@ -220,7 +220,7 @@ main(int argc, char **argv)
     icnt = 0;
     vector<double> vals;
 
-    for (int j=0; j<its->nbod; j++) {
+    for (int j=0; j<its->comp.nbod; j++) {
       in->read((char *)&mass, sizeof(double));
       for (int i=0; i<3; i++) {
 	  in->read((char *)&pos[i], sizeof(double));
@@ -230,11 +230,11 @@ main(int argc, char **argv)
       }
       in->read((char *)&rtmp, sizeof(double));
       vals.push_back(rtmp);
-      for (int i=0; i<its->niatr; i++) {
+      for (int i=0; i<its->comp.niatr; i++) {
 	in->read((char *)&itmp, sizeof(int));
 	vals.push_back(itmp);
       }
-      for (int i=0; i<its->ndatr; i++) {
+      for (int i=0; i<its->comp.ndatr; i++) {
 	in->read((char *)&rtmp, sizeof(double));
 	vals.push_back(rtmp);
       }      

@@ -148,15 +148,15 @@ main(int argc, char **argv)
 
 				// Print the header
 
-    out << setw(15) << its->nbod 
-	<< setw(10) << its->niatr 
-	<< setw(10) << its->ndatr 
+    out << setw(15) << its->comp.nbod 
+	<< setw(10) << its->comp.niatr 
+	<< setw(10) << its->comp.ndatr 
 	<< endl;
 
 				// Position to beginning of particles
     in->seekg(its->pspos);
 
-    for (int j=0; j<its->nbod; j++) {
+    for (int j=0; j<its->comp.nbod; j++) {
       if (its->index_size) {
 	in->read((char *)&ltmp, sizeof(unsigned long));
 	out << setw(14) << ltmp;
@@ -173,11 +173,11 @@ main(int argc, char **argv)
       }
       in->read((char *)&rtmp, sizeof(double));
       out << setw(20) << rtmp;
-      for (int i=0; i<its->niatr; i++) {
+      for (int i=0; i<its->comp.niatr; i++) {
 	in->read((char *)&itmp, sizeof(int));
 	out << setw(12) << itmp;
       }
-      for (int i=0; i<its->ndatr; i++) {
+      for (int i=0; i<its->comp.ndatr; i++) {
 	in->read((char *)&rtmp, sizeof(double));
 	out << setw(20) << rtmp;
       }      

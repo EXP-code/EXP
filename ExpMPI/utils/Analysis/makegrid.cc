@@ -359,7 +359,7 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->nbod; j++) {
+      for (int j=0; j<its->comp.nbod; j++) {
 	if (its->index_size) in->read((char *)&indx, its->index_size);
 	else                 indx = j;
 
@@ -373,11 +373,11 @@ int main(int argc, char**argv)
 	  uvw[i] = vs[i];
 	}
 	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->niatr; i++) {
+	for (int i=0; i<its->comp.niatr; i++) {
 	  in->read((char *)&itmp, sizeof(int));
 	}
 	dattr.clear();
-	for (int i=0; i<its->ndatr; i++) {
+	for (int i=0; i<its->comp.ndatr; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
 	  dattr.push_back(rtmp);
 	}
@@ -410,7 +410,7 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->nbod; j++) {
+      for (int j=0; j<its->comp.nbod; j++) {
 	if (its->index_size) in->read((char *)&indx, its->index_size);
 	else                 indx = j;
 
@@ -424,11 +424,11 @@ int main(int argc, char**argv)
 	  uvw[i] = vs[i];
 	}
 	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->niatr; i++) {
+	for (int i=0; i<its->comp.niatr; i++) {
 	  in->read((char *)&itmp, sizeof(int));
 	}
 	dattr.clear();
-	for (int i=0; i<its->ndatr; i++) {
+	for (int i=0; i<its->comp.ndatr; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
 	  dattr.push_back(rtmp);
 	}
@@ -461,7 +461,7 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->nbod; j++) {
+      for (int j=0; j<its->comp.nbod; j++) {
 	if (its->index_size) in->read((char *)&indx, its->index_size);
 	else                 indx = j;
 
@@ -475,11 +475,11 @@ int main(int argc, char**argv)
 	  uvw[i] = vs[i];
 	}
 	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->niatr; i++) {
+	for (int i=0; i<its->comp.niatr; i++) {
 	  in->read((char *)&itmp, sizeof(int));
 	}
 	dattr.clear();
-	for (int i=0; i<its->ndatr; i++) {
+	for (int i=0; i<its->comp.ndatr; i++) {
 	  in->read((char *)&rtmp, sizeof(double));
 	  dattr.push_back(rtmp);
 	}
@@ -501,10 +501,14 @@ int main(int argc, char**argv)
 	  
 	  mass [ii][jj][kk] += ms;
 	  gnumb[ii][jj][kk] += 1.0;
-	  if (its->ndatr>0) { gtemp[ii][jj][kk] += ms*dattr[0]; btemp=true; }
-	  if (its->ndatr>1) { gdens[ii][jj][kk] += ms*dattr[1]; bdens=true; }
-	  if (its->ndatr>4) { gknud[ii][jj][kk] += ms*dattr[4]; bknud=true; }
-	  if (its->ndatr>5) { gstrl[ii][jj][kk] += ms*dattr[5]; bstrl=true; }
+	  if (its->comp.ndatr>0) 
+	    { gtemp[ii][jj][kk] += ms*dattr[0]; btemp=true; }
+	  if (its->comp.ndatr>1) 
+	    { gdens[ii][jj][kk] += ms*dattr[1]; bdens=true; }
+	  if (its->comp.ndatr>4) 
+	    { gknud[ii][jj][kk] += ms*dattr[4]; bknud=true; }
+	  if (its->comp.ndatr>5) 
+	    { gstrl[ii][jj][kk] += ms*dattr[5]; bstrl=true; }
 	  for (int ll=0; ll<3; ll++) vel[ii][jj][kk][ll] += ms*vs[ll];
 	  
 	  // Get ranges
@@ -514,7 +518,7 @@ int main(int argc, char**argv)
 	    for (it=fields.begin(); it!=fields.end(); it++) {
 	      string f = it->first;
 	      int id   = it->second.index;
-	      if (id>=0 && its->ndatr>id) {
+	      if (id>=0 && its->comp.ndatr>id) {
 		fields[f].min = min<double>(dattr[id], fields[f].min);
 		fields[f].max = max<double>(dattr[id], fields[f].max);
 	      }

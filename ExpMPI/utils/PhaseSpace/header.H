@@ -2,17 +2,34 @@
 #define header_H
 
 #include <iostream>
+#include <iomanip>
+#include <sstream>
+
+#include <boost/shared_array.hpp>
 
 using namespace std;
 
 //! Describe the phase space dump
-struct MasterHeader {
+class MasterHeader {
+public:
   //! Current time for phase space
   double time;
   //! Number of particles in entire phase space
   int ntot;
   //! Number of individual components
   int ncomp;
+
+  friend std::ostream& operator<<(std::ostream& os, const MasterHeader& p) 
+  {
+    os << std::setw(14) << std::right << "Time" << " : "
+       << std::setw(14) << std::left  << p.time << std::endl
+       << std::setw(14) << std::right << "Ntot" << " : "
+       << std::setw(14) << std::left  << p.ntot << std::endl
+       << std::setw(14) << std::right << "Ncomp" << " : "
+       << std::setw(14) << std::left  << p.ncomp << std::endl;
+    return os;
+  }
+
 };
 
 //! Describe a component in a phase space dump
@@ -32,7 +49,7 @@ public:
   int ninfochar;
 
   //! Info string
-  char *info;
+  boost::shared_array<char> info;
   
   //! Default size of info string (if not specified explicitly or read)
   static int defaultInfoSize;
@@ -41,19 +58,14 @@ public:
   ComponentHeader() 
   {
     ninfochar = defaultInfoSize;
-    info = new char [ninfochar];
+    info = boost::shared_array<char>(new char [ninfochar]);
   }
 
   //! Construct component with info field of length n
   ComponentHeader(int n)
   {
     ninfochar = n;
-    info = new char [ninfochar];
-  }
-
-  //! Destructor
-  ~ComponentHeader() {
-    delete [] info;
+    info = boost::shared_array<char>(new char [ninfochar]);
   }
 
   //! Write binary header to output stream
@@ -61,6 +73,20 @@ public:
 
   //! Read binary header from input stream
   bool read(istream *in);
+
+  friend std::ostream& operator<<( std::ostream& os, const ComponentHeader& p ) 
+  {
+    os << std::setw(14) << std::right << "Nbod" << " : "
+       << std::setw(14) << std::left  << p.nbod << std::endl
+       << std::setw(14) << std::right << "N(int)" << " : "
+       << std::setw(14) << std::left  << p.niatr << std::endl
+       << std::setw(14) << std::right << "N(real)" << " : "
+       << std::setw(14) << std::left  << p.ndatr << std::endl
+       << std::setw(14) << std::right << "Info" << " : "
+       << std::setw(60) << std::right << p.info.get() << std::endl;
+    
+    return os;
+  }
 
 };
 

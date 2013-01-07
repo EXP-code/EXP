@@ -1165,7 +1165,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Node local parameter buffer
   int ninfochar;
-  char *info;
+  boost::shared_array<char> info;
   
   if (myid == 0) {
 
@@ -1193,8 +1193,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     ndattrib    = header.ndatr;
     ninfochar   = header.ninfochar;
 
-    info = new char [ninfochar+1];
-    memcpy(info, header.info, ninfochar);
+    info = boost::shared_array<char>(new char [ninfochar+1]);
+    memcpy(info.get(), header.info.get(), ninfochar);
     info[ninfochar] = '\0';
   }
 
@@ -1207,8 +1207,8 @@ void Component::read_bodies_and_distribute_binary(istream *in)
   MPI_Bcast(&niattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
   MPI_Bcast(&ninfochar,   1, MPI_INT, 0, MPI_COMM_WORLD);
-  if (myid) info = new char [ninfochar+1];
-  MPI_Bcast(info, ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
+  if (myid) info = boost::shared_array<char>(new char [ninfochar+1]);
+  MPI_Bcast(info.get(), ninfochar, MPI_CHAR, 0, MPI_COMM_WORLD);
 
 
   if (myid==0) {
@@ -1232,13 +1232,11 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 				// Parse info field to get 
 				// id and parameter strings
-  StringTok<string> tokens(info);
+  StringTok<string> tokens(info.get());
   name   = trimLeft(trimRight(tokens(":")));
   id     = trimLeft(trimRight(tokens(":")));
   cparam = trimLeft(trimRight(tokens(":")));
   fparam = trimLeft(trimRight(tokens(":")));
-
-  delete [] info;
 
 				// Informational output
   if (myid==0)
@@ -1612,7 +1610,7 @@ void Component::write_binary(ostream* out, bool real4)
   
     ostringstream outs;
     outs << name << " : " << id << " : " << cparam << " : " << fparam;
-    strncpy(header.info, outs.str().c_str(), header.ninfochar);
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     if (real4) rsize = sizeof(float);
     else       rsize = sizeof(double);

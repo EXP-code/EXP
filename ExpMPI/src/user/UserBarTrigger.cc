@@ -162,7 +162,8 @@ void * UserBarTrigger::determine_acceleration_and_potential_thread(void * arg)
 
   thread_timing_beg(id);
 
-  double pos[3], acc[3], pot=0.0;
+  std::vector<double> pos(3, 0.0), acc(3, 0.0);
+  double pot=0.0;
 
 				// This is an iterator for the bodies
   PartMapItr it = cC->Particles().begin();

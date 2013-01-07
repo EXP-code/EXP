@@ -10,7 +10,7 @@ bool ComponentHeader::write(ostream *out)
   out->write((char *)&niatr, sizeof(int));
   out->write((char *)&ndatr, sizeof(int));
   out->write((char *)&ninfochar, sizeof(int));
-  out->write((char *)info, ninfochar*sizeof(char));
+  out->write((char *)info.get(), ninfochar*sizeof(char));
 
   if (*out)
     return true;
@@ -28,11 +28,10 @@ bool ComponentHeader::read(istream *in)
   in->read((char *)&ninfo, sizeof(int));		if (!*in) return false;
 
   if (ninfo != ninfochar) {
-    delete [] info;
     ninfochar = ninfo;
-    info = new char [ninfochar];
+    info = boost::shared_array<char>(new char [ninfochar]);
   }
-  in->read((char *)info, ninfochar*sizeof(char));	if (!*in) return false;
+  in->read((char *)info.get(), ninfochar*sizeof(char));	if (!*in) return false;
 
   return true;
 }

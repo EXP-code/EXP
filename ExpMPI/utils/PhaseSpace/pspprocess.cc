@@ -209,7 +209,7 @@ main(int argc, char **argv)
 
 				// Position to beginning of particles
       in.seekg(its->pspos);
-      for (int j=0; j<its->nbod; j++) {
+      for (int j=0; j<its->comp.nbod; j++) {
 
 	in.read((char *)&mass, sizeof(double));
 
@@ -223,11 +223,11 @@ main(int argc, char **argv)
 
 	in.read((char *)&rtmp, sizeof(double));
 
-	for (int i=0; i<its->niatr; i++) {
+	for (int i=0; i<its->comp.niatr; i++) {
 	  in.read((char *)&itmp, sizeof(int));
 	}
 
-	for (int i=0; i<its->ndatr; i++) {
+	for (int i=0; i<its->comp.ndatr; i++) {
 	  in.read((char *)&rtmp, sizeof(double));
 	}      
 	

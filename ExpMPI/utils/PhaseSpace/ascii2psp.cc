@@ -152,7 +152,7 @@ main(int argc, char **argv)
 
     ostringstream outs;
     outs << cname << " : " << fname << " : " << cparam << " : " << fparam << '\0';
-    strncpy(header.info, outs.str().c_str(), header.ninfochar);
+    strncpy(header.info.get(), outs.str().c_str(), header.ninfochar);
 
     in.push_back(in2);
     headers.push_back(header);

@@ -177,15 +177,18 @@ private:
   void load_balance(void);
 
 
-  //! Magic number
+  //! For magic number checking
   const static unsigned long magic = 0xadbfabc0;
   const static unsigned long mmask = 0xf;
-  const static unsigned long nmask = ~mmask
+  const static unsigned long nmask = ~mmask;
   unsigned rsize;
 
 
+  //@{
+  //! Internal data for sequence checking
   bool seq_check, ordered, indexing, umagic;
   int seq_beg, seq_end, seq_cur;
+  //@}
 
 				// Used in computing target rates for
 				// load balancing
