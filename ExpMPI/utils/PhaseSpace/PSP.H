@@ -42,11 +42,27 @@ public:
 
   void read(std::istream* in, int pcount, list<PSPstanza>::iterator spos) 
   {
+    // Sequence value
+    // --------------
     if (spos->index_size) 
       in->read((char *)&indx, sizeof(unsigned long));
     else
       indx = pcount;
 
+    // Initialize fields
+    // -----------------
+    if (spos->comp.niatr) {
+      if (iatr.size() != spos->comp.niatr)
+	iatr = vector<int>(spos->comp.niatr);
+    }
+    if (spos->comp.ndatr) {
+      if (datr.size() != spos->comp.ndatr)
+	datr = vector<real>(spos->comp.ndatr);
+    }
+
+
+    // Read the rest
+    // -------------
     in->read((char *)&mass, sizeof(real));
     for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(real));
     for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(real));

@@ -397,22 +397,6 @@ PSPstanza* PSPDump::NextStanza()
 SParticle* PSPDump::GetParticle(std::ifstream* in)
 {
   pcount = 0;
-  // Clear particle
-  if (spos->r_size == sizeof(float)) {
-    if (spos->comp.niatr)
-      part.f->iatr = vector<int>(spos->comp.niatr);
-    
-    if (spos->comp.ndatr) 
-      part.f->datr = vector<float>(spos->comp.ndatr);
-    
-  } else {
-    
-    if (spos->comp.niatr) 
-      part.d->iatr = vector<int>(spos->comp.niatr);
-    
-    if (spos->comp.ndatr) 
-      part.d->datr = vector<double>(spos->comp.ndatr);
-  }
   
   return NextParticle(in);
 }
@@ -421,7 +405,9 @@ SParticle *PSPDump::NextParticle(std::ifstream* in)
 {
   badstatus(in);		// DEBUG
   
+
   // Read partcle
+  // ------------
   if (pcount < spos->comp.nbod) {
     
     part.read(in, spos->r_size, pcount++, spos);
