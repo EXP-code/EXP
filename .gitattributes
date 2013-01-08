@@ -112,6 +112,7 @@ ExpMPI/utils/PhaseSpace/psp2histo.cc -text
 ExpMPI/utils/PhaseSpace/psp2histo1d.cc -text
 ExpMPI/utils/PhaseSpace/psp2tarray.cc -text
 ExpMPI/utils/PhaseSpace/pspprocess.cc -text
+ExpMPI/utils/PhaseSpace/pspreal.cc -text
 ExpMPI/utils/SL/CylindricalDisk.H -text
 ExpMPI/utils/SL/CylindricalDisk.cc -text
 ExpMPI/utils/SL/diskpot.cc -text
