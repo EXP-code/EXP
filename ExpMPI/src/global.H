@@ -11,6 +11,7 @@
 #include <coef.H>
 
 #include <chkTimer.H>
+#include <BarrierWrapper.H>
 
 using namespace std;
 
@@ -266,5 +267,17 @@ extern string restart_cmd;
 
 //! MPI datatype for pHOT key
 extern MPI_Datatype MPI_EXP_KEYTYPE;
+
+//! Barrier instance for debugging
+extern BarrierWrapper *barrier;
+
+//! Turn on Barrier debugging
+extern bool barrier_debug;
+
+//! Barrier label checking
+extern bool barrier_label;
+
+//! Barrier label light weight method
+extern bool barrier_light;
 
 #endif

@@ -18,7 +18,6 @@
 
 bool DEBUG = false;
 bool DEBUG_ADJUST = false;
-bool BARRIER_DEBUG = false;
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -166,10 +165,6 @@ pHOT::pHOT(Component *C, int species, set<int> spec_list)
   numfront = vector<int>(numprocs);
   displace = vector<int>(numprocs);
 
-  // Change "true" to "false" to disable the barrier checking
-  //
-  barrier = new BarrierWrapper(MPI_COMM_WORLD, BARRIER_DEBUG);
-
   // Make the tree diagnostic MPI structure
   //
   const int nf = 9;
@@ -200,7 +195,6 @@ pHOT::pHOT(Component *C, int species, set<int> spec_list)
 
 pHOT::~pHOT()
 {
-  delete barrier;
   delete root;
 }
 
@@ -404,6 +398,8 @@ void pHOT::logFrontierStats()
 
 void pHOT::makeTree()
 {
+  (*barrier)("pHOT::entering makeTree", __FILE__, __LINE__);
+
 #ifdef USE_GPTL
   GPTLstart("pHOT::makeTree");
 #endif
@@ -416,27 +412,28 @@ void pHOT::makeTree()
 
   delete root;
 
-  if (DEBUG) timer_diagdbg.start();
+  if (DEBUG) {
+    timer_diagdbg.start();
 
-  string sname =  runtag + ".pHOT_storage";
-  for (int n=0; n<numprocs; n++) {
-    if (myid==n) {
-      ofstream out(sname.c_str(), ios::app);
-      if (out) {
-	out << setw(18) << tnow
-	    << setw(6)  << myid
-	    << setw(12) << keybods.size()
-	    << setw(12) << frontier.size()
-	    << setw(12) << bodycell.size()
-	    << endl;
-	if (myid==numprocs-1) out << endl;
-	out.close();
+    string sname =  runtag + ".pHOT_storage";
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	ofstream out(sname.c_str(), ios::app);
+	if (out) {
+	  out << setw(18) << tnow
+	      << setw(6)  << myid
+	      << setw(12) << keybods.size()
+	      << setw(12) << frontier.size()
+	      << setw(12) << bodycell.size()
+	      << endl;
+	  if (myid==numprocs-1) out << endl;
+	  out.close();
+	}
       }
+      MPI_Barrier(MPI_COMM_WORLD);
     }
-    (*barrier)("pHOT: pHOT_storage", __FILE__, __LINE__);
+    timer_diagdbg.stop();
   }
-
-  if (DEBUG) timer_diagdbg.stop();
 
   //
   // Make the root
@@ -444,7 +441,7 @@ void pHOT::makeTree()
   root = new pCell(this);
 
   //
-  // Make new offset
+  // Assign the origin offset in the rectangular prism
   //
   for (unsigned k=0; k<3; k++) offset[k] = offst[k];
   MPI_Bcast(&offset[0], 3, MPI_DOUBLE, 0, MPI_COMM_WORLD);
@@ -472,33 +469,44 @@ void pHOT::makeTree()
   if (false) {
     if (true) {			// Report on particle sizes for each node
       unsigned long bdcel1=cc->Particles().size(), bdcelmin, bdcelmax, bdcelsum, bdcelsm2;
+
+      (*barrier)("pHOT::makeTree initial body report", __FILE__, __LINE__);
+
       MPI_Reduce(&bdcel1, &bdcelmin, 1, MPI_UNSIGNED_LONG, MPI_MIN, 0, MPI_COMM_WORLD);
       MPI_Reduce(&bdcel1, &bdcelmax, 1, MPI_UNSIGNED_LONG, MPI_MAX, 0, MPI_COMM_WORLD);
       MPI_Reduce(&bdcel1, &bdcelsum, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
       bdcel1 = bdcel1*bdcel1;
       MPI_Reduce(&bdcel1, &bdcelsm2, 1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+
       if (myid==0)
 	cout << "In makeTree, particles min=" << bdcelmin << " max=" << bdcelmax
 	     << " mean=" << bdcelsum/numprocs
 	     << " stdv=" << sqrt( (bdcelsm2 - bdcelsum*bdcelsum/numprocs)/(numprocs-1) )
 	     << endl;
     }
-    if (true) {		// Report on body counts for each node
-      if (myid==0) {
-	cout << left << setfill('-')
-	     << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ')
-	     << setw(4) << "pid" << setw(15) << "# bodies" << endl << setfill('-')
-	     << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ') << right;
-      }
+    
+    if (false) {		// Report on body counts for each node
       for (int i=0; i<numprocs; i++) {
-	if (myid==i) cout << setw(4) << i << setw(15) << cc->Particles().size() << endl;
-	(*barrier)("pHOT: body count report", __FILE__, __LINE__);
+	if (myid==0) {
+	  cout << left << setfill('-')
+	       << setw(4) << '+' << setw(15) << '+' << setfill(' ') << endl
+	       << setw(4) << "pid" << setw(15) << "# bodies" << endl
+	       << left << setfill('-')
+	       << setw(4) << '+' << setw(15) << '+' << setfill(' ') << endl;
+	}
+	if (myid==i) cout << setw(4)  << i 
+			  << setw(15) << cc->Particles().size() << endl;
+	(*barrier)("pHOT::makeTree body count report", __FILE__, __LINE__);
+	MPI_Barrier(MPI_COMM_WORLD);
       }
       if (myid==0) 
-	cout << setfill('-') << setw(4) << '+' << setw(15) << '+' << endl << setfill(' ');
+	cout << left << setfill('-')
+	     << setw(4) << '+' << setw(15) << '+' << setfill(' ') << endl;
     }
+
     if (bodycell.size()==0) {
-      cout << "Process " << myid << ": in makeTree, unusual condition #bodycell=0"
+      cout << "Process " << myid 
+	   << ": in makeTree, unusual condition #bodycell=0"
 	   << " with #keybods=" << keybods.size() 
 	   << " and #bodies=" << cc->Particles().size()
 	   << endl;
@@ -516,6 +524,36 @@ void pHOT::makeTree()
 				// Exchange boundary keys
   key_type headKey=0u, tailKey=0u, prevKey=0u, nextKey=0u;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
+
+				// Compute the tailkey
+  if (keybods.size()) {
+    if (DEBUG) {
+      timer_diagdbg.start();
+				// check validity of key
+      if (bodycell.find(keybods.rbegin()->first) == bodycell.end()) {
+	cout << "Process " << myid << ": bad tail key=" 
+	     << hex << keybods.rbegin()->first << dec
+	     << " #cells=" << bodycell.size() << endl;
+      }
+      timer_diagdbg.stop();
+    }
+    
+    tailKey = bodycell.find(keybods.rbegin()->first)->second;
+				// Number of bodies in my head cell
+    if (DEBUG) {
+      timer_diagdbg.start();
+      // Debug: check for tail key in frontier
+      if (frontier.find(tailKey) == frontier.end()) {
+	cout << "Process " << myid << ": tailKey=" 
+	     << tailKey << dec << " not in frontier!" << endl;
+      }
+      timer_diagdbg.stop();
+    }
+    //
+    tail_num = frontier[tailKey]->bods.size();
+  }
+
+  (*barrier)("pHOT::makeTree(): tail key computed", __FILE__, __LINE__);
 
 				// Do the boundaries sequentially to prevent
 				// inconstencies
@@ -548,10 +586,9 @@ void pHOT::makeTree()
       }
 
     }
-
 				// Send the previous node my head value
 				// to compare with its tail
-  if (myid==n) {
+    if (myid==n) {
 
       if (keybods.size()) {
 
@@ -4491,7 +4528,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   // the number of processors
   // 
   int M2 = 1;
-  while (2*M2 < numprocs) M2 = M2*2;
+  while (M2 < numprocs) M2 = M2*2;
 
   // Combine the particles of the high nodes
   // with those of the lower nodes so that
@@ -4502,6 +4539,10 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   //
   if (myid >= M2) {
     n = initl.size();
+    if (1) {
+      std::cout << "pHOT::parallelMerge: myid=" << myid 
+		<< " sending " << n << " to id=" << myid-M2 << std::endl;
+    }
     MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
     if (n) {
       vector<key_type> one(n);
@@ -4512,16 +4553,15 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 	two[k] = initl[k].second;
       }
 	
-      MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12, 
+      MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12,
 	       MPI_COMM_WORLD);
 
-      MPI_Send(&two[0], n, MPI_DOUBLE,      myid-M2, 13, 
+      MPI_Send(&two[0], n, MPI_DOUBLE,      myid-M2, 13,
 	       MPI_COMM_WORLD);
     }
 #ifdef USE_GPTL
     GPTLstop("pHOT::parallelMerge");
 #endif
-    return;
   }
 
   vector<key_wght> data = initl;
@@ -4531,14 +4571,20 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   //
   if (myid + M2 < numprocs) {
     MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
+    if (1) {
+      std::cout << "pHOT::parallelMerge: myid=" << myid 
+		<< " received " << n << " from id=" << status.MPI_SOURCE
+		<< ", expected id=" << myid+M2 
+		<< std::endl;
+    }
     if (n) {
       vector<key_type> recv1(n);
       vector<double>   recv2(n);
 
-      MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12, 
+      MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
-      MPI_Recv(&recv2[0], n, MPI_DOUBLE,      status.MPI_SOURCE, 13, 
+      MPI_Recv(&recv2[0], n, MPI_DOUBLE,      status.MPI_SOURCE, 13,
 	       MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
       vector<key_wght> recv(n);
@@ -4548,9 +4594,14 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
       }
 				// data=data+new_data
       sortCombine(initl, recv, data);
+
+      if (1) {
+	std::cout << "pHOT::parallelMerge: myid=" << myid 
+		  << " completed sortCombine" << std::endl;
+      }
     }
   }
-    
+
   //
   // Now do the iterative binary merge
   //

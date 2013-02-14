@@ -11,7 +11,6 @@
 #include <pCell.H>
 
 #include <Timer.h>
-#include <BarrierWrapper.H>
 
 class CellDiag
 {
@@ -116,7 +115,6 @@ protected:
   change_list change;
   vector<key_type> kbeg, kfin, loclist;
   unsigned sumstep, sumzero;
-  BarrierWrapper *barrier;
 
   vector<double> offset;
 

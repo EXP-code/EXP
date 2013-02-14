@@ -82,6 +82,21 @@ void initialize(void)
     else global_cov = false;
   }
 
+  if (parse->find_item("barrier_debug", val)) {
+    if (atoi(val.c_str())) barrier_debug = true;
+    else barrier_debug = false;
+  }
+
+  if (parse->find_item("barrier_label", val)) {
+    if (atoi(val.c_str())) barrier_label = true;
+    else barrier_label = false;
+  }
+
+  if (parse->find_item("barrier_light", val)) {
+    if (atoi(val.c_str())) barrier_light = true;
+    else barrier_light = false;
+  }
+
   if (parse->find_item("homedir", val)) {
     // Check for and add trailing slash
     if (*val.rbegin() != '/') val += '/';

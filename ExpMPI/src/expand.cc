@@ -347,6 +347,16 @@ main(int argc, char** argv)
   }
 #endif
 
+  //==================
+  // Barrier debugging
+  //==================
+
+  barrier = new BarrierWrapper(MPI_COMM_WORLD, barrier_label);
+  if (barrier_debug) barrier->on();
+  else               barrier->off();
+  if (barrier_light) barrier->setLightWeight();
+  else               barrier->setHeavyWeight();
+
   //================
   // Nice process ? 
   //================

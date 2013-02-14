@@ -6,6 +6,7 @@
 #include <ExternalForce.H>
 #include <ExternalCollection.H>
 #include <OutputContainer.H>
+#include <BarrierWrapper.H>
 #include <ParamParseMPI.H>
 #include <chkTimer.H>
 
@@ -110,3 +111,7 @@ string restart_cmd;
 
 MPI_Datatype MPI_EXP_KEYTYPE;
 
+BarrierWrapper *barrier = 0;
+bool barrier_debug = false;
+bool barrier_label = true;
+bool barrier_light = false;
