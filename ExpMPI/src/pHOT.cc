@@ -16,8 +16,30 @@
 #include <algorithm>
 #include <cmath>
 
-bool DEBUG = false;
-bool DEBUG_ADJUST = false;
+// Hardwired DEBUGGING statements for pHOT
+// [set all to false for production]
+
+// Chatty debugging statements with minimal CPU overhead
+static bool DEBUG_NOISY  = false; 
+
+// Debugging that checks internal lists
+static bool DEBUG_CHECK  = false;
+
+// Extra-verbose output with internal checking
+static bool DEBUG_EXTRA  = false;
+
+// Extra debugging for the adjustTree algorithm
+static bool DEBUG_ADJUST = false;
+
+// Clean up bad entries in particle list
+static bool DEBUG_CLEAN  = true;
+
+// Check for malformed particles in cells
+static bool DEBUG_SANITY = true;
+
+// Debug keys accross all nodes (uses MPI calls)
+static bool DEBUG_KEYS   = false;
+
 
 #ifdef USE_GPTL
 #include <gptl.h>
@@ -48,12 +70,6 @@ static bool wghtDBL(const pair<key_type, double>& a,
 { 
   return (a.second < b.second); 
 }
-
-//
-// Write verbose output to a file if true (for debugging)
-// [set to false for production]
-//
-bool pHOT::keys_debug = false;
 
 //
 // Check sample cell sanity (for debugging)
@@ -219,7 +235,7 @@ key_type pHOT::getKey(double *p)
   //
   for (unsigned k=0; k<3; k++) { 
     if (fabs((p[k]+offset[k])/sides[k])> 1.0) {	
-      if (DEBUG) {
+      if (DEBUG_NOISY) {
 	cout << "Coordinate out of pbounds in pHOT::key: ";
 	for (int l=0; l<3; l++) cout << setw(18) << p[l];
 	cout << endl;
@@ -412,7 +428,7 @@ void pHOT::makeTree()
 
   delete root;
 
-  if (DEBUG) {
+  if (DEBUG_EXTRA) {
     timer_diagdbg.start();
 
     string sname =  runtag + ".pHOT_storage";
@@ -527,7 +543,7 @@ void pHOT::makeTree()
 
 				// Compute the tailkey
   if (keybods.size()) {
-    if (DEBUG) {
+    if (DEBUG_CHECK) {
       timer_diagdbg.start();
 				// check validity of key
       if (bodycell.find(keybods.rbegin()->first) == bodycell.end()) {
@@ -540,7 +556,7 @@ void pHOT::makeTree()
     
     tailKey = bodycell.find(keybods.rbegin()->first)->second;
 				// Number of bodies in my head cell
-    if (DEBUG) {
+    if (DEBUG_CHECK) {
       timer_diagdbg.start();
       // Debug: check for tail key in frontier
       if (frontier.find(tailKey) == frontier.end()) {
@@ -592,7 +608,7 @@ void pHOT::makeTree()
 
       if (keybods.size()) {
 
-	if (DEBUG) {
+	if (DEBUG_CHECK) {
 	  timer_diagdbg.start();
 				// check validity of key
 	  if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
@@ -605,7 +621,7 @@ void pHOT::makeTree()
 	
 	headKey = bodycell.find(keybods.begin()->first)->second;
 				// Number of bodies in my head cell
-	if (DEBUG) {
+	if (DEBUG_CHECK) {
 	  timer_diagdbg.start();
 	  // Debug: check for key in frontier
 	  if (frontier.find(headKey) == frontier.end()) {
@@ -1230,15 +1246,26 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 
   pCell *p = frontier.find(key)->second;
   
-  if (DEBUG) {
-    std::cout << "Process " << myid << ": sending " << num 
-	      << " to " << to << endl;
+  if (DEBUG_NOISY) {
+    std::cout << "Process " << std::left << std::setw(4) << myid 
+	      << std::setw(12) << ": sending " << std::setw(4) << num 
+	      << "  to  " << std::setw(4) << to << endl;
   }
 
   vector<unsigned long> erased;
   vector<double> buffer1(3*num);
   vector<unsigned> buffer2(num);
   vector<key_type> buffer3(num);
+
+  if (DEBUG_SANITY) {
+    unsigned crazy = 0;
+    vector<unsigned long>::iterator ib = p->bods.begin();
+    for (unsigned j=0; j<num; j++) {
+      if (cc->particles[*(ib++)].indx == 0) crazy++;
+    }
+    if (crazy) std::cout << "[sendCell node " << myid << " has " << crazy
+			 << " crazy bodies out of " << num << "]" << std::endl;
+  }
 
   pf.ShipParticles(to, myid, num);
 
@@ -1259,13 +1286,15 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
       if (ij != bodycell.end()) bodycell.erase(ij);
       cc->particles.erase(*ib);
       keybods.erase(it);
-      if (DEBUG) erased.push_back(*ib);
+      if (DEBUG_CHECK) erased.push_back(*ib);
     } else {
-      cerr << "Process " << myid << ": error! " << endl;
+      cerr << "Process " << myid << ": error, "
+	   << "removing body from keybods list that does not exist! " 
+	   << endl;
     }
     ib++;
   }
-  
+
   // If this cell is not the root
   //
   if (p->parent) {
@@ -1276,14 +1305,14 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     p->parent->children.erase( (p->mykey & 0x7u) );
 #endif
 	
-#ifdef DEBUG
-    timer_diagdbg.start();
-    if (frontier.find(p->mykey)==frontier.end()) {
-      cout << "Process " << myid << ": in pHOT:sendCell: "
-	   << " key not on frontier as expected" << endl;
+    if (DEBUG_CHECK) {
+      timer_diagdbg.start();
+      if (frontier.find(p->mykey)==frontier.end()) {
+	cout << "Process " << myid << ": in pHOT:sendCell: "
+	     << " key not on frontier as expected" << endl;
+      }
+      timer_diagdbg.stop();
     }
-    timer_diagdbg.stop();
-#endif
 
     // Delete this cell from the frontier
     frontier.erase(p->mykey);
@@ -1296,7 +1325,7 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     p->bods.clear();
   }
 
-  if (DEBUG) {
+  if (DEBUG_CHECK) {
     timer_diagdbg.start();
     vector<unsigned long>::iterator iq;
     for (iq=erased.begin(); iq!=erased.end(); iq++) {
@@ -1307,6 +1336,7 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
     timer_diagdbg.stop();
   }
 
+  // Refresh size of local particle list
   cc->nbodies = cc->particles.size();
 
 #ifdef USE_GPTL
@@ -1321,10 +1351,11 @@ void pHOT::recvCell(int from, unsigned num)
   GPTLstart("pHOT::recvCell");
 #endif
 
-  if (DEBUG) 
-    std::cout << "Process " << myid << ": receiving " << num 
-	      << " from " << from << endl;
-  
+  if (DEBUG_NOISY) 
+    std::cout << "Process " << std::left << std::setw(4) << myid 
+	      << std::setw(12) << ": receiving " << std::setw(4) << num 
+	      << " from " << std::setw(4) << from << endl;
+
   Particle part;
 
   pCell *p = root;
@@ -1333,33 +1364,36 @@ void pHOT::recvCell(int from, unsigned num)
 
   for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
-      if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[recvCell crazy mass indx=" << part.indx 
+    if (part.indx==0 || part.mass<=0.0 || isnan(part.mass)) {
+      cout << "[recvCell will ignore crazy body with indx=" << part.indx 
+	   << ", j=" << j << ", num=" << num << ", mass=" << part.mass
 #ifdef INT128
-	     << ", key=" << part.key.toHex() << "]"
+	   << ", key=" << part.key.toHex() << "]"
 #else
-	     << ", key=" << hex << part.key << dec << "]"
+	   << ", key=" << hex << part.key << dec << "]"
+#endif
+	   << " from Node " << from << std::endl;
+    } else {
+      cc->particles[part.indx] = part;
+      if (part.key == 0u) continue;
+      if (part.key < key_min || part.key >= key_max) {
+	cout << "Process " << myid << ": in recvCell, key=" 
+#ifdef INT128
+	     << part.key.toHex() << "]"
+#else
+	     << hex << part.key << dec << "]"
 #endif
 	  ;
       }
-    cc->particles[part.indx] = part;
-    if (part.key == 0u) continue;
-    if (part.key < key_min || part.key >= key_max) {
-      cout << "Process " << myid << ": in recvCell, key=" 
-#ifdef INT128
-	   << part.key.toHex() << "]"
-#else
-	   << hex << part.key << dec << "]"
-#endif
-	;
+      key_pair tpair(part.key, part.indx);
+      keybods.insert(tpair);
+      p = p->Add(tpair);
     }
-    if (part.indx==0) cout << "pHOT::recvCell bad particle indx=0!" << endl;
-    key_pair tpair(part.key, part.indx);
-    keybods.insert(tpair);
-    p = p->Add(tpair);
   }
 
+  // Refresh size of local particle list
   cc->nbodies = cc->particles.size();
+
 #ifdef USE_GPTL
   GPTLstop("pHOT::recvCell");
 #endif
@@ -1815,11 +1849,11 @@ void pHOT::Repartition(unsigned mlevel)
   }
   d1a++;
 
-  if (DEBUG) 
-    std::cout << "Process " << myid 
-	      << ": part #=" << cc->Particles().size()
-	      << "  key size=" << keys.size()
-	      << "  oob size=" << oob.size() << endl;
+  if (DEBUG_NOISY) 
+    std::cout << "Process " << std::left << std::setw(4) << myid 
+	      << ": part #="   << std::setw(10) << cc->Particles().size()
+	      << "  key size=" << std::setw(10) << keys.size()
+	      << "  oob size=" << std::setw(10) << oob.size() << endl;
   
 #ifdef USE_GPTL
   GPTLstop ("pHOT::Repartition::compute_keys");
@@ -1909,8 +1943,8 @@ void pHOT::Repartition(unsigned mlevel)
     }
   }
 
-				// DEBUG OUTPUT
-  if (false) {			// Set to "true" to enable
+  if (DEBUG_EXTRA) {			// Set to "true" at top of
+					// file to enable
 
     timer_diagdbg.start();
 
@@ -1933,7 +1967,6 @@ void pHOT::Repartition(unsigned mlevel)
 
     timer_diagdbg.stop();
   }
-				// END DEBUG OUTPUT
       
 #ifdef USE_GPTL
   GPTLstop ("pHOT::scatter");
@@ -1947,8 +1980,8 @@ void pHOT::Repartition(unsigned mlevel)
     n_xchange += sum;
     m_xchange++;
   }
-				// DEBUG OUTPUT
-  if (false) {	 // If true, write send and receive list for each node
+  if (DEBUG_EXTRA) { // If true, write send and receive list for each
+		     // node
     timer_diagdbg.start();
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
@@ -1971,8 +2004,6 @@ void pHOT::Repartition(unsigned mlevel)
     timer_diagdbg.stop();
   }
 
-
-				// END DEBUG OUTPUT
 
   //
   // Exchange particles between processes
@@ -2004,17 +2035,19 @@ void pHOT::Repartition(unsigned mlevel)
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[Repartition: crazy mass indx=" << part.indx 
-	     << ", key="
+	cout << "[Repartition: crazy body with indx=" << part.indx 
+	     << ", mass=" << part.mass  << ", key="
 #ifdef INT128
 	     << part.key.toHex()
 #else
 	     << hex << part.key << dec
 #endif
-	<< "]";
+	     << ", i=" << i << " out of " << Fcnt << "]";
       }
       cc->Particles()[part.indx] = part;
     }
+
+    // Refresh size of local particle list
     cc->nbodies = cc->particles.size();
   }
   timer_convert.stop();
@@ -2030,10 +2063,12 @@ void pHOT::Repartition(unsigned mlevel)
       oob1_cnt++;
       continue;
     }
-    if (n->second.indx==0)
+    if (n->second.indx==0) {
       cout << "pHOT::Repartition bad particle indx=0!" << endl;
-
-    keybods.insert(key_pair(n->second.key, n->second.indx));
+      oob1_cnt++;
+    } else {
+      keybods.insert(key_pair(n->second.key, n->second.indx));
+    }
   }
 
   // checkBounds(2.0, "AFTER repartition");
@@ -2044,43 +2079,57 @@ void pHOT::Repartition(unsigned mlevel)
     cout << endl << "pHOT::Repartition: " << oob_cnt << " out of bounds," 
 	 << " expected " << oob_tot << endl;
 
-  if (false) {			// Sanity checks for bad particle indices
-    bool ok = true;		// and bad particle counts
+  if (DEBUG_CLEAN) {
+    //
+    // Sanity checks for bad particle indices and bad particle counts
+    //
+    std::list<PartMapItr> badP;
     for (PartMapItr ip=cc->particles.begin(); ip!=cc->particles.end(); ip++) {
       if (ip->second.indx==0) {
 	cout << "pHOT::Repartition BAD particle in proc=" << myid
-	     << " key="
+	     << ", mass=" << ip->second.mass << ", key="
 #ifdef INT128
 	     << ip->second.key.toHex()
 #else
 	     << hex << ip->second.key << dec
 #endif
 	     << endl;
-	ok = false;
+	badP.push_back(ip);
       }
     }
-    if (ok) cout << "pHOT::Repartition: leaving with good indx" << endl;
 
-    if (cc->particles.size() != cc->nbodies) 
-      cout << "pHOT::Repartition: leaving with # mismatch!" << endl;
-
-    int nbodies1 = cc->nbodies, nbodies0=0;
-    MPI_Reduce(&nbodies1, &nbodies0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
-    if (myid==0) {
-      if (nbodies0 != cc->nbodies_tot)
-	cout << "pHOT::Repartition: leaving with total # mismatch!" << endl;
+    if (badP.size()) {
+      cout << "pHOT::Repartition: removing " << badP.size() << " bad entries " 
+	   << "from particle list" << std::endl;
+      for (std::list<PartMapItr>::iterator itb=badP.begin(); itb!=badP.end(); 
+	   itb++) cc->particles.erase(*itb);
     }
 
+    // Refresh size of local particle list
+    cc->nbodies = cc->particles.size();
+
+    // Count total number of particles as sanity check
+    if (DEBUG_SANITY) {
+      int nbodies1 = cc->nbodies, nbodies0=0;
+      MPI_Reduce(&nbodies1, &nbodies0, 1, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+      if (myid==0) {
+	if (nbodies0 != cc->nbodies_tot)
+	  std::cout << "pHOT::Repartition: leaving with total # mismatch" 
+		    << ", total number="    << nbodies0
+		    << ", expected number=" << cc->nbodies_tot
+		    << endl;
+      }
+    }
   }
 
-  if (false) {
+  if (DEBUG_CHECK) {
     checkIndices();
     if (!checkKeybods())
       cout << "Process " << myid 
 	   << ": particle key not in keybods list at T=" << tnow << endl;
   }
 
-  if (keys_debug) {		// Summary/diaganostic  output
+  if (DEBUG_KEYS) {		// Summary/diaganostic  output
 				//
     unsigned int nsiz = cc->Particles().size();
     unsigned int ksiz = keys.size();
@@ -2276,7 +2325,7 @@ void pHOT::makeCellLevelList()
     out << "Process " << myid << ": made level list with " << ng
 	<< " good cells out of " << nt << " expected" << endl;
 
-  if (DEBUG) {
+  if (DEBUG_EXTRA) {
     printCellLevelList(out);
     checkParticles(out);
   }
@@ -2362,7 +2411,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     cout << "Process " << myid << ": adjusted level list with " << ng
 	 << " good cells out of " << nt << " expected, " << ns
 	 << " cells moved" << endl;
-  if (DEBUG) {
+  if (DEBUG_EXTRA) {
     printCellLevelList(out);
     checkParticles(out);
   }
@@ -2476,7 +2525,8 @@ void pHOT::adjustTree(unsigned mlevel)
     Particle *p = cc->Part(*ip);
     if (p==0) {			// Sanity check
       cout << "Process " << myid 
-	   << ": pHOT::adjustTree: ERROR crazy particle index!" << endl;
+	   << ": pHOT::adjustTree: ERROR, requested particle index "
+	   << "does not exist!" << endl;
     }
     numkeys++;
     timer_keybods.stop();
@@ -2613,7 +2663,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #endif
 
 
-  if (DEBUG) {
+  if (DEBUG_CHECK) {
     if (!checkCellFrontier()) {
       cout << "pHOT::adjustTree, Node " << myid 
 	   << ": ERROR bodies point to cells that are not in the frontier"
@@ -2697,14 +2747,14 @@ void pHOT::adjustTree(unsigned mlevel)
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[adjustTree: crazy mass indx=" << part.indx 
-	     << ", key="
+	cout << "[adjustTree: crazy body indx=" << part.indx 
+	     << ", mass=" << part.mass << ", key="
 #ifdef INT128
 	     << part.key.toHex()
 #else
 	     << hex << part.key<< dec
 #endif
-	     << "]";
+	     << ", i=" << i << " out of " << Fcnt << "]";
       }
       
       cc->Particles()[part.indx] = part;
@@ -2715,8 +2765,9 @@ void pHOT::adjustTree(unsigned mlevel)
 	root->Add(newpair, &change);
       }
     }
+
+    // Refresh size of local particle list
     cc->nbodies = cc->particles.size();
-    
     
     timer_convert.stop();
   }
@@ -2738,7 +2789,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #endif
 
 
-  if (DEBUG) {
+  if (DEBUG_CHECK) {
     if (!checkCellFrontier()) {
       cout << "pHOT::adjustTree, Node " << myid 
 	   << ": ERROR bodies point to cells that are not in the frontier"
@@ -2929,7 +2980,7 @@ void pHOT::adjustTree(unsigned mlevel)
   GPTLstart("pHOT::cUpdate");
 #endif
 
-  if (DEBUG) {
+  if (DEBUG_CHECK) {
     if (!checkCellFrontier()) {
       cout << "pHOT::adjustTree, Node " << myid 
 	   << ": ERROR bodies point to cells that are not in the frontier"
@@ -2965,7 +3016,7 @@ void pHOT::adjustTree(unsigned mlevel)
   }
   change.clear();		// Reset the change list for next time
   
-  if (DEBUG) {
+  if (DEBUG_CHECK) {
 
     /*
     unsigned preLevlst = 0, preFrontier = 0;
@@ -3029,7 +3080,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #pragma omp parallel for default(shared)
   for (int i=0; i<removeL.size(); i++) {
     pCell *c = removeL[i];
-    if (DEBUG) {
+    if (DEBUG_CHECK) {
       if (clevlst.find(c) == clevlst.end()) {
 	std::cout << "pHOT::adjustTree: cell=" << std::hex << c
 		  << std::dec << " not in level list";
@@ -3045,7 +3096,7 @@ void pHOT::adjustTree(unsigned mlevel)
 #pragma omp critical
     {
       clevlst.erase(c);
-      if (DEBUG) {
+      if (DEBUG_CHECK) {
 	if (clevels[m].find(c) == clevels[m].end()) {
 	  std::cout << "pHOT::adjustTree(REMOVE) [" << omp_get_thread_num()
 		    << "]: cell=" << std::hex << c
@@ -3135,7 +3186,7 @@ void pHOT::adjustTree(unsigned mlevel)
 
   timer_tadjust.stop();
 
-  if (keys_debug) {		// Summary/diaganostic  output
+  if (DEBUG_KEYS) {		// Summary/diaganostic  output
 				//
     unsigned int nsiz = cc->Particles().size();
     vector<unsigned> nsize(numprocs);
@@ -3340,7 +3391,7 @@ bool pHOT::checkFrontier(ostream& out)
 bool pHOT::checkDupes1(const char *msg)
 {
   bool ret = false;
-  if (!keys_debug) return ret;
+  if (!DEBUG_KEYS) return ret;
   
   timer_diagdbg.start();
 
@@ -3537,7 +3588,7 @@ bool pHOT::checkKeybods()
       key_indx::iterator it = keybods.find(tpair);
 
       if (it==keybods.end()) {
-	if (DEBUG) {
+	if (DEBUG_NOISY) {
 	  cout << "Process " << myid << ": checkKeybods: " 
 	       << cnt << " unmatched particle, (x, y, z)=("
 	       << n->second.pos[0] << ", " << n->second.pos[1] 
@@ -3549,7 +3600,7 @@ bool pHOT::checkKeybods()
     }
   }
   
-  if (DEBUG && cnt) {
+  if (DEBUG_NOISY && cnt) {
     cout << "Process " << myid << ": checkKeybods: " 
 	 << cnt << " unmatched particles" << endl;
   }
@@ -3623,7 +3674,7 @@ bool pHOT::checkBodycell()
     if (it==bodycell.end()) {
       ok = false;
       cnt++;
-      if (DEBUG) {
+      if (DEBUG_NOISY) {
 	cout << "Process " << myid << ": checkBodycell: " 
 	     << cnt << " unmatched particle: key=" << hex
 	     << n->second.key << dec << " index=" 
@@ -3634,7 +3685,7 @@ bool pHOT::checkBodycell()
     }
   }
 
-  if (DEBUG && cnt) {
+  if (DEBUG_NOISY && cnt) {
     cout << "Process " << myid << ": checkBodycell: " 
 	 << cnt << " unmatched particles" << endl;
   }
@@ -3659,7 +3710,7 @@ bool pHOT::checkCellClevel(unsigned mlevel)
     }
   }
 
-  if (DEBUG && bad) {
+  if (DEBUG_NOISY && bad) {
     cout << "pHOT::checkCellClevel " << myid << ": "
 	 << bad << "/" << total << " unmatched cells" << endl;
   }
@@ -3711,7 +3762,7 @@ bool pHOT::checkCellClevelSanity(unsigned mlevel)
   if (size_mismatch || missing || error) {
     ok = false;
 
-    if (DEBUG) {
+    if (DEBUG_NOISY) {
       std::cout << "pHOT::checkCellClevelSanity, Node " << myid << ": ";
       if (size_mismatch)
 	std::cout << "expected " << expect.size() << " and found "
@@ -3751,7 +3802,7 @@ bool pHOT::checkCellFrontier()
 	if (c->isLeaf) {
 	  if (c->bods.size() == 0) {
 	    empty++;
-	    if (DEBUG) {
+	    if (DEBUG_NOISY) {
 	      std::cout << "Process " << myid << ": checkCellFrontier: " 
 			<< cnt << "/" << total << "---"
 			<< "cell key=" << std::hex << c->mykey << std::dec 
@@ -3760,7 +3811,7 @@ bool pHOT::checkCellFrontier()
 	  }
 	} else {
 	  branch++;
-	  if (DEBUG) {
+	  if (DEBUG_NOISY) {
 	    std::cout << "Process " << myid << ": checkCellFrontier: " 
 		      << cnt << "/" << total << "---"
 		      << "cell key=" << std::hex << c->mykey << std::dec 
@@ -3770,7 +3821,7 @@ bool pHOT::checkCellFrontier()
 	}
       } else {
 	missed++;
-	if (DEBUG) {
+	if (DEBUG_NOISY) {
 	  std::cout << "Process " << myid << ": checkCellFrontier: " 
 		    << cnt << "/" << total << "---"
 		    << " unmatched cell key=" 
@@ -3781,7 +3832,7 @@ bool pHOT::checkCellFrontier()
 
   if (empty || branch || missed || total != frontier.size()) {
     ok = false;
-    if (DEBUG) {
+    if (DEBUG_NOISY) {
       std::cout << "Process " << myid << ": checkCellFrontier: " 
 		<< cnt << "/" << total << " cells counted, " << found
 		<< " on frontier, " << empty << " empty leaves, "
@@ -3928,7 +3979,7 @@ void pHOT::spreadOOB()
     if (isnd == nsend.end() || ircv == nrecv.end()) break;
   }
 
-  if (DEBUG) checkOOB(sendlist);
+  if (DEBUG_CHECK) checkOOB(sendlist);
 
   unsigned Tcnt=0, Fcnt=0;
   for (int i=0; i<numprocs; i++) {
@@ -3942,7 +3993,7 @@ void pHOT::spreadOOB()
 
   // DEBUG (set to "true" to enable send/recv list diagnostic)
   //
-  if (false) {
+  if (DEBUG_EXTRA) {
     if (myid==0) {
       cout <<"--------------------------------------------------------"<< endl
 	   <<"---- spreadOOB" << endl
@@ -3972,7 +4023,6 @@ void pHOT::spreadOOB()
 	   << setw(70) << setfill('-') << "-" << endl << setfill(' ');    
     }
   }
-  // END DEBUG
 
 #ifdef USE_GPTL
   GPTLstart("pHOT::spreadOOB::exchange_particles");
@@ -4063,18 +4113,20 @@ void pHOT::spreadOOB()
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
       if (part.mass<=0.0 || isnan(part.mass)) {
-	cout << "[spreadOOB crazy mass indx=" << part.indx 
-	     << ", key="
+	cout << "[spreadOOB crazy body with indx=" << part.indx 
+	     << ", mass=" << part.mass << ", key="
 #ifdef INT128
 	     << part.key.toHex()
 #else
 	     << hex << part.key << dec
 #endif
-	     << "]";
+	     << ", i=" << i << " out of " << Fcnt << "]";
       }
       cc->Particles()[part.indx] = part;
       oob.insert(part.indx);
     }
+
+    // Refresh size of local particle list
     cc->nbodies = cc->particles.size();
   }
 
@@ -4094,7 +4146,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
 
 				// For diagnostics
   Timer *timer_debug;
-  if (keys_debug && myid==0) {
+  if (DEBUG_KEYS && myid==0) {
     timer_debug = new Timer(true);
     timer_debug->start();
   }
@@ -4147,9 +4199,9 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
   }
 
   // DEBUG 
-  // (set to keys_debug "true" at top of file to enable key range diagnostic)
+  // (set to DEBUG_KEYS "true" at top of file to enable key range diagnostic)
   //
-  if (keys_debug) {
+  if (DEBUG_KEYS) {
 
     timer_diagdbg.start();
 
@@ -4372,7 +4424,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
       pbeg[i] = pfin[i-1];
     }
       
-    if (keys_debug) {	 // If true, print key ranges for each process
+    if (DEBUG_KEYS) {	 // If true, print key ranges for each process
       ofstream out(debugf.c_str(), ios::app);
       unsigned nhead = 5 + 3*15 + 3*10 + 3*klen;
       out << setw(nhead) << setfill('-') << '-' << endl
@@ -4425,7 +4477,7 @@ void pHOT::partitionKeysHilbert(vector<key_wght>& keys,
   MPI_Bcast(&kfin[0], numprocs, MPI_EXP_KEYTYPE, 0, MPI_COMM_WORLD);
 
 
-  if (keys_debug) {		// If true, print key totals
+  if (DEBUG_KEYS) {		// If true, print key totals
     unsigned oobn = oobNumber();
     unsigned tkey1 = keys.size(), tkey0 = 0;
     MPI_Reduce(&tkey1, &tkey0, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -4528,7 +4580,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   // the number of processors
   // 
   int M2 = 1;
-  while (M2 < numprocs) M2 = M2*2;
+  while (M2*2 < numprocs) M2 = M2*2;
 
   // Combine the particles of the high nodes
   // with those of the lower nodes so that
@@ -4539,7 +4591,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   //
   if (myid >= M2) {
     n = initl.size();
-    if (1) {
+    if (barrier_debug) {
       std::cout << "pHOT::parallelMerge: myid=" << myid 
 		<< " sending " << n << " to id=" << myid-M2 << std::endl;
     }
@@ -4571,7 +4623,7 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
   //
   if (myid + M2 < numprocs) {
     MPI_Recv(&n, 1, MPI_UNSIGNED, myid+M2, 11, MPI_COMM_WORLD, &status);
-    if (1) {
+    if (barrier_debug) {
       std::cout << "pHOT::parallelMerge: myid=" << myid 
 		<< " received " << n << " from id=" << status.MPI_SOURCE
 		<< ", expected id=" << myid+M2 
@@ -4595,77 +4647,97 @@ void pHOT::parallelMerge(vector<key_wght>& initl, vector<key_wght>& final)
 				// data=data+new_data
       sortCombine(initl, recv, data);
 
-      if (1) {
+      if (0) {
 	std::cout << "pHOT::parallelMerge: myid=" << myid 
 		  << " completed sortCombine" << std::endl;
       }
     }
   }
 
-  //
-  // Now do the iterative binary merge
-  //
-  while (M2 > 1) {
+  (*barrier)("pHOT: parallelMerge, before interative merge", 
+	     __FILE__, __LINE__);
 
-    M2 = M2/2;
-
-    // When M2 = 1, we are on the the last iteration.
-    // The final node left will be the root with the entire sorted array.
+  if (myid < M2) {
 
     //
-    // The upper half of the nodes send to the lower half and is done
+    // Now do the iterative binary merge
     //
-    if (myid >= M2) {
-      n = data.size();
-      MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
-      if (n) {
-	vector<key_type> one(n);
-	vector<double>   two(n);
+    while (M2 > 1) {
 
-	for (unsigned k=0; k<n; k++) {
-	  one[k] = data[k].first;
-	  two[k] = data[k].second;
-	}
-	
-	MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12, 
-		 MPI_COMM_WORLD);
-	MPI_Send(&two[0], n, MPI_DOUBLE,      myid-M2, 13, 
-		 MPI_COMM_WORLD);
-      }
-#ifdef USE_GPTL
-      GPTLstop("pHOT::parallelMerge");
-#endif
-      return;
+      M2 = M2/2;
 
-    } else {
-      MPI_Recv(&n, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 11, MPI_COMM_WORLD, 
-	       &status);
-      if (n) {
-
-	vector<key_type> recv1(n);
-	vector<double>   recv2(n);
-
-
-	MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12, 
-		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-	MPI_Recv(&recv2[0], n, MPI_DOUBLE,      status.MPI_SOURCE, 13, 
-		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      // When M2 = 1, we are on the the last iteration.
+      // The final node left will be the root with the entire sorted array.
       
-	vector<key_wght> recv(n);
-	for (unsigned k=0; k<n; k++) {
-	  recv[k].first  = recv1[k];
-	  recv[k].second = recv2[k];
+      //
+      // The upper half of the nodes send to the lower half and is done
+      //
+      if (myid >= M2) {
+	n = data.size();
+	if (barrier_debug) {
+	  std::cout << "pHOT::parallelMerge: myid=" << myid 
+		    << " to send [" << n << "] to node=" << myid-M2 
+		    << std::endl;
 	}
+	MPI_Send(&n, 1, MPI_UNSIGNED, myid-M2, 11, MPI_COMM_WORLD);
+	if (n) {
+	  vector<key_type> one(n);
+	  vector<double>   two(n);
+	  
+	  for (unsigned k=0; k<n; k++) {
+	    one[k] = data[k].first;
+	    two[k] = data[k].second;
+	  }
+	  
+	  MPI_Send(&one[0], n, MPI_EXP_KEYTYPE, myid-M2, 12, 
+		   MPI_COMM_WORLD);
+	  MPI_Send(&two[0], n, MPI_DOUBLE,      myid-M2, 13, 
+		   MPI_COMM_WORLD);
+	}
+#ifdef USE_GPTL
+	GPTLstop("pHOT::parallelMerge");
+#endif
+	// return;
+	break;
 
-	//
-	// The lower half sorts and loop again
-	//
-	sortCombine(data, recv, work);
-	data = work;
+      } else {
+	MPI_Recv(&n, 1, MPI_UNSIGNED, MPI_ANY_SOURCE, 11, MPI_COMM_WORLD, 
+		 &status);
+	if (barrier_debug) {
+	  std::cout << "pHOT::parallelMerge: myid=" << myid 
+		    << " received [" << n << "] from node=" << status.MPI_SOURCE
+		    << std::endl;
+	}
+	if (n) {
+	  
+	  vector<key_type> recv1(n);
+	  vector<double>   recv2(n);
+
+	  
+	  MPI_Recv(&recv1[0], n, MPI_EXP_KEYTYPE, status.MPI_SOURCE, 12, 
+		   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  MPI_Recv(&recv2[0], n, MPI_DOUBLE,      status.MPI_SOURCE, 13, 
+		   MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  
+	  vector<key_wght> recv(n);
+	  for (unsigned k=0; k<n; k++) {
+	    recv[k].first  = recv1[k];
+	    recv[k].second = recv2[k];
+	  }
+	  
+	  //
+	  // The lower half sorts and loop again
+	  //
+	  sortCombine(data, recv, work);
+	  data = work;
+	}
       }
     }
   }
+
+  (*barrier)("pHOT: parallelMerge, after interative merge",
+	     __FILE__, __LINE__);
 
   //
   // We are done, return the result
@@ -4897,7 +4969,7 @@ void pHOT::adjustCounts(ostream& out)
 
 void pHOT::checkEffort(unsigned mlevel)
 {
-  if (!keys_debug) return;
+  if (!DEBUG_KEYS) return;
 
   timer_diagdbg.start();
 

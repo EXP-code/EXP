@@ -16,7 +16,7 @@ using namespace std;
 #include <gptl.h>
 #endif
 
-bool DEBUG = false;		// False for production
+static bool DEBUG      = false;	// False for production
 
 				// Use the original Pullin velocity 
 				// selection algorithm

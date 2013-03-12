@@ -161,9 +161,6 @@ public:
 
   static bool     sub_sample;
 
-  //! Print out partition diagnostics (default: false)
-  static bool     keys_debug;
-
   //! Print out sample cell diagnostics (default: false)
   static bool     samp_debug;
 
