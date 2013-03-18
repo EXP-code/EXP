@@ -377,7 +377,7 @@ Dump* PSPDump::NextDump()
 PSPstanza* PSPDump::GetStanza()
 {
   spos = fid->stanzas.begin();
-  cur = &(*spos);
+  cur  = &(*spos);
   if (spos != fid->stanzas.end()) 
     return cur;
   else 
@@ -422,7 +422,7 @@ SParticle *PSPDump::NextParticle(std::ifstream* in)
 PSPstanza* PSPDump::GetGas()
 {
   spos = fid->gas.begin();
-  cur = &(*spos);
+  cur  = &(*spos);
   if (spos != fid->gas.end()) 
     return cur;
   else 
@@ -442,7 +442,7 @@ PSPstanza* PSPDump::NextGas()
 PSPstanza* PSPDump::GetDark()
 {
   spos = fid->dark.begin();
-  cur = &(*spos);
+  cur  = &(*spos);
   if (spos != fid->dark.end()) 
     return cur;
   else 
@@ -462,7 +462,7 @@ PSPstanza* PSPDump::NextDark()
 PSPstanza* PSPDump::GetStar()
 {
   spos = fid->star.begin();
-  cur = &(*spos);
+  cur  = &(*spos);
   if (spos != fid->star.end()) 
     return cur;
   else 

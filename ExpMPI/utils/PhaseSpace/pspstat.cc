@@ -130,14 +130,13 @@ main(int argc, char **argv)
   double mass   = 0.0;
   int   totbod  = 0;
   
-  list<PSPstanza>::iterator its;
-  double rtmp;
-  int itmp;
-  
   in = new ifstream(argv[optind]);
 
-  for (its = psp.CurrentDump()->stanzas.begin(); 
-       its != psp.CurrentDump()->stanzas.end(); its++) {
+  PSPstanza *stanza;
+  SParticle* part;
+  double rtmp;
+
+  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
 
 
 				// Setup stats for each component
@@ -162,7 +161,7 @@ main(int argc, char **argv)
 				// -------------------
 
     ostringstream oname;
-    oname << cname << "." << its->name << '\0';
+    oname << cname << "." << stanza->name << '\0';
     ofstream out(oname.str().c_str());
     out.setf(ios::scientific);
     out.precision(10);
@@ -174,42 +173,34 @@ main(int argc, char **argv)
 
 				// Print the header
 
-    cout << "Comp name: " << its->name << endl
+    cout << "Comp name: " << stanza->name << endl
 	 << "     Bodies:\t\t"
-	 << setw(15) << its->comp.nbod 
-	 << setw(10) << its->comp.niatr 
-	 << setw(10) << its->comp.ndatr 
+	 << setw(15) << stanza->comp.nbod 
+	 << setw(10) << stanza->comp.niatr 
+	 << setw(10) << stanza->comp.ndatr 
 	 << endl;
 
-    totbod += its->comp.nbod;
+    totbod += stanza->comp.nbod;
 
 				// Position to beginning of particles
-    in->seekg(its->pspos);
+    in->seekg(stanza->pspos);
 
-    for (int j=0; j<its->comp.nbod; j++) {
-      in->read((char *)&ms, sizeof(double));
-      for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(double));
-      for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(double));
-      in->read((char *)&pot, sizeof(double));
-				// Dump these . . . 
-      for (int i=0; i<its->comp.niatr; i++) 
-	in->read((char *)&itmp, sizeof(int));
-      for (int i=0; i<its->comp.ndatr; i++) 
-	in->read((char *)&rtmp, sizeof(double));
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      mom[0] = pos[1]*vel[2] - pos[2]*vel[1];
-      mom[1] = pos[2]*vel[0] - pos[0]*vel[2];
-      mom[2] = pos[0]*vel[1] - pos[1]*vel[0];
+      mom[0] = part->pos(1)*part->vel(2) - part->pos(2)*part->vel(1);
+      mom[1] = part->pos(2)*part->vel(0) - part->pos(0)*part->vel(2);
+      mom[2] = part->pos(0)*part->vel(1) - part->pos(1)*part->vel(0);
 
 				// Accumulate statistics
+      double ms = part->mass();
       mass1 += ms;
-      for (int i=0; i<3; i++) com1[i] += ms*pos[i];
-      for (int i=0; i<3; i++) cov1[i] += ms*vel[i];
+      for (int i=0; i<3; i++) com1[i] += ms*part->pos(i);
+      for (int i=0; i<3; i++) cov1[i] += ms*part->vel(i);
       for (int i=0; i<3; i++) ang1[i] += ms*mom[i];
       rtmp = 0.0;
-      for (int i=0; i<3; i++) rtmp += vel[i]*vel[i];
+      for (int i=0; i<3; i++) rtmp += part->vel(i)*part->vel(i);
       KE1 += 0.5*ms*rtmp;
-      PE1 += 0.5*ms*pot;
+      PE1 += 0.5*ms*part->phi();
     }
     
     cout  << "     COM:\t\t";

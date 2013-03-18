@@ -176,7 +176,6 @@ main(int argc, char **argv)
   in = new ifstream(argv[optind]);
 
   
-  list<PSPstanza>::iterator its;
   double rtmp, mass, fac, dp=(pmax - pmin)/numb;
   vector<double> pos(3), vel(3);
   int itmp, icnt, iv;
@@ -186,41 +185,25 @@ main(int argc, char **argv)
 
   vector<float> value(numb, 0), bmass(numb, 0);
 
-  for (its = psp.CurrentDump()->stanzas.begin(); 
-       its != psp.CurrentDump()->stanzas.end(); its++) {
+  PSPstanza *stanza;
+  SParticle* part;
 
-    if (its->name != cname) continue;
+  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    
+    if (stanza->name != cname) continue;
 
 
 				// Position to beginning of particles
-    in->seekg(its->pspos);
+    in->seekg(stanza->pspos);
 
-    icnt = 0;
-    vector<double> vals;
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-    for (int j=0; j<its->comp.nbod; j++) {
-      in->read((char *)&mass, sizeof(double));
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&pos[i], sizeof(double));
-      }
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&vel[i], sizeof(double));
-      }
-      in->read((char *)&rtmp, sizeof(double));
-      vals.push_back(rtmp);
-      for (int i=0; i<its->comp.niatr; i++) {
-	in->read((char *)&itmp, sizeof(int));
-	vals.push_back(itmp);
-      }
-      for (int i=0; i<its->comp.ndatr; i++) {
-	in->read((char *)&rtmp, sizeof(double));
-	vals.push_back(rtmp);
-      }      
+      if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
 
-      if (pos[axis-1]<pmin || pos[axis-1]>=pmax) continue;
-
-      iv = static_cast<int>( floor( (pos[axis-1] - pmin)/dp ) );
+      iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
       
+      double mass = part->mass();
+
       if (mweight) {
 	bmass[iv] += mass;
 	fac = mass;
@@ -232,11 +215,13 @@ main(int argc, char **argv)
       if (comp == 0)
 	value[iv] += fac*mass;
       else if (comp <= 3)
-	value[iv] += fac*pos[comp-1];
+	value[iv] += fac*part->pos(comp-1);
       else if (comp <= 6)
-	value[iv] += fac*vel[comp-4];
+	value[iv] += fac*part->vel(comp-4);
+      else if (comp <= 7 + part->niatr())
+	value[iv] += fac*part->iatr(comp-7);
       else
-	value[iv] += fac*vals[comp-7];
+	value[iv] += fac*part->iatr(comp-7-part->niatr());
     }
     
   }

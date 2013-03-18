@@ -31,10 +31,12 @@ string outdir, runtag;
 //-------------
 
 void Usage(char* prog) {
-  cerr << prog << ": [-t time -s -v -h] filename\n\n";
+  cerr << prog << ": [-t time -4 -8 -s -v -h] filename\n\n";
   cerr << "    -t time         use dump closest to <time>\n";
   cerr << "    -s              add a cparam string (prompts user)\n";
   cerr << "    -h              print this help message\n";
+  cerr << "    -4              use float for real values\n";
+  cerr << "    -8              use double for real values (default)\n";
   cerr << "    -v              verbose output\n\n";
   exit(0);
 }
@@ -42,17 +44,18 @@ void Usage(char* prog) {
 int
 main(int argc, char **argv)
 {
-  char *prog = argv[0];
-  double time=1e20;
+  char *prog      = argv[0];
+  double time     = 1e20;
+  bool use_float  = false;
   bool add_cparam = false;
-  bool verbose = false;
+  bool verbose    = false;
   
 
   // Parse command line
 
   while (1) {
 
-    int c = getopt(argc, argv, "t:svh");
+    int c = getopt(argc, argv, "t:s48vh");
 
     if (c == -1) break;
 
@@ -68,6 +71,14 @@ main(int argc, char **argv)
 
     case 'v':
       verbose = true;
+      break;
+
+    case '4':
+      use_float = true;
+      break;
+
+    case '8':
+      use_float = false;
       break;
 
     case '?':
@@ -115,75 +126,47 @@ main(int argc, char **argv)
   {
     cout.write((char *)&psp.CurrentDump()->header, sizeof(MasterHeader));
     
-    double rtmp;
-    int itmp;
+    PSPstanza *stanza;
+    SParticle* part;
 
-    list<PSPstanza>::iterator its;
-
-    for (its = psp.CurrentDump()->stanzas.begin(); 
-	 its != psp.CurrentDump()->stanzas.end(); its++) {
+    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
 
 				// Position to header
-      in->seekg(its->pos);
+      in->seekg(stanza->pos);
       
-      ComponentHeader headerC;
-      if (!headerC.read(in)) {
-	cerr << "Error reading header\n";
-	exit(-1);
-      }
-
       if (add_cparam) {
 
 	cerr <<"===================================================" << endl
-	     << "Name=" << its->name << endl
-	     << "ID=" << its->id << endl
-	     << "Current cparam string=" << its->cparam << endl
+	     << "Name=" << stanza->name << endl
+	     << "ID=" << stanza->id << endl
+	     << "Current cparam string=" << stanza->cparam << endl
 	     << "Enter new cparam string: ";
 	char line[1024];
 	cin.getline(line, 1024);
-	its->cparam = line;
+	stanza->cparam = line;
 
 	string delim = " : ";
 	string infostr = 
-	  its->name + delim + 
-	  its->id + delim + 
-	  its->cparam + delim + 
-	  its->fparam + '\0';
-	if (infostr.size() > headerC.ninfochar) {
-	  headerC.ninfochar = infostr.size() + 1;
-	  headerC.info = 
-	    boost::shared_array<char>(new char [headerC.ninfochar]);
+	  stanza->name + delim + 
+	  stanza->id + delim + 
+	  stanza->cparam + delim + 
+	  stanza->fparam + '\0';
+	if (infostr.size() > stanza->comp.ninfochar) {
+	  stanza->comp.ninfochar = infostr.size() + 1;
+	  stanza->comp.info = 
+	    boost::shared_array<char>(new char [stanza->comp.ninfochar]);
 	}
-	strcpy(headerC.info.get(), infostr.c_str());
+	strcpy(stanza->comp.info.get(), infostr.c_str());
       }
 
-      headerC.write(&cout);
+      stanza->comp.write(&std::cout);
 
 				// Position to beginning of particles
-      in->seekg(its->pspos);
+      in->seekg(stanza->pspos);
 
-      for (int i=0; i<its->comp.nbod; i++) {
-	in->read((char *)&rtmp, sizeof(double));
-	cout.write((char *)&rtmp, sizeof(double));
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  cout.write((char *)&rtmp, sizeof(double));
-	}
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  cout.write((char *)&rtmp, sizeof(double));
-	}
-	in->read((char *)&rtmp, sizeof(double));
-	cout.write((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->comp.niatr; i++) {
-	  in->read((char *)&itmp, sizeof(double));
-	  cout.write((char *)&itmp, sizeof(int));
-	}
-	for (int i=0; i<its->comp.ndatr; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  cout.write((char *)&rtmp, sizeof(double));
-	}      
-      }
+				// Write the particles
+      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in))
+	part->write(&std::cout, use_float, stanza->index_size);
     }
 
   }

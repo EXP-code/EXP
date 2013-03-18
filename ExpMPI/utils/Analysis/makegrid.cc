@@ -114,11 +114,11 @@ double tnow = 0.0;
 
 int main(int argc, char**argv)
 {
-  int numx=20, numy=20, numz=20;
+  int numx=20, numy=20, numz=20, numr;
   double xmin=-1.0, xmax=1.0;
   double ymin=-1.0, ymax=1.0;
   double zmin=-1.0, zmax=1.0;
-  double vscale = 1.0;
+  double vscale = 1.0, rmin, rmax;
   string infile("OUT.bin");
   string outfile("OUT");
   string cname, dname, sname;
@@ -152,6 +152,8 @@ int main(int argc, char**argv)
      "number of bins in y direction")
     ("numz,3", po::value<int>(&numz)->default_value(20), 
      "number of bins in z direction")
+    ("numr,0", po::value<int>(&numr)->default_value(20), 
+     "number of bins in each coordinate direction")
     ("xmin,x", po::value<double>(&xmin)->default_value(-1.0), 
      "minimum x value")
     ("xmax,X", po::value<double>(&xmax)->default_value(1.0), 
@@ -164,6 +166,10 @@ int main(int argc, char**argv)
      "minimum z value")
     ("zmax,Z", po::value<double>(&zmax)->default_value(1.0), 
      "maximum z value")
+    ("rmin,r", po::value<double>(&rmin)->default_value(-1.0), 
+     "minimum coord value for all dimensions")
+    ("rmax,R", po::value<double>(&rmax)->default_value(1.0), 
+     "maximum coord value for all dimensions")
     ("vscale,V", po::value<double>(&vscale)->default_value(1.0), 
      "vertical scale factor")
     ("time,t", po::value<double>(&time)->default_value(0.0), 
@@ -210,6 +216,10 @@ int main(int argc, char**argv)
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
+
+  if (vm.count("rmin")) xmin = ymin = zmin = rmin;
+  if (vm.count("rmax")) xmax = ymax = zmax = rmax;
+  if (vm.count("numr")) numx = numy = numz = numr;
 
   ifstream *in = new ifstream(infile.c_str());
   if (!*in) {

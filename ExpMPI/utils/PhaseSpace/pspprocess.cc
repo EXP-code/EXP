@@ -193,7 +193,6 @@ main(int argc, char **argv)
 				// -----------------------------
     in.open(fname);
     
-    list<PSPstanza>::iterator its;
     double rtmp;
     int itmp;
     
@@ -201,55 +200,41 @@ main(int argc, char **argv)
     vector<double> LTOT(3, 0.0), LIN(3, 0.0), LOUT(3, 0.0), VIN(3, 0.0), VOUT(3, 0.0);
     double mass, M=0.0, MIN=0.0, MOUT=0.0, r;
     
-    for (its = psp.CurrentDump()->stanzas.begin();
-	 its != psp.CurrentDump()->stanzas.end(); its++) {
-      
-      if (cname != its->name) continue;
+  PSPstanza *stanza;
+  SParticle* part;
 
+  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
 
+    if (cname != stanza->name) continue;
+    
 				// Position to beginning of particles
-      in.seekg(its->pspos);
-      for (int j=0; j<its->comp.nbod; j++) {
+    in.seekg(stanza->pspos);
 
-	in.read((char *)&mass, sizeof(double));
+    int j = 0;
+    for (part=psp.GetParticle(&in); part!=0; part=psp.NextParticle(&in), j++) {
 
-	for (int i=0; i<3; i++) {
-	  in.read((char *)&pos[i], sizeof(double));
-	}
-	r = sqrt(pos[0]*pos[0] + pos[1]*pos[1]);
+      double mass = part->mass();
+      double r    = sqrt(part->pos(0)*part->pos(0)+part->pos(1)*part->pos(1));
 
-	for (int i=0; i<3; i++)
-	  in.read((char *)&vel[i], sizeof(double));
-
-	in.read((char *)&rtmp, sizeof(double));
-
-	for (int i=0; i<its->comp.niatr; i++) {
-	  in.read((char *)&itmp, sizeof(int));
-	}
-
-	for (int i=0; i<its->comp.ndatr; i++) {
-	  in.read((char *)&rtmp, sizeof(double));
-	}      
-	
-	// Compute angular momentum for this particle
-	angmom[0] = mass*(pos[1]*vel[2] - pos[2]*vel[1]);
-	angmom[1] = mass*(pos[2]*vel[0] - pos[0]*vel[2]);
-	angmom[2] = mass*(pos[0]*vel[1] - pos[1]*vel[0]);
-	
-	// Add to total
-	M += mass;
-	for (int i=0; i<3; i++) LTOT[i] += angmom[i];
+      // Compute angular momentum for this particle
+      angmom[0] = mass*(part->pos(1)*part->vel(2) - part->pos(2)*part->vel(1));
+      angmom[1] = mass*(part->pos(2)*part->vel(0) - part->pos(0)*part->vel(2));
+      angmom[2] = mass*(part->pos(0)*part->vel(1) - part->pos(1)*part->vel(0));
+      
+      // Add to total
+      M += mass;
+      for (int i=0; i<3; i++) LTOT[i] += angmom[i];
 
 	// Subset
 	if (j>=initial && j<final) {
 				// Inner disk
-	  if (r < rmax && fabs(pos[2]) < zmax) {
+	  if (r < rmax && fabs(part->pos(2)) < zmax) {
 	    MIN += mass;
-	    for (int i=0; i<3; i++) VIN[i] += mass*vel[i];
+	    for (int i=0; i<3; i++) VIN[i] += mass*part->vel(i);
 	    for (int i=0; i<3; i++) LIN[i] += angmom[i];
 	  } else {		// Outer disk
 	    MOUT += mass;
-	    for (int i=0; i<3; i++) VOUT[i] += mass*vel[i];
+	    for (int i=0; i<3; i++) VOUT[i] += mass*part->vel(i);
 	    for (int i=0; i<3; i++) LOUT[i] += angmom[i];
 	  }
 	}

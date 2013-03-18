@@ -194,10 +194,9 @@ main(int argc, char **argv)
   in = new ifstream(argv[optind]);
 
   
-  list<PSPstanza>::iterator its;
   double rtmp, mass, fac, val, dx=(xmax - xmin)/numx, dy=(ymax - ymin)/numy;
   vector<double> pos(3), vel(3);
-  int itmp, icnt, ix, iy;
+  int itmp, ix, iy;
 
 				// Make the array
 				// --------------
@@ -208,46 +207,28 @@ main(int argc, char **argv)
     bmass[j] = vector<float>(numx, 0);
   }
 
-  for (its = psp.CurrentDump()->stanzas.begin(); 
-       its != psp.CurrentDump()->stanzas.end(); its++) {
+  PSPstanza *stanza;
+  SParticle* part;
 
-    if (its->name != cname) continue;
+  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    
+    if (stanza->name != cname) continue;
 
 
 				// Position to beginning of particles
-    in->seekg(its->pspos);
+    in->seekg(stanza->pspos);
 
-    icnt = 0;
-    vector<double> vals;
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-    for (int j=0; j<its->comp.nbod; j++) {
-      in->read((char *)&mass, sizeof(double));
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&pos[i], sizeof(double));
-      }
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&vel[i], sizeof(double));
-      }
-      in->read((char *)&rtmp, sizeof(double));
-      vals.push_back(rtmp);
-      for (int i=0; i<its->comp.niatr; i++) {
-	in->read((char *)&itmp, sizeof(int));
-	vals.push_back(itmp);
-      }
-      for (int i=0; i<its->comp.ndatr; i++) {
-	in->read((char *)&rtmp, sizeof(double));
-	vals.push_back(rtmp);
-      }      
+      if (part->pos(0)<xmin || part->pos(0)>=xmax) continue;
+      if (part->pos(1)<ymin || part->pos(1)>=ymax) continue;
+      if (part->pos(2)<zmin || part->pos(2)>=zmax) continue;
 
-      if (pos[0]<xmin || pos[0]>=xmax) continue;
-      if (pos[1]<ymin || pos[1]>=ymax) continue;
-      if (pos[2]<zmin || pos[2]>=zmax) continue;
-
-      ix = static_cast<int>( floor( (pos[0] - xmin)/dx ) );
-      iy = static_cast<int>( floor( (pos[1] - ymin)/dy ) );
+      ix = static_cast<int>( floor( (part->pos(0) - xmin)/dx ) );
+      iy = static_cast<int>( floor( (part->pos(1) - ymin)/dy ) );
       
       if (mweight) {
-	bmass[iy][ix] += mass;
+	bmass[iy][ix] += part->mass();
 	fac = mass;
       } else {
 	bmass[iy][ix] += 1.0;
@@ -255,13 +236,15 @@ main(int argc, char **argv)
       }
 
       if (comp == 0)
-	value[iy][ix] += fac*mass;
+	value[iy][ix] += fac*part->mass();
       else if (comp <= 3)
-	value[iy][ix] += fac*pos[comp-1];
+	value[iy][ix] += fac*part->pos(comp-1);
       else if (comp <= 6)
-	value[iy][ix] += fac*vel[comp-4];
+	value[iy][ix] += fac*part->vel(comp-4);
+      else if (comp <= 7 + part->niatr())
+	value[iy][ix] += fac*part->iatr(comp-7);
       else
-	value[iy][ix] += fac*vals[comp-7];
+	value[iy][ix] += fac*part->datr(comp-7-part->niatr());
     }
     
   }

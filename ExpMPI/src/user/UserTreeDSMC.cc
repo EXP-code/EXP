@@ -580,16 +580,18 @@ void UserTreeDSMC::initialize()
   std::map<int, string> vals;
   if ((vals=get_value_array("spc")).size()) {
     std::map<int, string>::iterator it=vals.begin();
-    for (; it != vals.end(); it++)
-      {
-	try {
-	  collFrac[it->first] = boost::lexical_cast<double>(it->second);
-	} 
-	catch( boost::bad_lexical_cast const& ) {
-	  std::cout << "UserTreeDSMC::initialize: bad double value, "
-		    << "input string was: " << it->second << std::endl;
-	}
+    while (it != vals.end()) {
+      try {
+	collFrac[it->first] = boost::lexical_cast<double>(it->second);
+      } 
+      catch( boost::bad_lexical_cast const& ) {
+	std::cout << "UserTreeDSMC::initialize: bad double value, "
+		  << "input string was: " << it->second << std::endl;
       }
+    }
+    it++;
+  } else {
+    collFrac[-1] = 1.0;
   }
 }
 

@@ -1,917 +1,915 @@
-#include <values.h>
-#include <iostream>
-#include <iomanip>
-#include <sstream>
-#include <cmath>
-
-using namespace std;
-
-#include "Timer.h"
-#include "global.H"
-#include "pHOT.H"
-#include "UserTreeDSMC.H"
-#include "Collide.H"
-
-#ifdef USE_GPTL
-#include <gptl.h>
-#endif
-
-static bool DEBUG      = false;	// False for production
-
-				// Use the original Pullin velocity 
-				// selection algorithm
-bool Collide::PULLIN   = false;
-				// Use the explicit energy solution
-bool Collide::ESOL     = false;
-				// Print out sorted cell parameters
-bool Collide::SORTED   = false;
-				// Print out T-rho plane for cells 
-				// with mass weighting
-bool Collide::PHASE    = false;
-				// Extra debugging output
-bool Collide::EXTRA    = false;
-				// Turn off collisions for testing
-bool Collide::DRYRUN   = false;
-				// Turn off cooling for testing
-bool Collide::NOCOOL   = false;
-				// Ensemble-based excess cooling
-bool Collide::ENSEXES  = true;
-				// Time step diagnostics
-bool Collide::TSDIAG   = false;
-				// Cell-volume diagnostics
-bool Collide::VOLDIAG  = false;
-				// CBA length scale diagnostics
-bool Collide::CBADIAG  = false;
-				// Mean free path diagnostics
-bool Collide::MFPDIAG  = false;
-				// Sample based on maximum (true) or estimate
-				// from variance (false);
-bool Collide::NTC      = false;
-				// Use cpu work to augment per particle effort
-bool Collide::EFFORT   = true;	
-				// Verbose timing
-bool Collide::TIMING   = true;
-				// Temperature floor in EPSM
-double Collide::TFLOOR = 1000.0;
-
-double 				// Enhance (or suppress) fiducial cooling rate
-Collide::ENHANCE       = 1.0;
-				// Power of two interval for KE/cool histogram
-int Collide::TSPOW     = 4;
-				// Proton mass (g)
-const double mp        = 1.67262158e-24;
-				// Boltzmann constant (cgs)
-const double boltz     = 1.3810e-16;
-
-
-extern "C"
-void *
-collide_thread_call(void *atp)
-{
-  thrd_pass_Collide *tp = (thrd_pass_Collide *)atp;
-  Collide *p = (Collide *)tp->p;
-  p -> collide_thread((void*)&tp->arg);
-  return NULL;
-}
-
-void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
-{
-  int errcode;
-  void *retval;
-  
-  if (nthrds==1) {
-    thrd_pass_Collide td;
-    
-    td.p        = this;
-    td.arg.tree = tree;
-    td.arg.fn   = Fn;
-    td.arg.tau  = tau;
-    td.arg.id   = 0;
-
-    collide_thread_call(&td);
-
-    return;
-  }
-
-  td = new thrd_pass_Collide [nthrds];
-  t = new pthread_t [nthrds];
-
-  if (!td) {
-    cerr << "Process " << myid 
-         << ": collide_thread_fork: error allocating memory for thread counters\n";
-    exit(18);
-  }
-  if (!t) {
-    cerr << "Process " << myid
-         << ": collide_thread_fork: error allocating memory for thread\n";
-    exit(18);
-  }
-
-                                // Make the <nthrds> threads
-  for (int i=0; i<nthrds; i++) {
-    td[i].p        = this;
-    td[i].arg.tree = tree;
-    td[i].arg.fn   = Fn;
-    td[i].arg.tau  = tau;
-    td[i].arg.id   = i;
-
-    errcode =  pthread_create(&t[i], 0, collide_thread_call, &td[i]);
-    if (errcode) {
-      cerr << "Process " << myid;
-      cerr << " collide: cannot make thread " << i
-	   << ", errcode=" << errcode << endl;
-      exit(19);
-    }
-  }
-    
-  if (DEBUG)
-    cerr << "Process " << myid << ": " << nthrds << " threads created"
-	 << std::endl;
-
-
-  waitTime.start();
+ #include <values.h>
+ #include <iostream>
+ #include <iomanip>
+ #include <sstream>
+ #include <cmath>
+
+ using namespace std;
+
+ #include "Timer.h"
+ #include "global.H"
+ #include "pHOT.H"
+ #include "UserTreeDSMC.H"
+ #include "Collide.H"
+
+ #ifdef USE_GPTL
+ #include <gptl.h>
+ #endif
+
+ static bool DEBUG      = false;	// False for production
+
+				 // Use the original Pullin velocity 
+				 // selection algorithm
+ bool Collide::PULLIN   = false;
+				 // Use the explicit energy solution
+ bool Collide::ESOL     = false;
+				 // Print out sorted cell parameters
+ bool Collide::SORTED   = false;
+				 // Print out T-rho plane for cells 
+				 // with mass weighting
+ bool Collide::PHASE    = false;
+				 // Extra debugging output
+ bool Collide::EXTRA    = false;
+				 // Turn off collisions for testing
+ bool Collide::DRYRUN   = false;
+				 // Turn off cooling for testing
+ bool Collide::NOCOOL   = false;
+				 // Ensemble-based excess cooling
+ bool Collide::ENSEXES  = true;
+				 // Time step diagnostics
+ bool Collide::TSDIAG   = false;
+				 // Cell-volume diagnostics
+ bool Collide::VOLDIAG  = false;
+				 // CBA length scale diagnostics
+ bool Collide::CBADIAG  = false;
+				 // Mean free path diagnostics
+ bool Collide::MFPDIAG  = false;
+				 // Sample based on maximum (true) or estimate
+				 // from variance (false);
+ bool Collide::NTC      = false;
+				 // Use cpu work to augment per particle effort
+ bool Collide::EFFORT   = true;	
+				 // Verbose timing
+ bool Collide::TIMING   = true;
+				 // Temperature floor in EPSM
+ double Collide::TFLOOR = 1000.0;
+
+ double 				// Enhance (or suppress) fiducial cooling rate
+ Collide::ENHANCE       = 1.0;
+				 // Power of two interval for KE/cool histogram
+ int Collide::TSPOW     = 4;
+				 // Proton mass (g)
+ const double mp        = 1.67262158e-24;
+				 // Boltzmann constant (cgs)
+ const double boltz     = 1.3810e-16;
+
+
+ extern "C"
+ void *
+ collide_thread_call(void *atp)
+ {
+   thrd_pass_Collide *tp = (thrd_pass_Collide *)atp;
+   Collide *p = (Collide *)tp->p;
+   p -> collide_thread((void*)&tp->arg);
+   return NULL;
+ }
+
+ void Collide::collide_thread_fork(pHOT* tree, map<int, double>* Fn, double tau)
+ {
+   int errcode;
+   void *retval;
+
+   if (nthrds==1) {
+     thrd_pass_Collide td;
+
+     td.p        = this;
+     td.arg.tree = tree;
+     td.arg.fn   = Fn;
+     td.arg.tau  = tau;
+     td.arg.id   = 0;
+
+     collide_thread_call(&td);
+
+     return;
+   }
+
+   td = new thrd_pass_Collide [nthrds];
+   t = new pthread_t [nthrds];
+
+   if (!td) {
+     cerr << "Process " << myid 
+	  << ": collide_thread_fork: error allocating memory for thread counters\n";
+     exit(18);
+   }
+   if (!t) {
+     cerr << "Process " << myid
+	  << ": collide_thread_fork: error allocating memory for thread\n";
+     exit(18);
+   }
 
-                                // Collapse the threads
-  for (int i=0; i<nthrds; i++) {
-    if ((errcode=pthread_join(t[i], &retval))) {
-      cerr << "Process " << myid;
-      cerr << " collide: thread join " << i
-           << " failed, errcode=" << errcode << endl;
-      exit(20);
-    }
-    if (i==0) {
-      waitSoFar = waitTime.stop();
-      joinTime.start();
-    }
-  }
-  
-  if (DEBUG)
-    cerr << "Process " << myid << ": " << nthrds << " threads joined"
-	 << std::endl;
+				 // Make the <nthrds> threads
+   for (int i=0; i<nthrds; i++) {
+     td[i].p        = this;
+     td[i].arg.tree = tree;
+     td[i].arg.fn   = Fn;
+     td[i].arg.tau  = tau;
+     td[i].arg.id   = i;
 
+     errcode =  pthread_create(&t[i], 0, collide_thread_call, &td[i]);
+     if (errcode) {
+       cerr << "Process " << myid;
+       cerr << " collide: cannot make thread " << i
+	    << ", errcode=" << errcode << endl;
+       exit(19);
+     }
+   }
 
-  joinSoFar = joinTime.stop();
+   if (DEBUG)
+     cerr << "Process " << myid << ": " << nthrds << " threads created"
+	  << std::endl;
 
-  delete [] td;
-  delete [] t;
-}
 
+   waitTime.start();
 
-bool     Collide::CBA       = true;
-double   Collide::EPSMratio = -1.0;
-unsigned Collide::EPSMmin   = 0;
+				 // Collapse the threads
+   for (int i=0; i<nthrds; i++) {
+     if ((errcode=pthread_join(t[i], &retval))) {
+       cerr << "Process " << myid;
+       cerr << " collide: thread join " << i
+	    << " failed, errcode=" << errcode << endl;
+       exit(20);
+     }
+     if (i==0) {
+       waitSoFar = waitTime.stop();
+       joinTime.start();
+     }
+   }
 
-Collide::Collide(ExternalForce *force, double diameter, int nth)
-{
-  caller = force;
-  nthrds = nth;
+   if (DEBUG)
+     cerr << "Process " << myid << ": " << nthrds << " threads joined"
+	  << std::endl;
 
-  // Counts the total number of collisions
-  colcntT = vector< vector<unsigned> > (nthrds);
 
-  // Total number of particles processsed
-  numcntT = vector< vector<unsigned> > (nthrds);
-
-  // Total velocity dispersion (i.e. mean temperature)
-  tdispT  = vector< vector<double> >   (nthrds);
-
-  // Number of collisions with inconsistencies (only meaningful for LTE)
-  error1T = vector<unsigned> (nthrds, 0);
-
-  // Number of particles selected for collision
-  sel1T   = vector<unsigned> (nthrds, 0);
-
-  // Number of particles actually collided
-  col1T   = vector<unsigned> (nthrds, 0);
-
-  // Number of particles processed by the EPSM algorithm
-  epsm1T  = vector<unsigned> (nthrds, 0);
-
-  // Number of cells processed by the EPSM algorithm
-  Nepsm1T = vector<unsigned> (nthrds, 0);
-
-  // Total mass of processed particles
-  tmassT  = vector<double>   (nthrds, 0);
-
-  // True energy lost to dissipation (i.e. radiation)
-  decolT  = vector<double>   (nthrds, 0);
-
-  // Full energy lost to dissipation (i.e. radiation) 
-  decelT  = vector<double>   (nthrds, 0);
-
-  // Energy excess (true energy)
-  exesCT  = vector<double>   (nthrds, 0);
-
-  // Energy excess (full energy)
-  exesET  = vector<double>   (nthrds, 0);
-
-  if (MFPDIAG) {
-    // List of ratios of free-flight length to cell size
-    tsratT  = vector< vector<double> >  (nthrds);
-
-    // List of fractional changes in KE per cell
-    keratT  = vector< vector<double> >  (nthrds);
-
-    // List of cooling excess to KE per cell
-    deratT  = vector< vector<double> >  (nthrds);
-
-    // List of densities in each cell
-    tdensT  = vector< vector<double> >  (nthrds);
-
-    // List of cell volumes
-    tvolcT  = vector< vector<double> >  (nthrds);
-
-    // Temperature per cell; assigned in derived class instance
-    ttempT  = vector< vector<double> >  (nthrds);
-
-    // List of change in energy per cell due to cooling (for LTE only)
-    tdeltT  = vector< vector<double> >  (nthrds);
-
-    // List of collision selections per particle
-    tselnT  = vector< vector<double> >  (nthrds);
-
-    // List of cell diagnostic info per cell
-    tphaseT = vector< vector<Precord> > (nthrds);
-
-    // List of mean-free path info per cell
-    tmfpstT = vector< vector<Precord> > (nthrds);
-  }
-
-  cellist = vector< vector<pCell*> > (nthrds);
-
-  diam = diameter;
-
-  seltot    = 0;	      // Count estimated collision targets
-  coltot    = 0;	      // Count total collisions
-  errtot    = 0;	      // Count errors in inelastic computation
-  epsmcells = 0;	      // Count cells in EPSM regime
-  epsmtot   = 0;	      // Count particles in EPSM regime
-
-				// EPSM diagnostics
-  lostSoFar_EPSM = vector<double>(nthrds, 0.0);
-
-  if (EPSMratio> 0) use_epsm = true;
-  else              use_epsm = false;
-
-  // 
-  // TIMERS
-  //
-
-  diagTime.Microseconds();
-  snglTime.Microseconds();
-  forkTime.Microseconds();
-  waitTime.Microseconds();
-  joinTime.Microseconds();
-
-  stepcount = 0;
-  bodycount = 0;
-
-  listTime   = vector<Timer>(nthrds);
-  initTime   = vector<Timer>(nthrds);
-  collTime   = vector<Timer>(nthrds);
-  elasTime   = vector<Timer>(nthrds);
-  stat1Time  = vector<Timer>(nthrds);
-  stat2Time  = vector<Timer>(nthrds);
-  stat3Time  = vector<Timer>(nthrds);
-  coolTime   = vector<Timer>(nthrds);
-  cellTime   = vector<Timer>(nthrds);
-  curcTime   = vector<Timer>(nthrds);
-  epsmTime   = vector<Timer>(nthrds);
-  listSoFar  = vector<TimeElapsed>(nthrds);
-  initSoFar  = vector<TimeElapsed>(nthrds);
-  collSoFar  = vector<TimeElapsed>(nthrds);
-  elasSoFar  = vector<TimeElapsed>(nthrds);
-  cellSoFar  = vector<TimeElapsed>(nthrds);
-  curcSoFar  = vector<TimeElapsed>(nthrds);
-  epsmSoFar  = vector<TimeElapsed>(nthrds);
-  stat1SoFar = vector<TimeElapsed>(nthrds);
-  stat2SoFar = vector<TimeElapsed>(nthrds);
-  stat3SoFar = vector<TimeElapsed>(nthrds);
-  coolSoFar  = vector<TimeElapsed>(nthrds);
-  collCnt    = vector<int>(nthrds, 0);
-
-  EPSMT      = vector< vector<Timer> >(nthrds);
-  EPSMTSoFar = vector< vector<TimeElapsed> >(nthrds);
-  for (int n=0; n<nthrds; n++) {
-    EPSMT[n] = vector<Timer>(nEPSMT);
-    for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
-    EPSMTSoFar[n] = vector<TimeElapsed>(nEPSMT);
-  }  
-
-  for (int n=0; n<nthrds; n++) {
-    listTime [n].Microseconds();
-    initTime [n].Microseconds();
-    collTime [n].Microseconds();
-    elasTime [n].Microseconds();
-    stat1Time[n].Microseconds();
-    stat2Time[n].Microseconds();
-    stat3Time[n].Microseconds();
-    coolTime [n].Microseconds();
-    cellTime [n].Microseconds();
-    curcTime [n].Microseconds();
-    epsmTime [n].Microseconds();
-  }
-  
-  if (TSDIAG) {
-    // Accumulate distribution log ratio of flight time to time step
-    tdiag  = vector<unsigned>(numdiag, 0);
-    tdiag1 = vector<unsigned>(numdiag, 0);
-    tdiag0 = vector<unsigned>(numdiag, 0);
-    tdiagT = vector< vector<unsigned> > (nthrds);
-
-    // Accumulate distribution log energy overruns
-    Eover  = vector<double>(numdiag, 0);
-    Eover1 = vector<double>(numdiag, 0);
-    Eover0 = vector<double>(numdiag, 0);
-    EoverT = vector< vector<double> > (nthrds);
-  }
-
-  // Accumulate the ratio cooling time to time step each cell
-  tcool  = vector<unsigned>(numdiag, 0);
-  tcool1 = vector<unsigned>(numdiag, 0);
-  tcool0 = vector<unsigned>(numdiag, 0);
-  tcoolT = vector< vector<unsigned> > (nthrds);
-
-  if (VOLDIAG) {
-    Vcnt  = vector<unsigned>(nbits, 0);
-    Vcnt1 = vector<unsigned>(nbits, 0);
-    Vcnt0 = vector<unsigned>(nbits, 0);
-    VcntT = vector< vector<unsigned> > (nthrds);
-    Vdbl  = vector<double  >(nbits*nvold, 0.0);
-    Vdbl1 = vector<double  >(nbits*nvold, 0.0);
-    Vdbl0 = vector<double  >(nbits*nvold, 0.0);
-    VdblT = vector< vector<double> >(nthrds);
-  }
-
-  if (CBADIAG) {
-    Cover  = vector<double>(numdiag, 0);
-    Cover1 = vector<double>(numdiag, 0);
-    Cover0 = vector<double>(numdiag, 0);
-    CoverT = vector< vector<double> > (nthrds);
-  }
-
-  for (int n=0; n<nthrds; n++) {
-    if (TSDIAG) {
-      tdiagT[n] = vector<unsigned>(numdiag, 0);
-      EoverT[n] = vector<double>(numdiag, 0);
-    }
-    if (VOLDIAG) {
-      VcntT[n] = vector<unsigned>(nbits, 0);
-      VdblT[n] = vector<double>(nbits*nvold, 0.0);
-    }
-    if (CBADIAG) {
-      CoverT[n] = vector<double>(numdiag, 0);
-    }
-    tcoolT[n] = vector<unsigned>(numdiag, 0);
-    tdispT[n] = vector<double>(3, 0);
-  }
-
-  disptot = vector<double>(3, 0);
-  masstot = 0.0;
-
-  use_temp = -1;
-  use_dens = -1;
-  use_delt = -1;
-  use_exes = -1;
-
-  gen = new ACG(11+myid);
-  unit = new Uniform(0.0, 1.0, gen);
-  norm = new Normal(0.0, 1.0, gen);
-
-  if (MFPDIAG) {
-    prec = vector<Precord>(nthrds);
-    for (int n=0; n<nthrds; n++)
-      prec[n].second = vector<double>(Nmfp, 0);
-  }
-
-  if (VERBOSE>5) {
-    tv_list    = vector<struct timeval>(nthrds);
-    timer_list = vector<double>(2*nthrds);
-  }
-
-  forkSum  = vector<double>(3);
-  snglSum  = vector<double>(3);
-  waitSum  = vector<double>(3);
-  diagSum  = vector<double>(3);
-  joinSum  = vector<double>(3);
-
-  if (TIMING) {
-    listSum  = vector<double>(3);
-    initSum  = vector<double>(3);
-    collSum  = vector<double>(3);
-    elasSum  = vector<double>(3);
-    cellSum  = vector<double>(3);
-    epsmSum  = vector<double>(3);
-    stat1Sum = vector<double>(3);
-    stat2Sum = vector<double>(3);
-    stat3Sum = vector<double>(3);
-    coolSum  = vector<double>(3);
-    numbSum  = vector<int   >(3);
-  }
-
-  EPSMtime = vector<long>(nEPSMT);
-  CPUH = vector<long>(12);
-
-  // Debug maximum work per cell
-  minUsage = vector<long>(nthrds*2, MAXLONG);
-  maxUsage = vector<long>(nthrds*2, 0);
-  minPart  = vector<long>(nthrds*2, -1);
-  maxPart  = vector<long>(nthrds*2, -1);
-  minCollP = vector<long>(nthrds*2, -1);
-  maxCollP = vector<long>(nthrds*2, -1);
-
-  effortAccum  = false;
-  effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
-}
-
-Collide::~Collide()
-{
-  delete gen;
-  delete unit;
-  delete norm;
-}
-
-void Collide::debug_list(pHOT& tree)
-{
-  return;
-
-  unsigned ncells = tree.Number();
-  pHOT_iterator c(tree);
-  for (int cid=0; cid<numprocs; cid++) {
-    if (myid == cid) {
-      ostringstream sout;
-      sout << "==== Collide " << myid << " ncells=" << ncells;
-      cout << setw(70) << setfill('=') << left << sout.str() 
-	   << endl << setfill(' ');
-
-      for (int n=0; n<nthrds; n++) {
-	int nbeg = ncells*(n  )/nthrds;
-	int nend = ncells*(n+1)/nthrds;
-	for (int j=nbeg; j<nend; j++) {
-	  int tnum = c.nextCell();
-	  cout << setw(8)  << j
-	       << setw(12) << c.Cell()
-	       << setw(12) << cellist[n][j-nbeg]
-	       << setw(12) << c.Cell()->bods.size()
-	       << setw(12) << tnum << endl;
-	}
-      }
-    }
-    MPI_Barrier(MPI_COMM_WORLD);
-  }
-}
-
-
-unsigned Collide::collide(pHOT& tree, map<int, double>& Fn, 
-			  double tau, int mlevel, bool diag)
-{
-  snglTime.start();
-				// Initialize diagnostic counters
-				// 
-  if (diag) pre_collide_diag();
-
-				// Make cellist
-				// 
-  for (int n=0; n<nthrds; n++) cellist[n].clear();
-  ncells = 0;
-  set<pCell*>::iterator ic, icb, ice;
-
-				// For debugging
-  unsigned nullcell = 0, totalcell = 0;
-
-  for (unsigned M=mlevel; M<=multistep; M++) {
-				// Don't queue null cells
-    if (tree.clevels[M].size()) {
-      icb = tree.clevels[M].begin(); 
-      ice = tree.clevels[M].end(); 
-      for (ic=icb; ic!=ice; ic++) {
-	if ((*ic)->bods.size()) {
-	  cellist[(ncells++)%nthrds].push_back(*ic);
-	  bodycount += (*ic)->bods.size();
-	} else {
-	  nullcell++;
-	}
-	totalcell++;
-      }
-    }
-  }
-  stepcount++;
-      
-  if (DEBUG) {
-    if (nullcell)
-      std::cout << "DEBUG: null cells " << nullcell << "/" 
-		<< totalcell << std::endl;
-    
-    debug_list(tree);
-  }
-  snglTime.stop();
-
-				// Needed for meaningful timing results
-  waitTime.start();
-  MPI_Barrier(MPI_COMM_WORLD);
-  waitTime.stop();
-
-				// For effort debugging
-  if (mlevel==0) effortAccum = true;
-
-  forkTime.start();
-  if (0) {
-    ostringstream sout;
-    sout << "before fork, " << __FILE__ << ": " << __LINE__;
-    tree.checkBounds(2.0, sout.str().c_str());
-  }
-  collide_thread_fork(&tree, &Fn, tau);
-  if (0) {
-    ostringstream sout;
-    sout << "after fork, " << __FILE__ << ": " << __LINE__;
-    tree.checkBounds(2.0, sout.str().c_str());
-  }
-  forkSoFar = forkTime.stop();
-
-  snglTime.start();
-  unsigned col = 0;
-  if (diag) col = post_collide_diag();
-  snglSoFar = snglTime.stop();
-
-				// Effort diagnostics
-				//
-  if (mlevel==0 && EFFORT && effortAccum) {
-
-				// Write to the file in process order
-    list< pair<long, unsigned> >::iterator it;
-    ostringstream ostr;
-    ostr << outdir << runtag << ".collide.effort";
-    for (int i=0; i<numprocs; i++) {
-      if (myid==i) {
-	ofstream out(ostr.str().c_str(), ios::app);
-	if (out) {
-	  if (myid==0) out << "# Time=" << tnow << endl;
-	  for (int n=0; n<nthrds; n++) {
-	    for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++)
-	      out << setw(12) << it->first << setw(12) << it->second << endl;
-	  }
-	} else {
-	  cerr << "Process " << myid 
-	       << ": error opening <" << ostr.str() << ">" << endl;
-	}
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
-				// Reset the list
-    effortAccum = false;
-    for (int n=0; n<nthrds; n++) 
-      effortNumber[n].erase(effortNumber[n].begin(), effortNumber[n].end());
-  }
-
-  caller->print_timings("Collide: collision thread timings", timer_list);
-
-  return( col );
-}
-
-void Collide::dispersion(vector<double>& disp)
-{
-  disp = disptot;
-  if (masstot>0.0) {
-    for (unsigned k=0; k<3; k++) disp[k] /= masstot;
-  }
-  for (unsigned k=0; k<3; k++) disptot[k] = 0.0;
-  masstot = 0.0;
-}
-
-
-void * Collide::collide_thread(void * arg)
-{
-  pHOT *tree    = static_cast<pHOT*>(((thrd_pass_arguments*)arg)->tree);
-  map<int, double> 
-    *Fn         = static_cast<map<int, double>*>(((thrd_pass_arguments*)arg)->fn);
-  double tau    = static_cast<double>(((thrd_pass_arguments*)arg)->tau);
-  int id        = static_cast<int>(((thrd_pass_arguments*)arg)->id);
-
-				// Work vectors
-  vector<double> vcm(3), vrel(3), crel(3);
-
-  thread_timing_beg(id);
-
-  cellTime[id].start();
-
-  // Loop over cells, processing collisions in each cell
-  //
-  for (unsigned j=0; j<cellist[id].size(); j++ ) {
-
-#ifdef USE_GPTL
-    GPTLstart("Collide::bodylist");
-#endif
-
-    int EPSMused = 0;
-
-    // Start the effort time
-    //
-    curcTime[id].reset();
-    curcTime[id].start();
-    listTime[id].start();
-
-    // Number of particles in this cell
-    //
-    pCell *c = cellist[id][j];
-    unsigned number = c->bods.size();
-    numcntT[id].push_back(number);
-
-#ifdef USE_GPTL
-    GPTLstop("Collide::bodylist");
-#endif
-
-    // Skip cells with only one particle
-    //
-    if ( number < 2 ) {
-      colcntT[id].push_back(0);
-				// Stop timers
-      curcTime[id].stop();
-      listSoFar[id] = listTime[id].stop();
-				// Skip to the next cell
-      continue;
-    }
-
-#ifdef USE_GPTL
-    GPTLstart("Collide::prelim");
-    GPTLstart("Collide::energy");
-#endif
-
-    listSoFar[id] = listTime[id].stop();
-    stat1Time[id].start();
-
-    // Energy lost in this cell
-    //
-    decolT[id] = 0.0;
-    decelT[id] = 0.0;
-
-    // Compute 1.5 times the mean relative velocity in each MACRO cell
-    //
-    sCell *samp = c->sample;
-    double crm = -1.0;
-    //
-    // Sanity check
-    //
-    if (samp == 0x0) {
-      cout << "Process "  << myid << " in collide: no sample cell"
-	   << ", owner="   << c->owner << hex
-	   << ", mykey="   << c->mykey
-	   << ", mask="    << c->mask  << dec
-	   << ", level="   << c->level    
-	   << ", Count="   << c->ctotal
-	   << ", maxplev=" << c->maxplev;
-      if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
-      else cout << ", NOT on frontier" << endl;
-      
-    } else {
-      crm=samp->CRMavg();
-    }
-    double mvel=crm, crmax=0.0;
-
-    if (!NTC || crm<0.0) {
-      crm = 0.0;
-      if (samp->stotal[0]>0.0) {
-	for (unsigned k=0; k<3; k++) 
-	  crm += (samp->stotal[1+k] - 
-		  samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
-	    /samp->stotal[0];
-      }
-      mvel = fabs(crm);
-      crm  = sqrt(2.0*mvel);
-      if (NTC) crm *= 1.5;
-    }
-    
-    stat1SoFar[id] = stat1Time[id].stop();
-    stat2Time[id].start();
-
-#ifdef USE_GPTL
-    GPTLstop ("Collide::energy");
-    GPTLstart("Collide::mfp");
-#endif
-
-    // KE in the cell
-    //
-    double kedsp=0.0;
-    if (MFPDIAG) {
-      if (c->stotal[0]>0.0) {
-	for (unsigned k=0; k<3; k++) 
-	  kedsp += 
-	    0.5*(c->stotal[1+k] - c->stotal[4+k]*c->stotal[4+k]/c->stotal[0]);
-      }
-    }
-    
-    // Volume in the cell
-    //
-    double volc = c->Volume();
-
-    // Mass in the cell
-    //
-    double mass = c->Mass();
-
-    // Mass density in the cell
-    double dens = mass/volc;
-
-    if (mass <= 0.0) continue;
-
-    // Cell length
-    //
-    double cL = pow(volc, 0.33333333);
-
-
-    // Per species quantities
-    //
-    map<int, double>              densM, collPM, lambdaM, crossM;
-    map<int, map<int, double> >   selcM;
-    map<int, map<int, unsigned> > nselM;
-    map<int, unsigned>::iterator  it1, it2;
-    map<int, map<int, double> >   crossIJ;
-
-    crossIJ = totalCrossSections(crm, id);
-
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      int i1 = it1->first;
-      densM[i1] = c->Mass(i1)/volc;
-    }
-
-    double meanDens=0.0, meanLambda=0.0, meanCross=0.0, meanCollP=0.0;
-
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      int i1 = it1->first;
-      crossM [i1] = 0.0;
-      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-	int i2 = it2->first;
-	if (i2>=i1) {
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
-	} else
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
-      }
-
-      lambdaM[i1] = 1.0/crossM[i1];
-      collPM [i1] = crossM[i1] * crm * tau;
-      
-      meanDens   += (*Fn)[i1] * densM[i1];
-      meanCollP  += (*Fn)[i1] * densM[i1] * collPM[i1];
-      meanCross  += (*Fn)[i1] * densM[i1] * crossM[i1];
-      meanLambda += (*Fn)[i1] * densM[i1] * lambdaM[i1];
-    }
-
-				// This is the number density-weighted
-				// MFP
-    meanLambda /= meanDens;
-				// This is the number density-weighted
-				// total cross section times number density
-    meanCross  /= meanDens;
-				// Number-density weighted collision
-				// probability
-    meanCollP  /= meanDens;
-				// This is the per-species N_{coll}
-
-    double totalNsel = 0.0;	// For diagnostics only
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      int i1 = it1->first;
-      for (it2=it1; it2!=c->count.end(); it2++) {
-	int i2 = it2->first;
-	if (i1==i2) 
-	  selcM[i1][i2] = 
-	    0.5*(it1->second-1)*(*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
-	else        
-	  selcM[i1][i2] = 
-	    0.5*(it1->second*(*Fn)[i2]*densM[i2] + 
-		 it2->second*(*Fn)[i1]*densM[i1])*crossIJ[i1][i2] * crm * tau;
-
-	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
-	totalNsel += nselM[i1][i2];
-      }
-    }
-
-#ifdef USE_GPTL
-    GPTLstop ("Collide::mfp");
-#endif
-
-#ifdef USE_GPTL
-    GPTLstart("Collide::mfp_diag");
-#endif
-
-    if (MFPDIAG) {
-
-      // Diagnostics
-      //
-      tsratT[id].push_back(crm*tau/pow(volc,0.33333333));
-      tdensT[id].push_back(dens);
-      tvolcT[id].push_back(volc);
-    
-      double posx, posy, posz;
-      c->MeanPos(posx, posy, posz);
-      
-      // MFP/side = MFP/vol^(1/3)
-
-      prec[id].first = meanLambda/pow(volc, 0.33333333);
-      prec[id].second[0] = sqrt(posx*posx + posy*posy);
-      prec[id].second[1] = posz;
-      prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
-      prec[id].second[3] = mass/volc;
-      prec[id].second[4] = volc;
-      
-      tmfpstT[id].push_back(prec[id]);
-    }
-      
-    // Ratio of cell size to mean free path
-    //
-    double mfpCL = cL/meanLambda;
-
-    if (TSDIAG) {		// Diagnose time step in this cell
-      double vmass;
-      vector<double> V1, V2;
-      c->Vel(vmass, V1, V2);
-      double scale = c->Scale();
-      double taudiag = 1.0e40;
-      for (int k=0; k<3; k++) {	// Time of flight
-	taudiag = min<double>
-	  (pHOT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
-	   taudiag);
-      }
-      
-      int indx = (int)floor(log(taudiag/tau)/log(4.0) + 5);
-      if (indx<0 ) indx = 0;
-      if (indx>10) indx = 10;
-      tdiagT[id][indx]++;
-    }
-
-    if (VOLDIAG) {
-      if (c->level<nbits) {
-	VcntT[id][c->level]++;
-	VdblT[id][c->level*nvold+0] += dens;
-	VdblT[id][c->level*nvold+1] += 1.0 / mfpCL;
-	VdblT[id][c->level*nvold+2] += meanCollP;
-	VdblT[id][c->level*nvold+3] += crm*tau / cL;
-	VdblT[id][c->level*nvold+4] += number;
-	VdblT[id][c->level*nvold+5] += number*number;
-      }
-    }
-				// Selection number per particle
-    if (MFPDIAG)
-      tselnT[id].push_back(totalNsel/number);
-
-    stat2SoFar[id] = stat2Time[id].stop();
-    
-#ifdef USE_GPTL
-    GPTLstop ("Collide::mfp_diag");
-    GPTLstart("Collide::cell_init");
-#endif
-
-
-#ifdef USE_GPTL
-    GPTLstop("Collide::cell_init");
-    GPTLstop("Collide::prelim");
-#endif
-				// No collisions, primarily for testing . . .
-    if (DRYRUN) continue;
-
-    collTime[id].start();
-    collCnt[id]++;
-				// Number of collisions per particle:
-				// assume equipartition if large
-    if (use_epsm && meanCollP > EPSMratio && number > EPSMmin) {
-
-      EPSMused = 1;
-
-#ifdef USE_GPTL
-      GPTLstart("Collide::cell_init");
-#endif
-      initTime[id].start();
-      initialize_cell_epsm(tree, c, crm, tau, nselM, id);
-      initSoFar[id] = initTime[id].stop();
-
-#ifdef USE_GPTL
-      GPTLstop("Collide::cell_init");
-      GPTLstart("Collide::EPSM");
-#endif
-      epsmTime[id].start();
-      EPSM(tree, c, id);
-      epsmSoFar[id] = epsmTime[id].stop();
-#ifdef USE_GPTL
-      GPTLstop ("Collide::EPSM");
-#endif
-
-    } else {
-
-#ifdef USE_GPTL
-      GPTLstart("Collide::cell_init");
-#endif
-      initTime[id].start();
-      initialize_cell_dsmc(tree, c, crm, tau, nselM, id);
-      initSoFar[id] = initTime[id].stop();
-
-#ifdef USE_GPTL
-      GPTLstop("Collide::cell_init");
-      GPTLstart("Collide::inelastic");
-#endif
-      unsigned colc = 0;
-
-      map<int, vector<unsigned long> > bmap;
-      if (tree->species>=0) {
-	for (size_t k=0; k<c->bods.size(); k++) {
-	  unsigned long kk = c->bods[k];
-	  Particle* p = tree->Body(kk);
+   joinSoFar = joinTime.stop();
+
+   delete [] td;
+   delete [] t;
+ }
+
+
+ bool     Collide::CBA       = true;
+ double   Collide::EPSMratio = -1.0;
+ unsigned Collide::EPSMmin   = 0;
+
+ Collide::Collide(ExternalForce *force, double diameter, int nth)
+ {
+   caller = force;
+   nthrds = nth;
+
+   // Counts the total number of collisions
+   colcntT = vector< vector<unsigned> > (nthrds);
+
+   // Total number of particles processsed
+   numcntT = vector< vector<unsigned> > (nthrds);
+
+   // Total velocity dispersion (i.e. mean temperature)
+   tdispT  = vector< vector<double> >   (nthrds);
+
+   // Number of collisions with inconsistencies (only meaningful for LTE)
+   error1T = vector<unsigned> (nthrds, 0);
+
+   // Number of particles selected for collision
+   sel1T   = vector<unsigned> (nthrds, 0);
+
+   // Number of particles actually collided
+   col1T   = vector<unsigned> (nthrds, 0);
+
+   // Number of particles processed by the EPSM algorithm
+   epsm1T  = vector<unsigned> (nthrds, 0);
+
+   // Number of cells processed by the EPSM algorithm
+   Nepsm1T = vector<unsigned> (nthrds, 0);
+
+   // Total mass of processed particles
+   tmassT  = vector<double>   (nthrds, 0);
+
+   // True energy lost to dissipation (i.e. radiation)
+   decolT  = vector<double>   (nthrds, 0);
+
+   // Full energy lost to dissipation (i.e. radiation) 
+   decelT  = vector<double>   (nthrds, 0);
+
+   // Energy excess (true energy)
+   exesCT  = vector<double>   (nthrds, 0);
+
+   // Energy excess (full energy)
+   exesET  = vector<double>   (nthrds, 0);
+
+   if (MFPDIAG) {
+     // List of ratios of free-flight length to cell size
+     tsratT  = vector< vector<double> >  (nthrds);
+
+     // List of fractional changes in KE per cell
+     keratT  = vector< vector<double> >  (nthrds);
+
+     // List of cooling excess to KE per cell
+     deratT  = vector< vector<double> >  (nthrds);
+
+     // List of densities in each cell
+     tdensT  = vector< vector<double> >  (nthrds);
+
+     // List of cell volumes
+     tvolcT  = vector< vector<double> >  (nthrds);
+
+     // Temperature per cell; assigned in derived class instance
+     ttempT  = vector< vector<double> >  (nthrds);
+
+     // List of change in energy per cell due to cooling (for LTE only)
+     tdeltT  = vector< vector<double> >  (nthrds);
+
+     // List of collision selections per particle
+     tselnT  = vector< vector<double> >  (nthrds);
+
+     // List of cell diagnostic info per cell
+     tphaseT = vector< vector<Precord> > (nthrds);
+
+     // List of mean-free path info per cell
+     tmfpstT = vector< vector<Precord> > (nthrds);
+   }
+
+   cellist = vector< vector<pCell*> > (nthrds);
+
+   diam = diameter;
+
+   seltot    = 0;	      // Count estimated collision targets
+   coltot    = 0;	      // Count total collisions
+   errtot    = 0;	      // Count errors in inelastic computation
+   epsmcells = 0;	      // Count cells in EPSM regime
+   epsmtot   = 0;	      // Count particles in EPSM regime
+
+				 // EPSM diagnostics
+   lostSoFar_EPSM = vector<double>(nthrds, 0.0);
+
+   if (EPSMratio> 0) use_epsm = true;
+   else              use_epsm = false;
+
+   // 
+   // TIMERS
+   //
+
+   diagTime.Microseconds();
+   snglTime.Microseconds();
+   forkTime.Microseconds();
+   waitTime.Microseconds();
+   joinTime.Microseconds();
+
+   stepcount = 0;
+   bodycount = 0;
+
+   listTime   = vector<Timer>(nthrds);
+   initTime   = vector<Timer>(nthrds);
+   collTime   = vector<Timer>(nthrds);
+   elasTime   = vector<Timer>(nthrds);
+   stat1Time  = vector<Timer>(nthrds);
+   stat2Time  = vector<Timer>(nthrds);
+   stat3Time  = vector<Timer>(nthrds);
+   coolTime   = vector<Timer>(nthrds);
+   cellTime   = vector<Timer>(nthrds);
+   curcTime   = vector<Timer>(nthrds);
+   epsmTime   = vector<Timer>(nthrds);
+   listSoFar  = vector<TimeElapsed>(nthrds);
+   initSoFar  = vector<TimeElapsed>(nthrds);
+   collSoFar  = vector<TimeElapsed>(nthrds);
+   elasSoFar  = vector<TimeElapsed>(nthrds);
+   cellSoFar  = vector<TimeElapsed>(nthrds);
+   curcSoFar  = vector<TimeElapsed>(nthrds);
+   epsmSoFar  = vector<TimeElapsed>(nthrds);
+   stat1SoFar = vector<TimeElapsed>(nthrds);
+   stat2SoFar = vector<TimeElapsed>(nthrds);
+   stat3SoFar = vector<TimeElapsed>(nthrds);
+   coolSoFar  = vector<TimeElapsed>(nthrds);
+   collCnt    = vector<int>(nthrds, 0);
+
+   EPSMT      = vector< vector<Timer> >(nthrds);
+   EPSMTSoFar = vector< vector<TimeElapsed> >(nthrds);
+   for (int n=0; n<nthrds; n++) {
+     EPSMT[n] = vector<Timer>(nEPSMT);
+     for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
+     EPSMTSoFar[n] = vector<TimeElapsed>(nEPSMT);
+   }  
+
+   for (int n=0; n<nthrds; n++) {
+     listTime [n].Microseconds();
+     initTime [n].Microseconds();
+     collTime [n].Microseconds();
+     elasTime [n].Microseconds();
+     stat1Time[n].Microseconds();
+     stat2Time[n].Microseconds();
+     stat3Time[n].Microseconds();
+     coolTime [n].Microseconds();
+     cellTime [n].Microseconds();
+     curcTime [n].Microseconds();
+     epsmTime [n].Microseconds();
+   }
+
+   if (TSDIAG) {
+     // Accumulate distribution log ratio of flight time to time step
+     tdiag  = vector<unsigned>(numdiag, 0);
+     tdiag1 = vector<unsigned>(numdiag, 0);
+     tdiag0 = vector<unsigned>(numdiag, 0);
+     tdiagT = vector< vector<unsigned> > (nthrds);
+
+     // Accumulate distribution log energy overruns
+     Eover  = vector<double>(numdiag, 0);
+     Eover1 = vector<double>(numdiag, 0);
+     Eover0 = vector<double>(numdiag, 0);
+     EoverT = vector< vector<double> > (nthrds);
+   }
+
+   // Accumulate the ratio cooling time to time step each cell
+   tcool  = vector<unsigned>(numdiag, 0);
+   tcool1 = vector<unsigned>(numdiag, 0);
+   tcool0 = vector<unsigned>(numdiag, 0);
+   tcoolT = vector< vector<unsigned> > (nthrds);
+
+   if (VOLDIAG) {
+     Vcnt  = vector<unsigned>(nbits, 0);
+     Vcnt1 = vector<unsigned>(nbits, 0);
+     Vcnt0 = vector<unsigned>(nbits, 0);
+     VcntT = vector< vector<unsigned> > (nthrds);
+     Vdbl  = vector<double  >(nbits*nvold, 0.0);
+     Vdbl1 = vector<double  >(nbits*nvold, 0.0);
+     Vdbl0 = vector<double  >(nbits*nvold, 0.0);
+     VdblT = vector< vector<double> >(nthrds);
+   }
+
+   if (CBADIAG) {
+     Cover  = vector<double>(numdiag, 0);
+     Cover1 = vector<double>(numdiag, 0);
+     Cover0 = vector<double>(numdiag, 0);
+     CoverT = vector< vector<double> > (nthrds);
+   }
+
+   for (int n=0; n<nthrds; n++) {
+     if (TSDIAG) {
+       tdiagT[n] = vector<unsigned>(numdiag, 0);
+       EoverT[n] = vector<double>(numdiag, 0);
+     }
+     if (VOLDIAG) {
+       VcntT[n] = vector<unsigned>(nbits, 0);
+       VdblT[n] = vector<double>(nbits*nvold, 0.0);
+     }
+     if (CBADIAG) {
+       CoverT[n] = vector<double>(numdiag, 0);
+     }
+     tcoolT[n] = vector<unsigned>(numdiag, 0);
+     tdispT[n] = vector<double>(3, 0);
+   }
+
+   disptot = vector<double>(3, 0);
+   masstot = 0.0;
+
+   use_temp = -1;
+   use_dens = -1;
+   use_delt = -1;
+   use_exes = -1;
+
+   gen = new ACG(11+myid);
+   unit = new Uniform(0.0, 1.0, gen);
+   norm = new Normal(0.0, 1.0, gen);
+
+   if (MFPDIAG) {
+     prec = vector<Precord>(nthrds);
+     for (int n=0; n<nthrds; n++)
+       prec[n].second = vector<double>(Nmfp, 0);
+   }
+
+   if (VERBOSE>5) {
+     tv_list    = vector<struct timeval>(nthrds);
+     timer_list = vector<double>(2*nthrds);
+   }
+
+   forkSum  = vector<double>(3);
+   snglSum  = vector<double>(3);
+   waitSum  = vector<double>(3);
+   diagSum  = vector<double>(3);
+   joinSum  = vector<double>(3);
+
+   if (TIMING) {
+     listSum  = vector<double>(3);
+     initSum  = vector<double>(3);
+     collSum  = vector<double>(3);
+     elasSum  = vector<double>(3);
+     cellSum  = vector<double>(3);
+     epsmSum  = vector<double>(3);
+     stat1Sum = vector<double>(3);
+     stat2Sum = vector<double>(3);
+     stat3Sum = vector<double>(3);
+     coolSum  = vector<double>(3);
+     numbSum  = vector<int   >(3);
+   }
+
+   EPSMtime = vector<long>(nEPSMT);
+   CPUH = vector<long>(12);
+
+   // Debug maximum work per cell
+   minUsage = vector<long>(nthrds*2, MAXLONG);
+   maxUsage = vector<long>(nthrds*2, 0);
+   minPart  = vector<long>(nthrds*2, -1);
+   maxPart  = vector<long>(nthrds*2, -1);
+   minCollP = vector<long>(nthrds*2, -1);
+   maxCollP = vector<long>(nthrds*2, -1);
+
+   effortAccum  = false;
+   effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
+ }
+
+ Collide::~Collide()
+ {
+   delete gen;
+   delete unit;
+   delete norm;
+ }
+
+ void Collide::debug_list(pHOT& tree)
+ {
+   return;
+
+   unsigned ncells = tree.Number();
+   pHOT_iterator c(tree);
+   for (int cid=0; cid<numprocs; cid++) {
+     if (myid == cid) {
+       ostringstream sout;
+       sout << "==== Collide " << myid << " ncells=" << ncells;
+       cout << setw(70) << setfill('=') << left << sout.str() 
+	    << endl << setfill(' ');
+
+       for (int n=0; n<nthrds; n++) {
+	 int nbeg = ncells*(n  )/nthrds;
+	 int nend = ncells*(n+1)/nthrds;
+	 for (int j=nbeg; j<nend; j++) {
+	   int tnum = c.nextCell();
+	   cout << setw(8)  << j
+		<< setw(12) << c.Cell()
+		<< setw(12) << cellist[n][j-nbeg]
+		<< setw(12) << c.Cell()->bods.size()
+		<< setw(12) << tnum << endl;
+	 }
+       }
+     }
+     MPI_Barrier(MPI_COMM_WORLD);
+   }
+ }
+
+
+ unsigned Collide::collide(pHOT& tree, map<int, double>& Fn, 
+			   double tau, int mlevel, bool diag)
+ {
+   snglTime.start();
+				 // Initialize diagnostic counters
+				 // 
+   if (diag) pre_collide_diag();
+
+				 // Make cellist
+				 // 
+   for (int n=0; n<nthrds; n++) cellist[n].clear();
+   ncells = 0;
+   set<pCell*>::iterator ic, icb, ice;
+
+				 // For debugging
+   unsigned nullcell = 0, totalcell = 0;
+
+   for (unsigned M=mlevel; M<=multistep; M++) {
+				 // Don't queue null cells
+     if (tree.clevels[M].size()) {
+       icb = tree.clevels[M].begin(); 
+       ice = tree.clevels[M].end(); 
+       for (ic=icb; ic!=ice; ic++) {
+	 if ((*ic)->bods.size()) {
+	   cellist[(ncells++)%nthrds].push_back(*ic);
+	   bodycount += (*ic)->bods.size();
+	 } else {
+	   nullcell++;
+	 }
+	 totalcell++;
+       }
+     }
+   }
+   stepcount++;
+
+   if (DEBUG) {
+     if (nullcell)
+       std::cout << "DEBUG: null cells " << nullcell << "/" 
+		 << totalcell << std::endl;
+
+     debug_list(tree);
+   }
+   snglTime.stop();
+
+				 // Needed for meaningful timing results
+   waitTime.start();
+   MPI_Barrier(MPI_COMM_WORLD);
+   waitTime.stop();
+
+				 // For effort debugging
+   if (mlevel==0) effortAccum = true;
+
+   forkTime.start();
+   if (0) {
+     ostringstream sout;
+     sout << "before fork, " << __FILE__ << ": " << __LINE__;
+     tree.checkBounds(2.0, sout.str().c_str());
+   }
+   collide_thread_fork(&tree, &Fn, tau);
+   if (0) {
+     ostringstream sout;
+     sout << "after fork, " << __FILE__ << ": " << __LINE__;
+     tree.checkBounds(2.0, sout.str().c_str());
+   }
+   forkSoFar = forkTime.stop();
+
+   snglTime.start();
+   unsigned col = 0;
+   if (diag) col = post_collide_diag();
+   snglSoFar = snglTime.stop();
+
+				 // Effort diagnostics
+				 //
+   if (mlevel==0 && EFFORT && effortAccum) {
+
+				 // Write to the file in process order
+     list< pair<long, unsigned> >::iterator it;
+     ostringstream ostr;
+     ostr << outdir << runtag << ".collide.effort";
+     for (int i=0; i<numprocs; i++) {
+       if (myid==i) {
+	 ofstream out(ostr.str().c_str(), ios::app);
+	 if (out) {
+	   if (myid==0) out << "# Time=" << tnow << endl;
+	   for (int n=0; n<nthrds; n++) {
+	     for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++)
+	       out << setw(12) << it->first << setw(12) << it->second << endl;
+	   }
+	 } else {
+	   cerr << "Process " << myid 
+		<< ": error opening <" << ostr.str() << ">" << endl;
+	 }
+       }
+       MPI_Barrier(MPI_COMM_WORLD);
+     }
+				 // Reset the list
+     effortAccum = false;
+     for (int n=0; n<nthrds; n++) 
+       effortNumber[n].erase(effortNumber[n].begin(), effortNumber[n].end());
+   }
+
+   caller->print_timings("Collide: collision thread timings", timer_list);
+
+   return( col );
+ }
+
+ void Collide::dispersion(vector<double>& disp)
+ {
+   disp = disptot;
+   if (masstot>0.0) {
+     for (unsigned k=0; k<3; k++) disp[k] /= masstot;
+   }
+   for (unsigned k=0; k<3; k++) disptot[k] = 0.0;
+   masstot = 0.0;
+ }
+
+
+ void * Collide::collide_thread(void * arg)
+ {
+   pHOT *tree    = static_cast<pHOT*>(((thrd_pass_arguments*)arg)->tree);
+   map<int, double> 
+     *Fn         = static_cast<map<int, double>*>(((thrd_pass_arguments*)arg)->fn);
+   double tau    = static_cast<double>(((thrd_pass_arguments*)arg)->tau);
+   int id        = static_cast<int>(((thrd_pass_arguments*)arg)->id);
+
+				 // Work vectors
+   vector<double> vcm(3), vrel(3), crel(3);
+
+   thread_timing_beg(id);
+
+   cellTime[id].start();
+
+   // Loop over cells, processing collisions in each cell
+   //
+   for (unsigned j=0; j<cellist[id].size(); j++ ) {
+
+ #ifdef USE_GPTL
+     GPTLstart("Collide::bodylist");
+ #endif
+
+     int EPSMused = 0;
+
+     // Start the effort time
+     //
+     curcTime[id].reset();
+     curcTime[id].start();
+     listTime[id].start();
+
+     // Number of particles in this cell
+     //
+     pCell *c = cellist[id][j];
+     unsigned number = c->bods.size();
+     numcntT[id].push_back(number);
+
+ #ifdef USE_GPTL
+     GPTLstop("Collide::bodylist");
+ #endif
+
+     // Skip cells with only one particle
+     //
+     if ( number < 2 ) {
+       colcntT[id].push_back(0);
+				 // Stop timers
+       curcTime[id].stop();
+       listSoFar[id] = listTime[id].stop();
+				 // Skip to the next cell
+       continue;
+     }
+
+ #ifdef USE_GPTL
+     GPTLstart("Collide::prelim");
+     GPTLstart("Collide::energy");
+ #endif
+
+     listSoFar[id] = listTime[id].stop();
+     stat1Time[id].start();
+
+     // Energy lost in this cell
+     //
+     decolT[id] = 0.0;
+     decelT[id] = 0.0;
+
+     // Compute 1.5 times the mean relative velocity in each MACRO cell
+     //
+     sCell *samp = c->sample;
+     double crm = -1.0;
+     //
+     // Sanity check
+     //
+     if (samp == 0x0) {
+       cout << "Process "  << myid << " in collide: no sample cell"
+	    << ", owner="   << c->owner << hex
+	    << ", mykey="   << c->mykey
+	    << ", mask="    << c->mask  << dec
+	    << ", level="   << c->level    
+	    << ", Count="   << c->ctotal
+	    << ", maxplev=" << c->maxplev;
+       if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
+       else cout << ", NOT on frontier" << endl;
+
+     } else {
+       crm=samp->CRMavg();
+     }
+     double mvel=crm, crmax=0.0;
+
+     if (!NTC || crm<0.0) {
+       crm = 0.0;
+       if (samp->stotal[0]>0.0) {
+	 for (unsigned k=0; k<3; k++) 
+	   crm += (samp->stotal[1+k] - 
+		   samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
+	     /samp->stotal[0];
+       }
+       mvel = fabs(crm);
+       crm  = sqrt(2.0*mvel);
+       if (NTC) crm *= 1.5;
+     }
+
+     stat1SoFar[id] = stat1Time[id].stop();
+     stat2Time[id].start();
+
+ #ifdef USE_GPTL
+     GPTLstop ("Collide::energy");
+     GPTLstart("Collide::mfp");
+ #endif
+
+     // KE in the cell
+     //
+     double kedsp=0.0;
+     if (MFPDIAG) {
+       if (c->stotal[0]>0.0) {
+	 for (unsigned k=0; k<3; k++) 
+	   kedsp += 
+	     0.5*(c->stotal[1+k] - c->stotal[4+k]*c->stotal[4+k]/c->stotal[0]);
+       }
+     }
+
+     // Volume in the cell
+     //
+     double volc = c->Volume();
+
+     // Mass in the cell
+     //
+     double mass = c->Mass();
+
+     // Mass density in the cell
+     double dens = mass/volc;
+
+     if (mass <= 0.0) continue;
+
+     // Cell length
+     //
+     double cL = pow(volc, 0.33333333);
+
+
+     // Per species quantities
+     //
+     map<int, double>              densM, collPM, lambdaM, crossM;
+     map<int, map<int, double> >   selcM;
+     map<int, map<int, unsigned> > nselM;
+     map<int, unsigned>::iterator  it1, it2;
+     map<int, map<int, double> >   crossIJ;
+
+     crossIJ = totalCrossSections(crm, id);
+
+     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+       int i1 = it1->first;
+       densM[i1] = c->Mass(i1)/volc;
+     }
+
+     double meanDens=0.0, meanLambda=0.0, meanCollP=0.0;
+
+     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+       int i1 = it1->first;
+       crossM [i1] = 0.0;
+       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+	 int i2 = it2->first;
+	 if (i2>=i1) {
+	   crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
+	 } else
+	   crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
+       }
+
+       lambdaM[i1] = 1.0/crossM[i1];
+       collPM [i1] = crossM[i1] * crm * tau;
+
+       meanDens   += densM[i1] ;
+       meanCollP  += densM[i1] * collPM[i1];
+       meanLambda += densM[i1] * lambdaM[i1];
+     }
+
+				 // This is the number density-weighted
+				 // MFP (used for diagnostics only)
+     meanLambda /= meanDens;
+				 // Number-density weighted collision
+				 // probability (used for diagnostics
+				 // only)
+     meanCollP  /= meanDens;
+
+				 // This is the per-species N_{coll}
+				 // (used for diagnostics only)
+     double totalNsel = 0.0;
+     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+       int i1 = it1->first;
+       for (it2=it1; it2!=c->count.end(); it2++) {
+	 int i2 = it2->first;
+	 if (i1==i2) 
+	   selcM[i1][i2] = 
+	     0.5*(it1->second-1)*(*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
+	 else        
+	   selcM[i1][i2] = 
+	     0.5*(it1->second*(*Fn)[i2]*densM[i2] + 
+		  it2->second*(*Fn)[i1]*densM[i1])*crossIJ[i1][i2] * crm * tau;
+
+	 nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+	 totalNsel += nselM[i1][i2];
+       }
+     }
+
+ #ifdef USE_GPTL
+     GPTLstop ("Collide::mfp");
+ #endif
+
+ #ifdef USE_GPTL
+     GPTLstart("Collide::mfp_diag");
+ #endif
+
+     if (MFPDIAG) {
+
+       // Diagnostics
+       //
+       tsratT[id].push_back(crm*tau/pow(volc,0.33333333));
+       tdensT[id].push_back(dens);
+       tvolcT[id].push_back(volc);
+
+       double posx, posy, posz;
+       c->MeanPos(posx, posy, posz);
+
+       // MFP/side = MFP/vol^(1/3)
+
+       prec[id].first = meanLambda/pow(volc, 0.33333333);
+       prec[id].second[0] = sqrt(posx*posx + posy*posy);
+       prec[id].second[1] = posz;
+       prec[id].second[2] = sqrt(posx*posx+posy*posy*+posz*posz);
+       prec[id].second[3] = mass/volc;
+       prec[id].second[4] = volc;
+
+       tmfpstT[id].push_back(prec[id]);
+     }
+
+     // Ratio of cell size to mean free path
+     //
+     double mfpCL = cL/meanLambda;
+
+     if (TSDIAG) {		// Diagnose time step in this cell
+       double vmass;
+       vector<double> V1, V2;
+       c->Vel(vmass, V1, V2);
+       double scale = c->Scale();
+       double taudiag = 1.0e40;
+       for (int k=0; k<3; k++) {	// Time of flight
+	 taudiag = min<double>
+	   (pHOT::sides[k]*scale/(fabs(V1[k]/vmass)+sqrt(V2[k]/vmass)+1.0e-40), 
+	    taudiag);
+       }
+
+       int indx = (int)floor(log(taudiag/tau)/log(4.0) + 5);
+       if (indx<0 ) indx = 0;
+       if (indx>10) indx = 10;
+       tdiagT[id][indx]++;
+     }
+
+     if (VOLDIAG) {
+       if (c->level<nbits) {
+	 VcntT[id][c->level]++;
+	 VdblT[id][c->level*nvold+0] += dens;
+	 VdblT[id][c->level*nvold+1] += 1.0 / mfpCL;
+	 VdblT[id][c->level*nvold+2] += meanCollP;
+	 VdblT[id][c->level*nvold+3] += crm*tau / cL;
+	 VdblT[id][c->level*nvold+4] += number;
+	 VdblT[id][c->level*nvold+5] += number*number;
+       }
+     }
+				 // Selection number per particle
+     if (MFPDIAG)
+       tselnT[id].push_back(totalNsel/number);
+
+     stat2SoFar[id] = stat2Time[id].stop();
+
+ #ifdef USE_GPTL
+     GPTLstop ("Collide::mfp_diag");
+     GPTLstart("Collide::cell_init");
+ #endif
+
+
+ #ifdef USE_GPTL
+     GPTLstop("Collide::cell_init");
+     GPTLstop("Collide::prelim");
+ #endif
+				 // No collisions, primarily for testing . . .
+     if (DRYRUN) continue;
+
+     collTime[id].start();
+     collCnt[id]++;
+				 // Number of collisions per particle:
+				 // assume equipartition if large
+     if (use_epsm && meanCollP > EPSMratio && number > EPSMmin) {
+
+       EPSMused = 1;
+
+ #ifdef USE_GPTL
+       GPTLstart("Collide::cell_init");
+ #endif
+       initTime[id].start();
+       initialize_cell_epsm(tree, c, crm, tau, nselM, id);
+       initSoFar[id] = initTime[id].stop();
+
+ #ifdef USE_GPTL
+       GPTLstop("Collide::cell_init");
+       GPTLstart("Collide::EPSM");
+ #endif
+       epsmTime[id].start();
+       EPSM(tree, c, id);
+       epsmSoFar[id] = epsmTime[id].stop();
+ #ifdef USE_GPTL
+       GPTLstop ("Collide::EPSM");
+ #endif
+
+     } else {
+
+ #ifdef USE_GPTL
+       GPTLstart("Collide::cell_init");
+ #endif
+       initTime[id].start();
+       initialize_cell_dsmc(tree, c, crm, tau, nselM, id);
+       initSoFar[id] = initTime[id].stop();
+
+ #ifdef USE_GPTL
+       GPTLstop("Collide::cell_init");
+       GPTLstart("Collide::inelastic");
+ #endif
+       unsigned colc = 0;
+
+       map<int, vector<unsigned long> > bmap;
+       if (tree->species>=0) {
+	 for (size_t k=0; k<c->bods.size(); k++) {
+	   unsigned long kk = c->bods[k];
+		  Particle* p = tree->Body(kk);
 	  bmap[p->iattrib[tree->species]].push_back(kk);
 	}
       } else {
@@ -1078,6 +1076,7 @@ void * Collide::collide_thread(void * arg)
 
     if (tmass>0.0) {
       for (unsigned k=0; k<3; k++) {
+
 	velm[k] /= tmass;
 	velm2[k] = velm2[k] - velm[k]*velm[k]*tmass;
 	if (velm2[k]>0.0) {
@@ -1100,7 +1099,7 @@ void * Collide::collide_thread(void * arg)
     //
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
-      double Kn = cL*cL/(meanCross);
+      double Kn = meanLambda/cL;
       double St = cL/fabs(tau*mvel);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);

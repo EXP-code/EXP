@@ -100,14 +100,12 @@ main(int argc, char **argv)
     Usage(prog);
   }
 
-
 				// Parse the PSP file
 				// ------------------
   PSPDump psp(in);
 
   in->close();
   delete in;
-
 				// Now write a summary
 				// -------------------
   if (verbose) {
@@ -124,19 +122,15 @@ main(int argc, char **argv)
   in = new ifstream(argv[optind]);
 
   
-  list<PSPstanza>::iterator its;
-  unsigned long ltmp;
-  double rtmp;
-  int itmp;
+  PSPstanza *stanza;
+  SParticle* part;
 
-  for (its = psp.CurrentDump()->stanzas.begin(); 
-       its != psp.CurrentDump()->stanzas.end(); its++) {
-
-				// Open an output file
-				// -------------------
-
+  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    
+				// Open an output file for this stanza
+				// -----------------------------------
     ostringstream oname;
-    oname << cname << "." << its->name << '\0';
+    oname << cname << "." << stanza->name << '\0';
     ofstream out(oname.str().c_str());
     out.setf(ios::scientific);
     out.precision(10);
@@ -145,45 +139,28 @@ main(int argc, char **argv)
       cerr << "Couldn't open output name <" << oname.str() << ">\n";
       exit(-1);
     }
-
 				// Print the header
-
-    out << setw(15) << its->comp.nbod 
-	<< setw(10) << its->comp.niatr 
-	<< setw(10) << its->comp.ndatr 
+				// ----------------
+    out << setw(15) << stanza->comp.nbod 
+	<< setw(10) << stanza->comp.niatr 
+	<< setw(10) << stanza->comp.ndatr 
 	<< endl;
 
 				// Position to beginning of particles
-    in->seekg(its->pspos);
+				// ----------------------------------
+    in->seekg(stanza->pspos);
 
-    for (int j=0; j<its->comp.nbod; j++) {
-      if (its->index_size) {
-	in->read((char *)&ltmp, sizeof(unsigned long));
-	out << setw(14) << ltmp;
-      }
-      in->read((char *)&rtmp, sizeof(double));
-      out << setw(20) << rtmp;
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  out << setw(20) << rtmp;
-      }
-      for (int i=0; i<3; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  out << setw(20) << rtmp;
-      }
-      in->read((char *)&rtmp, sizeof(double));
-      out << setw(20) << rtmp;
-      for (int i=0; i<its->comp.niatr; i++) {
-	in->read((char *)&itmp, sizeof(int));
-	out << setw(12) << itmp;
-      }
-      for (int i=0; i<its->comp.ndatr; i++) {
-	in->read((char *)&rtmp, sizeof(double));
-	out << setw(20) << rtmp;
-      }      
+    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      out << endl;		// End the record
+      if (stanza->index_size) out << std::setw(18) << part->indx();
+      out << std::setw(18) << part->mass();
+      for (int i=0; i<3; i++) out << std::setw(18) << part->pos(i);
+      for (int i=0; i<3; i++) out << std::setw(18) << part->vel(i);
+      out << std::setw(18) << part->phi();
+      for (int i=0; i<part->niatr(); i++) out << std::setw(12) << part->iatr(i);
+      for (int i=0; i<part->ndatr(); i++) out << std::setw(18) << part->datr(i);
 
+      out << std::endl;		// End the record
     }
     
   }
