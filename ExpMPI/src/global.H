@@ -96,6 +96,9 @@ extern double dynfracV;
 //! Acceleration coefficient (default: 0.03)
 extern double dynfracA;
 
+//! Escape time scale coefficient (default: 0.05)
+extern double dynfracP;
+
 //@}
 
 

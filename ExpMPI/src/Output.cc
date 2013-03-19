@@ -50,7 +50,8 @@ std::map<int, std::string> Output::get_value_array(const string& name)
   for (it=namevalue.begin(); it!=namevalue.end(); it++) {
     string key = name + "(";
     if (it->first.compare(0, key.size(), key) == 0) {
-      string sindx = it->first.substr(key.size(), it->first.find(")"));
+      unsigned sz = key.size(), pos = it->first.find(")");
+      string sindx = it->first.substr(sz, pos - sz);
       try {
 	indx = boost::lexical_cast<int>(sindx);
       } 
@@ -61,6 +62,7 @@ std::map<int, std::string> Output::get_value_array(const string& name)
       values[indx] = it->second;
     }
   }
+
   return values;
 }
 

@@ -66,6 +66,7 @@ bool DTold = false;
 double dynfracS = 1.00;
 double dynfracV = 0.01;
 double dynfracA = 0.03;
+double dynfracP = 0.05;
 int Mstep = 0;
 int mstep = 0;
 vector<int> mfirst, mintvl, stepL, stepN;

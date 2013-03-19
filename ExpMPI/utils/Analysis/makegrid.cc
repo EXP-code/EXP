@@ -265,7 +265,8 @@ int main(int argc, char**argv)
   cout << "Grid spacing: [" << dx << ", " << dy << ", " << dz << "]"
        << endl;
 
-  vector<float> xyz(3), uvw(3), dattr;
+  float ftmp;
+  vector<float> xyz(3), uvw(3);
   vector< vector< vector<float> > > mass(numx), gdens(numx), gtemp(numx);
   vector< vector< vector<float> > > gknud(numx), gstrl(numx), gmach(numx);
   vector< vector< vector<float> > > sdens(numx), ddens(numx), gnumb(numx);
@@ -317,10 +318,8 @@ int main(int argc, char**argv)
 				// -----------------------------
   in = new ifstream(infile.c_str());
 
-  list<PSPstanza>::iterator its;
-  double rtmp, ms, ps[3], vs[3];
+  double ms, ps[3], vs[3];
   size_t indx;
-  int itmp;
 
   bool found_gas  = false;
   bool found_star = false;
@@ -355,8 +354,10 @@ int main(int argc, char**argv)
 
   int offset = 0;
   
-  for (its  = psp.CurrentDump()->stanzas.begin(); 
-       its != psp.CurrentDump()->stanzas.end();  its++) {
+  PSPstanza* its;
+  SParticle* prt;
+
+  for (its=psp.GetStanza(); its!=0; its=psp.NextStanza()) {
 
     if (dname.compare(its->name) == 0) {
 
@@ -369,29 +370,15 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->comp.nbod; j++) {
-	if (its->index_size) in->read((char *)&indx, its->index_size);
-	else                 indx = j;
+      indx = 0;
+      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
 
-	in->read((char *)&ms, sizeof(double));
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&ps[i], sizeof(double));
-	  xyz[i] = ps[i];
-	}
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&vs[i], sizeof(double));
-	  uvw[i] = vs[i];
-	}
-	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->comp.niatr; i++) {
-	  in->read((char *)&itmp, sizeof(int));
-	}
-	dattr.clear();
-	for (int i=0; i<its->comp.ndatr; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  dattr.push_back(rtmp);
-	}
+	if (its->index_size) indx = prt->indx();
+	else                 indx++;
 
+	ms = prt->mass();
+	for (int i=0; i<3; i++) ps[i] = prt->pos(i);
+	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
 	if (verbose) posvel["dark"](ps, vs);
 
 				// Accumulate
@@ -420,31 +407,18 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->comp.nbod; j++) {
-	if (its->index_size) in->read((char *)&indx, its->index_size);
-	else                 indx = j;
+      indx = 0;
+      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
 
-	in->read((char *)&ms, sizeof(double));
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&ps[i], sizeof(double));
-	  xyz[i] = ps[i];
-	}
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&vs[i], sizeof(double));
-	  uvw[i] = vs[i];
-	}
-	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->comp.niatr; i++) {
-	  in->read((char *)&itmp, sizeof(int));
-	}
-	dattr.clear();
-	for (int i=0; i<its->comp.ndatr; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  dattr.push_back(rtmp);
-	}
+	if (its->index_size) indx = prt->indx();
+	else                 indx++;
 
+	ms = prt->mass();
+	for (int i=0; i<3; i++) ps[i] = prt->pos(i);
+	for (int i=0; i<3; i++) vs[i] = prt->vel(i);
 	if (verbose) posvel["star"](ps, vs);
 
+	  
 				// Accumulate
 				// 
 	if (indx > initial_star && indx <= final_star &&
@@ -471,28 +445,17 @@ int main(int argc, char**argv)
       //
       in->seekg(its->pspos);
       
-      for (int j=0; j<its->comp.nbod; j++) {
-	if (its->index_size) in->read((char *)&indx, its->index_size);
-	else                 indx = j;
+      indx = 0;
+      for (prt=psp.GetParticle(in); prt!=0; prt=psp.NextParticle(in)) {
 
-	in->read((char *)&ms, sizeof(double));
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&ps[i], sizeof(double));
-	  xyz[i] = ps[i];
-	}
-	for (int i=0; i<3; i++) {
-	  in->read((char *)&vs[i], sizeof(double));
-	  uvw[i] = vs[i];
-	}
-	in->read((char *)&rtmp, sizeof(double));
-	for (int i=0; i<its->comp.niatr; i++) {
-	  in->read((char *)&itmp, sizeof(int));
-	}
-	dattr.clear();
-	for (int i=0; i<its->comp.ndatr; i++) {
-	  in->read((char *)&rtmp, sizeof(double));
-	  dattr.push_back(rtmp);
-	}
+	if (its->index_size) indx = prt->indx();
+	else                 indx++;
+
+	ms = prt->mass();
+	for (int i=0; i<3; i++) ps[i]  = prt->pos(i);
+	for (int i=0; i<3; i++) xyz[i] = prt->pos(i);
+	for (int i=0; i<3; i++) vs[i]  = prt->vel(i);
+	for (int i=0; i<3; i++) uvw[i] = prt->vel(i);
       
 				// Coordinate limits
 				// 
@@ -512,13 +475,13 @@ int main(int argc, char**argv)
 	  mass [ii][jj][kk] += ms;
 	  gnumb[ii][jj][kk] += 1.0;
 	  if (its->comp.ndatr>0) 
-	    { gtemp[ii][jj][kk] += ms*dattr[0]; btemp=true; }
+	    { gtemp[ii][jj][kk] += ms*prt->datr(0); btemp=true; }
 	  if (its->comp.ndatr>1) 
-	    { gdens[ii][jj][kk] += ms*dattr[1]; bdens=true; }
+	    { gdens[ii][jj][kk] += ms*prt->datr(1); bdens=true; }
 	  if (its->comp.ndatr>4) 
-	    { gknud[ii][jj][kk] += ms*dattr[4]; bknud=true; }
+	    { gknud[ii][jj][kk] += ms*prt->datr(4); bknud=true; }
 	  if (its->comp.ndatr>5) 
-	    { gstrl[ii][jj][kk] += ms*dattr[5]; bstrl=true; }
+	    { gstrl[ii][jj][kk] += ms*prt->datr(5); bstrl=true; }
 	  for (int ll=0; ll<3; ll++) vel[ii][jj][kk][ll] += ms*vs[ll];
 	  
 	  // Get ranges
@@ -529,8 +492,8 @@ int main(int argc, char**argv)
 	      string f = it->first;
 	      int id   = it->second.index;
 	      if (id>=0 && its->comp.ndatr>id) {
-		fields[f].min = min<double>(dattr[id], fields[f].min);
-		fields[f].max = max<double>(dattr[id], fields[f].max);
+		fields[f].min = min<double>(prt->datr(id), fields[f].min);
+		fields[f].max = max<double>(prt->datr(id), fields[f].max);
 	      }
 	    }
 	  }
@@ -538,10 +501,10 @@ int main(int argc, char**argv)
 	  // Pack gas arrays
 	  //
 	  part->InsertPoint(offset, &xyz[0]);
-	  if (btemp) temp->InsertTuple(offset, &dattr[0]);
-	  if (bdens) dens->InsertTuple(offset, &dattr[1]);
-	  if (bknud) knud->InsertTuple(offset, &dattr[4]);
-	  if (bstrl) strl->InsertTuple(offset, &dattr[5]);
+	  if (btemp) temp->InsertTuple(offset, &(ftmp=prt->datr(0)));
+	  if (bdens) dens->InsertTuple(offset, &(ftmp=prt->datr(1)));
+	  if (bknud) knud->InsertTuple(offset, &(ftmp=prt->datr(4)));
+	  if (bstrl) strl->InsertTuple(offset, &(ftmp=prt->datr(5)));
 	  velo->InsertTuple(offset, &uvw[0]);
 	  offset++;
 	}
@@ -571,7 +534,10 @@ int main(int argc, char**argv)
 	  for (int l=0; l<3; l++) vel[i][j][k][l] /= mass[i][j][k];
 	  if (btemp) gtemp[i][j][k] /= mass[i][j][k];
 	  if (bdens) gdens[i][j][k] /= mass[i][j][k];
-	  if (bknud) gknud[i][j][k] /= mass[i][j][k];
+	  if (bknud) {
+	    if (isinf(gknud[i][j][k])) gknud[i][j][k] = 100.0;
+	    else gknud[i][j][k] /= mass[i][j][k];
+	  }
 	  if (bstrl) gstrl[i][j][k] /= mass[i][j][k];
 	  if (btemp) {
 	    double vt = 0.0;

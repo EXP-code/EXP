@@ -57,6 +57,7 @@ void initialize(void)
   if (parse->find_item("dynfracS", val))	dynfracS = atof(val.c_str());
   if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
+  if (parse->find_item("dynfracP", val))	dynfracP = atof(val.c_str());
 
   if (parse->find_item("DTold", val)) {
     if (atoi(val.c_str())) {
@@ -214,6 +215,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "dynfracS"   << " = " << dynfracS    << endl;
   out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
   out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
+  out << comment << " " << "dynfracP"   << " = " << dynfracP    << endl;
 
   out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
   out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;
