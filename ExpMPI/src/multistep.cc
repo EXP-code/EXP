@@ -134,7 +134,7 @@ void * adjust_multistep_level_thread(void *ptr)
       
       dtv = dynfracV * sqrt(vtot/(atot+eps));
       dta = dynfracA * ptot/(fabs(dtr)+eps);
-      dtA = dynfracA * sqrt(ptot/(atot+eps));
+      dtA = dynfracA * sqrt(ptot/(atot*atot+eps));
 
     }
 

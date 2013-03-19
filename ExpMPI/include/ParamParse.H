@@ -7,6 +7,9 @@
 #include <string>
 #include <utility>
 
+#include <unistd.h>
+#include <getopt.h>
+
 using namespace std;
 
 typedef pair<string, string> spair;

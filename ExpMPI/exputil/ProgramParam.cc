@@ -10,6 +10,8 @@
 
 using namespace std;
 
+#include <unistd.h>
+#include <getopt.h>
 #include <time.h>
 
 #include <ProgramParam.H>
