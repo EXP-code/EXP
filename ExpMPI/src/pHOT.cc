@@ -23,7 +23,7 @@
 static bool DEBUG_NOISY  = false; 
 
 // Debugging that checks internal lists
-static bool DEBUG_CHECK  = false;
+static bool DEBUG_CHECK  = true;
 
 // Extra-verbose output with internal checking
 static bool DEBUG_EXTRA  = false;
@@ -37,7 +37,7 @@ static bool DEBUG_CLEAN  = true;
 // Check for malformed particles in cells
 static bool DEBUG_SANITY = true;
 
-// Debug keys accross all nodes (uses MPI calls)
+// Debug keys across all nodes (uses MPI calls)
 static bool DEBUG_KEYS   = false;
 
 

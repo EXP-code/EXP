@@ -43,7 +43,7 @@ UserEBar::UserEBar(string &line) : ExternalForce(line)
   Ofreq             = 2.0;	// Frequency of amplitude oscillations
 
 				// Output file name
-  filename = outdir + "BarRot." + runtag;
+  filename = "BarRot." + runtag;
 
   firstime = true;
   omega0 = -1.0;

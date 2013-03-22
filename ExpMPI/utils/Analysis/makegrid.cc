@@ -152,7 +152,7 @@ int main(int argc, char**argv)
      "number of bins in y direction")
     ("numz,3", po::value<int>(&numz)->default_value(20), 
      "number of bins in z direction")
-    ("numr,0", po::value<int>(&numr)->default_value(20), 
+    ("numr,0", po::value<int>(&numr),
      "number of bins in each coordinate direction")
     ("xmin,x", po::value<double>(&xmin)->default_value(-1.0), 
      "minimum x value")
@@ -166,9 +166,9 @@ int main(int argc, char**argv)
      "minimum z value")
     ("zmax,Z", po::value<double>(&zmax)->default_value(1.0), 
      "maximum z value")
-    ("rmin,r", po::value<double>(&rmin)->default_value(-1.0), 
+    ("rmin,r", po::value<double>(&rmin),
      "minimum coord value for all dimensions")
-    ("rmax,R", po::value<double>(&rmax)->default_value(1.0), 
+    ("rmax,R", po::value<double>(&rmax),
      "maximum coord value for all dimensions")
     ("vscale,V", po::value<double>(&vscale)->default_value(1.0), 
      "vertical scale factor")
@@ -216,10 +216,10 @@ int main(int argc, char**argv)
   if (vm.count("verbose")) verbose = true;
 
   if (vm.count("mask")) mask = true;
-
-  if (vm.count("rmin")) xmin = ymin = zmin = rmin;
-  if (vm.count("rmax")) xmax = ymax = zmax = rmax;
-  if (vm.count("numr")) numx = numy = numz = numr;
+  
+  if (vm.count("rmin")) { xmin = ymin = zmin = rmin; }
+  if (vm.count("rmax")) { xmax = ymax = zmax = rmax; }
+  if (vm.count("numr")) { numx = numy = numz = numr; }
 
   ifstream *in = new ifstream(infile.c_str());
   if (!*in) {
