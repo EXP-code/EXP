@@ -130,7 +130,8 @@ main(int argc, char **argv)
   ifstream in;
 
   vector<string> files;
-				// Root nodes looks for existence of files
+				// Root looks for existence of files
+				// with the given tag
   if (myid==0) {
     for (int i=config.get<int>("IBEG"); i<=config.get<int>("IEND"); i++) {
       ostringstream lab;
@@ -145,6 +146,8 @@ main(int argc, char **argv)
     cout << endl;
   }
 
+				// Root node sends the file names to
+				// everybody
   unsigned nfiles = files.size();
   MPI_Bcast(&nfiles, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
   for (unsigned n=0; n<nfiles; n++) {
@@ -182,17 +185,22 @@ main(int argc, char **argv)
 
   vector< vector<double> > histo(nfiles), angmom(nfiles);
   for (int n=0; n<nfiles; n++) {
-    histo[n]  = vector<double>(nbins, 0.0);
+    histo[n]  = vector<double>(nbins,   0.0);
     angmom[n] = vector<double>(nbins*3, 0.0);
   }
 
   vector<double> times(nfiles);
   vector<double> rvals(nbins);
 
+				// Set the radial bins
   for (int n=0; n<nbins; n++) {
     rvals[n] = rmin + dR*n;
     if (rlog) rvals[n] = exp(rvals[n]);
   }
+
+  // ==================================================
+  // Process the files in parallel
+  // ==================================================
 
   for (int n=0; n<nfiles; n++) {
 
@@ -216,6 +224,7 @@ main(int argc, char **argv)
 	int icnt = 0;
 	vector<Particle> particles;
 
+	// Choose the component for processing
 	if (comp==Star)
 	  psp.GetStar();
 	else if (comp==Gas)
@@ -223,8 +232,10 @@ main(int argc, char **argv)
 	else
 	  psp.GetDark();
 
+
 	SParticle *p = psp.GetParticle(&in);
 	
+	// Accumulate statistics from all particles
 	while (p) {
 
 	  if (icnt > pbeg) {
@@ -308,6 +319,21 @@ main(int argc, char **argv)
   if (myid==0) {
     string outf = config.get<string>("OUTFILE") + ".dat";
     ofstream out(outf.c_str());
+
+    // Label header
+    out << left 
+	<< setw(18) << "# Time"
+	<< setw(18) << "Radius"
+	<< setw(18) << "Mass"
+	<< setw(18) << "Cumulated mass"
+	<< setw(18) << "Lx/mass"
+	<< setw(18) << "Ly/mass"
+	<< setw(18) << "Lz/mass"
+	<< setw(18) << "Ltot/mass"
+	<< setw(18) << "Cumulated Lx"
+	<< setw(18) << "Cumulated Ly"
+	<< setw(18) << "Cumulated Lz"
+	<< endl << right;
 
     for (int n=0; n<nfiles; n++) {
       double sum = 0.0, LL;
