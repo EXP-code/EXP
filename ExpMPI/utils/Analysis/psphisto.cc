@@ -69,7 +69,7 @@ program_option init[] = {
   {"PEND",		"int",		"-1",		"last particle index"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
   {"PROJ",		"int",		"1",		"projection (1=cyl, 2=ephere)"},
-  {"COMP",		"int",		"1",		"component (1=star, 2=gas, 4=dark)"},
+  {"COMP",		"string",	"gas disk",	"component name"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
   {"OUTFILE",		"string",	"gasprof",	"filename prefix"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
@@ -81,7 +81,6 @@ program_option init[] = {
 const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
-enum ComponentType  {Star=1, Gas=2, Halo=4};
 
 ProgramParam config(desc, init);
 
@@ -173,7 +172,7 @@ main(int argc, char **argv)
   double zwid = config.get<double>("ZWIDTH");
   int    pbeg = config.get<int>   ("PBEG");
   int    pend = config.get<int>   ("PEND");
-  int    comp = config.get<int>   ("COMP");
+  string comp = config.get<string>("COMP");
   int    proj = config.get<int>   ("PROJ");
 
   if (rmin>0 && rmax > 0 && rlog) {
@@ -209,9 +208,7 @@ main(int argc, char **argv)
       ifstream in(files[n].c_str());
       PSPDump psp(&in, true);
 
-      Dump *dump = psp.GetDump();
-      
-      if (dump) {
+      if (psp.GetDump()) {
 
 	times[n] = psp.CurrentTime();
 
@@ -221,32 +218,53 @@ main(int argc, char **argv)
 	  in.open(files[n].c_str());
 	}
 
-	int icnt = 0;
-	vector<Particle> particles;
+	// Find the component
+	PSPstanza *stanza;
+	for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+	  if (stanza->name == comp) break;
+	}
 
-	// Choose the component for processing
-	if (comp==Star)
-	  psp.GetStar();
-	else if (comp==Gas)
-	  psp.GetGas();
-	else
-	  psp.GetDark();
+	if (stanza==0) {
+	  std::cout << "Could not find Component <" << comp << "> at time = "
+		    << psp.CurrentTime() << std::endl;
+	} else {
 
+	  in.seekg(stanza->pspos);
 
-	SParticle *p = psp.GetParticle(&in);
-	
-	// Accumulate statistics from all particles
-	while (p) {
+	  int icnt = 0;
+	  for (SParticle* 
+		 p=psp.GetParticle(&in); p!=0; p=psp.NextParticle(&in)) {
 
-	  if (icnt > pbeg) {
+	    if (icnt > pbeg) {
+	      
+	      vector<double> L(3);
+	      L[0] = p->mass()*(p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+	      L[1] = p->mass()*(p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+	      L[2] = p->mass()*(p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
 
-	    vector<double> L(3);
-	    L[0] = p->mass()*(p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
-	    L[1] = p->mass()*(p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
-	    L[2] = p->mass()*(p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
-
-	    if (proj==Cylindrical) {
-	      if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+	      if (proj==Cylindrical) {
+		if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+		  double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+		  if (rlog) {
+		    if (R>0.0) {
+		      R = log(R);
+		      int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		      if (indx >=0 && indx<nbins) {
+			histo[n][indx] += p->mass();
+			for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		      }
+		    }
+		  } else {
+		    int indx = static_cast<int>(floor( (R - rmin)/dR ));
+		    if (indx >=0 && indx<nbins) {
+		      histo[n][indx] += p->mass();
+		      for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
+		    }
+		  }
+		}
+	      }
+	      else {
+		// if (PROJ==Spherical) {
 		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 		if (rlog) {
 		  if (R>0.0) {
@@ -266,31 +284,10 @@ main(int argc, char **argv)
 		}
 	      }
 	    }
-	    else {
-	      // if (PROJ==Spherical) {
-	      double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	      if (rlog) {
-		if (R>0.0) {
-		  R = log(R);
-		  int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		  if (indx >=0 && indx<nbins) {
-		    histo[n][indx] += p->mass();
-		    for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
-		  }
-		}
-	      } else {
-		int indx = static_cast<int>(floor( (R - rmin)/dR ));
-		if (indx >=0 && indx<nbins) {
-		  histo[n][indx] += p->mass();
-		  for (int k=0; k<3; k++) angmom[n][indx*3+k] += L[k];
-		}
-	      }
-	    }
-	  }
 	    
-	  if (pend>0 && icnt>pend) break;
-	  p = psp.NextParticle(&in);
-	  icnt++;
+	    if (pend>0 && icnt>pend) break;
+	    icnt++;
+	  }
 	}
       }
     }
@@ -333,6 +330,18 @@ main(int argc, char **argv)
 	<< setw(18) << "Cumulated Lx"
 	<< setw(18) << "Cumulated Ly"
 	<< setw(18) << "Cumulated Lz"
+	<< endl
+	<< setw(18) << "# 1"
+	<< setw(18) << "| 2"
+	<< setw(18) << "| 3"
+	<< setw(18) << "| 4"
+	<< setw(18) << "| 5"
+	<< setw(18) << "| 6"
+	<< setw(18) << "| 7"
+	<< setw(18) << "| 8"
+	<< setw(18) << "| 9"
+	<< setw(18) << "| 10"
+	<< setw(18) << "| 11"
 	<< endl << right;
 
     for (int n=0; n<nfiles; n++) {

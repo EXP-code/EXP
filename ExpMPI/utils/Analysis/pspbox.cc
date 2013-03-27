@@ -68,7 +68,7 @@ program_option init[] = {
   {"PEND",		"int",		"-1",		"last particle index"},
   {"LOG",		"bool",		"false",	"use logarithmic scaling for radial axis"},
   {"PROJ",		"int",		"1",		"projection (1=cyl, 2=ephere)"},
-  {"COMP",		"int",		"1",		"component (1=star, 2=gas, 4=dark)"},
+  {"COMP",		"string",	"gas disk",	"component name"},
   {"SPECIES",		"int",		"-1",		"species index at attribute position"},
   {"SINDEX",		"int",		"1",		"species index value"},
   {"INFILE",		"string",	"OUT",		"phase space file"},
@@ -80,7 +80,6 @@ program_option init[] = {
 const char desc[] = "Compute disk potential, force and density profiles from PSP phase-space output files\n";
 
 enum ProjectionType {Cylindrical=1, Spherical=2};
-enum ComponentType  {Star=1, Gas=2, Halo=4};
 
 ProgramParam config(desc, init);
 
@@ -168,15 +167,24 @@ main(int argc, char **argv)
   double zwid = config.get<double>("ZWIDTH");
   int    pbeg = config.get<int>   ("PBEG");
   int    pend = config.get<int>   ("PEND");
-  int    comp = config.get<int>   ("COMP");
+  string comp = config.get<string>("COMP");
   int    proj = config.get<int>   ("PROJ");
   int species = config.get<int>   ("SPECIES");
   int  sindex = config.get<int>   ("SINDEX");
+
+  vector<double>   times0  (nfiles);
+  vector<unsigned> inside0 (nfiles, 0), outside0 (nfiles, 0);
+  vector<double>   minside0(nfiles, 0), moutside0(nfiles, 0);
+
+  vector< vector<double> > linside0 (nfiles, vector<double>(3, 0));
+  vector< vector<double> > loutside0(nfiles, vector<double>(3, 0));
 
   vector<double>   times  (nfiles);
   vector<unsigned> inside (nfiles, 0), outside (nfiles, 0);
   vector<double>   minside(nfiles, 0), moutside(nfiles, 0);
 
+  vector< vector<double> > linside (nfiles, vector<double>(3, 0));
+  vector< vector<double> > loutside(nfiles, vector<double>(3, 0));
 
   for (int n=0; n<nfiles; n++) {
 
@@ -185,9 +193,7 @@ main(int argc, char **argv)
       ifstream in(files[n].c_str());
       PSPDump psp(&in, true);
 
-      Dump *dump = psp.GetDump();
-      
-      if (dump) {
+      if (psp.GetDump()) {
 
 	times[n] = psp.CurrentTime();
 
@@ -197,80 +203,177 @@ main(int argc, char **argv)
 	  in.open(files[n].c_str());
 	}
 
-	int icnt = 0;
-	vector<Particle> particles;
+	// Find the component
+	PSPstanza *stanza;
+	for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+	  if (stanza->name == comp) break;
+	}
 
-	if (comp==Star)
-	  psp.GetStar();
-	else if (comp==Gas)
-	  psp.GetGas();
-	else
-	  psp.GetDark();
+	if (stanza==0) {
+	  std::cout << "Could not find Component <" << comp << "> at time = "
+		    << psp.CurrentTime() << std::endl;
+	} else {
 
-	SParticle *p = psp.GetParticle(&in);
-	
-	while (p) {
+	  in.seekg(stanza->pspos);
 
-	  if (icnt > pbeg) {
+	  vector<double> L(3);
+	  int icnt = 0;
+	  for (SParticle* 
+		 p=psp.GetParticle(&in); p!=0; p=psp.NextParticle(&in)) {
 
-	    if (proj==Cylindrical) {
-	      if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+
+	    if (icnt > pbeg) {
+
+	      if (proj==Cylindrical) {
+		if (p->pos(2) >= zcen-zwid && p->pos(2) <= zcen+zwid) {
+		  double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
+		  if (R>rmin && R < rmax) {
+		    inside[n]++;
+		    minside[n] += p->mass();
+
+		    L[0] = p->mass()*
+		      (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+		    L[1] = p->mass()*
+		      (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+		    L[2] = p->mass()*
+		      (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		    
+		    for (int k=0; k<3; k++) linside[n][k] += L[k];
+
+		  } else {
+		    outside[n]++;
+		    moutside[n] += p->mass();
+
+		    L[0] = p->mass()*
+		      (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+		    L[1] = p->mass()*
+		      (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+		    L[2] = p->mass()*
+		      (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		    
+		    for (int k=0; k<3; k++) loutside[n][k] += L[k];
+		  }
+		}
+	      }
+	      else { // proj==Spherical
 		double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
 		if (R>rmin && R < rmax) {
-		  inside[n]++;
+		  inside [n]++;
 		  minside[n] += p->mass();
+		  L[0] = p->mass()*
+		    (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+		  L[1] = p->mass()*
+		    (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+		  L[2] = p->mass()*
+		    (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		  
+		  for (int k=0; k<3; k++) linside[n][k] += L[k];
 		} else {
-		  outside[n]++;
+		  outside [n]++;
 		  moutside[n] += p->mass();
+		  L[0] = p->mass()*
+		    (p->pos(1)*p->vel(2) - p->pos(2)*p->vel(1));
+		  L[1] = p->mass()*
+		    (p->pos(2)*p->vel(0) - p->pos(0)*p->vel(2));
+		  L[2] = p->mass()*
+		    (p->pos(0)*p->vel(1) - p->pos(1)*p->vel(0));
+		  
+		  for (int k=0; k<3; k++) loutside[n][k] += L[k];
 		}
 	      }
 	    }
-	    else { // proj==Spherical
-	      double R = sqrt(p->pos(0)*p->pos(0) + p->pos(1)*p->pos(1));
-	      if (R>rmin && R < rmax) {
-		inside [n]++;
-		minside[n] += p->mass();
-	      } else {
-		outside [n]++;
-		moutside[n] += p->mass();
-	      }
-	    }
+	    
+	    if (pend>0 && icnt>pend) break;
+	    p = psp.NextParticle(&in);
+	    icnt++;
 	  }
-	  
-	  if (pend>0 && icnt>pend) break;
-	  p = psp.NextParticle(&in);
-	  icnt++;
 	}
       }
     }
   }
   
-  MPI_Reduce(MPI_IN_PLACE, &times[0], nfiles,
+  MPI_Reduce(&times[0], &times0[0], nfiles,
 	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   
-  MPI_Reduce(MPI_IN_PLACE, &inside[0], nfiles,
+  MPI_Reduce(&inside[0], &inside0[0], nfiles,
 	     MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  MPI_Reduce(MPI_IN_PLACE, &outside[0], nfiles,
+  MPI_Reduce(&outside[0], &outside0[0], nfiles,
 	     MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  MPI_Reduce(MPI_IN_PLACE, &minside[0], nfiles,
+  MPI_Reduce(&minside[0], &minside0[0], nfiles,
 	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  MPI_Reduce(MPI_IN_PLACE, &moutside[0], nfiles,
+  MPI_Reduce(&moutside[0], &moutside0[0], nfiles,
 	     MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  for (int n=0; n<nfiles; n++) {
+    MPI_Reduce(&linside[n][0], &linside0[n][0], 3,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    MPI_Reduce(&loutside[n][0], &loutside0[n][0], 3,
+	       MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 
   if (myid==0) {
     string outf = config.get<string>("RUNTAG") + ".inout.counts";
     ofstream out(outf.c_str());
     
+    out << left << setw(18) << "# Time"
+	<< setw(18) << "| count in"
+	<< setw(18) << "| count out"
+	<< setw(18) << "| mass in"
+	<< setw(18) << "| mass out"
+	<< setw(18) << "| x angmom in"
+	<< setw(18) << "| y angmom in"
+	<< setw(18) << "| z angmom in"
+	<< setw(18) << "| x angmom out"
+	<< setw(18) << "| y angmom out"
+	<< setw(18) << "| z angmom out"
+	<< setw(18) << "| x angmom/M in"
+	<< setw(18) << "| y angmom/M in"
+	<< setw(18) << "| z angmom/M in"
+	<< setw(18) << "| x angmom/M out"
+	<< setw(18) << "| y angmom/M out"
+	<< setw(18) << "| z angmom/M out"
+	<< endl << setw(18) << "# 1"
+	<< setw(18) << "| 2"
+	<< setw(18) << "| 3"
+	<< setw(18) << "| 4"
+	<< setw(18) << "| 5"
+	<< setw(18) << "| 6"
+	<< setw(18) << "| 7"
+	<< setw(18) << "| 8"
+	<< setw(18) << "| 9"
+	<< setw(18) << "| 10"
+	<< setw(18) << "| 11"
+	<< setw(18) << "| 12"
+	<< setw(18) << "| 13"
+	<< setw(18) << "| 14"
+	<< setw(18) << "| 15"
+	<< setw(18) << "| 16"
+	<< setw(18) << "| 17"
+	<< endl << right;
+    
     for (int n=0; n<nfiles; n++) {
-      out << setw(18) << times   [n] 
-	  << setw(10) << inside  [n]
-	  << setw(10) << outside [n]
-	  << setw(18) << minside [n]
-	  << setw(18) << moutside[n]
-	  << endl;
+      out << setw(18) << times0   [n] 
+	  << setw(10) << inside0  [n]
+	  << setw(10) << outside0 [n]
+	  << setw(18) << minside0 [n]
+	  << setw(18) << moutside0[n];
+      for (int k=0; k<3; k++)
+	out << setw(18) << linside0[n][k];
+      for (int k=0; k<3; k++)
+	out << setw(18) << loutside0[n][k];
+      for (int k=0; k<3; k++) {
+	if (minside0[n]>0) out << setw(18) << linside0[n][k]/minside0[n];
+	else out << setw(18) << 0.0;
+      }
+      for (int k=0; k<3; k++) {
+	if (moutside0[n]>0) out << setw(18) << loutside0[n][k]/moutside0[n];
+	else out << setw(18) << 0.0;
+      }
+      out << endl;
     }
     
   }
