@@ -20,7 +20,7 @@
 // [set all to false for production]
 
 // Chatty debugging statements with minimal CPU overhead
-static bool DEBUG_NOISY  = false; 
+static bool DEBUG_NOISY  = false;
 
 // Debugging that checks internal lists
 static bool DEBUG_CHECK  = true;
@@ -721,6 +721,13 @@ void pHOT::makeTree()
 
   // Check the load balance based on the total effort
   checkEffort(-1);
+
+  if (DEBUG_CHECK) {
+    checkIndices();
+    if (!checkKeybods())
+      cout << "Process " << myid 
+	   << ": particle key not in keybods list at T=" << tnow << endl;
+  }
 
 #ifdef USE_GPTL
   GPTLstop("pHOT::makeTree::getFrontier");
@@ -2122,13 +2129,6 @@ void pHOT::Repartition(unsigned mlevel)
     }
   }
 
-  if (DEBUG_CHECK) {
-    checkIndices();
-    if (!checkKeybods())
-      cout << "Process " << myid 
-	   << ": particle key not in keybods list at T=" << tnow << endl;
-  }
-
   if (DEBUG_KEYS) {		// Summary/diaganostic  output
 				//
     unsigned int nsiz = cc->Particles().size();
@@ -2344,7 +2344,7 @@ void pHOT::printCellLevelList(ostream& out)
       << setw(10) << "M" << setw(10) << "number" 
       << setw(10) << "counts" << endl;
   for (unsigned M=0; M<=multistep; M++)
-    out << setw(10) << M << setw(10) << clevels[M].size() 
+    out << setw(10) << M << setw(10) << CLevels(M).size() 
 	<< setw(10) << pcnt[M] << endl;
   out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
@@ -2367,11 +2367,11 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 
   unsigned ng=0, nt=0, ns=0, m, cnt;
   for (unsigned M=mlevel; M<=multistep; M++) {
-    nt += clevels[M].size();
+    nt += CLevels(M).size();
     cnt = 0;
-    if (clevels[M].size()>0) {
-      set<pCell*>::iterator it = clevels[M].begin(), nit;
-      while (it != clevels[M].end()) {
+    if (CLevels(M).size()>0) {
+      set<pCell*>::iterator it = CLevels(M).begin(), nit;
+      while (it != CLevels(M).end()) {
 				// Skip the root cell if it's empty
 				// (lazy kludge)
 	if ( (*it)->mykey==1u && (*it)->ctotal==0 ) { 
@@ -2386,7 +2386,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 	if ((*it)->bods.size()) ng++;
 	else {			// This shouldn't happen
 	  cout << "Process " << myid << ": pHOT::adjustCellLevelList: "
-	       << cnt << "/" << clevels[M].size()
+	       << cnt << "/" << CLevels(M).size()
 	       << " zero!" << endl;
 	}
 				// Newly computed level:
@@ -2396,11 +2396,11 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 	if (M!=m) {
 	  clevels[m].insert(*nit);
 	  clevlst[*nit] = m;
-	  clevels[M].erase(nit);
+	  CLevels(M).erase(nit);
 	  ns++;
 	}
 	
-	if (clevels[M].empty()) break;
+	if (CLevels(M).empty()) break;
 
       }
     }
@@ -2434,6 +2434,8 @@ void pHOT::adjustTree(unsigned mlevel)
   timer_waiton0.stop();
 
   timer_tadjust.start();
+
+  if (clevels.size()==0) makeCellLevelList();
 
   if (DEBUG_ADJUST) {
     if (!checkBodycell()) {
@@ -2496,8 +2498,8 @@ void pHOT::adjustTree(unsigned mlevel)
   // OOB particles must wait until a full tree build
   //
   for (unsigned M=mlevel; M<=multistep; M++) {
-    set<pCell*>::iterator it    = clevels[M].begin();
-    set<pCell*>::iterator itend = clevels[M].end();
+    set<pCell*>::iterator it    = CLevels(M).begin();
+    set<pCell*>::iterator itend = CLevels(M).end();
     for (;it!=itend; it++) {
       oldp.insert(oldp.end(), (*it)->bods.begin(), (*it)->bods.end());
     }
@@ -3240,10 +3242,10 @@ bool pHOT::checkParticles(ostream& out, bool pc)
   map<pCell*, pair<unsigned, unsigned> > outdat;
 
   for (unsigned M=0; M<=multistep; M++) {
-    if (clevels[M].size()) {
+    if (CLevels(M).size()) {
       cnt = 0;
       for (set<pCell*>::iterator 
-	     it=clevels[M].begin(); it!=clevels[M].end(); it++) {
+	     it=CLevels(M).begin(); it!=CLevels(M).end(); it++) {
 	cnt++;
 	// FOR CELL OUTPUT
 	outdat[*it] = pair<unsigned, unsigned>(M, (*it)->bods.size());
@@ -3254,7 +3256,7 @@ bool pHOT::checkParticles(ostream& out, bool pc)
 		 ib!=(*it)->bods.end(); ib++) {
 	      if (!cc->Part(*ib)) {
 		out << "pHOT::checkParticles:: M=" << M << ", bad body at "
-		     << cnt << "/" << clevels[M].size() 
+		     << cnt << "/" << CLevels(M).size() 
 		     << " cell=" << hex << (*it) << dec << endl;
 		badb++;
 	      }
@@ -3262,7 +3264,7 @@ bool pHOT::checkParticles(ostream& out, bool pc)
 	  }
 	} else {
 	  out << "pHOT::checkParticles:: M=" << M << ", zero bods at "
-	       << cnt << "/" << clevels[M].size() 
+	       << cnt << "/" << CLevels(M).size() 
 	       << " cell=" << hex << (*it) << dec << endl;
 	  out << "pHOT::checkParticles:: More info for " 
 	      << hex << (*it) << dec << ": marked as ";
@@ -3362,9 +3364,9 @@ bool pHOT::checkFrontier(ostream& out)
   timer_diagdbg.start();
 
   for (unsigned M=0; M<=multistep; M++) {
-    if (clevels[M].size()) {
+    if (CLevels(M).size()) {
       for (set<pCell*>::iterator 
-	     it=clevels[M].begin(); it!=clevels[M].end(); it++) {
+	     it=CLevels(M).begin(); it!=CLevels(M).end(); it++) {
 	if (frontier.find((*it)->mykey) == frontier.end()) {
 	  out << "pHOT::checkFrontier error on M=" << M
 	      << ", cell=" << hex << *it << dec << endl;
@@ -3513,7 +3515,7 @@ void pHOT::checkIndices()
   vector<unsigned> indices;
   for (key_cell::iterator it=frontier.begin(); it!=frontier.end(); it++)
     indices.insert(indices.end(), it->second->bods.begin(), it->second->bods.end());
-
+  
   // Add oob particles
   //
   for (set<indx_type>::iterator it=oob.begin(); it!=oob.end(); it++)
@@ -3623,7 +3625,7 @@ bool pHOT::checkPartKeybods(unsigned mlevel)
   // Make body list from frontier cells for this level
   //
   for (unsigned M=mlevel; M<=multistep; M++) {
-    for (set<pCell*>::iterator it=clevels[M].begin(); it!=clevels[M].end(); it++) {
+    for (set<pCell*>::iterator it=CLevels(M).begin(); it!=CLevels(M).end(); it++) {
       for (vector<unsigned long>::iterator ib=(*it)->bods.begin(); ib!=(*it)->bods.end(); ib++) {
 	key_type key  = cc->Particles()[*ib].key;
 	unsigned indx = cc->Particles()[*ib].indx;
@@ -3703,8 +3705,8 @@ bool pHOT::checkCellClevel(unsigned mlevel)
 
   unsigned bad = 0, total = 0;
   for (unsigned M=mlevel; M<=multistep; M++) {
-    set<pCell*>::iterator it    = clevels[M].begin();
-    set<pCell*>::iterator itend = clevels[M].end();
+    set<pCell*>::iterator it    = CLevels(M).begin();
+    set<pCell*>::iterator itend = CLevels(M).end();
     for (;it!=itend; it++) {
       if (clevlst.find(*it) == clevlst.end()) bad++;
     }
@@ -3730,8 +3732,8 @@ bool pHOT::checkCellClevelSanity(unsigned mlevel)
   std::set<pCell*> expect, found;
 
   for (unsigned M=mlevel; M<=multistep; M++) {
-    set<pCell*>::iterator it    = clevels[M].begin();
-    set<pCell*>::iterator itend = clevels[M].end();
+    set<pCell*>::iterator it    = CLevels(M).begin();
+    set<pCell*>::iterator itend = CLevels(M).end();
     for (;it!=itend; it++) {
       expect.insert(*it);
       for (std::vector<unsigned long>::iterator ib=(*it)->bods.begin();

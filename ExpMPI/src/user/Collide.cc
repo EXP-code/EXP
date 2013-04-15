@@ -480,10 +480,11 @@
    unsigned nullcell = 0, totalcell = 0;
 
    for (unsigned M=mlevel; M<=multistep; M++) {
-				 // Don't queue null cells
-     if (tree.clevels[M].size()) {
-       icb = tree.clevels[M].begin(); 
-       ice = tree.clevels[M].end(); 
+
+				// Don't queue null cells
+     if (tree.CLevels(M).size()) {
+       icb = tree.CLevels(M).begin(); 
+       ice = tree.CLevels(M).end(); 
        for (ic=icb; ic!=ice; ic++) {
 	 if ((*ic)->bods.size()) {
 	   cellist[(ncells++)%nthrds].push_back(*ic);
@@ -1174,7 +1175,10 @@ unsigned Collide::medianNumber()
 	out << setw(8) << j << setw(18) << numcnt[j] << endl;
     }
 
-    return numcnt[numcnt.size()/2]; 
+    if (numcnt.size()) 
+      return numcnt[numcnt.size()/2]; 
+    else
+      return 0;
 
   } else {
     unsigned num = numcnt.size();

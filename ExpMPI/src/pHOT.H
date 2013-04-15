@@ -131,6 +131,9 @@ protected:
   vector<float>    diagd3;
   vector<unsigned> numk3;
 
+  map<pCell*, unsigned> clevlst; // Map cell ptrs to cell level
+  vector< set<pCell*> > clevels; // List of cells at each level
+
   template <typename T> 
   void getQuant(vector<T>& in, vector<T>& out);
 
@@ -215,8 +218,10 @@ public:
 
   enum ChangeFlag {CREATE, REMOVE, DELETE, RECOMP};
 
-  map<pCell*, unsigned> clevlst; // Map cell ptrs to cell level
-  vector< set<pCell*> > clevels; // List of cells at each level
+  set<pCell*>& CLevels(int M) {
+    if (clevels.size()==0) makeCellLevelList();
+    return clevels[M];
+  }
 
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
