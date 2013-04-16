@@ -75,7 +75,7 @@ static bool wghtDBL(const pair<key_type, double>& a,
 // Check sample cell sanity (for debugging)
 // [set to false for production]
 //
-bool pHOT::samp_debug = false;
+bool pHOT::samp_debug = true;
 
 //
 // Turn on/off subsampling the key list for partitioning
@@ -2396,7 +2396,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 	if (M!=m) {
 	  clevels[m].insert(*nit);
 	  clevlst[*nit] = m;
-	  CLevels(M).erase(nit);
+	  clevels[M].erase(nit);
 	  ns++;
 	}
 	

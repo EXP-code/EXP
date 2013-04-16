@@ -28,7 +28,6 @@ using namespace std;
 // Debugging check
 //
 static bool sampcel_debug = false;
-static bool lstcell_debug = false;
 
 //
 // Physical units
@@ -651,7 +650,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->setWeights(use_effort);
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
-    if (lstcell_debug) c0->Tree()->makeCellLevelList();
+    c0->Tree()->makeCellLevelList();
 #ifdef DEBUG
     if (!c0->Tree()->checkBodycell()) {
       cout << "Process " << myid << ": "
@@ -773,7 +772,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tree1Time.start();
     c0->Tree()->makeTree();
-    if (lstcell_debug) c0->Tree()->makeCellLevelList();
+    c0->Tree()->makeCellLevelList();
     tree1Time.stop();
     tree1Wait.start();
     (*barrier)("TreeDSMC: after makeTree", __FILE__, __LINE__);
@@ -818,7 +817,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->adjustTree(mlevel);
     tradjSoFar = tradjTime.stop();
     tcellTime.start();
-    if (lstcell_debug) c0->Tree()->adjustCellLevelList(mlevel);
+    c0->Tree()->adjustCellLevelList(mlevel);
     tcellSoFar = tcellTime.stop();
     tree2Wait.start();
     (*barrier)("TreeDSMC: after adjustTree", __FILE__, __LINE__);
@@ -913,7 +912,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (firstime && use_effort && mlevel==0) {
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
-    if (lstcell_debug) c0->Tree()->makeCellLevelList();
+    c0->Tree()->makeCellLevelList();
   }
 
   firstime = false;
