@@ -954,67 +954,15 @@ void Component::read_bodies_and_distribute_ascii(void)
   Particle part(niattrib, ndattrib);
 
   if (myid==0) {
-				// Read root node particles
+				// Read in Node 0's particles
+    for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-				// First line
-    {
-      fin->getline(line, nline);
-      istringstream ins(line);
-
-      ins >> part.mass;
-      for (int j=0; j<3; j++) ins >> part.pos[j];
-      for (int j=0; j<3; j++) ins >> part.vel[j];
-      for (int j=0; j<3; j++) part.acc[j] = 0.0;
-      part.pot = part.potext = 0.0;
-
-      part.level = multistep;
-      part.indx = 1;
-
-      for (int j=0; j<niattrib; j++) {
-	ins >> part.iattrib[j];
-	if (!ins) part.iattrib[j] = 0;
-      }
-
-      for (int j=0; j<ndattrib; j++) {
-	ins >> part.dattrib[j];
-	if (!ins) part.dattrib[j] = 0;
-      }
-
-      rmax1 = 0.0;
-      for (int j=0; j<3; j++) rmax1 += part.pos[j]*part.pos[j];
-    }
-
-    particles[part.indx] = part;
-
-				// Remainder of Node 0's particles
-
-    for (unsigned i=2; i<=nbodies_table[0]; i++) {
-      
-      fin->getline(line, nline);
-      istringstream ins(line);
-
-      ins >> part.mass;
-      for (int j=0; j<3; j++) ins >> part.pos[j];
-      for (int j=0; j<3; j++) ins >> part.vel[j];
-      part.pot = part.potext = 0.0;
-
-      part.level = multistep;
-      part.indx = i;
-
-      for (int j=0; j<niattrib; j++) {
-	ins >> part.iattrib[j];
-	if (!ins) part.iattrib[j] = 0;
-      }
-
-      for (int j=0; j<ndattrib; j++) {
-	ins >> part.dattrib[j];
-	if (!ins) part.dattrib[j] = 0;
-      }
-
-      r2 = 0.0;
+      part.readAscii(i, indexing, fin);
+				// Get the radius
+      double r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
       rmax1 = max<double>(r2, rmax1);
-
+      
 				// Load the particle
       particles[part.indx] = part;
     }
@@ -1030,34 +978,14 @@ void Component::read_bodies_and_distribute_ascii(void)
       ibufcount = 0;
       while (icount < nbodies_table[n]) {
 
+	int i = nbodies_index[n-1] + 1 + icount;
+	part.readAscii(i, indexing, fin);
+
 	fin->getline(line, nline);
-	istringstream ins(line);
-
-	ins >> part.mass;
-	for (int j=0; j<3; j++) ins >> part.pos[j];
-	for (int j=0; j<3; j++) ins >> part.vel[j];
-	for (int j=0; j<3; j++) part.acc[j] = 0.0;
-	part.pot = part.potext = 0.0;
-
-	part.level = multistep;
-	part.indx = nbodies_index[n-1] + 1 + icount;
-
-	for (int j=0; j<niattrib; j++) {
-	  ins >> part.iattrib[j];
-	  if (!ins) part.iattrib[j] = 0;
-	}
-
-	for (int j=0; j<ndattrib; j++) {
-	  ins >> part.dattrib[j];
-	  if (!ins) part.dattrib[j] = 0;
-	}
 
 	r2 = 0.0;
-	for (int k=0; k<3; k++) 
-	  r2 += part.pos[k]*part.pos[k];
-
+	for (int k=0; k<3; k++) r2 += part.pos[k]*part.pos[k];
 	rmax1 = max<double>(r2, rmax1);
-
 
 	pf.SendParticle(part);
 	icount++;
@@ -1112,57 +1040,10 @@ void Component::read_bodies_and_distribute_ascii(void)
 #endif
 }
 
-void Component::get_next_particle_from_file(Particle* part, istream *in)
-{
-  ++seq_cur;
-
-  if (indexing) 
-    in->read((char *)&(part->indx), sizeof(unsigned long));
-  else
-    part->indx = seq_cur;
-
-  if (rsize == sizeof(float)) {
-    float tf;
-    in->read((char *)&tf, sizeof(float));
-    part->mass = tf;
-    for (int i=0; i<3; i++) {
-      in->read((char *)&tf, sizeof(float));
-      part->pos[i] = tf;
-    }
-    for (int i=0; i<3; i++) {
-      in->read((char *)&tf, sizeof(float));
-      part->vel[i] = tf;
-    }
-    in->read((char *)&tf, sizeof(float));
-    part->pot = tf;
-    part->potext = 0.0;
-    part->level = multistep;
-    for (int i=0; i<niattrib; i++) 
-      in->read((char *)&(part->iattrib[i]), sizeof(int));
-    for (int i=0; i<ndattrib; i++) {
-      in->read((char *)&tf, sizeof(float));
-      part->dattrib[i] = tf;
-    }
-  } else {
-    in->read((char *)&(part->mass), sizeof(double));
-    for (int i=0; i<3; i++) in->read((char *)&(part->pos[i]), sizeof(double));
-    for (int i=0; i<3; i++) in->read((char *)&(part->vel[i]), sizeof(double));
-    in->read((char *)&(part->pot), sizeof(double));
-    part->potext = 0.0;
-    part->level = multistep;
-    for (int i=0; i<niattrib; i++) 
-      in->read((char *)&(part->iattrib[i]), sizeof(int));
-    for (int i=0; i<ndattrib; i++) 
-      in->read((char *)&(part->dattrib[i]), sizeof(double));
-  }
-}
-
-
 void Component::read_bodies_and_distribute_binary(istream *in)
 {
 				// Get component header
   ComponentHeader header;
-
 				// Node local parameter buffer
   int ninfochar;
   boost::shared_array<char> info;
@@ -1279,7 +1160,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      get_next_particle_from_file(&part, in);
+      part.readBinary(rsize, ++seq_cur, indexing, in);
 
       r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
@@ -1303,7 +1184,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       icount = 0;
       while (icount < nbodies_table[n]) {
 
-	get_next_particle_from_file(&part, in);
+	part.readBinary(rsize, ++seq_cur, indexing, in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
@@ -1311,12 +1192,6 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 
 	rmax1 = max<double>(r2, rmax1);
 
-	/*
-	cout << "#=" << icount << " r2=" << r2 << " rmax1=" << rmax1 
-	     << " mass=" << part.mass << endl;
-	*/
-
-	
 	icount++;
 	pf.SendParticle(part);
       }
@@ -1633,59 +1508,10 @@ void Component::write_binary(ostream* out, bool real4)
   while (p) {
 
     if (myid == 0) {
-      
       for (int k=0; k<number; k++) {
-	if (indexing) 
-	  out->write((const char *)&(p[k].indx), sizeof(unsigned long));
-
-	if (real4) {
-	  tf = static_cast<float>(p[k].mass);
-	  out->write((const char *)&tf, sizeof(float));
-	}
-	else
-	  out->write((const char *)&(p[k].mass), sizeof(double));
-
-	for (int i=0; i<3; i++) {
-	  pv = p[k].pos[i] + com0[i] - comI[i];
-	  if (real4) {
-	    tf = static_cast<float>(pv);
-	    out->write((const char *)&tf, sizeof(float));
-	  }
-	  else
-	    out->write((const char *)&pv, sizeof(double));
-	}
-	for (int i=0; i<3; i++) {
-	  pv = p[k].vel[i] + cov0[i] - covI[i];
-	  if (real4) {
-	    tf = static_cast<float>(pv);
-	    out->write((const char *)&tf, sizeof(float));
-	  }
-	  else
-	  out->write((const char *)&pv, sizeof(double));
-	}
-
-	pot0 = p[k].pot + p[k].potext;
-	if (real4) {
-	  tf = static_cast<float>(pot0);
-	  out->write((const char *)&tf, sizeof(float));
-	}
-	else
-	  out->write((const char *)&pot0, sizeof(double));
-
-	for (int i=0; i<header.niatr; i++)
-	  out->write((const char *)&(p[k].iattrib[i]), sizeof(int));
-	for (int i=0; i<header.ndatr; i++) {
-	  if (real4) {
-	    tf = static_cast<float>(p[k].dattrib[i]);
-	    out->write((const char *)&tf, sizeof(float));
-	  }
-	  else
-	    out->write((const char *)&(p[k].dattrib[i]), sizeof(double));
-	}
+	p[k].writeBinary(rsize, com0, comI, cov0, covI, indexing, out);
       }
-
     }
-
 				// Next bunch of particles
     p = get_particles(&number);
 
@@ -1700,32 +1526,13 @@ void Component::write_ascii(ostream* out, bool accel)
   Particle *p = get_particles(&number);
 
   while (p) {
-
     if (myid == 0) {
-
       for (int k=0; k<number; k++) {
-	if (indexing) *out << setw(12) << p[k].indx;
-	*out << setw(18) << p[k].mass;
-	for (int i=0; i<3; i++) *out << setw(18) << p[k].pos[i]+com0[i]-comI[i];
-	for (int i=0; i<3; i++) *out << setw(18) << p[k].vel[i]+cov0[i]-covI[i];
-	if (accel)
-	  for (int i=0; i<3; i++) *out << setw(18) << p[k].acc[i];
-
-	*out << setw(18) << p[k].pot;
-	*out << setw(18) << p[k].potext;
-	  
-	for (int i=0; i<niattrib; i++) 
-	  *out << setw(10) << p[k].iattrib[i];
-	for (int i=0; i<ndattrib; i++) 
-	  *out << setw(18) << p[k].dattrib[i];
-
-	*out << endl;
+	p[k].writeAscii(com0, comI, cov0, covI, indexing, accel, out);
       }
-
     }
-    
+
     p = get_particles(&number);
-    
   }
     
 }

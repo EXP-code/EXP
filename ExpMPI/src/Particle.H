@@ -17,6 +17,8 @@ using namespace std;
  */
 class Particle
 {
+private:
+
 public:
 
   //! Default effort value
@@ -79,6 +81,23 @@ public:
 
   //! Copy constructor
   Particle(const Particle &);
+
+  //! Read particles from file
+  void readAscii(bool indexing, int seq, std::istream* fin);
+
+  //! Read particles from file 
+  void readBinary(unsigned rsize, bool indexing, int seq, std::istream *in);
+
+  //! Write a particle in ascii format
+  void writeAscii(double* com0, double* comI, 
+		  double* cov0, double* covI, 
+		  bool indexing, bool accel, std::ostream* out);
+
+  //! Write a particle in binary format (PSP)
+  void writeBinary(unsigned rsize, 
+		   double* com0, double* comI,
+		   double* cov0, double* covI,
+		   bool indexing, std::ostream *out);
 
 };
 

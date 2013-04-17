@@ -173,7 +173,6 @@ private:
   //! Parallel distribute and particle io
   void read_bodies_and_distribute_ascii(void);
   void read_bodies_and_distribute_binary(istream *);
-  void get_next_particle_from_file(Particle *onepart, istream *in);
   void load_balance(void);
 
 
