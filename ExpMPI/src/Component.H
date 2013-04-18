@@ -185,7 +185,7 @@ private:
 
   //@{
   //! Internal data for sequence checking
-  bool seq_check, ordered, indexing, umagic;
+  bool seq_check, ordered, indexing, aindex, umagic;
   int seq_beg, seq_end, seq_cur;
   //@}
 

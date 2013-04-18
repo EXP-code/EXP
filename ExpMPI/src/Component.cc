@@ -86,6 +86,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   seq_check   = false;
   indexing    = false;
+  aindex      = false;
   umagic      = true;
 
   nlevel      = -1;
@@ -408,6 +409,7 @@ Component::Component(istream *in)
 
   seq_check   = false;
   indexing    = false;
+  aindex      = false;
   umagic      = true;
 
   nlevel      = -1;
@@ -501,6 +503,8 @@ void Component::initialize(void)
     if (!datum.first.compare("magic"))    umagic = atoi(datum.second.c_str()) ? true : false;
 
     if (!datum.first.compare("indexing")) indexing = atoi(datum.second.c_str()) ? true : false;
+
+    if (!datum.first.compare("aindex"))   aindex = atoi(datum.second.c_str()) ? true : false;
 
     if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
 
@@ -957,7 +961,7 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Read in Node 0's particles
     for (unsigned i=1; i<=nbodies_table[0]; i++) {
 
-      part.readAscii(i, indexing, fin);
+      part.readAscii(aindex, i, fin);
 				// Get the radius
       double r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
@@ -979,9 +983,7 @@ void Component::read_bodies_and_distribute_ascii(void)
       while (icount < nbodies_table[n]) {
 
 	int i = nbodies_index[n-1] + 1 + icount;
-	part.readAscii(i, indexing, fin);
-
-	fin->getline(line, nline);
+	part.readAscii(aindex, i, fin);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) r2 += part.pos[k]*part.pos[k];
