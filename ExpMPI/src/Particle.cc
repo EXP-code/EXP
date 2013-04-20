@@ -120,7 +120,7 @@ void Particle::writeBinary(unsigned rsize,
   if (indexing) 		// Cache index if desired
     out->write((const char *)&(indx), sizeof(unsigned long));
 
-  if (rsize = sizeof(float)) {
+  if (rsize == sizeof(float)) {
     tf = static_cast<float>(mass);
     out->write((const char *)&tf, sizeof(float));
   }
