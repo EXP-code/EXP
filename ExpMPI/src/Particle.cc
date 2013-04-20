@@ -10,8 +10,7 @@ Particle::Particle()
   // Initialize basic fields
   //
   mass = pot = potext = 0.0;
-  for (int k=0; k<3; k++)
-    pos[k] = vel[k] = acc[k] = 0.0;
+  for (int k=0; k<3; k++) pos[k] = vel[k] = acc[k] = 0.0;
   level   = 0;
   dtreq   = -1;
   scale   = -1;
@@ -27,8 +26,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   // Initialize basic fields
   //
   mass = pot = potext = 0.0;
-  for (int k=0; k<3; k++)
-    pos[k] = vel[k] = acc[k] = 0.0;
+  for (int k=0; k<3; k++) pos[k] = vel[k] = acc[k] = 0.0;
   level   = 0;
   dtreq   = -1;
   scale   = -1;
@@ -36,7 +34,7 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   indx    = 0;
   tree    = 0u;
   key     = 0u;
-  iattrib = vector<int>(niatr, 0);
+  iattrib = vector<int   >(niatr, 0);
   dattrib = vector<double>(ndatr, 0);
 }
 
@@ -65,47 +63,75 @@ Particle::Particle(const Particle &p)
 void Particle::readBinary(unsigned rsize, bool indexing, int seq, 
 			  std::istream *in)
 {
+  //
+  // Iterators for vector atrributes
+  //
+  std::vector<int   >::iterator it;
+  std::vector<double>::iterator jt;
+
+  //
   // Read index value if this field is recorded
+  //
   if (indexing) 
     in->read((char *)&(indx), sizeof(unsigned long));
   else
     indx = seq;
   
+  //
   // Floating (4-byte version)
+  //
   if (rsize == sizeof(float)) {
-    float tf;
+
+    float tf;			// Temporary float value
+
     in->read((char *)&tf, sizeof(float));
     mass = tf;
+
     for (int i=0; i<3; i++) {
       in->read((char *)&tf, sizeof(float));
       pos[i] = tf;
     }
+
     for (int i=0; i<3; i++) {
       in->read((char *)&tf, sizeof(float));
       vel[i] = tf;
     }
+
     in->read((char *)&tf, sizeof(float));
     pot = tf;
     potext = 0.0;
+
     level = multistep;
-    for (std::vector<int>::iterator i=iattrib.begin(); i!=iattrib.end(); i++) 
-      in->read((char *)&(*i), sizeof(int));
-    for (std::vector<double>::iterator i=dattrib.begin(); i!=dattrib.end(); i++)  {
+
+    for (it=iattrib.begin(); it!=iattrib.end(); it++) 
+      in->read((char *)&(*it), sizeof(int));
+
+    for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) {
       in->read((char *)&tf, sizeof(float));
-      *i = tf;
+      *jt = tf;
     }
+    
   } else {
+    //
     // Floating (8-byte version)
+    //
     in->read((char *)&(mass), sizeof(double));
+
     for (int i=0; i<3; i++) in->read((char *)&(pos[i]), sizeof(double));
+
     for (int i=0; i<3; i++) in->read((char *)&(vel[i]), sizeof(double));
+
     in->read((char *)&(pot), sizeof(double));
     potext = 0.0;
+
     level = multistep;
-    for (std::vector<int>::iterator i=iattrib.begin(); i!=iattrib.end(); i++) 
-      in->read((char *)&(*i), sizeof(int));
-    for (std::vector<double>::iterator i=dattrib.begin(); i!=dattrib.end(); i++)
-      in->read((char *)&(*i), sizeof(double));
+
+    for (it=iattrib.begin(); it!=iattrib.end(); it++) 
+      in->read((char *)&(*it), sizeof(int));
+
+    for (jt=dattrib.begin(); jt!=dattrib.end(); jt++)
+      in->read((char *)&(*jt), sizeof(double));
+
   }
 }
 
@@ -115,6 +141,13 @@ void Particle::writeBinary(unsigned rsize,
 			   double* cov0, double* covI,
 			   bool indexing, std::ostream *out)
 {
+  //
+  // Iterators for vector atrributes
+  //
+  std::vector<int   >::iterator it;
+  std::vector<double>::iterator jt;
+
+  // Working variable
   float tf;
 
   if (indexing) 		// Cache index if desired
@@ -136,6 +169,7 @@ void Particle::writeBinary(unsigned rsize,
     else
       out->write((const char *)&pv, sizeof(double));
   }
+  
   for (int i=0; i<3; i++) {
     double pv = vel[i] + cov0[i] - covI[i];
     if (rsize == sizeof(float)) {
@@ -154,25 +188,38 @@ void Particle::writeBinary(unsigned rsize,
   else
     out->write((const char *)&pot0, sizeof(double));
 
-  for (std::vector<int>::iterator i=iattrib.begin(); i!=iattrib.end(); i++) 
-    out->write((const char *)&(*i), sizeof(int));
+  for (it=iattrib.begin(); it!=iattrib.end(); it++) 
+    out->write((const char *)&(*it), sizeof(int));
   
-  for (std::vector<double>::iterator i=dattrib.begin(); i!=dattrib.end(); i++)  {
+  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++)  {
     if (rsize == sizeof(float)) {
-      tf = static_cast<float>(*i);
+      tf = static_cast<float>(*jt);
       out->write((const char *)&tf, sizeof(float));
     }
     else
-      out->write((const char *)&(*i), sizeof(double));
+      out->write((const char *)&(*jt), sizeof(double));
   }
 }
 
 
 void Particle::readAscii(bool indexing, int seq, std::istream* fin)
 {
+  //
+  // Character array for file reading
+  //
   const int nline = 2048;
   char line[nline];
 
+  //
+  // Iterators for vector atrributes
+  //
+  std::vector<int   >::iterator it;
+  std::vector<double>::iterator jt;
+
+
+  //
+  // Read the line
+  //
   fin->getline(line, nline);
   istringstream ins(line);
 
@@ -189,14 +236,14 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   
   level = multistep;
 
-  for (std::vector<int>::iterator i=iattrib.begin(); i!=iattrib.end(); i++) {
-    ins >> *i;
-    if (!ins) *i = 0;
+  for (it=iattrib.begin(); it!=iattrib.end(); it++) {
+    ins >> *it;
+    if (!ins) *it = 0;
   }
 
-  for (std::vector<double>::iterator i=dattrib.begin(); i!=dattrib.end(); i++) {
-    ins >> *i;
-    if (!ins) *i = 0;
+  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) {
+    ins >> *jt;
+    if (!ins) *jt = 0;
   }
 }
 
@@ -204,6 +251,13 @@ void Particle::writeAscii(double* com0, double* comI,
 			  double* cov0, double* covI, 
 			  bool indexing, bool accel, std::ostream* out)
 {
+  //
+  // Iterators for vector atrributes
+  //
+  std::vector<int   >::iterator it;
+  std::vector<double>::iterator jt;
+
+
   if (indexing) *out << std::setw(12) << indx;
   *out << std::setw(18) << mass;
   for (int i=0; i<3; i++) *out << std::setw(18) << pos[i]+com0[i]-comI[i];
@@ -214,10 +268,11 @@ void Particle::writeAscii(double* com0, double* comI,
   *out << std::setw(18) << pot;
   *out << std::setw(18) << potext;
     
-  for (std::vector<int>::iterator i=iattrib.begin(); i!=iattrib.end(); i++) 
-    *out << std::setw(10) << *i;
-  for (std::vector<double>::iterator i=dattrib.begin(); i!=dattrib.end(); i++) 
-    *out << std::setw(18) << *i;
+  for (it=iattrib.begin(); it!=iattrib.end(); it++) 
+    *out << std::setw(10) << *it;
+
+  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) 
+    *out << std::setw(18) << *jt;
   
   *out << std::endl;
 }
