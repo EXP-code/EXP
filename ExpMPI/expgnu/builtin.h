@@ -23,9 +23,10 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 
 
 #ifndef _builtin_h
-#define _builtin_h 1
+#define _builtin_h
 
-#include <stddef.h>
+#include <stdint.h>
+#include <cstdlib>
 #include <std.h>
 #include <cmath>
 
@@ -47,7 +48,7 @@ extern "C" double       return_elapsed_time(double last_time = 0.0);
 char*        dtoa(double x, char cvt = 'g', int width = 0, int prec = 6);
 
 unsigned int hashpjw(const char*);
-_G_uint32_t multiplicativehash(_G_int32_t);
+uint32_t multiplicativehash(int32_t);
 unsigned int foldhash(double);
 
 extern void default_one_arg_error_handler(const char*) __attribute__ ((noreturn));

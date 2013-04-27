@@ -16,9 +16,9 @@ License along with this library; if not, write to the Free Software
 Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 #ifndef _Random_h
-#define _Random_h 1
+#define _Random_h
 
-#include <math.h>
+#include <cmath>
 #include <RNG.h>
 
 class Random {

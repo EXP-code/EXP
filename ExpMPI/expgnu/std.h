@@ -29,7 +29,7 @@ Foundation, 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 #include <fcntl.h>
 
 extern "C" {
-int strcasecmp _G_ARGS((const char*, const char*));
+int strcasecmp(const char*, const char*);
 }
 
 #endif 
