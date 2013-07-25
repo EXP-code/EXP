@@ -309,6 +309,8 @@ void MPL_parse_args(int argc, char** argv)
 
   }
 
+  parse->parse_argv(argc-optind, &argv[optind]);
+
   initialize();
 
 }

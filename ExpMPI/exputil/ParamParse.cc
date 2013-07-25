@@ -215,13 +215,14 @@ bool ParamParse::find_list(const string& stanza)
 int ParamParse::find_item(const string& name, string& value)
 {
   list<spair>::iterator p;
+  int ret = 0;
   for (p = curstanza->elist.begin(); p != curstanza->elist.end(); p++) {
     if (name.compare(p->first) == 0) {
       value = p->second;
-      return 1;
+      ret = 1;
     }
   }
-  return 0;
+  return ret;
 }
 
 void ParamParse::add_item(const string& name, const string& value)
