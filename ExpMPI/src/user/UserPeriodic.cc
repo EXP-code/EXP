@@ -51,14 +51,17 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   // Initialize structures for trace data
   //
   if (nbin) {
-    mbinT = vector< vector<double> >(nthrds);
-    tbinT = vector< vector<double> >(nthrds);
+    cbinT = vector< vector<unsigned> >(nthrds);
+    mbinT = vector< vector<double>   >(nthrds);
+    tbinT = vector< vector<double>   >(nthrds);
     for (int n=0; n<nthrds; n++) {
-      mbinT[n] = vector<double>(nbin, 0);
-      tbinT[n] = vector<double>(nbin, 0);
+      cbinT[n] = vector<unsigned>(nbin, 0);
+      mbinT[n] = vector<double>  (nbin, 0);
+      tbinT[n] = vector<double>  (nbin, 0);
     }
-    mbin = vector<double>(nbin);
-    tbin = vector<double>(nbin);
+    cbin = vector<unsigned>(nbin);
+    mbin = vector<double>  (nbin);
+    tbin = vector<double>  (nbin);
     Tnext = tnow;
     dX = L[0]/nbin;
   }
@@ -152,15 +155,19 @@ void UserPeriodic::write_trace()
 {
   for (int n=1; n<nthrds; n++) {
     for (int k=0; k<nbin; k++) {
+      cbinT[0][k] += cbinT[n][k];
       mbinT[0][k] += mbinT[n][k];
       tbinT[0][k] += tbinT[n][k];
     }
   }
 
-  MPI_Reduce(&mbinT[0][0], &mbin[0], nbin, MPI_DOUBLE, MPI_SUM, 0, 
+  MPI_Reduce(&cbinT[0][0], &cbin[0], nbin, MPI_UNSIGNED, MPI_SUM, 0, 
 	     MPI_COMM_WORLD);
 
-  MPI_Reduce(&tbinT[0][0], &tbin[0], nbin, MPI_DOUBLE, MPI_SUM, 0, 
+  MPI_Reduce(&mbinT[0][0], &mbin[0], nbin, MPI_DOUBLE,   MPI_SUM, 0, 
+	     MPI_COMM_WORLD);
+
+  MPI_Reduce(&tbinT[0][0], &tbin[0], nbin, MPI_DOUBLE,   MPI_SUM, 0, 
 	     MPI_COMM_WORLD);
 
   if (myid==0) {
@@ -172,6 +179,7 @@ void UserPeriodic::write_trace()
 	  << setw(18) << dX*(0.5+k) - offset[0]
 	  << setw(18) << mbin[k]/(dX*L[1]*L[2])
 	  << setw(18) << tbin[k]/(mbin[k]+1.0e-10)
+	  << setw(10) << cbin[k]
 	  << endl;
     out << endl;
   }
@@ -180,8 +188,10 @@ void UserPeriodic::write_trace()
   // Clean data structures for next call
   //
   for (int n=0; n<nthrds; n++) {
-    for (int k=0; k<nbin; k++)
+    for (int k=0; k<nbin; k++) {
+      cbinT[n][k] = 0;
       mbinT[n][k] = tbinT[n][k] = 0.0;
+    }
   }
 
   trace = false;		// Tracing off until
@@ -265,6 +275,7 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     if (trace) {
       int indx = static_cast<int>(floor((p->pos[0]+offset[0])/dX));
       if (indx>=0 && indx<nbin) {
+	cbinT[id][indx]++;
 	mbinT[id][indx] += p->mass;
 	if (tcol>=0 && tcol<static_cast<int>(p->dattrib.size()))
 	  tbinT[id][indx] += p->mass*p->dattrib[tcol];

@@ -219,7 +219,9 @@ void ResPot::compute_grid()
       
       // Finally, store the data for this phase space point
       orbvec.push_back(rw);
-      check_rw(rw);
+      if (check_rw(rw)) {
+	std::cerr << "Found errors!" << std::endl;
+      }
     }
     
     // Normalize energy to [0,1]
@@ -1709,26 +1711,29 @@ ResPot::ReturnCode ResPot::Force(double dt,
 }
 
 
-void ResPot::check_rw(RW& rw)
+int ResPot::check_rw(RW& rw)
 {
+  int ret = 0;
   for (unsigned i=0; i<rw.r.size(); i++)
-    if (isnan(rw.r[i])) cout << "RW error: r nan, i=" << i << endl;
+    if (isnan(rw.r[i])) {cout << "RW error: r nan, i=" << i << endl; ret++;}
   
   for (unsigned i=0; i<rw.w1.size(); i++)
-    if (isnan(rw.w1[i])) cout << "RW error: w1 nan, i=" << i << endl;
+    if (isnan(rw.w1[i])) {cout << "RW error: w1 nan, i=" << i << endl; ret++;}
   
   for (unsigned i=0; i<rw.f.size(); i++)
-    if (isnan(rw.f[i])) cout << "RW error: f nan, i=" << i << endl;
+    if (isnan(rw.f[i])) {cout << "RW error: f nan, i=" << i << endl; ret++;}
   
-  if (isnan(rw.O1))	cout << "RW error: O1 nan" << endl;
-  if (isnan(rw.O2))	cout << "RW error: O2 nan" << endl;
-  if (isnan(rw.Jm))	cout << "RW error: Jm nan" << endl;
-  if (isnan(rw.dJm))	cout << "RW error: dJm nan" << endl;
-  if (isnan(rw.E))	cout << "RW error: E nan" << endl;
-  if (isnan(rw.K))	cout << "RW error: K nan" << endl;
-  if (isnan(rw.I1))	cout << "RW error: I1 nan" << endl;
-  if (isnan(rw.W))	cout << "RW error: W nan" << endl;
-  if (isnan(rw.dWE))	cout << "RW error: dWE nan" << endl;
-  if (isnan(rw.dWK))	cout << "RW error: dWK nan" << endl;
+  if (isnan(rw.O1))	{cout << "RW error: O1 nan" << endl; ret++;}
+  if (isnan(rw.O2))	{cout << "RW error: O2 nan" << endl; ret++;}
+  if (isnan(rw.Jm))	{cout << "RW error: Jm nan" << endl; ret++;}
+  if (isnan(rw.dJm))	{cout << "RW error: dJm nan" << endl; ret++;}
+  if (isnan(rw.E))	{cout << "RW error: E nan" << endl; ret++;}
+  if (isnan(rw.K))	{cout << "RW error: K nan" << endl; ret++;}
+  if (isnan(rw.I1))	{cout << "RW error: I1 nan" << endl; ret++;}
+  if (isnan(rw.W))	{cout << "RW error: W nan" << endl; ret++;}
+  if (isnan(rw.dWE))	{cout << "RW error: dWE nan" << endl; ret++;}
+  if (isnan(rw.dWK))	{cout << "RW error: dWK nan" << endl; ret++;}
+
+  return ret;
 }
 

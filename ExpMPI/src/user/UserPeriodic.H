@@ -33,8 +33,10 @@ private:
   double dT, Tnext, dX;
   int nbin, tcol;
 
-  vector< vector<double> > mbinT, tbinT;
-  vector<double> mbin, tbin;
+  vector< vector<unsigned> > cbinT;
+  vector< vector<double>   > mbinT, tbinT;
+  vector<unsigned>           cbin;
+  vector<double>             mbin, tbin;
   bool trace;
 
   Component *c0;

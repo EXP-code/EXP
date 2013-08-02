@@ -50,7 +50,8 @@ private:
     int num;
   };
   
-  void check_rw(RW&);
+  //! Return non-zero if errors are found
+  int check_rw(RW&);
   
   typedef vector<RW> ovector;
   typedef vector<ovector> o2vector;
