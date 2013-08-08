@@ -51,13 +51,28 @@ using namespace std;
 #include "pHOT.H"
 
 // Default side lengths for prism to be partitioned
-double   pHOT::sides[] = {2.0, 2.0, 2.0};
+std::vector<double> pHOT::sides(3, 2.0);
+
 // Location of origin
-double   pHOT::offst[] = {1.0, 1.0, 1.0};
+std::vector<double> pHOT::offst(3, 1.0);
+
 // Default quantiles for diagnostic
-unsigned pHOT::qtile[] = {10,  50,  90 };
-unsigned pHOT::ntile   = sizeof(qtile)/sizeof(unsigned);
+unsigned pHOT::ntile;
+std::vector<unsigned> pHOT::qtile;
+
+
 double   pHOT::hystrs  = 0.25;
+
+void pHOT::qtile_initialize()
+{
+  if (qtile.size()) return;
+
+  qtile.push_back(10);
+  qtile.push_back(50);
+  qtile.push_back(90);
+
+  ntile = qtile.size();
+}
 
 static bool wghtKEY(const pair<key_type, double>& a, 
 		    const pair<key_type, double>& b)
@@ -108,6 +123,8 @@ void pHOT::bomb(const string& membername, const string& msg)
 */
 pHOT::pHOT(Component *C, int species, set<int> spec_list)
 {
+  qtile_initialize();		// Quantile set up
+
   omp_set_num_threads(nthrds);	// OpenMP set up
 
   cc = C;			// Register the calling component

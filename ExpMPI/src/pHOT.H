@@ -141,20 +141,22 @@ protected:
 
   static unsigned klen;
 
+  static void qtile_initialize(); // Quantile set up
+
 public:
 
   //! Effort value hysteresis (default: 0.25)
   static double hystrs;
 
   //! 3-vector of sides of rectangular prism (default: [2, 2, 2])
-  static double   sides[];
+  static std::vector<double> sides;
 
   //! Origin of the prism (default: [1, 1, 1])
   //! E.g. the default selction defines a cube with coordinates [-1, 1]^3
-  static double   offst[];
+  static std::vector<double> offst;
 
   //! Quantiles for reporting distribution of time per process
-  static unsigned qtile[];
+  static std::vector<unsigned> qtile;
 
   //! Number of quantiles
   static unsigned ntile;

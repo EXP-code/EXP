@@ -97,6 +97,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   sub_sample = true;
   treechk    = false;
   mpichk     = false;
+
+				// static initialization
+  initialize_colltypes();
 				// Initialize using input parameters
   initialize();
 
@@ -1099,7 +1102,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       // Select the quantiles
       out[0][j]     = valu.front();
       for (unsigned k=0; k<nt-2; k++)
-	out[k+1][j] = valu[static_cast<int>(floor(in.size()*0.01*pHOT::qtile[k]))];
+	out[k+1][j] = valu[static_cast<int>(floor(valu.size()*0.01*pHOT::qtile[k]))];
       out[nt-1][j]  = valu.back();
 
       if (mlevel==0) {
@@ -1111,7 +1114,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	// Select the quantiles
 	OUT[0][j]     = valu.front();
 	for (unsigned k=0; k<nt-2; k++)
-	  OUT[k+1][j] = valu[static_cast<int>(floor(IN.size()*0.01*pHOT::qtile[k]))];
+	  OUT[k+1][j] = valu[static_cast<int>(floor(valu.size()*0.01*pHOT::qtile[k]))];
 	OUT[nt-1][j]  = valu.back();
       }
     }
@@ -1373,7 +1376,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 				// Cumulate
 	for (int i=1; i<ebins; i++) efrt[i] += efrt[i-1];
-	if (efrt[ebins]>0) {
+	if (efrt[ebins-1]>0) {
 	  double norm = 1.0/efrt[ebins-1];
 	  mout << "-----------------------------" << endl
 	       << "Collision effort, mlevel="     << mlevel << endl

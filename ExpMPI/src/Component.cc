@@ -1162,7 +1162,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
     rmax1 = 0.0;
     for (unsigned i=1; i<=nbodies_table[0]; i++)
     {
-      part.readBinary(rsize, ++seq_cur, indexing, in);
+      part.readBinary(rsize, indexing, ++seq_cur, in);
 
       r2 = 0.0;
       for (int j=0; j<3; j++) r2 += part.pos[j]*part.pos[j];
@@ -1186,7 +1186,7 @@ void Component::read_bodies_and_distribute_binary(istream *in)
       icount = 0;
       while (icount < nbodies_table[n]) {
 
-	part.readBinary(rsize, ++seq_cur, indexing, in);
+	part.readBinary(rsize, indexing, ++seq_cur, in);
 
 	r2 = 0.0;
 	for (int k=0; k<3; k++) 
