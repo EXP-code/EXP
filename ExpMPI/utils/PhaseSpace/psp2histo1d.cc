@@ -218,10 +218,12 @@ main(int argc, char **argv)
 	value[iv] += fac*part->pos(comp-1);
       else if (comp <= 6)
 	value[iv] += fac*part->vel(comp-4);
-      else if (comp <= 7 + part->niatr())
-	value[iv] += fac*part->iatr(comp-7);
+      else if (comp == 7)
+	value[iv] += fac*part->phi();
+      else if (part->niatr() && comp <= 8 + part->niatr())
+	value[iv] += fac*part->iatr(comp-8);
       else
-	value[iv] += fac*part->iatr(comp-7-part->niatr());
+	value[iv] += fac*part->datr(comp-8-part->niatr());
     }
     
   }

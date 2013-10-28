@@ -23,8 +23,8 @@ typedef uint128 key_type;
 typedef unsigned long key_type;
 #endif
 typedef pair<key_type, indx_type> key_pair;
-typedef pair<key_type, key_type> key_item;
-typedef pair<pCell*, indx_type> cell_indx;
+typedef pair<key_type, key_pair>  key_item;
+typedef pair<pCell*, indx_type>   cell_indx;
 
 struct eqULL {
   bool operator()(const key_type __i1, 
@@ -56,11 +56,18 @@ struct hashULL {
 				// For cell transaction list
 typedef vector<cell_indx> change_list;
 
-				// A list of key/index pairs for particles
-typedef set< pair<key_type, indx_type>, ltPAIR> key_indx;
+				// A list of key/index pairs for
+				// particles These pairs must be
+				// unique because the particle indices
+				// are unique
+typedef set<key_pair, ltPAIR> key_indx;
 				// Particle key points to cell key
 				// multimap permits multiple identical pairs
-typedef multimap<key_type, key_type> key_key;
+typedef multimap<key_type, key_pair> key_key;
+				// For searching the key_key multimap
+typedef key_key::iterator key2Itr;
+typedef std::pair <key2Itr, key2Itr> key2Range;
+
 
 				// For load balancing and partitioning
 typedef pair<key_type, double> key_wght;

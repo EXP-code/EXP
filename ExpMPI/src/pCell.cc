@@ -17,6 +17,8 @@ unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
 unsigned pCell::deltaL = 2;     // Maximum number of cell expansions to get 
 				// sample cell
 
+static unsigned ctargt = 0;
+
 string printKey(key_type p)
 {
   const key_type one(1u);
@@ -70,7 +72,13 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   ctotal  = 0;
   stotal  = vector<double>(10, 0.0);
 
-  tree->frontier[mykey] = this;	// Root is born on the frontier
+  
+  // Begin with a clean frontier
+  tree->frontier.erase(tree->frontier.begin(), tree->frontier.end());
+
+  // Root is born on the frontier and is the only one to start
+  tree->frontier[mykey] = this;	
+
   // DEBUG
   if (this==0) {
     cout << "pCell::pCell: I am null [root]" << endl;
@@ -154,6 +162,9 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 				// Check that this key belongs to this branch
   key_type sig = dif >> 3*(nbits-level);
 
+				// Cell key, particle index pair
+  key_pair cellindx(mykey, keypair.second);
+
 				// Wrong branch!
   if (!!sig) {
 				// Sanity check . . . if this is the root,
@@ -166,6 +177,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 	   << "  sig=" << sig   << endl
 	   << " xsig=" << ( (key - mask) >> 3*(nbits-level) ) << endl << dec
 	   << " shft=" << 3*(nbits-level)   << endl;
+
 				// Get the particle info
       key_indx::iterator p =
 	lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, ltPAIR());
@@ -189,7 +201,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 				// I am still a leaf . . .
     if (bods.size() < bucket || level+1==nbits) {
       keys.insert(keypair);
-      tree->bodycell.insert(key_item(key, mykey));
+      tree->bodycell.insert(key_item(key, cellindx));
       bods.push_back(keypair.second);
 				// Flag to recompute sample cell
       if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
@@ -209,8 +221,13 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 	if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
       }
       
-      key_key::iterator ik = tree->bodycell.find(n->first);
-      if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+      key2Range ik = tree->bodycell.equal_range(n->first);
+      key2Itr jk = ik.first, rmv;
+      while ((rmv=jk++)!=ik.second) {
+	if (rmv->second.second == n->second)
+	  tree->bodycell.erase(rmv);
+      }
+
       children[key2]->Add(*n, change);
     }
 				// Erase my list
@@ -229,15 +246,15 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     children[key2] = new pCell(this, key2);
     if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
   }
-
+  
   return children[key2]->Add(keypair, change);
 }
   
 
-void pCell::RemoveKey(const key_pair& oldpair)
+void pCell::RemoveKey(const key_pair& pr)
 {
 				// Erase pair from my keys list
-  key_indx::iterator it=keys.find(oldpair);
+  key_indx::iterator it=keys.find(pr);
   if (it != keys.end()) keys.erase(it);
 
 #ifdef DEBUG
@@ -255,8 +272,14 @@ void pCell::RemoveKey(const key_pair& oldpair)
 #endif
 				// Erase the body from this tree's
 				// cell list
-  key_key::iterator ik = tree->bodycell.find(oldpair.first);
-  if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+  key2Range ik = tree->bodycell.equal_range(pr.first);
+  key2Itr   ij = ik.first, rmv;
+
+  while (ij!=ik.second) {
+    if ((rmv=ij++)->second.second == pr.second) {
+      tree->bodycell.erase(rmv);
+    }
+  }
 
 #ifdef DEBUG
   else {
@@ -274,7 +297,7 @@ void pCell::RemoveKey(const key_pair& oldpair)
 
 				// Erase the key from the tree's
 				// key-body index
-  key_indx::iterator ip = tree->keybods.find(oldpair);
+  key_indx::iterator ip = tree->keybods.find(pr);
   if (ip != tree->keybods.end()) tree->keybods.erase(ip);
 
 #ifdef DEBUG
@@ -289,11 +312,11 @@ void pCell::RemoveKey(const key_pair& oldpair)
 	 << " missing keypair entry in keybods,";
     cout << "key=" 
 #ifdef INT128
-	 << oldpair.first.toHex() 
+	 << pr.first.toHex() 
 #else
-	 << hex << oldpair.first << dec
+	 << hex << pr.first << dec
 #endif
-	 << " index=" << oldpair.second
+	 << " index=" << pr.second
 	 << endl;
     //-----------------------------------------------------------------      
   }
@@ -303,11 +326,11 @@ void pCell::RemoveKey(const key_pair& oldpair)
   //-----------------------------------------------------------------      
   cout << "Process " << myid << ": pCell::REMOVED KEY=" 
 #ifdef INT128
-       << oldpair.first.toHex()
+       << pr.first.toHex()
 #else
-       << hex << oldpair.first << dec
+       << hex << pr.first << dec
 #endif
-       << " index=" << oldpair.second << endl;
+       << " index=" << pr.second << endl;
   //-----------------------------------------------------------------      
 #endif
 }
@@ -317,8 +340,8 @@ void pCell::UpdateKeys(const key_pair& oldpair, const key_pair& newpair)
   RemoveKey(oldpair);
   keys.insert(newpair);
   tree->keybods.insert(newpair);
-  tree->bodycell.insert(key_item(newpair.first, mykey));
-
+  tree->bodycell.insert(key_item(newpair.first, 
+				 key_pair(mykey, newpair.second)));
 #ifdef ADJUST_INFO
   //-----------------------------------------------------------------      
   cout << "Process " << myid << ": "
@@ -355,7 +378,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
 #endif
     keys.erase(keypair);
 				// Remove from body/cell key list
-    key_key::iterator ik = tree->bodycell.find(keypair.first);
+    key2Itr ik = tree->bodycell.find(keypair.first);
 #ifdef DEBUG
     //-----------------------------------------------------------------      
     if (ik == tree->bodycell.end()) {
@@ -372,7 +395,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
     }
     //-----------------------------------------------------------------      
 #endif
-    if (ik != tree->bodycell.end()) tree->bodycell.erase(ik);
+
 				// Remove the key-body entry
     key_indx::iterator p = tree->keybods.find(keypair);
 #ifdef DEBUG

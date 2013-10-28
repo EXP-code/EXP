@@ -356,6 +356,8 @@ main(int argc, char** argv)
   else               barrier->off();
   if (barrier_light) barrier->setLightWeight();
   else               barrier->setHeavyWeight();
+  if (barrier_quiet) BarrierWrapper::verbose = false;
+  else               BarrierWrapper::verbose = true;
 
   //================
   // Nice process ? 

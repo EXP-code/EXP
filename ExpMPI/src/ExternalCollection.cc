@@ -139,7 +139,7 @@ void ExternalCollection::dynamicload(void)
   ofstream tout(ostr.str().c_str());
 #endif
 
-  if (myid==0) cout << "ExternalCollection:" << endl
+  if (myid==0) cout << endl << "ExternalCollection:" << endl
 		    << setw(71) << setfill('-') << "-" << endl
 		    <<  "Loaded user libraries <";
   void *dlib; 

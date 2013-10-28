@@ -116,3 +116,4 @@ BarrierWrapper *barrier = 0;
 bool barrier_debug = false;
 bool barrier_label = true;
 bool barrier_light = false;
+bool barrier_quiet = true;

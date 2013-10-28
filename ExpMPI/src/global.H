@@ -283,4 +283,7 @@ extern bool barrier_label;
 //! Barrier label light weight method
 extern bool barrier_light;
 
+//! Do not report good barrier condtion if true
+extern bool barrier_quiet;
+
 #endif

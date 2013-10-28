@@ -41,7 +41,7 @@ protected:
 				// ------------------
   key_indx keybods;		// Link body key to body index
   key_cell frontier;		// Link cell key to cell ptr
-  key_key bodycell;		// Link body key to cell key
+  key_key  bodycell;		// Link body key to cell key
 
 				// Out of bounds list
   set<indx_type> oob;
@@ -77,6 +77,7 @@ protected:
   void parallelMerge(vector<key_wght>& in, vector<key_wght>& out);
   void sortCombine(vector<key_wght>& one, vector<key_wght>& two, 
 		   vector<key_wght>& comb);
+  void rrMerge(vector<key_wght>& in, vector<key_wght>& out);
   //@}
 
   //! Which processor owns the cell
@@ -93,9 +94,6 @@ protected:
   vector<int> numfront;
   vector<int> displace;
   //@}
-
-  //! For repartition
-  bool use_weight;
 
   //! Frontier iterator
   key_cell::iterator fit;
@@ -139,6 +137,8 @@ protected:
 
   void bomb(const string& membername, const string& msg);
 
+  static bool use_weight;
+
   static unsigned klen;
 
   static void qtile_initialize(); // Quantile set up
@@ -163,7 +163,6 @@ public:
 
   //! Use key subsampling to improve run time in the key partioning step
   //! (default: true)
-
   static bool     sub_sample;
 
   //! Print out sample cell diagnostics (default: false)
@@ -227,7 +226,7 @@ public:
 
   void makeCellLevelList();
   void adjustCellLevelList(unsigned);
-  void printCellLevelList(ostream& out);
+  void printCellLevelList(ostream& out, const string& msg);
   void computeCellStates();
 
   /**
@@ -255,44 +254,48 @@ public:
   void logFrontierStats();
 
   //! Check that sample cells exist for all frontier cells
-  void checkSampleCells(const char *);
+  void checkSampleCells(const std::string&);
 
   //! Check that clevlst and frontier are consistent
-  void checkCellLevelList(const char *);
+  void checkCellLevelList(const std::string&);
 
   //! Check that clevlst and clevels are consistent
-  void checkLevelLists(const char *);
+  void checkLevelLists(const std::string&);
 
   //! Check that bodies refer to the same cells as the body lists
-  bool checkCellClevelSanity(unsigned mlevel);
+  bool checkCellClevelSanity(const std::string& msg, unsigned mlevel);
 
   //! Check that cells in the multilevel lists are also on the master list
-  bool checkCellClevel(unsigned mlevel);
+  bool checkCellClevel(const std::string& msg, unsigned mlevel);
 
   //! Check that every particle has an entry in the key-body list
-  bool checkKeybods();
+  bool checkKeybods(const std::string&);
 
   //! Check that every particle has an entry in the key-body list (at
   //! this level and below)
-  bool checkPartKeybods(unsigned mlev);
+  bool checkPartKeybods(const std::string& msg, unsigned mlev);
+
+  //! Check that every particle has an entry in the key-body list,
+  //! body-cell list, and that the cell is on the frontier
+  bool checkKeybodsFrontier(const std::string& msg);
 
   //! Check that every particle has an entry in the key-cell list
-  bool checkBodycell();
+  bool checkBodycell(const std::string&);
 
   //! Check that every body in a cell is on the frontier
-  bool checkCellFrontier();
+  bool checkCellFrontier(const std::string&);
 
   //! Check that every body in the tree points to a body in the particle list
-  bool checkParticles(ostream &out, bool pc=true);
+  bool checkParticles(ostream &out, const std::string& msg, bool pc=true);
 
   //! Check that bodies are not duplicated on the particle list
-  bool checkDupes1(const char* msg);
+  bool checkDupes1(const std::string& msg);
 
   //! Check that bodies are not duplicated in multiple cells
   bool checkDupes2();
 
   //! Check that every cell in the level list is on the frontier
-  bool checkFrontier(ostream &out);
+  bool checkFrontier(ostream &out, const std::string& msg);
 
   //! Get the total kinetic energy and dispersion
   double totalKE(double& KEtot, double& KEdsp);
