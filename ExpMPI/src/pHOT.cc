@@ -452,6 +452,118 @@ void pHOT::logFrontierStats()
   timer_diagdbg.stop();
 }
 
+key_type pHOT::getHeadKey()
+{
+  key_type headKey = 0l;
+
+  if (keybods.size()) {
+
+    if (DEBUG_CHECK) {
+      timer_diagdbg.start();
+				// check validity of key
+      if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
+	cout << "pHOT::getHeadKey, process " << myid << ": bad key=" 
+	     << hex << keybods.begin()->first << dec
+	     << " #cells=" << bodycell.size() << endl;
+      }
+      timer_diagdbg.stop();
+    }
+    
+    headKey = bodycell.find(keybods.begin()->first)->second.first;
+				// Number of bodies in my head cell
+    if (DEBUG_CHECK) {
+      timer_diagdbg.start();
+      // Debug: check for key in frontier
+      if (frontier.find(headKey) == frontier.end()) {
+	cout << "pHOT::getHeadKey, process " << myid << ": headKey=" 
+	     << headKey << dec << " is NOT on frontier with frontier size="
+	       << frontier.size() << " [1]" << endl;
+	std::cout << std::string(45, '-')    << std::endl
+		  << "--- Bodycell list ---" << std::endl
+		  << std::string(45, '-')    << std::endl;
+	for (key_key::iterator 
+	       kit=bodycell.begin(); kit!=bodycell.end(); kit++) 
+	  {
+	    std::cout << std::setw(15) << kit->first
+		      << std::setw(15) << kit->second.first
+		      << std::setw(15) << kit->second.second
+		      << std::endl;
+	  }
+      }
+      timer_diagdbg.stop();
+    }
+  }
+
+  return headKey;
+}
+
+key_type pHOT::getTailKey()
+{
+  key_type tailKey = 0l;
+				// Compute the tailkey
+  if (keybods.size()) {
+    if (DEBUG_CHECK) {
+      timer_diagdbg.start();
+				// check validity of key
+      if (bodycell.find(keybods.rbegin()->first) == bodycell.end()) {
+	cout << "pHOT::getTailKey, process " << myid << ": bad tail key=" 
+	     << hex << keybods.rbegin()->first << dec
+	     << " #cells=" << bodycell.size() << endl;
+      }
+      timer_diagdbg.stop();
+    }
+    
+    tailKey = bodycell.find(keybods.rbegin()->first)->second.first;
+    
+    if (DEBUG_CHECK) {
+      if (tailKey == 1) {
+	if (frontier.find(tailKey) == frontier.end()) {
+	  cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
+	       << tailKey << dec << " not on frontier! [3]" << endl;
+	} else {
+	  // cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
+	  //      << tailKey << dec << " IS on frontier with frontier size="
+	  //      << frontier.size() << " [3]" << endl;
+	  // cout << std::string(30, '-')    << std::endl << std::setfill('-')
+	  //      << "--- Frontier list ---" << std::endl << std::setfill(' ')
+	  //      << std::string(30, '-')    << std::endl << std::hex;
+	  // for (key_cell::iterator 
+	  // 	 kit=frontier.begin(); kit!=frontier.end(); kit++) 
+	  //   {
+	  //     std::cout << std::setw(15) << kit->first
+	  // 		<< std::endl;
+	  //   }
+	  // std::cout << std::string(30, '-')    << std::endl << std::dec;
+	}
+      }
+    }
+
+    if (DEBUG_CHECK) {
+      timer_diagdbg.start();
+				// Debug: check for tail key in frontier
+      if (frontier.find(tailKey) == frontier.end()) {
+	cout << "pHOT::getTailKey, process " << myid << ": tailKey=" 
+	     << tailKey << dec << " is NOT on frontier with frontier size="
+	     << frontier.size() << " [1]" << endl;
+	std::cout << std::string(45, '-')    << std::endl
+		  << "--- Bodycell list ---" << std::endl
+		  << std::string(45, '-')    << std::endl;
+	for (key_key::iterator 
+	       kit=bodycell.begin(); kit!=bodycell.end(); kit++) 
+	  {
+	    std::cout << std::setw(15) << kit->first
+		      << std::setw(15) << kit->second.first
+		      << std::setw(15) << kit->second.second
+		      << std::endl;
+	  }
+      }
+      timer_diagdbg.stop();
+    }
+  }
+
+  return tailKey;
+}
+
 
 void pHOT::makeTree()
 {
@@ -618,68 +730,6 @@ void pHOT::makeTree()
   key_type headKey=0u, tailKey=0u, prevKey=0u, nextKey=0u;
   unsigned head_num=0, tail_num=0, next_num=0, prev_num=0;
 
-				// Compute the tailkey
-  if (keybods.size()) {
-    if (DEBUG_CHECK) {
-      timer_diagdbg.start();
-				// check validity of key
-      if (bodycell.find(keybods.rbegin()->first) == bodycell.end()) {
-	cout << "pHOT::makeTree, process " << myid << ": bad tail key=" 
-	     << hex << keybods.rbegin()->first << dec
-	     << " #cells=" << bodycell.size() << endl;
-      }
-      timer_diagdbg.stop();
-    }
-    
-    tailKey = bodycell.find(keybods.rbegin()->first)->second.first;
-				// Number of bodies in my head cell
-    if (DEBUG_CHECK) {
-      timer_diagdbg.start();
-				// Debug: check for tail key in frontier
-      if (frontier.find(tailKey) == frontier.end()) {
-	cout << "pHOT::makeTree, process " << myid << ": tailKey=" 
-	     << tailKey << dec << " not on frontier! [1]" << endl;
-      }
-      timer_diagdbg.stop();
-    }
-    //
-    tail_num = frontier[tailKey]->bods.size();
-
-  }
-
-
-  (*barrier)("pHOT::makeTree(): tail key computed", __FILE__, __LINE__);
-
-  if (keybods.size()) {
-
-    if (DEBUG_CHECK) {
-      timer_diagdbg.start();
-				// check validity of key
-      if (bodycell.find(keybods.begin()->first) == bodycell.end()) {
-	cout << "pHOT::makeTree, process " << myid << ": bad key=" 
-	     << hex << keybods.begin()->first << dec
-	     << " #cells=" << bodycell.size() << endl;
-      }
-      timer_diagdbg.stop();
-    }
-    
-    headKey = bodycell.find(keybods.begin()->first)->second.first;
-				// Number of bodies in my head cell
-    if (DEBUG_CHECK) {
-      timer_diagdbg.start();
-      // Debug: check for key in frontier
-      if (frontier.find(headKey) == frontier.end()) {
-	cout << "pHOT::makeTree, process " << myid << ": headKey=" 
-	     << headKey << dec << " not on frontier! [1]" << endl;
-      }
-      timer_diagdbg.stop();
-    }
-    //
-    head_num = frontier[headKey]->bods.size();
-  }
-  
-  (*barrier)("pHOT::makeTree(): head key computed", __FILE__, __LINE__);
-
 				// Do the boundaries sequentially to prevent
 				// inconstencies
 
@@ -687,6 +737,9 @@ void pHOT::makeTree()
 				// Send the next node my tail value
 				// to compare with its head
     if (myid==n-1) {
+
+      tailKey = getTailKey();
+      if (tailKey) tail_num = frontier[tailKey]->bods.size();
 
       MPI_Send(&tailKey,  1, MPI_EXP_KEYTYPE, n, 1000, MPI_COMM_WORLD);
       MPI_Send(&tail_num, 1, MPI_UNSIGNED,    n, 1001, MPI_COMM_WORLD);
@@ -702,7 +755,17 @@ void pHOT::makeTree()
 	    if (frontier.find(tailKey) == frontier.end()) {
 	      std::cout << "pHOT::makeTree, process " << myid << ": tailKey=" 
 			<< hex << tailKey
-			<< dec << " not on frontier! [2]" << endl;
+			<< dec << " is NOT on frontier with frontier size="
+			<< frontier.size() << " [2]" << endl;
+	      std::cout << std::string(30, '-')    << std::endl << std::setfill('-')
+			<< "--- Frontier list ---" << std::endl << std::setfill(' ')
+			<< std::string(30, '-')    << std::endl << std::hex;
+	      for (key_cell::iterator 
+		     kit=frontier.begin(); kit!=frontier.end(); kit++) 
+		{
+		  std::cout << std::setw(15) << kit->first
+			    << std::endl;
+		}
 	      std::cout << std::string(45, '-')    << std::endl
 			<< "--- Bodycell list ---" << std::endl
 			<< std::string(45, '-')    << std::endl;
@@ -714,6 +777,7 @@ void pHOT::makeTree()
 			    << std::setw(15) << kit->second.second
 			    << std::endl;
 		}
+	      std::cout << std::string(45, '-')    << std::endl << std::dec;
 	    }
 	    sendCell(tailKey, n, tail_num);
 	  } else
@@ -732,6 +796,8 @@ void pHOT::makeTree()
 				// to compare with its tail
     if (myid==n) {
 
+      headKey = getHeadKey();
+      if (headKey) head_num = frontier[headKey]->bods.size();
 
       MPI_Send(&headKey,  1, MPI_EXP_KEYTYPE, n-1, 1002, MPI_COMM_WORLD);
       MPI_Send(&head_num, 1, MPI_UNSIGNED,    n-1, 1003, MPI_COMM_WORLD);
@@ -1419,13 +1485,13 @@ void pHOT::sendCell(key_type key, int to, unsigned num)
 
   if (kit == frontier.end()) {
     std::cout << "pHOT::sendCell: myid=" << myid
-	      << ", key=" << key << " is NOT on frontier" << std::endl;
-    std::cout << std::string(30, '-')    << std::endl
-	      << "--- Frontier list ---" << std::endl
+	      << ", key=" << key << " is NOT on frontier "
+	      << " with frontier size=" << frontier.size() << std::endl;
+    std::cout << std::string(30, '-')    << std::endl << std::setfill('-')
+	      << "--- Frontier list ---" << std::endl << std::setfill(' ')
 	      << std::string(30, '-')    << std::endl;
     for (kit=frontier.begin(); kit!=frontier.end(); kit++) {
       std::cout << std::setw(10) << kit->first
-		<< std::setw(10) << kit->second
 		<< std::endl;
     }
     std::cout << std::string(30, '-')    << std::endl;

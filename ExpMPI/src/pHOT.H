@@ -50,8 +50,17 @@ protected:
   
   double volume;
 
+  //! Send contents of this cell to another process
   void sendCell(key_type key, int to, unsigned num);
+
+  //! Receive the contents of a cell from another process
   void recvCell(int from, unsigned num);
+
+  //! Get the cell key for the beginning of the key-sorted particle list
+  key_type getHeadKey();
+
+  //! Get the cell key for the end of the key-sorted particle list
+  key_type getTailKey();
 
   //@{
   /** Allow for adding multiple types of partitioning variants.  So
