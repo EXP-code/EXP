@@ -10,6 +10,7 @@
 #include <pHOT.H>
 
 class CollideLTE;
+class CollideIon;
 
 /** DSMC particle routine
 
@@ -187,7 +188,8 @@ private:
   unsigned stepnum;
   double curtime;
 
-  CollideLTE *collide;
+  //CollideLTE *collide;
+  CollideIon *collide;
   double ElostTotCollide, ElostTotEPSM;
 
   string comp_name;
@@ -286,9 +288,9 @@ protected:
 
   //@{
   //! Species lists
-  map<int, unsigned long> spec, spec1;
-  map<int, double> collFrac;
-  set<int> spec_list;
+  std::map<speciesKey, unsigned long> spec, spec1;
+  std::map<speciesKey, double> collFrac;
+  std::set<speciesKey> spec_list;
   //@}
 
   //! Valid collisions types
@@ -299,6 +301,7 @@ protected:
   {
     if (colltypes.size()) return;
     colltypes.insert("LTE");
+    colltypes.insert("Ion");
   }
 
   //! Check for valid collision types (return true if good)
@@ -317,6 +320,8 @@ public:
   static double Vunit;
   static double Munit;
   static double Eunit;
+
+  std::map<int, double> atomic_weights;
 				// Use timing info to compute effort
   static bool use_effort;
 

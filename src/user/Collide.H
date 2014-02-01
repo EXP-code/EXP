@@ -17,13 +17,14 @@
 
 class Collide;
 
+
 //! Helper class to pass info to threaded member
 struct thrd_pass_arguments
 {
   //! Pointer to iterator
   pHOT *tree;
   //! Effective number of particles
-  map<int, double> *fn;
+  sKeyDmap *fn;
   //! Time step
   double tau;
   //! Thread counter id
@@ -207,18 +208,18 @@ protected:
   //! Initializes cross sections for use in DSMC
   virtual void initialize_cell_dsmc
   (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   map<int, map<int, unsigned> >& nsel, int id) = 0;
+   sKey2Umap& nsel, int id) = 0;
   
   //! Initializes mean heating and cooling rates for use in EPSM
   virtual void initialize_cell_epsm
   (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   map<int, map<int, unsigned> >& nsel, int id) = 0;
+   sKey2Umap& nsel, int id) = 0;
   
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
 
   //! Return total cross section "matrix" for species-species interactions
-  virtual map<int, map<int, double> >& totalCrossSections(double crm, int id) = 0;
+  virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
 
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
@@ -365,7 +366,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, map<int, double>& Fn, double tau, int mlev=0, 
+  unsigned collide(pHOT& cl, sKeyDmap& Fn, double tau, int mlev=0, 
 		   bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
@@ -384,12 +385,12 @@ public:
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, map<int, double>* Fn, double tau);
+  void collide_thread_fork(pHOT *tree, sKeyDmap* Fn, double tau);
   //@}
 
   /// Timestep thread
   //@{
-  void *timestep_thread(void *arg);
+  virtual void *timestep_thread(void *arg);
   void compute_timestep(pHOT* tree, double coolfrac);
   //@}
 

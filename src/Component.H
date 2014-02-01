@@ -5,6 +5,7 @@
 #include <utility>
 
 #include <EXPException.H>
+#include <global.H>
 #include <Orient.H>
 #include <header.H>
 #include <localmpi.h>
@@ -13,6 +14,8 @@
 #include <Timer.h>
 
 class pHOT;
+
+
 
 //! Structure used to sort old & new indices for load balancing
 struct loadb_datum
@@ -763,7 +766,7 @@ public:
   double get_time_sofar() { return 1.0e-6*time_so_far.getTime().getRealTime(); }
 
   //! Create a hashed octree for this component
-  void HOTcreate(int species, set<int> spec_list);
+  void HOTcreate(std::set<speciesKey> spec_list);
 
   //! Delete the hashed octree for this component
   void HOTdelete();

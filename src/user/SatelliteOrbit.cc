@@ -31,7 +31,7 @@
  *
  ****************************************************************************/
 
-// static char rcsid_SatelliteOrbit[] = "$Id$";
+// static char rcsid_SatelliteOrbit[] = "$Id: SatelliteOrbit.cc 1478 2011-02-21 04:52:58Z weinberg $";
 
 #include <cstdlib>
 #include <cmath>

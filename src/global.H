@@ -208,7 +208,7 @@ extern int numprocs, slaves, myid, proc_namelen;
 //@}
 
 //! MPI returned processor name
-extern char* processor_name;
+extern char processor_name[];
 #endif
 
 //! Internally defined slave communicator
@@ -285,5 +285,17 @@ extern bool barrier_light;
 
 //! Do not report good barrier condtion if true
 extern bool barrier_quiet;
+
+
+//! Typedef for the species key for the different types
+typedef std::pair<unsigned int, unsigned int> speciesKey;
+
+typedef std::set<speciesKey>           sKeySet;
+typedef std::map<speciesKey, double>   sKeyDmap;
+typedef std::map<speciesKey, sKeyDmap> sKey2Dmap;
+typedef std::map<speciesKey, unsigned> sKeyUmap;
+typedef std::map<speciesKey, sKeyUmap> sKey2Umap;
+typedef std::map<speciesKey, std::vector<double> > sKeyvDmap;
+
 
 #endif

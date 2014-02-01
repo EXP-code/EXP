@@ -26,7 +26,6 @@ lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 # Convenience library for duplicated source components (static)
 #
 noinst_LIBRARIES = libcommon.a libdsmc.a libswake.a
-
 noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	UserResPot.H CircularOrbit.H ResPot.H UserDisk.H UserResPotN.H	\
 	Collide.H ResPotOrb.H UserEBar.H UserResPotOrb.H SatFix.H	\
@@ -34,15 +33,15 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	CollideLTE.H TwoBodyDiffuse.H UserEBarS.H UserWake.H		\
 	EllipForce.H UserBar.H UserHalo.H HeatCool.H UserDSMC.H		\
 	UserLogPot.H UserDiffRot.H UserRPtest.H UserAtmos.H		\
-	UserReflect.H UserPST.H UserShear.H UserSNheat.H UserProfile.H
+	UserReflect.H UserPST.H UserShear.H UserSNheat.H UserProfile.H  \
+	CollideIon.H Ion.H interactSelect.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
 	CircularOrbit.cc TwoBodyDiffuse.cc TimeSeriesCoefs.cc	\
 	LinearOrbit.cc UnboundOrbit.cc
 
-libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc
-
+libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc CollideIon.cc Ion.cc interactSelect.cc
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 
 #

@@ -146,7 +146,7 @@ void pHOT::bomb(const string& membername, const string& msg)
 /*
   Constructor: initialize domain
 */
-pHOT::pHOT(Component *C, int species, set<int> spec_list)
+pHOT::pHOT(Component *C, sKeySet spec_list)
 {
   qtile_initialize();		// Quantile set up
 
@@ -154,9 +154,9 @@ pHOT::pHOT(Component *C, int species, set<int> spec_list)
 
   cc = C;			// Register the calling component
 
-  this->species   = species;	// Register multiple species
+				// Register multiple species
   this->spec_list = spec_list;
-  if (spec_list.size() == 0) spec_list.insert(-1);
+  if (spec_list.size() == 0) spec_list.insert(defaultKey);
 			
   partType = Hilbert;		// Partition type
 
@@ -210,6 +210,8 @@ pHOT::pHOT(Component *C, int species, set<int> spec_list)
   timer_keyoldc.Microseconds();
   timer_diagdbg.Microseconds();
 
+  use_weight = true;
+ 
   // Initialize timing structures
   //
   keymk3 = exchg3 = cnvrt3 = tovlp3 = prepr3 = updat3 =
@@ -277,7 +279,7 @@ key_type pHOT::getKey(double *p)
     if (fabs((p[k]+offset[k])/sides[k])> 1.0) {	
       if (DEBUG_NOISY) {
 	cout << "Coordinate out of pbounds in pHOT::key: ";
-	for (int l=0; l<3; l++) cout << setw(18) << p[l];
+	for (int l=0; l<3; l++) cout << setw(18) << p[l] ;
 	cout << endl;
       }
 #ifdef USE_GPTL

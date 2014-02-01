@@ -104,6 +104,9 @@ protected:
   vector<int> displace;
   //@}
 
+  //! For repartition
+  static bool use_weight;
+
   //! Frontier iterator
   key_cell::iterator fit;
   bool reset;
@@ -146,7 +149,7 @@ protected:
 
   void bomb(const string& membername, const string& msg);
 
-  static bool use_weight;
+  //static bool use_weight;
 
   static unsigned klen;
 
@@ -172,6 +175,7 @@ public:
 
   //! Use key subsampling to improve run time in the key partioning step
   //! (default: true)
+
   static bool     sub_sample;
 
   //! Print out sample cell diagnostics (default: false)
@@ -182,12 +186,14 @@ public:
 
   //@{
   //! Species info
-  int species;
-  set<int> spec_list;
+  //int species;
+  //set<int> spec_list;
+  sKeySet spec_list;
   //@}
 
   //! Constructor
-  pHOT(Component* C, int species, set<int> spec_list);
+  //pHOT(Component* C, int species, set<int> spec_list);
+  pHOT(Component* C, sKeySet spec_list);
 
   //! Destructor
   ~pHOT();

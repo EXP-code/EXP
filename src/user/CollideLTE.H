@@ -12,7 +12,7 @@ private:
 
 protected:
   //! List of cross-ections per thread
-  vector< map<int, map<int, double> > > csections;
+  vector<sKey2Dmap> csections;
 
   //@{
   //! For debugging
@@ -40,25 +40,25 @@ protected:
 
   void initialize_cell_epsm (pHOT* tree, pCell* cell, 
 			     double vrelmax, double dt, 
-			     map<int, map<int, unsigned> >& nsel, int id)
+			     sKey2Umap& nsel, int id)
   {
     initialize_cell(tree, cell, vrelmax, dt, nsel, id);
   }
 
   void initialize_cell_dsmc (pHOT* tree, pCell* cell, 
 			     double vrelmax, double dt, 
-			     map<int, map<int, unsigned> >& nsel, int id)
+			     sKey2Umap& nsel, int id)
   {
     initialize_cell(tree, cell, vrelmax, dt, nsel, id);
   }
 
 
   void initialize_cell(pHOT* tree, pCell* cell, double vrelmax, double dt, 
-		       map<int, map<int, unsigned> >& nsel, int id);
+		       sKey2Umap& nsel, int id);
 
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
-  map<int, map<int, double> >& totalCrossSections(double crm, int id);
+  sKey2Dmap& totalCrossSections(double crm, int id);
 
   bool hasHeatCool() { return true; }
 

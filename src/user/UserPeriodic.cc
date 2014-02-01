@@ -6,6 +6,13 @@
 
 #include <UserPeriodic.H>
 
+//atomic mass unit in grams
+const double amu = 1.660539e-24;
+const double kb = 1.3806488e-16;
+
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
 
 UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
 {
@@ -67,6 +74,23 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   }
 
   userinfo();
+
+  gen = new ACG(11+myid);
+  unit = new Uniform(0.0, 1.0, gen);
+  norm = new Normal(0.0, 1.0, gen);
+
+  atomic_weights[1]  = 1.0079;
+  atomic_weights[2]  = 4.0026;
+  atomic_weights[3]  = 6.941;
+  atomic_weights[4]  = 9.0122;
+  atomic_weights[5]  = 10.811;
+  atomic_weights[6]  = 12.011;
+  atomic_weights[7]  = 14.007;
+  atomic_weights[8]  = 15.999;
+  atomic_weights[9]  = 18.998;
+  atomic_weights[10] = 20.180;
+  atomic_weights[11] = 22.990;
+  atomic_weights[12] = 24.305;
 }
 
 UserPeriodic::~UserPeriodic()
@@ -121,6 +145,9 @@ void UserPeriodic::initialize()
   if (get_value("nbin", val))	        nbin = atoi(val.c_str());
   if (get_value("tcol", val))	        tcol = atoi(val.c_str());
 
+  if (get_value("vunit", val))		vunit = atof(val.c_str());
+  if (get_value("temp", val))		temp = atof(val.c_str());
+
   if (get_value("btype", val)) {
     if (strlen(val.c_str()) >= 3) {
       for (int k=0; k<3; k++) {
@@ -130,6 +157,9 @@ void UserPeriodic::initialize()
 	  break;
 	case 'r':
 	  bc[k] = 'r';		// Reflection
+	  break;
+	case 't':
+	  bc[k] = 't';
 	  break;
 	default:
 	  bc[k] = 'v';		// Vacuum
@@ -205,6 +235,7 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
   int id = *((int*)arg);
   int nbeg = nbodies*id/nthrds;
   int nend = nbodies*(id+1)/nthrds;
+
   
   thread_timing_beg(id);
 
@@ -218,6 +249,8 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     unsigned long i = (it++)->first;
     
     Particle *p = cC->Part(i);
+
+    double mi = (atomic_weights[p->Z])*amu;
 
     
     for (int k=0; k<3; k++) {
@@ -257,6 +290,38 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 	}
 	if (pos >= L[k]) {
 	  p->pos[k] = p->pos[k] - L[k]*floor(fabs(pos/L[k]));
+	}
+      }
+
+      //
+      // Thermal BC (same as Reflection wit different velocity
+      //
+      if (bc[k] == 't') {
+	if (pos < 0.0) {
+	  delta = -pos - L[k]*floor(-pos/L[k]);
+	  p->pos[k] = delta - offset[k];
+	  //p->vel[k] = -p->vel[k];
+	  for (int j = 0; j < 3; j++) {
+		if(j == k) {
+	  		p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(kb*temp/mi)*(*norm)()/vunit);
+		}
+		else  {
+			p->vel[j] = sqrt(kb*temp/mi)*(*norm)()/vunit;
+		}
+	  }
+	} 
+	if (pos >= L[k]) {
+	  delta = pos - L[k]*floor(pos/L[k]);
+	  p->pos[k] =  L[k] - delta - offset[k];
+	  //p->vel[k] = -p->vel[k];
+	  for (int j = 0; j < 3; j++) {
+		if(j == k) {
+	  		p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(kb*temp/mi)*(*norm)()/vunit);
+		}
+		else {
+			p->vel[j] = sqrt(kb*temp/mi)*(*norm)()/vunit;
+		}
+	  }
 	}
       }
       

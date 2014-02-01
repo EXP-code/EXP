@@ -39,6 +39,8 @@ public:
   vector<int>    iatr;
   vector<real>   datr;
   unsigned long  indx;
+  unsigned int Z;
+  unsigned int C;
 
   void read(std::istream* in, int pcount, list<PSPstanza>::iterator spos) 
   {
@@ -67,6 +69,8 @@ public:
     for (int i=0; i<3; i++) in->read((char *)&pos[i], sizeof(real));
     for (int i=0; i<3; i++) in->read((char *)&vel[i], sizeof(real));
     in->read((char *)&phi, sizeof(real));
+    in->read((char *)&Z, sizeof(unsigned int));
+    in->read((char *)&C, sizeof(unsigned int));
     for (int i=0; i<spos->comp.niatr; i++) 
       in->read((char *)&iatr[i], sizeof(int));
     for (int i=0; i<spos->comp.ndatr; i++) 
@@ -105,6 +109,20 @@ public:
     if (d.get()) return d->vel[i];
     throw std::string("Particle not initialized");
     return 0.0;
+  }
+
+  unsigned int Z() throw(std::string) {
+    if (f.get()) return f->Z;
+    if (d.get()) return d->Z;
+    throw std::string("Particle not initialized");
+    return 0u;
+  }
+
+  unsigned int C() throw(std::string) {
+    if (f.get()) return f->C;
+    if (d.get()) return d->C;
+    throw std::string("Particle not initialized");
+    return 0u;
   }
 
   int niatr() throw (std::string) {
