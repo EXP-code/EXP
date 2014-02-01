@@ -58,15 +58,10 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  if (tr->species >= 0) {
-    set<int>::iterator it;
-    for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
-      count[*it] = 0;
-      state[*it] = vector<double>(10, 0.0);
-    }
-  } else {
-    count[-1] = 0;
-    state[-1] = vector<double>(10, 0.0);
+  sKeySet::iterator it;
+  for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
+    count[*it] = 0;
+    state[*it] = vector<double>(10, 0.0);
   }
 
   ctotal  = 0;
@@ -102,15 +97,10 @@ pCell::pCell(pCell* mom, unsigned id) :
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  if (tree->species >= 0) {
-    set<int>::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      count[*it] = 0;
-      state[*it] = vector<double>(10, 0.0);
-    }
-  } else {
-    count[-1] = 0;
-    state[-1] = vector<double>(10, 0.0);
+  sKeySet::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    count[*it] = 0;
+    state[*it] = vector<double>(10, 0.0);
   }
 
   stotal = vector<double>(10, 0.0);
@@ -246,6 +236,7 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     children[key2] = new pCell(this, key2);
     if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
   }
+
   
   return children[key2]->Add(keypair, change);
 }
@@ -574,15 +565,10 @@ pCell* pCell::findNode(const key_type& key)
  
 void pCell::zeroState()
 {
-  if (tree->species >= 0) {
-    set<int>::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      count[*it] = 0;
-      for (int k=0; k<10; k++) state[*it][k] = 0.0;
-    }
-  } else {
-    count[-1] = 0;
-    for (int k=0; k<10; k++) state[-1][k] = 0.0;
+  sKeySet::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    count[*it] = 0;
+    for (int k=0; k<10; k++) state[*it][k] = 0.0;
   }
 
   for (map<unsigned, pCell*>::iterator it = children.begin();
@@ -597,9 +583,8 @@ void pCell::accumState()
 {
 				// March through the body list
   vector<unsigned long>::iterator j;
-  int spc = -1;
   for (j=bods.begin(); j!=bods.end(); j++) {
-    if (tree->species>=0) spc = C->Particles()[*j].iattrib[tree->species];
+    speciesKey spc(C->Particles()[*j].Z, C->Particles()[*j].C);
     state[spc][0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
       state[spc][1+k] += C->Particles()[*j].mass * 
@@ -610,42 +595,27 @@ void pCell::accumState()
     count[spc]++;
   }
   
-  if (tree->species >= 0) {
-    set<int>::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      ctotal += count[*it];
-	for (int k=0; k<10; k++) stotal[k] += state[*it][k];
-    }
-  } else {
-    ctotal += count[-1];
-    for (int k=0; k<10; k++) stotal[k] += state[-1][k];
+  sKeySet::iterator it;
+  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+    ctotal += count[*it];
+    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
   }
     
 				// Walk up the tree . . .
   if (parent) parent->accumState(count, state);
 }
 
-void pCell::accumState(map<int, unsigned>& _count, 
-		       map<int, vector<double> >& _state)
+void pCell::accumState(sKeyUmap& _count, sKeyvDmap& _state)
 {
 #pragma omp critical
   {
-    if (tree->species >= 0) {
-      set<int>::iterator it;
-      for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-	ctotal     += _count[*it];
-	count[*it] += _count[*it];
-	for (int k=0; k<10; k++) {
-	  stotal[k]     += _state[*it][k];
-	  state[*it][k] += _state[*it][k];
-	}
-      }
-    } else {
-      ctotal    += _count[-1];
-      count[-1] += _count[-1];
+    sKeySet::iterator it;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      ctotal     += _count[*it];
+      count[*it] += _count[*it];
       for (int k=0; k<10; k++) {
-	stotal[k]    += _state[-1][k];
-	state[-1][k] += _state[-1][k];
+	stotal[k]     += _state[*it][k];
+	state[*it][k] += _state[*it][k];
       }
     }
   }
@@ -688,24 +658,17 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 }
 
 
-void pCell::Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
-		 map<int, vector<double> >& st)
+void pCell::Find(key_type key, sKeyUmap& curcnt, unsigned& lev, sKeyvDmap& st)
 {
-  set<int>::iterator it;
+  sKeySet::iterator it;
 
   if (key==0u) {
     lev = 0;
 
-    if (tree->species >= 0) {
-      for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-	curcnt[*it] = 0;
-	for (vector<double>::iterator 
-	       s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
-      }
-    } else {
-      curcnt[-1] = 0;
+    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
+      curcnt[*it] = 0;
       for (vector<double>::iterator 
-	     s=st[-1].begin(); s!=st[-1].end(); s++) *s = 0;
+	     s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
     }
 
     return;
@@ -737,14 +700,14 @@ void pCell::Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
 double sCell::Mass()
 {
   double mass = 0.0;
-  map<int, vector<double> >::iterator it;
+  sKeyvDmap::iterator it;
   for (it=state.begin(); it!=state.end(); it++) mass += (it->second)[0];
   return mass; 
 }
 
-double sCell::Mass(int indx)
+double sCell::Mass(speciesKey indx)
 {
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
   if (it != state.end()) return (it->second)[0];
   else                   return 0.0;
 }
@@ -752,21 +715,21 @@ double sCell::Mass(int indx)
 unsigned sCell::Count()
 {
   double number = 0.0;
-  map<int, vector<double> >::iterator it;
-  for (it=state.begin(); it!=state.end(); it++) number += (it->second)[10];
+  for (sKeyvDmap::iterator it=state.begin(); it!=state.end(); it++) 
+    number += (it->second)[10];
   return number; 
 }
 
-unsigned sCell::Count(int indx)
+unsigned sCell::Count(speciesKey indx)
 {
-  map<int, unsigned>::iterator it = count.find(indx);
+  sKeyUmap::iterator it = count.find(indx);
   if (it != count.end()) return it->second;
   else                   return 0;
 }
 
-void sCell::MeanPos(int indx, double &x, double &y, double& z)
+void sCell::MeanPos(speciesKey indx, double &x, double &y, double& z)
 {
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
 
   if (it==state.end()) {
     x = y = z = 0.0;
@@ -783,18 +746,18 @@ void sCell::MeanPos(int indx, double &x, double &y, double& z)
   z = (it->second)[9]/(it->second)[0];
 }
 
-void sCell::MeanPos(int indx, vector<double> &p)
+void sCell::MeanPos(speciesKey indx, vector<double> &p)
 {
   p = vector<double>(3, 0);
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
   if (it == state.end())    return;
   if ((it->second)[0]<=0.0) return;
   for (int k=0; k<3; k++) p[k] = (it->second)[7+k]/(it->second)[0];
 }
 
-void sCell::MeanVel(int indx, double &u, double &v, double& w)
+void sCell::MeanVel(speciesKey indx, double &u, double &v, double& w)
 {
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
 
   if (it == state.end()) {
     u = v = w = 0.0;
@@ -810,11 +773,11 @@ void sCell::MeanVel(int indx, double &u, double &v, double& w)
   w = (it->second)[6]/(it->second)[0];
 }
 
-void sCell::MeanVel(int indx, vector<double> &p)
+void sCell::MeanVel(speciesKey indx, vector<double> &p)
 {
   p = vector<double>(3, 0);
 
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
   if (it == state.end())    return;
   if ((it->second)[0]<=0.0) return;
 
@@ -856,12 +819,12 @@ void sCell::MeanVel(vector<double> &p)
   for (int k=0; k<3; k++) p[k] = stotal[4+k]/stotal[0];
 }
 
-void sCell::KE(int indx, double &total, double &dispr)
+void sCell::KE(speciesKey indx, double &total, double &dispr)
 {
   total = 0.0;
   dispr = 0.0;
 
-  map<int, vector<double> >::iterator it = state.find(indx);
+  sKeyvDmap::iterator it = state.find(indx);
   if (it == state.end()) return;
 
   if ((it->second)[0]>0.0) {
@@ -892,6 +855,8 @@ void sCell::KE(int indx, double &total, double &dispr)
     //
     total /= (it->second)[0];
     dispr /= (it->second)[0];
+
+    //if(dispr == 0) { cout << "ctotal = " << count[indx] << " stotal[0] = " << it->second[0] << " Z = " << indx.first << " C = " << indx.second << endl; }
   }
 
 }
@@ -1015,9 +980,9 @@ double sCell::CRMavg()
   return CRMsum/CRMnum;
 }
 
-double sCell::CRMavg(int indx)
+double sCell::CRMavg(speciesKey indx)
 {
-  map<int, deque<double> >::iterator it = CRMlistM.find(indx);
+  std::map<speciesKey, deque<double> >::iterator it = CRMlistM.find(indx);
   
   if (it == CRMlistM.end()) return -1.0;
 
@@ -1026,7 +991,7 @@ double sCell::CRMavg(int indx)
   return CRMsumM[indx]/CRMnumM[indx];
 }
 
-void sCell::CRMadd(int indx, double crm)
+void sCell::CRMadd(speciesKey indx, double crm)
 {
   unsigned sz = 0;
 

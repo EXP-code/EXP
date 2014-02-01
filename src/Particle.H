@@ -72,6 +72,12 @@ public:
 #else
   unsigned long key;
 #endif
+  
+  //! Species number
+  unsigned int Z;
+
+  //! Ion number
+  unsigned int C;
 
   //! Constructor
   Particle();

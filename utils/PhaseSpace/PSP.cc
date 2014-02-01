@@ -136,6 +136,7 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       try {
 	in->seekg(stanza.comp.nbod*(stanza.index_size                   +
 				    8*stanza.r_size                  + 
+				    2*sizeof(unsigned int)           +
 				    stanza.comp.niatr*sizeof(int)    +
 				    stanza.comp.ndatr*stanza.r_size
 				    ), ios::cur);

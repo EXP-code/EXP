@@ -23,9 +23,9 @@ protected:
   double        CRMsum;
   unsigned      CRMnum;
 
-  map<int, deque<double> > CRMlistM;
-  map<int, double>         CRMsumM;
-  map<int, unsigned>       CRMnumM;
+  std::map<speciesKey, deque<double> > CRMlistM;
+  std::map<speciesKey, double>         CRMsumM;
+  std::map<speciesKey, unsigned>       CRMnumM;
 
 public:
 
@@ -34,7 +34,7 @@ public:
 
   int owner;
   unsigned level;
-  map<int, unsigned> count;
+  std::map<speciesKey, unsigned> count;
   unsigned ctotal;
 
   /**
@@ -49,37 +49,38 @@ public:
      @param 8 posy
      @param 9 posz
   */
-  map<int, vector<double> > state;
+  //map<int, vector<double> > state;
+  map<speciesKey,vector<double> > state;
   vector<double> stotal;
 
   //@{
   //! Maximum relative velocity average (<0 if no entries)
-  double CRMavg(int indx);
+  double CRMavg(speciesKey indx);
   double CRMavg();
   //@}
   
   //@{
   //! Add maximum to list
-  void CRMadd(int indx, double crm);
+  void CRMadd(speciesKey indx, double crm);
   void CRMadd(double crm);
   //@}
 
   //@{
   //! Return kinetic energy per unit mass per cell (total & temperature)
-  void KE(int indx, double &tot, double &dsp);
+  void KE(speciesKey indx, double &tot, double &dsp);
   void KE(double &tot, double &dsp);
   //@}
 
   //@{
   //! Return total mass in cell
   double Mass();
-  double Mass(int);
+  double Mass(speciesKey);
   //@}
 
   //@{
   //! Return total number in cell
   unsigned Count();
-  unsigned Count(int);
+  unsigned Count(speciesKey);
   //@}
 
   //! Return total volume of cell
@@ -90,16 +91,16 @@ public:
 
   //! Mean position
   //@{
-  void MeanPos(int indx, double &x, double &y, double& z);
-  void MeanPos(int indx, vector<double>& p);
+  void MeanPos(speciesKey indx, double &x, double &y, double& z);
+  void MeanPos(speciesKey indx, vector<double>& p);
   void MeanPos(double &x, double &y, double& z);
   void MeanPos(vector<double>& p);
   //@}
 
   //! Mean velocity
   //@{
-  void MeanVel(int indx, double &x, double &y, double& z);
-  void MeanVel(int indx, vector<double>& v);
+  void MeanVel(speciesKey indx, double &x, double &y, double& z);
+  void MeanVel(speciesKey indx, vector<double>& v);
   void MeanVel(double &x, double &y, double& z);
   void MeanVel(vector<double>& v);
   //@}
@@ -182,15 +183,15 @@ public:
   
   //! Walk down, accumulating state
   void accumState();
-  void accumState(map<int, unsigned>& count, map<int, vector<double> >& _state);
+  void accumState(sKeyUmap& count, sKeyvDmap& _state);
 
   //@{
   //! Compute state values for the maximum level
   void Find(key_type key, unsigned& curcnt, unsigned& lev,
 	    vector<double>& state);
 
-  void Find(key_type key, map<int, unsigned>& curcnt, unsigned& lev,
-	    map<int, vector<double> >& st);
+  void Find(key_type key, sKeyUmap& curcnt, unsigned& lev,
+	    sKeyvDmap& st);
   //@}
 
 
@@ -216,5 +217,7 @@ public:
   double Scale();
 
 };
+
+const speciesKey defaultKey(0, 0);
 
 #endif

@@ -15,6 +15,7 @@
 #include <ExternalCollection.H>
 #include <UserTreeDSMC.H>
 #include <CollideLTE.H>
+#include <CollideIon.H>
 
 // #define DEBUG
 
@@ -47,8 +48,8 @@ double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 bool   UserTreeDSMC::use_effort = true;
 
-std::set<std::string> 
-       UserTreeDSMC:: colltypes;
+//std::map<int, double> UserTreeDSMC::atomic_weights;
+std::set<std::string> UserTreeDSMC:: colltypes;
 
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 {
@@ -66,7 +67,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   boxsize    = 1.0;
   boxratio   = 1.0;
   comp_name  = "gas disk";
-  ctype      = "LTE";
+  ctype      = "Ion";
   nsteps     = -1;
   msteps     = -1;
   use_temp   = -1;
@@ -102,6 +103,24 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   initialize_colltypes();
 				// Initialize using input parameters
   initialize();
+
+  // initialize the atomic_weights map hardcode the atomic weight map
+  // for use in collFrac
+
+  atomic_weights[1]  = 1.0079;
+  atomic_weights[2]  = 4.0026;
+  atomic_weights[3]  = 6.941;
+  atomic_weights[4]  = 9.0122;
+  atomic_weights[5]  = 10.811;
+  atomic_weights[6]  = 12.011;
+  atomic_weights[7]  = 14.007;
+  atomic_weights[8]  = 15.999;
+  atomic_weights[9]  = 18.998;
+  atomic_weights[10] = 20.180;
+  atomic_weights[11] = 22.990;
+  atomic_weights[12] = 24.305;
+
+  // add in atomic weights for any other higher, more tracer, species
 
 				// Look for the fiducial component
   bool found = false;
@@ -226,6 +245,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Make the initial species map
   //
+  cout << "Making species map" << endl;
   if (species>=0) {
 
     int ok1 = 1, ok;
@@ -234,24 +254,33 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr pend = c0->Particles().end();
 
     for (; p!=pend; p++) {
-      if (species >= static_cast<int>(p->second.iattrib.size())) {
+      /*if (species >= static_cast<int>(p->second.iattrib.size())) {
 	ok1 = 0;
 	break;
-      } else {
-	int indx = p->second.iattrib[species];
+      } else {*/
+	for(unsigned int i = 1; i <= p->second.Z+1; i++) {
+		//cout << p->second.Z << "\t" << i << endl;
+		speciesKey indxi(p->second.Z, i);
+		if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
+	}
+	speciesKey indx(p->second.Z, p->second.C);
 	if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
 	else                                 spec1[indx]++;
-      }
+     // }
     }
 
+ 
+
     MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
+
+    //cout << ok << "\t" << ok1 << endl;
     
     if (ok) {
 
       int sizm;
-      int indx;
+      speciesKey indx;
       unsigned long cnts;
-      map<int, unsigned long>::iterator it, it2;
+      std::map<speciesKey, unsigned long>::iterator it, it2;
 
       spec = spec1;
       for (int i=0; i<numprocs; i++) {
@@ -262,13 +291,15 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	  for (it=spec1.begin(); it != spec1.end(); it++) {
 	    indx = it->first;
 	    cnts = it->second;
-	    MPI_Bcast(&indx, 1, MPI_INT, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
 	  }
 	} else {
 	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
 	  for (int j=0; j<sizm; j++) {
-	    MPI_Bcast(&indx, 1, MPI_INT, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	    MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
 	    if (spec.find(indx) == spec.end()) spec[indx]  = cnts;
 	    else                               spec[indx] += cnts;
@@ -276,10 +307,16 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	}
       }
       
-      for (it=spec.begin(); it != spec.end(); it++) 
-	spec_list.insert(it->first);
+      for (it=spec.begin(); it != spec.end(); it++)  {
+	indx = it->first;
+	spec_list.insert(indx);
+        if (collFrac.find(indx) == collFrac.end()) collFrac[indx] = 1.0/(atomic_weights[indx.first]);
+	else					   collFrac[indx] *= 1.0/(atomic_weights[indx.first]);
 
-      map<int, unsigned long> check = spec;
+      }
+
+     // map<int, unsigned long> check = spec;
+      map<speciesKey, unsigned long> check = spec;
       for (it=check.begin(); it!=check.end(); it++) it->second = 0;
 
       if (myid==0) {
@@ -291,12 +328,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 	cout << setw(4) << right << "#";
 	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << it->first;
+	  cout << setw(8) << right << "(" << it->first.first << "," << it->first.second << ")";
+	       //<< setw(12) << right << it->first.second;
 	cout << endl;
 
 	cout << setw(4) << right << "---";
 	for (it=spec.begin(); it != spec.end(); it++)
 	  cout << setw(12) << right << "--------";
+	      // << setw(12) << right << "--------";
 	cout << endl;
 
 	it2 = spec1.begin();
@@ -360,12 +399,12 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   diam = diamfac*2.0*a0/(Lunit);
 
 				// Number of protons per mass unit
-  for (std::map<int, double>::iterator 
+  for (std::map<speciesKey, double>::iterator 
 	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/mp;
 
   pHOT::sub_sample = sub_sample;
 
-  c0->HOTcreate(species, spec_list);
+  c0->HOTcreate(spec_list);
 
   if (tube) {
     c0->Tree()->setSides (boxsize*boxratio, boxsize, boxsize);
@@ -384,6 +423,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   pCell::Bucket = Ncell;
 
   volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
+
+  cout << "Done with geometry\n";
 
   //
   // Set collision parameters
@@ -406,14 +447,16 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Create the collision instance from the allowed list
   //
-  if (ctype.compare("LTE") == 0)
-    collide = new CollideLTE(this, diam, nthrds);
-  /*
-    else if (ctype.compare("Another")
-      collide = new CollideAnother(this, diam, nthrds);
-    else if (ctype.compare("YetAnother")
-      collide = new CollideYetAnother(this, diam, nthrds);
-  */
+  std::cout << "Initializing collide instance of type: " << ctype << std::endl;
+  //if (ctype.compare("LTE") == 0)
+   // collide = new CollideLTE(this, diam, nthrds);
+  //if (ctype.compare("Ion") == 0)
+    collide = new CollideIon(this, diam, nthrds);
+ // else {
+  //  std::cout << "No such Collide type: " << ctype << std::endl;
+  //  exit(-1);
+ // }
+  std::cout << "Done" << std::endl;
 
   collide->set_temp_dens(use_temp, use_dens);
   if (esol) collide->set_timestep(-1);
@@ -563,8 +606,8 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
 
-  if (get_value("ctype", val)) {
-    if (check_ctype(ctype)) ctype = val;
+  /*if (get_value("ctype", val)) {
+    if (check_ctype(val)) ctype = val;
     else {
       if (myid==0) {
 	std::cerr << "UserTreeDSMC: invalid ctype <" << ctype << ">" 
@@ -574,18 +617,19 @@ void UserTreeDSMC::initialize()
       MPI_Finalize();
       exit(-1);
     }
-  }
+  }*/
 
   /**
      Look for array values in the parameter string of the form
-     spc(1)=3.1, spc(3)=5.6, etc.
+     spc(1,2)=3.1, spc(3,4)=5.6, etc.
   */
-  std::map<int, string> vals;
-  if ((vals=get_value_array("spc")).size()) {
-    std::map<int, string>::iterator it=vals.begin();
+  /*std::map<std::pair<int, int>, string> vals;
+  if ((vals=get_value_matrix("spc")).size()) {
+    std::map<std::pair<int, int>, string>::iterator it=vals.begin();
     while (it != vals.end()) {
       try {
-	collFrac[it->first] = boost::lexical_cast<double>(it->second);
+	speciesKey p(it->first.first, it->first.second);
+	collFrac[p] = boost::lexical_cast<double>(it->second);
       } 
       catch( boost::bad_lexical_cast const& ) {
 	std::cout << "UserTreeDSMC::initialize: bad double value, "
@@ -594,8 +638,9 @@ void UserTreeDSMC::initialize()
     }
     it++;
   } else {
-    collFrac[-1] = 1.0;
-  }
+    // The default key is defined in pCell.H
+    collFrac[defaultKey] = 1.0;
+  }*/
 }
 
 
@@ -1175,6 +1220,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned coll_error = collide->errors();
       unsigned epsm_total = collide->EPSMtotal();
       unsigned epsm_cells = collide->EPSMcells();
+      collide->printCollSummary();
+      collide->resetColls();
 
       vector<double> disp;
       collide->dispersion(disp);
@@ -1564,7 +1611,8 @@ void UserTreeDSMC::assignTempDensVol()
   const double f_H = 0.76;
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double KEtot, KEdsp, T;
-  double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
+  double Tfac;
+  if (ctype == "LTE") Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
   pCell *cell;
 #ifdef DEBUG
   unsigned nbod=0, ntot, zbod=0, ztot, pcel=0, ptot;
@@ -1578,9 +1626,9 @@ void UserTreeDSMC::assignTempDensVol()
 
   while (it.nextCell()) {
     cell = it.Cell();
-    cell->sample->KE(KEtot, KEdsp);
+    //cell->sample->KE(KEtot, KEdsp);
     
-    T = KEdsp * Tfac;
+    //T = KEdsp * Tfac;
 
     // Assign temp and/or density to particles
     //
@@ -1601,6 +1649,12 @@ void UserTreeDSMC::assignTempDensVol()
 	  j++;
 	  continue;
 	}
+        std::pair<int, int> sKey(cell->Body(j)->Z, cell->Body(j)->C);
+	cell->sample->KE(sKey, KEtot, KEdsp);
+	double mi = mp*atomic_weights[cell->Body(j)->Z];
+	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
+	T = KEdsp* Tfac;
+        //if( T ==0) { cout << "UserTree T = 0 at j = " << *j << " KE = " << KEdsp << " Tfrac = " << Tfac << endl; }
 	
 	int sz = cell->Body(j)->dattrib.size();
 	if (use_temp>=0 && use_temp<sz) 

@@ -42,6 +42,8 @@ public:
   unsigned ndcnt;             ///< 14       20
   int    iatr[nimax];         ///< 15       21,22,23,24,25 (e.g.)
   double datr[ndmax];         ///< 16       26,27,28,29,30 (e.g.)
+  unsigned int Z;             ///< 17
+  unsigned int C;             ///< 18
 };
 
 class ParticleFerry

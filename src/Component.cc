@@ -114,10 +114,10 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   // initialize();
 }
 
-void Component::HOTcreate(int species, set<int> spec_list)
+void Component::HOTcreate(std::set<speciesKey> spec_list)
 {
   delete tree;
-  tree = new pHOT(this, species, spec_list);
+  tree = new pHOT(this, spec_list);
 }
 
 

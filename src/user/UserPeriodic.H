@@ -5,6 +5,10 @@
 #include <AxisymmetricBasis.H>
 #include <ExternalCollection.H>
 
+#include <ACG.h>
+#include <Uniform.h>
+#include <Normal.h>
+
 /** Enforce periodic boundary conditions in a rectangular prism (box)
     @param ctrname is the name of the component whose particles will be subject to the boundary condition
     @param sx is the cube size in the x-direction
@@ -32,6 +36,12 @@ private:
   string comp_name, bc;
   double dT, Tnext, dX;
   int nbin, tcol;
+  //Boltzmann constant in terms of system units
+  double vunit;
+  double munit;
+  double temp;
+
+  std::map<int, double> atomic_weights;
 
   vector< vector<unsigned> > cbinT;
   vector< vector<double>   > mbinT, tbinT;
@@ -42,6 +52,12 @@ private:
   Component *c0;
 
   void userinfo();
+
+  // Pseudorandom generation
+  //
+  ACG *gen;
+  Uniform *unit;
+  Normal *norm;
 
 public:
 

@@ -66,7 +66,7 @@ CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) :
   avgT      = vector<double>(nthrds, 0.0);
   dispT     = vector<double>(nthrds, 0.0);
   tlist     = vector< vector<double> >(nthrds);
-  csections = vector< map<int, map<int, double> > > (nthrds);
+  csections = vector<sKey2Dmap> (nthrds);
 
   debug_enabled = true;
 
@@ -109,15 +109,14 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-map<int, map<int, double> >& CollideLTE::totalCrossSections(double crm, int id)
+sKey2Dmap& CollideLTE::totalCrossSections(double crm, int id)
 {
   return csections[id];
 }
 
 void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
 				 double rvmax, double tau,
-				 map<int, map<int, unsigned> >& nsel,
-				 int id)
+				 sKey2Umap& nsel, int id)
 {
   sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -139,14 +138,14 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
 
 				// Compute geometric cross section
   double cross = M_PI*diam*diam;
-  for (map<int, map<int, unsigned> >::iterator it1 = nsel.begin();
+  for (sKey2Umap::iterator it1 = nsel.begin();
        it1 != nsel.end(); it1++) 
     {
-      int i1 = it1->first;
-      for (map<int, unsigned>::iterator it2 = it1->second.begin();
+      speciesKey i1 = it1->first;
+      for (sKeyUmap::iterator it2 = it1->second.begin();
 	   it2 != it1->second.end(); it2++) 
 	{
-	  int i2 = it2->first;
+	  speciesKey i2 = it2->first;
 	  csections[id][i1][i2] = cross;
 	}
     }
@@ -163,10 +162,9 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
 
 				// Total number of encounters
   unsigned number = 0;
-  for (map<int, map<int, unsigned> >::iterator it1 = nsel.begin();
-       it1 != nsel.end(); it1++) 
+  for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++) 
     {
-      for (map<int, unsigned>::iterator it2 = it1->second.begin();
+      for (sKeyUmap::iterator it2 = it1->second.begin();
 	   it2 != it1->second.end(); it2++) number += it2->second;
     }
     
