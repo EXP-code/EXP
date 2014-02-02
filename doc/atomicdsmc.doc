@@ -1,92 +1,257 @@
-/*! page Atomic Cooling Implementation
+/*! \page atomic Atomic Cooling Implementation
 
-In order to treat the gas properly in a non-thermal way, the gas cooling must be treated without the use of thermalize cooling curves. 
-Instead, the atomic cooling must be treated by calculating all possible interaction cross sections for all collision pairs, and then using monte carlo sampling to determine which
-interaction the pair undergoes. The code puts into account the following interactions:
+In order to treat the gas properly in a non-thermal way, the gas
+cooling must be treated without the use of thermalize cooling curves.
+Instead, the atomic cooling must be treated by calculating all
+possible interaction cross sections for all collision pairs, and then
+using monte carlo sampling to determine which interaction the pair
+undergoes. The code puts into account the following interactions:
+
 <ul>
-<li> Collisional Excitation (CE) <\li>
-<li> Collisional Ionization (CI) <\li>
-<li> Free-free Bremmstrahlung (FF) <\li>
-<li> Radiative Recombination (RR) <\li>
-<\ul>
-<br>
-<h2> Ion Interface <\h2>
-The main interface that CollideIon utilizes is the Ion interface. This class is the direct interface to the CHIANTI database, as well as all of the cross section formulas. All that is needed to create the 
-ion interface is a simple statement, like: Ion A = new Ion(Z, C). It is also designed to accept CHIANTI based atomic strings (i.e. HII = "h_2"). Once the ion interface is defined for a give (Z,C) species, all the calculations
-can be done within it. The second interface that must be called (though still part of the Ion.cc) is the CHIANTI file class chdata, called in the code simple by<br> chdata ch; <br> This variable ch then allows access to all the files
-that the CHIANTI database has. It is used internally by the Ion class only.For instance, to get the total free-free cross section, a sample code is: <br>
-double ffcross = A.freeFreeCross(ch, kEe) <br>
-where kEe would be the electron interaction energy in eV. This interface was written to be very modular and easy to modify, as well as add any possible future interactions such as charge exchange. All that would be
-needed is a way to calculate the interaction cross sections, and have that added into the Ion interface. All cooling is performed by a separate class called InteractSelect, discussed a bit below.
-<h2>Cross Section Formulas<\h2>
-The cross sections are calculated using a combination of CHIANTI data and analytic (or semi-analytic) formulas that use the data from CHIANTI. The following sections will explain the equations
-for each of the cross sections that are implemented, as well as any approximations. In the code, only electron-Ion intereactions are considered as they are the most dominate by two orders of magnitude.
-<h3>Collisional Excitation<\h3>
-For collisional excitations, the CHIANTI database includes thermally averaged cross section strengths. The cross section strengths can be used as a non-thermal approximation by using the thermal cross
-section strengths in the general cross section formula. The relation between the strengths and cross sections is: <br>
-\f$\sigma_{CE} = \sum_j \frac{\Gamma_{ij}}{\omega_i k_i^2} \f$ <br>
-where \f$\sigma_{CE}\f$ is the total cross section, summing up all cross sections from the ground level to a higher quantum level j. \f$\Gamma_{ij}\f$ is the thermal cross section strength between
-quantum levels i and j, $\omega_i$ is the statistical weight of level i, and de Broglie wavelength of the atomic at quantum level i. The cross section is calculated in units of \f$\pi a_0^2\f$. <br>
-The definition of \f$\Gamma_{ij}\f$ is <br>
-\f$ \Gamma_{ij} = \int_0^{\inf} \Omega_{ij} exp(\frac{-E_j}{kT}) d(\frac{E_j}/{kT}) \f$ <br>
-Collisional Excitation is the dominate form of cooling from ~10,000K  up until ~150,000K from both Hydrogen excitation (at low temperature end) and Helium excitation at the higher temperature end.
-<br>
-<h3>Collisional Ionization<\h3>
-Collisional ionization is the next dominate form of cooling up to ~150,000K. This cross section is calculated using the scaled cross sections in CHIANTI, in the form from Burgess & Tully (1992). These are not thermally
-averaged, so remain totally general, relying only on the energy impact of the electron. The CHIANTI database gives the scaled cross sections as a function of a scaled energy, the two being defined as:<br>
-\f$ U = 1 - \frac{log f}{log(u - 1 +f)}\f $ <br>
-\f$ \Sigma = \frac{u\sigma I^2}{log u + 1} \f$ <br>
-With f being an arbitrary parameter, give in CHIANTI, u is the impact energy scaled to the ionization energy, I is the ionization energy, and \f$\sigma\f$ is the true cross section. All one needs to do then is to calculate
-the scaled energy, interpolate to find the scaled cross section, then descale to get the true cross section. <br>
-<br>
-<h3>Radiative Recombination<\h3>
-While radiative recombination is never a dominate form of cooling, it is crucial for the equilibirum ionization fractions. Unfortunately, because radiative recombination is a complicated quantum process
-there is no easily calculatable non-thermal cross section. Doing so involves the calculation of wave functions, as well as the final shells of the recombination. Instead, a thermal approximation for the radiative recombination
-is used being the only option besides using thermal rates. Using the Milne relation in combination with the photoionization cross section of Mewe 1986, an approximate cross section formula can be  derived:<br>
-\f$ \signa_{RR} = 1.075812 \cdot 10^{-23} \frac{E^2}{2 m_e c^2 E_e^2} \frac{\omega_i}{\omega_0} \left(\frac{I}{keV}\right)^2 \left(\frac{keV}{E}\right)^3 \frac{g_{bf}}{n_i} [m^2] \f$ <br>
-where \f$E_e\f$ is the electron impact energy, \f$E = E_e + I_j\f$, \f$I_j\f$ is the ionization energy from level j from CHIANTI, \f$g_{bf}\f$ is the gaunt factor taken from CHIANTI, \f$n_i\f$ is the
-quantum number at state i and \f$\omega\f$ is the statistical weight of the level.<br>
+<li> Collisional Excitation (CE)   </li>
+<li> Collisional Ionization (CI)   </li>
+<li> Free-free Bremmstrahlung (FF) </li>
+<li> Radiative Recombination (RR)  </li>
+</ul>
 
-<h3>Free-free<\h3>
-Free-free interactions are only important at high temperatures when the gas is fully ionized at very hot (meaning no other interaction can occur). This cross section was taken from Koch 1959. The equation chosen is valid under
-these assumptions:
+<h2> Ion Interface </h2>
+
+The main interface that CollideIon utilizes is the Ion interface. This
+class is the direct interface to the CHIANTI database, as well as all
+of the cross section formulas. All that is needed to create the ion
+interface is a simple statement, like: 
+
+<code>Ion A = new Ion(Z, C) </code>.
+
+It is also designed to accept CHIANTI based atomic strings
+(i.e. <code> HII = "h_2"</code>). Once the ion interface is defined
+for a give \f$(Z, C)\f$ species, all the calculations can be done within
+it. The second interface that must be called (though still part of the
+Ion.cc) is the CHIANTI file class chdata, called in the code simple by
+
+<code>chdata ch; </code>
+
+This variable <code>ch</code> then allows access to all the files that
+the CHIANTI database has. It is used internally by the Ion class
+only. For instance, to get the total free-free cross section, a sample
+code is:
+
+<code> double ffcross = A.freeFreeCross(ch, kEe) </code>
+
+where <code>kEe</code> would be the electron interaction energy in
+eV. This interface was written to be very modular and easy to modify,
+as well as add any possible future interactions such as charge
+exchange. All that would be needed is a way to calculate the
+interaction cross sections, and have that added into the Ion
+interface. All cooling is performed by a separate class called
+InteractSelect, discussed a bit below.
+
+<h2>Cross Section Formulas</h2>
+
+The cross sections are calculated using a combination of CHIANTI data
+and analytic (or semi-analytic) formulas that use the data from
+CHIANTI. The following sections will explain the equations for each of
+the cross sections that are implemented, as well as any
+approximations. In the code, only electron-Ion intereactions are
+considered as they are the most dominate by two orders of magnitude.
+
+<h3>Collisional Excitation</h3>
+
+For collisional excitations, the CHIANTI database includes thermally
+averaged cross section strengths. The cross section strengths can be
+used as a non-thermal approximation by using the thermal cross section
+strengths in the general cross section formula. The relation between
+the strengths and cross sections is:
+
+\f[
+	\sigma_{CE} = \sum_j \frac{\Gamma_{ij}}{\omega_i k_i^2} 
+\f]	 
+
+where \f$\sigma_{CE}\f$ is the total cross section, summing up all
+cross sections from the ground level to a higher quantum level
+j. \f$\Gamma_{ij}\f$ is the thermal cross section strength between
+quantum levels i and j, $\omega_i$ is the statistical weight of level
+i, and de Broglie wavelength of the atomic at quantum level i. The
+cross section is calculated in units of \f$\pi a_0^2\f$.
+
+The definition of \f$\Gamma_{ij}\f$ is 
+
+\f[ 
+    \Gamma_{ij} = \int_0^{\inf} \Omega_{ij} 
+    \exp\left(\frac{-E_j}{kT}\right) d\left(\frac{E_j}{kT}\right) 
+\f] 
+
+Collisional excitation is the dominate form of cooling from
+\f$\approx\f$10,000K up until \f$\approx\f$150,000K from both Hydrogen
+excitation (at low temperature end) and Helium excitation at the
+higher temperature end.
+
+<br>
+
+<h3>Collisional Ionization</h3>
+
+Collisional ionization is the next dominate form of cooling up to
+\f$\approx\f$ 150,000K. This cross section is calculated using the
+scaled cross sections in CHIANTI, in the form from Burgess \& Tully
+(1992). These are not thermally averaged, so remain totally general,
+relying only on the energy impact of the electron. The CHIANTI
+database gives the scaled cross sections as a function of a scaled
+energy, the two being defined as:
+
+\f[ U = 1 - \frac{\log f}{\log(u - 1 + f)}\f] 
+
+\f[ \Sigma = \frac{u\sigma I^2}{\log u + 1} \f] 
+
+With \f$f\f$ being an arbitrary parameter, give in CHIANTI, \f$u\f$ is
+the impact energy scaled to the ionization energy, \f$I\f$ is the
+ionization energy, and \f$\sigma\f$ is the true cross section. All one
+needs to do then is to calculate the scaled energy, interpolate to
+find the scaled cross section, then descale to get the true cross
+section.
+
+<br>
+
+<h3>Radiative Recombination</h3>
+
+While radiative recombination is never a dominate form of cooling, it
+is crucial for the equilibirum ionization fractions. Unfortunately,
+because radiative recombination is a complicated quantum process there
+is no easily calculatable non-thermal cross section. Doing so involves
+the calculation of wave functions, as well as the final shells of the
+recombination. Instead, a thermal approximation for the radiative
+recombination is used being the only option besides using thermal
+rates. Using the Milne relation in combination with the
+photoionization cross section of Mewe 1986, an approximate cross
+section formula can be derived:
+
+\f[ 
+
+\sigma_{RR} = 1.075812 \cdot 10^{-23} \frac{E^2}{2 m_e c^2 E_e^2}
+\frac{\omega_i}{\omega_0} \left(\frac{I}{keV}\right)^2
+\left(\frac{keV}{E}\right)^3 \frac{g_{bf}}{n_i} [m^2]
+
+\f]
+
+where \f$E_e\f$ is the electron impact energy, \f$E = E_e + I_j\f$,
+\f$I_j\f$ is the ionization energy from level j from CHIANTI,
+\f$g_{bf}\f$ is the gaunt factor taken from CHIANTI, \f$n_i\f$ is the
+quantum number at state i and \f$\omega\f$ is the statistical weight
+of the level.
+
+<br>
+
+<h3>Free-free cross section</h3>
+
+Free-free interactions are only important at high temperatures when
+the gas is fully ionized at very hot (meaning no other interaction can
+occur). This cross section was taken from Koch (1959). The equation
+chosen is valid under these assumptions:
+
 <ol>
-<li>Born Approximation holds<\li>
-<li>Assumes no electron screening<\li>
-<li>The gas is non-relativistic<\li>
-<\ol>
-With these assumptions, the free-free general cross section is written as <br>
-\f$ \frac{d\sigma}{dk} = \frac{Z^2 r_0^2}{137} \frac{16}{3} \frac{1}{k}\frac{1}{p_0^2} ln \left(\frac{p_0 + p}{p_0 - p}\right) \f$ <br>
-where \f$p\f$ and \f$p_0\f$ are the final and initial electron momentum respectively.
+<li>Born Approximation holds</li>
+<li>Assumes no electron screening</li>
+<li>The gas is non-relativistic</li>
+</ol>
 
-<h2>Interaction Selection<\h2>
-The step of performing the cooling is to determine how many pairs in the gas will interact. This is calculated simply using <br>
-\f$N_{coll} = \frac{1}{2} n <N> (\sigma_T c_r)_{max} \delta t \f$
-where n is the local number density, <N> is the average number of particles in a cell, \f$c_r\f$ is the local relative velocity magnitude, \f$\delta t\f$ is the time step, and \f$\sigma_T\f$ is the total cross
-section. The total cross section used is taken from the previous time step, using the assumption that the total cross sections won't change very quickily if the gas is evolved slowly relative to any thermal time scales. On the first time step, the bohr cross 
-section is used for an initial guess. For each pair, the total cross section is calculated, and all possible cross sections are put into an array with the interaction cross sections scaled such that the total cross section is 1 (i.e. an
-array that might look like [CE 1, FF 1, CE 2, FF 2]. This gives an array for the cumulative cross section in terms of each component. A random number is drawn from a uniform distribution between 0 and 1, and using the scaled interaction array, the cross section is chosen corresponding to the 
-interaction in that cumulative cross section bin. For instance, an array could look like [0.25, 0.3, 0.8, 1.0] for the interactions in the last example. If the random number drawn is 0.75, it would correspond to interaction 3, or CE 2.
+With these assumptions, the free-free general cross section is written as 
 
-<h2>Cooling Determination<\h2>
-The actual cooling that happens comes straight forward from the interaction which takes place. All of the cooling is done through the class interface InteractSelect. This class has all the
-cooling functions for the given interactions. The flexibility that this creates allows any future interactions to be easily added into the interface and then a single if statement to be added into the CollideIon class. It also gives a single class 
-to make any modifications to the cooling dynamics much more simple. The cooling processes are for each interaction that contribute are shown in the list below:<br>
-<h3>Collisional Excitation<\h3>
-CE process is described by: HI + e- -> HI* + e- -> HI + e- + \f$E_{ij}\f$ where $\f$E_{ij}\f$ is the energy left to go from the metastable state of the electron at state j back down to the ground state. This energy is removed from the center of mass from in the atomic reference frame.
-This energy is generally fairly high, since the difference between n = 1 and 2 is ~10 eV. So, even though CE may not happen as much as other interactions, it's cooling is much greater
+\f[ 
+\frac{d\sigma}{dk} = \frac{Z^2 r_0^2}{137} \frac{16}{3} 
+		   \frac{1}{k}\frac{1}{p_0^2} 
+		   \ln \left(\frac{p_0 + p}{p_0 - p}\right)
+\f]
 
-<h3>Collisional Ionization <\h3>
-Descibed by HI + e- -> HII + 2e- + \f$\chi\f$ where the last term is the ionization energy that gets released as cooling from the center of mass frame.
+where \f$p\f$ and \f$p_0\f$ are the final and initial electron
+momentum respectively.
 
-<h3> Free-free <\h3>
-In this interaction, the electron is just affected by the electrostatic potential of the charged ion, and during its acceleration from the potential it releases a small amount of energy as radiation. This amount of energy is generally very small, 
-therefore it only dominates in very hot fully ionized plasmas where its the dominate interaction.
+<h2>Interaction Selection</h2>
 
-<h2>Electron Treatment<\h2>
-There are various ways in which the electrons can be treated. In this version of the code, the electrons are treating as if they were essentially "stuck" to the ions. This means each DSMC particle is effectively electrically neutral, allowing for the electrons to only be
-put into account by a simple tag. Since the charge of the ion is already being stored, then in order to assure electronic neutrality, the number of electrons per ion then must be C-1. The electrons can then be treated by simple, with no extra memory being needed to put into account. In this approximation
-the electrons are essentially being treated as a cloud, with each DSMC particle having enough electrons in its volume to make it electrically neutral. However, the way in which the information on the ions is stored, as well as the generality and flexibility with the inclusion of the interactions through
-the Ion interface it will be fairly simple to add them in free streaming. THe only difficulty comes from doing time stepping criteria from the difference in velocities between the electrons and ions.
+The step of performing the cooling is to determine how many pairs in
+the gas will interact. This is calculated simply using
+
+\f[ 
+    N_{coll} = \frac{1}{2} n <N> (\sigma_T c_r)_{max} \delta t 
+\f]
+
+where n is the local number density, <N> is the average number of
+particles in a cell, \f$c_r\f$ is the local relative velocity
+magnitude, \f$\delta t\f$ is the time step, and \f$\sigma_T\f$ is the
+total cross section. The total cross section used is taken from the
+previous time step, using the assumption that the total cross sections
+won't change very quickily if the gas is evolved slowly relative to
+any thermal time scales. On the first time step, the bohr cross
+section is used for an initial guess. For each pair, the total cross
+section is calculated, and all possible cross sections are put into an
+array with the interaction cross sections scaled such that the total
+cross section is 1 (i.e. an array that might look like [CE 1, FF 1, CE
+2, FF 2]. This gives an array for the cumulative cross section in
+terms of each component. A random number is drawn from a uniform
+distribution between 0 and 1, and using the scaled interaction array,
+the cross section is chosen corresponding to the interaction in that
+cumulative cross section bin. For instance, an array could look like
+[0.25, 0.3, 0.8, 1.0] for the interactions in the last example. If the
+random number drawn is 0.75, it would correspond to interaction 3, or
+CE 2.
+
+<h2>Cooling Determination</h2>
+
+The actual cooling that happens comes straight forward from the
+interaction which takes place. All of the cooling is done through the
+class interface InteractSelect. This class has all the cooling
+functions for the given interactions. The flexibility that this
+creates allows any future interactions to be easily added into the
+interface and then a single if statement to be added into the
+CollideIon class. It also gives a single class to make any
+modifications to the cooling dynamics much more simple. The cooling
+processes are for each interaction that contribute are shown in the
+list below:
+
+<br>
+
+<h3>Collisional Excitation</h3>
+
+CE process is described by: \f$ \mbox{I} + e^- \rightarrow \mbox{I} +
+e^- + E_{ij}\f$ where $\f$E_{ij}\f$ is the energy left to go from the
+metastable state of the electron at state j back down to the ground
+state for ion I. This energy is removed from the center of mass from
+in the atomic reference frame.  This energy is generally fairly high,
+since the difference between n = 1 and 2 is ~10 eV. So, even though CE
+may not happen as much as other interactions, it's cooling is much
+greater
+
+<h3>Collisional Ionization </h3>
+
+Descibed by \f$ \mbox{I} + e^- \rightarrow \mbox{I}^\ast + 2e^- + \chi
+\f$ where the last term is the ionization energy that gets released as
+cooling from the center of mass frame and \f$\mbox{I}^\ast\f$ is the
+next ionization state of I.
+
+<h3> Free-free </h3>
+
+In this interaction, the electron is just affected by the
+electrostatic potential of the charged ion, and during its
+acceleration from the potential it releases a small amount of energy
+as radiation. This amount of energy is generally very small, therefore
+it only dominates in very hot fully ionized plasmas where its the
+dominate interaction.
+
+<h2>Electron Treatment</h2>
+
+There are various ways in which the electrons can be treated. In this
+version of the code, the electrons are treating as if they were
+essentially "stuck" to the ions. This means each DSMC particle is
+effectively electrically neutral, allowing for the electrons to only
+be put into account by a simple tag. Since the charge of the ion is
+already being stored, then in order to assure electronic neutrality,
+the number of electrons per ion then must be C-1. The electrons can
+then be treated by simple, with no extra memory being needed to put
+into account. In this approximation the electrons are essentially
+being treated as a cloud, with each DSMC particle having enough
+electrons in its volume to make it electrically neutral. However, the
+way in which the information on the ions is stored, as well as the
+generality and flexibility with the inclusion of the interactions
+through the Ion interface it will be fairly simple to add them in free
+streaming. THe only difficulty comes from doing time stepping criteria
+from the difference in velocities between the electrons and ions.
 
 */
