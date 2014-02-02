@@ -4,7 +4,7 @@ In order to treat the gas properly in a non-thermal way, the gas
 cooling must be treated without the use of thermalize cooling curves.
 Instead, the atomic cooling must be treated by calculating all
 possible interaction cross sections for all collision pairs, and then
-using monte carlo sampling to determine which interaction the pair
+using Monte Carlo sampling to determine which interaction the pair
 undergoes. The code puts into account the following interactions:
 
 <ul>
@@ -52,7 +52,7 @@ The cross sections are calculated using a combination of CHIANTI data
 and analytic (or semi-analytic) formulas that use the data from
 CHIANTI. The following sections will explain the equations for each of
 the cross sections that are implemented, as well as any
-approximations. In the code, only electron-Ion intereactions are
+approximations. In the code, only electron-Ion interactions are
 considered as they are the most dominate by two orders of magnitude.
 
 <h3>Collisional Excitation</h3>
@@ -114,14 +114,14 @@ section.
 <h3>Radiative Recombination</h3>
 
 While radiative recombination is never a dominate form of cooling, it
-is crucial for the equilibirum ionization fractions. Unfortunately,
+is crucial for the equilibrium ionization fractions. Unfortunately,
 because radiative recombination is a complicated quantum process there
-is no easily calculatable non-thermal cross section. Doing so involves
+is no easily calculable non-thermal cross section. Doing so involves
 the calculation of wave functions, as well as the final shells of the
 recombination. Instead, a thermal approximation for the radiative
 recombination is used being the only option besides using thermal
 rates. Using the Milne relation in combination with the
-photoionization cross section of Mewe 1986, an approximate cross
+photo-ionization cross section of Mewe 1986, an approximate cross
 section formula can be derived:
 
 \f[ 
@@ -178,8 +178,8 @@ particles in a cell, \f$c_r\f$ is the local relative velocity
 magnitude, \f$\delta t\f$ is the time step, and \f$\sigma_T\f$ is the
 total cross section. The total cross section used is taken from the
 previous time step, using the assumption that the total cross sections
-won't change very quickily if the gas is evolved slowly relative to
-any thermal time scales. On the first time step, the bohr cross
+won't change very quickly if the gas is evolved slowly relative to
+any thermal time scales. On the first time step, the Bohr cross
 section is used for an initial guess. For each pair, the total cross
 section is calculated, and all possible cross sections are put into an
 array with the interaction cross sections scaled such that the total
@@ -221,7 +221,7 @@ greater
 
 <h3>Collisional Ionization </h3>
 
-Descibed by \f$ \mbox{I} + e^- \rightarrow \mbox{I}^\ast + 2e^- + \chi
+Described by \f$ \mbox{I} + e^- \rightarrow \mbox{I}^\ast + 2e^- + \chi
 \f$ where the last term is the ionization energy that gets released as
 cooling from the center of mass frame and \f$\mbox{I}^\ast\f$ is the
 next ionization state of I.
@@ -251,7 +251,7 @@ electrons in its volume to make it electrically neutral. However, the
 way in which the information on the ions is stored, as well as the
 generality and flexibility with the inclusion of the interactions
 through the Ion interface it will be fairly simple to add them in free
-streaming. THe only difficulty comes from doing time stepping criteria
+streaming. The only difficulty comes from doing time stepping criteria
 from the difference in velocities between the electrons and ions.
 
 */
