@@ -43,6 +43,9 @@ protected:
 
   //! Returns a map from key(n)=value pairs
   std::map<int, string> get_value_array(const string& name);
+
+  //! Returns a map from key(i,j)=value pairs
+  std::map<std::pair<int, int>, string> get_value_matrix(const string& name);
   //@}
 
   //! Number of bodies

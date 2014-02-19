@@ -9,8 +9,11 @@ class CollideIon : public Collide
 {
 private:
   //! Global variables for the calculations with the individual ions
-  map <int, map<int, Ion> > IonList;
-  vector< int > Ni;
+  std::map <int, std::map<int, Ion> > IonList;
+
+  //! Not sure what this does . . . 
+  std::vector<int> Ni;
+
   chdata ch;
   InteractSelect IS;
   unsigned int NUM;

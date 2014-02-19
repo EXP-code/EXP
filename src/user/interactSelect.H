@@ -23,19 +23,31 @@ typedef boost::variate_generator<boost::minstd_rand, dist_type> gen_type;
 typedef boost::shared_ptr<gen_type> gen_ptr;
 typedef boost::shared_ptr<dist_type> dist_ptr;
 
-class InteractSelect {
-	private:
-		void setSeed();
-		boost::minstd_rand generator;
-		dist_ptr uni_dist;
-		gen_ptr uni;
-	public:
-		InteractSelect();
-		double selectCEInteract(Ion& a, std::vector<std::pair<double, double > > cumCross);
-		double selectFFInteract(Ion& a, double E);
-		double DIInterLoss(chdata& ch, Ion& a);
-		double selectRRInteract(Ion& a, std::vector<double> cumCross, double Ee);
-		
+class InteractSelect 
+{
+private:
+  void setSeed();
+  boost::minstd_rand generator;
+  dist_ptr uni_dist;
+  gen_ptr uni;
+
+public:
+  //! Constructor
+  InteractSelect();
+
+  //! Return excitation energy, randomly selected from all possible
+  //! excitations by cross section
+  double selectCEInteract
+  (Ion& a, std::vector<std::pair<double, double > > cumCross);
+
+  //! Compute the free-free radiated energy based on the electron velocity
+  double selectFFInteract(Ion& a, double E);
+
+  //! Return the lost ionization energy and adjust ionization state
+  double DIInterLoss(chdata& ch, Ion& a);
+
+  //! 
+  double selectRRInteract(Ion& a, std::vector<double> cumCross, double Ee);
 };
 
 #endif

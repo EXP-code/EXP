@@ -9,6 +9,7 @@
 #include <RunningTime.H>
 #include <pHOT.H>
 
+class Collide;
 class CollideLTE;
 class CollideIon;
 
@@ -188,8 +189,9 @@ private:
   unsigned stepnum;
   double curtime;
 
-  //CollideLTE *collide;
-  CollideIon *collide;
+  Collide *collide;
+  // CollideLTE *collide;
+  // CollideIon *collide;
   double ElostTotCollide, ElostTotEPSM;
 
   string comp_name;

@@ -23,14 +23,17 @@ struct thrd_pass_arguments
 {
   //! Pointer to iterator
   pHOT *tree;
+
   //! Effective number of particles
   sKeyDmap *fn;
+
   //! Time step
   double tau;
+
   //! Thread counter id
   int id;
 };
-  
+
 struct thrd_pass_Collide 
 {
   Collide *p;
@@ -49,7 +52,7 @@ struct tstep_pass_arguments
   //! Thread counter id
   int id;
 };
-  
+
 struct thrd_pass_tstep
 {
   Collide *p;
@@ -60,19 +63,19 @@ struct thrd_pass_tstep
 
 /**
    The collision base class for DSMC
-
+   
    <h2> Virtual functions that must be implemented by a derived class </h2>
    <ul>
-
+   
    <li> initialize_cell_dsmc().  This function initializes cross
    sections (and possibly) heating and cooling rates for use in DSMC.
-
+   
    <li> initialize_cell_epsm(). Initializes mean heating and cooling
    rates for use in EPSM.
-  
+   
    <li> finalize_cell(). Computes diagnostics for the cell after
    collisions/cooling.
-
+   
    <li> totalCrossSections(). Return total cross section "matrix" for
    species-species interactions.  The "matrix" is implemented as an
    STL map<int, map<int, double> > so sparse indices do not matter but
@@ -81,38 +84,38 @@ struct thrd_pass_tstep
    
    <li> inelastic().  Performs the inelastic computation.  Returns 0 on
    success.
-
+   
    <li> hasHeatCool().  Return true if the derived class can provide a
    heating and cooling function for EPSM.  Otherwise, return false.
-
+   
    </ul>
- */
+*/
 class Collide
 {
-
+  
 public:
-
+  
   typedef pair<double, vector<double> > Precord;
-
+  
 private:
-
+  
   // Calling force
   ExternalForce *caller;
-
+  
   // Threading stuff
   //
   thrd_pass_Collide *td;
   thrd_pass_tstep   *tdT;
   pthread_t *t;
-
+  
   // Pseudorandom generation
   //
   ACG *gen;
   Uniform *unit;
   Normal *norm;
-
+  
   vector<Precord> prec;
-
+  
   // Timing and debug
   //
   unsigned ncells, bodycount, stepcount;
@@ -130,12 +133,12 @@ private:
     if (q<=0.0) return 0;
     return (unsigned)floor(q*sz);
   }
-
+  
   //! For timing the fraction spent in threaded force methods
   //@{
   vector<struct timeval> tv_list;
   vector<double> timer_list;
-
+  
   inline void thread_timing_beg(int id)
   {
     if (VERBOSE>5) {
@@ -145,7 +148,7 @@ private:
 	(tv_list[id].tv_sec % 1000);
     }
   }
-
+  
   inline void thread_timing_end(int id)
   {
     if (VERBOSE>5) {
@@ -156,20 +159,20 @@ private:
     }
   }
   //@}
-
+  
 protected:
-
+  
   int nthrds;
-
+  
   std::vector<unsigned> numcnt;
   std::vector<unsigned> selcnt;
   std::vector<unsigned> colcnt;
   std::vector<double>   tsrat, kerat, derat, tdens, tvolc, ttemp, tdelt, tseln;
-
+  
   static const unsigned Nphase = 4, Nmfp = 5;
   std::vector<Precord> tphase, tmfpst;
   std::vector< vector<Precord> > tphaseT, tmfpstT;
-
+  
   std::vector< vector<unsigned> > numcntT;
   std::vector< vector<unsigned> > colcntT;
   std::vector<unsigned> error1T;
@@ -188,13 +191,13 @@ protected:
   std::vector< vector<unsigned> > VcntT;
   std::vector<double>   Vdbl, Vdbl1, Vdbl0;
   std::vector< vector<double> > VdblT;
-
+  
   std::vector< vector<pCell*> > cellist;
-
+  
   std::vector<double> disptot;
   double masstot;
   double excessCtot, excessEtot;
-
+  
   double   diam;
   unsigned seltot;
   unsigned coltot;
@@ -202,9 +205,9 @@ protected:
   unsigned epsmcells;
   unsigned errtot;
   unsigned numtot;
-
+  
   int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
-
+  
   //! Initializes cross sections for use in DSMC
   virtual void initialize_cell_dsmc
   (pHOT* tree, pCell* cell, double vrelmax, double dt, 
@@ -217,37 +220,37 @@ protected:
   
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
-
+  
   //! Return total cross section "matrix" for species-species interactions
   virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
-
+  
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
-
+  
   //! Has LTE heating and cooling algorithm
   virtual bool hasHeatCool() = 0;
-
+  
   //! Compute the EPSM algorithm for the given cell
   virtual void EPSM(pHOT* tree, pCell* cell, int id);
-
+  
   //! Use EPSM if true
   bool use_epsm;
-
+  
   //@{
   //! For diagnostic output
   vector<double> lostSoFar_EPSM;
-
+  
   void debug_list(pHOT& tree);
   virtual void list_sizes();
   void list_sizes_proc(ostream*);
   void pre_collide_diag();
   unsigned post_collide_diag();
-
+  
   template<typename T>
   void colldeHelper(ostream& out, const char* lab, vector<T>& v);
   //@}
-
+  
   //@{
   //! Timing and debug (access for derived classes)
   vector<Timer> initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
@@ -258,9 +261,9 @@ protected:
   vector<int>    collCnt, numbSum;
   vector<double> initSum, collSum, elasSum, cellSum, epsmSum;
   vector<double> stat1Sum, stat2Sum, stat3Sum, coolSum, listSum;
-
+  
   vector<long> minUsage, maxUsage, minPart, maxPart, minCollP, maxCollP;
-
+  
   static const int nEPSMT = 6;
   vector< vector<Timer> > EPSMT;
   vector< vector<TimeElapsed> > EPSMTSoFar;
@@ -268,96 +271,96 @@ protected:
   //@}
   
 public:
-
+  
   //! Integrate the cooling solution
   static bool ESOL;		
-
+  
   //! Use the original Pullin velocity selection algorithm
   static bool PULLIN;		
-
+  
   /** Use the Consistent Boltzmann Algorithm Alexander, Garcia, Alder
       1995, PRL, 74, 5212 */
   static bool CBA;
-
+  
   //! Print out sorted cell parameters
   static bool SORTED;
-
+  
   //! Print out extra collision statistics for debugging
   static bool EXTRA;
-
+  
   //! Print out T-rho plane for cells will mass weighting
   static bool PHASE;		
   
   //! Turn off collisions (for testing, debugging, etc.)
   static bool DRYRUN;           
-
+  
   //! Set cooling to zero for testing (default: false)
   static bool NOCOOL;
-
+  
   /** Use ensemble excess method: share uncooled internal energy among
       all particles in a cell.  If false, compute this on a
       particle-by-particle basis. */
   static bool ENSEXES;
-
+  
   //! Sample based on maximum (true) or estimate from variance (false);
   static bool NTC;	        
-
+  
   //! Accumulate time step diagnostics (default: false)
   static bool TSDIAG;	        
-
+  
   //! Accumulate cell-volume diagnostics (default: false)
   static bool VOLDIAG;
-
+  
   //! Accumulate length scale diagnostics for the DBA algorithm (default: false)
   static bool CBADIAG;	        
-
+  
   //! Power of two interval for ke/cool ratio histogram (default: 4)
   static int TSPOW;	        
-
+  
   //! Accumulate mean free path diagnostics (default: false)
   static bool MFPDIAG;
-
+  
   //! Augment effort value by work done in collisions (default: true)  
   static bool EFFORT;
-
+  
   //! Print out additional CPU timing detail
   static bool TIMING;
-
+  
   /** Use EPSM when mean free path/cell size ratio is below EPSMratio
       (default = -1.0, never) */
   static double EPSMratio;
-
+  
   //! Minimum number of particles for EPSM
   static unsigned EPSMmin;
-
+  
   //! Temperature floor in resampling dispersion for EPSM
   static double TFLOOR;
-
+  
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
-
+  
   //! Constructor
   Collide(ExternalForce *force, double diameter, int nth=1);
-
+  
   //! Destructor
-  ~Collide();
-
+  virtual ~Collide();
+  
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
-
+  
   virtual void
   set_excess(int pos) { use_exes=pos; }
-
+  
   virtual void set_timestep(int pos) { }
-
+  
   virtual void
   set_Kn(int pos) { use_Kn=pos; }
-
+  
   virtual void
   set_St(int pos) { use_St=pos; }
-
+  
   virtual double getCoolingRate(int id) = 0;
-
+  
   unsigned select() { unsigned t=seltot; seltot=0; return t; }
   unsigned total()  { unsigned t=coltot; coltot=0; return t; }
   unsigned EPSMtotal()  { unsigned t=epsmtot; epsmtot=0; return t; }
@@ -376,24 +379,24 @@ public:
   
   void energyExcess(double& ExesColl, double& ExesEPSM);
   void dispersion(vector<double>& disp);
-
+  
   virtual double Etotal() { cerr << "Oops [1]" << endl; return 0.0; }
   virtual double Mtotal() { cerr << "Oops [2]" << endl; return 0.0; }
   virtual void Elost(double* collide, double* epsm)  
   { cerr << "Oops [3]" << endl; *collide=0; *epsm=0; }
-
+  
   /// Collision thread
   //@{
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, sKeyDmap* Fn, double tau);
   //@}
-
+  
   /// Timestep thread
   //@{
   virtual void *timestep_thread(void *arg);
   void compute_timestep(pHOT* tree, double coolfrac);
   //@}
-
+  
   /// Debug timing routines
   //@{
   vector<double> dgnoscTime() { return diagSum; }
@@ -406,7 +409,7 @@ public:
   void EPSMtiming(ostream& out);
   void CPUHog(ostream& out);
   //@}
-
+  
   /// Debug output routines
   //@{
   void CollectTiming();
@@ -414,6 +417,10 @@ public:
   void voldiag(ostream& out);
   void tsdiag(ostream& out);
   //@}
+
+  // Currently, these are only in CollideIon
+  virtual void printCollSummary() {}
+  virtual void resetColls()       {}
 };
 
 #endif

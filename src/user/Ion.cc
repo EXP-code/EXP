@@ -27,29 +27,30 @@ void Ion::convertName()
   string die = "d"; //is it set to be a dielectronic
   size_t isd;
   
-  //split the name up into its element ab. and charge
+  // split the name up into its element ab. and charge
   split(v, MasterName, is_any_of("_") );
-  //sscanf(MasterName, "%s_%s", ele, charge);
+  // sscanf(MasterName, "%s_%s", ele, charge);
   eleName = v[0];
   
-  //get the Z value for the element by looking up through table
+  // get the Z value for the element by looking up through table
   for(int i = 0; i < numEle; i++) {
     if(iequals(v[0], eleNameList[i])) {
       Z = i+1; break;
     }
   }
   
-  //filter out the d after the charge if it is a dielectronic
+  // filter out the d after the charge if it is a dielectronic
   isd = v[1].find(die);
   if(isd!=string::npos) {
     cout << "FOUND" << endl;
     d = true;
-    v[1].replace(v[1].find(die), die.length(), "\0"); //expecting it to be at the end
+				// expecting it to be at the end
+    v[1].replace(v[1].find(die), die.length(), "\0");
   }
   else {
     d = false;
   }
-  //get the charge value
+  // get the charge value
   C = atoi(v[1].c_str());
 }
 
@@ -78,13 +79,18 @@ bool Ion::isInMasterList(chdata ch, string name)
   return false;
 }
 
-//functions to read in the elvlc and wgfa files if they are found
-//since they contain both string and float information, all information will be stored as strings for now
-//could eventually just reject string data and switch to floats if string data isn't wanted
+/** 
+    Functions to read in the elvlc and wgfa files if they are found
+    since they contain both string and float information, all
+    information will be stored as strings for now could eventually
+    just reject string data and switch to floats if string data isn't
+    wanted
+*/
 void Ion::readelvlc() {
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
+
   //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   fileName.append(eleName); 
   fileName.append("/");
@@ -96,35 +102,40 @@ void Ion::readelvlc() {
   string inLine;
   elvlc_data e;
   ifstream elvlcFile(fileName.c_str());
-  if(elvlcFile.is_open()) {
-	  while(elvlcFile.good()) {
-		  vector <string> v;
-		  getline(elvlcFile, inLine);
-		  istringstream iss(inLine);
-		  copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
-		  //cout << atoi(v[0].c_str()) << endl;
-		  if(atoi(v[0].c_str()) == -1) break;
-		  e.level = atoi(v[0].c_str());
-		  e.conf = atoi(v[1].c_str());
-		  e.designation = v[2];
-		  e.spin = atoi(v[3].c_str());
-		  e.l = atoi(v[4].c_str());
-		  e.l_str = v[5];
-		  e.J = atof(v[6].c_str());
-		  e.mult = atoi(v[7].c_str());
-		  e.encm = atof(v[8].c_str());
-		  e.enry = atof(v[9].c_str());
-		  e.encmth = atof(v[10].c_str());
-		  e.enryth = atof(v[11].c_str());
-	  
-	  elvlc.push_back(e);
-	  }
-	  elvlcFile.close();
-	  nelvlc = elvlc.size();
+
+  if( elvlcFile.is_open()) {
+    while(elvlcFile.good()) {
+      vector <string> v;
+      getline(elvlcFile, inLine);
+      istringstream iss(inLine);
+      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
+	   back_inserter<vector<string> >(v));
+
+      //cout << atoi(v[0].c_str()) << endl;
+      
+      if(atoi(v[0].c_str()) == -1) break;
+
+      e.level = atoi(v[0].c_str());
+      e.conf = atoi(v[1].c_str());
+      e.designation = v[2];
+      e.spin = atoi(v[3].c_str());
+      e.l = atoi(v[4].c_str());
+      e.l_str = v[5];
+      e.J = atof(v[6].c_str());
+      e.mult = atoi(v[7].c_str());
+      e.encm = atof(v[8].c_str());
+      e.enry = atof(v[9].c_str());
+      e.encmth = atof(v[10].c_str());
+      e.enryth = atof(v[11].c_str());
+      
+      elvlc.push_back(e);
+    }
+    elvlcFile.close();
+    nelvlc = elvlc.size();
   }
   else {
-	  cout << "Cannot find file: " << fileName << endl;
- 	 nelvlc = 0;
+    cout << "Cannot find file: " << fileName << endl;
+    nelvlc = 0;
   }
 }
 
@@ -164,12 +175,16 @@ void Ion::readelvlc() {
 //! Read in the fblvl file found in the CHIANTI database
 void Ion::readfblvl() 
 {
-  string MasterNameT = ZCtoName(Z, C-1);
+  std::string MasterNameT = ZCtoName(Z, C-1);
+
   //cout << "fblvl mastername: " << MasterNameT << endl;
+
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
+
   //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterNameT); 
@@ -183,12 +198,13 @@ void Ion::readfblvl()
   ifstream fblvlFile(fileName.c_str());
   
   fblvl_data f;
-  if(fblvlFile.is_open()) {
+  if (fblvlFile.is_open()) {
     while(fblvlFile.good()) {
       vector <string> v;
       getline(fblvlFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
+      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
+	   back_inserter<vector<string> >(v));
       if(atoi(v[0].c_str()) == -1) break;
       f.lvl = atoi(v[0].c_str());
       f.conf = v[1];
@@ -216,8 +232,10 @@ void Ion::readSplups()
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
+
   //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   //cout << "SPLUPS NAME: " << eleName << endl;
+
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterName); 
@@ -233,7 +251,8 @@ void Ion::readSplups()
       vector <string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
+      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
+	   back_inserter<vector<string> >(v));
       if(atoi(v[0].c_str()) == -1) break;
       s.Z = atoi(v[0].c_str());
       s.C = atoi(v[1].c_str());
@@ -264,9 +283,15 @@ void Ion::readDi() {
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
+
   //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   //cout << "DI NAME: " << eleName << endl;
-  fileName.append(eleName); fileName.append("/");fileName.append(MasterName); fileName.append("/"); fileName.append(MasterName);
+
+  fileName.append(eleName); 
+  fileName.append("/");
+  fileName.append(MasterName); 
+  fileName.append("/"); 
+  fileName.append(MasterName);
   fileName.append(".diparams");
   
   string inLine;
@@ -274,14 +299,18 @@ void Ion::readDi() {
   ifstream sFile(fileName.c_str());
   int i = 0;
   int i_fac = 0;
-  if(sFile.is_open()) {
+  if (sFile.is_open()) {
     while(sFile.good()) {
       vector <string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
+      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
+	   back_inserter<vector<string> >(v));
+
       //cout << atoi(v[0].c_str()) << endl;
+
       if(atoi(v[0].c_str()) == -1) break;
+
       if (i == 0) {
 	di_header.Z = atoi(v[0].c_str());
 	di_header.C = atoi(v[1].c_str());
@@ -358,7 +387,8 @@ void Ion::readDi() {
 
 
 //! Initialization function when the master name is given
-Ion::Ion(std::string name, chdata ch) {
+Ion::Ion(std::string name, chdata ch) 
+{
   MasterName = name;
   vector <string> v;
   split(v, MasterName, is_any_of("_") );
@@ -397,7 +427,8 @@ Ion::Ion(std::string name, chdata ch) {
 }
 
 //! Constructor when the Z, C pair is given
-Ion::Ion(int Z1, int C1, chdata ch) {
+Ion::Ion(int Z1, int C1, chdata ch) 
+{
   d = false;
   Z = Z1;
   C = C1;
@@ -405,7 +436,7 @@ Ion::Ion(int Z1, int C1, chdata ch) {
   vector <string> v;
   split(v, MasterName, is_any_of("_") );
   eleName = v[0];
-  int dd = d ? 1 : 0;
+  // int dd = d ? 1 : 0;
   ip = ch.ipdata[Z-1][C-1];
   std::string MasterNameT = ZCtoName(Z, C-1);
   if (isInMasterList(ch, MasterNameT)) {
@@ -417,7 +448,8 @@ Ion::Ion(int Z1, int C1, chdata ch) {
     readelvlc();
   }
   
-  //initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
+  // Initialize the k-grid (in inverse nm) for ff and the energy grid
+  // (in eV)
   double e = 0.;
   double k = 0.;
   for(e = 0.00000001; e < 250 ; e += 0.25) 
@@ -428,13 +460,17 @@ Ion::Ion(int Z1, int C1, chdata ch) {
   kffsteps = kgrid.size();
   effsteps = egrid.size();
 }
+
 //! Default constructor: NOT USED
-Ion::Ion() {
+Ion::Ion() 
+{
   Z = 1;
   C = 1;
 }
+
 //! Copy constructor
-Ion::Ion(const Ion &I) {
+Ion::Ion(const Ion &I) 
+{
   Z = I.Z;
   C = I.C;
   ip = I.ip;
@@ -455,23 +491,33 @@ Ion::Ion(const Ion &I) {
   
 }
 
-//! Calculate the collision excitation cross sections and return the cumulative cross section array
-//! Returns a vector with a pair of (cross section, energy difference) since the file input, and thus array, are not in any specific order
-std::vector< std::pair<double, double > > Ion::collExciteCross(chdata ch, double p, double Eth, double m) 
+/** 
+    Calculate the collision excitation cross sections and return the
+    cumulative cross section array.
+
+    Returns a vector with a pair of (cross section, energy difference)
+    since the file input, and thus array, are not in any specific order
+*/
+std::vector< std::pair<double, double > > 
+Ion::collExciteCross(chdata ch, double p, double Eth, double m) 
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
 			      0.625 , 0.75, 0.875, 1.0};
+
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
   
   double eVtoRyd = 1.0/13.60569253;
   double RydtoeV = 1.0/eVtoRyd;
-  double hbarerg = 1.054571729e-27;
-  double hbarEv = 6.582119e-16;
-  double a0 = 0.0529177211; //bohr radius in nm
-  double redPlanck = 1.054572e-27;
 
+  // double hbarerg = 1.054571729e-27;
+  // double hbarEv = 6.582119e-16;
+
+  double a0 = 0.0529177211; //bohr radius in nm
+
+  // double redPlanck = 1.054572e-27;
+  
   double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
   
   //cout << "\tGoing through the splups file ";
@@ -483,15 +529,21 @@ std::vector< std::pair<double, double > > Ion::collExciteCross(chdata ch, double
     CEcrossCum = CEcum;
     return CEcum;
   }
-  for(int i = 0; i < int(splups.size()); i++) {
+
+  for (int i = 0; i < int(splups.size()); i++) {
+
     double EijEv = splups[i].delERyd*RydtoeV;
     double Const = splups[i].Const;
     double cross = 0.;
+
     if (splups[i].i == 1  and E >= EijEv) {
+
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
+      
       //double dE = E - EijEv;
       //Filter out the types
+      
       int type = splups[i].type;
       double x, y;
       
@@ -507,17 +559,21 @@ std::vector< std::pair<double, double > > Ion::collExciteCross(chdata ch, double
       if (type == 4) {
 	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
       }
-      //xmin is 0 and xmax is 1, so this if statement is to make sure x is within the bounds of interpolation
+      // xmin is 0 and xmax is 1, so this if statement is to make sure
+      // x is within the bounds of interpolation
       if ( x <= 0 or x >= 1.0) {
-	cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth << " Eij = " << EijEv << " x = " << x << endl;
+	cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth 
+	     << " Eij = " << EijEv << " x = " << x << endl;
 	exit(-1);
       }
-      //An extra couple of sanity checks for the interpolation
+
+      // An extra couple of sanity checks for the interpolation
       assert(x >= 0 and x <= 1);
       assert(splups[i].spline.size() == 5 or splups[i].spline.size() == 9);
       if(type > 4) break;
       
-      //Extra sanity check to make sure x is monotonic to make sure the arrays point to the right values
+      // Extra sanity check to make sure x is monotonic to make sure
+      // the arrays point to the right values
       for(int j = 1; j < 9; j++) {
 	if (j < 5) assert(x_array5[j] > x_array5[j-1]);
 	assert(x_array9[j] > x_array9[j-1]);
@@ -548,27 +604,33 @@ std::vector< std::pair<double, double > > Ion::collExciteCross(chdata ch, double
       if(type == 4) {
 	CStrength = y*log((Eth/EijEv) + C);
       }
-
-	//from Dere et al. 1997 
+      
+      // from Dere et al. 1997 
       int weight = elvlc[splups[i].j-1].mult;
       double Eryd = E*eVtoRyd;
       cross += (M_PI*a0*a0*(CStrength/weight))/(Eryd);
- 	//cross += ((CStrength*(redPlanck*redPlanck))/(p*p))*1e14;
+      //cross += ((CStrength*(redPlanck*redPlanck))/(p*p))*1e14;
     }
-    if(splups[i].i == 1) {
+
+    if (splups[i].i == 1) {
       totalCross += cross;
       std::pair<double, double> cumi(totalCross, EijEv);
       CEcum.push_back(cumi);
     }
   }
-  if (CEcum.size() == 0) { cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() << "\n\tEth = " 
-				<< Eth << "\n\tZ = " << Z << "\n\tC = " << C << "fblvl size: " << fblvl.size() << endl; 
-    exit(-1);}
+  if (CEcum.size() == 0) { 
+    cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
+	 << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
+	 << C << "fblvl size: " << fblvl.size() << endl; 
+    exit(-1);
+  }
   CEcrossCum = CEcum;
   return CEcum;
 }
-//Calculate the QRP value as in Fontes, Sampson, Zhang 1999
-double Ion::qrp(double u) {
+
+//! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
+double Ion::qrp(double u) 
+{
   double A = 1.13;
   double D, C, d, c;
   if (Z >= 16) {
@@ -580,7 +642,7 @@ double Ion::qrp(double u) {
   else {
     c = -0.80414;
     d = 2.32431;
-
+    
     C = 0.14424;
     D = 3.82652;
   }
@@ -595,7 +657,8 @@ double Ion::qrp(double u) {
 }
 
 //! Calculate the direct ionization cross section from the spline, which is a function of the interaction energy of the electron
-double Ion::directIonCross(chdata ch, double E) {
+double Ion::directIonCross(chdata ch, double E) 
+{
   double u = E/ip;
   int I = Z - C + 1; //test if its hydrogen-like/helium-like
   double ryd = 27.2113845/2.0;
@@ -603,7 +666,7 @@ double Ion::directIonCross(chdata ch, double E) {
   double a0 = 0.5291772108e-8; //bohr radius in cm
   double bohr_r = M_PI*a0*a0;
   double F, qr, cross;
-
+  
   if (C == (Z+1)) {
     diCross = 0;
     return -1;
@@ -616,7 +679,8 @@ double Ion::directIonCross(chdata ch, double E) {
   }
   qr = qrp(u)*F;
   if (Z >=6 or Z >= 10) cout << "QR = " << qr << endl;
-  //first two if statements are whether or not to use fontes cross sections
+  // first two if statements are whether or not to use fontes cross
+  // sections
   if(I == 1 and Z >= 6) {
     cross = 1.0*bohr_r*(qr/ipRyd)*(qr/ipRyd);
     cross *= 1e14;
@@ -629,87 +693,104 @@ double Ion::directIonCross(chdata ch, double E) {
     cross = 0;
     for(int i = 0; i < di_header.nfac; i++) {
       if (E >= diSpline[i].ev) {
-	//cout << E << "\t" << diSpline[i].ev << endl;
+	// std::cout << E << "\t" << diSpline[i].ev << endl;
 	double u1=E/diSpline[i].ev;
 	double bte=1.0-log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
-	//cout << diSpline[i].xspline.size() << "\t" << diSpline[i].yspline.size() << endl;
+	// std:: cout << diSpline[i].xspline.size() << "\t" <<
+	// diSpline[i].yspline.size() << endl;
 	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
 	double a =1.0-diSpline[i].btf+exp(log(diSpline[i].btf)/(1.-bte));
 	double cross_i=(log(a)+1.)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
-	//cout << "cross_i = " << cross_i << endl;
+	// std::cout << "cross_i = " << cross_i << endl;
       }
     }
   }
   diCross = cross; //recast the cross section in nm^2
-  //cout << "DI cross: " << diCross << endl;
+  // std::cout << "DI cross: " << diCross << endl;
   return diCross;
 }
 
-double Ion::freeFreeCross(chdata ch, double E) {
-	double hbc = 197.327; //value of h-bar * c in eV nm
-	double r0 = 2.81794033e-6; //classic electron radius in nm
-	double factor = (Z*Z*r0*r0)/(137.);
-	double hb = 1.054572e-27; //h-bar in erg s
-	double me = 9.10938e-28;
-	double inmtoicm = 1e7; //nm^(-1) per cm^(-1)
-	double eV2erg = 1.602177e-12; //ergs per eV
-	double c= 2.998e10; //cm/s
+double Ion::freeFreeCross(chdata ch, double E) 
+{
+  double hbc = 197.327; //value of h-bar * c in eV nm
+  double r0 = 2.81794033e-6; //classic electron radius in nm
+  double factor = (Z*Z*r0*r0)/(137.);
+  double hb = 1.054572e-27; //h-bar in erg s
+  double me = 9.10938e-28;
+  double inmtoicm = 1e7; //nm^(-1) per cm^(-1)
+  double eV2erg = 1.602177e-12; //ergs per eV
+  double c= 2.998e10; //cm/s
+  
+  double p0 = sqrt(2*me*E*eV2erg);
+  double v0 = p0/me;
+  double b0 = v0/c;
+  
+  double momi = b0/sqrt(1.-b0*b0);
+  
+  double cum = 0;
+  double dk = 0;
+  for (int j = 0; j < kffsteps; j++) {
 
-	double p0 = sqrt(2*me*E*eV2erg);
-	double v0 = p0/me;
-	double b0 = v0/c;
+    if (j != static_cast<int>(kgrid.size())-1) 
+      dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
 
-	double momi = b0/sqrt(1.-b0*b0);
+    double k = pow(10, kgrid[j]);
+    double Ek = k*hbc;
+    double pk = k*inmtoicm*hb;
+    double x = (E - Ek)/E;
+    double p = p0-pk;
 
-	double cum = 0;
-	double dk = 0;
-	for(int j = 0; j < kffsteps; j++) {
-		if (j != kgrid.size()-1) dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
-		double k = pow(10, kgrid[j]);
-		double Ek = k*hbc;
-		double pk = k*inmtoicm*hb;
-		double x = (E - Ek)/E;
-		double p = p0-pk;
-		if (x >= 0 and x <= 1) {
-			double vf = p/me;
-			double bf = vf/c;
-			double corr = 1.0;
-			corr = (b0*(1.0 - exp((-2*M_PI*double(Z))/(137.*b0))))/(bf*(1.0 - exp((-2*M_PI*double(Z))/(137.*bf))));
-			double momf = bf/sqrt(1.-bf*bf);
-			double x = momi + momf;
-			double y = momi - momf;
-			double dsig = corr*(factor*(dk/k))*(16./3.)*(1.0/(momi*momi))*log(x/y);
-
-			cum = cum + dsig;
-		}
-
-	}
-	double y_tmp = cum;
-	return y_tmp;
+    if (x >= 0 and x <= 1) {
+      double vf = p/me;
+      double bf = vf/c;
+      double corr = 1.0;
+      corr = (b0*(1.0 - exp((-2*M_PI*double(Z))/(137.*b0))))/(bf*(1.0 - exp((-2*M_PI*double(Z))/(137.*bf))));
+      double momf = bf/sqrt(1.-bf*bf);
+      double x = momi + momf;
+      double y = momi - momf;
+      double dsig = corr*(factor*(dk/k))*(16./3.)*(1.0/(momi*momi))*log(x/y);
+      
+      cum = cum + dsig;
+    }
+    
+  }
+  double y_tmp = cum;
+  return y_tmp;
   
 }
 
-//! Calculate the  differential free-free cross section and return the cumulative cross section vector
-//! The formula used to calculate the cross section is 3BS(a) from Koch&Motz 1959
-void Ion::freeFreeDifferential(chdata ch) {
-  double hbc = 197.327; //value of h-bar * c in eV nm
-  double r0 = 2.81794033e-6; //classic electron radius in nm
-  //go through a grid of all k up to the energy E0
+/** Calculate the differential free-free cross section and return the
+    cumulative cross section vector The formula used to calculate the
+    cross section is 3BS(a) from Koch&Motz 1959 */
+void Ion::freeFreeDifferential(chdata ch) 
+{
+  // Value of h-bar * c in eV nm
+  double hbc = 197.327; 
+  
+  // Classic electron radius in nm
+  double r0 = 2.81794033e-6;
+  
+  // Go through a grid of all k up to the energy E0
   double factor = (4.*Z*Z*r0*r0)/(137.);
-  for(int i = 0; i < effsteps; i++) {
+  
+  for (int i = 0; i < effsteps; i++) {
     std::vector<double> temp;
     std::vector<double> cum_Temp;
     double cum = 0;
     double E0 = egrid[i];
     double dk = 0;
     for(int j = 0; j < kffsteps; j++) {
-      if (j != kgrid.size()-1) dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
+
+      if (j != static_cast<int>(kgrid.size())-1) 
+	dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
+
       double k = pow(10, kgrid[j]);
       double Ek = k*hbc;
       double x = (E0 - Ek)/E0;
       double dsig = (factor*(dk/k))*((1+x*x-(2.0/3.0)*x)*log(183.0/(double)Z) + (1.0/9.0)*x);
+
       cum = cum + dsig;
       temp.push_back(dsig);
       cum_Temp.push_back(cum);
@@ -720,66 +801,71 @@ void Ion::freeFreeDifferential(chdata ch) {
 }
 
 
-//! Calculates the differential radiative recombination cross section as a function of incoming electron impact energy, and returns the vector cumulative cross section array.
+/** Calculates the differential radiative recombination cross section
+    as a function of incoming electron impact energy, and returns the
+    vector cumulative cross section array. */
 std::vector<double> Ion::radRecombCross(chdata ch, double E) 
 {
-  double hbc = 197.327; //value of hbar * c in eV nm
-  double hbckev = 0.197327; //value of hbc in keV nm
+  // double hbc = 197.327; //value of hbar * c in eV nm
+  // double hbckev = 0.197327; //value of hbc in keV nm
   double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
-  double D = 1.075812e-23; //constant infront of the photo-cross using the Mewe method
+
+  // constant infront of the photo-cross using the Mewe method
+  double D = 1.075812e-23;
   double mec2 = 510998.9; //mass of electron*c^2
-  double cumCross = 0;
-  int count = 0;
+  // double cumCross = 0;
+  // int count = 0;
   vector<double> radRecCum;
-  double dk = 0;
-
-  double IP = ch.ipdata[Z-1][C-2];
-
-    double cross = 0.;
-    if (E!=0) {
-      for(int j = 1; j < nfblvl; j++) 
-	{
-	  double I; double eTemp;
-	  if(fblvl[j].encm == 0 and fblvl[j].encmth!=0) {
-	    eTemp = fblvl[j].encmth;
+  // double dk = 0;
+  
+  // double IP = ch.ipdata[Z-1][C-2];
+  
+  double cross = 0.;
+  if (E!=0) {
+    for(int j = 1; j < nfblvl; j++) 
+      {
+	double I; double eTemp;
+	if(fblvl[j].encm == 0 and fblvl[j].encmth!=0) {
+	  eTemp = fblvl[j].encmth;
+	}
+	else if(fblvl[j].encm != 0) {
+	  eTemp = fblvl[j].encm;
+	}
+	else {
+	  eTemp = 0;
+	  cout << "ERROR WITH ETEMP!" << endl;
+	}
+	double mult = double(fblvl[j].mult);
+	double n = double(fblvl[j].lvl);
+	eTemp = eTemp*incmEv; //convert the energy to eV
+	eTemp = eTemp/1000.0; //convert to keV
+	// I = (IP/1000.0 - eTemp);
+	I = eTemp;
+	if (I >= 0) {
+	  double ePhot = E/1000. + I;
+	  double hnu = E + I*1000.;
+	  double Erat = (hnu*hnu)/(2.*mec2*E);
+	  double crossi = (Erat*mult*D*I*I*(1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot)*(1.0/n));
+	  cross += crossi;
+	  //if (C > 1 and cross == 0) {
+	  // cout << "IP: " << IP << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << "\t" << crossi*1e18 << endl;
+	  //}
+	  if (cross == 0) {
+	    cout << "NULL IN RAD RECOMB: " << ip << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << endl;
 	  }
-	  else if(fblvl[j].encm != 0) {
-	    eTemp = fblvl[j].encm;
-	  }
-	  else {
-	    eTemp = 0;
-	    cout << "ERROR WITH ETEMP!" << endl;
-	  }
-	  double mult = double(fblvl[j].mult);
-	  double n = double(fblvl[j].lvl);
-	  eTemp = eTemp*incmEv; //convert the energy to eV
-	  eTemp = eTemp/1000.0; //convert to keV
-	 // I = (IP/1000.0 - eTemp);
-	  I = eTemp;
-	  if (I >= 0) {
-	    double ePhot = E/1000. + I;
-	    double hnu = E + I*1000.;
-	    double Erat = (hnu*hnu)/(2.*mec2*E);
-	    double crossi = (Erat*mult*D*I*I*(1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot)*(1.0/n));
-	    cross += crossi;
-	    //if (C > 1 and cross == 0) {
-	     // cout << "IP: " << IP << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << "\t" << crossi*1e18 << endl;
-	    //}
-	    if (cross == 0) {
-	      cout << "NULL IN RAD RECOMB: " << ip << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << endl;
-	    }
-	    if (isnan(cross)) {
-	      cout << cross << "\t" << I << "\t" << ePhot << "\t" << (double)n << "\t" << Erat << endl;
-	    }
+	  if (isnan(cross)) {
+	    cout << cross << "\t" << I << "\t" << ePhot << "\t" << (double)n << "\t" << Erat << endl;
 	  }
 	}
-    }
+      }
+  }
   radRecCum.push_back(cross*1.e18);
   radRecCrossCum = radRecCum;
   return radRecCum;
   
 }
-//Ion print functions
+
+// Ion print functions
 void Ion::printInfo() {
   cout << "Master list name: " << MasterName << endl;
   cout << "\t" << "Element: " << eleName << endl << "\tZ = " << Z << "\n" << "\tC = " << C << endl;
@@ -788,35 +874,62 @@ void Ion::printInfo() {
   cout << "\tip = " << ip << endl;
 }
 void Ion::printelvlc() {
-	cout << "elvlc file for element " << MasterName << endl;
-	for(int i = 0; i < elvlc.size(); i++) {
-		cout << elvlc[i].level << "\t" << elvlc[i].conf << "\t" << elvlc[i].designation << "\t";
-		cout << elvlc[i].spin << "\t" << elvlc[i].l << "\t" << elvlc[i].l_str << "\t";
-		cout << elvlc[i].J << "\t" << elvlc[i].mult << "\t" << elvlc[i].encm << "\t";
-		cout << elvlc[i].enry << "\t" << elvlc[i].encmth << "\t" << elvlc[i].enryth << endl;
-	}
+  cout << "elvlc file for element " << MasterName << endl;
+  for(size_t i = 0; i < elvlc.size(); i++) {
+    std::cout << elvlc[i].level       << "\t" 
+	      << elvlc[i].conf        << "\t" 
+	      << elvlc[i].designation << "\t"
+	      << elvlc[i].spin        << "\t" 
+	      << elvlc[i].l           << "\t" 
+	      << elvlc[i].l_str       << "\t"
+	      << elvlc[i].J           << "\t" 
+	      << elvlc[i].mult        << "\t" 
+	      << elvlc[i].encm        << "\t"
+	      << elvlc[i].enry        << "\t" 
+	      << elvlc[i].encmth      << "\t" 
+	      << elvlc[i].enryth      << std::endl;
+  }
 }
-/* 
-  void Ion::printwgfa() {
-  cout << "wgfa file for element " << MasterName << endl;
-  for(int i = 0; i < wgfa.size(); i++) {
-  cout << wgfa[i].lvl1 << "\t" << wgfa[i].lvl2 << "\t" << wgfa[i].wavelength << "\t";
-  cout << wgfa[i].gf << "\t" << wgfa[i].A << endl;
+
+/*
+void Ion::printwgfa() 
+{
+  std::cout << "wgfa file for element " << MasterName << endl;
+  for (int i = 0; i < wgfa.size(); i++) {
+    std::cout << wgfa[i].lvl1         << "\t" 
+	      << wgfa[i].lvl2         << "\t" 
+	      << wgfa[i].wavelength   << "\t"
+	      << wgfa[i].gf           << "\t" 
+	      << wgfa[i].A            << endl;
   }	
-  }*/
-void Ion::printfblvl() {
-  cout << "fblvl file for element " << MasterName << endl;
-  for(int i = 0; i < fblvl.size(); i++) {
-    cout << fblvl[i].lvl << "\t" << fblvl[i].conf << "\t" <<  fblvl[i].pqn << "\t";
-    cout << fblvl[i].l << "\t" << fblvl[i].l_str << "\t" << fblvl[i].mult << "\t";
-    cout << fblvl[i].encm << "\t" << fblvl[i].encmth << endl;
+}
+*/ 
+
+void Ion::printfblvl() 
+{
+  std::cout << "fblvl file for element " << MasterName << endl;
+  for (size_t i = 0; i < fblvl.size(); i++) {
+    std::cout << fblvl[i].lvl         << "\t" 
+	      << fblvl[i].conf        << "\t" 
+	      << fblvl[i].pqn         << "\t"
+	      << fblvl[i].l           << "\t" 
+	      << fblvl[i].l_str       << "\t" 
+	      << fblvl[i].mult        << "\t"
+	      << fblvl[i].encm        << "\t" 
+	      << fblvl[i].encmth      << std::endl;
   }	
 }
 
 
-//chdata functions
-//! read in the master list to store to be able to check if elements are in it
-void chdata::readMaster() {
+//------------------------------------------------------------
+// chdata functions
+//------------------------------------------------------------
+
+
+//! Read in the master list to store to be able to check if elements
+//! are in it
+void chdata::readMaster() 
+{
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
@@ -838,8 +951,11 @@ void chdata::readMaster() {
   }
   
 }
-//! for readIp, the goal is to get the ipdata set so that if you want to get the ip of any Z, C, you call it as ipdata[Z-1][C-1-(int)die]
-void chdata::readIp() {
+
+/** Get the ipdata set so that if you want to get the ip of any Z, C,
+you call it as ipdata[Z-1][C-1-(int)die] */
+void chdata::readIp() 
+{
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
@@ -851,15 +967,16 @@ void chdata::readIp() {
   string lineIn;
   ifstream ipFile(fileName.c_str());
   
-  if(ipFile.is_open() ) {
+  if (ipFile.is_open() ) {
     while(ipFile.good() and count < 365) {
       getline(ipFile, lineIn);
-
+      
       vector <string> v;
-      //split the string away from the white space to get the values
+      // split the string away from the white space to get the values
       istringstream iss(lineIn);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
-      //assign the values from the string
+      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
+	   back_inserter<vector<string> >(v));
+      // assign the values from the string
       Z = atoi(v[0].c_str());
       C = atoi(v[1].c_str());
       ip = atof(v[2].c_str())*convert;
@@ -873,54 +990,64 @@ void chdata::readIp() {
     cout << "IP FILE: " << fileName << " NOT FOUND" << endl;
   }
 }
-//!read in the abundance file, in this situation, just for test using the cosmic.abund file. Can later put in a multidimensional array to allow for all the abundance files
-void chdata::readAbundanceAll() {
+
+/** read in the abundance file, in this situation, just for test using
+    the cosmic.abund file. Can later put in a multidimensional array
+    to allow for all the abundance files */
+void chdata::readAbundanceAll() 
+{
   char * val;
   val = getenv("CHIANTI_DATA");
   string fileName(val);
   fileName.append("abundance/cosmic.abund");
-  int i = 0;
   
   ifstream abFile(fileName.c_str());
   string lineIn;
-  if(abFile.is_open() ) {
+  if (abFile.is_open() ) {
     while(abFile.good()) {
       getline(abFile, lineIn);
       vector <string> v;
       istringstream iss(lineIn);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
+      copy(istream_iterator<string>(iss), istream_iterator<string>(),
+	   back_inserter<vector<string> >(v));
       if(atoi(v[0].c_str()) == -1) break;
       int Z = atoi(v[0].c_str());
       abundanceAll[Z-1] = atof(v[1].c_str());
-      //cout << Z << "\t" << atof(v[1].c_str()) << endl;
+      // std::cout << Z << "\t" << atof(v[1].c_str()) << endl;
     }
     abFile.close();
   }
   else {
-    cout << "Abundance file: " << fileName << " not found! " <<endl;
+    std::cout << "Abundance file: " << fileName << " not found! " 
+	      << std::endl;
   }
   
 }
 
-//print functions for the chdata types
-void chdata::printMaster() {
-  cout << "Elements in the master list: " << endl;
+// print functions for the chdata types
+void chdata::printMaster() 
+{
+  std::cout << "Elements in the master list: " << std::endl;
   for(int i = 0; i < numMaster; i++) {
-    cout << "\t" << masterNames[i] << endl;
+    std::cout << "\t" << masterNames[i] << std::endl;
   }
 }
-void chdata::printIp() {
+
+void chdata::printIp() 
+{
   for(int i = 0; i < 30; i++) {
     for(int j = 0; j < 30; j++) {
       if(ipdata[i][j] != 0) {
-	cout << ipdata[i][j] << "\t";
+	std::cout << ipdata[i][j] << "\t";
       }
     }
-    cout << endl;
+    std::cout << endl;
   }
 }
-//chdata constructor
-chdata::chdata() {
+
+// chdata constructor
+chdata::chdata() 
+{
   //nVern = 465;
   //maxZ = 31; //maxZ = 30 + 1
   //maxNel = 31; 

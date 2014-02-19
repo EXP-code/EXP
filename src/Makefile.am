@@ -43,20 +43,21 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
      chkTimer.cc pHOT.cc Timer.cc
 
-exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS) -lgomp
-
-
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = exp
 
 COMMON_LIBS = -lexputil -lexpgnu
-SYS_LIBS = -lpthread -ldl
+SYS_LIBS = -lpthread -ldl -lgomp
 MPI_LIBS = -lmpi
 
-EXPLIBS = $(COMMON_LIBS) $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
-LDADD = $(COMMON_LIBS) $(ADD_LIBS)
+EXPLIBS = $(COMMON_LIBS) @LAPACK_LIBS@ $(MPI_LIBS) $(SYS_LIBS) $(LIBS)
+LDADD = $(COMMON_LIBS) @LAPACK_LIBS@ $(ADD_LIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
+
+exp_LDADD = $(EXPLIBS) $(ADD_LIBS3) $(ADD_LIBS4) $(LAPACK_LIBS)	\
+	$(BLAS_LIBS) $(LIBS) $(FLIBS)
+
 
 noinst_HEADERS = Basis.H Bessel.H CBrock.H Component.H Cube.H Cylinder.H     \
 	ExternalCollection.H ExternalForce.H Hernquist.H Particle.H          \

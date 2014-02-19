@@ -250,6 +250,34 @@ std::map<int, std::string> PotAccel::get_value_array(const string& name)
 }
 
 
+std::map<std::pair<int, int>, string> 
+PotAccel::get_value_matrix(const string& name)
+{
+  std::map<std::pair<int, int>, string> values;
+  std::pair<int, int> indx;
+
+  list< pair<string, string> >::iterator it;
+  for (it=namevalue.begin(); it!=namevalue.end(); it++) {
+    string key = name + "(";
+    if (it->first.compare(0, key.size(), key) == 0) {
+      string sindx1 = it->first.substr(key.size(), it->first.find(","));
+      string sindx2 = it->first.substr(key.size() + sindx1.size(), 
+				       it->first.find(")"));
+      try {
+	indx.first  = boost::lexical_cast<int>(sindx1);
+	indx.second = boost::lexical_cast<int>(sindx2);
+      } 
+      catch( boost::bad_lexical_cast const& ) {
+	std::cout << "PotAccel::get_value_matrix: input string <" 
+		  << it->first << "> is not valid" << std::endl;
+      }
+      values[indx] = it->second;
+    }
+  }
+  return values;
+}
+
+
 void PotAccel::print_timings(const string& label) 
 {
   if (VERBOSE>5) print_timings(label, timer_list);
