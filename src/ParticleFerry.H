@@ -39,11 +39,11 @@ public:
   unsigned long key;	      ///< 12       18
 #endif
   unsigned nicnt;             ///< 13       19
-  unsigned ndcnt;             ///< 14       20
-  int    iatr[nimax];         ///< 15       21,22,23,24,25 (e.g.)
-  double datr[ndmax];         ///< 16       26,27,28,29,30 (e.g.)
-  unsigned int Z;             ///< 17
-  unsigned int C;             ///< 18
+  unsigned ndcnt;             ///< 14       20 (e.g. for nimax=5 and ndmax=12)
+  int    iatr[nimax];         ///< 15       21,22,23,24,25
+  double datr[ndmax];         ///< 16       26,27,28,29,30,31,32,33,34,35,37,38
+  unsigned int Z;             ///< 17       39
+  unsigned int C;             ///< 18       40
 };
 
 class ParticleFerry

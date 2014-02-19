@@ -14,7 +14,7 @@ ADD_CFLAGS3 = -DUSE_DMALLOC -g
 ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 endif
 
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 lib_LTLIBRARIES = libexputil.la
 
@@ -62,6 +62,7 @@ libexputil_la_SOURCES = $(ODE_SRC) $(ROOT_SRC) $(QUAD_SRC) \
 	$(ORBIT_SRC) $(BIORTH_SRC) $(POLY_SRC) $(GAUSS_SRC) \
 	$(QPDISTF_SRC) $(BESSEL_SRC) $(OPTIMIZATION_SRC) \
 	$(SLEDGE_SRC)
+libexputil_la_LIBADD = $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 AM_CFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -fPIC -D_REENTRANT $(INCLUDES) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)

@@ -9,8 +9,7 @@ ADD_CXXFLAGS3 = -DUSE_DMALLOC -g
 ADD_LIBS3     = -ldmallocth -ldmallocthcxx
 endif
 
-INCLUDES = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
-
+AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
 AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
 
@@ -33,13 +32,13 @@ haloprof_LDADD = $(EXPLIBS)
 slabprof_SOURCES =  slabprof.cc PSP.cc header.cc
 slabprof_LDADD = $(EXPLIBS)
 
-psphisto_SOURCES =  psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
+psphisto_SOURCES = psphisto.cc PSP.cc header.cc localmpi.cc Particle.cc
 psphisto_LDADD = $(EXPLIBS)
 
 gas2d_SOURCES =  gas2d.cc PSP.cc header.cc localmpi.cc Particle.cc
 gas2d_LDADD =    $(EXPLIBS)
 
-gas2dcyl_SOURCES =  gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
+gas2dcyl_SOURCES = gas2dcyl.cc PSP.cc header.cc localmpi.cc Particle.cc
 gas2dcyl_LDADD = $(EXPLIBS)
 
 makegrid_SOURCES = makegrid.cc header.cc PSP.cc
@@ -54,12 +53,14 @@ pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
 
-PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc
+PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
 	cp $(top_srcdir)/utils/PhaseSpace/PSP.H .
 
-header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc
+header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.cc .
+
+header.H:	$(top_srcdir)/utils/PhaseSpace/header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.H .
 
 localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc

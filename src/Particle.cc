@@ -7,10 +7,14 @@ float Particle::effort_default = 1.0e-12;
 Particle::Particle()
 {
   //
-  // Initialize basic fields
+  // Initialize basic dynamical fields
   //
   mass = pot = potext = 0.0;
   for (int k=0; k<3; k++) pos[k] = vel[k] = acc[k] = 0.0;
+
+  //
+  // Time stepping and partitioning info
+  //
   level   = 0;
   dtreq   = -1;
   scale   = -1;
@@ -18,6 +22,10 @@ Particle::Particle()
   indx    = 0;
   tree    = 0u;
   key     = 0u;
+
+  //
+  // For DSMC Ion method
+  //
   Z 	  = 0;
   C       = 0;
 }

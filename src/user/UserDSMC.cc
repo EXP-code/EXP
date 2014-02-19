@@ -12,18 +12,18 @@ UserDSMC::UserDSMC(string &line) : ExternalForce(line)
 {
   id = "DSMCParticleAlgorithm";
 
-  rcloud = 0.001;		// Cloud radius
-  rmin = 0.0;			// Inner radius of cylindrical grid
-  rmax = 1.0;			// Outer radius of cylindrical grid
-  zmax = 1.0;			// Half-height of cylindrical grid
-  vfrac = 0.2;			// Fraction of mean velocity for rejection
-  efftol = 0.5;			// Minimum permitted inefficiency
-  NR = 64;			// Number of radial bins
-  NZ = 10;			// Number of vertical bins
-  NP = 16;			// Number of azimuthal bins
-  seed = 11;			// Seed for random number generator
-  comp_name = "";		// Component to apply the DSMC algorithm
-  debug = false;		// No debugging by default
+  rcloud    = 0.001;	    // Cloud radius
+  rmin      = 0.0;	    // Inner radius of cylindrical grid
+  rmax      = 1.0;	    // Outer radius of cylindrical grid
+  zmax      = 1.0;	    // Half-height of cylindrical grid
+  vfrac     = 0.2;	    // Fraction of mean velocity for rejection
+  efftol    = 0.5;	    // Minimum permitted inefficiency
+  NR        = 64;	    // Number of radial bins
+  NZ        = 10;	    // Number of vertical bins
+  NP        = 16;	    // Number of azimuthal bins
+  seed      = 11;	    // Seed for random number generator
+  comp_name = "";	    // Component to apply the DSMC algorithm
+  debug     = false;	    // No debugging by default
   
   initialize();
 

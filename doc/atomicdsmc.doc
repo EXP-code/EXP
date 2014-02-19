@@ -1,4 +1,6 @@
-/*! \page atomic Atomic Cooling Implementation
+/*! \page atomic Atomic cooling implementation
+
+For code details see \ref ion.
 
 In order to treat the gas properly in a non-thermal way, the gas
 cooling must be treated without the use of thermalize cooling curves.

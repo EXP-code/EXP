@@ -448,14 +448,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Create the collision instance from the allowed list
   //
   std::cout << "Initializing collide instance of type: " << ctype << std::endl;
-  //if (ctype.compare("LTE") == 0)
-   // collide = new CollideLTE(this, diam, nthrds);
-  //if (ctype.compare("Ion") == 0)
+  if (ctype.compare("LTE") == 0)
+    collide = new CollideLTE(this, diam, nthrds);
+  if (ctype.compare("Ion") == 0)
     collide = new CollideIon(this, diam, nthrds);
- // else {
-  //  std::cout << "No such Collide type: " << ctype << std::endl;
-  //  exit(-1);
- // }
+  else {
+    std::cout << "No such Collide type: " << ctype << std::endl;
+    exit(-1);
+  }
   std::cout << "Done" << std::endl;
 
   collide->set_temp_dens(use_temp, use_dens);
@@ -606,7 +606,7 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
 
-  /*if (get_value("ctype", val)) {
+  if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
     else {
       if (myid==0) {
@@ -617,30 +617,33 @@ void UserTreeDSMC::initialize()
       MPI_Finalize();
       exit(-1);
     }
-  }*/
+  }
 
   /**
      Look for array values in the parameter string of the form
      spc(1,2)=3.1, spc(3,4)=5.6, etc.
   */
-  /*std::map<std::pair<int, int>, string> vals;
-  if ((vals=get_value_matrix("spc")).size()) {
-    std::map<std::pair<int, int>, string>::iterator it=vals.begin();
-    while (it != vals.end()) {
-      try {
-	speciesKey p(it->first.first, it->first.second);
-	collFrac[p] = boost::lexical_cast<double>(it->second);
-      } 
-      catch( boost::bad_lexical_cast const& ) {
-	std::cout << "UserTreeDSMC::initialize: bad double value, "
-		  << "input string was: " << it->second << std::endl;
+  
+  if (ctype.compare("LTE")==0) {
+    std::map<std::pair<int, int>, string> vals;
+    if ((vals = get_value_matrix("spc")).size()) {
+      std::map<std::pair<int, int>, string>::iterator it=vals.begin();
+      while (it != vals.end()) {
+	try {
+	  speciesKey p(it->first.first, it->first.second);
+	  collFrac[p] = boost::lexical_cast<double>(it->second);
+	} 
+	catch( boost::bad_lexical_cast const& ) {
+	  std::cout << "UserTreeDSMC::initialize: bad double value, "
+		    << "input string was: " << it->second << std::endl;
+	}
       }
+      it++;
+    } else {
+      // The default key is defined in pCell.H
+      collFrac[defaultKey] = 1.0;
     }
-    it++;
-  } else {
-    // The default key is defined in pCell.H
-    collFrac[defaultKey] = 1.0;
-  }*/
+  }
 }
 
 
