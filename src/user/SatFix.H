@@ -50,13 +50,13 @@ extern "C" {
 }
 
 //! Register factory
-class proxysat { 
+class proxysatfix { 
 public:
   //! Constructor
-  proxysat()
+  proxysatfix()
   {
     factory["satfix"] = makerSatFix;
   }
 };
 
-proxysat p;
+proxysatfix p;
