@@ -144,9 +144,6 @@ dnl ==========================================================================
 dnl Replace 'main' with a function in -largs:
 AC_CHECK_LIB(args, main)
 
-dnl Replace 'main' with a function in -leigen:
-AC_CHECK_LIB(eigen, main)
-
 dnl Replace 'main' with a function in -lfft:
 AC_CHECK_LIB(fft, main)
 
