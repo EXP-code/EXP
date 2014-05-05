@@ -18,14 +18,16 @@
 
 ## Process this file with automake to produce Makefile.in
 
-# $Id$
-
 DOCS = *.doc *.html
+
+FORMAT_STR = "s/\(PROJECT_NUMBER[ ]*\=\).*/\1 $(PACKAGE_VERSION)/g"
 
 all: docs-html
 
 if DOXYGEN_FOUND
 docs-html:	$(DOCS)	
+		cp exp.cfg tmp.cfg
+		sed -e $(FORMAT_STR) < tmp.cfg > exp.cfg
 		$(DOXYGEN) exp.cfg
 endif
 

@@ -115,8 +115,8 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     pot    = tf;
     potext = 0.0;
 
-    in->read((char *)&Z , sizeof(unsigned int));
-    in->read((char *)&C , sizeof(unsigned int));
+    in->read((char *)&Z , sizeof(unsigned char));
+    in->read((char *)&C , sizeof(unsigned char));
 
     level = multistep;
 
@@ -140,8 +140,8 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     in->read((char *)&pot, sizeof(double));
     potext = 0.0;
 
-    in->read((char *)&Z, sizeof(unsigned int));
-    in->read((char *)&C, sizeof(unsigned int));
+    in->read((char *)&Z, sizeof(unsigned char));
+    in->read((char *)&C, sizeof(unsigned char));
 
     level = multistep;
 
@@ -207,8 +207,8 @@ void Particle::writeBinary(unsigned rsize,
   else
     out->write((const char *)&pot0, sizeof(double));
 
-  out->write((const char *)&Z, sizeof(unsigned int));
-  out->write((const char *)&C, sizeof(unsigned int));
+  out->write((const char *)&Z, sizeof(unsigned char));
+  out->write((const char *)&C, sizeof(unsigned char));
 
   for (it=iattrib.begin(); it!=iattrib.end(); it++) 
     out->write((const char *)&(*it), sizeof(int));

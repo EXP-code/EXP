@@ -11,7 +11,7 @@ private:
   //! Global variables for the calculations with the individual ions
   std::map <int, std::map<int, Ion> > IonList;
 
-  //! Not sure what this does . . . 
+  //! Not sure what this does . . . looks like cruft.  Remove??
   std::vector<int> Ni;
 
   chdata ch;

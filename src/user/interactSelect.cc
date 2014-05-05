@@ -26,8 +26,8 @@ InteractSelect::InteractSelect()
 double InteractSelect::selectCEInteract
 (Ion& a, std::vector< std::pair< double, double > > cumCross) 
 {
-  double eVtoRyd = 1.0/13.60569253;
-  double RydtoeV = 1.0/eVtoRyd;
+  // double eVtoRyd = 1.0/13.60569253;
+  // double RydtoeV = 1.0/eVtoRyd;
   
   size_t N = cumCross.size();
   
@@ -39,7 +39,7 @@ double InteractSelect::selectCEInteract
   }
   
   double rn = (double)rand()/(double)RAND_MAX;
-  double E;
+  double E  = 0.0;
   for(size_t i=0; i<N; i++) {
     if (rn <= normed[i]) {
       E = cumCross[i].second;
@@ -103,15 +103,15 @@ double InteractSelect::DIInterLoss(chdata& ch, Ion& a)
 {
   int Z1 = a.getZ(); 
   int C1 = a.getC();
-  int Z2 = Z1; 
-  int C2 = C1+1;
+  // int Z2 = Z1; 
+  // int C2 = C1+1;
 
   if (C1 < 0) {
     std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
     return 0;
   }
   double ip1 = ch.ipdata[Z1-1][C1-1];
-  double ip2 = ch.ipdata[Z2-1][C2+1];
+  // double ip2 = ch.ipdata[Z2-1][C2+1];
   double E   = ip1;
   
   return E;

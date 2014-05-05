@@ -74,10 +74,10 @@ public:
 #endif
   
   //! Species number
-  unsigned int Z;
+  unsigned char Z;
 
   //! Ion number
-  unsigned int C;
+  unsigned char C;
 
   //! Constructor
   Particle();
