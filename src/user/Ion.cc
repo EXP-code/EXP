@@ -13,37 +13,34 @@
 #include "interactSelect.H"
 #include "Cspline.H"
 
-using namespace std;
-using namespace boost;
-
-
 //! Convert the master element name to a (Z, C) pair
 void Ion::convertName() 
 {
-  string ele;
-  string charge;
+  std::string ele;
+  std::string charge;
   
-  vector <string> v;
-  string die = "d"; //is it set to be a dielectronic
+  std::vector<std::string> v;
+  std::string die = "d"; //is it set to be a dielectronic
   size_t isd;
   
   // split the name up into its element ab. and charge
-  split(v, MasterName, is_any_of("_") );
+  // In C, this would be: sscanf(MasterName, "%s_%s", ele, charge);
+  //
+  boost::split(v, MasterName, boost::is_any_of("_") );
 
-  // sscanf(MasterName, "%s_%s", ele, charge);
   eleName = v[0];
   
   // get the Z value for the element by looking up through table
   for (int i = 0; i < numEle; i++) {
-    if (iequals(v[0], eleNameList[i])) {
+    if (boost::iequals(v[0], eleNameList[i])) {
       Z = i+1; break;
     }
   }
   
   // filter out the d after the charge if it is a dielectronic
   isd = v[1].find(die);
-  if(isd!=string::npos) {
-    cout << "FOUND" << endl;
+  if (isd!=string::npos) {
+    std::cout << "FOUND" << std::endl;
     d = true;
 				// expecting it to be at the end
     v[1].replace(v[1].find(die), die.length(), "\0");
@@ -56,11 +53,11 @@ void Ion::convertName()
 }
 
 //! Convert a given Z,C pair into a master name string
-std::string ZCtoName(int Z, int C) 
+std::string ZCtoName(unsigned char Z, unsigned char C) 
 {
-  string fileName;
-  string ele;
-  string c;
+  std::string fileName;
+  std::string ele;
+  std::string c;
   
   // Compile the two parts of the name and "stitch" together
   ele = eleNameList[Z-1];
@@ -82,9 +79,9 @@ std::string ZCtoName(int Z, int C)
 void Ion::readelvlc() {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
 
-  //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterName); 
@@ -92,19 +89,19 @@ void Ion::readelvlc() {
   fileName.append(MasterName);
   fileName.append(".elvlc");
   
-  string inLine;
+  std::string inLine;
   elvlc_data e;
   ifstream elvlcFile(fileName.c_str());
 
   if (elvlcFile.is_open()) {
     while (elvlcFile.good()) {
-      std::vector <string> v;
+      std::vector <std::string> v;
       getline(elvlcFile, inLine);
       std::istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
-	   back_inserter<vector<string> >(v));
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
 
-      //cout << atoi(v[0].c_str()) << endl;
+      // std::cout << atoi(v[0].c_str()) <<std::endl;
       
       if (atoi(v[0].c_str()) == -1) break;
 
@@ -127,7 +124,7 @@ void Ion::readelvlc() {
     nelvlc = elvlc.size();
   }
   else {
-    cout << "Cannot find file: " << fileName << endl;
+    std::cout << "Cannot find file: " << fileName << std::endl;
     nelvlc = 0;
   }
 }
@@ -137,13 +134,13 @@ void Ion::readfblvl()
 {
   std::string MasterNameT = ZCtoName(Z, C-1);
 
-  //cout << "fblvl mastername: " << MasterNameT << endl;
+  // std::cout << "fblvl mastername: " << MasterNameT <<std::endl;
 
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
 
-  //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
 
   fileName.append(eleName); 
   fileName.append("/");
@@ -152,19 +149,19 @@ void Ion::readfblvl()
   fileName.append(MasterNameT);
   fileName.append(".fblvl");
   
-  //cout << "file: " << fileName << endl;
+  // std::cout << "file: " << fileName <<std::endl;
   
-  string inLine;
+  std::string inLine;
   ifstream fblvlFile(fileName.c_str());
   
   fblvl_data f;
   if (fblvlFile.is_open()) {
     while(fblvlFile.good()) {
-      vector <string> v;
+      std::vector <std::string> v;
       getline(fblvlFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
-	   back_inserter<vector<string> >(v));
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
       if(atoi(v[0].c_str()) == -1) break;
       f.lvl = atoi(v[0].c_str());
       f.conf = v[1];
@@ -181,7 +178,7 @@ void Ion::readfblvl()
     nfblvl = fblvl.size();
   }
   else {
-    cout << "Cannot find file: " << fileName << endl;
+    std::cout << "Cannot find file: " << fileName <<std::endl;
     nfblvl = 0;
   }
 }
@@ -191,10 +188,10 @@ void Ion::readSplups()
 {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
 
-  //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
-  //cout << "SPLUPS NAME: " << eleName << endl;
+  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+  // std::cout << "SPLUPS NAME: " << eleName <<std::endl;
 
   fileName.append(eleName); 
   fileName.append("/");
@@ -203,16 +200,16 @@ void Ion::readSplups()
   fileName.append(MasterName);
   fileName.append(".splups");
   
-  string inLine;
+  std::string inLine;
   splups_data s;
   ifstream sFile(fileName.c_str());
   if(sFile.is_open()) {
     while(sFile.good()) {
-      vector <string> v;
+      std::vector <std::string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
-	   back_inserter<vector<string> >(v));
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
       if(atoi(v[0].c_str()) == -1) break;
       s.Z = atoi(v[0].c_str());
       s.C = atoi(v[1].c_str());
@@ -233,7 +230,7 @@ void Ion::readSplups()
     nsplups = splups.size();
   }
   else {
-    cout << "Cannot find file: " << fileName << endl;
+    std::cout << "Cannot find file: " << fileName <<std::endl;
     nsplups = 0;
   }
 }
@@ -242,10 +239,10 @@ void Ion::readSplups()
 void Ion::readDi() {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
 
-  //string fileName = "/home/bgaches/CHIANTI_7.0_data/";
-  //cout << "DI NAME: " << eleName << endl;
+  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+  // std::cout << "DI NAME: " << eleName <<std::endl;
 
   fileName.append(eleName); 
   fileName.append("/");
@@ -254,20 +251,20 @@ void Ion::readDi() {
   fileName.append(MasterName);
   fileName.append(".diparams");
   
-  string inLine;
+  std::string inLine;
   di_data s;
   ifstream sFile(fileName.c_str());
   int i = 0;
   int i_fac = 0;
   if (sFile.is_open()) {
     while(sFile.good()) {
-      vector <string> v;
+      std::vector <std::string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
-	   back_inserter<vector<string> >(v));
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
 
-      //cout << atoi(v[0].c_str()) << endl;
+      // std::cout << atoi(v[0].c_str()) <<std::endl;
 
       if(atoi(v[0].c_str()) == -1) break;
 
@@ -304,55 +301,27 @@ void Ion::readDi() {
     ndispline = diSpline.size();
   }
   else {
-    cout << "Cannot find file: " << fileName << endl;
+    std::cout << "Cannot find file: " << fileName <<std::endl;
     ndispline = 0;
   }
-  /*for(int i = 0; i < diSpline[0].xspline.size(); i++) {
-    cout << diSpline[0].xspline[i] << "\t";
-    }
-    cout << endl;*/
+
+  /*
+  for(int i = 0; i < diSpline[0].xspline.size(); i++) {
+    std::cout << diSpline[0].xspline[i] << "\t";
+  }
+  std::cout << std::endl;
+  */
 }
-
-/*double getMult0(int Z, int C) {
-  string MasterNameT = ZCtoName(Z, C-1);
-  string fileName = "/home/bgaches/Programs/CHIANTI_7.0_data/";
-  fileName.append(eleName); fileName.append("/");fileName.append(MasterNameT); fileName.append("/"); fileName.append(MasterNameT);
-  fileName.append(".fblvl");
-  
-  
-  string inLine;
-  ifstream fblvlFile(fileName.c_str());
-  
-  fblvl_data f;
-  int i = 0;
-  double multr = -1;
-  if(fblvlFile.is_open()) {
-  while(fblvlFile.good() and i == 0) {
-  vector <string> v;
-  getline(fblvlFile, inLine);
-  istringstream iss(inLine);
-  copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
-  if(atoi(v[0].c_str()) == -1) break;
-  multr = atof(v[5].c_str());
-  i++;
-  }
-  fblvlFile.close();
-  return multr;
-  }
-  else {
-  cout << "Cannot find file: " << fileName << endl;
-  return multr;
-  }
-  }*/
-
 
 //! Initialization function when the master name is given
 Ion::Ion(std::string name, chdata ch) 
 {
   MasterName = name;
+
   std::vector<std::string> v;
-  split(v, MasterName, is_any_of("_") );
+  boost::split(v, MasterName, boost::is_any_of("_") );
   eleName = v[0];
+
   convertName();		// Sets Z and C . . . 
   ip = ch.ipdata[Z-1][C-1];
 
@@ -370,42 +339,46 @@ Ion::Ion(std::string name, chdata ch)
     readfblvl();
   }
   if (isInMasterList(ch, MasterName)) {
-    //cout << "IN MASTER LIST" << endl;
+    // std::cout << "IN MASTER LIST" <<std::endl;
     readelvlc();
     readSplups();
     readDi();
   }
-  // else cout << "NOT IN LIST" << endl;
+  // else std::cout << "NOT IN LIST" <<std::endl;
   
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   double e = 0.;
   double k = 0.;
-  for(e = 0.00000001; e < 250 ; e += 0.25) 
+  for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
-  for(k = -9.; k < -3.; k += 0.1)
-    //cout << k 
+  }
+  for (k = -9.; k < -3.; k += 0.1) {
+    // std::cout << k 
     kgrid.push_back(k);
+  }
   kffsteps = kgrid.size();
   effsteps = egrid.size();
 }
 
 //! Constructor when the Z, C pair is given
-Ion::Ion(int Z1, int C1, chdata ch) 
+Ion::Ion(unsigned char Z1, unsigned char C1, chdata ch) 
 {
   d = false;
   Z = Z1;
   C = C1;
   MasterName = ZCtoName(Z1, C1);
-  vector <string> v;
-  split(v, MasterName, is_any_of("_") );
+
+  std::vector<std::string> v;
+  boost::split(v, MasterName, boost::is_any_of("_") );
   eleName = v[0];
-  // int dd = d ? 1 : 0;
   ip = ch.ipdata[Z-1][C-1];
+
   std::string MasterNameT = ZCtoName(Z, C-1);
   if (isInMasterList(ch, MasterNameT)) {
     readfblvl();
   }
-  if(isInMasterList(ch, MasterName)) {
+
+  if (isInMasterList(ch, MasterName)) {
     readSplups();
     readDi();
     readelvlc();
@@ -413,13 +386,15 @@ Ion::Ion(int Z1, int C1, chdata ch)
   
   // Initialize the k-grid (in inverse nm) for ff and the energy grid
   // (in eV)
-  double e = 0.;
-  double k = 0.;
-  for(e = 0.00000001; e < 250 ; e += 0.25) 
+  double e = 0;
+  double k = 0;
+  for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
-  for(k = -9.; k < -3.; k += 0.1)
-    //cout << k 
+  }
+  for (k = -9.; k < -3.; k += 0.1) {
+    // std::cout << k 
     kgrid.push_back(k);
+  }
   kffsteps = kgrid.size();
   effsteps = egrid.size();
 }
@@ -486,7 +461,7 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
   
   double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
   
-  //cout << "\tGoing through the splups file ";
+  // std::cout << "\tGoing through the splups file ";
   double totalCross = 0;
   std::vector<std::pair<double, double > > CEcum;
   std::pair<double,double> Null(0, 0);
@@ -528,8 +503,8 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
       if ( x <= 0 or x >= 1.0) {
-	cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth 
-	     << " Eij = " << EijEv << " x = " << x << endl;
+	std::cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth 
+	     << " Eij = " << EijEv << " x = " << x <<std::endl;
 	exit(-1);
       }
 
@@ -585,9 +560,9 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
     }
   }
   if (CEcum.size() == 0) { 
-    cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
+    std::cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
 	 << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
-	 << C << "fblvl size: " << fblvl.size() << endl; 
+	 << C << "fblvl size: " << fblvl.size() <<std::endl; 
     exit(-1);
   }
   CEcrossCum = CEcum;
@@ -617,37 +592,45 @@ double Ion::qrp(double u)
   }
   double q;
   q = (A*log(u) + D*(1.0-(1.0/u))*(1.0-(1.0/u)) + C*u*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u)) + ((c/u)+((d/u)*(d/u))*(1.0-(1.0/u))))/u;
-  //cout << "u = " << u << " logu = " << log(u) << " q = " << q << endl;
+
+  // std::cout << "u = " << u << " logu = " << log(u) 
+  //           << " q = " << q << std::endl;
+
   return q;
   
 }
 
-//! Calculate the direct ionization cross section from the spline, which is a function of the interaction energy of the electron
+//! Calculate the direct ionization cross section from the spline,
+//! which is a function of the interaction energy of the electron
 double Ion::directIonCross(chdata ch, double E) 
 {
-  double u = E/ip;
-  int I = Z - C + 1; //test if its hydrogen-like/helium-like
-  double ryd = 27.2113845/2.0;
-  double ipRyd = ip/ryd;
-  double a0 = 0.5291772108e-8; //bohr radius in cm
-  double bohr_r = M_PI*a0*a0;
+  double u        = E/ip;
+  unsigned char I = Z - C + 1; //test if its hydrogen-like/helium-like
+  double ryd      = 27.2113845/2.0;
+  double ipRyd    = ip/ryd;
+  double a0       = 0.5291772108e-8; //bohr radius in cm
+  double bohr_r   = M_PI*a0*a0;
+
   double F, qr, cross;
   
   if (C == (Z+1)) {
     diCross = 0;
     return -1;
   }
+
   if (Z >= 20) {
     F = (140.0+pow((double(Z)/20.0),3.2))/141.;
   }
   else {
     F = 1.0;
   }
+
   qr = qrp(u)*F;
-  if (Z >=6 or Z >= 10) cout << "QR = " << qr << endl;
-  // first two if statements are whether or not to use fontes cross
+  if (Z >=6 or Z >= 10) std::cout << "QR = " << qr <<std::endl;
+
+  // first two if statements are whether or not to use Fontes cross
   // sections
-  if(I == 1 and Z >= 6) {
+  if (I == 1 and Z >= 6) {
     cross = 1.0*bohr_r*(qr/ipRyd)*(qr/ipRyd);
     cross *= 1e14;
   }
@@ -657,37 +640,40 @@ double Ion::directIonCross(chdata ch, double E)
   }
   else {
     cross = 0;
-    for(int i = 0; i < di_header.nfac; i++) {
+    for (int i = 0; i < di_header.nfac; i++) {
       if (E >= diSpline[i].ev) {
-	// std::cout << E << "\t" << diSpline[i].ev << endl;
+	// std::cout << E << "\t" << diSpline[i].ev << std::endl;
+
 	double u1=E/diSpline[i].ev;
 	double bte=1.0-log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
+
 	// std:: cout << diSpline[i].xspline.size() << "\t" <<
-	// diSpline[i].yspline.size() << endl;
+	// diSpline[i].yspline.size() <<std::endl;
+
 	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
 	double a =1.0-diSpline[i].btf+exp(log(diSpline[i].btf)/(1.-bte));
 	double cross_i=(log(a)+1.)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
-	// std::cout << "cross_i = " << cross_i << endl;
+	// std::cout << "cross_i = " << cross_i << std::endl;
       }
     }
   }
-  diCross = cross; //recast the cross section in nm^2
-  // std::cout << "DI cross: " << diCross << endl;
+  diCross = cross; // recast the cross section in nm^2
+  // std::cout << "DI cross: " << diCross << std::endl;
   return diCross;
 }
 
 double Ion::freeFreeCross(chdata ch, double E) 
 {
-  double hbc = 197.327; //value of h-bar * c in eV nm
-  double r0 = 2.81794033e-6; //classic electron radius in nm
-  double factor = (Z*Z*r0*r0)/(137.);
-  double hb = 1.054572e-27; //h-bar in erg s
-  double me = 9.10938e-28;
-  double inmtoicm = 1e7; //nm^(-1) per cm^(-1)
-  double eV2erg = 1.602177e-12; //ergs per eV
-  double c= 2.998e10; //cm/s
+  double hbc      = 197.327;	     // value of h-bar * c in eV nm
+  double r0       = 2.81794033e-6;   // classic electron radius in nm
+  double factor   = (Z*Z*r0*r0)/(137.);
+  double hb       = 1.054572e-27;    // h-bar in erg s
+  double me       = 9.10938e-28;
+  double inmtoicm = 1e7;	  // nm^(-1) per cm^(-1)
+  double eV2erg   = 1.602177e-12; // ergs per eV
+  double c        = 2.998e10;	  // cm/s
   
   double p0 = sqrt(2*me*E*eV2erg);
   double v0 = p0/me;
@@ -696,17 +682,17 @@ double Ion::freeFreeCross(chdata ch, double E)
   double momi = b0/sqrt(1.-b0*b0);
   
   double cum = 0;
-  double dk = 0;
+  double dk  = 0;
   for (int j = 0; j < kffsteps; j++) {
 
     if (j != static_cast<int>(kgrid.size())-1) 
       dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
 
-    double k = pow(10, kgrid[j]);
+    double k  = pow(10, kgrid[j]);
     double Ek = k*hbc;
     double pk = k*inmtoicm*hb;
-    double x = (E - Ek)/E;
-    double p = p0-pk;
+    double x  = (E - Ek)/E;
+    double p  = p0-pk;
 
     if (x >= 0 and x <= 1) {
       double vf = p/me;
@@ -729,7 +715,7 @@ double Ion::freeFreeCross(chdata ch, double E)
 
 /** Calculate the differential free-free cross section and return the
     cumulative cross section vector The formula used to calculate the
-    cross section is 3BS(a) from Koch&Motz 1959 */
+    cross section is 3BS(a) from Koch & Motz 1959 */
 void Ion::freeFreeDifferential(chdata ch) 
 {
   // Value of h-bar * c in eV nm
@@ -781,7 +767,7 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
   double mec2 = 510998.9; //mass of electron*c^2
   // double cumCross = 0;
   // int count = 0;
-  vector<double> radRecCum;
+  std::vector<double> radRecCum;
   // double dk = 0;
   
   // double IP = ch.ipdata[Z-1][C-2];
@@ -799,7 +785,7 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
 	}
 	else {
 	  eTemp = 0;
-	  cout << "ERROR WITH ETEMP!" << endl;
+	  std::cout << "ERROR WITH ETEMP!" <<std::endl;
 	}
 	double mult = double(fblvl[j].mult);
 	double n = double(fblvl[j].lvl);
@@ -814,13 +800,13 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
 	  double crossi = (Erat*mult*D*I*I*(1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot)*(1.0/n));
 	  cross += crossi;
 	  //if (C > 1 and cross == 0) {
-	  // cout << "IP: " << IP << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << "\t" << crossi*1e18 << endl;
+	  // std::cout << "IP: " << IP << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << "\t" << crossi*1e18 <<std::endl;
 	  //}
 	  if (cross == 0) {
-	    cout << "NULL IN RAD RECOMB: " << ip << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << endl;
+	    std::cout << "NULL IN RAD RECOMB: " << ip << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n <<std::endl;
 	  }
 	  if (isnan(cross)) {
-	    cout << cross << "\t" << I << "\t" << ePhot << "\t" << (double)n << "\t" << Erat << endl;
+	    std::cout << cross << "\t" << I << "\t" << ePhot << "\t" << (double)n << "\t" << Erat <<std::endl;
 	  }
 	}
       }
@@ -833,14 +819,14 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
 
 // Ion print functions
 void Ion::printInfo() {
-  cout << "Master list name: " << MasterName << endl;
-  cout << "\t" << "Element: " << eleName << endl << "\tZ = " << Z << "\n" << "\tC = " << C << endl;
-  cout << "\td = " << d << endl;
-  //cout << "\tAdundance = " << abundance << endl;
-  cout << "\tip = " << ip << endl;
+  std::cout << "Master list name: " << MasterName <<std::endl;
+  std::cout << "\t" << "Element: " << eleName <<std::endl << "\tZ = " << Z << "\n" << "\tC = " << C <<std::endl;
+  std::cout << "\td = " << d <<std::endl;
+  // std::cout << "\tAdundance = " << abundance <<std::endl;
+  std::cout << "\tip = " << ip <<std::endl;
 }
 void Ion::printelvlc() {
-  cout << "elvlc file for element " << MasterName << endl;
+  std::cout << "elvlc file for element " << MasterName <<std::endl;
   for(size_t i = 0; i < elvlc.size(); i++) {
     std::cout << elvlc[i].level       << "\t" 
 	      << elvlc[i].conf        << "\t" 
@@ -857,23 +843,9 @@ void Ion::printelvlc() {
   }
 }
 
-/*
-void Ion::printwgfa() 
-{
-  std::cout << "wgfa file for element " << MasterName << endl;
-  for (int i = 0; i < wgfa.size(); i++) {
-    std::cout << wgfa[i].lvl1         << "\t" 
-	      << wgfa[i].lvl2         << "\t" 
-	      << wgfa[i].wavelength   << "\t"
-	      << wgfa[i].gf           << "\t" 
-	      << wgfa[i].A            << endl;
-  }	
-}
-*/ 
-
 void Ion::printfblvl() 
 {
-  std::cout << "fblvl file for element " << MasterName << endl;
+  std::cout << "fblvl file for element " << MasterName <<std::endl;
   for (size_t i = 0; i < fblvl.size(); i++) {
     std::cout << fblvl[i].lvl         << "\t" 
 	      << fblvl[i].conf        << "\t" 
@@ -898,50 +870,51 @@ void chdata::readMaster()
 {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
   fileName.append("masterlist/masterlist.ions");
-  string line;
+  std::string line;
   ifstream masterFile(fileName.c_str());
   if (masterFile.is_open()) {
     while(masterFile.good()) {
       getline(masterFile, line);
       std::vector<std::string> v;
-      //cout << line << endl;
-      split(v, line, is_any_of(" "));
+      // std::cout << line <<std::endl;
+      boost::split(v, line, boost::is_any_of(" "));
       masterNames.insert(v[0]);			
     }
     masterFile.close();
   }
   else {
-    cout << "MASTER LIST FILE: "<< fileName << " NOT FOUND" << endl;
+    std::cout << "MASTER LIST FILE: "<< fileName << " NOT FOUND" << std::endl;
   }
   
 }
 
 /** Get the ipdata set so that if you want to get the ip of any Z, C,
-you call it as ipdata[Z-1][C-1-(int)die] */
+    you call it as ipdata[Z-1][C-1-(int)die]
+*/
 void chdata::readIp() 
 {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
   fileName.append("ip/chianti.ip");
   int count = 0;
-  int Z, C;
+  unsigned char Z, C;
   double ip;
   double convert = 1.239841875e-4;
-  string lineIn;
+  std::string lineIn;
   ifstream ipFile(fileName.c_str());
   
   if (ipFile.is_open() ) {
     while(ipFile.good() and count < 365) {
       getline(ipFile, lineIn);
       
-      vector <string> v;
+      std::vector <std::string> v;
       // split the string away from the white space to get the values
       istringstream iss(lineIn);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(), 
-	   back_inserter<vector<string> >(v));
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
       // assign the values from the string
       Z = atoi(v[0].c_str());
       C = atoi(v[1].c_str());
@@ -953,7 +926,7 @@ void chdata::readIp()
     ipFile.close();
   }
   else {
-    cout << "IP FILE: " << fileName << " NOT FOUND" << endl;
+    std::cout << "IP FILE: " << fileName << " NOT FOUND" <<std::endl;
   }
 }
 
@@ -964,22 +937,22 @@ void chdata::readAbundanceAll()
 {
   char * val;
   val = getenv("CHIANTI_DATA");
-  string fileName(val);
+  std::string fileName(val);
   fileName.append("abundance/cosmic.abund");
   
   ifstream abFile(fileName.c_str());
-  string lineIn;
+  std::string lineIn;
   if (abFile.is_open() ) {
     while(abFile.good()) {
       getline(abFile, lineIn);
-      vector <string> v;
+      std::vector <std::string> v;
       istringstream iss(lineIn);
-      copy(istream_iterator<string>(iss), istream_iterator<string>(),
-	   back_inserter<vector<string> >(v));
-      if(atoi(v[0].c_str()) == -1) break;
-      int Z = atoi(v[0].c_str());
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(),
+	   back_inserter<vector<std::string> >(v));
+      if (atoi(v[0].c_str()) == -1) break;
+      unsigned char Z = atoi(v[0].c_str());
       abundanceAll[Z-1] = atof(v[1].c_str());
-      // std::cout << Z << "\t" << atof(v[1].c_str()) << endl;
+      // std::cout << Z << "\t" << atof(v[1].c_str()) <<std::endl;
     }
     abFile.close();
   }
@@ -1007,7 +980,7 @@ void chdata::printIp()
 	std::cout << ipdata[i][j] << "\t";
       }
     }
-    std::cout << endl;
+    std::cout << std::endl;
   }
 }
 
@@ -1015,7 +988,7 @@ void chdata::printIp()
 chdata::chdata() 
 {
   //nVern = 465;
-  //maxZ = 31; //maxZ = 30 + 1
+  //maxZ = 31; // maxZ = 30 + 1
   //maxNel = 31; 
   
   for(int i = 0; i < numEle; i++) abundanceAll[i] = 0;
@@ -1027,22 +1000,15 @@ chdata::chdata()
     }
   }
   
-  //cout << "Reading ip file\n";
+  // std::cout << "Reading ip file\n";
   readIp();
-  //cout << "Reading master file\n";
+
+  // std::cout << "Reading master file\n";
   readMaster();
-  //cout << "Reading abundance file\n";
+
+  // std::cout << "Reading abundance file\n";
   readAbundanceAll();
-  /*Icout << "Reading klgfb file\n";
-    readKlgfb();
-    cout << "Reading verner file\n";
-    readVerner();*/
-  //cout << "Reading Ion Eq file\n";
-  //readIoneq();
-  //cout << "Reading itoh file\n";
-  //readItoh();
-  //cout << "Reading gffint file\n";
-  //readgffint();
   
+  // Done
 }
 

@@ -87,8 +87,8 @@ struct gffint_data
 
 struct splups_data
 {
-  int Z;
-  int C;
+  unsigned char Z;
+  unsigned char C;
   int i;
   int j;
   int type;
@@ -168,7 +168,7 @@ public:
   //@{
   //! Constructors
   Ion (std::string name, chdata ch);
-  Ion (int Z1, int C1,   chdata ch);
+  Ion (unsigned char Z1, unsigned char C1, chdata ch);
   //@}
 
   //@{
@@ -182,10 +182,10 @@ public:
   std::string eleName; 
 
   //! nuclear charge, e.g. 2 = He
-  int Z;
+  unsigned char Z;
 
   //! ionization state, e.g. 1 = He I
-  int C; 
+  unsigned char C; 
   
   //! ionization potential in eV
   double ip;
@@ -205,8 +205,8 @@ public:
 
   struct di_head
   {
-    int Z;
-    int C;
+    unsigned char Z;
+    unsigned char C;
     int nspline;
     int nfac;
     int neav;
@@ -292,8 +292,8 @@ public:
   
   //@{
   // get functions
-  int getZ() { return Z; }
-  int getC() { return C; }
+  unsigned char getZ() { return Z; }
+  unsigned char getC() { return C; }
   //@}
 };
 
