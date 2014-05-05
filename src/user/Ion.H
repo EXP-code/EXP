@@ -1,29 +1,11 @@
-/**
-GOAL OF OBJECT USAGE:
-
-For each species you want in your gas you can declare it as:
-
-	Ion speciesA("He_1", 2, 1);
-	Ion speciesB("C_4", 6, 4);
-
-Then when you are doing the cross sections instead of calculatin the
-hard sphere in collide.cc:
-
-	cross1 = speciesA.getDICross();
-	cross2 = speciesB.getDICross();
-
-	totalCross = factor1*cross1 + factor2*cross2;
-
-same with the rates
-*/
-
-
 #ifndef _Ion_H
 #define _Ion_H
 
 #include <string>
 #include <vector>
-#include "boost/multi_array.hpp"
+#include <set>
+
+#include <boost/multi_array.hpp>
 
 static std::string eleNameList[] = 
   {"h","he","li","be","b","c","n","o","f","ne","na", 
@@ -50,13 +32,8 @@ const int numMaster = 288;
     that there can be a 1D vector with multiple data structures in each
     one.  container to store all the data in 1 line that is relevant from
     the elvlc files. */
-struct elvlc_data {
-  /*elvlc_data( int lvl, int cnf, std::string des, int s, int l_, std::string l_s, double j,
-    int mul, double ecm, double ery, double ecth, double erth): level(lvl), conf(cnf), 
-    designation(des), spin(s), l(l_), l_str(l_s), J(j), mult(mul), encm(ecm),
-    enry(ery), encmth(ecth), enryth(erth)
-    {}*/
-  
+struct elvlc_data 
+{
   int level;
   int conf;
   std::string designation;
@@ -72,20 +49,6 @@ struct elvlc_data {
   
 };
 
-//! container to store all the data in 1 line that is relevant from the elvlc files
-/*
-  struct wgfa_data{
-  //wgfa_data( int l1, int l2, int lambda, int g, int a): lvl1(l1), lvl2(l2), wavelength(lambda), gf(g), A(a)
-  //{}
-
-  int lvl1;
-  int lvl2;
-  double wavelength;
-  double gf;
-  double A;
-  };
-**/
-
 struct pe_data
 {
   int ngfb;
@@ -96,9 +59,6 @@ struct pe_data
 
 struct fblvl_data
 {
-  /*fblvl_data(int lv, std::string cnf, int pn, int L, std::string l_st, int m, double ecm, double ecmt): lvl(lv), conf(cnf), pqn(pn), l(L), l_str(l_st), mult(m), encm(ecm), encmth(ecmt)
-    {}*/	
-  
   int lvl;
   std::string conf;
   int pqn;
@@ -115,7 +75,8 @@ struct klgfb_data{
   std::vector<double> factors;
 };
 
-struct gffint_data{
+struct gffint_data
+{
   int ngffint;
   std::vector<double> g2;
   std::vector<double> gffint;
@@ -124,7 +85,8 @@ struct gffint_data{
   std::vector<double> s3;
 };
 
-struct splups_data{
+struct splups_data
+{
   int Z;
   int C;
   int i;
@@ -154,40 +116,9 @@ public:
   chdata();
   
   double ipdata[30][30];
-  std::vector< std::string > masterNames;
+  std::set<std::string> masterNames;
   double abundanceAll[numEle];
 
-  //std::vector< klgfb_data > klgfb;
-  //pe_data peData;
-  //int nklgfb; //length of the file
-  
-  //verner cross section data
-  //static const unsigned nVern = 465;
-  //static const unsigned maxZ = 31; //maxZ = 30 + 1
-  //static const unsigned maxNel = 31; //maximum number of electrons
-  /*struct verner_data {
-    unsigned pqn[maxZ][maxNel];
-    unsigned l[maxZ][maxNel];
-    double eth[maxZ][maxNel];
-    double e0[maxZ][maxNel];
-    double sig0[maxZ][maxNel];
-    double y_a[maxZ][maxNel];
-    double p[maxZ][maxNel];
-    double y_w[maxZ][maxNel];
-    } verner;
-    
-    gffint_data gffint; */
-  //std::vector<double > ionEqAll;
-  
-  /*struct ionT_data{
-    int ntemp;
-    int nele;
-    std::vector< double > ionT;
-    };*/
-  
-  // itoh data for free-free relativistic
-  // double itoh[30][11][11];
-  
   /** Read in the master list to store to be able to check if elements
       are in it */
   void readMaster();
@@ -204,46 +135,57 @@ public:
       to allow for all the abundance files */
   void readAbundanceAll();
 
-  //void readKlgfb();
-  //void readVern();
-  //void readIoneq();
-  //void readItoh();
-  //void readgffint();
-  //void readVerner();
-  
-  //! Print the ipdata set
+  //! List the ionization potential data
   void printIp();
 
-  //!  print functions for the chdata types
+  //! List names of all species to stdout
   void printMaster();
 
-  //! No idea . . . 
-  void printKlgfb();
 };
 
 /**
    Structure containing all info about each ion type
- */
+
+   For each species you want in your gas you can declare it as:
+
+        Ion speciesA("He_1", 2, 1);
+        Ion speciesB("C_4", 6, 4);
+
+   Then when you are doing the cross sections instead of calculating the
+   hard sphere in collide.cc:
+
+        cross1 = speciesA.getDICross();
+        cross2 = speciesB.getDICross();
+
+        totalCross = factor1*cross1 + factor2*cross2;
+
+   same with the rates . . .
+*/
 class Ion 
 {
 public:
 
   //@{
   //! Constructors
-  Ion(std::string name, chdata ch);
-  Ion(int Z1, int C1,   chdata ch);
+  Ion (std::string name, chdata ch);
+  Ion (int Z1, int C1,   chdata ch);
   //@}
 
   //@{
   //! Copy constructors
-  Ion(const Ion &);
-  Ion();
+  Ion (const Ion &);
+  Ion ();
   //@}
   
   
-  std::string eleName; //element name, i.e. "He"
-  int Z; //2 = He
-  int C; //1 = He I
+  //! element name, i.e. "He"
+  std::string eleName; 
+
+  //! nuclear charge, e.g. 2 = He
+  int Z;
+
+  //! ionization state, e.g. 1 = He I
+  int C; 
   
   //! ionization potential in eV
   double ip;
@@ -260,7 +202,9 @@ public:
   //std::vector< fblvl_data > ifblvl;
   std::vector< splups_data > splups;	
   std::vector< di_data > diSpline;
-  struct di_head{
+
+  struct di_head
+  {
     int Z;
     int C;
     int nspline;
@@ -273,12 +217,18 @@ public:
   //int nwgfa; 
   int nfblvl;
   int ndispline;
-  //include in other variables here as needed from the files
-  //could include variables for the elvlc and wgfa files
+
+  //! include in other variables here as needed from the files
+  //! could include variables for the elvlc and wgfa files
   //double fbcross, fbloss, ffcross, ffloss, bbcross, bbloss;
+
+  //! Free-free cross section
   double ffcross;
   
+  //! Element name
   std::string MasterName;
+
+  //@{
   //! Cross sections that are dynamic
   std::vector< std::pair<double, double> > CEcross1j;
   std::vector< std::pair<double, double> > CEcrossCum;
@@ -288,21 +238,27 @@ public:
   std::vector< double > radRecCross;
   std::vector< double > radRecCrossCum;
   double diCross;
+  //@}
   
+  //@{
   //! Grid values for the various cross sections
   std::vector< double > egrid;
   std::vector< double > kgrid;
   int kffsteps;
   int effsteps;
+  //@}
   
   
   void convertName();
   void readelvlc();
-  void readwgfa();
   void readfblvl();
   void readSplups();
   void readDi();
-  bool isInMasterList(chdata ch, std::string name);
+  //! Is a species is in the database?
+  bool isInMasterList(chdata& ch, const std::string name) 
+  { 
+    return ch.masterNames.find(name) != ch.masterNames.end();
+  }
   double getIp(chdata ch);
   double freeFreeCross(chdata ch, double E);
 
@@ -336,30 +292,9 @@ public:
   
   //@{
   // get functions
-  int getZ(){ return Z; }
-  int getC(){ return C; }
+  int getZ() { return Z; }
+  int getC() { return C; }
   //@}
 };
 
 #endif
-
-
-/****
-     Ion::convertName() {
-     char ele[2];
-     char charge[2];
-     
-     sscanf(MasterName, "%s_%s", ele, charge);
-     for(int i = 0; i < numEle; i++) {
-     if(strcmp(ele, eleNameList[i]) == 0) 
-     Z = i+1;
-     }
-     for(int i = 0; i < numCharge; i++) {
-     if(strcmp(charge, chargeList[i]) == 0) 
-     C = i+1;
-     }
-     }
-     
-     you give it C_V, and you get Z = 6, C = 5. need to know how Z and C are related to see if the atom is bare or not
-     
-****/

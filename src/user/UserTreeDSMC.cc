@@ -258,15 +258,16 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	ok1 = 0;
 	break;
       } else {*/
-	for(unsigned int i = 1; i <= p->second.Z+1; i++) {
-		//cout << p->second.Z << "\t" << i << endl;
-		speciesKey indxi(p->second.Z, i);
-		if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
-	}
-	speciesKey indx(p->second.Z, p->second.C);
-	if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
-	else                                 spec1[indx]++;
-     // }
+      int Zi = static_cast<int>(p->second.Z);
+      for(int i=1; i<=Zi + 1; i++) {
+	// std::cout << p->second.Z << "\t" << i << endl;
+	speciesKey indxi(p->second.Z, i);
+	if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
+      }
+      speciesKey indx(Zi, p->second.C);
+      if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
+      else                                 spec1[indx]++;
+      // }
     }
 
  

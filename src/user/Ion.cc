@@ -29,12 +29,13 @@ void Ion::convertName()
   
   // split the name up into its element ab. and charge
   split(v, MasterName, is_any_of("_") );
+
   // sscanf(MasterName, "%s_%s", ele, charge);
   eleName = v[0];
   
   // get the Z value for the element by looking up through table
-  for(int i = 0; i < numEle; i++) {
-    if(iequals(v[0], eleNameList[i])) {
+  for (int i = 0; i < numEle; i++) {
+    if (iequals(v[0], eleNameList[i])) {
       Z = i+1; break;
     }
   }
@@ -71,14 +72,6 @@ std::string ZCtoName(int Z, int C)
   return fileName;
 }
 
-//! Function to sort through the master list to determine if a species is in the database
-bool Ion::isInMasterList(chdata ch, string name) 
-{
-  for(int i = 0; i < numMaster; i++) 
-    if(iequals(ch.masterNames[i], name)) return true;
-  return false;
-}
-
 /** 
     Functions to read in the elvlc and wgfa files if they are found
     since they contain both string and float information, all
@@ -103,17 +96,17 @@ void Ion::readelvlc() {
   elvlc_data e;
   ifstream elvlcFile(fileName.c_str());
 
-  if( elvlcFile.is_open()) {
-    while(elvlcFile.good()) {
-      vector <string> v;
+  if (elvlcFile.is_open()) {
+    while (elvlcFile.good()) {
+      std::vector <string> v;
       getline(elvlcFile, inLine);
-      istringstream iss(inLine);
+      std::istringstream iss(inLine);
       copy(istream_iterator<string>(iss), istream_iterator<string>(), 
 	   back_inserter<vector<string> >(v));
 
       //cout << atoi(v[0].c_str()) << endl;
       
-      if(atoi(v[0].c_str()) == -1) break;
+      if (atoi(v[0].c_str()) == -1) break;
 
       e.level = atoi(v[0].c_str());
       e.conf = atoi(v[1].c_str());
@@ -138,39 +131,6 @@ void Ion::readelvlc() {
     nelvlc = 0;
   }
 }
-
-/*void Ion::readwgfa() {
-  string fileName = "/home/bgaches/Programs/CHIANTI_7.0_data/";
-  fileName.append(eleName); fileName.append("/");fileName.append(MasterName); fileName.append("/"); fileName.append(MasterName);
-  fileName.append(".wgfa");
-  
-  string inLine;
-  ifstream wgfaFile(fileName.c_str());
-  
-  wgfa_data w;
-  if(wgfaFile.is_open()) {
-  while(wgfaFile.good()) {
-  vector <string> v;
-  getline(wgfaFile, inLine);
-  istringstream iss(inLine);
-  copy(istream_iterator<string>(iss), istream_iterator<string>(), back_inserter<vector<string> >(v));
-  if(atoi(v[0].c_str()) == -1) break;
-  w.lvl1 = atoi(v[0].c_str());
-  w.lvl2 = atoi(v[1].c_str());
-  w.wavelength = atof(v[2].c_str());
-  w.gf = atof(v[3].c_str());
-  w.A = atof(v[4].c_str());
-  
-  wgfa.push_back(w);
-  }
-  wgfaFile.close();
-  nwgfa = wgfa.size();
-  }
-  else {
-  cout << "Cannot find file: " << fileName << endl;
-  nwgfa = 0;
-  }
-  }*/
 
 //! Read in the fblvl file found in the CHIANTI database
 void Ion::readfblvl() 
@@ -390,31 +350,34 @@ void Ion::readDi() {
 Ion::Ion(std::string name, chdata ch) 
 {
   MasterName = name;
-  vector <string> v;
+  std::vector<std::string> v;
   split(v, MasterName, is_any_of("_") );
   eleName = v[0];
-  convertName();
+  convertName();		// Sets Z and C . . . 
   ip = ch.ipdata[Z-1][C-1];
-  /*if(abund == 999) {
+
+  /*
+  if (abund == 999) {
     abundance = ch.abundanceAll[Z-1];
-    }
-    else {
+  }
+  else {
     abundance = abund;
-    }*/
+  }
+  */
+  
   std::string MasterNameT = ZCtoName(Z, C-1);
   if (isInMasterList(ch, MasterNameT)) {
     readfblvl();
   }
-  if(isInMasterList(ch, MasterName)) {
+  if (isInMasterList(ch, MasterName)) {
     //cout << "IN MASTER LIST" << endl;
     readelvlc();
-    //readwgfa();
     readSplups();
     readDi();
   }
-  //else cout << "NOT IN LIST" << endl;
+  // else cout << "NOT IN LIST" << endl;
   
-  //initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
+  // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   double e = 0.;
   double k = 0.;
   for(e = 0.00000001; e < 250 ; e += 0.25) 
@@ -471,24 +434,27 @@ Ion::Ion()
 //! Copy constructor
 Ion::Ion(const Ion &I) 
 {
-  Z = I.Z;
-  C = I.C;
-  ip = I.ip;
-  kffsteps = I.kffsteps;
-  effsteps = I.effsteps;
-  egrid = I.egrid;
-  kgrid = I.kgrid;
-  fblvl = I.fblvl;
-  diSpline = I.diSpline;
-  di_header = I.di_header;
-  nsplups = I.nsplups;
-  nfblvl = I.nfblvl;
-  ndispline = I.ndispline;
+  Z          = I.Z;
+  C          = I.C;
+  ip         = I.ip;
+
+  kffsteps   = I.kffsteps;
+  effsteps   = I.effsteps;
+
+  egrid      = I.egrid;
+  kgrid      = I.kgrid;
+  fblvl      = I.fblvl;
+
+  diSpline   = I.diSpline;
+  di_header  = I.di_header;
+  nsplups    = I.nsplups;
+  nfblvl     = I.nfblvl;
+  ndispline  = I.ndispline;
+
   MasterName = I.MasterName;
-  eleName = I.eleName;
-  elvlc = I.elvlc;
-  nelvlc = I.nelvlc;
-  
+  eleName    = I.eleName;
+  elvlc      = I.elvlc;
+  nelvlc     = I.nelvlc;
 }
 
 /** 
@@ -530,7 +496,7 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
     return CEcum;
   }
 
-  for (int i = 0; i < int(splups.size()); i++) {
+  for (size_t i=0; i<splups.size(); i++) {
 
     double EijEv = splups[i].delERyd*RydtoeV;
     double Const = splups[i].Const;
@@ -541,11 +507,11 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
       
-      //double dE = E - EijEv;
-      //Filter out the types
+      // double dE = E - EijEv;
+      // Filter out the types
       
       int type = splups[i].type;
-      double x, y;
+      double x=0, y=0;
       
       if (type==1) {
 	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
@@ -585,13 +551,13 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
 	y = sp(x);
       }
       
-      if(splups[i].spline.size() == 9) {
+      if (splups[i].spline.size() == 9) {
 	Cspline<double, double> sp(x9, splups[i].spline);
 	y = sp(x);
       }
       
       // Calculate the collision strength from the interpolated value
-      double CStrength;
+      double CStrength = 0.0;
       if (type == 1) {
 	CStrength = y*log((Eth/EijEv) + M_E);
       }
@@ -936,13 +902,13 @@ void chdata::readMaster()
   fileName.append("masterlist/masterlist.ions");
   string line;
   ifstream masterFile(fileName.c_str());
-  if(masterFile.is_open()) {
+  if (masterFile.is_open()) {
     while(masterFile.good()) {
       getline(masterFile, line);
-      vector <string> v;
+      std::vector<std::string> v;
       //cout << line << endl;
       split(v, line, is_any_of(" "));
-      masterNames.push_back(v[0]);			
+      masterNames.insert(v[0]);			
     }
     masterFile.close();
   }
@@ -980,7 +946,7 @@ void chdata::readIp()
       Z = atoi(v[0].c_str());
       C = atoi(v[1].c_str());
       ip = atof(v[2].c_str())*convert;
-      //set up the array
+      // set up the array
       ipdata[Z-1][C-1] = ip;
       count++;
     }
@@ -1024,12 +990,12 @@ void chdata::readAbundanceAll()
   
 }
 
-// print functions for the chdata types
+// list names of all species to stdout
 void chdata::printMaster() 
 {
   std::cout << "Elements in the master list: " << std::endl;
-  for(int i = 0; i < numMaster; i++) {
-    std::cout << "\t" << masterNames[i] << std::endl;
+  for(std::set<std::string>::iterator i=masterNames.begin(); i!=masterNames.end(); i++) {
+    std::cout << "\t" << *i << std::endl;
   }
 }
 
@@ -1037,7 +1003,7 @@ void chdata::printIp()
 {
   for(int i = 0; i < 30; i++) {
     for(int j = 0; j < 30; j++) {
-      if(ipdata[i][j] != 0) {
+      if (ipdata[i][j] != 0) {
 	std::cout << ipdata[i][j] << "\t";
       }
     }

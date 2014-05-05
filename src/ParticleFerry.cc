@@ -36,23 +36,31 @@ ParticleFerry::ParticleFerry()
 
 				// Make MPI datatype
 #ifdef I128
-  MPI_Datatype type[nf] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
-			   MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
-			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
-			   MPI_UNSIGNED, MPI_EXP_KEYTYPE,      // 2 (13)
-			   MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
-			   MPI_INT, MPI_DOUBLE,                // 2 (17)
-			   MPI_UNSIGNED, MPI_UNSIGNED};        // 2 (19)
+  MPI_Datatype type[nf] = 
+    {
+      MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
+      MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
+      MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
+      MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
+      MPI_UNSIGNED, MPI_EXP_KEYTYPE,      // 2 (13)
+      MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
+      MPI_INT, MPI_DOUBLE,                // 2 (17)
+      MPI_UNSIGNED_CHAR,		  // 1 (18)
+      MPI_UNSIGNED_CHAR			  // 1 (19)
+  };
 #else
-  MPI_Datatype type[nf] = {MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
-			   MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
-			   MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
-			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
-			   MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (13)
-			   MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
-			   MPI_INT, MPI_DOUBLE,                // 2 (17)
-			   MPI_UNSIGNED, MPI_UNSIGNED};        // 2 (19)
+  MPI_Datatype type[nf] = 
+    {
+      MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (1)
+      MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE, // 3 (6)
+      MPI_FLOAT,  MPI_FLOAT,  MPI_FLOAT,  // 3 (9)
+      MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
+      MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (13)
+      MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
+      MPI_INT, MPI_DOUBLE,                // 2 (17)
+      MPI_UNSIGNED_CHAR,		  // 1 (18)
+      MPI_UNSIGNED_CHAR			  // 1 (19)
+    };
 #endif
 
 				// Get displacements
@@ -85,9 +93,9 @@ ParticleFerry::ParticleFerry()
 		      1, 1, 1,	        // Floats
 		      1, 1,	        // Uint, Ulong
 		      1, 1,	        // Uint, U2long
-		      1, 1,	        // Uint, Uing
-		      nimax, ndmax,    // Uint, Double
-                      1, 1};           // Uint, uint
+		      1, 1,	        // Uint, Uint
+		      nimax, ndmax,	// Uint, Double
+                      1, 1};		// Uint, Uint
   
   MPI_Type_create_struct(nf, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);

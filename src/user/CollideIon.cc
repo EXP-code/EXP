@@ -169,7 +169,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 			  double *cr, int id)
 {
   int ret = 0;			// No error (flag)
-  int interFlag;
+  int interFlag = -1;
 
   // Number of associated electrons for each particle
   double ne1 = (p1->C - 1);
@@ -446,7 +446,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // Now that the normed probablility cross section vector is
     // created, pull a random number
     double ran = (*unit)();
-    int index;
+    int index  = -1;
 
     // Locate the interaction in the cumulative cross-section list
     for (size_t i = 0; i < normed.size(); i++) {
@@ -456,9 +456,21 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       }
     }
 
+    // Sanity check
+    if (index<0) {
+      std::cout << "CDF location falure, ran=" << ran << std::endl;
+      index = 0;
+    }
+
     if (vdebug) {
       if (outflag) std::cout << index << "\t";
       interFlag = inter[index];
+    }
+
+    // Sanity check
+    if (interFlag<0) {
+      std::cout << "interFlag NOT set, index=" << index << std::endl;
+      interFlag = inter[0];
     }
 
     int partflag = 0;
