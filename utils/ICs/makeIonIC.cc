@@ -11,7 +11,6 @@ namespace po = boost::program_options;
 
 #include "Particle.H"
 #include "Initialize.H"
-#include "Ion.H"
 #include "globalInit.H"
 
 unsigned multistep = 0;
@@ -50,12 +49,16 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
       out << setw(18) << particles[n].pos[k];
     for (int k=0; k<3; k++) 
       out << setw(18) << particles[n].vel[k];
+
     out << setw(18) << particles[n].Z;
     out << setw(18) << particles[n].C;
+
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
+
     for (unsigned k=0; k<particles[n].dattrib.size(); k++)
       out << setw(18) << particles[n].dattrib[k];
+
     out << std::endl;
   }
 }
@@ -67,9 +70,6 @@ void InitializeSpecies(const std::string& stateF,
 		       std::vector<double> fZ, 
 		       int NZ)
 {
-  // initialize the species, with a xi ~ 20 for an initial guess of
-  // the electron number density
-
   // double planck = 6.62606957e-27;
   double boltz = 1.381e-16;
   double me    = 9.10938e-28;
@@ -194,9 +194,9 @@ int main (int ac, char **av)
   //
   // Physical units
   //
-  double a0 = 2.0*0.054e-7;	// cm (2xBohr radius)
+  double a0    = 2.0*0.054e-7;	// cm (2xBohr radius)
   double boltz = 1.381e-16;	// cgs
-  double mp = 1.67e-24;		// g
+  double mp    = 1.67e-24;	// g
   
   //
   // Define the atomic species statistics
@@ -233,4 +233,6 @@ int main (int ac, char **av)
   InitializeUniform(particles, Mass, T, LL);
   
   writeParticles(particles, oname);
+
+  return 0;
 }

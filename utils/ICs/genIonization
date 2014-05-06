@@ -1,12 +1,16 @@
 #!/usr/bin/python
 
+import os
+import re
+import sys
+
 from numpy import *
+from optparse import OptionParser
 import scipy.linalg as sla
 import scipy.interpolate as sint
 import matplotlib.pyplot as plt
 
-fileName = "/home/weinberg/CHIANTI_7.0_data/ioneq/chianti.ioneq"
-numI     = 5
+fileName = os.environ['XUVTOP'] + "/ioneq/chianti.ioneq"
 
 def readIoneq():
         ntemp = 0
@@ -47,7 +51,7 @@ def readIoneq():
 		i = i + 1
 	return eleList, temps, ratSplines
 
-def interRats(T = 10000):
+def getIoneq(T = 10000, plot = False, numI = 5):
 	eleList, temps, ratSplines = readIoneq()
 	
 	zo = 1
@@ -67,12 +71,33 @@ def interRats(T = 10000):
 			rat = sint.splev(logT, s, der=0)
 			if rat < 0: rat = 0
 			print str(Z) + ", " + str(C) + " = " + str(rat)
-			plt.figure(i)
-			plt.plot(temps, ratSplines[i], 'k-')
-			plt.plot(logT, rat, 'ro')
-                        plt.xlabel("log T")
-                        plt.ylabel("Ionization fraction")
-                        plt.title(str(Z) + ", " + str(C))
-	# plt.show()
+                        if plot:
+                                plt.figure(i)
+                                plt.plot(temps, ratSplines[i], 'k-')
+                                plt.plot(logT, rat, 'ro')
+                                plt.xlabel("log T")
+                                plt.ylabel("Ionization fraction")
+                                plt.title(str(Z) + ", " + str(C))
+        if plot: plt.show()
 
-interRats(26000)
+def main():
+        usage  = "usage: %prog [options] file"
+        parser = OptionParser(usage)
+
+        parser.add_option("-n", "--elements", default=5,
+                      action="store", type="int", dest="numI",
+                      help="number of elements")
+        parser.add_option("-p", "--plot",
+                      action="store_true", dest="plot", default=False,
+                      help="Plot the ionization fractions")
+        parser.add_option("-T", "--temp", default=10000.0,
+                      action="store", type="float", dest="temp",
+                      help="temperature")
+
+        (options, args) = parser.parse_args()
+
+        # Call the main routine
+        getIoneq(T=options.temp, plot=options.plot, numI=options.numI)
+
+if __name__ == "__main__":
+        main()

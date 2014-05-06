@@ -74,18 +74,6 @@ EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc
 localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
 			cp $(top_srcdir)/exputil/$@ .
 
-Ion.cc:			$(top_srcdir)/src/user/Ion.cc Ion.H interactSelect.H
-			cp $(top_srcdir)/src/user/$@ .
-
-Ion.H:			$(top_srcdir)/src/user/Ion.H
-			cp $(top_srcdir)/src/user/$@ .
-
-interactSelect.H:	$(top_srcdir)/src/user/interactSelect.H Cspline.H
-			cp $(top_srcdir)/src/user/$@ .
-
-Cspline.H:		$(top_srcdir)/src/user/Cspline.H
-			cp $(top_srcdir)/src/user/$@ .
-
 Particle.cc:		$(top_srcdir)/src/Particle.cc Particle.H
 			cp $(top_srcdir)/src/$@ .
 
@@ -94,7 +82,7 @@ Particle.H:		$(top_srcdir)/src/Particle.H
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
-	SLSphere.cc Ion.cc Ion.H Particle.cc Particle.H interactSelect.H Cspline.H
+	SLSphere.cc Particle.cc Particle.H
 
 ## utils/ICs/Makefile.am ends here
 
