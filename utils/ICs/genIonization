@@ -1,0 +1,78 @@
+#!/usr/bin/python
+
+from numpy import *
+import scipy.linalg as sla
+import scipy.interpolate as sint
+import matplotlib.pyplot as plt
+
+fileName = "/home/weinberg/CHIANTI_7.0_data/ioneq/chianti.ioneq"
+numI     = 5
+
+def readIoneq():
+        ntemp = 0
+	nele = 0
+
+	readIn = open(fileName)
+
+	ratSplines = []
+	eleList    = []
+	temps      = []
+	i = 0
+	for line in readIn.readlines():
+		if i == 0:
+                        y = line.split()
+			ntemp = int(y[0])
+			nele = int(y[1])
+		if i == 1:
+                        y = line.split()
+			for yi in y:
+				temps.append(float(yi))
+		if i > 1:
+                        y = []
+                        l = 0
+                        y.append(line[l:l+3])
+                        if int(y[0])<0: break
+                        l += 3
+                        y.append(line[l:l+3])
+                        l += 3
+                        while l<len(line)-1:
+                                y.append(line[l:l+10])
+                                l += 10
+			elei = [int(y[0]), int(y[1])]
+			eleList.append(elei)
+                        spline = []
+			for j in range(2, len(y)):
+				spline.append(float(y[j]))
+			ratSplines.append(spline)
+		i = i + 1
+	return eleList, temps, ratSplines
+
+def interRats(T = 10000):
+	eleList, temps, ratSplines = readIoneq()
+	
+	zo = 1
+	print "For logT = " + str(log10(T))
+	for i in range(0, numI):
+		Z = eleList[i][0]
+		C = eleList[i][1]
+		logT = log10(T)
+		if logT < 4.:
+			if C == 1:
+				print str(Z) + ", " + str(C) + " =  1."
+			else:
+				print str(Z) + ", " + str(C) + " = 0."
+		else:
+			#print ratSplines[i]
+			s = sint.splrep(temps, ratSplines[i], s=0)
+			rat = sint.splev(logT, s, der=0)
+			if rat < 0: rat = 0
+			print str(Z) + ", " + str(C) + " = " + str(rat)
+			plt.figure(i)
+			plt.plot(temps, ratSplines[i], 'k-')
+			plt.plot(logT, rat, 'ro')
+                        plt.xlabel("log T")
+                        plt.ylabel("Ionization fraction")
+                        plt.title(str(Z) + ", " + str(C))
+	# plt.show()
+
+interRats(26000)

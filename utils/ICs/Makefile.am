@@ -17,13 +17,16 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 MPI_LIBS = -lmpi
 
+BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
+
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
 CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 
-bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3 empinfo empdump
+bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
+	empinfo empdump makeIon
 
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
@@ -55,6 +58,10 @@ empinfo_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
+makeIon_SOURCES = makeIonIC.cc Initialize.cc Ion.cc Particle.cc Ion.H Particle.H
+makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
+	$(LIBS) $(FLIBS)
+
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
 
@@ -67,7 +74,27 @@ EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc
 localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
 			cp $(top_srcdir)/exputil/$@ .
 
-CLEANFILES = 	EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc SLSphere.cc
+Ion.cc:			$(top_srcdir)/src/user/Ion.cc Ion.H interactSelect.H
+			cp $(top_srcdir)/src/user/$@ .
+
+Ion.H:			$(top_srcdir)/src/user/Ion.H
+			cp $(top_srcdir)/src/user/$@ .
+
+interactSelect.H:	$(top_srcdir)/src/user/interactSelect.H Cspline.H
+			cp $(top_srcdir)/src/user/$@ .
+
+Cspline.H:		$(top_srcdir)/src/user/Cspline.H
+			cp $(top_srcdir)/src/user/$@ .
+
+Particle.cc:		$(top_srcdir)/src/Particle.cc Particle.H
+			cp $(top_srcdir)/src/$@ .
+
+Particle.H:		$(top_srcdir)/src/Particle.H
+			cp $(top_srcdir)/src/$@ .
+
+
+CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
+	SLSphere.cc Ion.cc Ion.H Particle.cc Particle.H interactSelect.H Cspline.H
 
 ## utils/ICs/Makefile.am ends here
 
