@@ -45,8 +45,8 @@ ParticleFerry::ParticleFerry()
       MPI_UNSIGNED, MPI_EXP_KEYTYPE,      // 2 (13)
       MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
       MPI_INT, MPI_DOUBLE,                // 2 (17)
-      MPI_UNSIGNED_CHAR,		  // 1 (18)
-      MPI_UNSIGNED_CHAR			  // 1 (19)
+      MPI_UNSIGNED_SHORT,		  // 1 (18)
+      MPI_UNSIGNED_SHORT		  // 1 (19)
   };
 #else
   MPI_Datatype type[nf] = 
@@ -58,8 +58,8 @@ ParticleFerry::ParticleFerry()
       MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (13)
       MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
       MPI_INT, MPI_DOUBLE,                // 2 (17)
-      MPI_UNSIGNED_CHAR,		  // 1 (18)
-      MPI_UNSIGNED_CHAR			  // 1 (19)
+      MPI_UNSIGNED_SHORT,		  // 1 (18)
+      MPI_UNSIGNED_SHORT		  // 1 (19)
     };
 #endif
 

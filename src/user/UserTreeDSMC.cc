@@ -77,7 +77,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_St     = -1;
   use_vol    = -1;
   use_exes   = -1;
-  species    = -1;
   coolfrac   = 0.1;
   enhance    = 1.0;
   frontier   = false;
@@ -246,7 +245,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Make the initial species map
   //
   cout << "Making species map" << endl;
-  if (species>=0) {
+  {
 
     int ok1 = 1, ok;
 
@@ -254,27 +253,20 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr pend = c0->Particles().end();
 
     for (; p!=pend; p++) {
-      /*if (species >= static_cast<int>(p->second.iattrib.size())) {
-	ok1 = 0;
-	break;
-      } else {*/
       int Zi = static_cast<int>(p->second.Z);
-      for(int i=1; i<=Zi + 1; i++) {
-	// std::cout << p->second.Z << "\t" << i << endl;
+      for (int i=1; i<=Zi+1; i++) {
 	speciesKey indxi(p->second.Z, i);
 	if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
       }
       speciesKey indx(Zi, p->second.C);
       if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
       else                                 spec1[indx]++;
-      // }
     }
 
- 
 
     MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
 
-    //cout << ok << "\t" << ok1 << endl;
+    // cout << ok << "\t" << ok1 << endl;
     
     if (ok) {
 
@@ -531,7 +523,6 @@ void UserTreeDSMC::userinfo()
   if (use_St>=0)   cout << ", St at pos="     << use_St;
   if (use_vol>=0)  cout << ", cell volume at pos=" << use_vol;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
-  if (species>=0)  cout << ", species index at pos=" << use_exes;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
@@ -586,7 +577,6 @@ void UserTreeDSMC::initialize()
   if (get_value("use_St", val))		use_St     = atoi(val.c_str());
   if (get_value("use_vol", val))	use_vol    = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes   = atoi(val.c_str());
-  if (get_value("species", val))	species    = atoi(val.c_str());
   if (get_value("frontier", val))	frontier   = atol(val);
   if (get_value("tspow", val))		tspow      = atoi(val.c_str());
   if (get_value("tsdiag", val))		tsdiag     = atol(val);

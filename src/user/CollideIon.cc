@@ -464,12 +464,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     if (vdebug) {
       if (outflag) std::cout << index << "\t";
-      interFlag = inter[index];
     }
+
+    // Set the interaction type
+    interFlag = inter[index];
 
     // Sanity check
     if (interFlag<0) {
       std::cout << "interFlag NOT set, index=" << index << std::endl;
+      index = 0;
       interFlag = inter[0];
     }
 

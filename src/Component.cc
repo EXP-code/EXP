@@ -934,8 +934,8 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Broadcast attributes for this
 				// phase-space component
   MPI_Bcast(&nbodies_tot, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&niattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
-  MPI_Bcast(&ndattrib, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&niattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&ndattrib,    1, MPI_INT, 0, MPI_COMM_WORLD);
 
   double rmax1=0.0, r2;
 
@@ -1029,9 +1029,9 @@ void Component::read_bodies_and_distribute_ascii(void)
   if (particles.size()) {
     cout << "read_bodies_and_distribute_ascii: process " << myid 
 	 << " name=" << name << " bodies ["
-	 << particles.begin()->second.indx << ", "
+	 << particles.begin() ->second.indx << ", "
 	 << particles.rbegin()->second.indx << "], ["
-	 << particles.begin()->first << ", "
+	 << particles.begin() ->first << ", "
 	 << particles.rbegin()->first << "]"
 	 << " #=" << particles.size() << endl;
   } else {
@@ -1241,9 +1241,9 @@ struct Particle * Component::get_particles(int* number)
     if (particles.size())
       cout << "get_particles: process " << myid 
 	   << " <name=" << name << "> bodies ["
-	   << particles.begin()->second.indx << ", "
+	   << particles.begin() ->second.indx << ", "
 	   << particles.rbegin()->second.indx << "], ["
-	   << particles.begin()->first << ", "
+	   << particles.begin() ->first << ", "
 	   << particles.rbegin()->first << "]" 
 	   << " #=" << particles.size() << endl;
     else
