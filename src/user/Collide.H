@@ -419,6 +419,7 @@ public:
   //@}
 
   // Currently, these are only in CollideIon
+  virtual void printCollGather()  {}
   virtual void printCollSummary() {}
   virtual void resetColls()       {}
 };
