@@ -32,6 +32,10 @@ typedef boost::shared_ptr<norm_var> norm_ptr;
 // Global variable for Particle
 //
 unsigned multistep = 0;
+string runtag, outdir;
+char threading_on = 0;
+int myid = 0;
+pthread_mutex_t mem_lock;
 
 //
 // Physical units
