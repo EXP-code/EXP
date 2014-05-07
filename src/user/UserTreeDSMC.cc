@@ -417,8 +417,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
   volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
 
-  cout << "Done with geometry\n";
-
   //
   // Set collision parameters
   //
@@ -449,7 +447,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
   }
-  std::cout << "Done" << std::endl;
 
   collide->set_temp_dens(use_temp, use_dens);
   if (esol) collide->set_timestep(-1);
