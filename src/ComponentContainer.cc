@@ -322,7 +322,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   // Compute accel for each component
   //
   int nbeg, nend, indx;
-  unsigned ntot, ntot2;
+  unsigned ntot;
 
   state = SELF;
 
@@ -345,11 +345,9 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     }
 				// Look for particles at this and
 				// successive levels
-    ntot2 = 0;
     for (int lev=mlevel; lev<=multistep; lev++) {
       
       ntot = c->levlist[lev].size();
-      ntot2 += ntot;
       
       for (unsigned n=0; n<ntot; n++) {
 				// Particle index
@@ -366,29 +364,27 @@ void ComponentContainer::compute_potential(unsigned mlevel)
       timer_wait.start();
     }
 
-    if (ntot2) {
 				// Compute new accelerations and potential
 #ifdef DEBUG
-      cout << "Process " << myid << ": about to call force <"
-	   << c->id << "> for mlevel=" << mlevel << endl;
+    cout << "Process " << myid << ": about to call force <"
+	 << c->id << "> for mlevel=" << mlevel << endl;
 #endif
-      if (timing) {
-	timer_wait.stop();
-	timer_accel.start();
-      }
-      c->time_so_far.start();
-      c->force->set_multistep_level(mlevel);
-      c->force->get_acceleration_and_potential(c);
-      c->time_so_far.stop();
-      if (timing) {
-	timer_accel.stop();
-	timer_wait.start();
-      }
-#ifdef DEBUG
-      cout << "Process " << myid << ": force <"
-	   << c->id << "> for mlevel=" << mlevel << "done" << endl;
-#endif
+    if (timing) {
+      timer_wait.stop();
+      timer_accel.start();
     }
+    c->time_so_far.start();
+    c->force->set_multistep_level(mlevel);
+    c->force->get_acceleration_and_potential(c);
+    c->time_so_far.stop();
+    if (timing) {
+      timer_accel.stop();
+      timer_wait.start();
+    }
+#ifdef DEBUG
+    cout << "Process " << myid << ": force <"
+	 << c->id << "> for mlevel=" << mlevel << "done" << endl;
+#endif
   }
 
 #ifdef USE_GPTL
