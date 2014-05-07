@@ -854,40 +854,44 @@ void CollideIon::resetColls()
 void CollideIon::printCollGather() 
 {
   MPI_Reduce(MPI_IN_PLACE, &ff_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(MPI_IN_PLACE, &ff_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 
   MPI_Reduce(MPI_IN_PLACE, &CE_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(MPI_IN_PLACE, &CE_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 
   MPI_Reduce(MPI_IN_PLACE, &CI_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(MPI_IN_PLACE, &CI_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 
   MPI_Reduce(MPI_IN_PLACE, &RR_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(MPI_IN_PLACE, &RR_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 
   MPI_Reduce(MPI_IN_PLACE, &dv.first,    1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(MPI_IN_PLACE, &dv.second,   1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 
   MPI_Reduce(MPI_IN_PLACE, &eV_av,       1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
+
   MPI_Reduce(MPI_IN_PLACE, &eV_N,        1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
+
   MPI_Reduce(MPI_IN_PLACE, &eV_min,      1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
+
   MPI_Reduce(MPI_IN_PLACE, &eV_max,      1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
+
   MPI_Reduce(MPI_IN_PLACE, &eV_10,       1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_WORLD_COMM);
+	     MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
 void * CollideIon::timestep_thread(void * arg)

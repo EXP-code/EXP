@@ -1204,6 +1204,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       }
     }
 
+    collide->printCollGather();
+
     if (myid==0) {
 
       unsigned sell_total = collide->select();
@@ -1212,7 +1214,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned epsm_total = collide->EPSMtotal();
       unsigned epsm_cells = collide->EPSMcells();
       collide->printCollSummary();
-      collide->resetColls();
 
       vector<double> disp;
       collide->dispersion(disp);
@@ -1493,6 +1494,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << "-----------------------------" << endl;
       
     }
+
+    //
+    // Reset the collide counters (CollideIon)
+    //
+    collide->resetColls();
+
 
     //
     // Reset the timers

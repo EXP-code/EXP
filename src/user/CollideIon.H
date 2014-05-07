@@ -113,6 +113,7 @@ public:
   virtual double Mtotal();
 
   void printCollSummary();
+  void printCollGather();
   void resetColls();
 
   virtual void *timestep_thread(void *arg);
