@@ -853,45 +853,39 @@ void CollideIon::resetColls()
 
 void CollideIon::printCollGather() 
 {
-  MPI_Reduce(MPI_IN_PLACE, &ff_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(MPI_IN_PLACE, &ff_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &CE_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(MPI_IN_PLACE, &CE_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &CI_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(MPI_IN_PLACE, &CI_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &RR_d.first,  1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(MPI_IN_PLACE, &RR_d.second, 1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &dv.first,    1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(MPI_IN_PLACE, &dv.second,   1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &eV_av,       1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &eV_N,        1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &eV_min,      1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &eV_max,      1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
-
-  MPI_Reduce(MPI_IN_PLACE, &eV_10,       1, MPI_DOUBLE, 
-	     MPI_SUM, 0, MPI_COMM_WORLD);
+  if (myid==0) {
+    MPI_Reduce(MPI_IN_PLACE, &ff_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
+    MPI_Reduce(MPI_IN_PLACE, &ff_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2
+    MPI_Reduce(MPI_IN_PLACE, &CE_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
+    MPI_Reduce(MPI_IN_PLACE, &CE_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 4
+    MPI_Reduce(MPI_IN_PLACE, &CI_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
+    MPI_Reduce(MPI_IN_PLACE, &CI_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 6
+    MPI_Reduce(MPI_IN_PLACE, &RR_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
+    MPI_Reduce(MPI_IN_PLACE, &RR_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 8
+    MPI_Reduce(MPI_IN_PLACE, &dv.first,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
+    MPI_Reduce(MPI_IN_PLACE, &dv.second,   1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 10
+    MPI_Reduce(MPI_IN_PLACE, &eV_av,       1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 11
+    MPI_Reduce(MPI_IN_PLACE, &eV_N,        1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
+    MPI_Reduce(MPI_IN_PLACE, &eV_min,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 13
+    MPI_Reduce(MPI_IN_PLACE, &eV_max,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 14
+    MPI_Reduce(MPI_IN_PLACE, &eV_10,       1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
+  } else {
+    MPI_Reduce(&ff_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
+    MPI_Reduce(&ff_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2
+    MPI_Reduce(&CE_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
+    MPI_Reduce(&CE_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 4
+    MPI_Reduce(&CI_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
+    MPI_Reduce(&CI_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 6
+    MPI_Reduce(&RR_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
+    MPI_Reduce(&RR_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 8
+    MPI_Reduce(&dv.first,    0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
+    MPI_Reduce(&dv.second,   0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 10
+    MPI_Reduce(&eV_av,       0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 11
+    MPI_Reduce(&eV_N,        0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
+    MPI_Reduce(&eV_min,      0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 13
+    MPI_Reduce(&eV_max,      0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 14
+    MPI_Reduce(&eV_10,       0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
+  }
 }
 
 void * CollideIon::timestep_thread(void * arg)
