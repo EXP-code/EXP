@@ -158,7 +158,7 @@ void UserPeriodic::initialize()
 	case 'r':
 	  bc[k] = 'r';		// Reflection
 	  break;
-	case 't':
+	case 't':		// Thermal
 	  bc[k] = 't';
 	  break;
 	default:

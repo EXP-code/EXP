@@ -11,6 +11,7 @@
 #include "global.H"
 #include "UserTreeDSMC.H"
 #include "CollideIon.H"
+#include "localmpi.h"
 
 using namespace std;
 
@@ -69,10 +70,10 @@ CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) :
   Collide(force, diameter, Nth)
 {
   NUM = 0;
-  std::cout << "Creating CollideIon instance" << endl;
+  if (myid==0) std::cout << "Creating CollideIon instance" << endl;
   csections = std::vector<sKey2Dmap> (nthrds);
   
-  std::cout << "\tCreating ion list" << endl;
+  if (myid==0) std::cout << "\tCreating ion list" << endl;
   for(int i = 0; i < N_Z; i++) {
     for (int j = 1; j <= ZList[i] + 1; j++) {
       IonList[ZList[i]][j] = Ion(ZList[i], j, ch);
@@ -98,31 +99,35 @@ CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) :
       Initialize the atomic_weights map
       Hardcode the atomic weight map for use in collFrac
   */
-  atomic_weights[1] = 1.0079;
-  atomic_weights[2] = 4.0026;
-  atomic_weights[3] = 6.941;
-  atomic_weights[4] = 9.0122;
-  atomic_weights[5] = 10.811;
-  atomic_weights[6] = 12.011;
-  atomic_weights[7] = 14.007;
-  atomic_weights[8] = 15.999;
-  atomic_weights[9] = 18.998;
+  atomic_weights[1]  = 1.0079;
+  atomic_weights[2]  = 4.0026;
+  atomic_weights[3]  = 6.941;
+  atomic_weights[4]  = 9.0122;
+  atomic_weights[5]  = 10.811;
+  atomic_weights[6]  = 12.011;
+  atomic_weights[7]  = 14.007;
+  atomic_weights[8]  = 15.999;
+  atomic_weights[9]  = 18.998;
   atomic_weights[10] = 20.180;
   atomic_weights[11] = 22.990;
   atomic_weights[12] = 24.305;
   
-  ff_d   = std::make_pair(0.,0.);
-  CE_d   = std::make_pair(0.,0.);
-  CI_d   = std::make_pair(0.,0.);
-  RR_d   = std::make_pair(0.,0.);
+  ff_d   = std::make_pair(0., 0.);
+  CE_d   = std::make_pair(0., 0.);
+  CI_d   = std::make_pair(0., 0.);
+  RR_d   = std::make_pair(0., 0.);
   dv     = std::make_pair(0., 0.);
+
   eV_av  = 0;
   eV_N   = 0;
   eV_min = 999999;
   eV_max = 0;
   eV_10  = 0;
   
-  std::cout << "No cooling is set to: " << NO_COOL << endl;
+  printCollInitialize();
+
+  if (myid==0) std::cout << "No cooling is set to: " 
+			 << NO_COOL << endl;
 }
 
 CollideIon::~CollideIon()
@@ -458,18 +463,23 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     // Sanity check
     if (index<0) {
-      std::cout << "CDF location falure, ran=" << ran << std::endl;
+      std::cout << "CDF location falure, myid=" << myid
+		<< ", ran=" << ran << std::endl;
       index = 0;
     }
 
     if (vdebug) {
       if (outflag) std::cout << index << "\t";
-      interFlag = inter[index];
     }
+
+    // Set the interaction type
+    interFlag = inter[index];
 
     // Sanity check
     if (interFlag<0) {
-      std::cout << "interFlag NOT set, index=" << index << std::endl;
+      std::cout << "interFlag NOT set, myid=" << myid 
+		<< ", index=" << index << std::endl;
+      index = 0;
       interFlag = inter[0];
     }
 
@@ -642,7 +652,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     decelT[id]    += delE;
     (*cr)          = sqrt( 2.0*(kE - delE)/Mu );
     dv.first++; 
-    dv.second      = vi - (*cr);
+    dv.second     += 0.5*(vi - (*cr))*(vi - (*cr));
     ret            = 0;		// No error
     
     /*
@@ -706,46 +716,131 @@ void CollideIon::Elost(double* collide, double* epsm)
   *collide = ret1;
 }
 
+
+void CollideIon::printCollInitialize() 
+{
+  if (myid) return;
+
+  {
+    // Generate the file name
+    std::ostringstream sout;
+    sout << outdir << runtag << ".ION_coll_debug";
+    coll_file_debug = sout.str();
+
+    // Check for existence
+    std::ifstream in(coll_file_debug.c_str());
+
+    if (in.fail()) {
+      // Write a new file
+      std::ofstream out(coll_file_debug.c_str());
+      if (out) {
+
+	out << "# Variable      key                      " << std::endl
+	    << "# ------------  -------------------------" << std::endl
+	    << "# ffN           number of free-free      " << std::endl
+	    << "# ffE           cum energy in free-free  " << std::endl
+	    << "# CEN           number of collions       " << std::endl
+	    << "# CEE           cum energy in collisions " << std::endl
+	    << "# CIN           number of ionizations    " << std::endl
+	    << "# CIE           cum energy in ionizations" << std::endl
+	    << "# RRN           number of rad recombs    " << std::endl
+	    << "# RRE           energy in rad recombs    " << std::endl
+	    << "# dEx           mean energy excess       " << std::endl
+	    << "#"                                         << std::endl;
+
+	out << "#" << std::right
+	    << std::setw(11) << "Time "
+	    << std::setw(12) << "ffN "
+	    << std::setw(12) << "ffE "
+	    << std::setw(12) << "CEN "
+	    << std::setw(12) << "CEE "
+	    << std::setw(12) << "CIN "
+	    << std::setw(12) << "CIE "
+	    << std::setw(12) << "RRN "
+	    << std::setw(12) << "RRE "
+	    << std::setw(12) << "dEx "
+	    << std::endl;
+      }
+    }
+    in.close();
+  }
+
+  {
+      // Generate the file name
+      std::ostringstream sout;
+      sout << outdir << runtag << ".ION_energy_debug";
+      energy_file_debug = sout.str();
+
+      // Check for existence
+      std::ifstream in(energy_file_debug.c_str());
+
+      if (in.fail()) {
+				// Write a new file
+	std::ofstream out(energy_file_debug.c_str());
+	if (out) {
+
+	out << "# Variable      key                      " << std::endl
+	    << "# ------------  -------------------------" << std::endl
+	    << "# av            mean thermal energy      " << std::endl
+	    << "# min           minimum thermal energy   " << std::endl
+	    << "# max           maximum thermal energy   " << std::endl
+	    << "# over10        number over 10.2 eV      " << std::endl
+	    << "#"                                         << std::endl;
+
+	out << "#" << std::right
+	    << std::setw(11) << "Time "
+	    << std::setw(12) << "av "
+	    << std::setw(12) << "min "
+	    << std::setw(12) << "max "
+	    << std::setw(12) << "over10 "
+	    << std::endl;
+	}
+      }
+      in.close();
+  }
+
+}
+   
+
+
 void CollideIon::printCollSummary() 
 {
-  if (myid == 0) {
-    std::cout << "Collision debugging:"                  << std::endl;
-    std::cout << "id:ffN:ffE:CEN:CEE:CIN:CIE:RRN:RRE:dv" << std::endl;
-    std::cout << myid  << ff_d.first << " : " << ff_d.second 
-	      << " : " << CE_d.first << " : " << CE_d.second 
-	      << " : " << CI_d.first << " : " << CI_d.second 
-	      << " : " << RR_d.first << " : " << RR_d.second 
-	      << " : " << dv.second/dv.first  << std::endl;
+  {
+    std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
+    if (out) {
+      out << std::setw(12) << tnow
+	  << std::setw(12) << ff_d.first
+	  << std::setw(12) << ff_d.second
+	  << std::setw(12) << CE_d.first
+	  << std::setw(12) << CE_d.second
+	  << std::setw(12) << CI_d.first
+	  << std::setw(12) << CI_d.second
+	  << std::setw(12) << RR_d.first
+	  << std::setw(12) << RR_d.second
+	  << std::setw(12) << dv.second/dv.first 
+	  << std::endl;
+    }
+  }
 
-  } else { 
-    std::cout << myid  << ff_d.first << " : " << ff_d.second 
-	      << " : " << CE_d.first << " : " << CE_d.second 
-	      << " : " << CI_d.first << " : " << CI_d.second 
-	      << " : " << RR_d.first << " : " << RR_d.second 
-	      << " : " << dv.second/dv.first  << std::endl; 
-  }
-  
-  if (myid == 0) {
-    std::cout << "Energy debugging:"    << std::endl;
-    std::cout << "id:av:min:max:over10" << std::endl;
-    std::cout << myid 
-	 << " : " << eV_av/eV_N << " : " << eV_min 
-	 << " : " << eV_max     << " : " << eV_10 << std::endl;
-  }
-  else { 
-    std::cout << myid 
-	      << " : " << eV_av/eV_N  
-	      << " : " << eV_min 
-	      << " : " << eV_max << endl; 
+  {
+    std::ofstream out(energy_file_debug.c_str());
+    if (out) {
+      out << std::setw(12) << tnow
+	  << std::setw(12) << eV_av/eV_N
+	  << std::setw(12) << eV_min
+	  << std::setw(12) << eV_max
+	  << std::setw(12) << eV_10
+	  << std::endl;
+    }
   }
 }
 
 void CollideIon::resetColls() 
 {
-  ff_d    = std::make_pair(0.,0.);
-  CE_d    = std::make_pair(0.,0.);
-  CI_d    = std::make_pair(0.,0.);
-  RR_d    = std::make_pair(0.,0.);
+  ff_d    = std::make_pair(0., 0.);
+  CE_d    = std::make_pair(0., 0.);
+  CI_d    = std::make_pair(0., 0.);
+  RR_d    = std::make_pair(0., 0.);
   dv      = std::make_pair(0., 0.);
   
   eV_N    = 0.0; 

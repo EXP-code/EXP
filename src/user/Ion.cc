@@ -9,6 +9,8 @@
 #include <vector>
 #include <map>
 
+#include <localmpi.h>
+
 #include "Ion.H"
 #include "interactSelect.H"
 #include "Cspline.H"
@@ -20,7 +22,7 @@ void Ion::convertName()
   std::string charge;
   
   std::vector<std::string> v;
-  std::string die = "d"; //is it set to be a dielectronic
+  std::string die = "d";	// Set to dielectronic
   size_t isd;
   
   // split the name up into its element ab. and charge
@@ -76,12 +78,13 @@ std::string ZCtoName(unsigned char Z, unsigned char C)
     just reject string data and switch to floats if string data isn't
     wanted
 */
-void Ion::readelvlc() {
+void Ion::readelvlc() 
+{
   char * val;
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
 
-  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
+  fileName.append("/");
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterName); 
@@ -94,7 +97,9 @@ void Ion::readelvlc() {
   ifstream elvlcFile(fileName.c_str());
 
   if (elvlcFile.is_open()) {
+
     while (elvlcFile.good()) {
+
       std::vector <std::string> v;
       getline(elvlcFile, inLine);
       std::istringstream iss(inLine);
@@ -124,8 +129,9 @@ void Ion::readelvlc() {
     nelvlc = elvlc.size();
   }
   else {
-    std::cout << "Cannot find file: " << fileName << std::endl;
+    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
     nelvlc = 0;
+    MPI_Abort(MPI_COMM_WORLD, 42);
   }
 }
 
@@ -140,8 +146,7 @@ void Ion::readfblvl()
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
 
-  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
-
+  fileName.append("/");
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterNameT); 
@@ -156,7 +161,9 @@ void Ion::readfblvl()
   
   fblvl_data f;
   if (fblvlFile.is_open()) {
-    while(fblvlFile.good()) {
+
+    while (fblvlFile.good()) {
+
       std::vector <std::string> v;
       getline(fblvlFile, inLine);
       istringstream iss(inLine);
@@ -178,8 +185,9 @@ void Ion::readfblvl()
     nfblvl = fblvl.size();
   }
   else {
-    std::cout << "Cannot find file: " << fileName <<std::endl;
+    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
     nfblvl = 0;
+    MPI_Abort(MPI_COMM_WORLD, 43);
   }
 }
 
@@ -190,9 +198,9 @@ void Ion::readSplups()
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
 
-  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   // std::cout << "SPLUPS NAME: " << eleName <<std::endl;
 
+  fileName.append("/");
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterName); 
@@ -230,20 +238,23 @@ void Ion::readSplups()
     nsplups = splups.size();
   }
   else {
-    std::cout << "Cannot find file: " << fileName <<std::endl;
+    if (myid==0) std::cout << "Cannot find file: " 
+			   << fileName << std::endl;
     nsplups = 0;
+    MPI_Abort(MPI_COMM_WORLD, 44);
   }
 }
 
 //! Read in the direct ionization cross section splines from the file
-void Ion::readDi() {
+void Ion::readDi() 
+{
   char * val;
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
 
-  // std::string fileName = "/home/bgaches/CHIANTI_7.0_data/";
   // std::cout << "DI NAME: " << eleName <<std::endl;
 
+  fileName.append("/");
   fileName.append(eleName); 
   fileName.append("/");
   fileName.append(MasterName); 
@@ -301,8 +312,10 @@ void Ion::readDi() {
     ndispline = diSpline.size();
   }
   else {
-    std::cout << "Cannot find file: " << fileName <<std::endl;
+    if (myid==0) std::cout << "Cannot find file: " 
+			   << fileName << std::endl;
     ndispline = 0;
+    MPI_Abort(MPI_COMM_WORLD, 45);
   }
 
   /*
@@ -871,9 +884,10 @@ void chdata::readMaster()
   char * val;
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
-  fileName.append("masterlist/masterlist.ions");
+  fileName.append("/masterlist/masterlist.ions");
   std::string line;
   ifstream masterFile(fileName.c_str());
+
   if (masterFile.is_open()) {
     while(masterFile.good()) {
       getline(masterFile, line);
@@ -885,7 +899,9 @@ void chdata::readMaster()
     masterFile.close();
   }
   else {
-    std::cout << "MASTER LIST FILE: "<< fileName << " NOT FOUND" << std::endl;
+    if (myid==0) std::cout << "MASTER LIST FILE: "
+			   << fileName << " NOT FOUND" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 46);
   }
   
 }
@@ -898,7 +914,7 @@ void chdata::readIp()
   char * val;
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
-  fileName.append("ip/chianti.ip");
+  fileName.append("/ip/chianti.ip");
   int count = 0;
   unsigned char Z, C;
   double ip;
@@ -907,7 +923,7 @@ void chdata::readIp()
   ifstream ipFile(fileName.c_str());
   
   if (ipFile.is_open() ) {
-    while(ipFile.good() and count < 365) {
+    while (ipFile.good() and count < 365) {
       getline(ipFile, lineIn);
       
       std::vector <std::string> v;
@@ -926,7 +942,9 @@ void chdata::readIp()
     ipFile.close();
   }
   else {
-    std::cout << "IP FILE: " << fileName << " NOT FOUND" <<std::endl;
+    if (myid==0) std::cout << "IP FILE: " 
+			   << fileName << " NOT FOUND" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 47);
   }
 }
 
@@ -938,7 +956,7 @@ void chdata::readAbundanceAll()
   char * val;
   val = getenv("CHIANTI_DATA");
   std::string fileName(val);
-  fileName.append("abundance/cosmic.abund");
+  fileName.append("/abundance/cosmic_1973_allen.abund");
   
   ifstream abFile(fileName.c_str());
   std::string lineIn;
@@ -957,8 +975,9 @@ void chdata::readAbundanceAll()
     abFile.close();
   }
   else {
-    std::cout << "Abundance file: " << fileName << " not found! " 
-	      << std::endl;
+    if (myid==0) std::cout << "Abundance file: " 
+			   << fileName << " not found! " << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 48);
   }
   
 }
@@ -966,9 +985,12 @@ void chdata::readAbundanceAll()
 // list names of all species to stdout
 void chdata::printMaster() 
 {
-  std::cout << "Elements in the master list: " << std::endl;
-  for(std::set<std::string>::iterator i=masterNames.begin(); i!=masterNames.end(); i++) {
-    std::cout << "\t" << *i << std::endl;
+  if (myid==0) {
+    std::cout << "Elements in the master list: " << std::endl;
+    for (std::set<std::string>::iterator 
+	   i=masterNames.begin(); i!=masterNames.end(); i++) {
+      std::cout << "\t" << *i << std::endl;
+    }
   }
 }
 

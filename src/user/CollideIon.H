@@ -36,6 +36,12 @@ private:
   ACG *gen;
   Uniform *unit;
   
+  //! Debugging file names
+  std::string coll_file_debug, energy_file_debug;
+
+  //! Initialize debugging file names
+  void printCollInitialize();
+
 protected:
   //! List of cross-ections per thread
   std::vector<sKey2Dmap> csections;
@@ -94,7 +100,11 @@ public:
   static unsigned Tnum;
   static string cache;
   static bool frost_warning;
+
+  //! Constructor
   CollideIon(ExternalForce *force, double diameter, int nth=1);
+
+  //! Destructor
   ~CollideIon();
   
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
