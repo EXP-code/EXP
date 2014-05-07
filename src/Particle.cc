@@ -293,8 +293,8 @@ void Particle::writeAscii(double* com0, double* comI,
   *out << std::setw(18) << pot;
   *out << std::setw(18) << potext;
 
-  *out << std::setw(18) << Z;
-  *out << std::setw(18) << C;
+  *out << std::setw(18) << static_cast<unsigned>(Z);
+  *out << std::setw(18) << static_cast<unsigned>(C);
     
   for (it=iattrib.begin(); it!=iattrib.end(); it++) 
     *out << std::setw(10) << *it;
