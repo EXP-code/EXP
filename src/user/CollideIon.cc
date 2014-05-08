@@ -69,6 +69,8 @@ bool vdebug = false;
 CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
 {
+  std::cout << "Entering CollideIon" << std::endl;
+
   NUM = 0;
   if (myid==0) std::cout << "Creating CollideIon instance" << endl;
   csections = std::vector<sKey2Dmap> (nthrds);
