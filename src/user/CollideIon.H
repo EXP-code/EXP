@@ -17,7 +17,6 @@ private:
   chdata ch;
   InteractSelect IS;
   unsigned int NUM;
-  unsigned int firstFlag;
 
   std::map<int, double> atomic_weights;
   std::map<int, std::pair<int, double> > interInfo;

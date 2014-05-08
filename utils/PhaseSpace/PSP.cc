@@ -134,9 +134,9 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
       // Skip forward to next header
       // ---------------------------
       try {
-	in->seekg(stanza.comp.nbod*(stanza.index_size                   +
+	in->seekg(stanza.comp.nbod*(stanza.index_size                +
 				    8*stanza.r_size                  + 
-				    2*sizeof(unsigned int)           +
+				    2*sizeof(unsigned short)         +
 				    stanza.comp.niatr*sizeof(int)    +
 				    stanza.comp.ndatr*stanza.r_size
 				    ), ios::cur);

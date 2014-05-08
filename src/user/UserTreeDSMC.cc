@@ -34,16 +34,16 @@ static bool sampcel_debug = false;
 // Physical units
 //
 
-static double pc = 3.086e18;		// cm
-static double a0 = 2.0*0.054e-7;	// cm (2xBohr radius)
+static double pc = 3.08567758e18;       // cm
+static double a0 = 0.052917721092e-7;	// cm (Bohr radius)
 static double boltz = 1.381e-16;	// cgs
-// static double year = 365.25*24*3600;	// seconds
-static double mp = 1.67e-24;		// g
-static double msun = 1.989e33;		// g
+// static double year = 365.242*24*3600;	// seconds
+static double mp = 1.67262178e-24;      // g
+static double msun = 1.9891e33;		// g
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
 double UserTreeDSMC::Munit = 1.0e12*msun;
-double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.673e-08));
+double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.67384e-08));
 double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 bool   UserTreeDSMC::use_effort = true;

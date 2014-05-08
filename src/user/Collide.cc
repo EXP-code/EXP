@@ -440,7 +440,6 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   
   effortAccum  = false;
   effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
-
 }
 
 Collide::~Collide()
