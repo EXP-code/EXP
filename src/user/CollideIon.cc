@@ -82,10 +82,9 @@ CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) :
   }
 
   for (int i = 0; i < N_Z; i++) {
-    Ni.push_back(1); // dummy value for now
+    Ni.push_back(1);		// dummy value for now
   }
-  firstFlag = 0;
-  
+
   // Random variable generators
   gen  = new ACG(11+myid);
   unit = new Uniform(0.0, 1.0, gen);
@@ -145,23 +144,29 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
 				 double rvmax, double tau,
 				 sKey2Umap& nsel, int id)
 {
+  double KEtot, KEdspC;
+  cell->KE(KEtot, KEdspC);	// KE in cell
+
+  double massC = cell->Mass();	// Mass in cell
+
+				// Used for diagnostics only
+  totalSoFar += massC * KEdspC;
+  massSoFar  += massC;
+
+
   // std::cout << "Initializing cell in CollideIon " << endl;
 
-  if (firstFlag == 0) {
-    double cross = M_PI*diam*diam;
-    for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++) 
+  double cross = M_PI*diam*diam;
+  for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
+
+    speciesKey i1 = it1->first;
+    for (sKeyUmap::iterator 
+	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
       {
-	speciesKey i1 = it1->first;
-	for (sKeyUmap::iterator 
-	       it2 = it1->second.begin(); it2 != it1->second.end(); it2++) 
-	  {
-	    speciesKey i2 = it2->first;
-	    csections[id][i1][i2] = 
-	      0.25*(i1.first*i1.first + i2.first*i2.first)*cross;
-	  }
+	speciesKey i2 = it2->first;
+	csections[id][i1][i2] = 
+	  0.25*(i1.first*i1.first + i2.first*i2.first)*cross;
       }
-    
-    // firstFlag = 1;
   }
 }
 
@@ -609,11 +614,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   speciesKey j1(p1->Z, p1->C);
   speciesKey j2(p2->Z, p2->C);
   
-  // add to the total cross section the "ballistic" minimum bohr radius
-  // for the cross section. THe first part is then the "interaction"
-  // section, and the second is the elastic collision
+  // Add to the total cross section the "ballistic" minimum bohr
+  // radius for the cross section. The first part is then the
+  // "interaction" section, and the second is the elastic collision.
 
-  // convert to cm^2 first, then system units
+  // Convert to cm^2 first, then system units
 
   csections[id][j2][j1] = 
     (sum12*1e-14)/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) + 
@@ -627,6 +632,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (remE<=0.0 || delE<=0.0) return ret;
   
   // Cooling rate diagnostic
+
   if (TSDIAG) {
     if (delE>0.0) {
       int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
