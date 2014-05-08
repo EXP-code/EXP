@@ -154,20 +154,23 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
 				// Used for diagnostics only
   totalSoFar += massC * KEdspC;
   massSoFar  += massC;
+				// Representative avg cell velocity in cgs
+  double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
 
+				// Representative avg cell energy in ergs
+  double Eerg = 0.5*vavg*vavg*amu/eV;
 
-  // std::cout << "Initializing cell in CollideIon " << endl;
-
-  double cross = M_PI*diam*diam;
   for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
 
     speciesKey i1 = it1->first;
+    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]);
+
     for (sKeyUmap::iterator 
 	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	csections[id][i1][i2] = 
-	  0.25*(i1.first*i1.first + i2.first*i2.first)*cross;
+	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]);
+	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
       }
   }
 }

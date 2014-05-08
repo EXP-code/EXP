@@ -288,7 +288,7 @@ extern bool barrier_quiet;
 
 
 //! Typedef for the species key for the different types
-typedef std::pair<unsigned int, unsigned int> speciesKey;
+typedef std::pair<unsigned short, unsigned short> speciesKey;
 
 typedef std::set<speciesKey>           sKeySet;
 typedef std::map<speciesKey, double>   sKeyDmap;
