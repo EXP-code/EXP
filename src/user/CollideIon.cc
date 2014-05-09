@@ -486,7 +486,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 4) {
-      delE          = kEe;
+      delE          = kEe;	// KE carried by electron is
+				// subtracted from the thermal
+				// reservoir but not the radiation of
+				// "binding".  This radiation
+				// decreases the total energy of the
+				// gas but not the thermal component.
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -523,7 +528,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEe;
+      delE         = kEe;	// See comment above for interFlag==4 . . .
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;
