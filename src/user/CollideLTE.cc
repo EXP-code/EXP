@@ -51,8 +51,8 @@ string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
 bool     CollideLTE::frost_warning = false;
 
-CollideLTE::CollideLTE(ExternalForce *force, double diameter, int Nth) : 
-  Collide(force, diameter, Nth)
+CollideLTE::CollideLTE(ExternalForce *force, double hD, double sD, int Nth) : 
+  Collide(force, hD, sD, Nth)
 {
   // Default cooling rates
   coolheat = vector<double>(nthrds, 0.0);
@@ -137,6 +137,7 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
   double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
 				// Compute geometric cross section
+  double diam  = diamfac*a0/UserTreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
   for (sKey2Umap::iterator it1 = nsel.begin();
        it1 != nsel.end(); it1++) 

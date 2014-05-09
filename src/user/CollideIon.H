@@ -104,7 +104,7 @@ public:
   static bool frost_warning;
 
   //! Constructor
-  CollideIon(ExternalForce *force, double diameter, int nth=1);
+  CollideIon(ExternalForce *force, double hsDiam, double diamfac, int nth=1);
 
   //! Destructor
   ~CollideIon();

@@ -386,9 +386,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;
 
-				// Diameter*Bohr radius in Lunits
-  diam = diamfac*2.0*a0/(Lunit);
-
 				// Number of protons per mass unit
   for (std::map<speciesKey, double>::iterator 
 	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/mp;
@@ -437,9 +434,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Create the collision instance from the allowed list
   //
   if (ctype.compare("LTE") == 0)
-    collide = new CollideLTE(this, diam, nthrds);
+    collide = new CollideLTE(this, diamfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, diam, nthrds);
+    collide = new CollideIon(this, diamfac, nthrds);
   else {
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
@@ -504,7 +501,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
-       << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
+       << ", cnum=" << cnum << ", diamfac=" << diamfac
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name;

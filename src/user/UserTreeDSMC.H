@@ -168,7 +168,6 @@ private:
   unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, use_vol, tspow;
   double diamfac;
-  double diam;
   double collfrac;
   double boxsize;
   double boxratio;

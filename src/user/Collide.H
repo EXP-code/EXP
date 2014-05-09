@@ -198,7 +198,8 @@ protected:
   double masstot;
   double excessCtot, excessEtot;
   
-  double   diam;
+  double   diamfac;
+  double   hsdiam;
   unsigned seltot;
   unsigned coltot;
   unsigned epsmtot;
@@ -339,12 +340,19 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
-  //! Constructor
-  Collide(ExternalForce *force, double diameter, int nth=1);
+  /** Constructor
+      @param force is the caller
+      @param hsdiam is the hard-sphere diameter in Bohr units used for the CBA computation ONLY
+      @parm diamfac is the diameter scaling used for both CBA and internal scattering cross sections for derived classes
+  */
+  Collide(ExternalForce *force, double hsdiam, double diamfac, int nth=1);
   
   //! Destructor
   virtual ~Collide();
   
+  //! Hard-sphere diameter
+  virtual double hsDiameter();
+
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
   

@@ -179,7 +179,7 @@ bool     Collide::CBA       = true;
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-Collide::Collide(ExternalForce *force, double diameter, int nth)
+Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
 {
   caller = force;
   nthrds = nth;
@@ -257,7 +257,8 @@ Collide::Collide(ExternalForce *force, double diameter, int nth)
   
   cellist = vector< vector<pCell*> > (nthrds);
   
-  diam = diameter;
+  hsdiam    = hDiam;
+  diamfac   = sDiam;
   
   seltot    = 0;	      // Count estimated collision targets
   coltot    = 0;	      // Count total collisions
@@ -755,18 +756,13 @@ void * Collide::collide_thread(void * arg)
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
-     // cout << "species: " << "( " << i1.first << " , " << i1.second << " ) " << endl;
       crossM [i1] = 0.0;
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
-	crossIJ[i1][i2] = max(crossIJ[i1][i2], (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first)));
-	crossIJ[i2][i1] = max(crossIJ[i2][i1], (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first)));
 	if (i2>=i1) {
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
-	  //cout << i1.first << " " << i1.second << " " << i2.first << " " << i2.second << " " <<crossIJ[i1][i2] << "\n";
 	} else
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
-	  //cout << i2.first << " " << i2.second << " " << i1.first << " " << i1.second << " " << crossIJ[i2][i1] << "\n";
       }
       
       if (crossM[i1] == 0 or isnan(crossM[i1]))
@@ -1042,7 +1038,7 @@ void * Collide::collide_thread(void * arg)
 	      if (cr>0.0) {
 		double displ;
 		for (int k=0; k<3; k++) {
-		  displ = crel[k]*diam/cr;
+		  displ = crel[k]*hsDiameter()/cr;
 		  p1->pos[k] += displ;
 		  p2->pos[k] -= displ;
 		}
@@ -2823,3 +2819,8 @@ void Collide::CPUHog(ostream& out)
   }
 }
 
+double Collide::hsDiameter()
+{
+  const double Bohr = 5.2917721092e-09;
+  return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
+}

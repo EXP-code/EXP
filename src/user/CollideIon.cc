@@ -64,8 +64,8 @@ bool     CollideIon::frost_warning = false;
 
 bool NO_COOL = false;
 
-CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) : 
-  Collide(force, diameter, Nth)
+CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) : 
+  Collide(force, hD, sD, Nth)
 {
   NUM = 0;
   if (myid==0) std::cout << "Creating CollideIon instance" << endl;
@@ -155,18 +155,21 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
 				// Representative avg cell energy in ergs
   double Eerg = 0.5*vavg*vavg*amu/eV;
 
+				// Upscaling factor for scattering cross section
+  double sUp  = diamfac*diamfac;
+
   for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) 
-      * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+    sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     
     for (sKeyUmap::iterator 
 	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) 
-	  * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
+	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
       }
@@ -553,10 +556,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   // Convert from nanometer^2 to cm^2 first, then system units
 
-  csections[id][j2][j1] = (sum12 + elastic(p1->Z, kEe)) * 1.0e-14 /
+  double sUp = diamfac*diamfac;
+
+  csections[id][j2][j1] = (sum12 + elastic(p1->Z, kEe)*sUp) * 1.0e-14 /
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-  csections[id][j1][j2] = (sum21 + elastic(p2->Z, kEe)) * 1.0e-14 / 
+  csections[id][j1][j2] = (sum21 + elastic(p2->Z, kEe)*sUp) * 1.0e-14 / 
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
   
   if (remE<=0.0 || delE<=0.0) return ret;
@@ -861,27 +866,14 @@ void * CollideIon::timestep_thread(void * arg)
       speciesKey i1 = it1->first;
       crossM [i1] = 0.0;
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+
 	speciesKey i2 = it2->first;
 	double      N = UserTreeDSMC::Munit/(amu*atomic_weights[i2.first]);
 	
-	crossIJ[i1][i2] = std::max<double>
-	  (
-	   crossIJ[i1][i2], 
-	   (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first))
-	   );
-
 	if (i2>=i1) {
-	  crossM[i1] += N*densM[i2]*std::min<double>
-	    (
-	     crossIJ[i1][i2], 
-	     (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first))
-	     );
+	  crossM[i1] += N*densM[i2] * crossIJ[i1][i2];
 	} else
-	  crossM[i1] += N*densM[i2]*std::min<double>
-	    (
-	     crossIJ[i2][i1], 
-	     (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first))
-	     );
+	  crossM[i1] += N*densM[i2] * crossIJ[i2][i1];
       }
       
       lambdaM[i1] = 1.0/crossM[i1];
