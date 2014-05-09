@@ -301,13 +301,15 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       for (it=spec.begin(); it != spec.end(); it++)  {
 	indx = it->first;
 	spec_list.insert(indx);
-        if (collFrac.find(indx) == collFrac.end()) collFrac[indx] = 1.0/(atomic_weights[indx.first]);
-	else					   collFrac[indx] *= 1.0/(atomic_weights[indx.first]);
-
+        if (collFrac.find(indx) == collFrac.end()) 
+	  collFrac[indx]  = 1.0/(atomic_weights[indx.first]);
+	else {			// Ask Brandt about this . . . 
+	  collFrac[indx] *= 1.0/(atomic_weights[indx.first]);
+	  std::cout << "Weird stuff!" << std::endl;
+	}
       }
 
-     // map<int, unsigned long> check = spec;
-      map<speciesKey, unsigned long> check = spec;
+      std::map<speciesKey, unsigned long> check = spec;
       for (it=check.begin(); it!=check.end(); it++) it->second = 0;
 
       if (myid==0) {
@@ -319,14 +321,13 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 	cout << setw(4) << right << "#";
 	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(8) << right << "(" << it->first.first << "," << it->first.second << ")";
-	       //<< setw(12) << right << it->first.second;
+	  cout << setw(8) << right 
+	       << "(" << it->first.first << "," << it->first.second << ")";
 	cout << endl;
 
 	cout << setw(4) << right << "---";
 	for (it=spec.begin(); it != spec.end(); it++)
 	  cout << setw(12) << right << "--------";
-	      // << setw(12) << right << "--------";
 	cout << endl;
 
 	it2 = spec1.begin();

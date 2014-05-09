@@ -766,7 +766,11 @@ void * Collide::collide_thread(void * arg)
       }
       
       if (crossM[i1] == 0 or isnan(crossM[i1]))
-      	cout << "ERROR WITHINVALID CROSS SECTION!:::: crossM = " << crossM[i1] << " densM = " << densM[i1] << "Fn: " << (*Fn)[i1] << endl;
+      	cout << "INVALID CROSS SECTION! ::"
+	     << " crossM = " << crossM[i1] 
+	     << " densM = "  << densM[i1] 
+	     << " Fn = "     << (*Fn)[i1] << endl;
+
       lambdaM[i1] = 1.0/crossM[i1];
       collPM [i1] = crossM[i1] * crm * tau;
       
