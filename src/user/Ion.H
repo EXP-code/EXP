@@ -269,7 +269,7 @@ public:
 
   //! Get the collisional excitation cross section
   std::vector<std::pair<double, double> > 
-  collExciteCross(chdata ch, double p, double Eth, double m);
+  collExciteCross(chdata ch, double p, double Eth);
 
   //! Ionization cross section
   double directIonCross(chdata ch, double E);

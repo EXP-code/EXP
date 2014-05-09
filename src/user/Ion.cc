@@ -477,7 +477,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 std::vector< std::pair<double, double > > 
-Ion::collExciteCross(chdata ch, double p, double Eth, double m) 
+Ion::collExciteCross(chdata ch, double E, double Eth) 
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -496,7 +496,7 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
 
   // double redPlanck = 1.054572e-27;
   
-  double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
+  // double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
   
   // std::cout << "\tGoing through the splups file ";
   double totalCross = 0;

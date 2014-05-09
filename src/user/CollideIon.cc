@@ -201,7 +201,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double m2 = atomic_weights[p2->Z]*amu;
   
   // The reduced mass
-  double muI = (m1*m2)/(m1 + m2);
+  double muI = (m1 * m2)/(m1 + m2);
   
   // The total mass in system units
   double Mt = p1->mass + p2->mass;
@@ -222,16 +222,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   */
 
   // Factor in the energy spread to all the particles
-  kEI *= 2.0/(2.0+ne1+ne2);
+  // kEI *= 2.0/(2.0+ne1+ne2);
 
   // The average electron velocity in this shared-energy scenario
-  double pe = sqrt(2.*me*kEI);
+  // double pe = sqrt(2.*me*kEI);
 
   // std::cout << "Electron velocity = " << pe/me << endl;
 
-  double kEe;
-  kEe = kEI;
-  kEe = kEe*6.241509e11;	// Convert ergs to eV
+				// Convert ergs to eV
+  double kEe = kEI * 6.241509e11; 
   
   //
   // For tracking energy consistency
@@ -297,7 +296,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // cout << "Cross-sections: " << endl;
   
   //--------------------------------------------------
-  // Particle 1 interactions with 2
+  // Particle 1 interacts with Particle 2
   //--------------------------------------------------
 
 				//-------------------------------
@@ -318,7 +317,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     assert(E_therm_1 != 0);
     
-    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, pe, E_therm_1, me);
+    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEI, E_therm_1);
 
     /**
        if (ne2*CE1.back().first != 0) {
@@ -367,7 +366,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   
   //--------------------------------------------------
-  // Particle 2 interactions with 1
+  // Particle 2 interacts with Particle 1
   //--------------------------------------------------
 
 				//-------------------------------
@@ -391,7 +390,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   std::vector< std::pair<double, double > > CE2;
   if(ne1 > 0 and p2->C <= p2->Z) {
     assert(E_therm_2 != 0);
-    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, pe, E_therm_2, me);
+    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEI, E_therm_2);
     /**
        if (ne1*CE2.back().first != 0) {
           cout << "\tCE2: " << CE2.back().first*ne1 << endl;
@@ -578,14 +577,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // Get the number of particles in cell and mult. by delE
 
     double NP;
-    if (vdebug) {
-      if (partflag == 1) 
-	NP = N1;
-      if (partflag == 2)
-	NP = N2;
-    }
+    if (partflag == 1) 
+      NP = N1;
+    if (partflag == 2)
+      NP = N2;
     
-    NP = Mu*UserTreeDSMC::Munit/muI;
+    // NP = Mu*UserTreeDSMC::Munit/muI;
     delEeV = delE;
     delE   = delE*NP;
     
@@ -599,7 +596,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // concert to system units
   delE = delE/UserTreeDSMC::Eunit;
   
-  if(NO_COOL) {
+  if (NO_COOL) {
     delE = 0.;
   }
   
@@ -626,12 +623,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Convert to cm^2 first, then system units
 
   csections[id][j2][j1] = 
-    (sum12*1e-14)/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) + 
-    0.25*(p1->Z*p1->Z+p2->Z*p2->Z)*M_PI*diam*diam; 
+    (sum12*1e-14)/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) + elastic(p1->Z, kEe);
 
   csections[id][j1][j2] = 
-    (sum21*1e-14)/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) +
-    0.25*(p1->Z*p1->Z+p2->Z*p2->Z)*M_PI*diam*diam;
+    (sum21*1e-14)/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) + elastic(p2->Z, kEe);
   
   // std::cout << "dE = " << delE;
   if (remE<=0.0 || delE<=0.0) return ret;
