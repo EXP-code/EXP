@@ -69,8 +69,6 @@ bool vdebug = false;
 CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
 {
-  std::cout << "Entering CollideIon" << std::endl;
-
   NUM = 0;
   if (myid==0) std::cout << "Creating CollideIon instance" << endl;
   csections = std::vector<sKey2Dmap> (nthrds);
@@ -186,13 +184,14 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   int ret = 0;			// No error (flag)
   int interFlag = -1;
 
-  // Number of associated electrons for each particle
-  double ne1 = (p1->C - 1);
-  double ne2 = (p2->C - 1);
-  
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
   double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);	
   
+  // Number of associated electrons for each particle scaled by the
+  // number in the atomic target
+  double ne1 = N1/N2*(p1->C - 1);
+  double ne2 = N2/N1*(p2->C - 1);
+
   // The relative velocity in physical units
   double vr = (*cr)*UserTreeDSMC::Vunit;
   
@@ -588,7 +587,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     
     // convert to cgs
     delE = delE*1.602177e-12;
-    
   }
   
   assert(delE >= 0.);

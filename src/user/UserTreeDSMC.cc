@@ -244,9 +244,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Make the initial species map
   //
-  cout << "Making species map" << endl;
   {
-
     int ok1 = 1, ok;
 
     PartMapItr p    = c0->Particles().begin();
@@ -438,7 +436,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Create the collision instance from the allowed list
   //
-  std::cout << "Initializing collide instance of type: " << ctype << std::endl;
   if (ctype.compare("LTE") == 0)
     collide = new CollideLTE(this, diam, nthrds);
   if (ctype.compare("Ion") == 0)
