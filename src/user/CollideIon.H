@@ -3,6 +3,7 @@
 
 #include "Collide.H"
 #include "interactSelect.H"
+#include "Elastic.H"
 #include "Ion.H"
 
 class CollideIon : public Collide
@@ -15,12 +16,12 @@ private:
   std::vector<int> Ni;
 
   chdata ch;
+  Elastic elastic;
   InteractSelect IS;
   unsigned int NUM;
-  unsigned int firstFlag;
 
-  std::map<int, double> atomic_weights;
-  std::map<int, std::pair<int, double> > interInfo;
+  std::map<unsigned short, double> atomic_weights;
+  std::map<unsigned short, std::pair<unsigned short, double> > interInfo;
 
   std::pair<double, double> ff_d;
   std::pair<double, double> CE_d;

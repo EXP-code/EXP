@@ -81,7 +81,13 @@ std::string ZCtoName(unsigned char Z, unsigned char C)
 void Ion::readelvlc() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 47);
+  }
+
   std::string fileName(val);
 
   fileName.append("/");
@@ -143,7 +149,13 @@ void Ion::readfblvl()
   // std::cout << "fblvl mastername: " << MasterNameT <<std::endl;
 
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 48);
+  }
+
   std::string fileName(val);
 
   fileName.append("/");
@@ -195,7 +207,13 @@ void Ion::readfblvl()
 void Ion::readSplups() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 49);
+  }
+
   std::string fileName(val);
 
   // std::cout << "SPLUPS NAME: " << eleName <<std::endl;
@@ -249,7 +267,13 @@ void Ion::readSplups()
 void Ion::readDi() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 50);
+  }
+
   std::string fileName(val);
 
   // std::cout << "DI NAME: " << eleName <<std::endl;
@@ -453,7 +477,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 std::vector< std::pair<double, double > > 
-Ion::collExciteCross(chdata ch, double p, double Eth, double m) 
+Ion::collExciteCross(chdata ch, double E, double Eth) 
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -472,7 +496,7 @@ Ion::collExciteCross(chdata ch, double p, double Eth, double m)
 
   // double redPlanck = 1.054572e-27;
   
-  double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
+  // double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
   
   // std::cout << "\tGoing through the splups file ";
   double totalCross = 0;
@@ -882,7 +906,13 @@ void Ion::printfblvl()
 void chdata::readMaster() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 51);
+  }
+
   std::string fileName(val);
   fileName.append("/masterlist/masterlist.ions");
   std::string line;
@@ -912,7 +942,12 @@ void chdata::readMaster()
 void chdata::readIp() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 52);
+  }
   std::string fileName(val);
   fileName.append("/ip/chianti.ip");
   int count = 0;
@@ -954,7 +989,13 @@ void chdata::readIp()
 void chdata::readAbundanceAll() 
 {
   char * val;
-  val = getenv("CHIANTI_DATA");
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 53);
+  }
+
   std::string fileName(val);
   fileName.append("/abundance/cosmic_1973_allen.abund");
   
