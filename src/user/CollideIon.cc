@@ -214,8 +214,9 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Energy available in the center of mass system
   double kE  = 0.5*Mu*(*cr)*(*cr);
 
-  // In physical units per d.o.f.
-  double kEI = kE/(N1*p1->C + N2*p2->C);
+  // Assume that the total KE is spread among all possible particles
+  // in the direction of the interaction.
+  double kEI = kE*UserTreeDSMC::Eunit/(N1*p1->C + N2*p2->C);
 
   // Convert ergs to eV
   double kEe = kEI * 6.241509e11; 
