@@ -28,6 +28,7 @@ private:
   std::pair<double, double> CI_d;
   std::pair<double, double> RR_d;
   std::pair<double, double> dv;
+
   double eV_av;
   double eV_N;
   double eV_max;
