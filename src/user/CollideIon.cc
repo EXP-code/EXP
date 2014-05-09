@@ -184,6 +184,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   int ret = 0;			// No error (flag)
   int interFlag = -1;
 
+  // Number of atoms in each super particle
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
   double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);	
   
@@ -210,25 +211,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double Mu = p1->mass*p2->mass/Mt;
   if (Mu<=0.0) return ret;
   
-  // Energy floor
-  double kE  = 0.5*Mu*(*cr)*(*cr); // System units
-  double kEI = 0.5*muI*vr*vr;	   // Physical units
+  // Energy available in the center of mass system
+  double kE  = 0.5*Mu*(*cr)*(*cr);
 
-  /**
-     The physical approximation
-     --------------------------
-     The COM energy is shared, on average, among all ions and electrons
-  */
+  // In physical units per d.o.f.
+  double kEI = kE/(N1*p1->C + N2*p2->C);
 
-  // Factor in the energy spread to all the particles
-  // kEI *= 2.0/(2.0+ne1+ne2);
-
-  // The average electron velocity in this shared-energy scenario
-  // double pe = sqrt(2.*me*kEI);
-
-  // std::cout << "Electron velocity = " << pe/me << endl;
-
-				// Convert ergs to eV
+  // Convert ergs to eV
   double kEe = kEI * 6.241509e11; 
   
   //
