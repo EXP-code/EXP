@@ -38,15 +38,15 @@ int myid = 0;
 pthread_mutex_t mem_lock;
 
 //
-// Physical units
+// Physical constants
 //
-double a0    = 2.0*0.054e-7;	// cm (2xBohr radius)
-double boltz = 1.381e-16;	// cgs
-double mp    = 1.67e-24;	// g
-double amu   = 1.660011e-24;	// atomic mass unit
-double pc    = 3.086e18;	// Parsec (in cm)
-double msun  = 1.9891e33;	// Solar mass (in g)
-
+double a0    = 5.2917721092e-9;	    // cm (2xBohr radius)
+double boltz = 1.3806488e-16;	    // cgs
+double mp    = 1.67262178e-24;	    // g
+double amu   = 1.660011e-24;	    // atomic mass unit
+double pc    = 3.08567758e18;	    // Parsec (in cm)
+double msun  = 1.9891e33;	    // Solar mass (in g)
+double year  = 365.242*24.0*3600.0; // seconds per year
 
 double atomic_masses[2] = {1.00794, 4.002602};
 
@@ -73,14 +73,18 @@ void InitializeUniform(std::vector<Particle>& p,
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
 
-  cout << "Temperature: " << T << " K " << endl;
-  cout << "Num: " << npart << endl;
-  cout << "Length unit: " << Lunit << " cm" << endl;
-  cout << "Time unit: " << Tunit << " s" << endl;
-  cout << "Vel unit: " << Vunit << " cm/s" << endl;
-  cout << "Mass unit: " << Munit << " g" << endl;
-  double varH = sqrt((boltz*T)/(atomic_masses[0]*amu));
+  std::cout << std::string(60, '-')                 << std::endl;
+  std::cout << "Temperature: "  << T     << " K "   << std::endl;
+  std::cout << "Number:      "  << npart            << std::endl;
+  std::cout << "Length unit: "  << Lunit << " cm"   << std::endl;
+  std::cout << "Time unit:   "  << Tunit << " s"    << std::endl;
+  std::cout << "Vel unit:    "  << Vunit << " cm/s" << std::endl;
+  std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
+  std::cout << std::string(60, '-')                 << std::endl;
+
+  double varH  = sqrt((boltz*T)/(atomic_masses[0]*amu));
   double varHe = sqrt((boltz*T)/(atomic_masses[1]*amu));
+
   for (unsigned i=0; i<npart; i++) {
     p[i].mass = mass/npart;
 
@@ -101,6 +105,10 @@ void InitializeUniform(std::vector<Particle>& p,
 
 void writeParticles(std::vector<Particle>& particles, const string& file)
 {
+  // For tabulating mass fractions . . . 
+  typedef std::map<unsigned short, double> Frac;
+  Frac frac;
+
   std::ofstream out(file.c_str());
 
   out.precision(10);
@@ -123,6 +131,10 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
     out << setw(18) << static_cast<unsigned>(particles[n].Z);
     out << setw(18) << static_cast<unsigned>(particles[n].C);
 
+    Frac::iterator it = frac.find(particles[n].Z);
+    if (it==frac.end()) frac[particles[n].Z] = 0.0;
+    frac[particles[n].Z] += particles[n].mass;
+
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
 
@@ -131,6 +143,24 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
 
     out << std::endl;
   }
+
+  double Mtot = 0.0;
+  for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
+    Mtot += it->second;
+
+  std::cout << std::setw( 3) << "Z"
+	    << std::setw(18) << "Mass"
+	    << std::setw(18) << "Fraction"
+	    << std::endl
+	    << std::setw( 3) << "-"
+	    << std::setw(18) << "--------"
+	    << std::setw(18) << "--------"
+	    << std::endl;
+  for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
+    std::cout << std::setw( 3) << it->first
+	      << std::setw(18) << it->second
+	      << std::setw(18) << it->second/Mtot
+	      << std::endl;
 }
 
 void InitializeSpecies(std::vector<Particle> & particles, 
@@ -138,21 +168,27 @@ void InitializeSpecies(std::vector<Particle> & particles,
 		       std::vector<double>& Zfrac, double T)
 
 {
-  const double mp    = 1.67e-24; // Proton mass
-  
   std::vector< std::vector<double> > frac, cuml;
 
-  for (std::vector<unsigned char>::iterator n=Zspec.begin(); n!=Zspec.end(); n++) {
-    // Generate the input file
+  //
+  // Generate the ionization-fraction input file
+  //
+  for (std::vector<unsigned char>::iterator 
+	 n=Zspec.begin(); n!=Zspec.end(); n++) {
+
     const std::string ioneq("makeIonIC.ioneq");
     std::ostringstream sout;
-    sout << "./genIonization -1 " << static_cast<unsigned>(*n)
+    sout << "./genIonization"
+	 << " -1 " << static_cast<unsigned>(*n)
 	 << " -2 " << static_cast<unsigned>(*n)
 	 << " -T " << T << " -o " << ioneq;
+
     int ret = system(sout.str().c_str());
 
-    std::cout << "System command  = " << sout.str() << std::endl;
-    std::cout << "System ret code = " << ret << std::endl;
+    if (ret) {
+      std::cout << "System command  = " << sout.str() << std::endl;
+      std::cout << "System ret code = " << ret << std::endl;
+    }
 
     typedef std::vector<std::string> vString;
 
@@ -160,7 +196,7 @@ void InitializeSpecies(std::vector<Particle> & particles,
     std::ifstream sFile(ioneq.c_str());
     if (sFile.is_open()) {
 
-      std::getline(sFile, inLine); // Get and discard the headers
+      std::getline(sFile, inLine); // Read and discard the headers
       std::getline(sFile, inLine);
       
       {
@@ -241,7 +277,7 @@ void InitializeSpecies(std::vector<Particle> & particles,
 int main (int ac, char **av)
 {
   double T, D, L;
-  std::string stateF, oname;
+  std::string oname;
   unsigned seed;
   int npart;
 
@@ -264,8 +300,6 @@ int main (int ac, char **av)
      "time scale in years")
     ("Munit,m",		po::value<double>(&Munit)->default_value(0.1),
      "mass scale in solar masses")
-    ("ion,i",		po::value<std::string>(&stateF)->default_value("states.dat"),
-     "ionization state file")
     ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
      "body output file")
     ;
@@ -284,13 +318,13 @@ int main (int ac, char **av)
   if (vm.count("help")) {
     std::cout << desc << std::endl;
     std::cout << "Example: " << std::endl;
-    std::cout << "\t" << av[0] 
-	      << " --temp=25000 --num=250000 --state=states.dat --out=uni_ISM.bod" << std::endl;
+    std::cout << "\t" << av[0]
+	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
     return 1;
   }
 
   Lunit  *= pc;
-  Tunit  *= 365.25*3600.0*24.0;
+  Tunit  *= year;
   Munit  *= msun;
   Vunit   = Lunit/Tunit;
 
@@ -325,15 +359,19 @@ int main (int ac, char **av)
 
   // Mass in box in m_p
   double Mass = mp*D*(LL[0]*LL[1]*LL[2])*pc*pc*pc/Munit;
-
+  
   vector<Particle> particles(npart);
 
   // Initialize the Z, C's	
-
+  //
   InitializeSpecies(particles, Zspec, Fspec, T);
   
+  // Initialize the phase space vector
+  //
   InitializeUniform(particles, Mass, T, LL);
   
+  // Output file
+  //
   writeParticles(particles, oname);
 
   return 0;
