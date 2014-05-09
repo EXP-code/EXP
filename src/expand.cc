@@ -1,7 +1,3 @@
-/*
-  static char rcsid[] = "$Id$";
-*/
-
 #include "expand.h"
 
 void do_step (int);

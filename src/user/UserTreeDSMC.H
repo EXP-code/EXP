@@ -107,7 +107,8 @@ class CollideIon;
     @param Ncell is the desired number of particles per sample cell (default: 64)
     @param cnum non-zero adjusts cross section to yield cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
-    @param diamfac is a multiplicative factor for the Bohr radius (converted to system units
+    @param hsdiam is a multiplicative factor for the Bohr radius for computing the hard-sphere cross-section (converted to system units) 
+    @param diamfac is a multiplicative factor for geometric scaling of the scattering cross section
     @param spc is a weight for the collision number computation describing the converstion of mass in protons to number
     @param frontier enables printing of active cell list (for debugging)
     @param tsdiag enables printing gas time step diagnostics (for debugging)
@@ -167,6 +168,7 @@ private:
   int nsteps, msteps, remap;
   unsigned madj;
   int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, use_vol, tspow;
+  double hsdiam;
   double diamfac;
   double collfrac;
   double boxsize;

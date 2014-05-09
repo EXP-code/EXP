@@ -63,6 +63,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   cnum       = 0;
   madj       = 512;		// No tree pruning by default
   epsm       = -1.0;
+  hsdiam     = 1.0;
   diamfac    = 1.0;
   boxsize    = 1.0;
   boxratio   = 1.0;
@@ -441,9 +442,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Create the collision instance from the allowed list
   //
   if (ctype.compare("LTE") == 0)
-    collide = new CollideLTE(this, diamfac, nthrds);
+    collide = new CollideLTE(this, hsdiam, diamfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, diamfac, nthrds);
+    collide = new CollideIon(this, hsdiam, diamfac, nthrds);
   else {
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
@@ -508,7 +509,7 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
-       << ", cnum=" << cnum << ", diamfac=" << diamfac
+       << ", cnum=" << cnum << ", hsdiam=" << hsdiam << ", diamfac=" << diamfac
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name;
@@ -559,6 +560,7 @@ void UserTreeDSMC::initialize()
   if (get_value("cnum", val))		cnum       = atoi(val.c_str());
   if (get_value("madj", val))		madj       = atoi(val.c_str());
   if (get_value("epsm", val))		epsm       = atof(val.c_str());
+  if (get_value("hsdiam", val))		hsdiam     = atof(val.c_str());
   if (get_value("diamfac", val))	diamfac    = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize    = atof(val.c_str());
   if (get_value("boxratio", val))	boxratio   = atof(val.c_str());
