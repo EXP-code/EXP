@@ -198,10 +198,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     //
     if (ok==0) {
       if (myid==0) {
-	cout << "UserTreeDSMC: Knudsen number calculation requested but some" << endl
-	     << "particles have incompatible float attribute counts." << endl
-	     << "Attribute #" << use_Kn << ". Continuing without Knudsen number computation."
-	     << endl;
+	std::cout 
+	  << "UserTreeDSMC: Knudsen number calculation requested but some" 
+	  << std::endl
+	  << "particles have incompatible float attribute counts." 
+	  << std::endl
+	  << "Attribute #" << use_Kn 
+	  << ". Continuing without Knudsen number computation."
+	  << std::endl;
       }
       use_Kn = -1;
     }
@@ -230,10 +234,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     //
     if (ok==0) {
       if (myid==0) {
-	cout << "UserTreeDSMC: Strouhal number calculation requested but some" << endl
-	     << "particles have incompatible float attribute counts." << endl
-	     << "Attribute #" << use_St << ". Continuing without Strouhal number computation."
-	     << endl;
+	std::cout 
+	  << "UserTreeDSMC: Strouhal number calculation requested but some" 
+	  << std::endl
+	  << "particles have incompatible float attribute counts." 
+	  << std::endl
+	  << "Attribute #" << use_St 
+	  << ". Continuing without Strouhal number computation."
+	  << std::endl;
       }
       use_St = -1;
     }
@@ -263,8 +271,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 
     MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
-
-    // cout << ok << "\t" << ok1 << endl;
     
     if (ok) {
 

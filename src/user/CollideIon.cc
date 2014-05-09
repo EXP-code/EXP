@@ -68,7 +68,6 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   Collide(force, hD, sD, Nth)
 {
   NUM = 0;
-  if (myid==0) std::cout << "Creating CollideIon instance" << endl;
   csections = std::vector<sKey2Dmap> (nthrds);
   
   for(int i = 0; i < N_Z; i++) {
