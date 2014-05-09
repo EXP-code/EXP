@@ -346,7 +346,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Free-free
 				//-------------------------------
-  // std::cout << "SIXTH\t";
   if (p2->C > 1 and ne1 > 0) {
     double ff2 = IonList[p2->Z][p2->C].freeFreeCross(ch, kEe);
     /**
@@ -487,7 +486,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 4) {
-      delE          = 0;
+      delE          = kEe;
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -524,7 +523,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = 0.0;
+      delE         = kEe;
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;
