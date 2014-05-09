@@ -745,7 +745,7 @@ void * Collide::collide_thread(void * arg)
     sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
-    crossIJ = totalCrossSections(crm, id);
+    crossIJ = totalCrossSections(crm, c, id);
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;

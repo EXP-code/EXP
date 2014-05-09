@@ -45,6 +45,7 @@ private:
   void printCollInitialize();
 
 protected:
+
   //! List of cross-ections per thread
   std::vector<sKey2Dmap> csections;
   
@@ -76,7 +77,8 @@ protected:
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
   
-  map<speciesKey, map<speciesKey, double> >& totalCrossSections(double crm, int id);
+  map<speciesKey, map<speciesKey, double> >& 
+  totalCrossSections(double crm, pCell* c, int id);
   
   
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);

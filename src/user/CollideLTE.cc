@@ -109,8 +109,26 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-sKey2Dmap& CollideLTE::totalCrossSections(double crm, int id)
+sKey2Dmap& CollideLTE::totalCrossSections(double crm, pCell* c, int id)
 {
+  typedef std::map<speciesKey, unsigned> Count;
+
+  // Compute geometric cross section
+  double diam  = diamfac*a0/UserTreeDSMC::Lunit;
+  double cross = M_PI*diam*diam;
+
+  for (Count::iterator it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    double Z1 = i1.first;
+
+    for (Count::iterator it2=c->count.begin(); it2!=c->count.end(); it2++) { 
+      speciesKey i2 = it2->first;
+      double Z2 = i2.first;
+
+      csections[id][i1][i2] = cross * std::max<double>(Z1*Z1, Z2*Z2);
+    }
+  }
+    
   return csections[id];
 }
 

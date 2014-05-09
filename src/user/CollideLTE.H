@@ -12,24 +12,24 @@ private:
 
 protected:
   //! List of cross-ections per thread
-  vector<sKey2Dmap> csections;
+  std::vector<sKey2Dmap> csections;
 
   //@{
   //! For debugging
-  vector<unsigned> cellcnt;
-  vector<double> minT, maxT, avgT, dispT;
-  vector< vector<double> > tlist;
+  std::vector<unsigned> cellcnt;
+  std::vector<double> minT, maxT, avgT, dispT;
+  std::vector< std::vector<double> > tlist;
 
   unsigned numt;
   double tmin, tmax, dtmp;
-  vector<double> thisto1, thisto2;
+  std::vector<double> thisto1, thisto2;
 
   unsigned numn;
   double nmin, nmax, ntmp;
-  vector<double> nhisto1, nhisto2;
+  std::vector<double> nhisto1, nhisto2;
 
   static unsigned trhocnt;
-  vector< vector<double> > trho;
+  std::vector< std::vector<double> > trho;
 
   bool debug_enabled;
   //@}
@@ -58,7 +58,7 @@ protected:
 
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
-  sKey2Dmap& totalCrossSections(double crm, int id);
+  sKey2Dmap& totalCrossSections(double crm, pCell* c, int id);
 
   bool hasHeatCool() { return true; }
 

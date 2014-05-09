@@ -175,8 +175,33 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
   }
 }
 
-sKey2Dmap& CollideIon::totalCrossSections(double crm, int id)
+sKey2Dmap& CollideIon::totalCrossSections(double crm, pCell *c, int id)
 {
+  typedef std::map<speciesKey, unsigned> Count;
+  Count::iterator it1, it2;
+  
+  double vel = crm * UserTreeDSMC::Vunit;
+  double Eerg = 0.5*vel*vel*amu/eV;
+
+  // Upscaling factor for scattering cross section
+  double sUp  = diamfac*diamfac;
+
+  for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
+
+    speciesKey i1 = it1->first;
+    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+      sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    
+    for (it2 = c->count.begin(); it2 != c->count.end(); it2++)  
+      {
+	speciesKey i2 = it2->first;
+	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
+	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	
+	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
+      }
+  }
+    
   return csections[id];
 }
 
@@ -852,7 +877,7 @@ void * CollideIon::timestep_thread(void * arg)
     sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
-    crossIJ = totalCrossSections(0, id);
+    crossIJ = totalCrossSections(0, c, id);
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;

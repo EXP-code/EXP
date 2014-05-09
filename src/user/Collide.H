@@ -223,8 +223,8 @@ protected:
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
   
   //! Return total cross section "matrix" for species-species interactions
-  virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
-  
+  virtual sKey2Dmap& totalCrossSections(double crm, pCell* c, int id) = 0;
+
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
