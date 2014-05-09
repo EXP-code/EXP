@@ -292,26 +292,24 @@ void Ion::readDi()
   int i = 0;
   int i_fac = 0;
   if (sFile.is_open()) {
-    while(sFile.good()) {
+    while (sFile.good()) {
       std::vector <std::string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
       copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
 	   back_inserter<vector<std::string> >(v));
 
-      // std::cout << atoi(v[0].c_str()) <<std::endl;
-
       if(atoi(v[0].c_str()) == -1) break;
 
       if (i == 0) {
-	di_header.Z = atoi(v[0].c_str());
-	di_header.C = atoi(v[1].c_str());
+	di_header.Z       = atoi(v[0].c_str());
+	di_header.C       = atoi(v[1].c_str());
 	di_header.nspline = atoi(v[2].c_str());
-	di_header.nfac = atoi(v[3].c_str());
-	di_header.neav = atoi(v[4].c_str());
+	di_header.nfac    = atoi(v[3].c_str());
+	di_header.neav    = atoi(v[4].c_str());
       }
       else if (i%2 == 1) {
-	if(i_fac < di_header.nfac) {
+	if (i_fac < di_header.nfac) {
 	  s.btf = atof(v[0].c_str());
 	  for(int i = 0; i < di_header.nspline; i++) {
 	    s.xspline.push_back(atof(v[i+1].c_str()));
@@ -319,7 +317,7 @@ void Ion::readDi()
 	}
       }
       else {
-	if(i_fac < di_header.nfac) {
+	if (i_fac < di_header.nfac) {
 	  s.ev = atof(v[0].c_str());
 	  for(int i = 0; i < di_header.nspline; i++) {
 	    s.yspline.push_back(atof(v[i+1].c_str()));
@@ -341,13 +339,6 @@ void Ion::readDi()
     ndispline = 0;
     MPI_Abort(MPI_COMM_WORLD, 45);
   }
-
-  /*
-  for(int i = 0; i < diSpline[0].xspline.size(); i++) {
-    std::cout << diSpline[0].xspline[i] << "\t";
-  }
-  std::cout << std::endl;
-  */
 }
 
 //! Initialization function when the master name is given
@@ -489,15 +480,8 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
   double eVtoRyd = 1.0/13.60569253;
   double RydtoeV = 1.0/eVtoRyd;
 
-  // double hbarerg = 1.054571729e-27;
-  // double hbarEv = 6.582119e-16;
+  double a0 = 0.0529177211; // Bohr radius in nm
 
-  double a0 = 0.0529177211; //bohr radius in nm
-
-  // double redPlanck = 1.054572e-27;
-  
-  // double E = (p*p)/(2.*m)*6.2415e11; //get the energy of the electron
-  
   // std::cout << "\tGoing through the splups file ";
   double totalCross = 0;
   std::vector<std::pair<double, double > > CEcum;
@@ -587,7 +571,6 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
       int weight = elvlc[splups[i].j-1].mult;
       double Eryd = E*eVtoRyd;
       cross += (M_PI*a0*a0*(CStrength/weight))/(Eryd);
-      //cross += ((CStrength*(redPlanck*redPlanck))/(p*p))*1e14;
     }
 
     if (splups[i].i == 1) {
@@ -598,8 +581,8 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
   }
   if (CEcum.size() == 0) { 
     std::cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
-	 << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
-	 << C << "fblvl size: " << fblvl.size() <<std::endl; 
+	      << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
+	      << C << "fblvl size: " << fblvl.size() <<std::endl; 
     exit(-1);
   }
   CEcrossCum = CEcum;
@@ -645,8 +628,8 @@ double Ion::directIonCross(chdata ch, double E)
   unsigned char I = Z - C + 1; //test if its hydrogen-like/helium-like
   double ryd      = 27.2113845/2.0;
   double ipRyd    = ip/ryd;
-  double a0       = 0.5291772108e-8; //bohr radius in cm
-  double bohr_r   = M_PI*a0*a0;
+  double a0       = 0.0529177211; // Bohr radius in nm
+  double bohr_cs  = M_PI*a0*a0;
 
   double F, qr, cross;
   
@@ -668,12 +651,10 @@ double Ion::directIonCross(chdata ch, double E)
   // first two if statements are whether or not to use Fontes cross
   // sections
   if (I == 1 and Z >= 6) {
-    cross = 1.0*bohr_r*(qr/ipRyd)*(qr/ipRyd);
-    cross *= 1e14;
+    cross = bohr_cs*(qr/ipRyd)*(qr/ipRyd);
   }
   else if (I==2 and Z >= 10) {
-    cross = 2.0*bohr_r*(qr/ipRyd)*(qr/ipRyd);
-    cross *= 1e14;
+    cross = 2.0*bohr_cs*(qr/ipRyd)*(qr/ipRyd);
   }
   else {
     cross = 0;
@@ -681,23 +662,22 @@ double Ion::directIonCross(chdata ch, double E)
       if (E >= diSpline[i].ev) {
 	// std::cout << E << "\t" << diSpline[i].ev << std::endl;
 
-	double u1=E/diSpline[i].ev;
-	double bte=1.0-log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
+	double u1  = E/diSpline[i].ev;
+	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
 
 	// std:: cout << diSpline[i].xspline.size() << "\t" <<
 	// diSpline[i].yspline.size() <<std::endl;
 
 	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
-	double a =1.0-diSpline[i].btf+exp(log(diSpline[i].btf)/(1.-bte));
-	double cross_i=(log(a)+1.)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
+	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
+	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
 	// std::cout << "cross_i = " << cross_i << std::endl;
       }
     }
   }
   diCross = cross; // recast the cross section in nm^2
-  // std::cout << "DI cross: " << diCross << std::endl;
   return diCross;
 }
 
