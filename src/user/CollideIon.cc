@@ -551,7 +551,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Add to the total elastic scattering cross section to the inelastic
   // contribution from the "interaction" section
 
-  // Convert to cm^2 first, then system units
+  // Convert from nanometer^2 to cm^2 first, then system units
 
   csections[id][j2][j1] = (sum12 + elastic(p1->Z, kEe)) * 1.0e-14 /
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);

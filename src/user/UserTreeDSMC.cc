@@ -503,6 +503,7 @@ void UserTreeDSMC::userinfo()
 
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
+       << ", Vunit=" << Vunit << ", Eunit=" << Eunit
        << ", cnum=" << cnum << ", diamfac=" << diamfac << ", diam=" << diam
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
