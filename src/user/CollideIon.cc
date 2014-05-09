@@ -648,7 +648,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   
   if (remE >= delE) {
     double vi      = (*cr);
-    lostSoFar[id] += delE;	
+    lostSoFar[id] += delE;
     decelT[id]    += delE;
     (*cr)          = sqrt( 2.0*(kE - delE)/Mu );
     dv.first++; 
@@ -823,7 +823,7 @@ void CollideIon::printCollSummary()
   }
 
   {
-    std::ofstream out(energy_file_debug.c_str());
+    std::ofstream out(energy_file_debug.c_str(), ios::out | ios::app);
     if (out) {
       out << std::setw(12) << tnow
 	  << std::setw(12) << eV_av/eV_N
