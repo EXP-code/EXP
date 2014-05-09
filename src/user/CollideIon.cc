@@ -64,8 +64,6 @@ bool     CollideIon::frost_warning = false;
 
 bool NO_COOL = false;
 
-bool vdebug = false;
-
 CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) : 
   Collide(force, diameter, Nth)
 {
@@ -73,7 +71,6 @@ CollideIon::CollideIon(ExternalForce *force, double diameter, int Nth) :
   if (myid==0) std::cout << "Creating CollideIon instance" << endl;
   csections = std::vector<sKey2Dmap> (nthrds);
   
-  if (myid==0) std::cout << "\tCreating ion list" << endl;
   for(int i = 0; i < N_Z; i++) {
     for (int j = 1; j <= ZList[i] + 1; j++) {
       IonList[ZList[i]][j] = Ion(ZList[i], j, ch);
@@ -282,8 +279,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   if (kEe > 10.2) { eV_10++;}
   
-  int outflag = 1;
-  
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
   //--------------------------------------------------
@@ -333,7 +328,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     RE1 = IonList[p1->Z][p1->C].radRecombCross(ch, kEe);
 
     dCross.push_back(ne2*RE1.back());
-    outflag = 0;
     sum12 += RE1.back()*ne2;
     inter.push_back(4);
   }
@@ -389,7 +383,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     sum21 += RE2.back()*ne1;
     inter.push_back(9);
-    outflag = 0;
   } 
   
   // Now that the interactions have been calculated, create the
@@ -407,42 +400,36 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   assert(TotalCross.size() == dCross.size());
 
   if (tCross != 0) {
-    std::vector<double> normed;
+    std::vector<double> CDF;
     std::vector <double>::iterator 
       max = max_element(TotalCross.begin(), TotalCross.end());
 
     for (size_t i = 0; i < TotalCross.size(); i++) {
-      normed.push_back(TotalCross[i]/tCross);
+      CDF.push_back(TotalCross[i]/tCross);
     }
     
-    // Now that the normed probablility cross section vector is
-    // created, pull a random number
+    // Use a random variate to select the interaction from the
+    // discrete cumulatative probability distribution (CDF)
     double ran = (*unit)();
     int index  = -1;
-
-    // Locate the interaction in the cumulative cross-section list
-    for (size_t i = 0; i < normed.size(); i++) {
-      if (ran < normed[i]) {
+    for (size_t i = 0; i < CDF.size(); i++) {
+      if (ran < CDF[i]) {
 	index = static_cast<int>(i);
 	break;
       }
     }
 
-    // Sanity check
+    // Sanity check: did not assign index??
     if (index<0) {
       std::cout << "CDF location falure, myid=" << myid
 		<< ", ran=" << ran << std::endl;
       index = 0;
     }
 
-    if (vdebug) {
-      if (outflag) std::cout << index << "\t";
-    }
-
-    // Set the interaction type
+    // Finally, set the interaction type based on the selected index
     interFlag = inter[index];
 
-    // Sanity check
+    // Sanity check: did not set interaction type??
     if (interFlag<0) {
       std::cout << "interFlag NOT set, myid=" << myid 
 		<< ", index=" << index << std::endl;
@@ -450,12 +437,9 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       interFlag = inter[0];
     }
 
-    int partflag = 0;
-
-    if (vdebug) {
-      if (outflag) std::cout << interFlag << std::endl;
-      std::cout << "Interactions\n";
-    }
+    int partflag = 0;		// Will be 1 or 2, dependending on
+				// which ion or neutral is selected
+				// for interaction
 
     //-------------------------
     // Particle 1 interactions
@@ -469,7 +453,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 2) {
-      if (vdebug) cout << "\nExcitation 1" << endl;
       delE = IS.selectCEInteract(IonList[p1->Z][p1->C], CE1);
       partflag      = 1;
       CE_d.first++; 
@@ -485,13 +468,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       CI_d.second  += delE;
     }
 
+    // KE carried by electron is subtracted from the thermal reservoir
+    // but not the radiation of "binding".  This radiation decreases
+    // the total energy of the gas but not the thermal component.
     if (interFlag == 4) {
-      delE          = kEe;	// KE carried by electron is
-				// subtracted from the thermal
-				// reservoir but not the radiation of
-				// "binding".  This radiation
-				// decreases the total energy of the
-				// gas but not the thermal component.
+      delE          = kEe;
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -511,7 +492,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 7) {
-      if (vdebug) cout << "\nExcitation 2" << endl;
       delE         = IS.selectCEInteract(IonList[p2->Z][p2->C], CE2);
       partflag     = 2;
       CE_d.first++; 
@@ -528,7 +508,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEe;	// See comment above for interFlag==4 . . .
+      delE         = kEe;	// See comment above for interFlag==4
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;
@@ -562,21 +542,14 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     std::cout << "delE > KE!! Interaction = " << interFlag 
 	      << " kEe = " << kEe << " kE = " << kE 
 	      << " delE = " << delEeV << std::endl;
-  /**
-  if (delE != 0.) 
-    std::cout << "delE = " << delE << "kE = " << kE 
-	      << " remE = " << remE << std::endl;
-  */
-  
   
   // Add the cross sections into the csections[id]
   // HERE
   speciesKey j1(p1->Z, p1->C);
   speciesKey j2(p2->Z, p2->C);
   
-  // Add to the total cross section the "ballistic" minimum bohr
-  // radius for the cross section. The first part is then the
-  // "interaction" section, and the second is the elastic collision.
+  // Add to the total elastic scattering cross section to the inelastic
+  // contribution from the "interaction" section
 
   // Convert to cm^2 first, then system units
 
@@ -586,7 +559,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   csections[id][j1][j2] = (sum21 + elastic(p2->Z, kEe)) * 1.0e-14 / 
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
   
-  // std::cout << "dE = " << delE;
   if (remE<=0.0 || delE<=0.0) return ret;
   
   // Cooling rate diagnostic
@@ -619,13 +591,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     dv.second     += 0.5*(vi - (*cr))*(vi - (*cr));
     ret            = 0;		// No error
     
-    /*
-    if (interFlag == 1 or interFlag == 6)
-      std::cout << "Before: " << vi 
-		<< " After: " << (*cr) 
-		<< " dE = " << delE << endl;
-    */
-
 				// Zero out internal energy excess
     if (use_exes>=0)		// since excess is now used up
       p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
@@ -894,18 +859,11 @@ void * CollideIon::timestep_thread(void * arg)
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
-      /*
-	std::cout << "species: " 
-	<< "( " << i1.first << " , " << i1.second << " ) " << std::endl;
-      */
       crossM [i1] = 0.0;
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 	double      N = UserTreeDSMC::Munit/(amu*atomic_weights[i2.first]);
 	
-	/*
-	std::cout << "N = " << N << " dens = " << densM[i2] << std::endl;
-	*/
 	crossIJ[i1][i2] = std::max<double>
 	  (
 	   crossIJ[i1][i2], 
@@ -918,30 +876,14 @@ void * CollideIon::timestep_thread(void * arg)
 	     crossIJ[i1][i2], 
 	     (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first))
 	     );
-
-	  /*
-	    std::cout << i1.first << " " << i1.second << " " 
-	              << i2.first << " " << i2.second << " " 
-		      << crossIJ[i1][i2] << std::endl;
-	  */
 	} else
 	  crossM[i1] += N*densM[i2]*std::min<double>
 	    (
 	     crossIJ[i2][i1], 
 	     (M_PI*0.25*diam*diam*(i1.first*i1.first + i2.first*i2.first))
 	     );
-	/*
-	  std::cout << i2.first << " " << i2.second << " " 
-	            << i1.first << " " << i1.second << " " 
-		    << crossIJ[i2][i1] << std::endl;
-	*/
       }
       
-      /*
-	std::cout << "crossM = " << crossM[i1] 
-	          << " densM = " << densM[i1] 
-		  << "Fn: " << (*Fn)[i1] << std::endl;
-      */
       lambdaM[i1] = 1.0/crossM[i1];
       meanDens   += densM[i1] ;
       meanLambda += densM[i1] * lambdaM[i1];
@@ -949,11 +891,6 @@ void * CollideIon::timestep_thread(void * arg)
     
     // This is the number density-weighted
     meanLambda /= meanDens;
-    
-    /*
-      std::cout << meanLambda << "\t" 
-                << meanLambda*UserTreeDSMC::Lunit << std::endl;
-    */
     
     for (vector<unsigned long>::iterator 
 	   i=c->bods.begin(); i!=c->bods.end(); i++) {
