@@ -226,6 +226,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   //
   double ne1 = N1/N2 * (p1->C - 1);
   double ne2 = N2/N1 * (p2->C - 1);
+  //           ^       ^
+  //           |       +---Number of FREE electrons per atom
+  // Statistical weight
+  //
 
   // The total mass in system units
   //
@@ -233,10 +237,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (Mt<=0.0) return ret;
   
   // The reduced mass in system units
+  //
   double Mu = p1->mass * p2->mass/Mt;
   if (Mu<=0.0) return ret;
   
   // Energy available in the center of mass system
+  //
   double kE  = 0.5*Mu*(*cr)*(*cr);
 
   // Assume that the total KE is spread among all possible particles
@@ -813,7 +819,7 @@ void CollideIon::resetColls()
   eV_max  = 0.0; 
   eV_min  = 99999.0; 
 
-  eV_10++;
+  eV_10   = 0.0;
 }
 
 void CollideIon::printCollGather() 

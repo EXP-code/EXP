@@ -112,8 +112,6 @@ void Ion::readelvlc()
       copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
 	   back_inserter<vector<std::string> >(v));
 
-      // std::cout << atoi(v[0].c_str()) <<std::endl;
-      
       if (atoi(v[0].c_str()) == -1) break;
 
       e.level = atoi(v[0].c_str());
@@ -146,8 +144,6 @@ void Ion::readfblvl()
 {
   std::string MasterNameT = ZCtoName(Z, C-1);
 
-  // std::cout << "fblvl mastername: " << MasterNameT <<std::endl;
-
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
     if (myid==0)
@@ -165,8 +161,6 @@ void Ion::readfblvl()
   fileName.append("/"); 
   fileName.append(MasterNameT);
   fileName.append(".fblvl");
-  
-  // std::cout << "file: " << fileName <<std::endl;
   
   std::string inLine;
   ifstream fblvlFile(fileName.c_str());
@@ -216,8 +210,6 @@ void Ion::readSplups()
 
   std::string fileName(val);
 
-  // std::cout << "SPLUPS NAME: " << eleName <<std::endl;
-
   fileName.append("/");
   fileName.append(eleName); 
   fileName.append("/");
@@ -229,14 +221,18 @@ void Ion::readSplups()
   std::string inLine;
   splups_data s;
   ifstream sFile(fileName.c_str());
-  if(sFile.is_open()) {
+  if (sFile.is_open()) {
+
     while(sFile.good()) {
+
       std::vector <std::string> v;
       getline(sFile, inLine);
       istringstream iss(inLine);
       copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
 	   back_inserter<vector<std::string> >(v));
+
       if(atoi(v[0].c_str()) == -1) break;
+
       s.Z = atoi(v[0].c_str());
       s.C = atoi(v[1].c_str());
       s.i = atoi(v[2].c_str());
@@ -245,6 +241,7 @@ void Ion::readSplups()
       s.gf = atof(v[5].c_str());
       s.delERyd = atof(v[6].c_str());
       s.Const = atof(v[7].c_str());
+				// Spline coefficients
       for(unsigned i = 8; i < v.size(); i++) {
 	s.spline.push_back(atof(v[i].c_str()));
       }
@@ -275,8 +272,6 @@ void Ion::readDi()
   }
 
   std::string fileName(val);
-
-  // std::cout << "DI NAME: " << eleName <<std::endl;
 
   fileName.append("/");
   fileName.append(eleName); 
@@ -420,7 +415,6 @@ Ion::Ion(unsigned char Z1, unsigned char C1, chdata ch)
     egrid.push_back(e);
   }
   for (k = -9.; k < -3.; k += 0.1) {
-    // std::cout << k 
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
@@ -481,8 +475,7 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
   double RydtoeV = 1.0/eVtoRyd;
 
   double a0 = 0.0529177211; // Bohr radius in nm
-
-  // std::cout << "\tGoing through the splups file ";
+  
   double totalCross = 0;
   std::vector<std::pair<double, double > > CEcum;
   std::pair<double,double> Null(0, 0);
@@ -613,9 +606,6 @@ double Ion::qrp(double u)
   double q;
   q = (A*log(u) + D*(1.0-(1.0/u))*(1.0-(1.0/u)) + C*u*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u)) + ((c/u)+((d/u)*(d/u))*(1.0-(1.0/u))))/u;
 
-  // std::cout << "u = " << u << " logu = " << log(u) 
-  //           << " q = " << q << std::endl;
-
   return q;
   
 }
@@ -660,13 +650,9 @@ double Ion::directIonCross(chdata ch, double E)
     cross = 0;
     for (int i = 0; i < di_header.nfac; i++) {
       if (E >= diSpline[i].ev) {
-	// std::cout << E << "\t" << diSpline[i].ev << std::endl;
 
 	double u1  = E/diSpline[i].ev;
 	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
-
-	// std:: cout << diSpline[i].xspline.size() << "\t" <<
-	// diSpline[i].yspline.size() <<std::endl;
 
 	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
@@ -991,7 +977,6 @@ void chdata::readAbundanceAll()
       if (atoi(v[0].c_str()) == -1) break;
       unsigned char Z = atoi(v[0].c_str());
       abundanceAll[Z-1] = atof(v[1].c_str());
-      // std::cout << Z << "\t" << atof(v[1].c_str()) <<std::endl;
     }
     abFile.close();
   }

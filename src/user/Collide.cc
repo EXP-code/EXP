@@ -16,9 +16,11 @@ using namespace std;
 #include <gptl.h>
 #endif
 
-static bool CROSS_DBG  = true;	// Cross-section debugging
+static bool CROSS_DBG  = false;	// Cross-section debugging, false for
+				// production
 
-static bool DEBUG      = false;	// False for production
+static bool DEBUG      = false;	// Thread diagnostics, false for
+				// production
 
 				// Use the original Pullin velocity 
 				// selection algorithm
