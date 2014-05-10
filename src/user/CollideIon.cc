@@ -61,7 +61,6 @@ unsigned CollideIon::Tnum    = 200;
 string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::frost_warning = false;
 
-
 bool NO_COOL = false;
 
 CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) : 
@@ -227,8 +226,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double ne1 = N1/N2 * (p1->C - 1);
   double ne2 = N2/N1 * (p2->C - 1);
   //           ^       ^
+  //           |       |
   //           |       +---Number of FREE electrons per atom
-  // Statistical weight
+  //           |
+  // Statistical weight owing to number of particles per superparticle
   //
 
   // The total mass in system units
@@ -236,20 +237,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double Mt = p1->mass + p2->mass;
   if (Mt<=0.0) return ret;
   
-  // The reduced mass in system units
+  // Reduced mass in ballistic collision (system)
   //
-  double Mu = p1->mass * p2->mass/Mt;
-  if (Mu<=0.0) return ret;
-  
-  // Energy available in the center of mass system
-  //
+  double Mu = p1->mass * p2->mass /Mt;
+
+  // Center of mass energy in the ballistic collision (system)
   double kE  = 0.5*Mu*(*cr)*(*cr);
 
-  // Assume that the total KE is spread among all possible particles
-  // in the direction of the interaction.
+  // Energy available in the center of mass of the atomic collision
   //
-  double Ndof = N1*p1->C + N2*p2->C, kEI = 0.0;
-  if (Ndof>0.0) kEI = kE*UserTreeDSMC::Eunit/Ndof;
+  double m1  = atomic_weights[p1->Z]*amu;
+  double m2  = atomic_weights[p2->Z]*amu;
+  double mu  = m1 * m2 / (m1 + m2);
+  double kEI = 0.5*mu*(*cr)*(*cr) * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit;
 
   // Convert ergs to eV
   //
@@ -380,10 +380,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (p2->C > 1 and ne1 > 0) {
     double ff2 = IonList[p2->Z][p2->C].freeFreeCross(ch, kEe);
-    /**
-       if (ff2 != 0) 
-         cout << "FF2: " << ff2 << " kE = " << kEe << endl;
-    */
+
     dCross.push_back(ne1*ff2);
     sum21 += ff2*ne1;
     inter.push_back(6);
@@ -576,10 +573,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     delE = 0.;
   }
   
-  if (delE > kE) 
-    std::cout << "delE > KE!! Interaction = " << interFlag 
-	      << " kEe = " << kEe << " kE = " << kE 
-	      << " delE = " << delEeV << std::endl;
+  if (frost_warning && delE*0.999 > kE) 
+    std::cout << "delE > KE!! (" << delE << " > " << kE
+	      << "), Interaction type = " << interFlag 
+	      << " kEe = "  << kEe
+	      << " delE = " << delEeV 
+	      << std::endl;
   
   // Add the cross sections into the csections[id]
   // HERE
@@ -622,7 +621,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     delE -= p1->dattrib[use_exes] + p2->dattrib[use_exes];
   }
   
-  if (remE >= delE) {
+  if (remE > delE) {
     double vi      = (*cr);
     lostSoFar[id] += delE;
     decelT[id]    += delE;
@@ -637,9 +636,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   } else {			// Inconsistent: too much energy lost!
 
-    std::cout << "************remE < delE!!!!" 
-	      << " RemE = " << remE << " delE = " << delE 
-	      << " interaction: " << interFlag    << std::endl;
+    if (frost_warning && remE*0.999 > delE) {
+      std::cout << "************ remE < delE!!!!" 
+		<< " RemE = " << remE << " delE = " << delE 
+		<< " interaction: " << interFlag    << std::endl;
+    }
     
     lostSoFar[id] += remE;
     decolT[id]    += remE - delE;
