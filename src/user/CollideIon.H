@@ -17,6 +17,7 @@ private:
 
   chdata ch;
   Elastic elastic;
+  Geometric geometric;
   InteractSelect IS;
   unsigned int NUM;
 

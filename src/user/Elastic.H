@@ -2,6 +2,7 @@
 #define _Elastic_H
 
 #include <map>
+#include <cmath>
 #include <vector>
 
 class Elastic 
@@ -14,7 +15,7 @@ public:
   typedef std::map<unsigned short, InterpPair> xSection;
   //@}
 
-private:
+protected:
 
   //! The cross-section database
   xSection atomicdata;
@@ -44,6 +45,41 @@ public:
     xSection::const_iterator i = atomicdata.lower_bound(Z);
     if (i==atomicdata.end()) --i;
     return b_cross * interpolate(i->second, x);
+  }
+
+};
+
+class Geometric
+{
+public:
+  typedef std::map<unsigned short, double> radData;
+
+private:
+  radData radii;
+
+public:
+  
+  //! Constructor
+  Geometric();
+
+  /** Get the cross section for atomic number Z and energy in eV.  The
+      cross section is units of nm^2 for consistency with CHIANTI.  
+
+      If you ask for data beyond the grid for a given Z, the closest
+      value is used.
+
+      Similarly, if you ask for a set that does not exist, data for
+      the closest Z is used.
+  */
+  double operator()(unsigned short Z)
+  {
+    // Bohr cross section (pi*a_0^2) in nm
+    const double b_cross = 0.00879735542978;
+    radData::const_iterator i = radii.lower_bound(Z);
+
+    double cross = M_PI*(i->second)*(i->second)/(1000.0*1000.0);
+
+    return cross/b_cross;
   }
 
 };

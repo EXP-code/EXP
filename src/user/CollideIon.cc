@@ -159,17 +159,20 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
   for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-    sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-    
+    double Cross1 = geometric(i1.first);
+
     for (sKeyUmap::iterator 
 	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
-	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
+	double Cross2 = geometric(i2.first);
+
+	if (i1.second==1 && i2.second>1) 
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
       }
   }
 }
@@ -193,16 +196,19 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-      sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    double Cross1 = geometric(i1.first);
     
     for (it2 = c->count.begin(); it2 != c->count.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
-	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+	double Cross2 = geometric(i2.first);
+
+	if (i1.second==1 && i2.second>1)
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	
-	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
       }
   }
     
