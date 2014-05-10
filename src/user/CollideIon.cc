@@ -159,17 +159,20 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
   for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-    sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-    
+    double Cross1 = geometric(i1.first);
+
     for (sKeyUmap::iterator 
 	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
-	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
+	double Cross2 = geometric(i2.first);
+
+	if (i1.second==1 && i2.second>1) 
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
       }
   }
 }
@@ -193,16 +196,19 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-      sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    double Cross1 = geometric(i1.first);
     
     for (it2 = c->count.begin(); it2 != c->count.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-	double Cross2 = elastic(i2.first, Eerg * atomic_weights[i2.first]) *
-	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+	double Cross2 = geometric(i2.first);
+
+	if (i1.second==1 && i2.second>1)
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
+	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	
-	csections[id][i1][i2] = std::max<double>(Cross1, Cross2);
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
       }
   }
     
@@ -249,22 +255,20 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double m1  = atomic_weights[p1->Z]*amu;
   double m2  = atomic_weights[p2->Z]*amu;
   double mu  = m1 * m2 / (m1 + m2);
+  double dof = p1->C + p2->C;
   double kEI = 0.5*mu*(*cr)*(*cr) * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit;
 
   // Convert ergs to eV
   //
   double kEe = kEI * 6.241509e11; 
+  double kEs = KEe / dof;
   
-  //
   // For tracking energy consistency
   //
   double dE   = kE*TolV*TolV;
   double remE = (kE - dE);
   double delE = 0.0, delEeV = 0.0;
 
-  
-  /** std::cout << "total Ke = " << kE << " with cr = " << (*cr) 
-      << " dE = " << dE << " remE = " << remE << endl; */
   
   // Get temperatures from cells
   //
@@ -507,7 +511,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // but not the radiation of "binding".  This radiation decreases
     // the total energy of the gas but not the thermal component.
     if (interFlag == 4) {
-      delE          = kEe;
+      delE          = kEs;
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -543,7 +547,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEe;	// See comment above for interFlag==4
+      delE         = kEs;	// See comment above for interFlag==4
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;

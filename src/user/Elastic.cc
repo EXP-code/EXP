@@ -2,6 +2,97 @@
 
 #include <boost/assign/list_of.hpp>
 
+// Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
+// Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
+// Functions. II. Atoms with 37 to 86 Electrons". Journal of Chemical
+// Physics 47 (4): 1300–1307.  See also Paper 1, ref. therein.
+//
+// Z     radius
+const Geometric::radData atomic_radii = boost::assign::map_list_of
+  (1     , 53    )
+  (2     , 31    )
+  (3     , 167   )
+  (4     , 112   )
+  (5     , 87    )
+  (6     , 67    )
+  (7     , 56    )
+  (8     , 48    )
+  (9     , 42    )
+  (10    , 38    )
+  (11    , 190   )
+  (12    , 145   )
+  (13    , 118   )
+  (14    , 111   )
+  (15    , 98    )
+  (16    , 180   )
+  (17    , 79    )
+  (18    , 188   )
+  (19    , 243   )
+  (20    , 194   )
+  (21    , 184   )
+  (22    , 176   )
+  (23    , 171   )
+  (24    , 166   )
+  (25    , 161   )
+  (26    , 156   )
+  (27    , 152   )
+  (28    , 149   )
+  (29    , 145   )
+  (30    , 152   )
+  (31    , 136   )
+  (32    , 125   )
+  (33    , 114   )
+  (34    , 103   )
+  (35    , 94    )
+  (36    , 88    )
+  (37    , 265   )
+  (38    , 219   )
+  (39    , 212   )
+  (40    , 206   )
+  (41    , 198   )
+  (42    , 190   )
+  (43    , 183   )
+  (44    , 178   )
+  (45    , 173   )
+  (46    , 169   )
+  (47    , 172   )
+  (48    , 161   )
+  (49    , 193   )
+  (50    , 217   )
+  (51    , 133   )
+  (52    , 123   )
+  (53    , 198   )
+  (54    , 108   )
+  (55    , 298   )
+  (56    , 268   )
+  (59    , 247   )
+  (60    , 206   )
+  (61    , 205   )
+  (62    , 238   )
+  (63    , 231   )
+  (64    , 233   )
+  (65    , 225   )
+  (66    , 228   )
+  (68    , 226   )
+  (69    , 222   )
+  (70    , 222   )
+  (71    , 217   )
+  (72    , 208   )
+  (73    , 200   )
+  (74    , 193   )
+  (75    , 188   )
+  (76    , 185   )
+  (77    , 180   )
+  (78    , 177   )
+  (79    , 166   )
+  (80    , 171   )
+  (81    , 156   )
+  (82    , 202   )
+  (83    , 143   )
+  (84    , 135   )
+  (86    , 120   );
+
+
 // Total cross section from Malik & Trefftz, 1960, Zeitschrift fur Astrophysik, 50, 96-109
 
 // Column 1 in eV, Column2 in Bohr cross section (pi*a_0^2) units
@@ -77,7 +168,7 @@ const Elastic::InterpPair Hydrogen = boost::assign::map_list_of
   (13.2163710158414  , 6.25682   )
   (13.4212320116212  , 6.10568   )
   (13.600541506433   , 5.9924    );
-  
+
 
 // Total cross section from LaBahn & Callaway, 1966, Phys. Rev., 147, 50, 96-109
 
@@ -218,8 +309,13 @@ const Elastic::InterpPair Helium = boost::assign::map_list_of
   (49.5254   , 14.7389704298757)
   (49.7885   , 14.6749447715956)
   (49.9763   , 14.4781239918482);
-  
+
 // *** Add addtional elemental data sets here
+
+Geometric::Geometric()
+{
+  radii = atomic_radii;
+}
 
 Elastic::Elastic()
 {
