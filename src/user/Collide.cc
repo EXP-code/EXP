@@ -441,6 +441,32 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
   
   effortAccum  = false;
   effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
+
+  //
+  // Cross-section debugging
+  //
+  nextTime_dbg = 0.0;
+  nCnt_dbg     = 0;
+
+  ostringstream ostr;
+  ostr << outdir << runtag << ".cross_section_dbg";
+  cross_debug = ostr.str();
+  std::ifstream in(cross_debug.c_str());
+  if (!in) {
+    std::ofstream out(cross_debug.c_str());
+    out << std::setw(18) << "Time"
+	<< std::setw( 8) << "Count"
+	<< std::setw(18) << "Initial"
+	<< std::setw(18) << "Final"
+	<< std::setw(18) << "Rel diff"
+	<< std::endl
+	<< std::setw(18) << "-------"
+	<< std::setw( 8) << "-------"
+	<< std::setw(18) << "-------"
+	<< std::setw(18) << "-------"
+	<< std::setw(18) << "-------"
+	<< std::endl;
+  }
 }
 
 Collide::~Collide()
@@ -745,8 +771,18 @@ void * Collide::collide_thread(void * arg)
     sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
-    crossIJ = totalCrossSections(crm, c, id);
+    crossIJ = totalScatteringCrossSections(crm, c, id);
     
+    //
+    // Cross-section debugging [BEGIN]
+    //
+    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
+    {
+      speciesKey i = c->count.begin()->first;
+      cross1_dbg.push_back(crossIJ[i][i]);
+    }
+    // Done
+  
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
       densM[i1] = c->Mass(i1)/volc;
@@ -1168,6 +1204,19 @@ void * Collide::collide_thread(void * arg)
       maxCollP[id*2+EPSMused] = meanCollP;
     }
     
+    //
+    // Cross-section debugging [END]
+    //
+    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
+    {
+      crossIJ = totalCrossSections(crm, id);
+      speciesKey i = c->count.begin()->first;
+      cross2_dbg.push_back(crossIJ[i][i]);
+      nCnt_dbg++;
+      if (nCnt_dbg == nCel_dbg) write_cross_debug();
+    }
+    // Done
+  
   } // Loop over cells
 
   cellSoFar[id] = cellTime[id].stop();
@@ -2827,4 +2876,25 @@ double Collide::hsDiameter()
 {
   const double Bohr = 5.2917721092e-09;
   return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
+}
+
+
+void Collide::write_cross_debug()
+{
+  std::ofstream out(cross_debug.c_str(), ios::out | ios::app);
+  for (int i=0; i<nCel_dbg; i++) {
+    std::ofstream out(cross_debug.c_str());
+    double diff = (cross2_dbg[i] - cross1_dbg[i]);
+    double dist = std::max<double>(cross1_dbg[i], cross2_dbg[i]);
+    out << std::setw(18) << tnow
+	<< std::setw( 8) << i+1
+	<< std::setw(18) << cross1_dbg[i]
+	<< std::setw(18) << cross2_dbg[i]
+	<< std::setw(18) << diff/dist
+	<< std::endl;
+  }
+  nextTime_dbg += delTime_dbg;
+  nCnt_dbg = 0;
+  cross1_dbg.erase(cross1_dbg.begin(), cross1_dbg.end());
+  cross2_dbg.erase(cross2_dbg.begin(), cross2_dbg.end());
 }

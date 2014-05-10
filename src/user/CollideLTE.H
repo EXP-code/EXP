@@ -58,7 +58,9 @@ protected:
 
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
-  sKey2Dmap& totalCrossSections(double crm, pCell* c, int id);
+  sKey2Dmap& totalCrossSections(double crm, int id);
+
+  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
 
   bool hasHeatCool() { return true; }
 

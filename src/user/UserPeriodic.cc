@@ -8,7 +8,7 @@
 
 //atomic mass unit in grams
 const double amu = 1.660539e-24;
-const double kb = 1.3806488e-16;
+const double k_B = 1.3806488e-16;
 
 template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
@@ -252,7 +252,6 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
 
     double mi = (atomic_weights[p->Z])*amu;
 
-    
     for (int k=0; k<3; k++) {
 
       // Ignore vacuum boundary dimensions
@@ -294,33 +293,31 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
       }
 
       //
-      // Thermal BC (same as Reflection wit different velocity
+      // Thermal BC (same as reflection with new thermal velocity)
       //
       if (bc[k] == 't') {
 	if (pos < 0.0) {
 	  delta = -pos - L[k]*floor(-pos/L[k]);
 	  p->pos[k] = delta - offset[k];
-	  //p->vel[k] = -p->vel[k];
 	  for (int j = 0; j < 3; j++) {
-		if(j == k) {
-	  		p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(kb*temp/mi)*(*norm)()/vunit);
-		}
-		else  {
-			p->vel[j] = sqrt(kb*temp/mi)*(*norm)()/vunit;
-		}
+	    if (j == k) {
+	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*(*norm)()/vunit);
+	    }
+	    else  {
+	      p->vel[j] = sqrt(k_B*temp/mi)*(*norm)()/vunit;
+	    }
 	  }
 	} 
 	if (pos >= L[k]) {
 	  delta = pos - L[k]*floor(pos/L[k]);
 	  p->pos[k] =  L[k] - delta - offset[k];
-	  //p->vel[k] = -p->vel[k];
 	  for (int j = 0; j < 3; j++) {
-		if(j == k) {
-	  		p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(kb*temp/mi)*(*norm)()/vunit);
-		}
-		else {
-			p->vel[j] = sqrt(kb*temp/mi)*(*norm)()/vunit;
-		}
+	    if (j == k) {
+	      p->vel[j] = -sgn(p->vel[j])*fabs(sqrt(k_B*temp/mi)*(*norm)()/vunit);
+	    }
+	    else {
+	      p->vel[j] = sqrt(k_B*temp/mi)*(*norm)()/vunit;
+	    }
 	  }
 	}
       }

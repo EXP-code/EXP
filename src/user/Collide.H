@@ -222,8 +222,13 @@ protected:
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
   
-  //! Return total cross section "matrix" for species-species interactions
-  virtual sKey2Dmap& totalCrossSections(double crm, pCell* c, int id) = 0;
+  //! Return total scattering cross section "matrix" for
+  //! species-species interactions
+  virtual sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id) = 0;
+
+  //! Return total scattering + elastic cross section "matrix" for
+  //! species-species interactions
+  virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
 
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
@@ -254,16 +259,15 @@ protected:
   
   //@{
   //! Timing and debug (access for derived classes)
-  vector<Timer> initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
-  vector<Timer> stat1Time, stat2Time, stat3Time, coolTime, listTime;
+  vector<Timer>       initTime, collTime, elasTime, cellTime, curcTime, epsmTime;
+  vector<Timer>       stat1Time, stat2Time, stat3Time, coolTime, listTime;
   vector<TimeElapsed> initSoFar, collSoFar, elasSoFar, cellSoFar, epsmSoFar;
   vector<TimeElapsed> stat1SoFar, stat2SoFar, stat3SoFar, coolSoFar, listSoFar;
   vector<TimeElapsed> curcSoFar;
-  vector<int>    collCnt, numbSum;
-  vector<double> initSum, collSum, elasSum, cellSum, epsmSum;
-  vector<double> stat1Sum, stat2Sum, stat3Sum, coolSum, listSum;
-  
-  vector<long> minUsage, maxUsage, minPart, maxPart, minCollP, maxCollP;
+  vector<int>         collCnt, numbSum;
+  vector<double>      initSum, collSum, elasSum, cellSum, epsmSum;
+  vector<double>      stat1Sum, stat2Sum, stat3Sum, coolSum, listSum;
+  vector<long>        minUsage, maxUsage, minPart, maxPart, minCollP, maxCollP;
   
   static const int nEPSMT = 6;
   vector< vector<Timer> > EPSMT;
@@ -271,6 +275,17 @@ protected:
   vector<long> EPSMtime, CPUH;
   //@}
   
+  //@{
+  //! Cross-section debugging
+  std::string cross_debug;
+  std::vector<double> cross1_dbg, cross2_dbg;
+  double nextTime_dbg;
+  int nCnt_dbg;
+  static const double delTime_dbg = 0.001;
+  static const int nCel_dbg = 10;
+  void write_cross_debug();
+  //@}
+
 public:
   
   //! Integrate the cooling solution

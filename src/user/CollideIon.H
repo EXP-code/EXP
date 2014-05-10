@@ -77,10 +77,10 @@ protected:
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
   
-  map<speciesKey, map<speciesKey, double> >& 
-  totalCrossSections(double crm, pCell* c, int id);
-  
-  
+  sKey2Dmap& totalCrossSections(double crm, int id);
+
+  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
+
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
   bool hasHeatCool() { return true; }
   double getCoolingRate(int id) { return 0; }

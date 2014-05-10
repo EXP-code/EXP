@@ -109,7 +109,7 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-sKey2Dmap& CollideLTE::totalCrossSections(double crm, pCell* c, int id)
+sKey2Dmap& CollideLTE::totalScatteringCrossSections(double crm, pCell* c, int id)
 {
   typedef std::map<speciesKey, unsigned> Count;
 
@@ -129,6 +129,11 @@ sKey2Dmap& CollideLTE::totalCrossSections(double crm, pCell* c, int id)
     }
   }
     
+  return csections[id];
+}
+
+sKey2Dmap& CollideLTE::totalCrossSections(double crm, int id)
+{
   return csections[id];
 }
 
