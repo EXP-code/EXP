@@ -226,6 +226,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   //
   double ne1 = N1/N2 * (p1->C - 1);
   double ne2 = N2/N1 * (p2->C - 1);
+  //           ^       ^
+  //           |       +---Number of FREE electrons per atom
+  // Statistical weight
+  //
 
   // The total mass in system units
   //
@@ -233,10 +237,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (Mt<=0.0) return ret;
   
   // The reduced mass in system units
+  //
   double Mu = p1->mass * p2->mass/Mt;
   if (Mu<=0.0) return ret;
   
   // Energy available in the center of mass system
+  //
   double kE  = 0.5*Mu*(*cr)*(*cr);
 
   // Assume that the total KE is spread among all possible particles
@@ -333,7 +339,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     assert(E_therm_1 != 0);
     
-    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEI, E_therm_1);
+    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
 
     dCross.push_back(ne2*CE1.back().first);
     sum12 += CE1.back().first*ne2;
@@ -388,7 +394,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   std::vector< std::pair<double, double > > CE2;
   if(ne1 > 0 and p2->C <= p2->Z) {
     assert(E_therm_2 != 0);
-    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEI, E_therm_2);
+    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
 
     dCross.push_back(ne1*CE2.back().first);
     sum21 += CE2.back().first*ne1;
@@ -813,7 +819,7 @@ void CollideIon::resetColls()
   eV_max  = 0.0; 
   eV_min  = 99999.0; 
 
-  eV_10++;
+  eV_10   = 0.0;
 }
 
 void CollideIon::printCollGather() 
