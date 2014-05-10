@@ -333,7 +333,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     assert(E_therm_1 != 0);
     
-    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEI, E_therm_1);
+    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
 
     dCross.push_back(ne2*CE1.back().first);
     sum12 += CE1.back().first*ne2;
@@ -388,7 +388,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   std::vector< std::pair<double, double > > CE2;
   if(ne1 > 0 and p2->C <= p2->Z) {
     assert(E_therm_2 != 0);
-    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEI, E_therm_2);
+    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
 
     dCross.push_back(ne1*CE2.back().first);
     sum21 += CE2.back().first*ne1;
