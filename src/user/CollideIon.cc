@@ -121,8 +121,8 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   
   printCollInitialize();
 
-  if (myid==0) std::cout << "No cooling is set to: " 
-			 << NO_COOL << endl;
+  if (myid==0 && NO_COOL) std::cout << "No cooling is set to TRUE" 
+				    << std::endl;
 }
 
 CollideIon::~CollideIon()

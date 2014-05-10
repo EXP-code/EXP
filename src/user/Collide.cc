@@ -452,7 +452,7 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
     nCnt_dbg     = 0;		// Number of cells accumulated so far
 
     ostringstream ostr;
-    ostr << outdir << runtag << ".cross_section_dbg";
+    ostr << outdir << runtag << ".cross_section_dbg." << myid;
     cross_debug = ostr.str();
     std::ifstream in(cross_debug.c_str());
     if (!in) {
@@ -780,7 +780,7 @@ void * Collide::collide_thread(void * arg)
     //
     // Cross-section debugging [BEGIN]
     //
-    if (CROSS_DBG) {
+    if (CROSS_DBG && id==0) {
       if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
 	speciesKey i = c->count.begin()->first;
 	cross1_dbg.push_back(crossIJ[i][i]);
@@ -1212,7 +1212,7 @@ void * Collide::collide_thread(void * arg)
     //
     // Cross-section debugging [END]
     //
-    if (CROSS_DBG) {
+    if (CROSS_DBG && id==0) {
       if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
 	{
 	  crossIJ = totalCrossSections(crm, id);
