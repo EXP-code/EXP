@@ -16,6 +16,8 @@ using namespace std;
 #include <gptl.h>
 #endif
 
+static bool CROSS_DBG  = true;	// Cross-section debugging
+
 static bool DEBUG      = false;	// False for production
 
 				// Use the original Pullin velocity 
@@ -445,27 +447,29 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
   //
   // Cross-section debugging
   //
-  nextTime_dbg = 0.0;
-  nCnt_dbg     = 0;
+  if (CROSS_DBG) {
+    nextTime_dbg = 0.0;		// Next target time
+    nCnt_dbg     = 0;		// Number of cells accumulated so far
 
-  ostringstream ostr;
-  ostr << outdir << runtag << ".cross_section_dbg";
-  cross_debug = ostr.str();
-  std::ifstream in(cross_debug.c_str());
-  if (!in) {
-    std::ofstream out(cross_debug.c_str());
-    out << std::setw(18) << "Time"
-	<< std::setw( 8) << "Count"
-	<< std::setw(18) << "Initial"
-	<< std::setw(18) << "Final"
-	<< std::setw(18) << "Rel diff"
-	<< std::endl
-	<< std::setw(18) << "-------"
-	<< std::setw( 8) << "-------"
-	<< std::setw(18) << "-------"
-	<< std::setw(18) << "-------"
-	<< std::setw(18) << "-------"
-	<< std::endl;
+    ostringstream ostr;
+    ostr << outdir << runtag << ".cross_section_dbg";
+    cross_debug = ostr.str();
+    std::ifstream in(cross_debug.c_str());
+    if (!in) {
+      std::ofstream out(cross_debug.c_str());
+      out << std::setw(18) << "Time"
+	  << std::setw( 8) << "Count"
+	  << std::setw(18) << "Initial"
+	  << std::setw(18) << "Final"
+	  << std::setw(18) << "Rel diff"
+	  << std::endl
+	  << std::setw(18) << "-------"
+	  << std::setw( 8) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::endl;
+    }
   }
 }
 
@@ -776,10 +780,11 @@ void * Collide::collide_thread(void * arg)
     //
     // Cross-section debugging [BEGIN]
     //
-    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
-    {
-      speciesKey i = c->count.begin()->first;
-      cross1_dbg.push_back(crossIJ[i][i]);
+    if (CROSS_DBG) {
+      if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
+	speciesKey i = c->count.begin()->first;
+	cross1_dbg.push_back(crossIJ[i][i]);
+      }
     }
     // Done
   
@@ -1207,13 +1212,15 @@ void * Collide::collide_thread(void * arg)
     //
     // Cross-section debugging [END]
     //
-    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
-    {
-      crossIJ = totalCrossSections(crm, id);
-      speciesKey i = c->count.begin()->first;
-      cross2_dbg.push_back(crossIJ[i][i]);
-      nCnt_dbg++;
-      if (nCnt_dbg == nCel_dbg) write_cross_debug();
+    if (CROSS_DBG) {
+      if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
+	{
+	  crossIJ = totalCrossSections(crm, id);
+	  speciesKey i = c->count.begin()->first;
+	  cross2_dbg.push_back(crossIJ[i][i]);
+	  nCnt_dbg++;
+	  if (nCnt_dbg == nCel_dbg) write_cross_debug();
+	}
     }
     // Done
   
@@ -2883,7 +2890,6 @@ void Collide::write_cross_debug()
 {
   std::ofstream out(cross_debug.c_str(), ios::out | ios::app);
   for (int i=0; i<nCel_dbg; i++) {
-    std::ofstream out(cross_debug.c_str());
     double diff = (cross2_dbg[i] - cross1_dbg[i]);
     double dist = std::max<double>(cross1_dbg[i], cross2_dbg[i]);
     out << std::setw(18) << tnow
