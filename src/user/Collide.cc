@@ -457,14 +457,14 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
     std::ifstream in(cross_debug.c_str());
     if (!in) {
       std::ofstream out(cross_debug.c_str());
-      out << std::setw(18) << "Time"
-	  << std::setw( 8) << "Count"
+      out << std::setw( 8) << "Count"
+	  << std::setw(18) << "Time"
 	  << std::setw(18) << "Initial"
 	  << std::setw(18) << "Final"
-	  << std::setw(18) << "Rel diff"
+	  << std::setw(18) << "Ratio"
 	  << std::endl
-	  << std::setw(18) << "-------"
 	  << std::setw( 8) << "-------"
+	  << std::setw(18) << "-------"
 	  << std::setw(18) << "-------"
 	  << std::setw(18) << "-------"
 	  << std::setw(18) << "-------"
@@ -2890,13 +2890,13 @@ void Collide::write_cross_debug()
 {
   std::ofstream out(cross_debug.c_str(), ios::out | ios::app);
   for (int i=0; i<nCel_dbg; i++) {
-    double diff = (cross2_dbg[i] - cross1_dbg[i]);
-    double dist = std::max<double>(cross1_dbg[i], cross2_dbg[i]);
-    out << std::setw(18) << tnow
-	<< std::setw( 8) << i+1
+    double diff = cross2_dbg[i] - cross1_dbg[i];
+    if (cross1_dbg[i]>0.0) diff /= cross1_dbg[i];
+    out << std::setw( 8) << i+1
+	<< std::setw(18) << tnow
 	<< std::setw(18) << cross1_dbg[i]
 	<< std::setw(18) << cross2_dbg[i]
-	<< std::setw(18) << diff/dist
+	<< std::setw(18) << diff
 	<< std::endl;
   }
   nextTime_dbg += delTime_dbg;
