@@ -255,22 +255,20 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double m1  = atomic_weights[p1->Z]*amu;
   double m2  = atomic_weights[p2->Z]*amu;
   double mu  = m1 * m2 / (m1 + m2);
+  double dof = p1->C + p2->C;
   double kEI = 0.5*mu*(*cr)*(*cr) * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit;
 
   // Convert ergs to eV
   //
   double kEe = kEI * 6.241509e11; 
+  double kEs = KEe / dof;
   
-  //
   // For tracking energy consistency
   //
   double dE   = kE*TolV*TolV;
   double remE = (kE - dE);
   double delE = 0.0, delEeV = 0.0;
 
-  
-  /** std::cout << "total Ke = " << kE << " with cr = " << (*cr) 
-      << " dE = " << dE << " remE = " << remE << endl; */
   
   // Get temperatures from cells
   //
@@ -513,7 +511,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // but not the radiation of "binding".  This radiation decreases
     // the total energy of the gas but not the thermal component.
     if (interFlag == 4) {
-      delE          = kEe;
+      delE          = kEs;
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -549,7 +547,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEe;	// See comment above for interFlag==4
+      delE         = kEs;	// See comment above for interFlag==4
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;
