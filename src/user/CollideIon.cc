@@ -169,10 +169,10 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
 	double Cross2 = geometric(i2.first);
 
 	if (i1.second==1 && i2.second>1) 
-	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]);
 
-	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 /
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
       }
   }
 }
@@ -205,10 +205,10 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	double Cross2 = geometric(i2.first);
 
 	if (i1.second==1 && i2.second>1)
-	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]) *
-	    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]);
 	
-	csections[id][i1][i2] = (Cross1 + Cross2) * sUp;
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
       }
   }
     
@@ -245,7 +245,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   
   // Reduced mass in ballistic collision (system)
   //
-  double Mu = p1->mass * p2->mass /Mt;
+  double Mu = p1->mass * p2->mass / Mt;
 
   // Center of mass energy in the ballistic collision (system)
   double kE  = 0.5*Mu*(*cr)*(*cr);
@@ -255,14 +255,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double m1  = atomic_weights[p1->Z]*amu;
   double m2  = atomic_weights[p2->Z]*amu;
   double mu  = m1 * m2 / (m1 + m2);
-  double dof = p1->C + p2->C;
-  double kEI = 0.5*mu*(*cr)*(*cr) * UserTreeDSMC::Vunit*UserTreeDSMC::Vunit;
+  double vel = (*cr) * UserTreeDSMC::Vunit;
+  double kEI = 0.5 * mu * vel*vel;
 
   // Convert ergs to eV
   //
-  double kEe = kEI * 6.241509e11; 
-  double kEs = KEe / dof;
-  
+  double kEe = kEI * 6.241509e11;
+
   // For tracking energy consistency
   //
   double dE   = kE*TolV*TolV;
@@ -309,17 +308,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   double sum12 = 0.0;		// Accumulate total cross sections as we go
   double sum21 = 0.0;
-  
-  // Energy summary diagnostics
-  eV_av += kEe;
-  if (std::isnan(eV_av)) {
-    std::cout << "eV_N=" << eV_N << std::endl;
-  }
-  eV_N++;
-  eV_min = std::min(eV_min, kEe);
-  eV_max = std::max(eV_max, kEe);
-
-  if (kEe > 10.2) { eV_10++;}
   
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
@@ -511,7 +499,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // but not the radiation of "binding".  This radiation decreases
     // the total energy of the gas but not the thermal component.
     if (interFlag == 4) {
-      delE          = kEs;
+      delE          = kEe;
       p1->C--;
       assert(p1->C > 0);
       partflag      = 1;
@@ -547,7 +535,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEs;	// See comment above for interFlag==4
+      delE         = kEe;	// See comment above for interFlag==4
       p2->C--;
       assert(p2->C > 0);
       partflag     = 2;
@@ -563,6 +551,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (partflag == 1) delE *= N1;
     if (partflag == 2) delE *= N2;
     
+    // Energy summary diagnostics
+    //
+    eV_av += kEe;
+    if (std::isnan(eV_av)) {
+      std::cout << "eV_N=" << eV_N << std::endl;
+    }
+    eV_N++;
+    eV_min = std::min(eV_min, kEe);
+    eV_max = std::max(eV_max, kEe);
+    
+    if (kEe > 10.2) { eV_10++;}
+  
+
     // Convert back to cgs
     //
     delE = delE*1.602177e-12;
@@ -580,7 +581,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (frost_warning && delE*0.999 > kE) 
     std::cout << "delE > KE!! (" << delE << " > " << kE
 	      << "), Interaction type = " << interFlag 
-	      << " kEe = "  << kEe
+	      << " kEe  = "  << kEe
 	      << " delE = " << delEeV 
 	      << std::endl;
   
@@ -594,13 +595,18 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   // Convert from nanometer^2 to cm^2 first, then system units
 
-  double sUp = diamfac*diamfac;
+  // Upscaling and unit converion
+  double Cross, sUp = diamfac * 1.0e-7 / UserTreeDSMC::Lunit;
 
-  csections[id][j2][j1] = (sum12 + elastic(p1->Z, kEe)*sUp) * 1.0e-14 /
-    (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  Cross = sum12 + geometric(p1->Z);
+  if (p2->C>1) Cross += elastic(p1->Z, kEe);
+  
+  csections[id][j2][j1] = Cross * sUp * sUp;
 
-  csections[id][j1][j2] = (sum21 + elastic(p2->Z, kEe)*sUp) * 1.0e-14 / 
-    (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  Cross = sum21 + geometric(p2->Z);
+  if (p1->C>1) Cross += elastic(p2->Z, kEe);
+  
+  csections[id][j1][j2] = Cross * sUp * sUp;
   
   if (remE<=0.0 || delE<=0.0) return ret;
   

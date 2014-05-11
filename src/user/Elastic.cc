@@ -5,7 +5,7 @@
 // Atomic radii in picometers from Clementi, E.; Raimond, D. L.;
 // Reinhardt, W. P. (1967). "Atomic Screening Constants from SCF
 // Functions. II. Atoms with 37 to 86 Electrons". Journal of Chemical
-// Physics 47 (4): 1300–1307.  See also Paper 1, ref. therein.
+// Physics 47 (4): 1300-1307.  See also Paper 1, ref. therein.
 //
 // Z     radius
 const Geometric::radData atomic_radii = boost::assign::map_list_of
