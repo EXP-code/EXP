@@ -826,26 +826,27 @@ void * Collide::collide_thread(void * arg)
     // MFP (used for diagnostics only)
     meanLambda /= meanDens;
 
-    //cout << "In collide: " << meanLambda << endl;
     // Number-density weighted collision
     // probability (used for diagnostics
     // only)
     meanCollP  /= meanDens;
     
     // This is the per-species N_{coll}
-    // (used for diagnostics only)
+    //
     double totalNsel = 0.0;
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
       for (it2=it1; it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
+
+	// Probability of an interaction of between particls of type 1
+	// and 2 for a given particle of type 2
+	double Prob = (*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
+
 	if (i1==i2) 
-	  selcM[i1][i2] = 
-	    0.5*(it1->second-1)*(*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
+	  selcM[i1][i2] = 0.5*(it1->second-1) * it2->second * Prob;
 	else        
-	  selcM[i1][i2] = 
-	    0.5*(it1->second*(*Fn)[i2]*densM[i2] + 
-		 it2->second*(*Fn)[i1]*densM[i1])*crossIJ[i1][i2] * crm * tau;
+	  selcM[i1][i2] = it1->second*it2->second*(*Fn)[i2] * Prob;
 	
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
 	totalNsel += nselM[i1][i2];
@@ -999,8 +1000,6 @@ void * Collide::collide_thread(void * arg)
 	
 	// Loop over total number of candidate collision pairs
 	//
-	//if (nselM[i1][i2] > 5)
-		//cout << nselM[i1][i2] << "\t" << crm << endl;
 	for (unsigned i=0; i<nselM[i1][i2]; i++ ) {
 	  
 	  totalCount++;

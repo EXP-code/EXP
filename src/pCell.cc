@@ -855,8 +855,6 @@ void sCell::KE(speciesKey indx, double &total, double &dispr)
     //
     total /= (it->second)[0];
     dispr /= (it->second)[0];
-
-    //if(dispr == 0) { cout << "ctotal = " << count[indx] << " stotal[0] = " << it->second[0] << " Z = " << indx.first << " C = " << indx.second << endl; }
   }
 
 }

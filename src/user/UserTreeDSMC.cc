@@ -1628,9 +1628,6 @@ void UserTreeDSMC::assignTempDensVol()
 
   while (it.nextCell()) {
     cell = it.Cell();
-    //cell->sample->KE(KEtot, KEdsp);
-    
-    //T = KEdsp * Tfac;
 
     // Assign temp and/or density to particles
     //
@@ -1654,9 +1651,9 @@ void UserTreeDSMC::assignTempDensVol()
         std::pair<int, int> sKey(cell->Body(j)->Z, cell->Body(j)->C);
 	cell->sample->KE(sKey, KEtot, KEdsp);
 	double mi = mp*atomic_weights[cell->Body(j)->Z];
+
 	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
 	T = KEdsp* Tfac;
-        //if( T ==0) { cout << "UserTree T = 0 at j = " << *j << " KE = " << KEdsp << " Tfrac = " << Tfac << endl; }
 	
 	int sz = cell->Body(j)->dattrib.size();
 	if (use_temp>=0 && use_temp<sz) 
