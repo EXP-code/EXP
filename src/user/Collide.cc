@@ -836,17 +836,19 @@ void * Collide::collide_thread(void * arg)
     double totalNsel = 0.0;
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
+      double     m1 = c->Mass(i1)/c->Count(i1);
+
       for (it2=it1; it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 
-	// Probability of an interaction of between particls of type 1
+	// Probability of an interaction of between particles of type 1
 	// and 2 for a given particle of type 2
-	double Prob = (*Fn)[i2]*densM[i2]*crossIJ[i1][i2] * crm * tau;
+	double Prob = m1 * (*Fn)[i1]*(*Fn)[i2] * densM[i2]*crossIJ[i1][i2] * crm * tau;
 
 	if (i1==i2) 
-	  selcM[i1][i2] = 0.5*(it1->second-1) * it2->second * Prob;
+	  selcM[i1][i2] = 0.5*(it1->second-1) * Prob;
 	else        
-	  selcM[i1][i2] = it1->second*it2->second*(*Fn)[i2] * Prob;
+	  selcM[i1][i2] = it1->second * Prob;
 	
 	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
 	totalNsel += nselM[i1][i2];
