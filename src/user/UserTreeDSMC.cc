@@ -34,12 +34,13 @@ static bool sampcel_debug = false;
 // Physical units
 //
 
-static double pc = 3.08567758e18;       // cm
-static double a0 = 0.052917721092e-7;	// cm (Bohr radius)
-static double boltz = 1.381e-16;	// cgs
-// static double year = 365.242*24*3600;	// seconds
-static double mp = 1.67262178e-24;      // g
-static double msun = 1.9891e33;		// g
+const double pc    = 3.08567758e18;	// cm      Parsec
+const double a0    = 0.052917721092e-7;	// cm      Bohr radius
+const double boltz = 1.381e-16;		// cgs     Boltzmann constant k_B
+const double year  = 365.242*24*3600;	// s       Seconds per year
+const double mp    = 1.67262178e-24;	// g       Proton mass
+const double msun  = 1.9891e33;		// g       Solar mass
+const double amu   = 1.660539e-24;	// g       Atomic mass unit
 
 double UserTreeDSMC::Lunit = 3.0e5*pc;
 double UserTreeDSMC::Munit = 1.0e12*msun;
@@ -48,7 +49,6 @@ double UserTreeDSMC::Vunit = Lunit/Tunit;
 double UserTreeDSMC::Eunit = Munit*Vunit*Vunit;
 bool   UserTreeDSMC::use_effort = true;
 
-//std::map<int, double> UserTreeDSMC::atomic_weights;
 std::set<std::string> UserTreeDSMC:: colltypes;
 
 UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
@@ -104,7 +104,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Initialize using input parameters
   initialize();
 
-  // initialize the atomic_weights map hardcode the atomic weight map
+  // Initialize the atomic_weights map hardcode the atomic weight map
   // for use in collFrac
 
   atomic_weights[1]  = 1.0079;
@@ -1058,8 +1058,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
 				// Computing mass-weighted temperature
-    const double f_H = 0.76;
-    double mm = f_H*mp + (1.0-f_H)*4.0*mp;
+    const double f_H = 0.75;
+    double mm = amu * (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
     double meanT = 0.0;
     if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
 

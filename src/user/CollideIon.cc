@@ -39,7 +39,7 @@ const double boltzEv = 8.6173324e-5;
 // Electron charge (cgs)
 const double esu     = 4.8032e-10;
 
-//atomic mass unit in grams
+// Atomic mass unit in grams
 const double amu = 1.660539e-24;
 
 // Number of Ion elements
