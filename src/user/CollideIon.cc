@@ -306,9 +306,27 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Index the interactions
   std::vector<int> inter;
 
-  double sum12 = 0.0;		// Accumulate total cross sections as we go
-  double sum21 = 0.0;
+  double sum12 = 0.0;		// Accumulate inelastic total cross
+  double sum21 = 0.0;		// sections as we go
+
   
+  //--------------------------------------------------
+  // Scattering
+  //--------------------------------------------------
+
+  double cross12 = geometric(p1->Z);
+  double cross21 = geometric(p2->Z);
+
+  if (p1->C==1 && ne2 > 0)
+    cross12 += elastic(p1->Z, kEe) * ne2;
+    
+  if (p2->C==1 && ne1 > 0) 
+    cross21 += elastic(p2->Z, kEe) * ne1;
+
+  dCross.push_back(cross12 + cross21);
+  inter.push_back(0);
+
+
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
   //--------------------------------------------------
@@ -596,18 +614,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Convert from nanometer^2 to cm^2 first, then system units
 
   // Upscaling and unit converion
-  double Cross, sUp = diamfac * 1.0e-7 / UserTreeDSMC::Lunit;
+  double sUp = diamfac * 1.0e-7 / UserTreeDSMC::Lunit;
 
-  Cross = sum12 + geometric(p1->Z);
-  if (p2->C>1) Cross += elastic(p1->Z, kEe);
+  csections[id][j2][j1] = (cross12 + sum12) * sUp * sUp;
+  csections[id][j1][j2] = (cross21 + sum21) * sUp * sUp;
   
-  csections[id][j2][j1] = Cross * sUp * sUp;
 
-  Cross = sum21 + geometric(p2->Z);
-  if (p1->C>1) Cross += elastic(p2->Z, kEe);
-  
-  csections[id][j1][j2] = Cross * sUp * sUp;
-  
   if (remE<=0.0 || delE<=0.0) return ret;
   
   // Cooling rate diagnostic
