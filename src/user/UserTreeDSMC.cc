@@ -1059,7 +1059,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 				// Computing mass-weighted temperature
     const double f_H = 0.75;
-    double mm = amu * (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
+    double mm = amu / (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
     double meanT = 0.0;
     if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
 
