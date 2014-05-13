@@ -803,10 +803,13 @@ void * Collide::collide_thread(void * arg)
       crossM [i1] = 0.0;
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
+
+	double W = sWeight[i1] * sWeight[i2];
+
 	if (i2>=i1) {
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
+	  crossM[i1] += W * (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
 	} else
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
+	  crossM[i1] += W * (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
       }
       
       if (crossM[i1] == 0 or isnan(crossM[i1]))

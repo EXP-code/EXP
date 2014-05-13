@@ -182,10 +182,10 @@ sKeyDmap& CollideIon::statWeights(pCell* c, int id)
 {
   typedef std::map<speciesKey, unsigned> Count;
 
-  // Set all weights to 2
+  // Set all weights to 0.5
   //
   for (Count::iterator it=c->count.begin(); it!=c->count.end(); it++)
-    sweights[id][it->first] = 2.0;
+    sweights[id][it->first] = 0.5;
     
   return sweights[id];
 }
