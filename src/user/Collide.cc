@@ -771,12 +771,13 @@ void * Collide::collide_thread(void * arg)
     // Per species quantities
     //
     
-    sKeyDmap            densM, collPM, lambdaM, crossM;
+    sKeyDmap            densM, collPM, lambdaM, crossM, sWeight;
     sKey2Dmap           selcM;
     sKey2Umap           nselM;
     sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
+    sWeight = statWeights(c, id);
     crossIJ = totalScatteringCrossSections(crm, c, id);
     
     //
@@ -842,7 +843,8 @@ void * Collide::collide_thread(void * arg)
 
 	// Probability of an interaction of between particles of type 1
 	// and 2 for a given particle of type 2
-	double Prob = (*Fn)[i1] * densM[i2] * crossIJ[i1][i2] * crm * tau;
+	double Prob = sWeight[i1] * sWeight[i2] *
+	  (*Fn)[i1] * densM[i2] * crossIJ[i1][i2] * crm * tau;
 
 	if (i1==i2)
 	  selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;

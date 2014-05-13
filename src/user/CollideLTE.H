@@ -11,7 +11,10 @@ private:
   HeatCool *hc;
 
 protected:
-  //! List of cross-ections per thread
+  //! List of statistical weights per thread
+  std::vector<sKeyDmap> sweights;
+
+  //! List of cross-sections per thread
   std::vector<sKey2Dmap> csections;
 
   //@{
@@ -57,6 +60,8 @@ protected:
 		       sKey2Umap& nsel, int id);
 
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
+
+  sKeyDmap&  statWeights(pCell* c, int id);
 
   sKey2Dmap& totalCrossSections(double crm, int id);
 

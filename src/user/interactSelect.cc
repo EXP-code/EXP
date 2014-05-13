@@ -65,7 +65,13 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
   for(int i = 0; i < a.kffsteps; i++) {
     double de = a.egrid[1]-a.egrid[0];
     int e_1 = int(floor(E/de));
-    int e_2 = e_1+1;
+    int e_2 = e_1 + 1;
+
+    // Extrapolate? [Need asymptotic expression here?]
+    if (e_2 >= static_cast<int>(a.egrid.size())) {
+      e_2 = a.egrid.size()-1;
+      e_1 = e_2 - 1;
+    }
 
     // std::cout << e_1 << "\t" << e_2 << std::endl;
 

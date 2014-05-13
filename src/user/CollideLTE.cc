@@ -67,6 +67,7 @@ CollideLTE::CollideLTE(ExternalForce *force, double hD, double sD, int Nth) :
   dispT     = vector<double>(nthrds, 0.0);
   tlist     = vector< vector<double> >(nthrds);
   csections = vector<sKey2Dmap> (nthrds);
+  sweights  = std::vector<sKeyDmap> (nthrds);
 
   debug_enabled = true;
 
@@ -107,6 +108,18 @@ CollideLTE::CollideLTE(ExternalForce *force, double hD, double sD, int Nth) :
 CollideLTE::~CollideLTE()
 {
   delete hc;
+}
+
+sKeyDmap& CollideLTE::statWeights(pCell* c, int id)
+{
+  typedef std::map<speciesKey, unsigned> Count;
+
+  // Set all weights to 1
+  //
+  for (Count::iterator it=c->count.begin(); it!=c->count.end(); it++)
+    sweights[id][it->first] = 1.0;
+    
+  return sweights[id];
 }
 
 sKey2Dmap& CollideLTE::totalScatteringCrossSections(double crm, pCell* c, int id)
