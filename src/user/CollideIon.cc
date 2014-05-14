@@ -240,11 +240,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   //
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
   double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);
+  double NN = std::min<double>(N1, N2);
   
   // Number of associated electrons for each particle
   //
-  double ne1 = N1/N2 * (p1->C - 1);
-  double ne2 = N2/N1 * (p2->C - 1);
+  double ne1 = p1->C - 1;
+  double ne2 = p2->C - 1;
   
   // The total mass in system units
   //
@@ -322,9 +323,9 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Total scattering cross section
   //--------------------------------------------------
 
-  double cross12 = N2/N1 * geometric(p1->Z);
+  double cross12 = geometric(p1->Z);
 
-  double cross21 = N1/N2 * geometric(p2->Z);
+  double cross21 = geometric(p2->Z);
 
   if (p1->C>1 && ne2 > 0)
     cross12 += elastic(p1->Z, kEe) * ne2;
@@ -583,8 +584,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     delEeV = delE;
 
-    if (partflag == 1) delE *= N1;
-    if (partflag == 2) delE *= N2;
+    if (partflag) delE *= NN;
     
     // Energy summary diagnostics
     //

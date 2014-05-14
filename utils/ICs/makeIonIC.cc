@@ -67,8 +67,8 @@ norm_ptr    Norm;
 /**
    Make Uniform temperature box of gas
 */
-void InitializeUniform(std::vector<Particle>& p,
-                       double mass, double T, vector<double> &L, int nd=6)
+void InitializeUniform(std::vector<Particle>& p, double mass,
+                       double T, vector<double> &L, int nd=6)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
@@ -86,8 +86,6 @@ void InitializeUniform(std::vector<Particle>& p,
   double varHe = sqrt((boltz*T)/(atomic_masses[1]*amu));
 
   for (unsigned i=0; i<npart; i++) {
-    p[i].mass = mass/npart;
-
     for (unsigned k=0; k<3; k++) {
       p[i].pos[k] = L[k]*(*Unit)();
       if (p[i].Z == 1) {
@@ -164,8 +162,8 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
 }
 
 void InitializeSpecies(std::vector<Particle> & particles, 
-		       std::vector<unsigned char>& Zspec, 
-		       std::vector<double>& Zfrac, double T)
+		       std::vector<unsigned char>& sZ, 
+		       std::vector<double>& sF, double M, double T)
 
 {
   std::vector< std::vector<double> > frac, cuml;
@@ -174,7 +172,7 @@ void InitializeSpecies(std::vector<Particle> & particles,
   // Generate the ionization-fraction input file
   //
   for (std::vector<unsigned char>::iterator 
-	 n=Zspec.begin(); n!=Zspec.end(); n++) {
+	 n=sZ.begin(); n!=sZ.end(); n++) {
 
     const std::string ioneq("makeIonIC.ioneq");
     std::ostringstream sout;
@@ -235,15 +233,17 @@ void InitializeSpecies(std::vector<Particle> & particles,
 
 				// Compute cumulative species
 				// distribution
-  const size_t NZ = Zfrac.size();
+  const size_t NZ = sF.size();
 
-  std::vector<double> fC(NZ);
-  fC[0] = Zfrac[0];
-  for (size_t i=1; i<NZ; i++) fC[i] = fC[i-1] + Zfrac[i];
+				// Normalize species map, just in case
+  double norm = 0.0;
+  for (size_t i=1; i<NZ; i++) norm += sF[i];
 
-				// Sanity normalization
-  double norm = fC[NZ-1];
-  for (size_t i=0; i<NZ; i++) fC[i] /= norm;
+  std::vector<double> frcS(NZ), cumS(NZ);
+  for (size_t i=0; i<NZ; i++) {
+    frcS[i]= sF[i]/atomic_masses[sZ[i]]/norm;
+    cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
+  }
 
   for (size_t i=0; i<N; i++) {
 
@@ -254,8 +254,8 @@ void InitializeSpecies(std::vector<Particle> & particles,
     size_t indx;
 				// Get the species
     for (indx=0; indx<NZ; indx++) { 
-      if (rz < fC[indx]) {
-	Zi = Zspec[indx]; 
+      if (rz < cumS[indx]) {
+	Zi = sZ[indx]; 
 	break;
       }
     }
@@ -267,9 +267,9 @@ void InitializeSpecies(std::vector<Particle> & particles,
       }
     }
 
-    double mi = Zi*mp;
-    particles[i].Z = Zi;
-    particles[i].C = Ci;
+    particles[i].Z     = Zi;
+    particles[i].C     = Ci;
+    particles[i].mass  = M/N * frcS[indx];
   }
   
 }
@@ -339,18 +339,19 @@ int main (int ac, char **av)
   // Define the atomic species statistics
   //
   const size_t Nspec = 2;
-  std::vector<double>        Fspec(Nspec);
-  std::vector<unsigned char> Zspec(Nspec);
+  std::vector<double>        sF(Nspec);
+  std::vector<unsigned char> sZ(Nspec);
 
-  Fspec[0] = 0.75; Zspec[0] = 1;
-  Fspec[1] = 0.25; Zspec[1] = 2;
+  // Species fraction, atomic number
+  sF[0] = 0.76; sZ[0] = 1;
+  sF[1] = 0.24; sZ[1] = 2;
 
-  /* Other species
-     Fspec[2] = 0.0; Zspec[2] = 3;  // Li
-     Fspec[3] = 0.0; Zspec[3] = 6;  // C
-     Fspec[4] = 0.0; Zspec[4] = 7;  // N
-     Fspec[5] = 0.0  Zspec[5] = 8;  // O
-     Fspec[6] = 0.0; Zspec[6] = 12; // Mg
+  /* Additional species, e.g.
+     sF[2] = 0.0; sZ[2] = 3;  // Li
+     sF[3] = 0.0; sZ[3] = 6;  // C
+     sF[4] = 0.0; sZ[4] = 7;  // N
+     sF[5] = 0.0  sZ[5] = 8;  // O
+     sF[6] = 0.0; sZ[6] = 12; // Mg
   */
 
 
@@ -364,7 +365,7 @@ int main (int ac, char **av)
 
   // Initialize the Z, C's	
   //
-  InitializeSpecies(particles, Zspec, Fspec, T);
+  InitializeSpecies(particles, sZ, sF, Mass, T);
   
   // Initialize the phase space vector
   //
