@@ -1032,10 +1032,12 @@ void * Collide::collide_thread(void * arg)
 	  // Accept or reject candidate pair according to relative speed
 	  //
 	  bool ok = false;
-	  if (NTC)
-	    ok = ( cr/crm > (*unit)() );
-	  else
+	  if (NTC) {
+	    double vcrs = cr * crossSection(tree, p1, p2, cr, id);
+	    ok = ( vcrs/(crm*crossIJ[i1][i2] ) > (*unit)() );
+	  } else {
 	    ok = true;
+	  }
 	  
 	  if (ok) {
 	    elasTime[id].start();

@@ -45,6 +45,14 @@ private:
   //! Initialize debugging file names
   void printCollInitialize();
 
+  //@{
+  //! Inelastic work space
+  typedef std::vector< std::pair<double, double> > CEvector;
+  std::map< int, std::vector<double> > dCrossMap;
+  std::map< int, std::vector<int>    > dInterMap;
+  std::map< int, CEvector  > CE1, CE2;
+  //@}
+
 protected:
 
   //! List of cross-sections (separate for each thread)
@@ -82,8 +90,12 @@ protected:
 
   sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
 
+  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+		      double crm, int id=0);
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+
   bool hasHeatCool() { return true; }
+
   double getCoolingRate(int id) { return 0; }
   
   

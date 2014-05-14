@@ -216,54 +216,27 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   return csections[id];
 }
 
-int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
-			  double *cr, int id)
+double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
+				double cr, int id)
 {
-  int ret = 0;			// No error (flag)
-  int interFlag = -1;
-
-  // Number of atoms in each super particle
-  //
-  double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
-  double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);
-  double NN = std::min<double>(N1, N2);
-  
   // Number of associated electrons for each particle
   //
   double ne1 = p1->C - 1;
   double ne2 = p2->C - 1;
   
-  // The total mass in system units
-  //
-  double Mt = p1->mass + p2->mass;
-  if (Mt<=0.0) return ret;
-  
-  // Reduced mass in ballistic collision (system)
-  //
-  double Mu = p1->mass * p2->mass / Mt;
-
-  // Center of mass energy in the ballistic collision (system)
-  double kE  = 0.5*Mu*(*cr)*(*cr);
-
   // Energy available in the center of mass of the atomic collision
   //
   double m1  = atomic_weights[p1->Z]*amu;
   double m2  = atomic_weights[p2->Z]*amu;
   double mu  = m1 * m2 / (m1 + m2);
-  double vel = (*cr) * UserTreeDSMC::Vunit;
+  double vel = cr * UserTreeDSMC::Vunit;
   double kEI = 0.5 * mu * vel*vel;
 
   // Convert ergs to eV
   //
   double kEe = kEI * 6.241509e11;
 
-  // For tracking energy consistency
-  //
-  double dE   = kE*TolV*TolV;
-  double remE = (kE - dE);
-  double delE = 0.0, delEeV = 0.0;
 
-  
   // Get temperatures from cells
   //
   double E_therm_1 = boltzEv*p1->dattrib[use_temp];
@@ -296,10 +269,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   ***/
   
   // Save the per-interaction cross sections
-  std::vector<double> dCross;
+  dCrossMap[id] = std::vector<double>();
 
   // Index the interactions
-  std::vector<int> inter;
+  dInterMap[id] = std::vector<int   >();
 
   double sum12 = 0.0;		// Accumulate inelastic total cross
   double sum21 = 0.0;		// sections as we go
@@ -319,8 +292,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (p2->C>1 && ne1 > 0) 
     cross21 += elastic(p2->Z, kEe) * ne1;
 
-  dCross.push_back(cross12 + cross21);
-  inter.push_back(0);
+  dCrossMap[id].push_back(cross12 + cross21);
+  dInterMap[id].push_back(0);
 
 
   //--------------------------------------------------
@@ -334,24 +307,24 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     double ff1 = IonList[p1->Z][p1->C].freeFreeCross(ch, kEe);
     double crs = ne2 * ff1;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(1);
+
     sum12 += crs;
-    inter.push_back(1);
   }
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  std::vector< std::pair<double, double > > CE1;
   if (ne2 > 0 and p1->C <= p1->Z) {
 
     assert(E_therm_1 != 0);
     
-    CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
-    double crs = ne2 * CE1.back().first;
+    CE1[id] = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
+    double crs = ne2 * CE1[id].back().first;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(2);
     sum12 += crs;
-    inter.push_back(2);
   }
 				//-------------------------------
 				// *** Ionization cross section
@@ -362,9 +335,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     DI1 = IonList[p1->Z][p1->C].directIonCross(ch, kEe);
     double crs = ne2 * DI1;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(3);
+
     sum12 += crs;
-    inter.push_back(3);
   }
 				//-------------------------------
 				// *** Radiative recombination
@@ -375,9 +349,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     RE1 = IonList[p1->Z][p1->C].radRecombCross(ch, kEe);
     double crs = ne2 * RE1.back();
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(4);
+
     sum12 += crs;
-    inter.push_back(4);
   }
 
   
@@ -392,22 +367,23 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     double ff2 = IonList[p2->Z][p2->C].freeFreeCross(ch, kEe);
     double crs = ne1 * ff2;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(6);
+
     sum21 += crs;
-    inter.push_back(6);
   }
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  std::vector< std::pair<double, double > > CE2;
   if(ne1 > 0 and p2->C <= p2->Z) {
     assert(E_therm_2 != 0);
-    CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
-    double crs = ne1 * CE2.back().first;
+    CE2[id] = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
+    double crs = ne1 * CE2[id].back().first;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(7);
+
     sum21 += crs;
-    inter.push_back(7);
   }
 				//-------------------------------
 				// *** Ionization cross section
@@ -417,9 +393,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     DI2 = IonList[p2->Z][p2->C].directIonCross(ch, kEe);
     double crs = ne1 * DI2;
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(8);
+
     sum21 += crs;
-    inter.push_back(8);
   }
 				//-------------------------------
 				// *** Radiative recombination
@@ -429,11 +406,59 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     RE2 = IonList[p2->Z][p2->C].radRecombCross(ch, kEe);
     double crs = ne1*RE2.back();
 
-    dCross.push_back(crs);
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(9);
+    
     sum21 += crs;
-    inter.push_back(9);
   } 
   
+  return (cross12 + cross21 + sum12 + sum21) * 1e-14 / 
+    (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+}
+
+
+int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
+			  double *cr, int id)
+{
+  int ret = 0;			// No error (flag)
+  int interFlag = -1;
+
+  // Number of atoms in each super particle
+  //
+  double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
+  double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);
+  double NN = std::min<double>(N1, N2);
+  
+  // The total mass in system units
+  //
+  double Mt = p1->mass + p2->mass;
+  if (Mt<=0.0) return ret;
+  
+  // Reduced mass in ballistic collision (system)
+  //
+  double Mu = p1->mass * p2->mass / Mt;
+
+  // Center of mass energy in the ballistic collision (system)
+  double kE  = 0.5*Mu*(*cr)*(*cr);
+
+  // Energy available in the center of mass of the atomic collision
+  //
+  double m1  = atomic_weights[p1->Z]*amu;
+  double m2  = atomic_weights[p2->Z]*amu;
+  double mu  = m1 * m2 / (m1 + m2);
+  double vel = (*cr) * UserTreeDSMC::Vunit;
+  double kEI = 0.5 * mu * vel*vel;
+
+  // Convert ergs to eV
+  //
+  double kEe = kEI * 6.241509e11;
+
+  // For tracking energy consistency
+  //
+  double dE   = kE*TolV*TolV;
+  double remE = (kE - dE);
+  double delE = 0.0, delEeV = 0.0;
+
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
 
@@ -441,12 +466,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double tCross;
   tCross = 0;
   int si = 0;
-  for(size_t i = 0; i < dCross.size(); i++) {
-    tCross += dCross[i];
+  for (size_t i = 0; i < dCrossMap[id].size(); i++) {
+    tCross += dCrossMap[id][i];
     TotalCross.push_back(tCross);
     si++;
   }
-  assert(TotalCross.size() == dCross.size());
+  assert (TotalCross.size() == dCrossMap[id].size());
 
   if (tCross != 0) {
     std::vector<double> CDF;
@@ -476,14 +501,14 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     // Finally, set the interaction type based on the selected index
-    interFlag = inter[index];
+    interFlag = dInterMap[id][index];
 
     // Sanity check: did not set interaction type??
     if (interFlag<0) {
       std::cout << "interFlag NOT set, myid=" << myid 
 		<< ", index=" << index << std::endl;
       index = 0;
-      interFlag = inter[0];
+      interFlag = dInterMap[id][0];
     }
 
     int partflag = 0;		// Will be 1 or 2, dependending on
@@ -502,7 +527,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 2) {
-      delE = IS.selectCEInteract(IonList[p1->Z][p1->C], CE1);
+      delE = IS.selectCEInteract(IonList[p1->Z][p1->C], CE1[id]);
       partflag      = 1;
       CE_d.first++; 
       CE_d.second  += delE;
@@ -541,7 +566,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 7) {
-      delE         = IS.selectCEInteract(IonList[p2->Z][p2->C], CE2);
+      delE         = IS.selectCEInteract(IonList[p2->Z][p2->C], CE2[id]);
       partflag     = 2;
       CE_d.first++; 
       CE_d.second += delE;
@@ -615,13 +640,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // contribution from the "interaction" section
 
   // Convert from nanometer^2 to cm^2 first, then system units
-
-  // Upscaling and unit converion
-  double sUp = diamfac * 1.0e-7 / UserTreeDSMC::Lunit;
-
-  csections[id][j2][j1] = (cross12 + sum12) * sUp * sUp;
-  csections[id][j1][j2] = (cross21 + sum21) * sUp * sUp;
-  
 
   if (remE<=0.0 || delE<=0.0) return ret;
   

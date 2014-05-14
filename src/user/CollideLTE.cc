@@ -436,6 +436,15 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
 }
 
 
+double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
+			       double cr, int id)
+{
+  speciesKey k1(p1->Z, p1->C);
+  speciesKey k2(p2->Z, p2->C);
+  return csections[id][k1][k2];
+}
+
+
 int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
 			  double *cr, int id)
 {

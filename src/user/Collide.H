@@ -82,6 +82,9 @@ struct thrd_pass_tstep
    we can still use the matrix-like syntatic construction
    matrix[i1][i2].
    
+   <li> crossSection(). Return the cross section for the collision for
+   use in the particle selection algorithm.
+
    <li> inelastic().  Performs the inelastic computation.  Returns 0 on
    success.
    
@@ -230,6 +233,10 @@ protected:
   //! species-species interactions
   virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
 
+  //! Return the full cross section for particle selection computation
+  virtual double crossSection(pHOT* tree, Particle* p1, Particle* p2,
+			double cr, int id=0) { return 0; }
+  
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }

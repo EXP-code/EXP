@@ -64,6 +64,9 @@ protected:
 
   bool hasHeatCool() { return true; }
 
+  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+		      double crm, int id=0);
+
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
   double getCoolingRate(int id) { return coolheat[id]; }
