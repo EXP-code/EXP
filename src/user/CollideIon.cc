@@ -40,7 +40,7 @@ const double boltzEv = 8.6173324e-5;
 const double esu     = 4.8032e-10;
 
 // Atomic mass unit in grams
-const double amu = 1.660539e-24;
+const double amu     = 1.660539e-24;
 
 // Number of Ion elements
 const int N_Z = 2;		
@@ -182,10 +182,10 @@ sKeyDmap& CollideIon::statWeights(pCell* c, int id)
 {
   typedef std::map<speciesKey, unsigned> Count;
 
-  // Set all weights to 0.5
+  // Set all weights to 1
   //
   for (Count::iterator it=c->count.begin(); it!=c->count.end(); it++)
-    sweights[id][it->first] = 0.5;
+    sweights[id][it->first] = 1.0;
     
   return sweights[id];
 }
@@ -205,6 +205,7 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   double Eerg = 0.5*vel*vel*amu/eV;
 
   // Upscaling factor for scattering cross section
+  //
   double sUp  = diamfac*diamfac;
 
   for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
@@ -240,16 +241,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
   double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);
   
-  // Statistical weighting for particles with different numbers
-  //
-  double W1 = N1/std::max<double>(N1, N2);
-  double W2 = N2/std::max<double>(N1, N2);
-
   // Number of associated electrons for each particle
   //
-  double ne1 = W1*(p1->C - 1);
-  double ne2 = W2*(p2->C - 1);
-
+  double ne1 = N1/N2 * (p1->C - 1);
+  double ne2 = N2/N1 * (p2->C - 1);
+  
   // The total mass in system units
   //
   double Mt = p1->mass + p2->mass;
@@ -326,14 +322,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Total scattering cross section
   //--------------------------------------------------
 
-  double cross12 = W1 * geometric(p1->Z);
-  double cross21 = W2 * geometric(p2->Z);
+  double cross12 = N2/N1 * geometric(p1->Z);
+
+  double cross21 = N1/N2 * geometric(p2->Z);
 
   if (p1->C>1 && ne2 > 0)
-    cross12 += W1 * elastic(p1->Z, kEe) * ne2;
+    cross12 += elastic(p1->Z, kEe) * ne2;
     
   if (p2->C>1 && ne1 > 0) 
-    cross21 += W2 * elastic(p2->Z, kEe) * ne1;
+    cross21 += elastic(p2->Z, kEe) * ne1;
 
   dCross.push_back(cross12 + cross21);
   inter.push_back(0);
@@ -348,7 +345,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (p1->C > 1 and ne2 > 0) {
     double ff1 = IonList[p1->Z][p1->C].freeFreeCross(ch, kEe);
-    double crs = W1 * ne2 * ff1;
+    double crs = ne2 * ff1;
 
     dCross.push_back(crs);
     sum12 += crs;
@@ -363,7 +360,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     assert(E_therm_1 != 0);
     
     CE1 = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
-    double crs = W1 * ne2 * CE1.back().first;
+    double crs = ne2 * CE1.back().first;
 
     dCross.push_back(crs);
     sum12 += crs;
@@ -376,7 +373,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (p1->C < (p1->Z + 1) and ne2 > 0) {
 
     DI1 = IonList[p1->Z][p1->C].directIonCross(ch, kEe);
-    double crs = W1 * ne2 * DI1;
+    double crs = ne2 * DI1;
 
     dCross.push_back(crs);
     sum12 += crs;
@@ -389,7 +386,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if (p1->C > 1 and ne2 > 0) {
 
     RE1 = IonList[p1->Z][p1->C].radRecombCross(ch, kEe);
-    double crs = W1 * ne2 * RE1.back();
+    double crs = ne2 * RE1.back();
 
     dCross.push_back(crs);
     sum12 += crs;
@@ -406,7 +403,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (p2->C > 1 and ne1 > 0) {
     double ff2 = IonList[p2->Z][p2->C].freeFreeCross(ch, kEe);
-    double crs = W2 * ne1 * ff2;
+    double crs = ne1 * ff2;
 
     dCross.push_back(crs);
     sum21 += crs;
@@ -419,7 +416,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   if(ne1 > 0 and p2->C <= p2->Z) {
     assert(E_therm_2 != 0);
     CE2 = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
-    double crs = W2 * ne1 * CE2.back().first;
+    double crs = ne1 * CE2.back().first;
 
     dCross.push_back(crs);
     sum21 += crs;
@@ -431,7 +428,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double DI2;
   if (p2->C < (p2->Z + 1) and ne1 > 0) {
     DI2 = IonList[p2->Z][p2->C].directIonCross(ch, kEe);
-    double crs = W2 * ne1 * DI2;
+    double crs = ne1 * DI2;
 
     dCross.push_back(crs);
     sum21 += crs;
