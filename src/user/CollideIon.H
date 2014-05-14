@@ -47,9 +47,6 @@ private:
 
 protected:
 
-  //! List of statistical weights (separate for each thread)
-  std::vector<sKeyDmap> sweights;
-
   //! List of cross-sections (separate for each thread)
   std::vector<sKey2Dmap> csections;
   
@@ -81,8 +78,6 @@ protected:
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
   
-  sKeyDmap&  statWeights(pCell* c, int id);
-
   sKey2Dmap& totalCrossSections(double crm, int id);
 
   sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);

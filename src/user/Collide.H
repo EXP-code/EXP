@@ -76,8 +76,6 @@ struct thrd_pass_tstep
    <li> finalize_cell(). Computes diagnostics for the cell after
    collisions/cooling.
    
-   <li> statWeights(). Return vector of statistical weights for each specie.
-
    <li> totalCrossSections(). Return total cross section "matrix" for
    species-species interactions.  The "matrix" is implemented as an
    STL map<int, map<int, double> > so sparse indices do not matter but
@@ -224,9 +222,6 @@ protected:
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
   
-  //! Return statistical weights for each particle key
-  virtual sKeyDmap&  statWeights(pCell* c, int id) = 0;
-
   //! Return total scattering cross section "matrix" for
   //! species-species interactions
   virtual sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id) = 0;

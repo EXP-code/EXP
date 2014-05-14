@@ -67,7 +67,6 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   Collide(force, hD, sD, Nth)
 {
   NUM = 0;
-  sweights  = std::vector<sKeyDmap > (nthrds);
   csections = std::vector<sKey2Dmap> (nthrds);
   
   for(int i = 0; i < N_Z; i++) {
@@ -177,19 +176,6 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
       }
   }
 }
-
-sKeyDmap& CollideIon::statWeights(pCell* c, int id)
-{
-  typedef std::map<speciesKey, unsigned> Count;
-
-  // Set all weights to 1
-  //
-  for (Count::iterator it=c->count.begin(); it!=c->count.end(); it++)
-    sweights[id][it->first] = 1.0;
-    
-  return sweights[id];
-}
-
 
 sKey2Dmap& CollideIon::totalCrossSections(double crm, int id)
 {    

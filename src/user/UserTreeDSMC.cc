@@ -308,12 +308,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       for (it=spec.begin(); it != spec.end(); it++)  {
 	indx = it->first;
 	spec_list.insert(indx);
-        if (collFrac.find(indx) == collFrac.end()) 
-	  collFrac[indx]  = 1.0/(atomic_weights[indx.first]);
-	else {			// Ask Brandt about this . . . 
-	  collFrac[indx] *= 1.0/(atomic_weights[indx.first]);
-	  std::cout << "Weird stuff!" << std::endl;
-	}
+	collFrac[indx] = 1.0;
       }
 
       std::map<speciesKey, unsigned long> check = spec;
@@ -397,7 +392,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Number of protons per mass unit
   for (std::map<speciesKey, double>::iterator 
 	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/mp;
-
+  
   pHOT::sub_sample = sub_sample;
 
   c0->HOTcreate(spec_list);

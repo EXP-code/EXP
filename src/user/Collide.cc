@@ -771,13 +771,12 @@ void * Collide::collide_thread(void * arg)
     // Per species quantities
     //
     
-    sKeyDmap            densM, collPM, lambdaM, crossM, sWeight;
+    sKeyDmap            densM, collPM, lambdaM, crossM;
     sKey2Dmap           selcM;
     sKey2Umap           nselM;
     sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
-    sWeight = statWeights(c, id);
     crossIJ = totalScatteringCrossSections(crm, c, id);
     
     //
@@ -804,19 +803,17 @@ void * Collide::collide_thread(void * arg)
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 
-	double W = sWeight[i1] * sWeight[i2];
-
 	if (i2>=i1) {
-	  crossM[i1] += W * (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
+	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
 	} else
-	  crossM[i1] += W * (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
+	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
       }
       
       if (crossM[i1] == 0 or isnan(crossM[i1]))
       	cout << "INVALID CROSS SECTION! ::"
 	     << " crossM = " << crossM[i1] 
-	     << " densM = "  << densM[i1] 
-	     << " Fn = "     << (*Fn)[i1] << endl;
+	     << " densM = "  <<  densM[i1] 
+	     << " Fn = "     <<  (*Fn)[i1] << endl;
 
       lambdaM[i1] = 1.0/crossM[i1];
       collPM [i1] = crossM[i1] * crm * tau;
@@ -846,8 +843,7 @@ void * Collide::collide_thread(void * arg)
 
 	// Probability of an interaction of between particles of type 1
 	// and 2 for a given particle of type 2
-	double Prob = sWeight[i1] * sWeight[i2] *
-	  (*Fn)[i1] * densM[i2] * crossIJ[i1][i2] * crm * tau;
+	double Prob = (*Fn)[i2] * densM[i2] * crossIJ[i1][i2] * crm * tau;
 
 	if (i1==i2)
 	  selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
