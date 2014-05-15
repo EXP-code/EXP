@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <iomanip>
+#include <numeric>
 
 #include <boost/random.hpp>
 #include <boost/random/uniform_real.hpp>
@@ -233,16 +234,23 @@ void InitializeSpecies(std::vector<Particle> & particles,
 
 				// Compute cumulative species
 				// distribution
-  const size_t NZ = sF.size();
+  size_t NS = sF.size();
+				// Normalize sF
+  double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
+  if (fabs(norm - 1.0)>1.0e-16) {
+    std::cout << "Normalization change: " << norm << std::endl;
+  }
 
-				// Normalize species map, just in case
-  double norm = 0.0;
-  for (size_t i=1; i<NZ; i++) norm += sF[i];
-
-  std::vector<double> frcS(NZ), cumS(NZ);
-  for (size_t i=0; i<NZ; i++) {
-    frcS[i]= sF[i]/atomic_masses[sZ[i]]/norm;
+  std::vector<double> frcS(NS), cumS(NS);
+  for (size_t i=0; i<NS; i++) {
+    sF[i]  /= norm;
+    frcS[i] = sF[i]/atomic_masses[sZ[i]-1];
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
+  }
+
+  for (size_t i=0; i<NS; i++) {
+    frcS[i] /= cumS.back();
+    cumS[i] /= cumS.back();
   }
 
   for (size_t i=0; i<N; i++) {
@@ -253,7 +261,7 @@ void InitializeSpecies(std::vector<Particle> & particles,
     unsigned char Ci = 1, Zi;
     size_t indx;
 				// Get the species
-    for (indx=0; indx<NZ; indx++) { 
+    for (indx=0; indx<NS; indx++) { 
       if (rz < cumS[indx]) {
 	Zi = sZ[indx]; 
 	break;
@@ -269,7 +277,7 @@ void InitializeSpecies(std::vector<Particle> & particles,
 
     particles[i].Z     = Zi;
     particles[i].C     = Ci;
-    particles[i].mass  = M/N * frcS[indx];
+    particles[i].mass  = M/N * sF[indx]/frcS[indx];
   }
   
 }

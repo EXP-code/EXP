@@ -377,7 +377,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  if(ne1 > 0 and p2->C <= p2->Z) {
+  if (ne1 > 0 and p2->C <= p2->Z) {
 
     if (E_therm_2 == 0.0) {
       std::cout << "E_therm_2 == 0.0, kEe=" << kEe << ", cr=" << cr << std::endl;

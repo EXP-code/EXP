@@ -1026,21 +1026,26 @@ void * Collide::collide_thread(void * arg)
 	    crel[k] = p1->vel[k] - p2->vel[k];
 	    cr += crel[k]*crel[k];
 	  }
-
-	  if (cr == 0.0) continue;
-
 	  cr = sqrt(cr);
 
+	  // No point in inelastic collsion for zero velocity . . . 
+	  //
+	  if (cr == 0.0) continue;
+
+	  // Update v_max
+	  //
 	  if (NTC) crmax = max<double>(crmax, cr);
 	  
-
 	  // Accept or reject candidate pair according to relative speed
 	  //
-	  bool ok     = false;
-	  double vcrs = cr * crossSection(tree, p1, p2, cr, id);
+	  bool   ok   = false;
+	  double cros = crossSection(tree, p1, p2, cr, id);
+	  double crat = cros/crossIJ[i1][i2];
+	  double vrat = cr/crm;
+	  double targ = vrat * crat;
 
 	  if (NTC)
-	    ok = ( vcrs/(crm*crossIJ[i1][i2] ) > (*unit)() );
+	    ok = ( targ > (*unit)() );
 	  else
 	    ok = true;
 	  
@@ -1055,8 +1060,6 @@ void * Collide::collide_thread(void * arg)
 	    // Do inelastic stuff
 	    //
 	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
-	    // May update relative velocity to reflect
-	    // excitation of internal degrees of freedom
 	    
 	    // Center of mass velocity
 	    //
@@ -1116,25 +1119,26 @@ void * Collide::collide_thread(void * arg)
 
 	  } // Inelastic computation
 
-	} // Loop over pairs
+	} // Loop over trial pairs
 	
-      }
+      } // Next species 2
+
+    } // Next species 1
     
-      elasSoFar[id] = elasTime[id].stop();
+    elasSoFar[id] = elasTime[id].stop();
     
 #pragma omp critical
-      if (NTC) samp->CRMadd(crmax);
+    if (NTC) samp->CRMadd(crmax);
 
-      // Count collisions
-      //
-      colcntT[id].push_back(colc);
-      sel1T[id] += totalCount;
-      col1T[id] += colc;
+    // Count collisions
+    //
+    colcntT[id].push_back(colc);
+    sel1T[id] += totalCount;
+    col1T[id] += colc;
       
 #ifdef USE_GPTL
-      GPTLstop("Collide::inelastic");
+    GPTLstop("Collide::inelastic");
 #endif
-    }
     collSoFar[id] = collTime[id].stop();
   
 #ifdef USE_GPTL
