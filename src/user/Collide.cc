@@ -1026,20 +1026,26 @@ void * Collide::collide_thread(void * arg)
 	    crel[k] = p1->vel[k] - p2->vel[k];
 	    cr += crel[k]*crel[k];
 	  }
+
+	  if (cr == 0.0) continue;
+
 	  cr = sqrt(cr);
+
 	  if (NTC) crmax = max<double>(crmax, cr);
 	  
+
 	  // Accept or reject candidate pair according to relative speed
 	  //
-	  bool ok = false;
-	  if (NTC) {
-	    double vcrs = cr * crossSection(tree, p1, p2, cr, id);
+	  bool ok     = false;
+	  double vcrs = cr * crossSection(tree, p1, p2, cr, id);
+
+	  if (NTC)
 	    ok = ( vcrs/(crm*crossIJ[i1][i2] ) > (*unit)() );
-	  } else {
+	  else
 	    ok = true;
-	  }
 	  
 	  if (ok) {
+
 	    elasTime[id].start();
 	    
 	    // If pair accepted, select post-collision velocities
@@ -1107,7 +1113,9 @@ void * Collide::collide_thread(void * arg)
 		}
 	      }
 	    }
-	  }
+
+	  } // Inelastic computation
+
 	} // Loop over pairs
 	
       }

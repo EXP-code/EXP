@@ -239,8 +239,8 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   // Get temperatures from cells
   //
-  double E_therm_1 = boltzEv*p1->dattrib[use_temp];
-  double E_therm_2 = boltzEv*p2->dattrib[use_temp];
+  double E_therm_1 = boltzEv * p1->dattrib[use_temp];
+  double E_therm_2 = boltzEv * p2->dattrib[use_temp];
   
   // Or use the effective temperature from the COM KE
   //
@@ -317,7 +317,9 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and p1->C <= p1->Z) {
 
-    assert(E_therm_1 != 0);
+    if (E_therm_1 == 0.0) {
+      std::cout << "E_therm_1 == 0.0, kEe=" << kEe << ", cr=" << cr << std::endl;
+    }
     
     CE1[id] = IonList[p1->Z][p1->C].collExciteCross(ch, kEe, E_therm_1);
     double crs = ne2 * CE1[id].back().first;
@@ -376,7 +378,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Collisional excitation
 				//-------------------------------
   if(ne1 > 0 and p2->C <= p2->Z) {
-    assert(E_therm_2 != 0);
+
+    if (E_therm_2 == 0.0) {
+      std::cout << "E_therm_2 == 0.0, kEe=" << kEe << ", cr=" << cr << std::endl;
+    }
+
     CE2[id] = IonList[p2->Z][p2->C].collExciteCross(ch, kEe, E_therm_2);
     double crs = ne1 * CE2[id].back().first;
 
