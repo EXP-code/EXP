@@ -230,6 +230,11 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
 				double cr, int id)
 {
+  // Number of atoms in each super particle
+  //
+  double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[p1->Z]*amu);
+  double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[p2->Z]*amu);
+
   // Number of associated electrons for each particle
   //
   double ne1 = p1->C - 1;
@@ -250,9 +255,8 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   Ein = 0.0;
   if (use_Eint>=0) {
-    Ein += p1->dattrib[use_Eint];
-    Ein += p2->dattrib[use_Eint];
-    Ein *= UserTreeDSMC::Eunit;
+    Ein += p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
+    Ein += p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
   }
 
   // Compute the total available energy and divide among degrees of freedom
@@ -483,7 +487,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   double dE   = kE*TolV*TolV;
   double dof  = 1.0 + ne1 + ne2;
   double totE = kE + p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
-  double kEm  = totE / dof;   // Mean energy per d.o.f.
   //
   // Remainder energy after removing floor (system units)
   double remE = totE - dE;
@@ -631,6 +634,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     //
     delEeV = delE;
 
+    // Convert to super particle
+    //
     if (partflag) delE *= NN;
     
     // Energy summary diagnostics
@@ -662,8 +667,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   delE = delE/UserTreeDSMC::Eunit;
   
   
-  if (frost_warning && delE*0.999 > kEm) {
-    std::cout << "delE > KE!! (" << delE << " > " << kEm
+  if (frost_warning && delE*0.999 > totE) {
+    std::cout << "delE > KE!! (" << delE << " > " << totE
 	      << "), Interaction type = " << interFlag 
 	      << " kEe  = "  << kEe
 	      << " delE = " << delEeV 
@@ -701,7 +706,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
     totE          -= delE;	// Remove the energy
 
-    kEm            = totE/dof;	// Spread among degrees of freedom
+    double kEm     = totE/dof;	// Spread among degrees of freedom
 
 				// Get new relative velocity
     (*cr)          = sqrt( 2.0*kEm/Mu );
@@ -738,7 +743,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
 				// Remaining energy split between
 				// internal degrees of freedom
-    kEm            = (totE - kE + dE)/(ne1 + ne2);
+    double kEm     = (totE - kE + dE)/(ne1 + ne2);
 
     p1->dattrib[use_Eint] = ne1 * kEm;
     p2->dattrib[use_Eint] = ne2 * kEm;
