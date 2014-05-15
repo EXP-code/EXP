@@ -69,6 +69,17 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   NUM = 0;
   csections = std::vector<sKey2Dmap> (nthrds);
   
+  // Make sure that internal energy is assigned
+  //
+  if (use_Eint<0) {
+    if (myid==0) {
+      std::cout << "*** Internal energy variable not assigned; "
+		<< "will translational energy only, but this "
+		<< " is probably not what you intend ***"
+		<< std::endl;
+    }
+  }
+
   for(int i = 0; i < N_Z; i++) {
     for (int j = 1; j <= ZList[i] + 1; j++) {
       IonList[ZList[i]][j] = Ion(ZList[i], j, ch);
@@ -231,11 +242,17 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   double mu  = m1 * m2 / (m1 + m2);
   double vel = cr * UserTreeDSMC::Vunit;
   double kEI = 0.5 * mu * vel*vel;
+  double Ein = 0.0;
+  if (use_Eint>=0) {
+    Ein += p1->dattrib[use_Eint];
+    Ein += p2->dattrib[use_Eint];
+    Ein *= UserTreeDSMC::Eunit;
+  }
 
+  // Compute the total available energy and divide among degrees of freedom
   // Convert ergs to eV
   //
-  double kEe = kEI * 6.241509e11;
-
+  double kEe = (kEI + Ein)/(1.0 + ne1 + ne2) * 6.241509e11;
 
   // Get temperatures from cells
   //

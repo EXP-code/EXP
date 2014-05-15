@@ -51,6 +51,7 @@ private:
   std::map< int, std::vector<double> > dCrossMap;
   std::map< int, std::vector<int>    > dInterMap;
   std::map< int, CEvector  > CE1, CE2;
+  double kEe;
   //@}
 
 protected:

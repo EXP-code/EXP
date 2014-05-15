@@ -78,6 +78,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_St     = -1;
   use_vol    = -1;
   use_exes   = -1;
+  use_Eint   = -1;
   coolfrac   = 0.1;
   enhance    = 1.0;
   frontier   = false;
@@ -518,6 +519,7 @@ void UserTreeDSMC::userinfo()
   if (use_St>=0)   cout << ", St at pos="     << use_St;
   if (use_vol>=0)  cout << ", cell volume at pos=" << use_vol;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
+  if (use_Eint>=0) cout << ", internal energy at pos=" << use_Eint;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
@@ -573,6 +575,7 @@ void UserTreeDSMC::initialize()
   if (get_value("use_St", val))		use_St     = atoi(val.c_str());
   if (get_value("use_vol", val))	use_vol    = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes   = atoi(val.c_str());
+  if (get_value("use_Eint", val))	use_Eint   = atoi(val.c_str());
   if (get_value("frontier", val))	frontier   = atol(val);
   if (get_value("tspow", val))		tspow      = atoi(val.c_str());
   if (get_value("tsdiag", val))		tsdiag     = atol(val);
