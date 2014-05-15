@@ -210,7 +210,7 @@ protected:
   unsigned errtot;
   unsigned numtot;
   
-  int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
+  int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
   
   //! Initializes cross sections for use in DSMC
   virtual void initialize_cell_dsmc
@@ -388,6 +388,9 @@ public:
   
   virtual void
   set_St(int pos) { use_St=pos; }
+  
+  virtual void
+  set_Eint(int pos) { use_Eint=pos; }
   
   virtual double getCoolingRate(int id) = 0;
   

@@ -449,6 +449,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide->set_temp_dens(use_temp, use_dens);
   if (esol) collide->set_timestep(-1);
   else      collide->set_timestep(use_delt);
+  collide->set_St(use_Eint);
   collide->set_Kn(use_Kn);
   collide->set_St(use_St);
   collide->set_excess(use_exes);

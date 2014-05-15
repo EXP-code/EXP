@@ -167,7 +167,8 @@ private:
   int cnum, wght;
   int nsteps, msteps, remap;
   unsigned madj;
-  int use_temp, use_dens, use_delt, use_exes, use_Kn, use_St, use_vol, tspow;
+  int use_temp, use_dens, use_delt, use_exes, use_Kn;
+  int use_St, use_vol, use_Eint, tspow;
   double hsdiam;
   double diamfac;
   double collfrac;
