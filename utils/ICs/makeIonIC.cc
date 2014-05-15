@@ -87,6 +87,8 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   double varHe = sqrt((boltz*T)/(atomic_masses[1]*amu));
 
   for (unsigned i=0; i<npart; i++) {
+
+    double KE = 0.0;
     for (unsigned k=0; k<3; k++) {
       p[i].pos[k] = L[k]*(*Unit)();
       if (p[i].Z == 1) {
@@ -94,9 +96,14 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       }
       if (p[i].Z == 2) p[i].vel[k] = varHe*(*Norm)();
       p[i].vel[k] /= Vunit;
+      KE += p[i].vel[k] * p[i].vel[k];
     }
+
+    KE *= 0.5 * p[i].mass * (p[i].C-1);
+
     p[i].dattrib.push_back(T);
     p[i].dattrib.push_back(rho);
+    p[i].dattrib.push_back(KE);
 
     for (int n=0; n<nd-2; n++) p[i].dattrib.push_back(0.0);
   }
