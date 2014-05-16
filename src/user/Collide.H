@@ -225,13 +225,9 @@ protected:
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
   
-  //! Return total scattering cross section "matrix" for
-  //! species-species interactions
-  virtual sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id) = 0;
-
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
-  virtual sKey2Dmap& totalCrossSections(double crm, int id) = 0;
+  virtual sKey2Dmap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
   virtual double crossSection(pHOT* tree, Particle* p1, Particle* p2,

@@ -87,7 +87,10 @@ protected:
   void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
 
   
-  sKey2Dmap& totalCrossSections(double crm, int id);
+  sKey2Dmap& totalCrossSections(int id)
+  {    
+    return csections[id];
+  }
 
   sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
 

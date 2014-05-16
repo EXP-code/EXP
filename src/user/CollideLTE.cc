@@ -109,34 +109,6 @@ CollideLTE::~CollideLTE()
   delete hc;
 }
 
-sKey2Dmap& CollideLTE::totalScatteringCrossSections(double crm, pCell* c, int id)
-{
-  typedef std::map<speciesKey, unsigned> Count;
-
-  // Compute geometric cross section
-  double diam  = diamfac*a0/UserTreeDSMC::Lunit;
-  double cross = M_PI*diam*diam;
-
-  for (Count::iterator it1=c->count.begin(); it1!=c->count.end(); it1++) {
-    speciesKey i1 = it1->first;
-    double Z1 = i1.first;
-
-    for (Count::iterator it2=c->count.begin(); it2!=c->count.end(); it2++) { 
-      speciesKey i2 = it2->first;
-      double Z2 = i2.first;
-
-      csections[id][i1][i2] = cross * std::max<double>(Z1*Z1, Z2*Z2);
-    }
-  }
-    
-  return csections[id];
-}
-
-sKey2Dmap& CollideLTE::totalCrossSections(double crm, int id)
-{
-  return csections[id];
-}
-
 void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
 				 double rvmax, double tau,
 				 sKey2Umap& nsel, int id)
@@ -159,21 +131,24 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell,
   double mm   = f_H*mp + (1.0-f_H)*4.0*mp;
   double T    = 2.0*KEdspS*UserTreeDSMC::Eunit/3.0 * mm/UserTreeDSMC::Munit/boltz;
 
-				// Compute geometric cross section
+  // Compute geometric cross section
+  //
+  typedef std::map<speciesKey, unsigned> Count;
   double diam  = diamfac*a0/UserTreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
-  for (sKey2Umap::iterator it1 = nsel.begin();
-       it1 != nsel.end(); it1++) 
-    {
-      speciesKey i1 = it1->first;
-      for (sKeyUmap::iterator it2 = it1->second.begin();
-	   it2 != it1->second.end(); it2++) 
-	{
-	  speciesKey i2 = it2->first;
-	  csections[id][i1][i2] = cross;
-	}
+
+  for (Count::iterator it1=cell->count.begin(); it1!=cell->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    double Z1 = i1.first;
+
+    for (Count::iterator it2=cell->count.begin(); it2!=cell->count.end(); it2++) { 
+      speciesKey i2 = it2->first;
+      double Z2 = i2.first;
+
+      csections[id][i1][i2] = cross * std::max<double>(Z1*Z1, Z2*Z2);
     }
-  
+  }
+
 				// Volume in cells
   double volumeC = cell->Volume();
   double volumeS = samp->Volume();

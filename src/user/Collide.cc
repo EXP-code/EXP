@@ -775,9 +775,7 @@ void * Collide::collide_thread(void * arg)
     sKey2Dmap           selcM;
     sKey2Umap           nselM;
     sKeyUmap::iterator  it1, it2;
-    sKey2Dmap           crossIJ;
-    
-    crossIJ = totalScatteringCrossSections(crm, c, id);
+    sKey2Dmap           crossIJ = totalCrossSections(id);
     
     //
     // Cross-section debugging [BEGIN]
@@ -1234,7 +1232,7 @@ void * Collide::collide_thread(void * arg)
     if (CROSS_DBG && id==0) {
       if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
 	{
-	  crossIJ = totalCrossSections(crm, id);
+	  crossIJ = totalCrossSections(id);
 	  speciesKey i = c->count.begin()->first;
 	  cross2_dbg.push_back(crossIJ[i][i]);
 	  nCnt_dbg++;

@@ -158,40 +158,46 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
 				// Used for diagnostics only
   totalSoFar += massC * KEdspC;
   massSoFar  += massC;
-				// Representative avg cell velocity in cgs
+  
+  // Representative avg cell velocity in cgs
+  //  
   double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
 
-				// Representative avg cell energy in ergs
+  // Representative avg cell energy in ergs
+  //
   double Eerg = 0.5*vavg*vavg*amu/eV;
 
-				// Upscaling factor for scattering cross section
+  // Upscaling factor for scattering cross section
+  //
   double sUp  = diamfac*diamfac;
 
-  for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++)  {
+  typedef std::map<speciesKey, unsigned> Count;
+
+  for (Count::iterator it1 = cell->count.begin(); it1 != cell->count.end(); it1++)  {
 
     speciesKey i1 = it1->first;
     double Cross1 = geometric(i1.first);
+    
+    for (Count::iterator it2 = cell->count.begin(); it2 != cell->count.end(); it2++) {
+      
+      speciesKey i2 = it2->first;
+      double Cross2 = geometric(i2.first);
 
-    for (sKeyUmap::iterator 
-	   it2 = it1->second.begin(); it2 != it1->second.end(); it2++)  
-      {
-	speciesKey i2 = it2->first;
+      double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
+	(atomic_weights[i1.first] + atomic_weights[i2.first]);
 
-	double Cross2 = geometric(i2.first);
+      if (i1.second==1 && i2.second>1)
+	Cross1 += elastic(i1.first, Eerg * mu) * (i2.second - 1);
 
-	if (i1.second==1 && i2.second>1) 
-	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]);
-
-	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 /
-	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-      }
+      if (i2.second==1 && i1.second>1)
+	Cross2 += elastic(i1.first, Eerg * mu) * (i1.second - 1);
+	
+      csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
+	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    }
   }
 }
 
-sKey2Dmap& CollideIon::totalCrossSections(double crm, int id)
-{    
-  return csections[id];
-}
 
 sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 {
@@ -216,8 +222,14 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 
 	double Cross2 = geometric(i2.first);
 
+	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
+	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
+
 	if (i1.second==1 && i2.second>1)
-	  Cross2 += elastic(i1.first, Eerg * atomic_weights[i1.first]);
+	  Cross1 += elastic(i1.first, Eerg * mu) * (i2.second - 1);
+
+	if (i2.second==1 && i1.second>1)
+	  Cross2 += elastic(i1.first, Eerg * mu) * (i1.second - 1);
 	
 	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -447,6 +459,9 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     sum21 += crs;
   } 
   
+				//-------------------------------
+				// *** Convert to system units
+				//-------------------------------
   return (cross12 + cross21 + sum12 + sum21) * 1e-14 / 
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 }
@@ -704,9 +719,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     lostSoFar[id] += delE;
     decelT[id]    += delE;
 
-    totE          -= delE;	// Remove the energy
+    totE          -= delE;	// Remove the energy from the total
+				// available
 
-    double kEm     = totE/dof;	// Spread among degrees of freedom
+    double kEm     = totE/dof;	// Energy per particle
 
 				// Get new relative velocity
     (*cr)          = sqrt( 2.0*kEm/Mu );
