@@ -768,7 +768,7 @@ void * Collide::collide_thread(void * arg)
     double cL = pow(volc, 0.33333333);
     
     
-    // Cell initialization
+    // Cell initialization (generate cross sections)
     //
     initialize_cell(tree, c, crm, id);
 
@@ -947,7 +947,7 @@ void * Collide::collide_thread(void * arg)
     // Species map for collisions
 
     unsigned colc = 0;
-    std::map<speciesKey, vector<unsigned long> > bmap;
+    std::map<speciesKey, std::vector<unsigned long> > bmap;
 
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp_diag");
@@ -1027,14 +1027,24 @@ void * Collide::collide_thread(void * arg)
 	  
 	  totalCount++;
 	  
-	  // Pick two particles at random out of this cell
-	  //
-	  unsigned k1 = min<int>((int)floor((*unit)()*num1), num1-1), k2;
-	  if (i1 == i2)
-	    k2 = ((int)floor((*unit)()*(num2-1)) + k1 + 1) % num2;
-	  else
-	    k2 = min<int>((int)floor((*unit)()*num2), num2-1);
+	  // Pick two particles at random out of this cell. l1 and l2
+	  // are indices in the bmap[i1] and bmap[i2] vectors of body
+	  // indecies
+	  size_t l1, l2;
+
+	  l1 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*num1)), num1-1);
+
+	  if (i1 == i2) {
+	    l2 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*(num2-1))), num2-2);
+	    l2 = (l2 + l1 + 1) % num2;
+	  } else {
+	    l2 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*num2)), num2-1);
+	  }
 	  
+	  // Get index from body map for the cell
+	  //
+	  unsigned long k1 = bmap[i1][l1], k2 = bmap[i2][l2];
+
 	  Particle* p1 = tree->Body(c->bods[k1]); // First particle
 	  Particle* p2 = tree->Body(c->bods[k2]); // Second particle
 	  
