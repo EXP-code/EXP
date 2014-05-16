@@ -1041,6 +1041,24 @@ void * Collide::collide_thread(void * arg)
 	    l2 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*num2)), num2-1);
 	  }
 	  
+	  // Sanity check
+	  //
+	  if (bmap.find(i1) == bmap.end()) {
+	    std::cerr << "i1 not in bmap" << std::endl;
+	  } else {
+	    if (l1>bmap[i1].size()) {
+	    std::cerr << "l1 too large" << std::endl;
+	    }
+	  }
+
+	  if (bmap.find(i2) == bmap.end()) {
+	    std::cerr << "i2 not in bmap" << std::endl;
+	  } else {
+	    if (l2>bmap[i2].size()) {
+	    std::cerr << "l2 too large" << std::endl;
+	    }
+	  }
+
 	  // Get index from body map for the cell
 	  //
 	  unsigned long k1 = bmap[i1][l1], k2 = bmap[i2][l2];
