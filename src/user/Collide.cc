@@ -1049,7 +1049,7 @@ void * Collide::collide_thread(void * arg)
 	    l2 = std::min<size_t>(l2, num2-1);
 	  }
 	  
-	  // Get particles from body-index map for the cell
+	  // Get index from body map for the cell
 	  //
 	  Particle* p1 = tree->Body(bmap[i1][l1]);
 	  Particle* p2 = tree->Body(bmap[i2][l2]);

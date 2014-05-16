@@ -25,7 +25,7 @@ const double me      =  9.1094e-28;
 const double c       =  2.99792458e+10;
 
 // electron volt in (cgs)
-const double eV      =  1.6020e-12;
+const double eV      =  1.60217653e-12;
 
 // Boltzmann constant (cgs)
 const double boltz   = 1.3810e-16;
@@ -37,7 +37,7 @@ const double boltzEv = 8.6173324e-5;
 //const double planck  = 6.6262e-27;
 
 // Electron charge (cgs)
-const double esu     = 4.8032e-10;
+const double esu     = 4.80320427e-10;
 
 // Atomic mass unit in grams
 const double amu     = 1.660539e-24;
@@ -163,7 +163,10 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
   // Representative avg cell energy in ergs
   //
-  double Eerg = 0.5*vavg*vavg*amu/eV;
+  double Eerg = 0.5*vavg*vavg*amu;
+
+  // In eV
+  double EeV = Eerg / eV;
 
   // Upscaling factor for scattering cross section
   //
@@ -184,12 +187,27 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
       double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	(atomic_weights[i1.first] + atomic_weights[i2.first]);
 
-      if (i1.second==1 && i2.second>1)
-	Cross1 += elastic(i1.first, Eerg * mu) * (i2.second - 1);
+      if (i2.second>1) {
+	double ne2 = i2.second - 1;
+	if (i1.second==1)
+	  Cross1 = elastic(i1.first, EeV * mu) * ne2;
+	else {
+	  double b = 0.5*esu*esu*(i1.second - 1)/Eerg * 1.0e7; // nm
+	  Cross1 = M_PI*b*b * ne2;
+	}
+      }
 
-      if (i2.second==1 && i1.second>1)
-	Cross2 += elastic(i1.first, Eerg * mu) * (i1.second - 1);
-	
+      if (i1.second>1) {
+	double ne1 = i1.second - 1;
+	if (i2.second==1)
+	  Cross2 = elastic(i2.first, EeV * mu) * ne1;
+	else {
+	  double b = 0.5*esu*esu*(i2.second - 1)/Eerg * 1.0e7; // nm
+	  Cross2 = M_PI*b*b * ne1;
+	}
+      }
+
+      
       csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     }
@@ -203,8 +221,9 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   Count::iterator it1, it2;
   
   double vel = crm * UserTreeDSMC::Vunit;
-  double Eerg = 0.5*vel*vel*amu/eV;
-  
+  double Eerg = 0.5*vel*vel*amu;
+  double EeV  = Eerg / eV;
+
   // Upscaling factor for scattering cross section
   //
   double sUp  = diamfac*diamfac;
@@ -223,11 +242,29 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 
-	if (i1.second==1 && i2.second>1)
-	  Cross1 += elastic(i1.first, Eerg * mu) * (i2.second - 1);
+	// Electrons in second particle
+	//
+	if (i2.second>1) {
+	  double ne2 = i2.second - 1;
+	  if (i1.second==1)	// Neutral atom-electron scattering
+	    Cross1 = elastic(i1.first, EeV * mu) * ne2;
+	  else {		// Rutherford scattering
+	    double b = 0.5*esu*esu*(i1.second - 1)/Eerg * 1.0e7; // nm
+	    Cross1 = M_PI*b*b * ne2;
+	  }
+	}
 
-	if (i2.second==1 && i1.second>1)
-	  Cross2 += elastic(i1.first, Eerg * mu) * (i1.second - 1);
+	// Electrons in first particle
+	//
+	if (i1.second>1) {
+	  double ne1 = i1.second - 1;
+	  if (i2.second==1)	// Neutral atom-electron scattering
+	    Cross2 = elastic(i2.first, EeV * mu) * ne1;
+	  else {		// Rutherford scattering
+	    double b = 0.5*esu*esu*(i2.second - 1)/Eerg * 1.0e7; // nm
+	    Cross2 = M_PI*b*b * ne1;
+	  }
+	}
 	
 	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -273,7 +310,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   // Convert ergs to eV
   //
 
-  kEe = (kEi + Ein)/(1.0 + ne1 + ne2) * 6.241509e11;
+  kEe = (kEi + Ein)/(1.0 + ne1 + ne2) / eV;
 
   // Get temperatures from cells
   //
@@ -321,14 +358,29 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //--------------------------------------------------
 
   double cross12 = geometric(p1->Z);
-
   double cross21 = geometric(p2->Z);
-
-  if (p1->C==1 && ne2 > 0)
-    cross12 += elastic(p1->Z, kEe) * ne2;
+	
+  // Electrons in second particle
+  //
+  if (ne2 > 0) {
+    if (p1->C==1)		// Neutral atom-electron scattering
+      cross12 = elastic(p1->Z, kEe) * ne2;
+    else {			// Rutherford scattering
+      double b = 0.5*esu*esu*(p1->C-1)*eV/kEe * 1.0e7; // nm
+      cross12 = M_PI*b*b * ne2;
+    }
+  }
     
-  if (p2->C==1 && ne1 > 0) 
-    cross21 += elastic(p2->Z, kEe) * ne1;
+  // Electrons in first particle
+  //
+  if (ne1 > 0) {
+    if (p2->C==1)		// Neutral atom-electron scattering
+      cross21 = elastic(p2->Z, kEe) * ne1;
+    else {			// Rutherford scattering
+      double b = 0.5*esu*esu*(p2->C-1)*eV/kEe * 1.0e7; // nm
+      cross21 = M_PI*b*b * ne1;
+    }
+  }
 
   dCrossMap[id].push_back(cross12 + cross21);
   dInterMap[id].push_back(0);
