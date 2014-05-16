@@ -768,6 +768,11 @@ void * Collide::collide_thread(void * arg)
     double cL = pow(volc, 0.33333333);
     
     
+    // Cell initialization
+    //
+    initialize_cell(tree, c, crm, id);
+
+
     // Per species quantities
     //
     
@@ -780,6 +785,7 @@ void * Collide::collide_thread(void * arg)
     //
     // Cross-section debugging [BEGIN]
     //
+
     if (CROSS_DBG && id==0) {
       if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
 	speciesKey i = c->count.begin()->first;
@@ -797,7 +803,8 @@ void * Collide::collide_thread(void * arg)
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
       speciesKey i1 = it1->first;
-      crossM [i1] = 0.0;
+      crossM [i1]   = 0.0;
+
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 
@@ -805,13 +812,27 @@ void * Collide::collide_thread(void * arg)
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
 	} else
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
+
+	if (crossIJ[i1][i2] <= 0.0) {
+	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i1][i2]
+	       << " #1 = (" << i1.first << ", " << i1.second << ")"
+	       << " #2 = (" << i2.first << ", " << i2.second << ")";
+	}
+	    
+	if (crossIJ[i2][i1] <= 0.0) {
+	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i2][i1]
+	       << " #1 = (" << i2.first << ", " << i2.second << ")"
+	       << " #2 = (" << i1.first << ", " << i1.second << ")";
+	}
+	
       }
       
-      if (crossM[i1] == 0 or isnan(crossM[i1]))
+      if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
       	cout << "INVALID CROSS SECTION! ::"
 	     << " crossM = " << crossM[i1] 
 	     << " densM = "  <<  densM[i1] 
 	     << " Fn = "     <<  (*Fn)[i1] << endl;
+      }
 
       lambdaM[i1] = 1.0/crossM[i1];
       collPM [i1] = crossM[i1] * crm * tau;
@@ -953,7 +974,7 @@ void * Collide::collide_thread(void * arg)
       GPTLstart("Collide::cell_init");
 #endif
       initTime[id].start();
-      initialize_cell_epsm(tree, c, crm, tau, nselM, id);
+      initialize_cell_epsm(tree, c, nselM, crm, tau, id);
       initSoFar[id] = initTime[id].stop();
       
 #ifdef USE_GPTL
@@ -974,7 +995,7 @@ void * Collide::collide_thread(void * arg)
       GPTLstart("Collide::cell_init");
 #endif
       initTime[id].start();
-      initialize_cell_dsmc(tree, c, crm, tau, nselM, id);
+      initialize_cell_dsmc(tree, c, nselM, crm, tau, id);
       initSoFar[id] = initTime[id].stop();
       
 #ifdef USE_GPTL

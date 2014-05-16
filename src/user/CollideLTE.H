@@ -38,25 +38,18 @@ protected:
 
   vector<double> deltaE;
 
-  void initialize_cell_epsm (pHOT* tree, pCell* cell, 
-			     double vrelmax, double dt, 
-			     sKey2Umap& nsel, int id)
+  void initialize_cell(pHOT* tree, pCell* c, double vrelmax, int id);
+
+  void initialize_cell_dsmc
+  (pHOT* tree, pCell* c, sKey2Umap& nsel, double vrelmax, double tau, int id);
+
+  void initialize_cell_epsm
+  (pHOT* tree, pCell* c, sKey2Umap& nsel, double vrelmax, double tau, int id) 
   {
-    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
+    initialize_cell_dsmc(tree, c, nsel, vrelmax, tau, id);  
   }
 
-  void initialize_cell_dsmc (pHOT* tree, pCell* cell, 
-			     double vrelmax, double dt, 
-			     sKey2Umap& nsel, int id)
-  {
-    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
-  }
-
-
-  void initialize_cell(pHOT* tree, pCell* cell, double vrelmax, double dt, 
-		       sKey2Umap& nsel, int id);
-
-  void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
+  void finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
 
   sKey2Dmap& totalCrossSections(int id)
   {    

@@ -63,28 +63,19 @@ protected:
   
   double deltaE;
   
-  
-  void initialize_cell_dsmc (pHOT* tree, pCell* cell, 
-			     double vrelmax, double dt, 
-			     map<speciesKey, map<speciesKey, unsigned> >& nsel, int id)
+  void initialize_cell(pHOT* tree, pCell* c, double rvmax, int id);
+
+  void initialize_cell_dsmc(pHOT* tree, pCell* c, sKey2Umap& nsel, 
+			    double rvmax, double tau, int id) {}
+
+  void initialize_cell_epsm(pHOT* tree, pCell* c, sKey2Umap& nsel, 
+			    double rvmax, double tau, int id) 
   {
-    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
+    std::cout << "NO EPSM implemented!" << std::endl;
+    exit(-1);
   }
   
-  void initialize_cell_epsm (pHOT* tree, pCell* cell, 
-			     double vrelmax, double dt, 
-			     map<speciesKey, map<speciesKey, unsigned> >& nsel, int id)
-  {
-    initialize_cell(tree, cell, vrelmax, dt, nsel, id);
-  }
-  
-  
-  void initialize_cell(pHOT* tree, pCell* cell,
-		       double rvmax, double tau,
-		       map<speciesKey, map<speciesKey, unsigned> >& nsel,
-		       int id);
-  
-  void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id);
+  void finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
 
   
   sKey2Dmap& totalCrossSections(int id)

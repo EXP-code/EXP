@@ -146,9 +146,7 @@ CollideIon::~CollideIon()
 /**
    Precompute all the necessary cross sections
  */
-void CollideIon::initialize_cell(pHOT* tree, pCell* cell,
-				 double rvmax, double tau,
-				 sKey2Umap& nsel, int id)
+void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 {
   double KEtot, KEdspC;
   cell->KE(KEtot, KEdspC);	// KE in cell

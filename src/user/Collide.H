@@ -212,15 +212,17 @@ protected:
   
   int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
   
-  //! Initializes cross sections for use in DSMC
-  virtual void initialize_cell_dsmc
-  (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   sKey2Umap& nsel, int id) = 0;
+  //! Initializes cross sections
+  virtual void initialize_cell
+  (pHOT* tree, pCell* cell, double vrelmax, int id) = 0;
   
-  //! Initializes mean heating and cooling rates for use in EPSM
+  //! Additional DSMC-specific initialization
+  virtual void initialize_cell_dsmc
+  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+  
+  //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* tree, pCell* cell, double vrelmax, double dt, 
-   sKey2Umap& nsel, int id) = 0;
+  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Compute diagnostics for the cell after collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
