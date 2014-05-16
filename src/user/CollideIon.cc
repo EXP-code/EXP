@@ -204,7 +204,7 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   
   double vel = crm * UserTreeDSMC::Vunit;
   double Eerg = 0.5*vel*vel*amu/eV;
-
+  
   // Upscaling factor for scattering cross section
   //
   double sUp  = diamfac*diamfac;
@@ -324,10 +324,10 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   double cross21 = geometric(p2->Z);
 
-  if (p1->C>1 && ne2 > 0)
+  if (p1->C==1 && ne2 > 0)
     cross12 += elastic(p1->Z, kEe) * ne2;
     
-  if (p2->C>1 && ne1 > 0) 
+  if (p2->C==1 && ne1 > 0) 
     cross21 += elastic(p2->Z, kEe) * ne1;
 
   dCrossMap[id].push_back(cross12 + cross21);

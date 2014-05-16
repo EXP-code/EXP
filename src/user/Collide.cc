@@ -26,63 +26,63 @@ static bool DEBUG      = false;	// Thread diagnostics, false for
 				// selection algorithm
 bool Collide::PULLIN   = false;
 
-				// Use the explicit energy solution
+// Use the explicit energy solution
 bool Collide::ESOL     = false;
 
-				// Print out sorted cell parameters
+// Print out sorted cell parameters
 bool Collide::SORTED   = false;
 
-				// Print out T-rho plane for cells 
-				// with mass weighting
+// Print out T-rho plane for cells 
+// with mass weighting
 bool Collide::PHASE    = false;
 
-				// Extra debugging output
+// Extra debugging output
 bool Collide::EXTRA    = false;
 
-				// Turn off collisions for testing
+// Turn off collisions for testing
 bool Collide::DRYRUN   = false;
 
-				// Turn off cooling for testing
+// Turn off cooling for testing
 bool Collide::NOCOOL   = false;
 
-				// Ensemble-based excess cooling
+// Ensemble-based excess cooling
 bool Collide::ENSEXES  = true;
 
-				// Time step diagnostics
+// Time step diagnostics
 bool Collide::TSDIAG   = false;
 
-				// Cell-volume diagnostics
+// Cell-volume diagnostics
 bool Collide::VOLDIAG  = false;
 
-				// CBA length scale diagnostics
+// CBA length scale diagnostics
 bool Collide::CBADIAG  = false;
 
-				// Mean free path diagnostics
+// Mean free path diagnostics
 bool Collide::MFPDIAG  = false;
 
-				// Sample based on maximum (true) or estimate
-				// from variance (false);
+// Sample based on maximum (true) or estimate
+// from variance (false);
 bool Collide::NTC      = false;
 
-				// Use cpu work to augment per particle effort
+// Use cpu work to augment per particle effort
 bool Collide::EFFORT   = true;	
 
-				// Verbose timing
+// Verbose timing
 bool Collide::TIMING   = true;
 
-				// Temperature floor in EPSM
+// Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;
 
-				// Power of two interval for KE/cool histogram
+// Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
 
-				// Proton mass (g)
+// Proton mass (g)
 const double mp        = 1.67262158e-24;
 
-				// Boltzmann constant (cgs)
+// Boltzmann constant (cgs)
 const double boltz     = 1.3810e-16;
 
 
@@ -1019,8 +1019,11 @@ void * Collide::collide_thread(void * arg)
       for (it2=it1; it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 	size_t num2 = bmap[i2].size();
+
 	if (num2==0) continue;
 	
+	if (i1==i2 && num2==1) continue;
+
 	// Loop over total number of candidate collision pairs
 	//
 	for (unsigned i=0; i<nselM[i1][i2]; i++ ) {
@@ -1029,24 +1032,27 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Pick two particles at random out of this cell. l1 and l2
 	  // are indices in the bmap[i1] and bmap[i2] vectors of body
-	  // indecies
+	  // indices
+
 	  size_t l1, l2;
 
-	  l1 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*num1)), num1-1);
-
+	  l1 = static_cast<size_t>(floor((*unit)()*num1));
+	  l1 = std::min<size_t>(l1, num1-1);
+	  
 	  if (i1 == i2) {
-	    l2 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*(num2-1))), num2-2);
+	    l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
+	    l2 = std::min<size_t>(l2, num2-2);
+				// Get random l2 != l1
 	    l2 = (l2 + l1 + 1) % num2;
 	  } else {
-	    l2 = std::min<size_t>(static_cast<size_t>(floor((*unit)()*num2)), num2-1);
+	    l2 = static_cast<size_t>(floor((*unit)()*num2));
+	    l2 = std::min<size_t>(l2, num2-1);
 	  }
 	  
-	  // Get index from body map for the cell
+	  // Get particles from body-index map for the cell
 	  //
-	  unsigned long k1 = bmap[i1][l1], k2 = bmap[i2][l2];
-
-	  Particle* p1 = tree->Body(c->bods[k1]); // First particle
-	  Particle* p2 = tree->Body(c->bods[k2]); // Second particle
+	  Particle* p1 = tree->Body(bmap[i1][l1]);
+	  Particle* p2 = tree->Body(bmap[i2][l2]);
 	  
 	  // Calculate pair's relative speed (pre-collision)
 	  //
@@ -1099,10 +1105,10 @@ void * Collide::collide_thread(void * arg)
 	    
 	    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
 	    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-	    double phi = 2.0*M_PI*(*unit)();           // Collision angle phi
+	    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
 	    
-	    vrel[0] = cr*cos_th;             // Compute post-collision
-	    vrel[1] = cr*sin_th*cos(phi);    // relative velocity
+	    vrel[0] = cr*cos_th;	  // Compute post-collision
+	    vrel[1] = cr*sin_th*cos(phi); // relative velocity
 	    vrel[2] = cr*sin_th*sin(phi);
 	    
 	    // Update post-collision velocities
@@ -1150,9 +1156,9 @@ void * Collide::collide_thread(void * arg)
 
 	} // Loop over trial pairs
 	
-      } // Next species 2
+      } // Next species 2 particle
 
-    } // Next species 1
+    } // Next species 1 particle
     
     elasSoFar[id] = elasTime[id].stop();
     
