@@ -63,6 +63,9 @@ bool     CollideIon::frost_warning = false;
 
 bool NO_COOL = false;
 
+// Minimum energy for Rutherford scattering of ions
+const double FloorEv = 0.05;
+
 CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) : 
   Collide(force, hD, sD, Nth)
 {
@@ -192,7 +195,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	if (i1.second==1)
 	  Cross1 = elastic(i1.first, EeV * mu) * ne2;
 	else {
-	  double b = 0.5*esu*esu*(i1.second - 1)/Eerg * 1.0e7; // nm
+	  double b = 0.5*esu*esu*(i1.second - 1) /
+	    std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
 	  Cross1 = M_PI*b*b * ne2;
 	}
       }
@@ -202,7 +206,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	if (i2.second==1)
 	  Cross2 = elastic(i2.first, EeV * mu) * ne1;
 	else {
-	  double b = 0.5*esu*esu*(i2.second - 1)/Eerg * 1.0e7; // nm
+	  double b = 0.5*esu*esu*(i2.second - 1) /
+	    std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
 	  Cross2 = M_PI*b*b * ne1;
 	}
       }
@@ -249,7 +254,8 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	  if (i1.second==1)	// Neutral atom-electron scattering
 	    Cross1 = elastic(i1.first, EeV * mu) * ne2;
 	  else {		// Rutherford scattering
-	    double b = 0.5*esu*esu*(i1.second - 1)/Eerg * 1.0e7; // nm
+	    double b = 0.5*esu*esu*(i1.second - 1) /
+	      std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
 	    Cross1 = M_PI*b*b * ne2;
 	  }
 	}
@@ -261,7 +267,8 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	  if (i2.second==1)	// Neutral atom-electron scattering
 	    Cross2 = elastic(i2.first, EeV * mu) * ne1;
 	  else {		// Rutherford scattering
-	    double b = 0.5*esu*esu*(i2.second - 1)/Eerg * 1.0e7; // nm
+	    double b = 0.5*esu*esu*(i2.second - 1) /
+	      std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
 	    Cross2 = M_PI*b*b * ne1;
 	  }
 	}
@@ -298,7 +305,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   kEi = 0.5 * mu * vel*vel;
 
-  // Internal energy
+  // Internal energy per particle
   //
   Ein = 0.0;
   if (use_Eint>=0) {
@@ -366,7 +373,8 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     if (p1->C==1)		// Neutral atom-electron scattering
       cross12 = elastic(p1->Z, kEe) * ne2;
     else {			// Rutherford scattering
-      double b = 0.5*esu*esu*(p1->C-1)*eV/kEe * 1.0e7; // nm
+      double b = 0.5*esu*esu*(p1->C-1) /
+	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
       cross12 = M_PI*b*b * ne2;
     }
   }
@@ -377,12 +385,13 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     if (p2->C==1)		// Neutral atom-electron scattering
       cross21 = elastic(p2->Z, kEe) * ne1;
     else {			// Rutherford scattering
-      double b = 0.5*esu*esu*(p2->C-1)*eV/kEe * 1.0e7; // nm
+      double b = 0.5*esu*esu*(p2->C-1) /
+	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
       cross21 = M_PI*b*b * ne1;
     }
   }
 
-  dCrossMap[id].push_back(cross12 + cross21);
+  dCrossMap[id].push_back((cross12 + cross21)*diamfac*diamfac);
   dInterMap[id].push_back(0);
 
 

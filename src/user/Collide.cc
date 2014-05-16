@@ -813,13 +813,13 @@ void * Collide::collide_thread(void * arg)
 	} else
 	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
 
-	if (crossIJ[i1][i2] <= 0.0) {
+	if (crossIJ[i1][i2] <= 0.0 || isnan(crossIJ[i1][i2])) {
 	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i1][i2]
 	       << " #1 = (" << i1.first << ", " << i1.second << ")"
 	       << " #2 = (" << i2.first << ", " << i2.second << ")";
 	}
 	    
-	if (crossIJ[i2][i1] <= 0.0) {
+	if (crossIJ[i2][i1] <= 0.0 || isnan(crossIJ[i2][i1])) {
 	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i2][i1]
 	       << " #1 = (" << i2.first << ", " << i2.second << ")"
 	       << " #2 = (" << i1.first << ", " << i1.second << ")";
