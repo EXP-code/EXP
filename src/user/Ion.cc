@@ -756,10 +756,29 @@ void Ion::freeFreeDifferential(chdata ch)
 }
 
 
+std::vector<double> Ion::radRecombCross(chdata ch, double E)
+{
+  // For testing . . .
+  if (0) {
+    std::vector<double> v1 = radRecombCrossMewe   (ch, E);
+    std::vector<double> v2 = radRecombCrossSpitzer(ch, E);
+
+    if (v1.back() < v2.back()) {
+      std::cout << "   Mewe = " << v1.back() << std::endl;
+      std::cout << "Spitzer = " << v2.back() << std::endl;
+    }
+    
+    return v1;
+  } else {
+    return radRecombCrossMewe(ch, E);
+  }
+}
+
+
 /** Calculates the differential radiative recombination cross section
     as a function of incoming electron impact energy, and returns the
     vector cumulative cross section array. */
-std::vector<double> Ion::radRecombCross(chdata ch, double E) 
+std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E) 
 {
   // double hbc = 197.327; //value of hbar * c in eV nm
   // double hbckev = 0.197327; //value of hbc in keV nm
@@ -818,6 +837,52 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
   radRecCrossCum = radRecCum;
   return radRecCum;
   
+}
+
+std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E) 
+{
+  double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
+  double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
+  double Ryd    = 13.6056923;	// Rydberg in eV
+				// Ionization energy in cm^{-1}
+  double ionE   = ch.ipdata[Z-1][0];
+
+				// Cross-section prefactor in nm^2
+  double coef   = 2.105310889751809e-08;
+  
+  std::vector<double> radRecCum;
+  double cross = 0.0;
+  if (E > 0) {
+    for (int j = 0; j < nfblvl; j++) {
+      double Ej = 0.0;
+      if (j==0) 
+	Ej = ionE;
+      else if (j>0 && fblvl[j].encmth > 0) 
+	Ej = ionE - fblvl[j].encmth * incmEv;
+      else if (j>0 && fblvl[j].encm > 0) 
+	Ej = ionE - fblvl[j].encm * incmEv;
+      else continue;
+      //
+      double mult = static_cast<double>(fblvl[j].mult);
+      double n    = static_cast<double>(fblvl[j].lvl );
+      double Ephot  = E + Ej;
+      double Erat   = Ej / Ephot;
+      double crossn = coef * (Ej / Ephot) * (0.5*Ephot/E) * (mult/n);
+      cross += crossn;
+
+      if (cross == 0) {
+	std::cout << "NULL IN RAD RECOMB: " << ip << "\t" << Ej << "\t" 
+		  << Ephot << "\t" << Erat << "\t" << mult << "\t" << n <<std::endl;
+      }
+      if (isnan(cross)) {
+	std::cout << cross << "\t" << Ej << "\t" << Ephot << "\t" 
+		  << n << "\t" << Erat << std::endl;
+      }
+    }
+  }
+  radRecCum.push_back(cross);
+  radRecCrossCum = radRecCum;
+  return radRecCum;
 }
 
 // Ion print functions

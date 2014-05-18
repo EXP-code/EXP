@@ -255,7 +255,7 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	    Cross1 = elastic(i1.first, EeV * mu) * ne2;
 	  else {		// Rutherford scattering
 	    double b = 0.5*esu*esu*(i1.second - 1) /
-	      std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	    Cross1 = M_PI*b*b * ne2;
 	  }
 	}
@@ -268,7 +268,7 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	    Cross2 = elastic(i2.first, EeV * mu) * ne1;
 	  else {		// Rutherford scattering
 	    double b = 0.5*esu*esu*(i2.second - 1) /
-	      std::max<double>(Eerg, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	    Cross2 = M_PI*b*b * ne1;
 	  }
 	}
@@ -560,6 +560,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   //
   double dE   = kE*TolV*TolV;
   double dof  = 1.0 + ne1 + ne2;
+				// KE + internal
   double totE = kE + p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
   //
   // Remainder energy after removing floor (system units)
@@ -578,8 +579,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     TotalCross.push_back(tCross);
     si++;
   }
-
-  assert (TotalCross.size() == dCrossMap[id].size());
 
   if (tCross != 0) {
     std::vector<double> CDF;
@@ -648,7 +647,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 3) {
       delE          = IS.DIInterLoss(ch, IonList[p1->Z][p1->C]);
       p1->C++;
-      assert(p1->C <= (p1->Z + 1));
       partflag      = 1;
       CI_d.first++; 
       CI_d.second  += delE;
@@ -661,7 +659,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 4) {
       delE          = kEe;
       p1->C--;
-      assert(p1->C > 0);
       partflag      = 1;
       RR_d.first++; 
       RR_d.second  += delE;
@@ -688,7 +685,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 8) {
       delE = IS.DIInterLoss(ch, IonList[p2->Z][p2->C]);
       p2->C++;
-      assert(p2->C <= (p2->Z + 1));
       CI_d.first++; 
       CI_d.second += delE;
       partflag     = 2;
@@ -697,15 +693,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 9) {
       delE         = kEe;	// See comment above for interFlag==4
       p2->C--;
-      assert(p2->C > 0);
       partflag     = 2;
       RR_d.first++; 
       RR_d.second += delE;
     }
 
-    // Convert from eV to system units
-    // Get the number of particles in cell and mult. by delE
-    //
     delEeV = delE;
 
     // Convert to super particle
@@ -730,11 +722,9 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     delE = delE*1.602177e-12;
   }
   
-  assert (delE >= 0.0);
-  
-  if (NO_COOL) {
-    delE = 0.;
-  }
+  // Artifically prevent cooling
+  //
+  if (NO_COOL) delE = 0.0;
 
   // Convert energy loss to system units
   //
@@ -749,7 +739,16 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 	      << std::endl;
   }
   
-  if (remE<=0.0 || delE<=0.0) return ret;
+  // Distribute electron energy among particles in pure scattering event
+  //
+  if (delE<=0.0) {
+    if (ne1 + ne2>0) {
+      double kEm  = (p1->dattrib[use_Eint] + p2->dattrib[use_Eint])/(ne1 + ne2);
+      p1->dattrib[use_Eint] = ne1 * kEm;
+      p2->dattrib[use_Eint] = ne2 * kEm;
+    }
+    return ret;
+  }
   
   // Cooling rate diagnostic
   //
