@@ -580,6 +580,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     si++;
   }
 
+  assert (TotalCross.size() == dCrossMap[id].size());
+
   if (tCross != 0) {
     std::vector<double> CDF;
     std::vector <double>::iterator 
@@ -647,6 +649,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 3) {
       delE          = IS.DIInterLoss(ch, IonList[p1->Z][p1->C]);
       p1->C++;
+      assert(p1->C <= (p1->Z + 1));
       partflag      = 1;
       CI_d.first++; 
       CI_d.second  += delE;
@@ -659,6 +662,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 4) {
       delE          = kEe;
       p1->C--;
+      assert(p1->C > 0);
       partflag      = 1;
       RR_d.first++; 
       RR_d.second  += delE;
@@ -693,6 +697,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 9) {
       delE         = kEe;	// See comment above for interFlag==4
       p2->C--;
+      assert(p2->C > 0);
       partflag     = 2;
       RR_d.first++; 
       RR_d.second += delE;
@@ -722,6 +727,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     delE = delE*1.602177e-12;
   }
   
+  assert(delE >= 0.0);
+
   // Artifically prevent cooling
   //
   if (NO_COOL) delE = 0.0;
