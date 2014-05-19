@@ -1158,7 +1158,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     typedef std::map<speciesKey, unsigned long> spCountMap;
     typedef spCountMap::iterator  spCountMapItr;
     
+    (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
     makeSpeciesMap();
+    (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
 
     if (myid==0) {
 
@@ -1774,12 +1776,15 @@ void UserTreeDSMC::TempHisto()
 //
 void UserTreeDSMC::makeSpeciesMap()
 {
-  PartMapItr p    = c0->Particles().begin();
-  PartMapItr pend = c0->Particles().end();
-
+  // Clean the local and global maps
+  //
   spec .erase(spec .begin(), spec .end());
   spec1.erase(spec1.begin(), spec1.end());
 
+  // Particle loop
+  //
+  PartMapItr p    = c0->Particles().begin();
+  PartMapItr pend = c0->Particles().end();
   for (; p!=pend; p++) {
     KeyConvert kc  (p->second.iattrib[use_key]);
     speciesKey indx(kc.getKey());
@@ -1793,17 +1798,21 @@ void UserTreeDSMC::makeSpeciesMap()
   }
 
 
+  // Send the local map to other nodes
+  //
   int sizm;
   speciesKey indx;
   unsigned long cnts;
   std::map<speciesKey, unsigned long>::iterator it, it2;
 
-  spec = spec1;
+
+  spec = spec1;			// Copy local map to global
   for (int i=0; i<numprocs; i++) {
     if (i == myid) {
       sizm = spec1.size();
+				// Local map size
       MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
-      
+				// Send local map
       for (it=spec1.begin(); it != spec1.end(); it++) {
 	indx = it->first;
 	cnts = it->second;
@@ -1812,11 +1821,13 @@ void UserTreeDSMC::makeSpeciesMap()
 	MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
       }
     } else {
+				// Receive from Node i
       MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
       for (int j=0; j<sizm; j++) {
 	MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
+				// Update global map
 	if (spec.find(indx) == spec.end()) spec[indx]  = cnts;
 	else                               spec[indx] += cnts;
       }
