@@ -675,8 +675,9 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     // KE carried by electron is subtracted from the thermal reservoir
-    // but not the radiation of "binding".  This radiation decreases
-    // the total energy of the gas but not the thermal component.
+    // but not the radiation of "binding".  The "binding" radiation
+    // decreases the total energy of the gas but not the thermal
+    // component.
     //
     if (interFlag == 4) {
       delE          = kEe;
