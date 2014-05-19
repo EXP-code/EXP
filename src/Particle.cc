@@ -22,12 +22,6 @@ Particle::Particle()
   indx    = 0;
   tree    = 0u;
   key     = 0u;
-
-  //
-  // For DSMC Ion method
-  //
-  Z 	  = 0;
-  C       = 0;
 }
 
 Particle::Particle(unsigned niatr, unsigned ndatr)
@@ -46,8 +40,6 @@ Particle::Particle(unsigned niatr, unsigned ndatr)
   key     = 0u;
   iattrib = vector<int   >(niatr, 0);
   dattrib = vector<double>(ndatr, 0);
-  Z 	  = 0;
-  C       = 0;
 }
 
 Particle::Particle(const Particle &p)
@@ -69,8 +61,6 @@ Particle::Particle(const Particle &p)
   indx    = p.indx;
   tree    = p.tree;
   key     = p.key;
-  Z 	  = p.Z;
-  C       = p.C;
 }
 
 
@@ -115,9 +105,6 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     pot    = tf;
     potext = 0.0;
 
-    in->read((char *)&Z , sizeof(unsigned short));
-    in->read((char *)&C , sizeof(unsigned short));
-
     level = multistep;
 
     for (it=iattrib.begin(); it!=iattrib.end(); it++) 
@@ -139,9 +126,6 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     for (int i=0; i<3; i++) in->read((char *)&(vel[i]), sizeof(double));
     in->read((char *)&pot, sizeof(double));
     potext = 0.0;
-
-    in->read((char *)&Z, sizeof(unsigned short));
-    in->read((char *)&C, sizeof(unsigned short));
 
     level = multistep;
 
@@ -207,9 +191,6 @@ void Particle::writeBinary(unsigned rsize,
   else
     out->write((const char *)&pot0, sizeof(double));
 
-  out->write((const char *)&Z, sizeof(unsigned short));
-  out->write((const char *)&C, sizeof(unsigned short));
-
   for (it=iattrib.begin(); it!=iattrib.end(); it++) 
     out->write((const char *)&(*it), sizeof(int));
   
@@ -256,9 +237,6 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   for (int j=0; j<3; j++) acc[j] = 0.0;
   pot = potext = 0.0;
   
-  ins >> Z;
-  ins >> C;
-
   level = multistep;
 
   for (it=iattrib.begin(); it!=iattrib.end(); it++) {
@@ -293,9 +271,6 @@ void Particle::writeAscii(double* com0, double* comI,
   *out << std::setw(18) << pot;
   *out << std::setw(18) << potext;
 
-  *out << std::setw(18) << static_cast<unsigned>(Z);
-  *out << std::setw(18) << static_cast<unsigned>(C);
-    
   for (it=iattrib.begin(); it!=iattrib.end(); it++) 
     *out << std::setw(10) << *it;
 

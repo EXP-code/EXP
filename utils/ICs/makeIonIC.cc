@@ -17,6 +17,7 @@ namespace po = boost::program_options;
 
 #include "Particle.H"
 #include "globalInit.H"
+#include "Species.H"
 
 //
 // Boost random types
@@ -69,7 +70,7 @@ norm_ptr    Norm;
    Make Uniform temperature box of gas
 */
 void InitializeUniform(std::vector<Particle>& p, double mass,
-                       double T, vector<double> &L, int nd=6)
+                       double T, vector<double> &L, int ni=1, int nd=6)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
@@ -88,24 +89,30 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 
   for (unsigned i=0; i<npart; i++) {
 
+    KeyConvert kc(p[i].iattrib[0]);
+    speciesKey sKey = kc.getKey();
+    unsigned short Z = sKey.first;
+    unsigned short C = sKey.second;
+    
     double KE = 0.0;
     for (unsigned k=0; k<3; k++) {
       p[i].pos[k] = L[k]*(*Unit)();
-      if (p[i].Z == 1) {
+      if (Z == 1) {
 	p[i].vel[k] = varH*(*Norm)();
       }
-      if (p[i].Z == 2) p[i].vel[k] = varHe*(*Norm)();
+      if (Z == 2) p[i].vel[k] = varHe*(*Norm)();
       p[i].vel[k] /= Vunit;
       KE += p[i].vel[k] * p[i].vel[k];
     }
 
-    KE *= 0.5 * p[i].mass * (p[i].C-1);
+    KE *= 0.5 * p[i].mass * (C-1);
 
     p[i].dattrib.push_back(T);
     p[i].dattrib.push_back(rho);
     p[i].dattrib.push_back(KE);
 
     for (int n=0; n<nd-2; n++) p[i].dattrib.push_back(0.0);
+    for (int n=0; n<ni-2; n++) p[i].iattrib.push_back(0);
   }
 }
 
@@ -134,12 +141,11 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
     for (int k=0; k<3; k++) 
       out << setw(18) << particles[n].vel[k];
 
-    out << setw(18) << static_cast<unsigned>(particles[n].Z);
-    out << setw(18) << static_cast<unsigned>(particles[n].C);
-
-    Frac::iterator it = frac.find(particles[n].Z);
-    if (it==frac.end()) frac[particles[n].Z] = 0.0;
-    frac[particles[n].Z] += particles[n].mass;
+    KeyConvert kc(particles[n].iattrib[0]);
+    unsigned short Z = kc.getKey().first;
+    Frac::iterator it = frac.find(Z);
+    if (it==frac.end()) frac[Z] = 0.0;
+    frac[Z] += particles[n].mass;
 
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
@@ -282,9 +288,10 @@ void InitializeSpecies(std::vector<Particle> & particles,
       }
     }
 
-    particles[i].Z     = Zi;
-    particles[i].C     = Ci;
     particles[i].mass  = M/N * sF[indx]/frcS[indx];
+
+    KeyConvert kc(speciesKey(Zi, Ci));
+    particles[i].iattrib.push_back(kc.getInt());
   }
   
 }

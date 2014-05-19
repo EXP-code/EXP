@@ -31,6 +31,7 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   nbin = 0;			// Number of bins in trace (0 means no trace)
   dT = 1.0;			// Interval for trace
   tcol = -1;			// Column for temperture info (ignored if <0)
+  kcol = -1;			// Column for species key (ignored if <0)
   trace = false;		// Tracing off until signalled
 
   initialize();
@@ -106,7 +107,8 @@ void UserPeriodic::userinfo()
   cout << "** User routine PERIODIC BOUNDARY CONDITION initialized"
        << " using component <" << comp_name << ">";
   if (nbin) cout << " with gas trace, dT=" << dT 
-		 << ", nbin=" << nbin << ", tcol=" << tcol;
+		 << ", nbin=" << nbin << ", tcol=" << tcol
+		 << ", kcol=" << kcol;
   cout << endl;
 
   cout << "   Cube sides (x , y , z) = (" 
@@ -144,9 +146,12 @@ void UserPeriodic::initialize()
   if (get_value("dT", val))	        dT = atof(val.c_str());
   if (get_value("nbin", val))	        nbin = atoi(val.c_str());
   if (get_value("tcol", val))	        tcol = atoi(val.c_str());
+  if (get_value("kcol", val))	        kcol = atoi(val.c_str());
 
   if (get_value("vunit", val))		vunit = atof(val.c_str());
   if (get_value("temp", val))		temp = atof(val.c_str());
+
+  bool thermal = false;
 
   if (get_value("btype", val)) {
     if (strlen(val.c_str()) >= 3) {
@@ -160,6 +165,7 @@ void UserPeriodic::initialize()
 	  break;
 	case 't':		// Thermal
 	  bc[k] = 't';
+	  thermal = true;
 	  break;
 	default:
 	  bc[k] = 'v';		// Vacuum
@@ -169,6 +175,17 @@ void UserPeriodic::initialize()
     }
   }
   
+  // Check for thermal type
+  if (thermal) {
+    if (kcol<0) {
+      if (myid==0) {
+	std::cerr << "UserPeriodic:: thermal wall specified but no gas species "
+		  << "attribute specified.  Aborting . . ." << std::endl;
+      }
+      MPI_Abort(MPI_COMM_WORLD, 36);
+    }
+  }
+
 }
 
 
@@ -249,8 +266,13 @@ void * UserPeriodic::determine_acceleration_and_potential_thread(void * arg)
     unsigned long i = (it++)->first;
     
     Particle *p = cC->Part(i);
+    double   mi = 0.0;
 
-    double mi = (atomic_weights[p->Z])*amu;
+    if (kcol>=0) {
+      KeyConvert kc(p->iattrib[kcol]);
+      speciesKey sKey = kc.getKey();
+      mi = (atomic_weights[sKey.first])*amu;
+    }
 
     for (int k=0; k<3; k++) {
 

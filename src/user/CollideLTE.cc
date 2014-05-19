@@ -416,9 +416,11 @@ void CollideLTE::initialize_cell_dsmc
 double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
 			       double cr, int id)
 {
-  speciesKey k1(p1->Z, p1->C);
-  speciesKey k2(p2->Z, p2->C);
-  return csections[id][k1][k2];
+  // Species keys
+  //
+  KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
+
+  return csections[id][k1.getKey()][k2.getKey()];
 }
 
 

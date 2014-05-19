@@ -1005,7 +1005,8 @@ void * Collide::collide_thread(void * arg)
       for (size_t k=0; k<c->bods.size(); k++) {
 	unsigned long kk = c->bods[k];
 	Particle* p = tree->Body(kk);
-	bmap[speciesKey(p->Z, p->C)].push_back(kk);
+	KeyConvert kc(p->iattrib[use_key]);
+	bmap[kc.getKey()].push_back(kk);
       }
     }
     

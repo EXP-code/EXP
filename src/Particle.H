@@ -73,12 +73,6 @@ public:
   unsigned long key;
 #endif
   
-  //! Species number
-  unsigned short Z;
-
-  //! Ion number
-  unsigned short C;
-
   //! Constructor
   Particle();
 

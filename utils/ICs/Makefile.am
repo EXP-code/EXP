@@ -58,7 +58,7 @@ empinfo_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
-makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H
+makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H
 makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
 
@@ -80,9 +80,12 @@ Particle.cc:		$(top_srcdir)/src/Particle.cc Particle.H
 Particle.H:		$(top_srcdir)/src/Particle.H
 			cp $(top_srcdir)/src/$@ .
 
+Species.H:		$(top_srcdir)/src/Species.H
+			cp $(top_srcdir)/src/$@ .
+
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
-	SLSphere.cc Particle.cc Particle.H
+	SLSphere.cc Particle.cc Particle.H Species.H
 
 ## utils/ICs/Makefile.am ends here
 

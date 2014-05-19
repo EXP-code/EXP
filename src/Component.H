@@ -159,6 +159,9 @@ struct loadb_datum
   indirectly manipulates this to achieve two separate expansion
   centers.
 
+  <li> <em>keyPos</em> is the value of the species key in the particle
+  integer attribute vector
+
   </ol>
   
 
@@ -310,6 +313,9 @@ public:
 
   //! Maximum initial particle radious
   double rmax;
+
+  //! Species key position in particle integer attribute vector
+  int keyPos;
 
   /**
      These are pointers to the center of mass, center of velocity,

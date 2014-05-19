@@ -21,6 +21,7 @@
     @param nbin is the number of bins in the x-direction (0 signals no trace)
     @param dT is the time step for binned density/temp trace
     @param tcol is the double attribute index for the temperature data (ignored if < 0)
+    @param kcol is the location of the integer species key (only used for thermal boundary)
 */
 class UserPeriodic : public ExternalForce
 {
@@ -35,7 +36,7 @@ private:
   vector<double> offset, L;
   string comp_name, bc;
   double dT, Tnext, dX;
-  int nbin, tcol;
+  int nbin, tcol, kcol;
   //Boltzmann constant in terms of system units
   double vunit;
   double munit;

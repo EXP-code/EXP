@@ -118,16 +118,16 @@ class CollideIon;
     @param dryrun enabled turns off collsions (primarily for debugging)
     @param nsteps is the number of steps between diagnostic output (default: -1, off)
     @param msteps is the maximum level for diagnostic output (default: -1, off)
-    @param use_temp is the particle attribute position for temperature
-    @param use_dens is the particle attribute position for density
+    @param use_temp is the float particle attribute position for temperature
+    @param use_dens is the float particle attribute position for density
     @param use_delt include energy loss rate in setting time step (if multistep is enabled) 
     @param use_multi attempts to set the time step (if multistep is enabled)
     @param use_pullin set to true uses the Pullin algorithm for selecting velocities (default: false)
     @param use_repair repairs the tree rather than remakes the tree
     @param use_exes track energy loss per particle for exact energy conservation
-    @param use_Kn track Knudsen number in attribute position n (default: -1)
-    @param use_St track Strouhal number in attribute position n (default: -1)
-    @param use_vol track cell volume number in attribute position n (default: -1)
+    @param use_Kn track Knudsen number in float attribute position n (default: -1)
+    @param use_St track Strouhal number in float attribute position n (default: -1)
+    @param use_vol track cell volume number in float attribute position n (default: -1)
     @param esol solves the LTE cooling rate equation for each cell
     @param coolfrac is the fraction of the cooling time for setting the time step (default: 0.1)
     @param cba use the Collisional Boltzmann Approximation from Alexander et al.
@@ -167,7 +167,7 @@ private:
   int cnum, wght;
   int nsteps, msteps, remap;
   unsigned madj;
-  int use_temp, use_dens, use_delt, use_exes, use_Kn;
+  int use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
   int use_St, use_vol, use_Eint, tspow;
   double hsdiam;
   double diamfac;

@@ -210,7 +210,7 @@ protected:
   unsigned errtot;
   unsigned numtot;
   
-  int use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
+  int use_key, use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
   
   //! Initializes cross sections
   virtual void initialize_cell
@@ -373,6 +373,9 @@ public:
   //! Hard-sphere diameter
   virtual double hsDiameter();
 
+  virtual void
+  set_key(int pos) { use_key=pos; }
+  
   virtual void 
   set_temp_dens(int Tpos, int Dpos) { use_temp=Tpos; use_dens=Dpos; }
   

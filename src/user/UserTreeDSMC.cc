@@ -145,6 +145,18 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   (*barrier)("TreeDSMC: BEFORE use checks", __FILE__, __LINE__);
 
   //
+  // Get use_key postion index from the fiducial component
+  //
+  use_key = c0->keyPos;
+  if (use_key<0) {
+    if (myid==0) {
+      std::cerr << "UserTreeDSMC: species key position is not defined in Component "
+		<< "<" << comp_name << ">" << std::endl;
+    }
+    MPI_Abort(MPI_COMM_WORLD, 36);
+  }
+
+  //
   // Sanity check on excess attribute if excess calculation is
   // desired
   //
@@ -261,12 +273,13 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     PartMapItr pend = c0->Particles().end();
 
     for (; p!=pend; p++) {
-      int Zi = static_cast<int>(p->second.Z);
-      for (int i=1; i<=Zi+1; i++) {
-	speciesKey indxi(p->second.Z, i);
+      KeyConvert kc  (p->second.iattrib[use_key]);
+      speciesKey indx(kc.getKey());
+      unsigned short Z = indx.first;
+      for (unsigned short i=1; i<=Z+1; i++) {
+	speciesKey indxi(Z, i);
 	if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
       }
-      speciesKey indx(Zi, p->second.C);
       if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
       else                                 spec1[indx]++;
     }
@@ -305,7 +318,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	  }
 	}
       }
-      
+
       for (it=spec.begin(); it != spec.end(); it++)  {
 	indx = it->first;
 	spec_list.insert(indx);
@@ -509,7 +522,8 @@ void UserTreeDSMC::userinfo()
        << ", cnum=" << cnum << ", hsdiam=" << hsdiam << ", diamfac=" << diamfac
        << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
-       << ", boxratio=" << boxratio << ", compname=" << comp_name;
+       << ", boxratio=" << boxratio << ", compname=" << comp_name
+       << ", keyPos=" << use_key;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
   else if (nsteps>0) 
@@ -1209,6 +1223,54 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     collide->printCollGather();
 
+    typedef std::map<speciesKey, unsigned long> spCountMap;
+    typedef spCountMap::iterator  spCountMapItr;
+    
+    spCountMap check;
+
+    if (myid==0) {
+      for (spCountMapItr it=spec1.begin(); it != spec1.end(); it++)
+	check[it->first] = it->second;
+    }
+	  
+    for (int i=1; i<numprocs; i++) {
+      
+      int sizm;
+      speciesKey indx;
+      unsigned long cnts;
+      spCountMapItr it;
+
+      if (myid == i) {
+	sizm = spec1.size();
+	MPI_Send(&sizm, 1, MPI_INT, 0, 151, MPI_COMM_WORLD);
+
+	for (it=spec1.begin(); it != spec1.end(); it++) {
+	  indx = it->first;
+	  cnts = it->second;
+	  MPI_Send(&indx.first,  1, MPI_UNSIGNED, 0, 152, MPI_COMM_WORLD);
+	  MPI_Send(&indx.second, 1, MPI_UNSIGNED, 0, 153, MPI_COMM_WORLD);
+	  MPI_Send(&cnts,   1, MPI_UNSIGNED_LONG, 0, 154, MPI_COMM_WORLD);
+	}
+      }
+	
+      if (myid == 0) {
+	MPI_Recv(&sizm, 1, MPI_INT, 0, 151, MPI_COMM_WORLD, 
+		 MPI_STATUS_IGNORE);
+
+	for (int j=0; j<sizm; j++) {
+	  MPI_Recv(&indx.first,  1, MPI_UNSIGNED, 0, 152, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&indx.second, 1, MPI_UNSIGNED, 0, 153, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&cnts,   1, MPI_UNSIGNED_LONG, 0, 154, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  
+	  if (check.find(indx) == check.end()) check[indx]  = cnts;
+	  else                                 check[indx] += cnts;
+	}
+      }
+    }
+
     if (myid==0) {
 
       unsigned sell_total = collide->select();
@@ -1316,6 +1378,25 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
+      mout << "-----------------------------------------------------" << endl;
+      mout << "-----Species counts----------------------------------" << endl;
+      mout << "-----------------------------------------------------" << endl;
+
+      for (spCountMapItr it=check.begin(); it != check.end(); it++) {
+	std::ostringstream sout;
+	sout << "(" << it->first.first << "," << it->first.second << ")";
+	mout << setw(12) << right << sout.str();
+      }
+      mout << endl;
+
+      for (spCountMapItr it=check.begin(); it != check.end(); it++)
+	mout << setw(12) << right << "--------";
+      mout << endl;
+      
+      for (spCountMapItr it=check.begin(); it != check.end(); it++)
+	mout << setw(12) << right << it->second;
+      mout << endl;
+      
       unsigned sumcells=0, sumbodies=0;
       mout << endl;
       mout << "-----------------------------------------------------" << endl;
@@ -1647,9 +1728,10 @@ void UserTreeDSMC::assignTempDensVol()
 	  j++;
 	  continue;
 	}
-        std::pair<int, int> sKey(cell->Body(j)->Z, cell->Body(j)->C);
+	KeyConvert kc(cell->Body(j)->iattrib[use_key]);
+        std::pair<int, int> sKey = kc.getKey();
 	cell->sample->KE(sKey, KEtot, KEdsp);
-	double mi = mp*atomic_weights[cell->Body(j)->Z];
+	double mi = mp*atomic_weights[sKey.first];
 
 	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
 	T = KEdsp* Tfac;

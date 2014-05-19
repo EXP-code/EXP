@@ -21,8 +21,6 @@ Partstruct::Partstruct()
   ndcnt = 0;
   for (int i=0; i<nimax; i++) iatr[i] = 0;
   for (int i=0; i<ndmax; i++) datr[i] = 0.0;
-  Z = 0u;
-  C = 0u;
 }
 
 
@@ -32,7 +30,7 @@ ParticleFerry::ParticleFerry()
   buf = new Partstruct [PFbufsz];
   ibufcount = 0;
 
-  const int nf = 19;		// Number of fields
+  const int nf = 17;		// Number of fields
 
 				// Make MPI datatype
 #ifdef I128
@@ -44,9 +42,7 @@ ParticleFerry::ParticleFerry()
       MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
       MPI_UNSIGNED, MPI_EXP_KEYTYPE,      // 2 (13)
       MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
-      MPI_INT, MPI_DOUBLE,                // 2 (17)
-      MPI_UNSIGNED_SHORT,		  // 1 (18)
-      MPI_UNSIGNED_SHORT		  // 1 (19)
+      MPI_INT, MPI_DOUBLE                 // 2 (17)
   };
 #else
   MPI_Datatype type[nf] = 
@@ -57,9 +53,7 @@ ParticleFerry::ParticleFerry()
       MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (11)
       MPI_UNSIGNED, MPI_UNSIGNED_LONG,    // 2 (13)
       MPI_UNSIGNED, MPI_UNSIGNED,         // 2 (15) 
-      MPI_INT, MPI_DOUBLE,                // 2 (17)
-      MPI_UNSIGNED_SHORT,		  // 1 (18)
-      MPI_UNSIGNED_SHORT		  // 1 (19)
+      MPI_INT, MPI_DOUBLE                 // 2 (17)
     };
 #endif
 
@@ -82,8 +76,6 @@ ParticleFerry::ParticleFerry()
   MPI_Get_address(&buf[0].ndcnt,	&disp[14]);
   MPI_Get_address(&buf[0].iatr,		&disp[15]);
   MPI_Get_address(&buf[0].datr,		&disp[16]);
-  MPI_Get_address(&buf[0].Z,            &disp[17]);
-  MPI_Get_address(&buf[0].C,            &disp[18]);
   
   for (int i=nf-1; i>=0; i--) disp[i] -= disp[0];
   
@@ -94,8 +86,7 @@ ParticleFerry::ParticleFerry()
 		      1, 1,	        // Uint, Ulong
 		      1, 1,	        // Uint, U2long
 		      1, 1,	        // Uint, Uint
-		      nimax, ndmax,	// Uint, Double
-                      1, 1};		// Uint, Uint
+		      nimax, ndmax};	// Uint, Double
   
   MPI_Type_create_struct(nf, blocklen, disp, type, &Particletype);
   MPI_Type_commit(&Particletype);
@@ -144,9 +135,6 @@ void ParticleFerry::part_to_Particle(Partstruct& str, Particle& cls)
   cls.dattrib = vector<double>(str.ndcnt);
   for (unsigned j=0; j<str.ndcnt; j++) cls.dattrib[j] = str.datr[j];
 
-  cls.Z     = str.Z;
-  cls.C     = str.C;
-
   if (cls.tree > 0) {
     if ( (cls.tree < pk_lo) || (cls.tree >= pk_hi) ) {
       cout << "Error!! [4], id=" << myid 
@@ -188,9 +176,6 @@ void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
   for (unsigned j=0; j<str.nicnt; j++) str.iatr[j] = cls.iattrib[j];
 
   for (unsigned j=0; j<str.ndcnt; j++) str.datr[j] = cls.dattrib[j];
-
-  str.Z      = cls.Z;
-  str.C      = cls.C;
 
   if (str.tree > 0) {
     if ( (str.tree < pk_lo) || (str.tree >= pk_hi) ) {

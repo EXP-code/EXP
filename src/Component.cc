@@ -90,6 +90,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
   umagic      = true;
 
   nlevel      = -1;
+  keyPos      = -1;
 
   read_bodies_and_distribute_ascii();
 
@@ -110,7 +111,7 @@ Component::Component(string NAME, string ID, string CPARAM, string PFILE,
 
   pbuf = new Particle [PFbufsz];
 
-  // Already done in read_bodies_and_distribut_ascii()
+  // Already done in read_bodies_and_distribute_ascii()
   // initialize();
 }
 
@@ -508,7 +509,7 @@ void Component::initialize(void)
 
     if (!datum.first.compare("nlevel"))   nlevel = atoi(datum.second.c_str());
 
-
+    if (!datum.first.compare("keypos"))   keyPos = atoi(datum.second.c_str());
 
 				// Next parameter
     token = tokens(",");
@@ -879,7 +880,6 @@ void Component::bomb(const string& msg)
 void Component::read_bodies_and_distribute_ascii(void)
 {
 				// Open file
-
   ifstream *fin;
   const int nline = 2048;
   char line[nline];

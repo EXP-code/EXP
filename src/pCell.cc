@@ -584,7 +584,8 @@ void pCell::accumState()
 				// March through the body list
   vector<unsigned long>::iterator j;
   for (j=bods.begin(); j!=bods.end(); j++) {
-    speciesKey spc(C->Particles()[*j].Z, C->Particles()[*j].C);
+    KeyConvert kc(C->Particles()[*j].iattrib[C->keyPos]);
+    speciesKey spc = kc.getKey();
     state[spc][0] += C->Particles()[*j].mass;
     for (int k=0; k<3; k++) {
       state[spc][1+k] += C->Particles()[*j].mass * 
