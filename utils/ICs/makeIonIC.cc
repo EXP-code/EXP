@@ -70,7 +70,7 @@ norm_ptr    Norm;
    Make Uniform temperature box of gas
 */
 void InitializeUniform(std::vector<Particle>& p, double mass,
-                       double T, vector<double> &L, int ni=1, int nd=6)
+                       double T, vector<double> &L)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
@@ -107,12 +107,14 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 
     KE *= 0.5 * p[i].mass * (C-1);
 
-    p[i].dattrib.push_back(T);
-    p[i].dattrib.push_back(rho);
-    p[i].dattrib.push_back(KE);
+    if (p[i].dattrib.size()>0) p[i].dattrib[0] = T;
+    else p[i].dattrib.push_back(T);
 
-    for (int n=0; n<nd-2; n++) p[i].dattrib.push_back(0.0);
-    for (int n=0; n<ni-2; n++) p[i].iattrib.push_back(0);
+    if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho;
+    else p[i].dattrib.push_back(rho);
+
+    if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
+    else p[i].dattrib.push_back(KE);
   }
 }
 
@@ -177,8 +179,8 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
 
 void InitializeSpecies(std::vector<Particle> & particles, 
 		       std::vector<unsigned char>& sZ, 
-		       std::vector<double>& sF, double M, double T)
-
+		       std::vector<double>& sF, double M, double T,
+		       int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -290,8 +292,11 @@ void InitializeSpecies(std::vector<Particle> & particles,
 
     particles[i].mass  = M/N * sF[indx]/frcS[indx];
 
+    particles[i].iattrib.resize(ni, 0);
+    particles[i].dattrib.resize(nd, 0);
+
     KeyConvert kc(speciesKey(Zi, Ci));
-    particles[i].iattrib.push_back(kc.getInt());
+    particles[i].iattrib[0] = kc.getInt();
   }
   
 }
