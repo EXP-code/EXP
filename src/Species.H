@@ -45,6 +45,9 @@ public:
   
   //! Get the converter speciesKey
   speciesKey getKey() { return speciesKey(c.us[0], c.us[1]); }
+
+  //! Update C and return int
+  int updateC(short unsigned C) { c.us[1] = C; return c.i; }
 };
 
 #endif

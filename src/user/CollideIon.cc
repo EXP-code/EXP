@@ -671,6 +671,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       partflag      = 1;
       CI_d.first++; 
       CI_d.second  += delE;
+      p1->iattrib[use_key] = k1.updateC(C1);
     }
 
     // KE carried by electron is subtracted from the thermal reservoir
@@ -684,6 +685,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       partflag      = 1;
       RR_d.first++; 
       RR_d.second  += delE;
+      p1->iattrib[use_key] = k1.updateC(C1);
     }
     
     //-------------------------
@@ -710,6 +712,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       CI_d.first++; 
       CI_d.second += delE;
       partflag     = 2;
+      p2->iattrib[use_key] = k2.updateC(C2);
     }
 
     if (interFlag == 9) {
@@ -719,6 +722,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       partflag     = 2;
       RR_d.first++; 
       RR_d.second += delE;
+      p2->iattrib[use_key] = k2.updateC(C2);
     }
 
     delEeV = delE;
