@@ -393,9 +393,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (esol) collide->set_timestep(-1);
   else      collide->set_timestep(use_delt);
 
-  collide->set_Eint(use_Eint);
-  collide->set_Kn(use_Kn);
-  collide->set_St(use_St);
+  collide->set_key   (use_key);
+  collide->set_Eint  (use_Eint);
+  collide->set_Kn    (use_Kn);
+  collide->set_St    (use_St);
   collide->set_excess(use_exes);
 
   ElostTotCollide = ElostTotEPSM = 0.0;
