@@ -392,14 +392,17 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
   disptot = vector<double>(3, 0);
   masstot = 0.0;
   
+  use_Eint = -1;
   use_temp = -1;
   use_dens = -1;
   use_delt = -1;
   use_exes = -1;
+  use_Kn   = -1;
+  use_St   = -1;
   
-  gen = new ACG(11+myid);
-  unit = new Uniform(0.0, 1.0, gen);
-  norm = new Normal(0.0, 1.0, gen);
+  gen  = new ACG     (11+myid);
+  unit = new Uniform (0.0, 1.0, gen);
+  norm = new Normal  (0.0, 1.0, gen);
   
   if (MFPDIAG) {
     prec = vector<Precord>(nthrds);
@@ -436,6 +439,7 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
   CPUH = vector<long>(12);
   
   // Debug maximum work per cell
+  //
   minUsage = vector<long>(nthrds*2, MAXLONG);
   maxUsage = vector<long>(nthrds*2, 0);
   minPart  = vector<long>(nthrds*2, -1);

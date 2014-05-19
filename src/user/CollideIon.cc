@@ -322,17 +322,19 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   // Internal energy per particle
   //
+  double dof = 1.0;
   Ein = 0.0;
   if (use_Eint>=0) {
     Ein += p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
     Ein += p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
+    dof += ne1 + ne2;
   }
 
   // Compute the total available energy and divide among degrees of freedom
   // Convert ergs to eV
   //
 
-  kEe = (kEi + Ein)/(1.0 + ne1 + ne2) / eV;
+  kEe = (kEi + Ein)/dof / eV;
 
   // Get temperatures from cells
   //
@@ -581,9 +583,14 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // For tracking energy conservation (system units)
   //
   double dE   = kE*TolV*TolV;
-  double dof  = 1.0 + ne1 + ne2;
+  double dof  = 1.0;
 				// KE + internal
-  double totE = kE + p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
+  double totE = kE;
+  if (use_Eint>=0) {
+    dof  += ne1 + ne2;
+    totE += p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
+  }
+
   //
   // Remainder energy after removing floor (system units)
   double remE = totE - dE;
@@ -771,7 +778,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Distribute electron energy among particles in pure scattering event
   //
   if (delE<=0.0) {
-    if (ne1 + ne2>0) {
+    if (use_Eint>=0 && ne1 + ne2>0) {
       double kEm  = (p1->dattrib[use_Eint] + p2->dattrib[use_Eint])/(ne1 + ne2);
       p1->dattrib[use_Eint] = ne1 * kEm;
       p2->dattrib[use_Eint] = ne2 * kEm;
@@ -819,9 +826,10 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     ret            = 0;		// No error
 
 				// Distribute electron energy to particles
-    p1->dattrib[use_Eint] = ne1 * kEm;
-    p2->dattrib[use_Eint] = ne2 * kEm;
-
+    if (use_Eint>=0) {
+      p1->dattrib[use_Eint] = ne1 * kEm;
+      p2->dattrib[use_Eint] = ne2 * kEm;
+    }
 				// Zero out internal energy excess
     if (use_exes>=0)		// since excess is now used up
       p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
@@ -846,10 +854,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
 				// Remaining energy split between
 				// internal degrees of freedom
-    double kEm     = (totE - kE + dE)/(ne1 + ne2);
-
-    p1->dattrib[use_Eint] = ne1 * kEm;
-    p2->dattrib[use_Eint] = ne2 * kEm;
+    if (use_Eint>=0) {
+      double kEm     = (totE - kE + dE)/(ne1 + ne2);
+      p1->dattrib[use_Eint] = ne1 * kEm;
+      p2->dattrib[use_Eint] = ne2 * kEm;
+    }
     
 				// Reset internal energy excess
     if (use_exes>=0) {
