@@ -70,17 +70,6 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   NUM = 0;
   csections = std::vector<sKey2Dmap> (nthrds);
   
-  // Make sure that internal energy is assigned
-  //
-  if (use_Eint<0) {
-    if (myid==0) {
-      std::cout << "*** Internal energy variable not assigned; "
-		<< "will translational energy only, but this "
-		<< " is probably not what you intend ***"
-		<< std::endl;
-    }
-  }
-
   for(int i = 0; i < N_Z; i++) {
     for (int j = 1; j <= ZList[i] + 1; j++) {
       IonList[ZList[i]][j] = Ion(ZList[i], j, ch);
