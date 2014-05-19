@@ -98,6 +98,16 @@ void initialize(void)
     else barrier_light = false;
   }
 
+  if (parse->find_item("barrier_quiet", val)) {
+    if (atoi(val.c_str())) barrier_quiet = true;
+    else barrier_quiet = false;
+  }
+
+  if (parse->find_item("barrier_verbose", val)) {
+    if (atoi(val.c_str())) barrier_quiet = false;
+    else barrier_quiet = true;
+  }
+
   if (parse->find_item("homedir", val)) {
     // Check for and add trailing slash
     if (*val.rbegin() != '/') val += '/';

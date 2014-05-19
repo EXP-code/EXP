@@ -1229,25 +1229,25 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     spCountMap check;
 
+    // Do root node's counts first
+    //
     if (myid==0) {
       for (spCountMapItr it=spec1.begin(); it != spec1.end(); it++)
 	check[it->first] = it->second;
     }
 	  
+    (*barrier)("TreeDSMC: before species map diag", __FILE__, __LINE__);
+
+    // Root receives from the remaining nodes
+    //
     for (int i=1; i<numprocs; i++) {
-      
-      int sizm;
-      speciesKey indx;
-      unsigned long cnts;
-      spCountMapItr it;
-
       if (myid == i) {
-	sizm = spec1.size();
+	int sizm = spec1.size();
 	MPI_Send(&sizm, 1, MPI_INT, 0, 151, MPI_COMM_WORLD);
-
-	for (it=spec1.begin(); it != spec1.end(); it++) {
-	  indx = it->first;
-	  cnts = it->second;
+	
+	for (spCountMapItr it=spec1.begin(); it != spec1.end(); it++) {
+	  speciesKey indx    = it->first;
+	  unsigned long cnts = it->second;
 	  MPI_Send(&indx.first,  1, MPI_UNSIGNED, 0, 152, MPI_COMM_WORLD);
 	  MPI_Send(&indx.second, 1, MPI_UNSIGNED, 0, 153, MPI_COMM_WORLD);
 	  MPI_Send(&cnts,   1, MPI_UNSIGNED_LONG, 0, 154, MPI_COMM_WORLD);
@@ -1255,15 +1255,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       }
 	
       if (myid == 0) {
-	MPI_Recv(&sizm, 1, MPI_INT, 0, 151, MPI_COMM_WORLD, 
+	int sizm;
+	speciesKey indx;
+	unsigned long cnts;
+      
+	MPI_Recv(&sizm, 1, MPI_INT, i, 151, MPI_COMM_WORLD, 
 		 MPI_STATUS_IGNORE);
 
 	for (int j=0; j<sizm; j++) {
-	  MPI_Recv(&indx.first,  1, MPI_UNSIGNED, 0, 152, MPI_COMM_WORLD,
+	  MPI_Recv(&indx.first,  1, MPI_UNSIGNED, i, 152, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	  MPI_Recv(&indx.second, 1, MPI_UNSIGNED, 0, 153, MPI_COMM_WORLD,
+	  MPI_Recv(&indx.second, 1, MPI_UNSIGNED, i, 153, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	  MPI_Recv(&cnts,   1, MPI_UNSIGNED_LONG, 0, 154, MPI_COMM_WORLD,
+	  MPI_Recv(&cnts,   1, MPI_UNSIGNED_LONG, i, 154, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
 	  
 	  if (check.find(indx) == check.end()) check[indx]  = cnts;
@@ -1271,6 +1275,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	}
       }
     }
+
+    (*barrier)("TreeDSMC: after species map diag", __FILE__, __LINE__);
 
     if (myid==0) {
 

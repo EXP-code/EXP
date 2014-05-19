@@ -5,15 +5,16 @@
 #include <set>
 #include <vector>
 
-//! Typedef for the species key for the different types
-typedef std::pair<unsigned short, unsigned short> speciesKey;
-
-typedef std::set<speciesKey>           sKeySet;
-typedef std::map<speciesKey, double>   sKeyDmap;
-typedef std::map<speciesKey, sKeyDmap> sKey2Dmap;
-typedef std::map<speciesKey, unsigned> sKeyUmap;
-typedef std::map<speciesKey, sKeyUmap> sKey2Umap;
+//@{
+//! Typedefs for the species key
+typedef std::pair<unsigned short, unsigned short>  speciesKey;
+typedef std::set<speciesKey>                       sKeySet;
+typedef std::map<speciesKey, double>               sKeyDmap;
+typedef std::map<speciesKey, sKeyDmap>             sKey2Dmap;
+typedef std::map<speciesKey, unsigned>             sKeyUmap;
+typedef std::map<speciesKey, sKeyUmap>             sKey2Umap;
 typedef std::map<speciesKey, std::vector<double> > sKeyvDmap;
+//@}
 
 /**
    Wrap a union for converting a speciesKey to an int
@@ -22,7 +23,7 @@ class KeyConvert
 {
 
 private:
-
+  // The union datum
   union {
     unsigned short us[2];
     int i;
