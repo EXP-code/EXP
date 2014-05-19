@@ -282,6 +282,10 @@ private:
   void triggered_cell_body_dump(double time, double radios);
   void TempHisto();
 
+
+				// Make species map
+  void makeSpeciesMap();
+
 #ifdef TIMER
   Timer *timer;
 #endif

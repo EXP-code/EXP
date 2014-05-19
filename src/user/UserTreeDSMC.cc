@@ -261,144 +261,73 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     }
   }
 
-  (*barrier)("TreeDSMC: BEFORE species map", __FILE__, __LINE__);
-
   //
   // Make the initial species map
   //
-  {
-    int ok1 = 1, ok;
+  (*barrier)("TreeDSMC: BEFORE species map construction", __FILE__, __LINE__);
+  makeSpeciesMap();
+  (*barrier)("TreeDSMC: AFTER species map construction",  __FILE__, __LINE__);
 
-    PartMapItr p    = c0->Particles().begin();
-    PartMapItr pend = c0->Particles().end();
+  typedef std::map<speciesKey, unsigned long> spCountMap;
+  typedef spCountMap::iterator  spCountMapItr;
 
-    for (; p!=pend; p++) {
-      KeyConvert kc  (p->second.iattrib[use_key]);
-      speciesKey indx(kc.getKey());
-      unsigned short Z = indx.first;
-      for (unsigned short i=1; i<=Z+1; i++) {
-	speciesKey indxi(Z, i);
-	if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
-      }
-      if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
-      else                                 spec1[indx]++;
-    }
+  //
+  // Get element list
+  //
+  typedef std::set<unsigned short> elemL;
+  elemL elems;
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+    elems.insert(it->first.first);
 
-
-    MPI_Allreduce(&ok1, &ok, 1, MPI_INT, MPI_PROD, MPI_COMM_WORLD);
-    
-    if (ok) {
-
-      int sizm;
-      speciesKey indx;
-      unsigned long cnts;
-      std::map<speciesKey, unsigned long>::iterator it, it2;
-
-      spec = spec1;
-      for (int i=0; i<numprocs; i++) {
-	if (i == myid) {
-	  sizm = spec1.size();
-	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
-
-	  for (it=spec1.begin(); it != spec1.end(); it++) {
-	    indx = it->first;
-	    cnts = it->second;
-	    MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-	    MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
-	  }
-	} else {
-	  MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
-	  for (int j=0; j<sizm; j++) {
-	    MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-	    MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
-	    MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
-	    if (spec.find(indx) == spec.end()) spec[indx]  = cnts;
-	    else                               spec[indx] += cnts;
-	  }
-	}
-      }
-
-      for (it=spec.begin(); it != spec.end(); it++)  {
-	indx = it->first;
-	spec_list.insert(indx);
-	collFrac[indx] = 1.0;
-      }
-
-      std::map<speciesKey, unsigned long> check = spec;
-      for (it=check.begin(); it!=check.end(); it++) it->second = 0;
-
-      if (myid==0) {
-	cout << endl
-	     << "--------------" << endl
-	     << "Species counts" << endl
-	     << "--------------" << endl
-	     << endl;
-
-	cout << setw(4) << right << "#";
-	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(8) << right 
-	       << "(" << it->first.first << "," << it->first.second << ")";
-	cout << endl;
-
-	cout << setw(4) << right << "---";
-	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << "--------";
-	cout << endl;
-
-	it2 = spec1.begin();
-	cout << setw(4) << right << myid;
-	for (it=spec.begin(); it != spec.end(); it++) {
-	  if (it->first == it2->first) {
-	    cout << setw(12) << right << it2->second;
-	    check[it->first] += it2->second;
-	    it2++;
-	  } else {
-	    cout << setw(12) << right << 0;
-	  }
-	}
-	cout << endl;
-      }
-      
-      unsigned val;
-      for (int i=1; i<numprocs; i++) {
-	if (i == myid) {
-	  it2 = spec1.begin();
-	  for (it=spec.begin(); it != spec.end(); it++) {
-	    if (it->first == it2->first) val = (it2++)->second;
-	    else                         val = 0;
-	    MPI_Send(&val, 1, MPI_UNSIGNED, 0, 142, MPI_COMM_WORLD);
-	  }
-	}
-	if (myid == 0) {
-	  cout << setw(4) << right << i;
-	  for (it=spec.begin(); it != spec.end(); it++) {
-	    MPI_Recv(&val, 1, MPI_UNSIGNED, i, 142, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    cout << setw(12) << right << val;
-	    check[it->first] += val;
-	  }
-	  cout << endl;
-	}
-      }
-      if (myid==0) {
-	cout << setw(4) << right << "---";
-	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << "--------";
-	cout << endl;
-	cout << setw(4) << right << "TOT";
-	for (it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << it->second;
-	cout << endl;
-	cout << setw(4) << right << "CHK";
-	for (it=check.begin(); it != check.end(); it++)
-	  cout << setw(12) << right << it->second;
-	cout << endl << endl;
-      }
+  //
+  // Create all possible species
+  //
+  for (elemL::iterator it=elems.begin(); it != elems.end(); it++)  {
+    for (unsigned short C=1; C<*it+2; C++) {
+      speciesKey indx(*it, C);
+      spec_list.insert(indx);
+      collFrac[indx] = 1.0;
     }
   }
 
-  (*barrier)("TreeDSMC: AFTER species map", __FILE__, __LINE__);
+  if (myid==0) {
+    cout << endl
+	 << "--------------" << endl
+	 << "Species counts" << endl
+	 << "--------------" << endl
+	 << endl;
+    
+    cout << setw(4) << right << "#";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      cout << setw(8) << right 
+	   << "(" << it->first.first << "," << it->first.second << ")";
+    cout << endl;
 
+    cout << setw(4) << right << "---";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      cout << setw(12) << right << "--------";
+    cout << endl;
+    
+    spCountMapItr it2 = spec1.begin();
+    cout << setw(4) << right << myid;
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+      if (it->first == it2->first) {
+	cout << setw(12) << right << it2->second;
+	it2++;
+      } else {
+	cout << setw(12) << right << 0;
+      }
+    }
+    cout << endl;
+    cout << setw(4) << right << "---";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      cout << setw(12) << right << "--------";
+    cout << endl;
+    cout << setw(4) << right << "TOT";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      cout << setw(12) << right << it->second;
+    cout << endl;
+  }
 
   Vunit = Lunit/Tunit;
   Eunit = Munit*Vunit*Vunit;
@@ -1229,56 +1158,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     typedef std::map<speciesKey, unsigned long> spCountMap;
     typedef spCountMap::iterator  spCountMapItr;
     
-    spCountMap check;
-
-    // Do root node's counts first
-    //
-    if (myid==0) {
-      for (spCountMapItr it=spec1.begin(); it != spec1.end(); it++)
-	check[it->first] = it->second;
-    }
-	  
-    (*barrier)("TreeDSMC: before species map diag", __FILE__, __LINE__);
-
-    // Root receives from the remaining nodes
-    //
-    for (int i=1; i<numprocs; i++) {
-      if (myid == i) {
-	int sizm = spec1.size();
-	MPI_Send(&sizm, 1, MPI_INT, 0, 151, MPI_COMM_WORLD);
-	
-	for (spCountMapItr it=spec1.begin(); it != spec1.end(); it++) {
-	  speciesKey indx    = it->first;
-	  unsigned long cnts = it->second;
-	  MPI_Send(&indx.first,  1, MPI_UNSIGNED, 0, 152, MPI_COMM_WORLD);
-	  MPI_Send(&indx.second, 1, MPI_UNSIGNED, 0, 153, MPI_COMM_WORLD);
-	  MPI_Send(&cnts,   1, MPI_UNSIGNED_LONG, 0, 154, MPI_COMM_WORLD);
-	}
-      }
-	
-      if (myid == 0) {
-	int sizm;
-	speciesKey indx;
-	unsigned long cnts;
-      
-	MPI_Recv(&sizm, 1, MPI_INT, i, 151, MPI_COMM_WORLD, 
-		 MPI_STATUS_IGNORE);
-
-	for (int j=0; j<sizm; j++) {
-	  MPI_Recv(&indx.first,  1, MPI_UNSIGNED, i, 152, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  MPI_Recv(&indx.second, 1, MPI_UNSIGNED, i, 153, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  MPI_Recv(&cnts,   1, MPI_UNSIGNED_LONG, i, 154, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  
-	  if (check.find(indx) == check.end()) check[indx]  = cnts;
-	  else                                 check[indx] += cnts;
-	}
-      }
-    }
-
-    (*barrier)("TreeDSMC: after species map diag", __FILE__, __LINE__);
+    makeSpeciesMap();
 
     if (myid==0) {
 
@@ -1391,18 +1271,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       mout << "-----Species counts----------------------------------" << endl;
       mout << "-----------------------------------------------------" << endl;
 
-      for (spCountMapItr it=check.begin(); it != check.end(); it++) {
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ")";
 	mout << setw(12) << right << sout.str();
       }
       mout << endl;
 
-      for (spCountMapItr it=check.begin(); it != check.end(); it++)
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	mout << setw(12) << right << "--------";
       mout << endl;
       
-      for (spCountMapItr it=check.begin(); it != check.end(); it++)
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	mout << setw(12) << right << it->second;
       mout << endl;
       
@@ -1889,6 +1769,61 @@ void UserTreeDSMC::TempHisto()
 	 << setw(10) << setprecision(2) << vd0[numT+1] << endl;
   }
 }
+
+// Make species map
+//
+void UserTreeDSMC::makeSpeciesMap()
+{
+  PartMapItr p    = c0->Particles().begin();
+  PartMapItr pend = c0->Particles().end();
+
+  spec .erase(spec .begin(), spec .end());
+  spec1.erase(spec1.begin(), spec1.end());
+
+  for (; p!=pend; p++) {
+    KeyConvert kc  (p->second.iattrib[use_key]);
+    speciesKey indx(kc.getKey());
+    unsigned short Z = indx.first;
+    for (unsigned short i=1; i<=Z+1; i++) {
+      speciesKey indxi(Z, i);
+      if (spec1.find(indxi) == spec1.end()) spec1[indxi] = 0;
+    }
+    if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
+    else                                 spec1[indx]++;
+  }
+
+
+  int sizm;
+  speciesKey indx;
+  unsigned long cnts;
+  std::map<speciesKey, unsigned long>::iterator it, it2;
+
+  spec = spec1;
+  for (int i=0; i<numprocs; i++) {
+    if (i == myid) {
+      sizm = spec1.size();
+      MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
+      
+      for (it=spec1.begin(); it != spec1.end(); it++) {
+	indx = it->first;
+	cnts = it->second;
+	MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
+      }
+    } else {
+      MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
+      for (int j=0; j<sizm; j++) {
+	MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
+	MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
+	if (spec.find(indx) == spec.end()) spec[indx]  = cnts;
+	else                               spec[indx] += cnts;
+      }
+    }
+  }
+}
+
 
 extern "C" {
   ExternalForce *makerTreeDSMC(string& line)
