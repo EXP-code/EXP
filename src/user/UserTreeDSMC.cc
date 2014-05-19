@@ -307,18 +307,26 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
       cout << setw(12) << right << "--------";
     cout << endl;
-    
-    spCountMapItr it2 = spec1.begin();
-    cout << setw(4) << right << myid;
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-      if (it->first == it2->first) {
-	cout << setw(12) << right << it2->second;
-	it2++;
-      } else {
-	cout << setw(12) << right << 0;
+  }
+
+  for (int n=0; n<numprocs; n++) {
+    if (myid==n) {
+      spCountMapItr it2 = spec1.begin();
+      cout << setw(4) << right << myid;
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	if (it->first == it2->first) {
+	  cout << setw(12) << right << it2->second;
+	  it2++;
+	} else {
+	  cout << setw(12) << right << 0;
+	}
       }
+      cout << endl;
     }
-    cout << endl;
+    MPI_Barrier(MPI_COMM_WORLD);
+  }
+
+  if (myid==0) {
     cout << setw(4) << right << "---";
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
       cout << setw(12) << right << "--------";
