@@ -49,9 +49,6 @@ const int N_Z = 2;
 // Array of the different Z's for the elements
 const int ZList[N_Z] = {1, 2}; 
 
-// Harcoded abundance array
-const double abund[N_Z] = {0.97, 0.03};
-
 double   CollideIon::Nmin    = 1.0e-08;
 double   CollideIon::Nmax    = 1.0e+25;
 double   CollideIon::Tmin    = 1.0e+03;

@@ -348,15 +348,6 @@ Ion::Ion(std::string name, chdata ch)
   convertName();		// Sets Z and C . . . 
   ip = ch.ipdata[Z-1][C-1];
 
-  /*
-  if (abund == 999) {
-    abundance = ch.abundanceAll[Z-1];
-  }
-  else {
-    abundance = abund;
-  }
-  */
-  
   std::string MasterNameT = ZCtoName(Z, C-1);
   if (isInMasterList(ch, MasterNameT)) {
     readfblvl();

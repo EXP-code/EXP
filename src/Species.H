@@ -22,6 +22,7 @@ class KeyConvert
 {
 
 private:
+
   union {
     unsigned short us[2];
     int i;
@@ -29,10 +30,10 @@ private:
 
 public:
 
-  //! Constructor taking a speciesKey
+  //! Constructor taking a speciesKey (enter values into the union)
   KeyConvert(const speciesKey& k) { c.us[0] = k.first; c.us[1] = k.second; }
 
-  //! Constructor taking a converted int
+  //! Constructor taking a converted int (enter value into the union)
   KeyConvert(const int i)         { c.i = i; }
 
   //! Copy constructor
