@@ -32,7 +32,7 @@ double InteractSelect::selectCEInteract
   size_t N = cumCross.size();
   
   std::vector< double > normed;
-  normed.push_back(0);
+  // normed.push_back(0); // Looks wrong to MDW
   for(size_t i=0; i<N; i++) {
     double tmp = cumCross[i].first/cumCross[N-1].first;
     normed.push_back(tmp);
@@ -47,8 +47,6 @@ double InteractSelect::selectCEInteract
     }
   }
 
-  // std::cout << "Excite cool - dE = " << E << std::endl;
-  
   return E;
 }
 
