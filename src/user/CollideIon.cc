@@ -311,20 +311,19 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   // Internal energy per particle
   //
-  double dof = 1.0;
-  Ein = 0.0;
+  Ein1 = Ein2 = 0.0;
   if (use_Eint>=0) {
-    Ein += p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
-    Ein += p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
-    dof += ne1 + ne2;
+    Ein1 = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
+    Ein2 = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
   }
 
   // Compute the total available energy and divide among degrees of freedom
   // Convert ergs to eV
   //
 
-  kEe = (kEi + Ein)/dof / eV;
-
+  kEe1 = (kEi + Ein1)/(1.0 + ne1) / eV;
+  kEe2 = (kEi + Ein2)/(1.0 + ne2) / eV;
+  
   // Get temperatures from cells
   //
   double E_therm_1 = boltzEv * p1->dattrib[use_temp];
@@ -333,11 +332,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   // Or use the effective temperature from the COM KE
   //
   if (p1->dattrib[use_temp] == 0) {
-    E_therm_1 = kEe;
+    E_therm_1 = kEe1;
   }
 
   if (p2->dattrib[use_temp] == 0) {
-    E_therm_2 = kEe;
+    E_therm_2 = kEe2;
   }
   
   /***
@@ -377,10 +376,10 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   if (ne2 > 0) {
     if (C1==1)		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe) * eVel*ne2;
+      cross12 = elastic(Z1, kEe2) * eVel*ne2;
     else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
-	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
+	std::max<double>(kEe2*eV, FloorEv*eV) * 1.0e7; // nm
       cross12 = M_PI*b*b * eVel*ne2;
     }
   }
@@ -389,10 +388,10 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   if (ne1 > 0) {
     if (C2==1)		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe) * eVel*ne1;
+      cross21 = elastic(Z2, kEe1) * eVel*ne1;
     else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
-	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
+	std::max<double>(kEe1*eV, FloorEv*eV) * 1.0e7; // nm
       cross21 = M_PI*b*b * eVel*ne1;
     }
   }
@@ -409,7 +408,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {
-    double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe);
+    double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe2);
     double crs = eVel*ne2 * ff1;
 
     dCrossMap[id].push_back(crs);
@@ -422,11 +421,12 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {
 
-    if (E_therm_1 == 0.0) {
-      std::cout << "E_therm_1 == 0.0, kEe=" << kEe << ", cr=" << cr << std::endl;
+    if (E_therm_2 == 0.0) {
+      std::cout << "E_therm_2 == 0.0, kEe=" << kEe2 << ", cr=" 
+		<< cr << std::endl;
     }
     
-    CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe, E_therm_1);
+    CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2, E_therm_2);
     double crs = eVel*ne2 * CE1[id].back().first;
 
     dCrossMap[id].push_back(crs);
@@ -439,7 +439,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   double DI1;
   if (C1 < (Z1 + 1) and ne2 > 0) {
 
-    DI1 = IonList[Z1][C1].directIonCross(ch, kEe);
+    DI1 = IonList[Z1][C1].directIonCross(ch, kEe2);
     double crs = eVel*ne2 * DI1;
 
     dCrossMap[id].push_back(crs);
@@ -453,7 +453,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   std::vector<double> RE1;
   if (C1 > 1 and ne2 > 0) {
 
-    RE1 = IonList[Z1][C1].radRecombCross(ch, kEe);
+    RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2);
     double crs = eVel*ne2 * RE1.back();
 
     dCrossMap[id].push_back(crs);
@@ -471,7 +471,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe);
+    double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe1);
     double crs = eVel*ne1 * ff2;
 
     dCrossMap[id].push_back(crs);
@@ -484,12 +484,12 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    if (E_therm_2 == 0.0) {
-      std::cout << "E_therm_2 == 0.0, kEe=" << kEe << ", cr=" << cr 
+    if (E_therm_1 == 0.0) {
+      std::cout << "E_therm_1 == 0.0, kEe1=" << kEe1 << ", cr=" << cr 
 		<< std::endl;
     }
 
-    CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe, E_therm_2);
+    CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1, E_therm_1);
     double crs = eVel*ne1 * CE2[id].back().first;
 
     dCrossMap[id].push_back(crs);
@@ -502,7 +502,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   double DI2;
   if (C2 < (Z2 + 1) and ne1 > 0) {
-    DI2 = IonList[Z2][C2].directIonCross(ch, kEe);
+    DI2 = IonList[Z2][C2].directIonCross(ch, kEe1);
     double crs = ne1 * DI2;
 
     dCrossMap[id].push_back(crs);
@@ -515,7 +515,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   std::vector<double> RE2;
   if (C2 > 1 and ne1 > 0) {
-    RE2 = IonList[Z2][C2].radRecombCross(ch, kEe);
+    RE2 = IonList[Z2][C2].radRecombCross(ch, kEe1);
     double crs = eVel*ne1*RE2.back();
 
     dCrossMap[id].push_back(crs);
@@ -572,18 +572,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // For tracking energy conservation (system units)
   //
   double dE   = kE*TolV*TolV;
-  double dof  = 1.0;
-				// KE + internal
-  double totE = kE;
-  if (use_Eint>=0) {
-    dof  += ne1 + ne2;
-    totE += p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
-  }
-
-  //
-  // Remainder energy after removing floor (system units)
-  double remE = totE - dE;
-  double delE = 0.0, delEeV = 0.0;
+  double delE  = 0.0, delEeV = 0.0;
 
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
@@ -600,6 +589,11 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
   assert (TotalCross.size() == dCrossMap[id].size());
 
+  int partflag = 0;		// Will be 1 or 2, dependending on
+				// which ion or neutral is selected
+				// for interaction.  Will be 0 if no
+				// interaction is selected.
+  
   if (tCross != 0) {
     std::vector<double> CDF;
     std::vector <double>::iterator 
@@ -642,16 +636,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       interFlag = dInterMap[id][0];
     }
 
-    int partflag = 0;		// Will be 1 or 2, dependending on
-				// which ion or neutral is selected
-				// for interaction
-
     //-------------------------
     // Particle 1 interactions
     //-------------------------
 
     if (interFlag == 1) {
-      delE          = IS.selectFFInteract(IonList[Z1][C1], kEe);
+      delE          = IS.selectFFInteract(IonList[Z1][C1], kEe2);
       partflag      = 1;
       ff_d.first++; 
       ff_d.second  += delE;
@@ -680,7 +670,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // component.
     //
     if (interFlag == 4) {
-      delE          = kEe;
+      delE          = kEe2;
       C1--;
       assert(C1 > 0);
       partflag      = 1;
@@ -694,7 +684,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     //-------------------------
 
     if (interFlag == 6) {
-      delE          = IS.selectFFInteract(IonList[Z2][C2], kEe);
+      delE          = IS.selectFFInteract(IonList[Z2][C2], kEe1);
       partflag      = 2;
       ff_d.first++;
       ff_d.second += delE;
@@ -717,7 +707,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == 9) {
-      delE         = kEe;	// See comment above for interFlag==4
+      delE         = kEe1;	// See comment above for interFlag==4
       C2--;
       assert(C2 > 0);
       partflag     = 2;
@@ -734,15 +724,29 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     
     // Energy summary diagnostics
     //
-    eV_av += kEe;
-    if (std::isnan(eV_av)) {
-      std::cout << "eV_N=" << eV_N << std::endl;
-    }
-    eV_N++;
-    eV_min = std::min(eV_min, kEe);
-    eV_max = std::max(eV_max, kEe);
+    if (partflag==1) {
+      eV_av += kEe2;
+      if (std::isnan(eV_av)) {
+	std::cout << "eV_N=" << eV_N << std::endl;
+      }
+      eV_N++;
+      eV_min = std::min(eV_min, kEe2);
+      eV_max = std::max(eV_max, kEe2);
     
-    if (kEe > 10.2) { eV_10++;}
+      if (kEe2 > 10.2) { eV_10++;}
+    }
+  
+    if (partflag==2) {
+      eV_av += kEe1;
+      if (std::isnan(eV_av)) {
+	std::cout << "eV_N=" << eV_N << std::endl;
+      }
+      eV_N++;
+      eV_min = std::min(eV_min, kEe1);
+      eV_max = std::max(eV_max, kEe1);
+    
+      if (kEe1 > 10.2) { eV_10++;}
+    }
   
 
     // Convert back to cgs
@@ -756,40 +760,59 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   //
   if (NO_COOL) delE = 0.0;
 
+  // Pure scattering event
+  //
+  if (delE<=0.0) return ret;
+
   // Convert energy loss to system units
   //
   delE = delE/UserTreeDSMC::Eunit;
   
-  
-  if (frost_warning && delE*0.999 > totE) {
-    std::cout << "delE > KE!! (" << delE << " > " << totE
-	      << "), Interaction type = " << interFlag 
-	      << " kEe  = "  << kEe
-	      << " delE = " << delEeV 
-	      << std::endl;
-  }
-  
-  // Distribute electron energy among particles in pure scattering event
+  // Assign interaction energy variables
   //
-  if (delE<=0.0) {
-    if (use_Eint>=0 && ne1 + ne2>0) {
-      double kEm  = (p1->dattrib[use_Eint] + p2->dattrib[use_Eint])/(ne1 + ne2);
-      p1->dattrib[use_Eint] = ne1 * kEm;
-      p2->dattrib[use_Eint] = ne2 * kEm;
-    }
-    return ret;
-  }
-  
-  // Cooling rate diagnostic
+  double remE, totE, kEe, dof;
+
+  // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
-  if (TSDIAG) {
-    if (delE>0.0) {
-      int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
-      if (indx<0 ) indx = 0;
-      if (indx>10) indx = 10;
-      
-      EoverT[id][indx] += Mt;
-    }
+  if (partflag==1) {
+    totE = kE;			// KE + internal
+    if (use_Eint>=0) totE += p2->dattrib[use_Eint];
+    remE = totE - dE;		// Energy floor
+    kEe  = kEe2;		// Electron energy
+    dof  = 1.0 + ne2;		// Total degrees of freedom
+  }
+
+  // Electrons from Particle 1 interacted with atom/ion in Particle 2
+  //
+  if (partflag==2) {
+    totE = kE;			// KE + internal
+    if (use_Eint>=0) totE += p1->dattrib[use_Eint];
+    remE = totE - dE;		// Energy floor
+    kEe  = kEe1;		// Electron energy
+    dof  = 1.0 + ne1;		// Total degrees of freedom
+  }
+
+  // Warn if energy lost is greater than total energy available to
+  // lose
+  //
+  if (frost_warning && delE*0.999 > totE)
+      std::cout << "delE > KE!! (" << delE << " > " << totE
+		<< "), Interaction type = " << interFlag 
+		<< " kEe  = "  << kEe
+		<< " delE = " << delEeV 
+		<< std::endl;
+
+  
+  // Cooling rate diagnostic histogram
+  //
+  if (TSDIAG && delE>0.0) {
+				// Histogram index
+    int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
+				// Floor and ceiling
+    if (indx<0 ) indx = 0;
+    if (indx>10) indx = 10;
+				// Add entry
+    EoverT[id][indx] += Mt;
   }
   
   if (use_exes>=0) {
@@ -806,12 +829,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     double vi      = (*cr);
     lostSoFar[id] += delE;
     decelT[id]    += delE;
-
+    
     totE          -= delE;	// Remove the energy from the total
 				// available
 
-    double kEm     = totE/dof;	// Energy per particle
-
+				// Energy per particle
+    double kEm = totE / dof;
+    
 				// Get new relative velocity
     (*cr)          = sqrt( 2.0*kEm/Mu );
 
@@ -821,46 +845,53 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 
 				// Distribute electron energy to particles
     if (use_Eint>=0) {
-      p1->dattrib[use_Eint] = ne1 * kEm;
-      p2->dattrib[use_Eint] = ne2 * kEm;
+      if (partflag==1) p2->dattrib[use_Eint] = ne2 * kEm;
+      if (partflag==2) p1->dattrib[use_Eint] = ne1 * kEm;
     }
 				// Zero out internal energy excess
     if (use_exes>=0)		// since excess is now used up
       p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
 
-  } else {			// Inconsistent: too much energy lost!
-
+  } else {
+    //
+    // Inconsistent: too much energy lost!
+    //
+    
     if (frost_warning && remE*0.999 > delE) {
       std::cout << "************ remE < delE!!!!" 
-		<< " RemE = " << remE << " delE = " << delE 
+		<< " RemE = " << remE << " delE = " << delE
 		<< " interaction: " << interFlag    << std::endl;
-    }
     
-    lostSoFar[id] += remE;
-    decolT[id]    += remE - delE;
+      lostSoFar[id] += remE;
+      decolT[id]    += remE - delE;
 
-    (*cr)         *= TolV;
-    ret            = 1;		// Set error flag
+      (*cr)         *= TolV;
+      ret            = 1;	// Set error flag
     
 				// Conservation of energy for internal
 				// degrees of freedom
-    dE             = 0.5*Mu*(*cr)*(*cr);
+      dE             = 0.5*Mu*(*cr)*(*cr);
 
 				// Remaining energy split between
 				// internal degrees of freedom
-    if (use_Eint>=0) {
-      double kEm     = (totE - kE + dE)/(ne1 + ne2);
-      p1->dattrib[use_Eint] = ne1 * kEm;
-      p2->dattrib[use_Eint] = ne2 * kEm;
-    }
-    
+      if (use_Eint>=0) {
+	if (partflag==1) {
+	  if (ne2) p2->dattrib[use_Eint] = totE - kE + dE;
+	  else     p2->dattrib[use_Eint] = 0;
+	}
+	if (partflag==2) {
+	  if (ne1) p1->dattrib[use_Eint] = totE - kE + dE;
+	  else     p1->dattrib[use_Eint] = 0;
+	}
+      }
 				// Reset internal energy excess
-    if (use_exes>=0) {
-      if (ENSEXES) 		// Energy will be spread later
-	p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
-      else {			// Energy excess incorporated now
-	p1->dattrib[use_exes] =  p1->mass*(remE - delE)/Mt;
-	p2->dattrib[use_exes] =  p2->mass*(remE - delE)/Mt;
+      if (use_exes>=0) {
+	if (ENSEXES) 		// Energy will be spread later
+	  p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
+	else {			// Energy excess incorporated now
+	  if (partflag==1) p2->dattrib[use_exes] = p2->mass*(remE - delE)/Mt;
+	  if (partflag==2) p1->dattrib[use_exes] = p1->mass*(remE - delE)/Mt;
+	}
       }
     }
   }
