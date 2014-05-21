@@ -326,6 +326,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     MPI_Barrier(MPI_COMM_WORLD);
   }
 
+  MPI_Barrier(MPI_COMM_WORLD);
+
   if (myid==0) {
     cout << setw(4) << right << "---";
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
@@ -1178,6 +1180,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned coll_error = collide->errors();
       unsigned epsm_total = collide->EPSMtotal();
       unsigned epsm_cells = collide->EPSMcells();
+
       collide->printCollSummary();
 
       vector<double> disp;
