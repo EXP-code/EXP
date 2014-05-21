@@ -107,19 +107,7 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
   atomic_weights[11] = 22.990;
   atomic_weights[12] = 24.305;
   
-  ff_d   = std::make_pair(0., 0.);
-  CE_d   = std::make_pair(0., 0.);
-  CI_d   = std::make_pair(0., 0.);
-  RR_d   = std::make_pair(0., 0.);
-  dv     = std::make_pair(0., 0.);
-
-  eV_av  = 0;
-  eV_N   = 0;
-  eV_min = 999999;
-  eV_max = 0;
-  eV_10  = 0;
-  
-  printCollInitialize();
+  collD = boost::shared_ptr<collDiag>(new collDiag());
 
   if (myid==0 && NO_COOL) std::cout << "No cooling is set to TRUE" 
 				    << std::endl;
@@ -537,7 +525,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
   // Species keys
   //
   KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
-
+  collTDPtr ctd1 = (*collD)[k1.getKey()], ctd2 = (*collD)[k2.getKey()];
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
   
@@ -628,15 +616,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 1) {
       delE          = IS.selectFFInteract(IonList[Z1][C1], kEe2);
       partflag      = 1;
-      ff_d.first++; 
-      ff_d.second  += delE;
+      ctd1->ff[id].first++; 
+      ctd1->ff[id].second  += delE;
     }
 
     if (interFlag == 2) {
       delE = IS.selectCEInteract(IonList[Z1][C1], CE1[id]);
       partflag      = 1;
-      CE_d.first++; 
-      CE_d.second  += delE;
+      ctd1->CE[id].first++; 
+      ctd1->CE[id].second  += delE;
     }
 
     if (interFlag == 3) {
@@ -644,8 +632,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       p1->iattrib[use_key] = k1.updateC(++C1);
       assert(C1 <= (Z1 + 1));
       partflag      = 1;
-      CI_d.first++; 
-      CI_d.second  += delE;
+      ctd1->CI[id].first++; 
+      ctd1->CI[id].second  += delE;
     }
 
     // KE carried by electron is subtracted from the thermal reservoir
@@ -658,8 +646,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       p1->iattrib[use_key] = k1.updateC(--C1);
       assert(C1 > 0);
       partflag      = 1;
-      RR_d.first++; 
-      RR_d.second  += delE;
+      ctd1->RR[id].first++; 
+      ctd1->RR[id].second  += delE;
     }
     
     //-------------------------
@@ -669,22 +657,22 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == 6) {
       delE          = IS.selectFFInteract(IonList[Z2][C2], kEe1);
       partflag      = 2;
-      ff_d.first++;
-      ff_d.second += delE;
+      ctd2->ff[id].first++;
+      ctd2->ff[id].second += delE;
     }
 
     if (interFlag == 7) {
       delE         = IS.selectCEInteract(IonList[Z2][C2], CE2[id]);
       partflag     = 2;
-      CE_d.first++; 
-      CE_d.second += delE;
+      ctd2->CE[id].first++; 
+      ctd2->CE[id].second += delE;
     }
 
     if (interFlag == 8) {
       delE = IS.DIInterLoss(ch, IonList[Z2][C2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
-      CI_d.first++; 
-      CI_d.second += delE;
+      ctd2->CI[id].first++; 
+      ctd2->CI[id].second += delE;
       partflag     = 2;
     }
 
@@ -693,8 +681,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       p2->iattrib[use_key] = k2.updateC(--C2);
       assert(C2 > 0);
       partflag     = 2;
-      RR_d.first++; 
-      RR_d.second += delE;
+      ctd2->RR[id].first++; 
+      ctd2->RR[id].second += delE;
     }
 
     delEeV = delE;
@@ -736,15 +724,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     dof  = 1.0 + ne2;		// Total degrees of freedom
 
 				// Energy diagnostics
-    eV_av += kEe2;
-    if (std::isnan(eV_av)) {
-      std::cout << "eV_N=" << eV_N << std::endl;
+    ctd1->eV_av[id] += kEe2;
+    if (std::isnan(ctd2->eV_av[id])) {
+      std::cout << "eV_N=" << ctd1->eV_N[id] << std::endl;
     }
-    eV_N++;
-    eV_min = std::min(eV_min, kEe2);
-    eV_max = std::max(eV_max, kEe2);
+    ctd1->eV_N[id]++;
+    ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe2);
+    ctd1->eV_max[id] = std::max(ctd2->eV_max[id], kEe2);
     
-    if (kEe2 > 10.2) { eV_10++;}
+    if (kEe2 > 10.2) { ctd1->eV_10[id]++;}
   }
 
   // Electrons from Particle 1 interacted with atom/ion in Particle 2
@@ -757,15 +745,15 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     dof  = 1.0 + ne1;		// Total degrees of freedom
 
 				// Energy diagnostics
-    eV_av += kEe1;
-    if (std::isnan(eV_av)) {
-      std::cout << "eV_N=" << eV_N << std::endl;
+    ctd2->eV_av[id] += kEe1;
+    if (std::isnan(ctd2->eV_av[id])) {
+      std::cout << "eV_N=" << ctd2->eV_N[id] << std::endl;
     }
-    eV_N++;
-    eV_min = std::min(eV_min, kEe1);
-    eV_max = std::max(eV_max, kEe1);
+    ctd2->eV_N[id]++;
+    ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe1);
+    ctd2->eV_max[id] = std::max(ctd2->eV_max[id], kEe1);
     
-    if (kEe1 > 10.2) { eV_10++;}
+    if (kEe1 > 10.2) { ctd2->eV_10[id]++; }
   }
 
   // Warn if energy lost is greater than total energy available to
@@ -799,10 +787,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     delE -= p1->dattrib[use_exes] + p2->dattrib[use_exes];
   }
   
+  // Initial relative velocity 
+  double vi        = (*cr);
+
   // Sufficient energy available for selected loss
   //
   if (remE > delE) {
-    double vi      = (*cr);
+
     lostSoFar[id] += delE;
     decelT[id]    += delE;
     
@@ -815,9 +806,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				// Get new relative velocity
     (*cr)          = sqrt( 2.0*kEm/Mu );
 
-    dv.first++; 
-    dv.second     += 0.5*(vi - (*cr))*(vi - (*cr));
     ret            = 0;		// No error
+
+    if (partflag==1) {
+      ctd1->dv[id].first++; 
+      ctd1->dv[id].second += 
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+    }
+    
+    if (partflag==2) {
+      ctd2->dv[id].first++; 
+      ctd2->dv[id].second += 
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+    }
 
 				// Distribute electron energy to particles
     if (use_Eint>=0) {
@@ -843,7 +844,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     //
     if (totE > delE) {
 
-      double vi      = (*cr);
       lostSoFar[id] += delE;
       decelT[id]    += delE;
     
@@ -856,10 +856,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				// Get new relative velocity
       (*cr)          = sqrt( 2.0*kEm/Mu );
 
-      dv.first++; 
-      dv.second     += 0.5*(vi - (*cr))*(vi - (*cr));
-
       ret            = 0;	// No error
+
+      if (partflag==1) {
+	ctd1->dv[id].first++; 
+	ctd1->dv[id].second += 
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+      }
+      
+      if (partflag==2) {
+	ctd2->dv[id].first++; 
+	ctd2->dv[id].second +=
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+      }
 
 				// Remaining energy split between
 				// internal degrees of freedom
@@ -867,7 +876,6 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 	p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = kEm;
       
     } else {
-
 				// All available energy will be lost
       lostSoFar[id] += totE;
       decolT[id]    += totE - delE;
@@ -878,6 +886,18 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
 				// Conservation of energy for internal
 				// degrees of freedom
       dE             = 0.5*Mu*(*cr)*(*cr);
+
+      if (partflag==1) {
+	ctd1->dv[id].first++; 
+	ctd1->dv[id].second +=
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+      }
+      
+      if (partflag==2) {
+	ctd2->dv[id].first++; 
+	ctd2->dv[id].second +=
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+      }
 
 				// Remaining energy split set to zero
       if (use_Eint>=0)
@@ -919,179 +939,6 @@ void CollideIon::Elost(double* collide, double* epsm)
   *collide = ret1;
 }
 
-
-void CollideIon::printCollInitialize() 
-{
-  if (myid) return;
-
-  {
-    // Generate the file name
-    std::ostringstream sout;
-    sout << outdir << runtag << ".ION_coll_debug";
-    coll_file_debug = sout.str();
-
-    // Check for existence
-    std::ifstream in(coll_file_debug.c_str());
-
-    if (in.fail()) {
-      // Write a new file
-      std::ofstream out(coll_file_debug.c_str());
-      if (out) {
-
-	out << "# Variable      key                      " << std::endl
-	    << "# ------------  -------------------------" << std::endl
-	    << "# ffN           number of free-free      " << std::endl
-	    << "# ffE           cum energy in free-free  " << std::endl
-	    << "# CEN           number of collions       " << std::endl
-	    << "# CEE           cum energy in collisions " << std::endl
-	    << "# CIN           number of ionizations    " << std::endl
-	    << "# CIE           cum energy in ionizations" << std::endl
-	    << "# RRN           number of rad recombs    " << std::endl
-	    << "# RRE           energy in rad recombs    " << std::endl
-	    << "# dEx           mean energy excess       " << std::endl
-	    << "#"                                         << std::endl;
-
-	out << "#" << std::right
-	    << std::setw(11) << "Time "
-	    << std::setw(12) << "ffN "
-	    << std::setw(12) << "ffE "
-	    << std::setw(12) << "CEN "
-	    << std::setw(12) << "CEE "
-	    << std::setw(12) << "CIN "
-	    << std::setw(12) << "CIE "
-	    << std::setw(12) << "RRN "
-	    << std::setw(12) << "RRE "
-	    << std::setw(12) << "dEx "
-	    << std::endl;
-      }
-    }
-    in.close();
-  }
-
-  {
-      // Generate the file name
-      std::ostringstream sout;
-      sout << outdir << runtag << ".ION_energy_debug";
-      energy_file_debug = sout.str();
-
-      // Check for existence
-      std::ifstream in(energy_file_debug.c_str());
-
-      if (in.fail()) {
-				// Write a new file
-	std::ofstream out(energy_file_debug.c_str());
-	if (out) {
-
-	out << "# Variable      key                      " << std::endl
-	    << "# ------------  -------------------------" << std::endl
-	    << "# av            mean thermal energy      " << std::endl
-	    << "# min           minimum thermal energy   " << std::endl
-	    << "# max           maximum thermal energy   " << std::endl
-	    << "# over10        number over 10.2 eV      " << std::endl
-	    << "#"                                         << std::endl;
-
-	out << "#" << std::right
-	    << std::setw(11) << "Time "
-	    << std::setw(12) << "av "
-	    << std::setw(12) << "min "
-	    << std::setw(12) << "max "
-	    << std::setw(12) << "over10 "
-	    << std::endl;
-	}
-      }
-      in.close();
-  }
-
-}
-   
-
-
-void CollideIon::printCollSummary() 
-{
-  {
-    std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
-    if (out) {
-      out << std::setw(12) << tnow
-	  << std::setw(12) << ff_d.first
-	  << std::setw(12) << ff_d.second
-	  << std::setw(12) << CE_d.first
-	  << std::setw(12) << CE_d.second
-	  << std::setw(12) << CI_d.first
-	  << std::setw(12) << CI_d.second
-	  << std::setw(12) << RR_d.first
-	  << std::setw(12) << RR_d.second;
-      if (dv.first>0.0)
-	out << std::setw(12) << dv.second/dv.first << std::endl;
-      else
-	out << std::setw(12) << 0.0                << std::endl;
-    }
-  }
-
-  {
-    std::ofstream out(energy_file_debug.c_str(), ios::out | ios::app);
-    if (out) {
-      out << std::setw(12) << tnow
-	  << std::setw(12) << eV_av/eV_N
-	  << std::setw(12) << eV_min
-	  << std::setw(12) << eV_max
-	  << std::setw(12) << eV_10
-	  << std::endl;
-    }
-  }
-}
-
-void CollideIon::resetColls() 
-{
-  ff_d    = std::make_pair(0., 0.);
-  CE_d    = std::make_pair(0., 0.);
-  CI_d    = std::make_pair(0., 0.);
-  RR_d    = std::make_pair(0., 0.);
-  dv      = std::make_pair(0., 0.);
-  
-  eV_N    = 0.0; 
-  eV_av   = 0.0; 
-  eV_max  = 0.0; 
-  eV_min  = 99999.0; 
-
-  eV_10   = 0.0;
-}
-
-void CollideIon::printCollGather() 
-{
-  if (myid==0) {
-    MPI_Reduce(MPI_IN_PLACE, &ff_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
-    MPI_Reduce(MPI_IN_PLACE, &ff_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2
-    MPI_Reduce(MPI_IN_PLACE, &CE_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
-    MPI_Reduce(MPI_IN_PLACE, &CE_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 4
-    MPI_Reduce(MPI_IN_PLACE, &CI_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
-    MPI_Reduce(MPI_IN_PLACE, &CI_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 6
-    MPI_Reduce(MPI_IN_PLACE, &RR_d.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
-    MPI_Reduce(MPI_IN_PLACE, &RR_d.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 8
-    MPI_Reduce(MPI_IN_PLACE, &dv.first,    1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
-    MPI_Reduce(MPI_IN_PLACE, &dv.second,   1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 10
-    MPI_Reduce(MPI_IN_PLACE, &eV_av,       1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 11
-    MPI_Reduce(MPI_IN_PLACE, &eV_N,        1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
-    MPI_Reduce(MPI_IN_PLACE, &eV_min,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 13
-    MPI_Reduce(MPI_IN_PLACE, &eV_max,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 14
-    MPI_Reduce(MPI_IN_PLACE, &eV_10,       1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
-  } else {
-    MPI_Reduce(&ff_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
-    MPI_Reduce(&ff_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2
-    MPI_Reduce(&CE_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
-    MPI_Reduce(&CE_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 4
-    MPI_Reduce(&CI_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
-    MPI_Reduce(&CI_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 6
-    MPI_Reduce(&RR_d.first,  0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
-    MPI_Reduce(&RR_d.second, 0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 8
-    MPI_Reduce(&dv.first,    0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
-    MPI_Reduce(&dv.second,   0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 10
-    MPI_Reduce(&eV_av,       0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 11
-    MPI_Reduce(&eV_N,        0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
-    MPI_Reduce(&eV_min,      0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 13
-    MPI_Reduce(&eV_max,      0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 14
-    MPI_Reduce(&eV_10,       0, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
-  }
-}
 
 void * CollideIon::timestep_thread(void * arg)
 {
@@ -1187,5 +1034,226 @@ void * CollideIon::timestep_thread(void * arg)
 void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 {
   
+}
+
+collDiag::collDiag()
+{
+  // Initialize the map
+  //
+  for (int n=0; n<N_Z; n++) {
+    unsigned short Z = ZList[n];
+    for (unsigned short C=1; C<Z+2; C++) {
+      speciesKey k(Z, C);
+      (*this)[k] = collTDPtr(new CollisionTypeDiag());
+    }
+  }
+
+  initialize();
+}
+
+void collDiag::gather()
+{
+  for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+    collTDPtr ctd = it->second;
+    ctd->sumUp();
+
+    unsigned u;
+    double z;
+    if (myid==0) {
+      MPI_Reduce(&(u=ctd->ff_s.first),  &ctd->ff_s.first,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 1
+      MPI_Reduce(&(z=ctd->ff_s.second), &ctd->ff_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 2
+      MPI_Reduce(&(u=ctd->CE_s.first),  &ctd->CE_s.first,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 3
+      MPI_Reduce(&(z=ctd->CE_s.second), &ctd->CE_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 4
+      MPI_Reduce(&(u=ctd->CI_s.first),  &ctd->CI_s.first,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 5
+      MPI_Reduce(&(z=ctd->CI_s.second), &ctd->CI_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 6
+      MPI_Reduce(&(u=ctd->RR_s.first),  &ctd->RR_s.first,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 7
+      MPI_Reduce(&(z=ctd->RR_s.second), &ctd->RR_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 8
+      MPI_Reduce(&(u=ctd->dv_s.first),  &ctd->dv_s.first,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 9
+      MPI_Reduce(&(z=ctd->dv_s.second), &ctd->dv_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 10
+      MPI_Reduce(&(z=ctd->eV_av_s),     &ctd->eV_av_s,     1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 11
+      MPI_Reduce(&(u=ctd->eV_N_s),      &ctd->eV_N_s,      1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 12
+      MPI_Reduce(&(z=ctd->eV_min_s),    &ctd->eV_min_s,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 13
+      MPI_Reduce(&(z=ctd->eV_max_s),    &ctd->eV_max_s,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 14
+      MPI_Reduce(&(u=ctd->eV_10_s),     &ctd->eV_10_s,     1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 15
+    } else {
+      MPI_Reduce(&ctd->ff_s.first,      &u,                1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 1 
+      MPI_Reduce(&ctd->ff_s.second, 	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 2 
+      MPI_Reduce(&ctd->CE_s.first,  	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 3 
+      MPI_Reduce(&ctd->CE_s.second, 	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 4 
+      MPI_Reduce(&ctd->CI_s.first,  	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 5 
+      MPI_Reduce(&ctd->CI_s.second, 	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 6 
+      MPI_Reduce(&ctd->RR_s.first,  	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 7 
+      MPI_Reduce(&ctd->RR_s.second, 	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 8 
+      MPI_Reduce(&ctd->dv_s.first,    	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 9 
+      MPI_Reduce(&ctd->dv_s.second,   	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 10
+      MPI_Reduce(&ctd->eV_av_s,       	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 11
+      MPI_Reduce(&ctd->eV_N_s,        	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 12
+      MPI_Reduce(&ctd->eV_min_s,      	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 13
+      MPI_Reduce(&ctd->eV_max_s,      	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 14
+      MPI_Reduce(&ctd->eV_10_s,       	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 15
+    }
+  }
+}
+
+void collDiag::reset()
+{
+  for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++)  
+    it->second->reset();
+}
+
+void collDiag::initialize() 
+{
+  if (myid) return;
+
+  {
+    // Generate the file name
+    std::ostringstream sout;
+    sout << outdir << runtag << ".ION_coll_debug";
+    coll_file_debug = sout.str();
+
+    // Check for existence
+    std::ifstream in(coll_file_debug.c_str());
+
+    if (in.fail()) {
+      // Write a new file
+      std::ofstream out(coll_file_debug.c_str());
+      if (out) {
+
+	out << "# Variable      key                      " << std::endl
+	    << "# ------------  -------------------------" << std::endl
+	    << "# N(ff)         number of free-free      " << std::endl
+	    << "# E(ff)         cum energy in free-free  " << std::endl
+	    << "# N(ce)         number of collions       " << std::endl
+	    << "# E(ce)         cum energy in collisions " << std::endl
+	    << "# N(ci)         number of ionizations    " << std::endl
+	    << "# E(ci)         cum energy in ionizations" << std::endl
+	    << "# N(rr)         number of rad recombs    " << std::endl
+	    << "# E(rr)         energy in rad recombs    " << std::endl
+	    << "# d(KE)         mean energy change       " << std::endl
+	    << "#"                                         << std::endl;
+	
+	out << "#" << std::setw(11) << "Species==>" << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  ostringstream sout, sout2;
+	  sout  << "(" << it->first.first << ", " << it->first.second << ")";
+	  size_t w = 9*12, l = sout.str().size();
+	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
+	  out   << std::setw(w) << sout2.str() << " | ";
+	}
+	out << std::endl;
+
+	out << "#" << std::setw(11) << "Time" << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  out << std::setw(12) << "N(ff) "
+	      << std::setw(12) << "E(ff) "
+	      << std::setw(12) << "N(ce) "
+	      << std::setw(12) << "E(ce) "
+	      << std::setw(12) << "N(ci) "
+	      << std::setw(12) << "E(ci) "
+	      << std::setw(12) << "N(rr) "
+	      << std::setw(12) << "E(rr) "
+	      << std::setw(12) << "d(KE) "
+	      << " | ";
+	}
+	out << std::endl;
+      }
+    }
+    in.close();
+  }
+
+  {
+    // Generate the file name
+    std::ostringstream sout;
+    sout << outdir << runtag << ".ION_energy_debug";
+    energy_file_debug = sout.str();
+    
+    // Check for existence
+    std::ifstream in(energy_file_debug.c_str());
+    
+    if (in.fail()) {
+      // Write a new file
+      std::ofstream out(energy_file_debug.c_str());
+      if (out) {
+	
+	out << "# Variable      key                      " << std::endl
+	    << "# ------------  -------------------------" << std::endl
+	    << "# avg           mean collision energy    " << std::endl
+	    << "# num           number of collisions     " << std::endl
+	    << "# min           minimum collison energy  " << std::endl
+	    << "# max           maximum collision energy " << std::endl
+	    << "# over10        number > 10.2 eV         " << std::endl
+	    << "#"                                         << std::endl;
+
+	out << "#" << std::setw(11) << "Species==>" << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  ostringstream sout, sout2;
+	  sout  << "(" << it->first.first << ", " << it->first.second << ")";
+	  size_t w = 5*12, l = sout.str().size();
+	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
+	  out   << std::setw(w) << sout2.str() << " | ";
+	}
+	out << std::endl;
+	
+	out << "#" << std::setw(11) << "Time" << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  out << std::setw(12) << "avg "
+	      << std::setw(12) << "num "
+	      << std::setw(12) << "min "
+	      << std::setw(12) << "max "
+	      << std::setw(12) << "over10 "
+	      << " | ";
+	}
+	out << std::endl;
+      }
+    }
+    in.close();
+  }
+
+}
+
+void collDiag::print() 
+{
+  if (myid) return;
+
+  {
+    std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
+    if (out) {
+      out << std::setw(12) << tnow << " | ";
+      for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	collTDPtr ctd = it->second;
+	out << std::setw(12) << ctd->ff_s.first
+	    << std::setw(12) << ctd->ff_s.second
+	    << std::setw(12) << ctd->CE_s.first
+	    << std::setw(12) << ctd->CE_s.second
+	    << std::setw(12) << ctd->CI_s.first
+	    << std::setw(12) << ctd->CI_s.second
+	    << std::setw(12) << ctd->RR_s.first
+	    << std::setw(12) << ctd->RR_s.second;
+	if (ctd->dv_s.first>0.0)
+	  out << std::setw(12) << ctd->dv_s.second/ctd->dv_s.first << " | ";
+	else
+	  out << std::setw(12) << 0.0 << " | ";
+      }
+      out << std::endl;
+    }
+  }
+
+  {
+    std::ofstream out(energy_file_debug.c_str(), ios::out | ios::app);
+    if (out) {
+      out << std::setw(12) << tnow << " | ";
+      for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	collTDPtr ctd = it->second;
+	out << std::setw(12) << (ctd->eV_N_s ? ctd->eV_av_s/ctd->eV_N_s : 0.0)
+	    << std::setw(12) << ctd->eV_N_s
+	    << std::setw(12) << ctd->eV_min_s
+	    << std::setw(12) << ctd->eV_max_s
+	    << std::setw(12) << ctd->eV_10_s
+	    << " | ";
+      }
+      out << std::endl;
+    }
+  }
+
 }
 

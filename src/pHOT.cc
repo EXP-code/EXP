@@ -2571,23 +2571,30 @@ void pHOT::checkSampleCells(const std::string& msg)
 void pHOT::makeCellLevelList()
 {
   ostringstream sout;
-  sout << "pHOT_cells." << runtag << "." << myid;
-  ofstream out(sout.str().c_str(), ios::out | ios::app);
+  ofstream out;
+
+  if (DEBUG_EXTRA) {
+    sout << "pHOT_cells." << runtag << "." << myid;
+    out.open(sout.str().c_str(), ios::out | ios::app);
+  }
 
 				// Make new lists
   clevlst.clear();
   clevels = vector< set<pCell*> >(multistep+1);
 
-  out << "Process " << myid << " in makeCellLevelList()" 
-      << ", frontier size=" << frontier.size() << endl;
+  if (DEBUG_EXTRA) {
+    out << "Process " << myid << " in makeCellLevelList()" 
+	<< ", frontier size=" << frontier.size() << endl;
+  }
 
   unsigned ng=0, nt=0;
   for (key_cell::iterator it=frontier.begin(); it != frontier.end(); it++) {
 				// Check for empty root node
     if (it->second->mykey==1u && it->second->ctotal==0u) {
-      out << "Process " << myid << " in makeCellLevelList()" 
-	  << ", empty root node" << endl;
-
+      if (DEBUG_EXTRA)
+	out << "Process " << myid << " in makeCellLevelList()" 
+	    << ", empty root node" << endl;
+      
       continue;
     }
 
@@ -2602,11 +2609,11 @@ void pHOT::makeCellLevelList()
       ng++;
     }
   }
-  if (nt!=ng)
+
+  if (nt!=ng && DEBUG_EXTRA) {
     out << "Process " << myid << ": made level list with " << ng
 	<< " good cells out of " << nt << " expected" << endl;
 
-  if (DEBUG_EXTRA) {
     std::ostringstream sout;
     sout << "pHOT::makeLevelList, myid=" << std::setw(5) << myid;
     printCellLevelList (out, sout.str());
@@ -2642,8 +2649,12 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
 				// Otherwise . . . 
 
   ostringstream sout;
-  sout << "pHOT_cells." << runtag << "." << myid;
-  ofstream out(sout.str().c_str(), ios::out | ios::app);
+  ofstream out;
+
+  if (DEBUG_EXTRA) {
+    sout << "pHOT_cells." << runtag << "." << myid;
+    out.open(sout.str().c_str(), ios::out | ios::app);
+  }
 
 #ifdef USE_GPTL
   GPTLstart("pHOT::adjustCellLevelList");
@@ -2695,6 +2706,7 @@ void pHOT::adjustCellLevelList(unsigned mlevel)
     cout << "Process " << myid << ": adjusted level list with " << ng
 	 << " good cells out of " << nt << " expected, " << ns
 	 << " cells moved" << endl;
+
   if (DEBUG_EXTRA) {
     std::ostringstream sout;
     sout << "pHOT::adjustLevelList, myid=" << std::setw(5) << myid;
