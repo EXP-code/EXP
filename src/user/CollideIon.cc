@@ -1242,7 +1242,7 @@ void collDiag::print()
       out << std::setw(12) << tnow << " | ";
       for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	collTDPtr ctd = it->second;
-	out << std::setw(12) << ctd->eV_av_s/ctd->eV_N_s
+	out << std::setw(12) << (ctd->eV_N_s ? ctd->eV_av_s/ctd->eV_N_s : 0.0)
 	    << std::setw(12) << ctd->eV_N_s
 	    << std::setw(12) << ctd->eV_min_s
 	    << std::setw(12) << ctd->eV_max_s
