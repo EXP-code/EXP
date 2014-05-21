@@ -307,9 +307,10 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   kEi = 0.5 * mu * vel*vel;
 
-  // Electron velocity equipartition factor
+  // Electron velocity equipartition factors
   //
-  double eVel = sqrt(mu/me);
+  double eVel1 = sqrt(m1/me);
+  double eVel2 = sqrt(m2/me);
 
   // Internal energy per particle
   //
@@ -375,11 +376,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   if (ne2 > 0) {
     if (C1==1)		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe2) * eVel*ne2;
+      cross12 = elastic(Z1, kEe2) * eVel2*ne2;
     else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe2*eV, FloorEv*eV) * 1.0e7; // nm
-      cross12 = M_PI*b*b * eVel*ne2;
+      cross12 = M_PI*b*b * eVel2*ne2;
     }
   }
     
@@ -387,11 +388,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //
   if (ne1 > 0) {
     if (C2==1)		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe1) * eVel*ne1;
+      cross21 = elastic(Z2, kEe1) * eVel1*ne1;
     else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe1*eV, FloorEv*eV) * 1.0e7; // nm
-      cross21 = M_PI*b*b * eVel*ne1;
+      cross21 = M_PI*b*b * eVel1*ne1;
     }
   }
 
@@ -408,7 +409,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {
     double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe2);
-    double crs = eVel*ne2 * ff1;
+    double crs = eVel2*ne2 * ff1;
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(1);
@@ -426,7 +427,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     }
     
     CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2, E_therm_2);
-    double crs = eVel*ne2 * CE1[id].back().first;
+    double crs = eVel2*ne2 * CE1[id].back().first;
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(2);
@@ -438,7 +439,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 < (Z1 + 1) and ne2 > 0) {
 
     double DI1 = IonList[Z1][C1].directIonCross(ch, kEe2);
-    double crs = eVel*ne2 * DI1;
+    double crs = eVel2*ne2 * DI1;
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(3);
@@ -451,7 +452,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 > 1 and ne2 > 0) {
 
     std::vector<double> RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2);
-    double crs = eVel*ne2 * RE1.back();
+    double crs = eVel2*ne2 * RE1.back();
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(4);
@@ -469,7 +470,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe1);
-    double crs = eVel*ne1 * ff2;
+    double crs = eVel1*ne1 * ff2;
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(6);
@@ -487,7 +488,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1, E_therm_1);
-    double crs = eVel*ne1 * CE2[id].back().first;
+    double crs = eVel1*ne1 * CE2[id].back().first;
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(7);
@@ -511,7 +512,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     std::vector<double> RE2 = IonList[Z2][C2].radRecombCross(ch, kEe1);
-    double crs = eVel*ne1*RE2.back();
+    double crs = eVel1*ne1*RE2.back();
 
     dCrossMap[id].push_back(crs);
     dInterMap[id].push_back(9);

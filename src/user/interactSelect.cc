@@ -26,13 +26,9 @@ InteractSelect::InteractSelect()
 double InteractSelect::selectCEInteract
 (Ion& a, std::vector< std::pair< double, double > > cumCross) 
 {
-  // double eVtoRyd = 1.0/13.60569253;
-  // double RydtoeV = 1.0/eVtoRyd;
-  
   size_t N = cumCross.size();
   
   std::vector< double > normed;
-  // normed.push_back(0); // Looks wrong to MDW
   for(size_t i=0; i<N; i++) {
     double tmp = cumCross[i].first/cumCross[N-1].first;
     normed.push_back(tmp);
@@ -40,6 +36,7 @@ double InteractSelect::selectCEInteract
   
   double rn = (double)rand()/(double)RAND_MAX;
   double E  = 0.0;
+
   for(size_t i=0; i<N; i++) {
     if (rn <= normed[i]) {
       E = cumCross[i].second;
@@ -71,13 +68,12 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
       e_1 = e_2 - 1;
     }
 
-    // std::cout << e_1 << "\t" << e_2 << std::endl;
-
     double y1 = a.ffCumCross[e_1][i];
     double y2 = a.ffCumCross[e_2][i];
     double x1 = a.egrid[e_1];
     double x2 = a.egrid[e_2];
     double y_tmp = y1 + ((y2-y1)/(x2-x1))*(E-x1);
+
     if (E > hbc*pow(10, a.kgrid[i]))
       dum.push_back(y_tmp);
   }
@@ -90,15 +86,13 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
     }
   }
   
-  // std::cout << "FF: " << normed.size() << "\t" << kgrid_log.size() << endl;
-
   Cspline<double, double> interp(normed, kgrid_log);
   double rn = (double)rand()/(double)RAND_MAX;
   double k = interp(rn);
+
   k = pow(10, k);
+
   double EF = k*hbc;
-  
-  // std::cout << "Ff cool: k = " << k << " EF = " << EF << endl;
   
   return EF;
 }
@@ -107,15 +101,12 @@ double InteractSelect::DIInterLoss(chdata& ch, Ion& a)
 {
   int Z1 = a.getZ(); 
   int C1 = a.getC();
-  // int Z2 = Z1; 
-  // int C2 = C1+1;
 
   if (C1 < 0) {
     std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
     return 0;
   }
   double ip1 = ch.ipdata[Z1-1][C1-1];
-  // double ip2 = ch.ipdata[Z2-1][C2+1];
   double E   = ip1;
   
   return E;
@@ -150,8 +141,6 @@ double InteractSelect::selectRRInteract
     if (i >= 1) assert(normed[i] >= normed[i-1]);
   }
   
-  // std::cout << "RR: " << normed.size() << "\t" 
-  // << kgrid_log.size() << std::endl;	
   Cspline<double, double> interp(normed, kgrid_log);
   
   double rn = (double)rand()/(double)RAND_MAX;
