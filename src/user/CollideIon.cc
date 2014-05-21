@@ -156,6 +156,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
   double Eerg = 0.5*vavg*vavg*amu;
 
   // In eV
+  //
   double EeV = Eerg / eV;
 
   // Upscaling factor for scattering cross section
@@ -163,6 +164,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
   double sUp  = diamfac*diamfac;
 
   // Electron velocity equipartition factor
+  //
   double eVel = sqrt(mp/me);
 
   typedef std::map<speciesKey, unsigned> Count;
