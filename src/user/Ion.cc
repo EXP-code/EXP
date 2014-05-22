@@ -594,26 +594,33 @@ double Ion::qrp(double u)
   else {
     c = -0.80414;
     d = 2.32431;
-    
     C = 0.14424;
     D = 3.82652;
   }
+
   if (Z > 20) {
     C += pow(((Z-20.0)/50.5), 1.11);
   }
-  double q;
-  q = (A*log(u) + D*(1.0-(1.0/u))*(1.0-(1.0/u)) + C*u*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u)) + ((c/u)+((d/u)*(d/u))*(1.0-(1.0/u))))/u;
+
+  double z  = 1.0 - 1.0/u;
+  double z2 = z*z;
+  double z4 = z2*z2;
+  double q  = (A*log(u) + D*z2 + C*u*z4 + (c/u + d/(u*u))*z) / u;
 
   return q;
-  
 }
 
-//! Calculate the direct ionization cross section from the spline,
-//! which is a function of the interaction energy of the electron
+/** 
+    Calculate the direct ionization cross section from the spline,
+    which is a function of the interaction energy of the electron
+    See: Dere, K. P., 2007, A&A, 466, 771
+    ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
+*/
 double Ion::directIonCross(chdata ch, double E) 
 {
   double u        = E/ip;
-  unsigned char I = Z - C + 1; //test if its hydrogen-like/helium-like
+				// Test for hydrogen-like/helium-like ion
+  unsigned char I = Z - C + 1;
   double ryd      = 27.2113845/2.0;
   double ipRyd    = ip/ryd;
   double a0       = 0.0529177211; // Bohr radius in nm
@@ -626,6 +633,7 @@ double Ion::directIonCross(chdata ch, double E)
     return -1;
   }
 
+  // From Fontes, et al. Phys Rev A, 59, 1329 (eq. 2.11)
   if (Z >= 20) {
     F = (140.0+pow((double(Z)/20.0),3.2))/141.;
   }
@@ -634,15 +642,14 @@ double Ion::directIonCross(chdata ch, double E)
   }
 
   qr = qrp(u)*F;
-  if (Z >=6 or Z >= 10) std::cout << "QR = " << qr <<std::endl;
 
   // first two if statements are whether or not to use Fontes cross
   // sections
-  if (I == 1 and Z >= 6) {
-    cross = bohr_cs*(qr/ipRyd)*(qr/ipRyd);
+  if (I == 1 && Z >= 6) {
+    cross = bohr_cs*qr/(ipRyd*ipRyd);
   }
-  else if (I==2 and Z >= 10) {
-    cross = 2.0*bohr_cs*(qr/ipRyd)*(qr/ipRyd);
+  else if (I==2 && Z >= 10) {
+    cross = 2.0*bohr_cs*qr/(ipRyd*ipRyd);
   }
   else {
     cross = 0;
@@ -657,7 +664,6 @@ double Ion::directIonCross(chdata ch, double E)
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
-	// std::cout << "cross_i = " << cross_i << std::endl;
       }
     }
   }
@@ -665,16 +671,20 @@ double Ion::directIonCross(chdata ch, double E)
   return diCross;
 }
 
+/** 
+    Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
+    Elwert factor (see Koch & Motz eq. II-6)
+*/
 double Ion::freeFreeCross(chdata ch, double E) 
 {
   double hbc      = 197.327;	     // value of h-bar * c in eV nm
   double r0       = 2.81794033e-6;   // classic electron radius in nm
   double factor   = (Z*Z*r0*r0)/(137.);
   double hb       = 1.054572e-27;    // h-bar in erg s
-  double me       = 9.10938e-28;
-  double inmtoicm = 1e7;	  // nm^(-1) per cm^(-1)
-  double eV2erg   = 1.602177e-12; // ergs per eV
-  double c        = 2.998e10;	  // cm/s
+  double me       = 9.10938e-28;     // electron mass in g
+  double inmtoicm = 1e7;	     // nm^(-1) per cm^(-1)
+  double eV2erg   = 1.602177e-12;    // ergs per eV
+  double c        = 2.998e10;	     // cm/s
   
   double p0 = sqrt(2*me*E*eV2erg);
   double v0 = p0/me;
@@ -711,7 +721,6 @@ double Ion::freeFreeCross(chdata ch, double E)
   }
   double y_tmp = cum;
   return y_tmp;
-  
 }
 
 /** Calculate the differential free-free cross section and return the
