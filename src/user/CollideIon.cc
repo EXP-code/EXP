@@ -396,6 +396,62 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   if (ne2 > 0 and C1 <= Z1) {
 
     CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2);
+    double crs = eVel2*ne2 * CE1[id].back().first;
+
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(2);
+    sum12 += crs;
+  }
+				//-------------------------------
+				// *** Ionization cross section
+				//-------------------------------
+  if (C1 < (Z1 + 1) and ne2 > 0) {
+
+    double DI1 = IonList[Z1][C1].directIonCross(ch, kEe2);
+    double crs = eVel2*ne2 * DI1;
+
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(3);
+
+    sum12 += crs;
+  }
+				//-------------------------------
+				// *** Radiative recombination
+				//-------------------------------
+  if (C1 > 1 and ne2 > 0) {
+
+    std::vector<double> RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2);
+    double crs = eVel2*ne2 * RE1.back();
+
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(4);
+
+    sum12 += crs;
+  }
+
+  
+  //--------------------------------------------------
+  // Particle 2 interacts with Particle 1
+  //--------------------------------------------------
+
+				//-------------------------------
+				// *** Free-free
+				//-------------------------------
+  if (C2 > 1 and ne1 > 0) {
+    double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe1);
+    double crs = eVel1*ne1 * ff2;
+
+    dCrossMap[id].push_back(crs);
+    dInterMap[id].push_back(6);
+
+    sum21 += crs;
+  }
+				//-------------------------------
+				// *** Collisional excitation
+				//-------------------------------
+  if (ne1 > 0 and C2 <= Z2) {
+
+    CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1);
     double crs = eVel1*ne1 * CE2[id].back().first;
 
     dCrossMap[id].push_back(crs);
