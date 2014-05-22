@@ -453,7 +453,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 std::vector< std::pair<double, double > > 
-Ion::collExciteCross(chdata ch, double E, double Eth) 
+Ion::collExciteCross(chdata ch, double E)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -487,33 +487,33 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
       
-      // double dE = E - EijEv;
-      // Filter out the types
+      // Following Burgess & Tully (BT), 1992, Section 3
+      double Ej = E - EijEv, x = 0, y = 0;
+      int  type = splups[i].type;
       
-      int type = splups[i].type;
-      double x=0, y=0;
-      
-      if (type==1) {
-	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
+				// BT eq. 5, eq. 13
+      if (type==1 || type==4) {
+	x = 1.0 - (log(Const)/(log((Ej/EijEv) + Const)));
       }
+				// BT eq. 9
       if (type == 2) {
-	x = (Eth/EijEv)/((Eth/EijEv) + Const);
+	x = (Ej/EijEv)/((Ej/EijEv) + Const);
       }
+				// BT eq. 11
       if (type == 3) {
-	x = (Eth/EijEv)/((Eth/EijEv) + Const);	
+	x = (Ej/EijEv)/((Ej/EijEv) + Const);	
       }
-      if (type == 4) {
-	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
-      }
+
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
       if ( x <= 0 or x >= 1.0) {
-	std::cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth 
+	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
 	     << " Eij = " << EijEv << " x = " << x <<std::endl;
 	exit(-1);
       }
 
       // An extra couple of sanity checks for the interpolation
+      //
       assert(x >= 0 and x <= 1);
       assert(splups[i].spline.size() == 5 or splups[i].spline.size() == 9);
       if(type > 4) break;
@@ -538,20 +538,25 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
       
       // Calculate the collision strength from the interpolated value
       double CStrength = 0.0;
+				// BT, eq. 6
       if (type == 1) {
-	CStrength = y*log((Eth/EijEv) + M_E);
+	CStrength = y * log((Ej/EijEv) + M_E);
       }
+				// BT, eq. 10
       if(type == 2) {
 	CStrength = y;
       }
+				// BT, eq. 12
       if(type == 3) {
-	CStrength = y/(((Eth/EijEv) + 1)*((Eth/EijEv) + 1));
+	double fac = Ej/EijEv + 1.0;
+	CStrength = y/(fac*fac);
       }
+				// BT, eq. 14
       if(type == 4) {
-	CStrength = y*log((Eth/EijEv) + C);
+	CStrength = y * log((Ej/EijEv) + C);
       }
       
-      // from Dere et al. 1997 
+      // From Dere et al. 1997 
       int weight = elvlc[splups[i].j-1].mult;
       double Eryd = E*eVtoRyd;
       cross += (M_PI*a0*a0*(CStrength/weight))/(Eryd);
@@ -563,12 +568,14 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
       CEcum.push_back(cumi);
     }
   }
+
   if (CEcum.size() == 0) { 
     std::cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
-	      << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
+	      << "\n\tE = " << E << "\n\tZ = " << Z << "\n\tC = " 
 	      << C << "fblvl size: " << fblvl.size() <<std::endl; 
     exit(-1);
   }
+  
   CEcrossCum = CEcum;
   return CEcum;
 }
