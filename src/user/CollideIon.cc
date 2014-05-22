@@ -811,13 +811,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     if (partflag==1) {
       ctd1->dv[id].first++; 
       ctd1->dv[id].second += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
     }
     
     if (partflag==2) {
       ctd2->dv[id].first++; 
       ctd2->dv[id].second += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
     }
 
 				// Distribute electron energy to particles
@@ -861,13 +861,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       if (partflag==1) {
 	ctd1->dv[id].first++; 
 	ctd1->dv[id].second += 
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
       }
       
       if (partflag==2) {
 	ctd2->dv[id].first++; 
 	ctd2->dv[id].second +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
       }
 
 				// Remaining energy split between
@@ -890,13 +890,13 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       if (partflag==1) {
 	ctd1->dv[id].first++; 
 	ctd1->dv[id].second +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
       }
       
       if (partflag==2) {
 	ctd2->dv[id].first++; 
 	ctd2->dv[id].second +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
+	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
       }
 
 				// Remaining energy split set to zero
