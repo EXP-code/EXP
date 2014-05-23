@@ -89,8 +89,8 @@ public:
 
     eV_av_s  = std::accumulate(eV_av .begin(), eV_av .end(), 0);
     eV_N_s   = std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
-    eV_max_s = std::accumulate(eV_max.begin(), eV_max.end(), 0);
-    eV_min_s = std::accumulate(eV_min.begin(), eV_min.end(), 0);
+    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end());
+    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end());
     eV_10_s  = std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
   }
 

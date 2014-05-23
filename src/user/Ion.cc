@@ -462,27 +462,27 @@ Ion::collExciteCross(chdata ch, double E)
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
   
-  double eVtoRyd = 1.0/13.60569253;
-  double RydtoeV = 1.0/eVtoRyd;
+  const double eVtoRyd = 1.0/13.60569253;
+  const double RydtoeV = 13.60569253;
 
-  double a0 = 0.0529177211; // Bohr radius in nm
+  const double a0 = 0.0529177211; // Bohr radius in nm
   
-  double totalCross = 0;
   std::vector<std::pair<double, double > > CEcum;
-  std::pair<double,double> Null(0, 0);
+  const std::pair<double,double> Null(0, 0);
   if (splups.size() == 0) {
     CEcum.push_back(Null);
     CEcrossCum = CEcum;
     return CEcum;
   }
 
+  double totalCross = 0.0;
+
   for (size_t i=0; i<splups.size(); i++) {
 
     double EijEv = splups[i].delERyd*RydtoeV;
     double Const = splups[i].Const;
-    double cross = 0.;
 
-    if (splups[i].i == 1  and E >= EijEv) {
+    if (splups[i].i==1 and E >= EijEv) {
 
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
@@ -492,18 +492,14 @@ Ion::collExciteCross(chdata ch, double E)
       int  type = splups[i].type;
       
 				// BT eq. 5, eq. 13
-      if (type==1 || type==4) {
+      if (type==1 or type==4) {
 	x = 1.0 - (log(Const)/(log((Ej/EijEv) + Const)));
       }
-				// BT eq. 9
-      if (type == 2) {
+				// BT eq. 9, eq. 11
+      if (type==2 or type==3) {
 	x = (Ej/EijEv)/((Ej/EijEv) + Const);
       }
 				// BT eq. 11
-      if (type == 3) {
-	x = (Ej/EijEv)/((Ej/EijEv) + Const);	
-      }
-
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
       if ( x <= 0 or x >= 1.0) {
@@ -516,15 +512,15 @@ Ion::collExciteCross(chdata ch, double E)
       //
       assert(x >= 0 and x <= 1);
       assert(splups[i].spline.size() == 5 or splups[i].spline.size() == 9);
-      if(type > 4) break;
+      if (type > 4) break;
       
       // Extra sanity check to make sure x is monotonic to make sure
       // the arrays point to the right values
-      for(int j = 1; j < 9; j++) {
+      //
+      for (int j = 1; j < 9; j++) {
 	if (j < 5) assert(x_array5[j] > x_array5[j-1]);
 	assert(x_array9[j] > x_array9[j-1]);
       }
-      
       
       if (splups[i].spline.size() == 5) {
 	Cspline<double, double> sp(x5, splups[i].spline);
@@ -558,23 +554,14 @@ Ion::collExciteCross(chdata ch, double E)
       
       // From Dere et al. 1997 
       int weight = elvlc[splups[i].j-1].mult;
-      double Eryd = E*eVtoRyd;
-      cross += (M_PI*a0*a0*(CStrength/weight))/(Eryd);
-    }
-
-    if (splups[i].i == 1) {
-      totalCross += cross;
+      totalCross += (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
       std::pair<double, double> cumi(totalCross, EijEv);
       CEcum.push_back(cumi);
     }
+
   }
 
-  if (CEcum.size() == 0) { 
-    std::cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
-	      << "\n\tE = " << E << "\n\tZ = " << Z << "\n\tC = " 
-	      << C << "fblvl size: " << fblvl.size() <<std::endl; 
-    exit(-1);
-  }
+  if (CEcum.size() == 0) CEcum.push_back(Null);
   
   CEcrossCum = CEcum;
   return CEcum;
@@ -778,8 +765,32 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     return v1;
   } else {
     // return radRecombCrossMewe(ch, E);
-    return radRecombCrossSpitzer(ch, E);
+    // return radRecombCrossSpitzer(ch, E);
+    return radRecombCrossKramers(ch, E);
   }
+}
+
+
+//! Kramers formula for radiative recombination cross section
+std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E) 
+{
+  double coef = 2.105e-8;	// in nm^2
+  double zz = Z;
+  double ii = C - 1;
+
+  const double Ryd = 13.60569253;
+  double Ei = E/Ryd;
+
+  double Zeff = 0;
+  if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
+  if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
+
+  double n0 = 1;
+  if (Z==2 && C>1) n0 = 2;
+
+  double cross = coef * Zeff*Zeff * log(1.0 + Zeff*Zeff/(Ei*n0*n0));
+
+  return std::vector<double>(1, cross);
 }
 
 
@@ -849,15 +860,16 @@ std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E)
 
 std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E) 
 {
-  double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
-  double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
-  double Ryd    = 13.6056923;	// Rydberg in eV
+  const double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
+  //const double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
+  //const double Ryd    = 13.6056923;	// Rydberg in eV
+
+				// Cross-section prefactor in nm^2
+  const double coef   = 2.105310889751809e-08;
+
 				// Ionization energy in cm^{-1}
   double ionE   = ch.ipdata[Z-1][0];
 
-				// Cross-section prefactor in nm^2
-  double coef   = 2.105310889751809e-08;
-  
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {

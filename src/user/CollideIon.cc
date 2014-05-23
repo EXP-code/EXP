@@ -1048,8 +1048,8 @@ void collDiag::gather()
       MPI_Reduce(&(z=ctd->dv_s.second), &ctd->dv_s.second, 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 10
       MPI_Reduce(&(z=ctd->eV_av_s),     &ctd->eV_av_s,     1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 11
       MPI_Reduce(&(u=ctd->eV_N_s),      &ctd->eV_N_s,      1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 12
-      MPI_Reduce(&(z=ctd->eV_min_s),    &ctd->eV_min_s,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 13
-      MPI_Reduce(&(z=ctd->eV_max_s),    &ctd->eV_max_s,    1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 14
+      MPI_Reduce(&(z=ctd->eV_min_s),    &ctd->eV_min_s,    1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD); // 13
+      MPI_Reduce(&(z=ctd->eV_max_s),    &ctd->eV_max_s,    1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD); // 14
       MPI_Reduce(&(u=ctd->eV_10_s),     &ctd->eV_10_s,     1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 15
     } else {
       MPI_Reduce(&ctd->ff_s.first,      &u,                1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 1 
@@ -1064,8 +1064,8 @@ void collDiag::gather()
       MPI_Reduce(&ctd->dv_s.second,   	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 10
       MPI_Reduce(&ctd->eV_av_s,       	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 11
       MPI_Reduce(&ctd->eV_N_s,        	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 12
-      MPI_Reduce(&ctd->eV_min_s,      	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 13
-      MPI_Reduce(&ctd->eV_max_s,      	&z, 		   1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD); // 14
+      MPI_Reduce(&ctd->eV_min_s,      	&z, 		   1, MPI_DOUBLE,   MPI_MIN, 0, MPI_COMM_WORLD); // 13
+      MPI_Reduce(&ctd->eV_max_s,      	&z, 		   1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD); // 14
       MPI_Reduce(&ctd->eV_10_s,       	&u, 		   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD); // 15
     }
   }
@@ -1108,6 +1108,7 @@ void collDiag::initialize()
 	    << "# d(KE)         mean energy change       " << std::endl
 	    << "#"                                         << std::endl;
 	
+				// Species labels
 	out << "#" << std::setw(11) << "Species==>" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  ostringstream sout, sout2;
@@ -1118,20 +1119,39 @@ void collDiag::initialize()
 	}
 	out << std::endl;
 
+				// Header line
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(11) << '+' << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
+	  out << " | ";
+	}
+	out << std::setfill(' ') << std::endl;
+
+				// Column labels
 	out << "#" << std::setw(11) << "Time" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
-	  out << std::setw(12) << "N(ff) "
-	      << std::setw(12) << "E(ff) "
-	      << std::setw(12) << "N(ce) "
-	      << std::setw(12) << "E(ce) "
-	      << std::setw(12) << "N(ci) "
-	      << std::setw(12) << "E(ci) "
-	      << std::setw(12) << "N(rr) "
-	      << std::setw(12) << "E(rr) "
-	      << std::setw(12) << "d(KE) "
+	  out << std::setw(12) << "N(ff) |"
+	      << std::setw(12) << "E(ff) |"
+	      << std::setw(12) << "N(ce) |"
+	      << std::setw(12) << "E(ce) |"
+	      << std::setw(12) << "N(ci) |"
+	      << std::setw(12) << "E(ci) |"
+	      << std::setw(12) << "N(rr) |"
+	      << std::setw(12) << "E(rr) |"
+	      << std::setw(12) << "d(KE) |"
 	      << " | ";
 	}
 	out << std::endl;
+
+				// Header line
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(11) << '+' << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
+	  out << " | ";
+	}
+	out << std::setfill(' ') << std::endl;
       }
     }
     in.close();
@@ -1160,6 +1180,7 @@ void collDiag::initialize()
 	    << "# over10        number > 10.2 eV         " << std::endl
 	    << "#"                                         << std::endl;
 
+				// Species labels
 	out << "#" << std::setw(11) << "Species==>" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  ostringstream sout, sout2;
@@ -1170,16 +1191,35 @@ void collDiag::initialize()
 	}
 	out << std::endl;
 	
+				// Header line
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(11) << '+' << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
+	  out << " | ";
+	}
+	out << std::setfill(' ') << std::endl;
+
+				// Column labels
 	out << "#" << std::setw(11) << "Time" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
-	  out << std::setw(12) << "avg "
-	      << std::setw(12) << "num "
-	      << std::setw(12) << "min "
-	      << std::setw(12) << "max "
-	      << std::setw(12) << "over10 "
+	  out << std::setw(12) << "avg |"
+	      << std::setw(12) << "num |"
+	      << std::setw(12) << "min |"
+	      << std::setw(12) << "max |"
+	      << std::setw(12) << "over10 |"
 	      << " | ";
 	}
 	out << std::endl;
+
+				// Header line
+	out << std::setfill('-') << std::right;
+	out << "#" << std::setw(11) << '+' << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
+	  out << " | ";
+	}
+	out << std::setfill(' ') << std::endl;
       }
     }
     in.close();
