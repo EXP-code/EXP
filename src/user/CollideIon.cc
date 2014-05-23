@@ -61,7 +61,9 @@ bool     CollideIon::frost_warning = false;
 
 bool NO_COOL = false;
 
-// Minimum energy for Rutherford scattering of ions
+// Minimum energy for Rutherford scattering of ions used to estimate
+// the elastic scattering cross section
+//
 const double FloorEv = 0.05;
 
 CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) : 
@@ -174,7 +176,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     speciesKey i1 = it1->first;
     double Cross1 = geometric(i1.first);
     
-    for (Count::iterator it2 = cell->count.begin(); it2 != cell->count.end(); it2++) {
+    for (Count::iterator 
+	   it2 = cell->count.begin(); it2 != cell->count.end(); it2++) {
       
       speciesKey i2 = it2->first;
       double Cross2 = geometric(i2.first);
@@ -212,7 +215,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 }
 
 
-sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
+sKey2Dmap& 
+CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 {
   typedef std::map<speciesKey, unsigned> Count;
   Count::iterator it1, it2;
@@ -630,12 +634,12 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     interFlag = dInterMap[id][index];
 
     //-------------------------
-    // DEBUG TEST
+    // VERBOSE DEBUG TEST
     //-------------------------
     // Set to false for production
     //          |
     //          v
-    static bool DEBUG_F = true;
+    static bool DEBUG_F = false;
     //
     if (DEBUG_F) {
       static std::map<int, std::string> labels;
@@ -1110,6 +1114,8 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
   
 }
 
+// Help class that maintains database of diagnostics
+//
 collDiag::collDiag()
 {
   // Initialize the map
@@ -1122,9 +1128,13 @@ collDiag::collDiag()
     }
   }
 
+  // Initialize the output file
+  //
   initialize();
 }
 
+// Gather statistics from all processes
+//
 void collDiag::gather()
 {
   for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
@@ -1169,6 +1179,8 @@ void collDiag::gather()
   }
 }
 
+// Zero out the counters
+//
 void collDiag::reset()
 {
   for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++)  

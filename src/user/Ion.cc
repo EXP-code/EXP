@@ -1100,9 +1100,9 @@ void chdata::printIp()
 // chdata constructor
 chdata::chdata() 
 {
-  //nVern = 465;
-  //maxZ = 31; // maxZ = 30 + 1
-  //maxNel = 31; 
+  // nVern = 465;
+  // maxZ = 31; // maxZ = 30 + 1
+  // maxNel = 31; 
   
   for(int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   

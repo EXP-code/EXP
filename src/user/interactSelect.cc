@@ -44,9 +44,9 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
   std::vector< double > normed;
   std::vector< double > kgrid_log;
   
-  double hbc = 197.327; //value of h-bar * c in eV nm
+  double hbc = 197.327; // Value of h-bar * c in eV nm
 
-  if (E < a.egrid[0]) return 0;
+  if (E < a.egrid[0]) return 0.0;
 
   for(int i = 0; i < a.kffsteps; i++) {
     double de = a.egrid[1]-a.egrid[0];
@@ -93,10 +93,11 @@ double InteractSelect::DIInterLoss(chdata& ch, Ion& a)
   int Z1 = a.getZ(); 
   int C1 = a.getC();
 
-  if (C1 < 0) {
+  if (C1 > Z1) {
     std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
     return 0;
   }
+
   double ip1 = ch.ipdata[Z1-1][C1-1];
   double E   = ip1;
   
@@ -108,16 +109,15 @@ double InteractSelect::selectRRInteract
 {
   std::vector<double> normed;
   std::vector<double> kgrid_log;
-  double hbc = 197.327; // value of h-bar * c in eV nm
+  const double hbc = 197.327; // value of h-bar * c in eV nm
   
   int N = a.kffsteps;
   for (int i = 0; i < a.kffsteps; i++) {
-    if (cumCross[a.kffsteps-1] != 0) {
+    if (cumCross[a.kffsteps-1] > 0.0) {
       if (Ee > hbc*pow(10, a.kgrid[i])) {
 	normed.push_back(cumCross[i]/cumCross[a.kffsteps-1]);
 	kgrid_log.push_back(a.kgrid[i]);
-      }
-      else {
+      } else {
 	N = i-1;
 	break;
       }
@@ -125,6 +125,8 @@ double InteractSelect::selectRRInteract
     else return 0.0;
   }
 
+  // Sanity check
+  //
   for (int i = 0; i < N; i++) {
     if (isnan(normed[i])) 
       std::cout << "Cross nan at i= " << i 
@@ -136,7 +138,7 @@ double InteractSelect::selectRRInteract
   
   double rn = (double)rand()/(double)RAND_MAX;
   double k = interp(rn);
-  k = pow(10, k);
+  k = pow(10.0, k);
   double E = k*hbc;
   
   return E;
