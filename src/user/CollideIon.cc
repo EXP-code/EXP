@@ -222,17 +222,16 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
   // Upscaling factor for scattering cross section
   //
   double sUp  = diamfac*diamfac;
-
+  
   for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
 
     speciesKey i1 = it1->first;
-    double Cross1 = geometric(i1.first);
+    double geom1  = geometric(i1.first);
     
     for (it2 = c->count.begin(); it2 != c->count.end(); it2++)  
       {
 	speciesKey i2 = it2->first;
-
-	double Cross2 = geometric(i2.first);
+	double geom2 = geometric(i2.first);
 
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
@@ -240,7 +239,17 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
 	double eVel2 = sqrt(amu*atomic_weights[i2.first]/me);
 
-	// Electrons in second particle
+	double Cross1 = 0.0;
+	double Cross2 = 0.0;
+
+	// Both particles neutral?
+	//
+	if (i1.second==1 and i2.second==2) {
+	  Cross1 = geom1;
+	  Cross2 = geom2;
+	}
+
+	// Electrons in second particle?
 	//
 	unsigned ne2 = i2.second - 1;
 	if (ne2) {
@@ -253,7 +262,7 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 	  }
 	}
 
-	// Electrons in first particle
+	// Electrons in first particle?
 	//
 	unsigned ne1 = i1.second - 1;
 	if (ne1) {
@@ -355,13 +364,27 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   // Total scattering cross section
   //--------------------------------------------------
 
-  double cross12 = geometric(Z1);
-	
-  dCrossMap[id].push_back(cross12*diamfac*diamfac);
-  dInterMap[id].push_back(geometric_1);
+  double cross12 = 0.0;
+  double cross21 = 0.0;
 
-  // Electrons in second particle
-  //
+				//-------------------------------
+				// Both particles neutral
+				//-------------------------------
+  if (C1==1 and C2==2) {
+				// Geometric cross sections based on
+				// atomic radius
+    cross12 = geometric(Z1);
+    dCrossMap[id].push_back(cross12*diamfac*diamfac);
+    dInterMap[id].push_back(geometric_1);
+
+    cross21 = geometric(Z2);
+    dCrossMap[id].push_back(cross21*diamfac*diamfac);
+    dInterMap[id].push_back(geometric_2);
+  }
+
+				//-------------------------------
+				// Electrons in second particle
+				//-------------------------------
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
       cross12 = elastic(Z1, kEe2[id]) * eVel2*ne2;
@@ -376,13 +399,9 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
     }
   }
     
-  double cross21 = geometric(Z2);
-
-  dCrossMap[id].push_back(cross21*diamfac*diamfac);
-  dInterMap[id].push_back(geometric_2);
-
-  // Electrons in first particle
-  //
+				//-------------------------------
+				// Electrons in first particle
+				//-------------------------------
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
       cross21 = elastic(Z2, kEe1[id]) * eVel1*ne1;
@@ -404,7 +423,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Free-free
 				//-------------------------------
-  if (C1 > 1 and ne2 > 0) {
+  if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
     double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * ff1;
 
@@ -416,7 +435,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  if (ne2 > 0 and C1 <= Z1) {
+  if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * CE1[id].back().first;
@@ -428,7 +447,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Ionization cross section
 				//-------------------------------
-  if (C1 < (Z1 + 1) and ne2 > 0) {
+  if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     double DI1 = IonList[Z1][C1].directIonCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * DI1;
@@ -441,7 +460,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Radiative recombination
 				//-------------------------------
-  if (C1 > 1 and ne2 > 0) {
+  if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
     std::vector<double> RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * RE1.back();
@@ -485,7 +504,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 				// *** Ionization cross section
 				//-------------------------------
-  if (C2 < (Z2 + 1) and ne1 > 0) {
+  if (ne1 > 0 and C2 <= Z2) {
     double DI2 = IonList[Z2][C2].directIonCross(ch, kEe1[id]);
     double crs = ne1 * DI2;
 
@@ -614,7 +633,7 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // Set to false for production
     //          |
     //          v
-    static bool DEBUG_F = false;
+    static bool DEBUG_F = true;
     //
     if (DEBUG_F) {
       static std::map<int, std::string> labels;
