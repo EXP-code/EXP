@@ -1166,9 +1166,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     collide->printCollGather();
 
-    typedef std::map<speciesKey, unsigned long> spCountMap;
-    typedef spCountMap::iterator  spCountMapItr;
-    
     (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
     makeSpeciesMap();
     (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
@@ -1181,6 +1178,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned epsm_total = collide->EPSMtotal();
       unsigned epsm_cells = collide->EPSMcells();
 
+      collide->printSpecies(spec);
       collide->printCollSummary();
 
       vector<double> disp;
@@ -1281,25 +1279,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	     << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
       }
 	
-      mout << "-----------------------------------------------------" << endl;
-      mout << "-----Species counts----------------------------------" << endl;
-      mout << "-----------------------------------------------------" << endl;
-
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	std::ostringstream sout;
-	sout << "(" << it->first.first << "," << it->first.second << ")";
-	mout << setw(12) << right << sout.str();
-      }
-      mout << endl;
-
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	mout << setw(12) << right << "--------";
-      mout << endl;
-      
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	mout << setw(12) << right << it->second;
-      mout << endl;
-      
       unsigned sumcells=0, sumbodies=0;
       mout << endl;
       mout << "-----------------------------------------------------" << endl;

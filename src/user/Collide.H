@@ -291,6 +291,9 @@ protected:
   void write_cross_debug();
   //@}
 
+  //! Species map output
+  std::string species_file_debug;
+
 public:
   
   //! Integrate the cooling solution
@@ -452,6 +455,9 @@ public:
   void tsdiag(ostream& out);
   //@}
 
+  // Print out species counts
+  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
+  
   // Currently, these are only in CollideIon
   virtual void printCollGather()  {}
   virtual void printCollSummary() {}

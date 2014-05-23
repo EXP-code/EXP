@@ -89,8 +89,8 @@ public:
 
     eV_av_s  = std::accumulate(eV_av .begin(), eV_av .end(), 0);
     eV_N_s   = std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
-    eV_max_s = std::accumulate(eV_max.begin(), eV_max.end(), 0);
-    eV_min_s = std::accumulate(eV_min.begin(), eV_min.end(), 0);
+    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end());
+    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end());
     eV_10_s  = std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
   }
 
@@ -138,11 +138,28 @@ private:
   //@{
   //! Inelastic work space
   typedef std::vector< std::pair<double, double> > CEvector;
-  std::map< int, std::vector<double> > dCrossMap;
-  std::map< int, std::vector<int>    > dInterMap;
-  std::map< int, CEvector  > CE1, CE2;
-  double kEi, kEe1, kEe2, Ein1, Ein2;
+  std::vector< std::vector<double> > dCrossMap;
+  std::vector< std::vector<int>    > dInterMap;
+  std::vector< CEvector >            CE1, CE2;
+  std::vector< double >              kEi, kEe1, kEe2, Ein1, Ein2;
   //@}
+
+  enum InterTypes { 
+    geometric_1 = 100,
+    neut_elec_1 = 101,
+    ion_elec_1  = 102,
+    free_free_1 = 103,
+    col_exite_1 = 104,
+    ionize_1    = 105,
+    recomb_1    = 106,
+    geometric_2 = 200,
+    neut_elec_2 = 201,
+    ion_elec_2  = 202,
+    free_free_2 = 203,
+    col_exite_2 = 204,
+    ionize_2    = 205,
+    recomb_2    = 206
+  };    
 
 protected:
 

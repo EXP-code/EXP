@@ -2963,3 +2963,47 @@ void Collide::write_cross_debug()
   cross1_dbg.erase(cross1_dbg.begin(), cross1_dbg.end());
   cross2_dbg.erase(cross2_dbg.begin(), cross2_dbg.end());
 }
+
+
+void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
+{
+  if (myid) return;
+
+  typedef std::map<speciesKey, unsigned long> spCountMap;
+  typedef spCountMap::iterator spCountMapItr;
+
+  std::ofstream dout;
+
+				// Generate the file name
+  if (species_file_debug.size()==0) {
+    std::ostringstream sout;
+    sout << outdir << runtag << ".species";
+    species_file_debug = sout.str();
+
+				// Open the file for the first time
+    dout.open(species_file_debug.c_str());
+
+				// Print the header
+    dout << "# " << std::setw(12) << std::right << "Time ";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+      std::ostringstream sout;
+      sout << "(" << it->first.first << "," << it->first.second << ") ";
+      dout << setw(12) << right << sout.str();
+    }
+    dout << std::endl;
+
+    dout << "# " << std::setw(12) << std::right << "--------";
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      dout << setw(12) << std::right << "--------";
+    dout << std::endl;
+
+  } else {
+				// Open for append
+    dout.open(species_file_debug.c_str(), ios::out | ios::app);
+  }
+
+  dout << "  " << std::setw(12) << std::right << tnow;
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+    dout << std::setw(12) << std::right << it->second;
+  dout << std::endl;
+}

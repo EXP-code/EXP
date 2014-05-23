@@ -269,17 +269,20 @@ public:
 
   //! Get the collisional excitation cross section
   std::vector<std::pair<double, double> > 
-  collExciteCross(chdata ch, double p, double Eth);
+  collExciteCross(chdata ch, double E);
 
   //! Ionization cross section
   double directIonCross(chdata ch, double E);
 
+  //@{
   /** Calculates the differential radiative recombination cross section
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
   std::vector<double> radRecombCross(chdata ch, double E);
   std::vector<double> radRecombCrossMewe(chdata ch, double E);
   std::vector<double> radRecombCrossSpitzer(chdata ch, double E);
+  std::vector<double> radRecombCrossKramers(chdata ch, double E);
+  //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);

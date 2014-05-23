@@ -453,7 +453,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 std::vector< std::pair<double, double > > 
-Ion::collExciteCross(chdata ch, double E, double Eth) 
+Ion::collExciteCross(chdata ch, double E)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -462,69 +462,65 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
   
-  double eVtoRyd = 1.0/13.60569253;
-  double RydtoeV = 1.0/eVtoRyd;
+  const double eVtoRyd = 1.0/13.60569253;
+  const double RydtoeV = 13.60569253;
 
-  double a0 = 0.0529177211; // Bohr radius in nm
+  const double a0 = 0.0529177211; // Bohr radius in nm
   
-  double totalCross = 0;
   std::vector<std::pair<double, double > > CEcum;
-  std::pair<double,double> Null(0, 0);
+  const std::pair<double,double> Null(0, 0);
   if (splups.size() == 0) {
     CEcum.push_back(Null);
     CEcrossCum = CEcum;
     return CEcum;
   }
 
+  double totalCross = 0.0;
+
   for (size_t i=0; i<splups.size(); i++) {
 
     double EijEv = splups[i].delERyd*RydtoeV;
     double Const = splups[i].Const;
-    double cross = 0.;
 
-    if (splups[i].i == 1  and E >= EijEv) {
+    if (splups[i].i==1 and E >= EijEv) {
 
       assert(splups[i].i == 1);
       assert(splups[i].spline.size() != 0);
       
-      // double dE = E - EijEv;
-      // Filter out the types
+      // Following Burgess & Tully (BT), 1992, Section 3
+      double Ej = E - EijEv, x = 0, y = 0;
+      int  type = splups[i].type;
       
-      int type = splups[i].type;
-      double x=0, y=0;
-      
-      if (type==1) {
-	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
+				// BT eq. 5, eq. 13
+      if (type==1 or type==4) {
+	x = 1.0 - (log(Const)/(log((Ej/EijEv) + Const)));
       }
-      if (type == 2) {
-	x = (Eth/EijEv)/((Eth/EijEv) + Const);
+				// BT eq. 9, eq. 11
+      if (type==2 or type==3) {
+	x = (Ej/EijEv)/((Ej/EijEv) + Const);
       }
-      if (type == 3) {
-	x = (Eth/EijEv)/((Eth/EijEv) + Const);	
-      }
-      if (type == 4) {
-	x = 1.0 - (log(Const)/(log((Eth/EijEv) + Const)));
-      }
+				// BT eq. 11
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
       if ( x <= 0 or x >= 1.0) {
-	std::cout << "ERROR IN EXCITATION CROSS: Eth = " << Eth 
+	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
 	     << " Eij = " << EijEv << " x = " << x <<std::endl;
 	exit(-1);
       }
 
       // An extra couple of sanity checks for the interpolation
+      //
       assert(x >= 0 and x <= 1);
       assert(splups[i].spline.size() == 5 or splups[i].spline.size() == 9);
-      if(type > 4) break;
+      if (type > 4) break;
       
       // Extra sanity check to make sure x is monotonic to make sure
       // the arrays point to the right values
-      for(int j = 1; j < 9; j++) {
+      //
+      for (int j = 1; j < 9; j++) {
 	if (j < 5) assert(x_array5[j] > x_array5[j-1]);
 	assert(x_array9[j] > x_array9[j-1]);
       }
-      
       
       if (splups[i].spline.size() == 5) {
 	Cspline<double, double> sp(x5, splups[i].spline);
@@ -538,37 +534,35 @@ Ion::collExciteCross(chdata ch, double E, double Eth)
       
       // Calculate the collision strength from the interpolated value
       double CStrength = 0.0;
+				// BT, eq. 6
       if (type == 1) {
-	CStrength = y*log((Eth/EijEv) + M_E);
+	CStrength = y * log((Ej/EijEv) + M_E);
       }
+				// BT, eq. 10
       if(type == 2) {
 	CStrength = y;
       }
+				// BT, eq. 12
       if(type == 3) {
-	CStrength = y/(((Eth/EijEv) + 1)*((Eth/EijEv) + 1));
+	double fac = Ej/EijEv + 1.0;
+	CStrength = y/(fac*fac);
       }
+				// BT, eq. 14
       if(type == 4) {
-	CStrength = y*log((Eth/EijEv) + C);
+	CStrength = y * log((Ej/EijEv) + C);
       }
       
-      // from Dere et al. 1997 
+      // From Dere et al. 1997 
       int weight = elvlc[splups[i].j-1].mult;
-      double Eryd = E*eVtoRyd;
-      cross += (M_PI*a0*a0*(CStrength/weight))/(Eryd);
-    }
-
-    if (splups[i].i == 1) {
-      totalCross += cross;
+      totalCross += (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
       std::pair<double, double> cumi(totalCross, EijEv);
       CEcum.push_back(cumi);
     }
+
   }
-  if (CEcum.size() == 0) { 
-    std::cout << "\nERROR IN CE CROSS!" << "\n\tSplups size: " << splups.size() 
-	      << "\n\tEth = " << Eth << "\n\tZ = " << Z << "\n\tC = " 
-	      << C << "fblvl size: " << fblvl.size() <<std::endl; 
-    exit(-1);
-  }
+
+  if (CEcum.size() == 0) CEcum.push_back(Null);
+  
   CEcrossCum = CEcum;
   return CEcum;
 }
@@ -587,26 +581,33 @@ double Ion::qrp(double u)
   else {
     c = -0.80414;
     d = 2.32431;
-    
     C = 0.14424;
     D = 3.82652;
   }
+
   if (Z > 20) {
     C += pow(((Z-20.0)/50.5), 1.11);
   }
-  double q;
-  q = (A*log(u) + D*(1.0-(1.0/u))*(1.0-(1.0/u)) + C*u*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u))*(1.0-(1.0/u)) + ((c/u)+((d/u)*(d/u))*(1.0-(1.0/u))))/u;
+
+  double z  = 1.0 - 1.0/u;
+  double z2 = z*z;
+  double z4 = z2*z2;
+  double q  = (A*log(u) + D*z2 + C*u*z4 + (c/u + d/(u*u))*z) / u;
 
   return q;
-  
 }
 
-//! Calculate the direct ionization cross section from the spline,
-//! which is a function of the interaction energy of the electron
+/** 
+    Calculate the direct ionization cross section from the spline,
+    which is a function of the interaction energy of the electron
+    See: Dere, K. P., 2007, A&A, 466, 771
+    ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
+*/
 double Ion::directIonCross(chdata ch, double E) 
 {
   double u        = E/ip;
-  unsigned char I = Z - C + 1; //test if its hydrogen-like/helium-like
+				// Test for hydrogen-like/helium-like ion
+  unsigned char I = Z - C + 1;
   double ryd      = 27.2113845/2.0;
   double ipRyd    = ip/ryd;
   double a0       = 0.0529177211; // Bohr radius in nm
@@ -619,6 +620,7 @@ double Ion::directIonCross(chdata ch, double E)
     return -1;
   }
 
+  // From Fontes, et al. Phys Rev A, 59, 1329 (eq. 2.11)
   if (Z >= 20) {
     F = (140.0+pow((double(Z)/20.0),3.2))/141.;
   }
@@ -627,15 +629,14 @@ double Ion::directIonCross(chdata ch, double E)
   }
 
   qr = qrp(u)*F;
-  if (Z >=6 or Z >= 10) std::cout << "QR = " << qr <<std::endl;
 
   // first two if statements are whether or not to use Fontes cross
   // sections
-  if (I == 1 and Z >= 6) {
-    cross = bohr_cs*(qr/ipRyd)*(qr/ipRyd);
+  if (I == 1 && Z >= 6) {
+    cross = bohr_cs*qr/(ipRyd*ipRyd);
   }
-  else if (I==2 and Z >= 10) {
-    cross = 2.0*bohr_cs*(qr/ipRyd)*(qr/ipRyd);
+  else if (I==2 && Z >= 10) {
+    cross = 2.0*bohr_cs*qr/(ipRyd*ipRyd);
   }
   else {
     cross = 0;
@@ -650,7 +651,6 @@ double Ion::directIonCross(chdata ch, double E)
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
-	// std::cout << "cross_i = " << cross_i << std::endl;
       }
     }
   }
@@ -658,16 +658,20 @@ double Ion::directIonCross(chdata ch, double E)
   return diCross;
 }
 
+/** 
+    Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
+    Elwert factor (see Koch & Motz eq. II-6)
+*/
 double Ion::freeFreeCross(chdata ch, double E) 
 {
   double hbc      = 197.327;	     // value of h-bar * c in eV nm
   double r0       = 2.81794033e-6;   // classic electron radius in nm
   double factor   = (Z*Z*r0*r0)/(137.);
   double hb       = 1.054572e-27;    // h-bar in erg s
-  double me       = 9.10938e-28;
-  double inmtoicm = 1e7;	  // nm^(-1) per cm^(-1)
-  double eV2erg   = 1.602177e-12; // ergs per eV
-  double c        = 2.998e10;	  // cm/s
+  double me       = 9.10938e-28;     // electron mass in g
+  double inmtoicm = 1e7;	     // nm^(-1) per cm^(-1)
+  double eV2erg   = 1.602177e-12;    // ergs per eV
+  double c        = 2.998e10;	     // cm/s
   
   double p0 = sqrt(2*me*E*eV2erg);
   double v0 = p0/me;
@@ -704,7 +708,6 @@ double Ion::freeFreeCross(chdata ch, double E)
   }
   double y_tmp = cum;
   return y_tmp;
-  
 }
 
 /** Calculate the differential free-free cross section and return the
@@ -762,8 +765,32 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     return v1;
   } else {
     // return radRecombCrossMewe(ch, E);
-    return radRecombCrossSpitzer(ch, E);
+    // return radRecombCrossSpitzer(ch, E);
+    return radRecombCrossKramers(ch, E);
   }
+}
+
+
+//! Kramers formula for radiative recombination cross section
+std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E) 
+{
+  double coef = 2.105e-8;	// in nm^2
+  double zz = Z;
+  double ii = C - 1;
+
+  const double Ryd = 13.60569253;
+  double Ei = E/Ryd;
+
+  double Zeff = 0;
+  if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
+  if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
+
+  double n0 = 1;
+  if (Z==2 && C>1) n0 = 2;
+
+  double cross = coef * Zeff*Zeff * log(1.0 + Zeff*Zeff/(Ei*n0*n0));
+
+  return std::vector<double>(1, cross);
 }
 
 
@@ -833,15 +860,16 @@ std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E)
 
 std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E) 
 {
-  double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
-  double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
-  double Ryd    = 13.6056923;	// Rydberg in eV
+  const double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
+  //const double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
+  //const double Ryd    = 13.6056923;	// Rydberg in eV
+
+				// Cross-section prefactor in nm^2
+  const double coef   = 2.105310889751809e-08;
+
 				// Ionization energy in cm^{-1}
   double ionE   = ch.ipdata[Z-1][0];
 
-				// Cross-section prefactor in nm^2
-  double coef   = 2.105310889751809e-08;
-  
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {

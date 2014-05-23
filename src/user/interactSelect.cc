@@ -26,25 +26,16 @@ InteractSelect::InteractSelect()
 double InteractSelect::selectCEInteract
 (Ion& a, std::vector< std::pair< double, double > > cumCross) 
 {
-  size_t N = cumCross.size();
-  
-  std::vector< double > normed;
-  for(size_t i=0; i<N; i++) {
-    double tmp = cumCross[i].first/cumCross[N-1].first;
-    normed.push_back(tmp);
-  }
-  
-  double rn = (double)rand()/(double)RAND_MAX;
-  double E  = 0.0;
+  typedef std::vector< std::pair< double, double > >::iterator cIter;
+				// Location in the cumulative distribution
+  double rn = (double)rand()/(double)RAND_MAX * cumCross.back().first;
 
-  for(size_t i=0; i<N; i++) {
-    if (rn <= normed[i]) {
-      E = cumCross[i].second;
-      break;
-    }
+				// Find the energy
+  for (cIter i=cumCross.begin(); i!=cumCross.end(); i++) {
+    if (rn <= i->first) return i->second;
   }
 
-  return E;
+  return 0.0;
 }
 
 double InteractSelect::selectFFInteract(Ion& a, double E) 
