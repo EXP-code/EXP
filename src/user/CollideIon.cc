@@ -111,6 +111,18 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD, int Nth) :
 
   if (myid==0 && NO_COOL) std::cout << "No cooling is set to TRUE" 
 				    << std::endl;
+
+  // Per thread workspace initialization
+  //
+  dCrossMap.resize(nthrds);
+  dInterMap.resize(nthrds);
+  CE1      .resize(nthrds);
+  CE2      .resize(nthrds);
+  kEi      .resize(nthrds);
+  kEe1     .resize(nthrds);
+  kEe2     .resize(nthrds);
+  Ein1     .resize(nthrds);
+  Ein2     .resize(nthrds);
 }
 
 CollideIon::~CollideIon()
@@ -230,8 +242,8 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 
 	// Electrons in second particle
 	//
-	if (i2.second>1) {
-	  double ne2 = i2.second - 1;
+	unsigned ne2 = i2.second - 1;
+	if (ne2) {
 	  if (i1.second==1)	// Neutral atom-electron scattering
 	    Cross1 = elastic(i1.first, EeV * mu) * eVel2*ne2;
 	  else {		// Rutherford scattering
@@ -243,8 +255,8 @@ sKey2Dmap& CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id
 
 	// Electrons in first particle
 	//
-	if (i1.second>1) {
-	  double ne1 = i1.second - 1;
+	unsigned ne1 = i1.second - 1;
+	if (ne1) {
 	  if (i2.second==1)	// Neutral atom-electron scattering
 	    Cross2 = elastic(i2.first, EeV * mu) * eVel1*ne1;
 	  else {		// Rutherford scattering
@@ -291,7 +303,7 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   // Translational COM energy
   //
-  kEi = 0.5 * mu * vel*vel;
+  kEi[id] = 0.5 * mu * vel*vel;
 
   // Electron velocity equipartition factors
   //
@@ -300,18 +312,18 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
   // Internal energy per particle
   //
-  Ein1 = Ein2 = 0.0;
+  Ein1[id] = Ein2[id] = 0.0;
   if (use_Eint>=0) {
-    Ein1 = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
-    Ein2 = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
+    Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
+    Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
   }
 
   // Compute the total available energy and divide among degrees of freedom
   // Convert ergs to eV
   //
 
-  kEe1 = (kEi + Ein1)/(1.0 + ne1) / eV;
-  kEe2 = (kEi + Ein2)/(1.0 + ne2) / eV;
+  kEe1[id] = (kEi[id] + Ein1[id])/(1.0 + ne1) / eV;
+  kEe2[id] = (kEi[id] + Ein2[id])/(1.0 + ne2) / eV;
   
   /***
       INSERT HERE THE CALCULATIONS FOR DELTA E USING THE ION CROSS SECTIONS
@@ -344,35 +356,46 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
   //--------------------------------------------------
 
   double cross12 = geometric(Z1);
-  double cross21 = geometric(Z2);
 	
+  dCrossMap[id].push_back(cross12*diamfac*diamfac);
+  dInterMap[id].push_back(geometric_1);
+
   // Electrons in second particle
   //
   if (ne2 > 0) {
-    if (C1==1)		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe2) * eVel2*ne2;
-    else {			// Rutherford scattering
+    if (C1==1) {		// Neutral atom-electron scattering
+      cross12 = elastic(Z1, kEe2[id]) * eVel2*ne2;
+      dCrossMap[id].push_back(cross12);
+      dInterMap[id].push_back(neut_elec_1);
+    }  else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
-	std::max<double>(kEe2*eV, FloorEv*eV) * 1.0e7; // nm
+	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       cross12 = M_PI*b*b * eVel2*ne2;
+      dCrossMap[id].push_back(cross12);
+      dInterMap[id].push_back(ion_elec_1);
     }
   }
     
+  double cross21 = geometric(Z2);
+
+  dCrossMap[id].push_back(cross21*diamfac*diamfac);
+  dInterMap[id].push_back(geometric_2);
+
   // Electrons in first particle
   //
   if (ne1 > 0) {
-    if (C2==1)		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe1) * eVel1*ne1;
-    else {			// Rutherford scattering
+    if (C2==1) {		// Neutral atom-electron scattering
+      cross21 = elastic(Z2, kEe1[id]) * eVel1*ne1;
+      dCrossMap[id].push_back(cross21);
+      dInterMap[id].push_back(neut_elec_2);
+    } else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
-	std::max<double>(kEe1*eV, FloorEv*eV) * 1.0e7; // nm
+	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       cross21 = M_PI*b*b * eVel1*ne1;
+      dCrossMap[id].push_back(cross21);
+      dInterMap[id].push_back(ion_elec_2);
     }
   }
-
-  dCrossMap[id].push_back((cross12 + cross21)*diamfac*diamfac);
-  dInterMap[id].push_back(0);
-
 
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
@@ -382,11 +405,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {
-    double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe2);
+    double ff1 = IonList[Z1][C1].freeFreeCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * ff1;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(1);
+    dInterMap[id].push_back(free_free_1);
 
     sum12 += crs;
   }
@@ -395,11 +418,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {
 
-    CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2);
+    CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * CE1[id].back().first;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(2);
+    dInterMap[id].push_back(col_exite_1);
     sum12 += crs;
   }
 				//-------------------------------
@@ -407,11 +430,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 < (Z1 + 1) and ne2 > 0) {
 
-    double DI1 = IonList[Z1][C1].directIonCross(ch, kEe2);
+    double DI1 = IonList[Z1][C1].directIonCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * DI1;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(3);
+    dInterMap[id].push_back(ionize_1);
 
     sum12 += crs;
   }
@@ -420,11 +443,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {
 
-    std::vector<double> RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2);
+    std::vector<double> RE1 = IonList[Z1][C1].radRecombCross(ch, kEe2[id]);
     double crs = eVel2*ne2 * RE1.back();
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(4);
+    dInterMap[id].push_back(recomb_1);
 
     sum12 += crs;
   }
@@ -438,11 +461,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe1);
+    double ff2 = IonList[Z2][C2].freeFreeCross(ch, kEe1[id]);
     double crs = eVel1*ne1 * ff2;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(6);
+    dInterMap[id].push_back(free_free_2);
 
     sum21 += crs;
   }
@@ -451,11 +474,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1);
+    CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1[id]);
     double crs = eVel1*ne1 * CE2[id].back().first;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(7);
+    dInterMap[id].push_back(col_exite_2);
 
     sum21 += crs;
   }
@@ -463,11 +486,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Ionization cross section
 				//-------------------------------
   if (C2 < (Z2 + 1) and ne1 > 0) {
-    double DI2 = IonList[Z2][C2].directIonCross(ch, kEe1);
+    double DI2 = IonList[Z2][C2].directIonCross(ch, kEe1[id]);
     double crs = ne1 * DI2;
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(8);
+    dInterMap[id].push_back(ionize_2);
 
     sum21 += crs;
   }
@@ -475,11 +498,11 @@ double CollideIon::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Radiative recombination
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    std::vector<double> RE2 = IonList[Z2][C2].radRecombCross(ch, kEe1);
+    std::vector<double> RE2 = IonList[Z2][C2].radRecombCross(ch, kEe1[id]);
     double crs = eVel1*ne1*RE2.back();
 
     dCrossMap[id].push_back(crs);
-    dInterMap[id].push_back(9);
+    dInterMap[id].push_back(recomb_2);
     
     sum21 += crs;
   } 
@@ -586,24 +609,74 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     interFlag = dInterMap[id][index];
 
     //-------------------------
+    // DEBUG TEST
+    //-------------------------
+    static bool DEBUG_F = true;
+    //          ^
+    //          |
+    // set to false for production
+    //
+    std::map<int, std::string> labels;
+    if (DEBUG_F and labels.size()==0) {
+      labels[geometric_1] = "geometric  [1]";
+      labels[neut_elec_1] = "neutral el [1]";
+      labels[ion_elec_1 ] = "charged el [1]";
+      labels[free_free_1] = "free-free  [1]";
+      labels[col_exite_1] = "coll exite [1]";
+      labels[ionize_1   ] = "ionization [1]";
+      labels[recomb_1   ] = "recombine  [1]";
+      labels[geometric_2] = "geometric  [2]";
+      labels[neut_elec_2] = "neutral el [2]";
+      labels[ion_elec_2 ] = "charged el [2]";
+      labels[free_free_2] = "free-free  [2]";
+      labels[col_exite_2] = "coll exite [2]";
+      labels[ionize_2   ] = "ionization [2]";
+      labels[recomb_2   ] = "recombine  [2]";
+    }
+    //
+    if (DEBUG_F and interFlag) {
+      std::cout << std::setw( 6) << "index"
+		<< std::setw( 6) << "flag"
+		<< std::setw(12) << "cross"
+		<< std::setw(12) << "cumul"
+		<< std::setw(18) << "type label"
+		<< std::endl
+		<< std::setw( 6) << "-----"
+		<< std::setw( 6) << "-----"
+		<< std::setw(12) << "---------"
+		<< std::setw(12) << "---------"
+		<< std::setw(18) << "---------------"
+		<< std::endl;
+      for (size_t i = 0; i < dCrossMap[id].size(); i++) {
+	std::cout << std::setw( 6) << i
+		  << std::setw( 6) << dInterMap[id][i]
+		  << std::setw(12) << dCrossMap[id][i]
+		  << std::setw(12) << CDF[i]
+		  << std::setw(18) << labels[dInterMap[id][i]]
+		  << std::endl;
+      }
+      std::cout << std::endl;
+    }
+
+    //-------------------------
     // Particle 1 interactions
     //-------------------------
 
-    if (interFlag == 1) {
-      delE          = IS.selectFFInteract(IonList[Z1][C1], kEe2);
+    if (interFlag == free_free_1) {
+      delE          = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]);
       partflag      = 1;
       ctd1->ff[id].first++; 
       ctd1->ff[id].second  += delE;
     }
 
-    if (interFlag == 2) {
+    if (interFlag == col_exite_1) {
       delE = IS.selectCEInteract(IonList[Z1][C1], CE1[id]);
       partflag      = 1;
       ctd1->CE[id].first++; 
       ctd1->CE[id].second  += delE;
     }
 
-    if (interFlag == 3) {
+    if (interFlag == ionize_1) {
       delE          = IS.DIInterLoss(ch, IonList[Z1][C1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       assert(C1 <= (Z1 + 1));
@@ -617,8 +690,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // decreases the total energy of the gas but not the thermal
     // component.
     //
-    if (interFlag == 4) {
-      delE          = kEe2;
+    if (interFlag == recomb_1) {
+      delE          = kEe2[id];
       p1->iattrib[use_key] = k1.updateC(--C1);
       assert(C1 > 0);
       partflag      = 1;
@@ -630,21 +703,21 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     // Particle 2 interactions
     //-------------------------
 
-    if (interFlag == 6) {
-      delE          = IS.selectFFInteract(IonList[Z2][C2], kEe1);
+    if (interFlag == free_free_2) {
+      delE          = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]);
       partflag      = 2;
       ctd2->ff[id].first++;
       ctd2->ff[id].second += delE;
     }
 
-    if (interFlag == 7) {
+    if (interFlag == col_exite_2) {
       delE         = IS.selectCEInteract(IonList[Z2][C2], CE2[id]);
       partflag     = 2;
       ctd2->CE[id].first++; 
       ctd2->CE[id].second += delE;
     }
 
-    if (interFlag == 8) {
+    if (interFlag == ionize_2) {
       delE = IS.DIInterLoss(ch, IonList[Z2][C2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       ctd2->CI[id].first++; 
@@ -652,8 +725,8 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
       partflag     = 2;
     }
 
-    if (interFlag == 9) {
-      delE         = kEe1;	// See comment above for interFlag==4
+    if (interFlag == recomb_2) {
+      delE         = kEe1[id];	// See comment above for interFlag==6
       p2->iattrib[use_key] = k2.updateC(--C2);
       assert(C2 > 0);
       partflag     = 2;
@@ -696,19 +769,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     totE = kE;			// KE + internal
     if (use_Eint>=0) totE += p2->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
-    kEe  = kEe2;		// Electron energy
+    kEe  = kEe2[id];		// Electron energy
     dof  = 1.0 + ne2;		// Total degrees of freedom
 
 				// Energy diagnostics
-    ctd1->eV_av[id] += kEe2;
+    ctd1->eV_av[id] += kEe2[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "eV_N=" << ctd1->eV_N[id] << std::endl;
     }
     ctd1->eV_N[id]++;
-    ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe2);
-    ctd1->eV_max[id] = std::max(ctd2->eV_max[id], kEe2);
+    ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe2[id]);
+    ctd1->eV_max[id] = std::max(ctd2->eV_max[id], kEe2[id]);
     
-    if (kEe2 > 10.2) { ctd1->eV_10[id]++;}
+    if (kEe2[id] > 10.2) { ctd1->eV_10[id]++;}
   }
 
   // Electrons from Particle 1 interacted with atom/ion in Particle 2
@@ -717,19 +790,19 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     totE = kE;			// KE + internal
     if (use_Eint>=0) totE += p1->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
-    kEe  = kEe1;		// Electron energy
+    kEe  = kEe1[id];		// Electron energy
     dof  = 1.0 + ne1;		// Total degrees of freedom
 
 				// Energy diagnostics
-    ctd2->eV_av[id] += kEe1;
+    ctd2->eV_av[id] += kEe1[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "eV_N=" << ctd2->eV_N[id] << std::endl;
     }
     ctd2->eV_N[id]++;
-    ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe1);
-    ctd2->eV_max[id] = std::max(ctd2->eV_max[id], kEe1);
+    ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe1[id]);
+    ctd2->eV_max[id] = std::max(ctd2->eV_max[id], kEe1[id]);
     
-    if (kEe1 > 10.2) { ctd2->eV_10[id]++; }
+    if (kEe1[id] > 10.2) { ctd2->eV_10[id]++; }
   }
 
   // Warn if energy lost is greater than total energy available to

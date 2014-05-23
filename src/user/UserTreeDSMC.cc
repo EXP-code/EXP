@@ -1166,9 +1166,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     collide->printCollGather();
 
-    typedef std::map<speciesKey, unsigned long> spCountMap;
-    typedef spCountMap::iterator  spCountMapItr;
-    
     (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
     makeSpeciesMap();
     (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);

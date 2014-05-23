@@ -138,11 +138,28 @@ private:
   //@{
   //! Inelastic work space
   typedef std::vector< std::pair<double, double> > CEvector;
-  std::map< int, std::vector<double> > dCrossMap;
-  std::map< int, std::vector<int>    > dInterMap;
-  std::map< int, CEvector  > CE1, CE2;
-  double kEi, kEe1, kEe2, Ein1, Ein2;
+  std::vector< std::vector<double> > dCrossMap;
+  std::vector< std::vector<int>    > dInterMap;
+  std::vector< CEvector >            CE1, CE2;
+  std::vector< double >              kEi, kEe1, kEe2, Ein1, Ein2;
   //@}
+
+  enum InterTypes { 
+    geometric_1 = 100,
+    neut_elec_1 = 101,
+    ion_elec_1  = 102,
+    free_free_1 = 103,
+    col_exite_1 = 104,
+    ionize_1    = 105,
+    recomb_1    = 106,
+    geometric_2 = 200,
+    neut_elec_2 = 201,
+    ion_elec_2  = 202,
+    free_free_2 = 203,
+    col_exite_2 = 204,
+    ionize_2    = 205,
+    recomb_2    = 206
+  };    
 
 protected:
 
