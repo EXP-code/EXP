@@ -611,51 +611,55 @@ int CollideIon::inelastic(pHOT *tree, Particle* p1, Particle* p2,
     //-------------------------
     // DEBUG TEST
     //-------------------------
-    static bool DEBUG_F = true;
-    //          ^
+    // Set to false for production
     //          |
-    // set to false for production
+    //          v
+    static bool DEBUG_F = false;
     //
-    std::map<int, std::string> labels;
-    if (DEBUG_F and labels.size()==0) {
-      labels[geometric_1] = "geometric  [1]";
-      labels[neut_elec_1] = "neutral el [1]";
-      labels[ion_elec_1 ] = "charged el [1]";
-      labels[free_free_1] = "free-free  [1]";
-      labels[col_exite_1] = "coll exite [1]";
-      labels[ionize_1   ] = "ionization [1]";
-      labels[recomb_1   ] = "recombine  [1]";
-      labels[geometric_2] = "geometric  [2]";
-      labels[neut_elec_2] = "neutral el [2]";
-      labels[ion_elec_2 ] = "charged el [2]";
-      labels[free_free_2] = "free-free  [2]";
-      labels[col_exite_2] = "coll exite [2]";
-      labels[ionize_2   ] = "ionization [2]";
-      labels[recomb_2   ] = "recombine  [2]";
-    }
-    //
-    if (DEBUG_F and interFlag) {
-      std::cout << std::setw( 6) << "index"
-		<< std::setw( 6) << "flag"
-		<< std::setw(12) << "cross"
-		<< std::setw(12) << "cumul"
-		<< std::setw(18) << "type label"
-		<< std::endl
-		<< std::setw( 6) << "-----"
-		<< std::setw( 6) << "-----"
-		<< std::setw(12) << "---------"
-		<< std::setw(12) << "---------"
-		<< std::setw(18) << "---------------"
-		<< std::endl;
-      for (size_t i = 0; i < dCrossMap[id].size(); i++) {
-	std::cout << std::setw( 6) << i
-		  << std::setw( 6) << dInterMap[id][i]
-		  << std::setw(12) << dCrossMap[id][i]
-		  << std::setw(12) << CDF[i]
-		  << std::setw(18) << labels[dInterMap[id][i]]
-		  << std::endl;
+    if (DEBUG_F) {
+      static std::map<int, std::string> labels;
+      if (labels.size()==0) {
+	labels[geometric_1] = "geometric  [1]";
+	labels[neut_elec_1] = "neutral el [1]";
+	labels[ion_elec_1 ] = "charged el [1]";
+	labels[free_free_1] = "free-free  [1]";
+	labels[col_exite_1] = "coll exite [1]";
+	labels[ionize_1   ] = "ionization [1]";
+	labels[recomb_1   ] = "recombine  [1]";
+	labels[geometric_2] = "geometric  [2]";
+	labels[neut_elec_2] = "neutral el [2]";
+	labels[ion_elec_2 ] = "charged el [2]";
+	labels[free_free_2] = "free-free  [2]";
+	labels[col_exite_2] = "coll exite [2]";
+	labels[ionize_2   ] = "ionization [2]";
+	labels[recomb_2   ] = "recombine  [2]";
       }
-      std::cout << std::endl;
+      //
+      // Output on collisions for now . . . 
+      //
+      if (interFlag % 100 == 4) {
+	std::cout << std::setw( 8) << "index"
+		  << std::setw( 8) << "flag"
+		  << std::setw(14) << "cross"
+		  << std::setw(14) << "cumul"
+		  << std::setw(18) << "type label"
+		  << std::endl
+		  << std::setw( 8) << "-----"
+		  << std::setw( 8) << "-----"
+		  << std::setw(14) << "---------"
+		  << std::setw(14) << "---------"
+		  << std::setw(18) << "---------------"
+		  << std::endl;
+	for (size_t i = 0; i < dCrossMap[id].size(); i++) {
+	  std::cout << std::setw( 8) << i
+		    << std::setw( 8) << dInterMap[id][i]
+		    << std::setw(14) << dCrossMap[id][i]
+		    << std::setw(14) << CDF[i]
+		    << std::setw(18) << labels[dInterMap[id][i]]
+		    << std::endl;
+	}
+	std::cout << std::endl;
+      }
     }
 
     //-------------------------
