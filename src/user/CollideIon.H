@@ -102,12 +102,13 @@ typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 class collDiag : public sKeyCollTD
 {
 private:
+  CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
 
   void initialize();
 
 public:
-  collDiag();
+  collDiag(CollideIon *caller);
   void gather();
   void print();
   void reset();
@@ -115,6 +116,8 @@ public:
 
 class CollideIon : public Collide
 {
+  friend class collDiag;
+
 private:
   //! Global variables for the calculations with the individual ions
   std::map <int, std::map<int, Ion> > IonList;
@@ -138,10 +141,19 @@ private:
   //@{
   //! Inelastic work space
   typedef std::vector< std::pair<double, double> > CEvector;
-  std::vector< std::vector<double> > dCrossMap;
-  std::vector< std::vector<int>    > dInterMap;
-  std::vector< CEvector >            CE1, CE2;
-  std::vector< double >              kEi, kEe1, kEe2, Ein1, Ein2;
+  typedef std::pair<speciesKey, speciesKey>        dKey;
+  typedef std::map<dKey, std::vector<double> >     keyCrossMap;
+  typedef std::map<dKey, std::vector<int>    >     keyInterMap;
+  typedef std::pair<double, dKey>                  dkPair;
+  typedef std::vector<dkPair>                      cSelect;
+
+  std::vector< std::vector<double> >               dCrossMap;
+  std::vector< std::vector<int>    >               dInterMap;
+  std::vector< keyCrossMap >                       sCrossMap;
+  std::vector< keyInterMap >                       sInterMap;
+  std::vector< CEvector >                          CE1, CE2;
+  std::vector< double >                            kEi, kEe1, kEe2, Ein1, Ein2, Efix;
+  std::vector< cSelect >                           spSelect;
   //@}
 
   enum InterTypes { 
@@ -161,12 +173,28 @@ private:
     recomb_2    = 206
   };    
 
-protected:
+  enum AlgorithmType { Direct,  Trace };
+
+  protected:
 
   //! List of cross-sections (separate for each thread)
   std::vector<sKey2Dmap> csections;
   
   boost::shared_ptr<collDiag> collD;
+
+  //! Number of elements
+  int N_Z;
+
+  //! Array of the elements (atomic number) for direct multi-species
+  //! implementation
+  std::vector<int> ZList;
+
+  //! Map of species to attribute position for trace multi-species
+  //! implementation
+  std::map<speciesKey, int> SpList;
+
+  //! The algorithm type
+  AlgorithmType aType;
 
 protected:
   
@@ -194,14 +222,46 @@ protected:
 
   sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
 
-  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+  double crossSectionDirect(pHOT* tree, Particle* p1, Particle* p2, 
 		      double crm, int id=0);
-  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  
+  int inelasticDirect(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+
+  double crossSectionTrace(pHOT* tree, Particle* p1, Particle* p2, 
+		      double crm, int id=0);
+
+  int inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+
+  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+		      double crm, int id=0)
+  {
+    if (aType == Direct)
+      return crossSectionDirect(tree, p1, p2, crm, id);
+
+    if (aType == Trace)
+      return crossSectionTrace(tree, p1, p2, crm, id);
+
+    return 0.0;
+  }
+
+  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0)
+  {
+    if (aType == Direct)
+      return inelasticDirect(tree, p1, p2, crm, id);
+
+    if (aType == Trace)
+      return inelasticTrace(tree, p1, p2, crm, id);
+
+    return 1;
+  }
+
 
   bool hasHeatCool() { return true; }
 
   double getCoolingRate(int id) { return 0; }
   
+  void parseSpecies(const std::string& map);
+
   
   //@{
   //! Diagnostic output
@@ -211,6 +271,8 @@ protected:
   void list_sizes_proc(ostream*);
   //@}
   
+  pHOT* curTree;
+
 public:
   static double Nmin;
   static double Nmax;
@@ -223,7 +285,8 @@ public:
   static bool frost_warning;
 
   //! Constructor
-  CollideIon(ExternalForce *force, double hsDiam, double diamfac, int nth=1);
+  CollideIon(ExternalForce *force, double hsDiam, double diamfac, 
+	     const std::string& spcMap, int nth=1);
 
   //! Destructor
   ~CollideIon();

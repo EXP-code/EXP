@@ -100,10 +100,12 @@ public:
   
   typedef pair<double, vector<double> > Precord;
   
-private:
-  
+protected:
+
   // Calling force
   ExternalForce *caller;
+  
+private:
   
   // Threading stuff
   //
@@ -224,7 +226,8 @@ protected:
   virtual void initialize_cell_epsm
   (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
   
-  //! Compute diagnostics for the cell after collisions/cooling
+  //! Compute energy adjustments diagnostics for the cell after
+  //! collisions/cooling
   virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
   
   //! Return total scattering + elastic cross section "matrix" for
@@ -239,6 +242,8 @@ protected:
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
   
+  virtual void velocityUpdate(Particle* p1, Particle* p2, double cr);
+
   //! Has LTE heating and cooling algorithm
   virtual bool hasHeatCool() = 0;
   
@@ -302,10 +307,6 @@ public:
   //! Use the original Pullin velocity selection algorithm
   static bool PULLIN;		
   
-  /** Use the Consistent Boltzmann Algorithm Alexander, Garcia, Alder
-      1995, PRL, 74, 5212 */
-  static bool CBA;
-  
   //! Print out sorted cell parameters
   static bool SORTED;
   
@@ -335,9 +336,6 @@ public:
   //! Accumulate cell-volume diagnostics (default: false)
   static bool VOLDIAG;
   
-  //! Accumulate length scale diagnostics for the DBA algorithm (default: false)
-  static bool CBADIAG;	        
-  
   //! Power of two interval for ke/cool ratio histogram (default: 4)
   static int TSPOW;	        
   
@@ -365,8 +363,8 @@ public:
   
   /** Constructor
       @param force is the caller
-      @param hsdiam is the hard-sphere diameter in Bohr units used for the CBA computation ONLY
-      @parm diamfac is the diameter scaling used for both CBA and internal scattering cross sections for derived classes
+      @param hsdiam is the hard-sphere diameter in Bohr units
+      @parm diamfac is the diameter scaling
   */
   Collide(ExternalForce *force, double hsdiam, double diamfac, int nth=1);
   

@@ -54,9 +54,6 @@ bool Collide::TSDIAG   = false;
 // Cell-volume diagnostics
 bool Collide::VOLDIAG  = false;
 
-// CBA length scale diagnostics
-bool Collide::CBADIAG  = false;
-
 // Mean free path diagnostics
 bool Collide::MFPDIAG  = false;
 
@@ -179,7 +176,6 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
 }
 
 
-bool     Collide::CBA       = true;
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
@@ -366,13 +362,6 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
     VdblT = vector< vector<double> >(nthrds);
   }
   
-  if (CBADIAG) {
-    Cover  = vector<double>(numdiag, 0);
-    Cover1 = vector<double>(numdiag, 0);
-    Cover0 = vector<double>(numdiag, 0);
-    CoverT = vector< vector<double> > (nthrds);
-  }
-  
   for (int n=0; n<nthrds; n++) {
     if (TSDIAG) {
       tdiagT[n] = vector<unsigned>(numdiag, 0);
@@ -381,9 +370,6 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
     if (VOLDIAG) {
       VcntT[n] = vector<unsigned>(nbits, 0);
       VdblT[n] = vector<double>(nbits*nvold, 0.0);
-    }
-    if (CBADIAG) {
-      CoverT[n] = vector<double>(numdiag, 0);
     }
     tcoolT[n] = vector<unsigned>(numdiag, 0);
     tdispT[n] = vector<double>(3, 0);
@@ -641,9 +627,6 @@ void * Collide::collide_thread(void * arg)
   sKeyDmap *Fn  = static_cast<sKeyDmap*>(((thrd_pass_arguments*)arg)->fn  );
   double tau    = static_cast<double>   (((thrd_pass_arguments*)arg)->tau );
   int id        = static_cast<int>      (((thrd_pass_arguments*)arg)->id  );
-  
-  // Work vectors
-  vector<double> vcm(3), vrel(3), crel(3);
   
   thread_timing_beg(id);
   
@@ -1061,6 +1044,7 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Calculate pair's relative speed (pre-collision)
 	  //
+	  vector<double> crel(3);
 	  double cr = 0.0;
 	  for (int k=0; k<3; k++) {
 	    crel[k] = p1->vel[k] - p2->vel[k];
@@ -1101,61 +1085,9 @@ void * Collide::collide_thread(void * arg)
 	    //
 	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
 	    
-	    // Center of mass velocity
+	    // Update the particle velocity
 	    //
-	    double tmass = p1->mass + p2->mass;
-	    for(unsigned k=0; k<3; k++)
-	      vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
-	    
-	    
-	    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-	    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-	    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
-	    
-	    vrel[0] = cr*cos_th;	  // Compute post-collision
-	    vrel[1] = cr*sin_th*cos(phi); // relative velocity
-	    vrel[2] = cr*sin_th*sin(phi);
-	    
-	    // Update post-collision velocities
-	    // 
-	    for(unsigned k=0; k<3; k++ ) {
-	      p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
-	      p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
-	    }
-	    
-	    if (CBA) {
-	      
-	      // Calculate pair's relative speed (post-collision)
-	      //
-	      cr = 0.0;
-	      for (int k=0; k<3; k++) {
-		crel[k] = p1->vel[k] - p2->vel[k] - crel[k];
-		cr += crel[k]*crel[k];
-	      }
-	      cr = sqrt(cr);
-	      
-	      // Displacement
-	      //
-	      if (cr>0.0) {
-		double displ;
-		for (int k=0; k<3; k++) {
-		  displ = crel[k]*hsDiameter()/cr;
-		  p1->pos[k] += displ;
-		  p2->pos[k] -= displ;
-		}
-		
-		if (CBADIAG) {
-		  
-		  double rat = fabs(displ)/pow(volc,0.33333333);
-		  int indx = (int)floor(log(rat)/log(4.0) + 5);
-		  
-		  if (indx<0 ) indx = 0;
-		  if (indx>10) indx = 10;
-		  
-		  CoverT[id][indx] += tmass;
-		}
-	      }
-	    }
+	    velocityUpdate(p1, p2, cr);
 
 	  } // Inelastic computation
 
@@ -2668,7 +2600,6 @@ void Collide::pre_collide_diag()
 	tdiagT[n][k] = 0;
 	EoverT[n][k] = 0;
       }
-      if (CBADIAG)     CoverT[n][k] = 0;
       if (use_delt>=0) tcoolT[n][k] = 0;
     }
     
@@ -2686,9 +2617,6 @@ void Collide::pre_collide_diag()
     }
   }
   
-  if (CBADIAG) {
-    for (unsigned k=0; k<numdiag; k++) Cover1[k] = Cover0[k] = 0;
-  }
   if (use_delt>=0) 
     for (unsigned k=0; k<numdiag; k++) tcool1[k] = tcool0[k] = 0;
   
@@ -2737,8 +2665,6 @@ unsigned Collide::post_collide_diag()
 	  Vdbl1[k*nvold+l] += VdblT[n][k*nvold+l];
       }
     }
-    if (CBADIAG)
-      for (unsigned k=0; k<numdiag; k++) Cover1[k] += CoverT[n][k];
     if (use_delt>=0) 
       for (unsigned k=0; k<numdiag; k++) tcool1[k] += tcoolT[n][k];
   }
@@ -2794,10 +2720,6 @@ unsigned Collide::post_collide_diag()
     MPI_Reduce(&Vdbl1[0], &Vdbl0[0], nbits*nvold, MPI_DOUBLE, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
   }
-  if (CBADIAG) {
-    MPI_Reduce(&Cover1[0], &Cover0[0], numdiag, MPI_DOUBLE,   MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
-  }
   if (use_delt>=0)
     MPI_Reduce(&tcool1[0], &tcool0[0], numdiag, MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
@@ -2821,10 +2743,6 @@ unsigned Collide::post_collide_diag()
       for (unsigned l=0; l<nvold; l++)
 	Vdbl[k*nvold+l] += Vdbl0[k*nvold+l];
     }
-  }
-  if (CBADIAG) {
-    for (unsigned k=0; k<numdiag; k++)
-      Cover[k] += Cover0[k];
   }
   if (use_delt>=0)
     for (unsigned k=0; k<numdiag; k++) tcool[k] += tcool0[k];
@@ -3006,4 +2924,30 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
+}
+
+void Collide::velocityUpdate(Particle* p1, Particle* p2, double cr)
+{
+  vector<double> vcm(3), vrel(3);
+
+  // Center of mass velocity
+  //
+  double tmass = p1->mass + p2->mass;
+  for(unsigned k=0; k<3; k++)
+    vcm[k] = (p1->mass*p1->vel[k] + p2->mass*p2->vel[k]) / tmass;
+	    
+  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+  double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
+  
+  vrel[0] = cr*cos_th;	  // Compute post-collision
+  vrel[1] = cr*sin_th*cos(phi); // relative velocity
+  vrel[2] = cr*sin_th*sin(phi);
+  
+  // Update post-collision velocities
+  // 
+  for(unsigned k=0; k<3; k++ ) {
+    p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
+    p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
+  }
 }

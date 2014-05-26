@@ -145,16 +145,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   (*barrier)("TreeDSMC: BEFORE use checks", __FILE__, __LINE__);
 
   //
-  // Get use_key postion index from the fiducial component
+  // Get use_key postion index from the fiducial component; this will
+  // be checked for consistency in the Collide constructor
   //
   use_key = c0->keyPos;
-  if (use_key<0) {
-    if (myid==0) {
-      std::cerr << "UserTreeDSMC: species key position is not defined in Component "
-		<< "<" << comp_name << ">" << std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 36);
-  }
 
   //
   // Sanity check on excess attribute if excess calculation is
@@ -264,79 +258,85 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Make the initial species map
   //
-  (*barrier)("TreeDSMC: BEFORE species map construction", __FILE__, __LINE__);
-  makeSpeciesMap();
-  (*barrier)("TreeDSMC: AFTER species map construction",  __FILE__, __LINE__);
+  if (use_key>=0) {
 
-  typedef std::map<speciesKey, unsigned long> spCountMap;
-  typedef spCountMap::iterator  spCountMapItr;
+    (*barrier)("TreeDSMC: BEFORE species map construction", __FILE__, __LINE__);
+    makeSpeciesMap();
+    (*barrier)("TreeDSMC: AFTER species map construction",  __FILE__, __LINE__);
 
-  //
-  // Get element list
-  //
-  typedef std::set<unsigned short> elemL;
-  elemL elems;
-  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-    elems.insert(it->first.first);
+    typedef std::map<speciesKey, unsigned long> spCountMap;
+    typedef spCountMap::iterator  spCountMapItr;
 
-  //
-  // Create all possible species
-  //
-  for (elemL::iterator it=elems.begin(); it != elems.end(); it++)  {
-    for (unsigned short C=1; C<*it+2; C++) {
-      speciesKey indx(*it, C);
-      spec_list.insert(indx);
-      collFrac[indx] = 1.0;
-    }
-  }
-
-  if (myid==0) {
-    cout << endl
-	 << "--------------" << endl
-	 << "Species counts" << endl
-	 << "--------------" << endl
-	 << endl;
+    //
+    // Get element list
+    //
+    typedef std::set<unsigned short> elemL;
+    elemL elems;
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      elems.insert(it->first.first);
     
-    cout << setw(4) << right << "#";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-      cout << setw(8) << right 
-	   << "(" << it->first.first << "," << it->first.second << ")";
-    cout << endl;
-
-    cout << setw(4) << right << "---";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-      cout << setw(12) << right << "--------";
-    cout << endl;
-  }
-
-  for (int n=0; n<numprocs; n++) {
-    if (myid==n) {
-      spCountMapItr it2 = spec1.begin();
-      cout << setw(4) << right << myid;
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	if (it->first == it2->first) {
-	  cout << setw(12) << right << it2->second;
-	  it2++;
-	} else {
-	  cout << setw(12) << right << 0;
-	}
+    //
+    // Create all possible species
+    //
+    for (elemL::iterator it=elems.begin(); it != elems.end(); it++)  {
+      for (unsigned short C=1; C<*it+2; C++) {
+	speciesKey indx(*it, C);
+	spec_list.insert(indx);
+	collFrac[indx] = 1.0;
       }
+    }
+
+    if (myid==0) {
+      cout << endl
+	   << "--------------" << endl
+	   << "Species counts" << endl
+	   << "--------------" << endl
+	   << endl;
+    
+      cout << setw(4) << right << "#";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(8) << right 
+	     << "(" << it->first.first << "," << it->first.second << ")";
+      cout << endl;
+      
+      cout << setw(4) << right << "---";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << "--------";
       cout << endl;
     }
+
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	spCountMapItr it2 = spec1.begin();
+	cout << setw(4) << right << myid;
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	  if (it->first == it2->first) {
+	    cout << setw(12) << right << it2->second;
+	    it2++;
+	  } else {
+	    cout << setw(12) << right << 0;
+	  }
+	}
+	cout << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
     MPI_Barrier(MPI_COMM_WORLD);
-  }
 
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  if (myid==0) {
-    cout << setw(4) << right << "---";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-      cout << setw(12) << right << "--------";
-    cout << endl;
-    cout << setw(4) << right << "TOT";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-      cout << setw(12) << right << it->second;
-    cout << endl;
+    if (myid==0) {
+      cout << setw(4) << right << "---";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << "--------";
+      cout << endl;
+      cout << setw(4) << right << "TOT";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << it->second;
+      cout << endl;
+    }
+  } else {
+    spec_list.insert(defaultKey);
+    collFrac[defaultKey] = 1.0;
   }
 
   Vunit = Lunit/Tunit;
@@ -372,8 +372,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Set collision parameters
   //
   Collide::NTC     = ntc;
-  Collide::CBA     = cba;
-  Collide::CBADIAG = cbadiag;
   Collide::PULLIN  = use_pullin;
   Collide::ESOL    = esol;
   Collide::EPSMratio = epsm;
@@ -392,7 +390,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (ctype.compare("LTE") == 0)
     collide = new CollideLTE(this, hsdiam, diamfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, hsdiam, diamfac, nthrds);
+    collide = new CollideIon(this, hsdiam, diamfac, species_map, nthrds);
   else {
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
@@ -485,8 +483,6 @@ void UserTreeDSMC::userinfo()
   else             cout << ", EPSM disabled";
   if (ntc)         cout << ", using NTC";
   else             cout << ", NTC disabled";
-  if (cba)         cout << ", using CBA";
-  else             cout << ", CBA disabled";
   if (cba && cbadiag)     
                    cout << " with diagnostics";
   if (tube)        cout << ", using TUBE mode";

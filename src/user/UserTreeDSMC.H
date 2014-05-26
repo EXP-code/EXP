@@ -114,7 +114,6 @@ class CollideIon;
     @param tsdiag enables printing gas time step diagnostics (for debugging)
     @param voldiag enables printing volume-cell diagnostics (for debugging)
     @param mfpstat enables printing of mean free path and time step statistics (for debugging)
-    @param cbadiag enables printing of length-scale statistics for the CBA algorithm (for debugging)
     @param dryrun enabled turns off collsions (primarily for debugging)
     @param nsteps is the number of steps between diagnostic output (default: -1, off)
     @param msteps is the maximum level for diagnostic output (default: -1, off)
@@ -151,6 +150,17 @@ class CollideIon;
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
 
     <h2>Note on multiple species</h2>
+
+    There are two versions of the multispecies interactions:
+    <ol>
+
+    <li> Each particle acts as an individual ion (i.e. atom in a
+    particular ionization state which may be neutral.  This version,
+    the default, is chosen by specifying the <code>keypos</code>
+    attribute for the Component.
+
+    <li> Each particle represents a number of elements in various
+    charge states.  Here, one provides the 
 
     Use of multiple species is initiated by setting the
     <code>species</code> flag to an integer \f$\ge0\f$.  The argument
@@ -194,7 +204,7 @@ private:
   // CollideIon *collide;
   double ElostTotCollide, ElostTotEPSM;
 
-  string comp_name;
+  string comp_name, species_map;
   Component *c0;
 
   void determine_acceleration_and_potential(void);
