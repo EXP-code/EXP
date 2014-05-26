@@ -68,6 +68,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   boxsize    = 1.0;
   boxratio   = 1.0;
   comp_name  = "gas disk";
+  spec_map   = "species.spec";
   ctype      = "Ion";
   nsteps     = -1;
   msteps     = -1;
@@ -390,7 +391,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (ctype.compare("LTE") == 0)
     collide = new CollideLTE(this, hsdiam, diamfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, hsdiam, diamfac, species_map, nthrds);
+    collide = new CollideIon(this, hsdiam, diamfac, spec_map, nthrds);
   else {
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
@@ -522,6 +523,7 @@ void UserTreeDSMC::initialize()
   if (get_value("ncell", val))		ncell      = atoi(val.c_str());
   if (get_value("Ncell", val))		Ncell      = atoi(val.c_str());
   if (get_value("compname", val))	comp_name  = val;
+  if (get_value("specmap", val))	spec_map   = val;
   if (get_value("use_temp", val))	use_temp   = atoi(val.c_str());
   if (get_value("use_dens", val))	use_dens   = atoi(val.c_str());
   if (get_value("use_delt", val))	use_delt   = atoi(val.c_str());
@@ -1606,8 +1608,13 @@ void UserTreeDSMC::assignTempDensVol()
 	  j++;
 	  continue;
 	}
-	KeyConvert kc(cell->Body(j)->iattrib[use_key]);
-        std::pair<int, int> sKey = kc.getKey();
+
+        speciesKey sKey = defaultKey;
+	if (use_key>=0) {
+	  KeyConvert kc(cell->Body(j)->iattrib[use_key]);
+	  sKey = kc.getKey();
+	}
+	
 	cell->sample->KE(sKey, KEtot, KEdsp);
 	double mi = mp*atomic_weights[sKey.first];
 

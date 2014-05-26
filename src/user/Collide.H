@@ -236,8 +236,13 @@ protected:
 
   //! Return the full cross section for particle selection computation
   virtual double crossSection(pHOT* tree, Particle* p1, Particle* p2,
-			double cr, int id=0) { return 0; }
+			      double cr, int id=0) { return 0; }
   
+  //! Return the particle selection matrix
+  virtual sKey2Umap generateSelection
+  (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+   double& meanLambda, double& meanCollP, double& totalNsel) = 0;
+
   //! Do the inelastic computation
   virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
 			double *cr, int id=0) { return 0; }
@@ -285,17 +290,6 @@ protected:
   vector<long> EPSMtime, CPUH;
   //@}
   
-  //@{
-  //! Cross-section debugging
-  std::string cross_debug;
-  std::vector<double> cross1_dbg, cross2_dbg;
-  double nextTime_dbg;
-  int nCnt_dbg;
-  static const double delTime_dbg = 0.001;
-  static const int nCel_dbg = 10;
-  void write_cross_debug();
-  //@}
-
   //! Species map output
   std::string species_file_debug;
 

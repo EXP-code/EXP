@@ -99,6 +99,10 @@ public:
 
   virtual void Elost(double* collide, double* epsm);
 
+  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+				      double& meanLambda, double& meanCollP, 
+				      double& totalNsel);
+
   void Debug(double t);
 };
 

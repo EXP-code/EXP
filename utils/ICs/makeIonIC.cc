@@ -70,7 +70,7 @@ norm_ptr    Norm;
    Make Uniform temperature box of gas
 */
 void InitializeUniform(std::vector<Particle>& p, double mass,
-                       double T, vector<double> &L)
+                       double T, vector<double> &L, bool trace)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
@@ -84,28 +84,41 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
   std::cout << std::string(60, '-')                 << std::endl;
 
+  double var0  = sqrt((boltz*T)/amu);
   double varH  = sqrt((boltz*T)/(atomic_masses[0]*amu));
   double varHe = sqrt((boltz*T)/(atomic_masses[1]*amu));
 
   for (unsigned i=0; i<npart; i++) {
 
-    KeyConvert kc(p[i].iattrib[0]);
-    speciesKey sKey = kc.getKey();
-    unsigned short Z = sKey.first;
-    unsigned short C = sKey.second;
-    
     double KE = 0.0;
-    for (unsigned k=0; k<3; k++) {
-      p[i].pos[k] = L[k]*(*Unit)();
-      if (Z == 1) {
-	p[i].vel[k] = varH*(*Norm)();
-      }
-      if (Z == 2) p[i].vel[k] = varHe*(*Norm)();
-      p[i].vel[k] /= Vunit;
-      KE += p[i].vel[k] * p[i].vel[k];
-    }
 
-    KE *= 0.5 * p[i].mass * (C-1);
+    if (trace) {
+
+      for (unsigned k=0; k<3; k++) {
+	p[i].pos[k] = L[k]*(*Unit)();
+	p[i].vel[k] = var0*(*Norm)();
+	p[i].vel[k] /= Vunit;
+      }
+
+    } else {
+
+      KeyConvert kc(p[i].iattrib[0]);
+      speciesKey sKey  = kc.getKey();
+      unsigned short Z = sKey.first;
+      unsigned short C = sKey.second;
+    
+      for (unsigned k=0; k<3; k++) {
+	p[i].pos[k] = L[k]*(*Unit)();
+	if (Z == 1) {
+	  p[i].vel[k] = varH*(*Norm)();
+	}
+	if (Z == 2) p[i].vel[k] = varHe*(*Norm)();
+	p[i].vel[k] /= Vunit;
+	KE += p[i].vel[k] * p[i].vel[k];
+      }
+
+      KE *= 0.5 * p[i].mass * (C-1);
+    }
 
     if (p[i].dattrib.size()>0) p[i].dattrib[0] = T;
     else p[i].dattrib.push_back(T);
@@ -113,12 +126,15 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho;
     else p[i].dattrib.push_back(rho);
 
-    if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
-    else p[i].dattrib.push_back(KE);
+    if (!trace) {
+      if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
+      else p[i].dattrib.push_back(KE);
+    }
   }
 }
 
-void writeParticles(std::vector<Particle>& particles, const string& file)
+void writeParticles(std::vector<Particle>& particles, const string& file,
+		    bool trace)
 {
   // For tabulating mass fractions . . . 
   typedef std::map<unsigned short, double> Frac;
@@ -143,12 +159,13 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
     for (int k=0; k<3; k++) 
       out << setw(18) << particles[n].vel[k];
 
-    KeyConvert kc(particles[n].iattrib[0]);
-    unsigned short Z = kc.getKey().first;
-    Frac::iterator it = frac.find(Z);
-    if (it==frac.end()) frac[Z] = 0.0;
-    frac[Z] += particles[n].mass;
-
+    if (!trace) {
+      KeyConvert kc(particles[n].iattrib[0]);
+      unsigned short Z = kc.getKey().first;
+      Frac::iterator it = frac.find(Z);
+      if (it==frac.end()) frac[Z] = 0.0;
+      frac[Z] += particles[n].mass;
+    }
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
 
@@ -158,29 +175,33 @@ void writeParticles(std::vector<Particle>& particles, const string& file)
     out << std::endl;
   }
 
-  double Mtot = 0.0;
-  for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
-    Mtot += it->second;
+  if (!trace) {
 
-  std::cout << std::setw( 3) << "Z"
-	    << std::setw(18) << "Mass"
-	    << std::setw(18) << "Fraction"
-	    << std::endl
-	    << std::setw( 3) << "-"
-	    << std::setw(18) << "--------"
-	    << std::setw(18) << "--------"
-	    << std::endl;
-  for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
-    std::cout << std::setw( 3) << it->first
-	      << std::setw(18) << it->second
-	      << std::setw(18) << it->second/Mtot
+    double Mtot = 0.0;
+    for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
+      Mtot += it->second;
+
+    std::cout << std::setw( 3) << "Z"
+	      << std::setw(18) << "Mass"
+	      << std::setw(18) << "Fraction"
+	      << std::endl
+	      << std::setw( 3) << "-"
+	      << std::setw(18) << "--------"
+	      << std::setw(18) << "--------"
 	      << std::endl;
+    for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
+      std::cout << std::setw( 3) << it->first
+		<< std::setw(18) << it->second
+		<< std::setw(18) << it->second/Mtot
+		<< std::endl;
+  }
 }
 
-void InitializeSpecies(std::vector<Particle> & particles, 
-		       std::vector<unsigned char>& sZ, 
-		       std::vector<double>& sF, double M, double T,
-		       int ni=1, int nd=6)
+void InitializeSpeciesDirect
+(std::vector<Particle> & particles, 
+ std::vector<unsigned char>& sZ, 
+ std::vector<double>& sF, double M, double T,
+ int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -299,10 +320,148 @@ void InitializeSpecies(std::vector<Particle> & particles,
     particles[i].iattrib[0] = kc.getInt();
   }
   
+  std::ofstream out("species.spec");
+  out << "direct" << std::endl;
+  for (size_t indx=0; indx<NS; indx++) { 
+    out << std::setw(6) << static_cast<unsigned>(sZ[indx])
+	<< std::endl;
+  }
+
+}
+
+void InitializeSpeciesTrace
+(std::vector<Particle> & particles, 
+ std::vector<unsigned char>& sZ, 
+ std::vector<double>& sF, double M, double T,
+ int ni=0, int nd=6)
+{
+  std::vector< std::vector<double> > frac, cuml;
+
+  //
+  // Generate the ionization-fraction input file
+  //
+  for (std::vector<unsigned char>::iterator 
+	 n=sZ.begin(); n!=sZ.end(); n++) {
+
+    const std::string ioneq("makeIonIC.ioneq");
+    std::ostringstream sout;
+    sout << "./genIonization"
+	 << " -1 " << static_cast<unsigned>(*n)
+	 << " -2 " << static_cast<unsigned>(*n)
+	 << " -T " << T << " -o " << ioneq;
+
+    int ret = system(sout.str().c_str());
+
+    if (ret) {
+      std::cout << "System command  = " << sout.str() << std::endl;
+      std::cout << "System ret code = " << ret << std::endl;
+    }
+
+    typedef std::vector<std::string> vString;
+
+    std::string inLine;
+    std::ifstream sFile(ioneq.c_str());
+    if (sFile.is_open()) {
+
+      std::getline(sFile, inLine); // Read and discard the headers
+      std::getline(sFile, inLine);
+      
+      {
+	vString s;
+	std::getline(sFile, inLine);
+	
+	std::istringstream iss(inLine);
+	std::copy(std::istream_iterator<std::string>(iss), 
+		  std::istream_iterator<std::string>(), 
+		  std::back_inserter<vString>(s));
+	
+	std::vector<double> v;
+	for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	  v.push_back(::atof(i->c_str()));
+	frac.push_back(v);
+      }
+      
+      {
+	vString s;
+	std::getline(sFile, inLine);
+	
+	std::istringstream iss(inLine);
+	std::copy(std::istream_iterator<std::string>(iss), 
+		  std::istream_iterator<std::string>(), 
+		  std::back_inserter<vString>(s));
+	
+	std::vector<double> v;
+	for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	  v.push_back(::atof(i->c_str()));
+	cuml.push_back(v);
+      }
+    }
+  }
+
+  int N = particles.size();
+
+				// Compute cumulative species
+				// distribution
+  size_t NS = sF.size();
+				// Normalize sF
+  double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
+  if (fabs(norm - 1.0)>1.0e-16) {
+    std::cout << "Normalization change: " << norm << std::endl;
+  }
+
+  std::vector<double> frcS(NS);
+  int nspc = 0;
+  for (size_t i=0; i<NS; i++) {
+    sF[i]  /= norm;
+    frcS[i] = sF[i]/atomic_masses[sZ[i]-1];
+    nspc += sZ[i]+1;
+  }
+
+  for (size_t indx=0; indx<NS; indx++) { 
+    double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
+    for (std::vector<double>::iterator is=frac[indx].begin(); is!=frac[indx].end(); is++)
+      *is /= norm;
+  }
+
+  double fNorm = std::accumulate(frcS.begin(), frcS.end(), 0.0);
+  for (size_t i=0; i<NS; i++) frcS[i] /= fNorm;
+
+  for (size_t i=0; i<N; i++) {
+
+    particles[i].mass  = M/N;
+
+    particles[i].iattrib.resize(ni, 0);
+    particles[i].dattrib.resize(nd, 0);
+
+    // Get the species
+    double test = 0.0;
+    for (size_t indx=0; indx<NS; indx++) { 
+      // Get the ionization state
+      for (size_t j=0; j<sZ[indx]+1; j++) {
+	particles[i].dattrib.push_back(frcS[indx]*frac[indx][j]);
+	test += frcS[indx] * frac[indx][j];
+      }
+    }
+    assert ( fabs(test-1.0) < 1.0e-12 );
+  }
+
+  std::ofstream out("species.spec");
+  out << "trace" << std::endl;
+  int cntr = nd;
+  for (size_t indx=0; indx<NS; indx++) { 
+    for (size_t j=0; j<sZ[indx]+1; j++) {
+      out << std::setw(6) << static_cast<unsigned>(sZ[indx])
+	  << std::setw(6) << j + 1
+	  << std::setw(6) << cntr++
+	  << std::endl;
+    }
+  }
+  
 }
 
 int main (int ac, char **av)
 {
+  bool trace = false;
   double T, D, L;
   std::string oname;
   unsigned seed;
@@ -311,6 +470,7 @@ int main (int ac, char **av)
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
+    ("trace",           "set up for trace species")
     ("temp,T",		po::value<double>(&T)->default_value(25000.0),
      "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
@@ -350,6 +510,10 @@ int main (int ac, char **av)
     return 1;
   }
 
+  if (vm.count("trace")) {
+    trace = true;
+  }
+
   Lunit  *= pc;
   Tunit  *= year;
   Munit  *= msun;
@@ -381,26 +545,30 @@ int main (int ac, char **av)
      sF[6] = 0.0; sZ[6] = 12; // Mg
   */
 
-
   // Cube axes
+  //
   std::vector<double> LL(3, L);
 
   // Mass in box in m_p
+  //
   double Mass = mp*D*(LL[0]*LL[1]*LL[2])*pc*pc*pc/Munit;
   
   vector<Particle> particles(npart);
 
   // Initialize the Z, C's	
   //
-  InitializeSpecies(particles, sZ, sF, Mass, T);
+  if (trace)
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, T);
+  else
+    InitializeSpeciesDirect(particles, sZ, sF, Mass, T);
   
   // Initialize the phase space vector
   //
-  InitializeUniform(particles, Mass, T, LL);
+  InitializeUniform(particles, Mass, T, LL, trace);
   
   // Output file
   //
-  writeParticles(particles, oname);
+  writeParticles(particles, oname, trace);
 
   return 0;
 }

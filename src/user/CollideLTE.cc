@@ -760,3 +760,103 @@ void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
   exesCT[id] += decolT[id];
   exesET[id] += decelT[id];
 }
+
+
+sKey2Umap CollideLTE::generateSelection
+(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+ double& meanLambda, double& meanCollP, double& totalNsel)
+{
+  sKeyDmap            densM, collPM, lambdaM, crossM;
+  sKey2Dmap           selcM;
+  sKey2Umap           nselM;
+  sKeyUmap::iterator  it1, it2;
+    
+  // Volume in the cell
+  //
+  double volc = c->Volume();
+  
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    densM[i1] = c->Mass(i1)/volc;
+  }
+    
+  double meanDens = 0.0;
+  meanLambda      = 0.0;
+  meanCollP       = 0.0;
+    
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+    speciesKey i1 = it1->first;
+    crossM [i1]   = 0.0;
+
+    for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+
+      if (i2>=i1) {
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+      } else
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+      
+      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
+	     << " #1 = (" << i1.first << ", " << i1.second << ")"
+	     << " #2 = (" << i2.first << ", " << i2.second << ")";
+      }
+	    
+      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
+	     << " #1 = (" << i2.first << ", " << i2.second << ")"
+	     << " #2 = (" << i1.first << ", " << i1.second << ")";
+      }
+	
+    }
+      
+    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+      cout << "INVALID CROSS SECTION! ::"
+	   << " crossM = " << crossM[i1] 
+	   << " densM = "  <<  densM[i1] 
+	   << " Fn = "     <<  (*Fn)[i1] << endl;
+    }
+    
+    lambdaM[i1] = 1.0/crossM[i1];
+    collPM [i1] = crossM[i1] * crm * tau;
+    
+    meanDens   += densM[i1] ;
+    meanCollP  += densM[i1] * collPM[i1];
+    meanLambda += densM[i1] * lambdaM[i1];
+  }
+    
+  // This is the number density-weighted
+  // MFP (used for diagnostics only)
+  meanLambda /= meanDens;
+
+  // Number-density weighted collision
+  // probability (used for diagnostics
+  // only)
+  meanCollP  /= meanDens;
+    
+  // This is the per-species N_{coll}
+  //
+  totalNsel = 0.0;
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    
+    for (it2=it1; it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+      
+      // Probability of an interaction of between particles of type 1
+      // and 2 for a given particle of type 2
+      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
+      
+      if (i1==i2)
+	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+      else
+	selcM[i1][i2] = it1->second * Prob;
+      
+      nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+      totalNsel += nselM[i1][i2];
+    }
+  }
+  
+  return nselM;
+}

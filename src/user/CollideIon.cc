@@ -55,6 +55,10 @@ bool     CollideIon::frost_warning = false;
 
 bool NO_COOL = false;
 
+// Cross-section debugging, false for production
+//
+static bool CROSS_DBG  = false;
+
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
@@ -67,6 +71,8 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD,
   NUM = 0;
   csections = std::vector<sKey2Dmap> (nthrds);
   
+  parseSpecies(smap);
+
   for(int i = 0; i < N_Z; i++) {
     for (int j = 1; j <= ZList[i] + 1; j++) {
       IonList[ZList[i]][j] = Ion(ZList[i], j, ch);
@@ -126,7 +132,33 @@ CollideIon::CollideIon(ExternalForce *force, double hD, double sD,
   Ein2     .resize(nthrds);
   Efix     .resize(nthrds);
 
-  parseSpecies(smap);
+  //
+  // Cross-section debugging [INIT]
+  //
+  if (CROSS_DBG) {
+    nextTime_dbg = 0.0;		// Next target time
+    nCnt_dbg     = 0;		// Number of cells accumulated so far
+
+    ostringstream ostr;
+    ostr << outdir << runtag << ".cross_section_dbg." << myid;
+    cross_debug = ostr.str();
+    std::ifstream in(cross_debug.c_str());
+    if (!in) {
+      std::ofstream out(cross_debug.c_str());
+      out << std::setw( 8) << "Count"
+	  << std::setw(18) << "Time"
+	  << std::setw(18) << "Initial"
+	  << std::setw(18) << "Final"
+	  << std::setw(18) << "Ratio"
+	  << std::endl
+	  << std::setw( 8) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::setw(18) << "-------"
+	  << std::endl;
+    }
+  }
 }
 
 CollideIon::~CollideIon()
@@ -2078,6 +2110,28 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
       }
     }
   }
+
+  
+  //
+  // Cross-section debugging [END]
+  //
+  if (CROSS_DBG && id==0) {
+    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
+      {
+	speciesKey i;
+
+	if (aType==Direct)
+	  i = cell->count.begin()->first;
+	else
+	  i = SpList.begin()->first;
+
+	cross2_dbg.push_back(csections[id][i][i]);
+	nCnt_dbg++;
+	if (nCnt_dbg == nCel_dbg) write_cross_debug();
+      }
+  }
+  // Done
+
 }
 
 // Help class that maintains database of diagnostics
@@ -2402,9 +2456,10 @@ void CollideIon::parseSpecies(const std::string& map)
       if (in.good()) {
 	std::istringstream sz(line);
 	sz >> Z;		// Add to the element list
-	if (sz.good()) ZList.push_back(Z);
-	else break;
-      } else break;
+	if (!sz.bad()) ZList.push_back(Z);
+      } else {
+	break;
+      }
     }
 				// Set the element list size
     N_Z = ZList.size();
@@ -2423,9 +2478,13 @@ void CollideIon::parseSpecies(const std::string& map)
 	sz >> key.second;
 	sz >> pos;
 				// Add to the species list
-	if (sz.good()) SpList[key] = pos;
-	else break;
-      } else break;
+	if (!sz.bad()) {
+	  SpList[key] = pos;
+	  ZList.push_back(key.first);
+	}
+      } else {
+	break;
+      }
     }
 				// Set the element list size
     N_Z = SpList.size();
@@ -2440,3 +2499,256 @@ void CollideIon::parseSpecies(const std::string& map)
   }
 
 }
+
+sKey2Umap CollideIon::generateSelection
+(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+ double& meanLambda, double& meanCollP, double& totalNsel)
+{
+  if (aType == Direct)
+    return generateSelectionDirect(c, Fn, crm, tau, id, meanLambda, meanCollP, totalNsel);
+  else
+    return generateSelectionTrace(c, Fn, crm, tau, id, meanLambda, meanCollP, totalNsel);
+}
+
+sKey2Umap CollideIon::generateSelectionDirect
+(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+ double& meanLambda, double& meanCollP, double& totalNsel)
+{
+  sKeyDmap            densM, collPM, lambdaM, crossM;
+  sKey2Dmap           selcM;
+  sKey2Umap           nselM;
+  sKeyUmap::iterator  it1, it2;
+    
+  // Volume in the cell
+  //
+  double volc = c->Volume();
+  
+  //
+  // Cross-section debugging [BEGIN]
+  //
+  
+  if (CROSS_DBG && id==0) {
+    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
+      speciesKey i = c->count.begin()->first;
+      cross1_dbg.push_back(csections[id][i][i]);
+    }
+  }
+  // Done
+  
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    densM[i1] = c->Mass(i1)/volc;
+  }
+    
+  double meanDens = 0.0;
+  meanLambda      = 0.0;
+  meanCollP       = 0.0;
+    
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+    speciesKey i1 = it1->first;
+    crossM [i1]   = 0.0;
+
+    for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+
+      if (i2>=i1) {
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+      } else
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+      
+      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
+	     << " #1 = (" << i1.first << ", " << i1.second << ")"
+	     << " #2 = (" << i2.first << ", " << i2.second << ")";
+      }
+	    
+      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
+	     << " #1 = (" << i2.first << ", " << i2.second << ")"
+	     << " #2 = (" << i1.first << ", " << i1.second << ")";
+      }
+	
+    }
+      
+    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+      cout << "INVALID CROSS SECTION! ::"
+	   << " crossM = " << crossM[i1] 
+	   << " densM = "  <<  densM[i1] 
+	   << " Fn = "     <<  (*Fn)[i1] << endl;
+    }
+    
+    lambdaM[i1] = 1.0/crossM[i1];
+    collPM [i1] = crossM[i1] * crm * tau;
+    
+    meanDens   += densM[i1] ;
+    meanCollP  += densM[i1] * collPM[i1];
+    meanLambda += densM[i1] * lambdaM[i1];
+  }
+    
+  // This is the number density-weighted
+  // MFP (used for diagnostics only)
+  meanLambda /= meanDens;
+
+  // Number-density weighted collision
+  // probability (used for diagnostics
+  // only)
+  meanCollP  /= meanDens;
+    
+  // This is the per-species N_{coll}
+  //
+  totalNsel = 0.0;
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    
+    for (it2=it1; it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+      
+      // Probability of an interaction of between particles of type 1
+      // and 2 for a given particle of type 2
+      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
+      
+      if (i1==i2)
+	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+      else
+	selcM[i1][i2] = it1->second * Prob;
+      
+      nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+      totalNsel += nselM[i1][i2];
+    }
+  }
+  
+  return nselM;
+}
+
+sKey2Umap CollideIon::generateSelectionTrace
+(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+ double& meanLambda, double& meanCollP, double& totalNsel)
+{
+  sKeyDmap            densM, collPM, lambdaM, crossM;
+  sKey2Dmap           selcM;
+  sKey2Umap           nselM;
+  sKeyUmap::iterator  it1, it2;
+    
+  // Volume in the cell
+  //
+  double volc = c->Volume();
+  
+  //
+  // Cross-section debugging [BEGIN]
+  //
+  
+  if (CROSS_DBG && id==0) {
+    if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
+      speciesKey i = c->count.begin()->first;
+      cross1_dbg.push_back(csections[id][i][i]);
+    }
+  }
+  // Done
+  
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    densM[i1] = c->Mass(i1)/volc;
+  }
+    
+  double meanDens = 0.0;
+  meanLambda      = 0.0;
+  meanCollP       = 0.0;
+    
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+    speciesKey i1 = it1->first;
+    crossM [i1]   = 0.0;
+
+    for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+
+      if (i2>=i1) {
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+      } else
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+      
+      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
+	     << " #1 = (" << i1.first << ", " << i1.second << ")"
+	     << " #2 = (" << i2.first << ", " << i2.second << ")";
+      }
+	    
+      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
+	     << " #1 = (" << i2.first << ", " << i2.second << ")"
+	     << " #2 = (" << i1.first << ", " << i1.second << ")";
+      }
+	
+    }
+      
+    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+      cout << "INVALID CROSS SECTION! ::"
+	   << " crossM = " << crossM[i1] 
+	   << " densM = "  <<  densM[i1] 
+	   << " Fn = "     <<  (*Fn)[i1] << endl;
+    }
+    
+    lambdaM[i1] = 1.0/crossM[i1];
+    collPM [i1] = crossM[i1] * crm * tau;
+    
+    meanDens   += densM[i1] ;
+    meanCollP  += densM[i1] * collPM[i1];
+    meanLambda += densM[i1] * lambdaM[i1];
+  }
+    
+  // This is the number density-weighted
+  // MFP (used for diagnostics only)
+  meanLambda /= meanDens;
+
+  // Number-density weighted collision
+  // probability (used for diagnostics
+  // only)
+  meanCollP  /= meanDens;
+    
+  // This is the per-species N_{coll}
+  //
+  totalNsel = 0.0;
+  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+    speciesKey i1 = it1->first;
+    
+    for (it2=it1; it2!=c->count.end(); it2++) {
+      speciesKey i2 = it2->first;
+      
+      // Probability of an interaction of between particles of type 1
+      // and 2 for a given particle of type 2
+      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
+      
+      if (i1==i2)
+	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+      else
+	selcM[i1][i2] = it1->second * Prob;
+      
+      nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+      totalNsel += nselM[i1][i2];
+    }
+  }
+  
+  return nselM;
+}
+
+
+void CollideIon::write_cross_debug()
+{
+  std::ofstream out(cross_debug.c_str(), ios::out | ios::app);
+  for (int i=0; i<nCel_dbg; i++) {
+    double diff = cross2_dbg[i] - cross1_dbg[i];
+    if (cross1_dbg[i]>0.0) diff /= cross1_dbg[i];
+    out << std::setw( 8) << i+1
+	<< std::setw(18) << tnow
+	<< std::setw(18) << cross1_dbg[i]
+	<< std::setw(18) << cross2_dbg[i]
+	<< std::setw(18) << diff
+	<< std::endl;
+  }
+  nextTime_dbg += delTime_dbg;
+  nCnt_dbg = 0;
+  cross1_dbg.erase(cross1_dbg.begin(), cross1_dbg.end());
+  cross2_dbg.erase(cross2_dbg.begin(), cross2_dbg.end());
+}
+

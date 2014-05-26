@@ -204,7 +204,7 @@ private:
   // CollideIon *collide;
   double ElostTotCollide, ElostTotEPSM;
 
-  string comp_name, species_map;
+  string comp_name, spec_map;
   Component *c0;
 
   void determine_acceleration_and_potential(void);

@@ -271,6 +271,28 @@ protected:
   void list_sizes_proc(ostream*);
   //@}
   
+  //@{
+  //! Cross-section debugging
+  std::string cross_debug;
+  std::vector<double> cross1_dbg, cross2_dbg;
+  double nextTime_dbg;
+  int nCnt_dbg;
+  static const double delTime_dbg = 0.001;
+  static const int nCel_dbg = 10;
+  void write_cross_debug();
+  //@}
+
+
+  virtual sKey2Umap generateSelectionDirect(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+					    double& meanLambda, double& meanCollP, 
+					    double& totalNsel);
+
+  virtual sKey2Umap generateSelectionTrace(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+					   double& meanLambda, double& meanCollP, 
+					   double& totalNsel);
+
+
+  //! Cache instance of current tree
   pHOT* curTree;
 
 public:
@@ -305,6 +327,10 @@ public:
   void printCollGather()  { collD->gather(); }
   void printCollSummary() { collD->print();  }
   void resetColls()       { collD->reset();  }
+
+  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+				      double& meanLambda, double& meanCollP, 
+				      double& totalNsel);
 
 };
 

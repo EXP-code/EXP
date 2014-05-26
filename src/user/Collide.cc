@@ -16,9 +16,6 @@ using namespace std;
 #include <gptl.h>
 #endif
 
-static bool CROSS_DBG  = false;	// Cross-section debugging, false for
-				// production
-
 static bool DEBUG      = false;	// Thread diagnostics, false for
 				// production
 
@@ -436,33 +433,6 @@ Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
   effortAccum  = false;
   effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
 
-  //
-  // Cross-section debugging
-  //
-  if (CROSS_DBG) {
-    nextTime_dbg = 0.0;		// Next target time
-    nCnt_dbg     = 0;		// Number of cells accumulated so far
-
-    ostringstream ostr;
-    ostr << outdir << runtag << ".cross_section_dbg." << myid;
-    cross_debug = ostr.str();
-    std::ifstream in(cross_debug.c_str());
-    if (!in) {
-      std::ofstream out(cross_debug.c_str());
-      out << std::setw( 8) << "Count"
-	  << std::setw(18) << "Time"
-	  << std::setw(18) << "Initial"
-	  << std::setw(18) << "Final"
-	  << std::setw(18) << "Ratio"
-	  << std::endl
-	  << std::setw( 8) << "-------"
-	  << std::setw(18) << "-------"
-	  << std::setw(18) << "-------"
-	  << std::setw(18) << "-------"
-	  << std::setw(18) << "-------"
-	  << std::endl;
-    }
-  }
 }
 
 Collide::~Collide()
@@ -762,104 +732,11 @@ void * Collide::collide_thread(void * arg)
 
     // Per species quantities
     //
-    
-    sKeyDmap            densM, collPM, lambdaM, crossM;
-    sKey2Dmap           selcM;
-    sKey2Umap           nselM;
-    sKeyUmap::iterator  it1, it2;
+    double              meanLambda, meanCollP, totalNsel;
     sKey2Dmap           crossIJ = totalCrossSections(id);
+    sKey2Umap           nselM   = generateSelection(c, Fn, crm, tau, id, 
+						    meanLambda, meanCollP, totalNsel);
     
-    //
-    // Cross-section debugging [BEGIN]
-    //
-
-    if (CROSS_DBG && id==0) {
-      if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
-	speciesKey i = c->count.begin()->first;
-	cross1_dbg.push_back(crossIJ[i][i]);
-      }
-    }
-    // Done
-  
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      speciesKey i1 = it1->first;
-      densM[i1] = c->Mass(i1)/volc;
-    }
-    
-    double meanDens=0.0, meanLambda=0.0, meanCollP=0.0;
-    
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      speciesKey i1 = it1->first;
-      crossM [i1]   = 0.0;
-
-      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-	speciesKey i2 = it2->first;
-
-	if (i2>=i1) {
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i1][i2];
-	} else
-	  crossM[i1] += (*Fn)[i2]*densM[i2]*crossIJ[i2][i1];
-
-	if (crossIJ[i1][i2] <= 0.0 || isnan(crossIJ[i1][i2])) {
-	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i1][i2]
-	       << " #1 = (" << i1.first << ", " << i1.second << ")"
-	       << " #2 = (" << i2.first << ", " << i2.second << ")";
-	}
-	    
-	if (crossIJ[i2][i1] <= 0.0 || isnan(crossIJ[i2][i1])) {
-	  cout << "INVALID CROSS SECTION! :: " << crossIJ[i2][i1]
-	       << " #1 = (" << i2.first << ", " << i2.second << ")"
-	       << " #2 = (" << i1.first << ", " << i1.second << ")";
-	}
-	
-      }
-      
-      if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
-      	cout << "INVALID CROSS SECTION! ::"
-	     << " crossM = " << crossM[i1] 
-	     << " densM = "  <<  densM[i1] 
-	     << " Fn = "     <<  (*Fn)[i1] << endl;
-      }
-
-      lambdaM[i1] = 1.0/crossM[i1];
-      collPM [i1] = crossM[i1] * crm * tau;
-      
-      meanDens   += densM[i1] ;
-      meanCollP  += densM[i1] * collPM[i1];
-      meanLambda += densM[i1] * lambdaM[i1];
-    }
-    
-    // This is the number density-weighted
-    // MFP (used for diagnostics only)
-    meanLambda /= meanDens;
-
-    // Number-density weighted collision
-    // probability (used for diagnostics
-    // only)
-    meanCollP  /= meanDens;
-    
-    // This is the per-species N_{coll}
-    //
-    double totalNsel = 0.0;
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      speciesKey i1 = it1->first;
-
-      for (it2=it1; it2!=c->count.end(); it2++) {
-	speciesKey i2 = it2->first;
-
-	// Probability of an interaction of between particles of type 1
-	// and 2 for a given particle of type 2
-	double Prob = (*Fn)[i2] * densM[i2] * crossIJ[i1][i2] * crm * tau;
-
-	if (i1==i2)
-	  selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
-	else
-	  selcM[i1][i2] = it1->second * Prob;
-	
-	nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
-	totalNsel += nselM[i1][i2];
-      }
-    }
 
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp");
@@ -992,11 +869,15 @@ void * Collide::collide_thread(void * arg)
       for (size_t k=0; k<c->bods.size(); k++) {
 	unsigned long kk = c->bods[k];
 	Particle* p = tree->Body(kk);
-	KeyConvert kc(p->iattrib[use_key]);
-	bmap[kc.getKey()].push_back(kk);
+
+	speciesKey skey = defaultKey;
+	if (use_key>=0) skey = KeyConvert(p->iattrib[use_key]).getKey();
+
+	bmap[skey].push_back(kk);
       }
     }
     
+    sKeyUmap::iterator  it1, it2;
     int totalCount = 0;
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
@@ -1200,21 +1081,6 @@ void * Collide::collide_thread(void * arg)
       maxCollP[id*2+EPSMused] = meanCollP;
     }
     
-    //
-    // Cross-section debugging [END]
-    //
-    if (CROSS_DBG && id==0) {
-      if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
-	{
-	  crossIJ = totalCrossSections(id);
-	  speciesKey i = c->count.begin()->first;
-	  cross2_dbg.push_back(crossIJ[i][i]);
-	  nCnt_dbg++;
-	  if (nCnt_dbg == nCel_dbg) write_cross_debug();
-	}
-    }
-    // Done
-  
   } // Loop over cells
 
   cellSoFar[id] = cellTime[id].stop();
@@ -2861,27 +2727,6 @@ double Collide::hsDiameter()
   const double Bohr = 5.2917721092e-09;
   return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
 }
-
-
-void Collide::write_cross_debug()
-{
-  std::ofstream out(cross_debug.c_str(), ios::out | ios::app);
-  for (int i=0; i<nCel_dbg; i++) {
-    double diff = cross2_dbg[i] - cross1_dbg[i];
-    if (cross1_dbg[i]>0.0) diff /= cross1_dbg[i];
-    out << std::setw( 8) << i+1
-	<< std::setw(18) << tnow
-	<< std::setw(18) << cross1_dbg[i]
-	<< std::setw(18) << cross2_dbg[i]
-	<< std::setw(18) << diff
-	<< std::endl;
-  }
-  nextTime_dbg += delTime_dbg;
-  nCnt_dbg = 0;
-  cross1_dbg.erase(cross1_dbg.begin(), cross1_dbg.end());
-  cross2_dbg.erase(cross2_dbg.begin(), cross2_dbg.end());
-}
-
 
 void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
 {
