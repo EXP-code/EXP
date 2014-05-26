@@ -51,8 +51,9 @@ string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
 bool     CollideLTE::frost_warning = false;
 
-CollideLTE::CollideLTE(ExternalForce *force, double hD, double sD, int Nth) : 
-  Collide(force, hD, sD, Nth)
+CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
+		       double hD, double sD, int Nth) : 
+  Collide(force, comp, hD, sD, Nth)
 {
   // Default cooling rates
   coolheat = vector<double>(nthrds, 0.0);

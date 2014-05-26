@@ -287,53 +287,56 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       }
     }
 
-    if (myid==0) {
-      cout << endl
-	   << "--------------" << endl
-	   << "Species counts" << endl
-	   << "--------------" << endl
-	   << endl;
-    
-      cout << setw(4) << right << "#";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	cout << setw(8) << right 
-	     << "(" << it->first.first << "," << it->first.second << ")";
-      cout << endl;
-      
-      cout << setw(4) << right << "---";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	cout << setw(12) << right << "--------";
-      cout << endl;
-    }
+    if (use_key>=0) {
 
-    for (int n=0; n<numprocs; n++) {
-      if (myid==n) {
-	spCountMapItr it2 = spec1.begin();
-	cout << setw(4) << right << myid;
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	  if (it->first == it2->first) {
-	    cout << setw(12) << right << it2->second;
-	    it2++;
-	  } else {
-	    cout << setw(12) << right << 0;
-	  }
-	}
+      if (myid==0) {
+	cout << endl
+	     << "--------------" << endl
+	     << "Species counts" << endl
+	     << "--------------" << endl
+	     << endl;
+    
+	cout << setw(4) << right << "#";
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(8) << right 
+	       << "(" << it->first.first << "," << it->first.second << ")";
+	cout << endl;
+	
+	cout << setw(4) << right << "---";
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << "--------";
 	cout << endl;
       }
+
+      for (int n=0; n<numprocs; n++) {
+	if (myid==n) {
+	  spCountMapItr it2 = spec1.begin();
+	  cout << setw(4) << right << myid;
+	  for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	    if (it->first == it2->first) {
+	      cout << setw(12) << right << it2->second;
+	      it2++;
+	    } else {
+	      cout << setw(12) << right << 0;
+	    }
+	  }
+	  cout << endl;
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+      }
+
       MPI_Barrier(MPI_COMM_WORLD);
-    }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (myid==0) {
-      cout << setw(4) << right << "---";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	cout << setw(12) << right << "--------";
-      cout << endl;
-      cout << setw(4) << right << "TOT";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	cout << setw(12) << right << it->second;
-      cout << endl;
+      if (myid==0) {
+	cout << setw(4) << right << "---";
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << "--------";
+	cout << endl;
+	cout << setw(4) << right << "TOT";
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	  cout << setw(12) << right << it->second;
+	cout << endl;
+      }
     }
   } else {
     spec_list.insert(defaultKey);
@@ -389,9 +392,9 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Create the collision instance from the allowed list
   //
   if (ctype.compare("LTE") == 0)
-    collide = new CollideLTE(this, hsdiam, diamfac, nthrds);
+    collide = new CollideLTE(this, c0, hsdiam, diamfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, hsdiam, diamfac, spec_map, nthrds);
+    collide = new CollideIon(this, c0, hsdiam, diamfac, spec_map, nthrds);
   else {
     std::cout << "No such Collide type: " << ctype << std::endl;
     exit(-1);
@@ -1164,9 +1167,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
     collide->printCollGather();
 
-    (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
-    makeSpeciesMap();
-    (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
+    if (use_key>=0) {
+      (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
+      makeSpeciesMap();
+      (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
+    }
 
     if (myid==0) {
 

@@ -89,7 +89,8 @@ public:
   static string cache;
   static bool frost_warning;
 
-  CollideLTE(ExternalForce *force, double hsDiam, double diamfac, int nth=1);
+  CollideLTE(ExternalForce *force, Component *comp,
+	     double hsDiam, double diamfac, int nth=1);
   ~CollideLTE();
 
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }

@@ -177,9 +177,9 @@ private:
 
   protected:
 
-  //! List of cross-sections (separate for each thread)
+  //! List of cross sections (separate for each thread)
   std::vector<sKey2Dmap> csections;
-  
+
   boost::shared_ptr<collDiag> collD;
 
   //! Number of elements
@@ -307,8 +307,8 @@ public:
   static bool frost_warning;
 
   //! Constructor
-  CollideIon(ExternalForce *force, double hsDiam, double diamfac, 
-	     const std::string& spcMap, int nth=1);
+  CollideIon(ExternalForce *force, Component *comp, 
+	     double hsDiam, double diamfac, const std::string& spcMap, int nth=1);
 
   //! Destructor
   ~CollideIon();
@@ -323,6 +323,9 @@ public:
   virtual void Elost(double* collide, double* epsm);
   
   void Debug(double t);
+
+  // Print out species counts
+  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
 
   void printCollGather()  { collD->gather(); }
   void printCollSummary() { collD->print();  }

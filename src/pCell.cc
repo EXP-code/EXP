@@ -11,10 +11,10 @@
 
 int pCell::live = 0;		// Track number of instances
 
-size_t   sCell::CRMsz  = 128;	// Maximum number of cached relative velocities
-unsigned pCell::bucket = 7;	// Target microscopic (collision) bucket size
-unsigned pCell::Bucket = 64;	// Target macroscopic bucket size
-unsigned pCell::deltaL = 2;     // Maximum number of cell expansions to get 
+size_t   sCell::VelCrsSZ = 128; // Maximum number of cached relative velocities
+unsigned pCell::bucket   = 7;   // Target microscopic (collision) bucket size
+unsigned pCell::Bucket   = 64;	// Target macroscopic bucket size
+unsigned pCell::deltaL   = 2;   // Maximum number of cell expansions to get 
 				// sample cell
 
 static unsigned ctargt = 0;
@@ -976,76 +976,83 @@ unsigned pCell::remake_plev()
   return maxplev;
 }
 
-double sCell::CRMavg()
+sCell::dPair sCell::VelCrsAvg()
 {
-  if (CRMlist.size()==0 || CRMnum<=0) return -1.0;
-  return CRMsum/CRMnum;
+  if (VelCrsList.size()==0 || VelCrsNum<=0) return dPair(1, 1);
+  dPair ret(VelCrsSum);
+  ret.first  /= VelCrsNum;
+  ret.second /= VelCrsNum;
+  return ret;
 }
 
-double sCell::CRMavg(speciesKey indx)
+sCell::dPair sCell::VelCrsAvg(speciesKey indx)
 {
-  std::map<speciesKey, deque<double> >::iterator it = CRMlistM.find(indx);
+  std::map<speciesKey, ddqPair>::iterator it = VelCrsListM.find(indx);
   
-  if (it == CRMlistM.end()) return -1.0;
+  if (it == VelCrsListM.end()) return dPair(1, 1);
 
-  if (it->second.size()==0 || CRMnumM[indx]<=0) return -1.0;
+  if (it->second.size()==0 || VelCrsNumM[indx]<=0) return dPair(1, 1);
 
-  return CRMsumM[indx]/CRMnumM[indx];
+  dPair ret(VelCrsSumM[indx]);
+  ret.first  /= VelCrsNumM[indx];
+  ret.second /= VelCrsNumM[indx];
+
+  return ret;
 }
 
-void sCell::CRMadd(speciesKey indx, double crm)
+void sCell::VelCrsAdd(speciesKey indx, const dPair& val)
 {
   unsigned sz = 0;
 
-  if (CRMlistM.find(indx) != CRMlistM.end()) sz = CRMlistM.size();
+  if (VelCrsListM.find(indx) != VelCrsListM.end()) sz = VelCrsListM.size();
 
   // Initialize running average
   //
   if (sz==0) {
-    CRMsumM[indx] = 0.0;
-    CRMnumM[indx] = 0;
+    VelCrsSumM[indx] = dPair(0, 0);
+    VelCrsNumM[indx] = 0;
   }
 
   // Add new element
   //
-  CRMlistM[indx].push_back(crm);
-  CRMsumM[indx] += crm;
-  CRMnumM[indx] += 1;
+  VelCrsListM[indx].push_back(val);
+  VelCrsSumM[indx] += val;
+  VelCrsNumM[indx] += 1;
 
   // Push out the oldest element
   // if deque is full
   //
-  if (sz==CRMsz) {
-    CRMsumM[indx] -= CRMlistM[indx].front();
-    CRMnumM[indx] -= 1;
-    CRMlistM[indx].pop_front();
+  if (sz==VelCrsSZ) {
+    VelCrsSumM[indx] -= VelCrsListM[indx].front();
+    VelCrsNumM[indx] -= 1;
+    VelCrsListM[indx].pop_front();
   }
 }
 
 
-void sCell::CRMadd(double crm)
+void sCell::VelCrsAdd(const dPair& val)
 {
-  unsigned sz = CRMlist.size();
+  unsigned sz = VelCrsList.size();
 
   // Initialize running average
   //
   if (sz==0) {
-    CRMsum = 0.0;
-    CRMnum = 0;
+    VelCrsSum = dPair(0, 0);
+    VelCrsNum = 0;
   }
 
   // Add new element
   //
-  CRMlist.push_back(crm);
-  CRMsum += crm;
-  CRMnum += 1;
+  VelCrsList.push_back(val);
+  VelCrsSum += val;
+  VelCrsNum += 1;
 
   // Push out the oldest element
   // if deque is full
   //
-  if (sz==CRMnum) {
-    CRMsum -= CRMlist.front();
-    CRMlist.pop_front();
-    CRMnum -= 1;
+  if (sz==VelCrsNum) {
+    VelCrsSum -= VelCrsList.front();
+    VelCrsList.pop_front();
+    VelCrsNum -= 1;
   }
 }

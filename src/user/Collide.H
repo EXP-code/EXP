@@ -102,6 +102,9 @@ public:
   
 protected:
 
+  // Fiducial component
+  Component *c0;
+
   // Calling force
   ExternalForce *caller;
   
@@ -357,10 +360,12 @@ public:
   
   /** Constructor
       @param force is the caller
+      @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
       @parm diamfac is the diameter scaling
   */
-  Collide(ExternalForce *force, double hsdiam, double diamfac, int nth=1);
+  Collide(ExternalForce *force, Component *comp, 
+	  double hsdiam, double diamfac, int nth=1);
   
   //! Destructor
   virtual ~Collide();

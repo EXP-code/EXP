@@ -176,9 +176,11 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
-Collide::Collide(ExternalForce *force, double hDiam, double sDiam, int nth)
+Collide::Collide(ExternalForce *force, Component *comp,
+		 double hDiam, double sDiam, int nth)
 {
   caller = force;
+  c0     = comp;
   nthrds = nth;
   
   // Counts the total number of collisions
@@ -655,7 +657,7 @@ void * Collide::collide_thread(void * arg)
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
     sCell *samp = c->sample;
-    double crm = -1.0;
+    sCell::dPair ntcF(1, 1);
     //
     // Sanity check
     //
@@ -671,25 +673,27 @@ void * Collide::collide_thread(void * arg)
       else cout << ", NOT on frontier" << endl;
       
     } else {
-      crm=samp->CRMavg();
+      ntcF = samp->VelCrsAvg();
     }
-    double mvel=crm, crmax=0.0;
+
+    sCell::dPair ntcFmax(1, 1);
+
+    double crm = 0.0;
     
-    if (!NTC || crm<0.0) {
-      crm = 0.0;
+    if (samp) {
       if (samp->stotal[0]>0.0) {
 	for (unsigned k=0; k<3; k++) {
 	  crm += (samp->stotal[1+k] - 
 		  samp->stotal[4+k]*samp->stotal[4+k]/samp->stotal[0])
 	    /samp->stotal[0];}
       }
-      mvel = fabs(crm);
-      crm  = sqrt(2.0*mvel);
-      if (NTC) crm *= 1.5;
+      crm  = sqrt(2.0*crm);
+
+      if (NTC) crm *= ntcF.first;
     }
     
     stat1SoFar[id] = stat1Time[id].stop();
-    stat2Time[id].start();
+    stat2Time [id].start();
     
 #ifdef USE_GPTL
     GPTLstop ("Collide::energy");
@@ -937,15 +941,11 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  if (cr == 0.0) continue;
 
-	  // Update v_max
-	  //
-	  if (NTC) crmax = max<double>(crmax, cr);
-	  
 	  // Accept or reject candidate pair according to relative speed
 	  //
 	  bool   ok   = false;
 	  double cros = crossSection(tree, p1, p2, cr, id);
-	  double crat = cros/crossIJ[i1][i2];
+	  double crat = cros/(ntcF.second*crossIJ[i1][i2]);
 	  double vrat = cr/crm;
 	  double targ = vrat * crat;
 
@@ -954,6 +954,14 @@ void * Collide::collide_thread(void * arg)
 	  else
 	    ok = true;
 	  
+
+	  // Update v_max and cross_max
+	  //
+	  if (NTC) {
+	    ntcFmax.first  = std::max<double>(ntcFmax.first,  vrat*ntcF.first );
+	    ntcFmax.second = std::max<double>(ntcFmax.second, crat*ntcF.second);
+	  }
+
 	  if (ok) {
 
 	    elasTime[id].start();
@@ -981,7 +989,7 @@ void * Collide::collide_thread(void * arg)
     elasSoFar[id] = elasTime[id].stop();
     
 #pragma omp critical
-    if (NTC) samp->CRMadd(crmax);
+    if (NTC) samp->VelCrsAdd(ntcFmax);
 
     // Count collisions
     //
@@ -1039,7 +1047,7 @@ void * Collide::collide_thread(void * arg)
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
       double Kn = meanLambda/cL;
-      double St = cL/fabs(tau*mvel);
+      double St = cL/fabs(tau*ntcF.first);
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
