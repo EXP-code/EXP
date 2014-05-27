@@ -1276,7 +1276,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   
   // Assign interaction energy variables
   //
-  double remE, totE, kEe, dof;
+  double remE, totE, kEe, dof = 1.0;
 
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
@@ -1285,7 +1285,8 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     if (use_Eint>=0) totE += p2->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
     kEe  = kEe2[id];		// Electron energy
-    dof  = 1.0 + ne2;		// Total degrees of freedom
+    if (use_Eint>=0)
+      dof = 1.0 + ne2;		// Total degrees of freedom
 
 				// Energy diagnostics
     ctd1->eV_av[id] += kEe2[id];
@@ -1306,7 +1307,8 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     if (use_Eint>=0) totE += p1->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
     kEe  = kEe1[id];		// Electron energy
-    dof  = 1.0 + ne1;		// Total degrees of freedom
+    if (use_Eint>=0)
+      dof  = 1.0 + ne1;		// Total degrees of freedom
 
 				// Energy diagnostics
     ctd2->eV_av[id] += kEe1[id];
@@ -1522,14 +1524,14 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   
   // Number of atoms in each super particle
   //
-  double N1 = m1*UserTreeDSMC::Munit/amu;
-  double N2 = m2*UserTreeDSMC::Munit/amu;
+  double N1 = m1*UserTreeDSMC::Munit/(atomic_weights[k1.first]*amu);
+  double N2 = m2*UserTreeDSMC::Munit/(atomic_weights[k2.first]*amu);
+  double NN = std::min<double>(N1, N2);
   
   // Number of associated electrons for each particle
   //
   double ne1 = C1 - 1;
   double ne2 = C2 - 1;
-
 
   // The total mass in system units
   //
@@ -1759,8 +1761,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
     // Convert to super particle
     //
-    if (partflag==1) delE *= N1;
-    if (partflag==2) delE *= N2;
+    delE *= NN;
     
     // Convert back to cgs
     //
@@ -1775,7 +1776,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
   // Pure scattering event
   //
-  if (delE<=0.0) return ret;
+  // if (delE<=0.0) return ret;
 
   // Convert energy loss to system units
   //
@@ -1783,7 +1784,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   
   // Assign interaction energy variables
   //
-  double remE, totE, kEe, dof;
+  double remE, totE, kEe, dof = 1.0;
 
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
@@ -1791,7 +1792,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     totE = kE;			// KE
     remE = totE - dE;		// Energy floor
     kEe  = kEe2[id];		// Electron energy
-    dof  = 1.0 + ne2;		// Total degrees of freedom
+    // dof  = 1.0 + ne2;	// Total degrees of freedom
 
 				// Energy diagnostics
     ctd1->eV_av[id] += kEe2[id];
@@ -1811,7 +1812,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     totE = kE;			// KE
     remE = totE - dE;		// Energy floor
     kEe  = kEe1[id];		// Electron energy
-    dof  = 1.0 + ne1;		// Total degrees of freedom
+    // dof  = 1.0 + ne1;	// Total degrees of freedom
 
 				// Energy diagnostics
     ctd2->eV_av[id] += kEe1[id];
@@ -1851,104 +1852,109 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   // Initial relative velocity 
   double vi        = (*cr);
 
-  // Sufficient energy available for selected loss
+  // Inelastic
   //
-  if (remE > delE) {
+  if (partflag>0) {
 
-    lostSoFar[id] += delE;
-    decelT[id]    += delE;
-    
-    totE          -= delE;	// Remove the energy from the total
-				// available
-
-				// Energy per particle
-    double kEm = totE / dof;
-    
-				// Get new relative velocity
-    (*cr)          = sqrt( 2.0*kEm/Mu );
-
-    ret            = 0;		// No error
-
-    if (partflag==1) {
-      ctd1->dv[id].first++; 
-      ctd1->dv[id].second += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
-    }
-    
-    if (partflag==2) {
-      ctd2->dv[id].first++; 
-      ctd2->dv[id].second += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
-    }
-
-  } else {
+    // Sufficient energy available for selected loss
     //
-    // Inconsistent: too much energy lost!
-    //
-    
-    // Compute total available energy for both particles
-    //
-    totE = kE - dE;
-    if (use_Eint>=0)
-      totE += p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
-
-    // Try combined energy first . . . 
-    //
-    if (totE > delE) {
+    if (remE > delE) {
 
       lostSoFar[id] += delE;
       decelT[id]    += delE;
-    
+      
       totE          -= delE;	// Remove the energy from the total
 				// available
-
+      
 				// Energy per particle
-      double kEm = totE / (1.0 + ne1 + ne2);
+      double kEm = totE / dof;
     
 				// Get new relative velocity
       (*cr)          = sqrt( 2.0*kEm/Mu );
 
-      ret            = 0;	// No error
+      ret            = 0;		// No error
 
       if (partflag==1) {
 	ctd1->dv[id].first++; 
 	ctd1->dv[id].second += 
 	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
       }
-      
+    
       if (partflag==2) {
 	ctd2->dv[id].first++; 
-	ctd2->dv[id].second +=
+	ctd2->dv[id].second += 
 	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
       }
+      
+    } else {
+      //
+      // Inconsistent: too much energy lost!
+      //
+      
+      // Compute total available energy for both particles
+      //
+      totE = kE - dE;
+      // if (use_Eint>=0)
+      // totE += p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
+      
+      // Try combined energy first . . . 
+      //
+      if (totE > delE) {
+	
+	lostSoFar[id] += delE;
+	decelT[id]    += delE;
+	
+	totE          -= delE;	// Remove the energy from the total
+				// available
+
+				// Energy per particle
+	// double kEm = totE / (1.0 + ne1 + ne2);
+	double kEm = totE;
+				// Get new relative velocity
+	(*cr)          = sqrt( 2.0*kEm/Mu );
+	
+	ret            = 0;	// No error
+	
+	if (partflag==1) {
+	  ctd1->dv[id].first++; 
+	  ctd1->dv[id].second += 
+	    0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
+	}
+      
+	if (partflag==2) {
+	  ctd2->dv[id].first++; 
+	  ctd2->dv[id].second +=
+	    0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+	}
 
 				// Remaining energy split between
 				// internal degrees of freedom
-      if (use_Eint>=0)
-	p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = kEm;
+	// if (use_Eint>=0)
+	// p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = kEm;
       
-    } else {
+      } else {
 				// All available energy will be lost
-      lostSoFar[id] += totE;
-      decolT[id]    += totE - delE;
+	lostSoFar[id] += totE;
+	decolT[id]    += totE - delE;
 
-      (*cr)         *= TolV;
-      ret            = 1;	// Set error flag
+	(*cr)         *= TolV;
+	ret            = 1;	// Set error flag
     
 				// Conservation of energy for internal
 				// degrees of freedom
-      dE             = 0.5*Mu*(*cr)*(*cr);
+	dE             = 0.5*Mu*(*cr)*(*cr);
 
-      if (partflag==1) {
-	ctd1->dv[id].first++; 
-	ctd1->dv[id].second +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
-      }
-      
-      if (partflag==2) {
-	ctd2->dv[id].first++; 
-	ctd2->dv[id].second +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+	if (partflag==1) {
+	  ctd1->dv[id].first++; 
+	  ctd1->dv[id].second +=
+	    0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
+	}
+	
+	if (partflag==2) {
+	  ctd2->dv[id].first++; 
+	  ctd2->dv[id].second +=
+	    0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+	}
       }
     }
   }
@@ -1970,7 +1976,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   double sin_th = sqrt(1.0 - cos_th*cos_th); // collision angle theta
   double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
   
-  vrel_f[0] = (*cr)*cos_th;	  // Compute post-collision
+  vrel_f[0] = (*cr)*cos_th;	     // Compute post-collision
   vrel_f[1] = (*cr)*sin_th*cos(phi); // relative velocity
   vrel_f[2] = (*cr)*sin_th*sin(phi);
   
@@ -1980,8 +1986,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   // Update post-collision velocities
   // 
   for (unsigned k=0; k<3; k++) {
-    p1->vel[k] = p1->vel[k]*(1.0 - ww) + ww*(vcm[k] + p2->mass/Mt*vrel_f[k]);
-    p2->vel[k] = p2->vel[k]*(1.0 - ww) + ww*(vcm[k] - p1->mass/Mt*vrel_f[k]);
+    p1->vel[k] = p1->vel[k]*(1.0 - ww) + ww*(vcm[k] + m2/Mt*vrel_f[k]);
+    p2->vel[k] = p2->vel[k]*(1.0 - ww) + ww*(vcm[k] - m1/Mt*vrel_f[k]);
   }
 
   double Excess = 0.0;
