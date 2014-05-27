@@ -26,10 +26,10 @@ class CollisionTypeDiag
 
 public:
 
-  typedef std::pair<unsigned int, double> udPr;
-  typedef std::vector<udPr>               IDVP;
-  typedef std::vector<double>             IDVD;
-  typedef std::vector<unsigned int>       IDVI;
+  typedef std::pair<double, double> ddPr;
+  typedef std::vector<ddPr>         IDVP;
+  typedef std::vector<double>       IDVD;
+  typedef std::vector<unsigned int> IDVI;
 
   IDVP ff, CE, CI, RR, dv;
   IDVD eV_av, eV_max, eV_min;
@@ -37,7 +37,7 @@ public:
   
 protected:
 
-  udPr   ff_s, CE_s, CI_s, RR_s, dv_s;
+  ddPr   ff_s, CE_s, CI_s, RR_s, dv_s;
   double eV_av_s, eV_max_s, eV_min_s;
   int    eV_N_s, eV_10_s;
   
@@ -45,7 +45,7 @@ public:
 
   CollisionTypeDiag() 
   {
-    const udPr zero(0, 0);
+    const ddPr zero(0, 0);
 
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
@@ -62,7 +62,7 @@ public:
 
   void reset() 
   {
-    const udPr zero(0, 0);
+    const ddPr zero(0, 0);
 
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
@@ -79,7 +79,7 @@ public:
 
   void sumUp()
   {
-    const udPr zero(0, 0);
+    const ddPr zero(0, 0);
     
     ff_s     = std::accumulate(ff.begin(), ff.end(), zero);
     CE_s     = std::accumulate(CE.begin(), CE.end(), zero);
@@ -144,16 +144,14 @@ private:
   typedef std::pair<speciesKey, speciesKey>        dKey;
   typedef std::map<dKey, std::vector<double> >     keyCrossMap;
   typedef std::map<dKey, std::vector<int>    >     keyInterMap;
-  typedef std::pair<double, dKey>                  dkPair;
-  typedef std::vector<dkPair>                      cSelect;
 
   std::vector< std::vector<double> >               dCrossMap;
   std::vector< std::vector<int>    >               dInterMap;
   std::vector< keyCrossMap >                       sCrossMap;
   std::vector< keyInterMap >                       sInterMap;
   std::vector< CEvector >                          CE1, CE2;
-  std::vector< double >                            kEi, kEe1, kEe2, Ein1, Ein2, Efix;
-  std::vector< cSelect >                           spSelect;
+  std::vector< double >                            kEi, kEe1, kEe2;
+  std::vector< double >                            Ein1, Ein2, spProb;
   //@}
 
   enum InterTypes { 
@@ -243,6 +241,7 @@ protected:
 
     return 0.0;
   }
+
 
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0)
   {

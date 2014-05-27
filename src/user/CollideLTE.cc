@@ -425,6 +425,7 @@ double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 }
 
 
+
 int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
 			  double *cr, int id)
 {
