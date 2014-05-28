@@ -262,8 +262,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (use_key>=0) {
 
     (*barrier)("TreeDSMC: BEFORE species map construction", __FILE__, __LINE__);
-    makeSpeciesMap();
-    collide->gatherSpecies();
+    makeSpeciesMap();		// Compute fractions in each species
     (*barrier)("TreeDSMC: AFTER species map construction",  __FILE__, __LINE__);
 
     typedef std::map<speciesKey, unsigned long> spCountMap;
@@ -339,7 +338,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 	cout << endl;
       }
     }
-  } else {
+  } else {		   
     spec_list.insert(defaultKey);
     collFrac[defaultKey] = 1.0;
   }
@@ -349,7 +348,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// Number of protons per mass unit
   for (std::map<speciesKey, double>::iterator 
-	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/mp;
+	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/amu;
   
   pHOT::sub_sample = sub_sample;
 
@@ -1017,6 +1016,9 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
 				// Computing mass-weighted temperature
     const double f_H = 0.75;
+				// This should be generalized and
+				// computed dynamically rather than
+				// hardwired
     double mm = amu / (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
     double meanT = 0.0;
     if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
@@ -1174,6 +1176,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
       makeSpeciesMap();
       (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
+    } else {
+      // I.e. compute fractions in trace counters
+      (*barrier)("TreeDSMC: BEFORE Collide::gatherSpecies",  __FILE__, __LINE__);
+      collide->gatherSpecies();
+      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
     }
 
     (*barrier)("TreeDSMC: BEFORE myid=0 printing",  __FILE__, __LINE__);
@@ -1584,6 +1591,9 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
 void UserTreeDSMC::assignTempDensVol()
 {
   const double f_H = 0.76;
+				// This should be generalized and
+				// computed dynamically rather than
+				// hardwired
   double mm = f_H*mp + (1.0-f_H)*4.0*mp;
   double KEtot, KEdsp, T;
   double Tfac;
@@ -1629,7 +1639,10 @@ void UserTreeDSMC::assignTempDensVol()
 	}
 	
 	cell->sample->KE(sKey, KEtot, KEdsp);
-	double mi = mp*atomic_weights[sKey.first];
+	double mi = amu;
+				// For non-trace or multiple species
+				// computations
+	if (sKey != defaultKey) mi = mp*atomic_weights[sKey.first];
 
 	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
 	T = KEdsp* Tfac;
