@@ -294,6 +294,17 @@ protected:
   //! Cache instance of current tree
   pHOT* curTree;
 
+  //@{
+  //! Trace species maps for diagnostics
+  typedef std::map<speciesKey, int> spMap;
+  typedef spMap::iterator spItr;
+  void printSpeciesTrace();
+  void gatherSpecies();
+
+  spMap specM;
+  double specM_mass;
+  //@}
+
 public:
   static double Nmin;
   static double Nmax;

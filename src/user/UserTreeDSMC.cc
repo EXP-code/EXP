@@ -263,6 +263,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
     (*barrier)("TreeDSMC: BEFORE species map construction", __FILE__, __LINE__);
     makeSpeciesMap();
+    collide->gatherSpecies();
     (*barrier)("TreeDSMC: AFTER species map construction",  __FILE__, __LINE__);
 
     typedef std::map<speciesKey, unsigned long> spCountMap;
@@ -1165,13 +1166,17 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       }
     }
 
+    (*barrier)("TreeDSMC: BEFORE Collide::printCollGather",  __FILE__, __LINE__);
     collide->printCollGather();
+    (*barrier)("TreeDSMC: AFTER Collide::printCollGather",  __FILE__, __LINE__);
 
     if (use_key>=0) {
       (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
       makeSpeciesMap();
       (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
     }
+
+    (*barrier)("TreeDSMC: BEFORE myid=0 printing",  __FILE__, __LINE__);
 
     if (myid==0) {
 
@@ -1464,10 +1469,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       
     }
 
+
     //
     // Reset the collide counters (CollideIon)
     //
+    (*barrier)("TreeDSMC: BEFORE collide counters", __FILE__, __LINE__);
     collide->resetColls();
+    (*barrier)("TreeDSMC: AFTER collide counters", __FILE__, __LINE__);
 
 
     //

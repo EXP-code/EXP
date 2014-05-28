@@ -551,19 +551,48 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
   //
   if (mlevel==0 && EFFORT && effortAccum) {
     
-    // Write to the file in process order
-    list< pair<long, unsigned> >::iterator it;
-    ostringstream ostr;
+    // Write to the file in node order
+    std::list< std::pair<long, unsigned> >::iterator it;
+    std::ostringstream ostr;
     ostr << outdir << runtag << ".collide.effort";
     for (int i=0; i<numprocs; i++) {
       if (myid==i) {
 	ofstream out(ostr.str().c_str(), ios::app);
 	if (out) {
-	  if (myid==0) out << "# Time=" << tnow << endl;
-	  for (int n=0; n<nthrds; n++) {
-	    for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++)
-	      out << setw(12) << it->first << setw(12) << it->second << endl;
+	  static bool firstTime = true;
+	  if (firstTime and myid==0) {
+	    out << std::setw( 6) << "Pid"
+		<< std::setw(18) << "Time"
+		<< std::setw(18) << "Mean(musec)"
+		<< std::setw(18) << "Var(musec)"
+		<< std::setw(18) << "Counts"
+		<< std::endl
+		<< std::setw( 6) << "-----"
+		<< std::setw(18) << "----------"
+		<< std::setw(18) << "----------"
+		<< std::setw(18) << "----------"
+		<< std::setw(18) << "----------"
+		<< std::endl;
 	  }
+	  double mean=0.0, var2=0.0, cnts=0.0;
+	  for (int n=0; n<nthrds; n++) {
+	    for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++) {
+	      double val = static_cast<double>(it->first)/it->second;
+	      mean += val;
+	      var2 += val*val;
+	      cnts += 1;
+	    }
+	  }
+	  if (cnts>0.0) {
+	    mean /= cnts;
+	    var2  = var2/cnts - mean*mean;
+	  }
+	  out << std::setw( 6) << myid
+	      << std::setw(18) << tnow
+	      << std::setw(18) << mean
+	      << std::setw(18) << sqrt(fabs(var2))
+	      << std::setw(18) << cnts
+	      << std::endl;
 	} else {
 	  cerr << "Process " << myid 
 	       << ": error opening <" << ostr.str() << ">" << endl;

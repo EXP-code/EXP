@@ -2306,6 +2306,7 @@ void collDiag::print()
 
   {
     std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
+    out << std::scientific << std::setprecision(3);
     if (out) {
       out << std::setw(12) << tnow << " | ";
       for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
@@ -2629,20 +2630,16 @@ void CollideIon::write_cross_debug()
 
 
 
-  // Print out species counts
-void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
+void CollideIon::gatherSpecies()
 {
-  if (aType == Direct) Collide::printSpecies(spec);
+  if (aType==Direct) return;
 
-  // Trace version
+  // Trace version follows
 
-  // Clean the local and global maps
+  // Clean the maps
   //
-  typedef std::map<speciesKey, int> spMap;
-  typedef spMap::iterator           spItr;
-
   double mass = 0.0;
-  spMap specM;
+  specM.erase(specM.begin(), specM.end());
 
   // Particle loop
   //
@@ -2705,17 +2702,37 @@ void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
     }
   }
 
+  if (mass>0.0) {
+    for (spItr it=specM.begin(); it != specM.end(); it++)
+      it->second /= mass;
+  }
+}
+
+
+// Print out species counts
+void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
+{
   if (myid) return;
 
+  if (aType == Direct) {
+    Collide::printSpecies(spec);
+  } else {
+    printSpeciesTrace();
+  }
+
+}
+
+void CollideIon::printSpeciesTrace()
+{
   std::ofstream dout;
 
-				// Generate the file name
+  // Generate the file name
   if (species_file_debug.size()==0) {
     std::ostringstream sout;
     sout << outdir << runtag << ".species";
     species_file_debug = sout.str();
 
-				// Open the file for the first time
+    // Open the file for the first time
     dout.open(species_file_debug.c_str());
 
 				// Print the header
@@ -2739,6 +2756,6 @@ void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
 
   dout << "  " << std::setw(12) << std::right << tnow;
   for (spItr it=specM.begin(); it != specM.end(); it++)
-    dout << std::setw(12) << std::right << it->second/mass;
+    dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
 }

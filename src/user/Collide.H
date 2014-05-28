@@ -453,6 +453,7 @@ public:
   //@}
 
   // Print out species counts
+  virtual void gatherSpecies() {}
   virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
   
   // Currently, these are only in CollideIon
