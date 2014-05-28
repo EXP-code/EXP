@@ -2599,7 +2599,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
     
   double Prob = rateF * csections[id][key][key];
-  double selcM = 0.5*(num-1) * num * Prob;
+  double selcM = 0.5 * (num-1) * Prob;
 
   sKey2Umap nselM;
   nselM[key][key] = static_cast<unsigned>(floor(selcM+0.5));
