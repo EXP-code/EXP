@@ -131,11 +131,9 @@ private:
   InteractSelect IS;
   unsigned int NUM;
 
-  std::map<unsigned short, double> atomic_weights;
   std::map<unsigned short, std::pair<unsigned short, double> > interInfo;
 
-
-  ACG *gen;
+  ACG     *gen;
   Uniform *unit;
   
   //@{
@@ -344,6 +342,8 @@ public:
   virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
+
+  virtual double molWeight(Component *C);
 
 };
 

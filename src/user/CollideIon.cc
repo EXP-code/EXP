@@ -98,23 +98,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   massSoFar  = 0.0;
   lostSoFar  = vector<double>(nthrds, 0.0);
   
-  /** 
-      Initialize the atomic_weights map
-      Hardcode the atomic weight map for use in collFrac
-  */
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
-  
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
   if (myid==0 && NO_COOL) std::cout << "No cooling is set to TRUE" 
@@ -2761,3 +2744,38 @@ void CollideIon::printSpeciesTrace()
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
 }
+
+
+// Compute the mean molecular weight in atomic mass units
+double CollideIon::molWeight(Component *c0)
+{
+  // Only do this once and cache the result
+  if (mol_weight<0)  {
+
+    mol_weight = 1.0;		// Default; i.e. for trace algorithm
+
+    if (aType==Direct) {
+      mol_weight = 0.0;
+
+      std::map<unsigned short, int> zval;
+      for (int i=0; i<N_Z; i++) zval[ZList[i]] = i;
+      std::map<unsigned short, int>::iterator iz, izEnd(zval.end());
+
+      std::vector<double> speciesM(N_Z, 0.0);
+      PartMapItr p = c0->Particles().begin(), pEnd = c0->Particles().end();
+      for (; p!= pEnd; p++) {
+	speciesKey key = KeyConvert(p->second.dattrib[use_key]).getKey();
+	iz = zval.find(key.first);
+	if (iz != izEnd) speciesM[iz->second] += p->second.mass;
+      }
+
+      MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], N_Z, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+      mol_weight = 0.0;
+      for (int i=0; i<N_Z; i++) mol_weight += speciesM[i]/atomic_weights[ZList[i]];
+      mol_weight = 1.0/mol_weight;
+    }
+  }
+
+  return mol_weight;
+  }

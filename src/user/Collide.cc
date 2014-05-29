@@ -176,6 +176,24 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
 double   Collide::EPSMratio = -1.0;
 unsigned Collide::EPSMmin   = 0;
 
+std::map<unsigned short, double> Collide::atomic_weights;
+
+void Collide::atomic_weights_init()
+{
+  atomic_weights[1]  = 1.0079;
+  atomic_weights[2]  = 4.0026;
+  atomic_weights[3]  = 6.941;
+  atomic_weights[4]  = 9.0122;
+  atomic_weights[5]  = 10.811;
+  atomic_weights[6]  = 12.011;
+  atomic_weights[7]  = 14.007;
+  atomic_weights[8]  = 15.999;
+  atomic_weights[9]  = 18.998;
+  atomic_weights[10] = 20.180;
+  atomic_weights[11] = 22.990;
+  atomic_weights[12] = 24.305;
+}  
+
 Collide::Collide(ExternalForce *force, Component *comp,
 		 double hDiam, double sDiam, int nth)
 {
@@ -183,6 +201,12 @@ Collide::Collide(ExternalForce *force, Component *comp,
   c0     = comp;
   nthrds = nth;
   
+  // Initialize atomic weights map
+  if (atomic_weights.size()==0) atomic_weights_init();
+
+  // Unintialized molecular weight
+  mol_weight = -1.0;
+
   // Counts the total number of collisions
   colcntT = vector< vector<unsigned> > (nthrds);
   
@@ -2832,4 +2856,18 @@ void Collide::velocityUpdate(Particle* p1, Particle* p2, double cr)
     p1->vel[k] = vcm[k] + p2->mass/tmass*vrel[k];
     p2->vel[k] = vcm[k] - p1->mass/tmass*vrel[k];
   }
+}
+
+
+// Compute the mean molecular weight in atomic mass units
+double Collide::molWeight(Component *C)
+{
+  const double f_H = 0.76;	// Assume only hydrogen and helium here
+
+  // Only do this once and cache the result
+  if (mol_weight<0)  {
+    mol_weight = 1.0 / (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
+  }
+
+  return mol_weight;
 }

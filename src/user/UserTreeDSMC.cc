@@ -1014,12 +1014,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&Elost1, &ElostC, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-				// Computing mass-weighted temperature
-    const double f_H = 0.75;
-				// This should be generalized and
-				// computed dynamically rather than
-				// hardwired
-    double mm = amu / (f_H/atomic_weights[1] + (1.0-f_H)/atomic_weights[2]);
+    double mm = amu * collide->molWeight(c0);
     double meanT = 0.0;
     if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
 

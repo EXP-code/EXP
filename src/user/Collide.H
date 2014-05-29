@@ -296,6 +296,13 @@ protected:
   //! Species map output
   std::string species_file_debug;
 
+  //! Cached molecular weight (computed once; could be done per cell
+  //! but temperature is a mean quantity anyway)
+  double mol_weight;
+
+  //! Initialize atomic weights (public data)
+  void atomic_weights_init();
+
 public:
   
   //! Integrate the cooling solution
@@ -358,11 +365,14 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
+  //! Atomic weights (public data)
+  static std::map<unsigned short, double> atomic_weights;
+
   /** Constructor
       @param force is the caller
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
-      @parm diamfac is the diameter scaling
+      @param diamfac is the diameter scaling
   */
   Collide(ExternalForce *force, Component *comp, 
 	  double hsdiam, double diamfac, int nth=1);
@@ -419,47 +429,58 @@ public:
   virtual void Elost(double* collide, double* epsm)  
   { cerr << "Oops [3]" << endl; *collide=0; *epsm=0; }
   
-  /// Collision thread
   //@{
+  //! Collision thread
   void *collide_thread(void *arg);
   void collide_thread_fork(pHOT *tree, sKeyDmap* Fn, double tau);
   //@}
   
-  /// Timestep thread
   //@{
+  //! Timestep thread
   virtual void *timestep_thread(void *arg);
   void compute_timestep(pHOT* tree, double coolfrac);
   //@}
   
-  /// Debug timing routines
   //@{
+  //! Debug timing routines
   vector<double> dgnoscTime() { return diagSum; }
   vector<double> threadTime() { return forkSum; }
   vector<double> joinedTime() { return snglSum; }
   vector<double> waitngTime() { return waitSum; }
   vector<double> joinngTime() { return joinSum; }
+
   void EPSMtimingGather();
   void CPUHogGather();
   void EPSMtiming(ostream& out);
   void CPUHog(ostream& out);
   //@}
   
-  /// Debug output routines
   //@{
+  //! Debug output routines
   void CollectTiming();
   void colldeTime(ostream& out);
   void voldiag(ostream& out);
   void tsdiag(ostream& out);
   //@}
 
-  // Print out species counts
+  /** Molecular weight in atomic mass units.  This could be computed
+      per cell but now, it is computed once to start, possibly using the
+      particle distribution.  
+  */
+  virtual double molWeight(Component* C);
+  
+  //@{
+  //! Print out species counts
   virtual void gatherSpecies() {}
   virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
+  //@}
   
-  // Currently, these are only in CollideIon
+  //@{ 
+  //! Collision diagnostics. Currently, these are only in CollideIon
   virtual void printCollGather()  {}
   virtual void printCollSummary() {}
   virtual void resetColls()       {}
+  //@}
 };
 
 #endif
