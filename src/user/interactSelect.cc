@@ -44,11 +44,13 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
   std::vector< double > normed;
   std::vector< double > kgrid_log;
   
-  double hbc = 197.327; // Value of h-bar * c in eV nm
+  double hbc  = 197.327; // Value of h-bar * c in eV nm
+  
+  double Emin = hbc*pow(10, a.kgrid[0]);
 
-  if (E < a.egrid[0]) return 0.0;
+  if (E < Emin) return 0.0;
 
-  for(int i = 0; i < a.kffsteps; i++) {
+  for (int i = 0; i < a.kffsteps; i++) {
     double de = a.egrid[1]-a.egrid[0];
     int e_1 = int(floor(E/de));
     int e_2 = e_1 + 1;
@@ -77,15 +79,24 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
     }
   }
   
-  Cspline<double, double> interp(normed, kgrid_log);
-  double rn = (double)rand()/(double)RAND_MAX;
-  double k = interp(rn);
+  double k = a.kgrid[0];	// Minimum grid value (default)
+  size_t n = normed.size();
+				// Linear
+  if (n==2) {
+    double rn = (double)rand()/(double)RAND_MAX;
+    k = ( (normed[1] - rn)*kgrid_log[0] + (rn - normed[0])*kgrid_log[1] ) /
+      (normed[1] - normed[0]);
+  }
+				// Spline
+  if (n>2) {
+    double rn = (double)rand()/(double)RAND_MAX;
+    Cspline<double, double> interp(normed, kgrid_log);
+    k = interp(rn);
+  }
 
   k = pow(10, k);
 
-  double EF = k*hbc;
-  
-  return EF;
+  return k*hbc;
 }
 
 double InteractSelect::DIInterLoss(chdata& ch, Ion& a) 
