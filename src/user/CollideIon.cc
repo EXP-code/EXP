@@ -1287,7 +1287,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   
   // Assign interaction energy variables
   //
-  double remE, totE, kEe, dof = 1.0;
+  double remE=0.0, totE=0.0, kEe=0.0, dof = 1.0;
 
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
@@ -2106,21 +2106,21 @@ void collDiag::gather()
 
     double z;
     if (myid==0) {
-      MPI_Reduce(&(u=ctd->ff_s.first),  &ctd->ff_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
+      MPI_Reduce(&(z=ctd->ff_s.first),  &ctd->ff_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1
       MPI_Reduce(&(z=ctd->ff_s.second), &ctd->ff_s.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2
-      MPI_Reduce(&(u=ctd->CE_s.first),  &ctd->CE_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
+      MPI_Reduce(&(z=ctd->CE_s.first),  &ctd->CE_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 3
       MPI_Reduce(&(z=ctd->CE_s.second), &ctd->CE_s.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 4
-      MPI_Reduce(&(u=ctd->CI_s.first),  &ctd->CI_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
+      MPI_Reduce(&(z=ctd->CI_s.first),  &ctd->CI_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 5
       MPI_Reduce(&(z=ctd->CI_s.second), &ctd->CI_s.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 6
-      MPI_Reduce(&(u=ctd->RR_s.first),  &ctd->RR_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
+      MPI_Reduce(&(z=ctd->RR_s.first),  &ctd->RR_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 7
       MPI_Reduce(&(z=ctd->RR_s.second), &ctd->RR_s.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 8
-      MPI_Reduce(&(u=ctd->dv_s.first),  &ctd->dv_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
+      MPI_Reduce(&(z=ctd->dv_s.first),  &ctd->dv_s.first,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 9
       MPI_Reduce(&(z=ctd->dv_s.second), &ctd->dv_s.second, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 10
       MPI_Reduce(&(z=ctd->eV_av_s),     &ctd->eV_av_s,     1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 11
-      MPI_Reduce(&(u=ctd->eV_N_s),      &ctd->eV_N_s,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
+      MPI_Reduce(&(z=ctd->eV_N_s),      &ctd->eV_N_s,      1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 12
       MPI_Reduce(&(z=ctd->eV_min_s),    &ctd->eV_min_s,    1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD); // 13
       MPI_Reduce(&(z=ctd->eV_max_s),    &ctd->eV_max_s,    1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD); // 14
-      MPI_Reduce(&(u=ctd->eV_10_s),     &ctd->eV_10_s,     1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
+      MPI_Reduce(&(z=ctd->eV_10_s),     &ctd->eV_10_s,     1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 15
     } else {
       MPI_Reduce(&ctd->ff_s.first,      &z,                1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 1 
       MPI_Reduce(&ctd->ff_s.second, 	&z, 		   1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD); // 2 
