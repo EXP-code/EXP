@@ -126,13 +126,13 @@ private:
   
   // Timing and debug
   //
-  unsigned ncells, bodycount, stepcount;
-  Timer forkTime, snglTime, waitTime, joinTime, diagTime;
-  TimeElapsed forkSoFar, snglSoFar, waitSoFar;
-  TimeElapsed diagSoFar, joinSoFar;
+  unsigned       ncells, bodycount, stepcount;
+  Timer          forkTime, snglTime, waitTime, joinTime, diagTime;
+  TimeElapsed    forkSoFar, snglSoFar, waitSoFar;
+  TimeElapsed    diagSoFar, joinSoFar;
   vector<double> forkSum, snglSum, waitSum, diagSum, joinSum;
+  bool           effortAccum;
   vector< list< pair<long, unsigned> > > effortNumber;
-  bool effortAccum;
   
   // Quantile index function
   //

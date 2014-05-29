@@ -81,17 +81,17 @@ public:
   {
     const ddPr zero(0, 0);
     
-    ff_s     = std::accumulate(ff.begin(), ff.end(), zero);
-    CE_s     = std::accumulate(CE.begin(), CE.end(), zero);
-    CI_s     = std::accumulate(CI.begin(), CI.end(), zero);
-    RR_s     = std::accumulate(RR.begin(), RR.end(), zero);
-    dv_s     = std::accumulate(dv.begin(), dv.end(), zero);
+    ff_s     =  std::accumulate(ff.begin(), ff.end(), zero);
+    CE_s     =  std::accumulate(CE.begin(), CE.end(), zero);
+    CI_s     =  std::accumulate(CI.begin(), CI.end(), zero);
+    RR_s     =  std::accumulate(RR.begin(), RR.end(), zero);
+    dv_s     =  std::accumulate(dv.begin(), dv.end(), zero);
 
-    eV_av_s  = std::accumulate(eV_av .begin(), eV_av .end(), 0);
-    eV_N_s   = std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
+    eV_av_s  =  std::accumulate(eV_av .begin(), eV_av .end(), 0);
+    eV_N_s   =  std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
     eV_max_s = *std::max_element(eV_max.begin(), eV_max.end());
     eV_min_s = *std::min_element(eV_min.begin(), eV_min.end());
-    eV_10_s  = std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
+    eV_10_s  =  std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
   }
 
 };
