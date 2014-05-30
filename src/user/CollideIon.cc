@@ -1527,11 +1527,19 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     // Output on collisions for now . . . 
     //
     std::cout << std::setw( 8) << "index"
+	      << std::setw( 4) << "Z1"
+	      << std::setw( 4) << "C1"
+	      << std::setw( 4) << "Z2"
+	      << std::setw( 4) << "C2"
 	      << std::setw( 8) << "flag"
 	      << std::setw(14) << "cross"
 	      << std::setw(18) << "type label"
 	      << std::endl
 	      << std::setw( 8) << "-----"
+	      << std::setw( 4) << "---"
+	      << std::setw( 4) << "---"
+	      << std::setw( 4) << "---"
+	      << std::setw( 4) << "---"
 	      << std::setw( 8) << "-----"
 	      << std::setw(14) << "---------"
 	      << std::setw(18) << "---------------"
@@ -1543,6 +1551,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	dKey dkey(k1, k2);
 	for (size_t i = 0; i < sCrossMap[id][dkey].size(); i++) {
 	  std::cout << std::setw( 8) << i
+		    << std::setw( 4) << k1.first
+		    << std::setw( 4) << k1.second
+		    << std::setw( 4) << k2.first
+		    << std::setw( 4) << k2.second
 		    << std::setw( 8) << sInterMap[id][dkey][i]
 		    << std::setw(14) << sCrossMap[id][dkey][i]
 		    << std::setw(18) << labels[sInterMap[id][dkey][i]]
@@ -1892,9 +1904,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     }
   }
   
+  // Replace particle weights
+  //
+  for (keyI::iterator sp=SpList.begin(); sp!=SpList.end(); sp++) {
+    p1->dattrib[sp->second] = new1[sp->first];
+    p2->dattrib[sp->second] = new2[sp->first];
+  }
+
   // Velocity update
   //
-
   std::vector<double> vrel_i(3), vrel_f(3), vcm(3);
 
   // Pre-collision relative velocity
