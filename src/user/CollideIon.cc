@@ -51,7 +51,7 @@ double   CollideIon::TolV    = 1.0e-03;
 unsigned CollideIon::Nnum    = 400;
 unsigned CollideIon::Tnum    = 200;
 string   CollideIon::cache   = ".HeatCool";
-bool     CollideIon::frost_warning = false;
+bool     CollideIon::frost_warning = false; // For debugging . . . 
 
 bool NO_COOL = false;
 
@@ -1536,8 +1536,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       labels[recomb_2   ] = "recombine  [2]";
     }
     //
-    // Output on collisions for now . . . 
-    //
     std::cout << std::setw( 8) << "index"
 	      << std::setw( 4) << "Z1"
 	      << std::setw( 4) << "C1"
@@ -1586,28 +1584,38 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     new2[sp->first] = p2->dattrib[sp->second];
   }
 
-  // Cycle through all species
+  // Cycle through all pairs of species
   //
   double delE = 0.0;
 
-  keyCrossMap::iterator sp=sCrossMap[id].begin(), spEnd=sCrossMap[id].end();
-  for (; sp!=spEnd; sp++) {
+  keyCrossMap::iterator spBeg=sCrossMap[id].begin();
+  keyCrossMap::iterator spEnd=sCrossMap[id].end();
+  
+  for (keyCrossMap::iterator sp=spBeg; sp!=spEnd; sp++) {
 
+    // The interaction pair
+    //
     dKey key = sp->first;
+
+    // Number of interaction types in this map
+    //
+    size_t snum = sInterMap[id][key].size();
 
     // Normalize cross section list
     //
     double norm = std::accumulate(sp->second.begin(), sp->second.end(), 0.0);
     
     // Sanity check: compute elastic and inelastic fractions
-    //
-    double elastic = 0.0, inelastic = 0.0;
-    size_t snum = sInterMap[id][key].size();
-    for (size_t i=0; i<snum; i++) {
-      if (sInterMap[id][key][i] % 100 < 3)
-	elastic   += sCrossMap[id][key][i]/norm;
-      else
-	inelastic += sCrossMap[id][key][i]/norm;
+    //  |
+    //  v
+    if (0) {
+      double elastic = 0.0, inelastic = 0.0;
+      for (size_t i=0; i<snum; i++) {
+	if (sInterMap[id][key][i] % 100 < 3)
+	  elastic   += sCrossMap[id][key][i]/norm;
+	else
+	  inelastic += sCrossMap[id][key][i]/norm;
+      }
     }
 
     // The interaction pair
@@ -1632,7 +1640,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     unsigned short Z1 = k1.first, C1 = k1.second;
     unsigned short Z2 = k2.first, C2 = k2.second;
   
-    // Number of atoms in each super particle
+    // Number of atoms in each super particle of trace type
     //
     double N1 = m1*UserTreeDSMC::Munit/(atomic_weights[k1.first]*amu);
     double N2 = m2*UserTreeDSMC::Munit/(atomic_weights[k2.first]*amu);
@@ -1642,10 +1650,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     for (size_t isp=0; isp<snum; isp++) {
       
       int interFlag = sInterMap[id][key][isp];
+      double prob   = sCrossMap[id][key][isp] * spProb[id];
 
-      double prob = sCrossMap[id][key][isp] * spProb[id];
+      // Accumulate the total energy lost in inelastic processes
+      double tdelE = 0.0;
 
-      double tdelE = 0.0, delE1 = 0.0, delE2 = 0.0;
+      // Accumulate the total energy lost for each particle (diagnostic)
+      double delE1 = 0.0, delE2 = 0.0;
+
+      // Indicate loss in particle 1 or 2 (diagnostic)
       bool p1Flag = false, p2Flag = false;
 
       //-------------------------
@@ -1721,7 +1734,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == col_exite_2) {
 	delE2  = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
-	delE  += delE2;
+	tdelE += delE2;
 	ctd2->CE[id].first  += prob;
 	ctd2->CE[id].second += delE2;
 	p2Flag = true;
