@@ -2649,10 +2649,10 @@ void CollideIon::gatherSpecies()
 
   // Particle loop
   //
-  PartMapItr p    = c0->Particles().begin();
+  PartMapItr pbeg = c0->Particles().begin();
   PartMapItr pend = c0->Particles().end();
 
-  for (; p!=pend; p++) {
+  for (PartMapItr p=pbeg; p!=pend; p++) {
     
     for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
       speciesKey k = it->first;
@@ -2689,7 +2689,7 @@ void CollideIon::gatherSpecies()
       }
 
     }
-				// Receive from Node i
+				// Root receives from Node i
     if (0 == myid) {
       MPI_Recv(&sizm, 1, MPI_INT,    i, 330, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       MPI_Recv(&val,  1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -2701,13 +2701,15 @@ void CollideIon::gatherSpecies()
 		 MPI_STATUS_IGNORE);
 	MPI_Recv(&val,        1, MPI_DOUBLE,         i, 334, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-				// Update global map
+				// Update root's map
 	if (specM.find(key) == specM.end()) specM[key]  = val;
 	else                                specM[key] += val;
       }
     }
   }
 
+				// At this point, root's map is global
+				// and remaning nodes have local maps
   if (mass>0.0) {
     for (spDItr it=specM.begin(); it != specM.end(); it++) it->second /= mass;
   }
@@ -2719,9 +2721,9 @@ void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
 {
   if (myid) return;
 
-  if (aType == Direct) {
+  if (aType == Direct) {	// Call the generic printSpecies member
     Collide::printSpecies(spec);
-  } else {
+  } else {			// Call the trace fraction version
     printSpeciesTrace();
   }
 
@@ -2732,15 +2734,18 @@ void CollideIon::printSpeciesTrace()
   std::ofstream dout;
 
   // Generate the file name
+  //
   if (species_file_debug.size()==0) {
     std::ostringstream sout;
     sout << outdir << runtag << ".species";
     species_file_debug = sout.str();
 
     // Open the file for the first time
+    //
     dout.open(species_file_debug.c_str());
 
 				// Print the header
+				//
     dout << "# " << std::setw(12) << std::right << "Time ";
     for (spDItr it=specM.begin(); it != specM.end(); it++) {
       std::ostringstream sout;
@@ -2756,9 +2761,11 @@ void CollideIon::printSpeciesTrace()
 
   } else {
 				// Open for append
+				//
     dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
 
+  dout << std::setprecision(3);
   dout << "  " << std::setw(12) << std::right << tnow;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
