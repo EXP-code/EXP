@@ -195,8 +195,6 @@ private:
 
 protected:
   
-  double deltaE;
-  
   void initialize_cell(pHOT* tree, pCell* c, double rvmax, int id);
 
   void initialize_cell_dsmc(pHOT* tree, pCell* c, sKey2Umap& nsel, 

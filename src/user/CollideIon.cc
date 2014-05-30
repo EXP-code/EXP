@@ -833,9 +833,9 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       double cross12 = 0.0;
       double cross21 = 0.0;
 
-				//-------------------------------
-				// Both particles neutral
-				//-------------------------------
+      //-------------------------------
+      // Both particles neutral
+      //-------------------------------
       if (C1==1 and C2==1) {
 	double sUp = diamfac * diamfac;
 				// Geometric cross sections based on
@@ -849,15 +849,21 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	dInterMap[id].push_back(geometric_2);
       }
 
-				//-------------------------------
-				// Electrons in second particle
-				//-------------------------------
+      //-------------------------------
+      // Electrons in second particle
+      //-------------------------------
       if (ne2 > 0) {
-	if (C1==1) {		// Neutral atom-electron scattering
+				//-------------------------------
+	if (C1==1) {		// *** Neutral atom-electron 
+				// *** scattering
+				//-------------------------------
 	  cross12 = elastic(Z1, kEe2[id]) * eVel2 * ww * ne2;
 	  tCrossMap.push_back(cross12);
 	  tInterMap.push_back(neut_elec_1);
-	}  else {			// Rutherford scattering
+	}  else {			
+				//-------------------------------
+				// *** Rutherford scattering
+				//-------------------------------
 	  double b = 0.5*esu*esu*(C1-1) /
 	    std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
 	  cross12 = M_PI*b*b * eVel2 * ww*ne2;
@@ -866,15 +872,21 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
       }
     
-				//-------------------------------
-				// Electrons in first particle
-				//-------------------------------
+      //-------------------------------
+      // Electrons in first particle
+      //-------------------------------
       if (ne1 > 0) {
-	if (C2==1) {		// Neutral atom-electron scattering
+				//-------------------------------
+	if (C2==1) {		// *** Neutral atom-electron 
+				// *** scattering
+				//-------------------------------
 	  cross21 = elastic(Z2, kEe1[id]) * eVel1 * ww * ne1;
 	  tCrossMap.push_back(cross21);
 	  tInterMap.push_back(neut_elec_2);
-	} else {			// Rutherford scattering
+	} else {
+				//-------------------------------
+				// *** Rutherford scattering
+				//-------------------------------
 	  double b = 0.5*esu*esu*(C2-1) /
 	    std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
 	  cross21 = M_PI*b*b * eVel1 * ww * ne1;
@@ -884,7 +896,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       //--------------------------------------------------
-      // Particle 1 interacts with Particle 2
+      // Particle 1 interacts with electrons in Particle 2
       //--------------------------------------------------
 
 				//-------------------------------
@@ -1667,7 +1679,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
-	assert(C1 <= (Z1 + 1));
+	assert(C1 <= Z1+1);
 	ctd1->CI[id].first  += prob;
 	ctd1->CI[id].second += delE1;
 	p1Flag = true;
@@ -1691,7 +1703,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C1 > 0);
 	ctd1->RR[id].first  += prob;
-	ctd1->RR[id].second += deltaE;
+	ctd1->RR[id].second += delE1;
 	p1Flag = true;
       }
     
@@ -1703,7 +1715,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE2   = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
 	tdelE  += delE2;
 	ctd2->ff[id].first  += prob;
-	ctd2->ff[id].second += deltaE;
+	ctd2->ff[id].second += delE2;
 	p2Flag = true;
       }
 
@@ -1726,7 +1738,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
-	assert(C2 <= (Z2 + 1));
+	assert(C2 <= Z2+1);
 	ctd2->CI[id].first  += prob;
 	ctd2->CI[id].second += delE2;
 	p2Flag = true;
