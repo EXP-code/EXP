@@ -1,5 +1,14 @@
 /*
   Compute initial conditions for a uniform density gas
+
+  o ICs for the "direct" DSMC algorithm need constant particle number
+    super particles for each species with the atomic numbers written to
+    the species definition file.
+
+  o ICs for the "trace" DSMC algorithm should have constant
+    super-particles masses with mass fractions for each species
+    written to the species definition file altong with the position
+    index for each trace fraction in the dattrib vector.
 */
 
 #include <iostream>
@@ -408,23 +417,13 @@ void InitializeSpeciesTrace
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
-
-  std::vector<double> frcS(NS);
-  int nspc = 0;
-  for (size_t i=0; i<NS; i++) {
-    sF[i]  /= norm;
-    frcS[i] = sF[i]/atomic_masses[sZ[i]-1];
-    nspc += sZ[i]+1;
-  }
+  for (size_t i=0; i<NS; i++) sF[i]  /= norm;
 
   for (size_t indx=0; indx<NS; indx++) { 
     double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
     for (std::vector<double>::iterator is=frac[indx].begin(); is!=frac[indx].end(); is++)
       *is /= norm;
   }
-
-  double fNorm = std::accumulate(frcS.begin(), frcS.end(), 0.0);
-  for (size_t i=0; i<NS; i++) frcS[i] /= fNorm;
 
   for (size_t i=0; i<N; i++) {
 
@@ -438,8 +437,8 @@ void InitializeSpeciesTrace
     for (size_t indx=0; indx<NS; indx++) { 
       // Get the ionization state
       for (size_t j=0; j<sZ[indx]+1; j++) {
-	particles[i].dattrib.push_back(frcS[indx]*frac[indx][j]);
-	test += frcS[indx] * frac[indx][j];
+	particles[i].dattrib.push_back(sF[indx]*frac[indx][j]);
+	test += sF[indx] * frac[indx][j];
       }
     }
     assert ( fabs(test-1.0) < 1.0e-12 );

@@ -755,15 +755,15 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   sIter sEnd(SpList.end());
   for (sIter s1=SpList.begin(); s1!=sEnd; s1++) {
 
-				// Particle 1: key and weight
+				// Particle 1: key and number weight
     speciesKey k1 = s1->first;
-    double     w1 = p1->dattrib[s1->second];
+    double     w1 = p1->dattrib[s1->second]/atomic_weights[k1.first];
     
     for (sIter s2=SpList.begin(); s2!=sEnd; s2++) {
 
-				// Particle 1: key and weight
+				// Particle 1: key and number weight
       speciesKey k2 = s2->first;
-      double     w2 = p2->dattrib[s2->second];
+      double     w2 = p2->dattrib[s2->second]/atomic_weights[k2.first];
 
 				// Weight product
       double     ww = w1 * w2;
@@ -783,9 +783,11 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       /*
       double m1  = atomic_weights[Z1]*amu;
       double m2  = atomic_weights[Z2]*amu;
-      double mu  = m1 * m2 / (m1 + m2);
       */
-      double mu = 0.5*amu;
+      double m1  = amu;
+      double m2  = amu;
+
+      double mu  = m1 * m2 / (m1 + m2);
       double vel = cr * UserTreeDSMC::Vunit;
 
       // Translational COM energy
@@ -794,8 +796,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Electron velocity equipartition factors
       //
-      double eVel1 = sqrt(amu/me);
-      double eVel2 = sqrt(amu/me);
+      double eVel1 = sqrt(m1/me);
+      double eVel2 = sqrt(m2/me);
 
       // Convert the total available energy from ergs to eV
       //
@@ -1751,7 +1753,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize_2) {
-	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;;
+	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;
 	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
 	if (prob < w2) {
@@ -2636,6 +2638,8 @@ sKey2Umap CollideIon::generateSelectionTrace
   if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0)
     cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
     
+  // Cross sections are already number weighted at this point
+  //
   double crossM = (*Fn)[key] * dens * csections[id][key][key];
   double collPM = crossM * crm * tau;
 
