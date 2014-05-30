@@ -780,9 +780,12 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   
       // Energy available in the center of mass of the atomic collision
       //
+      /*
       double m1  = atomic_weights[Z1]*amu;
       double m2  = atomic_weights[Z2]*amu;
       double mu  = m1 * m2 / (m1 + m2);
+      */
+      double mu = 0.5*amu;
       double vel = cr * UserTreeDSMC::Vunit;
 
       // Translational COM energy
@@ -791,8 +794,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Electron velocity equipartition factors
       //
-      double eVel1 = sqrt(m1/me);
-      double eVel2 = sqrt(m2/me);
+      double eVel1 = sqrt(amu/me);
+      double eVel2 = sqrt(amu/me);
 
       // Convert the total available energy from ergs to eV
       //
@@ -834,7 +837,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       double cross21 = 0.0;
 
       //-------------------------------
-      // Both particles neutral
+      // Elastic: both particles
+      // are neutral
       //-------------------------------
       if (C1==1 and C2==1) {
 	double sUp = diamfac * diamfac;
@@ -850,7 +854,9 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       //-------------------------------
-      // Electrons in second particle
+      // Elastic: first particle is
+      // neutral, electrons in second 
+      // particle
       //-------------------------------
       if (ne2 > 0) {
 				//-------------------------------
@@ -873,7 +879,9 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
     
       //-------------------------------
-      // Electrons in first particle
+      // Elastic: second particle is
+      // neutral, electrons in first
+      // particle
       //-------------------------------
       if (ne1 > 0) {
 				//-------------------------------
@@ -896,7 +904,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       //--------------------------------------------------
-      // Particle 1 interacts with electrons in Particle 2
+      // Inelastic scattering: Particle 1 interacts with 
+      // electrons in Particle 2
       //--------------------------------------------------
 
 				//-------------------------------
@@ -957,7 +966,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
   
       //--------------------------------------------------
-      // Particle 2 interacts with Particle 1
+      // Inelastic scattering: Particle 2 interacts with 
+      // electrons in Particle 1
       //--------------------------------------------------
 
 				//-------------------------------
