@@ -2783,7 +2783,7 @@ void CollideIon::printSpeciesTrace()
     dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
 
-  dout << std::setprecision(3);
+  dout << std::setprecision(4);
   dout << "  " << std::setw(12) << std::right << tnow;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
