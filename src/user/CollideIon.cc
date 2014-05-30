@@ -117,6 +117,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   kEe2     .resize(nthrds);
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
+  spTau    .resize(nthrds);
   spProb   .resize(nthrds);
 
   //
@@ -1339,6 +1340,16 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     EoverT[id][indx] += Mt;
   }
   
+  // Time step "cooling" diagnostic
+  //
+  if (use_delt>=0 && delE>0.0 && remE>0.0) {
+    double dtE = delE/remE * spTau[id];
+    double dt1 = p1->dattrib[use_delt];
+    double dt2 = p2->dattrib[use_delt];
+    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
+    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+  }
+
   if (use_exes>=0) {
     // (-/+) value means under/overcooled: positive/negative increment
     // to delE NB: delE may be < 0 if too much energy was radiated
@@ -1602,14 +1613,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     double N1 = m1*UserTreeDSMC::Munit/(atomic_weights[k1.first]*amu);
     double N2 = m2*UserTreeDSMC::Munit/(atomic_weights[k2.first]*amu);
   
-    // Working variable
-    //
-    double deltaE = 0.0;
-    
     // Cycle through the interaction list
     //
     for (size_t isp=0; isp<snum; isp++) {
-
+      
       int interFlag = sInterMap[id][key][isp];
 
       double prob = sCrossMap[id][key][isp] * spProb[id];
@@ -1622,24 +1629,24 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	deltaE = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
-	tdelE += deltaE;
+	delE1  = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
+	tdelE += delE1;
 	ctd1->ff[id].first  += prob;
-	ctd1->ff[id].second += deltaE;
+	ctd1->ff[id].second += delE1;
 	p1Flag = true;
       }
 
       if (interFlag == col_exite_1) {
-	deltaE = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
-	tdelE += deltaE;
+	delE1  = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
+	tdelE += delE1;
 	ctd1->CE[id].first  += prob;
-	ctd1->CE[id].second += deltaE;
+	ctd1->CE[id].second += delE1;
 	p1Flag = true;
       }
 
       if (interFlag == ionize_1) {
-	deltaE = IS.DIInterLoss(ch, IonList[Z1][C1]) * prob;
-	tdelE += deltaE;
+	delE1  = IS.DIInterLoss(ch, IonList[Z1][C1]) * prob;
+	tdelE += delE1;
 	speciesKey kk(Z1, ++C1);
 	if (prob < w1) {
 	  new1[kk] += prob;
@@ -1650,7 +1657,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C1 <= (Z1 + 1));
 	ctd1->CI[id].first  += prob;
-	ctd1->CI[id].second += deltaE;
+	ctd1->CI[id].second += delE1;
 	p1Flag = true;
       }
 
@@ -1660,8 +1667,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
-	deltaE = kEe2[id] * prob;
-	tdelE += deltaE;
+	delE1  = kEe2[id] * prob;
+	tdelE += delE1;
 	speciesKey kk(Z1, --C1);
 	if (prob < w1) {
 	  new1[kk] += prob;
@@ -1681,24 +1688,24 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
-	deltaE  = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
-	tdelE  += deltaE;
+	delE2   = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
+	tdelE  += delE2;
 	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += deltaE;
 	p2Flag = true;
       }
 
       if (interFlag == col_exite_2) {
-	deltaE = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
-	delE  += deltaE;
+	delE2  = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
+	delE  += delE2;
 	ctd2->CE[id].first  += prob;
-	ctd2->CE[id].second += deltaE;
+	ctd2->CE[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == ionize_2) {
-	deltaE  = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;;
-	tdelE  += deltaE;
+	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;;
+	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
 	if (prob < w2) {
 	  new2[kk] += prob;
@@ -1709,13 +1716,13 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C2 <= (Z2 + 1));
 	ctd2->CI[id].first  += prob;
-	ctd2->CI[id].second += deltaE;
+	ctd2->CI[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == recomb_2) {
-	deltaE = kEe1[id] * prob; // See comment above for interFlag==6
-	tdelE += deltaE;
+	delE2  = kEe1[id] * prob; // See comment above for interFlag==6
+	tdelE += delE2;
 	speciesKey kk(Z2, --C2);
 	if (prob < w2) {
 	  new2[kk] += prob;
@@ -1726,7 +1733,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C2 > 0);
 	ctd2->RR[id].first  += prob;
-	ctd2->RR[id].second += deltaE;
+	ctd2->RR[id].second += delE2;
 	p2Flag = true;
       }
 
@@ -1836,6 +1843,16 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     EoverT[id][indx] += Mt;
   }
   
+  // Time step "cooling" diagnostic
+  //
+  if (use_delt>=0 && delE>0.0 && remE>0.0) {
+    double dtE = delE/remE * spTau[id];
+    double dt1 = p1->dattrib[use_delt];
+    double dt2 = p2->dattrib[use_delt];
+    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
+    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+  }
+
   // Inelastic
   //
   if (delE>0.0) {
@@ -1937,7 +1954,7 @@ void * CollideIon::timestep_thread(void * arg)
   pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   int id     = (int)((tstep_pass_arguments*)arg)->id;
   
-  // thread_timing_beg(id);
+  thread_timing_beg(id);
   
   // Loop over cells, cell time-of-flight time
   // for each particle
@@ -2018,7 +2035,7 @@ void * CollideIon::timestep_thread(void * arg)
     }
   }
   
-  //thread_timing_end(id);
+  thread_timing_end(id);
   
   return (NULL);
 }
@@ -2578,6 +2595,10 @@ sKey2Umap CollideIon::generateSelectionTrace
 
   spProb[id] = rateF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
+  // Cache time step for estimating "over" cooling timestep is use_delt>=0
+  //
+  spTau[id]  = tau;
+
   // For Collide diagnostics
   //
   meanLambda = 1.0/crossM;
@@ -2647,7 +2668,7 @@ void CollideIon::gatherSpecies()
   // Send the local map to other nodes
   //
   int sizm;
-  spItr it;
+  spDItr it;
   double val;
   speciesKey key;
 
@@ -2655,9 +2676,9 @@ void CollideIon::gatherSpecies()
     if (i == myid) {
       sizm = specM.size();
 				// Local map size
-      MPI_Send(&sizm, 1, MPI_INT, 0, 330, MPI_COMM_WORLD);
+      MPI_Send(&sizm, 1, MPI_INT,    0, 330, MPI_COMM_WORLD);
 				// Mass
-      MPI_Send(&mass, 1, MPI_INT, 0, 331, MPI_COMM_WORLD);
+      MPI_Send(&mass, 1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
 				// Send local map
       for (it=specM.begin(); it != specM.end(); it++) {
 	key = it->first;
@@ -2688,8 +2709,7 @@ void CollideIon::gatherSpecies()
   }
 
   if (mass>0.0) {
-    for (spItr it=specM.begin(); it != specM.end(); it++)
-      it->second /= mass;
+    for (spDItr it=specM.begin(); it != specM.end(); it++) it->second /= mass;
   }
 }
 
@@ -2722,7 +2742,7 @@ void CollideIon::printSpeciesTrace()
 
 				// Print the header
     dout << "# " << std::setw(12) << std::right << "Time ";
-    for (spItr it=specM.begin(); it != specM.end(); it++) {
+    for (spDItr it=specM.begin(); it != specM.end(); it++) {
       std::ostringstream sout;
       sout << "(" << it->first.first << "," << it->first.second << ") ";
       dout << setw(12) << right << sout.str();
@@ -2730,7 +2750,7 @@ void CollideIon::printSpeciesTrace()
     dout << std::endl;
 
     dout << "# " << std::setw(12) << std::right << "--------";
-    for (spItr it=specM.begin(); it != specM.end(); it++)
+    for (spDItr it=specM.begin(); it != specM.end(); it++)
       dout << setw(12) << std::right << "--------";
     dout << std::endl;
 
@@ -2740,7 +2760,7 @@ void CollideIon::printSpeciesTrace()
   }
 
   dout << "  " << std::setw(12) << std::right << tnow;
-  for (spItr it=specM.begin(); it != specM.end(); it++)
+  for (spDItr it=specM.begin(); it != specM.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
 }

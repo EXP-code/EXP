@@ -108,8 +108,6 @@ protected:
   // Calling force
   ExternalForce *caller;
   
-private:
-  
   // Threading stuff
   //
   thrd_pass_Collide *td;
@@ -167,8 +165,6 @@ private:
     }
   }
   //@}
-  
-protected:
   
   int nthrds;
   

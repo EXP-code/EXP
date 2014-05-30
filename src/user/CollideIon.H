@@ -149,7 +149,8 @@ private:
   std::vector< keyInterMap >                       sInterMap;
   std::vector< CEvector >                          CE1, CE2;
   std::vector< double >                            kEi, kEe1, kEe2;
-  std::vector< double >                            Ein1, Ein2, spProb;
+  std::vector< double >                            Ein1, Ein2;
+  std::vector< double >                            spTau, spProb;
   //@}
 
   enum InterTypes { 
@@ -299,8 +300,9 @@ protected:
   void printSpeciesTrace();
   void gatherSpecies();
 
-  spMap specM;
-  double specM_mass;
+  typedef std::map<speciesKey, double> spDMap;
+  typedef spDMap::iterator spDItr;
+  spDMap specM;
   //@}
 
 public:
