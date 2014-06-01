@@ -20,29 +20,43 @@ namespace std {
 
 class collDiag;
 
+/**
+   This helper class defines a data structure and manipulators for the
+   diagnostic collDiag class.
+*/
 class CollisionTypeDiag 
 {
   friend class collDiag;
 
 public:
 
+  //@{
+  //! Container definition
   typedef std::pair<double, double> ddPr;
   typedef std::vector<ddPr>         IDVP;
   typedef std::vector<double>       IDVD;
   typedef std::vector<unsigned int> IDVI;
+  //@}
 
+  //@{
+  //! Vectors for each type of diagnostic by thread id
   IDVP ff, CE, CI, RR, dv;
   IDVD eV_av, eV_max, eV_min;
   IDVI eV_N, eV_10;
+  //@}
   
 protected:
 
+  //@{
+  //! Variables to hold processes collective reductions
   ddPr   ff_s, CE_s, CI_s, RR_s, dv_s;
   double eV_av_s, eV_max_s, eV_min_s;
   int    eV_N_s, eV_10_s;
+  //@}
   
 public:
 
+  //! Construtor initializes the vectors
   CollisionTypeDiag() 
   {
     const ddPr zero(0, 0);
@@ -60,6 +74,7 @@ public:
     eV_10 .resize(nthrds, 0);
   }
 
+  //! Reset the accumulation vectors
   void reset() 
   {
     const ddPr zero(0, 0);
@@ -77,6 +92,8 @@ public:
     std::fill(eV_10 .begin(), eV_10 .end(), 0);
   }
 
+  //! Sum up over all threads for processing data by the collDiag
+  //! instance
   void sumUp()
   {
     const ddPr zero(0, 0);
@@ -99,21 +116,51 @@ public:
 typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
 typedef std::map<speciesKey, collTDPtr> sKeyCollTD;
 
+/**
+ This helper class maintains database of diagnostics on the CollideIon
+ collisions.
+*/
 class collDiag : public sKeyCollTD
 {
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
 
+  //! Make the file header the first time
   void initialize();
 
 public:
+  //! Constructor
   collDiag(CollideIon *caller);
+
+  //! All processes send info to the root process
   void gather();
+  //! Print the current data to the diagnostic file
   void print();
+  //! Zero out the structures maintained by the CollisionTypeDiag maps
   void reset();
 };
 
+/**
+   Implementation of a DSMC collision algorithm based on the CHIANTI
+   atomic data base.  We have implemented two distinct collision algorithms:
+   <ol>
+   <li> A standard DSMC algorithm that assigns each element a distinct
+   super particle with a dynamic ionization state.
+   <li> A trace-species DSMC algorithm that assigns each element the
+   same super-particle mass and keeps track of the multiple elements
+   and their ionization states using a vector of mass weights.
+   </ol>
+
+   The parseSpecies member function reads a specification file whose
+   first line must include the tag string "direct" or "trace" to
+   select the algorithm.  The "direct" file contains lines specifying
+   the atomic number, Z, of the species represented in the simulation,
+   one value per line.  The "trace" file contains line with triples of
+   numbers containing Z, the charge state C (C=1 means neutral, C=2 is
+   the first ionization state, etc.) and the index position of the
+   mass fraction in the Particle dattrib vector.
+ */
 class CollideIon : public Collide
 {
   friend class collDiag;
@@ -153,6 +200,8 @@ private:
   std::vector< double >                            spTau, spProb;
   //@}
 
+  //! This defines the various types of interactions used to tag
+  //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
     geometric_1 = 100,
     neut_elec_1 = 101,
@@ -170,6 +219,7 @@ private:
     recomb_2    = 206
   };    
 
+  //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct,  Trace };
 
   protected:
@@ -321,28 +371,35 @@ public:
   //! Destructor
   ~CollideIon();
   
+  //! Sets timestep processing for the EXP multiple time-step algorithm
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
   
   virtual double Etotal();
   virtual double Mtotal();
 
+  //! Times the per-thread processing time
   virtual void *timestep_thread(void *arg);
   
   virtual void Elost(double* collide, double* epsm);
   
   void Debug(double t);
 
-  // Print out species counts
+  //! Print out species counts
   virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
 
+  //@{
+  //! Galther and print collision statistics
   void printCollGather()  { collD->gather(); }
   void printCollSummary() { collD->print();  }
   void resetColls()       { collD->reset();  }
+  //@}
 
+  //! Select particle numbers for interaction
   virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 
+  //! Compute/retrieve mean molecular weight for this gas
   virtual double molWeight(Component *C);
 
 };
