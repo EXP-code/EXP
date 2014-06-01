@@ -119,6 +119,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   Ein2     .resize(nthrds);
   spTau    .resize(nthrds);
   spProb   .resize(nthrds);
+  spWght   .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -1645,7 +1646,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     // Get weighted mass
     //
     double m1 = p1->mass * w1;
-    double m2 = p1->mass * w2;
+    double m2 = p2->mass * w2;
 
     // Species keys
     //
@@ -1664,10 +1665,21 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       int interFlag = sInterMap[id][key][isp];
 
       double prob   = sCrossMap[id][key][isp] * spProb[id];
+      double wght   = sCrossMap[id][key][isp] * spWght[id];
+
 				// Number of Particle 1 interactions
-      double F1     = prob/atomic_weights[k1.first];
+      double F1     = prob/(w1/atomic_weights[k1.first]);
+
 				// Number of Particle 2 interactions
-      double F2     = prob/atomic_weights[k2.first];
+      double F2     = prob/(w2/atomic_weights[k2.first]);
+
+				// Particle 1 mass weight
+      double W1     = wght/(w1/atomic_weights[k1.first]) * 
+	atomic_weights[k1.first]/p1->mass;
+
+				// Particle 2 mass weight
+      double W2     = wght/(w2/atomic_weights[k2.first]) * 
+	atomic_weights[k2.first]/p2->mass;
 
       // Accumulate the total energy lost in inelastic processes
       //
@@ -1705,9 +1717,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE1  = IS.DIInterLoss(ch, IonList[Z1][C1]) * F1;
 	tdelE += delE1;
 	speciesKey kk(Z1, ++C1);
-	if (prob < w1) {
-	  new1[kk] += prob;
-	  new1[k1] -= prob;
+	if (W1 < w1) {
+	  new1[kk] += W1;
+	  new1[k1] -= W1;
 	} else {
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
@@ -1727,9 +1739,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE1  = kEe2[id] * F1;
 	tdelE += delE1;
 	speciesKey kk(Z1, --C1);
-	if (prob < w1) {
-	  new1[kk] += prob;
-	  new1[k1] -= prob;
+	if (W1 < w1) {
+	  new1[kk] += W1;
+	  new1[k1] -= W1;
 	} else {
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
@@ -1764,9 +1776,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * F2;
 	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
-	if (prob < w2) {
-	  new2[kk] += prob;
-	  new2[k2] -= prob;
+	if (W2 < w2) {
+	  new2[kk] += W2;
+	  new2[k2] -= W2;
 	} else {
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
@@ -1781,9 +1793,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE2  = kEe1[id] * F2; // See comment above for interFlag==6
 	tdelE += delE2;
 	speciesKey kk(Z2, --C2);
-	if (prob < w2) {
-	  new2[kk] += prob;
-	  new2[k2] -= prob;
+	if (W2 < w2) {
+	  new2[kk] += W2;
+	  new2[k2] -= W2;
 	} else {
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
@@ -2653,12 +2665,16 @@ sKey2Umap CollideIon::generateSelectionTrace
 
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
-  double rateF = 1.0 * (*Fn)[key] * dens * crm * tau;
+  //
+  double rateF = 0.5 * (*Fn)[key] * dens * crm * tau;
+  double wghtF = 0.5 * dens * crm * tau;
   //             ^
   //             |
   // Cross sections counted twice in cumulative sum
 
   spProb[id] = rateF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  spWght[id] = wghtF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
