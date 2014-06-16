@@ -151,9 +151,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 
 CollideIon::~CollideIon()
 {
-  /** I don't believe this is needed.  Destroying the vector will call
-      the destructor for Ion. */
-  IonList.erase(IonList.begin(), IonList.end());
 }
 
 
@@ -247,9 +244,11 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     typedef std::vector<unsigned long>::iterator bIter;
     typedef std::map<speciesKey, int>::iterator  sIter;
 
+				// Mean weight
     std::map<speciesKey, double> meanW;
     for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] = 0.0;
 
+				// Total particle mass
     double massP = 0.0;
     
     for (bIter b=cell->bods.begin(); b!= cell->bods.end(); b++) {
@@ -267,6 +266,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 				// Compute cross sections
 				//
     for (sIter s1=SpList.begin(); s1!=SpList.end(); s1++) {
+
       speciesKey i1 = s1->first;
       double Cross1 = geometric(i1.first);
       
@@ -302,7 +302,9 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	  }
 	}
 
-	double tCross = (Cross1 + Cross2) * meanW[i1] * meanW[i2] * 
+	double tCross = (Cross1 + Cross2) * 
+	  meanW[i1] / atomic_weights[i1.first] *
+	  meanW[i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -318,7 +320,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
   typedef std::map<speciesKey, unsigned> Count;
   Count::iterator it1, it2;
   
-  double vel = crm * UserTreeDSMC::Vunit;
+  double vel  = crm * UserTreeDSMC::Vunit;
   double Eerg = 0.5*vel*vel*amu;
   double EeV  = Eerg / eV;
 
@@ -392,7 +394,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 
     csections[id][defaultKey][defaultKey] = 0.0;
 
-    // Compute maximum trace in each particle in the cell
+    // Compute the mean trace weight in the cell
     //
     typedef std::vector<unsigned long>::iterator bIter;
     typedef std::map<speciesKey, int>::iterator  sIter;
@@ -412,8 +414,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	  meanW[s->first] += p->mass * p->dattrib[s->second];
     }
     
-				// Compute mean weight
-				//
+				// Normalize
     for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] /= massP;
 
 				// Compute cross sections
@@ -424,6 +425,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       double geom1  = geometric(i1.first);
     
       for (sIter s2=SpList.begin(); s2!=SpList.end(); s2++) {
+
 	speciesKey i2 = s2->first;
 	double geom2 = geometric(i2.first);
 	  
@@ -469,7 +471,9 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	  }
 	}
 	
-	double tCross = (Cross1 + Cross2) * meanW[i1] * meanW[i2] * 
+	double tCross = (Cross1 + Cross2) *
+	  meanW[i1] / atomic_weights[i1.first] *
+	  meanW[i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -868,13 +872,14 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  cross12 = elastic(Z1, kEe2[id]) * eVel2 * ww * ne2;
 	  tCrossMap.push_back(cross12);
 	  tInterMap.push_back(neut_elec_1);
+
 	}  else {			
 				//-------------------------------
 				// *** Rutherford scattering
 				//-------------------------------
 	  double b = 0.5*esu*esu*(C1-1) /
 	    std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	  cross12 = M_PI*b*b * eVel2 * ww*ne2;
+	  cross12 = M_PI*b*b * eVel2 * ww * ne2;
 	  tCrossMap.push_back(cross12);
 	  tInterMap.push_back(ion_elec_1);
 	}
@@ -1678,16 +1683,16 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	delE1  = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
-	tdelE += delE1;
+	delE1                = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
+	tdelE               += delE1;
 	ctd1->ff[id].first  += prob;
 	ctd1->ff[id].second += delE1;
 	p1Flag = true;
       }
 
       if (interFlag == col_exite_1) {
-	delE1  = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
-	tdelE += delE1;
+	delE1                = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
+	tdelE               += delE1;
 	ctd1->CE[id].first  += prob;
 	ctd1->CE[id].second += delE1;
 	p1Flag = true;
@@ -1737,16 +1742,16 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
-	delE2   = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
-	tdelE  += delE2;
+	delE2                = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
+	tdelE               += delE2;
 	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == col_exite_2) {
-	delE2  = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
-	tdelE += delE2;
+	delE2                = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
+	tdelE               += delE2;
 	ctd2->CE[id].first  += prob;
 	ctd2->CE[id].second += delE2;
 	p2Flag = true;
