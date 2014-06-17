@@ -189,14 +189,16 @@ private:
   typedef std::pair<speciesKey, speciesKey>        dKey;
   typedef std::map<dKey, std::vector<double> >     keyCrossMap;
   typedef std::map<dKey, std::vector<int>    >     keyInterMap;
+  typedef std::map<speciesKey, double>             keyWghtsMap;
 
   std::vector< std::vector<double> >               dCrossMap;
   std::vector< std::vector<int>    >               dInterMap;
   std::vector< keyCrossMap >                       sCrossMap;
   std::vector< keyInterMap >                       sInterMap;
+  std::vector< keyWghtsMap >                       sWghtsMap;
   std::vector< CEvector >                          CE1, CE2;
   std::vector< double >                            kEi, kEe1, kEe2;
-  std::vector< double >                            Ein1, Ein2;
+  std::vector< double >                            Ein1, Ein2, spCrm;
   std::vector< double >                            spTau, spProb, spWght;
   //@}
 

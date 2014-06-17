@@ -105,11 +105,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 
   // Per thread workspace initialization
   //
-  sCrossMap.resize(nthrds);
   dCrossMap.resize(nthrds);
   dInterMap.resize(nthrds);
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
+  sWghtsMap.resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kEi      .resize(nthrds);
@@ -118,6 +118,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
   spTau    .resize(nthrds);
+  spCrm    .resize(nthrds);
   spProb   .resize(nthrds);
   spWght   .resize(nthrds);
 
@@ -246,23 +247,31 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     typedef std::map<speciesKey, int>::iterator  sIter;
 
 				// Mean weight
-    std::map<speciesKey, double> meanW;
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] = 0.0;
+    keyWghtsMap meanW;
+    for (sIter s=SpList.begin(); s!=SpList.end(); s++) 
+      meanW[s->first] = sWghtsMap[id][s->first] = 0.0;
 
 				// Total particle mass
     double massP = 0.0;
+    double numbP = 0.0;
     
     for (bIter b=cell->bods.begin(); b!= cell->bods.end(); b++) {
 				// Particle
       Particle *p = tree->Body(*b);
       massP += p->mass;
 				// Mass-weighted trace fraction
-      for (sIter s=SpList.begin(); s!=SpList.end(); s++)
+      for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
 	meanW[s->first] += p->mass * p->dattrib[s->second];
+	sWghtsMap[id][s->first] += p->dattrib[s->second]/atomic_weights[s->first.first];
+      }
+      numbP += 1.0;
     }
 				// Compute mean weight
 				//
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] /= massP;
+    for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
+      meanW[s->first] /= massP;
+      sWghtsMap[id][s->first] /= numbP;
+    }
 
 				// Compute cross sections
 				//
@@ -401,22 +410,30 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
     typedef std::map<speciesKey, int>::iterator  sIter;
 
     std::map<speciesKey, double> meanW;
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] = 0.0;
+    for (sIter s=SpList.begin(); s!=SpList.end(); s++)
+      meanW[s->first] = sWghtsMap[id][s->first] = 0.0;
 
     double massP = 0.0;
+    double numbP = 0.0;
 
     for (bIter b=c->bods.begin(); b!= c->bods.end(); b++) {
 				// Particle
-	Particle *p = curTree->Body(*b);
+      Particle *p = curTree->Body(*b);
 				// Mass accumulation
-	massP += p->mass;
+      massP += p->mass;
 				// Mean weight accumulation
-	for (sIter s=SpList.begin(); s!=SpList.end(); s++)
-	  meanW[s->first] += p->mass * p->dattrib[s->second];
+      for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
+	meanW[s->first] += p->mass * p->dattrib[s->second];
+	sWghtsMap[id][s->first] += p->dattrib[s->second]/atomic_weights[s->first.first];
+      }
+      numbP += 1.0;
     }
     
 				// Normalize
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) meanW[s->first] /= massP;
+    for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
+      meanW[s->first] /= massP;
+      sWghtsMap[id][s->first] /= numbP;
+    }
 
 				// Compute cross sections
 				//
@@ -785,10 +802,6 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   
       // Energy available in the center of mass of the atomic collision
       //
-      /*
-      double m1  = atomic_weights[Z1]*amu;
-      double m2  = atomic_weights[Z2]*amu;
-      */
       double m1  = amu;
       double m2  = amu;
 
@@ -2663,6 +2676,10 @@ sKey2Umap CollideIon::generateSelectionTrace
   if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0)
     cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
     
+  // Cache relative velocity
+  //
+  spCrm[id] = crm;
+
   // Cross sections are already number weighted at this point
   //
   double crossM = (*Fn)[key] * dens * csections[id][key][key];
