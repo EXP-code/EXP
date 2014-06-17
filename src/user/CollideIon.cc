@@ -1685,19 +1685,21 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double prob   = sCrossMap[id][key][isp] * spProb[id];
       double wght   = sCrossMap[id][key][isp] * spWght[id];
 
-				// Number of Particle 1 interactions
+      // Number of Particle 1 interactions
+      //
       double F1     = prob/(w1/atomic_weights[k1.first]);
 
-				// Number of Particle 2 interactions
+      // Number of Particle 2 interactions
+      //
       double F2     = prob/(w2/atomic_weights[k2.first]);
 
-				// Particle 1 mass weight
-      double W1     = wght/(w1/atomic_weights[k1.first]) * 
-	atomic_weights[k1.first]/p1->mass;
+      // Particle 1 weight
+      //
+      double W1     = prob * atomic_weights[k1.first];
 
-				// Particle 2 mass weight
-      double W2     = wght/(w2/atomic_weights[k2.first]) * 
-	atomic_weights[k2.first]/p2->mass;
+      // Particle 2 weight
+      //
+      double W2     = prob * atomic_weights[k2.first];
 
       // Accumulate the total energy lost in inelastic processes
       //
