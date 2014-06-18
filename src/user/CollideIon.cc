@@ -1685,22 +1685,16 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double prob   = sCrossMap[id][key][isp] * spProb[id];
       double wght   = sCrossMap[id][key][isp] * spWght[id];
 
-      // Number of Particle 1 interactions
-      //
-      double F1     = prob/(w1/atomic_weights[k1.first]);
-
-      // Number of Particle 2 interactions
-      //
-      double F2     = prob/(w2/atomic_weights[k2.first]);
-
       // Particle 1 weight
       //
-      double W1     = prob * atomic_weights[k1.first];
+      double W1     = prob/w1 *
+	              atomic_weights[k1.first] * atomic_weights[k1.first];
 
       // Particle 2 weight
       //
-      double W2     = prob * atomic_weights[k2.first];
-
+      double W2     = prob/w2 *
+	              atomic_weights[k2.first] * atomic_weights[k2.first];
+      
       // Accumulate the total energy lost in inelastic processes
       //
       double tdelE = 0.0;
@@ -1718,23 +1712,23 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	delE1                = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * F1;
+	delE1                = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
 	tdelE               += delE1;
-	ctd1->ff[id].first  += F1;
+	ctd1->ff[id].first  += prob;
 	ctd1->ff[id].second += delE1;
 	p1Flag = true;
       }
 
       if (interFlag == col_exite_1) {
-	delE1                = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * F1;
+	delE1                = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
 	tdelE               += delE1;
-	ctd1->CE[id].first  += F1;
+	ctd1->CE[id].first  += prob;
 	ctd1->CE[id].second += delE1;
 	p1Flag = true;
       }
 
       if (interFlag == ionize_1) {
-	delE1  = IS.DIInterLoss(ch, IonList[Z1][C1]) * F1;
+	delE1  = IS.DIInterLoss(ch, IonList[Z1][C1]) * prob;
 	tdelE += delE1;
 	speciesKey kk(Z1, ++C1);
 	if (W1 < w1) {
@@ -1745,7 +1739,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[k1]  = 0.0;
 	}
 	assert(C1 <= Z1+1);
-	ctd1->CI[id].first  += F1;
+	ctd1->CI[id].first  += prob;
 	ctd1->CI[id].second += delE1;
 	p1Flag = true;
       }
@@ -1756,7 +1750,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
-	delE1  = kEe2[id] * F1;
+	delE1  = kEe2[id] * prob;
 	tdelE += delE1;
 	speciesKey kk(Z1, --C1);
 	if (W1 < w1) {
@@ -1767,7 +1761,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[k1]  = 0.0;
 	}
 	assert(C1 > 0);
-	ctd1->RR[id].first  += F1;
+	ctd1->RR[id].first  += prob;
 	ctd1->RR[id].second += delE1;
 	p1Flag = true;
       }
@@ -1777,23 +1771,23 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
-	delE2                = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * F2;
+	delE2                = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
 	tdelE               += delE2;
-	ctd2->ff[id].first  += F2;
+	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == col_exite_2) {
-	delE2                = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * F2;
+	delE2                = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
 	tdelE               += delE2;
-	ctd2->CE[id].first  += F2;
+	ctd2->CE[id].first  += prob;
 	ctd2->CE[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == ionize_2) {
-	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * F2;
+	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;
 	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
 	if (W2 < w2) {
@@ -1804,13 +1798,13 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[k2]  = 0.0;
 	}
 	assert(C2 <= Z2+1);
-	ctd2->CI[id].first  += F2;
+	ctd2->CI[id].first  += prob;
 	ctd2->CI[id].second += delE2;
 	p2Flag = true;
       }
 
       if (interFlag == recomb_2) {
-	delE2  = kEe1[id] * F2; // See comment above for interFlag==6
+	delE2  = kEe1[id] * prob; // See comment above for interFlag==6
 	tdelE += delE2;
 	speciesKey kk(Z2, --C2);
 	if (W2 < w2) {
@@ -1821,7 +1815,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[k2]  = 0.0;
 	}
 	assert(C2 > 0);
-	ctd2->RR[id].first  += F2;
+	ctd2->RR[id].first  += prob;
 	ctd2->RR[id].second += delE2;
 	p2Flag = true;
       }
