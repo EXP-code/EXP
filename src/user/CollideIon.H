@@ -198,8 +198,8 @@ private:
   std::vector< keyWghtsMap >                       sWghtsMap;
   std::vector< CEvector >                          CE1, CE2;
   std::vector< double >                            kEi, kEe1, kEe2;
-  std::vector< double >                            Ein1, Ein2, spCrm;
-  std::vector< double >                            spTau, spProb, spWght;
+  std::vector< double >                            Ein1, Ein2;
+  std::vector< double >                            spCrm, spTau, spProb;
   //@}
 
   //! This defines the various types of interactions used to tag

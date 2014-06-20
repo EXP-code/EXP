@@ -120,7 +120,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spProb   .resize(nthrds);
-  spWght   .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -1683,17 +1682,14 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       int interFlag = sInterMap[id][key][isp];
 
       double prob   = sCrossMap[id][key][isp] * spProb[id];
-      double wght   = sCrossMap[id][key][isp] * spWght[id];
 
       // Particle 1 weight
       //
-      double W1     = prob/w1 *
-	              atomic_weights[k1.first] * atomic_weights[k1.first];
+      double W1     = prob * atomic_weights[k1.first] / w1;
 
       // Particle 2 weight
       //
-      double W2     = prob/w2 *
-	              atomic_weights[k2.first] * atomic_weights[k2.first];
+      double W2     = prob * atomic_weights[k2.first] / w2;
       
       // Accumulate the total energy lost in inelastic processes
       //
@@ -2685,13 +2681,11 @@ sKey2Umap CollideIon::generateSelectionTrace
   // for use in inelasticTrace
   //
   double rateF = 0.5 * (*Fn)[key] * dens * crm * tau;
-  double wghtF = 0.5 * dens * crm * tau;
   //             ^
   //             |
   // Cross sections counted twice in cumulative sum
 
   spProb[id] = rateF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-  spWght[id] = wghtF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
@@ -2704,7 +2698,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   meanCollP  = collPM;
     
   double Prob = rateF * csections[id][key][key];
-  double selcM = 0.5 * (num-1) * Prob;
+  double selcM = (num-1) * Prob;
 
   sKey2Umap nselM;
   nselM[key][key] = static_cast<unsigned>(floor(selcM+0.5));
