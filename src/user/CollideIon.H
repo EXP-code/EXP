@@ -189,6 +189,7 @@ private:
   typedef std::pair<speciesKey, speciesKey>        dKey;
   typedef std::map<dKey, std::vector<double> >     keyCrossMap;
   typedef std::map<dKey, std::vector<int>    >     keyInterMap;
+  typedef std::map<dKey, CEvector>                 keyColExMap;
   typedef std::map<speciesKey, double>             keyWghtsMap;
 
   std::vector< std::vector<double> >               dCrossMap;
@@ -196,7 +197,8 @@ private:
   std::vector< keyCrossMap >                       sCrossMap;
   std::vector< keyInterMap >                       sInterMap;
   std::vector< keyWghtsMap >                       sWghtsMap;
-  std::vector< CEvector >                          CE1, CE2;
+  std::vector< CEvector    >                       CE1, CE2;
+  std::vector< keyColExMap >                       kCE1, kCE2;
   std::vector< double >                            kEi, kEe1, kEe2;
   std::vector< double >                            Ein1, Ein2;
   std::vector< double >                            spCrm, spTau, spProb;
@@ -209,17 +211,19 @@ private:
     neut_elec_1 = 101,
     ion_elec_1  = 102,
     free_free_1 = 103,
-    col_exite_1 = 104,
+    colexcite_1 = 104,
     ionize_1    = 105,
     recomb_1    = 106,
     geometric_2 = 200,
     neut_elec_2 = 201,
     ion_elec_2  = 202,
     free_free_2 = 203,
-    col_exite_2 = 204,
+    colexcite_2 = 204,
     ionize_2    = 205,
     recomb_2    = 206
   };    
+
+  std::map<int, std::string> labels;
 
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct,  Trace };

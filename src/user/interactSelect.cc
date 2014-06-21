@@ -24,9 +24,9 @@ InteractSelect::InteractSelect()
 
 
 double InteractSelect::selectCEInteract
-(Ion& a, std::vector< std::pair< double, double > > cumCross) 
+(const Ion& a, const Ion::collType& cumCross) 
 {
-  typedef std::vector< std::pair< double, double > >::iterator cIter;
+  typedef std::vector< std::pair< double, double > >::const_iterator cIter;
 				// Location in the cumulative distribution
   double rn = (double)rand()/(double)RAND_MAX * cumCross.back().first;
 
@@ -38,7 +38,7 @@ double InteractSelect::selectCEInteract
   return 0.0;
 }
 
-double InteractSelect::selectFFInteract(Ion& a, double E) 
+double InteractSelect::selectFFInteract(const Ion& a, double E) 
 {
   std::vector< double > dum;
   std::vector< double > normed;
@@ -99,10 +99,10 @@ double InteractSelect::selectFFInteract(Ion& a, double E)
   return k*hbc;
 }
 
-double InteractSelect::DIInterLoss(chdata& ch, Ion& a) 
+double InteractSelect::DIInterLoss(const chdata& ch, const Ion& a) 
 {
-  int Z1 = a.getZ(); 
-  int C1 = a.getC();
+  const int Z1 = a.getZ(); 
+  const int C1 = a.getC();
 
   if (C1 > Z1) {
     std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
@@ -116,7 +116,7 @@ double InteractSelect::DIInterLoss(chdata& ch, Ion& a)
 }
 
 double InteractSelect::selectRRInteract
-(Ion& a, std::vector<double> cumCross, double Ee) 
+(const Ion& a, const std::vector<double>& cumCross, double Ee) 
 {
   std::vector<double> normed;
   std::vector<double> kgrid_log;

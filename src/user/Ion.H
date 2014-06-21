@@ -267,9 +267,12 @@ public:
       calculate the cross section is 3BS(a) from Koch&Motz 1959 */
   void freeFreeDifferential(chdata ch);
 
+
+  //! Return type for collisional excitation cross-section data
+  typedef std::vector< std::pair<double, double > > collType;
+
   //! Get the collisional excitation cross section
-  std::vector<std::pair<double, double> > 
-  collExciteCross(chdata ch, double E);
+  collType collExciteCross(chdata ch, double E);
 
   //! Ionization cross section
   double directIonCross(chdata ch, double E);
@@ -297,8 +300,8 @@ public:
   
   //@{
   // get functions
-  unsigned char getZ() { return Z; }
-  unsigned char getC() { return C; }
+  unsigned char getZ() const { return Z; }
+  unsigned char getC() const { return C; }
   //@}
 };
 

@@ -452,7 +452,7 @@ Ion::Ion(const Ion &I)
     Returns a vector with a pair of (cross section, energy difference)
     since the file input, and thus array, are not in any specific order
 */
-std::vector< std::pair<double, double > > 
+Ion::collType
 Ion::collExciteCross(chdata ch, double E)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
@@ -467,7 +467,7 @@ Ion::collExciteCross(chdata ch, double E)
 
   const double a0 = 0.0529177211; // Bohr radius in nm
   
-  std::vector<std::pair<double, double > > CEcum;
+  collType CEcum;
   const std::pair<double,double> Null(0, 0);
   if (splups.size() == 0) {
     CEcum.push_back(Null);
@@ -764,9 +764,9 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     
     return v1;
   } else {
-    // return radRecombCrossMewe(ch, E);
+    return radRecombCrossMewe(ch, E);
     // return radRecombCrossSpitzer(ch, E);
-    return radRecombCrossKramers(ch, E);
+    // return radRecombCrossKramers(ch, E);
   }
 }
 

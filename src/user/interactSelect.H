@@ -38,16 +38,16 @@ public:
   //! Return excitation energy, randomly selected from all possible
   //! excitations by cross section
   double selectCEInteract
-  (Ion& a, std::vector<std::pair<double, double > > cumCross);
+  (const Ion& a, const Ion::collType& cumCross);
 
   //! Compute the free-free radiated energy based on the electron velocity
-  double selectFFInteract(Ion& a, double E);
+  double selectFFInteract(const Ion& a, double E);
 
   //! Return the lost ionization energy and adjust ionization state
-  double DIInterLoss(chdata& ch, Ion& a);
+  double DIInterLoss(const chdata& ch, const Ion& a);
 
   //! 
-  double selectRRInteract(Ion& a, std::vector<double> cumCross, double Ee);
+  double selectRRInteract(const Ion& a, const std::vector<double>& cumCross, double Ee);
 };
 
 #endif

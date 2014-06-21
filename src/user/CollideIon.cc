@@ -112,6 +112,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   sWghtsMap.resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
+  kCE1     .resize(nthrds);
+  kCE2     .resize(nthrds);
   kEi      .resize(nthrds);
   kEe1     .resize(nthrds);
   kEe2     .resize(nthrds);
@@ -148,6 +150,23 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 	  << std::endl;
     }
   }
+
+  // Enum collsion-type label fields
+  //
+  labels[geometric_1] = "geometric  [1]";
+  labels[neut_elec_1] = "neutral el [1]";
+  labels[ion_elec_1 ] = "charged el [1]";
+  labels[free_free_1] = "free-free  [1]";
+  labels[colexcite_1] = "col excite [1]";
+  labels[ionize_1   ] = "ionization [1]";
+  labels[recomb_1   ] = "recombine  [1]";
+  labels[geometric_2] = "geometric  [2]";
+  labels[neut_elec_2] = "neutral el [2]";
+  labels[ion_elec_2 ] = "charged el [2]";
+  labels[free_free_2] = "free-free  [2]";
+  labels[colexcite_2] = "col excite [2]";
+  labels[ionize_2   ] = "ionization [2]";
+  labels[recomb_2   ] = "recombine  [2]";
 }
 
 CollideIon::~CollideIon()
@@ -660,11 +679,12 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2[id]);
+
     double crs = eVel2*ne2 * CE1[id].back().first;
 
     if (crs>0.0) {
       dCrossMap[id].push_back(crs);
-      dInterMap[id].push_back(col_exite_1);
+      dInterMap[id].push_back(colexcite_1);
       sum12 += crs;
     }
   }
@@ -725,7 +745,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
     if (crs>0.0) {
       dCrossMap[id].push_back(crs);
-      dInterMap[id].push_back(col_exite_2);
+      dInterMap[id].push_back(colexcite_2);
       sum21 += crs;
     }
   }
@@ -785,6 +805,9 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// Particle 1: key and number weight
       speciesKey k2 = s2->first;
       double     w2 = p2->dattrib[s2->second]/atomic_weights[k2.first];
+
+				// Key of interaction pair
+      dKey dkey(k1, k2);
 
 				// Weight product
       double     ww = w1 * w2;
@@ -868,8 +891,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	tInterMap.push_back(geometric_1);
 
 	cross21 = geometric(Z2) * ww;
-	dCrossMap[id].push_back(cross21 * sUp);
-	dInterMap[id].push_back(geometric_2);
+	tCrossMap.push_back(cross21 * sUp);
+	tInterMap.push_back(geometric_2);
       }
 
       //-------------------------------
@@ -946,12 +969,13 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
-	CE1[id] = IonList[Z1][C1].collExciteCross(ch, kEe2[id]);
-	double crs = eVel2*ne2 * CE1[id].back().first * ww;
+	CEvector V = IonList[Z1][C1].collExciteCross(ch, kEe2[id]);
+	double crs = eVel2*ne2 * V.back().first * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
-	  tInterMap.push_back(col_exite_1);
+	  tInterMap.push_back(colexcite_1);
+	  kCE1[id][dkey] = V;
 	  sum12 += crs;
 	}
       }
@@ -1008,14 +1032,16 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
 
-	CE2[id] = IonList[Z2][C2].collExciteCross(ch, kEe1[id]);
-	double crs = eVel1*ne1 * CE2[id].back().first * ww;
+	CEvector V = IonList[Z2][C2].collExciteCross(ch, kEe1[id]);
+	double crs = eVel1*ne1 * V.back().first * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
-	  tInterMap.push_back(col_exite_2);
+	  tInterMap.push_back(colexcite_2);
+	  kCE2[id][dkey] = V;
 	  sum21 += crs;
 	}
+
       }
 				//-------------------------------
 				// *** Ionization cross section
@@ -1044,7 +1070,6 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
       } 
 
-      dKey dkey(k1, k2);
       sCrossMap[id][dkey] = tCrossMap;
       sInterMap[id][dkey] = tInterMap;
 
@@ -1165,23 +1190,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     static bool DEBUG_F = false;
     //
     if (DEBUG_F) {
-      static std::map<int, std::string> labels;
-      if (labels.size()==0) {
-	labels[geometric_1] = "geometric  [1]";
-	labels[neut_elec_1] = "neutral el [1]";
-	labels[ion_elec_1 ] = "charged el [1]";
-	labels[free_free_1] = "free-free  [1]";
-	labels[col_exite_1] = "coll exite [1]";
-	labels[ionize_1   ] = "ionization [1]";
-	labels[recomb_1   ] = "recombine  [1]";
-	labels[geometric_2] = "geometric  [2]";
-	labels[neut_elec_2] = "neutral el [2]";
-	labels[ion_elec_2 ] = "charged el [2]";
-	labels[free_free_2] = "free-free  [2]";
-	labels[col_exite_2] = "coll exite [2]";
-	labels[ionize_2   ] = "ionization [2]";
-	labels[recomb_2   ] = "recombine  [2]";
-      }
       //
       // Output on collisions for now . . . 
       //
@@ -1221,7 +1229,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       ctd1->ff[id].second  += delE;
     }
 
-    if (interFlag == col_exite_1) {
+    if (interFlag == colexcite_1) {
       delE = IS.selectCEInteract(IonList[Z1][C1], CE1[id]);
       partflag      = 1;
       ctd1->CE[id].first++; 
@@ -1262,7 +1270,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       ctd2->ff[id].second += delE;
     }
 
-    if (interFlag == col_exite_2) {
+    if (interFlag == colexcite_2) {
       delE         = IS.selectCEInteract(IonList[Z2][C2], CE2[id]);
       partflag     = 2;
       ctd2->CE[id].first++; 
@@ -1294,7 +1302,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     
     // Convert back to cgs
     //
-    delE = delE*1.602177e-12;
+    delE = delE * eV;
   }
   
   assert(delE >= 0.0);
@@ -1554,14 +1562,14 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       labels[neut_elec_1] = "neutral el [1]";
       labels[ion_elec_1 ] = "charged el [1]";
       labels[free_free_1] = "free-free  [1]";
-      labels[col_exite_1] = "coll exite [1]";
+      labels[colexcite_1] = "col excite [1]";
       labels[ionize_1   ] = "ionization [1]";
       labels[recomb_1   ] = "recombine  [1]";
       labels[geometric_2] = "geometric  [2]";
       labels[neut_elec_2] = "neutral el [2]";
       labels[ion_elec_2 ] = "charged el [2]";
       labels[free_free_2] = "free-free  [2]";
-      labels[col_exite_2] = "coll exite [2]";
+      labels[colexcite_2] = "col excite [2]";
       labels[ionize_2   ] = "ionization [2]";
       labels[recomb_2   ] = "recombine  [2]";
     }
@@ -1708,18 +1716,18 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	delE1                = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
+	delE1 = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
 	tdelE               += delE1;
 	ctd1->ff[id].first  += prob;
-	ctd1->ff[id].second += delE1;
+	ctd1->ff[id].second += delE1 * N1;
 	p1Flag = true;
       }
 
-      if (interFlag == col_exite_1) {
-	delE1                = IS.selectCEInteract(IonList[Z1][C1], CE1[id]) * prob;
+      if (interFlag == colexcite_1) {
+	delE1 = IS.selectCEInteract(IonList[Z1][C1], kCE1[id][key]) * prob;
 	tdelE               += delE1;
 	ctd1->CE[id].first  += prob;
-	ctd1->CE[id].second += delE1;
+	ctd1->CE[id].second += delE1 * N1;
 	p1Flag = true;
       }
 
@@ -1736,7 +1744,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C1 <= Z1+1);
 	ctd1->CI[id].first  += prob;
-	ctd1->CI[id].second += delE1;
+	ctd1->CI[id].second += delE1 * N1;
 	p1Flag = true;
       }
 
@@ -1758,7 +1766,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C1 > 0);
 	ctd1->RR[id].first  += prob;
-	ctd1->RR[id].second += delE1;
+	ctd1->RR[id].second += delE1 * N1;
 	p1Flag = true;
       }
     
@@ -1770,15 +1778,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	delE2                = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
 	tdelE               += delE2;
 	ctd2->ff[id].first  += prob;
-	ctd2->ff[id].second += delE2;
+	ctd2->ff[id].second += delE2 * N2;
 	p2Flag = true;
       }
 
-      if (interFlag == col_exite_2) {
-	delE2                = IS.selectCEInteract(IonList[Z2][C2], CE2[id]) * prob;
+      if (interFlag == colexcite_2) {
+	delE2 = IS.selectCEInteract(IonList[Z2][C2], kCE2[id][key]) * prob;
 	tdelE               += delE2;
 	ctd2->CE[id].first  += prob;
-	ctd2->CE[id].second += delE2;
+	ctd2->CE[id].second += delE2 * N2;
 	p2Flag = true;
       }
 
@@ -1795,7 +1803,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C2 <= Z2+1);
 	ctd2->CI[id].first  += prob;
-	ctd2->CI[id].second += delE2;
+	ctd2->CI[id].second += delE2 * N2;
 	p2Flag = true;
       }
 
@@ -1812,7 +1820,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 	assert(C2 > 0);
 	ctd2->RR[id].first  += prob;
-	ctd2->RR[id].second += delE2;
+	ctd2->RR[id].second += delE2 * N2;
 	p2Flag = true;
       }
 
@@ -1860,11 +1868,14 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       
       // Convert back to cgs
       //
-      delE += tdelE*1.602177e-12;
+      delE += tdelE * eV;
     }
   }
   
-  assert(delE >= 0.0);
+  if (delE < 0.0) {
+    std::cout << "Found delE=" << delE << " < 0.0" << std::endl;
+    delE = 0.0;
+  }
 
   // The total mass in system units
   //
@@ -1907,7 +1918,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   if (frost_warning && delE > remE)
     std::cout << "delE > KE!! (" << delE << " > " << totE
 	      << "), kEe  = "  << kEe
-	      << " delE = " << delE/(1.602177e-12*Mu*UserTreeDSMC::Munit*amu)
+	      << " delE = " << delE/(eV*Mu*UserTreeDSMC::Munit*amu)
 	      << std::endl;
   
   // Cooling rate diagnostic histogram
@@ -2263,6 +2274,7 @@ void collDiag::initialize()
 	    << "# N(rr)         number of rad recombs    " << std::endl
 	    << "# E(rr)         energy in rad recombs    " << std::endl
 	    << "# d(KE)         mean energy change       " << std::endl
+	    << "# Etotl         total cum energy         " << std::endl
 	    << "#"                                         << std::endl;
 	
 				// Species labels
@@ -2274,7 +2286,7 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::endl;
+	out << std::setw(12) << ' ' << " |" << std::endl;
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -2283,7 +2295,8 @@ void collDiag::initialize()
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setfill(' ') << std::endl;
+	out << std::setw(12) << '-' << " |"
+	    << std::setfill(' ') << std::endl;
 
 				// Column labels
 	out << "#" << std::setw(11) << "Time" << " | ";
@@ -2299,7 +2312,9 @@ void collDiag::initialize()
 	      << std::setw(12) << "d(KE) |"
 	      << " | ";
 	}
-	out << std::endl;
+	out << std::setw(12) << "Etotl" << std::endl;
+
+				// Header line
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -2308,7 +2323,8 @@ void collDiag::initialize()
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setfill(' ') << std::endl;
+	out << std::setw(12) << '-' << " |"
+	    << std::setfill(' ') << std::endl;
       }
     }
     in.close();
@@ -2392,23 +2408,28 @@ void collDiag::print()
     std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
     out << std::scientific << std::setprecision(3);
     if (out) {
+      double Etot = 0.0;
+      double cvrt = eV/UserTreeDSMC::Eunit;
       out << std::setw(12) << tnow << " | ";
       for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	collTDPtr ctd = it->second;
 	out << std::setw(12) << ctd->ff_s.first
-	    << std::setw(12) << ctd->ff_s.second
+	    << std::setw(12) << ctd->ff_s.second * cvrt
 	    << std::setw(12) << ctd->CE_s.first
-	    << std::setw(12) << ctd->CE_s.second
+	    << std::setw(12) << ctd->CE_s.second * cvrt
 	    << std::setw(12) << ctd->CI_s.first
-	    << std::setw(12) << ctd->CI_s.second
+	    << std::setw(12) << ctd->CI_s.second * cvrt
 	    << std::setw(12) << ctd->RR_s.first
-	    << std::setw(12) << ctd->RR_s.second;
+	    << std::setw(12) << ctd->RR_s.second * cvrt;
 	if (ctd->dv_s.first>0.0)
 	  out << std::setw(12) << ctd->dv_s.second/ctd->dv_s.first << " | ";
 	else
 	  out << std::setw(12) << 0.0 << " | ";
+	Etot += 
+	  ctd->ff_s.second + ctd->CE_s.second +
+	  ctd->CI_s.second + ctd->RR_s.second ;
       }
-      out << std::endl;
+      out << std::setw(12) << Etot * cvrt << " |" << std::endl;
     }
   }
 
