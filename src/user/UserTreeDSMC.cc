@@ -1640,7 +1640,7 @@ void UserTreeDSMC::assignTempDensVol()
 	if (sKey != defaultKey) mi = mp*atomic_weights[sKey.first];
 
 	Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * mi/UserTreeDSMC::Munit/boltz;
-	T = KEdsp* Tfac;
+	T    = KEdsp* Tfac;
 	
 	int sz = cell->Body(j)->dattrib.size();
 	if (use_temp>=0 && use_temp<sz) 
@@ -1653,9 +1653,9 @@ void UserTreeDSMC::assignTempDensVol()
       }
 #ifdef DEBUG
       if (T>0.0) {
-	nbod += csz;
-	minT = min<double>(T, minT);
-	maxT = max<double>(T, maxT);
+	nbod  += csz;
+	minT   = min<double>(T, minT);
+	maxT   = max<double>(T, maxT);
 	meanT += csz*T;
 	varT  += csz*T*T;
       } else {

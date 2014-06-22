@@ -1536,6 +1536,14 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
 }
 
 
+void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
+			     double KE, double prob, int interFlag)
+{
+  std::cout << " *** Neg deltaE=" << std::setw(12) << delE << ", (Z, C)=(" 
+	    << std::setw(2) << Z << ", " << std::setw(2) << C << "), E=" 
+	    << std::setw(12) << KE  << ", prob=" << std::setw(12) << prob
+	    << " :: " << labels[interFlag] << std::endl;
+}
 
 int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, 
 			       double *cr, int id)
@@ -1717,6 +1725,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == free_free_1) {
 	delE1 = IS.selectFFInteract(IonList[Z1][C1], kEe2[id]) * prob;
+	if (delE1<0) debugDeltaE(delE1, Z1, C1, kEe2[id], prob, interFlag);
 	tdelE               += delE1;
 	ctd1->ff[id].first  += prob;
 	ctd1->ff[id].second += delE1 * N1;
@@ -1725,6 +1734,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == colexcite_1) {
 	delE1 = IS.selectCEInteract(IonList[Z1][C1], kCE1[id][key]) * prob;
+	if (delE1<0) debugDeltaE(delE1, Z1, C1, 
+				 kCE1[id][key].back().second, prob, interFlag);
 	tdelE               += delE1;
 	ctd1->CE[id].first  += prob;
 	ctd1->CE[id].second += delE1 * N1;
@@ -1733,9 +1744,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == ionize_1) {
 	delE1  = IS.DIInterLoss(ch, IonList[Z1][C1]) * prob;
+	if (delE1<0) debugDeltaE(delE1, Z1, C1, 0.0, prob, interFlag);
 	tdelE += delE1;
 	speciesKey kk(Z1, ++C1);
-	if (W1 < w1) {
+	if (W1 < (w1=new1[k1])) {
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
@@ -1755,9 +1767,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //
       if (interFlag == recomb_1) {
 	delE1  = kEe2[id] * prob;
+	if (delE1<0) debugDeltaE(delE1, Z1, C1, kEe2[id], prob, interFlag);
 	tdelE += delE1;
 	speciesKey kk(Z1, --C1);
-	if (W1 < w1) {
+	if (W1 < (w1=new1[k1])) {
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
@@ -1776,6 +1789,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       
       if (interFlag == free_free_2) {
 	delE2                = IS.selectFFInteract(IonList[Z2][C2], kEe1[id]) * prob;
+	if (delE2<0) debugDeltaE(delE2, Z2, C2, kEe1[id], prob, interFlag);
 	tdelE               += delE2;
 	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += delE2 * N2;
@@ -1784,6 +1798,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == colexcite_2) {
 	delE2 = IS.selectCEInteract(IonList[Z2][C2], kCE2[id][key]) * prob;
+	if (delE2<0) debugDeltaE(delE2, Z2, C2, 
+				 kCE2[id][key].back().second, prob, interFlag);
 	tdelE               += delE2;
 	ctd2->CE[id].first  += prob;
 	ctd2->CE[id].second += delE2 * N2;
@@ -1792,9 +1808,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == ionize_2) {
 	delE2   = IS.DIInterLoss(ch, IonList[Z2][C2]) * prob;
+	if (delE2<0) debugDeltaE(delE2, Z2, C2, 0.0, prob, interFlag);
 	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
-	if (W2 < w2) {
+	if (W2 < (w2=new2[k2])) {
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
@@ -1809,9 +1826,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       if (interFlag == recomb_2) {
 	delE2  = kEe1[id] * prob; // See comment above for interFlag==6
+	if (delE2<0) debugDeltaE(delE2, Z2, C2, kEe1[id], prob, interFlag);
 	tdelE += delE2;
 	speciesKey kk(Z2, --C2);
-	if (W2 < w2) {
+	if (W2 < (w2=new2[k2])) {
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
@@ -1869,11 +1887,30 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // Convert back to cgs
       //
       delE += tdelE * eV;
+
+      if (delE < 0.0) {
+	std::cout << "Found delE=" << std::setw(14) << delE/UserTreeDSMC::Eunit 
+		  << ", tdelE=" << std::setw(14) << tdelE
+		  << ", delE1=" << std::setw(14) << delE1
+		  << ", delE2=" << std::setw(14) << delE2
+		  << ", w1="    << std::setw(14) << w1
+		  << ", w2="    << std::setw(14) << w2
+		  << ", N1="    << std::setw(14) << N1
+		  << ", N2="    << std::setw(14) << N2
+		  << ", (Z1, C1) = (" 
+		  << std::setw(2) << Z1 << ", "
+		  << std::setw(2) << C1 << ") "
+		  << ", (Z2, C2) = (" 
+		  << std::setw(2) << Z2 << ", "
+		  << std::setw(2) << C2 << ") "
+		  << std::endl;
+      }
     }
   }
   
   if (delE < 0.0) {
-    std::cout << "Found delE=" << delE << " < 0.0" << std::endl;
+    std::cout << "Found delE=" << delE/UserTreeDSMC::Eunit 
+	      << " < 0.0" << std::endl;
     delE = 0.0;
   }
 
@@ -2599,12 +2636,14 @@ sKey2Umap CollideIon::generateSelectionDirect
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
+	csections[id][i1][i2] = 0.0; // Zero out
       }
 	    
       if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
+	csections[id][i2][i1] = 0.0; // Zero out
       }
 	
     }
@@ -2686,8 +2725,10 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Done
   
   // Sanity check
-  if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0)
+  if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
     cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
+    csections[id][key][key] = 0.0; // Zero out
+  }
     
   // Cache relative velocity
   //
@@ -2754,33 +2795,81 @@ void CollideIon::gatherSpecies()
 {
   if (aType==Direct) return;
 
+  /*
+     3                     1         2
+    --- N kT = KE = sum_i --- m_i v_i
+     2                     2
+
+                m_i       w_ij
+     N  = sum_i --- sum_j ----   where mu_j is the molecular weight
+                m_a       mu_j   and w_ij is the mass fraction of species in
+                                 for particle i
+
+     Therefore:
+           KE      2 KE
+     T = ------ = ------
+          3        3 Nk
+	 --- Nk
+	  2
+  */
+
+  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu /
+    UserTreeDSMC::Munit/boltz;
+
   // Trace version follows
 
   // Clean the maps
   //
   double mass = 0.0;
+
   specM.erase(specM.begin(), specM.end());
 
-  // Particle loop
+  // Interate through all cells
   //
-  PartMapItr pbeg = c0->Particles().begin();
-  PartMapItr pend = c0->Particles().end();
+  pHOT_iterator itree(*c0->Tree());
 
-  for (PartMapItr p=pbeg; p!=pend; p++) {
-    
-    for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
-      speciesKey k = it->first;
-      int     indx = it->second;
+  while (itree.nextCell()) {
 
-      if (specM.find(k) == specM.end()) specM[k] = 0;
-      specM[k] += p->second.mass * p->second.dattrib[indx];
+    pCell *cell = itree.Cell();
+    vector<unsigned long>::iterator j = cell->bods.begin();
+
+    // Iterate through all bodies in this cell
+    //
+    double mu = 0.0;		// First get mean molecular weight
+    while (j != cell->bods.end()) {
+      Particle* p = cell->Body(j);
+      for (spItr it=SpList.begin(); it!=SpList.end(); it++)
+	mu += p->mass*p->dattrib[it->second]/atomic_weights[it->first.first];
     }
-    
-    mass += p->second.mass;
+    mu /= cell->sample->Mass();
+
+    // Compute the temprature
+    //
+    double KEtot, KEdsp;
+    cell->sample->KE(defaultKey, KEtot, KEdsp);
+    double T = KEdsp* Tfac / mu;
+
+    while (j != cell->bods.end()) {
+      Particle* p = cell->Body(j);
+      for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
+
+	speciesKey k = it->first;
+	int     indx = it->second;
+      
+	if (specM.find(k) == specM.end()) specM[k] = ddd(0, 0, 0);
+	boost::get<0>(specM[k]) += p->mass * p->dattrib[indx];
+	boost::get<1>(specM[k]) += p->mass * T;
+	boost::get<2>(specM[k]) += p->mass;
+      } 
+
+      mass += p->mass;
+      j++;
+    }
   }
 
   // Send the local map to other nodes
   //
+  ddd tup;
   int sizm;
   spDItr it;
   double val;
@@ -2795,11 +2884,15 @@ void CollideIon::gatherSpecies()
       MPI_Send(&mass, 1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
 				// Send local map
       for (it=specM.begin(); it != specM.end(); it++) {
-	key = it->first;
-	val = it->second;
+	key  = it->first;
 	MPI_Send(&key.first,  1, MPI_UNSIGNED_SHORT, 0, 332, MPI_COMM_WORLD);
 	MPI_Send(&key.second, 1, MPI_UNSIGNED_SHORT, 0, 333, MPI_COMM_WORLD);
-	MPI_Send(&val,        1, MPI_DOUBLE,         0, 334, MPI_COMM_WORLD);
+	MPI_Send(&boost::get<0>(it->second),
+	                      1, MPI_DOUBLE,         0, 334, MPI_COMM_WORLD);
+	MPI_Send(&boost::get<1>(it->second),
+	                      1, MPI_DOUBLE,         0, 335, MPI_COMM_WORLD);
+	MPI_Send(&boost::get<2>(it->second),
+	                      1, MPI_DOUBLE,         0, 336, MPI_COMM_WORLD);
       }
 
     }
@@ -2813,11 +2906,20 @@ void CollideIon::gatherSpecies()
 		 MPI_STATUS_IGNORE);
 	MPI_Recv(&key.second, 1, MPI_UNSIGNED_SHORT, i, 333, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val,        1, MPI_DOUBLE,         i, 334, MPI_COMM_WORLD,
+	MPI_Recv(&boost::get<0>(tup), 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	MPI_Recv(&boost::get<1>(tup), 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	MPI_Recv(&boost::get<2>(tup), 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 				// Update root's map
-	if (specM.find(key) == specM.end()) specM[key]  = val;
-	else                                specM[key] += val;
+				// 
+	if (specM.find(key) == specM.end()) specM[key] = tup;
+	else {
+	  boost::get<0>(specM[key]) += boost::get<0>(tup);
+	  boost::get<1>(specM[key]) += boost::get<1>(tup);
+	  boost::get<2>(specM[key]) += boost::get<2>(tup);
+	}
       }
     }
   }
@@ -2825,10 +2927,25 @@ void CollideIon::gatherSpecies()
 				// At this point, root's map is global
 				// and remaning nodes have local maps
   if (mass>0.0) {
-    for (spDItr it=specM.begin(); it != specM.end(); it++) it->second /= mass;
+    for (spDItr it=specM.begin(); it != specM.end(); it++) {
+      boost::get<0>(it->second)  /= mass;
+      double tmass = boost::get<2>(it->second);
+      if (tmass > 0.0) {
+	boost::get<1>(it->second) /= tmass;
+	/*
+	if (myid==0)
+	  std::cout << std::setw(10) << tnow
+		    << std::setw(12) << mass
+		    << std::setw(4)  << it->first.first
+		    << std::setw(4)  << it->first.second
+		    << std::setw(12) << boost::get<1>(it->second)
+		    << std::endl;
+	*/
+      }
+    }
   }
 }
-
+  
 
 // Print out species counts
 void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
@@ -2841,6 +2958,13 @@ void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
     printSpeciesTrace();
   }
 
+}
+
+const std::string clabl(unsigned c)
+{
+  std::ostringstream sout;
+  sout << "[" << c << "]";
+  return sout.str();
 }
 
 void CollideIon::printSpeciesTrace()
@@ -2858,23 +2982,40 @@ void CollideIon::printSpeciesTrace()
     //
     dout.open(species_file_debug.c_str());
 
-				// Print the header
-				//
-    dout << "# " << std::setw(12) << std::right << "Time ";
+    // Print the header
+    //
+    dout << "# " << std::setw(12) << std::right << " ";
     for (spDItr it=specM.begin(); it != specM.end(); it++) {
       std::ostringstream sout;
       sout << "(" << it->first.first << "," << it->first.second << ") ";
-      dout << setw(12) << right << sout.str();
+      dout << std::setw(2*12) << right << sout.str();
+    }
+    dout << std::endl;
+
+    dout << "# " << std::setw(12) << std::right << "Time ";
+    for (spDItr it=specM.begin(); it != specM.end(); it++) {
+      std::ostringstream sout;
+      dout << std::setw(12) << right << "Fraction"
+	   << std::setw(12) << right << "Temp";
+    }
+    dout << std::endl;
+
+    unsigned cnt = 0;
+    dout << "# " << std::setw(12) << std::right << clabl(++cnt);
+    for (spDItr it=specM.begin(); it != specM.end(); it++) {
+      std::ostringstream sout;
+      dout << std::setw(12) << right << clabl(++cnt);
+      dout << std::setw(12) << right << clabl(++cnt);
     }
     dout << std::endl;
 
     dout << "# " << std::setw(12) << std::right << "--------";
     for (spDItr it=specM.begin(); it != specM.end(); it++)
-      dout << setw(12) << std::right << "--------";
+      dout << std::setw(12) << std::right << "--------"
+	   << std::setw(12) << std::right << "--------";
     dout << std::endl;
 
-  } else {
-				// Open for append
+  } else {			// Open for append
 				//
     dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
@@ -2882,7 +3023,8 @@ void CollideIon::printSpeciesTrace()
   dout << std::setprecision(5);
   dout << "  " << std::setw(12) << std::right << tnow;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
-    dout << std::setw(12) << std::right << it->second;
+    dout << std::setw(12) << std::right << boost::get<0>(it->second)
+	 << std::setw(12) << std::right << boost::get<1>(it->second);
   dout << std::endl;
 }
 

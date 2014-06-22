@@ -157,8 +157,6 @@ main(int argc, char **argv)
       for (int i=0; i<3; i++) out << std::setw(18) << part->pos(i);
       for (int i=0; i<3; i++) out << std::setw(18) << part->vel(i);
       out << std::setw(18) << part->phi();
-      out << std::setw(18) << part->Z();
-      out << std::setw(18) << part->C();
       for (int i=0; i<part->niatr(); i++) out << std::setw(12) << part->iatr(i);
       for (int i=0; i<part->ndatr(); i++) out << std::setw(18) << part->datr(i);
 
