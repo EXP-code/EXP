@@ -2806,6 +2806,7 @@ void CollideIon::gatherSpecies()
                                  for particle i
 
      Therefore:
+
            KE      2 KE
      T = ------ = ------
           3        3 Nk
@@ -2837,7 +2838,7 @@ void CollideIon::gatherSpecies()
     //
     double mu = 0.0;		// First get mean molecular weight
     while (j != cell->bods.end()) {
-      Particle* p = cell->Body(j);
+      Particle* p = cell->Body(j++);
       for (spItr it=SpList.begin(); it!=SpList.end(); it++)
 	mu += p->mass*p->dattrib[it->second]/atomic_weights[it->first.first];
     }
@@ -2850,7 +2851,7 @@ void CollideIon::gatherSpecies()
     double T = KEdsp* Tfac / mu;
 
     while (j != cell->bods.end()) {
-      Particle* p = cell->Body(j);
+      Particle* p = cell->Body(j++);
       for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
 
 	speciesKey k = it->first;
@@ -2863,7 +2864,6 @@ void CollideIon::gatherSpecies()
       } 
 
       mass += p->mass;
-      j++;
     }
   }
 
