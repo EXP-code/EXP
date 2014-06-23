@@ -260,7 +260,9 @@ void Ion::readSplups()
   }
 }
 
-//! Read in the direct ionization cross section splines from the file
+/**
+   Read in the direct ionization cross section splines from the file
+*/
 void Ion::readDi() 
 {
   char * val;
@@ -764,14 +766,16 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     
     return v1;
   } else {
-    return radRecombCrossMewe(ch, E);
+    // return radRecombCrossMewe(ch, E);
     // return radRecombCrossSpitzer(ch, E);
-    // return radRecombCrossKramers(ch, E);
+    return radRecombCrossKramers(ch, E);
   }
 }
 
 
-//! Kramers formula for radiative recombination cross section
+/**
+   Kramers formula for radiative recombination cross section
+*/
 std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E) 
 {
   double coef = 2.105e-8;	// in nm^2
@@ -796,22 +800,17 @@ std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E)
 
 /** Calculates the differential radiative recombination cross section
     as a function of incoming electron impact energy, and returns the
-    vector cumulative cross section array. */
+    vector cumulative cross section array. 
+*/
 std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E) 
 {
-  // double hbc = 197.327; //value of hbar * c in eV nm
-  // double hbckev = 0.197327; //value of hbc in keV nm
   double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
 
   // constant infront of the photo-cross using the Mewe method
   double D = 1.075812e-23;
   double mec2 = 510998.9; //mass of electron*c^2
-  // double cumCross = 0;
-  // int count = 0;
+
   std::vector<double> radRecCum;
-  // double dk = 0;
-  
-  // double IP = ch.ipdata[Z-1][C-2];
   
   double cross = 0.;
   if (E!=0) {
@@ -832,22 +831,22 @@ std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E)
 	double n = double(fblvl[j].lvl);
 	eTemp = eTemp*incmEv; //convert the energy to eV
 	eTemp = eTemp/1000.0; //convert to keV
-	// I = (IP/1000.0 - eTemp);
 	I = eTemp;
 	if (I >= 0) {
-	  double ePhot = E/1000. + I;
-	  double hnu = E + I*1000.;
-	  double Erat = (hnu*hnu)/(2.*mec2*E);
-	  double crossi = (Erat*mult*D*I*I*(1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot)*(1.0/n));
+	  double ePhot = E/1000.0 + I;
+	  double hnu = E + I*1000.0;
+	  double Erat = (hnu*hnu)/(2.0*mec2*E);
+	  double crossi = 
+	    Erat * mult*D * I*I * (1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot) * (1.0/n);
 	  cross += crossi;
-	  //if (C > 1 and cross == 0) {
-	  // std::cout << "IP: " << IP << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n << "\t" << crossi*1e18 <<std::endl;
-	  //}
 	  if (cross == 0) {
-	    std::cout << "NULL IN RAD RECOMB: " << ip << "\t" << eTemp << "\t" << I << "\t" << ePhot << "\t" <<Erat << "\t" << mult << "\t" << n <<std::endl;
+	    std::cout << "NULL IN RAD RECOMB: " << ip << "\t" 
+		      << eTemp << "\t" << I << "\t" << ePhot << "\t" 
+		      <<Erat << "\t" << mult << "\t" << n <<std::endl;
 	  }
 	  if (isnan(cross)) {
-	    std::cout << cross << "\t" << I << "\t" << ePhot << "\t" << (double)n << "\t" << Erat <<std::endl;
+	    std::cout << cross << "\t" << I << "\t" << ePhot << "\t" 
+		      << (double)n << "\t" << Erat <<std::endl;
 	  }
 	}
       }
@@ -860,9 +859,8 @@ std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E)
 
 std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E) 
 {
-  const double incmEv = 1.239842e-4;	// 1 inverse cm = 1.239.. eV
-  //const double eVincm = 8065.54446;	// 1 eV = 8065.54446 cm^{-1}
-  //const double Ryd    = 13.6056923;	// Rydberg in eV
+				// 1 inverse cm = 1.239.. eV
+  const double incmEv = 1.239842e-4;
 
 				// Cross-section prefactor in nm^2
   const double coef   = 2.105310889751809e-08;
@@ -892,7 +890,8 @@ std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E)
 
       if (cross == 0) {
 	std::cout << "NULL IN RAD RECOMB: " << ip << "\t" << Ej << "\t" 
-		  << Ephot << "\t" << Erat << "\t" << mult << "\t" << n <<std::endl;
+		  << Ephot << "\t" << Erat << "\t" << mult << "\t" 
+		  << n <<std::endl;
       }
       if (isnan(cross)) {
 	std::cout << cross << "\t" << Ej << "\t" << Ephot << "\t" 
