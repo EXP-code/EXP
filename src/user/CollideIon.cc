@@ -2795,34 +2795,16 @@ void CollideIon::gatherSpecies()
 {
   if (aType==Direct) return;
 
-  /*
-     3                     1         2
-    --- N kT = KE = sum_i --- m_i v_i
-     2                     2
-
-                m_i       w_ij
-     N  = sum_i --- sum_j ----   where mu_j is the molecular weight
-                m_a       mu_j   and w_ij is the mass fraction of species in
-                                 for particle i
-
-     Therefore:
-
-           KE      2 KE
-     T = ------ = ------
-          3        3 Nk
-	 --- Nk
-	  2
-  */
+  // Trace version follows
 
   const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu /
     UserTreeDSMC::Munit/boltz;
-
-  // Trace version follows
 
   // Clean the maps
   //
   double mass = 0.0;
 
+  tempM = 0.0;
   specM.erase(specM.begin(), specM.end());
 
   // Interate through all cells
@@ -2832,24 +2814,16 @@ void CollideIon::gatherSpecies()
   while (itree.nextCell()) {
 
     pCell *cell = itree.Cell();
-    vector<unsigned long>::iterator j = cell->bods.begin();
 
-    // Iterate through all bodies in this cell
-    //
-    double mu = 0.0;		// First get mean molecular weight
-    while (j != cell->bods.end()) {
-      Particle* p = cell->Body(j++);
-      for (spItr it=SpList.begin(); it!=SpList.end(); it++)
-	mu += p->mass*p->dattrib[it->second]/atomic_weights[it->first.first];
-    }
-    mu /= cell->sample->Mass();
-
-    // Compute the temprature
+    // Compute the temerature
     //
     double KEtot, KEdsp;
     cell->sample->KE(defaultKey, KEtot, KEdsp);
-    double T = KEdsp* Tfac / mu;
+    double T = KEdsp* Tfac;
 
+    // Iterate through all bodies in this cell
+    //
+    vector<unsigned long>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       Particle* p = cell->Body(j++);
       for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
@@ -2857,69 +2831,57 @@ void CollideIon::gatherSpecies()
 	speciesKey k = it->first;
 	int     indx = it->second;
       
-	if (specM.find(k) == specM.end()) specM[k] = ddd(0, 0, 0);
-	boost::get<0>(specM[k]) += p->mass * p->dattrib[indx];
-	boost::get<1>(specM[k]) += p->mass * T;
-	boost::get<2>(specM[k]) += p->mass;
+	if (specM.find(k) == specM.end()) specM[k] = 0.0;
+	specM[k] += p->mass * p->dattrib[indx];
       } 
-
-      mass += p->mass;
     }
+    mass  += cell->Mass();
+    tempM += cell->Mass() * T;
   }
 
   // Send the local map to other nodes
   //
-  ddd tup;
   int sizm;
   spDItr it;
-  double val;
   speciesKey key;
+  double val1, val2;
 
   for (int i=1; i<numprocs; i++) {
     if (i == myid) {
       sizm = specM.size();
 				// Local map size
-      MPI_Send(&sizm, 1, MPI_INT,    0, 330, MPI_COMM_WORLD);
+      MPI_Send(&sizm,  1, MPI_INT,    0, 330, MPI_COMM_WORLD);
 				// Mass
-      MPI_Send(&mass, 1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
+      MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
+				// Temp
+      MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
 				// Send local map
       for (it=specM.begin(); it != specM.end(); it++) {
 	key  = it->first;
-	MPI_Send(&key.first,  1, MPI_UNSIGNED_SHORT, 0, 332, MPI_COMM_WORLD);
-	MPI_Send(&key.second, 1, MPI_UNSIGNED_SHORT, 0, 333, MPI_COMM_WORLD);
-	MPI_Send(&boost::get<0>(it->second),
-	                      1, MPI_DOUBLE,         0, 334, MPI_COMM_WORLD);
-	MPI_Send(&boost::get<1>(it->second),
-	                      1, MPI_DOUBLE,         0, 335, MPI_COMM_WORLD);
-	MPI_Send(&boost::get<2>(it->second),
-	                      1, MPI_DOUBLE,         0, 336, MPI_COMM_WORLD);
+	MPI_Send(&key.first,  1, MPI_UNSIGNED_SHORT, 0, 333, MPI_COMM_WORLD);
+	MPI_Send(&key.second, 1, MPI_UNSIGNED_SHORT, 0, 334, MPI_COMM_WORLD);
+	MPI_Send(&it->second, 1, MPI_DOUBLE,         0, 335, MPI_COMM_WORLD);
       }
 
     }
 				// Root receives from Node i
     if (0 == myid) {
       MPI_Recv(&sizm, 1, MPI_INT,    i, 330, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&val,  1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      mass += val;
+      MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      mass  += val1;
+      tempM += val2;
       for (int j=0; j<sizm; j++) {
-	MPI_Recv(&key.first,  1, MPI_UNSIGNED_SHORT, i, 332, MPI_COMM_WORLD,
+	MPI_Recv(&key.first,  1, MPI_UNSIGNED_SHORT, i, 333, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&key.second, 1, MPI_UNSIGNED_SHORT, i, 333, MPI_COMM_WORLD,
+	MPI_Recv(&key.second, 1, MPI_UNSIGNED_SHORT, i, 334, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&boost::get<0>(tup), 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	MPI_Recv(&boost::get<1>(tup), 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	MPI_Recv(&boost::get<2>(tup), 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
+	MPI_Recv(&val1,       1, MPI_DOUBLE,         i, 335, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 				// Update root's map
 				// 
-	if (specM.find(key) == specM.end()) specM[key] = tup;
-	else {
-	  boost::get<0>(specM[key]) += boost::get<0>(tup);
-	  boost::get<1>(specM[key]) += boost::get<1>(tup);
-	  boost::get<2>(specM[key]) += boost::get<2>(tup);
-	}
+	if (specM.find(key) == specM.end()) specM[key] = 0.0;
+	specM[key] += val1;
       }
     }
   }
@@ -2928,21 +2890,9 @@ void CollideIon::gatherSpecies()
 				// and remaning nodes have local maps
   if (mass>0.0) {
     for (spDItr it=specM.begin(); it != specM.end(); it++) {
-      boost::get<0>(it->second)  /= mass;
-      double tmass = boost::get<2>(it->second);
-      if (tmass > 0.0) {
-	boost::get<1>(it->second) /= tmass;
-	/*
-	if (myid==0)
-	  std::cout << std::setw(10) << tnow
-		    << std::setw(12) << mass
-		    << std::setw(4)  << it->first.first
-		    << std::setw(4)  << it->first.second
-		    << std::setw(12) << boost::get<1>(it->second)
-		    << std::endl;
-	*/
-      }
+      it->second /= mass;
     }
+    tempM /= mass;
   }
 }
   
@@ -2992,27 +2942,26 @@ void CollideIon::printSpeciesTrace()
     }
     dout << std::endl;
 
-    dout << "# " << std::setw(12) << std::right << "Time ";
-    for (spDItr it=specM.begin(); it != specM.end(); it++) {
-      std::ostringstream sout;
-      dout << std::setw(12) << right << "Fraction"
-	   << std::setw(12) << right << "Temp";
-    }
+    dout << "# " 
+	 << std::setw(12) << std::right << "Time "
+	 << std::setw(12) << std::right << "Temp ";
+    for (spDItr it=specM.begin(); it != specM.end(); it++)
+      dout << std::setw(12) << right << "Fraction";
     dout << std::endl;
 
     unsigned cnt = 0;
-    dout << "# " << std::setw(12) << std::right << clabl(++cnt);
-    for (spDItr it=specM.begin(); it != specM.end(); it++) {
-      std::ostringstream sout;
+    dout << "# " 
+	 << std::setw(12) << std::right << clabl(++cnt);
+    dout << std::setw(12) << std::right << clabl(++cnt);
+    for (spDItr it=specM.begin(); it != specM.end(); it++)
       dout << std::setw(12) << right << clabl(++cnt);
-      dout << std::setw(12) << right << clabl(++cnt);
-    }
     dout << std::endl;
 
-    dout << "# " << std::setw(12) << std::right << "--------";
+    dout << "# " 
+	 << std::setw(12) << std::right << "--------"
+	 << std::setw(12) << std::right << "--------";
     for (spDItr it=specM.begin(); it != specM.end(); it++)
-      dout << std::setw(12) << std::right << "--------"
-	   << std::setw(12) << std::right << "--------";
+      dout << std::setw(12) << std::right << "--------";
     dout << std::endl;
 
   } else {			// Open for append
@@ -3021,10 +2970,11 @@ void CollideIon::printSpeciesTrace()
   }
 
   dout << std::setprecision(5);
-  dout << "  " << std::setw(12) << std::right << tnow;
+  dout << "  " 
+       << std::setw(12) << std::right << tnow
+       << std::setw(12) << std::right << tempM;
   for (spDItr it=specM.begin(); it != specM.end(); it++)
-    dout << std::setw(12) << std::right << boost::get<0>(it->second)
-	 << std::setw(12) << std::right << boost::get<1>(it->second);
+    dout << std::setw(12) << std::right << it->second;
   dout << std::endl;
 }
 

@@ -1,8 +1,6 @@
 #ifndef _CollideIon_H
 #define _CollideIon_H
 
-#include <boost/tuple/tuple.hpp>
-
 #include "Collide.H"
 #include "interactSelect.H"
 #include "Elastic.H"
@@ -356,9 +354,9 @@ protected:
   void printSpeciesTrace();
   void gatherSpecies();
 
-  typedef boost::tuple<double, double, double> ddd;
-  typedef std::map<speciesKey, ddd> spDMap;
+  typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
+  double tempM;
   spDMap specM;
   //@}
 
