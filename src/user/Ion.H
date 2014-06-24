@@ -4,8 +4,11 @@
 #include <string>
 #include <vector>
 #include <set>
+#include <map>
 
 #include <boost/multi_array.hpp>
+
+#include <atomic_constants.H>
 
 static std::string eleNameList[] = 
   {"h","he","li","be","b","c","n","o","f","ne","na", 
@@ -22,10 +25,6 @@ static std::string chargeList[] =
 const int numCharge = 15;
 
 const int numMaster = 288;
-
-#define light 29979245800.
-#define boltzmann 1.3806504e-16
-
 
 /** Use a struct for each line of the data. Then, if it needs to be
     switched to multi index it can be easily done so. This also done so
@@ -46,7 +45,18 @@ struct elvlc_data
   double enry;
   double encmth;
   double enryth;
-  
+};
+
+struct wgfa_data 
+{
+  int lvl1;			// lower level
+  int lvl2;			// upper level
+  double wvl;			// wavelength in Angstroms
+  double gf;			// weighted oscillator strength
+  double avalue;		// Einstein A coefficient
+  std::string pretty1;		// Description (lower level)
+  std::string pretty2;		// Description (upper level)
+  std::string ref;		// References
 };
 
 struct pe_data
@@ -69,7 +79,8 @@ struct fblvl_data
   double encmth;
 };
 
-struct klgfb_data{
+struct klgfb_data
+{
   int n;
   int l;
   std::vector<double> factors;
@@ -98,18 +109,22 @@ struct splups_data
   std::vector<double> spline;
 };
 
-struct di_data{
+struct di_data
+{
   double btf;
   std::vector<double> xspline;
   double ev;
   std::vector<double> yspline;
 };
 
+class Ion;
+
 /**
-   What is this class for?
+   Store database of atomic data
 */
 class chdata 
 {
+
 public:
 
   //! Constructor
@@ -118,6 +133,15 @@ public:
   double ipdata[30][30];
   std::set<std::string> masterNames;
   double abundanceAll[numEle];
+
+  //! Access to data for individual Ions
+  std::map < std::pair<int, int>,  Ion > IonList;
+
+  //! Access to interaction info
+  std::map< std::pair<unsigned short, unsigned short>, double > interInfo;
+
+  //! Not sure what this does . . . looks like cruft.  Remove??
+  std::map< int, double > Ni;
 
   /** Read in the master list to store to be able to check if elements
       are in it */
@@ -194,14 +218,26 @@ public:
   //double abundance; 
   //abundance of the element in the system (for test, using cosmic.abund)
 
-  //! store as vector since the file contains string and float information
-  std::vector< elvlc_data > elvlc; 
+  //! Store by level
+  typedef std::map<int, elvlc_data> elvlcType; 
+  elvlcType elvlc; 
 
-  //std::vector< wgfa_data > wgfa; //store as vector since the file contains string and float information
-  std::vector< fblvl_data > fblvl; //store as vector since the file contains string and float information
-  //std::vector< fblvl_data > ifblvl;
-  std::vector< splups_data > splups;	
-  std::vector< di_data > diSpline;
+  //! Store by level pair
+  typedef std::pair<int, int> ZC;
+  typedef std::map<ZC, wgfa_data> wgfaType;
+  wgfaType wgfa;
+
+  //! Store by level
+  typedef std::map<int, fblvl_data> fblvlType; 
+  fblvlType fblvl; 
+
+  // fblvlType ifblvl;
+
+  typedef std::vector< splups_data > splupsType;	
+  splupsType splups;	
+
+  typedef std::vector< di_data > diSplineType;
+  diSplineType diSpline;
 
   struct di_head
   {
@@ -212,15 +248,9 @@ public:
     int neav;
   } di_header;		
   
-  int nelvlc; //lengths of the files
-  int nsplups;
-  //int nwgfa; 
-  int nfblvl;
-  int ndispline;
-
   //! include in other variables here as needed from the files
   //! could include variables for the elvlc and wgfa files
-  //double fbcross, fbloss, ffcross, ffloss, bbcross, bbloss;
+  // double fbcross, fbloss, ffcross, ffloss, bbcross, bbloss;
 
   //! Free-free cross section
   double ffcross;
@@ -251,6 +281,7 @@ public:
   
   void convertName();
   void readelvlc();
+  void readwgfa();
   void readfblvl();
   void readSplups();
   void readDi();
@@ -281,10 +312,11 @@ public:
   /** Calculates the differential radiative recombination cross section
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
-  std::vector<double> radRecombCross(chdata ch, double E);
-  std::vector<double> radRecombCrossMewe(chdata ch, double E);
+  std::vector<double> radRecombCross       (chdata ch, double E);
+  std::vector<double> radRecombCrossMewe   (chdata ch, double E);
   std::vector<double> radRecombCrossSpitzer(chdata ch, double E);
   std::vector<double> radRecombCrossKramers(chdata ch, double E);
+  std::vector<double> radRecombCrossMilne  (chdata ch, double E);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999

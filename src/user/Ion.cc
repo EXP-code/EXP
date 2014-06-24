@@ -127,14 +127,67 @@ void Ion::readelvlc()
       e.encmth = atof(v[10].c_str());
       e.enryth = atof(v[11].c_str());
       
-      elvlc.push_back(e);
+      elvlc[e.level] = e;
     }
     elvlcFile.close();
-    nelvlc = elvlc.size();
   }
   else {
     if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
-    nelvlc = 0;
+    MPI_Abort(MPI_COMM_WORLD, 42);
+  }
+}
+
+void Ion::readwgfa() 
+{
+  char * val;
+  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+    if (myid==0)
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 47);
+  }
+
+  std::string fileName(val);
+
+  fileName.append("/");
+  fileName.append(eleName); 
+  fileName.append("/");
+  fileName.append(MasterName); 
+  fileName.append("/"); 
+  fileName.append(MasterName);
+  fileName.append(".wgfa");
+  
+  std::string inLine;
+  wgfa_data w;
+  ifstream wgfaFile(fileName.c_str());
+
+  if (wgfaFile.is_open()) {
+
+    while (wgfaFile.good()) {
+
+      std::vector <std::string> v;
+      getline(wgfaFile, inLine);
+      std::istringstream iss(inLine);
+      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	   back_inserter<vector<std::string> >(v));
+
+      if (atoi(v[0].c_str()) == -1) break;
+
+      w.lvl1    = atoi(v[0].c_str());
+      w.lvl1    = atoi(v[1].c_str());
+      w.wvl     = atof(v[2].c_str());
+      w.gf      = atof(v[3].c_str());
+      w.avalue  = atof(v[4].c_str());
+      w.pretty1 = v[5].c_str();
+      w.pretty2 = v[5].c_str();
+      w.ref     = v[7].c_str();
+      
+      wgfa[ZC(w.lvl1, w.lvl2)] = w;
+    }
+    wgfaFile.close();
+  }
+  else {
+    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 42);
   }
 }
@@ -185,14 +238,12 @@ void Ion::readfblvl()
       f.encm = atof(v[6].c_str());
       f.encmth = atof(v[7].c_str());
       
-      fblvl.push_back(f);
+      fblvl[f.lvl] = f;
     }
     fblvlFile.close();
-    nfblvl = fblvl.size();
   }
   else {
     if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
-    nfblvl = 0;
     MPI_Abort(MPI_COMM_WORLD, 43);
   }
 }
@@ -233,14 +284,15 @@ void Ion::readSplups()
 
       if(atoi(v[0].c_str()) == -1) break;
 
-      s.Z = atoi(v[0].c_str());
-      s.C = atoi(v[1].c_str());
-      s.i = atoi(v[2].c_str());
-      s.j = atoi(v[3].c_str());
-      s.type = atoi(v[4].c_str());
-      s.gf = atof(v[5].c_str());
+      s.Z       = atoi(v[0].c_str());
+      s.C       = atoi(v[1].c_str());
+      s.i       = atoi(v[2].c_str());
+      s.j       = atoi(v[3].c_str());
+      s.type    = atoi(v[4].c_str());
+      s.gf      = atof(v[5].c_str());
       s.delERyd = atof(v[6].c_str());
-      s.Const = atof(v[7].c_str());
+      s.Const   = atof(v[7].c_str());
+
 				// Spline coefficients
       for(unsigned i = 8; i < v.size(); i++) {
 	s.spline.push_back(atof(v[i].c_str()));
@@ -250,12 +302,10 @@ void Ion::readSplups()
       s.spline.erase(s.spline.begin(), s.spline.end());		
     }
     sFile.close();
-    nsplups = splups.size();
   }
   else {
     if (myid==0) std::cout << "Cannot find file: " 
 			   << fileName << std::endl;
-    nsplups = 0;
     MPI_Abort(MPI_COMM_WORLD, 44);
   }
 }
@@ -328,12 +378,10 @@ void Ion::readDi()
       i++;
     }
     sFile.close();
-    ndispline = diSpline.size();
   }
   else {
     if (myid==0) std::cout << "Cannot find file: " 
 			   << fileName << std::endl;
-    ndispline = 0;
     MPI_Abort(MPI_COMM_WORLD, 45);
   }
 }
@@ -437,14 +485,11 @@ Ion::Ion(const Ion &I)
 
   diSpline   = I.diSpline;
   di_header  = I.di_header;
-  nsplups    = I.nsplups;
-  nfblvl     = I.nfblvl;
-  ndispline  = I.ndispline;
 
   MasterName = I.MasterName;
   eleName    = I.eleName;
   elvlc      = I.elvlc;
-  nelvlc     = I.nelvlc;
+  wgfa       = I.wgfa;
 }
 
 /** 
@@ -766,7 +811,8 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     
     return v1;
   } else {
-    return radRecombCrossMewe(ch, E);
+    return radRecombCrossMilne  (ch, E);
+    // return radRecombCrossMewe   (ch, E);
     // return radRecombCrossSpitzer(ch, E);
     // return radRecombCrossKramers(ch, E);
   }
@@ -798,6 +844,74 @@ std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E)
 }
 
 
+/**
+   Compute total recombination cross section using the Milne relation
+
+   The photo-ionization (absorption) cross section is related to the
+   Einstein A coefficient as:
+
+   \sigma_P = \frac{1}{4}\frac{g_2}{g_1} \lambda_{21}^2 A_{21}
+
+   The recombination cross section is related to the absorption cross
+   section using the Milne relation:
+
+   \sigma_R = \frac{g_A}{2g^+_A} \frac{(h\nu)^2}{Em_ec^2} \sigma_P
+
+   where g_A is the degeneracy of the target state and g^+_A is the
+   degeneracy of the ion (which we assume to be in the ground state)
+
+*/
+std::vector<double> Ion::radRecombCrossMilne(chdata ch, double E) 
+{
+  std::vector<double> radRecCum;
+
+  double cross = 0.0;
+
+  if (E > 0.0) {
+
+    Ion* neut = &ch.IonList[ZC(Z, C-1)];
+
+    for (wgfaType::iterator j=wgfa.begin(); j!=wgfa.end(); j++) {
+
+      wgfa_data* w = &j->second;
+
+      if (w->avalue > 0.0 && w->wvl>0.0) {
+
+	double lambda = w->wvl * 1.0e-08; // wavelength in cm
+	double nu     = light/lambda;	  // frequency in hertz
+
+	double sigmaP = 0.25*fblvl[w->lvl2].mult/fblvl[w->lvl1].mult *
+	  lambda*lambda * w->avalue;
+
+	double hnu = planck*nu + E*eV;
+	
+	double sigmaR = 0.5*neut->fblvl[w->lvl2].mult/fblvl[1].mult * hnu*hnu /
+	  (E*eV*mec2*eV*1.0e6) * sigmaP;
+	  
+	cross += sigmaR;
+	if (cross == 0) {
+	  std::cout << "NULL IN RAD RECOMB: Chi=" << ip
+		    << ", E=" << E 
+		    << ", hnu=" << hnu
+		    << ", sigmaP=" << sigmaP
+		    << std::endl;
+	}
+	if (isnan(cross)) {
+	  std::cout << "NAN IN RAD RECOMB: Chi=" << ip
+		    << ", E=" << E 
+		    << ", hnu=" << hnu
+		    << ", sigmaP=" << sigmaP
+		    << std::endl;
+	}
+      }
+    }
+  }
+  radRecCum.push_back(cross*1.e14);
+  radRecCrossCum = radRecCum;
+  return radRecCum;
+}
+
+
 /** Calculates the differential radiative recombination cross section
     as a function of incoming electron impact energy, and returns the
     vector cumulative cross section array. 
@@ -812,23 +926,24 @@ std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E)
 
   std::vector<double> radRecCum;
   
-  double cross = 0.;
+  double cross = 0.0;
   if (E!=0) {
-    for(int j = 1; j < nfblvl; j++) 
-      {
-	double I; double eTemp;
-	if(fblvl[j].encm == 0 and fblvl[j].encmth!=0) {
-	  eTemp = fblvl[j].encmth;
-	}
-	else if(fblvl[j].encm != 0) {
-	  eTemp = fblvl[j].encm;
+    for (fblvlType::iterator j=fblvl.begin(); j!=fblvl.end(); j++) {
+      fblvl_data* f = &j->second;
+      double I, eTemp;
+
+      if (f->encm == 0 and f->encmth!=0) {
+	eTemp = f->encmth;
+      }
+	else if(f->encm != 0) {
+	  eTemp = f->encm;
 	}
 	else {
 	  eTemp = 0;
 	  std::cout << "ERROR WITH ETEMP!" <<std::endl;
 	}
-	double mult = double(fblvl[j].mult);
-	double n = double(fblvl[j].lvl);
+	double mult = double(f->mult);
+	double n = double(f->lvl);
 	eTemp = eTemp*incmEv; //convert the energy to eV
 	eTemp = eTemp/1000.0; //convert to keV
 	I = eTemp;
@@ -871,18 +986,20 @@ std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E)
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {
-    for (int j = 0; j < nfblvl; j++) {
+    for (fblvlType::iterator j=fblvl.begin(); j!=fblvl.end(); j++) {
+      fblvl_data* f = &j->second;
+
       double Ej = 0.0;
-      if (j==0) 
+      if (f->lvl==1) 
 	Ej = ionE;
-      else if (j>0 && fblvl[j].encmth > 0) 
-	Ej = ionE - fblvl[j].encmth * incmEv;
-      else if (j>0 && fblvl[j].encm > 0) 
-	Ej = ionE - fblvl[j].encm * incmEv;
+      else if (f->lvl>1 && f->encmth > 0) 
+	Ej = ionE - f->encmth * incmEv;
+      else if (f->lvl>1 && f->encm > 0) 
+	Ej = ionE - f->encm * incmEv;
       else continue;
       //
-      double mult = static_cast<double>(fblvl[j].mult);
-      double n    = static_cast<double>(fblvl[j].lvl );
+      double mult = static_cast<double>(f->mult);
+      double n    = static_cast<double>(f->lvl );
       double Ephot  = E + Ej;
       double Erat   = Ej / Ephot;
       double crossn = coef * (Ej / Ephot) * (0.5*Ephot/E) * (mult/n);

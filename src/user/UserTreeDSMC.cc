@@ -31,17 +31,8 @@ using namespace std;
 static bool sampcel_debug = false;
 
 //
-// Physical units
+// Simulation units
 //
-
-const double pc    = 3.08567758e18;	// cm      Parsec
-const double a0    = 0.052917721092e-7;	// cm      Bohr radius
-const double boltz = 1.381e-16;		// cgs     Boltzmann constant k_B
-const double year  = 365.242*24*3600;	// s       Seconds per year
-const double mp    = 1.67262178e-24;	// g       Proton mass
-const double msun  = 1.9891e33;		// g       Solar mass
-const double amu   = 1.660539e-24;	// g       Atomic mass unit
-
 double UserTreeDSMC::Lunit = 3.0e5*pc;
 double UserTreeDSMC::Munit = 1.0e12*msun;
 double UserTreeDSMC::Tunit = sqrt(Lunit*Lunit*Lunit/(Munit*6.67384e-08));

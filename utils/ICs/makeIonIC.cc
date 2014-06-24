@@ -421,8 +421,8 @@ void InitializeSpeciesTrace
 
   for (size_t indx=0; indx<NS; indx++) { 
     double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
-    for (std::vector<double>::iterator is=frac[indx].begin(); is!=frac[indx].end(); is++)
-      *is /= norm;
+    for (std::vector<double>::iterator is=frac[indx].begin(); 
+	 is!=frac[indx].end(); is++) *is /= norm;
   }
 
   for (size_t i=0; i<N; i++) {

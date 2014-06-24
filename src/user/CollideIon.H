@@ -5,7 +5,7 @@
 #include "interactSelect.H"
 #include "Elastic.H"
 #include "Ion.H"
-
+#include "atomic_constants.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -166,11 +166,6 @@ class CollideIon : public Collide
   friend class collDiag;
 
 private:
-  //! Global variables for the calculations with the individual ions
-  std::map <int, std::map<int, Ion> > IonList;
-
-  //! Not sure what this does . . . looks like cruft.  Remove??
-  std::vector<int> Ni;
 
   chdata ch;
   Elastic elastic;
