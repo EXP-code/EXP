@@ -2913,7 +2913,7 @@ void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
 const std::string clabl(unsigned c)
 {
   std::ostringstream sout;
-  sout << "[" << c << "]";
+  sout << "[" << c << "]  ";
   return sout.str();
 }
 
@@ -2934,19 +2934,14 @@ void CollideIon::printSpeciesTrace()
 
     // Print the header
     //
-    dout << "# " << std::setw(12) << std::right << " ";
+    dout << "# " 
+	 << std::setw(12) << std::right << "Time  "
+	 << std::setw(12) << std::right << "Temp  ";
     for (spDItr it=specM.begin(); it != specM.end(); it++) {
       std::ostringstream sout;
       sout << "(" << it->first.first << "," << it->first.second << ") ";
-      dout << std::setw(2*12) << right << sout.str();
+      dout << std::setw(12) << right << sout.str();
     }
-    dout << std::endl;
-
-    dout << "# " 
-	 << std::setw(12) << std::right << "Time "
-	 << std::setw(12) << std::right << "Temp ";
-    for (spDItr it=specM.begin(); it != specM.end(); it++)
-      dout << std::setw(12) << right << "Fraction";
     dout << std::endl;
 
     unsigned cnt = 0;

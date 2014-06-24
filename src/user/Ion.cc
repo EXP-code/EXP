@@ -766,9 +766,9 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
     
     return v1;
   } else {
-    // return radRecombCrossMewe(ch, E);
+    return radRecombCrossMewe(ch, E);
     // return radRecombCrossSpitzer(ch, E);
-    return radRecombCrossKramers(ch, E);
+    // return radRecombCrossKramers(ch, E);
   }
 }
 
