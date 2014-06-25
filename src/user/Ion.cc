@@ -23,7 +23,7 @@ void Ion::convertName()
   
   std::vector<std::string> v;
   std::string die = "d";	// Set to dielectronic
-  size_t isd;
+  size_t      isd;
   
   // split the name up into its element ab. and charge
   // In C, this would be: sscanf(MasterName, "%s_%s", ele, charge);
@@ -114,18 +114,18 @@ void Ion::readelvlc()
 
       if (atoi(v[0].c_str()) == -1) break;
 
-      e.level = atoi(v[0].c_str());
-      e.conf = atoi(v[1].c_str());
+      e.level       = atoi(v[0].c_str());
+      e.conf        = atoi(v[1].c_str());
       e.designation = v[2];
-      e.spin = atoi(v[3].c_str());
-      e.l = atoi(v[4].c_str());
-      e.l_str = v[5];
-      e.J = atof(v[6].c_str());
-      e.mult = atoi(v[7].c_str());
-      e.encm = atof(v[8].c_str());
-      e.enry = atof(v[9].c_str());
-      e.encmth = atof(v[10].c_str());
-      e.enryth = atof(v[11].c_str());
+      e.spin        = atoi(v[3].c_str());
+      e.l           = atoi(v[4].c_str());
+      e.l_str       = v[5];
+      e.J           = atof(v[6].c_str());
+      e.mult        = atoi(v[7].c_str());
+      e.encm        = atof(v[8].c_str());
+      e.enry        = atof(v[9].c_str());
+      e.encmth      = atof(v[10].c_str());
+      e.enryth      = atof(v[11].c_str());
       
       elvlc[e.level] = e;
     }
@@ -174,15 +174,15 @@ void Ion::readwgfa()
       if (atoi(v[0].c_str()) == -1) break;
 
       w.lvl1    = atoi(v[0].c_str());
-      w.lvl1    = atoi(v[1].c_str());
+      w.lvl2    = atoi(v[1].c_str());
       w.wvl     = atof(v[2].c_str());
       w.gf      = atof(v[3].c_str());
       w.avalue  = atof(v[4].c_str());
       w.pretty1 = v[5].c_str();
-      w.pretty2 = v[5].c_str();
+      w.pretty2 = v[6].c_str();
       w.ref     = v[7].c_str();
       
-      wgfa[ZC(w.lvl1, w.lvl2)] = w;
+      wgfa[lQ(w.lvl1, w.lvl2)] = w;
     }
     wgfaFile.close();
   }
@@ -195,7 +195,7 @@ void Ion::readwgfa()
 //! Read in the fblvl file found in the CHIANTI database
 void Ion::readfblvl() 
 {
-  std::string MasterNameT = ZCtoName(Z, C-1);
+  std::string MasterNameT = ZCtoName(Z, C);
 
   char * val;
   if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
@@ -228,15 +228,17 @@ void Ion::readfblvl()
       istringstream iss(inLine);
       copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
 	   back_inserter<vector<std::string> >(v));
-      if(atoi(v[0].c_str()) == -1) break;
-      f.lvl = atoi(v[0].c_str());
-      f.conf = v[1];
-      f.pqn = atoi(v[2].c_str());
-      f.l = atoi(v[3].c_str());
-      f.l_str = v[4];
-      f.mult = atoi(v[5].c_str());
-      f.encm = atof(v[6].c_str());
-      f.encmth = atof(v[7].c_str());
+
+      if (atoi(v[0].c_str()) == -1) break;
+
+      f.lvl      = atoi(v[0].c_str());
+      f.conf     = v[1];
+      f.pqn      = atoi(v[2].c_str());
+      f.l        = atoi(v[3].c_str());
+      f.l_str    = v[4];
+      f.mult     = atoi(v[5].c_str());
+      f.encm     = atof(v[6].c_str());
+      f.encmth   = atof(v[7].c_str());
       
       fblvl[f.lvl] = f;
     }
@@ -387,7 +389,7 @@ void Ion::readDi()
 }
 
 //! Initialization function when the master name is given
-Ion::Ion(std::string name, chdata ch) 
+Ion::Ion(std::string name, chdata* ch) : ch(ch)
 {
   MasterName = name;
 
@@ -396,15 +398,12 @@ Ion::Ion(std::string name, chdata ch)
   eleName = v[0];
 
   convertName();		// Sets Z and C . . . 
-  ip = ch.ipdata[Z-1][C-1];
+  ip = ch->ipdata[lQ(Z, C)];
 
-  std::string MasterNameT = ZCtoName(Z, C-1);
-  if (isInMasterList(ch, MasterNameT)) {
+  if (isInMasterList(MasterName)) {
     readfblvl();
-  }
-  if (isInMasterList(ch, MasterName)) {
-    // std::cout << "IN MASTER LIST" <<std::endl;
     readelvlc();
+    readwgfa();
     readSplups();
     readDi();
   }
@@ -425,27 +424,28 @@ Ion::Ion(std::string name, chdata ch)
 }
 
 //! Constructor when the Z, C pair is given
-Ion::Ion(unsigned char Z1, unsigned char C1, chdata ch) 
+Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 {
   d = false;
-  Z = Z1;
-  C = C1;
-  MasterName = ZCtoName(Z1, C1);
+  MasterName = ZCtoName(Z, C);
 
   std::vector<std::string> v;
   boost::split(v, MasterName, boost::is_any_of("_") );
   eleName = v[0];
-  ip = ch.ipdata[Z-1][C-1];
 
-  std::string MasterNameT = ZCtoName(Z, C-1);
-  if (isInMasterList(ch, MasterNameT)) {
-    readfblvl();
-  }
+  ip = 0.0;
 
-  if (isInMasterList(ch, MasterName)) {
-    readSplups();
-    readDi();
-    readelvlc();
+  if (Z>=C) {
+
+    ip = ch->ipdata[lQ(Z, C)];
+
+    if (isInMasterList(MasterName)) {
+      readfblvl();
+      readSplups();
+      readDi();
+      readelvlc();
+      readwgfa();
+    }
   }
   
   // Initialize the k-grid (in inverse nm) for ff and the energy grid
@@ -500,7 +500,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 Ion::collType
-Ion::collExciteCross(chdata ch, double E)
+Ion::collExciteCross(double E)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -650,7 +650,7 @@ double Ion::qrp(double u)
     See: Dere, K. P., 2007, A&A, 466, 771
     ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
 */
-double Ion::directIonCross(chdata ch, double E) 
+double Ion::directIonCross(double E) 
 {
   double u        = E/ip;
 				// Test for hydrogen-like/helium-like ion
@@ -709,7 +709,7 @@ double Ion::directIonCross(chdata ch, double E)
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
     Elwert factor (see Koch & Motz eq. II-6)
 */
-double Ion::freeFreeCross(chdata ch, double E) 
+double Ion::freeFreeCross(double E) 
 {
   double hbc      = 197.327;	     // value of h-bar * c in eV nm
   double r0       = 2.81794033e-6;   // classic electron radius in nm
@@ -760,7 +760,7 @@ double Ion::freeFreeCross(chdata ch, double E)
 /** Calculate the differential free-free cross section and return the
     cumulative cross section vector The formula used to calculate the
     cross section is 3BS(a) from Koch & Motz 1959 */
-void Ion::freeFreeDifferential(chdata ch) 
+void Ion::freeFreeDifferential() 
 {
   // Value of h-bar * c in eV nm
   double hbc = 197.327; 
@@ -797,24 +797,22 @@ void Ion::freeFreeDifferential(chdata ch)
 }
 
 
-std::vector<double> Ion::radRecombCross(chdata ch, double E)
+std::vector<double> Ion::radRecombCross(double E)
 {
   // For testing . . .
   if (0) {
-    std::vector<double> v1 = radRecombCrossMewe   (ch, E);
-    std::vector<double> v2 = radRecombCrossSpitzer(ch, E);
+    std::vector<double> v1 = radRecombCrossMilne (E);
+    std::vector<double> v2 = radRecombCrossMewe  (E);
 
-    if (v1.back() < v2.back()) {
-      std::cout << "   Mewe = " << v1.back() << std::endl;
-      std::cout << "Spitzer = " << v2.back() << std::endl;
-    }
+    std::cout << " Milne = " << std::setw(16) << v1.back() << std::endl;
+    std::cout << "  Mewe = " << std::setw(16) << v2.back() << std::endl;
     
     return v1;
   } else {
-    return radRecombCrossMilne  (ch, E);
-    // return radRecombCrossMewe   (ch, E);
-    // return radRecombCrossSpitzer(ch, E);
-    // return radRecombCrossKramers(ch, E);
+    return radRecombCrossMilne  (E);
+    // return radRecombCrossMewe   (E);
+    // return radRecombCrossSpitzer(E);
+    // return radRecombCrossKramers(E);
   }
 }
 
@@ -822,7 +820,7 @@ std::vector<double> Ion::radRecombCross(chdata ch, double E)
 /**
    Kramers formula for radiative recombination cross section
 */
-std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E) 
+std::vector<double> Ion::radRecombCrossKramers(double E) 
 {
   double coef = 2.105e-8;	// in nm^2
   double zz = Z;
@@ -861,7 +859,7 @@ std::vector<double> Ion::radRecombCrossKramers(chdata ch, double E)
    degeneracy of the ion (which we assume to be in the ground state)
 
 */
-std::vector<double> Ion::radRecombCrossMilne(chdata ch, double E) 
+std::vector<double> Ion::radRecombCrossMilne(double E) 
 {
   std::vector<double> radRecCum;
 
@@ -869,9 +867,9 @@ std::vector<double> Ion::radRecombCrossMilne(chdata ch, double E)
 
   if (E > 0.0) {
 
-    Ion* neut = &ch.IonList[ZC(Z, C-1)];
+    Ion* N = &ch->IonList[lQ(Z, C-1)];
 
-    for (wgfaType::iterator j=wgfa.begin(); j!=wgfa.end(); j++) {
+    for (wgfaType::iterator j=N->wgfa.begin(); j!= N->wgfa.end(); j++) {
 
       wgfa_data* w = &j->second;
 
@@ -880,28 +878,39 @@ std::vector<double> Ion::radRecombCrossMilne(chdata ch, double E)
 	double lambda = w->wvl * 1.0e-08; // wavelength in cm
 	double nu     = light/lambda;	  // frequency in hertz
 
-	double sigmaP = 0.25*fblvl[w->lvl2].mult/fblvl[w->lvl1].mult *
-	  lambda*lambda * w->avalue;
-
-	double hnu = planck*nu + E*eV;
-	
-	double sigmaR = 0.5*neut->fblvl[w->lvl2].mult/fblvl[1].mult * hnu*hnu /
-	  (E*eV*mec2*eV*1.0e6) * sigmaP;
+	fblvlType::iterator m1 = N->fblvl.find(w->lvl1);
+	fblvlType::iterator m2 = N->fblvl.find(w->lvl2);
 	  
-	cross += sigmaR;
-	if (cross == 0) {
-	  std::cout << "NULL IN RAD RECOMB: Chi=" << ip
-		    << ", E=" << E 
-		    << ", hnu=" << hnu
-		    << ", sigmaP=" << sigmaP
-		    << std::endl;
-	}
-	if (isnan(cross)) {
-	  std::cout << "NAN IN RAD RECOMB: Chi=" << ip
-		    << ", E=" << E 
-		    << ", hnu=" << hnu
-		    << ", sigmaP=" << sigmaP
-		    << std::endl;
+	if (m1 != N->fblvl.end() && m2 != N->fblvl.end()) {
+	  
+	  double mult1 = m1->second.mult;
+	  double mult2 = m2->second.mult;
+
+	  double sigmaP = 0.25 * mult2/mult1 * lambda*lambda * w->avalue;
+	  
+	  double hnu   = planck*nu + E*eV;
+	  double mult0 = (C<=Z ? fblvl[1].mult : 1);
+	  
+	  double sigmaR = 0.5*mult2/mult0 * hnu*hnu /
+	    (E*eV*mec2*eV*1.0e6) * sigmaP;
+	  
+	  cross += sigmaR;
+
+	  if (cross == 0) {
+	    std::cout << "NULL IN RAD RECOMB: Chi=" << ip
+		      << ", E=" << E 
+		      << ", hnu=" << hnu
+		      << ", sigmaP=" << sigmaP
+		      << std::endl;
+	  }
+	  
+	  if (isnan(cross)) {
+	    std::cout << "NAN IN RAD RECOMB: Chi=" << ip
+		      << ", E=" << E 
+		      << ", hnu=" << hnu
+		      << ", sigmaP=" << sigmaP
+		      << std::endl;
+	  }
 	}
       }
     }
@@ -916,63 +925,80 @@ std::vector<double> Ion::radRecombCrossMilne(chdata ch, double E)
     as a function of incoming electron impact energy, and returns the
     vector cumulative cross section array. 
 */
-std::vector<double> Ion::radRecombCrossMewe(chdata ch, double E) 
+std::vector<double> Ion::radRecombCrossMewe(double E) 
 {
   double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
 
   // constant infront of the photo-cross using the Mewe method
   double D = 1.075812e-23;
-  double mec2 = 510998.9; //mass of electron*c^2
+
+  //mass of electron*c^2
+  double mec2 = 510998.9;
+
+  // Key of parent ion
+  lQ Q(Z, C-1);
+  double IP = ch->ipdata[Q];
+  Ion* N = &ch->IonList[Q];
 
   std::vector<double> radRecCum;
   
   double cross = 0.0;
   if (E!=0) {
-    for (fblvlType::iterator j=fblvl.begin(); j!=fblvl.end(); j++) {
+    for (fblvlType::iterator j=N->fblvl.begin(); j!=N->fblvl.end(); j++) {
       fblvl_data* f = &j->second;
-      double I, eTemp;
+      double I = IP;
 
-      if (f->encm == 0 and f->encmth!=0) {
-	eTemp = f->encmth;
+      if (f->encm == 0 and f->encmth!=0) I -= f->encmth*incmEv;
+      else if (f->encm != 0)             I -= f->encm  *incmEv;
+
+      if (I<=0.0) {
+	std::cout << "ERROR in energy level for radRecombCrossMewe!" 
+		  << "  ip=" << IP
+		  << ", En=" << f->encmth
+		  << ", Em=" << f->encm
+		  <<std::endl;
       }
-	else if(f->encm != 0) {
-	  eTemp = f->encm;
+
+      double mult = f->mult;
+      double n    = f->lvl ;
+
+      I *= 1.0e-3;		// convert the energy to keV
+      
+      if (I >= 0) {
+	double ePhot  = E/1000.0 + I;
+	double hnu    = E + I*1000.0;
+	double Erat   = (hnu*hnu)/(2.0*mec2*E);
+	double crossi = 
+	  Erat * mult*D * I*I * (1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot) * (1.0/n);
+	cross += crossi;
+	if (cross == 0) {
+	  std::cout << "NULL in radRecombCrossMewe:" 
+		    << "  Chi="   << ip
+		    << ", I="     << I
+		    << ", ePhot=" << ePhot
+		    << ", Erat="  << Erat
+		    << ", mult="  << mult
+		    << std::endl;
 	}
-	else {
-	  eTemp = 0;
-	  std::cout << "ERROR WITH ETEMP!" <<std::endl;
-	}
-	double mult = double(f->mult);
-	double n = double(f->lvl);
-	eTemp = eTemp*incmEv; //convert the energy to eV
-	eTemp = eTemp/1000.0; //convert to keV
-	I = eTemp;
-	if (I >= 0) {
-	  double ePhot = E/1000.0 + I;
-	  double hnu = E + I*1000.0;
-	  double Erat = (hnu*hnu)/(2.0*mec2*E);
-	  double crossi = 
-	    Erat * mult*D * I*I * (1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot) * (1.0/n);
-	  cross += crossi;
-	  if (cross == 0) {
-	    std::cout << "NULL IN RAD RECOMB: " << ip << "\t" 
-		      << eTemp << "\t" << I << "\t" << ePhot << "\t" 
-		      <<Erat << "\t" << mult << "\t" << n <<std::endl;
-	  }
-	  if (isnan(cross)) {
-	    std::cout << cross << "\t" << I << "\t" << ePhot << "\t" 
-		      << (double)n << "\t" << Erat <<std::endl;
-	  }
+	if (isnan(cross)) {
+	  std::cout << "NaN in radRecombCrossMewe:" 
+		    << "  Chi="   << ip
+		    << ", I="     << I
+		    << ", ePhot=" << ePhot
+		    << ", Erat="  << Erat
+		    << ", mult="  << mult
+		    << std::endl;
 	}
       }
+    }
   }
+
   radRecCum.push_back(cross*1.e18);
   radRecCrossCum = radRecCum;
   return radRecCum;
-  
 }
 
-std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E) 
+std::vector<double> Ion::radRecombCrossSpitzer(double E) 
 {
 				// 1 inverse cm = 1.239.. eV
   const double incmEv = 1.239842e-4;
@@ -980,8 +1006,8 @@ std::vector<double> Ion::radRecombCrossSpitzer(chdata ch, double E)
 				// Cross-section prefactor in nm^2
   const double coef   = 2.105310889751809e-08;
 
-				// Ionization energy in cm^{-1}
-  double ionE   = ch.ipdata[Z-1][0];
+				// Ionization energy in eV
+  double ionE         = ch->ipdata[lQ(Z, 1)];
 
   std::vector<double> radRecCum;
   double cross = 0.0;
@@ -1104,7 +1130,7 @@ void chdata::readMaster()
 }
 
 /** Get the ipdata set so that if you want to get the ip of any Z, C,
-    you call it as ipdata[Z-1][C-1-(int)die]
+    you call it as ipdata[lQ(Z, C-(int)die)]
 */
 void chdata::readIp() 
 {
@@ -1134,11 +1160,11 @@ void chdata::readIp()
       copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
 	   back_inserter<vector<std::string> >(v));
       // assign the values from the string
-      Z = atoi(v[0].c_str());
-      C = atoi(v[1].c_str());
-      ip = atof(v[2].c_str())*convert;
+      Z  = atoi(v[0].c_str());
+      C  = atoi(v[1].c_str());
+      ip = atof(v[2].c_str())*convert; // Convert to eV
       // set up the array
-      ipdata[Z-1][C-1] = ip;
+      ipdata[lQ(Z, C)] = ip;
       count++;
     }
     ipFile.close();
@@ -1203,14 +1229,21 @@ void chdata::printMaster()
 
 void chdata::printIp() 
 {
-  for(int i = 0; i < 30; i++) {
-    for(int j = 0; j < 30; j++) {
-      if (ipdata[i][j] != 0) {
-	std::cout << ipdata[i][j] << "\t";
-      }
+  std::cout << std::string(60, '-') << std::endl
+	    << std::setw( 3) << "Z" << std::setw( 3) << "C"
+	    << std::setw(16) << "Energy (eV)" << std::endl;
+
+  for (std::map<lQ, double>::iterator i=ipdata.begin(); i!=ipdata.end(); i++) {
+    if (i->second != 0) {
+      std::cout 
+	<< std::setw( 3) << i->first.first
+	<< std::setw( 3) << i->first.second
+	<< std::setw(16) << i->second
+	<< std::endl;
     }
-    std::cout << std::endl;
   }
+
+  std::cout << std::string(60, '-') << std::endl;
 }
 
 // chdata constructor
@@ -1221,13 +1254,6 @@ chdata::chdata()
   // maxNel = 31; 
   
   for(int i = 0; i < numEle; i++) abundanceAll[i] = 0;
-  
-  // Start with zeroed array
-  for (int i=0; i<30; i++) {
-    for (int j=0; j<30; j++) {
-      ipdata[i][j] = 0.0;
-    }
-  }
   
   // std::cout << "Reading ip file\n";
   readIp();
@@ -1241,3 +1267,16 @@ chdata::chdata()
   // Done
 }
 
+void chdata::createIonList(const std::set<unsigned short>& ZList)
+{
+  // Fill the Chianti data base
+  //
+  for (ZLtype::const_iterator i=ZList.begin(); i!=ZList.end(); i++) {
+    for (int j=1; j<*i+2; j++) {
+      lQ Q(*i, j);
+      IonList[Q] = Ion(*i, j, this);
+      IonList[Q].freeFreeDifferential();
+    }
+    Ni[*i] = 1.0;		// Not sure what this does . . . 
+  }
+}

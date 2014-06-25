@@ -39,7 +39,7 @@ public:
   double selectFFInteract(const Ion& a, double E);
 
   //! Return the lost ionization energy and adjust ionization state
-  double DIInterLoss(const chdata& ch, const Ion& a);
+  double DIInterLoss(const Ion& a);
 
   //! 
   double selectRRInteract(const Ion& a, const std::vector<double>& cumCross, double Ee);

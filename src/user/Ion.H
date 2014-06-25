@@ -117,6 +117,9 @@ struct di_data
   std::vector<double> yspline;
 };
 
+//! Pair of unsigned shorts for indexing (Z, C) and (l1, l2) index pairs
+typedef std::pair<unsigned short, unsigned short> lQ;
+
 class Ion;
 
 /**
@@ -130,7 +133,11 @@ public:
   //! Constructor
   chdata();
   
-  double ipdata[30][30];
+  //! Create database of requested ions
+  typedef std::set<unsigned short> ZLtype;
+  void createIonList(const ZLtype& ZList);
+
+  std::map<lQ, double> ipdata;
   std::set<std::string> masterNames;
   double abundanceAll[numEle];
 
@@ -150,7 +157,7 @@ public:
   /** Get the ionization potential data
 
       If you want to get the ip of any Z, C, you call it as
-      ipdata[Z-1][C-1-(int)die] 
+      ipdata[lQ(Z, C-(int)die)] 
   */
   void readIp();
 
@@ -187,12 +194,16 @@ public:
 */
 class Ion 
 {
+private:
+
+  chdata* ch;
+
 public:
 
   //@{
   //! Constructors
-  Ion (std::string name, chdata ch);
-  Ion (unsigned char Z1, unsigned char C1, chdata ch);
+  Ion (std::string name, chdata* ch);
+  Ion (unsigned short Z1, unsigned short C1, chdata* ch);
   //@}
 
   //@{
@@ -201,30 +212,25 @@ public:
   Ion ();
   //@}
   
-  
   //! element name, i.e. "He"
   std::string eleName; 
 
   //! nuclear charge, e.g. 2 = He
-  unsigned char Z;
+  unsigned short Z;
 
   //! ionization state, e.g. 1 = He I
-  unsigned char C; 
+  unsigned short C; 
   
   //! ionization potential in eV
   double ip;
   bool d;
-
-  //double abundance; 
-  //abundance of the element in the system (for test, using cosmic.abund)
 
   //! Store by level
   typedef std::map<int, elvlc_data> elvlcType; 
   elvlcType elvlc; 
 
   //! Store by level pair
-  typedef std::pair<int, int> ZC;
-  typedef std::map<ZC, wgfa_data> wgfaType;
+  typedef std::map<lQ, wgfa_data> wgfaType;
   wgfaType wgfa;
 
   //! Store by level
@@ -241,8 +247,8 @@ public:
 
   struct di_head
   {
-    unsigned char Z;
-    unsigned char C;
+    unsigned short Z;
+    unsigned short C;
     int nspline;
     int nfac;
     int neav;
@@ -285,45 +291,50 @@ public:
   void readfblvl();
   void readSplups();
   void readDi();
+
   //! Is a species is in the database?
-  bool isInMasterList(chdata& ch, const std::string name) 
+  bool isInMasterList(const std::string name) 
   { 
-    return ch.masterNames.find(name) != ch.masterNames.end();
+    return ch->masterNames.find(name) != ch->masterNames.end();
   }
-  double getIp(chdata ch);
-  double freeFreeCross(chdata ch, double E);
+
+  double freeFreeCross(double E);
 
   /** Calculate the differential free-free cross section and return
       the cumulative cross section vector The formula used to
       calculate the cross section is 3BS(a) from Koch&Motz 1959 */
-  void freeFreeDifferential(chdata ch);
+  void freeFreeDifferential();
 
 
   //! Return type for collisional excitation cross-section data
   typedef std::vector< std::pair<double, double > > collType;
 
   //! Get the collisional excitation cross section
-  collType collExciteCross(chdata ch, double E);
+  collType collExciteCross(double E);
 
   //! Ionization cross section
-  double directIonCross(chdata ch, double E);
+  double directIonCross(double E);
 
   //@{
+
   /** Calculates the differential radiative recombination cross section
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
-  std::vector<double> radRecombCross       (chdata ch, double E);
-  std::vector<double> radRecombCrossMewe   (chdata ch, double E);
-  std::vector<double> radRecombCrossSpitzer(chdata ch, double E);
-  std::vector<double> radRecombCrossKramers(chdata ch, double E);
-  std::vector<double> radRecombCrossMilne  (chdata ch, double E);
+
+  std::vector<double> radRecombCross       (double E);
+  std::vector<double> radRecombCrossMewe   (double E);
+  std::vector<double> radRecombCrossSpitzer(double E);
+  std::vector<double> radRecombCrossKramers(double E);
+  std::vector<double> radRecombCrossMilne  (double E);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);
   
   //@{
+
   //!print functions mainly used in debugging
+
   void printInfo();
   void printelvlc();
   void printwgfa();
@@ -331,9 +342,10 @@ public:
   //@}
   
   //@{
-  // get functions
-  unsigned char getZ() const { return Z; }
-  unsigned char getC() const { return C; }
+  // Return constant data
+  unsigned short getZ()             const { return Z; }
+  unsigned short getC()             const { return C; }
+  double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
 };
 

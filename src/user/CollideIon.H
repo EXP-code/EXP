@@ -12,7 +12,8 @@
 //
 namespace std {
   template <typename T1, typename T2>
-  std::pair<T1, T2> operator+(const std::pair<T1, T2> &p1, const std::pair<T1, T2> &p2) 
+  std::pair<T1, T2> operator+(const std::pair<T1, T2> &p1, 
+			      const std::pair<T1, T2> &p2) 
   {
     return std::pair<T1, T2>(p1.first + p2.first, p1.second + p2.second);
   } 
@@ -223,19 +224,20 @@ private:
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct,  Trace };
 
-  protected:
+public:
+
+  typedef std::set<unsigned short> ZLtype;
+
+protected:
 
   //! List of cross sections (separate for each thread)
   std::vector<sKey2Dmap> csections;
 
   boost::shared_ptr<collDiag> collD;
 
-  //! Number of elements
-  int N_Z;
-
-  //! Array of the elements (atomic number) for direct multi-species
+  //! Set of the elements (atomic number) for direct multi-species
   //! implementation
-  std::vector<int> ZList;
+  ZLtype ZList;
 
   //! Map of species to attribute position for trace multi-species
   //! implementation

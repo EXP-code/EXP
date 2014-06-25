@@ -47,14 +47,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 
   // Fill the Chianti data base
   //
-  for(int i = 0; i < N_Z; i++) {
-    for (int j = 1; j <= ZList[i] + 1; j++) {
-      Ion::ZC Q(ZList[i], j);
-      ch.IonList[Q] = Ion(ZList[i], j, ch);
-      ch.IonList[Q].freeFreeDifferential(ch);
-    }
-    ch.Ni[ZList[i]] = 1.0;	// Not sure what this does . . . 
-  }
+  ch.createIonList(ZList);
 
   // Cross-section storage
   //
@@ -632,8 +625,8 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   //--------------------------------------------------
   // Ion keys
   //--------------------------------------------------
-  Ion::ZC Q1(Z1, C1), Q2(Z2, C2);
 
+  lQ Q1(Z1, C1), Q2(Z2, C2);
 
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
@@ -643,7 +636,8 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
-    double ff1 = ch.IonList[Q1].freeFreeCross(ch, kEe2[id]);
+
+    double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id]);
     double crs = eVel2*ne2 * ff1;
 
     if (crs>0.0) {
@@ -657,7 +651,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    CE1[id] = ch.IonList[Q1].collExciteCross(ch, kEe2[id]);
+    CE1[id] = ch.IonList[Q1].collExciteCross(kEe2[id]);
 
     double crs = eVel2*ne2 * CE1[id].back().first;
 
@@ -672,7 +666,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    double DI1 = ch.IonList[Q1].directIonCross(ch, kEe2[id]);
+    double DI1 = ch.IonList[Q1].directIonCross(kEe2[id]);
     double crs = eVel2*ne2 * DI1;
 
     if (crs>0.0) {
@@ -686,7 +680,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-    std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(ch, kEe2[id]);
+    std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id]);
     double crs = eVel2*ne2 * RE1.back();
 
     if (crs>0.0) {
@@ -705,7 +699,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    double ff2 = ch.IonList[Q2].freeFreeCross(ch, kEe1[id]);
+    double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id]);
     double crs = eVel1*ne1 * ff2;
 
     if (crs>0.0) {
@@ -719,7 +713,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2].collExciteCross(ch, kEe1[id]);
+    CE2[id] = ch.IonList[Q2].collExciteCross(kEe1[id]);
     double crs = eVel1*ne1 * CE2[id].back().first;
 
     if (crs>0.0) {
@@ -732,7 +726,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Ionization cross section
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
-    double DI2 = ch.IonList[Q2].directIonCross(ch, kEe1[id]);
+    double DI2 = ch.IonList[Q2].directIonCross(kEe1[id]);
     double crs = ne1 * DI2;
 
     if (crs>0.0) {
@@ -745,7 +739,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Radiative recombination
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(ch, kEe1[id]);
+    std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id]);
     double crs = eVel1*ne1*RE2.back();
 
     if (crs>0.0) {
@@ -928,7 +922,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       //--------------------------------------------------
       // Ion keys
       //--------------------------------------------------
-      Ion::ZC Q1(Z1, C1), Q2(Z2, C2);
+      lQ Q1(Z1, C1), Q2(Z2, C2);
 
       //--------------------------------------------------
       // Inelastic scattering: Particle 1 interacts with 
@@ -939,7 +933,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
       if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
-	double ff1 = ch.IonList[Q1].freeFreeCross(ch, kEe2[id]);
+	double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id]);
 	double crs = eVel2*ne2 * ff1 * ww;
 
 	if (crs>0.0) {
@@ -953,7 +947,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
-	CEvector V = ch.IonList[Q1].collExciteCross(ch, kEe2[id]);
+	CEvector V = ch.IonList[Q1].collExciteCross(kEe2[id]);
 	double crs = eVel2*ne2 * V.back().first * ww;
 
 	if (crs>0.0) {
@@ -968,7 +962,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
-	double DI1 = ch.IonList[Q1].directIonCross(ch, kEe2[id]);
+	double DI1 = ch.IonList[Q1].directIonCross(kEe2[id]);
 	double crs = eVel2*ne2 * DI1 * ww;
 
 	if (crs>0.0) {
@@ -982,7 +976,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-	std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(ch, kEe2[id]);
+	std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id]);
 	double crs = eVel2*ne2 * RE1.back() * ww;
 
 	if (crs>0.0) {
@@ -1002,7 +996,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
-	double ff2 = ch.IonList[Q2].freeFreeCross(ch, kEe1[id]);
+	double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id]);
 	double crs = eVel1*ne1 * ff2 * ww;
 
 	if (crs>0.0) {
@@ -1016,7 +1010,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
 
-	CEvector V = ch.IonList[Q2].collExciteCross(ch, kEe1[id]);
+	CEvector V = ch.IonList[Q2].collExciteCross(kEe1[id]);
 	double crs = eVel1*ne1 * V.back().first * ww;
 
 	if (crs>0.0) {
@@ -1031,7 +1025,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Ionization cross section
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
-	double DI2 = ch.IonList[Q2].directIonCross(ch, kEe1[id]);
+	double DI2 = ch.IonList[Q2].directIonCross(kEe1[id]);
 	double crs = ne1 * DI2 * ww;
 	
 	if (crs>0.0) {
@@ -1044,7 +1038,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Radiative recombination
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
-	std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(ch, kEe1[id]);
+	std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id]);
 	double crs = eVel1*ne1*RE2.back() * ww;
 
 	if (crs>0.0) {
@@ -1205,8 +1199,8 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //--------------------------------------------------
     // Ion keys
     //--------------------------------------------------
-    Ion::ZC Q1(Z1, C1), Q2(Z2, C2);
 
+    lQ Q1(Z1, C1), Q2(Z2, C2);
 
     //-------------------------
     // Particle 1 interactions
@@ -1227,7 +1221,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == ionize_1) {
-      delE          = IS.DIInterLoss(ch, ch.IonList[Q1]);
+      delE          = IS.DIInterLoss(ch.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       assert(C1 <= (Z1 + 1));
       partflag      = 1;
@@ -1268,7 +1262,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == ionize_2) {
-      delE = IS.DIInterLoss(ch, ch.IonList[Q2]);
+      delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       ctd2->CI[id].first++; 
       ctd2->CI[id].second += delE;
@@ -1712,7 +1706,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //--------------------------------------------------
       // Ion keys
       //--------------------------------------------------
-      Ion::ZC Q1(Z1, C1), Q2(Z2, C2);
+
+      lQ Q1(Z1, C1), Q2(Z2, C2);
 
       //-------------------------
       // Particle 1 interactions
@@ -1738,7 +1733,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize_1) {
-	delE1  = IS.DIInterLoss(ch, ch.IonList[Q1]) * prob;
+	delE1  = IS.DIInterLoss(ch.IonList[Q1]) * prob;
 	if (delE1<0) debugDeltaE(delE1, Z1, C1, 0.0, prob, interFlag);
 	tdelE += delE1;
 	speciesKey kk(Z1, ++C1);
@@ -1802,7 +1797,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize_2) {
-	delE2   = IS.DIInterLoss(ch, ch.IonList[Q2]) * prob;
+	delE2   = IS.DIInterLoss(ch.IonList[Q2]) * prob;
 	if (delE2<0) debugDeltaE(delE2, Z2, C2, 0.0, prob, interFlag);
 	tdelE  += delE2;
 	speciesKey kk(Z2, ++C2);
@@ -2199,8 +2194,11 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   // Initialize the map
   //
   if (p->ZList.size()) {
-    for (int n=0; n<p->N_Z; n++) {
-      unsigned short Z = p->ZList[n];
+    for (CollideIon::ZLtype::iterator 
+	   n=p->ZList.begin(); n!=p->ZList.end(); n++) {
+
+      unsigned short Z = *n;
+
       for (unsigned short C=1; C<Z+2; C++) {
 	speciesKey k(Z, C);
 	(*this)[k] = collTDPtr(new CollisionTypeDiag());
@@ -2524,13 +2522,11 @@ void CollideIon::parseSpecies(const std::string& map)
       if (in.good()) {
 	std::istringstream sz(line);
 	sz >> Z;		// Add to the element list
-	if (!sz.bad()) ZList.push_back(Z);
+	if (!sz.bad()) ZList.insert(Z);
       } else {
 	break;
       }
     }
-				// Set the element list size
-    N_Z = ZList.size();
 
   } else if (type.compare("trace")==0) {
 
@@ -2548,14 +2544,12 @@ void CollideIon::parseSpecies(const std::string& map)
 				// Add to the species list
 	if (!sz.bad()) {
 	  SpList[key] = pos;
-	  ZList.push_back(key.first);
+	  ZList.insert(key.first);
 	}
       } else {
 	break;
       }
     }
-				// Set the element list size
-    N_Z = SpList.size();
 
   } else {
     if (myid==0) {
@@ -2974,17 +2968,21 @@ double CollideIon::molWeight(Component *c0)
 {
   // Only do this once and cache the result
   if (mol_weight<0)  {
-
+    
     mol_weight = 1.0;		// Default; i.e. for trace algorithm
 
     if (aType==Direct) {
+
       mol_weight = 0.0;
 
+      size_t j = 0;
       std::map<unsigned short, int> zval;
-      for (int i=0; i<N_Z; i++) zval[ZList[i]] = i;
+      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++) 
+	zval[*i] = j++;
+      
       std::map<unsigned short, int>::iterator iz, izEnd(zval.end());
-
-      std::vector<double> speciesM(N_Z, 0.0);
+      
+      std::vector<double> speciesM(ZList.size(), 0.0);
       PartMapItr p = c0->Particles().begin(), pEnd = c0->Particles().end();
       for (; p!= pEnd; p++) {
 	speciesKey key = KeyConvert(p->second.dattrib[use_key]).getKey();
@@ -2992,13 +2990,17 @@ double CollideIon::molWeight(Component *c0)
 	if (iz != izEnd) speciesM[iz->second] += p->second.mass;
       }
 
-      MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], N_Z, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+      MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], speciesM.size(), 
+		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       mol_weight = 0.0;
-      for (int i=0; i<N_Z; i++) mol_weight += speciesM[i]/atomic_weights[ZList[i]];
+      j = 0;
+      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++) {
+	mol_weight += speciesM[j++]/atomic_weights[*i];
+      }
       mol_weight = 1.0/mol_weight;
     }
   }
 
   return mol_weight;
-  }
+}

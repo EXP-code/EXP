@@ -99,17 +99,18 @@ double InteractSelect::selectFFInteract(const Ion& a, double E)
   return k*hbc;
 }
 
-double InteractSelect::DIInterLoss(const chdata& ch, const Ion& a) 
+double InteractSelect::DIInterLoss(const Ion& a) 
 {
-  const int Z1 = a.getZ(); 
-  const int C1 = a.getC();
+  const unsigned short Z1 = a.getZ(); 
+  const unsigned short C1 = a.getC();
+  const lQ Q(Z1, C1);
 
   if (C1 > Z1) {
     std::cout << "ERROR: IONIZING PAST BARE NUCLEUS" << std::endl;
     return 0;
   }
 
-  double ip1 = ch.ipdata[Z1-1][C1-1];
+  double ip1 = a.getIP(Q);
   double E   = ip1;
   
   return E;
