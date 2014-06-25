@@ -813,7 +813,8 @@ std::vector<double> Ion::radRecombCross(double E)
     // return radRecombCrossMilne  (E);
     // return radRecombCrossMewe   (E);
     // return radRecombCrossSpitzer(E);
-    return radRecombCrossKramers(E);
+    // return radRecombCrossKramers(E);
+    return radRecombCrossKrMilne(E);
   }
 }
 
@@ -917,6 +918,92 @@ std::vector<double> Ion::radRecombCrossMilne(double E)
       }
     }
   }
+  radRecCum.push_back(cross*1.e14);
+  radRecCrossCum = radRecCum;
+  return radRecCum;
+}
+
+
+/**
+   Compute total recombination cross section using Kramers b-f cross
+   section and the Milne relation to get the f-b cross section
+
+   The recombination cross section is related to the absorption cross
+   section using the Milne relation:
+
+   \sigma_R = \frac{g_A}{2g^+_A} \frac{(h\nu)^2}{Em_ec^2} \sigma_P
+
+   where g_A is the degeneracy of the target state and g^+_A is the
+   degeneracy of the ion (which we assume to be in the ground state)
+
+*/
+std::vector<double> Ion::radRecombCrossKrMilne(double E) 
+{
+  // Bohr radius in nm
+  //
+  const double a0 = 0.0529177211;
+
+  std::vector<double> radRecCum;
+
+  double cross = 0.0;
+
+  // This is the target neutral
+  //
+  Ion* N = &ch->IonList[lQ(Z, C-1)];
+
+  // Photon energy
+  double Eph = N->ip;
+  double Enu = E - Eph;
+
+  if (Enu > 0.0) {
+
+    // Compute the effective charge
+    //
+    double zz   = Z;
+    double ii   = C - 1;
+    double Zeff = 0.0;
+    if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
+    if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
+
+    double multP = 1;
+    if (Z <= C) multP = ch->IonList[lQ(Z, C)].fblvl[1].mult;
+    
+    // Kramers cross section
+    //
+    double aeff   = a0/Zeff;
+    double Erat   = Eph/Enu;
+    double sigmaP = 0.25*aeff*aeff*Erat*Erat*Erat;
+
+    // Ion statistical weight
+    //
+    double mult0 = (C<=Z ? fblvl[1].mult : 1);
+
+    // Recombined statistical weight
+    //
+    double mult1 = N->fblvl[1].mult;
+
+    double sigmaR = 0.5*mult1/mult0 * Enu*Enu /
+      (E*eV*mec2*eV*1.0e6) * sigmaP;
+	  
+    cross += sigmaR;
+
+    if (cross == 0) {
+      std::cout << "NULL IN RAD RECOMB: Chi=" << ip
+		<< ", E=" << E 
+		<< ", hnu=" << hnu
+		<< ", sigmaP=" << sigmaP
+		<< std::endl;
+    }
+    
+    if (isnan(cross)) {
+      std::cout << "NAN IN RAD RECOMB: Chi=" << ip
+		<< ", E=" << E 
+		<< ", hnu=" << hnu
+		<< ", sigmaP=" << sigmaP
+		<< std::endl;
+    }
+  }
+
   radRecCum.push_back(cross*1.e14);
   radRecCrossCum = radRecCum;
   return radRecCum;
