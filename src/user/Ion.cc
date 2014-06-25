@@ -720,14 +720,15 @@ double Ion::freeFreeCross(double E)
   double eV2erg   = 1.602177e-12;    // ergs per eV
   double c        = 2.998e10;	     // cm/s
   
-  double p0 = sqrt(2*me*E*eV2erg);
-  double v0 = p0/me;
-  double b0 = v0/c;
+  double p0       = sqrt(2*me*E*eV2erg);
+  double v0       = p0/me;
+  double b0       = v0/c;
   
-  double momi = b0/sqrt(1.-b0*b0);
+  double momi     = b0/sqrt(1.0 - b0*b0);
   
-  double cum = 0;
-  double dk  = 0;
+  double cum      = 0;
+  double dk       = 0;
+
   for (int j = 0; j < kffsteps; j++) {
 
     if (j != static_cast<int>(kgrid.size())-1) 
@@ -809,10 +810,10 @@ std::vector<double> Ion::radRecombCross(double E)
     
     return v1;
   } else {
-    return radRecombCrossMilne  (E);
+    // return radRecombCrossMilne  (E);
     // return radRecombCrossMewe   (E);
     // return radRecombCrossSpitzer(E);
-    // return radRecombCrossKramers(E);
+    return radRecombCrossKramers(E);
   }
 }
 
@@ -848,7 +849,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E)
    The photo-ionization (absorption) cross section is related to the
    Einstein A coefficient as:
 
-   \sigma_P = \frac{1}{4}\frac{g_2}{g_1} \lambda_{21}^2 A_{21}
+   \sigma_P = \frac{\pi}{2}\frac{g_2}{g_1} \lambda_{21}^2
 
    The recombination cross section is related to the absorption cross
    section using the Milne relation:
@@ -886,8 +887,9 @@ std::vector<double> Ion::radRecombCrossMilne(double E)
 	  double mult1 = m1->second.mult;
 	  double mult2 = m2->second.mult;
 
-	  double sigmaP = 0.25 * mult2/mult1 * lambda*lambda * w->avalue;
-	  
+				// in cm^2
+	  double sigmaP = 0.5 * M_PI * mult2/mult1 * lambda*lambda;
+				// in ergs
 	  double hnu   = planck*nu + E*eV;
 	  double mult0 = (C<=Z ? fblvl[1].mult : 1);
 	  
