@@ -984,12 +984,12 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
 
     // Photon energy (eV)
     //
-    double Enu = E - Elv;
+    double Enu = E + Elv;
 
     // Kramers cross section
     //
     double Erat   = Elv/Enu;
-    double sigmaP = 0.25*aeff*aeff*Erat*Erat*Erat;
+    double sigmaP = 0.25*f->lvl*aeff*aeff*Erat*Erat*Erat;
 
     // Ion statistical weight
     //
