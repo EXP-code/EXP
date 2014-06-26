@@ -325,8 +325,6 @@ public:
   std::vector<double> radRecombCrossMewe   (double E);
   std::vector<double> radRecombCrossSpitzer(double E);
   std::vector<double> radRecombCrossKramers(double E);
-  std::vector<double> radRecombCrossKrMilne(double E);
-  std::vector<double> radRecombCrossMilne  (double E);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
