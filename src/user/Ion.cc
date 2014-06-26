@@ -811,10 +811,10 @@ std::vector<double> Ion::radRecombCross(double E)
     return v1;
   } else {
     // return radRecombCrossMilne  (E);
-    // return radRecombCrossMewe   (E);
+    return radRecombCrossMewe   (E);
     // return radRecombCrossSpitzer(E);
     // return radRecombCrossKramers(E);
-    return radRecombCrossKrMilne(E);
+    // return radRecombCrossKrMilne(E);
   }
 }
 
@@ -1035,6 +1035,9 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
 /** Calculates the differential radiative recombination cross section
     as a function of incoming electron impact energy, and returns the
     vector cumulative cross section array. 
+
+    Details of implementation from CHIANTI. See "The Free-Bound
+    Continuum", P.R. Young, Ver. 1.1, 8-Sep-2009
 */
 std::vector<double> Ion::radRecombCrossMewe(double E) 
 {
@@ -1055,7 +1058,11 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
   
   double cross = 0.0;
   if (E!=0) {
+    
+    double mult0 = (C<=Z ? fblvl[1].mult : 1);
+
     for (fblvlType::iterator j=N->fblvl.begin(); j!=N->fblvl.end(); j++) {
+
       fblvl_data* f = &j->second;
       double I = IP;
 
@@ -1078,10 +1085,15 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
       if (I >= 0) {
 	double ePhot  = E/1000.0 + I;
 	double hnu    = E + I*1000.0;
+				// Assume that g_{bf} = 1
+	double sigmaP = D * I*I/(ePhot*ePhot*ePhot)/n;
+	
 	double Erat   = (hnu*hnu)/(2.0*mec2*E);
-	double crossi = 
-	  Erat * mult*D * I*I * (1.0/ePhot)*(1.0/ePhot)*(1.0/ePhot) * (1.0/n);
+				// Apply Milne relation
+	double crossi = mult/mult0 * Erat * sigmaP;
+
 	cross += crossi;
+
 	if (cross == 0) {
 	  std::cout << "NULL in radRecombCrossMewe:" 
 		    << "  Chi="   << ip
