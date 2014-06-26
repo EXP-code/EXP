@@ -1046,16 +1046,19 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
   // constant infront of the photo-cross using the Mewe method
   double D = 1.075812e-23;
 
-  //mass of electron*c^2
-  double mec2 = 510998.9;
+  // Electron rest mass in keV
+  double mec2 = 510.998896;
 
   // Key of parent ion
   lQ Q(Z, C-1);
   double IP = ch->ipdata[Q];
-  Ion* N = &ch->IonList[Q];
+  Ion* N    = &ch->IonList[Q];
 
   std::vector<double> radRecCum;
   
+  // Convert kinetic energy to keV
+  E *= 1.0e-3;
+
   double cross = 0.0;
   if (E!=0) {
     
@@ -1077,19 +1080,22 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
 		  <<std::endl;
       }
 
-      double mult = f->mult;
-      double n    = f->lvl ;
-
       I *= 1.0e-3;		// convert the energy to keV
       
+      double mult = f->mult;	// Level multiplicity
+      double n    = f->lvl ;	// Principle quantum number
+
       if (I >= 0) {
-	double ePhot  = E/1000.0 + I;
-	double hnu    = E + I*1000.0;
+				// Total radiated photon energy (line
+				// + KE) in keV
+	double hnu    = E + I;
 				// Assume that g_{bf} = 1
-	double sigmaP = D * I*I/(ePhot*ePhot*ePhot)/n;
+				// 
+	double sigmaP = D * I*I*pow(hnu, -3.0)/n; // in m^2
 	
-	double Erat   = (hnu*hnu)/(2.0*mec2*E);
 				// Apply Milne relation
+				//
+	double Erat   = (hnu*hnu)/(2.0*mec2*E);
 	double crossi = mult/mult0 * Erat * sigmaP;
 
 	cross += crossi;
@@ -1098,7 +1104,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
 	  std::cout << "NULL in radRecombCrossMewe:" 
 		    << "  Chi="   << ip
 		    << ", I="     << I
-		    << ", ePhot=" << ePhot
+		    << ", h*nu="  << hnu
 		    << ", Erat="  << Erat
 		    << ", mult="  << mult
 		    << std::endl;
@@ -1107,7 +1113,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
 	  std::cout << "NaN in radRecombCrossMewe:" 
 		    << "  Chi="   << ip
 		    << ", I="     << I
-		    << ", ePhot=" << ePhot
+		    << ", h*nu="  << hnu
 		    << ", Erat="  << Erat
 		    << ", mult="  << mult
 		    << std::endl;
@@ -1116,8 +1122,13 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
     }
   }
 
-  radRecCum.push_back(cross*1.e18);
+  // Convert to nm ---------+
+  //                        |
+  //                        v
+  radRecCum.push_back(cross*1.0e18);
+
   radRecCrossCum = radRecCum;
+
   return radRecCum;
 }
 
