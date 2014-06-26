@@ -943,16 +943,21 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
   //
   const double a0 = 0.0529177211;
 
+  // Return vector
+  //
   std::vector<double> radRecCum;
-
   double cross = 0.0;
 
   // This is the target neutral
   //
   Ion* N = &ch->IonList[lQ(Z, C-1)];
 
-  // Photon energy
+  // Ionization threshold (eV)
+  //
   double Eph = N->ip;
+
+  // Photon energy (eV)
+  //
   double Enu = E - Eph;
 
   if (Enu > 0.0) {
@@ -982,15 +987,15 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
     //
     double mult1 = N->fblvl[1].mult;
 
-    double sigmaR = 0.5*mult1/mult0 * Enu*Enu /
-      (E*eV*mec2*eV*1.0e6) * sigmaP;
+    double sigmaR = 0.5*mult1/mult0 * Enu*Enu / (E*mec2*1.0e6) * sigmaP;
 	  
     cross += sigmaR;
 
     if (cross == 0) {
       std::cout << "NULL IN RAD RECOMB: Chi=" << ip
 		<< ", E=" << E 
-		<< ", hnu=" << hnu
+		<< ", Enu=" << Enu
+		<< ", Erat=" << Erat
 		<< ", sigmaP=" << sigmaP
 		<< std::endl;
     }
@@ -998,13 +1003,14 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
     if (isnan(cross)) {
       std::cout << "NAN IN RAD RECOMB: Chi=" << ip
 		<< ", E=" << E 
-		<< ", hnu=" << hnu
+		<< ", Enu=" << Enu
+		<< ", Erat=" << Erat
 		<< ", sigmaP=" << sigmaP
 		<< std::endl;
     }
   }
 
-  radRecCum.push_back(cross*1.e14);
+  radRecCum.push_back(cross);
   radRecCrossCum = radRecCum;
   return radRecCum;
 }
