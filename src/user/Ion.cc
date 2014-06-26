@@ -939,6 +939,8 @@ std::vector<double> Ion::radRecombCrossMilne(double E)
 */
 std::vector<double> Ion::radRecombCrossKrMilne(double E) 
 {
+  const double incmEv = light * planck / eV;
+
   // Bohr radius in nm
   //
   const double a0 = 0.0529177211;
@@ -956,55 +958,69 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
   //
   double Eph = N->ip;
 
-  // Photon energy (eV)
+
+  // Compute the effective charge
   //
-  double Enu = E - Eph;
+  double zz   = Z;
+  double ii   = C - 1;
+  double Zeff = 0.0;
+  if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
+  if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
+  
+  double aeff  = a0/Zeff;
+  double multP = 1;
+  if (Z <= C) multP = fblvl[1].mult;
+  
+  for (fblvlType::iterator j=N->fblvl.begin(); j!= N->fblvl.end(); j++) {
 
-  if (Enu > 0.0) {
+    fblvl_data* f = &j->second;
 
-    // Compute the effective charge
+    // Line energy (eV)
     //
-    double zz   = Z;
-    double ii   = C - 1;
-    double Zeff = 0.0;
-    if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
-    if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
+    double Elv = Eph;
 
-    double multP = 1;
-    if (Z <= C) multP = ch->IonList[lQ(Z, C)].fblvl[1].mult;
-    
+    if (f->encm == 0 and f->encmth!=0) Elv -= f->encmth * incmEv;
+    else if (f->encm != 0)             Elv -= f->encmth * incmEv;
+
+    // Photon energy (eV)
+    //
+    double Enu = E - Elv;
+
     // Kramers cross section
     //
-    double aeff   = a0/Zeff;
-    double Erat   = Eph/Enu;
+    double Erat   = Elv/Enu;
     double sigmaP = 0.25*aeff*aeff*Erat*Erat*Erat;
 
     // Ion statistical weight
     //
     double mult0 = (C<=Z ? fblvl[1].mult : 1);
-
+      
     // Recombined statistical weight
     //
-    double mult1 = N->fblvl[1].mult;
-
+    double mult1 = f->mult;
+      
     double sigmaR = 0.5*mult1/mult0 * Enu*Enu / (E*mec2*1.0e6) * sigmaP;
 	  
     cross += sigmaR;
 
     if (cross == 0) {
       std::cout << "NULL IN RAD RECOMB: Chi=" << ip
-		<< ", E=" << E 
-		<< ", Enu=" << Enu
-		<< ", Erat=" << Erat
+		<< ", E="      << E 
+		<< ", n="      << f->lvl
+		<< ", Elv="    << Elv
+		<< ", Enu="    << Enu
+		<< ", Erat="   << Erat
 		<< ", sigmaP=" << sigmaP
 		<< std::endl;
     }
-    
+      
     if (isnan(cross)) {
       std::cout << "NAN IN RAD RECOMB: Chi=" << ip
-		<< ", E=" << E 
-		<< ", Enu=" << Enu
-		<< ", Erat=" << Erat
+		<< ", E="      << E 
+		<< ", n="      << f->lvl
+		<< ", Elv="    << Elv
+		<< ", Enu="    << Enu
+		<< ", Erat="   << Erat
 		<< ", sigmaP=" << sigmaP
 		<< std::endl;
     }
