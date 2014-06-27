@@ -968,8 +968,6 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
   if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
   
   double aeff  = a0/Zeff;
-  double multP = 1;
-  if (Z <= C) multP = fblvl[1].mult;
   
   for (fblvlType::iterator j=N->fblvl.begin(); j!= N->fblvl.end(); j++) {
 
@@ -1051,15 +1049,18 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
 
   // Key of parent ion
   lQ Q(Z, C-1);
+
+  // Get pointers to data
   double IP = ch->ipdata[Q];
   Ion* N    = &ch->IonList[Q];
 
-  std::vector<double> radRecCum;
-  
   // Convert kinetic energy to keV
   E *= 1.0e-3;
 
+  // Return values
+  std::vector<double> radRecCum;
   double cross = 0.0;
+  
   if (E!=0) {
     
     double mult0 = (C<=Z ? fblvl[1].mult : 1);
