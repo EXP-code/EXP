@@ -6,9 +6,11 @@
 #include <set>
 #include <map>
 
+#include <boost/shared_ptr.hpp>
 #include <boost/multi_array.hpp>
 
 #include <atomic_constants.H>
+#include <TopBase.H>
 
 static std::string eleNameList[] = 
   {"h","he","li","be","b","c","n","o","f","ne","na", 
@@ -140,6 +142,9 @@ public:
   std::map<lQ, double> ipdata;
   std::set<std::string> masterNames;
   double abundanceAll[numEle];
+
+  //! TopBase data
+  boost::shared_ptr<TopBase> tb;
 
   //! Access to data for individual Ions
   std::map < std::pair<int, int>,  Ion > IonList;
@@ -325,6 +330,7 @@ public:
   std::vector<double> radRecombCrossMewe   (double E);
   std::vector<double> radRecombCrossSpitzer(double E);
   std::vector<double> radRecombCrossKramers(double E);
+  std::vector<double> radRecombCrossTopBase(double E);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999

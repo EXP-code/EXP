@@ -803,16 +803,19 @@ std::vector<double> Ion::radRecombCross(double E)
   // For testing . . .
   if (0) {
     std::vector<double> v1 = radRecombCrossMewe   (E);
-    std::vector<double> v2 = radRecombCrossKramers(E);
+    std::vector<double> v2 = radRecombCrossTopBase(E);
     std::vector<double> v3 = radRecombCrossKramers(E);
+    std::vector<double> v4 = radRecombCrossSpitzer(E);
 
     std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
-    std::cout << " Kramers = " << std::setw(16) << v2.back() << std::endl;
-    std::cout << " Spitzer = " << std::setw(16) << v3.back() << std::endl;
+    std::cout << " TopBase = " << std::setw(16) << v2.back() << std::endl;
+    std::cout << " Kramers = " << std::setw(16) << v3.back() << std::endl;
+    std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
     
     return v1;
   } else {
-    return radRecombCrossMewe   (E);
+    return radRecombCrossTopBase(E);
+    // return radRecombCrossMewe   (E);
     // return radRecombCrossKramers(E);
     // return radRecombCrossSpitzer(E);
   }
@@ -1078,6 +1081,20 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E)
   radRecCum.push_back(cross);
   radRecCrossCum = radRecCum;
   return radRecCum;
+}
+
+std::vector<double> Ion::radRecombCrossTopBase(double E) 
+{
+  // Initialize TopBase data (once) if needed
+  //
+  if (ch->tb.get() == 0) 
+    ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+
+  // Call for the cross section
+  //
+  TopBase::iKey k(Z, C);
+  std::vector<double> ret(ch->tb->sigmaFB(k, E), 1);
+  return ret;
 }
 
 // Ion print functions
