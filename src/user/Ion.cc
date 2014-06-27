@@ -802,125 +802,20 @@ std::vector<double> Ion::radRecombCross(double E)
 {
   // For testing . . .
   if (0) {
-    std::vector<double> v1 = radRecombCrossMilne (E);
-    std::vector<double> v2 = radRecombCrossMewe  (E);
+    std::vector<double> v1 = radRecombCrossMewe   (E);
+    std::vector<double> v2 = radRecombCrossKramers(E);
+    std::vector<double> v3 = radRecombCrossKramers(E);
 
-    std::cout << " Milne = " << std::setw(16) << v1.back() << std::endl;
-    std::cout << "  Mewe = " << std::setw(16) << v2.back() << std::endl;
+    std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
+    std::cout << " Kramers = " << std::setw(16) << v2.back() << std::endl;
+    std::cout << " Spitzer = " << std::setw(16) << v3.back() << std::endl;
     
     return v1;
   } else {
-    // return radRecombCrossMilne  (E);
     return radRecombCrossMewe   (E);
-    // return radRecombCrossSpitzer(E);
     // return radRecombCrossKramers(E);
-    // return radRecombCrossKrMilne(E);
+    // return radRecombCrossSpitzer(E);
   }
-}
-
-
-/**
-   Kramers formula for radiative recombination cross section
-*/
-std::vector<double> Ion::radRecombCrossKramers(double E) 
-{
-  double coef = 2.105e-8;	// in nm^2
-  double zz = Z;
-  double ii = C - 1;
-
-  const double Ryd = 13.60569253;
-  double Ei = E/Ryd;
-
-  double Zeff = 0;
-  if (    zz >= ii && ii >= 0.5*zz) Zeff = 0.5*(zz + ii);
-  if (0.5*zz >= ii && ii >= 1.0   ) Zeff = sqrt(zz * ii);
-
-  double n0 = 1;
-  if (Z==2 && C>1) n0 = 2;
-
-  double cross = coef * Zeff*Zeff * log(1.0 + Zeff*Zeff/(Ei*n0*n0));
-
-  return std::vector<double>(1, cross);
-}
-
-
-/**
-   Compute total recombination cross section using the Milne relation
-
-   The photo-ionization (absorption) cross section is related to the
-   Einstein A coefficient as:
-
-   \sigma_P = \frac{\pi}{2}\frac{g_2}{g_1} \lambda_{21}^2
-
-   The recombination cross section is related to the absorption cross
-   section using the Milne relation:
-
-   \sigma_R = \frac{g_A}{2g^+_A} \frac{(h\nu)^2}{Em_ec^2} \sigma_P
-
-   where g_A is the degeneracy of the target state and g^+_A is the
-   degeneracy of the ion (which we assume to be in the ground state)
-
-*/
-std::vector<double> Ion::radRecombCrossMilne(double E) 
-{
-  std::vector<double> radRecCum;
-
-  double cross = 0.0;
-
-  if (E > 0.0) {
-
-    Ion* N = &ch->IonList[lQ(Z, C-1)];
-
-    for (wgfaType::iterator j=N->wgfa.begin(); j!= N->wgfa.end(); j++) {
-
-      wgfa_data* w = &j->second;
-
-      if (w->avalue > 0.0 && w->wvl>0.0) {
-
-	double lambda = w->wvl * 1.0e-08; // wavelength in cm
-	double nu     = light/lambda;	  // frequency in hertz
-
-	fblvlType::iterator m1 = N->fblvl.find(w->lvl1);
-	fblvlType::iterator m2 = N->fblvl.find(w->lvl2);
-	  
-	if (m1 != N->fblvl.end() && m2 != N->fblvl.end()) {
-	  
-	  double mult1 = m1->second.mult;
-	  double mult2 = m2->second.mult;
-
-				// in cm^2
-	  double sigmaP = 0.5 * M_PI * mult2/mult1 * lambda*lambda;
-				// in ergs
-	  double hnu   = planck*nu + E*eV;
-	  double mult0 = (C<=Z ? fblvl[1].mult : 1);
-	  
-	  double sigmaR = 0.5*mult2/mult0 * hnu*hnu /
-	    (E*eV*mec2*eV*1.0e6) * sigmaP;
-	  
-	  cross += sigmaR;
-
-	  if (cross == 0) {
-	    std::cout << "NULL IN RAD RECOMB: Chi=" << ip
-		      << ", E=" << E 
-		      << ", hnu=" << hnu
-		      << ", sigmaP=" << sigmaP
-		      << std::endl;
-	  }
-	  
-	  if (isnan(cross)) {
-	    std::cout << "NAN IN RAD RECOMB: Chi=" << ip
-		      << ", E=" << E 
-		      << ", hnu=" << hnu
-		      << ", sigmaP=" << sigmaP
-		      << std::endl;
-	  }
-	}
-      }
-    }
-  }
-  radRecCum.push_back(cross*1.e14);
-  radRecCrossCum = radRecCum;
-  return radRecCum;
 }
 
 
@@ -935,9 +830,8 @@ std::vector<double> Ion::radRecombCrossMilne(double E)
 
    where g_A is the degeneracy of the target state and g^+_A is the
    degeneracy of the ion (which we assume to be in the ground state)
-
 */
-std::vector<double> Ion::radRecombCrossKrMilne(double E) 
+std::vector<double> Ion::radRecombCrossKramers(double E) 
 {
   const double incmEv = light * planck / eV;
 
@@ -957,7 +851,6 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
   // Ionization threshold (eV)
   //
   double Eph = N->ip;
-
 
   // Compute the effective charge
   //
@@ -997,6 +890,8 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
     //
     double mult1 = f->mult;
       
+    // Milne relation
+    //
     double sigmaR = 0.5*mult1/mult0 * Enu*Enu / (E*mec2*1.0e6) * sigmaP;
 	  
     cross += sigmaR;
@@ -1035,7 +930,9 @@ std::vector<double> Ion::radRecombCrossKrMilne(double E)
     vector cumulative cross section array. 
 
     Details of implementation from CHIANTI. See "The Free-Bound
-    Continuum", P.R. Young, Ver. 1.1, 8-Sep-2009
+    Continuum", P.R. Young, Ver. 1.1, 8-Sep-2009.
+
+    Uses Milne relation.
 */
 std::vector<double> Ion::radRecombCrossMewe(double E) 
 {
@@ -1164,6 +1061,7 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E)
       double Ephot  = E + Ej;
       double Erat   = Ej / Ephot;
       double crossn = coef * (Ej / Ephot) * (0.5*Ephot/E) * (mult/n);
+
       cross += crossn;
 
       if (cross == 0) {
