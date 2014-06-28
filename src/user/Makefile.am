@@ -33,7 +33,7 @@ noinst_HEADERS = BarForcing.H Perturbation.H UserDiffuse.H		\
 	EllipForce.H UserBar.H UserHalo.H HeatCool.H UserDSMC.H		\
 	UserLogPot.H UserDiffRot.H UserRPtest.H UserAtmos.H		\
 	UserReflect.H UserPST.H UserShear.H UserSNheat.H UserProfile.H  \
-	CollideIon.H Ion.H interactSelect.H
+	CollideIon.H Ion.H interactSelect.H TopBase.H
 
 libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	Perturbation.cc EllipForce.cc SatelliteOrbit.cc		\
@@ -41,7 +41,7 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	LinearOrbit.cc UnboundOrbit.cc
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc CollideIon.cc	\
-	Ion.cc interactSelect.cc Elastic.cc
+	Ion.cc interactSelect.cc Elastic.cc TopBase.cc
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 
 #

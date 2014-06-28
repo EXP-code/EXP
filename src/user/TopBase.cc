@@ -6,25 +6,16 @@
 #include <cmath>
 
 #include <TopBase.H>
-
-void dbg(std::istringstream& s)
-{
-  std::cout << std::string(30, '-')   << std::endl
-	    << "  Good: " << s.good() << std::endl
-	    << "   EOF: " << s.eof()  << std::endl
-	    << "  Fail: " << s.fail() << std::endl
-	    << "   Bad: " << s.bad()  << std::endl
-	    << std::string(30, '-')   << std::endl;
-}
+#include <localmpi.h>
 
 void TopBase::readData()
 {
   char * val;
   if ( (val = getenv("TOPBASE_DATA")) == 0x0) {
-    // if (myid==0)
+    if (myid==0)
       std::cout << "Could not find TOPBASE_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-      // MPI_Abort(MPI_COMM_WORLD, 48);
+    MPI_Abort(MPI_COMM_WORLD, 48);
   }
 
   std::string fileName(val);
@@ -201,9 +192,17 @@ void TopBase::printLine(unsigned short NZ, unsigned short NE,
 
 double TopBase::sigmaFB(const iKey& key, double E)
 {
-  // Electron rest mass in eV
+  // Rydberg in eV
   //
-  const double mec2 = 510.998896 * 1.0e3;
+  const double RydtoeV = 13.60569253;
+
+  // Electron rest mass in Rydberg
+  //
+  const double mec2 = 510.998896 * 1.0e3 / RydtoeV;
+
+  // Convert input energy to Rydberg
+  //
+  E /= RydtoeV;
 
   // Return value
   //
@@ -219,6 +218,9 @@ double TopBase::sigmaFB(const iKey& key, double E)
   //
   TBmapItr i = ions.find(low);
 
+  // Test
+  bool first = false;
+
   if (i != ions.end()) {
     
     double mult0 = (key.second > key.first ? 1 : SWlow[key]);
@@ -232,6 +234,10 @@ double TopBase::sigmaFB(const iKey& key, double E)
       for (; k != kend; k++) {
 
 	TBptr l = k->second;
+
+	// Test: ground state only [comment out next line to enable/disable]
+	// if (first) continue;
+	first = true;
 
 	double hnu  = E - l->Eph;
 	double Erat = (hnu*hnu)/(2.0*mec2*E);
@@ -258,8 +264,8 @@ double TopBase::sigmaFB(const iKey& key, double E)
     }
   }
 
-  // In megabarnes: (1.0e-11 m)^2
-  // Convert to nm^2 (1.0e-9 m)^2
+  // Given in Mbarnes  : 1.0e-18 cm^2
+  // Convert to nm^2   : 1.0e-18 m^2 = 1.0e-14 cm^2
 
-  return cross * 1.0e+04;
+  return cross * 1.0e-04;
 }

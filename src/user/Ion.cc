@@ -807,10 +807,12 @@ std::vector<double> Ion::radRecombCross(double E)
     std::vector<double> v3 = radRecombCrossKramers(E);
     std::vector<double> v4 = radRecombCrossSpitzer(E);
 
+    std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
     std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
     std::cout << " TopBase = " << std::setw(16) << v2.back() << std::endl;
     std::cout << " Kramers = " << std::setw(16) << v3.back() << std::endl;
     std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
+    std::cout << std::string(60, '-')                        << std::endl;
     
     return v1;
   } else {
@@ -1087,13 +1089,19 @@ std::vector<double> Ion::radRecombCrossTopBase(double E)
 {
   // Initialize TopBase data (once) if needed
   //
-  if (ch->tb.get() == 0) 
+  if (ch->tb.get() == 0) {
+    if (myid==0) {
+      std::cout << "Ion: creating new TopBase instance"
+		<< std::endl;
+    }
     ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+  }
 
   // Call for the cross section
   //
   TopBase::iKey k(Z, C);
-  std::vector<double> ret(ch->tb->sigmaFB(k, E), 1);
+  std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
+  radRecCrossCum = ret;
   return ret;
 }
 
