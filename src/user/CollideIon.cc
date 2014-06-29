@@ -2731,10 +2731,12 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
   //
-  double rateF = 0.5 * (*Fn)[key] * dens * crm * tau;
+  double rateF = 0.25 * (*Fn)[key] * dens * crm * tau;
   //             ^
   //             |
-  // Cross sections counted twice in cumulative sum
+  // Cross sections counted twice in cumulative sum: factor=0.5
+  // Pairs are double counted: factor=0.5
+  // Total factor: 0.25
 
   spProb[id] = rateF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
