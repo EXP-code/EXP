@@ -278,57 +278,55 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       }
     }
 
-    if (use_key>=0) {
-
-      if (myid==0) {
-	cout << endl
-	     << "--------------" << endl
-	     << "Species counts" << endl
-	     << "--------------" << endl
-	     << endl;
+    if (myid==0) {
+      cout << endl
+	   << "--------------" << endl
+	   << "Species counts" << endl
+	   << "--------------" << endl
+	   << endl;
     
-	cout << setw(4) << right << "#";
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(8) << right 
-	       << "(" << it->first.first << "," << it->first.second << ")";
-	cout << endl;
-	
-	cout << setw(4) << right << "---";
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << "--------";
-	cout << endl;
-      }
-
-      for (int n=0; n<numprocs; n++) {
-	if (myid==n) {
-	  spCountMapItr it2 = spec1.begin();
-	  cout << setw(4) << right << myid;
-	  for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	    if (it->first == it2->first) {
-	      cout << setw(12) << right << it2->second;
-	      it2++;
-	    } else {
-	      cout << setw(12) << right << 0;
-	    }
-	  }
-	  cout << endl;
-	}
-	MPI_Barrier(MPI_COMM_WORLD);
-      }
-
-      MPI_Barrier(MPI_COMM_WORLD);
-
-      if (myid==0) {
-	cout << setw(4) << right << "---";
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << "--------";
-	cout << endl;
-	cout << setw(4) << right << "TOT";
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	  cout << setw(12) << right << it->second;
-	cout << endl;
-      }
+      cout << setw(4) << right << "#";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(8) << right 
+	     << "(" << it->first.first << "," << it->first.second << ")";
+      cout << endl;
+      
+      cout << setw(4) << right << "---";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << "--------";
+      cout << endl;
     }
+
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	spCountMapItr it2 = spec1.begin();
+	cout << setw(4) << right << myid;
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	  if (it->first == it2->first) {
+	    cout << setw(12) << right << it2->second;
+	    it2++;
+	  } else {
+	    cout << setw(12) << right << 0;
+	  }
+	}
+	cout << endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    if (myid==0) {
+      cout << setw(4) << right << "---";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << "--------";
+      cout << endl;
+      cout << setw(4) << right << "TOT";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	cout << setw(12) << right << it->second;
+      cout << endl;
+    }
+
   } else {		   
     spec_list.insert(defaultKey);
     collFrac[defaultKey] = 1.0;

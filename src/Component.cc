@@ -413,6 +413,7 @@ Component::Component(istream *in)
   aindex      = false;
   umagic      = true;
 
+  keyPos      = -1;
   nlevel      = -1;
 
   read_bodies_and_distribute_binary(in);
