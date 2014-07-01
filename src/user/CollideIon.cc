@@ -2342,9 +2342,25 @@ void collDiag::initialize()
 	      << std::setw(12) << "d(KE) |"
 	      << " | ";
 	}
-	out << std::setw(12) << "Etotl" << std::endl;
+	out << std::setw(12) << "Etotl" << " |" << std::endl;
+	
+				// Column numbers
+	std::ostringstream st;
+	unsigned int cnt = 0;
+	st << "[" << ++cnt << "] |";
+	out << "#" << std::setw(11) << st.str() << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (size_t l=0; l<9; l++) {
+	    st.str("");
+	    st << "[" << ++cnt << "] |";
+	    out << std::setw(12) << std::right << st.str();
+	  }
+	  out << " | ";
+	}
+	st.str("");
+	st << "[" << ++cnt << "]";
+	out << std::setw(12) << std::right << st.str() << " |" << std::endl;
 
-				// Header line
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -2415,6 +2431,20 @@ void collDiag::initialize()
 	}
 	out << std::endl;
 
+				// Column numbers
+	std::ostringstream st;
+	unsigned int cnt = 0;
+	st << "[" << ++cnt << "] |";
+	out << "#" << std::setw(11) << st.str() << " | ";
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (size_t l=0; l<5; l++) {
+	    st.str("");
+	    st << "[" << ++cnt << "] |";
+	    out << std::setw(12) << std::right << st.str();
+	  }
+	  out << " | ";
+	}
+	out << std::endl;
 				// Header line
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11) << '+' << " | ";
