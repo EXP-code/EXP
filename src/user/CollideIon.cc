@@ -2344,7 +2344,21 @@ void collDiag::initialize()
 	}
 	out << std::setw(12) << "Etotl" << std::endl;
 
-				// Header line
+				// Column indices
+	unsigned cnt = 0;
+	out << "#" << std::setw(11) << std::right << ++cnt << " | ";
+	std::ostringstream ts;
+	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	  for (size_t l=0; l<9; l++) {
+	    ts.str("");
+	    ts << "[" << ++cnt << "] |";
+	    out << std::setw(12) << std::right << ts.str();
+	  }
+	  out << " | ";
+	}
+	ts.str("");
+	ts << ++cnt << " |";
+	out << std::setw(12) << std::right << ts.str() << std::endl;
 
 				// Header line
 	out << std::setfill('-') << std::right;
