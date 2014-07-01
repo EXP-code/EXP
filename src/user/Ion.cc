@@ -944,26 +944,32 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
   double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
 
   // constant infront of the photo-cross using the Mewe method
+  //
   double D = 1.075812e-23;
 
   // Electron rest mass in keV
+  //
   double mec2 = 510.998896;
 
   // Key of parent ion
+  //
   lQ Q(Z, C-1);
 
-  // Get pointers to data
+  // Get pointers to Ion data
+  //
   double IP = ch->ipdata[Q];
   Ion* N    = &ch->IonList[Q];
 
   // Convert kinetic energy to keV
+  //
   E *= 1.0e-3;
 
   // Return values
+  //
   std::vector<double> radRecCum;
   double cross = 0.0;
   
-  if (E!=0) {
+  if (E>0) {
     
     double mult0 = (C<=Z ? fblvl[1].mult : 1);
 

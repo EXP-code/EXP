@@ -218,9 +218,6 @@ double TopBase::sigmaFB(const iKey& key, double E)
   //
   TBmapItr i = ions.find(low);
 
-  // Test
-  bool first = false;
-
   if (i != ions.end()) {
     
     double mult0 = (key.second > key.first ? 1 : SWlow[key]);
@@ -233,16 +230,18 @@ double TopBase::sigmaFB(const iKey& key, double E)
 
       for (; k != kend; k++) {
 
-	TBptr l = k->second;
+	// Pointer to line data
+	//
+	TBptr l     = k->second;
 
-	// Test: ground state only [comment out next line to enable/disable]
-	// if (first) continue;
-	first = true;
-
+	// Compute quantities needed for Milne relation
+	//
 	double hnu  = E - l->Eph;
 	double Erat = (hnu*hnu)/(2.0*mec2*E);
 	double crs  = 0.0;
 
+	// Interpolate the cross section array
+	//
 	if (E >= l->E.front() && E < l->E.back()) {
 
 	  std::vector<double>::iterator lb = 
@@ -257,6 +256,8 @@ double TopBase::sigmaFB(const iKey& key, double E)
 	      (*ub - *lb) ;
 	}
 
+	// Compute the cross section
+	//
 	double crossi = l->wght/mult0 * Erat * crs;
 
 	cross += crossi;
