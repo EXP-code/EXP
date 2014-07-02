@@ -2761,7 +2761,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
   //
-  double rateF = 0.5 * (*Fn)[key] * dens * crm * tau;
+  double rateF = 1.0 * (*Fn)[key] * dens * crm * tau;
   //             ^
   //             |
   // Cross sections are double counted
