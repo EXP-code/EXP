@@ -2315,7 +2315,7 @@ void collDiag::initialize()
 
 				// Header line
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11) << '+' << " | ";
+	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
@@ -2324,7 +2324,9 @@ void collDiag::initialize()
 	    << std::setfill(' ') << std::endl;
 
 				// Column labels
-	out << "#" << std::setw(11) << "Time" << " | ";
+	out << "#" 
+	    << std::setw(11) << "Time |"
+	    << std::setw(12) << "Temp |" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  out << std::setw(12) << "N(ff) |"
 	      << std::setw(12) << "E(ff) |"
@@ -2343,7 +2345,10 @@ void collDiag::initialize()
 	std::ostringstream st;
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
-	out << "#" << std::setw(11) << st.str() << " | ";
+	out << "#" << std::setw(11) << st.str();
+	st.str("");
+	st << "[" << ++cnt << "] |";
+	out << std::setw(12) << st.str() << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  for (size_t l=0; l<9; l++) {
 	    st.str("");
@@ -2358,7 +2363,7 @@ void collDiag::initialize()
 
 				// Header line
 	out << std::setfill('-') << std::right;
-	out << "#" << std::setw(11) << '+' << " | ";
+	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
@@ -2464,7 +2469,8 @@ void collDiag::print()
     if (out) {
       double Etot = 0.0;
       double cvrt = eV/UserTreeDSMC::Eunit;
-      out << std::setw(12) << tnow << " | ";
+      out << std::setw(12) << tnow 
+	  << std::setw(12) << p->tempM << " | ";
       for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	collTDPtr ctd = it->second;
 	out << std::setw(12) << ctd->ff_s.first
