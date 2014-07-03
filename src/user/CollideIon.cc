@@ -1756,8 +1756,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
-	delE1  = kEe2[id] * prob * N1;
-	if (delE1<0) debugDeltaE(delE1, Z1, C1, kEe2[id], prob, interFlag);
+	// delE1  = kEe2[id] * prob * N1;
+	// if (delE1<0) debugDeltaE(delE1, Z1, C1, kEe2[id], prob, interFlag);
+	delE1  = 0.0;
 	tdelE += delE1;
 	speciesKey kk(Z1, --C1);
 	if (W1 < (w1=new1[k1])) {
@@ -1815,8 +1816,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == recomb_2) {
-	delE2  = kEe1[id] * prob * N2; // See comment above for interFlag==6
-	if (delE2<0) debugDeltaE(delE2, Z2, C2, kEe1[id], prob, interFlag);
+	// delE2  = kEe1[id] * prob * N2; // See comment above for interFlag==6
+	// if (delE2<0) debugDeltaE(delE2, Z2, C2, kEe1[id], prob, interFlag);
+	delE2  = 0.0;
 	tdelE += delE2;
 	speciesKey kk(Z2, --C2);
 	if (W2 < (w2=new2[k2])) {
@@ -1848,7 +1850,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	if (kEe > 10.2) { ctd1->eV_10[id]++;}
 
 	ctd1->dv[id].first++; 
-	ctd1->dv[id].second += delE1;
+	ctd1->dv[id].second += delE1/N1;
       }
 
 
@@ -1866,7 +1868,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	if (kEe > 10.2) { ctd2->eV_10[id]++;}
 
 	ctd1->dv[id].first++; 
-	ctd1->dv[id].second += delE2;
+	ctd1->dv[id].second += delE2/N2;
       }
       
       // Convert back to cgs
@@ -2303,7 +2305,7 @@ void collDiag::initialize()
 	    << "#"                                         << std::endl;
 	
 				// Species labels
-	out << "#" << std::setw(11) << "Species==>" << " | ";
+	out << "#" << std::setw(11+12) << std::right << "Species==>" << " | ";
 	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
 	  ostringstream sout, sout2;
 	  sout  << "(" << it->first.first << ", " << it->first.second << ")";
