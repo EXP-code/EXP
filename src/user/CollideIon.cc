@@ -1672,8 +1672,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   
     // Number of amu in each super particle of trace type
     //
-    double N1 = m1*UserTreeDSMC::Munit/amu;
-    double N2 = m2*UserTreeDSMC::Munit/amu;
+    double N1 = m1 * UserTreeDSMC::Munit/amu;
+    double N2 = m2 * UserTreeDSMC::Munit/amu;
   
     // Cycle through the interaction list
     //
