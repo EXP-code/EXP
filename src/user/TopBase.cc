@@ -234,6 +234,9 @@ double TopBase::sigmaFB(const iKey& key, double E)
 	//
 	TBptr l     = k->second;
 
+	// For ground state only . . . 
+	// if (l->ILV != 1) continue;
+
 	// Compute quantities needed for Milne relation
 	//
 	double hnu  = E - l->Eph;
