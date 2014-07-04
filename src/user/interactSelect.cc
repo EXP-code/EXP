@@ -38,7 +38,42 @@ double InteractSelect::selectCEInteract
   return 0.0;
 }
 
-double InteractSelect::selectFFInteract(const Ion& a, double E) 
+double InteractSelect::selectFFNonrel(const Ion& a, int id)
+{
+  std::map<int, double>::const_iterator it = a.ffWaveCrossN.find(id);
+  if (it != a.ffWaveCrossN.end()) return it->second;
+  else return 0.0;
+
+  /*
+  double maxC = ffCumlCrossN[id].back();
+  size_t n    = ffCumlCrossN[id].size();
+
+  // Location in cumulative cross section grid
+  //
+  double rn   = maxC * static_cast<double>(rand())/RAND_MAX;
+  
+  // Interpolate the cross section array
+  //
+
+  std::vector<double>::iterator lb = 
+    std::lower_bound(ffCumlCrossN[id].begin(), ffCumlCrossN[id].end(), rn);
+  std::vector<double>::iterator ub = lb--;
+
+  size_t ii = lb - ffCumlCrossN[id].begin();
+  size_t jj = ub - ffCumlCrossN[id].begin();
+  double k  = kgrid[ii];
+	  
+  if (*ub > *lb)
+    k = ( (rn - *lb) * kgrid[ii] + (*ub - rn) * kgrid[jj] ) /
+      (*ub - *lb) ;
+
+  k = pow(10, k);
+
+  return k*hbc;
+  */
+}
+
+double InteractSelect::selectFFUltrarel(const Ion& a, double E) 
 {
   std::vector< double > dum;
   std::vector< double > normed;
@@ -61,8 +96,8 @@ double InteractSelect::selectFFInteract(const Ion& a, double E)
       e_1 = e_2 - 1;
     }
 
-    double y1 = a.ffCumCross[e_1][i];
-    double y2 = a.ffCumCross[e_2][i];
+    double y1 = a.ffCumlCrossU[e_1][i];
+    double y2 = a.ffCumlCrossU[e_2][i];
     double x1 = a.egrid[e_1];
     double x2 = a.egrid[e_2];
     double y_tmp = y1 + ((y2-y1)/(x2-x1))*(E-x1);

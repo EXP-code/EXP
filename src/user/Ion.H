@@ -271,14 +271,14 @@ public:
 
   //@{
   //! Cross sections that are dynamic
-  std::vector< std::pair<double, double> > CEcross1j;
-  std::vector< std::pair<double, double> > CEcrossCum;
-  std::vector< double > dEij_CE;
-  std::vector< std::vector < double> > ffDiffCross;
-  std::vector< std::vector < double> > ffCumCross;
-  std::vector< double > radRecCross;
-  std::vector< double > radRecCrossCum;
-  double diCross;
+  std::map<int, std::vector< std::pair<double, double> > > CEcrossCum;
+  std::map<int, std::vector< double > >                    ffDiffCrossN;
+  std::map<int, std::vector< double > >                    ffCumlCrossN;
+  std::map<int, double >                                   ffWaveCrossN;
+  std::vector< std::vector < double> >                     ffDiffCrossU;
+  std::vector< std::vector < double> >                     ffCumlCrossU;
+  std::map<int, std::vector< double > >                    radRecCrossCum;
+  std::map<int, double >                                   diCross;
   //@}
   
   //@{
@@ -303,22 +303,31 @@ public:
     return ch->masterNames.find(name) != ch->masterNames.end();
   }
 
-  double freeFreeCross(double E);
-
   /** Calculate the differential free-free cross section and return
       the cumulative cross section vector The formula used to
-      calculate the cross section is 3BS(a) from Koch&Motz 1959 */
-  void freeFreeDifferential();
+      calculate the cross section is 3BN(a) from Koch & Motz, 1959 
 
+      ** Non-relativistic limit
+  */
+  double freeFreeNonrel(double E, int id);
+
+  //@{
+  /** Calculate the differential free-free cross section and return
+      the cumulative cross section vector The formula used to
+      calculate the cross section is 3BS(a) from Koch & Motz, 1959
+
+      ** Ultra-relativistic limit
+  */
+  void freeFreeUltrarelGrid();
 
   //! Return type for collisional excitation cross-section data
   typedef std::vector< std::pair<double, double > > collType;
 
   //! Get the collisional excitation cross section
-  collType collExciteCross(double E);
+  collType collExciteCross(double E, int id);
 
   //! Ionization cross section
-  double directIonCross(double E);
+  double directIonCross(double E, int id);
 
   //@{
 
@@ -326,11 +335,11 @@ public:
       as a function of incoming electron impact energy, and returns the
       vector cumulative cross section array. */
 
-  std::vector<double> radRecombCross       (double E);
-  std::vector<double> radRecombCrossMewe   (double E);
-  std::vector<double> radRecombCrossSpitzer(double E);
-  std::vector<double> radRecombCrossKramers(double E);
-  std::vector<double> radRecombCrossTopBase(double E);
+  std::vector<double> radRecombCross       (double E, int id);
+  std::vector<double> radRecombCrossMewe   (double E, int id);
+  std::vector<double> radRecombCrossSpitzer(double E, int id);
+  std::vector<double> radRecombCrossKramers(double E, int id);
+  std::vector<double> radRecombCrossTopBase(double E, int id);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999

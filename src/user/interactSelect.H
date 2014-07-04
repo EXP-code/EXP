@@ -36,7 +36,10 @@ public:
   (const Ion& a, const Ion::collType& cumCross);
 
   //! Compute the free-free radiated energy based on the electron velocity
-  double selectFFInteract(const Ion& a, double E);
+  double selectFFNonrel(const Ion& a, int id);
+
+  //! Compute the free-free radiated energy based on the electron velocity
+  double selectFFUltrarel(const Ion& a, double E);
 
   //! Return the lost ionization energy and adjust ionization state
   double DIInterLoss(const Ion& a);
