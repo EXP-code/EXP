@@ -804,14 +804,16 @@ double Ion::freeFreeCross(double E, int id)
 */
 
 // Greene (1959) version
-double Ion::freeFreeCross(double E0, int id) 
+double Ion::freeFreeCross(double E, int id) 
 {
   // Physical constants
   //
   const double A   = 5.728e-8/(M_PI*M_PI);
   const double Ryd = 13.60569253;
 
-  double n0        = Ryd*(C-1)*(C-1)/E0;
+  // Scaled inverse energy
+  //
+  double ni2       = Ryd*(C-1)*(C-1)/E;
 
 				// Integration variables
   double cum      = 0;
@@ -823,12 +825,13 @@ double Ion::freeFreeCross(double E0, int id)
 
     double ephot  = egrid[j];
     double Ef     = E0 - ephot;
-    double nf     = Ryd*(C-1)*(C-1)/Ef;
+    double nf2    = Ryd*(C-1)*(C-1)/Ef;
     double dsig   = 0.0;
 				// Can't emit a photon if not enough KE!
-    if (Ef > 0.0) {
-      double corr = (1.0 - exp(-2.0*M_PI*n0))/(1.0 - exp(-2.0*M_PI*nf));
-      dsig = A/ephot * n0*nf * log((nf + n0)/(nf - n0)) * corr * dE/ephot;
+    if (ni2 > 0.0 & nf2 > 0.0) {
+      double ni = sqrt(ni2), nf = sqrt(nf2);
+      double corr = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
+      dsig = A/ephot * n0*nf * log((nf + ni)/(nf - ni)) * corr * dE/ephot;
     }
 
     cum = cum + dsig;
