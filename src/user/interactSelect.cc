@@ -38,66 +38,13 @@ double InteractSelect::selectCEInteract
   return 0.0;
 }
 
-double InteractSelect::selectFFInteract(const Ion& a, double E) 
+double InteractSelect::selectFFInteract(const Ion& a, int id)
 {
-  std::vector< double > dum;
-  std::vector< double > normed;
-  std::vector< double > kgrid_log;
-  
-  double hbc  = 197.327; // Value of h-bar * c in eV nm
-  
-  double Emin = hbc*pow(10, a.kgrid[0]);
-
-  if (E < Emin) return 0.0;
-
-  for (int i = 0; i < a.kffsteps; i++) {
-    double de = a.egrid[1]-a.egrid[0];
-    int e_1 = int(floor(E/de));
-    int e_2 = e_1 + 1;
-
-    // Extrapolate? [Need asymptotic expression here?]
-    if (e_2 >= static_cast<int>(a.egrid.size())) {
-      e_2 = a.egrid.size()-1;
-      e_1 = e_2 - 1;
-    }
-
-    double y1 = a.ffCumCross[e_1][i];
-    double y2 = a.ffCumCross[e_2][i];
-    double x1 = a.egrid[e_1];
-    double x2 = a.egrid[e_2];
-    double y_tmp = y1 + ((y2-y1)/(x2-x1))*(E-x1);
-
-    if (E > hbc*pow(10, a.kgrid[i]))
-      dum.push_back(y_tmp);
-  }
-
-  std::vector <double>::iterator max = max_element(dum.begin(), dum.end());
-  for (int i = 0; i < a.kffsteps; i++) {
-    if (E > hbc*pow(10, a.kgrid[i])) {
-      normed.push_back(dum[i]/(*max));
-      kgrid_log.push_back(a.kgrid[i]);
-    }
-  }
-  
-  double k = a.kgrid[0];	// Minimum grid value (default)
-  size_t n = normed.size();
-				// Linear
-  if (n==2) {
-    double rn = (double)rand()/(double)RAND_MAX;
-    k = ( (normed[1] - rn)*kgrid_log[0] + (rn - normed[0])*kgrid_log[1] ) /
-      (normed[1] - normed[0]);
-  }
-				// Spline
-  if (n>2) {
-    double rn = (double)rand()/(double)RAND_MAX;
-    Cspline<double, double> interp(normed, kgrid_log);
-    k = interp(rn);
-  }
-
-  k = pow(10, k);
-
-  return k*hbc;
+  std::map<int, double>::const_iterator it = a.ffWaveCrossN.find(id);
+  if (it != a.ffWaveCrossN.end()) return it->second;
+  else return 0.0;
 }
+
 
 double InteractSelect::DIInterLoss(const Ion& a) 
 {

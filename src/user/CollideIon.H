@@ -136,8 +136,10 @@ public:
 
   //! All processes send info to the root process
   void gather();
+
   //! Print the current data to the diagnostic file
   void print();
+
   //! Zero out the structures maintained by the CollisionTypeDiag maps
   void reset();
 };

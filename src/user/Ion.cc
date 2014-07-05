@@ -409,16 +409,22 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   }
   // else std::cout << "NOT IN LIST" <<std::endl;
   
+  // E = h * nu
+  //
+  // E = h/(2*pi) * 2*pi/lambda = h-bar * k
+  //
+  // lambda = 2*pi/k.  Example: 1216 Ang = 121.6 nm --> k = 2*pi/121.6 = 0.052
+  //
+  // So range in k-grid is: 
+
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
-  double e = 0.;
-  double k = 0.;
-  for (e = 0.00000001; e < 250 ; e += 0.25) {
-    egrid.push_back(e);
-  }
-  for (k = -9.; k < -3.; k += 0.1) {
-    // std::cout << k 
+  //
+  for (double k = -9.; k < -3.; k += 0.1) 
     kgrid.push_back(k);
-  }
+
+  for (double e = 0.00000001; e < 250 ; e += 0.25) 
+    egrid.push_back(e);
+
   kffsteps = kgrid.size();
   effsteps = egrid.size();
 }
@@ -500,7 +506,7 @@ Ion::Ion(const Ion &I)
     since the file input, and thus array, are not in any specific order
 */
 Ion::collType
-Ion::collExciteCross(double E)
+Ion::collExciteCross(double E, int id)
 {
   const double x_array5[5] = {0, 0.25, 0.5, 0.75, 1.0};
   const double x_array9[9] = {0, 0.125, 0.25 , 0.375, 0.5 , 
@@ -518,7 +524,7 @@ Ion::collExciteCross(double E)
   const std::pair<double,double> Null(0, 0);
   if (splups.size() == 0) {
     CEcum.push_back(Null);
-    CEcrossCum = CEcum;
+    CEcrossCum[id] = CEcum;
     return CEcum;
   }
 
@@ -610,7 +616,7 @@ Ion::collExciteCross(double E)
 
   if (CEcum.size() == 0) CEcum.push_back(Null);
   
-  CEcrossCum = CEcum;
+  CEcrossCum[id] = CEcum;
   return CEcum;
 }
 
@@ -650,7 +656,7 @@ double Ion::qrp(double u)
     See: Dere, K. P., 2007, A&A, 466, 771
     ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
 */
-double Ion::directIonCross(double E) 
+double Ion::directIonCross(double E, int id) 
 {
   double u        = E/ip;
 				// Test for hydrogen-like/helium-like ion
@@ -663,7 +669,7 @@ double Ion::directIonCross(double E)
   double F, qr, cross;
   
   if (C == (Z+1)) {
-    diCross = 0;
+    diCross[id] = 0;
     return -1;
   }
 
@@ -701,111 +707,109 @@ double Ion::directIonCross(double E)
       }
     }
   }
-  diCross = cross; // recast the cross section in nm^2
-  return diCross;
+  diCross[id] = cross; // recast the cross section in nm^2
+  return cross;
 }
 
 /** 
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
     Elwert factor (see Koch & Motz eq. II-6)
+
+    [Nonrelativistic limit]
 */
-double Ion::freeFreeCross(double E) 
+double Ion::freeFreeCross(double E, int id) 
 {
-  double hbc      = 197.327;	     // value of h-bar * c in eV nm
+  // Physical constants
+  //
+  double hbc      = 197.327;	     // value of h-bar * c in eV*nm
   double r0       = 2.81794033e-6;   // classic electron radius in nm
-  double factor   = (Z*Z*r0*r0)/(137.);
-  double hb       = 1.054572e-27;    // h-bar in erg s
-  double me       = 9.10938e-28;     // electron mass in g
-  double inmtoicm = 1e7;	     // nm^(-1) per cm^(-1)
-  double eV2erg   = 1.602177e-12;    // ergs per eV
-  double c        = 2.998e10;	     // cm/s
   
-  double p0       = sqrt(2*me*E*eV2erg);
-  double v0       = p0/me;
-  double b0       = v0/c;
+				// Leading cross-section factor in 3BN(a)
+  double factor   = ((C-1)*(C-1)*r0*r0)/(137.) * (16.0/3.0);
+
+  double kfac     = hbc * 1.0e-6/mec2;
+
+				// Total kinetic energy of the electron
+  double T0       = 1.0e-6*E/mec2;
+				// Total energy of the electron
+  double E0       = 1.0 + T0;
+				// Total (4) momentum of the electron
+  double p0       = sqrt(T0*(2.0 + T0));
+				// Beta
+  double b0       = p0/E0;
   
-  double momi     = b0/sqrt(1.0 - b0*b0);
-  
+				// Integration variables
   double cum      = 0;
   double dk       = 0;
+
+  std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
 
     if (j != static_cast<int>(kgrid.size())-1) 
-      dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
-
-    double k  = pow(10, kgrid[j]);
-    double Ek = k*hbc;
-    double pk = k*inmtoicm*hb;
-    double x  = (E - Ek)/E;
-    double p  = p0-pk;
-
-    if (x >= 0 and x <= 1) {
-      double vf = p/me;
-      double bf = vf/c;
-      double corr = 1.0;
-      corr = (b0*(1.0 - exp((-2*M_PI*double(Z))/(137.*b0))))/(bf*(1.0 - exp((-2*M_PI*double(Z))/(137.*bf))));
-      double momf = bf/sqrt(1.-bf*bf);
-      double x = momi + momf;
-      double y = momi - momf;
-      double dsig = corr*(factor*(dk/k))*(16./3.)*(1.0/(momi*momi))*log(x/y);
-      
-      cum = cum + dsig;
-    }
+      dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j])) * kfac;
     
-  }
-  double y_tmp = cum;
-  return y_tmp;
-}
+    double k      = pow(10, kgrid[j]) * kfac;
+    double Ef     = E0 - k;
+    double Tf     = T0 - k;
+    double dsig   = 0.0;
+				// Can't emit a photon if not enough KE!
+    if (Tf > 0.0) {
+      double pf   = sqrt(Tf*(2.0 + Tf));
+      double bf   = pf/Ef;
+      double corr = 
+	(b0*(1.0 - exp(-2.0*M_PI*double(C-1)/(137.*b0)))) 
+	/
+	(bf*(1.0 - exp(-2.0*M_PI*double(C-1)/(137.*bf))));
 
-/** Calculate the differential free-free cross section and return the
-    cumulative cross section vector The formula used to calculate the
-    cross section is 3BS(a) from Koch & Motz 1959 */
-void Ion::freeFreeDifferential() 
-{
-  // Value of h-bar * c in eV nm
-  double hbc = 197.327; 
-  
-  // Classic electron radius in nm
-  double r0 = 2.81794033e-6;
-  
-  // Go through a grid of all k up to the energy E0
-  double factor = (4.*Z*Z*r0*r0)/(137.);
-  
-  for (int i = 0; i < effsteps; i++) {
-    std::vector<double> temp;
-    std::vector<double> cum_Temp;
-    double cum = 0;
-    double E0 = egrid[i];
-    double dk = 0;
-    for(int j = 0; j < kffsteps; j++) {
+      double x    = p0 + pf;
+      double y    = p0 - pf;
 
-      if (j != static_cast<int>(kgrid.size())-1) 
-	dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j]));
-
-      double k = pow(10, kgrid[j]);
-      double Ek = k*hbc;
-      double x = (E0 - Ek)/E0;
-      double dsig = (factor*(dk/k))*((1+x*x-(2.0/3.0)*x)*log(183.0/(double)Z) + (1.0/9.0)*x);
-
-      cum = cum + dsig;
-      temp.push_back(dsig);
-      cum_Temp.push_back(cum);
+      dsig = corr * factor * (dk/k) / (p0*p0) * log(x/y);
     }
-    ffDiffCross.push_back(temp);
-    ffCumCross.push_back(cum_Temp);
+
+    cum         = cum + dsig;
+
+    diff.push_back(dsig);
+    cuml.push_back(cum);
   }
+
+  // Location in cumulative cross section grid
+  //
+  double rn   = cum * static_cast<double>(rand())/RAND_MAX;
+  
+  // Interpolate the cross section array
+  //
+
+  std::vector<double>::iterator lb = 
+    std::lower_bound(cuml.begin(), cuml.end(), rn);
+  std::vector<double>::iterator ub = lb--;
+
+  size_t ii = lb - cuml.begin();
+  size_t jj = ub - cuml.begin();
+  double k  = kgrid[ii];
+	  
+  if (*ub > *lb) {
+    double d = *ub - *lb;
+    double a = (rn - *lb) / d;
+    double b = (*ub - rn) / d;
+    k  = a * kgrid[ii] + b * kgrid[jj];
+  }
+
+  ffWaveCrossN[id] = pow(10.0, k) * hbc;
+
+  return cum;
 }
 
 
-std::vector<double> Ion::radRecombCross(double E)
+std::vector<double> Ion::radRecombCross(double E, int id)
 {
   // For testing . . .
   if (0) {
-    std::vector<double> v1 = radRecombCrossMewe   (E);
-    std::vector<double> v2 = radRecombCrossTopBase(E);
-    std::vector<double> v3 = radRecombCrossKramers(E);
-    std::vector<double> v4 = radRecombCrossSpitzer(E);
+    std::vector<double> v1 = radRecombCrossMewe   (E, id);
+    std::vector<double> v2 = radRecombCrossTopBase(E, id);
+    std::vector<double> v3 = radRecombCrossKramers(E, id);
+    std::vector<double> v4 = radRecombCrossSpitzer(E, id);
 
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
     std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
@@ -816,7 +820,7 @@ std::vector<double> Ion::radRecombCross(double E)
     
     return v1;
   } else {
-    return radRecombCrossTopBase(E);
+    return radRecombCrossTopBase(E, id);
     // return radRecombCrossMewe   (E);
     // return radRecombCrossKramers(E);
     // return radRecombCrossSpitzer(E);
@@ -836,7 +840,7 @@ std::vector<double> Ion::radRecombCross(double E)
    where g_A is the degeneracy of the target state and g^+_A is the
    degeneracy of the ion (which we assume to be in the ground state)
 */
-std::vector<double> Ion::radRecombCrossKramers(double E) 
+std::vector<double> Ion::radRecombCrossKramers(double E, int id) 
 {
   const double incmEv = light * planck / eV;
 
@@ -925,7 +929,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E)
   }
 
   radRecCum.push_back(cross);
-  radRecCrossCum = radRecCum;
+  radRecCrossCum[id] = radRecCum;
   return radRecCum;
 }
 
@@ -939,7 +943,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E)
 
     Uses Milne relation.
 */
-std::vector<double> Ion::radRecombCrossMewe(double E) 
+std::vector<double> Ion::radRecombCrossMewe(double E, int id) 
 {
   double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
 
@@ -1036,12 +1040,12 @@ std::vector<double> Ion::radRecombCrossMewe(double E)
   //                        v
   radRecCum.push_back(cross*1.0e18);
 
-  radRecCrossCum = radRecCum;
+  radRecCrossCum[id] = radRecCum;
 
   return radRecCum;
 }
 
-std::vector<double> Ion::radRecombCrossSpitzer(double E) 
+std::vector<double> Ion::radRecombCrossSpitzer(double E, int id) 
 {
 				// 1 inverse cm = 1.239.. eV
   const double incmEv = 1.239842e-4;
@@ -1087,11 +1091,11 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E)
     }
   }
   radRecCum.push_back(cross);
-  radRecCrossCum = radRecCum;
+  radRecCrossCum[id] = radRecCum;
   return radRecCum;
 }
 
-std::vector<double> Ion::radRecombCrossTopBase(double E) 
+std::vector<double> Ion::radRecombCrossTopBase(double E, int id) 
 {
   // Initialize TopBase data (once) if needed
   //
@@ -1107,7 +1111,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E)
   //
   TopBase::iKey k(Z, C);
   std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
-  radRecCrossCum = ret;
+  radRecCrossCum[id] = ret;
   return ret;
 }
 
@@ -1339,7 +1343,7 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
     for (int j=1; j<*i+2; j++) {
       lQ Q(*i, j);
       IonList[Q] = Ion(*i, j, this);
-      IonList[Q].freeFreeDifferential();
+      // IonList[Q].freeFreeUltrarel();
     }
     Ni[*i] = 1.0;		// Not sure what this does . . . 
   }

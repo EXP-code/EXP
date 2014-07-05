@@ -637,7 +637,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
-    double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id]);
+    double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id], id);
     double crs = eVel2*ne2 * ff1;
 
     if (crs>0.0) {
@@ -651,7 +651,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    CE1[id] = ch.IonList[Q1].collExciteCross(kEe2[id]);
+    CE1[id] = ch.IonList[Q1].collExciteCross(kEe2[id], id);
 
     double crs = eVel2*ne2 * CE1[id].back().first;
 
@@ -666,7 +666,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
-    double DI1 = ch.IonList[Q1].directIonCross(kEe2[id]);
+    double DI1 = ch.IonList[Q1].directIonCross(kEe2[id], id);
     double crs = eVel2*ne2 * DI1;
 
     if (crs>0.0) {
@@ -680,7 +680,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-    std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id]);
+    std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id], id);
     double crs = eVel2*ne2 * RE1.back();
 
     if (crs>0.0) {
@@ -699,7 +699,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id]);
+    double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id], id);
     double crs = eVel1*ne1 * ff2;
 
     if (crs>0.0) {
@@ -713,7 +713,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
 
-    CE2[id] = ch.IonList[Q2].collExciteCross(kEe1[id]);
+    CE2[id] = ch.IonList[Q2].collExciteCross(kEe1[id], id);
     double crs = eVel1*ne1 * CE2[id].back().first;
 
     if (crs>0.0) {
@@ -726,7 +726,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Ionization cross section
 				//-------------------------------
   if (ne1 > 0 and C2 <= Z2) {
-    double DI2 = ch.IonList[Q2].directIonCross(kEe1[id]);
+    double DI2 = ch.IonList[Q2].directIonCross(kEe1[id], id);
     double crs = ne1 * DI2;
 
     if (crs>0.0) {
@@ -739,7 +739,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Radiative recombination
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id]);
+    std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id], id);
     double crs = eVel1*ne1*RE2.back();
 
     if (crs>0.0) {
@@ -933,7 +933,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
       if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
-	double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id]);
+	double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id], id);
 	double crs = eVel2*ne2 * ff1 * ww;
 
 	if (crs>0.0) {
@@ -947,7 +947,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
-	CEvector V = ch.IonList[Q1].collExciteCross(kEe2[id]);
+	CEvector V = ch.IonList[Q1].collExciteCross(kEe2[id], id);
 	double crs = eVel2*ne2 * V.back().first * ww;
 
 	if (crs>0.0) {
@@ -962,7 +962,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
-	double DI1 = ch.IonList[Q1].directIonCross(kEe2[id]);
+	double DI1 = ch.IonList[Q1].directIonCross(kEe2[id], id);
 	double crs = eVel2*ne2 * DI1 * ww;
 
 	if (crs>0.0) {
@@ -976,7 +976,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
-	std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id]);
+	std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id], id);
 	double crs = eVel2*ne2 * RE1.back() * ww;
 
 	if (crs>0.0) {
@@ -996,7 +996,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Free-free
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
-	double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id]);
+	double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id], id);
 	double crs = eVel1*ne1 * ff2 * ww;
 
 	if (crs>0.0) {
@@ -1010,7 +1010,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
 
-	CEvector V = ch.IonList[Q2].collExciteCross(kEe1[id]);
+	CEvector V = ch.IonList[Q2].collExciteCross(kEe1[id], id);
 	double crs = eVel1*ne1 * V.back().first * ww;
 
 	if (crs>0.0) {
@@ -1025,7 +1025,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Ionization cross section
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
-	double DI2 = ch.IonList[Q2].directIonCross(kEe1[id]);
+	double DI2 = ch.IonList[Q2].directIonCross(kEe1[id], id);
 	double crs = ne1 * DI2 * ww;
 	
 	if (crs>0.0) {
@@ -1038,7 +1038,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Radiative recombination
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
-	std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id]);
+	std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id], id);
 	double crs = eVel1*ne1*RE2.back() * ww;
 
 	if (crs>0.0) {
@@ -1207,7 +1207,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //-------------------------
 
     if (interFlag == free_free_1) {
-      delE          = IS.selectFFInteract(ch.IonList[Q1], kEe2[id]);
+      delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
       ctd1->ff[id].first++; 
       ctd1->ff[id].second  += delE;
@@ -1248,7 +1248,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //-------------------------
 
     if (interFlag == free_free_2) {
-      delE          = IS.selectFFInteract(ch.IonList[Q2], kEe1[id]);
+      delE          = IS.selectFFInteract(ch.IonList[Q2], id);
       partflag      = 2;
       ctd2->ff[id].first++;
       ctd2->ff[id].second += delE;
@@ -1711,7 +1711,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	delE1 = IS.selectFFInteract(ch.IonList[Q1], kEe2[id]) * prob * N1;
+	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * prob * N1;
 	ctd1->ff[id].first  += prob;
 	ctd1->ff[id].second += delE1;
 	p1Flag = true;
@@ -1775,7 +1775,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
-	delE2                = IS.selectFFInteract(ch.IonList[Q2], kEe1[id]) * prob * N2;
+	delE2 = IS.selectFFInteract(ch.IonList[Q2], id) * prob * N2;
 	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += delE2;
 	p2Flag = true;
