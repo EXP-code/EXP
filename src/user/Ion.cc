@@ -422,7 +422,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   for (double k = -9.; k < -3.; k += 0.1) 
     kgrid.push_back(k);
 
-  for (double e = 0.00000001; e < 250 ; e += 0.25) 
+  for (double e = 0.00000001; e < 250 ; e += 0.1) 
     egrid.push_back(e);
 
   kffsteps = kgrid.size();
@@ -717,6 +717,7 @@ double Ion::directIonCross(double E, int id)
 
     [Nonrelativistic limit]
 */
+/*
 double Ion::freeFreeCross(double E, int id) 
 {
   // Physical constants
@@ -797,6 +798,68 @@ double Ion::freeFreeCross(double E, int id)
   }
 
   ffWaveCrossN[id] = pow(10.0, k) * hbc;
+
+  return cum;
+}
+*/
+
+// Greene (1959) version
+double Ion::freeFreeCross(double E0, int id) 
+{
+  // Physical constants
+  //
+  const double A   = 5.728e-8/(M_PI*M_PI);
+  const double Ryd = 13.60569253;
+
+  double n0        = Ryd*(C-1)*(C-1)/E0;
+
+				// Integration variables
+  double cum      = 0;
+  double dE       = egrid[1] - egrid[0];
+
+  std::vector<double> diff, cuml;
+
+  for (int j = 0; j < effsteps; j++) {
+
+    double ephot  = egrid[j];
+    double Ef     = E0 - ephot;
+    double nf     = Ryd*(C-1)*(C-1)/Ef;
+    double dsig   = 0.0;
+				// Can't emit a photon if not enough KE!
+    if (Ef > 0.0) {
+      double corr = (1.0 - exp(-2.0*M_PI*n0))/(1.0 - exp(-2.0*M_PI*nf));
+      dsig = A/ephot * n0*nf * log((nf + n0)/(nf - n0)) * corr * dE/ephot;
+    }
+
+    cum = cum + dsig;
+
+    diff.push_back(dsig);
+    cuml.push_back(cum);
+  }
+
+  // Location in cumulative cross section grid
+  //
+  double rn   = cum * static_cast<double>(rand())/RAND_MAX;
+  
+  // Interpolate the cross section array
+  //
+
+  std::vector<double>::iterator lb = 
+    std::lower_bound(cuml.begin(), cuml.end(), rn);
+  std::vector<double>::iterator ub = lb--;
+
+  size_t ii = lb - cuml.begin();
+  size_t jj = ub - cuml.begin();
+  double ep = egrid[ii];
+	  
+  if (*ub > *lb) {
+    double d = *ub - *lb;
+    double a = (rn - *lb) / d;
+    double b = (*ub - rn) / d;
+    ep  = a * egrid[ii] + b * egrid[jj];
+  }
+
+  ffWaveCrossN[id] = ep;
 
   return cum;
 }
