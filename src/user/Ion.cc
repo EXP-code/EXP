@@ -422,7 +422,8 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   for (double k = -9.; k < -3.; k += 0.1) 
     kgrid.push_back(k);
 
-  for (double e = 0.00000001; e < 250 ; e += 0.1) 
+  // for (double e = 0.00000001; e < 250 ; e += 0.1) 
+  for (double e = 1.0; e < 250 ; e += 0.1) 
     egrid.push_back(e);
 
   kffsteps = kgrid.size();
