@@ -411,19 +411,21 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   
   // E = h * nu
   //
-  // E = h/(2*pi) * 2*pi/lambda = h-bar * k
+  // E = h/(2*pi) * c * 2*pi/lambda = h-bar * c * k
   //
   // lambda = 2*pi/k.  Example: 1216 Ang = 121.6 nm --> k = 2*pi/121.6 = 0.052
+  //                  1 mu  =  10000 Ang = 1000. nm --> k = 2*pi/1000. = 0.006
+  //                 10 mu  = 100000 Ang = 1e04  nm --> k = 2*pi/1e04  = 0.0006
+  //         
   //
-  // So range in k-grid is: 
 
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   //
-  for (double k = -9.; k < -3.; k += 0.1) 
+  // for (double k = -9.; k < -3.; k += 0.1) 
+  for (double k = -9.; k < -1.; k += 0.1) 
     kgrid.push_back(k);
 
-  // for (double e = 0.00000001; e < 250 ; e += 0.1) 
-  for (double e = 1.0; e < 250 ; e += 0.1) 
+  for (double e = 0.00000001; e < 250 ; e += 0.25) 
     egrid.push_back(e);
 
   kffsteps = kgrid.size();
@@ -462,7 +464,8 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
   }
-  for (k = -9.; k < -3.; k += 0.1) {
+  // for (k = -9.; k < -3.; k += 0.1) {
+  for (k = -9.; k < -1.; k += 0.1) {
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
@@ -714,125 +717,60 @@ double Ion::directIonCross(double E, int id)
 
 /** 
     Cross section is 3BN(a) from Koch & Motz 1959, with the low-energy
-    Elwert factor (see Koch & Motz eq. II-6)
+    Elwert factor (see Koch & Motz eq. II-6), nonrelativistic limit
 
-    [Nonrelativistic limit]
-*/
-/*
-double Ion::freeFreeCross(double E, int id) 
+    Using the parametrization by Greene (1959)
+ */
+double Ion::freeFreeCross(double Ei, int id) 
 {
+  //
   // Physical constants
   //
-  double hbc      = 197.327;	     // value of h-bar * c in eV*nm
-  double r0       = 2.81794033e-6;   // classic electron radius in nm
-  
-				// Leading cross-section factor in 3BN(a)
-  double factor   = ((C-1)*(C-1)*r0*r0)/(137.) * (16.0/3.0);
+				// Prefactor A / pi^2 (from Greene, 1959)
+  const double A   = 5.72791733e-08/(M_PI*M_PI);
 
-  double kfac     = hbc * 1.0e-6/mec2;
+				// Classical radius of the electron in nm
+  const double r0  = 2.81794044e-13 * 1.0e+07;
 
-				// Total kinetic energy of the electron
-  double T0       = 1.0e-6*E/mec2;
-				// Total energy of the electron
-  double E0       = 1.0 + T0;
-				// Total (4) momentum of the electron
-  double p0       = sqrt(T0*(2.0 + T0));
-				// Beta
-  double b0       = p0/E0;
-  
-				// Integration variables
+				// Rydberg energy in eV
+  const double Ryd = 13.60569253;
+
+				// value of h-bar * c in eV*nm
+  double hbc       = 197.327;
+
+  // Scaled inverse energy (initial)
+  //
+  double ni2       = Ryd*(C-1)*(C-1)/Ei;
+
+  // Integration variables
+  //
   double cum      = 0;
-  double dk       = 0;
+  double dk       = kgrid[1] - kgrid[0];
 
   std::vector<double> diff, cuml;
 
   for (int j = 0; j < kffsteps; j++) {
+    //
+    // Photon energy in eV
+    //
+    double k      = pow(10, kgrid[j]) * hbc;
 
-    if (j != static_cast<int>(kgrid.size())-1) 
-      dk = fabs(pow(10, kgrid[j+1]) - pow(10, kgrid[j])) * kfac;
-    
-    double k      = pow(10, kgrid[j]) * kfac;
-    double Ef     = E0 - k;
-    double Tf     = T0 - k;
-    double dsig   = 0.0;
-				// Can't emit a photon if not enough KE!
-    if (Tf > 0.0) {
-      double pf   = sqrt(Tf*(2.0 + Tf));
-      double bf   = pf/Ef;
-      double corr = 
-	(b0*(1.0 - exp(-2.0*M_PI*double(C-1)/(137.*b0)))) 
-	/
-	(bf*(1.0 - exp(-2.0*M_PI*double(C-1)/(137.*bf))));
+    //
+    // Final kinetic energy
+    //
+    double Ef     = Ei - k;
 
-      double x    = p0 + pf;
-      double y    = p0 - pf;
-
-      dsig = corr * factor * (dk/k) / (p0*p0) * log(x/y);
-    }
-
-    cum         = cum + dsig;
-
-    diff.push_back(dsig);
-    cuml.push_back(cum);
-  }
-
-  // Location in cumulative cross section grid
-  //
-  double rn   = cum * static_cast<double>(rand())/RAND_MAX;
-  
-  // Interpolate the cross section array
-  //
-
-  std::vector<double>::iterator lb = 
-    std::lower_bound(cuml.begin(), cuml.end(), rn);
-  std::vector<double>::iterator ub = lb--;
-
-  size_t ii = lb - cuml.begin();
-  size_t jj = ub - cuml.begin();
-  double k  = kgrid[ii];
-	  
-  if (*ub > *lb) {
-    double d = *ub - *lb;
-    double a = (rn - *lb) / d;
-    double b = (*ub - rn) / d;
-    k  = a * kgrid[ii] + b * kgrid[jj];
-  }
-
-  ffWaveCrossN[id] = pow(10.0, k) * hbc;
-
-  return cum;
-}
-*/
-
-// Greene (1959) version
-double Ion::freeFreeCross(double E, int id) 
-{
-  // Physical constants
-  //
-  const double A   = 5.728e-8/(M_PI*M_PI);
-  const double Ryd = 13.60569253;
-
-  // Scaled inverse energy
-  //
-  double ni2       = Ryd*(C-1)*(C-1)/E;
-
-				// Integration variables
-  double cum      = 0;
-  double dE       = egrid[1] - egrid[0];
-
-  std::vector<double> diff, cuml;
-
-  for (int j = 0; j < effsteps; j++) {
-
-    double ephot  = egrid[j];
-    double Ef     = E0 - ephot;
+    //
+    // Scaled inverse energy (final)
+    //
     double nf2    = Ryd*(C-1)*(C-1)/Ef;
     double dsig   = 0.0;
 				// Can't emit a photon if not enough KE!
-    if (ni2 > 0.0 & nf2 > 0.0) {
-      double ni = sqrt(ni2), nf = sqrt(nf2);
+    if (nf2 > 0.0) {
+      double ni   = sqrt(ni2);
+      double nf   = sqrt(nf2);
       double corr = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-      dsig = A/ephot * n0*nf * log((nf + ni)/(nf - ni)) * corr * dE/ephot;
+      dsig = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
     }
 
     cum = cum + dsig;
@@ -841,31 +779,66 @@ double Ion::freeFreeCross(double E, int id)
     cuml.push_back(cum);
   }
 
-  // Location in cumulative cross section grid
+
+  double phi = 0.0;
+  ffWaveCrossN[id] = 0.0;
+
+  // If cross section is offgrid, set values to zero
   //
-  double rn   = cum * static_cast<double>(rand())/RAND_MAX;
+  if (cum > 0.0) {
+
+    // Location in cumulative cross section grid
+    //
+    double rn   = cum * static_cast<double>(rand())/RAND_MAX;
   
-  // Interpolate the cross section array
-  //
-
-  std::vector<double>::iterator lb = 
-    std::lower_bound(cuml.begin(), cuml.end(), rn);
-  std::vector<double>::iterator ub = lb--;
-
-  size_t ii = lb - cuml.begin();
-  size_t jj = ub - cuml.begin();
-  double ep = egrid[ii];
+    // Interpolate the cross section array
+    //
+    
+    // Points to first element that is not < rn
+    // but may be equal
+    std::vector<double>::iterator lb = 
+      std::lower_bound(cuml.begin(), cuml.end(), rn);
+    
+    // Assign upper end of range to the
+    // found element
+    //
+    std::vector<double>::iterator ub = lb;
+    //
+    // If is the first element, increment
+    // the upper boundary
+    //
+    if (lb == cuml.begin()) { if (cuml.size()>1) ub++; }
+    //
+    // Otherwise, decrement the lower boundary
+    //
+    else { lb--; }
+    
+    // Compute the associated indices
+    //
+    size_t ii = lb - cuml.begin();
+    size_t jj = ub - cuml.begin();
+    double  k = kgrid[ii];
 	  
-  if (*ub > *lb) {
-    double d = *ub - *lb;
-    double a = (rn - *lb) / d;
-    double b = (*ub - rn) / d;
-    ep  = a * egrid[ii] + b * egrid[jj];
+    // Linear interpolation
+    //
+    if (*ub > *lb) {
+      double d = *ub - *lb;
+      double a = (rn - *lb) / d;
+      double b = (*ub - rn) / d;
+      k  = a * kgrid[ii] + b * kgrid[jj];
+    }
+    
+    // Assign the photon energy
+    //
+    ffWaveCrossN[id] = pow(10, k) * hbc;
+
+    // Assign the total cross section
+    //
+    double rr = r0 * (C - 1);
+    phi = 16.0/3.0 * rr*rr/137.0;
   }
 
-  ffWaveCrossN[id] = ep;
-
-  return cum;
+  return phi;
 }
 
 

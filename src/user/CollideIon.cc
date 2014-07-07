@@ -26,7 +26,8 @@ unsigned CollideIon::Tnum    	   = 200;
 string   CollideIon::cache   	   = ".HeatCool";
 bool     CollideIon::frost_warning = false; // For debugging . . . 
 
-bool NO_COOL = false;
+bool NO_COOL     = false;
+bool RECOMB_KE   = false;
 
 // Cross-section debugging, false for production
 //
@@ -628,6 +629,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   lQ Q1(Z1, C1), Q2(Z2, C2);
 
+
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
   //--------------------------------------------------
@@ -764,6 +766,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
   double totalCross = 0.0;
 
+  //
   // Compute "matrix" of interactions
   //
   sIter sEnd(SpList.end());
@@ -797,8 +800,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   
       // Energy available in the center of mass of the atomic collision
       //
-      double m1  = amu;
-      double m2  = amu;
+      double m1  = amu * atomic_weights[k1.first];
+      double m2  = amu * atomic_weights[k2.first];
 
       double mu  = m1 * m2 / (m1 + m2);
       double vel = cr * UserTreeDSMC::Vunit;
@@ -1019,7 +1022,6 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  kCE2[id][dkey] = V;
 	  sum21 += crs;
 	}
-
       }
 				//-------------------------------
 				// *** Ionization cross section
@@ -1235,7 +1237,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     // component.
     //
     if (interFlag == recomb_1) {
-      delE          = kEe2[id];
+      if (RECOMB_KE) delE = kEe2[id];
       p1->iattrib[use_key] = k1.updateC(--C1);
       assert(C1 > 0);
       partflag      = 1;
@@ -1270,7 +1272,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == recomb_2) {
-      delE         = kEe1[id];	// See comment above for interFlag==6
+      if (RECOMB_KE) delE = kEe1[id];
       p2->iattrib[use_key] = k2.updateC(--C2);
       assert(C2 > 0);
       partflag     = 2;
@@ -1711,6 +1713,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
+	if (0 && myid==0)
+	  std::cout << "** Z1=" << std::setw(4) << Z1
+		    << " C1="   << std::setw(4) << C1
+		    << " FF1="  << IS.selectFFInteract(ch.IonList[Q1], id)
+		    << std::endl;
 	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * prob * N1;
 	ctd1->ff[id].first  += prob;
 	ctd1->ff[id].second += delE1;
@@ -1753,7 +1760,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
-	delE1  = kEe2[id] * prob * N1;
+	if (RECOMB_KE) delE1 = kEe2[id] * prob * N1;
 	speciesKey kk(Z1, --C1);
 	if (W1 < (w1=new1[k1])) {
 	  new1[kk] += W1;
@@ -1775,6 +1782,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
+	if (0 && myid==0) 
+	std::cout << "** Z2=" << std::setw(4) << Z2
+		  << " C2="   << std::setw(4) << C2
+		  << " FF2="  << IS.selectFFInteract(ch.IonList[Q2], id)
+		  << std::endl;
 	delE2 = IS.selectFFInteract(ch.IonList[Q2], id) * prob * N2;
 	ctd2->ff[id].first  += prob;
 	ctd2->ff[id].second += delE2;
@@ -1812,7 +1824,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == recomb_2) {
-	delE2  = kEe1[id] * prob * N2; // See comment above for interFlag==6
+	if (RECOMB_KE) delE2 = kEe1[id] * prob * N2;
 	speciesKey kk(Z2, --C2);
 	if (W2 < (w2=new2[k2])) {
 	  new2[kk] += W2;
@@ -2754,17 +2766,14 @@ sKey2Umap CollideIon::generateSelectionTrace
   double crossM = (*Fn)[key] * dens * csections[id][key][key];
   double collPM = crossM * crm * tau;
 
+  // Interaction rate
+  //
+  double rateF = (*Fn)[key] * dens * crm * tau;
+
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
   //
-  double rateF = 0.5 * (*Fn)[key] * dens * crm * tau;
-  //             ^
-  //             |
-  // Cross sections are double counted
-  //
-
   spProb[id] = rateF * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
