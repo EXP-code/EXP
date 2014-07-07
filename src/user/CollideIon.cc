@@ -27,6 +27,11 @@ string   CollideIon::cache   	   = ".HeatCool";
 bool     CollideIon::frost_warning = false; // For debugging . . . 
 
 bool NO_COOL     = false;
+
+// Subtract KE from COM pair for testing only.  This is technically
+// incorrect since the electrons are "trace" species and not part of
+// the energy conservation.
+//
 bool RECOMB_KE   = false;
 
 // Cross-section debugging, false for production
@@ -89,6 +94,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spProb   .resize(nthrds);
+  spWght   .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -253,10 +259,14 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     }
 				// Compute mean weight
 				//
+    spWght[id] = 0.0;
     for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
       meanW[s->first] /= massP;
       sWghtsMap[id][s->first] /= numbP;
+      spWght[id] += sWghtsMap[id][s->first];
     }
+    if (spWght[id]>0.0) spWght[id] = 1.0/spWght[id];
+
 
 				// Compute cross sections
 				//
@@ -788,6 +798,10 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// Weight product
       double     ww = w1 * w2;
 
+				// Double counting factor for
+				// identical particles
+      if (k1 == k2) ww *= 0.5;
+
 				// Atomic numbers
       unsigned short Z1 = k1.first, C1 = k1.second;
       unsigned short Z2 = k2.first, C2 = k2.second;
@@ -812,6 +826,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Electron velocity equipartition factors
       //
+      // double mu 
       double eVel1 = sqrt(m1/me);
       double eVel2 = sqrt(m2/me);
 
@@ -1242,7 +1257,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       assert(C1 > 0);
       partflag      = 1;
       ctd1->RR[id].first++; 
-      ctd1->RR[id].second  += delE;
+      ctd1->RR[id].second  += kEe2[id];
     }
     
     //-------------------------
@@ -1277,7 +1292,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       assert(C2 > 0);
       partflag     = 2;
       ctd2->RR[id].first++; 
-      ctd2->RR[id].second += delE;
+      ctd2->RR[id].second += kEe1[id];
     }
 
     delEeV = delE;
@@ -2788,7 +2803,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   double selcM = 0.5 * (num-1) * Prob;
   //             ^
   //             |
-  // Pairs are double counted
+  //             +--- Pairs are double counted
 
   sKey2Umap nselM;
   nselM[key][key] = static_cast<unsigned>(floor(selcM+0.5));

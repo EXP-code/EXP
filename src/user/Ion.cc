@@ -421,7 +421,6 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   //
-  // for (double k = -9.; k < -3.; k += 0.1) 
   for (double k = -9.; k < -1.; k += 0.1) 
     kgrid.push_back(k);
 
@@ -464,7 +463,6 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
   }
-  // for (k = -9.; k < -3.; k += 0.1) {
   for (k = -9.; k < -1.; k += 0.1) {
     kgrid.push_back(k);
   }
