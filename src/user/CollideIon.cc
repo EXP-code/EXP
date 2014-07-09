@@ -550,23 +550,6 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
     kEe2[id] = kEi[id] / eV;
   }
   
-  
-  /***
-      INSERT HERE THE CALCULATIONS FOR DELTA E USING THE ION CROSS SECTIONS
-  ***/
-
-  /***
-      Interaction integers:
-      1: p1 ff
-      2: p1 CE
-      3: p1 DI
-      4: p1 RE
-      5: p2 ff
-      6: p2 CE
-      7: p2 DI
-      8: p2 RE
-  ***/
-  
   // Save the per-interaction cross sections
   dCrossMap[id] = std::vector<double>();
 
@@ -638,6 +621,14 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   //--------------------------------------------------
 
   lQ Q1(Z1, C1), Q2(Z2, C2);
+
+
+  //----------------------------------------------------------------------
+  //  __                                                     
+  // |__)_  _|_. _| _  . _ |_ _ _ _  _|_. _  _  _  |_  _ _ _ 
+  // |  (_|| |_|(_|(-  || )|_(-| (_|(_|_|(_)| )_)  | )(-| (- 
+  //
+  //----------------------------------------------------------------------
 
 
   //--------------------------------------------------
@@ -2964,48 +2955,58 @@ void CollideIon::printSpeciesTrace()
 {
   std::ofstream dout;
 
-  // Generate the file name
+  // Generate the file name, if it does not exist
   //
   if (species_file_debug.size()==0) {
     std::ostringstream sout;
     sout << outdir << runtag << ".species";
     species_file_debug = sout.str();
 
-    // Open the file for the first time
+    // Check for existence of file
     //
-    dout.open(species_file_debug.c_str());
+    std::ifstream in (species_file_debug.c_str());
 
-    // Print the header
+    // Write a new file?
     //
-    dout << "# " 
-	 << std::setw(12) << std::right << "Time  "
-	 << std::setw(12) << std::right << "Temp  ";
-    for (spDItr it=specM.begin(); it != specM.end(); it++) {
-      std::ostringstream sout;
-      sout << "(" << it->first.first << "," << it->first.second << ") ";
-      dout << std::setw(12) << right << sout.str();
+    if (in.fail()) {
+
+      // Open the file for the first time
+      //
+      dout.open(species_file_debug.c_str());
+
+      // Print the header
+      //
+      dout << "# " 
+	   << std::setw(12) << std::right << "Time  "
+	   << std::setw(12) << std::right << "Temp  ";
+      for (spDItr it=specM.begin(); it != specM.end(); it++) {
+	std::ostringstream sout;
+	sout << "(" << it->first.first << "," << it->first.second << ") ";
+	dout << std::setw(12) << right << sout.str();
+      }
+      dout << std::endl;
+      
+      unsigned cnt = 0;
+      dout << "# " 
+	   << std::setw(12) << std::right << clabl(++cnt);
+      dout << std::setw(12) << std::right << clabl(++cnt);
+      for (spDItr it=specM.begin(); it != specM.end(); it++)
+	dout << std::setw(12) << right << clabl(++cnt);
+      dout << std::endl;
+      
+      dout << "# " 
+	   << std::setw(12) << std::right << "--------"
+	   << std::setw(12) << std::right << "--------";
+      for (spDItr it=specM.begin(); it != specM.end(); it++)
+	dout << std::setw(12) << std::right << "--------";
+      dout << std::endl;
     }
-    dout << std::endl;
-
-    unsigned cnt = 0;
-    dout << "# " 
-	 << std::setw(12) << std::right << clabl(++cnt);
-    dout << std::setw(12) << std::right << clabl(++cnt);
-    for (spDItr it=specM.begin(); it != specM.end(); it++)
-      dout << std::setw(12) << right << clabl(++cnt);
-    dout << std::endl;
-
-    dout << "# " 
-	 << std::setw(12) << std::right << "--------"
-	 << std::setw(12) << std::right << "--------";
-    for (spDItr it=specM.begin(); it != specM.end(); it++)
-      dout << std::setw(12) << std::right << "--------";
-    dout << std::endl;
-
-  } else {			// Open for append
-				//
-    dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
+
+  // Open for append
+  //
+  if (!dout.is_open()) 
+    dout.open(species_file_debug.c_str(), ios::out | ios::app);
 
   dout << std::setprecision(5);
   dout << "  " 
