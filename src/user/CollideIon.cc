@@ -49,11 +49,19 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 {
   NUM = 0;
 
+  // Read species file
+  //
   parseSpecies(smap);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) std::cout << "check: parseSpecies finished" << std::endl;
 
   // Fill the Chianti data base
   //
   ch.createIonList(ZList);
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (myid==0) std::cout << "check: createIonList finished" << std::endl;
 
   // Cross-section storage
   //
@@ -623,12 +631,12 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   lQ Q1(Z1, C1), Q2(Z2, C2);
 
 
-  //----------------------------------------------------------------------
+  //---------------------------------------------------------
   //  __                                                     
   // |__)_  _|_. _| _  . _ |_ _ _ _  _|_. _  _  _  |_  _ _ _ 
   // |  (_|| |_|(_|(-  || )|_(-| (_|(_|_|(_)| )_)  | )(-| (- 
   //
-  //----------------------------------------------------------------------
+  //---------------------------------------------------------
 
 
   //--------------------------------------------------
@@ -827,21 +835,6 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       kEe1[id] = kEi[id] / eV;
       kEe2[id] = kEi[id] / eV;
   
-      /***
-	  INSERT HERE THE CALCULATIONS FOR DELTA E USING THE ION CROSS SECTIONS
-      ***/
-      
-      /***
-	  Interaction integers:
-	  1: p1 ff
-	  2: p1 CE
-	  3: p1 DI
-	  4: p1 RE
-	  5: p2 ff
-	  6: p2 CE
-	  7: p2 DI
-	  8: p2 RE
-      ***/
   
       // Save the per-interaction cross sections
       std::vector<double> tCrossMap;
@@ -932,6 +925,13 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       // Ion keys
       //--------------------------------------------------
       lQ Q1(Z1, C1), Q2(Z2, C2);
+
+      //---------------------------------------------------------
+      //  __                                                     
+      // |__)_  _|_. _| _  . _ |_ _ _ _  _|_. _  _  _  |_  _ _ _ 
+      // |  (_|| |_|(_|(-  || )|_(-| (_|(_|_|(_)| )_)  | )(-| (- 
+      //
+      //---------------------------------------------------------
 
       //--------------------------------------------------
       // Inelastic scattering: Particle 1 interacts with 
@@ -1123,12 +1123,25 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   double tCross = 0.0;
   int si = 0;
   for (size_t i = 0; i < dCrossMap[id].size(); i++) {
-    tCross += dCrossMap[id][i];
-    TotalCross.push_back(tCross);
-    si++;
+    if (isnan(dCrossMap[id][i])) {
+      std::cout << "dCrossMap[" << id << "][" << i << "] is Nan"
+		<< std::setw(14) << dInterMap[id][i]
+		<< std::setw(18) << labels[dInterMap[id][i]]
+		<< std::endl;
+    } else if (isinf(dCrossMap[id][i])) {
+      std::cout << "dCrossMap[" << id << "][" << i << "] is "
+		<< dCrossMap[id][i]
+		<< std::setw(14) << dInterMap[id][i]
+		<< std::setw(18) << labels[dInterMap[id][i]]
+		<< std::endl;
+    } else {
+      tCross += dCrossMap[id][i];
+      TotalCross.push_back(tCross);
+      si++;
+    }
   }
 
-  assert (TotalCross.size() == dCrossMap[id].size());
+  // assert (TotalCross.size() == dCrossMap[id].size());
 
   int partflag = 0;		// Will be 1 or 2, dependending on
 				// which ion or neutral is selected
@@ -1140,7 +1153,12 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //
     std::vector<double> CDF;
     for (size_t i = 0; i < TotalCross.size(); i++) {
-      CDF.push_back(TotalCross[i]/tCross);
+      if (isnan(TotalCross[i])) {
+	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
+		  << std::endl;
+      } else {
+	CDF.push_back(TotalCross[i]/tCross);
+      }
     }
     
     // Use a random variate to select the interaction from the
@@ -1159,7 +1177,12 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //
     if (index<0) {
       std::cout << "CDF location falure, myid=" << myid
-		<< ", ran=" << ran << std::endl;
+		<< ", ran=" << ran 
+		<< ", siz=" << CDF.size()
+		<< ", beg=" << CDF.front()
+		<< ", end=" << CDF.back()
+		<< ", tot=" << tCross
+		<< std::endl;
       index = 0;
     }
 
@@ -1218,14 +1241,14 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
       ctd1->ff[id].first++; 
-      ctd1->ff[id].second  += delE;
+      ctd1->ff[id].second  += delE * NN;
     }
 
     if (interFlag == colexcite_1) {
       delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
       partflag      = 1;
       ctd1->CE[id].first++; 
-      ctd1->CE[id].second  += delE;
+      ctd1->CE[id].second  += delE * NN;
     }
 
     if (interFlag == ionize_1) {
@@ -1234,7 +1257,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       assert(C1 <= (Z1 + 1));
       partflag      = 1;
       ctd1->CI[id].first++; 
-      ctd1->CI[id].second  += delE;
+      ctd1->CI[id].second  += delE * NN;
     }
 
     // KE carried by electron is subtracted from the thermal reservoir
@@ -1248,7 +1271,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       assert(C1 > 0);
       partflag      = 1;
       ctd1->RR[id].first++; 
-      ctd1->RR[id].second  += kEe2[id];
+      ctd1->RR[id].second  += kEe2[id] * NN;
     }
     
     //-------------------------
@@ -1259,21 +1282,21 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
       partflag      = 2;
       ctd2->ff[id].first++;
-      ctd2->ff[id].second += delE;
+      ctd2->ff[id].second += delE * NN;
     }
 
     if (interFlag == colexcite_2) {
       delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
       partflag     = 2;
       ctd2->CE[id].first++; 
-      ctd2->CE[id].second += delE;
+      ctd2->CE[id].second += delE * NN;
     }
 
     if (interFlag == ionize_2) {
       delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       ctd2->CI[id].first++; 
-      ctd2->CI[id].second += delE;
+      ctd2->CI[id].second += delE * NN;
       partflag     = 2;
     }
 
@@ -1283,7 +1306,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       assert(C2 > 0);
       partflag     = 2;
       ctd2->RR[id].first++; 
-      ctd2->RR[id].second += kEe1[id];
+      ctd2->RR[id].second += kEe1[id] * NN;
     }
 
     delEeV = delE;
@@ -2236,6 +2259,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 void collDiag::gather()
 {
   for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+
     collTDPtr ctd = it->second;
     ctd->sumUp();
 
@@ -2298,6 +2322,7 @@ void collDiag::initialize()
     std::ifstream in(coll_file_debug.c_str());
 
     if (in.fail()) {
+
       // Write a new file
       std::ofstream out(coll_file_debug.c_str());
       if (out) {
@@ -2528,82 +2553,158 @@ void collDiag::print()
 
 void CollideIon::parseSpecies(const std::string& map)
 {
-  std::ifstream in(map.c_str());
-  if (in.bad()) 
-    {
-      if (myid==0) {
+  unsigned char nOK = 0;
+
+  //
+  // Let root node ONLY do the reading
+  //
+  if (myid==0) {
+
+    std::ifstream in(map.c_str());
+    if (in.bad()) 
+      {
 	std::cerr << "CollideIon::parseSpecies: definition file <"
 		  << map << "> could not be opened . . . quitting"
 		  << std::endl;
+	nOK = 1;
       }
-      MPI_Abort(MPI_COMM_WORLD, 55);
-    }
 
 
-  // Ok, read the first line to get the implementation type
+    // Ok, read the first line to get the implementation type
 
-  const int nline = 2048;
-  char line[nline];
+    if (nOK == 0) {
 
-  in.getline(line, nline);
-  std::string type(line);
+      const int nline = 2048;
+      char line[nline];
 
-  if (type.compare("direct")==0) {
-    
-    aType = Direct;
-
-    if (use_key<0) {
-      if (myid==0) {
-	std::cerr << "UserTreeDSMC: species key position is not defined in "
-		  << "Component" << std::endl;
-      }
-      MPI_Abort(MPI_COMM_WORLD, 36);
-    }
-
-    int Z;
-    while (1) {
       in.getline(line, nline);
-      if (in.good()) {
-	std::istringstream sz(line);
-	sz >> Z;		// Add to the element list
-	if (!sz.bad()) ZList.insert(Z);
-      } else {
-	break;
-      }
-    }
+      std::string type(line);
 
-  } else if (type.compare("trace")==0) {
-
-    aType = Trace;
+      if (type.compare("direct")==0) {
     
-    speciesKey key;
-    int pos;
-    while (1) {
-      in.getline(line, nline);
-      if (in.good()) {
-	std::istringstream sz(line);
-	sz >> key.first;
-	sz >> key.second;
-	sz >> pos;
-				// Add to the species list
-	if (!sz.bad()) {
-	  SpList[key] = pos;
-	  ZList.insert(key.first);
+	aType = Direct;
+
+	if (use_key<0) {
+	  std::cerr << "CollideIon: species key position is not defined in "
+		    << "Component" << std::endl;
+	  nOK = 1;
 	}
+
+	if (nOK == 0) {
+	  
+	  int Z;
+	  while (1) {
+	    in.getline(line, nline);
+	    if (in.good()) {
+	      std::istringstream sz(line);
+	      sz >> Z;		// Add to the element list
+	      if (!sz.bad()) ZList.insert(Z);
+	    } else {
+	      break;
+	    }
+	  }
+	}
+	
+      } else if (type.compare("trace")==0) {
+
+	aType = Trace;
+    
+	speciesKey key;
+	int pos;
+	while (1) {
+	  in.getline(line, nline);
+	  if (in.good()) {
+	    std::istringstream sz(line);
+	    sz >> key.first;
+	    sz >> key.second;
+	    sz >> pos;
+	    // Add to the species list
+	    if (!sz.bad()) {
+	      SpList[key] = pos;
+	      ZList.insert(key.first);
+	    }
+	  } else {
+	    break;
+	  }
+	}
+	
       } else {
-	break;
+	std::cerr << "CollideIon::parseSpecies: implementation type <"
+		  << type << "> is not recognized . . . quitting"
+		  << std::endl;
+	nOK = 1;
       }
     }
 
-  } else {
-    if (myid==0) {
-      std::cerr << "CollideIon::parseSpecies: implementation type <"
-		<< type << "> is not recognized . . . quitting"
-		<< std::endl;
-    }
-    MPI_Abort(MPI_COMM_WORLD, 56);
   }
 
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+
+  
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 55);
+
+  int is = aType;
+  MPI_Bcast(&is, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid) {
+    switch (is) {
+    case Direct:
+      aType = Direct;
+      break;
+    case Trace:
+      aType = Trace;
+      break;
+    default:
+      std::cout << "Proc " << myid << ": error in enum <" << is << ">"
+		<< std::endl;
+      MPI_Abort(MPI_COMM_WORLD, 56);
+    }
+  }
+      
+  unsigned int sz = ZList.size();
+  unsigned short z;
+  MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+  if (myid==0) {
+    for (ZLtype::iterator it=ZList.begin(); it!= ZList.end(); it++) {
+      z = *it;
+      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+    }
+  } else {
+    for (unsigned j=0; j<sz; j++) {
+      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+      ZList.insert(z);
+    }
+  }
+
+  if (aType == Trace) {
+
+    speciesKey key;
+    int pos;
+
+    sz = SpList.size();
+    MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+    if (myid==0) {
+      for (std::map<speciesKey, int>::iterator
+	     it=SpList.begin(); it!= SpList.end(); it++) {
+
+	key = it->first;
+	pos = it->second;
+
+	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
+      }
+    } else {
+      for (unsigned j=0; j<sz; j++) {
+	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+	MPI_Bcast(&pos,        1, MPI_INT,            0, MPI_COMM_WORLD);
+	SpList[key] = pos;
+      }
+    }
+  }
+  
 }
 
 sKey2Umap CollideIon::generateSelection
@@ -2827,117 +2928,172 @@ void CollideIon::write_cross_debug()
 
 void CollideIon::gatherSpecies()
 {
-  if (aType==Direct) return;
-
-  // Trace version follows
-
   const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu /
     UserTreeDSMC::Munit/boltz;
 
-  // Clean the maps
-  //
-  double mass = 0.0;
+  if (aType==Direct) {
 
-  tempM = 0.0;
-  specM.erase(specM.begin(), specM.end());
+    // Compute temperature only
 
-  // Interate through all cells
-  //
-  pHOT_iterator itree(*c0->Tree());
+    double mass = 0.0;
+    tempM = 0.0;
 
-  while (itree.nextCell()) {
-
-    pCell *cell = itree.Cell();
-
-    // Compute the temerature
+    // Interate through all cells
     //
-    double KEtot, KEdsp;
-    cell->sample->KE(defaultKey, KEtot, KEdsp);
-    double T = KEdsp* Tfac;
-
-    // Iterate through all bodies in this cell
-    //
-    vector<unsigned long>::iterator j = cell->bods.begin();
-    while (j != cell->bods.end()) {
-      Particle* p = cell->Body(j++);
-      for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
-
-	speciesKey k = it->first;
-	int     indx = it->second;
+    pHOT_iterator itree(*c0->Tree());
+    
+    while (itree.nextCell()) {
       
-	if (specM.find(k) == specM.end()) specM[k] = 0.0;
-	specM[k] += p->mass * p->dattrib[indx];
-      } 
+      pCell *cell = itree.Cell();
+      
+      // Compute the temerature
+      //
+      double KEtot, KEdsp;
+      cell->sample->KE(KEtot, KEdsp);
+      double T = KEdsp* Tfac;
+      
+      mass  += cell->Mass();
+      tempM += cell->Mass() * T;
     }
-    mass  += cell->Mass();
-    tempM += cell->Mass() * T;
-  }
 
-  // Send the local map to other nodes
-  //
-  int sizm;
-  spDItr it;
-  speciesKey key;
-  double val1, val2;
-
-  for (int i=1; i<numprocs; i++) {
-    if (i == myid) {
-      sizm = specM.size();
-				// Local map size
-      MPI_Send(&sizm,  1, MPI_INT,    0, 330, MPI_COMM_WORLD);
+    // Send to root
+    //
+    double val1, val2;
+    
+    for (int i=1; i<numprocs; i++) {
+      if (i == myid) {
 				// Mass
-      MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
+	MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
 				// Temp
-      MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
-				// Send local map
-      for (it=specM.begin(); it != specM.end(); it++) {
-	key  = it->first;
-	MPI_Send(&key.first,  1, MPI_UNSIGNED_SHORT, 0, 333, MPI_COMM_WORLD);
-	MPI_Send(&key.second, 1, MPI_UNSIGNED_SHORT, 0, 334, MPI_COMM_WORLD);
-	MPI_Send(&it->second, 1, MPI_DOUBLE,         0, 335, MPI_COMM_WORLD);
+	MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
       }
 
-    }
 				// Root receives from Node i
-    if (0 == myid) {
-      MPI_Recv(&sizm, 1, MPI_INT,    i, 330, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      mass  += val1;
-      tempM += val2;
-      for (int j=0; j<sizm; j++) {
-	MPI_Recv(&key.first,  1, MPI_UNSIGNED_SHORT, i, 333, MPI_COMM_WORLD,
+      if (0 == myid) {
+	MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, 
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&key.second, 1, MPI_UNSIGNED_SHORT, i, 334, MPI_COMM_WORLD,
+	MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD, 
 		 MPI_STATUS_IGNORE);
-	MPI_Recv(&val1,       1, MPI_DOUBLE,         i, 335, MPI_COMM_WORLD,
+	mass  += val1;
+	tempM += val2;
+      }
+    }
+
+    if (mass>0.0) tempM /= mass;
+    
+  } else {
+
+    // Clean the maps
+    //
+    double mass = 0.0;
+    
+    tempM = 0.0;
+    specM.erase(specM.begin(), specM.end());
+
+    // Interate through all cells
+    //
+    pHOT_iterator itree(*c0->Tree());
+    
+    while (itree.nextCell()) {
+      
+      pCell *cell = itree.Cell();
+      
+      // Compute the temerature
+      //
+      double KEtot, KEdsp;
+      cell->sample->KE(KEtot, KEdsp);
+      double T = KEdsp* Tfac;
+      
+      // Iterate through all bodies in this cell
+      //
+      vector<unsigned long>::iterator j = cell->bods.begin();
+      while (j != cell->bods.end()) {
+	Particle* p = cell->Body(j++);
+	for (spItr it=SpList.begin(); it!=SpList.end(); it++) {
+	  
+	  speciesKey k = it->first;
+	  int     indx = it->second;
+	  
+	  if (specM.find(k) == specM.end()) specM[k] = 0.0;
+	  specM[k] += p->mass * p->dattrib[indx];
+	} 
+      }
+      mass  += cell->Mass();
+      tempM += cell->Mass() * T;
+    }
+
+    // Send the temperature and local map to root
+    //
+    int sizm;
+    spDItr it;
+    speciesKey key;
+    double val1, val2;
+    
+    for (int i=1; i<numprocs; i++) {
+      if (i == myid) {
+	sizm = specM.size();
+				// Local map size
+	MPI_Send(&sizm,  1, MPI_INT,    0, 330, MPI_COMM_WORLD);
+				// Mass
+	MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
+				// Temp
+	MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
+				// Send local map
+	for (it=specM.begin(); it != specM.end(); it++) {
+	  key  = it->first;
+	  MPI_Send(&key.first,  1, MPI_UNSIGNED_SHORT, 0, 333, MPI_COMM_WORLD);
+	  MPI_Send(&key.second, 1, MPI_UNSIGNED_SHORT, 0, 334, MPI_COMM_WORLD);
+	  MPI_Send(&it->second, 1, MPI_DOUBLE,         0, 335, MPI_COMM_WORLD);
+	}
+	
+      }
+				// Root receives from Node i
+      if (0 == myid) {
+
+	MPI_Recv(&sizm, 1, MPI_INT,    i, 330, MPI_COMM_WORLD, 
 		 MPI_STATUS_IGNORE);
+	MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, 
+		 MPI_STATUS_IGNORE);
+	MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD, 
+		 MPI_STATUS_IGNORE);
+
+	mass  += val1;
+	tempM += val2;
+
+	for (int j=0; j<sizm; j++) {
+	  MPI_Recv(&key.first,  1, MPI_UNSIGNED_SHORT, i, 333, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&key.second, 1, MPI_UNSIGNED_SHORT, i, 334, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&val1,       1, MPI_DOUBLE,         i, 335, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
 				// Update root's map
 				// 
-	if (specM.find(key) == specM.end()) specM[key] = 0.0;
-	specM[key] += val1;
+	  if (specM.find(key) == specM.end()) specM[key] = 0.0;
+	  specM[key] += val1;
+	}
       }
     }
-  }
-
 				// At this point, root's map is global
 				// and remaning nodes have local maps
-  if (mass>0.0) {
-    for (spDItr it=specM.begin(); it != specM.end(); it++) {
-      it->second /= mass;
+    if (mass>0.0) {
+      for (spDItr it=specM.begin(); it != specM.end(); it++) {
+	it->second /= mass;
+      }
+      tempM /= mass;
     }
-    tempM /= mass;
   }
 }
   
 
 // Print out species counts
-void CollideIon::printSpecies(std::map<speciesKey, unsigned long>& spec)
+void CollideIon::printSpecies
+(std::map<speciesKey, unsigned long>& spec, double T)
 {
   if (myid) return;
 
   if (aType == Direct) {	// Call the generic printSpecies member
-    Collide::printSpecies(spec);
+    Collide::printSpecies(spec, tempM);
   } else {			// Call the trace fraction version
     printSpeciesTrace();
   }

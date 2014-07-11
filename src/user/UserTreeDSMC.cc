@@ -279,12 +279,37 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     }
 
     if (myid==0) {
+      //
+      // Make total count array
+      //
+      std::vector< std::vector<unsigned long> > specG(numprocs);
+      std::vector<unsigned long> specT(spec.size(), 0);
+      for (int n=0; n<numprocs; n++) specG[n].resize(spec.size(), 0);
+
+      // Add root's counts
+      //
+      size_t j = 0;
+      spCountMapItr it2 = spec1.begin();
+      for (spCountMapItr it=spec.begin(); it!=spec.end(); it++) {
+	if (it->first == it2->first) specG[0][j] = it2++->second;
+	j++;
+      }
+
+      // Get data from nodes
+      //
+      for (int n=1; n<numprocs; n++) {
+	MPI_Recv(&specG[n][0], spec.size(), MPI_UNSIGNED_LONG, n, 8,
+		 MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      }
+
+      // Make output table
+      //
       cout << endl
 	   << "--------------" << endl
 	   << "Species counts" << endl
 	   << "--------------" << endl
 	   << endl;
-    
+      
       cout << setw(4) << right << "#";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	cout << setw(8) << right 
@@ -295,36 +320,43 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	cout << setw(12) << right << "--------";
       cout << endl;
-    }
 
-    for (int n=0; n<numprocs; n++) {
-      if (myid==n) {
-	spCountMapItr it2 = spec1.begin();
-	cout << setw(4) << right << myid;
-	for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	  if (it->first == it2->first) {
-	    cout << setw(12) << right << it2->second;
-	    it2++;
-	  } else {
-	    cout << setw(12) << right << 0;
-	  }
+      for (int n=0; n<numprocs; n++) {
+	cout << setw(4) << right << n;
+	for (size_t j=0; j<spec.size(); j++) {
+	  cout << setw(12) << right << specG[n][j];
+	  specT[j] += specG[n][j];
 	}
 	cout << endl;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
-    }
 
-    MPI_Barrier(MPI_COMM_WORLD);
-
-    if (myid==0) {
       cout << setw(4) << right << "---";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	cout << setw(12) << right << "--------";
       cout << endl;
+
       cout << setw(4) << right << "TOT";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	cout << setw(12) << right << it->second;
-      cout << endl;
+      for (size_t j=0; j<spec.size(); j++) 
+	cout << setw(12) << right << specT[j];
+      cout << endl << endl;
+      
+    } else {
+      
+      std::vector<unsigned long> specT(spec.size(), 0);
+
+      // Pack node's data spec counts to send to root
+      //
+      size_t j = 0;
+      spCountMapItr it2 = spec1.begin();
+      for (spCountMapItr it=spec.begin(); it!=spec.end(); it++) {
+	if (it->first == it2->first) specT[j] = it2++->second;
+	j++;
+      }
+
+      // Send . . . 
+      //
+      MPI_Send(&specT[0], spec.size(), MPI_UNSIGNED_LONG, 0, 8,
+	       MPI_COMM_WORLD);
     }
 
   } else {		   
@@ -385,9 +417,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   if (ctype.compare("Ion") == 0)
     collide = new CollideIon(this, c0, hsdiam, diamfac, spec_map, nthrds);
   else {
-    std::cout << "No such Collide type: " << ctype << std::endl;
+    if (myid==0) std::cout << "No such Collide type: " << ctype 
+			   << std::endl;
     exit(-1);
   }
+
+  //
+  // Set additional parameters
+  //
 
   collide->set_temp_dens(use_temp, use_dens);
 
@@ -1160,14 +1197,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       (*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
       makeSpeciesMap();
       (*barrier)("TreeDSMC: AFTER species map update",  __FILE__, __LINE__);
-    } else {
-      // I.e. compute fractions in trace counters
-      (*barrier)("TreeDSMC: BEFORE Collide::gatherSpecies",  __FILE__, __LINE__);
-      collide->gatherSpecies();
-      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
-    }
+    } 
 
-    (*barrier)("TreeDSMC: BEFORE myid=0 printing",  __FILE__, __LINE__);
+    // Compute fractions in trace counters and temperature for direct and trace
+    //
+    (*barrier)("TreeDSMC: BEFORE Collide::gatherSpecies",  __FILE__, __LINE__);
+    collide->gatherSpecies();
+    (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
 
     if (myid==0) {
 
@@ -1177,7 +1213,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       unsigned epsm_total = collide->EPSMtotal();
       unsigned epsm_cells = collide->EPSMcells();
 
-      collide->printSpecies(spec);
+      collide->printSpecies(spec, TempTot);
       collide->printCollSummary();
 
       vector<double> disp;
@@ -1784,12 +1820,16 @@ void UserTreeDSMC::makeSpeciesMap()
   //
   spec .erase(spec .begin(), spec .end());
   spec1.erase(spec1.begin(), spec1.end());
+  std::vector<double> T1(2, 0), T0(2, 0);
 
   // Particle loop
   //
   PartMapItr p    = c0->Particles().begin();
   PartMapItr pend = c0->Particles().end();
   for (; p!=pend; p++) {
+    //
+    // Species accumulation
+    //
     KeyConvert kc  (p->second.iattrib[use_key]);
     speciesKey indx(kc.getKey());
     unsigned short Z = indx.first;
@@ -1799,6 +1839,13 @@ void UserTreeDSMC::makeSpeciesMap()
     }
     if (spec1.find(indx) == spec1.end()) spec1[indx] = 1;
     else                                 spec1[indx]++;
+    //
+    // Temperature accumulation
+    //
+    if (use_temp>=0) {
+      T1[0] += p->second.mass;
+      T1[1] += p->second.mass * p->second.dattrib[use_temp];
+    }
   }
 
 
@@ -1837,6 +1884,10 @@ void UserTreeDSMC::makeSpeciesMap()
       }
     }
   }
+
+  MPI_Allreduce(&T1[0], &T0[0], 2, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
+
+  if (T0[0] > 0.0) TempTot = T0[1]/T0[0];
 }
 
 

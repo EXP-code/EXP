@@ -28,13 +28,30 @@ const int numCharge = 15;
 
 const int numMaster = 288;
 
+/** Base class for reading CHIANTI data */
+class chianti_data
+{
+protected:
+  
+  void sync_string(std::string &s);
+  void sync_vector(std::vector<double> &v);
+
+public:
+
+  virtual void synchronize() = 0;
+
+};
+
 /** Use a struct for each line of the data. Then, if it needs to be
     switched to multi index it can be easily done so. This also done so
     that there can be a 1D vector with multiple data structures in each
     one.  container to store all the data in 1 line that is relevant from
     the elvlc files. */
-struct elvlc_data 
+
+class elvlc_data : public chianti_data
 {
+public:
+
   int level;
   int conf;
   std::string designation;
@@ -47,10 +64,14 @@ struct elvlc_data
   double enry;
   double encmth;
   double enryth;
+
+  void synchronize();
 };
 
-struct wgfa_data 
+class wgfa_data  : public chianti_data
 {
+public:
+
   int lvl1;			// lower level
   int lvl2;			// upper level
   double wvl;			// wavelength in Angstroms
@@ -59,18 +80,24 @@ struct wgfa_data
   std::string pretty1;		// Description (lower level)
   std::string pretty2;		// Description (upper level)
   std::string ref;		// References
+
+  void synchronize();
 };
 
-struct pe_data
+class pe_data : public chianti_data
 {
   int ngfb;
   int nphot;
   std::vector< double > pe;
+
+  void synchronize();
 };
 
 
-struct fblvl_data
+class fblvl_data : public chianti_data
 {
+public:
+
   int lvl;
   std::string conf;
   int pqn;
@@ -79,27 +106,39 @@ struct fblvl_data
   int mult;
   double encm;
   double encmth;
+
+  void synchronize();
 };
 
-struct klgfb_data
+class klgfb_data : public chianti_data
 {
+public:
+
   int n;
   int l;
   std::vector<double> factors;
+
+  void synchronize();
 };
 
-struct gffint_data
+class gffint_data : public chianti_data
 {
+public:
+
   int ngffint;
   std::vector<double> g2;
   std::vector<double> gffint;
   std::vector<double> s1;
   std::vector<double> s2;
   std::vector<double> s3;
+
+  void synchronize();
 };
 
-struct splups_data
+class splups_data : public chianti_data
 {
+public:
+
   unsigned char Z;
   unsigned char C;
   int i;
@@ -109,14 +148,20 @@ struct splups_data
   double delERyd;
   double Const;
   std::vector<double> spline;
+
+  void synchronize();
 };
 
-struct di_data
+class di_data : public chianti_data
 {
+public:
+
   double btf;
   std::vector<double> xspline;
   double ev;
   std::vector<double> yspline;
+
+  void synchronize();
 };
 
 //! Pair of unsigned shorts for indexing (Z, C) and (l1, l2) index pairs

@@ -2789,7 +2789,8 @@ double Collide::hsDiameter()
   return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
 }
 
-void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
+void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
+			   double temp)
 {
   if (myid) return;
 
@@ -2808,7 +2809,9 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
     dout.open(species_file_debug.c_str());
 
 				// Print the header
-    dout << "# " << std::setw(12) << std::right << "Time ";
+    dout << "# " 
+	 << std::setw(12) << std::right << "Time "
+	 << std::setw(12) << std::right << "Temp ";
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
       std::ostringstream sout;
       sout << "(" << it->first.first << "," << it->first.second << ") ";
@@ -2816,7 +2819,9 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
     }
     dout << std::endl;
 
-    dout << "# " << std::setw(12) << std::right << "--------";
+    dout << "# " 
+	 << std::setw(12) << std::right << "--------"
+	 << std::setw(12) << std::right << "--------";
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
       dout << setw(12) << std::right << "--------";
     dout << std::endl;
@@ -2826,7 +2831,9 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec)
     dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
 
-  dout << "  " << std::setw(12) << std::right << tnow;
+  dout << "  " 
+       << std::setw(12) << std::right << tnow
+       << std::setw(12) << std::right << temp;
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
     dout << std::setw(12) << std::right << it->second;
   dout << std::endl;

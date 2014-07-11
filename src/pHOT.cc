@@ -56,7 +56,7 @@ static bool BC_PROCESS    = true;
 static bool DEBUG_KEYLIST = false;
 
 // Debug OOB diagnostic
-static bool DEBUG_OOB     = false;
+static bool DEBUG_OOB     = true;
 
 // Test the parallel merge algorithm against round robin
 static bool DEBUG_MERGE   = false;
@@ -4310,8 +4310,11 @@ void pHOT::spreadOOB()
 				// Debug output
   if (DEBUG_OOB) {
     ostringstream sout;
-    sout << "In spreadOOB, maxdif=" << maxdif << " #=" << cc->nbodies_tot
-	 << " ns=" << nsend.size() << " rs=" << nrecv.size();
+    sout << "In spreadOOB, proc=" << std::setw(4) << myid
+	 << " maxdif=" << std::setw(12) << maxdif 
+	 << " #="  << std::setw(10) << cc->nbodies_tot
+	 << " ns=" << std::setw( 8) << nsend.size() 
+	 << " rs=" << std::setw( 8) << nrecv.size();
   }
 
 #ifdef USE_GPTL

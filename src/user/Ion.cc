@@ -80,235 +80,352 @@ std::string ZCtoName(unsigned char Z, unsigned char C)
 */
 void Ion::readelvlc() 
 {
-  char * val;
-  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-    if (myid==0)
+  unsigned char nOK = 0;
+
+  if (myid==0) {
+
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 47);
+      nOK = 1;
+    }
+
+    if (nOK == 0) {
+
+      std::string fileName(val);
+
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterName); 
+      fileName.append("/"); 
+      fileName.append(MasterName);
+      fileName.append(".elvlc");
+      
+      std::string inLine;
+      elvlc_data e;
+      ifstream elvlcFile(fileName.c_str());
+      
+      if (elvlcFile.is_open()) {
+
+	while (elvlcFile.good()) {
+	  
+	  std::vector <std::string> v;
+	  getline(elvlcFile, inLine);
+	  std::istringstream iss(inLine);
+	  copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+	  
+	  if (atoi(v[0].c_str()) == -1) break;
+	  
+	  e.level       = atoi(v[0].c_str());
+	  e.conf        = atoi(v[1].c_str());
+	  e.designation = v[2];
+	  e.spin        = atoi(v[3].c_str());
+	  e.l           = atoi(v[4].c_str());
+	  e.l_str       = v[5];
+	  e.J           = atof(v[6].c_str());
+	  e.mult        = atoi(v[7].c_str());
+	  e.encm        = atof(v[8].c_str());
+	  e.enry        = atof(v[9].c_str());
+	  e.encmth      = atof(v[10].c_str());
+	  e.enryth      = atof(v[11].c_str());
+	  
+	  elvlc[e.level] = e;
+	}
+	elvlcFile.close();
+      }
+      else {
+	std::cout << "Cannot find file: " << fileName << std::endl;
+	nOK = 1;
+      }
+    }
   }
 
-  std::string fileName(val);
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 42);
 
-  fileName.append("/");
-  fileName.append(eleName); 
-  fileName.append("/");
-  fileName.append(MasterName); 
-  fileName.append("/"); 
-  fileName.append(MasterName);
-  fileName.append(".elvlc");
-  
-  std::string inLine;
-  elvlc_data e;
-  ifstream elvlcFile(fileName.c_str());
+  unsigned number = fblvl.size();
+  MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-  if (elvlcFile.is_open()) {
-
-    while (elvlcFile.good()) {
-
-      std::vector <std::string> v;
-      getline(elvlcFile, inLine);
-      std::istringstream iss(inLine);
-      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	   back_inserter<vector<std::string> >(v));
-
-      if (atoi(v[0].c_str()) == -1) break;
-
-      e.level       = atoi(v[0].c_str());
-      e.conf        = atoi(v[1].c_str());
-      e.designation = v[2];
-      e.spin        = atoi(v[3].c_str());
-      e.l           = atoi(v[4].c_str());
-      e.l_str       = v[5];
-      e.J           = atof(v[6].c_str());
-      e.mult        = atoi(v[7].c_str());
-      e.encm        = atof(v[8].c_str());
-      e.enry        = atof(v[9].c_str());
-      e.encmth      = atof(v[10].c_str());
-      e.enryth      = atof(v[11].c_str());
-      
+  if (myid==0) {
+    elvlcType::iterator it = elvlc.begin();
+    for (unsigned i=0; i<number; i++) {
+      it->second.synchronize();
+      it++;
+    }
+  } else {
+    elvlc.erase(elvlc.begin(), elvlc.end());
+    for (unsigned i=0; i<number; i++) {
+      elvlc_data e;
+      e.synchronize();
       elvlc[e.level] = e;
     }
-    elvlcFile.close();
-  }
-  else {
-    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 42);
   }
 }
 
 void Ion::readwgfa() 
 {
-  char * val;
-  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-    if (myid==0)
+  unsigned char nOK = 0;
+
+  if (myid==0) {
+
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 47);
+      nOK = 1;
+    }
+
+    if (nOK == 0) {
+
+      std::string fileName(val);
+
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterName); 
+      fileName.append("/"); 
+      fileName.append(MasterName);
+      fileName.append(".wgfa");
+    
+      std::string inLine;
+      wgfa_data w;
+      ifstream wgfaFile(fileName.c_str());
+      
+      if (wgfaFile.is_open()) {
+	
+	while (wgfaFile.good()) {
+	  
+	  std::vector <std::string> v;
+	  getline(wgfaFile, inLine);
+	  std::istringstream iss(inLine);
+	  copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+	
+	  if (atoi(v[0].c_str()) == -1) break;
+	
+	  w.lvl1    = atoi(v[0].c_str());
+	  w.lvl2    = atoi(v[1].c_str());
+	  w.wvl     = atof(v[2].c_str());
+	  w.gf      = atof(v[3].c_str());
+	  w.avalue  = atof(v[4].c_str());
+	  w.pretty1 = v[5].c_str();
+	  w.pretty2 = v[6].c_str();
+	  w.ref     = v[7].c_str();
+	  
+	  wgfa[lQ(w.lvl1, w.lvl2)] = w;
+	}
+	wgfaFile.close();
+      }
+      else {
+	std::cout << "Cannot find file: " << fileName << std::endl;
+	nOK = 1;
+      }
+    }
   }
 
-  std::string fileName(val);
-
-  fileName.append("/");
-  fileName.append(eleName); 
-  fileName.append("/");
-  fileName.append(MasterName); 
-  fileName.append("/"); 
-  fileName.append(MasterName);
-  fileName.append(".wgfa");
   
-  std::string inLine;
-  wgfa_data w;
-  ifstream wgfaFile(fileName.c_str());
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 43);
+   
+   unsigned number = wgfa.size();
+   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-  if (wgfaFile.is_open()) {
-
-    while (wgfaFile.good()) {
-
-      std::vector <std::string> v;
-      getline(wgfaFile, inLine);
-      std::istringstream iss(inLine);
-      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	   back_inserter<vector<std::string> >(v));
-
-      if (atoi(v[0].c_str()) == -1) break;
-
-      w.lvl1    = atoi(v[0].c_str());
-      w.lvl2    = atoi(v[1].c_str());
-      w.wvl     = atof(v[2].c_str());
-      w.gf      = atof(v[3].c_str());
-      w.avalue  = atof(v[4].c_str());
-      w.pretty1 = v[5].c_str();
-      w.pretty2 = v[6].c_str();
-      w.ref     = v[7].c_str();
-      
+  if (myid==0) {
+    wgfaType::iterator it = wgfa.begin();
+    for (unsigned i=0; i<number; i++) {
+      it->second.synchronize();
+      it++;
+    }
+  } else {
+    wgfa.erase(wgfa.begin(), wgfa.end());
+    for (unsigned i=0; i<number; i++) {
+      wgfa_data w;
+      w.synchronize();
       wgfa[lQ(w.lvl1, w.lvl2)] = w;
     }
-    wgfaFile.close();
   }
-  else {
-    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 42);
-  }
+
 }
 
 //! Read in the fblvl file found in the CHIANTI database
 void Ion::readfblvl() 
 {
-  std::string MasterNameT = ZCtoName(Z, C);
+  unsigned char nOK = 0;
 
-  char * val;
-  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-    if (myid==0)
+  if (myid==0) {
+
+    std::string MasterNameT = ZCtoName(Z, C);
+
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 48);
+      nOK = 1;
+    }
+
+    if (nOK == 0) {
+
+      std::string fileName(val);
+    
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterNameT); 
+      fileName.append("/"); 
+      fileName.append(MasterNameT);
+      fileName.append(".fblvl");
+  
+      std::string inLine;
+      ifstream fblvlFile(fileName.c_str());
+    
+      fblvl_data f;
+      if (fblvlFile.is_open()) {
+	
+	while (fblvlFile.good()) {
+
+	  std::vector <std::string> v;
+	  getline(fblvlFile, inLine);
+	  istringstream iss(inLine);
+	  copy(istream_iterator<std::string>(iss), 
+	       istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+	  
+	  if (atoi(v[0].c_str()) == -1) break;
+
+	  f.lvl      = atoi(v[0].c_str());
+	  f.conf     = v[1];
+	  f.pqn      = atoi(v[2].c_str());
+	  f.l        = atoi(v[3].c_str());
+	  f.l_str    = v[4];
+	  f.mult     = atoi(v[5].c_str());
+	  f.encm     = atof(v[6].c_str());
+	  f.encmth   = atof(v[7].c_str());
+	  
+	  fblvl[f.lvl] = f;
+	}
+	fblvlFile.close();
+      }
+      else {
+	std::cout << "Cannot find file: " << fileName << std::endl;
+	nOK = 1;
+      }
+    }
   }
 
-  std::string fileName(val);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 44);
 
-  fileName.append("/");
-  fileName.append(eleName); 
-  fileName.append("/");
-  fileName.append(MasterNameT); 
-  fileName.append("/"); 
-  fileName.append(MasterNameT);
-  fileName.append(".fblvl");
-  
-  std::string inLine;
-  ifstream fblvlFile(fileName.c_str());
-  
-  fblvl_data f;
-  if (fblvlFile.is_open()) {
+  unsigned number = fblvl.size();
+  MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
-    while (fblvlFile.good()) {
-
-      std::vector <std::string> v;
-      getline(fblvlFile, inLine);
-      istringstream iss(inLine);
-      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	   back_inserter<vector<std::string> >(v));
-
-      if (atoi(v[0].c_str()) == -1) break;
-
-      f.lvl      = atoi(v[0].c_str());
-      f.conf     = v[1];
-      f.pqn      = atoi(v[2].c_str());
-      f.l        = atoi(v[3].c_str());
-      f.l_str    = v[4];
-      f.mult     = atoi(v[5].c_str());
-      f.encm     = atof(v[6].c_str());
-      f.encmth   = atof(v[7].c_str());
-      
+  if (myid==0) {
+    fblvlType::iterator it = fblvl.begin();
+    for (unsigned i=0; i<number; i++) {
+      it->second.synchronize();
+      it++;
+    }
+  } else {
+    fblvl.erase(fblvl.begin(), fblvl.end());
+    for (unsigned i=0; i<number; i++) {
+      fblvl_data f;
+      f.synchronize();
       fblvl[f.lvl] = f;
     }
-    fblvlFile.close();
   }
-  else {
-    if (myid==0) std::cout << "Cannot find file: " << fileName << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 43);
-  }
+
 }
 
 //! Read in the spline file from the CHIANTI database
 void Ion::readSplups() 
 {
-  char * val;
-  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-    if (myid==0)
+  unsigned char nOK = 0;
+
+  if (myid==0) {
+
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 49);
-  }
+      nOK = 1;
+    }
 
-  std::string fileName(val);
+    if (nOK == 0) {
 
-  fileName.append("/");
-  fileName.append(eleName); 
-  fileName.append("/");
-  fileName.append(MasterName); 
-  fileName.append("/"); 
-  fileName.append(MasterName);
-  fileName.append(".splups");
-  
-  std::string inLine;
-  splups_data s;
-  ifstream sFile(fileName.c_str());
-  if (sFile.is_open()) {
+      std::string fileName(val);
+    
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterName); 
+      fileName.append("/"); 
+      fileName.append(MasterName);
+      fileName.append(".splups");
+      
+      std::string inLine;
+      splups_data s;
 
-    while(sFile.good()) {
+      ifstream sFile(fileName.c_str());
 
-      std::vector <std::string> v;
-      getline(sFile, inLine);
-      istringstream iss(inLine);
-      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	   back_inserter<vector<std::string> >(v));
+      if (sFile.is_open()) {
 
-      if(atoi(v[0].c_str()) == -1) break;
+	while(sFile.good()) {
 
-      s.Z       = atoi(v[0].c_str());
-      s.C       = atoi(v[1].c_str());
-      s.i       = atoi(v[2].c_str());
-      s.j       = atoi(v[3].c_str());
-      s.type    = atoi(v[4].c_str());
-      s.gf      = atof(v[5].c_str());
-      s.delERyd = atof(v[6].c_str());
-      s.Const   = atof(v[7].c_str());
+	  std::vector <std::string> v;
+	  getline(sFile, inLine);
+	  istringstream iss(inLine);
+	  copy(istream_iterator<std::string>(iss), 
+	       istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+	
+	  if(atoi(v[0].c_str()) == -1) break;
+	  
+	  s.Z       = atoi(v[0].c_str());
+	  s.C       = atoi(v[1].c_str());
+	  s.i       = atoi(v[2].c_str());
+	  s.j       = atoi(v[3].c_str());
+	  s.type    = atoi(v[4].c_str());
+	  s.gf      = atof(v[5].c_str());
+	  s.delERyd = atof(v[6].c_str());
+	  s.Const   = atof(v[7].c_str());
 
 				// Spline coefficients
-      for(unsigned i = 8; i < v.size(); i++) {
-	s.spline.push_back(atof(v[i].c_str()));
+	  for(unsigned i = 8; i < v.size(); i++) {
+	    s.spline.push_back(atof(v[i].c_str()));
+	  }
+	
+	  splups.push_back(s);
+	  s.spline.erase(s.spline.begin(), s.spline.end());		
+	}
+	sFile.close();
       }
-      
-      splups.push_back(s);
-      s.spline.erase(s.spline.begin(), s.spline.end());		
+      else {
+	std::cout << "Cannot find file: " << fileName << std::endl;
+	nOK = 1;
+      }
     }
-    sFile.close();
   }
-  else {
-    if (myid==0) std::cout << "Cannot find file: " 
-			   << fileName << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 44);
+
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 45);
+  
+  unsigned number = splups.size();
+  MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+  if (myid==0) {
+    splupsType::iterator it = splups.begin();
+    for (unsigned i=0; i<number; i++) {
+      it->synchronize();
+      it++;
+    }
+  } else {
+    splups.erase(splups.begin(), splups.end());
+    for (unsigned i=0; i<number; i++) {
+      splups_data s;
+      s.synchronize();
+      splups.push_back(s);
+    }
   }
 }
 
@@ -317,74 +434,101 @@ void Ion::readSplups()
 */
 void Ion::readDi() 
 {
-  char * val;
-  if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
-    if (myid==0)
+  unsigned char nOK = 0;
+
+  if (myid==0) {
+
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
       std::cout << "Could not find CHIANTI_DATA environment variable"
 		<< " . . . exiting" << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 50);
-  }
+      nOK = 1;
+    }
 
-  std::string fileName(val);
+    if (nOK == 0) {
 
-  fileName.append("/");
-  fileName.append(eleName); 
-  fileName.append("/");
-  fileName.append(MasterName); 
-  fileName.append("/"); 
-  fileName.append(MasterName);
-  fileName.append(".diparams");
+      std::string fileName(val);
+
+      fileName.append("/");
+      fileName.append(eleName); 
+      fileName.append("/");
+      fileName.append(MasterName); 
+      fileName.append("/"); 
+      fileName.append(MasterName);
+      fileName.append(".diparams");
   
-  std::string inLine;
-  di_data s;
-  ifstream sFile(fileName.c_str());
-  int i = 0;
-  int i_fac = 0;
-  if (sFile.is_open()) {
-    while (sFile.good()) {
-      std::vector <std::string> v;
-      getline(sFile, inLine);
-      istringstream iss(inLine);
-      copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
-	   back_inserter<vector<std::string> >(v));
-
-      if(atoi(v[0].c_str()) == -1) break;
-
-      if (i == 0) {
-	di_header.Z       = atoi(v[0].c_str());
-	di_header.C       = atoi(v[1].c_str());
-	di_header.nspline = atoi(v[2].c_str());
-	di_header.nfac    = atoi(v[3].c_str());
-	di_header.neav    = atoi(v[4].c_str());
-      }
-      else if (i%2 == 1) {
-	if (i_fac < di_header.nfac) {
-	  s.btf = atof(v[0].c_str());
-	  for(int i = 0; i < di_header.nspline; i++) {
-	    s.xspline.push_back(atof(v[i+1].c_str()));
+      std::string inLine;
+      di_data s;
+      ifstream sFile(fileName.c_str());
+      int i = 0;
+      int i_fac = 0;
+      if (sFile.is_open()) {
+	while (sFile.good()) {
+	  std::vector <std::string> v;
+	  getline(sFile, inLine);
+	  istringstream iss(inLine);
+	  copy(istream_iterator<std::string>(iss), istream_iterator<std::string>(), 
+	       back_inserter<vector<std::string> >(v));
+	  
+	  if(atoi(v[0].c_str()) == -1) break;
+	  
+	  if (i == 0) {
+	    di_header.Z       = atoi(v[0].c_str());
+	    di_header.C       = atoi(v[1].c_str());
+	    di_header.nspline = atoi(v[2].c_str());
+	    di_header.nfac    = atoi(v[3].c_str());
+	    di_header.neav    = atoi(v[4].c_str());
 	  }
+	  else if (i%2 == 1) {
+	    if (i_fac < di_header.nfac) {
+	      s.btf = atof(v[0].c_str());
+	      for(int i = 0; i < di_header.nspline; i++) {
+		s.xspline.push_back(atof(v[i+1].c_str()));
+	      }
+	    }
+	  }
+	  else {
+	    if (i_fac < di_header.nfac) {
+	      s.ev = atof(v[0].c_str());
+	      for(int i = 0; i < di_header.nspline; i++) {
+		s.yspline.push_back(atof(v[i+1].c_str()));
+	      }
+	      diSpline.push_back(s);
+	      s.xspline.erase(s.xspline.begin(), s.xspline.end());		
+	      s.yspline.erase(s.yspline.begin(), s.yspline.end());		
+	      i_fac++;
+	    }
+	  }
+	  i++;
 	}
+	sFile.close();
       }
       else {
-	if (i_fac < di_header.nfac) {
-	  s.ev = atof(v[0].c_str());
-	  for(int i = 0; i < di_header.nspline; i++) {
-	    s.yspline.push_back(atof(v[i+1].c_str()));
-	  }
-	  diSpline.push_back(s);
-	  s.xspline.erase(s.xspline.begin(), s.xspline.end());		
-	  s.yspline.erase(s.yspline.begin(), s.yspline.end());		
-	  i_fac++;
-	}
+	std::cout << "Cannot find file: " << fileName << std::endl;
+	nOK = 1;
       }
-      i++;
     }
-    sFile.close();
   }
-  else {
-    if (myid==0) std::cout << "Cannot find file: " 
-			   << fileName << std::endl;
-    MPI_Abort(MPI_COMM_WORLD, 45);
+
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 46);
+
+  unsigned number = diSpline.size();
+  MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
+
+  if (myid==0) {
+    diSplineType::iterator it = diSpline.begin();
+    for (unsigned i=0; i<number; i++) {
+      it->synchronize();
+      it++;
+    }
+  } else {
+    diSpline.erase(diSpline.begin(), diSpline.end());
+    for (unsigned i=0; i<number; i++) {
+      di_data s;
+      s.synchronize();
+      diSpline.push_back(s);
+    }
   }
 }
 
@@ -608,14 +752,29 @@ Ion::collExciteCross(double E, int id)
       }
       
       // From Dere et al. 1997 
-      int weight = elvlc[splups[i].j-1].mult;
-      totalCross += (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
-      std::pair<double, double> cumi(totalCross, EijEv);
-      CEcum.push_back(cumi);
+      elvlcType::iterator eit = elvlc.find(splups[i].j-1);
+      if (eit != elvlc.end()) {
+	int weight = eit->second.mult;
+	if (weight>0) {
+	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
+	  if (isinf(crs1)) {
+	    std::cout << "crs1 is Inf: weight=" << weight << ", E="
+		      << E << std::endl;
+	  } else {
+	    totalCross += crs1;
+	    std::pair<double, double> cumi(totalCross, EijEv);
+	    CEcum.push_back(cumi);
+	  }
+	} else {
+	  std::cout << "Coll crs for level=" << splups[i].j-1
+		    << " at (Z, C)=(" << Z << ", " << C << ")"
+		    << " has zero weight" << std::endl;
+	}
+      }
     }
-
+    
   }
-
+  
   if (CEcum.size() == 0) CEcum.push_back(Null);
   
   CEcrossCum[id] = CEcum;
@@ -1386,3 +1545,122 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
     Ni[*i] = 1.0;		// Not sure what this does . . . 
   }
 }
+
+
+void chianti_data::sync_string(std::string &s)
+{
+  int ssz = s.size();
+  MPI_Bcast(&ssz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid != 0) s.resize(ssz);
+  MPI_Bcast(&s[0], ssz, MPI_CHAR, 0, MPI_COMM_WORLD);
+}
+
+void chianti_data::sync_vector(std::vector<double> &v)
+{
+  int ssz = v.size();
+  MPI_Bcast(&ssz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+  if (myid!=0) v.resize(ssz);
+  MPI_Bcast(&v[0], ssz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+}
+
+
+void elvlc_data::synchronize()
+{
+  MPI_Bcast(&level,  1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&conf,   1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_string(designation);
+
+  MPI_Bcast(&spin,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&l,      1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_string(l_str);
+
+  MPI_Bcast(&J,      1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&mult,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&encm,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&enry,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&encmth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&enryth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  
+};
+
+void wgfa_data::synchronize()
+{
+  MPI_Bcast(&lvl1,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&lvl2,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&wvl,    1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&gf,     1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&avalue, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+
+  sync_string(pretty1);
+  sync_string(pretty2);
+  sync_string(ref);
+};
+
+void pe_data::synchronize()
+{
+  MPI_Bcast(&ngfb,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&nphot,  1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_vector(pe);
+};
+
+
+void fblvl_data::synchronize()
+{
+  MPI_Bcast(&lvl,    1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_string(conf);
+
+  MPI_Bcast(&pqn,    1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&l,      1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_string(l_str);
+
+  MPI_Bcast(&mult,   1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&encm,   1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+  MPI_Bcast(&encmth, 1, MPI_DOUBLE,   0, MPI_COMM_WORLD);
+};
+
+void klgfb_data::synchronize()
+{
+  MPI_Bcast(&n,      1, MPI_INT,      0, MPI_COMM_WORLD);
+  MPI_Bcast(&l,      1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_vector(factors);
+};
+
+void gffint_data::synchronize()
+{
+  MPI_Bcast(&ngffint, 1, MPI_INT,      0, MPI_COMM_WORLD);
+
+  sync_vector(g2);
+  sync_vector(gffint);
+  sync_vector(s1);
+  sync_vector(s2);
+  sync_vector(s3);
+};
+
+void splups_data::synchronize()
+{
+  MPI_Bcast(&Z,       1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&C,       1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&i,       1, MPI_INT,           0, MPI_COMM_WORLD);
+  MPI_Bcast(&j,       1, MPI_INT,           0, MPI_COMM_WORLD);
+  MPI_Bcast(&type,    1, MPI_INT,           0, MPI_COMM_WORLD);
+  MPI_Bcast(&gf,      1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+  MPI_Bcast(&delERyd, 1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+  MPI_Bcast(&Const,   1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+
+  sync_vector(spline);
+};
+
+void di_data::synchronize()
+{
+  MPI_Bcast(&btf,     1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+  MPI_Bcast(&ev,      1, MPI_DOUBLE,        0, MPI_COMM_WORLD);
+
+  sync_vector(xspline);
+  sync_vector(yspline);
+};

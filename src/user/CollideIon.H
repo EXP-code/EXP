@@ -395,7 +395,7 @@ public:
   void Debug(double t);
 
   //! Print out species counts
-  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec);
+  virtual void printSpecies(std::map<speciesKey, unsigned long>& spec, double T=0);
 
   //@{
   //! Galther and print collision statistics
