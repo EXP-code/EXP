@@ -2835,10 +2835,17 @@ sKey2Umap CollideIon::generateSelectionDirect
       //
       double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
       
+      // Count _pairs_ of identical particles only
+      //                 |
+      //                 v
       if (i1==i2)
 	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
       else
-	selcM[i1][i2] = 0.5 * it1->second * Prob;
+	selcM[i1][i2] = it1->second * Prob;
+      //
+      // For double-summing of species A,B and B,A interactions 
+      // when A != B is list orders A<B and therefore does not double 
+      // count (see line 951 in Collide.cc)
       
       nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
       totalNsel += nselM[i1][i2];

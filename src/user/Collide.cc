@@ -948,6 +948,10 @@ void * Collide::collide_thread(void * arg)
       size_t num1 = bmap[i1].size();
       if (num1==0) continue;
       
+      // Notice that species are not double counted; the count map is
+      // indexed by species key and only the "upper triangle" in the
+      // interaction matrix is performed
+      //
       for (it2=it1; it2!=c->count.end(); it2++) {
 	speciesKey i2 = it2->first;
 	size_t num2 = bmap[i2].size();
