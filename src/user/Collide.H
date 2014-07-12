@@ -7,6 +7,8 @@
 #include <vector>
 #include <map>
 
+#include <boost/tuple/tuple.hpp>
+
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
@@ -124,13 +126,18 @@ protected:
   
   // Timing and debug
   //
-  unsigned       ncells, bodycount, stepcount;
-  Timer          forkTime, snglTime, waitTime, joinTime, diagTime;
-  TimeElapsed    forkSoFar, snglSoFar, waitSoFar;
-  TimeElapsed    diagSoFar, joinSoFar;
-  vector<double> forkSum, snglSum, waitSum, diagSum, joinSum;
-  bool           effortAccum;
-  vector< list< pair<long, unsigned> > > effortNumber;
+  typedef std::list< std::pair<long, unsigned> > effortL;
+
+  unsigned            ncells, bodycount, stepcount;
+  Timer               forkTime, snglTime, waitTime, joinTime, diagTime;
+  TimeElapsed         forkSoFar, snglSoFar, waitSoFar;
+  TimeElapsed         diagSoFar, joinSoFar;
+  vector<double>      forkSum, snglSum, waitSum, diagSum, joinSum;
+  bool                effortAccum;
+  vector<effortL>     effortNumber;
+  vector<unsigned>    ntcVel, ntcCrs, ntcBth, ntcTot;
+
+  boost::tuple<double, double, double> ntcRes;
   
   // Quantile index function
   //
@@ -463,7 +470,7 @@ public:
       per cell but now, it is computed once to start, possibly using the
       particle distribution.  
   */
-  virtual double molWeight(Component* C);
+  virtual double molWeight();
   
   //@{
   //! Print out species counts
@@ -478,6 +485,12 @@ public:
   virtual void printCollSummary() {}
   virtual void resetColls()       {}
   //@}
+
+  // Gather stats for No-Time-Counter algorithm
+  virtual void NTCgather();
+
+  // Print stats for No-Time-Counter algorithm
+  virtual void NTCstats(ostream& out);
 };
 
 #endif

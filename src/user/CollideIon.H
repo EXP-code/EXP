@@ -174,7 +174,6 @@ private:
   Elastic elastic;
   Geometric geometric;
   InteractSelect IS;
-  unsigned int NUM;
 
   std::map<unsigned short, std::pair<unsigned short, double> > interInfo;
 
@@ -355,7 +354,7 @@ protected:
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempM;
+  double tempM, molwM;
   spDMap specM;
   //@}
 
@@ -410,7 +409,7 @@ public:
 				      double& totalNsel);
 
   //! Compute/retrieve mean molecular weight for this gas
-  virtual double molWeight(Component *C);
+  virtual double molWeight();
 
 };
 

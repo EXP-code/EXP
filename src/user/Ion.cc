@@ -516,6 +516,8 @@ void Ion::readDi()
   unsigned number = diSpline.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
+  di_header.synchronize();
+
   if (myid==0) {
     diSplineType::iterator it = diSpline.begin();
     for (unsigned i=0; i<number; i++) {
@@ -722,12 +724,12 @@ Ion::collExciteCross(double E, int id)
       }
       
       if (splups[i].spline.size() == 5) {
-	Cspline<double, double> sp(x5, splups[i].spline);
+	Cspline sp(x5, splups[i].spline);
 	y = sp(x);
       }
       
       if (splups[i].spline.size() == 9) {
-	Cspline<double, double> sp(x9, splups[i].spline);
+	Cspline sp(x9, splups[i].spline);
 	y = sp(x);
       }
       
@@ -860,7 +862,7 @@ double Ion::directIonCross(double E, int id)
 	double u1  = E/diSpline[i].ev;
 	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
 
-	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
+	Cspline sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
@@ -1664,3 +1666,12 @@ void di_data::synchronize()
   sync_vector(xspline);
   sync_vector(yspline);
 };
+
+void Ion::di_head::synchronize()
+{
+  MPI_Bcast(&Z,       1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&C,       1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+  MPI_Bcast(&nspline, 1, MPI_INT,            0, MPI_COMM_WORLD);
+  MPI_Bcast(&nfac,    1, MPI_INT,            0, MPI_COMM_WORLD);
+  MPI_Bcast(&neav,    1, MPI_INT,            0, MPI_COMM_WORLD);
+}

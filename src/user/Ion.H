@@ -295,13 +295,18 @@ public:
   typedef std::vector< di_data > diSplineType;
   diSplineType diSpline;
 
-  struct di_head
+  class di_head
   {
+  public:
+
     unsigned short Z;
     unsigned short C;
     int nspline;
     int nfac;
     int neav;
+
+    void synchronize();
+
   } di_header;		
   
   //! include in other variables here as needed from the files

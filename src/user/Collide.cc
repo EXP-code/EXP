@@ -246,6 +246,11 @@ Collide::Collide(ExternalForce *force, Component *comp,
   // Energy excess (full energy)
   exesET  = vector<double>   (nthrds, 0);
   
+  // NTC statistics
+  ntcVel  = vector<unsigned> (nthrds, 0);
+  ntcCrs  = vector<unsigned> (nthrds, 0);
+  ntcTot  = vector<unsigned> (nthrds, 0);
+
   if (MFPDIAG) {
     // List of ratios of free-flight length to cell size
     tsratT  = vector< vector<double> >  (nthrds);
@@ -792,7 +797,8 @@ void * Collide::collide_thread(void * arg)
     double              meanLambda, meanCollP, totalNsel;
     sKey2Dmap           crossIJ = totalCrossSections(id);
     sKey2Umap           nselM   = generateSelection(c, Fn, crm, tau, id, 
-						    meanLambda, meanCollP, totalNsel);
+						    meanLambda, meanCollP, 
+						    totalNsel);
     
 
 #ifdef USE_GPTL
@@ -2867,7 +2873,7 @@ void Collide::velocityUpdate(Particle* p1, Particle* p2, double cr)
 
 
 // Compute the mean molecular weight in atomic mass units
-double Collide::molWeight(Component *C)
+double Collide::molWeight()
 {
   const double f_H = 0.76;	// Assume only hydrogen and helium here
 
@@ -2877,4 +2883,60 @@ double Collide::molWeight(Component *C)
   }
 
   return mol_weight;
+}
+
+void Collide::NTCgather()
+{
+  if (NTC) {
+
+    unsigned Vel1 = 0, Vel;
+    unsigned Crs1 = 0, Crs;
+    unsigned Bth1 = 0, Bth;
+    unsigned Tot1 = 0, Tot;
+
+    typedef std::vector<unsigned>::iterator uV;
+    for (uV i=ntcVel.begin(); i!=ntcVel.end(); i++) Vel1 += *i;
+    for (uV i=ntcCrs.begin(); i!=ntcCrs.end(); i++) Crs1 += *i;
+    for (uV i=ntcBth.begin(); i!=ntcBth.end(); i++) Bth1 += *i;
+    for (uV i=ntcTot.begin(); i!=ntcTot.end(); i++) Tot1 += *i;
+  
+    MPI_Reduce(&Vel1, &Vel, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Crs1, &Crs, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Bth1, &Bth, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Tot1, &Tot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    
+    if (myid==0 && Tot>0) {
+      boost::get<0>(ntcRes) = static_cast<double>(Vel)/Tot;
+      boost::get<1>(ntcRes) = static_cast<double>(Crs)/Tot;
+      boost::get<2>(ntcRes) = static_cast<double>(Bth)/Tot;
+    }
+
+    //
+    // Reset the counters
+    //
+    std::fill(ntcVel.begin(), ntcVel.end(), 0);
+    std::fill(ntcCrs.begin(), ntcCrs.end(), 0);
+    std::fill(ntcBth.begin(), ntcBth.end(), 0);
+    std::fill(ntcTot.begin(), ntcTot.end(), 0);
+  }
+}
+
+void Collide::NTCstats(std::ostream& out)
+{
+  if (myid==0 && NTC) {
+    out << std::string(60, '-') << std::endl << std::right
+	<< std::setw(12) << "Time"
+	<< std::setw(12) << "Vel over"
+	<< std::setw(12) << "Crs over"
+	<< std::setw(12) << "All over" << std::endl
+	<< std::setw(12) << "--------"
+	<< std::setw(12) << "--------"
+	<< std::setw(12) << "--------"
+	<< std::setw(12) << "--------" << std::endl
+	<< std::setw(12) << tnow
+	<< std::setw(12) << boost::get<0>(ntcRes)
+	<< std::setw(12) << boost::get<1>(ntcRes)
+	<< std::setw(12) << boost::get<2>(ntcRes)
+	<< std::endl;
+  }
 }

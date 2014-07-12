@@ -93,7 +93,7 @@ double InteractSelect::selectRRInteract
     if (i >= 1) assert(normed[i] >= normed[i-1]);
   }
   
-  Cspline<double, double> interp(normed, kgrid_log);
+  Cspline interp(normed, kgrid_log);
   
   double rn = (double)rand()/(double)RAND_MAX;
   double k = interp(rn);

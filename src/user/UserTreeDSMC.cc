@@ -1040,7 +1040,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&Elost1, &ElostC, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Elost2, &ElostE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-    double mm = amu * collide->molWeight(c0);
+    double mm = amu * collide->molWeight();
     double meanT = 0.0;
     if (Mtotl>0.0) meanT = 2.0*KEtot/Mtotl*Eunit/3.0 * mm/Munit/boltz;
 
@@ -1205,6 +1205,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     collide->gatherSpecies();
     (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
 
+    // Get NTC statistics
+    //
+    (*barrier)("TreeDSMC: BEFORE Collide::NTCgather",  __FILE__, __LINE__);
+    collide->gatherSpecies();
+    (*barrier)("TreeDSMC: AFTER Collide::NTCgather",  __FILE__, __LINE__);
+
     if (myid==0) {
 
       unsigned sell_total = collide->select();
@@ -1241,6 +1247,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << 100.0*coll_error/(1.0e-08+coll_total) << "%)" << endl
 	   << setw(6) << " " << setw(20) << oobBods << "out-of-bounds" << endl
 	   << endl;
+
+      collide->NTCstats(mout);
 
       collide->colldeTime(mout);
 

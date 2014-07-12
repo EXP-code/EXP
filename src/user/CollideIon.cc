@@ -47,21 +47,13 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
-  NUM = 0;
-
   // Read species file
   //
   parseSpecies(smap);
 
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) std::cout << "check: parseSpecies finished" << std::endl;
-
   // Fill the Chianti data base
   //
   ch.createIonList(ZList);
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  if (myid==0) std::cout << "check: createIonList finished" << std::endl;
 
   // Cross-section storage
   //
@@ -510,7 +502,8 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 {
   // Species keys
   //
-  KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
+  KeyConvert k1(p1->iattrib[use_key]);
+  KeyConvert k2(p2->iattrib[use_key]);
 
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
@@ -532,7 +525,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   double mu  = m1 * m2 / (m1 + m2);
   double vel = cr * UserTreeDSMC::Vunit;
 
-  // Translational COM energy
+  // Available COM energy
   //
   kEi[id] = 0.5 * mu * vel*vel;
 
@@ -630,14 +623,19 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   lQ Q1(Z1, C1), Q2(Z2, C2);
 
-
-  //---------------------------------------------------------
-  //  __                                                     
-  // |__)_  _|_. _| _  . _ |_ _ _ _  _|_. _  _  _  |_  _ _ _ 
-  // |  (_|| |_|(_|(-  || )|_(-| (_|(_|_|(_)| )_)  | )(-| (- 
-  //
-  //---------------------------------------------------------
-
+  //-------------------------------------------------------------------
+  //  ___      _                                      _   _    _     
+  // | _ \_  _| |_   _ _  _____ __ __  _ __  __ _ _ _| |_(_)__| |___ 
+  // |  _/ || |  _| | ' \/ -_) V  V / | '_ \/ _` | '_|  _| / _| / -_)
+  // |_|  \_,_|\__| |_||_\___|\_/\_/  | .__/\__,_|_|  \__|_\__|_\___|
+  //                                  |_|                            
+  //  _     _                   _   _               _                
+  // (_)_ _| |_ ___ _ _ __ _ __| |_(_)___ _ _  ___ | |_  ___ _ _ ___ 
+  // | | ' \  _/ -_) '_/ _` / _|  _| / _ \ ' \(_-< | ' \/ -_) '_/ -_)
+  // |_|_||_\__\___|_| \__,_\__|\__|_\___/_||_/__/ |_||_\___|_| \___|
+  //                                                                 
+  //-------------------------------------------------------------------
+  
 
   //--------------------------------------------------
   // Particle 1 interacts with Particle 2
@@ -926,12 +924,18 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       //--------------------------------------------------
       lQ Q1(Z1, C1), Q2(Z2, C2);
 
-      //---------------------------------------------------------
-      //  __                                                     
-      // |__)_  _|_. _| _  . _ |_ _ _ _  _|_. _  _  _  |_  _ _ _ 
-      // |  (_|| |_|(_|(-  || )|_(-| (_|(_|_|(_)| )_)  | )(-| (- 
-      //
-      //---------------------------------------------------------
+      //-------------------------------------------------------------------
+      //  ___      _                                      _   _    _     
+      // | _ \_  _| |_   _ _  _____ __ __  _ __  __ _ _ _| |_(_)__| |___ 
+      // |  _/ || |  _| | ' \/ -_) V  V / | '_ \/ _` | '_|  _| / _| / -_)
+      // |_|  \_,_|\__| |_||_\___|\_/\_/  | .__/\__,_|_|  \__|_\__|_\___|
+      //                                  |_|                            
+      //  _     _                   _   _               _                
+      // (_)_ _| |_ ___ _ _ __ _ __| |_(_)___ _ _  ___ | |_  ___ _ _ ___ 
+      // | | ' \  _/ -_) '_/ _` / _|  _| / _ \ ' \(_-< | ' \/ -_) '_/ -_)
+      // |_|_||_\__\___|_| \__,_\__|\__|_\___/_||_/__/ |_||_\___|_| \___|
+      //                                                                 
+      //-------------------------------------------------------------------
 
       //--------------------------------------------------
       // Inelastic scattering: Particle 1 interacts with 
@@ -1078,12 +1082,16 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
 				double *cr, int id)
 {
   int ret = 0;			// No error (flag)
-  int interFlag = -1;
+  int interFlag = -1;		// Invalid value by default
 
   // Species keys
   //
-  KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
-  collTDPtr ctd1 = (*collD)[k1.getKey()], ctd2 = (*collD)[k2.getKey()];
+  KeyConvert  k1(p1->iattrib[use_key]);
+  KeyConvert  k2(p2->iattrib[use_key]);
+
+  collTDPtr ctd1 = (*collD)[k1.getKey()];
+  collTDPtr ctd2 = (*collD)[k2.getKey()];
+
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
   
@@ -1091,6 +1099,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   //
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[Z1]*amu);
   double N2 = (p2->mass*UserTreeDSMC::Munit)/(atomic_weights[Z2]*amu);
+
   double NN = std::min<double>(N1, N2);	// Currently, N1 should equal N2
   
   // Number of associated electrons for each particle
@@ -1140,8 +1149,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       si++;
     }
   }
-
-  // assert (TotalCross.size() == dCrossMap[id].size());
 
   int partflag = 0;		// Will be 1 or 2, dependending on
 				// which ion or neutral is selected
@@ -1320,13 +1327,15 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     delE = delE * eV;
   }
   
+  // For elastic interactions, delE == 0
+  //
   assert(delE >= 0.0);
 
   // Artifically prevent cooling
   //
   if (NO_COOL) delE = 0.0;
 
-  // Pure scattering event
+  // Elastic event
   //
   if (delE<=0.0) return ret;
 
@@ -2735,18 +2744,23 @@ sKey2Umap CollideIon::generateSelectionDirect
   //
   // Cross-section debugging [BEGIN]
   //
-  
   if (CROSS_DBG && id==0) {
     if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg) {
       speciesKey i = c->count.begin()->first;
       cross1_dbg.push_back(csections[id][i][i]);
     }
   }
+  //
   // Done
+  //
   
   for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
     speciesKey i1 = it1->first;
-    densM[i1] = c->Mass(i1)/volc;
+    densM[i1] = c->Mass(i1)/volc / atomic_weights[i1.first];
+    //                             ^
+    //                             |
+    // Number density--------------+
+    //
   }
     
   double meanDens = 0.0;
@@ -2797,13 +2811,14 @@ sKey2Umap CollideIon::generateSelectionDirect
     meanLambda += densM[i1] * lambdaM[i1];
   }
     
-  // This is the number density-weighted
-  // MFP (used for diagnostics only)
+  // This is the number density-weighted MFP (used for diagnostics
+  // only)
+  //
   meanLambda /= meanDens;
 
-  // Number-density weighted collision
-  // probability (used for diagnostics
-  // only)
+  // Number-density weighted collision probability (used for
+  // diagnostics only)
+  //
   meanCollP  /= meanDens;
     
   // This is the per-species N_{coll}
@@ -2817,12 +2832,13 @@ sKey2Umap CollideIon::generateSelectionDirect
       
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
+      //
       double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
       
       if (i1==i2)
 	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
       else
-	selcM[i1][i2] = it1->second * Prob;
+	selcM[i1][i2] = 0.5 * it1->second * Prob;
       
       nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
       totalNsel += nselM[i1][i2];
@@ -2928,7 +2944,7 @@ void CollideIon::write_cross_debug()
 
 void CollideIon::gatherSpecies()
 {
-  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu /
+  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu * molWeight() /
     UserTreeDSMC::Munit/boltz;
 
   if (aType==Direct) {
@@ -2946,7 +2962,7 @@ void CollideIon::gatherSpecies()
       
       pCell *cell = itree.Cell();
       
-      // Compute the temerature
+      // Compute the mass-weighted temerature and mass
       //
       double KEtot, KEdsp;
       cell->sample->KE(KEtot, KEdsp);
@@ -2956,7 +2972,7 @@ void CollideIon::gatherSpecies()
       tempM += cell->Mass() * T;
     }
 
-    // Send to root
+    // Send values to root
     //
     double val1, val2;
     
@@ -3087,6 +3103,7 @@ void CollideIon::gatherSpecies()
   
 
 // Print out species counts
+//
 void CollideIon::printSpecies
 (std::map<speciesKey, unsigned long>& spec, double T)
 {
@@ -3107,6 +3124,8 @@ const std::string clabl(unsigned c)
   return sout.str();
 }
 
+// Print out species counts (Trace version)
+//
 void CollideIon::printSpeciesTrace()
 {
   std::ofstream dout;
@@ -3175,12 +3194,13 @@ void CollideIon::printSpeciesTrace()
 
 
 // Compute the mean molecular weight in atomic mass units
-double CollideIon::molWeight(Component *c0)
+//
+double CollideIon::molWeight()
 {
   // Only do this once and cache the result
   if (mol_weight<0)  {
     
-    mol_weight = 1.0;		// Default; i.e. for trace algorithm
+    mol_weight = 1.0;		// Default for trace algorithm
 
     if (aType==Direct) {
 
@@ -3196,7 +3216,7 @@ double CollideIon::molWeight(Component *c0)
       std::vector<double> speciesM(ZList.size(), 0.0);
       PartMapItr p = c0->Particles().begin(), pEnd = c0->Particles().end();
       for (; p!= pEnd; p++) {
-	speciesKey key = KeyConvert(p->second.dattrib[use_key]).getKey();
+	speciesKey key = KeyConvert(p->second.iattrib[use_key]).getKey();
 	iz = zval.find(key.first);
 	if (iz != izEnd) speciesM[iz->second] += p->second.mass;
       }
@@ -3204,13 +3224,21 @@ double CollideIon::molWeight(Component *c0)
       MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], speciesM.size(), 
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
-      mol_weight = 0.0;
+      double mtot = 0.0;
+      for (std::vector<double>::iterator 
+	     it=speciesM.begin(); it!=speciesM.end(); it++) mtot += *it;
+
       j = 0;
-      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++) {
-	mol_weight += speciesM[j++]/atomic_weights[*i];
-      }
+      mol_weight = 0.0;
+      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++, j++)
+	mol_weight += speciesM[j]/atomic_weights[*i]/mtot;
+
       mol_weight = 1.0/mol_weight;
     }
+
+    if (myid==0) 
+      std::cout << "CollideIon [" << (aType==Direct ? "Direct" : "Trace")
+		<< "] Molecular weight = " << mol_weight << std::endl;
   }
 
   return mol_weight;
