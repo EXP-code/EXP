@@ -20,13 +20,14 @@ public:
   Cspline(const std::vector<X>& x, const std::vector<Y>& y) 
   {
     if (x.size() != y.size()) {
-      std::cerr << "X and Y must be the same size " << std::endl;
+      std::cerr << "X[" << x.size() << "] and Y[" << y.size()
+		<< "] must be the same size " << std::endl;
       return;
     }
         
     if (x.size() < 3) {
-      std::cerr << "Must have at least three points for interpolation" 
-		<< std::endl;
+      std::cerr << "Must have at least three points for interpolation, " 
+		<< "current size is " << x.size() << std::endl;
       return;
     }
         
