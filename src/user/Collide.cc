@@ -2841,11 +2841,24 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
     dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
 
+				// Compute total mass
+  double tmass = 0.0;
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+    tmass += atomic_weights[it->first.first] * it->second;
+
+				// Use total mass to print mass
+				// fraction
   dout << "  " 
        << std::setw(12) << std::right << tnow
        << std::setw(12) << std::right << temp;
-  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-    dout << std::setw(12) << std::right << it->second;
+
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+    if (tmass > 0.0) 
+      dout << std::setw(12) << std::right 
+	   << atomic_weights[it->first.first] * it->second / tmass;
+    else
+      dout << std::setw(12) << std::right << 0.0;
+  }
   dout << std::endl;
 }
 
