@@ -66,9 +66,9 @@ header.H:	$(top_srcdir)/utils/PhaseSpace/header.H
 localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 	cp $(top_srcdir)/exputil/$@ .
 
-# Install and distribute this script
+# Install and distribute these scripts
 
-dist_bin_SCRIPTS = parse_outfrac
+dist_bin_SCRIPTS = parse_outfrac ion_collide ion_energy	ion_rate ion_frac
 
 CLEANFILES = 	EmpOrth9thd.cc localmpi.cc PSP.cc PSP.H header.cc header.H
 

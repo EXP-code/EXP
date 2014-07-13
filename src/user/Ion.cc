@@ -724,12 +724,12 @@ Ion::collExciteCross(double E, int id)
       }
       
       if (splups[i].spline.size() == 5) {
-	Cspline sp(x5, splups[i].spline);
+	Cspline<double, double> sp(x5, splups[i].spline);
 	y = sp(x);
       }
       
       if (splups[i].spline.size() == 9) {
-	Cspline sp(x9, splups[i].spline);
+	Cspline<double, double> sp(x9, splups[i].spline);
 	y = sp(x);
       }
       
@@ -862,7 +862,7 @@ double Ion::directIonCross(double E, int id)
 	double u1  = E/diSpline[i].ev;
 	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
 
-	Cspline sp(diSpline[i].xspline, diSpline[i].yspline);
+	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
 	double btcross = sp(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);

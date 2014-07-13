@@ -27,10 +27,14 @@ double InteractSelect::selectCEInteract
 (const Ion& a, const Ion::collType& cumCross) 
 {
   typedef std::vector< std::pair< double, double > >::const_iterator cIter;
+
 				// Location in the cumulative distribution
-  double rn = (double)rand()/(double)RAND_MAX * cumCross.back().first;
+				//
+  double rn = static_cast<double>(rand())/static_cast<double>(RAND_MAX) * 
+    cumCross.back().first;
 
 				// Find the energy
+				//
   for (cIter i=cumCross.begin(); i!=cumCross.end(); i++) {
     if (rn <= i->first) return i->second;
   }
@@ -93,9 +97,9 @@ double InteractSelect::selectRRInteract
     if (i >= 1) assert(normed[i] >= normed[i-1]);
   }
   
-  Cspline interp(normed, kgrid_log);
+  Cspline<double, double> interp(normed, kgrid_log);
   
-  double rn = (double)rand()/(double)RAND_MAX;
+  double rn = static_cast<double>(rand())/static_cast<double>(RAND_MAX);
   double k = interp(rn);
   k = pow(10.0, k);
   double E = k*hbc;
