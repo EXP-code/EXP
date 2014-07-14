@@ -175,7 +175,7 @@ def main(argv):
         sys.exit(2)
     for opt, arg in opts:
         if opt == '-h':
-            print sys.argv[0], '-d <degree> <runtag>'
+            print sys.argv[0], '[-d <degree> | --deg=<degree> | -s <smooth> | --smooth=<smooth>] <runtag>'
             sys.exit()
         elif opt in ("-d", "--deg"):
             degree = int(arg)
