@@ -3243,8 +3243,11 @@ double CollideIon::molWeight()
       mol_weight = 1.0/mol_weight;
     }
 
+    // One-time output diagnostic
+    //
     if (myid==0) 
-      std::cout << "CollideIon [" << (aType==Direct ? "Direct" : "Trace")
+      std::cout << std::endl << "CollideIon"
+		<< " [" << (aType==Direct ? "Direct" : "Trace")
 		<< "] Molecular weight = " << mol_weight << std::endl;
   }
 
