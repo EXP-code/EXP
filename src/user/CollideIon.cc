@@ -537,6 +537,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   // Internal energy per particle
   //
   Ein1[id] = Ein2[id] = 0.0;
+
   if (use_Eint>=0) {
     Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit/N1;
     Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit/N2;
@@ -623,7 +624,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   lQ Q1(Z1, C1), Q2(Z2, C2);
 
-  //-------------------------------------------------------------------
+  //===================================================================
   //  ___      _                                      _   _    _     
   // | _ \_  _| |_   _ _  _____ __ __  _ __  __ _ _ _| |_(_)__| |___ 
   // |  _/ || |  _| | ' \/ -_) V  V / | '_ \/ _` | '_|  _| / _| / -_)
@@ -634,7 +635,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   // | | ' \  _/ -_) '_/ _` / _|  _| / _ \ ' \(_-< | ' \/ -_) '_/ -_)
   // |_|_||_\__\___|_| \__,_\__|\__|_\___/_||_/__/ |_||_\___|_| \___|
   //                                                                 
-  //-------------------------------------------------------------------
+  //===================================================================
   
 
   //--------------------------------------------------
@@ -924,7 +925,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       //--------------------------------------------------
       lQ Q1(Z1, C1), Q2(Z2, C2);
 
-      //-------------------------------------------------------------------
+      //===================================================================
       //  ___      _                                      _   _    _     
       // | _ \_  _| |_   _ _  _____ __ __  _ __  __ _ _ _| |_(_)__| |___ 
       // |  _/ || |  _| | ' \/ -_) V  V / | '_ \/ _` | '_|  _| / _| / -_)
@@ -935,7 +936,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       // | | ' \  _/ -_) '_/ _` / _|  _| / _ \ ' \(_-< | ' \/ -_) '_/ -_)
       // |_|_||_\__\___|_| \__,_\__|\__|_\___/_||_/__/ |_||_\___|_| \___|
       //                                                                 
-      //-------------------------------------------------------------------
+      //===================================================================
+
 
       //--------------------------------------------------
       // Inelastic scattering: Particle 1 interacts with 
@@ -1261,7 +1263,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == ionize_1) {
       delE          = IS.DIInterLoss(ch.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
-      assert(C1 <= (Z1 + 1));
       partflag      = 1;
       ctd1->CI[id].first++; 
       ctd1->CI[id].second  += delE * NN;
@@ -1275,7 +1276,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == recomb_1) {
       if (RECOMB_KE) delE = kEe2[id];
       p1->iattrib[use_key] = k1.updateC(--C1);
-      assert(C1 > 0);
       partflag      = 1;
       ctd1->RR[id].first++; 
       ctd1->RR[id].second  += kEe2[id] * NN;
@@ -1310,7 +1310,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     if (interFlag == recomb_2) {
       if (RECOMB_KE) delE = kEe1[id];
       p2->iattrib[use_key] = k2.updateC(--C2);
-      assert(C2 > 0);
       partflag     = 2;
       ctd2->RR[id].first++; 
       ctd2->RR[id].second += kEe1[id] * NN;
@@ -1784,7 +1783,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
-	assert(C1 <= Z1+1);
 	ctd1->CI[id].first  += prob;
 	ctd1->CI[id].second += delE1;
 	p1Flag = true;
@@ -1807,7 +1805,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
-	assert(C1 > 0);
 	ctd1->RR[id].first  += prob;
 	ctd1->RR[id].second += delE1;
 	p1Flag = true;
@@ -1853,7 +1850,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
-	assert(C2 <= Z2+1);
 	ctd2->CI[id].first  += prob;
 	ctd2->CI[id].second += delE2;
 	p2Flag = true;
@@ -1871,7 +1867,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
-	assert(C2 > 0);
 	ctd2->RR[id].first  += prob;
 	ctd2->RR[id].second += delE2;
 	p2Flag = true;

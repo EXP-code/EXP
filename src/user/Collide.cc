@@ -2815,33 +2815,46 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
     sout << outdir << runtag << ".species";
     species_file_debug = sout.str();
 
-				// Open the file for the first time
-    dout.open(species_file_debug.c_str());
+    // Check for existence of file
+    //
+    std::ifstream in (species_file_debug.c_str());
+    
+    // Write a new file?
+    //
+    if (in.fail()) {
+      
+      // Open the file for the first time
+      //
+      dout.open(species_file_debug.c_str());
 
-				// Print the header
-    dout << "# " 
-	 << std::setw(12) << std::right << "Time "
-	 << std::setw(12) << std::right << "Temp ";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-      std::ostringstream sout;
-      sout << "(" << it->first.first << "," << it->first.second << ") ";
-      dout << setw(12) << right << sout.str();
+      // Print the header
+      //
+      dout << "# " 
+	   << std::setw(12) << std::right << "Time "
+	   << std::setw(12) << std::right << "Temp ";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	std::ostringstream sout;
+	sout << "(" << it->first.first << "," << it->first.second << ") ";
+	dout << setw(12) << right << sout.str();
+      }
+      dout << std::endl;
+      
+      dout << "# " 
+	   << std::setw(12) << std::right << "--------"
+	   << std::setw(12) << std::right << "--------";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	dout << setw(12) << std::right << "--------";
+      dout << std::endl;
+      
     }
-    dout << std::endl;
-
-    dout << "# " 
-	 << std::setw(12) << std::right << "--------"
-	 << std::setw(12) << std::right << "--------";
-    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-      dout << setw(12) << std::right << "--------";
-    dout << std::endl;
-
-  } else {
-				// Open for append
-    dout.open(species_file_debug.c_str(), ios::out | ios::app);
   }
 
-				// Compute total mass
+  // Open for append
+  //
+  if (!dout.is_open())
+    dout.open(species_file_debug.c_str(), ios::out | ios::app);
+
+
   double tmass = 0.0;
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
     tmass += atomic_weights[it->first.first] * it->second;
