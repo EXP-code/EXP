@@ -104,7 +104,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
     nCnt_dbg     = 0;		// Number of cells accumulated so far
 
     ostringstream ostr;
-    ostr << outdir << runtag << ".cross_section_dbg." << myid;
+    ostr << outdir << runtag << ".cross_section." << myid;
     cross_debug = ostr.str();
     std::ifstream in(cross_debug.c_str());
     if (!in) {
@@ -2319,7 +2319,7 @@ void collDiag::initialize()
   {
     // Generate the file name
     std::ostringstream sout;
-    sout << outdir << runtag << ".ION_coll_debug";
+    sout << outdir << runtag << ".ION_coll";
     coll_file_debug = sout.str();
 
     // Check for existence
@@ -2421,7 +2421,7 @@ void collDiag::initialize()
   {
     // Generate the file name
     std::ostringstream sout;
-    sout << outdir << runtag << ".ION_energy_debug";
+    sout << outdir << runtag << ".ION_energy";
     energy_file_debug = sout.str();
     
     // Check for existence
