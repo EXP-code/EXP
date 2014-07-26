@@ -67,6 +67,9 @@ bool Collide::TIMING   = true;
 // Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 
+// Enable mean-free-path time step estimation
+bool Collide::MFPTS    = false;
+
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;
 
@@ -90,7 +93,7 @@ collide_thread_call(void *atp)
   return NULL;
 }
 
-void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
+void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
 {
   int errcode;
   void *retval;
@@ -101,7 +104,6 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
     td.p        = this;
     td.arg.tree = tree;
     td.arg.fn   = Fn;
-    td.arg.tau  = tau;
     td.arg.id   = 0;
     
     collide_thread_call(&td);
@@ -128,7 +130,6 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn, double tau)
     td[i].p        = this;
     td[i].arg.tree = tree;
     td[i].arg.fn   = Fn;
-    td[i].arg.tau  = tau;
     td[i].arg.id   = i;
     
     errcode =  pthread_create(&t[i], 0, collide_thread_call, &td[i]);
@@ -504,8 +505,7 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, 
-			  double tau, int mlevel, bool diag)
+unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 {
   snglTime.start();
   // Initialize diagnostic counters
@@ -519,11 +519,12 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
   set<pCell*>::iterator ic, icb, ice;
   
   // For debugging
-  unsigned nullcell = 0, totalcell = 0;
+  unsigned nullcell = 0, totalcell = 0, totalbods = 0;
   
   for (unsigned M=mlevel; M<=multistep; M++) {
     
     // Don't queue null cells
+    //
     if (tree.CLevels(M).size()) {
       icb = tree.CLevels(M).begin(); 
       ice = tree.CLevels(M).end(); 
@@ -531,6 +532,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
 	if ((*ic)->bods.size()) {
 	  cellist[(ncells++)%nthrds].push_back(*ic);
 	  bodycount += (*ic)->bods.size();
+	  totalbods += (*ic)->bods.size();
 	} else {
 	  nullcell++;
 	}
@@ -540,6 +542,40 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
   }
   stepcount++;
   
+  if (totalbods>0 && DEBUG) {
+    unsigned Tbods;
+    MPI_Reduce(&totalbods, &Tbods, 1, MPI_UNSIGNED, MPI_SUM, 0, 
+	       MPI_COMM_WORLD);
+
+    if (myid==0 && Tbods>0) {
+      std::cout << std::endl << "***" << std::endl << std::left 
+		<< "*** T = "  << std::setw(10) << tnow 
+		<< " Level = " << std::setw(10) << mlevel
+		<< " Nbods = " << std::setw(10) << Tbods 
+		<< " dT = "    << dtime << std::endl
+		<< "***" << std::endl;
+    }
+
+    if (myid==0) std::cout << std::endl << std::string(60, '-') << std::endl
+			   << std::left 
+			   << std::setw(8)  << "Node"
+			   << std::setw(6)  << "Level"
+			   << std::setw(10) << "Bodies"
+			   << std::setw(10) << "dT"
+			   << std::endl << std::string(60, '-') << std::endl;
+		 
+    for (int n=0; n<numprocs; n++) {
+      if (myid==n) {
+	std::cout << "#" << std::setw(4) << std::left << myid << " | "
+		  << std::setw(6)  << mlevel << std::setw(10) << totalbods
+		  << std::setw(10) << dtime
+		  << std::endl << std::right;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+    }
+    if (myid==0) std::cout << std::string(60, '-') << std::endl;
+  }
+
   if (DEBUG) {
     if (nullcell)
       std::cout << "DEBUG: null cells " << nullcell << "/" 
@@ -550,11 +586,13 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
   snglTime.stop();
   
   // Needed for meaningful timing results
+  //
   waitTime.start();
   MPI_Barrier(MPI_COMM_WORLD);
   waitTime.stop();
   
   // For effort debugging
+  //
   if (mlevel==0) effortAccum = true;
   
   forkTime.start();
@@ -563,7 +601,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn,
     sout << "before fork, " << __FILE__ << ": " << __LINE__;
     tree.checkBounds(2.0, sout.str().c_str());
   }
-  collide_thread_fork(&tree, &Fn, tau);
+  collide_thread_fork(&tree, &Fn);
   if (0) {
     ostringstream sout;
     sout << "after fork, " << __FILE__ << ": " << __LINE__;
@@ -655,7 +693,6 @@ void * Collide::collide_thread(void * arg)
 {
   pHOT *tree    = static_cast<pHOT*>    (((thrd_pass_arguments*)arg)->tree);
   sKeyDmap *Fn  = static_cast<sKeyDmap*>(((thrd_pass_arguments*)arg)->fn  );
-  double tau    = static_cast<double>   (((thrd_pass_arguments*)arg)->tau );
   int id        = static_cast<int>      (((thrd_pass_arguments*)arg)->id  );
   
   thread_timing_beg(id);
@@ -769,6 +806,10 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
+    // Timestep for this cell
+    //
+    double tau = dtime * c->maxplev / Mstep;
+
     // Volume in the cell
     //
     double volc = c->Volume();
@@ -2351,7 +2392,9 @@ tstep_thread_call(void *atp)
 {
   thrd_pass_tstep *tp = (thrd_pass_tstep *)atp;
   Collide *p = (Collide *)tp->p;
+
   p->timestep_thread((void*)&tp->arg);
+
   return NULL;
 }
 
@@ -2363,10 +2406,10 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   if (nthrds==1) {
     thrd_pass_tstep td;
     
-    td.p = this;
-    td.arg.tree = tree;
+    td.p            = this;
+    td.arg.tree     = tree;
     td.arg.coolfrac = coolfrac;
-    td.arg.id = 0;
+    td.arg.id       = 0;
     
     tstep_thread_call(&td);
     
@@ -2389,10 +2432,10 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
   
   // Make the <nthrds> threads
   for (int i=0; i<nthrds; i++) {
-    tdT[i].p = this;
-    tdT[i].arg.tree = tree;
+    tdT[i].p            = this;
+    tdT[i].arg.tree     = tree;
     tdT[i].arg.coolfrac = coolfrac;
-    tdT[i].arg.id = i;
+    tdT[i].arg.id       = i;
     
     errcode =  pthread_create(&t[i], 0, tstep_thread_call, &tdT[i]);
     if (errcode) {
@@ -2422,15 +2465,14 @@ void Collide::compute_timestep(pHOT* tree, double coolfrac)
 
 void * Collide::timestep_thread(void * arg)
 {
-  pHOT* tree = (pHOT* )((tstep_pass_arguments*)arg)->tree;
+  pHOT* tree      = (pHOT* )((tstep_pass_arguments*)arg)->tree;
   double coolfrac = (double)((tstep_pass_arguments*)arg)->coolfrac;
-  int id = (int)((tstep_pass_arguments*)arg)->id;
+  int id          = (int)((tstep_pass_arguments*)arg)->id;
   
   thread_timing_beg(id);
   
-  // Loop over cells, cell time-of-flight time
-  // for each particle
-  
+  // Loop over cells, cell time-of-flight time for each particle
+  //
   pCell *c;
   Particle *p;
   double L, DT, mscale;
@@ -2446,25 +2488,32 @@ void * Collide::timestep_thread(void * arg)
     
     for (vector<unsigned long>::iterator 
 	   i=c->bods.begin(); i!=c->bods.end(); i++) {
+
       // Current particle
+      //
       p = tree->Body(*i);
+
       // Compute time of flight criterion
-      DT = 1.0e40;
+      //
+      DT     = 1.0e40;
       mscale = 1.0e40;
       for (unsigned k=0; k<3; k++) {
-	DT = min<double>
-	  (pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
-	mscale = min<double>(pHOT::sides[k]*L, mscale);
+	DT     = std::min<double>(pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+	mscale = std::min<double>(pHOT::sides[k]*L, mscale);
       }
+
       // Size scale for multistep timestep calc.
+      //
       p->scale = mscale;
+
       // Compute cooling criterion timestep
+      //
       if (use_delt>=0) {
 	double v = p->dattrib[use_delt];
-	if (v>0.0) DT = min<double>(DT, v);
+	if (v>0.0) DT = min<double>(DT, coolfrac*v);
       }
-      
-      p->dtreq = coolfrac*DT;
+
+      p->dtreq = DT;
     }
   }
   

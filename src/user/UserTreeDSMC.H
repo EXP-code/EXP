@@ -142,6 +142,7 @@ class CollideIon;
     @param tspow is the power of two spacing between histogram bins in the cooling diagnostic (default: 4)
     @param nocool set to true turns off cooling for testing purposes
     @param use_effort set to true (default) uses the effort expended in computing the force per particle from DSMC to load balance the simulation
+    @param mfpts set to true (default) uses the mean free path to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
     @param tube set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is X
@@ -191,7 +192,7 @@ private:
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
-  bool sub_sample, treechk, mpichk;
+  bool sub_sample, treechk, mpichk, mfpts;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

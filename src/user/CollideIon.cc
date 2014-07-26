@@ -2105,6 +2105,7 @@ void CollideIon::Elost(double* collide, double* epsm)
     lostSoFar[n] = 0.0; 
   }
   *collide = ret1;
+  *epsm    = 0.0;		// EPSM to be implemented . . . 
 }
 
 
@@ -2115,13 +2116,11 @@ void * CollideIon::timestep_thread(void * arg)
   
   thread_timing_beg(id);
   
-  // Loop over cells, cell time-of-flight time
-  // for each particle
-  
+  // Loop over cells, cell time-of-flight time for each particle
+  //
   pCell *c;
   Particle *p;
-  double DT, mscale;
-  // double L;
+  double L, DT, mscale;
   
   // Loop over cells, processing collisions in each cell
   //
@@ -2130,7 +2129,8 @@ void * CollideIon::timestep_thread(void * arg)
     // Number of particles in this cell
     //
     c = cellist[id][j];
-    
+    L = c->Scale();
+ 
     double volc = c->Volume();
     
     sKeyDmap            densM, lambdaM, crossM;
@@ -2146,45 +2146,65 @@ void * CollideIon::timestep_thread(void * arg)
     
     double meanDens=0.0, meanLambda=0.0;
     
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      speciesKey i1 = it1->first;
-      crossM [i1] = 0.0;
-      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+    if (MFPTS) {
 
-	speciesKey i2 = it2->first;
-	double      N = UserTreeDSMC::Munit/(amu*atomic_weights[i2.first]);
+      for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+	speciesKey i1 = it1->first;
+	crossM [i1] = 0.0;
+	for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+	  
+	  speciesKey i2 = it2->first;
+	  double      N = UserTreeDSMC::Munit/amu;
+	  
+	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
+	  
+	  if (i2>=i1) {
+	    crossM[i1] += N*densM[i2] * crossIJ[i1][i2];
+	  } else
+	    crossM[i1] += N*densM[i2] * crossIJ[i2][i1];
+	}
 	
-	if (i2>=i1) {
-	  crossM[i1] += N*densM[i2] * crossIJ[i1][i2];
-	} else
-	  crossM[i1] += N*densM[i2] * crossIJ[i2][i1];
+	lambdaM[i1] = 1.0/crossM[i1];
+	meanDens   += densM[i1] ;
+	meanLambda += densM[i1] * lambdaM[i1];
       }
-      
-      lambdaM[i1] = 1.0/crossM[i1];
-      meanDens   += densM[i1] ;
-      meanLambda += densM[i1] * lambdaM[i1];
-    }
     
-    // This is the number density-weighted
-    meanLambda /= meanDens;
+      // This is the number density-weighted
+      meanLambda /= meanDens;
+    }
     
     for (vector<unsigned long>::iterator 
 	   i=c->bods.begin(); i!=c->bods.end(); i++) {
+
       // Current particle
+      //
       p = tree->Body(*i);
-      // Compute time of flight criterion
-      DT = 1.0e40;
+
+      // Compute time of flight criterion and assign cell scale to
+      // characteristic size
+      //
+      DT     = 1.0e40;
       mscale = 1.0e40;
+
       for (unsigned k=0; k<3; k++) {
-	DT = min<double>
-	  (meanLambda/(fabs(p->vel[k])+1.0e-40), DT);
+	DT     = std::min<double>(pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+	mscale = std::min<double>(pHOT::sides[k]*L, mscale);
       }
-      mscale = min<double>(meanLambda, mscale);
+
+      // Compute collision time criterion
+      //
+      if (MFPTS) {
+	for (unsigned k=0; k<3; k++) {
+	  DT = std::min<double>(meanLambda/(fabs(p->vel[k])+1.0e-40), DT);
+	}
+      }
 
       // Size scale for multistep timestep calc.
+      //
       p->scale = mscale;
 
       // Compute cooling criterion timestep
+      //
       if (use_delt>=0) {
 	double v = p->dattrib[use_delt];
 	if (v>0.0) DT = min<double>(DT, v);

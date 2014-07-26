@@ -29,16 +29,15 @@ struct thrd_pass_arguments
   //! Effective number of particles
   sKeyDmap *fn;
 
-  //! Time step
-  double tau;
-
   //! Thread counter id
   int id;
 };
 
 struct thrd_pass_Collide 
 {
+  //! Pointer to parent
   Collide *p;
+
   //! Arguments
   thrd_pass_arguments arg;
 };
@@ -49,15 +48,19 @@ struct tstep_pass_arguments
 {
   //! Pointer to iterator
   pHOT *tree;
+
   //! Cooling fraction
   double coolfrac;
+
   //! Thread counter id
   int id;
 };
 
 struct thrd_pass_tstep
 {
+  //! Pointer to parent
   Collide *p;
+
   //! Arguments
   tstep_pass_arguments arg;
 };
@@ -349,6 +352,9 @@ public:
   //! Accumulate mean free path diagnostics (default: false)
   static bool MFPDIAG;
   
+  //! Use a mean-free-path estimate of the local time step (default: false)
+  static bool MFPTS;
+  
   //! Augment effort value by work done in collisions (default: true)  
   static bool EFFORT;
   
@@ -406,6 +412,9 @@ public:
   virtual void
   set_Eint(int pos) { use_Eint=pos; }
   
+  virtual void
+  set_MFPTS(bool flag) { MFPTS = flag; }
+  
   virtual double getCoolingRate(int id) = 0;
   
   unsigned select() { unsigned t=seltot; seltot=0; return t; }
@@ -416,8 +425,7 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, sKeyDmap& Fn, double tau, int mlev=0, 
-		   bool diag=false);
+  unsigned collide(pHOT& cl, sKeyDmap& Fn, int mlev=0, bool diag=false);
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_,       vector<double>& coll_,
@@ -435,7 +443,7 @@ public:
   //@{
   //! Collision thread
   void *collide_thread(void *arg);
-  void collide_thread_fork(pHOT *tree, sKeyDmap* Fn, double tau);
+  void collide_thread_fork(pHOT *tree, sKeyDmap* Fn);
   //@}
   
   //@{

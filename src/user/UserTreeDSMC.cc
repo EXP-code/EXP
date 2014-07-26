@@ -91,6 +91,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   sub_sample = true;
   treechk    = false;
   mpichk     = false;
+  mfpts      = false;
 
 				// static initialization
   initialize_colltypes();
@@ -436,6 +437,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide->set_Kn    (use_Kn);
   collide->set_St    (use_St);
   collide->set_excess(use_exes);
+  collide->set_MFPTS (mfpts);
 
   ElostTotCollide = ElostTotEPSM = 0.0;
 
@@ -580,6 +582,7 @@ void UserTreeDSMC::initialize()
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
+  if (get_value("mfpts", val))		mfpts      = atol(val);
 
   if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
@@ -754,15 +757,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (msteps>=0) 
     diagstep = (mlevel <= static_cast<unsigned>(msteps)) ? true : false;
 
-  //
-  // Compute time step
-  //
-  // Now, DSMC is computed on the smallest step, every step
-  double tau = dtime*mintvl[multistep]/Mstep;
-
-
-  MPI_Bcast(&tau, 1, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-
   TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
   TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
   TimeElapsed collideSoFar;
@@ -895,7 +889,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Collide class instance.
   //
 
-  collide->collide(*c0->Tree(), collFrac, tau, mlevel, diagstep);
+  collide->collide(*c0->Tree(), collFrac, mlevel, diagstep);
     
   collideSoFar = clldeTime.stop();
 
@@ -1211,6 +1205,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     collide->gatherSpecies();
     (*barrier)("TreeDSMC: AFTER Collide::NTCgather",  __FILE__, __LINE__);
 
+    // Get level statistics from tree
+    //
+    (*barrier)("TreeDSMC: BEFORE pHOT::gatherCellLevelList",  __FILE__, __LINE__);
+    c0->Tree()->gatherCellLevelList();
+    (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",  __FILE__, __LINE__);
+
     if (myid==0) {
 
       unsigned sell_total = collide->select();
@@ -1256,7 +1256,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 		       << "EPSM particles ("
 		       << 100.0*epsm_total/c0->nbodies_tot << "%)" 
 		       << scientific << endl;
-      mout << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
+      mout << setw(6) << " " << setw(20) << mlevel     << "multi level" << endl
+	   << setw(6) << " " << setw(20) << medianNumb << "number/cell" << endl
 	   << setw(6) << " " << setw(20) << c0->Tree()->TotalNumber() 
 	   << "total # cells" << endl;
 
@@ -1502,6 +1503,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	   << " pCell # = " << pCellTot       << endl
 	   << "-----------------------------" << endl;
       
+
+      //
+      // Maximum levels for each cell
+      //
+      c0->Tree()->printCellLevelList(mout, "Cell time step levels");
     }
 
 

@@ -2621,22 +2621,62 @@ void pHOT::makeCellLevelList()
   }
 }
 
-void pHOT::printCellLevelList(ostream& out, const std::string& msg)
+void pHOT::gatherCellLevelList()
 {
   timer_diagdbg.start();
 
+  //
+  // Working vectors per node
+  //
   vector<unsigned> pcnt(multistep+1, 0);
+  vector<unsigned> plev(multistep+1, 0);
+  unsigned nlev = cc->particles.size();
+
+  //
+  // Enter data
+  //
   for (map<pCell*, unsigned>::iterator
 	 pit=clevlst.begin(); pit!=clevlst.end(); pit++) pcnt[pit->second]++;
 
+  for (unsigned M=0; M<=multistep; M++) plev[M] = CLevels(M).size();
+  
+  //
+  // Recv vectors; make sure space has been allocated.  std::vector is
+  // smart about this.
+  //
+  Pcnt.resize(multistep+1);
+  Plev.resize(multistep+1);
+
+  MPI_Reduce(&pcnt[0], &Pcnt[0], multistep+1, MPI_UNSIGNED, MPI_SUM, 0,
+	     MPI_COMM_WORLD);
+
+  MPI_Reduce(&plev[0], &Plev[0], multistep+1, MPI_UNSIGNED, MPI_SUM, 0,
+	     MPI_COMM_WORLD);
+
+  MPI_Reduce(&nlev,    &Nlev,    1,           MPI_UNSIGNED, MPI_SUM, 0,
+	     MPI_COMM_WORLD);
+
+  timer_diagdbg.stop();
+}
+
+void pHOT::printCellLevelList(ostream& out, const std::string& msg)
+{
+  // Sanity check
+
+  if (Pcnt.size() != Plev.size() || Pcnt.size() != multistep+1) return;
+
+  // OK
+
+  timer_diagdbg.start();
+
   out << msg << endl;
   out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ')
-      << "*** T=" << tnow << "  N=" << cc->particles.size() << endl
+      << "*** T=" << tnow << "  N=" << Nlev << endl
       << setw(10) << "M" << setw(10) << "number" 
       << setw(10) << "counts" << endl;
   for (unsigned M=0; M<=multistep; M++)
-    out << setw(10) << M << setw(10) << CLevels(M).size() 
-	<< setw(10) << pcnt[M] << endl;
+    out << setw(10) << M << setw(10) << Plev[M]
+	<< setw(10) << Pcnt[M] << endl;
   out << left << setw(60) << setfill('-') << "-" << endl << setfill(' ');
 
   timer_diagdbg.stop();
