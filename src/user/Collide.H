@@ -104,31 +104,41 @@ class Collide
 public:
   
   typedef pair<double, vector<double> > Precord;
+
+  //! Collide return tuple
+  typedef boost::tuple<unsigned, unsigned> UU;
   
 protected:
 
-  // Fiducial component
+  //! Fiducial component
   Component *c0;
 
-  // Calling force
+  //! Calling force
   ExternalForce *caller;
   
-  // Threading stuff
-  //
+  //! Return tuple; constant reference will be return by collide() to
+  //! caller
+  UU ret;
+
+  //@{
+  //! Threading stuff
+  int nthrds;
   thrd_pass_Collide *td;
   thrd_pass_tstep   *tdT;
   pthread_t *t;
+  //@}
   
-  // Pseudorandom generation
-  //
+  //@{
+  //! Pseudorandom generation
   ACG *gen;
   Uniform *unit;
   Normal *norm;
+  //@}
   
   vector<Precord> prec;
   
+  //@{
   // Timing and debug
-  //
   typedef std::list< std::pair<long, unsigned> > effortL;
 
   unsigned            ncells, bodycount, stepcount;
@@ -142,16 +152,18 @@ protected:
 
   boost::tuple<double, double, double> ntcRes;
   
-  // Quantile index function
-  //
+  //@}
+
+  //! Quantile index function
   unsigned Qi(double q, unsigned sz) {
     if (q>=1.0) return sz-1;
     if (q<=0.0) return 0;
     return (unsigned)floor(q*sz);
   }
   
-  //! For timing the fraction spent in threaded force methods
   //@{
+  //! For timing the fraction spent in threaded force methods
+
   vector<struct timeval> tv_list;
   vector<double> timer_list;
   
@@ -176,8 +188,9 @@ protected:
   }
   //@}
   
-  int nthrds;
-  
+  //@{
+  //! Diagnostic variables
+
   std::vector<unsigned> numcnt;
   std::vector<unsigned> selcnt;
   std::vector<unsigned> colcnt;
@@ -211,7 +224,13 @@ protected:
   std::vector<double> disptot;
   double masstot;
   double excessCtot, excessEtot;
+
+  //@}
+
   
+  //@{
+  //! Parameters set by caller and internally
+
   double   diamfac;
   double   hsdiam;
   unsigned seltot;
@@ -220,8 +239,12 @@ protected:
   unsigned epsmcells;
   unsigned errtot;
   unsigned numtot;
+  //@}
   
+  //@{
+  //! Runtime features set by caller
   int use_key, use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
+  //@}
   
   //! Initializes cross sections
   virtual void initialize_cell
@@ -425,7 +448,10 @@ public:
   unsigned cellN()  { return numtot; }
   unsigned medianNumber();
   unsigned medianColl();
-  unsigned collide(pHOT& cl, sKeyDmap& Fn, int mlev=0, bool diag=false);
+
+  //! Return the number of bodies at this level and the number of collisions
+  const UU& collide(pHOT& cl, sKeyDmap& Fn, int mlev=0, bool diag=false);
+  
   void collQuantile(vector<double>& quantiles, vector<double>& coll_);
   void mfpsizeQuantile(vector<double>& quantiles, vector<double>& mfp_, 
 		       vector<double>& ts_,       vector<double>& coll_,

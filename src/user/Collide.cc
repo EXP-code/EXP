@@ -505,8 +505,12 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
+const Collide::UU& 
+Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 {
+  boost::get<0>(ret) = 0;
+  boost::get<1>(ret) = 0;
+
   snglTime.start();
   // Initialize diagnostic counters
   // 
@@ -542,9 +546,16 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   }
   stepcount++;
   
-  if (totalbods>0 && DEBUG) {
+  // ret<0> Will contain sum of all particles at this level
+  //
+  MPI_Allreduce(&totalbods, &boost::get<0>(ret), 1, MPI_UNSIGNED, MPI_SUM, 
+		MPI_COMM_WORLD);
+
+  if (boost::get<0>(ret)==0) return ret;
+
+  if (DEBUG) {
     unsigned Tbods;
-    MPI_Reduce(&totalbods, &Tbods, 1, MPI_UNSIGNED, MPI_SUM, 0, 
+    MPI_Reduce(&boost::get<0>(ret), &Tbods, 1, MPI_UNSIGNED, MPI_SUM, 0, 
 	       MPI_COMM_WORLD);
 
     if (myid==0 && Tbods>0) {
@@ -567,7 +578,8 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
 	std::cout << "#" << std::setw(4) << std::left << myid << " | "
-		  << std::setw(6)  << mlevel << std::setw(10) << totalbods
+		  << std::setw(6)  << mlevel 
+		  << std::setw(10) << boost::get<0>(ret)
 		  << std::setw(10) << dtime
 		  << std::endl << std::right;
       }
@@ -610,8 +622,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   forkSoFar = forkTime.stop();
   
   snglTime.start();
-  unsigned col = 0;
-  if (diag) col = post_collide_diag();
+  if (diag) boost::get<1>(ret) = post_collide_diag();
   snglSoFar = snglTime.stop();
   
   // Effort diagnostics
@@ -675,7 +686,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   
   caller->print_timings("Collide: collision thread timings", timer_list);
   
-  return( col );
+  return ret;
 }
 
 void Collide::dispersion(vector<double>& disp)
@@ -808,7 +819,7 @@ void * Collide::collide_thread(void * arg)
     
     // Timestep for this cell
     //
-    double tau = dtime * c->maxplev / Mstep;
+    double tau = dtime / (1<<c->maxplev);
 
     // Volume in the cell
     //
