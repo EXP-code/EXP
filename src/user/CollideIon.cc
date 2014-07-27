@@ -2531,8 +2531,9 @@ void collDiag::print()
     std::ofstream out(coll_file_debug.c_str(), ios::out | ios::app);
     out << std::scientific << std::setprecision(3);
     if (out) {
-      double Etot = 0.0;
-      double cvrt = eV/UserTreeDSMC::Eunit;
+      double Etot   = 0.0;
+      double volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
+      double cvrt   = eV/UserTreeDSMC::Eunit/volume;
       out << std::setw(12) << tnow 
 	  << std::setw(12) << p->tempM << " | ";
       for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
