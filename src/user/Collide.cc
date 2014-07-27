@@ -2497,11 +2497,9 @@ void * Collide::timestep_thread(void * arg)
       //
       DT     = 1.0e40;
       mscale = 1.0e40;
-      for (unsigned k=0; k<3; k++) {
-	DT     = std::min<double>(pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
+      for (unsigned k=0; k<3; k++)
 	mscale = std::min<double>(pHOT::sides[k]*L, mscale);
-      }
-
+      
       // Size scale for multistep timestep calc.
       //
       p->scale = mscale;

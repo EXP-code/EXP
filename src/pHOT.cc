@@ -23,7 +23,7 @@
 static bool DEBUG_NOISY   = false;
 
 // Debugging that checks internal lists
-static bool DEBUG_CHECK   = true;
+static bool DEBUG_CHECK   = false;
 
 // Extra-verbose output with internal checking
 static bool DEBUG_EXTRA   = false;

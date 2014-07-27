@@ -844,7 +844,7 @@ void ComponentContainer::print_level_list_header()
 	  << ": fraction with dt=|v|/|a|" << endl
 	  << setw(15) << "f(r/a)" 
 	  << ": fraction with dt=sqrt(|r|/|a|)" << endl
-	  << setw(15) << "f(ext)"
+	  << setw(15) << "f(int)"
 	  << ": fraction with dt=dt(internal)" << endl;
     else
       out << left  << setw(15) << "r" 
@@ -857,7 +857,7 @@ void ComponentContainer::print_level_list_header()
 	  << ": fraction with dt=|v|/|a|" << endl
 	  << setw(15) << "f(r/a)" 
 	  << ": fraction with dt=sqrt(|phi|/|a*a|)" << endl
-	  << setw(15) << "f(ext)"
+	  << setw(15) << "f(int)"
 	  << ": fraction with dt=dt(internal)" << endl;
     
     out << endl

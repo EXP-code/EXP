@@ -1416,7 +1416,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   // Time step "cooling" diagnostic
   //
   if (use_delt>=0 && delE>0.0 && remE>0.0) {
-    double dtE = delE/remE * spTau[id];
+    double dtE = remE/delE * spTau[id];
     double dt1 = p1->dattrib[use_delt];
     double dt2 = p2->dattrib[use_delt];
     p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
@@ -1999,7 +1999,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   // Time step "cooling" diagnostic
   //
   if (use_delt>=0 && delE>0.0 && remE>0.0) {
-    double dtE = delE/remE * spTau[id];
+    double dtE = remE/delE * spTau[id];
     double dt1 = p1->dattrib[use_delt];
     double dt2 = p2->dattrib[use_delt];
     p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
@@ -2186,17 +2186,18 @@ void * CollideIon::timestep_thread(void * arg)
       DT     = 1.0e40;
       mscale = 1.0e40;
 
+      double vtot = 0.0;
       for (unsigned k=0; k<3; k++) {
-	DT     = std::min<double>(pHOT::sides[k]*L/(fabs(p->vel[k])+1.0e-40), DT);
 	mscale = std::min<double>(pHOT::sides[k]*L, mscale);
+	vtot += p->vel[k]*p->vel[k];
       }
-
+      vtot = sqrt(vtot) + 1.0e-40;
+      
       // Compute collision time criterion
       //
       if (MFPTS) {
-	for (unsigned k=0; k<3; k++) {
-	  DT = std::min<double>(meanLambda/(fabs(p->vel[k])+1.0e-40), DT);
-	}
+	for (unsigned k=0; k<3; k++)
+	  DT = std::min<double>(meanLambda/vtot, DT);
       }
 
       // Size scale for multistep timestep calc.
