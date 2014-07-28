@@ -29,6 +29,7 @@ using namespace std;
 // Debugging check
 //
 static bool sampcel_debug = false;
+static bool levelst_debug = false;
 
 //
 // Simulation units
@@ -680,30 +681,43 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     c0->Tree()->Repartition(0); nrep++;
     c0->Tree()->makeTree();
     c0->Tree()->makeCellLevelList();
-#ifdef DEBUG
-    if (!c0->Tree()->checkBodycell()) {
-      cout << "Process " << myid << ": "
-	   << "makeTree completed: body cell check FAILED!" << endl;
-    }    
-    if (!c0->Tree()->checkParticles(cout)) {
-      cout << "Process " << myid << ": "
-	   << "makeTree completed: initial particle check FAILED!" << endl;
-    }    
-    if (!c0->Tree()->checkFrontier(cout)) {
-      cout << "Process " << myid << ": "
-	   << "makeTree completed: frontier check FAILED!" << endl;
+
+    //
+    // Extreme debugging
+    //
+    if (levelst_debug) {
+
+      std::ostringstream sout;
+      sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	   << ": ERROR bodycell after tree build , T=" << tnow 
+	   << " at level [" << mlevel << "]";
+
+      if (!c0->Tree()->checkBodycell(sout.str())) {
+	cout << "Process " << myid << ": "
+	     << "makeTree completed: body cell check FAILED!" << endl;
+      }    
+      if (!c0->Tree()->checkParticles(cout, sout.str())) {
+	cout << "Process " << myid << ": "
+	     << "makeTree completed: initial particle check FAILED!" << endl;
+      }    
+      if (!c0->Tree()->checkFrontier(cout, sout.str())) {
+	cout << "Process " << myid << ": "
+	     << "makeTree completed: frontier check FAILED!" << endl;
+      }
+
+      if (!c0->Tree()->checkKeybods(sout.str())) {
+	cout << "Process " << myid 
+	     << ": makeTree: ERROR particle key not in keybods AFTER makeTree(), T=" 
+	     << tnow << endl;
+      }
     }
 
-    if (!c0->Tree()->checkKeybods()) {
-      cout << "Process " << myid 
-	   << ": makeTree: ERROR particle key not in keybods AFTER makeTree(), T=" 
-	   << tnow << endl;
-    }
-#endif
     if (sampcel_debug) {
-      ostringstream sout;
-      sout << "after MAKE tree, first time, "
+      std::ostringstream sout;
+      sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	   << ": AFTER makeTree(), first time, "
 	   << "[" << 0 << ", " << tnow  << "]";
+
       c0->Tree()->checkSampleCells(sout.str().c_str());
       c0->Tree()->logFrontierStats();
     }
@@ -749,12 +763,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Only run diagnostics every nsteps
   //
-  bool diagstep = (nsteps>0 && mstep%nsteps == 0);
+  bool diagstep = nsteps>0 && (mstep % nsteps == 0);
 
   //
   // Diagnostics run at levels <= msteps (takes prececdence over nsteps)
   //
-  if (msteps>=0) 
+  if (msteps>=0 && diagstep) 
     diagstep = (mlevel <= static_cast<unsigned>(msteps)) ? true : false;
 
   TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
@@ -809,9 +823,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
 #endif
     if (sampcel_debug) {
-      ostringstream sout;
-      sout << "after MAKE tree at level "
-	   << "[" << mlevel << ", " << tnow  << "]";
+      std::ostringstream sout;
+      sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	   << ": after makeTree(), T=" << tnow 
+	   << " at level [" << mlevel << "]";
+
       c0->Tree()->checkSampleCells(sout.str().c_str());
       c0->Tree()->logFrontierStats();
     }
@@ -844,9 +860,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     wait2SoFar = tree2Wait.stop();
 
     if (sampcel_debug) {
-      ostringstream sout;
-      sout << "after ADJUST tree at level "
+      std::ostringstream sout;
+      sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	   << "after adjustTree() at level "
 	   << "[" << mlevel << ", " << tnow  << "]";
+
       c0->Tree()->checkSampleCells(sout.str().c_str());
     }
 
@@ -889,8 +907,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Collide class instance.
   //
 
-  const Collide::UU& ret = 
-    collide->collide(*c0->Tree(), collFrac, mlevel, diagstep);
+  const Collide::UU&
+    CC = collide->collide(*c0->Tree(), collFrac, mlevel, diagstep);
+
+  // Collide:UU is a boost::tuple<unsigned, unsigned>
+  //
+  // Tuple_0 is the body count at this level
+  // Tuple_1 is the collision count
     
   collideSoFar = clldeTime.stop();
 
@@ -903,54 +926,97 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 
   waitcSoFar = clldeWait.stop();
 
+  // -----------------
+  // Time step request
+  // -----------------
+  //
+  // New timesteps are selected for the cells based on the collision
+  // diagnostics from the current step.
+  //
+
+#ifdef USE_GPTL
+  GPTLstart("UserTreeDSMC::collide_timestep");
+#endif
+    
+  (*barrier)("TreeDSMC: before collide timestep", __FILE__, __LINE__);
+    
+  tstepTime.start();
+  if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
+  tstepSoFar = tstepTime.stop();
+    
+#ifdef USE_GPTL
+  GPTLstop("UserTreeDSMC::collide_timestep");
+#endif
+    
+  //
+  // Repartition and remake the tree after first step to adjust load
+  // balancing for work queue effort method
+  //
+  if (firstime && use_effort && mlevel==0) {
+    c0->Tree()->Repartition(0); nrep++;
+    c0->Tree()->makeTree();
+    c0->Tree()->makeCellLevelList();
+  }
+  
+  firstime = false;
+    
+
+  // Remake level lists because particles will (usually) have been
+  // exchanged between nodes
+  //
+  // Begin with extreme debugging, if enabled
+  //
+  if (levelst_debug) {
+
+    std::ostringstream sout;
+    sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	 << ": ERROR bodycell after remaking level lists , T=" << tnow 
+	 << " at level [" << mlevel << "]";
+
+    if (!c0->Tree()->checkParticles(cout, sout.str())) {
+      cout << "Before level list: Particle check FAILED [" << right
+	   << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
+    }
+  }
+
+  if (sampcel_debug) {
+    std::ostringstream sout;
+    sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	 << ", before LEVEL LIST at level "
+	 << "[" << mlevel << ", " << tnow  << "]";
+    c0->Tree()->checkSampleCells(sout.str().c_str());
+  }
+  
+  llistTime.start();
+  c0->reset_level_lists();
+  llistTime.stop();
+    
+  // Finish with extreme debugging, if enabled
+  //
+  if (levelst_debug) {
+    std::ostringstream sout;
+    sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
+	 << ": ERROR bodycell after resetting level lists , T=" << tnow 
+	 << " at level [" << mlevel << "]";
+
+    if (!c0->Tree()->checkParticles(cout, sout.str())) {
+      cout << "After level list: Particle check FAILED [" << right
+	   << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
+      
+    }
+  }
+
+  //
+  // Periodically display the current progress
   //
   // Only makes sense to perform the following diagnostics and updates
   // if there are particles in cells whose interactions will be
   // computed at this level
-
-  if (boost::get<0>(ret)>0 || mlevel==0) {
-
-    // -----------------
-    // Time step request
-    // -----------------
-    //
-    // New timesteps are selected for the cells based on the collision
-    // diagnostics from the current step.
-    //
-
-#ifdef USE_GPTL
-    GPTLstart("UserTreeDSMC::collide_timestep");
-#endif
-
+  //
+  // Lots of diagnostics are computed and emitted here . . .
+  //
+  if (diagstep && boost::get<0>(CC)>0) {
     
-    (*barrier)("TreeDSMC: before collide timestep", __FILE__, __LINE__);
-    
-    tstepTime.start();
-    if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
-    tstepSoFar = tstepTime.stop();
-    
-#ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::collide_timestep");
-#endif
-    
-    //
-    // Repartition and remake the tree after first step to adjust load
-    // balancing for work queue effort method
-    //
-    if (firstime && use_effort && mlevel==0) {
-      c0->Tree()->Repartition(0); nrep++;
-      c0->Tree()->makeTree();
-      c0->Tree()->makeCellLevelList();
-    }
-    
-    firstime = false;
-    
-    //
-    // Periodically display the current progress
-    //
-    // Lots of diagnostics are computed and emitted here . . .
-    //
-    if (diagstep) {
 #ifdef USE_GPTL
       GPTLstart("UserTreeDSMC::collide_diag");
 #endif
@@ -1432,6 +1498,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 			     499, 799, 899, 949, 979, 989, 994, 998};
 	  
 	  // Cumulate
+	  //
 	  for (int i=1; i<ebins; i++) efrt[i] += efrt[i-1];
 	  if (efrt[ebins-1]>0) {
 	    double norm = 1.0/efrt[ebins-1];
@@ -1518,7 +1585,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	c0->Tree()->printCellLevelList(mout, "Cell time step levels");
       }
       
-      
       //
       // Reset the collide counters (CollideIon)
       //
@@ -1526,66 +1592,34 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       collide->resetColls();
       (*barrier)("TreeDSMC: AFTER collide counters", __FILE__, __LINE__);
       
+      //
+      // Reset the timers
+      //
+      partnTime.reset();
+      tree1Time.reset();
+      tradjTime.reset();
+      tcellTime.reset();
+      tstepTime.reset();
+      llistTime.reset();
+      clldeTime.reset();
+      timerDiag.reset();
+      partnWait.reset();
+      tree1Wait.reset();
+      tree2Wait.reset();
+      clldeWait.reset();
+
 #ifdef USE_GPTL
       GPTLstop("UserTreeDSMC::collide_diag");
 #endif
-      
-    }
     
-#ifdef DEBUG
-    if (!c0->Tree()->checkParticles(cout)) {
-      cout << "Before level list: Particle check FAILED [" << right
-	   << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
-    }
-#endif
-    if (sampcel_debug) {
-      ostringstream sout;
-      sout << "before LEVEL LIST at level "
-	   << "[" << mlevel << ", " << tnow  << "]";
-      c0->Tree()->checkSampleCells(sout.str().c_str());
-    }
-    
-    (*barrier)("TreeDSMC: after collision diags", __FILE__, __LINE__);
-    
-    // Remake level lists because particles
-    // will (usually) have been exchanged 
-    // between nodes
-    llistTime.start();
-    c0->reset_level_lists();
-    llistTime.stop();
-    
-#ifdef DEBUG
-    if (!c0->Tree()->checkParticles(cout)) {
-      cout << "After level list: Particle check FAILED [" << right
-	   << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
-      
-    }
-#endif
-    
-#ifdef USE_GPTL
-    GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
-#endif
-    
+      (*barrier)("TreeDSMC: after collision diags", __FILE__, __LINE__);
   }
+
   
-      
-  //
-  // Reset the timers
-  //
-  partnTime.reset();
-  tree1Time.reset();
-  tradjTime.reset();
-  tcellTime.reset();
-  tstepTime.reset();
-  llistTime.reset();
-  clldeTime.reset();
-  timerDiag.reset();
-  partnWait.reset();
-  tree1Wait.reset();
-  tree2Wait.reset();
-  clldeWait.reset();
-
-
+#ifdef USE_GPTL
+  GPTLstop("UserTreeDSMC::determine_acceleration_and_potential");
+#endif
+    
   // Debugging disk
   //
   // triggered_cell_body_dump(0.01, 0.002);

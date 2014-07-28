@@ -116,10 +116,6 @@ protected:
   //! Calling force
   ExternalForce *caller;
   
-  //! Return tuple; constant reference will be return by collide() to
-  //! caller
-  UU ret;
-
   //@{
   //! Threading stuff
   int nthrds;
@@ -135,8 +131,12 @@ protected:
   Normal *norm;
   //@}
   
+  //! Cell diagnostic records indexed by thread
   vector<Precord> prec;
   
+  //! collide return counters
+  UU ret;
+
   //@{
   // Timing and debug
   typedef std::list< std::pair<long, unsigned> > effortL;
