@@ -505,9 +505,13 @@ void Collide::debug_list(pHOT& tree)
 }
 
 
-unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
+const Collide::UU&
+Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 {
+  boost::get<0>(ret) = boost::get<1>(ret) = 0;
+
   snglTime.start();
+
   // Initialize diagnostic counters
   // 
   if (diag) pre_collide_diag();
@@ -519,6 +523,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   set<pCell*>::iterator ic, icb, ice;
   
   // For debugging
+  //
   unsigned nullcell = 0, totalcell = 0, totalbods = 0;
   
   for (unsigned M=mlevel; M<=multistep; M++) {
@@ -542,32 +547,37 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   }
   stepcount++;
   
-  if (totalbods>0 && DEBUG) {
-    unsigned Tbods;
-    MPI_Reduce(&totalbods, &Tbods, 1, MPI_UNSIGNED, MPI_SUM, 0, 
-	       MPI_COMM_WORLD);
+  // ret<0> Will contain sum of all particles at this level
+  //
+  MPI_Allreduce(&totalbods, &boost::get<0>(ret), 1, MPI_UNSIGNED, MPI_SUM, 
+		MPI_COMM_WORLD);
 
-    if (myid==0 && Tbods>0) {
+  if (boost::get<0>(ret)==0) return ret;
+
+  if (DEBUG) {
+
+    if (myid==0) {
       std::cout << std::endl << "***" << std::endl << std::left 
 		<< "*** T = "  << std::setw(10) << tnow 
 		<< " Level = " << std::setw(10) << mlevel
-		<< " Nbods = " << std::setw(10) << Tbods 
+		<< " Nbods = " << std::setw(10) << boost::get<0>(ret)
 		<< " dT = "    << dtime << std::endl
 		<< "***" << std::endl;
-    }
 
-    if (myid==0) std::cout << std::endl << std::string(60, '-') << std::endl
-			   << std::left 
-			   << std::setw(8)  << "Node"
-			   << std::setw(6)  << "Level"
-			   << std::setw(10) << "Bodies"
-			   << std::setw(10) << "dT"
-			   << std::endl << std::string(60, '-') << std::endl;
+      std::cout << std::endl << std::string(60, '-') << std::endl
+		<< std::left 
+		<< std::setw(8)  << "Node"
+		<< std::setw(6)  << "Level"
+		<< std::setw(10) << "Bodies"
+		<< std::setw(10) << "dT"
+		<< std::endl << std::string(60, '-') << std::endl;
+    }
 		 
     for (int n=0; n<numprocs; n++) {
       if (myid==n) {
 	std::cout << "#" << std::setw(4) << std::left << myid << " | "
-		  << std::setw(6)  << mlevel << std::setw(10) << totalbods
+		  << std::setw(6)  << mlevel 
+		  << std::setw(10) << totalbods
 		  << std::setw(10) << dtime
 		  << std::endl << std::right;
       }
@@ -596,13 +606,13 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   if (mlevel==0) effortAccum = true;
   
   forkTime.start();
-  if (0) {
+  if (0 && totalbods) {
     ostringstream sout;
     sout << "before fork, " << __FILE__ << ": " << __LINE__;
     tree.checkBounds(2.0, sout.str().c_str());
   }
   collide_thread_fork(&tree, &Fn);
-  if (0) {
+  if (0 && totalbods) {
     ostringstream sout;
     sout << "after fork, " << __FILE__ << ": " << __LINE__;
     tree.checkBounds(2.0, sout.str().c_str());
@@ -610,8 +620,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   forkSoFar = forkTime.stop();
   
   snglTime.start();
-  unsigned col = 0;
-  if (diag) col = post_collide_diag();
+  if (diag) boost::get<1>(ret) = post_collide_diag();
   snglSoFar = snglTime.stop();
   
   // Effort diagnostics
@@ -702,7 +711,7 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   
   caller->print_timings("Collide: collision thread timings", timer_list);
   
-  return( col );
+  return ret;
 }
 
 void Collide::dispersion(vector<double>& disp)
@@ -835,7 +844,7 @@ void * Collide::collide_thread(void * arg)
     
     // Timestep for this cell
     //
-    double tau = dtime * c->maxplev / Mstep;
+    double tau = dtime / (1<<c->maxplev);
 
     // Volume in the cell
     //
