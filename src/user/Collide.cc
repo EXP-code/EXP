@@ -617,56 +617,83 @@ unsigned Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   // Effort diagnostics
   //
   if (mlevel==0 && EFFORT && effortAccum) {
-    
-    // Write to the file in node order
+
     std::list< std::pair<long, unsigned> >::iterator it;
-    std::ostringstream ostr;
-    ostr << outdir << runtag << ".collide.effort";
-    for (int i=0; i<numprocs; i++) {
-      if (myid==i) {
-	ofstream out(ostr.str().c_str(), ios::app);
-	if (out) {
-	  static bool firstTime = true;
-	  if (firstTime and myid==0) {
-	    out << std::setw( 6) << "Pid"
-		<< std::setw(18) << "Time"
-		<< std::setw(18) << "Mean(musec)"
-		<< std::setw(18) << "Var(musec)"
-		<< std::setw(18) << "Counts"
-		<< std::endl
-		<< std::setw( 6) << "-----"
-		<< std::setw(18) << "----------"
-		<< std::setw(18) << "----------"
-		<< std::setw(18) << "----------"
-		<< std::setw(18) << "----------"
-		<< std::endl;
-	  }
-	  double mean=0.0, var2=0.0, cnts=0.0;
-	  for (int n=0; n<nthrds; n++) {
-	    for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++) {
-	      double val = static_cast<double>(it->first)/it->second;
-	      mean += val;
-	      var2 += val*val;
-	      cnts += 1;
-	    }
-	  }
-	  if (cnts>0.0) {
-	    mean /= cnts;
-	    var2  = var2/cnts - mean*mean;
-	  }
-	  out << std::setw( 6) << myid
-	      << std::setw(18) << tnow
-	      << std::setw(18) << mean
-	      << std::setw(18) << sqrt(fabs(var2))
-	      << std::setw(18) << cnts
-	      << std::endl;
-	} else {
-	  cerr << "Process " << myid 
-	       << ": error opening <" << ostr.str() << ">" << endl;
-	}
+    
+    // Compute summary statistics
+    //
+    double mean=0.0, var2=0.0, cnts=0.0;
+    for (int n=0; n<nthrds; n++) {
+      for (it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++) {
+	double val = static_cast<double>(it->first)/it->second;
+	mean += val;
+	var2 += val*val;
+	cnts += 1;
       }
-      MPI_Barrier(MPI_COMM_WORLD);
     }
+
+    if (cnts>0.0) {
+      mean /= cnts;
+      var2  = var2/cnts - mean*mean;
+    }
+
+    // Send into to root
+    //
+    std::vector<double> mean_all(numprocs);
+    MPI_Gather(&mean, 1, MPI_DOUBLE, &mean_all[0], 1, MPI_DOUBLE, 0,
+	       MPI_COMM_WORLD);
+
+    std::vector<double> var2_all(numprocs);
+    MPI_Gather(&var2, 1, MPI_DOUBLE, &var2_all[0], 1, MPI_DOUBLE, 0,
+	       MPI_COMM_WORLD);
+
+    std::vector<double> cnts_all(numprocs);
+    MPI_Gather(&cnts, 1, MPI_DOUBLE, &cnts_all[0], 1, MPI_DOUBLE, 0,
+	       MPI_COMM_WORLD);
+
+    if (myid==0) {
+      //
+      // Write to the file in node order
+      //
+      std::ostringstream ostr;
+      ostr << outdir << runtag << ".collide.effort";
+      ofstream out(ostr.str().c_str(), ios::app);
+
+      if (out) {
+	static bool firstTime = true;
+
+	if (firstTime) {
+	  out << std::setw( 6) << "Pid"
+	      << std::setw(18) << "Time"
+	      << std::setw(18) << "Mean(musec)"
+	      << std::setw(18) << "Var(musec)"
+	      << std::setw(18) << "Counts"
+	      << std::endl
+	      << std::setw( 6) << "-----"
+	      << std::setw(18) << "----------"
+	      << std::setw(18) << "----------"
+	      << std::setw(18) << "----------"
+	      << std::setw(18) << "----------"
+	      << std::endl;
+
+	  firstTime = false;
+	}
+      
+	for (int i=0; i<numprocs; i++) {
+	  out << std::setw( 6) << i
+	      << std::setw(18) << tnow
+	      << std::setw(18) << mean_all[i]
+	      << std::setw(18) << sqrt(fabs(var2_all[i]))
+	      << std::setw(18) << cnts_all[i]
+	      << std::endl;
+	}
+
+      } else {
+	cerr << "Process " << myid 
+	     << ": error opening <" << ostr.str() << ">" << endl;
+      }
+    }
+
     // Reset the list
     effortAccum = false;
     for (int n=0; n<nthrds; n++) 
