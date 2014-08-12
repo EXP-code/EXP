@@ -50,8 +50,8 @@ dnl ==========================================================================
 dnl Look for lapack and blas
 dnl ==========================================================================
 
-ACX_BLAS
-ACX_LAPACK
+AX_BLAS
+AX_LAPACK
 
 dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation

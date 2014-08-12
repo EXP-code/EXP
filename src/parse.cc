@@ -83,9 +83,19 @@ void initialize(void)
     else global_cov = false;
   }
 
+  if (parse->find_item("barrier_check", val)) {
+    if (atoi(val.c_str())) barrier_check = true;
+    else barrier_check = false;
+  }
+
   if (parse->find_item("barrier_debug", val)) {
     if (atoi(val.c_str())) barrier_debug = true;
     else barrier_debug = false;
+  }
+
+  if (parse->find_item("barrier_extra", val)) {
+    if (atoi(val.c_str())) barrier_extra = true;
+    else barrier_extra = false;
   }
 
   if (parse->find_item("barrier_label", val)) {

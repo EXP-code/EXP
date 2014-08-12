@@ -49,6 +49,8 @@ void ComponentContainer::initialize(void)
 {
   Component *c, *c1;
 
+  (*barrier)("ComponentContainer::initialize: BEGIN", __FILE__, __LINE__);
+ 
 				// Set centerlevl variable
 
   if (centerlevl < 0) centerlevl = multistep/2;
@@ -255,7 +257,7 @@ void ComponentContainer::initialize(void)
     cout << "\n";
   }
 
-  
+  (*barrier)("ComponentContainer::initialize: FINISH", __FILE__, __LINE__);
 }
 
 

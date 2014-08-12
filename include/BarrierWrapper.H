@@ -62,6 +62,7 @@ public:
   //! Debugging output flag
   static bool   verbose;
   static bool   extra_verbose;
+  static bool   debugging;
   //@}
 
   //! Loop wait in microseconds for heavy operator mode (default: 100)

@@ -21,6 +21,8 @@ ExternalCollection::ExternalCollection(void)
 
 void ExternalCollection::initialize()
 {
+  (*barrier)("ExternalCollection::initialize: BEGIN", __FILE__, __LINE__);
+
   spair data;
 
   dynamicload();
@@ -77,6 +79,7 @@ void ExternalCollection::initialize()
 
   }
 
+  (*barrier)("ExternalCollection::initialize: FINISH", __FILE__, __LINE__);
 }
 
 ExternalCollection::~ExternalCollection(void)

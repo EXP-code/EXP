@@ -16,6 +16,7 @@ template <typename T> int sgn(T val) {
 
 UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
 {
+  (*barrier)("Periodic: BEGIN construction", __FILE__, __LINE__);
 
   id = "PeriodicBC";		// Periodic boundary condition ID
 
@@ -91,6 +92,8 @@ UserPeriodic::UserPeriodic(string &line) : ExternalForce(line)
   atomic_weights[10] = 20.180;
   atomic_weights[11] = 22.990;
   atomic_weights[12] = 24.305;
+
+  (*barrier)("Periodic: END construction", __FILE__, __LINE__);
 }
 
 UserPeriodic::~UserPeriodic()

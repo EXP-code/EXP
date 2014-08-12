@@ -348,12 +348,16 @@ main(int argc, char** argv)
   //==================
 
   barrier = new BarrierWrapper(MPI_COMM_WORLD, barrier_label);
-  if (barrier_debug) barrier->on();
+  if (barrier_check) barrier->on();
   else               barrier->off();
   if (barrier_light) barrier->setLightWeight();
   else               barrier->setHeavyWeight();
-  if (barrier_quiet) BarrierWrapper::verbose = false;
-  else               BarrierWrapper::verbose = true;
+  if (barrier_quiet) BarrierWrapper::verbose       = false;
+  else               BarrierWrapper::verbose       = true;
+  if (barrier_extra) BarrierWrapper::extra_verbose = true;
+  else               BarrierWrapper::extra_verbose = false;
+  if (barrier_debug) BarrierWrapper::debugging     = true;
+  else               BarrierWrapper::debugging     = false;
 
   //================
   // Nice process ? 
@@ -366,7 +370,9 @@ main(int argc, char** argv)
   // Read in points and initialize expansion grid 
   //==============================================
 
+  (*barrier)("Expand: BEFORE begin_run", __FILE__, __LINE__);
   begin_run();
+  (*barrier)("Expand: AFTER begin_run", __FILE__, __LINE__);
 
   try {
 

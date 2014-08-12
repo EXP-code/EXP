@@ -26,7 +26,10 @@ int    BarrierWrapper::lnOper;
 bool   BarrierWrapper::light         = false;
 				// Debugging info
 bool   BarrierWrapper::verbose       = true;
+				// Extra checking
 bool   BarrierWrapper::extra_verbose = false;
+				// Debugging info
+bool   BarrierWrapper::debugging     = false;
 				// Expiration timers
 int    BWData::dt1                   = 5;
 int    BWData::dt2                   = 20;
@@ -208,7 +211,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 				// Check for command
     MPI_Test(&req, &good, &status);
 				// For debugging this class!
-    if (0) {
+    if (debugging) {
       std::cout << "#" << std::setw(4) << std::left << localid;
       for (std::map<std::string, BWData>::iterator 
 	     it = pending.begin(); it != pending.end(); it++) 

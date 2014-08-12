@@ -113,7 +113,9 @@ string restart_cmd;
 MPI_Datatype MPI_EXP_KEYTYPE;
 
 BarrierWrapper *barrier = 0;
+bool barrier_check = false;
 bool barrier_debug = false;
+bool barrier_extra = false;
 bool barrier_label = true;
 bool barrier_light = false;
 bool barrier_quiet = true;

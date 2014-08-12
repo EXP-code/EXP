@@ -129,7 +129,7 @@ public:
 
   //! Print line
   void printLine(unsigned short NZ, unsigned short NE, int I, int L,
-		 const std::string& file) throw();
+		 const std::string& file);
 
 };
 

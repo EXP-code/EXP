@@ -274,8 +274,14 @@ extern MPI_Datatype MPI_EXP_KEYTYPE;
 //! Barrier instance for debugging
 extern BarrierWrapper *barrier;
 
-//! Turn on Barrier debugging
+//! Turn on Barrier check debugging
+extern bool barrier_check;
+
+//! Turn on Barrier check debugging
 extern bool barrier_debug;
+
+//! Turn on Barrier extra debugging
+extern bool barrier_extra;
 
 //! Barrier label checking
 extern bool barrier_label;
