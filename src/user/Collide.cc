@@ -720,10 +720,9 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 	  cerr << "Process " << myid 
 	       << ": error opening <" << ostr.str() << ">" << endl;
 	}
+      }
 
-      } // root node output block
-
-      // Reset the effor accumulation list
+      // Reset the list
       //
       effortAccum = false;
       for (int n=0; n<nthrds; n++) 

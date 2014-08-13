@@ -117,6 +117,6 @@ bool barrier_check = false;
 bool barrier_debug = false;
 bool barrier_extra = false;
 bool barrier_label = true;
-bool barrier_light = false;
+bool barrier_light = true;
 bool barrier_quiet = true;
 
