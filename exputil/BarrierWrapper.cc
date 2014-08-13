@@ -53,6 +53,8 @@ BarrierWrapper::BarrierWrapper(MPI_Comm communicator, bool label)
     bufferT   = new char [cbufsz*commsize];
   timer.Microseconds();
   onoff       = true;
+  nrecv       = 0;
+  queued      = 0;
 }
 
 BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
@@ -68,6 +70,8 @@ BarrierWrapper::BarrierWrapper(const BarrierWrapper &p)
   if (localid==0) 
     bufferT   = new char [cbufsz*commsize];
   timer.Microseconds();
+  nrecv       = 0;
+  queued      = 0;
 }
 
 BarrierWrapper::~BarrierWrapper()
@@ -134,6 +138,64 @@ void BarrierWrapper::light_operator(const string& label,
 }
 
 
+// This loop defeats the purpose of this entire class and should ONLY
+// be used for debugging
+//
+void BarrierWrapper::syncTest(const std::string& mesg, const std::string& label)
+{
+  for (int n=0; n<commsize; n++) {
+    if (n == localid) {
+      std::cout << std::left << std::setw(30) << mesg
+		<< " {" << std::setw(5) << localid
+		<< " name=" << label
+		<< "} " << std::endl;
+    }
+    MPI_Barrier(comm);
+  }
+}
+
+
+void BarrierWrapper::updateMap(InfoPtr p)
+{
+  // Enter our own data into the pending map
+  //
+  std::map<std::string, BWPtr>::iterator ipend = pending.find(p->s);
+  if (ipend == pending.end()) { 
+				// No, ADD it
+				// 
+    pending[p->s] = BWPtr(new BWData(p, commsize));
+
+    nrecv  += commsize - 1;	// Expect a receive from each of the
+    queued += commsize - 1;	// other nodes
+
+    if (debugging) {
+      std::cout << "Node " << std::setw(4) << localid << " has "
+		<< nrecv << " queued receives and buffer count of "
+		<< queued << " at <" << p->s << ">"
+		<< std::endl;
+    }
+
+  } else {
+				// Update local info and increment
+				// counter
+    ipend->second->Add(p);
+
+  }
+
+  if (nrecv) {			// More left to go . . .queue another
+				// receive
+    CharPtr cptr(new char [Info::bufsz]);
+    ReqPtr  rptr(new MPI_Request);
+
+    req.push_back(RecvElem(cptr, rptr));
+    MPI_Irecv(cptr.get(), Info::bufsz, MPI_CHAR, MPI_ANY_SOURCE, Info::tag, 
+	      comm, rptr.get());
+    nrecv--;
+  }
+
+}
+
+
 void BarrierWrapper::heavy_operator(const string& label, 
 				    const char* file, const int line)
 {
@@ -150,12 +212,6 @@ void BarrierWrapper::heavy_operator(const string& label,
 
   timer.start();
 
-  //----------------------------------------------
-  // Temporary character buffers
-  // [Use shared pointers as a garbage collector]
-  //----------------------------------------------
-  std::list<InfoPtr> info;
-
   //-------------------
   // Create barrier id
   //-------------------
@@ -167,90 +223,122 @@ void BarrierWrapper::heavy_operator(const string& label,
   //---------------------
   if (pending.size() > 1) {
     std::cout << "#" << localid << " entered BW with " << pending.size()
-	      << " unresolved tickets: ";
-    std::map<std::string, BWData>::iterator it;
+	      << " unresolved tickets" << std::endl;
+    std::map<std::string, BWPtr>::iterator it;
     for(it=pending.begin(); it!=pending.end(); it++) 
-      std::cout << " {" << std::left << it->first << "} ";
-    std::cout<< std::endl;
+      std::cout << " ** #" << localid << " {" << std::left << it->first << "} "
+		<< std::endl;
   }
 
-  //----------------
-  // Loop variables
-  //----------------
-  unsigned siz = sid.str().size()+1;
+  //---------------------
+  // For deeper checking
+  //---------------------
+
   std::map<int, size_t> multiplicity;
+
+  //------------------------
+  // Loop control variables
+  //------------------------
   time_t entry = time(0);
   bool notdone = true;
+
   std::string sfinal;
   MPI_Status status;
-  MPI_Request req;
-  int good;
+  int good = 0;
+  
+  //----------------------------------------------------------------
+  // Create and send info buffer in a non-blocking send to all
+  // processes
+  // ----------------------------------------------------------------
+
+  InfoPtr p = InfoPtr(new Info(localid, entry, sid.str()));
+
+  p->sendInfo(localid, comm, commsize);
 
   //----------------------------------------------------------------
-  // Enter and send the caller; sends info buffer in a non-blocking
-  // send to all processes
+  // Enter our ticket into the registry
   //----------------------------------------------------------------
-  InfoPtr p = InfoPtr(new Info(localid, entry, sid.str()));
-  pending[sid.str()] = BWData(p->own, commsize, p->ctm);
-  info.push_back(p);
-  p->sendInfo(localid, comm, commsize);
-  
-  //-------------------------------------------------------------
-  // Begin receiving commands; initiate receipt of incoming info
-  // buffer
-  //-------------------------------------------------------------
-  CharPtr buf(new char [Info::bufsz]);
-  MPI_Irecv(buf.get(), Info::bufsz, MPI_CHAR, MPI_ANY_SOURCE, Info::tag, 
-	    comm, &req);
+
+  updateMap(p);
 
   //----------------------------------------------------------------
   // Enter the loop: read and process info buffers until one tag is
   // full
   //----------------------------------------------------------------
+
+  unsigned cnt_recv = 0;
+
   while (notdone) {
-				// Check for command
-    MPI_Test(&req, &good, &status);
-				// For debugging this class!
-    if (debugging) {
-      std::cout << "#" << std::setw(4) << std::left << localid;
-      for (std::map<std::string, BWData>::iterator 
-	     it = pending.begin(); it != pending.end(); it++) 
-	{
-	  std::cout << " {" << std::left << it->first 
-		    << ", time=" << it->second.owner.begin()->first 
-		    << " owner=" << it->second.owner.begin()->second
-		    << "} ";
+
+    if (queued) {		// Check for pending receives
+
+      if (extra_verbose) {
+	static time_t next = 0, cur = time(0);
+	if (next==0) next = entry + 10;
+	if (cur>next) {
+	  int total = 0;
+	  for (std::map<std::string, BWPtr>::iterator 
+		 it = pending.begin(); it != pending.end(); it++)
+	    total += it->second->count;
+	  std::cout << "EXTRA: dT=" 
+		    << std::setw(4) << std::left << cur - entry
+		    << ", Node " << std::setw(4) << localid << " scanning "
+		    << req.size() << " pending receives, expecting "  
+		    << commsize - total << std::endl;
+	  next += 10;		// wait 10 more seconds
 	}
-      std::cout<< std::endl;
+      }
+
+      MPI_Test(req.back().second.get(), &good, &status);
+
+    } else {
+
+      if (debugging) {
+	std::cout << "No request for Node " << std::setw(3) << localid 
+		  << ", done is " << (notdone ? 0 : 1) << ", received "
+		  << cnt_recv << ", ";
+	if (pending.size()) {
+	  std::cout << std::setw(4) << pending.size() << " barrier(s)"
+		    << " named ";
+	  for (std::map<std::string, BWPtr>::iterator 
+		 it = pending.begin(); it != pending.end(); it++) {
+	    std::cout << "<" << it->first << ">, #=" << it->second->count;
+	  }
+	} else {
+	  std::cout << " no pending barrriers";
+	}
+	std::cout << std::endl;
+      }
+      
+      good = 0;
     }
 
+				// Did we satisfy a request?
     if (good) {
-      
-      InfoPtr p = InfoPtr(new Info(buf));
-      std::map<std::string, BWData>::iterator ipend = pending.find(p->s);
-	
-      //----------------------------
-      // Do we know about this one?
-      //----------------------------
 
-      if (ipend == pending.end()) { 
-				// No, ADD it
-	pending[p->s] = BWData(p->own, commsize, p->ctm);
-	
-      } else {
-				// Update local info
-	ipend->second.Add(p->own, p->ctm);
-	ipend->second.count++;
-	ipend->second.nd[p->own] = true;
-      }
+      InfoPtr p = InfoPtr(new Info(req.back().first));
+
+      updateMap(p);		// Will generate another receive if
+				// nrecv>0
+
+      queued--;
 
       //---------------------------------------
       // Check all pending tags for completion
       //---------------------------------------
-      for (std::map<std::string, BWData>::iterator 
+      for (std::map<std::string, BWPtr>::iterator 
 	     it = pending.begin(); it != pending.end(); it++) 
 	{
-	  if (it->second.count == commsize) {
+	  if (it->second->count == commsize) {
+
+	    if (debugging) {
+	      std::cout << "Info size=" << it->second->info.size() << std::endl;
+	      std::cout << "Node " << std::setw(4) << localid 
+			<< " has count " << it->second->count 
+			<< " with " << queued << " queued for <" 
+			<< it->second->info.back()->s << ">" << std::endl;
+	    }
+
 	    sfinal = it->first;
 	    pending.erase(it);
 	    notdone = false;
@@ -258,13 +346,6 @@ void BarrierWrapper::heavy_operator(const string& label,
 	  }
 	}
       
-      //---------------------------------- 
-      // Start receiving a new Info buffer
-      //----------------------------------
-      if (notdone)
-	MPI_Irecv(buf.get(), Info::bufsz, MPI_CHAR, MPI_ANY_SOURCE, Info::tag, 
-		  comm, &req);
-
       //----------------------------------------------------------
       // Check for synchronize problems: more than one active tag
       //----------------------------------------------------------
@@ -279,7 +360,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 	if (report) {		// Report a change in multiplicity
 	  std::cout << "#" << localid << ": pending list has " 
 		    << pending.size() << " entries: ";
-	  for(std::map<std::string, BWData>::iterator it = pending.begin();
+	  for(std::map<std::string, BWPtr>::iterator it = pending.begin();
 	      it != pending.end(); it++) 
 	    std::cout << " {" << std::left << it->first << "} ";
 	  std::cout<< std::endl;
@@ -292,21 +373,76 @@ void BarrierWrapper::heavy_operator(const string& label,
       // Update alarms
       //---------------
       time_t curtime = time(0);
-      for (std::map<std::string, BWData>::iterator 
+      for (std::map<std::string, BWPtr>::iterator 
 	     it = pending.begin(); it != pending.end(); it++) {
-	if (it->second.Owner() == localid && 
-	    curtime > it->second.expire) {
+	if (it->second->Owner() == localid && 
+	    curtime > it->second->expire) {
 	  listReport("Expire", it);
-	  it->second.expire += BWData::dt2;
+	  it->second->expire += BWData::dt2;
 	}
       }
   
+      //--------------------
+      // Print pending list
+      //--------------------
+
+      if (extra_verbose) {
+	
+	static time_t next = 0;
+
+	if (next==0) next = entry + 10;
+
+	if (curtime>next) {
+	  
+	  for (std::map<std::string, BWPtr>::iterator 
+		 it = pending.begin(); it != pending.end(); it++) {
+
+	    if (curtime > it->second->first + BWData::dt2*4) {
+	      std::vector<int> ret = getMissing(it->second);
+
+	      std::cout << "EXTRA: dT=" << std::setw(4)  << std::left
+			<<  curtime - entry << ", Node " 
+			<< std::setw(4) << localid << ", barrier=" << it->first
+			<< ", " << req.size() << " MPI request(s) remaining, "
+			<< ret.size() << " wait(s)";
+	      
+	      if (ret.size()) {
+		std::cout << ", nodes:";
+		for (std::vector<int>::iterator 
+		       n=ret.begin(); n!=ret.end(); n++)
+		  std::cout << " " << *n;
+	      }
+	      std::cout << std::endl;
+
+	    } // time check
+
+	  } // pending barrier loop
+	  
+	  next += 10;
+
+	} // 10 more seconds
+
+      }	// extra_verbose
+	
       //----------------------------------
       // Wait loop_delay (default:100) us
       //----------------------------------
       usleep(loop_delay);
     }
   }
+
+  //---------------------
+  // Final diagnostics
+  //---------------------
+  if (pending.size() > 1) {
+    std::cout << "#" << localid << " leaving BW with " << pending.size()
+	      << " unresolved tickets" << std::endl;;
+    std::map<std::string, BWPtr>::iterator it;
+    for(it=pending.begin(); it!=pending.end(); it++) 
+      std::cout << " ** #" << localid << " {" << std::left << it->first << "} "
+		<< std::endl;
+  }
+
 
   finalReport(sfinal);
 
@@ -324,12 +460,12 @@ void BarrierWrapper::heavy_operator(const string& label,
 }
 
 void BarrierWrapper::listReport(const char* title, 
-				std::map<std::string, BWData>::iterator it)
+				std::map<std::string, BWPtr>::iterator it)
 {
   std::cout << title << " [#" << localid << "]: " << it->first << " ** "
-	    << time(0) - it->second.CTime() << " secs, " 
-	    << it->second.count << " waiting, ";
-  for (int i=0; i<commsize; i++) std::cout << it->second.nd[i];
+	    << time(0) - it->second->first << " secs, " 
+	    << it->second->count << " waiting, ";
+  for (int i=0; i<commsize; i++) std::cout << it->second->nd[i];
   std::cout << std::endl;
 }
 
@@ -354,7 +490,7 @@ void Info::pack()
   strncpy(blob.get()+cursor, s.c_str(), bufsz-cursor);
 }
 
-void Info::unpackInfo(CharPtr p)
+Info::Info(CharPtr p)
 {
   if (blob == 0) {
     charsz = bufsz - (2*sizeof(int) + sizeof(time_t) + sizeof(unsigned));
@@ -386,11 +522,10 @@ void Info::sendInfo(int source, MPI_Comm comm, int commsize)
 {
   pack();
 
-  MPI_Request req;
   for (int i=0; i<commsize; i++) {
     if (i!=source) {
-      MPI_Isend(blob.get(), bufsz, MPI_CHAR, i, tag, comm, &req);
-      MPI_Request_free(&req);
+      req.push_back(ReqPtr(new MPI_Request));
+      MPI_Isend(blob.get(), bufsz, MPI_CHAR, i, tag, comm, req.back().get());
     }
   }
 }
@@ -398,7 +533,7 @@ void Info::sendInfo(int source, MPI_Comm comm, int commsize)
 void BarrierWrapper::finalReport(std::string& s)
 {
   std::map<std::string, std::vector<bool> >::iterator is;
-  std::map<std::string, BWData>::iterator it;
+  std::map<std::string, BWPtr>::iterator it;
 
   if (localid == 0) {
 				// Do the current node
@@ -457,3 +592,51 @@ void BarrierWrapper::finalReport(std::string& s)
   }
 
 }
+
+
+std::vector<int> BarrierWrapper::getMissing(BWPtr p) 
+{
+  std::vector<int> ret;
+  for (int n=0; n<commsize; n++) {
+    if (!p->nd[n]) ret.push_back(n);
+  }
+  return ret;
+}
+
+Info::Info(int own, time_t ctm, const std::string& s)
+{
+  this->own = own;
+  this->ctm = ctm;
+  this->s   = s;
+  this->siz = s.size() + 1;
+  this->c   = CharPtr(new char [siz]);
+  strncpy(c.get(), s.c_str(), siz);
+}
+
+
+
+BWData::BWData(InfoPtr& p, int commsize) 
+{
+  first       = p->ctm;
+  expire      = first + dt1;
+  count       = 1;
+  nd          = std::vector<bool>(commsize, false);
+  nd[p->own]  = true;
+  
+  info.push_back(p);
+}
+
+void BWData::Add(InfoPtr& p) 
+{ 
+  info.push_back(p); 
+  count++;
+  nd[p->own] = true;
+}
+
+int BWData::Owner()
+{
+  int i, sz = nd.size();
+  for (i=0; i<sz; i++) { if (nd[i]) break; }
+  return i;
+}
+

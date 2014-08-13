@@ -103,9 +103,9 @@ void initialize(void)
     else barrier_label = false;
   }
 
-  if (parse->find_item("barrier_light", val)) {
-    if (atoi(val.c_str())) barrier_light = true;
-    else barrier_light = false;
+  if (parse->find_item("barrier_heavy", val)) {
+    if (atoi(val.c_str())) barrier_light = false;
+    else barrier_light = true;
   }
 
   if (parse->find_item("barrier_quiet", val)) {

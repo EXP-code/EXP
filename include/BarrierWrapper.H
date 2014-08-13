@@ -7,23 +7,122 @@
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <list>
+#include <set>
 
 using namespace std;
 
 #include <boost/shared_ptr.hpp>
 
-#include <BWData.H>
 #include <Timer.h>
 #include <mpi.h>
 
 
-class Info;
+typedef boost::shared_ptr<char> CharPtr;
+typedef boost::shared_ptr<MPI_Request> ReqPtr;
+
+class Info 
+{
+private:
+
+  //! Request handle
+  std::list<ReqPtr> req;
+
+  //! MPI buffer
+  CharPtr blob;
+
+  //! Helper to translate buffer
+  void pack();
+
+  //! Space for character string
+  size_t charsz;
+
+public:
+
+  //! Buffer size (1 block)
+  const static size_t bufsz = 512;
+
+  //! Tag
+  const static int tag = 232395;
+
+  //! Owning process
+  int own;
+
+  //! Creation time
+  time_t ctm;
+
+  //! Label size
+  unsigned siz;
+
+  //! Label
+  std::string s;
+
+  //! Character buffer for string
+  CharPtr c;
+
+  //! Null constructor for assignment
+  Info() {}
+
+  //! Construct from MPI-passed char buffer
+  Info(CharPtr p);
+
+  //! Full constructor
+  Info(int own, time_t ctm, const std::string& s);
+
+  //! Send the Info to all processes in the communicator
+  void sendInfo(int myid, MPI_Comm comm, int commsize);
+
+};
+
+typedef boost::shared_ptr<Info> InfoPtr;
+
+
+class BWData 
+{
+public:
+  //! Number of seconds before first alarm
+  static int dt1;
+
+  //! Number of seconds before all sebsequent alarms
+  static int dt2;
+
+  //@{
+  //! Times: initial and next expiration
+  time_t first, expire;
+  //@}
+
+  //! Array of received entries
+  std::vector<bool> nd;
+
+  //! Number of entries registered
+  unsigned count;
+
+  //! Cache Info shared pointers; storage reclaimed on destruction
+  std::list<InfoPtr> info;
+
+  //! Full constructor
+  BWData(InfoPtr& p, int commsize);
+
+  //! Register node in existing entry
+  void Add(InfoPtr& p);
+
+  //! Return the valid node with the lowest rank
+  int Owner();
+};
+
+
+typedef boost::shared_ptr<BWData> BWPtr;
 
 class BarrierWrapper
 {
   friend class Info;
 
 private:
+
+  typedef std::pair<CharPtr, ReqPtr> RecvElem;
+  std::list<RecvElem> req;
+  unsigned queued;
+  unsigned nrecv;
 
   char *buffer, *bufferT;
   int commsize, localid;
@@ -36,9 +135,11 @@ private:
   void heavy_operator(const string &label, const char* file, const int line);
   static bool light;
 
-  std::map<std::string, BWData> pending;
+  std::map<std::string, BWPtr> pending;
 
-  void listReport(const char*, std::map<std::string, BWData>::iterator);
+  void updateMap(InfoPtr p);
+  void syncTest(const std::string& mesg, const std::string& label);
+  void listReport(const char*, std::map<std::string, BWPtr>::iterator);
   void finalReport(std::string&);
 
 public:
@@ -96,73 +197,10 @@ public:
     return ret;
   };
 
-};
-
-typedef boost::shared_ptr<char> CharPtr;
-
-class Info 
-{
-private:
-
-  //! MPI buffer
-  CharPtr blob;
-
-  //! Helper to translate buffer
-  void pack();
-
-  //! Space for character string
-  size_t charsz;
-
-public:
-
-  //! Buffer size (1 block)
-  const static size_t bufsz = 512;
-
-  //! Tag
-  const static int tag = 232395;
-
-  //! Owning process
-  int own;
-
-  //! Creation time
-  time_t ctm;
-
-  //! Label size
-  unsigned siz;
-
-  //! Label
-  std::string s;
-
-  //! Character buffer for string
-  CharPtr c;
-
-  //! Null constructor for assignment
-  Info() {}
-
-  Info(CharPtr p) {
-    unpackInfo(p);
-  }
-
-  //! Full constructor
-  Info(int own, time_t ctm, const std::string& s)
-  {
-    this->own = own;
-    this->ctm = ctm;
-    this->s   = s;
-    this->siz = s.size() + 1;
-    this->c   = CharPtr(new char [siz]);
-    strncpy(c.get(), s.c_str(), siz);
-  }
-
-  //! Send the Info to all processes in the communicator
-  void sendInfo(int myid, MPI_Comm comm, int commsize);
-
-  //! Get the Info from the character blob
-  void unpackInfo(CharPtr p);
+  std::vector<int> getMissing(BWPtr p);
 
 };
 
-typedef boost::shared_ptr<Info> InfoPtr;
 
 
 #endif // _BarrierWrapper_H
