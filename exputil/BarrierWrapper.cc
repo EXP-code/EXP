@@ -233,7 +233,6 @@ void BarrierWrapper::heavy_operator(const string& label,
   //---------------------
   // For deeper checking
   //---------------------
-
   std::map<int, size_t> multiplicity;
 
   //------------------------
@@ -270,7 +269,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 
   while (notdone) {
 
-    if (queued) {		// Check for pending receives
+				// Are more buffers expected?
+    if (queued) {
 
       if (extra_verbose) {
 	static time_t next = 0, cur = time(0);
@@ -289,10 +289,12 @@ void BarrierWrapper::heavy_operator(const string& label,
 	}
       }
 
+				// Check for buffers pending reception
       MPI_Test(req.back().second.get(), &good, &status);
 
     } else {
-
+				// No buffers expected . . . why are
+				// we still in this loop?
       if (debugging) {
 	std::cout << "No request for Node " << std::setw(3) << localid 
 		  << ", done is " << (notdone ? 0 : 1) << ", received "
@@ -321,7 +323,8 @@ void BarrierWrapper::heavy_operator(const string& label,
       updateMap(p);		// Will generate another receive if
 				// nrecv>0
 
-      queued--;
+      queued--;			// Decrement the expected buffers
+				// count
 
       //---------------------------------------
       // Check all pending tags for completion
@@ -338,7 +341,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 			<< " with " << queued << " queued for <" 
 			<< it->second->info.back()->s << ">" << std::endl;
 	    }
-
+				// All nodes have now hit the barrier
 	    sfinal = it->first;
 	    pending.erase(it);
 	    notdone = false;
@@ -347,9 +350,12 @@ void BarrierWrapper::heavy_operator(const string& label,
 	}
       
       //----------------------------------------------------------
-      // Check for synchronize problems: more than one active tag
+      // Check for bad synchronization: more than one active tag!
       //----------------------------------------------------------
+
       if (pending.size() > 1 && extra_verbose) {
+				// Only want to report multiple tags
+				// on the first encounter
 	std::map<int, size_t>::iterator im = multiplicity.find(localid);
 	bool report = true;
 	if (im != multiplicity.end()) {
@@ -357,7 +363,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 	}
 	multiplicity[localid] = pending.size();
 
-	if (report) {		// Report a change in multiplicity
+	if (report) {		// Only report a CHANGE in multiplicity
+
 	  std::cout << "#" << localid << ": pending list has " 
 		    << pending.size() << " entries: ";
 	  for(std::map<std::string, BWPtr>::iterator it = pending.begin();
