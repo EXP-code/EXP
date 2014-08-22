@@ -9,8 +9,6 @@ class Particle
   double mass;
   double pos[3];
   double vel[3];
-  int Z;
-  int C;
 
   // Constructor
   Particle();
