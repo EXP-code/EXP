@@ -398,6 +398,8 @@ SParticle* PSPDump::GetParticle(std::ifstream* in)
 {
   pcount = 0;
   
+  in->seekg(cur->pspos);
+
   return NextParticle(in);
 }
 
