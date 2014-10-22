@@ -166,9 +166,9 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 {
   disktableP = NULL;
   disktableN = NULL;
-  gen        = new ACG(SEED+myid, 20);
-  rndU       = new Uniform(0.0, 1.0, gen);
-  rndN       = new Normal(0.0, 1.0, gen);
+  gen        = new ACG     (SEED+myid, 20);
+  rndU       = new Uniform (0.0, 1.0, gen);
+  rndN       = new Normal  (0.0, 1.0, gen);
   com        = false;
   cov        = false;
   this->type = type;
@@ -377,6 +377,8 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   double pos[3], pos1[3], vel[3], vel1[3], massp, massp1;
 				// Diagnostics
   double radmin1=1e30, radmax1=0.0, radmin, radmax, r;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
   if (myid==0) cout << endl 
 		    << "     *****"
@@ -423,6 +425,13 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     r = 0.0;
     for (int k=0; k<3; k++) r += p.pos[k]*p.pos[k];
     r = sqrt(r);
+
+    // Mass distribution in spherial shells
+    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+    if (indx>0 && indx<=nh) {
+      NN[indx]++;
+      DD[indx] += p.mass;
+    }
 
     radmin1 = min<double>(radmin1, r);
     radmax1 = max<double>(radmax1, r);
@@ -484,6 +493,13 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   if (VFLAG & 1)
     cout << "Process " << myid << ": made " << phalo.size() << " particles"
 	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
 }      
 
 void DiskHalo::
@@ -499,8 +515,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   double massp, massp1, pos[3], pos1[3];
 				// Diagnostics
   double radmin1=1.0e30, radmax1=0.0, radmin, radmax;
-  vector<double> DD(nh+1, 0.0), DD0(nh+1);
-  vector<unsigned> NN(nh+1, 0), NN0(nh+1);
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
   if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
 				 << "  rmax=" << rmax
@@ -573,7 +589,7 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
 
   if (com) {
     vector<Particle>::iterator ip;
-    for(ip=phalo.begin(); ip!=phalo.end(); ip++) {
+    for (ip=phalo.begin(); ip!=phalo.end(); ip++) {
       for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
     }
   }
