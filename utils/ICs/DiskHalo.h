@@ -19,7 +19,7 @@
 #include <localmpi.h>
 #include <Vector.h>
 
-#include "Particle.h"
+#include "Particle.H"
 #include "AddDisk.h"
 #include "SphericalSL.h"
 #include "EmpOrth9thd.h"
