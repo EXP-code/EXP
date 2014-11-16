@@ -445,7 +445,7 @@ main(int argc, char **argv)
 
                                 // Vectors to contain phase space
                                 // Particle structure is defined in
-                                // Particle.h
+                                // Particle.H
   vector<Particle> dparticles, hparticles;
 
 				//

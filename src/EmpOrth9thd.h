@@ -20,7 +20,7 @@
 #include "expand.h"
 #include <global.H>
 #else
-#include <Particle.h>		// Stripped down particle structure
+#include <Particle.H>
 extern int this_step;
 extern int Mstep;
 extern int mstep;
