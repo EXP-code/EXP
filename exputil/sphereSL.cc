@@ -28,9 +28,9 @@ SphereSL::SphereSL(int LMAX, int NMAX, int NUMR,
   scale = SCALE;
 
   SLGridSph::mpi = mpi;
-  SLGridSph::cache = cache;
+  int cmap = 0;
 
-  slgrid = new SLGridSph(lmax, nmax, numr, rmin, rmax, mod, 0, scale);
+  slgrid = new SLGridSph(lmax, nmax, numr, rmin, rmax, mod, cache, cmap, scale);
 
 }
 

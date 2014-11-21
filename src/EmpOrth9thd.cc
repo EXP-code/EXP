@@ -220,7 +220,8 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
+			false, 1, 1.0);
   model = 0;
 
   if (DENS)
@@ -270,7 +271,8 @@ void EmpCylSL::reset(int numr, int lmax, int mmax, int nord,
   dfac = ffac/ascale;
 
   SLGridSph::mpi = 1;		// Turn on MPI
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
+			false, 1, 1.0);
 
   SC = 0;
   SS = 0;
@@ -627,7 +629,8 @@ int EmpCylSL::read_eof_file(const string& eof_file)
 
   SLGridSph::mpi = 1;		// Turn on MPI
   delete ortho;
-  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 1, 1.0);
+  ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
+			false, 1, 1.0);
 
   setup_eof();
   setup_accumulation();

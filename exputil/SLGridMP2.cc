@@ -39,8 +39,7 @@ typedef int	integer;
 
 MPI_Status status;
 
-int SLGridCyl::mpi = 0;		// initially off
-int SLGridCyl::cache = 1;	// initially yes
+int SLGridCyl::mpi  = 0;	// initially off
 double SLGridCyl::A = 1.0;
 
 extern "C" {
@@ -190,20 +189,22 @@ void SLGridCyl::bomb(string oops)
 				// Constructors
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
-	       double RMIN, double RMAX, double L, int CMAP, double SCALE)
+		     double RMIN, double RMAX, double L, 
+		     bool CACHE, int CMAP, double SCALE)
 {
   int m, k;
 
-  mmax = MMAX;
-  nmax = NMAX;
-  numr = NUMR;
-  numk = NUMK;
+  mmax  = MMAX;
+  nmax  = NMAX;
+  numr  = NUMR;
+  numk  = NUMK;
 
-  rmin = RMIN;
-  rmax = RMAX;
-  l = L;
+  rmin  = RMIN;
+  rmax  = RMAX;
+  l     = L;
 
-  cmap = CMAP;
+  cache = CACHE;
+  cmap  = CMAP;
   scale = SCALE;
 
 #ifdef JAFFECYL
@@ -1510,7 +1511,6 @@ void SLGridCyl::mpi_unpack_table(void)
 
 
 int SLGridSph::mpi = 0;		// initially off
-int SLGridSph::cache = 1;	// initially yes
 
 string SLGridSph::sph_cache_name = ".slgrid_sph_cache";
 string SLGridSph::model_file_name = "SLGridSph.model";
@@ -1558,41 +1558,44 @@ void SLGridSph::bomb(string oops)
 				// Constructors
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, int CMAP, double SCALE,
+		     double RMIN, double RMAX, 
+		     bool CACHE, int CMAP, double SCALE,
 		     int DIVERGE, double DFAC)
 {
   mpi_buf  = 0;
   my_model = true;
   model    = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     double RMIN, double RMAX, SphericalModelTable *mod,
-		     int CMAP, double SCALE)
+		     bool CACHE, int CMAP, double SCALE)
 {
   mpi_buf  = 0;
   my_model = false;
   model    = mod;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
-			   double RMIN, double RMAX, int CMAP, double SCALE)
+			   double RMIN, double RMAX, 
+			   bool CACHE, int CMAP, double SCALE)
 {
   int l;
 
-  lmax = LMAX;
-  nmax = NMAX;
-  numr = NUMR;
+  lmax  = LMAX;
+  nmax  = NMAX;
+  numr  = NUMR;
 
-  rmin = RMIN;
-  rmax = RMAX;
+  rmin  = RMIN;
+  rmax  = RMAX;
 
-  cmap = CMAP;
+  cache = CACHE;
+  cmap  = CMAP;
   scale = SCALE;
 
   init_table();
