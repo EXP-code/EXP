@@ -159,8 +159,6 @@ private:
   int mpi_bufsz;
   char *mpi_buf;
 
-  bool my_model;
-
   void bomb(string oops);
 
   bool cache;
@@ -180,12 +178,14 @@ public:
 
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    SphericalModelTable *mod, 
+	    boost::shared_ptr<SphericalModelTable> mod, 
 	    bool cache, int Cmap=0, double Scale=1.0);
+
   //! Constructor (uses file *model_file_name* for file)
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
 	    bool cache, int Cmap=0, double Scale=1.0, 
 	    int DIVERGE=0, double DFAC=1.0);
+
   //! Destructor
   ~SLGridSph();
 

@@ -23,7 +23,10 @@ SphereSL::SphereSL(SphericalModelTable* mod, int LMAX, int NMAX, bool COVAR)
   double rmax = mod->get_max_radius()*0.99;
 
 
-  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, 0, 1.0);
+  int    Cmap  = 0;
+  double Scale = 1.0;
+  sl = new SLGridSph(LMAX, NMAX, NUMR, rmin, rmax, model, Cmap, Scale);
+
   lmax = LMAX;
   nmax = NMAX;
   compute_covar = COVAR;

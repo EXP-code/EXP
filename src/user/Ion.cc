@@ -13,7 +13,6 @@
 
 #include "Ion.H"
 #include "interactSelect.H"
-#include "Cspline.H"
 
 //! Convert the master element name to a (Z, C) pair
 void Ion::convertName() 
@@ -567,7 +566,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   //
-  for (double k = -9.; k < -1.; k += 0.1) 
+  for (double k = -9.; k < -1.; k += kdel) 
     kgrid.push_back(k);
 
   for (double e = 0.00000001; e < 250 ; e += 0.25) 
@@ -575,6 +574,11 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   kffsteps = kgrid.size();
   effsteps = egrid.size();
+
+  kgr10.resize(kffsteps);
+  for (int i=0; i<kffsteps; i++) {
+    kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
 }
 
 //! Constructor when the Z, C pair is given
@@ -609,11 +613,16 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
   }
-  for (k = -9.; k < -1.; k += 0.1) {
+  for (k = -9.; k < -1.; k += kdel) {
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
   effsteps = egrid.size();
+
+  kgr10.resize(kffsteps);
+  for (int i=0; i<kffsteps; i++) {
+    kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
 }
 
 //! Default constructor: NOT USED
@@ -635,6 +644,7 @@ Ion::Ion(const Ion &I)
 
   egrid      = I.egrid;
   kgrid      = I.kgrid;
+  kgr10      = I.kgr10;
   fblvl      = I.fblvl;
 
   diSpline   = I.diSpline;
@@ -662,11 +672,6 @@ Ion::collExciteCross(double E, int id)
 
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
-  
-  const double eVtoRyd = 1.0/13.60569253;
-  const double RydtoeV = 13.60569253;
-
-  const double a0 = 0.0529177211; // Bohr radius in nm
   
   collType CEcum;
   const std::pair<double,double> Null(0, 0);
@@ -723,16 +728,28 @@ Ion::collExciteCross(double E, int id)
 	assert(x_array9[j] > x_array9[j-1]);
       }
       
-      if (splups[i].spline.size() == 5) {
-	Cspline<double, double> sp(x5, splups[i].spline);
-	y = sp(x);
-      }
+
+      CacheSplList::iterator it = splUps.find(i);
+      CsplD2Ptr sp;
+
+      if (it == splUps.end()) {
+
+	if (splups[i].spline.size() == 5) {
+	  sp = CsplD2Ptr(new CsplineD2(x5, splups[i].spline));
+	}
       
-      if (splups[i].spline.size() == 9) {
-	Cspline<double, double> sp(x9, splups[i].spline);
-	y = sp(x);
+	if (splups[i].spline.size() == 9) {
+	  sp = CsplD2Ptr(new CsplineD2(x9, splups[i].spline));
+	}
+
+	splUps[i] = sp;
+
+      } else {
+	sp = it->second;
       }
-      
+
+      y = (*sp)(x);
+
       // Calculate the collision strength from the interpolated value
       double CStrength = 0.0;
 				// BT, eq. 6
@@ -758,7 +775,7 @@ Ion::collExciteCross(double E, int id)
       if (eit != elvlc.end()) {
 	int weight = eit->second.mult;
 	if (weight>0) {
-	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
+	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
 	  if (isinf(crs1)) {
 	    std::cout << "crs1 is Inf: weight=" << weight << ", E="
 		      << E << std::endl;
@@ -862,8 +879,17 @@ double Ion::directIonCross(double E, int id)
 	double u1  = E/diSpline[i].ev;
 	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
 
-	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
-	double btcross = sp(bte);
+	CacheSplList::iterator it = diSpln.find(i);
+	CsplD2Ptr sp;
+
+	if (it == diSpln.end()) {
+	  sp = CsplD2Ptr(new CsplineD2(diSpline[i].xspline, diSpline[i].yspline));
+	  diSpln[i] = sp;
+	} else {
+	  sp = it->second;
+	}
+
+	double btcross = (*sp)(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
@@ -882,24 +908,9 @@ double Ion::directIonCross(double E, int id)
  */
 double Ion::freeFreeCross(double Ei, int id) 
 {
-  //
-  // Physical constants
-  //
-				// Prefactor A / pi^2 (from Greene, 1959)
-  const double A   = 5.72791733e-08/(M_PI*M_PI);
-
-				// Classical radius of the electron in nm
-  const double r0  = 2.81794044e-13 * 1.0e+07;
-
-				// Rydberg energy in eV
-  const double Ryd = 13.60569253;
-
-				// value of h-bar * c in eV*nm
-  double hbc       = 197.327;
-
   // Scaled inverse energy (initial)
   //
-  double ni2       = Ryd*(C-1)*(C-1)/Ei;
+  double ni2       = RydtoeV*(C-1)*(C-1)/Ei;
 
   // Integration variables
   //
@@ -912,7 +923,7 @@ double Ion::freeFreeCross(double Ei, int id)
     //
     // Photon energy in eV
     //
-    double k      = pow(10, kgrid[j]) * hbc;
+    double k      = kgr10[j];
 
     //
     // Final kinetic energy
@@ -922,7 +933,7 @@ double Ion::freeFreeCross(double Ei, int id)
     //
     // Scaled inverse energy (final)
     //
-    double nf2    = Ryd*(C-1)*(C-1)/Ef;
+    double nf2    = RydtoeV*(C-1)*(C-1)/Ef;
     double dsig   = 0.0;
 				// Can't emit a photon if not enough KE!
     if (nf2 > 0.0) {

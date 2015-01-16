@@ -1526,7 +1526,7 @@ extern "C" {
 }
 
 
-static AxiSymModel *model;
+static boost::shared_ptr<AxiSymModel> model;
 
 double sphpot(double r)
 {
@@ -1563,18 +1563,17 @@ SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
 		     int DIVERGE, double DFAC)
 {
   mpi_buf  = 0;
-  my_model = true;
-  model    = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
+  model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, SphericalModelTable *mod,
+		     double RMIN, double RMAX, 
+		     boost::shared_ptr<SphericalModelTable> mod,
 		     bool CACHE, int CMAP, double SCALE)
 {
   mpi_buf  = 0;
-  my_model = false;
   model    = mod;
 
   initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
@@ -1872,7 +1871,6 @@ void SLGridSph::write_cached_table(void)
 
 SLGridSph::~SLGridSph()
 {
-  if (my_model) delete model;
   delete [] table;
   delete [] mpi_buf;
 }
