@@ -286,7 +286,7 @@ protected:
   static const double hbc     = 197.327;
 
 				// k-grid spacing in inverse nm
-  static const double kdel    = 0.2;
+  static const double kdel    = 0.5;
 
 public:
 
