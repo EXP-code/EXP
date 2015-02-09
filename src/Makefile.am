@@ -47,7 +47,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = exp
 
-COMMON_LIBS = -lexputil -lexpgnu
+BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SYSTEM_LIB)
+COMMON_LIBS = -lexputil -lexpgnu $(BOOST_LIBS)
 SYS_LIBS = -lpthread -ldl -lgomp
 MPI_LIBS = -lmpi
 

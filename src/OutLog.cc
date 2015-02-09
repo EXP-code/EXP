@@ -1,6 +1,8 @@
-static char rcsid[] = "$Id$";
-
 using namespace std;
+
+#include <boost/filesystem.hpp>
+
+namespace fs = boost::filesystem;
 
 #include <cstdio>
 #include <sstream>
@@ -163,14 +165,17 @@ void OutLog::Run(int n, bool last)
 
 	// Backup up old file
 	string backupfile = filename + ".bak";
-	if (rename(filename.c_str(), backupfile.c_str())) {
-	  perror("OutLog::Run()");
+
+	try {
+	  fs::rename(filename, backupfile);
+	} catch (const boost::filesystem::filesystem_error& e) {
 	  ostringstream message;
-	  message << "OutLog: error creating backup file <" 
-		  << backupfile << ">";
-	  // bomb(message.str());
+	  message << "OutLog::Run(): error creating backup file <" 
+		  << backupfile << "> from <" << filename 
+		  << ">, BOOST message: " << e.code().message();
+	  bomb(message.str());
 	}
-	
+
 	// Open new output stream for writing
 	out = new ofstream(filename.c_str());
 	if (!*out) {

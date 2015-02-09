@@ -466,6 +466,12 @@ int main (int ac, char **av)
   unsigned seed;
   int npart;
 
+  std::string cmd_line;
+  for (int i=0; i<ac; i++) {
+    cmd_line += av[i];
+    cmd_line += " ";
+  }
+
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
@@ -512,6 +518,20 @@ int main (int ac, char **av)
   if (vm.count("trace")) {
     trace = true;
   }
+
+
+  if (myid==0) {
+    std::string prefix("makeIon");
+    std::string cmdFile = prefix + ".cmd_line";
+    std::ofstream out(cmdFile.c_str());
+    if (!out) {
+      std::cerr << "makeIon: error opening <" << cmdFile
+                << "> for writing" << std::endl;
+    } else {
+      out << cmd_line << std::endl;
+    }
+  }
+
 
   Lunit  *= pc;
   Tunit  *= year;
