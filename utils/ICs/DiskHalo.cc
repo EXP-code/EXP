@@ -749,7 +749,7 @@ double DiskHalo::vphi(double xp, double yp, double zp)
 			 (log(t1)-log(t2))/(log(R1)-log(R2))));
   
 				// For debugging
-  if (isnan(ans)) {
+  if (std::isnan(ans)) {
     cout << "Process " << myid << ": in vvP has bad answer, x=" << xp
 	 << "  y="  << yp << "  z=" << zp
 	 << "  R="  << R

@@ -47,8 +47,8 @@ int inverse_svd(CMatrix& a, CMatrix& x, double threshold)
 
   for (j=0; j<a.getncols(); j++)
     for (i=0; i<a.getnrows(); i++) {
-      A[i+j*m].real() = a[i+1][j+1].real();
-      A[i+j*m].imag() = a[i+1][j+1].imag();
+      A[i+j*m].real( a[i+1][j+1].real() );
+      A[i+j*m].imag( a[i+1][j+1].imag() );
     }
 
 				// Perform singular value decomposition

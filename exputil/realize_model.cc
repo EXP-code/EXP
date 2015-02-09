@@ -1261,7 +1261,9 @@ Vector SphericalModelMulti::gen_point(int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
-  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+  for (int i=0; i<7; i++) {
+    if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
+  }
 
   return out;
 }
@@ -1416,7 +1418,9 @@ Vector SphericalModelMulti::gen_point(double radius, int& ierr)
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
-  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+  for (int i=0; i<7; i++) {
+    if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
+  }
 
   return out;
 }
@@ -1600,7 +1604,9 @@ Vector SphericalModelMulti::gen_point(double Emin, double Emax, double Kmin, dou
   out[5] = vr * sint*sinp + vt1 * cost*sinp + vt2*cosp;
   out[6] = vr * cost      - vt1 * sint;
     
-  for (int i=0; i<7; i++) if (isnan(out[i]) || isinf(out[i])) ierr = 1;
+  for (int i=0; i<7; i++) {
+    if (std::isnan(out[i]) || std::isinf(out[i])) ierr = 1;
+  }
 
   return out;
 }

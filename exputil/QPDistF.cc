@@ -531,12 +531,12 @@ void QPDistF::compute_distribution(void)
 	  
 	  for (int k=1; k<=MGRID; k++) {
 	    C[i][j] += basis[k][ix][iy]*basis[k][jx][jy];
-	    if (isnan(basis[k][ix][iy])) {
+	    if (std::isnan(basis[k][ix][iy])) {
 	      cout << "Basis NaN k=" << k << " ix=" << ix << " iy=" << iy
 		   << endl;
 	      exit(-1);
 	    }
-	    if (isnan(basis[k][jx][jy])) {
+	    if (std::isnan(basis[k][jx][jy])) {
 	      cout << "Basis NaN k=" << k << " jx=" << jx << " jy=" << jy
 		   << endl;
 	      exit(-1);

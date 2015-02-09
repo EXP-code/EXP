@@ -663,7 +663,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 	sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-      if (isnan(mat[k][n]) || isinf(mat[k][n]) ) {
+      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
 	cerr << "SLGridCyl::get_pot: invalid value\n";
       }
 #endif
@@ -743,7 +743,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 			 + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
 			 ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-      if (isnan(mat[k][n]) || isinf(mat[k][n]) ) {
+      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
 	cerr << "SLGridCyl::get_force: invalid value\n";
       }
 #endif
@@ -899,7 +899,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 	  sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-	if (isnan(mat[m][k][n]) || isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
 	  cerr << "SLGridCyl::get_pot: invalid value\n";
 	  cerr <<   "  x1=" << x1
 	       << "\n  x2=" << x2
@@ -1002,7 +1002,7 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
 			      + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
 			      ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-	if (isnan(mat[m][k][n]) || isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
 	  cerr << "SLGridCyl::get_force: invalid value\n";
 	  cerr <<   "   p=" << p
 	       << "\n  tm=" << table[m][k].ef[n][indx-1]
@@ -1768,7 +1768,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 void check_vector_values_SL(const Vector& v)
 {
   for (int i=v.getlow(); i<=v.gethigh(); i++)
-    if (isinf(v[i]) || isnan(v[i]))
+    if (std::isinf(v[i]) || std::isnan(v[i]))
       {
 	cerr << "check_vector: Illegal value\n";
       }

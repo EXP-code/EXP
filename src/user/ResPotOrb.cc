@@ -508,7 +508,7 @@ void ResPotOrb::getInterp(double I1, double I2, int& indxX, int& indxE,
   cX[0] = (dX*(indxX+1) - X)/dX;
   cX[1] = 1.0 - cX[0];
   
-  if (isnan(cX[0]) || isnan(cX[1])) {
+  if (std::isnan(cX[0]) || std::isnan(cX[1])) {
     cerr << "getInterp: cX is NaN, X=" << X 
 	 << "  I1=" << I1
 	 << "  I2=" << I2 
@@ -642,7 +642,7 @@ bool ResPotOrb::getValues(double rsat, double I1, double I2,
   
   bool wasok = true;
   
-  if (isnan(I1) || isnan(I2)) {
+  if (std::isnan(I1) || std::isnan(I2)) {
     cerr << "NaN on input values to getInterp\n";
     wasok = false;
   }
@@ -673,7 +673,7 @@ bool ResPotOrb::getValues(double rsat, double I1, double I2,
       num = rw->num;
       fac = cX[i1]*cE[i2];
       
-      if (isnan(fac)) {
+      if (std::isnan(fac)) {
 	if (wasok) 
 	  cerr << "ResPotOrb::getValues[2]: fac=NaN and was OK!!  cX[" << i1 << "]=" << cX[i1]
 	       << "  cE[" << i1 << "][" << i2 << "]=" << cE[i2] 
@@ -993,16 +993,16 @@ ResPotOrb::ReturnCode ResPotOrb::coord(double* pos, double* vel,
   // ------------------
 
   for (int k=0; k<3; k++)
-    if (isnan(pos[k]) || isinf(pos[k])) return CoordBadPos;
+    if (std::isnan(pos[k]) || std::isinf(pos[k])) return CoordBadPos;
 
 
   // Sanity check
   // ------------
 
-  if (isnan(vr)  || isinf(vr)  || 
-      isinf(vt)  || isinf(vt)  ||
-      isinf(w3)  || isinf(w3)  ||
-      isinf(psi) || isinf(psi)
+  if (std::isnan(vr)  || std::isinf(vr)  || 
+      std::isinf(vt)  || std::isinf(vt)  ||
+      std::isinf(w3)  || std::isinf(w3)  ||
+      std::isinf(psi) || std::isinf(psi)
       )
     {
       pthread_mutex_lock(&iolock);
@@ -1032,7 +1032,7 @@ ResPotOrb::ReturnCode ResPotOrb::coord(double* pos, double* vel,
   // ------------------
 
   for (int k=0; k<3; k++)
-    if (isnan(vel[k]) || isinf(vel[k])) return CoordBadVel;
+    if (std::isnan(vel[k]) || std::isinf(vel[k])) return CoordBadVel;
   
   // OK!
   // ---
@@ -1126,7 +1126,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
   double I20 = I2;
 #endif
   
-  if (isnan(I1) || isnan(I2)) {
+  if (std::isnan(I1) || std::isnan(I2)) {
     cerr << "Have a cow!\n";
   }
   
@@ -1198,7 +1198,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
     // Sanity check
     // ------------
 
-    if (isnan(I1) || isnan(I2)) {
+    if (std::isnan(I1) || std::isnan(I2)) {
       cerr << "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is=" << Is << " If=" 
 	   << If << " Is_2=" << Is[2] << " i=" 
@@ -1240,8 +1240,8 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
     // ------------
 
     if (
-	isnan(Fw.real()) || isnan(FI.real()) ||
-	isnan(Ff.real())
+	std::isnan(Fw.real()) || std::isnan(FI.real()) ||
+	std::isnan(Ff.real())
 	) {
       cerr << "Fw or FI is NaN, dJm=" << dJm 
 	   << " Ul="	<< Ul 
@@ -1290,7 +1290,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update2(double dt,
     Is[2] = Is[0] + dt*FI.real();
     wf[2] = wf[0] + dt*Ff.real();
     
-    if (isnan(ws[2])) {
+    if (std::isnan(ws[2])) {
       cerr << "ws2 is NaN, Fw=" << Fw.real()
 	   << " ws0=" << ws[0]
 	   << " dt=" << dt
@@ -1475,7 +1475,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
   double I20 = I2;
 #endif
   
-  if (isnan(I1) || isnan(I2)) {
+  if (std::isnan(I1) || std::isnan(I2)) {
     cerr << "Have a cow!\n";
   }
   
@@ -1540,7 +1540,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
 
     // Sanity check
     // ------------
-    if (isnan(I1) || isnan(I2)) {
+    if (std::isnan(I1) || std::isnan(I2)) {
       cerr << "I1 or I2 is NaN: Is0=" 
 	   << Is[0] << " Is=" << Is << " If1=" 
 	   << If1 << " If2=" << If2 << " Is_2=" << Is[2] << " i=" 
@@ -1577,8 +1577,8 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
     // Sanity check
     // ------------
     if (
-	isnan(Fw.real()) || isnan(FI.real()) ||
-	isnan(F1.real()) || isnan(F2.real())
+	std::isnan(Fw.real()) || std::isnan(FI.real()) ||
+	std::isnan(F1.real()) || std::isnan(F2.real())
 	) {
       cerr << "Fw or FI is NaN, dJm=" << dJm 
 	   << " Ul="	<< Ul 
@@ -1627,7 +1627,7 @@ ResPotOrb::ReturnCode ResPotOrb::Update3(double dt,
     wf1[2] = wf1[0] + dt*F1.real();
     wf2[2] = wf2[0] + dt*F2.real();
     
-    if (isnan(ws[2])) {
+    if (std::isnan(ws[2])) {
       cerr << "ws2 is NaN, Fw=" << Fw.real()
 	   << " ws0=" << ws[0]
 	   << " dt=" << dt
@@ -1777,20 +1777,20 @@ ResPotOrb::ReturnCode ResPotOrb::Force(double dt, vector<double>& Phase,
 void ResPotOrb::check_rw(RW& rw)
 {
   for (unsigned i=0; i<rw.r.size(); i++)
-    if (isnan(rw.r[i])) cout << "RW error: r nan, i=" << i << endl;
+    if (std::isnan(rw.r[i])) cout << "RW error: r nan, i=" << i << endl;
   
   for (unsigned i=0; i<rw.w1.size(); i++)
-    if (isnan(rw.w1[i])) cout << "RW error: w1 nan, i=" << i << endl;
+    if (std::isnan(rw.w1[i])) cout << "RW error: w1 nan, i=" << i << endl;
   
   for (unsigned i=0; i<rw.f.size(); i++)
-    if (isnan(rw.f[i])) cout << "RW error: f nan, i=" << i << endl;
+    if (std::isnan(rw.f[i])) cout << "RW error: f nan, i=" << i << endl;
   
-  if (isnan(rw.O1))	cout << "RW error: O1 nan" << endl;
-  if (isnan(rw.O2))	cout << "RW error: O2 nan" << endl;
-  if (isnan(rw.Jm))	cout << "RW error: Jm nan" << endl;
-  if (isnan(rw.dJm))	cout << "RW error: dJm nan" << endl;
-  if (isnan(rw.E))	cout << "RW error: E nan" << endl;
-  if (isnan(rw.K))	cout << "RW error: K nan" << endl;
-  if (isnan(rw.I1))	cout << "RW error: I1 nan" << endl;
+  if (std::isnan(rw.O1))	cout << "RW error: O1 nan" << endl;
+  if (std::isnan(rw.O2))	cout << "RW error: O2 nan" << endl;
+  if (std::isnan(rw.Jm))	cout << "RW error: Jm nan" << endl;
+  if (std::isnan(rw.dJm))	cout << "RW error: dJm nan" << endl;
+  if (std::isnan(rw.E))	        cout << "RW error: E nan" << endl;
+  if (std::isnan(rw.K))	        cout << "RW error: K nan" << endl;
+  if (std::isnan(rw.I1))	cout << "RW error: I1 nan" << endl;
 }
 

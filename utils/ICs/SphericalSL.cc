@@ -238,7 +238,7 @@ void SphericalSL::compute_coefficients(vector<Particle> &part)
 
   for (n=1; n<=NMAX; n++) {
     for (l=0; l<=LMAX*(LMAX+2); l++) {
-      if (isnan(expcoef[l][n])) {
+      if (std::isnan(expcoef[l][n])) {
 	cerr << "expcoef[" << l << "][" << n << "] is NaN" << endl;
 	iflg++;
       }
@@ -328,7 +328,7 @@ void SphericalSL::accumulate(vector<Particle> &part)
 
   for (n=1; n<=NMAX; n++) {
     for (l=0; l<=LMAX*(LMAX+2); l++) {
-      if (isnan(expcoef[l][n])) {
+      if (std::isnan(expcoef[l][n])) {
 	cerr << "expcoef[" << l << "][" << n << "] is NaN" << endl;
 	iflg++;
       }
