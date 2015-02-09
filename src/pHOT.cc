@@ -266,7 +266,7 @@ key_type pHOT::getKey(double *p)
   // Bad values
   //
   for (unsigned k=0; k<3; k++) {
-    if (isnan(p[k]) || isinf(p[k])) {
+    if (std::isnan(p[k]) || std::isinf(p[k])) {
       d_val++;
       timer_keybods.stop();
       return key_type(0u);
@@ -1645,7 +1645,7 @@ void pHOT::recvCell(int from, unsigned num)
 
   for (unsigned j=0; j<num; j++) {
     pf.RecvParticle(part);
-    if (part.indx==0 || part.mass<=0.0 || isnan(part.mass)) {
+    if (part.indx==0 || part.mass<=0.0 || std::isnan(part.mass)) {
       cout << "[recvCell, myid=" << myid 
 	   << ", will ignore crazy body with indx=" << part.indx 
 	   << ", j=" << j << ", num=" << num << ", mass=" << part.mass
@@ -2324,7 +2324,7 @@ void pHOT::Repartition(unsigned mlevel)
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
-      if (part.mass<=0.0 || isnan(part.mass)) {
+      if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[Repartition, myid=" << myid 
 	     << ": crazy body with indx=" << part.indx 
 	     << ", mass=" << part.mass  << ", key="
@@ -3059,7 +3059,7 @@ void pHOT::adjustTree(unsigned mlevel)
     
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
-      if (part.mass<=0.0 || isnan(part.mass)) {
+      if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[adjustTree, myid=" << myid
 	     << ": crazy body indx=" << part.indx 
 	     << ", mass=" << part.mass << ", key="
@@ -4516,7 +4516,7 @@ void pHOT::spreadOOB()
     Particle part;
     for (unsigned i=0; i<Fcnt; i++) {
       pf.part_to_Particle(precv[i], part);
-      if (part.mass<=0.0 || isnan(part.mass)) {
+      if (part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "[spreadOOB, myid=" << myid 
 	     << ", crazy body with indx=" << part.indx 
 	     << ", mass=" << part.mass << ", key="

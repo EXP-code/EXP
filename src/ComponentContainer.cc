@@ -1194,11 +1194,11 @@ bool ComponentContainer::bad_values()
   for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
     bool badval = false;
     for (it=(*cc)->Particles().begin(); it!=(*cc)->Particles().end(); it++) {
-      if (isnan(it->second.mass)) badval=true;
+      if (std::isnan(it->second.mass)) badval=true;
       for (int k=0; k<3; k++) {
-	if (isnan(it->second.pos[k]))  badval=true;
-	if (isnan(it->second.vel[k]))  badval=true;
-	if (isnan(it->second.acc[k]))  badval=true;
+	if (std::isnan(it->second.pos[k]))  badval=true;
+	if (std::isnan(it->second.vel[k]))  badval=true;
+	if (std::isnan(it->second.acc[k]))  badval=true;
       }
       if (badval) {
 	cout << "Bad value in <" << (*cc)->name << ">: ";

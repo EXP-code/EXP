@@ -1134,12 +1134,12 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   double tCross = 0.0;
   int si = 0;
   for (size_t i = 0; i < dCrossMap[id].size(); i++) {
-    if (isnan(dCrossMap[id][i])) {
+    if (std::isnan(dCrossMap[id][i])) {
       std::cout << "dCrossMap[" << id << "][" << i << "] is Nan"
 		<< std::setw(14) << dInterMap[id][i]
 		<< std::setw(18) << labels[dInterMap[id][i]]
 		<< std::endl;
-    } else if (isinf(dCrossMap[id][i])) {
+    } else if (std::isinf(dCrossMap[id][i])) {
       std::cout << "dCrossMap[" << id << "][" << i << "] is "
 		<< dCrossMap[id][i]
 		<< std::setw(14) << dInterMap[id][i]
@@ -1162,7 +1162,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //
     std::vector<double> CDF;
     for (size_t i = 0; i < TotalCross.size(); i++) {
-      if (isnan(TotalCross[i])) {
+      if (std::isnan(TotalCross[i])) {
 	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
 		  << std::endl;
       } else {
@@ -2797,14 +2797,14 @@ sKey2Umap CollideIon::generateSelectionDirect
       } else
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
       
-      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
 	csections[id][i1][i2] = 0.0; // Zero out
       }
 	    
-      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
@@ -2813,7 +2813,7 @@ sKey2Umap CollideIon::generateSelectionDirect
 	
     }
       
-    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+    if (it1->second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
       cout << "INVALID CROSS SECTION! ::"
 	   << " crossM = " << crossM[i1] 
 	   << " densM = "  <<  densM[i1] 
@@ -2899,7 +2899,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Done
   
   // Sanity check
-  if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
+  if (std::isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
     cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
     csections[id][key][key] = 0.0; // Zero out
   }

@@ -359,7 +359,7 @@ void Orient::accumulate(double time, Component *c)
     v2 = 0.0;
     for (int k=0; k<3; k++) {
       pos[k] = c->Pos(i, k, Component::Local);
-      if (isnan(pos[k])) {
+      if (std::isnan(pos[k])) {
 	cerr << "Orient: process " << myid << " index=" << i
 	     << " has NaN on component ";
 	for (int s=0; s<3; s++)

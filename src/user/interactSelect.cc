@@ -91,7 +91,7 @@ double InteractSelect::selectRRInteract
   // Sanity check
   //
   for (int i = 0; i < N; i++) {
-    if (isnan(normed[i])) 
+    if (std::isnan(normed[i])) 
       std::cout << "Cross nan at i= " << i 
 		<< " cross = " << cumCross[i] << std::endl;
     if (i >= 1) assert(normed[i] >= normed[i-1]);

@@ -214,16 +214,16 @@ void Bessel::make_grid(double rmin, double rmax, int lmax, int nmax)
 
   // check table
 
-  for (int ir=1; ir<=RNUM; ir++) assert(!isnan(r_grid[ir]));
+  for (int ir=1; ir<=RNUM; ir++) assert(!std::isnan(r_grid[ir]));
   for (int l=0; l<=lmax; l++) {
-    assert(!isnan(potl_grid[l].nmax));
-    assert(!isnan(dens_grid[l].nmax));
+    assert(!std::isnan(potl_grid[l].nmax));
+    assert(!std::isnan(dens_grid[l].nmax));
     for (int n=1; n<=nmax; n++) {
       for (int ir=1; ir<=RNUM; ir++) {
-	assert(!isnan(potl_grid[l].rw[n][ir]));
-	assert(!isnan(potl_grid[l].rw2[n][ir]));
-	assert(!isnan(dens_grid[l].rw[n][ir]));
-	assert(!isnan(dens_grid[l].rw2[n][ir]));
+	assert(!std::isnan(potl_grid[l].rw[n][ir]));
+	assert(!std::isnan(potl_grid[l].rw2[n][ir]));
+	assert(!std::isnan(dens_grid[l].rw[n][ir]));
+	assert(!std::isnan(dens_grid[l].rw2[n][ir]));
       }
     }
   }

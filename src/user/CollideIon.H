@@ -327,8 +327,8 @@ protected:
   std::vector<double> cross1_dbg, cross2_dbg;
   double nextTime_dbg;
   int nCnt_dbg;
-  static const double delTime_dbg = 0.001;
-  static const int nCel_dbg = 10;
+  static constexpr double delTime_dbg = 0.001;
+  static constexpr int nCel_dbg = 10;
   void write_cross_debug();
   //@}
 

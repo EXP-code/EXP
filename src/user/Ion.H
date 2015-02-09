@@ -268,25 +268,25 @@ protected:
   // Physical constants
   //
 				// Prefactor A / pi^2 (from Greene, 1959)
-  static const double A       = 5.72791733e-08/(M_PI*M_PI);
+  static constexpr double A       = 5.72791733e-08/(M_PI*M_PI);
 
 				// Classical radius of the electron in nm
-  static const double r0      = 2.81794044e-13 * 1.0e+07;
+  static constexpr double r0      = 2.81794044e-13 * 1.0e+07;
 
 				// Bohr radius in nm
-  static const double a0      = 0.0529177211;
+  static constexpr double a0      = 0.0529177211;
   
 				// Rydberg energy in eV
-  static const double RydtoeV = 13.60569253;
+  static constexpr double RydtoeV = 13.60569253;
 
 				// eV in Rydberg energy
-  static const double eVtoRyd = 1.0/13.60569253;
+  static constexpr double eVtoRyd = 1.0/13.60569253;
 
 				// value of h-bar * c in eV*nm
-  static const double hbc     = 197.327;
+  static constexpr double hbc     = 197.327;
 
 				// k-grid spacing in inverse nm
-  static const double kdel    = 0.5;
+  static constexpr double kdel    = 0.5;
 
 public:
 

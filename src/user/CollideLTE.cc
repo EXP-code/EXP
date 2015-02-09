@@ -264,7 +264,7 @@ void CollideLTE::initialize_cell_dsmc
 #endif
       }
 				// Sanity: failure of explicit solution
-      if (isnan(E)) E = E0;
+      if (std::isnan(E)) E = E0;
       E = max<double>(E, 3.0*Tfac);
 				// Final energy per unit mass in the cell
       KEdspF = E/cell->Mass();
@@ -296,7 +296,7 @@ void CollideLTE::initialize_cell_dsmc
 #endif
     }
 				// Sanity: failure of implicit solution
-    if (isnan(coolheat[id])) coolheat[id] = 0.0;
+    if (std::isnan(coolheat[id])) coolheat[id] = 0.0;
   }
 
   coolSoFar[id] = coolTime[id].stop();
@@ -799,13 +799,13 @@ sKey2Umap CollideLTE::generateSelection
       } else
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
       
-      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
       }
 	    
-      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
@@ -813,7 +813,7 @@ sKey2Umap CollideLTE::generateSelection
 	
     }
       
-    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+    if (it1->second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
       cout << "INVALID CROSS SECTION! ::"
 	   << " crossM = " << crossM[i1] 
 	   << " densM = "  <<  densM[i1] 

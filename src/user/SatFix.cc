@@ -149,9 +149,9 @@ void SatFix::check_body(int n)
   if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
-      if (isnan(c0->Part(n)->pos[k])) ferror = true;
-      if (isnan(c0->Part(n)->vel[k])) ferror = true;
-      if (isnan(c0->Part(n)->acc[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->pos[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->vel[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->acc[k])) ferror = true;
     }
     if (ferror) {
       cout << "Process " << myid << ": error in coordindates, n=" << n << "!" << endl;

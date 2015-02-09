@@ -18,6 +18,6 @@ noinst_HEADERS = ACG.h Binomial.h DiscUnif.h Erlang.h Gamma.h Geom.h \
 
 CXXLD = --tag=F77 mpif77
 AM_CFLAGS = -fPIC -D_REENTRANT
-AM_CXXFLAGS = -fPIC -D_REENTRANT
+AM_CXXFLAGS = -std=c++11 -fPIC -D_REENTRANT
 
 ## libexpgnu/Makefile.am ends here

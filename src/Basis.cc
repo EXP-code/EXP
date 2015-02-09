@@ -21,7 +21,7 @@ void Basis::legendre_R(int lmax, double x, Matrix& p)
     for (m=1; m<=lmax; m++) {
       pll *= -fact*somx2;
       p[m][m] = pll;
-      if (isnan(p[m][m]))
+      if (std::isnan(p[m][m]))
 	cerr << "legendre_R: p[" << m << "][" << m << "]: pll=" << pll << "\n";
       fact += 2.0;
     }
@@ -32,7 +32,7 @@ void Basis::legendre_R(int lmax, double x, Matrix& p)
     p[m+1][m] = pl1 = x*(2*m+1)*pl2;
     for (l=m+2; l<=lmax; l++) {
       p[l][m] = pll = (x*(2*l-1)*pl1-(l+m-1)*pl2)/(l-m);
-      if (isnan(p[l][m]))
+      if (std::isnan(p[l][m]))
 	cerr << "legendre_R: p[" << l << "][" << m << "]: pll=" << pll << "\n";
 
       pl2 = pl1;
@@ -40,11 +40,11 @@ void Basis::legendre_R(int lmax, double x, Matrix& p)
     }
   }
 
-  if (isnan(x))
+  if (std::isnan(x))
     cerr << "legendre_R: x\n";
   for(l=0; l<=lmax; l++)
     for (m=0; m<=l; m++)
-      if (isnan(p[l][m]))
+      if (std::isnan(p[l][m]))
 	cerr << "legendre_R: p[" << l << "][" << m << "] lmax=" 
 	     << lmax << "\n";
 

@@ -533,7 +533,7 @@ void * Cylinder::determine_coefficients_thread(void * arg)
 	       << " eof=" << eof
 	       << endl;
 
-	  if (isnan(R2)) {
+	  if (std::isnan(R2)) {
 	    cout << endl;
 	    cC->orient->transformBody().print(cout);
 	    cout << endl;
@@ -716,11 +716,11 @@ void Cylinder::determine_coefficients_eof(void)
 void check_force_values(double phi, double p, double fr, double fz, double fp)
 {
   if (
-      isinf(phi) || isnan(phi) ||
-      isinf(p  ) || isnan(p  ) ||
-      isinf(fr ) || isnan(fr ) ||
-      isinf(fz ) || isnan(fz ) ||
-      isinf(fp ) || isnan(fp ) ) 
+      std::isinf(phi) || std::isnan(phi) ||
+      std::isinf(p  ) || std::isnan(p  ) ||
+      std::isinf(fr ) || std::isnan(fr ) ||
+      std::isinf(fz ) || std::isnan(fz ) ||
+      std::isinf(fp ) || std::isnan(fp ) ) 
     {
       cerr << "check_force_values: Illegal value\n";
     }

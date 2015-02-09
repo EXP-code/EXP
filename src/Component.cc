@@ -1845,11 +1845,11 @@ void Component::fix_positions(unsigned mlevel)
 				// Check for NaN
     bool com_nan = false, cov_nan = false, coa_nan = false;
     for (int k=0; k<3; k++)
-      if (isnan(com[k])) com_nan = true;
+      if (std::isnan(com[k])) com_nan = true;
     for (int k=0; k<3; k++)
-      if (isnan(cov[k])) cov_nan = true;
+      if (std::isnan(cov[k])) cov_nan = true;
     for (int k=0; k<3; k++)
-      if (isnan(coa[k])) coa_nan = true;
+      if (std::isnan(coa[k])) coa_nan = true;
     if (coa_nan && myid==0)
       cerr << "Component [" << name << "] com has a NaN" << endl;
     if (cov_nan && myid==0)
@@ -1905,7 +1905,7 @@ void Component::fix_positions(unsigned mlevel)
     Vector ctr = orient->currentCenter();
     bool ok    = true;
     for (int i=0; i<3; i++) {
-      if (isnan(ctr[i+1])) ok = false;
+      if (std::isnan(ctr[i+1])) ok = false;
     } 
     if (ok) {
       for (int i=0; i<3; i++) center[i] += ctr[i+1];

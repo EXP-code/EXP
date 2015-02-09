@@ -776,7 +776,7 @@ Ion::collExciteCross(double E, int id)
 	int weight = eit->second.mult;
 	if (weight>0) {
 	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
-	  if (isinf(crs1)) {
+	  if (std::isinf(crs1)) {
 	    std::cout << "crs1 is Inf: weight=" << weight << ", E="
 		      << E << std::endl;
 	  } else {
@@ -1126,7 +1126,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 		<< std::endl;
     }
       
-    if (isnan(cross)) {
+    if (std::isnan(cross)) {
       std::cout << "NAN IN RAD RECOMB: Chi=" << ip
 		<< ", E="      << E 
 		<< ", n="      << f->lvl
@@ -1232,7 +1232,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 		    << ", mult="  << mult
 		    << std::endl;
 	}
-	if (isnan(cross)) {
+	if (std::isnan(cross)) {
 	  std::cout << "NaN in radRecombCrossMewe:" 
 		    << "  Chi="   << ip
 		    << ", I="     << I
@@ -1294,7 +1294,7 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
 		  << Ephot << "\t" << Erat << "\t" << mult << "\t" 
 		  << n <<std::endl;
       }
-      if (isnan(cross)) {
+      if (std::isnan(cross)) {
 	std::cout << cross << "\t" << Ej << "\t" << Ephot << "\t" 
 		  << n << "\t" << Erat << std::endl;
       }

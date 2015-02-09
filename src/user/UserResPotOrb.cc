@@ -663,9 +663,9 @@ void * UserResPotOrb::determine_acceleration_and_potential_thread(void * arg)
       cC->Part(i)->vel[k] = velO[k];
       cC->Part(i)->acc[k] = (velO[k] - velI[k])/dtime;
       if (!found_nan) {
-	if ( isnan(cC->Pos(i, k)) ||
-	     isnan(cC->Vel(i, k)) ||
-	     isnan(cC->Acc(i, k)) ) found_nan = true; 
+	if ( std::isnan(cC->Pos(i, k)) ||
+	     std::isnan(cC->Vel(i, k)) ||
+	     std::isnan(cC->Acc(i, k)) ) found_nan = true; 
       }
       R1 += posO[k]*posO[k];
     }
