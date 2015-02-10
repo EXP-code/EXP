@@ -56,18 +56,9 @@ void Ion::convertName()
 //! Convert a given Z,C pair into a master name string
 std::string ZCtoName(unsigned char Z, unsigned char C) 
 {
-  std::string fileName;
-  std::string ele;
-  std::string c;
-  
-  // Compile the two parts of the name and "stitch" together
-  ele = eleNameList[Z-1];
-  c = static_cast<ostringstream*>( &(ostringstream() << C) )->str();
   std::stringstream ss;
-  ss << ele << "_" << c;
-  fileName = ss.str();
-  
-  return fileName;
+  ss << eleNameList[Z-1] << "_" << static_cast<unsigned>(C);
+  return ss.str();
 }
 
 /** 
@@ -603,6 +594,9 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
       readDi();
       readelvlc();
       readwgfa();
+    } else {
+      std::cout << "MasterName [" << MasterName << "] not in master list" 
+		<< std::endl;
     }
   }
   
@@ -1531,7 +1525,7 @@ chdata::chdata()
   // maxZ = 31; // maxZ = 30 + 1
   // maxNel = 31; 
   
-  for(int i = 0; i < numEle; i++) abundanceAll[i] = 0;
+  for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
   // std::cout << "Reading ip file\n";
   readIp();
