@@ -367,7 +367,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Eunit = Munit*Vunit*Vunit;
 
 				// Number of protons per mass unit
-  for (auto it : collFrac) it.second *= Munit/amu;
+  for (auto it = std::begin(collFrac); it<std::end(collFrac); it++) 
+    it->second *= Munit/amu;
   
   pHOT::sub_sample = sub_sample;
 
@@ -1647,8 +1648,7 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
       ostr << outdir << runtag << ".testcell." << myid << "." << cnt++;
       ofstream out(ostr.str().c_str());
       
-      for (vector<unsigned long>::iterator j=c.Cell()->bods.begin();
-	   j!=c.Cell()->bods.end(); j++) {
+      for (auto j=c.Cell()->bods.begin(); j!=c.Cell()->bods.end(); j++) {
 	for (unsigned k=0; k<3; k++) 
 	  out << setw(18) << c0->Tree()->Body(*j)->pos[k];
 	for (unsigned k=0; k<3; k++) 
