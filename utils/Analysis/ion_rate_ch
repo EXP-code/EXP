@@ -9,13 +9,13 @@ input command line and a plotting/parsing routine.
 
 Examples:
 
-	$ python ion_rate -d 2 run2
+	$ python ion_rate_ch -d 2 run2
 
 Plots the temperature and cooling profile for the run with runtag
 <run2> and therefore species file named <run2.species> using
 polynomical fitting with degree 2.  To use a spline fit, specify the value of the smoothing parameter, i.e.
 
-	$ python ion_rate -s 10000000 run2
+	$ python ion_rate_ch -s 10000000 run2
 
 """
 
