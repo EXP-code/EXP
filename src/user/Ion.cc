@@ -1075,9 +1075,9 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   
   double aeff  = a0/Zeff;
   
-  for (fblvlType::iterator j=N->fblvl.begin(); j!= N->fblvl.end(); j++) {
+  for (auto j : N->fblvl) {
 
-    fblvl_data* f = &j->second;
+    fblvl_data* f = &j.second;
 
     // Line energy (eV)
     //
@@ -1181,9 +1181,9 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
     
     double mult0 = (C<=Z ? fblvl[1].mult : 1);
 
-    for (fblvlType::iterator j=N->fblvl.begin(); j!=N->fblvl.end(); j++) {
+    for (auto j : N->fblvl) {
 
-      fblvl_data* f = &j->second;
+      fblvl_data* f = &j.second;
       double I = IP;
 
       if (f->encm == 0 and f->encmth!=0) I -= f->encmth*incmEv;
@@ -1263,8 +1263,8 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {
-    for (fblvlType::iterator j=fblvl.begin(); j!=fblvl.end(); j++) {
-      fblvl_data* f = &j->second;
+    for (auto j : fblvl) {
+      fblvl_data* f = &j.second;
 
       double Ej = 0.0;
       if (f->lvl==1) 
@@ -1505,12 +1505,12 @@ void chdata::printIp()
 	    << std::setw( 3) << "Z" << std::setw( 3) << "C"
 	    << std::setw(16) << "Energy (eV)" << std::endl;
 
-  for (std::map<lQ, double>::iterator i=ipdata.begin(); i!=ipdata.end(); i++) {
-    if (i->second != 0) {
+  for (auto i : ipdata) {
+    if (i.second != 0) {
       std::cout 
-	<< std::setw( 3) << i->first.first
-	<< std::setw( 3) << i->first.second
-	<< std::setw(16) << i->second
+	<< std::setw( 3) << i.first.first
+	<< std::setw( 3) << i.first.second
+	<< std::setw(16) << i.second
 	<< std::endl;
     }
   }
@@ -1543,13 +1543,13 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
 {
   // Fill the Chianti data base
   //
-  for (ZLtype::const_iterator i=ZList.begin(); i!=ZList.end(); i++) {
-    for (int j=1; j<*i+2; j++) {
-      lQ Q(*i, j);
-      IonList[Q] = Ion(*i, j, this);
+  for (auto i : ZList) {
+    for (int j=1; j<i+2; j++) {
+      lQ Q(i, j);
+      IonList[Q] = Ion(i, j, this);
       // IonList[Q].freeFreeUltrarel();
     }
-    Ni[*i] = 1.0;		// Not sure what this does . . . 
+    Ni[i] = 1.0;		// Not sure what this does . . . 
   }
 }
 

@@ -520,7 +520,6 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   // 
   for (int n=0; n<nthrds; n++) cellist[n].clear();
   ncells = 0;
-  set<pCell*>::iterator ic, icb, ice;
   
   // For debugging
   //
@@ -531,13 +530,12 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
     // Don't queue null cells
     //
     if (tree.CLevels(M).size()) {
-      icb = tree.CLevels(M).begin(); 
-      ice = tree.CLevels(M).end(); 
-      for (ic=icb; ic!=ice; ic++) {
-	if ((*ic)->bods.size()) {
-	  cellist[(ncells++)%nthrds].push_back(*ic);
-	  bodycount += (*ic)->bods.size();
-	  totalbods += (*ic)->bods.size();
+
+      for (auto ic : tree.CLevels(M)) {
+	if (ic->bods.size()) {
+	  cellist[(ncells++)%nthrds].push_back(ic);
+	  bodycount += ic->bods.size();
+	  totalbods += ic->bods.size();
 	} else {
 	  nullcell++;
 	}
@@ -646,14 +644,12 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       //
       double mean=0.0, var2=0.0, cnts=0.0;
       for (int n=0; n<nthrds; n++) {
-	for (std::list< std::pair<long, unsigned> >::iterator
-	       it=effortNumber[n].begin(); it!=effortNumber[n].end(); it++) 
-	  {
-	    double val = static_cast<double>(it->first)/it->second;
-	    mean += val;
-	    var2 += val*val;
-	    cnts += 1;
-	  }
+	for (auto it : effortNumber[n]) {
+	  double val = static_cast<double>(it.first)/it.second;
+	  mean += val;
+	  var2 += val*val;
+	  cnts += 1;
+	}
       }
 
       if (cnts>0.0) {
@@ -1631,10 +1627,9 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   unsigned nbods = cell->bods.size();
   double coolheat = getCoolingRate(id);
   
-  for (vector<unsigned long>::iterator
-	 ib=cell->bods.begin(); ib!=cell->bods.end(); ib++) {
+  for (auto ib : cell->bods) {
     
-    Particle* p = tree->Body(*ib);
+    Particle* p = tree->Body(ib);
     if (p->mass<=0.0 || std::isnan(p->mass)) {
       cout << "[crazy mass]";
     }
@@ -2546,12 +2541,11 @@ void * Collide::timestep_thread(void * arg)
     c = cellist[id][j];
     L = c->Scale();
     
-    for (vector<unsigned long>::iterator 
-	   i=c->bods.begin(); i!=c->bods.end(); i++) {
+    for (auto i : c->bods) {
 
       // Current particle
       //
-      p = tree->Body(*i);
+      p = tree->Body(i);
 
       // Compute time of flight criterion
       //
@@ -3031,12 +3025,11 @@ void Collide::NTCgather()
     unsigned Bth1 = 0, Bth;
     unsigned Tot1 = 0, Tot;
 
-    typedef std::vector<unsigned>::iterator uV;
-    for (uV i=ntcVel.begin(); i!=ntcVel.end(); i++) Vel1 += *i;
-    for (uV i=ntcCrs.begin(); i!=ntcCrs.end(); i++) Crs1 += *i;
-    for (uV i=ntcBth.begin(); i!=ntcBth.end(); i++) Bth1 += *i;
-    for (uV i=ntcTot.begin(); i!=ntcTot.end(); i++) Tot1 += *i;
-  
+    for (auto i : ntcVel) Vel1 += i;
+    for (auto i : ntcCrs) Crs1 += i;
+    for (auto i : ntcBth) Bth1 += i;
+    for (auto i : ntcTot) Tot1 += i;
+
     MPI_Reduce(&Vel1, &Vel, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Crs1, &Crs, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Bth1, &Bth, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);

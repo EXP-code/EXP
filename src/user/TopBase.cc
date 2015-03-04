@@ -222,17 +222,13 @@ double TopBase::sigmaFB(const iKey& key, double E)
     
     double mult0 = (key.second > key.first ? 1 : SWlow[key]);
 
-    TBslp::iterator j = i->second.begin(), jend(i->second.end());
+    for (auto j : i->second) {
 
-    for (; j != jend; j++) {
-
-      TBcfg::iterator k = j->second.begin(), kend(j->second.end());
-
-      for (; k != kend; k++) {
+      for (auto k : j.second) {
 
 	// Pointer to line data
 	//
-	TBptr l     = k->second;
+	TBptr l = k.second;
 
 	// For ground state only . . . 
 	// if (l->ILV != 1) continue;
@@ -255,8 +251,7 @@ double TopBase::sigmaFB(const iKey& key, double E)
 	  size_t jj = ub - l->E.begin();
 	  
 	  if (*ub > *lb)
-	    crs = ( (E - *lb) * l->S[ii] + (*ub - E) * l->S[jj] ) /
-	      (*ub - *lb) ;
+	    crs = ( (E - *lb) * l->S[ii] + (*ub - E) * l->S[jj] ) / (*ub - *lb) ;
 	}
 
 	// Compute the cross section
