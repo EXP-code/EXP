@@ -2141,14 +2141,14 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 
   setup_eof();
 
-  for (auto p : part) {
+  for (auto p=part.begin(); p!=part.end(); p++) {
 
-    mass = p.mass;
-    r = sqrt(p.pos[0]*p.pos[0] + p.pos[1]*p.pos[1]);
-    phi = atan2(p.pos[1], p.pos[0]);
-    z = p.pos[2];
+    mass = p->mass;
+    r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    phi = atan2(p->pos[1], p->pos[0]);
+    z = p->pos[2];
     
-    accumulate_eof(r, z, phi, mass, 0, p.level);
+    accumulate_eof(r, z, phi, mass, 0, p->level);
     if (myid==0 && verbose) {
       if ( (ncnt % 100) == 0) cout << "\r>> " << ncnt << " <<" << flush;
       ncnt++;
@@ -2167,12 +2167,12 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 
   setup_accumulation();
 
-  for (auto p : part) {
+  for (auto p=part.begin(); p!=part.end(); p++) {
 
-    mass = p.mass;
-    r = sqrt(p.pos[0]*p.pos[0] + p.pos[1]*p.pos[1]);
-    phi = atan2(p.pos[1], p.pos[0]);
-    z = p.pos[2];
+    mass = p->mass;
+    r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
+    phi = atan2(p->pos[1], p->pos[0]);
+    z = p->pos[2];
     
     accumulate(r, z, phi, mass, 0, mlevel);
 
