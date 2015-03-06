@@ -259,9 +259,8 @@ void do_step(int n)
     if (VERBOSE>4) {
       
       vector<int> levpop(multistep+1, 0), levtot(multistep+1, 0);
-      for (list<Component*>::iterator cc=comp.components.begin(); 
-	   cc != comp.components.end(); cc++) {
-	for (int n=0; n<=multistep; n++) levpop[n] += (*cc)->levlist[n].size();
+      for (auto c : comp.components) {
+	for (int n=0; n<=multistep; n++) levpop[n] += c->levlist[n].size();
       }
 
       MPI_Reduce(&levpop[0], &levtot[0], multistep+1, MPI_INT, MPI_SUM, 0,

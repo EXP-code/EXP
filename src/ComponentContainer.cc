@@ -186,18 +186,16 @@ void ComponentContainer::initialize(void)
   }
 
 				// Initialize interactions between components
-  list<Component*>::iterator cc, cc1;
   string value;
   ntot = 0;
   
-  for (cc=components.begin(); cc != components.end(); cc++) {
-    c = *cc;
+  for (auto c : components) {
 				// Use this loop, BTW, to sum up all bodies
     ntot += c->nbodies_tot;
     
 				// A new interaction list for THIS component
     Interaction *curr = new Interaction;
-    curr->c = &(*c);
+    curr->c = c;
 				// Loop through looking for pairs, it's n^2
 				// but there will not be that many . . .
     parse->find_list("interaction");
@@ -206,15 +204,13 @@ void ComponentContainer::initialize(void)
 				// Are we talking about THIS component?
       if (c->name.compare(data.first) == 0) {
 	
-	for (cc1=comp.components.begin(); cc1 != comp.components.end(); cc1++) {
-	  c1 = *cc1;
-
-				// If the second in the pair matches, use it
+	for (auto c1 : comp.components) {
+	  // If the second in the pair matches, use it
 	  if (c1->name.compare(data.second) == 0) {
-	    curr->l.push_back(&(*c1));
+	    curr->l.push_back(c1);
 	  }
-
 	}
+	
       }
     }
 
@@ -234,12 +230,10 @@ void ComponentContainer::initialize(void)
 	 << setw(30) << setfill('-') << "-"
 	 << "\n" << setfill(' ');
     
-    list<Interaction*>::iterator i;
-    list<Component*>::iterator j;
-    for (i=interaction.begin(); i != interaction.end(); i++) {
-      Interaction *inter = *i;
-      for (j=inter->l.begin(); j != inter->l.end(); j++) {
-	Component *comp = *j;
+    for (auto inter : interaction) {
+
+      for (auto comp : inter->l) {
+
 	cout << setiosflags(ios::left)
 	     << setw(30) << inter->c->name 
 	     << "acts on" 
@@ -263,12 +257,7 @@ void ComponentContainer::initialize(void)
 
 ComponentContainer::~ComponentContainer(void)
 {
-  Component   *p1;
-  Interaction *p2;
-
-  list<Component*>::iterator c;
-  for (c=comp.components.begin(); c != comp.components.end(); c++) {
-    p1 = *c;
+  for (auto p1 : comp.components) {
 #ifdef DEBUG
     cout << "Process " << myid 
 	 << " deleting component <" << p1->name << ">" << endl;
@@ -276,9 +265,7 @@ ComponentContainer::~ComponentContainer(void)
     delete p1;
   }
 
-  list<Interaction*>::iterator i;
-  for (i=interaction.begin(); i != interaction.end(); i++) {
-    p2 = *i;
+  for (auto p2 : interaction) {
 #ifdef DEBUG
     cout << "Process " << myid 
 	 << " deleting interaction <" << p2->c->name << ">" << endl;
@@ -292,9 +279,6 @@ ComponentContainer::~ComponentContainer(void)
 
 void ComponentContainer::compute_potential(unsigned mlevel)
 {
-  list<Component*>::iterator cc;
-  Component *c;
-  
 #ifdef DEBUG
   cout << "Process " << myid << ": entered <compute_potential>\n";
 #endif
@@ -317,8 +301,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
   // Potential/force clock
   //
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++)
-    (*cc)->time_so_far.reset();
+  for (auto c : comp.components) c->time_so_far.reset();
 
   //
   // Compute accel for each component
@@ -338,8 +321,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   GPTLstart("ComponentContainer::acceleration");
 #endif
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 
     if (timing) {
       timer_wait.stop();
@@ -403,8 +385,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
   //
   // Do the component interactions
   //
-  list<Interaction*>::iterator inter;
-  list<Component*>::iterator other;
   vector< pair<string, Timer> >::iterator itmr;
   
   state = INTERACTION;
@@ -413,19 +393,16 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 				// [One for each pair in the list]
 				//
     unsigned npairs = 0;	// Count the pairs
-    for (inter=interaction.begin(); inter != interaction.end(); inter++) {
-      for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
-	npairs++;
-      }
+    for (auto inter : interaction) {
+      for (auto other : inter->l) npairs++;
     }
-
 				// Remake the timer list?
     if (npairs != timer_sntr.size()) {
       timer_sntr.clear();	// Clear the list and make a new one
-      for (inter=interaction.begin(); inter != interaction.end(); inter++) {
-	for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
+      for (auto inter : interaction) {
+	for (auto other : inter->l) {
 	  ostringstream sout;
-	  sout << (*inter)->c->name << " <=> " << (*other)->name;
+	  sout << inter->c->name << " <=> " << other->name;
 	  timer_sntr.push_back( pair<string, Timer>(sout.str(), Timer(true)) );
 	}
       }
@@ -435,13 +412,13 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     itmr = timer_sntr.begin();
   }
 
-  for (inter=interaction.begin(); inter != interaction.end(); inter++) {
-    for (other=(*inter)->l.begin(); other != (*inter)->l.end(); other++) {
+  for (auto inter : interaction) {
+    for (auto other : inter->l) {
 
 #ifdef USE_GPTL
       ostringstream sout;
       sout <<"ComponentContainer::interation run<"
-	   << (*inter)->c->name << "-->" << (*other)->name << ">";
+	   << inter->c->name << "-->" << other->name << ">";
       GPTLstart(sout.str().c_str());
 #endif
 
@@ -449,12 +426,12 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 	timer_accel.start();
 	itmr->second.start();
       }
-      (*other)->time_so_far.start();
-      (*inter)->c->force->SetExternal();
-      (*inter)->c->force->set_multistep_level(mlevel);
-      (*inter)->c->force->get_acceleration_and_potential(*other);
-      (*inter)->c->force->ClearExternal();
-      (*other)->time_so_far.stop();
+      other->time_so_far.start();
+      inter->c->force->SetExternal();
+      inter->c->force->set_multistep_level(mlevel);
+      inter->c->force->get_acceleration_and_potential(other);
+      inter->c->force->ClearExternal();
+      other->time_so_far.stop();
       if (timing) {
 	timer_accel.stop();
 	itmr->second.stop();
@@ -466,7 +443,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 #ifdef GPTL_WAIT
       sout.str("");
       sout <<"ComponentContainer::interation wait<"
-	   << (*inter)->c->name << "-->" << (*other)->name << ">";
+	   << inter->c->name << "-->" << other->name << ">";
       GPTLstart(sout.str().c_str());
       MPI_Barrier(MPI_COMM_WORLD);
       GPTLstop (sout.str().c_str());
@@ -499,27 +476,22 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 				// [One for each in external force list]
     if (external.force_list.size() != timer_sext.size()) {
       timer_sext.clear();	// Clear the list
-      list<ExternalForce *>::iterator ext;
-      for (ext =  external.force_list.begin(); 
-	   ext != external.force_list.end(); ext++) {
-	timer_sext.push_back( pair<string, Timer>((*ext)->id, Timer(true)) );
+      for (auto ext : external.force_list) {
+	timer_sext.push_back( pair<string, Timer>(ext->id, Timer(true)) );
       }
     }
   }
   if (!external.force_list.empty()) {
     
     unsigned cnt=0;
-    list<ExternalForce*>::iterator ext;
 
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       c->time_so_far.start();
       if (timing) itmr = timer_sext.begin();
-      for (ext=external.force_list.begin(); 
-	   ext != external.force_list.end(); ext++) {
+      for (auto ext : external.force_list) {
 	if (timing) itmr->second.start();
-	(*ext)->set_multistep_level(mlevel);
-	(*ext)->get_acceleration_and_potential(c);
+	ext->set_multistep_level(mlevel);
+	ext->get_acceleration_and_potential(c);
 	if (timing) (itmr++)->second.stop();
       }
       c->time_so_far.stop();
@@ -564,8 +536,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     //
     if (timing) timer_gcom.start();
     for (int k=0; k<3; k++) gcom[k] = 0.0;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       for (int k=0; k<3; k++) gcom[k] += c->com[k];
     }
     if (timing) timer_gcom.stop();
@@ -578,9 +549,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Compute angular momentum for each component
     //
     if (timing) timer_angmom.start();
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      (*cc)->get_angmom();
-    }
+    for (auto c : comp.components) c->get_angmom();
     if (timing) timer_angmom.stop();
     
 #ifdef DEBUG
@@ -592,8 +561,7 @@ void ComponentContainer::compute_potential(unsigned mlevel)
     // Update center of mass system coordinates
     //
     if (timing) timer_gcom.start();
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if (c->com_system) c->update_accel();
     }
     if (timing) timer_gcom.stop();
@@ -760,9 +728,6 @@ void ComponentContainer::compute_potential(unsigned mlevel)
 
 void ComponentContainer::compute_expansion(unsigned mlevel)
 {
-  list<Component*>::iterator cc;
-  Component *c;
-  
 #ifdef USE_GPTL
   GPTLstart("ComponentContainer::compute_expansion");
 #endif
@@ -776,9 +741,7 @@ void ComponentContainer::compute_expansion(unsigned mlevel)
   //
   // Compute expansion for each component
   //
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    
+  for (auto c : comp.components) {
 #ifdef DEBUG
     cout << "Process " << myid << ": about to compute coefficients <"
 	 << c->id << "> for mlevel=" << mlevel << endl;
@@ -805,10 +768,7 @@ void ComponentContainer::multistep_reset()
   //
   // Do reset for each component
   //
-  list<Component*>::iterator cc;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->force->multistep_reset();
-  }
+  for (auto c : comp.components) c->force->multistep_reset();
 }
 
 
@@ -882,19 +842,13 @@ void ComponentContainer::print_level_lists(double T)
   //
   // Do reset for each component
   //
-  list<Component*>::iterator cc;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->print_level_lists(T);
-  }
+  for (auto c : comp.components) c->print_level_lists(T);
 }
 
 
 void ComponentContainer::multistep_debug()
 {
-  list<Component*>::iterator cc;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    (*cc)->force->multistep_debug();
-  }
+  for (auto c : comp.components) c->force->multistep_debug();
 }
 
 
@@ -906,12 +860,9 @@ void ComponentContainer::fix_acceleration(void)
   axcm = aycm = azcm = mtot = 0.0;
   axcm1 = aycm1 = azcm1 = mtot1 = 0.0;
 
-  list<Component*>::iterator cc;
-  Component *c;
   PartMapItr p, pend;
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
@@ -936,8 +887,7 @@ void ComponentContainer::fix_acceleration(void)
     azcm = azcm/mtot;
   }
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 
     pend = c->particles.end();
     for (p=c->particles.begin(); p != pend; p++) {
@@ -964,12 +914,9 @@ void ComponentContainer::fix_positions()
   for (int k=0; k<3; k++) 
     gcom[k] = gcom1[k] = gcov[k] = gcov1[k] = 0.0;
 
-  list<Component*>::iterator cc;
-  Component *c;
   PartMapItr p, pend;
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 
     if (timing) timer_fixp.start();
     c->fix_positions();
@@ -995,8 +942,7 @@ void ComponentContainer::fix_positions()
 
   if (global_cov) {
 
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
 
       pend = c->particles.end();
       for (p=c->particles.begin(); p != pend; p++) {
@@ -1058,29 +1004,25 @@ void ComponentContainer::report_numbers(void)
     if (myid==num) {
       string fout = outdir + runtag + ".number";
       ofstream out(fout.c_str(), ios::out | ios::app);
-      list<Component*>::iterator cc;
       if (out) {
 	if (myid==0) {
 	  out << "# Step: " << this_step << " Time: " << tnow << endl 
 	      << right << "# " << setw(5)  << "Proc";
-	  for (cc=comp.components.begin(); 
-	       cc != comp.components.end(); cc++) {
-	    out << setw(20) << (*cc)->name << setw(20) << "Effort";
+	  for (auto c : comp.components) {
+	    out << setw(20) << c->name << setw(20) << "Effort";
 	  }
 	  out << endl << "# " << setw(5) << "-----";
-	  for (cc=comp.components.begin(); 
-	       cc != comp.components.end(); cc++) {
+	  for (auto c : comp.components) {
 	    out << setw(20) << "----------" << setw(20) << "----------";
 	  }
 	  out << endl;
 	}
 	out << setw(7) << num;
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	  out << setw(20) << (*cc)->Number();
+	for (auto c : comp.components) {
+	  out << setw(20) << c->Number();
 	  double toteff = 0.0;
-	  PartMap::iterator tp;
-	  for (tp=(*cc)->particles.begin(); tp!=(*cc)->particles.end(); tp++)
-	    toteff += tp->second.effort;
+	  for (auto tp : c->particles)
+	    toteff += tp.second.effort;
 	  out << setw(20) << toteff;
 	}
 	out << endl;
@@ -1176,11 +1118,7 @@ void ComponentContainer::load_balance(void)
     rates = rates1;
 
 				// Initiate load balancing for each component
-    list<Component*>::iterator cc;
-  
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      (*cc)->load_balance();
-    }
+    for (auto c : comp.components) c->load_balance();
 
   }
 
@@ -1189,28 +1127,26 @@ void ComponentContainer::load_balance(void)
 bool ComponentContainer::bad_values()
 {
   bool bad = false;
-  PartMapItr it;
-  list<Component*>::iterator cc;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+  for (auto c : comp.components) {
     bool badval = false;
-    for (it=(*cc)->Particles().begin(); it!=(*cc)->Particles().end(); it++) {
-      if (std::isnan(it->second.mass)) badval=true;
+    for (auto it : c->Particles()) {
+      if (std::isnan(it.second.mass)) badval=true;
       for (int k=0; k<3; k++) {
-	if (std::isnan(it->second.pos[k]))  badval=true;
-	if (std::isnan(it->second.vel[k]))  badval=true;
-	if (std::isnan(it->second.acc[k]))  badval=true;
+	if (std::isnan(it.second.pos[k]))  badval=true;
+	if (std::isnan(it.second.vel[k]))  badval=true;
+	if (std::isnan(it.second.acc[k]))  badval=true;
       }
       if (badval) {
-	cout << "Bad value in <" << (*cc)->name << ">: ";
-	cout << setw(12) << it->second.indx
-	     << setw(16) << hex << it->second.key << dec
-	     << setw(18) << it->second.mass;
+	cout << "Bad value in <" << c->name << ">: ";
+	cout << setw(12) << it.second.indx
+	     << setw(16) << hex << it.second.key << dec
+	     << setw(18) << it.second.mass;
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it->second.pos[k];
+	  cout << setw(18) << it.second.pos[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it->second.vel[k];
+	  cout << setw(18) << it.second.vel[k];
 	for (int k=0; k<3; k++)
-	  cout << setw(18) << it->second.acc[k];
+	  cout << setw(18) << it.second.acc[k];
 	cout << endl;
 	bad = true;
 	break;

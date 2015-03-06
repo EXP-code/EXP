@@ -367,7 +367,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Eunit = Munit*Vunit*Vunit;
 
 				// Number of protons per mass unit
-  for (auto it = std::begin(collFrac); it<std::end(collFrac); it++) 
+  for (auto it=collFrac.begin(); it!=collFrac.end(); it++) 
     it->second *= Munit/amu;
   
   pHOT::sub_sample = sub_sample;

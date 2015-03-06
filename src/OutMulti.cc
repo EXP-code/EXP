@@ -36,16 +36,10 @@ void OutMulti::Run(int n, bool last)
   if (restart  && n==0  && !dump_signal) return;
 
   ofstream *out;
-  list<Component*>::iterator cc;
-  Component* c;
-
-  if (myid==0) {
-  }
   
   vector<unsigned> counts(multistep+1, 0), histo(multistep+1, 0);
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 
     PartMapItr it = c->Particles().begin();
     for (int q=0; q<c->Number(); q++) counts[c->Part((it++)->first)->level]++;

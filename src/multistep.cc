@@ -214,9 +214,7 @@ void adjust_multistep_level(bool all)
   //
   // Begin the update
   //
-  for (list<Component*>::iterator cc=comp.components.begin(); 
-       cc != comp.components.end(); cc++)
-    (*cc)->force->multistep_update_begin();
+  for (auto c : comp.components) c->force->multistep_update_begin();
 
   //
   // Preliminary data structure and thread creation
@@ -228,11 +226,10 @@ void adjust_multistep_level(bool all)
 
     if (offhi1.size()==0 || mstep==0) {
 
-      for (list<Component*>::iterator cc=comp.components.begin(); 
-	   cc != comp.components.end(); cc++) {
+      for (auto c : comp.components) {
 	for (int n=0; n<nthrds; n++) {
-	  offhi1[*cc] = vector<unsigned>(nthrds, 0);
-	  offlo1[*cc] = vector<unsigned>(nthrds, 0);
+	  offhi1[c] = vector<unsigned>(nthrds, 0);
+	  offlo1[c] = vector<unsigned>(nthrds, 0);
 	}
       }
     }
@@ -263,8 +260,7 @@ void adjust_multistep_level(bool all)
     }
   }
 
-  for (list<Component*>::iterator cc=comp.components.begin();
-       cc != comp.components.end(); cc++) {
+  for (auto c : comp.components) {
     
     if (mstep == 0) {
       for (int n=0; n<nthrds; n++)
@@ -280,7 +276,7 @@ void adjust_multistep_level(bool all)
 
 	  td[0].level = level;
 	  td[0].id = 0;
-	  td[0].c = *cc;
+	  td[0].c = c;
 
 	  adjust_multistep_level_thread(&td[0]);
 
@@ -297,7 +293,7 @@ void adjust_multistep_level(bool all)
 	    
 	    td[i].level = level;
 	    td[i].id = i;
-	    td[i].c = *cc;
+	    td[i].c = c;
 	    
 	    errcode =  pthread_create(&t[i], 0, adjust_multistep_level_thread, &td[i]);
 	    
@@ -338,7 +334,7 @@ void adjust_multistep_level(bool all)
       for (int n=0; n<nthrds; n++)
 	for (int k=0; k<=multistep; k++) 
 	  for (int j=0; j<mdtDim; j++) 
-	    (*cc)->mdt_ctr[k][j] += tmdt[n][k][j];
+	    c->mdt_ctr[k][j] += tmdt[n][k][j];
     }
   }
 
@@ -348,11 +344,10 @@ void adjust_multistep_level(bool all)
   //
   // Finish the update
   //
-  for (list<Component*>::iterator cc=comp.components.begin(); 
-       cc != comp.components.end(); cc++) {
-    (*cc)->reset_level_lists();
-    (*cc)->fix_positions();
-    (*cc)->force->multistep_update_finish();
+  for (auto c : comp.components) {
+    c->reset_level_lists();
+    c->fix_positions();
+    c->force->multistep_update_finish();
   }
 
 
@@ -377,19 +372,18 @@ void adjust_multistep_level(bool all)
     MPI_Reduce(&maxdt1[0], &maxdt, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
 
     
-    for (list<Component*>::iterator cc=comp.components.begin(); 
-	 cc != comp.components.end(); cc++) {
+    for (auto c : comp.components) {
 
       unsigned cofflo = 0, coffhi = 0;
       for (int n=0; n<nthrds; n++) {
-	cofflo += offlo1[*cc][n];
-	coffhi += offhi1[*cc][n];
+	cofflo += offlo1[c][n];
+	coffhi += offhi1[c][n];
       }
 
-      MPI_Reduce(&cofflo, &offlo[*cc], 1,
+      MPI_Reduce(&cofflo, &offlo[c], 1,
 		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
       
-      MPI_Reduce(&coffhi, &offhi[*cc], 1,
+      MPI_Reduce(&coffhi, &offhi[c], 1,
 		 MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     }
 
@@ -397,10 +391,9 @@ void adjust_multistep_level(bool all)
     if (myid==0) {
       
       unsigned sumlo=0, sumhi=0;
-      for (list<Component*>::iterator cc=comp.components.begin(); 
-	   cc != comp.components.end(); cc++) {
-	sumlo += offlo[*cc];
-	sumhi += offhi[*cc];
+      for (auto c : comp.components) {
+	sumlo += offlo[c];
+	sumhi += offhi[c];
       }
       
       if (sumlo || sumhi) {
@@ -418,22 +411,20 @@ void adjust_multistep_level(bool all)
 	     << setfill(' ') << right;
 
 	if (sumlo) {
-	  list<Component*>::iterator cc;
-	  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (auto c : comp.components) {
 	    ostringstream sout;
-	    sout << "Component <" << (*cc)->name << ">";
+	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |   low: "
-		 << offlo[*cc] << "/" << (*cc)->nbodies_tot << endl;
+		 << offlo[c] << "/" << c->nbodies_tot << endl;
 	  }
 	}
 
 	if (sumhi) {
-	  list<Component*>::iterator cc;
-	  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	  for (auto c : comp.components) {
 	    ostringstream sout;
-	    sout << "Component <" << (*cc)->name << ">";
+	    sout << "Component <" << c->name << ">";
 	    cout << setw(30) << sout.str() << " |  high: "
-		 << offhi[*cc] << "/" << (*cc)->nbodies_tot << endl;
+		 << offhi[c] << "/" << c->nbodies_tot << endl;
 	  }
 	}
 

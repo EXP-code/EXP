@@ -82,14 +82,12 @@ void OutputContainer::initialize(void)
   
 OutputContainer::~OutputContainer()
 {
-  list<Output*>::iterator it;
-  for (it=out.begin(); it != out.end(); it++) delete *it;
+  for (auto it : out) delete it;
 }
 
 void OutputContainer::Run(int n, bool final)
 {
-  list<Output*>::iterator it;
-  for (it=out.begin(); it != out.end(); it++) (*it)->Run(n, final);
+  for (auto it : out) it->Run(n, final);
   if (myid==0) {
 #ifdef DEBUG
     cout << setw(60) << setfill('=') << "=" << endl

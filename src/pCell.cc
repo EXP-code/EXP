@@ -58,10 +58,9 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  sKeySet::iterator it;
-  for (it=tr->spec_list.begin(); it!=tr->spec_list.end(); it++) {
-    count[*it] = 0;
-    state[*it] = vector<double>(10, 0.0);
+  for (auto i : tr->spec_list) {
+    count[i] = 0;
+    state[i] = vector<double>(10, 0.0);
   }
 
   ctotal  = 0;
@@ -97,10 +96,9 @@ pCell::pCell(pCell* mom, unsigned id) :
   mask    = mykey << 3*(nbits - level);
 
 				// Initialize state
-  sKeySet::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    count[*it] = 0;
-    state[*it] = vector<double>(10, 0.0);
+  for (auto i : tree->spec_list) {
+    count[i] = 0;
+    state[i] = vector<double>(10, 0.0);
   }
 
   stotal = vector<double>(10, 0.0);
@@ -122,8 +120,7 @@ pCell::~pCell()
   live--;
 
   // Recursively kill all the cells
-  for (map<unsigned, pCell*>::iterator it=children.begin(); 
-       it!=children.end(); it++) delete it->second;
+  for (auto i : children) delete i.second;
 }
 
 unsigned pCell::childId(key_type key)
@@ -202,23 +199,23 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
     
 				// Bucket is full, I need to make
 				// leaves and become a branch
-    for (key_indx::iterator n=keys.begin(); n!=keys.end(); n++) {
+    for (auto n : keys) {
 				// Give all of my body keys to my
 				// children
-      key2 = childId(n->first);
+      key2 = childId(n.first);
       if (children.find(key2) == children.end()) {
 	children[key2] = new pCell(this, key2);
 	if (change) change->push_back(cell_indx(children[key2], pHOT::CREATE));
       }
       
-      key2Range ik = tree->bodycell.equal_range(n->first);
+      key2Range ik = tree->bodycell.equal_range(n.first);
       key2Itr jk = ik.first, rmv;
       while ((rmv=jk++)!=ik.second) {
-	if (rmv->second.second == n->second)
+	if (rmv->second.second == n.second)
 	  tree->bodycell.erase(rmv);
       }
 
-      children[key2]->Add(*n, change);
+      children[key2]->Add(n, change);
     }
 				// Erase my list
     keys.clear();
@@ -436,8 +433,7 @@ bool pCell::Remove(const key_pair& keypair, change_list* change)
       // Find the parent delete the cell from the parent list
       //
       bool found = false;
-      for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
-	   ic!=parent->children.end(); ic++) {
+      for (auto ic=parent->children.begin(); ic!=parent->children.end(); ic++) {
 	if (ic->second == this) {
 	  parent->children.erase(ic);
 	  found = true;
@@ -505,8 +501,7 @@ void pCell::RemoveAll()
   if (mykey!=1u) tree->frontier.erase(mykey);
 
   if (parent) {
-    for (map<unsigned, pCell*>::iterator ic=parent->children.begin(); 
-	 ic!=parent->children.end(); ic++) {
+    for (auto ic=parent->children.begin(); ic!=parent->children.end(); ic++) {
       if (ic->second == this) {
 	parent->children.erase(ic);
 	return;
@@ -565,14 +560,12 @@ pCell* pCell::findNode(const key_type& key)
  
 void pCell::zeroState()
 {
-  sKeySet::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    count[*it] = 0;
-    for (int k=0; k<10; k++) state[*it][k] = 0.0;
+  for (auto i : tree->spec_list) {
+    count[i] = 0;
+    for (int k=0; k<10; k++) state[i][k] = 0.0;
   }
 
-  for (map<unsigned, pCell*>::iterator it = children.begin();
-       it != children.end(); it++) it->second->zeroState();
+  for (auto i : children) i.second->zeroState();
 
   ctotal = 0;
   for (int k=0; k<10; k++) stotal[k] = 0.0;
@@ -582,27 +575,25 @@ void pCell::zeroState()
 void pCell::accumState()
 {
 				// March through the body list
-  vector<unsigned long>::iterator j;
-  for (j=bods.begin(); j!=bods.end(); j++) {
+  for (auto j: bods) {
     speciesKey spc = defaultKey;
     if (C->keyPos>=0) {
-      KeyConvert kc(C->Particles()[*j].iattrib[C->keyPos]);
+      KeyConvert kc(C->Particles()[j].iattrib[C->keyPos]);
       spc = kc.getKey();
     }
-    state[spc][0] += C->Particles()[*j].mass;
+    state[spc][0] += C->Particles()[j].mass;
     for (int k=0; k<3; k++) {
-      state[spc][1+k] += C->Particles()[*j].mass * 
-	C->Particles()[*j].vel[k]*C->Particles()[*j].vel[k];
-      state[spc][4+k] += C->Particles()[*j].mass * C->Particles()[*j].vel[k];
-      state[spc][7+k] += C->Particles()[*j].mass * C->Particles()[*j].pos[k];
+      state[spc][1+k] += C->Particles()[j].mass * 
+	C->Particles()[j].vel[k]*C->Particles()[j].vel[k];
+      state[spc][4+k] += C->Particles()[j].mass * C->Particles()[j].vel[k];
+      state[spc][7+k] += C->Particles()[j].mass * C->Particles()[j].pos[k];
     }
     count[spc]++;
   }
   
-  sKeySet::iterator it;
-  for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-    ctotal += count[*it];
-    for (int k=0; k<10; k++) stotal[k] += state[*it][k];
+  for (auto i : tree->spec_list) {
+    ctotal += count[i];
+    for (int k=0; k<10; k++) stotal[k] += state[i][k];
   }
     
 				// Walk up the tree . . .
@@ -613,13 +604,12 @@ void pCell::accumState(sKeyUmap& _count, sKeyvDmap& _state)
 {
 #pragma omp critical
   {
-    sKeySet::iterator it;
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      ctotal     += _count[*it];
-      count[*it] += _count[*it];
+    for (auto i : tree->spec_list) {
+      ctotal   += _count[i];
+      count[i] += _count[i];
       for (int k=0; k<10; k++) {
-	stotal[k]     += _state[*it][k];
-	state[*it][k] += _state[*it][k];
+	stotal[k]   += _state[i][k];
+	state[i][k] += _state[i][k];
       }
     }
   }
@@ -634,7 +624,7 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
   if (key==0u) {
     curcnt = 0;
     lev    = 0;
-    for (vector<double>::iterator s=st.begin(); s!=st.end(); s++) *s = 0;
+    for (auto s=st.begin(); s!=st.end(); s++) *s = 0;
     return;
   }
     
@@ -644,10 +634,9 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
   key_type cid = key - mask;
   cid = cid >> 3*(nbits - 1 - level);
 
-  for( map<unsigned, pCell*>::iterator it = children.begin();
-       it != children.end(); it++) {
-    if (cid == it->first) {
-      it->second->Find(key, curcnt, lev, st);
+  for(auto i : children) {
+    if (cid == i.first) {
+      i.second->Find(key, curcnt, lev, st);
       return;
     }
   }
@@ -664,15 +653,12 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
 
 void pCell::Find(key_type key, sKeyUmap& curcnt, unsigned& lev, sKeyvDmap& st)
 {
-  sKeySet::iterator it;
-
   if (key==0u) {
     lev = 0;
 
-    for (it=tree->spec_list.begin(); it!=tree->spec_list.end(); it++) {
-      curcnt[*it] = 0;
-      for (vector<double>::iterator 
-	     s=st[*it].begin(); s!=st[*it].end(); s++) *s = 0;
+    for (auto i : tree->spec_list) {
+      curcnt[i] = 0;
+      for (auto s=st[i].begin(); s!=st[i].end(); s++) *s = 0;
     }
 
     return;
@@ -684,10 +670,9 @@ void pCell::Find(key_type key, sKeyUmap& curcnt, unsigned& lev, sKeyvDmap& st)
   key_type cid = key - mask;
   cid = cid >> 3*(nbits - 1 - level);
 
-  for (map<unsigned, pCell*>::iterator it = children.begin();
-       it != children.end(); it++) {
-    if (cid == it->first) {
-      it->second->Find(key, curcnt, lev, st);
+  for (auto i : children) {
+    if (cid == i.first) {
+      i.second->Find(key, curcnt, lev, st);
       return;
     }
   }
@@ -704,8 +689,7 @@ void pCell::Find(key_type key, sKeyUmap& curcnt, unsigned& lev, sKeyvDmap& st)
 double sCell::Mass()
 {
   double mass = 0.0;
-  sKeyvDmap::iterator it;
-  for (it=state.begin(); it!=state.end(); it++) mass += (it->second)[0];
+  for (auto i : state) mass += i.second[0];
   return mass; 
 }
 
@@ -719,8 +703,7 @@ double sCell::Mass(speciesKey indx)
 unsigned sCell::Count()
 {
   double number = 0.0;
-  for (sKeyvDmap::iterator it=state.begin(); it!=state.end(); it++) 
-    number += (it->second)[10];
+  for (auto i : state) number += i.second[10];
   return number; 
 }
 
@@ -907,16 +890,15 @@ void pCell::Vel(double &mass, vector<double>& v1, vector<double>& v2)
   v2 = vector<double>(3, 0.0);
 
   if (isLeaf) {
-    for (vector<unsigned long>::iterator 
-	   i=bods.begin(); i!=bods.end(); i++) {
+    for (auto i : bods) {
       for (int k=0; k<3; k++) {
-	v1[k] += C->Particles()[*i].mass * 
-	  C->Particles()[*i].vel[k];
+	v1[k] += C->Particles()[i].mass * 
+	  C->Particles()[i].vel[k];
 
-	v2[k] += C->Particles()[*i].mass * 
-	  C->Particles()[*i].vel[k] * C->Particles()[*i].vel[k];
+	v2[k] += C->Particles()[i].mass * 
+	  C->Particles()[i].vel[k] * C->Particles()[i].vel[k];
       }
-      mass += C->Particles()[*i].mass;
+      mass += C->Particles()[i].mass;
     }
   }
 
@@ -968,9 +950,8 @@ Particle* pCell::Body(vector<unsigned long>::iterator k)
 unsigned pCell::remake_plev()
 {
   maxplev = 0;
-  for (vector<unsigned long>::iterator 
-	 i=bods.begin(); i!=bods.end(); i++) {
-    maxplev = max<unsigned>(maxplev, C->Particles()[*i].level);
+  for (auto i : bods) {
+    maxplev = max<unsigned>(maxplev, C->Particles()[i].level);
   }
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;
