@@ -52,10 +52,7 @@ UserEBarS::UserEBarS(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    list<Component*>::iterator cc;
-    Component *c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -243,9 +240,6 @@ void UserEBarS::determine_acceleration_and_potential(void)
     ellip = new EllipForce(length, length*bratio, length*bratio*cratio,
 			   barmass, 200, 200);
 
-    list<Component*>::iterator cc;
-    Component *c;
-
     if (omega0 < 0.0) {
 
       double R=length*Fcorot;
@@ -256,8 +250,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
       for (int n=0; n<8; n++) {
 	phi = 2.0*M_PI/8.0 * n;
 
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	  c = *cc;
+	for (auto c : comp.components) {
 	
 	  if (c->force->geometry == PotAccel::sphere || 
 	      c->force->geometry == PotAccel::cylinder) {
@@ -270,7 +263,7 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	  }
 	}
       }
-
+      
       omega0 = sqrt(avg/R);
     }
 
@@ -352,12 +345,11 @@ void UserEBarS::determine_acceleration_and_potential(void)
 	    << setw(15) << "Omega"
 	    << setw(15) << "L_z(Bar)";
 
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) 
-	  {
-	    ostringstream ostr;
-	    ostr << "T_z(" << (*cc)->name << ")";
-	    out << setw(15) << ostr.str().substr(0,15);
-	  }
+	for (auto c : comp.components) {
+	  ostringstream ostr;
+	  ostr << "T_z(" << c->name << ")";
+	  out << setw(15) << ostr.str().substr(0,15);
+	}
 	
 	out << setw(15) << "T_z(total)"
 	    << setw(15) << "Amp"
@@ -500,12 +492,10 @@ void UserEBarS::determine_acceleration_and_potential(void)
 
 				// Identify list #
   cid=0;
-  for (list<Component*>::iterator cc=comp.components.begin(); 
-       cc != comp.components.end(); cc++) 
-    {
-      if (cC == *cc) break;
-      cid++;
-    }
+  for (auto c : comp.components) {
+    if (cC == c) break;
+    cid++;
+  }
 
   if (cid==comp.ncomp) {
     cerr << "Process " << myid << ": failed to identify component!\n";

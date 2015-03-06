@@ -43,7 +43,8 @@ static bool CROSS_DBG  = false;
 //
 const double FloorEv = 0.05;
 
-CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double sD, 
+CollideIon::CollideIon(ExternalForce *force, Component *comp, 
+		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
@@ -81,7 +82,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   dInterMap.resize(nthrds);
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
-  sWghtsMap.resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kCE1     .resize(nthrds);
@@ -94,7 +94,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spProb   .resize(nthrds);
-  spWght   .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -233,58 +232,40 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
     // Compute mean weights in the cell
     //
+    // In auto iterators below:
+    //    s is of type std::map<speciesKey, int>
+    //    b is of type std::vector<unsigned long>
+    //
 
-    // s is of type std::map<speciesKey, int>
-    // b is of type std::vector<unsigned long>
-
-				// Mean weight
+				// Mean fraction in trace species
     keyWghtsMap meanW;
-    for (auto s : SpList)
-      meanW[s.first] = sWghtsMap[id][s.first] = 0.0;
+    for (auto s : SpList) meanW[s.first] = 0.0;
 
-				// Total particle mass
-    double massP = 0.0;		// Cumulated mass of all particles in cell
-    double numbP = 0.0;		// Particle count in the cell
+				// Total mass of all particles in cell
+    double massP = 0.0;
     
     for (auto b : cell->bods) {
 				// Particle
       Particle *p = tree->Body(b);
       massP += p->mass;
 				// Mass-weighted trace fraction
-      for (auto s : SpList) {
-	// This is the total mass per element
+      for (auto s : SpList) 
 	meanW[s.first] += p->mass * p->dattrib[s.second];
-
-	// This is the number fraction for each element
-	sWghtsMap[id][s.first] += p->dattrib[s.second]/atomic_weights[s.first.first];
-      }
-      numbP += 1.0;
     }
-				// Compute mean weight
+				// Normalize mass-weighted fraction
 				//
-    spWght[id] = 0.0;
-    for (auto s : SpList) {
-				// Mean mass fraction in each element per cell
-      meanW[s.first] /= massP;
-				// Mean number fraction for each element
-      sWghtsMap[id][s.first] /= numbP;
-				// Cumulated number fraction for norm
-      spWght[id] += sWghtsMap[id][s.first];
-    }
-				// Compute inverse for applying norm
-    if (spWght[id]>0.0) spWght[id] = 1.0/spWght[id];
-
+    for (auto s : SpList) meanW[s.first] /= massP;
 
 				// Compute cross sections
 				//
-    for (auto s1 : SpList) {
+    for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
 
-      speciesKey i1 = s1.first;
+      speciesKey i1 = s1->first;
       double Cross1 = geometric(i1.first);
       
-      for (auto s2 : SpList) {
+      for (auto s2=s1; s2!=ee; s2++) {
 	
-	speciesKey i2 = s2.first;
+	speciesKey i2 = s2->first;
 	double Cross2 = geometric(i2.first);
 	
 				// Reduced mass for this interation
@@ -415,16 +396,16 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 
     // Compute the mean trace weight in the cell
     //
-
-    // b is of type std::vector<unsigned long>
-    // s is of type std::map<speciesKey, int>
+    // In auto iterators below:
+    //    s is of type std::map<speciesKey, int>
+    //    b is of type std::vector<unsigned long>
+    //
 
     std::map<speciesKey, double> meanW;
-    for (auto s : SpList)
-      meanW[s.first] = sWghtsMap[id][s.first] = 0.0;
+    for (auto s : SpList) meanW[s.first] = 0.0;
 
+				// Total mass of all particles in cell
     double massP = 0.0;
-    double numbP = 0.0;
 
     for (auto b : c->bods) {
 				// Particle
@@ -432,29 +413,24 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 				// Mass accumulation
       massP += p->mass;
 				// Mean weight accumulation
-      for (auto s : SpList) {
+      for (auto s : SpList)
 	meanW[s.first] += p->mass * p->dattrib[s.second];
-	sWghtsMap[id][s.first] += p->dattrib[s.second]/atomic_weights[s.first.first];
-      }
-      numbP += 1.0;
     }
     
-				// Normalize
-    for (auto s : SpList) {
-      meanW[s.first] /= massP;
-      sWghtsMap[id][s.first] /= numbP;
-    }
+				// Normalize mass-weighted fraction
+				// 
+    for (auto s : SpList) meanW[s.first] /= massP;
 
 				// Compute cross sections
 				//
-    for (auto s1 : SpList) {
+    for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
       
-      speciesKey i1 = s1.first;
+      speciesKey i1 = s1->first;
       double geom1  = geometric(i1.first);
     
-      for (auto s2 : SpList) {
+      for (auto s2=s1; s2!=ee; s2++) {
 	
-	speciesKey i2 = s2.first;
+	speciesKey i2 = s2->first;
 	double geom2 = geometric(i2.first);
 	  
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
@@ -466,7 +442,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	double Cross1 = 0.0;
 	double Cross2 = 0.0;
 	  
-	// Both particles neutral?
+	// Are both particles neutral?
 	//
 	if (i1.second==1 and i2.second==1) {
 	  Cross1 = geom1;
@@ -793,16 +769,16 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   
   // s1 and s2 are of type std::map<speciesKey, int>
 
-  for (auto s1 : SpList) {
+  for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
 
 				// Particle 1: key and number weight
-    speciesKey k1 = s1.first;
-    double     w1 = p1->dattrib[s1.second]/atomic_weights[k1.first];
+    speciesKey k1 = s1->first;
+    double     w1 = p1->dattrib[s1->second]/atomic_weights[k1.first];
     
-    for (auto s2 : SpList) {
+    for (auto s2=s1; s2!=ee; s2++) {
 				// Particle 2: key and number weight
-      speciesKey k2 = s2.first;
-      double     w2 = p2->dattrib[s2.second]/atomic_weights[k2.first];
+      speciesKey k2 = s2->first;
+      double     w2 = p2->dattrib[s2->second]/atomic_weights[k2.first];
 
 				// Key of interaction pair
       dKey dkey(k1, k2);

@@ -1266,7 +1266,6 @@ struct Particle * Component::get_particles(int* number)
   }
 
   map<unsigned int,  Particle> tlist;
-  map<unsigned int,  Particle>::iterator cur;
   PartMapItr icur, ibeg, iend;
 
   unsigned icount;
@@ -1424,9 +1423,7 @@ struct Particle * Component::get_particles(int* number)
 #endif
 
   int n=0;
-  for (cur=tlist.begin(); cur!=tlist.end(); cur++) {
-    pbuf[n++] = cur->second;
-  }
+  for (auto cur : tlist) pbuf[n++] = cur.second;
 
 #ifdef DEBUG
   cout << "Process " << myid 
@@ -1439,17 +1436,17 @@ struct Particle * Component::get_particles(int* number)
   if (myid==0 && seq_check && seq_state_ok) {
     bool seq_ok = true;
     unsigned n = beg;
-    for (cur=tlist.begin(); cur!=tlist.end(); cur++) {
-      if (cur->first != n++) {
+    for (auto cur : tlist) {
+      if (cur.first != n++) {
 	cout << "get_particles sequence error:"
 	     << " expected=" << n
-	     << " found=" << cur->first
+	     << " found=" << cur.first
 	     << endl << flush;
 	unsigned n = beg;
 	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	cout << setw(10) << "Expect" << setw(10) << "Found" << endl;
-	for (cur=tlist.begin(); cur!=tlist.end(); cur++)
-	  cout << setw(10) << n++ << setw(10) << cur->first << endl;
+	for (auto cur : tlist)
+	  cout << setw(10) << n++ << setw(10) << cur.first << endl;
 	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
 	seq_ok = false;
 	break;

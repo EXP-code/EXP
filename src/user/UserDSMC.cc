@@ -30,10 +30,7 @@ UserDSMC::UserDSMC(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// stickiness
   bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;
@@ -215,8 +212,7 @@ void UserDSMC::makeSort()
 
 				// Clean the bin list
 				// 
-  for (vector< vector<int> >::iterator it=binlist.begin();
-       it != binlist.end(); it++) it->clear();
+  for (auto i : binlist) i.clear();
 
   for (int i=0; i<dN; i++) {
     vmax[i] = 0.0;
