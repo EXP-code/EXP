@@ -88,7 +88,7 @@ private:
   bool fixed, monopole, monopole_follow, monopole_onoff, soft, table;
   string filename;
 
-  static const double numfac = 3.86274202023190e-01;
+  static constexpr double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime, angmomfac;
   double Lz, Tz, omega, omega0, Iz, afac, b5;

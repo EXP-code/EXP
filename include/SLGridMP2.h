@@ -59,13 +59,12 @@ private:
 
   void bomb(string oops);
 
+  bool cache;		
+
 public:
 
   //! Global MPI indicator, default: 0=off
   static int mpi;
-
-  //! Check for cached table, default: 1=yes
-  static int cache;		
 
   //! Exponential scale length, default: 1.0
   static double A;		
@@ -73,7 +72,7 @@ public:
 
   //! Constructor
   SLGridCyl(int mmax, int nmax, int numr, int numk, double rmin, double rmax,
-	 double l, int Cmap=0, double Scale=1.0);
+	    double l, bool cache=true, int Cmap=0, double Scale=1.0);
   //! Destructor
   ~SLGridCyl();
 
@@ -141,7 +140,8 @@ private:
   TableSph* table;
 
   void initialize(int LMAX, int NMAX, int NUMR,
-		  double RMIN, double RMAX, int CMAP, double SCALE);
+		  double RMIN, double RMAX, 
+		  bool CACHE, int CMAP, double SCALE);
 
   void init_table(void);
   void compute_table(TableSph* table, int L);
@@ -159,17 +159,14 @@ private:
   int mpi_bufsz;
   char *mpi_buf;
 
-  bool my_model;
-
   void bomb(string oops);
+
+  bool cache;
 
 public:
 
   //! Flag for MPI enabled (default: 0=off)
   static int mpi;
-
-  //! Check for cached table (default: 1=yes)
-  static int cache;
 
   //! Model file name
   static string model_file_name;
@@ -181,10 +178,14 @@ public:
 
   //! Constructor with model table
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    SphericalModelTable *mod, int Cmap=0, double Scale=1.0);
+	    boost::shared_ptr<SphericalModelTable> mod, 
+	    bool cache, int Cmap=0, double Scale=1.0);
+
   //! Constructor (uses file *model_file_name* for file)
   SLGridSph(int lmax, int nmax, int numr, double rmin, double rmax,
-	    int Cmap=0, double Scale=1.0, int DIVERGE=0, double DFAC=1.0);
+	    bool cache, int Cmap=0, double Scale=1.0, 
+	    int DIVERGE=0, double DFAC=1.0);
+
   //! Destructor
   ~SLGridSph();
 

@@ -11,7 +11,7 @@ endif
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
+AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(INCLUDES) $(ADD_CXXFLAGS3) $(BOOST_CPPFLAGS) @exp_vtk_include@
 
 COMMON_LIBS = $(LIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS)
 MPI_LIBS = -lmpi
@@ -53,9 +53,11 @@ pspbox_LDADD = $(EXPLIBS) $(BOOST_LDFLAGS) $(BOOST_PROGRAM_OPTIONS_LIB)
 EmpOrth9thd.cc:	$(top_srcdir)/src/EmpOrth9thd.cc
 	cp $(top_srcdir)/src/$@ .
 
-PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H
-	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
+PSP.H:	$(top_srcdir)/utils/PhaseSpace/PSP.H
 	cp $(top_srcdir)/utils/PhaseSpace/PSP.H .
+
+PSP.cc:	$(top_srcdir)/utils/PhaseSpace/PSP.cc header.cc header.H PSP.H
+	cp $(top_srcdir)/utils/PhaseSpace/PSP.cc .
 
 header.cc:	$(top_srcdir)/utils/PhaseSpace/header.cc header.H
 	cp $(top_srcdir)/utils/PhaseSpace/header.cc .

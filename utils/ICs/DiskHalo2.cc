@@ -166,9 +166,9 @@ DiskHalo(SphericalSL* haloexp, EmpCylSL* diskexp,
 {
   disktableP = NULL;
   disktableN = NULL;
-  gen        = new ACG(SEED+myid, 20);
-  rndU       = new Uniform(0.0, 1.0, gen);
-  rndN       = new Normal(0.0, 1.0, gen);
+  gen        = new ACG     (SEED+myid, 20);
+  rndU       = new Uniform (0.0, 1.0, gen);
+  rndN       = new Normal  (0.0, 1.0, gen);
   com        = false;
   cov        = false;
   this->type = type;
@@ -377,6 +377,8 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   double pos[3], pos1[3], vel[3], vel1[3], massp, massp1;
 				// Diagnostics
   double radmin1=1e30, radmax1=0.0, radmin, radmax, r;
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
   if (myid==0) cout << endl 
 		    << "     *****"
@@ -424,6 +426,13 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
     for (int k=0; k<3; k++) r += p.pos[k]*p.pos[k];
     r = sqrt(r);
 
+    // Mass distribution in spherial shells
+    unsigned indx = 1 + floor( (log(r) - hDmin)/dRh );
+    if (indx>0 && indx<=nh) {
+      NN[indx]++;
+      DD[indx] += p.mass;
+    }
+
     radmin1 = min<double>(radmin1, r);
     radmax1 = max<double>(radmax1, r);
   }
@@ -462,11 +471,11 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
 
 
   double massn1 = 0.0, massn = massp, mfac = (mtot - mmin)/massp;
-  for (vector<Particle>::iterator ip=phalo.begin(); ip!=phalo.end(); ip++) {
-    ip->mass *= mfac;
-    massn1   += ip->mass;
-    if (com) for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
-    if (cov) for (int k=0; k<3; k++) ip->vel[k] -= vel[k];
+  for (auto &p : phalo) {
+    p.mass *= mfac;
+    massn1   += p.mass;
+    if (com) for (int k=0; k<3; k++) p.pos[k] -= pos[k];
+    if (cov) for (int k=0; k<3; k++) p.vel[k] -= vel[k];
   }
   MPI_Reduce(&massn1, &massn, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   
@@ -484,6 +493,13 @@ void DiskHalo::set_halo(vector<Particle>& phalo, int nhalo, int npart)
   if (VFLAG & 1)
     cout << "Process " << myid << ": made " << phalo.size() << " particles"
 	 << endl;
+
+  MPI_Allreduce(&NN[0], &NN0[0], nh+1, MPI_UNSIGNED, MPI_SUM, MPI_COMM_WORLD);
+  MPI_Allreduce(&DD[0], &DD0[0], nh+1, MPI_DOUBLE,   MPI_SUM, MPI_COMM_WORLD);
+  for (unsigned i=0; i<=nh; i++) {
+    nhN[i] += NN0[i];
+    nhD[i] += DD0[i];
+  }
 }      
 
 void DiskHalo::
@@ -499,8 +515,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   double massp, massp1, pos[3], pos1[3];
 				// Diagnostics
   double radmin1=1.0e30, radmax1=0.0, radmin, radmax;
-  vector<double> DD(nh+1, 0.0), DD0(nh+1);
-  vector<unsigned> NN(nh+1, 0), NN0(nh+1);
+  vector<double>   DD(nh+1, 0.0), DD0(nh+1);
+  vector<unsigned> NN(nh+1, 0),   NN0(nh+1);
 
   if (myid==0 && VFLAG & 1) cout << "  rmin=" << rmin
 				 << "  rmax=" << rmax
@@ -572,9 +588,8 @@ set_halo_coordinates(vector<Particle>& phalo, int nhalo, int npart)
   
 
   if (com) {
-    vector<Particle>::iterator ip;
-    for(ip=phalo.begin(); ip!=phalo.end(); ip++) {
-      for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
+    for (auto &p : phalo) {
+      for (int k=0; k<3; k++) p.pos[k] -= pos[k];
     }
   }
 
@@ -678,9 +693,8 @@ set_disk_coordinates(vector<Particle>& pdisk, int ndisk, int npart)
   }
   
   if (com) {
-    vector<Particle>::iterator ip;
-    for(ip=pdisk.begin(); ip!=pdisk.end(); ip++) {
-      for (int k=0; k<3; k++) ip->pos[k] -= pos[k];
+    for (auto &p : pdisk) {
+      for (int k=0; k<3; k++) p.pos[k] -= pos[k];
     }
   }
 
@@ -970,10 +984,9 @@ table_disk(vector<Particle>& part)
 
   double maxr1 = 0.0, maxz1 = 0.0;
   double maxr =  0.0, maxz  = 0.0;
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p != part.end(); p++) {
-    maxr1 = max<double>(maxr1, sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]));
-    maxz1 = max<double>(maxz1, fabs(p->pos[2]));
+  for (auto &p : part) {
+    maxr1 = max<double>(maxr1, sqrt(p.pos[0]*p.pos[0] + p.pos[1]*p.pos[1]));
+    maxz1 = max<double>(maxz1, fabs(p.pos[2]));
   }
 
   maxz1 = max<double>(scaleheight*SHFACTOR, maxz1);
@@ -1594,14 +1607,12 @@ set_vel_disk(vector<Particle>& part)
   }
 
 
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
-
+  for (auto &p : part) {
 				// From solution to Jeans' equations in
 				// cylindrical coordinates
-    x = p->pos[0];
-    y = p->pos[1];
-    z = p->pos[2];
+    x = p.pos[0];
+    y = p.pos[1];
+    z = p.pos[2];
 
     R = sqrt(x*x + y*y) + MINDOUBLE;
 
@@ -1745,12 +1756,12 @@ set_vel_disk(vector<Particle>& part)
       break;
     }
 
-    p->vel[0] = vr*x/R - vp*y/R;
-    p->vel[1] = vr*y/R + vp*x/R;
-    p->vel[2] = vz;
+    p.vel[0] = vr*x/R - vp*y/R;
+    p.vel[1] = vr*y/R + vp*x/R;
+    p.vel[2] = vz;
 
-    massp1 += p->mass;
-    for (int k=0; k<3; k++) vel1[k] += p->mass*p->vel[k];
+    massp1 += p.mass;
+    for (int k=0; k<3; k++) vel1[k] += p.mass*p.vel[k];
   }
 
   MPI_Allreduce(&massp1, &massp, 1, MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
@@ -1801,9 +1812,8 @@ set_vel_disk(vector<Particle>& part)
   }
 
   if (cov) {
-    vector<Particle>::iterator ip;
-    for(ip=part.begin(); ip!=part.end(); ip++) {
-      for (int k=0; k<3; k++) ip->vel[k] -= vel[k];
+    for (auto &p : part) {
+      for (int k=0; k<3; k++) p.vel[k] -= vel[k];
     }
   }
 
@@ -1908,10 +1918,9 @@ table_halo(vector<Particle>& part)
   
   dc = 2.0/(NHT-1);
   double r2, maxr = 0.0, maxr1 = 0.0;
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
+  for (auto &p : part) {
     r2 = 0.0;
-    for (int k=0; k<3; k++) r2 += p->pos[k]*p->pos[k];
+    for (int k=0; k<3; k++) r2 += p.pos[k]*p.pos[k];
     maxr1 = max<double>(maxr1, sqrt(r2));
   }
   
@@ -2116,12 +2125,11 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
   
   table_halo(part);
   
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
+  for (auto &p : part) {
     
-    r = sqrt(p->pos[0]*p->pos[0] + 
-	     p->pos[1]*p->pos[1] +
-	     p->pos[2]*p->pos[2]);
+    r = sqrt(p.pos[0]*p.pos[0] + 
+	     p.pos[1]*p.pos[1] +
+	     p.pos[2]*p.pos[2]);
     
 				// Reset success flag
     nok = 1;
@@ -2129,24 +2137,24 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
 				// Use Eddington
     
     if (DF && 0.5*(1.0+erf((r-R_DF)/DR_DF)) > (*rndU)()) {
-      halo2->gen_velocity(&p->pos[0], &p->vel[0], nok);
+      halo2->gen_velocity(&p.pos[0], &p.vel[0], nok);
       
       if (nok) {
 	cout << "gen_velocity failed: "
-	     << p->pos[0] << " "
-	     << p->pos[1] << " "
-	     << p->pos[2] << "\n";
+	     << p.pos[0] << " "
+	     << p.pos[1] << " "
+	     << p.pos[2] << "\n";
       }
     }
 				// Use Jeans
     if (nok) {
-      v2r = get_disp(p->pos[0], p->pos[1], p->pos[2]);
+      v2r = get_disp(p.pos[0], p.pos[1], p.pos[2]);
       vr = sqrt(max<double>(v2r, MINDOUBLE));
-      for (int k=0; k<3; k++) p->vel[k] = vr*(*rndN)();
+      for (int k=0; k<3; k++) p.vel[k] = vr*(*rndN)();
     }
     
-    massp1 += p->mass;
-    for (int k=0; k<3; k++) vel1[k] += p->mass*p->vel[k];
+    massp1 += p.mass;
+    for (int k=0; k<3; k++) vel1[k] += p.mass*p.vel[k];
   }
   
 
@@ -2164,9 +2172,8 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
   }
 
   if (cov) {
-    vector<Particle>::iterator ip;
-    for(ip=part.begin(); ip!=part.end(); ip++) {
-      for (int k=0; k<3; k++) ip->vel[k] -= vel[k];
+    for (auto &p : part) {
+      for (int k=0; k<3; k++) p.vel[k] -= vel[k];
     }
   }
   
@@ -2344,24 +2351,22 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
   double massd1        = 0.0;
   double massh1        = 0.0;
   
-  vector<Particle>::iterator p;
-  
   fr   = fp   = fz   = 0.0;
   potr = pott = potp = 0.0;
 				// -----------------
 				// Halo contribution
 				// -----------------
-  for (p=hpart.begin(); p!=hpart.end(); p++) {
+  for (auto p : hpart) {
     r = 0.0;
     for (int k=0; k<3; k++) {
-      r += p->pos[k]*p->pos[k];
-      KE_halo1 += 0.5*p->mass*p->vel[k]*p->vel[k];
+      r += p.pos[k]*p.pos[k];
+      KE_halo1 += 0.5*p.mass*p.vel[k]*p.vel[k];
     }
     
     r = sqrt(r);
-    xx = p->pos[0];
-    yy = p->pos[1];
-    zz = p->pos[2];
+    xx = p.pos[0];
+    yy = p.pos[1];
+    zz = p.pos[2];
     
     theta = acos(zz/(r+MINDOUBLE));
     phi = atan2(yy, xx);
@@ -2385,27 +2390,27 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     azh = -(potr*zz/r + pott*R2/(r*r*r));
     
 				// Clausius
-    PE_halo_disk1 += p->mass * (xx*axd + yy*ayd + zz*azd);
-    PE_halo_halo1 += p->mass * (xx*axh + yy*ayh + zz*azh);
+    PE_halo_disk1 += p.mass * (xx*axd + yy*ayd + zz*azd);
+    PE_halo_halo1 += p.mass * (xx*axh + yy*ayh + zz*azh);
     
 				// Mass
-    massh1 += p->mass;
+    massh1 += p.mass;
   }
   
 				// -----------------
 				// Disk contribution
 				// -----------------
-  for (p=dpart.begin(); p!=dpart.end(); p++) {
+  for (auto p : dpart) {
     r = 0.0;
     for (int k=0; k<3; k++) {
-      r += p->pos[k]*p->pos[k];
-      KE_disk1 += 0.5*p->mass*p->vel[k]*p->vel[k];
+      r += p.pos[k]*p.pos[k];
+      KE_disk1 += 0.5*p.mass*p.vel[k]*p.vel[k];
     }
     
     r = sqrt(r);
-    xx = p->pos[0];
-    yy = p->pos[1];
-    zz = p->pos[2];
+    xx = p.pos[0];
+    yy = p.pos[1];
+    zz = p.pos[2];
     
     theta = acos(zz/(r+MINDOUBLE));
     phi = atan2(yy, xx);
@@ -2429,11 +2434,11 @@ void DiskHalo::virial_ratio(vector<Particle>& hpart, vector<Particle>& dpart)
     azh = -(potr*zz/r + pott*R2/(r*r*r));
     
 				// Clausius
-    PE_disk_disk1 += p->mass * (xx*axd + yy*ayd + zz*azd);
-    PE_disk_halo1 += p->mass * (xx*axh + yy*ayh + zz*azh);
+    PE_disk_disk1 += p.mass * (xx*axd + yy*ayd + zz*azd);
+    PE_disk_halo1 += p.mass * (xx*axh + yy*ayh + zz*azh);
     
 				// Mass
-    massd1 += p->mass;
+    massd1 += p.mass;
     
   }
   
@@ -2678,11 +2683,9 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
   vector<double> sigR1(numr, 0.0);
   vector<double> sigT1(numr, 0.0);
 
-  vector<Particle>::iterator p;
-   
-  for (p=dpart.begin(); p!=dpart.end(); p++) {
-    double xx = p->pos[0];
-    double yy = p->pos[1];
+  for (auto p : dpart) {
+    double xx = p.pos[0];
+    double yy = p.pos[1];
     double R  = sqrt(xx*xx + yy*yy);
 
     if (logr) 
@@ -2692,14 +2695,14 @@ void DiskHalo::profile(ostream &out, vector<Particle>& dpart,
 
     if (indx < numr && indx >= 0) {
 
-      double vr = ( xx*p->vel[0] + yy*p->vel[1])/(R+MINDOUBLE);
-      double vt = (-yy*p->vel[0] + xx*p->vel[1])/(R+MINDOUBLE);
+      double vr = ( xx*p.vel[0] + yy*p.vel[1])/(R+MINDOUBLE);
+      double vt = (-yy*p.vel[0] + xx*p.vel[1])/(R+MINDOUBLE);
 
-      mass1[indx] += p->mass;
-      velR1[indx] += p->mass*vr;
-      velT1[indx] += p->mass*vt;
-      sigR1[indx] += p->mass*vr*vr;
-      sigT1[indx] += p->mass*vt*vt;
+      mass1[indx] += p.mass;
+      velR1[indx] += p.mass*vr;
+      velT1[indx] += p.mass*vt;
+      sigR1[indx] += p.mass*vr*vr;
+      sigT1[indx] += p.mass*vt*vt;
     }
   }
   

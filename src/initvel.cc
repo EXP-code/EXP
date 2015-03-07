@@ -6,15 +6,11 @@
 
 void init_velocity(void)
 {
-  list<Component*>::iterator cc;
-  vector<Particle>::iterator p, pend;
   unsigned ntot;
-  Component *c;
 
   if (eqmotion) {
 
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
 
       ntot = c->Number();
       for (int i=0; i<ntot; i++) {

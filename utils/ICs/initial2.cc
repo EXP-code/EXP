@@ -1091,7 +1091,7 @@ main(int argc, char **argv)
 	  tmas[j] = tmas[j-1] + 0.5*(exp(lrho[j-1]) + exp(lrho[j])) * zmin*exp(dz*j)*zfac;
 	
 	for (int j=0; j<nzint; j++) {
-	  if (tmas[nzint-1]>0.0 && !isnan(tmas[nzint-1])) {
+	  if (tmas[nzint-1]>0.0 && !std::isnan(tmas[nzint-1])) {
 	    trho[j]  = exp(lrho[j])/tmas[nzint-1];
 	    tmas[j] /= tmas[nzint-1];
 	  } else {

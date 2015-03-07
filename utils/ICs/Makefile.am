@@ -10,7 +10,7 @@ ADD_LIBS3 = -ldmallocth -ldmallocthcxx
 endif
 
 AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
-AM_CXXFLAGS = -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
+AM_CXXFLAGS = -std=c++11 -D_REENTRANT -DSTANDALONE $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src -I$(top_srcdir)/utils/SL
 
@@ -59,6 +59,7 @@ empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H
+makeIon_LDFLAGS = $(BOOST_LDFLAGS)
 makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
 

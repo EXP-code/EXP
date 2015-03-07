@@ -26,8 +26,6 @@ InteractSelect::InteractSelect()
 double InteractSelect::selectCEInteract
 (const Ion& a, const Ion::collType& cumCross) 
 {
-  typedef std::vector< std::pair< double, double > >::const_iterator cIter;
-
 				// Location in the cumulative distribution
 				//
   double rn = static_cast<double>(rand())/static_cast<double>(RAND_MAX) * 
@@ -35,8 +33,8 @@ double InteractSelect::selectCEInteract
 
 				// Find the energy
 				//
-  for (cIter i=cumCross.begin(); i!=cumCross.end(); i++) {
-    if (rn <= i->first) return i->second;
+  for (auto i : cumCross) {
+    if (rn <= i.first) return i.second;
   }
 
   return 0.0;
@@ -91,7 +89,7 @@ double InteractSelect::selectRRInteract
   // Sanity check
   //
   for (int i = 0; i < N; i++) {
-    if (isnan(normed[i])) 
+    if (std::isnan(normed[i])) 
       std::cout << "Cross nan at i= " << i 
 		<< " cross = " << cumCross[i] << std::endl;
     if (i >= 1) assert(normed[i] >= normed[i-1]);

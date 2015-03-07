@@ -151,7 +151,7 @@ void ParticleFerry::Particle_to_part(Partstruct& str, Particle& cls)
 {
 
   str.mass = cls.mass;
-  if(cls.mass == 0 or cls.indx == 0 or isnan(cls.mass)) {
+  if(cls.mass == 0 or cls.indx == 0 or std::isnan(cls.mass)) {
 	cout << "Error in Ptp" << endl;
   }
   for (int j=0; j<3; j++) {
@@ -269,7 +269,7 @@ bool ParticleFerry::RecvParticle(Particle& part)
   if (itotcount++ == _total) return false;
   if (ibufcount==0) BufferRecv();
   part_to_Particle(buf[--ibufcount], part);
-  if (part.indx==0 || part.mass<=0.0 || isnan(part.mass)) {
+  if (part.indx==0 || part.mass<=0.0 || std::isnan(part.mass)) {
 	cout << "BAD MASS!" << endl;
   }
 #ifdef DEBUG

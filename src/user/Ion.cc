@@ -13,7 +13,6 @@
 
 #include "Ion.H"
 #include "interactSelect.H"
-#include "Cspline.H"
 
 //! Convert the master element name to a (Z, C) pair
 void Ion::convertName() 
@@ -57,18 +56,9 @@ void Ion::convertName()
 //! Convert a given Z,C pair into a master name string
 std::string ZCtoName(unsigned char Z, unsigned char C) 
 {
-  std::string fileName;
-  std::string ele;
-  std::string c;
-  
-  // Compile the two parts of the name and "stitch" together
-  ele = eleNameList[Z-1];
-  c = static_cast<ostringstream*>( &(ostringstream() << C) )->str();
   std::stringstream ss;
-  ss << ele << "_" << c;
-  fileName = ss.str();
-  
-  return fileName;
+  ss << eleNameList[Z-1] << "_" << static_cast<unsigned>(C);
+  return ss.str();
 }
 
 /** 
@@ -567,7 +557,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   //
-  for (double k = -9.; k < -1.; k += 0.1) 
+  for (double k = -9.; k < -1.; k += kdel) 
     kgrid.push_back(k);
 
   for (double e = 0.00000001; e < 250 ; e += 0.25) 
@@ -575,6 +565,11 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   kffsteps = kgrid.size();
   effsteps = egrid.size();
+
+  kgr10.resize(kffsteps);
+  for (int i=0; i<kffsteps; i++) {
+    kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
 }
 
 //! Constructor when the Z, C pair is given
@@ -599,6 +594,9 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
       readDi();
       readelvlc();
       readwgfa();
+    } else {
+      std::cout << "MasterName [" << MasterName << "] not in master list" 
+		<< std::endl;
     }
   }
   
@@ -609,11 +607,16 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
   }
-  for (k = -9.; k < -1.; k += 0.1) {
+  for (k = -9.; k < -1.; k += kdel) {
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
   effsteps = egrid.size();
+
+  kgr10.resize(kffsteps);
+  for (int i=0; i<kffsteps; i++) {
+    kgr10[i] = pow(10, kgrid[i]) * hbc;
+  }
 }
 
 //! Default constructor: NOT USED
@@ -635,6 +638,7 @@ Ion::Ion(const Ion &I)
 
   egrid      = I.egrid;
   kgrid      = I.kgrid;
+  kgr10      = I.kgr10;
   fblvl      = I.fblvl;
 
   diSpline   = I.diSpline;
@@ -662,11 +666,6 @@ Ion::collExciteCross(double E, int id)
 
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
-  
-  const double eVtoRyd = 1.0/13.60569253;
-  const double RydtoeV = 13.60569253;
-
-  const double a0 = 0.0529177211; // Bohr radius in nm
   
   collType CEcum;
   const std::pair<double,double> Null(0, 0);
@@ -723,16 +722,28 @@ Ion::collExciteCross(double E, int id)
 	assert(x_array9[j] > x_array9[j-1]);
       }
       
-      if (splups[i].spline.size() == 5) {
-	Cspline<double, double> sp(x5, splups[i].spline);
-	y = sp(x);
-      }
+
+      CacheSplList::iterator it = splUps.find(i);
+      CsplD2Ptr sp;
+
+      if (it == splUps.end()) {
+
+	if (splups[i].spline.size() == 5) {
+	  sp = CsplD2Ptr(new CsplineD2(x5, splups[i].spline));
+	}
       
-      if (splups[i].spline.size() == 9) {
-	Cspline<double, double> sp(x9, splups[i].spline);
-	y = sp(x);
+	if (splups[i].spline.size() == 9) {
+	  sp = CsplD2Ptr(new CsplineD2(x9, splups[i].spline));
+	}
+
+	splUps[i] = sp;
+
+      } else {
+	sp = it->second;
       }
-      
+
+      y = (*sp)(x);
+
       // Calculate the collision strength from the interpolated value
       double CStrength = 0.0;
 				// BT, eq. 6
@@ -758,8 +769,8 @@ Ion::collExciteCross(double E, int id)
       if (eit != elvlc.end()) {
 	int weight = eit->second.mult;
 	if (weight>0) {
-	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*eVtoRyd);
-	  if (isinf(crs1)) {
+	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
+	  if (std::isinf(crs1)) {
 	    std::cout << "crs1 is Inf: weight=" << weight << ", E="
 		      << E << std::endl;
 	  } else {
@@ -862,8 +873,17 @@ double Ion::directIonCross(double E, int id)
 	double u1  = E/diSpline[i].ev;
 	double bte = 1.0 - log(diSpline[i].btf)/log(u1-1.0+diSpline[i].btf);
 
-	Cspline<double, double> sp(diSpline[i].xspline, diSpline[i].yspline);
-	double btcross = sp(bte);
+	CacheSplList::iterator it = diSpln.find(i);
+	CsplD2Ptr sp;
+
+	if (it == diSpln.end()) {
+	  sp = CsplD2Ptr(new CsplineD2(diSpline[i].xspline, diSpline[i].yspline));
+	  diSpln[i] = sp;
+	} else {
+	  sp = it->second;
+	}
+
+	double btcross = (*sp)(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 	cross += cross_i;
@@ -882,24 +902,9 @@ double Ion::directIonCross(double E, int id)
  */
 double Ion::freeFreeCross(double Ei, int id) 
 {
-  //
-  // Physical constants
-  //
-				// Prefactor A / pi^2 (from Greene, 1959)
-  const double A   = 5.72791733e-08/(M_PI*M_PI);
-
-				// Classical radius of the electron in nm
-  const double r0  = 2.81794044e-13 * 1.0e+07;
-
-				// Rydberg energy in eV
-  const double Ryd = 13.60569253;
-
-				// value of h-bar * c in eV*nm
-  double hbc       = 197.327;
-
   // Scaled inverse energy (initial)
   //
-  double ni2       = Ryd*(C-1)*(C-1)/Ei;
+  double ni2       = RydtoeV*(C-1)*(C-1)/Ei;
 
   // Integration variables
   //
@@ -912,7 +917,7 @@ double Ion::freeFreeCross(double Ei, int id)
     //
     // Photon energy in eV
     //
-    double k      = pow(10, kgrid[j]) * hbc;
+    double k      = kgr10[j];
 
     //
     // Final kinetic energy
@@ -922,7 +927,7 @@ double Ion::freeFreeCross(double Ei, int id)
     //
     // Scaled inverse energy (final)
     //
-    double nf2    = Ryd*(C-1)*(C-1)/Ef;
+    double nf2    = RydtoeV*(C-1)*(C-1)/Ef;
     double dsig   = 0.0;
 				// Can't emit a photon if not enough KE!
     if (nf2 > 0.0) {
@@ -1070,9 +1075,9 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   
   double aeff  = a0/Zeff;
   
-  for (fblvlType::iterator j=N->fblvl.begin(); j!= N->fblvl.end(); j++) {
+  for (auto j : N->fblvl) {
 
-    fblvl_data* f = &j->second;
+    fblvl_data* f = &j.second;
 
     // Line energy (eV)
     //
@@ -1115,7 +1120,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 		<< std::endl;
     }
       
-    if (isnan(cross)) {
+    if (std::isnan(cross)) {
       std::cout << "NAN IN RAD RECOMB: Chi=" << ip
 		<< ", E="      << E 
 		<< ", n="      << f->lvl
@@ -1176,9 +1181,9 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
     
     double mult0 = (C<=Z ? fblvl[1].mult : 1);
 
-    for (fblvlType::iterator j=N->fblvl.begin(); j!=N->fblvl.end(); j++) {
+    for (auto j : N->fblvl) {
 
-      fblvl_data* f = &j->second;
+      fblvl_data* f = &j.second;
       double I = IP;
 
       if (f->encm == 0 and f->encmth!=0) I -= f->encmth*incmEv;
@@ -1221,7 +1226,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
 		    << ", mult="  << mult
 		    << std::endl;
 	}
-	if (isnan(cross)) {
+	if (std::isnan(cross)) {
 	  std::cout << "NaN in radRecombCrossMewe:" 
 		    << "  Chi="   << ip
 		    << ", I="     << I
@@ -1258,8 +1263,8 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   std::vector<double> radRecCum;
   double cross = 0.0;
   if (E > 0) {
-    for (fblvlType::iterator j=fblvl.begin(); j!=fblvl.end(); j++) {
-      fblvl_data* f = &j->second;
+    for (auto j : fblvl) {
+      fblvl_data* f = &j.second;
 
       double Ej = 0.0;
       if (f->lvl==1) 
@@ -1283,7 +1288,7 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
 		  << Ephot << "\t" << Erat << "\t" << mult << "\t" 
 		  << n <<std::endl;
       }
-      if (isnan(cross)) {
+      if (std::isnan(cross)) {
 	std::cout << cross << "\t" << Ej << "\t" << Ephot << "\t" 
 		  << n << "\t" << Erat << std::endl;
       }
@@ -1500,12 +1505,12 @@ void chdata::printIp()
 	    << std::setw( 3) << "Z" << std::setw( 3) << "C"
 	    << std::setw(16) << "Energy (eV)" << std::endl;
 
-  for (std::map<lQ, double>::iterator i=ipdata.begin(); i!=ipdata.end(); i++) {
-    if (i->second != 0) {
+  for (auto i : ipdata) {
+    if (i.second != 0) {
       std::cout 
-	<< std::setw( 3) << i->first.first
-	<< std::setw( 3) << i->first.second
-	<< std::setw(16) << i->second
+	<< std::setw( 3) << i.first.first
+	<< std::setw( 3) << i.first.second
+	<< std::setw(16) << i.second
 	<< std::endl;
     }
   }
@@ -1520,7 +1525,7 @@ chdata::chdata()
   // maxZ = 31; // maxZ = 30 + 1
   // maxNel = 31; 
   
-  for(int i = 0; i < numEle; i++) abundanceAll[i] = 0;
+  for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
   // std::cout << "Reading ip file\n";
   readIp();
@@ -1538,13 +1543,13 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
 {
   // Fill the Chianti data base
   //
-  for (ZLtype::const_iterator i=ZList.begin(); i!=ZList.end(); i++) {
-    for (int j=1; j<*i+2; j++) {
-      lQ Q(*i, j);
-      IonList[Q] = Ion(*i, j, this);
+  for (auto i : ZList) {
+    for (int j=1; j<i+2; j++) {
+      lQ Q(i, j);
+      IonList[Q] = Ion(i, j, this);
       // IonList[Q].freeFreeUltrarel();
     }
-    Ni[*i] = 1.0;		// Not sure what this does . . . 
+    Ni[i] = 1.0;		// Not sure what this does . . . 
   }
 }
 

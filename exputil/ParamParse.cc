@@ -191,17 +191,15 @@ ParamParse::ParamParse(const string& Delim) :
 
 ParamParse::~ParamParse()
 {
-  list<Stanza*>::iterator it;
-  for (it=database.begin(); it!=database.end(); it++) delete *it;
+  for (auto j : database) delete j;
 }
 
 
 bool ParamParse::find_list(const string& stanza)
 {
-  list<Stanza*>::iterator it;
-  for (it=database.begin(); it!=database.end(); it++) {
-    if ((*it)->name.compare(stanza) == 0) {
-      curstanza = *it;
+  for (auto j : database) {
+    if (j->name.compare(stanza) == 0) {
+      curstanza = j;
       curitem = curstanza->elist.begin();
       enditem = curstanza->elist.end();
       return true;
@@ -214,11 +212,10 @@ bool ParamParse::find_list(const string& stanza)
 
 int ParamParse::find_item(const string& name, string& value)
 {
-  list<spair>::iterator p;
   int ret = 0;
-  for (p = curstanza->elist.begin(); p != curstanza->elist.end(); p++) {
-    if (name.compare(p->first) == 0) {
-      value = p->second;
+  for (auto p : curstanza->elist) {
+    if (name.compare(p.first) == 0) {
+      value = p.second;
       ret = 1;
     }
   }
@@ -253,19 +250,17 @@ void ParamParse::bomb(const string& msg)
 void ParamParse::print_database(ostream& out)
 {
   int istanza = 0, iparam;
-  list<Stanza*>::iterator it;
-  list<spair>::iterator it1;
 
   out << setiosflags(ios::left);
 
-  for (it=database.begin(); it!=database.end(); it++) {
-    out << setw(2) << istanza << " [" << (*it)->name << "]" << endl;
+  for (auto i : database) {
+    out << setw(2) << istanza << " [" << i->name << "]" << endl;
 
     iparam = 0;
-    for (it1=(*it)->elist.begin(); it1!=(*it)->elist.end(); it1++) {
+    for (auto j : i->elist) {
       out << " " << setw(3) << iparam
-	  << setw(15) << it1->first.c_str()  << " | "
-	  << it1->second << endl;
+	  << setw(15) << j.first.c_str()  << " | "
+	  << j.second << endl;
       iparam++;
     }
 

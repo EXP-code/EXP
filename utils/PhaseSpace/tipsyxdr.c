@@ -34,7 +34,7 @@ int xdr_header()
 
 void xdr_gas()
 {
-  if(sizeof(Real) == sizeof(float))
+  if (sizeof(Real) == sizeof(float))
     {
       xdr_vector(&xdrs, (char *) gas_particles,
 		 header.nsph*(sizeof(*gas_particles)/sizeof(Real)),
@@ -44,7 +44,7 @@ void xdr_gas()
 
 void xdr_dark()
 {
-  if(sizeof(Real) == sizeof(float))
+  if (sizeof(Real) == sizeof(float))
     {
       xdr_vector(&xdrs, (char *) dark_particles,
 		 header.ndark*(sizeof(*dark_particles)/sizeof(Real)),

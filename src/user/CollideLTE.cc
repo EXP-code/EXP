@@ -114,16 +114,16 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 {
   // Compute geometric cross section
   //
-  typedef std::map<speciesKey, unsigned> Count;
+
   double diam  = diamfac*a0/UserTreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
 
-  for (Count::iterator it1=cell->count.begin(); it1!=cell->count.end(); it1++) {
-    speciesKey i1 = it1->first;
+  for (auto it1 : cell->count) {
+    speciesKey i1 = it1.first;
     double Z1 = i1.first;
 
-    for (Count::iterator it2=cell->count.begin(); it2!=cell->count.end(); it2++) { 
-      speciesKey i2 = it2->first;
+    for (auto it2 : cell->count) {
+      speciesKey i2 = it2.first;
       double Z2 = i2.first;
 
       csections[id][i1][i2] = cross * std::max<double>(Z1*Z1, Z2*Z2);
@@ -164,11 +164,9 @@ void CollideLTE::initialize_cell_dsmc
 
 				// Total number of encounters
   unsigned number = 0;
-  for (sKey2Umap::iterator it1 = nsel.begin(); it1 != nsel.end(); it1++) 
-    {
-      for (sKeyUmap::iterator it2 = it1->second.begin();
-	   it2 != it1->second.end(); it2++) number += it2->second;
-    }
+  for (auto it1 : nsel) {
+    for (auto it2 : it1.second) number += it2.second;
+  }
     
 				// Volume in real cell
   double CellVolume = volumeC * pow(UserTreeDSMC::Lunit, 3);
@@ -264,7 +262,7 @@ void CollideLTE::initialize_cell_dsmc
 #endif
       }
 				// Sanity: failure of explicit solution
-      if (isnan(E)) E = E0;
+      if (std::isnan(E)) E = E0;
       E = max<double>(E, 3.0*Tfac);
 				// Final energy per unit mass in the cell
       KEdspF = E/cell->Mass();
@@ -296,7 +294,7 @@ void CollideLTE::initialize_cell_dsmc
 #endif
     }
 				// Sanity: failure of implicit solution
-    if (isnan(coolheat[id])) coolheat[id] = 0.0;
+    if (std::isnan(coolheat[id])) coolheat[id] = 0.0;
   }
 
   coolSoFar[id] = coolTime[id].stop();
@@ -358,7 +356,6 @@ void CollideLTE::initialize_cell_dsmc
   if (use_temp>=0 || use_dens>=0) {
     
     double dens = massC/volumeC;
-    // set<unsigned long>::iterator j = cell->bods.begin();
     vector<unsigned long>::iterator j = cell->bods.begin();
     while (j != cell->bods.end()) {
       if (*j == 0) {
@@ -394,8 +391,7 @@ void CollideLTE::initialize_cell_dsmc
 
 				// Assign per body time step requests
 
-    vector<unsigned long>::iterator j;
-    for (j=cell->bods.begin(); j!=cell->bods.end(); j++) {
+    for (std::vector<unsigned long>::iterator j=cell->bods.begin(); j!=cell->bods.end(); j++) {
       if (*j == 0) {
 	cout << "proc=" << myid << " id=" << id 
 	     << " ptr=" << hex << cell << dec
@@ -777,8 +773,8 @@ sKey2Umap CollideLTE::generateSelection
   //
   double volc = c->Volume();
   
-  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-    speciesKey i1 = it1->first;
+  for (auto it1 : c->count) {
+    speciesKey i1 = it1.first;
     densM[i1] = c->Mass(i1)/volc;
   }
     
@@ -786,26 +782,27 @@ sKey2Umap CollideLTE::generateSelection
   meanLambda      = 0.0;
   meanCollP       = 0.0;
     
-  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+  for (auto it1 : c->count) {
 
-    speciesKey i1 = it1->first;
+    speciesKey i1 = it1.first;
     crossM [i1]   = 0.0;
 
-    for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-      speciesKey i2 = it2->first;
+    for (auto it2 : c->count) {
+
+      speciesKey i2 = it2.first;
 
       if (i2>=i1) {
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
       } else
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
       
-      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
       }
 	    
-      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
@@ -813,7 +810,7 @@ sKey2Umap CollideLTE::generateSelection
 	
     }
       
-    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+    if (it1.second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
       cout << "INVALID CROSS SECTION! ::"
 	   << " crossM = " << crossM[i1] 
 	   << " densM = "  <<  densM[i1] 

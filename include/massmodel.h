@@ -5,6 +5,8 @@
 
 #include <vector>
 
+#include <boost/shared_ptr.hpp>
+
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
@@ -437,6 +439,10 @@ public:
   //@}
 };
 
+typedef boost::shared_ptr<AxiSymModel>         AxiSymModPtr;
+typedef boost::shared_ptr<EmbeddedDiskModel>   EmbDiskModPtr;
+typedef boost::shared_ptr<SphericalModelMulti> SphModMultPtr;
+typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
 
 #include <QPDistF.h>
 

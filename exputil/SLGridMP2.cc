@@ -39,8 +39,7 @@ typedef int	integer;
 
 MPI_Status status;
 
-int SLGridCyl::mpi = 0;		// initially off
-int SLGridCyl::cache = 1;	// initially yes
+int SLGridCyl::mpi  = 0;	// initially off
 double SLGridCyl::A = 1.0;
 
 extern "C" {
@@ -190,20 +189,22 @@ void SLGridCyl::bomb(string oops)
 				// Constructors
 
 SLGridCyl::SLGridCyl(int MMAX, int NMAX, int NUMR, int NUMK, 
-	       double RMIN, double RMAX, double L, int CMAP, double SCALE)
+		     double RMIN, double RMAX, double L, 
+		     bool CACHE, int CMAP, double SCALE)
 {
   int m, k;
 
-  mmax = MMAX;
-  nmax = NMAX;
-  numr = NUMR;
-  numk = NUMK;
+  mmax  = MMAX;
+  nmax  = NMAX;
+  numr  = NUMR;
+  numk  = NUMK;
 
-  rmin = RMIN;
-  rmax = RMAX;
-  l = L;
+  rmin  = RMIN;
+  rmax  = RMAX;
+  l     = L;
 
-  cmap = CMAP;
+  cache = CACHE;
+  cmap  = CMAP;
   scale = SCALE;
 
 #ifdef JAFFECYL
@@ -662,7 +663,7 @@ void SLGridCyl::get_pot(Matrix& mat, double x, int m, int which)
 	sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-      if (isnan(mat[k][n]) || isinf(mat[k][n]) ) {
+      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
 	cerr << "SLGridCyl::get_pot: invalid value\n";
       }
 #endif
@@ -742,7 +743,7 @@ void SLGridCyl::get_force(Matrix& mat, double x, int m, int which)
 			 + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
 			 ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-      if (isnan(mat[k][n]) || isinf(mat[k][n]) ) {
+      if (std::isnan(mat[k][n]) || std::isinf(mat[k][n]) ) {
 	cerr << "SLGridCyl::get_force: invalid value\n";
       }
 #endif
@@ -898,7 +899,7 @@ void SLGridCyl::get_pot(Matrix* mat, double x, int mMin, int mMax, int which)
 	  sqrt(fabs(table[m][k].ev[n])) * cylpot(xi_to_r(x));
 #endif
 #ifdef DEBUG_NAN
-	if (isnan(mat[m][k][n]) || isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
 	  cerr << "SLGridCyl::get_pot: invalid value\n";
 	  cerr <<   "  x1=" << x1
 	       << "\n  x2=" << x2
@@ -1001,7 +1002,7 @@ void SLGridCyl::get_force(Matrix* mat, double x, int mMin, int mMax, int which)
 			      + (p + 0.5)*table[m][k].ef[n][indx+1]*p0[indx+1]
 			      ) / sqrt(fabs(table[m][k].ev[n]));
 #ifdef DEBUG_NAN
-	if (isnan(mat[m][k][n]) || isinf(mat[m][k][n]) ) {
+	if (std::isnan(mat[m][k][n]) || std::isinf(mat[m][k][n]) ) {
 	  cerr << "SLGridCyl::get_force: invalid value\n";
 	  cerr <<   "   p=" << p
 	       << "\n  tm=" << table[m][k].ef[n][indx-1]
@@ -1510,7 +1511,6 @@ void SLGridCyl::mpi_unpack_table(void)
 
 
 int SLGridSph::mpi = 0;		// initially off
-int SLGridSph::cache = 1;	// initially yes
 
 string SLGridSph::sph_cache_name = ".slgrid_sph_cache";
 string SLGridSph::model_file_name = "SLGridSph.model";
@@ -1526,7 +1526,7 @@ extern "C" {
 }
 
 
-static AxiSymModel *model;
+static boost::shared_ptr<AxiSymModel> model;
 
 double sphpot(double r)
 {
@@ -1558,41 +1558,43 @@ void SLGridSph::bomb(string oops)
 				// Constructors
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, int CMAP, double SCALE,
+		     double RMIN, double RMAX, 
+		     bool CACHE, int CMAP, double SCALE,
 		     int DIVERGE, double DFAC)
 {
   mpi_buf  = 0;
-  my_model = true;
-  model    = new SphericalModelTable(model_file_name, DIVERGE, DFAC);
+  model    = SphModTblPtr(new SphericalModelTable(model_file_name, DIVERGE, DFAC));
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
 SLGridSph::SLGridSph(int LMAX, int NMAX, int NUMR,
-		     double RMIN, double RMAX, SphericalModelTable *mod,
-		     int CMAP, double SCALE)
+		     double RMIN, double RMAX, 
+		     boost::shared_ptr<SphericalModelTable> mod,
+		     bool CACHE, int CMAP, double SCALE)
 {
   mpi_buf  = 0;
-  my_model = false;
   model    = mod;
 
-  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CMAP, SCALE);
+  initialize(LMAX, NMAX, NUMR, RMIN, RMAX, CACHE, CMAP, SCALE);
 }
 
 
 void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
-			   double RMIN, double RMAX, int CMAP, double SCALE)
+			   double RMIN, double RMAX, 
+			   bool CACHE, int CMAP, double SCALE)
 {
   int l;
 
-  lmax = LMAX;
-  nmax = NMAX;
-  numr = NUMR;
+  lmax  = LMAX;
+  nmax  = NMAX;
+  numr  = NUMR;
 
-  rmin = RMIN;
-  rmax = RMAX;
+  rmin  = RMIN;
+  rmax  = RMAX;
 
-  cmap = CMAP;
+  cache = CACHE;
+  cmap  = CMAP;
   scale = SCALE;
 
   init_table();
@@ -1766,7 +1768,7 @@ void SLGridSph::initialize(int LMAX, int NMAX, int NUMR,
 void check_vector_values_SL(const Vector& v)
 {
   for (int i=v.getlow(); i<=v.gethigh(); i++)
-    if (isinf(v[i]) || isnan(v[i]))
+    if (std::isinf(v[i]) || std::isnan(v[i]))
       {
 	cerr << "check_vector: Illegal value\n";
       }
@@ -1869,7 +1871,6 @@ void SLGridSph::write_cached_table(void)
 
 SLGridSph::~SLGridSph()
 {
-  if (my_model) delete model;
   delete [] table;
   delete [] mpi_buf;
 }

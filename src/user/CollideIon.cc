@@ -43,7 +43,8 @@ static bool CROSS_DBG  = false;
 //
 const double FloorEv = 0.05;
 
-CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double sD, 
+CollideIon::CollideIon(ExternalForce *force, Component *comp, 
+		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
@@ -81,7 +82,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   dInterMap.resize(nthrds);
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
-  sWghtsMap.resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kCE1     .resize(nthrds);
@@ -94,7 +94,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp, double hD, double 
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spProb   .resize(nthrds);
-  spWght   .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -182,17 +181,16 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
   if (aType == Direct) {
 
-    typedef std::map<speciesKey, unsigned> Count;
+    // it1 and it2 are of type std::map<speciesKey, unsigned>
 
-    for (Count::iterator it1 = cell->count.begin(); it1 != cell->count.end(); it1++)  {
+    for (auto it1 : cell->count) {
 
-      speciesKey i1 = it1->first;
+      speciesKey i1 = it1.first;
       double Cross1 = geometric(i1.first);
     
-      for (Count::iterator 
-	     it2 = cell->count.begin(); it2 != cell->count.end(); it2++) {
+      for (auto it2 : cell->count) {
 	
-	speciesKey i2 = it2->first;
+	speciesKey i2 = it2.first;
 	double Cross2 = geometric(i2.first);
 
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
@@ -234,73 +232,71 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
     // Compute mean weights in the cell
     //
-    typedef std::vector<unsigned long>::iterator bIter;
-    typedef std::map<speciesKey, int>::iterator  sIter;
+    // In auto iterators below:
+    //    s is of type std::map<speciesKey, int>
+    //    b is of type std::vector<unsigned long>
+    //
 
-				// Mean weight
+				// Mean fraction in trace species
     keyWghtsMap meanW;
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) 
-      meanW[s->first] = sWghtsMap[id][s->first] = 0.0;
+    for (auto s : SpList) meanW[s.first] = 0.0;
 
-				// Total particle mass
+				// Total mass of all particles in cell
     double massP = 0.0;
-    double numbP = 0.0;
     
-    for (bIter b=cell->bods.begin(); b!= cell->bods.end(); b++) {
+    for (auto b : cell->bods) {
 				// Particle
-      Particle *p = tree->Body(*b);
+      Particle *p = tree->Body(b);
       massP += p->mass;
 				// Mass-weighted trace fraction
-      for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
-	meanW[s->first] += p->mass * p->dattrib[s->second];
-	sWghtsMap[id][s->first] += p->dattrib[s->second]/atomic_weights[s->first.first];
-      }
-      numbP += 1.0;
+      for (auto s : SpList) 
+	meanW[s.first] += p->mass * p->dattrib[s.second];
     }
-				// Compute mean weight
+				// Normalize mass-weighted fraction
 				//
-    spWght[id] = 0.0;
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
-      meanW[s->first] /= massP;
-      sWghtsMap[id][s->first] /= numbP;
-      spWght[id] += sWghtsMap[id][s->first];
-    }
-    if (spWght[id]>0.0) spWght[id] = 1.0/spWght[id];
-
+    for (auto s : SpList) meanW[s.first] /= massP;
 
 				// Compute cross sections
 				//
-    for (sIter s1=SpList.begin(); s1!=SpList.end(); s1++) {
+    for (auto s1 : SpList) {
 
-      speciesKey i1 = s1->first;
+      speciesKey i1 = s1.first;
       double Cross1 = geometric(i1.first);
       
-      for (sIter s2=SpList.begin(); s2!=SpList.end(); s2++) {
+      for (auto s2 : SpList) {
 	
-	speciesKey i2 = s2->first;
+	speciesKey i2 = s2.first;
 	double Cross2 = geometric(i2.first);
 	
+				// Reduced mass for this interation
+				// 
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 
+				// i2 is an ion
 	if (i2.second>1) {
+				// # of free electrons
 	  double ne2   = i2.second - 1;
+				// Electron velocity (equipartition with ion)
 	  double eVel2 = sqrt(amu*atomic_weights[i2.second]/me);
-	  if (i1.second==1)
+	  if (i1.second==1)	// Elastic
 	    Cross1 = elastic(i1.first, EeV * mu) * eVel2 * ne2;
-	  else {
+	  else {		// Coulombic
 	    double b = 0.5*esu*esu*(i1.second - 1) /
 	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	    Cross1 = M_PI*b*b * eVel2 * ne2;
 	  }
 	}
 
+				// i1 is an ion
 	if (i1.second>1) {
+				// # of free electrons
 	  double ne1   = i1.second - 1;
+				// Electron velodity (equipartition with ion)
 	  double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
-	  if (i2.second==1)
+	  if (i2.second==1)	// Elastic
 	    Cross2 = elastic(i2.first, EeV * mu) * eVel1 * ne1;
-	  else {
+	  else {		// Coulombic
 	    double b = 0.5*esu*esu*(i2.second - 1) /
 	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	    Cross2 = M_PI*b*b * eVel1 * ne1;
@@ -322,8 +318,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 sKey2Dmap& 
 CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 {
-  typedef std::map<speciesKey, unsigned> Count;
-  Count::iterator it1, it2;
+  // it1 and it2 are of type std::map<speciesKey, unsigned>
   
   double vel  = crm * UserTreeDSMC::Vunit;
   double Eerg = 0.5*vel*vel*amu;
@@ -335,111 +330,14 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
   
   if (aType == Direct) {
 
-    for (it1 = c->count.begin(); it1 != c->count.end(); it1++)  {
+    for (auto it1 : c->count) {
 
-      speciesKey i1 = it1->first;
+      speciesKey i1 = it1.first;
       double geom1  = geometric(i1.first);
     
-      for (it2 = c->count.begin(); it2 != c->count.end(); it2++)  
-	{
-	  speciesKey i2 = it2->first;
-	  double geom2 = geometric(i2.first);
-	  
-	  double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
-	    (atomic_weights[i1.first] + atomic_weights[i2.first]);
-	  
-	  double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
-	  double eVel2 = sqrt(amu*atomic_weights[i2.first]/me);
-	  
-	  double Cross1 = 0.0;
-	  double Cross2 = 0.0;
-	  
-	  // Both particles neutral?
-	  //
-	  if (i1.second==1 and i2.second==2) {
-	    Cross1 = geom1;
-	    Cross2 = geom2;
-	  }
+      for (auto it2 : c->count) {
 
-	  // Electrons in second particle?
-	  //
-	  unsigned ne2 = i2.second - 1;
-	  if (ne2) {
-	    if (i1.second==1)	// Neutral atom-electron scattering
-	      Cross1 = elastic(i1.first, EeV * mu) * eVel2*ne2;
-	    else {		// Rutherford scattering
-	      double b = 0.5*esu*esu*(i1.second - 1) /
-		std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	      Cross1 = M_PI*b*b * eVel2*ne2;
-	    }
-	  }
-
-	  // Electrons in first particle?
-	  //
-	  unsigned ne1 = i1.second - 1;
-	  if (ne1) {
-	    if (i2.second==1)	// Neutral atom-electron scattering
-	      Cross2 = elastic(i2.first, EeV * mu) * eVel1*ne1;
-	    else {		// Rutherford scattering
-	      double b = 0.5*esu*esu*(i2.second - 1) /
-		std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	      Cross2 = M_PI*b*b * eVel1*ne1;
-	    }
-	  }
-	  
-	  csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
-	    (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-	}
-    }
-
-  }
-
-  
-  if (aType == Trace) {
-
-    csections[id][defaultKey][defaultKey] = 0.0;
-
-    // Compute the mean trace weight in the cell
-    //
-    typedef std::vector<unsigned long>::iterator bIter;
-    typedef std::map<speciesKey, int>::iterator  sIter;
-
-    std::map<speciesKey, double> meanW;
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++)
-      meanW[s->first] = sWghtsMap[id][s->first] = 0.0;
-
-    double massP = 0.0;
-    double numbP = 0.0;
-
-    for (bIter b=c->bods.begin(); b!= c->bods.end(); b++) {
-				// Particle
-      Particle *p = curTree->Body(*b);
-				// Mass accumulation
-      massP += p->mass;
-				// Mean weight accumulation
-      for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
-	meanW[s->first] += p->mass * p->dattrib[s->second];
-	sWghtsMap[id][s->first] += p->dattrib[s->second]/atomic_weights[s->first.first];
-      }
-      numbP += 1.0;
-    }
-    
-				// Normalize
-    for (sIter s=SpList.begin(); s!=SpList.end(); s++) {
-      meanW[s->first] /= massP;
-      sWghtsMap[id][s->first] /= numbP;
-    }
-
-				// Compute cross sections
-				//
-    for (sIter s1=SpList.begin(); s1!=SpList.end(); s1++) {
-
-      speciesKey i1 = s1->first;
-      double geom1  = geometric(i1.first);
-    
-      for (sIter s2=SpList.begin(); s2!=SpList.end(); s2++) {
-
-	speciesKey i2 = s2->first;
+	speciesKey i2 = it2.first;
 	double geom2 = geometric(i2.first);
 	  
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
@@ -452,6 +350,99 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	double Cross2 = 0.0;
 	  
 	// Both particles neutral?
+	//
+	if (i1.second==1 and i2.second==2) {
+	  Cross1 = geom1;
+	  Cross2 = geom2;
+	}
+
+	// Electrons in second particle?
+	//
+	unsigned ne2 = i2.second - 1;
+	if (ne2) {
+	  if (i1.second==1)	// Neutral atom-electron scattering
+	    Cross1 = elastic(i1.first, EeV * mu) * eVel2*ne2;
+	  else {		// Rutherford scattering
+	    double b = 0.5*esu*esu*(i1.second - 1) /
+	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
+	    Cross1 = M_PI*b*b * eVel2*ne2;
+	    }
+	}
+
+	// Electrons in first particle?
+	//
+	unsigned ne1 = i1.second - 1;
+	if (ne1) {
+	    if (i2.second==1)	// Neutral atom-electron scattering
+	      Cross2 = elastic(i2.first, EeV * mu) * eVel1*ne1;
+	    else {		// Rutherford scattering
+	      double b = 0.5*esu*esu*(i2.second - 1) /
+		std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
+	      Cross2 = M_PI*b*b * eVel1*ne1;
+	    }
+	}
+	
+	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+      }
+    }
+
+  }
+
+  
+  if (aType == Trace) {
+
+    csections[id][defaultKey][defaultKey] = 0.0;
+
+    // Compute the mean trace weight in the cell
+    //
+    // In auto iterators below:
+    //    s is of type std::map<speciesKey, int>
+    //    b is of type std::vector<unsigned long>
+    //
+
+    std::map<speciesKey, double> meanW;
+    for (auto s : SpList) meanW[s.first] = 0.0;
+
+				// Total mass of all particles in cell
+    double massP = 0.0;
+
+    for (auto b : c->bods) {
+				// Particle
+      Particle *p = curTree->Body(b);
+				// Mass accumulation
+      massP += p->mass;
+				// Mean weight accumulation
+      for (auto s : SpList)
+	meanW[s.first] += p->mass * p->dattrib[s.second];
+    }
+    
+				// Normalize mass-weighted fraction
+				// 
+    for (auto s : SpList) meanW[s.first] /= massP;
+
+				// Compute cross sections
+				//
+    for (auto s1 : SpList) {
+      
+      speciesKey i1 = s1.first;
+      double geom1  = geometric(i1.first);
+    
+      for (auto s2 : SpList) {
+	
+	speciesKey i2 = s2.first;
+	double geom2 = geometric(i2.first);
+	  
+	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
+	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
+	  
+	double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
+	double eVel2 = sqrt(amu*atomic_weights[i2.first]/me);
+	  
+	double Cross1 = 0.0;
+	double Cross2 = 0.0;
+	  
+	// Are both particles neutral?
 	//
 	if (i1.second==1 and i2.second==1) {
 	  Cross1 = geom1;
@@ -770,35 +761,34 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2, 
 				     double cr, int id)
 {
-  typedef std::map<speciesKey, int>::iterator sIter;
-
   double totalCross = 0.0;
 
   //
   // Compute "matrix" of interactions
   //
-  sIter sEnd(SpList.end());
-  for (sIter s1=SpList.begin(); s1!=sEnd; s1++) {
+  
+  // s1 and s2 are of type std::map<speciesKey, int>
+
+  for (auto s1 : SpList) {
 
 				// Particle 1: key and number weight
-    speciesKey k1 = s1->first;
-    double     w1 = p1->dattrib[s1->second]/atomic_weights[k1.first];
+    speciesKey k1 = s1.first;
+    double     w1 = p1->dattrib[s1.second]/atomic_weights[k1.first];
     
-    for (sIter s2=SpList.begin(); s2!=sEnd; s2++) {
-
-				// Particle 1: key and number weight
-      speciesKey k2 = s2->first;
-      double     w2 = p2->dattrib[s2->second]/atomic_weights[k2.first];
+    for (auto s2 : SpList) {
+				// Particle 2: key and number weight
+      speciesKey k2 = s2.first;
+      double     w2 = p2->dattrib[s2.second]/atomic_weights[k2.first];
 
 				// Key of interaction pair
       dKey dkey(k1, k2);
 
 				// Weight product
-      double     ww = w1 * w2;
+      double ww = w1 * w2;
 
 				// Double counting factor for
 				// identical particles
-      if (k1 == k2) ww *= 0.5;
+      // if (k1 == k2) ww *= 0.5;
 
 				// Atomic numbers
       unsigned short Z1 = k1.first, C1 = k1.second;
@@ -1134,12 +1124,12 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   double tCross = 0.0;
   int si = 0;
   for (size_t i = 0; i < dCrossMap[id].size(); i++) {
-    if (isnan(dCrossMap[id][i])) {
+    if (std::isnan(dCrossMap[id][i])) {
       std::cout << "dCrossMap[" << id << "][" << i << "] is Nan"
 		<< std::setw(14) << dInterMap[id][i]
 		<< std::setw(18) << labels[dInterMap[id][i]]
 		<< std::endl;
-    } else if (isinf(dCrossMap[id][i])) {
+    } else if (std::isinf(dCrossMap[id][i])) {
       std::cout << "dCrossMap[" << id << "][" << i << "] is "
 		<< dCrossMap[id][i]
 		<< std::setw(14) << dInterMap[id][i]
@@ -1162,7 +1152,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     //
     std::vector<double> CDF;
     for (size_t i = 0; i < TotalCross.size(); i++) {
-      if (isnan(TotalCross[i])) {
+      if (std::isnan(TotalCross[i])) {
 	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
 		  << std::endl;
       } else {
@@ -1575,7 +1565,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   // For particle map and weights
   //
   typedef std::map<speciesKey, double> keyW;
-  typedef std::map<speciesKey, int   > keyI;
 
   int ret = 0;			// No error (flag)
 
@@ -1624,10 +1613,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	      << std::setw(14) << "---------"
 	      << std::setw(18) << "---------------"
 	      << std::endl;
-    for (keyI::iterator sp=SpList.begin(); sp!=SpList.end(); sp++) {
-      speciesKey k1(sp->first);
-      for (keyI::iterator sp=SpList.begin(); sp!=SpList.end(); sp++) {
-	speciesKey k2(sp->first);
+
+    // sp1 and sp2 are of type std::map<speciesKey, int>
+
+    for (auto sp1 : SpList) {
+      speciesKey k1(sp1.first);
+
+      for (auto sp2 : SpList) {
+	speciesKey k2(sp2.first);
+
 	dKey dkey(k1, k2);
 	for (size_t i = 0; i < sCrossMap[id][dkey].size(); i++) {
 	  std::cout << std::setw( 8) << i
@@ -1649,23 +1643,20 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   //
   keyW new1, new2;
 
-  for (keyI::iterator sp=SpList.begin(); sp!=SpList.end(); sp++) {
-    new1[sp->first] = p1->dattrib[sp->second];
-    new2[sp->first] = p2->dattrib[sp->second];
+  for (auto sp : SpList) {
+    new1[sp.first] = p1->dattrib[sp.second];
+    new2[sp.first] = p2->dattrib[sp.second];
   }
 
   // Cycle through all pairs of species
   //
   double delE = 0.0;
 
-  keyCrossMap::iterator spBeg=sCrossMap[id].begin();
-  keyCrossMap::iterator spEnd=sCrossMap[id].end();
-  
-  for (keyCrossMap::iterator sp=spBeg; sp!=spEnd; sp++) {
+  for (auto sp : sCrossMap[id]) {
 
     // The interaction pair
     //
-    dKey key = sp->first;
+    dKey key = sp.first;
 
     // Number of interaction types in this map
     //
@@ -1673,7 +1664,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
     // Normalize cross section list
     //
-    double norm = std::accumulate(sp->second.begin(), sp->second.end(), 0.0);
+    double norm = std::accumulate(sp.second.begin(), sp.second.end(), 0.0);
     
     // Sanity check: compute elastic and inelastic fractions
     //  |
@@ -1690,8 +1681,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
     // The interaction pair
     //
-    speciesKey k1 = sp->first.first;
-    speciesKey k2 = sp->first.second;
+    speciesKey k1 = sp.first.first;
+    speciesKey k2 = sp.first.second;
     
     collTDPtr ctd1 = (*collD)[k1], ctd2 = (*collD)[k2];
 
@@ -2047,9 +2038,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   
   // Replace particle weights
   //
-  for (keyI::iterator sp=SpList.begin(); sp!=SpList.end(); sp++) {
-    p1->dattrib[sp->second] = new1[sp->first];
-    p2->dattrib[sp->second] = new2[sp->first];
+  for (auto sp : SpList) {
+    p1->dattrib[sp.second] = new1[sp.first];
+    p2->dattrib[sp.second] = new2[sp.first];
   }
 
   // Velocity update
@@ -2134,13 +2125,12 @@ void * CollideIon::timestep_thread(void * arg)
     double volc = c->Volume();
     
     sKeyDmap            densM, lambdaM, crossM;
-    sKeyUmap::iterator  it1, it2;
     sKey2Dmap           crossIJ;
     
     crossIJ = totalScatteringCrossSections(0, c, id);
     
-    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-      speciesKey i1 = it1->first;
+    for (auto it1 : c->count) {
+      speciesKey i1 = it1.first;
       densM[i1] = c->Mass(i1)/volc;
     }
     
@@ -2148,12 +2138,13 @@ void * CollideIon::timestep_thread(void * arg)
     
     if (MFPTS) {
 
-      for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-	speciesKey i1 = it1->first;
+      for (auto it1 : c->count) {
+	speciesKey i1 = it1.first;
 	crossM [i1] = 0.0;
-	for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+
+	for (auto it2 : c->count) {
 	  
-	  speciesKey i2 = it2->first;
+	  speciesKey i2 = it2.first;
 	  double      N = UserTreeDSMC::Munit/amu;
 	  
 	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
@@ -2173,12 +2164,11 @@ void * CollideIon::timestep_thread(void * arg)
       meanLambda /= meanDens;
     }
     
-    for (vector<unsigned long>::iterator 
-	   i=c->bods.begin(); i!=c->bods.end(); i++) {
+    for (auto i : c->bods) {
 
       // Current particle
       //
-      p = tree->Body(*i);
+      p = tree->Body(i);
 
       // Compute time of flight criterion and assign cell scale to
       // characteristic size
@@ -2251,10 +2241,10 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   // Initialize the map
   //
   if (p->ZList.size()) {
-    for (CollideIon::ZLtype::iterator 
-	   n=p->ZList.begin(); n!=p->ZList.end(); n++) {
 
-      unsigned short Z = *n;
+    for (auto n : p->ZList) {
+
+      unsigned short Z = n;
 
       for (unsigned short C=1; C<Z+2; C++) {
 	speciesKey k(Z, C);
@@ -2262,9 +2252,8 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
       }
     }
   } else if (p->SpList.size()) {
-    typedef std::map<speciesKey, int>::iterator spMapItr;
-    for (spMapItr n=p->SpList.begin(); n!=p->SpList.end(); n++) {
-      (*this)[n->first] = collTDPtr(new CollisionTypeDiag());
+    for (auto n : p->SpList) {
+      (*this)[n.first] = collTDPtr(new CollisionTypeDiag());
     }
   } else {			// Sanity check
     if (myid==0) {
@@ -2283,9 +2272,9 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 //
 void collDiag::gather()
 {
-  for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+  for (auto it : *this) {
 
-    collTDPtr ctd = it->second;
+    collTDPtr ctd = it.second;
     ctd->sumUp();
 
     double z;
@@ -2329,8 +2318,7 @@ void collDiag::gather()
 //
 void collDiag::reset()
 {
-  for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++)  
-    it->second->reset();
+  for (auto it : *this) it.second->reset();
 }
 
 void collDiag::initialize() 
@@ -2368,9 +2356,9 @@ void collDiag::initialize()
 	
 				// Species labels
 	out << "#" << std::setw(11+12) << std::right << "Species==>" << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  ostringstream sout, sout2;
-	  sout  << "(" << it->first.first << ", " << it->first.second << ")";
+	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
 	  size_t w = 9*12, l = sout.str().size();
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
@@ -2380,7 +2368,7 @@ void collDiag::initialize()
 				// Header line
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
@@ -2391,7 +2379,7 @@ void collDiag::initialize()
 	out << "#" 
 	    << std::setw(11) << "Time |"
 	    << std::setw(12) << "Temp |" << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  out << std::setw(12) << "N(ff) |"
 	      << std::setw(12) << "E(ff) |"
 	      << std::setw(12) << "N(ce) |"
@@ -2413,7 +2401,7 @@ void collDiag::initialize()
 	st.str("");
 	st << "[" << ++cnt << "] |";
 	out << std::setw(12) << st.str() << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (size_t l=0; l<9; l++) {
 	    st.str("");
 	    st << "[" << ++cnt << "] |";
@@ -2428,7 +2416,7 @@ void collDiag::initialize()
 				// Header line
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (int i=0; i<9; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
@@ -2464,9 +2452,9 @@ void collDiag::initialize()
 
 				// Species labels
 	out << "#" << std::setw(11) << "Species==>" << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  ostringstream sout, sout2;
-	  sout  << "(" << it->first.first << ", " << it->first.second << ")";
+	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
 	  size_t w = 5*12, l = sout.str().size();
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
@@ -2476,7 +2464,7 @@ void collDiag::initialize()
 				// Header line
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11) << '+' << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
@@ -2484,7 +2472,7 @@ void collDiag::initialize()
 
 				// Column labels
 	out << "#" << std::setw(11) << "Time" << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  out << std::setw(12) << "avg |"
 	      << std::setw(12) << "num |"
 	      << std::setw(12) << "min |"
@@ -2499,7 +2487,7 @@ void collDiag::initialize()
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
 	out << "#" << std::setw(11) << st.str() << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (size_t l=0; l<5; l++) {
 	    st.str("");
 	    st << "[" << ++cnt << "] |";
@@ -2511,7 +2499,7 @@ void collDiag::initialize()
 				// Header line
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11) << '+' << " | ";
-	for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
+	for (auto it : *this) {
 	  for (int i=0; i<5; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
@@ -2536,8 +2524,8 @@ void collDiag::print()
       double cvrt   = eV/UserTreeDSMC::Eunit/volume;
       out << std::setw(12) << tnow 
 	  << std::setw(12) << p->tempM << " | ";
-      for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
-	collTDPtr ctd = it->second;
+      for (auto it : *this) {
+	collTDPtr ctd = it.second;
 	out << std::setw(12) << ctd->ff_s.first
 	    << std::setw(12) << ctd->ff_s.second * cvrt
 	    << std::setw(12) << ctd->CE_s.first
@@ -2562,8 +2550,8 @@ void collDiag::print()
     std::ofstream out(energy_file_debug.c_str(), ios::out | ios::app);
     if (out) {
       out << std::setw(12) << tnow << " | ";
-      for (sKeyCollTD::iterator it=this->begin(); it!=this->end(); it++) {
-	collTDPtr ctd = it->second;
+      for (auto it : *this) {
+	collTDPtr ctd = it.second;
 	out << std::setw(12) << (ctd->eV_N_s ? ctd->eV_av_s/ctd->eV_N_s : 0.0)
 	    << std::setw(12) << ctd->eV_N_s
 	    << std::setw(12) << ctd->eV_min_s
@@ -2691,8 +2679,8 @@ void CollideIon::parseSpecies(const std::string& map)
   MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
   if (myid==0) {
-    for (ZLtype::iterator it=ZList.begin(); it!= ZList.end(); it++) {
-      z = *it;
+    for (auto it : ZList) {
+      z = it;
       MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
     }
   } else {
@@ -2711,11 +2699,10 @@ void CollideIon::parseSpecies(const std::string& map)
     MPI_Bcast(&sz, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
     if (myid==0) {
-      for (std::map<speciesKey, int>::iterator
-	     it=SpList.begin(); it!= SpList.end(); it++) {
+      for (auto it : SpList) {
 
-	key = it->first;
-	pos = it->second;
+	key = it.first;
+	pos = it.second;
 
 	MPI_Bcast(&key.first,  1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
 	MPI_Bcast(&key.second, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
@@ -2752,7 +2739,6 @@ sKey2Umap CollideIon::generateSelectionDirect
   sKeyDmap            densM, collPM, lambdaM, crossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
-  sKeyUmap::iterator  it1, it2;
     
   // Volume in the cell
   //
@@ -2771,8 +2757,8 @@ sKey2Umap CollideIon::generateSelectionDirect
   // Done
   //
   
-  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
-    speciesKey i1 = it1->first;
+  for (auto it1 : c->count) {
+    speciesKey i1 = it1.first;
     densM[i1] = c->Mass(i1)/volc / atomic_weights[i1.first];
     //                             ^
     //                             |
@@ -2784,27 +2770,28 @@ sKey2Umap CollideIon::generateSelectionDirect
   meanLambda      = 0.0;
   meanCollP       = 0.0;
     
-  for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+  for (auto it1 : c->count) {
 
-    speciesKey i1 = it1->first;
+    speciesKey i1 = it1.first;
     crossM [i1]   = 0.0;
 
-    for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-      speciesKey i2 = it2->first;
+    for (auto it2 : c->count) {
+
+      speciesKey i2 = it2.first;
 
       if (i2>=i1) {
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
       } else
 	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
       
-      if (csections[id][i1][i2] <= 0.0 || isnan(csections[id][i1][i2])) {
+      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
 	csections[id][i1][i2] = 0.0; // Zero out
       }
 	    
-      if (csections[id][i2][i1] <= 0.0 || isnan(csections[id][i2][i1])) {
+      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
@@ -2813,7 +2800,7 @@ sKey2Umap CollideIon::generateSelectionDirect
 	
     }
       
-    if (it1->second>0 && (crossM[i1] == 0 || isnan(crossM[i1]))) {
+    if (it1.second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
       cout << "INVALID CROSS SECTION! ::"
 	   << " crossM = " << crossM[i1] 
 	   << " densM = "  <<  densM[i1] 
@@ -2841,6 +2828,9 @@ sKey2Umap CollideIon::generateSelectionDirect
   // This is the per-species N_{coll}
   //
   totalNsel = 0.0;
+
+  std::map<speciesKey, unsigned>::iterator it1, it2;
+
   for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
     speciesKey i1 = it1->first;
     
@@ -2899,7 +2889,7 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Done
   
   // Sanity check
-  if (isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
+  if (std::isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
     cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
     csections[id][key][key] = 0.0; // Zero out
   }
@@ -3232,30 +3222,28 @@ double CollideIon::molWeight()
 
       size_t j = 0;
       std::map<unsigned short, int> zval;
-      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++) 
-	zval[*i] = j++;
+      for (auto i : ZList) zval[i] = j++;
       
       std::map<unsigned short, int>::iterator iz, izEnd(zval.end());
       
       std::vector<double> speciesM(ZList.size(), 0.0);
-      PartMapItr p = c0->Particles().begin(), pEnd = c0->Particles().end();
-      for (; p!= pEnd; p++) {
-	speciesKey key = KeyConvert(p->second.iattrib[use_key]).getKey();
+
+      for (auto p : c0->Particles()) {
+	speciesKey key = KeyConvert(p.second.iattrib[use_key]).getKey();
 	iz = zval.find(key.first);
-	if (iz != izEnd) speciesM[iz->second] += p->second.mass;
+	if (iz != izEnd) speciesM[iz->second] += p.second.mass;
       }
 
       MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], speciesM.size(), 
 		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
 
       double mtot = 0.0;
-      for (std::vector<double>::iterator 
-	     it=speciesM.begin(); it!=speciesM.end(); it++) mtot += *it;
+      for (auto it : speciesM) mtot += it;
 
       j = 0;
       mol_weight = 0.0;
-      for (ZLtype::iterator i=ZList.begin(); i!=ZList.end(); i++, j++)
-	mol_weight += speciesM[j]/atomic_weights[*i]/mtot;
+      for (auto i : ZList)
+	mol_weight += speciesM[j]/atomic_weights[i]/mtot;
 
       mol_weight = 1.0/mol_weight;
     }

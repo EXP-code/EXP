@@ -216,10 +216,9 @@ PotAccel::~PotAccel(void)
 
 int PotAccel::get_value(const string& name, string& value)
 {
-  list< pair<string, string> >::iterator it;
-  for (it=namevalue.begin(); it!=namevalue.end(); it++) {
-    if (it->first.compare(name) == 0) {
-      value = it->second;
+  for (auto it : namevalue) {
+    if (it.first.compare(name) == 0) {
+      value = it.second;
       return 1;
     }
   }
@@ -231,19 +230,18 @@ std::map<int, std::string> PotAccel::get_value_array(const string& name)
   std::map<int, string> values;
   int indx;
 
-  list< pair<string, string> >::iterator it;
-  for (it=namevalue.begin(); it!=namevalue.end(); it++) {
+  for (auto it : namevalue) {
     string key = name + "(";
-    if (it->first.compare(0, key.size(), key) == 0) {
-      string sindx = it->first.substr(key.size(), it->first.find(")"));
+    if (it.first.compare(0, key.size(), key) == 0) {
+      string sindx = it.first.substr(key.size(), it.first.find(")"));
       try {
 	indx = boost::lexical_cast<int>(sindx);
       } 
       catch( boost::bad_lexical_cast const& ) {
 	std::cout << "PotAccel::get_value_array: input string <" 
-		  << it->first << "> is not valid" << std::endl;
+		  << it.first << "> is not valid" << std::endl;
       }
-      values[indx] = it->second;
+      values[indx] = it.second;
     }
   }
   return values;
@@ -256,22 +254,21 @@ PotAccel::get_value_matrix(const string& name)
   std::map<std::pair<int, int>, string> values;
   std::pair<int, int> indx;
 
-  list< pair<string, string> >::iterator it;
-  for (it=namevalue.begin(); it!=namevalue.end(); it++) {
+  for (auto it : namevalue) {
     string key = name + "(";
-    if (it->first.compare(0, key.size(), key) == 0) {
-      string sindx1 = it->first.substr(key.size(), it->first.find(","));
-      string sindx2 = it->first.substr(key.size() + sindx1.size(), 
-				       it->first.find(")"));
+    if (it.first.compare(0, key.size(), key) == 0) {
+      string sindx1 = it.first.substr(key.size(), it.first.find(","));
+      string sindx2 = it.first.substr(key.size() + sindx1.size(), 
+				       it.first.find(")"));
       try {
 	indx.first  = boost::lexical_cast<int>(sindx1);
 	indx.second = boost::lexical_cast<int>(sindx2);
       } 
       catch( boost::bad_lexical_cast const& ) {
 	std::cout << "PotAccel::get_value_matrix: input string <" 
-		  << it->first << "> is not valid" << std::endl;
+		  << it.first << "> is not valid" << std::endl;
       }
-      values[indx] = it->second;
+      values[indx] = it.second;
     }
   }
   return values;
@@ -359,17 +356,15 @@ void PotAccel::print_timings(const string& label, vector<double>& tlist)
       double bmean=0.0, bdisp=0.0, emean=0.0, edisp=0.0;
       bool first_end=false, ok=true;
       int cnt=0;
-      for (vector<pair<double, NData> >::iterator 
-	     it=total_list.begin(); it!=total_list.end(); it++) {
-
+      for (auto it : total_list) {
 	cnt++;
-	if (it->second.name.compare("beg")==0) {
-	  bmean += it->first;
-	  bdisp += it->first * it->first;
+	if (it.second.name.compare("beg")==0) {
+	  bmean += it.first;
+	  bdisp += it.first * it.first;
 	  if (first_end) ok = false;
 	} else {
-	  emean += it->first;
-	  edisp += it->first * it->first;
+	  emean += it.first;
+	  edisp += it.first * it.first;
 	  first_end = true;
 	}
       }
@@ -403,12 +398,11 @@ void PotAccel::print_timings(const string& label, vector<double>& tlist)
 
       cout << setw(5) << "Node" << setw(5) << "Tid" 
 	   << setw(12) << "Time" << endl;
-      for (vector<pair<double, NData> >::iterator 
-	     it=total_list.begin(); it!=total_list.end(); it++) {
-	cout << setw(5)  << it->second.node
-	     << setw(5)  << it->second.tid
-	     << setw(12) << setprecision(6) << fixed << it->first
-	     << setw(5)  << it->second.name
+      for (auto it : total_list) {
+	cout << setw(5)  << it.second.node
+	     << setw(5)  << it.second.tid
+	     << setw(12) << setprecision(6) << fixed << it.first
+	     << setw(5)  << it.second.name
 	     << endl;
       }
     }

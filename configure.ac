@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.20)
+AC_INIT(EXP, 7.21)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -26,6 +26,9 @@ AC_PROG_LIBTOOL
 AC_CONFIG_MACRO_DIR([m4])
 
 AC_LANG_PUSH(C++)
+
+AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
+
 
 dnl ==========================================================================
 dnl Check for hash

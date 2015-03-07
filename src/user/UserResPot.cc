@@ -94,10 +94,7 @@ UserResPot::UserResPot(string &line) : ExternalForce(line)
 				// Look for the fiducial component for
 				// centering
     bool found = false;
-    list<Component*>::iterator cc;
-    Component *c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if ( !ctr_name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -589,9 +586,9 @@ void * UserResPot::determine_acceleration_and_potential_thread(void * arg)
       cC->Part(i)->vel[k] = velO[k];
       cC->Part(i)->acc[k] = (velO[k] - velI[k])/dtime;
       if (!found_nan) {
-	if ( isnan(cC->Pos(i, k)) ||
-	     isnan(cC->Vel(i, k)) ||
-	     isnan(cC->Acc(i, k)) ) found_nan = true; 
+	if ( std::isnan(cC->Pos(i, k)) ||
+	     std::isnan(cC->Vel(i, k)) ||
+	     std::isnan(cC->Acc(i, k)) ) found_nan = true; 
       }
     }
     cC->Part(i)->potext = halo_model->get_pot(R);

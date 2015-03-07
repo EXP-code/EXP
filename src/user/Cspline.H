@@ -159,4 +159,5 @@ protected:
   std::vector<element_type> elems;
 };
 
+
 #endif

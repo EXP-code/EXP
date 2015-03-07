@@ -104,8 +104,8 @@ AxisymmetricBasis:: AxisymmetricBasis(string& line) : Basis(line)
 AxisymmetricBasis::~AxisymmetricBasis()
 {
   vector<Matrix *>::iterator it;
-  for (it=expcoefN.begin(); it!=expcoefN.end(); it++) delete *it;
-  for (it=expcoefL.begin(); it!=expcoefL.end(); it++) delete *it;
+  for (auto it : expcoefN) delete it;
+  for (auto it : expcoefL) delete it;
 
   if (pca) {
     delete [] weight;

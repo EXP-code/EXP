@@ -14,12 +14,9 @@ void synchronize_velocity(int sign)
   else
     rsign = 1.0;
 
-  list<Component*>::iterator cc;
-  Component *c;
   unsigned ntot;
   
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     
     ntot = c->Number();
     for (int i=0; i<ntot; i++) {

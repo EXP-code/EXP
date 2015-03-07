@@ -77,8 +77,6 @@ void OutCHKPT::Run(int n, bool last)
   }
 
   ofstream *out;
-  list<Component*>::iterator cc;
-  Component* c;
 
   if (myid==0) {
     
@@ -112,8 +110,7 @@ void OutCHKPT::Run(int n, bool last)
 
   }
   
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
 #ifdef DEBUG
     cout << "OutCHKPT: process " << myid << " trying to write name=" << c->name
 	 << " force=" << c->id << endl;

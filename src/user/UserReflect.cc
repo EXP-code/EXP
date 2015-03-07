@@ -22,10 +22,7 @@ UserReflect::UserReflect(string &line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;

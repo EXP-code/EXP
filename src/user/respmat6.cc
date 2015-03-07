@@ -390,27 +390,27 @@ void RespMat::make_matrix(void)
 
       tot_time = timer.getTime()();
       cout << "\nTime for step #" << ikap << ":            " 
-	   << tot_time << '\n';
+	   << tot_time << endl;
       
       tot_time_d = tot_time;
       if (tot_time_d <= 0.0) tot_time_d = 1.0;
 
       cout << "    Time in integration    : " 
-	<< time_in_inner_loop << " (" << setprecision(3)
-	  << time_in_inner_loop/tot_time_d*100 
-	    << "%)\n";
+	   << time_in_inner_loop << " (" << setprecision(3)
+	   << time_in_inner_loop/tot_time_d*100 
+	   << "%)" << endl;
 
       cout << "    Time in biorthog lookup: " 
-	<< time_in_biorth_gen << " (" << setprecision(3)
-	  << time_in_biorth_gen/tot_time_d*100 
-	    << "%)\n";
+	   << time_in_biorth_gen << " (" << setprecision(3)
+	   << time_in_biorth_gen/tot_time_d*100 
+	   << "%)" << endl;
       
       cout << "    Everything else        : " 
-	<< tot_time - time_in_inner_loop - time_in_biorth_gen
-	  << " (" << setprecision(3)
-	    << (1.0 - time_in_biorth_gen/tot_time_d - 
-		time_in_inner_loop/tot_time_d)*100 
-		  << "%)\n";
+	   << tot_time - time_in_inner_loop - time_in_biorth_gen
+	   << " (" << setprecision(3)
+	   << (1.0 - time_in_biorth_gen/tot_time_d - 
+	       time_in_inner_loop/tot_time_d)*100 
+	   << "%)" << endl;
       timer.reset();
       time_in_inner_loop = 0.0;
       time_in_biorth_gen = 0.0;
@@ -1261,11 +1261,11 @@ void RespMat::integrand_pv(void)
 	      cerr << "check domain: less than zero\n";
 	      tstflg++;
 	    }
-	    if (isnan(tst)) {
+	    if (std::isnan(tst)) {
 	      cerr << "check domain: NaN\n";
 	      tstflg++;
 	    }
-	    if (isinf(tst)) {
+	    if (std::isinf(tst)) {
 	      cerr << "check domain: Infinity\n";
 	      tstflg++;
 	    }
@@ -1312,11 +1312,11 @@ void RespMat::integrand_pv(void)
 	  cerr << "check domain: less than zero\n";
 	  tstflg++;
 	}
-	if (isnan(tst)) {
+	if (std::isnan(tst)) {
 	  cerr << "check domain: NaN\n";
 	  tstflg++;
 	}
-	if (isinf(tst)) {
+	if (std::isinf(tst)) {
 	  cerr << "check domain: Infinity\n";
 	  tstflg++;
 	}
@@ -1378,15 +1378,15 @@ void RespMat::integrand_pv(void)
 	int tstflg=0;
 	double tst = (pp_x2[num_E]-ORes->ELoc[num])/(ORes->ELoc[num]-pp_x2[1]);
 	if (tst < 0.0) {
-	  cerr << "check domain: less than zero\n";
+	  cerr << "check domain: less than zero" << endl;
 	  tstflg++;
 	}
-	if (isnan(tst)) {
-	  cerr << "check domain: NaN\n";
+	if (std::isnan(tst)) {
+	  cerr << "check domain: NaN" << endl;
 	  tstflg++;
 	}
-	if (isinf(tst)) {
-	  cerr << "check domain: Infinity\n";
+	if (std::isinf(tst)) {
+	  cerr << "check domain: Infinity" << endl;
 	  tstflg++;
 	}
 	if (tst==0.0) {

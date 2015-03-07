@@ -18,16 +18,11 @@ OutDiag::OutDiag(string& line) : Output(line)
   PHI = 1.0e-10;
   NUM = 100;
 
-  list<Component*>::iterator cc;
-  Component *c;
-  
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-
+  for (auto c : comp.components) {
     if (c->force->geometry == PotAccel::sphere || 
 	c->force->geometry == PotAccel::cylinder) 
       {
-	lcomp.push_back(&(*c));
+	lcomp.push_back(c);
       }
   }
   
@@ -73,14 +68,13 @@ void OutDiag::initialize()
 
 void OutDiag::header(ostream& out)
 {
-  list<Component*>::iterator c;
   int ncur = 0;
 
   out << "# " << ++ncur << ": " << "Radius\n";
 
-  for (c=lcomp.begin(); c != lcomp.end(); c++) {
+  for (auto c : lcomp) {
 
-    out << "# [" << (*c)->id << "]\n";
+    out << "# [" << c->id << "]\n";
     
     for (int i=0; i<5; i++) 
       out << "# " << setw(3) << ++ncur << ": " << names[i] << endl;
@@ -110,16 +104,14 @@ void OutDiag::Run(int n, bool last)
 
   // Determine potential and acceleration
 
-  list<Component*>::iterator c;
-
   dr = (RMAX - RMIN)/(double)NUM;
   for (int i=0; i<=NUM; i++) {
     r = RMIN + dr*i;
 
     out << setw(15) << r;
     
-    for (c=lcomp.begin(); c != lcomp.end(); c++) {
-      AxisymmetricBasis * q = (AxisymmetricBasis *)((*c)->force);
+    for (auto c : lcomp) {
+      AxisymmetricBasis * q = (AxisymmetricBasis *)(c->force);
       q->determine_fields_at_point_sph(r, THETA, PHI,
 				       &dens0, &potl0, 
 				       &dens, &potl, &potr, &pott, &potp);

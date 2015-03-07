@@ -24,7 +24,7 @@ ADD_LIBS4    = $(gptl_lib) -lgptl
 endif
 
 AM_CFLAGS    = -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
-AM_CXXFLAGS  = -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
+AM_CXXFLAGS  = -std=c++11 -D_REENTRANT -fopenmp $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3) $(ADD_CFLAGS4)
 
 CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
@@ -47,7 +47,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
 bin_PROGRAMS = exp
 
-COMMON_LIBS = -lexputil -lexpgnu
+BOOST_LIBS = $(BOOST_FILESYSTEM_LIB) $(BOOST_SYSTEM_LIB)
+COMMON_LIBS = -lexputil -lexpgnu $(BOOST_LIBS)
 SYS_LIBS = -lpthread -ldl -lgomp
 MPI_LIBS = -lmpi
 

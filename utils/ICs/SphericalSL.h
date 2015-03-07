@@ -5,6 +5,7 @@
 
 #include <vector>
 
+#include <Particle.H>
 #include <Vector.h>
 #include <logic.h>
 #include <Particle.H>

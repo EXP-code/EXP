@@ -136,7 +136,7 @@ private:
   int numt, N;
   string filename;
 
-  static const double numfac = 3.86274202023190e-01;
+  static constexpr double numfac = 3.86274202023190e-01;
   bool firstime;
   double posang, lastomega, lasttime, angmomfac;
   double Lz, Lz0, Lzbar, omega, omega0, Iz;

@@ -82,13 +82,12 @@ void ParamDatabase::add_entry(const string &name, const string& type,
 			      const string &deflt)
 {
 				// Look for duplicate entry
-  list<PP1_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto j : database2)
     {
-      if (it->name.compare(name)==0) 
+      if (j.name.compare(name)==0) 
 	{
-	  it->type = type;
-	  it->parse(0, deflt);
+	  j.type = type;
+	  j.parse(0, deflt);
 	  return;
 	}
     }
@@ -110,48 +109,47 @@ void ParamDatabase::add_entry(const string &name, const string& type,
 
 void ParamDatabase::set_entry(const string &name, const string& value)
 {
-  list<PP1_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto j : database2)
     {
-      if (it->name.compare(name)==0) { // Found it!
+      if (j.name.compare(name)==0) { // Found it!
 
 	istringstream ins(value.c_str());
 
-	if (it->type.compare("bool")==0) {
+	if (j.type.compare("bool")==0) {
 	  bool *i = new bool;
 	  if (value[0]=='t' || value[0]=='T') *i = true;
 	  else if (value[0]=='f' || value[0]=='F') *i = false;
 	  else *i = atoi(value.c_str()) ? true : false;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("int")==0) {
+	else if (j.type.compare("int")==0) {
 	  int *i = new int;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("float")==0) {
+	else if (j.type.compare("float")==0) {
 	  float *i = new float;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("double")==0) {
+	else if (j.type.compare("double")==0) {
 	  double *i = new double;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("string")==0) {
+	else if (j.type.compare("string")==0) {
 	  string *i = new string(value);
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("char")==0) {
+	else if (j.type.compare("char")==0) {
 	  char *i = new char [value.size()+1];
 	  strncpy(i, value.c_str(), value.size()+1);
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
 	else {
 	  ostringstream msg;
 	  msg << "ParamDatabase::set_entry: no type <"
-	      << it->type << ">";
+	      << j.type << ">";
 	  cerr << msg << endl;
 	  throw msg.str().c_str();
 	}

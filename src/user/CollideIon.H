@@ -193,12 +193,11 @@ private:
   std::vector< std::vector<int>    >               dInterMap;
   std::vector< keyCrossMap >                       sCrossMap;
   std::vector< keyInterMap >                       sInterMap;
-  std::vector< keyWghtsMap >                       sWghtsMap;
   std::vector< CEvector    >                       CE1, CE2;
   std::vector< keyColExMap >                       kCE1, kCE2;
   std::vector< double >                            kEi, kEe1, kEe2;
   std::vector< double >                            Ein1, Ein2;
-  std::vector< double >                            spCrm, spTau, spProb, spWght;
+  std::vector< double >                            spCrm, spTau, spProb;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -327,8 +326,8 @@ protected:
   std::vector<double> cross1_dbg, cross2_dbg;
   double nextTime_dbg;
   int nCnt_dbg;
-  static const double delTime_dbg = 0.001;
-  static const int nCel_dbg = 10;
+  static constexpr double delTime_dbg = 0.001;
+  static constexpr int nCel_dbg = 10;
   void write_cross_debug();
   //@}
 

@@ -33,10 +33,7 @@ void * tidalField::determine_acceleration_and_potential_thread(void * arg)
 
   int nbeg, nend, id = *((int*)arg);
 
-  list<Component*>::iterator ccp;
-  Component *cp;
-  for (ccp=comp.components.begin(); ccp != comp.components.end(); ccp++) {
-    cp = *ccp;
+  for (auto cp : comp.components) {
 
     nbodies = cp->Number();
     nbeg = nbodies*id/nthrds;

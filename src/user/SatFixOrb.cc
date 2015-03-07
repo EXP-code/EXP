@@ -15,10 +15,7 @@ SatFixOrb::SatFixOrb(string &line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     if ( !comp_nam.compare(c->name) ) {
       c0 = c;
       found = true;
@@ -281,9 +278,9 @@ void SatFixOrb::check_send()
   if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
-      if (isnan(c0->Part(end)->pos[k])) ferror = true;
-      if (isnan(c0->Part(end)->vel[k])) ferror = true;
-      if (isnan(c0->Part(end)->acc[k])) ferror = true;
+      if (std::isnan(c0->Part(end)->pos[k])) ferror = true;
+      if (std::isnan(c0->Part(end)->vel[k])) ferror = true;
+      if (std::isnan(c0->Part(end)->acc[k])) ferror = true;
     }
     if (ferror) {
       cout << "Process " << myid << ": error in coordindates to be sent!" << endl;
@@ -297,9 +294,9 @@ void SatFixOrb::check_body(int n)
   if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
-      if (isnan(c0->Part(n)->pos[k])) ferror = true;
-      if (isnan(c0->Part(n)->vel[k])) ferror = true;
-      if (isnan(c0->Part(n)->acc[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->pos[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->vel[k])) ferror = true;
+      if (std::isnan(c0->Part(n)->acc[k])) ferror = true;
     }
     if (ferror) {
       cout << "Process " << myid << ": error in coordindates, n=" << n << "!" << endl;
@@ -312,9 +309,9 @@ void SatFixOrb::check_recv()
   if (debug) {
     bool ferror = false;
     for (int k=0; k<3; k++) {
-      if (isnan(c0->Part(0)->pos[k])) ferror = true;
-      if (isnan(c0->Part(0)->vel[k])) ferror = true;
-      if (isnan(c0->Part(0)->acc[k])) ferror = true;
+      if (std::isnan(c0->Part(0)->pos[k])) ferror = true;
+      if (std::isnan(c0->Part(0)->vel[k])) ferror = true;
+      if (std::isnan(c0->Part(0)->acc[k])) ferror = true;
     }
     if (ferror) {
       cout << "Process " << myid << ": error in receiving coordindates!" << endl;

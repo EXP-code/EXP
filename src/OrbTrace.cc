@@ -232,10 +232,7 @@ void OrbTrace::initialize()
 
 				// Search for desired component
   if (get_value(string("name"), tmp)) {
-    list<Component*>::iterator cc;
-    Component* c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if (!(c->name.compare(tmp))) tcomp  = c;
     }
   }

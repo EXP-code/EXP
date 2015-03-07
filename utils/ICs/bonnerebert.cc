@@ -188,7 +188,7 @@ double linear(double x, unsigned i, unsigned j, const vector< vector<double> >& 
     ( tab[index+1][j]*(x-tab[index  ][i]  )   -
       tab[index  ][j]*(x-tab[index+1][i]) ) /denom;
 
-  if (isinf(result) || isnan(result)) {
+  if (std::isinf(result) || std::isnan(result)) {
     cerr << "oops" << endl;
   }
 
