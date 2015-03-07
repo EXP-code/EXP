@@ -95,15 +95,14 @@ void ProgramParam::add_entry(const string &name, const string& type,
 			     const string &deflt, const string &help)
 {
 				// Look for duplicate entry
-  list<PP2_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto j : database2)
     {
-      if (it->name.compare(name)==0) 
+      if (j.name.compare(name)==0) 
 	{
-	  it->type = type;
-	  it->help = help;
+	  j.type = type;
+	  j.help = help;
 	  try {
-	    it->parse(0, deflt);
+	    j.parse(0, deflt);
 	  }
 	  catch (char *msg) {
 	    cerr << "On parsing <" << name << ">" << endl;
@@ -132,56 +131,54 @@ void ProgramParam::add_entry(const string &name, const string& type,
 
 void ProgramParam::set_entry_list(vector<sspair>& params)
 {
-  vector<sspair>::iterator iv;
-  for (iv=params.begin(); iv!=params.end(); iv++)
-    set_entry(iv->first, iv->second);
+  for (auto v : params)
+    set_entry(v.first, v.second);
 }
 
 
 void ProgramParam::set_entry(const string &name, const string& value)
 {
-  list<PP2_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto j : database2)
     {
-      if (it->name.compare(name)==0) { // Found it!
+      if (j.name.compare(name)==0) { // Found it!
 
 	istringstream ins(value.c_str());
 
-	if (it->type.compare("bool")==0) {
+	if (j.type.compare("bool")==0) {
 	  bool *i = new bool;
 	  if (value[0]=='t' || value[0]=='T') *i = true;
 	  else if (value[0]=='f' || value[0]=='F') *i = false;
 	  else *i = atoi(value.c_str()) ? true : false;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("int")==0) {
+	else if (j.type.compare("int")==0) {
 	  int *i = new int;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("float")==0) {
+	else if (j.type.compare("float")==0) {
 	  float *i = new float;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("double")==0) {
+	else if (j.type.compare("double")==0) {
 	  double *i = new double;
 	  ins >> *i;
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("string")==0) {
+	else if (j.type.compare("string")==0) {
 	  string *i = new string(value);
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
-	else if (it->type.compare("char")==0) {
+	else if (j.type.compare("char")==0) {
 	  char *i = new char [value.size()+1];
 	  strncpy(i, value.c_str(), value.size()+1);
-	  it->value = (void *)i;
+	  j.value = (void *)i;
 	}
 	else {
 	  ostringstream msg;
 	  msg << "ProgramParam::set_entry: no type <"
-	      << it->type << ">";
+	      << j.type << ">";
 	  cerr << msg << endl;
 	  throw msg.str().c_str();
 	}
@@ -266,28 +263,27 @@ void ProgramParam::help()
        << endl;
 
 
-  list<PP2_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto  j : database2)
     {
-      cerr << setw(12) << it->name
-	   << setw(8)  << it->type;
+      cerr << setw(12) << j.name
+	   << setw(8)  << j.type;
 
-      if (it->type.compare("bool")==0)
-	cerr << setw(16) << ltoa(*(static_cast<bool*>(it->value)));
-      else if (it->type.compare("int")==0) 
-	cerr << setw(16) << *(static_cast<int*>(it->value));
-      else if (it->type.compare("float")==0)
-	cerr << setw(16) << *(static_cast<float*>(it->value));
-      else if (it->type.compare("double")==0)
-	cerr << setw(16) << *(static_cast<double*>(it->value));
-      else if (it->type.compare("string")==0)
-	cerr << setw(16) << *(static_cast<string*>(it->value));
-      else if (it->type.compare("char")==0)
-	cerr << setw(16) << *(static_cast<char*>(it->value));
+      if (j.type.compare("bool")==0)
+	cerr << setw(16) << ltoa(*(static_cast<bool*>(j.value)));
+      else if (j.type.compare("int")==0) 
+	cerr << setw(16) << *(static_cast<int*>(j.value));
+      else if (j.type.compare("float")==0)
+	cerr << setw(16) << *(static_cast<float*>(j.value));
+      else if (j.type.compare("double")==0)
+	cerr << setw(16) << *(static_cast<double*>(j.value));
+      else if (j.type.compare("string")==0)
+	cerr << setw(16) << *(static_cast<string*>(j.value));
+      else if (j.type.compare("char")==0)
+	cerr << setw(16) << *(static_cast<char*>(j.value));
       else
 	cerr << setw(16) << "unknown";
   
-      cerr << it->help << endl;
+      cerr << j.help << endl;
     }
 }
 
@@ -298,27 +294,26 @@ void ProgramParam::print_default(char *prog)
   cerr << "# Default values for <" << prog << ">" << endl 
        << "# Local time: " << ctime(&tm) << endl;
 
-  list<PP2_record>::iterator it;
-  for (it=database2.begin(); it!=database2.end(); it++) 
+  for (auto j : database2)
     {
-      cerr << left << setw(20) << it->name << " = ";
+      cerr << left << setw(20) << j.name << " = ";
 
-      if (it->type.compare("bool")==0)
-	cerr << setw(20) << ltoa(*(static_cast<bool*>(it->value)));
-      else if (it->type.compare("int")==0) 
-	cerr << setw(20) << *(static_cast<int*>(it->value));
-      else if (it->type.compare("float")==0)
-	cerr << setw(20) << *(static_cast<float*>(it->value));
-      else if (it->type.compare("double")==0)
-	cerr << setw(20) << *(static_cast<double*>(it->value));
-      else if (it->type.compare("string")==0)
-	cerr << setw(20) << *(static_cast<string*>(it->value));
-      else if (it->type.compare("char")==0)
-	cerr << setw(20) << *(static_cast<char*>(it->value));
+      if (j.type.compare("bool")==0)
+	cerr << setw(20) << ltoa(*(static_cast<bool*>(j.value)));
+      else if (j.type.compare("int")==0) 
+	cerr << setw(20) << *(static_cast<int*>(j.value));
+      else if (j.type.compare("float")==0)
+	cerr << setw(20) << *(static_cast<float*>(j.value));
+      else if (j.type.compare("double")==0)
+	cerr << setw(20) << *(static_cast<double*>(j.value));
+      else if (j.type.compare("string")==0)
+	cerr << setw(20) << *(static_cast<string*>(j.value));
+      else if (j.type.compare("char")==0)
+	cerr << setw(20) << *(static_cast<char*>(j.value));
       else
 	cerr << setw(20) << "unknown";
   
-      cerr << "# " << it->help << endl;
+      cerr << "# " << j.help << endl;
     }
 }
 
@@ -332,27 +327,26 @@ void ProgramParam::print_params(char *prog, string& file)
     out << "# Values for <" << prog << ">" << endl 
 	<< "# Run time: " << ctime(&tm) << endl;
 
-    list<PP2_record>::iterator it;
-    for (it=database2.begin(); it!=database2.end(); it++) 
+    for (auto j : database2)
       {
-	out << left << setw(20) << it->name << " = ";
+	out << left << setw(20) << j.name << " = ";
 
-	if (it->type.compare("bool")==0)
-	  out << setw(20) << *(static_cast<bool*>(it->value));
-	else if (it->type.compare("int")==0) 
-	  out << setw(20) << *(static_cast<int*>(it->value));
-	else if (it->type.compare("float")==0)
-	  out << setw(20) << *(static_cast<float*>(it->value));
-	else if (it->type.compare("double")==0)
-	  out << setw(20) << *(static_cast<double*>(it->value));
-	else if (it->type.compare("string")==0)
-	  out << setw(20) << *(static_cast<string*>(it->value));
-	else if (it->type.compare("char")==0)
-	  out << setw(20) << *(static_cast<char*>(it->value));
+	if (j.type.compare("bool")==0)
+	  out << setw(20) << *(static_cast<bool*>(j.value));
+	else if (j.type.compare("int")==0) 
+	  out << setw(20) << *(static_cast<int*>(j.value));
+	else if (j.type.compare("float")==0)
+	  out << setw(20) << *(static_cast<float*>(j.value));
+	else if (j.type.compare("double")==0)
+	  out << setw(20) << *(static_cast<double*>(j.value));
+	else if (j.type.compare("string")==0)
+	  out << setw(20) << *(static_cast<string*>(j.value));
+	else if (j.type.compare("char")==0)
+	  out << setw(20) << *(static_cast<char*>(j.value));
 	else
 	  out << setw(20) << "unknown";
 	
-	out << "# " << it->help << endl;
+	out << "# " << j.help << endl;
       }
   } else {
     ostringstream msg;

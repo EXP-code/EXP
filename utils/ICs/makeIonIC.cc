@@ -187,8 +187,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
   if (!trace) {
 
     double Mtot = 0.0;
-    for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
-      Mtot += it->second;
+    for (auto i : frac) Mtot += i.second;
 
     std::cout << std::setw( 3) << "Z"
 	      << std::setw(18) << "Mass"
@@ -198,10 +197,10 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
 	      << std::setw(18) << "--------"
 	      << std::setw(18) << "--------"
 	      << std::endl;
-    for (Frac::iterator it=frac.begin(); it!=frac.end(); it++) 
-      std::cout << std::setw( 3) << it->first
-		<< std::setw(18) << it->second
-		<< std::setw(18) << it->second/Mtot
+    for (auto i : frac)
+      std::cout << std::setw( 3) << i.first
+		<< std::setw(18) << i.second
+		<< std::setw(18) << i.second/Mtot
 		<< std::endl;
   }
 }
@@ -217,14 +216,13 @@ void InitializeSpeciesDirect
   //
   // Generate the ionization-fraction input file
   //
-  for (std::vector<unsigned char>::iterator 
-	 n=sZ.begin(); n!=sZ.end(); n++) {
+  for (auto n : sZ) {
 
     const std::string ioneq("makeIonIC.ioneq");
     std::ostringstream sout;
     sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(*n)
-	 << " -2 " << static_cast<unsigned>(*n)
+	 << " -1 " << static_cast<unsigned>(n)
+	 << " -2 " << static_cast<unsigned>(n)
 	 << " -T " << T << " -o " << ioneq;
 
     int ret = system(sout.str().c_str());
@@ -253,8 +251,7 @@ void InitializeSpeciesDirect
 		  std::back_inserter<vString>(s));
 	
 	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
+	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
       }
       
@@ -349,14 +346,13 @@ void InitializeSpeciesTrace
   //
   // Generate the ionization-fraction input file
   //
-  for (std::vector<unsigned char>::iterator 
-	 n=sZ.begin(); n!=sZ.end(); n++) {
+  for (auto n : sZ) {
 
     const std::string ioneq("makeIonIC.ioneq");
     std::ostringstream sout;
     sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(*n)
-	 << " -2 " << static_cast<unsigned>(*n)
+	 << " -1 " << static_cast<unsigned>(n)
+	 << " -2 " << static_cast<unsigned>(n)
 	 << " -T " << T << " -o " << ioneq;
 
     int ret = system(sout.str().c_str());
@@ -421,8 +417,7 @@ void InitializeSpeciesTrace
 
   for (size_t indx=0; indx<NS; indx++) { 
     double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
-    for (std::vector<double>::iterator is=frac[indx].begin(); 
-	 is!=frac[indx].end(); is++) *is /= norm;
+    for (auto &i : frac[indx]) i /= norm;
   }
 
   for (size_t i=0; i<N; i++) {

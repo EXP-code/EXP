@@ -704,10 +704,9 @@ main(int argc, char **argv)
 
     if (myid==0) cout << "Accumulating for basis . . . " << flush;
     ortho.reset_coefs();
-    for (vector<Particle>::iterator it=particles.begin(); it!=particles.end(); it++) 
-      {
-	ortho.accumulate(it->pos[0], it->pos[1], it->pos[2], it->mass);
-      }
+    for (auto &i : particles) {
+      ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
   

@@ -258,14 +258,14 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
 				// Compute cross sections
 				//
-    for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
+    for (auto s1 : SpList) {
 
-      speciesKey i1 = s1->first;
+      speciesKey i1 = s1.first;
       double Cross1 = geometric(i1.first);
       
-      for (auto s2=s1; s2!=ee; s2++) {
+      for (auto s2 : SpList) {
 	
-	speciesKey i2 = s2->first;
+	speciesKey i2 = s2.first;
 	double Cross2 = geometric(i2.first);
 	
 				// Reduced mass for this interation
@@ -423,14 +423,14 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 
 				// Compute cross sections
 				//
-    for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
+    for (auto s1 : SpList) {
       
-      speciesKey i1 = s1->first;
+      speciesKey i1 = s1.first;
       double geom1  = geometric(i1.first);
     
-      for (auto s2=s1; s2!=ee; s2++) {
+      for (auto s2 : SpList) {
 	
-	speciesKey i2 = s2->first;
+	speciesKey i2 = s2.first;
 	double geom2 = geometric(i2.first);
 	  
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
@@ -769,16 +769,16 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
   
   // s1 and s2 are of type std::map<speciesKey, int>
 
-  for (auto s1=SpList.begin(), ee=SpList.end(); s1!=ee; s1++) {
+  for (auto s1 : SpList) {
 
 				// Particle 1: key and number weight
-    speciesKey k1 = s1->first;
-    double     w1 = p1->dattrib[s1->second]/atomic_weights[k1.first];
+    speciesKey k1 = s1.first;
+    double     w1 = p1->dattrib[s1.second]/atomic_weights[k1.first];
     
-    for (auto s2=s1; s2!=ee; s2++) {
+    for (auto s2 : SpList) {
 				// Particle 2: key and number weight
-      speciesKey k2 = s2->first;
-      double     w2 = p2->dattrib[s2->second]/atomic_weights[k2.first];
+      speciesKey k2 = s2.first;
+      double     w2 = p2->dattrib[s2.second]/atomic_weights[k2.first];
 
 				// Key of interaction pair
       dKey dkey(k1, k2);

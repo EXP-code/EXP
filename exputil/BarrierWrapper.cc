@@ -224,9 +224,8 @@ void BarrierWrapper::heavy_operator(const string& label,
   if (pending.size() > 1) {
     std::cout << "#" << localid << " entered BW with " << pending.size()
 	      << " unresolved tickets" << std::endl;
-    std::map<std::string, BWPtr>::iterator it;
-    for(it=pending.begin(); it!=pending.end(); it++) 
-      std::cout << " ** #" << localid << " {" << std::left << it->first << "} "
+    for(auto i : pending)
+      std::cout << " ** #" << localid << " {" << std::left << i.first << "} "
 		<< std::endl;
   }
 
@@ -277,9 +276,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 	if (next==0) next = entry + 10;
 	if (cur>next) {
 	  int total = 0;
-	  for (std::map<std::string, BWPtr>::iterator 
-		 it = pending.begin(); it != pending.end(); it++)
-	    total += it->second->count;
+	  for (auto i : pending) total += i.second->count;
 	  std::cout << "EXTRA: dT=" 
 		    << std::setw(4) << std::left << cur - entry
 		    << ", Node " << std::setw(4) << localid << " scanning "
@@ -302,9 +299,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 	if (pending.size()) {
 	  std::cout << std::setw(4) << pending.size() << " barrier(s)"
 		    << " named ";
-	  for (std::map<std::string, BWPtr>::iterator 
-		 it = pending.begin(); it != pending.end(); it++) {
-	    std::cout << "<" << it->first << ">, #=" << it->second->count;
+	  for (auto i : pending)
+	    std::cout << "<" << i.first << ">, #=" << i.second->count;
 	  }
 	} else {
 	  std::cout << " no pending barrriers";
@@ -329,8 +325,7 @@ void BarrierWrapper::heavy_operator(const string& label,
       //---------------------------------------
       // Check all pending tags for completion
       //---------------------------------------
-      for (std::map<std::string, BWPtr>::iterator 
-	     it = pending.begin(); it != pending.end(); it++) 
+      for (auto it=pending.begin(); it!=pending.end(); it++) {
 	{
 	  if (it->second->count == commsize) {
 
@@ -367,9 +362,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 
 	  std::cout << "#" << localid << ": pending list has " 
 		    << pending.size() << " entries: ";
-	  for(std::map<std::string, BWPtr>::iterator it = pending.begin();
-	      it != pending.end(); it++) 
-	    std::cout << " {" << std::left << it->first << "} ";
+	  for (auto i : pending)
+	    std::cout << " {" << std::left << i.first << "} ";
 	  std::cout<< std::endl;
 	}
       }
@@ -380,8 +374,7 @@ void BarrierWrapper::heavy_operator(const string& label,
       // Update alarms
       //---------------
       time_t curtime = time(0);
-      for (std::map<std::string, BWPtr>::iterator 
-	     it = pending.begin(); it != pending.end(); it++) {
+      for (auto it=pending.begin(); it != pending.end(); it++) {
 	if (it->second->Owner() == localid && 
 	    curtime > it->second->expire) {
 	  listReport("Expire", it);
@@ -401,15 +394,14 @@ void BarrierWrapper::heavy_operator(const string& label,
 
 	if (curtime>next) {
 	  
-	  for (std::map<std::string, BWPtr>::iterator 
-		 it = pending.begin(); it != pending.end(); it++) {
+	  for (auto i : pending) {
 
-	    if (curtime > it->second->first + BWData::dt2*4) {
-	      std::vector<int> ret = getMissing(it->second);
+	    if (curtime > i.second->first + BWData::dt2*4) {
+	      std::vector<int> ret = getMissing(i.second);
 
 	      std::cout << "EXTRA: dT=" << std::setw(4)  << std::left
 			<<  curtime - entry << ", Node " 
-			<< std::setw(4) << localid << ", barrier=" << it->first
+			<< std::setw(4) << localid << ", barrier=" << i.first
 			<< ", " << req.size() << " MPI request(s) remaining, "
 			<< ret.size() << " wait(s)";
 	      
@@ -445,8 +437,8 @@ void BarrierWrapper::heavy_operator(const string& label,
     std::cout << "#" << localid << " leaving BW with " << pending.size()
 	      << " unresolved tickets" << std::endl;;
     std::map<std::string, BWPtr>::iterator it;
-    for(it=pending.begin(); it!=pending.end(); it++) 
-      std::cout << " ** #" << localid << " {" << std::left << it->first << "} "
+    for (auto i : pending)
+      std::cout << " ** #" << localid << " {" << std::left << i.first << "} "
 		<< std::endl;
   }
 
@@ -545,9 +537,9 @@ void BarrierWrapper::finalReport(std::string& s)
   if (localid == 0) {
 				// Do the current node
     std::map<string, std::vector<bool> > table;
-    for (it = pending.begin(); it != pending.end(); it++) {
-      table[it->first] = vector<bool>(commsize, false);
-      table[it->first][localid] = true;
+    for (auto i : pending) {
+      table[i.first] = vector<bool>(commsize, false);
+      table[i.first][localid] = true;
     }
 				// Loop to receive info from all nodes
     for (int i=1; i<commsize; i++) {
@@ -578,10 +570,10 @@ void BarrierWrapper::finalReport(std::string& s)
 		<< std::endl;
     }
 
-    for (is=table.begin(); is!=table.end(); is++) 
+    for (auto t : table)
       {
-	std::cout << std::setw(32) << is->first << " : ";
-	for (int i=0; i<commsize; i++) std::cout << is->second[i];
+	std::cout << std::setw(32) << t.first << " : ";
+	for (int i=0; i<commsize; i++) std::cout << t.second[i];
 	std::cout << std::endl;
       }
 
@@ -589,11 +581,11 @@ void BarrierWrapper::finalReport(std::string& s)
     
     int num = pending.size();
     MPI_Send(&num, 1, MPI_INT, 0, 113549, comm);
-    for (it = pending.begin(); it != pending.end(); it++) {
-      int siz = it->first.size() + 1;
+    for (auto i : pending) {
+      int siz = i.first.size() + 1;
       MPI_Send(&siz, 1, MPI_INT, 0, 113550, comm);
       CharPtr c = CharPtr(new char [siz]);
-      strncpy(c.get(), it->first.c_str(), siz);
+      strncpy(c.get(), i.first.c_str(), siz);
       MPI_Send(c.get(), siz, MPI_CHAR, 0, 113551, comm);
     }
   }

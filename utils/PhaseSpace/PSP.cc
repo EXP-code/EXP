@@ -209,14 +209,13 @@ PSPDump::PSPDump(ifstream *in, bool tipsy, bool verbose)
 
 double PSPDump::SetTime(double time) 
 {
-  list<Dump>::iterator it;
   double tdif = 1.0e30;
   
-  for (it=dumps.begin(); it!=dumps.end(); it++) {
+  for (auto &i : dumps) {
     
-    if (fabs(time - it->header.time) < tdif) {
-      fid = &(*it);
-      tdif = fabs(time-it->header.time);
+    if (fabs(time - i.header.time) < tdif) {
+      fid = &i;
+      tdif = fabs(time-i.header.time);
     }
   }
   
@@ -227,38 +226,37 @@ double PSPDump::SetTime(double time)
 void PSPDump::PrintSummary(ifstream *in, ostream &out, 
 			   bool stats, bool timeonly)
 {
-  list<Dump>::iterator itd;
-  
-  for (itd = dumps.begin(); itd != dumps.end(); itd++) {
+  for (auto i : dumps) {
     
-    out << "Time=" << itd->header.time << "   [" << itd->pos << "]" << endl;
+    out << "Time=" << i.header.time << "   [" << i.pos << "]" << endl;
     if (!timeonly) {
-      out << "   Total particle number: "   << itd->header.ntot     << endl;
-      out << "   Number of components:  "   << itd->header.ncomp    << endl;
+      out << "   Total particle number: "   << i.header.ntot     << endl;
+      out << "   Number of components:  "   << i.header.ncomp    << endl;
       if (TIPSY) {
-	out << "          Gas particles:  " << itd->ngas            << endl;
-	out << "         Dark particles:  " << itd->ndark           << endl;
-	out << "         Star particles:  " << itd->nstar           << endl;
+	out << "          Gas particles:  " << i.ngas            << endl;
+	out << "         Dark particles:  " << i.ndark           << endl;
+	out << "         Star particles:  " << i.nstar           << endl;
       }
       
       int cnt=1;
       
-      for (spos = itd->stanzas.begin(); spos != itd->stanzas.end(); spos++) {
+      for (auto s : i.stanzas) {
 	
 	// Print the info for this stanza
 	// ------------------------------
-	out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-	out << "--- Component #" << setw(2) << cnt++          << endl;
-	out << setw(20) << " name :: "   << spos->name        << endl
-	    << setw(20) << " id :: "     << spos->id          << endl
-	    << setw(20) << " cparam :: " << spos->cparam      << endl
-	    << setw(20) << " fparam :: " << spos->fparam      << endl;
+	out << setw(60) << setfill('-')   << "-" << endl    << setfill(' ');
+	out << "--- Component #" << setw(2) << cnt++        << endl;
+	out << setw(20) << " name :: "    << s.name         << endl
+	    << setw(20) << " id :: "      << s.id           << endl
+	    << setw(20) << " cparam :: "  << s.cparam       << endl
+	    << setw(20) << " fparam :: "  << s.fparam       << endl;
 	if (TIPSY) 
-	  out << setw(20) << " tipsy :: " << spos->ttype        << endl;
-	out << setw(20) << " nbod :: "  << spos->comp.nbod    << endl
-	    << setw(20) << " niatr :: " << spos->comp.niatr   << endl
-	    << setw(20) << " ndatr :: " << spos->comp.ndatr   << endl
-	    << setw(20) << " rsize :: " << spos->r_size       << endl;
+	  out << setw(20) << " tipsy :: " << s.ttype        << endl;
+	out << setw(20) << " nbod :: "    << s.comp.nbod    << endl
+	    << setw(20) << " niatr :: "   << s.comp.niatr   << endl
+	    << setw(20) << " ndatr :: "   << s.comp.ndatr   << endl
+	    << setw(20) << " rsize :: "   << s.r_size       << endl;
+
 	if (stats) {
 	  ComputeStats(in);
 	  out << endl<< setw(20) << "*** Position" 
@@ -306,22 +304,22 @@ void PSPDump::PrintSummaryCurrent(ifstream *in, ostream &out, bool stats, bool t
     
     int cnt=1;
     
-    for (spos = fid->stanzas.begin(); spos != fid->stanzas.end(); spos++) {
+    for (auto s : fid->stanzas) {
       
       // Print the info for this stanza
       // ------------------------------
       out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
-      out << "--- Component #" << setw(2) << cnt++         << endl;
-      out << setw(20) << " name :: "  << spos->name        << endl
-	  << setw(20) << " id :: "    << spos->id          << endl
-	  << setw(20) << " cparam :: " << spos->cparam     << endl
-	  << setw(20) << " fparam :: " << spos->fparam     << endl;
-      if (TIPSY) out << setw(20) << " tipsy :: " << spos->ttype  << endl;
-      out << setw(20) << " nbod :: "  << spos->comp.nbod   << endl
-	  << setw(20) << " niatr :: " << spos->comp.niatr  << endl
-	  << setw(20) << " ndatr :: " << spos->comp.ndatr  << endl
-	  << setw(20) << " rsize :: " << spos->r_size      << endl;
-      out << setw(60) << setfill('-') << "-" << endl << setfill(' ');
+      out << "--- Component #" << setw(2) << cnt++          << endl;
+      out << setw(20) << " name :: "      << s.name         << endl
+	  << setw(20) << " id :: "        << s.id           << endl
+	  << setw(20) << " cparam :: "    << s.cparam       << endl
+	  << setw(20) << " fparam :: "    << s.fparam       << endl;
+      if (TIPSY) out << setw(20) << " tipsy :: " << s.ttype << endl;
+      out << setw(20) << " nbod :: "      << s.comp.nbod    << endl
+	  << setw(20) << " niatr :: "     << s.comp.niatr   << endl
+	  << setw(20) << " ndatr :: "     << s.comp.ndatr   << endl
+	  << setw(20) << " rsize :: "     << s.r_size       << endl;
+      out << setw(60) << setfill('-')     << "-" << endl << setfill(' ');
       if (stats) {
 	ComputeStats(in);
 	out << endl << setw(20) << "*** Position" 
@@ -539,8 +537,7 @@ void PSPDump::writePSP(std::ifstream* in, std::ostream* out,  bool real4)
   
   // Write each component
   // --------------------
-  for (list<PSPstanza>::iterator
-	 its = fid->stanzas.begin(); its != fid->stanzas.end(); its++) 
+  for (auto its=fid->stanzas.begin(); its!=fid->stanzas.end(); its++) 
     {
       write_binary(in, out, its, real4);
     }
