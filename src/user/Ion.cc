@@ -1349,8 +1349,10 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 		<< std::endl;
     }
     ch->tb = boost::shared_ptr<TopBase>(new TopBase);
-    // For debugging
-    if (myid==0) ch->tb->printInfo();
+    // For debugging (set to 'false' for production)
+    //  |
+    //  v
+    if (false && myid==0) ch->tb->printInfo();
   }
 
   // Call for the cross section
