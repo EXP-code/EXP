@@ -171,8 +171,17 @@ class CollideIon : public Collide
 private:
 
   chdata ch;
+
+  //! Neutral atom--electron cross-section for hydrogen and helium
+  //! interpolated from experimentally calibrated theortical data (see
+  //! Elastic.H)
   Elastic elastic;
+
+  //! Geometric cross section for each atom based on theoretical
+  //! comptuation of atomic radius in units of nm^2 for consistency
+  //! with CHIANTI.
   Geometric geometric;
+
   InteractSelect IS;
 
   std::map<unsigned short, std::pair<unsigned short, double> > interInfo;

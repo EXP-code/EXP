@@ -131,25 +131,24 @@ void TopBase::readData()
 
 void TopBase::printInfo()
 {
-  for (TBmapItr I=ions.begin(); I!=ions.end(); I++) {
+  for (auto I : ions) {
+
     std::cout << std::string(60, '-') << std::endl
-	      << " *** NZ = " << std::setw(3) << I->first.first
-	      << ", NE = "    << std::setw(3) << I->first.second 
+	      << " *** NZ = " << std::setw(3) << I.first.first
+	      << ", NE = "    << std::setw(3) << I.first.second 
 	      << std::endl;
-    TBslp::iterator S    = I->second.begin();
-    TBslp::iterator Send = I->second.end();
-    for (; S != Send; S++) {
-      TBcfg::iterator L    = S->second.begin();
-      TBcfg::iterator Lend = S->second.end();
-      
-      for (; L != Lend; L++) {
+
+    for (auto S : I.second) {
+
+      for (auto L : S.second) {
+
 	std::cout << "    "
-		  << "  iSLP = " << std::setw(3)  << S->first 
-		  << "  levl = " << std::setw(3)  << L->first
-		  << "  g_n = "  << std::setw(10) << L->second->wght
-		  << "  [" << std::setw(6) <<  L->second->NP << "] "
-		  << "  [" << std::setw(16) << L->second->E.front()
-		  << ", "  << std::setw(16) << L->second->E.back() << "]"
+		  << "  iSLP = " << std::setw(3)  << S.first 
+		  << "  levl = " << std::setw(3)  << L.first
+		  << "  g_n = "  << std::setw(10) << L.second->wght
+		  << "  [" << std::setw(6) <<  L.second->NP << "] "
+		  << "  [" << std::setw(16) << L.second->E.front()
+		  << ", "  << std::setw(16) << L.second->E.back() << "]"
 		  << std::endl;
       }
     }
@@ -190,6 +189,8 @@ void TopBase::printLine(unsigned short NZ, unsigned short NE,
 
 }
 
+// Radiative recombination cross section
+//
 double TopBase::sigmaFB(const iKey& key, double E)
 {
   // Rydberg in eV

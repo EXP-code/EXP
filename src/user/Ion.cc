@@ -14,7 +14,9 @@
 #include "Ion.H"
 #include "interactSelect.H"
 
-//! Convert the master element name to a (Z, C) pair
+//
+// Convert the master element name to a (Z, C) pair
+//
 void Ion::convertName() 
 {
   std::string ele;
@@ -53,7 +55,9 @@ void Ion::convertName()
   C = atoi(v[1].c_str());
 }
 
-//! Convert a given Z,C pair into a master name string
+//
+// Convert a given Z,C pair into a master name string
+//
 std::string ZCtoName(unsigned char Z, unsigned char C) 
 {
   std::stringstream ss;
@@ -155,6 +159,12 @@ void Ion::readelvlc()
   }
 }
 
+//
+// Reads the CHIANTI .wgfa file into a structure.
+//
+// CHIANTI wgfa files contain radiative decay rates and, in some cases
+// autoionization rates and/or two photon transitions.
+//
 void Ion::readwgfa() 
 {
   unsigned char nOK = 0;
@@ -240,7 +250,10 @@ void Ion::readwgfa()
 
 }
 
-//! Read in the fblvl file found in the CHIANTI database
+//
+// Read energy levels and free-bound data found in the CHIANTI
+// database
+//
 void Ion::readfblvl() 
 {
   unsigned char nOK = 0;
@@ -327,7 +340,10 @@ void Ion::readfblvl()
 
 }
 
-//! Read in the spline file from the CHIANTI database
+//
+// Read in the spline fits to the collision strengths from the CHIANTI
+// database
+//
 void Ion::readSplups() 
 {
   unsigned char nOK = 0;
@@ -419,9 +435,10 @@ void Ion::readSplups()
   }
 }
 
-/**
-   Read in the direct ionization cross section splines from the file
-*/
+//
+// Read in the direct ionization cross section splines from the
+// CHIANTI database files
+//
 void Ion::readDi() 
 {
   unsigned char nOK = 0;
@@ -524,7 +541,9 @@ void Ion::readDi()
   }
 }
 
-//! Initialization function when the master name is given
+//
+// Initialization function when the master name is given
+//
 Ion::Ion(std::string name, chdata* ch) : ch(ch)
 {
   MasterName = name;
@@ -572,7 +591,9 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   }
 }
 
-//! Constructor when the Z, C pair is given
+//
+// Constructor when the Z, C pair is given
+//
 Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 {
   d = false;
@@ -619,14 +640,18 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   }
 }
 
-//! Default constructor: NOT USED
+//
+// Default constructor: NOT CURRENTLY USED
+//
 Ion::Ion() 
 {
   Z = 1;
   C = 1;
 }
 
-//! Copy constructor
+//
+// Copy constructor
+//
 Ion::Ion(const Ion &I) 
 {
   Z          = I.Z;
@@ -667,8 +692,14 @@ Ion::collExciteCross(double E, int id)
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
   
+				// This will contain the cumulative
+				// cross section
   collType CEcum;
+				// Zero-valued datum
   const std::pair<double,double> Null(0, 0);
+
+				// If the data is missing, assume zero
+				// cross section
   if (splups.size() == 0) {
     CEcum.push_back(Null);
     CEcrossCum[id] = CEcum;
@@ -688,6 +719,7 @@ Ion::collExciteCross(double E, int id)
       assert(splups[i].spline.size() != 0);
       
       // Following Burgess & Tully (BT), 1992, Section 3
+      //
       double Ej = E - EijEv, x = 0, y = 0;
       int  type = splups[i].type;
       
@@ -702,6 +734,7 @@ Ion::collExciteCross(double E, int id)
 				// BT eq. 11
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
+      //
       if ( x <= 0 or x >= 1.0) {
 	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
 	     << " Eij = " << EijEv << " x = " << x <<std::endl;
@@ -751,20 +784,21 @@ Ion::collExciteCross(double E, int id)
 	CStrength = y * log((Ej/EijEv) + M_E);
       }
 				// BT, eq. 10
-      if(type == 2) {
+      if (type == 2) {
 	CStrength = y;
       }
 				// BT, eq. 12
-      if(type == 3) {
+      if (type == 3) {
 	double fac = Ej/EijEv + 1.0;
 	CStrength = y/(fac*fac);
       }
 				// BT, eq. 14
-      if(type == 4) {
+      if (type == 4) {
 	CStrength = y * log((Ej/EijEv) + C);
       }
       
       // From Dere et al. 1997 
+      //
       elvlcType::iterator eit = elvlc.find(splups[i].j-1);
       if (eit != elvlc.end()) {
 	int weight = eit->second.mult;
@@ -776,7 +810,7 @@ Ion::collExciteCross(double E, int id)
 	  } else {
 	    totalCross += crs1;
 	    std::pair<double, double> cumi(totalCross, EijEv);
-	    CEcum.push_back(cumi);
+	    CEcum.push_back(cumi); // Add to the cumulative tally
 	  }
 	} else {
 	  std::cout << "Coll crs for level=" << splups[i].j-1
@@ -794,7 +828,9 @@ Ion::collExciteCross(double E, int id)
   return CEcum;
 }
 
-//! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
+//
+// Calculate the Qr-prime value as in Fontes, Sampson, Zhang 1999
+//
 double Ion::qrp(double u) 
 {
   double A = 1.13;
@@ -1299,6 +1335,10 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   return radRecCum;
 }
 
+//
+// Use the TOPbase photoionization cross sections to compute the
+// recombination cross sections using the Milne relation
+//
 std::vector<double> Ion::radRecombCrossTopBase(double E, int id) 
 {
   // Initialize TopBase data (once) if needed
@@ -1309,6 +1349,8 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 		<< std::endl;
     }
     ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+    // For debugging
+    if (myid==0) ch->tb->printInfo();
   }
 
   // Call for the cross section
@@ -1319,14 +1361,18 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
   return ret;
 }
 
-// Ion print functions
-void Ion::printInfo() {
+//
+// Printe various internal databases for debugging
+//
+void Ion::printInfo() 
+{
   std::cout << "Master list name: " << MasterName <<std::endl;
   std::cout << "\t" << "Element: " << eleName <<std::endl << "\tZ = " << Z << "\n" << "\tC = " << C <<std::endl;
   std::cout << "\td = " << d <<std::endl;
   // std::cout << "\tAdundance = " << abundance <<std::endl;
   std::cout << "\tip = " << ip <<std::endl;
 }
+
 void Ion::printelvlc() {
   std::cout << "elvlc file for element " << MasterName <<std::endl;
   for(size_t i = 0; i < elvlc.size(); i++) {
@@ -1365,9 +1411,9 @@ void Ion::printfblvl()
 // chdata functions
 //------------------------------------------------------------
 
-
-//! Read in the master list to store to be able to check if elements
-//! are in it
+//
+// Read in the master list
+// 
 void chdata::readMaster() 
 {
   char * val;
@@ -1401,9 +1447,10 @@ void chdata::readMaster()
   
 }
 
-/** Get the ipdata set so that if you want to get the ip of any Z, C,
-    you call it as ipdata[lQ(Z, C-(int)die)]
-*/
+//
+// Get the ipdata set so that if you want to get the ip of any Z, C,
+// you call it as ipdata[lQ(Z, C-(int)die)]
+//
 void chdata::readIp() 
 {
   char * val;
@@ -1448,9 +1495,11 @@ void chdata::readIp()
   }
 }
 
-/** read in the abundance file, in this situation, just for test using
-    the cosmic.abund file. Can later put in a multidimensional array
-    to allow for all the abundance files */
+//
+// Read in the abundance file, in this situation, just for test using
+// the cosmic.abund file. Can later put in a multidimensional array to
+// allow for all the abundance files
+//
 void chdata::readAbundanceAll() 
 {
   char * val;
@@ -1487,7 +1536,9 @@ void chdata::readAbundanceAll()
   
 }
 
+//
 // list names of all species to stdout
+//
 void chdata::printMaster() 
 {
   if (myid==0) {
@@ -1518,11 +1569,14 @@ void chdata::printIp()
   std::cout << std::string(60, '-') << std::endl;
 }
 
+//
 // chdata constructor
+//
 chdata::chdata() 
 {
   // nVern = 465;
-  // maxZ = 31; // maxZ = 30 + 1
+  // maxZ = 31; 
+  // maxZ = 30 + 1
   // maxNel = 31; 
   
   for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;

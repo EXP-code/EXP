@@ -181,13 +181,17 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
   if (aType == Direct) {
 
-    // it1 and it2 are of type std::map<speciesKey, unsigned>
-
+    // it1 and it2 are of type std::map<speciesKey, unsigned>; that
+    // is, the number of particles of each speciesKey in the cell
+    //
     for (auto it1 : cell->count) {
 
       speciesKey i1 = it1.first;
       double Cross1 = geometric(i1.first);
     
+      // So, we are computing interactions for all possible
+      // interaction pairs
+      //
       for (auto it2 : cell->count) {
 	
 	speciesKey i2 = it2.first;
@@ -228,6 +232,11 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
   if (aType == Trace) {
 
+    // In the trace computation, all superparticles are identical!
+    // Hence, the use of the defaultKey.  This is slightly inefficient
+    // but allows us to reuse the code for both the direct and trace
+    // computations.
+    //
     csections[id][defaultKey][defaultKey] = 0.0;
 
     // Compute mean weights in the cell
@@ -241,11 +250,12 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     keyWghtsMap meanW;
     for (auto s : SpList) meanW[s.first] = 0.0;
 
-				// Total mass of all particles in cell
+				// Total mass of all particles and
+				// relative fraction of trace species
+				// in this cell
     double massP = 0.0;
-    
     for (auto b : cell->bods) {
-				// Particle
+				// Particle mass accumulation
       Particle *p = tree->Body(b);
       massP += p->mass;
 				// Mass-weighted trace fraction
@@ -256,8 +266,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 				//
     for (auto s : SpList) meanW[s.first] /= massP;
 
-				// Compute cross sections
-				//
+				// Compute neutral and Coulombic cross
+				// sections
     for (auto s1 : SpList) {
 
       speciesKey i1 = s1.first;
@@ -279,7 +289,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	  double ne2   = i2.second - 1;
 				// Electron velocity (equipartition with ion)
 	  double eVel2 = sqrt(amu*atomic_weights[i2.second]/me);
-	  if (i1.second==1)	// Elastic
+	  if (i1.second==1)	// Elastic (recall Eerg and EeV are
+				// the mean interparticle KE)
 	    Cross1 = elastic(i1.first, EeV * mu) * eVel2 * ne2;
 	  else {		// Coulombic
 	    double b = 0.5*esu*esu*(i1.second - 1) /
@@ -338,7 +349,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       for (auto it2 : c->count) {
 
 	speciesKey i2 = it2.first;
-	double geom2 = geometric(i2.first);
+	double geom2  = geometric(i2.first);
 	  
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
@@ -404,15 +415,15 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
     std::map<speciesKey, double> meanW;
     for (auto s : SpList) meanW[s.first] = 0.0;
 
-				// Total mass of all particles in cell
+				// Total mass of all particles and
+				// relative fraction of trace species
+				// in this cell
     double massP = 0.0;
-
     for (auto b : c->bods) {
-				// Particle
+				// Particle mass accumulation
       Particle *p = curTree->Body(b);
-				// Mass accumulation
       massP += p->mass;
-				// Mean weight accumulation
+				// Mean weight trace fraction
       for (auto s : SpList)
 	meanW[s.first] += p->mass * p->dattrib[s.second];
     }
@@ -421,8 +432,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 				// 
     for (auto s : SpList) meanW[s.first] /= massP;
 
-				// Compute cross sections
-				//
+				// Compute cross sections for all
+				// interacting pairs
     for (auto s1 : SpList) {
       
       speciesKey i1 = s1.first;
@@ -431,9 +442,9 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       for (auto s2 : SpList) {
 	
 	speciesKey i2 = s2.first;
-	double geom2 = geometric(i2.first);
+	double geom2  = geometric(i2.first);
 	  
-	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
+	double mu     = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 	  
 	double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
@@ -445,6 +456,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	// Are both particles neutral?
 	//
 	if (i1.second==1 and i2.second==1) {
+				// Use geometric cross sections
 	  Cross1 = geom1;
 	  Cross2 = geom2;
 	}
@@ -785,10 +797,6 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
 				// Weight product
       double ww = w1 * w2;
-
-				// Double counting factor for
-				// identical particles
-      // if (k1 == k2) ww *= 0.5;
 
 				// Atomic numbers
       unsigned short Z1 = k1.first, C1 = k1.second;
@@ -1639,10 +1647,13 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     std::cout << std::endl;
   }
 
-  // Copy particle weights
+  // Copy weights for trace components of each particle rather than
+  // doing this on the fly (mostly for algorithmic clarity)
   //
   keyW new1, new2;
 
+				// NB: SpList maps species key to
+				// attribute position in particle data
   for (auto sp : SpList) {
     new1[sp.first] = p1->dattrib[sp.second];
     new2[sp.first] = p2->dattrib[sp.second];
@@ -1652,6 +1663,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   //
   double delE = 0.0;
 
+  //             +--- This was computed and cached by crossSectionTrace
+  //             |
+  //             v
   for (auto sp : sCrossMap[id]) {
 
     // The interaction pair
@@ -1684,14 +1698,16 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     speciesKey k1 = sp.first.first;
     speciesKey k2 = sp.first.second;
     
+    // These are the collision diagnostic instances
+    //
     collTDPtr ctd1 = (*collD)[k1], ctd2 = (*collD)[k2];
 
-    // Get weights
+    // Get trace-species mass fractions
     //
     double w1 = p1->dattrib[SpList[k1]];
     double w2 = p2->dattrib[SpList[k2]];
 
-    // Get weighted mass
+    // Get trace-species masses
     //
     double m1 = p1->mass * w1;
     double m2 = p2->mass * w2;
@@ -1710,17 +1726,23 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     //
     for (size_t isp=0; isp<snum; isp++) {
       
+      // Get the type of this interaction
+      //
       int interFlag = sInterMap[id][key][isp];
 
+      // Compute the probability of interaction in atomic mass units
+      //
       double prob   = sCrossMap[id][key][isp] * spProb[id];
 
       // Particle 1 weight
       //
-      double W1     = prob * atomic_weights[k1.first] / w1;
+      // double W1     = prob * atomic_weights[k1.first] / w1;
+      double W1     = prob / atomic_weights[k1.first];
 
       // Particle 2 weight
       //
-      double W2     = prob * atomic_weights[k2.first] / w2;
+      // double W2     = prob * atomic_weights[k2.first] / w2;
+      double W2     = prob / atomic_weights[k2.first];
       
       // Accumulate the total energy lost for each particle
       //
