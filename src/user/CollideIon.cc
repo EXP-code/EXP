@@ -40,7 +40,7 @@ const bool CROSS_DBG   = false;
 
 // Excess map debugging, false for production
 //
-const bool EXCESS_DBG  = true;
+const bool EXCESS_DBG  = false;
 
 
 // Minimum energy for Rutherford scattering of ions used to estimate
