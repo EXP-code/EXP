@@ -1872,8 +1872,8 @@ void UserTreeDSMC::makeSpeciesMap()
 {
   // Clean the local and global maps
   //
-  spec .erase(spec .begin(), spec .end());
-  spec1.erase(spec1.begin(), spec1.end());
+  spec .clear();
+  spec1.clear();
   std::vector<double> T1(2, 0), T0(2, 0);
   
   // Particle loop

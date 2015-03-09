@@ -150,7 +150,7 @@ void Ion::readelvlc()
       it++;
     }
   } else {
-    elvlc.erase(elvlc.begin(), elvlc.end());
+    elvlc.clear();
     for (unsigned i=0; i<number; i++) {
       elvlc_data e;
       e.synchronize();
@@ -240,7 +240,7 @@ void Ion::readwgfa()
       it++;
     }
   } else {
-    wgfa.erase(wgfa.begin(), wgfa.end());
+    wgfa.clear();
     for (unsigned i=0; i<number; i++) {
       wgfa_data w;
       w.synchronize();
@@ -330,7 +330,7 @@ void Ion::readfblvl()
       it++;
     }
   } else {
-    fblvl.erase(fblvl.begin(), fblvl.end());
+    fblvl.clear();
     for (unsigned i=0; i<number; i++) {
       fblvl_data f;
       f.synchronize();
@@ -402,7 +402,7 @@ void Ion::readSplups()
 	  }
 	
 	  splups.push_back(s);
-	  s.spline.erase(s.spline.begin(), s.spline.end());		
+	  s.spline.clear();
 	}
 	sFile.close();
       }
@@ -426,7 +426,7 @@ void Ion::readSplups()
       it++;
     }
   } else {
-    splups.erase(splups.begin(), splups.end());
+    splups.clear();
     for (unsigned i=0; i<number; i++) {
       splups_data s;
       s.synchronize();
@@ -501,8 +501,8 @@ void Ion::readDi()
 		s.yspline.push_back(atof(v[i+1].c_str()));
 	      }
 	      diSpline.push_back(s);
-	      s.xspline.erase(s.xspline.begin(), s.xspline.end());		
-	      s.yspline.erase(s.yspline.begin(), s.yspline.end());		
+	      s.xspline.clear();
+	      s.yspline.clear();
 	      i_fac++;
 	    }
 	  }
@@ -532,7 +532,7 @@ void Ion::readDi()
       it++;
     }
   } else {
-    diSpline.erase(diSpline.begin(), diSpline.end());
+    diSpline.clear();
     for (unsigned i=0; i<number; i++) {
       di_data s;
       s.synchronize();

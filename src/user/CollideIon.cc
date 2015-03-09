@@ -2254,18 +2254,20 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 
       keyWghtsMap totW, sumW;
       for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
+				// Get the total cell mass in each trace sp
       for (auto b : bods) {
 	Particle *p = tree->Body(b);
 	for (auto s : SpList) 
 	  totW[s.first] += p->mass * p->dattrib[s.second];
       }
+				// Get the transfer excess in each trace sp
       for (auto w : excessW[id]) sumW[w.first.first] += w.second;
 
 				// Process the excess list
       for (auto w : excessW[id]) {
-				// Remove this species
+				// Remove FROM this species
 	speciesKey k1 = w.first.first;
-				// Add to this species
+				// Add TO this species
 	speciesKey k2 = w.first.second;
 				// More removals than mass?
 	w.second *= std::min<double>(1.0, totW[k1]/sumW[k1]);
@@ -2275,8 +2277,8 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	for (auto b : bods) {
 	  Particle *p = tree->Body(b);
 	
-	  int j1 = SpList[k1];	// From index
-	  int j2 = SpList[k2];	// To   index
+	  int j1 = SpList[k1];	// From species index
+	  int j2 = SpList[k2];	// To   species index
 
 	  // Skip if particle doesn't have this trace species
 	  if (p->dattrib[j1] > 0.0) {
@@ -2284,7 +2286,7 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	    if (ww > p->dattrib[j1]) {
 	      w.second -= p->mass * p->dattrib[j1];
 	      p->dattrib[j2] += p->dattrib[j1];
-	      p->dattrib[j1] = 0.0;
+	      p->dattrib[j1]  = 0.0;
 	    } else {
 	      w.second = 0.0;
 	      p->dattrib[j2] += ww;
@@ -2296,26 +2298,33 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	}
       }
 
+      //
       // Sanity check
-      for (auto s : SpList) totW[s.first] = 0.0;
-      for (auto b : bods) {
-	Particle *p = tree->Body(b);
-	double sum = 0.0;
-	for (auto s : SpList) {
-	  if (p->dattrib[s.second]<0.0) {
-	    std::cout << "Proc #" << myid
-		      << ", body #" << b
-		      << ": negative weight!" << std::endl;
-	  } else {
-	    sum += p->dattrib[s.second];
+      //
+      if (true) {
+	for (auto b : bods) {
+	  Particle *p = tree->Body(b);
+	  double sum  = 0.0;
+	  for (auto s : SpList) {
+				// Check value and accumulate
+	    if (p->dattrib[s.second]<0.0) {
+	      std::cout << "Proc #" << myid
+			<< ", body #" << b
+			<< ": negative weight!" << std::endl;
+	    } else {
+	      sum += p->dattrib[s.second];
+	    }
 	  }
-	}
-	if (fabs(sum - 1.0) < 1.0e-12) {
+				// Check final sum
+	  if (fabs(sum - 1.0) < 1.0e-12) {
 	    std::cout << "Proc #" << myid
 		      << ", body #" << b
 		      << ": normalization error=" << sum << std::endl;
+	  }
 	}
-      }
+
+      } // end: Sanity check
+
     }
   }
   
@@ -3060,8 +3069,8 @@ void CollideIon::write_cross_debug()
   }
   nextTime_dbg += delTime_dbg;
   nCnt_dbg = 0;
-  cross1_dbg.erase(cross1_dbg.begin(), cross1_dbg.end());
-  cross2_dbg.erase(cross2_dbg.begin(), cross2_dbg.end());
+  cross1_dbg.clear();
+  cross2_dbg.clear();
 }
 
 
@@ -3128,7 +3137,7 @@ void CollideIon::gatherSpecies()
     double mass = 0.0;
     
     tempM = 0.0;
-    specM.erase(specM.begin(), specM.end());
+    specM.clear();
 
     // Interate through all cells
     //

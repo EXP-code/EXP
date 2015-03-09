@@ -721,8 +721,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       // Reset the list
       //
       effortAccum = false;
-      for (int n=0; n<nthrds; n++) 
-	effortNumber[n].erase(effortNumber[n].begin(), effortNumber[n].end());
+      for (int n=0; n<nthrds; n++) effortNumber[n].clear();
     }
 
     (*barrier)("Collide::collide: AFTER effort diagnostic",  
