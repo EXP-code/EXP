@@ -82,6 +82,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   dInterMap.resize(nthrds);
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
+  excessW  .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kCE1     .resize(nthrds);
@@ -774,6 +775,11 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				     double cr, int id)
 {
   double totalCross = 0.0;
+
+  //
+  // Clear excess species change map
+  //
+  excessW[id].clear();
 
   //
   // Compute "matrix" of interactions
@@ -1736,13 +1742,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Particle 1 weight
       //
-      // double W1     = prob * atomic_weights[k1.first] / w1;
-      double W1     = prob / atomic_weights[k1.first];
+      double W1     = prob * atomic_weights[k1.first] / w1;
 
       // Particle 2 weight
       //
-      // double W2     = prob * atomic_weights[k2.first] / w2;
-      double W2     = prob / atomic_weights[k2.first];
+      double W2     = prob * atomic_weights[k2.first] / w2;
       
       // Accumulate the total energy lost for each particle
       //
@@ -1793,6 +1797,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
+	  excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
@@ -1815,6 +1820,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
+	  excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
@@ -1860,6 +1866,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p1->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
@@ -1877,6 +1884,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p1->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
@@ -2234,6 +2242,57 @@ void * CollideIon::timestep_thread(void * arg)
 
 void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 {
+  //
+  // Spread out species change differences
+  //
+  keyWghtsMap totW, sumW;
+  for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
+  for (auto b : cell->bods) {
+    Particle *p = tree->Body(b);
+    for (auto s : SpList) 
+      totW[s.first] += p->mass * p->dattrib[s.second];
+  }
+  for (auto w : excessW[id]) sumW[w.first.first] += w.second;
+
+  std::vector<unsigned long> bods = cell->bods;
+
+
+				// Process the excess list
+  for (auto w : excessW[id]) {
+				// Remove this species
+    speciesKey k1 = w.first.first;
+				// Add to this species
+    speciesKey k2 = w.first.second;
+				// More removals than mass?
+    double fac = totW[k1]/sumW[k1];
+    if (fac < 1.0)  w.second *= fac;
+				// Shuffle the body indices
+    std::random_shuffle(bods.begin(), bods.end());
+				// Loop through the particles
+    for (auto b : bods) {
+      Particle *p = tree->Body(b);
+
+      int j1 = SpList[k1];	// From index
+      int j2 = SpList[k2];	// To   index
+
+      // Skip if particle doesn't have this trace species
+      if (p->dattrib[j1] > 0.0) {
+	double ww = w.second/p->mass;
+	if (ww > p->dattrib[j1]) {
+	  w.second -= p->mass * p->dattrib[j1];
+	  p->dattrib[j2] += p->dattrib[j1];
+	  p->dattrib[j1] = 0.0;
+	} else {
+	  w.second = 0.0;
+	  p->dattrib[j2] += ww;
+	  p->dattrib[j1] -= ww;
+	}
+      }
+
+      if (w.second<=0) break;
+    }
+  }
+  
   //
   // Cross-section debugging [END]
   //
