@@ -142,7 +142,7 @@ void OutFrac::initialize()
 				// Get quantiles
   std::map<int, string> vals;
   if ((vals=get_value_array(string("frac"))).size()) {
-    Quant.erase(Quant.begin(), Quant.end());
+    Quant.clear();
     for (auto it : vals) Quant.push_back(atof(it.second.c_str()));
   }
   

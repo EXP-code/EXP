@@ -113,7 +113,7 @@ void ScatterMFP::get_acceleration_and_potential(Component* C)
 				// Accumulate table
   int ind;
   double rrr, vvv, RR;
-  rr2.erase(rr2.begin(), rr2.end());
+  rr2.clear();
 
   for (int i=1; i<=nbodies; i++) {
     RR = 0.0;

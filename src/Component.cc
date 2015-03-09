@@ -2240,7 +2240,7 @@ void Component::load_balance(void)
   MPI_Bcast(&nbodies_table1[0], numprocs, MPI_INT, 0, MPI_COMM_WORLD);
 
 				// Compute index
-  loadb.erase(loadb.begin(), loadb.end());
+  loadb.clear();
   loadb_datum datum0, datum1;
   datum0.s = 0;
   datum1.s = 1;
@@ -2342,7 +2342,7 @@ void Component::load_balance(void)
     else if (inew>iold) {
       msg << "Add " << nump << " from #" << iold << " to #" << inew;
       
-      nlist.erase(nlist.begin(), nlist.end());
+      nlist.clear();
 
       map<unsigned long, Particle>::reverse_iterator it = particles.rbegin();
       for (int n=0; n<nump; n++) {
@@ -2367,7 +2367,7 @@ void Component::load_balance(void)
     } else if (iold>inew) {
       msg << "Add " << nump << " from #" << iold << " to #" << inew;
 
-      nlist.erase(nlist.begin(), nlist.end());
+      nlist.clear();
 
       PartMapItr it = particles.begin();
       for (int n=0; n<nump; n++) {
@@ -2576,7 +2576,7 @@ void Component::redistributeByList(vector<int>& redist)
 
       // Do the first particle
       //
-      tlist.erase(tlist.begin(), tlist.end());
+      tlist.clear();
       tlist.push_back(indx);
       icount++;
 
@@ -2600,7 +2600,7 @@ void Component::redistributeByList(vector<int>& redist)
 	    while (pf.RecvParticle(part))
 	      particles[part.indx] = part;
 	  }
-	  tlist.erase(tlist.begin(), tlist.end());
+	  tlist.clear();
 	  icount = 0;
 	}
 

@@ -297,7 +297,7 @@ void MPL_parse_args(int argc, char** argv)
     while ((c = getopt(argc, argv, "f:dvh")) != -1)
       switch (c) {
       case 'f': 
-	curparm.erase(curparm.begin(), curparm.end());
+	curparm.clear();
 	curparm = optarg;
 	break;
       case 'd':
