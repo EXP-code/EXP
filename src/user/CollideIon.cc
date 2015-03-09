@@ -2295,6 +2295,23 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	  if (w.second<=0) break;
 	}
       }
+
+      // Sanity check
+      for (auto s : SpList) totW[s.first] = 0.0;
+      for (auto b : bods) {
+	Particle *p = tree->Body(b);
+	double sum = 0.0;
+	for (auto s : SpList) {
+	  if (p->dattrib[s.second]<0.0) {
+	    std::cout << "Warning: negative weight!" << std::endl;
+	  } else {
+	    sum += p->dattrib[s.second];
+	  }
+	}
+	if (fabs(sum - 1.0) < 1.0e-12) {
+	  std::cout << "Warning: normalization=" << sum << std::endl;
+	}
+      }
     }
   }
   
