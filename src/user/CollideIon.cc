@@ -32,11 +32,16 @@ bool NO_COOL     = false;
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-bool RECOMB_KE   = false;
+const bool RECOMB_KE   = false;
 
 // Cross-section debugging, false for production
 //
-static bool CROSS_DBG  = false;
+const bool CROSS_DBG   = false;
+
+// Excess map debugging, false for production
+//
+const bool EXCESS_DBG  = true;
+
 
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
@@ -1209,7 +1214,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     // Set to false for production
     //          |
     //          v
-    static bool DEBUG_F = false;
+    const bool DEBUG_F = false;
     //
     if (DEBUG_F) {
       //
@@ -1588,7 +1593,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   // Set to false for production
   //          |
   //          v
-  static bool DEBUG_F = false;
+  const bool DEBUG_F = false;
   //
   if (DEBUG_F) {
     static std::map<int, std::string> labels;
@@ -1866,7 +1871,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k2, kk), p1->mass*(W2 - w2)));
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
@@ -1884,7 +1889,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k2, kk), p1->mass*(W2 - w2)));
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
@@ -2242,7 +2247,6 @@ void * CollideIon::timestep_thread(void * arg)
 
 void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 {
-
   //
   // Spread out species change differences
   //
@@ -2252,6 +2256,54 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 
       std::vector<unsigned long> bods = cell->bods;
 
+      //
+      // Sanity check [prior]
+      //
+      if (EXCESS_DBG) {
+	for (auto b : bods) {
+	  Particle *p = tree->Body(b);
+	  double sum  = 0.0;
+	  for (auto s : SpList) {
+				// Check value and accumulate
+	    if (std::isnan(p->dattrib[s.second]))
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": NaN weight! (prior)" << std::endl;
+	    if (std::isinf(p->dattrib[s.second]))
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": inf weight! (prior)" << std::endl;
+	    if (p->dattrib[s.second]<0.0) {
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": negative weight! (prior)" << std::endl;
+	    } else {
+	      sum += p->dattrib[s.second];
+	    }
+	  }
+				// Check final sum
+	  if (fabs(sum - 1.0) < 1.0e-12) {
+	    std::cout << "[" << myid
+		      << "] body #" << b
+		      << ": normalization error=" << sum << " (prior)" << std::endl;
+	  }
+	}
+
+	for (auto w : excessW[id]) {
+	  if (std::isnan(w.second)) {
+	    speciesKey k1 = w.first.first;
+	    speciesKey k2 = w.first.second;
+	    std::cout << "[" << myid
+		      << "] excess NaN "
+		      << "(" << k1.first << ", " << k1.second << ")"
+		      << "(" << k2.first << ", " << k2.second << ")"
+		      << std::endl;
+	  }
+	}
+
+      } // end: Sanity check
+
+
       keyWghtsMap totW, sumW;
       for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
 				// Get the total cell mass in each trace sp
@@ -2260,8 +2312,52 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	for (auto s : SpList) 
 	  totW[s.first] += p->mass * p->dattrib[s.second];
       }
+
 				// Get the transfer excess in each trace sp
       for (auto w : excessW[id]) sumW[w.first.first] += w.second;
+
+      if (EXCESS_DBG) {
+	for (auto s : SpList) {
+	  if (std::isnan(totW[s.first])) {
+	    std::cout << "[" << myid
+		      << "] totW is NaN "
+		      << "(" << s.first.first << ", " << s.first.second << ")"
+		      << std::endl;
+	  }
+	  if (std::isinf(totW[s.first])) {
+	    std::cout << "[" << myid
+		      << "] totW is Inf "
+		      << "(" << s.first.first << ", " << s.first.second << ")"
+		      << std::endl;
+	  }
+	  if (std::isnan(sumW[s.first])) {
+	    std::cout << "[" << myid
+		      << "] sumW is NaN "
+		      << "(" << s.first.first << ", " << s.first.second 
+		      << ")" << std::endl;
+	    for (auto w : excessW[id]) {
+	      speciesKey k1 = w.first.first;
+	      speciesKey k2 = w.first.second;
+	      std::cout << "(" << k1.first << "," << k1.second << "):"
+			<< "(" << k2.first << "," << k2.second << ")"
+			<< "-->" << w.second << std::endl;
+	    }
+	  }
+	  if (std::isinf(sumW[s.first])) {
+	    std::cout << "[" << myid
+		      << "] sumW is Inf "
+		      << "(" << s.first.first << ", " << s.first.second 
+		      << ")" << std::endl;
+	    for (auto w : excessW[id]) {
+	      speciesKey k1 = w.first.first;
+	      speciesKey k2 = w.first.second;
+	      std::cout << "(" << k1.first << "," << k1.second << "):"
+			<< "(" << k2.first << "," << k2.second << ")"
+			<< "-->" << w.second << std::endl;
+	    }
+	  }
+	}
+      }
 
 				// Process the excess list
       for (auto w : excessW[id]) {
@@ -2283,6 +2379,23 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	  // Skip if particle doesn't have this trace species
 	  if (p->dattrib[j1] > 0.0) {
 	    double ww = w.second/p->mass;
+	    if (EXCESS_DBG) {
+	      if (std::isnan(ww)) {
+		std::cout << "[" << myid
+			  << "] weight is NaN, mass=" << p->mass
+			  << "(" << k1.first << ", " << k1.second << ")"
+			  << "(" << k2.first << ", " << k2.second << ")"
+			  << std::endl;
+	      }
+	      if (std::isinf(ww)) {
+		std::cout << "[" << myid
+			  << "] weight is Inf, mass=" << p->mass
+			  << "(" << k1.first << ", " << k1.second << ")"
+			  << "(" << k2.first << ", " << k2.second << ")"
+			  << std::endl;
+	      }
+	    }
+
 	    if (ww > p->dattrib[j1]) {
 	      w.second -= p->mass * p->dattrib[j1];
 	      p->dattrib[j2] += p->dattrib[j1];
@@ -2301,25 +2414,34 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
       //
       // Sanity check
       //
-      if (true) {
+      if (EXCESS_DBG) {
 	for (auto b : bods) {
 	  Particle *p = tree->Body(b);
 	  double sum  = 0.0;
 	  for (auto s : SpList) {
 				// Check value and accumulate
+	    if (std::isnan(p->dattrib[s.second]))
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": NaN weight! (posterior)" << std::endl;
+	    if (std::isinf(p->dattrib[s.second]))
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": inf weight! (posterior)" << std::endl;
 	    if (p->dattrib[s.second]<0.0) {
-	      std::cout << "Proc #" << myid
-			<< ", body #" << b
-			<< ": negative weight!" << std::endl;
+	      std::cout << "[" << myid
+			<< "] body #" << b
+			<< ": negative weight! (posterior)" << std::endl;
 	    } else {
 	      sum += p->dattrib[s.second];
 	    }
 	  }
 				// Check final sum
 	  if (fabs(sum - 1.0) < 1.0e-12) {
-	    std::cout << "Proc #" << myid
-		      << ", body #" << b
-		      << ": normalization error=" << sum << std::endl;
+	    std::cout << "[" << myid
+		      << "] body #" << b
+		      << ": normalization error=" << sum 
+		      << " (posterior)" << std::endl;
 	  }
 	}
 
@@ -3007,10 +3129,37 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Done
   
   // Sanity check
+  //
   if (std::isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
-    cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] 
-	 << std::endl;
-    csections[id][key][key] = 0.0; // Zero out
+    cout << "[" << myid << "] INVALID CROSS SECTION! :: " 
+	 << csections[id][key][key] << std::endl;
+    
+    // Verbose debugging
+    //
+    if (EXCESS_DBG) {
+      cout << "[" << myid << "] SpList size :: " << SpList .size() << std::endl;
+      cout << "[" << myid << "] C body size :: " << c->bods.size() << std::endl;
+
+      keyWghtsMap meanW;
+      for (auto s : SpList) meanW[s.first] = 0.0;
+      double massP = 0.0;
+      for (auto b : c->bods) {
+	Particle *p = curTree->Body(b);
+	massP += p->mass;
+	for (auto s : SpList) 
+	  meanW[s.first] += p->mass * p->dattrib[s.second];
+      }
+      for (auto s : SpList)
+	std::cout << std::setw(3) << s.first.first 
+		  << std::setw(3) << s.first.second
+		  << " : "
+		  << std::setw(18) << meanW[s.first]/massP
+		  << std::endl;
+    }
+
+    // Zero out
+    //
+    csections[id][key][key] = 0.0;
   }
     
   // Cache relative velocity
