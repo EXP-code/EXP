@@ -2242,59 +2242,64 @@ void * CollideIon::timestep_thread(void * arg)
 
 void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 {
+
   //
   // Spread out species change differences
   //
-  keyWghtsMap totW, sumW;
-  for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
-  for (auto b : cell->bods) {
-    Particle *p = tree->Body(b);
-    for (auto s : SpList) 
-      totW[s.first] += p->mass * p->dattrib[s.second];
-  }
-  for (auto w : excessW[id]) sumW[w.first.first] += w.second;
+  if (aType == Trace) {
 
-  std::vector<unsigned long> bods = cell->bods;
+    if (excessW[id].size()) {
 
+      std::vector<unsigned long> bods = cell->bods;
+
+      keyWghtsMap totW, sumW;
+      for (auto s : SpList) totW[s.first] = sumW[s.first] = 0.0;
+      for (auto b : bods) {
+	Particle *p = tree->Body(b);
+	for (auto s : SpList) 
+	  totW[s.first] += p->mass * p->dattrib[s.second];
+      }
+      for (auto w : excessW[id]) sumW[w.first.first] += w.second;
 
 				// Process the excess list
-  for (auto w : excessW[id]) {
+      for (auto w : excessW[id]) {
 				// Remove this species
-    speciesKey k1 = w.first.first;
+	speciesKey k1 = w.first.first;
 				// Add to this species
-    speciesKey k2 = w.first.second;
+	speciesKey k2 = w.first.second;
 				// More removals than mass?
-    double fac = totW[k1]/sumW[k1];
-    if (fac < 1.0)  w.second *= fac;
+	w.second *= std::min<double>(1.0, totW[k1]/sumW[k1]);
 				// Shuffle the body indices
-    std::random_shuffle(bods.begin(), bods.end());
+	std::random_shuffle(bods.begin(), bods.end());
 				// Loop through the particles
-    for (auto b : bods) {
-      Particle *p = tree->Body(b);
+	for (auto b : bods) {
+	  Particle *p = tree->Body(b);
+	
+	  int j1 = SpList[k1];	// From index
+	  int j2 = SpList[k2];	// To   index
 
-      int j1 = SpList[k1];	// From index
-      int j2 = SpList[k2];	// To   index
-
-      // Skip if particle doesn't have this trace species
-      if (p->dattrib[j1] > 0.0) {
-	double ww = w.second/p->mass;
-	if (ww > p->dattrib[j1]) {
-	  w.second -= p->mass * p->dattrib[j1];
-	  p->dattrib[j2] += p->dattrib[j1];
-	  p->dattrib[j1] = 0.0;
-	} else {
-	  w.second = 0.0;
-	  p->dattrib[j2] += ww;
-	  p->dattrib[j1] -= ww;
+	  // Skip if particle doesn't have this trace species
+	  if (p->dattrib[j1] > 0.0) {
+	    double ww = w.second/p->mass;
+	    if (ww > p->dattrib[j1]) {
+	      w.second -= p->mass * p->dattrib[j1];
+	      p->dattrib[j2] += p->dattrib[j1];
+	      p->dattrib[j1] = 0.0;
+	    } else {
+	      w.second = 0.0;
+	      p->dattrib[j2] += ww;
+	      p->dattrib[j1] -= ww;
+	    }
+	  }
+	  
+	  if (w.second<=0) break;
 	}
       }
-
-      if (w.second<=0) break;
     }
   }
   
   //
-  // Cross-section debugging [END]
+  // Cross-section debugging
   //
   if (CROSS_DBG && id==0) {
     if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
@@ -2311,8 +2316,10 @@ void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	if (nCnt_dbg == nCel_dbg) write_cross_debug();
       }
   }
-  // Done
 
+  //
+  // Done
+  //
 }
 
 // Help class that maintains database of diagnostics
@@ -2971,7 +2978,8 @@ sKey2Umap CollideIon::generateSelectionTrace
   
   // Sanity check
   if (std::isnan(csections[id][key][key]) or csections[id][key][key] < 0.0) {
-    cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] << std::endl;
+    cout << "INVALID CROSS SECTION! :: " << csections[id][key][key] 
+	 << std::endl;
     csections[id][key][key] = 0.0; // Zero out
   }
     
