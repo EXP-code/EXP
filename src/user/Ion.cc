@@ -938,6 +938,10 @@ double Ion::directIonCross(double E, int id)
  */
 double Ion::freeFreeCross(double Ei, int id) 
 {
+  // No free-free with a neutral
+  //
+  if (C==1) return 0.0;
+
   // Scaled inverse energy (initial)
   //
   double ni2       = RydtoeV*(C-1)*(C-1)/Ei;
