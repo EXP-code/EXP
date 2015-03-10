@@ -91,6 +91,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
   excessW  .resize(nthrds);
+  meanW    .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kCE1     .resize(nthrds);
@@ -256,8 +257,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
     //
 
 				// Mean fraction in trace species
-    keyWghtsMap meanW;
-    for (auto s : SpList) meanW[s.first] = 0.0;
+				// 
+    for (auto s : SpList) meanW[id][s.first] = 0.0;
 
 				// Total mass of all particles and
 				// relative fraction of trace species
@@ -269,11 +270,11 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
       massP += p->mass;
 				// Mass-weighted trace fraction
       for (auto s : SpList) 
-	meanW[s.first] += p->mass * p->dattrib[s.second];
+	meanW[id][s.first] += p->mass * p->dattrib[s.second];
     }
 				// Normalize mass-weighted fraction
 				//
-    for (auto s : SpList) meanW[s.first] /= massP;
+    for (auto s : SpList) meanW[id][s.first] /= massP;
 
 				// Compute neutral and Coulombic cross
 				// sections
@@ -324,8 +325,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	}
 
 	double tCross = (Cross1 + Cross2) * 
-	  meanW[i1] / atomic_weights[i1.first] *
-	  meanW[i2] / atomic_weights[i2.first] *
+	  meanW[id][i1] / atomic_weights[i1.first] *
+	  meanW[id][i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -421,8 +422,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
     //    b is of type std::vector<unsigned long>
     //
 
-    std::map<speciesKey, double> meanW;
-    for (auto s : SpList) meanW[s.first] = 0.0;
+    for (auto s : SpList) meanW[id][s.first] = 0.0;
 
 				// Total mass of all particles and
 				// relative fraction of trace species
@@ -434,12 +434,12 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       massP += p->mass;
 				// Mean weight trace fraction
       for (auto s : SpList)
-	meanW[s.first] += p->mass * p->dattrib[s.second];
+	meanW[id][s.first] += p->mass * p->dattrib[s.second];
     }
     
 				// Normalize mass-weighted fraction
 				// 
-    for (auto s : SpList) meanW[s.first] /= massP;
+    for (auto s : SpList) meanW[id][s.first] /= massP;
 
 				// Compute cross sections for all
 				// interacting pairs
@@ -497,8 +497,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	}
 	
 	double tCross = (Cross1 + Cross2) *
-	  meanW[i1] / atomic_weights[i1.first] *
-	  meanW[i2] / atomic_weights[i2.first] *
+	  meanW[id][i1] / atomic_weights[i1.first] *
+	  meanW[id][i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -1764,8 +1764,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
   
     // Number of amu in each super particle of trace type
     //
-    double N1 = m1 * UserTreeDSMC::Munit/amu;
-    double N2 = m2 * UserTreeDSMC::Munit/amu;
+    double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k1.first]);
+    double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k2.first]);
   
     // Cycle through the interaction list
     //
@@ -1781,10 +1781,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double Prob   = sCrossMap[id][key][isp] * spProb[id];
 
 				// Particle 1 prob
-      double   P1   = Prob * w2 / atomic_weights[k2.first];
+      double   P1   = Prob * meanW[id][k2] / atomic_weights[k2.first];
 
 				// Particle 2 prob
-      double   P2   = Prob * w1 / atomic_weights[k1.first];
+      double   P2   = Prob * meanW[id][k1] / atomic_weights[k1.first];
       
       // Accumulate the total energy lost for each particle
       //
@@ -3210,20 +3210,20 @@ sKey2Umap CollideIon::generateSelectionTrace
       cout << "[" << myid << "] SpList size :: " << SpList .size() << std::endl;
       cout << "[" << myid << "] C body size :: " << c->bods.size() << std::endl;
 
-      keyWghtsMap meanW;
-      for (auto s : SpList) meanW[s.first] = 0.0;
+      keyWghtsMap mW;
+      for (auto s : SpList) mW[s.first] = 0.0;
       double massP = 0.0;
       for (auto b : c->bods) {
 	Particle *p = curTree->Body(b);
 	massP += p->mass;
 	for (auto s : SpList) 
-	  meanW[s.first] += p->mass * p->dattrib[s.second];
+	  mW[s.first] += p->mass * p->dattrib[s.second];
       }
       for (auto s : SpList)
 	std::cout << std::setw(3) << s.first.first 
 		  << std::setw(3) << s.first.second
 		  << " : "
-		  << std::setw(18) << meanW[s.first]/massP
+		  << std::setw(18) << mW[s.first]/massP
 		  << std::endl;
     }
 
