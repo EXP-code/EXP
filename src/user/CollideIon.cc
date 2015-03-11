@@ -91,7 +91,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   sCrossMap.resize(nthrds);
   sInterMap.resize(nthrds);
   excessW  .resize(nthrds);
-  meanW    .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
   kCE1     .resize(nthrds);
@@ -258,7 +257,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
 				// Mean fraction in trace species
 				// 
-    for (auto s : SpList) meanW[id][s.first] = 0.0;
+    keyWghtsMap meanW;
+    for (auto s : SpList) meanW[s.first] = 0.0;
 
 				// Total mass of all particles and
 				// relative fraction of trace species
@@ -270,11 +270,11 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
       massP += p->mass;
 				// Mass-weighted trace fraction
       for (auto s : SpList) 
-	meanW[id][s.first] += p->mass * p->dattrib[s.second];
+	meanW[s.first] += p->mass * p->dattrib[s.second];
     }
 				// Normalize mass-weighted fraction
 				//
-    for (auto s : SpList) meanW[id][s.first] /= massP;
+    for (auto s : SpList) meanW[s.first] /= massP;
 
 				// Compute neutral and Coulombic cross
 				// sections
@@ -325,8 +325,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	}
 
 	double tCross = (Cross1 + Cross2) * 
-	  meanW[id][i1] / atomic_weights[i1.first] *
-	  meanW[id][i2] / atomic_weights[i2.first] *
+	  meanW[i1] / atomic_weights[i1.first] *
+	  meanW[i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -422,7 +422,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
     //    b is of type std::vector<unsigned long>
     //
 
-    for (auto s : SpList) meanW[id][s.first] = 0.0;
+    keyWghtsMap meanW;
+    for (auto s : SpList) meanW[s.first] = 0.0;
 
 				// Total mass of all particles and
 				// relative fraction of trace species
@@ -434,12 +435,12 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       massP += p->mass;
 				// Mean weight trace fraction
       for (auto s : SpList)
-	meanW[id][s.first] += p->mass * p->dattrib[s.second];
+	meanW[s.first] += p->mass * p->dattrib[s.second];
     }
     
 				// Normalize mass-weighted fraction
 				// 
-    for (auto s : SpList) meanW[id][s.first] /= massP;
+    for (auto s : SpList) meanW[s.first] /= massP;
 
 				// Compute cross sections for all
 				// interacting pairs
@@ -497,8 +498,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	}
 	
 	double tCross = (Cross1 + Cross2) *
-	  meanW[id][i1] / atomic_weights[i1.first] *
-	  meanW[id][i2] / atomic_weights[i2.first] *
+	  meanW[i1] / atomic_weights[i1.first] *
+	  meanW[i2] / atomic_weights[i2.first] *
 	  sUp * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
 	csections[id][defaultKey][defaultKey] += tCross;
@@ -814,6 +815,10 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       unsigned short Z2 = k2.first, C2 = k2.second;
   
 
+      // Species interaction weight
+      //
+      double ww = w1 * w2;
+
       // Number of associated electrons for each particle
       //
       double ne1 = C1 - 1;
@@ -869,11 +874,11 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	double sUp = diamfac * diamfac;
 				// Geometric cross sections based on
 				// atomic radius
-	cross12 = geometric(Z1);
+	cross12 = geometric(Z1) * ww;
 	tCrossMap.push_back(cross12 * sUp);
 	tInterMap.push_back(geometric_1);
 
-	cross21 = geometric(Z2);
+	cross21 = geometric(Z2) * ww;
 	tCrossMap.push_back(cross21 * sUp);
 	tInterMap.push_back(geometric_2);
       }
@@ -888,7 +893,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	if (C1==1) {		// *** Neutral atom-electron 
 				// *** scattering
 				//-------------------------------
-	  cross12 = elastic(Z1, kEe2[id]) * eVel2 * ne2;
+	  cross12 = elastic(Z1, kEe2[id]) * eVel2 * ne2 * ww;
 	  tCrossMap.push_back(cross12);
 	  tInterMap.push_back(neut_elec_1);
 
@@ -898,7 +903,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 	  double b = 0.5*esu*esu*(C1-1) /
 	    std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	  cross12 = M_PI*b*b * eVel2 * ne2;
+	  cross12 = M_PI*b*b * eVel2 * ne2 * ww;
 	  tCrossMap.push_back(cross12);
 	  tInterMap.push_back(ion_elec_1);
 	}
@@ -914,7 +919,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 	if (C2==1) {		// *** Neutral atom-electron 
 				// *** scattering
 				//-------------------------------
-	  cross21 = elastic(Z2, kEe1[id]) * eVel1 * ne1;
+	  cross21 = elastic(Z2, kEe1[id]) * eVel1 * ne1 * ww;
 	  tCrossMap.push_back(cross21);
 	  tInterMap.push_back(neut_elec_2);
 
@@ -924,7 +929,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
 	  double b = 0.5*esu*esu*(C2-1) /
 	    std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
-	  cross21 = M_PI*b*b * eVel1 * ne1;
+	  cross21 = M_PI*b*b * eVel1 * ne1 * ww;
 	  tCrossMap.push_back(cross21);
 	  tInterMap.push_back(ion_elec_2);
 	}
@@ -959,7 +964,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 	double ff1 = ch.IonList[Q1].freeFreeCross(kEe2[id], id);
-	double crs = eVel2*ne2 * ff1;
+	double crs = eVel2*ne2 * ff1 * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -973,7 +978,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
 	CEvector V = ch.IonList[Q1].collExciteCross(kEe2[id], id);
-	double crs = eVel2*ne2 * V.back().first;
+	double crs = eVel2*ne2 * V.back().first * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -988,7 +993,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (ne2 > 0 and C1 <= Z1) { // Particle 1 must be bound
 
 	double DI1 = ch.IonList[Q1].directIonCross(kEe2[id], id);
-	double crs = eVel2*ne2 * DI1;
+	double crs = eVel2*ne2 * DI1 * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1002,7 +1007,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
 	std::vector<double> RE1 = ch.IonList[Q1].radRecombCross(kEe2[id], id);
-	double crs = eVel2*ne2 * RE1.back();
+	double crs = eVel2*ne2 * RE1.back() * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1022,7 +1027,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
 	double ff2 = ch.IonList[Q2].freeFreeCross(kEe1[id], id);
-	double crs = eVel1*ne1 * ff2;
+	double crs = eVel1*ne1 * ff2 * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1036,7 +1041,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (ne1 > 0 and C2 <= Z2) {
 
 	CEvector V = ch.IonList[Q2].collExciteCross(kEe1[id], id);
-	double crs = eVel1*ne1 * V.back().first;
+	double crs = eVel1*ne1 * V.back().first * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1050,7 +1055,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (ne1 > 0 and C2 <= Z2) {
 	double DI2 = ch.IonList[Q2].directIonCross(kEe1[id], id);
-	double crs = ne1 * DI2;
+	double crs = ne1 * DI2 * ww;
 	
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1063,7 +1068,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
       if (C2 > 1 and ne1 > 0) {
 	std::vector<double> RE2 = ch.IonList[Q2].radRecombCross(kEe1[id], id);
-	double crs = eVel1*ne1*RE2.back();
+	double crs = eVel1*ne1*RE2.back() * ww;
 
 	if (crs>0.0) {
 	  tCrossMap.push_back(crs);
@@ -1079,8 +1084,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// *** Convert to system units
 				//-------------------------------
 
-      double tCross = (cross12 + cross21 + sum12 + sum21) * w1 * w2 * 
-	1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+      double tCross = (cross12 + cross21 + sum12 + sum21) * 1e-14 / 
+	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
       
       totalCross += tCross;
     }
@@ -1098,8 +1103,8 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   // Species keys
   //
-  KeyConvert  k1(p1->iattrib[use_key]);
-  KeyConvert  k2(p2->iattrib[use_key]);
+  KeyConvert k1(p1->iattrib[use_key]);
+  KeyConvert k2(p2->iattrib[use_key]);
 
   collTDPtr ctd1 = (*collD)[k1.getKey()];
   collTDPtr ctd2 = (*collD)[k2.getKey()];
@@ -1750,15 +1755,12 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k1.first]);
     double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k2.first]);
   
-    // Normalize cross section list
+    // Normalize cross section list; once we have picked the pair, the
+    // normalized, mass weighted cross section list gives the fraction
+    // of interactions in each species type.
     //
-    std::vector<double> frac(snum);
-    double norm = 0.0;
-    for (size_t i=0; i<snum; i++) {
-      frac[i] = sCrossMap[id][key][i] * meanW[id][k1] * meanW[id][k2];
-      norm   += frac[i];
-    }
-    for (auto &v : frac) v /= norm;
+    double norm = 
+      std::accumulate(sCrossMap[id][key].begin(), sCrossMap[id][key].end(), 0);
 
     // Sanity check: compute elastic and inelastic fractions
     //  |
@@ -1768,9 +1770,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double elastic = 0.0, inelastic = 0.0;
       for (size_t i=0; i<snum; i++) {
 	if (sInterMap[id][key][i] % 100 < 3)
-	  elastic   += frac[i];
+	  elastic   += sCrossMap[id][key][i]/norm;
 	else
-	  inelastic += frac[i];
+	  inelastic += sCrossMap[id][key][i]/norm;
       }
     }
 
@@ -1782,22 +1784,9 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //
       int interFlag = sInterMap[id][key][isp];
 
-
-      // Compute the probability of interaction in atomic mass units
+      // Compute the fraction of the total interaction in index isp
       //
-      /*
-      double prob   = sCrossMap[id][key][isp] * spProb[id];
-
-				// Particle 1 prob
-      double   P1   = prob * meanW[id][k2] / atomic_weights[k2.first];
-
-				// Particle 2 prob
-      double   P2   = prob * meanW[id][k1] / atomic_weights[k1.first];
-      
-      */
-				// Fraction of the interaction in this
-				// species
-      double   P    = frac[isp];
+      double   P    = sCrossMap[id][key][isp]/norm;
 
       // Accumulate the total energy lost for each particle
       //

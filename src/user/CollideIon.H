@@ -204,7 +204,6 @@ private:
   std::vector< std::vector<int>    >               dInterMap;
   std::vector< keyCrossMap >                       sCrossMap;
   std::vector< keyWexsList >                       excessW;
-  std::vector< keyWghtsMap >                       meanW;
   std::vector< keyInterMap >                       sInterMap;
   std::vector< CEvector    >                       CE1, CE2;
   std::vector< keyColExMap >                       kCE1, kCE2;
