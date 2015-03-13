@@ -43,7 +43,7 @@ const bool CROSS_DBG   = false;
 
 // Excess trace map debugging; set to false for production
 //
-const bool EXCESS_DBG  = true;
+const bool EXCESS_DBG  = false;
 
 
 // Minimum energy for Rutherford scattering of ions used to estimate
@@ -1735,26 +1735,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     //
     collTDPtr ctd1 = (*collD)[k1], ctd2 = (*collD)[k2];
 
-    // Get trace-species mass fractions
-    //
-    double w1 = p1->dattrib[SpList[k1]];
-    double w2 = p2->dattrib[SpList[k2]];
-
-    // Compute trace-species masses
-    //
-    double m1 = p1->mass * w1;
-    double m2 = p2->mass * w2;
-
     // Species keys
     //
     unsigned short Z1 = k1.first, C1 = k1.second;
     unsigned short Z2 = k2.first, C2 = k2.second;
   
-    // Number of amu in each super particle of trace type
-    //
-    double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k1.first]);
-    double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k2.first]);
-
     // Cycle through the interaction list
     //
     for (size_t isp=0; isp<snum; isp++) {
@@ -1762,6 +1747,21 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // Get the type of this interaction
       //
       int interFlag = sInterMap[id][key][isp];
+
+      // Get trace-species mass fractions
+      //
+      double w1 = new1[k1];
+      double w2 = new2[k2];
+
+      // Compute trace-species masses
+      //
+      double m1 = p1->mass * w1;
+      double m2 = p2->mass * w2;
+
+      // Number of amu in each super particle of trace type
+      //
+      double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k1.first]);
+      double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k2.first]);
 
       // Probability of interaction
       //
@@ -1799,12 +1799,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
-	if (0 && myid==0)
-	  std::cout << "** Z1=" << std::setw(4) << Z1
-		    << " C1="   << std::setw(4) << C1
-		    << " FF1="  << IS.selectFFInteract(ch.IonList[Q1], id)
-		    << std::endl;
-
 	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * P1;
 	ctd1->ff[id].first  += P1;
 	ctd1->ff[id].second += delE1;
@@ -1826,20 +1820,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (interFlag == ionize_1) {
 	delE1 = IS.DIInterLoss(ch.IonList[Q1]) * P1;
 	speciesKey kk(Z1, C1+1);
-	if (W1 < (w1=new1[k1])) {
+	if (W1 < w1) {
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
-	  if (k1==kk) {
-	      std::cout << "[" << myid
-			<< "] ionize_1 error "
-			<< "(" << k1.first << ", " << k1.second << ") == "
-			<< "(" << kk.first << ", " << kk.second << "), "
-			<< "w1=" << w1 << ", P1=" << P1 << ", m=" << p1->mass
-			<< std::endl;
-	  } else {
-	    excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
-	  }
+	  excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
@@ -1858,20 +1843,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (interFlag == recomb_1) {
 	if (RECOMB_KE) delE1 = kEe2[id] * P1;
 	speciesKey kk(Z1, C1-1);
-	if (W1 < (w1=new1[k1])) {
+	if (W1 < w1) {
 	  new1[kk] += W1;
 	  new1[k1] -= W1;
 	} else {
-	  if (k1==kk) {
-	      std::cout << "[" << myid
-			<< "] recomb_1 error "
-			<< "(" << k1.first << ", " << k1.second << ") == "
-			<< "(" << kk.first << ", " << kk.second << "), "
-			<< "w1=" << w1 << ", W1=" << W1 << ", m=" << p1->mass
-			<< std::endl;
-	  } else {
-	    excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
-	  }
+	  excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
@@ -1913,20 +1889,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (interFlag == ionize_2) {
 	delE2   = IS.DIInterLoss(ch.IonList[Q2]) * P2;
 	speciesKey kk(Z2, C2+1);
-	if (W2 < (w2=new2[k2])) {
+	if (W2 < w2) {
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
-	  if (k2==kk) {
-	      std::cout << "[" << myid
-			<< "] ionize_2 error "
-			<< "(" << k2.first << ", " << k2.second << ") == "
-			<< "(" << kk.first << ", " << kk.second << "), "
-			<< "w2=" << w2 << ", W2=" << W2 << ", m=" << p2->mass
-			<< std::endl;
-	  } else {
-	    excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
-	  }
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
@@ -1940,20 +1907,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       if (interFlag == recomb_2) {
 	if (RECOMB_KE) delE2 = kEe1[id] * P2;
 	speciesKey kk(Z2, C2-1);
-	if (W2 < (w2=new2[k2])) {
+	if (W2 < w2) {
 	  new2[kk] += W2;
 	  new2[k2] -= W2;
 	} else {
-	  if (k2==kk) {
-	      std::cout << "[" << myid
-			<< "] recomb_2 error "
-			<< "(" << k2.first << ", " << k2.second << ") == "
-			<< "(" << kk.first << ", " << kk.second << "), "
-			<< "w2=" << w2 << ", W2=" << W2 << ", m=" << p2->mass
-			<< std::endl;
-	  } else {
-	    excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
-	  }
+	  excessW[id].push_back(dKeyD(dKey(k2, kk), p2->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
