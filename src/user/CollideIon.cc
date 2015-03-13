@@ -1804,6 +1804,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 		    << " C1="   << std::setw(4) << C1
 		    << " FF1="  << IS.selectFFInteract(ch.IonList[Q1], id)
 		    << std::endl;
+
 	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * P1;
 	ctd1->ff[id].first  += P1;
 	ctd1->ff[id].second += delE1;
