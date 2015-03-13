@@ -1777,7 +1777,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Number of interaction pairs
       //
-      double  P     = prob * N1 * N2;
+      double  P1    = W1 * N1;
+      double  P2    = W2 * N2;
 
       // Accumulate the total energy lost for each particle
       //
@@ -1803,26 +1804,26 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 		    << " C1="   << std::setw(4) << C1
 		    << " FF1="  << IS.selectFFInteract(ch.IonList[Q1], id)
 		    << std::endl;
-	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * P;
-	ctd1->ff[id].first  += P;
+	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * P1;
+	ctd1->ff[id].first  += P1;
 	ctd1->ff[id].second += delE1;
 	p1Flag = true;
 
-	debugDeltaE(delE1, Z1, C1, kEe2[id], P, interFlag);
+	debugDeltaE(delE1, Z1, C1, kEe2[id], P1, interFlag);
       }
 
       if (interFlag == colexcite_1) {
-	delE1 = IS.selectCEInteract(ch.IonList[Q1], kCE1[id][key]) * P;
-	ctd1->CE[id].first  += P;
+	delE1 = IS.selectCEInteract(ch.IonList[Q1], kCE1[id][key]) * P1;
+	ctd1->CE[id].first  += P1;
 	ctd1->CE[id].second += delE1;
 	p1Flag = true;
 
 	debugDeltaE(delE1, Z1, C1, 
-		    kCE1[id][key].back().second, P, interFlag);
+		    kCE1[id][key].back().second, P1, interFlag);
       }
 
       if (interFlag == ionize_1) {
-	delE1 = IS.DIInterLoss(ch.IonList[Q1]) * P;
+	delE1 = IS.DIInterLoss(ch.IonList[Q1]) * P1;
 	speciesKey kk(Z1, C1+1);
 	if (W1 < (w1=new1[k1])) {
 	  new1[kk] += W1;
@@ -1833,7 +1834,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 			<< "] ionize_1 error "
 			<< "(" << k1.first << ", " << k1.second << ") == "
 			<< "(" << kk.first << ", " << kk.second << "), "
-			<< "w1=" << w1 << ", P=" << P << ", m=" << p1->mass
+			<< "w1=" << w1 << ", P1=" << P1 << ", m=" << p1->mass
 			<< std::endl;
 	  } else {
 	    excessW[id].push_back(dKeyD(dKey(k1, kk), p1->mass*(W1 - w1)));
@@ -1841,11 +1842,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
-	ctd1->CI[id].first  += P;
+	ctd1->CI[id].first  += P1;
 	ctd1->CI[id].second += delE1;
 	p1Flag = true;
 
-	debugDeltaE(delE1, Z1, C1, 0.0, P, interFlag);
+	debugDeltaE(delE1, Z1, C1, 0.0, P1, interFlag);
       }
 
       // KE carried by electron is subtracted from the thermal reservoir
@@ -1854,7 +1855,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
-	if (RECOMB_KE) delE1 = kEe2[id] * P;
+	if (RECOMB_KE) delE1 = kEe2[id] * P1;
 	speciesKey kk(Z1, C1-1);
 	if (W1 < (w1=new1[k1])) {
 	  new1[kk] += W1;
@@ -1873,11 +1874,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new1[kk] += w1;
 	  new1[k1]  = 0.0;
 	}
-	ctd1->RR[id].first  += P;
+	ctd1->RR[id].first  += P1;
 	ctd1->RR[id].second += delE1;
 	p1Flag = true;
 
-	debugDeltaE(delE1, Z1, C1, kEe2[id], P, interFlag);
+	debugDeltaE(delE1, Z1, C1, kEe2[id], P1, interFlag);
       }
     
       //-------------------------
@@ -1890,26 +1891,26 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 		  << " C2="   << std::setw(4) << C2
 		  << " FF2="  << IS.selectFFInteract(ch.IonList[Q2], id)
 		  << std::endl;
-	delE2 = IS.selectFFInteract(ch.IonList[Q2], id) * P;
-	ctd2->ff[id].first  += P;
+	delE2 = IS.selectFFInteract(ch.IonList[Q2], id) * P2;
+	ctd2->ff[id].first  += P2;
 	ctd2->ff[id].second += delE2;
 	p2Flag = true;
 
-	debugDeltaE(delE2, Z2, C2, kEe1[id], P, interFlag);
+	debugDeltaE(delE2, Z2, C2, kEe1[id], P2, interFlag);
       }
 
       if (interFlag == colexcite_2) {
-	delE2 = IS.selectCEInteract(ch.IonList[Q2], kCE2[id][key]) * P;
-	ctd2->CE[id].first  += P;
+	delE2 = IS.selectCEInteract(ch.IonList[Q2], kCE2[id][key]) * P2;
+	ctd2->CE[id].first  += P2;
 	ctd2->CE[id].second += delE2;
 	p2Flag = true;
 
 	debugDeltaE(delE2, Z2, C2, 
-		    kCE2[id][key].back().second, P, interFlag);
+		    kCE2[id][key].back().second, P2, interFlag);
       }
 
       if (interFlag == ionize_2) {
-	delE2   = IS.DIInterLoss(ch.IonList[Q2]) * P;
+	delE2   = IS.DIInterLoss(ch.IonList[Q2]) * P2;
 	speciesKey kk(Z2, C2+1);
 	if (W2 < (w2=new2[k2])) {
 	  new2[kk] += W2;
@@ -1928,15 +1929,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
-	ctd2->CI[id].first  += P;
+	ctd2->CI[id].first  += P2;
 	ctd2->CI[id].second += delE2;
 	p2Flag = true;
 
-	debugDeltaE(delE2, Z2, C2, 0.0, P, interFlag);
+	debugDeltaE(delE2, Z2, C2, 0.0, P2, interFlag);
       }
 
       if (interFlag == recomb_2) {
-	if (RECOMB_KE) delE2 = kEe1[id] * P;
+	if (RECOMB_KE) delE2 = kEe1[id] * P2;
 	speciesKey kk(Z2, C2-1);
 	if (W2 < (w2=new2[k2])) {
 	  new2[kk] += W2;
@@ -1955,11 +1956,11 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	  new2[kk] += w2;
 	  new2[k2]  = 0.0;
 	}
-	ctd2->RR[id].first  += P;
+	ctd2->RR[id].first  += P2;
 	ctd2->RR[id].second += delE2;
 	p2Flag = true;
 
-	debugDeltaE(delE2, Z2, C2, kEe1[id], P, interFlag);
+	debugDeltaE(delE2, Z2, C2, kEe1[id], P2, interFlag);
       }
 
       // Energy diagnostics
