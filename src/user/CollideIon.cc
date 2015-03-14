@@ -1740,6 +1740,28 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     unsigned short Z1 = k1.first, C1 = k1.second;
     unsigned short Z2 = k2.first, C2 = k2.second;
   
+    // Compute cross section list
+    //
+    double w1i = new1[k1]/atomic_weights[k1.first];
+    double w2i = new1[k2]/atomic_weights[k2.first];
+    std::map<int, double> frac;
+    double norm1, norm2;
+    for (size_t isp=0; isp<snum; isp++) {
+      int interFlag = sInterMap[id][key][isp];
+      if (interFlag/100 == 1) {
+	frac[interFlag] = sCrossMap[id][key][isp] * spProb[id] * w2i;
+	norm1 += frac[interFlag];
+      } else {
+	frac[interFlag] = sCrossMap[id][key][isp] * spProb[id] * w1i;
+	norm2 += frac[interFlag];
+      }
+    }
+
+    for (auto &v : frac) {
+      if (v.first/100 == 1) v.second /= norm1;
+      else                  v.second /= norm2;
+    }
+
     // Cycle through the interaction list
     //
     for (size_t isp=0; isp<snum; isp++) {
@@ -1763,23 +1785,6 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k1.first]);
       double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k2.first]);
 
-      // Probability of interaction
-      //
-      double  prob  = sCrossMap[id][key][isp] * spProb[id];
-
-      // Fraction of species 1 interactions
-      //
-      double  W1    = prob * m2/atomic_weights[k2.first];
-
-      // Fraction of species 2 interactions
-      //
-      double  W2    = prob * m1/atomic_weights[k1.first];
-
-      // Number of interaction pairs
-      //
-      double  P1    = W1 * N1;
-      double  P2    = W2 * N2;
-
       // Accumulate the total energy lost for each particle
       //
       double delE1 = 0.0, delE2 = 0.0;
@@ -1799,6 +1804,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       if (interFlag == free_free_1) {
+	double P1 = frac[interFlag] * N1;
 	delE1 = IS.selectFFInteract(ch.IonList[Q1], id) * P1;
 	ctd1->ff[id].first  += P1;
 	ctd1->ff[id].second += delE1;
@@ -1808,6 +1814,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == colexcite_1) {
+	double P1 = frac[interFlag] * N1;
 	delE1 = IS.selectCEInteract(ch.IonList[Q1], kCE1[id][key]) * P1;
 	ctd1->CE[id].first  += P1;
 	ctd1->CE[id].second += delE1;
@@ -1818,6 +1825,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize_1) {
+	double W1 = frac[interFlag];
+	double P1 = W1 * N1;
 	delE1 = IS.DIInterLoss(ch.IonList[Q1]) * P1;
 	speciesKey kk(Z1, C1+1);
 	if (W1 < w1) {
@@ -1841,6 +1850,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb_1) {
+	double W1 = frac[interFlag];
+	double P1 = W1 * N1;
 	if (RECOMB_KE) delE1 = kEe2[id] * P1;
 	speciesKey kk(Z1, C1-1);
 	if (W1 < w1) {
@@ -1863,6 +1874,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
       
       if (interFlag == free_free_2) {
+	double P2 = frac[interFlag] * N2;
 	if (0 && myid==0) 
 	std::cout << "** Z2=" << std::setw(4) << Z2
 		  << " C2="   << std::setw(4) << C2
@@ -1877,6 +1889,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == colexcite_2) {
+	double P2 = frac[interFlag] * N2;
 	delE2 = IS.selectCEInteract(ch.IonList[Q2], kCE2[id][key]) * P2;
 	ctd2->CE[id].first  += P2;
 	ctd2->CE[id].second += delE2;
@@ -1887,6 +1900,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize_2) {
+	double W2 = frac[interFlag];
+	double P2 = W2 * N2;
 	delE2   = IS.DIInterLoss(ch.IonList[Q2]) * P2;
 	speciesKey kk(Z2, C2+1);
 	if (W2 < w2) {
@@ -1905,6 +1920,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == recomb_2) {
+	double W2 = frac[interFlag];
+	double P2 = W2 * N2;
 	if (RECOMB_KE) delE2 = kEe1[id] * P2;
 	speciesKey kk(Z2, C2-1);
 	if (W2 < w2) {
