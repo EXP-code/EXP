@@ -62,9 +62,10 @@ public:
   //! Constructor
   Geometric();
 
-  /** Get the geometric cross section for atomic number Z based on
-      computed atomic radii from Clementi et al. (see Elastic.cc). The
-      cross section is units of nm^2 for consistency with CHIANTI.
+  /** Get the effective radius for the geometric cross section for
+      atomic number Z based on computed atomic radii from Clementi et
+      al. (see Elastic.cc). The units are in nm for consistency with
+      CHIANTI.
 
       If you ask for data not in the data base, the closest Z value is
       used.
@@ -76,7 +77,7 @@ public:
     // Convert radii in picometers to nanometers
     double radius = (i->second) * 1.0e-3;
 
-    return M_PI*radius*radius;
+    return radius;
   }
 
 };

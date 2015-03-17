@@ -1,6 +1,8 @@
 #ifndef _CollideIon_H
 #define _CollideIon_H
 
+#include <tuple>
+
 #include "Collide.H"
 #include "interactSelect.H"
 #include "Elastic.H"
@@ -33,10 +35,10 @@ public:
 
   //@{
   //! Container definition
-  typedef std::pair<double, double> ddPr;
-  typedef std::vector<ddPr>         IDVP;
-  typedef std::vector<double>       IDVD;
-  typedef std::vector<unsigned int> IDVI;
+  typedef std::tuple<unsigned, double, double>  UDDT;
+  typedef std::vector<UDDT>                     IDVP;
+  typedef std::vector<double>                   IDVD;
+  typedef std::vector<unsigned long>            IDVI;
   //@}
 
   //@{
@@ -50,17 +52,45 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  ddPr   ff_s, CE_s, CI_s, RR_s, dv_s;
-  double eV_av_s, eV_max_s, eV_min_s;
-  int    eV_N_s, eV_10_s;
+  UDDT          ff_s, CE_s, CI_s, RR_s, dv_s;
+  double        eV_av_s, eV_max_s, eV_min_s;
+  unsigned long eV_N_s, eV_10_s;
   //@}
   
+  //! Synchronize a UDDT type (tuple)
+  void syncUDDT(UDDT& value) 
+  {
+    unsigned int u;
+    double z;
+
+    MPI_Reduce(&(u=std::get<0>(value)), &std::get<0>(value), 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=std::get<1>(value)), &std::get<1>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=std::get<2>(value)), &std::get<2>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+
+private:
+
+  UDDT zero;
+
+  UDDT accum(IDVP& v)
+  {
+    UDDT ret(zero);
+
+    for (auto t : v) {
+      std::get<0>(ret) += std::get<0>(t);
+      std::get<1>(ret) += std::get<1>(t);
+      std::get<2>(ret) += std::get<2>(t);
+    }
+
+    return ret;
+  }
+
 public:
 
   //! Construtor initializes the vectors
   CollisionTypeDiag() 
   {
-    const ddPr zero(0, 0);
+    zero = UDDT(0, 0, 0);
 
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
@@ -78,8 +108,6 @@ public:
   //! Reset the accumulation vectors
   void reset() 
   {
-    const ddPr zero(0, 0);
-
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
     std::fill(CI.begin(), CI.end(), zero);
@@ -97,21 +125,43 @@ public:
   //! instance
   void sumUp()
   {
-    const ddPr zero(0, 0);
-    
-    ff_s     =  std::accumulate(ff.begin(), ff.end(), zero);
-    CE_s     =  std::accumulate(CE.begin(), CE.end(), zero);
-    CI_s     =  std::accumulate(CI.begin(), CI.end(), zero);
-    RR_s     =  std::accumulate(RR.begin(), RR.end(), zero);
-    dv_s     =  std::accumulate(dv.begin(), dv.end(), zero);
+    ff_s     =  accum(ff);
+    CE_s     =  accum(CE);
+    CI_s     =  accum(CI);
+    RR_s     =  accum(RR);
+    for (auto v : dv) {
+      if (std::isnan(std::get<2>(v)))
+	std::cout << "Error in sumUp (before), t=" << tnow 
+		  << ", size=" << dv.size() << ", id=" << myid << std::endl;
+    }
+    dv_s     =  accum(dv);
+    if (std::isnan(std::get<2>(dv_s)))
+      std::cout << "Error in sumUp (before), t=" << tnow 
+		<< ", id=" << myid << std::endl;
 
-    eV_av_s  =  std::accumulate(eV_av .begin(), eV_av .end(), 0);
-    eV_N_s   =  std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
-    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end());
-    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end());
-    eV_10_s  =  std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
+    eV_av_s  =  std::accumulate (eV_av .begin(), eV_av .end(), 0);
+    eV_N_s   =  std::accumulate (eV_N  .begin(), eV_N  .end(), 0);
+    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end()   );
+    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end()   );
+    eV_10_s  =  std::accumulate (eV_10 .begin(), eV_10 .end(), 0);
   }
 
+  void sync()
+  {
+    syncUDDT(ff_s);
+    syncUDDT(CE_s);
+    syncUDDT(CI_s);
+    syncUDDT(RR_s);
+    syncUDDT(dv_s);
+
+    double z;
+    unsigned long u;
+    MPI_Reduce(&(z=eV_av_s),  &eV_av_s,  1, MPI_DOUBLE,        MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=eV_N_s),   &eV_N_s,   1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_min_s), &eV_min_s, 1, MPI_DOUBLE,        MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_max_s), &eV_max_s, 1, MPI_DOUBLE,        MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=eV_10_s),  &eV_10_s,  1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 };
 
 typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
@@ -191,38 +241,48 @@ private:
   
   //@{
   //! Inelastic work space
-  typedef std::vector< std::pair<double, double> > CEvector;
-  typedef std::pair<speciesKey, speciesKey>        dKey;
-  typedef std::pair<dKey, double>                  dKeyD;
-  typedef std::map<dKey, std::vector<double> >     keyCrossMap;
-  typedef std::map<dKey, std::vector<int>    >     keyInterMap;
-  typedef std::map<dKey, CEvector>                 keyColExMap;
-  typedef std::map<speciesKey, double>             keyWghtsMap;
-  typedef std::list<dKeyD>                         keyWexsList;
+  typedef std::vector< std::pair<double, double> >   CEvector;
+  typedef std::pair<speciesKey, speciesKey>          dKey;
+  typedef std::pair<dKey, double>                    dKeyD;
+  typedef std::map<speciesKey, std::vector<double> > keyCross;
+  typedef std::map<speciesKey, std::vector<int>    > keyInter;
+  typedef std::map<speciesKey, CEvector>             keyColEx;
+  typedef std::map<speciesKey, double>               keyWghts;
+  typedef std::list<dKeyD>                           keyWexsList;
 
-  std::vector< std::vector<double> >               dCrossMap;
-  std::vector< std::vector<int>    >               dInterMap;
-  std::vector< keyCrossMap >                       sCrossMap;
-  std::vector< keyWexsList >                       excessW;
-  std::vector< keyInterMap >                       sInterMap;
-  std::vector< CEvector    >                       CE1, CE2;
-  std::vector< keyColExMap >                       kCE1, kCE2;
-  std::vector< double >                            kEi, kEe1, kEe2;
-  std::vector< double >                            Ein1, Ein2;
-  std::vector< double >                            spCrm, spTau, spProb;
+  std::vector< std::vector<double> >                 dCross;
+  std::vector< std::vector<int>    >                 dInter;
+  std::vector< keyCross >                            sCross; 
+  std::vector< keyWghts >                            meanF;
+  std::vector< keyWghts >                            sCrsTot1, sCrsTot2;
+  std::vector< keyWexsList >                         excessW;
+  std::vector< keyInter >                            sInter;
+  std::vector< CEvector >                            CE1, CE2;
+  std::vector< keyColEx >                            kCE;
+  std::vector< double >                              meanE, neutF, meanR, meanM;
+  std::vector< double >                              kEi, kEe1, kEe2;
+  std::vector< double >                              Ein1, Ein2;
+  std::vector< double >                              spCrm, spTau, spProb;
   //@}
 
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
-    geometric_1 = 100,
+    neut_neut   = 0,
+    neut_elec   = 1,
+    ion_elec    = 2,
+    free_free   = 3,
+    colexcite   = 4,
+    ionize      = 5,
+    recomb      = 6,
+    neut_neut_1 = 100,
     neut_elec_1 = 101,
     ion_elec_1  = 102,
     free_free_1 = 103,
     colexcite_1 = 104,
     ionize_1    = 105,
     recomb_1    = 106,
-    geometric_2 = 200,
+    neut_neut_2 = 200,
     neut_elec_2 = 201,
     ion_elec_2  = 202,
     free_free_2 = 203,
@@ -415,7 +475,8 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, 
+				      double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 

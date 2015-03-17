@@ -1065,9 +1065,9 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     return v1;
   } else {
     return radRecombCrossTopBase(E, id);
-    // return radRecombCrossMewe   (E);
-    // return radRecombCrossKramers(E);
-    // return radRecombCrossSpitzer(E);
+    // return radRecombCrossMewe   (E, id);
+    // return radRecombCrossKramers(E, id);
+    // return radRecombCrossSpitzer(E, id);
   }
 }
 
