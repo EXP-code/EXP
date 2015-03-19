@@ -183,6 +183,10 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
   double massC = cell->Mass();	// Mass in cell
 
+				// Add cell energy to diagnostic
+				// handler
+  collD->addCell(KEtot*massC, id);
+
 				// Used for diagnostics only
   totalSoFar += massC * KEdspC;
   massSoFar  += massC;
@@ -960,14 +964,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
     sCross[id][k] = tCrossMap;
     sInter[id][k] = tInterMap;
 
-				//-------------------------------
-				// *** Convert to system units
-				//-------------------------------
-
-    double tCross = (crossS + crossI) * 1e-14 / meanM[id] /
-      (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-      
-    totalCross += tCross;
+    totalCross += crossS + crossI;
   }
   
   return totalCross;
@@ -1612,7 +1609,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       double m1 = p1->mass * w1;
       double m2 = p2->mass * w2;
 
-      // Number of amu in each super particle of trace type
+      // Number of amu in each super particle of each trace type
       //
       double N1 = m1 * UserTreeDSMC::Munit/(amu * atomic_weights[k0.first]);
       double N2 = m2 * UserTreeDSMC::Munit/(amu * atomic_weights[k0.first]);
@@ -1635,19 +1632,18 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // Particle interactions
       //-------------------------
 
-      double wf1 = p2->mass * frac[interFlag];
-      double wf2 = p1->mass * frac[interFlag];
+      double WW = frac[interFlag];
 
       if (interFlag == free_free) {
-	double P1 = wf1 * N1;
-	double P2 = wf2 * N2;
+	double P1 = WW * N1;
+	double P2 = WW * N2;
 	double dE = IS.selectFFInteract(ch.IonList[Q], id);
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	std::get<0>(ctd->ff[id])++;
-	std::get<1>(ctd->ff[id]) += wf1*w1 + wf2*w2;
+	std::get<1>(ctd->ff[id]) += 2.0*WW;
 	std::get<2>(ctd->ff[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kEe2[id], P1, interFlag);
@@ -1657,15 +1653,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == colexcite) {
-	double P1 = wf1 * N1;
-	double P2 = wf2 * N2;
+	double P1 = WW * N1;
+	double P2 = WW * N2;
 	double dE = IS.selectCEInteract(ch.IonList[Q], kCE[id][k0]);
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	std::get<0>(ctd->CE[id])++;
-	std::get<1>(ctd->CE[id]) += wf1*w1 + wf2*w2;
+	std::get<1>(ctd->CE[id]) += 2.0*WW;
 	std::get<2>(ctd->CE[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kCE[id][k0].back().second, P1, interFlag);
@@ -1675,33 +1671,32 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize) {
-	double P1 = wf1 * N1;
-	double P2 = wf2 * N2;
+	double P1 = WW * N1;
+	double P2 = WW * N2;
 	double dE = IS.DIInterLoss(ch.IonList[Q]); // <--- Energy lost
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	speciesKey kk(Z, C+1);
-	if (wf1 < 1.0) { // Change in mass fraction owing to ionization
-	  new1[kk] += w1*wf1;
-	  new1[k0] -= w1*wf1;
+	if (WW < 1.0) { // Change in mass fraction owing to ionization
+	  new1[kk] += w1*WW;
+	  new1[k0] -= w1*WW;
+
+	  new2[kk] += w2*WW;
+	  new2[k0] -= w2*WW;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(wf1 - 1.0)));
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(WW - 1.0)));
 	  new1[kk] += w1;
 	  new1[k0]  = 0.0;
-	}
-	if (wf2 < 1.0) { // Change in mass fraction owing to ionization
-	  new2[kk] += w2*wf2;
-	  new2[k0] -= w2*wf2;
-	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w2*(wf2 - 1.0)));
+
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w2*(WW - 1.0)));
 	  new2[kk] += w2;
 	  new2[k0]  = 0.0;
 	}
 
 	std::get<0>(ctd->CI[id])++;
-	std::get<1>(ctd->CI[id]) += frac[interFlag]*(w1 + w2);
+	std::get<1>(ctd->CI[id]) += 2.0*WW;
 	std::get<2>(ctd->CI[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, 0.0, P1, interFlag);
@@ -1716,8 +1711,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb) {
-	double P1 = wf1 * N1;
-	double P2 = wf2 * N2;
+	double P1 = WW * N1;
+	double P2 = WW * N2;
 
 	if (RECOMB_KE) {
 	  delE1 = kEe1[id] * P1;
@@ -1725,25 +1720,25 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 
 	speciesKey kk(Z, C-1);
-	if (wf1 < 1.0) {
-	  new1[kk] += w1*wf1;
-	  new1[k0] -= w1*wf1;
+	if (WW < 1.0) {
+	  new1[kk] += WW*w1;
+	  new1[k0] -= WW*w1;
+
+	  new2[kk] += WW*w2;
+	  new2[k0] -= WW*w2;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(wf1 - 1.0)));
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(WW - 1.0)));
 	  new1[kk] += w1;
 	  new1[k0]  = 0.0;
-	}
-	if (wf2 < 1.0) {
-	  new2[kk] += w2*wf2;
-	  new2[k0] -= w2*wf2;
-	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p2->mass*w2*(wf2 - 1.0)));
+
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p2->mass*w2*(WW - 1.0)));
 	  new2[kk] += w2;
 	  new2[k0]  = 0.0;
 	}
 
+
 	std::get<0>(ctd->RR[id])++;
-	std::get<1>(ctd->RR[id]) += frac[interFlag]*(w1 + w2);
+	std::get<1>(ctd->RR[id]) += 2.0*WW;
 	std::get<2>(ctd->RR[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kEe2[id], P1, interFlag);
@@ -1912,6 +1907,22 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
     }
   }
   
+  double norm1 = 0.0, norm2 = 0.0;
+  for (auto sp : SpList) {
+    norm1 += new1[sp.first];
+    norm2 += new2[sp.first];
+  }
+
+  if (fabs(norm1-1.0)>1.0e-8) {
+    std::cout << "Norm1 error: " << norm1-1.0 << std::endl;
+    for (auto sp : SpList) new1[sp.first] /= norm1;
+  }
+
+  if (fabs(norm2-1.0)>1.0e-8) {
+    std::cout << "Norm2 error: " << norm2-1.0 << std::endl;
+    for (auto sp : SpList) new2[sp.first] /= norm2;
+  }
+
   // Replace particle weights
   //
   for (auto sp : SpList) {
@@ -2344,6 +2355,8 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
     MPI_Abort(MPI_COMM_WORLD, 57);
   }
 
+  Esum.resize(nthrds, 0.0);
+
   // Initialize the output file
   //
   initialize();
@@ -2357,6 +2370,10 @@ void collDiag::gather()
     collTDPtr ctd = it.second;
     ctd->sumUp();
     ctd->sync();
+
+    Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+    double z;
+    MPI_Reduce(&(z=Esum_s), &Esum_s, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 
   MPI_Barrier(MPI_COMM_WORLD);
@@ -2367,6 +2384,7 @@ void collDiag::gather()
 void collDiag::reset()
 {
   for (auto it : *this) it.second->reset();
+  std::fill(Esum.begin(), Esum.end(), 0.0);
 }
 
 void collDiag::initialize() 
@@ -2403,7 +2421,8 @@ void collDiag::initialize()
 	    << "# W(rr)         summed wght of recombs   " << std::endl
 	    << "# E(rr)         energy in rad recombs    " << std::endl
 	    << "# d(KE)         mean energy change       " << std::endl
-	    << "# Etotl         total cum energy         " << std::endl
+	    << "# Elost         total energy loss        " << std::endl
+	    << "# Etotl         total kinetic energy     " << std::endl
 	    << "#"                                         << std::endl;
 	
 				// Species labels
@@ -2415,7 +2434,7 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(12) << ' ' << " |" << std::endl;
+	out << std::setw(2*12) << ' ' << " |" << std::endl;
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -2424,7 +2443,7 @@ void collDiag::initialize()
 	  for (int i=0; i<13; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setw(12) << '-' << " |"
+	out << std::setw(12) << '+' << std::setw(12) << '-' << " |"
 	    << std::setfill(' ') << std::endl;
 
 				// Column labels
@@ -2447,7 +2466,8 @@ void collDiag::initialize()
 	      << std::setw(12) << "d(KE) |"
 	      << " | ";
 	}
-	out << std::setw(12) << "Etotl" << " |" << std::endl;
+	out << std::setw(12) << "Elost |" << std::setw(12) << "Etotl"
+	    << " |" << std::endl;
 	
 				// Column numbers
 	std::ostringstream st;
@@ -2466,6 +2486,9 @@ void collDiag::initialize()
 	  out << " | ";
 	}
 	st.str("");
+	st << "[" << ++cnt << "] |";
+	out << std::setw(12) << std::right << st.str();
+	st.str("");
 	st << "[" << ++cnt << "]";
 	out << std::setw(12) << std::right << st.str() << " |" << std::endl;
 
@@ -2476,7 +2499,7 @@ void collDiag::initialize()
 	  for (int i=0; i<13; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setw(12) << '-' << " |"
+	out << std::setw(12) << '+' << std::setw(12) << '-' << " |"
 	    << std::setfill(' ') << std::endl;
       }
     }
@@ -2576,8 +2599,8 @@ void collDiag::print()
     out << std::scientific << std::setprecision(3);
     if (out) {
       double Etot   = 0.0;
-      double volume = pHOT::sides[0] * pHOT::sides[1] * pHOT::sides[2];
-      double cvrt   = eV/UserTreeDSMC::Eunit/volume;
+      double cvrt   = eV/UserTreeDSMC::Eunit;
+
       out << std::setw(12) << tnow 
 	  << std::setw(12) << p->tempM << " | ";
       for (auto it : *this) {
@@ -2605,7 +2628,9 @@ void collDiag::print()
 	  std::get<2>(ctd->ff_s) + std::get<2>(ctd->CE_s) +
 	  std::get<2>(ctd->CI_s) + std::get<2>(ctd->RR_s) ;
       }
-      out << std::setw(12) << Etot * cvrt << " |" << std::endl;
+      out << std::setw(12) << Etot * cvrt 
+	  << std::setw(12) << Esum_s
+	  << " |" << std::endl;
     }
   }
 
@@ -2989,9 +3014,11 @@ sKey2Umap CollideIon::generateSelectionTrace
   //
   spCrm[id] = crm;
 
-  // Cross sections are already number weighted at this point
+  // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * csections[id][key][key];
+  double crossM = (*Fn)[key] * dens * csections[id][key][key]/meanM[id] 
+    * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
   double collPM = crossM * crm * tau;
 
   // Interaction rate
@@ -3001,8 +3028,9 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
   //
-  spProb[id] = dens * rateF * 1e-14 / c->Mass()
-    / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  spProb[id] = csections[id][key][key] * (num-1);
+  if (num>1) spProb[id] = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit)
+	       / spProb[id];
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //

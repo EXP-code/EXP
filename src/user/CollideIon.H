@@ -176,6 +176,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
+  std::vector<double> Esum;
+  double Esum_s;
 
   //! Make the file header the first time
   void initialize();
@@ -192,6 +194,10 @@ public:
 
   //! Zero out the structures maintained by the CollisionTypeDiag maps
   void reset();
+
+  //! Add cell energy
+  void addCell(double E, int id) { Esum[id] += E; }
+
 };
 
 /**
