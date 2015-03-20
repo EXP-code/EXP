@@ -54,6 +54,7 @@ def plot_data(filename, msz, dot):
     temp  = []
     etot  = []
     ncol  = 9
+    trail = 2
     data  = {}
 
     # Species
@@ -68,12 +69,15 @@ def plot_data(filename, msz, dot):
         if line.find('Time')>=0:    # Get the labels
             next = True
             labels = line.translate(trans).split()
+            if line.find("W(") >= 0: 
+                ncol = 13
+                trail = 3
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
-                idx = (i-2) / ncol
+                idx = (i-trail) / ncol
                 data[spec[idx]][labels[j]] = []
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
@@ -91,7 +95,7 @@ def plot_data(filename, msz, dot):
                     temp.append(float(toks[1]))
                     etot.append(float(toks[-1]))
                     for i in range(2,len(toks)-1):
-                        idx = (i-2) / ncol
+                        idx = (i-trail) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "toks=", len(toks), " labels=", len(labels)

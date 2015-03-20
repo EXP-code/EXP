@@ -371,7 +371,8 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
       double tCross = Cross * sUp * 1e-14 / 
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-      csections[id][defaultKey][defaultKey] += tCross * meanF[id][k];
+      csections[id][defaultKey][defaultKey] += tCross * 
+	meanF[id][k] /atomic_weights[k.first];
     }
   }
 }
@@ -498,7 +499,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
       double tCross = Cross * sUp * 1e-14 / 
 	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	
-      csections[id][defaultKey][defaultKey] += tCross * meanF[id][k];
+      csections[id][defaultKey][defaultKey] += tCross * 
+	meanF[id][k]/atomic_weights[k.first];
     }
   }
 
@@ -842,6 +844,12 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
     
     double crossI = 0.0;
 
+    //--------------------------------------------------
+    // Number weighting for this particle
+    //--------------------------------------------------
+    
+    double ww = meanF[id][k]/atomic_weights[k.first];
+
     //-------------------------------
     // Elastic: particle is neutral
     //-------------------------------
@@ -887,6 +895,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
     // Ion key
     //--------------------------------------------------
     lQ Q(Z, C);
+
 
     //===================================================================
     //  ___      _                                      _   _    _     
@@ -964,7 +973,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
     sCross[id][k] = tCrossMap;
     sInter[id][k] = tInterMap;
 
-    totalCross += crossS + crossI;
+    totalCross += (crossS + crossI)*ww;
   }
   
   return totalCross;
@@ -1606,8 +1615,10 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 
       // Compute trace-species masses
       //
-      double m1 = p1->mass * w1;
-      double m2 = p2->mass * w2;
+      // double m1 = p1->mass * w1;
+      // double m2 = p2->mass * w2;
+      double m1 = p1->mass;
+      double m2 = p2->mass;
 
       // Number of amu in each super particle of each trace type
       //
@@ -1633,17 +1644,19 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //-------------------------
 
       double WW = frac[interFlag];
+      double W1 = frac[interFlag] * w1;
+      double W2 = frac[interFlag] * w2;
 
       if (interFlag == free_free) {
-	double P1 = WW * N1;
-	double P2 = WW * N2;
+	double P1 = W1 * N1;
+	double P2 = W2 * N2;
 	double dE = IS.selectFFInteract(ch.IonList[Q], id);
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	std::get<0>(ctd->ff[id])++;
-	std::get<1>(ctd->ff[id]) += 2.0*WW;
+	std::get<1>(ctd->ff[id]) += W1 + W2;
 	std::get<2>(ctd->ff[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kEe2[id], P1, interFlag);
@@ -1653,15 +1666,15 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == colexcite) {
-	double P1 = WW * N1;
-	double P2 = WW * N2;
+	double P1 = W1 * N1;
+	double P2 = W2 * N2;
 	double dE = IS.selectCEInteract(ch.IonList[Q], kCE[id][k0]);
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	std::get<0>(ctd->CE[id])++;
-	std::get<1>(ctd->CE[id]) += 2.0*WW;
+	std::get<1>(ctd->CE[id]) += W1 + W2;
 	std::get<2>(ctd->CE[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kCE[id][k0].back().second, P1, interFlag);
@@ -1671,32 +1684,35 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       }
 
       if (interFlag == ionize) {
-	double P1 = WW * N1;
-	double P2 = WW * N2;
+	double P1 = W1 * N1;
+	double P2 = W2 * N2;
 	double dE = IS.DIInterLoss(ch.IonList[Q]); // <--- Energy lost
 
 	delE1 = dE * P1;
 	delE2 = dE * P2;
 
 	speciesKey kk(Z, C+1);
-	if (WW < 1.0) { // Change in mass fraction owing to ionization
-	  new1[kk] += w1*WW;
-	  new1[k0] -= w1*WW;
 
-	  new2[kk] += w2*WW;
-	  new2[k0] -= w2*WW;
+	if (W1 < w1) { // Change in mass fraction owing to ionization
+	  new1[kk] += W1;
+	  new1[k0] -= W1;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(WW - 1.0)));
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*(W1 - w1)));
 	  new1[kk] += w1;
 	  new1[k0]  = 0.0;
+	}
 
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w2*(WW - 1.0)));
+	if (W2 < w2) { // Change in mass fraction owing to ionization
+	  new2[kk] += W2;
+	  new2[k0] -= W2;
+	} else {
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*(W2 - w2)));
 	  new2[kk] += w2;
 	  new2[k0]  = 0.0;
 	}
 
 	std::get<0>(ctd->CI[id])++;
-	std::get<1>(ctd->CI[id]) += 2.0*WW;
+	std::get<1>(ctd->CI[id]) += W1 + W2;
 	std::get<2>(ctd->CI[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, 0.0, P1, interFlag);
@@ -1711,8 +1727,8 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       // component.
       //
       if (interFlag == recomb) {
-	double P1 = WW * N1;
-	double P2 = WW * N2;
+	double P1 = W1 * N1;
+	double P2 = W2 * N2;
 
 	if (RECOMB_KE) {
 	  delE1 = kEe1[id] * P1;
@@ -1720,25 +1736,27 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	}
 
 	speciesKey kk(Z, C-1);
-	if (WW < 1.0) {
-	  new1[kk] += WW*w1;
-	  new1[k0] -= WW*w1;
 
-	  new2[kk] += WW*w2;
-	  new2[k0] -= WW*w2;
+	if (WW < w1) {
+	  new1[kk] += WW;
+	  new1[k0] -= WW;
 	} else {
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*w1*(WW - 1.0)));
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p1->mass*(WW - w1)));
 	  new1[kk] += w1;
 	  new1[k0]  = 0.0;
+	}
 
-	  excessW[id].push_back(dKeyD(dKey(k0, kk), p2->mass*w2*(WW - 1.0)));
+	if (WW < w2) {
+	  new2[kk] += WW;
+	  new2[k0] -= WW;
+	} else {
+	  excessW[id].push_back(dKeyD(dKey(k0, kk), p2->mass*(WW - w2)));
 	  new2[kk] += w2;
 	  new2[k0]  = 0.0;
 	}
 
-
 	std::get<0>(ctd->RR[id])++;
-	std::get<1>(ctd->RR[id]) += 2.0*WW;
+	std::get<1>(ctd->RR[id]) += W1 + W2;
 	std::get<2>(ctd->RR[id]) += delE1 + delE2;
 
 	debugDeltaE(delE1, Z, C, kEe2[id], P1, interFlag);
@@ -1760,7 +1778,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	ctd->eV_min[id] = std::min(ctd->eV_min[id], kEe);
 	ctd->eV_max[id] = std::max(ctd->eV_max[id], kEe);
 	
-	if (kEe > 10.2) { ctd->eV_10[id]++;}
+	if (kEe > 10.2) { ctd->eV_10[id]++; }
 
 	if (N1>0.0) {
 	  std::get<0>(ctd->dv[id])++; 
@@ -3016,9 +3034,7 @@ sKey2Umap CollideIon::generateSelectionTrace
 
   // Compute collision rates in system units
   //
-  double crossM = (*Fn)[key] * dens * csections[id][key][key]/meanM[id] 
-    * 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
+  double crossM = (*Fn)[key] * dens * csections[id][key][key]/meanM[id];
   double collPM = crossM * crm * tau;
 
   // Interaction rate
@@ -3028,9 +3044,9 @@ sKey2Umap CollideIon::generateSelectionTrace
   // Cache probability of an interaction of between the particles pair
   // for use in inelasticTrace
   //
-  spProb[id] = csections[id][key][key] * (num-1);
-  if (num>1) spProb[id] = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit)
-	       / spProb[id];
+  spProb[id] = csections[id][key][key] * (num-1) * 2;
+  if (num>1) spProb[id] = 
+	       1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit)/ spProb[id];
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
