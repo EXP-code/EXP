@@ -1083,6 +1083,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 
    where g_A is the degeneracy of the target state and g^+_A is the
    degeneracy of the ion (which we assume to be in the ground state)
+
+   Semi-classical cross section (no Gaunt factor)
 */
 std::vector<double> Ion::radRecombCrossKramers(double E, int id) 
 {
@@ -1091,6 +1093,9 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   // Bohr radius in nm
   //
   const double a0 = 0.0529177211;
+
+  // Fine structure constant
+  const double alpha0 = 7.2973525698e-03;
 
   // Return vector
   //
@@ -1133,7 +1138,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
     // Kramers cross section
     //
     double Erat   = Elv/Enu;
-    double sigmaP = 0.25*f->lvl*aeff*aeff*Erat*Erat*Erat;
+    double sigmaP = 0.25*alpha0*f->lvl*aeff*aeff*Erat*Erat*Erat;
 
     // Ion statistical weight
     //

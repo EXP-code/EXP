@@ -264,8 +264,9 @@ double TopBase::sigmaFB(const iKey& key, double E)
     }
   }
 
-  // Given in Mbarnes  : 1.0e-18 cm^2
-  // Convert to nm^2   : 1.0e-18 m^2 = 1.0e-14 cm^2
+  // Barn              : 1.0e-28 m^2  = 1.0e-24 cm^2 = 1.0e-10 nm^2
+  // Mbarn (10e6 barn) : 1.0e-18 cm^2 = 1.0e-04 nm^2
+  // TopBase cross section given given in Mbarnes
 
   return cross * 1.0e-04;
 }
