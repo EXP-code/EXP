@@ -1615,7 +1615,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
       //
       int interFlag = sInter[id][k0][isp];
 
-      // Probability of this interaction
+      // Probability of this interaction per scaled number
       //
       double Pr = prob[interFlag];
 
