@@ -1698,7 +1698,7 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	double dE = IS.DIInterLoss(ch.IonList[Q]); // <--- Energy lost
 
 	delE1 = dE * P1 * N1;
-	delE2 = dE * P1 * N2;
+	delE2 = dE * P2 * N2;
 
 	speciesKey kk(Z, C+1);
 

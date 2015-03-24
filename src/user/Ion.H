@@ -12,6 +12,7 @@
 #include <atomic_constants.H>
 #include <TopBase.H>
 #include <Cspline.H>
+#include <Verner.H>
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -208,6 +209,9 @@ public:
   //! Not sure what this does . . . looks like cruft.  Remove??
   std::map< int, double > Ni;
 
+  //! Verner cross-section data
+  VernerData VernerXC;
+  
   /** Read in the master list to store to be able to check if elements
       are in it */
   void readMaster();
@@ -229,6 +233,9 @@ public:
 
   //! List names of all species to stdout
   void printMaster();
+
+  //! Read the radiative cross section data
+  void readVerner();
 
 };
 
@@ -379,7 +386,6 @@ public:
   int kffsteps;
   int effsteps;
   //@}
-  
   
   void convertName();
   void readelvlc();

@@ -1055,6 +1055,7 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::vector<double> v3 = radRecombCrossKramers(E, id);
     std::vector<double> v4 = radRecombCrossSpitzer(E, id);
 
+    std::cout << "  [Z, C] = [" << Z << ", " << C << "]"     << std::endl;
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
     std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
     std::cout << " TopBase = " << std::setw(16) << v2.back() << std::endl;
@@ -1064,9 +1065,9 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     
     return v1;
   } else {
-    return radRecombCrossTopBase(E, id);
+    // return radRecombCrossTopBase(E, id);
     // return radRecombCrossMewe   (E, id);
-    // return radRecombCrossKramers(E, id);
+    return radRecombCrossKramers(E, id);
     // return radRecombCrossSpitzer(E, id);
   }
 }
@@ -1548,6 +1549,14 @@ void chdata::readAbundanceAll()
 }
 
 //
+// Read in the Verner data for radiative cross section determination
+//
+void chdata::readVerner() 
+{
+  VernerXC.initialize();
+}
+
+//
 // list names of all species to stdout
 //
 void chdata::printMaster() 
@@ -1585,11 +1594,6 @@ void chdata::printIp()
 //
 chdata::chdata() 
 {
-  // nVern = 465;
-  // maxZ = 31; 
-  // maxZ = 30 + 1
-  // maxNel = 31; 
-  
   for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
   // std::cout << "Reading ip file\n";
@@ -1601,6 +1605,9 @@ chdata::chdata()
   // std::cout << "Reading abundance file\n";
   readAbundanceAll();
   
+  // std::cout << "Reading radiative cross section file\n";
+  readVerner();
+
   // Done
 }
 
