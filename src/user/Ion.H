@@ -201,15 +201,12 @@ public:
   boost::shared_ptr<TopBase> tb;
 
   //! Access to data for individual Ions
-  std::map < std::pair<int, int>,  boost::shared_ptr<Ion> > IonList;
-
-  //! Access to interaction info
-  std::map< std::pair<unsigned short, unsigned short>, double > interInfo;
+  std::map <lQ,  boost::shared_ptr<Ion> > IonList;
 
   //! Not sure what this does . . . looks like cruft.  Remove??
   std::map< int, double > Ni;
 
-  //! Verner cross-section data
+  //! Verner-Yakovlev cross-section data
   VernerData VernerXC;
   
   /** Read in the master list to store to be able to check if elements

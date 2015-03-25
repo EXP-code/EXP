@@ -1171,13 +1171,12 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       std::get<2>(ctd1->CI[id]) += delE * NN;
     }
 
-    // KE carried by electron is subtracted from the thermal reservoir
-    // but not the radiation of "binding".  The "binding" radiation
-    // decreases the total energy of the gas but not the thermal
-    // component.
-    //
     if (interFlag == recomb_1) {
-      if (RECOMB_KE) delE = kEe2[id];
+      if (RECOMB_KE) {
+	lQ rQ(Z1, C1-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
       std::get<0>(ctd1->RR[id])++; 
@@ -1215,7 +1214,11 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
     }
 
     if (interFlag == recomb_2) {
-      if (RECOMB_KE) delE = kEe1[id];
+      if (RECOMB_KE) {
+	lQ rQ(Z1, C1-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
       std::get<0>(ctd2->RR[id])++; 
@@ -1730,16 +1733,13 @@ int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2,
 	pFlag = true;
       }
 
-      // KE carried by electron is subtracted from the thermal reservoir
-      // but not the radiation of "binding".  The "binding" radiation
-      // decreases the total energy of the gas but not the thermal
-      // component.
-      //
       if (interFlag == recomb) {
 
 	if (RECOMB_KE) {
-	  delE1 = kEe1[id] * P1 * N1;
-	  delE2 = kEe2[id] * P2 * N2;
+	  lQ rQ(Z, C-1);
+	  double Xi = ch.IonList[rQ]->ip;
+	  delE1 = Xi * P1 * N1;
+	  delE2 = Xi * P2 * N2;
 	}
 
 	speciesKey kk(Z, C-1);

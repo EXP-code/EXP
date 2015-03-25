@@ -1049,7 +1049,7 @@ double Ion::freeFreeCross(double Ei, int id)
 std::vector<double> Ion::radRecombCross(double E, int id)
 {
   // For testing . . .
-  if (1) {
+  if (0) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
@@ -1198,7 +1198,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossMewe(double E, int id) 
 {
-  double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
+  double incmEv = 1.239842e-4; // 1 inverse cm = 1.239.. eV
 
   // constant infront of the photo-cross using the Mewe method
   //
@@ -1565,7 +1565,8 @@ void chdata::readAbundanceAll()
 }
 
 //
-// Read in the Verner data for radiative cross section determination
+// Read in the Verner-Yakovlev data for radiative cross section
+// determination using the short table provided by CHIANTI
 //
 void chdata::readVerner() 
 {
@@ -1790,10 +1791,8 @@ void VernerData::initialize(chdata* ch)
 {
   this->ch = ch;
   
-  unsigned nVern  = 465;
-  // int maxZ   = 30 + 1; 
-  // int maxNel = 31 + 1; 
-  int nOK    = 0;
+  unsigned nVern = 465;
+  int nOK = 0;
   
   if (myid==0) {
     
@@ -1909,19 +1908,24 @@ double VernerData::cross(const lQ& Q, double EeV)
   
   lQ rQ(Q.first, Q.second-1);
 
+  // No data for this ion
+  if (data.find(rQ) == data.end()) return 0.0;
+
   Ion*  origI  = ch->IonList[ Q].get();
   Ion*  combI  = ch->IonList[rQ].get();
 
-  double mult0 = 1.0;
-  if (origI->fblvl.size()) {
+  double mult0 = 1.0;		// If fully ionized;
+  if (origI->fblvl.size()) {	// Otherwise . . .
     mult0 = origI->fblvl.begin()->second.mult;
   }
+
   vrPtr  vdata  = data[rQ];
+  double ip     = combI->ip;
   double vCross = 0.0;
   
   for (auto v : combI->fblvl) {
     
-    double Eph = EeV + v.second.encm * incmEv;
+    double Eph = EeV + ip - v.second.encm * incmEv;
     double y   = Eph/vdata->e0;
     double y1  = y - 1.0;
     
@@ -1935,13 +1939,6 @@ double VernerData::cross(const lQ& Q, double EeV)
       double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
 	static_cast<double>(v.second.mult) / mult0;
     
-      if (std::isinf(cross)) {
-	std::cout << "Weird cross value: fy=" << fy
-		  << ", Eph=" << Eph
-		  << ", mult0="<< mult0
-		  << std::endl;
-      }
-
       vCross += cross;
     }
   }

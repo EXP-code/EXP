@@ -240,8 +240,6 @@ private:
 
   InteractSelect IS;
 
-  std::map<unsigned short, std::pair<unsigned short, double> > interInfo;
-
   ACG     *gen;
   Uniform *unit;
   
