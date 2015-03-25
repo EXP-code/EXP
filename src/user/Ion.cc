@@ -1049,11 +1049,12 @@ double Ion::freeFreeCross(double Ei, int id)
 std::vector<double> Ion::radRecombCross(double E, int id)
 {
   // For testing . . .
-  if (0) {
+  if (1) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
     std::vector<double> v4 = radRecombCrossSpitzer(E, id);
+    std::vector<double> v5 = radRecombCrossVerner (E, id);
 
     std::cout << "  [Z, C] = [" << Z << ", " << C << "]"     << std::endl;
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
@@ -1061,14 +1062,16 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << " TopBase = " << std::setw(16) << v2.back() << std::endl;
     std::cout << " Kramers = " << std::setw(16) << v3.back() << std::endl;
     std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
+    std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
     return v1;
   } else {
     // return radRecombCrossTopBase(E, id);
     // return radRecombCrossMewe   (E, id);
-    return radRecombCrossKramers(E, id);
+    // return radRecombCrossKramers(E, id);
     // return radRecombCrossSpitzer(E, id);
+    return radRecombCrossVerner (E, id);
   }
 }
 
@@ -1105,7 +1108,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 
   // This is the target neutral
   //
-  Ion* N = &ch->IonList[lQ(Z, C-1)];
+  Ion* N = ch->IonList[lQ(Z, C-1)].get();
 
   // Ionization threshold (eV)
   //
@@ -1212,7 +1215,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
   // Get pointers to Ion data
   //
   double IP = ch->ipdata[Q];
-  Ion* N    = &ch->IonList[Q];
+  Ion* N    = ch->IonList[Q].get();
 
   // Convert kinetic energy to keV
   //
@@ -1369,6 +1372,19 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
   //
   TopBase::iKey k(Z, C);
   std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
+  radRecCrossCum[id] = ret;
+  return ret;
+}
+
+// 
+// recombination cross sections using the Verner relation
+//
+std::vector<double> Ion::radRecombCrossVerner(double E, int id) 
+{
+  // Call for the cross section
+  //
+  lQ Q(Z, C);
+  std::vector<double> ret(1, ch->VernerXC.cross(Q, E));
   radRecCrossCum[id] = ret;
   return ret;
 }
@@ -1553,7 +1569,7 @@ void chdata::readAbundanceAll()
 //
 void chdata::readVerner() 
 {
-  VernerXC.initialize();
+  VernerXC.initialize(this);
 }
 
 //
@@ -1618,7 +1634,7 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
   for (auto i : ZList) {
     for (int j=1; j<i+2; j++) {
       lQ Q(i, j);
-      IonList[Q] = Ion(i, j, this);
+      IonList[Q] = IonPtr(new Ion(i, j, this));
       // IonList[Q].freeFreeUltrarel();
     }
     Ni[i] = 1.0;		// Not sure what this does . . . 
@@ -1752,3 +1768,185 @@ void Ion::di_head::synchronize()
   MPI_Bcast(&nfac,    1, MPI_INT,            0, MPI_COMM_WORLD);
   MPI_Bcast(&neav,    1, MPI_INT,            0, MPI_COMM_WORLD);
 }
+
+
+/** 
+   Reads the Verner & Yakovlev (A&AS 109, 125, 1995) photoionization
+   cross-section data
+*/
+void VernerData::VernerRec::sync(int nid) 
+{
+  MPI_Bcast(&pql,  1, MPI_INT,    nid, MPI_COMM_WORLD);
+  MPI_Bcast(&l,    1, MPI_INT,    nid, MPI_COMM_WORLD);
+  MPI_Bcast(&eth,  1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&e0,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&sig0, 1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&ya,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&p,    1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&yw,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+}
+
+void VernerData::initialize(chdata* ch)
+{
+  this->ch = ch;
+  
+  unsigned nVern  = 465;
+  // int maxZ   = 30 + 1; 
+  // int maxNel = 31 + 1; 
+  int nOK    = 0;
+  
+  if (myid==0) {
+    
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+      nOK = 1;
+    }
+    
+    if (nOK == 0) {
+      
+      std::string fileName(val);
+      
+      fileName.append("/continuum/verner_short.txt");
+      
+      std::string inLine;
+      std::ifstream vdFile(fileName.c_str());
+      
+      if (vdFile.is_open()) {
+	
+	while (vdFile.good()) {
+	  
+	  std::vector<std::string> v;
+	  std::getline(vdFile, inLine);
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<std::vector<std::string> >(v));
+	  
+	  if (v.size() < 10) break;
+	  
+	  int z   = atoi(v[0].c_str());
+	  int nel = atoi(v[1].c_str());
+	  int stg = z - nel + 1;
+	  
+	  lQ key(z, stg);
+	  
+	  vrPtr dat(new VernerRec);
+	  
+	  dat->pql  = atoi(v[2].c_str());
+	  dat->l    = atoi(v[3].c_str());
+	  dat->eth  = atof(v[4].c_str());
+	  dat->e0   = atof(v[5].c_str());
+	  dat->sig0 = atof(v[6].c_str());
+	  dat->ya   = atof(v[7].c_str());
+	  dat->p    = atof(v[8].c_str());
+	  dat->yw   = atof(v[9].c_str());
+	  
+	  data[key] = dat;
+	}
+      }
+      vdFile.close();
+    }
+  }
+  
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 59);
+  
+  if (myid==0) {
+    
+    if (data.size() != nVern)
+      std::cout << "Root node: Verner data size=" << data.size() 
+		<< ", expected: " << nVern << std::endl;
+    
+    for (auto v : data) {
+      lQ k = v.first;
+      MPI_Bcast(&k.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&k.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      v.second->sync();
+    }
+    
+    int done = 0;
+    MPI_Bcast(&done,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+  } else {
+    lQ key;
+    
+    while (1) {
+      MPI_Bcast(&key.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      if (key.first==0) break;
+      MPI_Bcast(&key.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+      vrPtr dat(new VernerRec);
+      dat->sync();
+      data[key] = dat;
+    }
+    
+    if (data.size() != nVern)
+      std::cout << "Node " << myid << ": "
+		<< " Verner data size=" << data.size() 
+		<< ", expected: " << nVern << std::endl;
+  }
+}
+
+
+/**
+   Calculates the photoionization cross section.
+   
+   The data are from Verner and Yakovlev.
+   
+   The cross section is evaluated for the next lower ionization
+   stage.
+*/
+
+double VernerData::cross(const lQ& Q, double EeV)
+{
+				// 1 inverse cm = 1.239.. eV
+  constexpr double incmEv = 1.0/8.06554465e+03;
+
+				// Electron rest mass in eV
+  constexpr double mec2 = 510.998896 * 1.0e3;
+  
+  lQ rQ(Q.first, Q.second-1);
+
+  Ion*  origI  = ch->IonList[ Q].get();
+  Ion*  combI  = ch->IonList[rQ].get();
+
+  double mult0 = 1.0;
+  if (origI->fblvl.size()) {
+    mult0 = origI->fblvl.begin()->second.mult;
+  }
+  vrPtr  vdata  = data[rQ];
+  double vCross = 0.0;
+  
+  for (auto v : combI->fblvl) {
+    
+    double Eph = EeV + v.second.encm * incmEv;
+    double y   = Eph/vdata->e0;
+    double y1  = y - 1.0;
+    
+    if (y1>0.0) {
+
+      // Verner and Yakolev, equation 1
+      double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
+	pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
+	pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
+      
+      double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
+	static_cast<double>(v.second.mult) / mult0;
+    
+      if (std::isinf(cross)) {
+	std::cout << "Weird cross value: fy=" << fy
+		  << ", Eph=" << Eph
+		  << ", mult0="<< mult0
+		  << std::endl;
+      }
+
+      vCross += cross;
+    }
+  }
+  
+  // Convert from Mbarnes to nm^2
+  return vCross*1.0e-4;
+}
+

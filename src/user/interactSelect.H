@@ -33,16 +33,17 @@ public:
   //! Return excitation energy, randomly selected from all possible
   //! excitations by cross section
   double selectCEInteract
-  (const Ion& a, const Ion::collType& cumCross);
+  (const boost::shared_ptr<Ion> a, const Ion::collType& cumCross);
 
   //! Compute the free-free radiated energy based on the electron velocity
-  double selectFFInteract(const Ion& a, int id);
+  double selectFFInteract(const boost::shared_ptr<Ion> a, int id);
 
   //! Return the lost ionization energy and adjust ionization state
-  double DIInterLoss(const Ion& a);
+  double DIInterLoss(const boost::shared_ptr<Ion> a);
 
   //! 
-  double selectRRInteract(const Ion& a, const std::vector<double>& cumCross, double Ee);
+  double selectRRInteract(const boost::shared_ptr<Ion> a,
+			  const std::vector<double>& cumCross, double Ee);
 };
 
 #endif

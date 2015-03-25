@@ -201,7 +201,7 @@ public:
   boost::shared_ptr<TopBase> tb;
 
   //! Access to data for individual Ions
-  std::map < std::pair<int, int>,  Ion > IonList;
+  std::map < std::pair<int, int>,  boost::shared_ptr<Ion> > IonList;
 
   //! Access to interaction info
   std::map< std::pair<unsigned short, unsigned short>, double > interInfo;
@@ -428,6 +428,7 @@ public:
   std::vector<double> radRecombCrossSpitzer(double E, int id);
   std::vector<double> radRecombCrossKramers(double E, int id);
   std::vector<double> radRecombCrossTopBase(double E, int id);
+  std::vector<double> radRecombCrossVerner (double E, int id);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
@@ -450,5 +451,7 @@ public:
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
 };
+
+typedef boost::shared_ptr<Ion> IonPtr;
 
 #endif
