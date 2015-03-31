@@ -267,6 +267,7 @@ private:
   std::vector< double >                              kEi, kEe1, kEe2;
   std::vector< double >                              Ein1, Ein2;
   std::vector< double >                              spCrm, spTau, spProb;
+  std::vector< unsigned >                            spNsel;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -277,8 +278,8 @@ private:
     ion_elec    = 2,
     free_free   = 3,
     colexcite   = 4,
-    ionize      = 5,
-    recomb      = 6,
+    recomb      = 5,
+    ionize      = 6,
     neut_neut_1 = 100,
     neut_elec_1 = 101,
     ion_elec_1  = 102,

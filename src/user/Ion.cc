@@ -1944,6 +1944,6 @@ double VernerData::cross(const lQ& Q, double EeV)
   }
   
   // Convert from Mbarnes to nm^2
-  return vCross*1.0e-4;
+  return vCross * 1.0e-4;
 }
 
