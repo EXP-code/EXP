@@ -212,13 +212,16 @@ public:
    </ol>
 
    The parseSpecies member function reads a specification file whose
-   first line must include the tag string "direct" or "trace" to
-   select the algorithm.  The "direct" file contains lines specifying
-   the atomic number, Z, of the species represented in the simulation,
-   one value per line.  The "trace" file contains line with triples of
-   numbers containing Z, the charge state C (C=1 means neutral, C=2 is
-   the first ionization state, etc.) and the index position of the
-   mass fraction in the Particle dattrib vector.
+   first line must include the tag string "direct", "weight", or
+   "trace" to select the algorithm.  The "direct" file contains lines
+   specifying the atomic number, Z, of the species represented in the
+   simulation, one value per line.  The "weight" file contains lines
+   specifying the atomic number, Z, of the species represented in the
+   simulation followed by the relative particle weight, two values per
+   line.  The "trace" file contains line with triples of numbers
+   containing Z, the charge state C (C=1 means neutral, C=2 is the
+   first ionization state, etc.) and the index position of the mass
+   fraction in the Particle dattrib vector.
  */
 class CollideIon : public Collide
 {
@@ -299,11 +302,13 @@ private:
   std::map<int, std::string> labels;
 
   //! Mnemonic for the type of algorithm selected by the user
-  enum AlgorithmType { Direct,  Trace };
+  enum AlgorithmType { Direct, Weight, Trace };
+  const char* AlgorithmLabels[3] = {"Direct", "Weight", "Trace"};
 
 public:
 
   typedef std::set<unsigned short> ZLtype;
+  typedef std::map<unsigned short, double> ZWtype;
 
 protected:
 
@@ -315,6 +320,13 @@ protected:
   //! Set of the elements (atomic number) for direct multi-species
   //! implementation
   ZLtype ZList;
+
+  //! Set of the elements (atomic number) for weighted multi-species
+  //! implementation
+  ZWtype ZWList;
+
+  //! Designated non-trace element
+  unsigned short sFid;
 
   //! Map of species to attribute position for trace multi-species
   //! implementation
@@ -352,8 +364,13 @@ protected:
   
   int inelasticDirect(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
+  double crossSectionWeight(pHOT* tree, Particle* p1, Particle* p2, 
+			    double crm, int id=0);
+  
+  int inelasticWeight(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+
   double crossSectionTrace(pHOT* tree, Particle* p1, Particle* p2, 
-		      double crm, int id=0);
+			   double crm, int id=0);
 
   int inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
 
@@ -362,6 +379,9 @@ protected:
   {
     if (aType == Direct)
       return crossSectionDirect(tree, p1, p2, crm, id);
+
+    if (aType == Weight)
+      return crossSectionWeight(tree, p1, p2, crm, id);
 
     if (aType == Trace)
       return crossSectionTrace(tree, p1, p2, crm, id);
@@ -373,6 +393,9 @@ protected:
   int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0)
   {
     if (aType == Direct)
+      return inelasticDirect(tree, p1, p2, crm, id);
+
+    if (aType == Weight)
       return inelasticDirect(tree, p1, p2, crm, id);
 
     if (aType == Trace)

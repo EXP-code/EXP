@@ -863,6 +863,7 @@ double Ion::qrp(double u)
 /** 
     Calculate the direct ionization cross section from the spline,
     which is a function of the interaction energy of the electron
+
     See: Dere, K. P., 2007, A&A, 466, 771
     ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
 */
@@ -922,11 +923,12 @@ double Ion::directIonCross(double E, int id)
 	double btcross = (*sp)(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
-	cross += cross_i;
+				// convert to cross section in nm^2
+	cross += cross_i * 1.0e-14;
       }
     }
   }
-  diCross[id] = cross; // recast the cross section in nm^2
+  diCross[id] = cross;
   return cross;
 }
 
