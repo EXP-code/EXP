@@ -439,6 +439,10 @@ protected:
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
+  virtual sKey2Umap generateSelectionWeight(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+					    double& meanLambda, double& meanCollP, 
+					    double& totalNsel);
+
   virtual sKey2Umap generateSelectionTrace(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
