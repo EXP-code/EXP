@@ -179,7 +179,6 @@ private:
   int nsteps, msteps, remap;
   unsigned madj;
   int use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
-  int use_wght, use_cons;
   int use_St, use_vol, use_Eint, tspow;
   double hsdiam;
   double diamfac;

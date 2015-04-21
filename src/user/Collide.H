@@ -244,7 +244,7 @@ protected:
   //@{
   //! Runtime features set by caller
   int use_key, use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
-  int use_Eint, use_cons;
+  int use_Eint;
   //@}
   
   //! Initializes cross sections
@@ -438,9 +438,6 @@ public:
   
   virtual void
   set_MFPTS(bool flag) { MFPTS = flag; }
-  
-  virtual void
-  set_cons(bool flag) { use_cons = flag; }
   
   virtual double getCoolingRate(int id) = 0;
   

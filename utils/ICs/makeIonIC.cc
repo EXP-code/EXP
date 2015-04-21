@@ -453,8 +453,7 @@ void InitializeSpeciesWeight
 
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
-
-    particles[i].dattrib.push_back(wght[indx]);
+    particles[i].dattrib.push_back(0.0); // Add the use_cons field
 
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
@@ -462,6 +461,7 @@ void InitializeSpeciesWeight
   
   std::ofstream out("species.spec");
   out << "weight" << std::endl;
+  out << std::setw(6) << nd << std::endl;
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]

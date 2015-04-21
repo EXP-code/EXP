@@ -3587,6 +3587,15 @@ void CollideIon::parseSpecies(const std::string& map)
 	  nOK = 1;
 	}
 
+	in.getline(line, nline);
+	if (in.good()) {
+	  std::istringstream sz(line);
+	  sz >> use_cons;
+	} else {
+	  nOK = 1;		// Can't read use_cons value, fatal
+	}
+
+				// Print warning, not fatal
 	if (use_cons<0) {
 	  std::cout << "CollideIon: energy key position is not defined, "
 		    << "you using trace-species weighting but not imposing energy conservation"
@@ -3667,6 +3676,9 @@ void CollideIon::parseSpecies(const std::string& map)
     switch (is) {
     case Direct:
       aType = Direct;
+      break;
+    case Weight:
+      aType = Weight;
       break;
     case Trace:
       aType = Trace;

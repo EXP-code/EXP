@@ -72,7 +72,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_vol    = -1;
   use_exes   = -1;
   use_Eint   = -1;
-  use_cons   = -1;
   coolfrac   = 0.1;
   enhance    = 1.0;
   frontier   = false;
@@ -437,7 +436,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide->set_St    (use_St);
   collide->set_excess(use_exes);
   collide->set_MFPTS (mfpts);
-  collide->set_cons  (use_cons);
 
   ElostTotCollide = ElostTotEPSM = 0.0;
 
@@ -508,7 +506,6 @@ void UserTreeDSMC::userinfo()
   if (use_vol>=0)  cout << ", cell volume at pos=" << use_vol;
   if (use_exes>=0) cout << ", excess at pos=" << use_exes;
   if (use_Eint>=0) cout << ", internal energy at pos=" << use_Eint;
-  if (use_cons>=0) cout << ", residual com energy at pos=" << use_cons;
   if (use_pullin)  cout << ", Pullin algorithm enabled";
   if (dryrun)      cout << ", collisions disabled";
   if (nocool)      cout << ", cooling disabled";
@@ -563,7 +560,6 @@ void UserTreeDSMC::initialize()
   if (get_value("use_St", val))		use_St     = atoi(val.c_str());
   if (get_value("use_vol", val))	use_vol    = atoi(val.c_str());
   if (get_value("use_exes", val))	use_exes   = atoi(val.c_str());
-  if (get_value("use_cons", val))	use_cons   = atoi(val.c_str());
   if (get_value("use_Eint", val))	use_Eint   = atoi(val.c_str());
   if (get_value("frontier", val))	frontier   = atol(val);
   if (get_value("tspow", val))		tspow      = atoi(val.c_str());

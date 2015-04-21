@@ -412,7 +412,6 @@ Collide::Collide(ExternalForce *force, Component *comp,
   use_dens = -1;
   use_delt = -1;
   use_exes = -1;
-  use_cons = -1;
   use_Kn   = -1;
   use_St   = -1;
   

@@ -332,6 +332,9 @@ protected:
   //! implementation
   std::map<speciesKey, int> SpList;
 
+  //! Attribute location for energy excess in "weight" algorithm
+  int use_cons;
+
   //! The algorithm type
   AlgorithmType aType;
 
