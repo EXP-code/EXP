@@ -321,9 +321,11 @@ protected:
   //! implementation
   ZLtype ZList;
 
+  //@{
   //! Set of the elements (atomic number) for weighted multi-species
   //! implementation
-  ZWtype ZWList;
+  ZWtype ZWList, ZWList;
+  //@}
 
   //! Designated non-trace element
   unsigned short sFid;
@@ -455,6 +457,8 @@ protected:
   //! Trace species maps for diagnostics
   typedef std::map<speciesKey, int> spMap;
   typedef spMap::iterator spItr;
+  void printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
+			  double T);
   void printSpeciesTrace();
   void gatherSpecies();
 
