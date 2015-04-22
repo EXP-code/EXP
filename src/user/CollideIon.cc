@@ -1917,29 +1917,27 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       //
       // Output on collisions for now . . . 
       //
-      if (interFlag % 100 == 4) {
-	std::cout << std::setw( 8) << "index"
-		  << std::setw( 8) << "flag"
-		  << std::setw(14) << "cross"
-		  << std::setw(14) << "cumul"
-		  << std::setw(18) << "type label"
-		  << std::endl
-		  << std::setw( 8) << "-----"
-		  << std::setw( 8) << "-----"
-		  << std::setw(14) << "---------"
-		  << std::setw(14) << "---------"
-		  << std::setw(18) << "---------------"
+      std::cout << std::setw( 8) << "index"
+		<< std::setw( 8) << "flag"
+		<< std::setw(14) << "cross"
+		<< std::setw(14) << "cumul"
+		<< std::setw(18) << "type label"
+		<< std::endl
+		<< std::setw( 8) << "-----"
+		<< std::setw( 8) << "-----"
+		<< std::setw(14) << "---------"
+		<< std::setw(14) << "---------"
+		<< std::setw(18) << "---------------"
+		<< std::endl;
+      for (size_t i = 0; i < dCross[id].size(); i++) {
+	std::cout << std::setw( 8) << i
+		  << std::setw( 8) << dInter[id][i]
+		  << std::setw(14) << dCross[id][i]
+		  << std::setw(14) << CDF[i]
+		  << std::setw(18) << labels[dInter[id][i]]
 		  << std::endl;
-	for (size_t i = 0; i < dCross[id].size(); i++) {
-	  std::cout << std::setw( 8) << i
-		    << std::setw( 8) << dInter[id][i]
-		    << std::setw(14) << dCross[id][i]
-		    << std::setw(14) << CDF[i]
-		    << std::setw(18) << labels[dInter[id][i]]
-		    << std::endl;
-	}
-	std::cout << std::endl;
       }
+      std::cout << std::endl;
     }
 
     //--------------------------------------------------
