@@ -1313,7 +1313,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   // For tracking energy conservation (system units)
   //
-  double dE   = kE*TolV*TolV;
+  double dE    = kE*TolV*TolV;
   double delE  = 0.0;
 
   // Now that the interactions have been calculated, create the
@@ -1778,8 +1778,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
-  
-  if (ZWList[Z1] < ZWList[Z2]) {
+
+  if (p1->mass/atomic_weights[Z1] < p2->mass/atomic_weights[Z2]) {
     Particle *pT = p1;
     p1 = p2;
     p2 = pT;
@@ -1797,34 +1797,31 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
     C2 = k2.getKey().second;
   }
       
+  // Mass per particle in amu
+  //
+  double m1 = atomic_weights[Z1];
+  double m2 = atomic_weights[Z2];
+  double Mt = m1 + m2;
+
   // Find the trace ratio
   //
-  double Wa = ZWList[Z1];
-  double Wb = ZWList[Z2];
-  double q  = Wb/Wa;
+  double Wa = p1->mass / m1;
+  double Wb = p2->mass / m2;
+  double  q = Wb / Wa;
 
-  // Number of atoms in each super particle
+  // Number interacting atoms
   //
-  double N1 = p1->mass*UserTreeDSMC::Munit / amu * ZWList[Z1];
-  double N2 = p2->mass*UserTreeDSMC::Munit / amu * ZWList[Z2];
+  double NN = Wb * q * UserTreeDSMC::Munit / amu;
 
   // Number of associated electrons for each particle
   //
   double ne1 = C1 - 1;
   double ne2 = C2 - 1;
 
-
-  // The total mass in system units
+  // Reduced mass in ballistic collision (system)
   //
-  double m1 = p1->mass * ZWList[Z1];
-  double m2 = p2->mass * ZWList[Z2];
+  double Mu = Wb * q* m1 * m2 / Mt;
 
-  double Mt = m1 + m2;
-  if (Mt<=0.0) return ret;
-  
-  // Reduced mass in ballistic collision (system units)
-  //
-  double Mu = q * m1 * m2 / Mt;
 
   // Available center of mass energy in the ballistic collision
   // (system units)
@@ -1833,7 +1830,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // For tracking energy conservation (system units)
   //
-  double dE   = kE*TolV*TolV;
+  double dE    = kE*TolV*TolV;
   double delE  = 0.0;
 
   // Now that the interactions have been calculated, create the
@@ -1959,16 +1956,16 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
       std::get<0>(ctd1->ff[id])++; 
-      std::get<1>(ctd1->ff[id]) += N1;
-      std::get<2>(ctd1->ff[id]) += delE * N1;
+      std::get<1>(ctd1->ff[id]) += NN;
+      std::get<2>(ctd1->ff[id]) += delE * NN;
     }
 
     if (interFlag == colexcite_1) {
       delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
       partflag      = 1;
       std::get<0>(ctd1->CE[id])++;
-      std::get<1>(ctd1->CE[id]) += N1;
-      std::get<2>(ctd1->CE[id]) += delE * N1;
+      std::get<1>(ctd1->CE[id]) += NN;
+      std::get<2>(ctd1->CE[id]) += delE * NN;
     }
 
     if (interFlag == ionize_1) {
@@ -1976,8 +1973,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       p1->iattrib[use_key] = k1.updateC(++C1);
       partflag      = 1;
       std::get<0>(ctd1->CI[id])++; 
-      std::get<1>(ctd1->CI[id]) += N1;
-      std::get<2>(ctd1->CI[id]) += delE * N1;
+      std::get<1>(ctd1->CI[id]) += NN;
+      std::get<2>(ctd1->CI[id]) += delE * NN;
     }
 
     if (interFlag == recomb_1) {
@@ -1989,8 +1986,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
       std::get<0>(ctd1->RR[id])++; 
-      std::get<1>(ctd1->RR[id]) += N1;
-      std::get<2>(ctd1->RR[id]) += kEe1[id] * N1;
+      std::get<1>(ctd1->RR[id]) += NN;
+      std::get<2>(ctd1->RR[id]) += kEe1[id] * NN;
     }
     
     //-------------------------
@@ -2001,24 +1998,24 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
       partflag      = 2;
       std::get<0>(ctd2->ff[id])++;
-      std::get<1>(ctd2->ff[id]) += N2;
-      std::get<2>(ctd2->ff[id]) += delE * N2;
+      std::get<1>(ctd2->ff[id]) += NN;
+      std::get<2>(ctd2->ff[id]) += delE * NN;
     }
 
     if (interFlag == colexcite_2) {
       delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
       partflag     = 2;
       std::get<0>(ctd2->CE[id])++; 
-      std::get<1>(ctd2->CE[id]) += N2;
-      std::get<2>(ctd2->CE[id]) += delE * N2;
+      std::get<1>(ctd2->CE[id]) += NN;
+      std::get<2>(ctd2->CE[id]) += delE * NN;
     }
 
     if (interFlag == ionize_2) {
       delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       std::get<0>(ctd2->CI[id])++; 
-      std::get<1>(ctd2->CI[id]) += N2;
-      std::get<2>(ctd2->CI[id]) += delE * N2;
+      std::get<1>(ctd2->CI[id]) += NN;
+      std::get<2>(ctd2->CI[id]) += delE * NN;
       partflag     = 2;
     }
 
@@ -2031,14 +2028,13 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
       std::get<0>(ctd2->RR[id])++; 
-      std::get<1>(ctd2->RR[id]) += N2;
-      std::get<2>(ctd2->RR[id]) += kEe2[id] * N2;
+      std::get<1>(ctd2->RR[id]) += NN;
+      std::get<2>(ctd2->RR[id]) += kEe2[id] * NN;
     }
 
     // Convert to super particle
     //
-    if (partflag == 1) delE *= N1;
-    if (partflag == 2) delE *= N2;
+    delE *= NN;
     
     // Convert back to cgs
     //
@@ -2182,16 +2178,16 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
     if (partflag==1) {
       std::get<0>(ctd1->dv[id])++; 
-      std::get<1>(ctd1->dv[id]) += N1;
+      std::get<1>(ctd1->dv[id]) += NN;
       std::get<2>(ctd1->dv[id]) += 
-	0.5*Mu*(vi - ncr)*(vi - ncr)/N1 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - ncr)*(vi - ncr)/NN * UserTreeDSMC::Eunit / eV;
     }
     
     if (partflag==2) {
       std::get<0>(ctd2->dv[id])++; 
-      std::get<1>(ctd2->dv[id]) += N2;
+      std::get<1>(ctd2->dv[id]) += NN;
       std::get<2>(ctd2->dv[id]) += 
-	0.5*Mu*(vi - ncr)*(vi - ncr)/N2 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - ncr)*(vi - ncr)/NN * UserTreeDSMC::Eunit / eV;
     }
 
 				// Distribute electron energy to particles
@@ -2217,16 +2213,16 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
     if (partflag==1) {
       std::get<0>(ctd1->dv[id])++; 
-      std::get<1>(ctd1->dv[id]) += N1;
+      std::get<1>(ctd1->dv[id]) += NN;
       std::get<2>(ctd1->dv[id]) +=
-	0.5*Mu*(vi - ncr)*(vi - ncr)/N1 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - ncr)*(vi - ncr)/NN * UserTreeDSMC::Eunit / eV;
     }
       
     if (partflag==2) {
       std::get<0>(ctd2->dv[id])++; 
-      std::get<1>(ctd2->dv[id]) += N2;
+      std::get<1>(ctd2->dv[id]) += NN;
       std::get<2>(ctd2->dv[id]) +=
-	0.5*Mu*(vi - ncr)*(vi - ncr)/N2 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - ncr)*(vi - ncr)/NN * UserTreeDSMC::Eunit / eV;
     }
     
 				// Reset internal energy excess
@@ -2258,7 +2254,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
     double dv = -q*p1->vel[k] + q*(vcm[k] + p2->mass/Mt*vrel[k]);
     deltaKE += dv*dv;
   }
-  deltaKE *= 0.5*ZWList[Z1]*p1->mass * q * (1.0 - q);
+  deltaKE *= 0.5 * Wa * m1 * q * (1.0 - q);
   
   if (Z1 == Z2)
     p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.5*deltaKE;
