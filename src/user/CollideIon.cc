@@ -4216,10 +4216,8 @@ void CollideIon::write_cross_debug()
 
 void CollideIon::gatherSpecies()
 {
-  const double Tfac0 = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
+  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
     UserTreeDSMC::Munit/boltz;
-
-  const double TfacD = Tfac0 * molWeight();
 
   if (aType==Direct or aType==Weight) {
 
@@ -4238,26 +4236,10 @@ void CollideIon::gatherSpecies()
       
       // Compute the mass-weighted temerature and mass
       //
-      double KEtot, KEdsp, T;
+      double KEtot, KEdsp;
       cell->sample->KE(KEtot, KEdsp);
 
-      // Compute molecular weight for Weight-type
-      //
-      if (aType==Weight) {
-	double numbC = 0.0, massC = 0.0;
-	for (auto it : cell->sample->count) {
-	  speciesKey i = it.first;
-	  double M = cell->sample->Mass(i);
-	  numbC += M * ZWList[i.first];
-	  massC += M;
-	}
-
-	double TfacW = Tfac0 * massC/numbC;
-
-	T = KEdsp * TfacW;
-      } else {
-	T = KEdsp * TfacD;
-      }
+      double T = KEdsp * Tfac * molWeight(cell->sample);
       
       mass  += cell->Mass();
       tempM += cell->Mass() * T;
@@ -4307,26 +4289,10 @@ void CollideIon::gatherSpecies()
       
       // Compute the temerature
       //
-      double KEtot, KEdsp, T;
+      double KEtot, KEdsp;
       cell->sample->KE(KEtot, KEdsp);
 
-      // Compute molecular weight for Weight-type
-      //
-      if (aType==Weight) {
-	double numbC = 0.0, massC = 0.0;
-	for (auto it : cell->sample->count) {
-	  speciesKey i = it.first;
-	  double M = cell->sample->Mass(i);
-	  numbC += M * ZWList[i.first];
-	  massC += M;
-	}
-
-	double TfacW = Tfac0 * massC/numbC;
-
-	T = KEdsp * TfacW;
-      } else {
-	T = KEdsp * TfacD;
-      }
+      double T = KEdsp * Tfac * molWeight(cell->sample);
       
       // Iterate through all bodies in this cell
       //
@@ -4503,51 +4469,32 @@ void CollideIon::printSpeciesTrace()
 
 // Compute the mean molecular weight in atomic mass units
 //
-double CollideIon::molWeight()
+double CollideIon::molWeight(sCell *cell)
 {
-  // Only do this once and cache the result
-  if (mol_weight<0)  {
-    
-    mol_weight = 1.0;		// Default for trace algorithm
+  double mol_weight = 1.0;
 
-    if (aType==Direct) {
-
-      mol_weight = 0.0;
-
-      size_t j = 0;
-      std::map<unsigned short, int> zval;
-      for (auto i : ZList) zval[i] = j++;
-      
-      std::map<unsigned short, int>::iterator iz, izEnd(zval.end());
-      
-      std::vector<double> speciesM(ZList.size(), 0.0);
-
-      for (auto p : c0->Particles()) {
-	speciesKey key = KeyConvert(p.second.iattrib[use_key]).getKey();
-	iz = zval.find(key.first);
-	if (iz != izEnd) speciesM[iz->second] += p.second.mass;
-      }
-
-      MPI_Allreduce(MPI_IN_PLACE, &speciesM[0], speciesM.size(), 
-		    MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-
-      double mtot = 0.0;
-      for (auto it : speciesM) mtot += it;
-
-      j = 0;
-      mol_weight = 0.0;
-      for (auto i : ZList)
-	mol_weight += speciesM[j]/atomic_weights[i]/mtot;
-
-      mol_weight = 1.0/mol_weight;
+  if (aType==Direct) {
+    double numbC = 0.0, massC = 0.0;
+    for (auto it : cell->count) {
+      speciesKey i = it.first;
+      double M = cell->Mass(i);
+      numbC += M / atomic_weights[i.first];
+      massC += M;
     }
 
-    // One-time output diagnostic
-    //
-    if (myid==0) 
-      std::cout << std::endl << "CollideIon"
-		<< " [" << AlgorithmLabels[aType]
-		<< "] Molecular weight = " << mol_weight << std::endl;
+    mol_weight = massC/numbC;
+  }
+
+  if (aType==Weight) {
+    double numbC = 0.0, massC = 0.0;
+    for (auto it : cell->count) {
+      speciesKey i = it.first;
+      double M = cell->Mass(i);
+      numbC += M * ZWList[i.first];
+      massC += M;
+    }
+
+    mol_weight = massC/numbC;
   }
 
   return mol_weight;

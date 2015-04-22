@@ -55,6 +55,10 @@
 
 %% For convenience . . . 
 
+\newcommand*{\myprime}{^{\prime}\mkern-1.2mu}
+\newcommand*{\mydprime}{^{\prime\prime}\mkern-1.2mu}
+\newcommand*{\mytrprime}{^{\prime\prime\prime}\mkern-1.2mu}
+
 \newcommand{\bx}{{\bf x}}
 \newcommand{\bt}{{\bf\theta}}
 \newcommand{\bp}{{\bf\pi}}
@@ -62,8 +66,8 @@
 \newcommand{\bv}{{\bf v}}
 \newcommand{\va}{\bv_a}
 \newcommand{\vb}{\bv_b}
-\newcommand{\vap}{\va^\prime}
-\newcommand{\vbp}{\vb^\prime}
+\newcommand{\vap}{\va\myprime}
+\newcommand{\vbp}{\vb\myprime}
 
 % \lta and \gta produce > and < signs with twiddle underneath
 \def\spose#1{\hbox to 0pt{#1\hss}}
@@ -347,15 +351,114 @@ and $1 - W_b/w_a = 1 - q$, respectively.  We collide the smaller
 component of type a with the full particle b and then recombine,
 conserving momentum.
 
-
-The condition for conservation of the overall momentum during the collision 
+Conservation of the overall momentum during the collision
+requires
 \begin{equation}
   m_a W_a \va + m_ b W_b \vb = m_a W_a \vap + m_b W_b \vbp.
+  \label{eq:consmom}
 \end{equation}
-The colliding part of particle a has momentum $q m_a W_a \va$
+This may be rewritten by splitting as follows:
+\begin{eqnarray}
+  m_a W_a \va + m_ b W_b \vb &=& W_a\left[ m_a (1-q) \va + q(m_a\va +
+    m_b \vb) \right] \\ \label{eq:precoll}
+  &=& W_a\left[ m_a (1-q) \va + q(m_a\va\mydprime +
+    m_b \vb\mydprime) \right], \label{eq:postcoll}
+\end{eqnarray}
+where the double-primed quantities in equation (\ref{eq:postcoll})
+indicate post-collision velocities.  Identifying terms in equations
+(\ref{eq:consmom}) and (\ref{eq:postcoll}) yields:
+\begin{eqnarray}
+  \vap &=& (1-q)\va + q\va\mydprime \\
+  \vbp &=& \vb\mydprime
+\end{eqnarray}
 
+Unfortunately, one does not conserve momentum and energy
+simultaneously.  After some algebra it, one may show that the
+difference between the pre-collision and post-collision energies is:
+\begin{equation}
+  \Delta E = \frac12 W_a m_a q(1-q)(\va - \vap)^2
+\end{equation}
+assuming that the collision is elastic. Since we have assumed that
+$W_a>W_b$, we must have $0<q<1$ and therefore $\Delta E \ge 0$ which
+implies that energy is always lost.  Standard practice (Boyd, ref) is
+to replace this energy in the center of mass of the next non-trace
+collision.
 
+\section{Energy loss owing to inelastic collisions}
 
+Although there is some flexibility in this procedure, it seems natural
+to remove the energy from the center of mass of the collision.  As in
+previous implementations, the deficit can be accumulated if there is
+insufficient energy.
+
+\section{Assigning particle masses and weights}
+
+\subsection{Overview}
+
+To maintain the relative kinematics of the different species, the
+superparticle mass ratios should be preserved.  If hydrogen and helium
+are species a and b, then $m_b/m_a = m_{He}/m_H \approx 4$.
+
+Let $f_X$ denote the mass fraction of species $X$ and $N_X$ be the
+number of superparticles of species $X$.  The total mass of each
+species is:
+\begin{equation}
+  M_X = \Gamma_p \sum_{j=1}^{N_X} m_{X,j} W_{X,j} = 
+  \Gamma_p N_X \overline{m}_{X} \overline{W}_{X},
+\end{equation}
+where 
+\begin{eqnarray}
+  \overline{W}_X &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}
+    W_{X,j}}{\sum_{j=1}^{N_X} m_{X,j}} \label{eq:meanW} \\
+  \overline{m}_X &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}}{N_X}.
+  \label{eq:meanM}
+\end{eqnarray}
+More typically, we might have $\overline{m}_{X} = m_{X,j}$ and $\overline{W}_{X}
+= W_{X,j}$ and not need the mean quantities in equations
+(\ref{eq:meanW}) and  (\ref{eq:meanM})
+
+The mass true mass fraction constraint implies:
+\begin{equation}
+\frac{f_Y}{f_X} = \frac{N_Y \overline{m}_{Y} \overline{W}_{Y}}{N_X \overline{m}_{X} \overline{W}_{X}}
+\end{equation}
+or
+\begin{equation}
+\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
+\left(\frac{N_X \overline{m}_{X}}{N_Y \overline{m}_{Y}}\right)
+\left(\frac{f_Y}{f_X}\right).
+\end{equation}
+If superparticles of all species are distributed equally by number
+than $N_X=N_Y$ and
+\begin{equation}
+\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
+\left(\frac{\overline{m}_{X}}{\overline{m}_{Y}}\right)
+\left(\frac{f_Y}{f_X}\right).
+\end{equation}
+For example, assuming that $Y=\mbox{He}$ and $X=\mbox{H}$, we have
+$\overline{W}_Y/\overline{W}_X \approx 0.087$.
+
+\subsection{Implementation}
+
+In EXP, the superparticles are assumed to have their true masses in
+system units.  I will denote these as $\hat{m}$.  Then
+\begin{equation}
+  \frac{f_Y}{f_X} = \frac{N_Y {\hat m}_{Y}}{N_X \hat{m}_{X}} = \frac{{\hat m}_{Y}}{\hat{m}_{X}}
+\end{equation}
+where the last equality obtains for $N_X=N_Y$.  However, each particle
+has its own number weighting so that
+\begin{equation}
+\frac{{\hat m}_{Y}}{\hat{m}_{X}} = \frac{\overline{m}_{Y} \overline{W}_{Y}}{\overline{m}_{X} \overline{W}_{X}}
+\end{equation}
+or
+\begin{equation}
+\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
+\left(\frac{{\hat m}_{Y}}{\hat{m}_{X}}\right)
+\left(\frac{\overline{m}_{X}}{\overline{m}_{Y}}\right).
+\end{equation}
+
+To get individual masses from system masses, recall that $\Gamma_p$ is
+the conversion of system mass to atomic mass units.  Then $\overline{m}_X =
+\hat{m_x}m_a\Gamma_p \overline{W}_X$ where $m_a$ is the mean atomic mass unit.
 
 \bibliography{master}
 \label{sec:ref}

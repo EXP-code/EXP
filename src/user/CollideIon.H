@@ -515,8 +515,8 @@ public:
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 
-  //! Compute/retrieve mean molecular weight for this gas
-  virtual double molWeight();
+  //! Compute/retrieve mean molecular weight for this cell
+  virtual double molWeight(sCell *c);
 
 };
 
