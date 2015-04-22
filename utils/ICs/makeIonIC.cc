@@ -465,6 +465,7 @@ void InitializeSpeciesWeight
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
+	<< std::setw(16) << M/N * frcS[indx]
 	<< std::endl;
   }
 

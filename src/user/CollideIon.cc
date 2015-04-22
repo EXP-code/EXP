@@ -3605,10 +3605,12 @@ void CollideIon::parseSpecies(const std::string& map)
 	    if (in.good()) {
 	      std::istringstream sz(line);
 	      sz >> Z;
-	      sz >> W;		// Add to the element list
+	      sz >> W;
+	      sz >> M;		// Add to the element list
 	      if (!sz.bad()) {
 		ZList.insert(Z);
 		ZWList[Z] = W;
+		ZMList[Z] = W*M;
 	      }
 	    } else {
 	      break;
@@ -3715,11 +3717,24 @@ void CollideIon::parseSpecies(const std::string& map)
       MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
     }
 
+    for (auto it : ZMList) {
+      z = it.first;
+      v = it.second;
+      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
+    }
+
   } else {
     for (unsigned j=0; j<sz; j++) {
       MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
       MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
       ZWList[z] = v;
+    }
+
+    for (unsigned j=0; j<sz; j++) {
+      MPI_Bcast(&z, 1, MPI_UNSIGNED_SHORT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&v, 1, MPI_DOUBLE,         0, MPI_COMM_WORLD);
+      ZMList[z] = v;
     }
   }
 
@@ -4493,3 +4508,81 @@ double CollideIon::molWeight(sCell *cell)
 
   return mol_weight;
 }
+
+
+void Collide::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
+				 double temp)
+{
+  if (myid) return;
+
+  typedef std::map<speciesKey, unsigned long> spCountMap;
+  typedef spCountMap::iterator spCountMapItr;
+
+  std::ofstream dout;
+
+				// Generate the file name
+  if (species_file_debug.size()==0) {
+    std::ostringstream sout;
+    sout << outdir << runtag << ".species";
+    species_file_debug = sout.str();
+
+    // Check for existence of file
+    //
+    std::ifstream in (species_file_debug.c_str());
+    
+    // Write a new file?
+    //
+    if (in.fail()) {
+      
+      // Open the file for the first time
+      //
+      dout.open(species_file_debug.c_str());
+
+      // Print the header
+      //
+      dout << "# " 
+	   << std::setw(12) << std::right << "Time "
+	   << std::setw(12) << std::right << "Temp ";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	std::ostringstream sout;
+	sout << "(" << it->first.first << "," << it->first.second << ") ";
+	dout << setw(12) << right << sout.str();
+      }
+      dout << std::endl;
+      
+      dout << "# " 
+	   << std::setw(12) << std::right << "--------"
+	   << std::setw(12) << std::right << "--------";
+      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	dout << setw(12) << std::right << "--------";
+      dout << std::endl;
+      
+    }
+  }
+
+  // Open for append
+  //
+  if (!dout.is_open())
+    dout.open(species_file_debug.c_str(), ios::out | ios::app);
+
+
+  double tmass = 0.0;
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+    tmass += ZMList[it->first.first] * it->second;
+
+				// Use total mass to print mass
+				// fraction
+  dout << "  " 
+       << std::setw(12) << std::right << tnow
+       << std::setw(12) << std::right << temp;
+
+  for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+    if (tmass > 0.0) 
+      dout << std::setw(12) << std::right 
+	   << ZMList[it->first.first] * it->second / tmass;
+    else
+      dout << std::setw(12) << std::right << 0.0;
+  }
+  dout << std::endl;
+}
+
