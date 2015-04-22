@@ -29,7 +29,7 @@ bool     CollideIon::frost_warning = false; // For debugging . . .
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
-bool NO_COOL           = false;
+bool NO_COOL           = true;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -1314,7 +1314,7 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   // For tracking energy conservation (system units)
   //
   double dE   = kE*TolV*TolV;
-  double delE  = 0.0, delEeV = 0.0;
+  double delE  = 0.0;
 
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
@@ -1515,8 +1515,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       std::get<2>(ctd2->RR[id]) += kEe1[id] * NN;
     }
 
-    delEeV = delE;
-
     // Convert to super particle
     //
     if (partflag) delE *= NN;
@@ -1598,7 +1596,6 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
       std::cout << "delE > KE!! (" << delE << " > " << totE
 		<< "), Interaction type = " << interFlag 
 		<< " kEe  = "  << kEe
-		<< " delE = " << delEeV 
 		<< std::endl;
 
   
@@ -1837,7 +1834,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
   // For tracking energy conservation (system units)
   //
   double dE   = kE*TolV*TolV;
-  double delE  = 0.0, delEeV = 0.0;
+  double delE  = 0.0;
 
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
@@ -2038,8 +2035,6 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       std::get<2>(ctd2->RR[id]) += kEe2[id] * N2;
     }
 
-    delEeV = delE;
-
     // Convert to super particle
     //
     if (partflag == 1) delE *= N1;
@@ -2131,7 +2126,6 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
       std::cout << "delE > KE!! (" << delE << " > " << totE
 		<< "), Interaction type = " << interFlag 
 		<< " kEe  = "  << kEe
-		<< " delE = " << delEeV 
 		<< std::endl;
 
   
