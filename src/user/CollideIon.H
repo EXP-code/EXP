@@ -401,7 +401,7 @@ protected:
       return inelasticDirect(tree, p1, p2, crm, id);
 
     if (aType == Weight)
-      return inelasticDirect(tree, p1, p2, crm, id);
+      return inelasticWeight(tree, p1, p2, crm, id);
 
     if (aType == Trace)
       return inelasticTrace(tree, p1, p2, crm, id);
