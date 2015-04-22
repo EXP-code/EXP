@@ -3605,7 +3605,7 @@ void CollideIon::parseSpecies(const std::string& map)
 	if (nOK == 0) {
 	  
 	  int Z;
-	  double W;
+	  double W, M;
 	  while (1) {
 	    in.getline(line, nline);
 	    if (in.good()) {
@@ -4400,6 +4400,8 @@ void CollideIon::printSpecies
 
   if (aType == Direct) {	// Call the generic printSpecies member
     Collide::printSpecies(spec, tempM);
+  } else if (aType == Weight) {	// Call the weighted printSpecies version
+    printSpeciesWeight(spec, tempM);
   } else {			// Call the trace fraction version
     printSpeciesTrace();
   }
@@ -4516,8 +4518,8 @@ double CollideIon::molWeight(sCell *cell)
 }
 
 
-void Collide::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
-				 double temp)
+void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
+				    double temp)
 {
   if (myid) return;
 

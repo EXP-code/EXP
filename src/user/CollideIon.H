@@ -324,7 +324,7 @@ protected:
   //@{
   //! Set of the elements (atomic number) for weighted multi-species
   //! implementation
-  ZWtype ZWList, ZWList;
+  ZWtype ZWList, ZMList;
   //@}
 
   //! Designated non-trace element
