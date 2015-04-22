@@ -4216,10 +4216,12 @@ void CollideIon::write_cross_debug()
 
 void CollideIon::gatherSpecies()
 {
-  const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu * molWeight() /
+  const double Tfac0 = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
     UserTreeDSMC::Munit/boltz;
 
-  if (aType==Direct) {
+  const double TfacD = Tfac0 * molWeight();
+
+  if (aType==Direct or aType==Weight) {
 
     // Compute temperature only
 
@@ -4236,9 +4238,26 @@ void CollideIon::gatherSpecies()
       
       // Compute the mass-weighted temerature and mass
       //
-      double KEtot, KEdsp;
+      double KEtot, KEdsp, T;
       cell->sample->KE(KEtot, KEdsp);
-      double T = KEdsp* Tfac;
+
+      // Compute molecular weight for Weight-type
+      //
+      if (aType==Weight) {
+	double numbC = 0.0, massC = 0.0;
+	for (auto it : cell->sample->count) {
+	  speciesKey i = it.first;
+	  double M = cell->sample->Mass(i);
+	  numbC += M * ZWList[i.first];
+	  massC += M;
+	}
+
+	double TfacW = Tfac0 * massC/numbC;
+
+	T = KEdsp * TfacW;
+      } else {
+	T = KEdsp * TfacD;
+      }
       
       mass  += cell->Mass();
       tempM += cell->Mass() * T;
@@ -4288,9 +4307,26 @@ void CollideIon::gatherSpecies()
       
       // Compute the temerature
       //
-      double KEtot, KEdsp;
+      double KEtot, KEdsp, T;
       cell->sample->KE(KEtot, KEdsp);
-      double T = KEdsp* Tfac;
+
+      // Compute molecular weight for Weight-type
+      //
+      if (aType==Weight) {
+	double numbC = 0.0, massC = 0.0;
+	for (auto it : cell->sample->count) {
+	  speciesKey i = it.first;
+	  double M = cell->sample->Mass(i);
+	  numbC += M * ZWList[i.first];
+	  massC += M;
+	}
+
+	double TfacW = Tfac0 * massC/numbC;
+
+	T = KEdsp * TfacW;
+      } else {
+	T = KEdsp * TfacD;
+      }
       
       // Iterate through all bodies in this cell
       //
