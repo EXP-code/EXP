@@ -29,7 +29,7 @@ bool     CollideIon::frost_warning = false; // For debugging . . .
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
-bool NO_COOL           = true;
+bool NO_COOL           = false;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -232,27 +232,27 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 
+	double eVel = sqrt(amu*mu/me);
+
 	if (i2.second>1) {
 	  double ne2   = i2.second - 1;
-	  double eVel2 = sqrt(amu*atomic_weights[i2.second]/me);
 	  if (i1.second==1)
-	    Cross1 = elastic(i1.first, EeV * mu) * eVel2 * ne2;
+	    Cross1 = elastic(i1.first, EeV * mu) * eVel * ne2;
 	  else {
 	    double b = 0.5*esu*esu*(i1.second - 1) /
 	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	    Cross1 = M_PI*b*b * eVel2 * ne2;
+	    Cross1 = M_PI*b*b * eVel * ne2;
 	  }
 	}
 
 	if (i1.second>1) {
 	  double ne1   = i1.second - 1;
-	  double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
 	  if (i2.second==1)
-	    Cross2 = elastic(i2.first, EeV * mu) * eVel1 * ne1;
+	    Cross2 = elastic(i2.first, EeV * mu) * eVel * ne1;
 	  else {
 	    double b = 0.5*esu*esu*(i2.second - 1) /
 	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	    Cross2 = M_PI*b*b * eVel1 * ne1;
+	    Cross2 = M_PI*b*b * eVel * ne1;
 	  }
 	}
 
@@ -333,8 +333,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
 				// Electron velocity factor for this
 				// cell
-    // double eVel = sqrt(amu*meanM[id]/me);
-    double eVel = 1.0;
+    double eVel = sqrt(amu*meanM[id]/me);
 
 				// Compute neutral and Coulombic cross
 				// sections
@@ -408,8 +407,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	double mu = atomic_weights[i1.first] * atomic_weights[i1.first] / 
 	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 	  
-	double eVel1 = sqrt(amu*atomic_weights[i1.first]/me);
-	double eVel2 = sqrt(amu*atomic_weights[i2.first]/me);
+	double eVel   = sqrt(amu*mu/me);
 	  
 	double Cross1 = 0.0;
 	double Cross2 = 0.0;
@@ -427,11 +425,11 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	unsigned ne2 = i2.second - 1;
 	if (ne2) {
 	  if (i1.second==1)	// Neutral atom-electron scattering
-	    Cross1 = elastic(i1.first, EeV * mu) * eVel2*ne2;
+	    Cross1 = elastic(i1.first, EeV * mu) * eVel*ne2;
 	  else {		// Rutherford scattering
 	    double b = 0.5*esu*esu*(i1.second - 1) /
 	      std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	    Cross1 = M_PI*b*b * eVel2*ne2;
+	    Cross1 = M_PI*b*b * eVel*ne2;
 	    }
 	}
 
@@ -440,11 +438,11 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
 	unsigned ne1 = i1.second - 1;
 	if (ne1) {
 	    if (i2.second==1)	// Neutral atom-electron scattering
-	      Cross2 = elastic(i2.first, EeV * mu) * eVel1*ne1;
+	      Cross2 = elastic(i2.first, EeV * mu) * eVel*ne1;
 	    else {		// Rutherford scattering
 	      double b = 0.5*esu*esu*(i2.second - 1) /
 		std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
-	      Cross2 = M_PI*b*b * eVel1*ne1;
+	      Cross2 = M_PI*b*b * eVel*ne1;
 	    }
 	}
 	
@@ -468,8 +466,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
     //
 				// Equipartition electron velocity
 				//
-    // double eVel = sqrt(amu*meanM[id]/me);
-    double eVel = 1.0;
+    double eVel = sqrt(amu*meanM[id]/me);
 
 				// Compute cross sections for all
 				// interacting pairs
@@ -544,8 +541,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
   // Electron velocity equipartition factors
   //
-  double eVel1 = sqrt(m1/me);
-  double eVel2 = sqrt(m2/me);
+  double eVel = sqrt(mu/me);
 
   // Internal energy per particle
   //
@@ -602,13 +598,13 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe2[id]) * eVel2*ne2;
+      cross12 = elastic(Z1, kEe2[id]) * eVel*ne2;
       dCross[id].push_back(cross12);
       dInter[id].push_back(neut_elec_1);
     }  else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      cross12 = M_PI*b*b * eVel2*ne2;
+      cross12 = M_PI*b*b * eVel*ne2;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -619,13 +615,13 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe1[id]) * eVel1*ne1;
+      cross21 = elastic(Z2, kEe1[id]) * eVel*ne1;
       dCross[id].push_back(cross21);
       dInter[id].push_back(neut_elec_2);
     } else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      cross21 = M_PI*b*b * eVel1*ne1;
+      cross21 = M_PI*b*b * eVel*ne1;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -661,7 +657,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
     double ff1 = ch.IonList[Q1]->freeFreeCross(kEe2[id], id);
-    double crs = eVel2*ne2 * ff1;
+    double crs = eVel*ne2 * ff1;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -676,7 +672,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 
     CE1[id] = ch.IonList[Q1]->collExciteCross(kEe2[id], id);
 
-    double crs = eVel2*ne2 * CE1[id].back().first;
+    double crs = eVel*ne2 * CE1[id].back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -690,7 +686,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     double DI1 = ch.IonList[Q1]->directIonCross(kEe2[id], id);
-    double crs = eVel2*ne2 * DI1;
+    double crs = eVel*ne2 * DI1;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -704,7 +700,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
     std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe2[id], id);
-    double crs = eVel2*ne2 * RE1.back();
+    double crs = eVel*ne2 * RE1.back();
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -723,7 +719,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     double ff2 = ch.IonList[Q2]->freeFreeCross(kEe1[id], id);
-    double crs = eVel1*ne1 * ff2;
+    double crs = eVel*ne1 * ff2;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -737,7 +733,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   if (ne1 > 0 and C2 <= Z2) {
 
     CE2[id] = ch.IonList[Q2]->collExciteCross(kEe1[id], id);
-    double crs = eVel1*ne1 * CE2[id].back().first;
+    double crs = eVel*ne1 * CE2[id].back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -763,7 +759,7 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     std::vector<double> RE2 = ch.IonList[Q2]->radRecombCross(kEe1[id], id);
-    double crs = eVel1*ne1*RE2.back();
+    double crs = eVel*ne1*RE2.back();
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -827,8 +823,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // Electron velocity equipartition factors
   //
-  double eVel1 = sqrt(m1/me);
-  double eVel2 = sqrt(m2/me);
+  double eVel = sqrt(mu/me);
 
   // Internal energy per particle
   //
@@ -885,13 +880,13 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe2[id]) * eVel2*ne2;
+      cross12 = elastic(Z1, kEe2[id]) * eVel*ne2;
       dCross[id].push_back(cross12);
       dInter[id].push_back(neut_elec_1);
     }  else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      cross12 = M_PI*b*b * eVel2*ne2;
+      cross12 = M_PI*b*b * eVel*ne2;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -902,13 +897,13 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe1[id]) * eVel1*ne1;
+      cross21 = elastic(Z2, kEe1[id]) * eVel*ne1;
       dCross[id].push_back(cross21);
       dInter[id].push_back(neut_elec_2);
     } else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      cross21 = M_PI*b*b * eVel1*ne1;
+      cross21 = M_PI*b*b * eVel*ne1;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -944,7 +939,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
     double ff1 = ch.IonList[Q1]->freeFreeCross(kEe2[id], id);
-    double crs = eVel2*ne2 * ff1;
+    double crs = eVel*ne2 * ff1;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -959,7 +954,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 
     CE1[id] = ch.IonList[Q1]->collExciteCross(kEe2[id], id);
 
-    double crs = eVel2*ne2 * CE1[id].back().first;
+    double crs = eVel*ne2 * CE1[id].back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -973,7 +968,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     double DI1 = ch.IonList[Q1]->directIonCross(kEe2[id], id);
-    double crs = eVel2*ne2 * DI1;
+    double crs = eVel*ne2 * DI1;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -987,7 +982,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
     std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe2[id], id);
-    double crs = eVel2*ne2 * RE1.back();
+    double crs = eVel*ne2 * RE1.back();
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -1006,7 +1001,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     double ff2 = ch.IonList[Q2]->freeFreeCross(kEe1[id], id);
-    double crs = eVel1*ne1 * ff2;
+    double crs = eVel*ne1 * ff2;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -1020,7 +1015,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   if (ne1 > 0 and C2 <= Z2) {
 
     CE2[id] = ch.IonList[Q2]->collExciteCross(kEe1[id], id);
-    double crs = eVel1*ne1 * CE2[id].back().first;
+    double crs = eVel*ne1 * CE2[id].back().first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -1046,7 +1041,7 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
     std::vector<double> RE2 = ch.IonList[Q2]->radRecombCross(kEe1[id], id);
-    double crs = eVel1*ne1*RE2.back();
+    double crs = eVel*ne1*RE2.back();
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -1100,8 +1095,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 
   // Electron velocity equipartition factors
   //
-  // double eVel = sqrt(meanM[id]*amu/me);
-  double eVel = 1.0;
+  double eVel = sqrt(meanM[id]*amu/me);
 
   for (auto s : SpList) {
 
@@ -1811,7 +1805,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // Number interacting atoms
   //
-  double NN = Wb * q * UserTreeDSMC::Munit / amu;
+  double NN = Wb * UserTreeDSMC::Munit / amu;
 
   // Number of associated electrons for each particle
   //
@@ -1820,7 +1814,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // Reduced mass in ballistic collision (system)
   //
-  double Mu = Wb * q* m1 * m2 / Mt;
+  double Mu = Wb * m1 * m2 / Mt;
 
 
   // Available center of mass energy in the ballistic collision
@@ -2254,26 +2248,21 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
   }
   deltaKE *= 0.5 * Wa * m1 * q * (1.0 - q);
   
+  double missE = std::min<double>(0.0, totE);
+
   if (Z1 == Z2)
-    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.5*deltaKE;
+    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 
+      0.5*deltaKE - 0.5*delE + 0.5*missE;
   else
-    p1->dattrib[use_cons] = deltaKE;
+    p1->dattrib[use_cons] = deltaKE - delE + missE;
 
   double vf = 0.0;
-  if (totE > 0.0) {
-    vf = sqrt( 2.0*totE/Mu );
-  } else {
-    if (Z1 == Z2)
-      p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.5*totE;
-    else
-      p1->dattrib[use_cons] = totE;
-  }
-
-  double vfac = vf/vi;
+  if (totE>0.0) vf = sqrt(2.0*totE/Mu);
 
   // Update post-collision velocities
   // 
   *cr = 0.0;
+  double vfac = vf/vi;
   for(unsigned k=0; k<3; k++ ) {
     p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcm[k] + p2->mass/Mt*vrel[k]*vfac);
     p2->vel[k] = vcm[k] - p1->mass/Mt*vrel[k]*vfac;
@@ -2281,7 +2270,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
     *cr += dv*dv;
   }
   *cr = sqrt(*cr);
-  
+
   return ret;
 }
 
@@ -2894,9 +2883,9 @@ void * CollideIon::timestep_thread(void * arg)
 	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
 	  
 	  if (i2>=i1) {
-	    crossM[i1] += N*densM[i2] * crossIJ[i1][i2];
+	    crossM[i1] += N * densM[i2] * crossIJ[i1][i2];
 	  } else
-	    crossM[i1] += N*densM[i2] * crossIJ[i2][i1];
+	    crossM[i1] += N * densM[i2] * crossIJ[i2][i1];
 	}
 	
 	lambdaM[i1] = 1.0/crossM[i1];
@@ -3604,7 +3593,7 @@ void CollideIon::parseSpecies(const std::string& map)
 	      if (!sz.bad()) {
 		ZList.insert(Z);
 		ZWList[Z] = W;
-		ZMList[Z] = W*M;
+		ZMList[Z] = M;
 	      }
 	    } else {
 	      break;
@@ -3911,7 +3900,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            densM, collPM, lambdaM, crossM;
+  sKeyDmap            fracW, densM, collPM, lambdaM, crossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -3934,34 +3923,35 @@ sKey2Umap CollideIon::generateSelectionWeight
   
   for (auto it1 : c->count) {
     speciesKey i1 = it1.first;
-    densM[i1] = c->Mass(i1) * ZWList[i1.first] / volc;
-    //                        ^
-    //                        |
-    // Number density---------+
+    densM[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+    fracW[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
+    //                                     ^
+    //                                     |
+    //              Number density---------+
     //
   }
     
   if (0) {
     std::cout << std::setw(10) << "Species"
-	      << std::setw(16) << "m density"
+	      << std::setw(16) << "weight"
+	      << std::setw(16) << "n dens"
 	      << std::setw(16) << "sp mass"
 	      << std::setw(10) << "n count"
-	      << std::setw(10) << "weight"
 	      << std::endl
 	      << std::setw(10) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
-	      << std::setw(10) << "---------"
 	      << std::setw(16) << "---------"
+	      << std::setw(10) << "---------"
 	      << std::endl;
     for (auto it : c->count) {
       std::ostringstream sout;
       sout << "(" << it.first.first << ", " << it.first.second << ")";
       std::cout << std::setw(10) << sout.str()
+		<< std::setw(16) << fracW[it.first]
 		<< std::setw(16) << densM[it.first]
 		<< std::setw(16) << c->Mass(it.first)
 		<< std::setw(10) << c->Count(it.first)
-		<< std::setw(16) << ZWList[it.first.first]
 		<< std::endl;
     }
   }
@@ -3984,9 +3974,9 @@ sKey2Umap CollideIon::generateSelectionWeight
       speciesKey i2 = it2.first;
 
       if (i2>=i1) {
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i1][i2];
       } else
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i2][i1];
       
       if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
@@ -4008,12 +3998,12 @@ sKey2Umap CollideIon::generateSelectionWeight
       cout << "INVALID CROSS SECTION! ::"
 	   << " (" << i1.first << ", " << i1.second << ")"
 	   << " crossM = " << crossM[i1] 
-	   << " densM = "  <<  densM[i1] 
+	   << " fracW = "  <<  fracW[i1] 
 	   << " Fn = "     <<  (*Fn)[i1] << endl;
       
       std::cout << std::setw(10) << "Species"
 		<< std::setw(16) << "x-section"
-		<< std::setw(16) << "m density"
+		<< std::setw(16) << "weight"
 		<< std::setw(16) << "sp mass"
 		<< std::setw(10) << "n count"
 		<< std::endl
@@ -4028,19 +4018,19 @@ sKey2Umap CollideIon::generateSelectionWeight
 	sout << "(" << it.first.first << ", " << it.first.second << ")";
 	cout << std::setw(10) << sout.str()
 	     << std::setw(16) << it.second 
-	     << std::setw(16) << densM[it.first]
+	     << std::setw(16) << fracW[it.first]
 	     << std::setw(16) << c->Mass(it.first)
 	     << std::setw(10) << c->Count(it.first)
 	     << std::endl;
       }
     }
     
-    lambdaM[i1] = 1.0/crossM[i1];
-    collPM [i1] = crossM[i1] * crm * tau;
+    lambdaM[i1] = 1.0/(densM[i1] * crossM[i1]);
+    collPM [i1] = densM[i1] * crossM[i1] * crm * tau;
     
-    meanDens   += densM[i1] ;
+    meanDens   += densM[i1];
     meanCollP  += densM[i1] * collPM[i1];
-    meanLambda += densM[i1] * lambdaM[i1];
+    meanLambda += c->Mass(i1) * lambdaM[i1];
   }
     
   // This is the number density-weighted MFP (used for diagnostics
@@ -4068,15 +4058,15 @@ sKey2Umap CollideIon::generateSelectionWeight
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
       //
-      double Prob = densM[i1] * (*Fn)[i2] * csections[id][i1][i2] * crm * tau;
+      double Prob = fracW[i2] * (*Fn)[i2] * csections[id][i1][i2] * crm * tau / volc;
       
       // Count _pairs_ of identical particles only
       //                 |
       //                 v
       if (i1==i2)
-	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+	selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
       else
-	selcM[i1][i2] = it1->second * Prob;
+	selcM[i1][i2] = it1->second * it2->second * Prob;
       //
       // For double-summing of species A,B and B,A interactions 
       // when A != B is list orders A<B and therefore does not double 
