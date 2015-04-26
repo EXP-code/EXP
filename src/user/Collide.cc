@@ -181,18 +181,21 @@ std::map<unsigned short, double> Collide::atomic_weights;
 
 void Collide::atomic_weights_init()
 {
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
+  atomic_weights[0]  = 0.000548579909; // Mass of electron
+  atomic_weights[1]  = 1.0079;	       // Hydrogen
+  atomic_weights[2]  = 4.0026;	       // Helium
+  atomic_weights[3]  = 6.941;	       // Lithum
+  atomic_weights[4]  = 9.0122;	       // Beryllium
+  atomic_weights[5]  = 10.811;	       // Boron
+  atomic_weights[6]  = 12.011;	       // Carbon
+  atomic_weights[7]  = 14.007;	       // Nitrogen
+  atomic_weights[8]  = 15.999;	       // Oxygen
+  atomic_weights[9]  = 18.998;	       // Flourine
+  atomic_weights[10] = 20.180;	       // Neon
+  atomic_weights[11] = 22.990;	       // Sodium
+  atomic_weights[12] = 24.305;	       // Magnesium
+  atomic_weights[13] = 26.982;	       // Aluminium
+  atomic_weights[14] = 28.085;	       // Silicon
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
