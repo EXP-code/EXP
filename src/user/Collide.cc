@@ -179,6 +179,7 @@ unsigned Collide::EPSMmin   = 0;
 
 std::map<unsigned short, double> Collide::atomic_weights;
 
+//! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
   atomic_weights[0]  = 0.000548579909; // Mass of electron
@@ -190,7 +191,7 @@ void Collide::atomic_weights_init()
   atomic_weights[6]  = 12.011;	       // Carbon
   atomic_weights[7]  = 14.007;	       // Nitrogen
   atomic_weights[8]  = 15.999;	       // Oxygen
-  atomic_weights[9]  = 18.998;	       // Flourine
+  atomic_weights[9]  = 18.998;	       // Florine
   atomic_weights[10] = 20.180;	       // Neon
   atomic_weights[11] = 22.990;	       // Sodium
   atomic_weights[12] = 24.305;	       // Magnesium
