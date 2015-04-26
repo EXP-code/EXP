@@ -29,7 +29,7 @@ bool     CollideIon::frost_warning = false; // For debugging . . .
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
-bool NO_COOL           = true;
+bool NO_COOL           = false;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -1811,7 +1811,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // Number interacting atoms
   //
-  double NN = Wb * q * UserTreeDSMC::Munit / amu;
+  double NN = Wb * UserTreeDSMC::Munit / amu;
 
   // Number of associated electrons for each particle
   //
@@ -1820,7 +1820,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
 
   // Reduced mass in ballistic collision (system)
   //
-  double Mu = Wb * q* m1 * m2 / Mt;
+  double Mu = Wb * m1 * m2 / Mt;
 
 
   // Available center of mass energy in the ballistic collision
@@ -2254,26 +2254,21 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
   }
   deltaKE *= 0.5 * Wa * m1 * q * (1.0 - q);
   
+  double missE = std::min<double>(0.0, totE);
+
   if (Z1 == Z2)
-    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.5*deltaKE;
+    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 
+      0.5*deltaKE - 0.5*delE + 0.5*missE;
   else
-    p1->dattrib[use_cons] = deltaKE;
+    p1->dattrib[use_cons] = deltaKE - delE + missE;
 
   double vf = 0.0;
-  if (totE > 0.0) {
-    vf = sqrt( 2.0*totE/Mu );
-  } else {
-    if (Z1 == Z2)
-      p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.5*totE;
-    else
-      p1->dattrib[use_cons] = totE;
-  }
-
-  double vfac = vf/vi;
+  if (totE>0.0) vf = sqrt(2.0*totE/Mu);
 
   // Update post-collision velocities
   // 
   *cr = 0.0;
+  double vfac = vf/vi;
   for(unsigned k=0; k<3; k++ ) {
     p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcm[k] + p2->mass/Mt*vrel[k]*vfac);
     p2->vel[k] = vcm[k] - p1->mass/Mt*vrel[k]*vfac;
@@ -2281,7 +2276,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* p1, Particle* p2,
     *cr += dv*dv;
   }
   *cr = sqrt(*cr);
-  
+
   return ret;
 }
 
@@ -2894,9 +2889,9 @@ void * CollideIon::timestep_thread(void * arg)
 	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
 	  
 	  if (i2>=i1) {
-	    crossM[i1] += N*densM[i2] * crossIJ[i1][i2];
+	    crossM[i1] += N * densM[i2] * crossIJ[i1][i2];
 	  } else
-	    crossM[i1] += N*densM[i2] * crossIJ[i2][i1];
+	    crossM[i1] += N * densM[i2] * crossIJ[i2][i1];
 	}
 	
 	lambdaM[i1] = 1.0/crossM[i1];
@@ -3604,7 +3599,7 @@ void CollideIon::parseSpecies(const std::string& map)
 	      if (!sz.bad()) {
 		ZList.insert(Z);
 		ZWList[Z] = W;
-		ZMList[Z] = W*M;
+		ZMList[Z] = M;
 	      }
 	    } else {
 	      break;
@@ -3911,7 +3906,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            densM, collPM, lambdaM, crossM;
+  sKeyDmap            fracW, densM, collPM, lambdaM, crossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -3934,34 +3929,38 @@ sKey2Umap CollideIon::generateSelectionWeight
   
   for (auto it1 : c->count) {
     speciesKey i1 = it1.first;
-    densM[i1] = c->Mass(i1) * ZWList[i1.first] / volc;
-    //                        ^
-    //                        |
-    // Number density---------+
+    // Mass density scaled by atomic weight in amu
+    densM[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+
+    // Trace fraction in system mass per amu
+    fracW[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
+    //                                     ^
+    //                                     |
+    //              Number density---------+
     //
   }
     
   if (0) {
     std::cout << std::setw(10) << "Species"
-	      << std::setw(16) << "m density"
+	      << std::setw(16) << "weight"
+	      << std::setw(16) << "n dens"
 	      << std::setw(16) << "sp mass"
 	      << std::setw(10) << "n count"
-	      << std::setw(10) << "weight"
 	      << std::endl
 	      << std::setw(10) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
-	      << std::setw(10) << "---------"
 	      << std::setw(16) << "---------"
+	      << std::setw(10) << "---------"
 	      << std::endl;
     for (auto it : c->count) {
       std::ostringstream sout;
       sout << "(" << it.first.first << ", " << it.first.second << ")";
       std::cout << std::setw(10) << sout.str()
+		<< std::setw(16) << fracW[it.first]
 		<< std::setw(16) << densM[it.first]
 		<< std::setw(16) << c->Mass(it.first)
 		<< std::setw(10) << c->Count(it.first)
-		<< std::setw(16) << ZWList[it.first.first]
 		<< std::endl;
     }
   }
@@ -3983,10 +3982,14 @@ sKey2Umap CollideIon::generateSelectionWeight
 
       speciesKey i2 = it2.first;
 
+      // Compute the computational cross section (that is, true cross
+      // seciton scaled by number of true particles per computational
+      // particle)
+
       if (i2>=i1) {
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i1][i2];
       } else
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i2][i1];
       
       if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
@@ -4008,12 +4011,12 @@ sKey2Umap CollideIon::generateSelectionWeight
       cout << "INVALID CROSS SECTION! ::"
 	   << " (" << i1.first << ", " << i1.second << ")"
 	   << " crossM = " << crossM[i1] 
-	   << " densM = "  <<  densM[i1] 
+	   << " fracW = "  <<  fracW[i1] 
 	   << " Fn = "     <<  (*Fn)[i1] << endl;
       
       std::cout << std::setw(10) << "Species"
 		<< std::setw(16) << "x-section"
-		<< std::setw(16) << "m density"
+		<< std::setw(16) << "weight"
 		<< std::setw(16) << "sp mass"
 		<< std::setw(10) << "n count"
 		<< std::endl
@@ -4028,17 +4031,17 @@ sKey2Umap CollideIon::generateSelectionWeight
 	sout << "(" << it.first.first << ", " << it.first.second << ")";
 	cout << std::setw(10) << sout.str()
 	     << std::setw(16) << it.second 
-	     << std::setw(16) << densM[it.first]
+	     << std::setw(16) << fracW[it.first]
 	     << std::setw(16) << c->Mass(it.first)
 	     << std::setw(10) << c->Count(it.first)
 	     << std::endl;
       }
     }
     
-    lambdaM[i1] = 1.0/crossM[i1];
-    collPM [i1] = crossM[i1] * crm * tau;
+    lambdaM[i1] = 1.0/(densM[i1] * crossM[i1]);
+    collPM [i1] = densM[i1] * crossM[i1] * crm * tau;
     
-    meanDens   += densM[i1] ;
+    meanDens   += densM[i1];
     meanCollP  += densM[i1] * collPM[i1];
     meanLambda += densM[i1] * lambdaM[i1];
   }
@@ -4068,15 +4071,15 @@ sKey2Umap CollideIon::generateSelectionWeight
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
       //
-      double Prob = densM[i1] * (*Fn)[i2] * csections[id][i1][i2] * crm * tau;
+      double Prob = fracW[i2] * (*Fn)[i2] * csections[id][i1][i2] * crm * tau / volc;
       
       // Count _pairs_ of identical particles only
       //                 |
       //                 v
       if (i1==i2)
-	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+	selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
       else
-	selcM[i1][i2] = it1->second * Prob;
+	selcM[i1][i2] = it1->second * it2->second * Prob;
       //
       // For double-summing of species A,B and B,A interactions 
       // when A != B is list orders A<B and therefore does not double 
