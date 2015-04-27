@@ -3788,7 +3788,7 @@ sKey2Umap CollideIon::generateSelection
 }
 
 sKey2Umap CollideIon::generateSelectionDirect
-(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+(pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   sKeyDmap            densM, collPM, lambdaM, crossM;

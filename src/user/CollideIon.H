@@ -342,20 +342,20 @@ protected:
 
 protected:
   
-  void initialize_cell(const pHOT* tree, const pCell* c, 
+  void initialize_cell(pHOT* const tree, pCell* const c, 
 		       double rvmax, int id);
 
-  void initialize_cell_dsmc(const pHOT* tree, const pCell* c, sKey2Umap& nsel, 
+  void initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
 			    double rvmax, double tau, int id) {}
 
-  void initialize_cell_epsm(const pHOT* tree, const pCell* c, sKey2Umap& nsel, 
+  void initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
 			    double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
     exit(-1);
   }
   
-  void finalize_cell(const pHOT* tree, const pCell* c, double kedsp, int id);
+  void finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
 
   
   sKey2Dmap& totalCrossSections(int id)
@@ -363,34 +363,34 @@ protected:
     return csections[id];
   }
 
-  sKey2Dmap& totalScatteringCrossSections(double crm, const pCell* c, int id);
+  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
-  double crossSectionDirect(const pHOT* tree, 
-			    const Particle* p1, const Particle* p2, 
+  double crossSectionDirect(pHOT* const tree, 
+			    Particle* const p1, Particle* const p2, 
 			    double crm, int id=0);
   
-  int inelasticDirect(const pHOT *tree, 
-		      const Particle* p1, const Particle* p2, 
+  int inelasticDirect(pHOT* const tree, 
+		      Particle* const p1, Particle* const p2, 
 		      double *crm, int id=0);
 
-  double crossSectionWeight(const pHOT* tree, 
-			    const Particle* p1, const Particle* p2, 
+  double crossSectionWeight(pHOT* const tree, 
+			    Particle* const p1, Particle* const p2, 
 			    double crm, int id=0);
   
-  int inelasticWeight(const pHOT *tree, 
-		      const Particle* p1, const Particle* p2, 
+  int inelasticWeight(pHOT* const tree, 
+		      Particle* const p1, Particle* const p2, 
 		      double *crm, int id=0);
 
-  double crossSectionTrace(const pHOT* tree, 
-			   const Particle* p1, const Particle* p2, 
+  double crossSectionTrace(pHOT* const tree, 
+			   Particle* const p1, Particle* const p2, 
 			   double crm, int id=0);
 
-  int inelasticTrace(const pHOT *tree, 
-		     const Particle* p1, const Particle* p2, 
+  int inelasticTrace(pHOT* const tree, 
+		     Particle* const p1, Particle* const p2, 
 		     double *crm, int id=0);
 
-  double crossSection(const pHOT* tree, 
-		      const Particle* p1, const Particle* p2, 
+  double crossSection(pHOT* const tree, 
+		      Particle* const p1, Particle* const p2, 
 		      double crm, int id=0)
   {
     if (aType == Direct)
@@ -406,7 +406,7 @@ protected:
   }
 
 
-  int inelastic(const pHOT *tree, const Particle* p1, const Particle* p2, 
+  int inelastic(pHOT* const tree, Particle* const p1, Particle* const p2, 
 		double *crm, int id=0)
   {
     if (aType == Direct)
@@ -421,7 +421,7 @@ protected:
     return 1;
   }
 
-  void velocityUpdate(const Particle* p1, const Particle* p2, double cr)
+  void velocityUpdate(Particle* const p1, Particle* const p2, double cr)
   {
     if (aType == Direct)
       return Collide::velocityUpdate(p1, p2, cr);
@@ -454,17 +454,17 @@ protected:
   //@}
 
 
-  virtual sKey2Umap generateSelectionDirect(const pCell* c, const sKeyDmap* Fn,
+  virtual sKey2Umap generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionWeight(const pCell* c, const sKeyDmap* Fn,
+  virtual sKey2Umap generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionTrace(const pCell* c, const sKeyDmap* Fn, 
+  virtual sKey2Umap generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
 					   double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);

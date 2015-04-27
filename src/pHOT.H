@@ -218,7 +218,7 @@ public:
   void makeTree();
   void Repartition(unsigned);
   void adjustTree(unsigned);
-  const Particle *Body(unsigned k) { return &cc->particles[k]; }
+  Particle * const Body(unsigned k) { return &cc->particles[k]; }
 
 
   //! Tree geometry

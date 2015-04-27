@@ -1087,8 +1087,8 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Get index from body map for the cell
 	  //
-	  const Particle* p1 = tree->Body(bmap[i1][l1]);
-	  const Particle* p2 = tree->Body(bmap[i2][l2]);
+	  Particle* const p1 = tree->Body(bmap[i1][l1]);
+	  Particle* const p2 = tree->Body(bmap[i2][l2]);
 	  
 	  // Calculate pair's relative speed (pre-collision)
 	  //
@@ -1613,7 +1613,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(const pHOT* tree, const pCell* cell, int id)
+void Collide::EPSM(pHOT* const tree, pCell* const cell, int id)
 {
   if (cell->bods.size()<2) return;
   
@@ -1632,7 +1632,7 @@ void Collide::EPSM(const pHOT* tree, const pCell* cell, int id)
   
   for (auto ib : cell->bods) {
     
-    const Particle* p = tree->Body(ib);
+    Particle* const p = tree->Body(ib);
     if (p->mass<=0.0 || std::isnan(p->mass)) {
       cout << "[crazy mass]";
     }

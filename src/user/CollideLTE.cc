@@ -725,7 +725,8 @@ void CollideLTE::list_sizes_proc(ostream* out)
 }
 
 
-void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
+void CollideLTE::finalize_cell(pHOT* const tree, pCell* const cell, 
+			       double kedsp, int id)
 {
   //
   // Energy lost from this cell compared to target
@@ -748,8 +749,8 @@ void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	  dE = (decelT[id] - coolheat[id])/cell->Mass();
 	
 	for (unsigned j=0; j<cell->bods.size(); j++) {
-	  const Particle* p = tree->Body(cell->bods[j]);
-	  p->dattrib[use_exes] += dE*p->mass;
+	  Particle* const p = tree->Body(cell->bods[j]);
+	  p->dattrib[use_exes] += dE * p->mass;
 	}
       }
     }

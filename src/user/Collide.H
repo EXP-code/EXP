@@ -258,12 +258,12 @@ protected:
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* const tree, const pCell* cell, sKey2Umap& nsel, 
+  (pHOT* const tree, pCell* const cell, sKey2Umap& nsel, 
    double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
   //! collisions/cooling
-  virtual void finalize_cell(const pHOT* tree, const pCell* cell, 
+  virtual void finalize_cell(pHOT* const tree, pCell* const cell, 
 			     double kedsp, int id) {}
   
   //! Return total scattering + elastic cross section "matrix" for
@@ -271,27 +271,28 @@ protected:
   virtual sKey2Dmap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(const pHOT* tree, 
-			      const Particle* p1, const Particle* p2,
+  virtual double crossSection(pHOT* const tree, 
+			      Particle* const p1, Particle* const p2,
 			      double cr, int id=0) { return 0; }
   
   //! Return the particle selection matrix
   virtual sKey2Umap generateSelection
-  (const pCell* c, const sKeyDmap* Fn, double crm, double tau, int id,
+  (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Do the inelastic computation
-  virtual int inelastic(const pHOT* tree, 
-			const Particle* p1, const Particle* p2,
+  virtual int inelastic(pHOT* const tree, 
+			Particle* const p1, Particle* const p2,
 			double *cr, int id=0) { return 0; }
   
-  virtual void velocityUpdate(Particle* p1, Particle* p2, double cr);
+  virtual void 
+  velocityUpdate(Particle* const p1, Particle* const p2, double cr);
 
   //! Has LTE heating and cooling algorithm
   virtual bool hasHeatCool() = 0;
   
   //! Compute the EPSM algorithm for the given cell
-  virtual void EPSM(const pHOT* tree, const pCell* cell, int id);
+  virtual void EPSM(pHOT* const tree, pCell* const cell, int id);
   
   //! Use EPSM if true
   bool use_epsm;
