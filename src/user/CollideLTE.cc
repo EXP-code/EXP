@@ -748,7 +748,7 @@ void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	  dE = (decelT[id] - coolheat[id])/cell->Mass();
 	
 	for (unsigned j=0; j<cell->bods.size(); j++) {
-	  Particle* p = tree->Body(cell->bods[j]);
+	  const Particle* p = tree->Body(cell->bods[j]);
 	  p->dattrib[use_exes] += dE*p->mass;
 	}
       }

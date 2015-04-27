@@ -342,19 +342,20 @@ protected:
 
 protected:
   
-  void initialize_cell(pHOT* tree, pCell* c, double rvmax, int id);
+  void initialize_cell(const pHOT* tree, const pCell* c, 
+		       double rvmax, int id);
 
-  void initialize_cell_dsmc(pHOT* tree, pCell* c, sKey2Umap& nsel, 
+  void initialize_cell_dsmc(const pHOT* tree, const pCell* c, sKey2Umap& nsel, 
 			    double rvmax, double tau, int id) {}
 
-  void initialize_cell_epsm(pHOT* tree, pCell* c, sKey2Umap& nsel, 
+  void initialize_cell_epsm(const pHOT* tree, const pCell* c, sKey2Umap& nsel, 
 			    double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
     exit(-1);
   }
   
-  void finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
+  void finalize_cell(const pHOT* tree, const pCell* c, double kedsp, int id);
 
   
   sKey2Dmap& totalCrossSections(int id)
@@ -362,24 +363,34 @@ protected:
     return csections[id];
   }
 
-  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
+  sKey2Dmap& totalScatteringCrossSections(double crm, const pCell* c, int id);
 
-  double crossSectionDirect(pHOT* tree, Particle* p1, Particle* p2, 
-		      double crm, int id=0);
-  
-  int inelasticDirect(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
-
-  double crossSectionWeight(pHOT* tree, Particle* p1, Particle* p2, 
+  double crossSectionDirect(const pHOT* tree, 
+			    const Particle* p1, const Particle* p2, 
 			    double crm, int id=0);
   
-  int inelasticWeight(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  int inelasticDirect(const pHOT *tree, 
+		      const Particle* p1, const Particle* p2, 
+		      double *crm, int id=0);
 
-  double crossSectionTrace(pHOT* tree, Particle* p1, Particle* p2, 
+  double crossSectionWeight(const pHOT* tree, 
+			    const Particle* p1, const Particle* p2, 
+			    double crm, int id=0);
+  
+  int inelasticWeight(const pHOT *tree, 
+		      const Particle* p1, const Particle* p2, 
+		      double *crm, int id=0);
+
+  double crossSectionTrace(const pHOT* tree, 
+			   const Particle* p1, const Particle* p2, 
 			   double crm, int id=0);
 
-  int inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  int inelasticTrace(const pHOT *tree, 
+		     const Particle* p1, const Particle* p2, 
+		     double *crm, int id=0);
 
-  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+  double crossSection(const pHOT* tree, 
+		      const Particle* p1, const Particle* p2, 
 		      double crm, int id=0)
   {
     if (aType == Direct)
@@ -395,7 +406,8 @@ protected:
   }
 
 
-  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0)
+  int inelastic(const pHOT *tree, const Particle* p1, const Particle* p2, 
+		double *crm, int id=0)
   {
     if (aType == Direct)
       return inelasticDirect(tree, p1, p2, crm, id);
@@ -409,6 +421,11 @@ protected:
     return 1;
   }
 
+  void velocityUpdate(const Particle* p1, const Particle* p2, double cr)
+  {
+    if (aType == Direct)
+      return Collide::velocityUpdate(p1, p2, cr);
+  }
 
   bool hasHeatCool() { return true; }
 
@@ -437,15 +454,18 @@ protected:
   //@}
 
 
-  virtual sKey2Umap generateSelectionDirect(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelectionDirect(const pCell* c, const sKeyDmap* Fn,
+					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionWeight(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelectionWeight(const pCell* c, const sKeyDmap* Fn,
+					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionTrace(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelectionTrace(const pCell* c, const sKeyDmap* Fn, 
+					   double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
 
@@ -464,7 +484,7 @@ protected:
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempM, molwM;
+  double tempM, molwM, consE, totlE;
   spDMap specM;
   //@}
 

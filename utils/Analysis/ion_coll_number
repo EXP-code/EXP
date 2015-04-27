@@ -133,7 +133,7 @@ def plot_data(filename, msz, dot):
         pl.subplot(2, 2, icnt)
         pl.xlabel('Temperature')
         pl.ylabel('Weights')
-        pl.ylim((0, 30))
+        # pl.ylim((0, 30))
         for v in spec:
             pl.plot(temp, data[v][ekeys[k]], mk, label=v, markersize=msz)
         pl.title(elabs[k])

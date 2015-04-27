@@ -71,7 +71,7 @@ double Collide::TFLOOR = 1000.0;
 bool Collide::MFPTS    = false;
 
 double 				// Enhance (or suppress) fiducial cooling rate
-Collide::ENHANCE       = 1.0;
+Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
 // Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
@@ -179,20 +179,24 @@ unsigned Collide::EPSMmin   = 0;
 
 std::map<unsigned short, double> Collide::atomic_weights;
 
+//! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
+  atomic_weights[0]  = 0.000548579909; // Mass of electron
+  atomic_weights[1]  = 1.0079;	       // Hydrogen
+  atomic_weights[2]  = 4.0026;	       // Helium
+  atomic_weights[3]  = 6.941;	       // Lithum
+  atomic_weights[4]  = 9.0122;	       // Beryllium
+  atomic_weights[5]  = 10.811;	       // Boron
+  atomic_weights[6]  = 12.011;	       // Carbon
+  atomic_weights[7]  = 14.007;	       // Nitrogen
+  atomic_weights[8]  = 15.999;	       // Oxygen
+  atomic_weights[9]  = 18.998;	       // Florine
+  atomic_weights[10] = 20.180;	       // Neon
+  atomic_weights[11] = 22.990;	       // Sodium
+  atomic_weights[12] = 24.305;	       // Magnesium
+  atomic_weights[13] = 26.982;	       // Aluminium
+  atomic_weights[14] = 28.085;	       // Silicon
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
@@ -1027,7 +1031,7 @@ void * Collide::collide_thread(void * arg)
 #endif
       for (size_t k=0; k<c->bods.size(); k++) {
 	unsigned long kk = c->bods[k];
-	Particle* p = tree->Body(kk);
+	const Particle* p = tree->Body(kk);
 
 	speciesKey skey = defaultKey;
 	if (use_key>=0) skey = KeyConvert(p->iattrib[use_key]).getKey();
@@ -1083,8 +1087,8 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Get index from body map for the cell
 	  //
-	  Particle* p1 = tree->Body(bmap[i1][l1]);
-	  Particle* p2 = tree->Body(bmap[i2][l2]);
+	  const Particle* p1 = tree->Body(bmap[i1][l1]);
+	  const Particle* p2 = tree->Body(bmap[i2][l2]);
 	  
 	  // Calculate pair's relative speed (pre-collision)
 	  //
@@ -1131,7 +1135,7 @@ void * Collide::collide_thread(void * arg)
 	    
 	    // Do inelastic stuff
 	    //
-	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	    // error1T[id] += inelastic(tree, p1, p2, &cr, id);
 	    
 	    // Update the particle velocity
 	    //
@@ -1609,7 +1613,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(pHOT* tree, pCell* cell, int id)
+void Collide::EPSM(const pHOT* tree, const pCell* cell, int id)
 {
   if (cell->bods.size()<2) return;
   
@@ -1628,7 +1632,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   
   for (auto ib : cell->bods) {
     
-    Particle* p = tree->Body(ib);
+    const Particle* p = tree->Body(ib);
     if (p->mass<=0.0 || std::isnan(p->mass)) {
       cout << "[crazy mass]";
     }

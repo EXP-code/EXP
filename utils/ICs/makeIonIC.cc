@@ -154,7 +154,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 }
 
 void writeParticles(std::vector<Particle>& particles, const string& file,
-		    Itype type)
+		    Itype type, const std::vector<double>& sF)
 {
   // For tabulating mass fractions . . . 
   typedef std::map<unsigned short, double> Frac;
@@ -203,8 +203,10 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
     std::cout << std::setw( 3) << "Z"
 	      << std::setw(18) << "Mass"
 	      << std::setw(18) << "Fraction"
+	      << std::setw(18) << "Target"
 	      << std::endl
 	      << std::setw( 3) << "-"
+	      << std::setw(18) << "--------"
 	      << std::setw(18) << "--------"
 	      << std::setw(18) << "--------"
 	      << std::endl;
@@ -212,6 +214,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
       std::cout << std::setw( 3) << i.first
 		<< std::setw(18) << i.second
 		<< std::setw(18) << i.second/Mtot
+		<< std::setw(18) << sF[i.first-1]
 		<< std::endl;
   }
 }
@@ -729,7 +732,7 @@ int main (int ac, char **av)
   
   // Output file
   //
-  writeParticles(particles, oname, type);
+  writeParticles(particles, oname, type, sF);
 
   return 0;
 }

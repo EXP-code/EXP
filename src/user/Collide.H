@@ -249,35 +249,40 @@ protected:
   
   //! Initializes cross sections
   virtual void initialize_cell
-  (pHOT* tree, pCell* cell, double vrelmax, int id) = 0;
+  (pHOT* const tree, pCell* const cell, double vrelmax, int id) = 0;
   
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
-  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+  (pHOT* const tree, pCell* const cell, 
+   sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+  (pHOT* const tree, const pCell* cell, sKey2Umap& nsel, 
+   double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
   //! collisions/cooling
-  virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
+  virtual void finalize_cell(const pHOT* tree, const pCell* cell, 
+			     double kedsp, int id) {}
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
   virtual sKey2Dmap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(pHOT* tree, Particle* p1, Particle* p2,
+  virtual double crossSection(const pHOT* tree, 
+			      const Particle* p1, const Particle* p2,
 			      double cr, int id=0) { return 0; }
   
   //! Return the particle selection matrix
   virtual sKey2Umap generateSelection
-  (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  (const pCell* c, const sKeyDmap* Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Do the inelastic computation
-  virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
+  virtual int inelastic(const pHOT* tree, 
+			const Particle* p1, const Particle* p2,
 			double *cr, int id=0) { return 0; }
   
   virtual void velocityUpdate(Particle* p1, Particle* p2, double cr);
@@ -286,7 +291,7 @@ protected:
   virtual bool hasHeatCool() = 0;
   
   //! Compute the EPSM algorithm for the given cell
-  virtual void EPSM(pHOT* tree, pCell* cell, int id);
+  virtual void EPSM(const pHOT* tree, const pCell* cell, int id);
   
   //! Use EPSM if true
   bool use_epsm;
