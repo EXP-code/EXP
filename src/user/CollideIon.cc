@@ -25,16 +25,16 @@ unsigned CollideIon::Nnum    	   = 400;
 unsigned CollideIon::Tnum    	   = 200;	   
 string   CollideIon::cache   	   = ".HeatCool";
 
-bool     CollideIon::frost_warning = false; // For debugging . . . 
+bool CollideIon::frost_warning = false; // For debugging . . . 
 
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
-bool NO_COOL           = true;
+bool NO_COOL           = false;
 
 // KE debugging; set to false for production
 //
-bool KE_DEBUG          = true;
+bool KE_DEBUG          = false;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -179,7 +179,8 @@ CollideIon::~CollideIon()
 /**
    Precompute all the necessary cross sections
  */
-void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
+void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell, 
+				 double rvmax, int id)
 {
 				// Cache the calling tree
   curTree = tree;
@@ -386,7 +387,7 @@ void CollideIon::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
 
 
 sKey2Dmap& 
-CollideIon::totalScatteringCrossSections(double crm, pCell *c, int id)
+CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 {
   // it1 and it2 are of type std::map<speciesKey, unsigned>
   
@@ -1279,7 +1280,8 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 }
 
 
-int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2, 
+int CollideIon::inelasticDirect(pHOT* const tree, 
+				Particle* const p1, Particle* const p2, 
 				double *cr, int id)
 {
   int ret = 0;			// No error (flag)
@@ -1772,7 +1774,8 @@ int CollideIon::inelasticDirect(pHOT *tree, Particle* p1, Particle* p2,
   return ret;
 }
 
-int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
+int CollideIon::inelasticWeight(pHOT* const tree, 
+				Particle* const _p1, Particle* const _p2,
 				double *cr, int id)
 {
   int ret = 0;			// No error (flag)
@@ -1793,19 +1796,26 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
   if (p1->mass/atomic_weights[Z1] < p2->mass/atomic_weights[Z2]) {
+    // Swap the particle pointers
+    //
     Particle *pT = p1;
     p1 = p2;
     p2 = pT;
 
+    // Swap the collision diag pointers
+    //
     collTDPtr ctdT = ctd1;
     ctd1 = ctd2;
     ctd2 = ctdT;
 
+    // Reassign the keys and species indices
+    //
     k1 = KeyConvert(p1->iattrib[use_key]);
     k2 = KeyConvert(p2->iattrib[use_key]);
 
     Z1 = k1.getKey().first;
     C1 = k1.getKey().second;
+
     Z2 = k2.getKey().first;
     C2 = k2.getKey().second;
   }
@@ -1815,6 +1825,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
   double Wa = p1->mass / atomic_weights[Z1];
   double Wb = p2->mass / atomic_weights[Z2];
   double  q = Wb / Wa;
+
+  // if ( fabs(q - 1.0) > 1.0e-18 ) return ret;
 
   // Number interacting atoms
   //
@@ -2050,8 +2062,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
 
   // Mass per particle in amu for this interaction
   //
-  double m1   = atomic_weights[Z1];
-  double m2   = atomic_weights[Z2];
+  double m1 = atomic_weights[Z1];
+  double m2 = atomic_weights[Z2];
 
   // Total effective mass in the collision (atomic mass units)
   //
@@ -2064,7 +2076,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
   // units and the quantity below is the reduced mass in system
   // units).
   //
-  double Mu  = Wb * m1 * m2 / Mt;
+  double Mu = Wb * m1 * m2 / Mt;
 
   // Available center of mass energy in the ballistic collision
   // (system units)
@@ -2160,6 +2172,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
       std::get<2>(ctd2->dv[id]) += delE * Wb * UserTreeDSMC::Eunit / eV;
     }
 
+    // DEBUG (REMOVE THIS)
+    return ret;
 				// Remove the energy from the total
 				// available
     double totE = kE - delE;
@@ -2205,8 +2219,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
   for(unsigned k=0; k<3; k++) {
     vcm[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
     if (KE_DEBUG) {
-      KE1i += p1->vel[k]*p1->vel[k];
-      KE2i += p2->vel[k]*p2->vel[k];
+      KE1i += p1->vel[k] * p1->vel[k];
+      KE2i += p2->vel[k] * p2->vel[k];
     }
   }
 	    
@@ -2233,11 +2247,13 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
 
   // Save energy adjustiments for next interation
   //
-  if (Z1 == Z2)			// Split between like species
-    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 
-      0.5*deltaKE - 0.5*delE + 0.5*missE;
-  else				// Give excess to non-trace species
-    p1->dattrib[use_cons] = deltaKE - delE + missE;
+  if (Z1 == Z2) {		// Split between like species
+    double del = 0.5*deltaKE - 0.5*delE + 0.5*missE;
+    p1->dattrib[use_cons] += del;
+    p2->dattrib[use_cons] += del;
+  } else {				// Give excess to non-trace species
+    p1->dattrib[use_cons] += deltaKE - delE + missE;
+  }
 
   // New final relative velocity including COM energy adjustments
   //
@@ -2248,7 +2264,7 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
   // 
   *cr = 0.0;
   double vfac = vf/vi, KE1f = 0.0, KE2f = 0.0;
-  for (unsigned k=0; k<3; k++ ) {
+  for (size_t k=0; k<3; k++) {
     p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcm[k] + m2/Mt*vrel[k]*vfac);
     p2->vel[k] = vcm[k] - m1/Mt*vrel[k]*vfac;
 
@@ -2256,8 +2272,8 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
     *cr += dv*dv;
 
     if (KE_DEBUG) {
-      KE1f += p1->vel[k]*p1->vel[k];
-      KE2f += p2->vel[k]*p2->vel[k];
+      KE1f += p1->vel[k] * p1->vel[k];
+      KE2f += p2->vel[k] * p2->vel[k];
     }
   }
   *cr = sqrt(*cr);
@@ -2276,10 +2292,6 @@ int CollideIon::inelasticWeight(pHOT *tree, Particle* _p1, Particle* _p2,
     double tKEf = KE1f + KE2f;	// Total post collision KE
     double dKE  = tKEi - tKEf - deltaKE; // Energy balance
     
-    if (0 && fabs(delE)>1.0e-22) {
-      std::cout << "del E_2 ("<< m1 << "," << m2 << ") = " << delE
-		<< std::endl;
-    }
 				// Check Energy balance including excess
     if (fabs(dKE+Exs)>1.0e-20)
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
@@ -2304,7 +2316,8 @@ void CollideIon::debugDeltaE(double delE, unsigned short Z, unsigned short C,
 	      << " :: " << labels[interFlag] << std::endl;
 }
 
-int CollideIon::inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, 
+int CollideIon::inelasticTrace(pHOT* const tree, 
+			       Particle* const p1, Particle* const p2, 
 			       double *cr, int id)
 {
   // For particle map and weights
@@ -2962,7 +2975,8 @@ void * CollideIon::timestep_thread(void * arg)
   return (NULL);
 }
 
-void CollideIon::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
+void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell, 
+			       double kedsp, int id)
 {
   //
   // Spread out species change differences
@@ -3773,7 +3787,7 @@ void CollideIon::parseSpecies(const std::string& map)
 }
 
 sKey2Umap CollideIon::generateSelection
-(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+(pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   if (aType == Direct)
@@ -3918,7 +3932,7 @@ sKey2Umap CollideIon::generateSelectionDirect
 }
 
 sKey2Umap CollideIon::generateSelectionWeight
-(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+(pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   sKeyDmap            fracW, densM, collPM, lambdaM, crossM;
@@ -4164,7 +4178,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 }
 
 sKey2Umap CollideIon::generateSelectionTrace
-(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+(pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   speciesKey          key(defaultKey);
@@ -4645,7 +4659,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       }
       if (use_cons>=0) 
 	dout << std::setw(12) << std::right << "Cons E"
-	     << std::setw(12) << std::right << "Totl E";
+	     << std::setw(12) << std::right << "Totl E"
+	     << std::setw(12) << std::right << "Comb E";
       dout << std::endl;
       
       dout << "# " 
@@ -4655,6 +4670,7 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	dout << setw(12) << std::right << "--------";
       if (use_cons>=0) 
 	dout << std::setw(12) << std::right << "--------"
+	     << std::setw(12) << std::right << "--------"
 	     << std::setw(12) << std::right << "--------";
       dout << std::endl;
       
@@ -4686,7 +4702,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
   }
   if (use_cons>=0) 
     dout << std::setw(12) << std::right << consE
-	 << std::setw(12) << std::right << totlE;
+	 << std::setw(12) << std::right << totlE
+	 << std::setw(12) << std::right << totlE + consE;
   dout << std::endl;
 }
 
