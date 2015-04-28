@@ -27,6 +27,10 @@ string   CollideIon::cache   	   = ".HeatCool";
 
 bool CollideIon::frost_warning = false; // For debugging . . . 
 
+// Artifically suppress electron equipartition speed
+//
+bool NO_DOF            = true;
+
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
@@ -244,6 +248,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double dof1   = 1.0 + ne1;
 	double dof2   = 1.0 + ne2;
 	  
+	if (NO_DOF) dof1 = dof2 = 1.0;
+
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
@@ -423,6 +429,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	double dof1   = 1.0 + ne1;
 	double dof2   = 1.0 + ne2;
+
+	if (NO_DOF) dof1 = dof2 = 1.0;
 
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
@@ -828,6 +836,8 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   
   double dof1 = 1.0 + ne1;
   double dof2 = 1.0 + ne2;
+
+  if (NO_DOF) dof1 = dof2 = 1.0;
 
   // Energy available in the center of mass of the atomic collision
   //
@@ -4651,9 +4661,9 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	dout << setw(12) << right << sout.str();
       }
       if (use_cons>=0) 
-	dout << std::setw(12) << std::right << "Cons E"
-	     << std::setw(12) << std::right << "Totl E"
-	     << std::setw(12) << std::right << "Comb E";
+	dout << std::setw(12) << std::right << "Cons_E"
+	     << std::setw(12) << std::right << "Totl_E"
+	     << std::setw(12) << std::right << "Comb_E";
       dout << std::endl;
       
       dout << "# " 
