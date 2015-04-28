@@ -237,28 +237,32 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	double m1     = atomic_weights[i1.first];
 	double m2     = atomic_weights[i2.first];
-	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]);
-	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]);
 
 	double ne1    = i1.second - 1;
 	double ne2    = i2.second - 1;
 
+	double dof1   = 1.0 + ne1;
+	double dof2   = 1.0 + ne2;
+	  
+	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
+	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
+
 	if (i2.second>1) {
 	  if (i1.second==1)
-	    Cross1 = elastic(i1.first, EeV*m1) * eVel2 * ne2;
+	    Cross1 = elastic(i1.first, EeV*m1/dof2) * eVel2 * ne2;
 	  else {
 	    double b = 0.5*esu*esu*(i1.second - 1) /
-	      std::max<double>(Eerg*m1, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	    Cross1 = M_PI*b*b * eVel2 * ne2;
 	  }
 	}
 
 	if (i1.second>1) {
 	  if (i2.second==1)
-	    Cross2 = elastic(i2.first, EeV*m2) * eVel1 * ne1;
+	    Cross2 = elastic(i2.first, EeV*m2/dof1) * eVel1 * ne1;
 	  else {
 	    double b = 0.5*esu*esu*(i2.second - 1) /
-	      std::max<double>(Eerg*m2, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	    Cross2 = M_PI*b*b * eVel1 * ne1;
 	  }
 	}
@@ -413,8 +417,15 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	  
 	double m1     = atomic_weights[i1.first];
 	double m2     = atomic_weights[i2.first];
-	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]);
-	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]);
+
+	double ne1    = i1.second - 1;
+	double ne2    = i2.second - 1;
+
+	double dof1   = 1.0 + ne1;
+	double dof2   = 1.0 + ne2;
+
+	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
+	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
 	double Cross1 = 0.0;
 	double Cross2 = 0.0;
@@ -427,17 +438,14 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	  Cross2 = 0.5*Cross12;
 	}
 
-	unsigned ne1 = i1.second - 1;
-	unsigned ne2 = i2.second - 1;
-
 	// Electrons in second particle?
 	//
 	if (ne2) {
 	  if (i1.second==1)	// Neutral atom-electron scattering
-	    Cross1 = elastic(i1.first, EeV*m1) * eVel2*ne2;
+	    Cross1 = elastic(i1.first, EeV*m1/dof2) * eVel2*ne2;
 	  else {		// Rutherford scattering
 	    double b = 0.5*esu*esu*(i1.second - 1) /
-	      std::max<double>(Eerg*m1, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	    Cross1 = M_PI*b*b * eVel2 * ne2;
 	    }
 	}
@@ -446,10 +454,10 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	//
 	if (ne1) {
 	    if (i2.second==1)	// Neutral atom-electron scattering
-	      Cross2 = elastic(i2.first, EeV*m2) * eVel1*ne1;
+	      Cross2 = elastic(i2.first, EeV*m2/dof1) * eVel1*ne1;
 	    else {		// Rutherford scattering
 	      double b = 0.5*esu*esu*(i2.second - 1) /
-		std::max<double>(Eerg*m2, FloorEv*eV) * 1.0e7; // nm
+		std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	      Cross2 = M_PI*b*b * eVel1*ne1;
 	    }
 	}
@@ -810,37 +818,37 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
       
   // Number of atoms in each super particle
   //
-  double N1 = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
-  double N2 = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
+  double N1   = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
+  double N2   = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
 
   // Number of associated electrons for each particle
   //
-  double ne1 = C1 - 1;
-  double ne2 = C2 - 1;
-  // double dof = 1.0 + ne1 + ne2;
-  double dof = 1.0;
-
+  double ne1  = C1 - 1;
+  double ne2  = C2 - 1;
   
+  double dof1 = 1.0 + ne1;
+  double dof2 = 1.0 + ne2;
+
   // Energy available in the center of mass of the atomic collision
   //
+  double vel = cr * UserTreeDSMC::Vunit;
   double m1  = atomic_weights[Z1]*amu;
   double m2  = atomic_weights[Z2]*amu;
   double me  = atomic_weights[ 0]*amu;
   double mu0 = m1 * m2 / (m1 + m2);
   double mu1 = m1;
   double mu2 = m2;
-  double vel = cr * UserTreeDSMC::Vunit;
 
   // Available COM energy
   //
   kEi [id] = 0.5 * mu0 * vel*vel;
-  kEe1[id] = 0.5 * mu1 * vel*vel;
-  kEe2[id] = 0.5 * mu2 * vel*vel;
+  kEe1[id] = 0.5 * mu1 * vel*vel/dof2;
+  kEe2[id] = 0.5 * mu2 * vel*vel/dof1;
 
   // Electron velocity equipartition factors
   //
-  double eVel1 = sqrt(m1/me);
-  double eVel2 = sqrt(m2/me);
+  double eVel1 = sqrt(m1/me/dof1);
+  double eVel2 = sqrt(m2/me/dof2);
 
   // Internal energy per particle
   //
@@ -853,11 +861,11 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
     // Compute the total available energy and divide among degrees of freedom
     // Convert ergs to eV
     //
-    kEe1[id] = (kEe1[id] + Ein1[id]) / dof / eV;
-    kEe2[id] = (kEe1[id] + Ein2[id]) / dof / eV;
+    kEe1[id] = (kEe1[id] + Ein1[id]) / eV;
+    kEe2[id] = (kEe1[id] + Ein2[id]) / eV;
   } else {
-    kEe1[id] /= dof * eV;
-    kEe2[id] /= dof * eV;
+    kEe1[id] /= eV;
+    kEe2[id] /= eV;
   }
   
   // Save the per-interaction cross sections
@@ -1555,7 +1563,7 @@ int CollideIon::inelasticDirect(pHOT* const tree,
   
   // Assign interaction energy variables
   //
-  double remE=0.0, totE=0.0, kEe=0.0, dof = 1.0;
+  double remE=0.0, totE=0.0, kEe=0.0;
 
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
@@ -1564,8 +1572,6 @@ int CollideIon::inelasticDirect(pHOT* const tree,
     if (use_Eint>=0) totE += p2->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
     kEe  = kEe2[id];		// Electron energy
-    if (use_Eint>=0)
-      dof = 1.0 + ne2;		// Total degrees of freedom
 
 				// Energy diagnostics
     ctd1->eV_av[id] += kEe2[id];
@@ -1586,8 +1592,6 @@ int CollideIon::inelasticDirect(pHOT* const tree,
     if (use_Eint>=0) totE += p1->dattrib[use_Eint];
     remE = totE - dE;		// Energy floor
     kEe  = kEe1[id];		// Electron energy
-    if (use_Eint>=0)
-      dof  = 1.0 + ne1;		// Total degrees of freedom
 
 				// Energy diagnostics
     ctd2->eV_av[id] += kEe1[id];
@@ -1655,7 +1659,7 @@ int CollideIon::inelasticDirect(pHOT* const tree,
 				// available
 
 				// Energy per particle
-    double kEm = totE / dof;
+    double kEm = totE;
     
 				// Get new relative velocity
     (*cr)          = sqrt( 2.0*kEm/Mu );
@@ -1825,8 +1829,6 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   double Wa = p1->mass / atomic_weights[Z1];
   double Wb = p2->mass / atomic_weights[Z2];
   double  q = Wb / Wa;
-
-  // if ( fabs(q - 1.0) > 1.0e-18 ) return ret;
 
   // Number interacting atoms
   //
@@ -2083,14 +2085,10 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   //
   double vi  = (*cr);
   double kE  = 0.5 * Mu * vi*vi;
-  double dof = 1.0;
 
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
   if (partflag==1) {
-				// Total degrees of freedom
-    if (use_Eint>=0) dof = 1.0 + ne2;
-
 				// Energy diagnostics
     ctd1->eV_av[id] += kEe2[id];
     if (std::isnan(ctd2->eV_av[id])) {
@@ -2106,9 +2104,6 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   // Electrons from Particle 1 interacted with atom/ion in Particle 2
   //
   if (partflag==2) {
-				// Total degrees of freedom
-    if (use_Eint>=0) dof  = 1.0 + ne1;
-
 				// Energy diagnostics
     ctd2->eV_av[id] += kEe1[id];
     if (std::isnan(ctd2->eV_av[id])) {
@@ -2172,14 +2167,12 @@ int CollideIon::inelasticWeight(pHOT* const tree,
       std::get<2>(ctd2->dv[id]) += delE * Wb * UserTreeDSMC::Eunit / eV;
     }
 
-    // DEBUG (REMOVE THIS)
-    return ret;
 				// Remove the energy from the total
 				// available
     double totE = kE - delE;
 
 				// Energy per particle
-    double kEm = totE / dof;
+    double kEm = totE;
     
 				// Distribute electron energy to particles
     if (use_Eint>=0) {
