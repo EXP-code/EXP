@@ -31,6 +31,10 @@ bool CollideIon::frost_warning = false; // For debugging . . .
 //
 bool NO_DOF            = true;
 
+// Artifically suppress electron equilibrium velocity
+//
+bool NO_VEL            = true;
+
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
@@ -236,22 +240,24 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	speciesKey i2  = it2.first;
 	double Radius2 = geometric(i2.first);
 
-	double CrossG = 0.5*M_PI*(Radius1 + Radius2)*(Radius1 + Radius2);
-	double Cross1 = CrossG, Cross2 = CrossG;
+	double CrossG  = 0.5*M_PI*(Radius1 + Radius2)*(Radius1 + Radius2);
+	double Cross1  = CrossG, Cross2 = CrossG;
 
-	double m1     = atomic_weights[i1.first];
-	double m2     = atomic_weights[i2.first];
+	double m1      = atomic_weights[i1.first];
+	double m2      = atomic_weights[i2.first];
 
-	double ne1    = i1.second - 1;
-	double ne2    = i2.second - 1;
+	double ne1     = i1.second - 1;
+	double ne2     = i2.second - 1;
 
-	double dof1   = 1.0 + ne1;
-	double dof2   = 1.0 + ne2;
+	double dof1    = 1.0 + ne1;
+	double dof2    = 1.0 + ne2;
 	  
 	if (NO_DOF) dof1 = dof2 = 1.0;
 
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
+
+	if (NO_VEL) eVel1 = eVel2 = 1.0;
 
 	if (i2.second>1) {
 	  if (i1.second==1)
@@ -434,6 +440,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
+
+	if (NO_VEL) eVel1 = eVel2 = 1.0;
 
 	double Cross1 = 0.0;
 	double Cross2 = 0.0;
