@@ -29,11 +29,11 @@ bool CollideIon::frost_warning = false; // For debugging . . .
 
 // Artifically suppress electron equipartition speed
 //
-bool NO_DOF            = true;
+bool NO_DOF            = false;
 
 // Artifically suppress electron equilibrium velocity
 //
-bool NO_VEL            = true;
+bool NO_VEL            = false;
 
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
@@ -49,6 +49,7 @@ bool KE_DEBUG          = false;
 // the energy conservation.
 //
 const bool RECOMB_KE   = true;
+const bool RECOMB_IP   = false;
 
 // Cross-section debugging; set to false for production
 //
@@ -1500,8 +1501,11 @@ int CollideIon::inelasticDirect(pHOT* const tree,
 
     if (interFlag == recomb_1) {
       if (RECOMB_KE) {
-	lQ rQ(Z1, C1-1);
-	delE = ch.IonList[rQ]->ip + kEe1[id];
+	if (RECOMB_IP) {
+	  lQ rQ(Z1, C1-1);
+	  delE = ch.IonList[rQ]->ip + kEe1[id];
+	} else 
+	  delE = kEe1[id];
       }
 
       p1->iattrib[use_key] = k1.updateC(--C1);
@@ -1542,8 +1546,11 @@ int CollideIon::inelasticDirect(pHOT* const tree,
 
     if (interFlag == recomb_2) {
       if (RECOMB_KE) {
-	lQ rQ(Z2, C2-1);
-	delE = ch.IonList[rQ]->ip + kEe2[id];
+	if (RECOMB_IP) {
+	  lQ rQ(Z2, C2-1);
+	  delE = ch.IonList[rQ]->ip + kEe2[id];
+	} else
+	  delE = kEe2[id];
       }
 
       p2->iattrib[use_key] = k2.updateC(--C2);
@@ -2005,8 +2012,11 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 
     if (interFlag == recomb_1) {
       if (RECOMB_KE) {
-	lQ rQ(Z1, C1-1);
-	delE = ch.IonList[rQ]->ip + kEe1[id];
+	if (RECOMB_IP) {
+	  lQ rQ(Z1, C1-1);
+	  delE = ch.IonList[rQ]->ip + kEe1[id];
+	} else
+	  delE = kEe1[id];
       }
 
       p1->iattrib[use_key] = k1.updateC(--C1);
@@ -2047,8 +2057,11 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 
     if (interFlag == recomb_2) {
       if (RECOMB_KE) {
-	lQ rQ(Z1, C1-1);
-	delE = ch.IonList[rQ]->ip + kEe2[id];
+	if (RECOMB_IP) {
+	  lQ rQ(Z1, C1-1);
+	  delE = ch.IonList[rQ]->ip + kEe2[id];
+	} else
+	  delE = kEe2[id];
       }
 
       p2->iattrib[use_key] = k2.updateC(--C2);
@@ -2597,10 +2610,15 @@ int CollideIon::inelasticTrace(pHOT* const tree,
       if (interFlag == recomb) {
 
 	if (RECOMB_KE) {
-	  lQ rQ(Z, C-1);
-	  double Xi = ch.IonList[rQ]->ip;
-	  delE1 = (Xi + kEe2[id]) * N1;
-	  delE2 = (Xi + kEe1[id]) * N2;
+	  if (RECOMB_IP) {
+	    lQ rQ(Z, C-1);
+	    double Xi = ch.IonList[rQ]->ip;
+	    delE1 = (Xi + kEe2[id]) * N1;
+	    delE2 = (Xi + kEe1[id]) * N2;
+	  } else {
+	    delE1 = kEe2[id] * N1;
+	    delE2 = kEe1[id] * N2;
+	  }
 	}
 
 	speciesKey kk(Z, C-1);
