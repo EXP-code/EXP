@@ -3921,7 +3921,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            fracW, densM, collPM, lambdaM, crossM;
+  sKeyDmap            fracW, densW, collPM, lambdaM, crossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -3944,15 +3944,14 @@ sKey2Umap CollideIon::generateSelectionWeight
   
   for (auto it1 : c->count) {
     speciesKey i1 = it1.first;
+    //
     // Mass density scaled by atomic weight in amu
-    densM[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+    //
+    densW[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
 
     // Trace fraction in system mass per amu
-    fracW[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
-    //                                     ^
-    //                                     |
-    //              Number density---------+
     //
+    fracW[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
   }
     
   if (0) {
@@ -3973,8 +3972,8 @@ sKey2Umap CollideIon::generateSelectionWeight
       sout << "(" << it.first.first << ", " << it.first.second << ")";
       std::cout << std::setw(10) << sout.str()
 		<< std::setw(16) << fracW[it.first]
-		<< std::setw(16) << densM[it.first]
-		<< std::setw(16) << c->Mass(it.first)
+		<< std::setw(16) << densW[it.first]
+		<< std::setw(16) << c->Mass (it.first)
 		<< std::setw(10) << c->Count(it.first)
 		<< std::endl;
     }
@@ -4053,11 +4052,11 @@ sKey2Umap CollideIon::generateSelectionWeight
       }
     }
     
-    lambdaM[i1] = 1.0/(densM[i1] * crossM[i1]);
-    collPM [i1] = densM[i1] * crossM[i1] * crm * tau;
+    lambdaM[i1] = 1.0/(densW[i1] * crossM[i1]);
+    collPM [i1] = densW[i1] * crossM[i1] * crm * tau;
     
-    meanDens   += densM[i1];
-    meanCollP  += densM[i1] * collPM[i1];
+    meanDens   += densW[i1];
+    meanCollP  += densW[i1] * collPM[i1];
     meanLambda += c->Mass(i1) * lambdaM[i1];
   }
     
