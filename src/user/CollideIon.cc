@@ -4043,10 +4043,19 @@ sKey2Umap CollideIon::generateSelectionWeight
       // seciton scaled by number of true particles per computational
       // particle)
 
-      if (i2>=i1) {
-	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i1][i2];
-      } else
-	crossM[i1] += (*Fn)[i2]*fracW[i2]*csections[id][i2][i1];
+      double crossT = 0.0;
+      if (i2>=i1)
+	crossT = csections[id][i1][i2];
+      else
+	crossT = csections[id][i2][i1];
+
+      // Choose the trace species of the two (may be neither in which
+      // case it doesn't matter)
+
+      if (fracW[i2]<=fracW[i1])
+	crossM[i1] += (*Fn)[i2]*fracW[i2]*crossT;
+      else
+	crossM[i2] += (*Fn)[i1]*fracW[i1]*crossT;
       
       if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
@@ -4063,7 +4072,12 @@ sKey2Umap CollideIon::generateSelectionWeight
       }
 	
     }
+  }
       
+  for (auto it1 : c->count) {
+
+    speciesKey i1 = it1.first;
+
     if (it1.second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
       cout << "INVALID CROSS SECTION! ::"
 	   << " (" << i1.first << ", " << i1.second << ")"
@@ -4154,11 +4168,23 @@ sKey2Umap CollideIon::generateSelectionWeight
     for (it2=it1; it2!=c->count.end(); it2++) {
       speciesKey i2 = it2->first;
       
+      double crossT = 0.0;
+      if (i2>=i1)
+	crossT = csections[id][i1][i2];
+      else
+	crossT = csections[id][i2][i1];
+
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
       //
-      double Prob = fracW[i2] * (*Fn)[i2] * csections[id][i1][i2] * crm * tau / volc;
-      
+      double Prob = 0.0;
+
+      if (fracW[i1]>=fracW[i2]) {
+	Prob = fracW[i2] * (*Fn)[i2] * crossT * crm * tau / volc;
+      } else {
+	Prob = fracW[i1] * (*Fn)[i1] * crossT * crm * tau / volc;
+      }
+
       // Count _pairs_ of identical particles only
       //                 |
       //                 v
@@ -4166,6 +4192,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 	selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
       else
 	selcM[i1][i2] = it1->second * it2->second * Prob;
+	
       //
       // For double-summing of species A,B and B,A interactions 
       // when A != B is list orders A<B and therefore does not double 
