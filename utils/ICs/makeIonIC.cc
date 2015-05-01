@@ -73,6 +73,8 @@ double Tunit;
 double Vunit;
 double Munit;
 
+std::vector<double> LL;
+
 //
 // boost RNGs
 //
@@ -216,6 +218,11 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
 		<< std::setw(18) << i.second/Mtot
 		<< std::setw(18) << sF[i.first-1]
 		<< std::endl;
+
+    std::cout << std::string(60, '-') << std::endl
+	      << "Empirical density (amu/cc) = "
+	      << Mtot*Munit/(mp*(LL[0]*LL[1]*LL[2])*pc*pc*pc)
+	      << std::endl << std::string(60, '-') << std::endl;
   }
 }
 
@@ -331,7 +338,7 @@ void InitializeSpeciesDirect
       }
     }
 
-    particles[i].mass  = M/N * sF[indx]/frcS[indx];
+    particles[i].mass  = M/N * sF[indx] * NS;
 
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
@@ -452,7 +459,7 @@ void InitializeSpeciesWeight
       }
     }
 
-    particles[i].mass  = M/N * frcS[indx];
+    particles[i].mass  = M/N * sF[indx] * NS;
 
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
@@ -468,7 +475,7 @@ void InitializeSpeciesWeight
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M/N * frcS[indx]
+	<< std::setw(16) << M/N * sF[indx]
 	<< std::endl;
   }
 
@@ -704,7 +711,7 @@ int main (int ac, char **av)
 
   // Cube axes
   //
-  std::vector<double> LL(3, L);
+  LL.resize(3, L);
 
   // Mass in box in m_p
   //

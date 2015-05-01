@@ -342,23 +342,26 @@ protected:
 
 protected:
   
-  void initialize_cell(pHOT* const tree, pCell* const c, 
-		       double rvmax, int id);
+  virtual void 
+  initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);
 
-  void initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
-			    double rvmax, double tau, int id) {}
+  virtual void 
+  initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+		       double rvmax, double tau, int id) {}
 
-  void initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
-			    double rvmax, double tau, int id) 
+  virtual void 
+  initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
     exit(-1);
   }
   
-  void finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
+  virtual void 
+  finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
 
   
-  sKey2Dmap& totalCrossSections(int id)
+  virtual sKey2Dmap& totalCrossSections(int id)
   {    
     return csections[id];
   }
@@ -389,9 +392,9 @@ protected:
 		     Particle* const p1, Particle* const p2, 
 		     double *crm, int id=0);
 
-  double crossSection(pHOT* const tree, 
-		      Particle* const p1, Particle* const p2, 
-		      double crm, int id=0)
+  virtual double crossSection(pHOT* const tree, 
+			      Particle* const p1, Particle* const p2, 
+			      double crm, int id=0)
   {
     if (aType == Direct)
       return crossSectionDirect(tree, p1, p2, crm, id);
@@ -406,8 +409,9 @@ protected:
   }
 
 
-  int inelastic(pHOT* const tree, Particle* const p1, Particle* const p2, 
-		double *crm, int id=0)
+  virtual int 
+  inelastic(pHOT* const tree, Particle* const p1, Particle* const p2, 
+	    double *crm, int id=0)
   {
     if (aType == Direct)
       return inelasticDirect(tree, p1, p2, crm, id);
@@ -421,15 +425,30 @@ protected:
     return 1;
   }
 
-  void velocityUpdate(Particle* const p1, Particle* const p2, double cr)
+  virtual void 
+  velocityUpdate(Particle* const p1, Particle* const p2, double cr)
   {
     if (aType == Direct)
-      return Collide::velocityUpdate(p1, p2, cr);
+      Collide::velocityUpdate(p1, p2, cr);
+    if (aType == Weight) {
+      double vr = 0.0;		// This is all debugging!
+      for (size_t k=0; k<3; k++) {
+	double z = p1->vel[k] - p2->vel[k];
+	vr += z*z;
+      }
+      vr = sqrt(vr);
+      if ( fabs(vr - cr) > 1.0e-20 ) {
+	std::cout << "Velocity mismatch: vr=" << vr << " cr="
+		  << cr << std::endl;
+      }
+    }
+
+    return;
   }
 
-  bool hasHeatCool() { return true; }
+  virtual bool hasHeatCool() { return true; }
 
-  double getCoolingRate(int id) { return 0; }
+  virtual double getCoolingRate(int id) { return 0; }
   
   void parseSpecies(const std::string& map);
 

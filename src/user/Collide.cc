@@ -1135,7 +1135,7 @@ void * Collide::collide_thread(void * arg)
 	    
 	    // Do inelastic stuff
 	    //
-	    // error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
 	    
 	    // Update the particle velocity
 	    //
