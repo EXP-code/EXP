@@ -94,10 +94,7 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
                                 data[i] = [float(toks[i])]
                 else:
                     print "Bad line: toks=", len(toks), " labels=", len(labels)
-                    print "Toks"
-                    print toks
-                    print "Labels"
-                    print labels
+
     mk = '*'
     if dot: mk = '.'
 
@@ -166,6 +163,7 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
         for k in range(0, len(data[j])): data[j][k] += 1.0e-8
 
     for i in data.keys():
+        if labels[i].find("_E")>0: continue
         if logY:
             pl.semilogy(temp, data[i], mk, label=labels[i], markersize=msize)
         else:
@@ -189,6 +187,7 @@ def plot_data(filename, degree, smooth, msize, dens, tmax=-1.0, tscale=1.0e5, lo
                 if sum>0.0: data[j][k] /= sum
                 data[j][k] += 1.0e-8
     for i in data.keys():
+        if labels[i].find("_E")>0: continue
         if logY:
             pl.semilogy(temp, data[i], mk, label=labels[i], markersize=msize)
         else:

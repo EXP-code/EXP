@@ -241,8 +241,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	speciesKey i2  = it2.first;
 	double Radius2 = geometric(i2.first);
 
-	double CrossG  = 0.5*M_PI*(Radius1 + Radius2)*(Radius1 + Radius2);
-	double Cross1  = CrossG, Cross2 = CrossG;
+	double CrossG  = M_PI*(Radius1 + Radius2)*(Radius1 + Radius2);
+	double Cross1  = 0.0;
+	double Cross2  = 0.0;
 
 	double m1      = atomic_weights[i1.first];
 	double m2      = atomic_weights[i2.first];
@@ -259,6 +260,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
 	if (NO_VEL) eVel1 = eVel2 = 1.0;
+
+	if (i1.second>1 or i2.second>1) CrossG = 0.0;
 
 	if (i2.second>1) {
 	  if (i1.second==1)
@@ -280,7 +283,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 	}
 
-	csections[id][i1][i2] = (Cross1 + Cross2) * sUp * 1e-14 / 
+	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * sUp * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
       }
     }
@@ -1193,7 +1196,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				// atomic radius
       double Radius = geometric(Z) + meanR[id];
 
-      crossS = neutF[id] * M_PI*Radius*Radius * sUp;
+      crossS += neutF[id] * M_PI*Radius*Radius * sUp;
       tCrossMap.push_back(crossS);
       tInterMap.push_back(neut_neut);
 	
@@ -1201,7 +1204,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
       // Neutral atom-electron scattering
       //
       
-      crossS = elastic(Z, kEe) * eVel * meanE[id];
+      crossS += elastic(Z, kEe) * eVel * meanE[id];
       
       tCrossMap.push_back(crossS);
       tInterMap.push_back(neut_elec);
@@ -1212,7 +1215,7 @@ double CollideIon::crossSectionTrace(pHOT *tree, Particle* p1, Particle* p2,
 				//
       double b = 0.5*esu*esu*(C-1) /
 	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
-      crossS = M_PI*b*b * eVel * meanE[id];
+      crossS += M_PI*b*b * eVel * meanE[id];
 
       tCrossMap.push_back(crossS);
       tInterMap.push_back(ion_elec);
@@ -1433,7 +1436,7 @@ int CollideIon::inelasticDirect(pHOT* const tree,
     // Set to false for production
     //          |
     //          v
-    const bool DEBUG_F = true;
+    const bool DEBUG_F = false;
     //
     if (DEBUG_F) {
       //
@@ -1946,9 +1949,12 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     // Set to false for production
     //          |
     //          v
-    const bool DEBUG_F = false;
+    const bool DEBUG_F = true;
     //
     if (DEBUG_F) {
+      speciesKey i1 = k1.getKey();
+      speciesKey i2 = k2.getKey();
+      double cfac = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
       //
       // Output on collisions for now . . . 
       //
@@ -1956,10 +1962,12 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 		<< std::setw( 8) << "flag"
 		<< std::setw(14) << "cross"
 		<< std::setw(14) << "cumul"
+		<< std::setw(14) << "tCross"
 		<< std::setw(18) << "type label"
 		<< std::endl
 		<< std::setw( 8) << "-----"
 		<< std::setw( 8) << "-----"
+		<< std::setw(14) << "---------"
 		<< std::setw(14) << "---------"
 		<< std::setw(14) << "---------"
 		<< std::setw(18) << "---------------"
@@ -1969,6 +1977,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 		  << std::setw( 8) << dInter[id][i]
 		  << std::setw(14) << dCross[id][i]
 		  << std::setw(14) << CDF[i]
+		  << std::setw(14) << TotalCross[i]/csections[id][i1][i2] * cfac
 		  << std::setw(18) << labels[dInter[id][i]]
 		  << std::endl;
       }
