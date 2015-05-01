@@ -4085,6 +4085,8 @@ sKey2Umap CollideIon::generateSelectionWeight
       
   for (auto it1 : c->count) {
 
+    if (it1.second == 0) continue;
+
     speciesKey i1 = it1.first;
 
     if (it1.second>0 && (crossM[i1] == 0 || std::isnan(crossM[i1]))) {
