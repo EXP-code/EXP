@@ -168,7 +168,9 @@ protected:
   
   //@{
   //! For debugging
+  static unsigned maxrpt;
   key_type caller;
+  unsigned report;
   void VelCrsTest();
   void setKey(const key_type& k) { caller = k; }
   //@}
@@ -179,7 +181,7 @@ protected:
 public:
 
   //! Null constructor
-  NTCitem() {}
+  NTCitem() { report = 0; }
 
   //! Copy constructor
   NTCitem(boost::shared_ptr<NTCitem> p) 
@@ -187,6 +189,7 @@ public:
     VelCrsList = p->VelCrsList;	
     VelCrsSum  = p->VelCrsSum;	
     VelCrsNum  = p->VelCrsNum;    
+    report     = 0;
   }
 
   //! Threshold <cross section> x <relative velocity> value

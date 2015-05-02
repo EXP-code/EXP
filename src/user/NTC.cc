@@ -9,6 +9,9 @@
 // For verbose debugging
 static const bool DEBUG_V = true;
 
+// Maximum number of reports for each cell item
+unsigned NTCitem::maxrpt    = 5;
+
 // Maximum number of cached relative velocities
 size_t   NTCitem::VelCrsSZ  = 32; 
 
@@ -51,7 +54,7 @@ std::map<sKeyPair, NTCitem::vcTup> NTCitem::VelCrsAvg()
   
   for (auto k : VelCrsSum) ret[k.first] = k.second / VelCrsNum[k.first];
 
-  if (DEBUG_V) VelCrsTest();
+  if (DEBUG_V and report++ < maxrpt) VelCrsTest();
 
   return ret;
 }
@@ -121,7 +124,7 @@ NTCptr NTCdb::operator[](const key_type& k)
     }
 
     if (DEBUG_V && it == data.end()) {
-      std::cout << "No parent found for " << k << std::endl;
+      std::cout << "NTC: no parent found for " << k << std::endl;
     }
 
     // If none, create an empty item.  Otherwise, initialize from the
