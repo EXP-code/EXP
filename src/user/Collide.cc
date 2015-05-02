@@ -3218,14 +3218,14 @@ void Collide::NTCstats(std::ostream& out)
 	speciesKey k2 = k.second;
 	
 	std::ostringstream sout;
-	sout << "(" << k1.first << "," << k1.second 
-	     << "|" << k2.first << "," << k2.second << ")";
+	sout << "<" << k1.first << "," << k1.second 
+	     << "|" << k2.first << "," << k2.second << ">";
 	out << std::setw(12) << sout.str();
       }
       out << std::endl << std::string(spc, '-') << std::endl
 	  << std::left << std::fixed;
       
-      NTCstanza(out, both, "Sig*Vel", pcent);
+      NTCstanza(out, both, "Crs*Vel", pcent);
       out << std::string(spc, '-') << std::endl;
       NTCstanza(out, cros, "Cross",   pcent);
       out << std::string(spc, '-') << std::endl;

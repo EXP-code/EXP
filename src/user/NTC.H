@@ -195,6 +195,9 @@ public:
   //! Threshold <cross section> x <relative velocity> value
   static double VelCrsMin;
 
+  //! Default <cross section> x <relative velocity> value
+  static double VelCrsDef;
+
   //@{
   //! Maximum relative velocity average (<0 if no entries)
   vcTup VelCrsAvg(sKeyPair indx);
@@ -211,15 +214,17 @@ public:
 typedef boost::shared_ptr<NTCitem> NTCptr;
 typedef std::map<key_type, NTCptr> NTCdata;
 
-//! Provide a nice interface for the NTCdata map
+//! Provide a nice interface for the NTCdata std::map
 class NTCdb
 {
 protected:
 
+  //! The std::map
   NTCdata data;
 
 public:
 
+  //! Return shared pointer to NTCitem instance for cell key k
   NTCptr operator[](const key_type& k);
 
 };

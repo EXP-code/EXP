@@ -18,6 +18,9 @@ size_t   NTCitem::VelCrsSZ  = 32;
 // Minimum CrossSection x Velocity value
 double   NTCitem::VelCrsMin = 1.0e-24;
 
+// Minimum CrossSection x Velocity value
+double   NTCitem::VelCrsDef = 10.0;
+
 void NTCitem::VelCrsTest()
 {
   if (VelCrsSum.size()==0)
@@ -64,8 +67,8 @@ NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx)
   vcMap::iterator  it = VelCrsSum.find(indx);
   numMap::iterator jt = VelCrsNum.find(indx);
 
-  if (it == VelCrsSum.end()) return vcTup(VelCrsMin, 0, 0);
-  if (jt == VelCrsNum.end()) return vcTup(VelCrsMin, 0, 0);
+  if (it == VelCrsSum.end()) return vcTup(VelCrsDef, 0, 0);
+  if (jt == VelCrsNum.end()) return vcTup(VelCrsDef, 0, 0);
 
   return it->second / jt->second;
 }
@@ -86,7 +89,7 @@ void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
   // Initialize running average
   //
   if (VelCrsList.find(indx) == VelCrsList.end()) {
-    VelCrsSum[indx] = vcTup(0, 0, 0);
+    VelCrsSum[indx] = vcTup(VelCrsDef, 0, 0);
     VelCrsNum[indx] = 0;
   }
 
