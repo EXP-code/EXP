@@ -16,6 +16,7 @@
 #include "Particle.H"
 #include "pHOT.H"
 #include "Timer.h"
+#include "NTC.H"
 
 class Collide;
 
@@ -103,11 +104,13 @@ class Collide
   
 public:
   
-  typedef pair<double, vector<double> > Precord;
+  //! Diagnostic record type
+  typedef std::pair<double, vector<double> > Precord;
 
   //! Collide return tuple
-  typedef boost::tuple<unsigned, unsigned> UU;
+  typedef boost::tuple<unsigned, unsigned>   UU;
   
+
 protected:
 
   //! Fiducial component
@@ -339,6 +342,10 @@ protected:
 
   //! Initialize atomic weights (public data)
   void atomic_weights_init();
+
+
+  //! NTC database
+  NTCdb ntcdb;
 
 public:
   

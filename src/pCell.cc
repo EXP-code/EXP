@@ -11,12 +11,6 @@
 
 int pCell::live = 0;		// Track number of instances
 
-// Maximum number of cached relative velocities
-size_t   sCell::VelCrsSZ  = 128; 
-
-// Minimum CrossSection x Velocity value
-double   sCell::VelCrsMin = 1.0e-24;
-
 // Target microscopic (collision) bucket size
 unsigned pCell::bucket    = 7; 
 
@@ -26,7 +20,6 @@ unsigned pCell::Bucket    = 64;
 // Maximum number of cell expansions to get sample cell
 unsigned pCell::deltaL    = 2;   
 				
-
 static unsigned ctargt = 0;
 
 string printKey(key_type p)
@@ -90,7 +83,7 @@ pCell::pCell(pHOT* tr) : tree(tr), C(tr->cc), isLeaf(true)
   //
 }
 
-pCell::pCell(pCell* mom, unsigned id) : 
+pCell::pCell(pCell* mom, unsigned id) :
   tree(mom->tree), C(mom->C), parent(mom), isLeaf(true)
 {
   live++;
@@ -965,69 +958,4 @@ unsigned pCell::remake_plev()
   }
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;
-}
-
-std::map<sKeyPair, sCell::vcTup> sCell::VelCrsAvg()
-{
-  std::map<sKeyPair, sCell::vcTup> ret;
-  
-  if (VelCrsList.size()>0) {
-
-    for (auto k : VelCrsSum) ret[k.first] = k.second / VelCrsNum[k.first];
-    
-  }
-
-  return ret;
-}
-
-sCell::vcTup sCell::VelCrsAvg(sKeyPair indx)
-{
-  std::map<sKeyPair, dqTup>::iterator it = VelCrsList.find(indx);
-  
-  if (it == VelCrsList.end()) return vcTup(VelCrsMin, 0, 0);
-
-  if (it->second.size()==0 || VelCrsNum[indx]<=0) return vcTup(VelCrsMin, 0, 0);
-
-  double tst = std::get<0>(VelCrsSum[indx]);
-
-  return VelCrsSum[indx] / VelCrsNum[indx];
-}
-
-void sCell::VelCrsAdd(std::map<sKeyPair, sCell::vcTup>& vals)
-{
-  for (auto it : vals) {
-    if (std::get<0>(it.second)>VelCrsMin) VelCrsAdd(it.first, it.second);
-  }
-}
-
-void sCell::VelCrsAdd(sKeyPair indx, const vcTup& val)
-{
-  unsigned sz = 0;
-
-  if (VelCrsList.find(indx) != VelCrsList.end()) sz = VelCrsList[indx].size();
-
-  // Initialize running average
-  //
-  if (sz==0) {
-    VelCrsSum[indx] = vcTup(0, 0, 0);
-    VelCrsNum[indx] = 0;
-  }
-
-  // Add new element
-  //
-  if (std::get<0>(val)>VelCrsMin) {
-    VelCrsList[indx].push_back(val);
-    VelCrsSum [indx] += val;
-    VelCrsNum [indx] += 1;
-  }
-
-  double tst = std::get<0>(val);
-
-  // Push out the oldest element if deque is full
-  //
-  if (sz==VelCrsSZ) {
-    VelCrsSum [indx] -= VelCrsList[indx].front();
-    VelCrsNum [indx] -= 1;
-    VelCrsList[indx].pop_front();
-  }
 }

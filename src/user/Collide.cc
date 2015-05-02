@@ -811,11 +811,11 @@ void * Collide::collide_thread(void * arg)
     
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
-    sCell *samp = c->sample;
+    pCell *samp = c->sample;
 
     // Containers for NTC values
     //
-    std::map<sKeyPair, sCell::vcTup> ntcF, ntcFmax;
+    std::map<sKeyPair, NTCitem::vcTup> ntcF, ntcFmax;
 
     sKeyUmap::iterator it1, it2;
 
@@ -834,11 +834,11 @@ void * Collide::collide_thread(void * arg)
 	sKeyPair   k(i1, i2);
 
 	if (samp)
-	  ntcF[k]  = samp->VelCrsAvg(k);
+	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k);
 	else
-	  ntcF[k]  = pCell::vcTup(pCell::VelCrsMin, 0, 0);
+	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
 
-	ntcFmax[k] = pCell::vcTup(pCell::VelCrsMin, 0, 0);
+	ntcFmax[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
       }
     }
 
@@ -1181,7 +1181,7 @@ void * Collide::collide_thread(void * arg)
     elasSoFar[id] = elasTime[id].stop();
     
 #pragma omp critical
-    if (NTC) samp->VelCrsAdd(ntcFmax);
+    if (NTC) ntcdb[samp->mykey]->VelCrsAdd(ntcFmax);
 
     // Count collisions
     //
@@ -3067,8 +3067,10 @@ void Collide::NTCgather(pHOT* const tree)
     MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
     pHOT_iterator c(*tree);
+    unsigned totsz = 0;
     while (c.nextCell()) {
-      std::map<sKeyPair, pCell::vcTup> v = c.Cell()->VelCrsAvg();
+      NTCitem::vcMap v = ntcdb[c.Cell()->mykey]->VelCrsAvg();
+      totsz += v.size();
       for (auto i : v) {
 	both[i.first].push_back(std::get<0>(i.second));
 	cros[i.first].push_back(std::get<1>(i.second));

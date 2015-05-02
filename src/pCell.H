@@ -2,7 +2,6 @@
 #define _pCell_H
 
 #include <vector>
-#include <tuple>
 #include <list>
 #include <set>
 #include <map>
@@ -16,134 +15,6 @@ using namespace std;
 class pHOT;
 class Component;
 
-//
-// Tuple arithmetic
-//
-
-//----------------------------------------------------------------------
-// Add two tuples
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator+(const std::tuple<T1, T2, T3>& a, 
-				 const std::tuple<T1, T2, T3>& b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) + std::get<0>(b), 
-			      std::get<1>(a) + std::get<1>(b), 
-			      std::get<2>(a) + std::get<2>(b) );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Subtract two tuples
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator-(const std::tuple<T1, T2, T3>& a, 
-				 const std::tuple<T1, T2, T3>& b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) - std::get<0>(b), 
-			      std::get<1>(a) - std::get<1>(b), 
-			      std::get<2>(a) - std::get<2>(b) );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Multiply a tuple by a scalar
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S>
-std::tuple<T1, T2, T3> operator*(const std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) * b,
-			   std::get<1>(a) * b,
-			   std::get<2>(a) * b );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Divide a tuple by a scalar
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S>
-std::tuple<T1, T2, T3> operator/(const std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) / b,
-			      std::get<1>(a) / b,
-			      std::get<2>(a) / b );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Add two tuples (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator+=(std::tuple<T1, T2, T3>& a, const std::tuple<T1, T2, T3>& b)
-{
-  std::get<0>(a)  += std::get<0>(b);
-  std::get<1>(a)  += std::get<1>(b);
-  std::get<2>(a)  += std::get<2>(b);
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Multiple a tuple by a scalar (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S >
-std::tuple<T1, T2, T3> operator*=(std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::get<0>(a) *= b;
-  std::get<1>(a) *= b;
-  std::get<2>(a) *= b;
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Divide a tuple by a scalar (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S >
-std::tuple<T1, T2, T3> operator/=(std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::get<0>(a) /= b;
-  std::get<1>(a) /= b;
-  std::get<2>(a) /= b;
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Subtract two tuples (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator-=(std::tuple<T1, T2, T3>& a, const std::tuple<T1, T2, T3>& b)
-{
-  std::get<0>(a) -= std::get<0>(b);
-  std::get<1>(a) -= std::get<1>(b);
-  std::get<2>(a) -= std::get<2>(b);
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Subtract two tuples (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::ostream& operator<< (std::ostream& stream, 
-			  const std::tuple<T1, T2, T3>& v)
-{
-  stream << "["  << std::get<0>(v) 
-	 << ", " << std::get<1>(v) 
-	 << ", " << std::get<2>(v) << "]";
-
-  return stream;
-}
 
 //----------------------------------------------------------------------
 // Cell class definition follows
@@ -152,21 +23,6 @@ std::ostream& operator<< (std::ostream& stream,
 class sCell
 {
 public:
-  typedef std::tuple<double, double, double> vcTup;
-
-protected:
-  typedef std::deque<vcTup> dqTup;
-
-  std::map<sKeyPair, dqTup>     VelCrsList;
-  std::map<sKeyPair, vcTup>     VelCrsSum;
-  std::map<sKeyPair, unsigned>  VelCrsNum;
-  
-public:
-  
-  // Maximum number of cached relative velocities
-  static size_t VelCrsSZ; 
-  
-  static double VelCrsMin;
 
   int owner;
   unsigned level;
@@ -185,24 +41,9 @@ public:
      @param 8 posy
      @param 9 posz
   */
-  //map<int, vector<double> > state;
   map<speciesKey,vector<double> > state;
   vector<double> stotal;
-  
-  //@{
-  //! Maximum relative velocity average (<0 if no entries)
-  vcTup VelCrsAvg(sKeyPair indx);
-  std::map<sKeyPair, vcTup> VelCrsAvg();
-  //@}
-  
-  //@{
-  //! Add maximum to list
-  void VelCrsAdd(std::map<sKeyPair, vcTup>& vals);
-  void VelCrsAdd(sKeyPair indx, const vcTup& val);
-  void VelCrsAdd(sKeyPair indx, double vrm, double crm) 
-  { VelCrsAdd(indx, vcTup(vrm*crm, vrm, crm)); }
-  //@}
-  
+
   //@{
   //! Return kinetic energy per unit mass per cell (total & temperature)
   void KE(speciesKey indx, double &tot, double &dsp);
@@ -280,7 +121,7 @@ public:
   unsigned maxplev;
   
   pCell* parent;
-  sCell* sample;
+  pCell* sample;
   map<unsigned, pCell*> children;
   bool isLeaf;
   
