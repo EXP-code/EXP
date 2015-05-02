@@ -816,6 +816,7 @@ void * Collide::collide_thread(void * arg)
     // Containers for NTC values
     //
     std::map<sKeyPair, NTCitem::vcTup> ntcF, ntcFmax;
+    std::map<sKeyPair, std::pair<unsigned, double> > crat;
 
     sKeyUmap::iterator it1, it2;
 
@@ -839,6 +840,7 @@ void * Collide::collide_thread(void * arg)
 	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
 
 	ntcFmax[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
+	crat[k]    = std::pair<unsigned, double>(0, 0);
       }
     }
 
@@ -1145,6 +1147,10 @@ void * Collide::collide_thread(void * arg)
 	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
+				// Accumulate targ value
+	    crat[k].first++;
+	    crat[k].second += targ;
+
 				// Over NTC max average
 	    if (cr*cros/cunit > std::get<0>(ntcF[k])) {
 	      ntcOvr[id]++;
@@ -1186,7 +1192,15 @@ void * Collide::collide_thread(void * arg)
     elasSoFar[id] = elasTime[id].stop();
     
 #pragma omp critical
-    if (NTC) ntcdb[samp->mykey]->VelCrsAdd(ntcFmax);
+    if (NTC) {
+      for (auto v : crat) {	// NTC debugging
+	if (v.second.first>0)
+	  get<2>(ntcFmax[v.first]) = v.second.second/v.second.first;
+	else
+	  get<2>(ntcFmax[v.first]) = v.second.second;
+      }
+      ntcdb[samp->mykey]->VelCrsAdd(ntcFmax);
+    }
 
     // Count collisions
     //
@@ -3187,8 +3201,8 @@ void Collide::NTCstats(std::ostream& out)
     size_t spc = 18 + 12*both.size();
 
     out << std::string(spc, '-') << std::endl
-	<< "[NTC diagnostics]  Time=" << ios::scientific << tnow 
-	<< "  Over=" << accOvr << "  Total=" << accTot << ios::fixed
+	<< "[NTC diagnostics]  Time=" << std::scientific << tnow 
+	<< "  Over=" << accOvr << "  Total=" << accTot << std::fixed
 	<< "  Frac=" << static_cast<double>(accOvr)/accTot
 	<< std::endl << std::string(spc, '-') << std::endl;
 
@@ -3207,7 +3221,7 @@ void Collide::NTCstats(std::ostream& out)
 	out << std::setw(12) << sout.str();
       }
       out << std::endl << std::string(spc, '-') << std::endl
-	  << std::left << ios::fixed;
+	  << std::left << std::fixed;
       
       NTCstanza(out, both, "SigmaV", pcent);
       out << std::string(spc, '-') << std::endl;
