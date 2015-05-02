@@ -840,7 +840,8 @@ void * Collide::collide_thread(void * arg)
 	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
 
 	ntcFmax[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
-	crat[k]    = std::pair<unsigned, double>(0, 0);
+
+	crat   [k] = std::pair<unsigned, double>(0, 0);
       }
     }
 
@@ -1148,9 +1149,10 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  if (NTC) {
 				// Accumulate targ value
-	    crat[k].first++;
-	    crat[k].second += targ;
-
+	    if (std::get<0>(ntcF[k]) > NTCitem::VelCrsMin) {
+	      crat[k].first++;
+	      crat[k].second += targ;
+	    }
 				// Over NTC max average
 	    if (cr*cros/cunit > std::get<0>(ntcF[k])) {
 	      ntcOvr[id]++;
