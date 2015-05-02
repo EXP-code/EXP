@@ -19,6 +19,8 @@ using namespace std;
 static bool DEBUG      = false;	// Thread diagnostics, false for
 				// production
 
+static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
+
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
@@ -252,8 +254,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   exesET  = vector<double>   (nthrds, 0);
   
   // NTC statistics
-  ntcVel  = vector<unsigned> (nthrds, 0);
-  ntcCrs  = vector<unsigned> (nthrds, 0);
+  ntcOvr  = vector<unsigned> (nthrds, 0);
   ntcTot  = vector<unsigned> (nthrds, 0);
 
   if (MFPDIAG) {
@@ -811,7 +812,36 @@ void * Collide::collide_thread(void * arg)
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
     sCell *samp = c->sample;
-    sCell::dPair ntcF(1, 1);
+
+    // Containers for NTC values
+    //
+    std::map<sKeyPair, sCell::vcTup> ntcF, ntcFmax;
+
+    sKeyUmap::iterator it1, it2;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+      if (it1->second==0) continue;
+
+      speciesKey i1 = it1->first;
+
+      for (it2=it1; it2!=c->count.end(); it2++) {
+
+	if (it2->second==0) continue;
+
+	speciesKey i2 = it2->first;
+
+	sKeyPair   k(i1, i2);
+
+	if (samp)
+	  ntcF[k]  = samp->VelCrsAvg(k);
+	else
+	  ntcF[k]  = pCell::vcTup(pCell::VelCrsMin, 0, 0);
+
+	ntcFmax[k] = pCell::vcTup(pCell::VelCrsMin, 0, 0);
+      }
+    }
+
     //
     // Sanity check
     //
@@ -826,11 +856,7 @@ void * Collide::collide_thread(void * arg)
       if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
       else cout << ", NOT on frontier" << endl;
       
-    } else {
-      ntcF = samp->VelCrsAvg();
     }
-
-    sCell::dPair ntcFmax(1, 1);
 
     double crm = 0.0;
     
@@ -842,8 +868,6 @@ void * Collide::collide_thread(void * arg)
 	    /samp->stotal[0];}
       }
       crm  = sqrt(2.0*crm);
-
-      if (NTC) crm *= ntcF.first;
     }
     
     stat1SoFar[id] = stat1Time[id].stop();
@@ -1040,7 +1064,6 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
-    sKeyUmap::iterator  it1, it2;
     int totalCount = 0;
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
@@ -1059,6 +1082,8 @@ void * Collide::collide_thread(void * arg)
 	if (num2==0) continue;
 	
 	if (i1==i2 && num2==1) continue;
+
+	sKeyPair k(i1, i2);
 
 	// Loop over total number of candidate collision pairs
 	//
@@ -1106,11 +1131,10 @@ void * Collide::collide_thread(void * arg)
 
 	  // Accept or reject candidate pair according to relative speed
 	  //
+	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  bool   ok   = false;
 	  double cros = crossSection(tree, p1, p2, cr, id);
-	  double crat = cros/(ntcF.second*crossIJ[i1][i2]);
-	  double vrat = cr/crm;
-	  double targ = vrat * crat;
+	  double targ = cr * cros / cunit / std::get<0>(ntcF[k]);
 
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
@@ -1121,8 +1145,13 @@ void * Collide::collide_thread(void * arg)
 	  // Update v_max and cross_max
 	  //
 	  if (NTC) {
-	    ntcFmax.first  = std::max<double>(ntcFmax.first,  vrat*ntcF.first );
-	    ntcFmax.second = std::max<double>(ntcFmax.second, crat*ntcF.second);
+	    if (cr*cros/cunit > std::get<0>(ntcFmax[k])) {
+	      std::get<0>(ntcFmax[k]) = cros * cr / cunit;
+	      std::get<1>(ntcFmax[k]) = cros / cunit;
+	      std::get<2>(ntcFmax[k]) = cr;
+	      ntcOvr[id]++;
+	    }
+	    ntcTot[id]++;
 	  }
 
 	  if (ok) {
@@ -1210,7 +1239,7 @@ void * Collide::collide_thread(void * arg)
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
       double Kn = meanLambda/cL;
-      double St = cL/fabs(tau*ntcF.first);
+      double St = cL/fabs(tau*sqrt(kedsp));
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
@@ -3019,57 +3048,172 @@ double Collide::molWeight()
   return mol_weight;
 }
 
-void Collide::NTCgather()
+void Collide::NTCgather(pHOT* const tree)
 {
-  if (NTC) {
+  if (NTC and DEBUG_NTC) {
 
-    unsigned Vel1 = 0, Vel;
-    unsigned Crs1 = 0, Crs;
-    unsigned Bth1 = 0, Bth;
-    unsigned Tot1 = 0, Tot;
+    both.clear();
+    cros.clear();
+    crel.clear();
 
-    for (auto i : ntcVel) Vel1 += i;
-    for (auto i : ntcCrs) Crs1 += i;
-    for (auto i : ntcBth) Bth1 += i;
-    for (auto i : ntcTot) Tot1 += i;
-
-    MPI_Reduce(&Vel1, &Vel, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Crs1, &Crs, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Bth1, &Bth, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Tot1, &Tot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    
-    if (myid==0 && Tot>0) {
-      boost::get<0>(ntcRes) = static_cast<double>(Vel)/Tot;
-      boost::get<1>(ntcRes) = static_cast<double>(Crs)/Tot;
-      boost::get<2>(ntcRes) = static_cast<double>(Bth)/Tot;
+    unsigned Ovr=0, Tot=0;
+    for (int n=0; n<nthrds; n++) {
+      Ovr += ntcOvr[n];
+      Tot += ntcTot[n];
+      ntcOvr[n] = ntcTot[n] = 0; // Reset the counters
     }
 
-    //
-    // Reset the counters
-    //
-    std::fill(ntcVel.begin(), ntcVel.end(), 0);
-    std::fill(ntcCrs.begin(), ntcCrs.end(), 0);
-    std::fill(ntcBth.begin(), ntcBth.end(), 0);
-    std::fill(ntcTot.begin(), ntcTot.end(), 0);
+    MPI_Reduce(&Ovr, &accOvr, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    pHOT_iterator c(*tree);
+    while (c.nextCell()) {
+      std::map<sKeyPair, pCell::vcTup> v = c.Cell()->VelCrsAvg();
+      for (auto i : v) {
+	both[i.first].push_back(std::get<0>(i.second));
+	cros[i.first].push_back(std::get<1>(i.second));
+	crel[i.first].push_back(std::get<2>(i.second));
+      }
+    }
+
+    if (myid) {
+
+      unsigned sz = both.size();
+      MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
+
+      for (auto i : both) {
+	sKeyPair   k = i.first;
+	KeyConvert k1 (k.first );
+	KeyConvert k2 (k.second);
+	
+	int i1 = k1.getInt();
+	int i2 = k2.getInt();
+
+	MPI_Send(&i1, 1, MPI_INT, 0, 227, MPI_COMM_WORLD);
+	MPI_Send(&i2, 1, MPI_INT, 0, 228, MPI_COMM_WORLD);
+
+	unsigned num = i.second.size();
+	MPI_Send(&num, 1, MPI_UNSIGNED, 0, 229, MPI_COMM_WORLD);
+
+	MPI_Send(&both[k][0], num, MPI_DOUBLE, 0, 230, MPI_COMM_WORLD);
+	MPI_Send(&cros[k][0], num, MPI_DOUBLE, 0, 231, MPI_COMM_WORLD);
+	MPI_Send(&crel[k][0], num, MPI_DOUBLE, 0, 232, MPI_COMM_WORLD);
+      }
+
+    } else {
+
+      std::vector<double> v1, v2, v3;
+      unsigned sz, num;
+      int i1, i2;
+
+      for (int n=1; n<numprocs; n++) {
+
+	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	for (unsigned z=0; z<sz; z++) {
+
+	  MPI_Recv(&i1, 1, MPI_INT, n, 227, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&i2, 1, MPI_INT, n, 228, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  KeyConvert k1(i1);
+	  KeyConvert k2(i2);
+
+	  MPI_Recv(&num, 1, MPI_UNSIGNED, n, 229, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  v1.resize(num);
+	  v2.resize(num);
+	  v3.resize(num);
+
+	  MPI_Recv(&v1[0], num, MPI_DOUBLE, n, 230, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v2[0], num, MPI_DOUBLE, n, 231, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3[0], num, MPI_DOUBLE, n, 232, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  sKeyPair k(k1.getKey(), k2.getKey());
+
+	  both[k].insert( both[k].end(), v1.begin(), v1.end() );
+	  cros[k].insert( cros[k].end(), v2.begin(), v2.end() );
+	  crel[k].insert( crel[k].end(), v3.begin(), v3.end() );
+	}
+      }
+    }
+
+    if (myid==0) {
+      //
+      // Sort all arrays
+      //
+      for (auto it : both) {
+	sKeyPair k = it.first;
+	std::sort(both[k].begin(), both[k].end());
+	std::sort(cros[k].begin(), cros[k].end());
+	std::sort(crel[k].begin(), crel[k].end());
+
+	// DEBUG
+	//
+	double tstbb = both[k].front(), tstbe = both[k].back();
+	double tstcb = cros[k].front(), tstce = cros[k].back();
+	double tstvb = crel[k].front(), tstve = crel[k].back();
+      }
+    }
+  }
+}
+
+void Collide::NTCstanza(std::ostream& out, 
+			std::map< sKeyPair, std::vector<double> >& vals,
+			const std::string& lab, 
+			const std::vector<double>& pcent)
+
+{
+  // Loop through the percentile list
+  for (auto p : pcent) {
+    std::ostringstream sout;
+    // Label the quantile
+    sout << lab << "(" << std::round(p*100.0) << ")";
+    out << std::setw(18) << sout.str();
+    // For each species pair, print the quantile
+    for (auto v : vals) {
+      size_t indx = static_cast<size_t>(std::round(v.second.size()*p));
+      out << std::setw(12) << v.second[indx];
+    }
+    out << std::endl;
   }
 }
 
 void Collide::NTCstats(std::ostream& out)
 {
-  if (myid==0 && NTC) {
-    out << std::string(60, '-') << std::endl << std::right
-	<< std::setw(12) << "Time"
-	<< std::setw(12) << "Vel over"
-	<< std::setw(12) << "Crs over"
-	<< std::setw(12) << "All over" << std::endl
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------" << std::endl
-	<< std::setw(12) << tnow
-	<< std::setw(12) << boost::get<0>(ntcRes)
-	<< std::setw(12) << boost::get<1>(ntcRes)
-	<< std::setw(12) << boost::get<2>(ntcRes)
-	<< std::endl;
+  const std::vector<double> pcent = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
+
+  if (myid==0 and NTC and DEBUG_NTC) {
+    size_t spc = 18 + 12*both.size();
+
+    out << std::string(spc, '-') << std::endl
+	<< "[NTC diagnostics]  Time=" << tnow 
+	<< "  Over=" << accOvr << "  Total=" << accTot
+	<< std::endl << std::string(spc, '-') << std::endl;
+
+    if (both.size() > 0) {
+
+      out << std::setw(18) << "Value\\Species";
+      
+      for (auto i : both) {
+	sKeyPair   k  = i.first;
+	speciesKey k1 = k.first;
+	speciesKey k2 = k.second;
+	
+	std::ostringstream sout;
+	sout << "(" << k1.first << "," << k1.second 
+	     << "|" << k2.first << "," << k2.second << ")";
+	out << std::setw(12) << sout.str();
+      }
+      out << std::endl << std::string(spc, '-') << std::endl
+	  << std::left;
+      
+      NTCstanza(out, both, "SigmaV", pcent);
+      out << std::string(spc, '-') << std::endl;
+      NTCstanza(out, cros, "Cross",  pcent);
+      out << std::string(spc, '-') << std::endl;
+      NTCstanza(out, crel, "Vrel",   pcent);
+      out << std::string(spc, '-') << std::endl << std::endl;
+    }
   }
+
 }

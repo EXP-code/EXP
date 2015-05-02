@@ -1276,7 +1276,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       // Get NTC statistics
       //
       (*barrier)("TreeDSMC: BEFORE Collide::NTCgather",  __FILE__, __LINE__);
-      collide->gatherSpecies();
+      collide->NTCgather(c0->Tree());
       (*barrier)("TreeDSMC: AFTER Collide::NTCgather",  __FILE__, __LINE__);
       
       // Get level statistics from tree

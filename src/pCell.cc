@@ -11,11 +11,21 @@
 
 int pCell::live = 0;		// Track number of instances
 
-size_t   sCell::VelCrsSZ = 128; // Maximum number of cached relative velocities
-unsigned pCell::bucket   = 7;   // Target microscopic (collision) bucket size
-unsigned pCell::Bucket   = 64;	// Target macroscopic bucket size
-unsigned pCell::deltaL   = 2;   // Maximum number of cell expansions to get 
-				// sample cell
+// Maximum number of cached relative velocities
+size_t   sCell::VelCrsSZ  = 128; 
+
+// Minimum CrossSection x Velocity value
+double   sCell::VelCrsMin = 1.0e-24;
+
+// Target microscopic (collision) bucket size
+unsigned pCell::bucket    = 7; 
+
+// Target macroscopic bucket size
+unsigned pCell::Bucket    = 64;
+
+// Maximum number of cell expansions to get sample cell
+unsigned pCell::deltaL    = 2;   
+				
 
 static unsigned ctargt = 0;
 
@@ -957,83 +967,67 @@ unsigned pCell::remake_plev()
   return maxplev;
 }
 
-sCell::dPair sCell::VelCrsAvg()
+std::map<sKeyPair, sCell::vcTup> sCell::VelCrsAvg()
 {
-  if (VelCrsList.size()==0 || VelCrsNum<=0) return dPair(1, 1);
-  dPair ret(VelCrsSum);
-  ret.first  /= VelCrsNum;
-  ret.second /= VelCrsNum;
-  return ret;
-}
-
-sCell::dPair sCell::VelCrsAvg(speciesKey indx)
-{
-  std::map<speciesKey, ddqPair>::iterator it = VelCrsListM.find(indx);
+  std::map<sKeyPair, sCell::vcTup> ret;
   
-  if (it == VelCrsListM.end()) return dPair(1, 1);
+  if (VelCrsList.size()>0) {
 
-  if (it->second.size()==0 || VelCrsNumM[indx]<=0) return dPair(1, 1);
-
-  dPair ret(VelCrsSumM[indx]);
-  ret.first  /= VelCrsNumM[indx];
-  ret.second /= VelCrsNumM[indx];
+    for (auto k : VelCrsSum) ret[k.first] = k.second / VelCrsNum[k.first];
+    
+  }
 
   return ret;
 }
 
-void sCell::VelCrsAdd(speciesKey indx, const dPair& val)
+sCell::vcTup sCell::VelCrsAvg(sKeyPair indx)
+{
+  std::map<sKeyPair, dqTup>::iterator it = VelCrsList.find(indx);
+  
+  if (it == VelCrsList.end()) return vcTup(VelCrsMin, 0, 0);
+
+  if (it->second.size()==0 || VelCrsNum[indx]<=0) return vcTup(VelCrsMin, 0, 0);
+
+  double tst = std::get<0>(VelCrsSum[indx]);
+
+  return VelCrsSum[indx] / VelCrsNum[indx];
+}
+
+void sCell::VelCrsAdd(std::map<sKeyPair, sCell::vcTup>& vals)
+{
+  for (auto it : vals) {
+    if (std::get<0>(it.second)>VelCrsMin) VelCrsAdd(it.first, it.second);
+  }
+}
+
+void sCell::VelCrsAdd(sKeyPair indx, const vcTup& val)
 {
   unsigned sz = 0;
 
-  if (VelCrsListM.find(indx) != VelCrsListM.end()) sz = VelCrsListM.size();
+  if (VelCrsList.find(indx) != VelCrsList.end()) sz = VelCrsList[indx].size();
 
   // Initialize running average
   //
   if (sz==0) {
-    VelCrsSumM[indx] = dPair(0, 0);
-    VelCrsNumM[indx] = 0;
+    VelCrsSum[indx] = vcTup(0, 0, 0);
+    VelCrsNum[indx] = 0;
   }
 
   // Add new element
   //
-  VelCrsListM[indx].push_back(val);
-  VelCrsSumM[indx] += val;
-  VelCrsNumM[indx] += 1;
+  if (std::get<0>(val)>VelCrsMin) {
+    VelCrsList[indx].push_back(val);
+    VelCrsSum [indx] += val;
+    VelCrsNum [indx] += 1;
+  }
 
-  // Push out the oldest element
-  // if deque is full
+  double tst = std::get<0>(val);
+
+  // Push out the oldest element if deque is full
   //
   if (sz==VelCrsSZ) {
-    VelCrsSumM[indx] -= VelCrsListM[indx].front();
-    VelCrsNumM[indx] -= 1;
-    VelCrsListM[indx].pop_front();
-  }
-}
-
-
-void sCell::VelCrsAdd(const dPair& val)
-{
-  unsigned sz = VelCrsList.size();
-
-  // Initialize running average
-  //
-  if (sz==0) {
-    VelCrsSum = dPair(0, 0);
-    VelCrsNum = 0;
-  }
-
-  // Add new element
-  //
-  VelCrsList.push_back(val);
-  VelCrsSum += val;
-  VelCrsNum += 1;
-
-  // Push out the oldest element
-  // if deque is full
-  //
-  if (sz==VelCrsNum) {
-    VelCrsSum -= VelCrsList.front();
-    VelCrsList.pop_front();
-    VelCrsNum -= 1;
+    VelCrsSum [indx] -= VelCrsList[indx].front();
+    VelCrsNum [indx] -= 1;
+    VelCrsList[indx].pop_front();
   }
 }

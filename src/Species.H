@@ -14,6 +14,7 @@ typedef std::map<speciesKey, sKeyDmap>             sKey2Dmap;
 typedef std::map<speciesKey, unsigned>             sKeyUmap;
 typedef std::map<speciesKey, sKeyUmap>             sKey2Umap;
 typedef std::map<speciesKey, std::vector<double> > sKeyvDmap;
+typedef std::pair<speciesKey, speciesKey>          sKeyPair;
 //@}
 
 /**

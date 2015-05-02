@@ -148,7 +148,8 @@ protected:
   vector<double>      forkSum, snglSum, waitSum, diagSum, joinSum;
   bool                effortAccum;
   vector<effortL>     effortNumber;
-  vector<unsigned>    ntcVel, ntcCrs, ntcBth, ntcTot;
+  vector<unsigned>    ntcOvr, ntcTot;
+  unsigned            accOvr, accTot;
 
   boost::tuple<double, double, double> ntcRes;
   
@@ -527,11 +528,23 @@ public:
   virtual void resetColls()       {}
   //@}
 
-  // Gather stats for No-Time-Counter algorithm
-  virtual void NTCgather();
+  //@{
+  //! Cell distribution of maximum (cross*vel)
+  std::map< sKeyPair, std::vector<double> > both, cros, crel;
+  //}
 
-  // Print stats for No-Time-Counter algorithm
+  //! Gather stats for No-Time-Counter algorithm
+  virtual void NTCgather(pHOT* const tree);
+
+  //! Print stats for No-Time-Counter algorithm
   virtual void NTCstats(ostream& out);
+
+protected:
+
+  //! Helper function for NTCstats output
+  void NTCstanza(std::ostream& out, 
+		 std::map< sKeyPair, std::vector<double> >& vals,
+		 const std::string& lab, const std::vector<double>& pcent);
 };
 
 #endif

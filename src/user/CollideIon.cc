@@ -1949,7 +1949,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     // Set to false for production
     //          |
     //          v
-    const bool DEBUG_F = true;
+    const bool DEBUG_F = false;
     //
     if (DEBUG_F) {
       speciesKey i1 = k1.getKey();
@@ -1982,6 +1982,10 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 		  << std::endl;
       }
       std::cout << std::endl;
+
+      if (TotalCross.back()/csections[id][i1][i2] * cfac > 100.0) {
+	std::cout << "Crazy large" << std::endl;
+      }
     }
 
     //--------------------------------------------------
