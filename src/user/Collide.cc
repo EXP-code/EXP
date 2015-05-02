@@ -1142,15 +1142,20 @@ void * Collide::collide_thread(void * arg)
 	    ok = true;
 	  
 
-	  // Update v_max and cross_max
+	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
+				// Over NTC max average
+	    if (cr*cros/cunit > std::get<0>(ntcF[k])) {
+	      ntcOvr[id]++;
+	    }
+				// Record this value?
 	    if (cr*cros/cunit > std::get<0>(ntcFmax[k])) {
 	      std::get<0>(ntcFmax[k]) = cros * cr / cunit;
 	      std::get<1>(ntcFmax[k]) = cros / cunit;
 	      std::get<2>(ntcFmax[k]) = cr;
-	      ntcOvr[id]++;
 	    }
+	      
 	    ntcTot[id]++;
 	  }
 
@@ -3148,12 +3153,6 @@ void Collide::NTCgather(pHOT* const tree)
 	std::sort(both[k].begin(), both[k].end());
 	std::sort(cros[k].begin(), cros[k].end());
 	std::sort(crel[k].begin(), crel[k].end());
-
-	// DEBUG
-	//
-	double tstbb = both[k].front(), tstbe = both[k].back();
-	double tstcb = cros[k].front(), tstce = cros[k].back();
-	double tstvb = crel[k].front(), tstve = crel[k].back();
       }
     }
   }
@@ -3188,8 +3187,9 @@ void Collide::NTCstats(std::ostream& out)
     size_t spc = 18 + 12*both.size();
 
     out << std::string(spc, '-') << std::endl
-	<< "[NTC diagnostics]  Time=" << tnow 
-	<< "  Over=" << accOvr << "  Total=" << accTot
+	<< "[NTC diagnostics]  Time=" << ios::scientific << tnow 
+	<< "  Over=" << accOvr << "  Total=" << accTot << ios::fixed
+	<< "  Frac=" << static_cast<double>(accOvr)/accTot
 	<< std::endl << std::string(spc, '-') << std::endl;
 
     if (both.size() > 0) {
@@ -3207,7 +3207,7 @@ void Collide::NTCstats(std::ostream& out)
 	out << std::setw(12) << sout.str();
       }
       out << std::endl << std::string(spc, '-') << std::endl
-	  << std::left;
+	  << std::left << ios::fixed;
       
       NTCstanza(out, both, "SigmaV", pcent);
       out << std::string(spc, '-') << std::endl;

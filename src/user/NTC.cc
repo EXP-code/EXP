@@ -31,8 +31,8 @@ void NTCitem::VelCrsTest()
     for (auto k : VelCrsSum) {
       sKeyPair p = k.first;
       std::ostringstream sout;
-      sout << "(" << p.first.first << "," << p.first.second
-	   << "|" << p.first.first << "," << p.first.second << ")";
+      sout << "(" << p.first.first  << "," << p.first.second
+	   << "|" << p.second.first << "," << p.second.second << ")";
       std::cout << std::setw(14) << sout.str() 
 		<< std::setw(10) << VelCrsNum[p]
 		<< "  " << k.second << std::endl;
