@@ -86,6 +86,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_pullin = false;
   esol       = false;
   ntc        = true;
+  ntcdef     = 10.0;
   cba        = true;
   tube       = false;
   slab       = false;
@@ -398,18 +399,19 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
-  Collide::NTC     = ntc;
-  Collide::PULLIN  = use_pullin;
-  Collide::ESOL    = esol;
+  Collide::NTC       = ntc;
+  Collide::PULLIN    = use_pullin;
+  Collide::ESOL      = esol;
   Collide::EPSMratio = epsm;
-  Collide::DRYRUN  = dryrun;
-  Collide::NOCOOL  = nocool;
-  Collide::TSDIAG  = tsdiag;
-  Collide::VOLDIAG = voldiag;
-  Collide::TSPOW   = tspow;
-  Collide::MFPDIAG = mfpstat;
-  Collide::EFFORT  = use_effort;
-  Collide::ENHANCE = enhance;
+  Collide::DRYRUN    = dryrun;
+  Collide::NOCOOL    = nocool;
+  Collide::TSDIAG    = tsdiag;
+  Collide::VOLDIAG   = voldiag;
+  Collide::TSPOW     = tspow;
+  Collide::MFPDIAG   = mfpstat;
+  Collide::EFFORT    = use_effort;
+  Collide::ENHANCE   = enhance;
+  NTCitem::VelCrsDef = ntcdef;
 
   //
   // Create the collision instance from the allowed list
@@ -578,6 +580,7 @@ void UserTreeDSMC::initialize()
   if (get_value("esol", val))		esol       = atol(val);
   if (get_value("cba", val))		cba        = atol(val);
   if (get_value("ntc", val))		ntc        = atol(val);
+  if (get_value("ntcdef", val))		ntcdef     = atof(val.c_str());
   if (get_value("tube", val))		tube       = atol(val);
   if (get_value("slab", val))		slab       = atol(val);
   if (get_value("sub_sample", val))	sub_sample = atol(val);

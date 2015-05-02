@@ -144,6 +144,7 @@ class CollideIon;
     @param use_effort set to true (default) uses the effort expended in computing the force per particle from DSMC to load balance the simulation
     @param mfpts set to true (default) uses the mean free path to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
+    @param ntcdef is the default NTC value for <cross section>x<relative velocity> in mixed units (default: 10)
     @param tube set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is X
     @param slab set to true (default: false) sets the octree region to a 
@@ -188,6 +189,7 @@ private:
   double epsm;
   double coolfrac;
   double enhance;
+  double ntcdef;
   string ctype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
