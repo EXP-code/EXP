@@ -3225,11 +3225,11 @@ void Collide::NTCstats(std::ostream& out)
       out << std::endl << std::string(spc, '-') << std::endl
 	  << std::left << std::fixed;
       
-      NTCstanza(out, both, "SigmaV", pcent);
+      NTCstanza(out, both, "Sig*Vel", pcent);
       out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, cros, "Cross",  pcent);
+      NTCstanza(out, cros, "Cross",   pcent);
       out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, crel, "Ratio",  pcent);
+      NTCstanza(out, crel, "Ratio",   pcent);
       out << std::string(spc, '-') << std::endl << std::endl;
     }
   }
