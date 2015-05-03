@@ -67,7 +67,7 @@ bool Collide::EFFORT   = true;
 bool Collide::TIMING   = true;
 
 //! Velocity factor for NTC database
-double Collide::NTCAVG = 4.0;
+double Collide::NTCAVG = 3.0;
 
 // Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
@@ -818,8 +818,8 @@ void * Collide::collide_thread(void * arg)
 
     // Containers for NTC values
     //
-    std::map<sKeyPair, NTCitem::vcTup> ntcF, ntcFavg;
-    std::map<sKeyPair, unsigned> ntcFcnt;
+    std::map<sKeyPair, NTCitem::dqTup> ntcFdat;
+    std::map<sKeyPair, NTCitem::vcTup> ntcF;
 
     sKeyUmap::iterator it1, it2;
 
@@ -841,9 +841,6 @@ void * Collide::collide_thread(void * arg)
 	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k) * NTCAVG;
 	else
 	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
-
-	ntcFavg[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
-	ntcFcnt[k] = 0;
       }
     }
 
@@ -1155,10 +1152,8 @@ void * Collide::collide_thread(void * arg)
 	      ntcOvr[id]++;
 	    }
 				// Accumulate average
-	    std::get<0>(ntcFavg[k]) += cros * cr / cunit;
-	    std::get<1>(ntcFavg[k]) += cros / cunit;
-	    std::get<2>(ntcFavg[k]) += targ;
-	    ntcFcnt[k]++;
+	    NTCitem::vcTup dat(cros * cr / cunit, cros / cunit, targ);
+	    ntcFdat[k].push_back(dat);
 
 	    ntcTot[id]++;
 	  }
@@ -1191,12 +1186,7 @@ void * Collide::collide_thread(void * arg)
     
 #pragma omp critical
     if (NTC) {
-      for (auto &v : ntcFavg) {
-	unsigned cnt = ntcFcnt[v.first];
-	if (cnt) v.second /= cnt;
-      }
-
-      ntcdb[samp->mykey]->VelCrsAdd(ntcFavg);
+      ntcdb[samp->mykey]->VelCrsAdd(ntcFdat);
     }
 
     // Count collisions

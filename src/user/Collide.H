@@ -412,7 +412,7 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
-  //! Velocity factor for NTC database
+  //! CrossSection-Velocity factor for NTC database
   static double NTCAVG;
 
   //! Atomic weights (public data)

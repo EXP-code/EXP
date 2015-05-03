@@ -154,23 +154,21 @@ public:
   typedef std::deque<vcTup>                  dqTup;
   typedef std::map<sKeyPair, dqTup>          dqMap;
   typedef std::map<sKeyPair, vcTup>          vcMap;
-  typedef std::map<sKeyPair, unsigned>       numMap;
   //@}
 
 protected:
 
-  //@{
-  //! NTC structures
-  dqMap     VelCrsList;
-  vcMap     VelCrsSum;
-  numMap    VelCrsNum;
-  //@}
+  //! Main NTC data structures
+  dqMap db;
   
   //@{
   //! For debugging
   static unsigned maxrpt;
+  static unsigned skprpt;
   key_type caller;
   unsigned report;
+  bool inTest;
+
   void VelCrsTest();
   void setKey(const key_type& k) { caller = k; }
   //@}
@@ -181,15 +179,14 @@ protected:
 public:
 
   //! Null constructor
-  NTCitem() { report = 0; }
+  NTCitem() { report = 0; inTest = false; }
 
   //! Copy constructor
   NTCitem(boost::shared_ptr<NTCitem> p) 
   {
-    VelCrsList = p->VelCrsList;	
-    VelCrsSum  = p->VelCrsSum;	
-    VelCrsNum  = p->VelCrsNum;    
-    report     = 0;
+    db     = p->db;
+    report = 0;
+    inTest = false;
   }
 
   //! Threshold <cross section> x <relative velocity> value
@@ -198,17 +195,17 @@ public:
   //! Default <cross section> x <relative velocity> value
   static double VelCrsDef;
 
-  //@{
-  //! Maximum relative velocity average (<0 if no entries)
-  vcTup VelCrsAvg(sKeyPair indx);
-  vcMap VelCrsAvg();
-  //@}
+  //! Return quantile value for a single index
+  vcTup VelCrsAvg(sKeyPair indx, double quantile=0.5);
   
-  //@{
-  //! Add maximum to list
-  void VelCrsAdd(vcMap& vals);
+  //! Return quantile values for all indices
+  vcMap VelCrsAvg(double quantile=0.5);
+  
+  //! Add multiple data values to the list
+  void VelCrsAdd(dqMap& vals);
+
+  //! Add a single value to the list
   void VelCrsAdd(sKeyPair indx, const vcTup& val);
-  //@}
 };
 
 typedef boost::shared_ptr<NTCitem> NTCptr;
