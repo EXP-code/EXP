@@ -465,7 +465,7 @@ protected:
   //! Cross-section debugging
   std::string cross_debug;
   std::vector<double> cross1_dbg, cross2_dbg;
-  double nextTime_dbg;
+  double nextTime_dbg, vavg_dbg;
   int nCnt_dbg;
   static constexpr double delTime_dbg = 0.001;
   static constexpr int nCel_dbg = 10;
@@ -520,7 +520,6 @@ public:
   static unsigned Nnum;
   static unsigned Tnum;
   static string cache;
-  static bool frost_warning;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 

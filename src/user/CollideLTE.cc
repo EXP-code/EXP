@@ -49,8 +49,14 @@ unsigned CollideLTE::Nnum    = 400;
 unsigned CollideLTE::Tnum    = 200;
 string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
-bool     CollideLTE::frost_warning = false;
 
+// Warn if energy lost is smaller than COM energy available.  For
+// debugging.  Set to false for production.
+//
+const bool frost_warning     = false;
+
+// Main constructor
+//
 CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
 		       double hD, double sD, int Nth) : 
   Collide(force, comp, hD, sD, Nth)

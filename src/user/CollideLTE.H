@@ -88,7 +88,6 @@ public:
   static unsigned Nnum;
   static unsigned Tnum;
   static string cache;
-  static bool frost_warning;
 
   CollideLTE(ExternalForce *force, Component *comp,
 	     double hsDiam, double diamfac, int nth=1);

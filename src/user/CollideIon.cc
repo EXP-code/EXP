@@ -25,24 +25,31 @@ unsigned CollideIon::Nnum    	   = 400;
 unsigned CollideIon::Tnum    	   = 200;	   
 string   CollideIon::cache   	   = ".HeatCool";
 
-bool CollideIon::frost_warning = false; // For debugging . . . 
+// Warn if energy lost is smaller than COM energy available.  For
+// debugging.  Set to false for production.
+//
+const bool frost_warning     = false;
+
+// Verbose cross-section debugging. Set to false for production.
+//
+const bool DEBUG_CR          = false;
 
 // Artifically suppress electron equipartition speed
 //
-bool NO_DOF            = true;
+const bool NO_DOF            = true;
 
 // Artifically suppress electron equilibrium velocity
 //
-bool NO_VEL            = false;
+const bool NO_VEL            = false;
 
 // Artifically prevent cooling by setting the energy removed from the
 // COM frame to zero
 //
-bool NO_COOL           = false;
+const bool NO_COOL           = false;
 
 // KE debugging; set to false for production
 //
-bool KE_DEBUG          = false;
+const bool KE_DEBUG          = false;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -210,6 +217,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Representative avg cell velocity in cgs
   //  
   double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
+
+  vavg_dbg = 0.5*rvmax;
 
   // Representative avg cell energy in ergs
   //
@@ -1438,11 +1447,9 @@ int CollideIon::inelasticDirect(pHOT* const tree,
     // VERBOSE DEBUG TEST
     //-------------------------
     // Set to false for production
-    //          |
-    //          v
-    const bool DEBUG_F = false;
-    //
-    if (DEBUG_F) {
+    //  |
+    //  v
+    if (DEBUG_CR) {
       //
       // Output on collisions for now . . . 
       //
@@ -1951,11 +1958,9 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     // VERBOSE DEBUG TEST
     //-------------------------
     // Set to false for production
-    //          |
-    //          v
-    const bool DEBUG_F = true;
-    //
-    if (DEBUG_F) {
+    //  |
+    //  v
+    if (DEBUG_CR) {
       speciesKey i1 = k1.getKey();
       speciesKey i2 = k2.getKey();
       double cfac = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -2414,11 +2419,9 @@ int CollideIon::inelasticTrace(pHOT* const tree,
   // VERBOSE DEBUG TEST
   //-------------------------
   // Set to false for production
-  //          |
-  //          v
-  const bool DEBUG_F = false;
-  //
-  if (DEBUG_F) {
+  //  |
+  //  v
+  if (DEBUG_CR) {
     std::cout << std::setw( 8) << "index"
 	      << std::setw( 4) << "Z"
 	      << std::setw( 4) << "C"
@@ -4196,10 +4199,12 @@ sKey2Umap CollideIon::generateSelectionWeight
       sKeyPair k(i1, i2);
       if (i1>=i2) k = sKeyPair(i2, i1);
 
+      const double cunit = 1.0e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
       if (samp)
-	crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k));
+	crsvel = cunit * std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k));
       else
-	crsvel = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k));
+	crsvel = cunit * std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k));
       
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
