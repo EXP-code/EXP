@@ -412,6 +412,9 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
+  //! Velocity factor for NTC database
+  static double NTCAVG;
+
   //! Atomic weights (public data)
   static std::map<unsigned short, double> atomic_weights;
 
@@ -536,8 +539,8 @@ public:
   //@}
 
   //@{
-  //! Cell distribution of maximum (cross*vel)
-  std::map< sKeyPair, std::vector<double> > both, cros, crel;
+  //! Cell distribution of average (cross*vel)
+  std::map< sKeyPair, std::vector<double> > both, cros, crat;
   //}
 
   //! Gather stats for No-Time-Counter algorithm

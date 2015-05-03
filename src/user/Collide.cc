@@ -66,6 +66,9 @@ bool Collide::EFFORT   = true;
 // Verbose timing
 bool Collide::TIMING   = true;
 
+//! Velocity factor for NTC database
+double Collide::NTCAVG = 4.0;
+
 // Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 
@@ -815,8 +818,8 @@ void * Collide::collide_thread(void * arg)
 
     // Containers for NTC values
     //
-    std::map<sKeyPair, NTCitem::vcTup> ntcF, ntcFmax;
-    std::map<sKeyPair, std::pair<unsigned, double> > crat;
+    std::map<sKeyPair, NTCitem::vcTup> ntcF, ntcFavg;
+    std::map<sKeyPair, unsigned> ntcFcnt;
 
     sKeyUmap::iterator it1, it2;
 
@@ -835,13 +838,12 @@ void * Collide::collide_thread(void * arg)
 	sKeyPair   k(i1, i2);
 
 	if (samp)
-	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k);
+	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k) * NTCAVG;
 	else
 	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
 
-	ntcFmax[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
-
-	crat   [k] = std::pair<unsigned, double>(0, 0);
+	ntcFavg[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
+	ntcFcnt[k] = 0;
       }
     }
 
@@ -1148,22 +1150,16 @@ void * Collide::collide_thread(void * arg)
 	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
-				// Accumulate targ value
-	    if (std::get<0>(ntcF[k]) > NTCitem::VelCrsMin) {
-	      crat[k].first++;
-	      crat[k].second += targ;
-	    }
 				// Over NTC max average
 	    if (cr*cros/cunit > std::get<0>(ntcF[k])) {
 	      ntcOvr[id]++;
 	    }
-				// Record this value?
-	    if (cr*cros/cunit > std::get<0>(ntcFmax[k])) {
-	      std::get<0>(ntcFmax[k]) = cros * cr / cunit;
-	      std::get<1>(ntcFmax[k]) = cros / cunit;
-	      std::get<2>(ntcFmax[k]) = cr;
-	    }
-	      
+				// Accumulate average
+	    std::get<0>(ntcFavg[k]) += cros * cr / cunit;
+	    std::get<1>(ntcFavg[k]) += cros / cunit;
+	    std::get<2>(ntcFavg[k]) += targ;
+	    ntcFcnt[k]++;
+
 	    ntcTot[id]++;
 	  }
 
@@ -1195,13 +1191,12 @@ void * Collide::collide_thread(void * arg)
     
 #pragma omp critical
     if (NTC) {
-      for (auto v : crat) {	// NTC debugging
-	if (v.second.first>0)
-	  get<2>(ntcFmax[v.first]) = v.second.second/v.second.first;
-	else
-	  get<2>(ntcFmax[v.first]) = v.second.second;
+      for (auto &v : ntcFavg) {
+	unsigned cnt = ntcFcnt[v.first];
+	if (cnt) v.second /= cnt;
       }
-      ntcdb[samp->mykey]->VelCrsAdd(ntcFmax);
+
+      ntcdb[samp->mykey]->VelCrsAdd(ntcFavg);
     }
 
     // Count collisions
@@ -3075,7 +3070,7 @@ void Collide::NTCgather(pHOT* const tree)
 
     both.clear();
     cros.clear();
-    crel.clear();
+    crat.clear();
 
     unsigned Ovr=0, Tot=0;
     for (int n=0; n<nthrds; n++) {
@@ -3095,7 +3090,7 @@ void Collide::NTCgather(pHOT* const tree)
       for (auto i : v) {
 	both[i.first].push_back(std::get<0>(i.second));
 	cros[i.first].push_back(std::get<1>(i.second));
-	crel[i.first].push_back(std::get<2>(i.second));
+	crat[i.first].push_back(std::get<2>(i.second));
       }
     }
 
@@ -3120,7 +3115,7 @@ void Collide::NTCgather(pHOT* const tree)
 
 	MPI_Send(&both[k][0], num, MPI_DOUBLE, 0, 230, MPI_COMM_WORLD);
 	MPI_Send(&cros[k][0], num, MPI_DOUBLE, 0, 231, MPI_COMM_WORLD);
-	MPI_Send(&crel[k][0], num, MPI_DOUBLE, 0, 232, MPI_COMM_WORLD);
+	MPI_Send(&crat[k][0], num, MPI_DOUBLE, 0, 232, MPI_COMM_WORLD);
       }
 
     } else {
@@ -3155,7 +3150,7 @@ void Collide::NTCgather(pHOT* const tree)
 
 	  both[k].insert( both[k].end(), v1.begin(), v1.end() );
 	  cros[k].insert( cros[k].end(), v2.begin(), v2.end() );
-	  crel[k].insert( crel[k].end(), v3.begin(), v3.end() );
+	  crat[k].insert( crat[k].end(), v3.begin(), v3.end() );
 	}
       }
     }
@@ -3168,7 +3163,7 @@ void Collide::NTCgather(pHOT* const tree)
 	sKeyPair k = it.first;
 	std::sort(both[k].begin(), both[k].end());
 	std::sort(cros[k].begin(), cros[k].end());
-	std::sort(crel[k].begin(), crel[k].end());
+	std::sort(crat[k].begin(), crat[k].end());
       }
     }
   }
@@ -3229,7 +3224,7 @@ void Collide::NTCstats(std::ostream& out)
       out << std::string(spc, '-') << std::endl;
       NTCstanza(out, cros, "Cross",   pcent);
       out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, crel, "Ratio",   pcent);
+      NTCstanza(out, crat, "Ratio",   pcent);
       out << std::string(spc, '-') << std::endl << std::endl;
     }
   }
