@@ -924,7 +924,8 @@ double Ion::directIonCross(double E, int id)
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 				// convert to cross section in nm^2
-	cross += cross_i * 1.0e-14;
+	// cross += cross_i * 1.0e-14;
+	cross += cross_i;
       }
     }
   }
@@ -1290,7 +1291,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
     }
   }
 
-  // Convert to nm ---------+
+  // Convert to nm^2 -------+
   //                        |
   //                        v
   radRecCum.push_back(cross*1.0e18);

@@ -837,7 +837,7 @@ void * Collide::collide_thread(void * arg)
 	if (samp)
 	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k);
 	else
-	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
+	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
 
 	ntcFmax[k] = NTCitem::vcTup(NTCitem::VelCrsMin, 0, 0);
 

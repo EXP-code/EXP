@@ -29,7 +29,7 @@ bool CollideIon::frost_warning = false; // For debugging . . .
 
 // Artifically suppress electron equipartition speed
 //
-bool NO_DOF            = false;
+bool NO_DOF            = true;
 
 // Artifically suppress electron equilibrium velocity
 //
@@ -579,6 +579,8 @@ double CollideIon::crossSectionDirect(pHOT *tree, Particle* p1, Particle* p2,
   //
   double eVel = sqrt(mu/me);
 
+  if (NO_VEL) eVel = 1.0;
+
   // Internal energy per particle
   //
   Ein1[id] = Ein2[id] = 0.0;
@@ -871,6 +873,8 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   //
   double eVel1 = sqrt(m1/me/dof1);
   double eVel2 = sqrt(m2/me/dof2);
+
+  if (NO_VEL) eVel1 = eVel2 = 1.0;
 
   // Internal energy per particle
   //
@@ -1949,7 +1953,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     // Set to false for production
     //          |
     //          v
-    const bool DEBUG_F = false;
+    const bool DEBUG_F = true;
     //
     if (DEBUG_F) {
       speciesKey i1 = k1.getKey();
@@ -3981,6 +3985,10 @@ sKey2Umap CollideIon::generateSelectionWeight
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
+  // Sample cell
+  //
+  pCell *samp = c->sample;
+
   // Volume in the cell
   //
   double volc = c->Volume();
@@ -4183,21 +4191,25 @@ sKey2Umap CollideIon::generateSelectionWeight
     for (it2=it1; it2!=c->count.end(); it2++) {
       speciesKey i2 = it2->first;
       
-      double crossT = 0.0;
-      if (i2>=i1)
-	crossT = csections[id][i1][i2];
-      else
-	crossT = csections[id][i2][i1];
+      double crsvel = 0.0;
 
+      sKeyPair k(i1, i2);
+      if (i1>=i2) k = sKeyPair(i2, i1);
+
+      if (samp)
+	crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k));
+      else
+	crsvel = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k));
+      
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
       //
       double Prob = 0.0;
 
       if (fracW[i1]>=fracW[i2]) {
-	Prob = fracW[i2] * (*Fn)[i2] * crossT * crm * tau / volc;
+	Prob = fracW[i2] * (*Fn)[i2] * crsvel * tau / volc;
       } else {
-	Prob = fracW[i1] * (*Fn)[i1] * crossT * crm * tau / volc;
+	Prob = fracW[i1] * (*Fn)[i1] * crsvel * tau / volc;
       }
 
       // Count _pairs_ of identical particles only
