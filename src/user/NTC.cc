@@ -45,24 +45,24 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      vcTup q1(VelCrsAvg(p, 0.25));
-      vcTup q2(VelCrsAvg(p, 0.50));
-      vcTup q3(VelCrsAvg(p, 0.75));
+      vcTup q1(k.second[qs[0]]->get());
+      vcTup q2(k.second[qs[1]]->get());
+      vcTup q3(k.second[qs[2]]->get());
 
       vcTup p1( std::get<0>(q1),  std::get<0>(q2), std::get<0>(q3) );
       vcTup p2( std::get<1>(q1),  std::get<1>(q2), std::get<1>(q3) );
       vcTup p3( std::get<2>(q1),  std::get<2>(q2), std::get<2>(q3) );
 
       std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second.size()
+		<< std::setw(10) << k.second[qs[0]]->count()
 		<< "  " << p1 << "  product" << std::endl 
-		<< std::string(70, '-')      << std::endl
+		<< std::setw(26) << "" << std::string(42, '-') << std::endl
 		<< std::setw(24) << ""
 		<< "  " << p2 << "  cross"   << std::endl
-		<< std::string(70, '-')      << std::endl
+		<< std::setw(26) << "" << std::string(42, '-') << std::endl
 		<< std::setw(24) << ""
 		<< "  " << p3 << "  ratio"   << std::endl
-		<< std::string(70, '-')      << std::endl;
+		<< std::setw(26) << "" << std::string(42, '-') << std::endl;
     }
     std::cout << std::string(70, '-') << std::endl;
   } else {
@@ -77,20 +77,13 @@ void NTCitem::VelCrsTest()
 NTCitem::vcMap NTCitem::VelCrsAvg(double quant)
 {
   vcMap ret;
-
-  // Sanity
-  quant = std::min(std::max(0.0, quant), 0.9999);
+  bool ok = (qs.find(quant) != qs.end());
 
   for (auto v : db) {
-    // Sort for quantile
-    std::sort(v.second.begin(), v.second.end());
-    //        ^
-    //        |
-    //        +--- This is a copy
-
-    // Assign quantile
-    //
-    ret[v.first] = v.second[floor(v.second.size()*quant)];
+    if (ok)
+      ret[v.first] = v.second[quant]->get();
+    else
+      ret[v.first] = vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
   }
 
   return ret;
@@ -98,21 +91,15 @@ NTCitem::vcMap NTCitem::VelCrsAvg(double quant)
 
 NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double quant)
 {
+  // Check for quant
+  bool ok = (qs.find(quant) != qs.end());
+
   // Get stanza in db
-  dqMap::iterator it = db.find(indx);
+  qpMap::iterator it = db.find(indx);
 
   // Default value
   if (it == db.end()) return vcTup(VelCrsDef, 0, 0);
 
-  // Sanity
-  quant = std::min(std::max(0.0, quant), 0.9999);
-
-  // Sort for quantile
-  dqTup tmp(it->second); std::sort(tmp.begin(), tmp.end());
-  //        ^
-  //        |
-  //        +--- This is NOT a copy
-  
   // Debug reporting
   //
   if (DEBUG_V and !inTest) {
@@ -121,14 +108,18 @@ NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double quant)
   }
 
   // Return quantile
-  return tmp[floor(tmp.size()*quant)];
+  if (ok)
+    return it->second[quant]->get();
+  else
+    return vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
 }
 
 void NTCitem::VelCrsAdd(dqMap& vals)
 {
   for (auto it : vals) {
-    db[it.first].insert(db[it.first].begin(), it.second.begin(), it.second.end());
-    if (db[it.first].size() > VelCrsSZ) db[it.first].resize(VelCrsSZ);
+    for (auto jt : it.second) {
+      VelCrsAdd(it.first, jt);
+    }
   }
 }
 
@@ -138,14 +129,13 @@ void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
   //
   if (std::get<0>(val)<=VelCrsMin) return;
 
+  // Check for initialization of Quantile
+  //
+  if (db.find(indx) == db.end()) db[indx].initialize(ic);
+
   // Add new element
   //
-  db[indx].push_front(val);
-
-  // Push out the oldest element if deque is full
-  //
-  if (db[indx].size()>VelCrsSZ) db[indx].resize(VelCrsSZ);
-
+  db[indx].add(val);
 }
 
 

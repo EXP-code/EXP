@@ -156,10 +156,115 @@ public:
   typedef std::map<sKeyPair, vcTup>          vcMap;
   //@}
 
+  //! Compute a running quantile using a relaxation scheme
+  class Quantile
+  {
+  private:
+
+    double eta;
+    vcTup  q;
+    double p;
+    unsigned long c;
+
+  public:
+
+    //! Constructor
+    Quantile(double eta, const vcTup& q, double p) : 
+      eta(eta), q(q), p(p), c(0) {}
+
+    //! Copy constructor
+    Quantile(const Quantile *s)
+    {
+      eta = s->eta;
+      q   = s->q;
+      p   = s->p;
+      c   = s->c;
+    }
+
+    //! Add value
+    void add(const vcTup& v)
+    {
+      std::get<0>(q) += eta * (std::copysign(1.0, std::get<0>(v) - std::get<0>(q)) + 2.0*p - 1.0);
+      std::get<1>(q) += eta * (std::copysign(1.0, std::get<1>(v) - std::get<1>(q)) + 2.0*p - 1.0);
+      std::get<2>(q) += eta * (std::copysign(1.0, std::get<2>(v) - std::get<2>(q)) + 2.0*p - 1.0);
+      c++;
+    }
+
+    //! Get current value
+    vcTup get()
+    {
+      return q;
+    }
+
+    //! Get number of samples
+    unsigned long count()
+    {
+      return c;
+    }
+  };
+
+  typedef boost::shared_ptr<Quantile>  qPtr;
+
+  class QuantileArray
+  {
+  private:
+    std::vector<double>    pp;
+    std::vector<vcTup>     qq;
+    std::map<double, qPtr> tt;
+
+  public:
+    //! Null constructor
+    QuantileArray() {}
+
+    //! Construct an array of quantile pointers
+    QuantileArray
+    (const std::vector<std::tuple<double, vcTup, double> >& e)
+    {
+      initialize(e);
+    }
+
+    //! Initialize the array
+    void initialize
+    (const std::vector<std::tuple<double, vcTup, double> >& e)
+    {
+      tt.erase(tt.begin(), tt.end());
+
+      for (auto v : e) {
+	double eta = std::get<0>(v);
+	vcTup  q   = std::get<1>(v);
+	double p   = std::get<2>(v);
+	tt[p] = qPtr(new Quantile(eta, q, p));
+      }
+    }
+    
+    void add(const vcTup& v) 
+    {
+      for (auto &q : tt) q.second->add(v);
+    }
+
+    qPtr operator[](double p)
+    {
+      return tt[p];
+    }
+  };
+  
+  typedef std::map<sKeyPair, QuantileArray> qpMap;
+
 protected:
 
+  //@{
+  //! Quantile init list
+  typedef std::tuple<double, vcTup, double> d3Tup;
+  const std::set<double> qs = {0.05, 0.50, 0.95};
+  const double eta = 0.1, vi = 1.0;
+  const std::vector<d3Tup>
+  ic = { d3Tup(eta, vcTup(vi, vi, vi), 0.05),
+	 d3Tup(eta, vcTup(vi, vi, vi), 0.50), 
+	 d3Tup(eta, vcTup(vi, vi, vi), 0.95) };
+  //@}
+
   //! Main NTC data structures
-  dqMap db;
+  qpMap db;
   
   //@{
   //! For debugging
@@ -178,8 +283,12 @@ protected:
 
 public:
 
-  //! Null constructor
-  NTCitem() { report = 0; inTest = false; }
+  //! Constructor
+  NTCitem() 
+  { 
+    report = 0; 
+    inTest = false; 
+  }
 
   //! Copy constructor
   NTCitem(boost::shared_ptr<NTCitem> p) 

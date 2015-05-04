@@ -4202,9 +4202,9 @@ sKey2Umap CollideIon::generateSelectionWeight
       const double cunit = 1.0e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
       if (samp)
-	crsvel = cunit * std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k)) * NTCAVG;
+	crsvel = cunit * std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
       else
-	crsvel = cunit * std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k)) * NTCAVG;
+	crsvel = cunit * std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
       
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
