@@ -3173,7 +3173,7 @@ void Collide::NTCstanza(std::ostream& out,
     out << std::setw(18) << sout.str();
     // For each species pair, print the quantile
     for (auto v : vals) {
-      size_t indx = static_cast<size_t>(std::round(v.second.size()*p));
+      size_t indx = static_cast<size_t>(std::floor(v.second.size()*p));
       out << std::setw(12) << v.second[indx];
     }
     out << std::endl;

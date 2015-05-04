@@ -192,10 +192,10 @@ public:
     }
 
     //! Get current value
-    vcTup get() { return q; }
+    const vcTup& get() { return q; }
 
     //! Get number of samples
-    unsigned long count() { return c; }
+    const unsigned long count() { return c; }
 
   };
 
@@ -254,7 +254,7 @@ protected:
 
   //@{
   //! The 3 desired quantiles
-  const double u1 = 0.05, u2 = 0.50, u3 = 0.95;
+  const double u1 = 0.25, u2 = 0.50, u3 = 0.95;
   const std::set<double> qs = {u1, u2, u3};
   //@}
 
