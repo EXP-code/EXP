@@ -181,13 +181,37 @@ public:
       c   = s->c;
     }
 
-    //! Add value
+    /** Add value: the main algorithm
+	
+	The expectation of [sgn(v-q)] is zero at the median (p=0.5).
+
+	The expectation of [sgn(v-q) + 2p - 1] is zero at the
+	p-quantile.  That is, if q is the p-quantile for the
+	distribution of v, then v-q is smaller than 0 with probability
+	p.  Or:
+
+	<[]> = <sgn(v-q)> + 2p - 1 = (-1)*p + 1*(1 - p) + 2p - 1 = 0.
+
+	Thus, q is larger than the quantile p, (v-q) will be negative
+	with probability > p and [] will be more often negative than
+	positive (and vice versa). In this way, each value is
+	"relaxed" toward the expectation by the fraction eta of the
+	current median estimate.
+     */
     void add(const vcTup& v)
     {
-      std::get<0>(q) += eta * (std::copysign(1.0, std::get<0>(v) - std::get<0>(q)) + 2.0*p - 1.0);
-      std::get<1>(q) += eta * (std::copysign(1.0, std::get<1>(v) - std::get<1>(q)) + 2.0*p - 1.0);
-      std::get<2>(q) += eta * (std::copysign(1.0, std::get<2>(v) - std::get<2>(q)) + 2.0*p - 1.0);
-      // For diagnostics
+      // Do each tuple entry separately
+      //
+      std::get<0>(q) += eta * fabs(std::get<0>(q)) *
+	(std::copysign(1.0, std::get<0>(v) - std::get<0>(q)) + 2.0*p - 1.0);
+
+      std::get<1>(q) += eta * fabs(std::get<1>(q)) *
+	(std::copysign(1.0, std::get<1>(v) - std::get<1>(q)) + 2.0*p - 1.0);
+
+      std::get<2>(q) += eta * fabs(std::get<2>(q)) *
+	(std::copysign(1.0, std::get<2>(v) - std::get<2>(q)) + 2.0*p - 1.0);
+
+      // For diagnostic output
       c++;
     }
 
