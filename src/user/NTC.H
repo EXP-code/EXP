@@ -54,8 +54,8 @@ template< class T1, class T2, class T3, class S>
 std::tuple<T1, T2, T3> operator*(const std::tuple<T1, T2, T3>& a, const S b)
 {
   std::tuple<T1, T2, T3> ret( std::get<0>(a) * b,
-			   std::get<1>(a) * b,
-			   std::get<2>(a) * b );
+			      std::get<1>(a) * b,
+			      std::get<2>(a) * b );
   return ret;
 };
 
@@ -187,29 +187,28 @@ public:
       std::get<0>(q) += eta * (std::copysign(1.0, std::get<0>(v) - std::get<0>(q)) + 2.0*p - 1.0);
       std::get<1>(q) += eta * (std::copysign(1.0, std::get<1>(v) - std::get<1>(q)) + 2.0*p - 1.0);
       std::get<2>(q) += eta * (std::copysign(1.0, std::get<2>(v) - std::get<2>(q)) + 2.0*p - 1.0);
+      // For diagnostics
       c++;
     }
 
     //! Get current value
-    vcTup get()
-    {
-      return q;
-    }
+    vcTup get() { return q; }
 
     //! Get number of samples
-    unsigned long count()
-    {
-      return c;
-    }
+    unsigned long count() { return c; }
+
   };
 
-  typedef boost::shared_ptr<Quantile>  qPtr;
+  typedef boost::shared_ptr<Quantile> qPtr;
 
   class QuantileArray
   {
+  public:
+
+    typedef std::tuple<double, vcTup, double> d3;
+    typedef std::vector<d3> vd3;
+
   private:
-    std::vector<double>    pp;
-    std::vector<vcTup>     qq;
     std::map<double, qPtr> tt;
 
   public:
@@ -217,15 +216,13 @@ public:
     QuantileArray() {}
 
     //! Construct an array of quantile pointers
-    QuantileArray
-    (const std::vector<std::tuple<double, vcTup, double> >& e)
+    QuantileArray(const vd3& e)
     {
       initialize(e);
     }
 
     //! Initialize the array
-    void initialize
-    (const std::vector<std::tuple<double, vcTup, double> >& e)
+    void initialize(const vd3& e)
     {
       tt.erase(tt.begin(), tt.end());
 
@@ -253,14 +250,26 @@ public:
 protected:
 
   //@{
-  //! Quantile init list
-  typedef std::tuple<double, vcTup, double> d3Tup;
-  const std::set<double> qs = {0.05, 0.50, 0.95};
-  const double eta = 0.1, vi = 1.0;
-  const std::vector<d3Tup>
-  ic = { d3Tup(eta, vcTup(vi, vi, vi), 0.05),
-	 d3Tup(eta, vcTup(vi, vi, vi), 0.50), 
-	 d3Tup(eta, vcTup(vi, vi, vi), 0.95) };
+  //! Quantile init data
+
+  //@{
+  //! The 3 desired quantiles
+  const double u1 = 0.05, u2 = 0.50, u3 = 0.95;
+  const std::set<double> qs = {u1, u2, u3};
+  //@}
+
+  //@{
+  //! The precision and initial tuple values
+  const double et = 0.1, vi = 1.0;
+  const vcTup v3 = vcTup(vi, vi, vi);
+  //@}
+
+  //@{
+  //! The constant intialization vector
+  typedef std::tuple<double, vcTup, double> d3;
+  typedef std::vector<d3> vd3;
+  const vd3 ic = {d3(et, v3, u1), d3(et, v3, u2), d3(et, v3, u3)};
+  //@}
   //@}
 
   //! Main NTC data structures
@@ -277,9 +286,6 @@ protected:
   void VelCrsTest();
   void setKey(const key_type& k) { caller = k; }
   //@}
-
-  // Maximum number of cached relative velocities
-  static size_t VelCrsSZ; 
 
 public:
 
@@ -308,7 +314,7 @@ public:
   vcTup VelCrsAvg(sKeyPair indx, double quantile=0.5);
   
   //! Return quantile values for all indices
-  vcMap VelCrsAvg(double quantile=0.5);
+  vcMap VelCrsAvg(double quantile);
   
   //! Add multiple data values to the list
   void VelCrsAdd(dqMap& vals);

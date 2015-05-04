@@ -15,9 +15,6 @@ unsigned NTCitem::skprpt    = 5;
 // Maximum number of reports for each cell item
 unsigned NTCitem::maxrpt    = 5;
 
-// Maximum number of cached relative velocities
-size_t   NTCitem::VelCrsSZ  = 4096; 
-
 // Minimum CrossSection x Velocity value
 double   NTCitem::VelCrsMin = 1.0e-24;
 
@@ -26,7 +23,7 @@ double   NTCitem::VelCrsDef = 10.0;
 
 void NTCitem::VelCrsTest()
 {
-  inTest = true;
+  inTest = true;		// To prevent recursive calling in VelCrsAvg
 
   if (db.size()==0)
     std::cout << "Empty caller: " << caller << " : " 
@@ -45,16 +42,16 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      vcTup q1(k.second[qs[0]]->get());
-      vcTup q2(k.second[qs[1]]->get());
-      vcTup q3(k.second[qs[2]]->get());
+      vcTup q1(k.second[u1]->get());
+      vcTup q2(k.second[u2]->get());
+      vcTup q3(k.second[u3]->get());
 
       vcTup p1( std::get<0>(q1),  std::get<0>(q2), std::get<0>(q3) );
       vcTup p2( std::get<1>(q1),  std::get<1>(q2), std::get<1>(q3) );
       vcTup p3( std::get<2>(q1),  std::get<2>(q2), std::get<2>(q3) );
 
       std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second[qs[0]]->count()
+		<< std::setw(10) << k.second[u3]->count()
 		<< "  " << p1 << "  product" << std::endl 
 		<< std::setw(26) << "" << std::string(42, '-') << std::endl
 		<< std::setw(24) << ""
