@@ -16,14 +16,14 @@
 
 using namespace std;
 
-double   CollideIon::Nmin          = 1.0e-08;	   
-double   CollideIon::Nmax    	   = 1.0e+25;	   
-double   CollideIon::Tmin    	   = 1.0e+03;	   
-double   CollideIon::Tmax    	   = 1.0e+08;	   
-double   CollideIon::TolV    	   = 1.0e-03;	   
-unsigned CollideIon::Nnum    	   = 400;	   
-unsigned CollideIon::Tnum    	   = 200;	   
-string   CollideIon::cache   	   = ".HeatCool";
+double   CollideIon::Nmin    = 1.0e-08;	   
+double   CollideIon::Nmax    = 1.0e+25;	   
+double   CollideIon::Tmin    = 1.0e+03;	   
+double   CollideIon::Tmax    = 1.0e+08;	   
+double   CollideIon::TolV    = 1.0e-03;	   
+unsigned CollideIon::Nnum    = 400;	   
+unsigned CollideIon::Tnum    = 200;	   
+string   CollideIon::cache   = ".HeatCool";
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -55,16 +55,16 @@ const bool KE_DEBUG          = false;
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-const bool RECOMB_KE   = true;
-const bool RECOMB_IP   = false;
+const bool RECOMB_KE         = true;
+const bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
 //
-const bool CROSS_DBG   = false;
+const bool CROSS_DBG         = false;
 
 // Excess trace map debugging; set to false for production
 //
-const bool EXCESS_DBG  = false;
+const bool EXCESS_DBG        = false;
 
 
 // Minimum energy for Rutherford scattering of ions used to estimate
@@ -3984,7 +3984,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            fracN, densN, collP, nsigmaM,  ncrossM;
+  sKeyDmap            fracN, densN, collP, nsigmaM, ncrossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -4009,23 +4009,32 @@ sKey2Umap CollideIon::generateSelectionWeight
   // Done
   //
   
-  double fnnorm = 0.0;
-  for (auto it1 : c->count) {
+  {
+    double fnnorm = 0.0;
+    for (auto it1 : c->count) {
 
-    if (it1.second) {
-      speciesKey i1 = it1.first;
-
-      // Mass density scaled by atomic weight in amu
+      // Only compute if particles of this species is in the cell
       //
-      densN[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+      if (it1.second) {
+	speciesKey i1 = it1.first;
 
-      // Mean particle trace number fraction in system mass per amu
-      //
-      fracN[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
-      fnnorm   += fracN[i1];
+	// Mass density scaled by atomic weight in amu
+	//
+	densN[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+	
+	// Mean particle trace number fraction in system mass per amu
+	//
+	fracN[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
+	
+	// Normalization
+	//
+	fnnorm   += fracN[i1];
+      }
     }
+
+    // Normalize
+    for (auto &v : fracN) v.second /= fnnorm;
   }
-  for (auto &v : fracN) v.second /= fnnorm;
     
   if (0) {
     std::cout << std::setw(10) << "Species"
@@ -4040,6 +4049,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 	      << std::setw(16) << "---------"
 	      << std::setw(10) << "---------"
 	      << std::endl;
+
     for (auto it : c->count) {
       std::ostringstream sout;
       sout << "(" << it.first.first << ", " << it.first.second << ")";
@@ -4058,101 +4068,114 @@ sKey2Umap CollideIon::generateSelectionWeight
     
   for (auto it1 : c->count) {
 
-    if (it1.second == 0) continue;
+    // Only compute if particles of this species is in the cell
+    //
+    if (it1.second) {
 
-    speciesKey i1 = it1.first;
-    ncrossM[i1]   = 0.0;
-    nsigmaM[i1]   = 0.0;
+      speciesKey i1 = it1.first;
+      ncrossM[i1]   = 0.0;
+      nsigmaM[i1]   = 0.0;
 
-    for (auto it2 : c->count) {
+      for (auto it2 : c->count) {
 
-      if (it2.second == 0) continue;
+	// Only compute if particles of this species is in the cell
+	//
+	if (it2.second) {
 
-      speciesKey i2 = it2.first;
+	  speciesKey i2 = it2.first;
 
-      // Compute the computational cross section (that is, true cross
-      // seciton scaled by number of true particles per computational
-      // particle)
+	  // Compute the computational cross section (that is, true
+	  // cross seciton scaled by number of true particles per
+	  // computational particle)
 
-      double crossT = 0.0;
-      if (i2>=i1)
-	crossT = csections[id][i1][i2];
-      else
-	crossT = csections[id][i2][i1];
+	  double crossT = 0.0;
+	  if (i2>=i1)
+	    crossT = csections[id][i1][i2];
+	  else
+	    crossT = csections[id][i2][i1];
 
-      // Choose the trace species of the two (may be neither in which
-      // case it doesn't matter)
+	  // Choose the trace species of the two (may be neither in
+	  // which case it doesn't matter)
 
-      if (fracN[i2]<=fracN[i1]) {
-	ncrossM[i1] += (*Fn)[i2]*fracN[i2]*crossT;
-	nsigmaM[i1] += densN[i2]*(*Fn)[i2]*fracN[i2]*crossT;
-      } else {
-	ncrossM[i2] += (*Fn)[i1]*fracN[i1]*crossT;
-	nsigmaM[i2] += densN[i1]*(*Fn)[i1]*fracN[i1]*crossT;
-      }
+	  if (fracN[i2] <= fracN[i1]) {
+	    crossT      *= (*Fn)[i2]*fracN[i2];
+	    ncrossM[i1] += crossT;
+	    nsigmaM[i1] += densN[i2]*crossT;
+	  } else {
+	    crossT      *= (*Fn)[i1]*fracN[i1];
+	    ncrossM[i2] += crossT;
+	    nsigmaM[i2] += densN[i1]*crossT;
+	  }
       
-      // So, ncrossM is the superparticle cross section for each species
+	  // So, ncrossM is the superparticle cross section for each species
 
-      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
-	     << " #1 = (" << i1.first << ", " << i1.second << ")"
-	     << " #2 = (" << i2.first << ", " << i2.second << ")";
-	csections[id][i1][i2] = 0.0; // Zero out
+	  if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
+	    cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
+		 << " #1 = (" << i1.first << ", " << i1.second << ")"
+		 << " #2 = (" << i2.first << ", " << i2.second << ")";
+
+	    csections[id][i1][i2] = 0.0; // Zero out
+	  }
+	  
+	  if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
+	    cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
+		 << " #1 = (" << i2.first << ", " << i2.second << ")"
+		 << " #2 = (" << i1.first << ", " << i1.second << ")";
+
+	    csections[id][i2][i1] = 0.0; // Zero out
+	  }
+	}
       }
-	    
-      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
-	     << " #1 = (" << i2.first << ", " << i2.second << ")"
-	     << " #2 = (" << i1.first << ", " << i1.second << ")";
-	csections[id][i2][i1] = 0.0; // Zero out
-      }
-	
     }
   }
       
   for (auto it1 : c->count) {
 
-    if (it1.second == 0) continue;
+    // Only compute if particles of this species is in the cell
+    //
+    if (it1.second) {
 
-    speciesKey i1 = it1.first;
+      speciesKey i1 = it1.first;
 
-    if (it1.second>0 && (ncrossM[i1] == 0 || std::isnan(ncrossM[i1]))) {
-      cout << "INVALID CROSS SECTION! ::"
-	   << " (" << i1.first << ", " << i1.second << ")"
-	   << " nsigmaM = " << nsigmaM [i1]
-	   << " ncrossM = " << ncrossM [i1] 
-	   << " fracN = "   <<   fracN [i1] 
-	   << " Fn = "      <<   (*Fn) [i1] << endl;
+      if (ncrossM[i1] == 0 || std::isnan(ncrossM[i1])) {
+	cout << "INVALID CROSS SECTION! ::"
+	     << " (" << i1.first << ", " << i1.second << ")"
+	     << " nsigmaM = " << nsigmaM [i1]
+	     << " ncrossM = " << ncrossM [i1] 
+	     << " fracN = "   <<   fracN [i1] 
+	     << " Fn = "      <<   (*Fn) [i1] << endl;
       
-      std::cout << std::setw(10) << "Species"
-		<< std::setw(16) << "x-section"
-		<< std::setw(16) << "weight"
-		<< std::setw(16) << "sp mass"
-		<< std::setw(10) << "n count"
-		<< std::endl
-		<< std::setw(10) << "---------"
-		<< std::setw(16) << "---------"
-		<< std::setw(16) << "---------"
-		<< std::setw(16) << "---------"
-		<< std::setw(10) << "---------"
-		<< std::endl;
-      for (auto it : csections[id][i1]) {
-	std::ostringstream sout;
-	sout << "(" << it.first.first << ", " << it.first.second << ")";
-	cout << std::setw(10) << sout.str()
-	     << std::setw(16) << it.second 
-	     << std::setw(16) << fracN[it.first]
-	     << std::setw(16) << c->Mass(it.first)
-	     << std::setw(10) << c->Count(it.first)
-	     << std::endl;
+	std::cout << std::setw(10) << "Species"
+		  << std::setw(16) << "x-section"
+		  << std::setw(16) << "weight"
+		  << std::setw(16) << "sp mass"
+		  << std::setw(10) << "n count"
+		  << std::endl
+		  << std::setw(10) << "---------"
+		  << std::setw(16) << "---------"
+		  << std::setw(16) << "---------"
+		  << std::setw(16) << "---------"
+		  << std::setw(10) << "---------"
+		  << std::endl;
+
+	for (auto it : csections[id][i1]) {
+	  std::ostringstream sout;
+	  sout << "(" << it.first.first << ", " << it.first.second << ")";
+	  cout << std::setw(10) << sout.str()
+	       << std::setw(16) << it.second 
+	       << std::setw(16) << fracN[it.first]
+	       << std::setw(16) << c->Mass(it.first)
+	       << std::setw(10) << c->Count(it.first)
+	       << std::endl;
+	}
       }
+    
+      collP  [i1] = nsigmaM[i1] * crm * tau;
+    
+      meanDens   += densN[i1];
+      meanCollP  += densN[i1] * collP  [i1];
+      meanLambda += densN[i1] * nsigmaM[i1];
     }
-    
-    collP  [i1] = nsigmaM[i1] * crm * tau;
-    
-    meanDens   += densN[i1];
-    meanCollP  += densN[i1] * collP  [i1];
-    meanLambda += densN[i1] * nsigmaM[i1];
   }
     
 
@@ -4171,16 +4194,19 @@ sKey2Umap CollideIon::generateSelectionWeight
 	      << std::endl;
 
     for (auto it : c->count) {
-      if (it.second == 0) continue;
 
-      std::ostringstream sout;
-      sout << "(" << it.first.first << ", " << it.first.second << ")";
-      cout << std::setw(10) << sout.str()
-	   << std::setw(16) << it.second 
-	   << std::setw(16) << fracN[it.first]
-	   << std::setw(16) << c->Mass(it.first)
-	   << std::setw(10) << c->Count(it.first)
-	   << std::endl;
+      // Only output if particles of this species is in the cell
+      //
+      if (it.second) {
+	std::ostringstream sout;
+	sout << "(" << it.first.first << ", " << it.first.second << ")";
+	cout << std::setw(10) << sout.str()
+	     << std::setw(16) << it.second 
+	     << std::setw(16) << fracN[it.first]
+	     << std::setw(16) << c->Mass(it.first)
+	     << std::setw(10) << c->Count(it.first)
+	     << std::endl;
+      }
     }
   }
 
@@ -4202,54 +4228,58 @@ sKey2Umap CollideIon::generateSelectionWeight
 
   for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
 
-    if (it1->second==0) continue;
+    // Only compute if particles of this species is in the cell
+    if (it1->second) {
 
-    speciesKey i1 = it1->first;
+      speciesKey i1 = it1->first;
     
-    for (it2=it1; it2!=c->count.end(); it2++) {
+      for (it2=it1; it2!=c->count.end(); it2++) {
 
-      if (it2->second==0) continue;
+	// Only compute if particles of this species is in the cell
+	if (it2->second) {
 
-      speciesKey i2 = it2->first;
+	  speciesKey i2 = it2->first;
       
-      double crsvel = 0.0;
+	  double crsvel = 0.0;
 
-      sKeyPair k(i1, i2);
-      if (i1>=i2) k = sKeyPair(i2, i1);
+	  sKeyPair k(i1, i2);
+	  if (i1>=i2) k = sKeyPair(i2, i1);
 
-      const double cunit = 1.0e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  const double cunit = 1.0e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-      if (samp)
-	crsvel = cunit * std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
-      else
-	crsvel = cunit * std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
-      
-      // Probability of an interaction of between particles of type 1
-      // and 2 for a given particle of type 2
-      //
-      double Prob = 0.0;
+	  if (samp)
+	    crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
+	  else
+	    crsvel = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
+	  
+	  // Probability of an interaction of between particles of type 1
+	  // and 2 for a given particle of type 2
+	  //
+	  double Prob = 0.0;
 
-      if (fracN[i1]>=fracN[i2]) {
-	Prob = fracN[i2] * (*Fn)[i2] * crsvel * tau / volc;
-      } else {
-	Prob = fracN[i1] * (*Fn)[i1] * crsvel * tau / volc;
-      }
+	  if (fracN[i1]>=fracN[i2]) {
+	    Prob = fracN[i2] * crsvel * tau / volc;
+	  } else {
+	    Prob = fracN[i1] * crsvel * tau / volc;
+	  }
 
-      // Count _pairs_ of identical particles only
-      //                 |
-      //                 v
-      if (i1==i2)
-	selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
-      else
-	selcM[i1][i2] = it1->second * it2->second * Prob;
+	  // Count _pairs_ of identical particles only
+	  //                 |
+	  //                 v
+	  if (i1==i2)
+	    selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
+	  else
+	    selcM[i1][i2] = it1->second * it2->second * Prob;
 	
-      //
-      // For double-summing of species A,B and B,A interactions 
-      // when A != B is list orders A<B and therefore does not double 
-      // count (see line 951 in Collide.cc)
-      
-      nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
-      totalNsel += nselM[i1][i2];
+	  //
+	  // For double-summing of species A,B and B,A interactions 
+	  // when A != B is list orders A<B and therefore does not double 
+	  // count (see line 951 in Collide.cc)
+	  
+	  nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
+	  totalNsel += nselM[i1][i2];
+	}
+      }
     }
   }
   
@@ -4258,23 +4288,29 @@ sKey2Umap CollideIon::generateSelectionWeight
 
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
 
-      if (it1->second==0) continue;
+      // Only output if particles of this species is in the cell
+      //
+      if (it1->second) {
 
-      for (it2=it1; it2!=c->count.end(); it2++) {
+	for (it2=it1; it2!=c->count.end(); it2++) {
+	  
+	  // Only output if particles of this species is in the cell
+	  //
+	  if (it2->second) {
 
-	if (it2->second==0) continue;
-
-	speciesKey i1 = it1->first;
-	speciesKey i2 = it2->first;
+	    speciesKey i1 = it1->first;
+	    speciesKey i2 = it2->first;
       
-	std::cout << "(" 
-		  << std::setw(2) << i1.first << ","
-		  << std::setw(2) << i1.second << ") ("
-		  << std::setw(2) << i2.first << ","
-		  << std::setw(2) << i2.second << ") = "
-		  << std::setw(16) << selcM[i1][i2]
-		  << std::setw(10) << nselM[i1][i2]
-		  << std::endl;
+	    std::cout << "(" 
+		      << std::setw(2) << i1.first << ","
+		      << std::setw(2) << i1.second << ") ("
+		      << std::setw(2) << i2.first << ","
+		      << std::setw(2) << i2.second << ") = "
+		      << std::setw(16) << selcM[i1][i2]
+		      << std::setw(10) << nselM[i1][i2]
+		      << std::endl;
+	  }
+	}
       }
     }
   }

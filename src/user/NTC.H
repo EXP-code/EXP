@@ -341,7 +341,7 @@ public:
   vcMap VelCrsAvg(double quantile);
   
   //! Add multiple data values to the list
-  void VelCrsAdd(dqMap& vals);
+  void VelCrsAdd(const dqMap& vals);
 
   //! Add a single value to the list
   void VelCrsAdd(sKeyPair indx, const vcTup& val);

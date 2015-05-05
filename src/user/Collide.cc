@@ -1069,8 +1069,10 @@ void * Collide::collide_thread(void * arg)
     int totalCount = 0;
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
       speciesKey i1 = it1->first;
-      size_t num1 = bmap[i1].size();
+      size_t num1   = bmap[i1].size();
+
       if (num1==0) continue;
       
       // Notice that species are not double counted; the count map is
@@ -1078,8 +1080,9 @@ void * Collide::collide_thread(void * arg)
       // interaction matrix is performed
       //
       for (it2=it1; it2!=c->count.end(); it2++) {
+
 	speciesKey i2 = it2->first;
-	size_t num2 = bmap[i2].size();
+	size_t num2   = bmap[i2].size();
 
 	if (num2==0) continue;
 	
@@ -1156,6 +1159,15 @@ void * Collide::collide_thread(void * arg)
 	    ntcFdat[k].push_back(dat);
 
 	    ntcTot[id]++;
+
+				// Sanity check
+	    if (ntcTot[id]==1000000u) {
+	      std::cout << "Proc " << myid << " thread=" << id 
+			<< ": cell=" << c->mykey
+			<< " has logged 1000000 collisions!. "
+			<< " You may wish to cancel this run and "
+			<< "adjust the cell size or MFP." << std::endl;
+	    }
 	  }
 
 	  if (ok) {
