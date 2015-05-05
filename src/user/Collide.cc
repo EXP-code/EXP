@@ -818,9 +818,8 @@ void * Collide::collide_thread(void * arg)
     //
     pCell *samp = c->sample;
 
-    // Containers for NTC values
+    // Container for NTC values
     //
-    std::map<sKeyPair, NTCitem::dqTup> ntcFdat;
     std::map<sKeyPair, NTCitem::vcTup> ntcF;
 
     sKeyUmap::iterator it1, it2;
@@ -1158,7 +1157,8 @@ void * Collide::collide_thread(void * arg)
 	    }
 				// Accumulate average
 	    NTCitem::vcTup dat(cros * cr / cunit, cros / cunit, targ);
-	    ntcFdat[k].push_back(dat);
+#pragma omp critical
+	    ntcdb[samp->mykey]->VelCrsAdd(k, dat);
 
 	    ntcTot[id]++;
 
@@ -1205,10 +1205,6 @@ void * Collide::collide_thread(void * arg)
     
     elasSoFar[id] = elasTime[id].stop();
     
-#pragma omp critical
-    if (NTC) {
-      ntcdb[samp->mykey]->VelCrsAdd(ntcFdat);
-    }
 
     // Count collisions
     //

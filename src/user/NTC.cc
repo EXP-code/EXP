@@ -111,15 +111,6 @@ NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double quant)
     return vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
 }
 
-void NTCitem::VelCrsAdd(const dqMap& vals)
-{
-  for (auto it : vals) {
-    for (auto jt : it.second) {
-      VelCrsAdd(it.first, jt);
-    }
-  }
-}
-
 void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
 {
   // value below threshold

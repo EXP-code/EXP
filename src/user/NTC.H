@@ -151,8 +151,6 @@ public:
   //@{
   //! NTC structures defintion
   typedef std::tuple<double, double, double> vcTup;
-  typedef std::deque<vcTup>                  dqTup;
-  typedef std::map<sKeyPair, dqTup>          dqMap;
   typedef std::map<sKeyPair, vcTup>          vcMap;
   //@}
 
@@ -340,9 +338,6 @@ public:
   //! Return quantile values for all indices
   vcMap VelCrsAvg(double quantile);
   
-  //! Add multiple data values to the list
-  void VelCrsAdd(const dqMap& vals);
-
   //! Add a single value to the list
   void VelCrsAdd(sKeyPair indx, const vcTup& val);
 };
