@@ -4011,16 +4011,19 @@ sKey2Umap CollideIon::generateSelectionWeight
   
   double fnnorm = 0.0;
   for (auto it1 : c->count) {
-    speciesKey i1 = it1.first;
-    //
-    // Mass density scaled by atomic weight in amu
-    //
-    densN[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
 
-    // Mean particle trace number fraction in system mass per amu
-    //
-    fracN[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
-    fnnorm   += fracN[i1];
+    if (it1.second) {
+      speciesKey i1 = it1.first;
+
+      // Mass density scaled by atomic weight in amu
+      //
+      densN[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+
+      // Mean particle trace number fraction in system mass per amu
+      //
+      fracN[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
+      fnnorm   += fracN[i1];
+    }
   }
   for (auto &v : fracN) v.second /= fnnorm;
     
@@ -4198,9 +4201,15 @@ sKey2Umap CollideIon::generateSelectionWeight
   std::map<speciesKey, unsigned>::iterator it1, it2;
 
   for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+    if (it1->second==0) continue;
+
     speciesKey i1 = it1->first;
     
     for (it2=it1; it2!=c->count.end(); it2++) {
+
+      if (it2->second==0) continue;
+
       speciesKey i2 = it2->first;
       
       double crsvel = 0.0;
