@@ -1164,11 +1164,18 @@ void * Collide::collide_thread(void * arg)
 
 				// Sanity check
 	    if (ntcTot[id]==1000000u) {
+
+	      std::ostringstream sout;
+	      sout << k.first .first << "," << k.first .second << "|"
+		   << k.second.first << "," << k.second.second << ">";
+
 	      std::cout << "Proc " << myid << " thread=" << id 
 			<< ": cell=" << c->mykey
-			<< " has logged 1000000 collisions!. "
-			<< " You may wish to cancel this run and "
-			<< "adjust the cell size or MFP." << std::endl;
+			<< ", ntcF=" << std::get<0>(ntcF[k])
+			<< " for " << sout.str()
+			<< " has logged 1000000 collisions!"
+			<< " You may wish to cancel this run and" 
+			<< " adjust the cell size or MFP." << std::endl;
 	    }
 	  }
 
@@ -3085,15 +3092,23 @@ void Collide::NTCgather(pHOT* const tree)
       ntcOvr[n] = ntcTot[n] = 0;
     }
 
-    MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
+    // Only check for crazy collisions after first step
+    //
+    static bool notFirst = false;
+
+    if (notFirst) {
+
+      MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
 
 				// Too many collisions!!
-    if (myid==0 && gbMax>1500000u) {
-      std::cerr << std::string(60, '-') << std::endl
-		<< " *** Too many collisions in NTC: " << gbMax << std::endl
-		<< std::string(60, '-') << std::endl;
-      raise(SIGTERM);		// Signal stop, please!
-    }
+      if (myid==0 && gbMax>1500000u) {
+	std::cerr << std::string(60, '-') << std::endl
+		  << " *** Too many collisions in NTC: " << gbMax << std::endl
+		  << std::string(60, '-') << std::endl;
+	raise(SIGTERM);		// Signal stop, please!
+      }
+
+    } else notFirst = true;
 
     MPI_Reduce(&Ovr, &accOvr, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);

@@ -4245,8 +4245,6 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  sKeyPair k(i1, i2);
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
-	  const double cunit = 1.0e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
 	  if (samp)
 	    crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
 	  else
@@ -4255,22 +4253,36 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
 	  //
+	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
 	  double Prob = 0.0;
 
 	  if (fracN[i1]>=fracN[i2]) {
-	    Prob = fracN[i2] * crsvel * tau / volc;
+	    Prob = densN[i2] * (*Fn)[i2] * cunit * crsvel * tau;
 	  } else {
-	    Prob = fracN[i1] * crsvel * tau / volc;
+	    Prob = densN[i1] * (*Fn)[i1] * cunit * crsvel * tau;
 	  }
 
 	  // Count _pairs_ of identical particles only
 	  //                 |
-	  //                 v
-	  if (i1==i2)
+	  //                 |
+	  if (i1==i2) //     v
 	    selcM[i1][i2] = 0.5 * it1->second * (it2->second-1) *  Prob;
 	  else
 	    selcM[i1][i2] = it1->second * it2->second * Prob;
 	
+	  // For debugging only
+	  //
+	  if (0) {
+	    if (selcM[i1][i2]>100000) {
+	      std::cout << "Too many collisions: collP=" << meanCollP
+			<< ", MFP=" << meanLambda << ", P=" << Prob
+			<< ", <sigma*vel>=" << crsvel
+			<< ", N=" << selcM[i1][i2]
+			<< std::endl;
+	    }
+	  }
+
 	  //
 	  // For double-summing of species A,B and B,A interactions 
 	  // when A != B is list orders A<B and therefore does not double 
