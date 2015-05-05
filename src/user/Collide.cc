@@ -16,6 +16,8 @@ using namespace std;
 #include <gptl.h>
 #endif
 
+#include <signal.h>
+
 static bool DEBUG      = false;	// Thread diagnostics, false for
 				// production
 
@@ -3074,11 +3076,23 @@ void Collide::NTCgather(pHOT* const tree)
     cros.clear();
     crat.clear();
 
-    unsigned Ovr=0, Tot=0;
+    unsigned Ovr=0, Tot=0, Max=0, gbMax;
     for (int n=0; n<nthrds; n++) {
       Ovr += ntcOvr[n];
       Tot += ntcTot[n];
-      ntcOvr[n] = ntcTot[n] = 0; // Reset the counters
+      Max  = std::max<unsigned>(ntcTot[n], Max);
+				// Reset the counters
+      ntcOvr[n] = ntcTot[n] = 0;
+    }
+
+    MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
+
+				// Too many collisions!!
+    if (myid==0 && gbMax>1500000u) {
+      std::cerr << std::string(60, '-') << std::endl
+		<< " *** Too many collisions in NTC: " << gbMax << std::endl
+		<< std::string(60, '-') << std::endl;
+      raise(SIGTERM);		// Signal stop, please!
     }
 
     MPI_Reduce(&Ovr, &accOvr, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
