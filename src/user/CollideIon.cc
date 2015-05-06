@@ -2211,13 +2211,13 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     if (partflag==1) {
       std::get<0>(ctd1->dv[id])++; 
       std::get<1>(ctd1->dv[id]) += Wb;
-      std::get<2>(ctd1->dv[id]) += delE * Wb * UserTreeDSMC::Eunit / eV;
+      std::get<2>(ctd1->dv[id]) += delE;
     }
     
     if (partflag==2) {
       std::get<0>(ctd2->dv[id])++; 
       std::get<1>(ctd2->dv[id]) += Wb;
-      std::get<2>(ctd2->dv[id]) += delE * Wb * UserTreeDSMC::Eunit / eV;
+      std::get<2>(ctd2->dv[id]) += delE;
     }
 
 				// Remove the energy from the total
