@@ -5,18 +5,20 @@
 #include <iomanip>
 #include <vector>
 
+#include <boost/shared_ptr.hpp>
 
+template <typename T = double>
 class AsciiHisto
 {
 private:
 
-  std::vector<unsigned> bins;
-  double beg, end, dx;
+  std::vector<T> bins;
+  T beg, end, dx;
   bool logH;
 
 public:
 
-  AsciiHisto(const std::vector<double>& data, int nbins=0, bool logV=false) : 
+  AsciiHisto(const std::vector<T>& data, int nbins=0, bool logV=false) : 
     logH(logV)
   {
     if (nbins==0) nbins = floor(sqrt(data.size()));
@@ -54,8 +56,10 @@ public:
     
     for (size_t j=0; j<bins.size(); j++) {
       std::ostringstream sout;
-      sout << "[" << std::setw(wid) << beg + dx*(j+0) << ", "
-	   << std::setw(wid) << beg + dx*(j+1) << "]" << sep;
+      T lower = beg + dx*(j+0);
+      T upper = beg + dx*(j+1);
+      sout << "[" << std::setw(wid) << lower << ", "
+	   << std::setw(wid) << upper << "]" << sep;
       
       unsigned cnt = floor(hscl*bins[j]);
       out << sout.str() << std::setw(hwid) << std::string(cnt, '=')
@@ -66,6 +70,8 @@ public:
   }
 };
 
-typedef boost::shared_ptr<AsciiHisto> ahistoPtr;
+typedef boost::shared_ptr< AsciiHisto<unsigned> > chistoUPtr;
+typedef boost::shared_ptr< AsciiHisto<double  > > chistoDPtr;
+typedef boost::shared_ptr< AsciiHisto<int     > > chistoIPtr;
 
 #endif
