@@ -4879,8 +4879,8 @@ void CollideIon::electronGather()
       std::sort(iVel.begin(), iVel.end());
 
       // Make the histograms
-      elecH = ahistoPtr(new AsciiHisto(eVel, 20));
-      ionH  = ahistoPtr(new AsciiHisto(iVel, 20));
+      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20));
+      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20));
 
       // Make the quantiles
       size_t qnt_s = qnt.size(), ev_s = eVel.size();

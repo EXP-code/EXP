@@ -70,8 +70,8 @@ public:
   }
 };
 
-typedef boost::shared_ptr< AsciiHisto<unsigned> > chistoUPtr;
-typedef boost::shared_ptr< AsciiHisto<double  > > chistoDPtr;
-typedef boost::shared_ptr< AsciiHisto<int     > > chistoIPtr;
+typedef boost::shared_ptr< AsciiHisto<unsigned> > ahistoUPtr;
+typedef boost::shared_ptr< AsciiHisto<double  > > ahistoDPtr;
+typedef boost::shared_ptr< AsciiHisto<int     > > ahistoIPtr;
 
 #endif

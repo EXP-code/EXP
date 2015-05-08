@@ -1168,12 +1168,14 @@ void * Collide::collide_thread(void * arg)
 	    if (ntcTot[id]==1000000u) {
 
 	      std::ostringstream sout;
-	      sout << k.first .first << "," << k.first .second << "|"
+	      sout << "<"
+		   << k.first .first << "," << k.first .second << "|"
 		   << k.second.first << "," << k.second.second << ">";
 
 	      std::cout << "Proc " << myid << " thread=" << id 
 			<< ": cell=" << c->mykey
 			<< ", ntcF=" << mcrs
+			<< ", mfpCL=" << mfpCL
 			<< " for " << sout.str()
 			<< " has logged 1000000 collisions!"
 			<< " You may wish to cancel this run and" 
