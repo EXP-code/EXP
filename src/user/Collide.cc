@@ -18,6 +18,7 @@ using namespace std;
 
 #include <signal.h>
 
+
 static bool DEBUG      = false;	// Thread diagnostics, false for
 				// production
 
@@ -26,6 +27,10 @@ static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
+
+// Debugging cell length--MFP ratio
+bool Collide::MFPCL    = true;
+
 
 // Use the explicit energy solution
 bool Collide::ESOL     = false;
@@ -390,6 +395,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   tcool0 = vector<unsigned>(numdiag, 0);
   tcoolT = vector< vector<unsigned> > (nthrds);
   
+  if (MFPCL) mfpCLdata = std::vector< std::vector<double> > (nthrds);
+
   if (VOLDIAG) {
     Vcnt  = vector<unsigned>(nbits, 0);
     Vcnt1 = vector<unsigned>(nbits, 0);
@@ -962,6 +969,8 @@ void * Collide::collide_thread(void * arg)
     // Ratio of cell size to mean free path
     //
     double mfpCL = cL/meanLambda;
+
+    if (MFPCL) mfpCLdata[id].push_back(mfpCL);
     
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
@@ -3261,3 +3270,46 @@ void Collide::NTCstats(std::ostream& out)
   }
 
 }
+
+
+void Collide::mfpCLGather()
+{
+  std::vector<double> data;
+  for (auto &v : mfpCLdata) data.insert(data.end(), v.begin(), v.end());
+
+  for (int i=1; i<numprocs; i++) {
+
+    if (i == myid) {
+      unsigned dNum = data.size();
+      MPI_Send(&dNum,       1, MPI_UNSIGNED, 0, 435, MPI_COMM_WORLD);
+      MPI_Send(&data[0], dNum, MPI_DOUBLE,   0, 436, MPI_COMM_WORLD);
+    }
+				// Root receives from Node i
+    if (0 == myid) {
+      unsigned dNum;
+      MPI_Recv(&dNum,       1, MPI_UNSIGNED, i, 435, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      std::vector<double> vTmp(dNum);
+      MPI_Recv(&vTmp[0], dNum, MPI_DOUBLE,   i, 436, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      data.insert(data.end(), vTmp.begin(), vTmp.end());
+    }
+    
+    if (myid==0 and data.size()) {
+      mfpclHist  = ahistoDPtr(new AsciiHisto<double>(data, 20));
+    }
+  }
+}
+  
+
+void Collide::mfpCLPrint(std::ostream& out)
+{
+  // Print the header for mfpcl quantiles
+  //
+  out << std::endl << std::string(53, '-')  << std::endl
+      << "-----Cell length / MFP distribution------------------" << std::endl
+      << std::string(53, '-') << std::endl << std::left;
+  (*mfpclHist)(out);
+  out << std::string(53, '-')  << std::endl << std::endl;
+}
+

@@ -13,6 +13,7 @@
 #include <Uniform.h>
 #include <Normal.h>
 
+#include "AsciiHisto.H"
 #include "Particle.H"
 #include "pHOT.H"
 #include "Timer.h"
@@ -228,9 +229,14 @@ protected:
   std::vector<double> disptot;
   double masstot;
   double excessCtot, excessEtot;
-
   //@}
 
+  //@{
+  //! For histogram of mfpCL values
+  static bool MFPCL;
+  std::vector< std::vector<double> > mfpCLdata;
+  ahistoDPtr mfpclHist;
+  //@}
   
   //@{
   //! Parameters set by caller and internally
@@ -536,6 +542,12 @@ public:
   virtual void printCollGather()  {}
   virtual void printCollSummary() {}
   virtual void resetColls()       {}
+  //@}
+
+  //@{
+  //! Expensive diagnostics, only use these if you must
+  void mfpCLGather();
+  void mfpCLPrint(std::ostream&out );
   //@}
 
   //@{ 

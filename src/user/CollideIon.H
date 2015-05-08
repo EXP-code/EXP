@@ -518,15 +518,29 @@ protected:
   spDMap specM;
   //@}
 
-  // For debugging
+  //! For debugging
   void debugDeltaE(double delE, unsigned short Z, unsigned short C,
 		   double dE, double prob, int interFlag);
 
+  //@{
+  //! Expensive diagnostics, only use these if you must
   void electronGather();
   void electronPrint(std::ostream&out );
+  //@}
 
-  virtual void auxGather() { electronGather(); }
-  virtual void auxPrint(std::ostream& out) { electronPrint(out); }
+  //! Consider commenting these tests out for production
+  virtual void auxGather() 
+  { 
+    mfpCLGather(); 
+    electronGather(); 
+  }
+
+  //! Consider commenting these tests out for production
+  virtual void auxPrint(std::ostream& out) 
+  { 
+    mfpCLPrint(out); 
+    electronPrint(out); 
+  }
 
 public:
   static double Nmin;
