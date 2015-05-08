@@ -140,7 +140,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 
       if (ne>=0) {
 	for (int l=0; l<3; l++)
-	  p[i].dattrib[ne+l] = varE*(*Norm)();
+	  p[i].dattrib[ne+l] = varE*(*Norm)() / Vunit;
       }
 
       KE *= 0.5 * p[i].mass * (C-1);
@@ -469,7 +469,7 @@ void InitializeSpeciesWeight
     particles[i].dattrib.resize(nd, 0);
     particles[i].dattrib.push_back(0.0); // Add the use_cons field
     if (ne>=0) {			 // Add the use_elec fields
-      for (int i=0; i<3; i++) particles[i].dattrib.push_back(0.0);
+      for (int l=0; l<3; l++) particles[i].dattrib.push_back(0.0);
     }
 
     KeyConvert kc(speciesKey(Zi, Ci));

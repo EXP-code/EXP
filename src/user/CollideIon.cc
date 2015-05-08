@@ -4822,7 +4822,7 @@ void CollideIon::electronGather()
 {
   if (aType==Weight && use_elec >= 0) {
 
-    std::vector<double> eVel;
+    std::vector<double> eVel, iVel;
 
     // Interate through all cells
     //
@@ -4831,12 +4831,15 @@ void CollideIon::electronGather()
     while (itree.nextCell()) {
       
       for (auto b : itree.Cell()->bods) {
-	double cr = 0.0;
+	double cri = 0.0, cre = 0.0;
 	for (int l=0; l<3; l++) {
 	  double ve = c0->Tree()->Body(b)->dattrib[use_elec+l];
-	  cr += ve*ve;
+	  cre += ve*ve;
+	  double vi = c0->Tree()->Body(b)->vel[l];
+	  cri += vi*vi;
 	}
-	eVel.push_back(cr);
+	eVel.push_back(cre);
+	iVel.push_back(cri);
       }
     }
 
@@ -4846,28 +4849,36 @@ void CollideIon::electronGather()
 	unsigned eNum = eVel.size();
 	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
 	MPI_Send(&eVel[0], eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
+	MPI_Send(&iVel[0], eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
       }
 				// Root receives from Node i
       if (0 == myid) {
 	unsigned eNum;
 	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 335, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	std::vector<double> eTmp(eNum);
-	MPI_Recv(&eTmp[0], eNum, MPI_DOUBLE,   i, 336, MPI_COMM_WORLD,
+	std::vector<double> vTmp(eNum);
+	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 336, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	eVel.insert(eVel.begin(), eTmp.begin(), eTmp.end());
+	eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
+	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 337, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	iVel.insert(iVel.begin(), vTmp.begin(), vTmp.end());
       }
     }
     
     if (myid==0 and eVel.size()) {
-      // Sort the list
+      // Sort the lists
       std::sort(eVel.begin(), eVel.end());
+      std::sort(iVel.begin(), iVel.end());
 
       // Make the quantiles
       size_t qnt_s = qnt.size(), ev_s = eVel.size();
       elecV.resize(qnt_s);
-      for (size_t i=0; i<qnt_s; i++) 
+      ionV .resize(qnt_s);
+      for (size_t i=0; i<qnt_s; i++) {
 	elecV[i] = sqrt(eVel[floor(ev_s*qnt[i])]);
+	ionV [i] = sqrt(iVel[floor(ev_s*qnt[i])]);
+      }
     }
   }
 }
@@ -4881,11 +4892,15 @@ void CollideIon::electronPrint(std::ostream& out)
       << "-----Electron velocity quantiles---------------------" << std::endl
       << std::string(53, '-') << std::endl << std::left
       << std::setw(12) << "Quantile" 
-      << std::setw(16) << "V_electron" << std::endl
+      << std::setw(16) << "V_electron"
+      << std::setw(16) << "V_ion"      << std::endl
       << std::setw(12) << "--------" 
+      << std::setw(16) << "----------"
       << std::setw(16) << "----------" << std::endl;
   for (size_t i=0; i<qnt.size(); i++)
-    out << std::setw(12) << qnt[i] << std::setw(16) << elecV[i] << std::endl;
+    out << std::setw(12) << qnt[i] 
+	<< std::setw(16) << elecV[i]
+	<< std::setw(16) << ionV [i] << std::endl;
   out << std::string(53, '-')  << std::endl << std::endl;
 }
 

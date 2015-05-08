@@ -11,7 +11,7 @@ using namespace std;
 const static int nimax = 5;
 
 //! Maximum number of *extra* double components
-const static int ndmax = 16;
+const static int ndmax = 12;
 
 //! For interprocess communication, need static structure for MPI mapping
 class Partstruct
