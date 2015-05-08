@@ -236,6 +236,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   if (aType == Direct or aType == Weight) {
 
     double eVel1 = 0.0, eVel2 = 0.0;
+    double iVel1 = 0.0, iVel2 = 0.0;
     unsigned eCnt = 0;
 
     // Compute mean electron velocity
@@ -252,12 +253,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    Particle *p = c.second->Body(i);
 	    KeyConvert k(p->iattrib[use_key]);
 
-	    for (int l=0; l<3; l++) {
-	      double v  = p->dattrib[use_elec+l];
-	      eVel1 += v;
-	      eVel2 += v*v;
+	    if (k.C()>1) {
+	      for (int l=0; l<3; l++) {
+		double ve  = p->dattrib[use_elec+l];
+		eVel1 += ve;
+		eVel2 += ve*ve;
+		double vi  = p->vel[l];
+		iVel1 += vi;
+		iVel2 += vi*vi;
+	      }
+	      eCnt += k.C() - 1;
 	    }
-	    eCnt += k.C() - 1;
 	  }
 	}
       } else {
@@ -267,9 +273,12 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  
 	  if (k.C()>1) {
 	    for (int l=0; l<3; l++) {
-	      double v  = p->dattrib[use_elec+l];
-	      eVel1 += v;
-	      eVel2 += v*v;
+	      double ve  = p->dattrib[use_elec+l];
+	      eVel1 += ve;
+	      eVel2 += ve*ve;
+	      double vi  = p->vel[l];
+	      iVel1 += vi;
+	      iVel2 += vi*vi;
 	    }
 	    eCnt += k.C() - 1;
 	  }
@@ -277,7 +286,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       }
 
       if (eCnt>1) {
-	Evel[id] = sqrt( fabs(eVel2- eVel1*eVel1/eCnt)/(eCnt-1) );
+	eVel2 -= eVel1*eVel1/eCnt;
+	iVel2 -= iVel1*iVel1/eCnt;
+	Evel[id] = sqrt( fabs(eVel2 + iVel2)/(eCnt-1) );
       } else {
 	Evel[id] = 0.0;
       }
@@ -321,7 +332,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  if (Evel[id]>0.0) eVel1 = eVel2 = Evel[id] / (0.5*rvmax);
 	}
 
-	if (NO_VEL)   eVel1 = eVel2 = 1.0;
+	if (NO_VEL) eVel1 = eVel2 = 1.0;
 
 	if (i1.second>1 or i2.second>1) CrossG = 0.0;
 

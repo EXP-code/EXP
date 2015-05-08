@@ -1140,7 +1140,10 @@ void * Collide::collide_thread(void * arg)
 	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  bool   ok   = false;
 	  double cros = crossSection(tree, p1, p2, cr, id);
-	  double targ = cr * cros / cunit / std::get<0>(ntcF[k]);
+	  double mcrs = std::get<0>(ntcF[k]);
+	  double scrs = cros / cunit;
+	  double prod = cr   * scrs;
+	  double targ = prod / mcrs;
 
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
@@ -1152,11 +1155,10 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  if (NTC) {
 				// Over NTC max average
-	    if (cr*cros/cunit > std::get<0>(ntcF[k])) {
-	      ntcOvr[id]++;
-	    }
+	    if (targ > 1.0) ntcOvr[id]++;
+
 				// Accumulate average
-	    NTCitem::vcTup dat(cros * cr / cunit, cros / cunit, targ);
+	    NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
 	    ntcdb[samp->mykey]->VelCrsAdd(k, dat);
 
@@ -1171,7 +1173,7 @@ void * Collide::collide_thread(void * arg)
 
 	      std::cout << "Proc " << myid << " thread=" << id 
 			<< ": cell=" << c->mykey
-			<< ", ntcF=" << std::get<0>(ntcF[k])
+			<< ", ntcF=" << mcrs
 			<< " for " << sout.str()
 			<< " has logged 1000000 collisions!"
 			<< " You may wish to cancel this run and" 
