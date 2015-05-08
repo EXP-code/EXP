@@ -943,11 +943,15 @@ sCell* pCell::findSampleCell()
   return sample;
 }
 
-
 Particle* pCell::Body(vector<unsigned long>::iterator k)
 { 
   if (k==bods.end()) return 0;
   return &(C->Particles()[*k]); 
+}
+
+Particle* pCell::Body(unsigned long i) 
+{
+  return &(C->Particles()[i]); 
 }
 
 unsigned pCell::remake_plev()

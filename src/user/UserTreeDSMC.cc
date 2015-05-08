@@ -1264,6 +1264,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       collide->printCollGather();
       (*barrier)("TreeDSMC: AFTER Collide::printCollGather",  __FILE__, __LINE__);
       
+      (*barrier)("TreeDSMC: BEFORE Collide::auxGather",  __FILE__, __LINE__);
+      collide->auxGather();
+      (*barrier)("TreeDSMC: AFTER Collide::auxGather",  __FILE__, __LINE__);
+      
       if (use_key>=0) {
 	(*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
 	makeSpeciesMap();
@@ -1274,19 +1278,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       //
       (*barrier)("TreeDSMC: BEFORE Collide::gatherSpecies",  __FILE__, __LINE__);
       collide->gatherSpecies();
-      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
+      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",   __FILE__, __LINE__);
       
       // Get NTC statistics
       //
       (*barrier)("TreeDSMC: BEFORE Collide::NTCgather",  __FILE__, __LINE__);
       collide->NTCgather(c0->Tree());
-      (*barrier)("TreeDSMC: AFTER Collide::NTCgather",  __FILE__, __LINE__);
+      (*barrier)("TreeDSMC: AFTER Collide::NTCgather",   __FILE__, __LINE__);
       
       // Get level statistics from tree
       //
       (*barrier)("TreeDSMC: BEFORE pHOT::gatherCellLevelList",  __FILE__, __LINE__);
       c0->Tree()->gatherCellLevelList();
-      (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",  __FILE__, __LINE__);
+      (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",   __FILE__, __LINE__);
       
       if (myid==0) {
 	
@@ -1400,6 +1404,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	       << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
 	}
 	
+	collide->auxPrint(mout);
+
 	unsigned sumcells=0, sumbodies=0;
 	mout << endl;
 	mout << "-----------------------------------------------------" << endl;

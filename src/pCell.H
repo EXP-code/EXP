@@ -183,8 +183,11 @@ public:
   //! Find the cells whose body number is "just" larger than Bucket
   sCell* findSampleCell();
   
+  //@{
   //! Return bodies from this cell
   Particle* Body(vector<unsigned long>::iterator k);
+  Particle* Body(unsigned long i);
+  //@}
   
   //! Return velocity statistics for particles in the cell
   void Vel(double &mass, vector<double>& v, vector<double>& v2);

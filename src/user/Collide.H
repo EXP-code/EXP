@@ -538,6 +538,12 @@ public:
   virtual void resetColls()       {}
   //@}
 
+  //@{ 
+  //! Auxilliary diagnostics.
+  virtual void auxGather() {}
+  virtual void auxPrint(ostream& out) {}
+  //@}
+
   //@{
   //! Cell distribution of average (cross*vel)
   std::map< sKeyPair, std::vector<double> > both, cros, crat;

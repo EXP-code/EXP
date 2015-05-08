@@ -66,7 +66,7 @@ double pc    = 3.08567758e18;	    // Parsec (in cm)
 double msun  = 1.9891e33;	    // Solar mass (in g)
 double year  = 365.242*24.0*3600.0; // seconds per year
 
-double atomic_masses[2] = {1.00794, 4.002602};
+double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
 
 double Lunit;
 double Tunit;
@@ -92,7 +92,7 @@ enum Itype { Trace, Weight, Direct };
    Make Uniform temperature box of gas
 */
 void InitializeUniform(std::vector<Particle>& p, double mass,
-                       double T, vector<double> &L, Itype type)
+                       double T, vector<double> &L, Itype type, int ne)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
@@ -107,8 +107,9 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << std::string(60, '-')                 << std::endl;
 
   double var0  = sqrt((boltz*T)/amu);
-  double varH  = sqrt((boltz*T)/(atomic_masses[0]*amu));
-  double varHe = sqrt((boltz*T)/(atomic_masses[1]*amu));
+  double varE  = sqrt((boltz*T)/(atomic_masses[0]*amu));
+  double varH  = sqrt((boltz*T)/(atomic_masses[1]*amu));
+  double varHe = sqrt((boltz*T)/(atomic_masses[2]*amu));
 
   for (unsigned i=0; i<npart; i++) {
 
@@ -131,12 +132,15 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
-	if (Z == 1) {
-	  p[i].vel[k] = varH*(*Norm)();
-	}
+	if (Z == 1) p[i].vel[k] = varH*(*Norm)();
 	if (Z == 2) p[i].vel[k] = varHe*(*Norm)();
 	p[i].vel[k] /= Vunit;
 	KE += p[i].vel[k] * p[i].vel[k];
+      }
+
+      if (ne>=0) {
+	for (int l=0; l<3; l++)
+	  p[i].dattrib[ne+l] = varE*(*Norm)();
       }
 
       KE *= 0.5 * p[i].mass * (C-1);
@@ -307,7 +311,7 @@ void InitializeSpeciesDirect
   std::vector<double> frcS(NS), cumS(NS);
   for (size_t i=0; i<NS; i++) {
     sF[i]  /= norm;
-    frcS[i] = sF[i]/atomic_masses[sZ[i]-1];
+    frcS[i] = sF[i]/atomic_masses[sZ[i]];
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
   }
 
@@ -360,7 +364,7 @@ void InitializeSpeciesWeight
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, double M, double T,
- int ni=1, int nd=6)
+ int& ne, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -424,11 +428,11 @@ void InitializeSpeciesWeight
   }
 
   int N = particles.size();
-
 				// Compute cumulative species
 				// distribution
   size_t NS = sF.size();
 				// Normalize sF
+				//
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
@@ -440,7 +444,7 @@ void InitializeSpeciesWeight
 
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
-    wght[i] = frcS[i]/atomic_masses[sZ[i]-1];
+    wght[i] = frcS[i]/atomic_masses[sZ[i]];
 
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
@@ -464,14 +468,21 @@ void InitializeSpeciesWeight
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
     particles[i].dattrib.push_back(0.0); // Add the use_cons field
+    if (ne>=0) {			 // Add the use_elec fields
+      for (int i=0; i<3; i++) particles[i].dattrib.push_back(0.0);
+    }
 
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
   }
   
   std::ofstream out("species.spec");
+
   out << "weight" << std::endl;
-  out << std::setw(6) << nd << std::endl;
+  out << std::setw(6) << nd++;
+  if (ne>=0) out << std::setw(6) << (ne=nd);
+  out << std::endl;
+
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
@@ -605,6 +616,7 @@ int main (int ac, char **av)
   double T, D, L;
   std::string oname;
   unsigned seed;
+  int ne = -1;
   int npart;
 
   std::string cmd_line;
@@ -618,6 +630,7 @@ int main (int ac, char **av)
     ("help,h",		"produce help message")
     ("trace",           "set up for trace species")
     ("weight",          "set up for weighted species")
+    ("electrons",       "set up for weighted species with electrons")
     ("temp,T",		po::value<double>(&T)->default_value(25000.0),
      "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
@@ -659,6 +672,11 @@ int main (int ac, char **av)
 
   if (vm.count("weight")) {
     type = Weight;
+  }
+
+  if (vm.count("electrons")) {
+    type = Weight;
+    ne   = 0;
   }
 
   if (vm.count("trace")) {
@@ -723,7 +741,7 @@ int main (int ac, char **av)
   //
   switch (type) {
   case Weight:
-    InitializeSpeciesWeight(particles, sZ, sF, Mass, T);
+    InitializeSpeciesWeight(particles, sZ, sF, Mass, T, ne);
     break;
   case Trace:
     InitializeSpeciesTrace (particles, sZ, sF, Mass, T);
@@ -735,7 +753,7 @@ int main (int ac, char **av)
   
   // Initialize the phase space vector
   //
-  InitializeUniform(particles, Mass, T, LL, type);
+  InitializeUniform(particles, Mass, T, LL, type, ne);
   
   // Output file
   //

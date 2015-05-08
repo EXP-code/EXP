@@ -268,7 +268,7 @@ private:
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              kEi, kEe1, kEe2;
-  std::vector< double >                              Ein1, Ein2;
+  std::vector< double >                              Ein1, Ein2, Evel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   //@}
@@ -305,6 +305,12 @@ private:
   enum AlgorithmType { Direct, Weight, Trace };
   const char* AlgorithmLabels[3] = {"Direct", "Weight", "Trace"};
 
+  //@{
+  //! eVEL quantiles
+  const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
+  std::vector<double> elecV;
+  //@}
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -336,6 +342,9 @@ protected:
 
   //! Attribute location for energy excess in "weight" algorithm
   int use_cons;
+
+  //! Electron velocity position in attribute vector
+  int use_elec;
 
   //! The algorithm type
   AlgorithmType aType;
@@ -510,6 +519,12 @@ protected:
   // For debugging
   void debugDeltaE(double delE, unsigned short Z, unsigned short C,
 		   double dE, double prob, int interFlag);
+
+  void electronGather();
+  void electronPrint(std::ostream&out );
+
+  virtual void auxGather() { electronGather(); }
+  virtual void auxPrint(std::ostream& out) { electronPrint(out); }
 
 public:
   static double Nmin;

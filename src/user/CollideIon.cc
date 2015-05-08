@@ -127,6 +127,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEe2     .resize(nthrds);
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
+  Evel     .resize(nthrds);
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
@@ -234,6 +235,54 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   if (aType == Direct or aType == Weight) {
 
+    double eVel1 = 0.0, eVel2 = 0.0;
+    unsigned eCnt = 0;
+
+    // Compute mean electron velocity
+    //
+    if (use_elec>=0) {
+      
+      // Sample cell
+      //
+      pCell *samp = cell->sample;
+
+      if (samp) {
+	for (auto c : samp->children) {
+	  for (auto i : c.second->bods) {
+	    Particle *p = c.second->Body(i);
+	    KeyConvert k(p->iattrib[use_key]);
+
+	    for (int l=0; l<3; l++) {
+	      double v  = p->dattrib[use_elec+l];
+	      eVel1 += v;
+	      eVel2 += v*v;
+	    }
+	    eCnt += k.C() - 1;
+	  }
+	}
+      } else {
+	for (auto i : cell->bods) {
+	  Particle *p = cell->Body(i);
+	  KeyConvert k(p->iattrib[use_key]);
+	  
+	  if (k.C()>1) {
+	    for (int l=0; l<3; l++) {
+	      double v  = p->dattrib[use_elec+l];
+	      eVel1 += v;
+	      eVel2 += v*v;
+	    }
+	    eCnt += k.C() - 1;
+	  }
+	}
+      }
+
+      if (eCnt>1) {
+	Evel[id] = sqrt( fabs(eVel2- eVel1*eVel1/eCnt)/(eCnt-1) );
+      } else {
+	Evel[id] = 0.0;
+      }
+    }
+
     // it1 and it2 are of type std::map<speciesKey, unsigned>; that
     // is, the number of particles of each speciesKey in the cell
     //
@@ -268,7 +317,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
-	if (NO_VEL) eVel1 = eVel2 = 1.0;
+	if (use_elec) {
+	  if (Evel[id]>0.0) eVel1 = eVel2 = Evel[id] / (0.5*rvmax);
+	}
+
+	if (NO_VEL)   eVel1 = eVel2 = 1.0;
 
 	if (i1.second>1 or i2.second>1) CrossG = 0.0;
 
@@ -290,6 +343,18 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	    Cross2 = M_PI*b*b * eVel1 * ne1;
 	  }
+	}
+
+	if (std::isnan(CrossG)) {
+	  std::cout << "CrossG NaN" << std::endl;
+	}
+
+	if (std::isnan(Cross1)) {
+	  std::cout << "Cross1 NaN" << std::endl;
+	}
+
+	if (std::isnan(Cross2)) {
+	  std::cout << "Cross2 NaN" << std::endl;
 	}
 
 	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * sUp * 1e-14 / 
@@ -454,7 +519,9 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
-	if (NO_VEL) eVel1 = eVel2 = 1.0;
+	if (use_elec) eVel1 = eVel2 = Evel[id]/crm;
+
+	if (NO_VEL)   eVel1 = eVel2 = 1.0;
 
 	double Cross1 = 0.0;
 	double Cross2 = 0.0;
@@ -872,18 +939,36 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
   double mu1 = m1;
   double mu2 = m2;
 
-  // Available COM energy
-  //
-  kEi [id] = 0.5 * mu0 * vel*vel;
-  kEe1[id] = 0.5 * mu1 * vel*vel/dof2;
-  kEe2[id] = 0.5 * mu2 * vel*vel/dof1;
-
   // Electron velocity equipartition factors
   //
   double eVel1 = sqrt(m1/me/dof1);
   double eVel2 = sqrt(m2/me/dof2);
 
-  if (NO_VEL) eVel1 = eVel2 = 1.0;
+  if (NO_VEL) {
+    eVel1 = eVel2 = 1.0;
+  } else if (use_elec) {
+    eVel1 = eVel2 = 0.0;
+    for (unsigned i=0; i<3; i++) {
+      double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
+      double rvel2 = p2->dattrib[use_elec+i] - p1->vel[i];
+      eVel1 += rvel1*rvel1;
+      eVel2 += rvel2*rvel2;
+    }
+    eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
+    eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
+  }
+
+  // Available COM energy
+  //
+  kEi [id] = 0.5 * mu0 * vel*vel;
+
+  if (use_elec) {
+    kEe1[id] = 0.5 * me * eVel2*eVel2;
+    kEe2[id] = 0.5 * me * eVel1*eVel1;
+  } else {
+    kEe1[id] = 0.5 * mu1 * vel*vel/dof2;
+    kEe2[id] = 0.5 * mu2 * vel*vel/dof1;
+  }
 
   // Internal energy per particle
   //
@@ -2324,6 +2409,47 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   }
   *cr = sqrt(*cr);
 
+  // Update electron velocties
+  if (use_elec) {
+
+    // Electron from particle #2
+    if (interFlag > 100 and interFlag < 200) {
+      m2 = atomic_weights[0];
+      Mt = m1 + m2;
+      for(unsigned k=0; k<3; k++) {
+	vcm[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	  // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      for (size_t k=0; k<3; k++) {
+	p2->dattrib[use_elec+k] = vcm[k] - m1/Mt*vrel[k]*vfac;
+      }
+    }
+
+    if (interFlag > 200 and interFlag < 300) {
+      m1 = atomic_weights[0];
+      Mt = m1 + m2;
+      for(unsigned k=0; k<3; k++) {
+	vcm[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	  // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      for (size_t k=0; k<3; k++) {
+	p1->dattrib[use_elec+k] = vcm[k] - m2/Mt*vrel[k]*vfac;
+      }
+    }
+  }
+
   // KE debugging
   //
   if (KE_DEBUG) {
@@ -3585,6 +3711,12 @@ void collDiag::print()
 void CollideIon::parseSpecies(const std::string& map)
 {
   unsigned char nOK = 0;
+  
+  //
+  // Default values
+  //
+  use_cons = -1;
+  use_elec = -1;
 
   //
   // Let root node ONLY do the reading
@@ -3647,17 +3779,27 @@ void CollideIon::parseSpecies(const std::string& map)
 	}
 
 	in.getline(line, nline);
+	
 	if (in.good()) {
 	  std::istringstream sz(line);
 	  sz >> use_cons;
+	  if (sz.good()) {
+	    sz >> use_elec;
+	  }
 	} else {
-	  nOK = 1;		// Can't read use_cons value, fatal
+	  nOK = 1;		// Can't read electrons or use_cons value, fatal
 	}
 
 				// Print warning, not fatal
 	if (use_cons<0) {
 	  std::cout << "CollideIon: energy key position is not defined, "
 		    << "you using trace-species weighting but not imposing energy conservation"
+		    << std::endl;
+	}
+
+	if (use_elec<0) {
+	  std::cout << "CollideIon: electron key position is not defined, "
+		    << "you using trace-species weighting with electron velocity emulation"
 		    << std::endl;
 	}
 
@@ -3804,6 +3946,7 @@ void CollideIon::parseSpecies(const std::string& map)
   }
 
   MPI_Bcast(&use_cons, 1, MPI_INT,         0, MPI_COMM_WORLD);
+  MPI_Bcast(&use_elec, 1, MPI_INT,         0, MPI_COMM_WORLD);
 
   if (aType == Trace) {
 
@@ -4498,26 +4641,28 @@ void CollideIon::gatherSpecies()
 
     }
 
+
     // Send values to root
     //
     double val1, val2, val3 = 0.0, val4 = 0.0;
     
     for (int i=1; i<numprocs; i++) {
+
       if (i == myid) {
 				// Mass
 	MPI_Send(&mass,  1, MPI_DOUBLE, 0, 331, MPI_COMM_WORLD);
 				// Temp
 	MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
+
+	if (aType==Weight and use_cons >= 0) {
+	  MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
+	  MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
+	}
+
       }
-
-      if (aType==Weight and use_cons >= 0) {
-	MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
-	MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
-      }
-
-
 				// Root receives from Node i
       if (0 == myid) {
+
 	MPI_Recv(&val1, 1, MPI_DOUBLE, i, 331, MPI_COMM_WORLD, 
 		 MPI_STATUS_IGNORE);
 	MPI_Recv(&val2, 1, MPI_DOUBLE, i, 332, MPI_COMM_WORLD, 
@@ -4660,6 +4805,77 @@ void CollideIon::printSpecies
     printSpeciesTrace();
   }
 
+}
+
+void CollideIon::electronGather()
+{
+  if (aType==Weight && use_elec >= 0) {
+
+    std::vector<double> eVel;
+
+    // Interate through all cells
+    //
+    pHOT_iterator itree(*c0->Tree());
+    
+    while (itree.nextCell()) {
+      
+      for (auto b : itree.Cell()->bods) {
+	double cr = 0.0;
+	for (int l=0; l<3; l++) {
+	  double ve = c0->Tree()->Body(b)->dattrib[use_elec+l];
+	  cr += ve*ve;
+	}
+	eVel.push_back(cr);
+      }
+    }
+
+    for (int i=1; i<numprocs; i++) {
+
+      if (i == myid) {
+	unsigned eNum = eVel.size();
+	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
+	MPI_Send(&eVel[0], eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
+      }
+				// Root receives from Node i
+      if (0 == myid) {
+	unsigned eNum;
+	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 335, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	std::vector<double> eTmp(eNum);
+	MPI_Recv(&eTmp[0], eNum, MPI_DOUBLE,   i, 336, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	eVel.insert(eVel.begin(), eTmp.begin(), eTmp.end());
+      }
+    }
+    
+    if (myid==0 and eVel.size()) {
+      // Sort the list
+      std::sort(eVel.begin(), eVel.end());
+
+      // Make the quantiles
+      size_t qnt_s = qnt.size(), ev_s = eVel.size();
+      elecV.resize(qnt_s);
+      for (size_t i=0; i<qnt_s; i++) 
+	elecV[i] = sqrt(eVel[floor(ev_s*qnt[i])]);
+    }
+  }
+}
+  
+
+void CollideIon::electronPrint(std::ostream& out)
+{
+  // Print the header for electron quantiles
+  //
+  out << std::endl << std::string(53, '-')  << std::endl
+      << "-----Electron velocity quantiles---------------------" << std::endl
+      << std::string(53, '-') << std::endl << std::left
+      << std::setw(12) << "Quantile" 
+      << std::setw(16) << "V_electron" << std::endl
+      << std::setw(12) << "--------" 
+      << std::setw(16) << "----------" << std::endl;
+  for (size_t i=0; i<qnt.size(); i++)
+    out << std::setw(12) << qnt[i] << std::setw(16) << elecV[i] << std::endl;
+  out << std::string(53, '-')  << std::endl << std::endl;
 }
 
 const std::string clabl(unsigned c)
