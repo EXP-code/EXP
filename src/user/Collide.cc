@@ -1186,9 +1186,10 @@ void * Collide::collide_thread(void * arg)
 			<< ", ntcF=" << mcrs
 			<< ", mfpCL=" << mfpCL
 			<< " for " << sout.str()
-			<< " has logged 1000000 collisions!"
+			<< " has logged " << ntcTot[id] << " collisions!"
 			<< " You may wish to cancel this run and" 
-			<< " adjust the cell size or MFP." << std::endl;
+			<< " adjust the cell size or particle number." 
+			<< std::endl;
 	    }
 	  }
 

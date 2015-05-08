@@ -276,7 +276,7 @@ protected:
 
   //@{
   //! The 3 desired quantiles
-  const double u1 = 0.25, u2 = 0.50, u3 = 0.95;
+  const double u1 = 0.50, u2 = 0.90, u3 = 0.95;
   const std::set<double> qs = {u1, u2, u3};
   //@}
 

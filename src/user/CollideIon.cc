@@ -981,6 +981,11 @@ double CollideIon::crossSectionWeight(pHOT *tree, Particle* p1, Particle* p2,
     kEe2[id] = 0.5 * mu2 * vel*vel/dof1;
   }
 
+  // These are now ratios
+  //
+  eVel1 /= vel;
+  eVel2 /= vel;
+
   // Internal energy per particle
   //
   Ein1[id] = Ein2[id] = 0.0;
@@ -4149,6 +4154,10 @@ sKey2Umap CollideIon::generateSelectionWeight
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
+  // Convert from CHIANTI to system units
+  //
+  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
   // Sample cell
   //
   pCell *samp = c->sample;
@@ -4220,6 +4229,54 @@ sKey2Umap CollideIon::generateSelectionWeight
 		<< std::setw(16) << c->Mass (it.first)
 		<< std::setw(10) << c->Count(it.first)
 		<< std::endl;
+    }
+  }
+
+  if (0) {
+    std::cout << std::setw(16) << "Species"
+	      << std::setw(16) << "Cross"
+	      << std::setw(16) << "elec V"
+	      << std::setw(16) << "densN"
+	      << std::setw(16) << "fracN"
+	      << std::setw(10) << "count 1"
+	      << std::setw(10) << "count 2"
+	      << std::endl
+	      << std::setw(16) << "---------"
+	      << std::setw(16) << "---------"
+	      << std::setw(16) << "---------"
+	      << std::setw(16) << "---------"
+	      << std::setw(16) << "---------"
+	      << std::setw(10) << "---------"
+	      << std::setw(10) << "---------"
+	      << std::endl;
+
+    std::map<speciesKey, unsigned>::iterator it1, it2;
+    
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+      if (it1->second==0) continue;
+      
+      speciesKey k1 = it1->first;
+
+      for (it2=it1; it2!=c->count.end(); it2++) {
+
+	if (it2->second==0) continue;
+
+	speciesKey k2 = it2->first;
+
+	std::ostringstream sout;
+	sout << "<" 
+	     << k1.first << "," << k1.second << "|"
+	     << k2.first << "," << k2.second << ">";
+	std::cout << std::setw(16) << sout.str()
+		  << std::setw(16) << csections[id][k1][k2] / cunit
+		  << std::setw(16) << Evel[id]
+		  << std::setw(16) << densN[k1]
+		  << std::setw(16) << fracN[k1]
+		  << std::setw(10) << it1->second
+		  << std::setw(10) << it2->second
+		  << std::endl;
+      }
     }
   }
 
@@ -4414,8 +4471,6 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
 	  //
-	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-
 	  double Prob = 0.0;
 
 	  if (fracN[i1]>=fracN[i2]) {
@@ -4435,11 +4490,24 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  // For debugging only
 	  //
 	  if (0) {
-	    if (selcM[i1][i2]>100000) {
+	    if (selcM[i1][i2]>10000) {
+	      double cv1, cv2, cv3;
+	      if (samp) {
+		cv1 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.50));
+		cv2 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.90));
+		cv3 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
+	      } else {
+		cv1 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.50));
+		cv2 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.90));
+		cv3 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
+	      }
+
 	      std::cout << "Too many collisions: collP=" << meanCollP
 			<< ", MFP=" << meanLambda << ", P=" << Prob
 			<< ", <sigma*vel>=" << crsvel
 			<< ", N=" << selcM[i1][i2]
+			<< ", q(0.5, 0.9, 0.95) = (" << cv1 << ", "
+			<< cv2 << ", " << cv3 << ")"
 			<< std::endl;
 	    }
 	  }
@@ -4912,14 +4980,13 @@ void CollideIon::electronPrint(std::ostream& out)
     out << std::setw(12) << qnt[i] 
 	<< std::setw(16) << elecV[i]
 	<< std::setw(16) << ionV [i] << std::endl;
-  out << std::string(53, '-')  << std::endl << std::endl;
-  
-  out << "-----Electron velocity distribution------------------" << std::endl
-      << std::string(53, '-')  << std::endl << std::endl;
+  out << std::string(53, '-')  << std::endl
+      << "-----Electron velocity distribution------------------" << std::endl
+      << std::string(53, '-')  << std::endl;
   (*elecH)(out);
-  out << std::string(53, '-')  << std::endl << std::endl
+  out << std::string(53, '-')  << std::endl;
       << "-----Ion velocity distribution-----------------------" << std::endl
-      << std::string(53, '-')  << std::endl << std::endl;
+      << std::string(53, '-')  << std::endl;
   (*ionH)(out);
   out << std::string(53, '-')  << std::endl << std::endl;
 
