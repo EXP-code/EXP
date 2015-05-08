@@ -4845,8 +4845,8 @@ void CollideIon::electronGather()
 	  double vi = c0->Tree()->Body(b)->vel[l];
 	  cri += vi*vi;
 	}
-	eVel.push_back(cre);
-	iVel.push_back(cri);
+	eVel.push_back(sqrt(cre));
+	iVel.push_back(sqrt(cri));
       }
     }
 
@@ -4887,8 +4887,8 @@ void CollideIon::electronGather()
       elecV.resize(qnt_s);
       ionV .resize(qnt_s);
       for (size_t i=0; i<qnt_s; i++) {
-	elecV[i] = sqrt(eVel[floor(ev_s*qnt[i])]);
-	ionV [i] = sqrt(iVel[floor(ev_s*qnt[i])]);
+	elecV[i] = eVel[floor(ev_s*qnt[i])];
+	ionV [i] = iVel[floor(ev_s*qnt[i])];
       }
     }
   }
