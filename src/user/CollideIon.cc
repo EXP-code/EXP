@@ -2402,7 +2402,9 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   double vf = 0.0;
   if (totE>0.0) vf = sqrt(2.0*totE/Mu);
 
-  // Update post-collision velocities
+  // Update post-collision velocities.  In the electron version, the
+  // momentum is assumed to be coupled to the ions, so the ion
+  // momentum must be conserved.
   // 
   *cr = 0.0;
   double vfac = vf/vi, KE1f = 0.0, KE2f = 0.0;
@@ -2420,12 +2422,15 @@ int CollideIon::inelasticWeight(pHOT* const tree,
   }
   *cr = sqrt(*cr);
 
-  // Update electron velocties
+  // Update electron velocties.  Electron velocity is computed so that
+  // momentum is conserved ignoring the doner ion.
+  //
   if (use_elec) {
 
     // Electron from particle #2
+    //
     if (interFlag > 100 and interFlag < 200) {
-      m2 = atomic_weights[0];
+      m2 = atomic_weights[0];	// Electron mass
       Mt = m1 + m2;
       for(unsigned k=0; k<3; k++) {
 	vcm[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
@@ -2442,8 +2447,10 @@ int CollideIon::inelasticWeight(pHOT* const tree,
       }
     }
 
+    // Electron from particle #1
+    //
     if (interFlag > 200 and interFlag < 300) {
-      m1 = atomic_weights[0];
+      m1 = atomic_weights[0];	// Electron mass
       Mt = m1 + m2;
       for(unsigned k=0; k<3; k++) {
 	vcm[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
@@ -4871,6 +4878,10 @@ void CollideIon::electronGather()
       std::sort(eVel.begin(), eVel.end());
       std::sort(iVel.begin(), iVel.end());
 
+      // Make the histograms
+      elecH = ahistoPtr(new AsciiHisto(eVel, 20));
+      ionH  = ahistoPtr(new AsciiHisto(iVel, 20));
+
       // Make the quantiles
       size_t qnt_s = qnt.size(), ev_s = eVel.size();
       elecV.resize(qnt_s);
@@ -4902,6 +4913,16 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::setw(16) << elecV[i]
 	<< std::setw(16) << ionV [i] << std::endl;
   out << std::string(53, '-')  << std::endl << std::endl;
+  
+  out << "-----Electron velocity distribution------------------" << std::endl
+      << std::string(53, '-')  << std::endl << std::endl;
+  (*elecH)(out);
+  out << std::string(53, '-')  << std::endl << std::endl
+      << "-----Ion velocity distribution-----------------------" << std::endl
+      << std::string(53, '-')  << std::endl << std::endl;
+  (*ionH)(out);
+  out << std::string(53, '-')  << std::endl << std::endl;
+
 }
 
 const std::string clabl(unsigned c)
