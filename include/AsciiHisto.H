@@ -42,7 +42,7 @@ private:
 
     for (auto v : d) {
       if (logH) v = log(v);
-      size_t indx = floor( (v - beg)/dx );
+      int indx = floor( (v - beg)/dx );
       //! Sanity check
       if (indx>=0 and indx < nbins) bins[floor( (v - beg)/dx )]++;
     }

@@ -55,7 +55,7 @@ const bool KE_DEBUG          = false;
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-const bool RECOMB_KE         = true;
+const bool RECOMB_KE         = false;
 const bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
