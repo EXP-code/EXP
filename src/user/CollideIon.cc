@@ -4980,11 +4980,13 @@ void CollideIon::electronPrint(std::ostream& out)
     out << std::setw(12) << qnt[i] 
 	<< std::setw(16) << elecV[i]
 	<< std::setw(16) << ionV [i] << std::endl;
-  out << std::string(53, '-')  << std::endl
+  out << std::endl
+      << std::string(53, '-')  << std::endl
       << "-----Electron velocity distribution------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*elecH)(out);
-  out << std::string(53, '-')  << std::endl;
+  out << std::endl
+      << std::string(53, '-')  << std::endl
       << "-----Ion velocity distribution-----------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*ionH)(out);
