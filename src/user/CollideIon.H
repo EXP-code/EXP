@@ -3,6 +3,8 @@
 
 #include <tuple>
 
+#include <boost/circular_buffer.hpp>
+
 #include "Collide.H"
 #include "interactSelect.H"
 #include "Elastic.H"
@@ -310,7 +312,8 @@ private:
   //! eVEL quantiles
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
-  std::vector< std::vector<double> > velER;
+  const size_t bufCap = 16384;
+  std::vector< boost::circular_buffer<double> > velER;
   ahistoDPtr elecH, ionH, lossH;
   //@}
 

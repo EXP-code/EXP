@@ -55,7 +55,7 @@ const bool KE_DEBUG          = false;
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-const bool RECOMB_KE         = false;
+const bool RECOMB_KE         = true;
 const bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
@@ -133,6 +133,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   velER    .resize(nthrds);
+
+  for (auto &v : velER) v.set_capacity(bufCap);
 
   //
   // Cross-section debugging [INIT]
@@ -2182,7 +2184,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
     if (interFlag == recomb_2) {
       if (RECOMB_KE) {
 	if (RECOMB_IP) {
-	  lQ rQ(Z1, C1-1);
+	  lQ rQ(Z2, C2-1);
 	  delE = ch.IonList[rQ]->ip + kEe2[id];
 	} else
 	  delE = kEe2[id];
@@ -2453,7 +2455,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 	double vv = p2->dattrib[use_elec+k] = vcm[k] - m1/Mt*vrel[k];
 	vf2 += vv*vv;
       }
-      velER[i].push_back(vf2/(vi*vi));
+      velER[id].push_back(vf2/(vi*vi));
 
     }
 
@@ -2477,7 +2479,7 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 	double vv = p1->dattrib[use_elec+k] = vcm[k] - m2/Mt*vrel[k];
 	vf2 += vv*vv;
       }
-      velER[i].push_back(vf2/(vi*vi));
+      velER[id].push_back(vf2/(vi*vi));
 
     }
   }
@@ -4929,8 +4931,9 @@ void CollideIon::electronGather()
 
     // Accumulate from threads
     //
-    for (int t=1; t<nthrds; t++) {
-      velER[0].insert(velER[0].end(), velER[t].begin(); velER[t].end());
+    std::vector<double> loss;
+    for (int t=0; t<nthrds; t++) {
+      loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
     }
 
@@ -4938,13 +4941,13 @@ void CollideIon::electronGather()
 
       if (i == myid) {
 	unsigned eNum = eVel.size();
-	MPI_Send(&eNum,        1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
-	MPI_Send(&eVel[0],  eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
-	MPI_Send(&iVel[0],  eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
+	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
+	MPI_Send(&eVel[0], eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
+	MPI_Send(&iVel[0], eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
 
-	eNum = velER[0].size();
-	MPI_Send(&eNum,        1, MPI_UNSIGNED, 0, 338, MPI_COMM_WORLD);
-	MPI_Send(&velER[0], eNum, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
+	eNum = loss.size();
+	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 338, MPI_COMM_WORLD);
+	MPI_Send(&loss[0], eNum, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
       }
 				// Root receives from Node i
       if (0 == myid) {
@@ -4960,10 +4963,10 @@ void CollideIon::electronGather()
 	iVel.insert(iVel.begin(), vTmp.begin(), vTmp.end());
 	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 338, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	vTmp.resize(eNUM);
+	vTmp.resize(eNum);
 	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 339, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	velER[0].insert(velER[0].end(), vTmp.begin(); vTmp.end());
+	loss.insert(loss.end(), vTmp.begin(), vTmp.end());
       }
     }
     
@@ -4988,12 +4991,11 @@ void CollideIon::electronGather()
 	}
       }
 
-      if (velER[0].size()) {
-	lossH = ahistoDPtr(new AsciiHisto<double>(velER[0], 20, 0.01));
+      if (loss.size()) {
+	lossH = ahistoDPtr(new AsciiHisto<double>(loss, 20, 0.01));
       }
     }
 
-    velER[0].clear();
   }
 }
   
@@ -5030,7 +5032,7 @@ void CollideIon::electronPrint(std::ostream& out)
       << "-----Electron energy gain/loss distribution----------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*lossH)(out);
-  out << std::string(53, '-')  << std::endl << std::endl;
+  out << std::endl << std::endl;
 }
 
 const std::string clabl(unsigned c)
