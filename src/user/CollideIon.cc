@@ -4947,8 +4947,8 @@ void CollideIon::electronGather()
       std::sort(iVel.begin(), iVel.end());
 
       // Make the histograms
-      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20));
-      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20));
+      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
+      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
       // Make the quantiles
       size_t qnt_s = qnt.size(), ev_s = eVel.size();
@@ -4984,7 +4984,7 @@ void CollideIon::electronPrint(std::ostream& out)
       << "-----Electron velocity distribution------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*elecH)(out);
-  out << std::string(53, '-')  << std::endl;
+  out << std::string(53, '-')  << std::endl
       << "-----Ion velocity distribution-----------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*ionH)(out);
