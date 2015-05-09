@@ -55,7 +55,7 @@ const bool KE_DEBUG          = false;
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-const bool RECOMB_KE         = true;
+const bool RECOMB_KE         = false;
 const bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
@@ -4947,8 +4947,8 @@ void CollideIon::electronGather()
       std::sort(iVel.begin(), iVel.end());
 
       // Make the histograms
-      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20));
-      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20));
+      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
+      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
       // Make the quantiles
       size_t qnt_s = qnt.size(), ev_s = eVel.size();

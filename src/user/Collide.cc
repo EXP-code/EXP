@@ -3297,7 +3297,7 @@ void Collide::mfpCLGather()
     }
     
     if (myid==0 and data.size()) {
-      mfpclHist  = ahistoDPtr(new AsciiHisto<double>(data, 20));
+      mfpclHist  = ahistoDPtr(new AsciiHisto<double>(data, 20, 0.01));
     }
   }
 }
