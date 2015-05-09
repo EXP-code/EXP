@@ -132,6 +132,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
+  velER    .resize(nthrds);
 
   //
   // Cross-section debugging [INIT]
@@ -2443,13 +2444,17 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 	    
       vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
 
-      vrel[0] = vi * cos_th;	  // Compute post-collision relative
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
       vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
       vrel[2] = vi * sin_th*sin(phi); // interaction
 
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
       for (size_t k=0; k<3; k++) {
-	p2->dattrib[use_elec+k] = vcm[k] - m1/Mt*vrel[k]*vfac;
+	double vv = p2->dattrib[use_elec+k] = vcm[k] - m1/Mt*vrel[k];
+	vf2 += vv*vv;
       }
+      velER[i].push_back(vf2/(vi*vi));
+
     }
 
     // Electron from particle #1
@@ -2463,13 +2468,17 @@ int CollideIon::inelasticWeight(pHOT* const tree,
 	    
       vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
 
-      vrel[0] = vi * cos_th;	  // Compute post-collision relative
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
       vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
       vrel[2] = vi * sin_th*sin(phi); // interaction
 
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
       for (size_t k=0; k<3; k++) {
-	p1->dattrib[use_elec+k] = vcm[k] - m2/Mt*vrel[k]*vfac;
+	double vv = p1->dattrib[use_elec+k] = vcm[k] - m2/Mt*vrel[k];
+	vf2 += vv*vv;
       }
+      velER[i].push_back(vf2/(vi*vi));
+
     }
   }
 
@@ -4918,13 +4927,24 @@ void CollideIon::electronGather()
       }
     }
 
+    // Accumulate from threads
+    //
+    for (int t=1; t<nthrds; t++) {
+      velER[0].insert(velER[0].end(), velER[t].begin(); velER[t].end());
+      velER[t].clear();
+    }
+
     for (int i=1; i<numprocs; i++) {
 
       if (i == myid) {
 	unsigned eNum = eVel.size();
-	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
-	MPI_Send(&eVel[0], eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
-	MPI_Send(&iVel[0], eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
+	MPI_Send(&eNum,        1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
+	MPI_Send(&eVel[0],  eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
+	MPI_Send(&iVel[0],  eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
+
+	eNum = velER[0].size();
+	MPI_Send(&eNum,        1, MPI_UNSIGNED, 0, 338, MPI_COMM_WORLD);
+	MPI_Send(&velER[0], eNum, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
       }
 				// Root receives from Node i
       if (0 == myid) {
@@ -4938,27 +4958,42 @@ void CollideIon::electronGather()
 	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 337, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	iVel.insert(iVel.begin(), vTmp.begin(), vTmp.end());
+	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 338, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	vTmp.resize(eNUM);
+	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 339, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	velER[0].insert(velER[0].end(), vTmp.begin(); vTmp.end());
       }
     }
     
-    if (myid==0 and eVel.size()) {
-      // Sort the lists
-      std::sort(eVel.begin(), eVel.end());
-      std::sort(iVel.begin(), iVel.end());
+    if (myid==0) {
 
-      // Make the histograms
-      elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
-      ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
+      if (eVel.size()) {
+	// Sort the lists
+	std::sort(eVel.begin(), eVel.end());
+	std::sort(iVel.begin(), iVel.end());
 
-      // Make the quantiles
-      size_t qnt_s = qnt.size(), ev_s = eVel.size();
-      elecV.resize(qnt_s);
-      ionV .resize(qnt_s);
-      for (size_t i=0; i<qnt_s; i++) {
-	elecV[i] = eVel[floor(ev_s*qnt[i])];
-	ionV [i] = iVel[floor(ev_s*qnt[i])];
+	// Make the histograms
+	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
+	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
+
+	// Make the quantiles
+	size_t qnt_s = qnt.size(), ev_s = eVel.size();
+	elecV.resize(qnt_s);
+	ionV .resize(qnt_s);
+	for (size_t i=0; i<qnt_s; i++) {
+	  elecV[i] = eVel[floor(ev_s*qnt[i])];
+	  ionV [i] = iVel[floor(ev_s*qnt[i])];
+	}
+      }
+
+      if (velER[0].size()) {
+	lossH = ahistoDPtr(new AsciiHisto<double>(velER[0], 20, 0.01));
       }
     }
+
+    velER[0].clear();
   }
 }
   
@@ -4980,16 +5015,22 @@ void CollideIon::electronPrint(std::ostream& out)
     out << std::setw(12) << qnt[i] 
 	<< std::setw(16) << elecV[i]
 	<< std::setw(16) << ionV [i] << std::endl;
-  out << std::string(53, '-')  << std::endl
+  out << std::endl
+      << std::string(53, '-')  << std::endl
       << "-----Electron velocity distribution------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*elecH)(out);
-  out << std::string(53, '-')  << std::endl
+  out << std::endl
+      << std::string(53, '-')  << std::endl
       << "-----Ion velocity distribution-----------------------" << std::endl
       << std::string(53, '-')  << std::endl;
   (*ionH)(out);
+  out << std::endl
+      << std::string(53, '-')  << std::endl
+      << "-----Electron energy gain/loss distribution----------" << std::endl
+      << std::string(53, '-')  << std::endl;
+  (*lossH)(out);
   out << std::string(53, '-')  << std::endl << std::endl;
-
 }
 
 const std::string clabl(unsigned c)
