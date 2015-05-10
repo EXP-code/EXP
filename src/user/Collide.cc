@@ -1174,7 +1174,7 @@ void * Collide::collide_thread(void * arg)
 	    ntcTot[id]++;
 
 				// Sanity check
-	    if (ntcTot[id]==1000000u) {
+	    if (ntcTot[id]>=1000000u and ntcTot[id] % 200000u==0) {
 
 	      std::ostringstream sout;
 	      sout << "<"
@@ -3111,7 +3111,7 @@ void Collide::NTCgather(pHOT* const tree)
       MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
 
 				// Too many collisions!!
-      if (myid==0 && gbMax>1500000u) {
+      if (myid==0 && gbMax>15000000u) {
 	std::cerr << std::string(60, '-') << std::endl
 		  << " *** Too many collisions in NTC: " << gbMax << std::endl
 		  << std::string(60, '-') << std::endl;

@@ -383,59 +383,59 @@ protected:
 
   sKey2Dmap& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
-  double crossSectionDirect(pHOT* const tree, 
+  double crossSectionDirect(pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
 			    double crm, int id=0);
   
-  int inelasticDirect(pHOT* const tree, 
+  int inelasticDirect(pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, int id=0);
 
-  double crossSectionWeight(pHOT* const tree, 
+  double crossSectionWeight(pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
 			    double crm, int id=0);
   
-  int inelasticWeight(pHOT* const tree, 
+  int inelasticWeight(pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
 		      double *crm, int id=0);
 
-  double crossSectionTrace(pHOT* const tree, 
+  double crossSectionTrace(pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
 			   double crm, int id=0);
 
-  int inelasticTrace(pHOT* const tree, 
+  int inelasticTrace(pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
 		     double *crm, int id=0);
 
-  virtual double crossSection(pHOT* const tree, 
+  virtual double crossSection(pCell* const c, 
 			      Particle* const p1, Particle* const p2, 
 			      double crm, int id=0)
   {
     if (aType == Direct)
-      return crossSectionDirect(tree, p1, p2, crm, id);
+      return crossSectionDirect(c, p1, p2, crm, id);
 
     if (aType == Weight)
-      return crossSectionWeight(tree, p1, p2, crm, id);
+      return crossSectionWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return crossSectionTrace(tree, p1, p2, crm, id);
+      return crossSectionTrace(c, p1, p2, crm, id);
 
     return 0.0;
   }
 
 
   virtual int 
-  inelastic(pHOT* const tree, Particle* const p1, Particle* const p2, 
+  inelastic(pCell* const c, Particle* const p1, Particle* const p2, 
 	    double *crm, int id=0)
   {
     if (aType == Direct)
-      return inelasticDirect(tree, p1, p2, crm, id);
+      return inelasticDirect(c, p1, p2, crm, id);
 
     if (aType == Weight)
-      return inelasticWeight(tree, p1, p2, crm, id);
+      return inelasticWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return inelasticTrace(tree, p1, p2, crm, id);
+      return inelasticTrace(c, p1, p2, crm, id);
 
     return 1;
   }

@@ -143,8 +143,11 @@ NTCptr NTCdb::operator[](const key_type& k)
       it = data.find(check);
     }
 
-    if (DEBUG_V && it == data.end()) {
-      std::cout << "NTC: no parent found for " << k << std::endl;
+    // This is only informational, not a problem
+    if (0) {
+      if (DEBUG_V && it == data.end()) {
+	std::cout << "NTC: no parent found for " << k << std::endl;
+      }
     }
 
     // If none, create an empty item.  Otherwise, initialize from the
