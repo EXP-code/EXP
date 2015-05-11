@@ -212,7 +212,7 @@ void Collide::atomic_weights_init()
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
-		 double hDiam, double sDiam, int nth)
+		 double hDiam, double sCross, int nth)
 {
   caller = force;
   c0     = comp;
@@ -302,7 +302,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   cellist = vector< vector<pCell*> > (nthrds);
   
   hsdiam    = hDiam;
-  diamfac   = sDiam;
+  crossfac  = sCross;
   
   seltot    = 0;	      // Count estimated collision targets
   coltot    = 0;	      // Count total collisions
@@ -1150,7 +1150,7 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  bool   ok   = false;
-	  double cros = crossSection(tree, p1, p2, cr, id);
+	  double cros = crossSection(c, p1, p2, cr, id);
 	  double mcrs = std::get<0>(ntcF[k]);
 	  double scrs = cros / cunit;
 	  double prod = cr   * scrs;
@@ -1205,7 +1205,7 @@ void * Collide::collide_thread(void * arg)
 	    
 	    // Do inelastic stuff
 	    //
-	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	    error1T[id] += inelastic(c, p1, p2, &cr, id);
 	    
 	    // Update the particle velocity
 	    //
@@ -2969,7 +2969,7 @@ void Collide::CPUHog(ostream& out)
 double Collide::hsDiameter()
 {
   const double Bohr = 5.2917721092e-09;
-  return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
+  return hsdiam*Bohr*sqrt(crossfac)/UserTreeDSMC::Lunit;
 }
 
 void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,

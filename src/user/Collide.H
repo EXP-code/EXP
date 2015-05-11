@@ -241,7 +241,7 @@ protected:
   //@{
   //! Parameters set by caller and internally
 
-  double   diamfac;
+  double   crossfac;
   double   hsdiam;
   unsigned seltot;
   unsigned coltot;
@@ -281,9 +281,9 @@ protected:
   virtual sKey2Dmap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(pHOT* const tree, 
+  virtual double crossSection(pCell* const tree, 
 			      Particle* const p1, Particle* const p2,
-			      double cr, int id=0) { return 0; }
+			      double cr, int id=0) = 0;
   
   //! Return the particle selection matrix
   virtual sKey2Umap generateSelection
@@ -291,9 +291,9 @@ protected:
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Do the inelastic computation
-  virtual int inelastic(pHOT* const tree, 
+  virtual int inelastic(pCell* const cell, 
 			Particle* const p1, Particle* const p2,
-			double *cr, int id=0) { return 0; }
+			double *cr, int id=0) = 0;
   
   virtual void 
   velocityUpdate(Particle* const p1, Particle* const p2, double cr);
@@ -428,10 +428,10 @@ public:
       @param force is the caller
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
-      @param diamfac is the diameter scaling
+      @param crossfac is the cross-section scaling
   */
   Collide(ExternalForce *force, Component *comp, 
-	  double hsdiam, double diamfac, int nth=1);
+	  double hsdiam, double crossfac, int nth=1);
   
   //! Destructor
   virtual ~Collide();

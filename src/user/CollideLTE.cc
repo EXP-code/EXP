@@ -121,7 +121,7 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
   // Compute geometric cross section
   //
 
-  double diam  = diamfac*a0/UserTreeDSMC::Lunit;
+  double diam  = sqrt(crossfac)*a0/UserTreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
 
   for (auto it1 : cell->count) {
@@ -416,8 +416,9 @@ void CollideLTE::initialize_cell_dsmc
 }
 
 
-double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
-			       double cr, int id)
+double CollideLTE::crossSection(pCell* const tree, 
+				Particle* const p1, Particle* const p2, 
+				double cr, int id)
 {
   // Species keys
   //
@@ -428,7 +429,8 @@ double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
 
 
-int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
+int CollideLTE::inelastic(pCell* const cell, 
+			  Particle* const p1, Particle* const p2, 
 			  double *cr, int id)
 {
   int ret = 0;			// No error (flag)

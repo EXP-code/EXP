@@ -558,7 +558,8 @@ public:
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
-	     double hsDiam, double diamfac, const std::string& spcMap, int nth=1);
+	     double hsDiam, double crossfac, 
+	     const std::string& spcMap, int nth=1);
 
   //! Destructor
   ~CollideIon();

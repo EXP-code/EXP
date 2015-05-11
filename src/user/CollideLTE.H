@@ -38,20 +38,26 @@ protected:
 
   vector<double> deltaE;
 
-  void initialize_cell(pHOT* tree, pCell* c, double vrelmax, int id);
+  virtual void 
+  initialize_cell(pHOT* const tree, pCell* const c, double vrelmax, int id);
 
-  void initialize_cell_dsmc
-  (pHOT* tree, pCell* c, sKey2Umap& nsel, double vrelmax, double tau, int id);
+  virtual void 
+  initialize_cell_dsmc
+  (pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+   double vrelmax, double tau, int id);
 
-  void initialize_cell_epsm
-  (pHOT* tree, pCell* c, sKey2Umap& nsel, double vrelmax, double tau, int id) 
+  virtual void
+  initialize_cell_epsm
+  (pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+   double vrelmax, double tau, int id) 
   {
     initialize_cell_dsmc(tree, c, nsel, vrelmax, tau, id);  
   }
 
-  void finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
+  virtual void 
+  finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
 
-  sKey2Dmap& totalCrossSections(int id)
+  virtual sKey2Dmap& totalCrossSections(int id)
   {    
     return csections[id];
   }
@@ -60,11 +66,14 @@ protected:
 
   bool hasHeatCool() { return true; }
 
-  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
+  virtual double crossSection(pCell* const tree, 
+		      Particle* const p1, Particle* const p2, 
 		      double crm, int id=0);
 
 
-  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  virtual int inelastic(pCell* const cell, 
+			Particle* const p1, Particle* const p2, 
+			double *crm, int id=0);
 
   double getCoolingRate(int id) { return coolheat[id]; }
 
@@ -90,7 +99,7 @@ public:
   static string cache;
 
   CollideLTE(ExternalForce *force, Component *comp,
-	     double hsDiam, double diamfac, int nth=1);
+	     double hsDiam, double crossfac, int nth=1);
   ~CollideLTE();
 
   virtual void set_timestep(int DTpos) { use_delt=DTpos; }
