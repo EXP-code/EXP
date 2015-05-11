@@ -4303,7 +4303,8 @@ sKey2Umap CollideIon::generateSelectionWeight
   }
     
   if (0) {
-    std::cout << std::setw(10) << "Species"
+    std::cout << std::endl
+	      << std::setw(10) << "Species"
 	      << std::setw(16) << "weight"
 	      << std::setw(16) << "n dens"
 	      << std::setw(16) << "sp mass"
@@ -4329,7 +4330,8 @@ sKey2Umap CollideIon::generateSelectionWeight
   }
 
   if (DEBUG_SL) {
-    std::cout << std::setw(16) << "Species"
+    std::cout << std::endl
+	      << std::setw(16) << "Species"
 	      << std::setw(16) << "Cross"
 	      << std::setw(16) << "elec V"
 	      << std::setw(16) << "densN"
@@ -4459,7 +4461,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 	     << " fracN = "   <<   fracN [i1] 
 	     << " Fn = "      <<   (*Fn) [i1] << endl;
       
-	std::cout << std::setw(10) << "Species"
+	std::cout << std::endl
+		  << std::setw(10) << "Species"
 		  << std::setw(16) << "x-section"
 		  << std::setw(16) << "weight"
 		  << std::setw(16) << "sp mass"
@@ -4497,7 +4500,8 @@ sKey2Umap CollideIon::generateSelectionWeight
     
 
   if (DEBUG_SL) {
-    std::cout << std::setw(10) << "Species"
+    std::cout << std::endl
+	      << std::setw(10) << "Species"
 	      << std::setw(16) << "count"
 	      << std::setw(16) << "weight"
 	      << std::setw(16) << "sp mass"
@@ -4519,8 +4523,7 @@ sKey2Umap CollideIon::generateSelectionWeight
       // Only output if particles of this species is in the cell
       //
       if (it.second) {
-	double prob = densN[it.first] * (*Fn)[it.first] * 
-	  cunit * ncrossM[it.first] * crm * tau;
+	double prob = densN[it.first] * ncrossM[it.first] * crm * tau;
 	std::ostringstream sout;
 	sout << "(" << it.first.first << ", " << it.first.second << ")";
 	cout << std::setw(10) << sout.str()
@@ -4634,7 +4637,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 
   if (DEBUG_SL) {
 
-    std::cout << std::endl << std::right
+    std::cout << std::endl
+	      << std::endl     << std::right
 	      << std::setw(16) << "Interact"
 	      << std::setw(16) << "N sel"
 	      << std::setw(16) << "Prob 0"
@@ -4672,10 +4676,10 @@ sKey2Umap CollideIon::generateSelectionWeight
 
 	    if (fracN[i1]>=fracN[i2]) {
 	      Prob0 = densN[i2] * (*Fn)[i2] * cunit * crsvel * tau;
-	      Prob1 = densN[i2] * (*Fn)[i2] * cunit * ncrossM[i1] * crm * tau;
+	      Prob1 = nsigmaM[i2] * crm * tau;
 	    } else {
 	      Prob0 = densN[i1] * (*Fn)[i1] * cunit * crsvel * tau;
-	      Prob1 = densN[i1] * (*Fn)[i1] * cunit * ncrossM[i2] * crm * tau;
+	      Prob1 = nsigmaM[i1] * crm * tau;
 	    }
 	    
 	    std::cout << "(" 

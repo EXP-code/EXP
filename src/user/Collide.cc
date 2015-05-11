@@ -1023,12 +1023,14 @@ void * Collide::collide_thread(void * arg)
     GPTLstop("Collide::prelim");
 #endif
     // No collisions, primarily for testing . . .
+    //
     if (DRYRUN) continue;
     
     collTime[id].start();
     collCnt[id]++;
     // Number of collisions per particle:
     // assume equipartition if large
+    //
     if (use_epsm && meanCollP > EPSMratio && number > EPSMmin) {
       
       EPSMused = 1;
@@ -1556,6 +1558,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     coll_ = vector<double>(quantiles.size());
     cool_ = vector<double>(quantiles.size());
     rate_ = vector<double>(quantiles.size());
+
     for (unsigned j=0; j<quantiles.size(); j++) {
       if (mfpI.size())
 	mfp_[j]  = mfpI [Qi(quantiles[j],mfpI.size())].first;
