@@ -173,28 +173,28 @@ collision frequency of a single particle of the physical gas of
 species a with particles of gas of species b at a number density of n
 b is given by: 
 \begin{equation}
-  \nu_{ab} = n_b \overline{\sigma_{ab} c_r}, 
+  \nu_{ab} = n_b \langle{\sigma_{ab} c_r}\rangle, 
 \end{equation}
 where $c_r$ is the relative velocity between particles and
 $\sigma_{ab}$ is the cross section for elastic collisions between
-species a and b. The bar over a quantity designates its average value
-in the ensemble of all sample particles. The properties of the DSMC
-gas differ from those of the physical gas and are denoted with a
-tilde. In the simulation, species b has a number density of
+species a and b. The angle brackets denotes an average value over the
+ensemble of all sample particles. The properties of the DSMC gas
+differ from those of the physical gas and are denoted with a tilde. In
+the simulation, species b has a number density of
 \begin{equation}
-n_b = \Gamma_p W_b {\tilde n}_b
+n_b = \Gamma_p \eta_b {\tilde n}_b
 \end{equation}
 where $\Gamma_p$ is the fiducial number of true particles per
-computational particle and $W_b$ is the weighting relative to some
+computational particle and $\eta_b$ is the weighting relative to some
 fiducial particle.  That is, each computational particle represents
-$W_b\Gamma_p$ actual particles. Similarly, the single particle
+$\eta_b\Gamma_p$ actual particles. Similarly, the single particle
 collision rate of the numerical gas is denoted by ${\tilde\nu}_{ab}$.
 
 The particles of the numerical gas have a collisional cross section
 that is different than those of the actual physical particles. It is
 denoted by ${\tilde\sigma}_{ab}$ to distinguish it from $\sigma_{ab}$:
 \begin{equation}
-  \tilde{\nu}_{ab} = \tilde{n}_b \overline{\tilde{\sigma}_{ab} \tilde{c}_r}.
+  \tilde{\nu}_{ab} = \tilde{n}_b \langle{\tilde{\sigma}_{ab} \tilde{c}_r}\rangle.
 \end{equation}
 The DSMC procedure is based on the fundamental assumption that all
 particle-carried quantities (e.g. velocity, position, internal energy)
@@ -203,14 +203,14 @@ share the same velocity, so that ${\tilde c}_r = c_r$ as well as the
 same collision rate which implies that $\tilde{\nu}_{ab} =
 \nu_{ab}$. Putting these equations together we have
 \begin{equation}
-  n_b \overline{\sigma_{ab} c_r} =
-  \frac{n_b}{W_b\Gamma_p}\overline{\tilde{\sigma}_{ab} \tilde{c}_r}.
+  n_b \langle{\sigma_{ab} c_r}\rangle =
+  \frac{n_b}{\eta_b\Gamma_p}\langle{\tilde{\sigma}_{ab} \tilde{c}_r}\rangle.
   \label{eq:balance}
 \end{equation}
 That is, the computational cross
 section ${\tilde\sigma}$ is given by: 
 \begin{equation}
-{\tilde\sigma}_{ab} = W_b\Gamma_p \sigma_{ab}.
+{\tilde\sigma}_{ab} = \eta_b\Gamma_p \sigma_{ab}.
 \end{equation}
 
 The probability of a collision, $P_{coll}(a_i, b_j)$, between a moving
@@ -238,9 +238,13 @@ N_{coll}(a, b) = \sum_{i_a=1}^{N_a}\sum_{j_b=1}^{N_b} P_{coll}(i_a, j_b) =
 and the average value of the cross section times the velocity over the
 ensemble of the $N_a\times N_b$ pairs is defined as:
 \begin{equation}
-  \overline{\tilde{\sigma}_{ab} c_r}\equiv
+  \langle{\tilde{\sigma}_{ab} c_r}\rangle\equiv
   \frac{1}{N_a N_b} \sum_{i_a=1}^{N_a}\sum_{j_b=1}^{N_b} \tilde{\sigma}_{ab}(i_a, j_b)
   c_r(i_a, j_b).
+\end{equation}
+So, with this notation, we have:
+\begin{equation}
+N_{coll}(a, b) = N_a N_b \frac{\langle{\tilde{\sigma}_{ab} c_r}\rangle \Delta\tau}{V}.
 \end{equation}
 
 In the case when collisions between particles of the same species are
@@ -253,7 +257,7 @@ collision pairs are possible so that $N_{coll}(a, a)$ becomes
 \end{equation}
 and
 \begin{equation}
-  \overline{\tilde{\sigma}_{aa} c_r} \equiv
+  \langle{\tilde{\sigma}_{aa} c_r}\rangle \equiv
   \frac{2}{N_a (N_a-1)}
   \sum_{i_a=1}^{N_a}\sum_{j_a=i_a+1}^{N_a} {\tilde\sigma}_{aa}(i_a, j_a)
   c_r(i_a, j_a).
@@ -263,12 +267,12 @@ Using these equations, a combined expression for $N_{coll}$ for both
 $a=b$ and $a\not=b$ may be written
 \begin{equation}
   N_{coll}(a, b) = \frac{1}{1+\delta_{ab}}
-  \frac{\overline{\tilde{\sigma}_{ab}c_r}\Delta\tau}{V} N_a(N_b - \delta_{ab})
+  \frac{\langle{\tilde{\sigma}_{ab}c_r}\rangle\Delta\tau}{V} N_a(N_b - \delta_{ab})
 \end{equation}
 or
 \begin{equation}
-  N_{coll}(a, b) = \frac{N_a W_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
-  \sigma_{ab}c_r\Delta\tau.
+  N_{coll}(a, b) = \frac{N_a \eta_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
+  \langle\sigma_{ab}c_r\rangle\Delta\tau.
 \end{equation}
 
 This gives an expression for the number of collisions that has to
@@ -286,7 +290,7 @@ $N_{pairs}(a, b)$:
 \end{equation}
 or
 \begin{equation}
-  N_{pairs}(a, b) = \frac{N_a W_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
+  N_{pairs}(a, b) = \frac{N_a \eta_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
   (\sigma_{ab}c_r)_{max}\Delta\tau.
 \end{equation}
 
@@ -297,7 +301,7 @@ now may be written as following
     j_b)}{(\sigma_{ab}c_r)_{max}},
 \end{equation}
 so that $N_{coll}$ is correctly obtained on average over all collision
-pairs. In the case where $W_a = W_b$, the number of pairs to consider
+pairs. In the case where $\eta_a = \eta_b$, the number of pairs to consider
 for collision has to be altered as the velocity of both particles
 cannot simultaneously change to conserve average momentum during the
 collision. This issue is addressed in the next two sections.
@@ -329,12 +333,12 @@ where boundary conditions are not constantly resupplying new particles
 (and thus energy).
 
 Considering a collision between a particle of species a with mass
-$m_a$ and relative weight $W_a$ and one of species b with mass $m_b$
-and relative weight $W_b$, the pre-collision velocities of both
+$m_a$ and relative weight $\eta_a$ and one of species b with mass $m_b$
+and relative weight $\eta_b$, the pre-collision velocities of both
 particles are designated by $\va$ and $\vb$ and their post-collision
 velocities are designated by $\vap$ and $\vbp$. 
 
-For elastic collisions and equal weight particles (i.e. $W_a=W_b$), we
+For elastic collisions and equal weight particles (i.e. $\eta_a=\eta_b$), we
 may write:
 \begin{eqnarray}
   \vap &=& \bv_m + \frac{m_b}{m_a+m_b}\bv_r \\
@@ -342,26 +346,26 @@ may write:
 \end{eqnarray}
 where the center of mass velocity is $\bv_m$ and $\bv_r$ is the
 post-collision relative velocity in the center-of-mass frame.  For
-$W_a\not=W_b$, 
+$\eta_a\not=\eta_b$, 
 
 Now, let us define a split and merge scheme for interactions between
-species of types a and b; we assume that $W_b < W_a$ and split a
-particle of species a into two component with weight $q\equiv W_b/W_a$
-and $1 - W_b/w_a = 1 - q$, respectively.  We collide the smaller
+species of types a and b; we assume that $\eta_b < \eta_a$ and split a
+particle of species a into two component with weight $q\equiv \eta_b/\eta_a$
+and $1 - \eta_b/w_a = 1 - q$, respectively.  We collide the smaller
 component of type a with the full particle b and then recombine,
 conserving momentum.
 
 Conservation of the overall momentum during the collision
 requires
 \begin{equation}
-  m_a W_a \va + m_ b W_b \vb = m_a W_a \vap + m_b W_b \vbp.
+  m_a \eta_a \va + m_ b \eta_b \vb = m_a \eta_a \vap + m_b \eta_b \vbp.
   \label{eq:consmom}
 \end{equation}
 This may be rewritten by splitting as follows:
 \begin{eqnarray}
-  m_a W_a \va + m_ b W_b \vb &=& W_a\left[ m_a (1-q) \va + q(m_a\va +
+  m_a \eta_a \va + m_ b \eta_b \vb &=& \eta_a\left[ m_a (1-q) \va + q(m_a\va +
     m_b \vb) \right] \\ \label{eq:precoll}
-  &=& W_a\left[ m_a (1-q) \va + q(m_a\va\mydprime +
+  &=& \eta_a\left[ m_a (1-q) \va + q(m_a\va\mydprime +
     m_b \vb\mydprime) \right], \label{eq:postcoll}
 \end{eqnarray}
 where the double-primed quantities in equation (\ref{eq:postcoll})
@@ -376,10 +380,10 @@ Unfortunately, one does not conserve momentum and energy
 simultaneously.  After some algebra it, one may show that the
 difference between the pre-collision and post-collision energies is:
 \begin{equation}
-  \Delta E = \frac12 W_a m_a q(1-q)(\va - \vap)^2
+  \Delta E = \frac12 \eta_a m_a q(1-q)(\va - \vap)^2
 \end{equation}
 assuming that the collision is elastic. Since we have assumed that
-$W_a>W_b$, we must have $0<q<1$ and therefore $\Delta E \ge 0$ which
+$\eta_a>\eta_b$, we must have $0<q<1$ and therefore $\Delta E \ge 0$ which
 implies that energy is always lost.  Standard practice (Boyd, ref) is
 to replace this energy in the center of mass of the next non-trace
 collision.
@@ -397,68 +401,86 @@ insufficient energy.
 
 To maintain the relative kinematics of the different species, the
 superparticle mass ratios should be preserved.  If hydrogen and helium
-are species a and b, then $m_b/m_a = m_{He}/m_H \approx 4$.
+are species a and b, then $m_b/m_a = m_{He}/m_H \approx 4$; that is,
+$m_a, m_b, \ldots$ are the true particle masses in some set of
+physical units such as amu.
 
 Let $f_X$ denote the mass fraction of species $X$ and $N_X$ be the
 number of superparticles of species $X$.  The total mass of each
 species is:
 \begin{equation}
-  M_X = \Gamma_p \sum_{j=1}^{N_X} m_{X,j} W_{X,j} = 
-  \Gamma_p N_X \overline{m}_{X} \overline{W}_{X},
+  M_X = \Gamma_p \sum_{j=1}^{N_X} m_{X,j} \eta_{X,j} = 
+  \Gamma_p N_X \langle{m}_X\rangle \langle\eta_X\rangle,
 \end{equation}
-where 
+where the superparticle mass is ${\hat m}_{X,j} = \Gamma_p m_{X,j}
+\eta_{X,j}$ and
 \begin{eqnarray}
-  \overline{W}_X &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}
-    W_{X,j}}{\sum_{j=1}^{N_X} m_{X,j}} \label{eq:meanW} \\
-  \overline{m}_X &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}}{N_X}.
+  \langle\eta_X\rangle &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}
+    \eta_{X,j}}{\sum_{j=1}^{N_X} m_{X,j}} \label{eq:meanW} \\
+  \langle{\hat{m}}_X\rangle &\equiv& \frac{1}{N_x} \sum_{j=1}^{N_X} \hat{m}_{X,j}
   \label{eq:meanM}
 \end{eqnarray}
-More typically, we might have $\overline{m}_{X} = m_{X,j}$ and $\overline{W}_{X}
-= W_{X,j}$ and not need the mean quantities in equations
-(\ref{eq:meanW}) and  (\ref{eq:meanM})
+More typically, we might have $\hat{m}_X = \langle \hat{m}_{X,j}\rangle$ and
+$\eta_X = \langle\eta_{X,j}\rangle$ and, then, do not need the mean
+quantities in equations (\ref{eq:meanW}) and (\ref{eq:meanM})
 
 The mass true mass fraction constraint implies:
 \begin{equation}
-\frac{f_Y}{f_X} = \frac{N_Y \overline{m}_{Y} \overline{W}_{Y}}{N_X \overline{m}_{X} \overline{W}_{X}}
+\frac{f_Y}{f_X} = \frac{N_Y m_Y \langle\eta_Y\rangle}{N_X m_X \langle\eta_X\rangle}
+=
+\frac{N_Y \langle\hat{m}_Y\rangle}{N_X \langle\hat{m}_X\rangle}
 \end{equation}
 or
 \begin{equation}
-\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
-\left(\frac{N_X \overline{m}_{X}}{N_Y \overline{m}_{Y}}\right)
-\left(\frac{f_Y}{f_X}\right).
+\frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+\left[\frac{N_X}{N_Y}\right]
+\left[\frac{m_X}{m_Y}\right] \left[\frac{f_Y}{f_X}\right].
 \end{equation}
 If superparticles of all species are distributed equally by number
 than $N_X=N_Y$ and
 \begin{equation}
-\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
-\left(\frac{\overline{m}_{X}}{\overline{m}_{Y}}\right)
-\left(\frac{f_Y}{f_X}\right).
+  \frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+  \left[\frac{m_X}{m_Y}\right]
+  \left[\frac{f_Y}{f_X}\right].
 \end{equation}
 For example, assuming that $Y=\mbox{He}$ and $X=\mbox{H}$, we have
-$\overline{W}_Y/\overline{W}_X \approx 0.087$.
+$\langle\eta_Y\rangle/\langle\eta_X\rangle \approx 0.087$.
 
 \subsection{Implementation}
 
 In EXP, the superparticles are assumed to have their true masses in
 system units.  I will denote these as $\hat{m}$.  Then
 \begin{equation}
-  \frac{f_Y}{f_X} = \frac{N_Y {\hat m}_{Y}}{N_X \hat{m}_{X}} = \frac{{\hat m}_{Y}}{\hat{m}_{X}}
+  \frac{f_Y}{f_X} = \frac{N_Y {\hat m}_Y}{N_X \hat{m}_X} = \frac{N_Y
+    m_Y\langle\eta_Y\rangle}{N_X m_X \langle\eta_X\rangle} = 
+  \frac{m_Y\langle\eta_Y\rangle}{m_X \langle\eta_X\rangle}
 \end{equation}
-where the last equality obtains for $N_X=N_Y$.  However, each particle
-has its own number weighting so that
+where the last equality obtains for $N_X=N_Y$.  Alternatively, 
+we may write
 \begin{equation}
-\frac{{\hat m}_{Y}}{\hat{m}_{X}} = \frac{\overline{m}_{Y} \overline{W}_{Y}}{\overline{m}_{X} \overline{W}_{X}}
+\frac{m_Y}{m_X} 
+= \left[\frac{N_Y\langle\hat{m}_Y\rangle}{N_X\langle\hat{m}_X\rangle}\right]
+\left[\frac{\langle\eta_X\rangle}{\langle\eta_Y\rangle}\right]
+= \left[\frac{\langle\hat{m}_Y\rangle}{\langle\hat{m}_X\rangle}\right]
+\left[\frac{\langle\eta_X\rangle}{\langle\eta_Y\rangle}\right]
 \end{equation}
 or
 \begin{equation}
-\frac{\overline{W}_{Y}}{\overline{W}_{X}} = 
-\left(\frac{{\hat m}_{Y}}{\hat{m}_{X}}\right)
-\left(\frac{\overline{m}_{X}}{\overline{m}_{Y}}\right).
+  \frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+  \left[\frac{N_Y{\hat m}_Y}{N_X\hat{m}_X}\right]
+  \left[\frac{m_X}{m_Y}\right] =
+  \left[\frac{{\hat m}_Y}{\hat{m}_X}\right]
+  \left[\frac{m_X}{m_Y}\right] =
+  \left[\frac{f_Y}{f_X}\right]
+  \left[\frac{m_X}{m_Y}\right]
 \end{equation}
 
 To get individual masses from system masses, recall that $\Gamma_p$ is
-the conversion of system mass to atomic mass units.  Then $\overline{m}_X =
-\hat{m_x}m_a\Gamma_p \overline{W}_X$ where $m_a$ is the mean atomic mass unit.
+the conversion of system mass to atomic mass units.  Then
+$\langle{m}_X\rangle = \hat{m_x}m_a\Gamma_p \langle\eta_X\rangle$
+where $m_a$ is the mean atomic mass unit.  I am typically choosing
+$\eta_H = 1$ so that $\hat{m}_H = \Gamma_p m_H$ and (e.g.) $\eta_{He}
+= 0.078$.
 
 \bibliography{master}
 \label{sec:ref}
