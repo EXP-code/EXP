@@ -53,7 +53,7 @@ const bool NO_COOL           = false;
 
 // KE debugging; set to false for production
 //
-const bool KE_DEBUG          = false;
+const bool KE_DEBUG          = true;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -2020,11 +2020,6 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   double NN = Wb * UserTreeDSMC::Munit / amu;
 
-  // Number of associated electrons for each particle
-  //
-  double ne1 = C1 - 1;
-  double ne2 = C2 - 1;
-
   // For tracking energy conservation (system units)
   //
   double delE  = 0.0;
@@ -2262,6 +2257,14 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   delE = delE/UserTreeDSMC::Eunit;
 
+  //
+  // Perform energy adjustment in ion, system COM frame with system
+  // mass units
+  //
+  double KE1i = 0.0, KE2i = 0.0;
+  for (auto v : p1->vel) KE1i += v*v;
+  for (auto v : p2->vel) KE2i += v*v;
+
   // Mass per particle in amu for this interaction
   //
   double m1 = atomic_weights[Z1];
@@ -2284,12 +2287,14 @@ int CollideIon::inelasticWeight(pCell* const c,
   // (system units)
   //
   double vi  = (*cr);
-  double kE  = 0.5 * Mu * vi*vi;
 
+  // -----------------
+  // ENERGY DIAGNOSTIC
+  // -----------------
   // Electrons from Particle 2 have interacted with atom/ion in Particle 1
   //
   if (partflag==1) {
-				// Energy diagnostics
+
     ctd1->eV_av[id] += kEe2[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "eV_N=" << ctd1->eV_N[id] << std::endl;
@@ -2301,10 +2306,13 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (kEe2[id] > 10.2) { ctd1->eV_10[id]++;}
   }
 
+  // -----------------
+  // ENERGY DIAGNOSTIC
+  // -----------------
   // Electrons from Particle 1 interacted with atom/ion in Particle 2
   //
   if (partflag==2) {
-				// Energy diagnostics
+
     ctd2->eV_av[id] += kEe1[id];
     if (std::isnan(ctd2->eV_av[id])) {
       std::cout << "eV_N=" << ctd2->eV_N[id] << std::endl;
@@ -2315,6 +2323,115 @@ int CollideIon::inelasticWeight(pCell* const c,
     
     if (kEe1[id] > 10.2) { ctd2->eV_10[id]++; }
   }
+
+  // Compute the new, scattered velocities using original COM energy
+  //
+  std::vector<double> vrel(3), vcom(3);
+
+  for (unsigned k=0; k<3; k++) {
+    vcom[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
+  }
+	    
+  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
+  
+  vrel[0] = vi * cos_th;	  // Compute post-collision relative
+  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+  vrel[2] = vi * sin_th*sin(phi); // interaction
+
+				// Center of mass lost energy (m1, m2,
+				// Mt are in atomic mass units)
+  double deltaKE = 0.0, qKEfac = 0.5*Wa*m1*q*(1.0 - q);
+  for (unsigned k=0; k<3; k++) {
+    double vdif = vcom[k] + m2/Mt*vrel[k] - p1->vel[k];
+    deltaKE += vdif*vdif*qKEfac;
+  }
+
+
+  // Update post-collision velocities.  In the electron version, the
+  // momentum is assumed to be coupled to the ions, so the ion
+  // momentum must be conserved.
+  // 
+  for (size_t k=0; k<3; k++) {
+    p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcom[k] + m2/Mt*vrel[k]);
+    p2->vel[k] = vcom[k] - m1/Mt*vrel[k];
+  }
+
+  // Update electron velocties.  Electron velocity is computed so that
+  // momentum is conserved ignoring the doner ion.
+  //
+  if (use_elec) {
+
+    // Electron from particle #2
+    //
+    if (interFlag > 100 and interFlag < 200) {
+      m2 = atomic_weights[0];	// Electron mass
+      Mt = m1 + m2;
+      for (unsigned k=0; k<3; k++) {
+	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
+      for (size_t k=0; k<3; k++) {
+	double vv = p2->dattrib[use_elec+k] = vcom[k] - m1/Mt*vrel[k];
+	vf2 += vv*vv;
+      }
+      velER[id].push_back(vf2/(vi*vi));
+
+    }
+
+    // Electron from particle #1
+    //
+    if (interFlag > 200 and interFlag < 300) {
+      m1 = atomic_weights[0];	// Electron mass
+      Mt = m1 + m2;
+      for(unsigned k=0; k<3; k++) {
+	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
+      for (size_t k=0; k<3; k++) {
+	double vv = p1->dattrib[use_elec+k] = vcom[k] - m2/Mt*vrel[k];
+	vf2 += vv*vv;
+      }
+      velER[id].push_back(vf2/(vi*vi));
+
+    }
+  }
+
+  //
+  // Perform energy adjustment in ion, system COM frame with system
+  // mass units
+  //
+  m1 = p1->mass;
+  m2 = p2->mass;
+  Mt = m1 + m2;
+  Mu = m1 * m2 / Mt;
+
+  double kE = 0.0;
+  for (unsigned k=0; k<3; k++) {
+    vcom[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
+    vrel[k] = p1->vel[k] - p2->vel[k];
+    kE     += vrel[k] * vrel[k];
+  }
+  vi  = sqrt(kE);
+  kE *= 0.5*Mu;
+
+  double totE = kE - delE;	// Total energy available in COM after
+				// removing loss
 
   // Cooling rate diagnostic histogram
   //
@@ -2328,6 +2445,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     EoverT[id][indx] += p1->mass + p2->mass;
   }
   
+  //
   // Time step "cooling" diagnostic
   //
   if (use_delt>=0 && delE>0.0 && kE>0.0) {
@@ -2344,50 +2462,28 @@ int CollideIon::inelasticWeight(pCell* const c,
     // previously . . .
     //
     delE -= p1->dattrib[use_exes] + p2->dattrib[use_exes];
+    p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
   }
   
-  // Sufficient energy available for selected loss
-  //
-  if (delE>0.0) {
-
-    lostSoFar[id] += delE;
-    decelT[id]    += delE;
+  lostSoFar[id] += delE;
+  decelT[id]    += delE;
     
-    ret            = 0;		// No error
+  ret            = 0;		// No error
 
-    if (partflag==1) {
-      std::get<0>(ctd1->dv[id])++; 
-      std::get<1>(ctd1->dv[id]) += Wb;
-      std::get<2>(ctd1->dv[id]) += delE;
-    }
+  if (partflag==1) {
+    std::get<0>(ctd1->dv[id])++; 
+    std::get<1>(ctd1->dv[id]) += Wb;
+    std::get<2>(ctd1->dv[id]) += delE;
+  }
     
-    if (partflag==2) {
-      std::get<0>(ctd2->dv[id])++; 
-      std::get<1>(ctd2->dv[id]) += Wb;
-      std::get<2>(ctd2->dv[id]) += delE;
-    }
-
-				// Remove the energy from the total
-				// available
-    double totE = kE - delE;
-
-				// Energy per particle
-    double kEm = totE;
-    
-				// Distribute electron energy to particles
-    if (use_Eint>=0) {
-      if (partflag==1) p2->dattrib[use_Eint] = ne2 * kEm;
-      if (partflag==2) p1->dattrib[use_Eint] = ne1 * kEm;
-    }
-				// Zero out internal energy excess
-    if (use_exes>=0)		// since excess is now used up
-      p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
-
+  if (partflag==2) {
+    std::get<0>(ctd2->dv[id])++; 
+    std::get<1>(ctd2->dv[id]) += Wb;
+    std::get<2>(ctd2->dv[id]) += delE;
   }
 
   // Assign interaction energy variables
   //
-  double totE = kE;
 
   double Exs = 0.0;
   if (Z1 == Z2 and use_cons>=0) {
@@ -2397,43 +2493,6 @@ int CollideIon::inelasticWeight(pCell* const c,
     p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
   }
 
-  if (use_Eint>=0) {
-    double del = p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
-    Exs  += del;
-    totE += del;
-    p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = 0.0;
-  }
-
-  // Compute the new, scattered velocities
-  //
-  std::vector<double> vrel(3), vcm(3);
-
-  double KE1i = 0.0, KE2i = 0.0;
-  for(unsigned k=0; k<3; k++) {
-    vcm[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
-    if (KE_DEBUG) {
-      KE1i += p1->vel[k] * p1->vel[k];
-      KE2i += p2->vel[k] * p2->vel[k];
-    }
-  }
-	    
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
-  
-  vrel[0] = vi * cos_th;	  // Compute post-collision relative
-  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-  vrel[2] = vi * sin_th*sin(phi); // interaction
-
-				// Center of mass lost energy (m1, m2,
-				// Mt are in atomic mass units)
-  double deltaKE = 0.0;
-  for (unsigned k=0; k<3; k++) {
-    double vdif = vcm[k] + m2/Mt*vrel[k] - p1->vel[k];
-    deltaKE += vdif*vdif;
-  }
-  deltaKE *= 0.5*Wa*m1*q*(1.0 - q);
-
   // Attempt to defer negative energy adjustment
   //
   double missE = std::min<double>(0.0, totE);
@@ -2441,91 +2500,31 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Save energy adjustiments for next interation
   //
   if (Z1 == Z2) {		// Split between like species
-    double del = 0.5*deltaKE - 0.5*delE + 0.5*missE;
+    double del = 0.5*deltaKE + 0.5*missE;
     p1->dattrib[use_cons] += del;
     p2->dattrib[use_cons] += del;
   } else {				// Give excess to non-trace species
-    p1->dattrib[use_cons] += deltaKE - delE + missE;
+    p1->dattrib[use_cons] += deltaKE + missE;
   }
 
-  // New final relative velocity including COM energy adjustments
-  //
   double vf = 0.0;
-  if (totE>0.0) vf = sqrt(2.0*totE/Mu);
+  if (totE >= 0.0) vf = sqrt(2.0*totE/Mu);
+  double vfac = vf / vi;
 
-  // Update post-collision velocities.  In the electron version, the
-  // momentum is assumed to be coupled to the ions, so the ion
-  // momentum must be conserved.
-  // 
   *cr = 0.0;
-  double vfac = vf/vi, KE1f = 0.0, KE2f = 0.0;
+  double KE1f = 0.0, KE2f = 0.0;
   for (size_t k=0; k<3; k++) {
-    p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcm[k] + m2/Mt*vrel[k]*vfac);
-    p2->vel[k] = vcm[k] - m1/Mt*vrel[k]*vfac;
-
+    double v1 = p1->vel[k] = vcom[k] + m2/Mt * vrel[k] * vfac;
+    double v2 = p2->vel[k] = vcom[k] - m1/Mt * vrel[k] * vfac;
     double dv = p1->vel[k] - p2->vel[k];
     *cr += dv*dv;
 
     if (KE_DEBUG) {
-      KE1f += p1->vel[k] * p1->vel[k];
-      KE2f += p2->vel[k] * p2->vel[k];
+      KE1f += v1 * v1;
+      KE2f += v2 * v2;
     }
   }
   *cr = sqrt(*cr);
-
-  // Update electron velocties.  Electron velocity is computed so that
-  // momentum is conserved ignoring the doner ion.
-  //
-  if (use_elec) {
-
-    // Electron from particle #2
-    //
-    if (interFlag > 100 and interFlag < 200) {
-      m2 = atomic_weights[0];	// Electron mass
-      Mt = m1 + m2;
-      for(unsigned k=0; k<3; k++) {
-	vcm[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
-      }
-	    
-      vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
-
-      vrel[0] = vi * cos_th;	      // Compute post-collision relative
-      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-      vrel[2] = vi * sin_th*sin(phi); // interaction
-
-      double vf2 = 0.0;		      // Debug electron energy loss/gain
-      for (size_t k=0; k<3; k++) {
-	double vv = p2->dattrib[use_elec+k] = vcm[k] - m1/Mt*vrel[k];
-	vf2 += vv*vv;
-      }
-      velER[id].push_back(vf2/(vi*vi));
-
-    }
-
-    // Electron from particle #1
-    //
-    if (interFlag > 200 and interFlag < 300) {
-      m1 = atomic_weights[0];	// Electron mass
-      Mt = m1 + m2;
-      for(unsigned k=0; k<3; k++) {
-	vcm[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
-      }
-	    
-      vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
-
-      vrel[0] = vi * cos_th;	      // Compute post-collision relative
-      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-      vrel[2] = vi * sin_th*sin(phi); // interaction
-
-      double vf2 = 0.0;		      // Debug electron energy loss/gain
-      for (size_t k=0; k<3; k++) {
-	double vv = p1->dattrib[use_elec+k] = vcm[k] - m2/Mt*vrel[k];
-	vf2 += vv*vv;
-      }
-      velER[id].push_back(vf2/(vi*vi));
-
-    }
-  }
 
   // KE debugging
   //
@@ -2542,12 +2541,13 @@ int CollideIon::inelasticWeight(pCell* const c,
     double dKE  = tKEi - tKEf - deltaKE; // Energy balance
     
 				// Check Energy balance including excess
-    if (fabs(dKE+Exs)>1.0e-20)
+    if (fabs(dKE + Exs - delE - missE) > 1.0e-20)
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
 		<< std::setw(14) << dKE+Exs
 		<< ", dKE=" << std::setw(14) << tKEi - tKEf 
 		<< ", Cns=" << std::setw(14) << deltaKE
 		<< ", Exs=" << std::setw(14) << Exs
+		<< ", msE=" << std::setw(14) << missE
 		<< std::endl;
   }
   
