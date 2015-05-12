@@ -32,11 +32,11 @@ const bool frost_warning     = false;
 
 // Very verbose selection debugging. Set to false for production.
 //
-const bool DEBUG_SL          = true;
+const bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-const bool DEBUG_CR          = true;
+const bool DEBUG_CR          = false;
 
 // Artifically suppress electron equipartition speed
 //
@@ -377,10 +377,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	if (std::isnan(Cross2)) {
 	  std::cout << "Cross2 NaN" << std::endl;
-	}
-
-	if (CrossG>100.0 or Cross1>100.0 or Cross2>100.0) {
-	  std::cout << "Big cross" << std::endl;
 	}
 
 	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * crossfac * 1e-14 / 
@@ -931,13 +927,6 @@ double CollideIon::crossSectionDirect(pCell* const c,
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 }
 
-void test_crs(double crs)
-{
-  if (crs>1.0e4) {
-    std::cout << "Crazy: " << crs << std::endl;
-  }
-}
-
 double CollideIon::crossSectionWeight(pCell* const c, 
 				      Particle* const _p1, Particle* const _p2, 
 				      double cr, int id)
@@ -1082,9 +1071,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
     cross21 = geometric(Z2);
     dCross[id].push_back(cross21*crossfac);
     dInter[id].push_back(neut_neut_2);
-
-    test_crs(cross12);
-    test_crs(cross21);
   }
 
 				//-------------------------------
@@ -1093,7 +1079,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
       cross12 = elastic(Z1, kEe1[id]) * eVel2 * ne2 * crossfac;
-      test_crs(cross12);
       dCross[id].push_back(cross12);
       dInter[id].push_back(neut_elec_1);
     }  else {			// Rutherford scattering
@@ -1101,7 +1086,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac;
-      test_crs(cross12);
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -1113,7 +1097,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
       cross21 = elastic(Z2, kEe2[id]) * eVel1 * ne1 * crossfac;
-      test_crs(cross21);
       dCross[id].push_back(cross21);
       dInter[id].push_back(neut_elec_2);
     } else {			// Rutherford scattering
@@ -1121,7 +1104,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
       cross21 = M_PI*b*b * eVel1 * ne1 * crossfac;
-      test_crs(cross21);
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -1164,7 +1146,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(free_free_1);
       sum12 += crs;
     }
-    test_crs(crs);
   }
 				//-------------------------------
 				// *** Collisional excitation
@@ -1180,7 +1161,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(colexcite_1);
       sum12 += crs;
     }
-    test_crs(crs);
   }
 				//-------------------------------
 				// *** Ionization cross section
@@ -1209,7 +1189,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(recomb_1);
       sum12 += crs;
     }
-    test_crs(crs);
   }
 
   
@@ -1229,7 +1208,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(free_free_2);
       sum21 += crs;
     }
-    test_crs(crs);
   }
 				//-------------------------------
 				// *** Collisional excitation
@@ -1244,7 +1222,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(colexcite_2);
       sum21 += crs;
     }
-    test_crs(crs);
   }
 				//-------------------------------
 				// *** Ionization cross section
@@ -1271,7 +1248,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
       dInter[id].push_back(recomb_2);
       sum21 += crs;
     } 
-    test_crs(crs);
   }
 
 				//-------------------------------
