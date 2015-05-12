@@ -244,9 +244,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   if (aType == Direct or aType == Weight) {
 
-    double eVel1 = 0.0, eVel2 = 0.0;
-    double iVel1 = 0.0, iVel2 = 0.0;
-    unsigned eCnt = 0;
+    unsigned eCnt  = 0;
+    double   eVel1 = 0.0, eVel2 = 0.0;
+    double   iVel1 = 0.0, iVel2 = 0.0;
 
     // Compute mean electron velocity
     //
@@ -1007,7 +1007,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 
   // Available COM energy
   //
-  kEi [id] = 0.5 * mu0 * vel*vel;
+  kEi[id] = 0.5 * mu0 * vel*vel;
 
   if (use_elec) {
     kEe1[id] = 0.5 * me * eVel2*eVel2;
@@ -1040,6 +1040,8 @@ double CollideIon::crossSectionWeight(pCell* const c,
     kEe2[id] /= eV;
   }
   
+  kEi[id] /= eV;
+
   // Save the per-interaction cross sections
   //
   dCross[id].clear();
@@ -4602,6 +4604,17 @@ sKey2Umap CollideIon::generateSelectionWeight
   }
   
 
+  if (0) {
+    unsigned nbods  = c->bods.size();
+    double totalEst = 0.5 * meanCollP * nbods * (nbods-1);
+    if (totalNsel > 200.0 && totalNsel > 5.0 * totalEst) {
+      std::cout << "Total pairs: " << totalNsel  << std::endl
+		<< "  Est pairs: " << totalEst   << std::endl
+		<< "     mean P: " << meanCollP  << std::endl
+		<< "     bodies: " << nbods      << std::endl;
+    }
+  }
+
   if (DEBUG_SL) {
 
     std::cout << std::endl
@@ -5225,7 +5238,7 @@ double CollideIon::molWeight(sCell *cell)
 {
   double mol_weight = 1.0;
 
-  if (aType==Direct) {
+  if (aType==Direct or aType==Weight) {
     double numbC = 0.0, massC = 0.0;
     for (auto it : cell->count) {
       speciesKey i = it.first;
@@ -5237,7 +5250,7 @@ double CollideIon::molWeight(sCell *cell)
     mol_weight = massC/numbC;
   }
 
-  if (aType==Weight) {
+  if (0) {
     double numbC = 0.0, massC = 0.0;
     for (auto it : cell->count) {
       speciesKey i = it.first;

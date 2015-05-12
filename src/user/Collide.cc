@@ -1167,13 +1167,14 @@ void * Collide::collide_thread(void * arg)
 	  if (NTC) {
 				// Over NTC max average
 	    if (targ > 1.0) ntcOvr[id]++;
+				// Used
+	    if (ok)         ntcTot[id]++;
+	    
 
 				// Accumulate average
 	    NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
 	    ntcdb[samp->mykey]->VelCrsAdd(k, dat);
-
-	    ntcTot[id]++;
 
 				// Sanity check
 	    if (ntcTot[id]>=1000000u and ntcTot[id] % 200000u==0) {
@@ -1184,12 +1185,15 @@ void * Collide::collide_thread(void * arg)
 		   << k.second.first << "," << k.second.second << ">";
 
 	      std::cout << "Proc " << myid << " thread=" << id 
-			<< ": cell=" << c->mykey
-			<< ", ntcF=" << mcrs
+			<< ": cell="  << c->mykey
+			<< ", count=" << c->bods.size()
+			<< ", ntcF="  << mcrs
+			<< ", targ="  << targ
 			<< ", mfpCL=" << mfpCL
-			<< " for " << sout.str()
+			<< ", nselM=" << nselM[i1][i2]
+			<< " for "    << sout.str() << std::endl
 			<< " has logged " << ntcTot[id] << " collisions!"
-			<< " You may wish to cancel this run and" 
+			<< " You may wish to cancel this run and"  << std::endl
 			<< " adjust the cell size or particle number." 
 			<< std::endl;
 	    }
