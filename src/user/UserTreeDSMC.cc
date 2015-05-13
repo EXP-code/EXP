@@ -1122,6 +1122,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       double Mass = 0.0;
       unsigned Counts = 0;
       c0->Tree()->totalMass(Counts, Mass);
+      c0->Tree()->computeCellStates();
       
       // Check frontier for mass at or below 
       // current level

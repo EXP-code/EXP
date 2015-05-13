@@ -2507,9 +2507,9 @@ int CollideIon::inelasticWeight(pCell* const c,
     p1->dattrib[use_cons] += deltaKE + missE;
   }
 
-  double vf = 0.0;
-  if (totE >= 0.0) vf = sqrt(2.0*totE/Mu);
-  double vfac = vf / vi;
+  double vf = 0.0, vfac = 0.0;
+  if (totE > 0.0) vf   = sqrt(2.0*totE/Mu);
+  if (vi   > 0.0) vfac = vf / vi;
 
   *cr = 0.0;
   double KE1f = 0.0, KE2f = 0.0;
@@ -2518,6 +2518,10 @@ int CollideIon::inelasticWeight(pCell* const c,
     double v2 = p2->vel[k] = vcom[k] - m1/Mt * vrel[k] * vfac;
     double dv = p1->vel[k] - p2->vel[k];
     *cr += dv*dv;
+
+    if (std::isnan(v1) || std::isnan(v2)) {
+      std::cout << "Vel NaN" << std::endl;
+    }
 
     if (KE_DEBUG) {
       KE1f += v1 * v1;
@@ -4846,6 +4850,11 @@ void CollideIon::gatherSpecies()
       tempM += cell->Mass() * T;
       totlE += cell->Mass() * KEtot;
 
+      if (std::isnan(KEtot)) {
+	std::cout << "NaN" << std::endl;
+	cell->sample->KE(KEtot, KEdsp);
+      }
+
       if (aType==Weight and use_cons >= 0) {
 	for (auto b : cell->bods)
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
@@ -4886,6 +4895,11 @@ void CollideIon::gatherSpecies()
 	  MPI_Recv(&val4, 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
 	}
+
+	if (std::isnan(val3) || std::isnan(val4)) {
+	  std::cout << "NaN" << std::endl;
+	}
+	  
 
 	mass  += val1;
 	tempM += val2;

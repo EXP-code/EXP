@@ -7,7 +7,7 @@
 #include "NTC.H"
 
 // For verbose debugging
-static const bool DEBUG_V = true;
+static const bool DEBUG_V   = false;
 
 // Skip this number of calls between reports
 unsigned NTCitem::skprpt    = 5;

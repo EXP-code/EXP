@@ -1191,6 +1191,7 @@ void * Collide::collide_thread(void * arg)
 			<< ", targ="  << targ
 			<< ", mfpCL=" << mfpCL
 			<< ", nselM=" << nselM[i1][i2]
+			<< ", ntcOvr=" << ntcOvr[id]
 			<< " for "    << sout.str() << std::endl
 			<< " has logged " << ntcTot[id] << " collisions!"
 			<< " You may wish to cancel this run and"  << std::endl
