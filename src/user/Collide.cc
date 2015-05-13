@@ -2985,6 +2985,9 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
   typedef std::map<speciesKey, unsigned long> spCountMap;
   typedef spCountMap::iterator spCountMapItr;
 
+				// Field width
+  const unsigned short wid = 14;
+
   std::ofstream dout;
 
 				// Generate the file name
@@ -3008,20 +3011,20 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
       // Print the header
       //
       dout << "# " 
-	   << std::setw(12) << std::right << "Time "
-	   << std::setw(12) << std::right << "Temp ";
+	   << std::setw(wid) << std::right << "Time "
+	   << std::setw(wid) << std::right << "Temp ";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << setw(12) << right << sout.str();
+	dout << setw(wid) << right << sout.str();
       }
       dout << std::endl;
       
       dout << "# " 
-	   << std::setw(12) << std::right << "--------"
-	   << std::setw(12) << std::right << "--------";
+	   << std::setw(wid) << std::right << "--------"
+	   << std::setw(wid) << std::right << "--------";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	dout << setw(12) << std::right << "--------";
+	dout << setw(wid) << std::right << "--------";
       dout << std::endl;
       
     }
@@ -3040,15 +3043,15 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
 				// Use total mass to print mass
 				// fraction
   dout << "  " 
-       << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << temp;
+       << std::setw(wid) << std::right << tnow
+       << std::setw(wid) << std::right << temp;
 
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
     if (tmass > 0.0) 
-      dout << std::setw(12) << std::right 
+      dout << std::setw(wid) << std::right 
 	   << atomic_weights[it->first.first] * it->second / tmass;
     else
-      dout << std::setw(12) << std::right << 0.0;
+      dout << std::setw(wid) << std::right << 0.0;
   }
   dout << std::endl;
 }
