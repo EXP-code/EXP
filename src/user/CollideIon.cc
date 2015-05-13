@@ -4208,7 +4208,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            fracN, densM, densN, collP, nsigmaM, ncrossM;
+  sKeyDmap            densM, densN, collP, nsigmaM, ncrossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -4238,7 +4238,6 @@ sKey2Umap CollideIon::generateSelectionWeight
   //
   
   {
-    double fnnorm = 0.0;
     for (auto it1 : c->count) {
 
       // Only compute if particles of this species is in the cell
@@ -4253,25 +4252,13 @@ sKey2Umap CollideIon::generateSelectionWeight
 	// Number density of superparticles
 	//
 	densN[i1] = static_cast<double>(c->Count(i1))/volc;
-
-	// Mean particle trace number fraction in system mass per amu
-	//
-	fracN[i1] = c->Mass(i1)/c->Count(i1) / atomic_weights[i1.first];
-	
-	// Normalization
-	//
-	fnnorm   += fracN[i1];
       }
     }
-
-    // Normalize
-    for (auto &v : fracN) v.second /= fnnorm;
   }
     
   if (0) {
     std::cout << std::endl
 	      << std::setw(10) << "Species"
-	      << std::setw(16) << "weight"
 	      << std::setw(16) << "n dens"
 	      << std::setw(16) << "m dens"
 	      << std::setw(16) << "sp mass"
@@ -4288,7 +4275,6 @@ sKey2Umap CollideIon::generateSelectionWeight
       std::ostringstream sout;
       sout << "(" << it.first.first << ", " << it.first.second << ")";
       std::cout << std::setw(10) << sout.str()
-		<< std::setw(16) << fracN[it.first]
 		<< std::setw(16) << densN[it.first]
 		<< std::setw(16) << densM[it.first]
 		<< std::setw(16) << c->Mass(it.first)
@@ -4304,11 +4290,9 @@ sKey2Umap CollideIon::generateSelectionWeight
 	      << std::setw(16) << "elec V"
 	      << std::setw(16) << "densM"
 	      << std::setw(16) << "densN"
-	      << std::setw(16) << "fracN"
 	      << std::setw(10) << "count 1"
 	      << std::setw(10) << "count 2"
 	      << std::endl
-	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
@@ -4341,7 +4325,6 @@ sKey2Umap CollideIon::generateSelectionWeight
 		  << std::setw(16) << Evel[id]
 		  << std::setw(16) << densM[k1]
 		  << std::setw(16) << densN[k1]
-		  << std::setw(16) << fracN[k1]
 		  << std::setw(10) << it1->second
 		  << std::setw(10) << it2->second
 		  << std::endl;
@@ -4384,7 +4367,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  // Choose the trace species of the two (may be neither in
 	  // which case it doesn't matter)
 
-	  if (fracN[i2] <= fracN[i1]) {
+	  if (densM[i2] <= densM[i1]) {
 	    unsigned Z2  = i2.first;
 	    crossT      *= (*Fn)[i2] * ZMList[Z2] / atomic_weights[Z2];
 	    ncrossM[i1] += crossT;
@@ -4431,19 +4414,16 @@ sKey2Umap CollideIon::generateSelectionWeight
 	     << " (" << i1.first << ", " << i1.second << ")"
 	     << " nsigmaM = " << nsigmaM [i1]
 	     << " ncrossM = " << ncrossM [i1] 
-	     << " fracN = "   <<   fracN [i1] 
 	     << " Fn = "      <<   (*Fn) [i1] << endl;
       
 	std::cout << std::endl
 		  << std::setw(10) << "Species"
 		  << std::setw(16) << "x-section"
-		  << std::setw(16) << "weight"
 		  << std::setw(16) << "sp mass"
 		  << std::setw(16) << "n*sigma"
 		  << std::setw(16) << "n*cross"
 		  << std::endl
 		  << std::setw(10) << "---------"
-		  << std::setw(16) << "---------"
 		  << std::setw(16) << "---------"
 		  << std::setw(16) << "---------"
 		  << std::setw(16) << "---------"
@@ -4455,7 +4435,6 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  sout << "(" << it.first.first << ", " << it.first.second << ")";
 	  cout << std::setw(10) << sout.str()
 	       << std::setw(16) << it.second 
-	       << std::setw(16) << fracN[it.first]
 	       << std::setw(16) << c->Mass(it.first)
 	       << std::setw(16) << nsigmaM[it.first]
 	       << std::setw(16) << ncrossM[it.first] 
@@ -4476,14 +4455,12 @@ sKey2Umap CollideIon::generateSelectionWeight
     std::cout << std::endl
 	      << std::setw(10) << "Species"
 	      << std::setw(16) << "count"
-	      << std::setw(16) << "weight"
 	      << std::setw(16) << "sp mass"
 	      << std::setw(16) << "n*sigma"
 	      << std::setw(16) << "n*cross"
 	      << std::setw(16) << "Prob"
 	      << std::endl
 	      << std::setw(10) << "---------"
-	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
@@ -4501,7 +4478,6 @@ sKey2Umap CollideIon::generateSelectionWeight
 	sout << "(" << it.first.first << ", " << it.first.second << ")";
 	cout << std::setw(10) << sout.str()
 	     << std::setw(16) << it.second 
-	     << std::setw(16) << fracN[it.first]
 	     << std::setw(16) << c->Mass(it.first)
 	     << std::setw(16) << nsigmaM[it.first]
 	     << std::setw(16) << ncrossM[it.first]
@@ -4556,10 +4532,10 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  //
 	  double Prob = 0.0;
 
-	  if (fracN[i1]>=fracN[i2]) {
-	    Prob = (*Fn)[i2] * cunit * crsvel * tau;
+	  if (densM[i1]>=densM[i2]) {
+	    Prob = densM[i2] * (*Fn)[i2] * cunit * crsvel * tau;
 	  } else {
-	    Prob = (*Fn)[i1] * cunit * crsvel * tau;
+	    Prob = densM[i1] * (*Fn)[i1] * cunit * crsvel * tau;
 	  }
 
 	  // Count _pairs_ of identical particles only
@@ -4658,11 +4634,11 @@ sKey2Umap CollideIon::generateSelectionWeight
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
 
-	    if (fracN[i1]>=fracN[i2]) {
-	      Prob0 = (*Fn)[i2] * cunit * crsvel * tau;
+	    if (densM[i1]>=densM[i2]) {
+	      Prob0 = densM[i2] * (*Fn)[i2] * cunit * crsvel * tau;
 	      Prob1 = nsigmaM[i2] * crm * tau;
 	    } else {
-	      Prob0 = (*Fn)[i1] * cunit * crsvel * tau;
+	      Prob0 = densM[i1] * (*Fn)[i1] * cunit * crsvel * tau;
 	      Prob1 = nsigmaM[i1] * crm * tau;
 	    }
 	    
