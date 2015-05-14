@@ -14,25 +14,25 @@
 #include "Ion.H"
 #include "interactSelect.H"
 
-Ion::RR_Map rr_map = 
-  {
-    { "Mewe",    Ion::mewe    },
-    { "TopBase", Ion::topbase },
-    { "Kramers", Ion::kramers },
-    { "Spitzer", Ion::spitzer },
-    { "Verner",  Ion::verner  }
-  };
+// For setting cross-section type (c++-11 initialization style)
+Ion::RR_Map Ion::rr_map = {
+  { "Mewe",    Ion::mewe    },
+  { "TopBase", Ion::topbase },
+  { "Kramers", Ion::kramers },
+  { "Spitzer", Ion::spitzer },
+  { "Verner",  Ion::verner  }
+};
 
-Ion::RR_Lab rr_lab = 
-  {
+// For printing cross-section type (c++-11 initialization style)
+Ion::RR_Lab Ion::rr_lab = {
     { Ion::mewe,    "Mewe",   },
     { Ion::topbase, "TopBase" },
     { Ion::kramers, "Kramers" },
     { Ion::spitzer, "Spitzer" },
     { Ion::verner,  "Verner"  }
-  };
+};
 
-Ion::RR_Type rr_type = Ion::mewe;
+Ion::RR_Type Ion::rr_type = Ion::mewe;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -1078,10 +1078,10 @@ std::vector<double> Ion::radRecombCross(double E, int id)
   // Log the type to stdout
   //
   if (first && myid==0 && id==0) {
-    std::cout << std::string(60, '-') << std::endl
-	      << "---- Ion radiative recombination cross section is " 
-	      << rr_lab[type] << std::endl
-	      << std::string(60, '-') << std::endl;
+    std::cout << std::endl << std::string(70, '-') << std::endl
+	      << "--- Ion: radiative recombination cross section is " 
+	      << rr_lab[rr_type] << std::endl
+	      << std::string(70, '-') << std::endl;
   }
   first = false;
 
@@ -1106,21 +1106,21 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    if (type == topbase)      return v2;
-    else if (type == mewe)    return v1;
-    else if (type == kramers) return v3;
-    else if (type == spitzer) return v4;
-    else if (type == verner)  return v5;
-    else                      return v5;
+    if      (rr_type == topbase) return v2;
+    else if (rr_type == mewe)    return v1;
+    else if (rr_type == kramers) return v3;
+    else if (rr_type == spitzer) return v4;
+    else if (rr_type == verner)  return v5;
+    else                         return v5;
 
   } else {
 
-    if (type == topbase)      return radRecombCrossTopBase(E, id);
-    else if (type == mewe)    return radRecombCrossMewe   (E, id);
-    else if (type == kramers) return radRecombCrossKramers(E, id);
-    else if (type == spitzer) return radRecombCrossSpitzer(E, id);
-    else if (type == verner)  return radRecombCrossVerner (E, id);
-    else                      return radRecombCrossVerner (E, id);
+    if      (rr_type == topbase) return radRecombCrossTopBase(E, id);
+    else if (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    else if (rr_type == kramers) return radRecombCrossKramers(E, id);
+    else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
+    else if (rr_type == verner)  return radRecombCrossVerner (E, id);
+    else                         return radRecombCrossVerner (E, id);
 
   }
 }

@@ -305,9 +305,9 @@ protected:
 
   //@{
   //! Static varibles for setting radiative recombination cross-section type
-  static RR_Map rr_map;
-  static RR_Lab rr_lab;
-  static RR_Type type;
+  static RR_Map  rr_map;
+  static RR_Lab  rr_lab;
+  static RR_Type rr_type;
   //@}
 
 public:
@@ -466,13 +466,16 @@ public:
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
 
-  //! Set cross-section type
-  static void setRRtype(const std::string& rr) 
+  //! Set cross-section type for all instances
+  static int setRRtype(const std::string& rr) 
   {
-    if (rr_map.find(rr) == rr_map.end())
-      type = mewe;		// Default
-    else 			// Set request
-      type = rr_map[rr];
+    if (rr_map.find(rr) == rr_map.end()) {
+      Ion::rr_type = Ion::mewe;	// Default type
+      return 1;			// Failure
+    } else { 			// Set request
+      Ion::rr_type = rr_map[rr];
+      return 0;			// Success
+    }
   }
 };
 

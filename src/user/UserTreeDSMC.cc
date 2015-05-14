@@ -426,8 +426,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     exit(-1);
   }
 
-  if (rrtype.size()>0) Ion::setRRtype(rrtype);
-
   //
   // Set additional parameters
   //
@@ -590,6 +588,18 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
+
+  if (get_value("rrtype", val)) {
+    if (Ion::setRRtype(val)) {
+      if (myid==0) {
+	std::cerr << "UserTreeDSMC: invalid rrtype <" << val << ">" 
+		  << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
   if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
