@@ -150,6 +150,7 @@ class CollideIon;
     @param slab set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is Z
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
+    @param rrtype is a string referring to the name of the desired radiative recombination cross section type.  This is only used by the ctype=Ion method (default: Mewe)
 
     <h2>Note on multiple species</h2>
 
@@ -191,6 +192,7 @@ private:
   double enhance;
   double ntcdef;
   string ctype;
+  string rrtype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;

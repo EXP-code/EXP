@@ -36,7 +36,7 @@ const bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-const bool DEBUG_CR          = true;
+const bool DEBUG_CR          = false;
 
 // Artifically suppress electron equipartition speed
 //
@@ -2271,15 +2271,6 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   double Mt = m1 + m2;
 
-  // Reduced mass in ballistic collision (system, i.e. Wb * Munit/amu
-  // is the number of interacting particles in this super particle.
-  // m1*m2/Mt is the reduced mass in amu units.  Therefore, Wb *
-  // Munit/amu * amu * m1 * m2 /Mt is the reduced mass in physical
-  // units and the quantity below is the reduced mass in system
-  // units).
-  //
-  double Mu = Wb * m1 * m2 / Mt;
-
   // Available center of mass energy in the ballistic collision
   // (system units)
   //
@@ -2345,90 +2336,37 @@ int CollideIon::inelasticWeight(pCell* const c,
     deltaKE += vdif*vdif*qKEfac;
   }
 
-
   // Update post-collision velocities.  In the electron version, the
   // momentum is assumed to be coupled to the ions, so the ion
   // momentum must be conserved.
   // 
+
+  double kE = 0.0;		// Compute the COM KE, after scatter
   for (size_t k=0; k<3; k++) {
     p1->vel[k] = (1.0 - q)*p1->vel[k] + q*(vcom[k] + m2/Mt*vrel[k]);
     p2->vel[k] = vcom[k] - m1/Mt*vrel[k];
+
+    double cr  = p1->vel[k] - p2->vel[k];
+    kE += cr*cr;
   }
 
-  // Update electron velocties.  Electron velocity is computed so that
-  // momentum is conserved ignoring the doner ion.
+  // Updated vi
   //
-  if (use_elec) {
+  vi = sqrt(kE);
 
-    // Electron from particle #2
-    //
-    if (interFlag > 100 and interFlag < 200) {
-      m2 = atomic_weights[0];	// Electron mass
-      Mt = m1 + m2;
-      for (unsigned k=0; k<3; k++) {
-	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
-      }
-	    
-      vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
-
-      vrel[0] = vi * cos_th;	      // Compute post-collision relative
-      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-      vrel[2] = vi * sin_th*sin(phi); // interaction
-
-      double vf2 = 0.0;		      // Debug electron energy loss/gain
-      for (size_t k=0; k<3; k++) {
-	double vv = p2->dattrib[use_elec+k] = vcom[k] - m1/Mt*vrel[k];
-	vf2 += vv*vv;
-      }
-      velER[id].push_back(vf2/(vi*vi));
-
-    }
-
-    // Electron from particle #1
-    //
-    if (interFlag > 200 and interFlag < 300) {
-      m1 = atomic_weights[0];	// Electron mass
-      Mt = m1 + m2;
-      for(unsigned k=0; k<3; k++) {
-	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
-      }
-	    
-      vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
-
-      vrel[0] = vi * cos_th;	      // Compute post-collision relative
-      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-      vrel[2] = vi * sin_th*sin(phi); // interaction
-
-      double vf2 = 0.0;		      // Debug electron energy loss/gain
-      for (size_t k=0; k<3; k++) {
-	double vv = p1->dattrib[use_elec+k] = vcom[k] - m2/Mt*vrel[k];
-	vf2 += vv*vv;
-      }
-      velER[id].push_back(vf2/(vi*vi));
-
-    }
-  }
-
+  // Reduced mass in system units for energy update
   //
-  // Perform energy adjustment in ion, system COM frame with system
-  // mass units
-  //
-  m1 = p1->mass;
-  m2 = p2->mass;
-  Mt = m1 + m2;
-  Mu = m1 * m2 / Mt;
+  double Mu = p1->mass * p2->mass / (p1->mass + p2->mass);
 
-  double kE = 0.0;
-  for (unsigned k=0; k<3; k++) {
-    vcom[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
-    vrel[k] = p1->vel[k] - p2->vel[k];
-    kE     += vrel[k] * vrel[k];
-  }
-  vi  = sqrt(kE);
+  // Available KE in COM frame, system units
+  //
   kE *= 0.5*Mu;
 
-  double totE = kE - delE;	// Total energy available in COM after
-				// removing loss
+  // Total energy available in COM after removing radiative and
+  // collisional loss.  A negative value for totE will be handled
+  // below . . .
+  //
+  double totE = kE - delE;
 
   // Cooling rate diagnostic histogram
   //
@@ -2504,9 +2442,81 @@ int CollideIon::inelasticWeight(pCell* const c,
     p1->dattrib[use_cons] += deltaKE + missE;
   }
 
+  // Compute the change of energy in the collision frame by computing
+  // the velocity reduction factor
+  //
   double vf = 0.0, vfac = 0.0;
   if (totE > 0.0) vf   = sqrt(2.0*totE/Mu);
   if (vi   > 0.0) vfac = vf / vi;
+
+  // Update electron velocties.  Electron velocity is computed so that
+  // momentum is conserved ignoring the doner ion.  Use of reduction
+  // factor keeps electrons and ions in equipartition.
+  //
+  if (use_elec) {
+
+    // Electron from particle #2
+    //
+    if (interFlag > 100 and interFlag < 200) {
+      m2 = atomic_weights[0];	// Electron mass
+      Mt = m1 + m2;
+      for (unsigned k=0; k<3; k++) {
+	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe1[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
+      for (size_t k=0; k<3; k++) {
+	double vv = p2->dattrib[use_elec+k] = vcom[k] - m1/Mt*vrel[k] * vfac;
+	vf2 += vv*vv;
+      }
+      velER[id].push_back(vf2/(vi*vi));
+
+    }
+
+    // Electron from particle #1
+    //
+    if (interFlag > 200 and interFlag < 300) {
+      m1 = atomic_weights[0];	// Electron mass
+      Mt = m1 + m2;
+      for(unsigned k=0; k<3; k++) {
+	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k]) / Mt;
+      }
+	    
+      vi = sqrt(2.0*kEe2[id]*eV/(atomic_weights[0]*amu)) / UserTreeDSMC::Vunit;
+
+      vrel[0] = vi * cos_th;	      // Compute post-collision relative
+      vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = vi * sin_th*sin(phi); // interaction
+
+      double vf2 = 0.0;		      // Debug electron energy loss/gain
+      for (size_t k=0; k<3; k++) {
+	double vv = p1->dattrib[use_elec+k] = vcom[k] - m2/Mt*vrel[k] * vfac;
+	vf2 += vv*vv;
+      }
+      velER[id].push_back(vf2/(vi*vi));
+
+    }
+  }
+
+  //
+  // Perform energy adjustment in ion, system COM frame with system
+  // mass units.  Reduced mass has already been computed but not
+  // needed below.
+  //
+  m1 = p1->mass;
+  m2 = p2->mass;
+  Mt = m1 + m2;
+
+  for (unsigned k=0; k<3; k++) {
+    vcom[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
+    vrel[k] = p1->vel[k] - p2->vel[k];
+  }
 
   *cr = 0.0;
   double KE1f = 0.0, KE2f = 0.0;

@@ -295,6 +295,22 @@ protected:
 public:
 
   //@{
+  //! For defining and setting radiative recombination cross-section
+  enum    RR_Type { mewe, topbase, kramers, spitzer, verner };
+  typedef std::map<std::string, RR_Type> RR_Map;
+  //@}
+
+protected:
+
+  //@{
+  //! For defining and setting radiative recombination cross-section
+  static  RR_Map rr_labs;
+  static  RR_Type type;
+  //@}
+
+public:
+
+  //@{
   //! Constructors
   Ion (std::string name, chdata* ch);
   Ion (unsigned short Z1, unsigned short C1, chdata* ch);
@@ -447,6 +463,15 @@ public:
   unsigned short getC()             const { return C; }
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
+
+  //! Set cross-section type
+  static void setRRtype(const std::string& rr) 
+  {
+    if (rr_labs.find(rr) == rr_labs.end())
+      type = mewe;		// Default
+    else 			// Set request
+      type = rr_labs[rr];
+  }
 };
 
 typedef boost::shared_ptr<Ion> IonPtr;

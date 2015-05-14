@@ -426,6 +426,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     exit(-1);
   }
 
+  if (rrtype.size()>0) Ion::setRRtype(rrtype);
+
   //
   // Set additional parameters
   //
