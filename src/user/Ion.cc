@@ -1068,7 +1068,7 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    return v1;
+    return v5;
   } else {
     // return radRecombCrossTopBase(E, id);
     // return radRecombCrossMewe   (E, id);

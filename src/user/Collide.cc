@@ -2986,7 +2986,7 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
   typedef spCountMap::iterator spCountMapItr;
 
 				// Field width
-  const unsigned short wid = 18;
+  const unsigned short wid = 16;
 
   std::ofstream dout;
 

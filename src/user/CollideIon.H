@@ -518,7 +518,7 @@ protected:
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempM, molwM, consE, totlE;
+  double tempM, tempE, molwM, consE, totlE;
   spDMap specM;
   //@}
 

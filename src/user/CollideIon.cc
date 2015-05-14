@@ -36,7 +36,7 @@ const bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-const bool DEBUG_CR          = false;
+const bool DEBUG_CR          = true;
 
 // Artifically suppress electron equipartition speed
 //
@@ -2134,9 +2134,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
       std::cout << std::endl;
 
-      if (TotalCross.back()/csections[id][i1][i2] * cfac > 100.0) {
-	std::cout << "Crazy large" << std::endl;
-      }
     }
 
     //--------------------------------------------------
@@ -4806,6 +4803,10 @@ void CollideIon::gatherSpecies()
     consE = 0.0;
     totlE = 0.0;
     tempM = 0.0;
+    tempE = 0.0;
+
+    typedef std::map<key_type, double> cType;
+    cType ETcache;
 
     // Interate through all cells
     //
@@ -4832,16 +4833,53 @@ void CollideIon::gatherSpecies()
       }
 
       if (aType==Weight and use_cons >= 0) {
-	for (auto b : cell->bods)
-	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
-      }
 
+	for (auto b : cell->bods) {
+	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
+	}
+	
+	cType::iterator ft = ETcache.find(cell->sample->mykey);
+
+	if (ft != ETcache.end()) {
+	  T = ft->second;
+	} else {
+	  std::vector<double> vel1(3, 0.0), vel2(3, 0.0);
+	  double count = 0.0;
+	  for (auto c : cell->sample->children) {
+	    for (auto b : c.second->bods) {
+	      Particle *p = c0->Tree()->Body(b);
+	      KeyConvert k(p->iattrib[use_key]);
+	      unsigned short ne = k.C() - 1;
+	      double numb = p->mass/atomic_weights[k.Z()] * ne;
+	      if (ne) {
+		for (unsigned k=0; k<3; k++) {
+		  double v = p->dattrib[use_elec+k];
+		  vel1[k] += v   * numb;
+		  vel2[k] += v*v * numb;
+		}
+		count   += numb;
+	      }
+	    }
+	  }
+
+	  double dispr = 0.0;
+	  if (count > 0.0) {
+	    for (unsigned k=0; k<3; k++) 
+	      dispr += 0.5*(vel2[k] - vel1[k]*vel1[k]/count);
+	    T = ETcache[cell->sample->mykey] = 
+	      dispr/count * Tfac * atomic_weights[0];
+	  } else {
+	    T = ETcache[cell->sample->mykey] = 0.0;
+	  }
+	}
+	tempE += cell->Mass() * T;
+      }
     }
 
 
     // Send values to root
     //
-    double val1, val2, val3 = 0.0, val4 = 0.0;
+    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
     
     for (int i=1; i<numprocs; i++) {
 
@@ -4854,6 +4892,8 @@ void CollideIon::gatherSpecies()
 	if (aType==Weight and use_cons >= 0) {
 	  MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
 	  MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
+	  if (use_elec >= 0)
+	    MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
 	}
 
       }
@@ -4870,9 +4910,12 @@ void CollideIon::gatherSpecies()
 		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val4, 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
+	  if (use_elec >= 0)
+	    MPI_Recv(&val5, 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
 	}
 
-	if (std::isnan(val3) || std::isnan(val4)) {
+	if (std::isnan(val3) || std::isnan(val4) || std::isnan(val5)) {
 	  std::cout << "NaN" << std::endl;
 	}
 	  
@@ -4881,10 +4924,14 @@ void CollideIon::gatherSpecies()
 	tempM += val2;
 	consE += val3;
 	totlE += val4;
+	tempE += val5;
       }
     }
 
-    if (mass>0.0) tempM /= mass;
+    if (mass>0.0) {
+      tempM /= mass;
+      tempE /= mass;
+    }
     
   } else {
 
@@ -5264,6 +5311,9 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
   typedef std::map<speciesKey, unsigned long> spCountMap;
   typedef spCountMap::iterator spCountMapItr;
 
+				// Field width
+  const unsigned short wid = 16;
+
   std::ofstream dout;
 
 				// Generate the file name
@@ -5287,28 +5337,34 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       // Print the header
       //
       dout << "# " 
-	   << std::setw(12) << std::right << "Time "
-	   << std::setw(12) << std::right << "Temp ";
+	   << std::setw(wid) << std::right << "Time "
+	   << std::setw(wid) << std::right << "Temp ";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << setw(12) << right << sout.str();
+	dout << setw(wid) << right << sout.str();
       }
-      if (use_cons>=0) 
-	dout << std::setw(12) << std::right << "Cons_E"
-	     << std::setw(12) << std::right << "Totl_E"
-	     << std::setw(12) << std::right << "Comb_E";
+      if (use_cons>=0) {
+	dout << std::setw(wid) << std::right << "Cons_E"
+	     << std::setw(wid) << std::right << "Totl_E"
+	     << std::setw(wid) << std::right << "Comb_E";
+	if (use_elec>=0)
+	  dout << std::setw(wid) << std::right << "Temp_E";
+      }
       dout << std::endl;
       
       dout << "# " 
-	   << std::setw(12) << std::right << "--------"
-	   << std::setw(12) << std::right << "--------";
+	   << std::setw(wid) << std::right << "--------"
+	   << std::setw(wid) << std::right << "--------";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	dout << setw(12) << std::right << "--------";
-      if (use_cons>=0) 
-	dout << std::setw(12) << std::right << "--------"
-	     << std::setw(12) << std::right << "--------"
-	     << std::setw(12) << std::right << "--------";
+	dout << setw(wid) << std::right << "--------";
+      if (use_cons>=0) {
+	dout << std::setw(wid) << std::right << "--------"
+	     << std::setw(wid) << std::right << "--------"
+	     << std::setw(wid) << std::right << "--------";
+	if (use_elec>=0)
+	  dout << std::setw(wid) << std::right << "--------";
+      }
       dout << std::endl;
       
     }
@@ -5327,20 +5383,23 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 				// Use total mass to print mass
 				// fraction
   dout << "  " 
-       << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << temp;
+       << std::setw(wid) << std::right << tnow
+       << std::setw(wid) << std::right << temp;
 
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
     if (tmass > 0.0) 
-      dout << std::setw(12) << std::right 
+      dout << std::setw(wid) << std::right 
 	   << ZMList[it->first.first] * it->second / tmass;
     else
-      dout << std::setw(12) << std::right << 0.0;
+      dout << std::setw(wid) << std::right << 0.0;
   }
-  if (use_cons>=0) 
-    dout << std::setw(12) << std::right << consE
-	 << std::setw(12) << std::right << totlE
-	 << std::setw(12) << std::right << totlE + consE;
+  if (use_cons>=0) {
+    dout << std::setw(wid) << std::right << consE
+	 << std::setw(wid) << std::right << totlE
+	 << std::setw(wid) << std::right << totlE + consE;
+    if (use_elec>=0)
+      dout << std::setw(wid) << std::right << tempE;
+  }
   dout << std::endl;
 }
 
