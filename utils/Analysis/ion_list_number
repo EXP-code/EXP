@@ -105,15 +105,26 @@ def split_data(filename):
         for e in ekeys:
             print "{:>8s}".format(e),
         print
-        print "{0:>14s} {0:>14s}".format("-----"),
+        print "{0:>14s} {0:>14s}".format("-------"),
         for e in ekeys:
-            print "{:>8s}".format("-----"),
+            print "{:>8s}".format("-------"),
         print
+        sums = {}
+        for e in ekeys: sums[e] = 0
         for k in range(len(time)):
             print "{0:>14.2e} {1:>14.2e}".format(time[k], temp[k]),
             for e in ekeys:
                 print "{:>8.0f}".format(data[v][e][k]),
+                sums[e] += data[v][e][k]
             print
+        print "{0:>14s} {0:>14s}".format("-------"),
+        for e in ekeys:
+            print "{:>8s}".format("-------"),
+        print
+        print "{0:>14s} {1:>14s}".format("", "Totals"),
+        for e in ekeys:
+            print "{:>8.0f}".format(sums[e]),
+        print
 
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """
