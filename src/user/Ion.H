@@ -295,17 +295,19 @@ protected:
 public:
 
   //@{
-  //! For defining and setting radiative recombination cross-section
+  //! Structures for user-friendly specification of recombination types
   enum    RR_Type { mewe, topbase, kramers, spitzer, verner };
   typedef std::map<std::string, RR_Type> RR_Map;
+  typedef std::map<RR_Type, std::string> RR_Lab;
   //@}
 
 protected:
 
   //@{
-  //! For defining and setting radiative recombination cross-section
-  static  RR_Map rr_labs;
-  static  RR_Type type;
+  //! Static varibles for setting radiative recombination cross-section type
+  static RR_Map rr_map;
+  static RR_Lab rr_lab;
+  static RR_Type type;
   //@}
 
 public:
@@ -467,10 +469,10 @@ public:
   //! Set cross-section type
   static void setRRtype(const std::string& rr) 
   {
-    if (rr_labs.find(rr) == rr_labs.end())
+    if (rr_map.find(rr) == rr_map.end())
       type = mewe;		// Default
     else 			// Set request
-      type = rr_labs[rr];
+      type = rr_map[rr];
   }
 };
 

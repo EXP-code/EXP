@@ -14,13 +14,22 @@
 #include "Ion.H"
 #include "interactSelect.H"
 
-Ion::RR_Map  rr_labs = 
+Ion::RR_Map rr_map = 
   {
     { "Mewe",    Ion::mewe    },
     { "TopBase", Ion::topbase },
     { "Kramers", Ion::kramers },
     { "Spitzer", Ion::spitzer },
     { "Verner",  Ion::verner  }
+  };
+
+Ion::RR_Lab rr_lab = 
+  {
+    { Ion::mewe,    "Mewe",   },
+    { Ion::topbase, "TopBase" },
+    { Ion::kramers, "Kramers" },
+    { Ion::spitzer, "Spitzer" },
+    { Ion::verner,  "Verner"  }
   };
 
 Ion::RR_Type rr_type = Ion::mewe;
@@ -1065,16 +1074,13 @@ std::vector<double> Ion::radRecombCross(double E, int id)
   // For choosing and logging cross-section type
   //
   static bool first = true;
-  enum   RR_Type { mewe, topbase, kramers, spitzer, verner };
-  static RR_Type type = kramers;
-  static std::vector<std::string> rr_labs = { "Mewe", "TopBase", "Kramers", "Spitzer", "Verner" };
 
-  // Log the type
+  // Log the type to stdout
   //
   if (first && myid==0 && id==0) {
     std::cout << std::string(60, '-') << std::endl
 	      << "---- Ion radiative recombination cross section is " 
-	      << rr_labs[type] << std::endl
+	      << rr_lab[type] << std::endl
 	      << std::string(60, '-') << std::endl;
   }
   first = false;
