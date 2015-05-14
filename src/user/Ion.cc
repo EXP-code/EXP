@@ -1051,8 +1051,29 @@ double Ion::freeFreeCross(double Ei, int id)
 
 std::vector<double> Ion::radRecombCross(double E, int id)
 {
+  // For choosing and logging cross-section type
+  //
+  static bool first = true;
+  enum   RR_Type { mewe, topbase, kramers, spitzer, verner };
+  static RR_Type type = mewe;
+  static std::vector<std::string> rr_labs = { "Mewe", "TopBase", "Kramers", "Spitzer", "Verner" };
+
+  // Log the type
+  //
+  if (first && myid==0 && id==0) {
+    std::cout << std::string(60, '-') << std::endl
+	      << "---- Radiative recombination: " << rr_labs[mewe] 
+	      << " version" << std::endl
+	      << std::string(60, '-') << std::endl;
+  }
+  first = false;
+
   // For testing . . .
-  if (0) {
+  //
+  //  +--- True for verbose debug reporting for all cross-section types
+  //  |
+  //  v
+  if (false) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
@@ -1068,13 +1089,22 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    return v5;
+    if (type == topbase)      return v2;
+    else if (type == mewe)    return v1;
+    else if (type == kramers) return v3;
+    else if (type == spitzer) return v4;
+    else if (type == verner)  return v5;
+    else                      return v5;
+
   } else {
-    // return radRecombCrossTopBase(E, id);
-    // return radRecombCrossMewe   (E, id);
-    // return radRecombCrossKramers(E, id);
-    // return radRecombCrossSpitzer(E, id);
-    return radRecombCrossVerner (E, id);
+
+    if (type == topbase)      return radRecombCrossTopBase(E, id);
+    else if (type == mewe)    return radRecombCrossMewe   (E, id);
+    else if (type == kramers) return radRecombCrossKramers(E, id);
+    else if (type == spitzer) return radRecombCrossSpitzer(E, id);
+    else if (type == verner)  return radRecombCrossVerner (E, id);
+    else                      return radRecombCrossVerner (E, id);
+
   }
 }
 
