@@ -2259,9 +2259,13 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Perform energy adjustment in ion, system COM frame with system
   // mass units
   //
+
   double KE1i = 0.0, KE2i = 0.0;
-  for (auto v : p1->vel) KE1i += v*v;
-  for (auto v : p2->vel) KE2i += v*v;
+  double KE1f = 0.0, KE2f = 0.0;
+  if (KE_DEBUG) {
+    for (auto v : p1->vel) KE1i += v*v;
+    for (auto v : p2->vel) KE2i += v*v;
+  }
 
   // Mass per particle in amu for this interaction
   //
@@ -2351,10 +2355,6 @@ int CollideIon::inelasticWeight(pCell* const c,
     kE += cr*cr;
   }
 
-  // Updated vi
-  //
-  vi = sqrt(kE);
-
   // Reduced mass in system units for energy update
   //
   double Mu = p1->mass * p2->mass / (p1->mass + p2->mass);
@@ -2367,8 +2367,8 @@ int CollideIon::inelasticWeight(pCell* const c,
   // collisional loss.  A negative value for totE will be handled
   // below . . .
   //
-  double totE0 = kE - delE;
   double totE  = kE - delE;
+  double totE0 = kE - delE;
 
   // Cooling rate diagnostic histogram
   //
@@ -2421,7 +2421,6 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   // Assign interaction energy variables
   //
-
   double Exs = 0.0;
   if (Z1 == Z2 and use_cons>=0) {
     double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
@@ -2447,9 +2446,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Compute the change of energy in the collision frame by computing
   // the velocity reduction factor
   //
-  double vf = 0.0, vfac = 0.0;
-  if (totE0 > 0.0) vf   = sqrt(2.0*totE0/Mu);
-  if (vi    > 0.0) vfac = vf / vi;
+  double vfac = kE>0.0 ? sqrt(totE0/kE) : 0.0;
 
   // Update electron velocties.  Electron velocity is computed so that
   // momentum is conserved ignoring the doner ion.  Use of reduction
@@ -2520,14 +2517,9 @@ int CollideIon::inelasticWeight(pCell* const c,
     vrel[k] = p1->vel[k] - p2->vel[k];
   }
 
-  if (totE > 0.0)   vf = sqrt(2.0*totE/Mu);
-  else              vf = 0.0;
-  
-  if (vi   > 0.0) vfac = vf / vi;
-  else            vfac = 0.0;
+  vfac = kE>0.0 ? sqrt(totE/kE) : 0.0;
 
   *cr = 0.0;
-  double KE1f = 0.0, KE2f = 0.0;
   for (size_t k=0; k<3; k++) {
     double v1 = p1->vel[k] = vcom[k] + m2/Mt * vrel[k] * vfac;
     double v2 = p2->vel[k] = vcom[k] - m1/Mt * vrel[k] * vfac;
@@ -2537,17 +2529,16 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (std::isnan(v1) || std::isnan(v2)) {
       std::cout << "Vel NaN" << std::endl;
     }
-
-    if (KE_DEBUG) {
-      KE1f += v1 * v1;
-      KE2f += v2 * v2;
-    }
   }
   *cr = sqrt(*cr);
 
   // KE debugging
   //
   if (KE_DEBUG) {
+
+    for (auto v : p1->vel) KE1f += v*v;
+    for (auto v : p2->vel) KE2f += v*v;
+
 				// Pre collision KE
     KE1i *= 0.5*p1->mass;
     KE2i *= 0.5*p2->mass;
@@ -2562,11 +2553,13 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// Check Energy balance including excess
     if (fabs(dKE + Exs - delE - missE) > 1.0e-20)
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
-		<< std::setw(14) << dKE+Exs
-		<< ", dKE=" << std::setw(14) << tKEi - tKEf 
+		<< std::setw(14) << dKE + Exs - delE - missE
+		<< ", dKE=" << std::setw(14) << dKE
 		<< ", Cns=" << std::setw(14) << deltaKE
 		<< ", Exs=" << std::setw(14) << Exs
+		<< ", del=" << std::setw(14) << delE
 		<< ", msE=" << std::setw(14) << missE
+		<< ", fac=" << std::setw(14) << vfac
 		<< std::endl;
   }
   
