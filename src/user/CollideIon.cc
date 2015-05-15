@@ -1986,6 +1986,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
   if (p1->mass/atomic_weights[Z1] < p2->mass/atomic_weights[Z2]) {
+
     // Swap the particle pointers
     //
     Particle *pT = p1;
@@ -2366,7 +2367,8 @@ int CollideIon::inelasticWeight(pCell* const c,
   // collisional loss.  A negative value for totE will be handled
   // below . . .
   //
-  double totE = kE - delE;
+  double totE0 = kE - delE;
+  double totE  = kE - delE;
 
   // Cooling rate diagnostic histogram
   //
@@ -2446,8 +2448,8 @@ int CollideIon::inelasticWeight(pCell* const c,
   // the velocity reduction factor
   //
   double vf = 0.0, vfac = 0.0;
-  if (totE > 0.0) vf   = sqrt(2.0*totE/Mu);
-  if (vi   > 0.0) vfac = vf / vi;
+  if (totE0 > 0.0) vf   = sqrt(2.0*totE0/Mu);
+  if (vi    > 0.0) vfac = vf / vi;
 
   // Update electron velocties.  Electron velocity is computed so that
   // momentum is conserved ignoring the doner ion.  Use of reduction
@@ -2517,6 +2519,12 @@ int CollideIon::inelasticWeight(pCell* const c,
     vcom[k] = (m1*p1->vel[k] + m2*p2->vel[k]) / Mt;
     vrel[k] = p1->vel[k] - p2->vel[k];
   }
+
+  if (totE > 0.0)   vf = sqrt(2.0*totE/Mu);
+  else              vf = 0.0;
+  
+  if (vi   > 0.0) vfac = vf / vi;
+  else            vfac = 0.0;
 
   *cr = 0.0;
   double KE1f = 0.0, KE2f = 0.0;
