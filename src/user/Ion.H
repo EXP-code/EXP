@@ -12,6 +12,7 @@
 #include <atomic_constants.H>
 #include <TopBase.H>
 #include <Cspline.H>
+#include <Verner.H>
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -200,14 +201,14 @@ public:
   boost::shared_ptr<TopBase> tb;
 
   //! Access to data for individual Ions
-  std::map < std::pair<int, int>,  Ion > IonList;
-
-  //! Access to interaction info
-  std::map< std::pair<unsigned short, unsigned short>, double > interInfo;
+  std::map <lQ,  boost::shared_ptr<Ion> > IonList;
 
   //! Not sure what this does . . . looks like cruft.  Remove??
   std::map< int, double > Ni;
 
+  //! Verner-Yakovlev cross-section data
+  VernerData VernerXC;
+  
   /** Read in the master list to store to be able to check if elements
       are in it */
   void readMaster();
@@ -229,6 +230,9 @@ public:
 
   //! List names of all species to stdout
   void printMaster();
+
+  //! Read the radiative cross section data
+  void readVerner();
 
 };
 
@@ -287,6 +291,24 @@ protected:
 
 				// k-grid spacing in inverse nm
   static constexpr double kdel    = 0.5;
+
+public:
+
+  //@{
+  //! Structures for user-friendly specification of recombination types
+  enum    RR_Type { mewe, topbase, kramers, spitzer, verner };
+  typedef std::map<std::string, RR_Type> RR_Map;
+  typedef std::map<RR_Type, std::string> RR_Lab;
+  //@}
+
+protected:
+
+  //@{
+  //! Static varibles for setting radiative recombination cross-section type
+  static RR_Map  rr_map;
+  static RR_Lab  rr_lab;
+  static RR_Type rr_type;
+  //@}
 
 public:
 
@@ -380,7 +402,6 @@ public:
   int effsteps;
   //@}
   
-  
   void convertName();
   void readelvlc();
   void readwgfa();
@@ -422,6 +443,7 @@ public:
   std::vector<double> radRecombCrossSpitzer(double E, int id);
   std::vector<double> radRecombCrossKramers(double E, int id);
   std::vector<double> radRecombCrossTopBase(double E, int id);
+  std::vector<double> radRecombCrossVerner (double E, int id);
   //@}
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
@@ -443,6 +465,27 @@ public:
   unsigned short getC()             const { return C; }
   double         getIP(const lQ& Q) const { return ch->ipdata[Q]; }
   //@}
+
+  //! Set cross-section type for all instances
+  static int setRRtype(const std::string& rr) 
+  {
+    if (rr_map.find(rr) == rr_map.end()) {
+      rr_type = Ion::mewe;	// Default type
+      return 1;			// Failure
+    } else { 			// Set request
+      rr_type = rr_map[rr];
+      return 0;			// Success
+    }
+  }
+
+  //! Get cross-section type
+  static const std::string& getRRtype()
+  {
+    return rr_lab[rr_type];
+  }
+
 };
+
+typedef boost::shared_ptr<Ion> IonPtr;
 
 #endif

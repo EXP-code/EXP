@@ -167,9 +167,9 @@ void Shells::determine_coefficients(void)
   int msglen;
 				// Clear the data arrays
   for (int i=0; i<nthrds; i++) {
-    rgridT[i].erase(rgridT[i].begin(), rgridT[i].end());
-    mgridT[i].erase(mgridT[i].begin(), mgridT[i].end());
-    igridT[i].erase(igridT[i].begin(), igridT[i].end());
+    rgridT[i].clear();
+    mgridT[i].clear();
+    igridT[i].clear();
     usedT[i] = 0;
   }
 				// Make the radius--mass lists
@@ -215,8 +215,8 @@ void Shells::determine_coefficients(void)
     vector<double> mgridX(nsum);
     vector<int   > igridX(nsum);
 
-    rgrid[mlevel].erase(rgrid[mlevel].begin(), rgrid[mlevel].end());
-    mgrid[mlevel].erase(mgrid[mlevel].begin(), mgrid[mlevel].end());
+    rgrid[mlevel].clear();
+    mgrid[mlevel].clear();
 
     if (int ret=
 	MPI_Alltoallv(&rgrid1[0], &snumbr[0], &sdispl[0], MPI_DOUBLE, 
@@ -259,7 +259,7 @@ void Shells::determine_coefficients(void)
 
   double mfac = 1.0;
   if (nsample>1) mfac *= nsample;
-  grid.erase(grid.begin(), grid.end());
+  grid.clear();
   map<int, double>::iterator ri, mi;
   for (int m=0; m<=multistep; m++) {
     ri = rgrid[m].begin();
@@ -274,9 +274,9 @@ void Shells::determine_coefficients(void)
 
     int ntot = grid.size();
   
-    rgrid0.erase(rgrid0.begin(), rgrid0.end());
-    mgrid0.erase(mgrid0.begin(), mgrid0.end());
-    pgrid0.erase(pgrid0.begin(), pgrid0.end());
+    rgrid0.clear();
+    mgrid0.clear();
+    pgrid0.clear();
 
     double rL=0.0, rC, mL=0.0, mC;
     vector<double> vval(3, 0.0);
@@ -354,9 +354,9 @@ void * Shells::determine_coefficients_thread(void *arg)
 void Shells::multistep_update_begin()
 {
   for (int n=0; n<nthrds; n++) {
-    update_fr[n].erase(update_fr[n].begin(), update_fr[n].end());
-    update_to[n].erase(update_to[n].begin(), update_to[n].end());
-    update_ii[n].erase(update_ii[n].begin(), update_ii[n].end());
+    update_fr[n].clear();
+    update_to[n].clear();
+    update_ii[n].clear();
   }
 }
 

@@ -23,16 +23,13 @@ void * incr_velocity_thread(void *ptr)
   int id = static_cast<thrd_pass_posvel*>(ptr)->id;
 
 
-  list<Component*>::iterator cc;
   int nbeg, nend, indx;
   unsigned ntot;
-  Component *c;
   
   //
   // Component loop
   //
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     
     if (mlevel>=0)		// Use a particular level
       ntot = c->levlist[mlevel].size();
@@ -145,12 +142,8 @@ void incr_velocity(double dt, int mlevel)
 
 void incr_com_velocity(double dt)
 {
-  list<Component*>::iterator cc;
-  Component *c;
-  
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
-    
+  for (auto c : comp.components) {
+
     if (c->com_system) {
       for (int k=0; k<c->dim; k++) c->cov0[k] += c->acc0[k]*dt;
     }

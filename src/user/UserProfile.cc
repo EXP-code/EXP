@@ -34,10 +34,7 @@ UserProfile::UserProfile(string &line) : ExternalForce(line)
 				// Search for component by name
   for (int i=0; i<numComp; i++) {
     bool found = false;
-    list<Component*>::iterator cc;
-    Component *c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if ( !C[i].compare(c->name) ) {
 	// Check to see that the force can return field values
 	if (dynamic_cast <Basis*> (c->force)) {

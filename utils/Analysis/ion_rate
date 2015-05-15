@@ -53,6 +53,7 @@ def plot_data(filename, degree, smooth, tscale, tmax):
     temp  = []
     etot  = []
     ncol  = 9
+    trce  = 2
     data  = {}
 
     # Species
@@ -64,15 +65,18 @@ def plot_data(filename, degree, smooth, tscale, tmax):
     #
     file  = open(filename)
     for line in file:
-        if line.find('Time')>=0:    # Get the labels
+        if line.find('Time') >= 0:    # Get the labels
             next = True
             labels = line.translate(trans).split()
+            if line.find('W(') >= 0:
+                ncol = 13
+                trce = 3
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
-                idx = (i-2) / ncol
+                idx = (i-trce) / ncol
                 data[spec[idx]][labels[j]] = []
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
@@ -86,12 +90,18 @@ def plot_data(filename, degree, smooth, tscale, tmax):
                 # same (i.e. guard against the occasional badly written
                 # output file
                 if len(toks) == len(labels):
-                    if float(toks[0]) <= tmax:
+                    ok = True
+                    if len(time)>0:
+                        if float(toks[0]) == time[-1]: 
+                            ok = False
+                        if float(toks[0]) > tmax:
+                            ok = False
+                    if ok:
                         time.append(float(toks[0]))
                         temp.append(float(toks[1]))
                         etot.append(float(toks[-1]))
                         for i in range(2,len(toks)-1):
-                            idx = (i-2) / ncol
+                            idx = (i-trce) / ncol
                             data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "Bad line: toks=", len(toks), " labels=", len(labels)
@@ -109,7 +119,10 @@ def plot_data(filename, degree, smooth, tscale, tmax):
         pd = np.polyder(pf, m=1)
         zf = np.polyval(pd, tm)
     else:
-        tck = ip.splrep(tm, tp, s=smooth)
+        # tck = ip.splrep(tm, tp, s=smooth)
+        print tm
+        print tp
+        tck = ip.splrep(tm, tp)
         yf  = ip.splev(tm, tck)
         zf  = ip.splev(tm, tck, der=1)
 
@@ -171,7 +184,7 @@ def main(argv):
         elif opt in ("-t", "--timescale"):
             tscale = float(arg)
         elif opt in ("-T", "--maxT"):
-            tmax   = float(arg)
+            tmax = float(arg)
 
     suffix = ".ION_coll";
     if len(args)>0:

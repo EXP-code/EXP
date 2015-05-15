@@ -68,12 +68,6 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 			  std::istream *in)
 {
   //
-  // Iterators for vector atrributes
-  //
-  std::vector<int   >::iterator it;
-  std::vector<double>::iterator jt;
-
-  //
   // Read index value if this field is recorded
   //
   if (indexing) 
@@ -107,13 +101,11 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 
     level = multistep;
 
-    for (it=iattrib.begin(); it!=iattrib.end(); it++) 
-      in->read((char *)&(*it), sizeof(int));
+    for (auto &it : iattrib)
+      in->read((char *)&it, sizeof(int));
 
-    for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) {
-      in->read((char *)&tf, sizeof(float));
-      *jt = tf;
-    }
+    for (auto &jt : dattrib)
+      in->read((char *)&jt, sizeof(float));
     
   } else {
     //
@@ -129,11 +121,11 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
 
     level = multistep;
 
-    for (it=iattrib.begin(); it!=iattrib.end(); it++) 
-      in->read((char *)&(*it), sizeof(int));
+    for (auto& it : iattrib)
+      in->read((char *)&it, sizeof(int));
 
-    for (jt=dattrib.begin(); jt!=dattrib.end(); jt++)
-      in->read((char *)&(*jt), sizeof(double));
+    for (auto& jt : dattrib)
+      in->read((char *)&jt, sizeof(double));
 
   }
 }
@@ -144,12 +136,6 @@ void Particle::writeBinary(unsigned rsize,
 			   double* cov0, double* covI,
 			   bool indexing, std::ostream *out)
 {
-  //
-  // Iterators for vector atrributes
-  //
-  std::vector<int   >::iterator it;
-  std::vector<double>::iterator jt;
-
   // Working variable
   float tf;
 
@@ -191,16 +177,16 @@ void Particle::writeBinary(unsigned rsize,
   else
     out->write((const char *)&pot0, sizeof(double));
 
-  for (it=iattrib.begin(); it!=iattrib.end(); it++) 
-    out->write((const char *)&(*it), sizeof(int));
+  for (auto it : iattrib)
+    out->write((const char *)&it, sizeof(int));
   
-  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++)  {
+  for (auto jt: dattrib) {
     if (rsize == sizeof(float)) {
-      tf = static_cast<float>(*jt);
+      tf = static_cast<float>(jt);
       out->write((const char *)&tf, sizeof(float));
     }
     else
-      out->write((const char *)&(*jt), sizeof(double));
+      out->write((const char *)&jt, sizeof(double));
   }
 }
 
@@ -212,13 +198,6 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   //
   const int nline = 2048;
   char line[nline];
-
-  //
-  // Iterators for vector atrributes
-  //
-  std::vector<int   >::iterator it;
-  std::vector<double>::iterator jt;
-
 
   //
   // Read the line
@@ -239,14 +218,14 @@ void Particle::readAscii(bool indexing, int seq, std::istream* fin)
   
   level = multistep;
 
-  for (it=iattrib.begin(); it!=iattrib.end(); it++) {
-    ins >> *it;
-    if (!ins) *it = 0;
+  for (auto &it : iattrib) {
+    ins >> it;
+    if (!ins) it = 0;
   }
 
-  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) {
-    ins >> *jt;
-    if (!ins) *jt = 0;
+  for (auto &jt : dattrib) {
+    ins >> jt;
+    if (!ins) jt = 0;
   }
 }
 
@@ -254,13 +233,6 @@ void Particle::writeAscii(double* com0, double* comI,
 			  double* cov0, double* covI, 
 			  bool indexing, bool accel, std::ostream* out)
 {
-  //
-  // Iterators for vector atrributes
-  //
-  std::vector<int   >::iterator it;
-  std::vector<double>::iterator jt;
-
-
   if (indexing) *out << std::setw(12) << indx;
   *out << std::setw(18) << mass;
   for (int i=0; i<3; i++) *out << std::setw(18) << pos[i]+com0[i]-comI[i];
@@ -271,11 +243,11 @@ void Particle::writeAscii(double* com0, double* comI,
   *out << std::setw(18) << pot;
   *out << std::setw(18) << potext;
 
-  for (it=iattrib.begin(); it!=iattrib.end(); it++) 
-    *out << std::setw(10) << *it;
+  for (auto it : iattrib)
+    *out << std::setw(10) << it;
 
-  for (jt=dattrib.begin(); jt!=dattrib.end(); jt++) 
-    *out << std::setw(18) << *jt;
+  for (auto jt : dattrib)
+    *out << std::setw(18) << jt;
   
   *out << std::endl;
 }

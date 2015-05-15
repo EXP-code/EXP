@@ -13,9 +13,11 @@
 #include <Uniform.h>
 #include <Normal.h>
 
+#include "AsciiHisto.H"
 #include "Particle.H"
 #include "pHOT.H"
 #include "Timer.h"
+#include "NTC.H"
 
 class Collide;
 
@@ -103,11 +105,13 @@ class Collide
   
 public:
   
-  typedef pair<double, vector<double> > Precord;
+  //! Diagnostic record type
+  typedef std::pair<double, vector<double> > Precord;
 
   //! Collide return tuple
-  typedef boost::tuple<unsigned, unsigned> UU;
+  typedef boost::tuple<unsigned, unsigned>   UU;
   
+
 protected:
 
   //! Fiducial component
@@ -148,7 +152,8 @@ protected:
   vector<double>      forkSum, snglSum, waitSum, diagSum, joinSum;
   bool                effortAccum;
   vector<effortL>     effortNumber;
-  vector<unsigned>    ntcVel, ntcCrs, ntcBth, ntcTot;
+  vector<unsigned>    ntcOvr, ntcTot;
+  unsigned            accOvr, accTot;
 
   boost::tuple<double, double, double> ntcRes;
   
@@ -224,14 +229,19 @@ protected:
   std::vector<double> disptot;
   double masstot;
   double excessCtot, excessEtot;
-
   //@}
 
+  //@{
+  //! For histogram of mfpCL values
+  static bool MFPCL;
+  std::vector< std::vector<double> > mfpCLdata;
+  ahistoDPtr mfpclHist;
+  //@}
   
   //@{
   //! Parameters set by caller and internally
 
-  double   diamfac;
+  double   crossfac;
   double   hsdiam;
   unsigned seltot;
   unsigned coltot;
@@ -243,49 +253,56 @@ protected:
   
   //@{
   //! Runtime features set by caller
-  int use_key, use_temp, use_dens, use_delt, use_Kn, use_St, use_exes, use_Eint;
+  int use_key, use_temp, use_dens, use_delt, use_Kn, use_St, use_exes;
+  int use_Eint;
   //@}
   
   //! Initializes cross sections
   virtual void initialize_cell
-  (pHOT* tree, pCell* cell, double vrelmax, int id) = 0;
+  (pHOT* const tree, pCell* const cell, double vrelmax, int id) = 0;
   
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
-  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+  (pHOT* const tree, pCell* const cell, 
+   sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* tree, pCell* cell, sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+  (pHOT* const tree, pCell* const cell, sKey2Umap& nsel, 
+   double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
   //! collisions/cooling
-  virtual void finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id) {}
+  virtual void finalize_cell(pHOT* const tree, pCell* const cell, 
+			     double kedsp, int id) {}
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
   virtual sKey2Dmap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(pHOT* tree, Particle* p1, Particle* p2,
-			      double cr, int id=0) { return 0; }
+  virtual double crossSection(pCell* const tree, 
+			      Particle* const p1, Particle* const p2,
+			      double cr, int id=0) = 0;
   
   //! Return the particle selection matrix
   virtual sKey2Umap generateSelection
-  (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Do the inelastic computation
-  virtual int inelastic(pHOT* tree, Particle* p1, Particle* p2,
-			double *cr, int id=0) { return 0; }
+  virtual int inelastic(pCell* const cell, 
+			Particle* const p1, Particle* const p2,
+			double *cr, int id=0) = 0;
   
-  virtual void velocityUpdate(Particle* p1, Particle* p2, double cr);
+  virtual void 
+  velocityUpdate(Particle* const p1, Particle* const p2, double cr);
 
   //! Has LTE heating and cooling algorithm
   virtual bool hasHeatCool() = 0;
   
   //! Compute the EPSM algorithm for the given cell
-  virtual void EPSM(pHOT* tree, pCell* cell, int id);
+  virtual void EPSM(pHOT* const tree, pCell* const cell, int id);
   
   //! Use EPSM if true
   bool use_epsm;
@@ -331,6 +348,10 @@ protected:
 
   //! Initialize atomic weights (public data)
   void atomic_weights_init();
+
+
+  //! NTC database
+  NTCdb ntcdb;
 
 public:
   
@@ -397,6 +418,9 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
+  //! CrossSection-Velocity factor for NTC database
+  static double NTCAVG;
+
   //! Atomic weights (public data)
   static std::map<unsigned short, double> atomic_weights;
 
@@ -404,10 +428,10 @@ public:
       @param force is the caller
       @param comp is the fiducial component
       @param hsdiam is the hard-sphere diameter in Bohr units
-      @param diamfac is the diameter scaling
+      @param crossfac is the cross-section scaling
   */
   Collide(ExternalForce *force, Component *comp, 
-	  double hsdiam, double diamfac, int nth=1);
+	  double hsdiam, double crossfac, int nth=1);
   
   //! Destructor
   virtual ~Collide();
@@ -520,11 +544,35 @@ public:
   virtual void resetColls()       {}
   //@}
 
-  // Gather stats for No-Time-Counter algorithm
-  virtual void NTCgather();
+  //@{
+  //! Expensive diagnostics, only use these if you must
+  void mfpCLGather();
+  void mfpCLPrint(std::ostream&out );
+  //@}
 
-  // Print stats for No-Time-Counter algorithm
+  //@{ 
+  //! Auxilliary diagnostics.
+  virtual void auxGather() {}
+  virtual void auxPrint(ostream& out) {}
+  //@}
+
+  //@{
+  //! Cell distribution of average (cross*vel)
+  std::map< sKeyPair, std::vector<double> > both, cros, crat;
+  //}
+
+  //! Gather stats for No-Time-Counter algorithm
+  virtual void NTCgather(pHOT* const tree);
+
+  //! Print stats for No-Time-Counter algorithm
   virtual void NTCstats(ostream& out);
+
+protected:
+
+  //! Helper function for NTCstats output
+  void NTCstanza(std::ostream& out, 
+		 std::map< sKeyPair, std::vector<double> >& vals,
+		 const std::string& lab, const std::vector<double>& pcent);
 };
 
 #endif

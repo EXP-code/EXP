@@ -27,10 +27,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
   if (name.size()>0) {
 				// Look for the fiducial component
     bool found = false;
-    list<Component*>::iterator cc;
-    Component *c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if ( !name.compare(c->name) ) {
 	c0 = c;
 	found = true;
@@ -52,10 +49,7 @@ UserDiffRot::UserDiffRot(string &line) : ExternalForce(line)
 				// Look for component for particle
 				// avoidance
     bool found = false;
-    list<Component*>::iterator cc;
-    Component *c;
-    for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-      c = *cc;
+    for (auto c : comp.components) {
       if ( !avoid.compare(c->name) ) {
 	c1 = c;
 	found = true;

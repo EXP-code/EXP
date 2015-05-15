@@ -56,12 +56,8 @@ void OutRelaxation::Run(int n, bool final)
   
 
   int nbodies;
-  list<Component*>::iterator cc;
-  Component* c;
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-
-    c = *cc;
+  for (auto c : comp.components) {
 
     nbodies = c->Number();
 

@@ -14,7 +14,29 @@
 #include "Ion.H"
 #include "interactSelect.H"
 
-//! Convert the master element name to a (Z, C) pair
+// For setting cross-section type (c++-11 initialization style)
+Ion::RR_Map Ion::rr_map = {
+  { "Mewe",    Ion::mewe    },
+  { "TopBase", Ion::topbase },
+  { "Kramers", Ion::kramers },
+  { "Spitzer", Ion::spitzer },
+  { "Verner",  Ion::verner  }
+};
+
+// For printing cross-section type (c++-11 initialization style)
+Ion::RR_Lab Ion::rr_lab = {
+    { Ion::mewe,    "Mewe",   },
+    { Ion::topbase, "TopBase" },
+    { Ion::kramers, "Kramers" },
+    { Ion::spitzer, "Spitzer" },
+    { Ion::verner,  "Verner"  }
+};
+
+Ion::RR_Type Ion::rr_type = Ion::mewe;
+
+//
+// Convert the master element name to a (Z, C) pair
+//
 void Ion::convertName() 
 {
   std::string ele;
@@ -53,7 +75,9 @@ void Ion::convertName()
   C = atoi(v[1].c_str());
 }
 
-//! Convert a given Z,C pair into a master name string
+//
+// Convert a given Z,C pair into a master name string
+//
 std::string ZCtoName(unsigned char Z, unsigned char C) 
 {
   std::stringstream ss;
@@ -146,7 +170,7 @@ void Ion::readelvlc()
       it++;
     }
   } else {
-    elvlc.erase(elvlc.begin(), elvlc.end());
+    elvlc.clear();
     for (unsigned i=0; i<number; i++) {
       elvlc_data e;
       e.synchronize();
@@ -155,6 +179,12 @@ void Ion::readelvlc()
   }
 }
 
+//
+// Reads the CHIANTI .wgfa file into a structure.
+//
+// CHIANTI wgfa files contain radiative decay rates and, in some cases
+// autoionization rates and/or two photon transitions.
+//
 void Ion::readwgfa() 
 {
   unsigned char nOK = 0;
@@ -230,7 +260,7 @@ void Ion::readwgfa()
       it++;
     }
   } else {
-    wgfa.erase(wgfa.begin(), wgfa.end());
+    wgfa.clear();
     for (unsigned i=0; i<number; i++) {
       wgfa_data w;
       w.synchronize();
@@ -240,7 +270,10 @@ void Ion::readwgfa()
 
 }
 
-//! Read in the fblvl file found in the CHIANTI database
+//
+// Read energy levels and free-bound data found in the CHIANTI
+// database
+//
 void Ion::readfblvl() 
 {
   unsigned char nOK = 0;
@@ -317,7 +350,7 @@ void Ion::readfblvl()
       it++;
     }
   } else {
-    fblvl.erase(fblvl.begin(), fblvl.end());
+    fblvl.clear();
     for (unsigned i=0; i<number; i++) {
       fblvl_data f;
       f.synchronize();
@@ -327,7 +360,10 @@ void Ion::readfblvl()
 
 }
 
-//! Read in the spline file from the CHIANTI database
+//
+// Read in the spline fits to the collision strengths from the CHIANTI
+// database
+//
 void Ion::readSplups() 
 {
   unsigned char nOK = 0;
@@ -386,7 +422,7 @@ void Ion::readSplups()
 	  }
 	
 	  splups.push_back(s);
-	  s.spline.erase(s.spline.begin(), s.spline.end());		
+	  s.spline.clear();
 	}
 	sFile.close();
       }
@@ -410,7 +446,7 @@ void Ion::readSplups()
       it++;
     }
   } else {
-    splups.erase(splups.begin(), splups.end());
+    splups.clear();
     for (unsigned i=0; i<number; i++) {
       splups_data s;
       s.synchronize();
@@ -419,9 +455,10 @@ void Ion::readSplups()
   }
 }
 
-/**
-   Read in the direct ionization cross section splines from the file
-*/
+//
+// Read in the direct ionization cross section splines from the
+// CHIANTI database files
+//
 void Ion::readDi() 
 {
   unsigned char nOK = 0;
@@ -484,8 +521,8 @@ void Ion::readDi()
 		s.yspline.push_back(atof(v[i+1].c_str()));
 	      }
 	      diSpline.push_back(s);
-	      s.xspline.erase(s.xspline.begin(), s.xspline.end());		
-	      s.yspline.erase(s.yspline.begin(), s.yspline.end());		
+	      s.xspline.clear();
+	      s.yspline.clear();
 	      i_fac++;
 	    }
 	  }
@@ -515,7 +552,7 @@ void Ion::readDi()
       it++;
     }
   } else {
-    diSpline.erase(diSpline.begin(), diSpline.end());
+    diSpline.clear();
     for (unsigned i=0; i<number; i++) {
       di_data s;
       s.synchronize();
@@ -524,7 +561,9 @@ void Ion::readDi()
   }
 }
 
-//! Initialization function when the master name is given
+//
+// Initialization function when the master name is given
+//
 Ion::Ion(std::string name, chdata* ch) : ch(ch)
 {
   MasterName = name;
@@ -572,7 +611,9 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
   }
 }
 
-//! Constructor when the Z, C pair is given
+//
+// Constructor when the Z, C pair is given
+//
 Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
 {
   d = false;
@@ -619,14 +660,18 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   }
 }
 
-//! Default constructor: NOT USED
+//
+// Default constructor: NOT CURRENTLY USED
+//
 Ion::Ion() 
 {
   Z = 1;
   C = 1;
 }
 
-//! Copy constructor
+//
+// Copy constructor
+//
 Ion::Ion(const Ion &I) 
 {
   Z          = I.Z;
@@ -667,8 +712,14 @@ Ion::collExciteCross(double E, int id)
   std::vector<double> x5(x_array5, x_array5+5);
   std::vector<double> x9(x_array9, x_array9+9);
   
+				// This will contain the cumulative
+				// cross section
   collType CEcum;
+				// Zero-valued datum
   const std::pair<double,double> Null(0, 0);
+
+				// If the data is missing, assume zero
+				// cross section
   if (splups.size() == 0) {
     CEcum.push_back(Null);
     CEcrossCum[id] = CEcum;
@@ -688,6 +739,7 @@ Ion::collExciteCross(double E, int id)
       assert(splups[i].spline.size() != 0);
       
       // Following Burgess & Tully (BT), 1992, Section 3
+      //
       double Ej = E - EijEv, x = 0, y = 0;
       int  type = splups[i].type;
       
@@ -702,6 +754,7 @@ Ion::collExciteCross(double E, int id)
 				// BT eq. 11
       // xmin is 0 and xmax is 1, so this if statement is to make sure
       // x is within the bounds of interpolation
+      //
       if ( x <= 0 or x >= 1.0) {
 	std::cout << "ERROR IN EXCITATION CROSS: Ej = " << Ej
 	     << " Eij = " << EijEv << " x = " << x <<std::endl;
@@ -751,20 +804,21 @@ Ion::collExciteCross(double E, int id)
 	CStrength = y * log((Ej/EijEv) + M_E);
       }
 				// BT, eq. 10
-      if(type == 2) {
+      if (type == 2) {
 	CStrength = y;
       }
 				// BT, eq. 12
-      if(type == 3) {
+      if (type == 3) {
 	double fac = Ej/EijEv + 1.0;
 	CStrength = y/(fac*fac);
       }
 				// BT, eq. 14
-      if(type == 4) {
+      if (type == 4) {
 	CStrength = y * log((Ej/EijEv) + C);
       }
       
       // From Dere et al. 1997 
+      //
       elvlcType::iterator eit = elvlc.find(splups[i].j-1);
       if (eit != elvlc.end()) {
 	int weight = eit->second.mult;
@@ -776,7 +830,7 @@ Ion::collExciteCross(double E, int id)
 	  } else {
 	    totalCross += crs1;
 	    std::pair<double, double> cumi(totalCross, EijEv);
-	    CEcum.push_back(cumi);
+	    CEcum.push_back(cumi); // Add to the cumulative tally
 	  }
 	} else {
 	  std::cout << "Coll crs for level=" << splups[i].j-1
@@ -794,7 +848,9 @@ Ion::collExciteCross(double E, int id)
   return CEcum;
 }
 
-//! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
+//
+// Calculate the Qr-prime value as in Fontes, Sampson, Zhang 1999
+//
 double Ion::qrp(double u) 
 {
   double A = 1.13;
@@ -827,6 +883,7 @@ double Ion::qrp(double u)
 /** 
     Calculate the direct ionization cross section from the spline,
     which is a function of the interaction energy of the electron
+
     See: Dere, K. P., 2007, A&A, 466, 771
     ADS ref:  http://adsabs.harvard.edu/abs/2007A%26A...466..771D
 */
@@ -886,11 +943,13 @@ double Ion::directIonCross(double E, int id)
 	double btcross = (*sp)(bte);
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
+				// convert to cross section in nm^2
+	// cross += cross_i * 1.0e-14;
 	cross += cross_i;
       }
     }
   }
-  diCross[id] = cross; // recast the cross section in nm^2
+  diCross[id] = cross;
   return cross;
 }
 
@@ -902,6 +961,10 @@ double Ion::directIonCross(double E, int id)
  */
 double Ion::freeFreeCross(double Ei, int id) 
 {
+  // No free-free with a neutral
+  //
+  if (C==1) return 0.0;
+
   // Scaled inverse energy (initial)
   //
   double ni2       = RydtoeV*(C-1)*(C-1)/Ei;
@@ -1009,25 +1072,42 @@ double Ion::freeFreeCross(double Ei, int id)
 std::vector<double> Ion::radRecombCross(double E, int id)
 {
   // For testing . . .
-  if (0) {
+  //
+  //  +--- True for verbose debug reporting for all cross-section types
+  //  |
+  //  v
+  if (false) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
     std::vector<double> v4 = radRecombCrossSpitzer(E, id);
+    std::vector<double> v5 = radRecombCrossVerner (E, id);
 
+    std::cout << "  [Z, C] = [" << Z << ", " << C << "]"     << std::endl;
     std::cout << "  E (eV) = " << std::setw(16) << E         << std::endl;
     std::cout << "    Mewe = " << std::setw(16) << v1.back() << std::endl;
     std::cout << " TopBase = " << std::setw(16) << v2.back() << std::endl;
     std::cout << " Kramers = " << std::setw(16) << v3.back() << std::endl;
     std::cout << " Spitzer = " << std::setw(16) << v4.back() << std::endl;
+    std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    return v1;
+    if      (rr_type == topbase) return v2;
+    else if (rr_type == mewe)    return v1;
+    else if (rr_type == kramers) return v3;
+    else if (rr_type == spitzer) return v4;
+    else if (rr_type == verner)  return v5;
+    else                         return v5;
+
   } else {
-    return radRecombCrossTopBase(E, id);
-    // return radRecombCrossMewe   (E);
-    // return radRecombCrossKramers(E);
-    // return radRecombCrossSpitzer(E);
+
+    if      (rr_type == topbase) return radRecombCrossTopBase(E, id);
+    else if (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    else if (rr_type == kramers) return radRecombCrossKramers(E, id);
+    else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
+    else if (rr_type == verner)  return radRecombCrossVerner (E, id);
+    else                         return radRecombCrossVerner (E, id);
+
   }
 }
 
@@ -1043,6 +1123,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 
    where g_A is the degeneracy of the target state and g^+_A is the
    degeneracy of the ion (which we assume to be in the ground state)
+
+   Semi-classical cross section (no Gaunt factor)
 */
 std::vector<double> Ion::radRecombCrossKramers(double E, int id) 
 {
@@ -1052,6 +1134,9 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   //
   const double a0 = 0.0529177211;
 
+  // Fine structure constant
+  const double alpha0 = 7.2973525698e-03;
+
   // Return vector
   //
   std::vector<double> radRecCum;
@@ -1059,7 +1144,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 
   // This is the target neutral
   //
-  Ion* N = &ch->IonList[lQ(Z, C-1)];
+  Ion* N = ch->IonList[lQ(Z, C-1)].get();
 
   // Ionization threshold (eV)
   //
@@ -1093,7 +1178,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
     // Kramers cross section
     //
     double Erat   = Elv/Enu;
-    double sigmaP = 0.25*f->lvl*aeff*aeff*Erat*Erat*Erat;
+    double sigmaP = 0.25*alpha0*f->lvl*aeff*aeff*Erat*Erat*Erat;
 
     // Ion statistical weight
     //
@@ -1149,7 +1234,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossMewe(double E, int id) 
 {
-  double incmEv = 1.239842e-4; //1 inverse cm = 1.239.. eV
+  double incmEv = 1.239842e-4; // 1 inverse cm = 1.239.. eV
 
   // constant infront of the photo-cross using the Mewe method
   //
@@ -1166,7 +1251,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
   // Get pointers to Ion data
   //
   double IP = ch->ipdata[Q];
-  Ion* N    = &ch->IonList[Q];
+  Ion* N    = ch->IonList[Q].get();
 
   // Convert kinetic energy to keV
   //
@@ -1239,7 +1324,7 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
     }
   }
 
-  // Convert to nm ---------+
+  // Convert to nm^2 -------+
   //                        |
   //                        v
   radRecCum.push_back(cross*1.0e18);
@@ -1299,6 +1384,10 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
   return radRecCum;
 }
 
+//
+// Use the TOPbase photoionization cross sections to compute the
+// recombination cross sections using the Milne relation
+//
 std::vector<double> Ion::radRecombCrossTopBase(double E, int id) 
 {
   // Initialize TopBase data (once) if needed
@@ -1309,6 +1398,10 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
 		<< std::endl;
     }
     ch->tb = boost::shared_ptr<TopBase>(new TopBase);
+    // For debugging (set to 'false' for production)
+    //  |
+    //  v
+    if (false && myid==0) ch->tb->printInfo();
   }
 
   // Call for the cross section
@@ -1319,14 +1412,31 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
   return ret;
 }
 
-// Ion print functions
-void Ion::printInfo() {
+// 
+// recombination cross sections using the Verner relation
+//
+std::vector<double> Ion::radRecombCrossVerner(double E, int id) 
+{
+  // Call for the cross section
+  //
+  lQ Q(Z, C);
+  std::vector<double> ret(1, ch->VernerXC.cross(Q, E));
+  radRecCrossCum[id] = ret;
+  return ret;
+}
+
+//
+// Printe various internal databases for debugging
+//
+void Ion::printInfo() 
+{
   std::cout << "Master list name: " << MasterName <<std::endl;
   std::cout << "\t" << "Element: " << eleName <<std::endl << "\tZ = " << Z << "\n" << "\tC = " << C <<std::endl;
   std::cout << "\td = " << d <<std::endl;
   // std::cout << "\tAdundance = " << abundance <<std::endl;
   std::cout << "\tip = " << ip <<std::endl;
 }
+
 void Ion::printelvlc() {
   std::cout << "elvlc file for element " << MasterName <<std::endl;
   for(size_t i = 0; i < elvlc.size(); i++) {
@@ -1365,9 +1475,9 @@ void Ion::printfblvl()
 // chdata functions
 //------------------------------------------------------------
 
-
-//! Read in the master list to store to be able to check if elements
-//! are in it
+//
+// Read in the master list
+// 
 void chdata::readMaster() 
 {
   char * val;
@@ -1401,9 +1511,10 @@ void chdata::readMaster()
   
 }
 
-/** Get the ipdata set so that if you want to get the ip of any Z, C,
-    you call it as ipdata[lQ(Z, C-(int)die)]
-*/
+//
+// Get the ipdata set so that if you want to get the ip of any Z, C,
+// you call it as ipdata[lQ(Z, C-(int)die)]
+//
 void chdata::readIp() 
 {
   char * val;
@@ -1448,9 +1559,11 @@ void chdata::readIp()
   }
 }
 
-/** read in the abundance file, in this situation, just for test using
-    the cosmic.abund file. Can later put in a multidimensional array
-    to allow for all the abundance files */
+//
+// Read in the abundance file, in this situation, just for test using
+// the cosmic.abund file. Can later put in a multidimensional array to
+// allow for all the abundance files
+//
 void chdata::readAbundanceAll() 
 {
   char * val;
@@ -1487,7 +1600,18 @@ void chdata::readAbundanceAll()
   
 }
 
+//
+// Read in the Verner-Yakovlev data for radiative cross section
+// determination using the short table provided by CHIANTI
+//
+void chdata::readVerner() 
+{
+  VernerXC.initialize(this);
+}
+
+//
 // list names of all species to stdout
+//
 void chdata::printMaster() 
 {
   if (myid==0) {
@@ -1518,13 +1642,11 @@ void chdata::printIp()
   std::cout << std::string(60, '-') << std::endl;
 }
 
+//
 // chdata constructor
+//
 chdata::chdata() 
 {
-  // nVern = 465;
-  // maxZ = 31; // maxZ = 30 + 1
-  // maxNel = 31; 
-  
   for (int i = 0; i < numEle; i++) abundanceAll[i] = 0;
   
   // std::cout << "Reading ip file\n";
@@ -1536,6 +1658,9 @@ chdata::chdata()
   // std::cout << "Reading abundance file\n";
   readAbundanceAll();
   
+  // std::cout << "Reading radiative cross section file\n";
+  readVerner();
+
   // Done
 }
 
@@ -1546,7 +1671,7 @@ void chdata::createIonList(const std::set<unsigned short>& ZList)
   for (auto i : ZList) {
     for (int j=1; j<i+2; j++) {
       lQ Q(i, j);
-      IonList[Q] = Ion(i, j, this);
+      IonList[Q] = IonPtr(new Ion(i, j, this));
       // IonList[Q].freeFreeUltrarel();
     }
     Ni[i] = 1.0;		// Not sure what this does . . . 
@@ -1680,3 +1805,181 @@ void Ion::di_head::synchronize()
   MPI_Bcast(&nfac,    1, MPI_INT,            0, MPI_COMM_WORLD);
   MPI_Bcast(&neav,    1, MPI_INT,            0, MPI_COMM_WORLD);
 }
+
+
+/** 
+   Reads the Verner & Yakovlev (A&AS 109, 125, 1995) photoionization
+   cross-section data
+*/
+void VernerData::VernerRec::sync(int nid) 
+{
+  MPI_Bcast(&pql,  1, MPI_INT,    nid, MPI_COMM_WORLD);
+  MPI_Bcast(&l,    1, MPI_INT,    nid, MPI_COMM_WORLD);
+  MPI_Bcast(&eth,  1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&e0,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&sig0, 1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&ya,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&p,    1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+  MPI_Bcast(&yw,   1, MPI_DOUBLE, nid, MPI_COMM_WORLD);
+}
+
+void VernerData::initialize(chdata* ch)
+{
+  this->ch = ch;
+  
+  unsigned nVern = 465;
+  int nOK = 0;
+  
+  if (myid==0) {
+    
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+      nOK = 1;
+    }
+    
+    if (nOK == 0) {
+      
+      std::string fileName(val);
+      
+      fileName.append("/continuum/verner_short.txt");
+      
+      std::string inLine;
+      std::ifstream vdFile(fileName.c_str());
+      
+      if (vdFile.is_open()) {
+	
+	while (vdFile.good()) {
+	  
+	  std::vector<std::string> v;
+	  std::getline(vdFile, inLine);
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<std::vector<std::string> >(v));
+	  
+	  if (v.size() < 10) break;
+	  
+	  int z   = atoi(v[0].c_str());
+	  int nel = atoi(v[1].c_str());
+	  int stg = z - nel + 1;
+	  
+	  lQ key(z, stg);
+	  
+	  vrPtr dat(new VernerRec);
+	  
+	  dat->pql  = atoi(v[2].c_str());
+	  dat->l    = atoi(v[3].c_str());
+	  dat->eth  = atof(v[4].c_str());
+	  dat->e0   = atof(v[5].c_str());
+	  dat->sig0 = atof(v[6].c_str());
+	  dat->ya   = atof(v[7].c_str());
+	  dat->p    = atof(v[8].c_str());
+	  dat->yw   = atof(v[9].c_str());
+	  
+	  data[key] = dat;
+	}
+      }
+      vdFile.close();
+    }
+  }
+  
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 59);
+  
+  if (myid==0) {
+    
+    if (data.size() != nVern)
+      std::cout << "Root node: Verner data size=" << data.size() 
+		<< ", expected: " << nVern << std::endl;
+    
+    for (auto v : data) {
+      lQ k = v.first;
+      MPI_Bcast(&k.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&k.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      v.second->sync();
+    }
+    
+    int done = 0;
+    MPI_Bcast(&done,  1, MPI_INT, 0, MPI_COMM_WORLD);
+    
+  } else {
+    lQ key;
+    
+    while (1) {
+      MPI_Bcast(&key.first,  1, MPI_INT, 0, MPI_COMM_WORLD);
+      if (key.first==0) break;
+      MPI_Bcast(&key.second, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+      vrPtr dat(new VernerRec);
+      dat->sync();
+      data[key] = dat;
+    }
+    
+    if (data.size() != nVern)
+      std::cout << "Node " << myid << ": "
+		<< " Verner data size=" << data.size() 
+		<< ", expected: " << nVern << std::endl;
+  }
+}
+
+
+/**
+   Calculates the photoionization cross section.
+   
+   The data are from Verner and Yakovlev.
+   
+   The cross section is evaluated for the next lower ionization
+   stage.
+*/
+
+double VernerData::cross(const lQ& Q, double EeV)
+{
+				// 1 inverse cm = 1.239.. eV
+  constexpr double incmEv = 1.0/8.06554465e+03;
+
+				// Electron rest mass in eV
+  constexpr double mec2 = 510.998896 * 1.0e3;
+  
+  lQ rQ(Q.first, Q.second-1);
+
+  // No data for this ion
+  if (data.find(rQ) == data.end()) return 0.0;
+
+  Ion*  origI  = ch->IonList[ Q].get();
+  Ion*  combI  = ch->IonList[rQ].get();
+
+  double mult0 = 1.0;		// If fully ionized;
+  if (origI->fblvl.size()) {	// Otherwise . . .
+    mult0 = origI->fblvl.begin()->second.mult;
+  }
+
+  vrPtr  vdata  = data[rQ];
+  double ip     = combI->ip;
+  double vCross = 0.0;
+  
+  for (auto v : combI->fblvl) {
+    
+    double Eph = EeV + ip - v.second.encm * incmEv;
+    double y   = Eph/vdata->e0;
+    double y1  = y - 1.0;
+    
+    if (y1>0.0) {
+
+      // Verner and Yakolev, equation 1
+      double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
+	pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
+	pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
+      
+      double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
+	static_cast<double>(v.second.mult) / mult0;
+    
+      vCross += cross;
+    }
+  }
+  
+  // Convert from Mbarnes to nm^2
+  return vCross * 1.0e-4;
+}
+

@@ -43,6 +43,7 @@ def plot_data(filename, tscale):
     temp  = []
     etot  = []
     ncol  = 9
+    ntrl  = 2
     data  = {}
 
     # Species
@@ -57,12 +58,15 @@ def plot_data(filename, tscale):
         if line.find('Time')>=0:    # Get the labels
             next = True
             labels = line.translate(trans).split()
+            if line.find("W(") >= 0:
+                ncol = 13
+                ntrl = 3
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
-                idx = (i-2) / ncol
+                idx = (i-ntrl) / ncol
                 data[spec[idx]][labels[j]] = []
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
@@ -78,9 +82,9 @@ def plot_data(filename, tscale):
                 if len(toks) == len(labels):
                     time.append(float(toks[0]))
                     temp.append(float(toks[1]))
-                    etot.append(float(toks[-1]))
+                    etot.append(float(toks[-2]))
                     for i in range(2,len(toks)-1):
-                        idx = (i-2) / ncol
+                        idx = (i-ntrl) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "toks=", len(toks), " labels=", len(labels)
@@ -97,11 +101,11 @@ def plot_data(filename, tscale):
         pl.xlabel('Temperature')
         pl.ylabel('Energy fraction')
         pl.title(v)
-        pl.ylim((1.0e-6, 1))
+        # pl.ylim((1.0e-6, 1))
         for k in range(0, 4):
             y = copy.deepcopy(data[v][ekeys[k]])
             for j in range(0, len(y)): 
-                y[j] /= etot[j]
+                if etot[j]>0: y[j] /= etot[j]
                 y[j] += 1.0e-10
             pl.semilogy(temp, y, '*', label=elabs[k], markersize=10)
         if c==5: 

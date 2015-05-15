@@ -16,12 +16,21 @@ using namespace std;
 #include <gptl.h>
 #endif
 
+#include <signal.h>
+
+
 static bool DEBUG      = false;	// Thread diagnostics, false for
 				// production
+
+static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
 
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
+
+// Debugging cell length--MFP ratio
+bool Collide::MFPCL    = true;
+
 
 // Use the explicit energy solution
 bool Collide::ESOL     = false;
@@ -64,6 +73,9 @@ bool Collide::EFFORT   = true;
 // Verbose timing
 bool Collide::TIMING   = true;
 
+//! Velocity factor for NTC database
+double Collide::NTCAVG = 3.0;
+
 // Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
 
@@ -71,7 +83,7 @@ double Collide::TFLOOR = 1000.0;
 bool Collide::MFPTS    = false;
 
 double 				// Enhance (or suppress) fiducial cooling rate
-Collide::ENHANCE       = 1.0;
+Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
 // Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
@@ -179,24 +191,28 @@ unsigned Collide::EPSMmin   = 0;
 
 std::map<unsigned short, double> Collide::atomic_weights;
 
+//! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
+  atomic_weights[0]  = 0.000548579909; // Mass of electron
+  atomic_weights[1]  = 1.0079;	       // Hydrogen
+  atomic_weights[2]  = 4.0026;	       // Helium
+  atomic_weights[3]  = 6.941;	       // Lithum
+  atomic_weights[4]  = 9.0122;	       // Beryllium
+  atomic_weights[5]  = 10.811;	       // Boron
+  atomic_weights[6]  = 12.011;	       // Carbon
+  atomic_weights[7]  = 14.007;	       // Nitrogen
+  atomic_weights[8]  = 15.999;	       // Oxygen
+  atomic_weights[9]  = 18.998;	       // Florine
+  atomic_weights[10] = 20.180;	       // Neon
+  atomic_weights[11] = 22.990;	       // Sodium
+  atomic_weights[12] = 24.305;	       // Magnesium
+  atomic_weights[13] = 26.982;	       // Aluminium
+  atomic_weights[14] = 28.085;	       // Silicon
 }  
 
 Collide::Collide(ExternalForce *force, Component *comp,
-		 double hDiam, double sDiam, int nth)
+		 double hDiam, double sCross, int nth)
 {
   caller = force;
   c0     = comp;
@@ -248,8 +264,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   exesET  = vector<double>   (nthrds, 0);
   
   // NTC statistics
-  ntcVel  = vector<unsigned> (nthrds, 0);
-  ntcCrs  = vector<unsigned> (nthrds, 0);
+  ntcOvr  = vector<unsigned> (nthrds, 0);
   ntcTot  = vector<unsigned> (nthrds, 0);
 
   if (MFPDIAG) {
@@ -287,7 +302,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   cellist = vector< vector<pCell*> > (nthrds);
   
   hsdiam    = hDiam;
-  diamfac   = sDiam;
+  crossfac  = sCross;
   
   seltot    = 0;	      // Count estimated collision targets
   coltot    = 0;	      // Count total collisions
@@ -380,6 +395,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   tcool0 = vector<unsigned>(numdiag, 0);
   tcoolT = vector< vector<unsigned> > (nthrds);
   
+  if (MFPCL) mfpCLdata = std::vector< std::vector<double> > (nthrds);
+
   if (VOLDIAG) {
     Vcnt  = vector<unsigned>(nbits, 0);
     Vcnt1 = vector<unsigned>(nbits, 0);
@@ -721,8 +738,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       // Reset the list
       //
       effortAccum = false;
-      for (int n=0; n<nthrds; n++) 
-	effortNumber[n].erase(effortNumber[n].begin(), effortNumber[n].end());
+      for (int n=0; n<nthrds; n++) effortNumber[n].clear();
     }
 
     (*barrier)("Collide::collide: AFTER effort diagnostic",  
@@ -807,8 +823,35 @@ void * Collide::collide_thread(void * arg)
     
     // Compute 1.5 times the mean relative velocity in each MACRO cell
     //
-    sCell *samp = c->sample;
-    sCell::dPair ntcF(1, 1);
+    pCell *samp = c->sample;
+
+    // Container for NTC values
+    //
+    std::map<sKeyPair, NTCitem::vcTup> ntcF;
+
+    sKeyUmap::iterator it1, it2;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+      if (it1->second==0) continue;
+
+      speciesKey i1 = it1->first;
+
+      for (it2=it1; it2!=c->count.end(); it2++) {
+
+	if (it2->second==0) continue;
+
+	speciesKey i2 = it2->first;
+
+	sKeyPair   k(i1, i2);
+
+	if (samp)
+	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k, 0.95);
+	else
+	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
+      }
+    }
+
     //
     // Sanity check
     //
@@ -823,11 +866,7 @@ void * Collide::collide_thread(void * arg)
       if (tree->onFrontier(c->mykey)) cout << ", ON frontier" << endl;
       else cout << ", NOT on frontier" << endl;
       
-    } else {
-      ntcF = samp->VelCrsAvg();
     }
-
-    sCell::dPair ntcFmax(1, 1);
 
     double crm = 0.0;
     
@@ -839,8 +878,6 @@ void * Collide::collide_thread(void * arg)
 	    /samp->stotal[0];}
       }
       crm  = sqrt(2.0*crm);
-
-      if (NTC) crm *= ntcF.first;
     }
     
     stat1SoFar[id] = stat1Time[id].stop();
@@ -932,6 +969,8 @@ void * Collide::collide_thread(void * arg)
     // Ratio of cell size to mean free path
     //
     double mfpCL = cL/meanLambda;
+
+    if (MFPCL) mfpCLdata[id].push_back(mfpCL);
     
     if (TSDIAG) {		// Diagnose time step in this cell
       double vmass;
@@ -984,12 +1023,14 @@ void * Collide::collide_thread(void * arg)
     GPTLstop("Collide::prelim");
 #endif
     // No collisions, primarily for testing . . .
+    //
     if (DRYRUN) continue;
     
     collTime[id].start();
     collCnt[id]++;
     // Number of collisions per particle:
     // assume equipartition if large
+    //
     if (use_epsm && meanCollP > EPSMratio && number > EPSMmin) {
       
       EPSMused = 1;
@@ -1028,7 +1069,7 @@ void * Collide::collide_thread(void * arg)
 #endif
       for (size_t k=0; k<c->bods.size(); k++) {
 	unsigned long kk = c->bods[k];
-	Particle* p = tree->Body(kk);
+	const Particle* p = tree->Body(kk);
 
 	speciesKey skey = defaultKey;
 	if (use_key>=0) skey = KeyConvert(p->iattrib[use_key]).getKey();
@@ -1037,12 +1078,13 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
-    sKeyUmap::iterator  it1, it2;
     int totalCount = 0;
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
       speciesKey i1 = it1->first;
-      size_t num1 = bmap[i1].size();
+      size_t num1   = bmap[i1].size();
+
       if (num1==0) continue;
       
       // Notice that species are not double counted; the count map is
@@ -1050,12 +1092,15 @@ void * Collide::collide_thread(void * arg)
       // interaction matrix is performed
       //
       for (it2=it1; it2!=c->count.end(); it2++) {
+
 	speciesKey i2 = it2->first;
-	size_t num2 = bmap[i2].size();
+	size_t num2   = bmap[i2].size();
 
 	if (num2==0) continue;
 	
 	if (i1==i2 && num2==1) continue;
+
+	sKeyPair k(i1, i2);
 
 	// Loop over total number of candidate collision pairs
 	//
@@ -1084,8 +1129,8 @@ void * Collide::collide_thread(void * arg)
 	  
 	  // Get index from body map for the cell
 	  //
-	  Particle* p1 = tree->Body(bmap[i1][l1]);
-	  Particle* p2 = tree->Body(bmap[i2][l2]);
+	  Particle* const p1 = tree->Body(bmap[i1][l1]);
+	  Particle* const p2 = tree->Body(bmap[i2][l2]);
 	  
 	  // Calculate pair's relative speed (pre-collision)
 	  //
@@ -1103,11 +1148,13 @@ void * Collide::collide_thread(void * arg)
 
 	  // Accept or reject candidate pair according to relative speed
 	  //
+	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  bool   ok   = false;
-	  double cros = crossSection(tree, p1, p2, cr, id);
-	  double crat = cros/(ntcF.second*crossIJ[i1][i2]);
-	  double vrat = cr/crm;
-	  double targ = vrat * crat;
+	  double cros = crossSection(c, p1, p2, cr, id);
+	  double mcrs = std::get<0>(ntcF[k]);
+	  double scrs = cros / cunit;
+	  double prod = cr   * scrs;
+	  double targ = prod / mcrs;
 
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
@@ -1115,11 +1162,42 @@ void * Collide::collide_thread(void * arg)
 	    ok = true;
 	  
 
-	  // Update v_max and cross_max
+	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
-	    ntcFmax.first  = std::max<double>(ntcFmax.first,  vrat*ntcF.first );
-	    ntcFmax.second = std::max<double>(ntcFmax.second, crat*ntcF.second);
+				// Over NTC max average
+	    if (targ > 1.0) ntcOvr[id]++;
+				// Used
+	    if (ok)         ntcTot[id]++;
+	    
+
+				// Accumulate average
+	    NTCitem::vcTup dat(prod, scrs, targ);
+#pragma omp critical
+	    ntcdb[samp->mykey]->VelCrsAdd(k, dat);
+
+				// Sanity check
+	    if (ntcTot[id]>=1000000u and ntcTot[id] % 200000u==0) {
+
+	      std::ostringstream sout;
+	      sout << "<"
+		   << k.first .first << "," << k.first .second << "|"
+		   << k.second.first << "," << k.second.second << ">";
+
+	      std::cout << "Proc " << myid << " thread=" << id 
+			<< ": cell="  << c->mykey
+			<< ", count=" << c->bods.size()
+			<< ", ntcF="  << mcrs
+			<< ", targ="  << targ
+			<< ", mfpCL=" << mfpCL
+			<< ", nselM=" << nselM[i1][i2]
+			<< ", ntcOvr=" << ntcOvr[id]
+			<< " for "    << sout.str() << std::endl
+			<< " has logged " << ntcTot[id] << " collisions!"
+			<< " You may wish to cancel this run and"  << std::endl
+			<< " adjust the cell size or particle number." 
+			<< std::endl;
+	    }
 	  }
 
 	  if (ok) {
@@ -1132,7 +1210,7 @@ void * Collide::collide_thread(void * arg)
 	    
 	    // Do inelastic stuff
 	    //
-	    error1T[id] += inelastic(tree, p1, p2, &cr, id);
+	    error1T[id] += inelastic(c, p1, p2, &cr, id);
 	    
 	    // Update the particle velocity
 	    //
@@ -1148,8 +1226,6 @@ void * Collide::collide_thread(void * arg)
     
     elasSoFar[id] = elasTime[id].stop();
     
-#pragma omp critical
-    if (NTC) samp->VelCrsAdd(ntcFmax);
 
     // Count collisions
     //
@@ -1207,7 +1283,7 @@ void * Collide::collide_thread(void * arg)
     if (use_Kn>=0 || use_St>=0) {
       double cL = pow(volc, 0.33333333);
       double Kn = meanLambda/cL;
-      double St = cL/fabs(tau*ntcF.first);
+      double St = cL/fabs(tau*sqrt(kedsp));
       for (unsigned j=0; j<number; j++) {
 	Particle* p = tree->Body(c->bods[j]);
 	if (use_Kn>=0) p->dattrib[use_Kn] = Kn;
@@ -1487,6 +1563,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     coll_ = vector<double>(quantiles.size());
     cool_ = vector<double>(quantiles.size());
     rate_ = vector<double>(quantiles.size());
+
     for (unsigned j=0; j<quantiles.size(); j++) {
       if (mfpI.size())
 	mfp_[j]  = mfpI [Qi(quantiles[j],mfpI.size())].first;
@@ -1610,7 +1687,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
   }
 }
 
-void Collide::EPSM(pHOT* tree, pCell* cell, int id)
+void Collide::EPSM(pHOT* const tree, pCell* const cell, int id)
 {
   if (cell->bods.size()<2) return;
   
@@ -1629,7 +1706,7 @@ void Collide::EPSM(pHOT* tree, pCell* cell, int id)
   
   for (auto ib : cell->bods) {
     
-    Particle* p = tree->Body(ib);
+    Particle* const p = tree->Body(ib);
     if (p->mass<=0.0 || std::isnan(p->mass)) {
       cout << "[crazy mass]";
     }
@@ -2897,7 +2974,7 @@ void Collide::CPUHog(ostream& out)
 double Collide::hsDiameter()
 {
   const double Bohr = 5.2917721092e-09;
-  return hsdiam*Bohr*diamfac/UserTreeDSMC::Lunit;
+  return hsdiam*Bohr*sqrt(crossfac)/UserTreeDSMC::Lunit;
 }
 
 void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
@@ -2907,6 +2984,9 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
 
   typedef std::map<speciesKey, unsigned long> spCountMap;
   typedef spCountMap::iterator spCountMapItr;
+
+				// Field width
+  const unsigned short wid = 16;
 
   std::ofstream dout;
 
@@ -2931,20 +3011,20 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
       // Print the header
       //
       dout << "# " 
-	   << std::setw(12) << std::right << "Time "
-	   << std::setw(12) << std::right << "Temp ";
+	   << std::setw(wid) << std::right << "Time "
+	   << std::setw(wid) << std::right << "Temp ";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
 	std::ostringstream sout;
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << setw(12) << right << sout.str();
+	dout << setw(wid) << right << sout.str();
       }
       dout << std::endl;
       
       dout << "# " 
-	   << std::setw(12) << std::right << "--------"
-	   << std::setw(12) << std::right << "--------";
+	   << std::setw(wid) << std::right << "--------"
+	   << std::setw(wid) << std::right << "--------";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	dout << setw(12) << std::right << "--------";
+	dout << setw(wid) << std::right << "--------";
       dout << std::endl;
       
     }
@@ -2963,15 +3043,15 @@ void Collide::printSpecies(std::map<speciesKey, unsigned long>& spec,
 				// Use total mass to print mass
 				// fraction
   dout << "  " 
-       << std::setw(12) << std::right << tnow
-       << std::setw(12) << std::right << temp;
+       << std::setw(wid) << std::right << tnow
+       << std::setw(wid) << std::right << temp;
 
   for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
     if (tmass > 0.0) 
-      dout << std::setw(12) << std::right 
+      dout << std::setw(wid) << std::right 
 	   << atomic_weights[it->first.first] * it->second / tmass;
     else
-      dout << std::setw(12) << std::right << 0.0;
+      dout << std::setw(wid) << std::right << 0.0;
   }
   dout << std::endl;
 }
@@ -3016,57 +3096,232 @@ double Collide::molWeight()
   return mol_weight;
 }
 
-void Collide::NTCgather()
+void Collide::NTCgather(pHOT* const tree)
 {
-  if (NTC) {
+  if (NTC and DEBUG_NTC) {
 
-    unsigned Vel1 = 0, Vel;
-    unsigned Crs1 = 0, Crs;
-    unsigned Bth1 = 0, Bth;
-    unsigned Tot1 = 0, Tot;
+    both.clear();
+    cros.clear();
+    crat.clear();
 
-    for (auto i : ntcVel) Vel1 += i;
-    for (auto i : ntcCrs) Crs1 += i;
-    for (auto i : ntcBth) Bth1 += i;
-    for (auto i : ntcTot) Tot1 += i;
-
-    MPI_Reduce(&Vel1, &Vel, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Crs1, &Crs, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Bth1, &Bth, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Tot1, &Tot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    
-    if (myid==0 && Tot>0) {
-      boost::get<0>(ntcRes) = static_cast<double>(Vel)/Tot;
-      boost::get<1>(ntcRes) = static_cast<double>(Crs)/Tot;
-      boost::get<2>(ntcRes) = static_cast<double>(Bth)/Tot;
+    unsigned Ovr=0, Tot=0, Max=0, gbMax;
+    for (int n=0; n<nthrds; n++) {
+      Ovr += ntcOvr[n];
+      Tot += ntcTot[n];
+      Max  = std::max<unsigned>(ntcTot[n], Max);
+				// Reset the counters
+      ntcOvr[n] = ntcTot[n] = 0;
     }
 
+    // Only check for crazy collisions after first step
     //
-    // Reset the counters
-    //
-    std::fill(ntcVel.begin(), ntcVel.end(), 0);
-    std::fill(ntcCrs.begin(), ntcCrs.end(), 0);
-    std::fill(ntcBth.begin(), ntcBth.end(), 0);
-    std::fill(ntcTot.begin(), ntcTot.end(), 0);
+    static bool notFirst = false;
+
+    if (notFirst) {
+
+      MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
+
+				// Too many collisions!!
+      if (myid==0 && gbMax>15000000u) {
+	std::cerr << std::string(60, '-') << std::endl
+		  << " *** Too many collisions in NTC: " << gbMax << std::endl
+		  << std::string(60, '-') << std::endl;
+	raise(SIGTERM);		// Signal stop, please!
+      }
+
+    } else notFirst = true;
+
+    MPI_Reduce(&Ovr, &accOvr, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    pHOT_iterator c(*tree);
+    unsigned totsz = 0;
+    while (c.nextCell()) {
+      NTCitem::vcMap v = ntcdb[c.Cell()->mykey]->VelCrsAvg(0.95);
+      totsz += v.size();
+      for (auto i : v) {
+	both[i.first].push_back(std::get<0>(i.second));
+	cros[i.first].push_back(std::get<1>(i.second));
+	crat[i.first].push_back(std::get<2>(i.second));
+      }
+    }
+
+    if (myid) {
+
+      unsigned sz = both.size();
+      MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
+
+      for (auto i : both) {
+	sKeyPair   k = i.first;
+	KeyConvert k1 (k.first );
+	KeyConvert k2 (k.second);
+	
+	int i1 = k1.getInt();
+	int i2 = k2.getInt();
+
+	MPI_Send(&i1, 1, MPI_INT, 0, 227, MPI_COMM_WORLD);
+	MPI_Send(&i2, 1, MPI_INT, 0, 228, MPI_COMM_WORLD);
+
+	unsigned num = i.second.size();
+	MPI_Send(&num, 1, MPI_UNSIGNED, 0, 229, MPI_COMM_WORLD);
+
+	MPI_Send(&both[k][0], num, MPI_DOUBLE, 0, 230, MPI_COMM_WORLD);
+	MPI_Send(&cros[k][0], num, MPI_DOUBLE, 0, 231, MPI_COMM_WORLD);
+	MPI_Send(&crat[k][0], num, MPI_DOUBLE, 0, 232, MPI_COMM_WORLD);
+      }
+
+    } else {
+
+      std::vector<double> v1, v2, v3;
+      unsigned sz, num;
+      int i1, i2;
+
+      for (int n=1; n<numprocs; n++) {
+
+	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	for (unsigned z=0; z<sz; z++) {
+
+	  MPI_Recv(&i1, 1, MPI_INT, n, 227, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&i2, 1, MPI_INT, n, 228, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  KeyConvert k1(i1);
+	  KeyConvert k2(i2);
+
+	  MPI_Recv(&num, 1, MPI_UNSIGNED, n, 229, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  v1.resize(num);
+	  v2.resize(num);
+	  v3.resize(num);
+
+	  MPI_Recv(&v1[0], num, MPI_DOUBLE, n, 230, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v2[0], num, MPI_DOUBLE, n, 231, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&v3[0], num, MPI_DOUBLE, n, 232, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  sKeyPair k(k1.getKey(), k2.getKey());
+
+	  both[k].insert( both[k].end(), v1.begin(), v1.end() );
+	  cros[k].insert( cros[k].end(), v2.begin(), v2.end() );
+	  crat[k].insert( crat[k].end(), v3.begin(), v3.end() );
+	}
+      }
+    }
+
+    if (myid==0) {
+      //
+      // Sort all arrays
+      //
+      for (auto it : both) {
+	sKeyPair k = it.first;
+	std::sort(both[k].begin(), both[k].end());
+	std::sort(cros[k].begin(), cros[k].end());
+	std::sort(crat[k].begin(), crat[k].end());
+      }
+    }
+  }
+}
+
+void Collide::NTCstanza(std::ostream& out, 
+			std::map< sKeyPair, std::vector<double> >& vals,
+			const std::string& lab, 
+			const std::vector<double>& pcent)
+
+{
+  // Loop through the percentile list
+  for (auto p : pcent) {
+    std::ostringstream sout;
+    // Label the quantile
+    sout << lab << "(" << std::round(p*100.0) << ")";
+    out << std::setw(18) << sout.str();
+    // For each species pair, print the quantile
+    for (auto v : vals) {
+      size_t indx = static_cast<size_t>(std::floor(v.second.size()*p));
+      out << std::setw(12) << v.second[indx];
+    }
+    out << std::endl;
   }
 }
 
 void Collide::NTCstats(std::ostream& out)
 {
-  if (myid==0 && NTC) {
-    out << std::string(60, '-') << std::endl << std::right
-	<< std::setw(12) << "Time"
-	<< std::setw(12) << "Vel over"
-	<< std::setw(12) << "Crs over"
-	<< std::setw(12) << "All over" << std::endl
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------"
-	<< std::setw(12) << "--------" << std::endl
-	<< std::setw(12) << tnow
-	<< std::setw(12) << boost::get<0>(ntcRes)
-	<< std::setw(12) << boost::get<1>(ntcRes)
-	<< std::setw(12) << boost::get<2>(ntcRes)
-	<< std::endl;
+  const std::vector<double> pcent = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
+
+  if (myid==0 and NTC and DEBUG_NTC) {
+    size_t spc = 18 + 12*both.size();
+
+    out << std::string(spc, '-') << std::endl
+	<< "[NTC diagnostics]  Time=" << std::scientific << tnow 
+	<< "  Over=" << accOvr << "  Total=" << accTot << std::fixed
+	<< "  Frac=" << static_cast<double>(accOvr)/accTot
+	<< std::endl << std::string(spc, '-') << std::endl;
+
+    if (both.size() > 0) {
+
+      out << std::setw(18) << "Value\\Species";
+      
+      for (auto i : both) {
+	sKeyPair   k  = i.first;
+	speciesKey k1 = k.first;
+	speciesKey k2 = k.second;
+	
+	std::ostringstream sout;
+	sout << "<" << k1.first << "," << k1.second 
+	     << "|" << k2.first << "," << k2.second << ">";
+	out << std::setw(12) << sout.str();
+      }
+      out << std::endl << std::string(spc, '-') << std::endl
+	  << std::left << std::fixed;
+      
+      NTCstanza(out, both, "Crs*Vel", pcent);
+      out << std::string(spc, '-') << std::endl;
+      NTCstanza(out, cros, "Cross",   pcent);
+      out << std::string(spc, '-') << std::endl;
+      NTCstanza(out, crat, "Ratio",   pcent);
+      out << std::string(spc, '-') << std::endl << std::endl;
+    }
+  }
+
+}
+
+
+void Collide::mfpCLGather()
+{
+  std::vector<double> data;
+  for (auto &v : mfpCLdata) data.insert(data.end(), v.begin(), v.end());
+
+  for (int i=1; i<numprocs; i++) {
+
+    if (i == myid) {
+      unsigned dNum = data.size();
+      MPI_Send(&dNum,       1, MPI_UNSIGNED, 0, 435, MPI_COMM_WORLD);
+      MPI_Send(&data[0], dNum, MPI_DOUBLE,   0, 436, MPI_COMM_WORLD);
+    }
+				// Root receives from Node i
+    if (0 == myid) {
+      unsigned dNum;
+      MPI_Recv(&dNum,       1, MPI_UNSIGNED, i, 435, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      std::vector<double> vTmp(dNum);
+      MPI_Recv(&vTmp[0], dNum, MPI_DOUBLE,   i, 436, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      data.insert(data.end(), vTmp.begin(), vTmp.end());
+    }
+    
+    if (myid==0 and data.size()) {
+      mfpclHist  = ahistoDPtr(new AsciiHisto<double>(data, 20, 0.01));
+    }
   }
 }
+  
+
+void Collide::mfpCLPrint(std::ostream& out)
+{
+  // Print the header for mfpcl quantiles
+  //
+  out << std::endl << std::string(53, '-')  << std::endl
+      << "-----Cell length / MFP distribution------------------" << std::endl
+      << std::string(53, '-') << std::endl << std::left;
+  (*mfpclHist)(out);
+  out << std::string(53, '-')  << std::endl << std::endl;
+}
+

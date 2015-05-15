@@ -8,6 +8,7 @@
 #include <Particle.H>
 #include <Vector.h>
 #include <logic.h>
+#include <Particle.H>
 #include <SLGridMP2.h>
 
 class SphericalSL

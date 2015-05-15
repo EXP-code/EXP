@@ -314,7 +314,7 @@ main(int argc, char** argv)
     if (myid == 0) getcwd(hdbuffer, (size_t)hdbufsize);
     MPI_Bcast(hdbuffer, hdbufsize, MPI_CHAR, 0, MPI_COMM_WORLD);
 
-    homedir.erase(homedir.begin(), homedir.end());
+    homedir.clear();
     homedir = hdbuffer;
     if (myid == 0) cout << "main: working directory is <" << homedir << ">\n";
   }

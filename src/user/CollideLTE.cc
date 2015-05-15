@@ -49,8 +49,14 @@ unsigned CollideLTE::Nnum    = 400;
 unsigned CollideLTE::Tnum    = 200;
 string   CollideLTE::cache   = ".HeatCool";
 unsigned CollideLTE::trhocnt = 0;
-bool     CollideLTE::frost_warning = false;
 
+// Warn if energy lost is smaller than COM energy available.  For
+// debugging.  Set to false for production.
+//
+const bool frost_warning     = false;
+
+// Main constructor
+//
 CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
 		       double hD, double sD, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
@@ -115,7 +121,7 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
   // Compute geometric cross section
   //
 
-  double diam  = diamfac*a0/UserTreeDSMC::Lunit;
+  double diam  = sqrt(crossfac)*a0/UserTreeDSMC::Lunit;
   double cross = M_PI*diam*diam;
 
   for (auto it1 : cell->count) {
@@ -410,8 +416,9 @@ void CollideLTE::initialize_cell_dsmc
 }
 
 
-double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2, 
-			       double cr, int id)
+double CollideLTE::crossSection(pCell* const tree, 
+				Particle* const p1, Particle* const p2, 
+				double cr, int id)
 {
   // Species keys
   //
@@ -422,7 +429,8 @@ double CollideLTE::crossSection(pHOT *tree, Particle* p1, Particle* p2,
 
 
 
-int CollideLTE::inelastic(pHOT *tree, Particle* p1, Particle* p2, 
+int CollideLTE::inelastic(pCell* const cell, 
+			  Particle* const p1, Particle* const p2, 
 			  double *cr, int id)
 {
   int ret = 0;			// No error (flag)
@@ -725,7 +733,8 @@ void CollideLTE::list_sizes_proc(ostream* out)
 }
 
 
-void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
+void CollideLTE::finalize_cell(pHOT* const tree, pCell* const cell, 
+			       double kedsp, int id)
 {
   //
   // Energy lost from this cell compared to target
@@ -748,8 +757,8 @@ void CollideLTE::finalize_cell(pHOT* tree, pCell* cell, double kedsp, int id)
 	  dE = (decelT[id] - coolheat[id])/cell->Mass();
 	
 	for (unsigned j=0; j<cell->bods.size(); j++) {
-	  Particle* p = tree->Body(cell->bods[j]);
-	  p->dattrib[use_exes] += dE*p->mass;
+	  Particle* const p = tree->Body(cell->bods[j]);
+	  p->dattrib[use_exes] += dE * p->mass;
 	}
       }
     }

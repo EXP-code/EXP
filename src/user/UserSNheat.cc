@@ -51,10 +51,7 @@ UserSNheat::UserSNheat(string &line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  list<Component*>::iterator cc;
-  Component *c;
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;
@@ -337,8 +334,8 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
 				// Compute the center of mass velocity
     for (int k=0; k<3; k++) mom[k] /= mass0;
 
-    for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
-      Particle *p = cC->Part(*s);
+    for (auto s : plist[id]) {
+      Particle *p = cC->Part(s);
       for (int k=0; k<3; k++) {
 	double vel = p->vel[k] - mom[k];
 	ke0[id] += 0.5*p->mass * vel*vel;
@@ -355,8 +352,8 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
     Pbarrier(id, 40);
     
     double disp = sqrt(2.0/3.0*(dE*nSN+ketot0)/mass0);
-    for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
-      Particle *p = cC->Part(*s);
+    for (auto s : plist[id]) {
+      Particle *p = cC->Part(s);
       for (int k=0; k<3; k++) {
 	double vel = disp*(*norm)();
 	ke1[id] += 0.5*p->mass * vel*vel;
@@ -374,8 +371,8 @@ void * UserSNheat::determine_acceleration_and_potential_thread(void * arg)
 
     Pbarrier(id, 42);
     
-    for (set<int>::iterator s=plist[id].begin(); s!=plist[id].end(); s++) {
-      Particle *p = cC->Part(*s);
+    for (auto s : plist[id]) {
+      Particle *p = cC->Part(s);
       for (int k=0; k<3; k++) p->vel[k] *= factor;
     }
     

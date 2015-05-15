@@ -36,12 +36,11 @@ ScatterMFP::ScatterMFP(string& line) : ExternalForce(line)
   
 				// Look for requested id in component list
   c = NULL;
-  list<Component*>::iterator it;
-  for (it=comp.components.begin(); it != comp.components.end(); it++) {
-    if ((*it)->id.compare(comp_id) == 0) {
-      c = &(*(*it));		// Yes, this is disgusting but the alternative
-      break;			// is a copy constructor for phase space which
-    }                           // grossly inefficient
+  for (auto it : comp.components) {
+    if (it->id.compare(comp_id) == 0) {
+      c = it;
+      break;
+    }
   }
 
 				// Make sure component has been found
@@ -114,7 +113,7 @@ void ScatterMFP::get_acceleration_and_potential(Component* C)
 				// Accumulate table
   int ind;
   double rrr, vvv, RR;
-  rr2.erase(rr2.begin(), rr2.end());
+  rr2.clear();
 
   for (int i=1; i<=nbodies; i++) {
     RR = 0.0;

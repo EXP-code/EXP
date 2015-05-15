@@ -54,8 +54,9 @@ The cross sections are calculated using a combination of CHIANTI data
 and analytic (or semi-analytic) formulas that use the data from
 CHIANTI. The following sections will explain the equations for each of
 the cross sections that are implemented, as well as any
-approximations. In the code, only electron-Ion interactions are
-considered as they are the most dominate by two orders of magnitude.
+approximations. In the code, only electron-ion interactions are
+considered since their cross sections are larger by two orders of
+magnitude than ion-ion interactions.
 
 <h3>Collisional Excitation</h3>
 
@@ -83,7 +84,7 @@ The definition of \f$\Gamma_{ij}\f$ is
     \exp\left(\frac{-E_j}{kT}\right) d\left(\frac{E_j}{kT}\right) 
 \f] 
 
-Collisional excitation is the dominate form of cooling from
+Collisional excitation is the dominant form of cooling from
 \f$\approx\f$10,000K up until \f$\approx\f$150,000K from both Hydrogen
 excitation (at low temperature end) and Helium excitation at the
 higher temperature end.
@@ -92,13 +93,13 @@ higher temperature end.
 
 <h3>Collisional Ionization</h3>
 
-Collisional ionization is the next dominate form of cooling up to
-\f$\approx\f$ 150,000K. This cross section is calculated using the
-scaled cross sections in CHIANTI, in the form from Burgess \& Tully
-(1992). These are not thermally averaged, so remain totally general,
-relying only on the energy impact of the electron. The CHIANTI
-database gives the scaled cross sections as a function of a scaled
-energy, the two being defined as:
+Collisional ionization is an important cooling channel for
+temperatures below \f$\approx\f$ 150,000K. This cross section is
+calculated using the scaled cross sections in CHIANTI, in the form
+from Burgess \& Tully (1992). These are not thermally averaged, so
+remain totally general, relying only on the energy impact of the
+electron. The CHIANTI database gives the scaled cross sections as a
+function of a scaled energy, the two being defined as:
 
 \f[ U = 1 - \frac{\log f}{\log(u - 1 + f)}\f] 
 
@@ -115,7 +116,7 @@ section.
 
 <h3>Radiative Recombination</h3>
 
-While radiative recombination is never a dominate form of cooling, it
+While radiative recombination is never a dominant form of cooling, it
 is crucial for the equilibrium ionization fractions. Unfortunately,
 because radiative recombination is a complicated quantum process there
 is no easily calculable non-thermal cross section. Doing so involves

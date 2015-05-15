@@ -86,8 +86,6 @@ void OutLog::initialize()
 
 void OutLog::Run(int n, bool last)
 {
-  list<Component*>::iterator cc;
-  Component *c;
   ofstream *out = 0;
   const int cwid = 20;
 
@@ -230,8 +228,7 @@ void OutLog::Run(int n, bool last)
 
       
 				// Component stanzas
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-	  c = *cc;
+	for (auto c : comp.components) {
 	  *out << "|" << setw(cwid) << c->id.c_str();
 	  for (int i=1; i<num_component; i++) 
 	    *out << "|" << setfill(' ') << setw(cwid) << " ";
@@ -244,7 +241,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid)  << "-";
       
 				// Component dividers
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	for (auto c : comp.components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -256,9 +253,9 @@ void OutLog::Run(int n, bool last)
 	for (int i=1; i<num_global; i++) *out << "|" << setw(cwid) << lab_global[i];
     
 				// Component labels
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	for (auto c : comp.components) {
 	  for (int i=0; i<num_component; i++) {
-	    string label = (*cc)->name + " " + lab_component[i];
+	    string label = c->name + " " + lab_component[i];
 	    if (label.size()<=cwid)
 	      *out << "|" << setw(cwid) << label.c_str();
 	    else
@@ -273,7 +270,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	for (auto c : comp.components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -292,7 +289,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "|" << setw(cwid) << slab.str();
 	}    
 				// Component count
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	for (auto c : comp.components) {
 	  for (int i=0; i<num_component; i++) {
 	    ostringstream slab;
 	    slab << "[" << ++count << "]";
@@ -307,7 +304,7 @@ void OutLog::Run(int n, bool last)
 	  *out << "+" << setfill('-') << setw(cwid) << "-";
 	
 				// Component dividers
-	for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+	for (auto c : comp.components) {
 	  for (int i=0; i<num_component; i++) 
 	    *out << "+" << setfill('-') << setw(cwid) << "-";
 	}
@@ -362,8 +359,7 @@ void OutLog::Run(int n, bool last)
   unsigned ntot;
   int indx = 0;
 
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
   
     nbodies1[indx] = c->Number();
 

@@ -14,6 +14,7 @@ typedef std::map<speciesKey, sKeyDmap>             sKey2Dmap;
 typedef std::map<speciesKey, unsigned>             sKeyUmap;
 typedef std::map<speciesKey, sKeyUmap>             sKey2Umap;
 typedef std::map<speciesKey, std::vector<double> > sKeyvDmap;
+typedef std::pair<speciesKey, speciesKey>          sKeyPair;
 //@}
 
 /**
@@ -45,6 +46,12 @@ public:
   
   //! Get the converter speciesKey
   speciesKey getKey() { return speciesKey(c.us[0], c.us[1]); }
+
+  //! Get Z
+  unsigned short Z() { return c.us[0]; }
+
+  //! Get C
+  unsigned short C() { return c.us[1]; }
 
   //! Update C and return int
   int updateC(short unsigned C) { c.us[1] = C; return c.i; }

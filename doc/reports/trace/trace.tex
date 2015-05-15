@@ -1,0 +1,489 @@
+\documentclass[12pt]{article}
+                                % Don't waste so much paper!
+\usepackage[height=9.0in,letterpaper]{geometry}
+
+\usepackage{times}
+\usepackage{mathptmx}
+
+\usepackage{amsmath,amssymb}    % for math
+\usepackage{subfigure,graphicx} % for figures
+\usepackage{natbib}		% bibliography
+\usepackage{appendix,fancyhdr}  % nice formatting
+\usepackage{longtable}          % for the class list
+
+
+\usepackage{hyperref}
+% \hypersetup{dvips,colorlinks=true,allcolors=blue}
+% \hypersetup{dvips}
+\hypersetup{
+  dvips,
+  bookmarks=true,         % show bookmarks bar?
+  unicode=false,          % non-Latin characters in Acrobat’s bookmarks
+  pdftoolbar=true,        % show Acrobat’s toolbar?
+  pdfmenubar=true,        % show Acrobat’s menu?
+  pdffitwindow=false,     % window fit to page when opened
+  pdfstartview={FitH},    % fits the width of the page to the window
+  pdftitle={My title},    % title
+  pdfauthor={Author},     % author
+  pdfsubject={Subject},   % subject of the document
+  pdfcreator={Creator},   % creator of the document
+  pdfproducer={Producer}, % producer of the document
+  pdfkeywords={keyword1} {key2} {key3}, % list of keywords
+  pdfnewwindow=true,      % links in new window
+  colorlinks=false,       % false: boxed links; true: colored links
+  linkcolor=red,          % color of internal links (change box color with linkbordercolor)
+  citecolor=green,        % color of links to bibliography
+  filecolor=magenta,      % color of file links
+  urlcolor=cyan           % color of external links
+}
+\usepackage{hypcap}
+\usepackage{caption}
+
+%% Add a trick to get around the figure float stuff
+
+\makeatletter                   % Change the catagory code of @
+\newenvironment{inlinetable}{%
+  \def\@captype{table}%
+  \noindent\begin{minipage}{0.999\linewidth}\begin{center}\footnotesize}
+    {\end{center}\end{minipage}\smallskip}
+
+\newenvironment{inlinefigure}{%
+  \def\@captype{figure}%
+  \noindent\begin{minipage}{0.999\linewidth}\begin{center}}
+    {\end{center}\end{minipage}\smallskip}
+\makeatother                    % Revert to protected
+
+%% For convenience . . . 
+
+\newcommand*{\myprime}{^{\prime}\mkern-1.2mu}
+\newcommand*{\mydprime}{^{\prime\prime}\mkern-1.2mu}
+\newcommand*{\mytrprime}{^{\prime\prime\prime}\mkern-1.2mu}
+
+\newcommand{\bx}{{\bf x}}
+\newcommand{\bt}{{\bf\theta}}
+\newcommand{\bp}{{\bf\pi}}
+\newcommand{\barm}{{\bar m}}
+\newcommand{\bv}{{\bf v}}
+\newcommand{\va}{\bv_a}
+\newcommand{\vb}{\bv_b}
+\newcommand{\vap}{\va\myprime}
+\newcommand{\vbp}{\vb\myprime}
+
+% \lta and \gta produce > and < signs with twiddle underneath
+\def\spose#1{\hbox to 0pt{#1\hss}}
+\newcommand{\lta}{\mathrel{\spose{\lower 3pt\hbox{$\mathchar"218$}}
+    \raise 2.0pt\hbox{$\mathchar"13C$}}}
+\newcommand{\gta}{\mathrel{\spose{\lower 3pt\hbox{$\mathchar"218$}}
+    \raise 2.0pt\hbox{$\mathchar"13E$}}}
+
+\let\lesssim=\lta
+\let\gtrsim=\gta
+
+\newcommand{\msun}{{\rm\,M_\odot}}
+\newcommand{\AU}{\,\hbox{\rm AU}}
+\newcommand{\kms}{{\rm\,km\,s^{-1}}}
+\newcommand{\pc}{\,\hbox{\rm pc}}
+\newcommand{\kpc}{{\rm\,kpc}}
+\newcommand{\Myr}{\,\hbox{\rm Myr}}
+\newcommand{\Byr}{\,\hbox{\rm Byr}}
+\newcommand{\Gyr}{\,\hbox{\rm Gyr}}
+\newcommand{\gyr}{\,\hbox{\rm Gyr}}
+% \newcommand{\mod}{\mathop{\rm mod}\nolimits}
+\newcommand{\sgn}{\mathop{\rm sgn}\nolimits}
+\newcommand{\ext}{{\hbox{\ninerm ext}}}
+\newcommand{\resp}{{\hbox{\ninerm resp}}}
+\mathchardef\star="313F
+\newcommand{\bth}{{\bf\theta}}
+\newcommand{\bdata}{{\bf D}}
+\newcommand{\bdth}{{\Delta{\bf\theta}}}
+% \newcommand{\Re}{\mathop{\it Re}\nolimits}
+% \newcommand{\Im}{\mathop{\it Im}\nolimits}
+\newcommand{\Ei}{\mathop{\rm Ei}\nolimits}
+
+\newcommand{\apj}  {ApJ}
+\newcommand{\apjl} {ApJL}
+\newcommand{\apjs} {ApJS}
+\newcommand{\aj}   {AJ}
+\newcommand{\mnras}{MNRAS}
+
+\newcommand{\model}{{\cal M}}
+\newcommand{\data} {{\bf D}}
+\newcommand{\param}{\boldsymbol{\theta}}
+
+%%% 
+%%% End definitions
+%%% 
+
+\pagestyle{fancy}
+
+\setlength{\headheight}{15pt}
+\pagestyle{fancy}
+
+% \renewcommand{\chaptermark}[1]{\markboth{#1}{}}
+% \renewcommand{\sectionmark}[1]{\markright{#1}{}}
+ 
+\fancyhf{}
+\fancyhead[LE,RO]{\thepage}
+\fancyhead[RE]{\textit{\nouppercase{\leftmark}}}
+\fancyhead[LO]{\textit{\nouppercase{\rightmark}}}
+ 
+% \shorttitle{Trace species}
+% \shortauthors{Weinberg}
+
+\begin{document}
+
+\title{Notes on implementing the trace-species algorithm for EXP}
+
+\author{Martin D. Weinberg\\
+  Department of Astronomy\\
+  University of Massachusetts, Amherst, MA, USA 01003;\\
+  {\it weinberg@astro.umass.edu}
+}
+
+\date{\today}
+
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+\label{sec:intro}
+
+These notes summarize my current progress to date on specifying a
+procedure for handling trace species.
+
+\section{Collision pairs}
+\label{sec:background}
+
+Here, I derive the probability of interaction for simulation particles
+is derived from the true physical cross section.
+
+The DSMC procedure can be viewed and examined from many different
+viewpoints, e.g. as a stochastic process that mimics the Boltzmann
+equation or by adopting a more physical viewpoint, as we choose to do
+here, as a computational gas composed of computational particles. The
+properties of the computational gas such as its average number density
+over a specified region of space differ from those of the actual
+gas. That is, all quantities related to the computational gas have to
+be suitably rescaled to obtain those of the physical gas that is being
+modeled. 
+
+The
+collision frequency of a single particle of the physical gas of
+species a with particles of gas of species b at a number density of n
+b is given by: 
+\begin{equation}
+  \nu_{ab} = n_b \langle{\sigma_{ab} c_r}\rangle, 
+\end{equation}
+where $c_r$ is the relative velocity between particles and
+$\sigma_{ab}$ is the cross section for elastic collisions between
+species a and b. The angle brackets denotes an average value over the
+ensemble of all sample particles. The properties of the DSMC gas
+differ from those of the physical gas and are denoted with a tilde. In
+the simulation, species b has a number density of
+\begin{equation}
+n_b = \Gamma_p \eta_b {\tilde n}_b
+\end{equation}
+where $\Gamma_p$ is the fiducial number of true particles per
+computational particle and $\eta_b$ is the weighting relative to some
+fiducial particle.  That is, each computational particle represents
+$\eta_b\Gamma_p$ actual particles. Similarly, the single particle
+collision rate of the numerical gas is denoted by ${\tilde\nu}_{ab}$.
+
+The particles of the numerical gas have a collisional cross section
+that is different than those of the actual physical particles. It is
+denoted by ${\tilde\sigma}_{ab}$ to distinguish it from $\sigma_{ab}$:
+\begin{equation}
+  \tilde{\nu}_{ab} = \tilde{n}_b \langle{\tilde{\sigma}_{ab} \tilde{c}_r}\rangle.
+\end{equation}
+The DSMC procedure is based on the fundamental assumption that all
+particle-carried quantities (e.g. velocity, position, internal energy)
+are identical between the physical and computational gases. They thus
+share the same velocity, so that ${\tilde c}_r = c_r$ as well as the
+same collision rate which implies that $\tilde{\nu}_{ab} =
+\nu_{ab}$. Putting these equations together we have
+\begin{equation}
+  n_b \langle{\sigma_{ab} c_r}\rangle =
+  \frac{n_b}{\eta_b\Gamma_p}\langle{\tilde{\sigma}_{ab} \tilde{c}_r}\rangle.
+  \label{eq:balance}
+\end{equation}
+That is, the computational cross
+section ${\tilde\sigma}$ is given by: 
+\begin{equation}
+{\tilde\sigma}_{ab} = \eta_b\Gamma_p \sigma_{ab}.
+\end{equation}
+
+The probability of a collision, $P_{coll}(a_i, b_j)$, between a moving
+particle $a$ and a target particle $b$ belonging, respectively, to
+species $a$ and $b$, both located inside the same cell of volume V can
+be interpreted as being given by the ratio of the volume of the
+cylinder engendered by the collision cross section through the
+relative motion of both particles, $c_r(a_i, b_j)$, during time
+$\Delta\tau$ to the volume of the cell:
+\begin{equation}
+  P_{coll}(a_i, b_j) = \frac{{\tilde\sigma}_{ab}(a_i, b_j)c_r(a_i, b_j)\Delta\tau}{V}.
+\end{equation}
+Collisions between particle pairs in a cell at a given time step are
+independent events, that is the probability of a collision occurring
+for a given $\{(a_i, b_j\}$ pair is independent of those of all other
+pairs in the cell. Thus, the number of collisions that occurs during a
+time step is obtained by summing the probability of occurrence of each
+potential collision. When $a\not=b$, $N_a\times N_b$ collisions may
+occur in principle, so that
+\begin{equation}
+N_{coll}(a, b) = \sum_{i_a=1}^{N_a}\sum_{j_b=1}^{N_b} P_{coll}(i_a, j_b) =
+\sum_{i_a=1}^{N_a}\sum_{j_b=1}^{N_b}\frac{\tilde{\sigma}_{ab}(i_a, j_b)
+  c_r(i_a, j_b)\Delta\tau}{V},
+\end{equation}
+and the average value of the cross section times the velocity over the
+ensemble of the $N_a\times N_b$ pairs is defined as:
+\begin{equation}
+  \langle{\tilde{\sigma}_{ab} c_r}\rangle\equiv
+  \frac{1}{N_a N_b} \sum_{i_a=1}^{N_a}\sum_{j_b=1}^{N_b} \tilde{\sigma}_{ab}(i_a, j_b)
+  c_r(i_a, j_b).
+\end{equation}
+So, with this notation, we have:
+\begin{equation}
+N_{coll}(a, b) = N_a N_b \frac{\langle{\tilde{\sigma}_{ab} c_r}\rangle \Delta\tau}{V}.
+\end{equation}
+
+In the case when collisions between particles of the same species are
+considered, that is when $a = b$, only $\binom{N_a}{2} = N_a(N_a-1)/2$
+collision pairs are possible so that $N_{coll}(a, a)$ becomes
+\begin{equation}
+  N_{coll}(a, a) = \sum_{i_a=1}^{N_a}\sum_{j_a=i_a+1}^{N_a} P_{coll}(i_a, j_a) =
+  \sum_{i_a=1}^{N_a}\sum_{j_a=i_a+1}^{N_a}\frac{{\tilde\sigma}_{aa}(i_a, j_a)
+    c_r(i_a, j_a)\Delta\tau}{V}
+\end{equation}
+and
+\begin{equation}
+  \langle{\tilde{\sigma}_{aa} c_r}\rangle \equiv
+  \frac{2}{N_a (N_a-1)}
+  \sum_{i_a=1}^{N_a}\sum_{j_a=i_a+1}^{N_a} {\tilde\sigma}_{aa}(i_a, j_a)
+  c_r(i_a, j_a).
+\end{equation}
+
+Using these equations, a combined expression for $N_{coll}$ for both
+$a=b$ and $a\not=b$ may be written
+\begin{equation}
+  N_{coll}(a, b) = \frac{1}{1+\delta_{ab}}
+  \frac{\langle{\tilde{\sigma}_{ab}c_r}\rangle\Delta\tau}{V} N_a(N_b - \delta_{ab})
+\end{equation}
+or
+\begin{equation}
+  N_{coll}(a, b) = \frac{N_a \eta_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
+  \langle\sigma_{ab}c_r\rangle\Delta\tau.
+\end{equation}
+
+This gives an expression for the number of collisions that has to
+occur during $\Delta\tau$ between the particles of the numerical gas
+so that equation (\ref{eq:balance}) is satisfied. To increase
+computational efficiency, the DSMC procedure considers potential
+collisions with a greater number of particle pairs, i.e.
+\[
+\frac{(\sigma_{ab}c_r)_{max}}{(\sigma_{ab}c_r)} \ge 1
+\]
+times the $N_{coll}(a, b)$ number of collision pairs, denoted by
+$N_{pairs}(a, b)$:
+\begin{equation}
+  N_{pairs}(a, b) = \frac{(\sigma_{ab}c_r)_{max}}{(\sigma_{ab}c_r)} N_{coll}(a, b)
+\end{equation}
+or
+\begin{equation}
+  N_{pairs}(a, b) = \frac{N_a \eta_b\Gamma_p(N_b - \delta_{ab})}{(1+\delta_{ab})V}
+  (\sigma_{ab}c_r)_{max}\Delta\tau.
+\end{equation}
+
+The collision probability between particles a and b of species a and b
+now may be written as following
+\begin{equation}
+  P_{coll}(i_a, j_b) = \frac{\sigma_{ab}(i_a, j_b) c_r(i_a,
+    j_b)}{(\sigma_{ab}c_r)_{max}},
+\end{equation}
+so that $N_{coll}$ is correctly obtained on average over all collision
+pairs. In the case where $\eta_a = \eta_b$, the number of pairs to consider
+for collision has to be altered as the velocity of both particles
+cannot simultaneously change to conserve average momentum during the
+collision. This issue is addressed in the next two sections.
+
+\section{Collision dynamics}
+
+In the absence of species relative weights and in the actual physical
+gas, the properties of both participating particles change after a
+collision. In the numerical gas, however, when particles with
+different relative weights participate in a collision, their
+properties cannot both equally be affected by it. If they were, the
+overall translational energy of particles and momentum would not be
+conserved on average in the gas and the effect of collisions on the
+species with the largest weight from that with the lowest would be
+systematically overestimated. In the following, we present the
+collision scheme that is most commonly used to handle collisions
+between particles with different relative weights which was first
+introduced. Because the scheme does not conserve energy, an
+energy-conserving collision scheme was subsequently proposed by
+Boyd. The latter was for instance later used in ref. where a detailed
+description of the impact of relative weights on the modeling of
+chemical reactions via DSMC is given. An energy conserving scheme is,
+however, of limited utility for the test case that will later be
+studied as the residence time of particles inside the domain is
+relatively short with very few undergoing multiple collisions and is
+therefore not implemented.  Non-energy conservation is, however, much
+more important for closed systems, such as homogeneous heat baths
+where boundary conditions are not constantly resupplying new particles
+(and thus energy).
+
+Considering a collision between a particle of species a with mass
+$m_a$ and relative weight $\eta_a$ and one of species b with mass $m_b$
+and relative weight $\eta_b$, the pre-collision velocities of both
+particles are designated by $\va$ and $\vb$ and their post-collision
+velocities are designated by $\vap$ and $\vbp$. 
+
+For elastic collisions and equal weight particles (i.e. $\eta_a=\eta_b$), we
+may write:
+\begin{eqnarray}
+  \vap &=& \bv_m + \frac{m_b}{m_a+m_b}\bv_r \\
+  \vbp &=& \bv_m - \frac{m_a}{m_a+m_b}\bv_r
+\end{eqnarray}
+where the center of mass velocity is $\bv_m$ and $\bv_r$ is the
+post-collision relative velocity in the center-of-mass frame.  For
+$\eta_a\not=\eta_b$, 
+
+Now, let us define a split and merge scheme for interactions between
+species of types a and b; we assume that $\eta_b < \eta_a$ and split a
+particle of species a into two component with weight $q\equiv \eta_b/\eta_a$
+and $1 - \eta_b/w_a = 1 - q$, respectively.  We collide the smaller
+component of type a with the full particle b and then recombine,
+conserving momentum.
+
+Conservation of the overall momentum during the collision
+requires
+\begin{equation}
+  m_a \eta_a \va + m_ b \eta_b \vb = m_a \eta_a \vap + m_b \eta_b \vbp.
+  \label{eq:consmom}
+\end{equation}
+This may be rewritten by splitting as follows:
+\begin{eqnarray}
+  m_a \eta_a \va + m_ b \eta_b \vb &=& \eta_a\left[ m_a (1-q) \va + q(m_a\va +
+    m_b \vb) \right] \\ \label{eq:precoll}
+  &=& \eta_a\left[ m_a (1-q) \va + q(m_a\va\mydprime +
+    m_b \vb\mydprime) \right], \label{eq:postcoll}
+\end{eqnarray}
+where the double-primed quantities in equation (\ref{eq:postcoll})
+indicate post-collision velocities.  Identifying terms in equations
+(\ref{eq:consmom}) and (\ref{eq:postcoll}) yields:
+\begin{eqnarray}
+  \vap &=& (1-q)\va + q\va\mydprime \\
+  \vbp &=& \vb\mydprime
+\end{eqnarray}
+
+Unfortunately, one does not conserve momentum and energy
+simultaneously.  After some algebra it, one may show that the
+difference between the pre-collision and post-collision energies is:
+\begin{equation}
+  \Delta E = \frac12 \eta_a m_a q(1-q)(\va - \vap)^2
+\end{equation}
+assuming that the collision is elastic. Since we have assumed that
+$\eta_a>\eta_b$, we must have $0<q<1$ and therefore $\Delta E \ge 0$ which
+implies that energy is always lost.  Standard practice (Boyd, ref) is
+to replace this energy in the center of mass of the next non-trace
+collision.
+
+\section{Energy loss owing to inelastic collisions}
+
+Although there is some flexibility in this procedure, it seems natural
+to remove the energy from the center of mass of the collision.  As in
+previous implementations, the deficit can be accumulated if there is
+insufficient energy.
+
+\section{Assigning particle masses and weights}
+
+\subsection{Overview}
+
+To maintain the relative kinematics of the different species, the
+superparticle mass ratios should be preserved.  If hydrogen and helium
+are species a and b, then $m_b/m_a = m_{He}/m_H \approx 4$; that is,
+$m_a, m_b, \ldots$ are the true particle masses in some set of
+physical units such as amu.
+
+Let $f_X$ denote the mass fraction of species $X$ and $N_X$ be the
+number of superparticles of species $X$.  The total mass of each
+species is:
+\begin{equation}
+  M_X = \Gamma_p \sum_{j=1}^{N_X} m_{X,j} \eta_{X,j} = 
+  \Gamma_p N_X \langle{m}_X\rangle \langle\eta_X\rangle,
+\end{equation}
+where the superparticle mass is ${\hat m}_{X,j} = \Gamma_p m_{X,j}
+\eta_{X,j}$ and
+\begin{eqnarray}
+  \langle\eta_X\rangle &\equiv& \frac{\sum_{j=1}^{N_X} m_{X,j}
+    \eta_{X,j}}{\sum_{j=1}^{N_X} m_{X,j}} \label{eq:meanW} \\
+  \langle{\hat{m}}_X\rangle &\equiv& \frac{1}{N_x} \sum_{j=1}^{N_X} \hat{m}_{X,j}
+  \label{eq:meanM}
+\end{eqnarray}
+More typically, we might have $\hat{m}_X = \langle \hat{m}_{X,j}\rangle$ and
+$\eta_X = \langle\eta_{X,j}\rangle$ and, then, do not need the mean
+quantities in equations (\ref{eq:meanW}) and (\ref{eq:meanM})
+
+The mass true mass fraction constraint implies:
+\begin{equation}
+\frac{f_Y}{f_X} = \frac{N_Y m_Y \langle\eta_Y\rangle}{N_X m_X \langle\eta_X\rangle}
+=
+\frac{N_Y \langle\hat{m}_Y\rangle}{N_X \langle\hat{m}_X\rangle}
+\end{equation}
+or
+\begin{equation}
+\frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+\left[\frac{N_X}{N_Y}\right]
+\left[\frac{m_X}{m_Y}\right] \left[\frac{f_Y}{f_X}\right].
+\end{equation}
+If superparticles of all species are distributed equally by number
+than $N_X=N_Y$ and
+\begin{equation}
+  \frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+  \left[\frac{m_X}{m_Y}\right]
+  \left[\frac{f_Y}{f_X}\right].
+\end{equation}
+For example, assuming that $Y=\mbox{He}$ and $X=\mbox{H}$, we have
+$\langle\eta_Y\rangle/\langle\eta_X\rangle \approx 0.087$.
+
+\subsection{Implementation}
+
+In EXP, the superparticles are assumed to have their true masses in
+system units.  I will denote these as $\hat{m}$.  Then
+\begin{equation}
+  \frac{f_Y}{f_X} = \frac{N_Y {\hat m}_Y}{N_X \hat{m}_X} = \frac{N_Y
+    m_Y\langle\eta_Y\rangle}{N_X m_X \langle\eta_X\rangle} = 
+  \frac{m_Y\langle\eta_Y\rangle}{m_X \langle\eta_X\rangle}
+\end{equation}
+where the last equality obtains for $N_X=N_Y$.  Alternatively, 
+we may write
+\begin{equation}
+\frac{m_Y}{m_X} 
+= \left[\frac{N_Y\langle\hat{m}_Y\rangle}{N_X\langle\hat{m}_X\rangle}\right]
+\left[\frac{\langle\eta_X\rangle}{\langle\eta_Y\rangle}\right]
+= \left[\frac{\langle\hat{m}_Y\rangle}{\langle\hat{m}_X\rangle}\right]
+\left[\frac{\langle\eta_X\rangle}{\langle\eta_Y\rangle}\right]
+\end{equation}
+or
+\begin{equation}
+  \frac{\langle\eta_Y\rangle}{\langle\eta_X\rangle} = 
+  \left[\frac{N_Y{\hat m}_Y}{N_X\hat{m}_X}\right]
+  \left[\frac{m_X}{m_Y}\right] =
+  \left[\frac{{\hat m}_Y}{\hat{m}_X}\right]
+  \left[\frac{m_X}{m_Y}\right] =
+  \left[\frac{f_Y}{f_X}\right]
+  \left[\frac{m_X}{m_Y}\right]
+\end{equation}
+
+To get individual masses from system masses, recall that $\Gamma_p$ is
+the conversion of system mass to atomic mass units.  Then
+$\langle{m}_X\rangle = \hat{m_x}m_a\Gamma_p \langle\eta_X\rangle$
+where $m_a$ is the mean atomic mass unit.  I am typically choosing
+$\eta_H = 1$ so that $\hat{m}_H = \Gamma_p m_H$ and (e.g.) $\eta_{He}
+= 0.078$.
+
+\bibliography{master}
+\label{sec:ref}
+
+\end{document}
+

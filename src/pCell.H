@@ -15,57 +15,15 @@ using namespace std;
 class pHOT;
 class Component;
 
-template< class T1, class T2 >
-std::pair<T1, T2> operator+(const pair<T1, T2>& a, const pair<T1, T2>& b)
-{
-  std::pair<T1, T2> ret(a.first + b.first, a.second + b.second);
-  return ret;
-};
 
-template< class T1, class T2 >
-std::pair<T1, T2> operator-(const pair<T1, T2>& a, const pair<T1, T2>& b)
-{
-  std::pair<T1, T2> ret(a.first - b.first, a.second - b.second);
-  return ret;
-};
-
-template< class T1, class T2 >
-std::pair<T1, T2> operator+=(pair<T1, T2>& a, const pair<T1, T2>& b)
-{
-  a.first  += b.first;
-  a.second += b.second;
-  return a;
-};
-
-template< class T1, class T2 >
-std::pair<T1, T2> operator-=(pair<T1, T2>& a, const pair<T1, T2>& b)
-{
-  a.first  -= b.first;
-  a.second -= b.second;
-  return a;
-};
-
+//----------------------------------------------------------------------
+// Cell class definition follows
+//----------------------------------------------------------------------
+//
 class sCell
 {
 public:
-  typedef std::pair<double, double> dPair;
 
-protected:
-  typedef std::deque<dPair>         ddqPair;
-
-  ddqPair       VelCrsList;
-  dPair         VelCrsSum;
-  unsigned      VelCrsNum;
-  
-  std::map<speciesKey, ddqPair>     VelCrsListM;
-  std::map<speciesKey, dPair>       VelCrsSumM;
-  std::map<speciesKey, unsigned>    VelCrsNumM;
-  
-public:
-  
-  // Maximum number of cached relative velocities
-  static size_t VelCrsSZ; 
-  
   int owner;
   unsigned level;
   std::map<speciesKey, unsigned> count;
@@ -83,26 +41,9 @@ public:
      @param 8 posy
      @param 9 posz
   */
-  //map<int, vector<double> > state;
   map<speciesKey,vector<double> > state;
   vector<double> stotal;
-  
-  //@{
-  //! Maximum relative velocity average (<0 if no entries)
-  dPair VelCrsAvg(speciesKey indx);
-  dPair VelCrsAvg();
-  //@}
-  
-  //@{
-  //! Add maximum to list
-  void VelCrsAdd(speciesKey indx, const dPair& val);
-  void VelCrsAdd(const dPair& val);
-  void VelCrsAdd(speciesKey indx, double vrm, double crm) 
-  { VelCrsAdd(indx, dPair(vrm, crm)); }
-  void VelCrsAdd(double vrm, double crm)
-  { VelCrsAdd(dPair(vrm, crm)); }
-  //@}
-  
+
   //@{
   //! Return kinetic energy per unit mass per cell (total & temperature)
   void KE(speciesKey indx, double &tot, double &dsp);
@@ -180,7 +121,7 @@ public:
   unsigned maxplev;
   
   pCell* parent;
-  sCell* sample;
+  pCell* sample;
   map<unsigned, pCell*> children;
   bool isLeaf;
   
@@ -242,8 +183,11 @@ public:
   //! Find the cells whose body number is "just" larger than Bucket
   sCell* findSampleCell();
   
+  //@{
   //! Return bodies from this cell
   Particle* Body(vector<unsigned long>::iterator k);
+  Particle* Body(unsigned long i);
+  //@}
   
   //! Return velocity statistics for particles in the cell
   void Vel(double &mass, vector<double>& v, vector<double>& v2);

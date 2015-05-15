@@ -61,8 +61,6 @@ void OutPSN::Run(int n, bool last)
   if (restart  && n==0  && !dump_signal) return;
 
   ofstream *out;
-  list<Component*>::iterator cc;
-  Component* c;
 
   psdump = n;
 
@@ -84,15 +82,14 @@ void OutPSN::Run(int n, bool last)
 				// Open file and write master header
     
     struct MasterHeader header;
-    header.time = tnow;
-    header.ntot = comp.ntot;
+    header.time  = tnow;
+    header.ntot  = comp.ntot;
     header.ncomp = comp.ncomp;
 
     out->write((char *)&header, sizeof(MasterHeader));
   }
   
-  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
-    c = *cc;
+  for (auto c : comp.components) {
     c->write_binary(out, true);	// Write floats rather than doubles
   }
 

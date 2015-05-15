@@ -108,7 +108,7 @@ class CollideIon;
     @param cnum non-zero adjusts cross section to yield cnum collisions per cell
     @param epsm >0 enables EPSM computation for cells with  MFP/size ratio < epsm
     @param hsdiam is a multiplicative factor for the Bohr radius for computing the hard-sphere cross-section (converted to system units) 
-    @param diamfac is a multiplicative factor for geometric scaling of the scattering cross section
+    @param crossfac is a multiplicative factor for geometric scaling of the scattering cross section
     @param spc is a weight for the collision number computation describing the converstion of mass in protons to number
     @param frontier enables printing of active cell list (for debugging)
     @param tsdiag enables printing gas time step diagnostics (for debugging)
@@ -144,11 +144,13 @@ class CollideIon;
     @param use_effort set to true (default) uses the effort expended in computing the force per particle from DSMC to load balance the simulation
     @param mfpts set to true (default) uses the mean free path to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
+    @param ntcdef is the default NTC value for <cross section>x<relative velocity> in mixed units (default: 10)
     @param tube set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is X
     @param slab set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is Z
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
+    @param rrtype is a string referring to the name of the desired radiative recombination cross section type.  This is only used by the ctype=Ion method (default: Mewe)
 
     <h2>Note on multiple species</h2>
 
@@ -181,14 +183,16 @@ private:
   int use_key, use_temp, use_dens, use_delt, use_exes, use_Kn;
   int use_St, use_vol, use_Eint, tspow;
   double hsdiam;
-  double diamfac;
+  double crossfac;
   double collfrac;
   double boxsize;
   double boxratio;
   double epsm;
   double coolfrac;
   double enhance;
+  double ntcdef;
   string ctype;
+  string rrtype;
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;

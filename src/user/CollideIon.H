@@ -1,11 +1,16 @@
 #ifndef _CollideIon_H
 #define _CollideIon_H
 
+#include <tuple>
+
+#include <boost/circular_buffer.hpp>
+
 #include "Collide.H"
 #include "interactSelect.H"
 #include "Elastic.H"
 #include "Ion.H"
 #include "atomic_constants.H"
+#include "AsciiHisto.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -33,10 +38,10 @@ public:
 
   //@{
   //! Container definition
-  typedef std::pair<double, double> ddPr;
-  typedef std::vector<ddPr>         IDVP;
-  typedef std::vector<double>       IDVD;
-  typedef std::vector<unsigned int> IDVI;
+  typedef std::tuple<unsigned, double, double>  UDDT;
+  typedef std::vector<UDDT>                     IDVP;
+  typedef std::vector<double>                   IDVD;
+  typedef std::vector<unsigned long>            IDVI;
   //@}
 
   //@{
@@ -50,17 +55,45 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  ddPr   ff_s, CE_s, CI_s, RR_s, dv_s;
-  double eV_av_s, eV_max_s, eV_min_s;
-  int    eV_N_s, eV_10_s;
+  UDDT          ff_s, CE_s, CI_s, RR_s, dv_s;
+  double        eV_av_s, eV_max_s, eV_min_s;
+  unsigned long eV_N_s, eV_10_s;
   //@}
   
+  //! Synchronize a UDDT type (tuple)
+  void syncUDDT(UDDT& value) 
+  {
+    unsigned int u;
+    double z;
+
+    MPI_Reduce(&(u=std::get<0>(value)), &std::get<0>(value), 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=std::get<1>(value)), &std::get<1>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=std::get<2>(value)), &std::get<2>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+
+private:
+
+  UDDT zero;
+
+  UDDT accum(IDVP& v)
+  {
+    UDDT ret(zero);
+
+    for (auto t : v) {
+      std::get<0>(ret) += std::get<0>(t);
+      std::get<1>(ret) += std::get<1>(t);
+      std::get<2>(ret) += std::get<2>(t);
+    }
+
+    return ret;
+  }
+
 public:
 
   //! Construtor initializes the vectors
   CollisionTypeDiag() 
   {
-    const ddPr zero(0, 0);
+    zero = UDDT(0, 0, 0);
 
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
@@ -78,8 +111,6 @@ public:
   //! Reset the accumulation vectors
   void reset() 
   {
-    const ddPr zero(0, 0);
-
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
     std::fill(CI.begin(), CI.end(), zero);
@@ -97,21 +128,43 @@ public:
   //! instance
   void sumUp()
   {
-    const ddPr zero(0, 0);
-    
-    ff_s     =  std::accumulate(ff.begin(), ff.end(), zero);
-    CE_s     =  std::accumulate(CE.begin(), CE.end(), zero);
-    CI_s     =  std::accumulate(CI.begin(), CI.end(), zero);
-    RR_s     =  std::accumulate(RR.begin(), RR.end(), zero);
-    dv_s     =  std::accumulate(dv.begin(), dv.end(), zero);
+    ff_s     =  accum(ff);
+    CE_s     =  accum(CE);
+    CI_s     =  accum(CI);
+    RR_s     =  accum(RR);
+    for (auto v : dv) {
+      if (std::isnan(std::get<2>(v)))
+	std::cout << "Error in sumUp (before), t=" << tnow 
+		  << ", size=" << dv.size() << ", id=" << myid << std::endl;
+    }
+    dv_s     =  accum(dv);
+    if (std::isnan(std::get<2>(dv_s)))
+      std::cout << "Error in sumUp (before), t=" << tnow 
+		<< ", id=" << myid << std::endl;
 
-    eV_av_s  =  std::accumulate(eV_av .begin(), eV_av .end(), 0);
-    eV_N_s   =  std::accumulate(eV_N  .begin(), eV_N  .end(), 0);
-    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end());
-    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end());
-    eV_10_s  =  std::accumulate(eV_10 .begin(), eV_10 .end(), 0);
+    eV_av_s  =  std::accumulate (eV_av .begin(), eV_av .end(), 0);
+    eV_N_s   =  std::accumulate (eV_N  .begin(), eV_N  .end(), 0);
+    eV_max_s = *std::max_element(eV_max.begin(), eV_max.end()   );
+    eV_min_s = *std::min_element(eV_min.begin(), eV_min.end()   );
+    eV_10_s  =  std::accumulate (eV_10 .begin(), eV_10 .end(), 0);
   }
 
+  void sync()
+  {
+    syncUDDT(ff_s);
+    syncUDDT(CE_s);
+    syncUDDT(CI_s);
+    syncUDDT(RR_s);
+    syncUDDT(dv_s);
+
+    double z;
+    unsigned long u;
+    MPI_Reduce(&(z=eV_av_s),  &eV_av_s,  1, MPI_DOUBLE,        MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=eV_N_s),   &eV_N_s,   1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_min_s), &eV_min_s, 1, MPI_DOUBLE,        MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_max_s), &eV_max_s, 1, MPI_DOUBLE,        MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=eV_10_s),  &eV_10_s,  1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
 };
 
 typedef boost::shared_ptr<CollisionTypeDiag> collTDPtr;
@@ -126,6 +179,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
+  std::vector<double> Esum;
+  double Esum_s;
 
   //! Make the file header the first time
   void initialize();
@@ -142,6 +197,10 @@ public:
 
   //! Zero out the structures maintained by the CollisionTypeDiag maps
   void reset();
+
+  //! Add cell energy
+  void addCell(double E, int id) { Esum[id] += E; }
+
 };
 
 /**
@@ -156,13 +215,16 @@ public:
    </ol>
 
    The parseSpecies member function reads a specification file whose
-   first line must include the tag string "direct" or "trace" to
-   select the algorithm.  The "direct" file contains lines specifying
-   the atomic number, Z, of the species represented in the simulation,
-   one value per line.  The "trace" file contains line with triples of
-   numbers containing Z, the charge state C (C=1 means neutral, C=2 is
-   the first ionization state, etc.) and the index position of the
-   mass fraction in the Particle dattrib vector.
+   first line must include the tag string "direct", "weight", or
+   "trace" to select the algorithm.  The "direct" file contains lines
+   specifying the atomic number, Z, of the species represented in the
+   simulation, one value per line.  The "weight" file contains lines
+   specifying the atomic number, Z, of the species represented in the
+   simulation followed by the relative particle weight, two values per
+   line.  The "trace" file contains line with triples of numbers
+   containing Z, the charge state C (C=1 means neutral, C=2 is the
+   first ionization state, etc.) and the index position of the mass
+   fraction in the Particle dattrib vector.
  */
 class CollideIon : public Collide
 {
@@ -171,47 +233,67 @@ class CollideIon : public Collide
 private:
 
   chdata ch;
-  Elastic elastic;
-  Geometric geometric;
-  InteractSelect IS;
 
-  std::map<unsigned short, std::pair<unsigned short, double> > interInfo;
+  //! Neutral atom--electron cross-section for hydrogen and helium
+  //! interpolated from experimentally calibrated theortical data (see
+  //! Elastic.H)
+  Elastic elastic;
+
+  //! Geometric cross section for each atom based on theoretical
+  //! comptuation of atomic radius in units of nm^2 for consistency
+  //! with CHIANTI.
+  Geometric geometric;
+
+  InteractSelect IS;
 
   ACG     *gen;
   Uniform *unit;
   
   //@{
   //! Inelastic work space
-  typedef std::vector< std::pair<double, double> > CEvector;
-  typedef std::pair<speciesKey, speciesKey>        dKey;
-  typedef std::map<dKey, std::vector<double> >     keyCrossMap;
-  typedef std::map<dKey, std::vector<int>    >     keyInterMap;
-  typedef std::map<dKey, CEvector>                 keyColExMap;
-  typedef std::map<speciesKey, double>             keyWghtsMap;
+  typedef std::vector< std::pair<double, double> >   CEvector;
+  typedef std::pair<speciesKey, speciesKey>          dKey;
+  typedef std::pair<dKey, double>                    dKeyD;
+  typedef std::map<speciesKey, std::vector<double> > keyCross;
+  typedef std::map<speciesKey, std::vector<int>    > keyInter;
+  typedef std::map<speciesKey, CEvector>             keyColEx;
+  typedef std::map<speciesKey, double>               keyWghts;
+  typedef std::list<dKeyD>                           keyWexsList;
 
-  std::vector< std::vector<double> >               dCrossMap;
-  std::vector< std::vector<int>    >               dInterMap;
-  std::vector< keyCrossMap >                       sCrossMap;
-  std::vector< keyInterMap >                       sInterMap;
-  std::vector< keyWghtsMap >                       sWghtsMap;
-  std::vector< CEvector    >                       CE1, CE2;
-  std::vector< keyColExMap >                       kCE1, kCE2;
-  std::vector< double >                            kEi, kEe1, kEe2;
-  std::vector< double >                            Ein1, Ein2;
-  std::vector< double >                            spCrm, spTau, spProb, spWght;
+  std::vector< std::vector<double> >                 dCross;
+  std::vector< std::vector<int>    >                 dInter;
+  std::vector< keyCross >                            sCross; 
+  std::vector< keyWghts >                            meanF;
+  std::vector< keyWghts >                            sCrsTot1, sCrsTot2;
+  std::vector< keyWexsList >                         excessW;
+  std::vector< keyInter >                            sInter;
+  std::vector< CEvector >                            CE1, CE2;
+  std::vector< keyColEx >                            kCE;
+  std::vector< double >                              meanE, neutF, meanR, meanM;
+  std::vector< double >                              kEi, kEe1, kEe2;
+  std::vector< double >                              Ein1, Ein2, Evel;
+  std::vector< double >                              spCrm, spTau, spProb;
+  std::vector< unsigned >                            spNsel;
   //@}
 
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
-    geometric_1 = 100,
+    neut_neut   = 0,
+    neut_elec   = 1,
+    ion_elec    = 2,
+    free_free   = 3,
+    colexcite   = 4,
+    recomb      = 5,
+    ionize      = 6,
+    neut_neut_1 = 100,
     neut_elec_1 = 101,
     ion_elec_1  = 102,
     free_free_1 = 103,
     colexcite_1 = 104,
     ionize_1    = 105,
     recomb_1    = 106,
-    geometric_2 = 200,
+    neut_neut_2 = 200,
     neut_elec_2 = 201,
     ion_elec_2  = 202,
     free_free_2 = 203,
@@ -223,11 +305,22 @@ private:
   std::map<int, std::string> labels;
 
   //! Mnemonic for the type of algorithm selected by the user
-  enum AlgorithmType { Direct,  Trace };
+  enum AlgorithmType { Direct, Weight, Trace };
+  const char* AlgorithmLabels[3] = {"Direct", "Weight", "Trace"};
+
+  //@{
+  //! eVEL quantiles
+  const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
+  std::vector<double> elecV, ionV;
+  const size_t bufCap = 16384;
+  std::vector< boost::circular_buffer<double> > velER;
+  ahistoDPtr elecH, ionH, lossH;
+  //@}
 
 public:
 
   typedef std::set<unsigned short> ZLtype;
+  typedef std::map<unsigned short, double> ZWtype;
 
 protected:
 
@@ -240,75 +333,137 @@ protected:
   //! implementation
   ZLtype ZList;
 
+  //@{
+  //! Set of the elements (atomic number) for weighted multi-species
+  //! implementation
+  ZWtype ZWList, ZMList;
+  //@}
+
+  //! Designated non-trace element
+  unsigned short sFid;
+
   //! Map of species to attribute position for trace multi-species
   //! implementation
   std::map<speciesKey, int> SpList;
+
+  //! Attribute location for energy excess in "weight" algorithm
+  int use_cons;
+
+  //! Electron velocity position in attribute vector
+  int use_elec;
 
   //! The algorithm type
   AlgorithmType aType;
 
 protected:
   
-  void initialize_cell(pHOT* tree, pCell* c, double rvmax, int id);
+  virtual void 
+  initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);
 
-  void initialize_cell_dsmc(pHOT* tree, pCell* c, sKey2Umap& nsel, 
-			    double rvmax, double tau, int id) {}
+  virtual void 
+  initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+		       double rvmax, double tau, int id) {}
 
-  void initialize_cell_epsm(pHOT* tree, pCell* c, sKey2Umap& nsel, 
-			    double rvmax, double tau, int id) 
+  virtual void 
+  initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
     exit(-1);
   }
   
-  void finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
+  virtual void 
+  finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
 
   
-  sKey2Dmap& totalCrossSections(int id)
+  virtual sKey2Dmap& totalCrossSections(int id)
   {    
     return csections[id];
   }
 
-  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* c, int id);
+  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
-  double crossSectionDirect(pHOT* tree, Particle* p1, Particle* p2, 
-		      double crm, int id=0);
+  double crossSectionDirect(pCell* const c, 
+			    Particle* const p1, Particle* const p2, 
+			    double crm, int id=0);
   
-  int inelasticDirect(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  int inelasticDirect(pCell* const c, 
+		      Particle* const p1, Particle* const p2, 
+		      double *crm, int id=0);
 
-  double crossSectionTrace(pHOT* tree, Particle* p1, Particle* p2, 
-		      double crm, int id=0);
+  double crossSectionWeight(pCell* const c, 
+			    Particle* const p1, Particle* const p2, 
+			    double crm, int id=0);
+  
+  int inelasticWeight(pCell* const c, 
+		      Particle* const p1, Particle* const p2, 
+		      double *crm, int id=0);
 
-  int inelasticTrace(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0);
+  double crossSectionTrace(pCell* const c, 
+			   Particle* const p1, Particle* const p2, 
+			   double crm, int id=0);
 
-  double crossSection(pHOT* tree, Particle* p1, Particle* p2, 
-		      double crm, int id=0)
+  int inelasticTrace(pCell* const c, 
+		     Particle* const p1, Particle* const p2, 
+		     double *crm, int id=0);
+
+  virtual double crossSection(pCell* const c, 
+			      Particle* const p1, Particle* const p2, 
+			      double crm, int id=0)
   {
     if (aType == Direct)
-      return crossSectionDirect(tree, p1, p2, crm, id);
+      return crossSectionDirect(c, p1, p2, crm, id);
+
+    if (aType == Weight)
+      return crossSectionWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return crossSectionTrace(tree, p1, p2, crm, id);
+      return crossSectionTrace(c, p1, p2, crm, id);
 
     return 0.0;
   }
 
 
-  int inelastic(pHOT *tree, Particle* p1, Particle* p2, double *crm, int id=0)
+  virtual int 
+  inelastic(pCell* const c, Particle* const p1, Particle* const p2, 
+	    double *crm, int id=0)
   {
     if (aType == Direct)
-      return inelasticDirect(tree, p1, p2, crm, id);
+      return inelasticDirect(c, p1, p2, crm, id);
+
+    if (aType == Weight)
+      return inelasticWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return inelasticTrace(tree, p1, p2, crm, id);
+      return inelasticTrace(c, p1, p2, crm, id);
 
     return 1;
   }
 
+  virtual void 
+  velocityUpdate(Particle* const p1, Particle* const p2, double cr)
+  {
+    if (aType == Direct)
+      Collide::velocityUpdate(p1, p2, cr);
+    if (aType == Weight) {
+      double vr = 0.0;		// This is all debugging!
+      for (size_t k=0; k<3; k++) {
+	double z = p1->vel[k] - p2->vel[k];
+	vr += z*z;
+      }
+      vr = sqrt(vr);
+      if ( fabs(vr - cr) > 1.0e-20 ) {
+	std::cout << "Velocity mismatch: vr=" << vr << " cr="
+		  << cr << std::endl;
+      }
+    }
 
-  bool hasHeatCool() { return true; }
+    return;
+  }
 
-  double getCoolingRate(int id) { return 0; }
+  virtual bool hasHeatCool() { return true; }
+
+  virtual double getCoolingRate(int id) { return 0; }
   
   void parseSpecies(const std::string& map);
 
@@ -325,7 +480,7 @@ protected:
   //! Cross-section debugging
   std::string cross_debug;
   std::vector<double> cross1_dbg, cross2_dbg;
-  double nextTime_dbg;
+  double nextTime_dbg, vavg_dbg;
   int nCnt_dbg;
   static constexpr double delTime_dbg = 0.001;
   static constexpr int nCel_dbg = 10;
@@ -333,11 +488,18 @@ protected:
   //@}
 
 
-  virtual sKey2Umap generateSelectionDirect(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
+					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionTrace(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
+					    double crm, double tau, int id,
+					    double& meanLambda, double& meanCollP, 
+					    double& totalNsel);
+
+  virtual sKey2Umap generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
+					   double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
 
@@ -349,18 +511,40 @@ protected:
   //! Trace species maps for diagnostics
   typedef std::map<speciesKey, int> spMap;
   typedef spMap::iterator spItr;
+  void printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
+			  double T);
   void printSpeciesTrace();
   void gatherSpecies();
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempM, molwM;
+  double tempM, tempE, molwM, consE, totlE;
   spDMap specM;
   //@}
 
-  // For debugging
+  //! For debugging
   void debugDeltaE(double delE, unsigned short Z, unsigned short C,
 		   double dE, double prob, int interFlag);
+
+  //@{
+  //! Expensive diagnostics, only use these if you must
+  void electronGather();
+  void electronPrint(std::ostream&out );
+  //@}
+
+  //! Consider commenting these tests out for production
+  virtual void auxGather() 
+  { 
+    mfpCLGather(); 
+    electronGather(); 
+  }
+
+  //! Consider commenting these tests out for production
+  virtual void auxPrint(std::ostream& out) 
+  { 
+    mfpCLPrint(out); 
+    electronPrint(out); 
+  }
 
 public:
   static double Nmin;
@@ -371,11 +555,11 @@ public:
   static unsigned Nnum;
   static unsigned Tnum;
   static string cache;
-  static bool frost_warning;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
-	     double hsDiam, double diamfac, const std::string& spcMap, int nth=1);
+	     double hsDiam, double crossfac, 
+	     const std::string& spcMap, int nth=1);
 
   //! Destructor
   ~CollideIon();
@@ -404,12 +588,13 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, 
+				      double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 
-  //! Compute/retrieve mean molecular weight for this gas
-  virtual double molWeight();
+  //! Compute/retrieve mean molecular weight for this cell
+  virtual double molWeight(sCell *c);
 
 };
 

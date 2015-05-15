@@ -487,10 +487,9 @@ int main(int argc, char**argv)
 	  // Get ranges
 	  //
 	  if (verbose) {
-	    map<string, fRecord>::iterator it;
-	    for (it=fields.begin(); it!=fields.end(); it++) {
-	      string f = it->first;
-	      int id   = it->second.index;
+	    for (auto i : fields) {
+	      string f = i.first;
+	      int id   = i.second.index;
 	      if (id>=0 && its->comp.ndatr>id) {
 		fields[f].min = min<double>(prt->datr(id), fields[f].min);
 		fields[f].max = max<double>(prt->datr(id), fields[f].max);
@@ -720,26 +719,24 @@ int main(int argc, char**argv)
 	 << endl
       	 << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');
 
-    map<string, fPosVel>::iterator it = posvel.begin();
-    for (it=posvel.begin(); it!=posvel.end(); it++) {
-      it->second.begin();
-      while (it->second.next()) {
+    for (auto i : posvel) {
+      i.second.begin();
+      while (i.second.next()) {
 	ostringstream lab;
-	lab << it->second.lab() << "(" << it->first << ")";
+	lab << i.second.lab() << "(" << i.first << ")";
 	cout << setw(10) << left << lab.str()
-	     << setw(15) << left << it->second.min()
-	     << setw(15) << left << it->second.max()
+	     << setw(15) << left << i.second.min()
+	     << setw(15) << left << i.second.max()
 	     << endl;
       }
       cout << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');
     }
 
     if (fields.size()) {
-      for (map<string, fRecord>::iterator 
-	     it=fields.begin(); it!=fields.end(); it++)
-	cout << setw(8)  << left << it->first
-	     << setw(15) << left << it->second.min
-	     << setw(15) << left << it->second.max
+      for (auto i : fields)
+	cout << setw(8)  << left << i.first
+	     << setw(15) << left << i.second.min
+	     << setw(15) << left << i.second.max
 	     << endl;
 
       cout << setw(42) << left << setfill('-') << '-' << endl << setfill(' ');

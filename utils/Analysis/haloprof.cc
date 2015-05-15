@@ -226,7 +226,9 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
   if (cflag & Star) {
     if (myid==0) {
       nbods = psp->CurrentDump()->nstar;
-      psp->GetStar();
+
+      PSPstanza *cur = psp->GetStar();
+      in->seekg(cur->pspos, ios::beg);
 
       add_particles(in, psp, nbods, p);
     } else {
@@ -237,7 +239,9 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
   if (cflag & Gas) {
     if (myid==0) {
       int nbods = psp->CurrentDump()->ngas;
-      psp->GetGas();
+
+      PSPstanza *cur = psp->GetGas();
+      in->seekg(cur->pspos, ios::beg);
 
       add_particles(in, psp, nbods, p);
     } else {
@@ -248,7 +252,9 @@ void partition(ifstream* in, PSPDump* psp, int cflag, vector<Particle>& p)
   if (cflag & Halo) {
     if (myid==0) {
       int nbods = psp->CurrentDump()->ndark;
-      psp->GetDark();
+
+      PSPstanza *cur = psp->GetDark();
+      in->seekg(cur->pspos, ios::beg);
 
       add_particles(in, psp, nbods, p);
     } else {
@@ -704,10 +710,9 @@ main(int argc, char **argv)
 
     if (myid==0) cout << "Accumulating for basis . . . " << flush;
     ortho.reset_coefs();
-    for (vector<Particle>::iterator it=particles.begin(); it!=particles.end(); it++) 
-      {
-	ortho.accumulate(it->pos[0], it->pos[1], it->pos[2], it->mass);
-      }
+    for (auto &i : particles) {
+      ortho.accumulate(i.pos[0], i.pos[1], i.pos[2], i.mass);
+    }
     MPI_Barrier(MPI_COMM_WORLD);
     if (myid==0) cout << "done" << endl;
   

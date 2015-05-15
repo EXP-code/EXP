@@ -56,7 +56,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   madj       = 512;		// No tree pruning by default
   epsm       = -1.0;
   hsdiam     = 1.0;
-  diamfac    = 1.0;
+  crossfac   = 1.0;
   boxsize    = 1.0;
   boxratio   = 1.0;
   comp_name  = "gas disk";
@@ -86,6 +86,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   use_pullin = false;
   esol       = false;
   ntc        = true;
+  ntcdef     = 10.0;
   cba        = true;
   tube       = false;
   slab       = false;
@@ -100,20 +101,23 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   initialize();
 
   // Initialize the atomic_weights map hardcode the atomic weight map
-  // for use in collFrac
+  // for use in collFrac.  Weights in atomic mass units (amu)
 
-  atomic_weights[1]  = 1.0079;
-  atomic_weights[2]  = 4.0026;
-  atomic_weights[3]  = 6.941;
-  atomic_weights[4]  = 9.0122;
-  atomic_weights[5]  = 10.811;
-  atomic_weights[6]  = 12.011;
-  atomic_weights[7]  = 14.007;
-  atomic_weights[8]  = 15.999;
-  atomic_weights[9]  = 18.998;
-  atomic_weights[10] = 20.180;
-  atomic_weights[11] = 22.990;
-  atomic_weights[12] = 24.305;
+  atomic_weights[0]  = 0.000548579909; // Electron
+  atomic_weights[1]  = 1.0079;	       // Hydrogen
+  atomic_weights[2]  = 4.0026;	       // Helium
+  atomic_weights[3]  = 6.941;	       // Lithium
+  atomic_weights[4]  = 9.0122;	       // Beryllium
+  atomic_weights[5]  = 10.811;	       // Boron
+  atomic_weights[6]  = 12.011;	       // Carbon
+  atomic_weights[7]  = 14.007;	       // Nitrogen
+  atomic_weights[8]  = 15.999;	       // Oxygen
+  atomic_weights[9]  = 18.998;	       // Florine
+  atomic_weights[10] = 20.180;	       // Neon
+  atomic_weights[11] = 22.990;	       // Sodium
+  atomic_weights[12] = 24.305;	       // Magnesium
+  atomic_weights[13] = 26.982;	       // Aluminium
+  atomic_weights[14] = 28.085;	       // Silicon
 
   // add in atomic weights for any other higher, more tracer, species
 
@@ -370,8 +374,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   Eunit = Munit*Vunit*Vunit;
 
 				// Number of protons per mass unit
-  for (std::map<speciesKey, double>::iterator 
-	 it=collFrac.begin(); it!=collFrac.end(); it++) it->second *= Munit/amu;
+  for (auto it=collFrac.begin(); it!=collFrac.end(); it++) 
+    it->second *= Munit/amu;
   
   pHOT::sub_sample = sub_sample;
 
@@ -398,26 +402,27 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
-  Collide::NTC     = ntc;
-  Collide::PULLIN  = use_pullin;
-  Collide::ESOL    = esol;
+  Collide::NTC       = ntc;
+  Collide::PULLIN    = use_pullin;
+  Collide::ESOL      = esol;
   Collide::EPSMratio = epsm;
-  Collide::DRYRUN  = dryrun;
-  Collide::NOCOOL  = nocool;
-  Collide::TSDIAG  = tsdiag;
-  Collide::VOLDIAG = voldiag;
-  Collide::TSPOW   = tspow;
-  Collide::MFPDIAG = mfpstat;
-  Collide::EFFORT  = use_effort;
-  Collide::ENHANCE = enhance;
+  Collide::DRYRUN    = dryrun;
+  Collide::NOCOOL    = nocool;
+  Collide::TSDIAG    = tsdiag;
+  Collide::VOLDIAG   = voldiag;
+  Collide::TSPOW     = tspow;
+  Collide::MFPDIAG   = mfpstat;
+  Collide::EFFORT    = use_effort;
+  Collide::ENHANCE   = enhance;
+  NTCitem::VelCrsDef = ntcdef;
 
   //
   // Create the collision instance from the allowed list
   //
   if (ctype.compare("LTE") == 0)
-    collide = new CollideLTE(this, c0, hsdiam, diamfac, nthrds);
+    collide = new CollideLTE(this, c0, hsdiam, crossfac, nthrds);
   if (ctype.compare("Ion") == 0)
-    collide = new CollideIon(this, c0, hsdiam, diamfac, spec_map, nthrds);
+    collide = new CollideIon(this, c0, hsdiam, crossfac, spec_map, nthrds);
   else {
     if (myid==0) std::cout << "No such Collide type: " << ctype 
 			   << std::endl;
@@ -493,8 +498,9 @@ void UserTreeDSMC::userinfo()
   cout << "** User routine TreeDSMC initialized, "
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
-       << ", cnum=" << cnum << ", hsdiam=" << hsdiam << ", diamfac=" << diamfac
-       << ", madj=" << madj << ", epsm=" << epsm << ", boxsize=" << boxsize 
+       << ", cnum=" << cnum << ", hsdiam=" << hsdiam 
+       << ", crossfac=" << crossfac << ", madj=" << madj 
+       << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name
        << ", keyPos=" << use_key;
@@ -529,6 +535,13 @@ void UserTreeDSMC::userinfo()
     if (use_delt>=0) 
       cout << ", time step at pos=" << use_delt << ", coolfrac=" << coolfrac;
   }
+
+  cout << ", collsion type=" << ctype;
+
+  if (ctype.compare("Ion") == 0) {
+    cout << ", rr type=" << Ion::getRRtype();
+  }
+
   cout << endl;
 
   print_divider();
@@ -545,7 +558,7 @@ void UserTreeDSMC::initialize()
   if (get_value("madj", val))		madj       = atoi(val.c_str());
   if (get_value("epsm", val))		epsm       = atof(val.c_str());
   if (get_value("hsdiam", val))		hsdiam     = atof(val.c_str());
-  if (get_value("diamfac", val))	diamfac    = atof(val.c_str());
+  if (get_value("crossfac", val))	crossfac    = atof(val.c_str());
   if (get_value("boxsize", val))	boxsize    = atof(val.c_str());
   if (get_value("boxratio", val))	boxratio   = atof(val.c_str());
   if (get_value("coolfrac", val))	coolfrac   = atof(val.c_str());
@@ -578,12 +591,25 @@ void UserTreeDSMC::initialize()
   if (get_value("esol", val))		esol       = atol(val);
   if (get_value("cba", val))		cba        = atol(val);
   if (get_value("ntc", val))		ntc        = atol(val);
+  if (get_value("ntcdef", val))		ntcdef     = atof(val.c_str());
   if (get_value("tube", val))		tube       = atol(val);
   if (get_value("slab", val))		slab       = atol(val);
   if (get_value("sub_sample", val))	sub_sample = atol(val);
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
+
+  if (get_value("rrtype", val)) {
+    if (Ion::setRRtype(val)) {
+      if (myid==0) {
+	std::cerr << "UserTreeDSMC: invalid rrtype <" << val << ">" 
+		  << std::endl;
+      }
+      MPI_Barrier(MPI_COMM_WORLD);
+      MPI_Finalize();
+      exit(-1);
+    }
+  }
 
   if (get_value("ctype", val)) {
     if (check_ctype(val)) ctype = val;
@@ -1118,6 +1144,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       double Mass = 0.0;
       unsigned Counts = 0;
       c0->Tree()->totalMass(Counts, Mass);
+      c0->Tree()->computeCellStates();
       
       // Check frontier for mass at or below 
       // current level
@@ -1261,6 +1288,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       collide->printCollGather();
       (*barrier)("TreeDSMC: AFTER Collide::printCollGather",  __FILE__, __LINE__);
       
+      (*barrier)("TreeDSMC: BEFORE Collide::auxGather",  __FILE__, __LINE__);
+      collide->auxGather();
+      (*barrier)("TreeDSMC: AFTER Collide::auxGather",  __FILE__, __LINE__);
+      
       if (use_key>=0) {
 	(*barrier)("TreeDSMC: BEFORE species map update", __FILE__, __LINE__);
 	makeSpeciesMap();
@@ -1271,19 +1302,19 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       //
       (*barrier)("TreeDSMC: BEFORE Collide::gatherSpecies",  __FILE__, __LINE__);
       collide->gatherSpecies();
-      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",  __FILE__, __LINE__);
+      (*barrier)("TreeDSMC: AFTER Collide::gatherSpecies",   __FILE__, __LINE__);
       
       // Get NTC statistics
       //
       (*barrier)("TreeDSMC: BEFORE Collide::NTCgather",  __FILE__, __LINE__);
-      collide->gatherSpecies();
-      (*barrier)("TreeDSMC: AFTER Collide::NTCgather",  __FILE__, __LINE__);
+      collide->NTCgather(c0->Tree());
+      (*barrier)("TreeDSMC: AFTER Collide::NTCgather",   __FILE__, __LINE__);
       
       // Get level statistics from tree
       //
       (*barrier)("TreeDSMC: BEFORE pHOT::gatherCellLevelList",  __FILE__, __LINE__);
       c0->Tree()->gatherCellLevelList();
-      (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",  __FILE__, __LINE__);
+      (*barrier)("TreeDSMC: AFTER pHOT::gatherCellLevelList",   __FILE__, __LINE__);
       
       if (myid==0) {
 	
@@ -1397,6 +1428,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	       << disp[1]/dmean << ", " << disp[2]/dmean << endl << endl;
 	}
 	
+	collide->auxPrint(mout);
+
 	unsigned sumcells=0, sumbodies=0;
 	mout << endl;
 	mout << "-----------------------------------------------------" << endl;
@@ -1877,8 +1910,8 @@ void UserTreeDSMC::makeSpeciesMap()
 {
   // Clean the local and global maps
   //
-  spec .erase(spec .begin(), spec .end());
-  spec1.erase(spec1.begin(), spec1.end());
+  spec .clear();
+  spec1.clear();
   std::vector<double> T1(2, 0), T0(2, 0);
   
   // Particle loop

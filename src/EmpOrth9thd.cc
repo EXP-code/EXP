@@ -2141,8 +2141,7 @@ void EmpCylSL::accumulate_eof(vector<Particle>& part, bool verbose)
 
   setup_eof();
 
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
+  for (auto p=part.begin(); p!=part.end(); p++) {
 
     mass = p->mass;
     r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);
@@ -2168,8 +2167,7 @@ void EmpCylSL::accumulate(vector<Particle>& part, int mlevel, bool verbose)
 
   setup_accumulation();
 
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
+  for (auto p=part.begin(); p!=part.end(); p++) {
 
     mass = p->mass;
     r = sqrt(p->pos[0]*p->pos[0] + p->pos[1]*p->pos[1]);

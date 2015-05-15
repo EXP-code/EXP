@@ -160,13 +160,12 @@ void SphericalSL::compute_coefficients(vector<Particle> &part)
 
   use = 0;
 
-  vector<Particle>::iterator p;
-  for (p=part.begin(); p!=part.end(); p++) {
+  for (auto &p : part) {
     
-    xx = p->pos[0];
-    yy = p->pos[1];
-    zz = p->pos[2];
-    mass = p->mass;
+    xx = p.pos[0];
+    yy = p.pos[1];
+    zz = p.pos[2];
+    mass = p.mass;
 
     r2 = (xx*xx + yy*yy + zz*zz);
     r = sqrt(r2) + MINDOUBLE;

@@ -87,8 +87,8 @@ int get_key_value_from_file(string file,
     return 0;
   }
 				// Start with empty elements
-  word.erase(word.begin(), word.end());
-  valu.erase(word.begin(), word.end());
+  word.clear();
+  valu.clear();
 
   int num=0;
   const int lbufsize=1024;
@@ -109,8 +109,8 @@ int get_key_value(int argc, char **argv,
 		  vector<string>& word, vector<string>& valu)
 {
 				// Start with empty elements
-  word.erase(word.begin(), word.end());
-  valu.erase(word.begin(), word.end());
+  word.clear();
+  valu.clear();
 
   int num=0;
   for (int i=0; i<argc; i++) {
