@@ -1128,6 +1128,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 */
 std::vector<double> Ion::radRecombCrossKramers(double E, int id) 
 {
+  const double nfac   = 64.0*M_PI/pow(3.0, 1.5);
+
   const double incmEv = light * planck / eV;
 
   // Bohr radius in nm
@@ -1178,7 +1180,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
     // Kramers cross section
     //
     double Erat   = Elv/Enu;
-    double sigmaP = 0.25*alpha0*f->lvl*aeff*aeff*Erat*Erat*Erat;
+    double sigmaP = nfac*alpha0*f->lvl*aeff*aeff*Erat*Erat*Erat;
 
     // Ion statistical weight
     //
