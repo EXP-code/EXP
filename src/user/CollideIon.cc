@@ -51,7 +51,8 @@ const bool NO_VEL            = false;
 //
 const bool NO_COOL           = false;
 
-// KE debugging; set to false for production
+// KE debugging: checks energy bookkeeping for weighted algorithm. Set
+// to false for production
 //
 const bool KE_DEBUG          = true;
 
@@ -2520,7 +2521,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   }
 
   vfac = 1.0;
-  if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 1.0;
+  if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
 
   *cr = 0.0;
   for (size_t k=0; k<3; k++) {
@@ -2558,10 +2559,12 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
 		<< std::setw(14) << dKE + Exs - delE - missE
 		<< ", dKE=" << std::setw(14) << dKE
-		<< ", Cns=" << std::setw(14) << deltaKE
-		<< ", Exs=" << std::setw(14) << Exs
+		<< ", KE0=" << std::setw(14) << kE
+		<< ", tot=" << std::setw(14) << totE
+		<< ", com=" << std::setw(14) << deltaKE
+		<< ", exs=" << std::setw(14) << Exs
 		<< ", del=" << std::setw(14) << delE
-		<< ", msE=" << std::setw(14) << missE
+		<< ", mis=" << std::setw(14) << missE
 		<< ", fac=" << std::setw(14) << vfac
 		<< std::endl;
   }
