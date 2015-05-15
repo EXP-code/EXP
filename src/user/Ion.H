@@ -470,13 +470,20 @@ public:
   static int setRRtype(const std::string& rr) 
   {
     if (rr_map.find(rr) == rr_map.end()) {
-      Ion::rr_type = Ion::mewe;	// Default type
+      rr_type = Ion::mewe;	// Default type
       return 1;			// Failure
     } else { 			// Set request
-      Ion::rr_type = rr_map[rr];
+      rr_type = rr_map[rr];
       return 0;			// Success
     }
   }
+
+  //! Get cross-section type
+  static const std::string& getRRtype()
+  {
+    return rr_lab[rr_type];
+  }
+
 };
 
 typedef boost::shared_ptr<Ion> IonPtr;

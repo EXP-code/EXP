@@ -51,7 +51,8 @@ const bool NO_VEL            = false;
 //
 const bool NO_COOL           = false;
 
-// KE debugging; set to false for production
+// KE debugging: checks energy bookkeeping for weighted algorithm. Set
+// to false for production
 //
 const bool KE_DEBUG          = true;
 

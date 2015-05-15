@@ -532,6 +532,13 @@ void UserTreeDSMC::userinfo()
     if (use_delt>=0) 
       cout << ", time step at pos=" << use_delt << ", coolfrac=" << coolfrac;
   }
+
+  cout << ", collsion type=" << ctype;
+
+  if (ctype.compare("Ion") == 0) {
+    cout << ", rr type=" << Ion::getRRtype();
+  }
+
   cout << endl;
 
   print_divider();

@@ -1071,20 +1071,6 @@ double Ion::freeFreeCross(double Ei, int id)
 
 std::vector<double> Ion::radRecombCross(double E, int id)
 {
-  // For choosing and logging cross-section type
-  //
-  static bool first = true;
-
-  // Log the type to stdout
-  //
-  if (first && myid==0 && id==0) {
-    std::cout << std::endl << std::string(70, '-') << std::endl
-	      << "--- Ion: radiative recombination cross section is " 
-	      << rr_lab[rr_type] << std::endl
-	      << std::string(70, '-') << std::endl;
-  }
-  first = false;
-
   // For testing . . .
   //
   //  +--- True for verbose debug reporting for all cross-section types
