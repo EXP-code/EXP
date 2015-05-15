@@ -2446,7 +2446,9 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Compute the change of energy in the collision frame by computing
   // the velocity reduction factor
   //
-  double vfac = kE>0.0 ? sqrt(totE0/kE) : 0.0;
+  
+  double vfac = 1.0;
+  if (kE>0.0) vfac = totE0>0.0 ? sqrt(totE0/kE) : 0.0;
 
   // Update electron velocties.  Electron velocity is computed so that
   // momentum is conserved ignoring the doner ion.  Use of reduction
@@ -2517,7 +2519,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     vrel[k] = p1->vel[k] - p2->vel[k];
   }
 
-  vfac = kE>0.0 ? sqrt(totE/kE) : 0.0;
+  vfac = 1.0;
+  if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 1.0;
 
   *cr = 0.0;
   for (size_t k=0; k<3; k++) {
