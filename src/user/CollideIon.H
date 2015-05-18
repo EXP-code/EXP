@@ -549,14 +549,15 @@ protected:
   }
 
 public:
-  static double Nmin;
-  static double Nmax;
-  static double Tmin;
-  static double Tmax;
-  static double TolV;
+  static double   Nmin;
+  static double   Nmax;
+  static double   Tmin;
+  static double   Tmax;
+  static double   TolV;
   static unsigned Nnum;
   static unsigned Tnum;
-  static string cache;
+  static string   cache;
+  static bool     equiptn;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 

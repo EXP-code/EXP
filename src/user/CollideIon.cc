@@ -24,6 +24,7 @@ double   CollideIon::TolV    = 1.0e-03;
 unsigned CollideIon::Nnum    = 400;	   
 unsigned CollideIon::Tnum    = 200;	   
 string   CollideIon::cache   = ".HeatCool";
+bool     CollideIon::equiptn = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -55,10 +56,6 @@ const bool NO_COOL           = false;
 // to false for production
 //
 const bool KE_DEBUG          = true;
-
-// Equipartition after electron interaction
-//
-const bool KE_EQUIP          = true;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
@@ -2486,7 +2483,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   if (use_elec and interFlag > 100 and interFlag < 200) {
 
-    if (KE_EQUIP) {
+    if (equiptn) {
       for (size_t k=0; k<3; k++) {
 	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k])/Mt;
 	vrel[k] = (vcom[k] - v2[k])*Mt/m1;
@@ -2512,7 +2509,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
-    if (KE_EQUIP) {
+    if (equiptn) {
       for (size_t k=0; k<3; k++) {
 	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k])/Mt;
 	vrel[k] = (vcom[k] - v1[k])*Mt/m2;
@@ -2589,9 +2586,116 @@ int CollideIon::inelasticWeight(pCell* const c,
 		<< std::endl;
   }
   
-  if (KE_EQUIP and use_elec) {
+  if (equiptn and use_elec) {
 
     if (interFlag > 100 and interFlag < 200) {
+
+      m1 = atomic_weights[Z2];
+      m2 = atomic_weights[0 ];
+      Mt = m1 + m2;
+      Mu = m1 * m2 / Mt;
+
+      KE1i = KE2i = 0.0;
+      KE1f = KE2f = 0.0;
+
+      double cost = 0.0, VC2 = 0.0, VR2 = 0.0;
+
+      for (size_t k=0; k<3; k++) {
+	KE1i += p2->vel[k] * p2->vel[k];
+	KE2i += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
+	cost += p2->vel[k] * p2->dattrib[use_elec+k];
+
+	vcom[k] = (m1*p2->vel[k] + m2*p2->dattrib[use_elec+k])/Mt;
+	vrel[k] = p2->vel[k] - p2->dattrib[use_elec+k];
+
+	VC2    += vcom[k] * vcom[k];
+	VR2    += vrel[k] * vrel[k];
+      }
+
+      if (KE1i > 0.0 and KE2i > 0.0) cost /= sqrt(KE1i * KE2i);
+
+      double dmr   = cost / (m1 - m2);
+      double gamma = 1.0 + 4.0*Mt*Mu*dmr*dmr;
+      double E0    = 0.5*Mt*VC2 + 0.5*Mu*VR2;
+
+      double gamP  = 1.0 + sqrt(1.0 - 1.0/gamma);
+      double gamN  = 1.0 - sqrt(1.0 - 1.0/gamma);
+
+      double virP  = 
+	(VC2 - E0/Mt*gamN)*(VC2 - E0/Mt*gamN) +
+	(VR2 - E0/Mu*gamP)*(VR2 - E0/Mu*gamP) ;
+	
+      double virN  = 
+	(VC2 - E0/Mt*gamP)*(VC2 - E0/Mt*gamP) +
+	(VR2 - E0/Mu*gamN)*(VR2 - E0/Mu*gamN) ;
+	
+      double vcfac = 0.0, vrfac = 0.0;
+
+      if (virP > virN) {
+	vcfac = sqrt(E0/Mt*gamN);
+	vrfac = sqrt(E0/Mu*gamP);
+      } else {
+	vcfac = sqrt(E0/Mt*gamP);
+	vrfac = sqrt(E0/Mu*gamN);
+      }
+
+      if (VC2>0.0) {
+	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
+      } else {
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+	vcom[0] = cos_th;
+	vcom[1] = sin_th*cos(phi);
+	vcom[2] = sin_th*sin(phi);
+      }
+
+      if (VR2>0.0) {
+	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
+      } else {
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+	vrel[0] = cos_th;
+	vrel[1] = sin_th*cos(phi);
+	vrel[2] = sin_th*sin(phi);
+      }
+
+      for (size_t k=0; k<3; k++) {
+	p2->vel[k]              = vcom[k]*vcfac + m2/Mt * vrel[k]*vrfac;
+	p2->dattrib[use_elec+k] = vcom[k]*vcfac - m1/Mt * vrel[k]*vrfac;
+
+	KE1f += p2->vel[k] * p2->vel[k];
+	KE2f += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
+      }
+
+      KE1i *= 0.5*m1;
+      KE1f *= 0.5*m1;
+
+      KE2i *= 0.5*m2;
+      KE2f *= 0.5*m2;
+
+      double KEi = KE1i + KE2i;
+      double KEf = KE1f + KE2f;
+
+      if ( fabs(KEi - KEf) > 1.0e-14*KEi ) {
+	std::cout << "Test(1): keI=[" 
+		  << std::setw(16) << KE1i << ", " 
+		  << std::setw(16) << KE2i << "] keF=[" 
+		  << std::setw(16) << KE1f << ", " 
+		  << std::setw(16) << KE2f << "] vir=[" 
+		  << std::setw(16) << virP << ", "
+		  << std::setw(16) << virN << "] "
+		  << std::endl;
+      }
+    }
+
+    if (interFlag > 200 and interFlag < 300) {
+
+      m1 = atomic_weights[Z1];
+      m2 = atomic_weights[0 ];
+      Mt = m1 + m2;
+      Mu = m1 * m2 / Mt;
 
       KE1i = KE2i = 0.0;
       KE1f = KE2f = 0.0;
@@ -2600,11 +2704,11 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       for (size_t k=0; k<3; k++) {
 	KE1i += p1->vel[k] * p1->vel[k];
-	KE2i += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
-	cost += p1->vel[k] * p2->dattrib[use_elec+k];
+	KE2i += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
+	cost += p1->vel[k] * p1->dattrib[use_elec+k];
 
-	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k])/Mt;
-	vrel[k] = p1->vel[k] - p2->dattrib[use_elec+k];
+	vcom[k] = (m1*p1->vel[k] + m2*p1->dattrib[use_elec+k])/Mt;
+	vrel[k] = p1->vel[k] - p1->dattrib[use_elec+k];
 
 	VC2    += vcom[k] * vcom[k];
 	VR2    += vrel[k] * vrel[k];
@@ -2661,10 +2765,10 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       for (size_t k=0; k<3; k++) {
 	p1->vel[k]              = vcom[k]*vcfac + m2/Mt * vrel[k]*vrfac;
-	p2->dattrib[use_elec+k] = vcom[k]*vcfac - m1/Mt * vrel[k]*vrfac;
+	p1->dattrib[use_elec+k] = vcom[k]*vcfac - m1/Mt * vrel[k]*vrfac;
 
 	KE1f += p1->vel[k] * p1->vel[k];
-	KE2f += p2->dattrib[use_elec+k] * p2->dattrib[use_elec+k];
+	KE2f += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
       }
 
       KE1i *= 0.5*m1;
@@ -2686,103 +2790,6 @@ int CollideIon::inelasticWeight(pCell* const c,
 		  << std::setw(16) << virN << "] "
 		  << std::endl;
       }
-    }
-
-    if (interFlag > 200 and interFlag < 300) {
-
-      KE1i = KE2i = 0.0;
-      KE1f = KE2f = 0.0;
-
-      double cost = 0.0, VC2 = 0.0, VR2 = 0.0;
-
-      for (size_t k=0; k<3; k++) {
-	KE1i += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
-	KE2i += p2->vel[k] * p2->vel[k];
-	cost += p1->dattrib[use_elec+k] * p2->vel[k];
-
-	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->vel[k])/Mt;
-	vrel[k] = p1->dattrib[use_elec+k] - p2->vel[k];
-
-	VC2    += vcom[k] * vcom[k];
-	VR2    += vrel[k] * vrel[k];
-      }
-
-      if (KE1i > 0.0 and KE2i > 0.0) cost /= sqrt(KE1i * KE2i);
-
-      double dmr   = cost / (m1 - m2);
-      double gamma = 1.0 + 4.0*Mt*Mu*dmr*dmr;
-      double E0    = 0.5*Mt*VC2 + 0.5*Mu*VR2;
-
-      double gamP  = 1.0 + sqrt(1.0 - 1.0/gamma);
-      double gamN  = 1.0 - sqrt(1.0 - 1.0/gamma);
-
-      double virP  = 
-	(VC2 - E0/Mt*gamN)*(VC2 - E0/Mt*gamN) +
-	(VR2 - E0/Mu*gamP)*(VR2 - E0/Mu*gamP) ;
-	
-      double virN  = 
-	(VC2 - E0/Mt*gamP)*(VC2 - E0/Mt*gamP) +
-	(VR2 - E0/Mu*gamN)*(VR2 - E0/Mu*gamN) ;
-	
-      double vcfac = 0.0, vrfac = 0.0;
-
-      if (virP > virN) {
-	vcfac = sqrt(E0/Mt*gamN);
-	vrfac = sqrt(E0/Mu*gamP);
-      } else {
-	vcfac = sqrt(E0/Mt*gamP);
-	vrfac = sqrt(E0/Mu*gamN);
-      }
-
-      if (VC2>0.0) {
-	for (size_t k=0; k<3; k++) vcom[k] /= sqrt(VC2);
-      } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vcom[0] = cos_th;
-	vcom[1] = sin_th*cos(phi);
-	vcom[2] = sin_th*sin(phi);
-      }
-
-      if (VR2>0.0) {
-	for (size_t k=0; k<3; k++) vrel[k] /= sqrt(VR2);
-      } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	vrel[0] = cos_th;
-	vrel[1] = sin_th*cos(phi);
-	vrel[2] = sin_th*sin(phi);
-      }
-
-      for (size_t k=0; k<3; k++) {
-	p1->dattrib[use_elec+k] = vcom[k]*vcfac + m2/Mt * vrel[k]*vrfac;
-	p2->vel[k]              = vcom[k]*vcfac - m1/Mt * vrel[k]*vrfac;
-
-	KE1f += p1->dattrib[use_elec+k] * p1->dattrib[use_elec+k];
-	KE2f += p2->vel[k] * p2->vel[k];
-      }
-
-      KE1i *= 0.5*m1;
-      KE1f *= 0.5*m1;
-
-      KE2i *= 0.5*m2;
-      KE2f *= 0.5*m2;
-
-      double KEi = KE1i + KE2i;
-      double KEf = KE1f + KE2f;
-
-      if ( fabs(KEi - KEf) > 1.0e-14*KEi ) {
-	std::cout << "Test(2): keI=[" 
-		  << std::setw(16) << KE1i << ", " 
-		  << std::setw(16) << KE2i << "] keF=[" 
-		  << std::setw(16) << KE1f << ", " 
-		  << std::setw(16) << KE2f << "] vir=[" 
-		  << std::setw(16) << virP << ", "
-		  << std::setw(16) << virN << "] "
-		  << std::endl;
-      } 
     }
   }
 
