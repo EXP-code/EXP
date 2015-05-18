@@ -292,6 +292,10 @@ extern bool barrier_light;
 //! Do not report good barrier condtion if true
 extern bool barrier_quiet;
 
+//! Default memory limit value in GB.  If value is set to zero, use
+//! the system default.
+extern int  rlimit_val;
+
 #include "Species.H"
 
 #endif

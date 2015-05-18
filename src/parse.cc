@@ -35,6 +35,7 @@ void initialize(void)
   parse->find_list("global");
   string val;
 
+  if (parse->find_item("rlimit", val))          rlimit_val = atoi(val.c_str());
   if (parse->find_item("nbodmax", val))		nbodmax = atoi(val.c_str());
   if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
   if (parse->find_item("nthrds", val))		nthrds = max<int>(1, atoi(val.c_str()));
@@ -227,6 +228,7 @@ void print_parm(ostream& out, const char *comment)
   out << comment << " " << "PFbufsz"    << " = " << PFbufsz     << endl;
   out << comment << " " << "NICE"       << " = " << NICE        << endl;
   out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
+  out << comment << " " << "rlimit"     << " = " << rlimit_val  << endl;
   out << comment << " " << "runtime"    << " = " << runtime     << endl;
 
   out << comment << " " << "multistep"  << " = " << multistep   << endl;

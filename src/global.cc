@@ -120,3 +120,4 @@ bool barrier_label = true;
 bool barrier_light = true;
 bool barrier_quiet = true;
 
+int  rlimit_val    = 0;

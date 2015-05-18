@@ -131,17 +131,23 @@ void make_node_list(int argc, char **argv)
 }
 
 
-bool set_memlock_limits()
+int set_memlock_limits()
 {
+  if (rlimit_val==0) return 0;
+
   struct rlimit rlim;
   
-  rlim.rlim_cur = RLIM_INFINITY;
-  rlim.rlim_max = RLIM_INFINITY;
+  if (rlimit_val<0) {
+    rlim.rlim_cur = RLIM_INFINITY;
+    rlim.rlim_max = RLIM_INFINITY;
+  } else {
+    const rlim_t GB = 1024*1024*1024;
+    rlim.rlim_cur = static_cast<rlim_t>(rlimit_val) * GB;
+    rlim.rlim_max = static_cast<rlim_t>(rlimit_val) * GB;
+  }
   
-  if (setrlimit(RLIMIT_MEMLOCK, &rlim) != 0) return false;
-  return true;
+  return setrlimit(RLIMIT_MEMLOCK, &rlim);
 }
-
 
 
 void report_memlock_limits()
@@ -183,14 +189,10 @@ main(int argc, char** argv)
   // MPI preliminaries 
   //===================
 
-  bool mstat = set_memlock_limits();
-
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   MPI_Get_processor_name(processor_name, &proc_namelen);
-
-  if (!mstat) report_memlock_limits();
 
 				// Make SLAVE group 
 #ifdef SLAVE_GROUP
@@ -365,6 +367,12 @@ main(int argc, char** argv)
 
   if (NICE>0) setpriority(PRIO_PROCESS, 0, NICE);
 
+
+  //==================
+  // Set memory limits
+  //==================
+
+  if (set_memlock_limits()) report_memlock_limits();
 
   //==============================================
   // Read in points and initialize expansion grid 
