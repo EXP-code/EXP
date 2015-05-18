@@ -35,7 +35,6 @@ void initialize(void)
   parse->find_list("global");
   string val;
 
-  if (parse->find_item("rlimit", val))          rlimit_val = atoi(val.c_str());
   if (parse->find_item("nbodmax", val))		nbodmax = atoi(val.c_str());
   if (parse->find_item("nsteps", val))		nsteps = atoi(val.c_str());
   if (parse->find_item("nthrds", val))		nthrds = max<int>(1, atoi(val.c_str()));
@@ -50,6 +49,7 @@ void initialize(void)
   if (parse->find_item("PFbufsz", val))         PFbufsz = atoi(val.c_str());
   if (parse->find_item("NICE", val))		NICE = atoi(val.c_str());
   if (parse->find_item("VERBOSE", val))		VERBOSE = atoi(val.c_str());
+  if (parse->find_item("rlimit", val))          rlimit_val = atoi(val.c_str());
   if (parse->find_item("runtime", val))		runtime = atof(val.c_str());
 
   if (parse->find_item("multistep", val))	multistep = atoi(val.c_str());

@@ -368,9 +368,9 @@ main(int argc, char** argv)
   if (NICE>0) setpriority(PRIO_PROCESS, 0, NICE);
 
 
-  //==================
+  //===================
   // Set memory limits
-  //==================
+  //===================
 
   if (set_memlock_limits()) report_memlock_limits();
 

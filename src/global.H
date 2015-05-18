@@ -293,7 +293,8 @@ extern bool barrier_light;
 extern bool barrier_quiet;
 
 //! Default memory limit value in GB.  If value is set to zero, use
-//! the system default.
+//! the system default.  If value is less than zero, attempt to set
+//! memory to unlimited.
 extern int  rlimit_val;
 
 #include "Species.H"
