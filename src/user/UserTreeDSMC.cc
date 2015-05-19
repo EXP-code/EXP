@@ -540,6 +540,10 @@ void UserTreeDSMC::userinfo()
 
   if (ctype.compare("Ion") == 0) {
     cout << ", rr type=" << Ion::getRRtype();
+    if (CollideIon::equiptn)
+      cout << ", e-i equipartition is ON";
+    else
+      cout << ", e-i equipartition is OFF";
   }
 
   cout << endl;
@@ -598,6 +602,8 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
+
+  if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
 
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {

@@ -313,8 +313,8 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER;
-  ahistoDPtr elecH, ionH, lossH;
+  std::vector< boost::circular_buffer<double> > velER, velEI;
+  ahistoDPtr elecH, ionH, lossH, eireH;
   //@}
 
 public:
@@ -446,15 +446,17 @@ protected:
     if (aType == Direct)
       Collide::velocityUpdate(p1, p2, cr);
     if (aType == Weight) {
-      double vr = 0.0;		// This is all debugging!
-      for (size_t k=0; k<3; k++) {
-	double z = p1->vel[k] - p2->vel[k];
-	vr += z*z;
-      }
-      vr = sqrt(vr);
-      if ( fabs(vr - cr) > 1.0e-20 ) {
-	std::cout << "Velocity mismatch: vr=" << vr << " cr="
-		  << cr << std::endl;
+      if (false) {		// This is all debugging!
+	double vr = 0.0;
+	for (size_t k=0; k<3; k++) {
+	  double z = p1->vel[k] - p2->vel[k];
+	  vr += z*z;
+	}
+	vr = sqrt(vr);
+	if ( fabs(vr - cr) > 1.0e-20 ) {
+	  std::cout << "Velocity mismatch: vr=" << vr << " cr="
+		    << cr << std::endl;
+	}
       }
     }
 
@@ -547,14 +549,15 @@ protected:
   }
 
 public:
-  static double Nmin;
-  static double Nmax;
-  static double Tmin;
-  static double Tmax;
-  static double TolV;
+  static double   Nmin;
+  static double   Nmax;
+  static double   Tmin;
+  static double   Tmax;
+  static double   TolV;
   static unsigned Nnum;
   static unsigned Tnum;
-  static string cache;
+  static string   cache;
+  static bool     equiptn;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 

@@ -151,6 +151,7 @@ class CollideIon;
     rectangular rather than square region whose different axis is Z
     @param ctype is a string referring to the name of the desired collision type (default: LTE)
     @param rrtype is a string referring to the name of the desired radiative recombination cross section type.  This is only used by the ctype=Ion method (default: Mewe)
+    @param equiptn set to true (default: true) enforces equipartition between electron and ion pairs. This is only used by the ctype=Ion method.
 
     <h2>Note on multiple species</h2>
 
