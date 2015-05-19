@@ -47,11 +47,6 @@ const bool NO_DOF            = true;
 //
 const bool NO_VEL            = false;
 
-// Artifically prevent cooling by setting the energy removed from the
-// COM frame to zero
-//
-const bool NO_COOL           = false;
-
 // KE debugging: checks energy bookkeeping for weighted algorithm. Set
 // to false for production
 //
@@ -108,8 +103,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
-  if (myid==0 && NO_COOL) std::cout << "No cooling is set to TRUE" 
-				    << std::endl;
+  if (myid==0 && NOCOOL) std::cout << "No cooling is set to TRUE" 
+				   << std::endl;
 
   // Per thread workspace initialization
   //
@@ -1729,7 +1724,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
-  if (NO_COOL) delE = 0.0;
+  if (NOCOOL) delE = 0.0;
 
   // Elastic event
   //
@@ -2241,7 +2236,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
-  if (NO_COOL) delE = 0.0;
+  if (NOCOOL) delE = 0.0;
 
   // Convert energy loss to system units
   //
@@ -3194,7 +3189,7 @@ int CollideIon::inelasticTrace(pCell* const c,
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
-  if (NO_COOL) delE = 0.0;
+  if (NOCOOL) delE = 0.0;
 
   // Convert energy loss to system units
   //
