@@ -1958,10 +1958,11 @@ int CollideIon::inelasticWeight(pCell* const c,
   int ret = 0;			// No error (flag)
   int interFlag = -1;		// Invalid value by default
 
-  Particle* p1 = _p1;
-  Particle* p2 = _p2;
+  Particle* p1 = _p1;		// Copy pointers for swapping, if
+  Particle* p2 = _p2;		// necessary
 
-  // Species keys
+
+  // Species keys for pointers before swapping
   //
   KeyConvert k1(p1->iattrib[use_key]);
   KeyConvert k2(p2->iattrib[use_key]);
@@ -1972,6 +1973,10 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
+  // Particle 1 is assumed to be the "dominant" species and Particle 2
+  // is assumed to be the "trace" species (or another "dominant").
+  // Swap particle pointers if necessary.
+  //
   if (p1->mass/atomic_weights[Z1] < p2->mass/atomic_weights[Z2]) {
 
     // Swap the particle pointers
@@ -2019,6 +2024,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   double tCross = 0.0;
   int si = 0;
   for (size_t i = 0; i < dCross[id].size(); i++) {
+    // Sanity check (mostly for debugging, NaN should never occur)
     if (std::isnan(dCross[id][i])) {
       std::cout << "dCross[" << id << "][" << i << "] is Nan"
 		<< std::setw(14) << dInter[id][i]
@@ -2031,22 +2037,34 @@ int CollideIon::inelasticWeight(pCell* const c,
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
     } else {
+      // Accumulate the list here
+      //
       tCross += dCross[id][i];
       TotalCross.push_back(tCross);
-      si++;
+      si++;			// Interaction count
     }
   }
 
-  int partflag = 0;		// Will be 1 or 2, dependending on
-				// which ion or neutral is selected
-				// for interaction.  Will be 0 if no
-				// interaction is selected.
+  //----------------------------
+  // Which particle interacted?
+  //----------------------------
+  //
+  // Will be 1 or 2, dependending on which ion or neutral is
+  // selected for inelastic interaction.  Will be 0 if no inealistic
+  // interaction is selected.
+  //
+  int partflag = 0;
 
-  if (tCross != 0) {
+
+  // Sanity check: total cross section must be positive!
+  //
+  if (tCross > 0.0) {
+
     // Cumulative cross-section distribution for interaction selection
     //
     std::vector<double> CDF;
     for (size_t i = 0; i < TotalCross.size(); i++) {
+      // Sanity check (mostly for debugging, NaN should never occur)
       if (std::isnan(TotalCross[i])) {
 	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
 		  << std::endl;
@@ -2100,12 +2118,14 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::cout << std::setw( 8) << "index"
 		<< std::setw( 8) << "flag"
 		<< std::setw(14) << "cross"
+		<< std::setw(14) << "prob"
 		<< std::setw(14) << "cumul"
-		<< std::setw(14) << "tCross"
+		<< std::setw(14) << "tCross/max"
 		<< std::setw(18) << "type label"
 		<< std::endl
 		<< std::setw( 8) << "-----"
 		<< std::setw( 8) << "-----"
+		<< std::setw(14) << "---------"
 		<< std::setw(14) << "---------"
 		<< std::setw(14) << "---------"
 		<< std::setw(14) << "---------"
@@ -2115,8 +2135,9 @@ int CollideIon::inelasticWeight(pCell* const c,
 	std::cout << std::setw( 8) << i
 		  << std::setw( 8) << dInter[id][i]
 		  << std::setw(14) << dCross[id][i]
+		  << std::setw(14) << dCross[id][i]/tCross
 		  << std::setw(14) << CDF[i]
-		  << std::setw(14) << TotalCross[i]/csections[id][i1][i2] * cfac
+		  << std::setw(14) << dCross[id][i]/csections[id][i1][i2] * cfac
 		  << std::setw(18) << labels[dInter[id][i]]
 		  << std::endl;
       }
@@ -4439,7 +4460,7 @@ sKey2Umap CollideIon::generateSelectionWeight
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  sKeyDmap            densM, densN, collP, nsigmaM, ncrossM;
+  sKeyDmap            eta, densM, densN, collP, nsigmaM, ncrossM;
   sKey2Dmap           selcM;
   sKey2Umap           nselM;
     
@@ -4468,34 +4489,44 @@ sKey2Umap CollideIon::generateSelectionWeight
   // Done
   //
   
-  {
-    for (auto it1 : c->count) {
+  for (auto it1 : c->count) {
 
-      // Only compute if particles of this species is in the cell
+    // Only compute if particles of this species is in the cell
+    //
+    if (it1.second) {
+      speciesKey i1 = it1.first;
+      
+      // Trace weight, Eta_b
       //
-      if (it1.second) {
-	speciesKey i1 = it1.first;
+      eta[i1] = ZMList[i1.first] / atomic_weights[i1.first];
 
-	// Mass density scaled by atomic weight in amu
-	//
-	densM[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
-	
-	// Number density of superparticles
-	//
-	densN[i1] = static_cast<double>(c->Count(i1))/volc;
-      }
+      // Mass density scaled by atomic weight in amu.  In the
+      // algorithm notes, this is N_b * Eta_b / V.
+      //
+      densM[i1] = c->Mass(i1) / atomic_weights[i1.first] / volc;
+      
+      // Number density of superparticles
+      //
+      densN[i1] = static_cast<double>(c->Count(i1))/volc;
     }
   }
-    
-  if (0) {
+
+  if (DEBUG_SL) {
+
     std::cout << std::endl
+	      << std::string(70, '-')     << std::endl
+	      << "Cell stats"
+	      << ", #=" << c->bods.size() << std::endl
+	      << std::string(70, '-')     << std::endl
 	      << std::setw(10) << "Species"
+	      << std::setw(16) << "eta"
 	      << std::setw(16) << "n dens"
 	      << std::setw(16) << "m dens"
 	      << std::setw(16) << "sp mass"
 	      << std::setw(10) << "n count"
 	      << std::endl
 	      << std::setw(10) << "---------"
+	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
 	      << std::setw(16) << "---------"
@@ -4506,31 +4537,25 @@ sKey2Umap CollideIon::generateSelectionWeight
       std::ostringstream sout;
       sout << "(" << it.first.first << ", " << it.first.second << ")";
       std::cout << std::setw(10) << sout.str()
+		<< std::setw(16) << eta  [it.first]
 		<< std::setw(16) << densN[it.first]
 		<< std::setw(16) << densM[it.first]
 		<< std::setw(16) << c->Mass(it.first)
-		<< std::setw(10) << c->bods.size()
+		<< std::setw(10) << c->Count(it.first)
 		<< std::endl;
     }
-  }
 
-  if (DEBUG_SL) {
     std::cout << std::endl
-	      << std::setw(16) << "Species"
+	      << std::string(70, '-')    << std::endl
+	      << "Interaction stats"
+	      << ", eVel=" << Evel[id] 
+	      << ", crm="  << crm        << std::endl
+	      << std::string(70, '-')    << std::endl
+	      << std::setw(20) << "Species"
 	      << std::setw(16) << "Cross"
-	      << std::setw(16) << "elec V"
-	      << std::setw(16) << "densM"
-	      << std::setw(16) << "densN"
-	      << std::setw(10) << "count 1"
-	      << std::setw(10) << "count 2"
 	      << std::endl
+	      << std::setw(20) << "---------"
 	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(10) << "---------"
-	      << std::setw(10) << "---------"
 	      << std::endl;
 
     std::map<speciesKey, unsigned>::iterator it1, it2;
@@ -4551,13 +4576,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 	sout << "<" 
 	     << k1.first << "," << k1.second << "|"
 	     << k2.first << "," << k2.second << ">";
-	std::cout << std::setw(16) << sout.str()
+	std::cout << std::setw(20) << sout.str()
 		  << std::setw(16) << csections[id][k1][k2] / cunit
-		  << std::setw(16) << Evel[id]
-		  << std::setw(16) << densM[k1]
-		  << std::setw(16) << densN[k1]
-		  << std::setw(10) << it1->second
-		  << std::setw(10) << it2->second
 		  << std::endl;
       }
     }
@@ -4599,19 +4619,19 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  // which case it doesn't matter)
 
 	  if (densM[i2] <= densM[i1]) {
-	    unsigned Z2  = i2.first;
-	    crossT      *= (*Fn)[i2] * ZMList[Z2] / atomic_weights[Z2];
+	    crossT      *= (*Fn)[i2] * eta[i2];
 	    ncrossM[i1] += crossT;
-	    nsigmaM[i1] += densN[i2]*crossT;
+	    nsigmaM[i1] += densN[i2] * crossT;
 	  } else {
-	    unsigned Z1  = i1.first;
-	    crossT      *= (*Fn)[i1] * ZMList[Z1] / atomic_weights[Z1];
+	    crossT      *= (*Fn)[i1] * eta[i1];
 	    ncrossM[i2] += crossT;
-	    nsigmaM[i2] += densN[i1]*crossT;
+	    nsigmaM[i2] += densN[i1] * crossT;
 	  }
       
 	  // So, ncrossM is the superparticle cross section for each species
 
+	  // Sanity check debugging
+	  //
 	  if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 		 << " #1 = (" << i1.first << ", " << i1.second << ")"
@@ -4620,6 +4640,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 	    csections[id][i1][i2] = 0.0; // Zero out
 	  }
 	  
+	  // Sanity check debugging
+	  //
 	  if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 		 << " #1 = (" << i2.first << ", " << i2.second << ")"
@@ -4640,6 +4662,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 
       speciesKey i1 = it1.first;
 
+      // Sanity check debugging
+      //
       if (ncrossM[i1] == 0 || std::isnan(ncrossM[i1])) {
 	cout << "INVALID CROSS SECTION! ::"
 	     << " (" << i1.first << ", " << i1.second << ")"
@@ -4764,9 +4788,9 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  double Prob = 0.0;
 
 	  if (densM[i1]>=densM[i2]) {
-	    Prob = densM[i2] * (*Fn)[i2] * cunit * crsvel * tau;
+	    Prob = (*Fn)[i2] * eta[i2] * cunit * crsvel * tau / volc;
 	  } else {
-	    Prob = densM[i1] * (*Fn)[i1] * cunit * crsvel * tau;
+	    Prob = (*Fn)[i1] * eta[i1] * cunit * crsvel * tau / volc;
 	  }
 
 	  // Count _pairs_ of identical particles only
@@ -4874,10 +4898,10 @@ sKey2Umap CollideIon::generateSelectionWeight
 	    }
 	    
 	    std::cout << "(" 
-		      << std::setw(2) << i1.first << ","
-		      << std::setw(2) << i1.second << ") ("
-		      << std::setw(2) << i2.first << ","
-		      << std::setw(2) << i2.second << ")  "
+		      << std::setw(2)  << i1.first << ","
+		      << std::setw(2)  << i1.second << ") ("
+		      << std::setw(2)  << i2.first << ","
+		      << std::setw(2)  << i2.second << ")  "
 		      << std::setw(16) << selcM[i1][i2]
 		      << std::setw(16) << Prob0
 		      << std::setw(16) << Prob1
@@ -4889,6 +4913,7 @@ sKey2Umap CollideIon::generateSelectionWeight
     std::cout << std::endl 
 	      << "  Mean Coll P = " << meanCollP 
 	      << "  Mean Lambda = " << meanLambda
+	      << "  MFP/L = "       << meanLambda/pow(volc, 0.333333333)
 	      << "  totalNsel = "   << totalNsel
 	      << std::endl << std::endl;
   }
