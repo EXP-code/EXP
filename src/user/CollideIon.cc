@@ -103,8 +103,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
-  if (myid==0 && NOCOOL) std::cout << "No cooling is set to TRUE" 
-				   << std::endl;
+  if (myid==0 && NOCOOL) 
+    std::cout << "************************************" << std::endl
+	      << "*** No cooling is ON for testing ***" << std::endl
+	      << "************************************" << std::endl;
+
 
   // Per thread workspace initialization
   //

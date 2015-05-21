@@ -15,10 +15,18 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <list>
+#include <map>
+
+#include <Species.H>
 
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
+
+#include <boost/program_options.hpp>
+
+namespace po = boost::program_options;
+
 
 				// Globals for exputil library
 				// Unused here
@@ -27,125 +35,106 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
-  cerr << "    -a axis         x=1, y=2, z=3 (default: 3)\n";
-  cerr << "    -p pmin         minimum position along axis\n";
-  cerr << "    -P pmax         maximum position along axis\n";
-  cerr << "    -b numb         number of bins\n";
-  cerr << "    -c comp         value index\n";
-  cerr << "    -o name         component name (default: comp)\n";
-  cerr << "    -A              areal average\n";
-  cerr << "    -m              mass-weighted values\n";
-  cerr << "    -n              number-weighted values\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
-
 int
-main(int argc, char **argv)
+main(int ac, char **av)
 {
-  char *prog = argv[0];
-  double time=1e20;
+  char *prog = av[0];
+  double time, pmin, pmax;
   bool mweight = true;
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  string cname("comp");
-  double pmin = -100.0, pmax = 100.0;
-  int axis = 3;
-  int numb = 40;
-  int comp = 9;
+  std:: string cname;
+  int axis, numb, comp, sindx;
 
   // Parse command line
 
-  while (1) {
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("help,h",		"produce help message")
+    ("mweight,m",       "mass-weighted values")
+    ("nweight,n",       "number-weighted values")
+    ("areal,A",         "areal average")
+    ("verbose,v",       "verbose output")
+    ("time,t",		 po::value<double>(&time)->default_value(1.0e20),
+     "find closest time slice to requested value")
+    ("axis,a",		po::value<int>(&axis)->default_value(3),
+     "histogram along desired axis: x=1, y=2, z=3")
+    ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
+     "minimum position along axis")
+    ("pmax,P",	        po::value<double>(&pmax)->default_value(100.0),
+     "maximum position along axis")
+    ("bins,b",	        po::value<int>(&numb)->default_value(40),
+     "number of bins")
+    ("comp,i",		po::value<int>(&comp)->default_value(9),
+     "index for extended value")
+    ("species,s",	po::value<int>(&sindx)->default_value(-1),
+     "position of species index")
+    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
+     "component name")
+    ("files,f",         po::value< std::vector<std::string> >(), 
+     "input files")
+    ;
 
-    int c = getopt(argc, argv, "t:a:p:P:b:c:o:mnAvh");
 
-    if (c == -1) break;
+  po::variables_map vm;
 
-    switch (c) {
+  try {
+    po::store(po::parse_command_line(ac, av, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
+  }
 
-    case 't':
-      time = atof(optarg);
-      break;
+  if (vm.count("help")) {
+    std::cout << desc << std::endl;
+    std::cout << "Example: " << std::endl;
+    std::cout << "\t" << av[0]
+	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
+    return 1;
+  }
 
-    case 'a':
-      axis = atoi(optarg);
-      break;
+  if (vm.count("mweight")) {
+    mweight = true;
+    nweight = false;
+  }
 
-    case 'p':
-      pmin = atof(optarg);
-      break;
+  if (vm.count("nweight")) {
+    mweight = false;
+    nweight = true;
+  }
 
-    case 'P':
-      pmax = atof(optarg);
-      break;
+  if (vm.count("areal")) {
+    areal = true;
+  }
 
-    case 'b':
-      numb = atoi(optarg);
-      break;
-
-    case 'c':
-      comp = atoi(optarg);
-      break;
-
-    case 'm':
-      mweight = true;
-      nweight = false;
-      break;
-
-    case 'n':
-      mweight = false;
-      nweight = true;
-      break;
-
-    case 'A':
-      areal = true;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case 'o':
-      cname.erase();
-      cname = string(optarg);
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  if (vm.count("verbose")) {
+    verbose = true;
   }
 
   ifstream *in;
 
-  if (optind < argc) {
+  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
 
-    ifstream *in2 = new ifstream(argv[optind]);
+  if (vm.count("files")) {
+    std::cout << "Input files are: ";
+    for (auto s : files) std::cout << s << " ";
+    std::cout << std::endl;
+
+    ifstream *in2 = new ifstream(files[0].c_str());
     if (!*in2) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
+      cerr << "Error opening file <" << files[0] << "> for input\n";
       exit(-1);
     }
 
-    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
+    if (verbose) cerr << "Using filename: " << files[0] << endl;
 
 				// Assign file stream to input stream
     in = in2;
 
   } else {
-    Usage(prog);
+    std::cout << desc << std::endl;
   }
 
 				// Axis sanity check 
@@ -173,7 +162,7 @@ main(int argc, char **argv)
 				// Dump ascii for each component
 				// -----------------------------
   delete in;
-  in = new ifstream(argv[optind]);
+  in = new ifstream(files[0]);
 
   
   double rtmp, mass, fac, dp=(pmax - pmin)/numb;
@@ -187,6 +176,8 @@ main(int argc, char **argv)
 
   PSPstanza *stanza;
   SParticle* part;
+
+  std::map< speciesKey, std::vector<float> > shist;
 
   for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
@@ -224,6 +215,14 @@ main(int argc, char **argv)
 	value[iv] += fac*part->iatr(comp-8);
       else
 	value[iv] += fac*part->datr(comp-8-part->niatr());
+
+      if (sindx >= 0) {
+	KeyConvert k(part->datr(sindx));
+	if (shist.find(k.getKey()) == shist.end()) 
+	  shist[k.getKey()].resize(numb, 0);
+	shist[k.getKey()][iv] += fac;
+      }
+
     }
     
   }
@@ -247,8 +246,18 @@ main(int argc, char **argv)
     cout << setw(18) << Time 
 	 << setw(18) << p
 	 << setw(18) << f
-	 << setw(18) << m
-	 << endl;
+	 << setw(18) << m;
+    if (sindx>=0) {
+      for (auto v : shist) {
+	double z = v.second[i];
+	if (areal) 
+	  z /= dp;
+	else if (bmass[i] > 0.0) 
+	  z /= bmass[i];
+	cout << setw(18) << z;
+      }
+    }
+    cout << endl;
   }
   cout << endl;
 
