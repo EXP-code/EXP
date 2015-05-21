@@ -113,173 +113,174 @@ main(int ac, char **av)
     verbose = true;
   }
 
-  ifstream *in;
-
-  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
-
-  if (vm.count("files")) {
-    ifstream *in2 = new ifstream(files[0].c_str());
-    if (!*in2) {
-      cerr << "Error opening file <" << files[0] << "> for input\n";
-      exit(-1);
-    }
-
-    if (verbose) cerr << "Using filename: " << files[0] << endl;
-
-				// Assign file stream to input stream
-    in = in2;
-
-  } else {
-    std::cout << desc << std::endl;
-  }
 
 				// Axis sanity check 
 				// ------------------
   if (axis<1) axis = 1;
   if (axis>3) axis = 3;
 
+  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
+
+  bool first = true;
+  
+  for (auto file : files ) {
+
+    ifstream *in = new ifstream(file.c_str());
+    if (!*in) {
+      cerr << "Error opening file <" << file << "> for input\n";
+      exit(-1);
+    }
+
+    if (verbose) cerr << "Using filename: " << file << endl;
+
+
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
+    PSPDump psp(in);
 
-  in->close();
+    in->close();
 
 				// Now write a summary
 				// -------------------
-  if (verbose) {
-
-    psp.PrintSummary(in, cerr);
+    if (verbose) {
+      
+      psp.PrintSummary(in, cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+      cerr << "\nBest fit dump to <" << time << "> has time <" 
+	   << psp.SetTime(time) << ">\n";
+    } else 
+      psp.SetTime(time);
 
 				// Dump ascii for each component
 				// -----------------------------
-  delete in;
-  in = new ifstream(files[0]);
-
+    delete in;
+    in = new ifstream(file);
+    
   
-  double rtmp, mass, fac, dp=(pmax - pmin)/numb;
-  vector<double> pos(3), vel(3);
-  int itmp, icnt, iv;
+    double rtmp, mass, fac, dp=(pmax - pmin)/numb;
+    vector<double> pos(3), vel(3);
+    int itmp, icnt, iv;
 
 				// Make the array
 				// --------------
 
-  vector<float> value(numb, 0), bmass(numb, 0);
+    vector<float> value(numb, 0), bmass(numb, 0);
 
-  PSPstanza *stanza;
-  SParticle* part;
+    PSPstanza *stanza;
+    SParticle* part;
 
-  std::map< speciesKey, std::vector<float> > shist;
+    std::map< speciesKey, std::vector<float> > shist;
 
-  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
-    if (stanza->name != cname) continue;
+      if (stanza->name != cname) continue;
 
 
 				// Position to beginning of particles
-    in->seekg(stanza->pspos);
+      in->seekg(stanza->pspos);
 
-    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
+	if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
 
-      iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
-      
-      double mass = part->mass();
+	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
+	
+	double mass = part->mass();
 
-      if (mweight) {
-	bmass[iv] += mass;
-	fac = mass;
-      } else {
-	bmass[iv] += 1.0;
-	fac = 1.0;
+	if (mweight) {
+	  bmass[iv] += mass;
+	  fac = mass;
+	} else {
+	  bmass[iv] += 1.0;
+	  fac = 1.0;
+	}
+
+	if (comp == 0)
+	  value[iv] += fac*mass;
+	else if (comp <= 3)
+	  value[iv] += fac*part->pos(comp-1);
+	else if (comp <= 6)
+	  value[iv] += fac*part->vel(comp-4);
+	else if (comp == 7)
+	  value[iv] += fac*part->phi();
+	else if (part->niatr() && comp <= 7 + part->niatr())
+	  value[iv] += fac*part->iatr(comp-8);
+	else if (part->ndatr())
+	  value[iv] += fac*part->datr(comp-8-part->niatr());
+	
+	if (sindx >= 0) {
+	  KeyConvert k(part->iatr(sindx));
+	  if (shist.find(k.getKey()) == shist.end()) 
+	    shist[k.getKey()].resize(numb, 0);
+	  shist[k.getKey()][iv] += fac;
+	}
+
       }
-
-      if (comp == 0)
-	value[iv] += fac*mass;
-      else if (comp <= 3)
-	value[iv] += fac*part->pos(comp-1);
-      else if (comp <= 6)
-	value[iv] += fac*part->vel(comp-4);
-      else if (comp == 7)
-	value[iv] += fac*part->phi();
-      else if (part->niatr() && comp <= 7 + part->niatr())
-	value[iv] += fac*part->iatr(comp-8);
-      else if (part->ndatr())
-	value[iv] += fac*part->datr(comp-8-part->niatr());
-
-      if (sindx >= 0) {
-	KeyConvert k(part->iatr(sindx));
-	if (shist.find(k.getKey()) == shist.end()) 
-	  shist[k.getKey()].resize(numb, 0);
-	shist[k.getKey()][iv] += fac;
-      }
-
+    
     }
     
-  }
-  
-  //
-  // Output
-  //
-  const size_t fw = 12;
-  const size_t sw =  9;
-  double Time = psp.CurrentTime();
-  float p, f, m=0.0;
+    //
+    // Output
+    //
+    const size_t fw = 12;
+    const size_t sw =  9;
+    double Time = psp.CurrentTime();
+    float p, f, m=0.0;
 
-  std::cout << setw(fw) << "Time"
-	    << setw(fw) << "Position"
-	    << setw(fw) << "Value"
-	    << setw(fw) << "Mass";
-
-  for (auto v : shist) {
-    speciesKey k = v.first;
-    ostringstream str;
-    str << "(" << k.first << ", " << k.second << ")";
-    cout << setw(fw) << str.str();
-  }
-  cout << std::endl;
-
-  std::cout << setw(fw) << std::string(sw, '-')
-	    << setw(fw) << std::string(sw, '-')
-	    << setw(fw) << std::string(sw, '-')
-	    << setw(fw) << std::string(sw, '-');
-
-  for (auto v : shist) {
-    cout << setw(fw) << std::string(sw, '-');
-  }
-  cout << std::endl;
-
-  for (int i=0; i<numb; i++) {
-    p  = pmin + dp*(0.5+i);
-    f  = 0.0;
-    m += bmass[i];
-    if (areal)  {
-      f = value[i]/dp;
-    } else {
-      if (bmass[i] > 0.0) f = value[i]/bmass[i];
-    }
-    cout << setw(fw) << Time 
-	 << setw(fw) << p
-	 << setw(fw) << f
-	 << setw(fw) << m;
-    if (sindx>=0) {
+    if (first) {
+      std::cout << setw(fw) << "Time"
+		<< setw(fw) << "Position"
+		<< setw(fw) << "Value"
+		<< setw(fw) << "Mass";
+      
       for (auto v : shist) {
-	double z = v.second[i];
-	if (areal) 
-	  z /= dp;
-	else if (bmass[i] > 0.0) 
-	  z /= bmass[i];
-	cout << setw(fw) << z;
+	speciesKey k = v.first;
+	ostringstream str;
+	str << "(" << k.first << ", " << k.second << ")";
+	cout << setw(fw) << str.str();
       }
+      cout << std::endl;
+
+      std::cout << setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-');
+
+      for (auto v : shist) {
+	cout << setw(fw) << std::string(sw, '-');
+      }
+      cout << std::endl;
+
+      first = false;
+    }
+
+    for (int i=0; i<numb; i++) {
+      p  = pmin + dp*(0.5+i);
+      f  = 0.0;
+      m += bmass[i];
+      if (areal)  {
+	f = value[i]/dp;
+      } else {
+	if (bmass[i] > 0.0) f = value[i]/bmass[i];
+      }
+      cout << setw(fw) << Time 
+	   << setw(fw) << p
+	   << setw(fw) << f
+	   << setw(fw) << m;
+      if (sindx>=0) {
+	for (auto v : shist) {
+	  double z = v.second[i];
+	  if (areal) 
+	    z /= dp;
+	  else if (bmass[i] > 0.0) 
+	    z /= bmass[i];
+	  cout << setw(fw) << z;
+	}
+      }
+      cout << endl;
     }
     cout << endl;
   }
-  cout << endl;
 
   return 0;
 }
