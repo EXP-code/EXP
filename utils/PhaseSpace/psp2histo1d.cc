@@ -118,10 +118,6 @@ main(int ac, char **av)
   std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
 
   if (vm.count("files")) {
-    std::cout << "Input files are: ";
-    for (auto s : files) std::cout << s << " ";
-    std::cout << std::endl;
-
     ifstream *in2 = new ifstream(files[0].c_str());
     if (!*in2) {
       cerr << "Error opening file <" << files[0] << "> for input\n";
@@ -211,13 +207,13 @@ main(int ac, char **av)
 	value[iv] += fac*part->vel(comp-4);
       else if (comp == 7)
 	value[iv] += fac*part->phi();
-      else if (part->niatr() && comp <= 8 + part->niatr())
+      else if (part->niatr() && comp <= 7 + part->niatr())
 	value[iv] += fac*part->iatr(comp-8);
-      else
+      else if (part->ndatr())
 	value[iv] += fac*part->datr(comp-8-part->niatr());
 
       if (sindx >= 0) {
-	KeyConvert k(part->datr(sindx));
+	KeyConvert k(part->iatr(sindx));
 	if (shist.find(k.getKey()) == shist.end()) 
 	  shist[k.getKey()].resize(numb, 0);
 	shist[k.getKey()][iv] += fac;
@@ -230,9 +226,33 @@ main(int ac, char **av)
   //
   // Output
   //
+  const size_t fw = 12;
+  const size_t sw =  9;
   double Time = psp.CurrentTime();
-
   float p, f, m=0.0;
+
+  std::cout << setw(fw) << "Time"
+	    << setw(fw) << "Position"
+	    << setw(fw) << "Value"
+	    << setw(fw) << "Mass";
+
+  for (auto v : shist) {
+    speciesKey k = v.first;
+    ostringstream str;
+    str << "(" << k.first << ", " << k.second << ")";
+    cout << setw(fw) << str.str();
+  }
+  cout << std::endl;
+
+  std::cout << setw(fw) << std::string(sw, '-')
+	    << setw(fw) << std::string(sw, '-')
+	    << setw(fw) << std::string(sw, '-')
+	    << setw(fw) << std::string(sw, '-');
+
+  for (auto v : shist) {
+    cout << setw(fw) << std::string(sw, '-');
+  }
+  cout << std::endl;
 
   for (int i=0; i<numb; i++) {
     p  = pmin + dp*(0.5+i);
@@ -243,10 +263,10 @@ main(int ac, char **av)
     } else {
       if (bmass[i] > 0.0) f = value[i]/bmass[i];
     }
-    cout << setw(18) << Time 
-	 << setw(18) << p
-	 << setw(18) << f
-	 << setw(18) << m;
+    cout << setw(fw) << Time 
+	 << setw(fw) << p
+	 << setw(fw) << f
+	 << setw(fw) << m;
     if (sindx>=0) {
       for (auto v : shist) {
 	double z = v.second[i];
@@ -254,7 +274,7 @@ main(int ac, char **av)
 	  z /= dp;
 	else if (bmass[i] > 0.0) 
 	  z /= bmass[i];
-	cout << setw(18) << z;
+	cout << setw(fw) << z;
       }
     }
     cout << endl;
