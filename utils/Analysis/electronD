@@ -1,0 +1,99 @@
+#!/usr/bin/python
+
+# -*- coding: utf-8 -*-
+
+import os, sys, getopt, re, math, copy
+import numpy as np
+import matplotlib.pylab as plt
+
+def plot_data(name, temp, logy):
+	"""Plot the species files for the desired run tags
+
+	Parameters:
+
+	name (string): file name for input
+
+	"""
+
+        factor = temp*8.617342559624189e-05
+	ms = 6
+
+        data = {}
+        labs = []
+        if os.path.isfile(name):
+            file = open(name)
+        else:
+            print "No such file: ", name
+            exit()
+
+        for line in file:
+            if line.find('Time')>=0:
+                labs = re.findall(r'\w+|\(\w+,\w+\)_\w', line)
+                for l in labs: data[l] = []
+            elif line.find('---')<0 and line.find('Overflow')<0: 
+                vals = [float(v) for v in line.split()]
+                for i in range(len(vals)): data[labs[i]].append(vals[i])
+                    
+	for v in labs:
+		if v not in ['Time', 'Energy']:
+			if max(data[v]) > 0.0:
+				mark = "s"
+				if v.find('_e')>0: mark = "o"
+				if logy:
+					plt.semilogy(data['Energy'], data[v], '-', label=v, 
+						     marker=mark, linewidth=3, markersize=ms, 
+						     markerfacecolor="None")
+				else:
+					plt.plot(data['Energy'], data[v], '-', label=v, 
+						 marker=mark, linewidth=3, markersize=ms,
+						     markerfacecolor="None")
+
+        if factor>0.0:
+            thr = copy.deepcopy(data['Energy'])
+            for i in range(len(thr)):
+                thr[i] = math.sqrt(thr[i]) * math.exp(-data['Energy'][i]/factor)
+            nrm = max(max(data['Total_e']), max(data['Total_i']))/max(thr)
+            for i in range(len(thr)): thr[i] *= nrm
+	    mark = "s"
+	    if v.find('_e')>0: mark = "o"
+            if logy:
+                plt.semilogy(data['Energy'], thr, '-', label='Maxwell', 
+                         marker=mark, linewidth=3, markersize=ms, markerfacecolor="None")
+
+            else:
+                plt.plot(data['Energy'], thr, '-', label='Maxwell', 
+                         marker=mark, linewidth=3, markersize=ms, markerfacecolor="None")
+
+
+	plt.legend()
+	plt.xlabel('Energy')
+	plt.ylabel('Distribution')
+	plt.show()
+
+def main(argv):
+	""" Parse the command line and call the parsing and plotting routine """
+        
+	temp = -1.0
+        logy = False
+
+	hstr = '[-h | --help | -L | --LogY | -T val | --Temp=val] filename]'
+
+	try:
+		opts, args = getopt.getopt(argv,"hLT:", ["help", "LogY", "Temp="])
+	except getopt.GetoptError:
+		print sys.argv[0], hstr
+		sys.exit(2)
+
+	for opt, arg in opts:
+		if opt in ("-h", "--help"):
+                    print sys.argv[0], hstr
+                    sys.exit()
+                elif opt in ("-T", "--Temp"):
+                    temp = float(arg)
+                elif opt in ("-L", "--Logy"):
+                    logy = True
+
+	plot_data(args[0], temp, logy)
+
+if __name__ == "__main__":
+	main(sys.argv[1:])
