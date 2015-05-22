@@ -57,12 +57,10 @@ def plot_data(name, temp, logy):
 	    mark = "s"
 	    if v.find('_e')>0: mark = "o"
             if logy:
-                plt.semilogy(data['Energy'], thr, '-', label='Maxwell', 
-                         marker=mark, linewidth=3, markersize=ms, markerfacecolor="None")
+                plt.semilogy(data['Energy'], thr, '-', label='Maxwell', linewidth=2)
 
             else:
-                plt.plot(data['Energy'], thr, '-', label='Maxwell', 
-                         marker=mark, linewidth=3, markersize=ms, markerfacecolor="None")
+                plt.plot(data['Energy'], thr, '-', label='Maxwell', linewidth=2)
 
 
 	plt.legend()
