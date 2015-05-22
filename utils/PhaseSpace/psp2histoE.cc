@@ -8,6 +8,7 @@ using namespace std;
 
 #include <cstdlib>
 
+#include <algorithm>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -39,40 +40,32 @@ int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time, pmin, pmax;
-  bool mweight = true;
-  bool nweight = false;
-  bool areal   = false;
+  double time, Emax, Lunit, Tunit;
   bool verbose = false;
   std:: string cname;
-  int axis, numb, comp, sindx, eindx;
+  int numb, comp, sindx, eindx;
 
   // Parse command line
 
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
-    ("mweight,m",       "mass-weighted values")
-    ("nweight,n",       "number-weighted values")
-    ("areal,A",         "areal average")
     ("verbose,v",       "verbose output")
-    ("time,t",		 po::value<double>(&time)->default_value(1.0e20),
+    ("time,t",		po::value<double>(&time)->default_value(1.0e20),
      "find closest time slice to requested value")
-    ("axis,a",		po::value<int>(&axis)->default_value(3),
-     "histogram along desired axis: x=1, y=2, z=3")
-    ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
-     "minimum position along axis")
-    ("pmax,P",	        po::value<double>(&pmax)->default_value(100.0),
-     "maximum position along axis")
+    ("Lunit,L",		po::value<double>(&Lunit)->default_value(3.086e18),
+     "System length in physical units (cgs)")
+    ("Tunit,T",		po::value<double>(&Tunit)->default_value(3.15569e12),
+     "System time in physical units (cgs)")
+    ("Emax,E",		po::value<double>(&Emax)->default_value(200.0),
+     "Maximum energy in eV")
     ("bins,b",	        po::value<int>(&numb)->default_value(40),
      "number of bins")
-    ("comp,i",		po::value<int>(&comp)->default_value(9),
-     "index for extended value")
-    ("species,s",	po::value<int>(&sindx)->default_value(-1),
+    ("species,s",	po::value<int>(&sindx)->default_value(0),
      "position of species index")
-    ("electrons,e",	po::value<int>(&eindx)->default_value(-1),
+    ("electrons,e",	po::value<int>(&eindx)->default_value(6),
      "position of electron index")
-    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
+    ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
@@ -97,30 +90,19 @@ main(int ac, char **av)
     return 1;
   }
 
-  if (vm.count("mweight")) {
-    mweight = true;
-    nweight = false;
-  }
-
-  if (vm.count("nweight")) {
-    mweight = false;
-    nweight = true;
-  }
-
-  if (vm.count("areal")) {
-    areal = true;
-  }
-
   if (vm.count("verbose")) {
     verbose = true;
   }
 
+  // Units
+  //
+  const double m_e = 9.10938215e-28; // electron mass in g
+  const double eV  = 1.60217653e-12; // erg per eV
+  double Vunit     = Lunit/Tunit;
+  double factor    = m_e/eV * Vunit*Vunit;
 
-				// Axis sanity check 
-				// ------------------
-  if (axis<1) axis = 1;
-  if (axis>3) axis = 3;
-
+  // Get file arguments
+  //
   std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
 
   bool first = true;
@@ -159,19 +141,17 @@ main(int ac, char **av)
     in = new ifstream(file);
     
   
-    double rtmp, mass, fac, dp=(pmax - pmin)/numb;
     vector<double> pos(3), vel(3);
-    int itmp, icnt, iv;
-
-				// Make the array
-				// --------------
-
-    vector<float> value(numb, 0), bmass(numb, 0);
 
     PSPstanza *stanza;
     SParticle* part;
 
+
+				// Will contain array for each species
+				//
     std::map< speciesKey, std::vector<float> > shist;
+    double dkE   = Emax/numb;
+    double total = 0.0;
 
     for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
@@ -179,61 +159,41 @@ main(int ac, char **av)
 
 
 				// Position to beginning of particles
+				// 
       in->seekg(stanza->pspos);
 
       for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-	if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
-
-	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
-	
-	double mass = part->mass();
-
-	if (mweight) {
-	  bmass[iv] += mass;
-	  fac = mass;
-	} else {
-	  bmass[iv] += 1.0;
-	  fac = 1.0;
+	double kE = 0.0;
+	for (size_t i=0; i<3; i++) {
+	  double v = part->datr(eindx+i);
+	  kE += v*v;
 	}
+	kE *= factor;
 
-	if (comp == 0)
-	  value[iv] += fac*mass;
-	else if (comp <= 3)
-	  value[iv] += fac*part->pos(comp-1);
-	else if (comp <= 6)
-	  value[iv] += fac*part->vel(comp-4);
-	else if (comp == 7)
-	  value[iv] += fac*part->phi();
-	else if (part->niatr() && comp <= 7 + part->niatr())
-	  value[iv] += fac*part->iatr(comp-8);
-	else if (part->ndatr())
-	  value[iv] += fac*part->datr(comp-8-part->niatr());
-	
-	if (sindx >= 0) {
-	  KeyConvert k(part->iatr(sindx));
-	  if (shist.find(k.getKey()) == shist.end()) 
-	    shist[k.getKey()].resize(numb, 0);
-	  shist[k.getKey()][iv] += fac;
-	}
+	KeyConvert kc(part->iatr(sindx));
+	speciesKey k = kc.getKey();
 
+	if (shist.find(k) == shist.end()) shist[k].resize(numb+1, 0.0);
+      
+	size_t l = std::min<size_t>(kE/dkE, numb);
+
+	double wgt = part->mass() * (k.second - 1);
+	shist[k][l] += wgt;
+	total += wgt;
       }
-    
     }
     
     //
     // Output
     //
-    const size_t fw = 12;
+    const size_t fw = 14;
     const size_t sw =  9;
     double Time = psp.CurrentTime();
-    float p, f, m=0.0;
 
     if (first) {
       std::cout << setw(fw) << "Time"
-		<< setw(fw) << "Position"
-		<< setw(fw) << "Value"
-		<< setw(fw) << "Mass";
+		<< setw(fw) << "Energy";
       
       for (auto v : shist) {
 	speciesKey k = v.first;
@@ -244,8 +204,6 @@ main(int ac, char **av)
       cout << std::endl;
 
       std::cout << setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-')
-		<< setw(fw) << std::string(sw, '-')
 		<< setw(fw) << std::string(sw, '-');
 
       for (auto v : shist) {
@@ -257,31 +215,22 @@ main(int ac, char **av)
     }
 
     for (int i=0; i<numb; i++) {
-      p  = pmin + dp*(0.5+i);
-      f  = 0.0;
-      m += bmass[i];
-      if (areal)  {
-	f = value[i]/dp;
-      } else {
-	if (bmass[i] > 0.0) f = value[i]/bmass[i];
-      }
+      double energy = dkE*(0.5+i);
       cout << setw(fw) << Time 
-	   << setw(fw) << p
-	   << setw(fw) << f
-	   << setw(fw) << m;
-      if (sindx>=0) {
-	for (auto v : shist) {
-	  double z = v.second[i];
-	  if (areal) 
-	    z /= dp;
-	  else if (bmass[i] > 0.0) 
-	    z /= bmass[i];
-	  cout << setw(fw) << z;
-	}
+	   << setw(fw) << energy;
+      for (auto v : shist) {
+	double z = v.second[i];
+	cout << setw(fw) << z/total;
       }
       cout << endl;
     }
-    cout << endl;
+    cout << setw(fw) << Time 
+	 << setw(fw) << "Overflow";
+    for (auto v : shist) {
+      double z = v.second[numb];
+      cout << setw(fw) << z/total;
+    }
+    cout << endl << endl;
   }
 
   return 0;
