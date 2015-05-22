@@ -37,7 +37,7 @@ const bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-const bool DEBUG_CR          = true;
+const bool DEBUG_CR          = false;
 
 // Artifically suppress electron equipartition speed
 //
