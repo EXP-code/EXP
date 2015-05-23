@@ -539,8 +539,8 @@ void UserTreeDSMC::userinfo()
     cout << ", rr type=" << Ion::getRRtype();
     if (CollideIon::equiptn)
       cout << ", e-i equipartition is ON";
-    else
-      cout << ", e-i equipartition is OFF";
+    if (CollideIon::scatter)
+      cout << ", scattering only is ON";
   }
 
   cout << endl;
@@ -601,6 +601,7 @@ void UserTreeDSMC::initialize()
   if (get_value("mfpts", val))		mfpts      = atol(val);
 
   if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
+  if (get_value("scatter", val))        CollideIon::scatter = atol(val);
 
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {

@@ -557,6 +557,7 @@ public:
   static unsigned Tnum;
   static string   cache;
   static bool     equiptn;
+  static bool     scatter;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
