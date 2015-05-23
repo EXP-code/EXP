@@ -6,7 +6,7 @@ import os, sys, getopt, re, math, copy
 import numpy as np
 import matplotlib.pylab as plt
 
-def plot_data(name, temp, logy):
+def plot_data(name, temp, logy, flag):
 	"""Plot the species files for the desired run tags
 
 	Parameters:
@@ -17,6 +17,8 @@ def plot_data(name, temp, logy):
 
         factor = temp*8.617342559624189e-05
 	ms = 6
+	ion  = 0x10
+	elec = 0x01
 
         data = {}
         labs = []
@@ -37,6 +39,8 @@ def plot_data(name, temp, logy):
 	for v in labs:
 		if v not in ['Time', 'Energy']:
 			if max(data[v]) > 0.0:
+				if v.find('_e')>0 and not (flag & elec): continue
+				if v.find('_i')>0 and not (flag & ion ): continue
 				mark = "s"
 				if v.find('_e')>0: mark = "o"
 				if logy:
@@ -52,10 +56,13 @@ def plot_data(name, temp, logy):
             thr = copy.deepcopy(data['Energy'])
             for i in range(len(thr)):
                 thr[i] = math.sqrt(thr[i]) * math.exp(-data['Energy'][i]/factor)
-            nrm = max(max(data['Total_e']), max(data['Total_i']))/max(thr)
+	    nrm = 0.0;
+	    if flag & elec:
+		    nrm = max(data['Total_e'])
+	    if flag & ion: 
+		    nrm = max(nrm, max(data['Total_i']))
+            nrm = nrm/max(thr)
             for i in range(len(thr)): thr[i] *= nrm
-	    mark = "s"
-	    if v.find('_e')>0: mark = "o"
             if logy:
                 plt.semilogy(data['Energy'], thr, '-', label='Maxwell', linewidth=2)
 
@@ -66,6 +73,7 @@ def plot_data(name, temp, logy):
 	plt.legend()
 	plt.xlabel('Energy')
 	plt.ylabel('Distribution')
+	plt.title('File: ' + name)
 	plt.show()
 
 def main(argv):
@@ -73,25 +81,33 @@ def main(argv):
         
 	temp = -1.0
         logy = False
+	ion  = 0x10
+	elec = 0x01
+	flag = ion | elec
 
-	hstr = '[-h | --help | -L | --LogY | -T val | --Temp=val] filename]'
+	hstr = '[-h | --help | -E | -I | -L | --LogY | -T val | --Temp=val] filename]'
 
 	try:
-		opts, args = getopt.getopt(argv,"hLT:", ["help", "LogY", "Temp="])
+		opts, args = getopt.getopt(argv,"hLT:EI", ["help", "LogY", "Temp="])
 	except getopt.GetoptError:
 		print sys.argv[0], hstr
 		sys.exit(2)
 
 	for opt, arg in opts:
 		if opt in ("-h", "--help"):
-                    print sys.argv[0], hstr
-                    sys.exit()
+			print sys.argv[0], hstr
+			sys.exit()
                 elif opt in ("-T", "--Temp"):
-                    temp = float(arg)
+			temp = float(arg)
                 elif opt in ("-L", "--Logy"):
-                    logy = True
+			logy = True
+		elif opt == "-E":
+			flag = elec
+		elif opt == "-I":
+			flag = ion
+	
 
-	plot_data(args[0], temp, logy)
+	plot_data(args[0], temp, logy, flag)
 
 if __name__ == "__main__":
 	main(sys.argv[1:])

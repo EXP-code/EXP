@@ -25,6 +25,7 @@ unsigned CollideIon::Nnum    = 400;
 unsigned CollideIon::Tnum    = 200;	   
 string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = true;
+bool     CollideIon::scatter = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -104,8 +105,15 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
   if (myid==0 && NOCOOL) 
-    std::cout << "************************************" << std::endl
+    std::cout << std::endl
+	      << "************************************" << std::endl
 	      << "*** No cooling is ON for testing ***" << std::endl
+	      << "************************************" << std::endl;
+
+  if (myid==0 && scatter) 
+    std::cout << std::endl
+	      << "************************************" << std::endl
+	      << "*** No recombination/ionization  ***" << std::endl
 	      << "************************************" << std::endl;
 
 
@@ -2444,7 +2452,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     } else {
       // Accumulate the list here
       //
-      tCross += dCross[id][i];
+      if (!scatter or dInter[id][i] % 100 < 3)
+	tCross += dCross[id][i];
       TotalCross.push_back(tCross);
     }
   }
