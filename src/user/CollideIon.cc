@@ -20,7 +20,6 @@ double   CollideIon::Nmin    = 1.0e-08;
 double   CollideIon::Nmax    = 1.0e+25;	   
 double   CollideIon::Tmin    = 1.0e+03;	   
 double   CollideIon::Tmax    = 1.0e+08;	   
-double   CollideIon::TolV    = 1.0e-03;	   
 unsigned CollideIon::Nnum    = 400;	   
 unsigned CollideIon::Tnum    = 200;	   
 string   CollideIon::cache   = ".HeatCool";
@@ -1539,7 +1538,6 @@ int CollideIon::inelasticDirect(pCell* const c,
 
   // For tracking energy conservation (system units)
   //
-  double dE    = kE*TolV*TolV;
   double delE  = 0.0;
 
   // Now that the interactions have been calculated, create the
@@ -1784,7 +1782,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   
   // Assign interaction energy variables
   //
-  double remE=0.0, totE=0.0, kEe=0.0;
+  double totE=0.0, kEe=0.0;
 
   // -----------------
   // ENERGY DIAGNOSTIC
@@ -1794,7 +1792,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   if (partflag==1) {
     totE = kE;			// KE + internal
     if (use_Eint>=0) totE += p2->dattrib[use_Eint];
-    remE = totE - dE;		// Energy floor
+
     kEe  = kEe2[id];		// Electron energy
 
 				// Energy diagnostics
@@ -1814,7 +1812,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   if (partflag==2) {
     totE = kE;			// KE + internal
     if (use_Eint>=0) totE += p1->dattrib[use_Eint];
-    remE = totE - dE;		// Energy floor
+
     kEe  = kEe1[id];		// Electron energy
 
 				// Energy diagnostics
@@ -1888,7 +1886,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   // Warn if energy lost is greater than total energy available to
   // lose
   //
-  if (frost_warning && delE > remE)
+  if (frost_warning && delE > totE)
       std::cout << "delE > KE!! (" << delE << " > " << totE
 		<< "), Interaction type = " << interFlag 
 		<< " kEe  = "  << kEe
@@ -1899,7 +1897,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   //
   if (TSDIAG && delE>0.0) {
 				// Histogram index
-    int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
+    int indx = (int)floor(log(totE/delE)/(log(2.0)*TSPOW) + 5);
 				// Floor and ceiling
     if (indx<0 ) indx = 0;
     if (indx>10) indx = 10;
@@ -1909,8 +1907,8 @@ int CollideIon::inelasticDirect(pCell* const c,
   
   // Time step "cooling" diagnostic
   //
-  if (use_delt>=0 && delE>0.0 && remE>0.0) {
-    double dtE = remE/delE * spTau[id];
+  if (use_delt>=0 && delE>0.0 && totE>0.0) {
+    double dtE = totE/delE * spTau[id];
     double dt1 = p1->dattrib[use_delt];
     double dt2 = p2->dattrib[use_delt];
     p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
@@ -1927,7 +1925,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   
   // Sufficient energy available for selected loss
   //
-  if (remE > delE) {
+  if (totE > delE) {
 
     lostSoFar[id] += delE;
     decelT[id]    += delE;
@@ -1967,88 +1965,35 @@ int CollideIon::inelasticDirect(pCell* const c,
       p1->dattrib[use_exes] = p2->dattrib[use_exes] = 0.0;
 
   } else {
-    //
-    // Inconsistent: too much energy lost!
-    //
-    
-    // Compute total available energy for both particles
-    //
-    totE = kE - dE;
-    if (use_Eint>=0)
-      totE += p1->dattrib[use_Eint] + p2->dattrib[use_Eint];
-
-    // Try combined energy first . . . 
-    //
-    if (totE > delE) {
-
-      lostSoFar[id] += delE;
-      decelT[id]    += delE;
-    
-      totE          -= delE;	// Remove the energy from the total
-				// available
-
-				// Energy per particle
-      double kEm = totE / (1.0 + ne1 + ne2);
-    
-				// Get new relative velocity
-      (*cr)          = sqrt( 2.0*kEm/Mu );
-
-      ret            = 0;	// No error
-
-      if (partflag==1) {
-	std::get<0>(ctd1->dv[id])++; 
-	std::get<1>(ctd1->dv[id]) += N1;
-	std::get<2>(ctd1->dv[id]) += 
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
-      }
-      
-      if (partflag==2) {
-	std::get<0>(ctd2->dv[id])++; 
-	std::get<1>(ctd2->dv[id]) += N2; 
-	std::get<2>(ctd2->dv[id]) +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
-      }
-
-				// Remaining energy split between
-				// internal degrees of freedom
-      if (use_Eint>=0)
-	p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = kEm;
-      
-    } else {
 				// All available energy will be lost
-      lostSoFar[id] += totE;
-      decolT[id]    += totE - delE;
+    lostSoFar[id] += totE;
+    decolT[id]    += totE - delE;
 
-      (*cr)         *= TolV;
-      ret            = 1;	// Set error flag
+    (*cr)          = 0.0;
+    ret            = 1;		// Set error flag
     
-				// Conservation of energy for internal
-				// degrees of freedom
-      dE             = 0.5*Mu*(*cr)*(*cr);
-
-      if (partflag==1) {
-	std::get<0>(ctd1->dv[id])++; 
-	std::get<1>(ctd1->dv[id]) += N1;
-	std::get<2>(ctd1->dv[id]) +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
-      }
-      
-      if (partflag==2) {
-	std::get<0>(ctd2->dv[id])++; 
-	std::get<1>(ctd2->dv[id]) += N2;
-	std::get<2>(ctd2->dv[id]) +=
-	  0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
-      }
+    if (partflag==1) {
+      std::get<0>(ctd1->dv[id])++; 
+      std::get<1>(ctd1->dv[id]) += N1;
+      std::get<2>(ctd1->dv[id]) +=
+	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
+    }
+    
+    if (partflag==2) {
+      std::get<0>(ctd2->dv[id])++; 
+      std::get<1>(ctd2->dv[id]) += N2;
+      std::get<2>(ctd2->dv[id]) +=
+	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+    }
 
 				// Remaining energy split set to zero
-      if (use_Eint>=0)
-	p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = 0.0;
+    if (use_Eint>=0)
+      p1->dattrib[use_Eint] = p2->dattrib[use_Eint] = 0.0;
 
 				// Reset internal energy excess
-      if (use_exes>=0) {
-	p1->dattrib[use_exes] = p1->mass*(totE - delE)/Mt;
-	p2->dattrib[use_exes] = p2->mass*(totE - delE)/Mt;
-      }
+    if (use_exes>=0) {
+      p1->dattrib[use_exes] = p1->mass*(totE - delE)/Mt;
+      p2->dattrib[use_exes] = p2->mass*(totE - delE)/Mt;
     }
   }
   
@@ -3606,10 +3551,6 @@ int CollideIon::inelasticTrace(pCell* const c,
   //
   double kE = 0.5*Mu*(*cr)*(*cr);
 
-  // For tracking energy conservation (system units)
-  //
-  double dE = kE*TolV*TolV;
-    
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
   //
@@ -3621,17 +3562,16 @@ int CollideIon::inelasticTrace(pCell* const c,
   
   // Assign interaction energy variables
   //
-  double remE, totE, kEe = kEe1[id];
+  double totE, kEe = kEe1[id];
 
   // Diagnostic accumulation
   //
   totE = kE;			// KE
-  remE = totE - dE;		// Energy floor
   
   // Warn if energy lost is greater than total energy available to
   // lose
   //
-  if (frost_warning && delE > remE)
+  if (frost_warning && delE > totE)
     std::cout << "delE > KE!! (" << delE << " > " << totE
 	      << "), kEe  = "  << kEe
 	      << " delE = " << delE/(eV*Mu*UserTreeDSMC::Munit*amu)
@@ -3641,7 +3581,7 @@ int CollideIon::inelasticTrace(pCell* const c,
   //
   if (TSDIAG && delE>0.0) {
 				// Histogram index
-    int indx = (int)floor(log(remE/delE)/(log(2.0)*TSPOW) + 5);
+    int indx = (int)floor(log(totE/delE)/(log(2.0)*TSPOW) + 5);
 				// Floor and ceiling
     if (indx<0 ) indx = 0;
     if (indx>10) indx = 10;
@@ -3651,8 +3591,8 @@ int CollideIon::inelasticTrace(pCell* const c,
   
   // Time step "cooling" diagnostic
   //
-  if (use_delt>=0 && delE>0.0 && remE>0.0) {
-    double dtE = remE/delE * spTau[id];
+  if (use_delt>=0 && delE>0.0 && totE>0.0) {
+    double dtE = totE/delE * spTau[id];
     double dt1 = p1->dattrib[use_delt];
     double dt2 = p2->dattrib[use_delt];
     p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
@@ -3665,7 +3605,7 @@ int CollideIon::inelasticTrace(pCell* const c,
 
     // Sufficient energy available for selected loss
     //
-    if (remE > delE) {
+    if (totE > delE) {
       
       lostSoFar[id] += delE;
       decelT[id]    += delE;
@@ -3688,13 +3628,8 @@ int CollideIon::inelasticTrace(pCell* const c,
       lostSoFar[id] += totE;
       decolT[id]    += totE - delE;
 
-      (*cr)         *= TolV;
+      (*cr)          = 0.0;
       ret            = 1;	// Set error flag
-      
-				// Conservation of energy for internal
-				// degrees of freedom
-      dE             = 0.5*Mu*(*cr)*(*cr);
-
     }
   }
   
