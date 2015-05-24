@@ -152,10 +152,12 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   velER    .resize(nthrds);
-  velEI    .resize(nthrds);
+  keER     .resize(nthrds);
+  keIR     .resize(nthrds);
 
   for (auto &v : velER) v.set_capacity(bufCap);
-  for (auto &v : velEI) v.set_capacity(bufCap);
+  for (auto &v : keER ) v.set_capacity(bufCap);
+  for (auto &v : keIR ) v.set_capacity(bufCap);
 
   //
   // Cross-section debugging [INIT]
@@ -772,7 +774,7 @@ double CollideIon::crossSectionDirect(pCell* const c,
 				//-------------------------------
 				// Both particles neutral
 				//-------------------------------
-  if (C1==1 and C2==2) {
+  if (C1==1 and C2==1) {
 				// Geometric cross sections based on
 				// atomic radius
     cross12 = geometric(Z1);
@@ -1052,8 +1054,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 
   // Available COM energy
   //
-  kEi[id] = 0.5 * mu0 * vel*vel;
-
+  kEi [id] = 0.5 * mu0 * vel*vel;
   kEe1[id] = 0.5 * mu1 * vel*vel * eVel2*eVel2/dof2;
   kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
 
@@ -1098,7 +1099,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// Both particles neutral
 				//-------------------------------
-  if (C1==1 and C2==2) {
+  if (C1==1 and C2==1) {
 				// Geometric cross sections based on
 				// atomic radius
     cross12 = geometric(Z1);
@@ -2940,11 +2941,13 @@ int CollideIon::inelasticWeight(pCell* const c,
     double dKE  = tKEi - tKEf - deltaKE; // Energy balance
     
     if (m1<1.0) {
-      if (KE1i != KE1f) velEI[id].push_back((KE2i - KE2f)/(KE1i - KE1f));
+      if (KE1i > 0) keER[id].push_back((KE1i - KE1f)/KE1i);
+      if (KE2i > 0) keIR[id].push_back((KE2i - KE2f)/KE2i);
     } 
 
     if (m2<1.0) {
-      if (KE2i != KE2f) velEI[id].push_back((KE1i - KE1f)/(KE2i - KE2f));
+      if (KE1i > 0) keIR[id].push_back((KE1i - KE1f)/KE1i);
+      if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
     }
 				// Check Energy balance including excess
     if (fabs(dKE + Exs - delE - missE) > 1.0e-15*(tKEi+tKEf) )
@@ -5686,7 +5689,7 @@ void CollideIon::electronGather()
 
     // Accumulate from threads
     //
-    std::vector<double> loss, eire;
+    std::vector<double> loss, keE, keI;
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
@@ -5694,8 +5697,10 @@ void CollideIon::electronGather()
 
     if (KE_DEBUG) {
       for (int t=0; t<nthrds; t++) {
-	eire.insert(eire.end(), velEI[t].begin(), velEI[t].end());
-	velEI[t].clear();
+	keE.insert(keE.end(), keER[t].begin(), keER[t].end());
+	keER[t].clear();
+	keI.insert(keI.end(), keIR[t].begin(), keIR[t].end());
+	keIR[t].clear();
       }
     }
 
@@ -5712,9 +5717,12 @@ void CollideIon::electronGather()
 	MPI_Send(&loss[0], eNum, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
 
 	if (KE_DEBUG) {
-	  eNum = eire.size();
-	  MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 340, MPI_COMM_WORLD);
-	  MPI_Send(&eire[0], eNum, MPI_DOUBLE,   0, 341, MPI_COMM_WORLD);
+	  eNum = keE.size();
+	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 340, MPI_COMM_WORLD);
+	  MPI_Send(&keE[0], eNum, MPI_DOUBLE,   0, 341, MPI_COMM_WORLD);
+	  eNum = keI.size();
+	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 342, MPI_COMM_WORLD);
+	  MPI_Send(&keI[0], eNum, MPI_DOUBLE,   0, 343, MPI_COMM_WORLD);
 	}
 
       }
@@ -5745,7 +5753,14 @@ void CollideIon::electronGather()
 	  vTmp.resize(eNum);
 	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 341, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	  eire.insert(eire.end(), vTmp.begin(), vTmp.end());
+	  keE.insert(keE.end(), vTmp.begin(), vTmp.end());
+
+	  MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 342, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  vTmp.resize(eNum);
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 343, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  keI.insert(keI.end(), vTmp.begin(), vTmp.end());
 	}
       }
     }
@@ -5775,8 +5790,12 @@ void CollideIon::electronGather()
 	lossH = ahistoDPtr(new AsciiHisto<double>(loss, 20, 0.01));
       }
 
-      if (eire.size()) {
-	eireH = ahistoDPtr(new AsciiHisto<double>(eire, 20, 0.01));
+      if (keE.size()) {
+	keEH = ahistoDPtr(new AsciiHisto<double>(keE, 20, 0.01));
+      }
+
+      if (keI.size()) {
+	keIH = ahistoDPtr(new AsciiHisto<double>(keI, 20, 0.01));
       }
 
     }
@@ -5823,12 +5842,19 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::string(53, '-')  << std::endl;
     (*lossH)(out);
   }
-  if (eireH.get()) {
+  if (keEH.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
-	<< "-----Ratio of electron to ion energy gain/loss ------" << std::endl
+	<< "-----Relative electron energy gain/loss -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
-    (*eireH)(out);
+    (*keEH)(out);
+  }
+  if (keIH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Relative ion energy gain/loss ------------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*keIH)(out);
   }
   out << std::endl << std::endl;
 }

@@ -313,8 +313,8 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, velEI;
-  ahistoDPtr elecH, ionH, lossH, eireH;
+  std::vector< boost::circular_buffer<double> > velER, keER, keIR;
+  ahistoDPtr elecH, ionH, lossH, keEH, keIH;
   //@}
 
 public:
