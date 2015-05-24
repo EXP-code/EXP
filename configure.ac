@@ -147,14 +147,8 @@ dnl ==========================================================================
 dnl Replace 'main' with a function in -largs:
 AC_CHECK_LIB(args, main)
 
-dnl Replace 'main' with a function in -lexputil:
-AC_CHECK_LIB(exputil, main)
-
 dnl Replace 'main' with a function in -lpthread:
 AC_CHECK_LIB(pthread, main)
-
-dnl Replace 'main' with a function in -lexpgnu:
-AC_CHECK_LIB(expgnu, main)
 
 dnl Replace 'main' with a function in -lstdc:
 AC_CHECK_LIB(stdc, main)

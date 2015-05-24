@@ -1076,7 +1076,7 @@ std::vector<double> Ion::radRecombCross(double E, int id)
   //  +--- True for verbose debug reporting for all cross-section types
   //  |
   //  v
-  if (false) {
+  if (true) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
@@ -1092,8 +1092,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    if      (rr_type == topbase) return v2;
-    else if (rr_type == mewe)    return v1;
+    if      (rr_type == mewe)    return v1;
+    else if (rr_type == topbase) return v2;
     else if (rr_type == kramers) return v3;
     else if (rr_type == spitzer) return v4;
     else if (rr_type == verner)  return v5;
@@ -1101,8 +1101,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 
   } else {
 
-    if      (rr_type == topbase) return radRecombCrossTopBase(E, id);
-    else if (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    if      (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    else if (rr_type == topbase) return radRecombCrossTopBase(E, id);
     else if (rr_type == kramers) return radRecombCrossKramers(E, id);
     else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
     else if (rr_type == verner)  return radRecombCrossVerner (E, id);

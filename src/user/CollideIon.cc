@@ -973,8 +973,8 @@ double CollideIon::crossSectionWeight(pCell* const c,
   double m2  = atomic_weights[Z2]*amu;
   double me  = atomic_weights[ 0]*amu;
   double mu0 = m1 * m2 / (m1 + m2);
-  double mu1 = m1;
-  double mu2 = m2;
+  double mu1 = m1 * me / (m1 + me);
+  double mu2 = me * m2 / (me + m2);
 
   // Electron velocity equipartition factors
   //
@@ -993,24 +993,18 @@ double CollideIon::crossSectionWeight(pCell* const c,
     }
     eVel1 = sqrt(eVel1) * UserTreeDSMC::Vunit;
     eVel2 = sqrt(eVel2) * UserTreeDSMC::Vunit;
+
+    eVel1   /= vel;		// These are now ratios
+    eVel2   /= vel;
   }
+    
 
   // Available COM energy
   //
   kEi[id] = 0.5 * mu0 * vel*vel;
 
-  if (use_elec) {
-    kEe1[id] = 0.5 * me * eVel2*eVel2;
-    kEe2[id] = 0.5 * me * eVel1*eVel1;
-  } else {
-    kEe1[id] = 0.5 * mu1 * vel*vel/dof2;
-    kEe2[id] = 0.5 * mu2 * vel*vel/dof1;
-  }
-
-  // These are now ratios
-  //
-  eVel1 /= vel;
-  eVel2 /= vel;
+  kEe1[id] = 0.5 * mu1 * vel*vel * eVel2*eVel2/dof2;
+  kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
 
   // Internal energy per particle
   //
