@@ -103,6 +103,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
+  // Banners warning user of test algorithms
+  //
   if (myid==0 && NOCOOL) 
     std::cout << std::endl
 	      << "************************************" << std::endl
@@ -113,6 +115,12 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     std::cout << std::endl
 	      << "************************************" << std::endl
 	      << "*** No recombination/ionization  ***" << std::endl
+	      << "************************************" << std::endl;
+
+  if (myid==0 && equiptn) 
+    std::cout << std::endl
+	      << "************************************" << std::endl
+	      << "*** Using electron EQUIPARTITION ***" << std::endl
 	      << "************************************" << std::endl;
 
 

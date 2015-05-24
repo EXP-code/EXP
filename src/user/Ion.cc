@@ -1075,7 +1075,7 @@ std::vector<double> Ion::radRecombCross(double E, int id)
   //  +--- True for verbose debug reporting for all cross-section types
   //  |
   //  v
-  if (true) {
+  if (false) {
     std::vector<double> v1 = radRecombCrossMewe   (E, id);
     std::vector<double> v2 = radRecombCrossTopBase(E, id);
     std::vector<double> v3 = radRecombCrossKramers(E, id);
