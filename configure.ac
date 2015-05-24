@@ -162,6 +162,12 @@ AC_CHECK_LIB(gfortran, main)
 dnl Replace `main' with a function in -lmpi:
 AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
+dnl Replace 'main' with a function in -lexpgnu:
+AC_CHECK_LIB(expgnu, main)
+
+dnl Replace 'main' with a function in -lexputil:
+AC_CHECK_LIB(exputil, main)
+
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)

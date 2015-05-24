@@ -45,7 +45,7 @@ main(int ac, char **av)
   bool areal   = false;
   bool verbose = false;
   std:: string cname;
-  int axis, numb, comp, sindx;
+  int axis, numb, comp, sindx, eindx;
 
   // Parse command line
 
@@ -70,6 +70,8 @@ main(int ac, char **av)
      "index for extended value")
     ("species,s",	po::value<int>(&sindx)->default_value(-1),
      "position of species index")
+    ("electrons,e",	po::value<int>(&eindx)->default_value(-1),
+     "position of electron index")
     ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
      "component name")
     ("files,f",         po::value< std::vector<std::string> >(), 
