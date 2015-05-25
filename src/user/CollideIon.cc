@@ -2849,13 +2849,15 @@ int CollideIon::inelasticWeight(pCell* const c,
     double del = 0.5*deltaKE + 0.5*missE;
     p1->dattrib[use_cons] += del;
     p2->dattrib[use_cons] += del;
-  } else {				// Give excess to non-trace species
+  } else {			// Give excess to non-trace species
     p1->dattrib[use_cons] += deltaKE + missE;
   }
 
-  // Update electron velocties.  Electron velocity is computed so that
-  // momentum is conserved ignoring the doner ion.  Use of reduction
-  // factor keeps electrons and ions in equipartition.
+  // Update particle velocties
+  // -------------------------
+  //
+  // Electron velocity is computed so that momentum is conserved
+  // ignoring the doner ion
   //
   if (use_elec and interFlag > 100 and interFlag < 200) {
 
@@ -2870,7 +2872,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
-    std::vector<double> v0(3);
     // Electron from particle #2
     //
     for (size_t k=0; k<3; k++) {
@@ -2879,10 +2880,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       vf2 += v2[k] * v2[k];
     }
 
-    // Debug electron energy loss/gain
+    // For diagnostic electron energy loss/gain distribution
+    //
     velER[id].push_back(vf2/vi2);
   
-
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
     if (equiptn) {
@@ -2904,7 +2905,8 @@ int CollideIon::inelasticWeight(pCell* const c,
       vf2 += v1[k] * v1[k];
     }
     
-    // Debug electron energy loss/gain
+    // For diagnostic electron energy loss/gain distribution
+    //
     velER[id].push_back(vf2/vi2);
 
   } else {
@@ -2913,14 +2915,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       p2->vel[k] = v2[k];
     }
   } 
-
-  *cr = 0.0;
-  for (size_t k=0; k<3; k++) {
-    double v1 = p1->vel[k];
-    double v2 = p2->vel[k];
-    *cr += (v1 - v2)*(v1 - v2);
-  }
-  *cr = sqrt(*cr);
 
   // KE debugging
   //
@@ -2962,7 +2956,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 		<< ", mis=" << std::setw(14) << missE
 		<< ", fac=" << std::setw(14) << vfac
 		<< std::endl;
-  }
+
+  } // Energy conservation debugging diagnostic (KE_DEBUG)
   
   if (equiptn and use_elec) {
 
@@ -3169,7 +3164,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 		  << std::endl;
       }
     }
-  }
+
+  } // Equipartition stanza for electrons
 
   return ret;
 }

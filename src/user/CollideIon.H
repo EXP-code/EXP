@@ -445,20 +445,6 @@ protected:
   {
     if (aType == Direct)
       Collide::velocityUpdate(p1, p2, cr);
-    if (aType == Weight) {
-      if (false) {		// This is all debugging!
-	double vr = 0.0;
-	for (size_t k=0; k<3; k++) {
-	  double z = p1->vel[k] - p2->vel[k];
-	  vr += z*z;
-	}
-	vr = sqrt(vr);
-	if ( fabs(vr - cr) > 1.0e-20 ) {
-	  std::cout << "Velocity mismatch: vr=" << vr << " cr="
-		    << cr << std::endl;
-	}
-      }
-    }
 
     return;
   }
