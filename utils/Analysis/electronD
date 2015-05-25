@@ -58,9 +58,11 @@ def plot_data(name, temp, logy, flag):
                 thr[i] = math.sqrt(thr[i]) * math.exp(-data['Energy'][i]/factor)
 	    nrm = 0.0;
 	    if flag & elec:
-		    nrm = max(data['Total_e'])
+		    nrmE = max(data['Total_e'])
+		    if not math.isnan(nrmE): nrm = nrmE
 	    if flag & ion: 
-		    nrm = max(nrm, max(data['Total_i']))
+		    nrmI = max(data['Total_i'])
+		    if not math.isnan(nrmI): nrm = max(nrm, nrmI)
             nrm = nrm/max(thr)
             for i in range(len(thr)): thr[i] *= nrm
             if logy:
