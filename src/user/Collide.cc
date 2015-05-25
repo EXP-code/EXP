@@ -3316,12 +3316,16 @@ void Collide::mfpCLGather()
 
 void Collide::mfpCLPrint(std::ostream& out)
 {
-  // Print the header for mfpcl quantiles
-  //
-  out << std::endl << std::string(53, '-')  << std::endl
-      << "-----Cell length / MFP distribution------------------" << std::endl
-      << std::string(53, '-') << std::endl << std::left;
-  (*mfpclHist)(out);
-  out << std::string(53, '-')  << std::endl << std::endl;
+  if (mfpclHist.get()) {
+
+    // Print the header for mfpcl quantiles
+    //
+    out << std::endl << std::string(53, '-')  << std::endl
+	<< "-----Cell length / MFP distribution------------------" 
+	<< std::endl
+	<< std::string(53, '-') << std::endl << std::left;
+    (*mfpclHist)(out);
+    out << std::string(53, '-')  << std::endl << std::endl;
+  }
 }
 

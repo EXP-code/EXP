@@ -2053,7 +2053,6 @@ int CollideIon::inelasticDirect(pCell* const c,
       }
     }
 
-    std::vector<double> v0(3);
     // Electron from particle #2
     //
     for (size_t k=0; k<3; k++) {
