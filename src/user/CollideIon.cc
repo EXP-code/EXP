@@ -2974,7 +2974,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     double tKEi = KE1i + KE2i;	// Total pre collision KE
     double tKEf = KE1f + KE2f;	// Total post collision KE
     double dKE  = tKEi - tKEf - deltaKE; // Energy balance
-    
+
     if (m1<1.0) {
       if (KE1i > 0) keER[id].push_back((KE1i - KE1f)/KE1i);
       if (KE2i > 0) keIR[id].push_back((KE2i - KE2f)/KE2i);
@@ -2985,7 +2985,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
     }
 				// Check Energy balance including excess
-    if (fabs(dKE + Exs - delE - missE) > 1.0e-15*(tKEi+tKEf) )
+    double testE = dKE;
+    if (Z1==Z2) testE += Exs - delE - missE;
+
+    if (fabs(testE) > 1.0e-15*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
 		<< std::setw(14) << dKE + Exs - delE - missE
 		<< ", dKE=" << std::setw(14) << dKE
