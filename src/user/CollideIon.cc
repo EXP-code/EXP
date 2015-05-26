@@ -23,7 +23,7 @@ double   CollideIon::Tmax    = 1.0e+08;
 unsigned CollideIon::Nnum    = 400;	   
 unsigned CollideIon::Tnum    = 200;	   
 string   CollideIon::cache   = ".HeatCool";
-bool     CollideIon::equiptn = true;
+bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
@@ -2796,13 +2796,36 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   // Assign interaction energy variables
   //
-  double Exs = 0.0;
-  if (Z1 == Z2 and use_cons>=0) {
-    double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
-    Exs  += del;
-    totE += del;
-    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
-  }
+
+  double Exs = 0.0;		// Exs variable for KE debugging only
+  
+  if (use_cons >= 0) {
+
+    // Not a trace interaction
+    //
+    if (Z1 == Z2) {
+
+      double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+      Exs  += del;
+      totE += del;
+      p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+
+    } else {
+
+      // Trace interaction. Assign energy loss to dominant particle.
+      //
+      if (Wa > Wb)
+	p1->dattrib[use_cons] += -delE;
+      else
+	p2->dattrib[use_cons] += -delE;
+
+      // Reset total energy to initial energy, deferring an changes to
+      // non-trace interactions
+      //
+      totE = kE;
+    }
+
+  } // end: trace-particle energy loss assignment
 
 
   double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
@@ -2842,14 +2865,13 @@ int CollideIon::inelasticWeight(pCell* const c,
     v2[k] = vcom[k] - m1/Mt*vrel[k]*vfac;
   }
 
-  // Save energy adjustiments for next interation
+  // Save energy adjustiments for next interation.  Split between like
+  // species ONLY.
   //
-  if (Z1 == Z2) {		// Split between like species
+  if (use_cons >= 0 and Z1 == Z2) {		
     double del = 0.5*deltaKE + 0.5*missE;
     p1->dattrib[use_cons] += del;
     p2->dattrib[use_cons] += del;
-  } else {			// Give excess to non-trace species
-    p1->dattrib[use_cons] += deltaKE + missE;
   }
 
   // Update particle velocties
@@ -2871,18 +2893,28 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
+    // Upscale electron velocity to conserve energy
+    //
+    double vfac = 1.0;
+    if (Z1 != Z2) {
+      double ke2 = 0.0;
+      for (auto v : v2) ke2 += v*v;
+      ke2 *= 0.5*Wb*m2;
+      vfac = sqrt(1.0 + deltaKE/ke2);
+    }
+
     // Electron from particle #2
     //
     for (size_t k=0; k<3; k++) {
       p1->vel[k] = v1[k];
-      p2->dattrib[use_elec+k] = v2[k];
+      p2->dattrib[use_elec+k] = v2[k] * vfac;
       vf2 += v2[k] * v2[k];
     }
-
+    
     // For diagnostic electron energy loss/gain distribution
     //
     velER[id].push_back(vf2/vi2);
-  
+    
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
     if (equiptn) {
@@ -2896,10 +2928,20 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
+    // Upscale electron velocity to conserve energy
+    //
+    double vfac = 1.0;
+    if (Z1 != Z2) {
+      double ke1 = 0.0;
+      for (auto v : v1) ke1 += v*v;
+      ke1 *= 0.5*Wa*m1;
+      vfac = sqrt(1.0 + deltaKE/ke1);
+    }
+
     // Electron from particle #1
     //
     for (size_t k=0; k<3; k++) {
-      p1->dattrib[use_elec+k] = v1[k];
+      p1->dattrib[use_elec+k] = v1[k] * vfac;
       p2->vel[k] = v2[k];
       vf2 += v1[k] * v1[k];
     }
@@ -2958,8 +3000,13 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
   
+
+  // Enforce electron equipartition
+  //
   if (equiptn and use_elec) {
 
+    // Electron from Particle 2
+    //
     if (interFlag > 100 and interFlag < 200) {
 
       m1 = atomic_weights[Z2];
@@ -3060,8 +3107,11 @@ int CollideIon::inelasticWeight(pCell* const c,
 		  << std::setw(16) << virN << "] "
 		  << std::endl;
       }
-    }
 
+    } // end: electron from Particle 2
+
+    // Electron from Particle 1
+    //
     if (interFlag > 200 and interFlag < 300) {
 
       m1 = atomic_weights[Z1];
@@ -3162,7 +3212,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 		  << std::setw(16) << virN << "] "
 		  << std::endl;
       }
-    }
+
+    }  // end: electron from Particle 2
 
   } // Equipartition stanza for electrons
 
@@ -6005,7 +6056,7 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	sout << "(" << it->first.first << "," << it->first.second << ") ";
 	dout << setw(wid) << right << sout.str();
       }
-      if (use_cons>=0) {
+      if (use_cons >= 0) {
 	dout << std::setw(wid) << std::right << "Cons_E"
 	     << std::setw(wid) << std::right << "Totl_E"
 	     << std::setw(wid) << std::right << "Comb_E";
@@ -6019,7 +6070,7 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	   << std::setw(wid) << std::right << "--------";
       for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	dout << setw(wid) << std::right << "--------";
-      if (use_cons>=0) {
+      if (use_cons >= 0) {
 	dout << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------";
@@ -6054,7 +6105,7 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
     else
       dout << std::setw(wid) << std::right << 0.0;
   }
-  if (use_cons>=0) {
+  if (use_cons >= 0) {
     dout << std::setw(wid) << std::right << consE
 	 << std::setw(wid) << std::right << totlE
 	 << std::setw(wid) << std::right << totlE + consE;
