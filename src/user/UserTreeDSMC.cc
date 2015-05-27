@@ -606,6 +606,7 @@ void UserTreeDSMC::initialize()
 
   if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
   if (get_value("scatter", val))        CollideIon::scatter = atol(val);
+  if (get_value("estype",  val))        CollideIon::setEStype(val);
 
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {

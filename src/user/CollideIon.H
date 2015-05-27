@@ -270,7 +270,7 @@ private:
   std::vector< CEvector >                            CE1, CE2;
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
-  std::vector< double >                              kEi, kEe1, kEe2;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee;
   std::vector< double >                              Ein1, Ein2, Evel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
@@ -299,8 +299,17 @@ private:
     free_free_2 = 203,
     colexcite_2 = 204,
     ionize_2    = 205,
-    recomb_2    = 206
+    recomb_2    = 206,
+    elec_elec   = 300
   };    
+
+  //@{
+  //! Specify the electron scattering algorithm
+  enum ElectronScatter {none=0, always=1, classical=2};
+  typedef std::map<std::string, ElectronScatter> esMapType;
+  static ElectronScatter esType;
+  static esMapType esMap;
+  //@}
 
   std::map<int, std::string> labels;
 
@@ -584,6 +593,21 @@ public:
 
   //! Compute/retrieve mean molecular weight for this cell
   virtual double molWeight(sCell *c);
+
+  //! Set electron scattering type
+  static void setEStype(const std::string& type) 
+  {
+    esMapType::const_iterator it = esMap.find(type);
+    if (it != esMap.end())
+      esType = it->second;
+    else {
+      if (myid==0) {
+	std::cout << "CollideIon::setEStype: could not identify type <"
+		  << type << ">, defaulting to <always>" << std::endl;
+      }
+      esType = always;
+    }
+  }
 
 };
 
