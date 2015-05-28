@@ -25,12 +25,15 @@ unsigned CollideIon::Tnum    = 200;
 string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
+double   CollideIon::esFac   = 10.0;
+
 CollideIon::ElectronScatter
 CollideIon::esType           = CollideIon::always;
 
-CollideIon::esMapType CollideIon::esMap = { {"none", none},
-					    {"always", always},
-					    {"classical", classical} };
+CollideIon::esMapType CollideIon::esMap = { {"none",      none},
+					    {"always",    always},
+					    {"classical", classical},
+					    {"limited",   limited} };
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -838,19 +841,6 @@ double CollideIon::crossSectionDirect(pCell* const c,
     }
   }
 
-				//-------------------------------
-				// Electrons in both particles
-				//-------------------------------
-  if (use_elec >=0 and esType == classical and ne1 > 0 and ne2 > 0) {
-    double b = 0.5*esu*esu /
-      std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
-    b = std::min<double>(b, ips);
-    cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
-    dCross[id].push_back(cross00);
-    dInter[id].push_back(elec_elec);
-  }
-
-
   //--------------------------------------------------
   // Ion keys
   //--------------------------------------------------
@@ -992,6 +982,27 @@ double CollideIon::crossSectionDirect(pCell* const c,
     } 
   }
 
+				//-------------------------------
+				// Electrons in both particles
+				//-------------------------------
+
+  if (esType == classical or esType == limited) {
+
+    if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
+      double b = 0.5*esu*esu /
+	std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
+      b = std::min<double>(b, ips);
+      cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
+
+      if (esType == limited) {
+	double soFar = cross12 + cross21 + sum12 + sum21;
+	cross00 = std::min<double>(esFac*soFar, cross00);
+      }
+   
+      dCross[id].push_back(cross00);
+      dInter[id].push_back(elec_elec);
+    }
+  }
 				//-------------------------------
 				// *** Convert to system units
 				//-------------------------------
@@ -1183,20 +1194,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
     }
   }
 
-				//-------------------------------
-				// Electrons in both particles
-				//-------------------------------
-
-  if (use_elec >=0 and esType == classical and ne1 > 0 and ne2 > 0) {
-    double b = 0.5*esu*esu /
-      std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
-    b = std::min<double>(b, ips);
-    cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
-    dCross[id].push_back(cross00);
-    dInter[id].push_back(elec_elec);
-  }
-
-
   //--------------------------------------------------
   // Ion keys
   //--------------------------------------------------
@@ -1339,10 +1336,31 @@ double CollideIon::crossSectionWeight(pCell* const c,
   }
 
 				//-------------------------------
+				// Electrons in both particles
+				//-------------------------------
+
+  if (esType == classical or esType == limited) {
+
+    if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
+      double b = 0.5*esu*esu /
+	std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
+      b = std::min<double>(b, ips);
+      cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
+      if (esType == limited) {
+	double soFar = cross12 + cross21 + sum12 + sum21;
+	cross00 = std::min<double>(esFac*soFar, cross00);
+      }
+      
+      dCross[id].push_back(cross00);
+      dInter[id].push_back(elec_elec);
+    }
+  }
+				//-------------------------------
 				// *** Convert to system units
 				//-------------------------------
   return (cross00 + cross12 + cross21 + sum12 + sum21) * 1e-14 / 
     (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+  
 }
 
 
@@ -2384,6 +2402,9 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
+  // TEST
+  if (Z1 != Z2) return 0;
+
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
   // Swap particle pointers if necessary.
@@ -2662,7 +2683,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
-  if (interFlag == elec_elec and esType == classical) {
+  if (interFlag == elec_elec and (esType == classical or esType == limited)) {
     double vi = 0.0;
     for (int k=0; k<3; k++) {
       double d1 = p1->dattrib[use_elec+k];

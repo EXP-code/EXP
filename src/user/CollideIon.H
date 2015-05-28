@@ -305,7 +305,7 @@ private:
 
   //@{
   //! Specify the electron scattering algorithm
-  enum ElectronScatter {none=0, always=1, classical=2};
+  enum ElectronScatter {none=0, always=1, classical=2, limited=3};
   typedef std::map<std::string, ElectronScatter> esMapType;
   static ElectronScatter esType;
   static esMapType esMap;
@@ -330,6 +330,10 @@ public:
 
   typedef std::set<unsigned short> ZLtype;
   typedef std::map<unsigned short, double> ZWtype;
+
+  //! Factor for electron scattering enhancement using the "limited"
+  //! algorithm
+  static double esFac;
 
 protected:
 
@@ -604,9 +608,22 @@ public:
       if (myid==0) {
 	std::cout << "CollideIon::setEStype: could not identify type <"
 		  << type << ">, defaulting to <always>" << std::endl;
+				// Be verbose here for clarity
+	std::cout << "--- Available types ---" << std::endl;
+	for (auto s : esMap) std::cout << "  " << s.first << std::endl;
+	std::cout << "-----------------------" << std::endl;
+	esMapType::const_iterator it = esMap.find(type);
       }
       esType = always;
     }
+  }
+
+  //! Get electron scattering type
+  static std::string getEStype()
+  {
+    for (auto i : esMap) 
+      if (esType == i.second) return i.first;
+    return "unknown";
   }
 
 };
