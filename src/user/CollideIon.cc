@@ -2402,9 +2402,6 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
-  // TEST
-  if (Z1 != Z2) return 0;
-
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
   // Swap particle pointers if necessary.
@@ -2695,14 +2692,14 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
     double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-    double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
+    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
     
-    vrel[0] = vi * cos_th;	  // Compute post-collision relative
+    vrel[0] = vi * cos_th;	    // Compute post-collision relative
     vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
     vrel[2] = vi * sin_th*sin(phi); // interaction
 
     for (int k=0; k<3; k++) {
-      p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k];
+      p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k]; 
       p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
     }
 
