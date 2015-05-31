@@ -734,7 +734,8 @@ void CollideLTE::list_sizes_proc(ostream* out)
 
 
 void CollideLTE::finalize_cell(pHOT* const tree, pCell* const cell, 
-			       double kedsp, int id)
+			       sKeyDmap* const Fn, double kedsp, double tau,
+			       int id)
 {
   //
   // Energy lost from this cell compared to target

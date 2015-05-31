@@ -305,7 +305,7 @@ private:
 
   //@{
   //! Specify the electron scattering algorithm
-  enum ElectronScatter {none=0, always=1, classical=2, limited=3};
+  enum ElectronScatter {none=0, always=1, classical=2, limited=3, fixed=4};
   typedef std::map<std::string, ElectronScatter> esMapType;
   static ElectronScatter esType;
   static esMapType esMap;
@@ -331,9 +331,9 @@ public:
   typedef std::set<unsigned short> ZLtype;
   typedef std::map<unsigned short, double> ZWtype;
 
-  //! Factor for electron scattering enhancement using the "limited"
+  //! Maximum number electron scatterings using the "limited"
   //! algorithm
-  static double esFac;
+  static unsigned esNum;
 
 protected:
 
@@ -386,7 +386,8 @@ protected:
   }
   
   virtual void 
-  finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
+  finalize_cell(pHOT* const tree, pCell* const c, 
+		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
   virtual sKey2Dmap& totalCrossSections(int id)

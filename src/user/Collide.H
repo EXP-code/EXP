@@ -111,6 +111,10 @@ public:
   //! Collide return tuple
   typedef boost::tuple<unsigned, unsigned>   UU;
   
+  //! Electron species key
+  const speciesKey electronDef = {-1, -1};
+
+  const sKeyPair electronKey = {electronDef, electronDef};
 
 protected:
 
@@ -274,7 +278,8 @@ protected:
   //! Compute energy adjustments diagnostics for the cell after
   //! collisions/cooling
   virtual void finalize_cell(pHOT* const tree, pCell* const cell, 
-			     double kedsp, int id) {}
+			     sKeyDmap* const Fn, double kedsp, double tau, 
+			     int id) {}
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions

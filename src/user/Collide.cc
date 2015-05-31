@@ -65,7 +65,7 @@ bool Collide::MFPDIAG  = false;
 
 // Sample based on maximum (true) or estimate
 // from variance (false);
-bool Collide::NTC      = false;
+bool Collide::NTC      = true;
 
 // Use cpu work to augment per particle effort
 bool Collide::EFFORT   = true;	
@@ -1270,10 +1270,11 @@ void * Collide::collide_thread(void * arg)
     }
     
     //
-    // General hook for the derived classes for specific diagnostics
+    // General hook for the derived classes for specific computations
+    // and diagnostics
     //
   
-    finalize_cell(tree, c, kedsp, id);
+    finalize_cell(tree, c, Fn, kedsp, tau, id);
   
     stat3SoFar[id] = stat3Time[id].stop();
   

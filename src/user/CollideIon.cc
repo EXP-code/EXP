@@ -25,7 +25,7 @@ unsigned CollideIon::Tnum    = 200;
 string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
-double   CollideIon::esFac   = 10.0;
+unsigned CollideIon::esNum   = 100;
 
 CollideIon::ElectronScatter
 CollideIon::esType           = CollideIon::always;
@@ -33,7 +33,8 @@ CollideIon::esType           = CollideIon::always;
 CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"always",    always},
 					    {"classical", classical},
-					    {"limited",   limited} };
+					    {"limited",   limited},
+					    {"fixed",     fixed} };
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -981,28 +982,6 @@ double CollideIon::crossSectionDirect(pCell* const c,
       sum21 += crs;
     } 
   }
-
-				//-------------------------------
-				// Electrons in both particles
-				//-------------------------------
-
-  if (esType == classical or esType == limited) {
-
-    if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
-      double b = 0.5*esu*esu /
-	std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      b = std::min<double>(b, ips);
-      cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
-
-      if (esType == limited) {
-	double soFar = cross12 + cross21 + sum12 + sum21;
-	cross00 = std::min<double>(esFac*soFar, cross00);
-      }
-   
-      dCross[id].push_back(cross00);
-      dInter[id].push_back(elec_elec);
-    }
-  }
 				//-------------------------------
 				// *** Convert to system units
 				//-------------------------------
@@ -1335,26 +1314,6 @@ double CollideIon::crossSectionWeight(pCell* const c,
     } 
   }
 
-				//-------------------------------
-				// Electrons in both particles
-				//-------------------------------
-
-  if (esType == classical or esType == limited) {
-
-    if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
-      double b = 0.5*esu*esu /
-	std::max<double>(kEee[id]*eV, FloorEv*eV) * 1.0e7; // nm
-      b = std::min<double>(b, ips);
-      cross00 = M_PI*b*b * eVel0 * ne1 * ne2 * crossfac;
-      if (esType == limited) {
-	double soFar = cross12 + cross21 + sum12 + sum21;
-	cross00 = std::min<double>(esFac*soFar, cross00);
-      }
-      
-      dCross[id].push_back(cross00);
-      dInter[id].push_back(elec_elec);
-    }
-  }
 				//-------------------------------
 				// *** Convert to system units
 				//-------------------------------
@@ -2402,6 +2361,99 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
+
+  // Scatter ions
+  //
+  if (true) {
+
+    std::vector<double> vcom(3), vrel(3);
+    double vi = 0.0;
+    double m1 = atomic_weights[Z1];
+    double m2 = atomic_weights[Z2];
+    double mt = m1 + m2;
+    for (int k=0; k<3; k++) {
+      double d1 = p1->vel[k];
+      double d2 = p2->vel[k];
+      vcom[k] = (m1*d1 + m2*d2)/(m1 + m2);
+      vi     += (d1 - d2) * (d1 - d2);
+    }
+    vi = sqrt(vi);
+
+    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
+    
+    vrel[0] = vi * cos_th;	    // Compute post-collision relative
+    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+    vrel[2] = vi * sin_th*sin(phi); // interaction
+
+    for (int k=0; k<3; k++) {
+      p1->vel[k] = vcom[k] + m2/mt*vrel[k]; 
+      p2->vel[k] = vcom[k] - m1/mt*vrel[k];
+    }
+
+    m1 = atomic_weights[0];
+    m2 = atomic_weights[0];
+    mt = m1 + m2;
+    vi = 0.0;
+    for (int k=0; k<3; k++) {
+      double d1 = p1->dattrib[use_elec+k];
+      double d2 = p2->dattrib[use_elec+k];
+      vcom[k] = (m1*d1 + m2*d2)/mt;
+      vi     += (d1 - d2) * (d1 - d2);
+    }
+    vi = sqrt(vi);
+    
+    cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+    sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+    phi    = 2.0*M_PI*(*unit)();	// Collision angle phi
+    
+    vrel[0] = vi * cos_th;	    // Compute post-collision relative
+    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+    vrel[2] = vi * sin_th*sin(phi); // interaction
+      
+    for (int k=0; k<3; k++) {
+      p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k]; 
+      p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k];
+    }
+
+    return 0;
+  }
+
+  // Scatter electrons ONLY (TESTING)
+  //
+  if (true && C1>1 && C2>1) {
+
+    std::vector<double> vcom(3), vrel(3);
+    double vi = 0.0;
+    for (int k=0; k<3; k++) {
+      double d1 = p1->dattrib[use_elec+k];
+      double d2 = p2->dattrib[use_elec+k];
+      vcom[k] = 0.5*(d1 + d2);
+      vi     += (d1 - d2) * (d1 - d2);
+    }
+    vi = sqrt(vi);
+
+    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
+    
+    vrel[0] = vi * cos_th;	    // Compute post-collision relative
+    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+    vrel[2] = vi * sin_th*sin(phi); // interaction
+
+    for (int k=0; k<3; k++) {
+      p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k]; 
+      p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+    }
+
+    return 0;
+  }
+
+  // Do nothing for trace interaction (TESTING)
+  //
+  if (false && Z1 != Z2 and C1 != C2) return 0;
+
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
   // Swap particle pointers if necessary.
@@ -2679,32 +2731,6 @@ int CollideIon::inelasticWeight(pCell* const c,
   }
   
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
-
-  if (interFlag == elec_elec and (esType == classical or esType == limited)) {
-    double vi = 0.0;
-    for (int k=0; k<3; k++) {
-      double d1 = p1->dattrib[use_elec+k];
-      double d2 = p2->dattrib[use_elec+k];
-      vcom[k] = 0.5*(d1 + d2);
-      vi     += (d1 - d2) * (d1 - d2);
-    }
-    vi = sqrt(vi);
-
-    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
-    
-    vrel[0] = vi * cos_th;	    // Compute post-collision relative
-    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-    vrel[2] = vi * sin_th*sin(phi); // interaction
-
-    for (int k=0; k<3; k++) {
-      p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k]; 
-      p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
-    }
-
-    return 0;
-  }
 
   // For elastic interactions, delE == 0
   //
@@ -4010,7 +4036,8 @@ void * CollideIon::timestep_thread(void * arg)
 }
 
 void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell, 
-			       double kedsp, int id)
+			       sKeyDmap* const Fn, double kedsp, double tau,
+			       int id)
 {
   //
   // Spread out species change differences
@@ -4214,8 +4241,168 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       } // end: Sanity check
 
     }
-  }
+  } // end: Trace
   
+  
+  // Do electron interactions separately
+  //
+  if (aType == Weight and use_elec>=0 and esType != always) {
+
+    const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    std::vector<unsigned long> bods;
+    double eta = 0.0, crsvel = 0.0;
+    double volc = cell->Volume();
+    double me   = atomic_weights[0]*amu;
+
+    // Compute list of particles in cell with electrons
+    //
+    for (auto i : cell->bods) {
+      Particle *p = cell->Body(i);
+      KeyConvert k(p->iattrib[use_key]);
+      if (k.C()>1) {
+	bods.push_back(i);
+	eta += ZMList[k.Z()]/atomic_weights[k.Z()] * 
+	  (*Fn)[k.getKey()] * (k.C()-1);
+      }
+    }
+    
+    // Sample cell
+    //
+    pCell *samp = cell->sample;
+
+    if (samp)
+      crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(electronKey, 0.95));
+    else
+      crsvel = std::get<0>(ntcdb[cell->mykey]->VelCrsAvg(electronKey, 0.95));
+    
+
+    // Probability of an interaction of between particles of type 1
+    // and 2 for a given particle of type 2
+    //
+    double Prob    = eta * cunit * crsvel * tau / volc;
+    size_t nbods   = bods.size();
+    double selcM   = 0.5 * nbods * (nbods-1) *  Prob;
+    unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
+
+    if (esType == limited or esType == fixed) 
+      nselM = std::min<unsigned>(nselM, esNum);
+
+    NTCitem::vcTup ntcF;
+
+    if (samp)
+      ntcF = ntcdb[samp->mykey]->VelCrsAvg(electronKey, 0.95);
+    else
+      ntcF = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
+
+
+    for (unsigned n=0; n<nselM; n++) {
+    
+      // Pick two particles with electrons at random out of this cell.
+      //
+      size_t l1, l2;
+
+      l1 = static_cast<size_t>(floor((*unit)()*nbods));
+      l1 = std::min<size_t>(l1, nbods-1);
+
+      l2 = static_cast<size_t>(floor((*unit)()*(nbods-1)));
+      l2 = std::min<size_t>(l2, nbods-2);
+	  
+      if (l2 >= l1) l2++;
+
+      // Get index from body map for the cell
+      //
+      Particle* const p1 = cell->Body(bods[l1]);
+      Particle* const p2 = cell->Body(bods[l2]);
+	  
+      // Calculate pair's relative speed (pre-collision)
+      //
+      vector<double> vcom(3), vrel(3);
+      double vi = 0.0;
+      for (int k=0; k<3; k++) {
+	vcom[k] = 0.5*(p1->dattrib[use_elec+k] + p2->dattrib[use_elec+k]);
+	vrel[k] = p1->dattrib[use_elec+k] - p2->dattrib[use_elec+k];
+	vi += vrel[k]*vrel[k];
+      }
+      
+      // No point in inelastic collsion for zero velocity . . . 
+      //
+      if (vi == 0.0) continue;
+
+      // Relative velocity 
+      //
+      vi = sqrt(vi);
+
+      double cr = vi * UserTreeDSMC::Vunit;
+
+      // Kinetic energy in eV
+      //
+      double kEee = 0.25 * me * cr * cr / eV;
+
+      // Compute the cross section
+      //
+      double scrs = 0.0;
+      
+      KeyConvert k1(p1->iattrib[use_key]);
+      KeyConvert k2(p1->iattrib[use_key]);
+      
+      double ne1 = k1.C() - 1;
+      double ne2 = k2.C() - 1;
+
+      // Mean interparticle spacing
+      // 
+      double ips = pow(volc/nbods, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
+      
+      // Collision flag
+      //
+      bool ok = true;
+
+      if (esType == classical or esType == limited) {
+
+	if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
+	  double b = 0.5*esu*esu /
+	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
+	  b = std::min<double>(b, ips);
+	  scrs = M_PI*b*b * ne1 * ne2;
+	}
+
+	// Accept or reject candidate pair according to relative speed
+	//
+	double mcrs = std::get<0>(ntcF);
+	double prod = vi   * scrs;
+	double targ = prod / mcrs;
+    
+	ok = (targ > (*unit)() );
+	
+	// Update v_max and cross_max for NTC
+	//
+
+	// Accumulate average
+	NTCitem::vcTup dat(prod, scrs, targ);
+#pragma omp critical
+	ntcdb[samp->mykey]->VelCrsAdd(electronKey, dat);
+      }
+
+      // Scatter
+      //
+      if (ok) {
+	double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+	double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+	double phi    = 2.0*M_PI*(*unit)();        // Collision angle phi
+    
+	vrel[0] = vi * cos_th;	        // Compute post-collision
+	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
+	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
+
+	for (int k=0; k<3; k++) {
+	  p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k]; 
+	  p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	}
+      }
+
+    } // loop over particles
+
+  } // end: Weight
+
   //
   // Cross-section debugging
   //
