@@ -184,6 +184,13 @@ double CheckpointTimer::time_remaining()
   if (getenv(env_slurm.c_str()) == 0)
     throw string("No environment variable: SLURM_JOB_ID");
   
+  std::cout << "----------------------------------------------------"
+	    << "------------------" << endl
+	    << "CheckpointTimer():" << endl
+	    << "    SLURM detected" << endl
+	    << "----------------------------------------------------"
+	    << "------------------" << endl;
+
   string job = getenv(env_slurm.c_str());
   long   rem = rem_time(atoi(job.c_str()));
 
@@ -200,6 +207,13 @@ double CheckpointTimer::time_remaining()
 
   if (getenv(env_pbs.c_str()) == 0)
     throw string("No environment variable: PBS_JOBID");
+
+  std::cout << "----------------------------------------------------"
+	    << "------------------" << endl
+	    << "CheckpointTimer():" << endl
+	    << "    PBS detected"   << endl
+	    << "----------------------------------------------------"
+	    << "------------------" << endl;
 
   string job = getenv(env_pbs.c_str());
 
