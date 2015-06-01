@@ -1708,6 +1708,21 @@ int CollideIon::inelasticDirect(pCell* const c,
     // Particle 1 interactions
     //-------------------------
 
+    if (interFlag == neut_neut_1) {
+      std::get<0>(ctd1->nn[id])++; 
+      std::get<1>(ctd1->nn[id]) += NN;
+    }
+
+    if (interFlag == neut_elec_1) {
+      std::get<0>(ctd1->ne[id])++; 
+      std::get<1>(ctd1->ne[id]) += NN;
+    }
+
+    if (interFlag == ion_elec_1) {
+      std::get<0>(ctd1->ie[id])++; 
+      std::get<1>(ctd1->ie[id]) += NN;
+    }
+
     if (interFlag == free_free_1) {
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
@@ -1752,6 +1767,21 @@ int CollideIon::inelasticDirect(pCell* const c,
     //-------------------------
     // Particle 2 interactions
     //-------------------------
+
+    if (interFlag == neut_neut_2) {
+      std::get<0>(ctd2->nn[id])++; 
+      std::get<1>(ctd2->nn[id]) += NN;
+    }
+
+    if (interFlag == neut_elec_2) {
+      std::get<0>(ctd2->ne[id])++; 
+      std::get<1>(ctd2->ne[id]) += NN;
+    }
+
+    if (interFlag == ion_elec_2) {
+      std::get<0>(ctd2->ie[id])++; 
+      std::get<1>(ctd2->ie[id]) += NN;
+    }
 
     if (interFlag == free_free_2) {
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
@@ -2665,6 +2695,21 @@ int CollideIon::inelasticWeight(pCell* const c,
     // Particle 1 interactions
     //-------------------------
 
+    if (interFlag == neut_neut_1) {
+      std::get<0>(ctd1->nn[id])++; 
+      std::get<1>(ctd1->nn[id]) += NN;
+    }
+
+    if (interFlag == neut_elec_1) {
+      std::get<0>(ctd1->ne[id])++; 
+      std::get<1>(ctd1->ne[id]) += NN;
+    }
+
+    if (interFlag == ion_elec_1) {
+      std::get<0>(ctd1->ie[id])++; 
+      std::get<1>(ctd1->ie[id]) += NN;
+    }
+
     if (interFlag == free_free_1) {
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
@@ -2709,6 +2754,21 @@ int CollideIon::inelasticWeight(pCell* const c,
     //-------------------------
     // Particle 2 interactions
     //-------------------------
+
+    if (interFlag == neut_neut_2) {
+      std::get<0>(ctd2->nn[id])++; 
+      std::get<1>(ctd2->nn[id]) += NN;
+    }
+
+    if (interFlag == neut_elec_2) {
+      std::get<0>(ctd2->ne[id])++; 
+      std::get<1>(ctd2->ne[id]) += NN;
+    }
+
+    if (interFlag == ion_elec_2) {
+      std::get<0>(ctd2->ie[id])++; 
+      std::get<1>(ctd2->ie[id]) += NN;
+    }
 
     if (interFlag == free_free_2) {
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
@@ -4545,6 +4605,9 @@ void collDiag::initialize()
 
 	out << "# Variable      key                      " << std::endl
 	    << "# ------------  -------------------------" << std::endl
+	    << "# N(nn)         number of neut-neut scat " << std::endl
+	    << "# N(ne)         number of neut-elec scat " << std::endl
+	    << "# N(ie)         number of ion-elec scat  " << std::endl
 	    << "# N(ff)         number of free-free      " << std::endl
 	    << "# W(ff)         summed wght of free-free " << std::endl
 	    << "# E(ff)         cum energy in free-free  " << std::endl
@@ -4567,7 +4630,7 @@ void collDiag::initialize()
 	for (auto it : *this) {
 	  ostringstream sout, sout2;
 	  sout  << "(" << it.first.first << ", " << it.first.second << ")";
-	  size_t w =13*12, l = sout.str().size();
+	  size_t w =16*12, l = sout.str().size();
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
@@ -4577,7 +4640,7 @@ void collDiag::initialize()
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<13; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
 	out << std::setw(12) << '+' << std::setw(12) << '-' << " |"
@@ -4588,7 +4651,10 @@ void collDiag::initialize()
 	    << std::setw(11) << "Time |"
 	    << std::setw(12) << "Temp |" << " | ";
 	for (auto it : *this) {
-	  out << std::setw(12) << "N(ff) |"
+	  out << std::setw(12) << "N(nn) |"
+	      << std::setw(12) << "N(ne) |"
+	      << std::setw(12) << "N(ie) |"
+	      << std::setw(12) << "N(ff) |"
 	      << std::setw(12) << "W(ff) |"
 	      << std::setw(12) << "E(ff) |"
 	      << std::setw(12) << "N(ce) |"
@@ -4615,7 +4681,7 @@ void collDiag::initialize()
 	st << "[" << ++cnt << "] |";
 	out << std::setw(12) << st.str() << " | ";
 	for (auto it : *this) {
-	  for (size_t l=0; l<13; l++) {
+	  for (size_t l=0; l<16; l++) {
 	    st.str("");
 	    st << "[" << ++cnt << "] |";
 	    out << std::setw(12) << std::right << st.str();
@@ -4633,7 +4699,7 @@ void collDiag::initialize()
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (auto it : *this) {
-	  for (int i=0; i<13; i++) out << std::setw(12) << '+';
+	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
 	out << std::setw(12) << '+' << std::setw(12) << '-' << " |"
@@ -4742,7 +4808,10 @@ void collDiag::print()
 	  << std::setw(12) << p->tempM << " | ";
       for (auto it : *this) {
 	collTDPtr ctd = it.second;
-	out << std::setw(12) << std::get<0>(ctd->ff_s)
+	out << std::setw(12) << std::get<0>(ctd->nn_s)
+	    << std::setw(12) << std::get<0>(ctd->ne_s)
+	    << std::setw(12) << std::get<0>(ctd->ie_s)
+	    << std::setw(12) << std::get<0>(ctd->ff_s)
 	    << std::setw(12) << std::get<1>(ctd->ff_s)
 	    << std::setw(12) << std::get<2>(ctd->ff_s) * cvrt
 	    << std::setw(12) << std::get<0>(ctd->CE_s)
