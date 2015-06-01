@@ -47,7 +47,7 @@ private:
   //! Execute a command and pipe the results to string
   string exec(string& cmd);
 
-  //! Get the remaining execution time from PBS
+  //! Get the remaining execution time
   double time_remaining();
 
 public:

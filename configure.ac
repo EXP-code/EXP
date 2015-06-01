@@ -176,6 +176,12 @@ if test x$have_mpi = xno; then
    AC_MSG_FAILURE([Error! You need to have MPI installed!])
 fi
 
+dnl Check for slurm lib
+AC_CHECK_LIB(slurm, main)
+
+dnl Check for torque lib
+AC_CHECK_LIB(torque, main)
+
 dnl ==========================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
 dnl ==========================================================================

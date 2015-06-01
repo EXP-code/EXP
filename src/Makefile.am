@@ -41,7 +41,7 @@ exp_SOURCES = Basis.cc Bessel.cc CBrock.cc Component.cc CBrockDisk.cc	\
      OutLog.cc OutCoef.cc multistep.cc parse.cc Slab.cc SlabSL.cc	\
      step.cc sbessj.cc sbessz.cc tidalField.cc ultra.cc ultrasphere.cc	\
      MPL.cc zbrent.cc OutFrac.cc OutCalbr.cc ParticleFerry.cc pCell.cc	\
-     chkTimer.cc pHOT.cc Timer.cc
+     chkSlurm.c chkTimer.cc pHOT.cc Timer.cc
 
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu -I$(top_srcdir)/src
 
