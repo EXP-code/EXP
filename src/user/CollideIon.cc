@@ -2364,9 +2364,9 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
 
-  // Scatter ions
+  // Scatter ions (TESTING)
   //
-  if (true) {
+  if (false) {
 
     std::vector<double> vcom(3), vrel(3);
     double vi = 0.0;
@@ -2424,7 +2424,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   // Scatter electrons ONLY (TESTING)
   //
-  if (true && C1>1 && C2>1) {
+  if (false && C1>1 && C2>1) {
 
     std::vector<double> vcom(3), vrel(3);
     double vi = 0.0;
