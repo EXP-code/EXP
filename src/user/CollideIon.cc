@@ -4375,14 +4375,16 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     
 	ok = (targ > (*unit)() );
 	
-	// Update v_max and cross_max for NTC
+	// Over NTC max average
 	//
-				// Over NTC max average
 	if (targ > 1.0) elecOvr[id]++;
-				// Used
+
+	// Used
+	//
 	if (ok)         elecTot[id]++;
 
-	// Accumulate average
+	// Update v_max and cross_max for NTC
+	//
 	NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
 	ntcdb[samp->mykey]->VelCrsAdd(electronKey, dat);
@@ -6135,7 +6137,7 @@ void CollideIon::electronGather()
     }
 
     MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Ovr, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Tot, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     
     if (myid==0) {
 
@@ -6231,11 +6233,12 @@ void CollideIon::electronPrint(std::ostream& out)
 
   out << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl
+      << std::string(53, '-') << std::endl
       << "  Over=" << Ovr_s << "  Total=" << Tot_s << std::fixed
       << "  Frac=" << static_cast<double>(Ovr_s)/Tot_s << std::endl 
       << std::string(53, '-') << std::endl;
 
-  out << std::endl << std::endl;
+  out << std::endl;
 }
 
 const std::string clabl(unsigned c)
