@@ -46,7 +46,7 @@ public:
 
   //@{
   //! Vectors for each type of diagnostic by thread id
-  IDVP ff, CE, CI, RR, dv;
+  IDVP nn, ne, ie, ff, CE, CI, RR, dv;
   IDVD eV_av, eV_max, eV_min;
   IDVI eV_N, eV_10;
   //@}
@@ -55,7 +55,7 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  UDDT          ff_s, CE_s, CI_s, RR_s, dv_s;
+  UDDT          nn_s, ne_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
   double        eV_av_s, eV_max_s, eV_min_s;
   unsigned long eV_N_s, eV_10_s;
   //@}
@@ -95,6 +95,9 @@ public:
   {
     zero = UDDT(0, 0, 0);
 
+    nn.resize(nthrds, zero);
+    ne.resize(nthrds, zero);
+    ie.resize(nthrds, zero);
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
     CI.resize(nthrds, zero);
@@ -111,6 +114,9 @@ public:
   //! Reset the accumulation vectors
   void reset() 
   {
+    std::fill(nn.begin(), nn.end(), zero);
+    std::fill(ne.begin(), ne.end(), zero);
+    std::fill(ie.begin(), ie.end(), zero);
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
     std::fill(CI.begin(), CI.end(), zero);
@@ -128,6 +134,9 @@ public:
   //! instance
   void sumUp()
   {
+    nn_s     =  accum(nn);
+    ne_s     =  accum(ne);
+    ie_s     =  accum(ie);
     ff_s     =  accum(ff);
     CE_s     =  accum(CE);
     CI_s     =  accum(CI);
@@ -151,6 +160,9 @@ public:
 
   void sync()
   {
+    syncUDDT(nn_s);
+    syncUDDT(ne_s);
+    syncUDDT(ie_s);
     syncUDDT(ff_s);
     syncUDDT(CE_s);
     syncUDDT(CI_s);
