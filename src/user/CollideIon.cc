@@ -2338,6 +2338,34 @@ int CollideIon::inelasticDirect(pCell* const c,
     }
   }
 
+  // Scatter electrons
+  //
+  if (esType == always and C1>1 and C2>1) {
+    double vi = 0.0;
+    for (int k=0; k<3; k++) {
+      double d1 = p1->dattrib[use_elec+k];
+      double d2 = p2->dattrib[use_elec+k];
+      vcom[k] = 0.5*(d1 + d2);
+      vi     += (d1 - d2) * (d1 - d2);
+    }
+    vi = sqrt(vi);
+
+    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+    double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
+    
+    vrel[0] = vi * cos_th;	  // Compute post-collision relative
+    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+    vrel[2] = vi * sin_th*sin(phi); // interaction
+
+    for (int k=0; k<3; k++) {
+      p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k];
+      p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+    }
+
+    return 0;
+  }
+
   return ret;
 }
 
@@ -2364,7 +2392,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
 
-  // Scatter ions (TESTING)
+  // Scatter ions and electrons (TESTING ONLY)
   //
   if (false) {
 
@@ -2422,7 +2450,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     return 0;
   }
 
-  // Scatter electrons ONLY (TESTING)
+  // Scatter electrons ONLY (TESTING ONLY)
   //
   if (false && C1>1 && C2>1) {
 
@@ -2452,7 +2480,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     return 0;
   }
 
-  // Do nothing for trace interaction (TESTING)
+  // Do nothing for trace interaction (TESTING ONLY)
   //
   if (false && Z1 != Z2 and C1 != C2) return 0;
 
@@ -4248,7 +4276,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   
   // Do electron interactions separately
   //
-  if (aType == Weight and use_elec>=0 and esType != always) {
+  if ( (aType == Direct or aType == Weight) and use_elec>=0 and esType != always) {
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
@@ -4409,7 +4437,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     } // loop over particles
 
-  } // end: Weight
+  } // end: Direct or Weight for use_elec>=0
 
   //
   // Cross-section debugging
