@@ -165,6 +165,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   velER    .resize(nthrds);
   keER     .resize(nthrds);
   keIR     .resize(nthrds);
+  elecOvr  .resize(nthrds, 0);
+  elecTot  .resize(nthrds, 0);
 
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : keER ) v.set_capacity(bufCap);
@@ -4375,6 +4377,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	
 	// Update v_max and cross_max for NTC
 	//
+				// Over NTC max average
+	if (targ > 1.0) elecOvr[id]++;
+				// Used
+	if (ok)         elecTot[id]++;
 
 	// Accumulate average
 	NTCitem::vcTup dat(prod, scrs, targ);
@@ -6049,9 +6055,13 @@ void CollideIon::electronGather()
     // Accumulate from threads
     //
     std::vector<double> loss, keE, keI;
+    unsigned Ovr=0, Tot=0;
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
+      Ovr += elecOvr[t];
+      Tot += elecTot[t];
+      elecOvr[t] = elecTot[t] = 0;
     }
 
     if (KE_DEBUG) {
@@ -6123,6 +6133,9 @@ void CollideIon::electronGather()
 	}
       }
     }
+
+    MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Ovr, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     
     if (myid==0) {
 
@@ -6215,6 +6228,13 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::string(53, '-')  << std::endl;
     (*keIH)(out);
   }
+
+  out << std::string(53, '-') << std::endl
+      << "-----Electron NTC diagnostics------------------------" << std::endl
+      << "  Over=" << Ovr_s << "  Total=" << Tot_s << std::fixed
+      << "  Frac=" << static_cast<double>(Ovr_s)/Tot_s << std::endl 
+      << std::string(53, '-') << std::endl;
+
   out << std::endl << std::endl;
 }
 

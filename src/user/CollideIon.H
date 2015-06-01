@@ -274,6 +274,7 @@ private:
   std::vector< double >                              Ein1, Ein2, Evel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
+  std::vector< unsigned >                            elecOvr, elecTot;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -324,6 +325,7 @@ private:
   const size_t bufCap = 16384;
   std::vector< boost::circular_buffer<double> > velER, keER, keIR;
   ahistoDPtr elecH, ionH, lossH, keEH, keIH;
+  unsigned Ovr_s, Tot_s;
   //@}
 
 public:
