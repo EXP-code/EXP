@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.33)
+AC_INIT(EXP, 7.34)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -229,19 +229,17 @@ AC_CHECK_LIB(gfortran, main)
 dnl Replace `main' with a function in -lmpi:
 AC_CHECK_LIB(mpi, main, , [have_mpi=no])
 
-dnl Replace 'main' with a function in -lexpgnu:
-AC_CHECK_LIB(expgnu, main)
-
-dnl Replace 'main' with a function in -lexputil:
-AC_CHECK_LIB(exputil, main)
-
 dnl Checks for header files.
 AC_HEADER_STDC
 AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
 
+dnl Must have an MPI installation
 if test x$have_mpi = xno; then
    AC_MSG_FAILURE([Error! You need to have MPI installed!])
 fi
+
+dnl Check for slurm, used for checkpoint timing
+AC_CHECK_LIB(slurm, main)
 
 dnl ==========================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
