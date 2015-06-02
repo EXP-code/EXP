@@ -123,7 +123,10 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 
 				// Look for the fiducial component
   bool found = false;
-  for (auto c : comp.components) {
+  list<Component*>::iterator cc;
+  Component *c;
+  for (cc=comp.components.begin(); cc != comp.components.end(); cc++) {
+    c = *cc;
     if ( !comp_name.compare(c->name) ) {
       c0 = c;
       found = true;
@@ -267,15 +270,15 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     //
     typedef std::set<unsigned short> elemL;
     elemL elems;
-    for (auto it : spec)
-      elems.insert(it.first.first);
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      elems.insert(it->first.first);
     
     //
     // Create all possible species
     //
-    for (auto it : elems) {
-      for (unsigned short C=1; C<it+2; C++) {
-	speciesKey indx(it, C);
+    for (elemL::iterator it=elems.begin(); it != elems.end(); it++)  {
+      for (unsigned short C=1; C<*it+2; C++) {
+	speciesKey indx(*it, C);
 	spec_list.insert(indx);
 	collFrac[indx] = 1.0;
       }
@@ -1698,7 +1701,9 @@ void UserTreeDSMC::triggered_cell_body_dump(double time, double radius)
       ostr << outdir << runtag << ".testcell." << myid << "." << cnt++;
       ofstream out(ostr.str().c_str());
       
-      for (auto j=c.Cell()->bods.begin(); j!=c.Cell()->bods.end(); j++) {
+      // for (set<unsigned long>::iterator j=c.Cell()->bods.begin();
+      for (vector<unsigned long>::iterator j=c.Cell()->bods.begin();
+	   j!=c.Cell()->bods.end(); j++) {
 	for (unsigned k=0; k<3; k++) 
 	  out << setw(18) << c0->Tree()->Body(*j)->pos[k];
 	for (unsigned k=0; k<3; k++) 
@@ -1856,7 +1861,7 @@ void UserTreeDSMC::TempHisto()
   
   while (pit.nextCell()) {
     cell = pit.Cell();
-
+    // set<unsigned long>::iterator j = cell->bods.begin();
     vector<unsigned long>::iterator j = cell->bods.begin();
     V = cell->Volume();
     while (j != cell->bods.end()) {
@@ -1958,6 +1963,8 @@ void UserTreeDSMC::makeSpeciesMap()
   int sizm;
   speciesKey indx;
   unsigned long cnts;
+  std::map<speciesKey, unsigned long>::iterator it, it2;
+  
   
   spec = spec1;			// Copy local map to global
   for (int i=0; i<numprocs; i++) {
@@ -1966,9 +1973,9 @@ void UserTreeDSMC::makeSpeciesMap()
       // Local map size
       MPI_Bcast(&sizm, 1, MPI_INT, i, MPI_COMM_WORLD);
       // Send local map
-      for (auto it : spec1) {
-	indx = it.first;
-	cnts = it.second;
+      for (it=spec1.begin(); it != spec1.end(); it++) {
+	indx = it->first;
+	cnts = it->second;
 	MPI_Bcast(&indx.first, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	MPI_Bcast(&indx.second, 1, MPI_UNSIGNED, i, MPI_COMM_WORLD);
 	MPI_Bcast(&cnts, 1, MPI_UNSIGNED_LONG, i, MPI_COMM_WORLD);
