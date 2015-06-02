@@ -64,6 +64,8 @@ def split_data(filename):
             if line.find("W(") >= 0: 
                 ncol = 13
                 trail = 3
+            if line.find("N(nn)") >= 0:
+                ncol = 16
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):
@@ -97,9 +99,13 @@ def split_data(filename):
     ekeys = ['N(ce)', 'N(ci)', 'N(ff)', 'N(rr)']
     elabs = ['collide', 'ionize', 'free-free', 'recomb']
 
+    if ncol==16:
+        ekeys = ['N(nn)', 'N(ne)', 'N(ie)', 'N(ce)', 'N(ci)', 'N(ff)', 'N(rr)']
+        elabs = ['neut-neut', 'neut-elec', 'ion-elec', 'collide', 'ionize', 'free-free', 'recomb']
+
     for v in spec:
         print
-        print '{:*^65}'.format(" [" + v + "] ")
+        print '{:*^94}'.format(" [" + v + "] ")
         print
         print "{0:>14s} {1:>14s}".format("Time", "Temp"),
         for e in ekeys:
