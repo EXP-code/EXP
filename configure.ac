@@ -137,20 +137,14 @@ if test x$havevtk = xyes; then
 
       if test x$ac_cv_lib_png_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lpng"
-      else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkpng"
       fi
 
       if test x$ac_cv_lib_z_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lz"
-      else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkzlib"
       fi
 
       if test x$ac_cv_lib_freetype_main = xyes; then
       	 exp_vtk_ldlib="$exp_vtk_ldlib -lfreetype"
-      else
-	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkfreetype"
       fi
 
       if test x$ac_cv_lib_ftgl_main = xyes; then
