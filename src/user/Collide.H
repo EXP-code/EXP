@@ -111,10 +111,11 @@ public:
   //! Collide return tuple
   typedef boost::tuple<unsigned, unsigned>   UU;
   
+  //@{
   //! Electron species key
-  const speciesKey electronDef = {-1, -1};
-
-  const sKeyPair electronKey = {electronDef, electronDef};
+  const speciesKey electronDef = {0, 0};
+  const sKeyPair   electronKey = {electronDef, electronDef};
+  //@}
 
 protected:
 

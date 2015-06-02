@@ -200,6 +200,6 @@ public:
   
 };
 
-const speciesKey defaultKey(0, 0);
+const speciesKey defaultKey(-1, -1);
 
 #endif

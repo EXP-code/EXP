@@ -1,7 +1,7 @@
 dnl ==========================================================================
 dnl Process this file with autoconf to produce a configure script.
 dnl ==========================================================================
-AC_INIT(EXP, 7.32)
+AC_INIT(EXP, 7.33)
 AM_CONFIG_HEADER(config.h)
 AC_CONFIG_SRCDIR(src/expand.cc)
 AM_INIT_AUTOMAKE
@@ -60,30 +60,49 @@ dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation
 dnl ==========================================================================
 havevtk=no;
-AC_ARG_WITH(vtk-headers,
-	[  --with-vtk-headers=DIR	location of VTK headers is DIR],
+AC_ARG_WITH([vtk-headers],
+	[AC_HELP_STRING([--with-vtk-headers=DIR],
+	[location of VTK headers is DIR (default: not set)])],
 	[VTK_HEADER_LOCATION="$withval"; havevtk=yes])
 
-AC_ARG_WITH(vtk-lib,
-	[  --with-vtk-lib=DIR		location of VTK libraries is DIR],
+AC_ARG_WITH([vtk-lib],
+	[AC_HELP_STRING([--with-vtk-lib=DIR],
+	[location of VTK libraries is DIR (default: not set)])],
 	[VTK_LIB_LOCATION="$withval"; havevtk=yes])
 
-AC_ARG_WITH(vtk-path,
-	[  --with-vtk-path=DIR		location of VTK is DIR],
+AC_ARG_WITH([vtk-path],
+	[AC_HELP_STRING([--with-vtk-path=DIR],
+	[location of VTK is DIR (default: not set)])],
 	[VTK_LIB_LOCATION="$withval"; VTK_HEADER_LOCATION="$withval"; havevtk=yes])
 
-dnl Look in some standard places . . .
+AC_ARG_WITH([vtk-version],
+	[AC_HELP_STRING([--with-vtk-version=VAL],
+	[VTK's include directory name is vtk-suffix, e.g. vtk-5.8/. What's the suffix? (Default: not set)])],
+	[vtk_suffix=-$withval],
+	[vtk_suffix=""])
 
-if test -f "/usr/include/vtkMapper.h"		||
-   test -f "/usr/include/vtk/vtkMapper.h"	||
-   test -f "/usr/local/include/vtkMapper.h"	||
-   test -f "/usr/local/include/vtk/vtkMapper.h"; then havevtk=yes;
-fi
+AC_ARG_WITH([vtk-lib-suffix],
+	[AC_HELP_STRING([--with-vtk-lib-suffix],
+	[VTK's libraries includes the version as library suffix (e.g. libvtkalglib-6.1). Debian/Ubuntu needs this for vtk>=6.0. (Default: not used)])],
+	[vtk_libval=$vtk_suffix],
+	[vtk_libval=""])
+
+# Look in some standard places . . .
+
+AC_CHECK_FILE([/usr/include/vtk$vtk_suffix/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/vtk$vtk_suffix]])
+AC_CHECK_FILE([/usr/include/local/vtk$vtk_suffix/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/local/vtk$vtk_suffix]])
+AC_CHECK_FILE([$VTK_PREFIX/include/vtk$vtk_suffix/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[$VTK_PREFIX/include/vtk$vtk_suffix]])
+AC_CHECK_FILE([/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[$VTK_PREFIX/include/vtk$vtk_suffix]])
 
 AC_SUBST(exp_vtk_include)
 AC_SUBST(exp_vtk_lib)
 AC_SUBST(exp_vtk_ldlib)
 
+AC_MSG_CHECKING([for VTK])
 if test x$havevtk = xyes; then
    if test "$VTK_LIB_LOCATION" != ""; then
       exp_vtk_lib="-L$VTK_LIB_LOCATION -L$VTK_LIB_LOCATION/lib/vtk"
@@ -91,8 +110,62 @@ if test x$havevtk = xyes; then
    if test "$VTK_HEADER_LOCATION" != ""; then
       exp_vtk_include="-I$VTK_HEADER_LOCATION -I$VTK_HEADER_LOCATION/include/vtk"
    fi
-   exp_vtk_ldlib="-lvtkHybrid -lvtkRendering -lvtkGraphics -lvtkFiltering -lvtkImaging -lvtkCommon -lvtkIO"
+
+   
+   OLD_CFLAGS=$CFLAGS
+   OLD_CXXFLAGS=$CXXFLAGS
+   OLD_LDFLAGS=$LDFLAGS
+   CFLAGS="$exp_vtk_include $CFLAGS"
+   CXXFLAGS="$exp_vtk_include $CXXFLAGS"
+   LDFLAGS="$exp_vtk_lib $LDFLAGS"
+   AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
+         [
+            #include <vtkConfigure.h>
+	    #include <stdio.h>
+         ],
+         [
+           printf("VTK version is: %d.%d.%d", VTK_MAJOR_VERSION, VTK_MINOR_VERSION, VTK_BUILD_VERSION);
+           #if VTK_MAJOR_VERSION < 6
+           #error Installed VTK major version is < 6
+           #endif
+            ])
+   ], [vtkVersion="OK"])
+   if test "$vtkVersion" = "OK"; then
+      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkIOCore$vtk_libval -lvtkIOImport$vtk_libval -lvtkIOExport$vtk_libval -lvtkIOGeometry$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+   else
+      exp_vtk_ldlib="-lvtkHybrid -lvtkRendering -lvtkGraphics -lvtkFiltering -lvtkImaging -lvtkCommon -lvtkIO"
+
+      if test x$ac_cv_lib_png_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lpng"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkpng"
+      fi
+
+      if test x$ac_cv_lib_z_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lz"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkzlib"
+      fi
+
+      if test x$ac_cv_lib_freetype_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lfreetype"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkfreetype"
+      fi
+
+      if test x$ac_cv_lib_ftgl_main = xyes; then
+      	 exp_vtk_ldlib="$exp_vtk_ldlib -lftgl"
+      else
+	 exp_vtk_ldlib="$exp_vtk_ldlib -lvtkftgl"
+      fi
+   fi
+
+   CFLAGS=$OLD_CFLAGS
+   CXXFLAGS=$OLD_CXXFLAGS
+   LDFLAGS=$OLD_LDFLAGS
+
 fi
+AC_MSG_RESULT([$havevtk])
 
 dnl ==========================================================================
 dnl Arguments
@@ -175,12 +248,6 @@ AC_CHECK_HEADERS(malloc.h unistd.h mpi.h)
 if test x$have_mpi = xno; then
    AC_MSG_FAILURE([Error! You need to have MPI installed!])
 fi
-
-dnl Check for slurm lib
-AC_CHECK_LIB(slurm, main)
-
-dnl Check for torque lib
-AC_CHECK_LIB(torque, main)
 
 dnl ==========================================================================
 dnl Checks for typedefs, structures, and compiler characteristics.
