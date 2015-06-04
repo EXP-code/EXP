@@ -349,6 +349,9 @@ public:
   //! algorithm
   static unsigned esNum;
 
+  //! Coulombic log Lambda value
+  static double logL;
+
 protected:
 
   //! List of cross sections (separate for each thread)

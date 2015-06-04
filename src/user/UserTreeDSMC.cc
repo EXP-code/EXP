@@ -611,11 +611,6 @@ void UserTreeDSMC::initialize()
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
 
-  if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
-  if (get_value("scatter", val))        CollideIon::scatter = atol(val);
-  if (get_value("estype",  val))        CollideIon::setEStype(val);
-  if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
-
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {
       if (myid==0) {
@@ -641,11 +636,9 @@ void UserTreeDSMC::initialize()
     }
   }
 
-  /**
-     Look for array values in the parameter string of the form
-     spc(1,2)=3.1, spc(3,4)=5.6, etc.
-  */
-  
+  // Look for array values in the parameter string of the form
+  // spc(1,2)=3.1, spc(3,4)=5.6, etc.
+  //
   if (ctype.compare("LTE")==0) {
     std::map<std::pair<int, int>, string> vals;
     if ((vals = get_value_matrix("spc")).size()) {
@@ -666,6 +659,17 @@ void UserTreeDSMC::initialize()
       collFrac[defaultKey] = 1.0;
     }
   }
+
+  // Ion method specific parameters
+  //
+  if (ctype.compare("Ion")==0) {
+    if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
+    if (get_value("scatter", val))        CollideIon::scatter = atol(val);
+    if (get_value("estype",  val))        CollideIon::setEStype(val);
+    if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
+    if (get_value("logL",    val))        CollideIon::logL    = atof(val);
+  }
+
 }
 
 

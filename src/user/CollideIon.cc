@@ -26,6 +26,7 @@ string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
 unsigned CollideIon::esNum   = 100;
+double   CollideIon::logL    = 10;
 
 CollideIon::ElectronScatter
 CollideIon::esType           = CollideIon::always;
@@ -386,7 +387,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    double b = 0.5*esu*esu*(i1.second - 1) /
 	      std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
-	    Cross1 = M_PI*b*b * eVel2 * ne2;
+	    Cross1 = M_PI*b*b * eVel2 * ne2 * logL;
 	  }
 	}
 
@@ -397,7 +398,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    double b = 0.5*esu*esu*(i2.second - 1) /
 	      std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
-	    Cross2 = M_PI*b*b * eVel1 * ne1;
+	    Cross2 = M_PI*b*b * eVel1 * ne1 * logL;
 	  }
 	}
 
@@ -512,7 +513,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double b = 0.5*esu*esu*(k.second - 1) /
 	  std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	b = std::min<double>(b, ips);
-	Cross += M_PI*b*b * eVel * meanE[id];
+	Cross += M_PI*b*b * eVel * meanE[id] * logL;
       }
 
       double tCross = Cross * crossfac * 1e-14 / 
@@ -590,7 +591,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    double b = 0.5*esu*esu*(i1.second - 1) /
 	      std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
-	    Cross1 = M_PI*b*b * eVel2 * ne2;
+	    Cross1 = M_PI*b*b * eVel2 * ne2 * logL;
 	    }
 	}
 
@@ -603,7 +604,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	      double b = 0.5*esu*esu*(i2.second - 1) /
 		std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      Cross2 = M_PI*b*b * eVel1*ne1;
+	      Cross2 = M_PI*b*b * eVel1 * ne1 * logL;
 	    }
 	}
 	
@@ -655,7 +656,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	double b = 0.5*esu*esu*(k.second - 1) /
 	  std::max<double>(Eerg*meanM[id], FloorEv*eV) * 1.0e7; // nm
 	b = std::min<double>(b, ips);
-	Cross += M_PI*b*b * eVel * meanE[id];
+	Cross += M_PI*b*b * eVel * meanE[id] * logL;
       }
       
       double tCross = Cross * crossfac * 1e-14 / 
@@ -820,7 +821,7 @@ double CollideIon::crossSectionDirect(pCell* const c,
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac;
+      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -838,7 +839,7 @@ double CollideIon::crossSectionDirect(pCell* const c,
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross21 = M_PI*b*b * eVel2 * ne2 * crossfac;
+      cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -1151,7 +1152,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac;
+      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -1169,7 +1170,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross21 = M_PI*b*b * eVel1 * ne1 * crossfac;
+      cross21 = M_PI*b*b * eVel1 * ne1 * crossfac * logL;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -1440,7 +1441,7 @@ double CollideIon::crossSectionTrace(pCell* const c,
       double b = 0.5*esu*esu*(C-1) /
 	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      crossS += M_PI*b*b * eVel * meanE[id] * crossfac;
+      crossS += M_PI*b*b * eVel * meanE[id] * crossfac * logL;
 
       tCrossMap.push_back(crossS);
       tInterMap.push_back(ion_elec);
@@ -4359,7 +4360,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  double b = 0.5*esu*esu /
 	    std::max<double>(kEee*eV, FloorEv*eV) * 1.0e7; // nm
 	  b = std::min<double>(b, ips);
-	  scrs = M_PI*b*b * ne1 * ne2;
+	  scrs = M_PI*b*b * ne1 * ne2 * logL;
 	}
 
 	// Accept or reject candidate pair according to relative speed
