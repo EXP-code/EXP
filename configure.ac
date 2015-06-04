@@ -73,7 +73,7 @@ AC_ARG_WITH([vtk-lib],
 AC_ARG_WITH([vtk-path],
 	[AC_HELP_STRING([--with-vtk-path=DIR],
 	[location of VTK is DIR (default: not set)])],
-	[VTK_LIB_LOCATION="$withval"; VTK_HEADER_LOCATION="$withval"; havevtk=yes])
+	[VTK_PREFIX="$withval"; havevtk=yes])
 
 AC_ARG_WITH([vtk-version],
 	[AC_HELP_STRING([--with-vtk-version=VAL],
@@ -106,7 +106,10 @@ AC_MSG_CHECKING([for VTK])
 if test x$havevtk = xyes; then
    if test "$VTK_LIB_LOCATION" != ""; then
       exp_vtk_lib="-L$VTK_LIB_LOCATION -L$VTK_LIB_LOCATION/lib/vtk"
+   else
+      exp_vtk_lib="-L$VTK_PREFIX/lib/vtk$vtk_suffix -L$VTK_PREFIX/lib"
    fi
+
    if test "$VTK_HEADER_LOCATION" != ""; then
       exp_vtk_include="-I$VTK_HEADER_LOCATION -I$VTK_HEADER_LOCATION/include/vtk"
    fi
