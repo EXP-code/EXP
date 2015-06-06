@@ -5793,7 +5793,7 @@ void CollideIon::gatherSpecies()
     elecE = 0.0;
 
     typedef std::map<key_type, double> cType;
-    cType ETcache, EEcache;
+    cType ETcache;
 
     // Interate through all cells
     //
@@ -5826,53 +5826,67 @@ void CollideIon::gatherSpecies()
 	}
 	
 	cType::iterator ft = ETcache.find(cell->sample->mykey);
-	cType::iterator fe = EEcache.find(cell->sample->mykey);
 
-	double E = 0.0;
+	if (use_elec >= 0) {
 
-	if (ft != ETcache.end()) {
-	  T = ft->second;
-	  E = fe->second;
-	} else {
-	  typedef std::tuple<double, double> dtup;
-	  const dtup zero(0.0, 0.0);
-	  std::vector<dtup> vel(3, zero);
-	  double count = 0.0, Eelec = 0.0, melec = 0.0;
-	  for (auto c : cell->sample->children) {
-	    for (auto b : c.second->bods) {
-	      Particle *p = c0->Tree()->Body(b);
-	      KeyConvert k(p->iattrib[use_key]);
-	      unsigned short ne = k.C() - 1;
-	      // double numb = p->mass/atomic_weights[k.Z()] * ne;
-	      double numb = p->mass/atomic_weights[k.Z()];
-	      double frac = p->mass * atomic_weights[0]/atomic_weights[k.Z()] * ne;
-	      if (ne) {
-		for (unsigned k=0; k<3; k++) {
-		  double v = p->dattrib[use_elec+k];
-		  std::get<0>(vel[k]) += v   * numb;
-		  std::get<1>(vel[k]) += v*v * numb;
-		  Eelec += v*v * 0.5 * frac;
+	  if (ft != ETcache.end()) {
+	    T = ft->second;
+	  } else {
+	    typedef std::tuple<double, double> dtup;
+	    const dtup zero(0.0, 0.0);
+	    std::vector<dtup> vel(3, zero);
+	    double count = 0.0, melec = 0.0;
+	    for (auto c : cell->sample->children) {
+	      for (auto b : c.second->bods) {
+		Particle *p = c0->Tree()->Body(b);
+		KeyConvert k(p->iattrib[use_key]);
+		unsigned short ne = k.C() - 1;
+		double numb = p->mass/atomic_weights[k.Z()];
+		if (ne) {
+		  for (unsigned k=0; k<3; k++) {
+		    double v = p->dattrib[use_elec+k];
+		    std::get<0>(vel[k]) += v   * numb;
+		    std::get<1>(vel[k]) += v*v * numb;
+		  }
+		  count   += numb;
+		  melec   += p->mass;
 		}
-		count   += numb;
-		melec   += p->mass;
+	      }
+	    }
+	    
+	    double dispr = 0.0;
+	    
+	    if (count > 0.0) {
+	      for (auto v : vel) {
+		double v1 = std::get<0>(v)/count;
+		double v2 = std::get<1>(v)/count;
+		dispr += 0.5*(v2 - v1*v1);
+	      }
+	      double W = melec/count * atomic_weights[0];
+	      T = ETcache[cell->sample->mykey] = dispr * Tfac * W;
+	    } else {
+	      T = ETcache[cell->sample->mykey] = 0.0;
+	    }
+	  }
+	  tempE += cell->Mass() * T;
+
+	  // Compute total electron energy in this cell
+	  //
+	  double Eengy = 0.0;
+	  for (auto b : cell->bods) {
+	    Particle *p = c0->Tree()->Body(b);
+	    KeyConvert k(p->iattrib[use_key]);
+	    if (k.C() - 1 > 0) {
+	      double numb = p->mass/atomic_weights[k.Z()];
+	      for (unsigned j=0; j<3; j++) {
+		double v = p->dattrib[use_elec+j];
+		Eengy += v*v * numb;
 	      }
 	    }
 	  }
-
-	  double dispr = 0.0;
-	  if (count > 0.0) {
-	    for (auto v : vel)
-	      dispr += 0.5*(std::get<1>(v) - std::get<0>(v)*std::get<0>(v)/count);
-	    T = ETcache[cell->sample->mykey] = 
-	      dispr/count * Tfac * melec/count * atomic_weights[0];
-	    E = EEcache[cell->sample->mykey] = Eelec;
-	  } else {
-	    T = ETcache[cell->sample->mykey] = 0.0;
-	    E = EEcache[cell->sample->mykey] = 0.0;
-	  }
+	  
+	  elecE += Eengy * atomic_weights[0];
 	}
-	tempE += cell->Mass() * T;
-	elecE += cell->Mass() * E;
       }
     }
 
@@ -5932,7 +5946,6 @@ void CollideIon::gatherSpecies()
     if (mass>0.0) {
       tempM /= mass;
       tempE /= mass;
-      elecE /= mass;
     }
     
   } else {
