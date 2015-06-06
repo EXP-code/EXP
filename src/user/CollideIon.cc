@@ -2991,11 +2991,22 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Save energy adjustments for next interation.  Split between like
   // species ONLY.
   //
-  if (use_cons >= 0 and Z1 == Z2) {		
-    double del = 0.5*missE;
-    if (use_elec < 0) del += 0.5*deltaKE;
-    p1->dattrib[use_cons] += del;
-    p2->dattrib[use_cons] += del;
+  if (use_cons >= 0) {
+    double del = missE;
+
+    // Energy is added to electron KE for use_elec >= 0
+    if (use_elec < 0) del += deltaKE;
+      
+    // Split between like species ONLY.  Otherwise, assign to
+    // non-trace particle.
+    if (Z1 == Z2) {		
+      p1->dattrib[use_cons] += 0.5*del;
+      p2->dattrib[use_cons] += 0.5*del;
+    } else if (Z1 > Z2) {
+      p1->dattrib[use_cons] += del;
+    } else {
+      p2->dattrib[use_cons] += del;
+    }
   }
 
   // Update particle velocties
@@ -5870,7 +5881,8 @@ void CollideIon::gatherSpecies()
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
 	  }
-	  tempE += cell->Mass() * T;
+				// Mass-weighted temperature
+	  tempE += cell->Mass() * T; 
 
 	  // Compute total electron energy in this cell
 	  //
@@ -5882,11 +5894,11 @@ void CollideIon::gatherSpecies()
 	      double numb = p->mass/atomic_weights[k.Z()];
 	      for (unsigned j=0; j<3; j++) {
 		double v = p->dattrib[use_elec+j];
-		Eengy += v*v * numb;
+		Eengy += 0.5 * v*v * numb;
 	      }
 	    }
 	  }
-	  
+				// Total electron KE
 	  elecE += Eengy * atomic_weights[0];
 	}
       }
