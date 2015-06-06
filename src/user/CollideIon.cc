@@ -2995,7 +2995,10 @@ int CollideIon::inelasticWeight(pCell* const c,
     double del = missE;
 
     // Energy is added to electron KE for use_elec >= 0
-    if (use_elec < 0) del += deltaKE;
+    if (use_elec < 0) 
+      del += deltaKE;
+    else if (C1==1 and C2==1)
+      del += deltaKE;
       
     // Split between like species ONLY.  Otherwise, assign to
     // non-trace particle.
@@ -3041,8 +3044,9 @@ int CollideIon::inelasticWeight(pCell* const c,
     // Electron from particle #2
     //
     for (size_t k=0; k<3; k++) {
+      v2[k] *= vfac;
       p1->vel[k] = v1[k];
-      p2->dattrib[use_elec+k] = v2[k] * vfac;
+      p2->dattrib[use_elec+k] = v2[k];
       vf2 += v2[k] * v2[k];
     }
     
@@ -3076,7 +3080,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     // Electron from particle #1
     //
     for (size_t k=0; k<3; k++) {
-      p1->dattrib[use_elec+k] = v1[k] * vfac;
+      v1[k] *= vfac;
+      p1->dattrib[use_elec+k] = v1[k];
       p2->vel[k] = v2[k];
       vf2 += v1[k] * v1[k];
     }
@@ -3108,7 +3113,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     double tKEi = KE1i + KE2i;	// Total pre collision KE
     double tKEf = KE1f + KE2f;	// Total post collision KE
-    double dKE  = tKEi - tKEf - deltaKE; // Energy balance
+    double dKE  = tKEi - tKEf;	// Energy balance
 
     if (m1<1.0) {
       if (KE1i > 0) keER[id].push_back((KE1i - KE1f)/KE1i);
@@ -3122,6 +3127,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// Check Energy balance including excess
     double testE = dKE;
     if (Z1==Z2) testE += Exs - delE - missE;
+    else if (C1==1 and C2==1) testE -= deltaKE;
 
     if (fabs(testE) > 1.0e-15*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
