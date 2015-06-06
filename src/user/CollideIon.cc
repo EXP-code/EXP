@@ -2423,6 +2423,8 @@ int CollideIon::inelasticWeight(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
+  if (Z1 != Z2) return 0;
+
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
   // Swap particle pointers if necessary.
