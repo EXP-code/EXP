@@ -5787,9 +5787,10 @@ void CollideIon::gatherSpecies()
     totlE = 0.0;
     tempM = 0.0;
     tempE = 0.0;
+    elecE = 0.0;
 
     typedef std::map<key_type, double> cType;
-    cType ETcache;
+    cType ETcache, EEcache;
 
     // Interate through all cells
     //
@@ -5822,9 +5823,13 @@ void CollideIon::gatherSpecies()
 	}
 	
 	cType::iterator ft = ETcache.find(cell->sample->mykey);
+	cType::iterator fe = EEcache.find(cell->sample->mykey);
+
+	double E = 0.0;
 
 	if (ft != ETcache.end()) {
 	  T = ft->second;
+	  E = fe->second;
 	} else {
 	  std::vector<double> vel1(3, 0.0), vel2(3, 0.0);
 	  double count = 0.0;
@@ -5845,24 +5850,29 @@ void CollideIon::gatherSpecies()
 	    }
 	  }
 
-	  double dispr = 0.0;
+	  double dispr = 0.0, etotE = 0.0;
 	  if (count > 0.0) {
-	    for (unsigned k=0; k<3; k++) 
+	    for (unsigned k=0; k<3; k++) {
 	      dispr += 0.5*(vel2[k] - vel1[k]*vel1[k]/count);
+	      etotE += 0.5*vel2[k]/count;
+	    }
 	    T = ETcache[cell->sample->mykey] = 
 	      dispr/count * Tfac * atomic_weights[0];
+	    E = EEcache[cell->sample->mykey] = etotE;
 	  } else {
 	    T = ETcache[cell->sample->mykey] = 0.0;
+	    E = EEcache[cell->sample->mykey] = 0.0;
 	  }
 	}
 	tempE += cell->Mass() * T;
+	elecE += cell->Mass() * E;
       }
     }
 
 
     // Send values to root
     //
-    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
+    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0, val6 = 0.0;
     
     for (int i=1; i<numprocs; i++) {
 
@@ -5875,8 +5885,10 @@ void CollideIon::gatherSpecies()
 	if (aType==Weight and use_cons >= 0) {
 	  MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
 	  MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
-	  if (use_elec >= 0)
+	  if (use_elec >= 0) {
 	    MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
+	    MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
+	  }
 	}
 
       }
@@ -5893,9 +5905,12 @@ void CollideIon::gatherSpecies()
 		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val4, 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	  if (use_elec >= 0)
+	  if (use_elec >= 0) {
 	    MPI_Recv(&val5, 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	  }
 	}
 
 	mass  += val1;
@@ -5903,12 +5918,14 @@ void CollideIon::gatherSpecies()
 	consE += val3;
 	totlE += val4;
 	tempE += val5;
+	elecE += val6;
       }
     }
 
     if (mass>0.0) {
       tempM /= mass;
       tempE /= mass;
+      elecE /= mass;
     }
     
   } else {
@@ -6402,7 +6419,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	     << std::setw(wid) << std::right << "Totl_E"
 	     << std::setw(wid) << std::right << "Comb_E";
 	if (use_elec>=0)
-	  dout << std::setw(wid) << std::right << "Temp_E";
+	  dout << std::setw(wid) << std::right << "Temp_E"
+	       << std::setw(wid) << std::right << "Elec_E";
       }
       dout << std::endl;
       
@@ -6416,7 +6434,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------";
 	if (use_elec>=0)
-	  dout << std::setw(wid) << std::right << "--------";
+	  dout << std::setw(wid) << std::right << "--------"
+	       << std::setw(wid) << std::right << "--------";
       }
       dout << std::endl;
       
@@ -6451,7 +6470,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	 << std::setw(wid) << std::right << totlE
 	 << std::setw(wid) << std::right << totlE + consE;
     if (use_elec>=0)
-      dout << std::setw(wid) << std::right << tempE;
+      dout << std::setw(wid) << std::right << tempE
+	   << std::setw(wid) << std::right << elecE;
   }
   dout << std::endl;
 }
