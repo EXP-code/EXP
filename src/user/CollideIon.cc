@@ -2472,7 +2472,9 @@ int CollideIon::inelasticWeight(pCell* const c,
   std::vector<double> TotalCross;
   double tCross = 0.0;
   for (size_t i = 0; i < dCross[id].size(); i++) {
+
     // Sanity check (mostly for debugging, NaN should never occur)
+    //
     if (std::isnan(dCross[id][i])) {
       std::cout << "dCross[" << id << "][" << i << "] is Nan"
 		<< std::setw(14) << dInter[id][i]
@@ -2487,8 +2489,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     } else {
       // Accumulate the list here
       //
-      if (!scatter or dInter[id][i] % 100 < 3)
-	tCross += dCross[id][i];
+      if (!scatter or dInter[id][i] % 100 < 3) tCross += dCross[id][i];
       TotalCross.push_back(tCross);
     }
   }
@@ -2984,11 +2985,12 @@ int CollideIon::inelasticWeight(pCell* const c,
     v2[k] = vcom[k] - m1/Mt*vrel[k]*vfac;
   }
 
-  // Save energy adjustiments for next interation.  Split between like
+  // Save energy adjustments for next interation.  Split between like
   // species ONLY.
   //
   if (use_cons >= 0 and Z1 == Z2) {		
-    double del = 0.5*deltaKE + 0.5*missE;
+    double del = 0.5*missE;
+    if (use_elec < 0) del += 0.5*deltaKE;
     p1->dattrib[use_cons] += del;
     p2->dattrib[use_cons] += del;
   }
@@ -5832,33 +5834,34 @@ void CollideIon::gatherSpecies()
 	  E = fe->second;
 	} else {
 	  std::vector<double> vel1(3, 0.0), vel2(3, 0.0);
-	  double count = 0.0;
+	  double count = 0.0, Eelec = 0.0;
 	  for (auto c : cell->sample->children) {
 	    for (auto b : c.second->bods) {
 	      Particle *p = c0->Tree()->Body(b);
 	      KeyConvert k(p->iattrib[use_key]);
 	      unsigned short ne = k.C() - 1;
-	      double numb = p->mass/atomic_weights[k.Z()] * ne;
+	      // double numb = p->mass/atomic_weights[k.Z()] * ne;
+	      double numb = p->mass/atomic_weights[k.Z()];
+	      double frac = p->mass * atomic_weights[0]/atomic_weights[k.Z()] * ne;
 	      if (ne) {
 		for (unsigned k=0; k<3; k++) {
 		  double v = p->dattrib[use_elec+k];
 		  vel1[k] += v   * numb;
 		  vel2[k] += v*v * numb;
+		  Eelec   += v*v * 0.5 * frac;
 		}
 		count   += numb;
 	      }
 	    }
 	  }
 
-	  double dispr = 0.0, etotE = 0.0;
+	  double dispr = 0.0;
 	  if (count > 0.0) {
-	    for (unsigned k=0; k<3; k++) {
+	    for (unsigned k=0; k<3; k++)
 	      dispr += 0.5*(vel2[k] - vel1[k]*vel1[k]/count);
-	      etotE += 0.5*vel2[k]/count;
-	    }
 	    T = ETcache[cell->sample->mykey] = 
 	      dispr/count * Tfac * atomic_weights[0];
-	    E = EEcache[cell->sample->mykey] = etotE;
+	    E = EEcache[cell->sample->mykey] = Eelec;
 	  } else {
 	    T = ETcache[cell->sample->mykey] = 0.0;
 	    E = EEcache[cell->sample->mykey] = 0.0;
