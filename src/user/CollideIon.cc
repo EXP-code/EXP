@@ -1,3 +1,4 @@
+#include <algorithm>
 #include <iostream>
 #include <iomanip>
 #include <fstream>
@@ -5,8 +6,8 @@
 #include <vector>
 #include <cfloat>
 #include <cmath>
+#include <tuple>
 #include <map>
-#include <algorithm>
 
 #include "global.H"
 #include "UserTreeDSMC.H"
@@ -5833,8 +5834,10 @@ void CollideIon::gatherSpecies()
 	  T = ft->second;
 	  E = fe->second;
 	} else {
-	  std::vector<double> vel1(3, 0.0), vel2(3, 0.0);
-	  double count = 0.0, Eelec = 0.0;
+	  typedef std::tuple<double, double> dtup;
+	  const dtup zero(0.0, 0.0);
+	  std::vector<dtup> vel(3, zero);
+	  double count = 0.0, Eelec = 0.0, melec = 0.0;
 	  for (auto c : cell->sample->children) {
 	    for (auto b : c.second->bods) {
 	      Particle *p = c0->Tree()->Body(b);
@@ -5846,21 +5849,22 @@ void CollideIon::gatherSpecies()
 	      if (ne) {
 		for (unsigned k=0; k<3; k++) {
 		  double v = p->dattrib[use_elec+k];
-		  vel1[k] += v   * numb;
-		  vel2[k] += v*v * numb;
-		  Eelec   += v*v * 0.5 * frac;
+		  std::get<0>(vel[k]) += v   * numb;
+		  std::get<1>(vel[k]) += v*v * numb;
+		  Eelec += v*v * 0.5 * frac;
 		}
 		count   += numb;
+		melec   += p->mass;
 	      }
 	    }
 	  }
 
 	  double dispr = 0.0;
 	  if (count > 0.0) {
-	    for (unsigned k=0; k<3; k++)
-	      dispr += 0.5*(vel2[k] - vel1[k]*vel1[k]/count);
+	    for (auto v : vel)
+	      dispr += 0.5*(std::get<1>(v) - std::get<0>(v)*std::get<0>(v)/count);
 	    T = ETcache[cell->sample->mykey] = 
-	      dispr/count * Tfac * atomic_weights[0];
+	      dispr/count * Tfac * melec/count * atomic_weights[0];
 	    E = EEcache[cell->sample->mykey] = Eelec;
 	  } else {
 	    T = ETcache[cell->sample->mykey] = 0.0;
