@@ -33,6 +33,7 @@ namespace po = boost::program_options;
 #include <vtkPointData.h>
 #include <vtkXMLRectilinearGridWriter.h>
 #include <vtkLookupTable.h>
+#include <vtkVersion.h>
 
 //
 // Helper class for diagnostics
@@ -703,9 +704,13 @@ int main(int argc, char**argv)
   string gname = outfile + ".vtr";
   vtkSmartPointer<vtkXMLRectilinearGridWriter> writer = 
     vtkXMLRectilinearGridWriter::New();
-     writer->SetInput(dataSet);
-     writer->SetFileName(gname.c_str());
-     writer->Write();
+#if VTK_MAJOR_VERSION >= 6
+    writer->SetInputData(dataSet);
+#else
+    writer->SetInput(dataSet);
+#endif
+    writer->SetFileName(gname.c_str());
+    writer->Write();
 
   if (mask)
     cout << blank << " blank voxels and " << activ << " active ones" << endl;

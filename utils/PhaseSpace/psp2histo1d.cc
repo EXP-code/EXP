@@ -15,10 +15,18 @@ using namespace std;
 #include <vector>
 #include <string>
 #include <list>
+#include <map>
+
+#include <Species.H>
 
 #include <StringTok.H>
 #include <header.H>
 #include <PSP.H>
+
+#include <boost/program_options.hpp>
+
+namespace po = boost::program_options;
+
 
 				// Globals for exputil library
 				// Unused here
@@ -27,230 +35,254 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
-  cerr << "    -a axis         x=1, y=2, z=3 (default: 3)\n";
-  cerr << "    -p pmin         minimum position along axis\n";
-  cerr << "    -P pmax         maximum position along axis\n";
-  cerr << "    -b numb         number of bins\n";
-  cerr << "    -c comp         value index\n";
-  cerr << "    -o name         component name (default: comp)\n";
-  cerr << "    -A              areal average\n";
-  cerr << "    -m              mass-weighted values\n";
-  cerr << "    -n              number-weighted values\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
-
 int
-main(int argc, char **argv)
+main(int ac, char **av)
 {
-  char *prog = argv[0];
-  double time=1e20;
+  char *prog = av[0];
+  double time, pmin, pmax;
   bool mweight = true;
   bool nweight = false;
   bool areal   = false;
   bool verbose = false;
-  string cname("comp");
-  double pmin = -100.0, pmax = 100.0;
-  int axis = 3;
-  int numb = 40;
-  int comp = 9;
+  std:: string cname;
+  int axis, numb, comp, sindx, eindx;
 
   // Parse command line
 
-  while (1) {
+  po::options_description desc("Allowed options");
+  desc.add_options()
+    ("help,h",		"produce help message")
+    ("mweight,m",       "mass-weighted values")
+    ("nweight,n",       "number-weighted values")
+    ("areal,A",         "areal average")
+    ("verbose,v",       "verbose output")
+    ("time,t",		 po::value<double>(&time)->default_value(1.0e20),
+     "find closest time slice to requested value")
+    ("axis,a",		po::value<int>(&axis)->default_value(3),
+     "histogram along desired axis: x=1, y=2, z=3")
+    ("pmin,p",	        po::value<double>(&pmin)->default_value(-100.0),
+     "minimum position along axis")
+    ("pmax,P",	        po::value<double>(&pmax)->default_value(100.0),
+     "maximum position along axis")
+    ("bins,b",	        po::value<int>(&numb)->default_value(40),
+     "number of bins")
+    ("comp,i",		po::value<int>(&comp)->default_value(9),
+     "index for extended value")
+    ("species,s",	po::value<int>(&sindx)->default_value(-1),
+     "position of species index")
+    ("electrons,e",	po::value<int>(&eindx)->default_value(-1),
+     "position of electron index")
+    ("name,c",	        po::value<std::string>(&cname)->default_value("comp"),
+     "component name")
+    ("files,f",         po::value< std::vector<std::string> >(), 
+     "input files")
+    ;
 
-    int c = getopt(argc, argv, "t:a:p:P:b:c:o:mnAvh");
 
-    if (c == -1) break;
+  po::variables_map vm;
 
-    switch (c) {
-
-    case 't':
-      time = atof(optarg);
-      break;
-
-    case 'a':
-      axis = atoi(optarg);
-      break;
-
-    case 'p':
-      pmin = atof(optarg);
-      break;
-
-    case 'P':
-      pmax = atof(optarg);
-      break;
-
-    case 'b':
-      numb = atoi(optarg);
-      break;
-
-    case 'c':
-      comp = atoi(optarg);
-      break;
-
-    case 'm':
-      mweight = true;
-      nweight = false;
-      break;
-
-    case 'n':
-      mweight = false;
-      nweight = true;
-      break;
-
-    case 'A':
-      areal = true;
-      break;
-
-    case 'v':
-      verbose = true;
-      break;
-
-    case 'o':
-      cname.erase();
-      cname = string(optarg);
-      break;
-
-    case '?':
-    case 'h':
-    default:
-      Usage(prog);
-    }
-
+  try {
+    po::store(po::parse_command_line(ac, av, desc), vm);
+    po::notify(vm);    
+  } catch (po::error& e) {
+    std::cout << "Option error: " << e.what() << std::endl;
+    exit(-1);
   }
 
-  ifstream *in;
-
-  if (optind < argc) {
-
-    ifstream *in2 = new ifstream(argv[optind]);
-    if (!*in2) {
-      cerr << "Error opening file <" << argv[optind] << "> for input\n";
-      exit(-1);
-    }
-
-    if (verbose) cerr << "Using filename: " << argv[optind] << endl;
-
-				// Assign file stream to input stream
-    in = in2;
-
-  } else {
-    Usage(prog);
+  if (vm.count("help")) {
+    std::cout << desc << std::endl;
+    std::cout << "Example: " << std::endl;
+    std::cout << "\t" << av[0]
+	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
+    return 1;
   }
+
+  if (vm.count("mweight")) {
+    mweight = true;
+    nweight = false;
+  }
+
+  if (vm.count("nweight")) {
+    mweight = false;
+    nweight = true;
+  }
+
+  if (vm.count("areal")) {
+    areal = true;
+  }
+
+  if (vm.count("verbose")) {
+    verbose = true;
+  }
+
 
 				// Axis sanity check 
 				// ------------------
   if (axis<1) axis = 1;
   if (axis>3) axis = 3;
 
+  std::vector<std::string> files = vm["files"].as< std::vector<std::string> >();
+
+  bool first = true;
+  
+  for (auto file : files ) {
+
+    ifstream *in = new ifstream(file.c_str());
+    if (!*in) {
+      cerr << "Error opening file <" << file << "> for input\n";
+      exit(-1);
+    }
+
+    if (verbose) cerr << "Using filename: " << file << endl;
+
+
 				// Parse the PSP file
 				// ------------------
-  PSPDump psp(in);
+    PSPDump psp(in);
 
-  in->close();
+    in->close();
 
 				// Now write a summary
 				// -------------------
-  if (verbose) {
-
-    psp.PrintSummary(in, cerr);
+    if (verbose) {
+      
+      psp.PrintSummary(in, cerr);
     
-    cerr << "\nBest fit dump to <" << time << "> has time <" 
-	 << psp.SetTime(time) << ">\n";
-  } else 
-    psp.SetTime(time);
+      cerr << "\nBest fit dump to <" << time << "> has time <" 
+	   << psp.SetTime(time) << ">\n";
+    } else 
+      psp.SetTime(time);
 
 				// Dump ascii for each component
 				// -----------------------------
-  delete in;
-  in = new ifstream(argv[optind]);
-
+    delete in;
+    in = new ifstream(file);
+    
   
-  double rtmp, mass, fac, dp=(pmax - pmin)/numb;
-  vector<double> pos(3), vel(3);
-  int itmp, icnt, iv;
+    double rtmp, mass, fac, dp=(pmax - pmin)/numb;
+    vector<double> pos(3), vel(3);
+    int itmp, icnt, iv;
 
 				// Make the array
 				// --------------
 
-  vector<float> value(numb, 0), bmass(numb, 0);
+    vector<float> value(numb, 0), bmass(numb, 0);
 
-  PSPstanza *stanza;
-  SParticle* part;
+    PSPstanza *stanza;
+    SParticle* part;
 
-  for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
+    std::map< speciesKey, std::vector<float> > shist;
+
+    for (stanza=psp.GetStanza(); stanza!=0; stanza=psp.NextStanza()) {
     
-    if (stanza->name != cname) continue;
+      if (stanza->name != cname) continue;
 
 
 				// Position to beginning of particles
-    in->seekg(stanza->pspos);
+      in->seekg(stanza->pspos);
 
-    for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
+      for (part=psp.GetParticle(in); part!=0; part=psp.NextParticle(in)) {
 
-      if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
+	if (part->pos(axis-1)<pmin || part->pos(axis-1)>=pmax) continue;
 
-      iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
-      
-      double mass = part->mass();
+	iv = static_cast<int>( floor( (part->pos(axis-1) - pmin)/dp ) );
+	
+	double mass = part->mass();
 
-      if (mweight) {
-	bmass[iv] += mass;
-	fac = mass;
-      } else {
-	bmass[iv] += 1.0;
-	fac = 1.0;
+	if (mweight) {
+	  bmass[iv] += mass;
+	  fac = mass;
+	} else {
+	  bmass[iv] += 1.0;
+	  fac = 1.0;
+	}
+
+	if (comp == 0)
+	  value[iv] += fac*mass;
+	else if (comp <= 3)
+	  value[iv] += fac*part->pos(comp-1);
+	else if (comp <= 6)
+	  value[iv] += fac*part->vel(comp-4);
+	else if (comp == 7)
+	  value[iv] += fac*part->phi();
+	else if (part->niatr() && comp <= 7 + part->niatr())
+	  value[iv] += fac*part->iatr(comp-8);
+	else if (part->ndatr())
+	  value[iv] += fac*part->datr(comp-8-part->niatr());
+	
+	if (sindx >= 0) {
+	  KeyConvert k(part->iatr(sindx));
+	  if (shist.find(k.getKey()) == shist.end()) 
+	    shist[k.getKey()].resize(numb, 0);
+	  shist[k.getKey()][iv] += fac;
+	}
+
       }
-
-      if (comp == 0)
-	value[iv] += fac*mass;
-      else if (comp <= 3)
-	value[iv] += fac*part->pos(comp-1);
-      else if (comp <= 6)
-	value[iv] += fac*part->vel(comp-4);
-      else if (comp == 7)
-	value[iv] += fac*part->phi();
-      else if (part->niatr() && comp <= 8 + part->niatr())
-	value[iv] += fac*part->iatr(comp-8);
-      else
-	value[iv] += fac*part->datr(comp-8-part->niatr());
+    
     }
     
-  }
-  
-  //
-  // Output
-  //
-  double Time = psp.CurrentTime();
+    //
+    // Output
+    //
+    const size_t fw = 12;
+    const size_t sw =  9;
+    double Time = psp.CurrentTime();
+    float p, f, m=0.0;
 
-  float p, f, m=0.0;
+    if (first) {
+      std::cout << setw(fw) << "Time"
+		<< setw(fw) << "Position"
+		<< setw(fw) << "Value"
+		<< setw(fw) << "Mass";
+      
+      for (auto v : shist) {
+	speciesKey k = v.first;
+	ostringstream str;
+	str << "(" << k.first << ", " << k.second << ")";
+	cout << setw(fw) << str.str();
+      }
+      cout << std::endl;
 
-  for (int i=0; i<numb; i++) {
-    p  = pmin + dp*(0.5+i);
-    f  = 0.0;
-    m += bmass[i];
-    if (areal)  {
-      f = value[i]/dp;
-    } else {
-      if (bmass[i] > 0.0) f = value[i]/bmass[i];
+      std::cout << setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-')
+		<< setw(fw) << std::string(sw, '-');
+
+      for (auto v : shist) {
+	cout << setw(fw) << std::string(sw, '-');
+      }
+      cout << std::endl;
+
+      first = false;
     }
-    cout << setw(18) << Time 
-	 << setw(18) << p
-	 << setw(18) << f
-	 << setw(18) << m
-	 << endl;
+
+    for (int i=0; i<numb; i++) {
+      p  = pmin + dp*(0.5+i);
+      f  = 0.0;
+      m += bmass[i];
+      if (areal)  {
+	f = value[i]/dp;
+      } else {
+	if (bmass[i] > 0.0) f = value[i]/bmass[i];
+      }
+      cout << setw(fw) << Time 
+	   << setw(fw) << p
+	   << setw(fw) << f
+	   << setw(fw) << m;
+      if (sindx>=0) {
+	for (auto v : shist) {
+	  double z = v.second[i];
+	  if (areal) 
+	    z /= dp;
+	  else if (bmass[i] > 0.0) 
+	    z /= bmass[i];
+	  cout << setw(fw) << z;
+	}
+      }
+      cout << endl;
+    }
+    cout << endl;
   }
-  cout << endl;
 
   return 0;
 }

@@ -9,6 +9,11 @@
 #include <expand.h>
 #include <chkTimer.H>
 
+#include "../config.h"
+
+extern "C" {
+  long rem_time(int);
+}
 				// 10 minute warning
 time_t CheckpointTimer::delta = 600;
 				// 2 hours between diagnostic messages
@@ -38,14 +43,16 @@ void  CheckpointTimer::mark()
     // Get and store the current time
     initial = time(0);
 
-    // Look for PBS environment
+    
+
+    // Look for job manager
     double runtime0;
 
     try {
       runtime0 = time_remaining();
     } 
     catch (string& msg) {
-      cout << "CheckpointTimer: PBS problem, " << msg << endl;
+      cout << "CheckpointTimer: problem finding job manager, " << msg << endl;
       cout << "CheckpointTimer: continuing using default runtime=" 
 	   << runtime << endl;
 
@@ -169,12 +176,46 @@ string CheckpointTimer::exec(string& cmd)
 
 double CheckpointTimer::time_remaining()
 {
-  string env("PBS_JOBID");
+  double ret = 0.0;
 
-  if (getenv(env.c_str()) == 0)
+#ifdef HAVE_LIBSLURM
+
+  string env_slurm("SLURM_JOB_ID");
+  if (getenv(env_slurm.c_str()) == 0)
+    throw string("No environment variable: SLURM_JOB_ID");
+  
+  std::cout << "----------------------------------------------------"
+	    << "------------------" << endl
+	    << "CheckpointTimer():" << endl
+	    << "    SLURM detected" << endl
+	    << "----------------------------------------------------"
+	    << "------------------" << endl;
+
+  string job = getenv(env_slurm.c_str());
+  long   rem = rem_time(atoi(job.c_str()));
+
+  if (rem<0)
+    throw string("Error obtaining job id from slurm");
+
+  ret = static_cast<double>(rem)/3600.0;
+
+  return ret;
+
+#else
+
+  string env_pbs("PBS_JOBID");
+
+  if (getenv(env_pbs.c_str()) == 0)
     throw string("No environment variable: PBS_JOBID");
 
-  string job = getenv(env.c_str());
+  std::cout << "----------------------------------------------------"
+	    << "------------------" << endl
+	    << "CheckpointTimer():" << endl
+	    << "    PBS detected"   << endl
+	    << "----------------------------------------------------"
+	    << "------------------" << endl;
+
+  string job = getenv(env_pbs.c_str());
 
   string command = "showstart " + job;
   string result = exec(command);
@@ -183,7 +224,6 @@ double CheckpointTimer::time_remaining()
   char line[128];
   string tag("Earliest completion in ");
   bool found = false;
-  double ret = 0.0;
 
   while (sin) {
     sin.getline(line, 128);
@@ -250,6 +290,8 @@ double CheckpointTimer::time_remaining()
   if (!found) 
     throw string("PBS command failure, no PBS?? ") +
       "[" + command + "]==>[" + result + "]";
+
+#endif
 
   return ret;
 }

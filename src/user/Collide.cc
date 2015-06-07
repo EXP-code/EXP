@@ -65,7 +65,7 @@ bool Collide::MFPDIAG  = false;
 
 // Sample based on maximum (true) or estimate
 // from variance (false);
-bool Collide::NTC      = false;
+bool Collide::NTC      = true;
 
 // Use cpu work to augment per particle effort
 bool Collide::EFFORT   = true;	
@@ -1270,10 +1270,11 @@ void * Collide::collide_thread(void * arg)
     }
     
     //
-    // General hook for the derived classes for specific diagnostics
+    // General hook for the derived classes for specific computations
+    // and diagnostics
     //
   
-    finalize_cell(tree, c, kedsp, id);
+    finalize_cell(tree, c, Fn, kedsp, tau, id);
   
     stat3SoFar[id] = stat3Time[id].stop();
   
@@ -3316,12 +3317,16 @@ void Collide::mfpCLGather()
 
 void Collide::mfpCLPrint(std::ostream& out)
 {
-  // Print the header for mfpcl quantiles
-  //
-  out << std::endl << std::string(53, '-')  << std::endl
-      << "-----Cell length / MFP distribution------------------" << std::endl
-      << std::string(53, '-') << std::endl << std::left;
-  (*mfpclHist)(out);
-  out << std::string(53, '-')  << std::endl << std::endl;
+  if (mfpclHist.get()) {
+
+    // Print the header for mfpcl quantiles
+    //
+    out << std::endl << std::string(53, '-')  << std::endl
+	<< "-----Cell length / MFP distribution------------------" 
+	<< std::endl
+	<< std::string(53, '-') << std::endl << std::left;
+    (*mfpclHist)(out);
+    out << std::string(53, '-')  << std::endl << std::endl;
+  }
 }
 

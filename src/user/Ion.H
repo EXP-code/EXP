@@ -292,6 +292,9 @@ protected:
 				// k-grid spacing in inverse nm
   static constexpr double kdel    = 0.5;
 
+				// Thomson scattering cross-section in nm^2
+  static constexpr double thom    = 6.652459263719353e-11;
+
 public:
 
   //@{

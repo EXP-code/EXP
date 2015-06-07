@@ -159,11 +159,12 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   }
 }
 
-void writeParticles(std::vector<Particle>& particles, const string& file,
-		    Itype type, const std::vector<double>& sF)
+void writeParticles(std::vector<Particle>& particles, const string& file, Itype type, 
+		    const std::vector<double>& sF, 
+		    const std::vector< std::vector<double> >& sI)
 {
   // For tabulating mass fractions . . . 
-  typedef std::map<unsigned short, double> Frac;
+  typedef std::map<speciesKey, double> Frac;
   Frac frac;
 
   std::ofstream out(file.c_str());
@@ -187,10 +188,10 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
 
     if (type != Trace) {
       KeyConvert kc(particles[n].iattrib[0]);
-      unsigned short Z = kc.getKey().first;
-      Frac::iterator it = frac.find(Z);
-      if (it==frac.end()) frac[Z] = 0.0;
-      frac[Z] += particles[n].mass;
+      speciesKey k = kc.getKey();
+      Frac::iterator it = frac.find(k);
+      if (it==frac.end()) frac[k] = 0.0;
+      frac[k] += particles[n].mass;
     }
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
@@ -207,20 +208,23 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
     for (auto i : frac) Mtot += i.second;
 
     std::cout << std::setw( 3) << "Z"
+	      << std::setw( 3) << "C"
 	      << std::setw(18) << "Mass"
 	      << std::setw(18) << "Fraction"
 	      << std::setw(18) << "Target"
 	      << std::endl
+	      << std::setw( 3) << "-"
 	      << std::setw( 3) << "-"
 	      << std::setw(18) << "--------"
 	      << std::setw(18) << "--------"
 	      << std::setw(18) << "--------"
 	      << std::endl;
     for (auto i : frac)
-      std::cout << std::setw( 3) << i.first
+      std::cout << std::setw( 3) << i.first.first
+		<< std::setw( 3) << i.first.second
 		<< std::setw(18) << i.second
 		<< std::setw(18) << i.second/Mtot
-		<< std::setw(18) << sF[i.first-1]
+		<< std::setw(18) << sF[i.first.first-1] * sI[i.first.first-1][i.first.second-1]
 		<< std::endl;
 
     std::cout << std::string(60, '-') << std::endl
@@ -233,8 +237,9 @@ void writeParticles(std::vector<Particle>& particles, const string& file,
 void InitializeSpeciesDirect
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, double M, double T,
- int ni=1, int nd=6)
+ std::vector<double>& sF, 
+ std::vector< std::vector<double> >& sI,
+  double M, double T, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -358,13 +363,23 @@ void InitializeSpeciesDirect
 	<< std::endl;
   }
 
+  sI = cuml;
+  for (auto &s : sI) {
+    double l = 0.0;
+    for (auto &c : s) {
+      double t = c;
+      c -= l;
+      l = t;
+    }
+  }
 }
 
 void InitializeSpeciesWeight
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, double M, double T,
- int& ne, int ni=1, int nd=6)
+ std::vector<double>& sF, 
+ std::vector< std::vector<double> >& sI,
+ double M, double T, int& ne, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -490,6 +505,15 @@ void InitializeSpeciesWeight
 	<< std::endl;
   }
 
+  sI = cuml;
+  for (auto &s : sI) {
+    double l = 0.0;
+    for (auto &c : s) {
+      double t = c;
+      c -= l;
+      l = t;
+    }
+  }
 }
 
 void InitializeSpeciesTrace
@@ -714,6 +738,8 @@ int main (int ac, char **av)
   const size_t Nspec = 2;
   std::vector<double>        sF(Nspec);
   std::vector<unsigned char> sZ(Nspec);
+  std::vector< std::vector<double> > sI; // Ion fractions
+
 
   // Species fraction, atomic number
   sF[0] = 0.76; sZ[0] = 1;
@@ -741,14 +767,14 @@ int main (int ac, char **av)
   //
   switch (type) {
   case Weight:
-    InitializeSpeciesWeight(particles, sZ, sF, Mass, T, ne);
+    InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne);
     break;
   case Trace:
     InitializeSpeciesTrace (particles, sZ, sF, Mass, T);
     break;
   case Direct:
   default:
-    InitializeSpeciesDirect(particles, sZ, sF, Mass, T);
+    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T);
   }
   
   // Initialize the phase space vector
@@ -757,7 +783,7 @@ int main (int ac, char **av)
   
   // Output file
   //
-  writeParticles(particles, oname, type, sF);
+  writeParticles(particles, oname, type, sF, sI);
 
   return 0;
 }

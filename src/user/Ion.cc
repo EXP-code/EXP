@@ -944,7 +944,6 @@ double Ion::directIonCross(double E, int id)
 	double a = 1.0 - diSpline[i].btf + exp(log(diSpline[i].btf)/(1.0 - bte));
 	double cross_i = (log(a) + 1.0)*btcross/(a*diSpline[i].ev*diSpline[i].ev);
 				// convert to cross section in nm^2
-	// cross += cross_i * 1.0e-14;
 	cross += cross_i;
       }
     }
@@ -1092,8 +1091,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
     std::cout << "  Verner = " << std::setw(16) << v5.back() << std::endl;
     std::cout << std::string(60, '-')                        << std::endl;
     
-    if      (rr_type == topbase) return v2;
-    else if (rr_type == mewe)    return v1;
+    if      (rr_type == mewe)    return v1;
+    else if (rr_type == topbase) return v2;
     else if (rr_type == kramers) return v3;
     else if (rr_type == spitzer) return v4;
     else if (rr_type == verner)  return v5;
@@ -1101,8 +1100,8 @@ std::vector<double> Ion::radRecombCross(double E, int id)
 
   } else {
 
-    if      (rr_type == topbase) return radRecombCrossTopBase(E, id);
-    else if (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    if      (rr_type == mewe)    return radRecombCrossMewe   (E, id);
+    else if (rr_type == topbase) return radRecombCrossTopBase(E, id);
     else if (rr_type == kramers) return radRecombCrossKramers(E, id);
     else if (rr_type == spitzer) return radRecombCrossSpitzer(E, id);
     else if (rr_type == verner)  return radRecombCrossVerner (E, id);

@@ -55,7 +55,8 @@ protected:
   }
 
   virtual void 
-  finalize_cell(pHOT* tree, pCell* c, double kedsp, int id);
+  finalize_cell(pHOT* tree, pCell* c, sKeyDmap* const Fn, 
+		double kedsp, double tau, int id);
 
   virtual sKey2Dmap& totalCrossSections(int id)
   {    

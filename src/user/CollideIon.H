@@ -46,7 +46,7 @@ public:
 
   //@{
   //! Vectors for each type of diagnostic by thread id
-  IDVP ff, CE, CI, RR, dv;
+  IDVP nn, ne, ie, ff, CE, CI, RR, dv;
   IDVD eV_av, eV_max, eV_min;
   IDVI eV_N, eV_10;
   //@}
@@ -55,7 +55,7 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  UDDT          ff_s, CE_s, CI_s, RR_s, dv_s;
+  UDDT          nn_s, ne_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
   double        eV_av_s, eV_max_s, eV_min_s;
   unsigned long eV_N_s, eV_10_s;
   //@}
@@ -95,6 +95,9 @@ public:
   {
     zero = UDDT(0, 0, 0);
 
+    nn.resize(nthrds, zero);
+    ne.resize(nthrds, zero);
+    ie.resize(nthrds, zero);
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
     CI.resize(nthrds, zero);
@@ -111,6 +114,9 @@ public:
   //! Reset the accumulation vectors
   void reset() 
   {
+    std::fill(nn.begin(), nn.end(), zero);
+    std::fill(ne.begin(), ne.end(), zero);
+    std::fill(ie.begin(), ie.end(), zero);
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
     std::fill(CI.begin(), CI.end(), zero);
@@ -128,6 +134,9 @@ public:
   //! instance
   void sumUp()
   {
+    nn_s     =  accum(nn);
+    ne_s     =  accum(ne);
+    ie_s     =  accum(ie);
     ff_s     =  accum(ff);
     CE_s     =  accum(CE);
     CI_s     =  accum(CI);
@@ -151,6 +160,9 @@ public:
 
   void sync()
   {
+    syncUDDT(nn_s);
+    syncUDDT(ne_s);
+    syncUDDT(ie_s);
     syncUDDT(ff_s);
     syncUDDT(CE_s);
     syncUDDT(CI_s);
@@ -270,10 +282,11 @@ private:
   std::vector< CEvector >                            CE1, CE2;
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
-  std::vector< double >                              kEi, kEe1, kEe2;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee;
   std::vector< double >                              Ein1, Ein2, Evel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
+  std::vector< unsigned >                            elecOvr, elecTot;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -299,8 +312,17 @@ private:
     free_free_2 = 203,
     colexcite_2 = 204,
     ionize_2    = 205,
-    recomb_2    = 206
+    recomb_2    = 206,
+    elec_elec   = 300
   };    
+
+  //@{
+  //! Specify the electron scattering algorithm
+  enum ElectronScatter {none=0, always=1, classical=2, limited=3, fixed=4};
+  typedef std::map<std::string, ElectronScatter> esMapType;
+  static ElectronScatter esType;
+  static esMapType esMap;
+  //@}
 
   std::map<int, std::string> labels;
 
@@ -313,14 +335,22 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, velEI;
-  ahistoDPtr elecH, ionH, lossH, eireH;
+  std::vector< boost::circular_buffer<double> > velER, keER, keIR;
+  ahistoDPtr elecH, ionH, lossH, keEH, keIH;
+  unsigned Ovr_s, Tot_s;
   //@}
 
 public:
 
   typedef std::set<unsigned short> ZLtype;
   typedef std::map<unsigned short, double> ZWtype;
+
+  //! Maximum number electron scatterings using the "limited"
+  //! algorithm
+  static unsigned esNum;
+
+  //! Coulombic log Lambda value
+  static double logL;
 
 protected:
 
@@ -373,7 +403,8 @@ protected:
   }
   
   virtual void 
-  finalize_cell(pHOT* const tree, pCell* const c, double kedsp, int id);
+  finalize_cell(pHOT* const tree, pCell* const c, 
+		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
   virtual sKey2Dmap& totalCrossSections(int id)
@@ -445,20 +476,6 @@ protected:
   {
     if (aType == Direct)
       Collide::velocityUpdate(p1, p2, cr);
-    if (aType == Weight) {
-      if (false) {		// This is all debugging!
-	double vr = 0.0;
-	for (size_t k=0; k<3; k++) {
-	  double z = p1->vel[k] - p2->vel[k];
-	  vr += z*z;
-	}
-	vr = sqrt(vr);
-	if ( fabs(vr - cr) > 1.0e-20 ) {
-	  std::cout << "Velocity mismatch: vr=" << vr << " cr="
-		    << cr << std::endl;
-	}
-      }
-    }
 
     return;
   }
@@ -520,7 +537,7 @@ protected:
 
   typedef std::map<speciesKey, double> spDMap;
   typedef spDMap::iterator spDItr;
-  double tempM, tempE, molwM, consE, totlE;
+  double tempM, tempE, elecE, molwM, consE, totlE;
   spDMap specM;
   //@}
 
@@ -553,11 +570,11 @@ public:
   static double   Nmax;
   static double   Tmin;
   static double   Tmax;
-  static double   TolV;
   static unsigned Nnum;
   static unsigned Tnum;
   static string   cache;
   static bool     equiptn;
+  static bool     scatter;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
@@ -598,6 +615,34 @@ public:
 
   //! Compute/retrieve mean molecular weight for this cell
   virtual double molWeight(sCell *c);
+
+  //! Set electron scattering type
+  static void setEStype(const std::string& type) 
+  {
+    esMapType::const_iterator it = esMap.find(type);
+    if (it != esMap.end())
+      esType = it->second;
+    else {
+      if (myid==0) {
+	std::cout << "CollideIon::setEStype: could not identify type <"
+		  << type << ">, defaulting to <always>" << std::endl;
+				// Be verbose here for clarity
+	std::cout << "--- Available types ---" << std::endl;
+	for (auto s : esMap) std::cout << "  " << s.first << std::endl;
+	std::cout << "-----------------------" << std::endl;
+	esMapType::const_iterator it = esMap.find(type);
+      }
+      esType = always;
+    }
+  }
+
+  //! Get electron scattering type
+  static std::string getEStype()
+  {
+    for (auto i : esMap) 
+      if (esType == i.second) return i.first;
+    return "unknown";
+  }
 
 };
 
