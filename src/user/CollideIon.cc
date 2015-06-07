@@ -90,6 +90,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
+  // Debugging
+  itp=0;
+
   // Read species file
   //
   parseSpecies(smap);
@@ -4055,10 +4058,29 @@ void * CollideIon::timestep_thread(void * arg)
   return (NULL);
 }
 
-std::string tpaths[] = {"/tmp/test.0", "/tmp/test.1"};
-unsigned long itp = 0;
+void CollideIon::eEdbg()
+{
+  if (fabs(tot2[0] - tot2[1])/tot2[0] > 1.0e-14) {
 
-double CollideIon::electronEnergy(pCell* const cell)
+    std::ofstream out(tpaths[itp++ % 4].c_str());
+    for (auto m : data[0]) {
+      out << std::setw(10) << m.first
+	  << std::setw(14) << std::get<0>(m.second)
+	  << std::setw(14) << std::get<1>(m.second)
+	  << std::setw(14) << std::get<0>(data[1][m.first])
+	  << std::setw(14) << std::get<1>(data[1][m.first])
+	  << std::endl;
+    }
+    out << std::setw(10) << "***"
+	<< std::setw(14) << tot1[0]
+	<< std::setw(14) << tot2[0]
+	<< std::setw(14) << tot1[1]
+	<< std::setw(14) << tot2[1]
+	<< std::endl;
+  }
+}
+
+double CollideIon::electronEnergy(pCell* const cell, int dbg)
 {
   double Eengy = 0.0;
   for (auto b : cell->bods) {
@@ -4073,31 +4095,29 @@ double CollideIon::electronEnergy(pCell* const cell)
     }
   }
 
-  std::ofstream out(tpaths[itp++ % 2].c_str());
+  if (dbg>=0) {
 
-  double tot1 = 0.0, tot2 = 0.0;
-  for (auto b : cell->bods) {
-    Particle *p = c0->Tree()->Body(b);
-    KeyConvert k(p->iattrib[use_key]);
-    if (k.C() - 1 > 0) {
-      double numb = p->mass/atomic_weights[k.Z()];
-      double E = 0.0;
-      for (unsigned j=0; j<3; j++) {
-	double v = p->dattrib[use_elec+j];
-	E += 0.5 * v*v * numb;
+    data[dbg].clear();
+    tot1[dbg] = 0.0;
+    tot2[dbg] = 0.0;
+
+    for (auto b : cell->bods) {
+      Particle *p = c0->Tree()->Body(b);
+      KeyConvert k(p->iattrib[use_key]);
+      if (k.C() - 1 > 0) {
+	double numb = p->mass/atomic_weights[k.Z()];
+	double E = 0.0;
+	for (unsigned j=0; j<3; j++) {
+	  double v = p->dattrib[use_elec+j];
+	  E += 0.5 * v*v * numb;
+	}
+	std::get<0>(data[dbg][b]) = 2.0*E/numb;
+	std::get<1>(data[dbg][b]) = E;
+	tot1[dbg] += 2.0*E/numb;
+	tot2[dbg] += E;
       }
-      out << std::setw(10) << b 
-	  << std::setw(14) << 2.0*E/numb
-	  << std::setw(14) << E 
-	  << std::endl;
-      tot1 += 2.0*E/numb;
-      tot2 += E;
     }
   }
-  out << std::setw(10) << "***"
-      << std::setw(14) << tot1
-      << std::setw(14) << tot2
-      << std::endl;
 
   return Eengy * atomic_weights[0];
 }
@@ -4314,13 +4334,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Do electron interactions separately
   //
   if ( (aType == Direct or aType == Weight) and use_elec>=0 and esType != always) {
-
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
-    double Ebeg = electronEnergy(cell);
+    double Ebeg = electronEnergy(cell, myid==0 ? 0 : -1);
 
     // Compute list of particles in cell with electrons
     //
@@ -4488,16 +4507,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
       }
 
-      double Efin = electronEnergy(cell);
-      if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-	std::cout << "Electron energy conservation error [0]" << std::endl;
-      }
-
     } // loop over particles
 
-    double Efin = electronEnergy(cell);
+    double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
     if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-      std::cout << "Electron energy conservation error [1]" << std::endl;
+      std::cout << "Electron energy conservation error" << std::endl;
     }
 
   } // end: Direct or Weight for use_elec>=0
