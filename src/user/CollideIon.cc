@@ -3046,6 +3046,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       p1->vel[k] = v1[k];
       p2->dattrib[use_elec+k] = v2[k];
       vf2 += v2[k] * v2[k];
+      if (interFlag == recomb_1) p1->dattrib[use_elec+k] = 0.0;
     }
     
     // For diagnostic electron energy loss/gain distribution
@@ -3082,6 +3083,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       p1->dattrib[use_elec+k] = v1[k];
       p2->vel[k] = v2[k];
       vf2 += v1[k] * v1[k];
+      if (interFlag == recomb_2) p2->dattrib[use_elec+k] = 0.0;
     }
     
     // For diagnostic electron energy loss/gain distribution
@@ -4053,6 +4055,53 @@ void * CollideIon::timestep_thread(void * arg)
   return (NULL);
 }
 
+std::string tpaths[] = {"/tmp/test.0", "/tmp/test.1"};
+unsigned long itp = 0;
+
+double CollideIon::electronEnergy(pCell* const cell)
+{
+  double Eengy = 0.0;
+  for (auto b : cell->bods) {
+    Particle *p = c0->Tree()->Body(b);
+    KeyConvert k(p->iattrib[use_key]);
+    if (k.C() - 1 > 0) {
+      double numb = p->mass/atomic_weights[k.Z()];
+      for (unsigned j=0; j<3; j++) {
+	double v = p->dattrib[use_elec+j];
+	Eengy += 0.5 * v*v * numb;
+      }
+    }
+  }
+
+  std::ofstream out(tpaths[itp++ % 2].c_str());
+
+  double tot1 = 0.0, tot2 = 0.0;
+  for (auto b : cell->bods) {
+    Particle *p = c0->Tree()->Body(b);
+    KeyConvert k(p->iattrib[use_key]);
+    if (k.C() - 1 > 0) {
+      double numb = p->mass/atomic_weights[k.Z()];
+      double E = 0.0;
+      for (unsigned j=0; j<3; j++) {
+	double v = p->dattrib[use_elec+j];
+	E += 0.5 * v*v * numb;
+      }
+      out << std::setw(10) << b 
+	  << std::setw(14) << 2.0*E/numb
+	  << std::setw(14) << E 
+	  << std::endl;
+      tot1 += 2.0*E/numb;
+      tot2 += E;
+    }
+  }
+  out << std::setw(10) << "***"
+      << std::setw(14) << tot1
+      << std::setw(14) << tot2
+      << std::endl;
+
+  return Eengy * atomic_weights[0];
+}
+
 void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell, 
 			       sKeyDmap* const Fn, double kedsp, double tau,
 			       int id)
@@ -4271,6 +4320,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
+    double Ebeg = electronEnergy(cell);
 
     // Compute list of particles in cell with electrons
     //
@@ -4331,15 +4381,30 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       Particle* const p1 = cell->Body(bods[l1]);
       Particle* const p2 = cell->Body(bods[l2]);
-	  
+
+      KeyConvert k1(p1->iattrib[use_key]);
+      KeyConvert k2(p2->iattrib[use_key]);
+
+      double ne1 = k1.C() - 1;
+      double ne2 = k2.C() - 1;
+
+      // Relative electron number
+      //
+      double m1 = p1->mass/atomic_weights[k1.Z()];
+      double m2 = p2->mass/atomic_weights[k2.Z()];
+      double mt = m1 + m2;
+
       // Calculate pair's relative speed (pre-collision)
       //
       vector<double> vcom(3), vrel(3);
-      double vi = 0.0;
+      double vi = 0.0, KEi = 0.0, KEf = 0.0;
       for (int k=0; k<3; k++) {
-	vcom[k] = 0.5*(p1->dattrib[use_elec+k] + p2->dattrib[use_elec+k]);
+	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->dattrib[use_elec+k])/mt;
 	vrel[k] = p1->dattrib[use_elec+k] - p2->dattrib[use_elec+k];
 	vi += vrel[k]*vrel[k];
+	KEi += 
+	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
+	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
       }
       
       // No point in inelastic collsion for zero velocity . . . 
@@ -4360,12 +4425,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       double scrs = 0.0;
       
-      KeyConvert k1(p1->iattrib[use_key]);
-      KeyConvert k2(p1->iattrib[use_key]);
-      
-      double ne1 = k1.C() - 1;
-      double ne2 = k2.C() - 1;
-
       // Mean interparticle spacing
       // 
       double ips = pow(volc/nbods, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
@@ -4418,12 +4477,28 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
 
 	for (int k=0; k<3; k++) {
-	  p1->dattrib[use_elec+k] = vcom[k] + 0.5*vrel[k]; 
-	  p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	  p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k];
+	  p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k];
 	}
       }
 
+      for (int k=0; k<3; k++) {
+	KEf += 
+	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
+	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
+      }
+
+      double Efin = electronEnergy(cell);
+      if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
+	std::cout << "Electron energy conservation error [0]" << std::endl;
+      }
+
     } // loop over particles
+
+    double Efin = electronEnergy(cell);
+    if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
+      std::cout << "Electron energy conservation error [1]" << std::endl;
+    }
 
   } // end: Direct or Weight for use_elec>=0
 
@@ -5890,20 +5965,7 @@ void CollideIon::gatherSpecies()
 
 	  // Compute total electron energy in this cell
 	  //
-	  double Eengy = 0.0;
-	  for (auto b : cell->bods) {
-	    Particle *p = c0->Tree()->Body(b);
-	    KeyConvert k(p->iattrib[use_key]);
-	    if (k.C() - 1 > 0) {
-	      double numb = p->mass/atomic_weights[k.Z()];
-	      for (unsigned j=0; j<3; j++) {
-		double v = p->dattrib[use_elec+j];
-		Eengy += 0.5 * v*v * numb;
-	      }
-	    }
-	  }
-				// Total electron KE
-	  elecE += Eengy * atomic_weights[0];
+	  elecE += electronEnergy(cell);
 	}
       }
     }

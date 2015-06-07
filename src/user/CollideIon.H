@@ -565,6 +565,9 @@ protected:
     electronPrint(out); 
   }
 
+  //! Compute electron energy in a cell
+  double electronEnergy(pCell* const cell);
+
 public:
   static double   Nmin;
   static double   Nmax;
