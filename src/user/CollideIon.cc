@@ -38,6 +38,10 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
 
+// Used energy first conservation for electron scattering
+//
+const bool ENERGY_1          = true;
+
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
 //
@@ -4444,10 +4448,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       if (vi == 0.0) continue;
 
-      // KE in com
-      //
-      double kE = 0.5 * Wa * q * 0.5*m0;
-
       // Relative velocity 
       //
       vi = sqrt(vi);
@@ -4513,19 +4513,78 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
 	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
 
-	double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
-	for (int k=0; k<3; k++) {
-	  double v0 = vcom[k] + 0.5*vrel[k];
-	  deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
-	}
+	// Explicit energy conservation
+	//
+	if (ENERGY_1) {
 
-	double vfac = 1.0;
-	if (kE>0.0) vfac = sqrt(1.0 + deltaKE/kE);
+	  double v1i = 0.0, v2i = 0.0;
+	  for (auto v : v1) v1i += v*v;
+	  for (auto v : v2) v2i += v*v;
+
+	  std::vector<double> u1(3), u2(3);
+	  for (int k=0; k<3; k++) {
+	    u1[k] = vcom[k] + 0.5*vrel[k];
+	    u2[k] = vcom[k] - 0.5*vrel[k];
+	  }
+	  
+	  double v1f = 0.0, v2f = 0.0;
+	  for (auto v : u1) v1f += v*v;
+	  for (auto v : u2) v2f += v*v;
+
+	  double E1i   = 0.5*Wa*m0*v1i;
+	  double E2i   = 0.5*Wb*m0*v2i;
+	  double E2f   = 0.5*Wb*m0*v2f;
+	  double vaf2  = 2.0/(Wa*m0)*(E1i + E2i - E2f);
+
+	  std::vector<double> vf(3);
+	  double vft = 0.0;
+	  for (int k=0; k<3; k++) {
+	    vf[k] = v1[k] + q*(v2[k] - u2[k]);
+	    vft  += vf[k]*vf[k];
+	  }
+
+	  double vfac = sqrt(vaf2/vft);
+	  double pi2   = 0.0, dp2 = 0.0, Efin = 0.0;
+	  for (int k=0; k<3; k++) {
+	    p1->dattrib[use_elec+k] = vf[k] * vfac;
+	    p2->dattrib[use_elec+k] = u2[k];
+
+	    double dpi = Wa*m0*v1[k] + Wb*m0*v2[k];
+	    double dpf = Wa*m0*vf[k] + Wb*m0*u2[k];
+
+	    dp2  += (dpi - dpf)*(dpi - dpf);
+	    pi2  += dpi*dpi;
+	    Efin += 0.5*Wa*m0*vf[k]*vf[k]*vfac*vfac + 0.5*Wb*m0*u2[k]*u2[k];
+	  }
+
+	  double pfac = sqrt(dp2/pi2);
+	  if ( fabs(Efin - E1i - E2i) > 1.0e-14*(E1i+E2i) ) {
+	    std::cout << "Broken energy conservation, pcons=" 
+		      << pfac << std::endl;
+	  }
+	} 
 	
-	for (int k=0; k<3; k++) {
-	  double v0 = vcom[k] + 0.5*vrel[k] * vfac;
-	  p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
-	  p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k] * vfac;
+	// Explicit momentum conservation
+	//
+	else {
+
+	  double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
+	  double KE1 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    double v0 = vcom[k] + 0.5*vrel[k];
+	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
+	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	  }
+	  
+	  KE1 *= 0.5 * Wa * m0;
+	  double vfac = 1.0;
+	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
+	  
+	  for (int k=0; k<3; k++) {
+	    p1->dattrib[use_elec+k] *= vfac;
+	  }
 	}
       }
 
