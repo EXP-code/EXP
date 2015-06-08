@@ -4398,37 +4398,55 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       // Get index from body map for the cell
       //
-      Particle* const p1 = cell->Body(bods[l1]);
-      Particle* const p2 = cell->Body(bods[l2]);
+      Particle* p1 = cell->Body(bods[l1]);
+      Particle* p2 = cell->Body(bods[l2]);
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
 
+      if (p1->mass/atomic_weights[k1.Z()] < 
+	  p2->mass/atomic_weights[k2.Z()]) 
+	{
+	  // Swap the particle pointers
+	  //
+	  Particle *pT = p1;
+	  p1 = p2;
+	  p2 = pT;
+
+	  // Reassign the keys and species indices
+	  //
+	  k1 = KeyConvert(p1->iattrib[use_key]);
+	  k2 = KeyConvert(p2->iattrib[use_key]);
+	}
+
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
 
-      // Relative electron number
+      // Find the trace ratio
       //
-      double m1 = p1->mass/atomic_weights[k1.Z()];
-      double m2 = p2->mass/atomic_weights[k2.Z()];
-      double mt = m1 + m2;
+      double Wa = p1->mass / atomic_weights[k1.Z()];
+      double Wb = p2->mass / atomic_weights[k2.Z()];
+      double  q = Wb / Wa;
 
       // Calculate pair's relative speed (pre-collision)
       //
-      vector<double> vcom(3), vrel(3);
-      double vi = 0.0, KEi = 0.0, KEf = 0.0;
+      vector<double> vcom(3), vrel(3), v1(3), v2(3);
+      double vi = 0.0, m0 = atomic_weights[0];
       for (int k=0; k<3; k++) {
-	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->dattrib[use_elec+k])/mt;
-	vrel[k] = p1->dattrib[use_elec+k] - p2->dattrib[use_elec+k];
+	v1[k] = p1->dattrib[use_elec+k];
+	v2[k] = p2->dattrib[use_elec+k];
+	vcom[k] = 0.5*(v1[k] + v2[k]);
+	vrel[k] = v1[k] - v2[k];
 	vi += vrel[k]*vrel[k];
-	KEi += 
-	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
-	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
       }
       
       // No point in inelastic collsion for zero velocity . . . 
       //
       if (vi == 0.0) continue;
+
+      // KE in com
+      //
+      double kE = 0.5 * Wa * q * 0.5*m0;
 
       // Relative velocity 
       //
@@ -4495,16 +4513,20 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
 	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
 
+	double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
 	for (int k=0; k<3; k++) {
-	  p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k];
-	  p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k];
+	  double v0 = vcom[k] + 0.5*vrel[k];
+	  deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 	}
-      }
 
-      for (int k=0; k<3; k++) {
-	KEf += 
-	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
-	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
+	double vfac = 1.0;
+	if (kE>0.0) vfac = sqrt(1.0 + deltaKE/kE);
+	
+	for (int k=0; k<3; k++) {
+	  double v0 = vcom[k] + 0.5*vrel[k] * vfac;
+	  p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
+	  p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k] * vfac;
+	}
       }
 
     } // loop over particles
