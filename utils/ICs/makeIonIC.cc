@@ -139,8 +139,10 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       }
 
       if (ne>=0) {
-	for (int l=0; l<3; l++)
+	for (int l=0; l<3; l++) {
 	  p[i].dattrib[ne+l] = varE*(*Norm)() / Vunit;
+	  p[i].dattrib[ne+l] /= sqrt(atomic_masses[Z]);
+	}
       }
 
       KE *= 0.5 * p[i].mass * (C-1);
