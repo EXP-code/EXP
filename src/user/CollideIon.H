@@ -3,6 +3,8 @@
 
 #include <tuple>
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/circular_buffer.hpp>
 
 #include "Collide.H"
@@ -571,8 +573,10 @@ protected:
   //! Debugging routine
   void eEdbg();
 
-  const std::string tpaths[4] = {"/tmp/test.0", "/tmp/test.1", 
-				"/tmp/test.2", "/tmp/test.3"};
+  const std::string tpaths[4] = {"./test.0", "./test.1", 
+				 "./test.2", "./test.3"};
+  boost::filesystem::path getcwd;
+  std::string hostname;
   unsigned long itp;
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];

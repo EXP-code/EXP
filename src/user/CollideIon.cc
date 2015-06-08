@@ -3,6 +3,7 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
+#include <cstdlib>
 #include <vector>
 #include <cfloat>
 #include <cmath>
@@ -92,6 +93,13 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 {
   // Debugging
   itp=0;
+
+  char _hostname[1024];
+  _hostname[1023] = '\0';
+  gethostname(_hostname, 1023);
+  hostname = std::string(_hostname);
+  getcwd = boost::filesystem::current_path();
+
 
   // Read species file
   //
@@ -4060,9 +4068,11 @@ void * CollideIon::timestep_thread(void * arg)
 
 void CollideIon::eEdbg()
 {
-  if (fabs(tot2[0] - tot2[1])/tot2[0] > 1.0e-14) {
+  if (fabs(tot2[1]/tot2[0] - 1.0) > 1.0e-12) {
 
-    std::ofstream out(tpaths[itp++ % 4].c_str());
+    std::ostringstream sout;
+    sout << tpaths[itp++ % 4] << '.' << hostname << '.' << myid;
+    boost::filesystem::ofstream out(getcwd / sout.str());
     for (auto m : data[0]) {
       out << std::setw(10) << m.first
 	  << std::setw(14) << std::get<0>(m.second)
@@ -4077,6 +4087,7 @@ void CollideIon::eEdbg()
 	<< std::setw(14) << tot1[1]
 	<< std::setw(14) << tot2[1]
 	<< std::endl;
+    out << "Rel diff: " << tot2[1]/tot2[0] - 1.0 << std::endl;
   }
 }
 
@@ -4339,7 +4350,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
-    double Ebeg = electronEnergy(cell, myid==0 ? 0 : -1);
+    double Ebeg = electronEnergy(cell, 0);
 
     // Compute list of particles in cell with electrons
     //
@@ -4403,6 +4414,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
+
+      // TEST: skip unlike species
+      if (k1.Z() != k2.Z()) continue;
 
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
@@ -4509,9 +4523,16 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     } // loop over particles
 
-    double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
-    if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-      std::cout << "Electron energy conservation error" << std::endl;
+    double Efin = electronEnergy(cell, 1);
+    if (fabs(Efin/Ebeg - 1.0) > 1.0e-12) {
+      char buf[80];
+      if (gethostname(buf, 80))
+	std::cout << "Electron energy conservation error ["
+		  << myid << "]" << std::endl;
+      else
+	std::cout << "Electron energy conservation error ["
+		  << buf << ", " << myid << "]" << std::endl;
+      eEdbg();
     }
 
   } // end: Direct or Weight for use_elec>=0
