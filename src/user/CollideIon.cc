@@ -40,7 +40,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_1          = true;
+const bool ENERGY_ES         = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -4370,9 +4370,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
     //
-    double Prob    = eta * cunit * crsvel * tau / volc;
-    size_t nbods   = bods.size();
-    double selcM   = 0.5 * nbods * (nbods-1) *  Prob;
+    double    Prob = eta * cunit * crsvel * tau / volc;
+    size_t   nbods = bods.size();
+    double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
     unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
 
     if (esType == limited or esType == fixed) 
@@ -4408,6 +4408,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
 
+      // Swap particles so that p2 is the trace element
+      //
       if (p1->mass/atomic_weights[k1.Z()] < 
 	  p2->mass/atomic_weights[k2.Z()]) 
 	{
@@ -4432,18 +4434,25 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       double Wb = p2->mass / atomic_weights[k2.Z()];
       double  q = Wb / Wa;
 
+      double ma = atomic_weights[0];
+      double mb = atomic_weights[0];
+      double mt = ma + mb;
+
       // Calculate pair's relative speed (pre-collision)
       //
       vector<double> vcom(3), vrel(3), v1(3), v2(3);
-      double vi = 0.0, m0 = atomic_weights[0];
       for (int k=0; k<3; k++) {
 	v1[k] = p1->dattrib[use_elec+k];
 	v2[k] = p2->dattrib[use_elec+k];
-	vcom[k] = 0.5*(v1[k] + v2[k]);
+	vcom[k] = (ma*v1[k] + mb*v2[k])/mt;
 	vrel[k] = v1[k] - v2[k];
-	vi += vrel[k]*vrel[k];
       }
       
+      // Compute relative speed
+      //
+      double vi = 0.0;
+      for (auto v : vrel) vi += v*v;
+
       // No point in inelastic collsion for zero velocity . . . 
       //
       if (vi == 0.0) continue;
@@ -4515,52 +4524,58 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Explicit energy conservation
 	//
-	if (ENERGY_1) {
-
-	  double v1i = 0.0, v2i = 0.0;
-	  for (auto v : v1) v1i += v*v;
-	  for (auto v : v2) v2i += v*v;
+	if (ENERGY_ES) {
 
 	  std::vector<double> u1(3), u2(3);
-	  for (int k=0; k<3; k++) {
-	    u1[k] = vcom[k] + 0.5*vrel[k];
-	    u2[k] = vcom[k] - 0.5*vrel[k];
-	  }
+	  for (int k=0; k<3; k++)
+	    u2[k] = vcom[k] - ma/mt*vrel[k];
 	  
-	  double v1f = 0.0, v2f = 0.0;
-	  for (auto v : u1) v1f += v*v;
-	  for (auto v : u2) v2f += v*v;
+	  double v1i = 0.0, v2i = 0.0, u1f = 0.0, u2f = 0.0;
+	  for (auto v : v1) v1i += v*v;
+	  for (auto v : v2) v2i += v*v;
+	  for (auto v : u2) u2f += v*v;
 
-	  double E1i   = 0.5*Wa*m0*v1i;
-	  double E2i   = 0.5*Wb*m0*v2i;
-	  double E2f   = 0.5*Wb*m0*v2f;
-	  double vaf2  = 2.0/(Wa*m0)*(E1i + E2i - E2f);
+	  double Ebeg  = 0.5*Wa*ma*v1i + 0.5*Wb*mb*v2i;
+	  double E2f   = 0.5*Wb*mb*u2f;
+	  double vf2   = 2.0/(Wa*ma)*(Ebeg - E2f);
 
-	  std::vector<double> vf(3);
-	  double vft = 0.0;
+	  for (int k=0; k<3; k++)
+	    u1[k] = v1[k] + q*mb/ma*(v2[k] - u2[k]);
+
+				// Conserve energy, but not momentum
+	  for (auto  v : u1) u1f += v*v;
+	  double vfac = sqrt(vf2/u1f);
+	  for (auto &v : u1) v *= vfac;
+
+				// These are all for diagnostics
+	  double pi2 = 0.0, dp2 = 0.0, Efin = 0.0;
+
+				// Assign new electron velocities
 	  for (int k=0; k<3; k++) {
-	    vf[k] = v1[k] + q*(v2[k] - u2[k]);
-	    vft  += vf[k]*vf[k];
-	  }
-
-	  double vfac = sqrt(vaf2/vft);
-	  double pi2   = 0.0, dp2 = 0.0, Efin = 0.0;
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = vf[k] * vfac;
+	    p1->dattrib[use_elec+k] = u1[k];
 	    p2->dattrib[use_elec+k] = u2[k];
 
-	    double dpi = Wa*m0*v1[k] + Wb*m0*v2[k];
-	    double dpf = Wa*m0*vf[k] + Wb*m0*u2[k];
+	    // DIAGNOSTIC: initial and final momenta
+	    double dpi = Wa*ma*v1[k] + Wb*mb*v2[k];
+	    double dpf = Wa*ma*u1[k] + Wb*mb*u2[k];
 
-	    dp2  += (dpi - dpf)*(dpi - dpf);
-	    pi2  += dpi*dpi;
-	    Efin += 0.5*Wa*m0*vf[k]*vf[k]*vfac*vfac + 0.5*Wb*m0*u2[k]*u2[k];
+	    // DIAGNOSTIC: rms momentum difference
+	    dp2  += (dpi - dpf)*(dpi - dpf); 
+	    pi2  += dpi*dpi;		     
+
+	    // DIAGNOSTIC: final energy
+	    Efin += 0.5*Wa*ma*u1[k]*u1[k] + 0.5*Wb*mb*u2[k]*u2[k];
 	  }
 
-	  double pfac = sqrt(dp2/pi2);
-	  if ( fabs(Efin - E1i - E2i) > 1.0e-14*(E1i+E2i) ) {
-	    std::cout << "Broken energy conservation, pcons=" 
-		      << pfac << std::endl;
+	  // Check for energy conservation
+	  //
+	  if ( fabs(Efin - Ebeg) > 1.0e-14*(Ebeg) ) {
+	    std::cout << "Broken energy conservation,"
+		      << " Ebeg="  << Ebeg
+		      << " Efin="  << Efin
+		      << " Edif="  << Efin/Ebeg - 1.0
+		      << " pcons=" << sqrt(dp2/pi2)
+		      << std::endl;
 	  }
 	} 
 	
@@ -4568,8 +4583,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	else {
 
-	  double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
-	  double KE1 = 0.0;
+	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q), KE1 = 0.0;
 	  for (int k=0; k<3; k++) {
 	    double v0 = vcom[k] + 0.5*vrel[k];
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
@@ -4577,8 +4591,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
 	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
 	  }
-	  
-	  KE1 *= 0.5 * Wa * m0;
+				// Initial Particle 1 energy
+	  KE1 *= 0.5 * Wa * ma;
+				// Correct energy for conservation
 	  double vfac = 1.0;
 	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
 	  
@@ -4592,7 +4607,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
     if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-      std::cout << "Electron energy conservation error" << std::endl;
+      std::cout << "Electron energy conservation error,"
+		<< " Ebeg=" << Ebeg
+		<< " Efin=" << Efin
+		<< " Edif=" << Efin/Ebeg - 1.0
+		<< std::endl;
     }
 
   } // end: Direct or Weight for use_elec>=0
@@ -6008,6 +6027,8 @@ void CollideIon::gatherSpecies()
 
       if (aType==Weight and use_cons >= 0) {
 
+	specE.clear();
+
 	for (auto b : cell->bods) {
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
 	}
@@ -6055,12 +6076,30 @@ void CollideIon::gatherSpecies()
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
 	  }
+
 				// Mass-weighted temperature
 	  tempE += cell->Mass() * T; 
 
 	  // Compute total electron energy in this cell
 	  //
 	  elecE += electronEnergy(cell);
+
+	  // Compute electron energy per element
+	  //
+	  for (auto b : cell->bods) {
+	    Particle *p = c0->Tree()->Body(b);
+	    unsigned Z = KeyConvert(p->iattrib[use_key]).Z();
+	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
+	    double num = p->mass / atomic_weights[Z];
+	    double fac = 0.5 * num * atomic_weights[0];
+	    double v2  = 0.0;
+	    for (int j=0; j<3; j++) {
+	      double v = p->dattrib[use_elec+j];
+	      v2 += v*v;
+	    }
+	    std::get<0>(specE[Z]) += fac*v2;
+	    std::get<1>(specE[Z]) += num;
+	  }
 	}
       }
     }
@@ -6084,6 +6123,21 @@ void CollideIon::gatherSpecies()
 	  if (use_elec >= 0) {
 	    MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
 	    MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
+	  }
+	}
+
+	if (use_elec >= 0) {
+				// Local map size
+	  int sizm = specE.size();
+	  MPI_Send(&sizm,  1, MPI_INT,    0, 337, MPI_COMM_WORLD);
+				// Send local map
+	  for (auto e : specE) {
+	    unsigned short Z = e.first;
+	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 338, MPI_COMM_WORLD);
+	    double E = std::get<0>(e.second);
+	    double N = std::get<1>(e.second);
+	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 339, MPI_COMM_WORLD);
+	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 340, MPI_COMM_WORLD);
 	  }
 	}
 
@@ -6115,6 +6169,32 @@ void CollideIon::gatherSpecies()
 	totlE += val4;
 	tempE += val5;
 	elecE += val6;
+
+	if (use_elec >= 0) {
+	  
+	  int sizm;
+				// Local map size
+	  MPI_Recv(&sizm, 1, MPI_INT, i, 337, MPI_COMM_WORLD, 
+		   MPI_STATUS_IGNORE);
+	  
+	  for (int j=0; j<sizm; j++) {
+
+	    unsigned short Z;
+	    double   E;
+	    double   N;
+
+	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 338, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 339, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 340, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+
+	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
+	    std::get<0>(specE[Z]) += E;
+	    std::get<1>(specE[Z]) += N;
+	  }
+	}
       }
     }
 
@@ -6215,6 +6295,7 @@ void CollideIon::gatherSpecies()
 	  if (specM.find(key) == specM.end()) specM[key] = 0.0;
 	  specM[key] += val1;
 	}
+	
       }
     }
 				// At this point, root's map is global
@@ -6595,6 +6676,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
     //
     if (in.fail()) {
       
+      for (auto k : spec) specZ.insert(k.first.first);
+
       // Open the file for the first time
       //
       dout.open(species_file_debug.c_str());
@@ -6616,6 +6699,11 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	if (use_elec>=0)
 	  dout << std::setw(wid) << std::right << "Temp_E"
 	       << std::setw(wid) << std::right << "Elec_E";
+	for (auto Z : specZ) {
+	  std::ostringstream sout;
+	  sout << "E_e(" << Z << ")";
+	  dout << setw(wid) << right << sout.str();
+	}
       }
       dout << std::endl;
       
@@ -6628,9 +6716,12 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	dout << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------";
-	if (use_elec>=0)
+	if (use_elec>=0) {
 	  dout << std::setw(wid) << std::right << "--------"
 	       << std::setw(wid) << std::right << "--------";
+	  for (auto Z : specZ)
+	    dout << std::setw(wid) << std::right << "--------";
+	}
       }
       dout << std::endl;
       
@@ -6667,6 +6758,16 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
     if (use_elec>=0)
       dout << std::setw(wid) << std::right << tempE
 	   << std::setw(wid) << std::right << elecE;
+    for (auto Z : specZ) {
+      if (specE.find(Z) != specE.end()) {
+	double E = std::get<0>(specE[Z]);
+	double N = std::get<1>(specE[Z]);
+	if (N>0) E /= N;
+	dout << std::setw(wid) << std::right << E;
+      } else {
+	dout << std::setw(wid) << std::right << 0.0;
+      }
+    }
   }
   dout << std::endl;
 }

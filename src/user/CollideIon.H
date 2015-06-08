@@ -541,6 +541,11 @@ protected:
   typedef spDMap::iterator spDItr;
   double tempM, tempE, elecE, molwM, consE, totlE;
   spDMap specM;
+
+  typedef std::tuple<double, double>     ZTup;
+  typedef std::map<unsigned short, ZTup> ZMap;
+  ZMap   specE;
+  std::set<unsigned short> specZ;
   //@}
 
   //! For debugging
