@@ -4370,9 +4370,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
     //
-    double Prob    = eta * cunit * crsvel * tau / volc;
-    size_t nbods   = bods.size();
-    double selcM   = 0.5 * nbods * (nbods-1) *  Prob;
+    double    Prob = eta * cunit * crsvel * tau / volc;
+    size_t   nbods = bods.size();
+    double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
     unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
 
     if (esType == limited or esType == fixed) 
@@ -4432,18 +4432,25 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       double Wb = p2->mass / atomic_weights[k2.Z()];
       double  q = Wb / Wa;
 
+      double ma = atomic_weights[0];
+      double mb = atomic_weights[0];
+      double mt = ma + mb;
+
       // Calculate pair's relative speed (pre-collision)
       //
       vector<double> vcom(3), vrel(3), v1(3), v2(3);
-      double vi = 0.0, m0 = atomic_weights[0];
       for (int k=0; k<3; k++) {
 	v1[k] = p1->dattrib[use_elec+k];
 	v2[k] = p2->dattrib[use_elec+k];
-	vcom[k] = 0.5*(v1[k] + v2[k]);
+	vcom[k] = (ma*v1[k] + mb*v2[k])/mt;
 	vrel[k] = v1[k] - v2[k];
-	vi += vrel[k]*vrel[k];
       }
       
+      // Compute relative speed
+      //
+      double vi = 0.0;
+      for (auto v : vrel) vi += v*v;
+
       // No point in inelastic collsion for zero velocity . . . 
       //
       if (vi == 0.0) continue;
@@ -4517,50 +4524,43 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	if (ENERGY_1) {
 
-	  double v1i = 0.0, v2i = 0.0;
+	  std::vector<double> u1(3), u2(3);
+	  for (int k=0; k<3; k++)
+	    u2[k] = vcom[k] - ma/mt*vrel[k];
+	  
+	  double v1i = 0.0, v2i = 0.0, u1f = 0.0, u2f = 0.0;
 	  for (auto v : v1) v1i += v*v;
 	  for (auto v : v2) v2i += v*v;
+	  for (auto v : u2) u2f += v*v;
 
-	  std::vector<double> u1(3), u2(3);
-	  for (int k=0; k<3; k++) {
-	    u1[k] = vcom[k] + 0.5*vrel[k];
-	    u2[k] = vcom[k] - 0.5*vrel[k];
-	  }
-	  
-	  double v1f = 0.0, v2f = 0.0;
-	  for (auto v : u1) v1f += v*v;
-	  for (auto v : u2) v2f += v*v;
+	  double Ebeg  = 0.5*Wa*ma*v1i + 0.5*Wb*mb*v2i;
+	  double E2f   = 0.5*Wb*mb*u2f;
+	  double vf2   = 2.0/(Wa*ma)*(Ebeg - E2f);
 
-	  double E1i   = 0.5*Wa*m0*v1i;
-	  double E2i   = 0.5*Wb*m0*v2i;
-	  double E2f   = 0.5*Wb*m0*v2f;
-	  double vaf2  = 2.0/(Wa*m0)*(E1i + E2i - E2f);
+	  for (int k=0; k<3; k++)
+	    u1[k] = v1[k] + q*mb/ma*(v2[k] - u2[k]);
 
-	  std::vector<double> vf(3);
-	  double vft = 0.0;
-	  for (int k=0; k<3; k++) {
-	    vf[k] = v1[k] + q*(v2[k] - u2[k]);
-	    vft  += vf[k]*vf[k];
-	  }
+				// Conserve energy, but not momentum
+	  for (auto v : u1) u1f += v*v;
+	  double vfac = sqrt(vf2/u1f);
+	  for (auto &v : u1) v *= vfac;
 
-	  double vfac = sqrt(vaf2/vft);
 	  double pi2   = 0.0, dp2 = 0.0, Efin = 0.0;
 	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = vf[k] * vfac;
+	    p1->dattrib[use_elec+k] = u1[k];
 	    p2->dattrib[use_elec+k] = u2[k];
 
-	    double dpi = Wa*m0*v1[k] + Wb*m0*v2[k];
-	    double dpf = Wa*m0*vf[k] + Wb*m0*u2[k];
+	    double dpi = Wa*ma*v1[k] + Wb*mb*v2[k];
+	    double dpf = Wa*ma*u1[k] + Wb*mb*u2[k];
 
 	    dp2  += (dpi - dpf)*(dpi - dpf);
 	    pi2  += dpi*dpi;
-	    Efin += 0.5*Wa*m0*vf[k]*vf[k]*vfac*vfac + 0.5*Wb*m0*u2[k]*u2[k];
+	    Efin += 0.5*Wa*ma*u1[k]*u1[k] + 0.5*Wb*mb*u2[k]*u2[k];
 	  }
 
-	  double pfac = sqrt(dp2/pi2);
-	  if ( fabs(Efin - E1i - E2i) > 1.0e-14*(E1i+E2i) ) {
+	  if ( fabs(Efin - Ebeg) > 1.0e-14*(Ebeg) ) {
 	    std::cout << "Broken energy conservation, pcons=" 
-		      << pfac << std::endl;
+		      << sqrt(dp2/pi2) << std::endl;
 	  }
 	} 
 	
@@ -4568,7 +4568,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	else {
 
-	  double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
+	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q);
 	  double KE1 = 0.0;
 	  for (int k=0; k<3; k++) {
 	    double v0 = vcom[k] + 0.5*vrel[k];
@@ -4578,7 +4578,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
 	  }
 	  
-	  KE1 *= 0.5 * Wa * m0;
+	  KE1 *= 0.5 * Wa * ma;
 	  double vfac = 1.0;
 	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
 	  
@@ -4592,7 +4592,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
     if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-      std::cout << "Electron energy conservation error" << std::endl;
+      std::cout << "Electron energy conservation error,"
+		<< " Ebeg=" << Ebeg
+		<< " Efin=" << Efin
+		<< " Edif=" << Efin/Ebeg - 1.0
+		<< std::endl;
     }
 
   } // end: Direct or Weight for use_elec>=0
