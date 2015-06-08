@@ -3,7 +3,6 @@
 #include <iomanip>
 #include <fstream>
 #include <sstream>
-#include <cstdlib>
 #include <vector>
 #include <cfloat>
 #include <cmath>
@@ -38,6 +37,10 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"classical", classical},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
+
+// Used energy first conservation for electron scattering
+//
+const bool ENERGY_1          = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -93,13 +96,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 {
   // Debugging
   itp=0;
-
-  char _hostname[1024];
-  _hostname[1023] = '\0';
-  gethostname(_hostname, 1023);
-  hostname = std::string(_hostname);
-  getcwd = boost::filesystem::current_path();
-
 
   // Read species file
   //
@@ -4068,11 +4064,9 @@ void * CollideIon::timestep_thread(void * arg)
 
 void CollideIon::eEdbg()
 {
-  if (fabs(tot2[1]/tot2[0] - 1.0) > 1.0e-12) {
+  if (fabs(tot2[0] - tot2[1])/tot2[0] > 1.0e-14) {
 
-    std::ostringstream sout;
-    sout << tpaths[itp++ % 4] << '.' << hostname << '.' << myid;
-    boost::filesystem::ofstream out(getcwd / sout.str());
+    std::ofstream out(tpaths[itp++ % 4].c_str());
     for (auto m : data[0]) {
       out << std::setw(10) << m.first
 	  << std::setw(14) << std::get<0>(m.second)
@@ -4087,7 +4081,6 @@ void CollideIon::eEdbg()
 	<< std::setw(14) << tot1[1]
 	<< std::setw(14) << tot2[1]
 	<< std::endl;
-    out << "Rel diff: " << tot2[1]/tot2[0] - 1.0 << std::endl;
   }
 }
 
@@ -4350,7 +4343,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
-    double Ebeg = electronEnergy(cell, 0);
+    double Ebeg = electronEnergy(cell, myid==0 ? 0 : -1);
 
     // Compute list of particles in cell with electrons
     //
@@ -4409,35 +4402,46 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       // Get index from body map for the cell
       //
-      Particle* const p1 = cell->Body(bods[l1]);
-      Particle* const p2 = cell->Body(bods[l2]);
+      Particle* p1 = cell->Body(bods[l1]);
+      Particle* p2 = cell->Body(bods[l2]);
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
 
-      // TEST: skip unlike species
-      if (k1.Z() != k2.Z()) continue;
+      if (p1->mass/atomic_weights[k1.Z()] < 
+	  p2->mass/atomic_weights[k2.Z()]) 
+	{
+	  // Swap the particle pointers
+	  //
+	  Particle *pT = p1;
+	  p1 = p2;
+	  p2 = pT;
+
+	  // Reassign the keys and species indices
+	  //
+	  k1 = KeyConvert(p1->iattrib[use_key]);
+	  k2 = KeyConvert(p2->iattrib[use_key]);
+	}
 
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
 
-      // Relative electron number
+      // Find the trace ratio
       //
-      double m1 = p1->mass/atomic_weights[k1.Z()];
-      double m2 = p2->mass/atomic_weights[k2.Z()];
-      double mt = m1 + m2;
+      double Wa = p1->mass / atomic_weights[k1.Z()];
+      double Wb = p2->mass / atomic_weights[k2.Z()];
+      double  q = Wb / Wa;
 
       // Calculate pair's relative speed (pre-collision)
       //
-      vector<double> vcom(3), vrel(3);
-      double vi = 0.0, KEi = 0.0, KEf = 0.0;
+      vector<double> vcom(3), vrel(3), v1(3), v2(3);
+      double vi = 0.0, m0 = atomic_weights[0];
       for (int k=0; k<3; k++) {
-	vcom[k] = (m1*p1->dattrib[use_elec+k] + m2*p2->dattrib[use_elec+k])/mt;
-	vrel[k] = p1->dattrib[use_elec+k] - p2->dattrib[use_elec+k];
+	v1[k] = p1->dattrib[use_elec+k];
+	v2[k] = p2->dattrib[use_elec+k];
+	vcom[k] = 0.5*(v1[k] + v2[k]);
+	vrel[k] = v1[k] - v2[k];
 	vi += vrel[k]*vrel[k];
-	KEi += 
-	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
-	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
       }
       
       // No point in inelastic collsion for zero velocity . . . 
@@ -4509,30 +4513,86 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
 	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
 
-	for (int k=0; k<3; k++) {
-	  p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k];
-	  p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k];
-	}
-      }
+	// Explicit energy conservation
+	//
+	if (ENERGY_1) {
 
-      for (int k=0; k<3; k++) {
-	KEf += 
-	  0.5*m1*p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k] +
-	  0.5*m2*p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k] ;
+	  double v1i = 0.0, v2i = 0.0;
+	  for (auto v : v1) v1i += v*v;
+	  for (auto v : v2) v2i += v*v;
+
+	  std::vector<double> u1(3), u2(3);
+	  for (int k=0; k<3; k++) {
+	    u1[k] = vcom[k] + 0.5*vrel[k];
+	    u2[k] = vcom[k] - 0.5*vrel[k];
+	  }
+	  
+	  double v1f = 0.0, v2f = 0.0;
+	  for (auto v : u1) v1f += v*v;
+	  for (auto v : u2) v2f += v*v;
+
+	  double E1i   = 0.5*Wa*m0*v1i;
+	  double E2i   = 0.5*Wb*m0*v2i;
+	  double E2f   = 0.5*Wb*m0*v2f;
+	  double vaf2  = 2.0/(Wa*m0)*(E1i + E2i - E2f);
+
+	  std::vector<double> vf(3);
+	  double vft = 0.0;
+	  for (int k=0; k<3; k++) {
+	    vf[k] = v1[k] + q*(v2[k] - u2[k]);
+	    vft  += vf[k]*vf[k];
+	  }
+
+	  double vfac = sqrt(vaf2/vft);
+	  double pi2   = 0.0, dp2 = 0.0, Efin = 0.0;
+	  for (int k=0; k<3; k++) {
+	    p1->dattrib[use_elec+k] = vf[k] * vfac;
+	    p2->dattrib[use_elec+k] = u2[k];
+
+	    double dpi = Wa*m0*v1[k] + Wb*m0*v2[k];
+	    double dpf = Wa*m0*vf[k] + Wb*m0*u2[k];
+
+	    dp2  += (dpi - dpf)*(dpi - dpf);
+	    pi2  += dpi*dpi;
+	    Efin += 0.5*Wa*m0*vf[k]*vf[k]*vfac*vfac + 0.5*Wb*m0*u2[k]*u2[k];
+	  }
+
+	  double pfac = sqrt(dp2/pi2);
+	  if ( fabs(Efin - E1i - E2i) > 1.0e-14*(E1i+E2i) ) {
+	    std::cout << "Broken energy conservation, pcons=" 
+		      << pfac << std::endl;
+	  }
+	} 
+	
+	// Explicit momentum conservation
+	//
+	else {
+
+	  double deltaKE = 0.0, qKEfac = 0.5*Wa*m0*q*(1.0 - q);
+	  double KE1 = 0.0;
+	  for (int k=0; k<3; k++) {
+	    double v0 = vcom[k] + 0.5*vrel[k];
+	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
+	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	  }
+	  
+	  KE1 *= 0.5 * Wa * m0;
+	  double vfac = 1.0;
+	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
+	  
+	  for (int k=0; k<3; k++) {
+	    p1->dattrib[use_elec+k] *= vfac;
+	  }
+	}
       }
 
     } // loop over particles
 
-    double Efin = electronEnergy(cell, 1);
-    if (fabs(Efin/Ebeg - 1.0) > 1.0e-12) {
-      char buf[80];
-      if (gethostname(buf, 80))
-	std::cout << "Electron energy conservation error ["
-		  << myid << "]" << std::endl;
-      else
-	std::cout << "Electron energy conservation error ["
-		  << buf << ", " << myid << "]" << std::endl;
-      eEdbg();
+    double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
+    if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
+      std::cout << "Electron energy conservation error" << std::endl;
     }
 
   } // end: Direct or Weight for use_elec>=0
