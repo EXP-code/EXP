@@ -539,6 +539,11 @@ protected:
   typedef spDMap::iterator spDItr;
   double tempM, tempE, elecE, molwM, consE, totlE;
   spDMap specM;
+
+  typedef std::tuple<double, double>     ZTup;
+  typedef std::map<unsigned short, ZTup> ZMap;
+  ZMap   specE;
+  std::set<unsigned short> specZ;
   //@}
 
   //! For debugging
@@ -564,6 +569,18 @@ protected:
     mfpCLPrint(out); 
     electronPrint(out); 
   }
+
+  //! Compute electron energy in a cell
+  double electronEnergy(pCell* const cell, int dbg=-1);
+
+  //! Debugging routine
+  void eEdbg();
+
+  const std::string tpaths[4] = {"/tmp/test.0", "/tmp/test.1", 
+				"/tmp/test.2", "/tmp/test.3"};
+  unsigned long itp;
+  std::map<unsigned long, std::tuple<double, double> > data[2];
+  double tot1[2], tot2[2];
 
 public:
   static double   Nmin;
