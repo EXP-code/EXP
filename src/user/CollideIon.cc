@@ -5988,8 +5988,6 @@ void CollideIon::gatherSpecies()
 
   if (aType==Direct or aType==Weight) {
 
-    // Compute temperature only
-
     double mass  = 0.0;
 
     consE = 0.0;
@@ -5997,6 +5995,8 @@ void CollideIon::gatherSpecies()
     tempM = 0.0;
     tempE = 0.0;
     elecE = 0.0;
+
+    specE.clear();
 
     typedef std::map<key_type, double> cType;
     cType ETcache;
@@ -6026,8 +6026,6 @@ void CollideIon::gatherSpecies()
       }
 
       if (aType==Weight and use_cons >= 0) {
-
-	specE.clear();
 
 	for (auto b : cell->bods) {
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
@@ -6088,6 +6086,7 @@ void CollideIon::gatherSpecies()
 	  //
 	  for (auto b : cell->bods) {
 	    Particle *p = c0->Tree()->Body(b);
+	    if (KeyConvert(p->iattrib[use_key]).C()==1) continue;
 	    unsigned Z = KeyConvert(p->iattrib[use_key]).Z();
 	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
 	    double num = p->mass / atomic_weights[Z];
@@ -6103,7 +6102,7 @@ void CollideIon::gatherSpecies()
 	}
       }
     }
-
+    
 
     // Send values to root
     //
@@ -6701,8 +6700,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	       << std::setw(wid) << std::right << "Elec_E";
 	  for (auto Z : specZ) {
 	    std::ostringstream sout1, sout2;
-	    sout1 << "Espc(" << Z << ")";
-	    sout2 << "Esum(" << Z << ")";
+	    sout1 << "Etot(" << Z << ")";
+	    sout2 << "Ntot(" << Z << ")";
 	    dout << std::setw(wid) << std::right << sout1.str()
 		 << std::setw(wid) << std::right << sout2.str();
 	  }
@@ -6766,12 +6765,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       if (specE.find(Z) != specE.end()) {
 	double E = std::get<0>(specE[Z]);
 	double N = std::get<1>(specE[Z]);
-	if (N>0)
-	  dout << std::setw(wid) << std::right << E/N
-	       << std::setw(wid) << std::right << E;
-	else
-	  dout << std::setw(wid) << std::right << E
-	       << std::setw(wid) << std::right << E;
+	dout << std::setw(wid) << std::right << E
+	     << std::setw(wid) << std::right << N;
       } else {
 	dout << std::setw(wid) << std::right << 0.0
 	     << std::setw(wid) << std::right << 0.0;
