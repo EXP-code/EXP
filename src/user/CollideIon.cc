@@ -6696,13 +6696,16 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	dout << std::setw(wid) << std::right << "Cons_E"
 	     << std::setw(wid) << std::right << "Totl_E"
 	     << std::setw(wid) << std::right << "Comb_E";
-	if (use_elec>=0)
+	if (use_elec>=0) {
 	  dout << std::setw(wid) << std::right << "Temp_E"
 	       << std::setw(wid) << std::right << "Elec_E";
-	for (auto Z : specZ) {
-	  std::ostringstream sout;
-	  sout << "E_e(" << Z << ")";
-	  dout << setw(wid) << right << sout.str();
+	  for (auto Z : specZ) {
+	    std::ostringstream sout1, sout2;
+	    sout1 << "Espc(" << Z << ")";
+	    sout2 << "Esum(" << Z << ")";
+	    dout << std::setw(wid) << std::right << sout1.str()
+		 << std::setw(wid) << std::right << sout2.str();
+	  }
 	}
       }
       dout << std::endl;
@@ -6720,7 +6723,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	  dout << std::setw(wid) << std::right << "--------"
 	       << std::setw(wid) << std::right << "--------";
 	  for (auto Z : specZ)
-	    dout << std::setw(wid) << std::right << "--------";
+	    dout << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------";
 	}
       }
       dout << std::endl;
@@ -6762,10 +6766,15 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       if (specE.find(Z) != specE.end()) {
 	double E = std::get<0>(specE[Z]);
 	double N = std::get<1>(specE[Z]);
-	if (N>0) E /= N;
-	dout << std::setw(wid) << std::right << E;
+	if (N>0)
+	  dout << std::setw(wid) << std::right << E/N
+	       << std::setw(wid) << std::right << E;
+	else
+	  dout << std::setw(wid) << std::right << E
+	       << std::setw(wid) << std::right << E;
       } else {
-	dout << std::setw(wid) << std::right << 0.0;
+	dout << std::setw(wid) << std::right << 0.0
+	     << std::setw(wid) << std::right << 0.0;
       }
     }
   }
