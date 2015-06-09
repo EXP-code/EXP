@@ -5988,8 +5988,6 @@ void CollideIon::gatherSpecies()
 
   if (aType==Direct or aType==Weight) {
 
-    // Compute temperature only
-
     double mass  = 0.0;
 
     consE = 0.0;
@@ -5997,6 +5995,8 @@ void CollideIon::gatherSpecies()
     tempM = 0.0;
     tempE = 0.0;
     elecE = 0.0;
+
+    specE.clear();
 
     typedef std::map<key_type, double> cType;
     cType ETcache;
@@ -6027,8 +6027,6 @@ void CollideIon::gatherSpecies()
 
       if (aType==Weight and use_cons >= 0) {
 
-	specE.clear();
-
 	for (auto b : cell->bods) {
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
 	}
@@ -6043,7 +6041,7 @@ void CollideIon::gatherSpecies()
 	    typedef std::tuple<double, double> dtup;
 	    const dtup zero(0.0, 0.0);
 	    std::vector<dtup> vel(3, zero);
-	    double count = 0.0, melec = 0.0;
+	    double count = 0.0;
 	    for (auto c : cell->sample->children) {
 	      for (auto b : c.second->bods) {
 		Particle *p = c0->Tree()->Body(b);
@@ -6056,8 +6054,7 @@ void CollideIon::gatherSpecies()
 		    std::get<0>(vel[k]) += v   * numb;
 		    std::get<1>(vel[k]) += v*v * numb;
 		  }
-		  count   += numb;
-		  melec   += p->mass;
+		  count += numb;
 		}
 	      }
 	    }
@@ -6066,12 +6063,11 @@ void CollideIon::gatherSpecies()
 	    
 	    if (count > 0.0) {
 	      for (auto v : vel) {
-		double v1 = std::get<0>(v)/count;
-		double v2 = std::get<1>(v)/count;
-		dispr += 0.5*(v2 - v1*v1);
+		double v1 = std::get<0>(v);
+		dispr += 0.5*(std::get<1>(v) - v1*v1/count);
 	      }
-	      double W = melec/count * atomic_weights[0];
-	      T = ETcache[cell->sample->mykey] = dispr * Tfac * W;
+	      T = ETcache[cell->sample->mykey] = 
+		dispr * atomic_weights[0]/count * Tfac;
 	    } else {
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
@@ -6088,6 +6084,7 @@ void CollideIon::gatherSpecies()
 	  //
 	  for (auto b : cell->bods) {
 	    Particle *p = c0->Tree()->Body(b);
+	    if (KeyConvert(p->iattrib[use_key]).C()==1) continue;
 	    unsigned Z = KeyConvert(p->iattrib[use_key]).Z();
 	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
 	    double num = p->mass / atomic_weights[Z];
@@ -6103,7 +6100,7 @@ void CollideIon::gatherSpecies()
 	}
       }
     }
-
+    
 
     // Send values to root
     //
@@ -6696,13 +6693,16 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	dout << std::setw(wid) << std::right << "Cons_E"
 	     << std::setw(wid) << std::right << "Totl_E"
 	     << std::setw(wid) << std::right << "Comb_E";
-	if (use_elec>=0)
+	if (use_elec>=0) {
 	  dout << std::setw(wid) << std::right << "Temp_E"
 	       << std::setw(wid) << std::right << "Elec_E";
-	for (auto Z : specZ) {
-	  std::ostringstream sout;
-	  sout << "E_e(" << Z << ")";
-	  dout << setw(wid) << right << sout.str();
+	  for (auto Z : specZ) {
+	    std::ostringstream sout1, sout2;
+	    sout1 << "Etot(" << Z << ")";
+	    sout2 << "Ntot(" << Z << ")";
+	    dout << std::setw(wid) << std::right << sout1.str()
+		 << std::setw(wid) << std::right << sout2.str();
+	  }
 	}
       }
       dout << std::endl;
@@ -6720,7 +6720,8 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	  dout << std::setw(wid) << std::right << "--------"
 	       << std::setw(wid) << std::right << "--------";
 	  for (auto Z : specZ)
-	    dout << std::setw(wid) << std::right << "--------";
+	    dout << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------";
 	}
       }
       dout << std::endl;
@@ -6762,10 +6763,11 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       if (specE.find(Z) != specE.end()) {
 	double E = std::get<0>(specE[Z]);
 	double N = std::get<1>(specE[Z]);
-	if (N>0) E /= N;
-	dout << std::setw(wid) << std::right << E;
+	dout << std::setw(wid) << std::right << E
+	     << std::setw(wid) << std::right << N;
       } else {
-	dout << std::setw(wid) << std::right << 0.0;
+	dout << std::setw(wid) << std::right << 0.0
+	     << std::setw(wid) << std::right << 0.0;
       }
     }
   }

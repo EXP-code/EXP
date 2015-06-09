@@ -143,6 +143,8 @@ def plot_data(filename, degree, smooth, msize, tscale=1.0e5, logY=False, dot=Fal
 
     for i in data.keys():
         if labels[i].find("_E")>0: continue
+        if labels[i].find("Espc(")>=0: continue
+        if labels[i].find("Esum(")>=0: continue
         if logY:
             pl.semilogy(temp, data[i], mk, label=labels[i], markersize=msize)
         else:
@@ -167,6 +169,8 @@ def plot_data(filename, degree, smooth, msize, tscale=1.0e5, logY=False, dot=Fal
                 data[j][k] += 1.0e-8
     for i in data.keys():
         if labels[i].find("_E")>0: continue
+        if labels[i].find("Espc(")>=0: continue
+        if labels[i].find("Esum(")>=0: continue
         if logY:
             pl.semilogy(temp, data[i], mk, label=labels[i], markersize=msize)
         else:
