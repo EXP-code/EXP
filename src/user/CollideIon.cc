@@ -40,7 +40,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = true;
+const bool ENERGY_ES         = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -4583,23 +4583,26 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	else {
 
+	  bool equal = fabs(q - 1.0) < 1.0e-14;
+
+	  double vfac = 1.0;
+	  if (equal) {
+	    double KE0 = 0.5*ma*mb/mt*vi*vi;
+	    double dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    vfac = sqrt(1.0 + dKE/KE0);
+	    p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	  }
+
 	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q), KE1 = 0.0;
 	  for (int k=0; k<3; k++) {
-	    double v0 = vcom[k] + 0.5*vrel[k];
+	    double v0 = vcom[k] + 0.5*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
-	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k]*vfac;
 	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
 	  }
-				// Initial Particle 1 energy
-	  KE1 *= 0.5 * Wa * ma;
 				// Correct energy for conservation
-	  double vfac = 1.0;
-	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
-	  
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] *= vfac;
-	  }
+	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
 	}
       }
 

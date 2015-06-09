@@ -484,7 +484,7 @@ void InitializeSpeciesWeight
     particles[i].dattrib.resize(nd, 0);
     particles[i].dattrib.push_back(0.0); // Add the use_cons field
     if (ne>=0) {			 // Add the use_elec fields
-      for (int l=0; l<3; l++) particles[i].dattrib.push_back(0.0);
+      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
     }
 
     KeyConvert kc(speciesKey(Zi, Ci));
