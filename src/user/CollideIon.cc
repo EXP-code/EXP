@@ -6041,7 +6041,7 @@ void CollideIon::gatherSpecies()
 	    typedef std::tuple<double, double> dtup;
 	    const dtup zero(0.0, 0.0);
 	    std::vector<dtup> vel(3, zero);
-	    double count = 0.0, melec = 0.0;
+	    double count = 0.0;
 	    for (auto c : cell->sample->children) {
 	      for (auto b : c.second->bods) {
 		Particle *p = c0->Tree()->Body(b);
@@ -6054,8 +6054,7 @@ void CollideIon::gatherSpecies()
 		    std::get<0>(vel[k]) += v   * numb;
 		    std::get<1>(vel[k]) += v*v * numb;
 		  }
-		  count   += numb;
-		  melec   += p->mass;
+		  count += numb;
 		}
 	      }
 	    }
@@ -6064,12 +6063,11 @@ void CollideIon::gatherSpecies()
 	    
 	    if (count > 0.0) {
 	      for (auto v : vel) {
-		double v1 = std::get<0>(v)/count;
-		double v2 = std::get<1>(v)/count;
-		dispr += 0.5*(v2 - v1*v1);
+		double v1 = std::get<0>(v);
+		dispr += 0.5*(std::get<1>(v) - v1*v1/count);
 	      }
-	      double W = melec/count * atomic_weights[0];
-	      T = ETcache[cell->sample->mykey] = dispr * Tfac * W;
+	      T = ETcache[cell->sample->mykey] = 
+		dispr * atomic_weights[0]/count * Tfac;
 	    } else {
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
