@@ -40,7 +40,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = true;
+const bool ENERGY_ES         = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -4583,23 +4583,26 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	else {
 
+	  bool equal = fabs(q - 1.0) < 1.0e-14;
+
+	  double vfac = 1.0;
+	  if (equal) {
+	    double KE0 = 0.5*ma*mb/mt*vi*vi;
+	    double dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    vfac = sqrt(1.0 + dKE/KE0);
+	    p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+	  }
+
 	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q), KE1 = 0.0;
 	  for (int k=0; k<3; k++) {
-	    double v0 = vcom[k] + 0.5*vrel[k];
+	    double v0 = vcom[k] + 0.5*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
-	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k];
+	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k]*vfac;
 	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
 	  }
-				// Initial Particle 1 energy
-	  KE1 *= 0.5 * Wa * ma;
 				// Correct energy for conservation
-	  double vfac = 1.0;
-	  if (KE1>0.0) vfac = sqrt(1.0 + deltaKE/KE1);
-	  
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] *= vfac;
-	  }
+	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
 	}
       }
 
@@ -6041,7 +6044,7 @@ void CollideIon::gatherSpecies()
 	    typedef std::tuple<double, double> dtup;
 	    const dtup zero(0.0, 0.0);
 	    std::vector<dtup> vel(3, zero);
-	    double count = 0.0, melec = 0.0;
+	    double count = 0.0;
 	    for (auto c : cell->sample->children) {
 	      for (auto b : c.second->bods) {
 		Particle *p = c0->Tree()->Body(b);
@@ -6054,8 +6057,7 @@ void CollideIon::gatherSpecies()
 		    std::get<0>(vel[k]) += v   * numb;
 		    std::get<1>(vel[k]) += v*v * numb;
 		  }
-		  count   += numb;
-		  melec   += p->mass;
+		  count += numb;
 		}
 	      }
 	    }
@@ -6064,12 +6066,11 @@ void CollideIon::gatherSpecies()
 	    
 	    if (count > 0.0) {
 	      for (auto v : vel) {
-		double v1 = std::get<0>(v)/count;
-		double v2 = std::get<1>(v)/count;
-		dispr += 0.5*(v2 - v1*v1);
+		double v1 = std::get<0>(v);
+		dispr += 0.5*(std::get<1>(v) - v1*v1/count);
 	      }
-	      double W = melec/count * atomic_weights[0];
-	      T = ETcache[cell->sample->mykey] = dispr * Tfac * W;
+	      T = ETcache[cell->sample->mykey] = 
+		dispr * atomic_weights[0]/count * Tfac;
 	    } else {
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
