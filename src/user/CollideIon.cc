@@ -4654,7 +4654,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
 	  }
 
-	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q), KE1 = 0.0;
+	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q);
 	  for (int k=0; k<3; k++) {
 	    double v0 = vcom[k] + mb/mt*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
@@ -6052,6 +6052,7 @@ void CollideIon::gatherSpecies()
     tempE = 0.0;
     elecE = 0.0;
 
+    specI.clear();
     specE.clear();
 
     typedef std::map<key_type, double> cType;
@@ -6119,13 +6120,13 @@ void CollideIon::gatherSpecies()
 	    
 	    // Temp computation
 	    // ----------------
-	    // atomic number weight = w_i  = m_i/mu_i
+	    // number of atoms      = w_i  = m_i/(mu_i * m_a)
 	    // elec mean velocity   = sv1  = sum_i (w_i v)
 	    // elec mean vel^2      = sv2  = sum_i (w_i v^2)
 	    // summed number        = sn   = sum_i (w_i)
 	    // elec specific KE     = disp = sv2 - sv1*sv1/sn
-	    // total elecron KE     = KE   = mu_e * disp
-	    // number of elecrons   = N    = sum_i (m_i/(mu_i * m_a)) = sn/m_a
+	    // total elecron KE     = KE   = mu_e*m_a * disp
+	    // number of elecrons   = N    = sum_i (m_i/(mu_i * m_a)) = sn
 	    // total elecron KE     =        3/2 N k T
 	    // KE prefactor         = Tfac = 2 * m_a/(3*k)
 	    // ----------------
@@ -6141,7 +6142,7 @@ void CollideIon::gatherSpecies()
 		dispr += 0.5*(std::get<1>(v) - v1*v1/count);
 	      }
 	      T = ETcache[cell->sample->mykey] = 
-		dispr*atomic_weights[0]/count * Tfac;
+		Tfac * atomic_weights[0] * dispr/count;
 	    } else {
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
@@ -6158,17 +6159,23 @@ void CollideIon::gatherSpecies()
 	  //
 	  for (auto b : cell->bods) {
 	    Particle *p = c0->Tree()->Body(b);
+	    unsigned Z  = KeyConvert(p->iattrib[use_key]).Z();
+	    double num  = p->mass / atomic_weights[Z];
+
+	    if (specI.find(Z) == specI.end()) specI[Z] = ZTup(0, 0);
+	    double v2 = 0.0;
+	    for (auto v : p->vel) v2 += v*v;
+	    std::get<0>(specI[Z]) += 0.5*num*atomic_weights[Z]*v2;
+	    std::get<1>(specI[Z]) += num;
+
 	    if (KeyConvert(p->iattrib[use_key]).C()==1) continue;
-	    unsigned Z = KeyConvert(p->iattrib[use_key]).Z();
 	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
-	    double num = p->mass / atomic_weights[Z];
-	    double fac = 0.5 * num * atomic_weights[0];
-	    double v2  = 0.0;
+	    v2  = 0.0;
 	    for (int j=0; j<3; j++) {
 	      double v = p->dattrib[use_elec+j];
 	      v2 += v*v;
 	    }
-	    std::get<0>(specE[Z]) += fac*v2;
+	    std::get<0>(specE[Z]) += 0.5*num*atomic_weights[0]*v2;
 	    std::get<1>(specE[Z]) += num;
 	  }
 	}
@@ -6198,17 +6205,36 @@ void CollideIon::gatherSpecies()
 	}
 
 	if (use_elec >= 0) {
-				// Local map size
-	  int sizm = specE.size();
-	  MPI_Send(&sizm,  1, MPI_INT,    0, 337, MPI_COMM_WORLD);
-				// Send local map
-	  for (auto e : specE) {
-	    unsigned short Z = e.first;
-	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 338, MPI_COMM_WORLD);
-	    double E = std::get<0>(e.second);
-	    double N = std::get<1>(e.second);
-	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 339, MPI_COMM_WORLD);
-	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 340, MPI_COMM_WORLD);
+				// Local ion map size
+	  {
+	    int sizm = specE.size();
+	    MPI_Send(&sizm,  1, MPI_INT,    0, 337, MPI_COMM_WORLD);
+
+				// Send local ion map
+	    for (auto i : specI) {
+	      unsigned short Z = i.first;
+	      MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 338, MPI_COMM_WORLD);
+	      double E = std::get<0>(i.second);
+	      double N = std::get<1>(i.second);
+	      MPI_Send(&E, 1, MPI_DOUBLE,         0, 339, MPI_COMM_WORLD);
+	      MPI_Send(&N, 1, MPI_DOUBLE,         0, 340, MPI_COMM_WORLD);
+	    }
+	  }
+
+				// Local electron map size
+	  {
+	    int sizm = specE.size();
+	    MPI_Send(&sizm,  1, MPI_INT,    0, 341, MPI_COMM_WORLD);
+
+				// Send local electron map
+	    for (auto e : specE) {
+	      unsigned short Z = e.first;
+	      MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 342, MPI_COMM_WORLD);
+	      double E = std::get<0>(e.second);
+	      double N = std::get<1>(e.second);
+	      MPI_Send(&E, 1, MPI_DOUBLE,         0, 343, MPI_COMM_WORLD);
+	      MPI_Send(&N, 1, MPI_DOUBLE,         0, 344, MPI_COMM_WORLD);
+	    }
 	  }
 	}
 
@@ -6244,10 +6270,11 @@ void CollideIon::gatherSpecies()
 	if (use_elec >= 0) {
 	  
 	  int sizm;
-				// Local map size
+				// Receive ion map size
 	  MPI_Recv(&sizm, 1, MPI_INT, i, 337, MPI_COMM_WORLD, 
 		   MPI_STATUS_IGNORE);
 	  
+				// Receive ion map
 	  for (int j=0; j<sizm; j++) {
 
 	    unsigned short Z;
@@ -6259,6 +6286,29 @@ void CollideIon::gatherSpecies()
 	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 339, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
 	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 340, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+
+	    if (specI.find(Z) == specE.end()) specI[Z] = ZTup(0, 0);
+	    std::get<0>(specI[Z]) += E;
+	    std::get<1>(specI[Z]) += N;
+	  }
+
+				// Receive electron map size
+	  MPI_Recv(&sizm, 1, MPI_INT, i, 341, MPI_COMM_WORLD, 
+		   MPI_STATUS_IGNORE);
+	  
+				// Receive electron map
+	  for (int j=0; j<sizm; j++) {
+
+	    unsigned short Z;
+	    double   E;
+	    double   N;
+
+	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 342, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 343, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 344, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
 
 	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
@@ -6806,11 +6856,19 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	  dout << std::setw(wid) << std::right << "Temp_E"
 	       << std::setw(wid) << std::right << "Elec_E";
 	  for (auto Z : specZ) {
-	    std::ostringstream sout1, sout2;
-	    sout1 << "Etot(" << Z << ")";
-	    sout2 << "Ntot(" << Z << ")";
+	    std::ostringstream sout1, sout2, sout3, sout4, sout5, sout6;
+	    sout1 << "Eion(" << Z << ")";
+	    sout2 << "Nion(" << Z << ")";
+	    sout3 << "Tion(" << Z << ")";
+	    sout4 << "Eelc(" << Z << ")";
+	    sout5 << "Nelc(" << Z << ")";
+	    sout6 << "Telc(" << Z << ")";
 	    dout << std::setw(wid) << std::right << sout1.str()
-		 << std::setw(wid) << std::right << sout2.str();
+		 << std::setw(wid) << std::right << sout2.str()
+		 << std::setw(wid) << std::right << sout3.str()
+		 << std::setw(wid) << std::right << sout4.str()
+		 << std::setw(wid) << std::right << sout5.str()
+		 << std::setw(wid) << std::right << sout6.str();
 	  }
 	}
       }
@@ -6830,6 +6888,10 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	       << std::setw(wid) << std::right << "--------";
 	  for (auto Z : specZ)
 	    dout << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------"
+		 << std::setw(wid) << std::right << "--------"
 		 << std::setw(wid) << std::right << "--------";
 	}
       }
@@ -6862,6 +6924,10 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       dout << std::setw(wid) << std::right << 0.0;
   }
   if (use_cons >= 0) {
+
+    const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
+      UserTreeDSMC::Munit/boltz;
+
     dout << std::setw(wid) << std::right << consE
 	 << std::setw(wid) << std::right << totlE
 	 << std::setw(wid) << std::right << totlE + consE;
@@ -6869,13 +6935,26 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
       dout << std::setw(wid) << std::right << tempE
 	   << std::setw(wid) << std::right << elecE;
     for (auto Z : specZ) {
+      if (specI.find(Z) != specI.end()) {
+	double E = std::get<0>(specI[Z]);
+	double N = std::get<1>(specI[Z]);
+	dout << std::setw(wid) << std::right << E
+	     << std::setw(wid) << std::right << N
+	     << std::setw(wid) << std::right << E/N*Tfac;
+      } else {
+	dout << std::setw(wid) << std::right << 0.0
+	     << std::setw(wid) << std::right << 0.0
+	     << std::setw(wid) << std::right << 0.0;
+      }
       if (specE.find(Z) != specE.end()) {
 	double E = std::get<0>(specE[Z]);
 	double N = std::get<1>(specE[Z]);
 	dout << std::setw(wid) << std::right << E
-	     << std::setw(wid) << std::right << N;
+	     << std::setw(wid) << std::right << N
+	     << std::setw(wid) << std::right << E/N*Tfac;
       } else {
 	dout << std::setw(wid) << std::right << 0.0
+	     << std::setw(wid) << std::right << 0.0
 	     << std::setw(wid) << std::right << 0.0;
       }
     }

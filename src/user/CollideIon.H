@@ -544,7 +544,7 @@ protected:
 
   typedef std::tuple<double, double>     ZTup;
   typedef std::map<unsigned short, ZTup> ZMap;
-  ZMap   specE;
+  ZMap   specE, specI;
   std::set<unsigned short> specZ;
   //@}
 
