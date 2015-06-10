@@ -95,7 +95,7 @@ void ProgramParam::add_entry(const string &name, const string& type,
 			     const string &deflt, const string &help)
 {
 				// Look for duplicate entry
-  for (auto j : database2)
+  for (auto &j : database2)
     {
       if (j.name.compare(name)==0) 
 	{
@@ -138,7 +138,7 @@ void ProgramParam::set_entry_list(vector<sspair>& params)
 
 void ProgramParam::set_entry(const string &name, const string& value)
 {
-  for (auto j : database2)
+  for (auto &j : database2)
     {
       if (j.name.compare(name)==0) { // Found it!
 
