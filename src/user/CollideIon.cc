@@ -41,7 +41,14 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 // Used energy first conservation for electron scattering
 //
 const bool ENERGY_ES         = true;
+
+// For momentum ratio diagnostics
+//
 const bool ENERGY_ES_DBG     = true;
+
+// Quadratic momentum solution
+//
+const bool ENERGY_ES_QUAD    = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -4548,10 +4555,45 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  for (int k=0; k<3; k++)
 	    u1[k] = v1[k] + q*mb/ma*(v2[k] - u2[k]);
 
-				// Conserve energy, but not momentum
-	  for (auto  v : u1) u1f += v*v;
-	  double vfac = sqrt(vf2/u1f);
-	  for (auto &v : u1) v *= vfac;
+	  // Conserve energy, but not momentum
+	  //
+	  bool direct_es = true;
+
+	  if (ENERGY_ES_QUAD) {
+	    double dvb2 = 0.0, dvbvi = 0.0;
+	    for (int j=0; j<3; j++) {
+	      dvb2  += (v2[j] - u2[j])*(v2[j] - u2[j]);
+	      dvbvi += (v2[j] - u2[j])*v1[j];
+	    }
+	    double dbn   = dvbvi/dvb2;
+	    double dva2n = (v1i - vf2)/dvb2;
+	    double radi  = dbn*dbn - dva2n;
+
+	    if (radi>0.0) {
+	      double ya = -dbn + sqrt(radi);
+	      double yb = -dbn - sqrt(radi);
+	      double nt = q*mb/ma;
+
+	      ya /= nt;
+	      yb /= nt;
+
+	      if (fabs(1.0 - ya) < fabs(1.0 - yb)) {
+		for (int k=0; k<3; k++)
+		  u1[k] = v1[k] + ya*q*mb/ma*(v2[k] - u2[k]);
+	      } else {
+		for (int k=0; k<3; k++)
+		  u1[k] = v1[k] + yb*q*mb/ma*(v2[k] - u2[k]);
+	      }
+
+	      direct_es = false;
+	    }
+	  }
+
+	  if (direct_es) {
+	    for (auto  v : u1) u1f += v*v;
+	    double vfac = sqrt(vf2/u1f);
+	    for (auto &v : u1) v *= vfac;
+	  }
 
 				// These are all for diagnostics
 	  double pi2 = 0.0, dp2 = 0.0, Efin = 0.0;
@@ -4602,11 +4644,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q), KE1 = 0.0;
 	  for (int k=0; k<3; k++) {
-	    double v0 = vcom[k] + 0.5*vrel[k]*vfac;
+	    double v0 = vcom[k] + mb/mt*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 	    p1->dattrib[use_elec+k] = (1.0 - q)*v1[k] + q*v0;
-	    p2->dattrib[use_elec+k] = vcom[k] - 0.5*vrel[k]*vfac;
-	    KE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	    p2->dattrib[use_elec+k] = vcom[k] - ma/mt*vrel[k]*vfac;
 	  }
 				// Correct energy for conservation
 	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
@@ -6064,13 +6105,31 @@ void CollideIon::gatherSpecies()
 	    
 	    double dispr = 0.0;
 	    
+	    // Temp computation
+	    // ----------------
+	    // atomic number weight = w_i  = m_i/mu_i
+	    // elec mean velocity   = sv1  = sum_i (w_i v)
+	    // elec mean vel^2      = sv2  = sum_i (w_i v^2)
+	    // summed number        = sn   = sum_i (w_i)
+	    // elec specific KE     = disp = sv2 - sv1*sv1/sn
+	    // total elecron KE     = KE   = mu_e * disp
+	    // number of elecrons   = N    = sum_i (m_i/(mu_i * m_a)) = sn/m_a
+	    // total elecron KE     =        3/2 N k T
+	    // KE prefactor         = Tfac = 2 * m_a/(3*k)
+	    // ----------------
+	    // Solve for T
+	    // ----------------
+	    // T = [2/(3*k) * m_a] * KE/sn
+	    //   = [2/(3*k) * m_a] * mu_e * disp / sn
+	    //   = Tfac * mu_e * disp / sn
+
 	    if (count > 0.0) {
 	      for (auto v : vel) {
 		double v1 = std::get<0>(v);
 		dispr += 0.5*(std::get<1>(v) - v1*v1/count);
 	      }
 	      T = ETcache[cell->sample->mykey] = 
-		dispr * atomic_weights[0]/count * Tfac;
+		dispr*atomic_weights[0]/count * Tfac;
 	    } else {
 	      T = ETcache[cell->sample->mykey] = 0.0;
 	    }
