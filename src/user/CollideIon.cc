@@ -40,7 +40,8 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = false;
+const bool ENERGY_ES         = true;
+const bool ENERGY_ES_DBG     = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -172,12 +173,14 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   velER    .resize(nthrds);
+  momD     .resize(nthrds);
   keER     .resize(nthrds);
   keIR     .resize(nthrds);
   elecOvr  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
 
   for (auto &v : velER) v.set_capacity(bufCap);
+  for (auto &v : momD ) v.set_capacity(bufCap);
   for (auto &v : keER ) v.set_capacity(bufCap);
   for (auto &v : keIR ) v.set_capacity(bufCap);
 
@@ -4343,7 +4346,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
-    double Ebeg = electronEnergy(cell, myid==0 ? 0 : -1);
+
+    // Momentum diagnostic distribution
+    //
+    std::vector<double> pdif;
 
     // Compute list of particles in cell with electrons
     //
@@ -4478,7 +4484,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       // Collision flag
       //
       bool ok = true;
-
+      
       if (esType == classical or esType == limited) {
 
 	if (use_elec >=0 and ne1 > 0 and ne2 > 0) {
@@ -4569,6 +4575,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Check for energy conservation
 	  //
+	  if (ENERGY_ES_DBG) momD[id].push_back(sqrt(dp2/pi2));
 	  if ( fabs(Efin - Ebeg) > 1.0e-14*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
@@ -4587,7 +4594,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double vfac = 1.0;
 	  if (equal) {
-	    double KE0 = 0.5*ma*mb/mt*vi*vi;
+	    double KE0 = 0.5*Wa*ma*mb/mt*vi*vi;
 	    double dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
 	    vfac = sqrt(1.0 + dKE/KE0);
 	    p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
@@ -4608,16 +4615,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     } // loop over particles
 
-    double Efin = electronEnergy(cell, myid==0 ? 1 : -1);
-    if (fabs(Efin - Ebeg) > 1.0e-14*Ebeg) {
-      std::cout << "Electron energy conservation error,"
-		<< " Ebeg=" << Ebeg
-		<< " Efin=" << Efin
-		<< " Edif=" << Efin/Ebeg - 1.0
-		<< std::endl;
-    }
 
   } // end: Direct or Weight for use_elec>=0
+
 
   //
   // Cross-section debugging
@@ -6354,7 +6354,7 @@ void CollideIon::electronGather()
 
     // Accumulate from threads
     //
-    std::vector<double> loss, keE, keI;
+    std::vector<double> loss, keE, keI, mom;
     unsigned Ovr=0, Tot=0;
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
@@ -6362,6 +6362,12 @@ void CollideIon::electronGather()
       Ovr += elecOvr[t];
       Tot += elecTot[t];
       elecOvr[t] = elecTot[t] = 0;
+    }
+
+    if (ENERGY_ES and ENERGY_ES_DBG) {
+      for (int t=0; t<nthrds; t++) {
+	mom.insert(mom.end(), momD[t].begin(), momD[t].end());
+      }
     }
 
     if (KE_DEBUG) {
@@ -6392,6 +6398,12 @@ void CollideIon::electronGather()
 	  eNum = keI.size();
 	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 342, MPI_COMM_WORLD);
 	  MPI_Send(&keI[0], eNum, MPI_DOUBLE,   0, 343, MPI_COMM_WORLD);
+	}
+
+	if (ENERGY_ES and ENERGY_ES_DBG) {
+	  eNum = mom.size();
+	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 344, MPI_COMM_WORLD);
+	  MPI_Send(&mom[0], eNum, MPI_DOUBLE,   0, 345, MPI_COMM_WORLD);
 	}
 
       }
@@ -6431,6 +6443,16 @@ void CollideIon::electronGather()
 		   MPI_STATUS_IGNORE);
 	  keI.insert(keI.end(), vTmp.begin(), vTmp.end());
 	}
+
+	if (ENERGY_ES and ENERGY_ES_DBG) {
+	  MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 344, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  vTmp.resize(eNum);
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 345, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  mom.insert(mom.end(), vTmp.begin(), vTmp.end());
+	}
+
       }
     }
 
@@ -6468,6 +6490,10 @@ void CollideIon::electronGather()
 
       if (keI.size()) {
 	keIH = ahistoDPtr(new AsciiHisto<double>(keI, 20, 0.01));
+      }
+
+      if (mom.size()) {
+	momH = ahistoDPtr(new AsciiHisto<double>(mom, 20, 0.01));
       }
 
     }
@@ -6528,6 +6554,15 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< std::string(53, '-')  << std::endl;
     (*keIH)(out);
   }
+
+  if (momH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Electron momentum difference ratio -------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*momH)(out);
+  }
+
 
   out << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl

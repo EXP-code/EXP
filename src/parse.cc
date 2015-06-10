@@ -16,11 +16,15 @@
 
 void exp_usage(char *prog)
 {
-  cerr << prog << " [-f file -d]\n";
-
-  MPI_Abort(MPI_COMM_WORLD, 8);
-
-  exit(-1);
+  cerr << "Usage" << endl
+       << "-----" << endl << endl
+       << "[mpirun -np N ...] " << prog << " [-f file -d -h]" << endl << endl
+       << "where" << endl << endl
+       << "  -f file   specifies the input parameter file" << endl
+       << "  -d        displays a default parameter file"  << endl
+       << "  -h        shows this help"                    << endl  << endl
+       << "See EXP/doc/html/index.html for extensive documentation" << endl
+       << endl;
 }
 
 
@@ -214,43 +218,64 @@ void print_parm(ostream& out, const char *comment)
 {
   out << comment << "[global]" << endl;
 
-  out << comment << " " << "nbodmax"    << " = " << nbodmax     << endl;
-  out << comment << " " << "nsteps"     << " = " << nsteps      << endl;
-  out << comment << " " << "nthrds"     << " = " << nthrds      << endl;
-  out << comment << " " << "nreport"    << " = " << nreport     << endl;
-  out << comment << " " << "nbalance"   << " = " << nbalance    << endl;
-  out << comment << " " << "dbthresh"   << " = " << dbthresh    << endl;
+  out << endl;
 
-  out << comment << " " << "time"       << " = " << tnow        << endl;
-  out << comment << " " << "dtime"      << " = " << dtime       << endl;
-  out << comment << " " << "nbits"      << " = " << nbits       << endl;
-  out << comment << " " << "pkbits"     << " = " << pkbits      << endl;
-  out << comment << " " << "PFbufsz"    << " = " << PFbufsz     << endl;
-  out << comment << " " << "NICE"       << " = " << NICE        << endl;
-  out << comment << " " << "VERBOSE"    << " = " << VERBOSE     << endl;
-  out << comment << " " << "rlimit"     << " = " << rlimit_val  << endl;
-  out << comment << " " << "runtime"    << " = " << runtime     << endl;
+  out << comment << setw(20) << "nbodmax"    << " : " << nbodmax     << endl;
+  out << comment << setw(20) << "nsteps"     << " : " << nsteps      << endl;
+  out << comment << setw(20) << "nthrds"     << " : " << nthrds      << endl;
+  out << comment << setw(20) << "nreport"    << " : " << nreport     << endl;
+  out << comment << setw(20) << "nbalance"   << " : " << nbalance    << endl;
+  out << comment << setw(20) << "dbthresh"   << " : " << dbthresh    << endl;
 
-  out << comment << " " << "multistep"  << " = " << multistep   << endl;
-  out << comment << " " << "centerlevl" << " = " << centerlevl  << endl;
-  out << comment << " " << "DTold"      << " = " << DTold       << endl;
-  out << comment << " " << "dynfracS"   << " = " << dynfracS    << endl;
-  out << comment << " " << "dynfracV"   << " = " << dynfracV    << endl;
-  out << comment << " " << "dynfracA"   << " = " << dynfracA    << endl;
-  out << comment << " " << "dynfracP"   << " = " << dynfracP    << endl;
+  out << comment << setw(20) << "time"       << " : " << tnow        << endl;
+  out << comment << setw(20) << "dtime"      << " : " << dtime       << endl;
+  out << comment << setw(20) << "nbits"      << " : " << nbits       << endl;
+  out << comment << setw(20) << "pkbits"     << " : " << pkbits      << endl;
+  out << comment << setw(20) << "PFbufsz"    << " : " << PFbufsz     << endl;
+  out << comment << setw(20) << "NICE"       << " : " << NICE        << endl;
+  out << comment << setw(20) << "VERBOSE"    << " : " << VERBOSE     << endl;
+  out << comment << setw(20) << "rlimit"     << " : " << rlimit_val  << endl;
+  out << comment << setw(20) << "runtime"    << " : " << runtime     << endl;
 
-  out << comment << " " << "use_cwd"    << " = " << use_cwd     << endl;
-  out << comment << " " << "eqmotion"   << " = " << eqmotion    << endl;
-  out << comment << " " << "global_cov" << " = " << global_cov  << endl;
+  out << comment << setw(20) << "multistep"  << " : " << multistep   << endl;
+  out << comment << setw(20) << "centerlevl" << " : " << centerlevl  << endl;
+  out << comment << setw(20) << "DTold"      << " : " << DTold       << endl;
+  out << comment << setw(20) << "dynfracS"   << " : " << dynfracS    << endl;
+  out << comment << setw(20) << "dynfracV"   << " : " << dynfracV    << endl;
+  out << comment << setw(20) << "dynfracA"   << " : " << dynfracA    << endl;
+  out << comment << setw(20) << "dynfracP"   << " : " << dynfracP    << endl;
 
-  out << comment << " " << "homedir"    << " = " << homedir     << endl;
-  out << comment << " " << "ldlibdir"   << " = " << ldlibdir    << endl;
-  out << comment << " " << "infile"     << " = " << infile      << endl;
-  out << comment << " " << "parmfile"   << " = " << parmfile    << endl;
-  out << comment << " " << "ratefile"   << " = " << ratefile    << endl;
-  out << comment << " " << "outdir"     << " = " << outdir      << endl;
-  out << comment << " " << "runtag"     << " = " << runtag      << endl;
-  out << comment << " " << "command"    << " = " << restart_cmd << endl;
+  out << comment << setw(20) << "use_cwd"    << " : " << use_cwd     << endl;
+  out << comment << setw(20) << "eqmotion"   << " : " << eqmotion    << endl;
+  out << comment << setw(20) << "global_cov" << " : " << global_cov  << endl;
+
+  out << comment << setw(20) << "homedir"    << " : " << homedir     << endl;
+  out << comment << setw(20) << "ldlibdir"   << " : " << ldlibdir    << endl;
+  out << comment << setw(20) << "infile"     << " : " << infile      << endl;
+  out << comment << setw(20) << "parmfile"   << " : " << parmfile    << endl;
+  out << comment << setw(20) << "ratefile"   << " : " << ratefile    << endl;
+  out << comment << setw(20) << "outdir"     << " : " << outdir      << endl;
+  out << comment << setw(20) << "runtag"     << " : " << runtag      << endl;
+  out << comment << setw(20) << "command"    << " : " << restart_cmd << endl;
+
+  out << endl;
+
+  out << comment << "[components]" << endl;
+
+  out << endl;
+
+  out << comment << "[output]" << endl;
+
+  out << endl;
+
+  out << comment << setw(20) << "outlog"    << " : " << "nint=1"  << endl;
+  out << comment << setw(20) << "outpsn"    << " : " << "nint=10" << endl;
+
+  out << endl;
+
+  out << comment << "[external]" << endl;
+
+  out << endl;
 }
 
 
@@ -262,7 +287,7 @@ void write_parm(void)
   if (!out) {
     cerr << "write_parm: could not open <" << parmfile << ">\n";
     MPI_Abort(MPI_COMM_WORLD, 102);
-    exit(0);
+    exit(EXIT_SUCCESS);
   }
   
   print_parm(out, "");
@@ -294,6 +319,8 @@ void MPL_parse_args(int argc, char** argv)
 
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
   
+  int done = 0;
+
   if (myid==0) {
 
     while ((c = getopt(argc, argv, "f:dvh")) != -1)
@@ -304,29 +331,54 @@ void MPL_parse_args(int argc, char** argv)
 	break;
       case 'd':
 	print_default();
-	exit(0);
-	break;
-      case 'v':
-	exit(0);
+	done = 1;
 	break;
       case '?':
       case 'h':
 	exp_usage(prog);
-	break;
+	done = 1;
       }
     
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
+    }
+
     ifstream in(curparm.c_str());
     if (!in) {
       char mbuf[512];
       cerr << "MAIN: can not open parameter file <" << parmfile << ">\n";
       cerr << "MAIN: pwd is <" << getcwd(mbuf, 512) << ">\n";
-      MPI_Abort(MPI_COMM_WORLD, 9);
+      done = 1;
+    }
+
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
     }
 
     parse = new ParamParseMPI(&in, ":");
 
   } else {
     
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
+    }
+
+    MPI_Bcast(&done, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    if (done) {
+      MPI_Finalize();
+      exit(EXIT_SUCCESS);
+    }
+
     parse = new ParamParseMPI(NULL, ":");
 
   }
