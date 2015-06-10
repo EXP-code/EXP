@@ -40,7 +40,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = true;
+const bool ENERGY_ES         = false;
 
 // For momentum ratio diagnostics
 //
@@ -49,6 +49,11 @@ const bool ENERGY_ES_DBG     = true;
 // Quadratic momentum solution
 //
 const bool ENERGY_ES_QUAD    = true;
+
+// Same species tests (for debugging only)
+//
+const bool SAME_ELEC_SCAT    = false;
+const bool SAME_IONS_SCAT    = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -2747,6 +2752,11 @@ int CollideIon::inelasticWeight(pCell* const c,
     delE = delE * eV;
   }
   
+  // Debugging test
+  //
+  if (SAME_IONS_SCAT and interFlag % 100 <= 2) {
+    if (Z1 != Z2) return 0;
+  }
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
   // For elastic interactions, delE == 0
@@ -4420,6 +4430,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       KeyConvert k1(p1->iattrib[use_key]);
       KeyConvert k2(p2->iattrib[use_key]);
+
+      if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
 
       // Swap particles so that p2 is the trace element
       //
