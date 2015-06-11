@@ -3,6 +3,8 @@
 
 #include <tuple>
 
+#include <boost/filesystem.hpp>
+#include <boost/filesystem/fstream.hpp>
 #include <boost/circular_buffer.hpp>
 
 #include "Collide.H"
@@ -335,8 +337,8 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, keER, keIR;
-  ahistoDPtr elecH, ionH, lossH, keEH, keIH;
+  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD;
+  ahistoDPtr elecH, ionH, lossH, keEH, keIH, momH;
   unsigned Ovr_s, Tot_s;
   //@}
 
@@ -542,7 +544,7 @@ protected:
 
   typedef std::tuple<double, double>     ZTup;
   typedef std::map<unsigned short, ZTup> ZMap;
-  ZMap   specE;
+  ZMap   specE, specI;
   std::set<unsigned short> specZ;
   //@}
 
@@ -576,8 +578,10 @@ protected:
   //! Debugging routine
   void eEdbg();
 
-  const std::string tpaths[4] = {"/tmp/test.0", "/tmp/test.1", 
-				"/tmp/test.2", "/tmp/test.3"};
+  const std::string tpaths[4] = {"./test.0", "./test.1", 
+				 "./test.2", "./test.3"};
+  boost::filesystem::path getcwd;
+  std::string hostname;
   unsigned long itp;
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];
