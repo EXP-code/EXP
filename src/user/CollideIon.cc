@@ -48,12 +48,12 @@ const bool ENERGY_ES_DBG     = true;
 
 // Quadratic momentum solution
 //
-const bool ENERGY_ES_QUAD    = true;
+const bool ENERGY_ES_QUAD    = false;
 
 // Same species tests (for debugging only)
 //
 const bool SAME_ELEC_SCAT    = false;
-const bool SAME_IONS_SCAT    = false;
+const bool SAME_IONS_SCAT    = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -155,6 +155,28 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "*** Using electron EQUIPARTITION ***" << std::endl
 	      << "************************************" << std::endl;
 
+
+  if (myid==0) {
+    std::cout << std::endl
+	      << "************************************" << std::endl
+	      << "*** Algorithm selection flags ******" << std::endl
+	      << "************************************" << std::endl
+	      << " " << std::setw(20) << std::left << "ENERGY_ES"
+	      << (ENERGY_ES ? "on" : "off")             << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_DBG"
+	      << (ENERGY_ES_DBG ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_QUAD"
+	      << (ENERGY_ES_QUAD ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
+	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_IONS_SCAT"
+	      << (SAME_IONS_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "RECOMBE_KE"
+	      << (RECOMB_KE ? "on" : "off")             << std::endl
+	      <<  " " << std::setw(20) << std::left << "RECOMBE_IP"
+	      << (RECOMB_IP ? "on" : "off")             << std::endl
+	      << "************************************" << std::endl;
+  }
 
   // Per thread workspace initialization
   //
