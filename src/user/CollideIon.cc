@@ -40,7 +40,7 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = false;
+const bool ENERGY_ES         = true;
 
 // For momentum ratio diagnostics
 //
@@ -48,7 +48,15 @@ const bool ENERGY_ES_DBG     = true;
 
 // Quadratic momentum solution
 //
-const bool ENERGY_ES_QUAD    = true;
+const bool ENERGY_ES_QUAD    = false;
+
+// Add trace energy excess to electron distribution
+//
+const bool   TRACE_ELEC      = true;
+
+// Fraction of excess energy loss to give to the electrons
+//
+const double TRACE_FRAC      = 1.0;
 
 // Same species tests (for debugging only)
 //
@@ -155,6 +163,32 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "*** Using electron EQUIPARTITION ***" << std::endl
 	      << "************************************" << std::endl;
 
+
+  if (myid==0) {
+    std::cout << std::endl
+	      << "************************************" << std::endl
+	      << "*** Algorithm selection flags ******" << std::endl
+	      << "************************************" << std::endl
+	      << " " << std::setw(20) << std::left << "ENERGY_ES"
+	      << (ENERGY_ES ? "on" : "off")             << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_DBG"
+	      << (ENERGY_ES_DBG ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_QUAD"
+	      << (ENERGY_ES_QUAD ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
+	      << (TRACE_ELEC ? "on" : "off")            << std::endl
+	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
+	      << TRACE_FRAC                             << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
+	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_IONS_SCAT"
+	      << (SAME_IONS_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "RECOMBE_KE"
+	      << (RECOMB_KE ? "on" : "off")             << std::endl
+	      <<  " " << std::setw(20) << std::left << "RECOMBE_IP"
+	      << (RECOMB_IP ? "on" : "off")             << std::endl
+	      << "************************************" << std::endl;
+  }
 
   // Per thread workspace initialization
   //
@@ -3060,10 +3094,15 @@ int CollideIon::inelasticWeight(pCell* const c,
     //
     double vfac = 1.0;
     if (Z1 != Z2) {
-      double ke2 = 0.0;
-      for (auto v : v2) ke2 += v*v;
-      ke2 *= 0.5*Wb*m2;
-      vfac = sqrt(1.0 + deltaKE/ke2);
+      if (TRACE_ELEC) {
+	p1->dattrib[use_cons  ] += deltaKE * (1.0 - TRACE_FRAC);
+	p2->dattrib[use_elec+3] += deltaKE * TRACE_FRAC;
+      } else {
+	double ke2 = 0.0;
+	for (auto v : v2) ke2 += v*v;
+	ke2 *= 0.5*Wb*m2;
+	vfac = sqrt(1.0 + deltaKE/ke2);
+      }
     }
 
     // Electron from particle #2
@@ -3097,10 +3136,15 @@ int CollideIon::inelasticWeight(pCell* const c,
     //
     double vfac = 1.0;
     if (Z1 != Z2) {
-      double ke1 = 0.0;
-      for (auto v : v1) ke1 += v*v;
-      ke1 *= 0.5*Wa*m1;
-      vfac = sqrt(1.0 + deltaKE/ke1);
+      if (TRACE_ELEC) {
+	p1->dattrib[use_elec+3] += deltaKE * TRACE_FRAC;
+	p2->dattrib[use_cons]   += deltaKE * (1.0 - TRACE_FRAC);
+      } else {
+	double ke1 = 0.0;
+	for (auto v : v1) ke1 += v*v;
+	ke1 *= 0.5*Wa*m1;
+	vfac = sqrt(1.0 + deltaKE/ke1);
+      }
     }
 
     // Electron from particle #1
@@ -3154,11 +3198,12 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// Check Energy balance including excess
     double testE = dKE;
     if (Z1==Z2) testE += Exs - delE - missE;
-    else if (C1==1 and C2==1) testE -= deltaKE;
+    else if (TRACE_ELEC) testE -= deltaKE;
+    if (C1==1 and C2==1) testE -= deltaKE;
 
-    if (fabs(testE) > 1.0e-15*(tKEi+tKEf) )
+    if (fabs(testE) > 1.0e-14*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
-		<< std::setw(14) << dKE + Exs - delE - missE
+		<< std::setw(14) << testE
 		<< ", dKE=" << std::setw(14) << dKE
 		<< ", KE0=" << std::setw(14) << kE
 		<< ", tot=" << std::setw(14) << totE
@@ -4638,6 +4683,40 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		      << " pcons=" << sqrt(dp2/pi2)
 		      << std::endl;
 	  }
+
+	  // Upscale electron energy
+	  //
+	  if (TRACE_ELEC) {
+	    double delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    if (delE > 0.0) {
+	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
+
+	      double m1    = p1->mass*atomic_weights[0]/atomic_weights[k1.Z()];
+	      double m2    = p2->mass*atomic_weights[0]/atomic_weights[k2.Z()];
+	      double mt    = m1 + m2;
+	      double mu    = m1 * m2 / mt;
+	      double KEcom = 0.0;
+
+	      for (int k=0; k<3; k++) {
+		vcom[k] = (m1*u1[k] + m2*u2[k]);
+		vrel[k] = u1[k] - u2[k];
+		KEcom  += vrel[k] * vrel[k];
+	      }
+	      KEcom *= 0.5*mu;
+
+	      if (KEcom>0.0) {
+		double vfac = sqrt(1.0 + delE/KEcom);
+		for (int k=0; k<3; k++) {
+		  p1->dattrib[use_elec+k] = vcom[k] + m2/mt*vrel[k]*vfac;
+		  p2->dattrib[use_elec+k] = vcom[k] - m1/mt*vrel[k]*vfac;
+		}
+	      }
+	      
+	    } // end: delE > 0.0
+	    
+	  } // end: TRACE_ELEC
+
+
 	} 
 	
 	// Explicit momentum conservation
@@ -5073,6 +5152,15 @@ void CollideIon::parseSpecies(const std::string& map)
 	  std::cerr << "CollideIon: species key position is not defined in "
 		    << "Component" << std::endl;
 	  nOK = 1;
+	}
+
+	in.getline(line, nline);
+
+	if (in.good()) {
+	  std::istringstream sz(line);
+	  sz >> use_elec;
+	} else {
+	  nOK = 1;		// Can't read position flag
 	}
 
 	if (nOK == 0) {
@@ -6450,7 +6538,7 @@ void CollideIon::printSpecies
 
 void CollideIon::electronGather()
 {
-  if (aType==Weight && use_elec >= 0) {
+  if ((aType==Direct or aType==Weight) && use_elec >= 0) {
 
     std::vector<double> eVel, iVel;
 
@@ -6886,7 +6974,7 @@ void CollideIon::printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
 	if (use_elec>=0) {
 	  dout << std::setw(wid) << std::right << "--------"
 	       << std::setw(wid) << std::right << "--------";
-	  for (auto Z : specZ)
+	  for (size_t z=0; z<specZ.size(); z++)
 	    dout << std::setw(wid) << std::right << "--------"
 		 << std::setw(wid) << std::right << "--------"
 		 << std::setw(wid) << std::right << "--------"
