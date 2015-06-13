@@ -532,8 +532,8 @@ protected:
   //! Trace species maps for diagnostics
   typedef std::map<speciesKey, int> spMap;
   typedef spMap::iterator spItr;
-  void printSpeciesWeight(std::map<speciesKey, unsigned long>& spec,
-			  double T);
+  void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
+			     double T);
   void printSpeciesTrace();
   void gatherSpecies();
 
