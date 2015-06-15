@@ -167,8 +167,8 @@ main(int ac, char **av)
     } else 
       psp.SetTime(time);
 
-				// Dump ascii for each component
-				// -----------------------------
+				// Reopen file for data input
+				// --------------------------
     delete in;
     in = new ifstream(file);
     
