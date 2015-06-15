@@ -52,7 +52,11 @@ const bool ENERGY_ES_QUAD    = false;
 
 // Add trace energy excess to electron distribution
 //
-const bool   TRACE_ELEC      = false;
+const bool TRACE_ELEC        = false;
+
+// Enable ion-electron secondary scattering
+//
+const bool SECONDARY_SCATTER = false;
 
 // Fraction of excess energy loss to give to the electrons
 //
@@ -60,8 +64,9 @@ const double TRACE_FRAC      = 1.0;
 
 // Same species tests (for debugging only)
 //
-const bool SAME_ELEC_SCAT    = true;
+const bool SAME_ELEC_SCAT    = false;
 const bool SAME_IONS_SCAT    = false;
+const bool SAME_INTERACT     = true;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -175,6 +180,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (ENERGY_ES_DBG ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_QUAD"
 	      << (ENERGY_ES_QUAD ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
+	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
 	      << (TRACE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
@@ -183,6 +190,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_IONS_SCAT"
 	      << (SAME_IONS_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_INTERACT"
+	      << (SAME_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMBE_KE"
 	      << (RECOMB_KE ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMBE_IP"
@@ -1611,6 +1620,8 @@ int CollideIon::inelasticDirect(pCell* const c,
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
   
+  if (SAME_INTERACT and Z1 != Z2) return 0;
+
   // Number of atoms in each super particle
   //
   double N1 = (p1->mass*UserTreeDSMC::Munit)/(atomic_weights[Z1]*amu);
@@ -1963,7 +1974,7 @@ int CollideIon::inelasticDirect(pCell* const c,
   // Assign electron mass to doner ion particle and compute relative
   // velocity
   //
-  std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
+  std::vector<double> vrel(3), vcom(3), v1(3), v2(3), vcomE(3);
   double vi2 = 0.0, vf2 = 0.0;
 
   if (use_elec and interFlag > 100 and interFlag < 200) {
@@ -1976,6 +1987,17 @@ int CollideIon::inelasticDirect(pCell* const c,
       vi2  += v2[k] * v2[k];
     }
 
+    // Secondary electron-ion scattering
+    //
+    if (SECONDARY_SCATTER) {
+      double M1 = atomic_weights[Z2];
+      double M2 = atomic_weights[ 0];
+      double Mt = M1 + M2;
+
+      for (int k=0; k<3; k++)
+	vcomE[k] = (M1*p2->vel[k] + M2*p2->dattrib[use_elec+k])/Mt;
+    }
+
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
     m1 = atomic_weights[0];	// Particle 1 is the electron
@@ -1984,6 +2006,17 @@ int CollideIon::inelasticDirect(pCell* const c,
       v1[k] = p1->dattrib[use_elec+k];
       v2[k] = p2->vel[k];	// Particle 2 is the ion
       vi2  += v1[k] * v1[k];
+    }
+
+    // Secondary electron-ion scattering
+    //
+    if (SECONDARY_SCATTER) {
+      double M1 = atomic_weights[Z1];
+      double M2 = atomic_weights[ 0];
+      double Mt = M1 + M2;
+
+      for (int k=0; k<3; k++)
+	vcomE[k] = (M1*p1->vel[k] + M2*p1->dattrib[use_elec+k])/Mt;
     }
 
   } else {
@@ -2182,6 +2215,16 @@ int CollideIon::inelasticDirect(pCell* const c,
     velER[id].push_back(vf2/vi2);
   
 
+    // Secondary electron-ion scattering
+    //
+    if (SECONDARY_SCATTER) {
+      double M1 = atomic_weights[Z2];
+      double M2 = atomic_weights[ 0];
+
+      for (int k=0; k<3; k++)
+	  p2->vel[k] = vcomE[k] + M2/M1*(vcomE[k] - v2[k]);
+    }
+
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
 
     if (equiptn) {
@@ -2205,6 +2248,17 @@ int CollideIon::inelasticDirect(pCell* const c,
     
     // Debug electron energy loss/gain
     velER[id].push_back(vf2/vi2);
+
+
+    // Secondary electron-ion scattering
+    //
+    if (SECONDARY_SCATTER) {
+      double M1 = atomic_weights[Z1];
+      double M2 = atomic_weights[ 0];
+
+      for (int k=0; k<3; k++)
+	p1->vel[k] = vcomE[k] + M2/M1*(vcomE[k] - v1[k]);
+    }
 
   } else {
     for (size_t k=0; k<3; k++) {
@@ -2478,6 +2532,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   unsigned short Z1 = k1.getKey().first, C1 = k1.getKey().second;
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
+
+  if (SAME_INTERACT and Z1 != Z2) return 0;
 
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
@@ -2791,6 +2847,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   if (SAME_IONS_SCAT and interFlag % 100 <= 2) {
     if (Z1 != Z2) return 0;
   }
+
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
   // For elastic interactions, delE == 0
@@ -4402,7 +4459,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   
   // Do electron interactions separately
   //
-  if ( (aType == Direct or aType == Weight) and use_elec>=0 and esType != always) {
+  if ( (aType == Direct or aType == Weight) and use_elec>=0 and
+       esType != always and esType != none) {
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
     double eta = 0.0, crsvel = 0.0;
@@ -6432,6 +6490,8 @@ void CollideIon::printSpecies
 
 void CollideIon::electronGather()
 {
+  bool IDBG = true;
+
   if ((aType==Direct or aType==Weight) && use_elec >= 0) {
 
     std::vector<double> eVel, iVel;
@@ -6482,86 +6542,178 @@ void CollideIon::electronGather()
       }
     }
 
+    std::ofstream dbg;
+    if (IDBG) {
+      std::ostringstream sout;
+      sout << runtag << ".eGather." << myid;
+      dbg.open(sout.str().c_str(), ios::out | ios::app);
+      sout.str(""); sout << "---- Step " << this_step
+			 << " Time=" << tnow << " ";
+      dbg << std::setw(70) << std::setfill('-') << left << sout.str()
+	  << std::endl << std::setfill(' ');
+    }
+
+    (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop",
+	       __FILE__, __LINE__);
+    
+    unsigned eNum;
+
     for (int i=1; i<numprocs; i++) {
 
       if (i == myid) {
-	unsigned eNum = eVel.size();
-	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 335, MPI_COMM_WORLD);
-	MPI_Send(&eVel[0], eNum, MPI_DOUBLE,   0, 336, MPI_COMM_WORLD);
-	MPI_Send(&iVel[0], eNum, MPI_DOUBLE,   0, 337, MPI_COMM_WORLD);
 
-	eNum = loss.size();
-	MPI_Send(&eNum,       1, MPI_UNSIGNED, 0, 338, MPI_COMM_WORLD);
-	MPI_Send(&loss[0], eNum, MPI_DOUBLE,   0, 339, MPI_COMM_WORLD);
+	MPI_Send(&(eNum=eVel.size()), 1, MPI_UNSIGNED, 0, 435, MPI_COMM_WORLD);
+
+	if (IDBG) dbg << std::setw(16) << "eVel.size() = " << std::setw(10) << eNum;
+
+	if (eNum) MPI_Send(&eVel[0], eNum, MPI_DOUBLE, 0, 436, MPI_COMM_WORLD);
+	if (eNum) MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
+
+	if (IDBG) dbg << " ... eVel and iVel sent" << std::endl;
+
+	MPI_Send(&(eNum=loss.size()), 1, MPI_UNSIGNED, 0, 438, MPI_COMM_WORLD);
+
+	if (IDBG) dbg << std::setw(16) << "loss.size() = " << std::setw(10) << eNum;
+
+	if (eNum) MPI_Send(&loss[0], eNum, MPI_DOUBLE, 0, 439, MPI_COMM_WORLD);
+	
+	if (IDBG) dbg << " ... loss sent" << std::endl;
 
 	if (KE_DEBUG) {
-	  eNum = keE.size();
-	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 340, MPI_COMM_WORLD);
-	  MPI_Send(&keE[0], eNum, MPI_DOUBLE,   0, 341, MPI_COMM_WORLD);
-	  eNum = keI.size();
-	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 342, MPI_COMM_WORLD);
-	  MPI_Send(&keI[0], eNum, MPI_DOUBLE,   0, 343, MPI_COMM_WORLD);
+	  MPI_Send(&(eNum=keE.size()), 1, MPI_UNSIGNED, 0, 440, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "keE.size() = " << std::setw(10) << eNum;
+
+	  if (eNum) MPI_Send(&keE[0], eNum, MPI_DOUBLE, 0, 441, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... keE sent" << std::endl;
+
+	  MPI_Send(&(eNum=keI.size()), 1, MPI_UNSIGNED, 0, 442, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "keI.size() = " << std::setw(10) << eNum;
+
+	  if (eNum) MPI_Send(&keI[0], eNum, MPI_DOUBLE, 0, 443, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... keI sent" << std::endl;
 	}
 
 	if (ENERGY_ES and ENERGY_ES_DBG) {
-	  eNum = mom.size();
-	  MPI_Send(&eNum,      1, MPI_UNSIGNED, 0, 344, MPI_COMM_WORLD);
-	  MPI_Send(&mom[0], eNum, MPI_DOUBLE,   0, 345, MPI_COMM_WORLD);
-	}
+	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 444, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "mom.size() = " << std::setw(10) << eNum;
 
+	  if (eNum) MPI_Send(&mom[0], eNum, MPI_DOUBLE, 0, 445, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... mom sent" << std::endl;
+	  }
       }
+
 				// Root receives from Node i
       if (0 == myid) {
-	unsigned eNum;
-	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 335, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	std::vector<double> vTmp(eNum);
-	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 336, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
 
-	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 337, MPI_COMM_WORLD,
+	std::vector<double> vTmp;
+	
+	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 435, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
-	iVel.insert(iVel.begin(), vTmp.begin(), vTmp.end());
-	MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 338, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	vTmp.resize(eNum);
+	
+	if (IDBG) dbg << "recvd from " << std::setw(4) << i
+		      << std::setw(16) << " eVel.size() = "
+		      << std::setw(10) << eNum;
 
-	MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 339, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
-	loss.insert(loss.end(), vTmp.begin(), vTmp.end());
+	if (eNum) {
+	  vTmp.resize(eNum);
+	  
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 436, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << " ... eVel recvd";
+
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 437, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  iVel.insert(iVel.begin(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << ", iVel recvd" << std::endl;
+	} else {
+	  if (IDBG) dbg << std::endl;
+	}
+
+	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 438, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	if (IDBG) dbg << "recvd from " << std::setw(4) << i
+		      << std::setw(16) << " loss.size() = "
+		      << std::setw(10) << eNum;
+
+	if (eNum) {
+	  vTmp.resize(eNum);
+
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 439, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  loss.insert(loss.end(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << " ... loss recvd" << std::endl;
+	} else {
+	  if (IDBG) dbg << std::endl;
+	}
 
 	if (KE_DEBUG) {
-	  MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 340, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  vTmp.resize(eNum);
-	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 341, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  keE.insert(keE.end(), vTmp.begin(), vTmp.end());
+	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 440, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			<< std::setw(16) << " keE.size() = " 
+			<< std::setw(10) << eNum;
 
-	  MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 342, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  vTmp.resize(eNum);
-	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 343, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  keI.insert(keI.end(), vTmp.begin(), vTmp.end());
+	  if (eNum) {
+	    vTmp.resize(eNum);
+
+	    MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 441, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    keE.insert(keE.end(), vTmp.begin(), vTmp.end());
+
+	    if (IDBG) dbg << " ... keE recvd" << std::endl;
+	  } else {
+	    if (IDBG) dbg << std::endl;
+	  }
+
+	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 442, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			<< std::setw(16) << " keI.size() = "
+			<< std::setw(10) << eNum;
+
+	  if (eNum) {
+	    vTmp.resize(eNum);
+
+	    MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 443, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    keI.insert(keI.end(), vTmp.begin(), vTmp.end());
+
+	    if (IDBG) dbg << " ... keI recvd" << std::endl;
+	  } else {
+	    if (IDBG) dbg << std::endl;
+	  }
 	}
 
 	if (ENERGY_ES and ENERGY_ES_DBG) {
-	  MPI_Recv(&eNum,       1, MPI_UNSIGNED, i, 344, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  vTmp.resize(eNum);
-	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE,   i, 345, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
-	  mom.insert(mom.end(), vTmp.begin(), vTmp.end());
+	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 444, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			<< std::setw(16) << " mom.size() = "
+			<< std::setw(10) << eNum;
+
+	  if (eNum) {
+	    vTmp.resize(eNum);
+
+	    MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 445, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    mom.insert(mom.end(), vTmp.begin(), vTmp.end());
+
+	    if (IDBG) dbg << " ... mom recvd" << std::endl;
+	  } else {
+	    if (IDBG) dbg << std::endl;
+	  }
 	}
 
-      }
-    }
+      } // end: myid=0
+
+    } // end: process loop
+
+    (*barrier)("CollideIon::electronGather: AFTER Send/Recv loop",
+	       __FILE__, __LINE__);
 
     MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Tot, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     
+    (*barrier)("CollideIon::electronGather: AFTER REDUCE loop",
+	       __FILE__, __LINE__);
+
     if (myid==0) {
 
       if (eVel.size()) {
