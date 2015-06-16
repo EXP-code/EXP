@@ -18,6 +18,7 @@
 #include <iostream>
 #include <iomanip>
 #include <numeric>
+#include <tuple>
 
 #include <boost/random.hpp>
 #include <boost/random/uniform_real.hpp>
@@ -97,14 +98,14 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
 
-  std::cout << std::string(60, '-')                 << std::endl;
+  std::cout << std::string(70, '-')                 << std::endl;
   std::cout << "Temperature: "  << T     << " K "   << std::endl;
   std::cout << "Number:      "  << npart            << std::endl;
   std::cout << "Length unit: "  << Lunit << " cm"   << std::endl;
   std::cout << "Time unit:   "  << Tunit << " s"    << std::endl;
   std::cout << "Vel unit:    "  << Vunit << " cm/s" << std::endl;
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
-  std::cout << std::string(60, '-')                 << std::endl;
+  std::cout << std::string(70, '-')                 << std::endl;
 
   double var0  = sqrt((boltz*T)/amu);
   double varE  = sqrt((boltz*T)/(atomic_masses[0]*amu));
@@ -164,7 +165,8 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		    const std::vector< std::vector<double> >& sI)
 {
   // For tabulating mass fractions . . . 
-  typedef std::map<speciesKey, double> Frac;
+  typedef std::tuple<double, unsigned> Tspc;
+  typedef std::map<speciesKey, Tspc>   Frac;
   Frac frac;
 
   std::ofstream out(file.c_str());
@@ -190,8 +192,9 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
       KeyConvert kc(particles[n].iattrib[0]);
       speciesKey k = kc.getKey();
       Frac::iterator it = frac.find(k);
-      if (it==frac.end()) frac[k] = 0.0;
-      frac[k] += particles[n].mass;
+      if (it==frac.end()) frac[k] = Tspc(0.0, 0);
+      std::get<0>(frac[k]) += particles[n].mass;
+      std::get<1>(frac[k]) ++;
     }
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
@@ -205,32 +208,35 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
   if (type != Trace) {
 
     double Mtot = 0.0;
-    for (auto i : frac) Mtot += i.second;
+    for (auto i : frac) Mtot += std::get<0>(i.second);
 
     std::cout << std::setw( 3) << "Z"
 	      << std::setw( 3) << "C"
-	      << std::setw(18) << "Mass"
-	      << std::setw(18) << "Fraction"
-	      << std::setw(18) << "Target"
+	      << std::setw(16) << "Mass"
+	      << std::setw(16) << "Fraction"
+	      << std::setw(16) << "Target"
+	      << std::setw(12) << "Count"
 	      << std::endl
 	      << std::setw( 3) << "-"
 	      << std::setw( 3) << "-"
-	      << std::setw(18) << "--------"
-	      << std::setw(18) << "--------"
-	      << std::setw(18) << "--------"
+	      << std::setw(16) << "--------"
+	      << std::setw(16) << "--------"
+	      << std::setw(16) << "--------"
+	      << std::setw(12) << "--------"
 	      << std::endl;
     for (auto i : frac)
       std::cout << std::setw( 3) << i.first.first
 		<< std::setw( 3) << i.first.second
-		<< std::setw(18) << i.second
-		<< std::setw(18) << i.second/Mtot
-		<< std::setw(18) << sF[i.first.first-1] * sI[i.first.first-1][i.first.second-1]
+		<< std::setw(16) << std::get<0>(i.second)
+		<< std::setw(16) << std::get<0>(i.second)/Mtot
+		<< std::setw(16) << sF[i.first.first-1] * sI[i.first.first-1][i.first.second-1]
+		<< std::setw(12) << std::get<1>(i.second)
 		<< std::endl;
 
-    std::cout << std::string(60, '-') << std::endl
+    std::cout << std::string(70, '-') << std::endl
 	      << "Empirical density (amu/cc) = "
 	      << Mtot*Munit/(mp*(LL[0]*LL[1]*LL[2])*pc*pc*pc)
-	      << std::endl << std::string(60, '-') << std::endl;
+	      << std::endl << std::string(70, '-') << std::endl;
   }
 }
 
@@ -239,7 +245,7 @@ void InitializeSpeciesDirect
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
-  double M, double T, int ni=1, int nd=6)
+ double M, double T, int ne, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -320,9 +326,11 @@ void InitializeSpeciesDirect
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
   }
 
+  double normC = cumS.back();
+
   for (size_t i=0; i<NS; i++) {
-    frcS[i] /= cumS.back();
-    cumS[i] /= cumS.back();
+    frcS[i] /= normC;
+    cumS[i] /= normC;
   }
 
   for (size_t i=0; i<N; i++) {
@@ -347,10 +355,14 @@ void InitializeSpeciesDirect
       }
     }
 
-    particles[i].mass  = M/N * sF[indx] * NS;
+    particles[i].mass  = M/N * atomic_masses[sZ[indx]] * normC;
 
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
+
+    if (ne>=0) {			 // Add the use_elec fields
+      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
+    }
 
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
@@ -358,6 +370,7 @@ void InitializeSpeciesDirect
   
   std::ofstream out("species.spec");
   out << "direct" << std::endl;
+  out << std::setw(6) << nd << std::endl;
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6) << static_cast<unsigned>(sZ[indx])
 	<< std::endl;
@@ -501,7 +514,7 @@ void InitializeSpeciesWeight
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M/N * sF[indx]
+	<< std::setw(16) << M/N * sF[indx] * NS
 	<< std::endl;
   }
 
@@ -698,15 +711,13 @@ int main (int ac, char **av)
     type = Weight;
   }
 
-  if (vm.count("electrons")) {
-    type = Weight;
-    ne   = 0;
-  }
-
   if (vm.count("trace")) {
     type = Trace;
   }
 
+  if (vm.count("electrons")) {
+    ne   = 0;
+  }
 
   if (myid==0) {
     std::string prefix("makeIon");
@@ -774,7 +785,7 @@ int main (int ac, char **av)
     break;
   case Direct:
   default:
-    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T);
+    InitializeSpeciesDirect(particles, sZ, sF, sI, Mass, T, ne);
   }
   
   // Initialize the phase space vector
