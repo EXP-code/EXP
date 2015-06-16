@@ -326,9 +326,11 @@ void InitializeSpeciesDirect
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
   }
 
+  double normC = cumS.back();
+
   for (size_t i=0; i<NS; i++) {
-    frcS[i] /= cumS.back();
-    cumS[i] /= cumS.back();
+    frcS[i] /= normC;
+    cumS[i] /= normC;
   }
 
   for (size_t i=0; i<N; i++) {
@@ -353,7 +355,7 @@ void InitializeSpeciesDirect
       }
     }
 
-    particles[i].mass  = M/N * sF[indx] * NS;
+    particles[i].mass  = M/N * atomic_masses[sZ[indx]] * normC;
 
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
@@ -512,7 +514,7 @@ void InitializeSpeciesWeight
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
-	<< std::setw(16) << M/N * sF[indx]
+	<< std::setw(16) << M/N * sF[indx] * NS
 	<< std::endl;
   }
 
