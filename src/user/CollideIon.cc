@@ -66,7 +66,7 @@ const double TRACE_FRAC      = 1.0;
 //
 const bool SAME_ELEC_SCAT    = false;
 const bool SAME_IONS_SCAT    = false;
-const bool SAME_INTERACT     = true;
+const bool SAME_INTERACT     = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
