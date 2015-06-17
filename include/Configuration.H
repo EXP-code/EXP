@@ -6,7 +6,7 @@
 #include <fstream>
 #include <locale>
 
-#include <boost/foreach.hpp>
+#include <boost/version.hpp>
 #include <boost/property_tree/ptree.hpp>
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
@@ -59,7 +59,11 @@ public:
       break;
     case XML:
       {
+#if BOOST_VERSION >= 105600
 	boost::property_tree::xml_writer_settings<std::string> w(' ', 2);
+#else
+	boost::property_tree::xml_writer_settings<char> w(' ', 2);
+#endif
 	write_xml(filename+".xml", pt, locale(), w); 
       }
       break;
@@ -78,7 +82,7 @@ public:
   T entry(const std::string& query, const std::string& desc, const T& def)
   {
     if (pt.count(query)) {
-      return pt.get<bool>(query+".value");
+      return pt.get<T>(query+".value");
     } else {
       pt.put(query+".desc", desc);
       pt.put(query+".value", def);
