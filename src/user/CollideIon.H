@@ -356,6 +356,9 @@ public:
 
 protected:
 
+  //! Process config file
+  void processConfig();
+
   //! List of cross sections (separate for each thread)
   std::vector<sKey2Dmap> csections;
 
