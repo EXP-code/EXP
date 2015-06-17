@@ -7184,7 +7184,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
 
     FloorEv =
-      cfg.entry<bool>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
+      cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
 
     if (myid==0) {
       // cfg.display();
