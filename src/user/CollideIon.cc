@@ -83,41 +83,41 @@ static bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
-const bool DEBUG_CR          = false;
+static bool DEBUG_CR          = false;
 
 // Artifically suppress electron equipartition speed
 //
-const bool NO_DOF            = true;
+static bool NO_DOF            = true;
 
 // Artifically suppress electron equilibrium velocity
 //
-const bool NO_VEL            = false;
+static bool NO_VEL            = false;
 
 // KE debugging: checks energy bookkeeping for weighted algorithm. Set
 // to false for production
 //
-const bool KE_DEBUG          = true;
+static bool KE_DEBUG          = true;
 
 // Subtract KE from COM pair for testing only.  This is technically
 // incorrect since the electrons are "trace" species and not part of
 // the energy conservation.
 //
-const bool RECOMB_KE         = true;
-const bool RECOMB_IP         = false;
+static bool RECOMB_KE         = true;
+static bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
 //
-const bool CROSS_DBG         = false;
+static bool CROSS_DBG         = false;
 
 // Excess trace map debugging; set to false for production
 //
-const bool EXCESS_DBG        = false;
+static bool EXCESS_DBG        = false;
 
 
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
-const double FloorEv = 0.05;
+static double FloorEv = 0.05;
 
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
@@ -7127,31 +7127,64 @@ void CollideIon::processConfig()
     }
     
     ENERGY_ES = 
-      cfg.getSet<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
+      cfg.entry<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
 
     ENERGY_ES_DBG = 
-      cfg.getSet<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
+      cfg.entry<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
 
     ENERGY_ES_QUAD = 
-      cfg.getSet<bool>("ENERGY_ES_QUAD", "Use the COM quadratic version rather than lab", true);
+      cfg.entry<bool>("ENERGY_ES_QUAD", "Use the COM quadratic version rather than lab", true);
     
     TRACE_ELEC =
-      cfg.getSet<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
+      cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
 
     SECONDARY_SCATTER =
-      cfg.getSet<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
+      cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
 
     TRACE_FRAC =
-      cfg.getSet<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);
+      cfg.entry<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);
 
     SAME_ELEC_SCAT = 
-      cfg.getSet<bool>("SAME_ELEC_SCAT", "Only scatter electrons with the same donor-ion mass", false);
+      cfg.entry<bool>("SAME_ELEC_SCAT", "Only scatter electrons with the same donor-ion mass", false);
 
     SAME_IONS_SCAT = 
-      cfg.getSet<bool>("SAME_IONS_SCAT", "Only scatter ions with the same mass", false);
+      cfg.entry<bool>("SAME_IONS_SCAT", "Only scatter ions with the same mass", false);
 
     SAME_INTERACT = 
-      cfg.getSet<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
+      cfg.entry<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
+
+    frost_warning = 
+      cfg.entry<bool>("frost_warning", "Warn if energy lost is smaller than available energy", false);
+
+    DEBUG_SL =
+      cfg.entry<bool>("DEBUG_SL", "Enable verbose interaction selection diagnostics", false);
+
+    DEBUG_CR =
+      cfg.entry<bool>("DEBUG_CR", "Enable printing of relative cross sections and probabilities for interaction selection", false);
+
+    NO_DOF =
+      cfg.entry<bool>("NO_DOF", "Suppress adjustment of electron speed based on degrees of freedom", true);
+
+    NO_VEL =
+      cfg.entry<bool>("NO_VEL", "Suppress adjustment of electron speed for equipartition equilibrium", false);
+
+    KE_DEBUG =
+      cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for weighted algorithm", true);
+
+    RECOMB_KE =
+      cfg.entry<bool>("RECOMB_KE", "Electron KE is lost in recombination", true);
+
+    RECOMB_IP =
+      cfg.entry<bool>("RECOMB_IP", "Electron KE AND electronic binding energy is lost in recombination", false);
+
+    CROSS_DBG =
+      cfg.entry<bool>("CROSS_DBG", "Enable verbose cross-section value diagnostics", false);
+
+    EXCESS_DBG =
+      cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
+
+    FloorEv =
+      cfg.entry<bool>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
 
     if (myid==0) {
       // cfg.display();

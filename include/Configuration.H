@@ -75,7 +75,7 @@ public:
 
   //! Access/set a parameter value
   template<typename T>
-  T getSet(const std::string& query, const std::string& desc, const T& def)
+  T entry(const std::string& query, const std::string& desc, const T& def)
   {
     if (pt.count(query)) {
       return pt.get<bool>(query+".value");
