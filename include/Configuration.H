@@ -59,7 +59,7 @@ public:
       break;
     case XML:
       {
-	boost::property_tree::xml_writer_settings<char> w(' ',2);
+	boost::property_tree::xml_writer_settings<std::string> w(' ', 2);
 	write_xml(filename+".xml", pt, locale(), w); 
       }
       break;
