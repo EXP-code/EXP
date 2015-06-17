@@ -6,14 +6,18 @@
 #include <vector>
 #include <cfloat>
 #include <cmath>
+#include <ctime>
 #include <tuple>
 #include <map>
+
+#include <boost/filesystem.hpp>
 
 #include "global.H"
 #include "UserTreeDSMC.H"
 #include "CollideIon.H"
 #include "localmpi.h"
 #include "Species.H"
+#include "Configuration.H"
 
 using namespace std;
 
@@ -40,42 +44,42 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 // Used energy first conservation for electron scattering
 //
-const bool ENERGY_ES         = false;
+static bool ENERGY_ES         = false;
 
 // For momentum ratio diagnostics
 //
-const bool ENERGY_ES_DBG     = true;
+static bool ENERGY_ES_DBG     = true;
 
 // Quadratic momentum solution
 //
-const bool ENERGY_ES_QUAD    = false;
+static bool ENERGY_ES_QUAD    = false;
 
 // Add trace energy excess to electron distribution
 //
-const bool TRACE_ELEC        = false;
+static bool TRACE_ELEC        = false;
 
 // Enable ion-electron secondary scattering
 //
-const bool SECONDARY_SCATTER = false;
+static bool SECONDARY_SCATTER = false;
 
 // Fraction of excess energy loss to give to the electrons
 //
-const double TRACE_FRAC      = 1.0;
+static double TRACE_FRAC      = 1.0;
 
 // Same species tests (for debugging only)
 //
-const bool SAME_ELEC_SCAT    = false;
-const bool SAME_IONS_SCAT    = false;
-const bool SAME_INTERACT     = false;
+static bool SAME_ELEC_SCAT    = false;
+static bool SAME_IONS_SCAT    = false;
+static bool SAME_INTERACT     = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
 //
-const bool frost_warning     = false;
+static bool frost_warning     = false;
 
 // Very verbose selection debugging. Set to false for production.
 //
-const bool DEBUG_SL          = false;
+static bool DEBUG_SL          = false;
 
 // Verbose cross-section debugging. Set to false for production.
 //
@@ -120,6 +124,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
+  // Process the feature config file
+  //
+  processConfig();
+
   // Debugging
   itp=0;
 
@@ -148,7 +156,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   
   collD = boost::shared_ptr<collDiag>(new collDiag(this));
 
-  // Banners warning user of test algorithms
+  // Banners logging the test algorithms
   //
   if (myid==0 && NOCOOL) 
     std::cout << std::endl
@@ -7090,3 +7098,69 @@ void CollideIon::printSpeciesElectrons
   dout << std::endl;
 }
 
+void CollideIon::processConfig()
+{
+  // Parse test algorithm features
+  //
+  Configuration cfg;
+  std::string config("CollideIon.config");
+
+  try {
+
+    if ( !boost::filesystem::exists(config) ) {
+      if (myid==0) std::cout << "CollideIon: can't find config file <" 
+			     << config << ">, using defaults" << std::endl;
+    } else {
+      cfg.load(config, "JSON");
+    }
+    
+    if (!cfg.property_tree().count("_description")) {
+      cfg.property_tree().put("_description", 
+			      "This is a test config database for CollideIon");
+      time_t t = time(0);   // get current time
+      struct tm * now = localtime( & t );
+      std::ostringstream sout;
+      sout << (now->tm_year + 1900) << '-' 
+	   << (now->tm_mon + 1) << '-'
+	   <<  now->tm_mday;
+      cfg.property_tree().put("_date", sout.str());
+    }
+    
+    ENERGY_ES = 
+      cfg.getSet<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
+
+    ENERGY_ES_DBG = 
+      cfg.getSet<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
+
+    ENERGY_ES_QUAD = 
+      cfg.getSet<bool>("ENERGY_ES_QUAD", "Use the COM quadratic version rather than lab", true);
+    
+    TRACE_ELEC =
+      cfg.getSet<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
+
+    SECONDARY_SCATTER =
+      cfg.getSet<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
+
+    TRACE_FRAC =
+      cfg.getSet<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);
+
+    SAME_ELEC_SCAT = 
+      cfg.getSet<bool>("SAME_ELEC_SCAT", "Only scatter electrons with the same donor-ion mass", false);
+
+    SAME_IONS_SCAT = 
+      cfg.getSet<bool>("SAME_IONS_SCAT", "Only scatter ions with the same mass", false);
+
+    SAME_INTERACT = 
+      cfg.getSet<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
+
+    if (myid==0) {
+      // cfg.display();
+      cfg.save(runtag +".CollideIon.config", "JSON");
+    }
+  }
+  catch (...) {
+    if (myid==0) std::cerr << "Error parsing CollideIon config info"
+			   << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 54);
+  }
+}

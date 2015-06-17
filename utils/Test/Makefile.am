@@ -15,7 +15,7 @@ AM_CFLAGS = -D_REENTRANT $(ADD_CFLAGS1) $(ADD_CFLAGS2) $(ADD_CFLAGS3)
 AM_CXXFLAGS = -std=c++11 -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CXXFLAGS3)
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
-bin_PROGRAMS = testparse testparams testparamsMPI testConfig
+bin_PROGRAMS = testparse testparams testparamsMPI testConfig simpleConfig
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
@@ -37,6 +37,10 @@ testparamsMPI_LDADD   = $(COMMON_LIBS)
 testConfig_SOURCES    = test_config.cc
 testConfig_LDFLAGS    = $(BOOST_LDFLAGS)
 testConfig_LDADD      = $(BOOST_LIBS)
+
+simpleConfig_SOURCES  = simple_config.cc
+simpleConfig_LDFLAGS  = $(BOOST_LDFLAGS)
+simpleConfig_LDADD    = $(BOOST_LIBS)
 
 CLEANFILES	=
 

@@ -1,4 +1,4 @@
-#include <Configuration.H>
+#include "Configuration.H"
 
 #define DEFAULT_LABEL "not found"
 
@@ -79,22 +79,52 @@ int main(int argc, char **argv)
     used[i] = input[i];
 
   Configuration cfg(used[0], in_type);
-  cfg.display();
-  cfg.save(used[1], out_type);
 
-  // example: how to grab data from property tree
-  //
-  if (testGet) {
-    std::string lab = 
-      cfg.property_tree().get<std::string>(dkey, DEFAULT_LABEL);
-    int val = 
-      cfg.property_tree().get<int>(vkey, -1);
+  ptree tree = cfg.property_tree();
 
-    std::cout << std::endl;
-    std::cout << "Label = " << lab << std::endl;
-    std::cout << "Value = " << val << std::endl;
-    std::cout << std::endl;
+  std::cout << "Top level nodes" << std::endl 
+	    << "---------------" << std::endl;
+
+  for (auto &v : tree.get_child("") ) {
+    // Get the node name
+    string nodestr = tree.get<string>(v.first);
+      
+    // print current node
+    //
+    if ( nodestr.length() > 0 ) {
+      std::cout << string("").assign(4,' ') << "* ";
+      std::cout << v.first;
+      std::cout << "=\"" << tree.get<string>(v.first) << "\"";
+      std::cout << std::endl;
+    } else if (v.first.length()) {
+      std::cout << string("").assign(4,' ') << "* ";
+      std::cout << v.first << std::endl;
+    } else {
+      std::cout << string("").assign(4,' ') << "* ";
+      std::cout << v.second.data() << std::endl;
+    }
   }
+
+  std::cout << std::endl
+	    << "Example get" << std::endl 
+	    << "-----------" << std::endl << std::left
+	    << std::setw(20) << "Name" 
+	    << std::setw(20) << "Value" << "Comment field"  << std::endl
+	    << std::setw(20) << "-----" 
+	    << std::setw(20) << "-----" << "-------------"  << std::endl
+	    << std::setw(20) << "param1" 
+	    << std::setw(20) << tree.get<int>("param1.value", -1) 
+	    << tree.get<string>("param1.desc", "") << std::endl
+	    << std::setw(20) << "param2"
+	    << std::setw(20) << tree.get<float>("param2.value", 0.0)
+	    << tree.get<string>("param2.desc", "") << std::endl
+	    << std::setw(20) << "param3"
+	    << std::setw(20) << tree.get<string>("param3.value", "No string") 
+	    << tree.get<string>("param3.desc", "[None]") << std::endl
+	    << std::setw(20) << "param4"
+	    << std::setw(20) << tree.get<int>("param4.value", -1)
+	    << tree.get<string>("param4.desc", "") << std::endl
+	    << std::endl;
 
   return 0;
 }
