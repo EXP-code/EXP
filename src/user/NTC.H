@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <vector>
 #include <tuple>
@@ -10,6 +11,17 @@
 #include <map>
 
 #include <boost/shared_ptr.hpp>
+
+#include <boost/archive/xml_iarchive.hpp>
+#include <boost/archive/xml_oarchive.hpp>
+
+#include <boost/serialization/base_object.hpp>
+#include <boost/serialization/shared_ptr.hpp>
+#include <boost/serialization/utility.hpp>
+#include <boost/serialization/list.hpp>
+#include <boost/serialization/map.hpp>
+
+#include <boost/filesystem.hpp>
 
 #include "pHOT_types.H"
 #include "Species.H"
@@ -145,6 +157,7 @@ std::ostream& operator<< (std::ostream& stream,
 
 class NTCitem
 {
+  friend class boost::serialization::access;
   friend class NTCdb;
 
 public:
@@ -157,12 +170,27 @@ public:
   //! Compute a running quantile using a relaxation scheme
   class Quantile
   {
+    friend class boost::serialization::access;
+    
   private:
 
     double eta;
     vcTup  q;
     double p;
     unsigned long c;
+
+  protected:
+
+    Quantile() {}
+
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+      ar & BOOST_SERIALIZATION_NVP(eta);
+      ar & BOOST_SERIALIZATION_NVP(q);
+      ar & BOOST_SERIALIZATION_NVP(p);
+      ar & BOOST_SERIALIZATION_NVP(c);
+    }
 
   public:
 
@@ -225,6 +253,8 @@ public:
 
   class QuantileArray
   {
+    friend class boost::serialization::access;
+
   public:
 
     typedef std::tuple<double, vcTup, double> d3;
@@ -232,6 +262,14 @@ public:
 
   private:
     std::map<double, qPtr> tt;
+
+  protected:
+
+    template<class Archive>
+    void serialize(Archive &ar, const unsigned int version)
+    {
+      ar & BOOST_SERIALIZATION_NVP(tt);
+    }
 
   public:
     //! Null constructor
@@ -309,6 +347,15 @@ protected:
   void setKey(const key_type& k) { caller = k; }
   //@}
 
+  template<class Archive>
+  void serialize(Archive &ar, const unsigned int version)
+  {
+    ar & BOOST_SERIALIZATION_NVP(db);
+    ar & BOOST_SERIALIZATION_NVP(caller);
+    ar & BOOST_SERIALIZATION_NVP(report);
+    ar & BOOST_SERIALIZATION_NVP(inTest);
+  }
+
 public:
 
   //! Constructor
@@ -345,19 +392,133 @@ public:
 typedef boost::shared_ptr<NTCitem> NTCptr;
 typedef std::map<key_type, NTCptr> NTCdata;
 
+// Use a recursive C++-11 variadic template to serialize std::tuple
+//
+namespace boost {
+
+  namespace serialization {
+
+    // The generic recursion function for all but the first (<0>)
+    // tuple position
+    //
+    template<uint N>
+    struct Serialize
+    {
+      template<class Archive, typename... Arguments>
+      static void serialize(Archive & ar, std::tuple<Arguments...> & t, 
+			    const unsigned int version)
+      {
+	// Make the id name for the name-value pair
+	std::ostringstream s; s << "tuple_" << N-1;
+	// Archive
+        ar & make_nvp(s.str().c_str(), std::get<N-1>(t));
+	// Do next element
+        Serialize<N-1>::serialize(ar, t, version);
+      }
+    };
+
+    // Specialize the <0> case to stop the recursion
+    //
+    template<>
+    struct Serialize<0>
+    {
+      template<class Archive, typename... Arguments>
+      static void serialize(Archive & ar, std::tuple<Arguments...> & t, 
+			    const unsigned int version)
+      {
+	// Do nothing, end recursion
+      }
+    };
+
+    // Finally, the serialize template for std::tuple
+    template<class Archive, typename... Arguments>
+    void serialize(Archive & ar, std::tuple<Arguments...> & t, 
+		   const unsigned int version)
+    {
+      Serialize<sizeof...(Arguments)>::serialize(ar, t, version);
+    }
+    
+  }
+}
+
+
 //! Provide a nice interface for the NTCdata std::map
 class NTCdb
 {
+  friend class boost::serialization::access;
+
 protected:
 
   //! The std::map
   NTCdata data;
 
+  //! Last serialization step
+  int last_step;
+
+  //! Next serialization step
+  int next_step;
+  
+  //! Save interval
+  const int intvl = 5;
+
+  //! In serialization
+  bool inSer;
+
+  //! Save contents to a file
+  void save_myself(const std::string& filename)
+  {
+    // make an archive
+    std::ofstream ofs(filename.c_str());
+    boost::archive::xml_oarchive oa(ofs);
+    oa << BOOST_SERIALIZATION_NVP(data);
+    oa << BOOST_SERIALIZATION_NVP(last_step);
+    oa << BOOST_SERIALIZATION_NVP(next_step);
+  }
+
+  //! Restore contents from a file
+  void restore_myself(const std::string& filename)
+  {
+    inSer = true;
+
+    // open the archive
+    std::ifstream ifs(filename.c_str());
+    boost::archive::xml_iarchive ia(ifs);
+
+    // restore the data from the archive
+    ia >> BOOST_SERIALIZATION_NVP(data);
+    ia >> BOOST_SERIALIZATION_NVP(last_step);
+    ia >> BOOST_SERIALIZATION_NVP(next_step);
+  }
+
 public:
+
+  //! Constructor
+  NTCdb()
+  {
+    last_step = this_step;
+    next_step = last_step + intvl;
+    if (!inSer) {
+      std::string filename = ".ntcdb." + runtag;
+      if ( boost::filesystem::exists(filename) ) {
+	restore_myself(filename);
+      }
+    }
+    inSer = false;
+  }
 
   //! Return shared pointer to NTCitem instance for cell key k
   NTCptr operator[](const key_type& k);
 
+  //! Update the serialization file
+  void update()
+  {
+    if (this_step >= next_step) {
+      std::string filename = ".ntcdb." + runtag;
+      save_myself(filename);
+      next_step = this_step + intvl;
+    }
+  }
+  
 };
 
 #endif

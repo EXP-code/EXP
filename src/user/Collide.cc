@@ -747,6 +747,10 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   
   caller->print_timings("Collide: collision thread timings", timer_list);
   
+  // Persist NTC database
+  //
+  if (mlevel==0) ntcdb.update();
+
   return ret;
 }
 

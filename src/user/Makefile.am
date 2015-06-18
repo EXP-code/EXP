@@ -103,7 +103,7 @@ libdsmc_la_SOURCES = UserDSMC.cc
 libdsmc_la_LIBADD = libcommon.a
 
 libtreegas_la_SOURCES = UserTreeDSMC.cc 
-libtreegas_la_LIBADD = $(BOOST_FILESYSTEM_LIB) libcommon.a libdsmc.a
+libtreegas_la_LIBADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_SERIALIZATION_LIB) libcommon.a libdsmc.a
 
 libperiodic_la_SOURCES = UserPeriodic.cc 
 libperiodic_la_LIBADD = libcommon.a
