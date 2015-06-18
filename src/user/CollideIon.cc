@@ -6966,6 +6966,10 @@ void CollideIon::printSpeciesElectrons
     sout << outdir << runtag << ".species";
     species_file_debug = sout.str();
 
+    // Make species list
+    //
+    for (auto k : spec) specZ.insert(k.first.first);
+
     // Check for existence of file
     //
     std::ifstream in (species_file_debug.c_str());
@@ -6974,8 +6978,6 @@ void CollideIon::printSpeciesElectrons
     //
     if (in.fail()) {
       
-      for (auto k : spec) specZ.insert(k.first.first);
-
       // Open the file for the first time
       //
       dout.open(species_file_debug.c_str());
