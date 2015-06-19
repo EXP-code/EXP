@@ -582,7 +582,7 @@ protected:
   int next_step;
   
   //! Save interval
-  const int intvl = 1;
+  const int intvl = 10;
 
   //! In serialization
   bool inSer;
