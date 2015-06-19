@@ -298,27 +298,6 @@ public:
     void serialize(Archive &ar, const unsigned int version)
     {
       ar & BOOST_SERIALIZATION_NVP(tt);
-      if (Archive::is_loading::value) {
-	std::cout << ".................." << std::endl;
-	std::cout << " Loading [" << myid << "]" << std::endl;
-	std::cout << ".................." << std::endl;
-	std::cout << "Size=" << tt.size() << std::endl;
-	for (auto v : tt) {
-	  std::cout << "v=" << v.first    << std::endl;
-	}
-	std::cout << ".................." << std::endl;
-      }
-
-      if (Archive::is_saving::value) {
-	std::cout << ".................." << std::endl;
-	std::cout << " Saving [" << myid << "]" << std::endl;
-	std::cout << ".................." << std::endl;
-	std::cout << "Size=" << tt.size() << std::endl;
-	for (auto v : tt) {
-	  std::cout << "v=" << v.first    << std::endl;
-	}
-	std::cout << ".................." << std::endl;
-      }
     }
 
   public:
@@ -390,11 +369,6 @@ public:
 	qPtr q(new Quantile);
 	q->recv(id);
 	tt[d] = q;
-      }
-
-      if (tt.size()==0) {
-	std::cout << "Root received zero tt size from Node " << id 
-		  << std::endl;
       }
     }
 
@@ -501,11 +475,6 @@ public:
       MPI_Send(&p2.second, 1, MPI_UNSIGNED_SHORT, 0, 1115, MPI_COMM_WORLD);
       
       p.second.send();
-      
-      if (p.second.size()==0) {
-	std::cout << "Sending zero db size in Node " << myid 
-		  << " for key=" << p.first << std::endl;
-      }
     }
     
   }
@@ -538,11 +507,6 @@ public:
       sKeyPair key(p1, p2);
       
       db[key].recv(id);
-      
-      if (db[key].size()==0) {
-	std::cout << "Received zero db size in Node " << myid 
-		  << " for key=" << key << std::endl;
-      }
     }
   }
 
