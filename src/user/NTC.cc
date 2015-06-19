@@ -71,11 +71,26 @@ void NTCitem::VelCrsTest()
   inTest = false;
 }
 
-NTCitem::vcMap NTCitem::VelCrsAvg(double quant)
+NTCitem::vcMap NTCitem::VelCrsAvg(double _quant)
 {
   vcMap ret;
-  bool ok = (qs.find(quant) != qs.end());
+  
+  // Check for quant
+  //
+  const double slop = 1.0e-3;
+  double qmax = 1.0e20, quant = 0.5;
+  for (auto v : qs) {
+    double qtst = fabs(v - _quant);
+    if (qmax > qtst) {
+      quant = v;
+      qmax  = qtst;
+    }
+  }
 
+  bool ok = (qmax < slop);
+
+  // Deal with round off issues on resume
+  //
   for (auto v : db) {
     if (ok)
       ret[v.first] = v.second[quant]->get();
@@ -86,10 +101,22 @@ NTCitem::vcMap NTCitem::VelCrsAvg(double quant)
   return ret;
 }
 
-NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double quant)
+NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double _quant)
 {
   // Check for quant
-  bool ok = (qs.find(quant) != qs.end());
+  //
+  const double slop = 1.0e-3;
+  double qmax = 1.0e20, quant = 0.5;
+  for (auto v : qs) {
+    double qtst = fabs(v - _quant);
+    if (qmax > qtst) {
+      quant = v;
+      qmax  = qtst;
+    }
+  }
+
+  bool ok = (qmax < slop);
+
 
   // Get stanza in db
   qpMap::iterator it = db.find(indx);

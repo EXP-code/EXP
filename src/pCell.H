@@ -202,4 +202,6 @@ public:
 
 const speciesKey defaultKey(-1, -1);
 
+std::ostream& operator<< (std::ostream& stream, const sKeyPair& v);
+
 #endif

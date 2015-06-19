@@ -179,10 +179,6 @@ public:
     double p;
     unsigned long c;
 
-  protected:
-
-    Quantile() {}
-
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
@@ -193,6 +189,9 @@ public:
     }
 
   public:
+
+    //! Null constructor
+    Quantile() : eta(0.0), p(0.0), c(0) {}
 
     //! Constructor
     Quantile(double eta, const vcTup& q, double p) : 
@@ -247,6 +246,38 @@ public:
     //! Get number of samples
     const unsigned long count() { return c; }
 
+    //@{
+    //! MPI syncronize
+
+    //! Node sends data to root
+    void send()
+    {
+      MPI_Send(&eta,              1, MPI_DOUBLE, 0, 1101, MPI_COMM_WORLD);
+      MPI_Send(&(std::get<0>(q)), 1, MPI_DOUBLE, 0, 1102, MPI_COMM_WORLD);
+      MPI_Send(&(std::get<1>(q)), 1, MPI_DOUBLE, 0, 1103, MPI_COMM_WORLD);
+      MPI_Send(&(std::get<2>(q)), 1, MPI_DOUBLE, 0, 1104, MPI_COMM_WORLD);
+      MPI_Send(&p,                1, MPI_DOUBLE, 0, 1105, MPI_COMM_WORLD);
+      MPI_Send(&c,                1, MPI_UNSIGNED_LONG, 0, 1106, MPI_COMM_WORLD);
+    }
+
+    // Root intializes itself from node's data
+    void recv(int id)
+    {
+      MPI_Recv(&eta,              1, MPI_DOUBLE, id, 1101, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<0>(q)), 1, MPI_DOUBLE, id, 1102, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<1>(q)), 1, MPI_DOUBLE, id, 1103, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<2>(q)), 1, MPI_DOUBLE, id, 1104, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&p,                1, MPI_DOUBLE, id, 1105, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&c, 1, MPI_UNSIGNED_LONG, id, 1106, MPI_COMM_WORLD, 
+	       MPI_STATUS_IGNORE);
+    }
+    //@}
+
   };
 
   typedef boost::shared_ptr<Quantile> qPtr;
@@ -263,12 +294,31 @@ public:
   private:
     std::map<double, qPtr> tt;
 
-  protected:
-
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
       ar & BOOST_SERIALIZATION_NVP(tt);
+      if (Archive::is_loading::value) {
+	std::cout << ".................." << std::endl;
+	std::cout << " Loading [" << myid << "]" << std::endl;
+	std::cout << ".................." << std::endl;
+	std::cout << "Size=" << tt.size() << std::endl;
+	for (auto v : tt) {
+	  std::cout << "v=" << v.first    << std::endl;
+	}
+	std::cout << ".................." << std::endl;
+      }
+
+      if (Archive::is_saving::value) {
+	std::cout << ".................." << std::endl;
+	std::cout << " Saving [" << myid << "]" << std::endl;
+	std::cout << ".................." << std::endl;
+	std::cout << "Size=" << tt.size() << std::endl;
+	for (auto v : tt) {
+	  std::cout << "v=" << v.first    << std::endl;
+	}
+	std::cout << ".................." << std::endl;
+      }
     }
 
   public:
@@ -303,7 +353,52 @@ public:
     {
       return tt[p];
     }
-  };
+
+    size_t size()
+    {
+      return tt.size();
+    }
+
+    //! Node sends to root
+    void send()
+    {
+      // Sends the array of Quantiles
+      //
+      unsigned siz = tt.size();
+      MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1130, MPI_COMM_WORLD);
+      for (auto &p : tt) {
+	double d = p.first;
+	MPI_Send(&d, 1, MPI_DOUBLE, 0, 1131, MPI_COMM_WORLD);
+	p.second->send();
+      }
+    }
+      
+    //! Root initializes itself from node's data
+    void recv(int id) 
+    {
+      unsigned siz;
+      MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1130, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+
+      // Receives the array of quantiles from a node
+      //
+      for (unsigned j=0; j<siz; j++) {
+	double d;
+	MPI_Recv(&d, 1, MPI_DOUBLE, id, 1131, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+
+	qPtr q(new Quantile);
+	q->recv(id);
+	tt[d] = q;
+      }
+
+      if (tt.size()==0) {
+	std::cout << "Root received zero tt size from Node " << id 
+		  << std::endl;
+      }
+    }
+
+  }; // end: QuantileArray
   
   typedef std::map<sKeyPair, QuantileArray> qpMap;
 
@@ -387,6 +482,70 @@ public:
   
   //! Add a single value to the list
   void VelCrsAdd(sKeyPair indx, const vcTup& val);
+
+  //! Node sends to root
+  void send()
+  {
+    unsigned long clr = caller;
+    unsigned siz      = db.size();
+
+    MPI_Send(&clr, 1, MPI_UNSIGNED_LONG, 0, 1110, MPI_COMM_WORLD);
+    MPI_Send(&siz, 1, MPI_UNSIGNED,      0, 1111, MPI_COMM_WORLD);
+    for (auto &p : db) {
+      speciesKey p1 = p.first.first;
+      speciesKey p2 = p.first.second;
+      
+      MPI_Send(&p1.first,  1, MPI_UNSIGNED_SHORT, 0, 1112, MPI_COMM_WORLD);
+      MPI_Send(&p1.second, 1, MPI_UNSIGNED_SHORT, 0, 1113, MPI_COMM_WORLD);
+      MPI_Send(&p2.first,  1, MPI_UNSIGNED_SHORT, 0, 1114, MPI_COMM_WORLD);
+      MPI_Send(&p2.second, 1, MPI_UNSIGNED_SHORT, 0, 1115, MPI_COMM_WORLD);
+      
+      p.second.send();
+      
+      if (p.second.size()==0) {
+	std::cout << "Sending zero db size in Node " << myid 
+		  << " for key=" << p.first << std::endl;
+      }
+    }
+    
+  }
+
+  // Root node initializes from node
+  //
+  void recv(int id)
+  {
+    MPI_Recv(&caller, 1, MPI_UNSIGNED_LONG, id, 1110, MPI_COMM_WORLD,
+	     MPI_STATUS_IGNORE);
+      
+    unsigned siz;
+
+    MPI_Recv(&siz, 1, MPI_UNSIGNED,      id, 1111, MPI_COMM_WORLD,
+	     MPI_STATUS_IGNORE);
+
+    for (unsigned k=0; k<siz; k++) {
+
+      speciesKey p1, p2;
+
+      MPI_Recv(&p1.first,  1, MPI_UNSIGNED_SHORT, id, 1112, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&p1.second, 1, MPI_UNSIGNED_SHORT, id, 1113, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&p2.first,  1, MPI_UNSIGNED_SHORT, id, 1114, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+      MPI_Recv(&p2.second, 1, MPI_UNSIGNED_SHORT, id, 1115, MPI_COMM_WORLD,
+	       MPI_STATUS_IGNORE);
+
+      sKeyPair key(p1, p2);
+      
+      db[key].recv(id);
+      
+      if (db[key].size()==0) {
+	std::cout << "Received zero db size in Node " << myid 
+		  << " for key=" << key << std::endl;
+      }
+    }
+  }
+
 };
 
 typedef boost::shared_ptr<NTCitem> NTCptr;
@@ -459,18 +618,64 @@ protected:
   int next_step;
   
   //! Save interval
-  const int intvl = 5;
+  const int intvl = 1;
 
   //! In serialization
   bool inSer;
 
+  //! Persistent copy
+  NTCdata pdata;
+
+  //! Get copy from all nodes to save
+  void sync() 
+  {
+    if (myid==0) pdata = data;
+
+    unsigned siz;
+    unsigned long k;
+
+    for (int i=1; i<numprocs; i++) {
+      if (i==myid) {
+	siz = data.size();
+	MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1110, MPI_COMM_WORLD);
+	for (auto &p : data) {
+	  k = p.first;
+	  MPI_Send(&k, 1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
+	  p.second->send();
+	}
+
+      }
+
+      if (0==myid) {
+	MPI_Recv(&siz, 1, MPI_UNSIGNED, i, 1110, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
+	for (unsigned j=0; j<siz; j++) {
+	  MPI_Recv(&k, 1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  // Get the instance from the other node
+	  //
+	  NTCptr q(new NTCitem);
+	  q->recv(i);	  
+
+	  key_type key(k);
+	  pdata[key] = q;
+	}
+      }
+
+    }
+  }
+
   //! Save contents to a file
   void save_myself(const std::string& filename)
   {
+    // Synchronize
+    sync();
+
     // make an archive
     std::ofstream ofs(filename.c_str());
     boost::archive::xml_oarchive oa(ofs);
-    oa << BOOST_SERIALIZATION_NVP(data);
+    oa << BOOST_SERIALIZATION_NVP(pdata);
     oa << BOOST_SERIALIZATION_NVP(last_step);
     oa << BOOST_SERIALIZATION_NVP(next_step);
   }

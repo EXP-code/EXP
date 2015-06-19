@@ -963,3 +963,12 @@ unsigned pCell::remake_plev()
   maxplev = min<unsigned>(maxplev, multistep);
   return maxplev;
 }
+
+std::ostream& operator<< (std::ostream& stream, const sKeyPair& v)
+{
+  return stream << "[("  
+		<< std::setw(3) << v.first.first << ", "
+		<< std::setw(3) << v.first.second << "), ("
+		<< std::setw(3) << v.second.first << ", "
+		<< std::setw(3) << v.second.second << ")]";
+}
