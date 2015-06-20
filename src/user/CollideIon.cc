@@ -7107,6 +7107,8 @@ void CollideIon::processConfig()
   Configuration cfg;
   std::string config("CollideIon.config");
 
+  if (restart) config = runtag + ".CollideIon.config.json";
+
   try {
 
     if ( !boost::filesystem::exists(config) ) {

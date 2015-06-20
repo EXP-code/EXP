@@ -257,24 +257,18 @@ public:
       MPI_Send(&(std::get<1>(q)), 1, MPI_DOUBLE, 0, 1103, MPI_COMM_WORLD);
       MPI_Send(&(std::get<2>(q)), 1, MPI_DOUBLE, 0, 1104, MPI_COMM_WORLD);
       MPI_Send(&p,                1, MPI_DOUBLE, 0, 1105, MPI_COMM_WORLD);
-      MPI_Send(&c,                1, MPI_UNSIGNED_LONG, 0, 1106, MPI_COMM_WORLD);
+      MPI_Send(&c,         1, MPI_UNSIGNED_LONG, 0, 1106, MPI_COMM_WORLD);
     }
 
     // Root intializes itself from node's data
     void recv(int id)
     {
-      MPI_Recv(&eta,              1, MPI_DOUBLE, id, 1101, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<0>(q)), 1, MPI_DOUBLE, id, 1102, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<1>(q)), 1, MPI_DOUBLE, id, 1103, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<2>(q)), 1, MPI_DOUBLE, id, 1104, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&p,                1, MPI_DOUBLE, id, 1105, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&c, 1, MPI_UNSIGNED_LONG, id, 1106, MPI_COMM_WORLD, 
-	       MPI_STATUS_IGNORE);
+      MPI_Recv(&eta,              1, MPI_DOUBLE, id, 1101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<0>(q)), 1, MPI_DOUBLE, id, 1102, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<1>(q)), 1, MPI_DOUBLE, id, 1103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&(std::get<2>(q)), 1, MPI_DOUBLE, id, 1104, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&p,                1, MPI_DOUBLE, id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&c,         1, MPI_UNSIGNED_LONG, id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
     }
     //@}
 
@@ -356,15 +350,13 @@ public:
     void recv(int id) 
     {
       unsigned siz;
-      MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1130, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
+      MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1130, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
       // Receives the array of quantiles from a node
       //
       for (unsigned j=0; j<siz; j++) {
 	double d;
-	MPI_Recv(&d, 1, MPI_DOUBLE, id, 1131, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
+	MPI_Recv(&d, 1, MPI_DOUBLE, id, 1131, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	qPtr q(new Quantile);
 	q->recv(id);
@@ -483,26 +475,20 @@ public:
   //
   void recv(int id)
   {
-    MPI_Recv(&caller, 1, MPI_UNSIGNED_LONG, id, 1110, MPI_COMM_WORLD,
-	     MPI_STATUS_IGNORE);
+    MPI_Recv(&caller, 1, MPI_UNSIGNED_LONG, id, 1110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
     unsigned siz;
 
-    MPI_Recv(&siz, 1, MPI_UNSIGNED,      id, 1111, MPI_COMM_WORLD,
-	     MPI_STATUS_IGNORE);
+    MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
     for (unsigned k=0; k<siz; k++) {
 
       speciesKey p1, p2;
 
-      MPI_Recv(&p1.first,  1, MPI_UNSIGNED_SHORT, id, 1112, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&p1.second, 1, MPI_UNSIGNED_SHORT, id, 1113, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&p2.first,  1, MPI_UNSIGNED_SHORT, id, 1114, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
-      MPI_Recv(&p2.second, 1, MPI_UNSIGNED_SHORT, id, 1115, MPI_COMM_WORLD,
-	       MPI_STATUS_IGNORE);
+      MPI_Recv(&p1.first,  1, MPI_UNSIGNED_SHORT, id, 1112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&p1.second, 1, MPI_UNSIGNED_SHORT, id, 1113, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&p2.first,  1, MPI_UNSIGNED_SHORT, id, 1114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+      MPI_Recv(&p2.second, 1, MPI_UNSIGNED_SHORT, id, 1115, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
       sKeyPair key(p1, p2);
       
@@ -596,7 +582,12 @@ protected:
     if (myid==0) pdata = data;
 
     unsigned siz;
+#ifdef INT128
+    uint128 k;
+    unsigned long k1, k2;
+#else
     unsigned long k;
+#endif
 
     for (int i=1; i<numprocs; i++) {
       if (i==myid) {
@@ -604,26 +595,35 @@ protected:
 	MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1110, MPI_COMM_WORLD);
 	for (auto &p : data) {
 	  k = p.first;
-	  MPI_Send(&k, 1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
+#ifdef INT128
+	  k.decompose(k1, k2);
+	  MPI_Send(&k1, 1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
+	  MPI_Send(&k2, 1, MPI_UNSIGNED_LONG, 0, 1112, MPI_COMM_WORLD);
+#else
+	  MPI_Send(&k,  1, MPI_UNSIGNED_LONG, 0, 1111, MPI_COMM_WORLD);
+#endif
 	  p.second->send();
 	}
 
       }
 
       if (0==myid) {
-	MPI_Recv(&siz, 1, MPI_UNSIGNED, i, 1110, MPI_COMM_WORLD,
-		 MPI_STATUS_IGNORE);
+	MPI_Recv(&siz, 1, MPI_UNSIGNED, i, 1110, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (unsigned j=0; j<siz; j++) {
-	  MPI_Recv(&k, 1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
+#ifdef INT128
+	  MPI_Recv(&k1, 1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&k2, 1, MPI_UNSIGNED_LONG, i, 1112, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  k.recompose(k1, k2);
+#else
+	  MPI_Recv(&k,  1, MPI_UNSIGNED_LONG, i, 1111, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+#endif
 
 	  // Get the instance from the other node
 	  //
 	  NTCptr q(new NTCitem);
 	  q->recv(i);	  
 
-	  key_type key(k);
-	  pdata[key] = q;
+	  pdata[k] = q;
 	}
       }
 

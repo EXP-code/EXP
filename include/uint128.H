@@ -38,11 +38,25 @@ public:
   uint128 (const long double & a) throw ();
   uint128 (const char * sz) throw ();
   
+  void decompose(unsigned long & a, unsigned long & b)
+  {
+    a = lo;
+    b = hi;
+  }
+  
+  void recompose(const unsigned long a, const unsigned long b)
+  {
+    lo = a;
+    hi = b;
+  }
+  
 private:
-  // Used internally for contructing return instances
+
+  // For constructing an instance from communicated pieces
   uint128 (const uint64_t & a, const uint64_t & b) throw ()
     : lo (a), hi (b) {};
-  
+
+
 public:
   // Operators
   bool operator ! () const throw ();
