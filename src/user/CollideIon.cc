@@ -3270,7 +3270,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     double testE = dKE;
     if (Z1==Z2)
       testE += Exs - delE - missE;
-    else if (C1==1 and C2==1 or electronic)
+    else if ((C1==1 and C2==1) or electronic)
       testE -= deltaKE;
 
     if (fabs(testE) > 1.0e-14*(tKEi+tKEf) )
