@@ -85,6 +85,11 @@ static bool DEBUG_SL          = false;
 //
 static bool DEBUG_CR          = false;
 
+// Verbose cross-section debugging for unequal species only. Set to
+// false for production.
+//
+static bool DEBUG_NQ          = false;
+
 // Artifically suppress electron equipartition speed
 //
 static bool NO_DOF            = true;
@@ -1740,10 +1745,8 @@ int CollideIon::inelasticDirect(pCell* const c,
     //-------------------------
     // VERBOSE DEBUG TEST
     //-------------------------
-    // Set to false for production
-    //  |
-    //  v
-    if (DEBUG_CR) {
+    //
+    if (DEBUG_CR and (!DEBUG_NQ or Z1 != Z2) ) {
       //
       // Output on collisions for now . . . 
       //
@@ -2675,10 +2678,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     //-------------------------
     // VERBOSE DEBUG TEST
     //-------------------------
-    // Set to false for production
-    //  |
-    //  v
-    if (DEBUG_CR) {
+    //
+    if (DEBUG_CR and (!DEBUG_NQ or Z1 != Z2) ) {
       speciesKey i1 = k1.getKey();
       speciesKey i2 = k2.getKey();
       double cfac = 1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -3604,9 +3605,7 @@ int CollideIon::inelasticTrace(pCell* const c,
   //-------------------------
   // VERBOSE DEBUG TEST
   //-------------------------
-  // Set to false for production
-  //  |
-  //  v
+  //
   if (DEBUG_CR) {
     std::cout << std::setw( 8) << "index"
 	      << std::setw( 4) << "Z"
@@ -7173,6 +7172,9 @@ void CollideIon::processConfig()
 
     DEBUG_CR =
       cfg.entry<bool>("DEBUG_CR", "Enable printing of relative cross sections and probabilities for interaction selection", false);
+
+    DEBUG_NQ =
+      cfg.entry<bool>("DEBUG_NQ", "Printing of cross section debug info for unequal species only", false);
 
     NO_DOF =
       cfg.entry<bool>("NO_DOF", "Suppress adjustment of electron speed based on degrees of freedom", true);

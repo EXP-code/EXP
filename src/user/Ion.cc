@@ -1929,7 +1929,7 @@ void VernerData::initialize(chdata* ch)
 /**
    Calculates the photoionization cross section.
    
-   The data are from Verner and Yakovlev.
+   The data are from Verner and Yakolev (1995).
    
    The cross section is evaluated for the next lower ionization
    stage.
@@ -1946,6 +1946,7 @@ double VernerData::cross(const lQ& Q, double EeV)
   lQ rQ(Q.first, Q.second-1);
 
   // No data for this ion
+  //
   if (data.find(rQ) == data.end()) return 0.0;
 
   Ion*  origI  = ch->IonList[ Q].get();
@@ -1966,21 +1967,20 @@ double VernerData::cross(const lQ& Q, double EeV)
     double y   = Eph/vdata->e0;
     double y1  = y - 1.0;
     
-    if (y1>0.0) {
-
-      // Verner and Yakolev, equation 1
-      double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
-	pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
-	pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
-      
-      double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
-	static_cast<double>(v.second.mult) / mult0;
+    // Verner and Yakolev, equation 1
+    //
+    double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
+      pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
+      pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
     
-      vCross += cross;
-    }
+    double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
+      static_cast<double>(v.second.mult) / mult0;
+    
+    vCross += cross;
   }
   
   // Convert from Mbarnes to nm^2
+  //
   return vCross * 1.0e-4;
 }
 
