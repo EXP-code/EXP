@@ -3268,8 +3268,9 @@ int CollideIon::inelasticWeight(pCell* const c,
     }
 				// Check energy balance including excess
     double testE = dKE;
-    if (Z1==Z2)
+    if (Z1==Z2)			// Add in energy loss/gain
       testE += Exs - delE - missE;
+				// Correct for trace-algorithm excess
     else if ((C1==1 and C2==1) or electronic)
       testE -= deltaKE;
 
