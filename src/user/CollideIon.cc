@@ -3142,8 +3142,12 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Electron velocity is computed so that momentum is conserved
   // ignoring the doner ion
   //
+  bool electronic = false;
+
   if (use_elec and interFlag > 100 and interFlag < 200) {
 
+    electronic = true;
+    
     if (equiptn) {
       for (size_t k=0; k<3; k++) {
 	vcom[k] = (m1*p1->vel[k] + m2*p2->dattrib[use_elec+k])/Mt;
@@ -3185,6 +3189,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     velER[id].push_back(vf2/vi2);
     
   } else if (use_elec and interFlag > 200 and interFlag < 300) {
+
+    electronic = true;
 
     if (equiptn) {
       for (size_t k=0; k<3; k++) {
@@ -3260,11 +3266,12 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (KE1i > 0) keIR[id].push_back((KE1i - KE1f)/KE1i);
       if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
     }
-				// Check Energy balance including excess
+				// Check energy balance including excess
     double testE = dKE;
-    if (Z1==Z2) testE += Exs - delE - missE;
-    else if (TRACE_ELEC) testE -= deltaKE;
-    if (C1==1 and C2==1) testE -= deltaKE;
+    if (Z1==Z2)
+      testE += Exs - delE - missE;
+    else if (C1==1 and C2==1 or electronic)
+      testE -= deltaKE;
 
     if (fabs(testE) > 1.0e-14*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
