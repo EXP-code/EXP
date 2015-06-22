@@ -6505,7 +6505,7 @@ void CollideIon::printSpecies
 
 void CollideIon::electronGather()
 {
-  bool IDBG = true;
+  bool IDBG = false;
 
   if ((aType==Direct or aType==Weight) && use_elec >= 0) {
 

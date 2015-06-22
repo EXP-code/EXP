@@ -95,7 +95,7 @@ private:
   // Parse the enum
   static pType parse(const std::string& stype) 
   {
-    pType etype;
+    pType etype(JSON);
     if (stype.compare("JSON") == 0)
       etype = Configuration::JSON;
     else if (stype.compare("XML") == 0)
