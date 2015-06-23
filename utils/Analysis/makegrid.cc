@@ -757,6 +757,13 @@ int main(int argc, char**argv)
 
 #else
 
+// Necessary globals for linking
+//
+std::string outdir, runtag;
+char threading_on = 0;
+int myid = 0;
+pthread_mutex_t mem_lock;
+
 int main()
 {
   std::cout << "You need to have VTK installed to use this tool"
