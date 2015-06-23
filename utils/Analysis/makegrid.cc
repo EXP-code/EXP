@@ -5,6 +5,10 @@
 #include <cmath>
 #include <values.h>
 
+#include "config.h"
+
+#ifdef HAVE_VTK
+
 //
 // STL stuff
 //
@@ -751,4 +755,15 @@ int main(int argc, char**argv)
   return (0);
 }
 
+#else
 
+int main()
+{
+  std::cout << "You need to have VTK installed to use this tool"
+	    << std::endl;
+
+  return (-1);
+}
+
+
+#endif

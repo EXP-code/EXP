@@ -104,6 +104,9 @@ AC_SUBST(exp_vtk_ldlib)
 
 AC_MSG_CHECKING([for VTK])
 if test x$havevtk = xyes; then
+
+   AC_DEFINE(HAVE_VTK,,[define if VTK is available])
+
    if test "$VTK_LIB_LOCATION" != ""; then
       exp_vtk_lib="-L$VTK_LIB_LOCATION -L$VTK_LIB_LOCATION/lib/vtk"
    else

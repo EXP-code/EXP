@@ -11,6 +11,7 @@ AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 libdir = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
+bin_PROGRAMS = testCrossSection
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -130,6 +131,10 @@ libtrigger_la_SOURCES = UserBarTrigger.cc
 libshear_la_SOURCES = UserShear.cc
 
 libprofile_la_SOURCES = UserProfile.cc
+
+testCrossSection_SOURCES = testCross.cc
+testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a
+
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .

@@ -1943,6 +1943,8 @@ double VernerData::cross(const lQ& Q, double EeV)
 				// Electron rest mass in eV
   constexpr double mec2 = 510.998896 * 1.0e3;
   
+  // The ion after recombination
+  //
   lQ rQ(Q.first, Q.second-1);
 
   // No data for this ion
@@ -1983,4 +1985,44 @@ double VernerData::cross(const lQ& Q, double EeV)
   //
   return vCross * 1.0e-4;
 }
+
+
+// 
+// Ground-state photoionization cross section
+//
+std::vector<double> Ion::photoIonizationCross(double E, int id)
+{
+  // Call for the cross section
+  //
+  lQ Q(Z, C);
+  std::vector<double> ret(1, ch->VernerXC.crossPhotoIon(Q, E));
+  return ret;
+}
+
+double VernerData::crossPhotoIon(const lQ& Q, double EeV)
+{
+  // No data for this ion
+  //
+  if (data.find(Q) == data.end()) return 0.0;
+
+  Ion* I = ch->IonList[ Q].get();
+
+  vrPtr  vdata  = data[Q];
+  double ip     = I->ip;
+  
+  double Eph = EeV + ip;
+  double y   = Eph/vdata->e0;
+  double y1  = y - 1.0;
+    
+  // Verner and Yakolev, equation 1
+  //
+  double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
+    pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
+    pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
+  
+  // Convert from Mbarnes to nm^2
+  //
+  return fy * 1.0e-4;
+}
+
 

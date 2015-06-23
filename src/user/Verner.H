@@ -38,8 +38,11 @@ public:
   void initialize(chdata* ch);
 
 
-  //! Calculates the photoionization cross section.
+  //! Calculates the recombination cross section.
   double cross(const lQ& Q, double EeV);
+
+  //! Calculates the photoionization cross section.
+  double crossPhotoIon(const lQ& Q, double EeV);
 };
 
 #endif

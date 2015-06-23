@@ -449,6 +449,10 @@ public:
   std::vector<double> radRecombCrossVerner (double E, int id);
   //@}
 
+  /** Ground state photoionization cross section using Verner (for
+      debugging */
+  std::vector<double> photoIonizationCross (double E, int id);
+
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);
   
