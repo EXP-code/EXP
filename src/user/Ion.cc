@@ -1001,7 +1001,7 @@ double Ion::freeFreeCross(double Ei, int id)
 
     cum = cum + dsig;
 
-    diff.push_back(dsig);
+    diff.push_back(dsig/dk);
     cuml.push_back(cum);
   }
 
@@ -1062,6 +1062,10 @@ double Ion::freeFreeCross(double Ei, int id)
     //
     double rr = r0 * (C - 1);
     phi = 16.0/3.0 * rr*rr/137.0;
+
+    // Use the integrated cross section from the differential grid
+    //
+    phi = cuml.back();
   }
 
   return phi;

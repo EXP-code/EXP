@@ -798,9 +798,9 @@ double CollideIon::crossSectionDirect(pCell* const c,
   double eVel2 = sqrt(m2/me/dof2);
 
   if (NO_VEL) {
-    eVel1 = eVel2 = 1.0;
+    eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
-    eVel1 = eVel2 = 0.0;
+    eVel0 = eVel1 = eVel2 = 0.0;
     for (unsigned i=0; i<3; i++) {
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
@@ -1137,9 +1137,9 @@ double CollideIon::crossSectionWeight(pCell* const c,
   double eVel2 = sqrt(m2/me/dof2);
 
   if (NO_VEL) {
-    eVel1 = eVel2 = 1.0;
+    eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
-    eVel1 = eVel2 = 0.0;
+    eVel0 = eVel1 = eVel2 = 0.0;
     for (unsigned i=0; i<3; i++) {
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
