@@ -15,6 +15,7 @@ using namespace std;
 #include <iomanip>
 #include <vector>
 #include <string>
+#include <tuple>
 #include <list>
 
 #include <Species.H>
@@ -142,7 +143,9 @@ main(int ac, char **av)
 
 				// Will contain array for each gas species
 				// ---------------------------------------
-    typedef std::map<speciesKey, double> shist;
+    typedef std::tuple<double, unsigned> shtup;
+    typedef std::map<speciesKey, shtup> shist;
+    const shtup tupzero(0.0, 0);
 
     PSPstanza *stanza;
     SParticle* part;
@@ -206,8 +209,9 @@ main(int ac, char **av)
 	if (sindx >= 0) {
 	  KeyConvert kc(part->iatr(sindx));
 	  speciesKey k = kc.getKey();
-	  if (hist1.find(k) == hist1.end()) hist1[k] = 0.0;
-	  hist1[k] += ms;
+	  if (hist1.find(k) == hist1.end()) hist1[k] = tupzero;
+	  std::get<0>(hist1[k]) += ms;
+	  std::get<1>(hist1[k]) ++;
 	}
       }
     
@@ -227,8 +231,12 @@ main(int ac, char **av)
 	cout  << "     Species" << endl;
 	for (auto v : hist1) {
 	  speciesKey k = v.first;
-	  cout  << "            <" << setw(2) << k.first << "," << setw(2) << k.second << ">"
-		<< "  :  " << v.second << endl;
+	  cout  << "            <"
+		<< setw(2) << k.first << "," << setw(2) << k.second << ">"
+		<< "  :  "
+		<< std::setw(16) << std::get<0>(v.second)
+		<< std::setw(10) << std::get<1>(v.second)
+		<< endl;
 	}
       }
     }

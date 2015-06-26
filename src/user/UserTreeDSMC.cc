@@ -402,19 +402,19 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   //
   // Set collision parameters
   //
-  Collide::NTC       = ntc;
-  Collide::PULLIN    = use_pullin;
-  Collide::ESOL      = esol;
-  Collide::EPSMratio = epsm;
-  Collide::DRYRUN    = dryrun;
-  Collide::NOCOOL    = nocool;
-  Collide::TSDIAG    = tsdiag;
-  Collide::VOLDIAG   = voldiag;
-  Collide::TSPOW     = tspow;
-  Collide::MFPDIAG   = mfpstat;
-  Collide::EFFORT    = use_effort;
-  Collide::ENHANCE   = enhance;
-  NTCitem::VelCrsDef = ntcdef;
+  Collide::NTC            = ntc;	   
+  Collide::PULLIN    	  = use_pullin; 
+  Collide::ESOL      	  = esol;	   
+  Collide::EPSMratio 	  = epsm;	   
+  Collide::DRYRUN    	  = dryrun;	   
+  Collide::NOCOOL    	  = nocool;	   
+  Collide::TSDIAG    	  = tsdiag;	   
+  Collide::VOLDIAG   	  = voldiag;	   
+  Collide::TSPOW     	  = tspow;	   
+  Collide::MFPDIAG   	  = mfpstat;	   
+  Collide::EFFORT    	  = use_effort; 
+  Collide::ENHANCE   	  = enhance;
+  NTC::NTCitem::VelCrsDef = ntcdef;
 
   //
   // Create the collision instance from the allowed list

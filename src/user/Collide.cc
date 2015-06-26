@@ -831,7 +831,7 @@ void * Collide::collide_thread(void * arg)
 
     // Container for NTC values
     //
-    std::map<sKeyPair, NTCitem::vcTup> ntcF;
+    std::map<sKeyPair, NTC::NTCitem::vcTup> ntcF;
 
     sKeyUmap::iterator it1, it2;
 
@@ -850,9 +850,9 @@ void * Collide::collide_thread(void * arg)
 	sKeyPair   k(i1, i2);
 
 	if (samp)
-	  ntcF[k]  = ntcdb[samp->mykey]->VelCrsAvg(k, 0.95);
+	  ntcF[k]  = ntcdb[samp->mykey].VelCrsAvg(k, 0.95);
 	else
-	  ntcF[k]  = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
+	  ntcF[k]  = NTC::NTCitem::vcTup(NTC::NTCitem::VelCrsDef, 0, 0);
       }
     }
 
@@ -1176,9 +1176,9 @@ void * Collide::collide_thread(void * arg)
 	    
 
 				// Accumulate average
-	    NTCitem::vcTup dat(prod, scrs, targ);
+	    NTC::NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
-	    ntcdb[samp->mykey]->VelCrsAdd(k, dat);
+	    ntcdb[samp->mykey].VelCrsAdd(k, dat);
 
 				// Sanity check
 	    if (ntcTot[id]>=1000000u and ntcTot[id] % 200000u==0) {
@@ -3142,7 +3142,7 @@ void Collide::NTCgather(pHOT* const tree)
     pHOT_iterator c(*tree);
     unsigned totsz = 0;
     while (c.nextCell()) {
-      NTCitem::vcMap v = ntcdb[c.Cell()->mykey]->VelCrsAvg(0.95);
+      NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].VelCrsAvg(0.95);
       totsz += v.size();
       for (auto i : v) {
 	both[i.first].push_back(std::get<0>(i.second));
@@ -3291,8 +3291,15 @@ void Collide::NTCstats(std::ostream& out)
 
 void Collide::mfpCLGather()
 {
+  // This vector will accumulate from all threads
   std::vector<double> data;
-  for (auto &v : mfpCLdata) data.insert(data.end(), v.begin(), v.end());
+
+  for (auto &v : mfpCLdata) {
+    // Append info from all threads
+    data.insert(data.end(), v.begin(), v.end());
+    // Remove all data for next step(s)
+    v.clear();
+  }
 
   for (int i=1; i<numprocs; i++) {
 

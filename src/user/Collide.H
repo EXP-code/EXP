@@ -357,7 +357,7 @@ protected:
 
 
   //! NTC database
-  NTCdb ntcdb;
+  NTC::NTCdb ntcdb;
 
 public:
   
