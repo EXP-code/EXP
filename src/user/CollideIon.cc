@@ -4503,9 +4503,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     pCell *samp = cell->sample;
 
     if (samp)
-      crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(electronKey, 0.95));
+      crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(electronKey, 0.95));
     else
-      crsvel = std::get<0>(ntcdb[cell->mykey]->VelCrsAvg(electronKey, 0.95));
+      crsvel = std::get<0>(ntcdb[cell->mykey].VelCrsAvg(electronKey, 0.95));
     
 
     // Probability of an interaction of between particles of type 1
@@ -4519,12 +4519,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     if (esType == limited or esType == fixed) 
       nselM = std::min<unsigned>(nselM, esNum);
 
-    NTCitem::vcTup ntcF;
+    NTC::NTCitem::vcTup ntcF;
 
     if (samp)
-      ntcF = ntcdb[samp->mykey]->VelCrsAvg(electronKey, 0.95);
+      ntcF = ntcdb[samp->mykey].VelCrsAvg(electronKey, 0.95);
     else
-      ntcF = NTCitem::vcTup(NTCitem::VelCrsDef, 0, 0);
+      ntcF = NTC::NTCitem::vcTup(NTC::NTCitem::VelCrsDef, 0, 0);
 
 
     for (unsigned n=0; n<nselM; n++) {
@@ -4649,9 +4649,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Update v_max and cross_max for NTC
 	//
-	NTCitem::vcTup dat(prod, scrs, targ);
+	NTC::NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
-	ntcdb[samp->mykey]->VelCrsAdd(electronKey, dat);
+	ntcdb[samp->mykey].VelCrsAdd(electronKey, dat);
       }
 
       // Scatter
@@ -5928,9 +5928,9 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  if (samp)
-	    crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
+	    crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
 	  else
-	    crsvel = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
+	    crsvel = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
 	  
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
@@ -5957,13 +5957,13 @@ sKey2Umap CollideIon::generateSelectionWeight
 	    if (selcM[i1][i2]>10000) {
 	      double cv1, cv2, cv3;
 	      if (samp) {
-		cv1 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.50));
-		cv2 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.90));
-		cv3 = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
+		cv1 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.50));
+		cv2 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.90));
+		cv3 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
 	      } else {
-		cv1 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.50));
-		cv2 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.90));
-		cv3 = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
+		cv1 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.50));
+		cv2 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.90));
+		cv3 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
 	      }
 
 	      std::cout << "Too many collisions: collP=" << meanCollP
@@ -6033,9 +6033,9 @@ sKey2Umap CollideIon::generateSelectionWeight
       
 	    double crsvel = 0.0;
 	    if (samp)
-	      crsvel = std::get<0>(ntcdb[samp->mykey]->VelCrsAvg(k, 0.95));
+	      crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
 	    else
-	      crsvel = std::get<0>(ntcdb[c->mykey]->VelCrsAvg(k, 0.95));
+	      crsvel = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
 

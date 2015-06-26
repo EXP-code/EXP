@@ -195,6 +195,25 @@ def plot_data(filename, msz, dot):
         pl.get_current_fig_manager().full_screen_toggle()
         pl.show()
 
+    # Fields to plot
+    #
+    ekeys = ['E(ce)', 'E(ci)', 'E(ff)', 'E(rr)']
+    elabs = ['collide', 'ionize', 'free-free', 'recomb']
+
+    for v in spec:
+        pl.subplot(1, 1, 1)
+        pl.xlabel('Temperature')
+        pl.ylabel('Energy')
+        cnt = 0
+        for k in range(4):
+            pl.plot(temp, data[v][ekeys[k]], '-', marker=mk, label=elabs[k], markersize=msz)
+        pl.title(v)
+        leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
+        leg.get_title().set_fontsize('6')
+        pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
+        pl.get_current_fig_manager().full_screen_toggle()
+        pl.show()
+
 
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """

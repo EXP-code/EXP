@@ -6,6 +6,8 @@
 #include "pCell.H"
 #include "NTC.H"
 
+using namespace NTC;
+
 // For verbose debugging
 static const bool DEBUG_V   = false;
 
@@ -42,16 +44,16 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      vcTup q1(k.second[u1]->get());
-      vcTup q2(k.second[u2]->get());
-      vcTup q3(k.second[u3]->get());
+      vcTup q1(k.second[u1].get());
+      vcTup q2(k.second[u2].get());
+      vcTup q3(k.second[u3].get());
 
       vcTup p1( std::get<0>(q1),  std::get<0>(q2), std::get<0>(q3) );
       vcTup p2( std::get<1>(q1),  std::get<1>(q2), std::get<1>(q3) );
       vcTup p3( std::get<2>(q1),  std::get<2>(q2), std::get<2>(q3) );
 
       std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second[u3]->count()
+		<< std::setw(10) << k.second[u3].count()
 		<< "  " << p1 << "  product" << std::endl 
 		<< std::setw(26) << "" << std::string(42, '-') << std::endl
 		<< std::setw(24) << ""
@@ -93,7 +95,7 @@ NTCitem::vcMap NTCitem::VelCrsAvg(double _quant)
   //
   for (auto v : db) {
     if (ok)
-      ret[v.first] = v.second[quant]->get();
+      ret[v.first] = v.second[quant].get();
     else
       ret[v.first] = vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
   }
@@ -133,7 +135,7 @@ NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double _quant)
 
   // Return quantile
   if (ok)
-    return it->second[quant]->get();
+    return it->second[quant].get();
   else
     return vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
 }
@@ -154,10 +156,10 @@ void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
 }
 
 
-NTCptr NTCdb::operator[](const key_type& k)
+NTCitem NTCdb::operator[](const key_type& k)
 {
   NTCdata::iterator it = data.find(k);
-  NTCptr ret;
+  NTCitem ret;
 
   if (it == data.end()) {
     
@@ -181,16 +183,16 @@ NTCptr NTCdb::operator[](const key_type& k)
     // parent
     //
     if (it == data.end()) {
-      data[k] = ret = NTCptr(new NTCitem);
+      data[k] = ret;
     } else {
-      data[k] = ret = NTCptr(new NTCitem(it->second));
+      ret = it->second;
     }
 
   } else {
     ret = it->second;
   }
 
-  if (DEBUG_V) ret->setKey(k);
+  if (DEBUG_V) ret.setKey(k);
 
   return ret;
 }

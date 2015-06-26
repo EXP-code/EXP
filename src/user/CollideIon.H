@@ -239,6 +239,46 @@ public:
    containing Z, the charge state C (C=1 means neutral, C=2 is the
    first ionization state, etc.) and the index position of the mass
    fraction in the Particle dattrib vector.
+
+   <h2> Direct Algorithm </h2>
+
+   Each super particle represents a particular element in a particular
+   state with the same total number of atoms or molecules.  Therefore,
+   there will be very few "metal" particles and this algorithm is not
+   suitable for a simulation were trace elements are important either
+   as a diagnostic or energetically (e.g.) as a cooling source.
+
+   <h2> Weight Algorithm </h2>
+
+   In this scheme, each particle carries a statistical weight.  This
+   permits a simulation where trace elements and dominant elements may
+   have the same number of super particles.  Of course, each super
+   particle represents a different number of actual atoms and
+   molecules.  Therefore, the collsions are modified with a splitting
+   algorithm that breaks the dominant element into a non-interacting
+   particle and an interacting particle with the same number of atoms
+   or molecules as the trace particle.  The split particle is
+   recombined after the interaction to conserve momentum.  The energy
+   deficit (because momentum and energy cannot be simultaneously
+   conserved in this algorithm) is added to the next non-trace
+   interaction.
+
+   <h2> Trace Algorithm </h2>
+
+   In this algorithm, each particle represents all possible atoms,
+   molecules and their various ionization and excitation states.  The
+   basic strategy is as follows:
+   <ol>
+
+   <li> Each superparticle interacts according to the mean scattering
+   cross section of all particles in its interaction cell
+
+   <li> The "interesting" inelastic interactions are electron +
+   neutral or electron + ion.  Therefore, when two particles interact,
+   their internal excitation states are assumed to change in
+   proportion to total probability of that interaction divided by the
+   number of superparticle interactions that will occur in each cell. 
+
  */
 class CollideIon : public Collide
 {
