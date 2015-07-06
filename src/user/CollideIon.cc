@@ -798,9 +798,9 @@ double CollideIon::crossSectionDirect(pCell* const c,
   double eVel2 = sqrt(m2/me/dof2);
 
   if (NO_VEL) {
-    eVel1 = eVel2 = 1.0;
+    eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
-    eVel1 = eVel2 = 0.0;
+    eVel0 = eVel1 = eVel2 = 0.0;
     for (unsigned i=0; i<3; i++) {
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
@@ -1137,9 +1137,9 @@ double CollideIon::crossSectionWeight(pCell* const c,
   double eVel2 = sqrt(m2/me/dof2);
 
   if (NO_VEL) {
-    eVel1 = eVel2 = 1.0;
+    eVel0 = eVel1 = eVel2 = 1.0;
   } else if (use_elec) {
-    eVel1 = eVel2 = 0.0;
+    eVel0 = eVel1 = eVel2 = 0.0;
     for (unsigned i=0; i<3; i++) {
       double rvel0 = p1->dattrib[use_elec+i] - p2->dattrib[use_elec+i];
       double rvel1 = p1->dattrib[use_elec+i] - p2->vel[i];
@@ -1296,8 +1296,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  // if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
-  if (ne2 > 0 and C1 <= Z1 and Z1>1) {
+  if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
       CE1[id] = ch.IonList[Q1]->collExciteCross(kEe1[id], id);
 
@@ -1313,8 +1312,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Ionization cross section
 				//-------------------------------
-  // if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
-  if (ne2 > 0 and C1 <= Z1 and Z1>2) {
+  if (ne2 > 0 and C1 <= Z1) {	// Particle 1 must be bound
 
     double DI1 = ch.IonList[Q1]->directIonCross(kEe1[id], id);
     double crs = eVel2 * ne2 * DI1;
@@ -1328,8 +1326,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Radiative recombination
 				//-------------------------------
-  // if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
-  if (C1 > 1 and ne2 > 0 and Z1>2) {
+  if (C1 > 1 and ne2 > 0) {	// Particle 1 must be an ion
 
     std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe1[id], id);
     double crs = eVel2 * ne2 * RE1.back();
@@ -1350,6 +1347,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
+
     double ff2 = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
     double crs = eVel1 * ne1 * ff2;
 
@@ -1362,8 +1360,7 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Collisional excitation
 				//-------------------------------
-  // if (ne1 > 0 and C2 <= Z2) {
-  if (ne1 > 0 and C2 <= Z2 and Z2>1) {
+  if (ne1 > 0 and C2 <= Z2) {
 
     CE2[id] = ch.IonList[Q2]->collExciteCross(kEe2[id], id);
     double crs = eVel1 * ne1 * CE2[id].back().first;
@@ -1377,8 +1374,8 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Ionization cross section
 				//-------------------------------
-  // if (ne1 > 0 and C2 <= Z2) {
-  if (ne1 > 0 and C2 <= Z2 and Z2>2) {
+  if (ne1 > 0 and C2 <= Z2) {
+
     double DI2 = ch.IonList[Q2]->directIonCross(kEe2[id], id);
     double crs = eVel1 * ne1 * DI2;
 
@@ -1391,8 +1388,8 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
 				// *** Radiative recombination
 				//-------------------------------
-  // if (C2 > 1 and ne1 > 0) {
-  if (C2 > 1 and ne1 > 0 and Z2>2) {
+  if (C2 > 1 and ne1 > 0) {
+
     std::vector<double> RE2 = ch.IonList[Q2]->radRecombCross(kEe2[id], id);
     double crs = eVel1 * ne1 * RE2.back();
 
