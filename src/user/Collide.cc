@@ -94,6 +94,22 @@ const double mp        = 1.67262158e-24;
 // Boltzmann constant (cgs)
 const double boltz     = 1.3810e-16;
 
+// Allow counter to stop job
+bool Collide::numSanityStop     = false;
+
+// Maximum number per step
+unsigned Collide::numSanityMax  = 100000000u;
+
+// Verbose messaging
+bool Collide::numSanityMsg      = false;
+
+// Lower thresh for reporting
+unsigned Collide::numSanityVal  = 10000000u;
+
+// Upper thresh for reporting
+unsigned Collide::numSanityFreq = 2000000u;
+
+
 
 extern "C"
 void *
@@ -1181,7 +1197,9 @@ void * Collide::collide_thread(void * arg)
 	    ntcdb[samp->mykey].VelCrsAdd(k, dat);
 
 				// Sanity check
-	    if (ntcTot[id]>=1000000u and ntcTot[id] % 200000u==0) {
+	    if (numSanityMsg and 
+		ntcTot[id] >= numSanityVal and 	
+		ntcTot[id] %  numSanityFreq == 0) {
 
 	      std::ostringstream sout;
 	      sout << "<"
@@ -3122,12 +3140,12 @@ void Collide::NTCgather(pHOT* const tree)
     //
     static bool notFirst = false;
 
-    if (notFirst) {
+    if (notFirst and numSanityStop) {
 
       MPI_Reduce(&Max, &gbMax,  1, MPI_UNSIGNED, MPI_MAX, 0, MPI_COMM_WORLD);
 
 				// Too many collisions!!
-      if (myid==0 && gbMax>15000000u) {
+      if (myid==0 && gbMax>numSanityMax) {
 	std::cerr << std::string(60, '-') << std::endl
 		  << " *** Too many collisions in NTC: " << gbMax << std::endl
 		  << std::string(60, '-') << std::endl;

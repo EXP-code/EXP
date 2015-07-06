@@ -117,6 +117,26 @@ public:
   const sKeyPair   electronKey = {electronDef, electronDef};
   //@}
 
+  //@{
+  //! Maximum number of collisions per step
+
+  //! Allow counter to stop job
+  static bool numSanityStop;
+
+  //! Maximum number per step
+  static unsigned numSanityMax;
+
+  //! Verbose messaging
+  static bool numSanityMsg;
+
+  //! Lower thresh for reporting
+  static unsigned numSanityVal;
+
+  //! Upper thresh for reporting
+  static unsigned numSanityFreq;
+  
+  //@}
+
 protected:
 
   //! Fiducial component

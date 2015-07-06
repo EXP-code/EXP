@@ -7200,6 +7200,21 @@ void CollideIon::processConfig()
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
 
+    Collide::numSanityStop =
+      cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
+
+    Collide::numSanityMax =
+      cfg.entry<unsigned>("maxStop", "Threshold for simulation stop", 100000000u);
+
+    Collide::numSanityMsg =
+      cfg.entry<bool>("collMsg", "Report collisions over threshold value", false);
+
+    Collide::numSanityVal =
+      cfg.entry<unsigned>("collMin", "Minimum threshold for reporting", 10000000u);
+
+    Collide::numSanityFreq =
+      cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+
     if (myid==0) {
       // cfg.display();
       cfg.save(runtag +".CollideIon.config", "JSON");
