@@ -581,9 +581,6 @@ namespace NTC {
     //! The std::map
     NTCdata data;
     
-    //! Last serialization step
-    int last_step;
-    
     //! Next serialization step
     int next_step;
     
@@ -654,12 +651,13 @@ namespace NTC {
       // Synchronize
       sync();
       
-      // make an archive
-      std::ofstream ofs(filename.c_str());
-      boost::archive::xml_oarchive oa(ofs);
-      oa << BOOST_SERIALIZATION_NVP(pdata);
-      oa << BOOST_SERIALIZATION_NVP(last_step);
-      oa << BOOST_SERIALIZATION_NVP(next_step);
+      // Only the root process makes an archive
+      if (myid==0) {
+	std::ofstream ofs(filename.c_str());
+	boost::archive::xml_oarchive oa(ofs);
+	oa << BOOST_SERIALIZATION_NVP(pdata);
+	oa << BOOST_SERIALIZATION_NVP(next_step);
+      }
       
       // Clean up node-aggregated db
       pdata.clear();
@@ -670,13 +668,12 @@ namespace NTC {
     {
       inSer = true;
       
-      // open the archive
+      // open the archive; all processes
       std::ifstream ifs(filename.c_str());
       boost::archive::xml_iarchive ia(ifs);
       
       // restore the data from the archive
       ia >> BOOST_SERIALIZATION_NVP(data);
-      ia >> BOOST_SERIALIZATION_NVP(last_step);
       ia >> BOOST_SERIALIZATION_NVP(next_step);
     }
     
@@ -685,8 +682,7 @@ namespace NTC {
     //! Constructor
     NTCdb()
     {
-      last_step = this_step;
-      next_step = last_step + intvl;
+      next_step = this_step + intvl;
       if (!inSer) {
 	std::string filename = ".ntcdb." + runtag;
 	if ( boost::filesystem::exists(filename) ) {
