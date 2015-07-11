@@ -2776,26 +2776,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<0>(ctd1->CI[id])++; 
       std::get<1>(ctd1->CI[id]) += Wb;
       std::get<2>(ctd1->CI[id]) += delE * NN;
-
-      if (NOCOOL and use_cons>=0) {
-				// Split electron energy
-	double kE = 0.0;
-	for (int k=0; k<3; k++) {
-	  double v = p2->dattrib[use_elec+k];
-	  kE += v*v;
-	}
-	double kE1 = kE*(*unit)();
-	double kE2 = kE - kE1;
-	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] *= sqrt(kE2/kE);
-	
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-
-	p1->dattrib[use_elec+0] = sqrt(kE1) * sin_th*cos(phi);
-	p1->dattrib[use_elec+1] = sqrt(kE1) * sin_th*sin(phi);
-	p1->dattrib[use_elec+2] = sqrt(kE1) * cos_th;
-      }
     }
 
     if (interFlag == recomb_1 && !NO_CHANGE) {
@@ -2815,7 +2795,6 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       if (NOCOOL and use_cons>=0) 
 	p2->dattrib[use_cons] += kEe1[id] * eV/UserTreeDSMC::Eunit;
-
     }
     
     //-------------------------
@@ -2860,26 +2839,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<0>(ctd2->CI[id])++; 
       std::get<1>(ctd2->CI[id]) += Wb;
       std::get<2>(ctd2->CI[id]) += delE * NN;
-
-      if (NOCOOL and use_cons>=0) {
-				// Split electron energy
-	double kE = 0.0;
-	for (int k=0; k<3; k++) {
-	  double v = p1->dattrib[use_elec+k];
-	  kE += v*v;
-	}
-	double kE1 = kE * (*unit)();
-	double kE2 = kE - kE1;
-	for (int k=0; k<3; k++) p1->dattrib[use_elec+k] *= sqrt(kE1/kE);
-	
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-
-	p2->dattrib[use_elec+0] = sqrt(kE2) * sin_th*cos(phi);
-	p2->dattrib[use_elec+1] = sqrt(kE2) * sin_th*sin(phi);
-	p2->dattrib[use_elec+2] = sqrt(kE2) * cos_th;
-      }
     }
 
     if (interFlag == recomb_2 && !NO_CHANGE) {
@@ -3234,12 +3193,16 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
+    double Esplit = (interFlag == ionize_1) ? (*unit)() : 0.0;
+
     // Electron from particle #2
     //
     for (size_t k=0; k<3; k++) {
       v2[k] *= vfac;
       p1->vel[k] = v1[k];
-      p2->dattrib[use_elec+k] = v2[k];
+      if (interFlag == ionize_1)
+	p1->dattrib[use_elec+k] = -Esplit*v2[k];
+      p2->dattrib[use_elec+k] = (1.0 - Esplit)*v2[k];
       vf2 += v2[k] * v2[k];
       if (interFlag == recomb_1) p1->dattrib[use_elec+k] = 0.0;
     }
@@ -3278,11 +3241,15 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
+    double Esplit = (interFlag == ionize_2) ? (*unit)() : 0.0;
+
     // Electron from particle #1
     //
     for (size_t k=0; k<3; k++) {
       v1[k] *= vfac;
-      p1->dattrib[use_elec+k] = v1[k];
+      if (interFlag == ionize_2)
+	p2->dattrib[use_elec+k] = -Esplit*v1[k];
+      p1->dattrib[use_elec+k] = (1.0 - Esplit)*v1[k];
       p2->vel[k] = v2[k];
       vf2 += v1[k] * v1[k];
       if (interFlag == recomb_2) p2->dattrib[use_elec+k] = 0.0;
