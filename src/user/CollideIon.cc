@@ -118,6 +118,10 @@ static bool CROSS_DBG         = false;
 //
 static bool EXCESS_DBG        = false;
 
+// Test without ionizaton or recombination
+//
+static bool NO_CHANGE         = false;
+
 
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
@@ -209,6 +213,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (RECOMB_KE ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMBE_IP"
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
+	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
+	      << (KE_DEBUG ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "NO_CHANGE"
+	      << (NO_CHANGE ? "on" : "off" )            << std::endl
 	      << "************************************" << std::endl;
   }
 
@@ -1823,7 +1831,7 @@ int CollideIon::inelasticDirect(pCell* const c,
       std::get<2>(ctd1->CE[id]) += delE * NN;
     }
 
-    if (interFlag == ionize_1) {
+    if (interFlag == ionize_1 && !NO_CHANGE) {
       delE          = IS.DIInterLoss(ch.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       partflag      = 1;
@@ -1832,7 +1840,7 @@ int CollideIon::inelasticDirect(pCell* const c,
       std::get<2>(ctd1->CI[id]) += delE * NN;
     }
 
-    if (interFlag == recomb_1) {
+    if (interFlag == recomb_1 && !NO_CHANGE) {
       if (RECOMB_KE) {
 	if (RECOMB_IP) {
 	  lQ rQ(Z1, C1-1);
@@ -1883,7 +1891,7 @@ int CollideIon::inelasticDirect(pCell* const c,
       std::get<2>(ctd2->CE[id]) += delE * NN;
     }
 
-    if (interFlag == ionize_2) {
+    if (interFlag == ionize_2 && !NO_CHANGE) {
       delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       std::get<0>(ctd2->CI[id])++; 
@@ -1892,7 +1900,7 @@ int CollideIon::inelasticDirect(pCell* const c,
       partflag     = 2;
     }
 
-    if (interFlag == recomb_2) {
+    if (interFlag == recomb_2 && !NO_CHANGE) {
       if (RECOMB_KE) {
 	if (RECOMB_IP) {
 	  lQ rQ(Z2, C2-1);
@@ -2745,7 +2753,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<1>(ctd1->ie[id]) += NN;
     }
 
-    if (interFlag == free_free_1) {
+    if (interFlag == free_free_1 && !NO_CHANGE) {
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
       std::get<0>(ctd1->ff[id])++; 
@@ -2753,7 +2761,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<2>(ctd1->ff[id]) += delE * NN;
     }
 
-    if (interFlag == colexcite_1) {
+    if (interFlag == colexcite_1 && !NO_CHANGE) {
       delE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]);
       partflag      = 1;
       std::get<0>(ctd1->CE[id])++;
@@ -2761,16 +2769,36 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<2>(ctd1->CE[id]) += delE * NN;
     }
 
-    if (interFlag == ionize_1) {
+    if (interFlag == ionize_1 && !NO_CHANGE) {
       delE          = IS.DIInterLoss(ch.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       partflag      = 1;
       std::get<0>(ctd1->CI[id])++; 
       std::get<1>(ctd1->CI[id]) += Wb;
       std::get<2>(ctd1->CI[id]) += delE * NN;
+
+      if (NOCOOL and use_cons>=0) {
+				// Split electron energy
+	double kE = 0.0;
+	for (int k=0; k<3; k++) {
+	  double v = p2->dattrib[use_elec+k];
+	  kE += v*v;
+	}
+	double kE1 = kE*(*unit)();
+	double kE2 = kE - kE1;
+	for (int k=0; k<3; k++) p2->dattrib[use_elec+k] *= sqrt(kE2/kE);
+	
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+
+	p1->dattrib[use_elec+0] = sqrt(kE1) * sin_th*cos(phi);
+	p1->dattrib[use_elec+1] = sqrt(kE1) * sin_th*sin(phi);
+	p1->dattrib[use_elec+2] = sqrt(kE1) * cos_th;
+      }
     }
 
-    if (interFlag == recomb_1) {
+    if (interFlag == recomb_1 && !NO_CHANGE) {
       if (RECOMB_KE) {
 	if (RECOMB_IP) {
 	  lQ rQ(Z1, C1-1);
@@ -2784,6 +2812,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<0>(ctd1->RR[id])++; 
       std::get<1>(ctd1->RR[id]) += Wb;
       std::get<2>(ctd1->RR[id]) += delE * NN;
+
+      if (NOCOOL and use_cons>=0) 
+	p2->dattrib[use_cons] += kEe1[id] * eV/UserTreeDSMC::Eunit;
+
     }
     
     //-------------------------
@@ -2805,7 +2837,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<1>(ctd2->ie[id]) += NN;
     }
 
-    if (interFlag == free_free_2) {
+    if (interFlag == free_free_2 && !NO_CHANGE) {
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
       partflag      = 2;
       std::get<0>(ctd2->ff[id])++;
@@ -2813,7 +2845,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<2>(ctd2->ff[id]) += delE * NN;
     }
 
-    if (interFlag == colexcite_2) {
+    if (interFlag == colexcite_2 && !NO_CHANGE) {
       delE         = IS.selectCEInteract(ch.IonList[Q2], CE2[id]);
       partflag     = 2;
       std::get<0>(ctd2->CE[id])++; 
@@ -2821,16 +2853,36 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<2>(ctd2->CE[id]) += delE * NN;
     }
 
-    if (interFlag == ionize_2) {
+    if (interFlag == ionize_2 && !NO_CHANGE) {
       delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
+      partflag     = 2;
       std::get<0>(ctd2->CI[id])++; 
       std::get<1>(ctd2->CI[id]) += Wb;
       std::get<2>(ctd2->CI[id]) += delE * NN;
-      partflag     = 2;
+
+      if (NOCOOL and use_cons>=0) {
+				// Split electron energy
+	double kE = 0.0;
+	for (int k=0; k<3; k++) {
+	  double v = p1->dattrib[use_elec+k];
+	  kE += v*v;
+	}
+	double kE1 = kE * (*unit)();
+	double kE2 = kE - kE1;
+	for (int k=0; k<3; k++) p1->dattrib[use_elec+k] *= sqrt(kE1/kE);
+	
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+
+	p2->dattrib[use_elec+0] = sqrt(kE2) * sin_th*cos(phi);
+	p2->dattrib[use_elec+1] = sqrt(kE2) * sin_th*sin(phi);
+	p2->dattrib[use_elec+2] = sqrt(kE2) * cos_th;
+      }
     }
 
-    if (interFlag == recomb_2) {
+    if (interFlag == recomb_2 && !NO_CHANGE) {
       if (RECOMB_KE) {
 	if (RECOMB_IP) {
 	  lQ rQ(Z2, C2-1);
@@ -2844,6 +2896,9 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<0>(ctd2->RR[id])++; 
       std::get<1>(ctd2->RR[id]) += Wb;
       std::get<2>(ctd2->RR[id]) += delE * NN;
+
+      if (NOCOOL and use_cons>=0)
+	p1->dattrib[use_cons] += kEe2[id] * eV/UserTreeDSMC::Eunit;  
     }
 
     // Convert to super particle
@@ -3777,7 +3832,7 @@ int CollideIon::inelasticTrace(pCell* const c,
 	pFlag = true;
       }
 
-      if (interFlag == ionize) {
+      if (interFlag == ionize && !NO_CHANGE) {
 	double dE = IS.DIInterLoss(ch.IonList[Q]); // <--- Energy lost
 
 	delE1 = dE * N1;
@@ -3816,7 +3871,7 @@ int CollideIon::inelasticTrace(pCell* const c,
 	pFlag = true;
       }
 
-      if (interFlag == recomb) {
+      if (interFlag == recomb && !NO_CHANGE) {
 
 	if (RECOMB_KE) {
 	  if (RECOMB_IP) {
@@ -4658,6 +4713,19 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	ntcdb[samp->mykey].VelCrsAdd(electronKey, dat);
       }
 
+
+      double deltaKE = 0.0, dKE = 0.0;
+      double KEi1 = 0.0, KEi2 = 0.0; // For debugging
+
+      if (KE_DEBUG) {
+
+	for (auto v : v1) KEi1 += v*v;
+	for (auto v : v2) KEi2 += v*v;
+
+	KEi1 *= 0.5*Wa*ma;
+	KEi2 *= 0.5*Wb*mb;
+      }
+
       // Scatter
       //
       if (ok) {
@@ -4793,8 +4861,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    
 	  } // end: TRACE_ELEC
 
-
-	} 
+	} // end: ENERGY_ES
 	
 	// Explicit momentum conservation
 	//
@@ -4805,12 +4872,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  double vfac = 1.0;
 	  if (equal) {
 	    double KE0 = 0.5*Wa*ma*mb/mt*vi*vi;
-	    double dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+	    dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
 	    vfac = sqrt(1.0 + dKE/KE0);
 	    p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
 	  }
 
-	  double deltaKE = 0.0, qKEfac = 0.5*Wa*ma*q*(1.0 - q);
+	  double qKEfac = 0.5*Wa*ma*q*(1.0 - q);
 	  for (int k=0; k<3; k++) {
 	    double v0 = vcom[k] + mb/mt*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
@@ -4820,6 +4887,40 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 				// Correct energy for conservation
 	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
 	}
+      }
+
+      if (KE_DEBUG) {
+
+	double KEf1 = 0.0;
+	double KEf2 = 0.0;
+
+	for (int k=0; k<3; k++) {
+	  double v1 = p1->dattrib[use_elec+k];
+	  double v2 = p2->dattrib[use_elec+k];
+	  KEf1 += v1*v1;
+	  KEf2 += v2*v2;
+	}
+
+	KEf1 *= 0.5*Wa*ma;
+	KEf2 *= 0.5*Wb*mb;
+	
+	double KEi = KEi1 + KEi2;
+	double KEf = KEf1 + KEf2;
+
+	double testE = KEi - KEf - deltaKE + dKE;
+	
+	if (fabs(testE) > 1.0e-10*KEi) {
+	  std::cout << "Total elec ("
+		    << k1.Z() << "," 
+		    << k2.Z() << ") = "
+		    << std::setw(14) << testE
+		    << ", KEi=" << std::setw(14) << KEi
+		    << ", KEf=" << std::setw(14) << KEf
+		    << ", exs=" << std::setw(14) << deltaKE
+		    << ", dKE=" << std::setw(14) << dKE
+		    << std::endl;
+	}
+
       }
 
     } // loop over particles
@@ -7004,11 +7105,12 @@ void CollideIon::printSpeciesElectrons
 	dout << setw(wid) << right << sout.str();
       }
       dout << std::setw(wid) << std::right << "Cons_E"
-	   << std::setw(wid) << std::right << "Totl_E"
+	   << std::setw(wid) << std::right << "Ions_E"
 	   << std::setw(wid) << std::right << "Comb_E";
       if (use_elec>=0) {
 	dout << std::setw(wid) << std::right << "Temp_E"
-	     << std::setw(wid) << std::right << "Elec_E";
+	     << std::setw(wid) << std::right << "Elec_E"
+	     << std::setw(wid) << std::right << "Totl_E";
 	for (auto Z : specZ) {
 	  std::ostringstream sout1, sout2, sout3, sout4, sout5, sout6;
 	  sout1 << "Eion(" << Z << ")";
@@ -7037,6 +7139,7 @@ void CollideIon::printSpeciesElectrons
 	   << std::setw(wid) << std::right << "--------";
       if (use_elec>=0) {
 	dout << std::setw(wid) << std::right << "--------"
+	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------";
 	for (size_t z=0; z<specZ.size(); z++)
 	  dout << std::setw(wid) << std::right << "--------"
@@ -7083,7 +7186,8 @@ void CollideIon::printSpeciesElectrons
        << std::setw(wid) << std::right << totlE + consE;
   if (use_elec>=0)
     dout << std::setw(wid) << std::right << tempE
-	 << std::setw(wid) << std::right << elecE;
+	 << std::setw(wid) << std::right << elecE
+	 << std::setw(wid) << std::right << elecE + totlE + consE;
   for (auto Z : specZ) {
     if (specI.find(Z) != specI.end()) {
       double E = std::get<0>(specI[Z]);
@@ -7118,6 +7222,9 @@ void CollideIon::processConfig()
   Configuration cfg;
   std::string config("CollideIon.config");
 
+  // Ensure that the original config is used, unless explicited edited
+  // by the user
+  //
   if (restart) config = runtag + ".CollideIon.config.json";
 
   try {
@@ -7200,6 +7307,9 @@ void CollideIon::processConfig()
 
     EXCESS_DBG =
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
+
+    NO_CHANGE =
+      cfg.entry<bool>("NO_CHANGE", "Disable ionization and recombination interactions", false);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
