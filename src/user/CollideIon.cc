@@ -3099,12 +3099,10 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     } else {
 
-      // Trace interaction. Assign energy loss to dominant particle.
+      // Trace interaction. Assign energy loss to dominant particle;
+      // always Particle #1
       //
-      if (Wa > Wb)
-	p1->dattrib[use_cons] += -delE;
-      else
-	p2->dattrib[use_cons] += -delE;
+      p1->dattrib[use_cons] += -delE;
 
       // Reset total energy to initial energy, deferring an changes to
       // non-trace interactions
