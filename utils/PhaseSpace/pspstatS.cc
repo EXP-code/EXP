@@ -36,19 +36,7 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-//-------------
-// Help message
-//-------------
-
-void Usage(char* prog) {
-  cerr << prog << ": [-t time -v -h] filename\n\n";
-  cerr << "    -t time         use dump closest to <time>\n";
-  cerr << "    -o name         prefix name for each component (default: comp)\n";
-  cerr << "    -h              print this help message\n";
-  cerr << "    -v              verbose output\n\n";
-  exit(0);
-}
-
+double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
 
 int
 main(int ac, char **av)
@@ -164,6 +152,7 @@ main(int ac, char **av)
       double ang1[3] = {0.0, 0.0, 0.0};
       double KE1     = 0.0;
       double PE1     = 0.0;
+      double EE1     = 0.0;
       double mass1   = 0.0;
 
       shist  hist1;		// For gas only
@@ -212,6 +201,12 @@ main(int ac, char **av)
 	  if (hist1.find(k) == hist1.end()) hist1[k] = tupzero;
 	  std::get<0>(hist1[k]) += ms;
 	  std::get<1>(hist1[k]) ++;
+	  double ke = 0.0;
+	  for (int i=0; i<3; i++) {
+	    double t = part->datr(eindx+i);
+	    ke += t*t;
+	  }
+	  EE1 + ke * 0.5*ms*atomic_masses[0]/atomic_masses[k.first];
 	}
       }
     
@@ -224,7 +219,7 @@ main(int ac, char **av)
       cout  << "     Ang mom:\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
       cout << endl;
-      cout  << "     Stats:\t\tKE=" << KE1 << " PE=" << PE1 << " -2T/W=" << -2.0*KE1/PE1
+      cout  << "     Stats:\t\tKE=" << KE1 << " PE=" << PE1 << " -2T/W=" << -2.0*KE1/PE1 << " E_e=" << EE1
 	    << " Mass=" << mass1 << endl;
 
       if (sindx >= 0) {
