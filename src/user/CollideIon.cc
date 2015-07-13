@@ -2618,7 +2618,9 @@ int CollideIon::inelasticWeight(pCell* const c,
     } else {
       // Accumulate the list here
       //
+      // if (dInter[id][i] % 100 != 5) {
       if (!scatter or dInter[id][i] % 100 < 3) tCross += dCross[id][i];
+      // }
       TotalCross.push_back(tCross);
     }
   }
@@ -2786,10 +2788,12 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<1>(ctd1->RR[id]) += Wb;
       std::get<2>(ctd1->RR[id]) += delE * NN;
 
-      if (NOCOOL and use_cons>=0) {
-	double lKE = 0.0, fE = 0.5*Wb*atomic_weights[0];
+      // Add the KE from the recombined electron back to the free pool
+      //
+      if (NOCOOL and C1==1 and use_cons>=0) {
+	double lKE = 0.0, fE = 0.5*Wa*atomic_weights[0];
 	for (size_t k=0; k<3; k++) {
-	  double t = p2->dattrib[use_elec+k];
+	  double t = p1->dattrib[use_elec+k];
 	  lKE += fE*t*t;
 	}
 	if (q<1)
@@ -2860,10 +2864,12 @@ int CollideIon::inelasticWeight(pCell* const c,
       std::get<1>(ctd2->RR[id]) += Wb;
       std::get<2>(ctd2->RR[id]) += delE * NN;
 
-      if (NOCOOL and use_cons>=0) {
-	double lKE = 0.0, fE = 0.5*Wa*atomic_weights[0];
+      // Add the KE from the recombined electron back to the free pool
+      //
+      if (NOCOOL and C2==1 and use_cons>=0) {
+	double lKE = 0.0, fE = 0.5*Wb*atomic_weights[0];
 	for (size_t k=0; k<3; k++) {
-	  double t = p1->dattrib[use_elec+k];
+	  double t = p2->dattrib[use_elec+k];
 	  lKE += fE*t*t;
 	}
 	if (q<1)
