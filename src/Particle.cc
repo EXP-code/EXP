@@ -104,8 +104,10 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     for (auto &it : iattrib)
       in->read((char *)&it, sizeof(int));
 
-    for (auto &jt : dattrib)
-      in->read((char *)&jt, sizeof(float));
+    for (auto &jt : dattrib) {
+      in->read((char *)&tf, sizeof(float));
+      jt = tf;
+    }
     
   } else {
     //
@@ -116,6 +118,7 @@ void Particle::readBinary(unsigned rsize, bool indexing, int seq,
     for (int i=0; i<3; i++) in->read((char *)&(pos[i]), sizeof(double));
 
     for (int i=0; i<3; i++) in->read((char *)&(vel[i]), sizeof(double));
+
     in->read((char *)&pot, sizeof(double));
     potext = 0.0;
 
