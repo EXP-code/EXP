@@ -206,7 +206,7 @@ main(int ac, char **av)
 	    double t = part->datr(eindx+i);
 	    ke += t*t;
 	  }
-	  EE1 + ke * 0.5*ms*atomic_masses[0]/atomic_masses[k.first];
+	  EE1 += ke * 0.5*ms*atomic_masses[0]/atomic_masses[k.first];
 	}
       }
     
