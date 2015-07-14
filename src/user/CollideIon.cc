@@ -105,7 +105,7 @@ static bool KE_DEBUG          = true;
 
 // KE debugging threshold for triggering diagnostic output
 //
-static DOUBLE DEBUG_THRESH    = 1.0e-9;
+static double DEBUG_THRESH    = 1.0e-9;
 
 // Tally ionization potential with energy loss during recombination
 //
