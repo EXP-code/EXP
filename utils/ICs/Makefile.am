@@ -59,7 +59,7 @@ empdump_SOURCES = empdump.cc EmpOrth9thd.cc localmpi.cc
 empdump_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 makeIon_SOURCES = makeIonIC.cc Particle.cc Particle.H Species.H
-makeIon_LDFLAGS = $(BOOST_LDFLAGS)
+makeIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
 
