@@ -103,11 +103,8 @@ static bool NO_VEL            = false;
 //
 static bool KE_DEBUG          = true;
 
-// Subtract KE from COM pair for testing only.  This is technically
-// incorrect since the electrons are "trace" species and not part of
-// the energy conservation.
+// Tally ionization potential with energy loss during recombination
 //
-static bool RECOMB_KE         = true;
 static bool RECOMB_IP         = false;
 
 // Cross-section debugging; set to false for production
@@ -205,8 +202,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "SAME_INTERACT"
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMBE_KE"
-	      << (RECOMB_KE ? "on" : "off")             << std::endl
-	      <<  " " << std::setw(20) << std::left << "RECOMBE_IP"
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
@@ -1834,12 +1829,14 @@ int CollideIon::inelasticDirect(pCell* const c,
     }
 
     if (interFlag == recomb_1) {
-      if (RECOMB_KE) {
-	if (RECOMB_IP) {
-	  lQ rQ(Z1, C1-1);
-	  delE = ch.IonList[rQ]->ip + kEe1[id];
-	} else 
-	  delE = kEe1[id];
+
+      if (RECOMB_IP) {
+	lQ rQ(Z2, C2-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
+      if (use_elec<0) {
+	delE += kEe1[id];
       }
 
       p1->iattrib[use_key] = k1.updateC(--C1);
@@ -1894,12 +1891,14 @@ int CollideIon::inelasticDirect(pCell* const c,
     }
 
     if (interFlag == recomb_2) {
-      if (RECOMB_KE) {
-	if (RECOMB_IP) {
-	  lQ rQ(Z2, C2-1);
-	  delE = ch.IonList[rQ]->ip + kEe2[id];
-	} else
-	  delE = kEe2[id];
+
+      if (RECOMB_IP) {
+	lQ rQ(Z2, C2-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
+      if (use_elec<0) {
+	delE += kEe2[id];
       }
 
       p2->iattrib[use_key] = k2.updateC(--C2);
@@ -2635,6 +2634,27 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   int partflag = 0;
 
+  // NOCOOL debugging
+  //
+  double NCXTRA = 0.0;
+
+  double iI1 = 0.0, iE1 = 0.0;
+  double iI2 = 0.0, iE2 = 0.0;
+
+  if (NOCOOL) {
+    for (size_t k=0; k<3; k++) {
+      iI1 += p1->vel[k]*p1->vel[k];
+      iI2 += p2->vel[k]*p2->vel[k];
+      if (use_elec>=0) {
+	if (C1>1) iE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	if (C2>1) iE2 += p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k];
+      }
+    }
+    iI1 *= 0.5*p1->mass;
+    iI2 *= 0.5*p2->mass;
+    iE1 *= 0.5*p1->mass*atomic_weights[0]/atomic_weights[Z1];
+    iE2 *= 0.5*p2->mass*atomic_weights[0]/atomic_weights[Z2];
+  }
 
   // Sanity check: total cross section should be positive!
   //
@@ -2774,12 +2794,14 @@ int CollideIon::inelasticWeight(pCell* const c,
     }
 
     if (interFlag == recomb_1) {
-      if (RECOMB_KE) {
-	if (RECOMB_IP) {
-	  lQ rQ(Z1, C1-1);
-	  delE = ch.IonList[rQ]->ip + kEe1[id];
-	} else
-	  delE = kEe1[id];
+
+      if (RECOMB_IP) {
+	lQ rQ(Z1, C1-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
+      if (use_elec<0) {
+	delE += kEe1[id];
       }
 
       p1->iattrib[use_key] = k1.updateC(--C1);
@@ -2796,6 +2818,9 @@ int CollideIon::inelasticWeight(pCell* const c,
 	  double t = p1->dattrib[use_elec+k];
 	  lKE += fE*t*t;
 	}
+
+	NCXTRA += lKE;
+
 	if (q<1)
 	  p1->dattrib[use_cons] += lKE;
 	else {
@@ -2850,12 +2875,14 @@ int CollideIon::inelasticWeight(pCell* const c,
     }
 
     if (interFlag == recomb_2) {
-      if (RECOMB_KE) {
-	if (RECOMB_IP) {
-	  lQ rQ(Z2, C2-1);
-	  delE = ch.IonList[rQ]->ip + kEe2[id];
-	} else
-	  delE = kEe2[id];
+
+      if (RECOMB_IP) {
+	lQ rQ(Z2, C2-1);
+	delE = ch.IonList[rQ]->ip;
+      }
+
+      if (use_elec<0) {
+	delE += kEe2[id];
       }
 
       p2->iattrib[use_key] = k2.updateC(--C2);
@@ -2872,6 +2899,9 @@ int CollideIon::inelasticWeight(pCell* const c,
 	  double t = p2->dattrib[use_elec+k];
 	  lKE += fE*t*t;
 	}
+
+	NCXTRA += lKE;
+
 	if (q<1)
 	  p1->dattrib[use_cons] += lKE;
 	else {
@@ -3211,54 +3241,56 @@ int CollideIon::inelasticWeight(pCell* const c,
 	vfac = sqrt(1.0 + deltaKE/ke2);
       }
     }
-
-    // Splitting for electron energy redistribution after ionization
-    //
-    // Want Wb*Ei2 = Wa*Ef1 + Wb*Ef2
-    //         Ei2 = 1/q * Ef1 + Ef2
-    // Therefore:
-    //         Ef2 = (1.0 - u) * Ei2
-    //         Ef1 = q*u*Ei2
-    //
-    double vs1 = 0.0, vs2 = 1.0;
-    double elecE0 = 0.0, elecE1 = 0.0, elecE2 = 0.0;
-    double fE1 = 0.5*Wa*atomic_weights[0]; // KE prefactor for Particle #1
-    double fE2 = 0.5*Wb*atomic_weights[0]; // KE prefactor for Particle #2
-
-    if (interFlag == ionize_1) {
-      // Initial electron KE (particle #2)
-      for (size_t k=0; k<3; k++) {
-	double t = p2->dattrib[use_elec+k];
-	elecE0 += fE2*t*t;
-      }
-
-      double u = (*unit)();
-      vs1 = sqrt(q*u);
-      vs2 = sqrt(1.0 - u);
-    }
-
+    
     // Electron from particle #2
     //
+    double elecE0 = 0.0;
     for (size_t k=0; k<3; k++) {
+				// Compute energy
       v2[k] *= vfac;
-      p1->vel[k] = v1[k];
-      if (interFlag == recomb_1) p1->dattrib[use_elec+k] = 0.0;
-      if (interFlag == ionize_1) {
-	double t1, t2;
-	t1 = p1->dattrib[use_elec+k] = -vs1*v2[k];
-	t2 = p2->dattrib[use_elec+k] =  vs2*v2[k];
-	elecE1 += fE1*t1*t1;
-	elecE2 += fE2*t2*t2;
-      } else {
-	p2->dattrib[use_elec+k] = v2[k];
-      }
-      p2->dattrib[use_elec+k] = vs2*v2[k];
       vf2 += v2[k] * v2[k];
+				// Assign to particles
+      p1->vel[k] = v1[k];
+      elecE0 += v2[k] * v2[k];
+      p2->dattrib[use_elec+k] = v2[k];
+				// Zero velocity for recombined
+				// electron
+      if (interFlag == recomb_1 and C1==1)
+	p1->dattrib[use_elec+k] = 0.0;
     }
     
-    if (interFlag == ionize_1) {
+				// Share electron energy if previously
+				// neutral
+				//
+    if (interFlag == ionize_1 and C1==2) {
+				// KE prefactor for Particle #1
+      double fE1 = 0.5*Wa*atomic_weights[0]; 
+				// KE prefactor for Particle #2
+      double fE2 = 0.5*Wb*atomic_weights[0];
+				// For energy conservation
+      double elecE1 = 0.0, elecE2 = 0.0;
+
+      //
+      // Split the energy between the outgoing electrons
+      //
+      double u  = (*unit)();
+      double vs1 = sqrt(u);
+      double vs2 = sqrt(1.0 - u);
+
+      for (size_t k=0; k<3; k++) {
+	double t1 = vs1*v2[k];
+	double t2 = vs2*v2[k];
+	elecE1 += fE1*t1*t1;
+	elecE2 += fE2*t2*t2;
+	p1->dattrib[use_elec+k] = t1;
+	p2->dattrib[use_elec+k] = t2;
+      }
+
+      elecE0 *= fE2;
 
       double deltaE_e = elecE0 - elecE1 - elecE2;
+      
+      NCXTRA += deltaE_e;
 
       if (use_cons>=0) {
 	if (q<1.0) {
@@ -3304,58 +3336,61 @@ int CollideIon::inelasticWeight(pCell* const c,
       }
     }
 
-    // Splitting for electron energy redistribution after ionization
-    //
-    // Want Wa*Ei1 = Wa*Ef1 + Wb*Ef2
-    //         Ei2 = Ef1 + q*Ef2
-    // Therefore:
-    //         Ef1 = (1.0 - u) * Ei1
-    //         Ef2 = u*Ei1/q
-    //
-    double vs1 = 1.0, vs2 = 0.0;
-    double elecE0 = 0.0, elecE1 = 0.0, elecE2 = 0.0;
-    double fE1 = 0.5*Wa*atomic_weights[0]; // KE prefactor for Particle #1
-    double fE2 = 0.5*Wb*atomic_weights[0]; // KE prefactor for Particle #2
-
-    std::vector<double> ve0(3);
-    if (interFlag == ionize_2) {
-      // Initial electron KE (particle #1)
-      for (size_t k=0; k<3; k++) {
-	ve0[k] = p1->dattrib[use_elec+k];
-	elecE0 += fE1*ve0[k]*ve0[k];
-      }
-
-      double u = (*unit)();
-      vs1 = sqrt(1.0 - u);
-      vs2 = sqrt(u);
-    }
-
     // Electron from particle #1
     //
+    double elecE0 = 0.0;
     for (size_t k=0; k<3; k++) {
+				// Compute energy
       v1[k] *= vfac;
-      if (interFlag == recomb_2) p2->dattrib[use_elec+k] = 0.0;
-      if (interFlag == ionize_2) {
-	double t1, t2;
-	t1 = p1->dattrib[use_elec+k] = (1.0 - q)*ve0[k] + q*vs1*v1[k];
-	t2 = p2->dattrib[use_elec+k] = -vs2*v1[k];
-	elecE1 += fE1*t1*t1;
-	elecE2 += fE2*t2*t2;
-      } else {
-	p1->dattrib[use_elec+k] = v1[k];
-      }
-      p2->vel[k] = v2[k];
       vf2 += v1[k] * v1[k];
+				// Assign to particles
+      elecE0 += v1[k] * v1[k];
+      p1->dattrib[use_elec+k] = v1[k];
+      p2->vel[k] = v2[k];
+				// Zero velocity for recombined
+				// electron
+      if (interFlag == recomb_2 and C2==1)
+	p2->dattrib[use_elec+k] = 0.0;
     }
     
-    if (interFlag == ionize_2) {
+				// Share electron energy if previously
+				// neutral
+				//
+    if (interFlag == ionize_2 and C2==2) {
+
+				// KE prefactor for Particle #1
+      double fE1 = 0.5*Wa*atomic_weights[0]; 
+				// KE prefactor for Particle #2
+      double fE2 = 0.5*Wb*atomic_weights[0];
+				// For energy conservation
+      double elecE1 = 0.0, elecE2 = 0.0;
+
+      //
+      // Split fraction q of the energy between the outgoing electrons
+      //
+      double u  = (*unit)();
+      double vs1 = sqrt((1.0 - q) + q*(1.0 - u));
+      double vs2 = sqrt(q*u);
+
+      for (size_t k=0; k<3; k++) {
+	double t1 = vs1*v1[k];
+	double t2 = vs2*v1[k];
+	elecE1 += fE1*t1*t1;
+	elecE2 += fE2*t2*t2;
+	p1->dattrib[use_elec+k] = t1;
+	p2->dattrib[use_elec+k] = t2;
+      }
+
+      elecE0 *= fE1;
 
       double deltaE_e = elecE0 - elecE1 - elecE2;
+      
+      NCXTRA += deltaE_e;
 
       if (use_cons>=0) {
 	if (q<1.0) {
 	  p1->dattrib[use_cons] += deltaE_e;
-	} else{
+	} else {
 	  p1->dattrib[use_cons] += 0.5*deltaE_e;
 	  p2->dattrib[use_cons] += 0.5*deltaE_e;
 	}
@@ -3668,6 +3703,50 @@ int CollideIon::inelasticWeight(pCell* const c,
     return 0;
   }
 
+  // NOCOOL debugging
+  //
+  double fI1 = 0.0, fE1 = 0.0;
+  double fI2 = 0.0, fE2 = 0.0;
+  if (NOCOOL) {
+    for (size_t k=0; k<3; k++) {
+      fI1 += p1->vel[k]*p1->vel[k];
+      fI2 += p2->vel[k]*p2->vel[k];
+      if (use_elec>=0) {
+	if (C1>1) fE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	if (C2>1) fE2 += p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k];
+      }
+    }
+    fI1 *= 0.5*p1->mass;
+    fI2 *= 0.5*p2->mass;
+    fE1 *= 0.5*p1->mass*atomic_weights[0]/atomic_weights[Z1];
+    fE2 *= 0.5*p2->mass*atomic_weights[0]/atomic_weights[Z2];
+
+    double Einit = iI1 + iI2 + iE1 + iE2;
+    double Efinl = fI1 + fI2 + fE1 + fE2;
+
+    double testE = Einit - Efinl - NCXTRA;
+
+    if (Z1==Z2)			// Add in energy loss/gain
+      testE += Exs - delE - missE;
+				// Correct for trace-algorithm excess
+    else if ((C1==1 and C2==1) or electronic)
+      testE -= deltaKE;
+
+    if (fabs(testE) > 1.0e-14*Einit )
+      std::cout << "NC total ("<< m1 << "," << m2 << ") = " 
+		<< std::setw(14) << testE
+		<< ", flg=" << std::setw(6)  << interFlag
+		<< ", dKE=" << std::setw(14) << Einit - Efinl
+		<< ", com=" << std::setw(14) << deltaKE
+		<< ", exs=" << std::setw(14) << Exs
+		<< ", del=" << std::setw(14) << delE
+		<< ", mis=" << std::setw(14) << missE
+		<< ", NCX=" << std::setw(14) << NCXTRA
+		<< std::endl;
+    
+
+  }
+
   return ret;
 }
 
@@ -3947,17 +4026,15 @@ int CollideIon::inelasticTrace(pCell* const c,
 
       if (interFlag == recomb) {
 
-	if (RECOMB_KE) {
-	  if (RECOMB_IP) {
-	    lQ rQ(Z, C-1);
-	    double Xi = ch.IonList[rQ]->ip;
-	    delE1 = (Xi + kEe2[id]) * N1;
-	    delE2 = (Xi + kEe1[id]) * N2;
-	  } else {
-	    delE1 = kEe2[id] * N1;
-	    delE2 = kEe1[id] * N2;
-	  }
+	if (RECOMB_IP) {
+	  lQ rQ(Z, C-1);
+	  double Xi = ch.IonList[rQ]->ip;
+	  delE1 = Xi * N1;
+	  delE2 = Xi * N2;
 	}
+	
+	delE1 += kEe2[id] * N1;
+	delE2 += kEe1[id] * N2;
 
 	speciesKey kk(Z, C-1);
 
@@ -7371,11 +7448,8 @@ void CollideIon::processConfig()
     KE_DEBUG =
       cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for weighted algorithm", true);
 
-    RECOMB_KE =
-      cfg.entry<bool>("RECOMB_KE", "Electron KE is lost in recombination", true);
-
     RECOMB_IP =
-      cfg.entry<bool>("RECOMB_IP", "Electron KE AND electronic binding energy is lost in recombination", false);
+      cfg.entry<bool>("RECOMB_IP", "Electronic binding energy is lost in recombination", false);
 
     CROSS_DBG =
       cfg.entry<bool>("CROSS_DBG", "Enable verbose cross-section value diagnostics", false);

@@ -167,8 +167,8 @@ main(int ac, char **av)
 
 				// Print the header
 
-      cout << "Comp name: " << stanza->name << endl
-	   << "     Bodies:\t\t"
+      cout << "Comp name: " << stanza->name << endl << endl
+	   << "     Bodies\t\t"
 	   << setw(15) << stanza->comp.nbod 
 	   << setw(10) << stanza->comp.niatr 
 	   << setw(10) << stanza->comp.ndatr 
@@ -210,17 +210,22 @@ main(int ac, char **av)
 	}
       }
     
-      cout  << "     COM:\t\t";
+      cout  << "     COM\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << com1[i]/mass1;
       cout << endl;
-      cout  << "     COV:\t\t";
+      cout  << "     COV\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << cov1[i]/mass1;
       cout << endl;
-      cout  << "     Ang mom:\t\t";
+      cout  << "     Ang mom\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
-      cout << endl;
-      cout  << "     Stats:\t\tKE=" << KE1 << " PE=" << PE1 << " -2T/W=" << -2.0*KE1/PE1 << " E_e=" << EE1
-	    << " Mass=" << mass1 << endl;
+      cout << endl << endl;
+
+      cout << "     Kinetic energy\t\t"     << KE1            << std::endl
+	   << "     Potential energy\t\t"   << PE1            << std::endl
+	   << "     Virial ratio\t\t"       << -2.0*KE1/PE1   << std::endl
+	   << "     Electron energy\t\t"    << EE1            << std::endl
+	   << "     Particle mass\t\t"      << mass1          << std::endl
+	   << endl;
 
       if (sindx >= 0) {
 	cout  << "     Species" << endl;
