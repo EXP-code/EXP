@@ -32,6 +32,10 @@ extern pthread_mutex_t coef_lock;
 //! Encapsulatates a SLGridSph (Sturm-Liouville basis) for use as force method
 class EmpCylSL
 {
+public:
+
+  typedef boost::shared_ptr<SphericalModelTable> SphModTblPtr;
+
 private:
   int NMAX;
   int LMAX;
@@ -118,8 +122,7 @@ private:
   vector<short> coefs_made;
   bool eof_made;
 
-  SphericalModelTable* make_sl();
-  SphericalModelTable* model;
+  SphModTblPtr make_sl();
 
   void make_grid();
   void send_eof_grid();

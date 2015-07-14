@@ -64,7 +64,6 @@ EmpCylSL::EmpCylSL(void)
   SS = 0;
 
   ortho = 0;
-  model = 0;
 
   accum_cos = 0;
   accum_sin = 0;
@@ -87,7 +86,6 @@ EmpCylSL::EmpCylSL(void)
 EmpCylSL::~EmpCylSL(void)
 {
   delete ortho;
-  delete model;
 
   if (SC) {
 
@@ -222,8 +220,6 @@ EmpCylSL::EmpCylSL(int nmax, int lmax, int mmax, int nord,
   SLGridSph::mpi = 1;		// Turn on MPI
   ortho = new SLGridSph(LMAX, NMAX, NUMR, RMIN, RMAX*0.99, make_sl(), 
 			false, 1, 1.0);
-  model = 0;
-
   if (DENS)
     MPItable = 4;
   else
@@ -347,7 +343,7 @@ double EmpCylSL::densR(double R)
   return ans;
 }
 
-SphericalModelTable* EmpCylSL::make_sl()
+SphModTblPtr EmpCylSL::make_sl()
 {
   const int number = 10000;
 
@@ -407,9 +403,7 @@ SphericalModelTable* EmpCylSL::make_sl()
     out.close();
   }
 
-  model = new SphericalModelTable(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1); 
-
-  return model;
+  return SphModTblPtr( new SphericalModelTable(number, &r[0]-1, &d[0]-1, &m[0]-1, &p[0]-1) );
 }
 
 void EmpCylSL::send_eof_grid()
