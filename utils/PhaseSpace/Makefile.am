@@ -35,8 +35,8 @@ pspstat_SOURCES  = pspstat.cc PSP.cc header.cc header.H
 pspstat_LDADD    = $(COMMON_LIBS)
 
 pspstatS_SOURCES  = pspstatS.cc PSP.cc header.cc header.H
-pspstatS_CPPFLAGS = -I$(top_srcdir)/src
-pspstatS_LDFLAGS  = $(BOOST_LDFLAGS)
+pspstatS_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+pspstatS_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 pspstatS_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS)
 
 psp2tipsy_SOURCES = psp2tipsy.cc PSP.cc header.cc header.H
@@ -64,13 +64,13 @@ psp2histo_SOURCES = psp2histo.cc PSP.cc header.cc header.H
 psp2histo_LDADD   = $(COMMON_LIBS)
 
 psp2histo1d_SOURCES  = psp2histo1d.cc PSP.cc header.cc header.H
-psp2histo1d_CPPFLAGS = -I$(top_srcdir)/src
-psp2histo1d_LDFLAGS  = $(BOOST_LDFLAGS)
+psp2histo1d_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2histo1d_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2histo1d_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 psp2histoE_SOURCES  = psp2histoE.cc PSP.cc header.cc header.H
-psp2histoE_CPPFLAGS = -I$(top_srcdir)/src
-psp2histoE_LDFLAGS  = $(BOOST_LDFLAGS)
+psp2histoE_CPPFLAGS = -I$(top_srcdir)/src -I$(top_srcdir)/include
+psp2histoE_LDFLAGS  = $(BOOST_LDFLAGS) $(EXPFLAGS)
 psp2histoE_LDADD    = $(COMMON_LIBS) $(BOOST_LIBS) $(EXPLIBS)
 
 pspreal_SOURCES = pspreal.cc PSP.cc header.cc header.H
