@@ -103,6 +103,10 @@ static bool NO_VEL            = false;
 //
 static bool KE_DEBUG          = true;
 
+// KE debugging threshold for triggering diagnostic output
+//
+static DOUBLE DEBUG_THRESH    = 1.0e-9;
+
 // Tally ionization potential with energy loss during recombination
 //
 static bool RECOMB_IP         = false;
@@ -2795,17 +2799,18 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     if (interFlag == recomb_1) {
 
+      p1->iattrib[use_key] = k1.updateC(--C1);
+      partflag      = 1;
+
       if (RECOMB_IP) {
-	lQ rQ(Z1, C1-1);
+	lQ rQ(Z1, C1);
 	delE = ch.IonList[rQ]->ip;
       }
 
-      if (use_elec<0) {
+      if (use_elec<0 and C1>1) {
 	delE += kEe1[id];
       }
 
-      p1->iattrib[use_key] = k1.updateC(--C1);
-      partflag      = 1;
       std::get<0>(ctd1->RR[id])++; 
       std::get<1>(ctd1->RR[id]) += Wb;
       std::get<2>(ctd1->RR[id]) += delE * NN;
@@ -2876,17 +2881,18 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     if (interFlag == recomb_2) {
 
+      p2->iattrib[use_key] = k2.updateC(--C2);
+      partflag     = 2;
+
       if (RECOMB_IP) {
-	lQ rQ(Z2, C2-1);
+	lQ rQ(Z2, C2);
 	delE = ch.IonList[rQ]->ip;
       }
 
-      if (use_elec<0) {
+      if (use_elec<0 and C2>1) {
 	delE += kEe2[id];
       }
 
-      p2->iattrib[use_key] = k2.updateC(--C2);
-      partflag     = 2;
       std::get<0>(ctd2->RR[id])++; 
       std::get<1>(ctd2->RR[id]) += Wb;
       std::get<2>(ctd2->RR[id]) += delE * NN;
@@ -3443,7 +3449,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     else if ((C1==1 and C2==1) or electronic)
       testE -= deltaKE;
 
-    if (fabs(testE) > 1.0e-14*(tKEi+tKEf) )
+    if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
       std::cout << "Total ("<< m1 << "," << m2 << ") = " 
 		<< std::setw(14) << testE
 		<< ", dKE=" << std::setw(14) << dKE
@@ -3707,7 +3713,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   double fI1 = 0.0, fE1 = 0.0;
   double fI2 = 0.0, fE2 = 0.0;
-  if (NOCOOL) {
+  if (KE_DEBUG and NOCOOL) {
     for (size_t k=0; k<3; k++) {
       fI1 += p1->vel[k]*p1->vel[k];
       fI2 += p2->vel[k]*p2->vel[k];
@@ -3732,7 +3738,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     else if ((C1==1 and C2==1) or electronic)
       testE -= deltaKE;
 
-    if (fabs(testE) > 1.0e-14*Einit )
+    if (fabs(testE) > DEBUG_THRESH*Einit )
       std::cout << "NC total ("<< m1 << "," << m2 << ") = " 
 		<< std::setw(14) << testE
 		<< ", flg=" << std::setw(6)  << interFlag
@@ -5060,7 +5066,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	double testE = KEi - KEf - deltaKE + dKE;
 	
-	if (fabs(testE) > 1.0e-08*KEi) {
+	if (fabs(testE) > DEBUG_THRESH*KEi) {
 	  std::cout << std::endl << std::string(70, '-') << std::endl
 		    << "Total elec ("
 		    << k1.Z() << "," 
@@ -7447,6 +7453,9 @@ void CollideIon::processConfig()
 
     KE_DEBUG =
       cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for weighted algorithm", true);
+
+    DEBUG_THRESH =
+      cfg.entry<double>("DEBUG_THRESH", "Threshold for reporting energy conservation bookkeeping", 1.0e-9);
 
     RECOMB_IP =
       cfg.entry<bool>("RECOMB_IP", "Electronic binding energy is lost in recombination", false);
