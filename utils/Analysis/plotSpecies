@@ -45,10 +45,10 @@ def showLabs():
         if icnt % 6 == 0: print
 
 
-def makeM(labs):
+def makeM(xl, labs):
     db = readDB()
 
-    for lab in labs:
+    for lab in labs+[xl]:
         if lab not in flab:
             print "No such field, available data is:"
             showLabs()
@@ -57,23 +57,24 @@ def makeM(labs):
     for t in tags:
         for lab in labs:
             l = t + ":" + lab
-            plt.plot(db[t]['Time'], db[t][lab], '-', label=l)
+            plt.plot(db[t][xl], db[t][lab], '-', label=l)
     plt.legend()
-    plt.xlabel('Time')
+    plt.xlabel(xl)
     plt.ylabel(lab)
     plt.show()
 
-def makeP(lab):
+def makeP(xl, lab):
     db = readDB()
 
-    if lab not in flab:
-        print "No such field, available data is:"
-        showLabs()
-        return
+    for l in [xl, lab]:
+        if l not in flab:
+            print "No such field, available data is:"
+            showLabs()
+            return
     
     for t in tags:
-        plt.plot(db[t]['Time'], db[t][lab], '-', label=t)
+        plt.plot(db[t][xl], db[t][lab], '-', label=t)
     plt.legend()
-    plt.xlabel('Time')
+    plt.xlabel(xl)
     plt.ylabel(lab)
     plt.show()
