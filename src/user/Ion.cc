@@ -1868,8 +1868,10 @@ void VernerData::initialize(chdata* ch)
 	  
 	  int z   = atoi(v[0].c_str());
 	  int nel = atoi(v[1].c_str());
-	  int stg = z - nel + 1;
+	  int stg = z - nel;
 	  
+	  // Stage: 0 is neutral, 1 is singly ionized, etc.
+
 	  lQ key(z, stg);
 	  
 	  vrPtr dat(new VernerRec);
