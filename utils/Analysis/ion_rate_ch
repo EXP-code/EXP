@@ -72,6 +72,9 @@ def plot_data(filename, degree, smooth, tscale, tmax, dens):
             if line.find('W(') >= 0:
                 ncol = 13
                 trce = 3
+            if line.find('N(ie') >= 0:
+                ncol = 16
+                trce = 3
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):
