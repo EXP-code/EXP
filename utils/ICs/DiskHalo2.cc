@@ -2179,7 +2179,7 @@ void DiskHalo::set_vel_halo(vector<Particle>& part)
   
 }
 
-void DiskHalo::write_record(ostream &out, Particle &p)
+void DiskHalo::write_record(ostream &out, SParticle &p)
 {
   out << " " << setw(16) << setprecision(8) << p.mass;
   
@@ -2199,30 +2199,11 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
   int l  = hpart.size();
   int l1 = dpart.size();
   
-  vector<Particle> buf(NBUF);
+  vector<SParticle> buf(NBUF);
   
   // Make MPI datatype
   //
-  MPI_Datatype Particletype;
-  MPI_Datatype type[4] = {MPI_UNSIGNED, MPI_DOUBLE, MPI_DOUBLE, MPI_DOUBLE};
-  
-  // Get displacements
-  //
-  MPI_Aint disp[4];
-  MPI_Get_address(&buf[0].level,	&disp[0]);
-  MPI_Get_address(&buf[0].mass,		&disp[1]);
-  MPI_Get_address(&buf[0].pos[0],	&disp[2]);
-  MPI_Get_address(&buf[0].vel[0],	&disp[3]);
-  
-  for (int i=3; i>=0; i--) disp[i] -= disp[0];
-  
-				// Block offsets
-  int blocklen[4] = {1, 1, 3, 3};
-  
-  // Make and register the new type
-  //
-  MPI_Type_create_struct(4, blocklen, disp, type, &Particletype);
-  MPI_Type_commit(&Particletype);
+  SPtype spt;
   
   // Get particle totals
   //
@@ -2272,7 +2253,7 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
       ccnt=0;
       while (ccnt<imany) {
 	MPI_Recv(&icur, 1, MPI_INT, n, 11, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(&buf[0], icur, Particletype, n, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&buf[0], icur, spt(), n, 12, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<icur; i++) write_record(fou_halo, buf[i]);
 	ccnt += icur;
       }
@@ -2284,7 +2265,7 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
       ccnt = 0;
       while (ccnt<imany) {
 	MPI_Recv(&icur, 1, MPI_INT, n, 14, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	MPI_Recv(&buf[0], icur, Particletype, n, 15, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	MPI_Recv(&buf[0], icur, spt(), n, 15, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	for (int i=0; i<icur; i++) write_record(fou_disk, buf[i]);
 	ccnt += icur;
       }
@@ -2307,9 +2288,9 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	icur = 0;
 	while (icur<l) {
 	  ipack = min<int>(l-icur, NBUF);
-	  for (int j=0; j<ipack; j++) buf[j] = hpart[icur+j];
+	  for (int j=0; j<ipack; j++) buf[j][hpart[icur+j]];
 	  MPI_Send(&ipack, 1, MPI_INT, 0, 11, MPI_COMM_WORLD);
-	  MPI_Send(&buf[0], ipack, Particletype, 0, 12, MPI_COMM_WORLD);
+	  MPI_Send(&buf[0], ipack, spt(), 0, 12, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
 
@@ -2320,9 +2301,9 @@ void DiskHalo::write_file(ostream &fou_halo,  ostream &fou_disk,
 	icur = 0;
 	while (icur<l1) {
 	  ipack = min<int>(l1-icur, NBUF);
-	  for (int j=0; j<ipack; j++) buf[j] = dpart[icur+j];
+	  for (int j=0; j<ipack; j++) buf[j][dpart[icur+j]];
 	  MPI_Send(&ipack, 1, MPI_INT, 0, 14, MPI_COMM_WORLD);
-	  MPI_Send(&buf[0], ipack, Particletype, 0, 15, MPI_COMM_WORLD);
+	  MPI_Send(&buf[0], ipack, spt(), 0, 15, MPI_COMM_WORLD);
 	  icur += ipack;
 	}
 

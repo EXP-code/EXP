@@ -19,10 +19,10 @@
 #include <localmpi.h>
 #include <Vector.h>
 
-#include "Particle.H"
 #include "AddDisk.h"
 #include "SphericalSL.h"
 #include "EmpOrth9thd.h"
+#include "SParticle.H"
 
 class DiskHalo
 {
@@ -51,7 +51,12 @@ class DiskHalo
   bool com_cov;
 
   double disk_density(double R, double z);
-  void write_record(ofstream &out, Particle &p);
+  void write_record(ofstream &out, SParticle &p);
+  void write_record(ofstream &out, Particle &p)
+  {
+    SParticle P(p);
+    write_record(out, P);
+  }
 
  public:
   static int NDP;		// Number of knots in disk table phi grid

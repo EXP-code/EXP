@@ -32,17 +32,17 @@ shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
 
 gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
-	SphericalSL.cc legendre.cc Particle.cc \
+	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk2_SOURCES =  initial2.cc DiskHalo2.cc EmpOrth9thd.cc \
-	SphericalSL.cc legendre.cc Particle.cc \
+	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk2_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 
 gendisk3_SOURCES =  initial3.cc DiskHalo3.cc EmpOrth9thd.cc \
-	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc \
+	CylDisk.cc SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk3_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 

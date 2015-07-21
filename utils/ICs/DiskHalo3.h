@@ -27,6 +27,7 @@
 #include "AddDisk.h"
 #include "SphericalSL.h"
 #include "EmpOrth9thd.h"
+#include "SParticle.H"
 
 class DiskHaloException : public std::runtime_error
 {
@@ -73,7 +74,12 @@ class DiskHalo
   DiskWithHalo dmodel;
 
   double disk_density(double R, double z);
-  void   write_record(ostream &out, Particle &p);
+  void   write_record(ostream &out, SParticle &p);
+  void   write_record(ostream &out, Particle &p)
+  {
+    SParticle P(p);
+    write_record(out, P);
+  }
   void   table_halo_disp();
 
  public:
