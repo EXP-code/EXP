@@ -298,14 +298,14 @@ void Component::print_level_lists(double T)
 
       if (!tot && myid==0) cout << "print_level_lists [" << name 
 				<< ", T=" << tnow << "]: tot=" << tot << endl;
-
+      
       if (tot) {
 
 	ostringstream ofil;
 	ofil << runtag << ".levels";
 	ofstream out(ofil.str().c_str(), ios::app);
 
-	unsigned curn, sum=0;
+	unsigned curn, dtcnt, sum=0;
 	out << setw(80) << setfill('-') << '-' << endl;
 	ostringstream sout;
 	sout << "--- Component <" << name 
@@ -321,11 +321,14 @@ void Component::print_level_lists(double T)
 	      << setw(10) << "f(s/v)"
 	      << setw(10) << "f(v/a)"
 	      << setw(10) << "f(r/a)";
+	  dtcnt = 5;
 	} else {
-	  out << setw(10) << "f(v/a)"
+	  out << setw(10) << "f(r/v)"
+	      << setw(10) << "f(v/a)"
 	      << setw(10) << "f(s/v)"
 	      << setw(10) << "f(p/v*a)" 
 	      << setw(10) << "f([r/a])";
+	  dtcnt = 6;
 	}
 	out << setw(10) << "f(int)" << endl;
 	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');
@@ -336,18 +339,12 @@ void Component::print_level_lists(double T)
 	      << setw(10) << curn << setprecision(3) << fixed
 	      << setw(10) << static_cast<double>(curn)/tot
 	      << setw(10) << static_cast<double>(sum) /tot;
-	  if (curn)		// If there are counts at this level:
-	    out << setw(10) << static_cast<double>(cntr[n][0])/curn
-		<< setw(10) << static_cast<double>(cntr[n][1])/curn
-		<< setw(10) << static_cast<double>(cntr[n][2])/curn
-		<< setw(10) << static_cast<double>(cntr[n][3])/curn
-		<< setw(10) << static_cast<double>(cntr[n][4])/curn;
-	  else			// No counts at this level:
-	    out << setw(10) << "*"
-		<< setw(10) << "*"
-		<< setw(10) << "*"
-		<< setw(10) << "*"
-		<< setw(10) << "*";
+	  for (unsigned k=0; k<dtcnt; k++) {
+				// If there are counts at this level:
+	    if (curn) out << setw(10) << static_cast<double>(cntr[n][k])/curn;
+				// No counts at this level:
+	    else	out << setw(10) << "*";
+	  }
 	  out << endl;
 	}
 	out << endl << setw(3) << "T" << setw(10) << tot << endl << endl 

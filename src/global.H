@@ -90,6 +90,12 @@ extern bool DTold;
 //! Scale coefficient (default: 1.00)
 extern double dynfracS;
 
+//! Drift coefficient (default: 0.05)
+extern double dynfracD;
+
+//! Resolution scale (default: 0.0001)
+extern double dynfracR;
+
 //! Velocity coefficient (default: 0.01)
 extern double dynfracV;
 
