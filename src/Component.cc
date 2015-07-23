@@ -306,12 +306,12 @@ void Component::print_level_lists(double T)
 	ofstream out(ofil.str().c_str(), ios::app);
 
 	unsigned curn, dtcnt, sum=0;
-	out << setw(80) << setfill('-') << '-' << endl;
+	out << setw(90) << setfill('-') << '-' << endl;
 	ostringstream sout;
 	sout << "--- Component <" << name 
 	     << ", " << id  << ">, T=" << T;
-	out << setw(80) << left << sout.str().c_str() << endl;
-	out << setw(80) << '-' << endl << setfill(' ');
+	out << setw(90) << left << sout.str().c_str() << endl;
+	out << setw(90) << '-' << endl << setfill(' ');
 	out << setw(3)  << "L" 
 	    << setw(10) << "Number" 
 	    << setw(10) << "dN/dL" 
@@ -331,7 +331,7 @@ void Component::print_level_lists(double T)
 	  dtcnt = 6;
 	}
 	out << setw(10) << "f(int)" << endl;
-	out << setw(80) << setfill('-') << '-' << endl << setfill(' ');
+	out << setw(90) << setfill('-') << '-' << endl << setfill(' ');
 	for (unsigned n=0; n<=multistep; n++) {
 	  curn = cntr[n][mdtDim-1];
 	  sum += curn;
@@ -1440,11 +1440,11 @@ struct Particle * Component::get_particles(int* number)
 	     << " found=" << cur.first
 	     << endl << flush;
 	unsigned n = beg;
-	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
+	cout << setw(90) << setfill('-') << '-' << endl << setfill(' ');
 	cout << setw(10) << "Expect" << setw(10) << "Found" << endl;
 	for (auto cur : tlist)
 	  cout << setw(10) << n++ << setw(10) << cur.first << endl;
-	cout << setw(80) << setfill('-') << '-' << endl << setfill(' ');
+	cout << setw(90) << setfill('-') << '-' << endl << setfill(' ');
 	seq_ok = false;
 	break;
       }

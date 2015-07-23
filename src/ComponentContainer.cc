@@ -781,9 +781,9 @@ void ComponentContainer::print_level_list_header()
   if (!in) {
     in.close();
     ofstream out(ofil.str().c_str());
-    out << setw(80) << setfill('-') << '-' << endl << setfill(' ')
+    out << setw(90) << setfill('-') << '-' << endl << setfill(' ')
 	<< "--- Column explanations" << endl
-	<< setw(80) << setfill('-') << '-' << endl << setfill(' ');
+	<< setw(90) << setfill('-') << '-' << endl << setfill(' ');
     out << left
 	<< setw(15) << "L"       << ": level" << endl
 	<< setw(15) << "Number"  << ": number of particles on L" << endl
