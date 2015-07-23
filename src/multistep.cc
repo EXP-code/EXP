@@ -58,7 +58,7 @@ void * adjust_multistep_level_thread(void *ptr)
   // Examine all time steps at or below this level and compute timestep
   // criterion and adjust level if necessary
 
-  double dt, dts, dtv, dta, dtA, dtr, dsr, rtot, vtot, atot, ptot;
+  double dt, dts, dtv, dta, dtA, dtd, dtr, dsr, rtot, vtot, atot, ptot;
   int npart = c->levlist[level].size();
   int offlo = 0, offhi = 0, lev;
 
@@ -111,6 +111,7 @@ void * adjust_multistep_level_thread(void *ptr)
 
     } else {
 
+      // dtd = eps* rscale/v_i    -- char. drift time scale
       // dtv = eps* min(v_i/a_i)  -- char. force time scale
       // dta = eps* phi/(v * a)   -- char. work time scale
       // dtA = eps* sqrt(phi/a^2) -- char. "escape" time scale
@@ -132,17 +133,30 @@ void * adjust_multistep_level_thread(void *ptr)
       if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
+      dtd = dynfracD * dynfracR/sqrt(vtot+eps);
       dtv = dynfracV * sqrt(vtot/(atot+eps));
       dta = dynfracA * ptot/(fabs(dtr)+eps);
       dtA = dynfracP * sqrt(ptot/(atot*atot+eps));
     }
 
     map<double, int> dseq;
-    dseq[dtv] = 0;
-    dseq[dts] = 1;
-    if ( dta > 0.0 ) dseq[dta] = 2;
-    if ( dtA > 0.0 ) dseq[dtA] = 3;
-    if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
+
+    if (DTold) {
+      dseq[dtv] = 0;
+      dseq[dts] = 1;
+      if ( dta > 0.0 ) dseq[dta] = 2;
+      if ( dtA > 0.0 ) dseq[dtA] = 3;
+      if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
+    } else {
+      dseq[dtd] = 0;
+      dseq[dtv] = 1;
+      dseq[dts] = 2;
+      if ( dta > 0.0 ) dseq[dta] = 3;
+      if ( dtA > 0.0 ) dseq[dtA] = 4;
+      if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 5;
+    }
+
+
 
     // Smallest time step
     //

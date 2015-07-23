@@ -126,7 +126,7 @@ double factrl(int n);
 // Constants
 
 static const double DSMALL = 1.0e-16;
-static const int    mdtDim = 6;
+static const int    mdtDim = 7;
 
 // Parallel prototypes
 
