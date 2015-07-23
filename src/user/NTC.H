@@ -581,12 +581,21 @@ namespace NTC {
     //! The std::map
     NTCdata data;
     
-    //! Next serialization step
-    int next_step;
+    //! Current serialization time
+    double curr_time;
+
+    //! Next serialization time
+    double next_time;
     
+    //! Chatty output for debugging
+    const bool chatty = true;
+
     //! Save interval
     const int intvl = 10;
     
+    //! Roundoff offset
+    const double eps = 1.0e-8;
+
     //! In serialization
     bool inSer;
     
@@ -656,7 +665,15 @@ namespace NTC {
 	std::ofstream ofs(filename.c_str());
 	boost::archive::xml_oarchive oa(ofs);
 	oa << BOOST_SERIALIZATION_NVP(pdata);
-	oa << BOOST_SERIALIZATION_NVP(next_step);
+	oa << BOOST_SERIALIZATION_NVP(curr_time);
+	oa << BOOST_SERIALIZATION_NVP(next_time);
+
+	if (chatty) {
+	  std::cout << std::endl << std::string(70, '-') << std::endl
+		    << "-- Took NTC checkpoint at time <" << curr_time << ">" << std::endl
+		    << "-- Next NTC checkpoint at time <" << next_time << ">" << std::endl
+		    << std::string(70, '-') << std::endl;
+	}
       }
       
       // Clean up node-aggregated db
@@ -674,7 +691,17 @@ namespace NTC {
       
       // restore the data from the archive
       ia >> BOOST_SERIALIZATION_NVP(data);
-      ia >> BOOST_SERIALIZATION_NVP(next_step);
+      ia >> BOOST_SERIALIZATION_NVP(curr_time);
+      ia >> BOOST_SERIALIZATION_NVP(next_time);
+
+      if (myid==0 and chatty) {
+	std::cout << std::endl << std::string(70, '-') << std::endl
+		  << "-- Restoring NTC checkpoint from time <" << curr_time << ">" << std::endl
+		  << "-- Current simulation time is <" << tnow << ">" << std::endl
+		  << "-- Next NTC checkpoint scheduled for <" << next_time << ">" << std::endl
+		  << std::string(70, '-') << std::endl;
+      }
+
     }
     
   public:
@@ -682,7 +709,6 @@ namespace NTC {
     //! Constructor
     NTCdb()
     {
-      next_step = this_step + intvl;
       if (!inSer) {
 	std::string filename = ".ntcdb." + runtag;
 	if ( boost::filesystem::exists(filename) ) {
@@ -690,6 +716,8 @@ namespace NTC {
 	}
       }
       inSer = false;
+      curr_time = tnow;
+      next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);
     }
     
     //! Return NTCitem instance for cell key k
@@ -698,10 +726,11 @@ namespace NTC {
     //! Update the serialization file
     void update()
     {
-      if (this_step >= next_step) {
+      if (tnow >= next_time) {
+	curr_time = tnow;
+	next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);
 	std::string filename = ".ntcdb." + runtag;
 	save_myself(filename);
-	next_step = this_step + intvl;
       }
     }
     
