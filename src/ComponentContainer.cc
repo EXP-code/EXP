@@ -809,14 +809,18 @@ void ComponentContainer::print_level_list_header()
 	  << setw(15) << "f(int)"
 	  << ": fraction with dt=dt(internal)" << endl;
     else
-      out << left  << setw(15) << "r" 
+      out << left << setw(15) << "q" 
+	  << ": user-set resolution scale length" << endl
+	  << setw(15) << "f(q/v)"
+	  << ": fraction with dt=q/|v|" << endl
+	  << setw(15) << "f(v/a)" 
+	  << ": fraction with dt=|v|/|a|" << endl
+	  << setw(15) << "f(s/v)" 
+	  << ": fraction with dt=s/|v|" << endl
+	  << setw(15) << "r" 
 	  << ": grav. potential scale length, |phi|/|d(phi)/dx|"  << endl
 	  << setw(15) << "f(r/v)"
 	  << ": fraction with dt=|phi|/|d(phi)/dx * v|" << endl
-	  << setw(15) << "f(s/v)" 
-	  << ": fraction with dt=s/|v|" << endl
-	  << setw(15) << "f(v/a)" 
-	  << ": fraction with dt=|v|/|a|" << endl
 	  << setw(15) << "f(r/a)" 
 	  << ": fraction with dt=sqrt(|phi|/|a*a|)" << endl
 	  << setw(15) << "f(int)"

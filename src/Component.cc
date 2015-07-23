@@ -323,11 +323,11 @@ void Component::print_level_lists(double T)
 	      << setw(10) << "f(r/a)";
 	  dtcnt = 5;
 	} else {
-	  out << setw(10) << "f(r/v)"
+	  out << setw(10) << "f(q/v)"
 	      << setw(10) << "f(v/a)"
 	      << setw(10) << "f(s/v)"
-	      << setw(10) << "f(p/v*a)" 
-	      << setw(10) << "f([r/a])";
+	      << setw(10) << "f(r/v)" 
+	      << setw(10) << "f(r/a)";
 	  dtcnt = 6;
 	}
 	out << setw(10) << "f(int)" << endl;

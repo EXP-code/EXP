@@ -28,7 +28,8 @@ Sphere::Sphere(string& line, MixtureBasis* m) : SphericalBasis(line, m)
   
 
 				// Generate Sturm-Liouville grid
-  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, cmap, rs, diverge, dfac);
+  ortho = new SLGridSph(Lmax, nmax, numr, rmin, rmax, true,
+			cmap, rs, diverge, dfac);
 
   setup();
 }

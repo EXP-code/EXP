@@ -133,7 +133,7 @@ void * adjust_multistep_level_thread(void *ptr)
       if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
-      dtd = dynfracD * dynfracR/sqrt(vtot);
+      dtd = dynfracD * dynfracR/sqrt(vtot+eps);
       dtv = dynfracV * sqrt(vtot/(atot+eps));
       dta = dynfracA * ptot/(fabs(dtr)+eps);
       dtA = dynfracP * sqrt(ptot/(atot*atot+eps));
@@ -148,7 +148,7 @@ void * adjust_multistep_level_thread(void *ptr)
       if ( dtA > 0.0 ) dseq[dtA] = 3;
       if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
     } else {
-      dseq[dtr] = 0;
+      dseq[dtd] = 0;
       dseq[dtv] = 1;
       dseq[dts] = 2;
       if ( dta > 0.0 ) dseq[dta] = 3;
