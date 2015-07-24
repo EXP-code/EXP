@@ -411,7 +411,8 @@ void adjust_multistep_level(bool all)
       }
       
       if (sumlo || sumhi) {
-	cout << setw(70) << setfill('-') << '-' << endl << setfill(' ')
+	cout << endl
+	     << setw(70) << setfill('-') << '-' << endl << setfill(' ')
 	     << left << "--- Multistepping overrun" << endl;
 	if (sumlo)
 	  cout << left << "--- Min DT=" << setw(16) << mindt  

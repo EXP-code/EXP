@@ -11,6 +11,12 @@ using namespace NTC;
 // For verbose debugging
 static const bool DEBUG_V   = false;
 
+// Chatty output for debugging
+bool NTCdb::chatty = false;
+
+// Save interval
+unsigned NTCdb::intvl = 10;
+
 // Skip this number of calls between reports
 unsigned NTCitem::skprpt    = 5;
 

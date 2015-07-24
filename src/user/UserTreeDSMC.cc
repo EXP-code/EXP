@@ -611,6 +611,14 @@ void UserTreeDSMC::initialize()
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
 
+  if (get_value("ntc_chkpt", val)) {
+    NTC::NTCdb::intvl = atoi(val.c_str());
+  }
+  
+  if (get_value("ntc_verbose", val)) {
+    NTC::NTCdb::chatty = atol(val);
+  }
+  
   if (get_value("rrtype", val)) {
     if (Ion::setRRtype(val)) {
       if (myid==0) {

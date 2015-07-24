@@ -587,12 +587,6 @@ namespace NTC {
     //! Next serialization time
     double next_time;
     
-    //! Chatty output for debugging
-    const bool chatty = true;
-
-    //! Save interval
-    const int intvl = 10;
-    
     //! Roundoff offset
     const double eps = 1.0e-8;
 
@@ -705,6 +699,12 @@ namespace NTC {
     }
     
   public:
+    
+    //! Chatty output for debugging
+    static bool chatty;
+
+    //! Save interval
+    static unsigned intvl;
     
     //! Constructor
     NTCdb()
