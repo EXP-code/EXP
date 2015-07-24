@@ -7,7 +7,7 @@
 ParamParseMPI::ParamParseMPI(istream* in, string Delim) : 
   ParamParse(in, Delim)
 {
-  const int lbufsize = 512;
+  const int lbufsize = 4096;
   char lbuf[lbufsize];
 
   Stanza *current;

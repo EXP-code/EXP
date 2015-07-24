@@ -72,7 +72,7 @@ void ParamParse::parse_istream(istream* in)
 {
   if (in==NULL) return;
 
-  const int lbufsize = 512;
+  const int lbufsize = 4096;
   char lbuf[lbufsize];
 
   spair cpair;
