@@ -1834,13 +1834,10 @@ int CollideIon::inelasticDirect(pCell* const c,
 
     if (interFlag == recomb_1) {
 
+      delE = kEe1[id];
       if (RECOMB_IP) {
 	lQ rQ(Z2, C2-1);
-	delE = ch.IonList[rQ]->ip;
-      }
-
-      if (use_elec<0) {
-	delE += kEe1[id];
+	delE += ch.IonList[rQ]->ip;
       }
 
       p1->iattrib[use_key] = k1.updateC(--C1);
@@ -1896,13 +1893,10 @@ int CollideIon::inelasticDirect(pCell* const c,
 
     if (interFlag == recomb_2) {
 
+      delE = kEe2[id];
       if (RECOMB_IP) {
 	lQ rQ(Z2, C2-1);
-	delE = ch.IonList[rQ]->ip;
-      }
-
-      if (use_elec<0) {
-	delE += kEe2[id];
+	delE += ch.IonList[rQ]->ip;
       }
 
       p2->iattrib[use_key] = k2.updateC(--C2);
@@ -2802,13 +2796,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
 
+      delE = kEe1[id];
       if (RECOMB_IP) {
 	lQ rQ(Z1, C1);
-	delE = ch.IonList[rQ]->ip;
-      }
-
-      if (use_elec<0 and C1>1) {
-	delE += kEe1[id];
+	delE += ch.IonList[rQ]->ip;
       }
 
       std::get<0>(ctd1->RR[id])++; 
@@ -2884,13 +2875,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
 
+      delE = kEe2[id];
       if (RECOMB_IP) {
 	lQ rQ(Z2, C2);
-	delE = ch.IonList[rQ]->ip;
-      }
-
-      if (use_elec<0 and C2>1) {
-	delE += kEe2[id];
+	delE += ch.IonList[rQ]->ip;
       }
 
       std::get<0>(ctd2->RR[id])++; 
