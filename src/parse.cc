@@ -61,7 +61,6 @@ void initialize(void)
 
   if (parse->find_item("dynfracS", val))	dynfracS = atof(val.c_str());
   if (parse->find_item("dynfracD", val))	dynfracD = atof(val.c_str());
-  if (parse->find_item("dynfracR", val))	dynfracR = atof(val.c_str());
   if (parse->find_item("dynfracV", val))	dynfracV = atof(val.c_str());
   if (parse->find_item("dynfracA", val))	dynfracA = atof(val.c_str());
   if (parse->find_item("dynfracP", val))	dynfracP = atof(val.c_str());
