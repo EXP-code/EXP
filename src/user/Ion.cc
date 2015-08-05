@@ -1952,10 +1952,12 @@ double VernerData::cross(const lQ& Q, double EeV)
   // The ion after recombination
   //
   lQ rQ(Q.first, Q.second-1);
+  lQ dQ(Q.first, Q.second-2);	// The Verner charge begins at zero
+				// rather than one, as in CHIANTI
 
   // No data for this ion
   //
-  if (data.find(rQ) == data.end()) return 0.0;
+  if (data.find(dQ) == data.end()) return 0.0;
 
   Ion*  origI  = ch->IonList[ Q].get();
   Ion*  combI  = ch->IonList[rQ].get();
@@ -1965,7 +1967,7 @@ double VernerData::cross(const lQ& Q, double EeV)
     mult0 = origI->fblvl.begin()->second.mult;
   }
 
-  vrPtr  vdata  = data[rQ];
+  vrPtr  vdata  = data[dQ];
   double ip     = combI->ip;
   double vCross = 0.0;
   
@@ -2007,13 +2009,18 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
 
 double VernerData::crossPhotoIon(const lQ& Q, double EeV)
 {
+  // The Verner charge begins at zero
+  // rather than one, as in CHIANTI
+  //
+  lQ dQ(Q.first, Q.second-1);
+
   // No data for this ion
   //
-  if (data.find(Q) == data.end()) return 0.0;
+  if (data.find(dQ) == data.end()) return 0.0;
 
   Ion* I = ch->IonList[ Q].get();
 
-  vrPtr  vdata  = data[Q];
+  vrPtr  vdata  = data[dQ];
   double ip     = I->ip;
   
   double Eph = EeV + ip;
@@ -2030,5 +2037,3 @@ double VernerData::crossPhotoIon(const lQ& Q, double EeV)
   //
   return fy * 1.0e-4;
 }
-
-
