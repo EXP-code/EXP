@@ -1868,9 +1868,9 @@ void VernerData::initialize(chdata* ch)
 	  
 	  int z   = atoi(v[0].c_str());
 	  int nel = atoi(v[1].c_str());
-	  int stg = z - nel;
+	  int stg = z - nel + 1;
 	  
-	  // Stage: 0 is neutral, 1 is singly ionized, etc.
+	  // Stage: 1 is singly ionized, etc.
 
 	  lQ key(z, stg);
 	  
@@ -1952,12 +1952,10 @@ double VernerData::cross(const lQ& Q, double EeV)
   // The ion after recombination
   //
   lQ rQ(Q.first, Q.second-1);
-  lQ dQ(Q.first, Q.second-2);	// The Verner charge begins at zero
-				// rather than one, as in CHIANTI
 
   // No data for this ion
   //
-  if (data.find(dQ) == data.end()) return 0.0;
+  if (data.find(rQ) == data.end()) return 0.0;
 
   Ion*  origI  = ch->IonList[ Q].get();
   Ion*  combI  = ch->IonList[rQ].get();
@@ -1967,7 +1965,7 @@ double VernerData::cross(const lQ& Q, double EeV)
     mult0 = origI->fblvl.begin()->second.mult;
   }
 
-  vrPtr  vdata  = data[dQ];
+  vrPtr  vdata  = data[rQ];
   double ip     = combI->ip;
   double vCross = 0.0;
   
@@ -2012,20 +2010,20 @@ double VernerData::crossPhotoIon(const lQ& Q, double EeV)
   // The Verner charge begins at zero
   // rather than one, as in CHIANTI
   //
-  lQ dQ(Q.first, Q.second-1);
+  lQ rQ(Q.first, Q.second);
 
   // No data for this ion
   //
-  if (data.find(dQ) == data.end()) return 0.0;
+  if (data.find(rQ) == data.end()) return 0.0;
 
   Ion* I = ch->IonList[ Q].get();
 
-  vrPtr  vdata  = data[dQ];
+  vrPtr  vdata  = data[rQ];
   double ip     = I->ip;
   
-  double Eph = EeV + ip;
-  double y   = Eph/vdata->e0;
-  double y1  = y - 1.0;
+  double Eph    = EeV + ip;
+  double y      = Eph/vdata->e0;
+  double y1     = y - 1.0;
     
   // Verner and Yakolev, equation 1
   //
