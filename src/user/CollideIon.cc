@@ -366,6 +366,34 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     double   eVel1 = 0.0, eVel2 = 0.0;
     double   iVel1 = 0.0, iVel2 = 0.0;
 
+    if (minCollFrac > 0.0) {
+
+				// Mean fraction in trace species
+				// 
+      meanF[id].clear();
+
+      double massP = 0.0;
+      for (auto b : cell->bods) {
+				// Particle mass accumulation
+	Particle *p = tree->Body(b);
+	massP      += p->mass;
+				// Mass-weighted trace fraction
+	speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+	if (meanF[id].find(k) == meanF[id].end()) 
+	  meanF[id][k] = p->mass;
+	else
+	  meanF[id][k] += p->mass;
+      }
+				// Normalize mass-weighted fraction
+				//
+      if (massP>0.0) {
+	for (auto &s : meanF[id]) {
+	  s.second /= massP;
+	}
+      }
+    }
+
+
     // Compute mean electron velocity
     //
     if (use_elec>=0) {
