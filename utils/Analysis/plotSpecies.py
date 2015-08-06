@@ -1,19 +1,40 @@
 #!/usr/bin/python -i
 
+"""Module with predefined plotting and targets for UserTreeDSMC::CollideIon output
+
+The main functions begin with make* function.  After make* (or a
+readDB() which is called by a make*), you may use showlabs() to see
+the name tags for all available fields.
+
+   setTags(list)           : set list of run tags (default: "run")
+
+   readDB()                : read OUTLOG files and build database
+
+   showLabs()              : show the fields available for plotting
+
+   makeM(xl, labs)         : plot fields in list "labs" against field "xl"
+
+   makeP(xl, lab)          : plot field "lab" against field "xl"
+
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import os, sys
 
-tags = []
-for i in range(1, len(sys.argv)): tags.append(sys.argv[i])
-
-flab = []
+tags     = ["run"]
+flab     = []
 
 H_spc    = ['(1,1)', '(1,2)']
 He_spc   = ['(2,1)', '(2,2)', '(2,3)']
 temps    = ['Tion(1)','Tion(2)','Telc(1)','Telc(2)']
 energies = ['Eion(1)','Eion(2)','Eelc(1)','Eelc(2)']
 E_sum    = ['Ions_E', 'Elec_E']
+
+def setTags(intags):
+    """ Set desired OUTLOG file tags for plotting"""
+    tags = intags
+
 
 def readDB():
     global flab

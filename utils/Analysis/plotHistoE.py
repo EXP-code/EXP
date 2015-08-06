@@ -1,5 +1,35 @@
 #!/usr/bin/python -i
 
+"""Module with predefined plotting and targets for pspHistoE output
+
+The main functions begin with make* function.  After make* (or a
+readDB() which is called by a make*), you may use showlabs() to see
+the name tags for all available fields.
+
+   readDB(file)            : read pspHistoE output file named "file"
+
+   showlabs()              : show the fields available for plotting
+
+   makeM(file, labs, temp) : plot fields in array "labs" from pspHistoE "file"
+                             assuming temperature "temp"
+
+   makeEs(file, temp)      : plot ion and electron energies from pspHistoE 
+                             "file" assuming temperature "temp"
+
+   makeEe(file, temp)      : plot electron energies per specie from pspHistoE 
+                             "file" assuming temperature "temp"
+
+   makeEi(file, temp)      : plot ion energies per specie from pspHistoE 
+                             "file" assuming temperature "temp"
+
+   makeEH(file, temp)      : plot ion and electron energies for H from 
+                             pspHistoE "file" assuming temperature "temp"
+
+   makeEHe(file, temp)     : plot ion and electron energies for He from 
+                             pspHistoE "file" assuming temperature "temp"
+
+"""
+
 import matplotlib.pyplot as plt
 import numpy as np
 import os, sys

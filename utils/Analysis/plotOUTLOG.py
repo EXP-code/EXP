@@ -1,15 +1,46 @@
 #!/usr/bin/python -i
 
+"""Module with predefined plotting and targets for EXP output
+
+The main functions begin with make* function.  After make* (or a
+readDB() which is called by a make*), you may use showlabs() to see
+the name tags for all available fields.
+
+   setTags(list)           : set list of run tags (default: "run")
+
+   readDB()                : read OUTLOG files and build database
+
+   showLabs()              : show the fields available for plotting
+
+   makeM(xl, labs)         : plot fields in list "labs" against field "xl"
+
+   makeP(xl, lab)          : plot field "lab" against field "xl"
+
+   timeStep()              : plot time-step CPU time against time
+                             "file" assuming temperature "temp"
+
+   energies()              : plot energy equilibrium values
+
+   pos()                   : plot center-of-mass position values against time
+
+   vel()                   : plot center-of-mass velocity values against time
+
+   angmom()                : plot total angular momentum values against time
+
+"""
+
+
 import matplotlib.pyplot as plt
 import string
 import numpy as np
 import os, sys
 
-tags = []
-
-for i in range(1, len(sys.argv)): tags.append(sys.argv[i])
-
+tags = ["run"]
 flab = []
+
+def setTags(intags):
+    """ Set desired OUTLOG file tags for plotting"""
+    tags = intags
 
 def readDB():
     global flab
