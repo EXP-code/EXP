@@ -124,6 +124,10 @@ static bool EXCESS_DBG        = false;
 //
 static double FloorEv = 0.05;
 
+// Minimum relative fraction for allowing a collisional excitation
+//
+static double minCollFrac = -1.0;
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 
@@ -2592,6 +2596,19 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   double delE  = 0.0;
 
+  // Test collision limiter
+  //
+  std::map<unsigned short, double> spTotl;
+  if (minCollFrac > 0.0) {
+    for (auto v : meanF[id]) {
+      unsigned short Z = v.first.first;
+      if (spTotl.find(Z) == spTotl.end())
+	spTotl[Z] = v.second;
+      else
+	spTotl[Z] += v.second;
+    }
+  }
+
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
   //
@@ -2613,11 +2630,31 @@ int CollideIon::inelasticWeight(pCell* const c,
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
     } else {
+
+      bool ok = false;		// Reject all interactions by default
+
       // Accumulate the list here
       //
-      // if (dInter[id][i] % 100 != 5) {
-      if (!scatter or dInter[id][i] % 100 < 3) tCross += dCross[id][i];
-      // }
+      if (!scatter or dInter[id][i] % 100 < 3) {
+				// Test for Particle #1 excitation
+	if (dInter[id][i] == 104) {
+	  if (meanF[id][k1.getKey()]/spTotl[Z1] > minCollFrac) {
+	    ok = true;
+	  }
+	}
+				// Test for Particle #2 excitation
+	else if (dInter[id][i] == 204) {
+	  if (meanF[id][k2.getKey()]/spTotl[Z2] > minCollFrac) {
+	    ok = true;
+	  }
+	}
+	else {			// Pass all other excitations . . . 
+	  ok = true;
+	}
+      }
+
+      if (ok) tCross += dCross[id][i];
+
       TotalCross.push_back(tCross);
     }
   }
@@ -7456,6 +7493,9 @@ void CollideIon::processConfig()
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
+
+    minCollFrac =
+      cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
 
     Collide::numSanityStop =
       cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);

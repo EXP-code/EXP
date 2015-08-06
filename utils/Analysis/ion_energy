@@ -61,6 +61,8 @@ def plot_data(filename, tscale):
             if line.find("W(") >= 0:
                 ncol = 13
                 ntrl = 3
+            if line.find("N(nn)") >= 0:
+                ncol = 16
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(2, len(toks)-1):

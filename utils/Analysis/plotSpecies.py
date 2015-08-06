@@ -33,11 +33,12 @@ E_sum    = ['Ions_E', 'Elec_E']
 
 def setTags(intags):
     """ Set desired OUTLOG file tags for plotting"""
+    global tags
     tags = intags
 
 
 def readDB():
-    global flab
+    global tags, flab
 
     db   = {}
     flab = []
