@@ -372,24 +372,48 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// 
       meanF[id].clear();
 
-      double massP = 0.0;
-      for (auto b : cell->bods) {
+      // Sample cell
+      //
+      pCell *samp = cell->sample;
+
+      if (samp) {
+
+	for (auto c : samp->children) {
+	  for (auto b : c.second->bods) {
 				// Particle mass accumulation
-	Particle *p = tree->Body(b);
-	massP      += p->mass;
+	    Particle *p = c.second->Body(b);
 				// Mass-weighted trace fraction
-	speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-	if (meanF[id].find(k) == meanF[id].end()) 
-	  meanF[id][k] = p->mass;
-	else
+	    speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+				// Add to species bucket
+	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
+	    meanF[id][k] += p->mass;
+	  }
+	}
+      } else {
+
+	for (auto b : cell->bods) {
+				// Particle mass accumulation
+	  Particle *p = cell->Body(b);
+				// Mass-weighted trace fraction
+	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+				// Add to species bucket
+	  if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	  meanF[id][k] += p->mass;
+	}
       }
 				// Normalize mass-weighted fraction
 				//
-      if (massP>0.0) {
-	for (auto &s : meanF[id]) {
-	  s.second /= massP;
-	}
+      std::map<unsigned short, double> spTotl;
+      for (auto v : meanF[id]) {
+	unsigned short Z = v.first.first;
+	if (spTotl.find(Z) == spTotl.end())
+	  spTotl[Z] = v.second;
+	else
+	  spTotl[Z] += v.second;
+      }
+
+      for (auto &s : meanF[id]) {
+	s.second /= spTotl[s.first.first];
       }
     }
 
@@ -2624,19 +2648,6 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   double delE  = 0.0;
 
-  // Test collision limiter
-  //
-  std::map<unsigned short, double> spTotl;
-  if (minCollFrac > 0.0) {
-    for (auto v : meanF[id]) {
-      unsigned short Z = v.first.first;
-      if (spTotl.find(Z) == spTotl.end())
-	spTotl[Z] = v.second;
-      else
-	spTotl[Z] += v.second;
-    }
-  }
-
   // Now that the interactions have been calculated, create the
   // normalized cross section list to pick the interaction
   //
@@ -2666,13 +2677,15 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (!scatter or dInter[id][i] % 100 < 3) {
 				// Test for Particle #1 excitation
 	if (dInter[id][i] == 104) {
-	  if (meanF[id][k1.getKey()]/spTotl[Z1] > minCollFrac) {
+	  double frac = meanF[id][k1.getKey()];
+	  if (frac > minCollFrac) {
 	    ok = true;
 	  }
 	}
 				// Test for Particle #2 excitation
 	else if (dInter[id][i] == 204) {
-	  if (meanF[id][k2.getKey()]/spTotl[Z2] > minCollFrac) {
+	  double frac = meanF[id][k2.getKey()];
+	  if (frac > minCollFrac) {
 	    ok = true;
 	  }
 	}
