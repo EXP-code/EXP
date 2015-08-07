@@ -98,6 +98,14 @@ static bool NO_DOF            = true;
 //
 static bool NO_VEL            = false;
 
+// Artifically suppress energy loss due to ionization
+//
+static bool NO_ION_E          = false;
+
+// Artifically suppress energy loss due to free-free
+//
+static bool NO_FF_E          = false;
+
 // KE debugging: checks energy bookkeeping for weighted algorithm. Set
 // to false for production
 //
@@ -2847,6 +2855,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (interFlag == free_free_1) {
       delE          = IS.selectFFInteract(ch.IonList[Q1], id);
       partflag      = 1;
+      if (NO_FF_E) delE = 0.0;
       std::get<0>(ctd1->ff[id])++; 
       std::get<1>(ctd1->ff[id]) += Wb;
       std::get<2>(ctd1->ff[id]) += delE * NN;
@@ -2864,6 +2873,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       delE          = IS.DIInterLoss(ch.IonList[Q1]);
       p1->iattrib[use_key] = k1.updateC(++C1);
       partflag      = 1;
+      if (NO_ION_E) delE = 0.0;
       std::get<0>(ctd1->CI[id])++; 
       std::get<1>(ctd1->CI[id]) += Wb;
       std::get<2>(ctd1->CI[id]) += delE * NN;
@@ -2926,6 +2936,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (interFlag == free_free_2) {
       delE          = IS.selectFFInteract(ch.IonList[Q2], id);
       partflag      = 2;
+      if (NO_FF_E) delE = 0.0;
       std::get<0>(ctd2->ff[id])++;
       std::get<1>(ctd2->ff[id]) += Wb;
       std::get<2>(ctd2->ff[id]) += delE * NN;
@@ -2943,6 +2954,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       delE = IS.DIInterLoss(ch.IonList[Q2]);
       p2->iattrib[use_key] = k2.updateC(++C2);
       partflag     = 2;
+      if (NO_ION_E) delE = 0.0;
       std::get<0>(ctd2->CI[id])++; 
       std::get<1>(ctd2->CI[id]) += Wb;
       std::get<2>(ctd2->CI[id]) += delE * NN;
@@ -7516,6 +7528,12 @@ void CollideIon::processConfig()
 
     NO_VEL =
       cfg.entry<bool>("NO_VEL", "Suppress adjustment of electron speed for equipartition equilibrium", false);
+
+    NO_ION_E =
+      cfg.entry<bool>("NO_ION_E", "Suppress energy loss from ionization", false);
+
+    NO_FF_E =
+      cfg.entry<bool>("NO_FF_E", "Suppress energy loss from free-free", false);
 
     KE_DEBUG =
       cfg.entry<bool>("KE_DEBUG", "Check energy bookkeeping for weighted algorithm", true);

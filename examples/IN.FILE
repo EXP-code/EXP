@@ -1,8 +1,9 @@
 nbodmax : 10000
-nthrds : 2
+nthrds : 1
 dtime : 0.05
-ldlibdir : /home/weinberg/ExpMPI/lib/user
+ldlibdir : /home/weinberg/lib/user
 nsteps: 100
+multistep: 10
 
 [components]
 dark halo : halo.conf
@@ -11,7 +12,7 @@ star disk : disk.conf
 [output]
 outlog : nint=10
 outps : nint=5
-orbtrace : norb = 5
+orbtrace : norb = 5, name = star disk
 # outdiag : nint=3
 
 [external]

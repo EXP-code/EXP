@@ -21,6 +21,8 @@ the name tags for all available fields.
 
    energies()              : plot energy equilibrium values
 
+   equil()                 : plot virial ratio
+
    pos()                   : plot center-of-mass position values against time
 
    vel()                   : plot center-of-mass velocity values against time
@@ -40,6 +42,7 @@ flab = []
 
 def setTags(intags):
     """ Set desired OUTLOG file tags for plotting"""
+    global tags
     tags = intags
 
 def readDB():
@@ -120,9 +123,13 @@ def timeStep():
     makeP('Time', 'Clock')
 
 def equil(comp=''):
-    s = ''
-    if len(c)>0: s = comp + ' '
-    makeP('Time', s+' 2T/VC')
+    if type(comp) is str: comp = [comp]
+    lst = []
+    for c in comp:
+        s = ''
+        if len(c)>0: s = c + ' '
+        lst.append(s+'2T/VC')
+    makeM('Time', lst) 
 
 def energies(comp=''):
     s = ''

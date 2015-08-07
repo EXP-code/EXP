@@ -107,7 +107,7 @@ Vector scalar_prod(ScalarType type, double rmin, double rmax, int l, int m,
 double plgndr(int l, int m, double costh); 
 
 				// Name of spherical model table
-const string model_file_name = "SLGridSph.model";
+const string model_file = "SLGridSph.model";
 
 //===========================================================================
 
@@ -151,7 +151,7 @@ Shift::Shift(double offset, double Rmin, double Rmax, int Lmax,
   lmax = Lmax;
   numr = numR;
 
-  SphericalModelTable model(model_file_name);
+  SphericalModelTable model(model_file);
   
   dR = (log(rmax) - log(rmin))/numr;
   double dP = M_PI/nump;
