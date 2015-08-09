@@ -6,6 +6,8 @@ The main functions begin with make* function.  After make* (or a
 readDB() which is called by a make*), you may use showlabs() to see
 the name tags for all available fields.
 
+   setTag(str)             : set a single run tag (default: "run")
+
    setTags(list)           : set list of run tags (default: "run")
 
    readDB()                : read OUTLOG files and build database
@@ -31,8 +33,13 @@ temps    = ['Tion(1)','Tion(2)','Telc(1)','Telc(2)']
 energies = ['Eion(1)','Eion(2)','Eelc(1)','Eelc(2)']
 E_sum    = ['Ions_E', 'Elec_E']
 
+def setTag(tag):
+    """ Set desired *.species file tag for plotting"""
+    global tags
+    tags = [tag]
+
 def setTags(intags):
-    """ Set desired OUTLOG file tags for plotting"""
+    """ Set desired *.species file tags for plotting"""
     global tags
     tags = intags
 
