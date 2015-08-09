@@ -257,6 +257,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   keER     .resize(nthrds);
   keIR     .resize(nthrds);
   elecOvr  .resize(nthrds, 0);
+  elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
 
   for (auto &v : velER) v.set_capacity(bufCap);
@@ -4927,7 +4928,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Accept or reject candidate pair according to relative speed
 	//
-	double mcrs = std::get<0>(ntcF);
+	double mcrs = std::get<0>(ntcF) * NTCFAC;
 	double prod = vi   * scrs;
 	double targ = prod / mcrs;
     
@@ -4937,9 +4938,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	//
 	if (targ > 1.0) elecOvr[id]++;
 
-	// Used
+	// Used / Total
 	//
-	if (ok)         elecTot[id]++;
+	if (ok)         elecAcc[id]++; elecTot[id]++;
 
 	// Update v_max and cross_max for NTC
 	//
@@ -6874,13 +6875,14 @@ void CollideIon::electronGather()
     // Accumulate from threads
     //
     std::vector<double> loss, keE, keI, mom;
-    unsigned Ovr=0, Tot=0;
+    unsigned Ovr=0, Acc=0, Tot=0;
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
       Ovr += elecOvr[t];
+      Acc += elecAcc[t];
       Tot += elecTot[t];
-      elecOvr[t] = elecTot[t] = 0;
+      elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
     }
 
     if (ENERGY_ES and ENERGY_ES_DBG) {
@@ -7065,6 +7067,7 @@ void CollideIon::electronGather()
 	       __FILE__, __LINE__);
 
     MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Acc, &Acc_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Tot, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     
     (*barrier)("CollideIon::electronGather: AFTER REDUCE loop",
@@ -7178,8 +7181,11 @@ void CollideIon::electronPrint(std::ostream& out)
   out << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl
       << std::string(53, '-') << std::endl
-      << "  Over=" << Ovr_s << "  Total=" << Tot_s << std::fixed
-      << "  Frac=" << static_cast<double>(Ovr_s)/Tot_s << std::endl 
+      << "  Over="     << Ovr_s 
+      << "  Accepted=" << Acc_s
+      << "  Total="    << Tot_s << std::fixed
+      << "  Ratio="    << static_cast<double>(Acc_s)/Tot_s << std::endl 
+      << "  Fail="     << static_cast<double>(Ovr_s)/Tot_s << std::endl 
       << std::string(53, '-') << std::endl;
 
   out << std::endl;

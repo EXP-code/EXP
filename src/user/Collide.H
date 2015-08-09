@@ -69,7 +69,7 @@ struct thrd_pass_tstep
 
 
 /**
-   The collision base class for DSMC
+   \brief The collision base class for DSMC
    
    <h2> Virtual functions that must be implemented by a derived class </h2>
    <ul>
@@ -99,6 +99,46 @@ struct thrd_pass_tstep
    heating and cooling function for EPSM.  Otherwise, return false.
    
    </ul>
+
+   <h2> Requirements for DSMC </h2>
+   <ul>
+
+   <li> The no-time-counter (NTC), Monte-Carlo-based collision
+   selector assumes that the <cross section>x<velocity> value is the
+   maximum possible in the cell.  This value is maintained per cell by
+   the NTCdb class.  Evaluations are entered into the database
+   sequentially and trimmed on accorded to FIFO.  The current value is
+   the 95% quantile in the database multiplied by the factor
+   Collide::NTCFAC (default value: 2).
+
+   <li> The Collide class provides diagnostics for the NTC algorithm
+   that are printed in the <runtag>.DSMC_log file.  These should be
+   checked and the value of NTCFAC should be adjusted so that Ratio
+   value (accepted/total) is approximately 0.5 and that the failure
+   fraction (<number of evals beyond the maximum>/total) is acceptably
+   small (maybe a handful of percent?)
+
+   <li> Time steps to be smaller than the mean time of flight through
+   the cell.
+
+   <li> The collision cells are current chosen to have a target number
+   of particles per cell (based on current DSMC best practice, this is
+   chosen to be of order 10).  
+
+   <li> The number of particles should be chosen so that the ratio of
+   the mean-free-path (MFP) for collisions to collision cell length
+   scale is of order unity (typically MFP/Length approx. 0.3 is
+   suggested).  This requires choosing an appropriate number of
+   particles.
+
+   <li> However, other trade-offs may be more appropriate and should
+   be implemented.  It is possible that MFP/Length maybe be smaller or
+   larger than 0.3 for the target number of particles per cell.  So,
+   one may wish to choose cell size so that MPF/Length < 0.3 even if
+   the particle count becomes larger than the target.
+
+   </ul>
+   
 */
 class Collide
 {
