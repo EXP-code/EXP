@@ -74,7 +74,7 @@ bool Collide::EFFORT   = true;
 bool Collide::TIMING   = true;
 
 //! Velocity factor for NTC database
-double Collide::NTCAVG = 3.0;
+double Collide::NTCFAC = 2.0;
 
 // Temperature floor in EPSM
 double Collide::TFLOOR = 1000.0;
@@ -281,6 +281,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   
   // NTC statistics
   ntcOvr  = vector<unsigned> (nthrds, 0);
+  ntcAcc  = vector<unsigned> (nthrds, 0);
   ntcTot  = vector<unsigned> (nthrds, 0);
 
   if (MFPDIAG) {
@@ -1187,8 +1188,8 @@ void * Collide::collide_thread(void * arg)
 	  if (NTC) {
 				// Over NTC max average
 	    if (targ > 1.0) ntcOvr[id]++;
-				// Used
-	    if (ok)         ntcTot[id]++;
+				// Used / Total
+	    if (ok)         ntcAcc[id]++; ntcTot[id]++;
 	    
 
 				// Accumulate average
@@ -1198,8 +1199,8 @@ void * Collide::collide_thread(void * arg)
 
 				// Sanity check
 	    if (numSanityMsg and 
-		ntcTot[id] >= numSanityVal and 	
-		ntcTot[id] %  numSanityFreq == 0) {
+		ntcAcc[id] >= numSanityVal and 	
+		ntcAcc[id] %  numSanityFreq == 0) {
 
 	      std::ostringstream sout;
 	      sout << "<"
@@ -1215,7 +1216,7 @@ void * Collide::collide_thread(void * arg)
 			<< ", nselM=" << nselM[i1][i2]
 			<< ", ntcOvr=" << ntcOvr[id]
 			<< " for "    << sout.str() << std::endl
-			<< " has logged " << ntcTot[id] << " collisions!"
+			<< " has logged " << ntcAcc[id] << " collisions!"
 			<< " You may wish to cancel this run and"  << std::endl
 			<< " adjust the cell size or particle number." 
 			<< std::endl;
@@ -3127,13 +3128,14 @@ void Collide::NTCgather(pHOT* const tree)
     cros.clear();
     crat.clear();
 
-    unsigned Ovr=0, Tot=0, Max=0, gbMax;
+    unsigned Ovr=0, Acc=0, Tot=0, Max=0, gbMax;
     for (int n=0; n<nthrds; n++) {
       Ovr += ntcOvr[n];
+      Acc += ntcAcc[n];
       Tot += ntcTot[n];
-      Max  = std::max<unsigned>(ntcTot[n], Max);
+      Max  = std::max<unsigned>(ntcAcc[n], Max);
 				// Reset the counters
-      ntcOvr[n] = ntcTot[n] = 0;
+      ntcOvr[n] = ntcAcc[n] = ntcTot[n] = 0;
     }
 
     // Only check for crazy collisions after first step
@@ -3155,6 +3157,7 @@ void Collide::NTCgather(pHOT* const tree)
     } else notFirst = true;
 
     MPI_Reduce(&Ovr, &accOvr, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Acc, &accAcc, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
     pHOT_iterator c(*tree);
@@ -3274,8 +3277,11 @@ void Collide::NTCstats(std::ostream& out)
 
     out << std::string(spc, '-') << std::endl
 	<< "[NTC diagnostics]  Time=" << std::scientific << tnow 
-	<< "  Over=" << accOvr << "  Total=" << accTot << std::fixed
-	<< "  Frac=" << static_cast<double>(accOvr)/accTot
+	<< "  Over="     << accOvr 
+	<< "  Accepted=" << accAcc 
+	<< "  Total="    << accTot << std::fixed
+	<< "  Ratio="    << static_cast<double>(accAcc)/accTot
+	<< "  Fail="     << static_cast<double>(accOvr)/accTot
 	<< std::endl << std::string(spc, '-') << std::endl;
 
     if (both.size() > 0) {

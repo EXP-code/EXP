@@ -177,8 +177,8 @@ protected:
   vector<double>      forkSum, snglSum, waitSum, diagSum, joinSum;
   bool                effortAccum;
   vector<effortL>     effortNumber;
-  vector<unsigned>    ntcOvr, ntcTot;
-  unsigned            accOvr, accTot;
+  vector<unsigned>    ntcOvr, ntcAcc, ntcTot;
+  unsigned            accOvr, accAcc, accTot;
 
   boost::tuple<double, double, double> ntcRes;
   
@@ -445,7 +445,7 @@ public:
   static double ENHANCE;
   
   //! CrossSection-Velocity factor for NTC database
-  static double NTCAVG;
+  static double NTCFAC;
 
   //! Atomic weights (public data)
   static std::map<unsigned short, double> atomic_weights;

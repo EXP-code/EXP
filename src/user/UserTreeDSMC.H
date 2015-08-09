@@ -145,6 +145,7 @@ class CollideIon;
     @param mfpts set to true (default) uses the mean free path to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
     @param ntcdef is the default NTC value for <cross section>x<relative velocity> in mixed units (default: 10)
+    @param ntcfac is an upscaling factor for the NTC database in mixed units as in ntcdef (default: 2.0)
     @param tube set to true (default: false) sets the octree region to a 
     rectangular rather than square region whose different axis is X
     @param slab set to true (default: false) sets the octree region to a 
@@ -192,6 +193,7 @@ private:
   double coolfrac;
   double enhance;
   double ntcdef;
+  double ntcfac;
   string ctype;
   string rrtype;
 
