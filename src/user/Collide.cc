@@ -3276,13 +3276,15 @@ void Collide::NTCstats(std::ostream& out)
     size_t spc = 18 + 12*both.size();
 
     out << std::string(spc, '-') << std::endl
-	<< "[NTC diagnostics]  Time=" << std::scientific << tnow 
-	<< "  Over="     << accOvr 
-	<< "  Accepted=" << accAcc 
-	<< "  Total="    << accTot << std::fixed
-	<< "  Ratio="    << static_cast<double>(accAcc)/accTot
-	<< "  Fail="     << static_cast<double>(accOvr)/accTot
-	<< std::endl << std::string(spc, '-') << std::endl;
+	<< "[NTC diagnostics]"   << std::endl << std::scientific << std::left
+	<< std::setw(14) << " Time"     << std::setw(16) << tnow   << std::endl
+	<< std::setw(14) << " Over"     << std::setw(16) << accOvr << std::endl
+	<< std::setw(14) << " Accepted" << std::setw(16) << accAcc << std::endl
+	<< std::setw(14) << " Total"    << std::setw(16) << accTot << std::endl
+	<< std::fixed
+	<< std::setw(14) << " Ratio"    << std::setw(16) << static_cast<double>(accAcc)/accTot << std::endl
+	<< std::setw(14) << " Fail"     << std::setw(16) << static_cast<double>(accOvr)/accTot << std::endl
+	<< std::string(spc, '-') << std::endl << std::right;
 
     if (both.size() > 0) {
 
