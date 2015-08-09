@@ -7180,13 +7180,14 @@ void CollideIon::electronPrint(std::ostream& out)
 
   out << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl
-      << std::string(53, '-') << std::endl
-      << "  Over="     << Ovr_s 
-      << "  Accepted=" << Acc_s
-      << "  Total="    << Tot_s << std::fixed
-      << "  Ratio="    << static_cast<double>(Acc_s)/Tot_s << std::endl 
-      << "  Fail="     << static_cast<double>(Ovr_s)/Tot_s << std::endl 
-      << std::string(53, '-') << std::endl;
+      << std::string(53, '-') << std::endl << std::left
+      << std::setw(14) << " Over"      << std::setw(16) << Ovr_s << std::endl 
+      << std::setw(14) << " Accepted"  << std::setw(16) << Acc_s << std::endl
+      << std::setw(14) << " Total"     << std::setw(16) << Tot_s << std::endl
+      << std::fixed
+      << std::setw(14) << " Ratio"     << std::setw(16) << static_cast<double>(Acc_s)/Tot_s << std::endl 
+      << std::setw(14) << " Fail"      << std::setw(16) << static_cast<double>(Ovr_s)/Tot_s << std::endl
+      << std::string(53, '-') << std::endl << std::right;
 
   out << std::endl;
 }
