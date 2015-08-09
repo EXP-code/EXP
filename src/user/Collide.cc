@@ -1172,7 +1172,7 @@ void * Collide::collide_thread(void * arg)
 	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 	  bool   ok   = false;
 	  double cros = crossSection(c, p1, p2, cr, id);
-	  double mcrs = std::get<0>(ntcF[k]);
+	  double mcrs = std::get<0>(ntcF[k]) * NTCFAC;
 	  double scrs = cros / cunit;
 	  double prod = cr   * scrs;
 	  double targ = prod / mcrs;
