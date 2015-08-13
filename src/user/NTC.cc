@@ -50,16 +50,12 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      vcTup q1(k.second[u1].get());
-      vcTup q2(k.second[u2].get());
-      vcTup q3(k.second[u3].get());
-
-      vcTup p1( std::get<0>(q1),  std::get<0>(q2), std::get<0>(q3) );
-      vcTup p2( std::get<1>(q1),  std::get<1>(q2), std::get<1>(q3) );
-      vcTup p3( std::get<2>(q1),  std::get<2>(q2), std::get<2>(q3) );
+      vcTup p1( k.second[u1][0](),  k.second[u2][0](), k.second[u3][0]() );
+      vcTup p2( k.second[u1][1](),  k.second[u2][1](), k.second[u3][1]() );
+      vcTup p3( k.second[u1][2](),  k.second[u2][2](), k.second[u3][2]() );
 
       std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second[u3].count()
+		<< std::setw(10) << k.second[u3][0].count()
 		<< "  " << p1 << "  product" << std::endl 
 		<< std::setw(26) << "" << std::string(42, '-') << std::endl
 		<< std::setw(24) << ""
@@ -101,7 +97,9 @@ NTCitem::vcMap NTCitem::VelCrsAvg(double _quant)
   //
   for (auto v : db) {
     if (ok)
-      ret[v.first] = v.second[quant].get();
+      ret[v.first] = vcTup(v.second[quant][0](), 
+			   v.second[quant][1](), 
+			   v.second[quant][2]());
     else
       ret[v.first] = vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
   }
@@ -141,7 +139,9 @@ NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double _quant)
 
   // Return quantile
   if (ok)
-    return it->second[quant].get();
+    return vcTup(it->second[quant][0](), 
+		 it->second[quant][1](), 
+		 it->second[quant][2]());
   else
     return vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
 }
@@ -154,7 +154,7 @@ void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
 
   // Check for initialization of Quantile
   //
-  if (db.find(indx) == db.end()) db[indx].initialize(ic);
+  if (db.find(indx) == db.end()) db[indx].initialize(qs);
 
   // Add new element
   //

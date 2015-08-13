@@ -15,6 +15,7 @@
 
 #include <boost/serialization/base_object.hpp>
 #include <boost/serialization/utility.hpp>
+#include <boost/serialization/vector.hpp>
 #include <boost/serialization/list.hpp>
 #include <boost/serialization/map.hpp>
 
@@ -22,6 +23,7 @@
 
 #include "pHOT_types.H"
 #include "Species.H"
+#include "Quantile.H"
 
 //
 // Tuple arithmetic
@@ -202,126 +204,29 @@ namespace boost {
 }
   
 
+// Serialize std::array
+//
+namespace boost {
+    
+  namespace serialization {
+      
+    template<class Archive, class T, size_t N>
+    void serialize(Archive & ar, std::array<T,N> & a, 
+		   const unsigned int version)
+    {
+      ar & boost::serialization::make_array(a.data(), a.size());
+    }
+
+  } // namespace serialization
+  
+} // namespace boost
+
+
+
 namespace NTC {
 
   //! NTC structures defintion
   typedef std::tuple<double, double, double> vcTup;
-
-  //! Compute a running quantile using a relaxation scheme
-  class Quantile
-  {
-    friend class boost::serialization::access;
-    
-  private:
-
-    double eta;
-    vcTup  q;
-    double p;
-    unsigned long c;
-    
-    template<class Archive>
-    void serialize(Archive &ar, const unsigned int version)
-    {
-      ar & BOOST_SERIALIZATION_NVP(eta);
-      ar & BOOST_SERIALIZATION_NVP(q);
-      ar & BOOST_SERIALIZATION_NVP(p);
-      ar & BOOST_SERIALIZATION_NVP(c);
-    }
-    
-  public:
-    
-    //! Null constructor
-    Quantile() : eta(0.0), p(0.0), c(0) {}
-    
-    //! Constructor
-    Quantile(double eta, const vcTup& q, double p) : 
-      eta(eta), q(q), p(p), c(0) {}
-    
-    //! Copy constructor
-    Quantile(const Quantile *s)
-    {
-      eta = s->eta;
-      q   = s->q;
-      p   = s->p;
-      c   = s->c;
-    }
-    
-    //! Set values
-    void set(double eta, const vcTup& q, unsigned long c=0)
-    {
-      this->eta = eta;
-      this->q   = q;
-      this->p   = p;
-      this->c   = c;
-    }
-
-    /** Add value: the main algorithm
-	
-	The expectation of [sgn(v-q)] is zero at the median (p=0.5).
-	
-	The expectation of [sgn(v-q) + 2p - 1] is zero at the
-	p-quantile.  That is, if q is the p-quantile for the
-	distribution of v, then v-q is smaller than 0 with probability
-	p.  Or:
-	
-	<[]> = <sgn(v-q)> + 2p - 1 = (-1)*p + 1*(1 - p) + 2p - 1 = 0.
-	
-	Thus, q is larger than the quantile p, (v-q) will be negative
-	with probability > p and [] will be more often negative than
-	positive (and vice versa). In this way, each value is "relaxed"
-	toward the expectation by the fraction eta of the current median
-	estimate.
-    */
-    void add(const vcTup& v)
-    {
-      // Do each tuple entry separately
-      //
-      std::get<0>(q) += eta * fabs(std::get<0>(q)) *
-	(std::copysign(1.0, std::get<0>(v) - std::get<0>(q)) + 2.0*p - 1.0);
-      
-      std::get<1>(q) += eta * fabs(std::get<1>(q)) *
-	(std::copysign(1.0, std::get<1>(v) - std::get<1>(q)) + 2.0*p - 1.0);
-      
-      std::get<2>(q) += eta * fabs(std::get<2>(q)) *
-	(std::copysign(1.0, std::get<2>(v) - std::get<2>(q)) + 2.0*p - 1.0);
-      
-      // For diagnostic output
-      c++;
-    }
-    
-    //! Get current value
-    const vcTup& get() { return q; }
-    
-    //! Get number of samples
-    const unsigned long count() { return c; }
-    
-    //@{
-    //! MPI syncronize
-    
-    //! Node sends data to root
-    void send()
-    {
-      MPI_Send(&eta,              1, MPI_DOUBLE, 0, 1101, MPI_COMM_WORLD);
-      MPI_Send(&(std::get<0>(q)), 1, MPI_DOUBLE, 0, 1102, MPI_COMM_WORLD);
-      MPI_Send(&(std::get<1>(q)), 1, MPI_DOUBLE, 0, 1103, MPI_COMM_WORLD);
-      MPI_Send(&(std::get<2>(q)), 1, MPI_DOUBLE, 0, 1104, MPI_COMM_WORLD);
-      MPI_Send(&p,                1, MPI_DOUBLE, 0, 1105, MPI_COMM_WORLD);
-      MPI_Send(&c,         1, MPI_UNSIGNED_LONG, 0, 1106, MPI_COMM_WORLD);
-    }
-    
-    // Root intializes itself from node's data
-    void recv(int id)
-    {
-      MPI_Recv(&eta,              1, MPI_DOUBLE, id, 1101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<0>(q)), 1, MPI_DOUBLE, id, 1102, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<1>(q)), 1, MPI_DOUBLE, id, 1103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&(std::get<2>(q)), 1, MPI_DOUBLE, id, 1104, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&p,                1, MPI_DOUBLE, id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      MPI_Recv(&c,         1, MPI_UNSIGNED_LONG, id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-    }
-    //@}
-    
-  };
   
   class QuantileArray
   {
@@ -329,11 +234,10 @@ namespace NTC {
     
   public:
     
-    typedef std::tuple<double, vcTup, double> d3;
-    typedef std::vector<d3> vd3;
+    typedef std::array<Quantile, 3> Q3;
     
   private:
-    std::map<double, Quantile> tt;
+    std::map<double, Q3> tt;
     
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
@@ -346,31 +250,31 @@ namespace NTC {
     QuantileArray() {}
     
     //! Construct an array of quantile pointers
-    QuantileArray(const vd3& e)
+    QuantileArray(const std::vector<double>& e)
     {
       initialize(e);
     }
     
     //! Initialize the array
-    void initialize(const vd3& e)
+    void initialize(const std::vector<double>& e)
     {
       tt.erase(tt.begin(), tt.end());
       
-      for (auto v : e) {
-	double eta = std::get<0>(v);
-	vcTup  q   = std::get<1>(v);
-	double p   = std::get<2>(v);
-
-	tt[p].set(eta, q, p);
+      for (auto p : e) {
+	for (auto &q : tt[p]) q.reset(p);
       }
     }
     
     void add(const vcTup& v) 
     {
-      for (auto &q : tt) q.second.add(v);
+      for (auto &t : tt) {
+	t.second[0](std::get<0>(v));
+	t.second[1](std::get<1>(v));
+	t.second[2](std::get<2>(v));
+      }
     }
     
-    Quantile operator[](double p)
+    Q3 operator[](double p)
     {
       return tt[p];
     }
@@ -390,7 +294,9 @@ namespace NTC {
       for (auto &p : tt) {
 	double d = p.first;
 	MPI_Send(&d, 1, MPI_DOUBLE, 0, 1131, MPI_COMM_WORLD);
-	p.second.send();
+	p.second[0].send();
+	p.second[1].send();
+	p.second[2].send();
       }
     }
     
@@ -406,7 +312,9 @@ namespace NTC {
 	double d;
 	MPI_Recv(&d, 1, MPI_DOUBLE, id, 1131, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
-	tt[d].recv(id);
+	tt[d][0].recv(id);
+	tt[d][1].recv(id);
+	tt[d][2].recv(id);
       }
     }
     
@@ -436,21 +344,7 @@ namespace NTC {
     //@{
     //! The 3 desired quantiles
     const double u1 = 0.50, u2 = 0.90, u3 = 0.95;
-    const std::set<double> qs = {u1, u2, u3};
-    //@}
-    
-    //@{
-    //! The precision and initial tuple values
-    const double et = 0.1, vi = 1.0;
-    const vcTup  v3 = vcTup(vi, vi, vi);
-    //@}
-    
-    //@{
-    //! The constant intialization vector
-    typedef std::tuple<double, vcTup, double> d3;
-    typedef std::vector<d3> vd3;
-    const vd3 ic = {d3(et, v3, u1), d3(et, v3, u2), d3(et, v3, u3)};
-    //@}
+    const std::vector<double> qs = {u1, u2, u3};
     //@}
     
     //! Main NTC data structures

@@ -42,7 +42,7 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	LinearOrbit.cc UnboundOrbit.cc
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc CollideIon.cc	\
-	Ion.cc interactSelect.cc Elastic.cc TopBase.cc NTC.cc
+	Ion.cc interactSelect.cc Elastic.cc TopBase.cc NTC.cc Quantile.cc
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 
