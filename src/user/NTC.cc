@@ -9,7 +9,7 @@
 using namespace NTC;
 
 // For verbose debugging
-static const bool DEBUG_V   = false;
+static const bool DEBUG_V   = true;
 
 // Chatty output for debugging
 bool NTCdb::chatty = false;
@@ -40,6 +40,8 @@ void NTCitem::VelCrsTest()
 
   if (db.size()>0) {
 
+    size_t wid = qs.size() * 12;
+
     std::cout << std::string(70, '-') << std::endl
 	      << "VelCrs structure: "  << this << " caller: " << caller 
 	      << std::endl << std::string(70, '-') << std::endl;
@@ -50,20 +52,23 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      vcTup p1( k.second[u1][0](),  k.second[u2][0](), k.second[u3][0]() );
-      vcTup p2( k.second[u1][1](),  k.second[u2][1](), k.second[u3][1]() );
-      vcTup p3( k.second[u1][2](),  k.second[u2][2](), k.second[u3][2]() );
+      std::vector<double> p1, p2, p3;
+      for (auto P : qs) {
+	p1.push_back(k.second[P][0]());
+	p2.push_back(k.second[P][1]());
+	p3.push_back(k.second[P][2]());
+      }
 
       std::cout << std::setw(14) << sout.str()
 		<< std::setw(10) << k.second[u3][0].count()
-		<< "  " << p1 << "  product" << std::endl 
-		<< std::setw(26) << "" << std::string(42, '-') << std::endl
+		<< "  " << vbkts(p1) << "  product" << std::endl 
+		<< std::setw(26) << "" << std::string(wid, '-') << std::endl
 		<< std::setw(24) << ""
-		<< "  " << p2 << "  cross"   << std::endl
-		<< std::setw(26) << "" << std::string(42, '-') << std::endl
+		<< "  " << vbkts(p2) << "  cross"   << std::endl
+		<< std::setw(26) << "" << std::string(wid, '-') << std::endl
 		<< std::setw(24) << ""
-		<< "  " << p3 << "  ratio"   << std::endl
-		<< std::setw(26) << "" << std::string(42, '-') << std::endl;
+		<< "  " << vbkts(p3) << "  ratio"   << std::endl
+		<< std::setw(26) << "" << std::string(wid, '-') << std::endl;
     }
     std::cout << std::string(70, '-') << std::endl;
   } else {
@@ -162,10 +167,9 @@ void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
 }
 
 
-NTCitem NTCdb::operator[](const key_type& k)
+NTCitem& NTCdb::operator[](const key_type& k)
 {
   NTCdata::iterator it = data.find(k);
-  NTCitem ret;
 
   if (it == data.end()) {
     
@@ -189,16 +193,12 @@ NTCitem NTCdb::operator[](const key_type& k)
     // parent
     //
     if (it == data.end()) {
-      data[k] = ret;
-    } else {
-      ret = it->second;
+      data[k] = NTCitem();
+      it = data.find(k);
     }
-
-  } else {
-    ret = it->second;
   }
 
-  if (DEBUG_V) ret.setKey(k);
+  if (DEBUG_V) it->second.setKey(k);
 
-  return ret;
+  return it->second;
 }

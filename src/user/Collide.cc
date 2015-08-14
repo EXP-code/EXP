@@ -867,7 +867,7 @@ void * Collide::collide_thread(void * arg)
 	sKeyPair   k(i1, i2);
 
 	if (samp)
-	  ntcF[k]  = ntcdb[samp->mykey].VelCrsAvg(k, 0.95);
+	  ntcF[k]  = ntcdb[samp->mykey].VelCrsAvg(k, 0.99);
 	else
 	  ntcF[k]  = NTC::NTCitem::vcTup(NTC::NTCitem::VelCrsDef, 0, 0);
       }
@@ -3163,7 +3163,7 @@ void Collide::NTCgather(pHOT* const tree)
     pHOT_iterator c(*tree);
     unsigned totsz = 0;
     while (c.nextCell()) {
-      NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].VelCrsAvg(0.95);
+      NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].VelCrsAvg(0.99);
       totsz += v.size();
       for (auto i : v) {
 	both[i.first].push_back(std::get<0>(i.second));

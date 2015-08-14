@@ -140,7 +140,7 @@ std::tuple<T1, T2, T3> operator-=(std::tuple<T1, T2, T3>& a, const std::tuple<T1
 };
 
 //----------------------------------------------------------------------
-// Subtract two tuples (non const version)
+// iostream manipulators
 //----------------------------------------------------------------------
 
 template< class T1, class T2, class T3 >
@@ -153,6 +153,26 @@ std::ostream& operator<< (std::ostream& stream,
 
   return stream;
 }
+
+//! Syntatic glue class to change output for std::vector<double>
+class vbkts 
+{
+private:
+  std::vector<double> data;
+
+public:
+  //! Construct the wrapper
+  vbkts(std::vector<double>& d) { data = d; }
+  
+  //! Print to stream
+  friend std::ostream& operator<<(std::ostream& stream, const vbkts& v)
+  {
+    stream << "[";
+    for (auto d : v.data) stream << std::setw(12) << d;
+    stream << "]";
+    return stream;
+  }
+};
 
 // Use a recursive C++-11 variadic template to serialize std::tuple
 //
@@ -255,6 +275,12 @@ namespace NTC {
       initialize(e);
     }
     
+    //! Copy constructor
+    QuantileArray(const QuantileArray& p)
+    {
+      tt = p.tt;
+    }
+
     //! Initialize the array
     void initialize(const std::vector<double>& e)
     {
@@ -277,11 +303,6 @@ namespace NTC {
     Q3 operator[](double p)
     {
       return tt[p];
-    }
-    
-    size_t size()
-    {
-      return tt.size();
     }
     
     //! Node sends to root
@@ -342,9 +363,10 @@ namespace NTC {
     //! Quantile init data
     
     //@{
-    //! The 3 desired quantiles
-    const double u1 = 0.50, u2 = 0.90, u3 = 0.95;
-    const std::vector<double> qs = {u1, u2, u3};
+    //! The desired quantiles.  You can add as many of these 
+    //! as you want.
+    const double u1 = 0.50, u2 = 0.90, u3 = 0.95, u4 = 0.99;
+    const std::vector<double> qs = {u1, u2, u3, u4};
     //@}
     
     //! Main NTC data structures
@@ -615,7 +637,7 @@ namespace NTC {
     }
     
     //! Return NTCitem instance for cell key k
-    NTCitem operator[](const key_type& k);
+    NTCitem& operator[](const key_type& k);
     
     //! Update the serialization file
     void update()

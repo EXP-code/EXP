@@ -6,6 +6,22 @@
 
 using namespace NTC;
 
+unsigned Quantile::instance = 0;
+
+Quantile::Quantile(const Quantile& q)
+{
+  dn   = q.dn;
+  npos = q.npos;
+  hgt  = q.hgt;
+  pos  = q.pos;
+  p    = q.p;
+  num  = q.num;
+  full = q.full;
+
+  instance++;
+}
+
+
 double Quantile::P2
 (double d,
  double qp1, double q, double qm1, 
@@ -20,7 +36,7 @@ double Quantile::P2
 
 void Quantile::update()
 {
-  for (int i=1; i<ssize-1; i++) {
+  for (size_t i=1; i<ssize-1; i++) {
     int    N = pos[i];
     double n = N;
     double q = hgt[i];
@@ -63,7 +79,7 @@ void Quantile::reset(double P)
   double NPOS[] = {1.0, 1.0 + 2.0*p, 1.0 + 4.0*p, 3.0 + 2.0*p, 5.0};
   npos = std::vector<double>(NPOS, NPOS + sizeof(NPOS)/sizeof(double) );
 
-  for (int i=0; i<ssize; i++) pos.push_back(i+1);
+  for (size_t i=0; i<ssize; i++) pos.push_back(i+1);
       
   num = 0;
 
@@ -90,13 +106,13 @@ void Quantile::operator()(double item)
     
     // Which interval?
     //
-    int k = 0;			// Force upper value check
+    size_t k = 0;		// Force upper value check
     
     if (item < hgt[0]) {	// Replace lower value
       hgt[0] = item;
       k = 1;
     } else {
-      for (int i=1; i<ssize; i++) {
+      for (size_t i=1; i<ssize; i++) {
 	if (hgt[i-1] <= item and item < hgt[i]) {
 	  k = i;
 	  break;
@@ -112,7 +128,7 @@ void Quantile::operator()(double item)
     
     // Increment all positions greater than k
     //
-    for (int i=0; i<ssize; i++) {
+    for (size_t i=0; i<ssize; i++) {
       if (i >= k) pos[i]++;
       npos[i] += dn[i];
     }
@@ -165,4 +181,9 @@ void Quantile::recv(int id)
   MPI_Recv(&num,         1, MPI_UNSIGNED_LONG, id, 1107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   MPI_Recv(&ii,          1, MPI_INT,           id, 1108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   full = ii ? true : false;
+}
+
+Quantile::~Quantile()
+{
+  instance--;
 }
