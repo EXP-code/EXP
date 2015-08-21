@@ -6,6 +6,7 @@
 
 using namespace NTC;
 
+// Count instances for debugging
 unsigned Quantile::instance = 0;
 
 Quantile::Quantile(const Quantile& q)
@@ -18,7 +19,7 @@ Quantile::Quantile(const Quantile& q)
   num  = q.num;
   full = q.full;
 
-  instance++;
+  instance++;			// Count instances for debugging only
 }
 
 
@@ -43,8 +44,8 @@ void Quantile::update()
 	
     double d = npos[i] - n;
 	
-    if ( (d >=  1.0 and pos[i+1] - n >  1.0) or 
-	 (d <= -1.0 and pos[i-1] - n < -1.0)  )
+    if ( (d >=  1.0 and pos[i+1] - n >  1) or 
+	 (d <= -1.0 and pos[i-1] - n < -1)  )
       {
 	d = floor(copysign(1.0, d));
 	int D = static_cast<int>(d);
@@ -74,11 +75,26 @@ void Quantile::reset(double P)
   // Initial marker values
   double DN[] = {0.0, 0.5*p, p, 0.5*(1.0 + p), 1.0};
   dn = std::vector<double>(DN, DN + sizeof(DN)/sizeof(double) );
-      
+  
+  // Sanity check
+  if (DBG_VERBOSE && dn.size() != ssize) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "[" << myid << "] dn size=" << dn.size() << std::endl;
+    dn.resize(ssize);
+  }
+
   // Initial position values
   double NPOS[] = {1.0, 1.0 + 2.0*p, 1.0 + 4.0*p, 3.0 + 2.0*p, 5.0};
   npos = std::vector<double>(NPOS, NPOS + sizeof(NPOS)/sizeof(double) );
 
+  // Sanity check
+  if (DBG_VERBOSE && npos.size() != ssize) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "[" << myid << "] npos size=" << npos.size() << std::endl;
+    npos.resize(ssize);
+  }
+
+  pos.clear();
   for (size_t i=0; i<ssize; i++) pos.push_back(i+1);
       
   num = 0;
@@ -155,35 +171,142 @@ double Quantile::operator()()
 // Node sends its internal data to root
 void Quantile::send()
 {
-  MPI_Send(&dn[0],   ssize, MPI_DOUBLE,        0, 1101, MPI_COMM_WORLD);
-  MPI_Send(&npos[0], ssize, MPI_DOUBLE,        0, 1102, MPI_COMM_WORLD);
+  static int sz = ssize;	// Number of markers
+
+  // Send marker values
+  MPI_Send(&dn[0],   sz, MPI_DOUBLE,        0, 1101, MPI_COMM_WORLD);
+
+  // Send position values
+  MPI_Send(&npos[0], sz, MPI_DOUBLE,        0, 1102, MPI_COMM_WORLD);
+
+  // Get data size and send to receiver
   int hsz = hgt.size();
-  MPI_Send(&hsz,         1, MPI_INT,           0, 1103, MPI_COMM_WORLD);
-  MPI_Send(&hgt[0],    hsz, MPI_DOUBLE,        0, 1104, MPI_COMM_WORLD);
-  MPI_Send(&pos[0],  ssize, MPI_DOUBLE,        0, 1105, MPI_COMM_WORLD);
-  MPI_Send(&p,           1, MPI_DOUBLE,        0, 1106, MPI_COMM_WORLD);
-  MPI_Send(&num,         1, MPI_UNSIGNED_LONG, 0, 1107, MPI_COMM_WORLD);
+  if (DBG_VERBOSE && hsz>5) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Quantile[" << myid << "]: sanity check, hsz=" 
+	      << hsz << std::endl;
+    hsz = 5;
+  }
+  MPI_Send(&hsz,      1, MPI_INT,           0, 1103, MPI_COMM_WORLD);
+
+  // Send data
+  MPI_Send(&hgt[0], hsz, MPI_DOUBLE,        0, 1104, MPI_COMM_WORLD);
+
+  // Send current data positions
+  MPI_Send(&pos[0],  sz, MPI_INT,           0, 1105, MPI_COMM_WORLD);
+
+  // Send probability value (p-value)
+  MPI_Send(&p,        1, MPI_DOUBLE,        0, 1106, MPI_COMM_WORLD);
+
+  // Send number of data processed so far
+  MPI_Send(&num,      1, MPI_UNSIGNED_LONG, 0, 1107, MPI_COMM_WORLD);
+
+  // Send full data indicator
   int fl = full ? 1 : 0;
-  MPI_Send(&fl,          1, MPI_INT,           0, 1108, MPI_COMM_WORLD);
+  MPI_Send(&fl,       1, MPI_INT,           0, 1108, MPI_COMM_WORLD);
 }
     
 // Root intializes itself from node's data
 void Quantile::recv(int id)
 {
-  int ii;
-  MPI_Recv(&dn[0],   ssize, MPI_DOUBLE,        id, 1101, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&npos[0], ssize, MPI_DOUBLE,        id, 1102, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&ii,          1, MPI_INT,           id, 1103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  static int sz = ssize;	// Number of markers
+  int ii;			// Temporary integer value
+
+  MPI_Status status;
+  int count;
+
+  if (DBG_VERBOSE) {
+
+    if (dn.size() != ssize) {
+      int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+      std::cout << "Whoa [" << myid << "] crazy dn size=" << dn.size() << std::endl;
+      dn.resize(sz);
+    }
+
+    if (npos.size() != ssize) {
+      int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+      std::cout << "Whoa [" << myid << "] crazy npos size=" << npos.size() << std::endl;
+      npos.resize(sz);
+    }
+
+    if (pos.size() != ssize) {
+      int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+      std::cout << "Whoa [" << myid << "] crazy pos size=" << pos.size() << std::endl;
+      pos.resize(sz);
+    }
+
+  }
+
+  // Receive marker values
+  MPI_Recv(&dn[0],   sz, MPI_DOUBLE,        id, 1101, MPI_COMM_WORLD, &status);
+
+  // Sanity
+  MPI_Get_count(&status, MPI_DOUBLE, &count);
+  if (DBG_VERBOSE && count != sz) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Bad count dn [" << myid << "] count=" << count
+	      << ", expected=" << sz << std::endl;
+  }
+
+  // Receive position values
+  MPI_Recv(&npos[0], sz, MPI_DOUBLE,        id, 1102, MPI_COMM_WORLD, &status);
+
+  // Sanity
+  MPI_Get_count(&status, MPI_DOUBLE, &count);
+  if (DBG_VERBOSE && count != sz) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Bad count npos [" << myid << "] count=" << count
+	      << ", expected=" << sz << std::endl;
+  }
+
+  // Receive current data size (should be < sz)
+  MPI_Recv(&ii,       1, MPI_INT,           id, 1103, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+  if (DBG_VERBOSE && ii>5) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Quantile[" << myid << "]: sanity check, ii=" 
+	      << ii << std::endl;
+    ii = 5;
+  }
   hgt.resize(ii);
-  MPI_Recv(&hgt[0],     ii, MPI_DOUBLE,        id, 1104, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&pos[0],  ssize, MPI_DOUBLE,        id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&p,           1, MPI_DOUBLE,        id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&num,         1, MPI_UNSIGNED_LONG, id, 1107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-  MPI_Recv(&ii,          1, MPI_INT,           id, 1108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  
+  // Now, receive the data
+  MPI_Recv(&hgt[0],  ii, MPI_DOUBLE,        id, 1104, MPI_COMM_WORLD, &status);
+
+  // Sanity
+  MPI_Get_count(&status, MPI_DOUBLE, &count);
+  if (DBG_VERBOSE && count != ii) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Bad count hgt [" << myid << "] count=" << count
+	      << ", expected=" << ii << std::endl;
+  }
+
+  // Receive the rank position of data
+  MPI_Recv(&pos[0],  sz, MPI_INT,           id, 1105, MPI_COMM_WORLD, &status);
+
+  // Sanity
+  MPI_Get_count(&status, MPI_INT, &count);
+  if (DBG_VERBOSE && count != sz) {
+    int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+    std::cout << "Bad count pos [" << myid << "] count=" << count
+	      << ", expected=" << sz << std::endl;
+  }
+
+  // Receice the probability value
+  MPI_Recv(&p,        1, MPI_DOUBLE,        id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+  // Number of data processed so far
+  MPI_Recv(&num,      1, MPI_UNSIGNED_LONG, id, 1107, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+  // Is data vector full?
+  MPI_Recv(&ii,       1, MPI_INT,           id, 1108, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
   full = ii ? true : false;
+
+  if (DBG_VERBOSE && instance % 1000 == 0)
+    std::cout << "I=" << instance << std::endl;
 }
 
 Quantile::~Quantile()
 {
-  instance--;
+  instance--;			// Count instances for debugging only
 }

@@ -9,7 +9,7 @@
 using namespace NTC;
 
 // For verbose debugging
-static const bool DEBUG_V   = true;
+static const bool DEBUG_V   = false;
 
 // Chatty output for debugging
 bool NTCdb::chatty = false;
@@ -28,6 +28,9 @@ double   NTCitem::VelCrsMin = 1.0e-24;
 
 // Minimum CrossSection x Velocity value
 double   NTCitem::VelCrsDef = 10.0;
+
+// Count live instances
+unsigned NTCitem::instance  = 0;
 
 void NTCitem::VelCrsTest()
 {

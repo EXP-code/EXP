@@ -43,7 +43,11 @@ namespace NTC {
 
   private:
     const size_t ssize = 5;
+    
+    //! Set true for debugging and sanity checking MPI
+    const bool DBG_VERBOSE = false;
 
+    //! Count instances for debugging only
     static unsigned instance;
 
     std::vector<double> dn, npos, hgt;
@@ -72,6 +76,40 @@ namespace NTC {
       ar & BOOST_SERIALIZATION_NVP(p);
       ar & BOOST_SERIALIZATION_NVP(num);
       ar & BOOST_SERIALIZATION_NVP(full);
+
+      if (DBG_VERBOSE) {
+	std::string stat("loading");
+	if (Archive::is_saving::value) stat = "saving";
+	
+	if (dn.size() != ssize) {
+	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	  std::cout << "[" << myid
+		    << "] crazy dn size=" << dn.size()
+		    << " on " << stat << std::endl;
+	  dn.resize(ssize);
+	}
+	if (npos.size() != ssize) {
+	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	  std::cout << "[" << myid
+		    << "[ crazy npos size=" << npos.size()
+		    << " on " << stat << std::endl;
+	  npos.resize(ssize);
+	}
+	if (hgt.size() > ssize) {
+	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	  std::cout << "[" << myid
+		    << "] crazy hgt size=" << hgt.size()
+		    << " on " << stat << std::endl;
+	  hgt.resize(ssize);
+	}
+	if (pos.size() != ssize) {
+	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	  std::cout << "[" << myid
+		    << "] crazy pos size=" << pos.size()
+		    << " on " << stat << std::endl;
+	  pos.resize(ssize);
+	}
+      }
     }
 
   public:
@@ -82,16 +120,17 @@ namespace NTC {
 
     //! Null constructor.  Assumes quantile probabilty of 0.5
     //! (i.e. median) by default.
-    Quantile() { 
+    Quantile()
+    { 
       reset(0.5); 
-      instance++; 
+      instance++;		// Count instances for debugging only
     }
 
     //! Constructs a single quantile object
     //! @param P the quantile probability
     Quantile(double p) { 
       reset(p); 
-      instance++;
+      instance++;		// Count instances for debugging only
     }
 
     //! Copy constructor
@@ -121,6 +160,8 @@ namespace NTC {
     void recv(int id);
     //@}
     
+    //! Number of live instances (for debugging)
+    static unsigned live() { return instance; }
   };
 
 }

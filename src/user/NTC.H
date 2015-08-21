@@ -311,6 +311,8 @@ namespace NTC {
       // Sends the array of Quantiles
       //
       unsigned siz = tt.size();
+      // std::cout << "Node " << myid << " sending " << siz
+      // << " quantiles" << std::endl;
       MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1130, MPI_COMM_WORLD);
       for (auto &p : tt) {
 	double d = p.first;
@@ -327,6 +329,9 @@ namespace NTC {
       unsigned siz;
       MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1130, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
       
+      // std::cout << "Root receiving " << siz
+      // << " quantiles" << std::endl;
+
       // Receives the array of quantiles from a node
       //
       for (unsigned j=0; j<siz; j++) {
@@ -393,13 +398,19 @@ namespace NTC {
       ar & BOOST_SERIALIZATION_NVP(inTest);
     }
     
+  private:
+
+    static unsigned instance;
+
   public:
     
     //! Constructor
     NTCitem() 
     { 
       report = 0; 
-      inTest = false; 
+      inTest = false;
+
+      instance++;
     }
     
     //! Copy constructor
@@ -408,6 +419,8 @@ namespace NTC {
       db.insert(p.db.begin(), p.db.end());
       report = 0;
       inTest = false;
+
+      instance++;
     }
     
     //! Assignment operator
@@ -417,9 +430,17 @@ namespace NTC {
       report = 0;
       inTest = false;
 
+      instance++;
+
       return *this;
     }
 
+    //! Destructor (for debugging live instance count)
+    ~NTCitem()
+    {
+      instance--;
+    }
+    
     //! Threshold <cross section> x <relative velocity> value
     static double VelCrsMin;
     
@@ -481,6 +502,8 @@ namespace NTC {
 	db[key].recv(id);
       }
     }
+
+    static unsigned live() { return instance; }
     
   };
   
@@ -512,7 +535,7 @@ namespace NTC {
     //! Persistent copy
     NTCdata pdata;
     
-    //! Get copy from all nodes to save
+    //! Get copies from all nodes to save
     void sync() 
     {
       // Insert root's nodes into pdata
@@ -560,7 +583,10 @@ namespace NTC {
 	    pdata[k].recv(i);
 	  }
 	}
-	
+	// Need this barrier to prevent the MPI buffer cache from
+	// getting insanely large
+	//
+	MPI_Barrier(MPI_COMM_WORLD);
       }
     }
     
@@ -572,11 +598,24 @@ namespace NTC {
       
       // Only the root process makes an archive
       if (myid==0) {
-	std::ofstream ofs(filename.c_str());
+	std::ofstream ofs;
+	bool exists = boost::filesystem::exists(filename);
+	std::string tfile(".tmp." + filename);
+	
+	if (exists) {
+	  ofs.open(tfile.c_str());
+	} else {
+	  ofs.open(filename.c_str());
+	}
+
 	boost::archive::xml_oarchive oa(ofs);
 	oa << BOOST_SERIALIZATION_NVP(pdata);
 	oa << BOOST_SERIALIZATION_NVP(curr_time);
 	oa << BOOST_SERIALIZATION_NVP(next_time);
+
+	if (exists) {
+	  boost::filesystem::rename(tfile, filename);
+	}
 
 	if (chatty) {
 	  std::cout << std::endl << std::string(70, '-') << std::endl
@@ -588,6 +627,16 @@ namespace NTC {
       
       // Clean up node-aggregated db
       pdata.clear();
+
+      // Debugging
+      if (myid==0) {
+	std::cout << std::string(40, '-') << std::endl
+		  << "--- Quantile instances: " << Quantile::live()
+		  << std::endl
+		  << "--- NTCitem instances:  " << NTCitem::live()
+		  << std::endl
+		  << std::string(40, '-') << std::endl;
+      }
     }
     
     //! Restore contents from a file
