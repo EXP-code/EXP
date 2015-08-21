@@ -2014,6 +2014,10 @@ void UserTreeDSMC::makeSpeciesMap()
   if (T0[0] > 0.0) TempTot = T0[1]/T0[0];
 }
 
+void UserTreeDSMC::finish()
+{ 
+  collide->finish(); 
+}
 
 extern "C" {
   ExternalForce *makerTreeDSMC(string& line)

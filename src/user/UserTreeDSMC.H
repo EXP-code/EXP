@@ -356,6 +356,8 @@ public:
   //! Destructor
   ~UserTreeDSMC();
 
+  //! Finish
+  void finish();
 };
 
 #endif

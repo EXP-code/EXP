@@ -650,6 +650,13 @@ namespace NTC {
       }
     }
     
+    //! Serialize to finish
+    void finish()
+    {
+      std::string filename = ".ntcdb." + runtag;
+      save_myself(filename);
+    }
+
   };
 
 } // End: namespace NTC

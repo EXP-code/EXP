@@ -213,6 +213,11 @@ void ExternalCollection::dynamicload(void)
   }
 }
 
+void ExternalCollection::finish()
+{ 
+  for (auto p : force_list) p->finish(); 
+}
+
 void ExternalCollection::bomb(string& msg)
   {
   cerr << "ExternalCollection: " << msg << endl;

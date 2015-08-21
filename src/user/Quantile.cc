@@ -43,8 +43,8 @@ void Quantile::update()
 	
     double d = npos[i] - n;
 	
-    if ( (d >=  1.0 and pos[i+1] - n >  1.0) or 
-	 (d <= -1.0 and pos[i-1] - n < -1.0)  )
+    if ( (d >=  1.0 and pos[i+1] - n >  1) or 
+	 (d <= -1.0 and pos[i-1] - n < -1)  )
       {
 	d = floor(copysign(1.0, d));
 	int D = static_cast<int>(d);
@@ -79,6 +79,7 @@ void Quantile::reset(double P)
   double NPOS[] = {1.0, 1.0 + 2.0*p, 1.0 + 4.0*p, 3.0 + 2.0*p, 5.0};
   npos = std::vector<double>(NPOS, NPOS + sizeof(NPOS)/sizeof(double) );
 
+  pos.clear();
   for (size_t i=0; i<ssize; i++) pos.push_back(i+1);
       
   num = 0;
@@ -160,7 +161,7 @@ void Quantile::send()
   int hsz = hgt.size();
   MPI_Send(&hsz,         1, MPI_INT,           0, 1103, MPI_COMM_WORLD);
   MPI_Send(&hgt[0],    hsz, MPI_DOUBLE,        0, 1104, MPI_COMM_WORLD);
-  MPI_Send(&pos[0],  ssize, MPI_DOUBLE,        0, 1105, MPI_COMM_WORLD);
+  MPI_Send(&pos[0],  ssize, MPI_INT,           0, 1105, MPI_COMM_WORLD);
   MPI_Send(&p,           1, MPI_DOUBLE,        0, 1106, MPI_COMM_WORLD);
   MPI_Send(&num,         1, MPI_UNSIGNED_LONG, 0, 1107, MPI_COMM_WORLD);
   int fl = full ? 1 : 0;

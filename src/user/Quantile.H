@@ -20,22 +20,22 @@ namespace NTC {
      @brief Estimate a quantile using the Jain & Chlamtac P^2 algorithm
 
      The \f$P^2\f$ algorithm estimates a quantile without storing
-        samples. Five points, or "markers" as the authors called them
-        are maintained and sequentially updated based on new data.
-        The values or "heights" of these markers are the minimum and
-        the maximum of the samples and the current estimates of the
-        \f$(p/2)\f$-, \f$p\f$- and \f$(1+p)/2\f$-quantiles. Their
-        positions are equal to the number of samples that are smaller
-        or equal to the markers. Each time a new samples is recorded,
-        the positions of the markers are updated and if necessary
-        their heights are adjusted using a piecewise- parabolic
-        formula.
+     samples. Five points, or "markers" as the authors called them are
+     maintained and sequentially updated based on new data.  The
+     values or "heights" of these markers are the minimum and the
+     maximum of the samples and the current estimates of the
+     \f$(p/2)\f$-, \f$p\f$- and \f$(1+p)/2\f$-quantiles. Their
+     positions are equal to the number of samples that are smaller or
+     equal to the markers. Each time a new samples is recorded, the
+     positions of the markers are updated and if necessary their
+     heights are adjusted using a piecewise- parabolic formula.
 
-        For further details, see:
+     For further details, see:
 
-        R. Jain and I. Chlamtac, The P^2 algorithm for dynamic calculation of quantiles and
-        histograms without storing observations, Communications of the ACM,
-        Volume 28 (October), Number 10, 1985, p. 1076-1085.
+     R. Jain and I. Chlamtac, The P^2 algorithm for dynamic
+     calculation of quantiles and histograms without storing
+     observations, Communications of the ACM, Volume 28 (October),
+     Number 10, 1985, p. 1076-1085.
     */
   class Quantile
   {

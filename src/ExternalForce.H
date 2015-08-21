@@ -50,6 +50,9 @@ public:
       that must be provided by all derived classes (hence pure virtual) */
   virtual void * determine_acceleration_and_potential_thread(void * arg) = 0;
 
+  //! Finish and clean-up (caching data necessary for restart)
+  virtual void finish() {}
+
 };
 
 typedef ExternalForce *maker_t(string&);
