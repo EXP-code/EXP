@@ -633,6 +633,9 @@ public:
   //! Print stats for No-Time-Counter algorithm
   virtual void NTCstats(ostream& out);
 
+  //! Cache NTC database for restart
+  virtual void finish() { ntcdb.finish(); }
+
 protected:
 
   //! Helper function for NTCstats output

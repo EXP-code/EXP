@@ -7,12 +7,15 @@
 #include <expand.h>
 #include <global.H>
 #include <OutputContainer.H>
+#include <ExternalCollection.H>
 
 
 void clean_up(void)
 {
 				// Call for final output to files
   output.Run(this_step, true);
+				// Cache for restart
+  external.finish();
 
   MPI_Barrier(MPI_COMM_WORLD);
 

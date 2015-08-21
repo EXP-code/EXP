@@ -52,6 +52,8 @@ public:
   //! Provides the same interface to compute acceleration as ExternalForce
   void get_acceleration_and_potential(vector<Particle>*);
 
+  //! Call the finish member for all external forces
+  void finish();
 };
 
 
