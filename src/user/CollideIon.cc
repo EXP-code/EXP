@@ -66,11 +66,13 @@ static bool SECONDARY_SCATTER = false;
 //
 static double TRACE_FRAC      = 1.0;
 
+
 // Same species tests (for debugging only)
 //
 static bool SAME_ELEC_SCAT    = false;
 static bool SAME_IONS_SCAT    = false;
 static bool SAME_INTERACT     = false;
+static bool SAME_TRACE_SUPP   = false;
 
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
@@ -217,6 +219,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (SAME_IONS_SCAT ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_INTERACT"
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
+	      << (SAME_TRACE_SUPP ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMB_KE"
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
@@ -3203,26 +3207,38 @@ int CollideIon::inelasticWeight(pCell* const c,
   
   if (use_cons >= 0) {
 
-    // Not a trace interaction
-    //
-    if (Z1 == Z2) {
-
+    if (SAME_TRACE_SUPP) {
+      //
+      // Override special trace species treatment
+      //
       double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
       Exs  += del;
       totE += del;
       p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 
     } else {
-
-      // Trace interaction. Assign energy loss to dominant particle;
-      // always Particle #1
       //
-      p1->dattrib[use_cons] += -delE;
-
-      // Reset total energy to initial energy, deferring an changes to
-      // non-trace interactions
+      // Not a trace interaction
       //
-      totE = kE;
+      if (Z1 == Z2) {
+	
+	double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	Exs  += del;
+	totE += del;
+	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+	
+      } else {
+	
+	// Trace interaction. Assign energy loss to dominant particle;
+	// always Particle #1
+	//
+	p1->dattrib[use_cons] += -delE;
+	
+	// Reset total energy to initial energy, deferring an changes to
+	// non-trace interactions
+	//
+	totE = kE;
+      }
     }
 
   } // end: trace-particle energy loss assignment
@@ -3277,15 +3293,25 @@ int CollideIon::inelasticWeight(pCell* const c,
     else if (C1==1 and C2==1)
       del += deltaKE;
       
-    // Split between like species ONLY.  Otherwise, assign to
-    // non-trace particle.
-    if (Z1 == Z2) {		
-      p1->dattrib[use_cons] += 0.5*del;
-      p2->dattrib[use_cons] += 0.5*del;
-    } else if (Z1 > Z2) {
-      p1->dattrib[use_cons] += del;
+    if (SAME_TRACE_SUPP) {
+      //
+      // Override default trace species treatment
+      //
+	p1->dattrib[use_cons] += 0.5*del;
+	p2->dattrib[use_cons] += 0.5*del;
     } else {
-      p2->dattrib[use_cons] += del;
+      //
+      // Split between like species ONLY.  Otherwise, assign to
+      // non-trace particle.
+      //
+      if (Z1 == Z2) {		
+	p1->dattrib[use_cons] += 0.5*del;
+	p2->dattrib[use_cons] += 0.5*del;
+      } else if (Z1 > Z2) {
+	p1->dattrib[use_cons] += del;
+      } else {
+	p2->dattrib[use_cons] += del;
+      }
     }
   }
 
@@ -7510,6 +7536,9 @@ void CollideIon::processConfig()
 
     SAME_INTERACT = 
       cfg.entry<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
+
+    SAME_TRACE_SUPP = 
+      cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);
 
     frost_warning = 
       cfg.entry<bool>("frost_warning", "Warn if energy lost is smaller than available energy", false);
