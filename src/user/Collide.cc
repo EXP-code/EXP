@@ -3130,9 +3130,9 @@ void Collide::NTCgather(pHOT* const tree)
     pHOT_iterator c(*tree);
     unsigned totsz = 0;
     while (c.nextCell()) {
-      NTC::NTCitem::vcMap v1 = ntcdb[c.Cell()->mykey].Prob(0.05);
+      NTC::NTCitem::vcMap v1 = ntcdb[c.Cell()->mykey].Prob(0.1);
       NTC::NTCitem::vcMap v2 = ntcdb[c.Cell()->mykey].Prob(0.5);
-      NTC::NTCitem::vcMap v3 = ntcdb[c.Cell()->mykey].Prob(0.95);
+      NTC::NTCitem::vcMap v3 = ntcdb[c.Cell()->mykey].Prob(0.9);
       totsz += v1.size();
       for (auto i : v1) qq[i.first][0].push_back(i.second);
       for (auto i : v2) qq[i.first][1].push_back(i.second);
@@ -3254,7 +3254,7 @@ void Collide::NTCstats(std::ostream& out)
 
     if (qq.size() > 0) {
 
-      out << std::setw(18) << "Value\\Species";
+      out << std::left << std::setw(18) << "Value\\Species";
       
       for (auto i : qq) {
 	sKeyPair   k  = i.first;
@@ -3269,11 +3269,11 @@ void Collide::NTCstats(std::ostream& out)
       out << std::endl << std::string(spc, '-') << std::endl
 	  << std::left << std::fixed;
       
-      NTCstanza(out, qq, 0, "0.05", pcent);
+      NTCstanza(out, qq, 0, "10%", pcent);
       out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, qq, 1, "0.50",   pcent);
+      NTCstanza(out, qq, 1, "50%",   pcent);
       out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, qq, 2, "0.95",   pcent);
+      NTCstanza(out, qq, 2, "90%",   pcent);
       out << std::string(spc, '-') << std::endl << std::endl;
     }
   }

@@ -25,8 +25,6 @@
 #include "Species.H"
 #include "Quantile.H"
 
-
-
 // Serialize std::array
 //
 namespace boost {

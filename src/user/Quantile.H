@@ -30,6 +30,9 @@ namespace NTC {
      positions of the markers are updated and if necessary their
      heights are adjusted using a piecewise- parabolic formula.
 
+     This version implements both the single quantile algorithm from
+     Box 1 and the multiple quantile algorithm from Box 2.
+
      For further details, see:
 
      R. Jain and I. Chlamtac, The P^2 algorithm for dynamic
@@ -50,13 +53,17 @@ namespace NTC {
     //! Count instances for debugging only
     static unsigned instance;
 
-    //@{
-    //! Internal data
+    //! Saved data points
     std::vector<double> q;
+    
+    //! Marker values
     std::vector<double> dn;
+
+    //! Position values for markers
     std::vector<double> np;
+
+    //! Current indices of saved data points
     std::vector<int>    n;
-    //@}
     
     //! Number of datums so far
     int M;
