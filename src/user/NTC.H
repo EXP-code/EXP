@@ -25,204 +25,7 @@
 #include "Species.H"
 #include "Quantile.H"
 
-//
-// Tuple arithmetic
-//
 
-//----------------------------------------------------------------------
-// Add two tuples
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator+(const std::tuple<T1, T2, T3>& a, 
-				 const std::tuple<T1, T2, T3>& b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) + std::get<0>(b), 
-			      std::get<1>(a) + std::get<1>(b), 
-			      std::get<2>(a) + std::get<2>(b) );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Subtract two tuples
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator-(const std::tuple<T1, T2, T3>& a, 
-				 const std::tuple<T1, T2, T3>& b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) - std::get<0>(b), 
-			      std::get<1>(a) - std::get<1>(b), 
-			      std::get<2>(a) - std::get<2>(b) );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Multiply a tuple by a scalar
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S>
-std::tuple<T1, T2, T3> operator*(const std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) * b,
-			      std::get<1>(a) * b,
-			      std::get<2>(a) * b );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Divide a tuple by a scalar
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S>
-std::tuple<T1, T2, T3> operator/(const std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::tuple<T1, T2, T3> ret( std::get<0>(a) / b,
-			      std::get<1>(a) / b,
-			      std::get<2>(a) / b );
-  return ret;
-};
-
-//----------------------------------------------------------------------
-// Add two tuples (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator+=(std::tuple<T1, T2, T3>& a, const std::tuple<T1, T2, T3>& b)
-{
-  std::get<0>(a)  += std::get<0>(b);
-  std::get<1>(a)  += std::get<1>(b);
-  std::get<2>(a)  += std::get<2>(b);
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Multiple a tuple by a scalar (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S >
-std::tuple<T1, T2, T3> operator*=(std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::get<0>(a) *= b;
-  std::get<1>(a) *= b;
-  std::get<2>(a) *= b;
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Divide a tuple by a scalar (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3, class S >
-std::tuple<T1, T2, T3> operator/=(std::tuple<T1, T2, T3>& a, const S b)
-{
-  std::get<0>(a) /= b;
-  std::get<1>(a) /= b;
-  std::get<2>(a) /= b;
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// Subtract two tuples (non const version)
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::tuple<T1, T2, T3> operator-=(std::tuple<T1, T2, T3>& a, const std::tuple<T1, T2, T3>& b)
-{
-  std::get<0>(a) -= std::get<0>(b);
-  std::get<1>(a) -= std::get<1>(b);
-  std::get<2>(a) -= std::get<2>(b);
-
-  return a;
-};
-
-//----------------------------------------------------------------------
-// iostream manipulators
-//----------------------------------------------------------------------
-
-template< class T1, class T2, class T3 >
-std::ostream& operator<< (std::ostream& stream, 
-			  const std::tuple<T1, T2, T3>& v)
-{
-  stream << "["  << std::setw(12) << std::get<0>(v) 
-	 << ", " << std::setw(12) << std::get<1>(v) 
-	 << ", " << std::setw(12) << std::get<2>(v) << "]";
-
-  return stream;
-}
-
-//! Syntatic glue class to change output for std::vector<double>
-class vbkts 
-{
-private:
-  std::vector<double> data;
-
-public:
-  //! Construct the wrapper
-  vbkts(std::vector<double>& d) { data = d; }
-  
-  //! Print to stream
-  friend std::ostream& operator<<(std::ostream& stream, const vbkts& v)
-  {
-    stream << "[";
-    for (auto d : v.data) stream << std::setw(12) << d;
-    stream << "]";
-    return stream;
-  }
-};
-
-// Use a recursive C++-11 variadic template to serialize std::tuple
-//
-namespace boost {
-    
-  namespace serialization {
-      
-    // The generic recursion function for all but the first (<0>)
-    // tuple position
-    //
-    template<uint N>
-    struct Serialize
-    {
-      template<class Archive, typename... Arguments>
-      static void serialize(Archive & ar, std::tuple<Arguments...> & t, 
-			    const unsigned int version)
-      {
-	// Make the id name for the name-value pair
-	std::ostringstream s; s << "tuple_" << N-1;
-	// Archive
-	ar & make_nvp(s.str().c_str(), std::get<N-1>(t));
-	// Do next element
-	Serialize<N-1>::serialize(ar, t, version);
-      }
-    };
-    
-    // Specialize the <0> case to stop the recursion
-    //
-    template<>
-    struct Serialize<0>
-    {
-      template<class Archive, typename... Arguments>
-      static void serialize(Archive & ar, std::tuple<Arguments...> & t, 
-			    const unsigned int version)
-      {
-	// Do nothing, end recursion
-      }
-    };
-    
-    // Finally, the serialize template for std::tuple
-    template<class Archive, typename... Arguments>
-    void serialize(Archive & ar, std::tuple<Arguments...> & t, 
-		   const unsigned int version)
-    {
-      Serialize<sizeof...(Arguments)>::serialize(ar, t, version);
-    }
-    
-  }
-}
-  
 
 // Serialize std::array
 //
@@ -245,108 +48,6 @@ namespace boost {
 
 namespace NTC {
 
-  //! NTC structures defintion
-  typedef std::tuple<double, double, double> vcTup;
-  
-  class QuantileArray
-  {
-    friend class boost::serialization::access;
-    
-  public:
-    
-    typedef std::array<Quantile, 3> Q3;
-    
-  private:
-    std::map<double, Q3> tt;
-    
-    template<class Archive>
-    void serialize(Archive &ar, const unsigned int version)
-    {
-      ar & BOOST_SERIALIZATION_NVP(tt);
-    }
-    
-  public:
-    //! Null constructor
-    QuantileArray() {}
-    
-    //! Construct an array of quantile pointers
-    QuantileArray(const std::vector<double>& e)
-    {
-      initialize(e);
-    }
-    
-    //! Copy constructor
-    QuantileArray(const QuantileArray& p)
-    {
-      tt = p.tt;
-    }
-
-    //! Initialize the array
-    void initialize(const std::vector<double>& e)
-    {
-      tt.erase(tt.begin(), tt.end());
-      
-      for (auto p : e) {
-	for (auto &q : tt[p]) q.reset(p);
-      }
-    }
-    
-    void add(const vcTup& v) 
-    {
-      for (auto &t : tt) {
-	t.second[0](std::get<0>(v));
-	t.second[1](std::get<1>(v));
-	t.second[2](std::get<2>(v));
-      }
-    }
-    
-    Q3 operator[](double p)
-    {
-      return tt[p];
-    }
-    
-    //! Node sends to root
-    void send()
-    {
-      // Sends the array of Quantiles
-      //
-      unsigned siz = tt.size();
-      // std::cout << "Node " << myid << " sending " << siz
-      // << " quantiles" << std::endl;
-      MPI_Send(&siz, 1, MPI_UNSIGNED, 0, 1130, MPI_COMM_WORLD);
-      for (auto &p : tt) {
-	double d = p.first;
-	MPI_Send(&d, 1, MPI_DOUBLE, 0, 1131, MPI_COMM_WORLD);
-	p.second[0].send();
-	p.second[1].send();
-	p.second[2].send();
-      }
-    }
-    
-    //! Root initializes itself from node's data
-    void recv(int id) 
-    {
-      unsigned siz;
-      MPI_Recv(&siz, 1, MPI_UNSIGNED, id, 1130, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-      
-      // std::cout << "Root receiving " << siz
-      // << " quantiles" << std::endl;
-
-      // Receives the array of quantiles from a node
-      //
-      for (unsigned j=0; j<siz; j++) {
-	double d;
-	MPI_Recv(&d, 1, MPI_DOUBLE, id, 1131, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	
-	tt[d][0].recv(id);
-	tt[d][1].recv(id);
-	tt[d][2].recv(id);
-      }
-    }
-    
-  }; // end: QuantileArray
-  
-  
   class NTCitem
   {
     friend class boost::serialization::access;
@@ -354,13 +55,10 @@ namespace NTC {
     
   public:
     //@{
-    //! NTC structures defintion
-    typedef std::tuple<double, double, double> vcTup;
-    typedef std::map<sKeyPair, vcTup>          vcMap;
+    //! NTC structures
+    typedef std::map<sKeyPair, double>   vcMap;
+    typedef std::map<sKeyPair, Quantile> qpMap;
     //@}
-    
-    
-    typedef std::map<sKeyPair, QuantileArray> qpMap;
     
   protected:
     
@@ -370,7 +68,8 @@ namespace NTC {
     //@{
     //! The desired quantiles.  You can add as many of these 
     //! as you want.
-    const double u1 = 0.50, u2 = 0.90, u3 = 0.95, u4 = 0.99;
+    const int Nequal = 10;
+    const double u1 = 0.01, u2 = 0.05, u3 = 0.95, u4 = 0.99;
     const std::vector<double> qs = {u1, u2, u3, u4};
     //@}
     
@@ -385,7 +84,7 @@ namespace NTC {
     unsigned report;
     bool inTest;
     
-    void VelCrsTest();
+    void Test();
     void setKey(const key_type& k) { caller = k; }
     //@}
     
@@ -442,19 +141,22 @@ namespace NTC {
     }
     
     //! Threshold <cross section> x <relative velocity> value
-    static double VelCrsMin;
+    static double Min;
     
     //! Default <cross section> x <relative velocity> value
-    static double VelCrsDef;
+    static double Def;
     
     //! Return quantile value for a single index
-    vcTup VelCrsAvg(sKeyPair indx, double quantile=0.5);
+    double Prob(sKeyPair indx, double x);
     
     //! Return quantile values for all indices
-    vcMap VelCrsAvg(double quantile);
+    vcMap Prob(double x);
+    
+    //! Return value for quantile q for a single index
+    double CrsVel(sKeyPair indx, double p);
     
     //! Add a single value to the list
-    void  VelCrsAdd(sKeyPair indx, const vcTup& val);
+    void  Add(sKeyPair indx, double x);
     
     //! Node sends to root
     void send()

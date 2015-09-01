@@ -4771,6 +4771,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   //
   if ( (aType == Direct or aType == Weight) and use_elec>=0 and
        esType != always and esType != none) {
+
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
     double eta = 0.0, crsvel = 0.0;
@@ -4798,11 +4799,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     pCell *samp = cell->sample;
 
     if (samp)
-      crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(electronKey, 0.95));
+      crsvel = ntcdb[samp->mykey].Prob(electronKey, 0.95);
     else
-      crsvel = std::get<0>(ntcdb[cell->mykey].VelCrsAvg(electronKey, 0.95));
+      crsvel = ntcdb[cell->mykey].Prob(electronKey, 0.95);
     
-
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
     //
@@ -4813,14 +4813,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     if (esType == limited or esType == fixed) 
       nselM = std::min<unsigned>(nselM, esNum);
-
-    NTC::NTCitem::vcTup ntcF;
-
-    if (samp)
-      ntcF = ntcdb[samp->mykey].VelCrsAvg(electronKey, 0.95);
-    else
-      ntcF = NTC::NTCitem::vcTup(NTC::NTCitem::VelCrsDef, 0, 0);
-
 
     for (unsigned n=0; n<nselM; n++) {
     
@@ -4928,15 +4920,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Accept or reject candidate pair according to relative speed
 	//
-	double mcrs = std::get<0>(ntcF) * NTCFAC;
-	double prod = vi   * scrs;
-	double targ = prod / mcrs;
-    
+	double prod = vi * scrs;
+	double targ = ntcdb[samp->mykey].Prob(electronKey, prod);
+
 	ok = (targ > (*unit)() );
 	
 	// Over NTC max average
 	//
-	if (targ > 1.0) elecOvr[id]++;
+	if (targ >= 1.0) elecOvr[id]++;
 
 	// Used / Total
 	//
@@ -4944,9 +4935,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Update v_max and cross_max for NTC
 	//
-	NTC::NTCitem::vcTup dat(prod, scrs, targ);
 #pragma omp critical
-	ntcdb[samp->mykey].VelCrsAdd(electronKey, dat);
+	ntcdb[samp->mykey].Add(electronKey, prod);
       }
 
 
@@ -6270,9 +6260,9 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  if (samp)
-	    crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
+	    crsvel = ntcdb[samp->mykey].CrsVel(k, 0.95);
 	  else
-	    crsvel = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
+	    crsvel = ntcdb[c->mykey].CrsVel(k, 0.95);
 	  
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
@@ -6299,13 +6289,13 @@ sKey2Umap CollideIon::generateSelectionWeight
 	    if (selcM[i1][i2]>10000) {
 	      double cv1, cv2, cv3;
 	      if (samp) {
-		cv1 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.50));
-		cv2 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.90));
-		cv3 = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
+		cv1 = ntcdb[samp->mykey].Prob(k, 0.50);
+		cv2 = ntcdb[samp->mykey].Prob(k, 0.90);
+		cv3 = ntcdb[samp->mykey].Prob(k, 0.95);
 	      } else {
-		cv1 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.50));
-		cv2 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.90));
-		cv3 = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
+		cv1 = ntcdb[c->mykey].Prob(k, 0.50);
+		cv2 = ntcdb[c->mykey].Prob(k, 0.90);
+		cv3 = ntcdb[c->mykey].Prob(k, 0.95);
 	      }
 
 	      std::cout << "Too many collisions: collP=" << meanCollP
@@ -6375,9 +6365,9 @@ sKey2Umap CollideIon::generateSelectionWeight
       
 	    double crsvel = 0.0;
 	    if (samp)
-	      crsvel = std::get<0>(ntcdb[samp->mykey].VelCrsAvg(k, 0.95));
+	      crsvel = ntcdb[samp->mykey].CrsVel(k, 0.95);
 	    else
-	      crsvel = std::get<0>(ntcdb[c->mykey].VelCrsAvg(k, 0.95));
+	      crsvel = ntcdb[c->mykey].CrsVel(k, 0.95);
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
 
@@ -7184,10 +7174,13 @@ void CollideIon::electronPrint(std::ostream& out)
       << std::setw(14) << " Over"      << std::setw(16) << Ovr_s << std::endl 
       << std::setw(14) << " Accepted"  << std::setw(16) << Acc_s << std::endl
       << std::setw(14) << " Total"     << std::setw(16) << Tot_s << std::endl
-      << std::fixed
-      << std::setw(14) << " Ratio"     << std::setw(16) << static_cast<double>(Acc_s)/Tot_s << std::endl 
-      << std::setw(14) << " Fail"      << std::setw(16) << static_cast<double>(Ovr_s)/Tot_s << std::endl
-      << std::string(53, '-') << std::endl << std::right;
+      << std::fixed;
+
+  if (Tot_s>0) 
+    out << std::setw(14) << " Ratio"     << std::setw(16) << static_cast<double>(Acc_s)/Tot_s << std::endl 
+	<< std::setw(14) << " Fail"      << std::setw(16) << static_cast<double>(Ovr_s)/Tot_s << std::endl;
+
+  out << std::string(53, '-') << std::endl << std::right;
 
   out << std::endl;
 }

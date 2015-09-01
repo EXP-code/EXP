@@ -50,37 +50,51 @@ namespace NTC {
     //! Count instances for debugging only
     static unsigned instance;
 
-    std::vector<double> dn, npos, hgt;
-    std::vector<int> pos;
+    //@{
+    //! Internal data
+    std::vector<double> q;
+    std::vector<double> dn;
+    std::vector<double> np;
+    std::vector<int>    n;
+    //@}
+    
+    //! Number of datums so far
+    int M;
 
-    double p;
-    unsigned long num;
+    //! Number of markers
+    int N;
 
-    bool full;
+    //@{
+    //! For storage management and updating
+    void    init();
+    double *extend(int count);
+    void    update();
+    double  parabolic( int i, int d );
+    double  linear( int i, int d );
+    //@}
 
-    //! Piecewise parabolic computation
-    double P2(double d,
-	      double qp1, double q, double qm1, 
-	      double np1, double n, double nm1);
-
-    //! Update the heights and positions according to the P2 algorithm
-    void update();
-  
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
+      ar & BOOST_SERIALIZATION_NVP(q);
       ar & BOOST_SERIALIZATION_NVP(dn);
-      ar & BOOST_SERIALIZATION_NVP(npos);
-      ar & BOOST_SERIALIZATION_NVP(hgt);
-      ar & BOOST_SERIALIZATION_NVP(pos);
-      ar & BOOST_SERIALIZATION_NVP(p);
-      ar & BOOST_SERIALIZATION_NVP(num);
-      ar & BOOST_SERIALIZATION_NVP(full);
+      ar & BOOST_SERIALIZATION_NVP(np);
+      ar & BOOST_SERIALIZATION_NVP(n);
+      ar & BOOST_SERIALIZATION_NVP(M);
+      ar & BOOST_SERIALIZATION_NVP(N);
 
       if (DBG_VERBOSE) {
 	std::string stat("loading");
 	if (Archive::is_saving::value) stat = "saving";
 	
+	if (q.size() != ssize) {
+	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
+	  std::cout << "[" << myid
+		    << "] crazy q size=" << q.size()
+		    << " on " << stat << std::endl;
+	  dn.resize(ssize);
+	}
+
 	if (dn.size() != ssize) {
 	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 	  std::cout << "[" << myid
@@ -88,50 +102,40 @@ namespace NTC {
 		    << " on " << stat << std::endl;
 	  dn.resize(ssize);
 	}
-	if (npos.size() != ssize) {
+
+	if (np.size() != ssize) {
 	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 	  std::cout << "[" << myid
-		    << "[ crazy npos size=" << npos.size()
+		    << "[ crazy np size=" << np.size()
 		    << " on " << stat << std::endl;
-	  npos.resize(ssize);
+	  np.resize(ssize);
 	}
-	if (hgt.size() > ssize) {
+
+	if (n.size() != ssize) {
 	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 	  std::cout << "[" << myid
-		    << "] crazy hgt size=" << hgt.size()
+		    << "] crazy n size=" << n.size()
 		    << " on " << stat << std::endl;
-	  hgt.resize(ssize);
-	}
-	if (pos.size() != ssize) {
-	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-	  std::cout << "[" << myid
-		    << "] crazy pos size=" << pos.size()
-		    << " on " << stat << std::endl;
-	  pos.resize(ssize);
+	  n.resize(ssize);
 	}
       }
     }
 
   public:
 
-    //! Reset quantile value
+    //! Add a new quantile value
     //! @param P the quantile probability
-    void reset(double P);
+    void newQ(double P);
 
-    //! Null constructor.  Assumes quantile probabilty of 0.5
-    //! (i.e. median) by default.
-    Quantile()
-    { 
-      reset(0.5); 
-      instance++;		// Count instances for debugging only
-    }
+    //! Make a histogram with \f$n\f$ bins
+    void histogram(int n);
+
+    //! Null constructor
+    Quantile();
 
     //! Constructs a single quantile object
     //! @param P the quantile probability
-    Quantile(double p) { 
-      reset(p); 
-      instance++;		// Count instances for debugging only
-    }
+    Quantile(double p);
 
     //! Copy constructor
     //! @param p another Quantile instance
@@ -142,13 +146,25 @@ namespace NTC {
 
     //! Add another datum
     //! @param item is the data to be added
-    void operator()(double item);
+    void add(double item);
     
-    //! Return current quantile
+    //! Get the quantile
     double operator()();
-
+    
+    //! Get the quantile with value p
+    double operator()(double p);
+    
     //! Return data count so far
-    unsigned long count() { return num; }
+    unsigned long count() { return M; }
+
+    //! Get the value probability value for \f$x\f$, i.e. \f$P^{-1}(x)\f$
+    double inverse(double x);
+
+    //! Get minimum value so far
+    double xmin();
+
+    //! Get maximum value so far
+    double xmax();
 
     //@{
     //! MPI syncronize

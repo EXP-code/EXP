@@ -107,16 +107,10 @@ struct thrd_pass_tstep
    selector assumes that the <cross section>x<velocity> value is the
    maximum possible in the cell.  This value is maintained per cell by
    the NTCdb class.  Evaluations are entered into the database
-   sequentially and trimmed on accorded to FIFO.  The current value is
-   the 95% quantile in the database multiplied by the factor
-   Collide::NTCFAC (default value: 2).
+   sequentially and trimmed on accorded to FIFO.
 
    <li> The Collide class provides diagnostics for the NTC algorithm
-   that are printed in the <runtag>.DSMC_log file.  These should be
-   checked and the value of NTCFAC should be adjusted so that Ratio
-   value (accepted/total) is approximately 0.5 and that the failure
-   fraction (<number of evals beyond the maximum>/total) is acceptably
-   small (maybe a handful of percent?)
+   that are printed in the <runtag>.DSMC_log file.
 
    <li> Time steps to be smaller than the mean time of flight through
    the cell.
@@ -484,9 +478,6 @@ public:
   //! Artificially increase or decrease cooling rate (default: 1, no change)
   static double ENHANCE;
   
-  //! CrossSection-Velocity factor for NTC database
-  static double NTCFAC;
-
   //! Atomic weights (public data)
   static std::map<unsigned short, double> atomic_weights;
 
@@ -624,7 +615,9 @@ public:
 
   //@{
   //! Cell distribution of average (cross*vel)
-  std::map< sKeyPair, std::vector<double> > both, cros, crat;
+  const std::vector<double> qv = {0.05, 0.5, 0.95};
+  typedef std::map< sKeyPair, std::array<std::vector<double>, 3> > CrsVelMap;
+  CrsVelMap qq;
   //}
 
   //! Gather stats for No-Time-Counter algorithm
@@ -639,8 +632,7 @@ public:
 protected:
 
   //! Helper function for NTCstats output
-  void NTCstanza(std::ostream& out, 
-		 std::map< sKeyPair, std::vector<double> >& vals,
+  void NTCstanza(std::ostream& out, CrsVelMap& vals, int n,
 		 const std::string& lab, const std::vector<double>& pcent);
 };
 

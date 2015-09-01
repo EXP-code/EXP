@@ -24,17 +24,21 @@ unsigned NTCitem::skprpt    = 5;
 unsigned NTCitem::maxrpt    = 5;
 
 // Minimum CrossSection x Velocity value
-double   NTCitem::VelCrsMin = 1.0e-24;
+double   NTCitem::Min = 1.0e-24;
 
 // Minimum CrossSection x Velocity value
-double   NTCitem::VelCrsDef = 10.0;
+double   NTCitem::Def = 10.0;
 
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
-void NTCitem::VelCrsTest()
+void NTCitem::Test()
 {
-  inTest = true;		// To prevent recursive calling in VelCrsAvg
+  inTest = true;		// To prevent recursive calling in Prob
+
+				// Size of sample and separator bar
+  const size_t number = 10;
+  size_t wid = number * 12 + 10 + 14;
 
   if (db.size()==0)
     std::cout << "Empty caller: " << caller << " : " 
@@ -42,8 +46,6 @@ void NTCitem::VelCrsTest()
 	      << std::endl;
 
   if (db.size()>0) {
-
-    size_t wid = qs.size() * 12;
 
     std::cout << std::string(70, '-') << std::endl
 	      << "VelCrs structure: "  << this << " caller: " << caller 
@@ -55,114 +57,80 @@ void NTCitem::VelCrsTest()
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      std::vector<double> p1, p2, p3;
-      for (auto P : qs) {
-	p1.push_back(k.second[P][0]());
-	p2.push_back(k.second[P][1]());
-	p3.push_back(k.second[P][2]());
-      }
-
       std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second[u3][0].count()
-		<< "  " << vbkts(p1) << "  product" << std::endl 
-		<< std::setw(26) << "" << std::string(wid, '-') << std::endl
-		<< std::setw(24) << ""
-		<< "  " << vbkts(p2) << "  cross"   << std::endl
-		<< std::setw(26) << "" << std::string(wid, '-') << std::endl
-		<< std::setw(24) << ""
-		<< "  " << vbkts(p3) << "  ratio"   << std::endl
-		<< std::setw(26) << "" << std::string(wid, '-') << std::endl;
+		<< std::setw(10) << k.second.count();
+
+      size_t prc = std::cout.precision(2);
+      for (size_t i=0; i<number; i++) {
+	double P = (0.5 + i)/number;
+	std::cout << std::setw(10) << k.second(P);
+      }
+      std::cout.precision(prc);
     }
-    std::cout << std::string(70, '-') << std::endl;
+    std::cout << std::string(wid, '-') << std::endl;
   } else {
-    std::cout << std::string(70, '-') << std::endl
+    std::cout << std::string(wid, '-') << std::endl
 	      << "VelCrs no points: " << this << std::endl
-	      << std::string(70, '-') << std::endl;
+	      << std::string(wid, '-') << std::endl;
   }
 
   inTest = false;
 }
 
-NTCitem::vcMap NTCitem::VelCrsAvg(double _quant)
+NTCitem::vcMap NTCitem::Prob(double x)
 {
   vcMap ret;
   
-  // Check for quant
-  //
-  const double slop = 1.0e-3;
-  double qmax = 1.0e20, quant = 0.5;
-  for (auto v : qs) {
-    double qtst = fabs(v - _quant);
-    if (qmax > qtst) {
-      quant = v;
-      qmax  = qtst;
-    }
-  }
-
-  bool ok = (qmax < slop);
-
   // Deal with round off issues on resume
   //
-  for (auto v : db) {
-    if (ok)
-      ret[v.first] = vcTup(v.second[quant][0](), 
-			   v.second[quant][1](), 
-			   v.second[quant][2]());
-    else
-      ret[v.first] = vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
-  }
+  for (auto v : db) ret[v.first] = v.second.inverse(x);
 
   return ret;
 }
 
-NTCitem::vcTup NTCitem::VelCrsAvg(sKeyPair indx, double _quant)
+double NTCitem::Prob(sKeyPair indx, double x)
 {
-  // Check for quant
-  //
-  const double slop = 1.0e-3;
-  double qmax = 1.0e20, quant = 0.5;
-  for (auto v : qs) {
-    double qtst = fabs(v - _quant);
-    if (qmax > qtst) {
-      quant = v;
-      qmax  = qtst;
-    }
-  }
-
-  bool ok = (qmax < slop);
-
-
   // Get stanza in db
   qpMap::iterator it = db.find(indx);
 
   // Default value
-  if (it == db.end()) return vcTup(VelCrsDef, 0, 0);
+  if (it == db.end()) return 0.5;
 
   // Debug reporting
   //
   if (DEBUG_V and !inTest) {
     report++;			// Make sure the first one is skipped
-    if (report % skprpt == 0 and report < maxrpt*skprpt)  VelCrsTest();
+    if (report % skprpt == 0 and report < maxrpt*skprpt)  Test();
   }
 
   // Return quantile
-  if (ok)
-    return vcTup(it->second[quant][0](), 
-		 it->second[quant][1](), 
-		 it->second[quant][2]());
-  else
-    return vcTup(NTCitem::VelCrsMin, 0.0, 0.0);
+  return it->second.inverse(x);
 }
 
-void NTCitem::VelCrsAdd(sKeyPair indx, const vcTup& val)
+double NTCitem::CrsVel(sKeyPair indx, double p)
+{
+  // Get stanza in db
+  qpMap::iterator it = db.find(indx);
+
+  // Default value
+  if (it == db.end()) return Def;
+
+  // Return value
+  return it->second(p);
+}
+
+void NTCitem::Add(sKeyPair indx, double val)
 {
   // value below threshold
   //
-  if (std::get<0>(val)<=VelCrsMin) return;
+  if (val<=Min) return;
 
   // Check for initialization of Quantile
   //
-  if (db.find(indx) == db.end()) db[indx].initialize(qs);
+  if (db.find(indx) == db.end()) {
+    db[indx].histogram(Nequal);
+    for (auto v : qs) db[indx].newQ(v);
+  }
 
   // Add new element
   //
