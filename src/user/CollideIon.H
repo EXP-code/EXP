@@ -382,6 +382,21 @@ private:
   unsigned Ovr_s, Acc_s, Tot_s;
   //@}
 
+  //@{
+  //! Electron NTC diagnostic histograms
+  typedef std::map<float, ahistoDPtr>            NTCeeHist;
+  typedef std::map<double, std::vector<double> > eeMap;
+
+  //! Desired quantiles
+  const std::vector<double> qv = {0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95};
+
+  //! Store NTCdb data
+  eeMap ee;
+  
+  //! Historgram of NTCdb data
+  NTCeeHist eeHisto;
+  //@}
+
 public:
 
   typedef std::set<unsigned short> ZLtype;

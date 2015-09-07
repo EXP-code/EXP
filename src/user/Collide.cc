@@ -24,6 +24,8 @@ static bool DEBUG      = false;	// Thread diagnostics, false for
 
 static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
 
+static bool NTC_DIST   = true;	// Enable NTC full distribution
+
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
@@ -3128,84 +3130,108 @@ void Collide::NTCgather(pHOT* const tree)
     MPI_Reduce(&Tot, &accTot, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
 
     pHOT_iterator c(*tree);
-    unsigned totsz = 0;
-    while (c.nextCell()) {
-      NTC::NTCitem::vcMap v1 = ntcdb[c.Cell()->mykey].CrsVel(0.1);
-      NTC::NTCitem::vcMap v2 = ntcdb[c.Cell()->mykey].CrsVel(0.5);
-      NTC::NTCitem::vcMap v3 = ntcdb[c.Cell()->mykey].CrsVel(0.9);
-      totsz += v1.size();
-      for (auto i : v1) qq[i.first][0].push_back(i.second);
-      for (auto i : v2) qq[i.first][1].push_back(i.second);
-      for (auto i : v3) qq[i.first][2].push_back(i.second);
-    }
 
-    if (myid) {
+    if (NTC_DIST) {
 
-      unsigned sz = qq.size();
-      MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
-
-      for (auto i : qq) {
-	sKeyPair   k = i.first;
-	KeyConvert k1 (k.first );
-	KeyConvert k2 (k.second);
-	
-	int i1 = k1.getInt();
-	int i2 = k2.getInt();
-
-	MPI_Send(&i1, 1, MPI_INT, 0, 227, MPI_COMM_WORLD);
-	MPI_Send(&i2, 1, MPI_INT, 0, 228, MPI_COMM_WORLD);
-
-	unsigned num = i.second[0].size();
-	MPI_Send(&num, 1, MPI_UNSIGNED, 0, 229, MPI_COMM_WORLD);
-
-	MPI_Send(&i.second[0][0], num, MPI_DOUBLE, 0, 230, MPI_COMM_WORLD);
-	MPI_Send(&i.second[1][0], num, MPI_DOUBLE, 0, 231, MPI_COMM_WORLD);
-	MPI_Send(&i.second[2][0], num, MPI_DOUBLE, 0, 232, MPI_COMM_WORLD);
-      }
-
-    } else {
-
-      std::vector<double> v1, v2, v3;
-      unsigned sz, num;
-      int i1, i2;
-
-      for (int n=1; n<numprocs; n++) {
-
-	MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-	for (unsigned z=0; z<sz; z++) {
-
-	  MPI_Recv(&i1, 1, MPI_INT, n, 227, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&i2, 1, MPI_INT, n, 228, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-	  KeyConvert k1(i1);
-	  KeyConvert k2(i2);
-
-	  MPI_Recv(&num, 1, MPI_UNSIGNED, n, 229, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-	  v1.resize(num);
-	  v2.resize(num);
-	  v3.resize(num);
-
-	  MPI_Recv(&v1[0], num, MPI_DOUBLE, n, 230, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&v2[0], num, MPI_DOUBLE, n, 231, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  MPI_Recv(&v3[0], num, MPI_DOUBLE, n, 232, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-
-	  sKeyPair k(k1.getKey(), k2.getKey());
-
-	  qq[k][0].insert( qq[k][0].end(), v1.begin(), v1.end() );
-	  qq[k][1].insert( qq[k][1].end(), v2.begin(), v2.end() );
-	  qq[k][2].insert( qq[k][2].end(), v3.begin(), v3.end() );
+      while (c.nextCell()) {
+	for (auto q : qv) {
+	  NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].CrsVel(q);
+	  for (auto i : v) qq[i.first][q].push_back(i.second);
 	}
       }
-    }
+      
+      for (int n=1; n<numprocs; n++) {
 
-    if (myid==0) {
-      //
-      // Sort all arrays
-      //
-      for (auto &u : qq) {
-	for (auto &v : u.second) std::sort(v.begin(), v.end());
+	if (myid == n) {
+
+	  unsigned sz = qq.size();
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
+	  
+	  for (auto i : qq) {
+
+	    sKeyPair   k = i.first;
+	    KeyConvert k1 (k.first );
+	    KeyConvert k2 (k.second);
+	    
+	    int i1 = k1.getInt();
+	    int i2 = k2.getInt();
+	    
+	    MPI_Send(&i1, 1, MPI_INT, 0, 227, MPI_COMM_WORLD);
+	    MPI_Send(&i2, 1, MPI_INT, 0, 228, MPI_COMM_WORLD);
+	    
+	    int base = 229;
+	    
+	    for (auto j : i.second) {
+	      double   val = j.first;
+	      unsigned num = j.second.size();
+
+	      MPI_Send(&num, 1, MPI_UNSIGNED, 0, base+0, MPI_COMM_WORLD);
+	      MPI_Send(&val, 1, MPI_DOUBLE,   0, base+1, MPI_COMM_WORLD);
+	      MPI_Send(&j.second[0], num, MPI_DOUBLE, 0, base+2, MPI_COMM_WORLD);
+	      base += 3;
+	    }
+	    
+	    unsigned zero = 0;
+	    MPI_Send(&zero, 1, MPI_UNSIGNED, 0, base, MPI_COMM_WORLD);
+	  }
+	  
+	} // END: process send to root
+	
+	if (myid==0) {
+	  
+	  std::vector<double> v;
+	  unsigned sz, num;
+	  double val;
+	  int i1, i2;
+	
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  for (unsigned z=0; z<sz; z++) {
+
+	    MPI_Recv(&i1, 1, MPI_INT, n, 227, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    MPI_Recv(&i2, 1, MPI_INT, n, 228, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    
+	    KeyConvert k1(i1);
+	    KeyConvert k2(i2);
+	    sKeyPair   k (k1.getKey(), k2.getKey());
+	    
+	    int base = 229;
+
+	    while (1) {
+
+	      MPI_Recv(&num, 1,    MPI_UNSIGNED, n, base+0, MPI_COMM_WORLD, 
+		       MPI_STATUS_IGNORE);
+
+	      if (num==0) break;
+
+	      MPI_Recv(&val, 1,    MPI_DOUBLE,   n, base+1, MPI_COMM_WORLD, 
+		       MPI_STATUS_IGNORE);
+
+	      v.resize(num);
+	      
+	      MPI_Recv(&v[0], num, MPI_DOUBLE,   n, base+2, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      
+	      qq[k][val].insert( qq[k][val].end(), v.begin(), v.end() );
+	      
+	      base += 3;
+
+	    } // Loop over quantiles
+
+	  } // Loop over species
+
+	} // Root receive loop
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+      } // Node loop
+
+      if (myid==0) {
+	for (auto &u : qq) {
+	  for (auto &v : u.second)
+	    qqHisto[u.first][v.first] = 
+	      ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
+	}
       }
     }
   }
@@ -3217,12 +3243,15 @@ void Collide::NTCstanza(std::ostream& out, CrsVelMap& vals, int j,
 
 {
   // Loop through the percentile list
+  //
   for (auto p : pcent) {
     std::ostringstream sout;
     // Label the quantile
+    //
     sout << lab << "(" << std::round(p*100.0) << ")";
     out << std::setw(18) << sout.str();
     // For each species pair, print the quantile
+    //
     for (auto v : vals) {
       size_t indx = static_cast<size_t>(std::floor(v.second[j].size()*p));
       out << std::scientific << std::setprecision(4)
@@ -3237,7 +3266,8 @@ void Collide::NTCstats(std::ostream& out)
   const std::vector<double> pcent = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
 
   if (myid==0 and NTC and DEBUG_NTC) {
-    size_t spc = 18 + 12*qq.size();
+
+    size_t spc = 53;
 
     out << std::string(spc, '-') << std::endl
 	<< "[NTC diagnostics]"   << std::endl << std::scientific << std::left
@@ -3248,49 +3278,54 @@ void Collide::NTCstats(std::ostream& out)
 	<< std::fixed;
 
     if (accTot>0)
-      out << std::setw(14) << " Ratio"    << std::setw(16) << static_cast<double>(accAcc)/accTot << std::endl
-	  << std::setw(14) << " Fail"     << std::setw(16) << static_cast<double>(accOvr)/accTot << std::endl;
+      out << std::setw(14) << " Ratio"    
+	  << std::setw(16) << static_cast<double>(accAcc)/accTot << std::endl
+	  << std::setw(14) << " Fail"     
+	  << std::setw(16) << static_cast<double>(accOvr)/accTot << std::endl;
 
     out << std::string(spc, '-') << std::endl << std::right;
 
-    if (qq.size() > 0) {
+    if (qqHisto.size() > 0) {
 
-      out << std::left << std::setw(18) << "Value\\Species";
-      
-      for (auto i : qq) {
+      for (auto i : qqHisto) {
 	sKeyPair   k  = i.first;
 	speciesKey k1 = k.first;
 	speciesKey k2 = k.second;
 	
 	std::ostringstream sout;
-	sout << "<" << k1.first << "," << k1.second 
+	sout << "Species: <" << k1.first << "," << k1.second 
 	     << "|" << k2.first << "," << k2.second << ">";
-	out << std::setw(12) << sout.str();
+
+	for (auto j : i.second) {
+	  
+	  if (j.second.get()) {
+	    out << std::endl << std::string(spc, '-') << std::endl
+		<< std::left << std::fixed << sout.str() << std::endl
+		<< " Quantile: " << j.first << std::endl
+		<< std::string(spc, '-') << std::endl
+		<< std::left << std::scientific;
+	    (*j.second)(out);
+	    out << std::endl;
+	  }
+	}
       }
-      out << std::endl << std::string(spc, '-') << std::endl
-	  << std::left << std::fixed;
-      
-      NTCstanza(out, qq, 0, "10%", pcent);
-      out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, qq, 1, "50%",   pcent);
-      out << std::string(spc, '-') << std::endl;
-      NTCstanza(out, qq, 2, "90%",   pcent);
-      out << std::string(spc, '-') << std::endl << std::endl;
     }
   }
-
 }
 
 
 void Collide::mfpCLGather()
 {
   // This vector will accumulate from all threads
+  //
   std::vector<double> data;
 
   for (auto &v : mfpCLdata) {
     // Append info from all threads
+    //
     data.insert(data.end(), v.begin(), v.end());
     // Remove all data for next step(s)
+    //
     v.clear();
   }
 

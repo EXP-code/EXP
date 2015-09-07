@@ -137,6 +137,9 @@ static bool CROSS_DBG         = false;
 //
 static bool EXCESS_DBG        = false;
 
+// Enable NTC full distribution for electrons
+static bool NTC_DIST          = true;
+
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
@@ -237,6 +240,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "NTC_DIST"
+	      << (NTC_DIST ? "on" : "off" )             << std::endl
 	      << "************************************" << std::endl;
   }
 
@@ -6883,6 +6888,8 @@ void CollideIon::electronGather()
     //
     pHOT_iterator itree(*c0->Tree());
     
+    ee.clear();
+
     while (itree.nextCell()) {
       
       for (auto b : itree.Cell()->bods) {
@@ -6895,6 +6902,13 @@ void CollideIon::electronGather()
 	}
 	eVel.push_back(sqrt(cre));
 	iVel.push_back(sqrt(cri));
+      }
+
+      if (NTC_DIST) {
+	for (auto q : qv) {
+	  NTC::NTCitem::vcMap v = ntcdb[itree.Cell()->mykey].CrsVel(q);
+	  ee[q].push_back(v[electronKey]);
+	}
       }
     }
 
@@ -6925,6 +6939,73 @@ void CollideIon::electronGather()
 	keIR[t].clear();
       }
     }
+
+    if (NTC_DIST) {
+
+      for (int n=1; n<numprocs; n++) {
+
+	if (myid == n) {
+
+	  int base = 326;
+
+	  for (auto j : ee) {
+
+	    double   val = j.first;
+	    unsigned num = j.second.size();
+	    
+	    MPI_Send(&num, 1, MPI_UNSIGNED, 0, base+0, MPI_COMM_WORLD);
+	    MPI_Send(&val, 1, MPI_DOUBLE,   0, base+1, MPI_COMM_WORLD);
+	    MPI_Send(&j.second[0], num, MPI_DOUBLE, 0, base+2, MPI_COMM_WORLD);
+	    base += 3;
+	  }
+	    
+	  unsigned zero = 0;
+	  MPI_Send(&zero, 1, MPI_UNSIGNED, 0, base, MPI_COMM_WORLD);
+	  
+	} // END: process send to root
+	
+	if (myid==0) {
+	  
+	  std::vector<double> v;
+	  unsigned num;
+	  double val;
+	
+	  int base = 326;
+
+	  while (1) {
+	      
+	    MPI_Recv(&num, 1,    MPI_UNSIGNED, n, base+0, MPI_COMM_WORLD, 
+		     MPI_STATUS_IGNORE);
+
+	    if (num==0) break;
+
+	    MPI_Recv(&val, 1,    MPI_DOUBLE,   n, base+1, MPI_COMM_WORLD, 
+		     MPI_STATUS_IGNORE);
+	    
+	    v.resize(num);
+	      
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, base+2, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      
+	    ee[val].insert( ee[val].end(), v.begin(), v.end() );
+	    
+	    base += 3;
+	    
+	  } // Loop over quantiles
+	  
+	} // Root receive loop
+
+	MPI_Barrier(MPI_COMM_WORLD);
+
+      } // Node loop
+
+      if (myid==0) {
+	for (auto &u : ee) {
+	  eeHisto[u.first] = ahistoDPtr(new AsciiHisto<double>(u.second, 20, 0.01));
+	}
+      }
+
+    } // END: NTC_DIST
 
     std::ofstream dbg;
     if (IDBG) {
@@ -7219,6 +7300,22 @@ void CollideIon::electronPrint(std::ostream& out)
   out << std::string(53, '-') << std::endl << std::right;
 
   out << std::endl;
+
+  if (eeHisto.size() > 0) {
+
+    for (auto j : eeHisto) {
+      
+      if (j.second.get()) {
+	out << std::endl << std::string(53, '-') << std::endl
+	    << std::left << std::fixed
+	    << " Quantile: " << j.first << std::endl
+	    << std::string(53, '-') << std::endl
+	    << std::left << std::scientific;
+	(*j.second)(out);
+	out << std::endl;
+      }
+    }
+  }
 }
 
 const std::string clabl(unsigned c)
@@ -7594,6 +7691,9 @@ void CollideIon::processConfig()
 
     EXCESS_DBG =
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
+
+    NTC_DIST =
+      cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);

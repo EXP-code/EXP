@@ -615,9 +615,18 @@ public:
 
   //@{
   //! Cell distribution of average (cross*vel)
-  const std::vector<double> qv = {0.05, 0.5, 0.95};
-  typedef std::map< sKeyPair, std::array<std::vector<double>, 3> > CrsVelMap;
+  typedef std::map<sKeyPair, std::map<float, ahistoDPtr> > NTCqqHist;
+  typedef std::map<double, std::vector<double> > qqMap;
+  typedef std::map< sKeyPair, qqMap > CrsVelMap;
+
+  //! Desired quantiles
+  const std::vector<double> qv = {0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95};
+
+  //! Store ntcdb data
   CrsVelMap qq;
+
+  //! Histogram of ntcdb data
+  NTCqqHist qqHisto;
   //}
 
   //! Gather stats for No-Time-Counter algorithm
