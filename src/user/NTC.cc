@@ -119,6 +119,16 @@ double NTCitem::CrsVel(sKeyPair indx, double p)
   return it->second(p);
 }
 
+NTCitem::vcMap NTCitem::CrsVel(double p)
+{
+  vcMap ret;
+
+  for (auto v : db) ret[v.first] = v.second(p);
+
+  // Return value
+  return ret;
+}
+
 void NTCitem::Add(sKeyPair indx, double val)
 {
   // value below threshold

@@ -74,6 +74,14 @@ static bool SAME_IONS_SCAT    = false;
 static bool SAME_INTERACT     = false;
 static bool SAME_TRACE_SUPP   = false;
 
+// Suppress distribution of energy to electrons when using NOCOOL
+//
+static bool NOCOOL_ELEC       = false;
+
+// Suppress distribution of ionization energy between electrons
+//
+static bool NOSHARE_ELEC      = false;
+
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
 //
@@ -220,7 +228,11 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "SAME_INTERACT"
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
-	      << (SAME_TRACE_SUPP ? "on" : "off")         << std::endl
+	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
+	      <<  " " << std::setw(20) << std::left << "NOCOOL_ELEC"
+	      << (NOCOOL_ELEC ? "on" : "off")           << std::endl
+	      <<  " " << std::setw(20) << std::left << "NOSHARE_ELEC"
+	      << (NOSHARE_ELEC ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMB_KE"
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
@@ -2901,7 +2913,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       // Add the KE from the recombined electron back to the free pool
       //
-      if (NOCOOL and C1==1 and use_cons>=0) {
+      if (NOCOOL and !NOCOOL_ELEC and C1==1 and use_cons>=0) {
 	double lKE = 0.0, fE = 0.5*Wa*atomic_weights[0];
 	for (size_t k=0; k<3; k++) {
 	  double t = p1->dattrib[use_elec+k];
@@ -2982,7 +2994,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       // Add the KE from the recombined electron back to the free pool
       //
-      if (NOCOOL and C2==1 and use_cons>=0) {
+      if (NOCOOL and !NOCOOL_ELEC and C2==1 and use_cons>=0) {
 	double lKE = 0.0, fE = 0.5*Wb*atomic_weights[0];
 	for (size_t k=0; k<3; k++) {
 	  double t = p2->dattrib[use_elec+k];
@@ -3307,10 +3319,8 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (Z1 == Z2) {		
 	p1->dattrib[use_cons] += 0.5*del;
 	p2->dattrib[use_cons] += 0.5*del;
-      } else if (Z1 > Z2) {
-	p1->dattrib[use_cons] += del;
       } else {
-	p2->dattrib[use_cons] += del;
+	p1->dattrib[use_cons] += del;
       }
     }
   }
@@ -3373,7 +3383,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// Share electron energy if previously
 				// neutral
 				//
-    if (interFlag == ionize_1 and C1==2) {
+    if (!NOSHARE_ELEC and interFlag == ionize_1 and C1==2) {
 				// KE prefactor for Particle #1
       double fE1 = 0.5*Wa*atomic_weights[0]; 
 				// KE prefactor for Particle #2
@@ -3467,7 +3477,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// Share electron energy if previously
 				// neutral
 				//
-    if (interFlag == ionize_2 and C2==2) {
+    if (!NOSHARE_ELEC and interFlag == ionize_2 and C2==2) {
 
 				// KE prefactor for Particle #1
       double fE1 = 0.5*Wa*atomic_weights[0]; 
@@ -4825,9 +4835,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     pCell *samp = cell->sample;
 
     if (samp)
-      crsvel = ntcdb[samp->mykey].Prob(electronKey, 0.95);
+      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, 0.95);
     else
-      crsvel = ntcdb[cell->mykey].Prob(electronKey, 0.95);
+      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, 0.95);
     
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -6315,13 +6325,13 @@ sKey2Umap CollideIon::generateSelectionWeight
 	    if (selcM[i1][i2]>10000) {
 	      double cv1, cv2, cv3;
 	      if (samp) {
-		cv1 = ntcdb[samp->mykey].Prob(k, 0.50);
-		cv2 = ntcdb[samp->mykey].Prob(k, 0.90);
-		cv3 = ntcdb[samp->mykey].Prob(k, 0.95);
+		cv1 = ntcdb[samp->mykey].CrsVel(k, 0.50);
+		cv2 = ntcdb[samp->mykey].CrsVel(k, 0.90);
+		cv3 = ntcdb[samp->mykey].CrsVel(k, 0.95);
 	      } else {
-		cv1 = ntcdb[c->mykey].Prob(k, 0.50);
-		cv2 = ntcdb[c->mykey].Prob(k, 0.90);
-		cv3 = ntcdb[c->mykey].Prob(k, 0.95);
+		cv1 = ntcdb[c->mykey].CrsVel(k, 0.50);
+		cv2 = ntcdb[c->mykey].CrsVel(k, 0.90);
+		cv3 = ntcdb[c->mykey].CrsVel(k, 0.95);
 	      }
 
 	      std::cout << "Too many collisions: collP=" << meanCollP
@@ -7539,6 +7549,12 @@ void CollideIon::processConfig()
 
     SAME_TRACE_SUPP = 
       cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);
+
+    NOCOOL_ELEC = 
+      cfg.entry<bool>("NOCOOL_ELEC", "Suppress distribution of energy to electrons when using NOCOOL", false);
+
+    NOSHARE_ELEC = 
+      cfg.entry<bool>("NOSHARE_ELEC", "Suppress distribution of ionization energy between electrons", false);
 
     frost_warning = 
       cfg.entry<bool>("frost_warning", "Warn if energy lost is smaller than available energy", false);

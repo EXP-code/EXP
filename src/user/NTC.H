@@ -153,6 +153,9 @@ namespace NTC {
     //! Return value for quantile q for a single index
     double CrsVel(sKeyPair indx, double p);
     
+    //! Return values for quantile q for all indices
+    vcMap CrsVel(double p);
+    
     //! Add a single value to the list
     void  Add(sKeyPair indx, double x);
     

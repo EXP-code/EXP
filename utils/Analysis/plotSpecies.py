@@ -14,9 +14,11 @@ the name tags for all available fields.
 
    showLabs()              : show the fields available for plotting
 
-   makeM(xl, labs)         : plot fields in list "labs" against field "xl"
+   pview(xl, labs)         : plot fields in list "labs" against field "xl"
 
-   makeP(xl, lab)          : plot field "lab" against field "xl"
+   pview(xl, lab)          : plot field "lab" against field "xl"
+
+   pview(xl, labs, True)   : plot sum of list "labs" against field "xl"
 
 """
 
@@ -79,6 +81,37 @@ def showLabs():
         print "{:10s}".format(v),
         if icnt % 6 == 0: print
 
+
+def pview(xl, x, do_sum=False):
+    if isinstance(x, str):
+        return makeP(xl, x)
+    elif isinstance(x, list):
+        if do_sum:
+            return makeS(xl, x)
+        else:
+            return makeM(xl, x)
+    else:
+        return None
+
+def makeS(xl, labs):
+
+    db = readDB()
+
+    for lab in labs+[xl]:
+        if lab not in flab:
+            print "No such field, available data is:"
+            showLabs()
+            return
+
+    for t in tags:
+        sum = np.zeros(db[t][labs[0]].shape)
+        for lab in labs: sum+= db[t][lab]
+        plt.plot(db[t][xl], db[t][lab], '-', label=t+":sum")
+
+    plt.legend()
+    plt.xlabel(xl)
+    plt.ylabel("Sum")
+    plt.show()
 
 def makeM(xl, labs):
     db = readDB()

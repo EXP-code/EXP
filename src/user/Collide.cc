@@ -3130,9 +3130,9 @@ void Collide::NTCgather(pHOT* const tree)
     pHOT_iterator c(*tree);
     unsigned totsz = 0;
     while (c.nextCell()) {
-      NTC::NTCitem::vcMap v1 = ntcdb[c.Cell()->mykey].Prob(0.1);
-      NTC::NTCitem::vcMap v2 = ntcdb[c.Cell()->mykey].Prob(0.5);
-      NTC::NTCitem::vcMap v3 = ntcdb[c.Cell()->mykey].Prob(0.9);
+      NTC::NTCitem::vcMap v1 = ntcdb[c.Cell()->mykey].CrsVel(0.1);
+      NTC::NTCitem::vcMap v2 = ntcdb[c.Cell()->mykey].CrsVel(0.5);
+      NTC::NTCitem::vcMap v3 = ntcdb[c.Cell()->mykey].CrsVel(0.9);
       totsz += v1.size();
       for (auto i : v1) qq[i.first][0].push_back(i.second);
       for (auto i : v2) qq[i.first][1].push_back(i.second);
@@ -3225,7 +3225,8 @@ void Collide::NTCstanza(std::ostream& out, CrsVelMap& vals, int j,
     // For each species pair, print the quantile
     for (auto v : vals) {
       size_t indx = static_cast<size_t>(std::floor(v.second[j].size()*p));
-      out << std::setw(12) << v.second[j][indx];
+      out << std::scientific << std::setprecision(4)
+	  << std::setw(12) << v.second[j][indx];
     }
     out << std::endl;
   }
