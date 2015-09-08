@@ -6581,6 +6581,7 @@ void CollideIon::gatherSpecies()
     double mass  = 0.0;
 
     consE = 0.0;
+    consG = 0.0;
     totlE = 0.0;
     tempM = 0.0;
     tempE = 0.0;
@@ -6619,6 +6620,8 @@ void CollideIon::gatherSpecies()
       if (use_cons >= 0) {
 	for (auto b : cell->bods) {
 	  consE += c0->Tree()->Body(b)->dattrib[use_cons];
+	  if (use_elec>=0)
+	    consG += c0->Tree()->Body(b)->dattrib[use_elec+3];
 	}
       }
       
@@ -6721,7 +6724,8 @@ void CollideIon::gatherSpecies()
 
     // Send values to root
     //
-    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0, val6 = 0.0;
+    double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
+    double val6 = 0.0, val7 = 0.0;
     
     for (int i=1; i<numprocs; i++) {
 
@@ -6732,39 +6736,40 @@ void CollideIon::gatherSpecies()
 	MPI_Send(&tempM, 1, MPI_DOUBLE, 0, 332, MPI_COMM_WORLD);
 
 	MPI_Send(&consE, 1, MPI_DOUBLE, 0, 333, MPI_COMM_WORLD);
-	MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
+	MPI_Send(&consG, 1, MPI_DOUBLE, 0, 334, MPI_COMM_WORLD);
+	MPI_Send(&totlE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
 
 				// Energies
 	if (use_elec >= 0) {
-	  MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 335, MPI_COMM_WORLD);
-	  MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
+	  MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
+	  MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 337, MPI_COMM_WORLD);
 
 				// Local ion map size
 	  int sizm = specE.size();
-	  MPI_Send(&sizm,  1, MPI_INT,    0, 337, MPI_COMM_WORLD);
+	  MPI_Send(&sizm,  1, MPI_INT,    0, 338, MPI_COMM_WORLD);
 
 				// Send local ion map
 	  for (auto i : specI) {
 	    unsigned short Z = i.first;
-	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 338, MPI_COMM_WORLD);
+	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 339, MPI_COMM_WORLD);
 	    double E = std::get<0>(i.second);
 	    double N = std::get<1>(i.second);
-	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 339, MPI_COMM_WORLD);
-	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 340, MPI_COMM_WORLD);
+	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 340, MPI_COMM_WORLD);
+	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 341, MPI_COMM_WORLD);
 	  }
 
 				// Local electron map size
 	  sizm = specE.size();
-	  MPI_Send(&sizm,  1, MPI_INT,    0, 341, MPI_COMM_WORLD);
+	  MPI_Send(&sizm,  1, MPI_INT,    0, 342, MPI_COMM_WORLD);
 
 				// Send local electron map
 	  for (auto e : specE) {
 	    unsigned short Z = e.first;
-	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 342, MPI_COMM_WORLD);
+	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 343, MPI_COMM_WORLD);
 	    double E = std::get<0>(e.second);
 	    double N = std::get<1>(e.second);
-	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 343, MPI_COMM_WORLD);
-	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 344, MPI_COMM_WORLD);
+	    MPI_Send(&E, 1, MPI_DOUBLE,         0, 344, MPI_COMM_WORLD);
+	    MPI_Send(&N, 1, MPI_DOUBLE,         0, 345, MPI_COMM_WORLD);
 	  }
 
 	} // end: use_elec>=0
@@ -6783,16 +6788,18 @@ void CollideIon::gatherSpecies()
 		 MPI_STATUS_IGNORE);
 	MPI_Recv(&val4, 1, MPI_DOUBLE, i, 334, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
+	MPI_Recv(&val5, 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
+		 MPI_STATUS_IGNORE);
 
 	if (use_elec >= 0) {
-	  MPI_Recv(&val5, 1, MPI_DOUBLE, i, 335, MPI_COMM_WORLD,
-		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&val7, 1, MPI_DOUBLE, i, 337, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
       
 	  int sizm;
 				// Receive ion map size
-	  MPI_Recv(&sizm, 1, MPI_INT, i, 337, MPI_COMM_WORLD, 
+	  MPI_Recv(&sizm, 1, MPI_INT, i, 338, MPI_COMM_WORLD, 
 		   MPI_STATUS_IGNORE);
 	  
 				// Receive ion map
@@ -6802,11 +6809,11 @@ void CollideIon::gatherSpecies()
 	    double   E;
 	    double   N;
 
-	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 338, MPI_COMM_WORLD,
+	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 339, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 339, MPI_COMM_WORLD,
+	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 340, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 340, MPI_COMM_WORLD,
+	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 341, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
 
 	    if (specI.find(Z) == specE.end()) specI[Z] = ZTup(0, 0);
@@ -6815,7 +6822,7 @@ void CollideIon::gatherSpecies()
 	  }
 
 				// Receive electron map size
-	  MPI_Recv(&sizm, 1, MPI_INT, i, 341, MPI_COMM_WORLD, 
+	  MPI_Recv(&sizm, 1, MPI_INT, i, 342, MPI_COMM_WORLD, 
 		   MPI_STATUS_IGNORE);
 	  
 				// Receive electron map
@@ -6825,11 +6832,11 @@ void CollideIon::gatherSpecies()
 	    double   E;
 	    double   N;
 
-	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 342, MPI_COMM_WORLD,
+	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 343, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 343, MPI_COMM_WORLD,
+	    MPI_Recv(&E, 1, MPI_DOUBLE,         i, 344, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 344, MPI_COMM_WORLD,
+	    MPI_Recv(&N, 1, MPI_DOUBLE,         i, 345, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
 
 	    if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
@@ -6841,9 +6848,10 @@ void CollideIon::gatherSpecies()
 	mass  += val1;
 	tempM += val2;
 	consE += val3;
-	totlE += val4;
-	tempE += val5;
-	elecE += val6;
+	consG += val4;
+	totlE += val5;
+	tempE += val6;
+	elecE += val7;
 
       } // end: myid==0
 
@@ -7479,6 +7487,7 @@ void CollideIon::printSpeciesElectrons
       if (use_elec>=0) {
 	dout << std::setw(wid) << std::right << "Temp_E"
 	     << std::setw(wid) << std::right << "Elec_E"
+	     << std::setw(wid) << std::right << "Cons_G"
 	     << std::setw(wid) << std::right << "Totl_E";
 	for (auto Z : specZ) {
 	  std::ostringstream sout1, sout2, sout3, sout4, sout5, sout6;
@@ -7508,6 +7517,7 @@ void CollideIon::printSpeciesElectrons
 	   << std::setw(wid) << std::right << "--------";
       if (use_elec>=0) {
 	dout << std::setw(wid) << std::right << "--------"
+	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------"
 	     << std::setw(wid) << std::right << "--------";
 	for (size_t z=0; z<specZ.size(); z++)
@@ -7556,7 +7566,8 @@ void CollideIon::printSpeciesElectrons
   if (use_elec>=0)
     dout << std::setw(wid) << std::right << tempE
 	 << std::setw(wid) << std::right << elecE
-	 << std::setw(wid) << std::right << elecE + totlE + consE;
+	 << std::setw(wid) << std::right << consG
+	 << std::setw(wid) << std::right << elecE + totlE + consE + consG;
   for (auto Z : specZ) {
     if (specI.find(Z) != specI.end()) {
       double E = std::get<0>(specI[Z]);
