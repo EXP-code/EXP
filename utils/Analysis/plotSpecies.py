@@ -33,6 +33,7 @@ H_spc    = ['(1,1)', '(1,2)']
 He_spc   = ['(2,1)', '(2,2)', '(2,3)']
 temps    = ['Tion(1)','Tion(2)','Telc(1)','Telc(2)']
 energies = ['Eion(1)','Eion(2)','Eelc(1)','Eelc(2)']
+E_cons   = ['Cons_E', 'Cons_G', 'Ions_E', 'Elec_E', 'Totl_E']
 E_sum    = ['Ions_E', 'Elec_E']
 
 def setTag(tag):
