@@ -66,6 +66,10 @@ static bool SECONDARY_SCATTER = false;
 //
 static double TRACE_FRAC      = 1.0;
 
+// Apply "splitting" energy to the COM scattering regardless of trace type
+//
+static bool TRACE_REAPPLY     = false;
+
 
 // Same species tests (for debugging only)
 //
@@ -223,6 +227,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
 	      << (TRACE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
+	      << (TRACE_REAPPLY ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "TRACE_REAPPLY"
 	      << TRACE_FRAC                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
 	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
@@ -3357,7 +3363,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     //
     double vfac = 1.0;
     if (Z1 != Z2) {
-      if (TRACE_ELEC) {
+      if (TRACE_ELEC and !TRACE_REAPPLY) {
 	p1->dattrib[use_cons  ] += deltaKE * (1.0 - TRACE_FRAC);
 	p2->dattrib[use_elec+3] += deltaKE * TRACE_FRAC;
       } else {
@@ -3451,7 +3457,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     //
     double vfac = 1.0;
     if (Z1 != Z2) {
-      if (TRACE_ELEC) {
+      if (TRACE_ELEC and !TRACE_REAPPLY) {
 	p1->dattrib[use_elec+3] += deltaKE * TRACE_FRAC;
 	p2->dattrib[use_cons]   += deltaKE * (1.0 - TRACE_FRAC);
       } else {
@@ -7639,6 +7645,9 @@ void CollideIon::processConfig()
     
     TRACE_ELEC =
       cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
+
+    TRACE_REAPPLY =
+      cfg.entry<bool>("TRACE_REAPPLY", "Reapply the COM energy loss to the scattering interaction", false);
 
     SECONDARY_SCATTER =
       cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
