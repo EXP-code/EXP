@@ -70,6 +70,9 @@ static double TRACE_FRAC      = 1.0;
 //
 static bool TRACE_REAPPLY     = false;
 
+// Print collisions by species for debugging
+//
+static bool COLL_SPECIES      = false;
 
 // Same species tests (for debugging only)
 //
@@ -229,6 +232,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
 	      << (TRACE_REAPPLY ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_REAPPLY"
+	      << (COLL_SPECIES ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << TRACE_FRAC                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
 	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
@@ -286,6 +291,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecOvr  .resize(nthrds, 0);
   elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
+  collCount.resize(nthrds);
 
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : momD ) v.set_capacity(bufCap);
@@ -3032,6 +3038,14 @@ int CollideIon::inelasticWeight(pCell* const c,
     delE = delE * eV;
   }
   
+  // Collision counts
+  //
+  if (COLL_SPECIES) {
+    dKey dk(k1.getKey(), k2.getKey());
+    if (collCount[id].find(dk) == collCount[id].end()) collCount[id][dk] = 0;
+    collCount[id][dk]++;
+  }
+
   // Debugging test
   //
   if (SAME_IONS_SCAT and interFlag % 100 <= 2) {
@@ -3262,7 +3276,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 	//
 	totE = kE;
       }
-    }
+
+    } // end : SAME_TRAC_SUPP if/then
 
   } // end: trace-particle energy loss assignment
 
@@ -6733,6 +6748,17 @@ void CollideIon::gatherSpecies()
     double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
     double val6 = 0.0, val7 = 0.0;
     
+    if (COLL_SPECIES) {
+      for (int t=1; t<nthrds; t++) {
+	for (auto s : collCount[t]) {
+	  if (collCount[0].find(s.first) == collCount[0].end()) 
+	    collCount[0][s.first]  = s.second;
+	  else
+	    collCount[0][s.first] += s.second;
+	}
+      }
+    }
+
     for (int i=1; i<numprocs; i++) {
 
       if (i == myid) {
@@ -6779,6 +6805,25 @@ void CollideIon::gatherSpecies()
 	  }
 
 	} // end: use_elec>=0
+
+	if (COLL_SPECIES) {
+	  for (auto s : collCount[0]) {
+	    speciesKey k1 = s.first.first;
+	    speciesKey k2 = s.first.second;
+	    MPI_Send(&k1.first,   1, MPI_UNSIGNED_SHORT, 0, 346, 
+		     MPI_COMM_WORLD);
+	    MPI_Send(&k1.second,  1, MPI_UNSIGNED_SHORT, 0, 347, 
+		     MPI_COMM_WORLD);
+	    MPI_Send(&k2.first,   1, MPI_UNSIGNED_SHORT, 0, 348, 
+		     MPI_COMM_WORLD);
+	    MPI_Send(&k2.second,  1, MPI_UNSIGNED_SHORT, 0, 349, 
+		     MPI_COMM_WORLD);
+	    MPI_Send(&s.second,   1, MPI_UNSIGNED_LONG,  0, 350, 
+		     MPI_COMM_WORLD);
+	  }
+	  unsigned short Z = 255;
+	  MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 346, MPI_COMM_WORLD);
+	}
 
       }	// end: myid>0
 
@@ -6849,6 +6894,31 @@ void CollideIon::gatherSpecies()
 	    std::get<0>(specE[Z]) += E;
 	    std::get<1>(specE[Z]) += N;
 	  }
+
+	  if (COLL_SPECIES) {
+	    speciesKey k1, k2;
+	    unsigned long N;
+	    while (1) {
+	      MPI_Recv(&k1.first,  1, MPI_UNSIGNED_SHORT, i, 346, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      if (k1.first==255) break;
+	      MPI_Recv(&k1.second, 1, MPI_UNSIGNED_SHORT, i, 347, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      MPI_Recv(&k2.first,  1, MPI_UNSIGNED_SHORT, i, 348, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      MPI_Recv(&k2.second, 1, MPI_UNSIGNED_SHORT, i, 349, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+	      MPI_Recv(&N,         1, MPI_UNSIGNED_LONG,  i, 350, MPI_COMM_WORLD,
+		       MPI_STATUS_IGNORE);
+
+	      dKey k(k1, k2);
+	      if (collCount[0].find(k) == collCount[0].end()) 
+		collCount[0][k]  = N;
+	      else
+		collCount[0][k] += N;
+	    }
+	  }
+
 	}
 
 	mass  += val1;
@@ -6884,10 +6954,59 @@ void CollideIon::printSpecies
     else printSpeciesElectrons(spec, tempM);
   } else if (aType == Weight) {	// Call the weighted printSpecies version
     printSpeciesElectrons(spec, tempM);
+    printSpeciesColl();
   } else {			// Call the trace fraction version
     printSpeciesTrace();
   }
 
+}
+
+void CollideIon::printSpeciesColl()
+{
+  if (COLL_SPECIES) {
+
+    unsigned long sum = 0;
+    for (auto i : collCount[0]) sum += i.second;
+
+    if (sum) {
+
+      ostringstream sout;
+      sout << outdir << runtag << ".DSMC_spc_log";
+      ofstream mout(sout.str().c_str(), ios::app);
+
+      // Print the header
+      //
+      mout << std::left
+	   << std::setw(12) << "Time"      << std::setw(19) << tnow  << std::endl
+	   << std::setw(12) << "Temp(ion)" << std::setw(18) << tempM << std::endl
+	   << std::setw(12) << "Temp(elc)" << std::setw(18) << tempE << std::endl
+	   << std::endl << std::right
+	   << std::setw(20) << "<Sp 1|Sp 2> "
+	   << std::setw(10) << "Count"
+	   << std::setw(18) << "Fraction" << std::endl
+	   << std::setw(20) << "----------- "
+	   << std::setw(10) << "-------"
+	   << std::setw(18) << "--------" << std::endl;
+
+      for (auto i : collCount[0]) {
+      std::ostringstream sout;
+      speciesKey k1 = i.first.first;
+      speciesKey k2 = i.first.second;
+      sout << "<" << std::setw(2) << k1.first 
+	   << "," << std::setw(2) << k1.second 
+	   << "|" << std::setw(2) << k2.first
+	   << "," << std::setw(2) << k2.second << "> ";
+
+      mout << std::setw(20) << right << sout.str() 
+	   << std::setw(10) << i.second
+	   << std::setw(18) << static_cast<double>(i.second)/sum
+	   << std::endl;
+      }
+      mout << std::string(53, '-') << std::endl;
+    }
+
+    for (auto s : collCount) s.clear();
+  }
 }
 
 void CollideIon::electronGather()
@@ -6929,8 +7048,7 @@ void CollideIon::electronGather()
     // Accumulate from threads
     //
     std::vector<double> loss, keE, keI, mom;
-    unsigned Ovr=0, Acc=0, Tot=0;
-    for (int t=0; t<nthrds; t++) {
+    unsigned Ovr=0, Acc=0, Tot=0;    for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
       Ovr += elecOvr[t];
@@ -7648,6 +7766,9 @@ void CollideIon::processConfig()
 
     TRACE_REAPPLY =
       cfg.entry<bool>("TRACE_REAPPLY", "Reapply the COM energy loss to the scattering interaction", false);
+
+    COLL_SPECIES =
+      cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);
 
     SECONDARY_SCATTER =
       cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);

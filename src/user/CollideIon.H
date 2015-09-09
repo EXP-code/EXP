@@ -593,6 +593,7 @@ protected:
   void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
 			     double T);
   void printSpeciesTrace();
+  void printSpeciesColl();
   void gatherSpecies();
 
   typedef std::map<speciesKey, double> spDMap;
@@ -604,6 +605,9 @@ protected:
   typedef std::map<unsigned short, ZTup> ZMap;
   ZMap   specE, specI;
   std::set<unsigned short> specZ;
+
+  typedef std::map<dKey, unsigned long> CollCountMap;
+  std::vector<CollCountMap> collCount;
   //@}
 
   //! For debugging
