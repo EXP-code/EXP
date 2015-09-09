@@ -606,7 +606,9 @@ protected:
   ZMap   specE, specI;
   std::set<unsigned short> specZ;
 
-  typedef std::map<dKey, unsigned long> CollCountMap;
+  typedef std::array<unsigned long, 2> CollCounts;
+  typedef std::map<dKey, CollCounts> CollCountMap;
+  const CollCounts ccZ = {{0, 0}};
   std::vector<CollCountMap> collCount;
   //@}
 

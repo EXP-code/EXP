@@ -3042,8 +3042,9 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
   if (COLL_SPECIES) {
     dKey dk(k1.getKey(), k2.getKey());
-    if (collCount[id].find(dk) == collCount[id].end()) collCount[id][dk] = 0;
-    collCount[id][dk]++;
+    if (collCount[id].find(dk) == collCount[id].end()) collCount[id][dk] = ccZ;
+    if (interFlag % 100 <= 2) collCount[id][dk][0]++;
+    else                      collCount[id][dk][1]++;
   }
 
   // Debugging test
@@ -6753,8 +6754,10 @@ void CollideIon::gatherSpecies()
 	for (auto s : collCount[t]) {
 	  if (collCount[0].find(s.first) == collCount[0].end()) 
 	    collCount[0][s.first]  = s.second;
-	  else
-	    collCount[0][s.first] += s.second;
+	  else {
+	    collCount[0][s.first][0] += s.second[0];
+	    collCount[0][s.first][1] += s.second[1];
+	  }
 	}
       }
     }
@@ -6810,16 +6813,18 @@ void CollideIon::gatherSpecies()
 	  for (auto s : collCount[0]) {
 	    speciesKey k1 = s.first.first;
 	    speciesKey k2 = s.first.second;
-	    MPI_Send(&k1.first,   1, MPI_UNSIGNED_SHORT, 0, 346, 
+	    MPI_Send(&k1.first,    1, MPI_UNSIGNED_SHORT, 0, 346, 
 		     MPI_COMM_WORLD);
-	    MPI_Send(&k1.second,  1, MPI_UNSIGNED_SHORT, 0, 347, 
+	    MPI_Send(&k1.second,   1, MPI_UNSIGNED_SHORT, 0, 347, 
 		     MPI_COMM_WORLD);
-	    MPI_Send(&k2.first,   1, MPI_UNSIGNED_SHORT, 0, 348, 
+	    MPI_Send(&k2.first,    1, MPI_UNSIGNED_SHORT, 0, 348, 
 		     MPI_COMM_WORLD);
-	    MPI_Send(&k2.second,  1, MPI_UNSIGNED_SHORT, 0, 349, 
+	    MPI_Send(&k2.second,   1, MPI_UNSIGNED_SHORT, 0, 349, 
 		     MPI_COMM_WORLD);
-	    MPI_Send(&s.second,   1, MPI_UNSIGNED_LONG,  0, 350, 
-		     MPI_COMM_WORLD);
+	    MPI_Send(&s.second[0], 1, MPI_UNSIGNED_LONG,  0, 350,
+		       MPI_COMM_WORLD);
+	    MPI_Send(&s.second[1], 1, MPI_UNSIGNED_LONG,  0, 351,
+		       MPI_COMM_WORLD);
 	  }
 	  unsigned short Z = 255;
 	  MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 346, MPI_COMM_WORLD);
@@ -6897,7 +6902,7 @@ void CollideIon::gatherSpecies()
 
 	  if (COLL_SPECIES) {
 	    speciesKey k1, k2;
-	    unsigned long N;
+	    CollCounts N;
 	    while (1) {
 	      MPI_Recv(&k1.first,  1, MPI_UNSIGNED_SHORT, i, 346, MPI_COMM_WORLD,
 		       MPI_STATUS_IGNORE);
@@ -6908,14 +6913,18 @@ void CollideIon::gatherSpecies()
 		       MPI_STATUS_IGNORE);
 	      MPI_Recv(&k2.second, 1, MPI_UNSIGNED_SHORT, i, 349, MPI_COMM_WORLD,
 		       MPI_STATUS_IGNORE);
-	      MPI_Recv(&N,         1, MPI_UNSIGNED_LONG,  i, 350, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
+	      MPI_Recv(&N[0],      1, MPI_UNSIGNED_LONG,  i, 350, MPI_COMM_WORLD,
+			 MPI_STATUS_IGNORE);
+	      MPI_Recv(&N[1],      1, MPI_UNSIGNED_LONG,  i, 351, MPI_COMM_WORLD,
+			 MPI_STATUS_IGNORE);
 
 	      dKey k(k1, k2);
 	      if (collCount[0].find(k) == collCount[0].end()) 
-		collCount[0][k]  = N;
-	      else
-		collCount[0][k] += N;
+		collCount[0][k] = N;
+	      else {
+		collCount[0][k][0] += N[0];
+		collCount[0][k][1] += N[1];
+	      }
 	    }
 	  }
 
@@ -6966,7 +6975,9 @@ void CollideIon::printSpeciesColl()
   if (COLL_SPECIES) {
 
     unsigned long sum = 0;
-    for (auto i : collCount[0]) sum += i.second;
+    for (auto i : collCount[0]) {
+      for (auto j : i.second) sum += j;
+    }
 
     if (sum) {
 
@@ -6982,11 +6993,15 @@ void CollideIon::printSpeciesColl()
 	   << std::setw(12) << "Temp(elc)" << std::setw(18) << tempE << std::endl
 	   << std::endl << std::right
 	   << std::setw(20) << "<Sp 1|Sp 2> "
-	   << std::setw(10) << "Count"
-	   << std::setw(18) << "Fraction" << std::endl
+	   << std::setw(10) << "Scatter"
+	   << std::setw(18) << "Frac scat"
+	   << std::setw(10) << "Inelast"
+	   << std::setw(18) << "Frac inel" << std::endl
 	   << std::setw(20) << "----------- "
 	   << std::setw(10) << "-------"
-	   << std::setw(18) << "--------" << std::endl;
+	   << std::setw(18) << "---------"
+	   << std::setw(10) << "-------"
+	   << std::setw(18) << "---------" << std::endl;
 
       for (auto i : collCount[0]) {
       std::ostringstream sout;
@@ -6998,11 +7013,13 @@ void CollideIon::printSpeciesColl()
 	   << "," << std::setw(2) << k2.second << "> ";
 
       mout << std::setw(20) << right << sout.str() 
-	   << std::setw(10) << i.second
-	   << std::setw(18) << static_cast<double>(i.second)/sum
+	   << std::setw(10) << i.second[0]
+	   << std::setw(18) << static_cast<double>(i.second[0])/sum
+	   << std::setw(10) << i.second[1]
+	   << std::setw(18) << static_cast<double>(i.second[1])/sum
 	   << std::endl;
       }
-      mout << std::string(53, '-') << std::endl;
+      mout << std::string(78, '-') << std::endl;
     }
 
     for (auto s : collCount) s.clear();
