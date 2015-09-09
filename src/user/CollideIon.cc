@@ -3572,7 +3572,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (Z1==Z2)			// Add in energy loss/gain
       testE += Exs - delE - missE;
 				// Correct for trace-algorithm excess
-    else if ((C1==1 and C2==1) or electronic)
+    else if ( (C1==1 and C2==1) or (electronic and !TRACE_REAPPLY) )
       testE -= deltaKE;
 
     if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
