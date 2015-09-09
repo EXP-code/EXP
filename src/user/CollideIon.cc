@@ -227,14 +227,14 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (ENERGY_ES_QUAD ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
 	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
+	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
+	      << (COLL_SPECIES ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
 	      << (TRACE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
-	      << (TRACE_REAPPLY ? "on" : "off")         << std::endl
-	      <<  " " << std::setw(20) << std::left << "TRACE_REAPPLY"
-	      << (COLL_SPECIES ? "on" : "off")         << std::endl
-	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << TRACE_FRAC                             << std::endl
+	      <<  " " << std::setw(20) << std::left << "TRACE_REAPPLY"
+	      << (TRACE_REAPPLY ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
 	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_IONS_SCAT"
