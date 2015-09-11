@@ -3253,6 +3253,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       // Override special trace species treatment
       //
       double del = 0.0;
+
       if (use_elec>=0) {
 	if (C1 == 1) {
 	  del += p1->dattrib[use_cons];
@@ -3282,7 +3283,28 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       if (Z1 == Z2) {
 	
-	double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	double del = 0.0;
+
+	if (use_elec>=0) {
+	  if (C1 == 1) {
+	    del += p1->dattrib[use_cons];
+	    p1->dattrib[use_cons] = 0.0;
+	  } else {
+	    del += p1->dattrib[use_elec+3];
+	    p1->dattrib[use_elec+3] = 0.0;
+	  }
+	  if (C2 == 1) {
+	    del += p2->dattrib[use_cons];
+	    p2->dattrib[use_cons] = 0.0;
+	  } else {
+	    del += p2->dattrib[use_elec+3];
+	    p2->dattrib[use_elec+3] = 0.0;
+	  }
+	} else {
+	  del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+	}
+
 	Exs  += del;
 	totE += del;
 	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
