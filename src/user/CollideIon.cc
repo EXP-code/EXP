@@ -150,11 +150,11 @@ static bool NTC_DIST          = true;
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
-static double FloorEv = 0.05;
+static double FloorEv         = 0.05;
 
 // Minimum relative fraction for allowing a collisional excitation
 //
-static double minCollFrac = -1.0;
+static double minCollFrac     = -1.0;
 
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
@@ -166,6 +166,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   processConfig();
 
   // Debugging
+  //
   itp=0;
 
   // Read species file
@@ -362,7 +363,7 @@ CollideIon::~CollideIon()
 
 /**
    Precompute all the necessary cross sections
- */
+*/
 void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell, 
 				 double rvmax, int id)
 {
@@ -2323,6 +2324,7 @@ int CollideIon::inelasticDirect(pCell* const c,
     }
 
     // Debug electron energy loss/gain
+    //
     velER[id].push_back(vf2/vi2);
   
 
@@ -2358,6 +2360,7 @@ int CollideIon::inelasticDirect(pCell* const c,
     }
     
     // Debug electron energy loss/gain
+    //
     velER[id].push_back(vf2/vi2);
 
 
@@ -3249,10 +3252,29 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       // Override special trace species treatment
       //
-      double del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+      double del = 0.0;
+      if (use_elec>=0) {
+	if (C1 == 1) {
+	  del += p1->dattrib[use_cons];
+	  p1->dattrib[use_cons] = 0.0;
+	} else {
+	  del += p1->dattrib[use_elec+3];
+	  p1->dattrib[use_elec+3] = 0.0;
+	}
+	if (C2 == 1) {
+	  del += p2->dattrib[use_cons];
+	  p2->dattrib[use_cons] = 0.0;
+	} else {
+	  del += p2->dattrib[use_elec+3];
+	  p2->dattrib[use_elec+3] = 0.0;
+	}
+      } else {
+	del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+      }
+
       Exs  += del;
       totE += del;
-      p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 
     } else {
       //
