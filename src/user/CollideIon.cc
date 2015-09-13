@@ -3307,7 +3307,6 @@ int CollideIon::inelasticWeight(pCell* const c,
 
 	Exs  += del;
 	totE += del;
-	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	
       } else {
 	
@@ -3380,8 +3379,16 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       // Override default trace species treatment
       //
-	p1->dattrib[use_cons] += 0.5*del;
+      if (C1 == 1 or use_elec<0)
+	p1->dattrib[use_cons  ] += 0.5*del;
+      else
+	p1->dattrib[use_elec+3] += 0.5*del;
+
+      if (C1 == 2 or use_elec<0)
 	p2->dattrib[use_cons] += 0.5*del;
+      else
+	p2->dattrib[use_elec+3] += 0.5*del;
+
     } else {
       //
       // Split between like species ONLY.  Otherwise, assign to
@@ -3391,7 +3398,10 @@ int CollideIon::inelasticWeight(pCell* const c,
 	p1->dattrib[use_cons] += 0.5*del;
 	p2->dattrib[use_cons] += 0.5*del;
       } else {
-	p1->dattrib[use_cons] += del;
+	if (C1 == 1 or use_elec<0)
+	  p1->dattrib[use_cons  ] += del;
+	else
+	  p1->dattrib[use_elec+3] += del;
       }
     }
   }

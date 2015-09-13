@@ -6,17 +6,13 @@ The main functions begin with make* function.  After make* (or a
 readDB() which is called by a make*), you may use showlabs() to see
 the name tags for all available fields.
 
-   setTag(str)             : set a single run tag (default: "run")
-
-   setTags(list)           : set list of run tags (default: "run")
+   setTag(tags)            : set run tag or list of run tags (default: "run")
 
    readDB()                : read OUTLOG files and build database
 
    showLabs()              : show the fields available for plotting
 
-   pview(xl, labs)         : plot fields in list "labs" against field "xl"
-
-   pview(xl, lab)          : plot field "lab" against field "xl"
+   pview(xl, labs)         : plot field(s) in "labs" against field "xl"
 
    pview(xl, labs, True)   : plot sum of list "labs" against field "xl"
 
@@ -36,16 +32,17 @@ energies = ['Eion(1)','Eion(2)','Eelc(1)','Eelc(2)']
 E_cons   = ['Cons_E', 'Cons_G', 'Ions_E', 'Elec_E', 'Totl_E']
 E_sum    = ['Ions_E', 'Elec_E']
 
-def setTag(tag):
+def setTag(x):
     """ Set desired *.species file tag for plotting"""
     global tags
-    tags = [tag]
-
-def setTags(intags):
-    """ Set desired *.species file tags for plotting"""
-    global tags
-    tags = intags
-
+    
+    if isinstance(x, str):
+        tags = [x]
+    elif isinstance(x, list):
+        tags = x
+    else:
+        print "Parameter must be a string or a list of strings"
+        return None
 
 def readDB():
     global tags, flab
@@ -143,6 +140,7 @@ def makeP(xl, lab):
     
     for t in tags:
         plt.plot(db[t][xl], db[t][lab], '-', label=t)
+        
     plt.legend()
     plt.xlabel(xl)
     plt.ylabel(lab)
