@@ -7647,7 +7647,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
 
     TRACE_REAPPLY =
-      cfg.entry<bool>("TRACE_REAPPLY", "Reapply the COM energy loss to the scattering interaction", false);
+      cfg.entry<bool>("TRACE_REAPPLY", "Immediately add the COM energy loss for splitting to the scattering interaction", false);
 
     SECONDARY_SCATTER =
       cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
