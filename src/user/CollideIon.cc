@@ -30,6 +30,7 @@ unsigned CollideIon::Tnum    = 200;
 string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
+bool     CollideIon::ExactE  = false;
 unsigned CollideIon::esNum   = 100;
 double   CollideIon::logL    = 10;
 
@@ -3252,6 +3253,8 @@ int CollideIon::inelasticWeight(pCell* const c,
   //
 
   double Exs = 0.0;		// Exs variable for KE debugging only
+
+  bool in_exactE = false;
   
   if (use_cons >= 0) {
 
@@ -3354,20 +3357,32 @@ int CollideIon::inelasticWeight(pCell* const c,
 	Exs  += del;
 	totE += del;
 	
-	//       +-- This was a test
-	//       |
-	//       v
-      } else if (false) {
+      } else if (ExactE) {
 	
-	// Trace interaction. Assign energy loss to dominant particle;
-	// always Particle #1
-	//
-	p1->dattrib[use_cons] += -delE;
-	
+	// Particle 1: ion
+	// Particle 2: electron
+	if (interFlag > 100 and interFlag < 200) {
+	  p1->dattrib[use_cons]   += -0.5*delE;
+	  p2->dattrib[use_elec+3] += -0.5*delE;
+	}
+	// Particle 1: electron
+	// Particle 2: ion
+	else if (interFlag > 200 and interFlag < 300) {
+	  p1->dattrib[use_elec+3] += -0.5*delE;
+	  p2->dattrib[use_cons  ] += -0.5*delE;
+	} 
+	// Neutral interaction
+	else {
+	  p1->dattrib[use_cons  ] += -0.5*delE;
+	  p2->dattrib[use_cons  ] += -0.5*delE;
+	}
+
 	// Reset total energy to initial energy, deferring an changes to
 	// non-trace interactions
 	//
 	totE = kE;
+
+	in_exactE = true;
       }
 
     } // end : SAME_TRAC_SUPP if/then
@@ -3399,6 +3414,53 @@ int CollideIon::inelasticWeight(pCell* const c,
   if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
 
 
+  // Use explicit energy conservation algorithm
+  //
+  double vrat = 1.0;
+
+  if (ExactE and q < 1.0) {
+    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
+    double qT = 0.0;
+    std::vector<double> uu(3), vv(3);
+    for (size_t k=0; k<3; k++) {
+      uu[k] = vcom[k] + m2/Mt*vrel[k];
+      vv[k] = vcom[k] - m1/Mt*vrel[k];
+      v1i2 += v1[k]*v1[k];
+      v2i2 += v2[k]*v2[k];
+      b1f2 += uu[k]*uu[k];
+      b2f2 += vv[k]*vv[k];
+      qT   += v1[k]*uu[k];
+    }
+      
+    if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
+
+    double vh1f  = 
+      ( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
+
+    vrat = vh1f / sqrt(v1i2);
+
+    // Test
+    double v1f2 = 0.0;
+    for (size_t k=0; k<3; k++) {
+      double vv = (1.0 - q)*v1[k]*vrat + q*uu[k];
+      v1f2 += vv*vv;
+    }
+
+    double KE_1i = 0.5*m1*v1i2;
+    double KE_2i = 0.5*q*m2*v2i2;
+    double KE_1f = 0.5*m1*v1f2;
+    double KE_2f = 0.5*q*m2*b2f2;
+
+    double KEi   = KE_1i + KE_2i;
+    double KEf   = KE_1f + KE_2f;
+    double difE  = KEi - KEf;
+
+    if (fabs(difE)/(KEi + KEf) > 1.0e-10) {
+      std::cout << "Ooops, delE = " << difE
+		<< ", totE = " << KEi + KEf << std::endl;
+    }
+  }
+
   // Update post-collision velocities.  In the electron version, the
   // momentum is assumed to be coupled to the ions, so the ion
   // momentum must be conserved.  Particle 2 is trace by construction.
@@ -3406,9 +3468,11 @@ int CollideIon::inelasticWeight(pCell* const c,
   double deltaKE = 0.0, qKEfac = 0.5*Wa*m1*q*(1.0 - q);
   for (size_t k=0; k<3; k++) {
     double v0 = vcom[k] + m2/Mt*vrel[k]*vfac;
-    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 
-    v1[k] = (1.0 - q)*v1[k] + q*v0;
+    if (!ExactE) 
+      deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+
+    v1[k] = (1.0 - q)*v1[k]*vrat + q*v0;
     v2[k] = vcom[k] - m1/Mt*vrel[k]*vfac;
   }
 
@@ -3688,7 +3752,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
     }
 				// Check energy balance including excess
-    double testE = dKE - delE - missE;
+    double testE = dKE;
+
+    if (Z1 == Z2 or !ExactE) testE -= delE + missE;
+
 				// Add in energy loss/gain
     if (Z1==Z2 or SAME_TRACE_SUPP)
       testE += Exs;
@@ -3707,6 +3774,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 		<< ", del=" << std::setw(14) << delE
 		<< ", mis=" << std::setw(14) << missE
 		<< ", fac=" << std::setw(14) << vfac
+		<< (in_exactE ? ", in ExactE" : "")
 		<< std::endl;
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
@@ -7957,6 +8025,9 @@ void CollideIon::processConfig()
 
     NTC_DIST =
       cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
+
+    ExactE =
+      cfg.entry<bool>("ExactE", "Use the exact energy conservation algorithm", false);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
