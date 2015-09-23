@@ -157,6 +157,10 @@ static double FloorEv         = 0.05;
 //
 static double minCollFrac     = -1.0;
 
+// Test use_cons summation for debugging
+//
+static bool use_cons_test     = true;
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 
@@ -2680,6 +2684,14 @@ int CollideIon::inelasticWeight(pCell* const c,
     C2 = k2.getKey().second;
   }
       
+  // Debugging test
+  //
+  double p1E = 0.0, p2E = 0.0;
+  if (use_cons_test and use_cons>=0) {
+    p1E = p1->dattrib[use_cons];
+    p2E = p2->dattrib[use_cons];
+  }
+
   // Find the trace ratio
   //
   double Wa = p1->mass / atomic_weights[Z1];
@@ -3479,11 +3491,13 @@ int CollideIon::inelasticWeight(pCell* const c,
   // species ONLY.
   //
   if (use_cons >= 0) {
+
     double del = missE;
 
     // Energy is added to electron KE for use_elec >= 0
     if (use_elec < 0) 
       del += deltaKE;
+
     else if (C1==1 and C2==1)
       del += deltaKE;
       
@@ -3498,7 +3512,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 	p1->dattrib[use_elec+3] += 0.5*del;
 
       if (C1 == 2 or use_elec<0)
-	p2->dattrib[use_cons] += 0.5*del;
+	p2->dattrib[use_cons]   += 0.5*del;
       else
 	p2->dattrib[use_elec+3] += 0.5*del;
 
@@ -3528,7 +3542,7 @@ int CollideIon::inelasticWeight(pCell* const c,
   bool electronic = false;
 
   if (use_elec and interFlag > 100 and interFlag < 200) {
-
+    
     electronic = true;
     
     if (equiptn) {
@@ -3609,10 +3623,10 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       if (use_cons>=0) {
 	if (q<1.0) {
-	  p1->dattrib[use_cons] += deltaE_e;
+	  p1->dattrib[use_elec+3] += deltaE_e;
 	} else {
-	  p1->dattrib[use_cons] += 0.5*deltaE_e;
-	  p2->dattrib[use_cons] += 0.5*deltaE_e;
+	  p1->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  p2->dattrib[use_elec+3] += 0.5*deltaE_e;
 	}
       }
     }
@@ -3704,10 +3718,10 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       if (use_cons>=0) {
 	if (q<1.0) {
-	  p1->dattrib[use_cons] += deltaE_e;
+	  p1->dattrib[use_elec+3] += deltaE_e;
 	} else {
-	  p1->dattrib[use_cons] += 0.5*deltaE_e;
-	  p2->dattrib[use_cons] += 0.5*deltaE_e;
+	  p1->dattrib[use_elec+3] += 0.5*deltaE_e;
+	  p2->dattrib[use_elec+3] += 0.5*deltaE_e;
 	}
       }
     }
@@ -3778,6 +3792,21 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
   
+
+  // Debugging test
+  //
+  if (use_cons_test and use_cons>=0) {
+
+    if (p1->dattrib[use_cons] - p1E > 0.0 and p1->dattrib[use_cons]>0.0) {
+      std::cout << "P1 above zero" << std::endl;
+    }
+
+    if (p2->dattrib[use_cons] - p2E > 0.0 and p2->dattrib[use_cons]>0.0) {
+      std::cout << "P2 above zero" << std::endl;
+    }
+
+  }
+
 
   // Enforce electron equipartition
   //
@@ -7165,9 +7194,9 @@ void CollideIon::printSpeciesColl()
 	   << std::setw(12) << "Temp(elc)" << std::setw(18) << tempE << std::endl
 	   << std::endl << std::right
 	   << std::setw(20) << "<Sp 1|Sp 2> "
-	   << std::setw(10) << "Scatter"
+	   << std::setw(14) << "Scatter"
 	   << std::setw(18) << "Frac scat"
-	   << std::setw(10) << "Inelast"
+	   << std::setw(14) << "Inelast"
 	   << std::setw(18) << "Frac inel" << std::endl
 	   << std::setw(20) << "----------- "
 	   << std::setw(10) << "-------"
@@ -7185,13 +7214,13 @@ void CollideIon::printSpeciesColl()
 	   << "," << std::setw(2) << k2.second << "> ";
 
       mout << std::setw(20) << right << sout.str() 
-	   << std::setw(10) << i.second[0]
+	   << std::setw(14) << i.second[0]
 	   << std::setw(18) << static_cast<double>(i.second[0])/sum
-	   << std::setw(10) << i.second[1]
+	   << std::setw(14) << i.second[1]
 	   << std::setw(18) << static_cast<double>(i.second[1])/sum
 	   << std::endl;
       }
-      mout << std::string(78, '-') << std::endl;
+      mout << std::string(86, '-') << std::endl;
     }
 
     for (auto s : collCount) s.clear();
