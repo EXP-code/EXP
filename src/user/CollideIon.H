@@ -660,6 +660,7 @@ public:
   static string   cache;
   static bool     equiptn;
   static bool     scatter;
+  static bool     ExactE;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
