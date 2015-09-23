@@ -31,6 +31,7 @@ string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
 bool     CollideIon::ExactE  = false;
+bool     CollideIon::DebugE  = false;
 unsigned CollideIon::esNum   = 100;
 double   CollideIon::logL    = 10;
 
@@ -42,18 +43,6 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"classical", classical},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
-
-// Used energy first conservation for electron scattering
-//
-static bool ENERGY_ES         = false;
-
-// For momentum ratio diagnostics
-//
-static bool ENERGY_ES_DBG     = true;
-
-// Quadratic momentum solution
-//
-static bool ENERGY_ES_QUAD    = false;
 
 // Add trace energy excess to electron distribution
 //
@@ -225,12 +214,10 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "************************************" << std::endl
 	      << "*** Algorithm selection flags ******" << std::endl
 	      << "************************************" << std::endl
-	      << " " << std::setw(20) << std::left << "ENERGY_ES"
-	      << (ENERGY_ES ? "on" : "off")             << std::endl
-	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_DBG"
-	      << (ENERGY_ES_DBG ? "on" : "off")         << std::endl
-	      <<  " " << std::setw(20) << std::left << "ENERGY_ES_QUAD"
-	      << (ENERGY_ES_QUAD ? "on" : "off")        << std::endl
+	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
+	      << (ExactE ? "on" : "off")                << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_DBG"
+	      << (DebugE ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
 	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
@@ -5227,70 +5214,57 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	vrel[1] = vi * sin_th*cos(phi);	// relative velocity for an
 	vrel[2] = vi * sin_th*sin(phi);	// elastic interaction
 
-	// Explicit energy conservation
+	// Explicit energy conservation using splitting
 	//
-	if (ENERGY_ES) {
+	if (ExactE) {
 
-	  std::vector<double> u1(3), u2(3);
-	  for (int k=0; k<3; k++)
-	    u2[k] = vcom[k] - ma/mt*vrel[k];
+	  double vrat = 1.0;
+
+	  if (q < 1.0) {
+
+	    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
+	    double qT = 0.0;
+	    std::vector<double> uu(3), vv(3);
+	    for (size_t k=0; k<3; k++) {
+				// New velocities in COM
+	      uu[k] = vcom[k] + 0.5*vrel[k];
+	      vv[k] = vcom[k] - 0.5*vrel[k];
+				// Compute energies and angle
+	      v1i2 += v1[k]*v1[k];
+	      v2i2 += v2[k]*v2[k];
+	      b1f2 += uu[k]*uu[k];
+	      b2f2 += vv[k]*vv[k];
+	      qT   += v1[k]*uu[k];
+	    }
+	    
+	    if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
 	  
-	  double v1i = 0.0, v2i = 0.0, u1f = 0.0, u2f = 0.0;
-	  for (auto v : v1) v1i += v*v;
-	  for (auto v : v2) v2i += v*v;
-	  for (auto v : u2) u2f += v*v;
+	    double vh1f  = 
+	      ( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
+	    
+	    vrat = vh1f / sqrt(v1i2);
+	  }
 
-	  double Ebeg  = 0.5*Wa*ma*v1i + 0.5*Wb*mb*v2i;
-	  double E2f   = 0.5*Wb*mb*u2f;
-	  double vf2   = 2.0/(Wa*ma)*(Ebeg - E2f);
-
-	  for (int k=0; k<3; k++)
-	    u1[k] = v1[k] + q*mb/ma*(v2[k] - u2[k]);
-
-	  // Conserve energy, but not momentum
+	  // New velocities in inertial frame
 	  //
-	  bool direct_es = true;
-
-	  if (ENERGY_ES_QUAD) {
-	    double dvb2 = 0.0, dvbvi = 0.0;
-	    for (int j=0; j<3; j++) {
-	      dvb2  += (v2[j] - u2[j])*(v2[j] - u2[j]);
-	      dvbvi += (v2[j] - u2[j])*v1[j];
-	    }
-	    double dbn   = dvbvi/dvb2;
-	    double dva2n = (v1i - vf2)/dvb2;
-	    double radi  = dbn*dbn - dva2n;
-
-	    if (radi>0.0) {
-	      double ya = -dbn + sqrt(radi);
-	      double yb = -dbn - sqrt(radi);
-	      double nt = q*mb/ma;
-
-	      ya /= nt;
-	      yb /= nt;
-
-	      if (fabs(1.0 - ya) < fabs(1.0 - yb)) {
-		for (int k=0; k<3; k++)
-		  u1[k] = v1[k] + ya*q*mb/ma*(v2[k] - u2[k]);
-	      } else {
-		for (int k=0; k<3; k++)
-		  u1[k] = v1[k] + yb*q*mb/ma*(v2[k] - u2[k]);
-	      }
-
-	      direct_es = false;
-	    }
+	  std::vector<double> u1(3), u2(3);
+	  for (size_t k=0; k<3; k++) {
+	    double v0 = vcom[k] + 0.5*vrel[k];
+	    u1[k] = (1.0 - q)*v1[k]*vrat + q*v0;
+	    u2[k] = vcom[k] - 0.5*vrel[k];
 	  }
 
-	  if (direct_es) {
-	    for (auto  v : u1) u1f += v*v;
-	    double vfac = sqrt(vf2/u1f);
-	    for (auto &v : u1) v *= vfac;
+	  // These are all for diagnostics
+	  //
+	  double pi2 = 0.0, dp2 = 0.0, Ebeg = 0.0, Efin = 0.0;
+
+	  // DIAGNOSTIC: initial energy
+	  for (int k=0; k<3; k++) {
+	    Ebeg += 0.5*Wa*ma*v1[k]*v1[k] + 0.5*Wb*mb*v2[k]*v2[k];
 	  }
 
-				// These are all for diagnostics
-	  double pi2 = 0.0, dp2 = 0.0, Efin = 0.0;
-
-				// Assign new electron velocities
+	  // Assign new electron velocities
+	  //
 	  for (int k=0; k<3; k++) {
 	    p1->dattrib[use_elec+k] = u1[k];
 	    p2->dattrib[use_elec+k] = u2[k];
@@ -5309,7 +5283,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Check for energy conservation
 	  //
-	  if (ENERGY_ES_DBG) momD[id].push_back(sqrt(dp2/pi2));
+	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
 	  if ( fabs(Efin - Ebeg) > 1.0e-14*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
@@ -5321,7 +5295,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Upscale electron energy
 	  //
-	  if (TRACE_ELEC) {
+	  if (TRACE_ELEC and k1.Z() == k2.Z()) {
 	    double delE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
 	    if (delE > 0.0) {
 	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
@@ -5351,7 +5325,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    
 	  } // end: TRACE_ELEC
 
-	} // end: ENERGY_ES
+	} // end: ExactE
 	
 	// Explicit momentum conservation
 	//
@@ -7275,7 +7249,7 @@ void CollideIon::electronGather()
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
     }
 
-    if (ENERGY_ES and ENERGY_ES_DBG) {
+    if (ExactE and DebugE) {
       for (int t=0; t<nthrds; t++) {
 	mom.insert(mom.end(), momD[t].begin(), momD[t].end());
       }
@@ -7408,7 +7382,7 @@ void CollideIon::electronGather()
 	  if (IDBG) dbg << " ... keI sent" << std::endl;
 	}
 
-	if (ENERGY_ES and ENERGY_ES_DBG) {
+	if (ExactE and DebugE) {
 	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 444, MPI_COMM_WORLD);
 	  if (IDBG) dbg << std::setw(16) << "mom.size() = " << std::setw(10) << eNum;
 
@@ -7497,7 +7471,7 @@ void CollideIon::electronGather()
 	  }
 	}
 
-	if (ENERGY_ES and ENERGY_ES_DBG) {
+	if (ExactE and DebugE) {
 	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 444, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
@@ -7970,15 +7944,12 @@ void CollideIon::processConfig()
       cfg.property_tree().put("_date", sout.str());
     }
     
-    ENERGY_ES = 
+    ExactE = 
       cfg.entry<bool>("ENERGY_ES", "Enable the explicit energy conservation algorithm", false);
 
-    ENERGY_ES_DBG = 
+    DebugE = 
       cfg.entry<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
 
-    ENERGY_ES_QUAD = 
-      cfg.entry<bool>("ENERGY_ES_QUAD", "Use the COM quadratic version rather than lab", true);
-    
     TRACE_ELEC =
       cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
 
@@ -8053,9 +8024,6 @@ void CollideIon::processConfig()
 
     NTC_DIST =
       cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
-
-    ExactE =
-      cfg.entry<bool>("ExactE", "Use the exact energy conservation algorithm", false);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);

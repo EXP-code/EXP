@@ -661,6 +661,7 @@ public:
   static bool     equiptn;
   static bool     scatter;
   static bool     ExactE;
+  static bool     DebugE;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
