@@ -2719,22 +2719,27 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       // Accumulate the list here
       //
-      if (!scatter or dInter[id][i] % 100 < 3) {
-				// Test for Particle #1 excitation
+				// Only pass elastic scattering events
+      if (scatter and dInter[id][i] % 100 < 3) {
+
+	ok = true;
+				// Test all events . . . 
+      } else {
+				// Test for Particle #1 collisional excitation
 	if (dInter[id][i] == 104) {
 	  double frac = meanF[id][k1.getKey()];
 	  if (frac > minCollFrac) {
 	    ok = true;
 	  }
 	}
-				// Test for Particle #2 excitation
+				// Test for Particle #2 collisional excitation
 	else if (dInter[id][i] == 204) {
 	  double frac = meanF[id][k2.getKey()];
 	  if (frac > minCollFrac) {
 	    ok = true;
 	  }
 	}
-	else {			// Pass all other excitations . . . 
+	else {			// Pass all other interactions . . . 
 	  ok = true;
 	}
       }
@@ -3056,6 +3061,8 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (Z1 != Z2) return 0;
   }
 
+  // Work vectors
+  //
   std::vector<double> vrel(3), vcom(3), v1(3), v2(3);
 
   // For elastic interactions, delE == 0
@@ -3255,20 +3262,39 @@ int CollideIon::inelasticWeight(pCell* const c,
       double del = 0.0;
 
       if (use_elec>=0) {
-	if (C1 == 1) {
+
+				// Particle 1: ion
+				// Particle 2: electron
+	if (interFlag > 100 and interFlag < 200) {
+
 	  del += p1->dattrib[use_cons];
 	  p1->dattrib[use_cons] = 0.0;
-	} else {
-	  del += p1->dattrib[use_elec+3];
-	  p1->dattrib[use_elec+3] = 0.0;
-	}
-	if (C2 == 1) {
-	  del += p2->dattrib[use_cons];
-	  p2->dattrib[use_cons] = 0.0;
-	} else {
+
 	  del += p2->dattrib[use_elec+3];
 	  p2->dattrib[use_elec+3] = 0.0;
+
+				// Particle 1: electron
+				// Particle 2: ion
+	} else if (interFlag > 200 and interFlag < 300) {
+	  
+	  del += p1->dattrib[use_elec+3];
+	  p1->dattrib[use_elec+3] = 0.0;
+
+	  del += p2->dattrib[use_cons];
+	  p2->dattrib[use_cons] = 0.0;
+
+				// Particle 1: ion
+				// Particle 2: ion
+	} else {
+
+	  del += p1->dattrib[use_cons];
+	  p1->dattrib[use_cons] = 0.0;
+
+	  del += p2->dattrib[use_cons];
+	  p2->dattrib[use_cons] = 0.0;
+
 	}
+
       } else {
 	del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
@@ -3278,6 +3304,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       totE += del;
 
     } else {
+
       //
       // Not a trace interaction
       //
@@ -3286,29 +3313,51 @@ int CollideIon::inelasticWeight(pCell* const c,
 	double del = 0.0;
 
 	if (use_elec>=0) {
-	  if (C1 == 1) {
+				// Particle 1: ion
+				// Particle 2: electron
+	  if (interFlag > 100 and interFlag < 200) {
+
 	    del += p1->dattrib[use_cons];
 	    p1->dattrib[use_cons] = 0.0;
-	  } else {
-	    del += p1->dattrib[use_elec+3];
-	    p1->dattrib[use_elec+3] = 0.0;
-	  }
-	  if (C2 == 1) {
-	    del += p2->dattrib[use_cons];
-	    p2->dattrib[use_cons] = 0.0;
-	  } else {
+
 	    del += p2->dattrib[use_elec+3];
 	    p2->dattrib[use_elec+3] = 0.0;
+
+				// Particle 1: electron
+				// Particle 2: ion
+	  } else if (interFlag > 200 and interFlag < 300) {
+	  
+	    del += p1->dattrib[use_elec+3];
+	    p1->dattrib[use_elec+3] = 0.0;
+	    
+	    del += p2->dattrib[use_cons];
+	    p2->dattrib[use_cons] = 0.0;
+
+				// Particle 1: ion
+				// Particle 2: ion
+	  } else {
+
+	    del += p1->dattrib[use_cons];
+	    p1->dattrib[use_cons] = 0.0;
+
+	    del += p2->dattrib[use_cons];
+	    p2->dattrib[use_cons] = 0.0;
+	    
 	  }
+
 	} else {
 	  del = p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	}
 
+
 	Exs  += del;
 	totE += del;
 	
-      } else {
+	//       +-- This was a test
+	//       |
+	//       v
+      } else if (false) {
 	
 	// Trace interaction. Assign energy loss to dominant particle;
 	// always Particle #1
@@ -3377,7 +3426,8 @@ int CollideIon::inelasticWeight(pCell* const c,
       
     if (SAME_TRACE_SUPP) {
       //
-      // Override default trace species treatment
+      // Override default trace species treatment; split energy
+      // adjustment between interaction particles
       //
       if (C1 == 1 or use_elec<0)
 	p1->dattrib[use_cons  ] += 0.5*del;
@@ -3391,8 +3441,8 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     } else {
       //
-      // Split between like species ONLY.  Otherwise, assign to
-      // non-trace particle.
+      // Split energy adjustment between like species ONLY.
+      // Otherwise, assign to non-trace particle.
       //
       if (Z1 == Z2) {		
 	p1->dattrib[use_cons] += 0.5*del;
@@ -3638,9 +3688,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (KE2i > 0) keER[id].push_back((KE2i - KE2f)/KE2i);
     }
 				// Check energy balance including excess
-    double testE = dKE;
-    if (Z1==Z2)			// Add in energy loss/gain
-      testE += Exs - delE - missE;
+    double testE = dKE - delE - missE;
+				// Add in energy loss/gain
+    if (Z1==Z2 or SAME_TRACE_SUPP)
+      testE += Exs;
 				// Correct for trace-algorithm excess
     else if ( (C1==1 and C2==1) or (electronic and !TRACE_REAPPLY) )
       testE -= deltaKE;
