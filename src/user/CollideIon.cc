@@ -3496,7 +3496,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     if (!ExactE) 
       deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 
-    v1[k] = (1.0 - q)*v1[k]*vrat + q*v0;
+    v1[k] = (1.0 - q)*w1[k]*vrat + q*v0;
     v2[k] = vcom[k] - m1/Mt*vrel[k]*vfac;
   }
 
