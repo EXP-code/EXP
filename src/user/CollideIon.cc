@@ -3811,11 +3811,19 @@ int CollideIon::inelasticWeight(pCell* const c,
   if (use_cons_test and use_cons>=0) {
 
     if (p1->dattrib[use_cons] - p1E > 0.0 and p1->dattrib[use_cons]>0.0) {
-      std::cout << "P1 above zero" << std::endl;
+      std::cout << "P2 above zero: dif=" 
+		<< std::setw(18) << p1->dattrib[use_cons] - p1E
+		<< " x_f=" << std::setw(18) << p1->dattrib[use_cons] 
+		<< " x_i=" << std::setw(18) << p1E
+		<< std::endl;
     }
 
     if (p2->dattrib[use_cons] - p2E > 0.0 and p2->dattrib[use_cons]>0.0) {
-      std::cout << "P2 above zero" << std::endl;
+      std::cout << "P2 above zero: dif=" 
+		<< std::setw(18) << p2->dattrib[use_cons] - p2E
+		<< " x_f=" << std::setw(18) << p2->dattrib[use_cons] 
+		<< " x_i=" << std::setw(18) << p2E
+		<< std::endl;
     }
 
   }
