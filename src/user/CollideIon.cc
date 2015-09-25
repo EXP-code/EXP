@@ -31,6 +31,7 @@ string   CollideIon::cache   = ".HeatCool";
 bool     CollideIon::equiptn = false;
 bool     CollideIon::scatter = false;
 bool     CollideIon::ExactE  = false;
+bool     CollideIon::AlgOrth = false;
 bool     CollideIon::DebugE  = false;
 unsigned CollideIon::esNum   = 100;
 double   CollideIon::logL    = 10;
@@ -217,7 +218,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << " " << std::setw(20) << std::left  << "ENERGY_ES"
 	      << (ExactE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_DBG"
-	      << (DebugE ? "on" : "off")            << std::endl
+	      << (DebugE ? "on" : "off")                << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
+	      << (AlgOrth ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
 	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
@@ -3416,10 +3419,11 @@ int CollideIon::inelasticWeight(pCell* const c,
   // Use explicit energy conservation algorithm
   //
   double vrat = 1.0;
+  std::vector<double> w1(v1);
 
   if (ExactE and q < 1.0) {
-    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
-    double qT = 0.0;
+
+    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0, vr2 = 0.0;
     std::vector<double> uu(3), vv(3);
     for (size_t k=0; k<3; k++) {
       uu[k] = vcom[k] + m2/Mt*vrel[k];
@@ -3428,28 +3432,50 @@ int CollideIon::inelasticWeight(pCell* const c,
       v2i2 += v2[k]*v2[k];
       b1f2 += uu[k]*uu[k];
       b2f2 += vv[k]*vv[k];
-      qT   += v1[k]*uu[k];
+      vr2  += vrel[k] * vrel[k];
     }
+
+    if (AlgOrth) {
+
+      // Cross product to determine orthgonal direction
+      //
+      w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
+      w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
+      w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
+
+      // Normalize
+      //
+      double wnrm = 0.0;
+      for (auto   v : w1) wnrm += v*v;
+      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
       
-    if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
+      vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
 
-    double vh1f  = 
-      ( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
+    } else {
 
-    vrat = vh1f / sqrt(v1i2);
+      double qT = 0.0;
+      for (size_t k=0; k<3; k++) qT   += v1[k]*uu[k];
+      
+      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
+      
+      double vh1f  = 
+	( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
+
+      vrat = vh1f / sqrt(v1i2);
+    }
 
     // Test
     double v1f2 = 0.0;
     for (size_t k=0; k<3; k++) {
-      double vv = (1.0 - q)*v1[k]*vrat + q*uu[k];
+      double vv = (1.0 - q)*w1[k]*vrat + q*uu[k];
       v1f2 += vv*vv;
     }
-
+    
     double KE_1i = 0.5*m1*v1i2;
     double KE_2i = 0.5*q*m2*v2i2;
     double KE_1f = 0.5*m1*v1f2;
     double KE_2f = 0.5*q*m2*b2f2;
-
+    
     double KEi   = KE_1i + KE_2i;
     double KEf   = KE_1f + KE_2f;
     double difE  = KEi - KEf;
@@ -7950,6 +7976,9 @@ void CollideIon::processConfig()
 
     DebugE = 
       cfg.entry<bool>("ENERGY_ES_DBG", "Enable explicit energy conservation checking", true);
+
+    AlgOrth = 
+      cfg.entry<bool>("ENERGY_ORTHO", "Add energy in orthogonal direction", false);
 
     TRACE_ELEC =
       cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
