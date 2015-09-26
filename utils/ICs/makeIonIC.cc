@@ -67,7 +67,8 @@ double pc    = 3.08567758e18;	    // Parsec (in cm)
 double msun  = 1.9891e33;	    // Solar mass (in g)
 double year  = 365.242*24.0*3600.0; // seconds per year
 
-double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
+// double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
+double atomic_masses[3] = {0.1, 1.00794, 4.002602};
 
 double Lunit;
 double Tunit;

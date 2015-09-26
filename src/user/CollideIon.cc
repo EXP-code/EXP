@@ -3813,25 +3813,25 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     if (p1->dattrib[use_cons] - p1E > 0.0 and p1->dattrib[use_cons]>0.0) {
       std::cout << "P2 above zero: dif=" 
-		<< std::setw(18) << p1->dattrib[use_cons] - p1E          << std::endl
-		<< "    x_f="  << std::setw(18) << p1->dattrib[use_cons] << std::endl
-		<< "    x_i="  << std::setw(18) << p1E                   << std::endl
-		<< "    exs="  << std::setw(18) << Exs                   << std::endl
-		<< "   misE="  << std::setw(18) << missE                 << std::endl
-		<< "   delK="  << std::setw(18) << deltaKE               << std::endl
-		<< "   delE="  << std::setw(18) << delE                  << std::endl
+		<< p1->dattrib[use_cons] - p1E          << std::endl
+		<< "    x_f="  << p1->dattrib[use_cons] << std::endl
+		<< "    x_i="  << p1E                   << std::endl
+		<< "    exs="  << Exs                   << std::endl
+		<< "   misE="  << missE                 << std::endl
+		<< "   delK="  << deltaKE               << std::endl
+		<< "   delE="  << delE                  << std::endl
 		<< std::endl;
     }
 
     if (p2->dattrib[use_cons] - p2E > 0.0 and p2->dattrib[use_cons]>0.0) {
       std::cout << "P2 above zero: dif=" 
-		<< std::setw(18) << p2->dattrib[use_cons] - p2E          << std::endl
-		<< "    x_f="  << std::setw(18) << p2->dattrib[use_cons] << std::endl
-		<< "    x_i="  << std::setw(18) << p2E                   << std::endl
-		<< "    exs="  << std::setw(18) << Exs                   << std::endl
-		<< "    misE=" << std::setw(18) << missE                 << std::endl
-		<< "    delK=" << std::setw(18) << deltaKE               << std::endl
-		<< "    delE=" << std::setw(18) << delE                  << std::endl
+		<< p2->dattrib[use_cons] - p2E          << std::endl
+		<< "    x_f="  << p2->dattrib[use_cons] << std::endl
+		<< "    x_i="  << p2E                   << std::endl
+		<< "    exs="  << Exs                   << std::endl
+		<< "    misE=" << missE                 << std::endl
+		<< "    delK=" << deltaKE               << std::endl
+		<< "    delE=" << delE                  << std::endl
 		<< std::endl;
     }
 

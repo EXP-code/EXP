@@ -103,7 +103,8 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   // Initialize the atomic_weights map hardcode the atomic weight map
   // for use in collFrac.  Weights in atomic mass units (amu)
 
-  atomic_weights[0]  = 0.000548579909; // Electron
+  // atomic_weights[0]  = 0.000548579909; // Electron
+  atomic_weights[0]  = 0.1;            // Electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium
   atomic_weights[3]  = 6.941;	       // Lithium
