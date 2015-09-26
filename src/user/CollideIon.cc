@@ -3423,7 +3423,7 @@ int CollideIon::inelasticWeight(pCell* const c,
 
   if (ExactE and q < 1.0) {
 
-    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0, vr2 = 0.0;
+    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
     std::vector<double> uu(3), vv(3);
     for (size_t k=0; k<3; k++) {
       uu[k] = vcom[k] + m2/Mt*vrel[k];
@@ -3432,7 +3432,6 @@ int CollideIon::inelasticWeight(pCell* const c,
       v2i2 += v2[k]*v2[k];
       b1f2 += uu[k]*uu[k];
       b2f2 += vv[k]*vv[k];
-      vr2  += vrel[k] * vrel[k];
     }
 
     if (AlgOrth) {
@@ -3454,7 +3453,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     } else {
 
       double qT = 0.0;
-      for (size_t k=0; k<3; k++) qT   += v1[k]*uu[k];
+      for (size_t k=0; k<3; k++) qT += v1[k]*uu[k];
       
       if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
       
@@ -5263,20 +5262,23 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double vrat = 1.0;
 
-	  double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
 	  std::vector<double> uu(3), vv(3), w1(v1);
 	  for (size_t k=0; k<3; k++) {
 				// New velocities in COM
 	    uu[k] = vcom[k] + 0.5*vrel[k];
 	    vv[k] = vcom[k] - 0.5*vrel[k];
-				// Compute energies and angle
-	    v1i2 += v1[k]*v1[k];
-	    v2i2 += v2[k]*v2[k];
-	    b1f2 += uu[k]*uu[k];
-	    b2f2 += vv[k]*vv[k];
 	  }
 
 	  if (q < 1.0) {
+
+	    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
+	    for (size_t k=0; k<3; k++) {
+				// Compute energies and angle
+	      v1i2 += v1[k]*v1[k];
+	      v2i2 += v2[k]*v2[k];
+	      b1f2 += uu[k]*uu[k];
+	      b2f2 += vv[k]*vv[k];
+	    }
 
 	    if (AlgOrth) {
 	      // Cross product to determine orthgonal direction
@@ -5312,18 +5314,18 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  //
 	  std::vector<double> u1(3), u2(3);
 	  for (size_t k=0; k<3; k++) {
-	    double v0 = vcom[k] + 0.5*vrel[k];
-	    u1[k] = (1.0 - q)*w1[k]*vrat + q*v0;
-	    u2[k] = vcom[k] - 0.5*vrel[k];
+	    u1[k] = (1.0 - q)*w1[k]*vrat + q*uu[k];
+	    u2[k] = vv[k];
 	  }
 
 	  // These are all for diagnostics
 	  //
 	  double pi2 = 0.0, dp2 = 0.0, Ebeg = 0.0, Efin = 0.0;
 
-	  // DIAGNOSTIC: initial energy
+	  // DIAGNOSTIC: energies
 	  for (int k=0; k<3; k++) {
 	    Ebeg += 0.5*Wa*ma*v1[k]*v1[k] + 0.5*Wb*mb*v2[k]*v2[k];
+	    Efin += 0.5*Wa*ma*u1[k]*u1[k] + 0.5*Wb*mb*u2[k]*u2[k];
 	  }
 
 	  // Assign new electron velocities
@@ -5339,15 +5341,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    // DIAGNOSTIC: rms momentum difference
 	    dp2  += (dpi - dpf)*(dpi - dpf); 
 	    pi2  += dpi*dpi;		     
-
-	    // DIAGNOSTIC: final energy
-	    Efin += 0.5*Wa*ma*u1[k]*u1[k] + 0.5*Wb*mb*u2[k]*u2[k];
 	  }
 
 	  // Check for energy conservation
 	  //
 	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
-	  if ( fabs(Efin - Ebeg) > 1.0e-14*(Ebeg) ) {
+
+	  if ( fabs(Efin - Ebeg) > 1.0e-12*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
 		      << " Efin="  << Efin
