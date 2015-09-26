@@ -3267,6 +3267,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       double del = 0.0;
 
       if (use_elec>=0) {
+
 				// Particle 1: ion
 				// Particle 2: electron
 	if (interFlag > 100 and interFlag < 200) {
@@ -3812,17 +3813,25 @@ int CollideIon::inelasticWeight(pCell* const c,
 
     if (p1->dattrib[use_cons] - p1E > 0.0 and p1->dattrib[use_cons]>0.0) {
       std::cout << "P2 above zero: dif=" 
-		<< std::setw(18) << p1->dattrib[use_cons] - p1E
-		<< " x_f=" << std::setw(18) << p1->dattrib[use_cons] 
-		<< " x_i=" << std::setw(18) << p1E
+		<< std::setw(18) << p1->dattrib[use_cons] - p1E          << std::endl
+		<< "    x_f="  << std::setw(18) << p1->dattrib[use_cons] << std::endl
+		<< "    x_i="  << std::setw(18) << p1E                   << std::endl
+		<< "    exs="  << std::setw(18) << Exs                   << std::endl
+		<< "   misE="  << std::setw(18) << missE                 << std::endl
+		<< "   delK="  << std::setw(18) << deltaKE               << std::endl
+		<< "   delE="  << std::setw(18) << delE                  << std::endl
 		<< std::endl;
     }
 
     if (p2->dattrib[use_cons] - p2E > 0.0 and p2->dattrib[use_cons]>0.0) {
       std::cout << "P2 above zero: dif=" 
-		<< std::setw(18) << p2->dattrib[use_cons] - p2E
-		<< " x_f=" << std::setw(18) << p2->dattrib[use_cons] 
-		<< " x_i=" << std::setw(18) << p2E
+		<< std::setw(18) << p2->dattrib[use_cons] - p2E          << std::endl
+		<< "    x_f="  << std::setw(18) << p2->dattrib[use_cons] << std::endl
+		<< "    x_i="  << std::setw(18) << p2E                   << std::endl
+		<< "    exs="  << std::setw(18) << Exs                   << std::endl
+		<< "    misE=" << std::setw(18) << missE                 << std::endl
+		<< "    delK=" << std::setw(18) << deltaKE               << std::endl
+		<< "    delE=" << std::setw(18) << delE                  << std::endl
 		<< std::endl;
     }
 
@@ -5254,29 +5263,49 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double vrat = 1.0;
 
+	  double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
+	  std::vector<double> uu(3), vv(3), w1(v1);
+	  for (size_t k=0; k<3; k++) {
+				// New velocities in COM
+	    uu[k] = vcom[k] + 0.5*vrel[k];
+	    vv[k] = vcom[k] - 0.5*vrel[k];
+				// Compute energies and angle
+	    v1i2 += v1[k]*v1[k];
+	    v2i2 += v2[k]*v2[k];
+	    b1f2 += uu[k]*uu[k];
+	    b2f2 += vv[k]*vv[k];
+	  }
+
 	  if (q < 1.0) {
 
-	    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0;
-	    double qT = 0.0;
-	    std::vector<double> uu(3), vv(3);
-	    for (size_t k=0; k<3; k++) {
-				// New velocities in COM
-	      uu[k] = vcom[k] + 0.5*vrel[k];
-	      vv[k] = vcom[k] - 0.5*vrel[k];
-				// Compute energies and angle
-	      v1i2 += v1[k]*v1[k];
-	      v2i2 += v2[k]*v2[k];
-	      b1f2 += uu[k]*uu[k];
-	      b2f2 += vv[k]*vv[k];
-	      qT   += v1[k]*uu[k];
-	    }
+	    if (AlgOrth) {
+	      // Cross product to determine orthgonal direction
+	      //
+	      w1[0] = uu[1]*v1[2] - uu[2]*v1[1];
+	      w1[1] = uu[2]*v1[0] - uu[0]*v1[2];
+	      w1[2] = uu[0]*v1[1] - uu[1]*v1[0];
+
+	      // Normalize
+	      //
+	      double wnrm = 0.0;
+	      for (auto   v : w1) wnrm += v*v;
+	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+	      
+	      vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
+	      
+	    } else {
+
+	      double qT = 0.0;
+	      for (size_t k=0; k<3; k++) qT += v1[k]*uu[k];
 	    
-	    if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
+	      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
 	  
-	    double vh1f  = 
-	      ( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
+	      double vh1f  = 
+		( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
 	    
-	    vrat = vh1f / sqrt(v1i2);
+	      vrat = vh1f / sqrt(v1i2);
+	    }
+
 	  }
 
 	  // New velocities in inertial frame
@@ -5284,7 +5313,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  std::vector<double> u1(3), u2(3);
 	  for (size_t k=0; k<3; k++) {
 	    double v0 = vcom[k] + 0.5*vrel[k];
-	    u1[k] = (1.0 - q)*v1[k]*vrat + q*v0;
+	    u1[k] = (1.0 - q)*w1[k]*vrat + q*v0;
 	    u2[k] = vcom[k] - 0.5*vrel[k];
 	  }
 
