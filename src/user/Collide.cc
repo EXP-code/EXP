@@ -209,8 +209,7 @@ std::map<unsigned short, double> Collide::atomic_weights;
 //! Weights in atomic mass units
 void Collide::atomic_weights_init()
 {
-  // atomic_weights[0]  = 0.000548579909; // Mass of electron
-  atomic_weights[0]  = 0.1;            // Mass of electron
+  atomic_weights[0]  = 0.000548579909; // Mass of electron
   atomic_weights[1]  = 1.0079;	       // Hydrogen
   atomic_weights[2]  = 4.0026;	       // Helium
   atomic_weights[3]  = 6.941;	       // Lithum

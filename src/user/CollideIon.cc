@@ -3615,9 +3615,22 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       // Split the energy between the outgoing electrons
       //
+
+      //
+      // Initial electron energy of Particle #1 is 0 (i.e. neutral)
+      // Total electron energy is that of Particle #2:
+      // E0= 1/2*m_e*Wb*v0^2
+      //
+      // Split between two electrons:
+      // E1 = (1 - u)*E0 = (1 - u)*1/2*m_e*Wb*v0^2 = 1/2*m_e*Wa*v1^2
+      // ---> v1^2 = (1-u)*q*v0^2
+      //
+      // E2 = u*E0 = u*1/2*m_e*Wb*v0^2 = 1/2*m_e*Wb*v2^2
+      // ---> v2^2 = u*v0^2
+      //
       double u  = (*unit)();
-      double vs1 = sqrt(u);
-      double vs2 = sqrt(1.0 - u);
+      double vs1 = sqrt(q*(1.0 - u));
+      double vs2 = sqrt(u);
 
       for (size_t k=0; k<3; k++) {
 	double t1 = vs1*v2[k];
@@ -3699,7 +3712,6 @@ int CollideIon::inelasticWeight(pCell* const c,
 				// neutral
 				//
     if (!NOSHARE_ELEC and interFlag == ionize_2 and C2==2) {
-
 				// KE prefactor for Particle #1
       double fE1 = 0.5*Wa*atomic_weights[0]; 
 				// KE prefactor for Particle #2
@@ -3710,9 +3722,24 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       // Split fraction q of the energy between the outgoing electrons
       //
+
+      //
+      // Initial electron energy of Particle #2 is 0 (neutral)
+      // Total electron energy is that of Particle #1:
+      // E0= 1/2*m_e*Wa*v0^2
+      //
+      // Split initial particle by q, then between two electrons:
+      // E1 = (1 - q)*E0 + q*(1 - u)*E0
+      //    = [(1 - q) + q*(1 - u)]*1/2*m_e*Wa*v0^2 = 1/2*m_e*Wa*v1^2
+      // ---> v1^2 = [1-q + q*(1-u)]*v0^2
+      //
+      // E2 = u*q*E0 = u*1/2*m_e*Wb*v0^2 = 1/2*m_e*Wb*v2^2
+      // ---> v2^2 = u*v0^2
+      //
+
       double u  = (*unit)();
       double vs1 = sqrt((1.0 - q) + q*(1.0 - u));
-      double vs2 = sqrt(q*u);
+      double vs2 = sqrt(u);
 
       for (size_t k=0; k<3; k++) {
 	double t1 = vs1*v1[k];
@@ -8111,6 +8138,16 @@ void CollideIon::processConfig()
 
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+
+    // Update atomic weight databases IF ElctronMass is specified
+    // using direct call to underlying boost::property_tree
+    //
+    if (cfg.property_tree().find("ElectronMass.value") !=
+	cfg.property_tree().not_found())
+      {
+	double mass = cfg.property_tree().get<double>("ElectronMass.value");
+	UserTreeDSMC::atomic_weights[0] = atomic_weights[0] = mass;
+      }
 
     if (myid==0) {
       // cfg.display();

@@ -346,7 +346,7 @@ public:
   static double Munit;
   static double Eunit;
 
-  std::map<int, double> atomic_weights;
+  static std::map<int, double> atomic_weights;
 				// Use timing info to compute effort
   static bool use_effort;
 
