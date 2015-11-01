@@ -2722,11 +2722,11 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       // Accumulate the list here
       //
+      if (scatter) {
 				// Only pass elastic scattering events
-      if (scatter and dInter[id][i] % 100 < 3) {
+	if (dInter[id][i] % 100 < 3) ok = true;
 
-	ok = true;
-				// Test all events . . . 
+				// Otherwise, test all events . . . 
       } else {
 				// Test for Particle #1 collisional excitation
 	if (dInter[id][i] == 104) {
