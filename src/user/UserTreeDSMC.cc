@@ -675,6 +675,7 @@ void UserTreeDSMC::initialize()
   if (ctype.compare("Ion")==0) {
     if (get_value("equiptn", val))        CollideIon::equiptn = atol(val);
     if (get_value("scatter", val))        CollideIon::scatter = atol(val);
+    if (get_value("nodelC",  val))        CollideIon::NoDelC  = atoi(val);
     if (get_value("estype",  val))        CollideIon::setEStype(val);
     if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
     if (get_value("logL",    val))        CollideIon::logL    = atof(val);

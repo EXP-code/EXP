@@ -657,6 +657,7 @@ public:
   static double   Tmax;
   static unsigned Nnum;
   static unsigned Tnum;
+  static unsigned NoDelC;
   static string   cache;
   static bool     equiptn;
   static bool     scatter;

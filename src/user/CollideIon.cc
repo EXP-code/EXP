@@ -34,6 +34,7 @@ bool     CollideIon::ExactE  = false;
 bool     CollideIon::AlgOrth = false;
 bool     CollideIon::DebugE  = false;
 unsigned CollideIon::esNum   = 100;
+unsigned CollideIon::NoDelC  = 0;
 double   CollideIon::logL    = 10;
 
 CollideIon::ElectronScatter
@@ -2722,7 +2723,14 @@ int CollideIon::inelasticWeight(pCell* const c,
 
       // Accumulate the list here
       //
-      if (scatter) {
+      if (NoDelC)  {
+	ok = true;
+				// Pass events that are NOT ionization
+				// or recombination
+	if (NoDelC & 0x1 and dInter[id][i] % 100 == recomb) ok = false;
+	if (NoDelC & 0x2 and dInter[id][i] % 100 == ionize) ok = false;
+
+      } else if (scatter) {
 				// Only pass elastic scattering events
 	if (dInter[id][i] % 100 < 3) ok = true;
 
