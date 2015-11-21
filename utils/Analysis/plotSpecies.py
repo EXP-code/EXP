@@ -16,11 +16,13 @@ the name tags for all available fields.
 
    pview(xl, labs, True)   : plot sum of list "labs" against field "xl"
 
+   xl may be label or a 3-tuple (label, min_value, max_value)
+
 """
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os, sys
+import os, sys, bisect
 
 tags     = ["run"]
 flab     = []
@@ -91,28 +93,72 @@ def pview(xl, x, do_sum=False):
     else:
         return None
 
-def makeS(xl, labs):
+
+def makeS(xL, labs):
 
     db = readDB()
+    xl = []
+
+    bound = False
+    if isinstance(xL, tuple):
+        xl   = xL[0]
+        minv = xL[1]
+        maxv = xL[2]
+        bound = True
+    else:
+        xl = xL
 
     for lab in labs+[xl]:
         if lab not in flab:
             print "No such field, available data is:"
             showLabs()
             return
+
+    # Set the figure
+    fig = plt.figure()
+    ax  = plt.subplot(111)
+
+    # Shrink current axis's width by 25%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0, box.width * 0.75, box.height])
+
+
 
     for t in tags:
         sum = np.zeros(db[t][labs[0]].shape)
         for lab in labs: sum+= db[t][lab]
-        plt.plot(db[t][xl], db[t][lab], '-', label=t+":sum")
+        if bound:
+            imin = bisect.bisect_left (db[t][xl], minv)
+            imax = bisect.bisect_right(db[t][xl], maxv)
+            ax.plot(db[t][xl][imin:imax], db[t][lab][imin:imax],
+                     '-', label=t+":sum")
+        else:
+            ax.plot(db[t][xl], db[t][lab], '-', label=t+":sum")
 
-    plt.legend()
+    # Put a legend to right of plot
+    legend = ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1.0),
+                       fancybox=True, shadow=True, ncol=1)
+
+    for label in legend.get_lines():
+        label.set_linewidth(2.0)  # the legend line width
+
     plt.xlabel(xl)
     plt.ylabel("Sum")
     plt.show()
 
-def makeM(xl, labs):
+def makeM(xL, labs):
+
     db = readDB()
+    xl = []
+    
+    bound = False
+    if isinstance(xL, tuple):
+        xl   = xL[0]
+        minv = xL[1]
+        maxv = xL[2]
+        bound = True
+    else:
+        xl = xL
 
     for lab in labs+[xl]:
         if lab not in flab:
@@ -120,13 +166,35 @@ def makeM(xl, labs):
             showLabs()
             return
 
+    # Set the figure
+    fig = plt.figure()
+    ax  = plt.subplot(111)
+
+    # Shrink current axis's width by 25%
+    box = ax.get_position()
+    ax.set_position([box.x0, box.y0,
+                     box.width * 0.75, box.height])
+
     for t in tags:
         for lab in labs:
             l = t + ":" + lab
-            plt.plot(db[t][xl], db[t][lab], '-', label=l)
-    plt.legend()
-    plt.xlabel(xl)
-    plt.ylabel(lab)
+            if bound:
+                imin = bisect.bisect_left (db[t][xl], minv)
+                imax = bisect.bisect_right(db[t][xl], maxv)
+                ax.plot(db[t][xl][imin:imax], db[t][lab][imin:imax],
+                         '-', label=l)
+            else:
+                ax.plot(db[t][xl], db[t][lab], '-', label=l)
+
+    # Put a legend to right of plot
+    legend = ax.legend(loc='upper left', bbox_to_anchor=(1.01, 1.0),
+                       fancybox=True, shadow=True, ncol=1)
+
+    for label in legend.get_lines():
+        label.set_linewidth(2.0)  # the legend line width
+
+    ax.set_xlabel(xl)
+    ax.set_ylabel(lab)
     plt.show()
 
 def makeP(xl, lab):

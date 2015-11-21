@@ -81,6 +81,10 @@ static bool NOCOOL_ELEC       = false;
 //
 static bool NOSHARE_ELEC      = false;
 
+// Clone temperature of ionizing electron
+//
+static bool CLONE_ELEC        = false;
+
 // Warn if energy lost is smaller than COM energy available.  For
 // debugging.  Set to false for production.
 //
@@ -244,6 +248,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (NOCOOL_ELEC ? "on" : "off")           << std::endl
 	      <<  " " << std::setw(20) << std::left << "NOSHARE_ELEC"
 	      << (NOSHARE_ELEC ? "on" : "off")          << std::endl
+	      <<  " " << std::setw(20) << std::left << "CLONE_ELEC"
+	      << (CLONE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "RECOMB_KE"
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
@@ -3609,10 +3615,24 @@ int CollideIon::inelasticWeight(pCell* const c,
 	p1->dattrib[use_elec+k] = 0.0;
     }
     
+				// Duplicate electron energy if previously
+				// neutral
+				//
+    if (CLONE_ELEC and interFlag == ionize_1 and C1==2) {
+
+      double EE1 = 0.0, EE2 = 0.0;
+	for (size_t k=0; k<3; k++) {
+	  EE1 += v1[k]*v1[k];
+	  EE2 += v2[k]*v2[k];
+      }
+
+      for (size_t k=0; k<3; k++)
+	p2->dattrib[use_elec+k] = v2[k] * EE1/EE2;
+
 				// Share electron energy if previously
 				// neutral
 				//
-    if (!NOSHARE_ELEC and interFlag == ionize_1 and C1==2) {
+    } else if (!NOSHARE_ELEC and interFlag == ionize_1 and C1==2) {
 				// KE prefactor for Particle #1
       double fE1 = 0.5*Wa*atomic_weights[0]; 
 				// KE prefactor for Particle #2
@@ -3716,10 +3736,24 @@ int CollideIon::inelasticWeight(pCell* const c,
 	p2->dattrib[use_elec+k] = 0.0;
     }
     
+				// Duplicate electron energy if previously
+				// neutral
+				//
+    if (CLONE_ELEC and interFlag == ionize_2 and C2==2) {
+
+      double EE1 = 0.0, EE2 = 0.0;
+	for (size_t k=0; k<3; k++) {
+	  EE1 += v1[k]*v1[k];
+	  EE2 += v2[k]*v2[k];
+      }
+
+      for (size_t k=0; k<3; k++)
+	p1->dattrib[use_elec+k] = v2[k] * EE2/EE1;
+
 				// Share electron energy if previously
 				// neutral
 				//
-    if (!NOSHARE_ELEC and interFlag == ionize_2 and C2==2) {
+    } else if (!NOSHARE_ELEC and interFlag == ionize_2 and C2==2) {
 				// KE prefactor for Particle #1
       double fE1 = 0.5*Wa*atomic_weights[0]; 
 				// KE prefactor for Particle #2
@@ -8083,6 +8117,9 @@ void CollideIon::processConfig()
 
     NOSHARE_ELEC = 
       cfg.entry<bool>("NOSHARE_ELEC", "Suppress distribution of ionization energy between electrons", false);
+
+    CLONE_ELEC = 
+      cfg.entry<bool>("CLONE_ELEC", "Clone energy of ionizing electron to newly created free electron", false);
 
     frost_warning = 
       cfg.entry<bool>("frost_warning", "Warn if energy lost is smaller than available energy", false);
