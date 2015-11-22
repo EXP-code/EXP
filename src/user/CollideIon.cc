@@ -7303,12 +7303,13 @@ void CollideIon::printSpeciesColl()
 	   << std::setw(14) << "Scatter"
 	   << std::setw(18) << "Frac scat"
 	   << std::setw(14) << "Inelast"
-	   << std::setw(18) << "Frac inel" << std::endl
-	   << std::setw(20) << "----------- "
-	   << std::setw(10) << "-------"
-	   << std::setw(18) << "---------"
-	   << std::setw(10) << "-------"
-	   << std::setw(18) << "---------" << std::endl;
+	   << std::setw(18) << "Frac inel"
+	   << std::endl << std::right
+	   << std::setw(20) << "------------- " << std::right
+	   << std::setw(10) << "---------"      << std::right
+	   << std::setw(18) << "------------"   << std::right
+	   << std::setw(10) << "-------"        << std::right
+	   << std::setw(18) << "------------"   << std::endl;
 
       for (auto i : collCount[0]) {
       std::ostringstream sout;
@@ -7319,7 +7320,7 @@ void CollideIon::printSpeciesColl()
 	   << "|" << std::setw(2) << k2.first
 	   << "," << std::setw(2) << k2.second << "> ";
 
-      mout << std::setw(20) << right << sout.str() 
+      mout << std::setw(20) << std::right << sout.str() 
 	   << std::setw(14) << i.second[0]
 	   << std::setw(18) << static_cast<double>(i.second[0])/sum
 	   << std::setw(14) << i.second[1]

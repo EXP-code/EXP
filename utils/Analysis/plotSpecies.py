@@ -20,6 +20,9 @@ the name tags for all available fields.
 
 """
 
+# For Python 3 compatibility
+from __future__ import absolute_import, division, print_function, unicode_literals
+
 import matplotlib.pyplot as plt
 import numpy as np
 import os, sys, bisect
@@ -43,7 +46,7 @@ def setTag(x):
     elif isinstance(x, list):
         tags = x
     else:
-        print "Parameter must be a string or a list of strings"
+        print("Parameter must be a string or a list of strings")
         return None
 
 def readDB():
@@ -78,23 +81,23 @@ def showLabs():
     icnt = 0
     for v in flab:
         icnt += 1
-        print "{:10s}".format(v),
+        print("{:10s}".format(v), end="")
         if icnt % 6 == 0: print
 
 
-def pview(xl, x, do_sum=False):
+def pview(xl, x, do_sum=False, ylab=""):
     if isinstance(x, str):
         return makeP(xl, x)
     elif isinstance(x, list):
         if do_sum:
-            return makeS(xl, x)
+            return makeS(xl, x, ylab=ylab)
         else:
-            return makeM(xl, x)
+            return makeM(xl, x, ylab=ylab)
     else:
         return None
 
 
-def makeS(xL, labs):
+def makeS(xL, labs, ylab=""):
 
     db = readDB()
     xl = []
@@ -110,7 +113,7 @@ def makeS(xL, labs):
 
     for lab in labs+[xl]:
         if lab not in flab:
-            print "No such field, available data is:"
+            print("No such field, available data is:")
             showLabs()
             return
 
@@ -143,10 +146,13 @@ def makeS(xL, labs):
         label.set_linewidth(2.0)  # the legend line width
 
     plt.xlabel(xl)
-    plt.ylabel("Sum")
+    if len(ylab):
+        plt.ylabel(ylab)
+    else:
+        plt.ylabel("Sum")
     plt.show()
 
-def makeM(xL, labs):
+def makeM(xL, labs, ylab=""):
 
     db = readDB()
     xl = []
@@ -162,7 +168,7 @@ def makeM(xL, labs):
 
     for lab in labs+[xl]:
         if lab not in flab:
-            print "No such field, available data is:"
+            print("No such field, available data is:")
             showLabs()
             return
 
@@ -194,7 +200,13 @@ def makeM(xL, labs):
         label.set_linewidth(2.0)  # the legend line width
 
     ax.set_xlabel(xl)
-    ax.set_ylabel(lab)
+    if len(lab):
+        if len(ylab):
+            ax.set_ylabel(ylab)
+        else:
+            ax.set_ylabel("Fields")
+    else:
+        ax.set_ylabel(lab)
     plt.show()
 
 def makeP(xl, lab):
@@ -202,7 +214,7 @@ def makeP(xl, lab):
 
     for l in [xl, lab]:
         if l not in flab:
-            print "No such field, available data is:"
+            print("No such field, available data is:")
             showLabs()
             return
     
