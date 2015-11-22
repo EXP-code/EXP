@@ -885,7 +885,7 @@ double CollideIon::crossSectionDirect(pCell* const c,
   double mu0  = m1 * m2 / (m1 + m2);
   double mu1  = m1;
   double mu2  = m2;
-  double vel = cr * UserTreeDSMC::Vunit;
+  double vel  = cr * UserTreeDSMC::Vunit;
 
   double dof1   = 1.0 + ne1;
   double dof2   = 1.0 + ne2;
@@ -2631,11 +2631,11 @@ int CollideIon::inelasticWeight(pCell* const c,
 				Particle* const _p1, Particle* const _p2,
 				double *cr, int id)
 {
-  int ret = 0;			// No error (flag)
+  int ret       =  0;		// No error (flag)
   int interFlag = -1;		// Invalid value by default
 
-  Particle* p1 = _p1;		// Copy pointers for swapping, if
-  Particle* p2 = _p2;		// necessary
+  Particle* p1  = _p1;		// Copy pointers for swapping, if
+  Particle* p2  = _p2;		// necessary
 
 
   // Species keys for pointers before swapping
@@ -2732,7 +2732,7 @@ int CollideIon::inelasticWeight(pCell* const c,
       if (NoDelC)  {
 	ok = true;
 				// Pass events that are NOT ionization
-				// or recombination
+				// or recombination, or both
 	if (NoDelC & 0x1 and dInter[id][i] % 100 == recomb) ok = false;
 	if (NoDelC & 0x2 and dInter[id][i] % 100 == ionize) ok = false;
 
