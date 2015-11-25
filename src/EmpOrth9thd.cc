@@ -44,6 +44,11 @@ double   EmpCylSL::RMIN            = 0.001;
 double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
+ 
+// Turn on sample variance instead of expectation variance in pca
+// computation
+//
+static bool PCA_SAMPLE_VAR         = true;
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
@@ -2221,7 +2226,10 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
     if (SELECT) {
       for (int nn=0; nn<rank3; nn++) 
-	accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn];
+	if (PCA_SAMPLE_VAR)
+	  accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
+	else
+	  accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn];
     }
     if (mm>0) {
       for (int nn=0; nn<rank3; nn++) 
@@ -2229,8 +2237,11 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
       for (int nn=0; nn<rank3; nn++) 
 	accum_sinN[mlevel][id][mm][nn] += hold[id][nn];
       if (SELECT) {
-	for (int nn=0; nn<rank3; nn++) 
-	  accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn];
+	for (int nn=0; nn<rank3; nn++)
+	  if (PCA_SAMPLE_VAR)
+	    accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
+	  else
+	    accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn];
       }
     }
 
@@ -2484,10 +2495,15 @@ void EmpCylSL::pca_hall(void)
 
       tot = 0.0;
       for (unsigned M=0; M<=multistep; M++) tot += accum_cosN[M][0][mm][nn];
-      tot *= wgt;
 
-      sqr = tot*tot;
-      var = accum_cos2[0][mm][nn]*wgt*wgt - sqr/cylused;
+      tot *= wgt;
+      sqr  = tot*tot;
+
+      if (PCA_SAMPLE_VAR)
+	var = accum_cos2[0][mm][nn]*wgt - sqr;
+      else
+	var = accum_cos2[0][mm][nn]*wgt*wgt - sqr/cylused;
+      
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
@@ -2513,7 +2529,12 @@ void EmpCylSL::pca_hall(void)
       tot *= wgt;
 
       sqr = tot*tot;
-      var = accum_sin2[0][mm][nn]*wgt*wgt - sqr/cylused;
+
+      if (PCA_SAMPLE_VAR)
+	var = accum_sin2[0][mm][nn]*wgt - sqr;
+      else
+	var = accum_sin2[0][mm][nn]*wgt*wgt - sqr/cylused;
+
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
