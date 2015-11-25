@@ -183,12 +183,12 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
     
-	  for(int n=1; n<=nmax; n++) {
-	    for(nn=n; nn<=nmax; nn++) {
+	  for (int n=1; n<=nmax; n++) {
+	    for (nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n]*sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
 		(cc[indx][n][nn]*fac02 - 
-		 expcoef[indx][n]*expcoef[indx][nn]/muse);
+		 expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -218,7 +218,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/muse;
+	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
@@ -226,7 +226,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
 		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse/used);
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/used);
 	      else
 		out << setw(18) << covar[n][n]
 		    << setw(18) << expcoef[indx][n]
@@ -300,8 +300,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - 
-		 expcoef[indx][n]*expcoef[indx][nn]/muse);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }
@@ -331,7 +330,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/muse;
+	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
@@ -339,7 +338,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
 		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse/used);
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/used);
 	      else
 		out << setw(18) << covar[n][n]
 		    << setw(18) << expcoef[indx][n]
@@ -411,8 +410,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - 
-		 expcoef[indx][n]*expcoef[indx][nn]/muse);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -442,7 +440,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (dd=0.0, nn=1; nn<=nmax; nn++) 
 	      dd += Tevec[n][nn]*expcoef[indx][nn]*sqnorm[lm][nn];
 
-	    var = eval[n]/muse;
+	    var = eval[n];
 
 	    if (out) {
 	      if (dof==3) out << setw(5) << l;
@@ -450,7 +448,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	      if (covar[n][n] > 0.0)
 		out << setw(18) << sqrt(covar[n][n])
 		    << setw(18) << expcoef[indx][n]
-		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]/muse);
+		    << setw(18) << fabs(expcoef[indx][n])/sqrt(covar[n][n]);
 	      else
 		out << setw(18) << covar[n][n]
 		    << setw(18) << expcoef[indx][n]

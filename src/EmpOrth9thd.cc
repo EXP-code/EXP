@@ -2221,7 +2221,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
     if (SELECT) {
       for (int nn=0; nn<rank3; nn++) 
-	accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
+	accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn];
     }
     if (mm>0) {
       for (int nn=0; nn<rank3; nn++) 
@@ -2230,7 +2230,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	accum_sinN[mlevel][id][mm][nn] += hold[id][nn];
       if (SELECT) {
 	for (int nn=0; nn<rank3; nn++) 
-	  accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
+	  accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn];
       }
     }
 
@@ -2451,7 +2451,7 @@ void EmpCylSL::make_coefficients(void)
 
 void EmpCylSL::pca_hall(void)
 {
-  double sqr, var, fac, tot;
+  double sqr, var, Var, fac, tot;
   int mm, nn;
 
   if (VFLAG & 4)
@@ -2477,16 +2477,22 @@ void EmpCylSL::pca_hall(void)
     *hout << "#" << endl;
   }
 
+  double wgt = 1.0/cylmass;
+
   for (mm=0; mm<=MMAX; mm++)
     for (nn=0; nn<rank3; nn++) {
 
       tot = 0.0;
       for (unsigned M=0; M<=multistep; M++) tot += accum_cosN[M][0][mm][nn];
+      tot *= wgt;
 
       sqr = tot*tot;
-      // fac = (accum_cos2[0][mm][nn] - cylmass*sqr + 1.0e-10)/(sqr + 1.0e-18);
-      var = accum_cos2[0][mm][nn] - cylmass*sqr;
-      fac = sqr/(var/(cylused+1) + sqr + 1.0e-10);
+      var = accum_cos2[0][mm][nn]*wgt*wgt - sqr/cylused;
+      Var = std::max<double>(0.0, var);
+
+				// This is b_Hall
+      fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
+
       if (hout) *hout << mm << ", " << nn << ", C:   "
 		      << setw(18) << accum_cos2[0][mm][nn] << "  " 
 		      << setw(18) << sqr << "  " 
@@ -2494,7 +2500,6 @@ void EmpCylSL::pca_hall(void)
 		      << setw(18) << fac << '\n';
 
       for (unsigned M=0; M<=multistep; M++) {
-	// accum_cosN[M][0][mm][nn] *= 1.0/(1.0 + fac);
 	accum_cosN[M][0][mm][nn] *= fac;
       }
     }
@@ -2505,18 +2510,21 @@ void EmpCylSL::pca_hall(void)
 
       tot = 0.0;
       for (unsigned M=0; M<=multistep; M++) tot += accum_sinN[M][0][mm][nn];
+      tot *= wgt;
 
       sqr = tot*tot;
-      // fac = (accum_sin2[0][mm][nn] - sqr + 1.0e-10)/(sqr + 1.0e-18);
-      var = accum_sin2[0][mm][nn] - cylmass*sqr;
-      fac = sqr/(var/(cylused+1) + sqr + 1.0e-10);
+      var = accum_sin2[0][mm][nn]*wgt*wgt - sqr/cylused;
+      Var = std::max<double>(0.0, var);
+
+				// This is b_Hall
+      fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
+
       if (hout) *hout << mm << ", " << nn << ", S:   "
 		      << setw(18) << accum_sin2[0][mm][nn] << "  " 
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << '\n';
       for (unsigned M=0; M<=multistep; M++) {
-	// accum_sinN[M][0][mm][nn] *= 1.0/(1.0 + fac);
 	accum_sinN[M][0][mm][nn] *= fac;
       }
     }
