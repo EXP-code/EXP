@@ -5,6 +5,10 @@
 #include <iomanip>
 #include <string>
 
+#ifdef DEBUG
+#include <unistd.h>
+#endif
+
 #include <Vector.h>
 #include <kevin_complex.h>
 

@@ -4,6 +4,10 @@
 #include <Vector.h>
 #include <kevin_complex.h>
 
+#ifdef DEBUG
+#include <unistd.h>
+#endif
+
 #include <clinalg.h>
 
 using namespace std;

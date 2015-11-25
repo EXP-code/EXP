@@ -124,6 +124,12 @@ void initialize(void)
     else barrier_quiet = true;
   }
 
+  if (parse->find_item("debug_wait", val)) {
+    std::cout << "Found <debug_wait=" << val << ">" << std::endl;
+    if (atoi(val.c_str())) debug_wait = true;
+    else debug_wait = false;
+  }
+
   if (parse->find_item("homedir", val)) {
     // Check for and add trailing slash
     if (*val.rbegin() != '/') val += '/';

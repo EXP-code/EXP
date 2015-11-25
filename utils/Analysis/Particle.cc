@@ -1,5 +1,11 @@
 #include "Particle.h"
 
+#ifdef STANDALONE
+#ifndef _REDUCED
+#pragma message "NOT using reduced particle structure"
+#endif
+#endif
+
 Particle::Particle()
 {
   // Initialize basic fields

@@ -46,7 +46,7 @@ using namespace std;
 				// MDW classes
 #include <Vector.h>
 #include <numerical.h>
-#include <Particle.h>
+#include "Particle.h"
 #include <PSP.H>
 #include <interp.h>
 #include <massmodel.h>

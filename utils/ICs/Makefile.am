@@ -31,7 +31,7 @@ bin_PROGRAMS = gendisk shrinkics gendisk2 gsphere pstmod gendisk3	\
 shrinkics_SOURCES = shrinkics.cc
 shrinkics_LDADD = $(EXPLIBS)
 
-gendisk_SOURCES =  initial.cc DiskHalo.cc EmpOrth9thd.cc \
+gendisk_SOURCES = initial.cc DiskHalo.cc EmpOrth9thd.cc \
 	SphericalSL.cc legendre.cc Particle.cc SParticle.cc \
 	ddplgndr.cc sinecosine.cc AddDisk.cc localmpi.cc
 gendisk_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
@@ -63,13 +63,23 @@ makeIon_LDFLAGS = $(EXPFLAGS) $(BOOST_LDFLAGS)
 makeIon_LDADD = $(EXPLIBS) $(LAPACK_LIBS) $(BLAS_LIBS) $(BOOST_LIBS)	\
 	$(LIBS) $(FLIBS)
 
+initial.cc:		Particle.H
+
+initial2.cc:		Particle.H
+
+initial3.cc:		Particle.H
+
+empinfo.cc:		Particle.H
+
+empdump.cc:		Particle.H
+
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
 			cp $(top_srcdir)/utils/SL/$@ .
 
 SLSphere.cc:		$(top_srcdir)/utils/SL/SLSphere.cc
 			cp $(top_srcdir)/utils/SL/$@ .
 
-EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc
+EmpOrth9thd.cc:		$(top_srcdir)/src/EmpOrth9thd.cc Particle.H
 			cp $(top_srcdir)/src/$@ .
 
 localmpi.cc:		$(top_srcdir)/exputil/localmpi.cc
@@ -80,13 +90,14 @@ Particle.cc:		$(top_srcdir)/src/Particle.cc Particle.H
 
 Particle.H:		$(top_srcdir)/src/Particle.H
 			cp $(top_srcdir)/src/$@ .
+			ln -s Particle.H Particle.h
 
 Species.H:		$(top_srcdir)/src/Species.H
 			cp $(top_srcdir)/src/$@ .
 
 
 CLEANFILES = EmpOrth9thd.cc localmpi.cc CylindricalDisk.cc	\
-	SLSphere.cc Particle.cc Particle.H Species.H
+	SLSphere.cc Particle.cc Particle.H Particle.h Species.H
 
 ## utils/ICs/Makefile.am ends here
 

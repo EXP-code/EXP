@@ -300,6 +300,9 @@ extern bool barrier_quiet;
 //! memory to unlimited.
 extern int  rlimit_val;
 
+//! Endless loop for setting gdb breakpoints
+extern bool debug_wait;
+
 #include "Species.H"
 
 #endif

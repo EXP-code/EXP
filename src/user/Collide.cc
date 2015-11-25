@@ -19,7 +19,7 @@ using namespace std;
 #include <signal.h>
 
 
-static bool DEBUG      = false;	// Thread diagnostics, false for
+static bool CDEBUG     = false;	// Thread diagnostics, false for
 				// production
 
 static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
@@ -168,7 +168,7 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
     }
   }
   
-  if (DEBUG)
+  if (CDEBUG)
     cerr << "Process " << myid << ": " << nthrds << " threads created"
 	 << std::endl;
   
@@ -189,7 +189,7 @@ void Collide::collide_thread_fork(pHOT* tree, sKeyDmap* Fn)
     }
   }
   
-  if (DEBUG)
+  if (CDEBUG)
     cerr << "Process " << myid << ": " << nthrds << " threads joined"
 	 << std::endl;
   
@@ -585,7 +585,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 
   if (boost::get<0>(ret)==0) return ret;
 
-  if (DEBUG) {
+  if (CDEBUG) {
 
     if (myid==0) {
       std::cout << std::endl << "***" << std::endl << std::left 
@@ -617,7 +617,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
     if (myid==0) std::cout << std::string(60, '-') << std::endl;
   }
 
-  if (DEBUG) {
+  if (CDEBUG) {
     if (nullcell)
       std::cout << "DEBUG: null cells " << nullcell << "/" 
 		<< totalcell << std::endl;
@@ -2732,7 +2732,7 @@ void Collide::pre_collide_diag()
   
   diagTime.stop();
   
-  if (DEBUG) list_sizes();
+  if (CDEBUG) list_sizes();
 }
 
 

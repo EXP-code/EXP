@@ -810,7 +810,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
   
 #ifdef DEBUG
-  if (!c0->Tree()->checkParticles(cout)) {
+  if (!c0->Tree()->checkParticles(cout, "UserTreeDSMC: after init")) {
     cout << "After init only: Particle check FAILED [" << right
 	 << setw(3) << mlevel << ", " << setw(3) << myid << "]" << endl;
   }
@@ -876,7 +876,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree1Time.start();
 #ifdef DEBUG
     cout << "Made partition, tree and level list [" << mlevel << "]" << endl;
-    if (!c0->Tree()->checkParticles(cout)) {
+    if (!c0->Tree()->checkParticles(cout, "UserTreeDSMC: after partition")) {
       cout << "Particle check on new tree FAILED [" << mlevel << "]" << endl;
     }
 #endif

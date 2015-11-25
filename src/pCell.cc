@@ -271,21 +271,6 @@ void pCell::RemoveKey(const key_pair& pr)
       tree->bodycell.erase(rmv);
     }
   }
-
-#ifdef DEBUG
-  else {
-    //-----------------------------------------------------------------      
-    cout << "Process " << myid << ": cell=" 
-#ifdef INT128
-	 << mykey.toHex() 
-#else
-	 << hex << mykey << dec
-#endif
-	 << " key not in cell list!" << endl;
-    //-----------------------------------------------------------------      
-  }
-#endif
-
 				// Erase the key from the tree's
 				// key-body index
   key_indx::iterator ip = tree->keybods.find(pr);
@@ -832,7 +817,8 @@ void sCell::KE(speciesKey indx, double &total, double &dispr)
       ostringstream sout;
       sout << "pCell_tst." << myid << "." << cnt++;
       ofstream out(sout.str().c_str());
-      out << "# number=" << count << ", index=" << indx << endl;
+      out << "# number=" << count[indx]
+	  << ", index=(" << indx.first << "," << indx.second << ")" << endl;
       for (unsigned i=0; i<10; i++) 
 	out << setw(3) << i << setw(15) << (it->second)[i] << endl;
     }
@@ -869,7 +855,7 @@ void sCell::KE(double &total, double &dispr)
       ostringstream sout;
       sout << "pCell_tst." << myid << "." << cnt++;
       ofstream out(sout.str().c_str());
-      out << "# number=" << count << endl;
+      out << "# number=" << ctotal << endl;
       for (unsigned i=0; i<10; i++) 
 	out << setw(3) << i << setw(15) << stotal[i] << endl;
     }

@@ -375,6 +375,14 @@ main(int argc, char** argv)
   if (set_memlock_limits()) report_memlock_limits();
 
   //==============================================
+  // Sleep loop for debugging
+  //==============================================
+
+  while (debug_wait) {
+    sleep(5);
+  }
+
+  //==============================================
   // Read in points and initialize expansion grid 
   //==============================================
 

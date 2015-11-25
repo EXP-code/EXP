@@ -1,6 +1,8 @@
 #ifndef Particle_H
 #define Particle_H
 
+#define _REDUCED
+
 class Particle 
 {
  public:

@@ -121,4 +121,7 @@ bool barrier_label = true;
 bool barrier_light = true;
 bool barrier_quiet = true;
 
+bool debug_wait    = false;
+
 int  rlimit_val    = 0;
+

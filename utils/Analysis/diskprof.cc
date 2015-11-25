@@ -46,7 +46,7 @@ using namespace std;
 				// MDW classes
 #include <Vector.h>
 #include <numerical.h>
-#include <Particle.h>
+#include "Particle.h"
 #include <PSP.H>
 #include <interp.h>
 #include <EmpOrth9thd.h>
@@ -54,6 +54,12 @@ using namespace std;
 #include <localmpi.h>
 #include <ProgramParam.H>
 #include <foarray.H>
+
+#ifdef DEBUG
+#ifndef _REDUCED
+#pragma message "NOT using reduced particle structure"
+#endif
+#endif
 
 program_option init[] = {
   {"NICE",		"int",		"0",		"system priority"},
@@ -79,6 +85,7 @@ program_option init[] = {
   {"AXIHGT",		"bool",		"false",	"Compute midplane height profiles"},
   {"VHEIGHT",		"bool",		"false",	"Compute height profiles"},
   {"ALL",		"bool",		"false",	"Compute output for every time slice"},
+  {"PCA",		"bool",		"false",	"Perform the PCA analysis for the disk"},
   {"INITFLAG",		"int",		"1",		"Train set on Component (1=stars)"},
   {"PARTFLAG",		"int",		"1",		"Wakes using Component(s) [1=stars | 2=gas]"},
   {"OUTFILE",		"string",	"diskprof",	"Filename prefix"},
@@ -823,6 +830,11 @@ main(int argc, char **argv)
 		 config.get<int>("NORDER"),
 		 config.get<double>("RSCALE"),
 		 config.get<double>("VSCALE"));
+
+  if (config.get<bool>("PCA")) {
+    EmpCylSL::SELECT = true;
+    ortho.setHall(config.get<string>("OUTFILE") + ".pca", 1);
+  }
 
   vector<Particle> particles;
   PSPDump *psp = 0;

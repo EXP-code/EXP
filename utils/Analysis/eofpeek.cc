@@ -1,5 +1,6 @@
 #include <iostream>
 #include <iomanip>
+#include <sstream>
 #include <fstream>
 
 int main (int nc, char** nv)
@@ -34,24 +35,28 @@ int main (int nc, char** nv)
   in.read((char *)&ASCALE, sizeof(double));
   in.read((char *)&HSCALE, sizeof(double));
   
-  std::cout << std::setfill('-') << std::setw(70) << '-' << std::endl;
-  std::cout << " Cylindrical parameters read from <" << nv[1] << ">" 
-	    << std::endl;
-  std::cout << std::setw(70) << '-'       << std::endl;
-  std::cout << std::setw(20) << std::left << "MMAX"   << MMAX   << std::endl;
-  std::cout << std::setw(20) << std::left << "NUMX"   << NUMX   << std::endl;
-  std::cout << std::setw(20) << std::left << "NUMY"   << NUMY   << std::endl;
-  std::cout << std::setw(20) << std::left << "NMAX"   << NMAX   << std::endl;
-  std::cout << std::setw(20) << std::left << "NORDER" << NORDER << std::endl;
-  std::cout << std::setw(20) << std::left << "DENS"   << DENS   << std::endl;
-  std::cout << std::setw(20) << std::left << "CMAP"   << CMAP   << std::endl;
-  std::cout << std::setw(20) << std::left << "RMIN"   << RMIN   << std::endl;
-  std::cout << std::setw(20) << std::left << "RMAX"   << RMAX   << std::endl;
-  std::cout << std::setw(20) << std::left << "ASCALE" << ASCALE << std::endl;
-  std::cout << std::setw(20) << std::left << "HSCALE" << HSCALE << std::endl;
-  std::cout << std::setw(20) << std::left << "CMAP"   << (CMAP ? "true" : "false") << std::endl;
-  std::cout << std::setw(20) << std::left << "DENS"   << (DENS ? "true" : "false") << std::endl;
-  std::cout << std::setw(20) << std::left << std::setw(70) << '-' << std::endl;
+  // BEGIN header
+  std::ostringstream sout;
+  sout << "----- Cylindrical parameters read from <" << nv[1] << "> ";
+
+  std::cout << std::setfill('-') << std::setw(70) << '-' << std::endl
+	    << std::setw(70) << std::left << sout.str()  << std::endl
+	    << std::setw(70) << '-' << std::setfill(' ') << std::endl;
+  // END header
+
+  std::cout << std::setw(12) << std::left << "MMAX"   << MMAX   << std::endl;
+  std::cout << std::setw(12) << std::left << "NUMX"   << NUMX   << std::endl;
+  std::cout << std::setw(12) << std::left << "NUMY"   << NUMY   << std::endl;
+  std::cout << std::setw(12) << std::left << "NMAX"   << NMAX   << std::endl;
+  std::cout << std::setw(12) << std::left << "NORDER" << NORDER << std::endl;
+  std::cout << std::setw(12) << std::left << "CMAP"   << (CMAP ? "true" : "false") << std::endl;
+  std::cout << std::setw(12) << std::left << "DENS"   << (DENS ? "true" : "false") << std::endl;
+  std::cout << std::setw(12) << std::left << "RMIN"   << RMIN   << std::endl;
+  std::cout << std::setw(12) << std::left << "RMAX"   << RMAX   << std::endl;
+  std::cout << std::setw(12) << std::left << "ASCALE" << ASCALE << std::endl;
+  std::cout << std::setw(12) << std::left << "HSCALE" << HSCALE << std::endl;
+
+  std::cout << std::setfill('-') << std::left << std::setw(70) << '-' << std::endl;
 
   return 0;
 }
