@@ -165,6 +165,8 @@ EmpCylSL::~EmpCylSL(void)
   if (accum_cos) {
 
     if (SELECT) {
+      pthread_mutex_destroy(&used_lock);
+
       for (int nth=0; nth<nthrds; nth++) {
 	delete [] accum_cos2[nth];
 	delete [] accum_sin2[nth];
@@ -1169,6 +1171,8 @@ void EmpCylSL::setup_accumulation(void)
     accum_sin = new Vector [MMAX+1];
 
     if (SELECT) {
+      pthread_mutex_init(&used_lock, NULL);
+
       accum_cos2 = new Vector* [nthrds];
       accum_sin2 = new Vector* [nthrds];
 

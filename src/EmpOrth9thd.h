@@ -141,7 +141,7 @@ private:
 
   void bomb(string oops);
 
-  pthread_mutex_t used_lock, cos_coef_lock, sin_coef_lock;
+  pthread_mutex_t used_lock;
 
 public:
 
