@@ -45,10 +45,6 @@ double   EmpCylSL::RMAX            = 20.0;
 double   EmpCylSL::HFAC            = 0.2;
 string   EmpCylSL::CACHEFILE       = ".eof.cache.file";
  
-// Turn on sample variance instead of expectation variance in pca
-// computation
-//
-static bool PCA_SAMPLE_VAR         = true;
 
 EmpCylSL::EmpModel EmpCylSL::mtype = Exponential;
 
@@ -2230,10 +2226,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 
     if (SELECT) {
       for (int nn=0; nn<rank3; nn++) 
-	if (PCA_SAMPLE_VAR)
-	  accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
-	else
-	  accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn];
+	accum_cos2[id][mm][nn] += hold[id][nn]*hold[id][nn];
     }
     if (mm>0) {
       for (int nn=0; nn<rank3; nn++) 
@@ -2242,10 +2235,7 @@ void EmpCylSL::accumulate(double r, double z, double phi, double mass,
 	accum_sinN[mlevel][id][mm][nn] += hold[id][nn];
       if (SELECT) {
 	for (int nn=0; nn<rank3; nn++)
-	  if (PCA_SAMPLE_VAR)
-	    accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn]/mass;
-	  else
-	    accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn];
+	  accum_sin2[id][mm][nn] += hold[id][nn]*hold[id][nn];
       }
     }
 
@@ -2493,6 +2483,8 @@ void EmpCylSL::pca_hall(void)
   }
 
   double wgt = 1.0/cylmass;
+  double nrm = wgt * wgt;
+  double srm = 1.0/cylused;
 
   for (mm=0; mm<=MMAX; mm++)
     for (nn=0; nn<rank3; nn++) {
@@ -2501,23 +2493,20 @@ void EmpCylSL::pca_hall(void)
       for (unsigned M=0; M<=multistep; M++) tot += accum_cosN[M][0][mm][nn];
 
       tot *= wgt;
-      sqr  = tot*tot;
+      sqr = tot*tot;
 
-      if (PCA_SAMPLE_VAR)
-	var = accum_cos2[0][mm][nn]*wgt - sqr;
-      else
-	var = accum_cos2[0][mm][nn]*wgt*wgt - sqr/cylused;
-      
+      var = accum_cos2[0][mm][nn]*nrm - sqr*srm;
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
       fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
 
       if (hout) *hout << mm << ", " << nn << ", C:   "
-		      << setw(18) << accum_cos2[0][mm][nn] << "  " 
+		      << setw(18) << accum_cos2[0][mm][nn]*nrm << "  " 
+		      << setw(18) << sqr*srm << "  " 
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
-		      << setw(18) << fac << '\n';
+		      << setw(18) << fac << std::endl;
 
       for (unsigned M=0; M<=multistep; M++) {
 	accum_cosN[M][0][mm][nn] *= fac;
@@ -2534,18 +2523,15 @@ void EmpCylSL::pca_hall(void)
 
       sqr = tot*tot;
 
-      if (PCA_SAMPLE_VAR)
-	var = accum_sin2[0][mm][nn]*wgt - sqr;
-      else
-	var = accum_sin2[0][mm][nn]*wgt*wgt - sqr/cylused;
-
+      var = accum_sin2[0][mm][nn]*nrm - sqr*srm;
       Var = std::max<double>(0.0, var);
 
 				// This is b_Hall
       fac = sqr/(Var/(cylused+1) + sqr + 1.0e-10);
 
       if (hout) *hout << mm << ", " << nn << ", S:   "
-		      << setw(18) << accum_sin2[0][mm][nn] << "  " 
+		      << setw(18) << accum_sin2[0][mm][nn]*nrm << "  " 
+		      << setw(18) << sqr*srm << "  " 
 		      << setw(18) << sqr << "  " 
 		      << setw(18) << var << "  " 
 		      << setw(18) << fac << '\n';

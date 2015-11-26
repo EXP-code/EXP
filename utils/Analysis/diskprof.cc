@@ -929,10 +929,11 @@ main(int argc, char **argv)
     //------------------------------------------------------------ 
 
     if (myid==0) {
-      cout << "Beginning disk partition [time="
-	   << dump->header.time << "] . . . " << flush;
+      tnow = dump->header.time;
+      cout << "Beginning disk partition [time=" << tnow << "] . . . "
+	   << flush;
       if (ALL) 
-	indx << setw(15) << icnt << setw(15) << dump->header.time << endl;
+	indx << setw(15) << icnt << setw(15) << tnow << endl;
     }
 
     if (in1.rdstate() & ios::eofbit) {
