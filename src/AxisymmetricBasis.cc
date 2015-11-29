@@ -178,7 +178,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	if (compute) {
 	  
 	  for(int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
 	      (expcoef[indx][n]*expcoef[indx][n]*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
@@ -187,8 +187,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for (nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n]*sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - 
-		 expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
@@ -291,7 +290,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	if (compute) {
 
 	  for(int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
 	      (expcoef[indx][n]*expcoef[indx][n]*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
@@ -300,7 +299,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }
@@ -401,7 +400,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	if (compute) {
 
 	  for(int n=1; n<=nmax; n++) {
-	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]) /
+	    b = (cc[indx][n][n]*fac02 - expcoef[indx][n]*expcoef[indx][n]/used) /
 	      (expcoef[indx][n]*expcoef[indx][n]*used);
 	    b_Hall[indx][n] = 1.0/(1.0 + b);
 	  }
@@ -410,7 +409,7 @@ void AxisymmetricBasis::pca_hall(int compute)
 	    for(nn=n; nn<=nmax; nn++) {
 	      fac = sqnorm[lm][n] * sqnorm[lm][nn];
 	      covar[n][nn] = fac * 
-		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]);
+		(cc[indx][n][nn]*fac02 - expcoef[indx][n]*expcoef[indx][nn]/used);
 	      if (n!=nn)
 		covar[nn][n] = covar[n][nn];
 	    }    
