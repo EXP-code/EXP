@@ -33,6 +33,7 @@ Ion::RR_Lab Ion::rr_lab = {
 };
 
 Ion::RR_Type Ion::rr_type = Ion::mewe;
+bool Ion::use_VKY = true;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -160,7 +161,7 @@ void Ion::readelvlc()
   MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
   if (nOK) MPI_Abort(MPI_COMM_WORLD, 42);
 
-  unsigned number = fblvl.size();
+  unsigned number = elvlc.size();
   MPI_Bcast(&number, 1, MPI_UNSIGNED, 0, MPI_COMM_WORLD);
 
   if (myid==0) {
@@ -636,7 +637,7 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
       readelvlc();
       readwgfa();
     } else {
-      std::cout << "MasterName [" << MasterName << "] not in master list" 
+      std::cerr << "MasterName [" << MasterName << "] not in master list" 
 		<< std::endl;
     }
   }
@@ -1870,7 +1871,7 @@ void VernerData::initialize(chdata* ch)
 	  int nel = atoi(v[1].c_str());
 	  int stg = z - nel + 1;
 	  
-	  // Stage: 1 is singly ionized, etc.
+	  // Stage: 1 is neutral, etc.
 
 	  lQ key(z, stg);
 	  
@@ -1972,14 +1973,17 @@ double VernerData::cross(const lQ& Q, double EeV)
   for (auto v : combI->fblvl) {
     
     double Eph = EeV + ip - v.second.encm * incmEv;
-    double y   = Eph/vdata->e0;
-    double y1  = y - 1.0;
-    
-    // Verner and Yakolev, equation 1
-    //
-    double fy  = vdata->sig0*(y1*y1 + vdata->yw*vdata->yw) * 
-      pow(y, -5.5 - vdata->l + 0.5*vdata->p) * 
-      pow(1.0 + sqrt(y/vdata->ya), -vdata->p);
+
+    double fy = 0.0;		// Cross section
+
+    if (Ion::use_VKY) {
+
+      fy = crossPhotoIon_VKY(rQ, Eph);
+
+    } else {
+
+      fy = crossPhotoIon(rQ, Eph);
+    }
     
     double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
       static_cast<double>(v.second.mult) / mult0;
@@ -1989,7 +1993,7 @@ double VernerData::cross(const lQ& Q, double EeV)
   
   // Convert from Mbarnes to nm^2
   //
-  return vCross * 1.0e-4;
+  return vCross;
 }
 
 
@@ -2007,8 +2011,7 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
 
 double VernerData::crossPhotoIon(const lQ& Q, double EeV)
 {
-  // The Verner charge begins at zero
-  // rather than one, as in CHIANTI
+  // The Verner stage is 1 for neutral for consistency with CHIANTI
   //
   lQ rQ(Q.first, Q.second);
 

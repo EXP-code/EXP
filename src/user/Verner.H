@@ -4,6 +4,8 @@
 class chdata;
 class Ion;
 
+extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
+
 /** 
    Reads the Verner & Yakovlev (A&AS 109, 125, 1995) photoionization
    cross-section data
@@ -43,6 +45,22 @@ public:
 
   //! Calculates the photoionization cross section.
   double crossPhotoIon(const lQ& Q, double EeV);
+
+  //! Call Verner-Korista-Yakolev fortran subroutine.  Returns cross
+  //! section in nm^2
+  double crossPhotoIon_VKY(const lQ& Q, double EeV)
+  {
+    int ZZ  = Q.first;
+    int Nel = ZZ - Q.second + 1;
+    float ee = EeV, cs, csum=0.0;
+
+    for (int S=1; S<=7; S++) {
+      phfit2_(&ZZ, &Nel, &S, &ee, &cs);
+      if (S>0) csum += cs;
+    }
+    
+    return csum * 1.0e-4;
+  }
 };
 
 #endif

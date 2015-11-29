@@ -18,6 +18,8 @@ namespace po = boost::program_options;
 
 #include <mpi.h>
 
+extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
+
 int numprocs, myid;
 
 int main (int ac, char **av)
@@ -102,7 +104,18 @@ int main (int ac, char **av)
   // Initialize CHIANTI
   //
 
-  std::set<unsigned short> ZList = {1, 2};
+  std::set<unsigned short> ZList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16};
+
+  if (ZList.find(Z) == ZList.end()) {
+    if (myid==0) {
+      std::cout << "Z=" << Z 
+		<< " is not in element list.  Current list contains:";
+      for (auto z : ZList) std::cout << " " << z;
+      std::cout << std::endl;
+    }
+    MPI_Finalize();
+    exit(1);
+  }
 
   chdata ch;
 
@@ -130,10 +143,20 @@ int main (int ac, char **av)
     std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(EeV, 0);
     std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
 
+    int ZZ  = Z;
+    int Nel = Z - C + 1;
+    float ee = EeV, cs, csum=0.0;
+
+    for (int S=1; S<=7; S++) {
+      phfit2_(&ZZ, &Nel, &S, &ee, &cs);
+      if (S>0) csum += cs;
+    }
+
     std::cout << std::setw(16) << (eVout ? EeV : E)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
+	      << std::setw(16) << csum		       // Mb
 	      << std::endl;
   }
 
