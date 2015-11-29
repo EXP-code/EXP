@@ -1935,11 +1935,9 @@ int CollideIon::inelasticDirect(pCell* const c,
 
     if (interFlag == recomb_1) {
 
-      if (use_elec<0) delE = kEe1[id];
-      if (RECOMB_IP) {
-	lQ rQ(Z2, C2-1);
-	delE += ch.IonList[rQ]->ip;
-      }
+      // if (use_elec<0) delE = kEe1[id];
+      delE = kEe1[id];
+      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
 
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
@@ -1994,11 +1992,9 @@ int CollideIon::inelasticDirect(pCell* const c,
 
     if (interFlag == recomb_2) {
 
-      if (use_elec<0) delE = kEe2[id];
-      if (RECOMB_IP) {
-	lQ rQ(Z2, C2-1);
-	delE += ch.IonList[rQ]->ip;
-      }
+      // if (use_elec<0) delE = kEe2[id];
+      delE = kEe2[id];
+      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2-1)]->ip;
 
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
@@ -2943,11 +2939,9 @@ int CollideIon::inelasticWeight(pCell* const c,
       p1->iattrib[use_key] = k1.updateC(--C1);
       partflag      = 1;
 
-      if (use_elec<0) delE = kEe1[id];
-      if (RECOMB_IP) {
-	lQ rQ(Z1, C1);
-	delE += ch.IonList[rQ]->ip;
-      }
+      // if (use_elec<0) delE = kEe1[id];
+      delE = kEe1[id];
+      if (RECOMB_IP) delE += ch.IonList[lQ(Z1, C1)]->ip;
 
       std::get<0>(ctd1->RR[id])++; 
       std::get<1>(ctd1->RR[id]) += Wb;
@@ -3024,11 +3018,9 @@ int CollideIon::inelasticWeight(pCell* const c,
       p2->iattrib[use_key] = k2.updateC(--C2);
       partflag     = 2;
 
-      if (use_elec<0) delE = kEe2[id];
-      if (RECOMB_IP) {
-	lQ rQ(Z2, C2);
-	delE += ch.IonList[rQ]->ip;
-      }
+      // if (use_elec<0) delE = kEe2[id];
+      delE = kEe2[id];
+      if (RECOMB_IP) delE += ch.IonList[lQ(Z2, C2)]->ip;
 
       std::get<0>(ctd2->RR[id])++; 
       std::get<1>(ctd2->RR[id]) += Wb;
@@ -4474,8 +4466,7 @@ int CollideIon::inelasticTrace(pCell* const c,
       if (interFlag == recomb) {
 
 	if (RECOMB_IP) {
-	  lQ rQ(Z, C-1);
-	  double Xi = ch.IonList[rQ]->ip;
+	  double Xi = ch.IonList[lQ(Z, C-1)]->ip;
 	  delE1 = Xi * N1;
 	  delE2 = Xi * N2;
 	}

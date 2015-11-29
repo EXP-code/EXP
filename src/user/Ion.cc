@@ -33,7 +33,7 @@ Ion::RR_Lab Ion::rr_lab = {
 };
 
 Ion::RR_Type Ion::rr_type = Ion::mewe;
-bool Ion::use_VKY = true;
+bool Ion::use_VFKY = true;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -1934,7 +1934,8 @@ void VernerData::initialize(chdata* ch)
 
 
 /**
-   Calculates the photoionization cross section.
+   Compute the radiative recombination cross section from the
+   photoionization cross section.
    
    The data are from Verner and Yakolev (1995).
    
@@ -1974,25 +1975,14 @@ double VernerData::cross(const lQ& Q, double EeV)
     
     double Eph = EeV + ip - v.second.encm * incmEv;
 
-    double fy = 0.0;		// Cross section
-
-    if (Ion::use_VKY) {
-
-      fy = crossPhotoIon_VKY(rQ, Eph);
-
-    } else {
-
-      fy = crossPhotoIon(rQ, Eph);
-    }
-    
-    double cross = fy * 0.5*Eph*Eph/(mec2*EeV) * 
-      static_cast<double>(v.second.mult) / mult0;
+				// Cross section
+    double cross = crossPhotoIon(rQ, Eph) * 
+				// Milne relation
+      0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
     
     vCross += cross;
   }
-  
-  // Convert from Mbarnes to nm^2
-  //
+
   return vCross;
 }
 
@@ -2011,6 +2001,8 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
 
 double VernerData::crossPhotoIon(const lQ& Q, double EeV)
 {
+  if (Ion::use_VFKY) return crossPhotoIon_VFKY(Q, EeV);
+
   // The Verner stage is 1 for neutral for consistency with CHIANTI
   //
   lQ rQ(Q.first, Q.second);

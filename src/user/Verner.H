@@ -46,20 +46,23 @@ public:
   //! Calculates the photoionization cross section.
   double crossPhotoIon(const lQ& Q, double EeV);
 
-  //! Call Verner-Korista-Yakolev fortran subroutine.  Returns cross
-  //! section in nm^2
-  double crossPhotoIon_VKY(const lQ& Q, double EeV)
+  //! Call Verner-Ferlind-Korista-Yakolev fortran subroutine.  Returns
+  //! cross section in nm^2
+  double crossPhotoIon_VFKY(const lQ& Q, double EeV)
   {
-    int ZZ  = Q.first;
-    int Nel = ZZ - Q.second + 1;
-    float ee = EeV, cs, csum=0.0;
+    int ZZ  = Q.first;		 // Convert from short to int
+    int Nel = ZZ - Q.second + 1; // Compute electron number
+    float ee = EeV, csum = 0.0;
 
+    // Iterate over possible subshells
+    //
     for (int S=1; S<=7; S++) {
+      float cs;
       phfit2_(&ZZ, &Nel, &S, &ee, &cs);
       if (S>0) csum += cs;
     }
     
-    return csum * 1.0e-4;
+    return csum * 1.0e-4;	// Return cross section in nm^2
   }
 };
 

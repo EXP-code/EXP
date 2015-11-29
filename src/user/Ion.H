@@ -305,7 +305,7 @@ public:
   //@}
 
   //! Use Verner et al. fortran subroutine (default: true)
-  static bool use_VKY;
+  static bool use_VFKY;
 
 protected:
 
