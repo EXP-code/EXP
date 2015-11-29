@@ -4,11 +4,12 @@ if ENABLE_GPTL
 ADD_CFLAGS4  = -DUSE_GPTL $(gptl_include)
 endif
 
-AM_CFLAGS = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
+AM_CFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
+AM_FFLAGS   = -fPIC -Wall -D_REENTRANT $(ADD_CFLAGS4) -fopenmp
 AM_CXXFLAGS = -std=c++11 -fPIC -Wall -D_REENTRANT -Wno-non-virtual-dtor $(ADD_CFLAGS4) -fopenmp
-AM_LDFLAGS = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
+AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 
-libdir = $(prefix)/lib/user
+libdir      = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
 bin_PROGRAMS = testCrossSection
@@ -41,8 +42,9 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 	CircularOrbit.cc TwoBodyDiffuse.cc TimeSeriesCoefs.cc	\
 	LinearOrbit.cc UnboundOrbit.cc
 
-libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc CollideIon.cc	\
-	Ion.cc interactSelect.cc Elastic.cc TopBase.cc NTC.cc Quantile.cc
+libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc		\
+	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
+	NTC.cc Quantile.cc phfit2.f
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 
@@ -132,7 +134,7 @@ libshear_la_SOURCES = UserShear.cc
 
 libprofile_la_SOURCES = UserProfile.cc
 
-testCrossSection_SOURCES = testCross.cc
+testCrossSection_SOURCES = testCross.cc phfit2.f
 testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a
 
 

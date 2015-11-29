@@ -304,6 +304,9 @@ public:
   typedef std::map<RR_Type, std::string> RR_Lab;
   //@}
 
+  //! Use Verner et al. fortran subroutine (default: true)
+  static bool use_VKY;
+
 protected:
 
   //@{
