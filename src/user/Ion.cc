@@ -7,6 +7,7 @@
 #include <iomanip>
 #include <sstream>
 #include <vector>
+#include <tuple>
 #include <map>
 
 #include <localmpi.h>
@@ -561,6 +562,12 @@ void Ion::readDi()
     }
   }
 }
+
+
+//
+// Read in the direct ionization cross section splines from the
+// CHIANTI database files
+//
 
 //
 // Initialization function when the master name is given
@@ -1616,6 +1623,15 @@ void chdata::readVerner()
 }
 
 //
+// Read in the Karzas-Latter gaunt factor data table provided by
+// CHIANTI
+//
+void chdata::readRadGF() 
+{
+  radGF.initialize(this);
+}
+
+//
 // list names of all species to stdout
 //
 void chdata::printMaster() 
@@ -1666,6 +1682,9 @@ chdata::chdata()
   
   // std::cout << "Reading radiative cross section file\n";
   readVerner();
+
+  // std::cout << "Reading radiative recombination Gaunt factor file\n";
+  readRadGF();
 
   // Done
 }
@@ -1971,6 +1990,59 @@ double VernerData::cross(const lQ& Q, double EeV)
   double ip     = combI->ip;
   double vCross = 0.0;
   
+  double Egs = EeV + ip;
+  double crossPh = crossPhotoIon(rQ, Egs);
+
+  for (auto v : combI->fblvl) {
+    
+    double Eph = EeV + ip - v.second.encm * incmEv;
+
+    double scaledE = log(Egs/Eph);
+
+    double gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
+
+				// Cross section x Gaunt factor
+    double cross = crossPh * gf * 
+				// Milne relation
+      0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
+    
+    vCross += cross;
+  }
+
+  return vCross;
+}
+
+std::vector< std::tuple<int, double> >
+VernerData::crossV(const lQ& Q, double EeV)
+{
+  typedef std::tuple<int, double> elemV;
+  std::vector<elemV> vCross;
+
+				// 1 inverse cm = 1.239.. eV
+  constexpr double incmEv = 1.0/8.06554465e+03;
+
+				// Electron rest mass in eV
+  constexpr double mec2 = 510.998896 * 1.0e3;
+  
+  // The ion after recombination
+  //
+  lQ rQ(Q.first, Q.second-1);
+
+  // No data for this ion
+  //
+  if (data.find(rQ) == data.end()) return vCross;
+
+  Ion*  origI  = ch->IonList[ Q].get();
+  Ion*  combI  = ch->IonList[rQ].get();
+
+  double mult0 = 1.0;		// If fully ionized;
+  if (origI->fblvl.size()) {	// Otherwise . . .
+    mult0 = origI->fblvl.begin()->second.mult;
+  }
+
+  vrPtr  vdata  = data[rQ];
+  double ip     = combI->ip;
+  
   for (auto v : combI->fblvl) {
     
     double Eph = EeV + ip - v.second.encm * incmEv;
@@ -1980,7 +2052,7 @@ double VernerData::cross(const lQ& Q, double EeV)
 				// Milne relation
       0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
     
-    vCross += cross;
+    vCross.push_back(elemV(v.second.lvl, cross));
   }
 
   return vCross;
@@ -1999,6 +2071,15 @@ std::vector<double> Ion::photoIonizationCross(double E, int id)
   return ret;
 }
 
+std::vector< std::tuple<int, double> > Ion::recombCrossV (double E, int id)
+{
+  // Call for the cross section
+  //
+  lQ Q(Z, C);
+  std::vector< std::tuple<int, double> > ret = ch->VernerXC.crossV(Q, E);
+  return ret;
+}
+  
 double VernerData::crossPhotoIon(const lQ& Q, double EeV)
 {
   if (Ion::use_VFKY) return crossPhotoIon_VFKY(Q, EeV);
@@ -2030,3 +2111,127 @@ double VernerData::crossPhotoIon(const lQ& Q, double EeV)
   //
   return fy * 1.0e-4;
 }
+
+
+
+// Read CHIANTI files file containing the free-bound gaunt factors for
+// n=1-6 from Karzas and Latter, 1961, ApJSS, 6, 167, the photon
+// energy and the free-bound gaunt factors
+//
+void KLGFdata::initialize(chdata* ch)
+{
+  this->ch = ch;
+
+  int nOK = 0;
+
+  if (myid==0) {
+    
+    char * val;
+    if ( (val = getenv("CHIANTI_DATA")) == 0x0) {
+      std::cout << "Could not find CHIANTI_DATA environment variable"
+		<< " . . . exiting" << std::endl;
+      nOK = 1;
+    }
+    
+    if (nOK == 0) {
+      
+      std::string fileName(val);
+      
+      fileName.append("/continuum/klgfb.dat");
+      
+      std::string inLine;
+      std::ifstream klgfFile(fileName.c_str());
+      
+      if (klgfFile.is_open()) {
+	
+	std::getline(klgfFile, inLine);
+	{
+	  std::istringstream sin(inLine);
+	  sin >> ngfb;
+	  sin >> nume;
+	}
+
+	pe.resize(nume);
+
+	std::getline(klgfFile, inLine);
+	{
+	  std::istringstream sin(inLine);
+	  for (auto & v : pe) sin >> v;
+	}
+
+	
+	while (klgfFile.good()) {
+
+	  std::getline(klgfFile, inLine);
+	  std::istringstream sin(inLine);
+
+	  int n, l;
+	  sin >> n;
+	  sin >> l;
+	  
+	  std::pair<int, int> key(n, l);
+
+	  while (sin.good()) {
+	    double V;
+	    sin >> V;
+	    if (sin.good() or sin.eof())
+	      gfb[key].push_back(V);
+	    else
+	      break;
+	  }
+	}
+      }
+      klgfFile.close();
+    }
+  }
+  
+  MPI_Bcast(&nOK, 1, MPI_UNSIGNED_CHAR, 0, MPI_COMM_WORLD);
+  if (nOK) MPI_Abort(MPI_COMM_WORLD, 60);
+  
+  if (myid==0) {
+    
+    int sz = gfb.size();
+
+    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
+
+    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    for (auto m : gfb) {
+      int n   = m.first.first;
+      int l   = m.first.second;
+      int gsz = m.second.size();
+
+      MPI_Bcast(&n,   1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&l,   1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&gsz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+
+      MPI_Bcast(&m.second[0], gsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+    
+  } else {
+  
+    int sz, n, l, gsz;
+
+    MPI_Bcast(&ngfb, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&nume, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Bcast(&sz,   1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+    pe.resize(nume);
+    MPI_Bcast(&pe[0], nume, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+    for (int i=0; i<sz; i++) {
+
+      MPI_Bcast(&n,   1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&l,   1, MPI_INT, 0, MPI_COMM_WORLD);
+      MPI_Bcast(&gsz, 1, MPI_INT, 0, MPI_COMM_WORLD);
+      
+      std::pair<int, int> key(n, l);
+      gfb[key].resize(gsz);
+
+      MPI_Bcast(&gfb[key][0], gsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+    }
+  }
+}
+

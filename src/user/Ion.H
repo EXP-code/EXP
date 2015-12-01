@@ -13,6 +13,7 @@
 #include <TopBase.H>
 #include <Cspline.H>
 #include <Verner.H>
+#include <KarzasLatter.H>
 
 // Structures for caching the Cspline instances for each Ion instance
 //
@@ -209,6 +210,9 @@ public:
   //! Verner-Yakovlev cross-section data
   VernerData VernerXC;
   
+  //! Gaunt factor data
+  KLGFdata radGF;
+  
   /** Read in the master list to store to be able to check if elements
       are in it */
   void readMaster();
@@ -233,6 +237,9 @@ public:
 
   //! Read the radiative cross section data
   void readVerner();
+
+  //! Read the radiative recombination Gaunt factor data
+  void readRadGF();
 
 };
 
@@ -455,6 +462,10 @@ public:
   /** Ground state photoionization cross section using Verner (for
       debugging */
   std::vector<double> photoIonizationCross (double E, int id);
+
+  /** Radiative recombination cross section using Verner (for
+      debugging */
+  std::vector< std::tuple<int, double> > recombCrossV (double E, int id);
 
   //! Calculate the QRP value as in Fontes, Sampson, Zhang 1999
   double qrp(double u);

@@ -20,6 +20,18 @@ namespace po = boost::program_options;
 
 extern "C" void phfit2_(int* nz, int* ne, int* is, float* e, float* s);
 
+// For sorting tuples
+//
+template<int M, template<typename> class F = std::less>
+struct TupleCompare
+{
+  template<typename T>
+  bool operator()(T const &t1, T const &t2)
+  {
+    return F<typename std::tuple_element<M, T>::type>()(std::get<M>(t1), std::get<M>(t2));
+  }
+};
+
 int numprocs, myid;
 
 int main (int ac, char **av)
@@ -143,6 +155,19 @@ int main (int ac, char **av)
     std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(EeV, 0);
     std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
 
+    std::vector< std::tuple<int, double> >
+      REv = ch.IonList[Q]->recombCrossV(EeV, 0);
+
+    std::sort(begin(REv), end(REv), TupleCompare<0>());
+    double sum = 0.0;
+    std::vector<double> cum;
+    for (auto t : REv) {
+      double val = std::get<1>(t);
+      sum += val;
+      cum.push_back(val);
+    }
+    for (auto & t : cum) t /= sum;
+
     int ZZ  = Z;
     int Nel = Z - C + 1;
     float ee = EeV, cs, csum=0.0;
@@ -156,8 +181,9 @@ int main (int ac, char **av)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
-	      << std::setw(16) << csum		       // Mb
-	      << std::endl;
+	      << std::setw(16) << csum;		       // Mb
+    for (auto t : cum) std::cout << std::setw(16) << t;
+    std::cout << std::endl;
   }
 
   MPI_Finalize();

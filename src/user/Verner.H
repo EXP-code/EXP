@@ -43,6 +43,9 @@ public:
   //! Calculates the recombination cross section.
   double cross(const lQ& Q, double EeV);
 
+  //! Calculates the recombination cross section for each level
+  std::vector< std::tuple<int, double> > crossV(const lQ& Q, double EeV);
+
   //! Calculates the photoionization cross section.
   double crossPhotoIon(const lQ& Q, double EeV);
 
