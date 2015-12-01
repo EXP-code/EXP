@@ -44,9 +44,6 @@ int main (int ac, char **av)
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-  if (myid) MPI_Finalize();
-
-
   std::string oname;
 
   std::string cmd_line;
@@ -132,6 +129,11 @@ int main (int ac, char **av)
   chdata ch;
 
   ch.createIonList(ZList);
+
+  if (myid) {
+    MPI_Finalize();
+    return 0;
+  }
 
   Ion::setRRtype("Verner");
 
