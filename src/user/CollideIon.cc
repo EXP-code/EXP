@@ -196,19 +196,19 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   // Banners logging the test algorithms
   //
-  if (myid==0 && NOCOOL) 
+  if (myid==0 && NOCOOL)
     std::cout << std::endl
 	      << "************************************" << std::endl
 	      << "*** No cooling is ON for testing ***" << std::endl
 	      << "************************************" << std::endl;
 
-  if (myid==0 && scatter) 
+  if (myid==0 && scatter)
     std::cout << std::endl
 	      << "************************************" << std::endl
 	      << "*** No recombination/ionization  ***" << std::endl
 	      << "************************************" << std::endl;
 
-  if (myid==0 && equiptn) 
+  if (myid==0 && equiptn)
     std::cout << std::endl
 	      << "************************************" << std::endl
 	      << "*** Using electron EQUIPARTITION ***" << std::endl
@@ -244,6 +244,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
 	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
+	      <<  " " << std::setw(20) << std::left << "NoDelC"
+	      << NoDelC                                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "NOCOOL_ELEC"
 	      << (NOCOOL_ELEC ? "on" : "off")           << std::endl
 	      <<  " " << std::setw(20) << std::left << "NOSHARE_ELEC"
