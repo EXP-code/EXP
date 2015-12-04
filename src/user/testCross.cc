@@ -54,6 +54,7 @@ int main (int ac, char **av)
 
   unsigned short Z, C;
   double emin, emax;
+  std::string RRtype;
   bool eVout = false;
   int num;
 
@@ -61,16 +62,18 @@ int main (int ac, char **av)
   desc.add_options()
     ("help,h",		"produce help message")
     ("eV",		"print results in eV")
-    ("Z,Z",             po::value<unsigned short>(&Z)->default_value(2),
+    ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
      "atomic number")
-    ("C,C",             po::value<unsigned short>(&C)->default_value(3),
+    ("C,C",		po::value<unsigned short>(&C)->default_value(3),
      "ionic charge")
-    ("Emin,e",          po::value<double>(&emin)->default_value(0.001),
+    ("Emin,e",		po::value<double>(&emin)->default_value(0.001),
      "minimum energy (Rydbergs)")
-    ("Emax,E",          po::value<double>(&emax)->default_value(100.0),
+    ("Emax,E",		po::value<double>(&emax)->default_value(100.0),
      "maximum energy (Rydbergs)")
-    ("Num,N",          po::value<int>(&num)->default_value(200),
+    ("Num,N",		po::value<int>(&num)->default_value(200),
      "number of evaluations")
+    ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
+     "cross-section type")
     ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
      "body output file")
     ;
@@ -135,11 +138,11 @@ int main (int ac, char **av)
     return 0;
   }
 
-  Ion::setRRtype("Verner");
+  Ion::setRRtype(RRtype);
+
 
   // Print cross section for requested ion
   //
-
 				// Convert from Rydberg to eV
   const double ryd      = 27.2113845/2.0;
 

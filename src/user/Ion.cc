@@ -1407,7 +1407,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
   //
   if (ch->tb.get() == 0) {
     if (myid==0) {
-      std::cout << "Ion: creating new TopBase instance"
+      std::cerr << "Ion: creating new TopBase instance"
 		<< std::endl;
     }
     ch->tb = boost::shared_ptr<TopBase>(new TopBase);
