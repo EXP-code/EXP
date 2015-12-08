@@ -1964,6 +1964,8 @@ void VernerData::initialize(chdata* ch)
 
 double VernerData::cross(const lQ& Q, double EeV)
 {
+  constexpr double ryd = 27.2113845/2.0;
+
 				// 1 inverse cm = 1.239.. eV
   constexpr double incmEv = 1.0/8.06554465e+03;
 
@@ -1986,21 +1988,30 @@ double VernerData::cross(const lQ& Q, double EeV)
     mult0 = origI->fblvl.begin()->second.mult;
   }
 
-  vrPtr  vdata  = data[rQ];
-  double ip     = combI->ip;
-  double vCross = 0.0;
+  vrPtr  vdata   = data[rQ];
+  double ip      = combI->ip;
+  double vCross  = 0.0;
   
-  double Egs = EeV + ip;
+  double Egs     = EeV + ip;	// Energy to ground state
   double crossPh = crossPhotoIon(rQ, Egs);
 
   for (auto v : combI->fblvl) {
     
-    double Eph = EeV + ip - v.second.encm * incmEv;
+    double Eiz = ip - v.second.encm * incmEv;
+    double Eph = EeV + Eiz;
+    double gf  = 1.0;
 
-    double scaledE = log(Egs/Eph);
+    if (v.second.pqn>1) {
 
-    double gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
+      double scaledE = log(Eph/Eiz);
+      
+      double charge = Q.second - 1;
 
+      crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
+	pow(ryd/Eph, 3.0)/v.second.pqn;
+      
+      gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
+    } 
 				// Cross section x Gaunt factor
     double cross = crossPh * gf * 
 				// Milne relation

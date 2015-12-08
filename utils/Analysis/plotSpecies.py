@@ -82,7 +82,8 @@ def showLabs():
     for v in flab:
         icnt += 1
         print("{:10s}".format(v), end="")
-        if icnt % 6 == 0: print
+        if icnt % 6 == 0: print()
+    if icnt % 6 != 0: print()
 
 
 def pview(xl, x, do_sum=False, ylab=""):
@@ -209,8 +210,18 @@ def makeM(xL, labs, ylab=""):
         ax.set_ylabel(lab)
     plt.show()
 
-def makeP(xl, lab):
+def makeP(xL, lab):
     db = readDB()
+    xl = []
+
+    bound = False
+    if isinstance(xL, tuple):
+        xl   = xL[0]
+        minv = xL[1]
+        maxv = xL[2]
+        bound = True
+    else:
+        xl = xL
 
     for l in [xl, lab]:
         if l not in flab:
@@ -219,7 +230,12 @@ def makeP(xl, lab):
             return
     
     for t in tags:
-        plt.plot(db[t][xl], db[t][lab], '-', label=t)
+        if bound:
+            imin = bisect.bisect_left (db[t][xl], minv)
+            imax = bisect.bisect_right(db[t][xl], maxv)
+            plt.plot(db[t][xl][imin:imax], db[t][lab][imin:imax], '-', label=t)
+        else:
+            plt.plot(db[t][xl], db[t][lab], '-', label=t)
         
     plt.legend()
     plt.xlabel(xl)
