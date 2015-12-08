@@ -242,17 +242,17 @@ double TopBase::sigmaFB(const iKey& key, double E)
 
 	// Interpolate the cross section array
 	//
-	if (E >= l->E.front() && E < l->E.back()) {
+	if (hnu >= l->E.front() && hnu < l->E.back()) {
 
 	  std::vector<double>::iterator lb = 
-	    std::lower_bound(l->E.begin(), l->E.end(), E);
+	    std::lower_bound(l->E.begin(), l->E.end(), hnu);
 	  std::vector<double>::iterator ub = lb--;
 
 	  size_t ii = lb - l->E.begin();
 	  size_t jj = ub - l->E.begin();
 	  
 	  if (*ub > *lb)
-	    crs = ( (E - *lb) * l->S[ii] + (*ub - E) * l->S[jj] ) / (*ub - *lb) ;
+	    crs = ( (hnu - *lb) * l->S[ii] + (*ub - hnu) * l->S[jj] ) / (*ub - *lb) ;
 	}
 
 	// Compute the cross section
