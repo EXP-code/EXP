@@ -2005,8 +2005,6 @@ double VernerData::cross(const lQ& Q, double EeV)
 
       double scaledE = log(Eph/Eiz);
       
-      double charge = Q.second - 1;
-
       crossPh = 7.90706903681e-04 * pow(Eiz/ryd, 2.0)*
 	pow(ryd/Eph, 3.0)/v.second.pqn;
       
