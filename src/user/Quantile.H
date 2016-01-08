@@ -77,7 +77,7 @@ namespace NTC {
     double *extend(int count);
     void    update();
     double  parabolic( int i, int d );
-    double  linear( int i, int d );
+    double  linear   ( int i, int d );
     //@}
 
     template<class Archive>

@@ -509,7 +509,7 @@ protected:
       return crossSectionWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return crossSectionTrace(c, p1, p2, crm, id);
+      return crossSectionTrace (c, p1, p2, crm, id);
 
     return 0.0;
   }

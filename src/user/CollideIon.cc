@@ -4255,6 +4255,27 @@ int CollideIon::inelasticTrace(pCell* const c,
     for (auto &v : prob2[sp.first]) v /= psum2;
   }
 
+  //
+  // Cross section scale factor
+  //
+
+  double scaleCrossSection = 0.0;
+
+  for (auto sp : sCross[id]) {
+
+    for (auto v : sCross[id][sp.first]) {
+
+      // Mass fractions
+      //
+      double w1 = p1->dattrib[SpList[sp.first]];
+      double w2 = p2->dattrib[SpList[sp.first]];
+
+      scaleCrossSection += v * (w1 + w2) / atomic_weights[sp.first.first];
+    }
+  }
+
+  scaleCrossSection /= csections[id][defaultKey][defaultKey];
+  
   //-------------------------
   // VERBOSE DEBUG TEST
   //-------------------------
@@ -4289,9 +4310,9 @@ int CollideIon::inelasticTrace(pCell* const c,
 		  << std::setw( 4) << k.first
 		  << std::setw( 4) << k.second
 		  << std::setw( 8) << sInter[id][k][i]
-		  << std::setw(14) << sCross[id][k][i] 
-		  << std::setw(14) << prob1[k][i] 
-		  << std::setw(14) << prob2[k][i] 
+		  << std::setw(14) << sCross[id][k][i]
+		  << std::setw(14) << prob1[k][i]
+		  << std::setw(14) << prob2[k][i]
 		  << std::setw(18) << labels[sInter[id][k][i]]
 		  << std::endl;
       }
@@ -6770,7 +6791,7 @@ sKey2Umap CollideIon::generateSelectionTrace
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
-  speciesKey          key(defaultKey);
+  speciesKey key(defaultKey);
     
   // Mass density in the cell
   //

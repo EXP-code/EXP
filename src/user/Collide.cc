@@ -1162,7 +1162,7 @@ void * Collide::collide_thread(void * arg)
 				// Over NTC max average
 	    if (targ >= 1.0) ntcOvr[id]++;
 				// Used / Total
-	    if (ok)         ntcAcc[id]++; ntcTot[id]++;
+	    if (ok)          ntcAcc[id]++; ntcTot[id]++;
 	    
 
 				// Accumulate average
