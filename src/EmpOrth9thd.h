@@ -18,9 +18,8 @@
 #ifndef STANDALONE
 #include <global.H>
 #include "expand.h"
-#include <global.H>
 #else
-#include "Particle.h"
+#include "Particle.H"
 extern int this_step;
 extern int Mstep;
 extern int mstep;
