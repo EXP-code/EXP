@@ -2765,6 +2765,14 @@ int CollideIon::inelasticWeight(pCell* const c,
     }
   }
 
+  //
+  // Cross section scale factor
+  //
+  double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()] *
+    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+  NN *= scaleCrossSection;
+
   //----------------------------
   // Which particle interacted?
   //----------------------------
@@ -4258,7 +4266,6 @@ int CollideIon::inelasticTrace(pCell* const c,
   //
   // Cross section scale factor
   //
-
   double scaleCrossSection = 0.0;
 
   for (auto sp : sCross[id]) {
@@ -4274,7 +4281,10 @@ int CollideIon::inelasticTrace(pCell* const c,
     }
   }
 
-  scaleCrossSection /= csections[id][defaultKey][defaultKey];
+  // Test
+  //
+  scaleCrossSection /= csections[id][defaultKey][defaultKey] *
+    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
   
   //-------------------------
   // VERBOSE DEBUG TEST
@@ -4407,8 +4417,8 @@ int CollideIon::inelasticTrace(pCell* const c,
 
       // Number of TRUE interactions in the superparticle
       //
-      double N1 = Pr1 * Fn * p1->mass;
-      double N2 = Pr2 * Fn * p2->mass;
+      double N1 = Pr1 * Fn * p1->mass * scaleCrossSection;
+      double N2 = Pr2 * Fn * p2->mass * scaleCrossSection;
 
       //--------------------------------------------------
       // Computation of energy and weight change for
