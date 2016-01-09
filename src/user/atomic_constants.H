@@ -48,12 +48,15 @@ const double msun      = 1.9891e33;
 
 #include <boost/shared_ptr.hpp>
 
-//! Store and retrieve periodic table info
+/** Store and retrieve periodic table info.  This can be extended to
+    include additional data fields, etc.  Would be nice to add atomic
+    weights and possibly family info in the future.
+*/
 class AtomicElement : public std::tuple<std::string, std::string, unsigned, double>
 {
 public:
   
-  //! Null constructor
+  //! Null constructor: returns initialized but empty record
   AtomicElement() 
   {
     std::get<2>(*this) = 0;
@@ -92,10 +95,11 @@ public:
   //! Data (used for cross-section scale factor by CollideIon)
   const double         scale()  { return std::get<3>(*this); }
 
-  //! Set scale
+  //! Set double value (currently used by CollideIon as above)
   void set(double s) { std::get<3>(*this) = s; }
 };
 
+//! A full periodic table registry
 class PeriodicTable
 {
 private:

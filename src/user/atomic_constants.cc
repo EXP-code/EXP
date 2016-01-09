@@ -1,49 +1,50 @@
 #include "atomic_constants.H"
 
-// Populate the periodic table
+// Populate the periodic table with data.  Currently we only have
+// element names and atomic numbers.
 //
 PeriodicTable::PeriodicTable()
 {
-  add("Hydrogen",     "H",    1);   
-  add("Helium",       "He",   2);   
-  add("Lithium",      "L",    3);   
-  add("Beryllium",    "Be",   4);   
-  add("Boron",        "B",    5);   
-  add("Carbon",       "C",    6);   
-  add("Nitrogen",     "N",    7);   
-  add("Oxygen",       "O",    8);   
-  add("Fluorine",     "F",    9);   
-  add("Neon",         "Ne",   10);  
-  add("Sodium",       "N",    11);  
-  add("Magnesium",    "Mg",   12);  
-  add("Aluminium",    "Al",   13);  
-  add("Silicon",      "Si",   14);  
-  add("Phosphorus",   "P",    15);  
-  add("Sulfur",       "S",    16);  
-  add("Chlorine",     "C",    17);  
-  add("Argon",        "Ar",   18);  
-  add("Potassium",    "K",    19);  
-  add("Calcium",      "Ca",   20);  
-  add("Scandium",     "S",    21);  
-  add("Titanium",     "Ti",   22);  
-  add("Vanadium",     "V",    23);  
-  add("Chromium",     "Cr",   24);  
-  add("Manganese",    "M",    25);  
-  add("Iron",         "Fe",   26);  
-  add("Cobalt",       "C",    27);  
-  add("Nickel",       "Ni",   28);  
-  add("Copper",       "C",    29);  
-  add("Zinc",         "Zn",   30);  
-  add("Gallium",      "G",    31);  
-  add("Germanium",    "Ge",   32);  
-  add("Arsenic",      "A",    33);  
-  add("Selenium",     "Se",   34);  
-  add("Bromine",      "B",    35);  
-  add("Krypton",      "Kr",   36);   
-  add("Rubidium",     "R",    37);  
-  add("Strontium",    "Sr",   38);   
-  add("Yttrium",      "Y",    39);    
-  add("Zirconium",    "Zr",   40);   
+  add("Hydrogen",     "H",    1);
+  add("Helium",       "He",   2);
+  add("Lithium",      "L",    3);
+  add("Beryllium",    "Be",   4);
+  add("Boron",        "B",    5);
+  add("Carbon",       "C",    6);
+  add("Nitrogen",     "N",    7);
+  add("Oxygen",       "O",    8);
+  add("Fluorine",     "F",    9);
+  add("Neon",         "Ne",   10);
+  add("Sodium",       "N",    11);
+  add("Magnesium",    "Mg",   12);
+  add("Aluminium",    "Al",   13);
+  add("Silicon",      "Si",   14);
+  add("Phosphorus",   "P",    15);
+  add("Sulfur",       "S",    16);
+  add("Chlorine",     "C",    17);
+  add("Argon",        "Ar",   18);
+  add("Potassium",    "K",    19);
+  add("Calcium",      "Ca",   20);
+  add("Scandium",     "S",    21);
+  add("Titanium",     "Ti",   22);
+  add("Vanadium",     "V",    23);
+  add("Chromium",     "Cr",   24);
+  add("Manganese",    "M",    25);
+  add("Iron",         "Fe",   26);
+  add("Cobalt",       "C",    27);
+  add("Nickel",       "Ni",   28);
+  add("Copper",       "C",    29);
+  add("Zinc",         "Zn",   30);
+  add("Gallium",      "G",    31);
+  add("Germanium",    "Ge",   32);
+  add("Arsenic",      "A",    33);
+  add("Selenium",     "Se",   34);
+  add("Bromine",      "B",    35);
+  add("Krypton",      "Kr",   36);
+  add("Rubidium",     "R",    37);
+  add("Strontium",    "Sr",   38);
+  add("Yttrium",      "Y",    39);
+  add("Zirconium",    "Zr",   40);
   add("Niobium",      "N",    41);
   add("Molybdenum",   "Mo",   42);
   add("Technetium",   "T",    43);
@@ -56,7 +57,7 @@ PeriodicTable::PeriodicTable()
   add("Tin",          "Sn",   50);
   add("Antimony",     "S",    51);
   add("Tellurium",    "Te",   52);
-  add("Iodine",       "I",    53); 
+  add("Iodine",       "I",    53);
   add("Xenon",        "Xe",   54);
   add("Caesium",      "Cs",   55);
   add("Barium",       "B",    56);
