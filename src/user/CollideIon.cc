@@ -36,6 +36,7 @@ bool     CollideIon::DebugE  = false;
 unsigned CollideIon::esNum   = 100;
 unsigned CollideIon::NoDelC  = 0;
 double   CollideIon::logL    = 10;
+string   CollideIon::config0 = "CollideIon.config";
 
 CollideIon::ElectronScatter
 CollideIon::esType           = CollideIon::always;
@@ -8135,7 +8136,7 @@ void CollideIon::processConfig()
   // Parse test algorithm features
   //
   Configuration cfg;
-  std::string config("CollideIon.config");
+  std::string config(config0);
 
   // Ensure that the original config is used, unless explicited edited
   // by the user

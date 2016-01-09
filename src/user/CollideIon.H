@@ -665,6 +665,7 @@ public:
   static bool     ExactE;
   static bool     AlgOrth;
   static bool     DebugE;
+  static string   config0;
 
   //! Constructor
   CollideIon(ExternalForce *force, Component *comp, 
