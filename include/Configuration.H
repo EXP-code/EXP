@@ -11,6 +11,7 @@
 #include <boost/property_tree/xml_parser.hpp>
 #include <boost/property_tree/json_parser.hpp>
 #include <boost/program_options.hpp>
+#include <boost/foreach.hpp>
 
 using boost::property_tree::ptree;
 using namespace std;
