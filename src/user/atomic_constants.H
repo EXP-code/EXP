@@ -52,7 +52,8 @@ const double msun      = 1.9891e33;
     include additional data fields, etc.  Would be nice to add atomic
     weights and possibly family info in the future.
 */
-class AtomicElement : public std::tuple<std::string, std::string, unsigned, double>
+class AtomicElement : public std::tuple<std::string, std::string, 
+					unsigned, double, double>
 {
 public:
   
@@ -60,18 +61,20 @@ public:
   AtomicElement() 
   {
     std::get<2>(*this) = 0;
-    std::get<3>(*this) = 1.0;
+    std::get<3>(*this) = 0.0;
+    std::get<4>(*this) = 1.0;
   }
 
   //! Constructor
   AtomicElement(const std::string& name, 
                 const std::string& abbrev, 
-                const unsigned z)
+                const unsigned z, const double w)
   {
     std::get<0>(*this) = name;
     std::get<1>(*this) = abbrev;
     std::get<2>(*this) = z;
-    std::get<3>(*this) = 1.0;
+    std::get<3>(*this) = w;
+    std::get<4>(*this) = 1.0;
   }
 
   //! Copy constructor
@@ -81,6 +84,7 @@ public:
     std::get<1>(*this) = std::get<1>(p);
     std::get<2>(*this) = std::get<2>(p);
     std::get<3>(*this) = std::get<3>(p);
+    std::get<4>(*this) = std::get<4>(p);
   }
 
   //! Element name
@@ -92,11 +96,14 @@ public:
   //! Atomic number
   const unsigned       number() { return std::get<2>(*this); }
 
+  //! Atomic weight
+  const double         weight() { return std::get<3>(*this); }
+
   //! Data (used for cross-section scale factor by CollideIon)
-  const double         scale()  { return std::get<3>(*this); }
+  const double         scale()  { return std::get<4>(*this); }
 
   //! Set double value (currently used by CollideIon as above)
-  void set(double s) { if (this) std::get<3>(*this) = s; }
+  void set(double s) { if (this) std::get<4>(*this) = s; }
 };
 
 //! A full periodic table registry
@@ -111,9 +118,10 @@ private:
   std::map<std::string, AEptr> dataS;
 
   //! Add data to database (only used for initialization)
-  void add(const std::string& n, const std::string& a, const unsigned z) 
+  void add(const std::string& n, const std::string& a, const unsigned z,
+	   const double w) 
   {
-    AEptr p(new AtomicElement(n, a, z));
+    AEptr p(new AtomicElement(n, a, z, w));
 
     dataS[a] = p;
     dataZ[z] = p;
