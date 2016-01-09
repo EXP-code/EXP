@@ -6753,7 +6753,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 		cv3 = ntcdb[c->mykey].CrsVel(k, 0.95);
 	      }
 
-	      std::cout << "Too many collisions: collP=" << meanCollP
+	      std::cout << std::endl
+			<< "Too many collisions: collP=" << meanCollP
 			<< ", MFP=" << meanLambda << ", P=" << Prob
 			<< ", <sigma*vel>=" << crsvel
 			<< ", N=" << selcM[i1][i2]
