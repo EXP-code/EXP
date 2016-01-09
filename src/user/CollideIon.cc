@@ -165,6 +165,8 @@ static std::vector<double> cscl_ = {1.0,   100.0,    1.0,    1.0,    1.0,
 				    1.0,     1.0,    1.0,    1.0,    1.0,
 				    1.0,     1.0,    1.0,    1.0,    1.0};
 
+PeriodicTable PT;
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 

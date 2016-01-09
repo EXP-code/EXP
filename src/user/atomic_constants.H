@@ -43,4 +43,83 @@ const double year      = 365.242*24*3600;
 // Solar mass (g)
 const double msun      = 1.9891e33;
 
+#include <tuple>
+#include <map>
+
+//! Store and retrieve periodic table info
+class AtomicElement : public std::tuple<std::string, std::string, unsigned, double>
+{
+public:
+  
+  //! Null constructor
+  AtomicElement() 
+  {
+    std::get<2>(*this) = 0;
+    std::get<3>(*this) = 1.0;
+  }
+
+  //! Constructor
+  AtomicElement(const std::string& name, 
+                const std::string& abbrev, 
+                const unsigned z)
+  {
+    std::get<0>(*this) = name;
+    std::get<1>(*this) = abbrev;
+    std::get<2>(*this) = z;
+    std::get<3>(*this) = 1.0;
+  }
+
+  //! Copy constructor
+  AtomicElement(const AtomicElement & p)
+  {
+    std::get<0>(*this) = std::get<0>(p);
+    std::get<1>(*this) = std::get<1>(p);
+    std::get<2>(*this) = std::get<2>(p);
+    std::get<3>(*this) = std::get<3>(p);
+  }
+
+  //! Element name
+  const std::string&   name()   { return std::get<0>(*this); }
+
+  //! Element abbreviation
+  const std::string&   abbrev() { return std::get<1>(*this); }
+
+  //! Atomic number
+  const unsigned       number() { return std::get<2>(*this); }
+
+  //! Data (used for cross-section scale factor by CollideIon)
+  const double         scale()  { return std::get<3>(*this); }
+};
+
+class PeriodicTable
+{
+private:
+
+  //! The atomic data
+  std::map<unsigned, AtomicElement> data;
+
+  //! An empty instance to signal _element_not_found_
+  AtomicElement empty;
+
+  //! Add data to database (only used for initialization)
+  void add(AtomicElement d) 
+  {
+    data[d.number()] = d;
+  }
+
+public:
+
+  //! Initilize data
+  PeriodicTable();
+
+  //! Retrieve the data tuple
+  const AtomicElement& operator[](unsigned z) { 
+    std::map<unsigned, AtomicElement>::iterator it = data.find(z);
+    std::string s;
+    if (it == data.end()) return empty;
+    return it->second;
+  }
+};
+
+
 #endif
