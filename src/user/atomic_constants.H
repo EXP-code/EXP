@@ -46,6 +46,8 @@ const double msun      = 1.9891e33;
 #include <tuple>
 #include <map>
 
+#include <boost/shared_ptr.hpp>
+
 //! Store and retrieve periodic table info
 class AtomicElement : public std::tuple<std::string, std::string, unsigned, double>
 {
@@ -89,35 +91,46 @@ public:
 
   //! Data (used for cross-section scale factor by CollideIon)
   const double         scale()  { return std::get<3>(*this); }
+
+  //! Set scale
+  void set(double s) { std::get<3>(*this) = s; }
 };
 
 class PeriodicTable
 {
 private:
 
-  //! The atomic data
-  std::map<unsigned, AtomicElement> data;
+  typedef boost::shared_ptr<AtomicElement> AEptr;
 
-  //! An empty instance to signal _element_not_found_
-  AtomicElement empty;
+  //! The atomic data
+  std::map<unsigned,    AEptr> dataZ;
+  std::map<std::string, AEptr> dataS;
 
   //! Add data to database (only used for initialization)
-  void add(AtomicElement d) 
+  void add(const std::string& n, const std::string& a, const unsigned z) 
   {
-    data[d.number()] = d;
+    AEptr p(new AtomicElement(n, a, z));
+    dataZ[z] = p;
+    dataS[n] = p;
   }
 
 public:
 
-  //! Initilize data
+  //! Initialize data
   PeriodicTable();
 
-  //! Retrieve the data tuple
-  const AtomicElement& operator[](unsigned z) { 
-    std::map<unsigned, AtomicElement>::iterator it = data.find(z);
-    std::string s;
-    if (it == data.end()) return empty;
-    return it->second;
+  //! Retrieve the data tuple based on atomic number
+  AtomicElement* operator[](unsigned z) { 
+    std::map<unsigned, AEptr>::iterator it = dataZ.find(z);
+    if (it == dataZ.end()) return 0;
+    return it->second.get();
+  }
+
+  //! Retrieve the data tuple based on abbrev
+  AtomicElement* operator[](std::string s) { 
+    std::map<std::string, AEptr>::iterator it = dataS.find(s);
+    if (it == dataS.end()) return 0;
+    return it->second.get();
   }
 };
 

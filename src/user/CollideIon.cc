@@ -157,14 +157,7 @@ static double minCollFrac     = -1.0;
 static bool use_cons_test     = true;
 
 // Per-species cross-section scale factor for testing
-static std::vector<double> cscl_ = {1.0,   100.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0,
-				    1.0,     1.0,    1.0,    1.0,    1.0};
-
+static std::vector<double> cscl_;
 PeriodicTable PT;
 
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
@@ -172,6 +165,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
+  PT["He"]->set(100.0);
+
   // Process the feature config file
   //
   processConfig();
@@ -229,18 +224,29 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   if (myid==0) {
     bool unity = true;
     double one = 1.0;
-    for (auto v : cscl_) if (v != one) unity = false;
+    cscl_.resize(101, 0.0);
+    for (unsigned z=1; z<=100; z++) {
+      cscl_[z] = PT[z]->scale();
+      if (cscl_[z] != one) unity = false;
+    }
     if (!unity) {
       std::cout << std::endl
 		<< "************************************" << std::endl
 		<< "*** Cross section scaled for Zs  ***" << std::endl
 		<< "************************************" << std::endl
-		<< std::setw(5)  << std::right << "Z" 
-		<< std::setw(12) << "Factor" << std::endl
-		<< std::setw(5)  << std::right << "---" 
-		<< std::setw(12) << "--------" << std::endl;
-      for (size_t z=0; z<cscl_.size(); z++) {
-	if (cscl_[z] != one) std::cout << std::setw(5)  << z+1
+		<< std::setw(6 ) << std::right << "Z" 
+		<< std::setw(12) << "Element"
+		<< std::setw(6 ) << "Abbr" 
+		<< std::setw(12) << "Factor" 
+		<< std::setw(6)  << "----" 
+		<< std::setw(12) << "--------" 
+		<< std::setw(6)  << "----" 
+		<< std::setw(12) << "--------" 
+		<< std::endl;
+      for (unsigned z=1; z<cscl_.size(); z++) {
+	if (cscl_[z] != one) std::cout << std::setw(6 ) << z
+				       << std::setw(12) << PT[z]->name()
+				       << std::setw(6 ) << PT[z]->abbrev()
 				       << std::setw(12) << cscl_[z] 
 				       << std::endl;
       }
