@@ -324,6 +324,7 @@ private:
   std::vector< CEvector >                            CE1, CE2;
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
+  std::vector< double >                              numEf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee;
   std::vector< double >                              Ein1, Ein2, Evel;
   std::vector< double >                              spCrm, spTau, spProb;
