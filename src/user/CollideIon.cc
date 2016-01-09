@@ -156,6 +156,15 @@ static double minCollFrac     = -1.0;
 //
 static bool use_cons_test     = true;
 
+// Per-species cross-section scale factor for testing
+static std::vector<double> cscl_ = {1.0,   100.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0,
+				    1.0,     1.0,    1.0,    1.0,    1.0};
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp, 
 		       double hD, double sD, 
 		       const std::string& smap, int Nth) : 
@@ -214,6 +223,28 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << "*** Using electron EQUIPARTITION ***" << std::endl
 	      << "************************************" << std::endl;
 
+
+  if (myid==0) {
+    bool unity = true;
+    double one = 1.0;
+    for (auto v : cscl_) if (v != one) unity = false;
+    if (!unity) {
+      std::cout << std::endl
+		<< "************************************" << std::endl
+		<< "*** Cross section scaled for Zs  ***" << std::endl
+		<< "************************************" << std::endl
+		<< std::setw(5)  << std::right << "Z" 
+		<< std::setw(12) << "Factor" << std::endl
+		<< std::setw(5)  << std::right << "---" 
+		<< std::setw(12) << "--------" << std::endl;
+      for (size_t z=0; z<cscl_.size(); z++) {
+	if (cscl_[z] != one) std::cout << std::setw(5)  << z+1
+				       << std::setw(12) << cscl_[z] 
+				       << std::endl;
+      }
+      std::cout << "************************************" << std::endl;
+    }
+  }
 
   if (myid==0) {
     std::cout << std::endl
@@ -586,7 +617,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	}
 
 	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * crossfac * 1e-14 / 
-	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
+	  cscl_[i1.first] * cscl_[i2.first];
+	  
       }
     }
   }
@@ -701,7 +734,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       }
 
       double tCross = Cross * crossfac * 1e-14 / 
-	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 
       csections[id][defaultKey][defaultKey] += tCross * 
 	meanF[id][k] /atomic_weights[k.first];
@@ -810,7 +843,9 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	}
 	
 	csections[id][i1][i2] = (Cross1 + Cross2) * crossfac * 1e-14 / 
-	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
+	  cscl_[i1.first] * cscl_[i2.first];
+
       }
     }
 
@@ -861,7 +896,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
       }
       
       double tCross = Cross * crossfac * 1e-14 / 
-	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * cscl_[k.first];
 	
       csections[id][defaultKey][defaultKey] += tCross * 
 	meanF[id][k]/atomic_weights[k.first];
@@ -1002,11 +1037,11 @@ double CollideIon::crossSectionDirect(pCell* const c,
 				// Geometric cross sections based on
 				// atomic radius
     cross12 = geometric(Z1);
-    dCross[id].push_back(cross12*crossfac);
+    dCross[id].push_back(cross12*crossfac*cscl_[Z1]);
     dInter[id].push_back(neut_neut_1);
 
     cross21 = geometric(Z2);
-    dCross[id].push_back(cross21*crossfac);
+    dCross[id].push_back(cross21*crossfac*cscl_[Z2]);
     dInter[id].push_back(neut_neut_2);
   }
 
@@ -1015,14 +1050,14 @@ double CollideIon::crossSectionDirect(pCell* const c,
 				//-------------------------------
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe2[id]) * eVel2 * ne2 * crossfac;
+      cross12 = elastic(Z1, kEe2[id]) * eVel2 * ne2 * crossfac * cscl_[Z1];
       dCross[id].push_back(cross12);
       dInter[id].push_back(neut_elec_1);
     }  else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
+      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * logL;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -1033,14 +1068,14 @@ double CollideIon::crossSectionDirect(pCell* const c,
 				//-------------------------------
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe1[id]) * eVel2 * ne2 * crossfac;
+      cross21 = elastic(Z2, kEe1[id]) * eVel2 * ne2 * crossfac * cscl_[Z2];
       dCross[id].push_back(cross21);
       dInter[id].push_back(neut_elec_2);
     } else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
+      cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * logL;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -1333,11 +1368,11 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				// Geometric cross sections based on
 				// atomic radius
     cross12 = geometric(Z1);
-    dCross[id].push_back(cross12*crossfac);
+    dCross[id].push_back(cross12*crossfac*cscl_[Z1]);
     dInter[id].push_back(neut_neut_1);
 
     cross21 = geometric(Z2);
-    dCross[id].push_back(cross21*crossfac);
+    dCross[id].push_back(cross21*crossfac*cscl_[Z2]);
     dInter[id].push_back(neut_neut_2);
   }
 
@@ -1346,14 +1381,14 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
   if (ne2 > 0) {
     if (C1==1) {		// Neutral atom-electron scattering
-      cross12 = elastic(Z1, kEe1[id]) * eVel2 * ne2 * crossfac;
+      cross12 = elastic(Z1, kEe1[id]) * eVel2 * ne2 * crossfac * cscl_[Z1];
       dCross[id].push_back(cross12);
       dInter[id].push_back(neut_elec_1);
     }  else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * logL;
+      cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * logL;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
     }
@@ -1364,14 +1399,14 @@ double CollideIon::crossSectionWeight(pCell* const c,
 				//-------------------------------
   if (ne1 > 0) {
     if (C2==1) {		// Neutral atom-electron scattering
-      cross21 = elastic(Z2, kEe2[id]) * eVel1 * ne1 * crossfac;
+      cross21 = elastic(Z2, kEe2[id]) * eVel1 * ne1 * crossfac * cscl_[Z2];
       dCross[id].push_back(cross21);
       dInter[id].push_back(neut_elec_2);
     } else {			// Rutherford scattering
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      cross21 = M_PI*b*b * eVel1 * ne1 * crossfac * logL;
+      cross21 = M_PI*b*b * eVel1 * ne1 * crossfac * cscl_[Z2] * logL;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
@@ -1626,7 +1661,7 @@ double CollideIon::crossSectionTrace(pCell* const c,
 				// atomic radius
       double Radius = geometric(Z) + meanR[id];
 
-      crossS += neutF[id] * M_PI*Radius*Radius * crossfac;
+      crossS += neutF[id] * M_PI*Radius*Radius * crossfac * cscl_[Z];
       tCrossMap.push_back(crossS);
       tInterMap.push_back(neut_neut);
 	
@@ -1634,7 +1669,7 @@ double CollideIon::crossSectionTrace(pCell* const c,
       // Neutral atom-electron scattering
       //
       
-      crossS += elastic(Z, kEe) * eVel * meanE[id] * crossfac;
+      crossS += elastic(Z, kEe) * eVel * meanE[id] * crossfac * cscl_[Z];
       
       tCrossMap.push_back(crossS);
       tInterMap.push_back(neut_elec);
@@ -1646,7 +1681,7 @@ double CollideIon::crossSectionTrace(pCell* const c,
       double b = 0.5*esu*esu*(C-1) /
 	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      crossS += M_PI*b*b * eVel * meanE[id] * crossfac * logL;
+      crossS += M_PI*b*b * eVel * meanE[id] * crossfac * cscl_[Z] * logL;
 
       tCrossMap.push_back(crossS);
       tInterMap.push_back(ion_elec);
