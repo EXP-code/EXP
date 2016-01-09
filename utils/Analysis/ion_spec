@@ -120,7 +120,7 @@ def plot_data(filename, use_time=True, msize=4, tscale=1.0e5):
                 else:        pl.xlabel('Temperature (K)')
             if pn in [1,4]: pl.ylabel('Fraction')
             pl.title(labels[i+2])
-            pl.plot(x, data[2+i], mk, markersize=msize)
+            pl.plot(x, data[2+i], '-o', markersize=msize)
             if pn==6: pl.show()
     if pn!=6: pl.show()
 
