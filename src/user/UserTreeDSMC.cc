@@ -679,6 +679,7 @@ void UserTreeDSMC::initialize()
     if (get_value("estype",  val))        CollideIon::setEStype(val);
     if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
     if (get_value("logL",    val))        CollideIon::logL    = atof(val);
+    if (get_value("config",  val))        CollideIon::config0 = val;
   }
 
 }
