@@ -8276,10 +8276,20 @@ void CollideIon::processConfig()
     ptree vt = cfg.property_tree().get_child("CrossSectionScale");
     BOOST_FOREACH(ptree::value_type& v, vt)
       {
-	PT[v.first]->set(vt.get<double>(v.first));
-	if (myid==0) {
-	  std::cout << "Found element <" << v.first << ">="
-		    << vt.get<double>(v.first) << std::endl;
+	if (PT[v.first]) {
+	  PT[v.first]->set(vt.get<double>(v.first));
+	  if (myid==0) {
+	    std::cout << "Found element <" << v.first << ">. "
+		      << "Setting <" << v.first << "> = "
+		      << vt.get<double>(v.first) << std::endl;
+	  }
+	} else {
+	  if (myid==0) {
+	    std::cout << "Element <" << v.first << "> is not in my "
+		      << "periodic table.  Continuing WITHOUT "
+		      << "setting <" << v.first << "> = "
+		      << vt.get<double>(v.first) << std::endl;
+	  }
 	}
       }
 

@@ -96,7 +96,7 @@ public:
   const double         scale()  { return std::get<3>(*this); }
 
   //! Set double value (currently used by CollideIon as above)
-  void set(double s) { std::get<3>(*this) = s; }
+  void set(double s) { if (this) std::get<3>(*this) = s; }
 };
 
 //! A full periodic table registry
@@ -114,8 +114,9 @@ private:
   void add(const std::string& n, const std::string& a, const unsigned z) 
   {
     AEptr p(new AtomicElement(n, a, z));
+
+    dataS[a] = p;
     dataZ[z] = p;
-    dataS[n] = p;
   }
 
 public:
