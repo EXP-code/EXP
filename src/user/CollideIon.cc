@@ -166,8 +166,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) : 
   Collide(force, comp, hD, sD, Nth)
 {
-  PT["He"]->set(100.0);
-
   // Process the feature config file
   //
   processConfig();
@@ -8271,6 +8269,18 @@ void CollideIon::processConfig()
 
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
+
+    // Enter cross-section scale factors into PT if specified
+    //
+    ptree vt = cfg.property_tree().get_child("CrossSectionScale");
+    BOOST_FOREACH(ptree::value_type& v, vt)
+      {
+	PT[v.first]->set(vt.get<double>(v.first));
+	if (myid==0) {
+	  std::cout << "Found element <" << v.first << ">="
+		    << vt.get<double>(v.first) << std::endl;
+	}
+      }
 
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
