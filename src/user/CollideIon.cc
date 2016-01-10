@@ -442,9 +442,37 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   double EeV = Eerg / eV;
 
+  // True particle number in cell
+  // 
+  numEf[id] = 0.0;
+  //
+  for (auto b : cell->bods) {
+    Particle *p = tree->Body(b);
+
+    if (aType == Direct or aType == Weight) {
+      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+      double ee    = k.second - 1;
+
+      numEf[id]   += p->mass * (1.0 + ee) / atomic_weights[k.first];
+    }
+
+    if (aType == Trace) {
+      for (auto s : SpList) {
+	speciesKey k = s.first;
+	double ee    = k.second - 1;
+	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
+
+	numEf[id]   += p->mass * ww * (1.0 + ee);
+      }
+    }
+  }
+
+  numEf[id] *= UserTreeDSMC::Munit/amu;
+
+
   // Mean interparticle spacing in nm
   // 
-  double ips = pow(cell->Volume()/cell->bods.size(), 0.333333) 
+  double ips = pow(cell->Volume()/numEf[id], 0.333333) 
     * UserTreeDSMC::Lunit * 1.0e7;
 
 
@@ -750,22 +778,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     }
   }
 
-  // True particle number in cell
-  // 
-  numEf[id] = 0.0;
-  //
-  for (auto b : cell->bods) {
-    Particle *p = tree->Body(b);
-    for (auto s : SpList) {
-      speciesKey k = s.first;
-      double ee    = k.second - 1;
-      double ww    = p->dattrib[s.second]/atomic_weights[k.first];
-	
-      numEf[id]   += p->mass * (ww + ee);
-    }
-  }
-
-  numEf[id] *= UserTreeDSMC::Munit/amu;
 }
 
 
@@ -780,7 +792,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
   // Mean interparticle spacing
   // 
-  double ips = pow(c->Volume()/c->bods.size(), 0.333333) 
+  double ips = pow(c->Volume()/numEf[id], 0.333333) 
     * UserTreeDSMC::Lunit * 1.0e7;
 
 
@@ -921,7 +933,7 @@ double CollideIon::crossSectionDirect(pCell* const c,
 {
   // Mean interparticle spacing
   // 
-  double ips = pow(c->Volume()/c->bods.size(), 0.333333) 
+  double ips = pow(c->Volume()/numEf[id], 0.333333) 
     * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -8275,20 +8287,25 @@ void CollideIon::processConfig()
 
     // Enter cross-section scale factors into PT if specified
     //
-    ptree vt = cfg.property_tree().get_child("CrossSectionScale");
-    BOOST_FOREACH(ptree::value_type& v, vt)
-      {
+    boost::optional<ptree&> vt = 
+      cfg.property_tree().get_child_optional("CrossSectionScale");
+
+    if (vt) {			// Parse stanza ONLY IF it exists
+
+      for (auto & v : vt.get()) {
+	
 	if (PT[v.first]) {
-	  PT[v.first]->set(vt.get<double>(v.first));
+	  PT[v.first]->set(vt->get<double>(v.first));
 	} else {
 	  if (myid==0) {
 	    std::cout << "Element <" << v.first << "> is not in my "
 		      << "periodic table.  Continuing WITHOUT "
 		      << "setting <" << v.first << "> = "
-		      << vt.get<double>(v.first) << std::endl;
+		      << vt->get<double>(v.first) << std::endl;
 	  }
 	}
       }
+    }
 
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
