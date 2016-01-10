@@ -1,4 +1,5 @@
 #include "atomic_constants.H"
+#include <iomanip>
 
 // Populate the periodic table with data.  Currently we only have
 // element names and atomic numbers.
@@ -123,4 +124,32 @@ PeriodicTable::PeriodicTable()
   add("Livermorium",     "Lv",   116,        293);
   add("Ununseptium",     "Uus",  117,        294);
   add("Ununoctium",      "Uuo",  118,        294);
+}
+
+void PeriodicTable::print(std::ostream& out)
+{
+  out << std::right
+      << std::setw(6 ) << "Z"
+      << std::setw(20) << "Element"
+      << std::setw(6 ) << "Abbrev"
+      << std::setw(20) << "Weight"
+      << std::setw(20) << "Scale"
+      << std::endl;
+
+  out << std::setw(6 ) << "-----"
+      << std::setw(20) << "--------"
+      << std::setw(6 ) << "-----"
+      << std::setw(20) << "--------"
+      << std::setw(20) << "--------"
+      << std::endl;
+
+  for (auto v : dataZ)
+    out << std::setw(6 ) << std::get<2>(*v.second)
+	<< std::setw(20) << std::get<0>(*v.second)
+	<< std::setw(6 ) << std::get<1>(*v.second)
+	<< std::setw(20) << std::get<3>(*v.second)
+	<< std::setw(20) << std::get<4>(*v.second)
+	<< std::endl;
+
+  out << std::endl;
 }

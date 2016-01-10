@@ -43,6 +43,7 @@ const double year      = 365.242*24*3600;
 // Solar mass (g)
 const double msun      = 1.9891e33;
 
+#include <iostream>
 #include <tuple>
 #include <map>
 
@@ -145,6 +146,10 @@ public:
     if (it == dataS.end()) return 0;
     return it->second.get();
   }
+
+  //! Print data to an output stream, defaulting to stdout
+  void print(std::ostream& out=std::cout);
+
 };
 
 
