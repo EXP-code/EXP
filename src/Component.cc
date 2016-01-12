@@ -916,14 +916,14 @@ void Component::read_bodies_and_distribute_ascii(void)
 				// Sanity check
     if (niattrib > nimax) {
       cerr << "Component: niattrib=" << niattrib << " >  nimax="
-	   << nimax << ".  Change constant in Component.H and recompile\n";
+	   << nimax << ".  Change constant in ParticleFerry.H and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
 
     if (ndattrib > ndmax) {
       cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
-	   << ndmax << ".  Change constant in Component.H and recompile\n";
+	   << ndmax << ".  Change constant in ParticleFerry.H and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
@@ -1097,14 +1097,14 @@ void Component::read_bodies_and_distribute_binary(istream *in)
 				// Sanity check
     if (niattrib > nimax) {
       cerr << "Component: niattrib=" << niattrib << " >  nimax="
-	   << nimax << ".  Change constant in Component.H and recompile\n";
+	   << nimax << ".  Change constant in ParticleFerry.H and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
 
     if (ndattrib > ndmax) {
       cerr << "Component: ndattrib=" << ndattrib << " >  ndmax="
-	   << ndmax << ".  Change constant in Component.H and recompile\n";
+	   << ndmax << ".  Change constant in ParticleFerry.H and recompile\n";
       MPI_Abort(MPI_COMM_WORLD, 11);
       exit(-1);
     }
