@@ -537,7 +537,7 @@ void InitializeSpeciesHybrid
  std::vector< std::vector<double> >& sI,
  double M, double T, int& ne, int ni=1, int nd=6)
 {
-  std::map< unsigned char, std::vector<double> > frac;
+  std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
 
   //
@@ -569,7 +569,7 @@ void InitializeSpeciesHybrid
 
       std::getline(sFile, inLine);
 				// Get the atomic species
-      unsigned char Z;
+      unsigned short Z;
       {
 	std::istringstream iss(inLine);
 	iss >> Z;
@@ -643,7 +643,9 @@ void InitializeSpeciesHybrid
 				// Add the use_cons field
     particles[i].dattrib.push_back(0.0);
 				// Add the ionization states
-    for (auto v : frac[Zi]) particles[i].dattrib.push_back(v);
+    for (auto v : frac[Zi]) {
+      particles[i].dattrib.push_back(v);
+    }
 				// Pad
     for (size_t v=frac[Zi].size(); v<=maxSp; v++) 
       particles[i].dattrib.push_back(0.0);
