@@ -491,7 +491,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     double   eVel1 = 0.0, eVel2 = 0.0;
     double   iVel1 = 0.0, iVel2 = 0.0;
 
-    if (minCollFrac > 0.0) {
+    if (minCollFrac > 0.0 or aType == Hybrid) {
 
 				// Mean fraction in trace species
 				// 
@@ -8010,8 +8010,9 @@ void CollideIon::parseSpecies(const std::string& map)
     }
   }
 
-  MPI_Bcast(&use_cons, 1, MPI_INT,         0, MPI_COMM_WORLD);
-  MPI_Bcast(&use_elec, 1, MPI_INT,         0, MPI_COMM_WORLD);
+  MPI_Bcast(&use_cons,   1, MPI_INT,       0, MPI_COMM_WORLD);
+  MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
+  MPI_Bcast(&hybrid_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
 
   if (aType == Trace) {
 
