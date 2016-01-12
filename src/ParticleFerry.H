@@ -8,10 +8,10 @@
 using namespace std;
 
 //! Maximum number of *extra* integer components
-const static int nimax = 5;
+const static int nimax = 6;
 
 //! Maximum number of *extra* double components
-const static int ndmax = 12;
+const static int ndmax = 18;
 
 //! For interprocess communication, need static structure for MPI mapping
 class Partstruct
