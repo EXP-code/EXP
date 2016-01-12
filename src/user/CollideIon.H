@@ -279,6 +279,8 @@ public:
    proportion to total probability of that interaction divided by the
    number of superparticle interactions that will occur in each cell. 
 
+   <h2> Hybrid Algorithm </h2>
+
  */
 class CollideIon : public Collide
 {
@@ -314,7 +316,9 @@ private:
   typedef std::map<speciesKey, double>               keyWghts;
   typedef std::list<dKeyD>                           keyWexsList;
 
+  std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
+  std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
   std::vector< keyWghts >                            meanF;
@@ -370,8 +374,8 @@ private:
   std::map<int, std::string> labels;
 
   //! Mnemonic for the type of algorithm selected by the user
-  enum AlgorithmType { Direct, Weight, Trace };
-  const char* AlgorithmLabels[3] = {"Direct", "Weight", "Trace"};
+  enum AlgorithmType { Direct, Weight, Trace, Hybrid };
+  const char* AlgorithmLabels[4] = {"Direct", "Weight", "Trace", "Hybrid"};
 
   //@{
   //! eVEL quantiles
@@ -443,6 +447,9 @@ protected:
   //! Electron velocity position in attribute vector
   int use_elec;
 
+  //! Initial position in dattrib of ion-species fractions
+  int hybrid_pos;
+
   //! The algorithm type
   AlgorithmType aType;
 
@@ -499,6 +506,14 @@ protected:
 		     Particle* const p1, Particle* const p2, 
 		     double *crm, int id=0);
 
+  double crossSectionHybrid(pCell* const c, 
+			   Particle* const p1, Particle* const p2, 
+			   double crm, int id=0);
+
+  int inelasticHybrid(pCell* const c, 
+		     Particle* const p1, Particle* const p2, 
+		     double *crm, int id=0);
+
   virtual double crossSection(pCell* const c, 
 			      Particle* const p1, Particle* const p2, 
 			      double crm, int id=0)
@@ -511,6 +526,9 @@ protected:
 
     if (aType == Trace)
       return crossSectionTrace (c, p1, p2, crm, id);
+
+    if (aType == Hybrid)
+      return crossSectionHybrid (c, p1, p2, crm, id);
 
     return 0.0;
   }
@@ -528,6 +546,9 @@ protected:
 
     if (aType == Trace)
       return inelasticTrace(c, p1, p2, crm, id);
+
+    if (aType == Hybrid)
+      return inelasticHybrid(c, p1, p2, crm, id);
 
     return 1;
   }
@@ -583,6 +604,11 @@ protected:
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
 
+  virtual sKey2Umap generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
+					   double crm, double tau, int id,
+					   double& meanLambda, double& meanCollP, 
+					   double& totalNsel);
+
 
   //! Cache instance of current tree
   pHOT* curTree;
@@ -594,6 +620,7 @@ protected:
   void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
 			     double T);
   void printSpeciesTrace();
+  void printSpeciesHybrid();
   void printSpeciesColl();
   void gatherSpecies();
 
@@ -650,6 +677,57 @@ protected:
   unsigned long itp;
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];
+
+  //! Hybrid algorithm support routines
+
+  class KE_
+  {
+  private:
+    double _i[2], _f[2];
+    
+  public:
+    double miss, delta, delE, p1E, p2E;
+
+    KE_() 
+    {
+      for (auto & v : _i) v = 0.0;
+      for (auto & v : _f) v = 0.0;
+      miss = delta = delE = p1E = p2E = 0.0;
+    }
+
+    KE_(double dE, double p1, double p2) : delE(dE), p1E(p1), p2E(p2)
+    {
+      for (auto & v : _i) v = 0.0;
+      for (auto & v : _f) v = 0.0;
+      miss = delta = 0.0;
+    }
+    
+    double& i(int i) { return _i[i-1]; }
+    double& f(int i) { return _f[i-1]; }
+  };
+  
+  enum HybridColl {Ion1, Ion2, Neutral};
+
+  struct InteractData 
+  {
+    double m1, m2, Wa, Wb, q, vi2;
+    unsigned short Z1, Z2;
+    Particle *p1, *p2;
+
+    InteractData(double m1, double m2, double Wa, double Wb, double q, 
+		 unsigned short Z1, unsigned short Z2, Particle* p1, Particle* p2) :
+      
+      m1(m1), m2(m2), Wa(Wa), Wb(Wb), q(q), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
+
+  };
+
+  int computeHybridInteraction
+  (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
+   int id);
+
+  int updateHybrid
+  (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
+   HybridColl iType, int id);
 
 public:
   static double   Nmin;
