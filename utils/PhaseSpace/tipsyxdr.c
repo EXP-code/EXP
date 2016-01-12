@@ -38,7 +38,7 @@ void xdr_gas()
     {
       xdr_vector(&xdrs, (char *) gas_particles,
 		 header.nsph*(sizeof(*gas_particles)/sizeof(Real)),
-		 sizeof(Real), xdr_float);
+		 sizeof(Real), (xdrproc_t) xdr_float);
     }
 }  
 
@@ -48,7 +48,7 @@ void xdr_dark()
     {
       xdr_vector(&xdrs, (char *) dark_particles,
 		 header.ndark*(sizeof(*dark_particles)/sizeof(Real)),
-		 sizeof(Real), xdr_float);
+		 sizeof(Real), (xdrproc_t) xdr_float);
     }
 }  
 
@@ -58,7 +58,7 @@ void xdr_star()
     {
       xdr_vector(&xdrs, (char *) star_particles,
 		 header.nstar*(sizeof(*star_particles)/sizeof(Real)),
-		 sizeof(Real), xdr_float);
+		 sizeof(Real), (xdrproc_t) xdr_float);
     }
 }  
 
