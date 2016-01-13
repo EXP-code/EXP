@@ -1119,6 +1119,11 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	csections[id][i1][i2] = (Cross1 + Cross2) * crossfac * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
 	  cscl_[i1.first] * cscl_[i2.first];
+
+	if (std::isnan(csections[id][i1][i2])) 
+	  {
+	    std::cout << "Crazy cross section" << std::endl;
+	  }
       }
     }
 
@@ -2244,6 +2249,20 @@ double CollideIon::crossSectionHybrid(pCell* const c,
     } // END: C1 loop
 
   } // END: C2 loop
+
+  if (std::isnan(cross12)) {
+    std::cout << "Bad cross12" << std::endl;
+  }
+  if (std::isnan(cross21)) {
+    std::cout << "Bad cross21" << std::endl;
+  }
+  if (std::isnan(sum12)) {
+    std::cout << "Bad sum12" << std::endl;
+  }
+  if (std::isnan(sum21)) {
+    std::cout << "Bad sum21" << std::endl;
+  }
+
 				//-------------------------------
 				// *** Convert to system units
 				//-------------------------------
@@ -5535,6 +5554,12 @@ int CollideIon::inelasticHybrid(pCell* const c,
     updateHybrid(d, v1, v2, KE, Neutral, id);
   }
 
+  double tot1 = 0.0, tot2 = 0.0;
+  for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
+  for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
+  for (size_t C=0; C<=Z2; C++) tot2 += p2->dattrib[hybrid_pos+C];
+  for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
+
   return ret;
 }
 
@@ -8774,6 +8799,11 @@ sKey2Umap CollideIon::generateSelectionHybrid
 
 	speciesKey k2 = it2->first;
 
+	if (std::isnan(csections[id][k1][k2])) 
+	  {
+	    std::cout << "Crazy cross section" << std::endl;
+	  }
+
 	std::ostringstream sout;
 	sout << "<" 
 	     << k1.first << "," << k1.second << "|"
@@ -9826,8 +9856,7 @@ void CollideIon::electronGather()
 	  << std::endl << std::setfill(' ');
     }
 
-    (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop",
-	       __FILE__, __LINE__);
+    (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop", __FILE__, __LINE__);
     
     unsigned eNum;
 
@@ -9978,15 +10007,13 @@ void CollideIon::electronGather()
 
     } // end: process loop
 
-    (*barrier)("CollideIon::electronGather: AFTER Send/Recv loop",
-	       __FILE__, __LINE__);
+    (*barrier)("CollideIon::electronGather: AFTER Send/Recv loop", __FILE__, __LINE__);
 
     MPI_Reduce(&Ovr, &Ovr_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Acc, &Acc_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     MPI_Reduce(&Tot, &Tot_s, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
     
-    (*barrier)("CollideIon::electronGather: AFTER REDUCE loop",
-	       __FILE__, __LINE__);
+    (*barrier)("CollideIon::electronGather: AFTER REDUCE loop", __FILE__, __LINE__);
 
     if (myid==0) {
 
@@ -10035,19 +10062,21 @@ void CollideIon::electronPrint(std::ostream& out)
 {
   // Print the header for electron quantiles
   //
-  out << std::endl << std::string(53, '-')  << std::endl
-      << "-----Electron velocity quantiles---------------------" << std::endl
-      << std::string(53, '-') << std::endl << std::left
-      << std::setw(12) << "Quantile" 
-      << std::setw(16) << "V_electron"
-      << std::setw(16) << "V_ion"      << std::endl
-      << std::setw(12) << "--------" 
-      << std::setw(16) << "----------"
-      << std::setw(16) << "----------" << std::endl;
-  for (size_t i=0; i<qnt.size(); i++)
-    out << std::setw(12) << qnt[i] 
-	<< std::setw(16) << elecV[i]
-	<< std::setw(16) << ionV [i] << std::endl;
+  if (elecV.size()) {
+    out << std::endl << std::string(53, '-')  << std::endl
+	<< "-----Electron velocity quantiles---------------------" << std::endl
+	<< std::string(53, '-') << std::endl << std::left
+	<< std::setw(12) << "Quantile" 
+	<< std::setw(16) << "V_electron"
+	<< std::setw(16) << "V_ion"      << std::endl
+	<< std::setw(12) << "--------" 
+	<< std::setw(16) << "----------"
+	<< std::setw(16) << "----------" << std::endl;
+    for (size_t i=0; i<qnt.size(); i++)
+      out << std::setw(12) << qnt[i] 
+	  << std::setw(16) << elecV[i]
+	  << std::setw(16) << ionV [i] << std::endl;
+  }
   if (elecH.get()) {
     out << std::endl
 	<< std::string(53, '-')  << std::endl
