@@ -367,3 +367,28 @@ double Quantile::xmax()
   if (M < N) std::sort(q.begin(), q.end());
   return q.back();
 }
+
+void Quantile::dump(std::ostream& out)
+{
+  size_t prc = out.precision(3);
+  out << std::left
+      << std::setw(12) << "q"
+      << std::setw(12) << "dn"
+      << std::setw(12) << "np"
+      << std::setw( 6) << "n"
+      << std::endl
+      << std::setw(12) << "---"
+      << std::setw(12) << "---"
+      << std::setw(12) << "---"
+      << std::setw( 6) << "---"
+      << std::endl;
+  for (size_t i=0; i<q.size(); i++)
+    out << std::setw(12) << q [i]
+	<< std::setw(12) << dn[i]
+	<< std::setw(12) << np[i]
+	<< std::setw( 6) << n [i]
+	<< std::endl;
+  out << std::string(42, '-') << std::endl;
+  out.precision(prc);
+}
+

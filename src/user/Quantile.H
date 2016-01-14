@@ -183,6 +183,19 @@ namespace NTC {
     void recv(int id);
     //@}
     
+    //! For debugging: dump accumulated data points
+    void dump(std::ostream& out);
+
+    //@{
+    //! Get internal data count and target (for debugging only)
+    int datums() { return M; }
+    int target() { return N; }
+    //@}
+
+    //! Return if quantile estimator is fully populated
+    bool full() { return M >= N; }
+
+
     //! Number of live instances (for debugging)
     static unsigned live() { return instance; }
   };
