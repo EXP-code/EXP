@@ -199,7 +199,7 @@ private:
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
-  bool sub_sample, treechk, mpichk, mfpts;
+  bool sub_sample, treechk, mpichk, mfpts, hybrid;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

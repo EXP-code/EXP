@@ -28,8 +28,8 @@ using namespace std;
 //
 // Debugging check
 //
-static bool sampcel_debug = false;
-static bool levelst_debug = false;
+static bool sampcel_debug = true;
+static bool levelst_debug = true;
 
 //
 // Simulation units
@@ -96,6 +96,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   treechk    = false;
   mpichk     = false;
   mfpts      = false;
+  hybrid     = false;
 
 				// static initialization
   initialize_colltypes();
@@ -279,10 +280,16 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     // Create all possible species
     //
     for (elemL::iterator it=elems.begin(); it != elems.end(); it++)  {
-      for (unsigned short C=1; C<*it+2; C++) {
-	speciesKey indx(*it, C);
+      if (hybrid) {
+	speciesKey indx(*it, 0);
 	spec_list.insert(indx);
 	collFrac[indx] = 1.0;
+      } else {
+	for (unsigned short C=0; C<*it+2; C++) {
+	  speciesKey indx(*it, C);
+	  spec_list.insert(indx);
+	  collFrac[indx] = 1.0;
+	}
       }
     }
 
@@ -612,6 +619,7 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
+  if (get_value("hybrid", val))		hybrid     = atol(val);
 
   if (get_value("ntc_chkpt", val)) {
     NTC::NTCdb::intvl = atoi(val.c_str());
@@ -921,7 +929,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     if (sampcel_debug) {
       std::ostringstream sout;
       sout << __FILE__ << ":" << __LINE__ << ", Node " << myid 
-	   << "after adjustTree() at level "
+	   << ", after adjustTree() at level "
 	   << "[" << mlevel << ", " << tnow  << "]";
 
       c0->Tree()->checkSampleCells(sout.str().c_str());
