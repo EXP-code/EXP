@@ -157,6 +157,8 @@ static double minCollFrac     = -1.0;
 //
 static bool use_cons_test     = true;
 
+static bool temp_debug        = false;
+
 // Per-species cross-section scale factor for testing
 static std::vector<double> cscl_;
 PeriodicTable PT;
@@ -502,44 +504,65 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       pCell *samp = cell->sample;
 
       if (samp) {
+	
+	std::set<unsigned long> bset = samp->Bodies();
 
-	for (auto c : samp->children) {
-	  for (auto b : c.second->bods) {
+	for (auto b : bset) {
 				// Particle mass accumulation
-	    Particle *p = c.second->Body(b);
-	    // meanC      += p->mass;
+	  Particle *p  = c0->Part(b);
 				// Mass-weighted trace fraction
-	    speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-	    if (aType == Hybrid) {
+	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+	  if (aType == Hybrid) {
+	    unsigned short Z = k.first;
+				// Add to species bucket
+	    for (unsigned short C=0; C<=Z; C++) {
+	      k.second = C + 1;
+	      if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
+	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	    }
+	    
+	  } else {
+				// Add to species bucket
+	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
+	    meanF[id][k] += p->mass;
+	  }
+	}
+
+	double TotalW = 0.0;
+	for (auto v : meanF[id]) TotalW += v.second;
+	if (TotalW == 0.0) {
+	  double tmass = 0.0, twght = 0.0;
+	  if (aType == Hybrid) {
+	    for (auto b : bset) {
+	      Particle *p = c0->Part(b);
+	      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 	      unsigned short Z = k.first;
 				// Add to species bucket
-	      for (unsigned short C=0; C<Z; C++) {
+	      for (unsigned short C=0; C<=Z; C++) {
 		k.second = C + 1;
-		if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
-		meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+		twght += p->mass * p->dattrib[hybrid_pos+C];
 	      }
-
-	    } else {
-				// Add to species bucket
-	      if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
-	      meanF[id][k] += p->mass;
+	      tmass += p->mass;
 	    }
 	  }
+	  std::cout << "Crazy: #=" << bset.size() << " mass=" << tmass 
+		    << " weight=" << twght << " cell=" << cell 
+		    << std::endl;
+	  std::cout << std::endl;
 	}
 
       } else {
 
 	for (auto b : cell->bods) {
 				// Particle mass accumulation
-	  Particle *p = cell->Body(b);
-	  // meanC      += p->mass;
+	  Particle *p  = cell->Body(b);
 				// Mass-weighted trace fraction
 	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 
 	  if (aType == Hybrid) {
 	    unsigned short Z = k.first;
 				// Add to species bucket
-	    for (unsigned short C=0; C<Z; C++) {
+	    for (unsigned short C=0; C<=Z; C++) {
 	      k.second = C + 1;
 	      if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
@@ -775,8 +798,38 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  CrossG *= neut1 + neut2;
 	  
+	  if (temp_debug) {
+	    std::cout << std::left     << std::endl
+		      << std::setw(12) << "Species"
+		      << std::setw(12) << "weight" << std::endl
+		      << std::setw(12) << "------"
+		      << std::setw(12) << "------" << std::endl;
+
+	    double totalW = 0.0;
+	    for (auto v : meanF[id]) {
+	      std::ostringstream istr;
+	      istr << "(" << v.first.first << "," 
+		   << v.first.second << ")";
+	      std::cout << std::setw(12) << istr.str()
+			<< std::setw(12) << v.second << std::endl;
+	      totalW += v.second;
+	    }
+	    std::cout << std::setw(12) << "------"
+		      << std::setw(12) << "------" << std::endl
+		      << std::setw(12) << "Total"
+		      << std::setw(12) << totalW << std::endl << std::endl;
+	  }
+
+	  if (std::isnan(CrossG)) {
+	    std::cout << "CrossG" << std::endl;
+	  }
+
 	  Cross1 = elastic(i1.first, EeV*m1/dof2) * eVel2 * neut1 * elec2;
 	  
+	  if (std::isnan(Cross1)) {
+	    std::cout << "Cross1" << std::endl;
+	  }
+
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
 	    double b = 0.5*esu*esu*C1 /
@@ -789,7 +842,16 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 	  
+	  if (std::isnan(Cross1)) {
+	    std::cout << "Cross1" << std::endl;
+	  }
+
 	  Cross2 = elastic(i2.first, EeV*m2/dof1) * eVel1 * neut2 * elec1;
+
+	  if (std::isnan(Cross2)) {
+	    std::cout << "Cross2" << std::endl;
+	  }
+
 	  for (unsigned short C2=1; C2<=Z2; C2++) {
 	    k2.second = C2 + 1;
 	    double b = 0.5*esu*esu*C2 /
@@ -800,6 +862,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      Cross2 += M_PI*b*b * eVel1 * C1 * logL * 
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
+	  }
+
+	  if (std::isnan(Cross2)) {
+	    std::cout << "Cross2" << std::endl;
 	  }
 
 	} else {
@@ -7386,7 +7452,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
 
       unsigned short Z = n;
 
-      for (unsigned short C=1; C<Z+2; C++) {
+      for (unsigned short C=0; C<Z+2; C++) {
 	speciesKey k(Z, C);
 	(*this)[k] = collTDPtr(new CollisionTypeDiag());
       }
@@ -9009,6 +9075,8 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  sKeyPair k(i1, i2);
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
+	  // std::cout << "pCell=" << std::hex << c << std::endl << std::dec;
+
 	  if (samp)
 	    crsvel = ntcdb[samp->mykey].CrsVel(k, 0.95);
 	  else
@@ -9091,7 +9159,11 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	      << std::setw(16) << "N sel"
 	      << std::setw(16) << "Prob 0"
 	      << std::setw(16) << "Prob 1"
+	      << std::setw(16) << "Dens"
+	      << std::setw(16) << "Crs*Vel"
 	      << std::endl
+	      << std::setw(16) << "--------"
+	      << std::setw(16) << "--------"
 	      << std::setw(16) << "--------"
 	      << std::setw(16) << "--------"
 	      << std::setw(16) << "--------"
@@ -9120,14 +9192,16 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	    else
 	      crsvel = ntcdb[c->mykey].CrsVel(k, 0.95);
 
-	    double Prob0 = 0.0, Prob1 = 0.0;
+	    double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
 
 	    if (densM[i1]>=densM[i2]) {
 	      Prob0 = densM[i2] * (*Fn)[i2] * cunit * crsvel * tau;
 	      Prob1 = nsigmaM[i2] * crm * tau;
+	      Dens  = densM[i2];
 	    } else {
 	      Prob0 = densM[i1] * (*Fn)[i1] * cunit * crsvel * tau;
 	      Prob1 = nsigmaM[i1] * crm * tau;
+	      Dens  = densM[i1];
 	    }
 	    
 	    std::cout << "(" 
@@ -9138,6 +9212,8 @@ sKey2Umap CollideIon::generateSelectionHybrid
 		      << std::setw(16) << selcM[i1][i2]
 		      << std::setw(16) << Prob0
 		      << std::setw(16) << Prob1
+		      << std::setw(16) << Dens
+		      << std::setw(16) << crsvel
 		      << std::endl;
 	  }
 	}
