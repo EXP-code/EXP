@@ -74,6 +74,8 @@ namespace NTC {
     //! Main NTC data structures
     qpMap db;
     
+    void debug();
+
     //@{
     //! For debugging
     static unsigned maxrpt;
