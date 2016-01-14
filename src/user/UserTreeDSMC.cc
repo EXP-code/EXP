@@ -28,8 +28,8 @@ using namespace std;
 //
 // Debugging check
 //
-static bool sampcel_debug = true;
-static bool levelst_debug = true;
+static bool sampcel_debug = false;
+static bool levelst_debug = false;
 
 //
 // Simulation units
