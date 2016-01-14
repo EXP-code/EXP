@@ -634,7 +634,7 @@ void InitializeSpeciesHybrid
   for (size_t i=0; i<N; i++) {
 				// Get the species
     size_t indx = unifd();
-    unsigned char Ci = 1, Zi = sZ[indx];
+    unsigned char Ci = 0, Zi = sZ[indx];
 
     particles[i].mass  = M/N * sF[indx] * NS;
 
