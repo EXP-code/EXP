@@ -622,7 +622,7 @@ void InitializeSpeciesHybrid
   for (auto &v : frcS) v /= fH;
 
   auto it = std::max_element(std::begin(sZ), std::end(sZ));
-  unsigned char maxSp(*it);
+  size_t maxSp = *it;
 
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
