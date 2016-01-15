@@ -729,6 +729,8 @@ protected:
   (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
    HybridColl iType, int id);
 
+  void meanFdump(int id);
+
 public:
   static double   Nmin;
   static double   Nmax;

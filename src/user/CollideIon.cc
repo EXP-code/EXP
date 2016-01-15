@@ -409,6 +409,28 @@ CollideIon::~CollideIon()
 {
 }
 
+void CollideIon::meanFdump(int id)
+{
+  std::cout << std::left     << std::endl
+	    << std::setw(12) << "Species"
+	    << std::setw(12) << "weight" << std::endl
+	    << std::setw(12) << "------"
+	    << std::setw(12) << "------" << std::endl;
+
+  double totalW = 0.0;
+  for (auto v : meanF[id]) {
+    std::ostringstream istr;
+    istr << "(" << v.first.first << "," 
+	 << v.first.second << ")";
+    std::cout << std::setw(12) << istr.str()
+	      << std::setw(12) << v.second << std::endl;
+    totalW += v.second;
+  }
+  std::cout << std::setw(12) << "------"
+	    << std::setw(12) << "------" << std::endl
+	    << std::setw(12) << "Total"
+	    << std::setw(12) << totalW << std::endl << std::endl;
+}
 
 /**
    Precompute all the necessary cross sections
@@ -499,6 +521,14 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// 
       meanF[id].clear();
 
+      if (aType == Hybrid) {
+	for (auto Z : ZList) {
+	  for (speciesKey k(Z, 1);  k.second<Z+2; k.second++) {
+	    meanF[id][k] = 0.0;
+	  }
+	}
+      }
+
       // Sample cell
       //
       pCell *samp = cell->sample;
@@ -515,10 +545,32 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  if (aType == Hybrid) {
 	    unsigned short Z = k.first;
 				// Add to species bucket
+	    bool bad = false;
 	    for (unsigned short C=0; C<=Z; C++) {
 	      k.second = C + 1;
-	      if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
-	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	      if (std::isnan(meanF[id][k])) {
+		std::cout << "Bad meanF samp: " << k.first << ", " << k.second << std::endl;
+	      }
+	      if (std::isnan(p->dattrib[hybrid_pos+C])) bad = true;
+	      else meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	    }
+
+	    if (bad) {
+	      std::cout << "Error in weights [samp]" << std::endl;
+	      double tmass = 0.0;
+	      for (unsigned short C=0; C<=Z; C++) {
+		k.second = C + 1;
+		if (std::isnan(p->dattrib[hybrid_pos+C]))
+		  std::cout << std::setw(3) << Z << std::setw(3) << C
+			    << std::setw(12) << "nan" 
+			    << std::setw(12) << tmass << std::endl;
+		else {
+		  tmass += p->dattrib[hybrid_pos+C];
+		  std::cout << std::setw(3) << Z << std::setw(3) << C
+			    << std::setw(12) << p->dattrib[hybrid_pos+C]
+			    << std::setw(12) << tmass << std::endl;
+		}
+	      }
 	    }
 	    
 	  } else {
@@ -562,11 +614,34 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  if (aType == Hybrid) {
 	    unsigned short Z = k.first;
 				// Add to species bucket
+	    bool bad = false;
 	    for (unsigned short C=0; C<=Z; C++) {
 	      k.second = C + 1;
-	      if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
-	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	      if (std::isnan(meanF[id][k])) {
+		std::cout << "Bad meanF cell: " << k.first << ", " << k.second << std::endl;
+	      }
+	      if (std::isnan(p->dattrib[hybrid_pos+C])) bad = true;
+	      else meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
 	    }
+
+	    if (bad) {
+	      std::cout << "Error in weights [cell]" << std::endl;
+	      double tmass = 0.0;
+	      for (unsigned short C=0; C<=Z; C++) {
+		k.second = C + 1;
+		if (std::isnan(p->dattrib[hybrid_pos+C]))
+		  std::cout << std::setw(3) << Z << std::setw(3) << C
+			    << std::setw(12) << "nan" 
+			    << std::setw(12) << tmass << std::endl;
+		else {
+		  tmass += p->dattrib[hybrid_pos+C];
+		  std::cout << std::setw(3) << Z << std::setw(3) << C
+			    << std::setw(12) << p->dattrib[hybrid_pos+C]
+			    << std::setw(12) << tmass << std::endl;
+		}
+	      }
+	    }
+
 	  } else {
 				// Add to species bucket
 	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
@@ -576,20 +651,49 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       }
 				// Normalize mass-weighted fraction
 				//
-      std::map<unsigned short, double> spTotl;
-      for (auto v : meanF[id]) {
-	unsigned short Z = v.first.first;
-	if (spTotl.find(Z) == spTotl.end())
-	  spTotl[Z] = v.second;
-	else
-	  spTotl[Z] += v.second;
-      }
+      if (aType == Hybrid) {
+	double normT = 0.0;
+	for (auto v : meanF[id]) normT += v.second;
+	if (normT <= 0.0 or std::isnan(normT) or std::isinf(normT)) {
+	  std::cout << "Hybrid norm failure: " << normT << std::endl;
+	} else {
+	  for (auto &v : meanF[id]) v.second /= normT;
+	}
 
-      for (auto &s : meanF[id]) {
-	s.second /= spTotl[s.first.first];
+      } else {
+	std::map<unsigned short, double> spTotl;
+	for (auto v : meanF[id]) {
+	  unsigned short Z = v.first.first;
+	  if (spTotl.find(Z) == spTotl.end())
+	    spTotl[Z] = v.second;
+	  else
+	    spTotl[Z] += v.second;
+	}
+
+	for (auto &s : meanF[id]) {
+	  s.second /= spTotl[s.first.first];
+	}
       }
     }
 
+    {
+      bool   bad  = false;
+      double totT = 0.0;
+      for (auto v : meanF[id]) {
+	if (std::isnan(v.second)) {
+	  std::cout << "NaN at (" << v.first.first 
+		    << "," << v.first.second << ")" << std::endl;
+	  bad = true;
+	}
+	else totT += v.second;
+      }
+      if (fabs(totT - 1.0) > 1.0e-8) {
+	std::cout << "totT = " << totT << std::endl;
+      }
+      if (bad) {
+	std::cout << "nan detected in meanF [before]" << std::endl;
+      }
+    }
 
     // Compute mean electron velocity
     //
@@ -729,6 +833,25 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       }
     }
 
+    {
+      bool   bad  = false;
+      double totT = 0.0;
+      for (auto v : meanF[id]) {
+	if (std::isnan(v.second)) {
+	  std::cout << "NaN at (" << v.first.first 
+		    << "," << v.first.second << ")" << std::endl;
+	  bad = true;
+	}
+	else totT += v.second;
+      }
+      if (fabs(totT - 1.0) > 1.0e-8) {
+	std::cout << "totT = " << totT << std::endl;
+      }
+      if (bad) {
+	std::cout << "nan detected in meanF [after]" << std::endl;
+      }
+    }
+
     // it1 and it2 are of type std::map<speciesKey, unsigned>; that
     // is, the number of particles of each speciesKey in the cell
     //
@@ -798,29 +921,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  CrossG *= neut1 + neut2;
 	  
-	  if (temp_debug) {
-	    std::cout << std::left     << std::endl
-		      << std::setw(12) << "Species"
-		      << std::setw(12) << "weight" << std::endl
-		      << std::setw(12) << "------"
-		      << std::setw(12) << "------" << std::endl;
-
-	    double totalW = 0.0;
-	    for (auto v : meanF[id]) {
-	      std::ostringstream istr;
-	      istr << "(" << v.first.first << "," 
-		   << v.first.second << ")";
-	      std::cout << std::setw(12) << istr.str()
-			<< std::setw(12) << v.second << std::endl;
-	      totalW += v.second;
-	    }
-	    std::cout << std::setw(12) << "------"
-		      << std::setw(12) << "------" << std::endl
-		      << std::setw(12) << "Total"
-		      << std::setw(12) << totalW << std::endl << std::endl;
-	  }
+	  if (temp_debug) meanFdump(id);
 
 	  if (std::isnan(CrossG)) {
+	    meanFdump(id);
 	    std::cout << "CrossG" << std::endl;
 	  }
 
@@ -5087,6 +5191,22 @@ int CollideIon::inelasticHybrid(pCell* const c,
     p2E = p2->dattrib[use_cons];
   }
 
+  {
+    double tot1 = 0.0, tot2 = 0.0;
+    for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
+    if (tot1 > 0.0) {
+      for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
+    } else {
+      std::cout << "Invalid norm p1 [before]" << std::endl;
+    }
+    for (size_t C=0; C<=Z2; C++) tot2 += p2->dattrib[hybrid_pos+C];
+    if (tot2 > 0.0) {
+      for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
+    } else {
+      std::cout << "Invalid norm p2 [before]" << std::endl;
+    }
+  }
+
   // Find the trace ratio
   //
   double Wa = p1->mass / atomic_weights[Z1];
@@ -5296,10 +5416,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (NO_ION_E) dE = 0.0;
 	delE1 += dE;
 
-	double wght = dCross[id][i]/tCross;
-	if (wght < p1->dattrib[hybrid_pos+C1]) {
-	  p1->dattrib[hybrid_pos+C1+0] -= wght;
-	  p1->dattrib[hybrid_pos+C1+1] += wght;
+	if (cF < p1->dattrib[hybrid_pos+C1]) {
+	  p1->dattrib[hybrid_pos+C1+0] -= cF;
+	  p1->dattrib[hybrid_pos+C1+1] += cF;
 	} else {
 	  p1->dattrib[hybrid_pos+C1+1] += p1->dattrib[hybrid_pos+C1];
 	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
@@ -5314,7 +5433,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_1) {
 
-	double wght = dCross[id][i]/tCross;
+	double wght = cF;
 	if (wght < p1->dattrib[hybrid_pos+C1]) {
 	  p1->dattrib[hybrid_pos+C1+0] -= wght;
 	  p1->dattrib[hybrid_pos+C1-1] += wght;
@@ -5408,10 +5527,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (NO_ION_E) dE = 0.0;
 	delE2 += dE;
 
-	double wght = dCross[id][i]/tCross;
-	if (wght < p2->dattrib[hybrid_pos+C2]) {
-	  p2->dattrib[hybrid_pos+C2+0] -= wght;
-	  p2->dattrib[hybrid_pos+C2+1] += wght;
+	if (cF < p2->dattrib[hybrid_pos+C2]) {
+	  p2->dattrib[hybrid_pos+C2+0] -= cF;
+	  p2->dattrib[hybrid_pos+C2+1] += cF;
 	} else {
 	  p2->dattrib[hybrid_pos+C1+1] += p2->dattrib[hybrid_pos+C2];
 	  p2->dattrib[hybrid_pos+C1+0]  = 0.0;
@@ -5426,7 +5544,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_2) {
 
-	double wght = dCross[id][i]/tCross;
+	double wght = cF;
 	if (wght < p2->dattrib[hybrid_pos+C2]) {
 	  p2->dattrib[hybrid_pos+C2+0] -= wght;
 	  p2->dattrib[hybrid_pos+C2-1] += wght;
@@ -5499,7 +5617,10 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
   // For elastic interactions, delE == 0
   //
-  assert(delE >= 0.0);
+  if (delE < 0.0) {
+    std::cout << "Crazy delE = " << delE << std::endl;
+    assert(delE >= 0.0);
+  }
 
   // Artifically prevent cooling by setting the energy removed from
   // the COM frame to zero
@@ -5622,9 +5743,17 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
   double tot1 = 0.0, tot2 = 0.0;
   for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
-  for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
+  if (tot1 > 0.0) {
+    for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
+  } else {
+    std::cout << "Invalid norm p1 [after]" << std::endl;
+  }
   for (size_t C=0; C<=Z2; C++) tot2 += p2->dattrib[hybrid_pos+C];
-  for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
+  if (tot2 > 0.0) {
+    for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
+  } else {
+    std::cout << "Invalid norm p2 [after]" << std::endl;
+  }
 
   return ret;
 }
@@ -8208,14 +8337,16 @@ sKey2Umap CollideIon::generateSelectionDirect
       if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
-	     << " #2 = (" << i2.first << ", " << i2.second << ")";
+	     << " #2 = (" << i2.first << ", " << i2.second << ")"
+	     << " sigma = " << csections[id][i1][i2] << std::endl;
 	csections[id][i1][i2] = 0.0; // Zero out
       }
 	    
       if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
-	     << " #2 = (" << i1.first << ", " << i1.second << ")";
+	     << " #2 = (" << i1.first << ", " << i1.second << ")"
+	     << " sigma = " << csections[id][i2][i1] << std::endl;
 	csections[id][i2][i1] = 0.0; // Zero out
       }
 	
@@ -8462,7 +8593,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 		 << " #1 = (" << i1.first << ", " << i1.second << ")"
-		 << " #2 = (" << i2.first << ", " << i2.second << ")";
+		 << " #2 = (" << i2.first << ", " << i2.second << ")"
+		 << " sigma = " << csections[id][i1][i2] << std::endl;
 
 	    csections[id][i1][i2] = 0.0; // Zero out
 	  }
@@ -8472,7 +8604,8 @@ sKey2Umap CollideIon::generateSelectionWeight
 	  if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 		 << " #1 = (" << i2.first << ", " << i2.second << ")"
-		 << " #2 = (" << i1.first << ", " << i1.second << ")";
+		 << " #2 = (" << i1.first << ", " << i1.second << ")"
+		 << " sigma = " << csections[id][i2][i1] << std::endl;
 
 	    csections[id][i2][i1] = 0.0; // Zero out
 	  }
@@ -8933,7 +9066,8 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
 		 << " #1 = (" << i1.first << ", " << i1.second << ")"
-		 << " #2 = (" << i2.first << ", " << i2.second << ")";
+		 << " #2 = (" << i2.first << ", " << i2.second << ")"
+		 << " sigma = " << csections[id][i1][i2] << std::endl;
 
 	    csections[id][i1][i2] = 0.0; // Zero out
 	  }
@@ -8943,7 +9077,8 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
 	    cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
 		 << " #1 = (" << i2.first << ", " << i2.second << ")"
-		 << " #2 = (" << i1.first << ", " << i1.second << ")";
+		 << " #2 = (" << i1.first << ", " << i1.second << ")"
+		 << " sigma = " << csections[id][i2][i1] << std::endl;
 
 	    csections[id][i2][i1] = 0.0; // Zero out
 	  }
