@@ -88,7 +88,7 @@ norm_ptr    Norm;
 
 // ION collide types
 //
-enum Itype { Trace, Weight, Direct };
+enum Itype { Hybrid, Trace, Weight, Direct };
 
 /**
    Make Uniform temperature box of gas
@@ -530,6 +530,159 @@ void InitializeSpeciesWeight
   }
 }
 
+void InitializeSpeciesHybrid
+(std::vector<Particle> & particles, 
+ std::vector<unsigned char>& sZ, 
+ std::vector<double>& sF, 
+ std::vector< std::vector<double> >& sI,
+ double M, double T, int& ne, int ni=1, int nd=6)
+{
+  std::map< unsigned short, std::vector<double> > frac;
+  std::vector< std::vector<double> > cuml;
+
+  //
+  // Generate the ionization-fraction input file
+  //
+  for (auto n : sZ) {
+
+    const std::string ioneq("makeIonIC.ioneq");
+    std::ostringstream sout;
+    sout << "./genIonization"
+	 << " -1 " << static_cast<unsigned>(n)
+	 << " -2 " << static_cast<unsigned>(n)
+	 << " -T " << T << " -o " << ioneq;
+
+    int ret = system(sout.str().c_str());
+
+    if (ret) {
+      std::cout << "System command  = " << sout.str() << std::endl;
+      std::cout << "System ret code = " << ret << std::endl;
+    }
+
+    typedef std::vector<std::string> vString;
+
+    std::string inLine;
+    std::ifstream sFile(ioneq.c_str());
+    std::getline(sFile, inLine); // Read and discard the initial header
+
+    if (sFile.is_open()) {
+
+      std::getline(sFile, inLine);
+				// Get the atomic species
+      unsigned short Z;
+      {
+	std::istringstream iss(inLine);
+	iss >> Z;
+      }
+				// Get the ionization fractions
+      {
+	vString s;
+	std::getline(sFile, inLine);
+	
+	std::istringstream iss(inLine);
+	std::copy(std::istream_iterator<std::string>(iss), 
+		  std::istream_iterator<std::string>(), 
+		  std::back_inserter<vString>(s));
+	
+	std::vector<double> v;
+	for (auto i : s) v.push_back(::atof(i.c_str()));
+	frac[Z] = v;
+      }
+      
+      {
+	vString s;
+	std::getline(sFile, inLine);
+	
+	std::istringstream iss(inLine);
+	std::copy(std::istream_iterator<std::string>(iss), 
+		  std::istream_iterator<std::string>(), 
+		  std::back_inserter<vString>(s));
+	
+	std::vector<double> v;
+	for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	  v.push_back(::atof(i->c_str()));
+	cuml.push_back(v);
+      }
+    }
+  }
+
+  int N = particles.size();
+				// Compute cumulative species
+				// distribution
+  size_t NS = sF.size();
+				// Normalize sF
+				//
+  double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
+  if (fabs(norm - 1.0)>1.0e-16) {
+    std::cout << "Normalization change: " << norm << std::endl;
+  }
+
+  std::vector<double> frcS(sF), wght(NS);
+  double fH = sF[0], W_H = 1.0;
+  for (auto &v : frcS) v /= fH;
+
+  auto it = std::max_element(std::begin(sZ), std::end(sZ));
+  size_t maxSp = *it;
+
+  wght[0] = W_H;
+  for (size_t i=1; i<NS; i++)
+    wght[i] = frcS[i]/atomic_masses[sZ[i]];
+
+  boost::random::uniform_int_distribution<> dist(0, NS-1);
+  unid_var unifd(*gen, dist);
+
+  for (size_t i=0; i<N; i++) {
+				// Get the species
+    size_t indx = unifd();
+    unsigned char Ci = 0, Zi = sZ[indx];
+
+    particles[i].mass  = M/N * sF[indx] * NS;
+
+    particles[i].iattrib.resize(ni, 0);
+    particles[i].dattrib.resize(nd, 0);
+				// Add the use_cons field
+    particles[i].dattrib.push_back(0.0);
+				// Add the ionization states
+    for (auto v : frac[Zi]) {
+      particles[i].dattrib.push_back(v);
+    }
+				// Pad
+    for (size_t v=frac[Zi].size(); v<=maxSp; v++) 
+      particles[i].dattrib.push_back(0.0);
+    if (ne>=0) {		// Add the use_elec fields
+      for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
+    }
+
+    KeyConvert kc(speciesKey(Zi, Ci));
+    particles[i].iattrib[0] = kc.getInt();
+  }
+  
+  std::ofstream out("species.spec");
+
+  out << "hybrid" << std::endl;
+  out << std::setw(6) << nd++;
+  out << std::setw(6) << nd; nd += maxSp + 1;
+  if (ne>=0) out << std::setw(6) << (ne=nd);
+  out << std::endl;
+
+  for (size_t indx=0; indx<NS; indx++) { 
+    out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
+	<< std::setw(16) << wght[indx]
+	<< std::setw(16) << M/N * sF[indx] * NS
+	<< std::endl;
+  }
+
+  sI = cuml;
+  for (auto &s : sI) {
+    double l = 0.0;
+    for (auto &c : s) {
+      double t = c;
+      c -= l;
+      l = t;
+    }
+  }
+}
+
 void InitializeSpeciesTrace
 (std::vector<Particle> & particles, 
  std::vector<unsigned char>& sZ, 
@@ -668,7 +821,8 @@ int main (int ac, char **av)
     ("help,h",		"produce help message")
     ("trace",           "set up for trace species")
     ("weight",          "set up for weighted species")
-    ("electrons",       "set up for weighted species with electrons")
+    ("hybrid",          "set up for hybrid species ")
+    ("electrons",       "set up for weighted or hybrid species with electrons")
     ("temp,T",		po::value<double>(&T)->default_value(25000.0),
      "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
@@ -706,6 +860,10 @@ int main (int ac, char **av)
     std::cout << "\t" << av[0]
 	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
     return 1;
+  }
+
+  if (vm.count("hybrid")) {
+    type = Hybrid;
   }
 
   if (vm.count("weight")) {
@@ -778,6 +936,9 @@ int main (int ac, char **av)
   // Initialize the Z, C's	
   //
   switch (type) {
+  case Hybrid:
+    InitializeSpeciesHybrid(particles, sZ, sF, sI, Mass, T, ne);
+    break;
   case Weight:
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne);
     break;

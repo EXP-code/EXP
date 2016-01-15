@@ -2514,6 +2514,8 @@ void pHOT::checkSampleCells(const std::string& msg)
 {
   timer_diagdbg.start();
 
+  // Check for missing sample cells
+
   unsigned cnt=0;
   map<unsigned, unsigned> missing;
   for (auto i : frontier) {
@@ -2532,6 +2534,49 @@ void pHOT::checkSampleCells(const std::string& msg)
 	 << setw(6) << "-----" << setw(6) << "-----" << endl;
     for (auto k : missing)
       cout << left << setw(6) << k.first << setw(6) << k.second << endl;
+  }
+
+  // Check for ophaned cells: cells not in sample cell child list
+
+  unsigned bad1=0, bad2=0;
+  set<pCell*> orphan1, orphan2;
+  for (auto i : frontier) {
+    if (i.second->sample) {
+      if (!i.second->sampleTest()) {
+	bad1++;
+	orphan1.insert(i.second);
+      }
+    }
+    if (i.second->parent) {
+      bool found = false;
+      for (auto v : i.second->parent->children) {
+	if (v.second == i.second) found = true;
+      }
+      if (!found) {
+	bad2++;
+	orphan2.insert(i.second);
+      }
+    }
+  }
+  
+  if (bad1) {
+    cout << msg << ", " << bad1 << " orphaned frontier cells [sample]" << endl;
+    cout << setw(10) << "Cell"   << setw(10) << "Sample" 
+	 << setw(10) << "Check"  << endl
+	 << setw(10) << "------" << setw(10) << "------" 
+	 << setw(10) << "------" << endl;
+    for (auto k : orphan1) {
+      cout << left << setw(10) << k 
+	   << setw(10) << k->sample
+	   << setw(10) << k->findSampleCell()
+	   << endl;
+    }
+  }
+
+  if (bad2) {
+    cout << msg << ", " << bad2 << " orphaned frontier cells [parent]" << endl;
+    for (auto k : orphan2)
+      cout << left << setw(10) << k << endl;
   }
 
   timer_diagdbg.stop();

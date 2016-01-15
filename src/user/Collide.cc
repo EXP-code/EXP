@@ -920,6 +920,8 @@ void * Collide::collide_thread(void * arg)
     //
     initialize_cell(tree, c, crm, id);
 
+    (*barrier)("Collide::collide: AFTER initialize_cell",  
+	       __FILE__, __LINE__);
 
     // Per species quantities
     //
@@ -1075,6 +1077,10 @@ void * Collide::collide_thread(void * arg)
     
     int totalCount = 0;
     
+    (*barrier)("Collide::collide: BEFORE cell count loop",  
+	       __FILE__, __LINE__);
+
+
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
 
       speciesKey i1 = it1->first;

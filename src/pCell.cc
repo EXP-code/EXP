@@ -170,7 +170,8 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 
 				// Get the particle info
       key_indx::iterator p =
-	lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, ltPAIR());
+	lower_bound(tree->keybods.begin(), tree->keybods.end(), keypair, 
+		    ltPAIR());
 
       while (p->first==keypair.first && p->second==keypair.second ) {
 	cout << "pos=";
@@ -911,7 +912,25 @@ double pCell::Scale()
 #endif
 }
 
-sCell* pCell::findSampleCell()
+void pCell::match(pCell* target, int& mcount)
+{
+  if (children.size()) {
+    for (auto i : children) i.second->match(target, mcount);
+  } else {
+    if (target == this) mcount++;
+  }
+}
+
+void pCell::collect(std::set<unsigned long>& bset)
+{
+  if (children.size()) {
+    for (auto i : children) i.second->collect(bset);
+  } else {
+    bset.insert(bods.begin(), bods.end());
+  }
+}
+
+pCell* pCell::findSampleCell()
 {
   pCell *cur   = this;		// Begin with this cell
   unsigned dbl = 0;		// Count the number of levels upwards
@@ -925,6 +944,13 @@ sCell* pCell::findSampleCell()
   }
 
   sample = cur;			// The answer.
+
+				// Looking for bug . . . 
+  int mcount = 0;
+  sample->match(this, mcount);
+  if (mcount != 1) {
+    std::cout << "Crazy" << std::endl;
+  }
 
   return sample;
 }
@@ -952,9 +978,11 @@ unsigned pCell::remake_plev()
 
 std::ostream& operator<< (std::ostream& stream, const sKeyPair& v)
 {
-  return stream << "[("  
-		<< std::setw(3) << v.first.first << ", "
-		<< std::setw(3) << v.first.second << "), ("
-		<< std::setw(3) << v.second.first << ", "
-		<< std::setw(3) << v.second.second << ")]";
+  std::ostringstream istr;
+  istr << "[("  
+       << std::setw(3) << v.first.first << ", "
+       << std::setw(3) << v.first.second << "), ("
+       << std::setw(3) << v.second.first << ", "
+       << std::setw(3) << v.second.second << ")]";
+  return stream << istr.str();
 }

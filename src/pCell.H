@@ -91,7 +91,14 @@ private:
   
   pHOT* tree;
   Component *C;
+  std::set<unsigned long> bodies;
   
+  //! For debugging . . . 
+  void match(pCell* target, int& mcount);
+
+  //! Collect bodies
+  void collect(std::set<unsigned long>& bset);
+
 public:
   
   //! Track number of instances
@@ -181,7 +188,7 @@ public:
   unsigned remake_plev();
   
   //! Find the cells whose body number is "just" larger than Bucket
-  sCell* findSampleCell();
+  pCell* findSampleCell();
   
   //@{
   //! Return bodies from this cell
@@ -198,6 +205,22 @@ public:
   //! Return the length scale factor from the quad tree
   double Scale();
   
+  //! Return list of bodies in the leaves with this cell as a parent
+  std::set<unsigned long>& Bodies()
+  {
+    bodies.clear();
+    collect(bodies);
+    return bodies;
+  }
+
+  //! For debugging: test that this cell is in the sample cell
+  bool sampleTest()
+  {
+    int mcount = 0;
+    sample->match(this, mcount);
+    return mcount == 1;
+  }
+
 };
 
 const speciesKey defaultKey(-1, -1);

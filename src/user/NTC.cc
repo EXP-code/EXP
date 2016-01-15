@@ -9,7 +9,7 @@
 using namespace NTC;
 
 // For verbose debugging
-static const bool DEBUG_V   = false;
+static const bool DEBUG_V = false;
 
 // Chatty output for debugging
 bool NTCdb::chatty = false;
@@ -65,6 +65,7 @@ void NTCitem::Test()
 	double P = (0.5 + i)/number;
 	std::cout << std::setw(10) << k.second(P);
       }
+      std::cout << std::endl;
       std::cout.precision(prc);
     }
     std::cout << std::string(wid, '-') << std::endl;
@@ -107,6 +108,29 @@ double NTCitem::Prob(sKeyPair indx, double x)
   return it->second.inverse(x);
 }
 
+void NTCitem::debug()
+{
+  std::cout << std::string(94, '-') << std::endl;
+  std::cout << std::left << std::setw(30) << "Species pair"
+	    << std::left << std::setw(10) << "Count"
+	    << std::left << std::setw(18) << "Min value"
+	    << std::left << std::setw(18) << "Max value"
+	    << std::left << std::setw(18) << "Quantile"
+	    << std::endl;
+
+  for (auto v : db) {
+    std::cout << std::left << std::setw(30) << v.first 
+	      << std::left << std::setw(10) << v.second.count() 
+	      << std::left << std::setw(18) << v.second.xmin()
+	      << std::left << std::setw(18) << v.second.xmax()
+	      << std::left << std::setw(18) << v.second(0.95)
+	      << std::endl;
+    v.second.dump(std::cout);
+    
+  }
+  std::cout << std::string(94, '-') << std::endl;
+}
+
 double NTCitem::CrsVel(sKeyPair indx, double p)
 {
   // Get stanza in db
@@ -114,6 +138,11 @@ double NTCitem::CrsVel(sKeyPair indx, double p)
 
   // Default value
   if (it == db.end()) return Def;
+
+  // Default value
+  if (! it->second.full() ) return Def;
+
+  if (0) debug();
 
   // Return value
   return it->second(p);
@@ -140,6 +169,22 @@ void NTCitem::Add(sKeyPair indx, double val)
   if (db.find(indx) == db.end()) {
     db[indx].histogram(Nequal);
     for (auto v : qs) db[indx].newQ(v);
+  }
+
+  if (0) {
+    std::ostringstream sout; sout << "<" << val << ">";
+    
+    std::cout << "Adding " << std::setw(16) << sout.str() << " to " << indx 
+	    << " [" << db[indx].datums() 
+	      << "/"  << db[indx].target() << "]";
+    if (db[indx].full()) 
+      std::cout << " P(0.5) =" 
+		<< std::setw(16) << db[indx](0.5)
+		<< " P(0.95) =" 
+		<< std::setw(16) << db[indx](0.95)
+		<< " xmax =" 
+		<< std::setw(16) << db[indx].xmax();
+    std::cout << std::endl;
   }
 
   // Add new element
