@@ -211,28 +211,50 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
     double Mtot = 0.0;
     for (auto i : frac) Mtot += std::get<0>(i.second);
 
-    std::cout << std::setw( 3) << "Z"
-	      << std::setw( 3) << "C"
-	      << std::setw(16) << "Mass"
-	      << std::setw(16) << "Fraction"
-	      << std::setw(16) << "Target"
-	      << std::setw(12) << "Count"
-	      << std::endl
-	      << std::setw( 3) << "-"
-	      << std::setw( 3) << "-"
-	      << std::setw(16) << "--------"
-	      << std::setw(16) << "--------"
-	      << std::setw(16) << "--------"
-	      << std::setw(12) << "--------"
-	      << std::endl;
-    for (auto i : frac)
-      std::cout << std::setw( 3) << i.first.first
-		<< std::setw( 3) << i.first.second
-		<< std::setw(16) << std::get<0>(i.second)
-		<< std::setw(16) << std::get<0>(i.second)/Mtot
-		<< std::setw(16) << sF[i.first.first-1] * sI[i.first.first-1][i.first.second-1]
-		<< std::setw(12) << std::get<1>(i.second)
+    if ( type != Hybrid) {
+      std::cout << std::setw( 3) << "Z"
+		<< std::setw( 3) << "C"
+		<< std::setw(16) << "Mass"
+		<< std::setw(16) << "Fraction"
+		<< std::setw(16) << "Target"
+		<< std::setw(12) << "Count"
+		<< std::endl
+		<< std::setw( 3) << "-"
+		<< std::setw( 3) << "-"
+		<< std::setw(16) << "--------"
+		<< std::setw(16) << "--------"
+		<< std::setw(16) << "--------"
+		<< std::setw(12) << "--------"
 		<< std::endl;
+      for (auto i : frac)
+	std::cout << std::setw( 3) << i.first.first
+		  << std::setw( 3) << i.first.second
+		  << std::setw(16) << std::get<0>(i.second)
+		  << std::setw(16) << std::get<0>(i.second)/Mtot
+		  << std::setw(16) << sF[i.first.first-1] * sI[i.first.first-1][i.first.second-1]
+		  << std::setw(12) << std::get<1>(i.second)
+		  << std::endl;
+    } else {
+      std::cout << std::setw( 3) << "Z"
+		<< std::setw( 3) << "C"
+		<< std::setw(16) << "Mass"
+		<< std::setw(16) << "Fraction"
+		<< std::setw(12) << "Count"
+		<< std::endl
+		<< std::setw( 3) << "-"
+		<< std::setw( 3) << "-"
+		<< std::setw(16) << "--------"
+		<< std::setw(16) << "--------"
+		<< std::setw(12) << "--------"
+		<< std::endl;
+      for (auto i : frac)
+	std::cout << std::setw( 3) << i.first.first
+		  << std::setw( 3) << i.first.second
+		  << std::setw(16) << std::get<0>(i.second)
+		  << std::setw(16) << std::get<0>(i.second)/Mtot
+		  << std::setw(12) << std::get<1>(i.second)
+		  << std::endl;
+    }
 
     std::cout << std::string(70, '-') << std::endl
 	      << "Empirical density (amu/cc) = "
