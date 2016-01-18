@@ -542,6 +542,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  Particle *p  = c0->Part(b);
 				// Mass-weighted trace fraction
 	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+
 	  if (aType == Hybrid) {
 	    unsigned short Z = k.first;
 				// Add to species bucket
@@ -673,10 +674,13 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	for (auto &s : meanF[id]) {
 	  s.second /= spTotl[s.first.first];
 	}
-      }
-    }
+      } // type loop
 
-    {
+    } // collMinFrac
+
+    // Sanity check
+    //
+    if (1) {
       bool   bad  = false;
       double totT = 0.0;
       for (auto v : meanF[id]) {
@@ -763,7 +767,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  
 	  if (aType == Hybrid) {
 	    unsigned short Z = k.getKey().first;
-
+	    
 	    double eWght = 0.0;
 	    for (unsigned short C=0; C<=Z; C++)
 	      eWght += p->dattrib[hybrid_pos + C] * C;
@@ -820,7 +824,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	}
 
 	Evel[id] = sqrt( fabs(eVel2 + iVel2) );
-	
+
       } else {
 	
 	if (eCnt>1) {
@@ -831,9 +835,12 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  Evel[id] = 0.0;
 	}
       }
-    }
+    
+    } // END: use_elec
 
-    {
+    // Another sanity check
+    //
+    if (1) {
       bool   bad  = false;
       double totT = 0.0;
       for (auto v : meanF[id]) {
@@ -904,6 +911,13 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  double neut1 = meanF[id][k1]/tot;
 	  double neut2 = meanF[id][k2]/tot;
 
+	  if (tot <= 0.0)
+	    {
+	      std::cout << "Total <= 0: " << tot << std::endl;
+	      neut1 = 0.0;
+	      neut2 = 0.0;
+	    }
+
 	  double elec1 = 0.0;
 	  double elec2 = 0.0;
 
@@ -923,17 +937,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  
 	  if (temp_debug) meanFdump(id);
 
-	  if (std::isnan(CrossG)) {
-	    meanFdump(id);
-	    std::cout << "CrossG" << std::endl;
-	  }
-
 	  Cross1 = elastic(i1.first, EeV*m1/dof2) * eVel2 * neut1 * elec2;
 	  
-	  if (std::isnan(Cross1)) {
-	    std::cout << "Cross1" << std::endl;
-	  }
-
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
 	    double b = 0.5*esu*esu*C1 /
@@ -946,15 +951,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 	  
-	  if (std::isnan(Cross1)) {
-	    std::cout << "Cross1" << std::endl;
-	  }
-
 	  Cross2 = elastic(i2.first, EeV*m2/dof1) * eVel1 * neut2 * elec1;
-
-	  if (std::isnan(Cross2)) {
-	    std::cout << "Cross2" << std::endl;
-	  }
 
 	  for (unsigned short C2=1; C2<=Z2; C2++) {
 	    k2.second = C2 + 1;
@@ -966,10 +963,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      Cross2 += M_PI*b*b * eVel1 * C1 * logL * 
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
-	  }
-
-	  if (std::isnan(Cross2)) {
-	    std::cout << "Cross2" << std::endl;
 	  }
 
 	} else {
@@ -1002,9 +995,12 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * crossfac * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
 	  cscl_[i1.first] * cscl_[i2.first];
-      }
-    }
-  }
+
+      } // END: bodies in cell, inner species loop
+
+    } // END: bodies in cell, outer species loop
+
+  } // END: direct, weight, hybrid
 
   if (aType == Trace) {
 
@@ -1167,7 +1163,10 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
 	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
-	if (use_elec) eVel1 = eVel2 = Evel[id]/crm;
+	if (use_elec) {
+	  if (crm>0.0) eVel1 = eVel2 = Evel[id]/crm;
+	  else         eVel1 = eVel2 = 0.0;
+	}
 
 	if (NO_VEL)   eVel1 = eVel2 = 1.0;
 
@@ -1182,6 +1181,14 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	  double tot = 0.0;
 	  for (auto v : meanF[id]) tot += v.second;
+
+	  if (tot <= 0.0) {
+	    std::cout << "*Node#" << std::left << std::setw(3) << myid
+		      << " tot="  << std::setw(16) << tot
+		      << " mF1="  << std::setw(16) << meanF[id][k1]
+		      << " mF2="  << std::setw(16) << meanF[id][k2]
+		      << std::endl;
+	  }
 
 	  double neut1 = meanF[id][k1]/tot;
 	  double neut2 = meanF[id][k2]/tot;
@@ -1213,6 +1220,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    Cross1 += elastic(i1.first, EeV*m1/dof2) * eVel2*C2 * 
 	      neut1 * meanF[id][k2]/tot;
 	  }
+
 				// Rutherford scattering
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
@@ -1234,6 +1242,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    Cross2 += elastic(i2.first, EeV*m2/dof1) * eVel1*C1 * 
 	      neut2 * meanF[id][k1]/tot;
 	  }
+
 				// Rutherford scattering
 	  for (unsigned short C2=1; C2<=Z2; C2++) {
 	    k2.second = C2 + 1;
@@ -1246,7 +1255,6 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 		meanF[id][k1]/tot * meanF[id][k2]/tot;
 	    }
 	  }
-
 
 	} // END: type "Hybrid"
 	else {
@@ -1290,10 +1298,6 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
 	  cscl_[i1.first] * cscl_[i2.first];
 
-	if (std::isnan(csections[id][i1][i2])) 
-	  {
-	    std::cout << "Crazy cross section" << std::endl;
-	  }
       }
     }
 
@@ -2419,19 +2423,6 @@ double CollideIon::crossSectionHybrid(pCell* const c,
     } // END: C1 loop
 
   } // END: C2 loop
-
-  if (std::isnan(cross12)) {
-    std::cout << "Bad cross12" << std::endl;
-  }
-  if (std::isnan(cross21)) {
-    std::cout << "Bad cross21" << std::endl;
-  }
-  if (std::isnan(sum12)) {
-    std::cout << "Bad sum12" << std::endl;
-  }
-  if (std::isnan(sum21)) {
-    std::cout << "Bad sum21" << std::endl;
-  }
 
 				//-------------------------------
 				// *** Convert to system units
@@ -9497,7 +9488,7 @@ void CollideIon::gatherSpecies()
   const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /
     UserTreeDSMC::Munit/boltz;
 
-  if (aType==Direct or aType==Weight) {
+  if (aType==Direct or aType==Weight or aType==Hybrid) {
 
     double mass  = 0.0;
 
@@ -9511,10 +9502,19 @@ void CollideIon::gatherSpecies()
     specI.clear();
     specE.clear();
 
+    if (aType==Hybrid) {
+      specM.clear();
+      for (auto Z : ZList) {
+	for (speciesKey k(Z, 1);  k.second<Z+2; k.second++) {
+	  specM[k] = 0.0;
+	}
+      }
+    }
+
     typedef std::map<key_type, double> cType;
     cType ETcache;
 
-    // Interate through all cells
+    // Iterate through all cells
     //
     pHOT_iterator itree(*c0->Tree());
     
@@ -9546,6 +9546,16 @@ void CollideIon::gatherSpecies()
 	}
       }
       
+      if (aType==Hybrid) {
+	for (auto b : cell->bods) {
+	  Particle *p  = c0->Tree()->Body(b);
+	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+	  for (k.second=1; k.second<=k.first+1; k.second++) {
+	    specM[k] += p->mass * p->dattrib[hybrid_pos+k.second-1];
+	  }
+	}
+      }
+
       cType::iterator ft = ETcache.find(cell->sample->mykey);
 
       if (use_elec >= 0) {
@@ -9627,7 +9637,7 @@ void CollideIon::gatherSpecies()
 	  std::get<0>(specI[Z]) += 0.5*num*atomic_weights[Z]*v2;
 	  std::get<1>(specI[Z]) += num;
 	  
-	  if (KeyConvert(p->iattrib[use_key]).C()==1) continue;
+	  if (aType!=Hybrid and KeyConvert(p->iattrib[use_key]).C()==1) continue;
 	  if (specE.find(Z) == specE.end()) specE[Z] = ZTup(0, 0);
 	  v2  = 0.0;
 	  for (int j=0; j<3; j++) {
@@ -9648,7 +9658,7 @@ void CollideIon::gatherSpecies()
     double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
     double val6 = 0.0, val7 = 0.0;
     
-    if (COLL_SPECIES) {
+    if (aType!=Hybrid and COLL_SPECIES) {
       for (int t=1; t<nthrds; t++) {
 	for (auto s : collCount[t]) {
 	  if (collCount[0].find(s.first) == collCount[0].end()) 
@@ -9708,7 +9718,23 @@ void CollideIon::gatherSpecies()
 
 	} // end: use_elec>=0
 
-	if (COLL_SPECIES) {
+
+	if (aType==Hybrid) {
+
+	  int siz = specE.size();
+	  MPI_Send(&siz, 1, MPI_INT,            0, 352, MPI_COMM_WORLD);
+
+	  for (auto e : specM) {
+	    unsigned short Z = e.first.first;
+	    unsigned short C = e.first.second;
+	    double         V = e.second;
+	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 353, MPI_COMM_WORLD);
+	    MPI_Send(&C, 1, MPI_UNSIGNED_SHORT, 0, 354, MPI_COMM_WORLD);
+	    MPI_Send(&V, 1, MPI_DOUBLE,         0, 355, MPI_COMM_WORLD);
+	  }
+	}
+
+	if (aType!=Hybrid and COLL_SPECIES) {
 	  for (auto s : collCount[0]) {
 	    speciesKey k1 = s.first.first;
 	    speciesKey k2 = s.first.second;
@@ -9799,36 +9825,58 @@ void CollideIon::gatherSpecies()
 	    std::get<1>(specE[Z]) += N;
 	  }
 
-	  if (COLL_SPECIES) {
-	    speciesKey k1, k2;
-	    CollCounts N;
-	    while (1) {
-	      MPI_Recv(&k1.first,  1, MPI_UNSIGNED_SHORT, i, 346, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
-	      if (k1.first==255) break;
-	      MPI_Recv(&k1.second, 1, MPI_UNSIGNED_SHORT, i, 347, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
-	      MPI_Recv(&k2.first,  1, MPI_UNSIGNED_SHORT, i, 348, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
-	      MPI_Recv(&k2.second, 1, MPI_UNSIGNED_SHORT, i, 349, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
-	      MPI_Recv(&N[0],      1, MPI_UNSIGNED_LONG,  i, 350, MPI_COMM_WORLD,
-			 MPI_STATUS_IGNORE);
-	      MPI_Recv(&N[1],      1, MPI_UNSIGNED_LONG,  i, 351, MPI_COMM_WORLD,
-			 MPI_STATUS_IGNORE);
-
-	      dKey k(k1, k2);
-	      if (collCount[0].find(k) == collCount[0].end()) 
-		collCount[0][k] = N;
-	      else {
-		collCount[0][k][0] += N[0];
-		collCount[0][k][1] += N[1];
-	      }
-	    }
-	  }
-
 	}
 
+	if (aType==Hybrid) {
+	  int siz;
+	  MPI_Recv(&siz, 1, MPI_INT,            i, 352, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	    
+	  for (int j=0; j<siz; j++) {
+	    unsigned short Z;
+	    unsigned short C;
+	    double         V;
+	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 353, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&C, 1, MPI_UNSIGNED_SHORT, i, 354, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&V, 1, MPI_DOUBLE,         i, 355, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    
+	    speciesKey k(Z, C);
+	    specM[k] += V;
+	  }
+	}
+
+
+	if (aType!=Hybrid and COLL_SPECIES) {
+	  speciesKey k1, k2;
+	  CollCounts N;
+	  while (1) {
+	    MPI_Recv(&k1.first,  1, MPI_UNSIGNED_SHORT, i, 346, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    if (k1.first==255) break;
+	    MPI_Recv(&k1.second, 1, MPI_UNSIGNED_SHORT, i, 347, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&k2.first,  1, MPI_UNSIGNED_SHORT, i, 348, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&k2.second, 1, MPI_UNSIGNED_SHORT, i, 349, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&N[0],      1, MPI_UNSIGNED_LONG,  i, 350, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&N[1],      1, MPI_UNSIGNED_LONG,  i, 351, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    
+	    dKey k(k1, k2);
+	    if (collCount[0].find(k) == collCount[0].end()) 
+	      collCount[0][k] = N;
+	    else {
+	      collCount[0][k][0] += N[0];
+	      collCount[0][k][1] += N[1];
+	    }
+	  }
+	}
+	
 	mass  += val1;
 	tempM += val2;
 	consE += val3;
@@ -9863,6 +9911,8 @@ void CollideIon::printSpecies
   } else if (aType == Weight) {	// Call the weighted printSpecies version
     printSpeciesElectrons(spec, tempM);
     printSpeciesColl();
+  } else if (aType == Hybrid) {	// For hybrid, skip collision counting
+    printSpeciesElectrons(spec, tempM);
   } else {			// Call the trace fraction version
     printSpeciesTrace();
   }
@@ -9930,7 +9980,7 @@ void CollideIon::electronGather()
 {
   bool IDBG = false;
 
-  if ((aType==Direct or aType==Weight) && use_elec >= 0) {
+  if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
 
     std::vector<double> eVel, iVel;
 
@@ -10516,10 +10566,18 @@ void CollideIon::printSpeciesElectrons
       dout << "# " 
 	   << std::setw(wid) << std::right << "Time "
 	   << std::setw(wid) << std::right << "Temp ";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-	std::ostringstream sout;
-	sout << "(" << it->first.first << "," << it->first.second << ") ";
-	dout << setw(wid) << right << sout.str();
+      if (aType == Hybrid) {
+	for (spDMap::iterator it=specM.begin(); it != specM.end(); it++) {
+	  std::ostringstream sout;
+	  sout << "(" << it->first.first << "," << it->first.second << ") ";
+	  dout << setw(wid) << right << sout.str();
+	}
+      } else {
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+	  std::ostringstream sout;
+	  sout << "(" << it->first.first << "," << it->first.second << ") ";
+	  dout << setw(wid) << right << sout.str();
+	}
       }
       dout << std::setw(wid) << std::right << "Cons_E"
 	   << std::setw(wid) << std::right << "Ions_E"
@@ -10580,8 +10638,13 @@ void CollideIon::printSpeciesElectrons
 
 
   double tmass = 0.0;
-  for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-    tmass += ZMList[it->first.first] * it->second;
+  if (aType == Hybrid) {
+    for (spDMap::iterator it=specM.begin(); it != specM.end(); it++)
+      tmass += it->second;
+  } else {
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+      tmass += ZMList[it->first.first] * it->second;
+  }
 
 				// Use total mass to print mass
 				// fraction
@@ -10589,12 +10652,26 @@ void CollideIon::printSpeciesElectrons
        << std::setw(wid) << std::right << tnow
        << std::setw(wid) << std::right << temp;
 
-  for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
-    if (tmass > 0.0) 
-      dout << std::setw(wid) << std::right 
-	   << ZMList[it->first.first] * it->second / tmass;
-    else
-      dout << std::setw(wid) << std::right << 0.0;
+
+  if (aType == Hybrid) {
+
+    for (spDMap::iterator it=specM.begin(); it != specM.end(); it++) {
+      if (tmass > 0.0) 
+	dout << std::setw(wid) << std::right 
+	     << it->second / tmass;
+      else
+	dout << std::setw(wid) << std::right << 0.0;
+    }
+    
+  } else {
+
+    for (spCountMapItr it=spec.begin(); it != spec.end(); it++) {
+      if (tmass > 0.0) 
+	dout << std::setw(wid) << std::right 
+	     << ZMList[it->first.first] * it->second / tmass;
+      else
+	dout << std::setw(wid) << std::right << 0.0;
+    }
   }
 
   const double Tfac = 2.0*UserTreeDSMC::Eunit/3.0 * amu  /

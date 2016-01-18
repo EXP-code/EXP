@@ -620,7 +620,6 @@ protected:
   void printSpeciesElectrons(std::map<speciesKey, unsigned long>& spec,
 			     double T);
   void printSpeciesTrace();
-  void printSpeciesHybrid();
   void printSpeciesColl();
   void gatherSpecies();
 
