@@ -485,7 +485,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     if (aType == Hybrid) {
       unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
       double ee = 0.0;
-      for (unsigned short C=0; C<Z; C++) ee  += p->dattrib[hybrid_pos + C] * C;
+      for (unsigned short C=0; C<Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
       numEf[id]   += p->mass * (1.0 + ee) / atomic_weights[Z];
     }
 
@@ -543,65 +543,45 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// Mass-weighted trace fraction
 	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 
-	  if (aType == Hybrid) {
-	    unsigned short Z = k.first;
 				// Add to species bucket
-	    bool bad = false;
-	    for (unsigned short C=0; C<=Z; C++) {
+	  if (aType == Hybrid) {
+	    for (unsigned short C=0; C<=k.first; C++) {
 	      k.second = C + 1;
-	      if (std::isnan(meanF[id][k])) {
-		std::cout << "Bad meanF samp: " << k.first << ", " << k.second << std::endl;
-	      }
-	      if (std::isnan(p->dattrib[hybrid_pos+C])) bad = true;
-	      else meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
 	    }
 
-	    if (bad) {
-	      std::cout << "Error in weights [samp]" << std::endl;
-	      double tmass = 0.0;
-	      for (unsigned short C=0; C<=Z; C++) {
-		k.second = C + 1;
-		if (std::isnan(p->dattrib[hybrid_pos+C]))
-		  std::cout << std::setw(3) << Z << std::setw(3) << C
-			    << std::setw(12) << "nan" 
-			    << std::setw(12) << tmass << std::endl;
-		else {
-		  tmass += p->dattrib[hybrid_pos+C];
-		  std::cout << std::setw(3) << Z << std::setw(3) << C
-			    << std::setw(12) << p->dattrib[hybrid_pos+C]
-			    << std::setw(12) << tmass << std::endl;
-		}
-	      }
-	    }
-	    
 	  } else {
-				// Add to species bucket
 	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	    meanF[id][k] += p->mass;
 	  }
 	}
 
-	double TotalW = 0.0;
-	for (auto v : meanF[id]) TotalW += v.second;
-	if (TotalW == 0.0) {
-	  double tmass = 0.0, twght = 0.0;
-	  if (aType == Hybrid) {
-	    for (auto b : bset) {
-	      Particle *p = c0->Part(b);
-	      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-	      unsigned short Z = k.first;
-				// Add to species bucket
-	      for (unsigned short C=0; C<=Z; C++) {
-		k.second = C + 1;
-		twght += p->mass * p->dattrib[hybrid_pos+C];
+	// Sanity check
+	//
+	if (1) {
+	  double TotalW = 0.0;
+	  for (auto v : meanF[id]) TotalW += v.second;
+
+	  if (TotalW == 0.0) {
+	    double tmass = 0.0, twght = 0.0;
+	    if (aType == Hybrid) {
+	      for (auto b : bset) {
+		Particle *p = c0->Part(b);
+		speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+		unsigned short Z = k.first;
+		// Add to species bucket
+		for (unsigned short C=0; C<=Z; C++) {
+		  k.second = C + 1;
+		  twght += p->mass * p->dattrib[hybrid_pos+C];
+		}
+		tmass += p->mass;
 	      }
-	      tmass += p->mass;
 	    }
+	    std::cout << "Crazy: #=" << bset.size() << " mass=" << tmass 
+		      << " weight=" << twght << " cell=" << cell 
+		      << std::endl;
+	    std::cout << std::endl;
 	  }
-	  std::cout << "Crazy: #=" << bset.size() << " mass=" << tmass 
-		    << " weight=" << twght << " cell=" << cell 
-		    << std::endl;
-	  std::cout << std::endl;
 	}
 
       } else {
@@ -612,49 +592,25 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// Mass-weighted trace fraction
 	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 
+				// Add to species bucket
 	  if (aType == Hybrid) {
-	    unsigned short Z = k.first;
-				// Add to species bucket
-	    bool bad = false;
-	    for (unsigned short C=0; C<=Z; C++) {
+	    for (unsigned short C=0; C<=k.first; C++) {
 	      k.second = C + 1;
-	      if (std::isnan(meanF[id][k])) {
-		std::cout << "Bad meanF cell: " << k.first << ", " << k.second << std::endl;
-	      }
-	      if (std::isnan(p->dattrib[hybrid_pos+C])) bad = true;
-	      else meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
+	      meanF[id][k] += p->mass * p->dattrib[hybrid_pos+C];
 	    }
-
-	    if (bad) {
-	      std::cout << "Error in weights [cell]" << std::endl;
-	      double tmass = 0.0;
-	      for (unsigned short C=0; C<=Z; C++) {
-		k.second = C + 1;
-		if (std::isnan(p->dattrib[hybrid_pos+C]))
-		  std::cout << std::setw(3) << Z << std::setw(3) << C
-			    << std::setw(12) << "nan" 
-			    << std::setw(12) << tmass << std::endl;
-		else {
-		  tmass += p->dattrib[hybrid_pos+C];
-		  std::cout << std::setw(3) << Z << std::setw(3) << C
-			    << std::setw(12) << p->dattrib[hybrid_pos+C]
-			    << std::setw(12) << tmass << std::endl;
-		}
-	      }
-	    }
-
 	  } else {
-				// Add to species bucket
 	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	    meanF[id][k] += p->mass;
 	  }
 	}
       }
-				// Normalize mass-weighted fraction
-				//
+
+      // Normalize mass-weighted fraction
+      //
       if (aType == Hybrid) {
 	double normT = 0.0;
 	for (auto v : meanF[id]) normT += v.second;
+
 	if (normT <= 0.0 or std::isnan(normT) or std::isinf(normT)) {
 	  std::cout << "Hybrid norm failure: " << normT << std::endl;
 	} else {
@@ -703,12 +659,12 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     //
     if (use_elec>=0) {
       
-      double ewght = 0.0, iwght = 0.0;
+      double ewght = 0.0, iwght = 0.0, tmass = 0.0;
 
       // Sample cell
       //
       pCell *samp = cell->sample;
-
+      
       if (samp) {
 	for (auto c : samp->children) {
 	  for (auto i : c.second->bods) {
@@ -716,10 +672,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    KeyConvert k(p->iattrib[use_key]);
 
 	    if (aType == Hybrid) {
-	      unsigned short Z = k.getKey().first;
-
 	      double eWght = 0.0;
-	      for (unsigned short C=0; C<=Z; C++)
+	      for (unsigned short C=0; C<=k.Z(); C++)
 		eWght += p->dattrib[hybrid_pos + C] * C;
 	      
 	      eCnt += eWght;
@@ -729,6 +683,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	      iwght += imass;
 	      ewght += emass;
+	      tmass += p->mass;
 
 	      for (int l=0; l<3; l++) {
 		double ve  = p->dattrib[use_elec+l];
@@ -766,10 +721,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  KeyConvert k(p->iattrib[use_key]);
 	  
 	  if (aType == Hybrid) {
-	    unsigned short Z = k.getKey().first;
-	    
 	    double eWght = 0.0;
-	    for (unsigned short C=0; C<=Z; C++)
+	    for (unsigned short C=0; C<=k.Z(); C++)
 	      eWght += p->dattrib[hybrid_pos + C] * C;
 	      
 	    eCnt += eWght;
@@ -779,6 +732,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	    iwght += imass;
 	    ewght += emass;
+	    tmass += p->mass;
 
 	    for (int l=0; l<3; l++) {
 	      double ve  = p->dattrib[use_elec+l];
@@ -824,6 +778,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	}
 
 	Evel[id] = sqrt( fabs(eVel2 + iVel2) );
+
+	if (tmass>0.0)
+	  meanE[id] = ewght/tmass;
 
       } else {
 	
@@ -965,7 +922,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 
-	} else {
+	} // END: "Hybrid"
+	else {
 
 	  if (i1.second>1 or i2.second>1) CrossG = 0.0;
 
@@ -990,7 +948,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      Cross2 = M_PI*b*b * eVel1 * ne1 * logL;
 	    }
 	  }
-	}
+	} // END: "Direct" and "Weight"
 
 	csections[id][i1][i2] = (CrossG + Cross1 + Cross2) * crossfac * 1e-14 / 
 	  (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) *
@@ -1000,7 +958,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
     } // END: bodies in cell, outer species loop
 
-  } // END: direct, weight, hybrid
+  } // END: "Direct", "Weight", "Hybrid"
 
   if (aType == Trace) {
 
@@ -1177,6 +1135,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	  unsigned short Z1 = i1.first;
 	  unsigned short Z2 = i2.first;
+
 	  speciesKey k1(Z1, 1), k2(Z2, 1);
 
 	  double tot = 0.0;
@@ -2058,9 +2017,11 @@ double CollideIon::crossSectionHybrid(pCell* const c,
   // Energy available in the center of mass of the atomic collision
   //
   double vel = cr * UserTreeDSMC::Vunit;
+
   double m1  = atomic_weights[Z1]*amu;
   double m2  = atomic_weights[Z2]*amu;
   double me  = atomic_weights[ 0]*amu;
+
   double mu0 = m1 * m2 / (m1 + m2);
   double mu1 = m1 * me / (m1 + me);
   double mu2 = me * m2 / (me + m2);
@@ -2097,7 +2058,6 @@ double CollideIon::crossSectionHybrid(pCell* const c,
     eVel2   /= vel;
   }
     
-
   // Available COM energy
   //
   kEi [id] = 0.5 * mu0 * vel*vel;
@@ -2105,11 +2065,13 @@ double CollideIon::crossSectionHybrid(pCell* const c,
   kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
   kEee[id] = 0.25 * me * vel*vel * eVel0*eVel0;
 
+
   // Internal energy per particle
   //
   Ein1[id] = Ein2[id] = 0.0;
 
   if (use_Eint>=0) {
+
     Ein1[id] = p1->dattrib[use_Eint] * UserTreeDSMC::Eunit / N1;
     Ein2[id] = p2->dattrib[use_Eint] * UserTreeDSMC::Eunit / N2;
 
@@ -2151,7 +2113,7 @@ double CollideIon::crossSectionHybrid(pCell* const c,
   double cross12 = 0.0;
   double cross21 = 0.0;
 
-  // Sum over all ionizatoin states in both particles
+  // Sum over all ionization states in both particles
 
   for (unsigned short C1=0; C1<=Z1; C1++) {
 
@@ -5182,7 +5144,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
     p2E = p2->dattrib[use_cons];
   }
 
-  {
+  // Sanity check
+  //
+  if (1) {
     double tot1 = 0.0, tot2 = 0.0;
     for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
     if (tot1 > 0.0) {
@@ -5247,25 +5211,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
 				// Only pass elastic scattering events
 	if (dInter[id][i] % 100 < 3) ok = true;
 
-				// Otherwise, test all events . . . 
-      } else {
-				// Test for Particle #1 collisional excitation
-	if (dInter[id][i] == 104) {
-	  double frac = meanF[id][k1.getKey()];
-	  if (frac > minCollFrac) {
-	    ok = true;
-	  }
-	}
-				// Test for Particle #2 collisional excitation
-	else if (dInter[id][i] == 204) {
-	  double frac = meanF[id][k2.getKey()];
-	  if (frac > minCollFrac) {
-	    ok = true;
-	  }
-	}
-	else {			// Pass all other interactions . . . 
-	  ok = true;
-	}
+      } else {			// Pass all events
+	ok = true;
       }
 
       if (ok) tCross += dCross[id][i];
@@ -5318,25 +5265,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 				// Only pass elastic scattering events
       if (dInter[id][i] % 100 < 3) ok = true;
 
-				// Otherwise, test all events . . . 
+				// Otherwise, pass all events . . . 
     } else {
-				// Test for Particle #1 collisional excitation
-      if (dInter[id][i] == 104) {
-	double frac = meanF[id][k1.getKey()];
-	if (frac > minCollFrac) {
-	  ok = true;
-	}
-      }
-				// Test for Particle #2 collisional excitation
-      else if (dInter[id][i] == 204) {
-	double frac = meanF[id][k2.getKey()];
-	if (frac > minCollFrac) {
-	  ok = true;
-	}
-      }
-      else {			// Pass all other interactions . . . 
-	ok = true;
-      }
+      ok = true;
     }
 
     if (ok) {
@@ -5434,7 +5365,6 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
 	}
 	
-	// if (use_elec<0) dE = kEe1[id];
 	double dE = kEe1[id] * cF;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF;
 	
@@ -5522,8 +5452,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	  p2->dattrib[hybrid_pos+C2+0] -= cF;
 	  p2->dattrib[hybrid_pos+C2+1] += cF;
 	} else {
-	  p2->dattrib[hybrid_pos+C1+1] += p2->dattrib[hybrid_pos+C2];
-	  p2->dattrib[hybrid_pos+C1+0]  = 0.0;
+	  p2->dattrib[hybrid_pos+C2+1] += p2->dattrib[hybrid_pos+C2];
+	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
 	}
 
 	std::get<0>(ctd2->CI[id])++; 
@@ -5545,7 +5475,6 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
 	}
 
-	// if (use_elec<0) dE = kEe2[id];
 	double dE = kEe2[id] * cF;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF;
 	
