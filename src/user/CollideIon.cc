@@ -9821,8 +9821,9 @@ void CollideIon::gatherSpecies()
     if (mass>0.0) {
       tempM /= mass;
       tempE /= mass;
+      if (aType == Hybrid)
+	for (auto & e : specM) e.second /= mass;
     }
-    
   }
 }
   
@@ -10567,10 +10568,7 @@ void CollideIon::printSpeciesElectrons
 
 
   double tmass = 0.0;
-  if (aType == Hybrid) {
-    for (spDMap::iterator it=specM.begin(); it != specM.end(); it++)
-      tmass += it->second;
-  } else {
+  if (aType != Hybrid) {
     for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
       tmass += ZMList[it->first.first] * it->second;
   }
@@ -10585,11 +10583,7 @@ void CollideIon::printSpeciesElectrons
   if (aType == Hybrid) {
 
     for (spDMap::iterator it=specM.begin(); it != specM.end(); it++) {
-      if (tmass > 0.0) 
-	dout << std::setw(wid) << std::right 
-	     << it->second / tmass;
-      else
-	dout << std::setw(wid) << std::right << 0.0;
+      dout << std::setw(wid) << std::right << it->second;
     }
     
   } else {
