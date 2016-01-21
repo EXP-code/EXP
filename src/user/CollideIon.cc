@@ -9650,16 +9650,17 @@ void CollideIon::gatherSpecies()
 
 	if (aType==Hybrid) {
 
-	  int siz = specE.size();
+	  int siz = specM.size();
+
 	  MPI_Send(&siz, 1, MPI_INT,            0, 352, MPI_COMM_WORLD);
 
 	  for (auto e : specM) {
-	    unsigned short Z = e.first.first;
-	    unsigned short C = e.first.second;
-	    double         V = e.second;
-	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 353, MPI_COMM_WORLD);
-	    MPI_Send(&C, 1, MPI_UNSIGNED_SHORT, 0, 354, MPI_COMM_WORLD);
-	    MPI_Send(&V, 1, MPI_DOUBLE,         0, 355, MPI_COMM_WORLD);
+	    MPI_Send(&e.first.first,  
+		     1, MPI_UNSIGNED_SHORT,     0, 353, MPI_COMM_WORLD);
+	    MPI_Send(&e.first.second, 
+		     1, MPI_UNSIGNED_SHORT,     0, 354, MPI_COMM_WORLD);
+	    MPI_Send(&e.second,
+		     1, MPI_DOUBLE,             0, 355, MPI_COMM_WORLD);
 	  }
 	}
 
@@ -9757,22 +9758,21 @@ void CollideIon::gatherSpecies()
 	}
 
 	if (aType==Hybrid) {
+	  speciesKey k;
+	  double V;
 	  int siz;
-	  MPI_Recv(&siz, 1, MPI_INT,            i, 352, MPI_COMM_WORLD,
+
+	  MPI_Recv(&siz,        1, MPI_INT,            i, 352, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-	    
+	  
 	  for (int j=0; j<siz; j++) {
-	    unsigned short Z;
-	    unsigned short C;
-	    double         V;
-	    MPI_Recv(&Z, 1, MPI_UNSIGNED_SHORT, i, 353, MPI_COMM_WORLD,
+	    MPI_Recv(&k.first,  1, MPI_UNSIGNED_SHORT, i, 353, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&C, 1, MPI_UNSIGNED_SHORT, i, 354, MPI_COMM_WORLD,
+	    MPI_Recv(&k.second, 1, MPI_UNSIGNED_SHORT, i, 354, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
-	    MPI_Recv(&V, 1, MPI_DOUBLE,         i, 355, MPI_COMM_WORLD,
+	    MPI_Recv(&V,        1, MPI_DOUBLE,         i, 355, MPI_COMM_WORLD,
 		     MPI_STATUS_IGNORE);
 	    
-	    speciesKey k(Z, C);
 	    specM[k] += V;
 	  }
 	}
