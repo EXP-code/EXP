@@ -9655,12 +9655,13 @@ void CollideIon::gatherSpecies()
 	  MPI_Send(&siz, 1, MPI_INT,            0, 352, MPI_COMM_WORLD);
 
 	  for (auto e : specM) {
-	    MPI_Send(&e.first.first,  
-		     1, MPI_UNSIGNED_SHORT,     0, 353, MPI_COMM_WORLD);
-	    MPI_Send(&e.first.second, 
-		     1, MPI_UNSIGNED_SHORT,     0, 354, MPI_COMM_WORLD);
-	    MPI_Send(&e.second,
-		     1, MPI_DOUBLE,             0, 355, MPI_COMM_WORLD);
+	    unsigned short Z = e.first.first;
+	    unsigned short C = e.first.second;
+	    double         M = e.second;
+
+	    MPI_Send(&Z, 1, MPI_UNSIGNED_SHORT, 0, 353, MPI_COMM_WORLD);
+	    MPI_Send(&C, 1, MPI_UNSIGNED_SHORT, 0, 354, MPI_COMM_WORLD);
+	    MPI_Send(&M, 1, MPI_DOUBLE,         0, 355, MPI_COMM_WORLD);
 	  }
 	}
 
