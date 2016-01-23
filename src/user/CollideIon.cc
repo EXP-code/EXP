@@ -2143,6 +2143,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	double crs1 = geometric(Z1) * cfac;
 
 	cross12 += crs1;
+	if (std::isnan(crs1*crossfac*cscl_[Z1])) {
+	  std::cout << "Cross section NaN" << std::endl;
+	}
 	dCross[id].push_back(crs1*crossfac*cscl_[Z1]);
 	dInter[id].push_back(neut_neut_1);
 	dCfrac[id].push_back(cfac);
@@ -2151,6 +2154,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	double crs2 = geometric(Z2) * cfac;
 
 	cross21 += crs2;
+	if (std::isnan(crs2*crossfac*cscl_[Z2])) {
+	  std::cout << "Cross section NaN" << std::endl;
+	}
 	dCross[id].push_back(crs2*crossfac*cscl_[Z2]);
 	dInter[id].push_back(neut_neut_2);
 	dCfrac[id].push_back(cfac);
@@ -2167,6 +2173,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	    elastic(Z1, kEe1[id]) * eVel2 * ne2 * crossfac * cscl_[Z1] * cfac;
 
 	  cross12 += crs1;
+	  if (std::isnan(crs1)) {
+	    std::cout << "Cross section NaN" << std::endl;
+	  }
 	  dCross[id].push_back(crs1);
 	  dInter[id].push_back(neut_elec_1);
 	  dCfrac[id].push_back(cfac);
@@ -2181,6 +2190,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	    M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * logL * cfac;
 
 	  cross12 += crs1;
+	  if (std::isnan(crs1)) {
+	    std::cout << "Cross section NaN" << std::endl;
+	  }
 	  dCross[id].push_back(crs1);
 	  dInter[id].push_back(ion_elec_1);
 	  dCfrac[id].push_back(cfac);
@@ -2197,6 +2209,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	    elastic(Z2, kEe2[id]) * eVel1 * ne1 * crossfac * cscl_[Z2] * cfac;
 
 	  cross21 += crs2;
+	  if (std::isnan(crs2)) {
+	    std::cout << "Cross section NaN" << std::endl;
+	  }
 	  dCross[id].push_back(crs2);
 	  dInter[id].push_back(neut_elec_2);
 	  dCfrac[id].push_back(cfac);
@@ -2210,6 +2225,9 @@ double CollideIon::crossSectionHybrid(pCell* const c,
 	    M_PI*b*b * eVel1 * ne1 * crossfac * cscl_[Z2] * logL * cfac;
 
 	  cross21 += crs2;
+	  if (std::isnan(crs2)) {
+	    std::cout << "Cross section NaN" << std::endl;
+	  }
 	  dCross[id].push_back(crs2);
 	  dInter[id].push_back(ion_elec_2);
 	  dCfrac[id].push_back(cfac);
@@ -2660,13 +2678,17 @@ int CollideIon::inelasticDirect(pCell* const c,
   for (size_t i = 0; i < dCross[id].size(); i++) {
     // Sanity check (mostly for debugging, NaN should never occur)
     if (std::isnan(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is Nan"
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is NaN!";
+      std::cout << std::setw(22) << sout.str()
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
     } else if (std::isinf(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is "
-		<< dCross[id][i]
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is ";
+      std::cout << std::setw(20) << sout.str() 
+		<< std::setw(14) << dCross[id][i]
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
@@ -2696,7 +2718,7 @@ int CollideIon::inelasticDirect(pCell* const c,
     for (size_t i = 0; i < TotalCross.size(); i++) {
       // Sanity check (mostly for debugging, NaN should never occur)
       if (std::isnan(TotalCross[i])) {
-	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
+	std::cout << "TotalCross[i][" << id << "][" << i << "] is NaN"
 		  << std::endl;
       } else {
 	CDF.push_back(TotalCross[i]/tCross);
@@ -2931,8 +2953,8 @@ int CollideIon::inelasticDirect(pCell* const c,
 
 				// Energy diagnostics
     ctd1->eV_av[id] += kEe2[id];
-    if (std::isnan(ctd2->eV_av[id])) {
-      std::cout << "eV_N=" << ctd1->eV_N[id] << std::endl;
+    if (std::isnan(ctd1->eV_av[id])) {
+      std::cout << "eV_N[1]=" << ctd1->eV_N[id] << std::endl;
     }
     ctd1->eV_N[id]++;
     ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe2[id]);
@@ -2952,7 +2974,7 @@ int CollideIon::inelasticDirect(pCell* const c,
 				// Energy diagnostics
     ctd2->eV_av[id] += kEe1[id];
     if (std::isnan(ctd2->eV_av[id])) {
-      std::cout << "eV_N=" << ctd2->eV_N[id] << std::endl;
+      std::cout << "eV_N[2]=" << ctd2->eV_N[id] << std::endl;
     }
     ctd2->eV_N[id]++;
     ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe1[id]);
@@ -3594,13 +3616,17 @@ int CollideIon::inelasticWeight(pCell* const c,
     // Sanity check (mostly for debugging, NaN should never occur)
     //
     if (std::isnan(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is Nan"
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is NaN!";
+      std::cout << std::setw(22) << sout.str()
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
     } else if (std::isinf(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is "
-		<< dCross[id][i]
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is";
+      std::cout << std::setw(20) << sout.str()
+		<< std::setw(14) << dCross[id][i]
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
@@ -3698,7 +3724,7 @@ int CollideIon::inelasticWeight(pCell* const c,
     for (size_t i = 0; i < TotalCross.size(); i++) {
       // Sanity check (mostly for debugging, NaN should never occur)
       if (std::isnan(TotalCross[i])) {
-	std::cout << "TotalCross[i][" << id << "][" << i << "] is Nan"
+	std::cout << "TotalCross[i][" << id << "][" << i << "] is NaN"
 		  << std::endl;
       } else {
 	CDF.push_back(TotalCross[i]/tCross);
@@ -4345,8 +4371,10 @@ int CollideIon::inelasticWeight(pCell* const c,
       //
       double wnrm = 0.0;
       for (auto   v : w1) wnrm += v*v;
-      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-      
+      if (wnrm > 0.0) {
+	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+      }
+
       vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
 
     } else {
@@ -5184,13 +5212,17 @@ int CollideIon::inelasticHybrid(pCell* const c,
     // Sanity check (mostly for debugging, NaN should never occur)
     //
     if (std::isnan(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is Nan"
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is NaN!";
+      std::cout << std::setw(22) << sout.str()
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
     } else if (std::isinf(dCross[id][i])) {
-      std::cout << "dCross[" << id << "][" << i << "] is "
-		<< dCross[id][i]
+      std::ostringstream sout;
+      sout << "dCross[" << id << "][" << i << "] is ";
+      std::cout << std::setw(20) << sout.str() 
+		<< std::setw(14) << dCross[id][i]
 		<< std::setw(14) << dInter[id][i]
 		<< std::setw(18) << labels[dInter[id][i]]
 		<< std::endl;
@@ -5560,8 +5592,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // -----------------
 
   ctd1->eV_av[id] += kEe2[id];
-  if (std::isnan(ctd2->eV_av[id])) {
-    std::cout << "eV_N=" << ctd1->eV_N[id] << std::endl;
+  if (std::isnan(ctd1->eV_av[id])) {
+    std::cout << "eV_N[1]=" << ctd1->eV_N[id] << std::endl;
   }
   ctd1->eV_N[id]++;
   ctd1->eV_min[id] = std::min(ctd1->eV_min[id], kEe2[id]);
@@ -5577,7 +5609,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
   ctd2->eV_av[id] += kEe1[id];
   if (std::isnan(ctd2->eV_av[id])) {
-    std::cout << "eV_N=" << ctd2->eV_N[id] << std::endl;
+    std::cout << "eV_N[2]=" << ctd2->eV_N[id] << std::endl;
   }
   ctd2->eV_N[id]++;
   ctd2->eV_min[id] = std::min(ctd2->eV_min[id], kEe1[id]);
@@ -5613,54 +5645,67 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // Ion(2)     and Electron(1)
   // Neutral(1) and Neutral(2)
 
-  InteractData d(m1, m2, Wa, Wb, q, Z1, Z2, p1, p2);
-
   if (use_elec and Ion1Frac>0.0) {
+    InteractData d(m1, atomic_weights[0], Wa, Wb, q, Z1, Z2, p1, p2);
 
-    d.m2 = atomic_weights[0];	// Particle 2 is the electron
-
-    d.vi2 = 0.0;
+    double ke1 = 0.0, ke2 = 0.0;
     for (int k=0; k<3; k++) {
       v1[k]  = p1->vel[k];	// Particle 1 is the ion
       v2[k]  = p2->dattrib[use_elec+k];
       d.vi2 += v2[k] * v2[k];
+      ke1   += v1[k] * v1[k];
+      ke2   += v2[k] * v2[k];
     }
 
-    KE_ KE(delE, p1E, p2E);
+    if (ke1 > 0.0 and ke2 > 0.0) {
 
-    computeHybridInteraction(d, v1, v2, KE, id);
-    updateHybrid(d, v1, v2, KE, Ion1, id);
+      KE_ KE(delE, p1E, p2E);
+
+      computeHybridInteraction(d, v1, v2, KE, id);
+      updateHybrid(d, v1, v2, KE, Ion1, id);
+    }
   }
 
   if (use_elec and Ion2Frac>0.0) {
+    InteractData d(atomic_weights[0], m2, Wa, Wb, q, Z1, Z2, p1, p2);
 
-    d.m1 = atomic_weights[0];	// Particle 1 is the electron
-
-    d.vi2 = 0.0;
+    double ke1 = 0.0, ke2 = 0.0;
     for (int k=0; k<3; k++) {
       v1[k]  = p1->dattrib[use_elec+k];
       v2[k]  = p2->vel[k];	// Particle 2 is the ion
       d.vi2 += v1[k] * v1[k];
+      ke1   += v1[k] * v1[k];
+      ke2   += v2[k] * v2[k];
     }
 
-    KE_ KE(delE, p1E, p2E);
+    if (ke1 > 0.0 and ke2 > 0.0) {
 
-    computeHybridInteraction(d, v1, v2, KE, id);
-    updateHybrid(d, v1, v2, KE, Ion2, id);
+      KE_ KE(delE, p1E, p2E);
+
+      computeHybridInteraction(d, v1, v2, KE, id);
+      updateHybrid(d, v1, v2, KE, Ion2, id);
+    }
   }
 
   if (!use_elec or NeutFrac>0.0) {
-				// Neutrals or ions and electrons
-    d.vi2 = 0.0;
+    InteractData d(m1, m2, Wa, Wb, q, Z1, Z2, p1, p2);
+				// Neutrals or 
+				// ions and electrons
+    double ke1 = 0.0, ke2 = 0.0;
     for (int k=0; k<3; k++) {
       v1[k] = p1->vel[k];
       v2[k] = p2->vel[k];
+      ke1  += v1[k] * v1[k];
+      ke2  += v2[k] * v2[k];
     }
 
-    KE_ KE(delE, p1E, p2E);
+    if (ke1 > 0.0 and ke2 > 0.0) {
 
-    computeHybridInteraction(d, v1, v2, KE, id);
-    updateHybrid(d, v1, v2, KE, Neutral, id);
+      KE_ KE(delE, p1E, p2E);
+
+      computeHybridInteraction(d, v1, v2, KE, id);
+      updateHybrid(d, v1, v2, KE, Neutral, id);
+    }
   }
 
   double tot1 = 0.0, tot2 = 0.0;
@@ -5684,6 +5729,7 @@ int CollideIon::computeHybridInteraction
 (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, int id)
 {
   if (KE_DEBUG) {
+    KE.i(1) = KE.i(2) = 0.0;
     for (auto v : v1) KE.i(1) += v*v;
     for (auto v : v2) KE.i(2) += v*v;
   }
@@ -5812,9 +5858,11 @@ int CollideIon::computeHybridInteraction
       // Normalize
       //
       double wnrm = 0.0;
-      for (auto   v : w1) wnrm += v*v;
-      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-      
+      for (auto v : w1) wnrm += v*v;
+      if (wnrm>0.0) {
+	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+      }
+
       vrat  = sqrt((1.0 - d.q)*(d.q*b1f2 + v1i2))/(1.0 - d.q);
 
     } else {
@@ -5837,10 +5885,10 @@ int CollideIon::computeHybridInteraction
       v1f2 += vv*vv;
     }
     
-    double KE_1i = 0.5*d.m1*v1i2;
-    double KE_2i = 0.5*d.q*d.m2*v2i2;
-    double KE_1f = 0.5*d.m1*v1f2;
-    double KE_2f = 0.5*d.q*d.m2*b2f2;
+    double KE_1i = 0.5*d.Wa*d.m1*v1i2;
+    double KE_2i = 0.5*d.Wa*d.q*d.m2*v2i2;
+    double KE_1f = 0.5*d.Wa*d.m1*v1f2;
+    double KE_2f = 0.5*d.Wa*d.q*d.m2*b2f2;
     
     double KEi   = KE_1i + KE_2i;
     double KEf   = KE_1f + KE_2f;
@@ -5850,22 +5898,98 @@ int CollideIon::computeHybridInteraction
       std::cout << "Ooops, delE = " << difE
 		<< ", totE = " << KEi + KEf << std::endl;
     }
-  }
 
-  // Update post-collision velocities.  In the electron version, the
-  // momentum is assumed to be coupled to the ions, so the ion
-  // momentum must be conserved.  Particle 2 is trace by construction.
-  // 
-  double qKEfac = 0.5*d.Wa*d.m1*d.q*(1.0 - d.q);
-  KE.delta = 0.0;
-  for (size_t k=0; k<3; k++) {
-    double v0 = vcom[k] + d.m2/Mt*vrel[k]*vfac;
 
-    if (!ExactE) 
-      KE.delta += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+    // Update post-collision velocities
+    // --------------------------------
+    //
+    // Compute new energy conservation updates
+    //
+    for (size_t k=0; k<3; k++) {
+      double v0 = vcom[k] + d.m2/Mt*vrel[k];
 
-    v1[k] = (1.0 - d.q)*w1[k]*vrat + d.q*v0;
-    v2[k] = vcom[k] - d.m1/Mt*vrel[k]*vfac;
+      v1[k] = (1.0 - d.q)*w1[k]*vrat + d.q*v0;
+      v2[k] = vcom[k] - d.m1/Mt*vrel[k];
+    }
+
+
+    // Available KE in _actual_ COM frame, system units
+    //
+    double M1 = d.Wa * d.m1;
+    double M2 = d.Wb * d.m2;
+    double MT = M1 + M2;
+    double MU = M1*M2/MT;
+    
+    // New center-of-mass and relative velocity
+    //
+    double KE1i = 0.0, KE2i = 0.0;
+    kE = 0.0;
+    for (size_t k=0; k<3; k++) {
+      KE1i    += v1[k]*v1[k];
+      KE2i    += v2[k]*v2[k];
+      vcom[k]  = (M1*v1[k] + M2*v2[k])/MT;
+      vrel[k]  = v1[k] - v2[k];
+      kE      += vrel[k] * vrel[k];
+    }
+
+    KE1i   *= 0.5*M1;
+    KE2i   *= 0.5*M2;
+    kE     *= 0.5*MU;
+    totE    = kE - KE.delE;
+    KE.miss = std::min<double>(0.0, totE);
+
+    if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
+
+    // Apply energy loss in updated com
+    //
+    for (size_t k=0; k<3; k++) {
+      v1[k] = vcom[k] + M2/MT*vrel[k]*vfac;
+      v2[k] = vcom[k] - M1/MT*vrel[k]*vfac;
+    }
+
+    // Temporary deep debug
+    //
+    if (1) {
+      double KE1f = 0.0, KE2f = 0.0;
+      for (auto v : v1) KE1f += v*v;
+      for (auto v : v2) KE2f += v*v;
+
+      KE1f *= 0.5*M1;
+      KE2f *= 0.5*M2;
+
+      double KEt   = KE1f + KE2f;
+      double delEt = KE1i + KE2i  - KEt ;
+
+      if (totE > 0.0) delEt -= KE.delE;
+      else            delEt -= kE;
+
+      if ( fabs(delEt)/std::min<double>(KEi, KEt) > 1.0e-10) {
+	std::cout << "Error: delEt = " << delEt
+		  << " KEi = " << KEi
+		  << " KEf = " << KEf
+		  << " KEt = " << KEt
+		  << std::endl;
+      }
+
+    }
+
+  } else {
+
+    // Update post-collision velocities.  In the electron version, the
+    // momentum is assumed to be coupled to the ions, so the ion
+    // momentum must be conserved.  Particle 2 is trace by construction.
+    // 
+    double qKEfac = 0.5*d.Wa*d.m1*d.q*(1.0 - d.q);
+    KE.delta = 0.0;
+    for (size_t k=0; k<3; k++) {
+      double v0 = vcom[k] + d.m2/Mt*vrel[k]*vfac;
+      
+      if (!ExactE) 
+	KE.delta += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
+      
+      v1[k] = (1.0 - d.q)*w1[k]*vrat + d.q*v0;
+      v2[k] = vcom[k] - d.m1/Mt*vrel[k]*vfac;
+    }
   }
 
   return 0;
@@ -5973,7 +6097,7 @@ int CollideIon::updateHybrid(InteractData& d,
     
     // For diagnostic electron energy loss/gain distribution
     //
-    velER[id].push_back(vf2/d.vi2);
+    if (d.vi2>0.0) velER[id].push_back(vf2/d.vi2);
     
   } else if (use_elec and iType == Ion2) {
 
@@ -6018,7 +6142,7 @@ int CollideIon::updateHybrid(InteractData& d,
 
     // For diagnostic electron energy loss/gain distribution
     //
-    velER[id].push_back(vf2/d.vi2);
+    if (d.vi2>0.0) velER[id].push_back(vf2/d.vi2);
 
   } else {
     for (size_t k=0; k<3; k++) {
@@ -6030,7 +6154,7 @@ int CollideIon::updateHybrid(InteractData& d,
   // KE debugging
   //
   if (KE_DEBUG) {
-
+    KE.f(1) = KE.f(2) = 0.0;
     for (auto v : v1) KE.f(1) += v*v;
     for (auto v : v2) KE.f(2) += v*v;
 
@@ -6054,30 +6178,18 @@ int CollideIon::updateHybrid(InteractData& d,
       if (KE.i(1) > 0) keIR[id].push_back((KE.i(1) - KE.f(1))/KE.i(1));
       if (KE.i(2) > 0) keER[id].push_back((KE.i(2) - KE.f(2))/KE.i(2));
     }
-				// Check energy balance including excess
-    double testE = dKE;
 
-    if (d.Z1 == d.Z2 or !ExactE) testE -= KE.delE + KE.miss;
-
-				// Add in energy loss/gain
-    // if (d.Z1 == d.Z2 or SAME_TRACE_SUPP)
-    // testE += Exs;
-				// Correct for trace-algorithm excess
-    // else if ( (C1==1 and C2==1) or (electronic and !TRACE_REAPPLY) )
-    // testE -= KE.delta;
+    // Check energy balance including excess
+    //
+    double testE = dKE - KE.delE - KE.miss;
 
     if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
       std::cout << "Total ("<< d.m1 << "," << d.m2 << ") = " 
 		<< std::setw(14) << testE
 		<< ", dKE=" << std::setw(14) << dKE
-	// << ", KE0=" << std::setw(14) << kE
-	// << ", tot=" << std::setw(14) << totE
 		<< ", com=" << std::setw(14) << KE.delta
-	// << ", exs=" << std::setw(14) << Exs
 		<< ", del=" << std::setw(14) << KE.delE
 		<< ", mis=" << std::setw(14) << KE.miss
-	// << ", fac=" << std::setw(14) << vfac
-	// << (in_exactE ? ", in ExactE" : "")
 		<< std::endl;
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
@@ -6092,7 +6204,6 @@ int CollideIon::updateHybrid(InteractData& d,
 		<< d.p1->dattrib[use_cons] - KE.p1E       << std::endl
 		<< "    x_f="  << d.p1->dattrib[use_cons] << std::endl
 		<< "    x_i="  << KE.p1E                  << std::endl
-	// << "    exs="  << Exs                   << std::endl
 		<< "   misE="  << KE.miss                 << std::endl
 		<< "   delK="  << KE.delta                << std::endl
 		<< "   delE="  << KE.delE                 << std::endl
@@ -6104,7 +6215,6 @@ int CollideIon::updateHybrid(InteractData& d,
 		<< d.p2->dattrib[use_cons] - KE.p2E       << std::endl
 		<< "    x_f="  << d.p2->dattrib[use_cons] << std::endl
 		<< "    x_i="  << KE.p2E                  << std::endl
-	// << "    exs="  << Exs                   << std::endl
 		<< "    misE=" << KE.miss                 << std::endl
 		<< "    delK=" << KE.delta                << std::endl
 		<< "    delE=" << KE.delE                 << std::endl
@@ -6760,15 +6870,15 @@ void * CollideIon::timestep_thread(void * arg)
       // Compute time of flight criterion and assign cell scale to
       // characteristic size
       //
-      DT     = 1.0e40;
-      mscale = 1.0e40;
+      DT     = 1.0e34;
+      mscale = 1.0e34;
 
       double vtot = 0.0;
       for (unsigned k=0; k<3; k++) {
 	mscale = std::min<double>(pHOT::sides[k]*L, mscale);
 	vtot += p->vel[k]*p->vel[k];
       }
-      vtot = sqrt(vtot) + 1.0e-40;
+      vtot = sqrt(vtot) + 1.0e-34;
       
       // Compute collision time criterion
       //
@@ -7301,7 +7411,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      //
 	      double wnrm = 0.0;
 	      for (auto   v : w1) wnrm += v*v;
-	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+	      if (wnrm>0.0) {
+		for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+	      }
 	      
 	      vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
 	      
