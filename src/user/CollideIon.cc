@@ -5227,7 +5227,6 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
   N0 *= scaleCrossSection;
 
-
   double NCXTRA = 0.0;
 
   double iI1 = 0.0, iE1 = 0.0;
@@ -5252,18 +5251,21 @@ int CollideIon::inelasticHybrid(pCell* const c,
   //
   for (size_t i = 0; i < dCross[id].size(); i++) {
 
+				// Set the interaction flag
+    interFlag = dInter[id][i];
+
     bool ok = false;		// Reject all interactions by default
 
     if (NoDelC)  {
       ok = true;
 				// Pass events that are NOT ionization
 				// or recombination, or both
-      if (NoDelC & 0x1 and dInter[id][i] % 100 == recomb) ok = false;
-      if (NoDelC & 0x2 and dInter[id][i] % 100 == ionize) ok = false;
+      if (NoDelC & 0x1 and interFlag % 100 == recomb) ok = false;
+      if (NoDelC & 0x2 and interFlag % 100 == ionize) ok = false;
 
     } else if (scatter) {
 				// Only pass elastic scattering events
-      if (dInter[id][i] % 100 < 3) ok = true;
+      if (interFlag % 100 < 3) ok = true;
 
 				// Otherwise, pass all events . . . 
     } else {
@@ -5338,9 +5340,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (NO_ION_E) dE = 0.0;
 	delE1 += dE;
 
-	if (cF < p1->dattrib[hybrid_pos+C1]) {
-	  p1->dattrib[hybrid_pos+C1+0] -= cF;
-	  p1->dattrib[hybrid_pos+C1+1] += cF;
+	if (cF*q < p1->dattrib[hybrid_pos+C1]) {
+	  p1->dattrib[hybrid_pos+C1+0] -= cF * q;
+	  p1->dattrib[hybrid_pos+C1+1] += cF * q;
 	} else {
 	  p1->dattrib[hybrid_pos+C1+1] += p1->dattrib[hybrid_pos+C1];
 	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
@@ -5355,7 +5357,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_1) {
 
-	double wght = cF;
+	double wght = cF * q;
 	if (wght < p1->dattrib[hybrid_pos+C1]) {
 	  p1->dattrib[hybrid_pos+C1+0] -= wght;
 	  p1->dattrib[hybrid_pos+C1-1] += wght;
@@ -5365,8 +5367,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
 	}
 	
-	double dE = kEe1[id] * cF;
-	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF;
+	double dE = kEe1[id] * cF * q;
+	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q;
 	
 	delE1 += dE;
 
@@ -5423,7 +5425,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
 
       if (interFlag == free_free_2) {
-	double dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF;
+	double dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q;
 	if (NO_FF_E) dE = 0.0;
 	delE2 += dE;
 	std::get<0>(ctd2->ff[id])++;
@@ -5434,7 +5436,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
       
       if (interFlag == colexcite_2) {
-	double dE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]) * cF;
+	double dE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]) * cF * q;
 	delE2 += dE;
 	std::get<0>(ctd2->CE[id])++; 
 	std::get<1>(ctd2->CE[id]) += Wb * cF;
@@ -5444,13 +5446,13 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
 
       if (interFlag == ionize_2) {
-	double dE = IS.DIInterLoss(ch.IonList[Q2]) * cF;
+	double dE = IS.DIInterLoss(ch.IonList[Q2]) * cF * q;
 	if (NO_ION_E) dE = 0.0;
 	delE2 += dE;
 
-	if (cF < p2->dattrib[hybrid_pos+C2]) {
-	  p2->dattrib[hybrid_pos+C2+0] -= cF;
-	  p2->dattrib[hybrid_pos+C2+1] += cF;
+	if (cF*q < p2->dattrib[hybrid_pos+C2]) {
+	  p2->dattrib[hybrid_pos+C2+0] -= cF * q;
+	  p2->dattrib[hybrid_pos+C2+1] += cF * q;
 	} else {
 	  p2->dattrib[hybrid_pos+C2+1] += p2->dattrib[hybrid_pos+C2];
 	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
@@ -5465,7 +5467,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_2) {
 
-	double wght = cF;
+	double wght = cF * q;
 	if (wght < p2->dattrib[hybrid_pos+C2]) {
 	  p2->dattrib[hybrid_pos+C2+0] -= wght;
 	  p2->dattrib[hybrid_pos+C2-1] += wght;
@@ -5475,8 +5477,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
 	}
 
-	double dE = kEe2[id] * cF;
-	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF;
+	double dE = kEe2[id] * cF * q;
+	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q;
 	
 	delE2 += dE;
 	
@@ -5613,7 +5615,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
   InteractData d(m1, m2, Wa, Wb, q, Z1, Z2, p1, p2);
 
-  if (use_elec and Ion1Frac) {
+  if (use_elec and Ion1Frac>0.0) {
 
     d.m2 = atomic_weights[0];	// Particle 2 is the electron
 
