@@ -5252,18 +5252,21 @@ int CollideIon::inelasticHybrid(pCell* const c,
   //
   for (size_t i = 0; i < dCross[id].size(); i++) {
 
+				// Set the interaction flag
+    interFlag = dInter[id][i];
+
     bool ok = false;		// Reject all interactions by default
 
     if (NoDelC)  {
       ok = true;
 				// Pass events that are NOT ionization
 				// or recombination, or both
-      if (NoDelC & 0x1 and dInter[id][i] % 100 == recomb) ok = false;
-      if (NoDelC & 0x2 and dInter[id][i] % 100 == ionize) ok = false;
+      if (NoDelC & 0x1 and interFlag % 100 == recomb) ok = false;
+      if (NoDelC & 0x2 and interFlag % 100 == ionize) ok = false;
 
     } else if (scatter) {
 				// Only pass elastic scattering events
-      if (dInter[id][i] % 100 < 3) ok = true;
+      if (interFlag % 100 < 3) ok = true;
 
 				// Otherwise, pass all events . . . 
     } else {
