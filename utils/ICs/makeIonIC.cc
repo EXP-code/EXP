@@ -117,7 +117,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 
     double KE = 0.0;
 
-    if (type = Trace) {
+    if (type == Trace) {
 
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
