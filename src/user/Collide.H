@@ -5,9 +5,8 @@
 #include <iostream>
 #include <iomanip>
 #include <vector>
+#include <tuple>
 #include <map>
-
-#include <boost/tuple/tuple.hpp>
 
 #include <ACG.h>
 #include <Uniform.h>
@@ -143,7 +142,7 @@ public:
   typedef std::pair<double, vector<double> > Precord;
 
   //! Collide return tuple
-  typedef boost::tuple<unsigned, unsigned>   UU;
+  typedef std::tuple<unsigned, unsigned>     UU;
   
   //@{
   //! Electron species key
@@ -214,7 +213,7 @@ protected:
   vector<unsigned>    ntcOvr, ntcAcc, ntcTot;
   unsigned            accOvr, accAcc, accTot;
 
-  boost::tuple<double, double, double> ntcRes;
+  std::tuple<double, double, double> ntcRes;
   
   //@}
 

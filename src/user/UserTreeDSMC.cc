@@ -974,8 +974,12 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Collide class instance.
   //
 
+  (*barrier)("TreeDSMC: BEFORE Collide::collide", __FILE__, __LINE__);
+    
   const Collide::UU&
     CC = collide->collide(*c0->Tree(), collFrac, mlevel, diagstep);
+
+  (*barrier)("TreeDSMC: AFTER Collide::collide", __FILE__, __LINE__);
 
   // Collide:UU is a boost::tuple<unsigned, unsigned>
   //
@@ -1073,6 +1077,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     }
   }
 
+  {
+    std::ostringstream sout;
+    sout << "TreeDSMC: BEFORE diagstep stanza, T=" << tnow
+	 << ", bods=" << std::get<0>(CC);
+    (*barrier)(sout.str(), __FILE__, __LINE__);
+  }
+
   //
   // Periodically display the current progress
   //
@@ -1082,8 +1093,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   //
   // Lots of diagnostics are computed and emitted here . . .
   //
-  if (diagstep && boost::get<0>(CC)>0) {
+  if (diagstep && std::get<0>(CC)>0) {
     
+    (*barrier)("TreeDSMC: ENTERING diagstep stanza", __FILE__, __LINE__);
+
 #ifdef USE_GPTL
       GPTLstart("UserTreeDSMC::collide_diag");
 #endif

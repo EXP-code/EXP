@@ -541,7 +541,7 @@ void Collide::debug_list(pHOT& tree)
 const Collide::UU&
 Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 {
-  boost::get<0>(ret) = boost::get<1>(ret) = 0;
+  std::get<0>(ret) = std::get<1>(ret) = 0;
 
   snglTime.start();
 
@@ -578,12 +578,21 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   }
   stepcount++;
   
-  // ret<0> Will contain sum of all particles at this level
-  //
-  MPI_Allreduce(&totalbods, &boost::get<0>(ret), 1, MPI_UNSIGNED, MPI_SUM, 
+  unsigned allbods;
+  MPI_Allreduce(&totalbods, &allbods, 1, MPI_UNSIGNED, MPI_SUM, 
 		MPI_COMM_WORLD);
 
-  if (boost::get<0>(ret)==0) return ret;
+  // ret<0> Will contain sum of all particles at this level
+  //
+  std::get<0>(ret) = allbods;
+
+  {
+    std::ostringstream sout;
+    sout << "Collide::collide: AFTER totalbods allreduce, N="
+	 << std::get<0>(ret) << ", Ntest=" << allbods;
+    (*barrier)(sout.str(), __FILE__, __LINE__);
+  }
+
 
   if (CDEBUG) {
 
@@ -591,7 +600,7 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
       std::cout << std::endl << "***" << std::endl << std::left 
 		<< "*** T = "  << std::setw(10) << tnow 
 		<< " Level = " << std::setw(10) << mlevel
-		<< " Nbods = " << std::setw(10) << boost::get<0>(ret)
+		<< " Nbods = " << std::setw(10) << std::get<0>(ret)
 		<< " dT = "    << dtime << std::endl
 		<< "***" << std::endl;
 
@@ -629,6 +638,8 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   // Needed for meaningful timing results
   //
   waitTime.start();
+  (*barrier)("Collide::collide: in sync BEFORE collision fork",
+	     __FILE__, __LINE__);
   MPI_Barrier(MPI_COMM_WORLD);
   waitTime.stop();
   
@@ -642,7 +653,9 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
     sout << "before fork, " << __FILE__ << ": " << __LINE__;
     tree.checkBounds(2.0, sout.str().c_str());
   }
+
   collide_thread_fork(&tree, &Fn);
+
   if (0 && totalbods) {
     ostringstream sout;
     sout << "after fork, " << __FILE__ << ": " << __LINE__;
@@ -651,9 +664,12 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   forkSoFar = forkTime.stop();
   
   snglTime.start();
-  if (diag) boost::get<1>(ret) = post_collide_diag();
+  if (diag) std::get<1>(ret) = post_collide_diag();
   snglSoFar = snglTime.stop();
   
+  (*barrier)("Collide::collide: AFTER collision fork",
+	     __FILE__, __LINE__);
+
   // Effort diagnostics
   //
   if (mlevel==0 && EFFORT && effortAccum) {
@@ -767,6 +783,13 @@ Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
   //
   if (mlevel==0) ntcdb.update();
 
+  {
+    std::ostringstream sout;
+    sout << "Collide::collide: EXITING, bods=" << std::get<0>(ret)
+	 << ", allbods=" << allbods;
+    (*barrier)(sout.str(), __FILE__, __LINE__);
+  }
+
   return ret;
 }
 
@@ -789,6 +812,12 @@ void * Collide::collide_thread(void * arg)
   
   thread_timing_beg(id);
   
+  if (id==0) {
+    std::ostringstream sout;
+    sout << "Collide::collide: ENTERING collide_thread, T=" << tnow;
+    (*barrier)(sout.str(), __FILE__, __LINE__);
+  }
+
   cellTime[id].start();
   
   // Loop over cells, processing collisions in each cell
@@ -919,9 +948,6 @@ void * Collide::collide_thread(void * arg)
     // Cell initialization (generate cross sections)
     //
     initialize_cell(tree, c, crm, id);
-
-    (*barrier)("Collide::collide: AFTER initialize_cell",  
-	       __FILE__, __LINE__);
 
     // Per species quantities
     //
@@ -1077,10 +1103,6 @@ void * Collide::collide_thread(void * arg)
     
     int totalCount = 0;
     
-    (*barrier)("Collide::collide: BEFORE cell count loop",  
-	       __FILE__, __LINE__);
-
-
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
 
       speciesKey i1 = it1->first;
@@ -1327,6 +1349,12 @@ void * Collide::collide_thread(void * arg)
     }
     
   } // Loop over cells
+
+  if (id==0) {
+    std::ostringstream sout;
+    sout << "Collide::collide: AFTER cell loop, T=" << tnow;
+    (*barrier)(sout.str(), __FILE__, __LINE__);
+  }
 
   cellSoFar[id] = cellTime[id].stop();
 

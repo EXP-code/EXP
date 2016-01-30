@@ -5802,8 +5802,6 @@ int CollideIon::computeHybridInteraction
   lostSoFar[id] += KE.delE;
   decelT[id]    += KE.delE;
     
-  ret            = 0;		// No error
-
   // Assign interaction energy variables
   //
   double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
