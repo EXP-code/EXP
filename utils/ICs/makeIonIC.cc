@@ -415,7 +415,7 @@ void InitializeSpeciesWeight
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, double T, int& ne, int ni=1, int nd=6)
+ double M, double T, int& ne, int ni=2, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -557,7 +557,7 @@ void InitializeSpeciesHybrid
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, double T, int& ne, int ni=1, int nd=6)
+ double M, double T, int& ne, int ni=2, int nd=6)
 {
   std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
