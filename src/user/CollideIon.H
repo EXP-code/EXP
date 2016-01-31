@@ -730,6 +730,10 @@ protected:
 
   void meanFdump(int id);
 
+  //! Normalize the ionization state weights for the Hybrid method and
+  //! test for correctness
+  void normTest(Particle* const p, const std::string& lab);
+
 public:
   static double   Nmin;
   static double   Nmax;

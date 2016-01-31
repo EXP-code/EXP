@@ -159,6 +159,9 @@ static bool use_cons_test     = true;
 
 static bool temp_debug        = false;
 
+// Use particle collision counter for debugging
+static int DEBUG_CNT          = -1;
+
 // Per-species cross-section scale factor for testing
 static std::vector<double> cscl_;
 PeriodicTable PT;
@@ -5110,6 +5113,34 @@ int CollideIon::inelasticWeight(pCell* const c,
   return ret;
 }
 
+void CollideIon::normTest(Particle* const p, const std::string& lab)
+{
+  KeyConvert k(p->iattrib[use_key]);
+
+  double tot = 0.0;
+  for (size_t C=0; C<=k.Z(); C++) tot += p->dattrib[hybrid_pos+C];
+
+  if (tot > 0.0) {
+    if (fabs(tot-1.0) > 1.0e-6) {
+      std::cout << "[" << myid << "] Unexpected norm=" << tot << " for " << lab
+		<< ", T=" << tnow << ", index=" << p->indx
+		<< ", Z=" << k.Z();
+      if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
+      std::cout << ", ";
+      for (size_t C=0; C<=k.Z(); C++)
+	std::cout << std::setw(18) << p->dattrib[hybrid_pos+C];
+      std::cout << std::endl;
+    }
+    for (size_t C=0; C<=k.Z(); C++) p->dattrib[hybrid_pos+C] /= tot;
+  } else {
+    std::cout << "[" << myid << "] Invalid zero norm for " << lab << ", T=" << tnow
+	      << ", index=" << p->indx << ", Z=" << k.Z();
+    if (DEBUG_CNT>=0) std::cout << ", Count=" << p->iattrib[DEBUG_CNT];
+    std::cout << std::endl;
+  }
+}
+
+
 int CollideIon::inelasticHybrid(pCell* const c, 
 				Particle* const _p1, Particle* const _p2,
 				double *cr, int id)
@@ -5175,19 +5206,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // Sanity check
   //
   if (1) {
-    double tot1 = 0.0, tot2 = 0.0;
-    for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
-    if (tot1 > 0.0) {
-      for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
-    } else {
-      std::cout << "Invalid norm p1 [before]" << std::endl;
-    }
-    for (size_t C=0; C<=Z2; C++) tot2 += p2->dattrib[hybrid_pos+C];
-    if (tot2 > 0.0) {
-      for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
-    } else {
-      std::cout << "Invalid norm p2 [before]" << std::endl;
-    }
+    normTest(p1, "p1 [Before]");
+    normTest(p2, "p2 [Before]");
   }
 
   // Find the trace ratio
@@ -5203,6 +5223,13 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // For tracking energy conservation (system units)
   //
   double delE1 = 0.0, delE2 = 0.0;
+
+  // Collision count debugging
+  //
+  if (DEBUG_CNT >= 0) {
+    p1->iattrib[DEBUG_CNT] += 1;
+    p2->iattrib[DEBUG_CNT] += 1;
+  }
 
   // Computing total cross section for scaling
   //
@@ -5372,14 +5399,16 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (NO_ION_E) dE = 0.0;
 	delE1 += dE;
 
-	if (cF*q < p1->dattrib[hybrid_pos+C1]) {
-	  p1->dattrib[hybrid_pos+C1+0] -= cF * q;
-	  p1->dattrib[hybrid_pos+C1+1] += cF * q;
+	if (cF*q < p1->dattrib[hybrid_pos+C1-1]) {
+	  p1->dattrib[hybrid_pos+C1-1] -= cF * q;
+	  p1->dattrib[hybrid_pos+C1+0] += cF * q;
 	} else {
-	  p1->dattrib[hybrid_pos+C1+1] += p1->dattrib[hybrid_pos+C1];
-	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
+	  p1->dattrib[hybrid_pos+C1+0] += p1->dattrib[hybrid_pos+C1-1];
+	  p1->dattrib[hybrid_pos+C1-1]  = 0.0;
 	}
 	
+	normTest(p1, "p1 [After ionize_1]");
+
 	std::get<0>(ctd1->CI[id])++; 
 	std::get<1>(ctd1->CI[id]) += Wb * cF;
 	std::get<2>(ctd1->CI[id]) += dE * N0;
@@ -5390,15 +5419,17 @@ int CollideIon::inelasticHybrid(pCell* const c,
       if (interFlag == recomb_1) {
 
 	double wght = cF * q;
-	if (wght < p1->dattrib[hybrid_pos+C1]) {
-	  p1->dattrib[hybrid_pos+C1+0] -= wght;
-	  p1->dattrib[hybrid_pos+C1-1] += wght;
+	if (wght < p1->dattrib[hybrid_pos+C1-1]) {
+	  p1->dattrib[hybrid_pos+C1-1] -= wght;
+	  p1->dattrib[hybrid_pos+C1-2] += wght;
 	} else {
 	  wght = p1->dattrib[hybrid_pos+C1];
-	  p1->dattrib[hybrid_pos+C1-1] += wght;
-	  p1->dattrib[hybrid_pos+C1+0]  = 0.0;
+	  p1->dattrib[hybrid_pos+C1-2] += wght;
+	  p1->dattrib[hybrid_pos+C1-1]  = 0.0;
 	}
 	
+	normTest(p1, "p1 [After recomb_1]");
+
 	double dE = kEe1[id] * cF * q;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q;
 	
@@ -5482,13 +5513,15 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (NO_ION_E) dE = 0.0;
 	delE2 += dE;
 
-	if (cF*q < p2->dattrib[hybrid_pos+C2]) {
-	  p2->dattrib[hybrid_pos+C2+0] -= cF * q;
-	  p2->dattrib[hybrid_pos+C2+1] += cF * q;
+	if (cF*q < p2->dattrib[hybrid_pos+C2-1]) {
+	  p2->dattrib[hybrid_pos+C2-1] -= cF * q;
+	  p2->dattrib[hybrid_pos+C2+0] += cF * q;
 	} else {
-	  p2->dattrib[hybrid_pos+C2+1] += p2->dattrib[hybrid_pos+C2];
-	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
+	  p2->dattrib[hybrid_pos+C2+0] += p2->dattrib[hybrid_pos+C2-1];
+	  p2->dattrib[hybrid_pos+C2-1]  = 0.0;
 	}
+
+	normTest(p2, "p2 [After ionize_2]");
 
 	std::get<0>(ctd2->CI[id])++; 
 	std::get<1>(ctd2->CI[id]) += Wb * cF;
@@ -5500,14 +5533,16 @@ int CollideIon::inelasticHybrid(pCell* const c,
       if (interFlag == recomb_2) {
 
 	double wght = cF * q;
-	if (wght < p2->dattrib[hybrid_pos+C2]) {
-	  p2->dattrib[hybrid_pos+C2+0] -= wght;
-	  p2->dattrib[hybrid_pos+C2-1] += wght;
+	if (wght < p2->dattrib[hybrid_pos+C2-1]) {
+	  p2->dattrib[hybrid_pos+C2-1] -= wght;
+	  p2->dattrib[hybrid_pos+C2-2] += wght;
 	} else {
-	  wght = p2->dattrib[hybrid_pos+C2];
-	  p2->dattrib[hybrid_pos+C2-1] += wght;
-	  p2->dattrib[hybrid_pos+C2+0]  = 0.0;
+	  wght = p2->dattrib[hybrid_pos+C2-1];
+	  p2->dattrib[hybrid_pos+C2-2] += wght;
+	  p2->dattrib[hybrid_pos+C2-1]  = 0.0;
 	}
+
+	normTest(p2, "p2 [After recomb_2]");
 
 	double dE = kEe2[id] * cF * q;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q;
@@ -5708,19 +5743,8 @@ int CollideIon::inelasticHybrid(pCell* const c,
     }
   }
 
-  double tot1 = 0.0, tot2 = 0.0;
-  for (size_t C=0; C<=Z1; C++) tot1 += p1->dattrib[hybrid_pos+C];
-  if (tot1 > 0.0) {
-    for (size_t C=0; C<=Z1; C++) p1->dattrib[hybrid_pos+C] /= tot1;
-  } else {
-    std::cout << "Invalid norm p1 [after]" << std::endl;
-  }
-  for (size_t C=0; C<=Z2; C++) tot2 += p2->dattrib[hybrid_pos+C];
-  if (tot2 > 0.0) {
-    for (size_t C=0; C<=Z2; C++) p2->dattrib[hybrid_pos+C] /= tot2;
-  } else {
-    std::cout << "Invalid norm p2 [after]" << std::endl;
-  }
+  normTest(p1, "p1 [After]");
+  normTest(p2, "p2 [After]");
 
   return ret;
 }
@@ -8265,6 +8289,12 @@ void CollideIon::parseSpecies(const std::string& map)
   MPI_Bcast(&use_cons,   1, MPI_INT,       0, MPI_COMM_WORLD);
   MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
   MPI_Bcast(&hybrid_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
+
+  if (myid==0) {
+    std::cout << std::setw(12) << "use_cons" << " : " << use_cons << std::endl;
+    std::cout << std::setw(12) << "use_elec" << " : " << use_elec << std::endl;
+    std::cout << std::setw(12) << "hybrid_p" << " : " << hybrid_pos << std::endl;
+  }
 
   if (aType == Trace) {
 
@@ -10867,6 +10897,9 @@ void CollideIon::processConfig()
 
     NTC_DIST =
       cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
+
+    DEBUG_CNT =
+      cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
