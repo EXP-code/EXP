@@ -67,8 +67,8 @@ double pc    = 3.08567758e18;	    // Parsec (in cm)
 double msun  = 1.9891e33;	    // Solar mass (in g)
 double year  = 365.242*24.0*3600.0; // seconds per year
 
-// double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
-double atomic_masses[3] = {0.1, 1.00794, 4.002602};
+double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
+// double atomic_masses[3] = {0.1, 1.00794, 4.002602};
 
 double Lunit;
 double Tunit;
@@ -108,10 +108,15 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
   std::cout << std::string(70, '-')                 << std::endl;
 
-  double var0  = sqrt((boltz*T)/amu);
-  double varE  = sqrt((boltz*T)/(atomic_masses[0]*amu));
-  double varH  = sqrt((boltz*T)/(atomic_masses[1]*amu));
-  double varHe = sqrt((boltz*T)/(atomic_masses[2]*amu));
+  double var0  = sqrt((boltz*T)/amu) / Vunit;
+  double varE  = sqrt((boltz*T)/(atomic_masses[0]*amu)) / Vunit;
+  double varH  = sqrt((boltz*T)/(atomic_masses[1]*amu)) / Vunit;
+  double varHe = sqrt((boltz*T)/(atomic_masses[2]*amu)) / Vunit;
+
+  double tKEi  = 0.0;
+  double tKEe  = 0.0;
+  double numb  = 0.0;
+  double Eunit = Munit*Vunit*Vunit;
 
   for (unsigned i=0; i<npart; i++) {
 
@@ -122,7 +127,6 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
 	p[i].vel[k] = var0*(*Norm)();
-	p[i].vel[k] /= Vunit;
       }
 
     } else {
@@ -134,16 +138,22 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
-	if (Z == 1) p[i].vel[k] = varH*(*Norm)();
-	if (Z == 2) p[i].vel[k] = varHe*(*Norm)();
-	p[i].vel[k] /= Vunit;
+	if (Z == 1) p[i].vel[k] = varH  * (*Norm)();
+	if (Z == 2) p[i].vel[k] = varHe * (*Norm)();
 	KE += p[i].vel[k] * p[i].vel[k];
       }
 
+      double KEe = 0.0;
       if (ne>=0) {
-	for (int l=0; l<3; l++)
-	  p[i].dattrib[ne+l] = varE*(*Norm)() / Vunit;
+	for (int l=0; l<3; l++) {
+	  p[i].dattrib[ne+l] = varE * (*Norm)();
+	  KEe += p[i].dattrib[ne+l] * p[i].dattrib[ne+l];
+	}
       }
+
+      tKEi += 0.5 * p[i].mass * KE * Eunit;
+      tKEe += 0.5 * p[i].mass * atomic_masses[0]/atomic_masses[Z] * KEe * Eunit;
+      numb += p[i].mass/atomic_masses[Z] * Munit / amu;
 
       KE *= 0.5 * p[i].mass * (C-1);
     }
@@ -158,6 +168,12 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
       else p[i].dattrib.push_back(KE);
     }
+  }
+
+  if (type != Trace) {
+    std::cout << "T (ion):     " << tKEi/(1.5*numb*boltz) << std::endl
+	      << "T (elec):    " << tKEe/(1.5*numb*boltz) << std::endl
+	      << std::string(70, '-') << std::endl;
   }
 }
 
