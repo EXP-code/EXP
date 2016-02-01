@@ -8290,12 +8290,6 @@ void CollideIon::parseSpecies(const std::string& map)
   MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
   MPI_Bcast(&hybrid_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
 
-  if (myid==0) {
-    std::cout << std::setw(12) << "use_cons" << " : " << use_cons << std::endl;
-    std::cout << std::setw(12) << "use_elec" << " : " << use_elec << std::endl;
-    std::cout << std::setw(12) << "hybrid_p" << " : " << hybrid_pos << std::endl;
-  }
-
   if (aType == Trace) {
 
     speciesKey key;
@@ -9568,6 +9562,7 @@ void CollideIon::gatherSpecies()
     totlE = 0.0;
     tempM = 0.0;
     tempE = 0.0;
+    massE = 0.0;
     elecE = 0.0;
     
     specI.clear();
@@ -9628,7 +9623,7 @@ void CollideIon::gatherSpecies()
       }
 
       cType::iterator ft = ETcache.find(cell->sample->mykey);
-
+      
       if (use_elec >= 0) {
 	
 	if (ft != ETcache.end()) {
@@ -9639,62 +9634,93 @@ void CollideIon::gatherSpecies()
 	  std::vector<dtup> vel(3, zero);
 
 	  double count = 0.0;
-	  for (auto c : cell->sample->children) {
-	    for (auto b : c.second->bods) {
-	      Particle *p = c0->Tree()->Body(b);
-	      KeyConvert k(p->iattrib[use_key]);
-	      unsigned short ne = k.C() - 1;
-	      double numb = p->mass/atomic_weights[k.Z()];
-	      if (ne) {
-		for (unsigned k=0; k<3; k++) {
-		  double v = p->dattrib[use_elec+k];
-		  std::get<0>(vel[k]) += v   * numb;
-		  std::get<1>(vel[k]) += v*v * numb;
-		}
-		count += numb;
-	      }
+	  for (auto b : cell->sample->Bodies()) {
+	    Particle *p = c0->Tree()->Body(b);
+	    KeyConvert k(p->iattrib[use_key]);
+
+	    // Compute effective number of electrons
+	    //
+	    double numbE = 0.0;
+	    if (aType==Hybrid) {
+	      for (unsigned short C=1; C<=k.Z(); C++) 
+		numbE += p->dattrib[hybrid_pos+C] * C;
+	    } else {
+	      numbE = k.C() - 1;
 	    }
+	    numbE *= p->mass/atomic_weights[k.Z()];
+	    
+	    for (unsigned k=0; k<3; k++) {
+	      double v = p->dattrib[use_elec+k];
+	      std::get<0>(vel[k]) += v   * numbE;
+	      std::get<1>(vel[k]) += v*v * numbE;
+	    }
+	    count += numbE;
 	  }
 	    
 	  double dispr = 0.0;
-	    
+	  
 	  // Temp computation
 	  // ----------------
 	  // number of atoms      = w_i  = m_i/(mu_i * m_a)
-	  // elec mean velocity   = sv1  = sum_i (w_i v)
-	  // elec mean vel^2      = sv2  = sum_i (w_i v^2)
+	  // elec mean velocity   = sv1  = sum_i (w_i v) / sum_i w_i
+	  // elec mean vel^2      = sv2  = sum_i (w_i v^2) / sum_i w_i
 	  // summed number        = sn   = sum_i (w_i)
-	  // elec specific KE     = disp = sv2 - sv1*sv1/sn
-	  // total elecron KE     = KE   = mu_e*m_a * disp
+	  // elec specific KE     = disp = \sum (sv2 - sv1*sv1)/2
+	  // total elecron KE     = KE   = mu_e*m_a * sn * disp
 	  // number of elecrons   = N    = sum_i (m_i/(mu_i * m_a)) = sn
+	  //                               where we count one electron per ion
 	  // total elecron KE     =        3/2 N k T
 	  // KE prefactor         = Tfac = 2 * m_a/(3*k)
+	  // 3/2 N k T            = KE = mu_e * m_a * N * disp
+	  //                       where factor of N cancel on left and right
+	  // Temperature = T      = 2/(3*k) * mu_e * m_a * disp
 	  // ----------------
 	  // Solve for T
 	  // ----------------
-	  // T = [2/(3*k) * m_a] * KE/sn
-	  //   = [2/(3*k) * m_a] * mu_e * disp / sn
-	  //   = Tfac * mu_e * disp / sn
+	  // T = [2/(3*k) * m_a] * mu_e * disp
+	  //   = [2/(3*k) * m_a] * mu_e * disp
+	  //   = Tfac * mu_e * disp
+	  //
+	  // --------------------------------
+	  // Hybrid electron temp computation
+	  // --------------------------------
+	  //  N  = \sum_j N_{e,j} 
+	  //                      where numbE = N_{e,j}, N = \sum_j count_j
+	  // v_1 = \sum_j N_{e,j} v_{e,j} / N
+	  //                      where v_1 is mean 1-d velocity
+	  // s^2 = \sum_k [\sum \sum_j(v_j^2) / N - v_1^2]/2
+	  //                      where inner sum is variance for each dim
+	  // KE  = mu_e * N * s^2 = 3/2 * N * k * T
+	  //                      and N cancels out for solution of T
+	  // ==> T = 2/3 * mu_e * m_a * s^2/k = Tfac * mu_e * s^2
 	  
 	  if (count > 0.0) {
 	    for (auto v : vel) {
-	      double v1 = std::get<0>(v);
-	      dispr += 0.5*(std::get<1>(v) - v1*v1/count);
+	      double v1 = std::get<0>(v)/count;
+	      dispr += 0.5*(std::get<1>(v)/count - v1*v1);
 	    }
 	    T = ETcache[cell->sample->mykey] = 
-	      Tfac * atomic_weights[0] * dispr/count;
+	      Tfac * atomic_weights[0] * dispr;
 	  } else {
 	    T = ETcache[cell->sample->mykey] = 0.0;
 	  }
+
+	} // END: compute electron temperature
+
+	// Sanity check
+	if (T < 100.0) {
+	  std::cout << "[" << myid << "]: T=" << T << std::endl;
+	} else {
+	  // Mass-weighted temperature
+	  //
+	  tempE += cell->Mass() * T; 
+	  massE += cell->Mass();
 	}
-
-				// Mass-weighted temperature
-	tempE += cell->Mass() * T; 
-
+	
 	// Compute total electron energy in this cell
 	//
 	elecE += electronEnergy(cell);
-
+	
 	// Compute electron energy per element
 	//
 	for (auto b : cell->bods) {
@@ -9718,7 +9744,7 @@ void CollideIon::gatherSpecies()
 	  std::get<0>(specE[Z]) += 0.5*num*atomic_weights[0]*v2;
 	  std::get<1>(specE[Z]) += num;
 	}
-
+	
       } // end: use_elec>=0
 
     } // end: cell loop
@@ -9727,7 +9753,7 @@ void CollideIon::gatherSpecies()
     // Send values to root
     //
     double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
-    double val6 = 0.0, val7 = 0.0;
+    double val6 = 0.0, val7 = 0.0, val8 = 0.0;
     
     if (aType!=Hybrid and COLL_SPECIES) {
       for (int t=1; t<nthrds; t++) {
@@ -9756,6 +9782,7 @@ void CollideIon::gatherSpecies()
 
 				// Energies
 	if (use_elec >= 0) {
+	  MPI_Send(&massE, 1, MPI_DOUBLE, 0, 356, MPI_COMM_WORLD);
 	  MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
 	  MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 337, MPI_COMM_WORLD);
 
@@ -9846,6 +9873,8 @@ void CollideIon::gatherSpecies()
 		 MPI_STATUS_IGNORE);
 
 	if (use_elec >= 0) {
+	  MPI_Recv(&val8, 1, MPI_DOUBLE, i, 356, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val7, 1, MPI_DOUBLE, i, 337, MPI_COMM_WORLD,
@@ -9956,6 +9985,7 @@ void CollideIon::gatherSpecies()
 	totlE += val5;
 	tempE += val6;
 	elecE += val7;
+	massE += val8;
 
       } // end: myid==0
 
@@ -9963,9 +9993,11 @@ void CollideIon::gatherSpecies()
 
     if (mass>0.0) {
       tempM /= mass;
-      tempE /= mass;
       if (aType == Hybrid)
 	for (auto & e : specM) e.second /= mass;
+    }
+    if (massE>0.0) {
+      tempE /= mass;
     }
   }
 }
