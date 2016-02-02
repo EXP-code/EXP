@@ -155,7 +155,7 @@ static double minCollFrac     = -1.0;
 
 // Test use_cons summation for debugging
 //
-static bool use_cons_test     = true;
+static bool use_cons_test     = false;
 
 static bool temp_debug        = false;
 
@@ -5694,6 +5694,12 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
     if (ke1 > 0.0 and ke2 > 0.0) {
 
+      if (Z1 == Z2) {
+	delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+      }
+
+      // p1E and p2E for debugging only
       KE_ KE(delE, p1E, p2E);
 
       computeHybridInteraction(d, v1, v2, KE, id);
@@ -5715,6 +5721,12 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
     if (ke1 > 0.0 and ke2 > 0.0) {
 
+      if (Z1 == Z2) {
+	delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+      }
+
+      // p1E and p2E for debugging only
       KE_ KE(delE, p1E, p2E);
 
       computeHybridInteraction(d, v1, v2, KE, id);
@@ -5736,6 +5748,12 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
     if (ke1 > 0.0 and ke2 > 0.0) {
 
+      if (Z1 == Z2) {
+	delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+      }
+
+      // p1E and p2E for debugging only
       KE_ KE(delE, p1E, p2E);
 
       computeHybridInteraction(d, v1, v2, KE, id);
