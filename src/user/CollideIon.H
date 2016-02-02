@@ -677,8 +677,10 @@ protected:
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];
 
+  //@{
   //! Hybrid algorithm support routines
 
+  //! Maintain intermediate energy conservation quantities
   class KE_
   {
   private:
@@ -707,6 +709,7 @@ protected:
   
   enum HybridColl {Ion1, Ion2, Neutral};
 
+  //! Interaction data structure for simplifying variable passing
   struct InteractData 
   {
     double m1, m2, Wa, Wb, q, vi2;
@@ -720,19 +723,24 @@ protected:
 
   };
 
+  //! Compute the interaction for the hybrid weighted method
   int computeHybridInteraction
   (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
    int id);
 
+  //! Update the velocity states for the hybrid weighted method
   int updateHybrid
   (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
    HybridColl iType, int id);
 
+  //! Print cross-section weights for debugging
   void meanFdump(int id);
 
   //! Normalize the ionization state weights for the Hybrid method and
   //! test for correctness
   void normTest(Particle* const p, const std::string& lab);
+
+  //@}
 
 public:
   static double   Nmin;
