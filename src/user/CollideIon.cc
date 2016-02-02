@@ -8290,12 +8290,6 @@ void CollideIon::parseSpecies(const std::string& map)
   MPI_Bcast(&use_elec,   1, MPI_INT,       0, MPI_COMM_WORLD);
   MPI_Bcast(&hybrid_pos, 1, MPI_INT,       0, MPI_COMM_WORLD);
 
-  if (myid==0) {
-    std::cout << std::setw(12) << "use_cons" << " : " << use_cons << std::endl;
-    std::cout << std::setw(12) << "use_elec" << " : " << use_elec << std::endl;
-    std::cout << std::setw(12) << "hybrid_p" << " : " << hybrid_pos << std::endl;
-  }
-
   if (aType == Trace) {
 
     speciesKey key;
@@ -9568,6 +9562,7 @@ void CollideIon::gatherSpecies()
     totlE = 0.0;
     tempM = 0.0;
     tempE = 0.0;
+    massE = 0.0;
     elecE = 0.0;
     
     specI.clear();
@@ -9639,31 +9634,28 @@ void CollideIon::gatherSpecies()
 	  std::vector<dtup> vel(3, zero);
 
 	  double count = 0.0;
-	  for (auto c : cell->sample->children) {
-	    for (auto b : c.second->bods) {
-	      Particle *p = c0->Tree()->Body(b);
-	      KeyConvert k(p->iattrib[use_key]);
+	  for (auto b : cell->sample->Bodies()) {
+	    Particle *p = c0->Tree()->Body(b);
+	    KeyConvert k(p->iattrib[use_key]);
 
-	      // Compute effective number of electrons
-	      //
-	      double numbE = 0.0;
-	      if (aType==Hybrid) {
-		for (unsigned short C=1; C<=k.Z(); C++) 
-		  numbE += p->dattrib[hybrid_pos+C] * C;
-	      } else {
-		numbE = k.C() - 1;
-	      }
-	      numbE *= p->mass/atomic_weights[k.Z()];
-
-	      for (unsigned k=0; k<3; k++) {
-		double v = p->dattrib[use_elec+k];
-		std::get<0>(vel[k]) += v   * numbE;
-		std::get<1>(vel[k]) += v*v * numbE;
-	      }
-	      count += numbE;
+	    // Compute effective number of electrons
+	    //
+	    double numbE = 0.0;
+	    if (aType==Hybrid) {
+	      for (unsigned short C=1; C<=k.Z(); C++) 
+		numbE += p->dattrib[hybrid_pos+C] * C;
+	    } else {
+	      numbE = k.C() - 1;
 	    }
-	  }
+	    numbE *= p->mass/atomic_weights[k.Z()];
 	    
+	    for (unsigned k=0; k<3; k++) {
+	      double v = p->dattrib[use_elec+k];
+	      std::get<0>(vel[k]) += v   * numbE;
+	      std::get<1>(vel[k]) += v*v * numbE;
+	    }
+	    count += numbE;
+	  }
 	    
 	  // Temp computation
 	  // ----------------
@@ -9710,15 +9702,23 @@ void CollideIon::gatherSpecies()
 	  }
 
 	  T = ETcache[cell->sample->mykey] = Tfac * atomic_weights[0] * dispr;
+
+	} // END: compute electron temperature
+
+	// Sanity check
+	if (T < 100.0) {
+	  std::cout << "[" << myid << "]: T=" << T << std::endl;
+	} else {
+	  // Mass-weighted temperature
+	  //
+	  tempE += cell->Mass() * T; 
+	  massE += cell->Mass();
 	}
-
-				// Mass-weighted temperature
-	tempE += cell->Mass() * T; 
-
+	
 	// Compute total electron energy in this cell
 	//
 	elecE += electronEnergy(cell);
-
+	
 	// Compute electron energy per element
 	//
 	for (auto b : cell->bods) {
@@ -9742,7 +9742,7 @@ void CollideIon::gatherSpecies()
 	  std::get<0>(specE[Z]) += 0.5*num*atomic_weights[0]*v2;
 	  std::get<1>(specE[Z]) += num;
 	}
-
+	
       } // end: use_elec>=0
 
     } // end: cell loop
@@ -9751,7 +9751,7 @@ void CollideIon::gatherSpecies()
     // Send values to root
     //
     double val1, val2, val3 = 0.0, val4 = 0.0, val5 = 0.0;
-    double val6 = 0.0, val7 = 0.0;
+    double val6 = 0.0, val7 = 0.0, val8 = 0.0;
     
     if (aType!=Hybrid and COLL_SPECIES) {
       for (int t=1; t<nthrds; t++) {
@@ -9780,6 +9780,7 @@ void CollideIon::gatherSpecies()
 
 				// Energies
 	if (use_elec >= 0) {
+	  MPI_Send(&massE, 1, MPI_DOUBLE, 0, 356, MPI_COMM_WORLD);
 	  MPI_Send(&tempE, 1, MPI_DOUBLE, 0, 336, MPI_COMM_WORLD);
 	  MPI_Send(&elecE, 1, MPI_DOUBLE, 0, 337, MPI_COMM_WORLD);
 
@@ -9870,6 +9871,8 @@ void CollideIon::gatherSpecies()
 		 MPI_STATUS_IGNORE);
 
 	if (use_elec >= 0) {
+	  MPI_Recv(&val8, 1, MPI_DOUBLE, i, 356, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val6, 1, MPI_DOUBLE, i, 336, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
 	  MPI_Recv(&val7, 1, MPI_DOUBLE, i, 337, MPI_COMM_WORLD,
@@ -9980,6 +9983,7 @@ void CollideIon::gatherSpecies()
 	totlE += val5;
 	tempE += val6;
 	elecE += val7;
+	massE += val8;
 
       } // end: myid==0
 
@@ -9987,9 +9991,11 @@ void CollideIon::gatherSpecies()
 
     if (mass>0.0) {
       tempM /= mass;
-      tempE /= mass;
       if (aType == Hybrid)
 	for (auto & e : specM) e.second /= mass;
+    }
+    if (massE>0.0) {
+      tempE /= mass;
     }
   }
 }
@@ -10595,7 +10601,7 @@ double CollideIon::molWeight(sCell *cell)
 {
   double mol_weight = 1.0;
 
-  if (aType==Direct or aType==Weight) {
+  if (aType==Direct or aType==Weight or aType==Hybrid) {
     double numbC = 0.0, massC = 0.0;
     for (auto it : cell->count) {
       speciesKey i = it.first;
