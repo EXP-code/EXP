@@ -339,6 +339,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spProb   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
+  crsD     .resize(nthrds);
   keER     .resize(nthrds);
   keIR     .resize(nthrds);
   elecOvr  .resize(nthrds, 0);
@@ -348,6 +349,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : momD ) v.set_capacity(bufCap);
+  for (auto &v : crsD ) v.set_capacity(bufCap);
   for (auto &v : keER ) v.set_capacity(bufCap);
   for (auto &v : keIR ) v.set_capacity(bufCap);
 
@@ -2014,23 +2016,23 @@ double CollideIon::crossSectionHybrid(pCell* const c,
       
   // Number of atoms in each super particle
   //
-  double N1   = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
-  double N2   = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
+  double N1    = p1->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z1];
+  double N2    = p2->mass*UserTreeDSMC::Munit/amu / atomic_weights[Z2];
 
   // Energy available in the center of mass of the atomic collision
   //
-  double vel = cr * UserTreeDSMC::Vunit;
+  double vel   = cr * UserTreeDSMC::Vunit;
 
-  double m1  = atomic_weights[Z1]*amu;
-  double m2  = atomic_weights[Z2]*amu;
-  double me  = atomic_weights[ 0]*amu;
+  double m1    = atomic_weights[Z1]*amu;
+  double m2    = atomic_weights[Z2]*amu;
+  double me    = atomic_weights[ 0]*amu;
 
-  double mu0 = m1 * m2 / (m1 + m2);
-  double mu1 = m1 * me / (m1 + me);
-  double mu2 = me * m2 / (me + m2);
+  double mu0   = m1 * m2 / (m1 + m2);
+  double mu1   = m1 * me / (m1 + me);
+  double mu2   = me * m2 / (me + m2);
 
-  double dof1 = 1.0 + meanE[id];
-  double dof2 = 1.0 + meanE[id];
+  double dof1  = 1.0 + meanE[id];
+  double dof2  = 1.0 + meanE[id];
 
   if (NO_DOF) dof1 = dof2 = 1.0;
 
@@ -5279,12 +5281,14 @@ int CollideIon::inelasticHybrid(pCell* const c,
   }
 
   //
-  // Cross section scale factor
+  // Cross section scale factor for debugging
   //
   double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()] *
     1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
 
-  N0 *= scaleCrossSection;
+  crsD[id].push_back(scaleCrossSection);
+
+  // END: crsD
 
   double NCXTRA = 0.0;
 
@@ -10099,7 +10103,7 @@ void CollideIon::printSpeciesColl()
 
 void CollideIon::electronGather()
 {
-  bool IDBG = false;
+  bool IDBG = true;
 
   if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
 
@@ -10135,7 +10139,7 @@ void CollideIon::electronGather()
 
     // Accumulate from threads
     //
-    std::vector<double> loss, keE, keI, mom;
+    std::vector<double> loss, keE, keI, mom, crs;
     unsigned Ovr=0, Acc=0, Tot=0;    for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
@@ -10148,6 +10152,12 @@ void CollideIon::electronGather()
     if (ExactE and DebugE) {
       for (int t=0; t<nthrds; t++) {
 	mom.insert(mom.end(), momD[t].begin(), momD[t].end());
+      }
+    }
+
+    if (aType==Hybrid) {
+      for (int t=0; t<nthrds; t++) {
+	crs.insert(crs.end(), crsD[t].begin(), crsD[t].end());
       }
     }
 
@@ -10283,7 +10293,16 @@ void CollideIon::electronGather()
 
 	  if (eNum) MPI_Send(&mom[0], eNum, MPI_DOUBLE, 0, 445, MPI_COMM_WORLD);
 	  if (IDBG) dbg << " ... mom sent" << std::endl;
-	  }
+	}
+
+	if (aType==Hybrid) {
+	  MPI_Send(&(eNum=crs.size()), 1, MPI_UNSIGNED, 0, 446, MPI_COMM_WORLD);
+	  if (IDBG) dbg << std::setw(16) << "crs.size() = " << std::setw(10) << eNum;
+
+	  if (eNum) MPI_Send(&crs[0], eNum, MPI_DOUBLE, 0, 447, MPI_COMM_WORLD);
+	  if (IDBG) dbg << " ... crs sent" << std::endl;
+	}
+
       }
 
 				// Root receives from Node i
@@ -10385,6 +10404,26 @@ void CollideIon::electronGather()
 	  }
 	}
 
+	if (aType==Hybrid) {
+	  if (IDBG) dbg << "root in crs stanza" << std::endl;
+	  MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 446, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
+	  if (IDBG) dbg << "recvd from " << std::setw(4) << i
+			<< std::setw(16) << " crs.size() = "
+			<< std::setw(10) << eNum;
+
+	  if (eNum) {
+	    vTmp.resize(eNum);
+
+	    MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 447, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    crs.insert(crs.end(), vTmp.begin(), vTmp.end());
+
+	    if (IDBG) dbg << " ... crs recvd" << std::endl;
+	  } else {
+	    if (IDBG) dbg << std::endl;
+	  }
+	}
+
       } // end: myid=0
 
     } // end: process loop
@@ -10432,6 +10471,10 @@ void CollideIon::electronGather()
 
       if (mom.size()) {
 	momH = ahistoDPtr(new AsciiHisto<double>(mom, 20, 0.01));
+      }
+
+      if (crs.size()) {
+	crsH = ahistoDPtr(new AsciiHisto<double>(crs, 20, 0.01, true));
       }
 
     }
@@ -10501,6 +10544,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron momentum difference ratio -------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*momH)(out);
+  }
+
+  if (crsH.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Hybrid total cross section ratios --------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*crsH)(out);
   }
 
 
