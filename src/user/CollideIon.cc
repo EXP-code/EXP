@@ -9119,10 +9119,21 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  // computational particle)
 
 	  double crossT = 0.0;
-	  if (i2>=i1)
-	    crossT = csections[id][i1][i2];
-	  else
-	    crossT = csections[id][i2][i1];
+
+	  if (i2>=i1) {
+	    sKeyPair k(i1, i2);
+	    if (ntcdb[samp->mykey].Ready(k))
+	      crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) / crm;
+	    else
+	      crossT = csections[id][i1][i2];
+	  }
+	  else {
+	    sKeyPair k(i2, i1);
+	    if (ntcdb[samp->mykey].Ready(k))
+	      crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) / crm;
+	    else
+	      crossT = csections[id][i2][i1];
+	  }
 
 	  // Choose the trace species of the two (may be neither in
 	  // which case it doesn't matter)
