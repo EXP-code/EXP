@@ -628,7 +628,9 @@ protected:
   double tempM, tempE, massE, elecE, molwM, consE, consG, totlE;
   spDMap specM;
 
-  typedef std::tuple<double, double>     ZTup;
+  typedef std::tuple<double, double> DTup;
+  typedef std::tuple<std::array<DTup, 3>, double> ZTup;
+
   typedef std::map<unsigned short, ZTup> ZMap;
   ZMap   specE, specI;
   std::set<unsigned short> specZ;
