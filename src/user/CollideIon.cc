@@ -9123,14 +9123,14 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  if (i2>=i1) {
 	    sKeyPair k(i1, i2);
 	    if (ntcdb[samp->mykey].Ready(k))
-	      crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) / crm;
+	      csections[id][i1][i2] = crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) * cunit / crm;
 	    else
 	      crossT = csections[id][i1][i2];
 	  }
 	  else {
 	    sKeyPair k(i2, i1);
 	    if (ntcdb[samp->mykey].Ready(k))
-	      crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) / crm;
+	      csections[id][i2][i1] = crossT = ntcdb[samp->mykey].CrsVel(k, 0.5) * cunit / crm;
 	    else
 	      crossT = csections[id][i2][i1];
 	  }
