@@ -7015,6 +7015,8 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
   return Eengy * atomic_weights[0];
 }
 
+bool debugFC = true;
+
 void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell, 
 			       sKeyDmap* const Fn, double kedsp, double tau,
 			       int id)
@@ -7224,10 +7226,24 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   } // end: Trace
   
   
+  // Count scattering interactions for debugging output
+  //
+  std::map<speciesKey,  unsigned> countE;
+  std::ofstream outdbg;
+  if (debugFC) {
+    ostringstream ostr;
+    ostr << outdir << runtag << ".eScatter." << myid;
+    outdbg.open(ostr.str().c_str(), ios::out | ios::app);
+    if (outdbg) outdbg << "Cell=" << cell->mykey << " electron scattering"
+		       << std::endl;
+  }
+
   // Do electron interactions separately
   //
   if ( (aType == Direct or aType == Weight or aType == Hybrid)
        and use_elec>=0 and esType != always and esType != none) {
+
+    if (outdbg) outdbg << "in electron interaction loop" << std::endl;
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
@@ -7244,10 +7260,19 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     for (auto i : cell->bods) {
       Particle *p = cell->Body(i);
       KeyConvert k(p->iattrib[use_key]);
-      if (k.C()>1) {
+      if (aType == Hybrid) {
 	bods.push_back(i);
-	eta += ZMList[k.Z()]/atomic_weights[k.Z()] * 
-	  (*Fn)[k.getKey()] * (k.C()-1);
+	for (unsigned short C=1; C<=k.Z(); C++) {
+	  eta += ZMList[k.Z()]/atomic_weights[k.Z()] * 
+	    (*Fn)[k.getKey()] * p->dattrib[hybrid_pos+C]*C;
+	}
+
+      } else {
+	if (k.C()>1) {
+	  bods.push_back(i);
+	  eta += ZMList[k.Z()]/atomic_weights[k.Z()] * 
+	    (*Fn)[k.getKey()] * (k.C()-1);
+	}
       }
     }
     
@@ -7268,8 +7293,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     double   selcM = 0.5 * nbods * (nbods-1) *  Prob;
     unsigned nselM = static_cast<unsigned>(floor(selcM+0.5));
 
-    if (esType == limited or esType == fixed) 
+    if (esType == limited or esType == fixed) { 
+      if (debugFC and outdbg) {
+	outdbg << "nselM="   << std::setw(10) << nselM << std::endl;
+      }
       nselM = std::min<unsigned>(nselM, esNum);
+    }
 
     for (unsigned n=0; n<nselM; n++) {
     
@@ -7420,6 +7449,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       // Scatter
       //
       if (ok) {
+
 	double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
 	double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
 	double phi    = 2.0*M_PI*(*unit)();        // Collision angle phi
@@ -7588,7 +7618,15 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 				// Correct energy for conservation
 	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
 	}
-      }
+
+	// For debugging
+	//
+	if (debugFC) {
+	  countE[k1.getKey()]++;
+	  countE[k2.getKey()]++;
+	}
+
+      } // END: scatter
 
       if (KE_DEBUG) {
 
@@ -7628,8 +7666,22 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     } // loop over particles
 
 
-  } // end: Direct or Weight for use_elec>=0
+  } // end: Direct, Weight, or Hybrid for use_elec>=0
 
+
+  // For debugging
+  //
+  if (debugFC and outdbg) {
+    if (countE.size()) {
+      for (auto i : countE) {
+	outdbg << "("    << std::setw(3) << i.first.first
+	       << ", "   << std::setw(3) << i.first.second
+	       << ") = " << i.second     << std::endl;
+      }
+    }
+    outdbg << "Cell=" << cell->mykey << " electron scattering DONE"
+	   << std::endl << std::string(70, '-') << std::endl;
+  }
 
   //
   // Cross-section debugging
