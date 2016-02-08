@@ -7314,6 +7314,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
+      
+      if (aType == Hybrid) {
+	ne1 = ne2 = 0.0;
+	for (unsigned short C=1; C<=k1.Z(); C++)
+	  ne1 += p1->dattrib[hybrid_pos+C]*C;
+	for (unsigned short C=1; C<=k2.Z(); C++)
+	  ne2 += p2->dattrib[hybrid_pos+C]*C;
+      }
 
       // Find the trace ratio
       //
@@ -7388,7 +7396,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	// Used / Total
 	//
-	if (ok)         elecAcc[id]++; elecTot[id]++;
+	if (ok) elecAcc[id]++; elecTot[id]++;
 
 	// Update v_max and cross_max for NTC
 	//
@@ -10846,8 +10854,13 @@ void CollideIon::printSpeciesElectrons
       dout << "# " 
 	   << std::setw(wid) << std::right << "--------"
 	   << std::setw(wid) << std::right << "--------";
-      for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
-	dout << setw(wid) << std::right << "--------";
+      if (aType == Hybrid) {
+	for (spDMap::iterator it=specM.begin(); it != specM.end(); it++)
+	  dout << setw(wid) << std::right << "--------";
+      } else {
+	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
+	  dout << setw(wid) << std::right << "--------";
+      }
       dout << std::setw(wid) << std::right << "--------"
 	   << std::setw(wid) << std::right << "--------"
 	   << std::setw(wid) << std::right << "--------";
