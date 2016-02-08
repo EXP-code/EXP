@@ -7226,8 +7226,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   
   // Do electron interactions separately
   //
-  if ( (aType == Direct or aType == Weight) and use_elec>=0 and
-       esType != always and esType != none) {
+  if ( (aType == Direct or aType == Weight or aType == Hybrid)
+       and use_elec>=0 and esType != always and esType != none) {
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
