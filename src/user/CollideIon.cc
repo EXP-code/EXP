@@ -5660,9 +5660,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
   
   // Debugging test
   //
-  if (SAME_IONS_SCAT and interFlag % 100 <= 2) {
-    if (Z1 != Z2) return 0;
-  }
+  if (SAME_IONS_SCAT and Z1 != Z2) return 0;
 
   // Total energy change
   //
