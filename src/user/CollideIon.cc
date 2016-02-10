@@ -5306,7 +5306,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
     iE2 *= 0.5*p2->mass*atomic_weights[0]/atomic_weights[Z2];
   }
 
-  // Computing total cross section for scaling
+  // Computing interaction loop
   //
   for (size_t i = 0; i < dCross[id].size(); i++) {
 
@@ -5576,9 +5576,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	Ion2Frac += cF;
       }
       
-    } // Compute this interaction
+    } // END: compute this interaction [ok]
 
-  } // Interaction loop
+  } // END: interaction loop
 
   // Convert to super particle
   //

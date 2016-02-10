@@ -346,6 +346,7 @@ private:
     colexcite   = 4,
     recomb      = 5,
     ionize      = 6,
+    elec_elec   = 7,
     neut_neut_1 = 100,
     neut_elec_1 = 101,
     ion_elec_1  = 102,
@@ -359,8 +360,7 @@ private:
     free_free_2 = 203,
     colexcite_2 = 204,
     ionize_2    = 205,
-    recomb_2    = 206,
-    elec_elec   = 300
+    recomb_2    = 206
   };    
 
   //@{
