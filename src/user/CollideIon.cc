@@ -9879,6 +9879,8 @@ void CollideIon::gatherSpecies()
       
       if (use_elec >= 0) {
 	
+	double count = 0.0;
+
 	if (ft != ETcache.end()) {
 	  T = ft->second;
 	} else {
@@ -9886,7 +9888,6 @@ void CollideIon::gatherSpecies()
 	  const dtup zero(0.0, 0.0);
 	  std::vector<dtup> vel(3, zero);
 
-	  double count = 0.0;
 	  for (auto b : cell->sample->Bodies()) {
 	    Particle *p = c0->Tree()->Body(b);
 	    KeyConvert k(p->iattrib[use_key]);
@@ -9960,7 +9961,10 @@ void CollideIon::gatherSpecies()
 
 	// Sanity check
 	if (T < 100.0) {
-	  std::cout << "[" << myid << "]: T=" << T << std::endl;
+	  std::ostringstream sout; sout << "[" << myid << "]";
+	  std::cout << std::setw(7) << std::left << sout.str()
+		    << ": small T=" << std::setw(16) << T
+		    << ", count="   << count << std::endl;
 	} else {
 	  // Mass-weighted temperature
 	  //
