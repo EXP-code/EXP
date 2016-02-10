@@ -2016,6 +2016,8 @@ double VernerData::cross(const lQ& Q, double EeV)
       0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
     
     vCross += cross;
+
+    // break;			// For testing ground state only
   }
 
   return vCross;
