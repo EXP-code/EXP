@@ -412,6 +412,9 @@ protected:
   //! NTC database
   NTC::NTCdb ntcdb;
 
+  //! NTC diagnostoics
+  std::vector< vector<double> > ntcVal;
+
 public:
   
   //! Integrate the cooling solution
@@ -625,7 +628,10 @@ public:
   CrsVelMap qq;
 
   //! Histogram of ntcdb data
-  NTCqqHist qqHisto;
+  NTCqqHist  qqHisto;
+
+  //! Histogram of all target ratios
+  ahistoDPtr ntcHisto;
   //}
 
   //! Gather stats for No-Time-Counter algorithm

@@ -282,6 +282,7 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcOvr  = vector<unsigned> (nthrds, 0);
   ntcAcc  = vector<unsigned> (nthrds, 0);
   ntcTot  = vector<unsigned> (nthrds, 0);
+  ntcVal  = vector< vector<double> > (nthrds);
 
   if (MFPDIAG) {
     // List of ratios of free-flight length to cell size
@@ -1187,6 +1188,8 @@ void * Collide::collide_thread(void * arg)
 	  // Update v_max and cross_max for NTC
 	  //
 	  if (NTC) {
+				// Diagnostic
+	    ntcVal[id].push_back(targ);
 				// Over NTC max average
 	    if (targ >= 1.0) ntcOvr[id]++;
 				// Used / Total
@@ -3141,6 +3144,12 @@ void Collide::NTCgather(pHOT* const tree)
       ntcOvr[n] = ntcAcc[n] = ntcTot[n] = 0;
     }
 
+				// Accumulate into id=0
+    for (int n=1; n<nthrds; n++) {
+      ntcVal[0].insert(ntcVal[0].end(), ntcVal[n].begin(), ntcVal[n].end());
+      ntcVal[n].clear();
+    }
+
     // Only check for crazy collisions after first step
     //
     static bool notFirst = false;
@@ -3178,7 +3187,11 @@ void Collide::NTCgather(pHOT* const tree)
 
 	if (myid == n) {
 
-	  unsigned sz = qq.size();
+	  unsigned sz = ntcVal[0].size();
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 224, MPI_COMM_WORLD);
+	  if (sz) MPI_Send(&ntcVal[0][0], sz, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
+
+	  sz = qq.size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
 	  
 	  for (auto i : qq) {
@@ -3218,6 +3231,13 @@ void Collide::NTCgather(pHOT* const tree)
 	  double val;
 	  int i1, i2;
 	
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 224, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (sz) {
+	    v.resize(sz);
+	    MPI_Recv(&v[0], sz, MPI_DOUBLE, n, 225, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    ntcVal[0].insert(ntcVal[0].end(), v.begin(), v.end());
+	  }
+
 	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (unsigned z=0; z<sz; z++) {
@@ -3258,9 +3278,13 @@ void Collide::NTCgather(pHOT* const tree)
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-      } // Node loop
+      } // Process loop
 
       if (myid==0) {
+
+	ntcHisto = ahistoDPtr(new AsciiHisto<double>(ntcVal[0], 20, 0.01, true));
+	ntcVal[0].clear();
+
 	for (auto &u : qq) {
 	  for (auto &v : u.second)
 	    qqHisto[u.first][v.first] = 
@@ -3318,6 +3342,11 @@ void Collide::NTCstats(std::ostream& out)
 	  << std::setw(16) << static_cast<double>(accOvr)/accTot << std::endl;
 
     out << std::string(spc, '-') << std::endl << std::right;
+
+    out << "Full NTC distribution" << std::endl;
+    (*ntcHisto)(out);
+    out << std::string(spc, '-') << std::endl << std::right;
+      
 
     if (qqHisto.size() > 0) {
 

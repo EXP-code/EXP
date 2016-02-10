@@ -382,8 +382,8 @@ private:
   const std::vector<double> qnt = {0.05, 0.1, 0.25, 0.5, 0.75, 0.9, 0.95};
   std::vector<double> elecV, ionV;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD;
-  ahistoDPtr elecH, ionH, lossH, keEH, keIH, momH;
+  std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
+  ahistoDPtr elecH, ionH, lossH, keEH, keIH, momH, crsH;
   unsigned Ovr_s, Acc_s, Tot_s;
   //@}
 
@@ -528,7 +528,7 @@ protected:
       return crossSectionTrace (c, p1, p2, crm, id);
 
     if (aType == Hybrid)
-      return crossSectionHybrid (c, p1, p2, crm, id);
+      return crossSectionHybrid(c, p1, p2, crm, id);
 
     return 0.0;
   }
@@ -545,7 +545,7 @@ protected:
       return inelasticWeight(c, p1, p2, crm, id);
 
     if (aType == Trace)
-      return inelasticTrace(c, p1, p2, crm, id);
+      return inelasticTrace (c, p1, p2, crm, id);
 
     if (aType == Hybrid)
       return inelasticHybrid(c, p1, p2, crm, id);
@@ -628,7 +628,9 @@ protected:
   double tempM, tempE, massE, elecE, molwM, consE, consG, totlE;
   spDMap specM;
 
-  typedef std::tuple<double, double>     ZTup;
+  typedef std::tuple<double, double> DTup;
+  typedef std::tuple<std::array<DTup, 3>, double> ZTup;
+
   typedef std::map<unsigned short, ZTup> ZMap;
   ZMap   specE, specI;
   std::set<unsigned short> specZ;

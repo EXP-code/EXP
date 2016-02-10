@@ -102,6 +102,11 @@ public:
       T lower = beg + dx*(j+0);
       T upper = beg + dx*(j+1);
 
+      if (logH) {		// Print out decimal bin edges for log
+	lower = exp(lower);	// scaled bins
+	upper = exp(upper);
+      }
+
       sout << "[" 
 	   << std::setw(wid) << lower << ", "
 	   << std::setw(wid) << upper << "]" << sep;

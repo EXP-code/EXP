@@ -161,6 +161,14 @@ namespace NTC {
     //! Add a single value to the list
     void  Add(sKeyPair indx, double x);
     
+    //! Ready for estimation owing to a full set of points
+    bool Ready(sKeyPair indx)
+    {
+      qpMap::iterator it = db.find(indx);
+      if (it == db.end()) return false;
+      else return it->second.full();
+    }
+
     //! Node sends to root
     void send()
     {
