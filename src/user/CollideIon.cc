@@ -4378,6 +4378,14 @@ int CollideIon::inelasticWeight(pCell* const c,
       for (auto   v : w1) wnrm += v*v;
       if (wnrm > 0.0) {
 	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+      } else {
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+	
+	w1[0] = cos_th;
+	w1[1] = sin_th*cos(phi);
+	w1[2] = sin_th*sin(phi);
       }
 
       vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
@@ -5126,6 +5134,19 @@ void CollideIon::normTest(Particle* const p, const std::string& lab)
   double tot = 0.0;
   for (size_t C=0; C<=k.Z(); C++) tot += p->dattrib[hybrid_pos+C];
 
+  bool posdef = true;
+  for (size_t C=0; C<=k.Z(); C++) if (p->dattrib[hybrid_pos+C] < 0.0) posdef = false;
+
+  if (!posdef) {
+    std::cout << "[" << myid << "] Values not posdef, norm" << tot << " for " << lab
+	      << ", T=" << tnow  << ", index=" << p->indx
+	      << ", Z=" << k.Z() << ", #=" << serialno;
+    std::cout << ", ";
+    for (size_t C=0; C<=k.Z(); C++)
+      std::cout << std::setw(18) << p->dattrib[hybrid_pos+C];
+    std::cout << std::endl;
+  }
+
   if (tot > 0.0) {
     if (fabs(tot-1.0) > 1.0e-6) {
       std::cout << "[" << myid << "] Unexpected norm=" << tot << " for " << lab
@@ -5444,6 +5465,15 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_1) {
 
+	{
+	  bool rtest = (NoDelC & 0x1 and interFlag % 100 == recomb);
+	  std::cout << "In recomb_1: interFlag=" << interFlag
+		    << " flag=" << (NoDelC & 0x1)
+		    << " type[" << recomb << "]="  << interFlag % 100
+		    << " value=" << (rtest ? "true" : "false")
+		    << std::endl;
+	}
+
 	double wght = cF * q;
 	double w0   = p1->dattrib[hybrid_pos+C1-1];
 	if (use_normtest) {
@@ -5585,6 +5615,15 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
 
       if (interFlag == recomb_2) {
+
+	{
+	  bool rtest = (NoDelC & 0x1 and interFlag % 100 == recomb);
+	  std::cout << "In recomb_2: interFlag=" << interFlag
+		    << " flag=" << (NoDelC & 0x1)
+		    << " type[" << recomb << "]="  << interFlag % 100
+		    << " value=" << (rtest ? "true" : "false")
+		    << std::endl;
+	}
 
 	double wght = cF * q;
 	double w0   = p2->dattrib[hybrid_pos+C2-1];
@@ -5867,13 +5906,20 @@ int CollideIon::computeHybridInteraction
 
   // Available KE in COM frame, system units
   //
-  kE *= 0.5*d.Wa*d.q*Mu;
+  double kF = 0.5*d.Wa*d.q*Mu;
+  kE *= kF;
+
+				// Allow for zero KE
+  if (kE <= 0.0) vi = 1.0;
 
   // Total energy available in COM after removing radiative and
   // collisional loss.  A negative value for totE will be handled
   // below . . .
   //
   double totE  = kE - KE.delE;
+
+  KE.kE   = kE;
+  KE.totE = totE;
 
   // Cooling rate diagnostic histogram
   //
@@ -5933,11 +5979,16 @@ int CollideIon::computeHybridInteraction
   // the velocity reduction factor
   //
   double vfac = 1.0;
-  if (kE>0.0) vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
+  if (kE>0.0)
+    vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
+  else
+    vfac = totE>0.0 ? sqrt(totE/kF) : 0.0;
+  
+  KE.vfac = vfac;
 
   // Use explicit energy conservation algorithm
   //
-  double vrat = 1.0;
+  double vrat = 1.0, wNorm = -1.0;
   std::vector<double> w1(v1);
 
   if (ExactE and d.q < 1.0) {
@@ -5965,8 +6016,17 @@ int CollideIon::computeHybridInteraction
       //
       double wnrm = 0.0;
       for (auto v : w1) wnrm += v*v;
+      wNorm = wnrm;
       if (wnrm>0.0) {
 	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
+      } else {
+	double cos_th = 1.0 - 2.0*(*unit)();
+	double sin_th = sqrt(1.0 - cos_th*cos_th);
+	double phi    = 2.0*M_PI*(*unit)();
+	
+	w1[0] = cos_th;
+	w1[1] = sin_th*cos(phi);
+	w1[2] = sin_th*sin(phi);
       }
 
       vrat  = sqrt((1.0 - d.q)*(d.q*b1f2 + v1i2))/(1.0 - d.q);
@@ -6002,7 +6062,13 @@ int CollideIon::computeHybridInteraction
 
     if (fabs(difE)/(KEi + KEf) > 1.0e-10) {
       std::cout << "Ooops, delE = " << difE
-		<< ", totE = " << KEi + KEf << std::endl;
+		<< ", totE = " << KEi + KEf
+		<< ", norm = " << wNorm
+		<< ", v1i2 = " << v1i2
+		<< ", v2i2 = " << v2i2
+		<< ", b1f2 = " << b1f2
+		<< ", b2f2 = " << b2f2
+		<< std::endl;
     }
 
 
@@ -6096,6 +6162,13 @@ int CollideIon::computeHybridInteraction
       v1[k] = (1.0 - d.q)*w1[k]*vrat + d.q*v0;
       v2[k] = vcom[k] - d.m1/Mt*vrel[k]*vfac;
     }
+  }
+
+  if (KE_DEBUG) {
+    double KEf1 = 0.0, KEf2 = 0.0;
+    for (auto v : v1) KEf1 += v*v;
+    for (auto v : v2) KEf2 += v*v;
+    KE.dKE = 0.5*d.Wa*d.m1*(KE.i(1) - KEf1) + 0.5*d.Wb*d.m2*(KE.i(2) - KEf2);
   }
 
   return 0;
@@ -6386,6 +6459,10 @@ int CollideIon::updateHybrid(InteractData& d,
 		<< ", com=" << std::setw(14) << KE.delta
 		<< ", del=" << std::setw(14) << KE.delE
 		<< ", mis=" << std::setw(14) << KE.miss
+		<< ",  kE=" << std::setw(14) << KE.kE
+		<< ", tot=" << std::setw(14) << KE.totE
+		<< ", KEd=" << std::setw(14) << KE.dKE
+		<< ",  vf=" << std::setw(14) << KE.vfac
 		<< std::endl;
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
@@ -9962,7 +10039,7 @@ void CollideIon::gatherSpecies()
 	  std::ostringstream sout; sout << "[" << myid << "]";
 	  std::cout << std::setw(7) << std::left << sout.str()
 		    << ": small T=" << std::setw(16) << T
-		    << ", count="   << count << std::endl;
+		    << " count="    << count << std::endl;
 	} else {
 	  // Mass-weighted temperature
 	  //

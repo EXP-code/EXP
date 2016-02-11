@@ -344,8 +344,8 @@ private:
     ion_elec    = 2,
     free_free   = 3,
     colexcite   = 4,
-    recomb      = 5,
-    ionize      = 6,
+    ionize      = 5,
+    recomb      = 6,
     elec_elec   = 7,
     neut_neut_1 = 100,
     neut_elec_1 = 101,
@@ -690,12 +690,15 @@ protected:
     
   public:
     double miss, delta, delE, p1E, p2E;
+    double totE, kE, dKE, vfac;
+
 
     KE_() 
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
       miss = delta = delE = p1E = p2E = 0.0;
+      totE = kE = dKE = vfac = 0.0;
     }
 
     KE_(double dE, double p1, double p2) : delE(dE), p1E(p1), p2E(p2)
@@ -703,6 +706,7 @@ protected:
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
       miss = delta = 0.0;
+      totE = kE = dKE = vfac = 0.0;
     }
     
     double& i(int i) { return _i[i-1]; }
