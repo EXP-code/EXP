@@ -20,31 +20,33 @@ private:
 
   void makeBins(const std::vector<T>& d, int nbins)
   {
-    beg = *std::min_element(d.begin(), d.end());
-    end = *std::max_element(d.begin(), d.end());
+    if (d.size()) {
+      beg = *std::min_element(d.begin(), d.end());
+      end = *std::max_element(d.begin(), d.end());
   
-    if (beg<=0.0) 
-      logH = false;
-    else if (logH) {
-      beg = log(beg);
-      end = log(end);
-    }
-    
-    if (nbins==0) nbins = floor(sqrt(d.size()));
+      if (beg<=0.0) 
+	logH = false;
+      else if (logH) {
+	beg = log(beg);
+	end = log(end);
+      }
+      
+      if (nbins==0) nbins = floor(sqrt(d.size()));
+      
+      dx  = (end - beg)/nbins;
+      if (dx==0) {
+	nbins = end - beg + 1;
+	dx = 1;
+      }
+      
+      bins.resize(nbins, 0);
 
-    dx  = (end - beg)/nbins;
-    if (dx==0) {
-      nbins = end - beg + 1;
-      dx = 1;
-    }
-
-    bins.resize(nbins, 0);
-
-    for (auto v : d) {
-      if (logH) v = log(v);
-      int indx = floor( (v - beg)/dx );
-      //! Sanity check
-      if (indx>=0 and indx < nbins) bins[floor( (v - beg)/dx )]++;
+      for (auto v : d) {
+	if (logH) v = log(v);
+	int indx = floor( (v - beg)/dx );
+	//! Sanity check
+	if (indx>=0 and indx < nbins) bins[floor( (v - beg)/dx )]++;
+      }
     }
   }
 
@@ -81,6 +83,8 @@ public:
   //! Print the distribution
   void operator()(std::ostream &out, unsigned hwid=60)
   {
+    if (bins.size() == 0) return;
+
     unsigned wid  = logH ? 16 : 12;
     unsigned maxb = *std::max_element(bins.begin(), bins.end());
     double   hscl = static_cast<double>(hwid)/maxb;
