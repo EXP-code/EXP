@@ -5465,7 +5465,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_1) {
 
-	{
+	if (0) {
 	  bool rtest = (NoDelC & 0x1 and interFlag % 100 == recomb);
 	  std::cout << "In recomb_1: interFlag=" << interFlag
 		    << " flag=" << (NoDelC & 0x1)
@@ -5616,7 +5616,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
       if (interFlag == recomb_2) {
 
-	{
+	if (0) {
 	  bool rtest = (NoDelC & 0x1 and interFlag % 100 == recomb);
 	  std::cout << "In recomb_2: interFlag=" << interFlag
 		    << " flag=" << (NoDelC & 0x1)
@@ -5906,85 +5906,121 @@ int CollideIon::computeHybridInteraction
 
   // Available KE in COM frame, system units
   //
-  double kF = 0.5*d.Wa*d.q*Mu;
-  kE *= kF;
+  kE *= 0.5*d.Wa*d.q*Mu;
 
-				// Allow for zero KE
-  if (kE <= 0.0) vi = 1.0;
+  double vfac = 0.0;		// For kE <= 0
 
   // Total energy available in COM after removing radiative and
   // collisional loss.  A negative value for totE will be handled
   // below . . .
   //
-  double totE  = kE - KE.delE;
+  double totE = kE - KE.delE;
 
+  // For debugging . . . 
+  //
   KE.kE   = kE;
   KE.totE = totE;
 
-  // Cooling rate diagnostic histogram
-  //
-  if (TSDIAG && KE.delE>0.0) {
-				// Histogram index
-    int indx = (int)floor(log(kE/KE.delE)/(log(2.0)*TSPOW) + 5);
-				// Floor and ceiling
-    if (indx<0 ) indx = 0;
-    if (indx>10) indx = 10;
-				// Add entry
-    EoverT[id][indx] += d.p1->mass + d.p2->mass;
-  }
-  
-  //
-  // Time step "cooling" diagnostic
-  //
-  if (use_delt>=0 && KE.delE>0.0 && kE>0.0) {
-    double dtE = kE/KE.delE * spTau[id];
-    double dt1 = d.p1->dattrib[use_delt];
-    double dt2 = d.p2->dattrib[use_delt];
-    d.p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    d.p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
-  }
+  if (kE > 0.0) {
 
-  if (use_exes>=0 && KE.delE>0.0) {
-    // (-/+) value means under/overcooled: positive/negative increment
-    // to delE NB: delE may be < 0 if too much energy was radiated
-    // previously . . .
+    // Cooling rate diagnostic histogram
     //
-    KE.delE -= d.p1->dattrib[use_exes] + d.p2->dattrib[use_exes];
-    d.p1->dattrib[use_exes] = d.p2->dattrib[use_exes] = 0.0;
-  }
+    if (TSDIAG && KE.delE>0.0) {
+				// Histogram index
+      int indx = (int)floor(log(kE/KE.delE)/(log(2.0)*TSPOW) + 5);
+				// Floor and ceiling
+      if (indx<0 ) indx = 0;
+      if (indx>10) indx = 10;
+				// Add entry
+      EoverT[id][indx] += d.p1->mass + d.p2->mass;
+    }
   
-  lostSoFar[id] += KE.delE;
-  decelT[id]    += KE.delE;
+    //
+    // Time step "cooling" diagnostic
+    //
+    if (use_delt>=0 && KE.delE>0.0) {
+      double dtE = kE/KE.delE * spTau[id];
+      double dt1 = d.p1->dattrib[use_delt];
+      double dt2 = d.p2->dattrib[use_delt];
+      d.p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
+      d.p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+    }
+
+    if (use_exes>=0 && KE.delE>0.0) {
+      // (-/+) value means under/overcooled: positive/negative increment
+      // to delE NB: delE may be < 0 if too much energy was radiated
+      // previously . . .
+      //
+      KE.delE -= d.p1->dattrib[use_exes] + d.p2->dattrib[use_exes];
+      d.p1->dattrib[use_exes] = d.p2->dattrib[use_exes] = 0.0;
+    }
     
-  // Assign interaction energy variables
-  //
-  double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
-  double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
-  double phi    = 2.0*M_PI*(*unit)();	     // Collision angle phi
+    lostSoFar[id] += KE.delE;
+    decelT[id]    += KE.delE;
+    
+    // Assign interaction energy variables
+    //
+    double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+    double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+    double phi    = 2.0*M_PI*(*unit)();	       // Collision angle phi
   
-  vrel[0] = vi * cos_th;	  // Compute post-collision relative
-  vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
-  vrel[2] = vi * sin_th*sin(phi); // interaction
-  //        ^
-  //        |
-  //        +---- velocity in center of mass, computed from v1, v2
-  //
+    vrel[0] = vi * cos_th;	    // Compute post-collision relative
+    vrel[1] = vi * sin_th*cos(phi); // velocity for an elastic 
+    vrel[2] = vi * sin_th*sin(phi); // interaction
+    //        ^
+    //        |
+    //        +---- velocity in center of mass, computed from v1, v2
+    //
+    
+    // Attempt to defer negative energy adjustment
+    //
+    KE.miss = std::min<double>(0.0, totE);
 
-  // Attempt to defer negative energy adjustment
-  //
-  KE.miss = std::min<double>(0.0, totE);
+    // Compute the change of energy in the collision frame by computing
+    // the velocity reduction factor
+    //
+    KE.vfac = vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
 
+  } else {
 
-  // Compute the change of energy in the collision frame by computing
-  // the velocity reduction factor
-  //
-  double vfac = 1.0;
-  if (kE>0.0)
-    vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
-  else
-    vfac = totE>0.0 ? sqrt(totE/kF) : 0.0;
+    if (use_exes>=0 && KE.delE>0.0) {
+      // (-/+) value means under/overcooled: positive/negative increment
+      // to delE NB: delE may be < 0 if too much energy was radiated
+      // previously . . .
+      //
+      KE.delE -= d.p1->dattrib[use_exes] + d.p2->dattrib[use_exes];
+      d.p1->dattrib[use_exes] = d.p2->dattrib[use_exes] = 0.0;
+    }
+    
+    lostSoFar[id] += KE.delE;
+    decelT[id]    += KE.delE;
+    
+    if (totE > 0.0) {
+
+      // Assign interaction energy variables
+      //
+      double cos_th = 1.0 - 2.0*(*unit)();       // Cosine and sine of
+      double sin_th = sqrt(1.0 - cos_th*cos_th); // Collision angle theta
+      double phi    = 2.0*M_PI*(*unit)(); // Collision angle phi
   
-  KE.vfac = vfac;
+      vrel[0] = cos_th;		 // Compute post-collision relative
+      vrel[1] = sin_th*cos(phi); // velocity for an elastic 
+      vrel[2] = sin_th*sin(phi); // interaction
+      //        ^
+      //        |
+      //        +---- velocity in center of mass, computed from v1, v2
+      //
+    
+      // Compute the change of energy in the collision frame by computing
+      // the velocity reduction factor
+      //
+      double kF = 0.5*d.Wa*d.q*Mu;
+
+      vfac = totE>0.0 ? sqrt(totE/kF) : 0.0;
+    
+      KE.vfac = vfac;
+    }
+  }
 
   // Use explicit energy conservation algorithm
   //
