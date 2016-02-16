@@ -34,7 +34,9 @@ Ion::RR_Lab Ion::rr_lab = {
 };
 
 Ion::RR_Type Ion::rr_type = Ion::mewe;
+
 bool Ion::use_VFKY = true;
+bool Ion::gso_VFKY = true;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -2010,6 +2012,8 @@ double VernerData::cross(const lQ& Q, double EeV)
       
       gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
     } 
+				// Cross section with no GF
+    // double cross = crossPh *
 				// Cross section x Gaunt factor
     double cross = crossPh * gf * 
 				// Milne relation
@@ -2017,7 +2021,7 @@ double VernerData::cross(const lQ& Q, double EeV)
     
     vCross += cross;
 
-    // break;			// For testing ground state only
+    if (Ion::gso_VFKY) break;	// For testing ground state only
   }
 
   return vCross;

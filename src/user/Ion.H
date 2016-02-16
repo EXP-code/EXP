@@ -314,6 +314,9 @@ public:
   //! Use Verner et al. fortran subroutine (default: true)
   static bool use_VFKY;
 
+  //! Recombine into ground state only for Verner cross sections
+  static bool gso_VFKY;
+
 protected:
 
   //@{
