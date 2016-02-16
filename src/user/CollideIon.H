@@ -2,6 +2,7 @@
 #define _CollideIon_H
 
 #include <tuple>
+#include <bitset>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -40,10 +41,10 @@ public:
 
   //@{
   //! Container definition
-  typedef std::tuple<unsigned, double, double>  UDDT;
-  typedef std::vector<UDDT>                     IDVP;
-  typedef std::vector<double>                   IDVD;
-  typedef std::vector<unsigned long>            IDVI;
+  typedef std::array<double, 3>        UDDA;
+  typedef std::vector<UDDA>            IDVP;
+  typedef std::vector<double>          IDVD;
+  typedef std::vector<unsigned long>   IDVI;
   //@}
 
   //@{
@@ -57,36 +58,27 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  UDDT          nn_s, ne_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
-  double        eV_av_s, eV_max_s, eV_min_s;
-  unsigned long eV_N_s, eV_10_s;
+  UDDA          nn_s, ne_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
+  double        eV_av_s, eV_max_s, eV_min_s, eV_N_s, eV_10_s;
   //@}
   
   //! Synchronize a UDDT type (tuple)
-  void syncUDDT(UDDT& value) 
+  void syncUDDA(UDDA& value) 
   {
-    unsigned int u;
-    double z;
-
-    MPI_Reduce(&(u=std::get<0>(value)), &std::get<0>(value), 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(z=std::get<1>(value)), &std::get<1>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(z=std::get<2>(value)), &std::get<2>(value), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+    UDDA tmp(value);
+    MPI_Reduce(&tmp[0], &value[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 
 private:
 
-  UDDT zero;
+  UDDA zero;
 
-  UDDT accum(IDVP& v)
+  UDDA accum(IDVP& v)
   {
-    UDDT ret(zero);
-
+    UDDA ret(zero);
     for (auto t : v) {
-      std::get<0>(ret) += std::get<0>(t);
-      std::get<1>(ret) += std::get<1>(t);
-      std::get<2>(ret) += std::get<2>(t);
+      for (size_t k=0; k<3; k++) ret[k] += t[k];
     }
-
     return ret;
   }
 
@@ -95,7 +87,7 @@ public:
   //! Construtor initializes the vectors
   CollisionTypeDiag() 
   {
-    zero = UDDT(0, 0, 0);
+    zero = {0, 0, 0};
 
     nn.resize(nthrds, zero);
     ne.resize(nthrds, zero);
@@ -144,12 +136,12 @@ public:
     CI_s     =  accum(CI);
     RR_s     =  accum(RR);
     for (auto v : dv) {
-      if (std::isnan(std::get<2>(v)))
+      if (std::isnan(v[2]))
 	std::cout << "Error in sumUp (before), t=" << tnow 
 		  << ", size=" << dv.size() << ", id=" << myid << std::endl;
     }
     dv_s     =  accum(dv);
-    if (std::isnan(std::get<2>(dv_s)))
+    if (std::isnan(dv_s[2]))
       std::cout << "Error in sumUp (before), t=" << tnow 
 		<< ", id=" << myid << std::endl;
 
@@ -162,22 +154,21 @@ public:
 
   void sync()
   {
-    syncUDDT(nn_s);
-    syncUDDT(ne_s);
-    syncUDDT(ie_s);
-    syncUDDT(ff_s);
-    syncUDDT(CE_s);
-    syncUDDT(CI_s);
-    syncUDDT(RR_s);
-    syncUDDT(dv_s);
+    syncUDDA(nn_s);
+    syncUDDA(ne_s);
+    syncUDDA(ie_s);
+    syncUDDA(ff_s);
+    syncUDDA(CE_s);
+    syncUDDA(CI_s);
+    syncUDDA(RR_s);
+    syncUDDA(dv_s);
 
     double z;
-    unsigned long u;
-    MPI_Reduce(&(z=eV_av_s),  &eV_av_s,  1, MPI_DOUBLE,        MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(u=eV_N_s),   &eV_N_s,   1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(z=eV_min_s), &eV_min_s, 1, MPI_DOUBLE,        MPI_MIN, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(z=eV_max_s), &eV_max_s, 1, MPI_DOUBLE,        MPI_MAX, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(u=eV_10_s),  &eV_10_s,  1, MPI_UNSIGNED_LONG, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_av_s),  &eV_av_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_N_s),   &eV_N_s,   1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_min_s), &eV_min_s, 1, MPI_DOUBLE, MPI_MIN, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_max_s), &eV_max_s, 1, MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=eV_10_s),  &eV_10_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 };
 
@@ -201,7 +192,7 @@ private:
 
 public:
   //! Constructor
-  collDiag(CollideIon *caller);
+  collDiag(CollideIon *caller); 
 
   //! All processes send info to the root process
   void gather();
@@ -687,18 +678,32 @@ protected:
   {
   private:
     double _i[2], _f[2];
-    
+
+    const std::vector<std::string> names = {
+      "[positive KE]",
+      "[Exact q<1]",
+      "[Orthogonal exact]",
+      "[Standard exact]",
+      "[negative KE]",
+      "[Momentum cons]",
+      "[Preloss check]",
+      "[Vfac set]",
+    };
+
   public:
     double miss, delta, delE, p1E, p2E;
-    double totE, kE, dKE, vfac;
+    double totE, kE, dKE, vfac, vrat, o1, o2;
+    bitset<8> flag;
 
+    enum {KEpos, ExQ, AlgO, StdE, negE, momC, PreLoss, Vfac};
 
     KE_() 
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
       miss = delta = delE = p1E = p2E = 0.0;
-      totE = kE = dKE = vfac = 0.0;
+      totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
+      flag = 0;
     }
 
     KE_(double dE, double p1, double p2) : delE(dE), p1E(p1), p2E(p2)
@@ -706,11 +711,21 @@ protected:
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
       miss = delta = 0.0;
-      totE = kE = dKE = vfac = 0.0;
+      totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
+      flag = 0;
     }
     
     double& i(int i) { return _i[i-1]; }
     double& f(int i) { return _f[i-1]; }
+
+    std::string decode()
+    {
+      std::string ret;
+      for (size_t i=0; i<flag.size(); i++) {
+	if (flag[i]) ret += names[i];
+      }
+      return ret;
+    }
   };
   
   enum HybridColl {Ion1, Ion2, Neutral};
