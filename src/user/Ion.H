@@ -315,7 +315,7 @@ public:
   static bool use_VFKY;
 
   //! Recombine into ground state only for Verner cross sections
-  static bool gso_VFKY;
+  static bool gs_only;
 
 protected:
 

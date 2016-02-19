@@ -16,7 +16,7 @@ AM_CXXFLAGS = -std=c++11 -D_REENTRANT $(ADD_CXXFLAGS1) $(ADD_CXXFLAGS2) $(ADD_CX
 AM_CPPFLAGS = -I$(top_srcdir)/include -I$(top_srcdir)/expgnu
 
 bin_PROGRAMS = testparse testparams testparamsMPI testConfig	\
-simpleConfig readSL
+simpleConfig readSL testBarrier
 
 COMMON_LIBS = -lexputil -lexpgnu $(LAPACK_LIBS) $(BLAS_LIBS) $(LIBS) $(FLIBS)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
@@ -47,6 +47,11 @@ readSL_SOURCES        = read_slsph.cc
 readSL_LDFLAGS        = -L$(top_srcdir)/exputil/.libs	\
 			-L$(top_srcdir)/expgnu/.libs
 readSL_LDADD          = $(COMMON_LIBS)
+
+testBarrier_SOURCES   = test_barrier.cc
+testBarrier_LDFLAGS   = -L$(top_srcdir)/exputil/.libs	\
+			-L$(top_srcdir)/expgnu/.libs $(BOOST_LDFLAGS)
+testBarrier_LDADD     = $(COMMON_LIBS) $(BOOST_LIBS)
 
 CLEANFILES	=
 
