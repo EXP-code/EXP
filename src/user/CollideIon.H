@@ -379,6 +379,14 @@ private:
   //@}
 
   //@{
+  //! For histogram electron interaction energy distribution in eV.
+  //! Set to false for production.
+  const bool eDistDBG = true;
+  std::vector< std::vector<double> > elecEV;
+  ahistoDPtr elecEVH;
+  //@}
+
+  //@{
   //! Electron NTC diagnostic histograms
   typedef std::map<float, ahistoDPtr>            NTCeeHist;
   typedef std::map<double, std::vector<double> > eeMap;
@@ -391,6 +399,12 @@ private:
   
   //! Historgram of NTCdb data
   NTCeeHist eeHisto;
+  //@}
+
+  //@{
+  //! Ionization-recombination check
+  const bool IonRecombChk = false;
+  std::vector< std::map<speciesKey, double> > ionCHK, recombCHK;
   //@}
 
 public:

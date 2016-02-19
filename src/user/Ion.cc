@@ -36,7 +36,7 @@ Ion::RR_Lab Ion::rr_lab = {
 Ion::RR_Type Ion::rr_type = Ion::mewe;
 
 bool Ion::use_VFKY = true;
-bool Ion::gso_VFKY = true;
+bool Ion::gs_only  = true;
 
 //
 // Convert the master element name to a (Z, C) pair
@@ -899,13 +899,29 @@ double Ion::qrp(double u)
 */
 double Ion::directIonCross(double E, int id) 
 {
-  double u        = E/ip;
-				// Test for hydrogen-like/helium-like ion
+  // Rydberg in eV
+  //
+  constexpr double ryd     = 27.2113845/2.0;
+
+  // Atomic radius in nm
+  //
+  constexpr double a0      = 0.0529177211;
+
+  // Classical Bohr cross section in nm^2
+  //
+  constexpr double bohr_cs = M_PI*a0*a0;
+
+  // Test for hydrogen-like/helium-like ion
+  //
   unsigned char I = Z - C + 1;
-  double ryd      = 27.2113845/2.0;
+
+  // Scaled energy
+  //
+  double u        = E/ip;
+
+  // Ionization potential in Rydbergs
+  //
   double ipRyd    = ip/ryd;
-  double a0       = 0.0529177211; // Bohr radius in nm
-  double bohr_cs  = M_PI*a0*a0;
 
   double F, qr, cross;
   
@@ -915,6 +931,7 @@ double Ion::directIonCross(double E, int id)
   }
 
   // From Fontes, et al. Phys Rev A, 59, 1329 (eq. 2.11)
+  //
   if (Z >= 20) {
     F = (140.0+pow((double(Z)/20.0),3.2))/141.;
   }
@@ -926,6 +943,7 @@ double Ion::directIonCross(double E, int id)
 
   // first two if statements are whether or not to use Fontes cross
   // sections
+  //
   if (I == 1 && Z >= 6) {
     cross = bohr_cs*qr/(ipRyd*ipRyd);
   }
@@ -958,7 +976,9 @@ double Ion::directIonCross(double E, int id)
       }
     }
   }
+
   diCross[id] = cross;
+
   return cross;
 }
 
@@ -2012,16 +2032,15 @@ double VernerData::cross(const lQ& Q, double EeV)
       
       gf = ch->radGF(scaledE, v.second.pqn, v.second.l);
     } 
-				// Cross section with no GF
-    // double cross = crossPh *
 				// Cross section x Gaunt factor
     double cross = crossPh * gf * 
 				// Milne relation
       0.5*Eph*Eph/(mec2*EeV) * static_cast<double>(v.second.mult) / mult0;
     
-    vCross += cross;
+				// For testing ground state only
+    if (Ion::gs_only and v.second.pqn>1) continue;
 
-    if (Ion::gso_VFKY) break;	// For testing ground state only
+    vCross += cross;
   }
 
   return vCross;
