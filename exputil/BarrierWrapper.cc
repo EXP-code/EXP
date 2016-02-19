@@ -169,7 +169,7 @@ void BarrierWrapper::updateMap(InfoPtr p)
     queued += commsize - 1;	// other nodes
 
     if (debugging) {
-      std::cout << "Node " << std::setw(4) << localid << " has "
+      std::cout << "Node " << std::setw(4) << localid << ", in updateMap, has "
 		<< nrecv << " queued receives and buffer count of "
 		<< queued << " at <" << p->s << ">"
 		<< std::endl;
@@ -266,9 +266,12 @@ void BarrierWrapper::heavy_operator(const string& label,
 
   unsigned cnt_recv = 0;
 
+  // Are all posted messages processed?
+  //
   while (notdone) {
-
-				// Are more buffers expected?
+    
+    // Are more buffers expected?
+    //
     if (queued) {
 
       if (extra_verbose) {
@@ -286,7 +289,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 	}
       }
 
-				// Check for buffers pending reception
+      // Check for buffers pending reception
+      //
       MPI_Test(req.back().second.get(), &good, &status);
 
     } else {
@@ -301,49 +305,46 @@ void BarrierWrapper::heavy_operator(const string& label,
 		    << " named ";
 	  for (auto i : pending)
 	    std::cout << "<" << i.first << ">, #=" << i.second->count;
-	  }
-	} else {
-	  std::cout << " no pending barrriers";
 	}
-	std::cout << std::endl;
+      } else {
+	std::cout << " no pending barrriers";
       }
-      
-      good = 0;
+      std::cout << std::endl;
     }
-
+      
 				// Did we satisfy a request?
     if (good) {
-
+    
       InfoPtr p = InfoPtr(new Info(req.back().first));
 
       updateMap(p);		// Will generate another receive if
 				// nrecv>0
-
+    
       queued--;			// Decrement the expected buffers
 				// count
-
+      
       //---------------------------------------
       // Check all pending tags for completion
       //---------------------------------------
       for (auto it=pending.begin(); it!=pending.end(); it++) {
-	{
-	  if (it->second->count == commsize) {
 
-	    if (debugging) {
-	      std::cout << "Info size=" << it->second->info.size() << std::endl;
-	      std::cout << "Node " << std::setw(4) << localid 
-			<< " has count " << it->second->count 
-			<< " with " << queued << " queued for <" 
-			<< it->second->info.back()->s << ">" << std::endl;
-	    }
-				// All nodes have now hit the barrier
-	    sfinal = it->first;
-	    pending.erase(it);
-	    notdone = false;
-	    break;
+	if (it->second->count == commsize) {
+	    
+	  if (debugging) {
+	    std::cout << "Node " << std::setw(4) << localid 
+		      << " has count " << it->second->count 
+		      << " with " << queued << " queued for <" 
+		      << it->second->info.back()->s << ">, size=" 
+		      << it->second->info.size() << std::endl;
 	  }
+	  // All nodes have now hit the barrier
+	  sfinal = it->first;
+	  pending.erase(it);
+	  notdone = false;
+	  break;
 	}
-      
+      }
+	
       //----------------------------------------------------------
       // Check for bad synchronization: more than one active tag!
       //----------------------------------------------------------
@@ -357,9 +358,9 @@ void BarrierWrapper::heavy_operator(const string& label,
 	  if (pending.size() == im->second) report = false;
 	}
 	multiplicity[localid] = pending.size();
-
+	
 	if (report) {		// Only report a CHANGE in multiplicity
-
+	  
 	  std::cout << "#" << localid << ": pending list has " 
 		    << pending.size() << " entries: ";
 	  for (auto i : pending)
@@ -389,7 +390,7 @@ void BarrierWrapper::heavy_operator(const string& label,
       if (extra_verbose) {
 	
 	static time_t next = 0;
-
+	
 	if (next==0) next = entry + 10;
 
 	if (curtime>next) {

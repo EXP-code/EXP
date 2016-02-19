@@ -944,10 +944,10 @@ double Ion::directIonCross(double E, int id)
   // first two if statements are whether or not to use Fontes cross
   // sections
   //
-  if (I == 1 && Z >= 6) {
+  if (I == 1 && Z >= 6) {	// Hydrogenic
     cross = bohr_cs*qr/(ipRyd*ipRyd);
   }
-  else if (I==2 && Z >= 10) {
+  else if (I==2 && Z >= 10) {	// Helium like
     cross = 2.0*bohr_cs*qr/(ipRyd*ipRyd);
   }
   else {
