@@ -379,7 +379,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 	if (it->second->Owner() == localid && 
 	    curtime > it->second->expire) {
 	  listReport("Expire", it);
-	  it->second->expire += BWData::dt2;
+	  it->second->expire += BWData::dt2 * it->second->nexpiry++;
 	}
       }
   
@@ -464,7 +464,7 @@ void BarrierWrapper::listReport(const char* title,
 {
   std::cout << title << " [#" << localid << "]: " << it->first << " ** "
 	    << time(0) - it->second->first << " secs, " 
-	    << it->second->count << " waiting, ";
+	    << it->second->count << "/" << commsize << " waiting, ";
   for (int i=0; i<commsize; i++) std::cout << it->second->nd[i];
   std::cout << std::endl;
 }
@@ -619,6 +619,7 @@ BWData::BWData(InfoPtr& p, int commsize)
 {
   first       = p->ctm;
   expire      = first + dt1;
+  nexpiry     = 1;
   count       = 1;
   nd          = std::vector<bool>(commsize, false);
   nd[p->own]  = true;

@@ -83,7 +83,7 @@ public:
   //! Number of seconds before first alarm
   static int dt1;
 
-  //! Number of seconds before all sebsequent alarms
+  //! Number of seconds before all subsequent alarms
   static int dt2;
 
   //@{
@@ -93,6 +93,9 @@ public:
 
   //! Array of received entries
   std::vector<bool> nd;
+
+  //! Number of alarm expirations
+  unsigned nexpiry;
 
   //! Number of entries registered
   unsigned count;
