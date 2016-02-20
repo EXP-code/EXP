@@ -407,6 +407,14 @@ private:
   std::vector< std::map<speciesKey, double> > ionCHK, recombCHK;
   //@}
 
+  //@{
+  //! Collision-limit counter
+  typedef std::tuple<unsigned, double, double> clampDat;
+  clampDat const clamp0 {0, 0.0, 0.0};
+  std::vector<clampDat> clampdat;
+  clampDat clampStat;
+  //@}
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -791,6 +799,7 @@ public:
   static bool     ExactE;
   static bool     AlgOrth;
   static bool     DebugE;
+  static bool     collLim;
   static string   config0;
 
   //! Constructor
