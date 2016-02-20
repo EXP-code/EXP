@@ -83,6 +83,8 @@ int main(int argc, char **argv)
      "Produce help message")
     ("mistake,m",
      "Make an intentional mistake to break synchronization")
+    ("broken,b",
+     "Intentionally change label to test synchronization error")
     ("times,n", po::value<int >(&times)->default_value(10),            "number of iterations")
     ("dice,d",  po::value<int >(&ndice)->default_value(1),             "number of dice to roll")
     ("size,s",  po::value<int >(&vsize)->default_value(1000),          "data size")
@@ -128,8 +130,19 @@ int main(int argc, char **argv)
   if (vm.count("mistake")) {
     if (myid==1) {
       mistake = true;
-      std::cout << "I will intentionally make a mistake at iteration "
-		<< times/2 << std::endl;
+      std::cout << "I will intentionally make a mistake at Iteration "
+		<< times/2 << " which will cause an endless error loop"
+		<< std::endl;
+    }
+  }
+
+  bool badlabel = false;
+  if (vm.count("broken")) {
+    if (myid==0) {
+      badlabel = true;
+      std::cout << "I will intentionally change the label at Iteration "
+		<< times-1 << " which will cause an endless error loop"
+		<< std::endl;
     }
   }
 
@@ -189,6 +202,7 @@ int main(int argc, char **argv)
     {
       std::ostringstream sout;
       sout << "In loop END, count = " << i+1;
+      if (badlabel and i+1==times and myid==0) sout << " ===>oops<===";
       (*barrier)(sout.str(), __FILE__, __LINE__);
     }
   }
