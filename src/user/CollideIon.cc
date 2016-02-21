@@ -38,6 +38,7 @@ bool     CollideIon::collLim = false;
 unsigned CollideIon::esNum   = 100;
 unsigned CollideIon::NoDelC  = 0;
 double   CollideIon::logL    = 10;
+double   CollideIon::tolE    = 1.0e-6;
 string   CollideIon::config0 = "CollideIon.config";
 
 CollideIon::ElectronScatter
@@ -6187,7 +6188,7 @@ int CollideIon::computeHybridInteraction
 
     KE.flag.set(KE_::PreLoss);
 
-    if (fabs(difE)/(KEi + KEf) > 1.0e-10) {
+    if (fabs(difE)/(KEi + KEf) > tolE) {
       std::cout << "Error before loss, difE = " << difE
 		<< ", totE = " << KEi + KEf
 		<< ", norm = " << wNorm
@@ -6245,7 +6246,7 @@ int CollideIon::computeHybridInteraction
       double KEf   = KE1f + KE2f;
       double delEt = KEi  - KEf - std::min<double>(kE, KE.delE);
 
-      if ( fabs(delEt)/std::min<double>(KEi, KEf) > 1.0e-10) {
+      if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
 	std::cout << "Error: delEt = " << delEt
 		  << " KEi = " << KEi
 		  << " KEf = " << KEf

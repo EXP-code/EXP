@@ -427,6 +427,10 @@ public:
   //! Coulombic log Lambda value
   static double logL;
 
+  //! Relative error tolerance for warnings (default: 1.0e-6)
+  static double tolE;
+
+
 protected:
 
   //! Process config file
