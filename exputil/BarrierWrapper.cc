@@ -315,7 +315,9 @@ void BarrierWrapper::heavy_operator(const string& label,
 				// Did we satisfy a request?
     if (good) {
     
-      InfoPtr p = InfoPtr(new Info(req.back().first));
+      CharPtr c = req.back().first;
+      req.pop_back();		// Pop the completed request
+      InfoPtr p = InfoPtr(new Info(c));
 
       updateMap(p);		// Will generate another receive if
 				// nrecv>0
@@ -566,7 +568,7 @@ void BarrierWrapper::finalReport(std::string& s)
     if (table.size() == 0) {
       if (verbose) {
 	std::cout << "BarrierWrapper: state is good for " << s 
-		  << std::endl;
+		  << ", req size=" << req.size() << std::endl;
       }
     } else {
       std::cout << "BarrierWrapper: suspect sync problem for " << s 

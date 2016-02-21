@@ -34,9 +34,11 @@ bool     CollideIon::scatter = false;
 bool     CollideIon::ExactE  = false;
 bool     CollideIon::AlgOrth = false;
 bool     CollideIon::DebugE  = false;
+bool     CollideIon::collLim = false;
 unsigned CollideIon::esNum   = 100;
 unsigned CollideIon::NoDelC  = 0;
 double   CollideIon::logL    = 10;
+double   CollideIon::tolE    = 1.0e-6;
 string   CollideIon::config0 = "CollideIon.config";
 
 CollideIon::ElectronScatter
@@ -275,7 +277,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
 	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
-	      << (COLL_SPECIES ? "on" : "off")         << std::endl
+	      << (COLL_SPECIES ? "on" : "off")          << std::endl
+	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
+	      << (collLim ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
 	      << (TRACE_ELEC ? "on" : "off")            << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_FRAC"
@@ -304,6 +308,12 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "NTC_DIST"
 	      << (NTC_DIST ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "use_cons"
+	      << use_cons                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "hybrid_pos"
+	      << hybrid_pos                             << std::endl
+	      <<  " " << std::setw(20) << std::left << "use_elec"
+	      << use_elec                               << std::endl
 	      << "************************************" << std::endl;
   }
 
@@ -349,12 +359,15 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   collCount.resize(nthrds);
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
+  clampdat .resize(nthrds);
 
   for (auto &v : velER) v.set_capacity(bufCap);
   for (auto &v : momD ) v.set_capacity(bufCap);
   for (auto &v : crsD ) v.set_capacity(bufCap);
   for (auto &v : keER ) v.set_capacity(bufCap);
   for (auto &v : keIR ) v.set_capacity(bufCap);
+
+  for (auto &v : clampdat) v = clamp0;
 
   //
   // Cross-section debugging [INIT]
@@ -5454,9 +5467,11 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p1 [Before ionize_1]: C1=" << C1-1
+	  sout << "[Before ionize_1]: C1=" << C1-1
 	       << ", wght=" << wght;
 	  normTest(p1, sout.str());
+	  if (C1<1 or C1>2)
+	    std::cout << "[ionize_1] bad C1=" << C1 << std::endl;
 	}
 
 	if (wght < p1->dattrib[hybrid_pos+C1-1]) {
@@ -5470,7 +5485,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p1 [After ionize_1]: C1=" << C1-1
+	  sout << "[After ionize_1]: C1=" << C1-1
 	       << ", wght=" << wght;
 	  normTest(p1, sout.str());
 	}
@@ -5503,9 +5518,11 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	double w0   = p1->dattrib[hybrid_pos+C1-1];
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p1 [Before recomb_1]: C1=" << C1-1
+	  sout << "[Before recomb_1]: C1=" << C1-1
 	  << ", wght=" << wght << ", w=" << w0;
 	  normTest(p1, sout.str());
+	  if (C1<2 or C1>3)
+	    std::cout << "[recomb_1] bad C1=" << C1 << std::endl;
 	}
 
 	if (wght < p1->dattrib[hybrid_pos+C1-1]) {
@@ -5519,7 +5536,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p1 [After recomb_1]: C1=" << C1-1
+	  sout << "[After recomb_1]: C1=" << C1-1
 	       << ", wght=" << wght << ", w=" << w0;
 	  normTest(p1, sout.str());
 	}
@@ -5618,9 +5635,11 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p2 [Before ionize_2]: C2=" << C2-1
+	  sout << "[Before ionize_2]: C2=" << C2-1
 	       << ", wght=" << wght;
 	  normTest(p2, sout.str());
+	  if (C2<1 or C2>2)
+	    std::cout << "[ionize_2] bad C2=" << C2 << std::endl;
 	}
 
 	if (wght < p2->dattrib[hybrid_pos+C2-1]) {
@@ -5634,7 +5653,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
 	if (use_normtest) {
 	  std::ostringstream sout;
-	  sout << "p1 [After ionize_2]: C2=" << C2-1
+	  sout << "[After ionize_2]: C2=" << C2-1
 	       << ", wght=" << wght;
 	  normTest(p2, sout.str());
 	}
@@ -5665,12 +5684,14 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	
 	double wght = cF * q;
 	double w0   = p2->dattrib[hybrid_pos+C2-1];
-	if (use_normtest) {
 
+	if (use_normtest) {
 	  std::ostringstream sout;
 	  sout << "p2 [Before recomb_2]: C2=" << C2-1
 	       << ", wght=" << wght << ", w=" << w0;
 	  normTest(p2, sout.str());
+	  if (C2<2 or C2>3)
+	    std::cout << "p2 [recomb_2] bad C2=" << C2 << std::endl;
 	}
 
 	if (wght < p2->dattrib[hybrid_pos+C2-1]) {
@@ -5829,6 +5850,11 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // Ion(2)     and Electron(1)
   // Neutral(1) and Neutral(2)
 
+  if (use_normtest) {
+    normTest(p1, "p1 [Before update]");
+    normTest(p2, "p2 [Before update]");
+  }
+
   if (use_elec and Ion1Frac>0.0) {
     InteractData d(m1, atomic_weights[0], Wa, Wb, q, Z1, Z2, p1, p2);
 
@@ -5910,8 +5936,10 @@ int CollideIon::inelasticHybrid(pCell* const c,
     }
   }
 
-  normTest(p1, "p1 [After]");
-  normTest(p2, "p2 [After]");
+  if (use_normtest) {
+    normTest(p1, "p1 [After]");
+    normTest(p2, "p2 [After]");
+  }
 
   return ret;
 }
@@ -6160,7 +6188,7 @@ int CollideIon::computeHybridInteraction
 
     KE.flag.set(KE_::PreLoss);
 
-    if (fabs(difE)/(KEi + KEf) > 1.0e-10) {
+    if (fabs(difE)/(KEi + KEf) > tolE) {
       std::cout << "Error before loss, difE = " << difE
 		<< ", totE = " << KEi + KEf
 		<< ", norm = " << wNorm
@@ -6218,7 +6246,7 @@ int CollideIon::computeHybridInteraction
       double KEf   = KE1f + KE2f;
       double delEt = KEi  - KEf - std::min<double>(kE, KE.delE);
 
-      if ( fabs(delEt)/std::min<double>(KEi, KEf) > 1.0e-10) {
+      if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
 	std::cout << "Error: delEt = " << delEt
 		  << " KEi = " << KEi
 		  << " KEf = " << KEf
@@ -9837,6 +9865,40 @@ sKey2Umap CollideIon::generateSelectionHybrid
     }
   }
 
+  if (collLim) {		// Sanity clamp
+    const double maxSel = 5000.0;
+    const double cpbodM = 100.0;
+
+    unsigned     nbods  = c->bods.size();
+    double       cpbod  = static_cast<double>(totalNsel)/nbods;
+
+    if (totalNsel > maxSel or cpbod > cpbodM) {
+      std::get<0>(clampdat[id]) ++;
+      std::get<1>(clampdat[id]) += cpbod;
+      std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
+      /*
+      std::cout << std::string(40, '-') << std::endl
+		<< "Collision limit exceeded! Clamping . . . " << std::endl
+		<< "   # bodies: " << nbods      << std::endl
+		<< "  coll/body: " << cpbod      << std::endl
+		<< "Old # pairs: " << totalNsel  << std::endl;
+      */
+      double factor = std::min<double>(maxSel/totalNsel, cpbodM/cpbod);
+      totalNsel = 0;
+      for (auto u : selcM) {
+	for (auto v : u.second) {
+	  v.second *= factor;
+	  nselM[u.first][v.first] = static_cast<unsigned>(floor(v.second+0.5));
+	  totalNsel += nselM[u.first][v.first];
+	}
+      }
+      /*
+      std::cout << "New # pairs: " << totalNsel  << std::endl
+		<< std::string(40, '-') << std::endl;
+      */
+    }
+  }
+
   if (DEBUG_SL) {
 
     std::cout << std::endl
@@ -10759,6 +10821,26 @@ void CollideIon::electronGather()
       }
     }
 
+    if (aType==Hybrid and collLim) {
+
+      clampDat clamp1(clamp0);
+
+      for (int t=0; t<nthrds; t++) {
+	std::get<0>(clamp1) += std::get<0>(clampdat[t]);
+	std::get<1>(clamp1) += std::get<1>(clampdat[t]);
+	std::get<2>(clamp1)  = std::max<double>(std::get<2>(clampdat[0]),
+						std::get<2>(clampdat[t]));
+      }
+
+      MPI_Reduce(&std::get<0>(clamp1), &std::get<0>(clampStat), 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&std::get<1>(clamp1), &std::get<1>(clampStat), 1, MPI_DOUBLE,   MPI_SUM, 0, MPI_COMM_WORLD);
+      MPI_Reduce(&std::get<2>(clamp1), &std::get<2>(clampStat), 1, MPI_DOUBLE,   MPI_MAX, 0, MPI_COMM_WORLD);
+
+      if (std::get<0>(clampStat)) std::get<1>(clampStat) /= std::get<0>(clampStat);
+      
+      for (int t=0; t<nthrds; t++) clampdat[t] = clamp0;
+    }
+
     if (aType==Hybrid and IonRecombChk) {
       for (int t=1; t<nthrds; t++) {
 	for (auto v : ionCHK[t]) {
@@ -11232,6 +11314,16 @@ void CollideIon::electronPrint(std::ostream& out)
     (*crsH)(out);
   }
 
+
+  if (aType==Hybrid and collLim) {
+    out << std::string(53, '-') << std::endl
+	<< "-----Collisions per cell over limit------------------" << std::endl
+	<< std::string(53, '-') << std::endl << std::left
+	<< std::setw(14) << " Over"      << std::setw(16) << std::get<0>(clampStat)    << std::endl
+	<< std::setw(14) << " Mean"      << std::setw(16) << std::get<1>(clampStat)    << std::endl
+	<< std::setw(14) << " Max"       << std::setw(16) << std::get<2>(clampStat)    << std::endl
+	<< std::setw(14) << " Total"     << std::setw(16) << c0->Tree()->TotalNumber() << std::endl;
+  }
 
   out << std::string(53, '-') << std::endl
       << "-----Electron NTC diagnostics------------------------" << std::endl
@@ -11761,6 +11853,9 @@ void CollideIon::processConfig()
 
     DEBUG_CNT =
       cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
+
+    collLim = 
+      cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
 
     FloorEv =
       cfg.entry<double>("FloorEv", "Minimum energy for Coulombic elastic scattering cross section", 0.05f);
