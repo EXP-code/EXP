@@ -293,7 +293,7 @@ void BarrierWrapper::heavy_operator(const string& label,
       //
       MPI_Test(req.back().second.get(), &good, &status);
 
-    } else {
+    } else {			// THIS IS A SANITY CHECK
 				// No buffers expected . . . why are
 				// we still in this loop?
       if (debugging) {
@@ -337,6 +337,7 @@ void BarrierWrapper::heavy_operator(const string& label,
 		      << it->second->info.back()->s << ">, size=" 
 		      << it->second->info.size() << std::endl;
 	  }
+
 	  // All nodes have now hit the barrier
 	  sfinal = it->first;
 	  pending.erase(it);
@@ -462,7 +463,8 @@ void BarrierWrapper::heavy_operator(const string& label,
 void BarrierWrapper::listReport(const char* title, 
 				std::map<std::string, BWPtr>::iterator it)
 {
-  std::cout << title << " [#" << localid << "]: " << it->first << " ** "
+  std::cout << title << " [#" << localid << "," << it->second->nexpiry
+	    << "]: " << it->first << " ** "
 	    << time(0) - it->second->first << " secs, " 
 	    << it->second->count << "/" << commsize << " waiting, ";
   for (int i=0; i<commsize; i++) std::cout << it->second->nd[i];
