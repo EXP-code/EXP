@@ -321,7 +321,7 @@ private:
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              numEf;
   std::vector< double >                              kEi, kEe1, kEe2, kEee;
-  std::vector< double >                              Ein1, Ein2, Evel;
+  std::vector< double >                              Ein1, Ein2, Evel, Vrel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
@@ -717,7 +717,7 @@ protected:
     };
 
   public:
-    double miss, delta, delE, p1E, p2E;
+    double miss, delta, delE, p1E, p2E, gamma;
     double totE, kE, dKE, vfac, vrat, o1, o2;
     bitset<8> flag;
 
@@ -727,7 +727,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = delE = p1E = p2E = 0.0;
+      miss = delta = delE = p1E = p2E = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
       flag = 0;
     }
@@ -736,7 +736,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = 0.0;
+      miss = delta = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
       flag = 0;
     }

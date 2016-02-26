@@ -344,6 +344,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
   Evel     .resize(nthrds);
+  Vrel     .resize(nthrds);
   spTau    .resize(nthrds);
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
@@ -2061,6 +2062,13 @@ double CollideIon::crossSectionHybrid(pCell* const c,
   double eVel0 = sqrt(mu0/me);
   double eVel1 = sqrt(m1/me/dof1);
   double eVel2 = sqrt(m2/me/dof2);
+  double eVelI = 0.0;
+
+  for (unsigned i=0; i<3; i++) {
+    double rvel = p1->vel[i] - p2->vel[i];
+    eVelI += rvel * rvel;
+  }
+  Vrel[id] = sqrt(eVelI)/cr;
 
   if (NO_VEL) {
     eVel0 = eVel1 = eVel2 = 1.0;
@@ -5331,7 +5339,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
   // Cross section scale factor for debugging
   //
   double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()] *
-    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+    1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * Vrel[id];
 
   crsD[id].push_back(scaleCrossSection);
 
@@ -5406,9 +5414,6 @@ int CollideIon::inelasticHybrid(pCell* const c,
       collTDPtr ctd1 = (*collD)[speciesKey(Z1, C1)];
       collTDPtr ctd2 = (*collD)[speciesKey(Z2, C2)];
 
-      // double cF = dCfrac[id][i];
-      // double cF = dCfrac[id][i] * scaleCrossSection;
-
       double cF = dCross[id][i]/tCross * scaleCrossSection;
       double NN = N0 * cF;
 
@@ -5417,49 +5422,49 @@ int CollideIon::inelasticHybrid(pCell* const c,
       //-------------------------
       
       if (interFlag == neut_neut_1) {
-	ctd1->nn[id][0] += cF; 
+	ctd1->nn[id][0] += cF * q; 
 	ctd1->nn[id][1] += NN;
 
-	NeutFrac += cF;
+	NeutFrac += cF * q;
       }
 
       if (interFlag == neut_elec_1) {
-	ctd1->ne[id][0] += cF; 
+	ctd1->ne[id][0] += cF * q; 
 	ctd1->ne[id][1] += NN;
 
-	Ion1Frac += cF;
+	Ion1Frac += cF * q;
       }
 
       if (interFlag == ion_elec_1) {
-	ctd1->ie[id][0] += cF; 
+	ctd1->ie[id][0] += cF * q; 
 	ctd1->ie[id][1] += NN;
 
-	Ion1Frac += cF;	
+	Ion1Frac += cF * q;	
       }
 
       if (interFlag == free_free_1) {
-	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF;
+	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q;
 	if (NO_FF_E) dE = 0.0;
 	delE1 += dE;
-	ctd1->ff[id][0] += cF; 
+	ctd1->ff[id][0] += cF * q; 
 	ctd1->ff[id][1] += NN;
-	ctd1->ff[id][2] += dE * N0;
+	ctd1->ff[id][2] += dE * N0 / q;
 
-	Ion1Frac += cF;
+	Ion1Frac += cF * q;
       }
 
       if (interFlag == colexcite_1) {
-	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF;
+	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
 	delE1 += dE;
-	ctd1->CE[id][0] += cF;
+	ctd1->CE[id][0] += cF * q;
 	ctd1->CE[id][1] += NN;
-	ctd1->CE[id][2] += dE * N0;
+	ctd1->CE[id][2] += dE * N0 / q;
 
-	Ion1Frac += cF;
+	Ion1Frac += cF * q;
       }
 
       if (interFlag == ionize_1) {
-	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF;
+	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF * q;
 	if (NO_ION_E) dE = 0.0;
 	delE1 += dE;
 
@@ -5492,9 +5497,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 
 	ctd1->CI[id][0] += cF; 
 	ctd1->CI[id][1] += NN;
-	ctd1->CI[id][2] += dE * N0;
+	ctd1->CI[id][2] += dE * N0 / q;
 
-	Ion1Frac += cF;
+	Ion1Frac += cF * q;
 
 	if (IonRecombChk) {
 	  speciesKey k = kInter[id][i].first;
@@ -5546,9 +5551,9 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	
 	delE1 += dE;
 
-	ctd1->RR[id][0] += cF; 
+	ctd1->RR[id][0] += cF * q; 
 	ctd1->RR[id][1] += NN;
-	ctd1->RR[id][2] += dE * N0;
+	ctd1->RR[id][2] += dE * N0 / q;
 	
 	// Add the KE from the recombined electron back to the free pool
 	//
@@ -5606,7 +5611,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
 
       if (interFlag == free_free_2) {
-	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q;
+	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF;
 	if (NO_FF_E) dE = 0.0;
 	delE2 += dE;
 	ctd2->ff[id][0] += cF;
@@ -5617,7 +5622,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
       
       if (interFlag == colexcite_2) {
-	dE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]) * cF * q;
+	dE = IS.selectCEInteract(ch.IonList[Q2], CE2[id]) * cF;
 	delE2 += dE;
 	ctd2->CE[id][0] += cF; 
 	ctd2->CE[id][1] += NN;
@@ -5627,11 +5632,11 @@ int CollideIon::inelasticHybrid(pCell* const c,
       }
 
       if (interFlag == ionize_2) {
-	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF * q;
+	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF;
 	if (NO_ION_E) dE = 0.0;
 	delE2 += dE;
 
-	double wght = cF * q;
+	double wght = cF;
 
 	if (use_normtest) {
 	  std::ostringstream sout;
@@ -5667,7 +5672,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (IonRecombChk) {
 	  speciesKey k = kInter[id][i].second;
 	  if (ionCHK[id].find(k) == ionCHK[id].end()) ionCHK[id][k] = 0.0;
-	  ionCHK[id][k] += dCross[id][i] * (*cr) * q;
+	  ionCHK[id][k] += dCross[id][i] * (*cr);
 	}
       }
 
@@ -5682,7 +5687,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 		    << std::endl;
 	}
 	
-	double wght = cF * q;
+	double wght = cF;
 	double w0   = p2->dattrib[hybrid_pos+C2-1];
 
 	if (use_normtest) {
@@ -5711,7 +5716,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	}
 
 	dE = kEe2[id] * wght;
-	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q;
+	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF;
 	
 	delE2 += dE;
 	
@@ -5744,7 +5749,7 @@ int CollideIon::inelasticHybrid(pCell* const c,
 	if (IonRecombChk) {
 	  speciesKey k = kInter[id][i].second;
 	  if (recombCHK[id].find(k) == recombCHK[id].end()) recombCHK[id][k] = 0.0;
-	  recombCHK[id][k] += dCross[id][i] * (*cr) * q;
+	  recombCHK[id][k] += dCross[id][i] * (*cr);
 	}
       }
       
@@ -5987,7 +5992,7 @@ int CollideIon::computeHybridInteraction
   // collisional loss.  A negative value for totE will be handled
   // below . . .
   //
-  double totE = kE - KE.delE, gamma = 0.0;
+  double totE = kE - KE.delE;
 
   // For debugging . . . 
   //
@@ -6057,15 +6062,8 @@ int CollideIon::computeHybridInteraction
     //
     KE.vfac = vfac = totE>0.0 ? sqrt(totE/kE) : 0.0;
     KE.flag.set(KE_::Vfac);
-
-    // Set energy factor for ExactE
-    //
-    if (kE - KE.delE > 0.0)
-      gamma = 2.0*KE.delE/(d.Wa*d.m1);
-    else
-      gamma = 2.0*kE/(d.Wa*d.m1);
   }
-  
+
   // Use explicit energy conservation algorithm
   //
   double vrat = 1.0, wNorm = -1.0, vCom2 = -1.0, vRel2 = -1.0, QT = -1.0;
@@ -6128,14 +6126,13 @@ int CollideIon::computeHybridInteraction
 	  }
 	  KE.o1 /= sqrt(v1i2*b1f2);
 	  KE.o2 /= sqrt(v1i2*b1f2);
-	  vrat = sqrt( (1.0 - d.q)*d.q*udif + gamma );
+	  vrat = sqrt( (1.0 - d.q)*d.q*udif );
 	  algok = true;
-	} else {
-	  w1   = v1;
-	  vrat = sqrt( (d.q*b1f2/v1i2 + 1.0 + gamma/v1i2)/(1.0 - d.q) );
 	}
 
-      } else {
+      }
+
+      if (!AlgOrth or !algok) {
 	
 	KE.flag.set(KE_::StdE);
 
@@ -6147,7 +6144,7 @@ int CollideIon::computeHybridInteraction
 	QT = qT;
 
 	vrat = 
-	  ( -qT + sqrt(qT*qT + (1.0 - d.q)*(d.q*b1f2/v1i2 + 1.0 + gamma/v1i2) ) )/(1.0 - d.q);
+	  ( -qT + sqrt(qT*qT + (1.0 - d.q)*(d.q*b1f2/v1i2 + 1.0) ) )/(1.0 - d.q);
       }
 
     } else if (totE>0.0) {
@@ -6644,6 +6641,7 @@ int CollideIon::updateHybrid(InteractData& d,
 		<< ",  kE=" << std::setw(14) << KE.kE
 		<< ", tot=" << std::setw(14) << KE.totE
 		<< ", KEd=" << std::setw(14) << KE.dKE
+		<< ", gam=" << std::setw(14) << KE.gamma
 		<< ", wv1=" << std::setw(14) << KE.o1
 		<< ", wv2=" << std::setw(14) << KE.o2
 		<< ",  vf=" << std::setw(14) << KE.vfac
