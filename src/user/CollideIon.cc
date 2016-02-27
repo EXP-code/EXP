@@ -331,6 +331,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanM    .resize(nthrds);
   neutF    .resize(nthrds);
   numEf    .resize(nthrds);
+  colSc    .resize(nthrds);
   sCrsTot1 .resize(nthrds);
   sCrsTot2 .resize(nthrds);
   excessW  .resize(nthrds);
@@ -5342,9 +5343,62 @@ int CollideIon::inelasticHybrid(pCell* const c,
   double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()] *
     1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * Vrel[id];
 
+  if (collLim) scaleCrossSection *= colSc[id];
+
   crsD[id].push_back(scaleCrossSection);
 
   // END: crsD
+
+
+  //
+  // VERBOSE DEBUG TEST
+  //
+  if (DEBUG_CR and (!DEBUG_NQ or Z1 != Z2) ) {
+
+    // Header
+    std::cout << std::setw( 8) << "index"
+	      << std::setw( 8) << "flag"
+	      << std::setw(14) << "cross"
+	      << std::setw(14) << "prob"
+	      << std::setw(14) << "prob scaled"
+	      << std::setw(14) << "weight"
+	      << std::setw(18) << "type label"
+	      << std::setw(24) << "species"
+	      << std::endl
+	      << std::setw( 8) << "-----"
+	      << std::setw( 8) << "-----"
+	      << std::setw(14) << "---------"
+	      << std::setw(14) << "---------"
+	      << std::setw(14) << "---------"
+	      << std::setw(14) << "---------"
+	      << std::setw(18) << "---------------"
+	      << std::setw(24) << "--------------------"
+	      << std::endl;
+    for (size_t i = 0; i < dCross[id].size(); i++) {
+      std::ostringstream sout;
+      speciesKey k1 = kInter[id][i].first;
+      speciesKey k2 = kInter[id][i].second;
+      sout << '(' << k1.first << ',' << k1.second << ')' << " <-> " 
+	   << '(' << k2.first << ',' << k2.second << ')';
+
+      double wght = 1.0;
+      if (dInter[id][i] / 100 == 1) wght = p1->dattrib[hybrid_pos+k1.second-1];
+      if (dInter[id][i] / 100 == 2) wght = p2->dattrib[hybrid_pos+k2.second-1];
+
+      std::cout << std::setw( 8) << i
+		<< std::setw( 8) << dInter[id][i]
+		<< std::setw(14) << dCross[id][i]
+		<< std::setw(14) << dCross[id][i]/tCross
+		<< std::setw(14) << dCross[id][i]/tCross * scaleCrossSection
+		<< std::setw(14) << wght
+		<< std::setw(18) << labels[dInter[id][i]]
+		<< std::setw(24) << sout.str()
+		<< std::endl;
+    }
+    std::cout << std::endl;
+  }
+
+  // DONE: VERBOSE DEBUG
 
   double NCXTRA = 0.0;
 
@@ -9870,6 +9924,8 @@ sKey2Umap CollideIon::generateSelectionHybrid
     unsigned     nbods  = c->bods.size();
     double       cpbod  = static_cast<double>(totalNsel)/nbods;
 
+    colSc[id] = 1.0;
+
     if (totalNsel > maxSel or cpbod > cpbodM) {
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
@@ -9881,11 +9937,11 @@ sKey2Umap CollideIon::generateSelectionHybrid
 		<< "  coll/body: " << cpbod      << std::endl
 		<< "Old # pairs: " << totalNsel  << std::endl;
       */
-      double factor = std::min<double>(maxSel/totalNsel, cpbodM/cpbod);
+      colSc[id] = std::min<double>(maxSel/totalNsel, cpbodM/cpbod);
       totalNsel = 0;
       for (auto u : selcM) {
 	for (auto v : u.second) {
-	  v.second *= factor;
+	  v.second *= colSc[id];
 	  nselM[u.first][v.first] = static_cast<unsigned>(floor(v.second+0.5));
 	  totalNsel += nselM[u.first][v.first];
 	}
