@@ -5343,8 +5343,12 @@ int CollideIon::inelasticHybrid(pCell* const c,
   double scaleCrossSection = tCross/csections[id][k1.getKey()][k2.getKey()] *
     1e-14 / (UserTreeDSMC::Lunit*UserTreeDSMC::Lunit) * Vrel[id];
 
-  if (collLim) scaleCrossSection *= colSc[id];
+  // Scale up weighting if collisions have been limited
+  //
+  if (collLim) scaleCrossSection /= colSc[id];
 
+  // For diagnostic output
+  //
   crsD[id].push_back(scaleCrossSection);
 
   // END: crsD
@@ -9930,14 +9934,9 @@ sKey2Umap CollideIon::generateSelectionHybrid
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
       std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
-      /*
-      std::cout << std::string(40, '-') << std::endl
-		<< "Collision limit exceeded! Clamping . . . " << std::endl
-		<< "   # bodies: " << nbods      << std::endl
-		<< "  coll/body: " << cpbod      << std::endl
-		<< "Old # pairs: " << totalNsel  << std::endl;
-      */
+
       colSc[id] = std::min<double>(maxSel/totalNsel, cpbodM/cpbod);
+
       totalNsel = 0;
       for (auto u : selcM) {
 	for (auto v : u.second) {
@@ -9946,10 +9945,6 @@ sKey2Umap CollideIon::generateSelectionHybrid
 	  totalNsel += nselM[u.first][v.first];
 	}
       }
-      /*
-      std::cout << "New # pairs: " << totalNsel  << std::endl
-		<< std::string(40, '-') << std::endl;
-      */
     }
   }
 
