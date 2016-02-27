@@ -10743,7 +10743,8 @@ void CollideIon::electronGather()
     // Accumulate from threads
     //
     std::vector<double> loss, keE, keI, mom, crs;
-    unsigned Ovr=0, Acc=0, Tot=0;    for (int t=0; t<nthrds; t++) {
+    unsigned Ovr=0, Acc=0, Tot=0;    
+    for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
       Ovr += elecOvr[t];
