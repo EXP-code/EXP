@@ -400,6 +400,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   if (eDistDBG) {
     elecEV.resize(nthrds);
+    for (auto &v : elecEV) v.set_capacity(bufCap);
   }
 
   // Enum collsion-type label fields
@@ -6198,7 +6199,6 @@ int CollideIon::computeHybridInteraction
 		<< ", b1f2 = " << b1f2
 		<< ", b2f2 = " << b2f2
 		<< ", vrat = " << vrat
-		<< ",  gam = " << gamma
 		<< ",   qT = " << QT
 		<< ",    q = " << d.q
 		<< ", algo = " << (algok ? "true" : "false")
@@ -10753,19 +10753,31 @@ void CollideIon::electronGather()
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
     }
 
-    if (eDistDBG and aType==Hybrid) {
-      for (int t=1; t<nthrds; t++) {
-	elecEV[0].insert(elecEV[0].end(), elecEV[t].begin(), elecEV[t].end());
-	elecEV[t].clear();
-      }
+    std::ofstream dbg;
+    if (IDBG) {
+      std::ostringstream sout;
+      sout << runtag << ".eGather." << myid;
+      dbg.open(sout.str().c_str(), ios::out | ios::app);
+      sout.str(""); sout << "---- Step " << this_step
+			 << " Time=" << tnow << " ";
+      dbg << std::setw(70) << std::setfill('-') << left << sout.str()
+	  << std::endl << std::setfill(' ');
+    }
 
+    if (eDistDBG and aType==Hybrid) {
+      std::vector<double> eEV;
+      for (int t=1; t<nthrds; t++) 
+	eEV.insert(eEV.end(), elecEV[t].begin(), elecEV[t].end());
+      
+      // All processes send to root
+      //
       for (int n=1; n<numprocs; n++) {
 
 	if (myid == n) {
-	  unsigned num = elecEV[0].size();
-	  MPI_Send(&num,            1, MPI_UNSIGNED, 0, 320, MPI_COMM_WORLD);
+	  unsigned num = eEV.size();
+	  MPI_Send(&num,        1, MPI_UNSIGNED, 0, 320, MPI_COMM_WORLD);
 	  if (num)
-	    MPI_Send(&elecEV[0][0], num, MPI_DOUBLE,   0, 321, MPI_COMM_WORLD);
+	    MPI_Send(&eEV[0], num, MPI_DOUBLE,   0, 321, MPI_COMM_WORLD);
 	  
 	} // END: process send to root
 	
@@ -10782,7 +10794,7 @@ void CollideIon::electronGather()
 	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 321, MPI_COMM_WORLD, 
 		     MPI_STATUS_IGNORE);
 	    
-	    elecEV[0].insert(elecEV[0].end(), v.begin(), v.end());
+	    eEV.insert(eEV.end(), v.begin(), v.end());
 	    
 	  } // Loop over quantiles
 	  
@@ -10790,11 +10802,12 @@ void CollideIon::electronGather()
 
 	MPI_Barrier(MPI_COMM_WORLD);
 
-      } // Node loop
+      } // Process loop
 
       if (myid==0) {
-	elecEVH = ahistoDPtr(new AsciiHisto<double>(elecEV[0], 20, 0.01));
-	elecEV[0].clear();
+	elecEVH = ahistoDPtr(new AsciiHisto<double>(eEV, 20, 0.01));
+	if (IDBG) dbg << std::setw(16) << "eEV.size() = "
+		      << std::setw(10) << eEV.size() << std::endl;
       }
       
     } // END: eDistDBG
@@ -10814,9 +10827,7 @@ void CollideIon::electronGather()
     if (KE_DEBUG) {
       for (int t=0; t<nthrds; t++) {
 	keE.insert(keE.end(), keER[t].begin(), keER[t].end());
-	keER[t].clear();
 	keI.insert(keI.end(), keIR[t].begin(), keIR[t].end());
-	keIR[t].clear();
       }
     }
 
@@ -10986,16 +10997,6 @@ void CollideIon::electronGather()
 
     } // END: NTC_DIST
 
-    std::ofstream dbg;
-    if (IDBG) {
-      std::ostringstream sout;
-      sout << runtag << ".eGather." << myid;
-      dbg.open(sout.str().c_str(), ios::out | ios::app);
-      sout.str(""); sout << "---- Step " << this_step
-			 << " Time=" << tnow << " ";
-      dbg << std::setw(70) << std::setfill('-') << left << sout.str()
-	  << std::endl << std::setfill(' ');
-    }
 
     (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop", __FILE__, __LINE__);
     
