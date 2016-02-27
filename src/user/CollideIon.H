@@ -382,7 +382,7 @@ private:
   //! For histogram electron interaction energy distribution in eV.
   //! Set to false for production.
   const bool eDistDBG = true;
-  std::vector< std::vector<double> > elecEV;
+  std::vector< boost::circular_buffer<double> > elecEV;
   ahistoDPtr elecEVH;
   //@}
 
