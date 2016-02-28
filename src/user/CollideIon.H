@@ -397,7 +397,7 @@ private:
   //! Store NTCdb data
   eeMap ee;
   
-  //! Historgram of NTCdb data
+  //! Histogram of NTCdb data
   NTCeeHist eeHisto;
   //@}
 
