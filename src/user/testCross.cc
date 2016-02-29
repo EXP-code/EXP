@@ -13,6 +13,7 @@
 
 #include "atomic_constants.H"
 #include "Ion.H"
+#include "Elastic.H"
 
 namespace po = boost::program_options;
 
@@ -44,8 +45,6 @@ int main (int ac, char **av)
   MPI_Comm_size(MPI_COMM_WORLD, &numprocs);
   MPI_Comm_rank(MPI_COMM_WORLD, &myid);
 
-  std::string oname;
-
   std::string cmd_line;
   for (int i=0; i<ac; i++) {
     cmd_line += av[i];
@@ -53,7 +52,7 @@ int main (int ac, char **av)
   }
 
   unsigned short Z, C;
-  double emin, emax;
+  double emin, emax, logL = 10.0;
   std::string RRtype;
   bool eVout = false;
   int num;
@@ -74,9 +73,8 @@ int main (int ac, char **av)
      "number of evaluations")
     ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
      "cross-section type")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
-     "body output file")
     ;
+
 
 
   po::variables_map vm;
@@ -129,6 +127,10 @@ int main (int ac, char **av)
     exit(1);
   }
 
+  constexpr double mrat = me/mp;
+
+  PeriodicTable pt;
+
   chdata ch;
 
   ch.createIonList(ZList);
@@ -140,11 +142,15 @@ int main (int ac, char **av)
 
   Ion::setRRtype(RRtype);
 
+  Geometric geometric;
+  Elastic   elastic;
+
 
   // Print cross section for requested ion
   //
 				// Convert from Rydberg to eV
   const double ryd      = 27.2113845/2.0;
+  const double eVerg    = 1.60217733e-12;
 
   emin = log(emin);
   emax = log(emax);
@@ -153,11 +159,59 @@ int main (int ac, char **av)
 
   lQ Q(Z, C);
 
+  int nf = 11;
+
+  std::cout << "# Q=(" << Z << ", " << C << ")" << std::endl
+	    << "#" << std::endl;
+
+  std::cout << std::left
+	    << std::setw(16) << "# Energy"
+	    << std::setw(16) << "Wave number"
+	    << std::setw(16) << "Geometric"
+	    << std::setw(16) << "Elastic"
+	    << std::setw(16) << "Rutherford"
+	    << std::setw(16) << "Free-free"
+	    << std::setw(16) << "Collisional"
+	    << std::setw(16) << "Ionization"
+	    << std::setw(16) << "Recombination"
+	    << std::setw(16) << "Photoionization"
+	    << std::setw(16) << "Photo states"
+	    << std::endl;
+
+  std::cout << std::setw(16) << "# [1]";
+  for (int i=1; i<nf; i++) {
+    std::ostringstream sout; sout << " [" << i+1  << "]";
+    std::cout << std::setw(16) << sout.str();
+  }
+  std::cout << std::endl << std::setw(16) << "# --------";
+  for (int i=1; i<nf; i++) {
+    std::cout << std::setw(16) << "---------";
+  }
+  std::cout << std::endl;
+
   for (int i=0; i<num; i++) {
     double E   = exp(emin + dE*i);
     double EeV = E * ryd;
 
+    double geom = geometric(Z);
+    double elas = elastic(Z, EeV);
+    double coul = 0.0;
+
+    {
+      const double ips = 1000.0;
+      double b90 = 0.5*esu*esu*(C-1) / (EeV * eVerg) * 1.0e7; // nm
+      b90 = std::min<double>(b90, ips);
+      coul = M_PI*b90*b90 * 4.0*mrat/pt[Z]->weight() * logL;
+    }
+
+    double ffre = ch.IonList[Q]->freeFreeCross(EeV, 0);
+
+    double ionz = ch.IonList[Q]->directIonCross(EeV, 0);
+
+    Ion::collType       CE1 = ch.IonList[Q]->collExciteCross(EeV, 0);
+    
     std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(EeV, 0);
+
     std::vector<double> PI1 = ch.IonList[Q]->photoIonizationCross(EeV, 0);
 
     std::vector< std::tuple<int, double> >
@@ -182,8 +236,16 @@ int main (int ac, char **av)
       if (S>0) csum += cs;
     }
 
+    double coll = CE1.back().first;
+
     std::cout << std::setw(16) << (eVout ? EeV : E)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
+	      << std::setw(16) << geom       * 1.0e+04 // Mb
+	      << std::setw(16) << elas       * 1.0e+04 // Mb
+	      << std::setw(16) << coul       * 1.0e+04 // Mb
+	      << std::setw(16) << ffre       * 1.0e+04 // Mb
+	      << std::setw(16) << coll       * 1.0e+04 // Mb
+	      << std::setw(16) << ionz       * 1.0e+04 // Mb
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << csum;		       // Mb
