@@ -74,8 +74,8 @@ int main (int ac, char **av)
      "number of evaluations")
     ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
      "cross-section type")
-    ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
-     "body output file")
+    ("output,o",	po::value<std::string>(&oname)->default_value("cctest.dat"),
+     "output file")
     ;
 
 
@@ -151,7 +151,7 @@ int main (int ac, char **av)
 
   double dE = (emax - emin)/(num - 1);
 
-  lQ Q(Z, C);
+  lQ Q(Z, C), QL(Z, C-1);
 
   for (int i=0; i<num; i++) {
     double E   = exp(emin + dE*i);
@@ -177,13 +177,20 @@ int main (int ac, char **av)
     int Nel = Z - C + 1;
     float ee = EeV, cs, csum=0.0;
 
-    for (int S=1; S<=7; S++) {
+    for (int S=0; S<=7; S++) {
       phfit2_(&ZZ, &Nel, &S, &ee, &cs);
       if (S>0) csum += cs;
     }
 
+    // Compute collisional ionization cross section
+    double dI = 0.0;
+    if (C>1) dI = ch.IonList[QL]->directIonCross(EeV, 0);
+    else     dI = ch.IonList[Q ]->directIonCross(EeV, 0);
+
+    //
     std::cout << std::setw(16) << (eVout ? EeV : E)
 	      << std::setw(16) << 0.0001239841842144513*1.0e8/EeV
+	      << std::setw(16) << dI         * 1.0e+04 // Mb
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << PI1.back() * 1.0e+04 // Mb
 	      << std::setw(16) << csum;		       // Mb
