@@ -32,6 +32,33 @@ double   NTCitem::Def = 10.0;
 // Count live instances
 unsigned NTCitem::instance  = 0;
 
+// Default interaction key for singleton
+NTC::T NTCitem::single {0, 0, 0};
+
+template<typename T>
+std::ostream& operator<< (std::ostream& out, const std::tuple<T, T, T>& t)
+{
+  std::ostringstream sout;
+  sout << '(' << std::get<0>(t)
+       << ',' << std::get<1>(t)
+       << ',' << std::get<2>(t)
+       << ')';
+  out << sout.str();
+  return out;
+}
+
+std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
+{
+  std::ostringstream sout;
+  sout << "[(" << t.first.first
+       << ',' << t.first.second
+       << ")(" << t.second.first
+       << ',' << t.second.second
+       << ")]";
+  out << sout.str();
+  return out;
+}
+
 void NTCitem::Test()
 {
   inTest = true;		// To prevent recursive calling in Prob
@@ -51,21 +78,26 @@ void NTCitem::Test()
 	      << "VelCrs structure: "  << this << " caller: " << caller 
 	      << std::endl << std::string(70, '-') << std::endl;
 
-    for (auto k : db) {
-      sKeyPair p = k.first;
+    for (auto v : db) {
+      sKeyPair p = v.first;
       std::ostringstream sout;
       sout << "<" << p.first.first  << "," << p.first.second
 	   << "|" << p.second.first << "," << p.second.second << ">";
 
-      std::cout << std::setw(14) << sout.str()
-		<< std::setw(10) << k.second.count();
-
       size_t prc = std::cout.precision(2);
-      for (size_t i=0; i<number; i++) {
-	double P = (0.5 + i)/number;
-	std::cout << std::setw(10) << k.second(P);
+
+      for (auto k : v.second) {
+
+	std::cout << std::setw(14) << sout.str()
+		  << std::setw(10) << k.first
+		  << std::setw(10) << k.second.count();
+
+	for (size_t i=0; i<number; i++) {
+	  double P = (0.5 + i)/number;
+	  std::cout << std::setw(10) << k.second(P);
+	}
+	std::cout << std::endl;
       }
-      std::cout << std::endl;
       std::cout.precision(prc);
     }
     std::cout << std::string(wid, '-') << std::endl;
@@ -84,18 +116,26 @@ NTCitem::vcMap NTCitem::Prob(double x)
   
   // Deal with round off issues on resume
   //
-  for (auto v : db) ret[v.first] = v.second.inverse(x);
-
+  for (auto v : db) {
+    for (auto u : v.second)
+      ret[v.first][u.first] = u.second.inverse(x);
+  }
   return ret;
 }
 
-double NTCitem::Prob(sKeyPair indx, double x)
+double NTCitem::Prob(sKeyPair indx, const T& intr, double x)
 {
   // Get stanza in db
-  qpMap::iterator it = db.find(indx);
+  qpMap::iterator jt = db.find(indx);
 
   // Default value
-  if (it == db.end()) return 0.5;
+  if (jt == db.end()) return 0.5;
+
+  // Get next stanza 
+  uqMap::iterator it = jt->second.find(intr);
+
+  // Default value
+  if (it == jt->second.end()) return 0.5;
 
   // Debug reporting
   //
@@ -112,26 +152,29 @@ void NTCitem::debug()
 {
   std::cout << std::string(94, '-') << std::endl;
   std::cout << std::left << std::setw(30) << "Species pair"
+	    << std::left << std::setw( 6) << "Inter"
 	    << std::left << std::setw(10) << "Count"
 	    << std::left << std::setw(18) << "Min value"
 	    << std::left << std::setw(18) << "Max value"
 	    << std::left << std::setw(18) << "Quantile"
 	    << std::endl;
 
-  for (auto v : db) {
-    std::cout << std::left << std::setw(30) << v.first 
-	      << std::left << std::setw(10) << v.second.count() 
-	      << std::left << std::setw(18) << v.second.xmin()
-	      << std::left << std::setw(18) << v.second.xmax()
-	      << std::left << std::setw(18) << v.second(0.95)
-	      << std::endl;
-    v.second.dump(std::cout);
-    
+  for (auto u : db) {
+    for (auto v : u.second) {
+      std::cout << std::left << std::setw(30) << u.first 
+		<< std::left << std::setw(10) << v.first
+		<< std::left << std::setw(10) << v.second.count() 
+		<< std::left << std::setw(18) << v.second.xmin()
+		<< std::left << std::setw(18) << v.second.xmax()
+		<< std::left << std::setw(18) << v.second(0.95)
+		<< std::endl;
+      v.second.dump(std::cout);
+    }    
   }
   std::cout << std::string(94, '-') << std::endl;
 }
 
-double NTCitem::CrsVel(sKeyPair indx, double p)
+double NTCitem::CrsVel(sKeyPair indx, const T& intr, double p)
 {
   // Get stanza in db
   qpMap::iterator it = db.find(indx);
@@ -139,26 +182,36 @@ double NTCitem::CrsVel(sKeyPair indx, double p)
   // Default value
   if (it == db.end()) return Def;
 
+  // Get next stanza
+  uqMap::iterator jt = it->second.find(intr);
+
   // Default value
-  if (! it->second.full() ) return Def;
+  if (jt == it->second.end()) return Def;
+
+
+  // Default value
+  if (! jt->second.full() ) return Def;
 
   if (0) debug();
 
   // Return value
-  return it->second(p);
+  return jt->second(p);
 }
 
 NTCitem::vcMap NTCitem::CrsVel(double p)
 {
   vcMap ret;
 
-  for (auto v : db) ret[v.first] = v.second(p);
+  for (auto v : db) {
+    for (auto u : v.second)
+      ret[v.first][u.first] = u.second(p);
+  }
 
   // Return value
   return ret;
 }
 
-void NTCitem::Add(sKeyPair indx, double val)
+void NTCitem::Add(sKeyPair indx, const T& intr, double val)
 {
   // value below threshold
   //
@@ -167,29 +220,29 @@ void NTCitem::Add(sKeyPair indx, double val)
   // Check for initialization of Quantile
   //
   if (db.find(indx) == db.end()) {
-    db[indx].histogram(Nequal);
-    for (auto v : qs) db[indx].newQ(v);
+    db[indx][intr].histogram(Nequal);
+    for (auto v : qs) db[indx][intr].newQ(v);
   }
 
   if (0) {
     std::ostringstream sout; sout << "<" << val << ">";
     
     std::cout << "Adding " << std::setw(16) << sout.str() << " to " << indx 
-	    << " [" << db[indx].datums() 
-	      << "/"  << db[indx].target() << "]";
-    if (db[indx].full()) 
+	      << " [" << db[indx][intr].datums() 
+	      << "/"  << db[indx][intr].target() << "]";
+    if (db[indx][intr].full()) 
       std::cout << " P(0.5) =" 
-		<< std::setw(16) << db[indx](0.5)
+		<< std::setw(16) << db[indx][intr](0.5)
 		<< " P(0.95) =" 
-		<< std::setw(16) << db[indx](0.95)
+		<< std::setw(16) << db[indx][intr](0.95)
 		<< " xmax =" 
-		<< std::setw(16) << db[indx].xmax();
+		<< std::setw(16) << db[indx][intr].xmax();
     std::cout << std::endl;
   }
 
   // Add new element
   //
-  db[indx].add(val);
+  db[indx][intr].add(val);
 }
 
 

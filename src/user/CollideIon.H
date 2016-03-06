@@ -319,9 +319,9 @@ private:
   std::vector< CEvector >                            CE1, CE2;
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
-  std::vector< double >                              numEf;
+  std::vector< double >                              numEf, colSc;
   std::vector< double >                              kEi, kEe1, kEe2, kEee;
-  std::vector< double >                              Ein1, Ein2, Evel;
+  std::vector< double >                              Ein1, Ein2, Evel, Vrel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
@@ -330,28 +330,29 @@ private:
   //! This defines the various types of interactions used to tag
   //! non-zero cross sections and subsequent interaction processing
   enum InterTypes { 
-    neut_neut   = 0,
-    neut_elec   = 1,
-    ion_elec    = 2,
-    free_free   = 3,
-    colexcite   = 4,
-    ionize      = 5,
-    recomb      = 6,
-    elec_elec   = 7,
-    neut_neut_1 = 100,
-    neut_elec_1 = 101,
-    ion_elec_1  = 102,
-    free_free_1 = 103,
-    colexcite_1 = 104,
-    ionize_1    = 105,
-    recomb_1    = 106,
-    neut_neut_2 = 200,
-    neut_elec_2 = 201,
-    ion_elec_2  = 202,
-    free_free_2 = 203,
-    colexcite_2 = 204,
-    ionize_2    = 205,
-    recomb_2    = 206
+    any_type    = 0,
+    neut_neut   = 1,
+    neut_elec   = 2,
+    ion_elec    = 3,
+    free_free   = 4,
+    colexcite   = 5,
+    ionize      = 6,
+    recomb      = 7,
+    elec_elec   = 8,
+    neut_neut_1 = 101,
+    neut_elec_1 = 102,
+    ion_elec_1  = 103,
+    free_free_1 = 104,
+    colexcite_1 = 105,
+    ionize_1    = 106,
+    recomb_1    = 107,
+    neut_neut_2 = 201,
+    neut_elec_2 = 202,
+    ion_elec_2  = 203,
+    free_free_2 = 204,
+    colexcite_2 = 205,
+    ionize_2    = 206,
+    recomb_2    = 207
   };    
 
   //@{
@@ -361,8 +362,6 @@ private:
   static ElectronScatter esType;
   static esMapType esMap;
   //@}
-
-  std::map<int, std::string> labels;
 
   //! Mnemonic for the type of algorithm selected by the user
   enum AlgorithmType { Direct, Weight, Trace, Hybrid };
@@ -382,7 +381,7 @@ private:
   //! For histogram electron interaction energy distribution in eV.
   //! Set to false for production.
   const bool eDistDBG = true;
-  std::vector< std::vector<double> > elecEV;
+  std::vector< boost::circular_buffer<double> > elecEV;
   ahistoDPtr elecEVH;
   //@}
 
@@ -397,7 +396,7 @@ private:
   //! Store NTCdb data
   eeMap ee;
   
-  //! Historgram of NTCdb data
+  //! Histogram of NTCdb data
   NTCeeHist eeHisto;
   //@}
 
@@ -437,7 +436,7 @@ protected:
   void processConfig();
 
   //! List of cross sections (separate for each thread)
-  std::vector<sKey2Dmap> csections;
+  std::vector<sKey2Amap> csections;
 
   boost::shared_ptr<collDiag> collD;
 
@@ -476,11 +475,11 @@ protected:
   initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);
 
   virtual void 
-  initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+  initialize_cell_dsmc(pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
 		       double rvmax, double tau, int id) {}
 
   virtual void 
-  initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+  initialize_cell_epsm(pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
 		       double rvmax, double tau, int id) 
   {
     std::cout << "NO EPSM implemented!" << std::endl;
@@ -492,80 +491,80 @@ protected:
 		sKeyDmap* const Fn, double kedsp, double tau, int id);
 
   
-  virtual sKey2Dmap& totalCrossSections(int id)
+  virtual sKey2Amap& totalCrossSections(int id)
   {    
     return csections[id];
   }
 
-  sKey2Dmap& totalScatteringCrossSections(double crm, pCell* const c, int id);
+  sKey2Amap& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
-  double crossSectionDirect(pCell* const c, 
+  double crossSectionDirect(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm, int id=0);
+			    double crm);
   
-  int inelasticDirect(pCell* const c, 
+  int inelasticDirect(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm, int id=0);
+		      double *crm);
 
-  double crossSectionWeight(pCell* const c, 
+  double crossSectionWeight(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
-			    double crm, int id=0);
+			    double crm);
   
-  int inelasticWeight(pCell* const c, 
+  int inelasticWeight(int id, pCell* const c, 
 		      Particle* const p1, Particle* const p2, 
-		      double *crm, int id=0);
+		      double *crm);
 
-  double crossSectionTrace(pCell* const c, 
+  double crossSectionTrace(int id, pCell* const c, 
 			   Particle* const p1, Particle* const p2, 
-			   double crm, int id=0);
+			   double crm);
 
-  int inelasticTrace(pCell* const c, 
+  int inelasticTrace(int id, pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
-		     double *crm, int id=0);
+		     double *crm);
 
-  double crossSectionHybrid(pCell* const c, 
-			   Particle* const p1, Particle* const p2, 
-			   double crm, int id=0);
+  double crossSectionHybrid(int id, pCell* const c, 
+			    Particle* const p1, Particle* const p2, 
+			    double crm, const Interact::T& ityp);
 
-  int inelasticHybrid(pCell* const c, 
-		     Particle* const p1, Particle* const p2, 
-		     double *crm, int id=0);
+  int inelasticHybrid(int id, pCell* const c, 
+		      Particle* const p1, Particle* const p2, 
+		      double *crm, const Interact::T& itype, double weight);
 
-  virtual double crossSection(pCell* const c, 
-			      Particle* const p1, Particle* const p2, 
-			      double crm, int id=0)
+  virtual double crossSection(int id, pCell* const c, 
+			       Particle* const p1, Particle* const p2, 
+			       double crm, const Interact::T& itype)
   {
     if (aType == Direct)
-      return crossSectionDirect(c, p1, p2, crm, id);
+      return crossSectionDirect(id, c, p1, p2, crm);
 
     if (aType == Weight)
-      return crossSectionWeight(c, p1, p2, crm, id);
+      return crossSectionWeight(id, c, p1, p2, crm);
 
     if (aType == Trace)
-      return crossSectionTrace (c, p1, p2, crm, id);
+      return crossSectionTrace (id, c, p1, p2, crm);
 
     if (aType == Hybrid)
-      return crossSectionHybrid(c, p1, p2, crm, id);
+      return crossSectionHybrid(id, c, p1, p2, crm, itype);
 
     return 0.0;
   }
 
 
   virtual int 
-  inelastic(pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, int id=0)
+  inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
+	    double *crm, const Interact::T& itype, double weight)
   {
     if (aType == Direct)
-      return inelasticDirect(c, p1, p2, crm, id);
+      return inelasticDirect(id, c, p1, p2, crm);
 
     if (aType == Weight)
-      return inelasticWeight(c, p1, p2, crm, id);
+      return inelasticWeight(id, c, p1, p2, crm);
 
     if (aType == Trace)
-      return inelasticTrace (c, p1, p2, crm, id);
+      return inelasticTrace (id, c, p1, p2, crm);
 
     if (aType == Hybrid)
-      return inelasticHybrid(c, p1, p2, crm, id);
+      return inelasticHybrid(id, c, p1, p2, crm, itype, weight);
 
     return 1;
   }
@@ -606,25 +605,25 @@ protected:
   //@}
 
 
-  virtual sKey2Umap generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
+  virtual sKey2Amap generateSelectionDirect(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
+  virtual sKey2Amap generateSelectionWeight(pCell* const c, sKeyDmap* const Fn,
 					    double crm, double tau, int id,
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
-  virtual sKey2Umap generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
+  virtual sKey2Amap generateSelectionTrace(pCell* const c, sKeyDmap* const Fn, 
 					   double crm, double tau, int id,
 					   double& meanLambda, double& meanCollP, 
 					   double& totalNsel);
 
-  virtual sKey2Umap generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
-					   double crm, double tau, int id,
-					   double& meanLambda, double& meanCollP, 
-					   double& totalNsel);
+  virtual sKey2Amap generateSelectionHybrid(pCell* const c, sKeyDmap* const Fn, 
+					    double crm, double tau, int id,
+					    double& meanLambda, double& meanCollP, 
+					    double& totalNsel);
 
 
   //! Cache instance of current tree
@@ -717,7 +716,7 @@ protected:
     };
 
   public:
-    double miss, delta, delE, p1E, p2E;
+    double miss, delta, delE, p1E, p2E, gamma;
     double totE, kE, dKE, vfac, vrat, o1, o2;
     bitset<8> flag;
 
@@ -727,7 +726,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = delE = p1E = p2E = 0.0;
+      miss = delta = delE = p1E = p2E = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
       flag = 0;
     }
@@ -736,7 +735,7 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = 0.0;
+      miss = delta = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
       flag = 0;
     }
@@ -838,7 +837,7 @@ public:
   //@}
 
   //! Select particle numbers for interaction
-  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, 
+  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn, 
 				      double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);

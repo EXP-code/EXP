@@ -8,6 +8,8 @@
 #include <tuple>
 #include <map>
 
+#include <boost/circular_buffer.hpp>
+
 #include <ACG.h>
 #include <Uniform.h>
 #include <Normal.h>
@@ -170,6 +172,53 @@ public:
   
   //@}
 
+  //! Container for interaction list to add UI to data types
+  struct Interact
+  {
+    typedef std::tuple<unsigned short, unsigned short, unsigned short> T;
+
+    //! Default interaction key for singleton
+    static constexpr T singleton {0, 0, 0};
+
+    //! Array-like data implemented by a map
+    std::map<T, double> v;
+
+    //! Single double value
+    double d;
+
+    //! Is map empty?
+    bool operator!() { return v.size() == 0; }
+
+    //! Get double from the map
+    double& operator[](T t) { return v[t]; }
+
+    //! Get single double
+    double& operator()() { return d; }
+  };
+
+  //@{
+  //! Types for crossSection and generateSelection with interaction index
+  typedef std::map<speciesKey,     Interact>    sKey1Amap;
+  typedef std::map<speciesKey,     sKey1Amap>   sKey2Amap;
+  //@}
+
+
+  //! Interaction-type labels
+  class Labels : public std::map<int, std::string>
+  {
+  public:
+    static std::string def;
+
+    std::string& operator[] (int i)
+    {
+      std::map<int, std::string> *p = 
+	static_cast<std::map<int, std::string>*>(this);
+      if (p->find(i) == p->end()) (*p)[i] = def;
+      return (*p)[i];
+    }
+
+  } labels;
+
 protected:
 
   //! Fiducial component
@@ -281,7 +330,9 @@ protected:
   std::vector< vector<unsigned> > VcntT;
   std::vector<double>   Vdbl, Vdbl1, Vdbl0;
   std::vector< vector<double> > VdblT;
-  
+
+  std::vector<Interact> retCrs;
+
   std::vector< vector<pCell*> > cellist;
   
   std::vector<double> disptot;
@@ -322,11 +373,11 @@ protected:
   //! Additional DSMC-specific initialization
   virtual void initialize_cell_dsmc
   (pHOT* const tree, pCell* const cell, 
-   sKey2Umap& nsel, double vrelmax, double tau, int id) = 0;
+   sKey2Amap& nsel, double vrelmax, double tau, int id) = 0;
   
   //! Additional EPSM-specific initialization
   virtual void initialize_cell_epsm
-  (pHOT* const tree, pCell* const cell, sKey2Umap& nsel, 
+  (pHOT* const tree, pCell* const cell, sKey2Amap& nsel, 
    double vrelmax, double tau, int id) = 0;
   
   //! Compute energy adjustments diagnostics for the cell after
@@ -337,22 +388,23 @@ protected:
   
   //! Return total scattering + elastic cross section "matrix" for
   //! species-species interactions
-  virtual sKey2Dmap& totalCrossSections(int id) = 0;
+  virtual sKey2Amap& totalCrossSections(int id) = 0;
 
   //! Return the full cross section for particle selection computation
-  virtual double crossSection(pCell* const tree, 
-			      Particle* const p1, Particle* const p2,
-			      double cr, int id=0) = 0;
+  virtual double crossSection(int id, pCell* const tree, 
+			      Particle* const p1, Particle* const p2, double cr, 
+			      const Interact::T& ityp=Interact::singleton) = 0;
   
   //! Return the particle selection matrix
-  virtual sKey2Umap generateSelection
+  virtual sKey2Amap generateSelection
   (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
   //! Do the inelastic computation
-  virtual int inelastic(pCell* const cell, 
-			Particle* const p1, Particle* const p2,
-			double *cr, int id=0) = 0;
+  virtual int inelastic(int id, pCell* const cell, 
+			Particle* const p1, Particle* const p2, double *cr, 
+			const Interact::T& ityp=Interact::singleton, 
+			double weight=-1) = 0;
   
   virtual void 
   velocityUpdate(Particle* const p1, Particle* const p2, double cr);
@@ -412,8 +464,13 @@ protected:
   //! NTC database
   NTC::NTCdb ntcdb;
 
+  //@{
   //! NTC diagnostoics
   std::vector< vector<double> > ntcVal;
+  const size_t bufCap = 16384;
+  std::vector< boost::circular_buffer<double> > wgtVal;
+  std::vector<double> wgtTot;
+  //@}
 
 public:
   
@@ -617,9 +674,11 @@ public:
 
   //@{
   //! Cell distribution of average (cross*vel)
-  typedef std::map<sKeyPair, std::map<float, ahistoDPtr> > NTCqqHist;
-  typedef std::map<double, std::vector<double> > qqMap;
-  typedef std::map< sKeyPair, qqMap > CrsVelMap;
+  typedef std::map<NTC::T, std::map<float, ahistoDPtr> > NTCuuHist;
+  typedef std::map<double, std::vector<double> > dvMap;
+  typedef std::map<sKeyPair, NTCuuHist> NTCqqHist;
+  typedef std::map<NTC::T, dvMap> qqMap;
+  typedef std::map<sKeyPair, qqMap> CrsVelMap;
 
   //! Desired quantiles
   const std::vector<double> qv = {0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95};
@@ -632,6 +691,9 @@ public:
 
   //! Histogram of all target ratios
   ahistoDPtr ntcHisto;
+
+  //! Histogram for subspecies wghts
+  ahistoDPtr wgtHisto;
   //}
 
   //! Gather stats for No-Time-Counter algorithm

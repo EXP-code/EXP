@@ -108,6 +108,8 @@ unsigned Collide::numSanityVal  = 10000000u;
 // Upper thresh for reporting
 unsigned Collide::numSanityFreq = 2000000u;
 
+// Default interation type
+std::string Collide::Labels::def = "default";
 
 
 extern "C"
@@ -240,83 +242,88 @@ Collide::Collide(ExternalForce *force, Component *comp,
   mol_weight = -1.0;
 
   // Counts the total number of collisions
-  colcntT = vector< vector<unsigned> > (nthrds);
+  colcntT.resize(nthrds);
   
   // Total number of particles processsed
-  numcntT = vector< vector<unsigned> > (nthrds);
+  numcntT.resize(nthrds);
   
   // Total velocity dispersion (i.e. mean temperature)
-  tdispT  = vector< vector<double> >   (nthrds);
+  tdispT.resize(nthrds);
   
+  // Make return cross-section map
+  retCrs.resize(nthrds);
+
   // Number of collisions with inconsistencies (only meaningful for LTE)
-  error1T = vector<unsigned> (nthrds, 0);
+  error1T.resize(nthrds, 0);
   
   // Number of particles selected for collision
-  sel1T   = vector<unsigned> (nthrds, 0);
+  sel1T.resize(nthrds, 0);
   
   // Number of particles actually collided
-  col1T   = vector<unsigned> (nthrds, 0);
+  col1T.resize(nthrds, 0);
   
   // Number of particles processed by the EPSM algorithm
-  epsm1T  = vector<unsigned> (nthrds, 0);
+  epsm1T.resize(nthrds, 0);
   
   // Number of cells processed by the EPSM algorithm
-  Nepsm1T = vector<unsigned> (nthrds, 0);
+  Nepsm1T.resize(nthrds, 0);
   
   // Total mass of processed particles
-  tmassT  = vector<double>   (nthrds, 0);
+  tmassT.resize(nthrds, 0);
   
   // True energy lost to dissipation (i.e. radiation)
-  decolT  = vector<double>   (nthrds, 0);
+  decolT.resize(nthrds, 0);
   
   // Full energy lost to dissipation (i.e. radiation) 
-  decelT  = vector<double>   (nthrds, 0);
+  decelT.resize(nthrds, 0);
   
   // Energy excess (true energy)
-  exesCT  = vector<double>   (nthrds, 0);
+  exesCT.resize(nthrds, 0);
   
   // Energy excess (full energy)
-  exesET  = vector<double>   (nthrds, 0);
+  exesET.resize(nthrds, 0);
   
   // NTC statistics
-  ntcOvr  = vector<unsigned> (nthrds, 0);
-  ntcAcc  = vector<unsigned> (nthrds, 0);
-  ntcTot  = vector<unsigned> (nthrds, 0);
-  ntcVal  = vector< vector<double> > (nthrds);
+  ntcOvr.resize(nthrds, 0);
+  ntcAcc.resize(nthrds, 0);
+  ntcTot.resize(nthrds, 0);
+  ntcVal.resize(nthrds);
+  wgtVal.resize(nthrds);
+  for (auto &v : wgtVal) v.set_capacity(bufCap);
 
   if (MFPDIAG) {
     // List of ratios of free-flight length to cell size
-    tsratT  = vector< vector<double> >  (nthrds);
+    tsratT.resize(nthrds);
     
     // List of fractional changes in KE per cell
-    keratT  = vector< vector<double> >  (nthrds);
+    keratT.resize(nthrds);
     
     // List of cooling excess to KE per cell
-    deratT  = vector< vector<double> >  (nthrds);
+    deratT.resize(nthrds);
     
     // List of densities in each cell
-    tdensT  = vector< vector<double> >  (nthrds);
+    tdensT.resize(nthrds);
     
     // List of cell volumes
-    tvolcT  = vector< vector<double> >  (nthrds);
+    tvolcT.resize(nthrds);
     
     // Temperature per cell; assigned in derived class instance
-    ttempT  = vector< vector<double> >  (nthrds);
+    ttempT.resize(nthrds);
     
     // List of change in energy per cell due to cooling (for LTE only)
-    tdeltT  = vector< vector<double> >  (nthrds);
+    tdeltT.resize(nthrds);
     
     // List of collision selections per particle
-    tselnT  = vector< vector<double> >  (nthrds);
+    tselnT.resize(nthrds);
     
     // List of cell diagnostic info per cell
-    tphaseT = vector< vector<Precord> > (nthrds);
+    tphaseT.resize(nthrds);
     
     // List of mean-free path info per cell
-    tmfpstT = vector< vector<Precord> > (nthrds);
+    tmfpstT.resize(nthrds);
   }
   
-  cellist = vector< vector<pCell*> > (nthrds);
+  cellist.resize(nthrds);
   
   hsdiam    = hDiam;
   crossfac  = sCross;
@@ -346,36 +353,36 @@ Collide::Collide(ExternalForce *force, Component *comp,
   stepcount = 0;
   bodycount = 0;
   
-  listTime   = vector<Timer>(nthrds);
-  initTime   = vector<Timer>(nthrds);
-  collTime   = vector<Timer>(nthrds);
-  elasTime   = vector<Timer>(nthrds);
-  stat1Time  = vector<Timer>(nthrds);
-  stat2Time  = vector<Timer>(nthrds);
-  stat3Time  = vector<Timer>(nthrds);
-  coolTime   = vector<Timer>(nthrds);
-  cellTime   = vector<Timer>(nthrds);
-  curcTime   = vector<Timer>(nthrds);
-  epsmTime   = vector<Timer>(nthrds);
-  listSoFar  = vector<TimeElapsed>(nthrds);
-  initSoFar  = vector<TimeElapsed>(nthrds);
-  collSoFar  = vector<TimeElapsed>(nthrds);
-  elasSoFar  = vector<TimeElapsed>(nthrds);
-  cellSoFar  = vector<TimeElapsed>(nthrds);
-  curcSoFar  = vector<TimeElapsed>(nthrds);
-  epsmSoFar  = vector<TimeElapsed>(nthrds);
-  stat1SoFar = vector<TimeElapsed>(nthrds);
-  stat2SoFar = vector<TimeElapsed>(nthrds);
-  stat3SoFar = vector<TimeElapsed>(nthrds);
-  coolSoFar  = vector<TimeElapsed>(nthrds);
-  collCnt    = vector<int>(nthrds, 0);
+  listTime   .resize(nthrds);
+  initTime   .resize(nthrds);
+  collTime   .resize(nthrds);
+  elasTime   .resize(nthrds);
+  stat1Time  .resize(nthrds);
+  stat2Time  .resize(nthrds);
+  stat3Time  .resize(nthrds);
+  coolTime   .resize(nthrds);
+  cellTime   .resize(nthrds);
+  curcTime   .resize(nthrds);
+  epsmTime   .resize(nthrds);
+  listSoFar  .resize(nthrds);
+  initSoFar  .resize(nthrds);
+  collSoFar  .resize(nthrds);
+  elasSoFar  .resize(nthrds);
+  cellSoFar  .resize(nthrds);
+  curcSoFar  .resize(nthrds);
+  epsmSoFar  .resize(nthrds);
+  stat1SoFar .resize(nthrds);
+  stat2SoFar .resize(nthrds);
+  stat3SoFar .resize(nthrds);
+  coolSoFar  .resize(nthrds);
+  collCnt    .resize(nthrds, 0);
   
-  EPSMT      = vector< vector<Timer> >(nthrds);
-  EPSMTSoFar = vector< vector<TimeElapsed> >(nthrds);
+  EPSMT      .resize(nthrds);
+  EPSMTSoFar .resize(nthrds);
   for (int n=0; n<nthrds; n++) {
-    EPSMT[n] = vector<Timer>(nEPSMT);
+    EPSMT[n].resize(nEPSMT);
     for (int i=0; i<nEPSMT; i++) EPSMT[n][i].Microseconds();
-    EPSMTSoFar[n] = vector<TimeElapsed>(nEPSMT);
+    EPSMTSoFar[n].resize(nEPSMT);
   }  
   
   for (int n=0; n<nthrds; n++) {
@@ -394,53 +401,53 @@ Collide::Collide(ExternalForce *force, Component *comp,
   
   if (TSDIAG) {
     // Accumulate distribution log ratio of flight time to time step
-    tdiag  = vector<unsigned>(numdiag, 0);
-    tdiag1 = vector<unsigned>(numdiag, 0);
-    tdiag0 = vector<unsigned>(numdiag, 0);
-    tdiagT = vector< vector<unsigned> > (nthrds);
+    tdiag  .resize(numdiag, 0);
+    tdiag1 .resize(numdiag, 0);
+    tdiag0 .resize(numdiag, 0);
+    tdiagT .resize(nthrds);
     
     // Accumulate distribution log energy overruns
-    Eover  = vector<double>(numdiag, 0);
-    Eover1 = vector<double>(numdiag, 0);
-    Eover0 = vector<double>(numdiag, 0);
-    EoverT = vector< vector<double> > (nthrds);
+    Eover  .resize(numdiag, 0);
+    Eover1 .resize(numdiag, 0);
+    Eover0 .resize(numdiag, 0);
+    EoverT .resize(nthrds);
   }
   
   // Accumulate the ratio cooling time to time step each cell
-  tcool  = vector<unsigned>(numdiag, 0);
-  tcool1 = vector<unsigned>(numdiag, 0);
-  tcool0 = vector<unsigned>(numdiag, 0);
-  tcoolT = vector< vector<unsigned> > (nthrds);
+  tcool  .resize(numdiag, 0);
+  tcool1 .resize(numdiag, 0);
+  tcool0 .resize(numdiag, 0);
+  tcoolT .resize(nthrds);
   
   if (MFPCL) mfpCLdata = std::vector< std::vector<double> > (nthrds);
 
   if (VOLDIAG) {
-    Vcnt  = vector<unsigned>(nbits, 0);
-    Vcnt1 = vector<unsigned>(nbits, 0);
-    Vcnt0 = vector<unsigned>(nbits, 0);
-    VcntT = vector< vector<unsigned> > (nthrds);
-    Vdbl  = vector<double  >(nbits*nvold, 0.0);
-    Vdbl1 = vector<double  >(nbits*nvold, 0.0);
-    Vdbl0 = vector<double  >(nbits*nvold, 0.0);
-    VdblT = vector< vector<double> >(nthrds);
+    Vcnt  .resize(nbits, 0);
+    Vcnt1 .resize(nbits, 0);
+    Vcnt0 .resize(nbits, 0);
+    VcntT .resize(nthrds);
+    Vdbl  .resize(nbits*nvold, 0.0);
+    Vdbl1 .resize(nbits*nvold, 0.0);
+    Vdbl0 .resize(nbits*nvold, 0.0);
+    VdblT .resize(nthrds);
   }
   
   for (int n=0; n<nthrds; n++) {
     if (TSDIAG) {
-      tdiagT[n] = vector<unsigned>(numdiag, 0);
-      EoverT[n] = vector<double>(numdiag, 0);
+      tdiagT[n] .resize(numdiag, 0);
+      EoverT[n] .resize(numdiag, 0);
     }
     if (VOLDIAG) {
-      VcntT[n] = vector<unsigned>(nbits, 0);
-      VdblT[n] = vector<double>(nbits*nvold, 0.0);
+      VcntT[n] .resize(nbits, 0);
+      VdblT[n] .resize(nbits*nvold, 0.0);
     }
-    tcoolT[n] = vector<unsigned>(numdiag, 0);
-    tdispT[n] = vector<double>(3, 0);
+    tcoolT[n] .resize(numdiag, 0);
+    tdispT[n] .resize(3, 0);
   }
   
-  disptot = vector<double>(3, 0);
+  disptot .resize(3, 0);
   masstot = 0.0;
-  
+
   use_Eint = -1;
   use_temp = -1;
   use_dens = -1;
@@ -454,50 +461,50 @@ Collide::Collide(ExternalForce *force, Component *comp,
   norm = new Normal  (0.0, 1.0, gen);
   
   if (MFPDIAG) {
-    prec = vector<Precord>(nthrds);
+    prec .resize(nthrds);
     for (int n=0; n<nthrds; n++)
-      prec[n].second = vector<double>(Nmfp, 0);
+      prec[n].second .resize(Nmfp, 0);
   }
   
   if (VERBOSE>5) {
-    tv_list    = vector<struct timeval>(nthrds);
-    timer_list = vector<double>(2*nthrds);
+    tv_list    .resize(nthrds);
+    timer_list .resize(2*nthrds);
   }
   
-  forkSum  = vector<double>(3);
-  snglSum  = vector<double>(3);
-  waitSum  = vector<double>(3);
-  diagSum  = vector<double>(3);
-  joinSum  = vector<double>(3);
+  forkSum  .resize(3);
+  snglSum  .resize(3);
+  waitSum  .resize(3);
+  diagSum  .resize(3);
+  joinSum  .resize(3);
   
   if (TIMING) {
-    listSum  = vector<double>(3);
-    initSum  = vector<double>(3);
-    collSum  = vector<double>(3);
-    elasSum  = vector<double>(3);
-    cellSum  = vector<double>(3);
-    epsmSum  = vector<double>(3);
-    stat1Sum = vector<double>(3);
-    stat2Sum = vector<double>(3);
-    stat3Sum = vector<double>(3);
-    coolSum  = vector<double>(3);
-    numbSum  = vector<int   >(3);
+    listSum  .resize(3);
+    initSum  .resize(3);
+    collSum  .resize(3);
+    elasSum  .resize(3);
+    cellSum  .resize(3);
+    epsmSum  .resize(3);
+    stat1Sum .resize(3);
+    stat2Sum .resize(3);
+    stat3Sum .resize(3);
+    coolSum  .resize(3);
+    numbSum  .resize(3);
   }
   
-  EPSMtime = vector<long>(nEPSMT);
-  CPUH = vector<long>(12);
+  EPSMtime .resize(nEPSMT);
+  CPUH .resize(12);
   
   // Debug maximum work per cell
   //
-  minUsage = vector<long>(nthrds*2, MAXLONG);
-  maxUsage = vector<long>(nthrds*2, 0);
-  minPart  = vector<long>(nthrds*2, -1);
-  maxPart  = vector<long>(nthrds*2, -1);
-  minCollP = vector<long>(nthrds*2, -1);
-  maxCollP = vector<long>(nthrds*2, -1);
+  minUsage .resize(nthrds*2, MAXLONG);
+  maxUsage .resize(nthrds*2, 0);
+  minPart  .resize(nthrds*2, -1);
+  maxPart  .resize(nthrds*2, -1);
+  minCollP .resize(nthrds*2, -1);
+  maxCollP .resize(nthrds*2, -1);
   
   effortAccum  = false;
-  effortNumber = vector< list< pair<long, unsigned> > >(nthrds);
+  effortNumber .resize(nthrds);
 
 }
 
@@ -952,12 +959,74 @@ void * Collide::collide_thread(void * arg)
 
     // Per species quantities
     //
-    double              meanLambda, meanCollP, totalNsel;
-    sKey2Dmap           crossIJ = totalCrossSections(id);
-    sKey2Umap           nselM   = generateSelection(c, Fn, crm, tau, id, 
-						    meanLambda, meanCollP, 
-						    totalNsel);
+    double            meanLambda, meanCollP, totalNsel;
+    sKey2Amap         crossIJ = totalCrossSections(id);
+    sKey2Amap         nselM   = generateSelection(c, Fn, crm, tau, id, 
+						  meanLambda, meanCollP, 
+						  totalNsel);
     
+
+    // True for intensive debugging only
+    //  +------------------------------|
+    //  v
+    if (false) {
+      
+      const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+
+      if ( !nselM.begin()->second.begin()->second ) {
+	std::cout << std::left << setw(20) << "Species"
+		  << std::left << setw(18) << "Cross section"
+		  << std::left << setw(18) << "Selection"
+		  << std::endl
+		  << std::left << setw(20) << "-------"
+		  << std::left << setw(18) << "-------------"
+		  << std::left << setw(18) << "---------"
+		  << std::endl;
+
+      } else {
+	std::cout << std::left << setw(20) << "Species"
+		  << std::left << setw(30) << "Interaction"
+		  << std::left << setw(18) << "Cross section"
+		  << std::left << setw(18) << "Selection"
+		  << std::endl
+		  << std::left << setw(20) << "-------"
+		  << std::left << setw(30) << "-----------"
+		  << std::left << setw(18) << "-------------"
+		  << std::left << setw(18) << "---------"
+		  << std::endl;
+      }
+
+      for (auto i1 : nselM) {
+	for (auto i2 : i1.second) {
+	  std::ostringstream sout1;
+	  sout1 << "[(" << i1.first.first
+		<< ", " << i1.first.second
+		<< ")(" << i2.first.first
+		<< ", " << i2.first.second
+		<< ")]";
+
+	  if (!i2.second) {
+	    std::cout << std::left << std::setw(20) << sout1.str()
+		      << std::left << std::setw(18) << crossIJ[i1.first][i2.first]()/cunit
+		      << std::left << std::setw(18) << i2.second()
+		      << std::endl;
+	  } else {
+	    for (auto j : i2.second.v) {
+	      std::ostringstream sout2;
+	      sout2 << "("  << labels[std::get<0>(j.first)]
+		    << ", " << std::get<1>(j.first)
+		    << ", " << std::get<2>(j.first)
+		    << ")";
+	      std::cout << std::left << std::setw(20) << sout1.str()
+			<< std::left << std::setw(30) << sout2.str()
+			<< std::left << std::setw(18) << crossIJ[i1.first][i2.first][j.first]/cunit
+			<< std::left << std::setw(18) << j.second
+			<< std::endl;
+	    }
+	  }
+	}
+      }
+    }
 
 #ifdef USE_GPTL
     GPTLstop ("Collide::mfp");
@@ -1126,9 +1195,36 @@ void * Collide::collide_thread(void * arg)
 
 	sKeyPair k(i1, i2);
 
+	unsigned nselTot = 0;
+	
+	Interact::T maxT;
+
+	// Single interaction type
+	//
+	if (!nselM[i1][i2]) {
+	  nselTot = static_cast<unsigned>(floor(nselM[i1][i2]()+0.5));
+	} 
+	// Multiple interaction types
+	//
+	else {
+	  double maxV = -1.0;
+	  for (auto j : nselM[i1][i2].v) {
+	    if (maxV < j.second) {
+	      maxT = j.first;
+	      maxV = j.second;
+	    }
+	  }
+	  nselTot = static_cast<unsigned>(floor(nselM[i1][i2][maxT]+0.5));
+
+	  if (maxT == NTC::NTCitem::single) {
+	    std::cout << "ntc singleton" << std::endl;
+	  }
+
+	}
+
 	// Loop over total number of candidate collision pairs
 	//
-	for (unsigned i=0; i<nselM[i1][i2]; i++ ) {
+	for (unsigned i=0; i<nselTot; i++ ) {
 	  
 	  totalCount++;
 	  
@@ -1173,11 +1269,12 @@ void * Collide::collide_thread(void * arg)
 	  // Accept or reject candidate pair according to relative speed
 	  //
 	  const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-	  bool   ok   = false;
-	  double cros = crossSection(c, p1, p2, cr, id);
-	  double scrs = cros / cunit;
+	  double Cross = crossSection(id, c, p1, p2, cr, maxT);
+	  bool ok = false;
+
+	  double scrs = Cross / cunit;
 	  double prod = cr   * scrs;
-	  double targ = ntcdb[samp->mykey].Prob(k, prod);
+	  double targ = ntcdb[samp->mykey].Prob(k, maxT, prod);
 	  
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
@@ -1198,7 +1295,10 @@ void * Collide::collide_thread(void * arg)
 
 				// Accumulate average
 #pragma omp critical
-	    ntcdb[samp->mykey].Add(k, prod);
+	    ntcdb[samp->mykey].Add(k, maxT, prod);
+	    if (maxT == NTC::NTCitem::single) {
+	      std::cout << "ntc singleton" << std::endl;
+	    }
 
 				// Sanity check
 	    if (numSanityMsg and 
@@ -1215,7 +1315,7 @@ void * Collide::collide_thread(void * arg)
 			<< ", count=" << c->bods.size()
 			<< ", targ="  << targ
 			<< ", mfpCL=" << mfpCL
-			<< ", nselM=" << nselM[i1][i2]
+			<< ", nselM=" << nselTot
 			<< ", ntcOvr=" << ntcOvr[id]
 			<< " for "    << sout.str() << std::endl
 			<< " has logged " << ntcAcc[id] << " collisions!"
@@ -1235,7 +1335,7 @@ void * Collide::collide_thread(void * arg)
 	    
 	    // Do inelastic stuff
 	    //
-	    error1T[id] += inelastic(c, p1, p2, &cr, id);
+	    error1T[id] += inelastic(id, c, p1, p2, &cr, maxT);
 	    
 	    // Update the particle velocity
 	    //
@@ -1243,8 +1343,99 @@ void * Collide::collide_thread(void * arg)
 
 	  } // Inelastic computation
 
-	} // Loop over trial pairs
+	} // Loop over trial pairs (fiducial interaction)
 	
+
+	// Subdominant interaction types
+	//
+	if (!!nselM[i1][i2]) {
+
+	  for (auto v : nselM[i1][i2].v) {
+
+	    if (v.first == maxT) continue;
+
+	    // Subdominant interaction types
+	    double nsel = v.second;
+	    double wght = nsel/nselM[i1][i2][maxT];
+
+	    // Diagnostic
+	    wgtVal[id].push_back(wght);
+
+	    nselTot = static_cast<unsigned>(floor(nsel/wght+0.5));
+
+	    // Loop over total number of candidate collision pairs
+	    //
+	    for (unsigned i=0; i<nselTot; i++ ) {
+	  
+	      // Pick two particles at random out of this cell. l1 and l2
+	      // are indices in the bmap[i1] and bmap[i2] vectors of body
+	      // indices
+
+	      size_t l1, l2;
+
+	      l1 = static_cast<size_t>(floor((*unit)()*num1));
+	      l1 = std::min<size_t>(l1, num1-1);
+	      
+	      if (i1 == i2) {
+		l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
+		l2 = std::min<size_t>(l2, num2-2);
+				// Get random l2 != l1
+		l2 = (l2 + l1 + 1) % num2;
+	      } else {
+		l2 = static_cast<size_t>(floor((*unit)()*num2));
+		l2 = std::min<size_t>(l2, num2-1);
+	      }
+	  
+	      // Get index from body map for the cell
+	      //
+	      Particle* const p1 = tree->Body(bmap[i1][l1]);
+	      Particle* const p2 = tree->Body(bmap[i2][l2]);
+	  
+	      // Calculate pair's relative speed (pre-collision)
+	      //
+	      vector<double> crel(3);
+	      double cr = 0.0;
+	      for (int j=0; j<3; j++) {
+		crel[j] = p1->vel[j] - p2->vel[j];
+		cr += crel[j]*crel[j];
+	      }
+	      cr = sqrt(cr);
+
+	      // No point in inelastic collsion for zero velocity . . . 
+	      //
+	      if (cr == 0.0) continue;
+
+	      // Accept or reject candidate pair according to relative speed
+	      //
+	      const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
+	      double Cross = crossSection(id, c, p1, p2, cr, v.first);
+	      double scrs  = Cross / cunit;
+	      double prod  = cr * scrs;
+	      double targ  = ntcdb[samp->mykey].Prob(k, v.first, prod);
+
+	      bool   ok    = false;
+
+	      if (NTC)
+		ok = ( targ > (*unit)() );
+	      else
+		ok = true;
+	  
+	      if (ok) {
+
+		elasTime[id].start();
+	    
+		
+		// Do inelastic stuff
+		//
+		error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, wght);
+		
+	      } // Inelastic computation for subspecies
+
+	    } // Loop over trial pairs
+	
+	  } // Loop over subspecies
+	}
+	  
       } // Next species 2 particle
 
     } // Next species 1 particle
@@ -1456,7 +1647,7 @@ void Collide::collQuantile(vector<double>& quantiles, vector<double>& coll_)
     
     std::sort(coltmp.begin(), coltmp.end()); 
     
-    coll_ = vector<double>(quantiles.size(), 0);
+    coll_ .resize(quantiles.size(), 0);
     if (coltmp.size()) {
       for (unsigned j=0; j<quantiles.size(); j++)
 	coll_[j] = coltmp[Qi(quantiles[j],coltmp.size())];
@@ -1552,7 +1743,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	// Load density
 	tmp2[k].first = tmt[k];
 	// Initialize record
-	tmp2[k].second = vector<double>(Nphase, 0);
+	tmp2[k].second .resize(Nphase, 0);
       }
       for (unsigned l=0; l<Nphase; l++) {
 	MPI_Recv(&tmp[0], nmt, MPI_DOUBLE, n, 49+l, MPI_COMM_WORLD, &s);
@@ -1565,7 +1756,7 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
 	// Load mfp
 	tmp3[k].first = tmp[k];
 	// Initialize record
-	tmp3[k].second = vector<double>(Nmfp, 0);
+	tmp3[k].second .resize(Nmfp, 0);
       }
       for (unsigned l=0; l<Nmfp; l++) {
 	MPI_Recv(&tmp[0], num, MPI_DOUBLE, n, 50+Nphase+l, MPI_COMM_WORLD, &s);
@@ -1590,11 +1781,11 @@ void Collide::mfpsizeQuantile(vector<double>& quantiles,
     collnum = selI.size();
     coolnum = kerI.size();
     
-    mfp_  = vector<double>(quantiles.size());
-    ts_   = vector<double>(quantiles.size());
-    coll_ = vector<double>(quantiles.size());
-    cool_ = vector<double>(quantiles.size());
-    rate_ = vector<double>(quantiles.size());
+    mfp_  .resize(quantiles.size());
+    ts_   .resize(quantiles.size());
+    coll_ .resize(quantiles.size());
+    cool_ .resize(quantiles.size());
+    rate_ .resize(quantiles.size());
 
     for (unsigned j=0; j<quantiles.size(); j++) {
       if (mfpI.size())
@@ -1914,14 +2105,14 @@ void Collide::EPSM(pHOT* const tree, pCell* const cell, int id)
 	  // Even
 	  kmax = nbods;
 	  dim = kmax/2-1;
-	  Tk = vector<double>(dim);
+	  Tk .resize(dim);
 	  for (int m=0; m<dim; m++) 
 	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.5));
 	} else {			
 	  // Odd
 	  kmax = nbods-1;
 	  dim = kmax/2-1;
-	  Tk = vector<double>(dim);
+	  Tk .resize(dim);
 	  for (int m=0; m<dim; m++) 
 	    Tk[m] = pow((*unit)(), 1.0/(kmax/2 - m - 1.0));
 	}
@@ -2230,7 +2421,7 @@ void Collide::CollectTiming()
   
   vector<double> in(nf, 0.0);
   vector< vector<double> > out(3);
-  for (int i=0; i<3; i++) out[i] = vector<double>(nf);
+  for (int i=0; i<3; i++) out[i] .resize(nf);
   
   in[0] += forkSoFar();
   in[1] += snglSoFar();
@@ -3150,6 +3341,12 @@ void Collide::NTCgather(pHOT* const tree)
       ntcVal[n].clear();
     }
 
+				// Accumulate into ntcTot
+    wgtTot.clear();
+    for (int n=0; n<nthrds; n++) {
+      wgtTot.insert(wgtTot.end(), wgtVal[n].begin(), wgtVal[n].end());
+    }
+
     // Only check for crazy collisions after first step
     //
     static bool notFirst = false;
@@ -3179,7 +3376,10 @@ void Collide::NTCgather(pHOT* const tree)
       while (c.nextCell()) {
 	for (auto q : qv) {
 	  NTC::NTCitem::vcMap v = ntcdb[c.Cell()->mykey].CrsVel(q);
-	  for (auto i : v) qq[i.first][q].push_back(i.second);
+	  for (auto i : v) {
+	    for (auto j : i.second)
+	      qq[i.first][j.first][q].push_back(j.second);
+	  }
 	}
       }
       
@@ -3190,6 +3390,11 @@ void Collide::NTCgather(pHOT* const tree)
 	  unsigned sz = ntcVal[0].size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 224, MPI_COMM_WORLD);
 	  if (sz) MPI_Send(&ntcVal[0][0], sz, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
+
+	  sz = wgtTot.size();
+	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 289, MPI_COMM_WORLD);
+	  if (sz) MPI_Send(&wgtTot[0], sz, MPI_DOUBLE, 0, 290, MPI_COMM_WORLD);
+	  wgtTot.clear();
 
 	  sz = qq.size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
@@ -3202,24 +3407,31 @@ void Collide::NTCgather(pHOT* const tree)
 	    
 	    int i1 = k1.getInt();
 	    int i2 = k2.getInt();
+	    int i3 = i.second.size();
 	    
 	    MPI_Send(&i1, 1, MPI_INT, 0, 227, MPI_COMM_WORLD);
 	    MPI_Send(&i2, 1, MPI_INT, 0, 228, MPI_COMM_WORLD);
-	    
-	    int base = 229;
+	    MPI_Send(&i3, 1, MPI_INT, 0, 229, MPI_COMM_WORLD);
+
+	    int base = 230;
 	    
 	    for (auto j : i.second) {
-	      double   val = j.first;
+	      NTC::T   val = j.first;
 	      unsigned num = j.second.size();
+	      unsigned short uuu[3] = {std::get<0>(val), std::get<1>(val), std::get<2>(val)};
 
-	      MPI_Send(&num, 1, MPI_UNSIGNED, 0, base+0, MPI_COMM_WORLD);
-	      MPI_Send(&val, 1, MPI_DOUBLE,   0, base+1, MPI_COMM_WORLD);
-	      MPI_Send(&j.second[0], num, MPI_DOUBLE, 0, base+2, MPI_COMM_WORLD);
-	      base += 3;
+	      MPI_Send(&uuu, 3, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
+	      MPI_Send(&num, 1, MPI_UNSIGNED,       0, base+1, MPI_COMM_WORLD);
+
+	      for (auto s : j.second) {
+		MPI_Send(&s.first,        1, MPI_DOUBLE,   0, base+2, MPI_COMM_WORLD);
+		unsigned num2 = s.second.size();
+		MPI_Send(&num2,           1, MPI_UNSIGNED, 0, base+3, MPI_COMM_WORLD);
+		if (num2) 
+		  MPI_Send(&s.second[0], num2, MPI_DOUBLE,   0, base+4, MPI_COMM_WORLD);
+	      }
+	      base += 5;
 	    }
-	    
-	    unsigned zero = 0;
-	    MPI_Send(&zero, 1, MPI_UNSIGNED, 0, base, MPI_COMM_WORLD);
 	  }
 	  
 	} // END: process send to root
@@ -3227,9 +3439,10 @@ void Collide::NTCgather(pHOT* const tree)
 	if (myid==0) {
 	  
 	  std::vector<double> v;
-	  unsigned sz, num;
-	  double val;
-	  int i1, i2;
+	  unsigned short uuu[3];
+	  unsigned sz, num, num2;
+	  double dval;
+	  int i1, i2, i3;
 	
 	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 224, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  if (sz) {
@@ -3238,37 +3451,59 @@ void Collide::NTCgather(pHOT* const tree)
 	    ntcVal[0].insert(ntcVal[0].end(), v.begin(), v.end());
 	  }
 
+
+	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 289, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (sz) {
+	    v.resize(sz);
+	    MPI_Recv(&v[0], sz, MPI_DOUBLE, n, 290, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    wgtTot.insert(wgtTot.end(), v.begin(), v.end());
+	  }
+
 	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
 	  for (unsigned z=0; z<sz; z++) {
 
 	    MPI_Recv(&i1, 1, MPI_INT, n, 227, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	    MPI_Recv(&i2, 1, MPI_INT, n, 228, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    MPI_Recv(&i3, 1, MPI_INT, n, 229, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	    
 	    KeyConvert k1(i1);
 	    KeyConvert k2(i2);
 	    sKeyPair   k (k1.getKey(), k2.getKey());
-	    
-	    int base = 229;
 
-	    while (1) {
+	    int base = 230;
 
-	      MPI_Recv(&num, 1,    MPI_UNSIGNED, n, base+0, MPI_COMM_WORLD, 
+	    for (int w=0; w<i3; w++) {
+
+	      MPI_Recv(&uuu, 3, MPI_UNSIGNED_SHORT, n, base+0, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
-	      if (num==0) break;
-
-	      MPI_Recv(&val, 1,    MPI_DOUBLE,   n, base+1, MPI_COMM_WORLD, 
+	      MPI_Recv(&num, 1, MPI_UNSIGNED, n, base+1, MPI_COMM_WORLD, 
 		       MPI_STATUS_IGNORE);
 
-	      v.resize(num);
-	      
-	      MPI_Recv(&v[0], num, MPI_DOUBLE,   n, base+2, MPI_COMM_WORLD,
-		       MPI_STATUS_IGNORE);
-	      
-	      qq[k][val].insert( qq[k][val].end(), v.begin(), v.end() );
-	      
-	      base += 3;
+	      NTC::T utup {uuu[0], uuu[1], uuu[2]};
+
+	      if (num) {
+
+		for (unsigned j=0; j<num; j++) {
+
+		  MPI_Recv(&dval, 1, MPI_DOUBLE, n, base+2, MPI_COMM_WORLD, 
+			   MPI_STATUS_IGNORE);
+
+		  MPI_Recv(&num2, 1, MPI_UNSIGNED, n, base+3, MPI_COMM_WORLD, 
+			   MPI_STATUS_IGNORE);
+
+		  if (num2) {
+		    v.resize(num2);
+		    MPI_Recv(&v[0], num2, MPI_DOUBLE, n, base+4, MPI_COMM_WORLD,
+			     MPI_STATUS_IGNORE);
+		    
+		    qq[k][utup][dval].insert( qq[k][utup][dval].end(), v.begin(), v.end() );
+		  }
+		}
+	      }
+
+	      base += 5;
 
 	    } // Loop over quantiles
 
@@ -3285,12 +3520,20 @@ void Collide::NTCgather(pHOT* const tree)
 	ntcHisto = ahistoDPtr(new AsciiHisto<double>(ntcVal[0], 20, 0.01, true));
 	ntcVal[0].clear();
 
-	for (auto &u : qq) {
-	  for (auto &v : u.second)
-	    qqHisto[u.first][v.first] = 
-	      ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
+	if (wgtTot.size()) {
+	  wgtHisto = ahistoDPtr(new AsciiHisto<double>(wgtTot, 20, 0.01, true));
+	  wgtTot.clear();
 	}
-      }
+
+	for (auto &u : qq) {
+	  for (auto &v : u.second) {
+	    for (auto &z : v.second) {
+	      qqHisto[u.first][v.first][z.first] = 
+		ahistoDPtr(new AsciiHisto<double>(z.second, 20, 0.01));
+	    }
+	  }
+	}
+      }	
     }
   }
 }
@@ -3310,10 +3553,12 @@ void Collide::NTCstanza(std::ostream& out, CrsVelMap& vals, int j,
     out << std::setw(18) << sout.str();
     // For each species pair, print the quantile
     //
-    for (auto v : vals) {
-      size_t indx = static_cast<size_t>(std::floor(v.second[j].size()*p));
-      out << std::scientific << std::setprecision(4)
-	  << std::setw(12) << v.second[j][indx];
+    for (auto u : vals) {
+      for (auto v : u.second) {
+	size_t indx = static_cast<size_t>(std::floor(v.second[j].size()*p));
+	out << std::scientific << std::setprecision(4)
+	    << std::setw(12) << v.second[j][indx];
+      }
     }
     out << std::endl;
   }
@@ -3347,6 +3592,11 @@ void Collide::NTCstats(std::ostream& out)
     (*ntcHisto)(out);
     out << std::string(spc, '-') << std::endl << std::right;
       
+    if (wgtHisto) {
+      out << "Subspecies weight distribution" << std::endl;
+      (*wgtHisto)(out);
+      out << std::string(spc, '-') << std::endl << std::right;
+    }
 
     if (qqHisto.size() > 0) {
 
@@ -3356,19 +3606,25 @@ void Collide::NTCstats(std::ostream& out)
 	speciesKey k2 = k.second;
 	
 	std::ostringstream sout;
-	sout << "Species: <" << k1.first << "," << k1.second 
+	sout << " Species: <" << k1.first << "," << k1.second 
 	     << "|" << k2.first << "," << k2.second << ">";
 
-	for (auto j : i.second) {
+	for (auto v : i.second) {
 	  
-	  if (j.second.get()) {
-	    out << std::endl << std::string(spc, '-') << std::endl
-		<< std::left << std::fixed << sout.str() << std::endl
-		<< " Quantile: " << j.first << std::endl
-		<< std::string(spc, '-') << std::endl
-		<< std::left << std::scientific;
-	    (*j.second)(out);
-	    out << std::endl;
+	  for (auto j : v.second) {
+
+	    if (j.second.get()) {
+	      out << std::endl << std::string(spc, '-') << std::endl
+		  << std::left << std::fixed << sout.str() << std::endl
+		  << " Interact: (" << labels[std::get<0>(v.first)]
+		  << ", " << std::get<1>(v.first) 
+		  << ", " << std::get<2>(v.first) << ")" << std::endl
+		  << " Quantile: " << j.first << std::endl
+		  << std::string(spc, '-') << std::endl
+		  << std::left << std::scientific;
+	      (*j.second)(out);
+	      out << std::endl;
+	    }
 	  }
 	}
       }

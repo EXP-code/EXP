@@ -12,7 +12,7 @@ private:
 
 protected:
   //! List of cross-sections per thread
-  std::vector<sKey2Dmap> csections;
+  std::vector<sKey2Amap> csections;
 
   //@{
   //! For debugging
@@ -43,12 +43,12 @@ protected:
 
   virtual void 
   initialize_cell_dsmc
-  (pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+  (pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
    double vrelmax, double tau, int id);
 
   virtual void
   initialize_cell_epsm
-  (pHOT* const tree, pCell* const c, sKey2Umap& nsel, 
+  (pHOT* const tree, pCell* const c, sKey2Amap& nsel, 
    double vrelmax, double tau, int id) 
   {
     initialize_cell_dsmc(tree, c, nsel, vrelmax, tau, id);  
@@ -58,7 +58,7 @@ protected:
   finalize_cell(pHOT* tree, pCell* c, sKeyDmap* const Fn, 
 		double kedsp, double tau, int id);
 
-  virtual sKey2Dmap& totalCrossSections(int id)
+  virtual sKey2Amap& totalCrossSections(int id)
   {    
     return csections[id];
   }
@@ -67,14 +67,14 @@ protected:
 
   bool hasHeatCool() { return true; }
 
-  virtual double crossSection(pCell* const tree, 
-		      Particle* const p1, Particle* const p2, 
-		      double crm, int id=0);
+  virtual double crossSection(int id, pCell* const tree, 
+			      Particle* const p1, Particle* const p2, double crm, 
+			      const Interact::T& ityp=Interact::singleton);
 
-
-  virtual int inelastic(pCell* const cell, 
-			Particle* const p1, Particle* const p2, 
-			double *crm, int id=0);
+  virtual int inelastic(int id, pCell* const cell, 
+			Particle* const p1, Particle* const p2, double *crm, 
+			const Interact::T& ityp=Interact::singleton,
+			double weight=-1);
 
   double getCoolingRate(int id) { return coolheat[id]; }
 
@@ -110,7 +110,7 @@ public:
 
   virtual void Elost(double* collide, double* epsm);
 
-  virtual sKey2Umap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
+  virtual sKey2Amap generateSelection(pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
 

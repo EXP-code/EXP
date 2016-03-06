@@ -25,7 +25,7 @@
 #include "Species.H"
 #include "Quantile.H"
 
-// Serialize std::array
+// Serialize std::array and std::tuple(...)
 //
 namespace boost {
     
@@ -37,14 +37,31 @@ namespace boost {
     {
       ar & boost::serialization::make_array(a.data(), a.size());
     }
+  
+    template<typename Archive, typename T>
+    void serialize(Archive & ar, std::tuple<T, T, T> & t, 
+		   const unsigned int version) 
+    {
+      ar & boost::serialization::make_nvp("tup0", std::get<0>(t));
+      ar & boost::serialization::make_nvp("tup1", std::get<1>(t));
+      ar & boost::serialization::make_nvp("tup2", std::get<2>(t));
+    }
 
   } // namespace serialization
-  
+
 } // namespace boost
 
 
+template<typename T>
+std::ostream& operator<< (std::ostream& out, const std::tuple<T, T, T>& t);
+
+std::ostream& operator<< (std::ostream& out, const sKeyPair& t);
+
 
 namespace NTC {
+
+  //! Interaction type
+  typedef std::tuple<unsigned short, unsigned short, unsigned short> T;
 
   class NTCitem
   {
@@ -52,10 +69,72 @@ namespace NTC {
     friend class NTCdb;
     
   public:
+
+    //! Default interaction key for singleton
+    static T single;
+
     //@{
     //! NTC structures
-    typedef std::map<sKeyPair, double>   vcMap;
-    typedef std::map<sKeyPair, Quantile> qpMap;
+
+    class udMap : public std::map<T, double>
+    {
+      friend class boost::serialization::access;
+
+    public:
+
+      udMap() 
+      {
+	(*this)[single] = 0.0;
+      }
+
+      udMap(T t, double z)
+      {
+	(*this)[t] = z;
+      }
+
+    private:
+
+      template<class Archive>
+      void serialize(Archive &ar, const unsigned int version)
+      {
+	typedef std::map<T, double> Tup3DoubleMap;
+	ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Tup3DoubleMap);
+      }
+      
+    };
+
+    class uqMap : public std::map<T, Quantile>
+    {
+      friend class boost::serialization::access;
+
+    public:
+
+      uqMap() {}
+
+      uqMap(const Quantile& q) 
+      {
+	(*this)[single] = Quantile();
+	(*this)[single] = q;
+      }
+
+      uqMap(T t, const Quantile& q)
+      {
+	(*this)[t] = Quantile();
+	(*this)[t] = q;
+      }
+
+    private:
+
+      template<class Archive>
+      void serialize(Archive &ar, const unsigned int version)
+      {
+	typedef std::map<T, Quantile> Tup3QuantileMap;
+	ar & BOOST_SERIALIZATION_BASE_OBJECT_NVP(Tup3QuantileMap);
+      }
+    };
+
+    typedef std::map<sKeyPair, udMap> vcMap;
+    typedef std::map<sKeyPair, uqMap> qpMap;
     //@}
     
   protected:
@@ -146,28 +225,49 @@ namespace NTC {
     //! Default <cross section> x <relative velocity> value
     static double Def;
     
+    //@{
     //! Return quantile value for a single index
-    double Prob(sKeyPair indx, double x);
+    double Prob(sKeyPair indx, const T& intr, double x);
+    double Prob(sKeyPair indx, double x) 
+    {
+      return Prob(indx, single, x);
+    }
+    //@}
     
     //! Return quantile values for all indices
     vcMap Prob(double x);
     
+    //@{
     //! Return value for quantile q for a single index
-    double CrsVel(sKeyPair indx, double p);
+    double CrsVel(sKeyPair indx, double p) 
+    {
+      return CrsVel(indx, single, p);
+    }
+    double CrsVel(sKeyPair indx, const T& intr, double p);
+    //@}
     
     //! Return values for quantile q for all indices
     vcMap CrsVel(double p);
     
+    //@{
     //! Add a single value to the list
-    void  Add(sKeyPair indx, double x);
+    void  Add(sKeyPair indx, const T& intr, double x);
+    void  Add(sKeyPair indx, double x) { Add(indx, single, x); }
+    //@}
     
+    //@{
     //! Ready for estimation owing to a full set of points
-    bool Ready(sKeyPair indx)
+    bool Ready(sKeyPair indx, const T& intr)
     {
       qpMap::iterator it = db.find(indx);
       if (it == db.end()) return false;
-      else return it->second.full();
+      else {
+	uqMap::iterator jt = it->second.find(intr);
+	return jt->second.full();
+      }
     }
+    bool Ready(sKeyPair indx) { return Ready(indx, single); }
+    //@}
 
     //! Node sends to root
     void send()
@@ -177,6 +277,7 @@ namespace NTC {
       
       MPI_Send(&clr, 1, MPI_UNSIGNED_LONG, 0, 1110, MPI_COMM_WORLD);
       MPI_Send(&siz, 1, MPI_UNSIGNED,      0, 1111, MPI_COMM_WORLD);
+
       for (auto &p : db) {
 	speciesKey p1 = p.first.first;
 	speciesKey p2 = p.first.second;
@@ -186,7 +287,15 @@ namespace NTC {
 	MPI_Send(&p2.first,  1, MPI_UNSIGNED_SHORT, 0, 1114, MPI_COMM_WORLD);
 	MPI_Send(&p2.second, 1, MPI_UNSIGNED_SHORT, 0, 1115, MPI_COMM_WORLD);
 	
-	p.second.send();
+	unsigned siz2 = p.second.size();
+	MPI_Send(&siz2, 1, MPI_UNSIGNED,   0, 1116, MPI_COMM_WORLD);
+
+	for (auto &q : p.second) {
+	  MPI_Send(&(std::get<0>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
+	  MPI_Send(&(std::get<1>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
+	  MPI_Send(&(std::get<2>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
+	  q.second.send();
+	}
       }
       
     }
@@ -210,11 +319,24 @@ namespace NTC {
 	MPI_Recv(&p2.first,  1, MPI_UNSIGNED_SHORT, id, 1114, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	MPI_Recv(&p2.second, 1, MPI_UNSIGNED_SHORT, id, 1115, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	
+	unsigned siz2;
+      
+	MPI_Recv(&siz2, 1, MPI_UNSIGNED, id, 1116, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+
 	sKeyPair key(p1, p2);
-	
-	db[key].recv(id);
-      }
-    }
+
+	for (unsigned j=0; j<siz2; j++) {
+	  T t;
+	  MPI_Recv(&(get<0>(t)), 1, MPI_UNSIGNED_SHORT, id, 1117, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<1>(t)), 1, MPI_UNSIGNED_SHORT, id, 1118, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&(get<2>(t)), 1, MPI_UNSIGNED_SHORT, id, 1119, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  db[key][t].recv(id);
+
+	} // db2 size loop
+
+      } // db1 size loop
+
+    } // function end
 
     static unsigned live() { return instance; }
     

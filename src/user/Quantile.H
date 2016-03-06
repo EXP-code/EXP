@@ -45,10 +45,10 @@ namespace NTC {
     friend class boost::serialization::access;
 
   private:
-    const size_t ssize = 5;
+    static const size_t ssize = 5;
     
     //! Set true for debugging and sanity checking MPI
-    const bool DBG_VERBOSE = false;
+    static const bool DBG_VERBOSE = false;
 
     //! Count instances for debugging only
     static unsigned instance;

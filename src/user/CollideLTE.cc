@@ -73,7 +73,7 @@ CollideLTE::CollideLTE(ExternalForce *force, Component *comp,
   avgT      = vector<double>(nthrds, 0.0);
   dispT     = vector<double>(nthrds, 0.0);
   tlist     = vector< vector<double> >(nthrds);
-  csections = vector<sKey2Dmap> (nthrds);
+  csections = vector<sKey2Amap> (nthrds);
 
   debug_enabled = true;
 
@@ -132,13 +132,13 @@ void CollideLTE::initialize_cell(pHOT* tree, pCell* cell, double rvmax, int id)
       speciesKey i2 = it2.first;
       double Z2 = i2.first;
 
-      csections[id][i1][i2] = cross * std::max<double>(Z1*Z1, Z2*Z2);
+      csections[id][i1][i2]() = cross * std::max<double>(Z1*Z1, Z2*Z2);
     }
   }
 }
 
 void CollideLTE::initialize_cell_dsmc
-(pHOT* tree, pCell* cell, sKey2Umap& nsel, double rvmax, double tau, int id)
+(pHOT* tree, pCell* cell, sKey2Amap& nsel, double rvmax, double tau, int id)
 {
   sCell *samp = cell->sample;
 				// Cell temperature and mass (cgs)
@@ -171,7 +171,7 @@ void CollideLTE::initialize_cell_dsmc
 				// Total number of encounters
   unsigned number = 0;
   for (auto it1 : nsel) {
-    for (auto it2 : it1.second) number += it2.second;
+    for (auto it2 : it1.second) number += it2.second();
   }
     
 				// Volume in real cell
@@ -416,22 +416,23 @@ void CollideLTE::initialize_cell_dsmc
 }
 
 
-double CollideLTE::crossSection(pCell* const tree, 
-				Particle* const p1, Particle* const p2, 
-				double cr, int id)
+double CollideLTE::crossSection(int id, pCell* const tree, 
+				Particle* const p1, Particle* const p2, double cr,
+				const Interact::T& ityp)
 {
   // Species keys
   //
   KeyConvert k1(p1->iattrib[use_key]), k2(p2->iattrib[use_key]);
 
-  return csections[id][k1.getKey()][k2.getKey()];
+  return csections[id][k1.getKey()][k2.getKey()]();
 }
 
 
 
-int CollideLTE::inelastic(pCell* const cell, 
+int CollideLTE::inelastic(int id, pCell* const cell, 
 			  Particle* const p1, Particle* const p2, 
-			  double *cr, int id)
+			  double *cr, const Interact::T& ityp, double weight)
+
 {
   int ret = 0;			// No error (flag)
 
@@ -770,13 +771,12 @@ void CollideLTE::finalize_cell(pHOT* const tree, pCell* const cell,
 }
 
 
-sKey2Umap CollideLTE::generateSelection
+Collide::sKey2Amap CollideLTE::generateSelection
 (pCell* c, sKeyDmap* Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
 {
   sKeyDmap            densM, collPM, lambdaM, crossM;
-  sKey2Dmap           selcM;
-  sKey2Umap           nselM;
+  sKey2Amap           selcM;
   sKeyUmap::iterator  it1, it2;
     
   // Volume in the cell
@@ -802,18 +802,18 @@ sKey2Umap CollideLTE::generateSelection
       speciesKey i2 = it2.first;
 
       if (i2>=i1) {
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2];
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i1][i2]();
       } else
-	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1];
+	crossM[i1] += (*Fn)[i2]*densM[i2]*csections[id][i2][i1]();
       
-      if (csections[id][i1][i2] <= 0.0 || std::isnan(csections[id][i1][i2])) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]
+      if (csections[id][i1][i2]() <= 0.0 || std::isnan(csections[id][i1][i2]())) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i1][i2]()
 	     << " #1 = (" << i1.first << ", " << i1.second << ")"
 	     << " #2 = (" << i2.first << ", " << i2.second << ")";
       }
 	    
-      if (csections[id][i2][i1] <= 0.0 || std::isnan(csections[id][i2][i1])) {
-	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]
+      if (csections[id][i2][i1]() <= 0.0 || std::isnan(csections[id][i2][i1]())) {
+	cout << "INVALID CROSS SECTION! :: " << csections[id][i2][i1]()
 	     << " #1 = (" << i2.first << ", " << i2.second << ")"
 	     << " #2 = (" << i1.first << ", " << i1.second << ")";
       }
@@ -855,17 +855,16 @@ sKey2Umap CollideLTE::generateSelection
       
       // Probability of an interaction of between particles of type 1
       // and 2 for a given particle of type 2
-      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2] * crm * tau;
+      double Prob = (*Fn)[i2] * densM[i2] * csections[id][i1][i2]() * crm * tau;
       
       if (i1==i2)
-	selcM[i1][i2] = 0.5 * (it1->second-1) *  Prob;
+	selcM[i1][i2]() = 0.5 * (it1->second-1) *  Prob;
       else
-	selcM[i1][i2] = it1->second * Prob;
+	selcM[i1][i2]() = it1->second * Prob;
       
-      nselM[i1][i2] = static_cast<unsigned>(floor(selcM[i1][i2]+0.5));
-      totalNsel += nselM[i1][i2];
+      totalNsel += selcM[i1][i2]();
     }
   }
   
-  return nselM;
+  return selcM;
 }
