@@ -25,6 +25,9 @@ Quantile::Quantile()
 
   // Initialize storage
   init();
+
+  // For debugging
+  instance++;
 }
 
 Quantile::Quantile(double p)
@@ -37,6 +40,9 @@ Quantile::Quantile(double p)
 
   // Add a quantile
   newQ(p);
+
+  // For debugging
+  instance++;
 }
 
 Quantile::Quantile(const Quantile & p)
@@ -47,6 +53,9 @@ Quantile::Quantile(const Quantile & p)
   n  = p.n;
   M  = p.M;
   N  = p.N;
+
+  // For debugging
+  instance++;
 }
 
 void Quantile::init(void)

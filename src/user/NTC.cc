@@ -230,6 +230,13 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
      for (auto v : qs) db[indx][intr].newQ(v);
    }
 
+   // Check for intr in map
+   //
+   if (db[indx].find(intr) == db[indx].end()) {
+     db[indx][intr].histogram(Nequal);
+     for (auto v : qs) db[indx][intr].newQ(v);
+   }
+
    if (0) {
      std::ostringstream sout; sout << "<" << val << ">";
 

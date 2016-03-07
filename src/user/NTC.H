@@ -276,6 +276,7 @@ namespace NTC {
       if (it == db.end()) return false;
       else {
 	uqMap::iterator jt = it->second.find(intr);
+	if (jt == it->second.end()) return false;
 	return jt->second.full();
       }
     }
