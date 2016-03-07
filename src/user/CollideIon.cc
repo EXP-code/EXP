@@ -7870,6 +7870,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		      << " Efin="  << Efin
 		      << " Edif="  << Efin/Ebeg - 1.0
 		      << " pcons=" << sqrt(dp2/pi2)
+		      << "   W_a=" << Wa
+		      << "   W_b=" << Wb
+		      << " AlgOr=" << std::boolalpha << AlgOrth
+		      << " algok=" << std::boolalpha << algok
 		      << std::endl;
 	  }
 
@@ -10653,8 +10657,8 @@ void CollideIon::electronGather()
 
       if (NTC_DIST) {
 	for (auto q : qv) {
-	  NTC::NTCitem::vcMap v = ntcdb[itree.Cell()->mykey].CrsVel(q);
-	  ee[q].push_back(v[electronKey][NTC::NTCitem::single]);
+	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, q);
+	  ee[q].push_back(v);
 	}
       }
     }

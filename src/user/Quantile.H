@@ -193,7 +193,7 @@ namespace NTC {
     //@}
 
     //! Return if quantile estimator is fully populated
-    bool full() { return M >= N; }
+    bool full() { return N > 0 and M >= N; }
 
 
     //! Number of live instances (for debugging)

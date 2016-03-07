@@ -180,6 +180,17 @@ namespace NTC {
 
     static unsigned instance;
 
+    void oddBall(sKeyPair indx, const T& intr)
+    {
+      speciesKey k1 = indx.first, k2 = indx.second;
+      if (
+	  (k1.first != 0 or k1.second != 0 or
+	   k2.first != 0 or k2.second != 0) and intr == single) 
+	{
+	  std::cout << "Odd ball: " << indx << " : " << intr << std::endl;
+	}
+    }
+
   public:
     
     //! Constructor
@@ -259,6 +270,8 @@ namespace NTC {
     //! Ready for estimation owing to a full set of points
     bool Ready(sKeyPair indx, const T& intr)
     {
+      oddBall(indx, intr);
+
       qpMap::iterator it = db.find(indx);
       if (it == db.end()) return false;
       else {
@@ -364,9 +377,6 @@ namespace NTC {
     //! Roundoff offset
     const double eps = 1.0e-8;
 
-    //! In serialization
-    bool inSer;
-    
     //! Persistent copy
     NTCdata pdata;
     
@@ -477,8 +487,6 @@ namespace NTC {
     //! Restore contents from a file
     void restore_myself(const std::string& filename)
     {
-      inSer = true;
-      
       // open the archive; all processes
       std::ifstream ifs(filename.c_str());
       boost::archive::xml_iarchive ia(ifs);
@@ -509,13 +517,12 @@ namespace NTC {
     //! Constructor
     NTCdb()
     {
-      if (!inSer) {
-	std::string filename = ".ntcdb." + runtag;
-	if ( boost::filesystem::exists(filename) ) {
-	  restore_myself(filename);
-	}
+      // Attempt to restore from save set
+      std::string filename = ".ntcdb." + runtag;
+      if ( boost::filesystem::exists(filename) ) {
+	restore_myself(filename);
       }
-      inSer = false;
+      //
       curr_time = tnow;
       next_time = curr_time + dtime*(static_cast<double>(intvl)-eps);
     }

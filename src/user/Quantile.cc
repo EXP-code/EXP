@@ -20,6 +20,9 @@ Quantile::Quantile()
   // No data to start
   M = 0;
 
+  // No markers to start
+  N = 0;
+
   // Initialize storage
   init();
 }
@@ -29,7 +32,7 @@ Quantile::Quantile(double p)
   // No data to start
   M = 0;
 
-  // Initialize storage
+  // Initialize storage, will set markers
   init();
 
   // Add a quantile

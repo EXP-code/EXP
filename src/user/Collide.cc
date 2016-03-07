@@ -3606,8 +3606,11 @@ void Collide::NTCstats(std::ostream& out)
 	speciesKey k2 = k.second;
 	
 	std::ostringstream sout;
-	sout << " Species: <" << k1.first << "," << k1.second 
-	     << "|" << k2.first << "," << k2.second << ">";
+	if (k1.second==0 and k2.second==0)
+	  sout << " Species: <" << k1.first << "|" << k2.first << ">";
+	else
+	  sout << " Species: <" << k1.first << "," << k1.second 
+	       << "|" << k2.first << "," << k2.second << ">";
 
 	for (auto v : i.second) {
 	  
