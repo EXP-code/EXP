@@ -2132,6 +2132,14 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
 }
 
 
+// For dbg
+void trap_crs(double cross) 
+{
+  if (std::isnan(cross)) {
+    std::cout << "Cross section is NaN" << std::endl;
+  }
+}
+
 double CollideIon::crossSectionHybrid(int id, pCell* const c, 
 				      Particle* const _p1, Particle* const _p2, 
 				      double cr, const Interact::T& itype)
@@ -2267,19 +2275,13 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 				// atomic radius
     double crs1 = geometric(Z1) * cfac;
 
-    if (std::isnan(crs1*crossfac*cscl_[Z1])) {
-      std::cout << "Cross section NaN" << std::endl;
-    }
-
-    
+    trap_crs(crs1*crossfac*cscl_[Z1]);
 
     cross += crs1*crossfac*cscl_[Z1];
 
     double crs2 = geometric(Z2) * cfac;
 
-    if (std::isnan(crs2*crossfac*cscl_[Z2])) {
-      std::cout << "Cross section NaN" << std::endl;
-    }
+    trap_crs(crs2*crossfac*cscl_[Z2]);
 
     cross += crs2*crossfac*cscl_[Z2];
 
@@ -2294,9 +2296,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
     double crs1 = 
       elastic(Z1, kEe1[id]) * eVel2 * C2 * crossfac * cscl_[Z1] * cfac;
 
-    if (std::isnan(crs1)) {
-      std::cout << "Cross section NaN" << std::endl;
-    }
+    trap_crs(crs1);
 
     dCross[id].push_back(crs1);
 
@@ -2314,6 +2314,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
     double crs1 = 
       M_PI*b*b * eVel2 * C2 * crossfac * cscl_[Z1] * mfac * cfac;
+
+    trap_crs(crs1);
 
     dCross[id].push_back(crs1);
 
@@ -2366,8 +2368,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   if (std::get<0>(itype) == colexcite) {
 
-    CE1[id]     = ch.IonList[Q1]->collExciteCross(kEe1[id], id); // 
+    double ke = std::max<double>(kEe1[id], FloorEv);
+    CE1[id]     = ch.IonList[Q1]->collExciteCross(ke, id); // 
     double crs  = eVel2 * C2 * CE1[id].back().first * cfac;
+
+    trap_crs(crs);
 
     dCross[id].push_back(crs);
 
@@ -2380,9 +2385,12 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   if (std::get<0>(itype) == ionize) {
 
-    double DI1  = ch.IonList[Q1]->directIonCross(kEe1[id], id);
+    double ke   = std::max<double>(kEe1[id], FloorEv);
+    double DI1  = ch.IonList[Q1]->directIonCross(ke, id);
     double crs  = eVel2 * C2 * DI1 * cfac;
 	
+    trap_crs(crs);
+
     dCross[id].push_back(crs);
 
     return crs * crs_units;
@@ -2394,8 +2402,11 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   if (std::get<0>(itype) == recomb) {
 
-    std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(kEe1[id], id);
+    double ke               = std::max<double>(kEe1[id], FloorEv);
+    std::vector<double> RE1 = ch.IonList[Q1]->radRecombCross(ke, id);
     double crs = eVel2 * C2 * RE1.back() * cfac;
+
+    trap_crs(crs);
 	
     dCross[id].push_back(crs);
 
