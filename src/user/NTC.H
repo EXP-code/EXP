@@ -304,10 +304,12 @@ namespace NTC {
 	unsigned siz2 = p.second.size();
 	MPI_Send(&siz2, 1, MPI_UNSIGNED,   0, 1116, MPI_COMM_WORLD);
 
+	unsigned short u;	// temporary
+
 	for (auto &q : p.second) {
-	  MPI_Send(&(std::get<0>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
-	  MPI_Send(&(std::get<1>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
-	  MPI_Send(&(std::get<2>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<0>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1117, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<1>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1118, MPI_COMM_WORLD);
+	  MPI_Send(&(u=std::get<2>(q.first)), 1, MPI_UNSIGNED_SHORT, 0, 1119, MPI_COMM_WORLD);
 	  q.second.send();
 	}
       }

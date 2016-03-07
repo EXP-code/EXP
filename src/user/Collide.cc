@@ -3423,8 +3423,10 @@ void Collide::NTCgather(pHOT* const tree)
 	      MPI_Send(&uuu, 3, MPI_UNSIGNED_SHORT, 0, base+0, MPI_COMM_WORLD);
 	      MPI_Send(&num, 1, MPI_UNSIGNED,       0, base+1, MPI_COMM_WORLD);
 
+	      double z;		// temporary
+
 	      for (auto s : j.second) {
-		MPI_Send(&s.first,        1, MPI_DOUBLE,   0, base+2, MPI_COMM_WORLD);
+		MPI_Send(&(z=s.first),    1, MPI_DOUBLE,   0, base+2, MPI_COMM_WORLD);
 		unsigned num2 = s.second.size();
 		MPI_Send(&num2,           1, MPI_UNSIGNED, 0, base+3, MPI_COMM_WORLD);
 		if (num2) 
