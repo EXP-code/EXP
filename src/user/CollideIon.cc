@@ -950,7 +950,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
 	    double b = 0.5*esu*esu*C1 /
-	      std::max<double>(E1/dof2, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(E1*eV/dof2, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
 	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
@@ -966,7 +966,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  for (unsigned short C2=1; C2<=Z2; C2++) {
 	    k2.second = C2 + 1;
 	    double b = 0.5*esu*esu*C2 /
-	      std::max<double>(E2/dof1, FloorEv*eV) * 1.0e7; // nm
+	      std::max<double>(E2*eV/dof1, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
 	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
@@ -9711,16 +9711,24 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  sKeyPair k(i1, i2);
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
-	  // std::cout << "pCell=" << std::hex << c << std::endl << std::dec;
-
-
 	  for (auto & v : csections[id][k.first][k.second].v) {
 
-	    if (samp)
-	      crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
-	    else
-	      crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
-	  
+	    if (csections[id][k.first][k.second][v.first] <= 0.0) {
+	      continue;
+	    }
+
+	    crsvel = csections[id][k.first][k.second][v.first]/cunit 
+	      * 3.0 * crm;
+
+	    if (samp) {
+	      if (ntcdb[samp->mykey].Ready(k, v.first))
+		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+	    }
+	    else {
+	      if (ntcdb[c->mykey].Ready(k, v.first))
+		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+	    }
+
 	    // Probability of an interaction of between particles of type 1
 	    // and 2 for a given particle of type 2
 	    //
@@ -9744,15 +9752,22 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    //
 	    if (DEBUG_SL) {
 	      if (selcM[i1][i2][v.first] > 10000.0) {
-		double cv1, cv2, cv3;
+		double crsdef = 
+		  csections[id][k.first][k.second][v.first]/cunit
+		  *  3.0 * crm;
+		double cv1=crsdef, cv2=crsdef, cv3=crsdef;
 		if (samp) {
-		  cv1 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.50);
-		  cv2 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.90);
-		  cv3 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+		  if (ntcdb[samp->mykey].Ready(k, v.first)) {
+		    cv1 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.50);
+		    cv2 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.90);
+		    cv3 = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+		  }
 		} else {
-		  cv1 = ntcdb[c->mykey].CrsVel(k, v.first, 0.50);
-		  cv2 = ntcdb[c->mykey].CrsVel(k, v.first, 0.90);
-		  cv3 = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+		  if (ntcdb[c->mykey].Ready(k, v.first)) {
+		    cv1 = ntcdb[c->mykey].CrsVel(k, v.first, 0.50);
+		    cv2 = ntcdb[c->mykey].CrsVel(k, v.first, 0.90);
+		    cv3 = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+		  }
 		}
 
 		std::ostringstream sout;
@@ -9829,14 +9844,16 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
     std::cout << std::endl
 	      << std::endl     << std::right
-	      << std::setw(16) << "Interact"
+	      << std::setw(20) << "Species"
+	      << std::setw(20) << "Interact"
 	      << std::setw(16) << "N sel"
 	      << std::setw(16) << "Prob 0"
 	      << std::setw(16) << "Prob 1"
 	      << std::setw(16) << "Dens"
 	      << std::setw(16) << "Crs*Vel"
 	      << std::endl
-	      << std::setw(16) << "--------"
+	      << std::setw(20) << "--------"
+	      << std::setw(20) << "--------"
 	      << std::setw(16) << "--------"
 	      << std::setw(16) << "--------"
 	      << std::setw(16) << "--------"
@@ -9862,11 +9879,17 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       
 	    for (auto v : selcM[i1][i2].v) {
 
-	      double crsvel = 0.0;
-	      if (samp)
-		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
-	      else
-		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+	      double crsvel =
+		csections[id][k.first][k.second][v.first]/cunit 
+		* 3.0 * crm;
+
+	      if (samp) {
+		if (ntcdb[samp->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+	      } else {
+		if (ntcdb[c->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+	      }
 
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
 
@@ -9880,14 +9903,17 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		Dens  = densM[i1];
 	      }
 	    
-	      std::cout << "(" 
-			<< std::setw(2)  << i1.first << ","
-			<< std::setw(2)  << i1.second << ") ("
-			<< std::setw(2)  << i2.first << ","
-			<< std::setw(2)  << i2.second << ")  "
-			<< '[' << labels[std::get<0>(v.first)] 
-			<< ',' << std::get<1>(v.first)
-			<< ',' << std::get<2>(v.first) << "] "
+	      std::ostringstream sout1;
+	      sout1 << '(' << std::setw(2)  << i1.first 
+		    << '|' << std::setw(2)  << i2.first 
+		    << ')';
+	      std::ostringstream sout2;
+	      sout2 << '[' << labels[std::get<0>(v.first)] 
+		    << ',' << std::get<1>(v.first)
+		    << ',' << std::get<2>(v.first) << ']';
+
+	      std::cout << std::setw(20) << sout1.str()
+			<< std::setw(20) << sout2.str()
 			<< std::setw(16) << v.second
 			<< std::setw(16) << Prob0
 			<< std::setw(16) << Prob1
