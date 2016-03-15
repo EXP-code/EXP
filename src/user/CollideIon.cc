@@ -3239,14 +3239,14 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       ctd1->dv[id][0] += 1; 
       ctd1->dv[id][1] += N1;
       ctd1->dv[id][2] += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
     }
     
     if (partflag==2) {
       ctd2->dv[id][0] += 1; 
       ctd2->dv[id][1] += N2;
       ctd2->dv[id][2] += 
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
     }
 
 				// Distribute electron energy to particles
@@ -3270,14 +3270,14 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
       ctd1->dv[id][0] += 1; 
       ctd1->dv[id][1] += N1;
       ctd1->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N1 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
     }
     
     if (partflag==2) {
       ctd2->dv[id][0] += 1; 
       ctd2->dv[id][1] += N2;
       ctd2->dv[id][2] +=
-	0.5*Mu*(vi - (*cr))*(vi - (*cr))/N2 * UserTreeDSMC::Eunit / eV;
+	0.5*Mu*(vi - (*cr))*(vi - (*cr)) * UserTreeDSMC::Eunit / eV;
     }
 
 				// Remaining energy split set to zero
@@ -5506,13 +5506,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q;
 	ctd2->CE[id][0] += cF * q;
 	ctd2->CE[id][1] += NN;
-	ctd2->CE[id][2] += dE * N0 / q;
+	ctd2->CE[id][2] += dE * N0;
 	Ion2Frac += cF;
       } else {
 	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
 	ctd1->CE[id][0] += cF * q;
 	ctd1->CE[id][1] += NN;
-	ctd1->CE[id][2] += dE * N0 / q;
+	ctd1->CE[id][2] += dE * N0;
 	Ion1Frac += cF;
       }
 
@@ -5777,13 +5777,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (Ion1Frac>0.0) {
       ctd1->dv[id][0] += cF; 
       ctd1->dv[id][1] += Wb*cF;
-      ctd1->dv[id][2] += dE;
+      ctd1->dv[id][2] += dE*Wb;
     }
     
     if (Ion2Frac>0.0) {
       ctd2->dv[id][0] += cF; 
       ctd2->dv[id][1] += Wb*cF;
-      ctd2->dv[id][2] += dE;
+      ctd2->dv[id][2] += dE*Wb;
     }
     
   } // END: compute this interaction [ok]
@@ -8456,7 +8456,7 @@ void collDiag::print()
 	    << std::setw(12) << ctd->RR_s[2] * cvrt;
 
 	if (ctd->dv_s[1]>0.0)
-	  out << std::setw(12) << ctd->dv_s[2]/ctd->dv_s[2] << " | ";
+	  out << std::setw(12) << ctd->dv_s[2]/ctd->dv_s[1] << " | ";
 	else
 	  out << std::setw(12) << 0.0 << " | ";
 	Etot +=
