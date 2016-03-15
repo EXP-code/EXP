@@ -15,6 +15,8 @@ public:
   typedef std::map<unsigned short, InterpPair> xSection;
   //@}
 
+  static bool extrapolate;
+
 protected:
 
   //! The cross-section database
