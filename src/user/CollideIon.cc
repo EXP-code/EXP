@@ -487,11 +487,11 @@ std::array<double, 3> CollideIon::cellMinMax
       vel = sqrt(vel);
       count++;
       ret[0] = std::min<double>(ret[0], vel);
-      ret[2] = std::min<double>(ret[2], vel);
+      ret[2] = std::max<double>(ret[2], vel);
     }
   }
 
-  if (count) ret[1] /= count;
+  if (count>0) ret[1] = sqrt(ret[1]/count);
 
   return ret;
 }
@@ -970,9 +970,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  CrossG *= neut1 + neut2;
 	  
-	  double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
-	  double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
-
 	  double mu1 = atomic_weights[i1.first]*atomic_weights[0] / 
 	    (atomic_weights[i1.first] + atomic_weights[0]);
 	  
@@ -994,6 +991,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      efac*mu2*eVels[1]*eVels[1]/eV,
 	      efac*mu2*eVels[2]*eVels[2]/eV
 	    };
+
+	  for (auto & v : E1s) v = std::max<double>(v, FloorEv);
+	  for (auto & v : E2s) v = std::max<double>(v, FloorEv);
 
 	  csections[id][i1][i2][Interact::T(neut_neut, 0, 0)] = CrossG *
 	    crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
