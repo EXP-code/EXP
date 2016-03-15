@@ -979,18 +979,20 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  double mu2 = atomic_weights[i2.first]*atomic_weights[0] / 
 	    (atomic_weights[i2.first] + atomic_weights[0]);
 
+	  double efac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit;
+
 	  std::array<double, 3> E1s = 
 	    {
-	      0.5*mu1*eVels[0]*eVels[0]/eV,
-	      0.5*mu1*eVels[1]*eVels[1]/eV,
-	      0.5*mu1*eVels[2]*eVels[2]/eV
+	      efac*mu1*eVels[0]*eVels[0]/eV,
+	      efac*mu1*eVels[1]*eVels[1]/eV,
+	      efac*mu1*eVels[2]*eVels[2]/eV
 	    };
 
 	  std::array<double, 3> E2s = 
 	    {
-	      0.5*mu2*eVels[0]*eVels[0]/eV,
-	      0.5*mu2*eVels[1]*eVels[1]/eV,
-	      0.5*mu2*eVels[2]*eVels[2]/eV
+	      efac*mu2*eVels[0]*eVels[0]/eV,
+	      efac*mu2*eVels[1]*eVels[1]/eV,
+	      efac*mu2*eVels[2]*eVels[2]/eV
 	    };
 
 	  csections[id][i1][i2][Interact::T(neut_neut, 0, 0)] = CrossG *
