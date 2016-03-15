@@ -9466,10 +9466,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      << ", eVel=" << Evel[id] 
 	      << ", crm="  << crm        << std::endl
 	      << std::string(70, '-')    << std::endl
-	      << std::setw(20) << "Species"
+	      << std::setw(30) << "Species"
 	      << std::setw(16) << "Cross"
 	      << std::endl
-	      << std::setw(20) << "---------"
+	      << std::setw(30) << "--------------"
 	      << std::setw(16) << "---------"
 	      << std::endl;
 
@@ -9496,8 +9496,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  std::ostringstream sout;
 	  sout << "<" 
-	       << k1.first << "," << k1.second << "|"
-	       << k2.first << "," << k2.second << ">"
+	       << k1.first << "|" << k2.first << ">"
 	       << " : (" << labels[std::get<0>(v.first)]
 	       << ',' << std::get<1>(v.first)
 	       << ',' << std::get<2>(v.first) << ") ";
