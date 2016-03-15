@@ -317,6 +317,8 @@ Geometric::Geometric()
   radii = atomic_radii;
 }
 
+bool Elastic::extrapolate = true;
+
 Elastic::Elastic()
 {
   atomicdata[1] = Hydrogen;
@@ -330,17 +332,31 @@ double Elastic::interpolate(const std::map<double, double> &data,
   
   i_t i=data.upper_bound(x);
   
-  if (i==data.end()) {
-    return (--i)->second;
-  }
-  
   if (i==data.begin())
     {
       return i->second;
     }
   
-  i_t l=i; --l;
+  if (i==data.end()) 
+    {
+      if (extrapolate) {
+	i_t l = data.find(data.rbegin()->first);
+	i = l; i--;
+
+	double xa = log(i->first);
+	double xb = log(l->first);
+	double ya = log(i->second);
+	double yb = log(l->second);
+
+	double delta = (log(x) - xa)/(xb - xa);
+	return l->second * exp(delta*(yb - ya));
+
+      } else return (--i)->second;
+    } 
   
-  const double delta=(x- l->first)/(i->first - l->first);
-  return delta*i->second +(1-delta)*l->second;
+  i_t l=i; l--;
+
+  double delta = (x - l->first)/(i->first - l->first);
+
+  return delta*i->second + (1-delta)*l->second;
 }

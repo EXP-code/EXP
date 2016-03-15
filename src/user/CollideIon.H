@@ -1,8 +1,9 @@
 #ifndef _CollideIon_H
 #define _CollideIon_H
 
-#include <tuple>
 #include <bitset>
+#include <tuple>
+#include <array>
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
@@ -471,6 +472,9 @@ protected:
 
 protected:
   
+  virtual std::array<double, 3> 
+  cellMinMax(pHOT* const tree, pCell* const cell);
+
   virtual void 
   initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);
 
