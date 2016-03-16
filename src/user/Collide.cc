@@ -1415,11 +1415,14 @@ void * Collide::collide_thread(void * arg)
 
 	      bool   ok    = false;
 
-	      if (NTC)
+	      if (NTC) {
 		ok = ( targ > (*unit)() );
-	      else
+#pragma omp critical
+		ntcdb[samp->mykey].Add(k, v.first, prod);
+	      } else {
 		ok = true;
-	  
+	      }
+
 	      if (ok) {
 
 		elasTime[id].start();
