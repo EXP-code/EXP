@@ -9587,7 +9587,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       
       speciesKey k1 = it1->first;
 
-      for (it2=it1; it2!=c->count.end(); it2++) {
+      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 
 	if (it2->second==0) continue;
 
@@ -9636,12 +9636,12 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  speciesKey i2 = it2.first;
 
-	  speciesKey j1 = std::min<speciesKey>(i1, i2);
-	  speciesKey j2 = std::max<speciesKey>(i1, i2);
+	  // speciesKey j1 = std::min<speciesKey>(i1, i2);
+	  // speciesKey j2 = std::max<speciesKey>(i1, i2);
 
-	  sKeyPair k(j1, j2);
+	  sKeyPair k(i1, i2);
 
-	  for (auto & v : csections[id][j1][j2].v) {
+	  for (auto & v : csections[id][i1][i2].v) {
 	    
 	    // Compute the computational cross section (that is, true
 	    // cross seciton scaled by number of true particles per
@@ -9673,8 +9673,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    //
 	    if (v.second < 0.0 || std::isnan(v.second)) {
 	      cout << "INVALID CROSS SECTION! :: " << v.second
-		   << " #1 = (" << j1.first << ", " << j1.second << ")"
-		   << " #2 = (" << j2.first << ", " << j2.second << ")"
+		   << " #1 = (" << i1.first << ", " << i1.second << ")"
+		   << " #2 = (" << i2.first << ", " << i2.second << ")"
 		   << std::endl;
 	      
 	      v.second = 0.0; // Zero out
@@ -9804,7 +9804,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
       speciesKey i1 = it1->first;
     
-      for (it2=it1; it2!=c->count.end(); it2++) {
+      for (it2=c->count.end(); it2!=c->count.end(); it2++) {
 
 	// Only compute if particles of this species is in the cell
 	if (it2->second) {
@@ -9972,7 +9972,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       //
       if (it1->second) {
 
-	for (it2=it1; it2!=c->count.end(); it2++) {
+	for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	  
 	  // Only output if particles of this species is in the cell
 	  //
