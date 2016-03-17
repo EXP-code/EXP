@@ -44,7 +44,7 @@ libcommon_a_SOURCES = ResPot.cc ResPotOrb.cc BarForcing.cc	\
 
 libdsmc_a_SOURCES = Collide.cc CollideLTE.cc HeatCool.cc		\
 	CollideIon.cc Ion.cc interactSelect.cc Elastic.cc TopBase.cc	\
-	NTC.cc Quantile.cc phfit2.f atomic_constants.cc
+	NTC.cc Quantile.cc phfit2.f atomic_constants.cc spline.cc
 
 libswake_a_SOURCES = respmat6.cc cratint.cc rombeveccmp.cc
 

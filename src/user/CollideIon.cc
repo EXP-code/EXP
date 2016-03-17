@@ -9804,7 +9804,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
       speciesKey i1 = it1->first;
     
-      for (it2=c->count.end(); it2!=c->count.end(); it2++) {
+      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 
 	// Only compute if particles of this species is in the cell
 	if (it2->second) {
@@ -9814,7 +9814,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  double crsvel = 0.0;
 
 	  sKeyPair k(i1, i2);
-	  if (i1>=i2) k = sKeyPair(i2, i1);
+	  // if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  for (auto & v : csections[id][k.first][k.second].v) {
 
@@ -9846,9 +9846,9 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    }
 	    
 	    // Count _pairs_ of identical particles only
-	    //                 |
-	    //                 |
-	    if (i1==i2) //     v
+	    //                                   |
+	    //                                   v
+	    if (i1==i2 and std::get<0>(v.first)==neut_neut)
 	      selcM[i1][i2][v.first] = 0.5 * it1->second * (it2->second-1) *  Prob;
 	    else
 	      selcM[i1][i2][v.first] = it1->second * it2->second * Prob;
