@@ -1416,7 +1416,6 @@ void * Collide::collide_thread(void * arg)
 	      double scrs  = Cross / cunit;
 	      double prod  = cr * scrs;
 	      double targ  = ntcdb[samp->mykey].Prob(k, v.first, prod);
-
 	      bool     ok  = false;
 
 	      if (NTC) {
@@ -1439,9 +1438,10 @@ void * Collide::collide_thread(void * arg)
 	      } // Inelastic computation for subspecies
 
 	    } // Loop over trial pairs
-	
+
 	  } // Loop over subspecies
-	}
+
+	} // Secondary species stanza
 	  
       } // Next species 2 particle
 

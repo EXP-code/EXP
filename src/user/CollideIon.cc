@@ -670,7 +670,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 	}
 
-      } else {
+      } // END: sample cell
+      else {
 
 	for (auto b : cell->bods) {
 				// Particle mass accumulation
@@ -691,7 +692,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  }
 	}
-      }
+      } // END: interaction cell
 
       // Normalize mass-weighted fraction
       //
@@ -801,7 +802,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	} // END: sample cell loop
 
-      } else {
+      }  // END: sample cell
+      else {
 
 	for (auto i : cell->bods) {
 
@@ -851,7 +853,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	} // END: body loop
 
-      } // END: cell
+      } // END: interaction cell
 
       if (aType == Hybrid) {
 
@@ -935,11 +937,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  
 	if (NO_DOF) dof1 = dof2 = 1.0;
 
-	double eVel1  = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
-	double eVel2  = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
+	double eVel1   = sqrt(atomic_weights[i1.first]/atomic_weights[0]/dof1);
+	double eVel2   = sqrt(atomic_weights[i2.first]/atomic_weights[0]/dof2);
 
 	if (use_elec) {
-	  if (Evel[id]>0.0) eVel1 = eVel2 = Evel[id] / (0.5*rvmax);
+	  if (Evel[id]>0.0) eVel1 = eVel2 = Evel[id] / rvmax;
 	}
 
 	if (NO_VEL) eVel1 = eVel2 = 1.0;
@@ -949,7 +951,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  unsigned short Z1 = i1.first;
 	  unsigned short Z2 = i2.first;
 
-	  double tot = 0.0;
+	  double tot = 0.0;	// meanF normalization
 	  for (auto v : meanF[id]) tot += v.second;
 
 	  speciesKey k1(Z1, 1), k2(Z2, 1);
@@ -964,8 +966,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      neut2 = 0.0;
 	    }
 
-	  double elec1 = 0.0;
-	  double elec2 = 0.0;
+	  double elec1 = 0.0;	// Mean electron number in P1
+	  double elec2 = 0.0;	// Mean electron number in P2
 
 	  for (unsigned short C=1; C<=Z1; C++) {
 	    k1.second = C + 1;
@@ -989,6 +991,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  double efac = 0.5 * amu * UserTreeDSMC::Vunit * UserTreeDSMC::Vunit;
 
+				// Min/Mean/Max electron energy for P1 ion
 	  std::array<double, 3> E1s = 
 	    {
 	      efac*mu1*eVels[0]*eVels[0]/eV,
@@ -996,6 +999,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      efac*mu1*eVels[2]*eVels[2]/eV
 	    };
 
+				// Min/Mean/Max electron energy for P2 ion
 	  std::array<double, 3> E2s = 
 	    {
 	      efac*mu2*eVels[0]*eVels[0]/eV,
@@ -1009,14 +1013,19 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    elecEVmax[id].push_back(E1s[2]);
 	  }
 
+				// Forbid zero value
 	  for (auto & v : E1s) v = std::max<double>(v, FloorEv);
 	  for (auto & v : E2s) v = std::max<double>(v, FloorEv);
 
+	  // Neutral-Neutral cross section
+	  //
 	  csections[id][i1][i2][Interact::T(neut_neut, 0, 0)] = CrossG *
 	    crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 
 	  if (temp_debug) meanFdump(id);
 
+	  // Neutral-Electron cross section
+	  //
 	  for (unsigned short C2=1; C2<=Z2; C2++)
 	    csections[id][i1][i2][Interact::T(neut_elec, 0, C2)] = 
 	      std::max<double>(
@@ -1038,6 +1047,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      ) / rvmax * neut2 * elec1 *
 	      crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 
+	  // Coulombic (Rutherford) cross section
+	  //
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
 	    double b = 0.5*esu*esu*C1 /
@@ -1070,7 +1081,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 
-	  // Free free
+	  // Free-free cross section
 	  //
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
@@ -1097,8 +1108,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 
-	  // Collisional excitation
-
+	  // Collisional-excitation cross section
+	  //
 	  for (unsigned short C1=0; C1<Z1; C1++) {
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
@@ -1130,8 +1141,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 
 
-	  // Ionization
-
+	  // Ionization cross section
+	  //
 	  for (unsigned short C1=0; C1<Z1; C1++) {
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
@@ -1163,8 +1174,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 
 
-	  // Recombination
-
+	  // Recombination cross section
+	  //
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
@@ -1230,7 +1241,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     } // END: bodies in cell, outer species loop
 
   } // END: "Direct", "Weight", "Hybrid"
-
+  
   if (aType == Trace) {
 
     // In the trace computation, all superparticles are identical!
@@ -1347,7 +1358,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
       csections[id][defaultKey][defaultKey]() += tCross * meanF[id][k];
     }
-  }
+  } // END: "trace"
 
 }
 
@@ -1410,10 +1421,10 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	  speciesKey k1(Z1, 1), k2(Z2, 1);
 
-	  double tot = 0.0;
+	  double tot = 0.0;	// meanF normalization
 	  for (auto v : meanF[id]) tot += v.second;
 
-	  if (tot <= 0.0) {
+	  if (tot <= 0.0) {	// Sanity check
 	    std::cout << "*Node#" << std::left << std::setw(3) << myid
 		      << " tot="  << std::setw(16) << tot
 		      << " mF1="  << std::setw(16) << meanF[id][k1]
@@ -1424,8 +1435,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	  double neut1 = meanF[id][k1]/tot;
 	  double neut2 = meanF[id][k2]/tot;
 
-	  double elec1 = 0.0;
-	  double elec2 = 0.0;
+	  double elec1 = 0.0;	// Mean electron number in P1
+	  double elec2 = 0.0;	// Mean electron number in P2
 
 	  for (unsigned short C=1; C<=Z1; C++) {
 	    k1.second = C + 1;
@@ -2270,7 +2281,9 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 				      Particle* const _p1, Particle* const _p2, 
 				      double cr, const Interact::T& itype)
 {
-  Particle* p1 = _p1;		// Pointer copies
+  // Pointer copies
+  //
+  Particle* p1 = _p1;
   Particle* p2 = _p2;
 
   // Convert to cross section in system units
@@ -5865,6 +5878,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   delE  /= UserTreeDSMC::Eunit;
 
+  // If this is a subspecies interaction, record the energy loss and
+  // return to caller
+  //
   if (weight > 0.0) {
 
     if (Wa > Wb) {
@@ -9555,7 +9571,6 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   //
   double volc = c->Volume();
   
-  //
   // Cross-section debugging [BEGIN]
   //
   if (CROSS_DBG && id==0) {
@@ -9565,10 +9580,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	cross1_dbg.push_back(v.second);
     }
   }
-  //
-  // Done
-  //
+  // END: cross-section debugging
   
+  // Compute mean densities
+  //
   for (auto it1 : c->count) {
 
     // Only compute if particles of this species is in the cell
@@ -9591,6 +9606,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
   }
 
+  // DEBUG_SL diagnostic output
+  //
   if (DEBUG_SL) {
 
     std::cout << std::endl
@@ -9671,7 +9688,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	}
       }
     }
-  }
+
+  } // END: DEBUG_SL diagnostic output
 
   double meanDens = 0.0;
   meanLambda      = 0.0;
@@ -9695,9 +9713,6 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	  speciesKey i2 = it2.first;
 
-	  // speciesKey j1 = std::min<speciesKey>(i1, i2);
-	  // speciesKey j2 = std::max<speciesKey>(i1, i2);
-
 	  sKeyPair k(i1, i2);
 
 	  for (auto & v : csections[id][i1][i2].v) {
@@ -9705,17 +9720,21 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	    // Compute the computational cross section (that is, true
 	    // cross seciton scaled by number of true particles per
 	    // computational particle)
-	    
+	    //
 	    double crossT = 0.0;
 	  
+	    /*
 	    if (ntcdb[samp->mykey].Ready(k, v.first)) {
 	      v.second = crossT = ntcdb[samp->mykey].CrsVel(k, v.first, 0.5) * cunit / crm;
 	    } else
 	      crossT = v.second;
+	    */
 	  
+	    crossT = v.second;
+
 	    // Choose the trace species of the two (may be neither in
 	    // which case it doesn't matter)
-
+	    //
 	    if (densM[i2] <= densM[i1]) {
 	      crossT      *= (*Fn)[i2] * eta[i2];
 	      ncrossM[i1] += crossT;
@@ -9737,14 +9756,17 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		   << std::endl;
 	      
 	      v.second = 0.0; // Zero out
-	    }
+
+	    } // END: sanity check debugging
 	    
-	  }
-	}
-      }
+	  } // END: subspecies list
+	} 
+      } // END: species loop 2
     }
-  }
+  } // END: species loop 1
       
+  // Compute mean values
+  //
   for (auto it1 : c->count) {
 
     // Only compute if particles of this species is in the cell
@@ -9793,9 +9815,12 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		 << std::endl;
 	  }
 	}
-      }
+
+      } // END: sanity check debugging
     
-      collP  [i1] = nsigmaM[i1] * crm * tau;
+      // Collision probability
+      //
+      collP[i1] = nsigmaM[i1] * crm * tau;
     
       meanDens   += densN[i1];
       meanCollP  += densN[i1] * collP  [i1];
@@ -9873,7 +9898,6 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	  double crsvel = 0.0;
 
 	  sKeyPair k(i1, i2);
-	  // if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  for (auto & v : csections[id][k.first][k.second].v) {
 
@@ -9949,7 +9973,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 			  << cv2 << ", " << cv3 << ")"
 			  << std::endl;
 	      }
-	    }
+	    } // END: debugging output
 
 	    //
 	    // For double-summing of species A,B and B,A interactions 
@@ -10095,7 +10119,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      << "  MFP/L = "       << meanLambda/pow(volc, 0.333333333)
 	      << "  totalNsel = "   << totalNsel
 	      << std::endl << std::endl;
-  }
+
+  } // END: DEBUG_SL output
   
   return selcM;
 }
