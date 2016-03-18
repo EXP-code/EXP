@@ -1354,7 +1354,7 @@ void * Collide::collide_thread(void * arg)
 
 	// Subdominant interaction types
 	//
-	if (!!nselM[i1][i2]) {
+	if (!!nselM[i1][i2] and nselTot) {
 
 	  for (auto v : nselM[i1][i2].v) {
 
@@ -1366,8 +1366,6 @@ void * Collide::collide_thread(void * arg)
 
 	    // Diagnostic
 	    wgtVal[id].push_back(wght);
-
-	    nselTot = static_cast<unsigned>(floor(nsel/wght+0.5));
 
 	    // Loop over total number of candidate collision pairs
 	    //
@@ -1419,7 +1417,7 @@ void * Collide::collide_thread(void * arg)
 	      double prod  = cr * scrs;
 	      double targ  = ntcdb[samp->mykey].Prob(k, v.first, prod);
 
-	      bool   ok    = false;
+	      bool     ok  = false;
 
 	      if (NTC) {
 		ok = ( targ > (*unit)() );

@@ -261,17 +261,49 @@ public:
    molecules and their various ionization and excitation states.  The
    basic strategy is as follows:
    <ol>
-
    <li> Each superparticle interacts according to the mean scattering
    cross section of all particles in its interaction cell
-
    <li> The "interesting" inelastic interactions are electron +
    neutral or electron + ion.  Therefore, when two particles interact,
    their internal excitation states are assumed to change in
    proportion to total probability of that interaction divided by the
    number of superparticle interactions that will occur in each cell. 
+   </ol>
 
    <h2> Hybrid Algorithm </h2>
+
+   <ol>
+   <li> Each particle is divided into subspecies according to its
+   ionization state.
+   <li> The electron velocity is separately carried as 3 real
+   attributes.  That is, the inertial transport is that of the ion,
+   but the interaction energy is computed from the
+   electron-ion/neutral interaction, where appropriate.
+   <li> Since various electron-ion cross-sections are tail sensitive,
+   the cell initialization computes the minimum, mean, and maximum
+   ion-electron velocities and energies.  The per-cell cross sections
+   are weighed by the mean fraction of each subspecies per cell (meanF
+   variable) and the maximum <sigma*vel> for the min, mean, and max
+   electron-ion interaction velocity.
+   <li> Interaction selection counts are computed between the
+   neutrals/ions and electrons for each subspecies from the mean
+   super-particle number densities, the (possibly upweighted by
+   electron to ion velocity ratio) cross sections, the mean velocities,
+   and the time step.
+   <li> The interactions are selected as follows:
+   <ul>
+   <li> The peak subspecies is included for full interaction.  The
+   energy loss is weighted by the produce of subspecies ion/neutral
+   fraction and electron fraction.  The particles are scattered in
+   this interaction, unweighted by subspecies fraction, under the
+   assumption that the peak cross section will tend to dominate.
+   <li> The same number of non-peak interactions are chosen for
+   non-peak subspecies.  The energy lost by inelastic interactions is
+   computed with no scattering, downweighted by the ratio of predicted
+   probabilities of interaction.
+   </ul>
+
+   </ol>
 
  */
 class CollideIon : public Collide
@@ -383,7 +415,10 @@ private:
   //! Set to false for production.
   const bool eDistDBG = true;
   std::vector< boost::circular_buffer<double> > elecEV;
-  ahistoDPtr elecEVH;
+  std::vector< boost::circular_buffer<double> > elecEVmin;
+  std::vector< boost::circular_buffer<double> > elecEVavg;
+  std::vector< boost::circular_buffer<double> > elecEVmax;
+  ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
   //@}
 
   //@{
@@ -500,6 +535,7 @@ protected:
     return csections[id];
   }
 
+  //! Currently, only used to estimate necessary time step
   sKey2Amap& totalScatteringCrossSections(double crm, pCell* const c, int id);
 
   double crossSectionDirect(int id, pCell* const c, 
