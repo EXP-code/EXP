@@ -125,9 +125,19 @@ void initialize(void)
   }
 
   if (parse->find_item("debug_wait", val)) {
-    std::cout << "Found <debug_wait=" << val << ">" << std::endl;
     if (atoi(val.c_str())) debug_wait = true;
     else debug_wait = false;
+    if (myid==0)
+      std::cout << "Found <debug_wait=" << val << ", " << std::boolalpha
+		<< debug_wait << ">" << std::endl;
+  }
+
+  if (parse->find_item("fpe_trap", val)) {
+    if (atoi(val.c_str())) fpe_trap = true;
+    else fpe_trap = false;
+    if (myid==0) 
+      std::cout << "Found <fpe_trap=" << val << ", " << std::boolalpha
+		<< fpe_trap << ">" << std::endl;
   }
 
   if (parse->find_item("homedir", val)) {

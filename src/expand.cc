@@ -177,11 +177,6 @@ main(int argc, char** argv)
   char hdbuffer[hdbufsize];
   bool final_cmd = false;
 
-#ifdef DEBUG
-  set_fpu_handler();
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW ); 
-#endif
-
   int *nslaves, n, retdir, retdir0;
   MPI_Group world_group, slave_group;
 
@@ -305,6 +300,13 @@ main(int argc, char** argv)
   //============================
 
   MPL_parse_args(argc, argv);
+
+  //============================
+  // Trap floating point errors
+  // by installing user handler
+  //============================
+
+  if (fpe_trap) set_fpu_handler();
 
   //========================
   // Change to desired home 

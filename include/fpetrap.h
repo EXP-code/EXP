@@ -5,6 +5,9 @@
 #ifndef FPU_TRAP_H
 #define FPE_TRAP_H
 
+#include <iostream>
+#include <iomanip>
+
 #include <signal.h>
 #include <fpu_control.h>
 
@@ -15,7 +18,7 @@ volatile int my_err;
 static void my_fpu_handler(int err)
 {
   my_err = err;
-  cerr << "FP trapped error=" << my_err << endl;
+  std::cerr << "FP trapped error=" << my_err << std::endl;
 }
 
 static void (*oldhandler)(int);	// keep a reference to the initial value
@@ -33,7 +36,7 @@ void set_fpu_handler(void)
   
   oldhandler = signal(SIGFPE, my_fpu_handler);
   if (SIG_ERR == oldhandler) {
-    cerr << "cannot install floating point exception handler";
+    std::cerr << "cannot install floating point exception handler";
     exit(-1);
   }
 }

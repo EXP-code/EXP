@@ -22,6 +22,9 @@ using namespace std;
     the inputfile
 */
 
+//! Install error handler for fpe debugging
+extern bool fpe_trap;
+
 //! Maximum number of bodies per process
 extern unsigned nbodmax;
 
