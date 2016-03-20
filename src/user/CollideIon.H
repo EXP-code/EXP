@@ -15,6 +15,7 @@
 #include "Ion.H"
 #include "atomic_constants.H"
 #include "AsciiHisto.H"
+#include "EnumBitset.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -207,6 +208,25 @@ public:
   //! Add cell energy
   void addCell(double E, int id) { Esum[id] += E; }
 
+};
+
+enum KE_Flags {
+  KEpos, 
+  ExQ, 
+  AlgO, 
+  StdE, 
+  negE, 
+  zeroKE, 
+  momC, 
+  PreLoss, 
+  Vfac,
+  MaxVal
+};
+
+template<>
+struct EnumTraits<KE_Flags>
+{
+  static const KE_Flags max = KE_Flags::MaxVal;
 };
 
 /**
@@ -750,6 +770,7 @@ protected:
       "[Orthogonal exact]",
       "[Standard exact]",
       "[negative KE]",
+      "[zero COM KE]",
       "[Momentum cons]",
       "[Preloss check]",
       "[Vfac set]",
@@ -758,9 +779,9 @@ protected:
   public:
     double miss, delta, delE, p1E, p2E, gamma;
     double totE, kE, dKE, vfac, vrat, o1, o2;
-    bitset<8> flag;
 
-    enum {KEpos, ExQ, AlgO, StdE, negE, momC, PreLoss, Vfac};
+
+    EnumBitset<KE_Flags> bs;
 
     KE_() 
     {
@@ -768,7 +789,6 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = delE = p1E = p2E = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
-      flag = 0;
     }
 
     KE_(double dE, double p1, double p2) : delE(dE), p1E(p1), p2E(p2)
@@ -777,7 +797,6 @@ protected:
       for (auto & v : _f) v = 0.0;
       miss = delta = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
-      flag = 0;
     }
     
     double& i(int i) { return _i[i-1]; }
@@ -786,14 +805,14 @@ protected:
     std::string decode()
     {
       std::string ret;
-      for (size_t i=0; i<flag.size(); i++) {
-	if (flag[i]) ret += names[i];
+      for (size_t i=0; i<bs.size(); i++) {
+	if (bs[i]) ret += names[i];
       }
       return ret;
     }
   };
   
-  enum HybridColl {Ion1, Ion2, Neutral};
+  enum HybridColl {Ion1=1, Ion2=2, Neutral=4, Scatter=8};
 
   //! Interaction data structure for simplifying variable passing
   struct InteractData 
@@ -810,14 +829,13 @@ protected:
   };
 
   //! Compute the interaction for the hybrid weighted method
-  int computeHybridInteraction
-  (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
-   int id);
+  void scatterHybrid
+  (InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2);
 
-  //! Update the velocity states for the hybrid weighted method
-  int updateHybrid
-  (InteractData& d, std::vector<double>& v1, std::vector<double>& v2, KE_& KE, 
-   HybridColl iType, int id);
+  //! Check energy convervation for hybrid method
+  void checkEnergyHybrid
+  (InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2,
+   unsigned iType, int id);
 
   //! Print cross-section weights for debugging
   void meanFdump(int id);
@@ -843,6 +861,7 @@ public:
   static bool     AlgOrth;
   static bool     DebugE;
   static bool     collLim;
+  static bool     E_split;
   static string   config0;
 
   //! Constructor
