@@ -912,12 +912,13 @@ double pCell::Scale()
 #endif
 }
 
-void pCell::match(pCell* target, int& mcount)
+void pCell::match(pCell* target, int& mcount, key_type& key)
 {
   if (children.size()) {
-    for (auto i : children) i.second->match(target, mcount);
+    for (auto i : children) i.second->match(target, mcount, key);
   } else {
     if (target == this) mcount++;
+    else key = this->mykey;
   }
 }
 
@@ -945,11 +946,47 @@ pCell* pCell::findSampleCell()
 
   sample = cur;			// The answer.
 
-				// Looking for bug . . . 
-  int mcount = 0;
-  sample->match(this, mcount);
-  if (mcount != 1) {
-    std::cout << "Crazy" << std::endl;
+  // +----- set to false to turn off debugging
+  // V
+  if (true) {
+    static int tcount = 0;
+    static int bcount = 0;
+    int mcount = 0;
+    key_type tkey = -1;
+    sample->match(this, mcount, tkey);
+    tcount++;
+    if (mcount == 0) {
+      std::vector<double> minpos(3, 1.0e20);
+      std::vector<double> maxpos(3,-1.0e20);
+      for (auto b : this->bods) {
+	for (int k=0; k<3; k++) {
+	  double v = C->Particles()[b].pos[k];
+	  minpos[k] = std::min<double>(minpos[k], v);
+	  maxpos[k] = std::max<double>(maxpos[k], v);
+	}
+      }
+
+      bcount++;
+      std::cout << "Cell not in the sample cell:"
+		<< "  key=" << sample->mykey
+		<< ", lev=" << sample->level
+		<< ", target key=" << this->mykey
+		<< ", target lev=" << this->level
+		<< ", found key="  << tkey
+		<< ", " << bcount << "/" << tcount
+		<< ", N=" << ctotal << ", (x, y, z)="
+		<< "(" << minpos[0]
+		<< "," << minpos[1]
+		<< "," << minpos[2] << ")"
+		<< "(" << maxpos[0]
+		<< "," << maxpos[1]
+		<< "," << maxpos[2] << ")"
+		<< std::endl;
+    } else if (mcount != 1) {
+      bcount++;
+      std::cout << "Muliple sample cell matches="
+		<< mcount << std::endl;
+    }
   }
 
   return sample;
