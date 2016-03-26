@@ -525,6 +525,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// Add cell energy to diagnostic
 				// handler
   collD->addCell(KEtot*massC, id);
+				// Add electron stats to diagnostic
+				// handler
   collD->addCellElec(cell, use_elec, id);
 
 				// Used for diagnostics only
