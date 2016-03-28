@@ -65,7 +65,7 @@ def plot_data(filename, msz, logY, dot):
     elos  = []
     ncol  = 16
     lead  = 2
-    trail = 7
+    tail  = 7
     data  = {}
 
     # Species
@@ -82,7 +82,7 @@ def plot_data(filename, msz, logY, dot):
             labels = line.translate(trans).split()
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
-            for i in range(lead, len(toks)-trail):
+            for i in range(lead, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
                 idx = (i-lead) / ncol
@@ -108,8 +108,8 @@ def plot_data(filename, msz, logY, dot):
                     ekeI.append(float(toks[-5]))
                     elsC.append(float(toks[-6]))
                     elos.append(float(toks[-7]))
-                    for i in range(lead,len(toks)-trail):
-                        idx = (i-trail) / ncol
+                    for i in range(lead,len(toks)-tail):
+                        idx = (i-tail) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "toks=", len(toks), " labels=", len(labels)

@@ -54,7 +54,8 @@ def plot_data(filename, degree, smooth, tscale, tmax, dens):
     temp  = []
     etot  = []
     ncol  = 9
-    trce  = 2
+    head  = 2
+    tail  = 2
     data  = {}
 
     # Species
@@ -71,21 +72,23 @@ def plot_data(filename, degree, smooth, tscale, tmax, dens):
             labels = line.translate(trans).split()
             if line.find('W(') >= 0:
                 ncol = 13
-                trce = 3
+                head = 3
             if line.find('N(ie') >= 0:
                 ncol = 16
-                trce = 3
+                head = 3
+            if line.find('EratC') >= 0:
+                tail = 7    
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
-            for i in range(2, len(toks)-1):
+            for i in range(head, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
-                idx = (i-trce) / ncol
+                idx = (i-head) / ncol
                 data[spec[idx]][labels[j]] = []
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
             allZ = True             # Skip lines with zeros only
-            for i in range(2,len(toks)):
+            for i in range(2, len(toks)):
                 if float(toks[i])>0.0: 
                     allZ = False
                     break
@@ -98,8 +101,8 @@ def plot_data(filename, degree, smooth, tscale, tmax, dens):
                         time.append(float(toks[0]))
                         temp.append(float(toks[1]))
                         etot.append(float(toks[-1]))
-                        for i in range(2,len(toks)-1):
-                            idx = (i-trce) / ncol
+                        for i in range(head, len(toks)-tail):
+                            idx = (i-head) / ncol
                             data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:
                     print "Bad line: toks=", len(toks), " labels=", len(labels)
