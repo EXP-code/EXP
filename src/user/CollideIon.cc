@@ -55,9 +55,9 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 //
 static bool TRACE_ELEC        = false;
 
-// Enable ion-electron secondary scattering
+// Enable ion-electron secondary scattering where count is the value
 //
-static bool SECONDARY_SCATTER = false;
+static unsigned SECONDARY_SCATTER = 0;
 
 // Fraction of excess energy loss to give to the electrons
 //
@@ -276,7 +276,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
 	      << (AlgOrth ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
-	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
+	      << (SECONDARY_SCATTER ? "on [" : "off") << SECONDARY_SCATTER
+	      << "]" << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
@@ -3171,7 +3172,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z2];
       double M2 = atomic_weights[ 0];
       double Mt = M1 + M2;
@@ -3192,7 +3193,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z1];
       double M2 = atomic_weights[ 0];
       double Mt = M1 + M2;
@@ -3400,7 +3401,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z2];
       double M2 = atomic_weights[ 0];
 
@@ -3436,7 +3437,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z1];
       double M2 = atomic_weights[ 0];
 
@@ -5332,6 +5333,36 @@ void CollideIon::normTest(Particle* const p, const std::string& lab)
   }
 }
 
+void CollideIon::secondaryScatter(Particle *p)
+{
+  unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+  double M1 = atomic_weights[Z];
+  double M2 = atomic_weights[0];
+  double MT = M1 + M2;
+	  
+  std::vector<double> vcom(3), vrel(3);
+  double vEI = 0.0;
+  for (int k=0; k<3; k++) {
+    vcom[k] = (M1*p->vel[k] + M2*p->dattrib[use_elec+k])/MT;
+    double vr = p->vel[k] - p->dattrib[use_elec+k];
+    vEI += vr * vr;
+  }
+  vEI = sqrt(vEI);
+  
+  double cos_th = 1.0 - 2.0*(*unit)();
+  double sin_th = sqrt(1.0 - cos_th*cos_th);
+  double phi    = 2.0*M_PI*(*unit)();
+
+  vrel[0] = vEI*cos_th;
+  vrel[1] = vEI*sin_th*cos(phi);
+  vrel[2] = vEI*sin_th*sin(phi);
+  
+  for (int k=0; k<3; k++) {
+    p->vel[k] = vcom[k] + M2/MT*vrel[k];
+    p->dattrib[use_elec+k] = vcom[k] - M1/MT*vrel[k];
+  }
+}
 
 bool use_normtest = true;
 
@@ -5892,12 +5923,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   if (weight > 0.0) {
 
-    if (Wa > Wb) {
+    // if (Wa > Wb) {
+    //   p1->dattrib[use_cons] += delE;
+    // } else {
+    //   p1->dattrib[use_cons] += 0.5*delE;
+    //   p2->dattrib[use_cons] += 0.5*delE;
+    // }
+
+    // p1->dattrib[use_cons] += 0.5*delE;
+    // p2->dattrib[use_cons] += 0.5*delE;
+
+    if (atomic_weights[Z1] < atomic_weights[Z2])
+      p2->dattrib[use_cons] += delE;
+    else
       p1->dattrib[use_cons] += delE;
-    } else {
-      p1->dattrib[use_cons] += 0.5*delE;
-      p2->dattrib[use_cons] += 0.5*delE;
-    }
 
     return ret;
   }
@@ -5926,6 +5965,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (E_split or NeutFrac>0.0) {
       
+      // N-way split
+      double nspl = 1;
+      if (Ion1Frac>0.0) nspl += 1;
+      if (Ion2Frac>0.0) nspl += 1;
+
       InteractData d(m1, m2, Wa, Wb, q, Z1, Z2, p1, p2);
 
       double ke1 = 0.0, ke2 = 0.0;
@@ -5947,12 +5991,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	} else {
-	  p1->dattrib[use_cons] += delE;
+	  // p1->dattrib[use_cons] += delE;
+	  // p1->dattrib[use_cons] += 0.5*delE;
+	  // p2->dattrib[use_cons] += 0.5*delE;
+
+	  if (atomic_weights[Z1] < atomic_weights[Z2])
+	    p2->dattrib[use_cons] += delE;
+	  else
+	    p1->dattrib[use_cons] += delE;
+
 	  delE = 0.0;
 	}
       
 	// p1E and p2E for debugging only
-	KE_ KE(delE, p1E, p2E);
+	KE_ KE(delE/nspl, p1E, p2E);
 	
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
@@ -5981,7 +6033,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE;
+	  KE_ KE(delE/nspl);
 	  
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1 | Scatter, id);
@@ -5991,6 +6043,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->dattrib[use_elec+k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
       }
 
       if (Ion2Frac>0.0) {
@@ -6009,7 +6065,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE;
+	  KE_ KE(delE/nspl);
 	  
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2 | Scatter, id);
@@ -6019,6 +6075,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->vel[k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
     } // END: E_split algorithm or NeutFrac>0
     else {
@@ -6044,7 +6104,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += 0.5*delE;
+	    // p2->dattrib[use_cons] += 0.5*delE;
+
+	    if (atomic_weights[Z1] < atomic_weights[Z2])
+	      p2->dattrib[use_cons] += delE;
+	    else
+	      p1->dattrib[use_cons] += delE;
+
 	    delE = 0.0;
 	  }
       
@@ -6060,6 +6128,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->dattrib[use_elec+k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
       }
       
       if (Ion2Frac>0.0) {
@@ -6083,7 +6155,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += 0.5*delE;
+	    // p2->dattrib[use_cons] += 0.5*delE;
+
+	    if (atomic_weights[Z1] < atomic_weights[Z2])
+	      p2->dattrib[use_cons] += delE;
+	    else
+	      p1->dattrib[use_cons] += delE;
+
 	    delE = 0.0;
 	  }
       
@@ -6099,6 +6179,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->vel[k] = v2[k];	// Particle 2 is the ion
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
     }
   }
@@ -11809,7 +11893,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);
 
     SECONDARY_SCATTER =
-      cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
+      cfg.entry<unsigned>("SECONDARY_SCATTER", "Scatter electron with its donor ion n times (0 value for no scattering)", 0);
 
     TRACE_FRAC =
       cfg.entry<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);
