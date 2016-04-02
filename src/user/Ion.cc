@@ -2269,3 +2269,61 @@ void KLGFdata::initialize(chdata* ch)
   }
 }
 
+std::map<unsigned short, double> 
+chdata::fraction(unsigned short Z, double T, int norder)
+{
+  if (Lagu.get() == 0) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder));
+  else if (Lagu->n != norder) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder));
+
+  std::map<unsigned short, double> ret;
+
+  std::map<lQ, double> ionize, recomb;
+
+  for (unsigned short C=1; C<=Z+0; C++) ionize[lQ(Z, C)] = 0.0;
+  for (unsigned short C=2; C<=Z+1; C++) recomb[lQ(Z, C)] = 0.0;
+
+  const double beta = 0.5*me/boltz;
+
+  for (auto & v : ionize) v.second = 0.0;
+  for (auto & v : recomb) v.second = 0.0;
+
+  for (int i=1; i<=norder; i++) {
+    double y = Lagu->knot(i);
+    double w = Lagu->weight(i);
+    
+    // Ionization
+    //
+    for (auto & v : ionize) {
+      double ionE = ipdata[v.first];  // ionization energy in eV
+      double ab   = ionE/(boltzEv*T);	  
+      double eab  = exp(-ab);	           // Boltzmann factor for ionization
+      double EeV  = (y + ab)*boltzEv*T;  // eval energy
+      double vel  = sqrt((y + ab)/beta); // eval velocity squared
+      
+      v.second += w * eab * vel *
+	IonList[v.first]->directIonCross(EeV, 0);
+    }
+
+    // Recombination
+    //
+    for (auto & v : recomb) {
+      double EeV  = y*boltzEv*T;
+      double vel  = sqrt(y/beta);
+      
+      v.second += w * vel *
+	IonList[v.first]->radRecombCross(EeV, 0).back();
+    }
+  }
+  
+  std::vector<double> nn(Z+1, 1);
+  double norm = 1.0;
+  for (unsigned short C=1; C<Z+1; C++) {
+    nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    norm += nn[C];
+  }
+  for (unsigned short C=1; C<Z+2; C++) ret[C] = nn[C-1]/norm;
+    
+  return ret;
+}

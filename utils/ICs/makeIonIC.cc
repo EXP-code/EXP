@@ -90,6 +90,10 @@ norm_ptr    Norm;
 //
 enum Itype { Hybrid, Trace, Weight, Direct };
 
+// Use CHIANTI or ION for ionization-recombination equilibrium
+//
+bool use_chianti = false;
+
 /**
    Make Uniform temperature box of gas
 */
@@ -293,33 +297,84 @@ void InitializeSpeciesDirect
   //
   for (auto n : sZ) {
 
-    const std::string ioneq("makeIonIC.ioneq");
-    std::ostringstream sout;
-    sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(n)
-	 << " -2 " << static_cast<unsigned>(n)
-	 << " -T " << T << " -o " << ioneq;
+    if (use_chianti) {
 
-    int ret = system(sout.str().c_str());
-
-    if (ret) {
-      std::cout << "System command  = " << sout.str() << std::endl;
-      std::cout << "System ret code = " << ret << std::endl;
-    }
-
-    typedef std::vector<std::string> vString;
-
-    std::string inLine;
-    std::ifstream sFile(ioneq.c_str());
-    if (sFile.is_open()) {
-
-      std::getline(sFile, inLine); // Read and discard the headers
-      std::getline(sFile, inLine);
+      const std::string ioneq("makeIonIC.ioneq");
+      std::ostringstream sout;
+      sout << "./genIonization"
+	   << " -1 " << static_cast<unsigned>(n)
+	   << " -2 " << static_cast<unsigned>(n)
+	   << " -T " << T << " -o " << ioneq;
       
-      {
-	vString s;
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile(ioneq.c_str());
+      if (sFile.is_open()) {
+	
+	std::getline(sFile, inLine); // Read and discard the headers
 	std::getline(sFile, inLine);
 	
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (auto i : s) v.push_back(::atof(i.c_str()));
+	  frac.push_back(v);
+	}
+      
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	    v.push_back(::atof(i->c_str()));
+	  cuml.push_back(v);
+	}
+      }
+    }
+    else {
+
+      std::ostringstream sout;
+      sout << "../../src/user/genIonRecomb"
+	   << " -Z " << static_cast<unsigned>(n)
+	   << " -T " << T;
+      
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile("IonRecombFrac.data");
+      if (sFile.is_open()) {
+	
+	vString s;
+	std::getline(sFile, inLine);
+	  
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
@@ -328,20 +383,18 @@ void InitializeSpeciesDirect
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
-      }
-      
-      {
-	vString s;
-	std::getline(sFile, inLine);
+	  
+	double norm = 0.0;
+	for (auto i : v) norm += i;
 	
-	std::istringstream iss(inLine);
-	std::copy(std::istream_iterator<std::string>(iss), 
-		  std::istream_iterator<std::string>(), 
-		  std::back_inserter<vString>(s));
-	
-	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
+	if (fabs(norm - 1.0) > 1.0e-10) {
+	  std::cout << "Normalization error: ";
+	  for (auto i : v) std::cout << std::setw(16) << i;
+	  std::cout << std::endl;
+	}
+
+	std::vector<double> c = v;
+	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(v);
       }
     }
@@ -427,9 +480,9 @@ void InitializeSpeciesDirect
 }
 
 void InitializeSpeciesWeight
-(std::vector<Particle> & particles, 
- std::vector<unsigned char>& sZ, 
- std::vector<double>& sF, 
+(std::vector<Particle> & particles,
+ std::vector<unsigned char>& sZ,
+ std::vector<double>& sF,
  std::vector< std::vector<double> >& sI,
  double M, double T, int& ne, int ni=2, int nd=6)
 {
@@ -440,33 +493,84 @@ void InitializeSpeciesWeight
   //
   for (auto n : sZ) {
 
-    const std::string ioneq("makeIonIC.ioneq");
-    std::ostringstream sout;
-    sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(n)
-	 << " -2 " << static_cast<unsigned>(n)
-	 << " -T " << T << " -o " << ioneq;
+    if (use_chianti) {
 
-    int ret = system(sout.str().c_str());
-
-    if (ret) {
-      std::cout << "System command  = " << sout.str() << std::endl;
-      std::cout << "System ret code = " << ret << std::endl;
-    }
-
-    typedef std::vector<std::string> vString;
-
-    std::string inLine;
-    std::ifstream sFile(ioneq.c_str());
-    if (sFile.is_open()) {
-
-      std::getline(sFile, inLine); // Read and discard the headers
-      std::getline(sFile, inLine);
+      const std::string ioneq("makeIonIC.ioneq");
+      std::ostringstream sout;
+      sout << "./genIonization"
+	   << " -1 " << static_cast<unsigned>(n)
+	   << " -2 " << static_cast<unsigned>(n)
+	   << " -T " << T << " -o n" << ioneq;
       
-      {
-	vString s;
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile(ioneq.c_str());
+      if (sFile.is_open()) {
+	
+	std::getline(sFile, inLine); // Read and discard the headers
 	std::getline(sFile, inLine);
 	
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (auto i : s) v.push_back(::atof(i.c_str()));
+	  frac.push_back(v);
+	}
+      
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	    v.push_back(::atof(i->c_str()));
+	  cuml.push_back(v);
+	}
+      }
+    }
+    else {
+      
+      std::ostringstream sout;
+      sout << "../../src/user/genIonRecomb"
+	   << " -Z " << static_cast<unsigned>(n)
+	   << " -T " << T;
+      
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile("IonRecombFrac.data");
+      if (sFile.is_open()) {
+	
+	vString s;
+	std::getline(sFile, inLine);
+	  
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
@@ -475,20 +579,18 @@ void InitializeSpeciesWeight
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
-      }
-      
-      {
-	vString s;
-	std::getline(sFile, inLine);
+	  
+	double norm = 0.0;
+	for (auto i : v) norm += i;
 	
-	std::istringstream iss(inLine);
-	std::copy(std::istream_iterator<std::string>(iss), 
-		  std::istream_iterator<std::string>(), 
-		  std::back_inserter<vString>(s));
-	
-	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
+	if (fabs(norm - 1.0) > 1.0e-10) {
+	  std::cout << "Normalization error: ";
+	  for (auto i : v) std::cout << std::setw(16) << i;
+	  std::cout << std::endl;
+	}
+
+	std::vector<double> c = v;
+	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(v);
       }
     }
@@ -583,37 +685,88 @@ void InitializeSpeciesHybrid
   //
   for (auto n : sZ) {
 
-    const std::string ioneq("makeIonIC.ioneq");
-    std::ostringstream sout;
-    sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(n)
-	 << " -2 " << static_cast<unsigned>(n)
-	 << " -T " << T << " -o " << ioneq;
+    if (use_chianti) {
 
-    int ret = system(sout.str().c_str());
+      const std::string ioneq("makeIonIC.ioneq");
+      std::ostringstream sout;
+      sout << "./genIonization"
+	   << " -1 " << static_cast<unsigned>(n)
+	   << " -2 " << static_cast<unsigned>(n)
+	   << " -T " << T << " -o " << ioneq;
+      
+      int ret = system(sout.str().c_str());
 
-    if (ret) {
-      std::cout << "System command  = " << sout.str() << std::endl;
-      std::cout << "System ret code = " << ret << std::endl;
-    }
-
-    typedef std::vector<std::string> vString;
-
-    std::string inLine;
-    std::ifstream sFile(ioneq.c_str());
-    std::getline(sFile, inLine); // Read and discard the initial header
-
-    if (sFile.is_open()) {
-
-      std::getline(sFile, inLine);
-				// Get the atomic species
-      unsigned short Z;
-      {
-	std::istringstream iss(inLine);
-	iss >> Z;
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
       }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile(ioneq.c_str());
+      std::getline(sFile, inLine); // Read and discard the initial header
+      
+      if (sFile.is_open()) {
+	
+	std::getline(sFile, inLine);
+				// Get the atomic species
+	unsigned short Z;
+	{
+	  std::istringstream iss(inLine);
+	  iss >> Z;
+	}
 				// Get the ionization fractions
-      {
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	
+	  std::vector<double> v;
+	  for (auto i : s) v.push_back(::atof(i.c_str()));
+	  frac[Z] = v;
+	}
+      
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	    v.push_back(::atof(i->c_str()));
+	  cuml.push_back(v);
+	}
+      }
+    }
+    else {
+
+      std::ostringstream sout;
+      sout << "../../src/user/genIonRecomb"
+	   << " -Z " << static_cast<unsigned>(n)
+	   << " -T " << T;
+      
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile("IonRecombFrac.data");
+      if (sFile.is_open()) {
+	
 	vString s;
 	std::getline(sFile, inLine);
 	
@@ -624,21 +777,19 @@ void InitializeSpeciesHybrid
 	
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
-	frac[Z] = v;
-      }
-      
-      {
-	vString s;
-	std::getline(sFile, inLine);
+	frac[n] = v;
 	
-	std::istringstream iss(inLine);
-	std::copy(std::istream_iterator<std::string>(iss), 
-		  std::istream_iterator<std::string>(), 
-		  std::back_inserter<vString>(s));
+	double norm = 0.0;
+	for (auto i : v) norm += i;
 	
-	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
+	if (fabs(norm - 1.0) > 1.0e-10) {
+	  std::cout << "Normalization error: ";
+	  for (auto i : v) std::cout << std::setw(16) << i;
+	  std::cout << std::endl;
+	}
+	
+	std::vector<double> c = v;
+	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(v);
       }
     }
@@ -734,56 +885,105 @@ void InitializeSpeciesTrace
   //
   for (auto n : sZ) {
 
-    const std::string ioneq("makeIonIC.ioneq");
-    std::ostringstream sout;
-    sout << "./genIonization"
-	 << " -1 " << static_cast<unsigned>(n)
-	 << " -2 " << static_cast<unsigned>(n)
-	 << " -T " << T << " -o " << ioneq;
+    if (use_chianti) {
 
-    int ret = system(sout.str().c_str());
-
-    if (ret) {
-      std::cout << "System command  = " << sout.str() << std::endl;
-      std::cout << "System ret code = " << ret << std::endl;
-    }
-
-    typedef std::vector<std::string> vString;
-
-    std::string inLine;
-    std::ifstream sFile(ioneq.c_str());
-    if (sFile.is_open()) {
-
-      std::getline(sFile, inLine); // Read and discard the headers
-      std::getline(sFile, inLine);
+      const std::string ioneq("makeIonIC.ioneq");
+      std::ostringstream sout;
+      sout << "./genIonization"
+	   << " -1 " << static_cast<unsigned>(n)
+	   << " -2 " << static_cast<unsigned>(n)
+	   << " -T " << T << " -o " << ioneq;
       
-      {
-	vString s;
-	std::getline(sFile, inLine);
-	
-	std::istringstream iss(inLine);
-	std::copy(std::istream_iterator<std::string>(iss), 
-		  std::istream_iterator<std::string>(), 
-		  std::back_inserter<vString>(s));
-	
-	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
-	frac.push_back(v);
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
       }
       
-      {
-	vString s;
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile(ioneq.c_str());
+      if (sFile.is_open()) {
+	
+	std::getline(sFile, inLine); // Read and discard the headers
 	std::getline(sFile, inLine);
 	
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	    v.push_back(::atof(i->c_str()));
+	  frac.push_back(v);
+	}
+      
+	{
+	  vString s;
+	  std::getline(sFile, inLine);
+	  
+	  std::istringstream iss(inLine);
+	  std::copy(std::istream_iterator<std::string>(iss), 
+		    std::istream_iterator<std::string>(), 
+		    std::back_inserter<vString>(s));
+	  
+	  std::vector<double> v;
+	  for (vString::iterator i=s.begin(); i!=s.end(); i++)
+	    v.push_back(::atof(i->c_str()));
+	  cuml.push_back(v);
+	}
+      }
+    }
+    else {
+
+      std::ostringstream sout;
+      sout << "../../src/user/genIonRecomb"
+	   << " -Z " << static_cast<unsigned>(n)
+	   << " -T " << T;
+      
+      int ret = system(sout.str().c_str());
+      
+      if (ret) {
+	std::cout << "System command  = " << sout.str() << std::endl;
+	std::cout << "System ret code = " << ret << std::endl;
+      }
+      
+      typedef std::vector<std::string> vString;
+      
+      std::string inLine;
+      std::ifstream sFile("IonRecombFrac.data");
+      if (sFile.is_open()) {
+	
+	vString s;
+	std::getline(sFile, inLine);
+	  
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
 		  std::back_inserter<vString>(s));
 	
 	std::vector<double> v;
-	for (vString::iterator i=s.begin(); i!=s.end(); i++)
-	  v.push_back(::atof(i->c_str()));
+	for (auto i : s) v.push_back(::atof(i.c_str()));
+	frac.push_back(v);
+	  
+	double norm = 0.0;
+	for (auto i : v) norm += i;
+	
+	if (fabs(norm - 1.0) > 1.0e-10) {
+	  std::cout << "Normalization error: ";
+	  for (auto i : v) std::cout << std::setw(16) << i;
+	  std::cout << std::endl;
+	}
+
+	std::vector<double> c = v;
+	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(v);
       }
     }
@@ -861,6 +1061,8 @@ int main (int ac, char **av)
     ("weight",          "set up for weighted species")
     ("hybrid",          "set up for hybrid species ")
     ("electrons",       "set up for weighted or hybrid species with electrons")
+    ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
+     "use CHIANTI to set recombination-ionization equilibrium")
     ("temp,T",		po::value<double>(&T)->default_value(25000.0),
      "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
