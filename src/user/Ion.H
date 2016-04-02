@@ -15,6 +15,8 @@
 #include <Verner.H>
 #include <KarzasLatter.H>
 
+#include <gaussQ.h>
+
 // Structures for caching the Cspline instances for each Ion instance
 //
 typedef Cspline<double, double>      CsplineD2;
@@ -185,6 +187,12 @@ class Ion;
 class chdata 
 {
 
+protected:
+
+  //! Gauss-Laguerre structure for integration of Maxwell-Boltzmann
+  //! distribution
+  boost::shared_ptr<LaguQuad> Lagu;
+
 public:
 
   //! Constructor
@@ -240,6 +248,10 @@ public:
 
   //! Read the radiative recombination Gaunt factor data
   void readRadGF();
+
+  /** Compute ionization-recombination thermal equilibrium (for ICs
+      and diagnostics */
+  std::map<unsigned short, double> fraction(unsigned short Z, double Temperature, int norder=20);
 
 };
 
