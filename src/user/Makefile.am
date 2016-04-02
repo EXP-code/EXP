@@ -12,7 +12,7 @@ AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 libdir      = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
-bin_PROGRAMS = testCrossSection
+bin_PROGRAMS = testCrossSection testIonRecomb
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -136,6 +136,9 @@ libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
 testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a
+
+testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
+testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil
 
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc

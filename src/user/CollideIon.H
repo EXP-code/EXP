@@ -186,8 +186,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum;
-  double Esum_s;
+  std::vector<double> Esum, Erat, Emas;
+  double Esum_s, Erat_s, Emas_s, Esum_e, Edsp_e, Etot_c;
 
   //! Make the file header the first time
   void initialize();
@@ -207,6 +207,9 @@ public:
 
   //! Add cell energy
   void addCell(double E, int id) { Esum[id] += E; }
+
+  //! Electron energy diagnostics
+  void addCellElec(pCell* cell, int ue, int id);
 
 };
 
@@ -581,6 +584,8 @@ protected:
   int inelasticTrace(int id, pCell* const c, 
 		     Particle* const p1, Particle* const p2, 
 		     double *crm);
+
+  void secondaryScatter(Particle *p);
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
