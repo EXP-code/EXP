@@ -187,7 +187,7 @@ private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
   std::vector<double> Esum;
-  double Esum_s;
+  double Esum_s, Etot_c;
 
   //! Make the file header the first time
   void initialize();
