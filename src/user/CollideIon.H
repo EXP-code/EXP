@@ -791,7 +791,7 @@ protected:
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
     }
 
-    KE_(double dE, double p1, double p2) : delE(dE), p1E(p1), p2E(p2)
+    KE_(double dE, double p1=0.0, double p2=0.0) : delE(dE), p1E(p1), p2E(p2)
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
