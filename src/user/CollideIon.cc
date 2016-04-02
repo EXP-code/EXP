@@ -55,9 +55,9 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 //
 static bool TRACE_ELEC        = false;
 
-// Enable ion-electron secondary scattering
+// Enable ion-electron secondary scattering where count is the value
 //
-static bool SECONDARY_SCATTER = false;
+static unsigned SECONDARY_SCATTER = 0;
 
 // Fraction of excess energy loss to give to the electrons
 //
@@ -276,7 +276,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
 	      << (AlgOrth ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
-	      << (SECONDARY_SCATTER ? "on" : "off")     << std::endl
+	      << (SECONDARY_SCATTER ? "on [" : "off") << SECONDARY_SCATTER
+	      << "]" << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
@@ -525,6 +526,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// Add cell energy to diagnostic
 				// handler
   collD->addCell(KEtot*massC, id);
+				// Add electron stats to diagnostic
+				// handler
+  collD->addCellElec(cell, use_elec, id);
 
 				// Used for diagnostics only
   totalSoFar += massC * KEdspC;
@@ -3168,7 +3172,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z2];
       double M2 = atomic_weights[ 0];
       double Mt = M1 + M2;
@@ -3189,7 +3193,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z1];
       double M2 = atomic_weights[ 0];
       double Mt = M1 + M2;
@@ -3397,7 +3401,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z2];
       double M2 = atomic_weights[ 0];
 
@@ -3433,7 +3437,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
     // Secondary electron-ion scattering
     //
-    if (SECONDARY_SCATTER) {
+    for (unsigned n=0; n<SECONDARY_SCATTER; n++) {
       double M1 = atomic_weights[Z1];
       double M2 = atomic_weights[ 0];
 
@@ -5329,6 +5333,36 @@ void CollideIon::normTest(Particle* const p, const std::string& lab)
   }
 }
 
+void CollideIon::secondaryScatter(Particle *p)
+{
+  unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+  double M1 = atomic_weights[Z];
+  double M2 = atomic_weights[0];
+  double MT = M1 + M2;
+	  
+  std::vector<double> vcom(3), vrel(3);
+  double vEI = 0.0;
+  for (int k=0; k<3; k++) {
+    vcom[k] = (M1*p->vel[k] + M2*p->dattrib[use_elec+k])/MT;
+    double vr = p->vel[k] - p->dattrib[use_elec+k];
+    vEI += vr * vr;
+  }
+  vEI = sqrt(vEI);
+  
+  double cos_th = 1.0 - 2.0*(*unit)();
+  double sin_th = sqrt(1.0 - cos_th*cos_th);
+  double phi    = 2.0*M_PI*(*unit)();
+
+  vrel[0] = vEI*cos_th;
+  vrel[1] = vEI*sin_th*cos(phi);
+  vrel[2] = vEI*sin_th*sin(phi);
+  
+  for (int k=0; k<3; k++) {
+    p->vel[k] = vcom[k] + M2/MT*vrel[k];
+    p->dattrib[use_elec+k] = vcom[k] - M1/MT*vrel[k];
+  }
+}
 
 bool use_normtest = true;
 
@@ -5889,12 +5923,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   if (weight > 0.0) {
 
-    if (Wa > Wb) {
+    // if (Wa > Wb) {
+    //   p1->dattrib[use_cons] += delE;
+    // } else {
+    //   p1->dattrib[use_cons] += 0.5*delE;
+    //   p2->dattrib[use_cons] += 0.5*delE;
+    // }
+
+    // p1->dattrib[use_cons] += 0.5*delE;
+    // p2->dattrib[use_cons] += 0.5*delE;
+
+    if (atomic_weights[Z1] < atomic_weights[Z2])
+      p2->dattrib[use_cons] += delE;
+    else
       p1->dattrib[use_cons] += delE;
-    } else {
-      p1->dattrib[use_cons] += 0.5*delE;
-      p2->dattrib[use_cons] += 0.5*delE;
-    }
 
     return ret;
   }
@@ -5923,6 +5965,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (E_split or NeutFrac>0.0) {
       
+      // N-way split
+      double nspl = 1;
+      if (Ion1Frac>0.0) nspl += 1;
+      if (Ion2Frac>0.0) nspl += 1;
+
       InteractData d(m1, m2, Wa, Wb, q, Z1, Z2, p1, p2);
 
       double ke1 = 0.0, ke2 = 0.0;
@@ -5944,12 +5991,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	} else {
-	  p1->dattrib[use_cons] += delE;
+	  // p1->dattrib[use_cons] += delE;
+	  // p1->dattrib[use_cons] += 0.5*delE;
+	  // p2->dattrib[use_cons] += 0.5*delE;
+
+	  if (atomic_weights[Z1] < atomic_weights[Z2])
+	    p2->dattrib[use_cons] += delE;
+	  else
+	    p1->dattrib[use_cons] += delE;
+
 	  delE = 0.0;
 	}
       
 	// p1E and p2E for debugging only
-	KE_ KE(delE, p1E, p2E);
+	KE_ KE(delE/nspl, p1E, p2E);
 	
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
@@ -5978,7 +6033,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE;
+	  KE_ KE(delE/nspl);
 	  
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1 | Scatter, id);
@@ -5988,6 +6043,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->dattrib[use_elec+k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
       }
 
       if (Ion2Frac>0.0) {
@@ -6006,7 +6065,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	
 	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE;
+	  KE_ KE(delE/nspl);
 	  
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2 | Scatter, id);
@@ -6016,6 +6075,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->vel[k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
     } // END: E_split algorithm or NeutFrac>0
     else {
@@ -6041,7 +6104,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += 0.5*delE;
+	    // p2->dattrib[use_cons] += 0.5*delE;
+
+	    if (atomic_weights[Z1] < atomic_weights[Z2])
+	      p2->dattrib[use_cons] += delE;
+	    else
+	      p1->dattrib[use_cons] += delE;
+
 	    delE = 0.0;
 	  }
       
@@ -6057,6 +6128,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->dattrib[use_elec+k] = v2[k];
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
       }
       
       if (Ion2Frac>0.0) {
@@ -6080,7 +6155,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += delE;
+	    // p1->dattrib[use_cons] += 0.5*delE;
+	    // p2->dattrib[use_cons] += 0.5*delE;
+
+	    if (atomic_weights[Z1] < atomic_weights[Z2])
+	      p2->dattrib[use_cons] += delE;
+	    else
+	      p1->dattrib[use_cons] += delE;
+
 	    delE = 0.0;
 	  }
       
@@ -6096,6 +6179,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    p2->vel[k] = v2[k];	// Particle 2 is the ion
 	  }
 	}
+
+	// Secondary electron-ion scattering
+	//
+	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
     }
   }
@@ -7970,12 +8057,42 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   }
 
   Esum.resize(nthrds, 0.0);
+  Erat.resize(nthrds, 0.0);
+  Emas.resize(nthrds, 0.0);
   Etot_c = 0.0;
 
   // Initialize the output file
   //
   initialize();
 }
+
+void collDiag::addCellElec(pCell* cell, int ue, int id)
+{
+  if (ue<0) return;
+  std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
+  double m = 0.0;
+  for (auto n : cell->bods) {
+    Particle * p = cell->Body(n);
+    m += p->mass;
+    for (size_t j=0; j<3; j++) {
+      double v = p->dattrib[ue+j];
+      ev1[j] += p->mass * v;
+      ev2[j] += p->mass * v*v;
+    }
+  }
+  
+  if (m>0.0) {
+    for (size_t j=0; j<3; j++) {
+      if (ev2[j]>0.0) {
+	ev1[j] /= m;
+	ev2[j] /= m;
+	Erat[id] += m * ev1[j]*ev1[j]/ev2[j];
+      }
+    }
+    Emas[id] += m;
+  }
+}
+
 
 // Gather statistics from all processes
 //
@@ -7985,21 +8102,50 @@ void collDiag::gather()
     collTDPtr ctd = it.second;
     ctd->sumUp();
     ctd->sync();
+  }
 
-    Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+  Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+  Erat_s = std::accumulate(Erat.begin(), Erat.end(), 0.0);
+  Emas_s = std::accumulate(Emas.begin(), Emas.end(), 0.0);
+  
+  // Temporary test
+  if (true) {
+    std::vector<double> Ev1(3, 0.0), Ev2(3, 0.0);
+    double EvM = 0.0;
+    Esum_s = 0.0;
 
-    // Temporary test
-    if (true) {
-      Esum_s = 0.0;
-      for (auto s : p->c0->Particles()) {
-	for (auto v : s.second.vel) Esum_s += s.second.mass*v*v;
+    for (auto s : p->c0->Particles()) {
+      for (auto v : s.second.vel) Esum_s += 0.5*s.second.mass*v*v;
+      if (p->use_elec>=0) {
+	speciesKey k = KeyConvert(s.second.iattrib[p->use_key]).getKey();
+	double m = s.second.mass*p->atomic_weights[0]/p->atomic_weights[k.first];
+	EvM += m;
+	for (size_t j=0; j<3; j++) {
+	  double ve = s.second.dattrib[p->use_elec+j];
+	  Ev1[j] += m*ve;
+	  Ev2[j] += m*ve*ve;
+	}
       }
     }
 
+    std::vector<double> Ev1_(3), Ev2_(3);
     double z;
-    MPI_Reduce(&(z=Esum_s), &Esum_s, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  }
+    MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(z=EvM),    &EvM,     1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Ev1[0],     &Ev1_[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&Ev2[0],     &Ev2_[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
+    if (myid==0 and EvM>0.0) {
+      Esum_e = Edsp_e = 0.0;
+      for (size_t j=0; j<3; j++) {
+	Esum_e += 0.5*Ev2_[j];
+	Edsp_e += 0.5*(Ev2_[j] - Ev1_[j]*Ev1_[j]/EvM);
+      }
+    } else {
+      Esum_e = 0.0;
+      Edsp_e = 0.0;
+    }
+  }
 
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -8053,6 +8199,10 @@ void collDiag::initialize()
 	    << "# d(KE)         mean energy change       " << std::endl
 	    << "# Elost         total energy loss        " << std::endl
 	    << "# ElosC         cumulative energy loss   " << std::endl
+	    << "# EkeI          ion kinetic energy       " << std::endl
+	    << "# EkeE          electron kinetic energy  " << std::endl
+	    << "# EdspE         electron E dispersion    " << std::endl
+	    << "# EratC         electron velocity ratio  " << std::endl
 	    << "# Etotl         total kinetic energy     " << std::endl
 	    << "#"                                         << std::endl;
 	
@@ -8065,7 +8215,7 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(2*12) << ' ' << " |" << std::endl;
+	out << std::setw(7*12) << ' ' << " |" << std::endl;
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -8074,7 +8224,10 @@ void collDiag::initialize()
 	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setw(12) << '+' << std::setw(12) << '-' << " |"
+	out << std::setw(12) << '+' << std::setw(12) << '+'
+	    << std::setw(12) << '+' << std::setw(12) << '+'
+	    << std::setw(12) << '+' << std::setw(12) << '+'
+	    << std::setw(12) << '+' << " |"
 	    << std::setfill(' ') << std::endl;
 
 				// Column labels
@@ -8102,8 +8255,12 @@ void collDiag::initialize()
 	}
 	out << std::setw(12) << "Elost |"
 	    << std::setw(12) << "ElosC |"
+	    << std::setw(12) << "EkeI  |"
+	    << std::setw(12) << "EkeE  |"
+	    << std::setw(12) << "EdspE |"
+	    << std::setw(12) << "EratC |"
 	    << std::setw(12) << "Etotl |"
-	    << std::endl;
+	    << " | " << std::endl;
 	
 				// Column numbers
 	std::ostringstream st;
@@ -8121,12 +8278,12 @@ void collDiag::initialize()
 	  }
 	  out << " | ";
 	}
-	st.str("");
-	st << "[" << ++cnt << "] |";
-	out << std::setw(12) << std::right << st.str();
-	st.str("");
-	st << "[" << ++cnt << "]";
-	out << std::setw(12) << std::right << st.str() << " |" << std::endl;
+	for (size_t l=0; l<7; l++) {
+	  st.str("");
+	  st << "[" << ++cnt << "] |";
+	  out << std::setw(12) << std::right << st.str();
+	}
+	out << " |" << std::endl;
 
 				// Header line
 	out << std::setfill('-') << std::right;
@@ -8136,8 +8293,12 @@ void collDiag::initialize()
 	  out << " | ";
 	}
 	out << std::setw(12) << '+' 
-	    << std::setw(12) << '-' 
-	    << std::setw(12) << '-' << " |"
+	    << std::setw(12) << '+' 
+	    << std::setw(12) << '+' 
+	    << std::setw(12) << '+' 
+	    << std::setw(12) << '+' 
+	    << std::setw(12) << '+' 
+	    << std::setw(12) << '+' << " |"
 	    << std::setfill(' ') << std::endl;
       }
     }
@@ -8271,6 +8432,10 @@ void collDiag::print()
       out << std::setw(12) << Etot * cvrt 
 	  << std::setw(12) << Etot_c
 	  << std::setw(12) << Esum_s
+	  << std::setw(12) << Esum_e
+	  << std::setw(12) << Edsp_e
+	  << std::setw(12) << sqrt(Erat_s/Emas_s)
+	  << std::setw(12) << Etot_c + Esum_s + Esum_e
 	  << " |" << std::endl;
     }
   }
@@ -11728,7 +11893,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);
 
     SECONDARY_SCATTER =
-      cfg.entry<bool>("SECONDARY_SCATTER", "Scatter electron with its donor ion", false);
+      cfg.entry<unsigned>("SECONDARY_SCATTER", "Scatter electron with its donor ion n times (0 value for no scattering)", 0);
 
     TRACE_FRAC =
       cfg.entry<double>("TRACE_FRAC", "Add this fraction to electrons and rest to ions", 1.0f);

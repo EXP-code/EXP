@@ -94,7 +94,7 @@ private:
   std::set<unsigned long> bodies;
   
   //! For debugging . . . 
-  void match(pCell* target, int& mcount);
+  void match(pCell* target, int& mcount, key_type& key);
 
   //! Collect bodies
   void collect(std::set<unsigned long>& bset);
@@ -217,7 +217,8 @@ public:
   bool sampleTest()
   {
     int mcount = 0;
-    sample->match(this, mcount);
+    key_type key = -1;
+    sample->match(this, mcount, key);
     return mcount == 1;
   }
 
