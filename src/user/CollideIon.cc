@@ -10758,7 +10758,7 @@ void CollideIon::electronGather()
 
   if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
 
-    std::vector<double> eVel, iVel;
+    std::vector<double> eEeV, eVel, iVel;
 
     // Interate through all cells
     //
@@ -10776,6 +10776,7 @@ void CollideIon::electronGather()
 	  double vi = c0->Tree()->Body(b)->vel[l];
 	  cri += vi*vi;
 	}
+	eEeV.push_back(0.5*cre*me/eV);
 	eVel.push_back(sqrt(cre));
 	iVel.push_back(sqrt(cri));
       }
@@ -11090,10 +11091,11 @@ void CollideIon::electronGather()
 
       if (i == myid) {
 
-	MPI_Send(&(eNum=eVel.size()), 1, MPI_UNSIGNED, 0, 435, MPI_COMM_WORLD);
+	MPI_Send(&(eNum=eVel.size()), 1, MPI_UNSIGNED, 0, 434, MPI_COMM_WORLD);
 
 	if (IDBG) dbg << std::setw(16) << "eVel.size() = " << std::setw(10) << eNum;
 
+	if (eNum) MPI_Send(&eEeV[0], eNum, MPI_DOUBLE, 0, 435, MPI_COMM_WORLD);
 	if (eNum) MPI_Send(&eVel[0], eNum, MPI_DOUBLE, 0, 436, MPI_COMM_WORLD);
 	if (eNum) MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
 
@@ -11144,7 +11146,7 @@ void CollideIon::electronGather()
 
 	std::vector<double> vTmp;
 	
-	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 435, MPI_COMM_WORLD,
+	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 434, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	
 	if (IDBG) dbg << "recvd from " << std::setw(4) << i
@@ -11154,6 +11156,11 @@ void CollideIon::electronGather()
 	if (eNum) {
 	  vTmp.resize(eNum);
 	  
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 435, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  eEeV.insert(eEeV.begin(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << " ... eEeV recvd";
+
 	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 436, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
 
@@ -11278,6 +11285,7 @@ void CollideIon::electronGather()
 	std::sort(iVel.begin(), iVel.end());
 
 	// Make the histograms
+	elecT = ahistoDPtr(new AsciiHisto<double>(eEeV, 20, 0.01));
 	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
 	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
@@ -11377,6 +11385,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron velocity distribution------------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecH)(out);
+  }
+
+  if (elecT.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Electron energy (in eV) distribution------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*elecT)(out);
   }
 
   if (ionH.get()) {

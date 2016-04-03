@@ -173,7 +173,7 @@ int main (int ac, char **av)
   double tmin = log(Tmin);
   double tmax = log(Tmax);
   double dT   = (tmax - tmin)/numT;
-  double dE   = (Emin - Emax)/numE;
+  double dE   = (Emax - Emin)/numE;
 
   for (int nt=0; nt<=numT; nt++) {
 
@@ -192,14 +192,11 @@ int main (int ac, char **av)
     if (numE>1) {
       for (int ne=0; ne<=numE; ne++) {
 	double emax = Emin + dE*ne;
-	std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
-	std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, emax, norder*3);
-    
+	std::map<unsigned short, std::vector<double> >
+	  val = ch.recombEquil(Z, T, Emin, emax, norder*3);
+
 	mat << std::setw(16) << T << std::setw(16) << emax;
-	for (auto v : val1) {
-	  for (auto z : v.second) mat << std::setw(16) << z;
-	}
-	for (auto v : val2) {
+	for (auto v : val) {
 	  for (auto z : v.second) mat << std::setw(16) << z;
 	}
 	mat << std::endl;
