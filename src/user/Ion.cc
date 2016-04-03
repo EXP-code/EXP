@@ -2273,9 +2273,9 @@ std::map<unsigned short, double>
 chdata::fraction(unsigned short Z, double T, int norder)
 {
   if (Lagu.get() == 0) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder));
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
   else if (Lagu->n != norder) 
-    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder));
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
 
   std::map<unsigned short, double> ret;
 
@@ -2284,46 +2284,262 @@ chdata::fraction(unsigned short Z, double T, int norder)
   for (unsigned short C=1; C<=Z+0; C++) ionize[lQ(Z, C)] = 0.0;
   for (unsigned short C=2; C<=Z+1; C++) recomb[lQ(Z, C)] = 0.0;
 
-  const double beta = 0.5*me/boltz;
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv * T;
 
   for (auto & v : ionize) v.second = 0.0;
   for (auto & v : recomb) v.second = 0.0;
 
   for (int i=1; i<=norder; i++) {
+
     double y = Lagu->knot(i);
     double w = Lagu->weight(i);
     
     // Ionization
     //
     for (auto & v : ionize) {
-      double ionE = ipdata[v.first];  // ionization energy in eV
-      double ab   = ionE/(boltzEv*T);	  
-      double eab  = exp(-ab);	           // Boltzmann factor for ionization
-      double EeV  = (y + ab)*boltzEv*T;  // eval energy
-      double vel  = sqrt((y + ab)/beta); // eval velocity squared
+
+      double ab   = ipdata[v.first]/kTeV; // Scaled ionization energy
       
-      v.second += w * eab * vel *
-	IonList[v.first]->directIonCross(EeV, 0);
+      v.second += w * exp(-ab) * K * (y + ab) *
+	IonList[v.first]->directIonCross((y + ab)*kTeV, 0);
     }
 
     // Recombination
     //
     for (auto & v : recomb) {
-      double EeV  = y*boltzEv*T;
-      double vel  = sqrt(y/beta);
-      
-      v.second += w * vel *
-	IonList[v.first]->radRecombCross(EeV, 0).back();
+      v.second += w * K * y *
+	IonList[v.first]->radRecombCross(y*kTeV, 0).back();
     }
   }
   
   std::vector<double> nn(Z+1, 1);
   double norm = 1.0;
   for (unsigned short C=1; C<Z+1; C++) {
-    nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    if (recomb[lQ(Z,C+1)]>0.0)
+      nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    else
+      nn[C] = 0.0;
     norm += nn[C];
   }
   for (unsigned short C=1; C<Z+2; C++) ret[C] = nn[C-1]/norm;
     
+  return ret;
+}
+
+
+std::map<unsigned short, double> 
+chdata::fraction(unsigned short Z, double T, 
+		 double Emin, double Emax, int norder)
+{
+  if (Lege.get() == 0) 
+    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+  else if (Lege->n != norder) 
+    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+
+  std::map<unsigned short, double> ret;
+
+  std::map<lQ, double> ionize, recomb;
+
+  for (unsigned short C=1; C<=Z+0; C++) ionize[lQ(Z, C)] = 0.0;
+  for (unsigned short C=2; C<=Z+1; C++) recomb[lQ(Z, C)] = 0.0;
+
+  for (auto & v : ionize) v.second = 0.0;
+  for (auto & v : recomb) v.second = 0.0;
+
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv * T;
+
+  // Ionization
+  //
+  for (auto & v : ionize) {
+				// ionization energy in eV
+    double emin = std::max<double>(Emin, ipdata[v.first]);
+
+    if (emin < Emax) {
+
+      double ymax = Emax/kTeV;	// Emin and Emax are in eV
+      double ymin = emin/kTeV;
+      double dy   = ymax - ymin;
+
+      for (int i=1; i<=norder; i++) {
+	double y = ymin + dy*Lege->knot(i);
+	v.second += Lege->weight(i)*dy * K * y*exp(-y) *
+	  IonList[v.first]->directIonCross(y*kTeV, 0);
+      }
+    }
+  }
+
+  // Recombination
+  //
+  if (Emin < Emax) {
+    
+    double ymax = Emax/kTeV;
+    double ymin = Emin/kTeV;
+    double dy   = ymax - ymin;
+
+    for (auto & v : recomb) {
+      for (int i=1; i<=norder; i++) {
+	double y = ymin + dy*Lege->knot(i);
+	v.second += Lege->weight(i)*dy * K * y*exp(-y) *
+	  IonList[v.first]->radRecombCross(y*kTeV, 0).back();
+      }
+    }
+  }
+  
+  std::vector<double> nn(Z+1, 1);
+  double norm = 1.0;
+  for (unsigned short C=1; C<Z+1; C++) {
+    if (recomb[lQ(Z,C+1)]>0.0)
+      nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    else
+      nn[C] = 0.0;
+    norm += nn[C];
+  }
+  for (unsigned short C=1; C<Z+2; C++) ret[C] = nn[C-1]/norm;
+    
+  return ret;
+}
+
+std::map<unsigned short, std::vector<double> > 
+chdata::recombEquil(unsigned short Z, double T, int norder)
+{
+  if (Lagu.get() == 0) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+  else if (Lagu->n != norder) 
+    Lagu = boost::shared_ptr<LaguQuad>(new LaguQuad(norder, 0.0));
+
+  std::map<unsigned short, std::vector<double> > ret;
+
+  std::map<lQ, double> ionize, recomb;
+
+  for (unsigned short C=1; C<=Z+0; C++) ionize[lQ(Z, C)] = 0.0;
+  for (unsigned short C=2; C<=Z+1; C++) recomb[lQ(Z, C)] = 0.0;
+
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv*T;
+
+  for (auto & v : ionize) v.second = 0.0;
+  for (auto & v : recomb) v.second = 0.0;
+
+  for (int i=1; i<=norder; i++) {
+
+    double y = Lagu->knot(i);
+    double w = Lagu->weight(i);
+    
+    // Ionization
+    //
+    for (auto & v : ionize) {
+				// scaled ionization energy
+      double ab   = ipdata[v.first]/kTeV;
+      
+      v.second += w * exp(-ab) * K * (y + ab) *
+	IonList[v.first]->directIonCross((y + ab)*kTeV, 0);
+    }
+
+    // Recombination
+    //
+    for (auto & v : recomb) {
+      v.second += w * K * y *
+	IonList[v.first]->radRecombCross(y*kTeV, 0).back();
+    }
+  }
+  
+  std::vector<double> nn(Z+1, 1);
+  double norm = 1.0;
+  for (unsigned short C=1; C<Z+1; C++) {
+    if (recomb[lQ(Z,C+1)]>0.0)
+      nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    else
+      nn[C] = 0.0;
+    norm += nn[C];
+  }
+
+  ret[1] = {nn[0]/norm, ionize[lQ(Z, 1)], 0.0};
+  for (unsigned short C=2; C<Z+1; C++) 
+    ret[C] = {nn[C-1]/norm, ionize[lQ(Z, C)], recomb[lQ(Z, C)]};
+  ret[Z+1] = {nn[Z]/norm, 0.0, recomb[lQ(Z, Z+1)]};
+    
+  return ret;
+}
+
+
+std::map<unsigned short, std::vector<double> >
+chdata::recombEquil(unsigned short Z, double T, 
+		    double Emin, double Emax, int norder)
+{
+  if (Lege.get() == 0) 
+    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+  else if (Lege->n != norder) 
+    Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
+
+  std::map<unsigned short, std::vector<double> > ret;
+
+  std::map<lQ, double> ionize, recomb;
+
+  for (unsigned short C=1; C<=Z+0; C++) ionize[lQ(Z, C)] = 0.0;
+  for (unsigned short C=2; C<=Z+1; C++) recomb[lQ(Z, C)] = 0.0;
+
+  for (auto & v : ionize) v.second = 0.0;
+  for (auto & v : recomb) v.second = 0.0;
+
+  const double beta = 0.5*me/(boltz*T);
+  const double K    = 2.0/sqrt(M_PI*beta);
+  const double kTeV = boltzEv*T;
+
+  // Ionization
+  //
+  for (auto & v : ionize) {
+				// ionization energy in eV
+    double emin = std::max<double>(Emin, ipdata[v.first]);
+
+    if (emin < Emax) {
+
+      double ymax = Emax/kTeV;	// Scaled min energy
+      double ymin = emin/kTeV;	// Scaled max energy
+      double dy   = ymax - ymin;
+
+      for (int i=1; i<=norder; i++) {
+	double y = ymin + dy*Lege->knot(i);
+	v.second += Lege->weight(i) * dy * K * y*exp(-y) *
+	  IonList[v.first]->directIonCross(y*kTeV, 0);
+      }
+    }
+  }
+
+  // Recombination
+  //
+  if (Emin < Emax) {
+
+    double ymax = Emax/kTeV;
+    double ymin = Emin/kTeV;
+    double dy   = ymax - ymin;
+
+    for (auto & v : recomb) {
+      for (int i=1; i<=norder; i++) {
+	double y = ymin + dy*Lege->knot(i);
+	v.second += Lege->weight(i) * dy * K * y*exp(-y) *
+	  IonList[v.first]->radRecombCross(y*kTeV, 0).back();
+      }
+    }
+  }
+  
+  std::vector<double> nn(Z+1, 1);
+  double norm = 1.0;
+  for (unsigned short C=1; C<Z+1; C++) {
+    if (recomb[lQ(Z,C+1)]>0.0)
+      nn[C] = nn[C-1] * ionize[lQ(Z,C)]/recomb[lQ(Z,C+1)];
+    else
+      nn[C] = 0.0;
+    norm += nn[C];
+  }
+    
+  ret[1] = {nn[0]/norm, ionize[lQ(Z, 1)], 0.0};
+  for (unsigned short C=2; C<Z+1; C++) 
+    ret[C] = {nn[C-1]/norm, ionize[lQ(Z, C)], recomb[lQ(Z, C)]};
+  ret[Z+1] = {nn[Z]/norm, 0.0, recomb[lQ(Z, Z+1)]};
   return ret;
 }

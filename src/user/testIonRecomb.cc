@@ -42,21 +42,29 @@ int main (int ac, char **av)
   }
 
   unsigned short Z;
-  double Tmin, Tmax;
+  double Tmin, Tmax, Emin, Emax;
   std::string RRtype;
-  int numT, norder;
+  int numT, norder, numE;
+  size_t nout = 1;
 
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
+    ("long,l",		"long-form output")
     ("Z,Z",		po::value<unsigned short>(&Z)->default_value(2),
      "atomic number")
     ("Tmin,t",		po::value<double>(&Tmin)->default_value(1000.0),
      "minimum temperature")
     ("Tmax,T",		po::value<double>(&Tmax)->default_value(1000000.0),
      "maximum temperature")
+    ("Emin,e",		po::value<double>(&Emin)->default_value(0.01),
+     "minimum energy in eV")
+    ("Emax,E",		po::value<double>(&Emax)->default_value(100.0),
+     "maximum energy in eV")
     ("NumT,N",		po::value<int>(&numT)->default_value(200),
      "number of temperature points")
+    ("NumE,M",		po::value<int>(&numE)->default_value(1),
+     "number of incremental energy points")
     ("norder,n",		po::value<int>(&norder)->default_value(20),
      "Laguerre order")
     ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
@@ -85,22 +93,52 @@ int main (int ac, char **av)
     return 1;
   }
 
+  if (vm.count("long")) nout = 3;
+
   std::string prefix("IonRecombFrac");
   std::string cmdFile = prefix + ".cmd_line";
-  std::ofstream out(cmdFile.c_str());
-  if (!out) {
+  std::ofstream cmd(cmdFile.c_str());
+  if (!cmd) {
     std::cerr << "testCrossSection: error opening <" << cmdFile
 	      << "> for writing" << std::endl;
   } else {
-    out << cmd_line << std::endl;
+    cmd << cmd_line << std::endl;
   }
 
-  out.close();
-  out.open(prefix + ".data", ios::out);
-  if (out.bad()) {
-    std::cerr << "testCrossSection: error opening <" << prefix + ".data"
+  cmd.close();
+
+  std::vector<std::ofstream> out(nout);
+  out[0].open(prefix + ".data", ios::out);
+  if (out[0].bad()) {
+    std::cerr << "testIonRecomb: error opening <" << prefix + ".data"
 	      << "> for writing" << std::endl;
     exit(-1);
+  }
+
+  if (nout==3) {
+    out[1].open(prefix + ".ionize", ios::out);
+    if (out[1].bad()) {
+      std::cerr << "testIonRecomb: error opening <" << prefix + ".ionize"
+		<< "> for writing" << std::endl;
+      exit(-1);
+    }
+
+    out[2].open(prefix + ".recomb", ios::out);
+    if (out[2].bad()) {
+      std::cerr << "testIonRecomb: error opening <" << prefix + ".recomb"
+		<< "> for writing" << std::endl;
+      exit(-1);
+    }
+  }
+
+  std::ofstream mat;
+  if (numE>1) {
+    mat.open(prefix + ".matrix", ios::out);
+    if (mat.bad()) {
+      std::cerr << "testIonRecomb: error opening <" << prefix + ".matrix"
+		<< "> for writing" << std::endl;
+      exit(-1);
+    }
   }
 
   // Initialize CHIANTI
@@ -135,16 +173,40 @@ int main (int ac, char **av)
   double tmin = log(Tmin);
   double tmax = log(Tmax);
   double dT   = (tmax - tmin)/numT;
+  double dE   = (Emin - Emax)/numE;
 
   for (int nt=0; nt<=numT; nt++) {
 
     double T = exp(tmin + dT*nt);
 
-    std::map<unsigned short, double> values = ch.fraction(Z, T, norder);
+    std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
+    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, Emax, norder*3);
     
-    out << std::setw(16) << T;
-    for (auto v : values) out << std::setw(16) << v.second;
-    out << std::endl;
+    for (size_t n=0; n<nout; n++) {
+      out[n] << std::setw(16) << T;
+      for (auto v : val1) out[n] << std::setw(16) << v.second[n];
+      for (auto v : val2) out[n] << std::setw(16) << v.second[n];
+      out[n] << std::endl;
+    }
+
+    if (numE>1) {
+      for (int ne=0; ne<=numE; ne++) {
+	double emax = Emin + dE*ne;
+	std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
+	std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, emax, norder*3);
+    
+	mat << std::setw(16) << T << std::setw(16) << emax;
+	for (auto v : val1) {
+	  for (auto z : v.second) mat << std::setw(16) << z;
+	}
+	for (auto v : val2) {
+	  for (auto z : v.second) mat << std::setw(16) << z;
+	}
+	mat << std::endl;
+      }
+      mat << std::endl;
+    }
+
   }
 
   MPI_Finalize();
