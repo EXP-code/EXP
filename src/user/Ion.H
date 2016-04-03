@@ -193,6 +193,10 @@ protected:
   //! distribution
   boost::shared_ptr<LaguQuad> Lagu;
 
+  //! Gauss-Legendre structure for integration of Maxwell-Boltzmann
+  //! distribution with boundaries
+  boost::shared_ptr<LegeQuad> Lege;
+
 public:
 
   //! Constructor
@@ -249,9 +253,23 @@ public:
   //! Read the radiative recombination Gaunt factor data
   void readRadGF();
 
+  //@{
   /** Compute ionization-recombination thermal equilibrium (for ICs
       and diagnostics */
-  std::map<unsigned short, double> fraction(unsigned short Z, double Temperature, int norder=20);
+  std::map<unsigned short, double> 
+  fraction(unsigned short Z, double Temperature, int norder=20);
+
+  std::map<unsigned short, double> 
+  fraction(unsigned short Z, double Temperature, double Emin, double Emax, 
+	   int norder=40);
+
+  std::map<unsigned short, std::vector<double> >
+  recombEquil(unsigned short Z, double Temperature, int norder=20);
+
+  std::map<unsigned short, std::vector<double> >
+  recombEquil(unsigned short Z, double Temperature, double Emin, double Emax, 
+	      int norder=40);
+  //@}
 
 };
 
