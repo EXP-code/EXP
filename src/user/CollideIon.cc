@@ -10758,7 +10758,7 @@ void CollideIon::electronGather()
 
   if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
 
-    std::vector<double> eEeV, eVel, iVel;
+    std::vector<double> eEeV, eIeV, eVel, iVel;
 
     // Interate through all cells
     //
@@ -10770,13 +10770,17 @@ void CollideIon::electronGather()
       
       for (auto b : itree.Cell()->bods) {
 	double cri = 0.0, cre = 0.0;
+	Particle* p = c0->Tree()->Body(b);
 	for (int l=0; l<3; l++) {
-	  double ve = c0->Tree()->Body(b)->dattrib[use_elec+l];
+	  double ve = p->dattrib[use_elec+l];
 	  cre += ve*ve;
-	  double vi = c0->Tree()->Body(b)->vel[l];
+	  double vi = p->vel[l];
 	  cri += vi*vi;
 	}
-	eEeV.push_back(0.5*cre*me/eV);
+	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+	double mi = atomic_weights[Z];
+	eEeV.push_back(0.5*cre*me*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
+	eIeV.push_back(0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
 	eVel.push_back(sqrt(cre));
 	iVel.push_back(sqrt(cri));
       }
@@ -11091,13 +11095,16 @@ void CollideIon::electronGather()
 
       if (i == myid) {
 
-	MPI_Send(&(eNum=eVel.size()), 1, MPI_UNSIGNED, 0, 434, MPI_COMM_WORLD);
+	MPI_Send(&(eNum=eVel.size()), 1, MPI_UNSIGNED, 0, 433, MPI_COMM_WORLD);
 
 	if (IDBG) dbg << std::setw(16) << "eVel.size() = " << std::setw(10) << eNum;
 
-	if (eNum) MPI_Send(&eEeV[0], eNum, MPI_DOUBLE, 0, 435, MPI_COMM_WORLD);
-	if (eNum) MPI_Send(&eVel[0], eNum, MPI_DOUBLE, 0, 436, MPI_COMM_WORLD);
-	if (eNum) MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
+	if (eNum) {
+	  MPI_Send(&eEeV[0], eNum, MPI_DOUBLE, 0, 434, MPI_COMM_WORLD);
+	  MPI_Send(&eIeV[0], eNum, MPI_DOUBLE, 0, 435, MPI_COMM_WORLD);
+	  MPI_Send(&eVel[0], eNum, MPI_DOUBLE, 0, 436, MPI_COMM_WORLD);
+	  MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
+	}
 
 	if (IDBG) dbg << " ... eVel and iVel sent" << std::endl;
 
@@ -11124,7 +11131,7 @@ void CollideIon::electronGather()
 	}
 
 	if (ExactE and DebugE) {
-	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 444, MPI_COMM_WORLD);
+	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 443, MPI_COMM_WORLD);
 	  if (IDBG) dbg << std::setw(16) << "mom.size() = " << std::setw(10) << eNum;
 
 	  if (eNum) MPI_Send(&mom[0], eNum, MPI_DOUBLE, 0, 445, MPI_COMM_WORLD);
@@ -11146,7 +11153,7 @@ void CollideIon::electronGather()
 
 	std::vector<double> vTmp;
 	
-	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 434, MPI_COMM_WORLD,
+	MPI_Recv(&eNum, 1, MPI_UNSIGNED, i, 433, MPI_COMM_WORLD,
 		 MPI_STATUS_IGNORE);
 	
 	if (IDBG) dbg << "recvd from " << std::setw(4) << i
@@ -11156,10 +11163,15 @@ void CollideIon::electronGather()
 	if (eNum) {
 	  vTmp.resize(eNum);
 	  
-	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 435, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 434, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  eEeV.insert(eEeV.begin(), vTmp.begin(), vTmp.end());
 
 	  if (IDBG) dbg << " ... eEeV recvd";
+
+	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 435, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  eEeV.insert(eIeV.begin(), vTmp.begin(), vTmp.end());
+
+	  if (IDBG) dbg << " ... eIeV recvd";
 
 	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 436, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 	  eVel.insert(eVel.begin(), vTmp.begin(), vTmp.end());
@@ -11286,6 +11298,7 @@ void CollideIon::electronGather()
 
 	// Make the histograms
 	elecT = ahistoDPtr(new AsciiHisto<double>(eEeV, 20, 0.01));
+	ionsT = ahistoDPtr(new AsciiHisto<double>(eIeV, 20, 0.01));
 	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
 	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
 
@@ -11393,6 +11406,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Electron energy (in eV) distribution------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecT)(out);
+  }
+
+  if (ionsT.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Ion energy (in eV) distribution-----------------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*ionsT)(out);
   }
 
   if (ionH.get()) {
