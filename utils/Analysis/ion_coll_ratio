@@ -99,7 +99,10 @@ def plot_data(filename, msz, dot, summary):
                 if len(toks) == len(labels):
                     time.append(float(toks[ 0]))
                     temp.append(float(toks[ 1]))
-                    etot.append(float(toks[-1]))
+                    if tail == 7:
+                        etot.append(float(toks[-1]))
+                    else:
+                        etot.append(float(toks[-2]))
                     for i in range(head,len(toks)-tail):
                         idx = (i-head) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))

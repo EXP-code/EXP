@@ -90,7 +90,7 @@ def plot_data(filename, msz, logY, dot):
         if line.find('#')<0:        # Read the data lines
             toks = line.translate(trans).split()
             allZ = True             # Skip lines with zeros only
-            for i in range(2,len(toks)):
+            for i in range(head,len(toks)):
                 if float(toks[i])>0.0: 
                     allZ = False
                     break
@@ -102,7 +102,7 @@ def plot_data(filename, msz, logY, dot):
                     time.append(float(toks[0]))
                     temp.append(float(toks[1]))
                     etot.append(float(toks[-1]))
-                    for i in range(2,len(toks)-tail):
+                    for i in range(head,len(toks)-tail):
                         idx = (i-head) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
                 else:

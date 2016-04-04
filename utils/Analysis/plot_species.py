@@ -10,7 +10,7 @@ argc = len(sys.argv)
 # Last argument should be filename and must exist
 #
 if argc<=1:
-        print "Usage: {} file".format(sys.argv[0])
+        print "Usage: {} runtag".format(sys.argv[0])
         exit(1)
 
 #
@@ -29,7 +29,7 @@ for i in range(1,argc-1):
 #
 # Parse data file
 #
-file = open(sys.argv[-1])
+file = open(sys.argv[-1] + ".species")
 data = []
 for line in file:
 	if line.find('#') < 0:
