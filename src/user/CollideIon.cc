@@ -11106,7 +11106,7 @@ void CollideIon::electronGather()
 	  MPI_Send(&iVel[0], eNum, MPI_DOUBLE, 0, 437, MPI_COMM_WORLD);
 	}
 
-	if (IDBG) dbg << " ... eVel and iVel sent" << std::endl;
+	if (IDBG) dbg << " ... eEeV, eIeV, eVel and iVel sent" << std::endl;
 
 	MPI_Send(&(eNum=loss.size()), 1, MPI_UNSIGNED, 0, 438, MPI_COMM_WORLD);
 
@@ -11131,7 +11131,7 @@ void CollideIon::electronGather()
 	}
 
 	if (ExactE and DebugE) {
-	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 443, MPI_COMM_WORLD);
+	  MPI_Send(&(eNum=mom.size()), 1, MPI_UNSIGNED, 0, 444, MPI_COMM_WORLD);
 	  if (IDBG) dbg << std::setw(16) << "mom.size() = " << std::setw(10) << eNum;
 
 	  if (eNum) MPI_Send(&mom[0], eNum, MPI_DOUBLE, 0, 445, MPI_COMM_WORLD);
