@@ -10778,7 +10778,7 @@ void CollideIon::electronGather()
 	  cri += vi*vi;
 	}
 	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-	double mi = atomic_weights[Z];
+	double mi = atomic_weights[Z] * amu;
 	eEeV.push_back(0.5*cre*me*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
 	eIeV.push_back(0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
 	eVel.push_back(sqrt(cre));
