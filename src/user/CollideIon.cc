@@ -11169,7 +11169,7 @@ void CollideIon::electronGather()
 	  if (IDBG) dbg << " ... eEeV recvd";
 
 	  MPI_Recv(&vTmp[0], eNum, MPI_DOUBLE, i, 435, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	  eEeV.insert(eIeV.begin(), vTmp.begin(), vTmp.end());
+	  eIeV.insert(eIeV.begin(), vTmp.begin(), vTmp.end());
 
 	  if (IDBG) dbg << " ... eIeV recvd";
 
