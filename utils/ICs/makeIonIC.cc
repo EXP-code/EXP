@@ -355,7 +355,7 @@ void InitializeSpeciesDirect
     else {
 
       std::ostringstream sout;
-      sout << "../../src/user/genIonRecomb"
+      sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
 	   << " -T " << T;
       
@@ -551,7 +551,7 @@ void InitializeSpeciesWeight
     else {
       
       std::ostringstream sout;
-      sout << "../../src/user/genIonRecomb"
+      sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
 	   << " -T " << T;
       
@@ -750,7 +750,7 @@ void InitializeSpeciesHybrid
     else {
 
       std::ostringstream sout;
-      sout << "../../src/user/genIonRecomb"
+      sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
 	   << " -T " << T;
       
@@ -944,7 +944,7 @@ void InitializeSpeciesTrace
     else {
 
       std::ostringstream sout;
-      sout << "../../src/user/genIonRecomb"
+      sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
 	   << " -T " << T;
       
