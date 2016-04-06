@@ -10759,6 +10759,7 @@ void CollideIon::electronGather()
   if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
 
     std::vector<double> eEeV, eIeV, eVel, iVel;
+    std::map<unsigned short, std::vector<double> > eIeVsp;
 
     // Interate through all cells
     //
@@ -10777,10 +10778,15 @@ void CollideIon::electronGather()
 	  double vi = p->vel[l];
 	  cri += vi*vi;
 	}
+
 	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-	double mi = atomic_weights[Z] * amu;
+	double mi        = atomic_weights[Z] * amu;
+	double Ei        = 0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV;
+
+	eIeVsp[Z].push_back(Ei);
+
 	eEeV.push_back(0.5*cre*me*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
-	eIeV.push_back(0.5*cri*mi*UserTreeDSMC::Vunit*UserTreeDSMC::Vunit/eV);
+	eIeV.push_back(Ei);
 	eVel.push_back(sqrt(cre));
 	iVel.push_back(sqrt(cri));
       }
@@ -11146,6 +11152,25 @@ void CollideIon::electronGather()
 	  if (IDBG) dbg << " ... crs sent" << std::endl;
 	}
 
+	unsigned Nspc = eIeVsp.size();
+	MPI_Send(&Nspc, 1, MPI_UNSIGNED, 0, 448, MPI_COMM_WORLD);
+	
+	if (Nspc) {
+	  int base = 449;
+	  unsigned short Z;
+	  unsigned Enum;
+	  
+	  for (auto z : eIeVsp) {
+	    Z = z.first;
+	    Enum = z.second.size();
+	    MPI_Send(&Z,           1,    MPI_UNSIGNED_SHORT, 0, base++, MPI_COMM_WORLD);
+	    MPI_Send(&Enum,        1,    MPI_UNSIGNED,       0, base++, MPI_COMM_WORLD);
+	    MPI_Send(&z.second[0], Enum, MPI_DOUBLE,         0, base++, MPI_COMM_WORLD);
+	  }
+	}
+
+	if (IDBG) dbg << " ... eIeVsp sent [size=" << Nspc << "]" << std::endl;
+
       }
 
 				// Root receives from Node i
@@ -11277,6 +11302,29 @@ void CollideIon::electronGather()
 	  }
 	}
 
+	unsigned Nspc;
+	MPI_Recv(&Nspc, 1, MPI_UNSIGNED, i, 448, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	
+	if (Nspc) {
+	  int base = 449;
+	  unsigned short Z;
+	  unsigned Enum;
+	  
+	  for (unsigned q=0; q<Nspc; q++) {
+	    MPI_Recv(&Z,    1, MPI_UNSIGNED_SHORT, i, base++, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    MPI_Recv(&Enum, 1, MPI_UNSIGNED,       i, base++, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    vTmp.resize(Enum);
+	    MPI_Recv(&vTmp[0], Enum, MPI_DOUBLE,   i, base++, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+
+	    eIeVsp[Z].insert(eIeVsp[Z].begin(), vTmp.begin(), vTmp.end());
+	  }
+	}
+
+	if (IDBG) dbg << " ... eIeVsp recvd [size=" << Nspc << "]" << std::endl;
+
       } // end: myid=0
 
     } // end: process loop
@@ -11301,6 +11349,10 @@ void CollideIon::electronGather()
 	ionsT = ahistoDPtr(new AsciiHisto<double>(eIeV, 20, 0.01));
 	elecH = ahistoDPtr(new AsciiHisto<double>(eVel, 20, 0.01));
 	ionH  = ahistoDPtr(new AsciiHisto<double>(iVel, 20, 0.01));
+
+	for (auto v : eIeVsp) {
+	  ionZH[v.first] = ahistoDPtr(new AsciiHisto<double>(v.second, 20, 0.01));
+	}
 
 	// Make the quantiles
 	size_t qnt_s = qnt.size(), ev_s = eVel.size();
@@ -11414,6 +11466,15 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Ion energy (in eV) distribution-----------------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*ionsT)(out);
+  }
+
+  for (auto v : ionZH) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Ion (Z=" << v.first
+	<< ") energy (in eV) distribution-----------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*v.second)(out);
   }
 
   if (ionH.get()) {
