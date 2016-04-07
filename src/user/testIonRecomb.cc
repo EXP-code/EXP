@@ -46,6 +46,7 @@ int main (int ac, char **av)
   std::string RRtype;
   int numT, norder, numE;
   size_t nout = 1;
+  bool rates = false, use_log = false;
 
   po::options_description desc("Allowed options");
   desc.add_options()
@@ -65,7 +66,11 @@ int main (int ac, char **av)
      "number of temperature points")
     ("NumE,M",		po::value<int>(&numE)->default_value(1),
      "number of incremental energy points")
-    ("norder,n",		po::value<int>(&norder)->default_value(20),
+    ("rates",
+     "plot VALUES of rate coefficients")
+    ("use_log",
+     "use logarithmic spacing in Legendre integration")
+    ("norder,n",	po::value<int>(&norder)->default_value(20),
      "Laguerre order")
     ("RRtype,R",	po::value<std::string>(&RRtype)->default_value("Verner"),
      "cross-section type")
@@ -94,6 +99,10 @@ int main (int ac, char **av)
   }
 
   if (vm.count("long")) nout = 3;
+
+  if (vm.count("rates")) rates = true;
+
+  if (vm.count("log")) use_log = true;
 
   std::string prefix("IonRecombFrac");
   std::string cmdFile = prefix + ".cmd_line";
@@ -173,31 +182,97 @@ int main (int ac, char **av)
   double tmin = log(Tmin);
   double tmax = log(Tmax);
   double dT   = (tmax - tmin)/numT;
-  double dE   = (Emax - Emin)/numE;
 
   for (int nt=0; nt<=numT; nt++) {
 
     double T = exp(tmin + dT*nt);
 
     std::map<unsigned short, std::vector<double> > val1 = ch.recombEquil(Z, T, norder);
-    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, Emax, norder*3);
+    std::map<unsigned short, std::vector<double> > val2 = ch.recombEquil(Z, T, Emin, Emax, norder*3, use_log);
+
+    std::map<unsigned short, std::vector<double> > val3;
+    const size_t NE = 100;
+    double dE = (Emax - Emin)/NE;
+    for (size_t ne=0; ne<NE; ne++) {
+      if (val3.size()) {
+	std::map<unsigned short, std::vector<double> > valT =
+	  ch.recombEquil(Z, T, Emin+dE*ne, Emax+dE*(ne+1), norder, use_log);
+	for (auto v : val3) {
+	  unsigned short C = v.first;
+	  size_t sz = v.second.size();
+	  for (size_t k=0; k<sz; k++) val3[C][k] += valT[C][k];
+	}
+      } else {
+	val3 = ch.recombEquil(Z, T, Emin+dE*ne, Emax+dE*(ne+1), norder, use_log);
+      }
+    }
+
+    // Renormalize
+    std::vector<double> nn(Z+1, 1);
+    double norm = 1.0;
+    for (unsigned short C=1; C<Z+1; C++) {
+      if (val3[C+1][2]>0.0)
+	nn[C] = nn[C-1] * val3[C][1]/val3[C+1][2];
+      else
+	nn[C] = 0.0;
+      norm += nn[C];
+    }
+    for (unsigned short C=1; C<Z+2; C++) val3[C][0] = nn[C-1]/norm;
     
     for (size_t n=0; n<nout; n++) {
       out[n] << std::setw(16) << T;
       for (auto v : val1) out[n] << std::setw(16) << v.second[n];
       for (auto v : val2) out[n] << std::setw(16) << v.second[n];
+      for (auto v : val3) out[n] << std::setw(16) << v.second[n];
       out[n] << std::endl;
     }
 
     if (numE>1) {
-      for (int ne=0; ne<=numE; ne++) {
-	double emax = Emin + dE*ne;
-	std::map<unsigned short, std::vector<double> >
-	  val = ch.recombEquil(Z, T, Emin, emax, norder*3);
 
-	mat << std::setw(16) << T << std::setw(16) << emax;
-	for (auto v : val) {
-	  for (auto z : v.second) mat << std::setw(16) << z;
+      typedef std::map<unsigned short, std::vector<double> > rateMap;
+
+      rateMap valH, val0;
+      std::vector<rateMap> val1(numE);
+      
+      if (rates) valH = ch.recombEquil(Z, T, norder*10);
+
+      for (int ne=0; ne<numE; ne++) {
+	
+	double emax = Emin + dE*(ne + 1);
+	double emin = Emin + dE*ne;
+
+	if (val0.size()) {
+	  std::map<unsigned short, std::vector<double> >
+	    valT = ch.recombEquil(Z, T, emin, emax, norder);
+	  for (auto v : val0) {
+	    unsigned short C = v.first;
+	    size_t        sz = v.second.size();
+	    for (size_t j=0; j<sz; j++) val0[C][j] += valT[C][j];
+	  }
+	} else {
+	  val0 = ch.recombEquil(Z, T, emin, emax, norder);
+	}
+	val1[ne] = val0;
+      }
+      
+      for (int ne=0; ne<numE; ne++) {
+	
+	mat << std::setw(16) << T 
+	    << std::setw(16) << Emin + dE*(ne+1);
+
+	for (auto v : val1[ne]) {
+	  unsigned short C = v.first;
+	  for (size_t j=1; j<3; j++) {
+	    if (rates) {
+	      mat << std::setw(16) << valH[C][j]
+		  << std::setw(16) << val0[C][j]
+		  << std::setw(16) << val1[ne][C][j];
+	    } else if (val0[C][j]>0.0) {
+	      mat << std::setw(16) << val1[ne][C][j]/val0[C][j];
+	    } else {
+	      mat << std::setw(16) << 0.0;
+	    }
+	  }
 	}
 	mat << std::endl;
       }
@@ -205,6 +280,7 @@ int main (int ac, char **av)
     }
 
   }
+
 
   MPI_Finalize();
 

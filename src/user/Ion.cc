@@ -2469,7 +2469,7 @@ chdata::recombEquil(unsigned short Z, double T, int norder)
 
 std::map<unsigned short, std::vector<double> >
 chdata::recombEquil(unsigned short Z, double T, 
-		    double Emin, double Emax, int norder)
+		    double Emin, double Emax, int norder, bool use_log)
 {
   if (Lege.get() == 0) 
     Lege = boost::shared_ptr<LegeQuad>(new LegeQuad(norder));
@@ -2490,6 +2490,8 @@ chdata::recombEquil(unsigned short Z, double T,
   const double K    = 2.0/sqrt(M_PI*beta);
   const double kTeV = boltzEv*T;
 
+  if (use_log and Emin <= 0.0) use_log = false;
+
   // Ionization
   //
   for (auto & v : ionize) {
@@ -2500,12 +2502,24 @@ chdata::recombEquil(unsigned short Z, double T,
 
       double ymax = Emax/kTeV;	// Scaled min energy
       double ymin = emin/kTeV;	// Scaled max energy
-      double dy   = ymax - ymin;
+
+      if (use_log) {
+	ymin = log(ymin);
+	ymax = log(ymax);
+      }
+
+      double dy = ymax - ymin;
 
       for (int i=1; i<=norder; i++) {
-	double y = ymin + dy*Lege->knot(i);
-	v.second += Lege->weight(i) * dy * K * y*exp(-y) *
-	  IonList[v.first]->directIonCross(y*kTeV, 0);
+	if (use_log) {
+	  double y = exp(ymin + dy*Lege->knot(i));
+	  v.second += Lege->weight(i) * dy * K * y*exp(-y) *
+	    IonList[v.first]->directIonCross(y*kTeV, 0);
+	} else {
+	  double y = ymin + dy*Lege->knot(i);
+	  v.second += Lege->weight(i) * dy * K * y*y*exp(-y) *
+	    IonList[v.first]->directIonCross(y*kTeV, 0);
+	}
       }
     }
   }

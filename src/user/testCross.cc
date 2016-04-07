@@ -34,6 +34,10 @@ struct TupleCompare
 };
 
 int numprocs, myid;
+std::string outdir(".");
+std::string runtag("run");
+char threading_on = 0;
+pthread_mutex_t mem_lock;
 
 int main (int ac, char **av)
 {

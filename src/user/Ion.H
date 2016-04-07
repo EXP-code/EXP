@@ -268,7 +268,7 @@ public:
 
   std::map<unsigned short, std::vector<double> >
   recombEquil(unsigned short Z, double Temperature, double Emin, double Emax, 
-	      int norder=40);
+	      int norder=40, bool use_log=false);
   //@}
 
 };
