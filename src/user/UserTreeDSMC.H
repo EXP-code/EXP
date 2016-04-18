@@ -176,6 +176,8 @@ class CollideIon;
 */
 class UserTreeDSMC : public ExternalForce
 {
+  static const std::string version;
+
 private:
   
   int ncell, Ncell;

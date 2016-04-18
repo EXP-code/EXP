@@ -32,6 +32,11 @@ static bool sampcel_debug = false;
 static bool levelst_debug = false;
 
 //
+// Version string for log file stamping
+//
+const std::string UserTreeDSMC::version = "0.21 [subspecies test]";
+
+//
 // Simulation units
 //
 double UserTreeDSMC::Lunit = 3.0e5*pc;
@@ -504,7 +509,10 @@ void UserTreeDSMC::userinfo()
 
   print_divider();
 
-  cout << "** User routine TreeDSMC initialized, "
+				// Report version and key parameters
+				//
+  cout << "** User routine TreeDSMC initialized, version " 
+       << version << std::endl
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
        << ", cnum=" << cnum << ", hsdiam=" << hsdiam 
