@@ -12,7 +12,7 @@ input command line and a plotting/parsing routine.
 
 Examples:
 
-	$ python ion_coll_energy -m 10 run2
+	$ python ion_coll_energy.py -m 10 run2
 
 Plots the collision count types for each ion type.
 
