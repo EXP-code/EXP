@@ -55,10 +55,12 @@ def plot_data(runtag, field, defaultT, until, deltaT, Z):
 
     if field == "electron":
         fpat = '.*Electron energy.*'
-    elif field == "ion" and Z>0:
-        fpat = ".*Ion \(Z={}\) energy.*".format(Z)
     elif field == "ion":
         fpat = '.*Ion energy.*'
+    elif field == "electron" and Z>0:
+        fpat = ".*Electron \(Z={}\) energy.*".format(Z)
+    elif field == "ion" and Z>0:
+        fpat = ".*Ion \(Z={}\) energy.*".format(Z)
     elif field == "interact":
         fpat = '.*Electron interaction energy.*'
     else:

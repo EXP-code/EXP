@@ -430,7 +430,7 @@ private:
   const size_t bufCap = 16384;
   std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
   ahistoDPtr elecT, elecH, ionsT, ionH, lossH, keEH, keIH, momH, crsH;
-  std::map<unsigned short, ahistoDPtr> ionZH;
+  std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
   unsigned Ovr_s, Acc_s, Tot_s;
   //@}
 
