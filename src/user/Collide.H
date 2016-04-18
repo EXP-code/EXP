@@ -400,6 +400,15 @@ protected:
   (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
    double& meanLambda, double& meanCollP, double& totalNsel) = 0;
 
+  //! Return the subdominant particle selection array.  Return empty
+  //! container by default.
+  virtual Interact generateSelectionSub
+  (int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
+  { return Interact(); }
+
+  //! Check whether subdominant interactions are defined
+  virtual bool selectSub() { return false; }
+
   //! Do the inelastic computation
   virtual int inelastic(int id, pCell* const cell, 
 			Particle* const p1, Particle* const p2, double *cr, 

@@ -315,8 +315,9 @@ void InitializeSpeciesDirect
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
+      std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
+
       if (sFile.is_open()) {
 	
 	std::getline(sFile, inLine); // Read and discard the headers
@@ -368,8 +369,10 @@ void InitializeSpeciesDirect
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
-      std::ifstream sFile("IonRecombFrac.data");
+      std::string   inLine;
+      std::string   fName("IonRecombFrac.data");
+      std::ifstream sFile(fName);
+
       if (sFile.is_open()) {
 	
 	vString s;
@@ -395,7 +398,11 @@ void InitializeSpeciesDirect
 
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	cuml.push_back(v);
+	cuml.push_back(c);
+      } else {
+	std::cerr << "Error opening ionization/recombination file "
+		  << "<" << fName << "> for Z=" << n << std::endl;
+	exit(-1);
       }
     }
   }
@@ -474,7 +481,7 @@ void InitializeSpeciesDirect
     for (auto &c : s) {
       double t = c;
       c -= l;
-      l = t;
+      l  = t;
     }
   }
 }
@@ -511,8 +518,9 @@ void InitializeSpeciesWeight
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
+      std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
+
       if (sFile.is_open()) {
 	
 	std::getline(sFile, inLine); // Read and discard the headers
@@ -564,8 +572,10 @@ void InitializeSpeciesWeight
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
-      std::ifstream sFile("IonRecombFrac.data");
+      std::string   inLine;
+      std::string   fName("IonRecombFrac.data");
+      std::ifstream sFile(fName);
+
       if (sFile.is_open()) {
 	
 	vString s;
@@ -591,7 +601,11 @@ void InitializeSpeciesWeight
 
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	cuml.push_back(v);
+	cuml.push_back(c);
+      } else {
+	std::cerr << "Error opening ionization/recombination file "
+		  << "<" << fName << "> for Z=" << n << std::endl;
+	exit(-1);
       }
     }
   }
@@ -703,7 +717,7 @@ void InitializeSpeciesHybrid
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
+      std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
       std::getline(sFile, inLine); // Read and discard the initial header
       
@@ -763,8 +777,10 @@ void InitializeSpeciesHybrid
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
-      std::ifstream sFile("IonRecombFrac.data");
+      std::string   inLine;
+      std::string   fName("IonRecombFrac.data");
+      std::ifstream sFile(fName);
+
       if (sFile.is_open()) {
 	
 	vString s;
@@ -790,7 +806,11 @@ void InitializeSpeciesHybrid
 	
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	cuml.push_back(v);
+	cuml.push_back(c);
+      } else {
+	std::cerr << "Error opening ionization/recombination file "
+		  << "<" << fName << "> for Z=" << n << std::endl;
+	exit(-1);
       }
     }
   }
@@ -903,7 +923,7 @@ void InitializeSpeciesTrace
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
+      std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
       if (sFile.is_open()) {
 	
@@ -957,7 +977,7 @@ void InitializeSpeciesTrace
       
       typedef std::vector<std::string> vString;
       
-      std::string inLine;
+      std::string   inLine;
       std::ifstream sFile("IonRecombFrac.data");
       if (sFile.is_open()) {
 	
@@ -984,7 +1004,7 @@ void InitializeSpeciesTrace
 
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
-	cuml.push_back(v);
+	cuml.push_back(c);
       }
     }
   }

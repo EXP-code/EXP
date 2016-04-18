@@ -335,6 +335,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   meanM    .resize(nthrds);
   neutF    .resize(nthrds);
   numEf    .resize(nthrds);
+  densE    .resize(nthrds);
   colSc    .resize(nthrds);
   sCrsTot1 .resize(nthrds);
   sCrsTot2 .resize(nthrds);
@@ -558,6 +559,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // True particle number in cell
   // 
   numEf[id] = 0.0;
+
+  // Electron density per species in cell 
+  // 
+  densE[id].clear();
+
   //
   for (auto b : cell->bods) {
     Particle *p = tree->Body(b);
@@ -566,14 +572,22 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
       double ee    = k.second - 1;
 
-      numEf[id]   += p->mass * (1.0 + ee) / atomic_weights[k.first];
+      if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
+
+      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
+      densE[id][k] += p->mass * ee / atomic_weights[k.first];
     }
 
     if (aType == Hybrid) {
-      unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
-      double ee = 0.0;
-      for (unsigned short C=0; C<Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
-      numEf[id]   += p->mass * (1.0 + ee) / atomic_weights[Z];
+      speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+      double ee    = 0.0;
+
+      if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
+
+      unsigned short Z = k.first;
+      for (unsigned short C=0; C<=Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
+      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
+      densE[id][k] += p->mass * ee / atomic_weights[Z];
     }
 
     if (aType == Trace) {
@@ -582,19 +596,30 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double ee    = k.second - 1;
 	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
 
-	numEf[id]   += p->mass * ww * (1.0 + ee);
+	if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
+
+	numEf[id]    += p->mass * ww * (1.0 + ee);
+	densE[id][k] += p->mass * ww * ee;
       }
     }
   }
 
+  // Physical number of particles
+  //
   numEf[id] *= UserTreeDSMC::Munit/amu;
 
+  // Electron density in cgs
+  //
+  double dfac = UserTreeDSMC::Munit/amu /
+    (pow(UserTreeDSMC::Lunit, 3.0) * cell->Volume());
+  for (auto & v : densE[id]) {
+    v.second *= dfac;
+  }
 
   // Mean interparticle spacing in nm
   // 
   double ips = pow(cell->Volume()/numEf[id], 0.333333) 
     * UserTreeDSMC::Lunit * 1.0e7;
-
 
   // Convert to cross section in system units
   //
@@ -1271,6 +1296,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     //    neutF[id] is the neutral number fraction
     //    meanM[id] is the mean molecular weight
     //    numEf[id] is the effective number of particles
+    //    densE[id] is the density of electrons in each cell
     //
 
 				// Mean fraction in trace species
@@ -8839,6 +8865,16 @@ Collide::sKey2Amap CollideIon::generateSelection
 				  meanLambda, meanCollP, totalNsel);
 }
 
+Collide::Interact
+CollideIon::generateSelectionSub(int id, Particle* const p1, Particle* const p2, 
+				 sKeyDmap* const Fn, double *cr, double tau)
+{
+  if (aType == Hybrid)
+    return generateSelectionHybridSub(id, p1, p2, Fn, cr, tau);
+  else
+    return Interact();		// Empty map
+}
+
 Collide::sKey2Amap CollideIon::generateSelectionDirect
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
  double& meanLambda, double& meanCollP, double& totalNsel)
@@ -10020,6 +10056,94 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   
   return selcM;
 }
+
+
+Collide::Interact CollideIon::generateSelectionHybridSub
+(int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
+{
+  Interact ret;
+    
+  // Convert from CHIANTI to system units
+  //
+  const double cunit = 1e-14 * UserTreeDSMC::Tunit;
+
+  speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
+  speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
+  unsigned short  Z1 = k1.first;
+  unsigned short  Z2 = k2.first;
+  double          me = atomic_weights[0] * amu;
+
+  double eVel = 0.0;
+  *cr = 0.0;
+  for (unsigned i=0; i<3; i++) {
+    double rvel = p2->dattrib[use_elec+i] - p1->vel[i];
+    eVel += rvel * rvel;
+
+    rvel = p2->vel[i] - p1->vel[i];
+    *cr += rvel * rvel;
+  }
+  eVel = sqrt(eVel) * UserTreeDSMC::Vunit;
+  *cr  = sqrt(*cr);
+
+  // Available COM energy
+  //
+  double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
+
+  for (unsigned Q1=0; Q1<=Z1; Q1++) {
+    
+    lQ Q(Z1, Q1+1);
+
+
+    for (unsigned Q2=1; Q2<=Z2; Q2++) {
+
+
+      //-------------------------------
+      // *** Free-free
+      //-------------------------------
+      {
+	double crs  = ch.IonList[Q]->freeFreeCross(ke, id);
+	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+
+	if (Prob > 0.0) ret[Interact::T(free_free, Q1, Q2)] = Prob;
+      }
+
+      //-------------------------------
+      // *** Collisional excitation
+      //-------------------------------
+      {
+	CE1[id]     = ch.IonList[Q]->collExciteCross(ke, id);
+	double crs  = CE1[id].back().first;
+	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+
+	if (Prob > 0.0) ret[Interact::T(colexcite, Q1, Q2)] = Prob;
+      }
+
+      //-------------------------------
+      // *** Ionization cross section
+      //-------------------------------
+      {
+	double crs  = ch.IonList[Q]->directIonCross(ke, id);
+	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+	
+	if (Prob > 0.0) ret[Interact::T(ionize, Q1, Q2)] = Prob;
+      }
+
+      //-------------------------------
+      // *** Radiative recombination
+      //-------------------------------
+      {
+	std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(ke, id);
+	double crs = RE1.back();
+	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+	
+	if (Prob > 0.0) ret[Interact::T(recomb, Q1, Q2)] = Prob;
+      }
+    }
+  }
+  
+  return ret;
+}
+
 
 Collide::sKey2Amap CollideIon::generateSelectionTrace
 (pCell* const c, sKeyDmap* const Fn, double crm, double tau, int id,
@@ -12126,10 +12250,17 @@ void CollideIon::processConfig()
       cfg.save(runtag +".CollideIon.config", "JSON");
     }
   }
-  catch (...) {
-    if (myid==0) std::cerr << "Error parsing CollideIon config info"
-			   << std::endl;
+  catch (const boost::property_tree::ptree_error &e) {
+    if (myid==0) 
+      std::cerr << "Error parsing CollideIon config info" << std::endl
+		<< e.what() << std::endl;
     MPI_Abort(MPI_COMM_WORLD, 54);
+  }
+  catch (...) {
+    if (myid==0) 
+      std::cerr << "Error parsing CollideIon config info" << std::endl
+		<< "unknown error" << std::endl;
+    MPI_Abort(MPI_COMM_WORLD, 55);
   }
 }
 

@@ -368,7 +368,7 @@ private:
   std::vector< std::vector<double> >                 dCfrac;
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
-  std::vector< keyWghts >                            meanF;
+  std::vector< keyWghts >                            meanF, densE;
   std::vector< keyWghts >                            sCrsTot1, sCrsTot2;
   std::vector< keyWexsList >                         excessW;
   std::vector< keyInter >                            sInter;
@@ -691,6 +691,8 @@ protected:
 					    double& meanLambda, double& meanCollP, 
 					    double& totalNsel);
 
+  virtual Interact  generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
+					       sKeyDmap* const Fn, double *cr, double tau);
 
   //! Cache instance of current tree
   pHOT* curTree;
@@ -906,6 +908,18 @@ public:
 				      double crm, double tau, int id,
 				      double& meanLambda, double& meanCollP, 
 				      double& totalNsel);
+
+  //! Generate subdominate interaction rates
+  virtual Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, 
+					sKeyDmap* const Fn, double *cr, double tau);
+
+
+  //! Check whether subdominant interactions are defined
+  virtual bool selectSub() 
+  { 
+    if (aType == Hybrid) return true;
+    return false; 
+  }
 
   //! Compute/retrieve mean molecular weight for this cell
   virtual double molWeight(sCell *c);

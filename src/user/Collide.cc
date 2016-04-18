@@ -1351,94 +1351,52 @@ void * Collide::collide_thread(void * arg)
 
 	} // Loop over trial pairs (fiducial interaction)
 	
-
 	// Subdominant interaction types
 	//
-	if (!!nselM[i1][i2] and nselTot) {
 
-	  for (auto v : nselM[i1][i2].v) {
+	// Cycle through ions and possible electron pairs
+	//
+	if (nselTot and selectSub()) {
+	
+	  // Step through all ions in cell
+	  //
+	  size_t num1 = bmap[i1].size();
+	  size_t num2 = bmap[i2].size();
+	  size_t l1, l2;
 
-	    if (v.first == maxT) continue;
+	  for (l1=0; l1<num1; l1++) {
 
-	    // Subdominant interaction types
-	    double nsel = v.second;
-	    double wght = nsel/nselM[i1][i2][maxT];
-
-	    // Diagnostic
-	    wgtVal[id].push_back(wght);
-
-	    // Loop over total number of candidate collision pairs
-	    //
-	    for (unsigned i=0; i<nselTot; i++ ) {
-	  
-	      // Pick two particles at random out of this cell. l1 and l2
-	      // are indices in the bmap[i1] and bmap[i2] vectors of body
-	      // indices
-
-	      size_t l1, l2;
-
-	      l1 = static_cast<size_t>(floor((*unit)()*num1));
-	      l1 = std::min<size_t>(l1, num1-1);
-	      
-	      if (i1 == i2) {
-		l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
-		l2 = std::min<size_t>(l2, num2-2);
+	    if (i1 == i2) {
+	      l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
+	      l2 = std::min<size_t>(l2, num2-2);
 				// Get random l2 != l1
-		l2 = (l2 + l1 + 1) % num2;
-	      } else {
-		l2 = static_cast<size_t>(floor((*unit)()*num2));
-		l2 = std::min<size_t>(l2, num2-1);
-	      }
+	      l2 = (l2 + l1 + 1) % num2;
+	    } else {
+	      l2 = static_cast<size_t>(floor((*unit)()*num2));
+	      l2 = std::min<size_t>(l2, num2-1);
+	    }
 	  
-	      // Get index from body map for the cell
-	      //
-	      Particle* const p1 = tree->Body(bmap[i1][l1]);
-	      Particle* const p2 = tree->Body(bmap[i2][l2]);
+	    Particle* const p1 = tree->Body(bmap[i1][l1]);
+	    Particle* const p2 = tree->Body(bmap[i2][l2]);
 	  
-	      // Calculate pair's relative speed (pre-collision)
+	    double cr = 0.0;
+	    Interact iact = generateSelectionSub(id, p1, p2, Fn, &cr, tau);
+
+	    for (auto v : iact.v) {
+
+	      if (v.first == maxT) continue;
+
+	      double wght = v.second;
+
+	      // Diagnostic
+	      wgtVal[id].push_back(wght);
+	      
+	      // Do inelastic stuff
 	      //
-	      vector<double> crel(3);
-	      double cr = 0.0;
-	      for (int j=0; j<3; j++) {
-		crel[j] = p1->vel[j] - p2->vel[j];
-		cr += crel[j]*crel[j];
-	      }
-	      cr = sqrt(cr);
-
-	      // No point in inelastic collsion for zero velocity . . . 
-	      //
-	      if (cr == 0.0) continue;
-
-	      // Accept or reject candidate pair according to relative speed
-	      //
-	      const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
-	      double Cross = crossSection(id, c, p1, p2, cr, v.first);
-	      double scrs  = Cross / cunit;
-	      double prod  = cr * scrs;
-	      double targ  = ntcdb[samp->mykey].Prob(k, v.first, prod);
-	      bool     ok  = false;
-
-	      if (NTC) {
-		ok = ( targ > (*unit)() );
-#pragma omp critical
-		ntcdb[samp->mykey].Add(k, v.first, prod);
-	      } else {
-		ok = true;
-	      }
-
-	      if (ok) {
-
-		elasTime[id].start();
+	      error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, wght);
+	      
+	    } // Inelastic computation for subspecies
 	    
-		
-		// Do inelastic stuff
-		//
-		error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, wght);
-		
-	      } // Inelastic computation for subspecies
-
-	    } // Loop over trial pairs
-
 	  } // Loop over subspecies
 
 	} // Secondary species stanza
