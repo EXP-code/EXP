@@ -1195,8 +1195,9 @@ void * Collide::collide_thread(void * arg)
 	speciesKey i2 = it2->first;
 	size_t num2   = bmap[i2].size();
 
+				// No interactions possible
 	if (num2==0) continue;
-	
+				// Particle cannot interact with itself
 	if (i1==i2 && num2==1) continue;
 
 	sKeyPair k(i1, i2);
@@ -1356,7 +1357,7 @@ void * Collide::collide_thread(void * arg)
 
 	// Cycle through ions and possible electron pairs
 	//
-	if (nselTot and selectSub()) {
+	if (selectSub()) {
 	
 	  // Step through all ions in cell
 	  //

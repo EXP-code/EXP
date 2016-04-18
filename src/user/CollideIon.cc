@@ -5554,7 +5554,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       p1->dattrib[hybrid_pos+P1] * 
       p2->dattrib[hybrid_pos+P2] ;
 
-    if (weight > 0.0) cF *= weight;
+    if (weight >= 0.0) cF *= weight;
 
     double NN = N0 * cF;
 
@@ -5949,17 +5949,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   if (weight > 0.0) {
 
-    // if (Wa > Wb) {
-    //   p1->dattrib[use_cons] += delE;
-    // } else {
-    //   p1->dattrib[use_cons] += 0.5*delE;
-    //   p2->dattrib[use_cons] += 0.5*delE;
-    // }
-
-    // p1->dattrib[use_cons] += 0.5*delE;
-    // p2->dattrib[use_cons] += 0.5*delE;
-
-    if (atomic_weights[Z1] < atomic_weights[Z2])
+    if (atomic_weights[Z1] == atomic_weights[Z2]) {
+      p1->dattrib[use_cons] += 0.5*delE;
+      p2->dattrib[use_cons] += 0.5*delE;
+    }
+    else if (atomic_weights[Z1] < atomic_weights[Z2])
       p2->dattrib[use_cons] += delE;
     else
       p1->dattrib[use_cons] += delE;
