@@ -5465,6 +5465,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   double Wa = p1->mass / atomic_weights[Z1];
   double Wb = p2->mass / atomic_weights[Z2];
   double  q = Wb / Wa;
+  double q0 = q;
 
   // Number interacting atoms
   //
@@ -5554,7 +5555,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       p1->dattrib[hybrid_pos+P1] * 
       p2->dattrib[hybrid_pos+P2] ;
 
-    if (weight >= 0.0) cF *= weight;
+    if (weight >= 0.0) {
+      cF *= weight;
+      q0  = 1.0;
+    }
 
     double NN = N0 * cF;
 
@@ -5597,13 +5601,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
-	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q;
+	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q0;
 	ctd2->ff[id][0] += cF;
 	ctd2->ff[id][1] += NN;
 	ctd2->ff[id][2] += dE * N0;
 	Ion2Frac += cF;
       } else {
-	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q;
+	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q0;
 	ctd2->ff[id][0] += cF;
 	ctd2->ff[id][1] += NN;
 	ctd2->ff[id][2] += dE * N0;
@@ -5617,14 +5621,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
-	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q;
-	ctd2->CE[id][0] += cF * q;
+	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
+	ctd2->CE[id][0] += cF * q0;
 	ctd2->CE[id][1] += NN;
 	ctd2->CE[id][2] += dE * N0;
 	Ion2Frac += cF;
       } else {
-	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
-	ctd1->CE[id][0] += cF * q;
+	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
+	ctd1->CE[id][0] += cF * q0;
 	ctd1->CE[id][1] += NN;
 	ctd1->CE[id][2] += dE * N0;
 	Ion1Frac += cF;
@@ -5636,7 +5640,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == ionize) {
 
       if (swapped) {
-	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF;
+	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5670,7 +5674,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  normTest(p1, sout.str());
 	}
 
-	ctd2->CI[id][0] += cF; 
+	ctd2->CI[id][0] += cF * q0; 
 	ctd2->CI[id][1] += NN;
 	ctd2->CI[id][2] += dE * N0;
 	Ion2Frac += cF;
@@ -5683,7 +5687,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       } // swapped
       else {
 
-	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF;
+	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5716,7 +5720,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  normTest(p1, sout.str());
 	}
 
-	ctd1->CI[id][0] += cF; 
+	ctd1->CI[id][0] += cF * q0; 
 	ctd1->CI[id][1] += NN;
 	ctd1->CI[id][2] += dE * N0;
 	Ion1Frac += cF;
@@ -5762,12 +5766,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  normTest(p1, sout.str());
 	}
 	
-	dE = kEe2[id] * wght;
-	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF;
+	dE = kEe2[id] * wght * q0;
+	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q0;
 	
 	delE += dE;
 	
-	ctd2->RR[id][0] += cF;
+	ctd2->RR[id][0] += cF * q0;
 	ctd2->RR[id][1] += NN;
 	ctd2->RR[id][2] += dE * N0;
 	Ion2Frac += cF;
@@ -5828,12 +5832,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  normTest(p1, sout.str());
 	}
 	
-	dE = kEe1[id] * wght;
-	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF;
+	dE = kEe1[id] * wght * q0;
+	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q0;
 	
 	delE += dE;
 
-	ctd1->RR[id][0] += cF;
+	ctd1->RR[id][0] += cF * q0;
 	ctd1->RR[id][1] += NN;
 	ctd1->RR[id][2] += dE * N0;
 	Ion1Frac += cF;
@@ -10079,13 +10083,15 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   eVel = sqrt(eVel) * UserTreeDSMC::Vunit;
   *cr  = sqrt(*cr);
 
-  // Available COM energy
+  // Available COM energy in eV
   //
   double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
 
+  // Loop through ionization states
+  //
   for (unsigned Q1=0; Q1<=Z1; Q1++) {
     
-    lQ Q(Z1, Q1+1);
+    lQ Q(Z1, Q1+1);		// Ion key
 
 
     for (unsigned Q2=1; Q2<=Z2; Q2++) {
