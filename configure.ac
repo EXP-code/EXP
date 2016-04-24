@@ -123,6 +123,7 @@ if test x$havevtk = xyes; then
    CXXFLAGS="$exp_vtk_include $CXXFLAGS"
    LDFLAGS="$exp_vtk_lib $LDFLAGS"
 
+   dnl Compare supplied version to check whether <6 or >=6 libraries are needed
    CMPV="6.0"
    AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_6_0=-1], [VTK_POST_6_0=0],[VTK_POST_6_0=1])
 
