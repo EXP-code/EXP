@@ -59,10 +59,6 @@ dnl ==========================================================================
 dnl Added macro to allow non-standard location of VTK installation
 dnl ==========================================================================
 havevtk=no;
-AC_ARG_WITH([vtk-headers],
-	[AC_HELP_STRING([--with-vtk-headers=DIR],
-	[location of VTK headers is DIR (default: not set)])],
-	[VTK_HEADER_LOCATION="$withval"; havevtk=yes])
 
 AC_ARG_WITH([vtk-lib],
 	[AC_HELP_STRING([--with-vtk-lib=DIR],
@@ -77,21 +73,25 @@ AC_ARG_WITH([vtk-path],
 AC_ARG_WITH([vtk-version],
 	[AC_HELP_STRING([--with-vtk-version=VAL],
 	[VTK's include directory name is vtk-suffix, e.g. vtk-5.8/. What's the suffix? (Default: not set)])],
-	[vtk_suffix=-$withval],
-	[vtk_suffix=""])
+	[vtk_suffix=[-$withval]; vtk_version=[$withval]],
+	[vtk_suffix=""; vtk_version=5.8])
 
 AC_ARG_WITH([vtk-lib-suffix],
 	[AC_HELP_STRING([--with-vtk-lib-suffix],
 	[VTK's libraries includes the version as library suffix (e.g. libvtkalglib-6.1). Debian/Ubuntu needs this for vtk>=6.0. (Default: not used)])],
-	[vtk_libval=-$withval],
+	[vtk_libval=$vtk_suffix],
 	[vtk_libval=""])
 
 # Look in some standard places . . .
 
+AC_CHECK_FILE([/usr/include/vtk/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/vtk]])
 AC_CHECK_FILE([/usr/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/vtk$vtk_suffix]])
-AC_CHECK_FILE([/usr/include/local/vtk$vtk_suffix/vtkMapper.h],
-	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/include/local/vtk$vtk_suffix]])
+AC_CHECK_FILE([/usr/local/include/vtk/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk]])
+AC_CHECK_FILE([/usr/locl/include/vtk$vtk_suffix/vtkMapper.h],
+	[havevtk=[yes]; VTK_HEADER_LOCATION=[/usr/local/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([$VTK_PREFIX/include/vtk$vtk_suffix/vtkMapper.h],
 	[havevtk=[yes]; VTK_HEADER_LOCATION=[$VTK_PREFIX/include/vtk$vtk_suffix]])
 AC_CHECK_FILE([/vtkMapper.h],
@@ -115,7 +115,6 @@ if test x$havevtk = xyes; then
    if test "$VTK_HEADER_LOCATION" != ""; then
       exp_vtk_include="-I$VTK_HEADER_LOCATION -I$VTK_HEADER_LOCATION/include/vtk"
    fi
-
    
    OLD_CFLAGS=$CFLAGS
    OLD_CXXFLAGS=$CXXFLAGS
@@ -123,20 +122,15 @@ if test x$havevtk = xyes; then
    CFLAGS="$exp_vtk_include $CFLAGS"
    CXXFLAGS="$exp_vtk_include $CXXFLAGS"
    LDFLAGS="$exp_vtk_lib $LDFLAGS"
-   AC_COMPILE_IFELSE([AC_LANG_PROGRAM(
-         [
-            #include <vtkConfigure.h>
-	    #include <stdio.h>
-         ],
-         [
-           printf("VTK version is: %d.%d.%d", VTK_MAJOR_VERSION, VTK_MINOR_VERSION, VTK_BUILD_VERSION);
-           #if VTK_MAJOR_VERSION < 6
-           #error Installed VTK major version is < 6
-           #endif
-            ])
-   ], [vtkVersion="OK"])
-   if test "$vtkVersion" = "OK"; then
-      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkIOCore$vtk_libval -lvtkIOImport$vtk_libval -lvtkIOExport$vtk_libval -lvtkIOGeometry$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+
+   CMPV="6.0"
+   AS_VERSION_COMPARE(${vtk_version}, ${CMPV}, [VTK_POST_6_0=-1], [VTK_POST_6_0=0],[VTK_POST_6_0=1])
+
+   AS_IF([test "${VTK_POST_6_0}" != "-1"], AC_MSG_RESULT([VTK post 6.0: yes]), AC_MSG_RESULT([VTK post 6.0: no]))
+
+   if test "${VTK_POST_6_0}" != "-1"; then
+      exp_vtk_ldlib="-lvtkCommonCore$vtk_libval -lvtkCommonDataModel$vtk_libval -lvtkIOXML$vtk_libval"
+
    else
       exp_vtk_ldlib="-lvtkHybrid -lvtkRendering -lvtkGraphics -lvtkFiltering -lvtkImaging -lvtkCommon -lvtkIO"
 
