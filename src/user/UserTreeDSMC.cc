@@ -108,6 +108,14 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
 				// Initialize using input parameters
   initialize();
 
+  // Report TreeDSMC version to stdout log
+  //
+  if (myid==0) {
+    print_divider();
+    cout << "** User routine TreeDSMC, version " << version << std::endl;
+    print_divider();
+  }
+
   // Initialize the atomic_weights map hardcode the atomic weight map
   // for use in collFrac.  Weights in atomic mass units (amu)
 
@@ -511,8 +519,7 @@ void UserTreeDSMC::userinfo()
 
 				// Report version and key parameters
 				//
-  cout << "** User routine TreeDSMC initialized, version " 
-       << version << std::endl
+  cout << "** User routine TreeDSMC initialized, " 
        << "Lunit=" << Lunit << ", Tunit=" << Tunit << ", Munit=" << Munit
        << ", Vunit=" << Vunit << ", Eunit=" << Eunit
        << ", cnum=" << cnum << ", hsdiam=" << hsdiam 
