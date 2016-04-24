@@ -29,7 +29,6 @@ AC_LANG_PUSH(C++)
 
 AX_CXX_COMPILE_STDCXX_11([noext],[mandatory])
 
-
 dnl ==========================================================================
 dnl Check for hash
 dnl ==========================================================================
@@ -84,7 +83,7 @@ AC_ARG_WITH([vtk-version],
 AC_ARG_WITH([vtk-lib-suffix],
 	[AC_HELP_STRING([--with-vtk-lib-suffix],
 	[VTK's libraries includes the version as library suffix (e.g. libvtkalglib-6.1). Debian/Ubuntu needs this for vtk>=6.0. (Default: not used)])],
-	[vtk_libval=$vtk_suffix],
+	[vtk_libval=-$withval],
 	[vtk_libval=""])
 
 # Look in some standard places . . .

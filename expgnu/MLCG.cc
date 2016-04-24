@@ -25,7 +25,7 @@
 
 #define SEED_TABLE_SIZE 32
 
-static int32_t seedTable[SEED_TABLE_SIZE] = {
+static uint32_t seedTable[SEED_TABLE_SIZE] = {
   0xbdcc47e5, 0x54aea45d, 0xec0df859, 0xda84637b,
   0xc8c6cb4f, 0x35574b01, 0x28260b7d, 0x0d07fdbf,
   0x9faaeeb0, 0x613dd169, 0x5ce2d818, 0x85b9e706,

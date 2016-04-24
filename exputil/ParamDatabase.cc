@@ -150,7 +150,7 @@ void ParamDatabase::set_entry(const string &name, const string& value)
 	  ostringstream msg;
 	  msg << "ParamDatabase::set_entry: no type <"
 	      << j.type << ">";
-	  cerr << msg << endl;
+	  std::cerr << msg.str() << std::endl;
 	  throw msg.str().c_str();
 	}
 

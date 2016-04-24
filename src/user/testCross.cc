@@ -131,7 +131,7 @@ int main (int ac, char **av)
     exit(1);
   }
 
-  constexpr double mrat = me/mp;
+  const double mrat = me/mp;
 
   PeriodicTable pt;
 
