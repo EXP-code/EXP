@@ -3,9 +3,10 @@
 # -*- Python -*-
 # -*- coding: utf-8 -*-
 
-"""Program to display the particle collision counts for each type
-using diagnostic output from the CollideIon class in the
-UserTreeDSMC module.
+"""
+Program to display the particle collision counts for each type
+using diagnostic output from the CollideIon class in the UserTreeDSMC
+module.
 
 There are two simple routines here.  The main routine that parses the
 input command line and a plotting/parsing routine.
@@ -159,9 +160,14 @@ def plot_data(filename, eloss, msz, logY, dot):
     pl.ylabel('Energy')
     if eloss:
         esKE = np.add(ekeI, ekeE)
-        pl.plot(time, etot, '-', label="E total")
-        pl.plot(time, elsC, '-', label="E lost")
-        pl.plot(time, esKE, '-', label="KE")
+        if logY:
+            pl.semilogy(time, etot, '-', label="E total")
+            pl.semilogy(time, elsC, '-', label="E lost")
+            pl.semilogy(time, esKE, '-', label="KE")
+        else:
+            pl.plot(time, etot, '-', label="E total")
+            pl.plot(time, elsC, '-', label="E lost")
+            pl.plot(time, esKE, '-', label="KE")
         pl.legend(prop={'size':10}).draggable()
     else:
         pl.plot(time, etot, '-')
