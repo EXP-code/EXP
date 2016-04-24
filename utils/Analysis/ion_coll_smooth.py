@@ -221,12 +221,14 @@ def plot_data(nametag, window, order, msz, dot, scr):
             xi, yi, ys = smooth_data(temp, np.array(data[v][ekeys[k]]),
                                      1000, window, order)
             pl.plot(xi, yi, mk, markersize=msz, mfc='none', mec='k')
-            pl.plot(xi, ys, '-', lw=2, label=v)
+            if len(xi) == len(ys):
+                pl.plot(xi, ys, '-', lw=2, label=v)
         pl.title(elabs[k])
         if icnt==4:
             leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
-            leg.get_title().set_fontsize('6')
-            pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
+            if leg is not None:
+                leg.get_title().set_fontsize('6')
+                pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
 
     pl.get_current_fig_manager().full_screen_toggle()
     pl.savefig("%s_%s.png" % (nametag, "allcount"))
@@ -252,14 +254,16 @@ def plot_data(nametag, window, order, msz, dot, scr):
                 yi[yi==0.0] = min(yi[np.nonzero(yi)]) * 0.1
                 ys[ys==0.0] = min(ys[np.nonzero(ys)]) * 0.1
                 pl.semilogy(xi, yi, mk, markersize=msz, mfc='None', mec='k')
-                pl.semilogy(xi, ys, '-', lw=2, label=v)
+                if len(xi) == len(ys):
+                    pl.semilogy(xi, ys, '-', lw=2, label=v)
                 # pl.plot(xi, yi, mk, markersize=msz, mfc='None', mec='k')
                 # pl.plot(xi, ys, '-', lw=2, label=v)
         pl.title(elabs[k])
         if icnt==4:
             leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
-            leg.get_title().set_fontsize('6')
-            pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
+            if leg is not None:
+                leg.get_title().set_fontsize('6')
+                pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
 
     pl.get_current_fig_manager().full_screen_toggle()
     pl.savefig("%s_%s.png" % (nametag, "allweight"))
@@ -346,11 +350,13 @@ def plot_data(nametag, window, order, msz, dot, scr):
             xi, yi, ys = smooth_data(temp, data[v][ekeys[k]],
                                      1000, window, order)
             pl.plot(xi, yi, mk, markersize=msz, mfc='None', mec='k')
-            pl.plot(xi, ys, '-', lw=2, label=elabs[k])
+            if len(xi) == len(ys):
+                pl.plot(xi, ys, '-', lw=2, label=elabs[k])
         pl.title(v)
         leg = pl.legend(loc='best',borderpad=0,labelspacing=0)
-        leg.get_title().set_fontsize('6')
-        pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
+        if leg is not None:
+            leg.get_title().set_fontsize('6')
+            pl.setp(pl.gca().get_legend().get_texts(), fontsize='12')
         pl.get_current_fig_manager().full_screen_toggle()
         pl.savefig("%s_%s.png" % (nametag, v + "_energy"))
         if scr: pl.show()

@@ -43,7 +43,7 @@ def plot_data(filename, msz, dot, summary):
     # Marker type
     #
     if dot: mk = '.'
-    else:   mk = '*'
+    else:   mk = '-*'
 
     # Translation table to convert vertical bars and comments to spaces
     #
@@ -218,10 +218,26 @@ def plot_data(filename, msz, dot, summary):
     print("--------------------------------")
     print("Ionization/recombination summary")
     print("--------------------------------")
-    print("N(H,    ionz) = {:13g} {:13g} {:13g}".format(H_scat, H_ionz, H_ionz/H_scat))
-    print("N(H+,   rcmb) = {:13g} {:13g} {:13g}".format(Hp_scat, Hp_rcmb, Hp_rcmb/Hp_scat))
-    print("N(He+,  ionz) = {:13g} {:13g} {:13g}".format(Hep_scat, Hep_ionz, Hep_ionz/Hep_scat))
-    print("N(He++, rcmb) = {:13g} {:13g} {:13g}".format(Hepp_scat, Hepp_rcmb, Hepp_rcmb/Hepp_scat))
+
+    if H_scat > 0:
+        print("N(H,    ionz) = {:13g} {:13g} {:13g}".format(H_scat, H_ionz, H_ionz/H_scat))
+    else:
+        print("N(H,    ionz) = {:13g} {:13g} {:<13s}".format(H_scat, H_ionz, "inf"))
+
+    if Hp_scat > 0:
+        print("N(H+,   rcmb) = {:13g} {:13g} {:13g}".format(Hp_scat, Hp_rcmb, Hp_rcmb/Hp_scat))
+    else:
+        print("N(H+,   rcmb) = {:13g} {:13g} {:<13s}".format(Hp_scat, Hp_rcmb, "inf"))
+
+    if Hep_scat > 0:
+        print("N(He+,  ionz) = {:13g} {:13g} {:13g}".format(Hep_scat, Hep_ionz, Hep_ionz/Hep_scat))
+    else:
+        print("N(He+,  ionz) = {:13g} {:13g} {:<13s}".format(Hep_scat, Hep_ionz, "inf"))
+
+    if Hepp_scat > 0:
+        print("N(He++, rcmb) = {:13g} {:13g} {:13g}".format(Hepp_scat, Hepp_rcmb, Hepp_rcmb/Hepp_scat))
+    else:
+        print("N(He++, rcmb) = {:13g} {:13g} {:<13s}".format(Hepp_scat, Hepp_rcmb, "inf"))
     
 def main(argv):
     """ Parse the command line and call the parsing and plotting routine """

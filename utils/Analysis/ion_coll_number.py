@@ -78,7 +78,7 @@ def plot_data(filename, msz, dot):
                 tail = 7
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
-            for i in range(2, len(toks)-1):
+            for i in range(2, len(toks)-tail):
                 j = int(toks[i][1:-1]) - 1
                 tabl[labels[j]] = i
                 idx = (i-head) / ncol
