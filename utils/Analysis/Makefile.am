@@ -71,8 +71,8 @@ localmpi.cc:	$(top_srcdir)/exputil/localmpi.cc
 
 # Install and distribute these scripts
 
-dist_bin_SCRIPTS = parse_outfrac ion_collide ion_energy ion_rate	\
-	ion_frac ion_coll_number
+dist_bin_SCRIPTS = parse_outfrac ion_collide.py ion_energy.py	\
+	ion_rate.py ion_frac.py ion_coll_number.py
 
 CLEANFILES = 	EmpOrth9thd.cc localmpi.cc PSP.cc PSP.H header.cc header.H
 

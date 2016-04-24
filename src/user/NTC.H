@@ -21,6 +21,8 @@
 
 #include <boost/filesystem.hpp>
 
+#include <boost/version.hpp>
+
 #include "pHOT_types.H"
 #include "Species.H"
 #include "Quantile.H"
@@ -31,12 +33,14 @@ namespace boost {
     
   namespace serialization {
       
+#if BOOST_VERSION <= 105600
     template<class Archive, class T, size_t N>
     void serialize(Archive & ar, std::array<T,N> & a, 
 		   const unsigned int version)
     {
       ar & boost::serialization::make_array(a.data(), a.size());
     }
+#endif
   
     template<typename Archive, typename T>
     void serialize(Archive & ar, std::tuple<T, T, T> & t, 

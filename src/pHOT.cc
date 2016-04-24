@@ -3578,7 +3578,7 @@ bool pHOT::checkParticles(ostream& out, const std::string& msg, bool pc)
   if (rename(origfile1.str().c_str(), backfile1.str().c_str())) {
     perror("pHOT");
     ostringstream message;
-    message << "error creating backup file <" << backfile1 << ">";
+    message << "error creating backup file <" << backfile1.str() << ">";
     // bomb(membername, message.str());
   }
   
@@ -3589,7 +3589,7 @@ bool pHOT::checkParticles(ostream& out, const std::string& msg, bool pc)
   if (rename(origfile2.str().c_str(), backfile2.str().c_str())) {
     perror("pHOT");
     ostringstream message;
-    message << "error creating backup file <" << backfile2 << ">";
+    message << "error creating backup file <" << backfile2.str() << ">";
     // bomb(membername, message.str());
   }
   
@@ -3598,13 +3598,13 @@ bool pHOT::checkParticles(ostream& out, const std::string& msg, bool pc)
 
   if (!out1) {
     ostringstream message;
-    message << "error opening output file <" << origfile1 << ">";
+    message << "error opening output file <" << origfile1.str() << ">";
     bomb(membername, message.str());
   }
 
   if (!out2) {
     ostringstream message;
-    message << "error opening output file <" << origfile2 << ">";
+    message << "error opening output file <" << origfile2.str() << ">";
     bomb(membername, message.str());
   }
 

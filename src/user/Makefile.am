@@ -135,13 +135,13 @@ libshear_la_SOURCES = UserShear.cc
 libprofile_la_SOURCES = UserProfile.cc
 
 testCrossSection_SOURCES = testCross.cc phfit2.f
-testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil
+testCrossSection_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 testIonRecomb_SOURCES = testIonRecomb.cc phfit2.f
-testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil
+testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
-genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil
+genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
 
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
