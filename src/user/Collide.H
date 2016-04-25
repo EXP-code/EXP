@@ -406,7 +406,8 @@ protected:
   (int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
   { return Interact(); }
 
-  //! Check whether subdominant interactions are defined
+  //! Check whether subdominant interactions are defined.  Override
+  //! in derived classes.
   virtual bool selectSub() { return false; }
 
   //! Do the inelastic computation

@@ -3883,7 +3883,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   // interaction is selected.
   //
   int partflag = 0;
-
+  
   // NOCOOL debugging
   //
   double NCXTRA = 0.0;
@@ -3896,8 +3896,8 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       iI1 += p1->vel[k]*p1->vel[k];
       iI2 += p2->vel[k]*p2->vel[k];
       if (use_elec>=0) {
-	if (C1>1) iE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
-	if (C2>1) iE2 += p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k];
+	iE1 += p1->dattrib[use_elec+k]*p1->dattrib[use_elec+k];
+	iE2 += p2->dattrib[use_elec+k]*p2->dattrib[use_elec+k];
       }
     }
     iI1 *= 0.5*p1->mass;
@@ -5390,6 +5390,8 @@ void CollideIon::secondaryScatter(Particle *p)
   }
 }
 
+// This is for debugging; set to "false" for production
+//
 bool use_normtest = true;
 
 int CollideIon::inelasticHybrid(int id, pCell* const c, 
@@ -5483,6 +5485,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   }
 
 
+  // NOCOOL debugging
+  //
   double NCXTRA = 0.0;
 
   double iI1 = 0.0, iE1 = 0.0;
@@ -5527,14 +5531,16 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     ok = true;
   }
 
+  // Following the selection logic above, do this interaction!
+  //
   if (ok) {
 
     //--------------------------------------------------
     // Ion keys
     //--------------------------------------------------
 
-    speciesKey k1 = KeyConvert(p1->iattrib[use_key]).getKey();
-    speciesKey k2 = KeyConvert(p2->iattrib[use_key]).getKey();
+    speciesKey     k1 = KeyConvert(p1->iattrib[use_key]).getKey();
+    speciesKey     k2 = KeyConvert(p2->iattrib[use_key]).getKey();
 
     unsigned short Z1 = k1.first;
     unsigned short Z2 = k2.first;
@@ -5543,21 +5549,32 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     unsigned short C1 = P1 + 1;
     unsigned short C2 = P2 + 1;
 
+    // For hybrid method, the speciesKey level set to zero.  Replace
+    // with subspecies value
+    //
     k1.second = C1;
     k2.second = C2;
 
     lQ Q1(Z1, C1), Q2(Z2, C2);
 
+    // Retrieve the diagnostic stanza for this species (correctly
+    // including the ionization level)
+    //
     collTDPtr ctd1 = (*collD)[k1];
     collTDPtr ctd2 = (*collD)[k2];
 
+    // The subspecies weighting
+    //
     double cF = 
       p1->dattrib[hybrid_pos+P1] * 
       p2->dattrib[hybrid_pos+P2] ;
 
+    // Update the subspecies weight by the probability of interaction
+    //
     if (weight >= 0.0) {
       cF *= weight;
-      q0  = 1.0;
+				// Remove trace weighting for
+      q0  = 1.0;		// subdominant case
     }
 
     double NN = N0 * cF;
@@ -5918,7 +5935,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert to super particle
   //
-  delE *= N0;
+  if (weight >= 0.0) {
+    if (swapped) delE *= Wb * UserTreeDSMC::Munit / amu;
+    else         delE *= Wa * UserTreeDSMC::Munit / amu;
+  } else {
+    delE *= N0;
+  }
   
   // Convert back to cgs
   //
@@ -5951,7 +5973,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // If this is a subspecies interaction, record the energy loss and
   // return to caller
   //
-  if (weight > 0.0) {
+  if (weight >= 0.0) {
 
     if (atomic_weights[Z1] == atomic_weights[Z2]) {
       p1->dattrib[use_cons] += 0.5*delE;
@@ -10056,9 +10078,15 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 }
 
 
+//
+// Return map of accessible inelastic interations for substates of
+// particles p1 and p2
+//
 Collide::Interact CollideIon::generateSelectionHybridSub
 (int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
 {
+  // Map all allowed inelastic interactions for particles p1 and p2
+  //
   Interact ret;
     
   // Convert from CHIANTI to system units
@@ -10071,6 +10099,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   unsigned short  Z2 = k2.first;
   double          me = atomic_weights[0] * amu;
 
+  // Get relative velocity and energy between ion from p1 and electron
+  // from p2
+  //
   double eVel = 0.0;
   *cr = 0.0;
   for (unsigned i=0; i<3; i++) {
@@ -10087,15 +10118,18 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   //
   double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
 
-  // Loop through ionization states
+  // Loop through ionization levels in p1
   //
   for (unsigned Q1=0; Q1<=Z1; Q1++) {
     
-    lQ Q(Z1, Q1+1);		// Ion key
+				// Ion key: lq(Z, C) where C=1 is the
+    lQ Q(Z1, Q1+1);		// ground state
 
 
+    // Loop through electron donor levels in p2
+    //
     for (unsigned Q2=1; Q2<=Z2; Q2++) {
-
+      
 
       //-------------------------------
       // *** Free-free

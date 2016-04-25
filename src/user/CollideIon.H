@@ -914,7 +914,8 @@ public:
 					sKeyDmap* const Fn, double *cr, double tau);
 
 
-  //! Check whether subdominant interactions are defined
+  //! Check whether subdominant interactions are defined (currently
+  //! only implemented for hybrid method)
   virtual bool selectSub() 
   { 
     if (aType == Hybrid) return true;

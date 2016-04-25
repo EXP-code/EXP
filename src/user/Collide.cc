@@ -1352,11 +1352,15 @@ void * Collide::collide_thread(void * arg)
 
 	} // Loop over trial pairs (fiducial interaction)
 	
+	//------------------------------------------------------------
 	// Subdominant interaction types
-	//
+	//------------------------------------------------------------
 
 	// Cycle through ions and possible electron pairs
 	//
+	//  +----- Boolean indicator defined by derived classes
+	//  |
+	//  v
 	if (selectSub()) {
 	
 	  // Step through all ions in cell
@@ -1385,6 +1389,7 @@ void * Collide::collide_thread(void * arg)
 
 	    for (auto v : iact.v) {
 
+	      // Skip dominant interation which is done
 	      if (v.first == maxT) continue;
 
 	      double wght = v.second;
