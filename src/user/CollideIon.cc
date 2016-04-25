@@ -5627,16 +5627,24 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (swapped) {
 	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q0;
 	ctd2->ff[id][0] += cF;
-	if (weight>0.0) ctd2->ff[id][1] += Nb * cF;
-	else            ctd2->ff[id][1] += NN;
-	ctd2->ff[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd2->ff[id][1] += Nb * cF;
+	  ctd2->ff[id][2] += Nb * dE;
+	} else {
+	  ctd2->ff[id][1] += NN;
+	  ctd2->ff[id][2] += N0 * dE;
+	}
 	Ion2Frac += cF;
       } else {
 	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q0;
 	ctd1->ff[id][0] += cF;
-	if (weight>0.0) ctd1->ff[id][1] += Na * cF;
-	else            ctd1->ff[id][1] += NN;
-	ctd1->ff[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd1->ff[id][1] += Na * cF;
+	  ctd1->ff[id][2] += Na * dE;
+	} else {
+	  ctd1->ff[id][1] += NN;
+	  ctd1->ff[id][2] += N0 * dE;
+	}
 	Ion1Frac += cF;
       }
 
@@ -5649,16 +5657,24 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (swapped) {
 	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
 	ctd2->CE[id][0] += cF * q0;
-	if (weight>0.0) ctd2->CE[id][1] += Nb * cF;
-	else            ctd2->CE[id][1] += NN;
-	ctd2->CE[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd2->CE[id][1] += Nb * cF;
+	  ctd2->CE[id][2] += Nb * dE;
+	} else {
+	  ctd2->CE[id][1] += NN;
+	  ctd2->CE[id][2] += N0 * dE;
+	}
 	Ion2Frac += cF;
       } else {
 	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
 	ctd1->CE[id][0] += cF * q0;
-	if (weight>0.0) ctd1->CE[id][1] += Na * cF;
-	else            ctd1->CE[id][1] += NN;
-	ctd1->CE[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd1->CE[id][1] += Na * cF;
+	  ctd1->CE[id][2] += Na * dE;
+	} else {
+	  ctd1->CE[id][1] += NN;
+	  ctd1->CE[id][2] += N0 * dE;
+	}
 	Ion1Frac += cF;
       }
 
@@ -5703,9 +5719,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd2->CI[id][0] += cF * q0; 
-	if (weight>0.0) ctd2->CI[id][1] += Nb * cF;
-	else            ctd2->CI[id][1] += NN;
-	ctd2->CI[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd2->CI[id][1] += Nb * cF;
+	  ctd2->CI[id][2] += Nb * dE;
+	} else {
+	  ctd2->CI[id][1] += NN;
+	  ctd2->CI[id][2] += N0 * dE;
+	}
 	Ion2Frac += cF;
 
 	if (IonRecombChk) {
@@ -5750,9 +5770,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd1->CI[id][0] += cF * q0; 
-	if (weight > 0.0) ctd1->CI[id][1] += Nb * cF;
-	else              ctd1->CI[id][1] += NN;
-	ctd1->CI[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd1->CI[id][1] += Na * cF;
+	  ctd1->CI[id][2] += Na * dE;
+	} else {
+	  ctd1->CI[id][1] += NN;
+	  ctd1->CI[id][2] += N0 * dE;
+	}
 	Ion1Frac += cF;
 
 	if (IonRecombChk) {
@@ -5802,9 +5826,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 	
 	ctd2->RR[id][0] += cF * q0;
-	if (weight > 0.0) ctd2->RR[id][1] += Nb * cF;
-	else              ctd2->RR[id][1] += NN;
-	ctd2->RR[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd2->RR[id][1] += Nb * cF;
+	  ctd2->RR[id][2] += Nb * dE;
+	} else {
+	  ctd2->RR[id][1] += NN;
+	  ctd2->RR[id][2] += N0 * dE;
+	}
 	Ion2Frac += cF;
       
 	// Add the KE from the recombined electron back to the free pool
@@ -5869,9 +5897,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 
 	ctd1->RR[id][0] += cF * q0;
-	if (weight > 0.0) ctd1->RR[id][1] += Na * cF;
-	else              ctd1->RR[id][1] += NN;
-	ctd1->RR[id][2] += dE * N0;
+	if (weight > 0.0) {
+	  ctd1->RR[id][1] += Na * cF;
+	  ctd1->RR[id][2] += Na * dE;
+	} else {
+	  ctd1->RR[id][1] += NN;
+	  ctd1->RR[id][2] += N0 * dE;
+	}
 	Ion1Frac += cF;
       
 	// Add the KE from the recombined electron back to the free pool
@@ -6057,10 +6089,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	} else {
-	  // p1->dattrib[use_cons] += delE;
-	  // p1->dattrib[use_cons] += 0.5*delE;
-	  // p2->dattrib[use_cons] += 0.5*delE;
-
 	  if (atomic_weights[Z1] < atomic_weights[Z2])
 	    p2->dattrib[use_cons] += delE;
 	  else
@@ -6221,10 +6249,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    // p1->dattrib[use_cons] += delE;
-	    // p1->dattrib[use_cons] += 0.5*delE;
-	    // p2->dattrib[use_cons] += 0.5*delE;
-
 	    if (atomic_weights[Z1] < atomic_weights[Z2])
 	      p2->dattrib[use_cons] += delE;
 	    else
