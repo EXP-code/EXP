@@ -5572,7 +5572,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     // Update the subspecies weight by the probability of interaction
     //
     if (weight >= 0.0) {
-      cF *= weight;
+				// Reassign interaction fraction
+      if (swapped)
+	cF = p2->dattrib[hybrid_pos+P2] * weight;
+      else
+	cF = p1->dattrib[hybrid_pos+P1] * weight;
+
 				// Remove trace weighting for
       q0  = 1.0;		// subdominant case
     }
@@ -10118,7 +10123,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   //
   double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
 
-  // Loop through ionization levels in p1
+  // Loop through ionization levels in p1.  p2 only donates an
+  // electron velocity and its weight does not matter.
   //
   for (unsigned Q1=0; Q1<=Z1; Q1++) {
     
@@ -10126,52 +10132,46 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     lQ Q(Z1, Q1+1);		// ground state
 
 
-    // Loop through electron donor levels in p2
-    //
-    for (unsigned Q2=1; Q2<=Z2; Q2++) {
+    //-------------------------------
+    // *** Free-free
+    //-------------------------------
+    {
+      double crs  = ch.IonList[Q]->freeFreeCross(ke, id);
+      double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+
+      if (Prob > 0.0) ret[Interact::T(free_free, Q1, 0)] = Prob;
+    }
+
+    //-------------------------------
+    // *** Collisional excitation
+    //-------------------------------
+    {
+      CE1[id]     = ch.IonList[Q]->collExciteCross(ke, id);
+      double crs  = CE1[id].back().first;
+      double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
+      if (Prob > 0.0) ret[Interact::T(colexcite, Q1, 0)] = Prob;
+    }
 
-      //-------------------------------
-      // *** Free-free
-      //-------------------------------
-      {
-	double crs  = ch.IonList[Q]->freeFreeCross(ke, id);
-	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+    //-------------------------------
+    // *** Ionization cross section
+    //-------------------------------
+    {
+      double crs  = ch.IonList[Q]->directIonCross(ke, id);
+      double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+      
+      if (Prob > 0.0) ret[Interact::T(ionize, Q1, 0)] = Prob;
+    }
 
-	if (Prob > 0.0) ret[Interact::T(free_free, Q1, Q2)] = Prob;
-      }
-
-      //-------------------------------
-      // *** Collisional excitation
-      //-------------------------------
-      {
-	CE1[id]     = ch.IonList[Q]->collExciteCross(ke, id);
-	double crs  = CE1[id].back().first;
-	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
-
-	if (Prob > 0.0) ret[Interact::T(colexcite, Q1, Q2)] = Prob;
-      }
-
-      //-------------------------------
-      // *** Ionization cross section
-      //-------------------------------
-      {
-	double crs  = ch.IonList[Q]->directIonCross(ke, id);
-	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
-	
-	if (Prob > 0.0) ret[Interact::T(ionize, Q1, Q2)] = Prob;
-      }
-
-      //-------------------------------
-      // *** Radiative recombination
-      //-------------------------------
-      {
-	std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(ke, id);
-	double crs = RE1.back();
-	double Prob = densE[id][k2] * crs * cunit * eVel * tau;
-	
-	if (Prob > 0.0) ret[Interact::T(recomb, Q1, Q2)] = Prob;
-      }
+    //-------------------------------
+    // *** Radiative recombination
+    //-------------------------------
+    {
+      std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(ke, id);
+      double crs = RE1.back();
+      double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+      
+      if (Prob > 0.0) ret[Interact::T(recomb, Q1, 0)] = Prob;
     }
   }
   
