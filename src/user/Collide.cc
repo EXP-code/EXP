@@ -1385,7 +1385,7 @@ void * Collide::collide_thread(void * arg)
 	    Particle* const p2 = tree->Body(bmap[i2][l2]);
 	  
 	    double cr = 0.0;
-	    Interact iact = generateSelectionSub(id, p1, p2, Fn, &cr, tau);
+	    Interact iact = generateSelectionSub(id, p1, p2, maxT, Fn, &cr, tau);
 
 	    for (auto v : iact.v) {
 
@@ -3312,7 +3312,7 @@ void Collide::NTCgather(pHOT* const tree)
       ntcVal[n].clear();
     }
 
-				// Accumulate into ntcTot
+				// Accumulate into wgtTot
     wgtTot.clear();
     for (int n=0; n<nthrds; n++) {
       wgtTot.insert(wgtTot.end(), wgtVal[n].begin(), wgtVal[n].end());

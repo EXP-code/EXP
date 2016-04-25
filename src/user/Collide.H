@@ -403,7 +403,8 @@ protected:
   //! Return the subdominant particle selection array.  Return empty
   //! container by default.
   virtual Interact generateSelectionSub
-  (int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
+  (int id, Particle* const p1, Particle* const p2, Interact::T& maxT,
+   sKeyDmap* const Fn, double *cr, double tau)
   { return Interact(); }
 
   //! Check whether subdominant interactions are defined.  Override

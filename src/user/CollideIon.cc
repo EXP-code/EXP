@@ -5472,6 +5472,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Number interacting atoms
   //
   double N0 = Wb * UserTreeDSMC::Munit / amu;
+  double Na = Wa * UserTreeDSMC::Munit / amu;
+  double Nb = Wb * UserTreeDSMC::Munit / amu;
 
   // For tracking energy conservation (system units)
   //
@@ -5625,15 +5627,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (swapped) {
 	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q0;
 	ctd2->ff[id][0] += cF;
-	ctd2->ff[id][1] += NN;
+	if (weight>0.0) ctd2->ff[id][1] += Nb * cF;
+	else            ctd2->ff[id][1] += NN;
 	ctd2->ff[id][2] += dE * N0;
 	Ion2Frac += cF;
       } else {
 	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q0;
-	ctd2->ff[id][0] += cF;
-	ctd2->ff[id][1] += NN;
-	ctd2->ff[id][2] += dE * N0;
-	Ion2Frac += cF;
+	ctd1->ff[id][0] += cF;
+	if (weight>0.0) ctd1->ff[id][1] += Na * cF;
+	else            ctd1->ff[id][1] += NN;
+	ctd1->ff[id][2] += dE * N0;
+	Ion1Frac += cF;
       }
 
       if (NO_FF_E) dE = 0.0;
@@ -5645,13 +5649,15 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (swapped) {
 	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
 	ctd2->CE[id][0] += cF * q0;
-	ctd2->CE[id][1] += NN;
+	if (weight>0.0) ctd2->CE[id][1] += Nb * cF;
+	else            ctd2->CE[id][1] += NN;
 	ctd2->CE[id][2] += dE * N0;
 	Ion2Frac += cF;
       } else {
 	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
 	ctd1->CE[id][0] += cF * q0;
-	ctd1->CE[id][1] += NN;
+	if (weight>0.0) ctd1->CE[id][1] += Na * cF;
+	else            ctd1->CE[id][1] += NN;
 	ctd1->CE[id][2] += dE * N0;
 	Ion1Frac += cF;
       }
@@ -5697,7 +5703,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd2->CI[id][0] += cF * q0; 
-	ctd2->CI[id][1] += NN;
+	if (weight>0.0) ctd2->CI[id][1] += Nb * cF;
+	else            ctd2->CI[id][1] += NN;
 	ctd2->CI[id][2] += dE * N0;
 	Ion2Frac += cF;
 
@@ -5743,7 +5750,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd1->CI[id][0] += cF * q0; 
-	ctd1->CI[id][1] += NN;
+	if (weight > 0.0) ctd1->CI[id][1] += Nb * cF;
+	else              ctd1->CI[id][1] += NN;
 	ctd1->CI[id][2] += dE * N0;
 	Ion1Frac += cF;
 
@@ -5794,7 +5802,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 	
 	ctd2->RR[id][0] += cF * q0;
-	ctd2->RR[id][1] += NN;
+	if (weight > 0.0) ctd2->RR[id][1] += Nb * cF;
+	else              ctd2->RR[id][1] += NN;
 	ctd2->RR[id][2] += dE * N0;
 	Ion2Frac += cF;
       
@@ -5860,7 +5869,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 
 	ctd1->RR[id][0] += cF * q0;
-	ctd1->RR[id][1] += NN;
+	if (weight > 0.0) ctd1->RR[id][1] += Na * cF;
+	else              ctd1->RR[id][1] += NN;
 	ctd1->RR[id][2] += dE * N0;
 	Ion1Frac += cF;
       
@@ -5926,14 +5936,19 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     
     if (Ion1Frac>0.0) {
       ctd1->dv[id][0] += cF; 
-      ctd1->dv[id][1] += Wb*cF;
-      ctd1->dv[id][2] += dE*Wb;
+      if (weight > 0.0) {
+	ctd1->dv[id][1] += Wa * cF;
+	ctd1->dv[id][2] += Wa * dE;
+      } else {
+	ctd1->dv[id][1] += Wb * cF;
+	ctd1->dv[id][2] += Wb * dE;
+      }
     }
     
     if (Ion2Frac>0.0) {
       ctd2->dv[id][0] += cF; 
-      ctd2->dv[id][1] += Wb*cF;
-      ctd2->dv[id][2] += dE*Wb;
+      ctd2->dv[id][1] += Wb * cF;
+      ctd2->dv[id][2] += Wb * dE;
     }
     
   } // END: compute this interaction [ok]
@@ -5941,8 +5956,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // Convert to super particle
   //
   if (weight >= 0.0) {
-    if (swapped) delE *= Wb * UserTreeDSMC::Munit / amu;
-    else         delE *= Wa * UserTreeDSMC::Munit / amu;
+    if (swapped) delE *= Nb;
+    else         delE *= Na;
   } else {
     delE *= N0;
   }
@@ -8891,11 +8906,12 @@ Collide::sKey2Amap CollideIon::generateSelection
 }
 
 Collide::Interact
-CollideIon::generateSelectionSub(int id, Particle* const p1, Particle* const p2, 
-				 sKeyDmap* const Fn, double *cr, double tau)
+CollideIon::generateSelectionSub(int id, Particle* const p1, Particle* const p2,
+				 Interact::T& maxT, sKeyDmap* const Fn,
+				 double *cr, double tau)
 {
   if (aType == Hybrid)
-    return generateSelectionHybridSub(id, p1, p2, Fn, cr, tau);
+    return generateSelectionHybridSub(id, p1, p2, maxT, Fn, cr, tau);
   else
     return Interact();		// Empty map
 }
@@ -10088,7 +10104,8 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 // particles p1 and p2
 //
 Collide::Interact CollideIon::generateSelectionHybridSub
-(int id, Particle* const p1, Particle* const p2, sKeyDmap* const Fn, double *cr, double tau)
+(int id, Particle* const p1, Particle* const p2, Interact::T& maxT,
+ sKeyDmap* const Fn, double *cr, double tau)
 {
   // Map all allowed inelastic interactions for particles p1 and p2
   //
@@ -10139,6 +10156,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = ch.IonList[Q]->freeFreeCross(ke, id);
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
 
+      if (std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
+	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+      
       if (Prob > 0.0) ret[Interact::T(free_free, Q1, 0)] = Prob;
     }
 
@@ -10150,6 +10170,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = CE1[id].back().first;
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
+      if (std::get<0>(maxT) == colexcite and std::get<1>(maxT) == Q1)
+	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+
       if (Prob > 0.0) ret[Interact::T(colexcite, Q1, 0)] = Prob;
     }
 
@@ -10160,6 +10183,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = ch.IonList[Q]->directIonCross(ke, id);
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
+      if (std::get<0>(maxT) == ionize and std::get<1>(maxT) == Q1)
+	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+
       if (Prob > 0.0) ret[Interact::T(ionize, Q1, 0)] = Prob;
     }
 
@@ -10171,6 +10197,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs = RE1.back();
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
+      if (std::get<0>(maxT) == recomb and std::get<1>(maxT) == Q1)
+	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+
       if (Prob > 0.0) ret[Interact::T(recomb, Q1, 0)] = Prob;
     }
   }

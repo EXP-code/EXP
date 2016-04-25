@@ -692,7 +692,8 @@ protected:
 					    double& totalNsel);
 
   virtual Interact  generateSelectionHybridSub(int id, Particle* const p1, Particle* const p2, 
-					       sKeyDmap* const Fn, double *cr, double tau);
+					       Interact::T& maxT, sKeyDmap* const Fn,
+					       double *cr, double tau);
 
   //! Cache instance of current tree
   pHOT* curTree;
@@ -910,7 +911,7 @@ public:
 				      double& totalNsel);
 
   //! Generate subdominate interaction rates
-  virtual Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, 
+  virtual Interact generateSelectionSub(int id, Particle* const p1, Particle* const p2, Interact::T& maxT,
 					sKeyDmap* const Fn, double *cr, double tau);
 
 
