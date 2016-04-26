@@ -5573,13 +5573,32 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     // Update the subspecies weight by the probability of interaction
     //
+    double keW = 0.0;
     if (weight >= 0.0) {
-				// Reassign interaction fraction
-      if (swapped)
-	cF = p2->dattrib[hybrid_pos+P2] * weight;
-      else
-	cF = p1->dattrib[hybrid_pos+P1] * weight;
+      double m1 = atomic_weights[Z1]*amu;
+      double m2 = atomic_weights[Z2]*amu;
+      double me = atomic_weights[ 0]*amu;
 
+				// Reassign interaction fraction
+      if (swapped) {
+	cF = p2->dattrib[hybrid_pos+P2] * weight;
+				// Interaction KE
+	for (unsigned i=0; i<3; i++) {
+	  double rvel = p1->dattrib[use_elec+i] - p2->vel[i];
+	  keW += rvel * rvel;
+	}
+	keW *= 0.5 * m2 * me / (m2 + me);
+      } else {
+	cF = p1->dattrib[hybrid_pos+P1] * weight;
+	// Interaction KE
+	for (unsigned i=0; i<3; i++) {
+	  double rvel = p2->dattrib[use_elec+i] - p1->vel[i];
+	  keW += rvel * rvel;
+	}
+	keW *= 0.5 * m1 * me / (m1 + me) * 
+	  UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
+      }
+      keW = std::max<double>(keW, FloorEv);
 				// Remove trace weighting for
       q0  = 1.0;		// subdominant case
     }
@@ -5625,6 +5644,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
+	if (weight>0.0) ch.IonList[Q2]->freeFreeCross(keW, id);
 	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q0;
 	ctd2->ff[id][0] += cF;
 	if (weight > 0.0) {
@@ -5636,6 +5656,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
+	if (weight>0.0) ch.IonList[Q1]->freeFreeCross(keW, id);
 	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q0;
 	ctd1->ff[id][0] += cF;
 	if (weight > 0.0) {
@@ -5655,6 +5676,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
+	if (weight>0.0) CE1[id] = ch.IonList[Q2]->collExciteCross(keW, id);
 	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
 	ctd2->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
@@ -5666,6 +5688,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
+	if (weight>0.0) CE1[id] = ch.IonList[Q1]->collExciteCross(keW, id);
 	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
 	ctd1->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
