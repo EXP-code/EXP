@@ -36,7 +36,7 @@ public:
   (const boost::shared_ptr<Ion> a, const Ion::collType& cumCross);
 
   //! Compute the free-free radiated energy based on the electron velocity
-  double selectFFInteract(const boost::shared_ptr<Ion> a, int id);
+  double selectFFInteract(const std::pair<double, double>& d) { return d.second; }
 
   //! Return the lost ionization energy and adjust ionization state
   double DIInterLoss(const boost::shared_ptr<Ion> a);

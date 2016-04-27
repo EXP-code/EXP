@@ -354,7 +354,8 @@ private:
   
   //@{
   //! Inelastic work space
-  typedef std::vector< std::pair<double, double> >   CEvector;
+  typedef std::pair<double, double>                  CFreturn;
+  typedef std::vector<CFreturn>                      CEvector;
   typedef std::pair<speciesKey, speciesKey>          dKey;
   typedef std::pair<dKey, double>                    dKeyD;
   typedef std::map<speciesKey, std::vector<double> > keyCross;
@@ -373,6 +374,7 @@ private:
   std::vector< keyWexsList >                         excessW;
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
+  std::vector< CFreturn >                            FF1, FF2;
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              numEf, colSc;

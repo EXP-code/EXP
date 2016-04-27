@@ -342,6 +342,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   excessW  .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
+  FF1      .resize(nthrds);
+  FF2      .resize(nthrds);
   kCE      .resize(nthrds);
   kEi      .resize(nthrds);
   kEe1     .resize(nthrds);
@@ -1120,22 +1122,32 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
 
+	      std::vector<CFreturn> ff3;
+
+	      for (size_t u=0; u<3; u++) {
+		ff3.push_back(ch.IonList[lQ(Z1, C1+1)]->freeFreeCross(E1s[u], id));
+		ff3.back().first *= eVels[u];
+	      }
+
+	      std::sort(ff3.begin(), ff3.end(), 
+			[](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
+
 	      csections[id][i1][i2][Interact::T(free_free, C1, C2)] = 
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z1, C1+1)]->freeFreeCross(E1s[0], id) * eVels[0],
-		    ch.IonList[lQ(Z1, C1+1)]->freeFreeCross(E1s[1], id) * eVels[1],
-		    ch.IonList[lQ(Z1, C1+1)]->freeFreeCross(E1s[2], id) * eVels[2],
-		  } ) / rvmax * C2 * crs_units * 
+		ff3.back().first / rvmax * C2 * crs_units * 
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 
-	      csections[id][i2][i1][Interact::T(free_free, C2, C1)] = 
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z2, C2+1)]->freeFreeCross(E2s[0], id) * eVels[0],
-		    ch.IonList[lQ(Z2, C2+1)]->freeFreeCross(E2s[1], id) * eVels[1],
-		    ch.IonList[lQ(Z2, C2+1)]->freeFreeCross(E2s[2], id) * eVels[2]
-		  } ) / rvmax * C1 * crs_units * 
+	      ff3.clear();
+
+	      for (size_t u=0; u<3; u++) {
+		ff3.push_back(ch.IonList[lQ(Z2, C2+1)]->freeFreeCross(E2s[u], id));
+		ff3.back().first *= eVels[u];
+	      }
+
+	      std::sort(ff3.begin(), ff3.end(), 
+			[](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
+
+	      csections[id][i1][i1][Interact::T(free_free, C2, C1)] = 
+		ff3.back().first / rvmax * C1 * crs_units * 
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1843,8 +1855,9 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
-    double ff1 = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
-    double crs = eVel2 * ne2 * ff1;
+    FF1[id] = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
+
+    double crs = eVel2 * ne2 * FF1[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -1905,8 +1918,9 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 				// *** Free-free
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
-    double ff2 = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * ff2;
+    FF2[id] = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
+
+    double crs = eVel1 * ne1 * FF2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2175,8 +2189,9 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
 				//-------------------------------
   if (C1 > 1 and ne2 > 0) {	// Ion and Ion only
 
-    double ff1 = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
-    double crs = eVel2 * ne2 * ff1;
+    FF1[id] = ch.IonList[Q1]->freeFreeCross(kEe1[id], id);
+
+    double crs = eVel2 * ne2 * FF1[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2239,8 +2254,9 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
 				//-------------------------------
   if (C2 > 1 and ne1 > 0) {
 
-    double ff2 = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
-    double crs = eVel1 * ne1 * ff2;
+    FF2[id] = ch.IonList[Q2]->freeFreeCross(kEe2[id], id);
+
+    double crs = eVel1 * ne1 * FF2[id].first;
 
     if (crs>0.0) {
       dCross[id].push_back(crs);
@@ -2533,8 +2549,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
   if (std::get<0>(itype) == free_free) {
 
     double ke   = std::max<double>(kEe1[id], FloorEv);
-    double ff1  = ch.IonList[Q1]->freeFreeCross(ke, id);
-    double crs  = eVel2 * C2 * ff1 * cfac;
+    FF1[id]  = ch.IonList[Q1]->freeFreeCross(ke, id);
+    double crs  = eVel2 * C2 * FF1[id].first * cfac;
 
     if (std::isinf(crs)) crs = 0.0; // Sanity check
 
@@ -2745,8 +2761,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 				// *** Free-free
 				//-------------------------------
     if (C > 1 and meanE[id] > 0) {
-      double ff = ch.IonList[Q]->freeFreeCross(kEe, id);
-      double crs = meanE[id] * eVel * ff;
+      FF1[id] = ch.IonList[Q]->freeFreeCross(kEe, id);
+      double crs = meanE[id] * eVel * FF1[id].first;
 
       if (crs>0.0) {
 	tCrossMap.push_back(crs);
@@ -3004,7 +3020,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == free_free_1) {
-      delE          = IS.selectFFInteract(ch.IonList[Q1], id);
+      delE          = IS.selectFFInteract(FF1[id]);
       partflag      = 1;
       ctd1->ff[id][0] += 1; 
       ctd1->ff[id][1] += NN;
@@ -3061,7 +3077,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     }
 
     if (interFlag == free_free_2) {
-      delE          = IS.selectFFInteract(ch.IonList[Q2], id);
+      delE          = IS.selectFFInteract(FF2[id]);
       partflag      = 2;
       ctd2->ff[id][0] += 1;
       ctd2->ff[id][1] += NN;
@@ -4019,7 +4035,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     }
 
     if (interFlag == free_free_1) {
-      delE          = IS.selectFFInteract(ch.IonList[Q1], id);
+      delE          = IS.selectFFInteract(FF1[id]);
       partflag      = 1;
       if (NO_FF_E) delE = 0.0;
       ctd1->ff[id][0] += 1; 
@@ -4098,7 +4114,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     }
 
     if (interFlag == free_free_2) {
-      delE          = IS.selectFFInteract(ch.IonList[Q2], id);
+      delE          = IS.selectFFInteract(FF2[id]);
       partflag      = 2;
       if (NO_FF_E) delE = 0.0;
       ctd2->ff[id][0] += 1;
@@ -5595,12 +5611,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  double rvel = p2->dattrib[use_elec+i] - p1->vel[i];
 	  keW += rvel * rvel;
 	}
-	keW *= 0.5 * m1 * me / (m1 + me) * 
-	  UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
+	keW *= 0.5 * m1 * me / (m1 + me);
       }
-      keW = std::max<double>(keW, FloorEv);
+
+      keW *= UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
+      keW  = std::max<double>(keW, FloorEv);
 				// Remove trace weighting for
-      q0  = 1.0;		// subdominant case
+      q0   = 1.0;		// subdominant case
     }
 
     double NN = N0 * cF;
@@ -5644,8 +5661,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
-	if (weight>0.0) ch.IonList[Q2]->freeFreeCross(keW, id);
-	dE = IS.selectFFInteract(ch.IonList[Q2], id) * cF * q0;
+	dE = IS.selectFFInteract(FF2[id]) * cF * q0;
 	ctd2->ff[id][0] += cF;
 	if (weight > 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
@@ -5656,8 +5672,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	if (weight>0.0) ch.IonList[Q1]->freeFreeCross(keW, id);
-	dE = IS.selectFFInteract(ch.IonList[Q1], id) * cF * q0;
+	dE = IS.selectFFInteract(FF1[id]) * cF * q0;
 	ctd1->ff[id][0] += cF;
 	if (weight > 0.0) {
 	  ctd1->ff[id][1] += Na * cF;
@@ -5676,7 +5691,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
-	if (weight>0.0) CE1[id] = ch.IonList[Q2]->collExciteCross(keW, id);
 	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
 	ctd2->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
@@ -5688,7 +5702,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	if (weight>0.0) CE1[id] = ch.IonList[Q1]->collExciteCross(keW, id);
 	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
 	ctd1->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
@@ -6875,7 +6888,7 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
       //--------------------------------------------------
 
       if (interFlag == free_free) {
-	double dE = IS.selectFFInteract(ch.IonList[Q], id);
+	double dE = IS.selectFFInteract(FF1[id]);
 
 	delE1 = dE * N1;
 	delE2 = dE * N2;
@@ -10200,8 +10213,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     // *** Free-free
     //-------------------------------
     {
-      double crs  = ch.IonList[Q]->freeFreeCross(ke, id);
-      double Prob = densE[id][k2] * crs * cunit * eVel * tau;
+      FF1[id] = ch.IonList[Q]->freeFreeCross(ke, id);
+      double Prob = densE[id][k2] * FF1[id].first * cunit * eVel * tau;
 
       if (std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
 	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
