@@ -5416,7 +5416,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   unsigned short Z1 = k1.getKey().first;
   unsigned short Z2 = k2.getKey().first;
 
-  if (SAME_INTERACT and Z1 != Z2) return 0;
+  if (SAME_INTERACT and Z1 != Z2) return ret;
 
   bool swapped = false;
 
@@ -5985,7 +5985,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     
   } // END: compute this interaction [ok]
 
-  // Convert to super particle
+  // Convert to super particle (current in eV)
   //
   if (weight >= 0.0) {
     if (swapped) delE *= Nb;
@@ -6000,7 +6000,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   
   // Debugging test
   //
-  if (SAME_IONS_SCAT and Z1 != Z2) return 0;
+  if (SAME_IONS_SCAT and Z1 != Z2) return ret;
 
   // Work vectors
   //
