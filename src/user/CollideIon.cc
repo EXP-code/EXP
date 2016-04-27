@@ -344,6 +344,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   CE2      .resize(nthrds);
   FF1      .resize(nthrds);
   FF2      .resize(nthrds);
+  CEm      .resize(nthrds);
+  FFm      .resize(nthrds);
   kCE      .resize(nthrds);
   kEi      .resize(nthrds);
   kEe1     .resize(nthrds);
@@ -5589,33 +5591,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     // Update the subspecies weight by the probability of interaction
     //
-    double keW = 0.0;
     if (weight >= 0.0) {
-      double m1 = atomic_weights[Z1]*amu;
-      double m2 = atomic_weights[Z2]*amu;
-      double me = atomic_weights[ 0]*amu;
-
 				// Reassign interaction fraction
-      if (swapped) {
-	cF = p2->dattrib[hybrid_pos+P2] * weight;
-				// Interaction KE
-	for (unsigned i=0; i<3; i++) {
-	  double rvel = p1->dattrib[use_elec+i] - p2->vel[i];
-	  keW += rvel * rvel;
-	}
-	keW *= 0.5 * m2 * me / (m2 + me);
-      } else {
-	cF = p1->dattrib[hybrid_pos+P1] * weight;
-	// Interaction KE
-	for (unsigned i=0; i<3; i++) {
-	  double rvel = p2->dattrib[use_elec+i] - p1->vel[i];
-	  keW += rvel * rvel;
-	}
-	keW *= 0.5 * m1 * me / (m1 + me);
-      }
+      if (swapped) cF = p2->dattrib[hybrid_pos+P2] * weight;
+      else         cF = p1->dattrib[hybrid_pos+P1] * weight;
 
-      keW *= UserTreeDSMC::Vunit * UserTreeDSMC::Vunit / eV;
-      keW  = std::max<double>(keW, FloorEv);
 				// Remove trace weighting for
       q0   = 1.0;		// subdominant case
     }
@@ -5661,7 +5641,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
-	dE = IS.selectFFInteract(FF2[id]) * cF * q0;
+	if (weight >= 0.0)
+	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF * q0;
+	else
+	  dE = IS.selectFFInteract(FF2[id]) * cF * q0;
 	ctd2->ff[id][0] += cF;
 	if (weight > 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
@@ -5672,7 +5655,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	dE = IS.selectFFInteract(FF1[id]) * cF * q0;
+	if (weight >= 0.0)
+	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF * q0;
+	else
+	  dE = IS.selectFFInteract(FF1[id]) * cF * q0;
 	ctd1->ff[id][0] += cF;
 	if (weight > 0.0) {
 	  ctd1->ff[id][1] += Na * cF;
@@ -5691,7 +5677,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
-	dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
+	if (weight >= 0.0)
+	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF * q0;
+	else
+	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
 	ctd2->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
 	  ctd2->CE[id][1] += Nb * cF;
@@ -5702,7 +5691,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
+	if (weight >= 0.0)
+	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF * q0;
+	else
+	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
 	ctd1->CE[id][0] += cF * q0;
 	if (weight > 0.0) {
 	  ctd1->CE[id][1] += Na * cF;
@@ -10213,8 +10205,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     // *** Free-free
     //-------------------------------
     {
-      FF1[id] = ch.IonList[Q]->freeFreeCross(ke, id);
-      double Prob = densE[id][k2] * FF1[id].first * cunit * eVel * tau;
+      FFm[id][Q]  = ch.IonList[Q]->freeFreeCross(ke, id);
+      double Prob = densE[id][k2] * FFm[id][Q].first * cunit * eVel * tau;
 
       if (std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
 	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
@@ -10226,8 +10218,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     // *** Collisional excitation
     //-------------------------------
     {
-      CE1[id]     = ch.IonList[Q]->collExciteCross(ke, id);
-      double crs  = CE1[id].back().first;
+      CEm[id][Q]  = ch.IonList[Q]->collExciteCross(ke, id);
+      double crs  = CEm[id][Q].back().first;
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
       if (std::get<0>(maxT) == colexcite and std::get<1>(maxT) == Q1)
