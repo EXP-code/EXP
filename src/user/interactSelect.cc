@@ -40,13 +40,6 @@ double InteractSelect::selectCEInteract
   return 0.0;
 }
 
-double InteractSelect::selectFFInteract(const boost::shared_ptr<Ion> a, int id)
-{
-  std::map<int, double>::const_iterator it = a->ffWaveCrossN.find(id);
-  if (it != a->ffWaveCrossN.end()) return it->second;
-  else return 0.0;
-}
-
 
 double InteractSelect::DIInterLoss(const boost::shared_ptr<Ion> a) 
 {
