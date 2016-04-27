@@ -428,18 +428,6 @@ public:
   std::string MasterName;
 
   //@{
-  //! Cross sections that are dynamic
-  std::map<int, std::vector< std::pair<double, double> > > CEcrossCum;
-  std::map<int, std::vector< double > >                    ffDiffCrossN;
-  std::map<int, std::vector< double > >                    ffCumlCrossN;
-  std::map<int, double >                                   ffWaveCrossN;
-  std::vector< std::vector < double> >                     ffDiffCrossU;
-  std::vector< std::vector < double> >                     ffCumlCrossU;
-  std::map<int, std::vector< double > >                    radRecCrossCum;
-  std::map<int, double >                                   diCross;
-  //@}
-  
-  //@{
   //! Grid values for the various cross sections
   std::vector< double > egrid;
   std::vector< double > kgrid;
@@ -466,11 +454,13 @@ public:
       calculate the cross section is 3BN(a) from Koch & Motz, 1959 
 
       ** Non-relativistic limit
+
+      First value is cross section, second is photon energy
   */
-  double freeFreeCross(double E, int id);
+  std::pair<double, double> freeFreeCross(double E, int id);
 
   //! Return type for collisional excitation cross-section data
-  typedef std::vector< std::pair<double, double > > collType;
+  typedef std::vector< std::pair<double, double> > collType;
 
   //! Get the collisional excitation cross section
   collType collExciteCross(double E, int id);

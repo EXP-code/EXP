@@ -732,7 +732,6 @@ Ion::collExciteCross(double E, int id)
 				// cross section
   if (splups.size() == 0) {
     CEcum.push_back(Null);
-    CEcrossCum[id] = CEcum;
     return CEcum;
   }
 
@@ -854,7 +853,6 @@ Ion::collExciteCross(double E, int id)
   
   if (CEcum.size() == 0) CEcum.push_back(Null);
   
-  CEcrossCum[id] = CEcum;
   return CEcum;
 }
 
@@ -926,7 +924,6 @@ double Ion::directIonCross(double E, int id)
   double F, qr, cross;
   
   if (C == (Z+1)) {
-    diCross[id] = 0;
     return -1;
   }
 
@@ -977,8 +974,6 @@ double Ion::directIonCross(double E, int id)
     }
   }
 
-  diCross[id] = cross;
-
   return cross;
 }
 
@@ -988,11 +983,11 @@ double Ion::directIonCross(double E, int id)
 
     Using the parametrization by Greene (1959)
  */
-double Ion::freeFreeCross(double Ei, int id) 
+std::pair<double, double> Ion::freeFreeCross(double Ei, int id) 
 {
   // No free-free with a neutral
   //
-  if (C==1) return 0.0;
+  if (C==1) return std::pair<double, double>(0.0, 0.0);
 
   // Scaled inverse energy (initial)
   //
@@ -1036,8 +1031,7 @@ double Ion::freeFreeCross(double Ei, int id)
   }
 
 
-  double phi = 0.0;
-  ffWaveCrossN[id] = 0.0;
+  double phi = 0.0, ffWaveCross = 0.0;
 
   // If cross section is offgrid, set values to zero
   //
@@ -1086,7 +1080,7 @@ double Ion::freeFreeCross(double Ei, int id)
     
     // Assign the photon energy
     //
-    ffWaveCrossN[id] = pow(10, k) * hbc;
+    ffWaveCross = pow(10, k) * hbc;
 
     // Assign the total cross section
     //
@@ -1098,7 +1092,7 @@ double Ion::freeFreeCross(double Ei, int id)
     phi = cuml.back();
   }
 
-  return phi;
+  return std::pair<double, double>(phi, ffWaveCross);
 }
 
 
@@ -1253,7 +1247,7 @@ std::vector<double> Ion::radRecombCrossKramers(double E, int id)
   }
 
   radRecCum.push_back(cross);
-  radRecCrossCum[id] = radRecCum;
+
   return radRecCum;
 }
 
@@ -1364,8 +1358,6 @@ std::vector<double> Ion::radRecombCrossMewe(double E, int id)
   //                        v
   radRecCum.push_back(cross*1.0e18);
 
-  radRecCrossCum[id] = radRecCum;
-
   return radRecCum;
 }
 
@@ -1415,7 +1407,7 @@ std::vector<double> Ion::radRecombCrossSpitzer(double E, int id)
     }
   }
   radRecCum.push_back(cross);
-  radRecCrossCum[id] = radRecCum;
+
   return radRecCum;
 }
 
@@ -1443,7 +1435,7 @@ std::vector<double> Ion::radRecombCrossTopBase(double E, int id)
   //
   TopBase::iKey k(Z, C);
   std::vector<double> ret(1, ch->tb->sigmaFB(k, E));
-  radRecCrossCum[id] = ret;
+
   return ret;
 }
 
@@ -1456,7 +1448,7 @@ std::vector<double> Ion::radRecombCrossVerner(double E, int id)
   //
   lQ Q(Z, C);
   std::vector<double> ret(1, ch->VernerXC.cross(Q, E));
-  radRecCrossCum[id] = ret;
+
   return ret;
 }
 

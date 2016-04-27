@@ -208,7 +208,7 @@ int main (int ac, char **av)
       coul = M_PI*b90*b90 * 4.0*mrat/pt[Z]->weight() * logL;
     }
 
-    double ffre = ch.IonList[Q]->freeFreeCross(EeV, 0);
+    std::pair<double, double> ffre = ch.IonList[Q]->freeFreeCross(EeV, 0);
 
     double ionz = ch.IonList[Q]->directIonCross(EeV, 0);
 
@@ -247,7 +247,7 @@ int main (int ac, char **av)
 	      << std::setw(16) << geom       * 1.0e+04 // Mb
 	      << std::setw(16) << elas       * 1.0e+04 // Mb
 	      << std::setw(16) << coul       * 1.0e+04 // Mb
-	      << std::setw(16) << ffre       * 1.0e+04 // Mb
+	      << std::setw(16) << ffre.first * 1.0e+04 // Mb
 	      << std::setw(16) << coll       * 1.0e+04 // Mb
 	      << std::setw(16) << ionz       * 1.0e+04 // Mb
 	      << std::setw(16) << RE1.back() * 1.0e+04 // Mb
