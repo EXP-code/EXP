@@ -10193,7 +10193,7 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
 
 				// Cache assigned energy
-  kE1[id] = kE2[id] = ke;
+  kEe1[id] = kEe2[id] = ke;
 
   // Loop through ionization levels in p1.  p2 only donates an
   // electron velocity and its weight does not matter.
