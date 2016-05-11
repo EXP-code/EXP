@@ -173,8 +173,10 @@ public:
   //@}
 
   //! Container for interaction list to add UI to data types
-  struct Interact
+  class Interact
   {
+  public:
+
     typedef std::tuple<unsigned short, unsigned short, unsigned short> T;
 
     //! Default interaction key for singleton
@@ -185,6 +187,9 @@ public:
 
     //! Single double value
     double d;
+
+    //! Constructor (for initialization)
+    Interact() : d(0) {}
 
     //! Is map empty?
     bool operator!() { return v.size() == 0; }
