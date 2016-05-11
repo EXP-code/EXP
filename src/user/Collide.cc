@@ -1204,7 +1204,7 @@ void * Collide::collide_thread(void * arg)
 
 	unsigned nselTot = 0;
 	
-	Interact::T maxT;
+	Interact::T maxT = Interact::singleton;
 
 	// Single interaction type
 	//
@@ -1369,6 +1369,9 @@ void * Collide::collide_thread(void * arg)
 	  size_t num2 = bmap[i2].size();
 	  size_t l1, l2;
 
+	  // For each particle, l1, randomly pick an interaction
+	  // companion, l2
+	  //
 	  for (l1=0; l1<num1; l1++) {
 
 	    if (i1 == i2) {
@@ -1387,19 +1390,25 @@ void * Collide::collide_thread(void * arg)
 	    double cr = 0.0;
 	    Interact iact = generateSelectionSub(id, p1, p2, maxT, Fn, &cr, tau);
 
+	    // iact.v is a map of all allowed interation types using
+	    // the Interact::T key
+	    //
 	    for (auto v : iact.v) {
 
-	      // Skip dominant interation which is done
+	      // Skip dominant interation which has been done
 	      if (v.first == maxT) continue;
 
-	      double wght = v.second;
+	      // Probability of interaction
+	      //
+	      double Prob = v.second;
 
-	      // Diagnostic
-	      wgtVal[id].push_back(wght);
-	      
 	      // Do inelastic stuff
 	      //
-	      error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, wght);
+	      error1T[id] += inelastic(id, c, p1, p2, &cr, v.first, Prob);
+	      
+	      // For tabulated diagnostic
+	      //
+	      wgtVal[id].push_back(Prob);
 	      
 	    } // Inelastic computation for subspecies
 	    

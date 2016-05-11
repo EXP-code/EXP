@@ -625,7 +625,7 @@ protected:
 
   virtual int 
   inelastic(int id, pCell* const c, Particle* const p1, Particle* const p2, 
-	    double *crm, const Interact::T& itype, double weight)
+	    double *crm, const Interact::T& itype, double prob)
   {
     if (aType == Direct)
       return inelasticDirect(id, c, p1, p2, crm);
@@ -637,7 +637,7 @@ protected:
       return inelasticTrace (id, c, p1, p2, crm);
 
     if (aType == Hybrid)
-      return inelasticHybrid(id, c, p1, p2, crm, itype, weight);
+      return inelasticHybrid(id, c, p1, p2, crm, itype, prob);
 
     return 1;
   }

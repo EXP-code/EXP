@@ -5414,7 +5414,7 @@ bool use_normtest = true;
 
 int CollideIon::inelasticHybrid(int id, pCell* const c, 
 				Particle* const _p1, Particle* const _p2,
-				double *cr, const Interact::T& itype, double weight)
+				double *cr, const Interact::T& itype, double prob)
 {
   int ret         =  0;		// No error (flag)
   int interFlag   = -1;		// Invalid value by default
@@ -5591,10 +5591,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     // Update the subspecies weight by the probability of interaction
     //
-    if (weight >= 0.0) {
+    if (prob >= 0.0) {
 				// Reassign interaction fraction
-      if (swapped) cF = p2->dattrib[hybrid_pos+P2] * weight;
-      else         cF = p1->dattrib[hybrid_pos+P1] * weight;
+      if (swapped) cF = p2->dattrib[hybrid_pos+P2] * prob;
+      else         cF = p1->dattrib[hybrid_pos+P1] * prob;
 
 				// Remove trace weighting for
       q0   = 1.0;		// subdominant case
@@ -5641,12 +5641,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
-	if (weight >= 0.0)
+	if (prob >= 0.0)
 	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF * q0;
 	else
 	  dE = IS.selectFFInteract(FF2[id]) * cF * q0;
+
 	ctd2->ff[id][0] += cF;
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
 	  ctd2->ff[id][2] += Nb * dE;
 	} else {
@@ -5655,12 +5656,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	if (weight >= 0.0)
+	if (prob >= 0.0)
 	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF * q0;
 	else
 	  dE = IS.selectFFInteract(FF1[id]) * cF * q0;
 	ctd1->ff[id][0] += cF;
-	if (weight > 0.0) {
+
+	if (prob > 0.0) {
 	  ctd1->ff[id][1] += Na * cF;
 	  ctd1->ff[id][2] += Na * dE;
 	} else {
@@ -5677,12 +5679,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
-	if (weight >= 0.0)
+	if (prob >= 0.0)
 	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF * q0;
 	else
 	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
+
 	ctd2->CE[id][0] += cF * q0;
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd2->CE[id][1] += Nb * cF;
 	  ctd2->CE[id][2] += Nb * dE;
 	} else {
@@ -5691,12 +5694,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
-	if (weight >= 0.0)
+	if (prob >= 0.0)
 	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF * q0;
 	else
 	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
+
 	ctd1->CE[id][0] += cF * q0;
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd1->CE[id][1] += Na * cF;
 	  ctd1->CE[id][2] += Na * dE;
 	} else {
@@ -5747,7 +5751,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd2->CI[id][0] += cF * q0; 
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd2->CI[id][1] += Nb * cF;
 	  ctd2->CI[id][2] += Nb * dE;
 	} else {
@@ -5798,7 +5802,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd1->CI[id][0] += cF * q0; 
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd1->CI[id][1] += Na * cF;
 	  ctd1->CI[id][2] += Na * dE;
 	} else {
@@ -5854,7 +5858,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 	
 	ctd2->RR[id][0] += cF * q0;
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd2->RR[id][1] += Nb * cF;
 	  ctd2->RR[id][2] += Nb * dE;
 	} else {
@@ -5925,7 +5929,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 
 	ctd1->RR[id][0] += cF * q0;
-	if (weight > 0.0) {
+	if (prob > 0.0) {
 	  ctd1->RR[id][1] += Na * cF;
 	  ctd1->RR[id][2] += Na * dE;
 	} else {
@@ -5996,7 +6000,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     
     if (Ion1Frac>0.0) {
       ctd1->dv[id][0] += cF; 
-      if (weight > 0.0) {
+      if (prob > 0.0) {
 	ctd1->dv[id][1] += Wa * cF;
 	ctd1->dv[id][2] += Wa * dE;
       } else {
@@ -6015,7 +6019,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Convert to super particle (current in eV)
   //
-  if (weight >= 0.0) {
+  if (prob >= 0.0) {
     if (swapped) delE *= Nb;
     else         delE *= Na;
   } else {
@@ -6053,7 +6057,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // If this is a subspecies interaction, record the energy loss and
   // return to caller
   //
-  if (weight >= 0.0) {
+  if (prob >= 0.0) {
 
     if (atomic_weights[Z1] == atomic_weights[Z2]) {
       p1->dattrib[use_cons] += 0.5*delE;
@@ -10193,7 +10197,7 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
 
 				// Cache assigned energy
-  kE1[id] = kE2[id] = ke;
+  kEe1[id] = kEe2[id] = ke;
 
   // Loop through ionization levels in p1.  p2 only donates an
   // electron velocity and its weight does not matter.
@@ -10207,7 +10211,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     //-------------------------------
     // *** Free-free
     //-------------------------------
-    {
+    if (Q1>0) {
+
       FFm[id][Q]  = ch.IonList[Q]->freeFreeCross(ke, id);
       double Prob = densE[id][k2] * FFm[id][Q].first * cunit * eVel * tau;
 
@@ -10220,7 +10225,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     //-------------------------------
     // *** Collisional excitation
     //-------------------------------
-    {
+    if (Q1 < Z1) {
+
       CEm[id][Q]  = ch.IonList[Q]->collExciteCross(ke, id);
       double crs  = CEm[id][Q].back().first;
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
@@ -10234,7 +10240,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     //-------------------------------
     // *** Ionization cross section
     //-------------------------------
-    {
+    if (Q1 < Z1) {
+
       double crs  = ch.IonList[Q]->directIonCross(ke, id);
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
@@ -10247,7 +10254,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
     //-------------------------------
     // *** Radiative recombination
     //-------------------------------
-    {
+    if (Q1 > 0) {
+
       std::vector<double> RE1 = ch.IonList[Q]->radRecombCross(ke, id);
       double crs = RE1.back();
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
