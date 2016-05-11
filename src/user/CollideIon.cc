@@ -5642,9 +5642,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (swapped) {
 	if (prob >= 0.0)
-	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF * q0;
+	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF;
 	else
-	  dE = IS.selectFFInteract(FF2[id]) * cF * q0;
+	  dE = IS.selectFFInteract(FF2[id]) * cF * q;
 
 	ctd2->ff[id][0] += cF;
 	if (prob > 0.0) {
@@ -5657,9 +5657,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	Ion2Frac += cF;
       } else {
 	if (prob >= 0.0)
-	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF * q0;
+	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF;
 	else
-	  dE = IS.selectFFInteract(FF1[id]) * cF * q0;
+	  dE = IS.selectFFInteract(FF1[id]) * cF * q;
 	ctd1->ff[id][0] += cF;
 
 	if (prob > 0.0) {
@@ -5680,9 +5680,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
       if (swapped) {
 	if (prob >= 0.0)
-	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF * q0;
+	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF;
 	else
-	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q0;
+	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q;
 
 	ctd2->CE[id][0] += cF * q0;
 	if (prob > 0.0) {
@@ -5695,9 +5695,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	Ion2Frac += cF;
       } else {
 	if (prob >= 0.0)
-	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF * q0;
+	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF;
 	else
-	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q0;
+	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
 
 	ctd1->CE[id][0] += cF * q0;
 	if (prob > 0.0) {
