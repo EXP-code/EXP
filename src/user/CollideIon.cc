@@ -6597,9 +6597,11 @@ void CollideIon::checkEnergyHybrid
     //
     double testE = dKE - KE.delta;
 
-    if (d.q == 1.0) testE -= KE.delE + KE.miss;
+    bool equal = fabs(d.q - 1.0) < 1.0e-14;
 
-    if (d.q != 1.0) {
+    if (equal) testE -= KE.delE + KE.miss;
+
+    if (not equal) {
       if (TRACE_ELEC and !TRACE_REAPPLY) {
 	d.p1->dattrib[use_elec+3] += KE.delta * TRACE_FRAC;
 	d.p2->dattrib[use_cons]   += KE.delta * (1.0 - TRACE_FRAC);
@@ -6620,6 +6622,7 @@ void CollideIon::checkEnergyHybrid
 		<< ", wv1=" << std::setw(14) << KE.o1
 		<< ", wv2=" << std::setw(14) << KE.o2
 		<< ",  vf=" << std::setw(14) << KE.vfac
+		<< ", "     << (equal ? "q=1" : "q<1")
 		<< ",   q=" << std::setw(14) << d.q
 		<< ", flg=" << KE.decode()
 		<< std::endl;
