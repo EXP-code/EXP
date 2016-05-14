@@ -5562,6 +5562,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     speciesKey     k1 = KeyConvert(p1->iattrib[use_key]).getKey();
     speciesKey     k2 = KeyConvert(p2->iattrib[use_key]).getKey();
 
+    // Zx is the atomic number (charge), Px is the offset in
+    // ionization state from 0, Cx is the _usual_ ionization level
+    // (e.g. C=1 is neutral).
+    //
     unsigned short Z1 = k1.first;
     unsigned short Z2 = k2.first;
     unsigned short P1 = swapped ? std::get<2>(itype) : std::get<1>(itype);
@@ -5569,8 +5573,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     unsigned short C1 = P1 + 1;
     unsigned short C2 = P2 + 1;
 
-    // For hybrid method, the speciesKey level set to zero.  Replace
-    // with subspecies value
+    // For hybrid method, the speciesKey level is set to zero.
+    // Replace with the correct subspecies value.
     //
     k1.second = C1;
     k2.second = C2;
@@ -10167,7 +10171,8 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   //
   Interact ret;
     
-  // Convert from CHIANTI to system units
+  // Convert from CHIANTI to system units and from system to physical
+  // time units
   //
   const double cunit = 1e-14 * UserTreeDSMC::Tunit;
 

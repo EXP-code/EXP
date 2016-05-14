@@ -33,7 +33,6 @@ bool Collide::PULLIN   = false;
 // Debugging cell length--MFP ratio
 bool Collide::MFPCL    = true;
 
-
 // Use the explicit energy solution
 bool Collide::ESOL     = false;
 
@@ -1191,9 +1190,9 @@ void * Collide::collide_thread(void * arg)
       // accounting of electron-ion interations
       //
       for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
-
+	
 	speciesKey i2 = it2->first;
-	size_t num2   = bmap[i2].size();
+	size_t num2   = bmap[i2].size(); // Should equal it2->second
 
 				// No interactions possible
 	if (num2==0) continue;
@@ -1201,17 +1200,16 @@ void * Collide::collide_thread(void * arg)
 	if (i1==i2 && num2==1) continue;
 
 	sKeyPair k(i1, i2);
-
-	unsigned nselTot = 0;
-	
+				// Default to single interaction type
 	Interact::T maxT = Interact::singleton;
+	unsigned nselTot = 0;
 
-	// Single interaction type
+	// Single interaction type?
 	//
 	if (!nselM[i1][i2]) {
 	  nselTot = static_cast<unsigned>(floor(nselM[i1][i2]()+0.5));
 	} 
-	// Multiple interaction types
+	// Multiple interaction types?
 	//
 	else {
 	  double maxV = -1.0;
@@ -1355,8 +1353,9 @@ void * Collide::collide_thread(void * arg)
 	//------------------------------------------------------------
 	// Subdominant interaction types
 	//------------------------------------------------------------
-
-	// Cycle through ions and possible electron pairs
+	// Cycle through all ions and randomly choose electron-donor
+	// pairs.  For this loop, i1 is assumed to be ion and i2 is
+	// assumed to be electron.
 	//
 	//  +----- Boolean indicator defined by derived classes
 	//  |
