@@ -163,6 +163,10 @@ static bool use_cons_test     = false;
 
 static bool temp_debug        = false;
 
+// Decrease the interacton probability by electron fraction used for
+// dominant subspcies for the NTC rate
+static bool suppress_maxT     = false;
+
 // Use particle collision counter for debugging
 static int DEBUG_CNT          = -1;
 
@@ -10219,8 +10223,10 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       FFm[id][Q]  = ch.IonList[Q]->freeFreeCross(ke, id);
       double Prob = densE[id][k2] * FFm[id][Q].first * cunit * eVel * tau;
 
-      if (std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
-	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+      if (suppress_maxT and std::get<0>(maxT) == free_free and std::get<1>(maxT) == Q1)
+	{
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	}
       
       if (Prob > 0.0) ret[Interact::T(free_free, Q1, 0)] = Prob;
     }
@@ -10234,8 +10240,10 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = CEm[id][Q].back().first;
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
-      if (std::get<0>(maxT) == colexcite and std::get<1>(maxT) == Q1)
-	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+      if (suppress_maxT and std::get<0>(maxT) == colexcite and std::get<1>(maxT) == Q1)
+	{
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	}
 
       if (Prob > 0.0) ret[Interact::T(colexcite, Q1, 0)] = Prob;
     }
@@ -10248,8 +10256,10 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs  = ch.IonList[Q]->directIonCross(ke, id);
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
-      if (std::get<0>(maxT) == ionize and std::get<1>(maxT) == Q1)
-	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+      if (suppress_maxT and std::get<0>(maxT) == ionize and std::get<1>(maxT) == Q1)
+	{
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	}
 
       if (Prob > 0.0) ret[Interact::T(ionize, Q1, 0)] = Prob;
     }
@@ -10263,8 +10273,10 @@ Collide::Interact CollideIon::generateSelectionHybridSub
       double crs = RE1.back();
       double Prob = densE[id][k2] * crs * cunit * eVel * tau;
       
-      if (std::get<0>(maxT) == recomb and std::get<1>(maxT) == Q1)
-	Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+      if (suppress_maxT and std::get<0>(maxT) == recomb and std::get<1>(maxT) == Q1)
+	{
+	  Prob *= 1.0 - p2->dattrib[hybrid_pos + std::get<2>(maxT)];
+	}
 
       if (Prob > 0.0) ret[Interact::T(recomb, Q1, 0)] = Prob;
     }

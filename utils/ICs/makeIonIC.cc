@@ -67,7 +67,8 @@ double pc    = 3.08567758e18;	    // Parsec (in cm)
 double msun  = 1.9891e33;	    // Solar mass (in g)
 double year  = 365.242*24.0*3600.0; // seconds per year
 
-double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
+std::string atomic_specie[3] = {"electron",     "H",     "He"    };
+double      atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
 // double atomic_masses[3] = {0.1, 1.00794, 4.002602};
 
 double Lunit;
@@ -98,13 +99,23 @@ bool use_chianti = false;
    Make Uniform temperature box of gas
 */
 void InitializeUniform(std::vector<Particle>& p, double mass,
-                       double T, vector<double> &L, Itype type, int ne)
+                       std::map<unsigned char, double>& T, vector<double> &L,
+		       Itype type, int ne)
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
 
   std::cout << std::string(70, '-')                 << std::endl;
-  std::cout << "Temperature: "  << T     << " K "   << std::endl;
+  if (T.size()>1) {
+    for (auto v : T) {
+      std::ostringstream sout;
+      sout << "Temp " << atomic_specie[v.first] << ":";
+      std::cout << std::setw(13) << sout.str() << v.second
+		<< " K "   << std::endl;
+    }
+  } else {
+    std::cout << "Temp:        "  << T[0]  << " K "   << std::endl;
+  }
   std::cout << "Number:      "  << npart            << std::endl;
   std::cout << "Length unit: "  << Lunit << " cm"   << std::endl;
   std::cout << "Time unit:   "  << Tunit << " s"    << std::endl;
@@ -112,15 +123,22 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
   std::cout << std::string(70, '-')                 << std::endl;
 
-  double var0  = sqrt((boltz*T)/amu) / Vunit;
-  double varE  = sqrt((boltz*T)/(atomic_masses[0]*amu)) / Vunit;
-  double varH  = sqrt((boltz*T)/(atomic_masses[1]*amu)) / Vunit;
-  double varHe = sqrt((boltz*T)/(atomic_masses[2]*amu)) / Vunit;
-
+  std::map<unsigned char, double> varI, varE;
+  for (auto v : T) {
+    unsigned char Z = v.first;
+    if (Z>0) {
+      varI[Z] = sqrt((boltz*T[Z])/(atomic_masses[Z]*amu)) / Vunit; // Ion
+      varE[Z] = sqrt((boltz*T[Z])/(atomic_masses[0]*amu)) / Vunit; // Electron
+    } else {
+      varI[Z] = sqrt((boltz*T[0])/amu) / Vunit; // Mean fiducial particle
+    }
+  }
+  
   double tKEi  = 0.0;
   double tKEe  = 0.0;
   double numb  = 0.0;
   double Eunit = Munit*Vunit*Vunit;
+  double ttemp = T[0];
 
   for (unsigned i=0; i<npart; i++) {
 
@@ -130,7 +148,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
-	p[i].vel[k] = var0*(*Norm)();
+	p[i].vel[k] = varI[0]*(*Norm)();
       }
 
     } else {
@@ -142,15 +160,14 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
-	if (Z == 1) p[i].vel[k] = varH  * (*Norm)();
-	if (Z == 2) p[i].vel[k] = varHe * (*Norm)();
+	p[i].vel[k] = varI[Z] * (*Norm)();
 	KE += p[i].vel[k] * p[i].vel[k];
       }
 
       double KEe = 0.0;
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
-	  p[i].dattrib[ne+l] = varE * (*Norm)();
+	  p[i].dattrib[ne+l] = varE[Z] * (*Norm)();
 	  KEe += p[i].dattrib[ne+l] * p[i].dattrib[ne+l];
 	}
       }
@@ -160,10 +177,12 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
       numb += p[i].mass/atomic_masses[Z] * Munit / amu;
 
       KE *= 0.5 * p[i].mass * (C-1);
+      
+      ttemp = T[Z];
     }
 
-    if (p[i].dattrib.size()>0) p[i].dattrib[0] = T;
-    else p[i].dattrib.push_back(T);
+    if (p[i].dattrib.size()>0) p[i].dattrib[0] = ttemp;
+    else p[i].dattrib.push_back(ttemp);
 
     if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho;
     else p[i].dattrib.push_back(rho);
@@ -288,7 +307,7 @@ void InitializeSpeciesDirect
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, double T, int ne, int ni=1, int nd=6)
+ double M, std::map<unsigned char, double>& T, int ne, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -304,7 +323,7 @@ void InitializeSpeciesDirect
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T << " -o " << ioneq;
+	   << " -T " << T[n] << " -o " << ioneq;
       
       int ret = system(sout.str().c_str());
       
@@ -358,7 +377,7 @@ void InitializeSpeciesDirect
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T;
+	   << " -T " << T[n];
       
       int ret = system(sout.str().c_str());
       
@@ -491,7 +510,7 @@ void InitializeSpeciesWeight
  std::vector<unsigned char>& sZ,
  std::vector<double>& sF,
  std::vector< std::vector<double> >& sI,
- double M, double T, int& ne, int ni=2, int nd=6)
+ double M, std::map<unsigned char, double>& T, int& ne, int ni=2, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
 
@@ -507,7 +526,7 @@ void InitializeSpeciesWeight
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T << " -o n" << ioneq;
+	   << " -T " << T[n] << " -o n" << ioneq;
       
       int ret = system(sout.str().c_str());
       
@@ -561,7 +580,7 @@ void InitializeSpeciesWeight
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T;
+	   << " -T " << T[n];
       
       int ret = system(sout.str().c_str());
       
@@ -689,7 +708,7 @@ void InitializeSpeciesHybrid
  std::vector<unsigned char>& sZ, 
  std::vector<double>& sF, 
  std::vector< std::vector<double> >& sI,
- double M, double T, int& ne, int ni=2, int nd=6)
+ double M, std::map<unsigned char, double>& T, int& ne, int ni=2, int nd=6)
 {
   std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
@@ -706,7 +725,7 @@ void InitializeSpeciesHybrid
       sout << "./genIonization"
 	   << " -1 " << static_cast<unsigned>(n)
 	   << " -2 " << static_cast<unsigned>(n)
-	   << " -T " << T << " -o " << ioneq;
+	   << " -T " << T[n] << " -o " << ioneq;
       
       int ret = system(sout.str().c_str());
 
@@ -766,7 +785,7 @@ void InitializeSpeciesHybrid
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
-	   << " -T " << T;
+	   << " -T " << T[n];
       
       int ret = system(sout.str().c_str());
       
@@ -1062,7 +1081,7 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double T, D, L;
+  double D, L, temp, trat;
   std::string oname;
   unsigned seed;
   int ne = -1;
@@ -1083,12 +1102,14 @@ int main (int ac, char **av)
     ("electrons",       "set up for weighted or hybrid species with electrons")
     ("CHIANTI,C",	po::value<bool>(&use_chianti)->default_value(false),
      "use CHIANTI to set recombination-ionization equilibrium")
-    ("temp,T",		po::value<double>(&T)->default_value(25000.0),
+    ("temp,T",		po::value<double>(&temp)->default_value(25000.0),
      "set the temperature in K")
     ("dens,D",		po::value<double>(&D)->default_value(1.0),
      "density in particles per cc")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
+    ("trat,R",		po::value<double>(&trat)->default_value(1.0),
+     "temperature ratio of secondary species to primary specie")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
      "set the temperature in K")
     ("seed,s",		po::value<unsigned>(&seed)->default_value(11),
@@ -1168,12 +1189,14 @@ int main (int ac, char **av)
   const size_t Nspec = 2;
   std::vector<double>        sF(Nspec);
   std::vector<unsigned char> sZ(Nspec);
-  std::vector< std::vector<double> > sI; // Ion fractions
-
+				// Ion fractions
+  std::vector< std::vector<double> > sI;
+				// Temperatures
+  std::map<unsigned char, double> T;
 
   // Species fraction, atomic number
-  sF[0] = 0.76; sZ[0] = 1;
-  sF[1] = 0.24; sZ[1] = 2;
+  sF[0] = 0.76; sZ[0] = 1; T[1] = temp;
+  sF[1] = 0.24; sZ[1] = 2; T[2] = temp * trat;
 
   /* Additional species, e.g.
      sF[2] = 0.0; sZ[2] = 3;  // Li
@@ -1203,7 +1226,7 @@ int main (int ac, char **av)
     InitializeSpeciesWeight(particles, sZ, sF, sI, Mass, T, ne);
     break;
   case Trace:
-    InitializeSpeciesTrace (particles, sZ, sF, Mass, T);
+    InitializeSpeciesTrace (particles, sZ, sF, Mass, temp);
     break;
   case Direct:
   default:
