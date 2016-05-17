@@ -4562,11 +4562,14 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   // Use explicit energy conservation algorithm
   //
   double vrat = 1.0;
-  std::vector<double> w1(v1);
+  double gamm = 0.0;
+  bool  algok = false;
+
+  std::vector<double> w1(3, 0.0);
 
   if (ExactE and q < 1.0) {
 
-    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0, vcm2 = 0.0;
+    double v1i2 = 0.0, b1f2 = 0.0, v2i2 = 0.0, b2f2 = 0.0, vcm2 = 0.0, udif = 0.0;
     std::vector<double> uu(3), vv(3);
     for (size_t k=0; k<3; k++) {
       uu[k] = vcom[k] + m2/Mt*vrel[k];
@@ -4576,6 +4579,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       v2i2 += v2[k] * v2[k];
       b1f2 += uu[k] * uu[k];
       b2f2 += vv[k] * vv[k];
+      udif += (v1[k] - uu[k])*(v1[k] - uu[k]);
     }
 
     if (AlgOrth) {
@@ -4592,35 +4596,26 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       for (auto   v : w1) wnrm += v*v;
       if (wnrm > 1.0e-12*sqrt(vcm2)) {
 	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-      } else {
-	double cos_th = 1.0 - 2.0*(*unit)();
-	double sin_th = sqrt(1.0 - cos_th*cos_th);
-	double phi    = 2.0*M_PI*(*unit)();
-	
-	w1[0] = cos_th;
-	w1[1] = sin_th*cos(phi);
-	w1[2] = sin_th*sin(phi);
+	gamm = sqrt(q*(1.0 - q)*udif);
+	algok = true;
       }
+    }
 
-      vrat  = sqrt((1.0 - q)*(q*b1f2 + v1i2))/(1.0 - q);
-
-    } else {
+    if (!AlgOrth or !algok) {
 
       double qT = 0.0;
       for (size_t k=0; k<3; k++) qT += v1[k]*uu[k];
       
-      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/sqrt(v1i2 * b1f2);
+      if (v1i2 > 0.0 and b1f2 > 0.0) qT *= q/v1i2;
       
-      double vh1f  = 
-	( -sqrt(b1f2)*qT + sqrt(qT*qT*b1f2 + (1.0 - q)*(q*b1f2 + v1i2)) )/(1.0 - q);
-
-      vrat = vh1f / sqrt(v1i2);
+      vrat = 
+	( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0)) )/(1.0 - q);
     }
 
     // Test
     double v1f2 = 0.0;
     for (size_t k=0; k<3; k++) {
-      double vv = (1.0 - q)*w1[k]*vrat + q*uu[k];
+      double vv = (1.0 - q)*v1[k]*vrat + q*uu[k] + w1[k]*gamm;
       v1f2 += vv*vv;
     }
     
@@ -4650,7 +4645,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     if (!ExactE) 
       deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
 
-    v1[k] = (1.0 - q)*w1[k]*vrat + q*v0;
+    v1[k] = (1.0 - q)*v1[k]*vrat + q*v0 + w1[k]*gamm;
     v2[k] = vcom[k] - m1/Mt*vrel[k]*vfac;
   }
 
@@ -6395,7 +6390,8 @@ void CollideIon::scatterHybrid
   // Use explicit energy conservation algorithm
   //
   double vrat = 1.0;
-  std::vector<double> w1(v1);
+  double gamm = 0.0;
+  std::vector<double> w1(3, 0.0);
 
   bool algok = false;
   std::vector<double> uu(3), vv(3);
@@ -6447,7 +6443,7 @@ void CollideIon::scatterHybrid
 	  }
 	  KE.o1 /= sqrt(v1i2*b1f2);
 	  KE.o2 /= sqrt(v1i2*b1f2);
-	  vrat = sqrt( (1.0 - d.q)*d.q*udif );
+	  gamm  = sqrt( (1.0 - d.q)*d.q*udif );
 	  algok = true;
 	}
 
@@ -6461,7 +6457,7 @@ void CollideIon::scatterHybrid
 	if (v1i2 > 0.0) {
 	  qT /= v1i2;
 	  vrat = 
-	    ( -qT + sqrt(qT*qT + (1.0 - d.q)*(d.q*b1f2/v1i2 + 1.0) ) )/(1.0 - d.q);
+	    ( -qT + std::copysign(1.0, qT)*sqrt(qT*qT + (1.0 - d.q)*(d.q*b1f2/v1i2 + 1.0) ) )/(1.0 - d.q);
 	  w1 = v1;
 	}
       }
@@ -6481,7 +6477,7 @@ void CollideIon::scatterHybrid
       w1[2] = sin_th*sin(phi);
       
       double kF = 0.5*d.Wa*d.q*mu;
-      vrat = sqrt(totE/kF);
+      gamm  = sqrt(totE/kF);
       algok = true;
     }
 
@@ -6491,11 +6487,7 @@ void CollideIon::scatterHybrid
     // Compute new energy conservation updates
     //
     for (size_t k=0; k<3; k++) {
-      if (algok)
-	v1[k] = (1.0 - d.q)*v1[k] + vrat*w1[k] + d.q*uu[k];
-      else
-	v1[k] = (1.0 - d.q)*w1[k]*vrat + d.q*uu[k];
-      
+      v1[k] = (1.0 - d.q)*v1[k]*vrat + w1[k]*gamm + d.q*uu[k];
       v2[k] = vv[k];
     }
     
@@ -7882,6 +7874,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  bool  algok = false;
 	  double vrat = 1.0;
+	  double gamm = 0.0;
 
 	  std::vector<double> uu(3), vv(3), w1(v1);
 	  for (size_t k=0; k<3; k++) {
@@ -7920,33 +7913,24 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    for (auto v : w1) wnrm += v*v;
 	    if (wnrm>1.0e-12*sqrt(vcm2)) {
 	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-	      vrat = sqrt( (1.0 - q)*q*udif );
+	      gamm = sqrt( (1.0 - q)*q*udif );
 	      algok = true;
-	    } else {
-	      double qT = v1u1 * q;
-	      if (v1i2 > 0.0) qT /= v1i2;
-	      vrat = 
-		( -qT + sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
-	      w1 = v1;
-
 	    }
+	  }
 	    
-	  } else {
+	  if (!AlgOrth or !algok) {
 	    double qT = v1u1 * q;
 	    if (v1i2 > 0.0) qT /= v1i2;
 	    vrat = 
-	      ( -qT + sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	      ( -qT + std::copysign(1.0, qT) *
+		sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
 	  }
 
 	  // New velocities in inertial frame
 	  //
 	  std::vector<double> u1(3), u2(3);
 	  for (size_t k=0; k<3; k++) {
-	    if (algok)
-	      u1[k] = (1.0 - q)*v1[k] + vrat*w1[k] + q*uu[k];
-	    else
-	      u1[k] = (1.0 - q)*w1[k]*vrat + q*uu[k];
-	    
+	    u1[k] = (1.0 - q)*v1[k]*vrat + w1[k]*gamm + q*uu[k];
 	    u2[k] = vv[k];
 	  }
 
