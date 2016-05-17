@@ -280,7 +280,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
 	      << (AlgOrth ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
-	      << (SECONDARY_SCATTER ? "on [" : "off") << SECONDARY_SCATTER
+	      << (SECONDARY_SCATTER ? "on [" : "off [") << SECONDARY_SCATTER
 	      << "]" << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl

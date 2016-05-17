@@ -24,6 +24,10 @@
 #include <boost/random/uniform_real.hpp>
 #include <boost/random/normal_distribution.hpp>
 #include <boost/random/uniform_int_distribution.hpp>
+
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+
 #include <boost/shared_ptr.hpp>
 
 #include <boost/program_options.hpp>
@@ -104,7 +108,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 {
   unsigned npart = p.size();
   double   rho   = mass/(L[0]*L[1]*L[2]);
-
+  
   std::cout << std::string(70, '-')                 << std::endl;
   if (T.size()>1) {
     for (auto v : T) {
@@ -122,7 +126,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << "Vel unit:    "  << Vunit << " cm/s" << std::endl;
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
   std::cout << std::string(70, '-')                 << std::endl;
-
+  
   std::map<unsigned char, double> varI, varE;
   for (auto v : T) {
     unsigned char Z = v.first;
@@ -139,31 +143,31 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   double numb  = 0.0;
   double Eunit = Munit*Vunit*Vunit;
   double ttemp = T[0];
-
+  
   for (unsigned i=0; i<npart; i++) {
-
+    
     double KE = 0.0;
-
+    
     if (type == Trace) {
-
+      
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
 	p[i].vel[k] = varI[0]*(*Norm)();
       }
-
+      
     } else {
-
+      
       KeyConvert kc(p[i].iattrib[0]);
       speciesKey sKey  = kc.getKey();
       unsigned short Z = sKey.first;
       unsigned short C = sKey.second;
-    
+      
       for (unsigned k=0; k<3; k++) {
 	p[i].pos[k] = L[k]*(*Unit)();
 	p[i].vel[k] = varI[Z] * (*Norm)();
 	KE += p[i].vel[k] * p[i].vel[k];
       }
-
+      
       double KEe = 0.0;
       if (ne>=0) {
 	for (int l=0; l<3; l++) {
@@ -171,28 +175,28 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 	  KEe += p[i].dattrib[ne+l] * p[i].dattrib[ne+l];
 	}
       }
-
+      
       tKEi += 0.5 * p[i].mass * KE * Eunit;
       tKEe += 0.5 * p[i].mass * atomic_masses[0]/atomic_masses[Z] * KEe * Eunit;
       numb += p[i].mass/atomic_masses[Z] * Munit / amu;
-
+      
       KE *= 0.5 * p[i].mass * (C-1);
       
       ttemp = T[Z];
     }
-
+    
     if (p[i].dattrib.size()>0) p[i].dattrib[0] = ttemp;
     else p[i].dattrib.push_back(ttemp);
-
+    
     if (p[i].dattrib.size()>1) p[i].dattrib[1] = rho;
     else p[i].dattrib.push_back(rho);
-
+    
     if (type == Direct) {
       if (p[i].dattrib.size()>2) p[i].dattrib[2] = KE;
       else p[i].dattrib.push_back(KE);
     }
   }
-
+  
   if (type != Trace) {
     std::cout << "T (ion):     " << tKEi/(1.5*numb*boltz) << std::endl
 	      << "T (elec):    " << tKEe/(1.5*numb*boltz) << std::endl
@@ -208,26 +212,26 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
   typedef std::tuple<double, unsigned> Tspc;
   typedef std::map<speciesKey, Tspc>   Frac;
   Frac frac;
-
+  
   std::ofstream out(file.c_str());
-
+  
   out.precision(10);
-
+  
   out << setw(15) << particles.size()
       << setw(10) << particles[0].iattrib.size()
       << setw(10) << particles[0].dattrib.size()
       << std::endl;
-
+  
   for (int n=0; n<particles.size(); n++) {
-
+    
     out << setw(18) << particles[n].mass;
-
+    
     for (int k=0; k<3; k++) 
       out << setw(18) << particles[n].pos[k];
-
+    
     for (int k=0; k<3; k++) 
       out << setw(18) << particles[n].vel[k];
-
+    
     if (type != Trace) {
       KeyConvert kc(particles[n].iattrib[0]);
       speciesKey k = kc.getKey();
@@ -238,18 +242,18 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
     }
     for (unsigned k=0; k<particles[n].iattrib.size(); k++)
       out << setw(12) << particles[n].iattrib[k];
-
+    
     for (unsigned k=0; k<particles[n].dattrib.size(); k++)
       out << setw(18) << particles[n].dattrib[k];
-
+    
     out << std::endl;
   }
-
+  
   if (type != Trace) {
-
+    
     double Mtot = 0.0;
     for (auto i : frac) Mtot += std::get<0>(i.second);
-
+    
     if ( type != Hybrid) {
       std::cout << std::setw( 3) << "Z"
 		<< std::setw( 3) << "C"
@@ -294,7 +298,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		  << std::setw(12) << std::get<1>(i.second)
 		  << std::endl;
     }
-
+    
     std::cout << std::string(70, '-') << std::endl
 	      << "Empirical density (amu/cc) = "
 	      << Mtot*Munit/(mp*(LL[0]*LL[1]*LL[2])*pc*pc*pc)
@@ -310,14 +314,14 @@ void InitializeSpeciesDirect
  double M, std::map<unsigned char, double>& T, int ne, int ni=1, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
-
+  
   //
   // Generate the ionization-fraction input file
   //
   for (auto n : sZ) {
-
+    
     if (use_chianti) {
-
+      
       const std::string ioneq("makeIonIC.ioneq");
       std::ostringstream sout;
       sout << "./genIonization"
@@ -336,7 +340,7 @@ void InitializeSpeciesDirect
       
       std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
-
+      
       if (sFile.is_open()) {
 	
 	std::getline(sFile, inLine); // Read and discard the headers
@@ -355,7 +359,7 @@ void InitializeSpeciesDirect
 	  for (auto i : s) v.push_back(::atof(i.c_str()));
 	  frac.push_back(v);
 	}
-      
+	
 	{
 	  vString s;
 	  std::getline(sFile, inLine);
@@ -373,7 +377,7 @@ void InitializeSpeciesDirect
       }
     }
     else {
-
+      
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
@@ -391,12 +395,12 @@ void InitializeSpeciesDirect
       std::string   inLine;
       std::string   fName("IonRecombFrac.data");
       std::ifstream sFile(fName);
-
+      
       if (sFile.is_open()) {
 	
 	vString s;
 	std::getline(sFile, inLine);
-	  
+	
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
@@ -405,7 +409,7 @@ void InitializeSpeciesDirect
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
-	  
+	
 	double norm = 0.0;
 	for (auto i : v) norm += i;
 	
@@ -414,7 +418,7 @@ void InitializeSpeciesDirect
 	  for (auto i : v) std::cout << std::setw(16) << i;
 	  std::cout << std::endl;
 	}
-
+	
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(c);
@@ -425,63 +429,63 @@ void InitializeSpeciesDirect
       }
     }
   }
-
+  
   int N = particles.size();
-
-				// Compute cumulative species
-				// distribution
+  
+  // Compute cumulative species
+  // distribution
   size_t NS = sF.size();
-				// Normalize sF
+  // Normalize sF
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
-
+  
   std::vector<double> frcS(NS), cumS(NS);
   for (size_t i=0; i<NS; i++) {
     sF[i]  /= norm;
     frcS[i] = sF[i]/atomic_masses[sZ[i]];
     cumS[i] = frcS[i] + (i ? cumS[i-1] : 0);
   }
-
+  
   double normC = cumS.back();
-
+  
   for (size_t i=0; i<NS; i++) {
     frcS[i] /= normC;
     cumS[i] /= normC;
   }
-
+  
   for (size_t i=0; i<N; i++) {
-
+    
     double rz = (*Unit)();
     double rc = (*Unit)();
-
+    
     unsigned char Ci = 1, Zi;
     size_t indx;
-				// Get the species
+    // Get the species
     for (indx=0; indx<NS; indx++) { 
       if (rz < cumS[indx]) {
 	Zi = sZ[indx]; 
 	break;
       }
     }
-				// Get the ionization state
+    // Get the ionization state
     for (size_t j=0; j<Zi+1; j++) {
       if (rc < cuml[indx][j]) {
 	Ci = j+1;
 	break;
       }
     }
-
+    
     particles[i].mass  = M/N * atomic_masses[sZ[indx]] * normC;
-
+    
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
-
+    
     if (ne>=0) {			 // Add the use_elec fields
       for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
     }
-
+    
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
   }
@@ -493,7 +497,7 @@ void InitializeSpeciesDirect
     out << std::setw(6) << static_cast<unsigned>(sZ[indx])
 	<< std::endl;
   }
-
+  
   sI = cuml;
   for (auto &s : sI) {
     double l = 0.0;
@@ -513,14 +517,14 @@ void InitializeSpeciesWeight
  double M, std::map<unsigned char, double>& T, int& ne, int ni=2, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
-
+  
   //
   // Generate the ionization-fraction input file
   //
   for (auto n : sZ) {
-
+    
     if (use_chianti) {
-
+      
       const std::string ioneq("makeIonIC.ioneq");
       std::ostringstream sout;
       sout << "./genIonization"
@@ -539,7 +543,7 @@ void InitializeSpeciesWeight
       
       std::string   inLine;
       std::ifstream sFile(ioneq.c_str());
-
+      
       if (sFile.is_open()) {
 	
 	std::getline(sFile, inLine); // Read and discard the headers
@@ -558,7 +562,7 @@ void InitializeSpeciesWeight
 	  for (auto i : s) v.push_back(::atof(i.c_str()));
 	  frac.push_back(v);
 	}
-      
+	
 	{
 	  vString s;
 	  std::getline(sFile, inLine);
@@ -594,12 +598,12 @@ void InitializeSpeciesWeight
       std::string   inLine;
       std::string   fName("IonRecombFrac.data");
       std::ifstream sFile(fName);
-
+      
       if (sFile.is_open()) {
 	
 	vString s;
 	std::getline(sFile, inLine);
-	  
+	
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
@@ -608,7 +612,7 @@ void InitializeSpeciesWeight
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
-	  
+	
 	double norm = 0.0;
 	for (auto i : v) norm += i;
 	
@@ -617,7 +621,7 @@ void InitializeSpeciesWeight
 	  for (auto i : v) std::cout << std::setw(16) << i;
 	  std::cout << std::endl;
 	}
-
+	
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(c);
@@ -628,70 +632,70 @@ void InitializeSpeciesWeight
       }
     }
   }
-
+  
   int N = particles.size();
-				// Compute cumulative species
-				// distribution
+  // Compute cumulative species
+  // distribution
   size_t NS = sF.size();
-				// Normalize sF
-				//
+  // Normalize sF
+  //
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
-
+  
   std::vector<double> frcS(sF), wght(NS);
   double fH = sF[0], W_H = 1.0;
   for (auto &v : frcS) v /= fH;
-
+  
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/atomic_masses[sZ[i]];
-
+  
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
-
+  
   for (size_t i=0; i<N; i++) {
-				// Get the species
+    // Get the species
     size_t indx = unifd();
     unsigned char Ci = 1, Zi = sZ[indx];
     double rc = (*Unit)();
-
-				// Get the ionization state
+    
+    // Get the ionization state
     for (size_t j=0; j<Zi+1; j++) {
       if (rc < cuml[indx][j]) {
 	Ci = j+1;
 	break;
       }
     }
-
+    
     particles[i].mass  = M/N * sF[indx] * NS;
-
+    
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
     particles[i].dattrib.push_back(0.0); // Add the use_cons field
     if (ne>=0) {			 // Add the use_elec fields
       for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
     }
-
+    
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
   }
   
   std::ofstream out("species.spec");
-
+  
   out << "weight" << std::endl;
   out << std::setw(6) << nd++;
   if (ne>=0) out << std::setw(6) << (ne=nd);
   out << std::endl;
-
+  
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
 	<< std::setw(16) << M/N * sF[indx] * NS
 	<< std::endl;
   }
-
+  
   sI = cuml;
   for (auto &s : sI) {
     double l = 0.0;
@@ -712,14 +716,14 @@ void InitializeSpeciesHybrid
 {
   std::map< unsigned short, std::vector<double> > frac;
   std::vector< std::vector<double> > cuml;
-
+  
   //
   // Generate the ionization-fraction input file
   //
   for (auto n : sZ) {
-
+    
     if (use_chianti) {
-
+      
       const std::string ioneq("makeIonIC.ioneq");
       std::ostringstream sout;
       sout << "./genIonization"
@@ -728,7 +732,7 @@ void InitializeSpeciesHybrid
 	   << " -T " << T[n] << " -o " << ioneq;
       
       int ret = system(sout.str().c_str());
-
+      
       if (ret) {
 	std::cout << "System command  = " << sout.str() << std::endl;
 	std::cout << "System ret code = " << ret << std::endl;
@@ -743,31 +747,31 @@ void InitializeSpeciesHybrid
       if (sFile.is_open()) {
 	
 	std::getline(sFile, inLine);
-				// Get the atomic species
+	// Get the atomic species
 	unsigned short Z;
 	{
 	  std::istringstream iss(inLine);
 	  iss >> Z;
 	}
-				// Get the ionization fractions
+	// Get the ionization fractions
 	{
 	  vString s;
 	  std::getline(sFile, inLine);
-	
+	  
 	  std::istringstream iss(inLine);
 	  std::copy(std::istream_iterator<std::string>(iss), 
 		    std::istream_iterator<std::string>(), 
 		    std::back_inserter<vString>(s));
-	
+	  
 	  std::vector<double> v;
 	  for (auto i : s) v.push_back(::atof(i.c_str()));
 	  frac[Z] = v;
 	}
-      
+	
 	{
 	  vString s;
 	  std::getline(sFile, inLine);
-	
+	  
 	  std::istringstream iss(inLine);
 	  std::copy(std::istream_iterator<std::string>(iss), 
 		    std::istream_iterator<std::string>(), 
@@ -781,7 +785,7 @@ void InitializeSpeciesHybrid
       }
     }
     else {
-
+      
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
@@ -799,7 +803,7 @@ void InitializeSpeciesHybrid
       std::string   inLine;
       std::string   fName("IonRecombFrac.data");
       std::ifstream sFile(fName);
-
+      
       if (sFile.is_open()) {
 	
 	vString s;
@@ -833,73 +837,73 @@ void InitializeSpeciesHybrid
       }
     }
   }
-
+  
   int N = particles.size();
-				// Compute cumulative species
-				// distribution
+  // Compute cumulative species
+  // distribution
   size_t NS = sF.size();
-				// Normalize sF
-				//
+  // Normalize sF
+  //
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
-
+  
   std::vector<double> frcS(sF), wght(NS);
   double fH = sF[0], W_H = 1.0;
   for (auto &v : frcS) v /= fH;
-
+  
   auto it = std::max_element(std::begin(sZ), std::end(sZ));
   size_t maxSp = *it;
-
+  
   wght[0] = W_H;
   for (size_t i=1; i<NS; i++)
     wght[i] = frcS[i]/atomic_masses[sZ[i]];
-
+  
   boost::random::uniform_int_distribution<> dist(0, NS-1);
   unid_var unifd(*gen, dist);
-
+  
   for (size_t i=0; i<N; i++) {
-				// Get the species
+    // Get the species
     size_t indx = unifd();
     unsigned char Ci = 0, Zi = sZ[indx];
-
+    
     particles[i].mass  = M/N * sF[indx] * NS;
-
+    
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
-				// Add the use_cons field
+    // Add the use_cons field
     particles[i].dattrib.push_back(0.0);
-				// Add the ionization states
+    // Add the ionization states
     for (auto v : frac[Zi]) {
       particles[i].dattrib.push_back(v);
     }
-				// Pad
+    // Pad
     for (size_t v=frac[Zi].size(); v<=maxSp; v++) 
       particles[i].dattrib.push_back(0.0);
     if (ne>=0) {		// Add the use_elec fields
       for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
     }
-
+    
     KeyConvert kc(speciesKey(Zi, Ci));
     particles[i].iattrib[0] = kc.getInt();
   }
   
   std::ofstream out("species.spec");
-
+  
   out << "hybrid" << std::endl;
   out << std::setw(6) << nd++;
   out << std::setw(6) << nd; nd += maxSp + 1;
   if (ne>=0) out << std::setw(6) << (ne=nd);
   out << std::endl;
-
+  
   for (size_t indx=0; indx<NS; indx++) { 
     out << std::setw(6)  << static_cast<unsigned>(sZ[indx])
 	<< std::setw(16) << wght[indx]
 	<< std::setw(16) << M/N * sF[indx] * NS
 	<< std::endl;
   }
-
+  
   sI = cuml;
   for (auto &s : sI) {
     double l = 0.0;
@@ -918,14 +922,14 @@ void InitializeSpeciesTrace
  int ni=0, int nd=6)
 {
   std::vector< std::vector<double> > frac, cuml;
-
+  
   //
   // Generate the ionization-fraction input file
   //
   for (auto n : sZ) {
-
+    
     if (use_chianti) {
-
+      
       const std::string ioneq("makeIonIC.ioneq");
       std::ostringstream sout;
       sout << "./genIonization"
@@ -963,7 +967,7 @@ void InitializeSpeciesTrace
 	    v.push_back(::atof(i->c_str()));
 	  frac.push_back(v);
 	}
-      
+	
 	{
 	  vString s;
 	  std::getline(sFile, inLine);
@@ -981,7 +985,7 @@ void InitializeSpeciesTrace
       }
     }
     else {
-
+      
       std::ostringstream sout;
       sout << "mpirun -np 1 genIonRecomb"
 	   << " -Z " << static_cast<unsigned>(n)
@@ -1002,7 +1006,7 @@ void InitializeSpeciesTrace
 	
 	vString s;
 	std::getline(sFile, inLine);
-	  
+	
 	std::istringstream iss(inLine);
 	std::copy(std::istream_iterator<std::string>(iss), 
 		  std::istream_iterator<std::string>(), 
@@ -1011,7 +1015,7 @@ void InitializeSpeciesTrace
 	std::vector<double> v;
 	for (auto i : s) v.push_back(::atof(i.c_str()));
 	frac.push_back(v);
-	  
+	
 	double norm = 0.0;
 	for (auto i : v) norm += i;
 	
@@ -1020,38 +1024,38 @@ void InitializeSpeciesTrace
 	  for (auto i : v) std::cout << std::setw(16) << i;
 	  std::cout << std::endl;
 	}
-
+	
 	std::vector<double> c = v;
 	for (size_t i=1; i<c.size(); i++) c[i] += c[i-1];
 	cuml.push_back(c);
       }
     }
   }
-
+  
   int N = particles.size();
-
-				// Compute cumulative species
-				// distribution
+  
+  // Compute cumulative species
+  // distribution
   size_t NS = sF.size();
-				// Normalize sF
+  // Normalize sF
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
   if (fabs(norm - 1.0)>1.0e-16) {
     std::cout << "Normalization change: " << norm << std::endl;
   }
   for (size_t i=0; i<NS; i++) sF[i]  /= norm;
-
+  
   for (size_t indx=0; indx<NS; indx++) { 
     double norm = std::accumulate(frac[indx].begin(), frac[indx].end(), 0.0);
     for (auto &i : frac[indx]) i /= norm;
   }
-
+  
   for (size_t i=0; i<N; i++) {
-
+    
     particles[i].mass  = M/N;
-
+    
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
-
+    
     // Get the species
     double test = 0.0;
     for (size_t indx=0; indx<NS; indx++) { 
@@ -1063,7 +1067,7 @@ void InitializeSpeciesTrace
     }
     assert ( fabs(test-1.0) < 1.0e-12 );
   }
-
+  
   std::ofstream out("species.spec");
   out << "trace" << std::endl;
   int cntr = nd;
@@ -1081,18 +1085,19 @@ void InitializeSpeciesTrace
 int main (int ac, char **av)
 {
   Itype type = Direct;
-  double D, L, temp, trat;
+  double D, L, temp;
+  std::string config;
   std::string oname;
   unsigned seed;
   int ne = -1;
   int npart;
-
+  
   std::string cmd_line;
   for (int i=0; i<ac; i++) {
     cmd_line += av[i];
     cmd_line += " ";
   }
-
+  
   po::options_description desc("Allowed options");
   desc.add_options()
     ("help,h",		"produce help message")
@@ -1108,10 +1113,8 @@ int main (int ac, char **av)
      "density in particles per cc")
     ("length,L",	po::value<double>(&L)->default_value(1.0),
      "length in system units")
-    ("trat,R",		po::value<double>(&trat)->default_value(1.0),
-     "temperature ratio of secondary species to primary specie")
     ("number,N",	po::value<int>(&npart)->default_value(250000),
-     "set the temperature in K")
+     "number of particles")
     ("seed,s",		po::value<unsigned>(&seed)->default_value(11),
      "random number seed")
     ("Lunit,l",		po::value<double>(&Lunit)->default_value(1.0),
@@ -1120,13 +1123,15 @@ int main (int ac, char **av)
      "time scale in years")
     ("Munit,m",		po::value<double>(&Munit)->default_value(0.1),
      "mass scale in solar masses")
+    ("config,c",	po::value<std::string>(&config)->default_value("makeIon.config"),
+     "element config file")
     ("output,o",	po::value<std::string>(&oname)->default_value("out.bods"),
      "body output file")
     ;
-
-
+  
+  
   po::variables_map vm;
-
+  
   try {
     po::store(po::parse_command_line(ac, av, desc), vm);
     po::notify(vm);    
@@ -1134,7 +1139,7 @@ int main (int ac, char **av)
     std::cout << "Option error: " << e.what() << std::endl;
     exit(-1);
   }
-
+  
   if (vm.count("help")) {
     std::cout << desc << std::endl;
     std::cout << "Example: " << std::endl;
@@ -1142,23 +1147,23 @@ int main (int ac, char **av)
 	      << " --temp=25000 --number=250000 --output=out.bod" << std::endl;
     return 1;
   }
-
+  
   if (vm.count("hybrid")) {
     type = Hybrid;
   }
-
+  
   if (vm.count("weight")) {
     type = Weight;
   }
-
+  
   if (vm.count("trace")) {
     type = Trace;
   }
-
+  
   if (vm.count("electrons")) {
     ne   = 0;
   }
-
+  
   if (myid==0) {
     std::string prefix("makeIon");
     std::string cmdFile = prefix + ".cmd_line";
@@ -1170,33 +1175,64 @@ int main (int ac, char **av)
       out << cmd_line << std::endl;
     }
   }
-
-
+  
   Lunit  *= pc;
   Tunit  *= year;
   Munit  *= msun;
   Vunit   = Lunit/Tunit;
-
+  
   gen     = gen_ptr    (new boost::mt19937(seed));
   uniform = uniform_ptr(new boost::uniform_real<>(0.0, 1.0));
   normal  = normal_ptr (new boost::normal_distribution<>(0.0, 1.0));
   Unit    = unit_ptr   (new unif_var(*gen, *uniform));
   Norm    = norm_ptr   (new norm_var(*gen, *normal));
-
+  
   //
   // Define the atomic species statistics
   //
-  const size_t Nspec = 2;
-  std::vector<double>        sF(Nspec);
-  std::vector<unsigned char> sZ(Nspec);
-				// Ion fractions
-  std::vector< std::vector<double> > sI;
-				// Temperatures
+  
+  // Short alias for this namespace
+  namespace pt = boost::property_tree;
+  
+  // Element data
+  std::vector<unsigned char> sZ;
+  std::vector<double>        sF;
+
+  // Temperatures
   std::map<unsigned char, double> T;
 
-  // Species fraction, atomic number
-  sF[0] = 0.76; sZ[0] = 1; T[1] = temp;
-  sF[1] = 0.24; sZ[1] = 2; T[2] = temp * trat;
+  // Parse element file
+  {
+    // Create a root
+    pt::ptree iroot;
+  
+    // Load the json file in this ptree
+    pt::read_json(config, iroot);
+  
+    double norm = 0.0;
+
+    for (pt::ptree::value_type &row : iroot.get_child("elements")) {
+    
+      std::istringstream sin(row.first);
+      unsigned i;
+      sin >> i;
+    
+      sZ.push_back(i);
+      sF.push_back(row.second.get<double>("mfrac"));
+      norm += sF.back();
+      T[i] = row.second.get<double>("temp");
+    }
+
+    if (norm>0.0) {
+      for (auto & v : sF) v /= norm;
+    } else {
+      std::cout << "Error: zero mass fraction norm" << std::endl;
+      exit(-1);
+    }
+  }
+
+  // Ion fractions
+  std::vector< std::vector<double> > sI;
 
   /* Additional species, e.g.
      sF[2] = 0.0; sZ[2] = 3;  // Li
@@ -1205,17 +1241,17 @@ int main (int ac, char **av)
      sF[5] = 0.0  sZ[5] = 8;  // O
      sF[6] = 0.0; sZ[6] = 12; // Mg
   */
-
+  
   // Cube axes
   //
   LL.resize(3, L);
-
+  
   // Mass in box in m_p
   //
   double Mass = mp*D*(LL[0]*LL[1]*LL[2])*pc*pc*pc/Munit;
   
   vector<Particle> particles(npart);
-
+  
   // Initialize the Z, C's	
   //
   switch (type) {
@@ -1240,6 +1276,6 @@ int main (int ac, char **av)
   // Output file
   //
   writeParticles(particles, oname, type, sF, sI);
-
+  
   return 0;
 }
