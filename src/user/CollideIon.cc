@@ -612,10 +612,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   numEf[id] *= UserTreeDSMC::Munit/amu;
 
-  // Electron density in cgs
+  // Electron number density in cgs
   //
-  double dfac = UserTreeDSMC::Munit/amu /
-    (pow(UserTreeDSMC::Lunit, 3.0) * cell->Volume());
+  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0) * cell->Volume());
+
   for (auto & v : densE[id]) {
     v.second *= dfac;
   }
