@@ -214,16 +214,16 @@ public:
 };
 
 enum KE_Flags {
-  KEpos, 
-  ExQ, 
-  AlgO, 
-  StdE, 
-  negE, 
-  zeroKE, 
-  momC, 
-  PreLoss, 
-  Vfac,
-  MaxVal
+  KEpos,			//!< [positive KE]
+  ExQ,				//!< [Exact q<1]
+  AlgO,				//!< [Orthogonal exact]
+  StdE,				//!< [Standard exact]
+  negE,				//!< [negative KE]
+  zeroKE,			//!< [zero COM KE]
+  momC,				//!< [Momentum cons]
+  PreLoss,			//!< [Preloss check]
+  Vfac,				//!< [Vfac set]
+  MaxVal			//!< Mark the end of the enums
 };
 
 template<>

@@ -162,11 +162,13 @@ def plot_data(filename, eloss, msz, logY, dot):
         esKE = np.add(ekeI, ekeE)
         if logY:
             pl.semilogy(time, etot, '-', label="E total")
-            pl.semilogy(time, elsC, '-', label="E lost")
+            pl.semilogy(time, elos, '-', label="E lost (D)")
+            pl.semilogy(time, elsC, '-', label="E lost (C)")
             pl.semilogy(time, esKE, '-', label="KE")
         else:
             pl.plot(time, etot, '-', label="E total")
-            pl.plot(time, elsC, '-', label="E lost")
+            pl.plot(time, elos, '-', label="E lost (D)")
+            pl.plot(time, elsC, '-', label="E lost (C)")
             pl.plot(time, esKE, '-', label="KE")
         pl.legend(prop={'size':10}).draggable()
     else:
