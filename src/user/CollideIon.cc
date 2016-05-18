@@ -10171,7 +10171,6 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
   speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
   unsigned short  Z1 = k1.first;
-  unsigned short  Z2 = k2.first;
   double          me = atomic_weights[0] * amu;
 
   // Get relative velocity and energy between ion from p1 and electron
