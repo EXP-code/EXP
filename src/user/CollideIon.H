@@ -444,7 +444,7 @@ private:
   //@{
   //! For histogram electron interaction energy distribution in eV.
   //! Set to false for production.
-  const bool eDistDBG = true;
+  static bool eDistDBG;
   std::vector< boost::circular_buffer<double> > elecEV;
   std::vector< boost::circular_buffer<double> > elecEVmin;
   std::vector< boost::circular_buffer<double> > elecEVavg;
@@ -454,7 +454,7 @@ private:
 
   //@{
   //! Electron NTC diagnostic histograms
-  typedef std::map<float, ahistoDPtr>            NTCeeHist;
+  typedef std::map<float, ahistoDPtr> NTCeeHist;
   typedef std::map<double, std::vector<double> > eeMap;
 
   //! Desired quantiles
