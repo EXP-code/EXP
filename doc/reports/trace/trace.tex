@@ -64,6 +64,10 @@
 \newcommand{\bp}{{\bf\pi}}
 \newcommand{\barm}{{\bar m}}
 \newcommand{\bv}{{\bf v}}
+\newcommand{\bu}{{\bf u}}
+\newcommand{\bw}{{\bf w}}
+\newcommand{\bvp}{{\bf v}\myprime}
+\newcommand{\bup}{{\bf u}\myprime}
 \newcommand{\va}{\bv_a}
 \newcommand{\vb}{\bv_b}
 \newcommand{\vap}{\va\myprime}
@@ -481,6 +485,112 @@ $\langle{m}_X\rangle = \hat{m_x}m_a\Gamma_p \langle\eta_X\rangle$
 where $m_a$ is the mean atomic mass unit.  I am typically choosing
 $\eta_H = 1$ so that $\hat{m}_H = \Gamma_p m_H$ and (e.g.) $\eta_{He}
 = 0.078$.
+
+\section{Energy loss from particle splitting and explicit conservation
+  algorithms}
+
+To increase interaction frequency of trace-species interactions of
+superparticles in the computational cells, we may assign a smaller
+mass to the subdominant species $b$ relative the the dominant species
+$a$.  This may be extended to any number of trace species.
+
+For simplicity consider two trace species with $q\equiv M_2/M_1$ where
+$M_j, m_j$ are the mass of the superparticles and true particles,
+respectively.  When an interaction with $q<1$ occurs, we split
+particle $1$ into two: the interacting mass has $qM_1$ and
+non-interacting mass has $(1-q)M_1$.  In the standard momentum
+conserving algorithm, we velocity update takes the form:
+\begin{eqnarray}
+\bvp_1 &=& (1-q)\bv_1 + q\bup_1, \label{eq:vp1}\\
+\bvp_2 &=& \bup_2, \label{eq:vp2}
+\end{eqnarray}
+where $\bu$ is the velocity in the center of mass frame of the
+interaction and the unprimed and primed variables are the pre- and
+post-collision velocities, respectively.  Since the fraction $(1-q)$
+of particle $1$ does not interact, we can write the pre- and
+post-collision kinetic energies as:
+\begin{eqnarray}
+E_{pre} &=& \frac12(1-q)m_1v_1^2 + \frac12qm_1v_1^2 +
+\frac12qm_2v_2^2, \label{eq:epre}\\ E_{post} &=&
+\frac12m_1{v_1\myprime}^2 +
+\frac12m_2{v_2\myprime}^2. \label{eq:epost}
+\end{eqnarray}
+Substituting equations (\ref{eq:vp1}) and (\ref{eq:vp2}) into equation
+(\ref{eq:epost}) we may compute the energy difference $\Delta E\equiv
+E_{pre} - E_{post}$.  After rearranging and combining terms, one
+finds:
+\begin{equation}
+  \Delta E = \frac12m_1q(1-q)(\bv_1 - \bup_1)^2.
+\end{equation}
+In other words, kinetic energy is systematically lost unless $q=0, 1$.
+
+I propose two options for ameliorating or preventing this artificial
+energy loss:
+\begin{enumerate}
+\item The quantity $\Delta E$ may be cached for each interacting
+  particle and added to the next interaction with $q=1$.  For the EXP
+  implementation, I add $\Delta E$ to the energy cache of the dominant
+  particle.
+\item Energy may be added to the system to explicitly conserve energy.
+  Specifically, I propose boosting the kinetic energy of the
+  non-interacting part of the superparticle split using one of two
+  possible recipes.  In the first, we boost $\bv_1$ by a factor $\eta$
+  without altering its direction (the \emph{parallel} method).  In the
+  second, we add component to $\bvp_1$ that is perpendicular to both
+  $\bv_1$ and $\bup_1$ (the \emph{orthogonal} method).
+\end{enumerate}
+In both cases, momentum conservation of the system after combining the
+split particles is violated.  At this point, I'm not certain of the
+benefits of choosing the parallel over the orthogonal method (or vice
+versa).
+
+\subsection{The \emph{parallel} method}
+
+We update equations (\ref{eq:vp1}) and (\ref{eq:vp2}) to include an
+${\cal O}(1)$ prefactor $\eta$ on the non-interacting part of the
+split-particle momentum:
+\begin{eqnarray}
+\bvp_1 &=& \eta(1-q)\bv_1 + q\bup_1, \label{eq:vp1para}\\
+\bvp_2 &=& \bup_2. \label{eq:vp2para}
+\end{eqnarray}
+Substituting these new momentum equations into equations
+(\ref{eq:epre}) and (\ref{eq:epost}) we get
+\begin{equation}
+  \delta E = \frac12m_1(1-q)\left\{
+  \left[1 - \eta(1-q)\right]v_1^2 - 2\eta q \bv_1\cdot\bup_1 +
+  q{u\myprime}_1^2
+  \right\}.
+\end{equation}
+Setting $\Delta E=0$ yields the following quadratic equation for
+$\eta$:
+\begin{equation}
+  0 = \eta^2(1-q)v_1^2 + 2\eta q \bv_1\cdot\bup_q
+  -\left(q{u\myprime}_1^2 + v_1^2\right)
+\end{equation}
+whose solution is:
+\begin{equation}
+  \eta = \frac{-y + \sgn(y)\sqrt{y^2 + (1-q)(q{u\myprime}_1^2/v_1^2 +
+      1)}}{(1-q)}
+\end{equation}
+where $y\equiv q\bv_1\cdot\bup_1/v_1^2$ and the sign in front of the
+radicand is chosen so that $0<\eta<\infty$ as $q\rightarrow1$ for
+$|y|>\epsilon$ for some $\epsilon>0$.
+
+
+\subsection{The \emph{orthogonal} method}
+Here, we update equations (\ref{eq:vp1}) and (\ref{eq:vp2}) to include
+unit vector $\bw_1 = \bv_1\wedge\bup_1/|\bv_1\wedge\bup_1|$ with prefactor
+$\gamma$ as follows:
+\begin{eqnarray}
+\bvp_1 &=& \eta(1-q)\bv_1 + q\bup_1 +\gamma\bw_1, \label{eq:vp1orth}\\
+\bvp_2 &=& \bup_2. \label{eq:vp2orth}
+\end{eqnarray}
+Again, substituting these new momentum equations into equations
+(\ref{eq:epre}) and (\ref{eq:epost}) and setting $\Delta E=0$, we get
+\begin{equation}
+  \gamma = \sqrt{q(1-q)(\bv_1-\bup_1)^2}.
+\end{equation}
+
 
 \bibliography{master}
 \label{sec:ref}
