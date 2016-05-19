@@ -286,8 +286,8 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcOvr.resize(nthrds, 0);
   ntcAcc.resize(nthrds, 0);
   ntcTot.resize(nthrds, 0);
-  ntcSum.resize(nthrds);
-  wgtSum.resize(nthrds);
+  ntcVal.resize(nthrds);
+  wgtVal.resize(nthrds);
   for (auto &v : ntcVal) v.set_capacity(bufCap);
   for (auto &v : wgtVal) v.set_capacity(bufCap);
 
