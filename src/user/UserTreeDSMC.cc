@@ -34,7 +34,7 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string UserTreeDSMC::version = "0.21 [subspecies test]";
+const std::string UserTreeDSMC::version = "0.22 [subspecies test]";
 
 //
 // Simulation units
