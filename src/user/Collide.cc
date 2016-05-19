@@ -286,8 +286,9 @@ Collide::Collide(ExternalForce *force, Component *comp,
   ntcOvr.resize(nthrds, 0);
   ntcAcc.resize(nthrds, 0);
   ntcTot.resize(nthrds, 0);
-  ntcVal.resize(nthrds);
-  wgtVal.resize(nthrds);
+  ntcSum.resize(nthrds);
+  wgtSum.resize(nthrds);
+  for (auto &v : ntcVal) v.set_capacity(bufCap);
   for (auto &v : wgtVal) v.set_capacity(bufCap);
 
   if (MFPDIAG) {
@@ -3315,15 +3316,15 @@ void Collide::NTCgather(pHOT* const tree)
     }
 
 				// Accumulate into id=0
-    for (int n=1; n<nthrds; n++) {
-      ntcVal[0].insert(ntcVal[0].end(), ntcVal[n].begin(), ntcVal[n].end());
-      ntcVal[n].clear();
+    ntcSum.clear();
+    for (int n=0; n<nthrds; n++) {
+      ntcSum.insert(ntcSum.end(), ntcVal[n].begin(), ntcVal[n].end());
     }
 
 				// Accumulate into wgtTot
-    wgtTot.clear();
+    wgtSum.clear();
     for (int n=0; n<nthrds; n++) {
-      wgtTot.insert(wgtTot.end(), wgtVal[n].begin(), wgtVal[n].end());
+      wgtSum.insert(wgtSum.end(), wgtVal[n].begin(), wgtVal[n].end());
     }
 
     // Only check for crazy collisions after first step
@@ -3366,14 +3367,15 @@ void Collide::NTCgather(pHOT* const tree)
 
 	if (myid == n) {
 
-	  unsigned sz = ntcVal[0].size();
+	  unsigned sz = ntcSum.size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 224, MPI_COMM_WORLD);
-	  if (sz) MPI_Send(&ntcVal[0][0], sz, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
+	  if (sz) MPI_Send(&ntcSum[0], sz, MPI_DOUBLE, 0, 225, MPI_COMM_WORLD);
+	  ntcSum.clear();
 
-	  sz = wgtTot.size();
+	  sz = wgtSum.size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 289, MPI_COMM_WORLD);
-	  if (sz) MPI_Send(&wgtTot[0], sz, MPI_DOUBLE, 0, 290, MPI_COMM_WORLD);
-	  wgtTot.clear();
+	  if (sz) MPI_Send(&wgtSum[0], sz, MPI_DOUBLE, 0, 290, MPI_COMM_WORLD);
+	  wgtSum.clear();
 
 	  sz = qq.size();
 	  MPI_Send(&sz, 1, MPI_UNSIGNED, 0, 226, MPI_COMM_WORLD);
@@ -3429,7 +3431,7 @@ void Collide::NTCgather(pHOT* const tree)
 	  if (sz) {
 	    v.resize(sz);
 	    MPI_Recv(&v[0], sz, MPI_DOUBLE, n, 225, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    ntcVal[0].insert(ntcVal[0].end(), v.begin(), v.end());
+	    ntcSum.insert(ntcSum.end(), v.begin(), v.end());
 	  }
 
 
@@ -3437,7 +3439,7 @@ void Collide::NTCgather(pHOT* const tree)
 	  if (sz) {
 	    v.resize(sz);
 	    MPI_Recv(&v[0], sz, MPI_DOUBLE, n, 290, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-	    wgtTot.insert(wgtTot.end(), v.begin(), v.end());
+	    wgtSum.insert(wgtSum.end(), v.begin(), v.end());
 	  }
 
 	  MPI_Recv(&sz, 1, MPI_UNSIGNED, n, 226, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
@@ -3498,12 +3500,14 @@ void Collide::NTCgather(pHOT* const tree)
 
       if (myid==0) {
 
-	ntcHisto = ahistoDPtr(new AsciiHisto<double>(ntcVal[0], 20, 0.01, true));
-	ntcVal[0].clear();
+	if (wgtSum.size()) {
+	  ntcHisto = ahistoDPtr(new AsciiHisto<double>(ntcSum, 20, 0.01, true));
+	  ntcSum.clear();
+	}
 
-	if (wgtTot.size()) {
-	  wgtHisto = ahistoDPtr(new AsciiHisto<double>(wgtTot, 20, 0.01, true));
-	  wgtTot.clear();
+	if (wgtSum.size()) {
+	  wgtHisto = ahistoDPtr(new AsciiHisto<double>(wgtSum, 20, 0.01, true));
+	  wgtSum.clear();
 	}
 
 	for (auto &u : qq) {

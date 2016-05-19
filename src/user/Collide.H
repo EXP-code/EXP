@@ -482,10 +482,9 @@ protected:
 
   //@{
   //! NTC diagnostoics
-  std::vector< vector<double> > ntcVal;
   const size_t bufCap = 16384;
-  std::vector< boost::circular_buffer<double> > wgtVal;
-  std::vector<double> wgtTot;
+  std::vector< boost::circular_buffer<double> > ntcVal, wgtVal;
+  std::vector<double> wgtSum, ntcSum;
   //@}
 
 public:
