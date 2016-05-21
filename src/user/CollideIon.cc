@@ -164,6 +164,8 @@ static bool use_cons_test     = false;
 
 static bool temp_debug        = false;
 
+static bool scatter_check     = true;
+
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
 static bool suppress_maxT     = false;
@@ -372,6 +374,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecOvr  .resize(nthrds, 0);
   elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
+  Escat    .resize(nthrds);
+  Etotl    .resize(nthrds);
   collCount.resize(nthrds);
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
@@ -5573,6 +5577,18 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     unsigned short C1 = P1 + 1;
     unsigned short C2 = P2 + 1;
 
+    // Temporary debugging
+    //
+    if (scatter_check and prob < 0.0) {
+      unsigned short ZZ = (swapped ? Z2 : Z1);
+      if (interFlag == ion_elec) {
+	if (Escat[id].find(ZZ) == Escat[id].end()) Escat[id][ZZ] = 0;
+	Escat[id][ZZ]++;
+      }
+      if (Etotl[id].find(ZZ) == Etotl[id].end()) Etotl[id][ZZ] = 0;
+      Etotl[id][ZZ]++;
+    }
+    
     // For hybrid method, the speciesKey level is set to zero.
     // Replace with the correct subspecies value.
     //
@@ -5632,13 +5648,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (interFlag == ion_elec) {
       if (swapped) {
-	ctd1->ie[id][0] += cF;
-	ctd1->ie[id][1] += NN;
-	Ion1Frac += cF;
-      } else {
 	ctd2->ie[id][0] += cF;
 	ctd2->ie[id][1] += NN;
 	Ion2Frac += cF;
+      } else {
+	ctd1->ie[id][0] += cF;
+	ctd1->ie[id][1] += NN;
+	Ion1Frac += cF;
       }
     }
 
@@ -10922,6 +10938,100 @@ void CollideIon::gatherSpecies()
     if (massE>0.0) {
       tempE /= mass;
     }
+  }
+
+  // Temporary debug for elastic scattering counts
+  //
+  if (scatter_check and aType==Hybrid) {
+
+    // Sum over all threads
+    std::map<unsigned short, unsigned> scat, totl;
+    for (int t=0; t<nthrds; t++) {
+      for (auto v : Escat[t]) {
+	if (scat.find(v.first) == scat.end()) scat[v.first] = 0;
+	scat[v.first] += v.second;
+      }
+      for (auto v : Etotl[t]) {
+	if (totl.find(v.first) == totl.end()) totl[v.first] = 0;
+	totl[v.first] += v.second;
+      }
+    }
+    
+    // Send to root node
+    //
+    for (int i=1; i<numprocs; i++) {
+      unsigned numZ, ZZ, NN;
+      if (myid==i) {
+	MPI_Send(&(numZ=scat.size()), 1, MPI_UNSIGNED, 0, 554, MPI_COMM_WORLD);
+	for (auto v : scat) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 555, MPI_COMM_WORLD);
+	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 556, MPI_COMM_WORLD);
+	}
+	MPI_Send(&(numZ=totl.size()), 1, MPI_UNSIGNED, 0, 557, MPI_COMM_WORLD);
+	for (auto v : totl) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 558, MPI_COMM_WORLD);
+	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 559, MPI_COMM_WORLD);
+	}
+      }
+
+      if (myid==0) {
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 554, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 555, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 556, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (scat.find(ZZ) == scat.end()) scat[ZZ] = 0;
+	  scat[ZZ] += NN;
+	}
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 557, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 558, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 559, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (totl.find(ZZ) == totl.end()) totl[ZZ] = 0;
+	  totl[ZZ] += NN;
+	}
+      }
+    }
+
+    // Root prints the diagnostic
+    //
+    if (myid==0) {
+      std::cout << std::endl
+		<< std::string(4+10+10+12, '-')   << std::endl
+		<< "Scatter check: time=" << tnow << std::endl
+		<< std::string(4+10+10+12, '-')   << std::endl
+		<< std::right
+		<< std::setw(4)  << "Elem"
+		<< std::setw(10) << "Scatter"
+		<< std::setw(10) << "Total"
+		<< std::setw(12) << "Fraction"
+		<< std::endl
+		<< std::setw(4)  << "----"
+		<< std::setw(10) << "--------"
+		<< std::setw(10) << "--------"
+		<< std::setw(12) << "--------"
+		<< std::endl;
+      // One line for each element
+      for (auto v : totl) {
+	unsigned NS=0; double frac = 0.0;
+	if (v.second > 0) {
+	  if (scat.find(v.first) != scat.end()) NS = scat[v.first];
+	  frac = static_cast<double>(NS)/v.second;
+	}
+	std::cout << std::setw( 4) << v.first
+		  << std::setw(10) << NS
+		  << std::setw(10) << v.second
+		  << std::setw(12) << frac << std::endl;
+      }
+      std::cout << std::string(4+10+10+12, '-') << std::endl;
+    }
+
+    // Clear the counters
+    //
+    for (int t=0; t<nthrds; t++) {
+      for (auto & v : Escat[t]) v.second = 0;
+      for (auto & v : Etotl[t]) v.second = 0;
+    }
+
   }
 
   (*barrier)("CollideIon::gatherSpecies complete", __FILE__, __LINE__);

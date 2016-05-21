@@ -388,6 +388,7 @@ private:
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
+  std::vector< std::map<unsigned short, unsigned > > Escat, Etotl;
   //@}
 
   //! This defines the various types of interactions used to tag
