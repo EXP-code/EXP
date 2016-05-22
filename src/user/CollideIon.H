@@ -16,6 +16,7 @@
 #include "atomic_constants.H"
 #include "AsciiHisto.H"
 #include "EnumBitset.H"
+#include "GetWithDef.H"
 
 //
 // Define operator()+ for std::accumulate
@@ -365,6 +366,7 @@ private:
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
+  typedef Imap<unsigned short, unsigned>             TypeMap;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -388,7 +390,8 @@ private:
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
-  std::vector< std::map<unsigned short, unsigned > > Escat, Etotl;
+  std::vector< std::map<unsigned short, unsigned> >  Escat, Etotl;
+  std::vector< std::map<unsigned short, TypeMap> >   Italy;
   //@}
 
   //! This defines the various types of interactions used to tag

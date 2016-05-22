@@ -1,6 +1,8 @@
 #ifndef _GetWithDef_H
 #define _GetWithDef_H
 
+#include <map>
+
 /**
    Wrapper template for STL containers for initializing value for new
    key.
@@ -28,5 +30,26 @@ V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
   if (it == m.end()) return (m[key] = defval);
   return it->second;
 }
+
+template <typename K, typename V>
+class Imap : public std::map<K, V>
+{
+public:
+  //! Default value is zero for simple arithmetic types, but may be
+  //! specialized as necessary.  If it fails to compile, it probably
+  //! needs to be specialized.
+  virtual V Default() { return 0; }
+
+  //! Initializer
+  V& operator[](const K& key)
+  {
+    typename std::map<K, V>::iterator it = this->find(key);
+    if (this->find(key) == this->end()) {
+      (*this)[key] = Default();
+      it = this->find(key);
+    }
+    return it->second;
+  }
+};
 
 #endif

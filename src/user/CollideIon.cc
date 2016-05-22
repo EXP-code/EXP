@@ -178,6 +178,20 @@ static int DEBUG_CNT          = -1;
 static std::vector<double> cscl_;
 PeriodicTable PT;
 
+static std::string interLabels[] =
+  {
+    "Any type",			// 0
+    "Neutral-neutral",		// 1
+    "Neutral-electron",		// 2
+    "Ion-electron",		// 3
+    "Free_free",		// 4
+    "Collisional",		// 5
+    "Ionization",		// 6
+    "Recombination",		// 7
+    "Electron-electron"		// 8
+  };
+
+
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
 		       const std::string& smap, int Nth) :
@@ -377,6 +391,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecTot  .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
+  Italy    .resize(nthrds);
   collCount.resize(nthrds);
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
@@ -6265,6 +6280,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
 
+	  if (scatter_check) Italy[id][Z1][interFlag]++;
+
 	  for (int k=0; k<3; k++) {
 	    p1->vel[k] = v1[k];	// Particle 1 is the ion
 				// Particle 2 is the elctron
@@ -6311,6 +6328,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
+
+	  if (scatter_check) Italy[id][Z2][interFlag]++;
 
 	  for (int k=0; k<3; k++) {
 				// Particle 1 is the electron
@@ -10943,15 +10962,20 @@ void CollideIon::gatherSpecies()
 
     // Sum over all threads
     std::map<unsigned short, unsigned> scat, totl;
+    std::map<unsigned short, TypeMap> taly;
+
     for (int t=0; t<nthrds; t++) {
       for (auto v : Escat[t]) GetWithDef(scat, v.first, 0u) += v.second;
       for (auto v : Etotl[t]) GetWithDef(totl, v.first, 0u) += v.second;
+      for (auto v : Italy[t]) {
+	for (auto u : v.second) taly[v.first][u.first] += u.second;
+      }
     }
     
     // Send to root node
     //
     for (int i=1; i<numprocs; i++) {
-      unsigned numZ, ZZ, NN;
+      unsigned numZ, numU, ZZ, UU, NN;
       if (myid==i) {
 	MPI_Send(&(numZ=scat.size()), 1, MPI_UNSIGNED, 0, 554, MPI_COMM_WORLD);
 	for (auto v : scat) {	
@@ -10962,6 +10986,16 @@ void CollideIon::gatherSpecies()
 	for (auto v : totl) {	
 	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 558, MPI_COMM_WORLD);
 	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 559, MPI_COMM_WORLD);
+	}
+	MPI_Send(&(numZ=taly.size()), 1, MPI_UNSIGNED, 0, 560, MPI_COMM_WORLD);
+	for (auto v : taly) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 561, MPI_COMM_WORLD);
+	  numU = v.second.size();
+	  MPI_Send(&numU,             1, MPI_UNSIGNED, 0, 562, MPI_COMM_WORLD);
+	  for (auto u : v.second) {
+	    MPI_Send(&(UU=u.first),   1, MPI_UNSIGNED, 0, 563, MPI_COMM_WORLD);
+	    MPI_Send(&(NN=u.second),  1, MPI_UNSIGNED, 0, 564, MPI_COMM_WORLD);
+	  }
 	}
       }
 
@@ -10980,9 +11014,19 @@ void CollideIon::gatherSpecies()
 	  if (totl.find(ZZ) == totl.end()) totl[ZZ] = 0;
 	  totl[ZZ] += NN;
 	}
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 560, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ,   1, MPI_UNSIGNED, i, 561, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&numU, 1, MPI_UNSIGNED, i, 562, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  for (unsigned u=0; u<numU; u++) {
+	    MPI_Recv(&UU, 1, MPI_UNSIGNED, i, 563, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    taly[ZZ][UU] += NN;
+	  }
+	}
       }
     }
-
+    
     // Root prints the diagnostic
     //
     if (myid==0) {
@@ -11013,6 +11057,14 @@ void CollideIon::gatherSpecies()
 		  << std::setw(10) << v.second
 		  << std::setw(12) << frac << std::endl;
       }
+      std::cout << std::endl;
+      for (auto v : taly) {
+	if (v.second.size())
+	  std::cout << std::setw(4)  << "Elem = " << v.first << std::endl;
+	for (auto u : v.second)
+	  std::cout << std::setw(18) << interLabels[u.first]
+		    << std::setw(10) << u.second << std::endl;
+      }
       std::cout << std::string(4+10+10+12, '-') << std::endl;
     }
 
@@ -11021,6 +11073,7 @@ void CollideIon::gatherSpecies()
     for (int t=0; t<nthrds; t++) {
       for (auto & v : Escat[t]) v.second = 0;
       for (auto & v : Etotl[t]) v.second = 0;
+      for (auto & v : Italy[t]) v.second.clear();
     }
 
   }
