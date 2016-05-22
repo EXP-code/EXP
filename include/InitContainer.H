@@ -3,16 +3,22 @@
 
 #include <map>
 
+//@{
 /**
    Wrapper template for STL containers for initializing value for new
    key.
 
    GetWithDef returns a value and MapWithDef returns the container.
 
+   The Icont class derives a helper class using the STL container as a
+   base class.
+
    This version is updated for C++11 variadic arguments.  Should work
    for generic associative containers including the optional
    comparator and allocator parameters.
 */
+
+//! Constant version
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 V GetWithDef(const C<K,V,Args...>& m, K const& key, const V & defval)
@@ -22,6 +28,7 @@ V GetWithDef(const C<K,V,Args...>& m, K const& key, const V & defval)
   return it->second;
 }
 
+//! Non-constant version
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
@@ -31,6 +38,8 @@ V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
   return it->second;
 }
 
+//! This does the same thing as the non-invasive templates above using
+//! inheritance
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 class Icont : public C<K, V, Args...>
@@ -53,5 +62,7 @@ public:
     return it->second;
   }
 };
+
+//@}
 
 #endif
