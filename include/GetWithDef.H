@@ -31,8 +31,9 @@ V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
   return it->second;
 }
 
-template <typename K, typename V>
-class Imap : public std::map<K, V>
+template < template<class,class,class...>
+	   class C, typename K, typename V, typename... Args >
+class Icont : public C<K, V, Args...>
 {
 public:
   //! Default value is zero for simple arithmetic types, but may be
@@ -43,7 +44,7 @@ public:
   //! Initializer
   V& operator[](const K& key)
   {
-    std::map<K, V>* p = static_cast<std::map<K,V>*>(this);
+    std::map<K, V, Args...>* p = static_cast<std::map<K,V, Args...>*>(this);
     typename std::map<K, V>::iterator it = p->find(key);
     if (it == p->end()) {
       typename std::pair<const K, V> value(key, Default());

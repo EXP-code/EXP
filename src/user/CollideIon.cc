@@ -5597,8 +5597,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (scatter_check and prob < 0.0) {
       unsigned short ZZ = (swapped ? Z2 : Z1);
-      if (interFlag == ion_elec) GetWithDef(Escat[id], ZZ, 0u)++;
-      GetWithDef(Etotl[id], ZZ, 0u)++;
+      if (interFlag == ion_elec) Escat[id][ZZ]++;
+      Etotl[id][ZZ]++;
     }
     
     // For hybrid method, the speciesKey level is set to zero.
@@ -10965,8 +10965,8 @@ void CollideIon::gatherSpecies()
     std::map<unsigned short, TypeMap> taly;
 
     for (int t=0; t<nthrds; t++) {
-      for (auto v : Escat[t]) GetWithDef(scat, v.first, 0u) += v.second;
-      for (auto v : Etotl[t]) GetWithDef(totl, v.first, 0u) += v.second;
+      for (auto v : Escat[t]) scat[v.first] += v.second;
+      for (auto v : Etotl[t]) totl[v.first] += v.second;
       for (auto v : Italy[t]) {
 	for (auto u : v.second) taly[v.first][u.first] += u.second;
       }
@@ -11075,9 +11075,9 @@ void CollideIon::gatherSpecies()
 	for (auto u : v.second) {
 	  unsigned short itype = u.first % 100;
 	  unsigned short ipart = u.first / 100;
-	  std::cout << std::setw(24) << interLabels[u.first]
-		    << std::setw( 4) << itype
-		    << std::setw(10) << ipart << std::endl;
+	  std::cout << std::setw(24) << interLabels[itype]
+		    << std::setw( 4) << ipart
+		    << std::setw(10) << u.second << std::endl;
 	}
       }
       std::cout << std::string(4+10+10+12, '-') << std::endl;
