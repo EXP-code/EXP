@@ -45,9 +45,9 @@ public:
   {
     std::map<K, V>* p = static_cast<std::map<K,V>*>(this);
     typename std::map<K, V>::iterator it = p->find(key);
-    if (p->find(key) == p->end()) {
-      (*p)[key] = Default();
-      it = p->find(key);
+    if (it == p->end()) {
+      typename std::pair<const K, V> value(key, Default());
+      it = p->insert(value).first; // Insert and return new iterator
     }
     return it->second;
   }

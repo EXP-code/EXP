@@ -6280,7 +6280,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
 
-	  if (scatter_check) Italy[id][Z1][interFlag]++;
+	  if (scatter_check) Italy[id][Z1][interFlag+100]++;
 
 	  for (int k=0; k<3; k++) {
 	    p1->vel[k] = v1[k];	// Particle 1 is the ion
@@ -6329,7 +6329,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
 
-	  if (scatter_check) Italy[id][Z2][interFlag]++;
+	  if (scatter_check) Italy[id][Z2][interFlag+200]++;
 
 	  for (int k=0; k<3; k++) {
 				// Particle 1 is the electron
@@ -11057,13 +11057,28 @@ void CollideIon::gatherSpecies()
 		  << std::setw(10) << v.second
 		  << std::setw(12) << frac << std::endl;
       }
-      std::cout << std::endl;
+      std::cout << std::endl
+		<< std::setw(4)  << "Elem"
+		<< std::setw(20) << "Type"
+		<< std::setw(4)  << "#"
+		<< std::setw(10) << "Count"
+		<< std::endl
+		<< std::setw(4)  << "----"
+		<< std::setw(20) << "--------"
+		<< std::setw(4)  << "----"
+		<< std::setw(10) << "--------"
+		<< std::endl;
+
       for (auto v : taly) {
 	if (v.second.size())
-	  std::cout << std::setw(4)  << "Elem = " << v.first << std::endl;
-	for (auto u : v.second)
-	  std::cout << std::setw(18) << interLabels[u.first]
-		    << std::setw(10) << u.second << std::endl;
+	  std::cout << std::setw(4) << v.first << std::endl;
+	for (auto u : v.second) {
+	  unsigned short itype = u.first % 100;
+	  unsigned short ipart = u.first / 100;
+	  std::cout << std::setw(24) << interLabels[u.first]
+		    << std::setw( 4) << itype
+		    << std::setw(10) << ipart << std::endl;
+	}
       }
       std::cout << std::string(4+10+10+12, '-') << std::endl;
     }
