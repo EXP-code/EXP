@@ -19,6 +19,7 @@
 #include "localmpi.h"
 #include "Species.H"
 #include "Configuration.H"
+#include "GetWithDef.H"
 
 using namespace std;
 
@@ -5581,12 +5582,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     //
     if (scatter_check and prob < 0.0) {
       unsigned short ZZ = (swapped ? Z2 : Z1);
-      if (interFlag == ion_elec) {
-	if (Escat[id].find(ZZ) == Escat[id].end()) Escat[id][ZZ] = 0;
-	Escat[id][ZZ]++;
-      }
-      if (Etotl[id].find(ZZ) == Etotl[id].end()) Etotl[id][ZZ] = 0;
-      Etotl[id][ZZ]++;
+      if (interFlag == ion_elec) GetWithDef(Escat[id], ZZ, 0u)++;
+      GetWithDef(Etotl[id], ZZ, 0u)++;
     }
     
     // For hybrid method, the speciesKey level is set to zero.
@@ -10947,14 +10944,8 @@ void CollideIon::gatherSpecies()
     // Sum over all threads
     std::map<unsigned short, unsigned> scat, totl;
     for (int t=0; t<nthrds; t++) {
-      for (auto v : Escat[t]) {
-	if (scat.find(v.first) == scat.end()) scat[v.first] = 0;
-	scat[v.first] += v.second;
-      }
-      for (auto v : Etotl[t]) {
-	if (totl.find(v.first) == totl.end()) totl[v.first] = 0;
-	totl[v.first] += v.second;
-      }
+      for (auto v : Escat[t]) GetWithDef(scat, v.first, 0u) += v.second;
+      for (auto v : Etotl[t]) GetWithDef(totl, v.first, 0u) += v.second;
     }
     
     // Send to root node
