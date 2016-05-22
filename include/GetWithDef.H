@@ -43,10 +43,11 @@ public:
   //! Initializer
   V& operator[](const K& key)
   {
-    typename std::map<K, V>::iterator it = this->find(key);
-    if (this->find(key) == this->end()) {
-      (*this)[key] = Default();
-      it = this->find(key);
+    std::map<K, V>* p = static_cast<std::map<K,V>*>(this);
+    typename std::map<K, V>::iterator it = p->find(key);
+    if (p->find(key) == p->end()) {
+      (*p)[key] = Default();
+      it = p->find(key);
     }
     return it->second;
   }
