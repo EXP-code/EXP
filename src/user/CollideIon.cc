@@ -11065,7 +11065,7 @@ void CollideIon::gatherSpecies()
 		<< std::endl
 		<< std::setw(4)  << "----"
 		<< std::setw(20) << "--------"
-		<< std::setw(4)  << "----"
+		<< std::setw(4)  << "--"
 		<< std::setw(10) << "--------"
 		<< std::endl;
 
