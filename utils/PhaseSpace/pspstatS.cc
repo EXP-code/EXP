@@ -24,6 +24,8 @@ using namespace std;
 #include <header.H>
 #include <PSP.H>
 
+#include "atomic_constants.H"
+
 #include <boost/program_options.hpp>
 
 namespace po = boost::program_options;
@@ -36,13 +38,12 @@ char threading_on = 0;
 pthread_mutex_t mem_lock;
 string outdir, runtag;
 
-double atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
 
 int
 main(int ac, char **av)
 {
   char *prog = av[0];
-  double time;
+  double time, Lunit, Munit, Tunit;
   int sindx, eindx;
   std::string cname;
   bool verbose = false;
@@ -61,6 +62,12 @@ main(int ac, char **av)
      "position of electron index")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
+    ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
+     "physical length unit in pc")
+    ("Munit,M",         po::value<double>(&Munit)->default_value(0.1),
+     "physical mass unit in solar masses")
+    ("Tunit,T",         po::value<double>(&Tunit)->default_value(1.0e+05),
+     "physical time unit in years")
     ("files,f",         po::value< std::vector<std::string> >(), 
      "input files")
     ;
@@ -88,6 +95,16 @@ main(int ac, char **av)
     verbose = true;
   }
 
+
+  // Convert system units to cgs
+  //
+  Lunit *= pc;
+  Munit *= msun;
+  Tunit *= year;
+
+				// Velocity and energy system units
+  double Vunit = Lunit/Tunit;
+  double Eunit = Munit*Vunit*Vunit;
 
   // Get file arguments
   //
@@ -131,9 +148,17 @@ main(int ac, char **av)
 
 				// Will contain array for each gas species
 				// ---------------------------------------
-    typedef std::tuple<double, unsigned> shtup;
+    typedef std::tuple<double, double, double, double, unsigned> shtup;
+    //                 ^       ^       ^       ^       ^
+    //                 |       |       |       |       |
+    // 0: mass --------+       |       |       |       |
+    // 1: Ion KE --------------+       |       |       |
+    // 2: Electron KE -----------------+       |       |
+    // 3: True number -------------------------+       |
+    // 4: Count ---------------------------------------+
+    //
     typedef std::map<speciesKey, shtup> shist;
-    const shtup tupzero(0.0, 0);
+    const shtup tupzero(0.0, 0.0, 0.0, 0.0, 0);
 
     PSPstanza *stanza;
     SParticle* part;
@@ -198,16 +223,28 @@ main(int ac, char **av)
 	if (sindx >= 0) {
 	  KeyConvert kc(part->iatr(sindx));
 	  speciesKey k = kc.getKey();
+
 	  if (hist1.find(k) == hist1.end()) hist1[k] = tupzero;
-	  std::get<0>(hist1[k]) += ms;
-	  std::get<1>(hist1[k]) ++;
+
 	  double ke = 0.0;
 	  for (int i=0; i<3; i++) {
 	    double t = part->datr(eindx+i);
 	    ke += t*t;
 	  }
-	  EE1 += ke * 0.5*ms*atomic_masses[0]/atomic_masses[k.first];
+	  EE1 += ke * 0.5*ms*atomic_mass[0]/atomic_mass[k.first];
+
+				// Mass
+	  std::get<0>(hist1[k]) += ms;
+				// Ion KE
+	  std::get<1>(hist1[k]) += 0.5 * ms * rtmp * Eunit;
+				// Electron KE
+	  std::get<2>(hist1[k]) += 0.5 * ke * ms * atomic_mass[0]/atomic_mass[k.first] * Eunit;
+				// True particle number
+	  std::get<3>(hist1[k]) += ms * Munit/(atomic_mass[k.first]*amu);
+				// Superparticle count
+	  std::get<4>(hist1[k]) ++;
 	}
+
       }
     
       cout  << "     COM\t\t";
@@ -236,6 +273,11 @@ main(int ac, char **av)
 		<< "  :  "
 		<< std::setw(16) << std::get<0>(v.second)
 		<< std::setw(10) << std::get<1>(v.second)
+		<< std::setw(10) << std::get<2>(v.second)
+		<< std::setw(10) << std::get<1>(v.second)/(1.5*std::get<2>(v.second)*boltz)
+		<< std::setw(10) << std::get<2>(v.second)/(1.5*std::get<2>(v.second)*boltz)
+		<< std::setw(10) << std::get<3>(v.second)
+	    
 		<< endl;
 	}
       }
