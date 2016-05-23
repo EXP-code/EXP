@@ -11075,12 +11075,21 @@ void CollideIon::gatherSpecies()
 	if (v.second.size()) {
 	  unsigned short Z1 = v.first / 100;
 	  unsigned short Z2 = v.first % 100;
-	  std::cout << std::setw(4) << Z1 << setw(4) << Z2;
-	}
-	for (auto u : v.second) {
-	  std::cout << std::setw(28) << interLabels[u.first]
-		    << std::setw( 4) << u.first
-		    << std::setw(10) << u.second << std::endl;
+	  bool first = true;
+	  for (auto u : v.second) {
+	    if (first) {
+	      std::cout << std::setw( 4) << Z1
+			<< std::setw( 4) << Z2
+			<< std::setw(20) << interLabels[u.first]
+			<< std::setw( 4) << u.first
+			<< std::setw(10) << u.second << std::endl;
+	      first = false;
+	    } else {
+	      std::cout << std::setw(28) << interLabels[u.first]
+			<< std::setw( 4) << u.first
+			<< std::setw(10) << u.second << std::endl;
+	    }
+	  }
 	}
       }
       std::cout << std::string(4+10+10+12, '-') << std::endl;
