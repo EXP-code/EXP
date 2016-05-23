@@ -58,7 +58,7 @@ main(int ac, char **av)
      "find closest time slice to requested value")
     ("species,s",	po::value<int>(&sindx)->default_value(-1),
      "position of species index")
-    ("electrons,e",	po::value<int>(&eindx)->default_value(7),
+    ("electrons,e",	po::value<int>(&eindx)->default_value(10),
      "position of electron index")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
@@ -256,32 +256,45 @@ main(int ac, char **av)
       cout  << "     Ang mom\t\t";
       for (int i=0; i<3; i++) cout << setw(15) << ang1[i];
       cout << endl << endl;
+      
+      // Get the system time from the PSP header
+      //
+      double systime = psp.CurrentDump()->header.time;
 
-      cout << "     Kinetic energy\t\t"     << KE1            << std::endl
-	   << "     Potential energy\t\t"   << PE1            << std::endl
-	   << "     Virial ratio\t\t"       << -2.0*KE1/PE1   << std::endl
-	   << "     Electron energy\t\t"    << EE1            << std::endl
-	   << "     Particle mass\t\t"      << mass1          << std::endl
-	   << endl;
+      cout << "     System time\t\t"        << systime       << std::endl
+	   << "     Kinetic energy\t\t"     << KE1           << std::endl
+	   << "     Potential energy\t\t"   << PE1           << std::endl
+	   << "     Virial ratio\t\t"       << -2.0*KE1/PE1  << std::endl
+	   << "     Electron energy\t\t"    << EE1           << std::endl
+	   << "     Particle mass\t\t"      << mass1         << std::endl
+	   << std::endl;
 
       if (sindx >= 0) {
-	cout  << "     Species" << endl;
+				// Header
+	cout  << std::right
+	      << std::setw(16) << "Species" << " : "
+	      << std::setw(16) << "Mass"
+	      << std::setw(16) << "Ion temp"
+	      << std::setw(16) << "Elec temp"
+	      << std::setw(10) << "Count"
+	      << endl;
+				// Species loop
 	for (auto v : hist1) {
 	  speciesKey k = v.first;
-	  cout  << "            <"
-		<< setw(2) << k.first << "," << setw(2) << k.second << ">"
-		<< "  :  "
+	  std::ostringstream sout;
+	  sout  << "<" << k.first << "," << k.second << ">";
+	  cout  << std::right << std::setw(16) << sout.str()
+		<< " : "
 		<< std::setw(16) << std::get<0>(v.second)
-		<< std::setw(10) << std::get<1>(v.second)
-		<< std::setw(10) << std::get<2>(v.second)
-		<< std::setw(10) << std::get<1>(v.second)/(1.5*std::get<2>(v.second)*boltz)
-		<< std::setw(10) << std::get<2>(v.second)/(1.5*std::get<2>(v.second)*boltz)
-		<< std::setw(10) << std::get<3>(v.second)
+		<< std::setw(16) << std::get<1>(v.second)/(1.5*std::get<3>(v.second)*boltz)
+		<< std::setw(16) << std::get<2>(v.second)/(1.5*std::get<3>(v.second)*boltz)
+		<< std::setw(10) << std::get<4>(v.second)
 	    
-		<< endl;
+		<< std::endl;
 	}
       }
     }
+    std::cout << std::endl;
   }
   
   return 0;
