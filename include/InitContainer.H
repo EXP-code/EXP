@@ -1,5 +1,5 @@
-#ifndef _GetWithDef_H
-#define _GetWithDef_H
+#ifndef _InitContainer_H
+#define _InitContainer_H
 
 #include <map>
 
@@ -11,14 +11,15 @@
    GetWithDef returns a value and MapWithDef returns the container.
 
    The Icont class derives a helper class using the STL container as a
-   base class.
+   base class.  This version seems the cleanest but may have slightly
+   more overhead.
 
    This version is updated for C++11 variadic arguments.  Should work
    for generic associative containers including the optional
    comparator and allocator parameters.
 */
 
-//! Constant version
+//! Non-invasive, constant rvalue return
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 V GetWithDef(const C<K,V,Args...>& m, K const& key, const V & defval)
@@ -28,7 +29,7 @@ V GetWithDef(const C<K,V,Args...>& m, K const& key, const V & defval)
   return it->second;
 }
 
-//! Non-constant version
+//! Non-invasive, assignable, lvalue return
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
@@ -39,7 +40,7 @@ V& GetWithDef(C<K,V,Args...>& m, K const& key, const V & defval)
 }
 
 //! This does the same thing as the non-invasive templates above using
-//! inheritance
+//! inheritance to wrap the container
 template < template<class,class,class...>
 	   class C, typename K, typename V, typename... Args >
 class Icont : public C<K, V, Args...>
