@@ -24,7 +24,7 @@ BOOST_LIBS = $(BOOST_SYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB)
 
 EXPLIBS = $(MPI_LIBS) $(COMMON_LIBS) $(ADD_LIBS3)
 EXPFLAGS = -L$(top_srcdir)/exputil/.libs -L$(top_srcdir)/expgnu/.libs
-CXXLINK = mpiCC $(CXXFLAGS) $(EXPFLAGS) -o $@
+CXXLINK = mpiCC -rdynamic $(CXXFLAGS) $(EXPFLAGS) -o $@
 
 noinst_HEADERS =
 

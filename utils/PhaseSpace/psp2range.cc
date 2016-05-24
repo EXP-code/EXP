@@ -76,7 +76,7 @@ main(int ac, char **av)
     std::cout << desc << std::endl;
     std::cout << "Example: " << std::endl;
     std::cout << "\t" << av[0]
-	      << " -f OUT.run.00001 -s 1" << std::endl;
+	      << " -f OUT.run.00001 -s 1 -c gas" << std::endl;
     return 1;
   }
 
@@ -192,94 +192,105 @@ main(int ac, char **av)
 	}
 
 	for (int k=0; k<part->ndatr(); k++) {
-	  davmin[key][k] = std::min<int>(part->datr(k), davmin[key][k]);
-	  davmax[key][k] = std::max<int>(part->datr(k), davmax[key][k]);
+	  davmin[key][k] = std::min<double>(part->datr(k), davmin[key][k]);
+	  davmax[key][k] = std::max<double>(part->datr(k), davmax[key][k]);
 	}
       }
     }
     
-    //
-    // Output
-    //
-    const size_t fw = 12;
-    const size_t sw =  9;
-    double Time = psp.CurrentTime();
-    float p, f, m=0.0;
+    if (sofar.size()) {
 
-    std::cout << "Time=" << Time << std::endl << std::endl;
-    std::cout << std::right
-	      << std::setw(fw) << "Key"
-	      << std::setw(fw) << "Value"
-	      << std::setw(fw) << "Min"
-	      << std::setw(fw) << "Max"
-	      << std::endl
-	      << std::setw(fw) << "------"
-	      << std::setw(fw) << "------"
-	      << std::setw(fw) << "------"
-	      << std::endl;
+      //
+      // Output
+      //
+      const size_t fw = 18;
+      double Time = psp.CurrentTime();
+
+      std::cout << "Time=" << Time << std::endl << std::endl;
+
+      std::cout << std::string(4*fw, '-') << std::endl;
+
+      std::cout << std::right
+		<< std::setw(fw) << "Key"
+		<< std::setw(fw) << "Value"
+		<< std::setw(fw) << "Min"
+		<< std::setw(fw) << "Max"
+		<< std::endl
+		<< std::setw(fw) << "------"
+		<< std::setw(fw) << "------"
+		<< std::setw(fw) << "------"
+		<< std::setw(fw) << "------"
+		<< std::endl;
       
-    for (auto key : sofar) {
-      std::ostringstream skey;
-      skey << "<" << key.first << ", " << key.second << ">";
-
-      std::cout << std::right
-		<< std::setw(fw) << skey.str()
-		<< std::setw(fw) << "Mass"
-		<< std::setw(fw) << masmin[key]
-		<< std::setw(fw) << masmax[key]
-		<< std::endl;
-
-      for (int k=0; k<3; k++) {
-	std::ostringstream snam;
-	snam << "pos(" << k+1 << ")";
+      for (auto key : sofar) {
+	std::ostringstream skey;
+	skey << "<" << key.first << ", " << key.second << ">";
+	
 	std::cout << std::right
 		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << snam.str()
-		  << std::setw(fw) << posmin[key][k]
-		  << std::setw(fw) << posmax[key][k]
+		  << std::setw(fw) << "Mass"
+		  << std::setw(fw) << masmin[key]
+		  << std::setw(fw) << masmax[key]
 		  << std::endl;
-      }
 
-      for (int k=0; k<3; k++) {
-	std::ostringstream snam;
-	snam << "vel(" << k+1 << ")";
+	for (int k=0; k<3; k++) {
+	  std::ostringstream snam;
+	  snam << "pos(" << k+1 << ")";
+	  std::cout << std::right
+		    << std::setw(fw) << skey.str()
+		    << std::setw(fw) << snam.str()
+		    << std::setw(fw) << posmin[key][k]
+		    << std::setw(fw) << posmax[key][k]
+		    << std::endl;
+	}
+
+	for (int k=0; k<3; k++) {
+	  std::ostringstream snam;
+	  snam << "vel(" << k+1 << ")";
+	  std::cout << std::right
+		    << std::setw(fw) << skey.str()
+		    << std::setw(fw) << snam.str()
+		    << std::setw(fw) << velmin[key][k]
+		    << std::setw(fw) << velmax[key][k]
+		    << std::endl;
+	}
+	
 	std::cout << std::right
 		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << snam.str()
-		  << std::setw(fw) << velmin[key][k]
-		  << std::setw(fw) << velmax[key][k]
+		  << std::setw(fw) << "Phi"
+		  << std::setw(fw) << phimin[key]
+		  << std::setw(fw) << phimax[key]
 		  << std::endl;
+	
+	
+	for (size_t k=0; k<iavmin[key].size(); k++) {
+	  std::ostringstream snam;
+	  snam << "iatr(" << k << ")";
+	  std::cout << std::right
+		    << std::setw(fw) << skey.str()
+		    << std::setw(fw) << snam.str()
+		    << std::setw(fw) << iavmin[key][k]
+		    << std::setw(fw) << iavmax[key][k]
+		    << std::endl;
+	}
+	
+	for (size_t k=0; k<davmin[key].size(); k++) {
+	  std::ostringstream snam;
+	  snam << "datr(" << k << ")";
+	  std::cout << std::right
+		    << std::setw(fw) << skey.str()
+		    << std::setw(fw) << snam.str()
+		    << std::setw(fw) << davmin[key][k]
+		    << std::setw(fw) << davmax[key][k]
+		    << std::endl;
+	}
+
+	std::cout << std::string(4*fw, '-') << std::endl;
       }
 
-      std::cout << std::right
-		<< std::setw(fw) << skey.str()
-		<< std::setw(fw) << "Phi"
-		<< std::setw(fw) << phimin[key]
-		<< std::setw(fw) << phimax[key]
-		<< std::endl;
-
-
-      for (size_t k=0; k<iavmin[key].size(); k++) {
-	std::ostringstream snam;
-	snam << "iatr(" << k << ")";
-	std::cout << std::right
-		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << snam.str()
-		  << std::setw(fw) << iavmin[key][k]
-		  << std::setw(fw) << iavmax[key][k]
-		  << std::endl;
-      }
-
-      for (size_t k=0; k<davmin[key].size(); k++) {
-	std::ostringstream snam;
-	snam << "datr(" << k << ")";
-	std::cout << std::right
-		  << std::setw(fw) << skey.str()
-		  << std::setw(fw) << snam.str()
-		  << std::setw(fw) << davmin[key][k]
-		  << std::setw(fw) << davmax[key][k]
-		  << std::endl;
-      }
+    } else {
+      std::cout << "No data . . . does component <" << cname
+		<< "> exist?" << std::endl;
     }
     cout << endl;
   }
