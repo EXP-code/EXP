@@ -5499,11 +5499,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Collision count debugging
   //
-  if (DEBUG_CNT >= 0) {
+  if (DEBUG_CNT >= 0 and prob < 0.0) {
     p1->iattrib[DEBUG_CNT] += 1;
     p2->iattrib[DEBUG_CNT] += 1;
   }
-
 
   // NOCOOL debugging
   //
