@@ -1,7 +1,5 @@
 ## Process this file with automake to produce Makefile.in
 
-CXXLD = --tag=F77 mpif77
-
 LIBS = -lpthread -lmpi -lm
 
 if ENABLE_DEBUG
