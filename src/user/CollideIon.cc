@@ -11091,7 +11091,7 @@ void CollideIon::gatherSpecies()
 	  }
 	}
       }
-      std::cout << std::string(4+10+10+12, '-') << std::endl;
+      std::cout << std::string(28+4+10, '-') << std::endl;
     }
 
     // Clear the counters
