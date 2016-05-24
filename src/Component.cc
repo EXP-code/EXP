@@ -2432,11 +2432,11 @@ void Component::load_balance(void)
 				// Explicit check
     int nbad1 = 0, nbad=0;
     for (unsigned i=0; i<nbodies; i++) {
-      if (particles[i].iattrib[0] != static_cast<int>(seq_beg+i)) {
+      if (particles[i].indx != static_cast<int>(seq_beg+i)) {
 	cout << "Process " << myid << ": sequence error on load balance,"
 	     << " component=" << name
 	     << " i=" << i
-	     << " seq=" << particles[i].iattrib[0]
+	     << " seq=" << particles[i].indx
 	     << " expected=" << seq_beg+i
 	     << endl << flush;
 	nbad1++;
