@@ -14,6 +14,7 @@
 #include "Elastic.H"
 #include "Ion.H"
 #include "atomic_constants.H"
+#include "InitContainer.H"
 #include "AsciiHisto.H"
 #include "EnumBitset.H"
 
@@ -365,6 +366,7 @@ private:
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
+  typedef Icont<std::map, unsigned short, unsigned>  TypeMap;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -388,6 +390,8 @@ private:
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
+  std::vector< TypeMap >                             Escat, Etotl;
+  std::vector< std::map<unsigned short, TypeMap> >   Italy;
   //@}
 
   //! This defines the various types of interactions used to tag

@@ -19,6 +19,7 @@
 #include "localmpi.h"
 #include "Species.H"
 #include "Configuration.H"
+#include "InitContainer.H"
 
 using namespace std;
 
@@ -164,6 +165,8 @@ static bool use_cons_test     = false;
 
 static bool temp_debug        = false;
 
+static bool scatter_check     = true;
+
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
 static bool suppress_maxT     = false;
@@ -174,6 +177,20 @@ static int DEBUG_CNT          = -1;
 // Per-species cross-section scale factor for testing
 static std::vector<double> cscl_;
 PeriodicTable PT;
+
+static std::string interLabels[] =
+  {
+    "Any type",			// 0
+    "Neutral-neutral",		// 1
+    "Neutral-electron",		// 2
+    "Ion-electron",		// 3
+    "Free_free",		// 4
+    "Collisional",		// 5
+    "Ionization",		// 6
+    "Recombination",		// 7
+    "Electron-electron"		// 8
+  };
+
 
 CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       double hD, double sD,
@@ -372,6 +389,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecOvr  .resize(nthrds, 0);
   elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
+  Escat    .resize(nthrds);
+  Etotl    .resize(nthrds);
+  Italy    .resize(nthrds);
   collCount.resize(nthrds);
   ionCHK   .resize(nthrds);
   recombCHK.resize(nthrds);
@@ -5572,6 +5592,14 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     unsigned short C1 = P1 + 1;
     unsigned short C2 = P2 + 1;
 
+    // Temporary debugging
+    //
+    if (scatter_check and prob < 0.0) {
+      unsigned short ZZ = (swapped ? Z2 : Z1);
+      if (interFlag == ion_elec) Escat[id][ZZ]++;
+      Etotl[id][ZZ]++;
+    }
+    
     // For hybrid method, the speciesKey level is set to zero.
     // Replace with the correct subspecies value.
     //
@@ -5631,13 +5659,13 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (interFlag == ion_elec) {
       if (swapped) {
-	ctd1->ie[id][0] += cF;
-	ctd1->ie[id][1] += NN;
-	Ion1Frac += cF;
-      } else {
 	ctd2->ie[id][0] += cF;
 	ctd2->ie[id][1] += NN;
 	Ion2Frac += cF;
+      } else {
+	ctd1->ie[id][0] += cF;
+	ctd1->ie[id][1] += NN;
+	Ion1Frac += cF;
       }
     }
 
@@ -6251,6 +6279,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
 
+	  if (scatter_check) Italy[id][Z1*100+Z2][interFlag]++;
+
 	  for (int k=0; k<3; k++) {
 	    p1->vel[k] = v1[k];	// Particle 1 is the ion
 				// Particle 2 is the elctron
@@ -6297,6 +6327,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
+
+	  if (scatter_check) Italy[id][Z2*100+Z1][interFlag]++;
 
 	  for (int k=0; k<3; k++) {
 				// Particle 1 is the electron
@@ -10170,7 +10202,6 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
   speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
   unsigned short  Z1 = k1.first;
-  unsigned short  Z2 = k2.first;
   double          me = atomic_weights[0] * amu;
 
   // Get relative velocity and energy between ion from p1 and electron
@@ -10922,6 +10953,146 @@ void CollideIon::gatherSpecies()
     if (massE>0.0) {
       tempE /= mass;
     }
+  }
+
+  // Temporary debug for elastic scattering counts
+  //
+  if (scatter_check and aType==Hybrid) {
+
+    // Sum over all threads
+    std::map<unsigned short, unsigned> scat, totl;
+    std::map<unsigned short, TypeMap> taly;
+
+    for (int t=0; t<nthrds; t++) {
+      for (auto v : Escat[t]) scat[v.first] += v.second;
+      for (auto v : Etotl[t]) totl[v.first] += v.second;
+      for (auto v : Italy[t]) {
+	for (auto u : v.second) taly[v.first][u.first] += u.second;
+      }
+    }
+    
+    // Send to root node
+    //
+    for (int i=1; i<numprocs; i++) {
+      unsigned numZ, numU, ZZ, UU, NN;
+      if (myid==i) {
+	MPI_Send(&(numZ=scat.size()), 1, MPI_UNSIGNED, 0, 554, MPI_COMM_WORLD);
+	for (auto v : scat) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 555, MPI_COMM_WORLD);
+	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 556, MPI_COMM_WORLD);
+	}
+	MPI_Send(&(numZ=totl.size()), 1, MPI_UNSIGNED, 0, 557, MPI_COMM_WORLD);
+	for (auto v : totl) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 558, MPI_COMM_WORLD);
+	  MPI_Send(&(NN=v.second),    1, MPI_UNSIGNED, 0, 559, MPI_COMM_WORLD);
+	}
+	MPI_Send(&(numZ=taly.size()), 1, MPI_UNSIGNED, 0, 560, MPI_COMM_WORLD);
+	for (auto v : taly) {	
+	  MPI_Send(&(ZZ=v.first),     1, MPI_UNSIGNED, 0, 561, MPI_COMM_WORLD);
+	  numU = v.second.size();
+	  MPI_Send(&numU,             1, MPI_UNSIGNED, 0, 562, MPI_COMM_WORLD);
+	  for (auto u : v.second) {
+	    MPI_Send(&(UU=u.first),   1, MPI_UNSIGNED, 0, 563, MPI_COMM_WORLD);
+	    MPI_Send(&(NN=u.second),  1, MPI_UNSIGNED, 0, 564, MPI_COMM_WORLD);
+	  }
+	}
+      }
+
+      if (myid==0) {
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 554, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 555, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 556, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (scat.find(ZZ) == scat.end()) scat[ZZ] = 0;
+	  scat[ZZ] += NN;
+	}
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 557, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ, 1, MPI_UNSIGNED, i, 558, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 559, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  if (totl.find(ZZ) == totl.end()) totl[ZZ] = 0;
+	  totl[ZZ] += NN;
+	}
+	MPI_Recv(&numZ, 1, MPI_UNSIGNED, i, 560, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	for (unsigned z=0; z<numZ; z++) {
+	  MPI_Recv(&ZZ,   1, MPI_UNSIGNED, i, 561, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  MPI_Recv(&numU, 1, MPI_UNSIGNED, i, 562, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	  for (unsigned u=0; u<numU; u++) {
+	    MPI_Recv(&UU, 1, MPI_UNSIGNED, i, 563, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    MPI_Recv(&NN, 1, MPI_UNSIGNED, i, 564, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+	    taly[ZZ][UU] += NN;
+	  }
+	}
+      }
+    }
+    
+    // Root prints the diagnostic
+    //
+    if (myid==0) {
+      std::cout << std::endl
+		<< std::string(4+10+10+12, '-')   << std::endl
+		<< "Scatter check: time=" << tnow << std::endl
+		<< std::string(4+10+10+12, '-')   << std::endl
+		<< std::right
+		<< std::setw(4)  << "Elem"
+		<< std::setw(10) << "Scatter"
+		<< std::setw(10) << "Total"
+		<< std::setw(12) << "Fraction"
+		<< std::endl
+		<< std::setw(4)  << "----"
+		<< std::setw(10) << "--------"
+		<< std::setw(10) << "--------"
+		<< std::setw(12) << "--------"
+		<< std::endl;
+      // One line for each element
+      for (auto v : totl) {
+	unsigned NS=0; double frac = 0.0;
+	if (v.second > 0) {
+	  if (scat.find(v.first) != scat.end()) NS = scat[v.first];
+	  frac = static_cast<double>(NS)/v.second;
+	}
+	std::cout << std::setw( 4) << v.first
+		  << std::setw(10) << NS
+		  << std::setw(10) << v.second
+		  << std::setw(12) << frac << std::endl;
+      }
+      std::cout << std::endl
+		<< std::setw( 4) << "Z1"
+		<< std::setw( 4) << "Z2"
+		<< std::setw(20) << "Type"
+		<< std::setw( 4) << "#"
+		<< std::setw(10) << "Count"
+		<< std::endl
+		<< std::setw( 4) << "--"
+		<< std::setw( 4) << "--"
+		<< std::setw(20) << "--------"
+		<< std::setw( 4) << "--"
+		<< std::setw(10) << "--------"
+		<< std::endl;
+
+      for (auto v : taly) {
+	if (v.second.size()) {
+	  unsigned short Z1 = v.first / 100;
+	  unsigned short Z2 = v.first % 100;
+	  std::cout << std::setw(4) << Z1 << setw(4) << Z2;
+	}
+	for (auto u : v.second) {
+	  std::cout << std::setw(28) << interLabels[u.first]
+		    << std::setw( 4) << u.first
+		    << std::setw(10) << u.second << std::endl;
+	}
+      }
+      std::cout << std::string(4+10+10+12, '-') << std::endl;
+    }
+
+    // Clear the counters
+    //
+    for (int t=0; t<nthrds; t++) {
+      for (auto & v : Escat[t]) v.second = 0;
+      for (auto & v : Etotl[t]) v.second = 0;
+      for (auto & v : Italy[t]) v.second.clear();
+    }
+
   }
 
   (*barrier)("CollideIon::gatherSpecies complete", __FILE__, __LINE__);
