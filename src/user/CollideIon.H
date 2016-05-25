@@ -362,11 +362,11 @@ private:
   typedef std::map<speciesKey, std::vector<double> > keyCross;
   typedef std::map<speciesKey, std::vector<int>    > keyInter;
   typedef std::map<speciesKey, CEvector>             keyColEx;
-  typedef std::map<speciesKey, double>               keyWghts;
   typedef std::list<dKeyD>                           keyWexsList;
   typedef std::map<lQ, CEvector>                     CEmap;
   typedef std::map<lQ, CFreturn>                     CFmap;
   typedef Icont<std::map, unsigned short, unsigned>  TypeMap;
+  typedef Icont<std::map, speciesKey, double>        keyWghts;
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -374,7 +374,6 @@ private:
   std::vector< std::vector<int>    >                 dInter;
   std::vector< keyCross >                            sCross; 
   std::vector< keyWghts >                            meanF, densE;
-  std::vector< keyWghts >                            sCrsTot1, sCrsTot2;
   std::vector< keyWexsList >                         excessW;
   std::vector< keyInter >                            sInter;
   std::vector< CEvector >                            CE1, CE2;
