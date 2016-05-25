@@ -359,8 +359,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   numEf    .resize(nthrds);
   densE    .resize(nthrds);
   colSc    .resize(nthrds);
-  sCrsTot1 .resize(nthrds);
-  sCrsTot2 .resize(nthrds);
   excessW  .resize(nthrds);
   CE1      .resize(nthrds);
   CE2      .resize(nthrds);
@@ -593,6 +591,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   densE[id].clear();
 
+  // Loop through all bodies in cell
   //
   for (auto b : cell->bods) {
     Particle *p = tree->Body(b);
@@ -600,8 +599,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
     if (aType == Direct or aType == Weight) {
       speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
       double ee    = k.second - 1;
-
-      if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
 
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
       densE[id][k] += p->mass * ee / atomic_weights[k.first];
@@ -611,12 +608,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
       double ee    = 0.0;
 
-      if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
-
-      unsigned short Z = k.first;
-      for (unsigned short C=0; C<=Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
-      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
-      densE[id][k] += p->mass * ee / atomic_weights[Z];
+      for (unsigned short C=0; C<=k.first; C++) ee += p->dattrib[hybrid_pos + C] * C;
+      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
+      densE[id][k] += p->mass * ee / atomic_weights[k.first];
     }
 
     if (aType == Trace) {
@@ -624,8 +618,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	speciesKey k = s.first;
 	double ee    = k.second - 1;
 	double ww    = p->dattrib[s.second]/atomic_weights[k.first];
-
-	if (densE[id].find(k) == densE[id].end()) densE[id][k] = 0.0;
 
 	numEf[id]    += p->mass * ww * (1.0 + ee);
 	densE[id][k] += p->mass * ww * ee;
@@ -641,9 +633,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0) * cell->Volume());
 
-  for (auto & v : densE[id]) {
-    v.second *= dfac;
-  }
+  for (auto & v : densE[id]) v.second *= dfac;
 
   // Mean interparticle spacing in nm
   //
@@ -663,17 +653,9 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
     if (minCollFrac > 0.0 or aType == Hybrid) {
 
-				// Mean fraction in trace species
-				//
+      // Mean fraction in trace species
+      //
       meanF[id].clear();
-
-      if (aType == Hybrid) {
-	for (auto Z : ZList) {
-	  for (speciesKey k(Z, 1);  k.second<Z+2; k.second++) {
-	    meanF[id][k] = 0.0;
-	  }
-	}
-      }
 
       // Sample cell
       //
@@ -686,6 +668,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	for (auto b : bset) {
 				// Particle mass accumulation
 	  Particle *p  = c0->Part(b);
+
 				// Mass-weighted trace fraction
 	  speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
 
@@ -698,7 +681,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 
 	  } else {
-	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	    meanF[id][k] += p->mass / atomic_weights[k.first];
 	  }
 	}
@@ -748,9 +730,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		/ atomic_weights[k.first];
 	    }
 	  } else {
-	    if (meanF[id].find(k) == meanF[id].end()) meanF[id][k] = 0.0;
 	    meanF[id][k] += p->mass / atomic_weights[k.first];
-
 	  }
 	}
       } // END: interaction cell
@@ -2485,6 +2465,10 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   double cfac = p1->dattrib[hybrid_pos+C1] * p2->dattrib[hybrid_pos+C2];
 
+  // Erase the list (only one element for Hybrid algorithm)
+  //
+  dCross[id].clear();
+
   //-------------------------------
   // Both particles neutral
   //-------------------------------
@@ -2653,12 +2637,6 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
   // Clear excess species change map
   //
   excessW[id].clear();
-
-  //
-  // Clear total cross section map
-  //
-  sCrsTot1[id].clear();
-  sCrsTot2[id].clear();
 
   //
   // Compute "matrix" of interactions
