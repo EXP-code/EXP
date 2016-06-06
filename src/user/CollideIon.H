@@ -541,6 +541,7 @@ protected:
 
 protected:
   
+  //! Returns (min, mean, max) velocities in each cell
   virtual std::array<double, 3> 
   cellMinMax(pHOT* const tree, pCell* const cell);
 

@@ -1184,13 +1184,13 @@ void * Collide::collide_thread(void * arg)
       // indexed by species key and only the "upper triangle" in the
       // interaction matrix is performed
       //
-      // for (it2=it1; it2!=c->count.end(); it2++) {
+      for (it2=it1; it2!=c->count.end(); it2++) {
 
       
       // Test version with the entire interaction matrix for easier
       // accounting of electron-ion interations
       //
-      for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+      // for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
 	
 	speciesKey i2 = it2->first;
 	size_t num2   = bmap[i2].size(); // Should equal it2->second

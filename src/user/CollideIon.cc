@@ -499,6 +499,7 @@ void CollideIon::meanFdump(int id)
 }
 
 
+// Returns (min, mean, max) velocities in each cell
 std::array<double, 3> CollideIon::cellMinMax
 (pHOT* const tree, pCell* const cell)
 {
@@ -1092,15 +1093,22 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  //
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
-	    double b = 0.5*esu*esu*C1 /
-	      std::max<double>(E1s[0]*eV, FloorEv*eV) * 1.0e7; // nm
-	    b = std::min<double>(b, ips);
+
+	    std::vector<double> cc3;
+	    for (size_t u=0; u<3; u++) {
+	      double b = 0.5*esu*esu*C1 /
+		std::max<double>(E1s[u]*eV, FloorEv*eV) * 1.0e7; // nm
+	      b = std::min<double>(b, ips);
+	      cc3.push_back(M_PI*b*b * eVels[u]);
+	    }
+	    std::sort(cc3.begin(), cc3.end());
+
 	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k2.second = C2 + 1;
 
 	      csections[id][i1][i2][Interact::T(ion_elec, C1, C2)] =
-		M_PI*b*b * eVels[0] * C2 * mfac *
+		cc3[1] * C2 * mfac *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
@@ -1108,15 +1116,22 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	  for (unsigned short C2=1; C2<=Z2; C2++) {
 	    k2.second = C2 + 1;
-	    double b = 0.5*esu*esu*C2 /
-	      std::max<double>(E2s[0]*eV, FloorEv*eV) * 1.0e7; // nm
-	    b = std::min<double>(b, ips);
+
+	    std::vector<double> cc3;
+	    for (size_t u=0; u<3; u++) {
+	      double b = 0.5*esu*esu*C2 /
+		std::max<double>(E2s[0]*eV, FloorEv*eV) * 1.0e7; // nm
+	      b = std::min<double>(b, ips);
+	      cc3.push_back(M_PI*b*b * eVels[u]);
+	    }
+	    std::sort(cc3.begin(), cc3.end());
+
 	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
 	      k1.second = C1 + 1;
 
 	      csections[id][i2][i1][Interact::T(ion_elec, C2, C1)] =
-		M_PI*b*b * eVels[0] * C1 * mfac *
+		cc3[1] * C1 * mfac *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
@@ -1140,7 +1155,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 			[](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
 
 	      csections[id][i1][i2][Interact::T(free_free, C1, C2)] =
-		ff3.back().first / rvmax * C2 * crs_units *
+		ff3[1].first / rvmax * C2 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 
 	      ff3.clear();
@@ -1154,7 +1169,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 			[](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
 
 	      csections[id][i1][i1][Interact::T(free_free, C2, C1)] =
-		ff3.back().first / rvmax * C1 * crs_units *
+		ff3[1].first / rvmax * C1 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1165,13 +1180,16 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
+
+	      std::vector<double> cc3 = {
+		ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[0], id).back().first * eVels[0],
+		ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[1], id).back().first * eVels[1],
+		ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[2], id).back().first * eVels[2]
+	      };
+	      std::sort(cc3.begin(), cc3.end());
+
 	      csections[id][i1][i2][Interact::T(colexcite, C1, C2)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[0], id).back().first * eVels[0],
-		    ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[1], id).back().first * eVels[1],
-		    ch.IonList[lQ(Z1, C1+1)]->collExciteCross(E1s[2], id).back().first * eVels[2]
-		  } ) / rvmax * C2 * crs_units *
+		cc3[1] / rvmax * C2 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1180,13 +1198,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
+
+	      std::vector<double> cc3 =
+		{
+		  ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[0], id).back().first * eVels[0],
+		  ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[1], id).back().first * eVels[1],
+		  ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[2], id).back().first * eVels[2]
+		};
+	      std::sort(cc3.begin(), cc3.end());
+	      
 	      csections[id][i2][i1][Interact::T(colexcite, C2, C1)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[0], id).back().first * eVels[0],
-		    ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[1], id).back().first * eVels[1],
-		    ch.IonList[lQ(Z2, C2+1)]->collExciteCross(E2s[2], id).back().first * eVels[2]
-		  } ) / rvmax * C1 * crs_units *
+		cc3[1] / rvmax * C1 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1198,13 +1220,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
+
+	      std::vector<double> ic3 =
+		{
+		  ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[0], id) * eVels[0],
+		  ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[1], id) * eVels[1],
+		  ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[2], id) * eVels[2],
+		};
+	      std::sort(ic3.begin(), ic3.end());
+
 	      csections[id][i1][i2][Interact::T(ionize, C1, C2)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[0], id) * eVels[0],
-		    ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[1], id) * eVels[1],
-		    ch.IonList[lQ(Z1, C1+1)]->directIonCross(E1s[2], id) * eVels[2],
-		  } ) / rvmax *  C2 * crs_units *
+		ic3[2] / rvmax *  C2 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1213,13 +1239,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
+
+	      std::vector<double> ic3 =
+		{
+		  ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[0], id) * eVels[0],
+		  ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[1], id) * eVels[1],
+		  ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[2], id) * eVels[2],
+		};
+	      std::sort(ic3.begin(), ic3.end());
+
 	      csections[id][i2][i1][Interact::T(ionize, C2, C1)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[0], id) * eVels[0],
-		    ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[1], id) * eVels[1],
-		    ch.IonList[lQ(Z2, C2+1)]->directIonCross(E2s[2], id) * eVels[2],
-		  } ) / rvmax *  C1 * crs_units *
+		ic3[1] / rvmax *  C1 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }
@@ -1231,23 +1261,29 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k1.second = C1 + 1;
 	      k2.second = C2 + 1;
-
+	      
+	      std::vector<double> rc3 =
+		{
+		  ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[0], id).back() * eVels[0],
+		  ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[1], id).back() * eVels[1],
+		  ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[2], id).back() * eVels[2]
+		};
+	      std::sort(rc3.begin(), rc3.end());
+	      
 	      csections[id][i1][i2][Interact::T(recomb, C1, C2)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[0], id).back() * eVels[0],
-		    ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[1], id).back() * eVels[1],
-		    ch.IonList[lQ(Z1, C1+1)]->radRecombCross(E1s[2], id).back() * eVels[2]
-		  } ) / rvmax * C2  * crs_units *
+		rc3[1] / rvmax * C2  * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 
+	      rc3 = 
+		{
+		  ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[0], id).back() * eVels[0],
+		  ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[1], id).back() * eVels[1],
+		  ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[2], id).back() * eVels[2]
+		};
+	      std::sort(rc3.begin(), rc3.end());
+
 	      csections[id][i2][i1][Interact::T(recomb, C2, C1)] =
-		std::max<double>(
-		  {
-		    ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[0], id).back() * eVels[0],
-		    ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[1], id).back() * eVels[1],
-		    ch.IonList[lQ(Z2, C2+1)]->radRecombCross(E2s[2], id).back() * eVels[2]
-		  } ) / rvmax * C1  * crs_units *
+		rc3[1] / rvmax * C1  * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
 	  }

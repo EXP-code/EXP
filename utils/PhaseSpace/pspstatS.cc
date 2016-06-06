@@ -178,6 +178,8 @@ main(int ac, char **av)
       double KE1     = 0.0;
       double PE1     = 0.0;
       double EE1     = 0.0;
+      double Iv2     = 0.0;
+      double Ev2     = 0.0;
       double mass1   = 0.0;
 
       shist  hist1;		// For gas only
@@ -219,6 +221,7 @@ main(int ac, char **av)
 	for (int i=0; i<3; i++) rtmp += part->vel(i)*part->vel(i);
 	KE1 += 0.5*ms*rtmp;
 	PE1 += 0.5*ms*part->phi();
+	Iv2 += ms*rtmp;
 
 	if (sindx >= 0) {
 	  KeyConvert kc(part->iatr(sindx));
@@ -232,6 +235,7 @@ main(int ac, char **av)
 	    ke += t*t;
 	  }
 	  EE1 += ke * 0.5*ms*atomic_mass[0]/atomic_mass[k.first];
+	  Ev2 += ms * ke;
 
 				// Mass
 	  std::get<0>(hist1[k]) += ms;
@@ -267,6 +271,9 @@ main(int ac, char **av)
 	   << "     Virial ratio\t\t"       << -2.0*KE1/PE1  << std::endl
 	   << "     Electron energy\t\t"    << EE1           << std::endl
 	   << "     Particle mass\t\t"      << mass1         << std::endl
+	   << "     Mean ion vel\t\t"       << sqrt(Iv2/mass1) << std::endl
+	   << "     Mean elec vel\t\t"      << sqrt(Ev2/mass1) << std::endl
+	   << "     Mean ion-elec vel\t\t"  << sqrt((Iv2+Ev2)/mass1) << std::endl
 	   << std::endl;
 
       if (sindx >= 0) {

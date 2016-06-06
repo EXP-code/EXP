@@ -9,7 +9,7 @@ import psp_io
 # Last argument should be filename and must exist
 #
 
-help_string = "Usage: {} [-s n | --species n] [-c n | -coll n]  [-k n | -key n] [-d | -diff] runtag".format(sys.argv[0])
+help_string = "Usage: {} [-s n | --species n] [-c n | -coll n]  [-k n | -key n] [-d | -diff] [-o n | --offset n] runtag".format(sys.argv[0])
 
 argc = len(sys.argv)
 
@@ -24,6 +24,8 @@ spc  = 2
 key  = 0
 col  = 1
 diff = False
+offs = 1
+
 for i in range(1,argc):
         if sys.argv[i] == '-k' or sys.argv[i] == '--key':
                 key = int(sys.argv[i+1])
@@ -33,6 +35,8 @@ for i in range(1,argc):
                 col = int(sys.argv[i+1])
         if sys.argv[i] == '-d' or sys.argv[i] == '--diff':
                 diff = True
+        if sys.argv[i] == '-o' or sys.argv[i] == '--offset':
+                offs = int(sys.argv[i+1])
         if sys.argv[i] == '-h' or sys.argv[i] == '--help':
                 print help_string
                 exit(1)
@@ -40,15 +44,18 @@ for i in range(1,argc):
 # Parse data file
 #
 if diff:
-        psp0 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], int(sys.argv[-1])-1), comp='gas')
-        psp1 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], int(sys.argv[-1])), comp='gas')
+        hi   = int(sys.argv[-1])
+        lo   = max(hi - offs, 0)
+        psp0 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], lo), comp='gas')
+        psp1 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], hi), comp='gas')
         s   = getattr(psp0, 'i{}'.format(key))
         c0  = getattr(psp0, 'i{}'.format(col))
         c1  = getattr(psp1, 'i{}'.format(col))
 else:
-        psp1 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], int(sys.argv[-1])), comp='gas')
-        s   = getattr(psp1, 'i{}'.format(key))
-        c1  = getattr(psp1, 'i{}'.format(col))
+        nd   = int(sys.argv[-1])
+        psp1 = psp_io.Input('OUT.{}.{:05d}'.format(sys.argv[-2], nd), comp='gas')
+        s    = getattr(psp1, 'i{}'.format(key))
+        c1   = getattr(psp1, 'i{}'.format(col))
 
 data = []
 for i in range(len(s)):
