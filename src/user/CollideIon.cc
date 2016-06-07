@@ -10241,9 +10241,12 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
   speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
   unsigned short  Z1 = k1.first;
+
+  // Compute the reduced mass (probably accuracy overkill)
+  //
   double          m1 = atomic_weights[Z1] * amu;
   double          me = atomic_weights[0 ] * amu;
-  double          mu = me * m1 / (me + m1)
+  double          mu = me * m1 / (me + m1);
 
   // Get relative velocity and energy between ion from p1 and electron
   // from p2
