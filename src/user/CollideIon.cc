@@ -148,6 +148,7 @@ static bool CROSS_DBG         = false;
 static bool EXCESS_DBG        = false;
 
 // Enable NTC full distribution for electrons
+//
 static bool NTC_DIST          = true;
 
 // Minimum energy for Rutherford scattering of ions used to estimate
@@ -169,12 +170,19 @@ static bool scatter_check     = true;
 
 // Decrease the interacton probability by electron fraction used for
 // dominant subspcies for the NTC rate
+//
 static bool suppress_maxT     = false;
 
+// Suppress inelastic energy loss but track what the loss would be
+//
+static bool cooling_test      = false;
+
 // Use particle collision counter for debugging
+//
 static int DEBUG_CNT          = -1;
 
 // Per-species cross-section scale factor for testing
+//
 static std::vector<double> cscl_;
 PeriodicTable PT;
 
@@ -753,7 +761,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	for (auto v : meanF[id]) {
 	  unsigned short Z = v.first.first;
 	  if (spTotl.find(Z) == spTotl.end())
-	    spTotl[Z] = v.second;
+	    spTotl[Z]  = v.second;
 	  else
 	    spTotl[Z] += v.second;
 	}
@@ -2453,10 +2461,10 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   // Available COM energy
   //
-  kEi [id] = 0.5 * mu0 * vel*vel;
-  kEe1[id] = 0.5 * mu1 * vel*vel * eVel2*eVel2/dof2;
-  kEe2[id] = 0.5 * mu2 * vel*vel * eVel1*eVel1/dof1;
-  kEee[id] = 0.25 * me * vel*vel * eVel0*eVel0;
+  kEi [id] = 0.5  * mu0 * vel*vel;
+  kEe1[id] = 0.5  * mu1 * vel*vel * eVel2*eVel2/dof2;
+  kEe2[id] = 0.5  * mu2 * vel*vel * eVel1*eVel1/dof1;
+  kEee[id] = 0.25 * me  * vel*vel * eVel0*eVel0;
 
 
   // Internal energy per particle
@@ -5636,6 +5644,9 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     // Update the subspecies weight by the probability of interaction
     //
+    // For prob>0, ion is the original p1.  So p1 if swapped == false,
+    // otherwise p2.
+    //
     if (prob >= 0.0) {
 				// Reassign interaction fraction
       if (swapped) cF = p2->dattrib[hybrid_pos+P2] * prob;
@@ -5686,6 +5697,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == free_free) {
 
       if (swapped) {
+	// Ion is p2
+	//
 	if (prob >= 0.0)
 	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF;
 	else
@@ -5701,6 +5714,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
+	// Ion is p1
+	//
 	if (prob >= 0.0)
 	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF;
 	else
@@ -5724,6 +5739,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == colexcite) {
 
       if (swapped) {
+	// Ion is p2
+	//
 	if (prob >= 0.0)
 	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF;
 	else
@@ -5739,6 +5756,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 	Ion2Frac += cF;
       } else {
+	// Ion is p1
+	//
 	if (prob >= 0.0)
 	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF;
 	else
@@ -5761,6 +5780,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == ionize) {
 
       if (swapped) {
+	// Ion is p2
+	//
 	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
@@ -5810,9 +5831,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  ionCHK[id][k2] += dCross[id][0] * (*cr);
 	}
 
-      } // swapped
+      } // END: swapped
       else {
-
+	// Ion is p1
+	//
 	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
@@ -5868,6 +5890,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     if (interFlag == recomb) {
 
       if (swapped) {
+	// Ion is p2
+	//
 	double wght = cF;
 	double w0   = p2->dattrib[hybrid_pos+C2-1];
 	if (use_normtest) {
@@ -5937,9 +5961,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  recombCHK[id][k2] += dCross[id][0] * (*cr);
 	}
 
-      } // swapped
+      } // END: swapped
       else {
-
+	// Ion is p1
+	//
 	double wght = cF;
 	double w0   = p1->dattrib[hybrid_pos+P1];
 	if (use_normtest) {
@@ -10216,7 +10241,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   speciesKey      k1 = KeyConvert(p1->iattrib[use_key]).getKey();
   speciesKey      k2 = KeyConvert(p2->iattrib[use_key]).getKey();
   unsigned short  Z1 = k1.first;
-  double          me = atomic_weights[0] * amu;
+  double          m1 = atomic_weights[Z1] * amu;
+  double          me = atomic_weights[0 ] * amu;
+  double          mu = me * m1 / (me + m1)
 
   // Get relative velocity and energy between ion from p1 and electron
   // from p2
@@ -10235,7 +10262,7 @@ Collide::Interact CollideIon::generateSelectionHybridSub
 
   // Available COM energy in eV
   //
-  double ke = std::max<double>(0.5*me*eVel*eVel/eV, FloorEv);
+  double ke = std::max<double>(0.5*mu*eVel*eVel/eV, FloorEv);
 
 				// Cache assigned energy
   kEe1[id] = kEe2[id] = ke;
@@ -12547,6 +12574,9 @@ void CollideIon::processConfig()
 
     collLim =
       cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
+
+    cooling_test =
+      cfg.entry<bool>("COOL_TEST", "Suppress inelastic update but track energy loss", false);
 
     E_split =
       cfg.entry<bool>("E_split", "Apply energy loss to ion-ion frame and energy conservation"

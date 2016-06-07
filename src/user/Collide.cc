@@ -1184,13 +1184,14 @@ void * Collide::collide_thread(void * arg)
       // indexed by species key and only the "upper triangle" in the
       // interaction matrix is performed
       //
-      for (it2=it1; it2!=c->count.end(); it2++) {
+      it2 = it1;
 
-      
       // Test version with the entire interaction matrix for easier
       // accounting of electron-ion interations
       //
-      // for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+      it2 = c->count.begin();
+
+      for (; it2!=c->count.end(); it2++) {
 	
 	speciesKey i2 = it2->first;
 	size_t num2   = bmap[i2].size(); // Should equal it2->second
@@ -1374,13 +1375,15 @@ void * Collide::collide_thread(void * arg)
 	  //
 	  for (l1=0; l1<num1; l1++) {
 
-	    if (i1 == i2) {
+	    if (i1 == i2) {	// Same species: l1 == l2
 	      l2 = static_cast<size_t>(floor((*unit)()*(num2-1)));
+				// Sanity
 	      l2 = std::min<size_t>(l2, num2-2);
 				// Get random l2 != l1
 	      l2 = (l2 + l1 + 1) % num2;
 	    } else {
 	      l2 = static_cast<size_t>(floor((*unit)()*num2));
+				// Sanity
 	      l2 = std::min<size_t>(l2, num2-1);
 	    }
 	  
