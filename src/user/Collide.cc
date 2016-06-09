@@ -506,6 +506,14 @@ Collide::Collide(ExternalForce *force, Component *comp,
   effortAccum  = false;
   effortNumber .resize(nthrds);
 
+  // Compute tree volume
+  //
+  double treeVol = 1.0;
+  for (auto v : c0->Tree()->sides) treeVol *= v;
+
+  std::cout << std::string('-', 40)            << std::endl
+	    << "--- Tree volume = " << treeVol << std::endl
+	    << std::string('-', 40)            << std::endl;
 }
 
 Collide::~Collide()
@@ -937,7 +945,7 @@ void * Collide::collide_thread(void * arg)
 
     // Volume in the cell
     //
-    double volc = c->Volume();
+    double volc = c->Volume()/treeVol;
     
     // Mass in the cell
     //

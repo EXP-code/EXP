@@ -642,13 +642,14 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   // Electron number density in cgs
   //
-  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0) * cell->Volume());
+  double volc = cell->Volume()/treeVol;
+  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0) * volc);
 
   for (auto & v : densE[id]) v.second *= dfac;
 
   // Mean interparticle spacing in nm
   //
-  double ips = pow(cell->Volume()/numEf[id], 0.333333)
+  double ips = pow(volc/numEf[id], 0.333333)
     * UserTreeDSMC::Lunit * 1.0e7;
 
   // Convert to cross section in system units
@@ -1472,8 +1473,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
   // Mean interparticle spacing
   //
-  double ips = pow(c->Volume()/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double volc = c->Volume()/treeVol;
+  double ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
 
   if (aType == Direct or aType == Weight or aType == Hybrid) {
@@ -1708,8 +1709,8 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 {
   // Mean interparticle spacing
   //
-  double ips = pow(c->Volume()/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double volc = c->Volume()/treeVol;
+  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -2036,8 +2037,8 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double ips = pow(c->Volume()/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double volc = c->Volume()/treeVol;
+  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -2394,8 +2395,8 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double ips = pow(c->Volume()/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double volc = c->Volume()/treeVol;
+  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
   //
@@ -2692,8 +2693,8 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double ips = pow(c->Volume()/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double volc = c->Volume()/treeVol;
+  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Translational COM energy
   //
@@ -7328,7 +7329,7 @@ void * CollideIon::timestep_thread(void * arg)
     c = cellist[id][j];
     L = c->Scale();
 
-    double volc = c->Volume();
+    double volc = c->Volume()/treeVol;
 
     sKeyDmap   densM, lambdaM, crossM;
     sKey2Amap  crossIJ;
@@ -7728,7 +7729,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
     double eta = 0.0, crsvel = 0.0;
-    double volc = cell->Volume();
+    double volc = cell->Volume()/treeVol;
     double me   = atomic_weights[0]*amu;
 
     // Momentum diagnostic distribution
@@ -9049,7 +9050,7 @@ Collide::sKey2Amap CollideIon::generateSelectionDirect
 
   // Volume in the cell
   //
-  double volc = c->Volume();
+  double volc = c->Volume()/treeVol;
 
   //
   // Cross-section debugging [BEGIN]
@@ -9187,7 +9188,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
   // Volume in the cell
   //
-  double volc = c->Volume();
+  double volc = c->Volume()/treeVol;
 
   //
   // Cross-section debugging [BEGIN]
@@ -9666,7 +9667,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   // Volume in the cell
   //
-  double volc = c->Volume();
+  double volc = c->Volume()/treeVol;
 
   // Cross-section debugging [BEGIN]
   //
@@ -10363,7 +10364,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Mass density in the cell
   //
-  double dens = c->Mass() / c->Volume();
+  double volc = c->Volume() / treeVol;
+  double dens = c->Mass()   / volc;
 
   // Number of bodies in this cell
   //
