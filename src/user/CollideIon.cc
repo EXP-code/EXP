@@ -5644,7 +5644,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     // Update the subspecies weight by the probability of interaction
     //
-    // For prob>0, ion is the original p1.  So p1 if swapped == false,
+    // For prob>=0, ion is the original p1.  So p1 if swapped == false,
     // otherwise p2.
     //
     if (prob >= 0.0) {
@@ -5653,7 +5653,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       else         cF = p1->dattrib[hybrid_pos+P1] * prob;
 
 				// Remove trace weighting for
-      q0   = 1.0;		// subdominant case
+      q0 = 1.0;			// subdominant case
     }
 
     double NN = N0 * cF;
@@ -5705,7 +5705,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = IS.selectFFInteract(FF2[id]) * cF * q;
 
 	ctd2->ff[id][0] += cF;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
 	  ctd2->ff[id][2] += Nb * dE;
 	} else {
@@ -5722,7 +5722,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = IS.selectFFInteract(FF1[id]) * cF * q;
 	ctd1->ff[id][0] += cF;
 
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd1->ff[id][1] += Na * cF;
 	  ctd1->ff[id][2] += Na * dE;
 	} else {
@@ -5747,7 +5747,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q;
 
 	ctd2->CE[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd2->CE[id][1] += Nb * cF;
 	  ctd2->CE[id][2] += Nb * dE;
 	} else {
@@ -5764,7 +5764,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
 
 	ctd1->CE[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd1->CE[id][1] += Na * cF;
 	  ctd1->CE[id][2] += Na * dE;
 	} else {
@@ -5817,7 +5817,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd2->CI[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd2->CI[id][1] += Nb * cF;
 	  ctd2->CI[id][2] += Nb * dE;
 	} else {
@@ -5869,7 +5869,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	ctd1->CI[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd1->CI[id][1] += Na * cF;
 	  ctd1->CI[id][2] += Na * dE;
 	} else {
@@ -5927,7 +5927,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 
 	ctd2->RR[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd2->RR[id][1] += Nb * cF;
 	  ctd2->RR[id][2] += Nb * dE;
 	} else {
@@ -5999,7 +5999,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	delE += dE;
 
 	ctd1->RR[id][0] += cF * q0;
-	if (prob > 0.0) {
+	if (prob >= 0.0) {
 	  ctd1->RR[id][1] += Na * cF;
 	  ctd1->RR[id][2] += Na * dE;
 	} else {
@@ -6070,7 +6070,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     if (Ion1Frac>0.0) {
       ctd1->dv[id][0] += cF;
-      if (prob > 0.0) {
+      if (prob >= 0.0) {
 	ctd1->dv[id][1] += Wa * cF;
 	ctd1->dv[id][2] += Wa * dE;
       } else {
