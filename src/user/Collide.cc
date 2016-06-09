@@ -506,12 +506,10 @@ Collide::Collide(ExternalForce *force, Component *comp,
   effortAccum  = false;
   effortNumber .resize(nthrds);
 
-  // Compute tree volume
+  // Compute tree volume by scaling the unit cube
   //
-  double treeVol = 1.0;
-  for (auto v : c0->Tree()->sides) {
-    treeVol *= v;
-  }
+  treeVol = 1.0;
+  for (auto v : c0->Tree()->sides) treeVol *= v;
 
   if (myid==0) {
     std::cout << std::string(70, '-')            << std::endl
