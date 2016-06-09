@@ -487,9 +487,6 @@ protected:
   std::vector<double> wgtSum, ntcSum;
   //@}
 
-  //! Volume in default tree
-  double treeVol;
-
 public:
   
   //! Integrate the cooling solution

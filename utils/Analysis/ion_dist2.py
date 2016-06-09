@@ -72,6 +72,8 @@ def plot_data(runtag, field, defaultT, until, deltaT, Z):
         fpat = ".*Ion \(Z={}\) energy.*".format(Z)
     elif field == "interact":
         fpat = '.*Electron interaction energy.*'
+    elif field == "subspecies":
+        fpat = '.*Subspecies electron energy.*'
     else:
         print "Bad field.  Allowed fields are: electron, ion, interact"
         return

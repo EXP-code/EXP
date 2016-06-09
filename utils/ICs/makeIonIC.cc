@@ -73,7 +73,6 @@ double year  = 365.242*24.0*3600.0; // seconds per year
 
 std::string atomic_specie[3] = {"electron",     "H",     "He"    };
 double      atomic_masses[3] = {0.000548579909, 1.00794, 4.002602};
-// double atomic_masses[3] = {0.1, 1.00794, 4.002602};
 
 double Lunit;
 double Tunit;

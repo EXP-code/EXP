@@ -383,11 +383,11 @@ private:
 
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
-  std::vector< double >                              numEf, colSc;
+  std::vector< double >                              numEf, colSc, elecDen;
   std::vector< double >                              kEi, kEe1, kEe2, kEee;
   std::vector< double >                              Ein1, Ein2, Evel, Vrel;
   std::vector< double >                              spCrm, spTau, spProb;
-  std::vector< unsigned >                            spNsel;
+  std::vector< unsigned >                            spNsel, elecCnt;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
   std::vector< TypeMap >                             Escat, Etotl;
   std::vector< std::map<unsigned short, TypeMap> >   Italy;
@@ -441,7 +441,8 @@ private:
   std::vector< boost::circular_buffer<double> > velER, keER, keIR, momD, crsD;
   ahistoDPtr elecT, elecH, ionsT, ionH, lossH, keEH, keIH, momH, crsH;
   std::map<unsigned short, ahistoDPtr> elecZH, ionZH;
-  unsigned Ovr_s, Acc_s, Tot_s;
+  unsigned Ovr_s, Acc_s, Tot_s, CntE;
+  double RhoE;
   //@}
 
   //@{

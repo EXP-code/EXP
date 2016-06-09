@@ -395,6 +395,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecOvr  .resize(nthrds, 0);
   elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
+  elecDen  .resize(nthrds, 0);
+  elecCnt  .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -602,6 +604,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   //
   densE[id].clear();
 
+  // Total electron density
+  //
+  double densEtot = 0.0;
+
   // Loop through all bodies in cell
   //
   for (auto b : cell->bods) {
@@ -613,6 +619,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
       densE[id][k] += p->mass * ee / atomic_weights[k.first];
+      densEtot     += p->mass * ee / atomic_weights[k.first];
     }
 
     if (aType == Hybrid) {
@@ -622,6 +629,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
       for (unsigned short C=0; C<=k.first; C++) ee += p->dattrib[hybrid_pos + C] * C;
       numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
       densE[id][k] += p->mass * ee / atomic_weights[k.first];
+      densEtot     += p->mass * ee / atomic_weights[k.first];
     }
 
     if (aType == Trace) {
@@ -632,6 +640,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
 	numEf[id]    += p->mass * ww * (1.0 + ee);
 	densE[id][k] += p->mass * ww * ee;
+	densEtot     += p->mass * ww * ee;
       }
     }
   }
@@ -642,15 +651,17 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   // Electron number density in cgs
   //
-  double volc = cell->Volume()/treeVol;
-  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0) * volc);
+  double volc = cell->Volume();
+  double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0)*volc);
 
   for (auto & v : densE[id]) v.second *= dfac;
 
+  elecDen[id] += densEtot * dfac;
+  elecCnt[id] ++;
+
   // Mean interparticle spacing in nm
   //
-  double ips = pow(volc/numEf[id], 0.333333)
-    * UserTreeDSMC::Lunit * 1.0e7;
+  double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Convert to cross section in system units
   //
@@ -1473,7 +1484,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
   double ips = pow(volc, 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
 
@@ -1709,7 +1720,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
 {
   // Mean interparticle spacing
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
   double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -2037,7 +2048,7 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
   double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -2395,7 +2406,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
   double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Species keys
@@ -2693,7 +2704,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
 
   // Mean interparticle spacing
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
   double ips = pow(volc/numEf[id], 0.333333) * UserTreeDSMC::Lunit * 1.0e7;
 
   // Translational COM energy
@@ -7329,7 +7340,7 @@ void * CollideIon::timestep_thread(void * arg)
     c = cellist[id][j];
     L = c->Scale();
 
-    double volc = c->Volume()/treeVol;
+    double volc = c->Volume();
 
     sKeyDmap   densM, lambdaM, crossM;
     sKey2Amap  crossIJ;
@@ -7729,7 +7740,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
     double eta = 0.0, crsvel = 0.0;
-    double volc = cell->Volume()/treeVol;
+    double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
 
     // Momentum diagnostic distribution
@@ -9050,7 +9061,7 @@ Collide::sKey2Amap CollideIon::generateSelectionDirect
 
   // Volume in the cell
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
 
   //
   // Cross-section debugging [BEGIN]
@@ -9188,7 +9199,7 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
   // Volume in the cell
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
 
   //
   // Cross-section debugging [BEGIN]
@@ -9667,7 +9678,7 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   // Volume in the cell
   //
-  double volc = c->Volume()/treeVol;
+  double volc = c->Volume();
 
   // Cross-section debugging [BEGIN]
   //
@@ -10364,8 +10375,8 @@ Collide::sKey2Amap CollideIon::generateSelectionTrace
 
   // Mass density in the cell
   //
-  double volc = c->Volume() / treeVol;
-  double dens = c->Mass()   / volc;
+  double volc = c->Volume();
+  double dens = c->Mass() / volc;
 
   // Number of bodies in this cell
   //
@@ -11290,14 +11301,25 @@ void CollideIon::electronGather()
     //
     std::vector<double> loss, keE, keI, mom, crs;
     unsigned Ovr=0, Acc=0, Tot=0;
+
+    CntE = 0;
+    RhoE = 0.0;
+
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
       velER[t].clear();
-      Ovr += elecOvr[t];
-      Acc += elecAcc[t];
-      Tot += elecTot[t];
+
+      Ovr  += elecOvr[t];
+      Acc  += elecAcc[t];
+      Tot  += elecTot[t];
+      RhoE += elecDen[t];
+      CntE += elecCnt[t];
+      
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
+      elecDen[t] = 0.0;
+      elecCnt[t] = 0;
     }
+
 
     std::ofstream dbg;
     if (IDBG) {
@@ -11330,6 +11352,9 @@ void CollideIon::electronGather()
       for (int n=1; n<numprocs; n++) {
 
 	if (myid == n) {
+	  MPI_Send(&CntE,          1, MPI_UNSIGNED, 0, 318, MPI_COMM_WORLD);
+	  MPI_Send(&RhoE,          1, MPI_DOUBLE,   0, 319, MPI_COMM_WORLD);
+
 	  unsigned num = eEV.size();
 	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 320, MPI_COMM_WORLD);
 	  if (num)
@@ -11355,6 +11380,16 @@ void CollideIon::electronGather()
 
 	  std::vector<double> v;
 	  unsigned num;
+	  double dv;
+
+
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 318, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 319, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  CntE += num;
+	  RhoE += dv;
 
 	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 320, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
@@ -11924,6 +11959,14 @@ void CollideIon::electronGather()
 
 void CollideIon::electronPrint(std::ostream& out)
 {
+  // Mean electron density per cell n #/cm^3
+  //
+  if (CntE) {
+    out << std::string(53, '-') << std::endl
+	<< "-----Mean electron density (cm^{-3}): " << RhoE/CntE << std::endl
+	<< std::string(53, '-') << std::endl;
+  }
+  
   // Print the header for electron quantiles
   //
   if (elecV.size()) {

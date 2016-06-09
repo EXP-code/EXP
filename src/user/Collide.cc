@@ -506,15 +506,10 @@ Collide::Collide(ExternalForce *force, Component *comp,
   effortAccum  = false;
   effortNumber .resize(nthrds);
 
-  // Compute tree volume by scaling the unit cube
-  //
-  treeVol = 1.0;
-  for (auto v : c0->Tree()->sides) treeVol *= v;
-
   if (myid==0) {
-    std::cout << std::string(70, '-')            << std::endl
-	      << "--- Tree volume = " << treeVol << std::endl
-	      << std::string(70, '-')            << std::endl;
+    std::cout << std::string(70, '-') << std::endl
+	      << "--- Tree volume = " << c0->Tree()->Volume() << std::endl
+	      << std::string(70, '-') << std::endl;
   }
 }
 
@@ -947,7 +942,7 @@ void * Collide::collide_thread(void * arg)
 
     // Volume in the cell
     //
-    double volc = c->Volume()/treeVol;
+    double volc = c->Volume();
     
     // Mass in the cell
     //

@@ -7,8 +7,6 @@ import psp_io
 import sys
 from scipy.optimize import curve_fit
 
-testPlots = False
-
 def func(x, a, b):
     """Fit energy distribution for amplitude and temperature"""
     if a<=0.0: return 1e30
@@ -19,7 +17,7 @@ def func(x, a, b):
 # Last argument should be filename and must exist
 #
 
-help_string = "Usage: {} [-k n | --key n] [--beg n] [--end n] [--stride n] [-e n | --elec n] [-h | --help] runtag".format(sys.argv[0])
+help_string = "Usage: {} [-k n | --key n] [--beg n] [--end n] [--stride n] [-e n | --elec n] [-p | --plot] [-l | --log] [-h | --help] runtag".format(sys.argv[0])
 
 argc = len(sys.argv)
 
@@ -35,6 +33,8 @@ epos = 10
 nbeg = 0
 nend = -1
 strd = 1
+tstP = False
+logP = False
 
 for i in range(1,argc):
     if sys.argv[i] == '-k' or sys.argv[i] == '--key':
@@ -47,6 +47,10 @@ for i in range(1,argc):
         strd = int(sys.argv[i+1])
     if sys.argv[i] == '-e' or sys.argv[i] == '--elec':
         epos = int(sys.argv[i+1])
+    if sys.argv[i] == '-p' or sys.argv[i] == '--plot':
+        tstP = True
+    if sys.argv[i] == '-l' or sys.argv[i] == '--log':
+        logP = True
     if sys.argv[i] == '-h' or sys.argv[i] == '--help':
         print help_string
         exit(1)
@@ -134,14 +138,18 @@ while os.path.isfile(filep.format(sys.argv[-1], count)):
         ionsT[ss][0].append(time)
         ionsT[ss][1].append(slopeFac/popt[1])
 
-        if testPlots:
+        if tstP:
             tt = []
             for j in range(len(xx)): tt.append(func(xx[j], popt[0], popt[1]))
-            plt.plot(xx, yy, '-', label="data")
-            plt.plot(xx, tt, '-', label="fit")
+            if logP:
+                plt.semilogy(xx, yy, '-', label="data")
+                plt.semilogy(xx, tt, '-', label="fit")
+            else:
+                plt.plot(xx, yy, '-', label="data")
+                plt.plot(xx, tt, '-', label="fit")
             plt.xlabel("Energy (eV)")
             plt.ylabel("Counts")
-            plt.title("Ion Z={} T={}".format(ss, slopeFac/popt[1]))
+            plt.title("Ion (Z={}): t={} T={}".format(ss, time, slopeFac/popt[1]))
             plt.legend()
             plt.show()
             
@@ -159,14 +167,18 @@ while os.path.isfile(filep.format(sys.argv[-1], count)):
         elecT[ss][0].append(time)
         elecT[ss][1].append(slopeFac/popt[1])
         
-        if testPlots:
+        if tstP:
             tt = []
             for j in range(len(xx)): tt.append(func(xx[j], popt[0], popt[1]))
-            plt.plot(xx, yy, '-', label="data")
-            plt.plot(xx, tt, '-', label="fit")
+            if logP:
+                plt.semilogy(xx, yy, '-', label="data")
+                plt.semilogy(xx, tt, '-', label="fit")
+            else:
+                plt.plot(xx, yy, '-', label="data")
+                plt.plot(xx, tt, '-', label="fit")
             plt.xlabel("Energy (eV)")
             plt.ylabel("Counts")
-            plt.title("Electron Z={} T={}".format(ss, slopeFac/popt[1]))
+            plt.title("Electron (Z={}): t={} T={}".format(ss, time, slopeFac/popt[1]))
             plt.legend()
             plt.show()
 
@@ -175,8 +187,8 @@ while os.path.isfile(filep.format(sys.argv[-1], count)):
     if nend>=0 and count>=nend: break
 
 for s in ionsT:
-    plt.plot(ionsT[s][0], ionsT[s][1], '-', label="Ion(Z={})".format(s))
-    plt.plot(elecT[s][0], elecT[s][1], '-', label="Electron(Z={})".format(s))
+    plt.plot(ionsT[s][0], ionsT[s][1], '-', label="Ion (Z={})".format(s))
+    plt.plot(elecT[s][0], elecT[s][1], '-', label="Electron (Z={})".format(s))
 
 plt.xlabel("Time")
 plt.ylabel("Temperature")

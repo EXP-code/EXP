@@ -83,9 +83,6 @@ int main (int ac, char **av)
     exit(-1);
   }
 
-  // Initialize CHIANTI
-  //
-
   std::set<unsigned short> ZList = {1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 12, 14, 16};
 
   if (ZList.find(Z) == ZList.end()) {
