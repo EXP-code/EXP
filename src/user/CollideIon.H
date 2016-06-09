@@ -452,7 +452,9 @@ private:
   std::vector< boost::circular_buffer<double> > elecEVmin;
   std::vector< boost::circular_buffer<double> > elecEVavg;
   std::vector< boost::circular_buffer<double> > elecEVmax;
+  std::vector< boost::circular_buffer<double> > elecEVsub;
   ahistoDPtr elecEVH, elecEVHmin, elecEVHavg, elecEVHmax;
+  ahistoDPtr elecEVHsub;
   //@}
 
   //@{

@@ -448,6 +448,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     for (auto &v : elecEVavg) v.set_capacity(bufCap);
     elecEVmax.resize(nthrds);
     for (auto &v : elecEVmax) v.set_capacity(bufCap);
+    elecEVsub.resize(nthrds);
+    for (auto &v : elecEVsub) v.set_capacity(bufCap);
   }
 
   // Enum collsion-type label fields
@@ -10270,6 +10272,9 @@ Collide::Interact CollideIon::generateSelectionHybridSub
 				// Cache assigned energy
   kEe1[id] = kEe2[id] = ke;
 
+				// For debugging diagnostics
+  if (eDistDBG) elecEVsub[id].push_back(ke);
+
   // Loop through ionization levels in p1.  p2 only donates an
   // electron velocity and its weight does not matter.
   //
@@ -11304,7 +11309,7 @@ void CollideIon::electronGather()
     }
 
     if (eDistDBG and aType==Hybrid) {
-      std::vector<double> eEV, eEVmin, eEVavg, eEVmax;
+      std::vector<double> eEV, eEVmin, eEVavg, eEVmax, eEVsub;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
 		   elecEV[t].begin(), elecEV[t].end());
@@ -11314,6 +11319,8 @@ void CollideIon::electronGather()
 		      elecEVavg[t].begin(), elecEVavg[t].end());
 	eEVmax.insert(eEVmax.end(),
 		      elecEVmax[t].begin(), elecEVmax[t].end());
+	eEVsub.insert(eEVsub.end(),
+		      elecEVsub[t].begin(), elecEVsub[t].end());
       }
 
       // All processes send to root
@@ -11332,6 +11339,12 @@ void CollideIon::electronGather()
 	    MPI_Send(&eEVmin[0], num, MPI_DOUBLE,   0, 323, MPI_COMM_WORLD);
 	    MPI_Send(&eEVavg[0], num, MPI_DOUBLE,   0, 324, MPI_COMM_WORLD);
 	    MPI_Send(&eEVmax[0], num, MPI_DOUBLE,   0, 325, MPI_COMM_WORLD);
+	  }
+
+	  num = eEVsub.size();
+	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 326, MPI_COMM_WORLD);
+	  if (num) {
+	    MPI_Send(&eEVsub[0], num, MPI_DOUBLE,   0, 327, MPI_COMM_WORLD);
 	  }
 
 	} // END: process send to root
@@ -11370,6 +11383,16 @@ void CollideIon::electronGather()
 	    eEVmax.insert(eEVmax.end(), v.begin(), v.end());
 	  }
 
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 326, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+
+	  if (num) {
+	    v.resize(num);
+	    MPI_Recv(&v[0], num, MPI_DOUBLE,   n, 327, MPI_COMM_WORLD,
+		     MPI_STATUS_IGNORE);
+	    eEVsub.insert(eEVsub.end(), v.begin(), v.end());
+	  }
+
 	} // Root receive loop
 
 	MPI_Barrier(MPI_COMM_WORLD);
@@ -11383,6 +11406,7 @@ void CollideIon::electronGather()
 	elecEVHmin = ahistoDPtr(new AsciiHisto<double>(eEVmin, 20, 0.01));
 	elecEVHavg = ahistoDPtr(new AsciiHisto<double>(eEVavg, 20, 0.01));
 	elecEVHmax = ahistoDPtr(new AsciiHisto<double>(eEVmax, 20, 0.01));
+	elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
       }
 
     } // END: eDistDBG
@@ -11946,6 +11970,14 @@ void CollideIon::electronPrint(std::ostream& out)
 	<< "-----Cell max interaction energy distribution--------" << std::endl
 	<< std::string(53, '-')  << std::endl;
     (*elecEVHmax)(out);
+  }
+
+  if (elecEVHsub.get()) {
+    out << std::endl
+	<< std::string(53, '-')  << std::endl
+	<< "-----Subspecies electron energy distribution---------" << std::endl
+	<< std::string(53, '-')  << std::endl;
+    (*elecEVHsub)(out);
   }
 
   if (elecH.get()) {
