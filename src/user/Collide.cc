@@ -509,11 +509,15 @@ Collide::Collide(ExternalForce *force, Component *comp,
   // Compute tree volume
   //
   double treeVol = 1.0;
-  for (auto v : c0->Tree()->sides) treeVol *= v;
+  for (auto v : c0->Tree()->sides) {
+    treeVol *= v;
+  }
 
-  std::cout << std::string('-', 40)            << std::endl
-	    << "--- Tree volume = " << treeVol << std::endl
-	    << std::string('-', 40)            << std::endl;
+  if (myid==0) {
+    std::cout << std::string(70, '-')            << std::endl
+	      << "--- Tree volume = " << treeVol << std::endl
+	      << std::string(70, '-')            << std::endl;
+  }
 }
 
 Collide::~Collide()
@@ -3584,9 +3588,11 @@ void Collide::NTCstats(std::ostream& out)
 
     out << std::string(spc, '-') << std::endl << std::right;
 
-    out << "Full NTC distribution" << std::endl;
-    (*ntcHisto)(out);
-    out << std::string(spc, '-') << std::endl << std::right;
+    if (ntcHisto) {
+      out << "Full NTC distribution" << std::endl;
+      (*ntcHisto)(out);
+      out << std::string(spc, '-') << std::endl << std::right;
+    }
       
     if (wgtHisto) {
       out << "Subspecies weight distribution" << std::endl;

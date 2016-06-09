@@ -224,13 +224,13 @@ public:
   //! Tree geometry
   void setSides(double x, double y, double z) 
   {
-    sides[0] = x; sides[1] = y; sides[2] = z; 
+    sides = {x, y, z};
   }
 
   void setOffset(double x, double y, double z) 
   { 
-    offst[0] = x; offst[1] = y; offst[2] = z; 
-    for (int k=0; k<3; k++) offset[k] = offst[k];
+    offst  = {x, y, z};
+    offset = offst;
   }
 
   //! Number of cells in tree
