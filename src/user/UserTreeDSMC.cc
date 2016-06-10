@@ -527,7 +527,7 @@ void UserTreeDSMC::userinfo()
        << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name
-       << ", keyPos=" << use_key;
+       << ", keyPos=" << use_key << ", vol(tree)=" << volume;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
   else if (nsteps>0) 
