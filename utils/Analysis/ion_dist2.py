@@ -143,7 +143,9 @@ def plot_data(runtag, field, defaultT, until, deltaT, Z):
                     yy.append(float(result.group(3)) + 0.1)
             elif len(xb)>0:         # End of data: make the plot
                 # Fit for temperature
-                popt, pcov = curve_fit(func, xx, yy)
+                fc = 11604.5/defaultT # Initial guess for exponent
+                p0 = [sum(yy)/len(yy)*fc**1.5,fc] # Amplitude
+                popt, pcov = curve_fit(func, xx, yy, p0)
                 # Temp
                 bT = slopeFac / popt[1]
                 # Make curves

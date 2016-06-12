@@ -7,9 +7,25 @@ import numpy as np
 fname = "gas.bod"
 argc  = len(sys.argv)
 potf  = 7
-if argc>1:
-    fname = sys.argv[1]
-    potf = 8
+T     = 1.0e+05
+L     = 1.0
+M     = 0.1
+
+for i in range(len(sys.argv)):
+    if sys.argv[i] == '-f' or sys.argv[i] == '--file':
+        fname = sys.argv[i+1]
+        ptof  = 8
+    if sys.argv[i] == '-T' or sys.argv[i] == '--time':
+        T = float(sys.argv[i+1])
+    if sys.argv[i] == '-M' or sys.argv[i] == '--mass':
+        M = float(sys.argv[i+1])
+    if sys.argv[i] == '-L' or sys.argv[i] == '--length':
+        L = float(sys.argv[i+1])
+
+Tunit = 31556925.19 * T
+Lunit = 3.08568025e+18 * L
+Munit = 1.98892e+33 * M
+Dunit = Munit/Lunit**3/1.674927211e-24
 
 file = open("species.spec")
 line = file.readline()
@@ -48,7 +64,7 @@ for line in file:
     if ityp not in spcS: spcS[ityp] = np.zeros(ityp+1)
     for i in range(0,ityp+1): spcS[ityp][i] += float(v[bpos+i])
         
-dens = maxD[0]/(maxD[1]*maxD[2]*maxD[3]) * 4.041742
+dens = maxD[0]/(maxD[1]*maxD[2]*maxD[3]) * Dunit
 print '-'*60
 print "Total mass:", maxD[0]
 print '-'*60
