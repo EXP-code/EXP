@@ -327,7 +327,9 @@ protected:
   static constexpr double hbc     = 197.327;
 
 				// k-grid spacing in inverse nm
-  static constexpr double kdel    = 0.5;
+  static constexpr double kmin    = -9.0;
+  static constexpr double kmax    = -1.0;
+  static constexpr double kdel    =  0.5;
 
 				// Thomson scattering cross-section in nm^2
   static constexpr double thom    = 6.652459263719353e-11;
@@ -429,7 +431,7 @@ public:
 
   //@{
   //! Grid values for the various cross sections
-  std::vector< double > egrid;
+  std::vector< double > egrid;	// Currently initialized but unused (remove?)
   std::vector< double > kgrid;
   std::vector< double > kgr10;
   int kffsteps;

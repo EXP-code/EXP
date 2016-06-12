@@ -34,7 +34,7 @@ static bool levelst_debug = false;
 //
 // Version string for log file stamping
 //
-const std::string UserTreeDSMC::version = "0.22 [subspecies test]";
+const std::string UserTreeDSMC::version = "0.23 [06/10/16 subspecies test]";
 
 //
 // Simulation units
@@ -527,7 +527,7 @@ void UserTreeDSMC::userinfo()
        << ", epsm=" << epsm << ", boxsize=" << boxsize 
        << ", ncell=" << ncell << ", Ncell=" << Ncell 
        << ", boxratio=" << boxratio << ", compname=" << comp_name
-       << ", keyPos=" << use_key;
+       << ", keyPos=" << use_key << ", vol(tree)=" << volume;
   if (msteps>=0) 
     cout << ", with diagnostic output at levels <= " << msteps;
   else if (nsteps>0) 

@@ -225,6 +225,7 @@ public:
   void setSides(double x, double y, double z) 
   {
     sides = {x, y, z};
+    volume = x*y*z;
   }
 
   void setOffset(double x, double y, double z) 

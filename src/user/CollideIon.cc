@@ -396,6 +396,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecAcc  .resize(nthrds, 0);
   elecTot  .resize(nthrds, 0);
   elecDen  .resize(nthrds, 0);
+  elecDn2  .resize(nthrds, 0);
   elecCnt  .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
@@ -655,8 +656,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   double dfac = UserTreeDSMC::Munit/amu / (pow(UserTreeDSMC::Lunit, 3.0)*volc);
 
   for (auto & v : densE[id]) v.second *= dfac;
+  densEtot *= dfac;
 
-  elecDen[id] += densEtot * dfac;
+  elecDen[id] += densEtot;
+  elecDn2[id] += densEtot * densEtot;
   elecCnt[id] ++;
 
   // Mean interparticle spacing in nm
@@ -11304,6 +11307,7 @@ void CollideIon::electronGather()
 
     CntE = 0;
     RhoE = 0.0;
+    Rho2 = 0.0;
 
     for (int t=0; t<nthrds; t++) {
       loss.insert(loss.end(), velER[t].begin(), velER[t].end());
@@ -11313,10 +11317,11 @@ void CollideIon::electronGather()
       Acc  += elecAcc[t];
       Tot  += elecTot[t];
       RhoE += elecDen[t];
+      Rho2 += elecDn2[t];
       CntE += elecCnt[t];
       
       elecOvr[t] = elecAcc[t] = elecTot[t] = 0;
-      elecDen[t] = 0.0;
+      elecDen[t] = elecDn2[t] = 0.0;
       elecCnt[t] = 0;
     }
 
@@ -11352,8 +11357,9 @@ void CollideIon::electronGather()
       for (int n=1; n<numprocs; n++) {
 
 	if (myid == n) {
-	  MPI_Send(&CntE,          1, MPI_UNSIGNED, 0, 318, MPI_COMM_WORLD);
-	  MPI_Send(&RhoE,          1, MPI_DOUBLE,   0, 319, MPI_COMM_WORLD);
+	  MPI_Send(&CntE,          1, MPI_UNSIGNED, 0, 317, MPI_COMM_WORLD);
+	  MPI_Send(&RhoE,          1, MPI_DOUBLE,   0, 318, MPI_COMM_WORLD);
+	  MPI_Send(&Rho2,          1, MPI_DOUBLE,   0, 319, MPI_COMM_WORLD);
 
 	  unsigned num = eEV.size();
 	  MPI_Send(&num,           1, MPI_UNSIGNED, 0, 320, MPI_COMM_WORLD);
@@ -11383,13 +11389,17 @@ void CollideIon::electronGather()
 	  double dv;
 
 
-	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 318, MPI_COMM_WORLD,
+	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 317, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
+	  CntE += num;
+
+	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 318, MPI_COMM_WORLD,
+		   MPI_STATUS_IGNORE);
+	  RhoE += dv;
+
 	  MPI_Recv(&dv,       1, MPI_DOUBLE,   n, 319, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
-
-	  CntE += num;
-	  RhoE += dv;
+	  Rho2 += dv;
 
 	  MPI_Recv(&num,      1, MPI_UNSIGNED, n, 320, MPI_COMM_WORLD,
 		   MPI_STATUS_IGNORE);
@@ -11962,8 +11972,12 @@ void CollideIon::electronPrint(std::ostream& out)
   // Mean electron density per cell n #/cm^3
   //
   if (CntE) {
+    RhoE /= CntE;
+    Rho2 /= CntE;
+    double disp2 = std::max<double>(Rho2 - RhoE*RhoE, 0.0);
     out << std::string(53, '-') << std::endl
-	<< "-----Mean electron density (cm^{-3}): " << RhoE/CntE << std::endl
+	<< "-----Mean electron density (cm^{-3}): " << RhoE
+	<< " +/- " << sqrt(disp2) << std::endl
 	<< std::string(53, '-') << std::endl;
   }
   

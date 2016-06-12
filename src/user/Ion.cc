@@ -606,7 +606,7 @@ Ion::Ion(std::string name, chdata* ch) : ch(ch)
 
   // initialize the k-grid (in inverse nm) for ff and the energy grid (in eV)
   //
-  for (double k = -9.; k < -1.; k += kdel) 
+  for (double k = kmin; k < kmax; k += kdel) 
     kgrid.push_back(k);
 
   for (double e = 0.00000001; e < 250 ; e += 0.25) 
@@ -658,7 +658,7 @@ Ion::Ion(unsigned short Z, unsigned short C, chdata* ch) : ch(ch), Z(Z), C(C)
   for (e = 0.00000001; e < 250 ; e += 0.25) {
     egrid.push_back(e);
   }
-  for (k = -9.; k < -1.; k += kdel) {
+  for (k = kmin; k < kmax; k += kdel) {
     kgrid.push_back(k);
   }
   kffsteps = kgrid.size();
@@ -991,12 +991,12 @@ std::pair<double, double> Ion::freeFreeCross(double Ei, int id)
 
   // Scaled inverse energy (initial)
   //
-  double ni2       = RydtoeV*(C-1)*(C-1)/Ei;
+  double ni       = sqrt( RydtoeV*(C-1)*(C-1)/Ei );
 
   // Integration variables
   //
   double cum      = 0;
-  double dk       = kgrid[1] - kgrid[0];
+  double dk       = (kgrid[1] - kgrid[0])*log(10.0);
 
   std::vector<double> diff, cuml;
 
@@ -1012,17 +1012,24 @@ std::pair<double, double> Ion::freeFreeCross(double Ei, int id)
     double Ef     = Ei - k;
 
     //
+    // Can't emit a photon if not enough KE!
+    //
+    if (Ef <= 0.0) break;
+
+    //
     // Scaled inverse energy (final)
     //
-    double nf2    = RydtoeV*(C-1)*(C-1)/Ef;
-    double dsig   = 0.0;
-				// Can't emit a photon if not enough KE!
-    if (nf2 > 0.0) {
-      double ni   = sqrt(ni2);
-      double nf   = sqrt(nf2);
-      double corr = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
-      dsig = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
-    }
+    double nf     = sqrt( RydtoeV*(C-1)*(C-1)/Ef );
+
+    //
+    // Elwert factor
+    //
+    double corr   = (1.0 - exp(-2.0*M_PI*ni))/(1.0 - exp(-2.0*M_PI*nf));
+
+    //
+    // Differential cross section contribution
+    //
+    double dsig   = A * ni*nf * log((nf + ni)/(nf - ni)) * corr * dk;
 
     cum = cum + dsig;
 
@@ -1039,7 +1046,7 @@ std::pair<double, double> Ion::freeFreeCross(double Ei, int id)
 
     // Location in cumulative cross section grid
     //
-    double rn   = cum * static_cast<double>(rand())/RAND_MAX;
+    double rn = cum * static_cast<double>(rand())/RAND_MAX;
   
     // Interpolate the cross section array
     //
@@ -1081,11 +1088,6 @@ std::pair<double, double> Ion::freeFreeCross(double Ei, int id)
     // Assign the photon energy
     //
     ffWaveCross = pow(10, k) * hbc;
-
-    // Assign the total cross section
-    //
-    double rr = r0 * (C - 1);
-    phi = 16.0/3.0 * rr*rr/137.0;
 
     // Use the integrated cross section from the differential grid
     //
