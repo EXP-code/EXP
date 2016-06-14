@@ -1193,7 +1193,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      std::sort(ff3.begin(), ff3.end(),
 			[](CFreturn d1, CFreturn d2){return d1.first < d2.first;});
 
-	      csections[id][i1][i1][Interact::T(free_free, C2, C1)] =
+	      csections[id][i2][i1][Interact::T(free_free, C2, C1)] =
 		ff3[1].first / rvmax * C1 * crs_units *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot);
 	    }
