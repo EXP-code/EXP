@@ -298,9 +298,9 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		  << std::endl;
     }
     
+    double vol = 1.0; for (auto v : LL) vol *= v*Lunit;
     std::cout << std::string(70, '-') << std::endl
-	      << "Empirical density (amu/cc) = "
-	      << Mtot*Munit/(mp*(LL[0]*LL[1]*LL[2])*pc*pc*pc)
+	      << "Empirical density (amu/cc) = " << Mtot*Munit/(mp*vol)
 	      << std::endl << std::string(70, '-') << std::endl;
   }
 }
@@ -1244,10 +1244,12 @@ int main (int ac, char **av)
   // Cube axes
   //
   LL.resize(3, L);
+  double vol = 1.0;
+  for (auto v : LL) vol *= v*Lunit;
   
   // Mass in box in m_p
   //
-  double Mass = mp*D*(LL[0]*LL[1]*LL[2])*pc*pc*pc/Munit;
+  double Mass = mp*D*vol/Munit;
   
   vector<Particle> particles(npart);
   
