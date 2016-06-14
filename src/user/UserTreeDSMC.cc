@@ -103,10 +103,15 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   mfpts      = false;
   hybrid     = false;
   
-  // static initialization
+  // Static initialization
   initialize_colltypes();
+
   // Initialize using input parameters
   initialize();
+  
+  // Update derived units from Munit, Lunit, Tunit
+  Vunit = Lunit/Tunit;
+  Eunit = Munit*Vunit*Vunit;
   
   // Report TreeDSMC version to stdout log
   //
@@ -391,9 +396,6 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
     spec_list.insert(defaultKey);
     collFrac[defaultKey] = 1.0;
   }
-  
-  Vunit = Lunit/Tunit;
-  Eunit = Munit*Vunit*Vunit;
   
   // Number of protons per mass unit
   for (auto it=collFrac.begin(); it!=collFrac.end(); it++) 
