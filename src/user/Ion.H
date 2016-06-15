@@ -326,10 +326,10 @@ protected:
 				// value of h-bar * c in eV*nm
   static constexpr double hbc     = 197.327;
 
-				// k-grid spacing in inverse nm
+				// k-grid spacing in inverse nm (log base 10)
   static constexpr double kmin    = -9.0;
-  static constexpr double kmax    = -1.0;
-  static constexpr double kdel    =  0.5;
+  static constexpr double kmax    =  2.0;
+  static constexpr double kdel    =  0.25;
 
 				// Thomson scattering cross-section in nm^2
   static constexpr double thom    = 6.652459263719353e-11;
