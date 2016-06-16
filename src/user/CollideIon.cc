@@ -7911,7 +7911,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	// Accept or reject candidate pair according to relative speed
 	//
 	double prod = vi * scrs;
-	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, prod);
+	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, ntcThresh);
 
 	ok = (targ > (*unit)() );
 
