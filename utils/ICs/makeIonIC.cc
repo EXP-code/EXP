@@ -113,7 +113,7 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     for (auto v : T) {
       std::ostringstream sout;
       sout << "Temp " << atomic_specie[v.first] << ":";
-      std::cout << std::setw(13) << sout.str() << v.second
+      std::cout << std::left << std::setw(13) << sout.str() << v.second
 		<< " K "   << std::endl;
     }
   } else {
@@ -253,6 +253,8 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
     double Mtot = 0.0;
     for (auto i : frac) Mtot += std::get<0>(i.second);
     
+    double vol = 1.0; for (auto v : LL) vol *= v*Lunit;
+
     if ( type != Hybrid) {
       std::cout << std::setw( 3) << "Z"
 		<< std::setw( 3) << "C"
@@ -282,12 +284,14 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		<< std::setw(16) << "Mass"
 		<< std::setw(16) << "Fraction"
 		<< std::setw(12) << "Count"
+		<< std::setw(16) << "n_Z (#/cc)"
 		<< std::endl
 		<< std::setw( 3) << "-"
 		<< std::setw( 3) << "-"
 		<< std::setw(16) << "--------"
 		<< std::setw(16) << "--------"
 		<< std::setw(12) << "--------"
+		<< std::setw(16) << "----------"
 		<< std::endl;
       for (auto i : frac)
 	std::cout << std::setw( 3) << i.first.first
@@ -295,6 +299,7 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		  << std::setw(16) << std::get<0>(i.second)
 		  << std::setw(16) << std::get<0>(i.second)/Mtot
 		  << std::setw(12) << std::get<1>(i.second)
+		  << std::setw(16) << std::get<0>(i.second)*Munit/(atomic_masses[i.first.first]*mp*vol)
 		  << std::endl;
     }
     

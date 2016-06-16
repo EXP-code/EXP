@@ -735,7 +735,12 @@ Ion::collExciteCross(double E, int id)
     return CEcum;
   }
 
-  double totalCross = 0.0;
+  // The collision strengths have already by divided by the
+  // statistical weight of the ground level 2j+1.  Saving the ground
+  // state multiplicity, mult0, allows the ratio to be used in
+  // computing Omega
+
+  double totalCross = 0.0, mult0 = elvlc[1].mult;
 
   for (size_t i=0; i<splups.size(); i++) {
 
@@ -830,7 +835,7 @@ Ion::collExciteCross(double E, int id)
       //
       elvlcType::iterator eit = elvlc.find(splups[i].j-1);
       if (eit != elvlc.end()) {
-	int weight = eit->second.mult;
+	double weight = eit->second.mult/mult0;
 	if (weight>0) {
 	  double crs1 = (M_PI*a0*a0*(CStrength/weight))/(E*Ion::eVtoRyd);
 	  if (std::isinf(crs1)) {
