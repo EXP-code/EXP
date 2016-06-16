@@ -421,6 +421,9 @@ private:
     recomb_2    = 207
   };    
 
+  //! Default electron-electron interaction type
+  static Interact::T elecElec;
+
   //@{
   //! Specify the electron scattering algorithm
   enum ElectronScatter {none=0, always=1, classical=2, limited=3, fixed=4};
@@ -601,8 +604,6 @@ protected:
 		     double *crm);
 
   void secondaryScatter(Particle *p);
-
-  static constexpr Interact::T elecElec {0, 0, elec_elec};
 
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 

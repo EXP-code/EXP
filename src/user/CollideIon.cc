@@ -53,6 +53,9 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"limited",   limited},
 					    {"fixed",     fixed} };
 
+Collide::Interact::T CollideIon::elecElec;
+
+
 // Add trace energy excess to electron distribution
 //
 static bool TRACE_ELEC        = false;
@@ -482,6 +485,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   labels[recomb_2   ] = "recombine  [2]";
 
   labels[elec_elec  ] = "el collisions ";
+
+  elecElec = Interact::T(0, 0, CollideIon::elec_elec);
 }
 
 CollideIon::~CollideIon()
