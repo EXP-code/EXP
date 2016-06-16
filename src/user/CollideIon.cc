@@ -7776,9 +7776,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     pCell *samp = cell->sample;
 
     if (samp)
-      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, ntcThresh);
+      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
     else
-      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, ntcThresh);
+      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, elecElec, ntcThresh);
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -7911,7 +7911,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	// Accept or reject candidate pair according to relative speed
 	//
 	double prod = vi * scrs;
-	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, ntcThresh);
+	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, elecElec, ntcThresh);
 
 	ok = (targ > (*unit)() );
 
@@ -7926,7 +7926,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	// Update v_max and cross_max for NTC
 	//
 #pragma omp critical
-	ntcdb[samp->mykey].Add(electronKey, prod);
+	ntcdb[samp->mykey].Add(electronKey, elecElec, prod);
       }
 
 
@@ -11294,7 +11294,7 @@ void CollideIon::electronGather()
 
       if (NTC_DIST) {
 	for (auto q : qv) {
-	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, q);
+	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, elecElec, q);
 	  ee[q].push_back(v);
 	}
       }
