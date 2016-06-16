@@ -148,7 +148,9 @@ public:
   
   //@{
   //! Electron species key
-  const speciesKey electronDef = {0, 0};
+  constexpr static unsigned short electronTyp =
+    std::numeric_limits<unsigned short>::max();
+  const speciesKey electronDef = {electronTyp, electronTyp};
   const sKeyPair   electronKey = {electronDef, electronDef};
   //@}
 
