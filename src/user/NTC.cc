@@ -33,7 +33,8 @@ double   NTCitem::Def = 10.0;
 unsigned NTCitem::instance  = 0;
 
 // Default interaction key for singleton
-NTC::T NTCitem::single {0, 0, 0};
+constexpr static unsigned short singleVal = std::numeric_limits<unsigned short>::max();
+NTC::T NTCitem::single {singleVal, singleVal, singleVal};
 
 template<typename T>
 std::ostream& operator<< (std::ostream& out, const std::tuple<T, T, T>& t)

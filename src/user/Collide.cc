@@ -1293,7 +1293,7 @@ void * Collide::collide_thread(void * arg)
 
 	  double scrs = Cross / cunit;
 	  double prod = cr   * scrs;
-	  double targ = prod/ntcdb[samp->mykey].CrsVel(k, ntcThresh);
+	  double targ = prod/ntcdb[samp->mykey].CrsVel(k, maxT, ntcThresh);
 	  
 	  if (NTC)
 	    ok = ( targ > (*unit)() );

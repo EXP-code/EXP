@@ -303,7 +303,6 @@ void writeParticles(std::vector<Particle>& particles, const string& file, Itype 
 		  << std::endl;
     }
     
-    double vol = 1.0; for (auto v : LL) vol *= v*Lunit;
     std::cout << std::string(70, '-') << std::endl
 	      << "Empirical density (amu/cc) = " << Mtot*Munit/(mp*vol)
 	      << std::endl << std::string(70, '-') << std::endl;

@@ -602,6 +602,8 @@ protected:
 
   void secondaryScatter(Particle *p);
 
+  static constexpr Interact::T elecElec {0, 0, elec_elec};
+
   double crossSectionHybrid(int id, pCell* const c, 
 			    Particle* const p1, Particle* const p2, 
 			    double crm, const Interact::T& ityp);
