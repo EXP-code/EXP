@@ -476,9 +476,14 @@ protected:
   //! Initialize atomic weights (public data)
   void atomic_weights_init();
 
-
   //! NTC database
   NTC::NTCdb ntcdb;
+
+  //@{
+  //! NTC threshold
+  static double ntcThreshDef;
+  double ntcThresh;
+  //@}
 
   //@{
   //! NTC diagnostoics

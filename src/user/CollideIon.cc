@@ -7776,9 +7776,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     pCell *samp = cell->sample;
 
     if (samp)
-      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, 0.95);
+      crsvel = ntcdb[samp->mykey].CrsVel(electronKey, ntcThresh);
     else
-      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, 0.95);
+      crsvel = ntcdb[cell->mykey].CrsVel(electronKey, ntcThresh);
 
     // Probability of an interaction of between particles of type 1
     // and 2 for a given particle of type 2
@@ -7911,7 +7911,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	// Accept or reject candidate pair according to relative speed
 	//
 	double prod = vi * scrs;
-	double targ = ntcdb[samp->mykey].Prob(electronKey, prod);
+	double targ = prod/ntcdb[samp->mykey].CrsVel(electronKey, prod);
 
 	ok = (targ > (*unit)() );
 
@@ -9521,9 +9521,9 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 	  if (i1>=i2) k = sKeyPair(i2, i1);
 
 	  if (samp)
-	    crsvel = ntcdb[samp->mykey].CrsVel(k, 0.95);
+	    crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
 	  else
-	    crsvel = ntcdb[c->mykey].CrsVel(k, 0.95);
+	    crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
 
 	  // Probability of an interaction of between particles of type 1
 	  // and 2 for a given particle of type 2
@@ -9626,9 +9626,9 @@ Collide::sKey2Amap CollideIon::generateSelectionWeight
 
 	    double crsvel = 0.0;
 	    if (samp)
-	      crsvel = ntcdb[samp->mykey].CrsVel(k, 0.95);
+	      crsvel = ntcdb[samp->mykey].CrsVel(k, ntcThresh);
 	    else
-	      crsvel = ntcdb[c->mykey].CrsVel(k, 0.95);
+	      crsvel = ntcdb[c->mykey].CrsVel(k, ntcThresh);
 
 	    double Prob0 = 0.0, Prob1 = 0.0;
 
@@ -10022,11 +10022,11 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	    if (samp) {
 	      if (ntcdb[samp->mykey].Ready(k, v.first))
-		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
 	    }
 	    else {
 	      if (ntcdb[c->mykey].Ready(k, v.first))
-		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	    }
 
 	    // Probability of an interaction of between particles of type 1
@@ -10185,10 +10185,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	      if (samp) {
 		if (ntcdb[samp->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, 0.95);
+		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
 	      } else {
 		if (ntcdb[c->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, 0.95);
+		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
 	      }
 
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;

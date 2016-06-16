@@ -30,6 +30,10 @@ static bool NTC_DIST   = true;	// Enable NTC full distribution
 				// selection algorithm
 bool Collide::PULLIN   = false;
 
+// Default NTC quantile thresholdn
+double Collide::ntcThreshDef = 0.95;
+
+
 // Debugging cell length--MFP ratio
 bool Collide::MFPCL    = true;
 
@@ -505,6 +509,9 @@ Collide::Collide(ExternalForce *force, Component *comp,
   
   effortAccum  = false;
   effortNumber .resize(nthrds);
+
+  // Set the threshold from the default value
+  ntcThresh = ntcThreshDef;
 
   if (myid==0) {
     std::cout << std::string(70, '-') << std::endl
@@ -1286,7 +1293,7 @@ void * Collide::collide_thread(void * arg)
 
 	  double scrs = Cross / cunit;
 	  double prod = cr   * scrs;
-	  double targ = ntcdb[samp->mykey].Prob(k, maxT, prod);
+	  double targ = prod/ntcdb[samp->mykey].CrsVel(k, ntcThresh);
 	  
 	  if (NTC)
 	    ok = ( targ > (*unit)() );
