@@ -351,6 +351,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
 	      << use_elec                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "use_spectrum"
+	      << (use_spectrum ? "on" : "off")          << std::endl
 	      << "************************************" << std::endl;
   }
 
@@ -5594,7 +5596,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   // Energy change
   //
-  double dE = 0.0;
+  double dE = 0.0, tmpE = 0.0;
 				// Set the interaction flag
   interFlag = std::get<0>(itype);
 
@@ -5724,34 +5726,39 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	// Ion is p2
 	//
 	if (prob >= 0.0)
-	  dE = IS.selectFFInteract(FFm[id][Q2]) * cF;
+	  dE = (tmpE = IS.selectFFInteract(FFm[id][Q2])) * cF;
 	else
-	  dE = IS.selectFFInteract(FF2[id]) * cF * q;
+	  dE = (tmpE = IS.selectFFInteract(FF2[id])) * cF * q;
 
 	ctd2->ff[id][0] += cF;
 	if (prob >= 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
 	  ctd2->ff[id][2] += Nb * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Nb * cF);
 	} else {
 	  ctd2->ff[id][1] += NN;
 	  ctd2->ff[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
       } else {
 	// Ion is p1
 	//
 	if (prob >= 0.0)
-	  dE = IS.selectFFInteract(FFm[id][Q1]) * cF;
+	  dE = (tmpE = IS.selectFFInteract(FFm[id][Q1])) * cF;
 	else
-	  dE = IS.selectFFInteract(FF1[id]) * cF * q;
+	  dE = (tmpE = IS.selectFFInteract(FF1[id])) * cF * q;
+
 	ctd1->ff[id][0] += cF;
 
 	if (prob >= 0.0) {
 	  ctd1->ff[id][1] += Na * cF;
 	  ctd1->ff[id][2] += Na * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Na * cF);
 	} else {
 	  ctd1->ff[id][1] += NN;
 	  ctd1->ff[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
       }
@@ -5766,34 +5773,40 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	// Ion is p2
 	//
 	if (prob >= 0.0)
-	  dE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2]) * cF;
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], CEm[id][Q2])) * cF;
 	else
-	  dE = IS.selectCEInteract(ch.IonList[Q2], CE1[id]) * cF * q;
-
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], CE1[id])) * cF * q;
+	
 	ctd2->CE[id][0] += cF * q0;
+
 	if (prob >= 0.0) {
 	  ctd2->CE[id][1] += Nb * cF;
 	  ctd2->CE[id][2] += Nb * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Nb * cF);
 	} else {
 	  ctd2->CE[id][1] += NN;
 	  ctd2->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
       } else {
 	// Ion is p1
 	//
 	if (prob >= 0.0)
-	  dE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1]) * cF;
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1])) * cF;
 	else
-	  dE = IS.selectCEInteract(ch.IonList[Q1], CE1[id]) * cF * q;
+	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id])) * cF * q;
 
 	ctd1->CE[id][0] += cF * q0;
+
 	if (prob >= 0.0) {
 	  ctd1->CE[id][1] += Na * cF;
 	  ctd1->CE[id][2] += Na * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Na * cF);
 	} else {
 	  ctd1->CE[id][1] += NN;
 	  ctd1->CE[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
       }
@@ -5806,7 +5819,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (swapped) {
 	// Ion is p2
 	//
-	dE = IS.DIInterLoss(ch.IonList[Q2]) * cF * q0;
+	dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5844,9 +5857,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (prob >= 0.0) {
 	  ctd2->CI[id][1] += Nb * cF;
 	  ctd2->CI[id][2] += Nb * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Nb * cF);
 	} else {
 	  ctd2->CI[id][1] += NN;
 	  ctd2->CI[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
 
@@ -5859,7 +5874,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       else {
 	// Ion is p1
 	//
-	dE = IS.DIInterLoss(ch.IonList[Q1]) * cF * q0;
+	dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q0;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5896,9 +5911,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (prob >= 0.0) {
 	  ctd1->CI[id][1] += Na * cF;
 	  ctd1->CI[id][2] += Na * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, Na * cF);
 	} else {
 	  ctd1->CI[id][1] += NN;
 	  ctd1->CI[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
 
@@ -5947,16 +5964,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	dE = kEe2[id] * wght * q0;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q0;
-
 	delE += dE;
 
 	ctd2->RR[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd2->RR[id][1] += Nb * cF;
 	  ctd2->RR[id][2] += Nb * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], Nb * cF);
 	} else {
 	  ctd2->RR[id][1] += NN;
 	  ctd2->RR[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], NN);
 	}
 	Ion2Frac += cF;
 
@@ -6019,16 +6037,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	dE = kEe1[id] * wght * q0;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q0;
-
 	delE += dE;
 
 	ctd1->RR[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd1->RR[id][1] += Na * cF;
 	  ctd1->RR[id][2] += Na * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], Na * cF);
 	} else {
 	  ctd1->RR[id][1] += NN;
 	  ctd1->RR[id][2] += N0 * dE;
+	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], NN);
 	}
 	Ion1Frac += cF;
 
@@ -12692,7 +12711,7 @@ void CollideIon::processConfig()
       cfg.entry<bool>("eDistDBG", "Report binned histogram for electron velocities", false);
 
     use_spectrum =
-      cfg.entry<bool>("SPECTRUM", "Tabulate emission spectrum", false);
+      cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.", false);
 
     minEvSpect =
       cfg.entry<double>("minEvSpect", "Minimum energy bin for tabulated emission spectrum (eV)", 0.0);
@@ -12773,12 +12792,71 @@ void CollideIon::spectrumSetup()
 {
   if (not use_spectrum) return;
 
+  if (aType != Hybrid) {
+    if (myid==0) {
+      std::cout << std::endl
+		<< "********************************************" << std::endl
+		<< "*** Warning: spectrum requested but only ***" << std::endl
+		<< "*** implemented for HYBRID method        ***" << std::endl
+		<< "********************************************" << std::endl;
+    }
+    use_spectrum = false;
+    return;
+  }
+
+  for (auto v : {free_free, colexcite, ionize, recomb}) spectTypes.insert(v);
+
+  // Use log scale?
+  log_spectrum = false;
+
+  // Cache for range check
+  flrEvSpect   = minEvSpect;
+
+  // Use log scaling?
+  if (minEvSpect>0.0) {
+    log_spectrum = true;
+    minEvSpect   = log(minEvSpect);
+    maxEvSpect   = log(maxEvSpect);
+  }
+
+  // Deduce number of bins
   numEvSpect = std::floor( (maxEvSpect - minEvSpect)/delEvSpect );
+  // Must have at least one bin
   numEvSpect = max<int>(numEvSpect, 1);
+  // Reset outer bin edge value
   maxEvSpect = minEvSpect + delEvSpect * numEvSpect;
 
+  // Initialize spectral histogram
   dSpect.resize(nthrds);
-  for (auto & v : dSpect) v.resize(numEvSpect, 0);
+  nSpect.resize(nthrds);
+  for (auto i : spectTypes) {
+    for (auto & v : dSpect) v[i].resize(numEvSpect, 0);
+    for (auto & v : nSpect) v[i].resize(numEvSpect, 0);
+  }
+}
+
+void CollideIon::spectrumAdd(int id, int type, double energy, double weight)
+{
+  if (not use_spectrum) return;
+  
+  if (log_spectrum) {
+    if (energy < flrEvSpect) return;
+    energy = log(energy);
+  }
+
+  // Sanity check
+  if (spectTypes.find(type) == spectTypes.end()) {
+    std::cout << "spectrumAdd: requested illegal type: " << type << std::endl;
+    return;
+  }
+
+  if (energy >= minEvSpect and energy < maxEvSpect) {
+    int indx = (energy - minEvSpect)/delEvSpect;
+    indx = std::max<double>(indx, 0);
+    indx = std::min<double>(indx, numEvSpect-1);
+    dSpect[id][type][indx] += weight;
+    nSpect[id][type][indx] ++;
+  }
 }
 
 void CollideIon::spectrumGather()
@@ -12787,16 +12865,28 @@ void CollideIon::spectrumGather()
 
   // Sum up threads
   for (int n=1; n<nthrds; n++) {
-    for (int j=0; j<numEvSpect; j++) dSpect[0][j] += dSpect[n][j];
+    for (auto i : spectTypes) {
+      for (int j=0; j<numEvSpect; j++) dSpect[0][i][j] += dSpect[n][i][j];
+      for (int j=0; j<numEvSpect; j++) nSpect[0][i][j] += nSpect[n][i][j];
+    }
   }
 
-  // Collect data
-  if (myid==0) tSpect.resize(numEvSpect);
-  MPI_Reduce(&dSpect[0][0], &tSpect[0], numEvSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  // Collect flux data
+  for (auto i : spectTypes) {
+    if (myid==0) tSpect[i].resize(numEvSpect);
+    MPI_Reduce(&dSpect[0][i][0], &tSpect[i][0], numEvSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
-  // Zero data
-  for (int n=0; n<nthrds; n++) {
-    for (int j=0; j<numEvSpect; j++) dSpect[n][j] = 0.0;
+    // Collect count data
+    if (myid==0) mSpect[i].resize(numEvSpect);
+    MPI_Reduce(&nSpect[0][i][0], &mSpect[i][0], numEvSpect, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+  }
+
+  // Zero all data
+  for (auto i : spectTypes) {
+    for (int n=0; n<nthrds; n++) {
+      for (auto & v : dSpect[n][i]) v = 0;
+      for (auto & v : nSpect[n][i]) v = 0;
+    }
   }
 }
 
@@ -12805,29 +12895,62 @@ void CollideIon::spectrumPrint()
 {
   if (not use_spectrum or myid>0) return;
 
+  double norm = 0.0;
+  for (auto i : spectTypes) {
+    for (auto v : tSpect[i]) norm += v;
+  }
+  
   ostringstream ostr;
   ostr << outdir << runtag << ".spectrum." << this_step;
   std::ofstream out(ostr.str());
-  out << "# T=" << tnow
-      << "  m/M = " << mstep << "/" << Mstep << std::endl
-      << "#"    << std::endl
-      << std::left
-      << std::setw( 8) << "# bin"
+  out << "# T=" << tnow << "  m/M=" << mstep << "/" << Mstep << std::endl
+      << "# Norm=" << norm << std::endl << "#" << std::endl
+      << std::right    << "#"
+      << std::setw( 8) << "bin"
       << std::setw(18) << "Min eV"
-      << std::setw(18) << "Max eV"
-      << std::setw(18) << "Count"
-      << std::endl
-      << std::setw( 8) << "#------"
+      << std::setw(18) << "Max eV";
+  for (auto i : spectTypes) {
+    std::ostringstream fout, nout;
+    fout << "F(" << labels[i] << ")";
+    nout << "N(" << labels[i] << ")";
+    out << std::setw(18) << fout
+	<< std::setw(18) << nout;
+  }
+  out << std::setw(18) << "Total flux"
+      << std::setw(18) << "Total counts"
+      << std::endl     << "#"
+      << std::setw( 8) << "-------"
       << std::setw(18) << "-------"
-      << std::setw(18) << "-------"
-      << std::setw(18) << "-------"
-      << std::endl;
+      << std::setw(18) << "-------";
+  for (size_t i=0; i<spectTypes.size(); i++)
+    out << std::setw(18) << "-------"
+	<< std::setw(18) << "-------";
+  out << std::setw(18) << "-------"
+      << std::setw(18) << "-------" << std::endl;
   
-  for (int j=0; j<numEvSpect; j++)
+  for (int j=0; j<numEvSpect; j++) {
+    double inner = minEvSpect + delEvSpect*j;
+    double outer = minEvSpect + delEvSpect*(j+1);
+    if (log_spectrum) {
+      inner = exp(inner);
+      outer = exp(outer);
+    }
+
     out << std::right
-	<< std::setw( 8) << j + 1
-	<< std::setw(18) << minEvSpect + delEvSpect*j
-	<< std::setw(18) << minEvSpect + delEvSpect*(j+1)
-	<< std::setw(18) << tSpect[j]
+	<< std::setw( 9) << j + 1
+	<< std::setw(18) << inner
+	<< std::setw(18) << outer;
+
+    double   sum = 0.0;
+    unsigned num = 0;
+    for (auto i : spectTypes) {
+      out << std::setw(18) << tSpect[j][i]/norm
+	  << std::setw(18) << mSpect[j][i];
+      sum += tSpect[j][i]/norm;
+      num += mSpect[j][i];
+    }
+    out << std::setw(18) << sum
+	<< std::setw(18) << num
 	<< std::endl;
+  }
 }
