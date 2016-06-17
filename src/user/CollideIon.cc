@@ -12701,7 +12701,7 @@ void CollideIon::processConfig()
       cfg.entry<double>("maxEvSpect", "Maximum energy bin for tabulated emission spectrum (eV)", 100.0);
 
     delEvSpect =
-      cfg.entry<double>("delEvSpect", "Energy bin widthfor tabulated emission spectrum (eV)", 0.1);
+      cfg.entry<double>("delEvSpect", "Energy bin width for tabulated emission spectrum (eV)", 0.1);
 
     Collide::numSanityStop =
       cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
