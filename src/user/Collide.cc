@@ -114,6 +114,8 @@ unsigned Collide::numSanityFreq = 2000000u;
 // Default interation type
 std::string Collide::Labels::def = "default";
 
+// Electron type tag
+const unsigned short Collide::electronTyp = 0;
 
 extern "C"
 void *

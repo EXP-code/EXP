@@ -148,7 +148,7 @@ public:
   
   //@{
   //! Electron species key
-  static constexpr unsigned short electronTyp {0};
+  const static unsigned short electronTyp;
   const speciesKey electronDef = {electronTyp, electronTyp};
   const sKeyPair   electronKey = {electronDef, electronDef};
   //@}

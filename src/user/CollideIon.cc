@@ -184,6 +184,11 @@ static bool cooling_test      = false;
 //
 static int DEBUG_CNT          = -1;
 
+  
+// Convert energy in eV to wavelength in angstroms
+//
+static constexpr double eVtoAng = 12398.41842144513;
+
 // Per-species cross-section scale factor for testing
 //
 static std::vector<double> cscl_;
@@ -351,8 +356,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
 	      << use_elec                               << std::endl
-	      <<  " " << std::setw(20) << std::left << "use_spectrum"
-	      << (use_spectrum ? "on" : "off")          << std::endl
+	      <<  " " << std::setw(20) << std::left << "Spectrum"
+	      << (use_spectrum ? (wvlSpect ? "in wavelength" : "in eV")
+		  : "off")                              << std::endl
 	      << "************************************" << std::endl;
   }
 
@@ -12711,16 +12717,19 @@ void CollideIon::processConfig()
       cfg.entry<bool>("eDistDBG", "Report binned histogram for electron velocities", false);
 
     use_spectrum =
-      cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.", false);
+      cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
 
-    minEvSpect =
-      cfg.entry<double>("minEvSpect", "Minimum energy bin for tabulated emission spectrum (eV)", 0.0);
+    wvlSpect =
+      cfg.entry<bool>("wvlSpectrum", "Tabulate emission spectrum using in constant wavelength bins", true);
 
-    maxEvSpect =
-      cfg.entry<double>("maxEvSpect", "Maximum energy bin for tabulated emission spectrum (eV)", 100.0);
+    minSpect =
+      cfg.entry<double>("minSpect", "Minimum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum", 100.0);
 
-    delEvSpect =
-      cfg.entry<double>("delEvSpect", "Energy bin width for tabulated emission spectrum (eV)", 0.1);
+    maxSpect =
+      cfg.entry<double>("maxSpect", "Maximum energy (eV) or wavelength (in angstrom) for tabulated emission spectrum", 20000.0);
+
+    delSpect =
+      cfg.entry<double>("delEvSpect", "Energy or wavelength bin width for tabulated emission spectrum (eV)", 100.0);
 
     Collide::numSanityStop =
       cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
@@ -12807,31 +12816,37 @@ void CollideIon::spectrumSetup()
   for (auto v : {free_free, colexcite, ionize, recomb}) spectTypes.insert(v);
 
   // Use log scale?
-  log_spectrum = false;
+  logSpect = false;
 
   // Cache for range check
-  flrEvSpect   = minEvSpect;
+  flrSpect = minSpect;
 
-  // Use log scaling?
-  if (minEvSpect>0.0) {
-    log_spectrum = true;
-    minEvSpect   = log(minEvSpect);
-    maxEvSpect   = log(maxEvSpect);
+  // Use log scaling or wavelength scaling?
+  if (wvlSpect) {
+    minSpect = std::max<double>(10.0, minSpect);
+  } else if (minSpect>0.0) {
+    logSpect = true;
+    minSpect = log(minSpect);
+    maxSpect = log(maxSpect);
   }
 
   // Deduce number of bins
-  numEvSpect = std::floor( (maxEvSpect - minEvSpect)/delEvSpect );
+  numSpect = std::floor( (maxSpect - minSpect)/delSpect );
+
   // Must have at least one bin
-  numEvSpect = max<int>(numEvSpect, 1);
+  numSpect = max<int>(numSpect, 1);
+
   // Reset outer bin edge value
-  maxEvSpect = minEvSpect + delEvSpect * numEvSpect;
+  maxSpect = minSpect + delSpect * numSpect;
 
   // Initialize spectral histogram
   dSpect.resize(nthrds);
+  eSpect.resize(nthrds);
   nSpect.resize(nthrds);
   for (auto i : spectTypes) {
-    for (auto & v : dSpect) v[i].resize(numEvSpect, 0);
-    for (auto & v : nSpect) v[i].resize(numEvSpect, 0);
+    for (auto & v : dSpect) v[i].resize(numSpect, 0);
+    for (auto & v : eSpect) v[i].resize(numSpect, 0);
+    for (auto & v : nSpect) v[i].resize(numSpect, 0);
   }
 }
 
@@ -12839,8 +12854,12 @@ void CollideIon::spectrumAdd(int id, int type, double energy, double weight)
 {
   if (not use_spectrum) return;
   
-  if (log_spectrum) {
-    if (energy < flrEvSpect) return;
+  double E = energy;
+
+  if (wvlSpect) {
+    energy = eVtoAng/energy;
+  } else if (logSpect) {
+    if (energy < flrSpect) return;
     energy = log(energy);
   }
 
@@ -12850,11 +12869,12 @@ void CollideIon::spectrumAdd(int id, int type, double energy, double weight)
     return;
   }
 
-  if (energy >= minEvSpect and energy < maxEvSpect) {
-    int indx = (energy - minEvSpect)/delEvSpect;
+  if (energy >= minSpect and energy < maxSpect) {
+    int indx = (energy - minSpect)/delSpect;
     indx = std::max<double>(indx, 0);
-    indx = std::min<double>(indx, numEvSpect-1);
+    indx = std::min<double>(indx, numSpect-1);
     dSpect[id][type][indx] += weight;
+    eSpect[id][type][indx] += weight*E;
     nSpect[id][type][indx] ++;
   }
 }
@@ -12866,25 +12886,31 @@ void CollideIon::spectrumGather()
   // Sum up threads
   for (int n=1; n<nthrds; n++) {
     for (auto i : spectTypes) {
-      for (int j=0; j<numEvSpect; j++) dSpect[0][i][j] += dSpect[n][i][j];
-      for (int j=0; j<numEvSpect; j++) nSpect[0][i][j] += nSpect[n][i][j];
+      for (int j=0; j<numSpect; j++) dSpect[0][i][j] += dSpect[n][i][j];
+      for (int j=0; j<numSpect; j++) eSpect[0][i][j] += eSpect[n][i][j];
+      for (int j=0; j<numSpect; j++) nSpect[0][i][j] += nSpect[n][i][j];
     }
   }
 
-  // Collect flux data
   for (auto i : spectTypes) {
-    if (myid==0) tSpect[i].resize(numEvSpect);
-    MPI_Reduce(&dSpect[0][i][0], &tSpect[i][0], numEvSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+    // Collect number data
+    if (myid==0) tSpect[i].resize(numSpect);
+    MPI_Reduce(&dSpect[0][i][0], &tSpect[i][0], numSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    // Collect flux data
+    if (myid==0) fSpect[i].resize(numSpect);
+    MPI_Reduce(&eSpect[0][i][0], &fSpect[i][0], numSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 
     // Collect count data
-    if (myid==0) mSpect[i].resize(numEvSpect);
-    MPI_Reduce(&nSpect[0][i][0], &mSpect[i][0], numEvSpect, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    if (myid==0) mSpect[i].resize(numSpect);
+    MPI_Reduce(&nSpect[0][i][0], &mSpect[i][0], numSpect, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
   }
 
   // Zero all data
   for (auto i : spectTypes) {
     for (int n=0; n<nthrds; n++) {
       for (auto & v : dSpect[n][i]) v = 0;
+      for (auto & v : eSpect[n][i]) v = 0;
       for (auto & v : nSpect[n][i]) v = 0;
     }
   }
@@ -12895,43 +12921,55 @@ void CollideIon::spectrumPrint()
 {
   if (not use_spectrum or myid>0) return;
 
-  double norm = 0.0;
+  double normN = 0.0, normF = 0.0;
   for (auto i : spectTypes) {
-    for (auto v : tSpect[i]) norm += v;
+    for (auto v : tSpect[i]) normN += v;
+    for (auto v : fSpect[i]) normF += v;
   }
   
   ostringstream ostr;
   ostr << outdir << runtag << ".spectrum." << this_step;
   std::ofstream out(ostr.str());
   out << "# T=" << tnow << "  m/M=" << mstep << "/" << Mstep << std::endl
-      << "# Norm=" << norm << std::endl << "#" << std::endl
+      << "# Norm(number)=" << normN << std::endl
+      << "# Norm(flux)="   << normF
+      << std::endl     << "#" << std::endl
       << std::right    << "#"
-      << std::setw( 8) << "bin"
-      << std::setw(18) << "Min eV"
-      << std::setw(18) << "Max eV";
-  for (auto i : spectTypes) {
-    std::ostringstream fout, nout;
-    fout << "F(" << labels[i] << ")";
-    nout << "N(" << labels[i] << ")";
-    out << std::setw(18) << fout
-	<< std::setw(18) << nout;
+      << std::setw( 8) << "bin";
+  if (wvlSpect)
+    out << std::setw(18) << "Min lambda"
+	<< std::setw(18) << "Max lambda";
+  else {
+    out << std::setw(18) << "Min eV"
+	<< std::setw(18) << "Max eV";
   }
-  out << std::setw(18) << "Total flux"
-      << std::setw(18) << "Total counts"
+  for (auto i : spectTypes) {
+    std::ostringstream nout; nout << "N(" << labels[i] << ")";
+    std::ostringstream fout; fout << "F(" << labels[i] << ")";
+    std::ostringstream sout; sout << "C(" << labels[i] << ")";
+    out << std::setw(18) << nout.str()
+	<< std::setw(18) << fout.str()
+	<< std::setw(18) << sout.str();
+  }
+  out << std::setw(18) << "N(total)"
+      << std::setw(18) << "F(total)"
+      << std::setw(18) << "C(total)"
       << std::endl     << "#"
       << std::setw( 8) << "-------"
       << std::setw(18) << "-------"
       << std::setw(18) << "-------";
   for (size_t i=0; i<spectTypes.size(); i++)
     out << std::setw(18) << "-------"
+	<< std::setw(18) << "-------"
 	<< std::setw(18) << "-------";
   out << std::setw(18) << "-------"
+      << std::setw(18) << "-------"
       << std::setw(18) << "-------" << std::endl;
   
-  for (int j=0; j<numEvSpect; j++) {
-    double inner = minEvSpect + delEvSpect*j;
-    double outer = minEvSpect + delEvSpect*(j+1);
-    if (log_spectrum) {
+  for (int j=0; j<numSpect; j++) {
+    double inner = minSpect + delSpect*j;
+    double outer = minSpect + delSpect*(j+1);
+    if (logSpect) {
       inner = exp(inner);
       outer = exp(outer);
     }
@@ -12941,15 +12979,21 @@ void CollideIon::spectrumPrint()
 	<< std::setw(18) << inner
 	<< std::setw(18) << outer;
 
-    double   sum = 0.0;
+    // Print the flux and counts
+    //
+    double  sumN = 0.0;
+    double  sumF = 0.0;
     unsigned num = 0;
     for (auto i : spectTypes) {
-      out << std::setw(18) << tSpect[j][i]/norm
-	  << std::setw(18) << mSpect[j][i];
-      sum += tSpect[j][i]/norm;
-      num += mSpect[j][i];
+      out << std::setw(18) << tSpect[i][j]/normN
+	  << std::setw(18) << fSpect[i][j]/normF
+	  << std::setw(18) << mSpect[i][j];
+      sumN += tSpect[i][j]/normN; // Accumulate the flux
+      sumF += fSpect[i][j]/normF; // Accumulate the flux
+      num  += mSpect[i][j];	  // Accumulate the counts
     }
-    out << std::setw(18) << sum
+    out << std::setw(18) << sumN
+	<< std::setw(18) << sumF
 	<< std::setw(18) << num
 	<< std::endl;
   }

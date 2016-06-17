@@ -492,17 +492,17 @@ private:
 
   //@{
   //! Photon spectrum
-  bool use_spectrum, log_spectrum;
-  double flrEvSpect, minEvSpect, maxEvSpect, delEvSpect;
-  int numEvSpect;
+  bool use_spectrum, logSpect, wvlSpect;
+  double flrSpect, minSpect, maxSpect, delSpect;
+  int numSpect;
   
   typedef std::map<int, std::vector<double> >   dNamedVec;
   typedef std::map<int, std::vector<unsigned> > iNamedVec;
 
   std::set<int>            spectTypes;
-  std::vector<dNamedVec>   dSpect;
+  std::vector<dNamedVec>   dSpect, eSpect;
   std::vector<iNamedVec>   nSpect;
-  dNamedVec                tSpect;
+  dNamedVec                tSpect, fSpect;
   iNamedVec                mSpect;
 
   void spectrumAdd(int id, int type, double energy, double weight);
