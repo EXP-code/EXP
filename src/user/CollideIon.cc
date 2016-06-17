@@ -487,6 +487,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   labels[elec_elec  ] = "el collisions ";
 
   elecElec = Interact::T(0, 0, CollideIon::elec_elec);
+
+  spectrumSetup();
 }
 
 CollideIon::~CollideIon()
@@ -12689,6 +12691,17 @@ void CollideIon::processConfig()
     eDistDBG =
       cfg.entry<bool>("eDistDBG", "Report binned histogram for electron velocities", false);
 
+    use_spectrum =
+      cfg.entry<bool>("SPECTRUM", "Tabulate emission spectrum", false);
+
+    minEvSpect =
+      cfg.entry<double>("minEvSpect", "Minimum energy bin for tabulated emission spectrum (eV)", 0.0);
+
+    maxEvSpect =
+      cfg.entry<double>("maxEvSpect", "Maximum energy bin for tabulated emission spectrum (eV)", 100.0);
+
+    delEvSpect =
+      cfg.entry<double>("delEvSpect", "Energy bin widthfor tabulated emission spectrum (eV)", 0.1);
 
     Collide::numSanityStop =
       cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
@@ -12756,3 +12769,65 @@ void CollideIon::processConfig()
   }
 }
 
+void CollideIon::spectrumSetup()
+{
+  if (not use_spectrum) return;
+
+  numEvSpect = std::floor( (maxEvSpect - minEvSpect)/delEvSpect );
+  numEvSpect = max<int>(numEvSpect, 1);
+  maxEvSpect = minEvSpect + delEvSpect * numEvSpect;
+
+  dSpect.resize(nthrds);
+  for (auto & v : dSpect) v.resize(numEvSpect, 0);
+}
+
+void CollideIon::spectrumGather()
+{
+  if (not use_spectrum) return;
+
+  // Sum up threads
+  for (int n=1; n<nthrds; n++) {
+    for (int j=0; j<numEvSpect; j++) dSpect[0][j] += dSpect[n][j];
+  }
+
+  // Collect data
+  if (myid==0) tSpect.resize(numEvSpect);
+  MPI_Reduce(&dSpect[0][0], &tSpect[0], numEvSpect, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+  // Zero data
+  for (int n=0; n<nthrds; n++) {
+    for (int j=0; j<numEvSpect; j++) dSpect[n][j] = 0.0;
+  }
+}
+
+
+void CollideIon::spectrumPrint()
+{
+  if (not use_spectrum or myid>0) return;
+
+  ostringstream ostr;
+  ostr << outdir << runtag << ".spectrum." << this_step;
+  std::ofstream out(ostr.str());
+  out << "# T=" << tnow
+      << "  m/M = " << mstep << "/" << Mstep << std::endl
+      << "#"    << std::endl
+      << std::left
+      << std::setw( 8) << "# bin"
+      << std::setw(18) << "Min eV"
+      << std::setw(18) << "Max eV"
+      << std::setw(18) << "Count"
+      << std::endl
+      << std::setw( 8) << "#------"
+      << std::setw(18) << "-------"
+      << std::setw(18) << "-------"
+      << std::setw(18) << "-------"
+      << std::endl;
+  
+  for (int j=0; j<numEvSpect; j++)
+    out << std::right
+	<< std::setw( 8) << j + 1
+	<< std::setw(18) << minEvSpect + delEvSpect*j
+	<< std::setw(18) << minEvSpect + delEvSpect*(j+1)
+	<< std::setw(18) << tSpect[j]
+	<< std::endl;
+}

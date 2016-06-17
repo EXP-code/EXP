@@ -690,7 +690,7 @@ public:
   //@{ 
   //! Auxilliary diagnostics.
   virtual void auxGather() {}
-  virtual void auxPrint(ostream& out) {}
+  virtual void auxPrint(std::ostream& out) {}
   //@}
 
   //@{

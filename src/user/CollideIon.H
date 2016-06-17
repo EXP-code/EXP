@@ -490,6 +490,19 @@ private:
   clampDat clampStat;
   //@}
 
+  //@{
+  //! Photon spectrum
+  bool use_spectrum;
+  double minEvSpect, maxEvSpect, delEvSpect;
+  int numEvSpect;
+  std::vector< std::vector<double> > dSpect;
+  std::vector<double> tSpect;
+
+  void spectrumSetup();
+  void spectrumGather();
+  void spectrumPrint();
+  //@}
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -758,13 +771,15 @@ protected:
   { 
     mfpCLGather(); 
     electronGather(); 
+    spectrumGather();
   }
 
   //! Consider commenting these tests out for production
   virtual void auxPrint(std::ostream& out) 
   { 
     mfpCLPrint(out); 
-    electronPrint(out); 
+    electronPrint(out);
+    spectrumPrint();
   }
 
   //! Compute electron energy in a cell
