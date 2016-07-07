@@ -12746,6 +12746,9 @@ void CollideIon::processConfig()
     Collide::numSanityFreq =
       cfg.entry<unsigned>("collFreq", "Stride for collision reporting", 2000000u);
 
+    Ion::gs_only =
+      cfg.entry<bool>("radRecombGS", "Cross section for recombination into the ground state only", false);
+
     // Enter cross-section scale factors into PT if specified
     //
     boost::optional<ptree&> vt =
