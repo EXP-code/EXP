@@ -4,6 +4,39 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 
+def scanSeq(a):
+        """ 
+        Attempt to put sequence in order.  
+        Returns False if no changes are made
+        """
+        x = a[0,0]
+        for i in range(1, a.shape[1]):
+                if a[0,i] < x:
+                        # Find location
+                        k = 0
+                        for j in range(i):
+                                if a[0,j] > a[0,i]:
+                                        k = j
+                                        break
+                        # print "a={}, b={}, c={}".format(x, a[0,i], a[0,k])
+                        return True, (k, i)
+                x = a[0,i]
+        return False, (0, a.shape[1])
+
+argc = len(sys.argv)
+
+def scanLoc(t, a):
+        """ 
+        Find index k, such that a[0,k]>=t
+        Returns False if it does not exist.
+        """
+        k = 0
+        for i in range(1, a.shape[1]):
+                if t<=a[0,i] and t>a[0,i-1]:
+                        return True, i
+                x = a[0,i]
+        return False, a.shape[1]
+
 argc = len(sys.argv)
 
 #
@@ -19,6 +52,9 @@ if argc<=1:
 fmt  = '-'
 logT = False
 Temp = False
+Tscl = 1
+Tbeg = 0.0
+Tend = -1.0
 for i in range(1,argc-1):
         if sys.argv[i] == '-p' or sys.argv[i] == '--points':
                 fmt = '-o'
@@ -26,6 +62,12 @@ for i in range(1,argc-1):
                 logT = True
         if sys.argv[i] == '-T' or sys.argv[i] == '--temp':
                 Temp = True
+        if sys.argv[i] == '-t' or sys.argv[i] == '--timescale':
+                Tscl = float(sys.argv[i+1])
+        if sys.argv[i] == '-b' or sys.argv[i] == '--Tbeg':
+                Tbeg = float(sys.argv[i+1])
+        if sys.argv[i] == '-e' or sys.argv[i] == '--Tend':
+                Tend = float(sys.argv[i+1])
 #
 # Parse data file
 #
@@ -36,9 +78,39 @@ for line in file:
 		data.append([float(v) for v in line.split()])
 a = np.array(data).transpose()
 #
+# Search for appended sequence(s)
+#
+print "-------- Trim statistics --------"
+print "Initial shape:", a.shape
+
+status = True
+segcnt = 0
+while status:
+        status, segment = scanSeq(a)
+        if status:
+                b = a[:,np.s_[0:segment[0]:]]
+                c = a[:,np.s_[segment[1]::]]
+                a = np.concatenate((b, c), axis=1)
+                segcnt += 1
+                print "Segment [{:3d}]: ({}, {})".format(segcnt,
+                                                         segment[0],
+                                                         segment[1])
+if Tbeg > 0.0:
+        status, indx = scanLoc(Tbeg/Tscl, a)
+        if status: a = a[:,np.s_[indx::]]
+
+if Tend > Tbeg:
+        status, indx = scanLoc(Tend/Tscl, a)
+        if status: a = a[:,np.s_[:indx:]]
+
+
+print "  Final shape:", a.shape
+print "---------------------------------"
+
+#
 # Species plot
 #
-x = a[0]
+x = a[0] * Tscl
 if Temp: x = a[1]
 if logT:
         plt.semilogx(x, a[2], fmt, label='H')
@@ -54,7 +126,11 @@ else:
         plt.plot(x, a[6], fmt, label='He++')
 plt.legend().draggable()
 if Temp: plt.xlabel('Temperature')
-else:    plt.xlabel('Time')
+else:
+        if Tscl == 1:
+                plt.xlabel('Time')
+        else:
+                plt.xlabel('Time (years)')
 plt.ylabel('Species')
 plt.show()
 #
@@ -75,7 +151,12 @@ else:
 #
 plt.legend().draggable()
 if Temp: plt.xlabel('Temperature')
-else:    plt.xlabel('Time')
+else:
+        if Tscl == 1:
+                plt.xlabel('Time')
+        else:
+                plt.xlabel('Time (years)')
+
 plt.ylabel('Species')
 plt.show()
 #
@@ -98,6 +179,11 @@ else:
 #
 plt.legend().draggable()
 if Temp: plt.xlabel('Temperature')
-else:    plt.xlabel('Time')
+else:
+        if Tscl == 1:
+                plt.xlabel('Time')
+        else:
+                plt.xlabel('Time (years)')
+
 plt.ylabel('Species temperature')
 plt.show()
