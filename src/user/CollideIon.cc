@@ -176,9 +176,9 @@ static bool scatter_check     = true;
 //
 static bool suppress_maxT     = false;
 
-// Suppress inelastic energy loss but track what the loss would be
+// Use only a fraction of inelastic energy for testing equipartition
 //
-static bool cooling_test      = false;
+static double energy_scale    = -1.0;
 
 // Use particle collision counter for debugging
 //
@@ -6135,6 +6135,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     }
 
   } // END: compute this interaction [ok]
+
+  // Scale energy for testing
+  //
+  if (energy_scale > 0.0) delE *= energy_scale;
 
   // Convert to super particle (current in eV)
   //
@@ -12701,8 +12705,8 @@ void CollideIon::processConfig()
     collLim =
       cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
 
-    cooling_test =
-      cfg.entry<bool>("COOL_TEST", "Suppress inelastic update but track energy loss", false);
+    energy_scale =
+      cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
 
     E_split =
       cfg.entry<bool>("E_split", "Apply energy loss to ion-ion frame and energy conservation"
