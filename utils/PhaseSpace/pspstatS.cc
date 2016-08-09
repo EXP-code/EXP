@@ -44,7 +44,7 @@ main(int ac, char **av)
 {
   char *prog = av[0];
   double time, Lunit, Munit, Tunit;
-  int sindx, eindx;
+  int sindx, eindx, icons, econs;
   std::string cname;
   bool verbose = false;
 
@@ -60,6 +60,10 @@ main(int ac, char **av)
      "position of species index")
     ("electrons,e",	po::value<int>(&eindx)->default_value(10),
      "position of electron index")
+    ("consI,I",         po::value<int>(&icons)->default_value(-1),
+     "position of ion conservation (-1 to ignore)")
+    ("consE,E",         po::value<int>(&econs)->default_value(-1),
+     "position of electron conservation (-1 to ignore)")
     ("name,c",	        po::value<std::string>(&cname)->default_value("gas"),
      "component name")
     ("Lunit,L",         po::value<double>(&Lunit)->default_value(1.0),
@@ -148,17 +152,24 @@ main(int ac, char **av)
 
 				// Will contain array for each gas species
 				// ---------------------------------------
-    typedef std::tuple<double, double, double, double, unsigned> shtup;
-    //                 ^       ^       ^       ^       ^
-    //                 |       |       |       |       |
-    // 0: mass --------+       |       |       |       |
-    // 1: Ion KE --------------+       |       |       |
-    // 2: Electron KE -----------------+       |       |
-    // 3: True number -------------------------+       |
-    // 4: Count ---------------------------------------+
+    typedef std::tuple<double, double, double, double,
+    //                 ^       ^       ^       ^
+    //                 |       |       |       |
+    // 0: mass --------+       |       |       |
+    // 1: Ion KE --------------+       |       |
+    // 2: Electron KE -----------------+       |
+    // 3: True number -------------------------+
     //
+		       double, double, unsigned> shtup;
+    //                 ^       ^       ^
+    //                 |       |       |
+    // 4: Ion cons E---+       |       |
+    // 5: Electron cons E------+       |
+    // 6: Superparticle count ---------+
+    //
+
     typedef std::map<speciesKey, shtup> shist;
-    const shtup tupzero(0.0, 0.0, 0.0, 0.0, 0);
+    const shtup tupzero(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0);
 
     PSPstanza *stanza;
     SParticle* part;
@@ -245,8 +256,12 @@ main(int ac, char **av)
 	  std::get<2>(hist1[k]) += 0.5 * ke * ms * atomic_mass[0]/atomic_mass[k.first] * Eunit;
 				// True particle number
 	  std::get<3>(hist1[k]) += ms * Munit/(atomic_mass[k.first]*amu);
+				// Ion energy conservation
+	  if (icons>=0) std::get<4>(hist1[k]) += part->datr(icons) * Eunit;
+				// Electron energy conservation
+	  if (econs>=0) std::get<5>(hist1[k]) += part->datr(econs) * Eunit;
 				// Superparticle count
-	  std::get<4>(hist1[k]) ++;
+	  std::get<6>(hist1[k]) ++;
 	}
 
       }
@@ -278,26 +293,39 @@ main(int ac, char **av)
 
       if (sindx >= 0) {
 				// Header
-	cout  << std::right
-	      << std::setw(16) << "Species" << " : "
-	      << std::setw(16) << "Mass"
-	      << std::setw(16) << "Ion temp"
-	      << std::setw(16) << "Elec temp"
-	      << std::setw(10) << "Count"
-	      << endl;
+	cout   << std::right
+	       << std::setw(16) << "Species" << " : "
+	       << std::setw(16) << "Mass"
+	       << std::setw(16) << "Ion temp"
+	       << std::setw(16) << "Elec temp";
+
+	if (icons>=0)
+	  cout << std::setw(16) << "dE(Ion)/KE";
+
+	if (econs>=0)
+	  cout << std::setw(16) << "dE(Elec)/KE";
+
+	cout   << std::setw(10) << "Count"
+	       << endl;
 				// Species loop
 	for (auto v : hist1) {
 	  speciesKey k = v.first;
 	  std::ostringstream sout;
-	  sout  << "<" << k.first << "," << k.second << ">";
-	  cout  << std::right << std::setw(16) << sout.str()
-		<< " : "
-		<< std::setw(16) << std::get<0>(v.second)
-		<< std::setw(16) << std::get<1>(v.second)/(1.5*std::get<3>(v.second)*boltz)
-		<< std::setw(16) << std::get<2>(v.second)/(1.5*std::get<3>(v.second)*boltz)
-		<< std::setw(10) << std::get<4>(v.second)
-	    
-		<< std::endl;
+	  sout   << "<" << k.first << "," << k.second << ">";
+	  cout   << std::right << std::setw(16) << sout.str()
+		 << " : "
+		 << std::setw(16) << std::get<0>(v.second)
+		 << std::setw(16) << std::get<1>(v.second)/(1.5*std::get<3>(v.second)*boltz)
+		 << std::setw(16) << std::get<2>(v.second)/(1.5*std::get<3>(v.second)*boltz);
+
+	  if (icons>=0)
+	    cout << std::setw(16) << std::get<4>(v.second)/std::get<1>(v.second);
+
+	  if (econs>=0)
+	    cout << std::setw(16) << std::get<5>(v.second)/std::get<2>(v.second);
+	  
+	  cout   << std::setw(10) << std::get<6>(v.second)
+	         << std::endl;
 	}
       }
     }
