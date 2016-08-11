@@ -30,6 +30,17 @@ namespace std {
   } 
 }
 
+// STL container pretty-print for std::array
+//
+template <class T, std::size_t N>
+std::ostream& operator<<(std::ostream& o, const std::array<T, N>& arr)
+{
+  o << '(';
+  std::copy(arr.cbegin(), arr.cend(), std::ostream_iterator<T>(o, " "));
+  o << "\b\b)";
+  return o;
+}
+
 class collDiag;
 
 /**
