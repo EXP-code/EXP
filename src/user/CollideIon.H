@@ -198,8 +198,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum, Erat, Emas;
-  double Esum_s, Erat_s, Emas_s, Esum_e, Edsp_e, Etot_c;
+  std::vector<double> Esum, Elec, Edsp, Erat, Emas, Epot;
+  double Esum_s, Erat_s, Emas_s, Esum_e, Edsp_s, Etot_c, Epot_s;
 
   //! Make the file header the first time
   void initialize();
@@ -222,6 +222,9 @@ public:
 
   //! Electron energy diagnostics
   void addCellElec(pCell* cell, int ue, int id);
+
+  //! Add ionization potential energy
+  void addCellPotl(pCell* cell, int id);
 
 };
 
@@ -951,8 +954,8 @@ public:
   //@{
   //! Galther and print collision statistics
   void printCollGather()  { collD->gather(); }
-  void printCollSummary() { collD->print();  }
-  void resetColls()       { collD->reset();  }
+  void printCollSummary() { collD->print (); }
+  void resetColls()       { collD->reset (); }
   //@}
 
   //! Select particle numbers for interaction
