@@ -575,22 +575,6 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 				// Cache the calling tree
   curTree = tree;
 
-  double KEtot, KEdspC;
-  cell->KE(KEtot, KEdspC);	// KE in cell
-
-  double massC = cell->Mass();	// Mass in cell
-
-				// Add cell energy to diagnostic
-				// handler
-  collD->addCell(KEtot*massC, id);
-				// Add electron stats to diagnostic
-				// handler
-  collD->addCellElec(cell, use_elec, id);
-
-				// Used for diagnostics only
-  totalSoFar += massC * KEdspC;
-  massSoFar  += massC;
-
   // Representative avg cell velocity in cgs
   //
   double vavg = 0.5*rvmax*UserTreeDSMC::Vunit;
@@ -8263,6 +8247,27 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       }
   }
 
+  // Collision diagnostics
+  //
+  double KEtot, KEdspC;
+
+  cell->KE(KEtot, KEdspC);	// KE in cell
+
+  double massC = cell->Mass();	// Mass in cell
+
+				// Used for diagnostics only
+  totalSoFar += massC * KEdspC;
+  massSoFar  += massC;
+				// Add cell energy to diagnostic
+				// handler
+  collD->addCell(KEtot*massC, id);
+				// Add electron stats to diagnostic
+				// handler
+  collD->addCellElec(cell, use_elec, id);
+
+				// Add electronic potential energy
+  collD->addCellPotl(cell, id);
+
   //
   // Done
   //
@@ -8298,8 +8303,11 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   }
 
   Esum.resize(nthrds, 0.0);
+  Elec.resize(nthrds, 0.0);
+  Edsp.resize(nthrds, 0.0);
   Erat.resize(nthrds, 0.0);
   Emas.resize(nthrds, 0.0);
+  Epot.resize(nthrds, 0.0);
   Etot_c = 0.0;
 
   // Initialize the output file
@@ -8325,8 +8333,11 @@ void collDiag::addCellElec(pCell* cell, int ue, int id)
   if (m>0.0) {
     for (size_t j=0; j<3; j++) {
       if (ev2[j]>0.0) {
+	Elec[id] += ev2[j];
 	ev1[j] /= m;
 	ev2[j] /= m;
+
+	Edsp[id] += 0.5 * m * (ev2[j] - ev1[j]*ev1[j]);
 	Erat[id] += m * ev1[j]*ev1[j]/ev2[j];
       }
     }
@@ -8334,6 +8345,34 @@ void collDiag::addCellElec(pCell* cell, int ue, int id)
   }
 }
 
+void collDiag::addCellPotl(pCell* cell, int id)
+{
+  const double cvrt = UserTreeDSMC::Munit/amu * eV/UserTreeDSMC::Eunit;
+    
+  for (auto n : cell->bods) {
+    
+    Particle * s = cell->Body(n);
+
+    // Ion electronic potential energy
+    //
+    if (p->aType == CollideIon::Hybrid) {
+      speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
+      unsigned short Z = k.first;
+      double emfac = s->mass/Collide::atomic_weights[Z] * cvrt;
+      for (unsigned short CC=Z+1; CC>1; CC--) {
+	double IP = p->ch.IonList[lQ(Z, CC-1)]->ip;
+	Epot[id] += emfac * IP * s->dattrib[p->hybrid_pos+CC-1] ;
+      }
+    } else {
+      speciesKey k = KeyConvert(s->iattrib[p->use_key]).getKey();
+      unsigned short Z = k.first, C = k.second;
+      double emfac = s->mass/Collide::atomic_weights[Z] * cvrt;
+      for (unsigned short CC=C; CC>1; CC--) {
+	Epot[id] +=  emfac * p->ch.IonList[lQ(Z, CC-1)]->ip;
+      }
+    }
+  }
+}
 
 // Gather statistics from all processes
 //
@@ -8346,48 +8385,19 @@ void collDiag::gather()
   }
 
   Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+  Epot_s = std::accumulate(Epot.begin(), Epot.end(), 0.0);
+  Edsp_s = std::accumulate(Edsp.begin(), Edsp.end(), 0.0);
   Erat_s = std::accumulate(Erat.begin(), Erat.end(), 0.0);
   Emas_s = std::accumulate(Emas.begin(), Emas.end(), 0.0);
 
-  // Temporary test
-  if (true) {
-    std::vector<double> Ev1(3, 0.0), Ev2(3, 0.0);
-    double EvM = 0.0;
-    Esum_s = 0.0;
+  double z;
 
-    for (auto s : p->c0->Particles()) {
-      for (auto v : s.second.vel) Esum_s += 0.5*s.second.mass*v*v;
-      if (p->use_elec>=0) {
-	speciesKey k = KeyConvert(s.second.iattrib[p->use_key]).getKey();
-	double m = s.second.mass*p->atomic_weights[0]/p->atomic_weights[k.first];
-	EvM += m;
-	for (size_t j=0; j<3; j++) {
-	  double ve = s.second.dattrib[p->use_elec+j];
-	  Ev1[j] += m*ve;
-	  Ev2[j] += m*ve*ve;
-	}
-      }
-    }
-
-    std::vector<double> Ev1_(3), Ev2_(3);
-    double z;
-    MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&(z=EvM),    &EvM,     1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Ev1[0],     &Ev1_[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-    MPI_Reduce(&Ev2[0],     &Ev2_[0], 3, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-
-    if (myid==0 and EvM>0.0) {
-      Esum_e = Edsp_e = 0.0;
-      for (size_t j=0; j<3; j++) {
-	Esum_e += 0.5*Ev2_[j];
-	Edsp_e += 0.5*(Ev2_[j] - Ev1_[j]*Ev1_[j]/EvM);
-      }
-    } else {
-      Esum_e = 0.0;
-      Edsp_e = 0.0;
-    }
-  }
-
+  MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Erat_s), &Erat_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Emas_s), &Emas_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  
   MPI_Barrier(MPI_COMM_WORLD);
 
   (*barrier)("collDiag::gather complete", __FILE__, __LINE__);
@@ -8399,6 +8409,11 @@ void collDiag::reset()
 {
   for (auto it : *this) it.second->reset();
   std::fill(Esum.begin(), Esum.end(), 0.0);
+  std::fill(Elec.begin(), Elec.end(), 0.0);
+  std::fill(Erat.begin(), Erat.end(), 0.0);
+  std::fill(Edsp.begin(), Edsp.end(), 0.0);
+  std::fill(Emas.begin(), Emas.end(), 0.0);
+  std::fill(Epot.begin(), Epot.end(), 0.0);
 }
 
 void collDiag::initialize()
@@ -8442,6 +8457,7 @@ void collDiag::initialize()
 	    << "# ElosC         cumulative energy loss   " << std::endl
 	    << "# EkeI          ion kinetic energy       " << std::endl
 	    << "# EkeE          electron kinetic energy  " << std::endl
+	    << "# PotI          ion potential energy     " << std::endl
 	    << "# EdspE         electron E dispersion    " << std::endl
 	    << "# EratC         electron velocity ratio  " << std::endl
 	    << "# Etotl         total kinetic energy     " << std::endl
@@ -8465,14 +8481,12 @@ void collDiag::initialize()
 	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setw(12) << '+' << std::setw(12) << '+'
-	    << std::setw(12) << '+' << std::setw(12) << '+'
-	    << std::setw(12) << '+' << std::setw(12) << '+'
-	    << std::setw(12) << '+' << " |"
-	    << std::setfill(' ') << std::endl;
+	for (int i=0; i<8; i++)  out << std::setw(12) << '+';
+	out << " |" << std::setfill(' ') << std::endl;
 
 				// Column labels
 	out << "#"
+
 	    << std::setw(11) << "Time |"
 	    << std::setw(12) << "Temp |" << " | ";
 	for (auto it : *this) {
@@ -8498,6 +8512,7 @@ void collDiag::initialize()
 	    << std::setw(12) << "ElosC |"
 	    << std::setw(12) << "EkeI  |"
 	    << std::setw(12) << "EkeE  |"
+	    << std::setw(12) << "PotI  |"
 	    << std::setw(12) << "EdspE |"
 	    << std::setw(12) << "EratC |"
 	    << std::setw(12) << "Etotl |"
@@ -8519,7 +8534,7 @@ void collDiag::initialize()
 	  }
 	  out << " | ";
 	}
-	for (size_t l=0; l<7; l++) {
+	for (size_t l=0; l<8; l++) {
 	  st.str("");
 	  st << "[" << ++cnt << "] |";
 	  out << std::setw(12) << std::right << st.str();
@@ -8533,14 +8548,8 @@ void collDiag::initialize()
 	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	out << std::setw(12) << '+'
-	    << std::setw(12) << '+'
-	    << std::setw(12) << '+'
-	    << std::setw(12) << '+'
-	    << std::setw(12) << '+'
-	    << std::setw(12) << '+'
-	    << std::setw(12) << '+' << " |"
-	    << std::setfill(' ') << std::endl;
+	for (int i=0; i<8; i++)  out << std::setw(12) << '+';
+	out << " |" << std::setfill(' ') << std::endl;
       }
     }
     in.close();
@@ -8674,7 +8683,8 @@ void collDiag::print()
 	  << std::setw(12) << Etot_c
 	  << std::setw(12) << Esum_s
 	  << std::setw(12) << Esum_e
-	  << std::setw(12) << Edsp_e
+	  << std::setw(12) << Epot_s
+	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << sqrt(Erat_s/Emas_s)
 	  << std::setw(12) << Etot_c + Esum_s + Esum_e
 	  << " |" << std::endl;
