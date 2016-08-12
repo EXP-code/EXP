@@ -72,6 +72,11 @@ static double TRACE_FRAC      = 1.0;
 //
 static bool TRACE_REAPPLY     = false;
 
+// Attempt to remove pending excess lost energy for equal and trace
+// interactions
+//
+static bool ALWAYS_APPLY      = false;
+
 // Print collisions by species for debugging
 //
 static bool COLL_SPECIES      = false;
@@ -390,6 +395,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEe1     .resize(nthrds);
   kEe2     .resize(nthrds);
   kEee     .resize(nthrds);
+  clrE     .resize(nthrds);
+  misE     .resize(nthrds);
   Ein1     .resize(nthrds);
   Ein2     .resize(nthrds);
   Evel     .resize(nthrds);
@@ -595,6 +602,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // In eV
   //
   double EeV = Eerg / eV;
+
+  // Clear excess energy diagnostics
+  //
+  clrE[id] = 0.0;
+  misE[id] = 0.0;
 
   // True particle number in cell
   //
@@ -5720,6 +5732,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	else
 	  dE = (tmpE = IS.selectFFInteract(FF2[id])) * cF * q;
 
+	if (energy_scale > 0.0) dE *= energy_scale;
+
 	ctd2->ff[id][0] += cF;
 	if (prob >= 0.0) {
 	  ctd2->ff[id][1] += Nb * cF;
@@ -5738,6 +5752,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = (tmpE = IS.selectFFInteract(FFm[id][Q1])) * cF;
 	else
 	  dE = (tmpE = IS.selectFFInteract(FF1[id])) * cF * q;
+
+	if (energy_scale > 0.0) dE *= energy_scale;
 
 	ctd1->ff[id][0] += cF;
 
@@ -5767,6 +5783,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	else
 	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q2], CE1[id])) * cF * q;
 	
+	if (energy_scale > 0.0) dE *= energy_scale;
+
 	ctd2->CE[id][0] += cF * q0;
 
 	if (prob >= 0.0) {
@@ -5786,6 +5804,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CEm[id][Q1])) * cF;
 	else
 	  dE = (tmpE = IS.selectCEInteract(ch.IonList[Q1], CE1[id])) * cF * q;
+
+	if (energy_scale > 0.0) dE *= energy_scale;
 
 	ctd1->CE[id][0] += cF * q0;
 
@@ -5810,6 +5830,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	// Ion is p2
 	//
 	dE = (tmpE = IS.DIInterLoss(ch.IonList[Q2])) * cF * q0;
+	if (energy_scale > 0.0) dE *= energy_scale;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5865,6 +5886,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	// Ion is p1
 	//
 	dE = (tmpE = IS.DIInterLoss(ch.IonList[Q1])) * cF * q0;
+	if (energy_scale > 0.0) dE *= energy_scale;
 	if (NO_ION_E) dE = 0.0;
 	delE += dE;
 
@@ -5953,6 +5975,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	dE = kEe2[id] * wght * q0;
+	if (energy_scale > 0.0) dE *= energy_scale;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z2, C2)]->ip * cF * q0;
 	delE += dE;
 
@@ -6026,6 +6049,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	}
 
 	dE = kEe1[id] * wght * q0;
+	if (energy_scale > 0.0) dE *= energy_scale;
 	if (RECOMB_IP) dE += ch.IonList[lQ(Z1, C1)]->ip * cF * q0;
 	delE += dE;
 
@@ -6119,10 +6143,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     }
 
   } // END: compute this interaction [ok]
-
-  // Scale energy for testing
-  //
-  if (energy_scale > 0.0) delE *= energy_scale;
 
   // Convert to super particle (current in eV)
   //
@@ -6224,8 +6244,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       //
       if (ke1 > 0.0 and ke2 > 0.0) {
 
-	if (Z1 == Z2) {
-	  delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	if (Z1 == Z2 or ALWAYS_APPLY) {
+	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	  clrE[id] += dE;
+	  delE     += dE;
 	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	} else {
 	  if (atomic_weights[Z1] < atomic_weights[Z2])
@@ -6333,8 +6355,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	if (ke1 > 0.0 and ke2 > 0.0) {
 
-	  if (Z1 == Z2) {
-	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	  if (Z1 == Z2 or ALWAYS_APPLY) {
+	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	    clrE[id] += dE;
+	    delE     += dE;
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
 	    // p1->dattrib[use_cons] += delE;
@@ -6386,8 +6410,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	if (ke1 > 0.0 and ke2 > 0.0) {
 
-	  if (Z1 == Z2) {
-	    delE += p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	  if (Z1 == Z2 or ALWAYS_APPLY) {
+	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	    clrE[id] += dE;
+	    delE     += dE;
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
 	    if (atomic_weights[Z1] < atomic_weights[Z2])
@@ -6707,7 +6733,7 @@ void CollideIon::checkEnergyHybrid
 
     bool equal = fabs(d.q - 1.0) < 1.0e-14;
 
-    if (equal) testE -= KE.delE + KE.miss;
+    if (equal or ALWAYS_APPLY) testE -= KE.delE + KE.miss;
 
     if (not equal) {
       if (TRACE_ELEC and !TRACE_REAPPLY) {
@@ -6715,6 +6741,8 @@ void CollideIon::checkEnergyHybrid
 	d.p2->dattrib[use_cons]   += KE.delta * (1.0 - TRACE_FRAC);
       }
     }
+
+    misE[id] += KE.miss;
 
     if (fabs(testE) > DEBUG_THRESH*(tKEi+tKEf) )
       std::cout << "Total ("<< d.m1 << "," << d.m2 << ") = "
@@ -8261,6 +8289,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 				// Add cell energy to diagnostic
 				// handler
   collD->addCell(KEtot*massC, id);
+				// Cleared excess energy tally
+  collD->addCellEclr(clrE[id], misE[id], id);
 				// Add electron stats to diagnostic
 				// handler
   collD->addCellElec(cell, use_elec, id);
@@ -8308,6 +8338,10 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   Erat.resize(nthrds, 0.0);
   Emas.resize(nthrds, 0.0);
   Epot.resize(nthrds, 0.0);
+  delI.resize(nthrds, 0.0);
+  delE.resize(nthrds, 0.0);
+  clrE.resize(nthrds, 0.0);
+  misE.resize(nthrds, 0.0);
   Etot_c = 0.0;
 
   // Initialize the output file
@@ -8319,29 +8353,33 @@ void collDiag::addCellElec(pCell* cell, int ue, int id)
 {
   if (ue<0) return;
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
-  double m = 0.0;
+  double m = 0.0, cons = 0.0;
   for (auto n : cell->bods) {
-    Particle * p = cell->Body(n);
-    m += p->mass;
+    Particle * s = cell->Body(n);
+    unsigned short Z = KeyConvert(s->iattrib[p->use_key]).getKey().first;
+    double mass = s->mass * p->atomic_weights[0]/p->atomic_weights[Z];
+
+    m += mass;
     for (size_t j=0; j<3; j++) {
-      double v = p->dattrib[ue+j];
-      ev1[j] += p->mass * v;
-      ev2[j] += p->mass * v*v;
+      double v = s->dattrib[ue+j];
+      ev1[j] += mass * v;
+      ev2[j] += mass * v*v;
     }
+    cons += s->dattrib[ue+3];
   }
 
   if (m>0.0) {
     for (size_t j=0; j<3; j++) {
       if (ev2[j]>0.0) {
-	Elec[id] += ev2[j];
+	Elec[id] += 0.5 * ev2[j];
 	ev1[j] /= m;
 	ev2[j] /= m;
-
 	Edsp[id] += 0.5 * m * (ev2[j] - ev1[j]*ev1[j]);
 	Erat[id] += m * ev1[j]*ev1[j]/ev2[j];
       }
     }
     Emas[id] += m;
+    delE[id] += cons;
   }
 }
 
@@ -8371,6 +8409,8 @@ void collDiag::addCellPotl(pCell* cell, int id)
 	Epot[id] +=  emfac * p->ch.IonList[lQ(Z, CC-1)]->ip;
       }
     }
+
+    if (p->use_cons >= 0) delI[id] += s->dattrib[p->use_cons];
   }
 }
 
@@ -8385,18 +8425,28 @@ void collDiag::gather()
   }
 
   Esum_s = std::accumulate(Esum.begin(), Esum.end(), 0.0);
+  Elec_s = std::accumulate(Elec.begin(), Elec.end(), 0.0);
   Epot_s = std::accumulate(Epot.begin(), Epot.end(), 0.0);
   Edsp_s = std::accumulate(Edsp.begin(), Edsp.end(), 0.0);
   Erat_s = std::accumulate(Erat.begin(), Erat.end(), 0.0);
   Emas_s = std::accumulate(Emas.begin(), Emas.end(), 0.0);
+  delI_s = std::accumulate(delI.begin(), delI.end(), 0.0);
+  delE_s = std::accumulate(delE.begin(), delE.end(), 0.0);
+  clrE_s = std::accumulate(clrE.begin(), clrE.end(), 0.0);
+  misE_s = std::accumulate(misE.begin(), misE.end(), 0.0);
 
   double z;
 
   MPI_Reduce(&(z=Esum_s), &Esum_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Erat_s), &Erat_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Emas_s), &Emas_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=delI_s), &delI_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=delE_s), &delE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=clrE_s), &clrE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=misE_s), &misE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   
   MPI_Barrier(MPI_COMM_WORLD);
 
@@ -8407,13 +8457,19 @@ void collDiag::gather()
 //
 void collDiag::reset()
 {
+				// Reset CollisionTypeDiag
   for (auto it : *this) it.second->reset();
+				// Reset cumulative values
   std::fill(Esum.begin(), Esum.end(), 0.0);
   std::fill(Elec.begin(), Elec.end(), 0.0);
-  std::fill(Erat.begin(), Erat.end(), 0.0);
-  std::fill(Edsp.begin(), Edsp.end(), 0.0);
-  std::fill(Emas.begin(), Emas.end(), 0.0);
   std::fill(Epot.begin(), Epot.end(), 0.0);
+  std::fill(Edsp.begin(), Edsp.end(), 0.0);
+  std::fill(Erat.begin(), Erat.end(), 0.0);
+  std::fill(Emas.begin(), Emas.end(), 0.0);
+  std::fill(delI.begin(), delI.end(), 0.0);
+  std::fill(delE.begin(), delE.end(), 0.0);
+  std::fill(clrE.begin(), clrE.end(), 0.0);
+  std::fill(misE.begin(), misE.end(), 0.0);
 }
 
 void collDiag::initialize()
@@ -8458,12 +8514,17 @@ void collDiag::initialize()
 	    << "# EkeI          ion kinetic energy       " << std::endl
 	    << "# EkeE          electron kinetic energy  " << std::endl
 	    << "# PotI          ion potential energy     " << std::endl
+	    << "# delI          ion excess energy        " << std::endl
+	    << "# delE          electron excess energy   " << std::endl
+	    << "# clrE          cleared excess energy    " << std::endl
+	    << "# misE          missed excess energy     " << std::endl
 	    << "# EdspE         electron E dispersion    " << std::endl
 	    << "# EratC         electron velocity ratio  " << std::endl
 	    << "# Etotl         total kinetic energy     " << std::endl
 	    << "#"                                         << std::endl;
 
-				// Species labels
+	// Species labels
+	//
 	out << "#" << std::setw(11+12) << std::right << "Species==>" << " | ";
 	for (auto it : *this) {
 	  ostringstream sout, sout2;
@@ -8472,21 +8533,22 @@ void collDiag::initialize()
 	  sout2 << std::setw((w-l)/2) << ' ' << sout.str();
 	  out   << std::setw(w) << sout2.str() << " | ";
 	}
-	out << std::setw(7*12) << ' ' << " |" << std::endl;
+	out << std::setw(12*12) << ' ' << " |" << std::endl;
 
-				// Header line
+	// Header line
+	//
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (auto it : *this) {
 	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<8; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<12; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
 
-				// Column labels
+	// Column labels
+	//
 	out << "#"
-
 	    << std::setw(11) << "Time |"
 	    << std::setw(12) << "Temp |" << " | ";
 	for (auto it : *this) {
@@ -8513,12 +8575,17 @@ void collDiag::initialize()
 	    << std::setw(12) << "EkeI  |"
 	    << std::setw(12) << "EkeE  |"
 	    << std::setw(12) << "PotI  |"
+	    << std::setw(12) << "delI  |"
+	    << std::setw(12) << "delE  |"
+	    << std::setw(12) << "clrE  |"
+	    << std::setw(12) << "misE  |"
 	    << std::setw(12) << "EdspE |"
 	    << std::setw(12) << "EratC |"
 	    << std::setw(12) << "Etotl |"
 	    << " | " << std::endl;
 
-				// Column numbers
+	// Column numbers
+	//
 	std::ostringstream st;
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
@@ -8534,21 +8601,22 @@ void collDiag::initialize()
 	  }
 	  out << " | ";
 	}
-	for (size_t l=0; l<8; l++) {
+	for (size_t l=0; l<12; l++) {
 	  st.str("");
 	  st << "[" << ++cnt << "] |";
 	  out << std::setw(12) << std::right << st.str();
 	}
 	out << " |" << std::endl;
 
-				// Header line
+	// Header line
+	//
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11+12) << '+' << " | ";
 	for (auto it : *this) {
 	  for (int i=0; i<16; i++) out << std::setw(12) << '+';
 	  out << " | ";
 	}
-	for (int i=0; i<8; i++)  out << std::setw(12) << '+';
+	for (int i=0; i<12; i++)  out << std::setw(12) << '+';
 	out << " |" << std::setfill(' ') << std::endl;
       }
     }
@@ -8589,7 +8657,8 @@ void collDiag::initialize()
 	}
 	out << std::endl;
 
-				// Header line
+	// Header line
+	//
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11) << '+' << " | ";
 	for (auto it : *this) {
@@ -8598,7 +8667,8 @@ void collDiag::initialize()
 	}
 	out << std::setfill(' ') << std::endl;
 
-				// Column labels
+	// Column labels
+	//
 	out << "#" << std::setw(11) << "Time" << " | ";
 	for (auto it : *this) {
 	  out << std::setw(12) << "avg |"
@@ -8610,7 +8680,8 @@ void collDiag::initialize()
 	}
 	out << std::endl;
 
-				// Column numbers
+	// Column numbers
+	//
 	std::ostringstream st;
 	unsigned int cnt = 0;
 	st << "[" << ++cnt << "] |";
@@ -8624,7 +8695,9 @@ void collDiag::initialize()
 	  out << " | ";
 	}
 	out << std::endl;
-				// Header line
+
+	// Header line
+	//
 	out << std::setfill('-') << std::right;
 	out << "#" << std::setw(11) << '+' << " | ";
 	for (auto it : *this) {
@@ -8682,11 +8755,15 @@ void collDiag::print()
       out << std::setw(12) << Etot * cvrt
 	  << std::setw(12) << Etot_c
 	  << std::setw(12) << Esum_s
-	  << std::setw(12) << Esum_e
+	  << std::setw(12) << Elec_s
 	  << std::setw(12) << Epot_s
+	  << std::setw(12) << delI_s
+	  << std::setw(12) << delE_s
+	  << std::setw(12) << clrE_s
+	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
 	  << std::setw(12) << sqrt(Erat_s/Emas_s)
-	  << std::setw(12) << Etot_c + Esum_s + Esum_e
+	  << std::setw(12) << Etot_c + Esum_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
   }
@@ -12636,6 +12713,9 @@ void CollideIon::processConfig()
 
     TRACE_REAPPLY =
       cfg.entry<bool>("TRACE_REAPPLY", "Immediately add the COM energy loss for splitting to the scattering interaction", false);
+
+    ALWAYS_APPLY =
+      cfg.entry<bool>("ALWAYS_APPLY", "Attempt to remove excess energy from all interactions", false);
 
     COLL_SPECIES =
       cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);

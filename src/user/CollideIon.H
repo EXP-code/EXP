@@ -198,8 +198,8 @@ class collDiag : public sKeyCollTD
 private:
   CollideIon *p;
   std::string coll_file_debug, energy_file_debug;
-  std::vector<double> Esum, Elec, Edsp, Erat, Emas, Epot;
-  double Esum_s, Erat_s, Emas_s, Esum_e, Edsp_s, Etot_c, Epot_s;
+  std::vector<double> Esum, Elec, Edsp, Erat, Emas, Epot, delI, delE, clrE, misE;
+  double Esum_s, Erat_s, Emas_s, Elec_s, Edsp_s, Etot_c, Epot_s, delI_s, delE_s, clrE_s, misE_s;
 
   //! Make the file header the first time
   void initialize();
@@ -219,6 +219,10 @@ public:
 
   //! Add cell energy
   void addCell(double E, int id) { Esum[id] += E; }
+
+  //! Add cell energy
+  void addCellEclr(double Eclr, double Emis, int id)
+  { clrE[id] += Eclr; misE[id] += Emis; }
 
   //! Electron energy diagnostics
   void addCellElec(pCell* cell, int ue, int id);
@@ -398,7 +402,7 @@ private:
   std::vector< keyColEx >                            kCE;
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
-  std::vector< double >                              kEi, kEe1, kEe2, kEee;
+  std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              Ein1, Ein2, Evel, Vrel;
   std::vector< double >                              spCrm, spTau, spProb;
   std::vector< unsigned >                            spNsel, elecCnt;
