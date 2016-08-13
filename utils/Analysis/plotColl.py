@@ -10,6 +10,8 @@ the name tags for all available fields.
 
    listAll()               : show the fields available for plotting
 
+   plotEnergy()            : plot global energy quantities
+
 """
 
 
@@ -18,16 +20,20 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import matplotlib.pyplot as plt
 import numpy as np
-import os, sys, bisect, re
+import os, sys, re, getopt
 
-species  = []
+species = []
 db = {}
 
 def readDB(tag):
     global species, db
 
+    # <head> leading variables and <stanza> per species variables
     head = 2
     stanza = 16
+
+    # Clear DB
+    db = {}
 
     file = open(tag + '.ION_coll')
     # Look for species line
@@ -132,17 +138,82 @@ def showSpecies(v):
         print()
         
 
-def main(argv):
-        """ Parse the command line and call the parsing and plotting routine """
-        #
-        # Last argument should be filename and must exist
-        #
-        if len(argv) <=1:
-                print("Usage: {} runtag".format(argv[0]))
-                exit(1)
+def plotEnergy(logPlot=False, lw=2, xtag='Time', rtag=''):
+    """ Plot critical energy conservation quantities """
 
-        readDB(argv[1])
+    if len(rtag)>0: readDB(rtag)
+
+    if logPlot:
+        plt.semilogy(db[xtag], db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.semilogy(db[xtag], db['ElosC'], '-', linewidth=lw, label='E lost')
+        plt.semilogy(db[xtag], db['PotI'], '-', linewidth=lw, label='Ion pot')
+        plt.semilogy(db[xtag], db['delC'], '-', linewidth=lw, label='E excess')
+        plt.semilogy(db[xtag], db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        plt.semilogy(db[xtag], db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+    else:
+        plt.plot(db[xtag], db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.plot(db[xtag], db['ElosC'], '-', linewidth=lw, label='E lost')
+        plt.plot(db[xtag], db['PotI'], '-', linewidth=lw, label='Ion pot')
+        plt.plot(db[xtag], db['delC'], '-', linewidth=lw, label='E excess')
+        plt.plot(db[xtag], db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        plt.plot(db[xtag], db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+
+    if xtag=='Time':
+        plt.xlabel('Time')
+    else:
+        plt.xlabel('Temperature')
+    plt.ylabel('Energy')
+    plt.legend().draggable()
+    plt.show()
+
+def main(argv):
+    """ Parse the command line and call the parsing and plotting routine """
+
+    helpstring = \
+    ' [-t <timescale> | --timescale=<timescale>]' + \
+    ' [-T <max time> | --maxT=<max time>]' + \
+    ' [--time] [--temp]'
+    ' <runtag>'
+
+    energy = False
+    logscale = False
+    lw = 2.0
+    xtag = 'Time'
+
+    try:
+        opts, args = getopt.getopt(argv, "helw:",
+                                   ["help", "energy", "logscale", "linewidth=", "time", "temp"])
+    except getopt.GetoptError:
+        print(sys.argv[0], helpstring)
+        sys.exit(2)
+
+    for opt, arg in opts:
+        if opt == '-h':
+            print(sys.argv[0], helpstring)
+            sys.exit()
+        elif opt in ("-e", "--energy"):
+            energy = True
+        elif opt in ("-l", "--logscale"):
+            logscale = True
+        elif opt in ("-w", "--linewidth"):
+            lw = float(arg)
+        elif opt in ("--time"):
+            xtag = 'Time'
+        elif opt in ("--temp"):
+            xtag = 'Temp'
+
+    #
+    # Last argument should be filename and must exist
+    #
+    if len(args)<=0:
+        print("Usage: {} runtag".format(argv[0]))
+        exit(1)
+
+    readDB(args[-1])
+    if energy:
+        plotEnergy(logPlot=logscale, lw=lw, xtag=xtag)
+    else:
         listAll()
 
 if __name__ == "__main__":
-        main(sys.argv)
+        main(sys.argv[1:])
