@@ -62,11 +62,12 @@ def plot_data(filename, eloss, msz, logY, dot):
     edsp  = []
     ekeE  = []
     ekeI  = []
+    potI  = []
     elsC  = []
     elos  = []
     ncol  = 16
     lead  = 2
-    tail  = 7
+    tail  = 12
     data  = {}
 
     # Species
@@ -105,10 +106,11 @@ def plot_data(filename, eloss, msz, logY, dot):
                     etot.append(float(toks[-1]))
                     erat.append(float(toks[-2]))
                     edsp.append(float(toks[-3]))
-                    ekeE.append(float(toks[-4]))
-                    ekeI.append(float(toks[-5]))
-                    elsC.append(float(toks[-6]))
-                    elos.append(float(toks[-7]))
+                    potI.append(float(toks[-4]))
+                    ekeE.append(float(toks[-5]))
+                    ekeI.append(float(toks[-6]))
+                    elsC.append(float(toks[-7]))
+                    elos.append(float(toks[-8]))
                     for i in range(lead,len(toks)-tail):
                         idx = (i-tail) / ncol
                         data[spec[idx]][labels[i]].append(float(toks[i]))
@@ -144,6 +146,7 @@ def plot_data(filename, eloss, msz, logY, dot):
     # ax.plot(time, etot, '-', label="total")
     ax.plot(time, ekeI, '-', label="ion")
     ax.plot(time, ekeE, '-', label="electron")
+    ax.plot(time, potI, '-', label="ion pot")
     ax.plot(time, edsp, '-', label="e-disp")
     # Shrink current axis by 20%
     # box = ax.get_position()
@@ -160,15 +163,18 @@ def plot_data(filename, eloss, msz, logY, dot):
     pl.ylabel('Energy')
     if eloss:
         esKE = np.add(ekeI, ekeE)
+        etot = np.add(etot, potI)
         if logY:
             pl.semilogy(time, etot, '-', label="E total")
             pl.semilogy(time, elos, '-', label="E lost (D)")
             pl.semilogy(time, elsC, '-', label="E lost (C)")
+            pl.semilogy(time, potI, '-', label="Pot")
             pl.semilogy(time, esKE, '-', label="KE")
         else:
             pl.plot(time, etot, '-', label="E total")
             pl.plot(time, elos, '-', label="E lost (D)")
             pl.plot(time, elsC, '-', label="E lost (C)")
+            pl.plot(time, potI, '-', label="Pot")
             pl.plot(time, esKE, '-', label="KE")
         pl.legend(prop={'size':10}).draggable()
     else:

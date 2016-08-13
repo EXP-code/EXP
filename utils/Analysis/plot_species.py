@@ -1,5 +1,19 @@
 #!/usr/bin/python
 
+# -*- Python -*-
+# -*- coding: utf-8 -*-
+
+"""Program to display the ionization state for atomic type
+using diagnostic output from the CollideIon class in the
+UserTreeDSMC module.
+
+Example:
+
+	$ plot_species.py run2
+
+"""
+
+import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
@@ -23,8 +37,6 @@ def scanSeq(a):
                 x = a[0,i]
         return False, (0, a.shape[1])
 
-argc = len(sys.argv)
-
 def scanLoc(t, a):
         """ 
         Find index k, such that a[0,k]>=t
@@ -37,153 +49,175 @@ def scanLoc(t, a):
                 x = a[0,i]
         return False, a.shape[1]
 
-argc = len(sys.argv)
+def plot_data(argv):
+        """
+        Parse and plot the *.species file
+        """
 
-#
-# Last argument should be filename and must exist
-#
-if argc<=1:
-        print "Usage: {} runtag".format(sys.argv[0])
-        exit(1)
+        #
+        # Check for point type and log time
+        #
+        fmt  = '-'
+        logT = False
+        Temp = False
+        Tscl = 1
+        Tbeg = 0.0
+        Tend = -1.0
 
-#
-# Check for point type and log time
-#
-fmt  = '-'
-logT = False
-Temp = False
-Tscl = 1
-Tbeg = 0.0
-Tend = -1.0
-for i in range(1,argc-1):
-        if sys.argv[i] == '-p' or sys.argv[i] == '--points':
-                fmt = '-o'
-        if sys.argv[i] == '-l' or sys.argv[i] == '--log':
-                logT = True
-        if sys.argv[i] == '-T' or sys.argv[i] == '--temp':
-                Temp = True
-        if sys.argv[i] == '-t' or sys.argv[i] == '--timescale':
-                Tscl = float(sys.argv[i+1])
-        if sys.argv[i] == '-b' or sys.argv[i] == '--Tbeg':
-                Tbeg = float(sys.argv[i+1])
-        if sys.argv[i] == '-e' or sys.argv[i] == '--Tend':
-                Tend = float(sys.argv[i+1])
-#
-# Parse data file
-#
-file = open(sys.argv[-1] + ".species")
-data = []
-for line in file:
-	if line.find('#') < 0:
-		data.append([float(v) for v in line.split()])
-a = np.array(data).transpose()
-#
-# Search for appended sequence(s)
-#
-print "-------- Trim statistics --------"
-print "Initial shape:", a.shape
+        argc = len(argv)
 
-status = True
-segcnt = 0
-while status:
-        status, segment = scanSeq(a)
-        if status:
-                b = a[:,np.s_[0:segment[0]:]]
-                c = a[:,np.s_[segment[1]::]]
-                a = np.concatenate((b, c), axis=1)
-                segcnt += 1
-                print "Segment [{:3d}]: ({}, {})".format(segcnt,
-                                                         segment[0],
-                                                         segment[1])
-if Tbeg > 0.0:
-        status, indx = scanLoc(Tbeg/Tscl, a)
+        for i in range(1,argc):
+                if argv[i] == '-p' or argv[i] == '--points':
+                        fmt = '-o'
+                if argv[i] == '-l' or argv[i] == '--log':
+                        logT = True
+                if argv[i] == '-T' or argv[i] == '--temp':
+                        Temp = True
+                if argv[i] == '-t' or argv[i] == '--timescale':
+                        Tscl = float(argv[i+1])
+                if argv[i] == '-b' or argv[i] == '--Tbeg':
+                        Tbeg = float(argv[i+1])
+                if argv[i] == '-e' or argv[i] == '--Tend':
+                        Tend = float(argv[i+1])
+                if argv[i] == '-h' or argv[i] == '--help':
+                        print "Usage: {} [-p|--points] [-l|--log] [-t scale|--timescale scale] [-b|--Tbeg] [-e|--Tend] [-h|--help] runtag".format(argv[0])
+                        return
+        #
+        # Parse data file
+        #
+        try:
+                file = open(argv[-1] + ".species")
+        except:
+                print "Error opening file <{}>".format(argv[-1] + ".species")
+                return
+        data = []
+        for line in file:
+                if line.find('#') < 0:
+                        data.append([float(v) for v in line.split()])
+        a = np.array(data).transpose()
+        #
+        # Search for appended sequence(s)
+        #
+        print "-------- Trim statistics --------"
+        print "Initial shape:", a.shape
+
+        status = True
+        segcnt = 0
+        while status:
+                status, segment = scanSeq(a)
+                if status:
+                        b = a[:,np.s_[0:segment[0]:]]
+                        c = a[:,np.s_[segment[1]::]]
+                        a = np.concatenate((b, c), axis=1)
+                        segcnt += 1
+                        print "Segment [{:3d}]: ({}, {})".format(segcnt,
+                                                                 segment[0],
+                                                                 segment[1])
+        if Tbeg > 0.0:
+                status, indx = scanLoc(Tbeg/Tscl, a)
         if status: a = a[:,np.s_[indx::]]
 
-if Tend > Tbeg:
-        status, indx = scanLoc(Tend/Tscl, a)
-        if status: a = a[:,np.s_[:indx:]]
+        if Tend > Tbeg:
+                status, indx = scanLoc(Tend/Tscl, a)
+                if status: a = a[:,np.s_[:indx:]]
 
 
-print "  Final shape:", a.shape
-print "---------------------------------"
+        print "  Final shape:", a.shape
+        print "---------------------------------"
 
-#
-# Species plot
-#
-x = a[0] * Tscl
-if Temp: x = a[1]
-if logT:
-        plt.semilogx(x, a[2], fmt, label='H')
-        plt.semilogx(x, a[3], fmt, label='H+')
-        plt.semilogx(x, a[4], fmt, label='He')
-        plt.semilogx(x, a[5], fmt, label='He+')
-        plt.semilogx(x, a[6], fmt, label='He++')
-else:
-        plt.plot(x, a[2], fmt, label='H')
-        plt.plot(x, a[3], fmt, label='H+')
-        plt.plot(x, a[4], fmt, label='He')
-        plt.plot(x, a[5], fmt, label='He+')
-        plt.plot(x, a[6], fmt, label='He++')
-plt.legend().draggable()
-if Temp: plt.xlabel('Temperature')
-else:
-        if Tscl == 1:
-                plt.xlabel('Time')
+        #
+        # Species plot
+        #
+        x = a[0] * Tscl
+        if Temp: x = a[1]
+        if logT:
+                plt.semilogx(x, a[2], fmt, label='H')
+                plt.semilogx(x, a[3], fmt, label='H+')
+                plt.semilogx(x, a[4], fmt, label='He')
+                plt.semilogx(x, a[5], fmt, label='He+')
+                plt.semilogx(x, a[6], fmt, label='He++')
         else:
-                plt.xlabel('Time (years)')
-plt.ylabel('Species')
-plt.show()
-#
-# Species plot
-#
-if logT:
-        plt.loglog(x, a[2], fmt, label='H')
-        plt.loglog(x, a[3], fmt, label='H+')
-        plt.loglog(x, a[4], fmt, label='He')
-        plt.loglog(x, a[5], fmt, label='He+')
-        plt.loglog(x, a[6], fmt, label='He++')
-else:
-        plt.semilogy(x, a[2], fmt, label='H')
-        plt.semilogy(x, a[3], fmt, label='H+')
-        plt.semilogy(x, a[4], fmt, label='He')
-        plt.semilogy(x, a[5], fmt, label='He+')
-        plt.semilogy(x, a[6], fmt, label='He++')
-#
-plt.legend().draggable()
-if Temp: plt.xlabel('Temperature')
-else:
-        if Tscl == 1:
-                plt.xlabel('Time')
+                plt.plot(x, a[2], fmt, label='H')
+                plt.plot(x, a[3], fmt, label='H+')
+                plt.plot(x, a[4], fmt, label='He')
+                plt.plot(x, a[5], fmt, label='He+')
+                plt.plot(x, a[6], fmt, label='He++')
+        plt.legend().draggable()
+        if Temp: plt.xlabel('Temperature')
         else:
-                plt.xlabel('Time (years)')
-
-plt.ylabel('Species')
-plt.show()
-#
-# Temperature plot
-#
-if logT:
-        plt.semilogx(x, a[1 ], fmt, label='Temp')
-        plt.semilogx(x, a[10], fmt, label='Temp_e')
-        plt.semilogx(x, a[16], fmt, label='Temp(1)_i')
-        plt.semilogx(x, a[22], fmt, label='Temp(1)_e')
-        plt.semilogx(x, a[28], fmt, label='Temp(2)_i')
-        plt.semilogx(x, a[34], fmt, label='Temp(2)_e')
-else:
-        plt.plot(x, a[1 ], fmt, label='Temp')
-        plt.plot(x, a[10], fmt, label='Temp_e')
-        plt.plot(x, a[16], fmt, label='Temp(1)_i')
-        plt.plot(x, a[22], fmt, label='Temp(1)_e')
-        plt.plot(x, a[28], fmt, label='Temp(2)_i')
-        plt.plot(x, a[34], fmt, label='Temp(2)_e')
-#
-plt.legend().draggable()
-if Temp: plt.xlabel('Temperature')
-else:
-        if Tscl == 1:
-                plt.xlabel('Time')
+                if Tscl == 1:
+                        plt.xlabel('Time')
+                else:
+                        plt.xlabel('Time (years)')
+        plt.ylabel('Species')
+        plt.show()
+        #
+        # Species plot
+        #
+        if logT:
+                plt.loglog(x, a[2], fmt, label='H')
+                plt.loglog(x, a[3], fmt, label='H+')
+                plt.loglog(x, a[4], fmt, label='He')
+                plt.loglog(x, a[5], fmt, label='He+')
+                plt.loglog(x, a[6], fmt, label='He++')
         else:
-                plt.xlabel('Time (years)')
+                plt.semilogy(x, a[2], fmt, label='H')
+                plt.semilogy(x, a[3], fmt, label='H+')
+                plt.semilogy(x, a[4], fmt, label='He')
+                plt.semilogy(x, a[5], fmt, label='He+')
+                plt.semilogy(x, a[6], fmt, label='He++')
+        #
+        plt.legend().draggable()
+        if Temp: plt.xlabel('Temperature')
+        else:
+                if Tscl == 1:
+                        plt.xlabel('Time')
+                else:
+                        plt.xlabel('Time (years)')
 
-plt.ylabel('Species temperature')
-plt.show()
+        plt.ylabel('Species')
+        plt.show()
+        #
+        # Temperature plot
+        #
+        if logT:
+                plt.semilogx(x, a[1 ], fmt, label='Temp')
+                plt.semilogx(x, a[10], fmt, label='Temp_e')
+                plt.semilogx(x, a[16], fmt, label='Temp(1)_i')
+                plt.semilogx(x, a[22], fmt, label='Temp(1)_e')
+                plt.semilogx(x, a[28], fmt, label='Temp(2)_i')
+                plt.semilogx(x, a[34], fmt, label='Temp(2)_e')
+        else:
+                plt.plot(x, a[1 ], fmt, label='Temp')
+                plt.plot(x, a[10], fmt, label='Temp_e')
+                plt.plot(x, a[16], fmt, label='Temp(1)_i')
+                plt.plot(x, a[22], fmt, label='Temp(1)_e')
+                plt.plot(x, a[28], fmt, label='Temp(2)_i')
+                plt.plot(x, a[34], fmt, label='Temp(2)_e')
+        #
+        plt.legend().draggable()
+        if Temp: plt.xlabel('Temperature')
+        else:
+                if Tscl == 1:
+                        plt.xlabel('Time')
+                else:
+                        plt.xlabel('Time (years)')
+
+        plt.ylabel('Species temperature')
+        plt.show()
+
+
+def main(argv):
+        """ Parse the command line and call the parsing and plotting routine """
+
+        #
+        # Last argument should be filename and must exist
+        #
+        if len(argv) <=1:
+                print "Usage: {} runtag".format(argv[0])
+                exit(1)
+
+        plot_data(argv)
+
+if __name__ == "__main__":
+        main(sys.argv)

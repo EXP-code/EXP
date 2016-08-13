@@ -28,7 +28,6 @@ def readDB(tag):
 
     head = 2
     stanza = 16
-    tail = 12
 
     file = open(tag + '.ION_coll')
     # Look for species line
@@ -66,14 +65,22 @@ def readDB(tag):
 
     # Process the data
     for line in file:
-        toks = re.findall('([+\-0-9.eE]+)', line)
+        toks = re.findall('([+-]*(?:inf|INF|nan|NAN|[+\-0-9.eE]+))', line)
         for i in range(head): db[labs[i]].append(float(toks[i]))
         for j in range(nspc):
             indx = head + stanza*j
             for k in range(stanza):
                 db[species[j]][labs[indx+k]].append(float(toks[indx+k]))
         indx = head + stanza*nspc
-        for i in range(indx,len(toks)): db[labs[i]].append(float(toks[i]))
+        for i in range(indx,len(toks)):
+            try:
+                db[labs[i]].append(float(toks[i]))
+            except:
+                print("Column={} Variable={} token={}".format(i, labs[i],toks[i]))
+                print("Toks=", toks)
+                print("Line=", line)
+                print("Unexpected error: {}".format(sys.exc_info()[0]))
+                raise
 
     # Convert to numpy arrays
     for k in db:
