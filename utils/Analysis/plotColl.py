@@ -14,7 +14,6 @@ the name tags for all available fields.
 
 """
 
-
 # For Python 3 compatibility
 from __future__ import absolute_import, division, print_function, unicode_literals
 
@@ -23,8 +22,8 @@ import numpy as np
 import os, sys, re, getopt
 
 species = []
-labs = []
-db = {}
+labs    = []
+db      = {}
 
 def readDB(tag):
     global species, db, labs
@@ -150,34 +149,31 @@ def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, rtag=''):
     if xtag=='Time': x *= scale
 
     if Log:
-        plt.semilogy(x, db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.semilogy(x, db['Etotl'], '-o', linewidth=lw, label='E total')
         plt.semilogy(x, db['ElosC'], '-', linewidth=lw, label='E lost')
         plt.semilogy(x, db['Elost'], '-', linewidth=lw, label='dE lost')
         plt.semilogy(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
         plt.semilogy(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
         if 'delC' in labs:
             plt.semilogy(x, db['delC'], '-', linewidth=lw, label='E excess')
-            plt.semilogy(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
         else:
             plt.semilogy(x, db['delI'] + db['delE'], '-', linewidth=lw, label='E excess')
-            plt.semilogy(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delI'] - db['delE'], '-', linewidth=lw, label='Sum')
     else:
-        plt.plot(x, db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.plot(x, db['Etotl'], '-o', linewidth=lw, label='E total')
         plt.plot(x, db['ElosC'], '-', linewidth=lw, label='E lost')
         plt.plot(x, db['Elost'], '-', linewidth=lw, label='dE lost')
         plt.plot(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
         plt.plot(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
         if 'delC' in labs:
             plt.plot(x, db['delC'], '-', linewidth=lw, label='E excess')
-            plt.plot(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
         else:
             plt.plot(x, db['delE'] + db['delI'], '-', linewidth=lw, label='E excess')
-            plt.plot(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delI'] - db['delE'], '-', linewidth=lw, label='Sum')
 
     if xtag=='Time':
         plt.xlabel('Time')
     else:
         plt.xlabel('Temperature')
+
     plt.ylabel('Energy')
     plt.legend().draggable()
     plt.show()
