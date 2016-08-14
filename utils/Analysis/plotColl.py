@@ -23,10 +23,11 @@ import numpy as np
 import os, sys, re, getopt
 
 species = []
+labs = []
 db = {}
 
 def readDB(tag):
-    global species, db
+    global species, db, labs
 
     # <head> leading variables and <stanza> per species variables
     head = 2
@@ -35,8 +36,10 @@ def readDB(tag):
     # Clear DB
     db = {}
 
+    # Open file
     file = open(tag + '.ION_coll')
-    # Look for species line
+
+    # Look for species line, discarding all the user info
     while True:
         line = file.readline()
         species = []
@@ -58,7 +61,7 @@ def readDB(tag):
     # Skip the separator line
     line = file.readline()
 
-    # Initialize db
+    # Initialize db from labels and species info
     nspc = len(species)
     for i in range(head): db[labs[i]] = []
     for j in range(nspc):
@@ -69,7 +72,7 @@ def readDB(tag):
     indx = head + stanza*nspc
     for i in range(indx,len(labs)): db[labs[i]] = []
 
-    # Process the data
+    # Process the data from the file
     for line in file:
         toks = re.findall('([+-]*(?:inf|INF|nan|NAN|[+\-0-9.eE]+))', line)
         for i in range(head): db[labs[i]].append(float(toks[i]))
@@ -82,13 +85,13 @@ def readDB(tag):
             try:
                 db[labs[i]].append(float(toks[i]))
             except:
-                print("Column={} Variable={} token={}".format(i, labs[i],toks[i]))
+                print("Trouble reading float value??\nColumn={} Variable={} token={}".format(i, labs[i],toks[i]))
                 print("Toks=", toks)
                 print("Line=", line)
                 print("Unexpected error: {}".format(sys.exc_info()[0]))
                 raise
 
-    # Convert to numpy arrays
+    # Convert lists to numpy arrays
     for k in db:
         if k in species:
             for j in db[k]:
@@ -138,25 +141,38 @@ def showSpecies(v):
         print()
         
 
-def plotEnergy(logPlot=False, lw=2, xtag='Time', rtag=''):
+def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, rtag=''):
     """ Plot critical energy conservation quantities """
 
     if len(rtag)>0: readDB(rtag)
 
-    if logPlot:
-        plt.semilogy(db[xtag], db['Etotl'], '-', linewidth=lw, label='E total')
-        plt.semilogy(db[xtag], db['ElosC'], '-', linewidth=lw, label='E lost')
-        plt.semilogy(db[xtag], db['PotI'], '-', linewidth=lw, label='Ion pot')
-        plt.semilogy(db[xtag], db['delC'], '-', linewidth=lw, label='E excess')
-        plt.semilogy(db[xtag], db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
-        plt.semilogy(db[xtag], db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+    x = np.copy(db[xtag])
+    if xtag=='Time': x *= scale
+
+    if Log:
+        plt.semilogy(x, db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.semilogy(x, db['ElosC'], '-', linewidth=lw, label='E lost')
+        plt.semilogy(x, db['Elost'], '-', linewidth=lw, label='dE lost')
+        plt.semilogy(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
+        plt.semilogy(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        if 'delC' in labs:
+            plt.semilogy(x, db['delC'], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+        else:
+            plt.semilogy(x, db['delI'] + db['delE'], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delI'] - db['delE'], '-', linewidth=lw, label='Sum')
     else:
-        plt.plot(db[xtag], db['Etotl'], '-', linewidth=lw, label='E total')
-        plt.plot(db[xtag], db['ElosC'], '-', linewidth=lw, label='E lost')
-        plt.plot(db[xtag], db['PotI'], '-', linewidth=lw, label='Ion pot')
-        plt.plot(db[xtag], db['delC'], '-', linewidth=lw, label='E excess')
-        plt.plot(db[xtag], db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
-        plt.plot(db[xtag], db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+        plt.plot(x, db['Etotl'], '-', linewidth=lw, label='E total')
+        plt.plot(x, db['ElosC'], '-', linewidth=lw, label='E lost')
+        plt.plot(x, db['Elost'], '-', linewidth=lw, label='dE lost')
+        plt.plot(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
+        plt.plot(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        if 'delC' in labs:
+            plt.plot(x, db['delC'], '-', linewidth=lw, label='E excess')
+            plt.plot(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delC'], '-', linewidth=lw, label='Sum')
+        else:
+            plt.plot(x, db['delE'] + db['delI'], '-', linewidth=lw, label='E excess')
+            plt.plot(x, db['EkeI'] + db['EkeE'] + db['ElosC'] - db['delI'] - db['delE'], '-', linewidth=lw, label='Sum')
 
     if xtag=='Time':
         plt.xlabel('Time')
@@ -211,7 +227,7 @@ def main(argv):
 
     readDB(args[-1])
     if energy:
-        plotEnergy(logPlot=logscale, lw=lw, xtag=xtag)
+        plotEnergy(Log=logscale, lw=lw, xtag=xtag)
     else:
         listAll()
 
