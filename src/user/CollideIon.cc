@@ -168,10 +168,6 @@ static double FloorEv         = 0.05;
 //
 static double minCollFrac     = -1.0;
 
-// Test use_cons summation for debugging
-//
-static bool use_cons_test     = false;
-
 static bool temp_debug        = false;
 
 static bool scatter_check     = true;
@@ -3869,14 +3865,6 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     C2 = k2.getKey().second;
   }
 
-  // Debugging test
-  //
-  double p1E = 0.0, p2E = 0.0;
-  if (use_cons_test and use_cons>=0) {
-    p1E = p1->dattrib[use_cons];
-    p2E = p2->dattrib[use_cons];
-  }
-
   // Find the trace ratio
   //
   double Wa = p1->mass / atomic_weights[Z1];
@@ -5081,36 +5069,6 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   } // Energy conservation debugging diagnostic (KE_DEBUG)
 
 
-  // Debugging test
-  //
-  if (use_cons_test and use_cons>=0) {
-
-    if (p1->dattrib[use_cons] - p1E > 0.0 and p1->dattrib[use_cons]>0.0) {
-      std::cout << "P2 above zero: dif="
-		<< p1->dattrib[use_cons] - p1E          << std::endl
-		<< "    x_f="  << p1->dattrib[use_cons] << std::endl
-		<< "    x_i="  << p1E                   << std::endl
-		<< "    exs="  << Exs                   << std::endl
-		<< "   misE="  << missE                 << std::endl
-		<< "   delK="  << deltaKE               << std::endl
-		<< "   delE="  << delE                  << std::endl
-		<< std::endl;
-    }
-
-    if (p2->dattrib[use_cons] - p2E > 0.0 and p2->dattrib[use_cons]>0.0) {
-      std::cout << "P2 above zero: dif="
-		<< p2->dattrib[use_cons] - p2E          << std::endl
-		<< "    x_f="  << p2->dattrib[use_cons] << std::endl
-		<< "    x_i="  << p2E                   << std::endl
-		<< "    exs="  << Exs                   << std::endl
-		<< "    misE=" << missE                 << std::endl
-		<< "    delK=" << deltaKE               << std::endl
-		<< "    delE=" << delE                  << std::endl
-		<< std::endl;
-    }
-
-  }
-
 
   // Enforce electron equipartition
   //
@@ -5533,14 +5491,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
     Z2 = k2.getKey().first;
 
     swapped = true;
-  }
-
-  // Debugging test
-  //
-  double p1E = 0.0, p2E = 0.0;
-  if (use_cons_test and use_cons>=0) {
-    p1E = p1->dattrib[use_cons];
-    p2E = p2->dattrib[use_cons];
   }
 
   // Sanity check
@@ -6258,8 +6208,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  delE = 0.0;
 	}
 
-	// p1E and p2E for debugging only
-	KE_ KE(delE/nspl, p1E, p2E);
+	KE_ KE(delE/nspl);
 
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
@@ -6335,7 +6284,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	//
 	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
       }
-    } // END: E_split algorithm or NeutFrac>0
+    }
+    // END: E_split algorithm or NeutFrac>0
     else {
 
       if (Ion1Frac>0.0) {
@@ -6361,10 +6311,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE     += dE;
 	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
-	    // p1->dattrib[use_cons] += delE;
-	    // p1->dattrib[use_cons] += 0.5*delE;
-	    // p2->dattrib[use_cons] += 0.5*delE;
-
 	    if (atomic_weights[Z1] < atomic_weights[Z2])
 	      p2->dattrib[use_cons] += delE;
 	    else
@@ -6373,8 +6319,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE = 0.0;
 	  }
 
-	  // p1E and p2E for debugging only
-	  KE_ KE(delE, p1E, p2E);
+	  KE_ KE(delE);
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
@@ -6424,8 +6369,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	    delE = 0.0;
 	  }
 
-	  // p1E and p2E for debugging only
-	  KE_ KE(delE, p1E, p2E);
+	  KE_ KE(delE);
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
@@ -6455,7 +6399,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 }
 
 void CollideIon::scatterHybrid
-(InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2)
+(const InteractData& d, KE_& KE,
+ std::vector<double>& v1, std::vector<double>& v2)
 {
   if (KE_DEBUG) {
     KE.i(1) = KE.i(2) = 0.0;
@@ -6490,19 +6435,33 @@ void CollideIon::scatterHybrid
   double totE = kE - KE.delE;
   double vfac = 1.0;
 
+  // KE is positive
+  //
   if (kE>0.0) {
+    // More loss energy requested than available?
+    //
     if (totE < 0.0) {
       KE.miss = totE;
+      deferredEnergyHybrid(d, -totE);
       totE = 0.0;
     }
+    // Update the outgoing energy in COM
+    //
     KE.vfac = vfac = sqrt(totE/kE);
     KE.kE   = kE;
     KE.totE = totE;
     KE.bs.set(KE_Flags::Vfac);
-  } else {
+  }
+  // KE is zero (limiting case)
+  //
+  else {
     KE.vfac = 1.0;
     KE.kE   = kE;
     KE.totE = totE;
+    //
+    // Defer all energy loss
+    //
+    deferredEnergyHybrid(d, KE.delE);
   }
 
   // Assign interaction energy variables
@@ -6694,10 +6653,52 @@ void CollideIon::scatterHybrid
 
 } // END: CollideIon::scatterHybrid
 
+void CollideIon::deferredEnergyHybrid(const InteractData& d, const double E)
+{
+  // Sanity check
+  //
+  if (E < 0.0) {
+    std::cout << "**ERROR: negative deferred energy! E=" << E << std::endl;
+    return;
+  }
+
+  // Save energy adjustments for next interation.  Split between like
+  // species ONLY.
+  //
+  if (use_cons >= 0) {
+
+    if (use_elec<0) {
+      if (fabs(d.q-1.0) < 1.0e-16) {
+	d.p1->dattrib[use_cons] += 0.5*E;
+	d.p2->dattrib[use_cons] += 0.5*E;
+      } else {
+	if (d.Wa > d.Wb) d.p1->dattrib[use_cons] += E;
+	else             d.p2->dattrib[use_cons] += E;
+      }
+    }
+    else {
+      if (fabs(d.q-1.0) < 1.0e-16) {
+	d.p1->dattrib[use_cons  ] += 0.25*E;
+	d.p1->dattrib[use_elec+3] += 0.25*E;
+	d.p2->dattrib[use_cons  ] += 0.25*E;
+	d.p2->dattrib[use_elec+3] += 0.25*E;
+      } else if (d.Wa > d.Wb) {
+	d.p1->dattrib[use_cons  ] += 0.5*E;
+	d.p1->dattrib[use_elec+3] += 0.5*E;
+      } else {
+	d.p2->dattrib[use_cons  ] += 0.5*E;
+	d.p2->dattrib[use_elec+3] += 0.5*E;
+      }
+    }
+
+  } // END: use_cons >= 0
+
+} // END: CollideIon::deferredEnergy
+
 
 void CollideIon::checkEnergyHybrid
-(InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2,
- unsigned iType, int id)
+(const InteractData& d, KE_& KE,
+ std::vector<double>& v1, std::vector<double>& v2, unsigned iType, int id)
 {
   // KE debugging
   //
@@ -6715,7 +6716,7 @@ void CollideIon::checkEnergyHybrid
 
     double tKEi = KE.i(1) + KE.i(2);	// Total pre collision KE
     double tKEf = KE.f(1) + KE.f(2);	// Total post collision KE
-    double dKE  = tKEi - tKEf;	// Energy balance
+    double dKE  = tKEi - tKEf;		// Kinetic energy balance
 
     if (d.m1<1.0) {
       if (KE.i(1) > 0) keER[id].push_back((KE.i(1) - KE.f(1))/KE.i(1));
@@ -6727,7 +6728,7 @@ void CollideIon::checkEnergyHybrid
       if (KE.i(2) > 0) keER[id].push_back((KE.i(2) - KE.f(2))/KE.i(2));
     }
 
-    // Check energy balance including excess
+    // Check energy balance including excess from momentum algorithm
     //
     double testE = dKE - KE.delta;
 
@@ -6764,35 +6765,6 @@ void CollideIon::checkEnergyHybrid
 		<< std::endl;
 
   } // Energy conservation debugging diagnostic (KE_DEBUG)
-
-
-  // Debugging test
-  //
-  if (use_cons_test and use_cons>=0) {
-
-    if (d.p1->dattrib[use_cons] - KE.p1E > 0.0 and d.p1->dattrib[use_cons]>0.0) {
-      std::cout << "P2 above zero: dif="
-		<< d.p1->dattrib[use_cons] - KE.p1E       << std::endl
-		<< "    x_f="  << d.p1->dattrib[use_cons] << std::endl
-		<< "    x_i="  << KE.p1E                  << std::endl
-		<< "   misE="  << KE.miss                 << std::endl
-		<< "   delK="  << KE.delta                << std::endl
-		<< "   delE="  << KE.delE                 << std::endl
-		<< std::endl;
-    }
-
-    if (d.p2->dattrib[use_cons] - KE.p2E > 0.0 and d.p2->dattrib[use_cons]>0.0) {
-      std::cout << "P2 above zero: dif="
-		<< d.p2->dattrib[use_cons] - KE.p2E       << std::endl
-		<< "    x_f="  << d.p2->dattrib[use_cons] << std::endl
-		<< "    x_i="  << KE.p2E                  << std::endl
-		<< "    misE=" << KE.miss                 << std::endl
-		<< "    delK=" << KE.delta                << std::endl
-		<< "    delE=" << KE.delE                 << std::endl
-		<< std::endl;
-    }
-
-  }
 
 } // END: checkEnergyHybrid
 

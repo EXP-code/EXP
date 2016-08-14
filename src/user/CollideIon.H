@@ -844,7 +844,7 @@ protected:
     };
 
   public:
-    double miss, delta, delE, p1E, p2E, gamma;
+    double miss, delta, delE, gamma;
     double totE, kE, dKE, vfac, vrat, o1, o2;
 
 
@@ -854,11 +854,11 @@ protected:
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
-      miss = delta = delE = p1E = p2E = gamma = 0.0;
+      miss = delta = delE = gamma = 0.0;
       totE = kE = dKE = vfac = vrat = o1 = o2 = 0.0;
     }
 
-    KE_(double dE, double p1=0, double p2=0) : delE(dE), p1E(p1), p2E(p2)
+    KE_(double dE) : delE(dE)
     {
       for (auto & v : _i) v = 0.0;
       for (auto & v : _f) v = 0.0;
@@ -897,12 +897,16 @@ protected:
 
   //! Compute the interaction for the hybrid weighted method
   void scatterHybrid
-  (InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2);
+  (const InteractData& d, KE_& KE,
+   std::vector<double>& v1, std::vector<double>& v2);
+
+  //! Add excess energy to conservation counter
+  void deferredEnergyHybrid(const InteractData& d, const double E);
 
   //! Check energy convervation for hybrid method
   void checkEnergyHybrid
-  (InteractData& d, KE_& KE, std::vector<double>& v1, std::vector<double>& v2,
-   unsigned iType, int id);
+  (const InteractData& d, KE_& KE,
+   std::vector<double>& v1, std::vector<double>& v2, unsigned iType, int id);
 
   //! Print cross-section weights for debugging
   void meanFdump(int id);
