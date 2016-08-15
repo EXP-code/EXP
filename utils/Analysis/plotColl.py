@@ -140,34 +140,45 @@ def showSpecies(v):
         print()
         
 
-def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, rtag=''):
+def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, maxT=1.0e+20, rtag=''):
     """ Plot critical energy conservation quantities """
 
     if len(rtag)>0: readDB(rtag)
 
     x = np.copy(db[xtag])
-    if xtag=='Time': x *= scale
-
+    k = len(x)
+    if xtag=='Time':
+        x *= scale
+        for i in range(len(x)):
+            if maxT <= x[i]:
+                k = i
+                break
     if Log:
-        plt.semilogy(x, db['Etotl'], '-o', linewidth=lw, label='E total')
-        plt.semilogy(x, db['ElosC'], '-', linewidth=lw, label='E lost')
-        plt.semilogy(x, db['Elost'], '-', linewidth=lw, label='dE lost')
-        plt.semilogy(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
-        plt.semilogy(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        plt.semilogy(x[0:k], db['Etotl'][0:k], '-o', linewidth=lw, label='E total')
+        plt.semilogy(x[0:k], db['ElosC'][0:k], '-', linewidth=lw, label='E lost')
+        plt.semilogy(x[0:k], db['Elost'][0:k], '-', linewidth=lw, label='dE lost')
+        plt.semilogy(x[0:k], db['PotI'][0:k],  '-', linewidth=lw, label='Ion pot')
+        plt.semilogy(x[0:k], db['EkeI'][0:k] + db['EkeE'][0:k], '-', linewidth=lw, label='Tot KE')
+        plt.semilogy(x[0:k], db['EkeI'][0:k], '-', linewidth=lw, label='Ion KE')
+        plt.semilogy(x[0:k], db['EkeE'][0:k], '-', linewidth=lw, label='Elec KE')
         if 'delC' in labs:
-            plt.semilogy(x, db['delC'], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x[0:k], db['delC'][0:k], '-', linewidth=lw, label='E excess')
         else:
-            plt.semilogy(x, db['delI'] + db['delE'], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x[0:k], db['delI'][0:k] + db['delE'][0:k], '-', linewidth=lw, label='E excess')
     else:
-        plt.plot(x, db['Etotl'], '-o', linewidth=lw, label='E total')
-        plt.plot(x, db['ElosC'], '-', linewidth=lw, label='E lost')
-        plt.plot(x, db['Elost'], '-', linewidth=lw, label='dE lost')
-        plt.plot(x, db['PotI'],  '-', linewidth=lw, label='Ion pot')
-        plt.plot(x, db['EkeI'] + db['EkeE'], '-', linewidth=lw, label='KE')
+        plt.plot(x[0:k], db['Etotl'][0:k], '-o', linewidth=lw, label='E total')
+        plt.plot(x[0:k], db['ElosC'][0:k], '-', linewidth=lw, label='E lost')
+        plt.plot(x[0:k], db['Elost'][0:k], '-', linewidth=lw, label='dE lost')
+        plt.plot(x[0:k], db['PotI'][0:k],  '-', linewidth=lw, label='Ion pot')
+        plt.plot(x[0:k], db['EkeI'][0:k] + db['EkeE'][0:k], '-', linewidth=lw, label='Tot KE')
+        plt.plot(x[0:k], db['EkeI'][0:k], '-', linewidth=lw, label='Ion KE')
+        plt.plot(x[0:k], db['EkeE'][0:k], '-', linewidth=lw, label='Elec KE')
         if 'delC' in labs:
-            plt.plot(x, db['delC'], '-', linewidth=lw, label='E excess')
+            plt.plot(x[0:k], db['delC'][0:k], '-', linewidth=lw, label='E excess')
         else:
-            plt.plot(x, db['delE'] + db['delI'], '-', linewidth=lw, label='E excess')
+            plt.plot(x[0:k], db['delE'][0:k] + db['delI'][0:k], '-', linewidth=lw, label='E excess')
+            plt.plot(x[0:k], db['delI'][0:k], '-', linewidth=lw, label='Ion excess')
+            plt.plot(x[0:k], db['delE'][0:k], '-', linewidth=lw, label='Elec excess')
 
     if xtag=='Time':
         plt.xlabel('Time')
@@ -187,14 +198,16 @@ def main(argv):
     ' [--time] [--temp]'
     ' <runtag>'
 
-    energy = False
+    energy   = False
     logscale = False
-    lw = 2.0
-    xtag = 'Time'
+    lw       = 2.0
+    xtag     = 'Time'
+    tscale   = 1000.0
+    maxT     = 1.0e+20
 
     try:
-        opts, args = getopt.getopt(argv, "helw:",
-                                   ["help", "energy", "logscale", "linewidth=", "time", "temp"])
+        opts, args = getopt.getopt(argv, "helw:t:T:",
+                                   ["help", "energy", "logscale", "linewidth=", "time", "temp", "timescale=", "maxT="])
     except getopt.GetoptError:
         print(sys.argv[0], helpstring)
         sys.exit(2)
@@ -213,6 +226,10 @@ def main(argv):
             xtag = 'Time'
         elif opt in ("--temp"):
             xtag = 'Temp'
+        elif opt in ("-t", "--timescale"):
+            tscale = float(arg)
+        elif opt in ("-T", "--maxT"):
+            maxT = float(arg)
 
     #
     # Last argument should be filename and must exist
@@ -223,7 +240,7 @@ def main(argv):
 
     readDB(args[-1])
     if energy:
-        plotEnergy(Log=logscale, lw=lw, xtag=xtag)
+        plotEnergy(Log=logscale, lw=lw, scale=tscale, maxT=maxT, xtag=xtag)
     else:
         listAll()
 
