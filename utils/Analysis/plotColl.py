@@ -73,7 +73,7 @@ def readDB(tag):
 
     # Process the data from the file
     for line in file:
-        toks = re.findall('([+-]*(?:inf|INF|nan|NAN|[+\-0-9.eE]+))', line)
+        toks = re.findall('([\+\-]*(?:inf|INF|nan|NAN|[\+\-0-9.eE]+))', line)
         for i in range(head): db[labs[i]].append(float(toks[i]))
         for j in range(nspc):
             indx = head + stanza*j
@@ -84,9 +84,20 @@ def readDB(tag):
             try:
                 db[labs[i]].append(float(toks[i]))
             except:
-                print("Trouble reading float value??\nColumn={} Variable={} token={}".format(i, labs[i],toks[i]))
-                print("Toks=", toks)
+                print("Trouble reading float value??")
+                print("Toks[{}]={}".format(len(toks), toks))
                 print("Line=", line)
+                print("labels[{}]={}".format(len(labs), labs))
+                print("Attempting to read column {} out of {} expect {}".format(i, len(toks), len(labs)))
+                if len(toks) != len(labs):
+                    for n in range(max(len(toks), len(labs))):
+                        lab1 = "***"
+                        lab2 = "***"
+                        if n < len(labs): lab1 = labs[n]
+                        if n < len(toks): lab2 = toks[n]
+                        print("{:20s} {:20s}".format(lab1, lab2))
+                else:
+                    print("Variable={} token={}".format(labs[i], toks[i]))
                 print("Unexpected error: {}".format(sys.exc_info()[0]))
                 raise
 
@@ -162,9 +173,11 @@ def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, maxT=1.0e+20, rtag=''
         plt.semilogy(x[0:k], db['EkeI'][0:k], '-', linewidth=lw, label='Ion KE')
         plt.semilogy(x[0:k], db['EkeE'][0:k], '-', linewidth=lw, label='Elec KE')
         if 'delC' in labs:
-            plt.semilogy(x[0:k], db['delC'][0:k], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x[0:k], db['delC'][0:k], '-x', linewidth=lw, label='E excess')
         else:
-            plt.semilogy(x[0:k], db['delI'][0:k] + db['delE'][0:k], '-', linewidth=lw, label='E excess')
+            plt.semilogy(x[0:k], db['delI'][0:k] + db['delE'][0:k], '-x', linewidth=lw, label='E excess')
+            plt.semilogy(x[0:k], db['delI'][0:k], '-', linewidth=lw, label='Ion excess')
+            plt.semilogy(x[0:k], db['delE'][0:k], '-', linewidth=lw, label='Elec excess')
     else:
         plt.plot(x[0:k], db['Etotl'][0:k], '-o', linewidth=lw, label='E total')
         plt.plot(x[0:k], db['ElosC'][0:k], '-', linewidth=lw, label='E lost')
@@ -174,9 +187,9 @@ def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, maxT=1.0e+20, rtag=''
         plt.plot(x[0:k], db['EkeI'][0:k], '-', linewidth=lw, label='Ion KE')
         plt.plot(x[0:k], db['EkeE'][0:k], '-', linewidth=lw, label='Elec KE')
         if 'delC' in labs:
-            plt.plot(x[0:k], db['delC'][0:k], '-', linewidth=lw, label='E excess')
+            plt.plot(x[0:k], db['delC'][0:k], '-x', linewidth=lw, label='E excess')
         else:
-            plt.plot(x[0:k], db['delE'][0:k] + db['delI'][0:k], '-', linewidth=lw, label='E excess')
+            plt.plot(x[0:k], db['delE'][0:k] + db['delI'][0:k], '-x', linewidth=lw, label='E excess')
             plt.plot(x[0:k], db['delI'][0:k], '-', linewidth=lw, label='Ion excess')
             plt.plot(x[0:k], db['delE'][0:k], '-', linewidth=lw, label='Elec excess')
 
