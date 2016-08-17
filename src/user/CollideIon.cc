@@ -6195,10 +6195,20 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       if (ke1 > 0.0 and ke2 > 0.0) {
 
 	if (Z1 == Z2 or ALWAYS_APPLY) {
-	  double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	  double dE = 0.0;
+	  if (m1 < 1.0) {
+	    dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
+	    p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
+	  }
+	  else if (m2 < 1.0) {
+	    dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
+	    p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
+	  } else {
+	    dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+	  }
 	  clrE[id] += dE;
 	  delE     += dE;
-	  p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	} else {
 	  if (atomic_weights[Z1] < atomic_weights[Z2])
 	    p2->dattrib[use_cons] += delE;
@@ -6306,10 +6316,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (ke1 > 0.0 and ke2 > 0.0) {
 
 	  if (Z1 == Z2 or ALWAYS_APPLY) {
-	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_elec+3];
+	    p1->dattrib[use_cons] = p2->dattrib[use_elec+3] = 0.0;
 	    clrE[id] += dE;
 	    delE     += dE;
-	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
 	  } else {
 	    if (atomic_weights[Z1] < atomic_weights[Z2])
 	      p2->dattrib[use_cons] += delE;
@@ -6356,10 +6366,10 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	if (ke1 > 0.0 and ke2 > 0.0) {
 
 	  if (Z1 == Z2 or ALWAYS_APPLY) {
-	    double dE = p1->dattrib[use_cons] + p2->dattrib[use_cons];
+	    double dE = p1->dattrib[use_elec+3] + p2->dattrib[use_cons];
 	    clrE[id] += dE;
 	    delE     += dE;
-	    p1->dattrib[use_cons] = p2->dattrib[use_cons] = 0.0;
+	    p1->dattrib[use_elec+3] = p2->dattrib[use_cons] = 0.0;
 	  } else {
 	    if (atomic_weights[Z1] < atomic_weights[Z2])
 	      p2->dattrib[use_cons] += delE;
