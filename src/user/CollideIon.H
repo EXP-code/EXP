@@ -906,7 +906,8 @@ protected:
   //! Check energy convervation for hybrid method
   void checkEnergyHybrid
   (const InteractData& d, KE_& KE,
-   std::vector<double>& v1, std::vector<double>& v2, unsigned iType, int id);
+   const std::vector<double>& v1, const std::vector<double>& v2,
+   unsigned iType, int id);
 
   //! Print cross-section weights for debugging
   void meanFdump(int id);
