@@ -224,8 +224,8 @@ public:
   void addCellEclr(double Eclr, double Emis, int id)
   { clrE[id] += Eclr; misE[id] += Emis; }
 
-  //! Electron energy diagnostics
-  void addCellElec(pCell* cell, int ue, int id);
+  //! Electron energy diagnostics (returns electron KE in momentum frame)
+  double addCellElec(pCell* cell, int ue, int id);
 
   //! Add ionization potential energy
   void addCellPotl(pCell* cell, int id);
@@ -404,7 +404,7 @@ private:
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              Ein1, Ein2, Evel, Vrel;
-  std::vector< double >                              spCrm, spTau, spProb;
+  std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
   std::vector< TypeMap >                             Escat, Etotl;
@@ -543,6 +543,12 @@ public:
 
   //! Relative error tolerance for warnings (default: 1.0e-6)
   static double tolE;
+
+  //! Multiplicative factor for choosing cooling time step (default: 0.1)
+  static double TSCOOL;
+
+  //! Floor KE/deltaE for choosing cooling time step (default: 0.01)
+  static double TSFLOOR;
 
 
 protected:

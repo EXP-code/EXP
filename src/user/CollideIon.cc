@@ -42,6 +42,8 @@ unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
 double   CollideIon::logL     = 10;
 double   CollideIon::tolE     = 1.0e-6;
+double   CollideIon::TSCOOL   = 0.1;
+double   CollideIon::TSFLOOR  = 0.01;
 string   CollideIon::config0  = "CollideIon.config";
 
 CollideIon::ElectronScatter
@@ -395,6 +397,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
+  spEdel   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
   crsD     .resize(nthrds);
@@ -3358,15 +3361,9 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     EoverT[id][indx] += Mt;
   }
 
-  // Time step "cooling" diagnostic
+  // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0 && totE>0.0) {
-    double dtE = totE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
-  }
+  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
 
   if (use_exes>=0) {
     // (-/+) value means under/overcooled: positive/negative increment
@@ -4410,16 +4407,9 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     EoverT[id][indx] += p1->mass + p2->mass;
   }
 
+  // Accumulate energy for time step cooling computation
   //
-  // Time step "cooling" diagnostic
-  //
-  if (use_delt>=0 && delE>0.0 && kE>0.0) {
-    double dtE = kE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
-  }
+  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
 
   if (use_exes>=0 && delE>0.0) {
     // (-/+) value means under/overcooled: positive/negative increment
@@ -7320,15 +7310,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     EoverT[id][indx] += Mt;
   }
 
-  // Time step "cooling" diagnostic
+  // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0 && totE>0.0) {
-    double dtE = totE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
-  }
+  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
 
   // Inelastic
   //
@@ -8375,10 +8359,22 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   collD->addCellEclr(clrE[id], misE[id], id);
 				// Add electron stats to diagnostic
 				// handler
-  collD->addCellElec(cell, use_elec, id);
+  double KEdspE = collD->addCellElec(cell, use_elec, id);
 
 				// Add electronic potential energy
   collD->addCellPotl(cell, id);
+
+  // Assign cooling time steps
+  //
+
+  double totalKE = KEdspE + massC*KEdspC;
+
+  if (use_delt>=0 and totalKE>0.0) {
+    double dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR)
+      * spTau[id];
+
+    for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
+  }
 
   //
   // Done
@@ -8431,9 +8427,9 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   initialize();
 }
 
-void collDiag::addCellElec(pCell* cell, int ue, int id)
+double collDiag::addCellElec(pCell* cell, int ue, int id)
 {
-  if (ue<0) return;
+  if (ue<0) return 0.0;		// Zero electron energy in cell
 
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
   double m = 0.0, cons = 0.0;
@@ -8474,6 +8470,8 @@ void collDiag::addCellElec(pCell* cell, int ue, int id)
     Emas[id] += m;
     delE[id] += cons;
   }
+
+  return Edsp[id];		// Return computed electron energy in cell
 }
 
 void collDiag::addCellPotl(pCell* cell, int id)
@@ -12888,6 +12886,12 @@ void CollideIon::processConfig()
     energy_scale =
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
 
+    TSCOOL =
+      cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.1);
+
+    TSFLOOR =
+      cfg.entry<double>("TSFLOOR", "Floor KE/deltaE for choosing cooling time step", 0.01);
+
     E_split =
       cfg.entry<bool>("E_split", "Apply energy loss to ions and electrons", false);
     FloorEv =
@@ -13184,3 +13188,4 @@ void CollideIon::spectrumPrint()
 	<< std::endl;
   }
 }
+
