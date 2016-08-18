@@ -544,10 +544,10 @@ public:
   //! Relative error tolerance for warnings (default: 1.0e-6)
   static double tolE;
 
-  //! Multiplicative factor for choosing cooling time step (default: 0.1)
+  //! Multiplicative factor for choosing cooling time step (default: 0.05)
   static double TSCOOL;
 
-  //! Floor KE/deltaE for choosing cooling time step (default: 0.01)
+  //! Floor KE/deltaE for choosing cooling time step (default: 0.001)
   static double TSFLOOR;
 
 

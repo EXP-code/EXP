@@ -42,8 +42,8 @@ unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
 double   CollideIon::logL     = 10;
 double   CollideIon::tolE     = 1.0e-6;
-double   CollideIon::TSCOOL   = 0.1;
-double   CollideIon::TSFLOOR  = 0.01;
+double   CollideIon::TSCOOL   = 0.05;
+double   CollideIon::TSFLOOR  = 0.001;
 string   CollideIon::config0  = "CollideIon.config";
 
 CollideIon::ElectronScatter
@@ -3363,7 +3363,9 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
 
   // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// DIRECT
+  }
 
   if (use_exes>=0) {
     // (-/+) value means under/overcooled: positive/negative increment
@@ -4409,7 +4411,9 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
   // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// WEIGHT
+  }
 
   if (use_exes>=0 && delE>0.0) {
     // (-/+) value means under/overcooled: positive/negative increment
@@ -6141,6 +6145,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   delE  /= UserTreeDSMC::Eunit;
 
+  // Accumulate energy for time step cooling computation
+  //
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// HYBRID
+  }
+
   // If this is a subspecies interaction, record the energy loss and
   // return to caller
   //
@@ -7312,7 +7322,9 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
 
   // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0) spEdel[id] += delE;
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// TRACE
+  }
 
   // Inelastic
   //
@@ -8369,9 +8381,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
   double totalKE = KEdspE + massC*KEdspC;
 
-  if (use_delt>=0 and totalKE>0.0) {
-    double dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR)
-      * spTau[id];
+  if (use_delt>=0) {
+    double dtE = DBL_MAX;
+    if (spEdel[id] > 0.0) {
+      dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR) * spTau[id];
+    }
+    spEdel[id] = 0.0;
 
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
   }
@@ -10190,6 +10205,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
       }
     }
   }
+
+  // Cache time step for estimating "over" cooling timestep is use_delt>=0
+  //
+  spTau[id]  = tau;
 
   // This is the number density-weighted MFP (used for diagnostics
   // only)
@@ -12887,10 +12906,10 @@ void CollideIon::processConfig()
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
 
     TSCOOL =
-      cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.1);
+      cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.05);
 
     TSFLOOR =
-      cfg.entry<double>("TSFLOOR", "Floor KE/deltaE for choosing cooling time step", 0.01);
+      cfg.entry<double>("TSFLOOR", "Floor KE/deltaE for choosing cooling time step", 0.001);
 
     E_split =
       cfg.entry<bool>("E_split", "Apply energy loss to ions and electrons", false);
