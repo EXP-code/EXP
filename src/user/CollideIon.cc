@@ -12798,15 +12798,36 @@ void CollideIon::processConfig()
     }
 
     if (!cfg.property_tree().count("_description")) {
-      cfg.property_tree().put("_description",
-			      "This is a test config database for CollideIon");
+      // Write description as the first node
+      //
+      ptree::value_type val("_description",
+			    ptree("CollideIon configuration, tag=" + runtag));
+      cfg.property_tree().insert(cfg.property_tree().begin(), val);
+    }
+
+    // Write or rewrite date string
+    {
       time_t t = time(0);   // get current time
       struct tm * now = localtime( & t );
       std::ostringstream sout;
       sout << (now->tm_year + 1900) << '-'
 	   << (now->tm_mon + 1) << '-'
-	   <<  now->tm_mday;
-      cfg.property_tree().put("_date", sout.str());
+	   <<  now->tm_mday << ' '
+	   << std::setfill('0') << std::setw(2) << now->tm_hour << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_sec;
+
+      if (cfg.property_tree().count("_date")) {
+	std::string orig = cfg.property_tree().get<std::string>("_date");
+	cfg.property_tree().put("_date", sout.str() + " [" + orig + "] ");
+      } else {
+	// Write description as the second node, after "_description"
+	//
+	ptree::assoc_iterator ait = cfg.property_tree().find("_description");
+	ptree::iterator it = cfg.property_tree().to_iterator(ait);
+	ptree::value_type val("_date", ptree(sout.str()));
+	cfg.property_tree().insert(++it, val);
+      }
     }
 
     ExactE =
