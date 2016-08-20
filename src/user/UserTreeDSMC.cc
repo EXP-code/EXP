@@ -101,6 +101,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   treechk    = false;
   mpichk     = false;
   mfpts      = false;
+  tofts      = false;
   hybrid     = false;
   
   // Static initialization
@@ -468,6 +469,7 @@ UserTreeDSMC::UserTreeDSMC(string& line) : ExternalForce(line)
   collide->set_St    (use_St);
   collide->set_excess(use_exes);
   collide->set_MFPTS (mfpts);
+  collide->set_TOFTS (tofts);
   
   ElostTotCollide = ElostTotEPSM = 0.0;
   
@@ -636,6 +638,7 @@ void UserTreeDSMC::initialize()
   if (get_value("treechk", val))	treechk    = atol(val);
   if (get_value("mpichk", val))		mpichk     = atol(val);
   if (get_value("mfpts", val))		mfpts      = atol(val);
+  if (get_value("tofts", val))		tofts      = atol(val);
   if (get_value("hybrid", val))		hybrid     = atol(val);
   
   if (get_value("ntc_chkpt", val)) {

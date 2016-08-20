@@ -7476,6 +7476,9 @@ void * CollideIon::timestep_thread(void * arg)
 
     double meanDens=0.0, meanLambda=0.0;
 
+    // MFPTS and TOFTS are defined in the Collide class and set by
+    // member functions in UserTreeDSMC
+    //
     if (MFPTS) {
 
       for (auto it1 : c->count) {
@@ -7549,6 +7552,12 @@ void * CollideIon::timestep_thread(void * arg)
       //
       p->scale = mscale;
 
+      // Choose time step to limit flight through cell
+      //
+      if (TOFTS) {
+	if (vtot>0.0) DT = min<double>(DT, mscale/vtot);
+      }
+      
       // Compute cooling criterion timestep
       //
       if (use_delt>=0) {

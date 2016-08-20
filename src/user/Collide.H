@@ -539,6 +539,9 @@ public:
   //! Use a mean-free-path estimate of the local time step (default: false)
   static bool MFPTS;
   
+  //! Use a minimum cell scale estimate of the local time step (default: false)
+  static bool TOFTS;
+  
   //! Augment effort value by work done in collisions (default: true)  
   static bool EFFORT;
   
@@ -598,6 +601,9 @@ public:
   
   virtual void
   set_MFPTS(bool flag) { MFPTS = flag; }
+  
+  virtual void
+  set_TOFTS(bool flag) { TOFTS = flag; }
   
   virtual double getCoolingRate(int id) = 0;
   
