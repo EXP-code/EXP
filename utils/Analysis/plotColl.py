@@ -151,14 +151,14 @@ def showSpecies(v):
         print()
         
 
-def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, maxT=1.0e+20, rtag=''):
+def plotEnergy(Log=False, lw=2, xcol='Time', scale=1000.0, maxT=1.0e+20, tag=''):
     """ Plot critical energy conservation quantities """
 
-    if len(rtag)>0: readDB(rtag)
+    if len(tag)>0: readDB(tag)
 
-    x = np.copy(db[xtag])
+    x = np.copy(db[xcol])
     k = len(x)
-    if xtag=='Time':
+    if xcol=='Time':
         x *= scale
         for i in range(len(x)):
             if maxT <= x[i]:
@@ -193,7 +193,7 @@ def plotEnergy(Log=False, lw=2, xtag='Time', scale=1000.0, maxT=1.0e+20, rtag=''
             plt.plot(x[0:k], db['delI'][0:k], '-', linewidth=lw, label='Ion excess')
             plt.plot(x[0:k], db['delE'][0:k], '-', linewidth=lw, label='Elec excess')
 
-    if xtag=='Time':
+    if xcol=='Time':
         plt.xlabel('Time')
     else:
         plt.xlabel('Temperature')
@@ -214,7 +214,7 @@ def main(argv):
     energy   = False
     logscale = False
     lw       = 2.0
-    xtag     = 'Time'
+    xcol     = 'Time'
     tscale   = 1000.0
     maxT     = 1.0e+20
 
@@ -236,9 +236,9 @@ def main(argv):
         elif opt in ("-w", "--linewidth"):
             lw = float(arg)
         elif opt in ("--time"):
-            xtag = 'Time'
+            xcol = 'Time'
         elif opt in ("--temp"):
-            xtag = 'Temp'
+            xcol = 'Temp'
         elif opt in ("-t", "--timescale"):
             tscale = float(arg)
         elif opt in ("-T", "--maxT"):
@@ -253,7 +253,7 @@ def main(argv):
 
     readDB(args[-1])
     if energy:
-        plotEnergy(Log=logscale, lw=lw, scale=tscale, maxT=maxT, xtag=xtag)
+        plotEnergy(Log=logscale, lw=lw, scale=tscale, maxT=maxT, xcol=xcol)
     else:
         listAll()
 
