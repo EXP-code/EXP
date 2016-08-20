@@ -84,6 +84,9 @@ double Collide::TFLOOR = 1000.0;
 // Enable mean-free-path time step estimation
 bool Collide::MFPTS    = false;
 
+// Enable time-of-flight time step estimation
+bool Collide::TOFTS    = false;
+
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
