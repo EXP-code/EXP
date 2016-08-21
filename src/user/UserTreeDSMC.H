@@ -143,7 +143,6 @@ class CollideIon;
     @param nocool set to true turns off cooling for testing purposes
     @param use_effort set to true (default) uses the effort expended in computing the force per particle from DSMC to load balance the simulation
     @param mfpts set to true (default) uses the mean free path to estimate a time step
-    @param tofts set to true (default) uses the minimum cell size to estimate a time step
     @param ntc set to true (default) uses the no time counter algorithm to select collistions
     @param ntcdef is the default NTC value for <cross section>x<relative velocity> in mixed units (default: 10)
     @param ntcfac is an upscaling factor for the NTC database in mixed units as in ntcdef (default: 2.0)
@@ -202,7 +201,7 @@ private:
 
   bool frontier, tsdiag, voldiag, mfpstat, use_multi, use_pullin, use_repair;
   bool cba, cbadiag, dryrun, nocool, ntc, tube, slab, esol;
-  bool sub_sample, treechk, mpichk, mfpts, tofts, hybrid;
+  bool sub_sample, treechk, mpichk, mfpts, hybrid;
 
 				// For MFP and time step statistics
   vector<double> quant, mfp_, ts_, coll_, nsel_, cool_, rate_;

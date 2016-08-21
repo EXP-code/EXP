@@ -57,7 +57,6 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 Collide::Interact::T CollideIon::elecElec;
 
-
 // Add trace energy excess to electron distribution
 //
 static bool TRACE_ELEC        = false;
@@ -212,6 +211,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) :
   Collide(force, comp, hD, sD, Nth)
 {
+  // Default MFP type
+  mfptype = MFP_t::Direct;
+
   // Process the feature config file
   //
   processConfig();
@@ -349,6 +351,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (NTC_DIST ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "MFPtype"
+	      << MFP_s.left.find(mfptype)->second       << std::endl
 	      <<  " " << std::setw(20) << std::left << "hybrid_pos"
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
@@ -398,6 +402,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
   spEdel   .resize(nthrds);
+  spNcol   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
   crsD     .resize(nthrds);
@@ -612,6 +617,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Total electron density
   //
   double densEtot = 0.0;
+
+  // Values for estimating effective MFP per cell
+  //
+  spNcol [id] = 0;
 
   // Loop through all bodies in cell
   //
@@ -7476,50 +7485,67 @@ void * CollideIon::timestep_thread(void * arg)
 
     double meanDens=0.0, meanLambda=0.0;
 
-    // MFPTS and TOFTS are defined in the Collide class and set by
-    // member functions in UserTreeDSMC
+    // MFPTS is defined in the Collide class and set by member
+    // functions in UserTreeDSMC
     //
     if (MFPTS) {
 
-      for (auto it1 : c->count) {
-	speciesKey i1 = it1.first;
-	crossM [i1] = 0.0;
+      if (mfptype == MFP_t::Ncoll) {
 
-	for (auto it2 : c->count) {
+	unsigned N = c->bods.size();
+	if (N>1 and spNcol[id]>0) {
+	  double KEtot, KEdspC;
+	  c->KE(KEtot, KEdspC);
+	  double meanVel = sqrt(2.0*KEdspC);
 
-	  speciesKey i2 = it2.first;
-	  double      N = UserTreeDSMC::Munit/amu;
-
-	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
-
-	  double crossTot = 0.0;
-
-	  if (i2 >= i1) {
-	    if (!crossIJ[i1][i2]) {
-	      crossTot = crossIJ[i1][i2]();
-	    } else {
-	      for (auto v : crossIJ[i1][i2].v)
-		crossTot += v.second;
-	    }
-	  } else {
-	    if (!crossIJ[i2][i1]) {
-	      crossTot = crossIJ[i2][i1]();
-	    } else {
-	      for (auto v : crossIJ[i2][i1].v)
-		crossTot += v.second;
-	    }
-	  }
-
-	  crossM[i1] += N * densM[i2] * crossTot;
+	  meanLambda = meanVel*spTau[id]*0.5*N*(N-1)/spNcol[id];
+	} else {
+	  meanLambda = DBL_MAX;
 	}
 
-	lambdaM[i1] = 1.0/crossM[i1];
-	meanDens   += densM[i1] ;
-	meanLambda += densM[i1] * lambdaM[i1];
+      } else {
+
+	for (auto it1 : c->count) {
+	  speciesKey i1 = it1.first;
+	  crossM [i1] = 0.0;
+	  
+	  for (auto it2 : c->count) {
+	    
+	    speciesKey i2 = it2.first;
+	    double      N = UserTreeDSMC::Munit/amu;
+
+	    if (i2 == defaultKey) N /= atomic_weights[i2.first];
+
+	    double crossTot = 0.0;
+
+	    if (i2 >= i1) {
+	      if (!crossIJ[i1][i2]) {
+		crossTot = crossIJ[i1][i2]();
+	      } else {
+		for (auto v : crossIJ[i1][i2].v)
+		  crossTot += v.second;
+	      }
+	    } else {
+	      if (!crossIJ[i2][i1]) {
+		crossTot = crossIJ[i2][i1]();
+	      } else {
+		for (auto v : crossIJ[i2][i1].v)
+		  crossTot += v.second;
+	      }
+	    }
+	    
+	    crossM[i1] += N * densM[i2] * crossTot;
+	  }
+	  
+	  lambdaM[i1] = 1.0/crossM[i1];
+	  meanDens   += densM[i1] ;
+	  meanLambda += densM[i1] * lambdaM[i1];
+	}
+      
+	// This is the number density-weighted
+	meanLambda /= meanDens;
       }
 
-      // This is the number density-weighted
-      meanLambda /= meanDens;
     }
 
     for (auto i : c->bods) {
@@ -7548,16 +7574,10 @@ void * CollideIon::timestep_thread(void * arg)
 	  DT = std::min<double>(meanLambda/vtot, DT);
       }
 
-      // Size scale for multistep timestep calc.
+      // Time-of-flight size scale for multistep timestep calc.
       //
       p->scale = mscale;
 
-      // Choose time step to limit flight through cell
-      //
-      if (TOFTS) {
-	if (vtot>0.0) DT = min<double>(DT, mscale/vtot);
-      }
-      
       // Compute cooling criterion timestep
       //
       if (use_delt>=0) {
@@ -13007,10 +13027,38 @@ void CollideIon::processConfig()
       }
     }
 
+    if (cfg.property_tree().find("MFP") !=
+	cfg.property_tree().not_found())
+      {
+	std::string name = cfg.property_tree().get<std::string>("MFP.value");
+	try {
+	  mfptype = MFP_s.right.at(name);
+	}
+	catch ( std::out_of_range & e ) {
+	  if (myid==0) {
+	    std::cout << "Caught standard error: " << e.what() << std::endl
+		      << "CollideIon::processConfig: "
+		      << "MFP algorithm <" << name << "> is not implemented"
+		      << ", using <Direct> instead" << std::endl;
+	  }
+	  mfptype = MFP_t::Direct;
+	  cfg.property_tree().put("MFP.value", "Direct");
+	}
+      }
+    else {
+      if (myid==0) {
+	    std::cout << "CollideIon::processConfig: "
+		      << "MFP algorithm not specified"
+		      << ", using <Direct> instead" << std::endl;
+      }
+      cfg.property_tree().put("MFP.desc", "Name of MFP estimation algorithm for time step selection");
+      cfg.property_tree().put("MFP.value", "Direct");
+    }
+
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
     //
-    if (cfg.property_tree().find("ElectronMass.value") !=
+    if (cfg.property_tree().find("ElectronMass") !=
 	cfg.property_tree().not_found())
       {
 	double mass = cfg.property_tree().get<double>("ElectronMass.value");

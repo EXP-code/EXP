@@ -7,7 +7,10 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+
 #include <boost/circular_buffer.hpp>
+#include <boost/assign.hpp>
+#include <boost/bimap.hpp>
 
 #include "Collide.H"
 #include "interactSelect.H"
@@ -251,6 +254,7 @@ struct EnumTraits<KE_Flags>
   static const KE_Flags max = KE_Flags::MaxVal;
 };
 
+
 /**
    Implementation of a DSMC collision algorithm based on the CHIANTI
    atomic data base.  We have implemented two distinct collision algorithms:
@@ -405,7 +409,7 @@ private:
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              Ein1, Ein2, Evel, Vrel;
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
-  std::vector< unsigned >                            spNsel, elecCnt;
+  std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
   std::vector< TypeMap >                             Escat, Etotl;
   std::vector< std::map<unsigned short, TypeMap> >   Italy;
@@ -528,6 +532,9 @@ private:
   void spectrumGather();
   void spectrumPrint();
   //@}
+
+  //! MFP computation
+  
 
 public:
 
@@ -694,6 +701,8 @@ protected:
     if (aType == Hybrid)
       return inelasticHybrid(id, c, p1, p2, crm, itype, prob);
 
+    spNcol[id] += 1;
+
     return 1;
   }
 
@@ -828,6 +837,24 @@ protected:
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];
 
+  //! MFP algorithm type
+  enum class MFP_t
+  {
+    Ncoll,			//!< [Collision number]
+    Direct			//!< [Estimate from xsection]
+  };
+
+  //! Map MFP_t to string id for convenience in retrieving the
+  //! association
+  typedef boost::bimap<MFP_t, std::string> mfp_type;
+
+  //! Assign enum values
+  mfp_type MFP_s = boost::assign::list_of<mfp_type::relation>
+					   (MFP_t::Ncoll,  "Ncoll")
+					   (MFP_t::Direct, "Direct");
+  //! Current MFP type
+  MFP_t mfptype;
+  
   //@{
   //! Hybrid algorithm support routines
 
