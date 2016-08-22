@@ -2266,6 +2266,18 @@ void KLGFdata::initialize(chdata* ch)
       MPI_Bcast(&gfb[key][0], gsz, MPI_DOUBLE, 0, MPI_COMM_WORLD);
     }
   }
+
+  // Ok, now make and store the splines
+  //
+  for (auto v : gfb) {
+    tksplPtr s(new tk::spline);	 // New spline instance
+    s->set_points(pe, v.second); // Initialize
+    spl[v.first] = s;		 // Store
+  }
+
+  // We can safely clear the gfb structure now . . .
+  //
+  gfb.clear();
 }
 
 std::map<unsigned short, double> 

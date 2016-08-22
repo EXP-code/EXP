@@ -28,12 +28,18 @@ private:
   //! Energy vector
   std::vector<double> pe;
 
+  //! Spline pointer
+  typedef boost::shared_ptr<tk::spline> tksplPtr;
+
   //! GF data
   std::map<std::pair<int, int>, std::vector<double> > gfb;
 
-  //! A spline instance
-  tk::spline spl;
-
+  //@{
+  //! Spline instances
+  typedef std::map<std::pair<int, int>, tksplPtr> splMap;
+  splMap spl;
+  //@}
+  
 public:
 
   //! Constructor
@@ -48,12 +54,13 @@ public:
   {
     std::pair<int, int> key(n, l);
 
-    if (gfb.find(key) == gfb.end()) {
+    splMap::iterator s = spl.find(key);
+
+    if (s == spl.end()) {
       return 0.0;
     }
 
-    spl.set_points(pe, gfb[key]);
-    return exp(spl(scaledE));
+    return exp((*(s->second))(scaledE));
   }
 
 };
