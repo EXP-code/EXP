@@ -1,4 +1,4 @@
-#!/usr/bin/python -i
+#!/usr/bin/python
 
 """Module with predefined plotting and targets for UserTreeDSMC::CollideIon output
 
