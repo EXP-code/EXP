@@ -7,7 +7,10 @@
 
 #include <boost/filesystem.hpp>
 #include <boost/filesystem/fstream.hpp>
+
 #include <boost/circular_buffer.hpp>
+#include <boost/assign.hpp>
+#include <boost/bimap.hpp>
 
 #include "Collide.H"
 #include "interactSelect.H"
@@ -224,8 +227,8 @@ public:
   void addCellEclr(double Eclr, double Emis, int id)
   { clrE[id] += Eclr; misE[id] += Emis; }
 
-  //! Electron energy diagnostics
-  void addCellElec(pCell* cell, int ue, int id);
+  //! Electron energy diagnostics (returns electron KE in momentum frame)
+  double addCellElec(pCell* cell, int ue, int id);
 
   //! Add ionization potential energy
   void addCellPotl(pCell* cell, int id);
@@ -250,6 +253,7 @@ struct EnumTraits<KE_Flags>
 {
   static const KE_Flags max = KE_Flags::MaxVal;
 };
+
 
 /**
    Implementation of a DSMC collision algorithm based on the CHIANTI
@@ -404,8 +408,8 @@ private:
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
   std::vector< double >                              Ein1, Ein2, Evel, Vrel;
-  std::vector< double >                              spCrm, spTau, spProb;
-  std::vector< unsigned >                            spNsel, elecCnt;
+  std::vector< double >                              spCrm, spTau, spProb, spEdel;
+  std::vector< unsigned >                            spNsel, elecCnt, spNcol;
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
   std::vector< TypeMap >                             Escat, Etotl;
   std::vector< std::map<unsigned short, TypeMap> >   Italy;
@@ -468,7 +472,7 @@ private:
 
   //@{
   //! For histogram electron interaction energy distribution in eV.
-  //! Set to false for production.
+  //! Set to false for production (default: false)
   static bool eDistDBG;
   std::vector< boost::circular_buffer<double> > elecEV;
   std::vector< boost::circular_buffer<double> > elecEVmin;
@@ -483,6 +487,9 @@ private:
   //! Electron NTC diagnostic histograms
   typedef std::map<float, ahistoDPtr> NTCeeHist;
   typedef std::map<double, std::vector<double> > eeMap;
+
+  //! Set to false for production (default: false)
+  static bool ntcDist;
 
   //! Desired quantiles
   const std::vector<double> qv = {0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95};
@@ -529,6 +536,9 @@ private:
   void spectrumPrint();
   //@}
 
+  //! MFP computation
+  
+
 public:
 
   typedef std::set<unsigned short> ZLtype;
@@ -543,6 +553,12 @@ public:
 
   //! Relative error tolerance for warnings (default: 1.0e-6)
   static double tolE;
+
+  //! Multiplicative factor for choosing cooling time step (default: 0.05)
+  static double TSCOOL;
+
+  //! Floor KE/deltaE for choosing cooling time step (default: 0.001)
+  static double TSFLOOR;
 
 
 protected:
@@ -688,6 +704,8 @@ protected:
     if (aType == Hybrid)
       return inelasticHybrid(id, c, p1, p2, crm, itype, prob);
 
+    spNcol[id] += 1;
+
     return 1;
   }
 
@@ -822,6 +840,24 @@ protected:
   std::map<unsigned long, std::tuple<double, double> > data[2];
   double tot1[2], tot2[2];
 
+  //! MFP algorithm type
+  enum class MFP_t
+  {
+    Ncoll,			//!< [Collision number]
+    Direct			//!< [Estimate from xsection]
+  };
+
+  //! Map MFP_t to string id for convenience in retrieving the
+  //! association
+  typedef boost::bimap<MFP_t, std::string> mfp_type;
+
+  //! Assign enum values
+  mfp_type MFP_s = boost::assign::list_of<mfp_type::relation>
+					   (MFP_t::Ncoll,  "Ncoll")
+					   (MFP_t::Direct, "Direct");
+  //! Current MFP type
+  MFP_t mfptype;
+  
   //@{
   //! Hybrid algorithm support routines
 

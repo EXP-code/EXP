@@ -38,10 +38,13 @@ bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
 bool     CollideIon::E_split  = false;
 bool     CollideIon::eDistDBG = false;
+bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
 double   CollideIon::logL     = 10;
 double   CollideIon::tolE     = 1.0e-6;
+double   CollideIon::TSCOOL   = 0.05;
+double   CollideIon::TSFLOOR  = 0.001;
 string   CollideIon::config0  = "CollideIon.config";
 
 CollideIon::ElectronScatter
@@ -54,7 +57,6 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 					    {"fixed",     fixed} };
 
 Collide::Interact::T CollideIon::elecElec;
-
 
 // Add trace energy excess to electron distribution
 //
@@ -151,10 +153,6 @@ static bool CROSS_DBG         = false;
 //
 static bool EXCESS_DBG        = false;
 
-// Enable NTC full distribution for electrons
-//
-static bool NTC_DIST          = true;
-
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
 //
@@ -210,6 +208,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 		       const std::string& smap, int Nth) :
   Collide(force, comp, hD, sD, Nth)
 {
+  // Default MFP type
+  mfptype = MFP_t::Ncoll;
+
   // Process the feature config file
   //
   processConfig();
@@ -343,10 +344,12 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
-	      <<  " " << std::setw(20) << std::left << "NTC_DIST"
-	      << (NTC_DIST ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "ntcDist"
+	      << (ntcDist ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
+	      <<  " " << std::setw(20) << std::left << "MFPtype"
+	      << MFP_s.left.at(mfptype)                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "hybrid_pos"
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
@@ -395,6 +398,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   spCrm    .resize(nthrds);
   spNsel   .resize(nthrds);
   spProb   .resize(nthrds);
+  spEdel   .resize(nthrds);
+  spNcol   .resize(nthrds);
   velER    .resize(nthrds);
   momD     .resize(nthrds);
   crsD     .resize(nthrds);
@@ -524,7 +529,13 @@ void CollideIon::meanFdump(int id)
 }
 
 
+// Approximate the minimum, mean and maximum velocities in the cell.
+// Should be much faster than direct computation
+//
+bool MaxwellianApprox = true;
+
 // Returns (min, mean, max) velocities in each cell
+//
 std::array<double, 3> CollideIon::cellMinMax
 (pHOT* const tree, pCell* const cell)
 {
@@ -532,9 +543,43 @@ std::array<double, 3> CollideIon::cellMinMax
 
   if (aType != Hybrid) return ret;
 
-  unsigned count = 0;
-
   std::set<unsigned long> bodies = cell->Bodies();
+
+  if (MaxwellianApprox) {
+    const  double xmin=0.001, xmax=5.0, h=0.005;
+    static double medianVal;
+
+    typedef boost::shared_ptr<tk::spline> tksplPtr;
+    static tksplPtr spl;
+
+    if (spl.get() == 0) {
+      std::vector<double> x, y;
+      double X = xmin;
+      while (X <= xmax) {
+	x.push_back(X);
+	y.push_back(std::erf(X) - 2.0/sqrt(M_PI)*exp(-X*X)*X);
+	X += h;
+      }
+      spl = tksplPtr(new tk::spline); // The new spline instance
+      spl->set_points(y, x);	      // Set the spline data
+      medianVal = (*spl)(0.5);	      // Evaluate median
+    }
+
+    double KEtot, KEdspC;
+    cell->KE(KEtot, KEdspC);
+    double sigma = sqrt(2.0*KEdspC);
+
+    double P = 1.0/sqrt(static_cast<double>(bodies.size()));
+    double Q = 1.0 - P;
+    
+    ret[0] = (*spl)(P) * sigma;
+    ret[1] = medianVal * sigma;
+    ret[2] = (*spl)(Q) * sigma;
+
+    return ret;
+  }
+
+  unsigned count = 0;
 
   for (auto b1 : bodies) {
     Particle *p1 = tree->Body(b1);
@@ -609,6 +654,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
   // Total electron density
   //
   double densEtot = 0.0;
+
+  // Values for estimating effective MFP per cell
+  //
+  spNcol [id] = 0;
 
   // Loop through all bodies in cell
   //
@@ -3358,14 +3407,10 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
     EoverT[id][indx] += Mt;
   }
 
-  // Time step "cooling" diagnostic
+  // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0 && totE>0.0) {
-    double dtE = totE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// DIRECT
   }
 
   if (use_exes>=0) {
@@ -4410,15 +4455,10 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
     EoverT[id][indx] += p1->mass + p2->mass;
   }
 
+  // Accumulate energy for time step cooling computation
   //
-  // Time step "cooling" diagnostic
-  //
-  if (use_delt>=0 && delE>0.0 && kE>0.0) {
-    double dtE = kE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// WEIGHT
   }
 
   if (use_exes>=0 && delE>0.0) {
@@ -6151,6 +6191,12 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   //
   delE  /= UserTreeDSMC::Eunit;
 
+  // Accumulate energy for time step cooling computation
+  //
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// HYBRID
+  }
+
   // If this is a subspecies interaction, record the energy loss and
   // return to caller
   //
@@ -7302,14 +7348,10 @@ int CollideIon::inelasticTrace(int id, pCell* const c,
     EoverT[id][indx] += Mt;
   }
 
-  // Time step "cooling" diagnostic
+  // Accumulate energy for time step cooling computation
   //
-  if (use_delt>=0 && delE>0.0 && totE>0.0) {
-    double dtE = totE/delE * spTau[id];
-    double dt1 = p1->dattrib[use_delt];
-    double dt2 = p2->dattrib[use_delt];
-    p1->dattrib[use_delt] = std::max<double>(dt1, dtE);
-    p2->dattrib[use_delt] = std::max<double>(dt2, dtE);
+  if (use_delt>=0 && delE>0.0) {
+    spEdel[id] += delE;		// TRACE
   }
 
   // Inelastic
@@ -7462,47 +7504,67 @@ void * CollideIon::timestep_thread(void * arg)
 
     double meanDens=0.0, meanLambda=0.0;
 
+    // MFPTS is defined in the Collide class and set by member
+    // functions in UserTreeDSMC
+    //
     if (MFPTS) {
 
-      for (auto it1 : c->count) {
-	speciesKey i1 = it1.first;
-	crossM [i1] = 0.0;
+      if (mfptype == MFP_t::Ncoll) {
 
-	for (auto it2 : c->count) {
+	unsigned N = c->bods.size();
+	if (N>1 and spNcol[id]>0) {
+	  double KEtot, KEdspC;
+	  c->KE(KEtot, KEdspC);
+	  double meanVel = sqrt(2.0*KEdspC);
 
-	  speciesKey i2 = it2.first;
-	  double      N = UserTreeDSMC::Munit/amu;
-
-	  if (i2 == defaultKey) N /= atomic_weights[i2.first];
-
-	  double crossTot = 0.0;
-
-	  if (i2 >= i1) {
-	    if (!crossIJ[i1][i2]) {
-	      crossTot = crossIJ[i1][i2]();
-	    } else {
-	      for (auto v : crossIJ[i1][i2].v)
-		crossTot += v.second;
-	    }
-	  } else {
-	    if (!crossIJ[i2][i1]) {
-	      crossTot = crossIJ[i2][i1]();
-	    } else {
-	      for (auto v : crossIJ[i2][i1].v)
-		crossTot += v.second;
-	    }
-	  }
-
-	  crossM[i1] += N * densM[i2] * crossTot;
+	  meanLambda = meanVel*spTau[id]*0.5*N*(N-1)/spNcol[id];
+	} else {
+	  meanLambda = DBL_MAX;
 	}
 
-	lambdaM[i1] = 1.0/crossM[i1];
-	meanDens   += densM[i1] ;
-	meanLambda += densM[i1] * lambdaM[i1];
+      } else {
+
+	for (auto it1 : c->count) {
+	  speciesKey i1 = it1.first;
+	  crossM [i1] = 0.0;
+	  
+	  for (auto it2 : c->count) {
+	    
+	    speciesKey i2 = it2.first;
+	    double      N = UserTreeDSMC::Munit/amu;
+
+	    if (i2 == defaultKey) N /= atomic_weights[i2.first];
+
+	    double crossTot = 0.0;
+
+	    if (i2 >= i1) {
+	      if (!crossIJ[i1][i2]) {
+		crossTot = crossIJ[i1][i2]();
+	      } else {
+		for (auto v : crossIJ[i1][i2].v)
+		  crossTot += v.second;
+	      }
+	    } else {
+	      if (!crossIJ[i2][i1]) {
+		crossTot = crossIJ[i2][i1]();
+	      } else {
+		for (auto v : crossIJ[i2][i1].v)
+		  crossTot += v.second;
+	      }
+	    }
+	    
+	    crossM[i1] += N * densM[i2] * crossTot;
+	  }
+	  
+	  lambdaM[i1] = 1.0/crossM[i1];
+	  meanDens   += densM[i1] ;
+	  meanLambda += densM[i1] * lambdaM[i1];
+	}
+      
+	// This is the number density-weighted
+	meanLambda /= meanDens;
       }
 
-      // This is the number density-weighted
-      meanLambda /= meanDens;
     }
 
     for (auto i : c->bods) {
@@ -7531,7 +7593,7 @@ void * CollideIon::timestep_thread(void * arg)
 	  DT = std::min<double>(meanLambda/vtot, DT);
       }
 
-      // Size scale for multistep timestep calc.
+      // Time-of-flight size scale for multistep timestep calc.
       //
       p->scale = mscale;
 
@@ -8357,10 +8419,25 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   collD->addCellEclr(clrE[id], misE[id], id);
 				// Add electron stats to diagnostic
 				// handler
-  collD->addCellElec(cell, use_elec, id);
+  double KEdspE = collD->addCellElec(cell, use_elec, id);
 
 				// Add electronic potential energy
   collD->addCellPotl(cell, id);
+
+  // Assign cooling time steps
+  //
+
+  double totalKE = KEdspE + massC*KEdspC;
+
+  if (use_delt>=0) {
+    double dtE = DBL_MAX;
+    if (spEdel[id] > 0.0) {
+      dtE = std::max<double>(totalKE/spEdel[id]*TSCOOL, TSFLOOR) * spTau[id];
+    }
+    spEdel[id] = 0.0;
+
+    for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
+  }
 
   //
   // Done
@@ -8413,9 +8490,9 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   initialize();
 }
 
-void collDiag::addCellElec(pCell* cell, int ue, int id)
+double collDiag::addCellElec(pCell* cell, int ue, int id)
 {
-  if (ue<0) return;
+  if (ue<0) return 0.0;		// Zero electron energy in cell
 
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
   double m = 0.0, cons = 0.0;
@@ -8456,6 +8533,8 @@ void collDiag::addCellElec(pCell* cell, int ue, int id)
     Emas[id] += m;
     delE[id] += cons;
   }
+
+  return Edsp[id];		// Return computed electron energy in cell
 }
 
 void collDiag::addCellPotl(pCell* cell, int id)
@@ -10175,6 +10254,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
   }
 
+  // Cache time step for estimating "over" cooling timestep is use_delt>=0
+  //
+  spTau[id]  = tau;
+
   // This is the number density-weighted MFP (used for diagnostics
   // only)
   //
@@ -11490,7 +11573,7 @@ void CollideIon::electronGather()
 	iVel.push_back(sqrt(cri));
       }
 
-      if (NTC_DIST) {
+      if (ntcDist) {
 	for (auto q : qv) {
 	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, elecElec, q);
 	  ee[q].push_back(v);
@@ -11774,7 +11857,7 @@ void CollideIon::electronGather()
 
     }
 
-    if (NTC_DIST) {
+    if (ntcDist) {
 
       for (int n=1; n<numprocs; n++) {
 
@@ -11839,7 +11922,7 @@ void CollideIon::electronGather()
 	}
       }
 
-    } // END: NTC_DIST
+    } // END: ntcDist
 
 
     (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop", __FILE__, __LINE__);
@@ -12763,15 +12846,36 @@ void CollideIon::processConfig()
     }
 
     if (!cfg.property_tree().count("_description")) {
-      cfg.property_tree().put("_description",
-			      "This is a test config database for CollideIon");
+      // Write description as the first node
+      //
+      ptree::value_type val("_description",
+			    ptree("CollideIon configuration, tag=" + runtag));
+      cfg.property_tree().insert(cfg.property_tree().begin(), val);
+    }
+
+    // Write or rewrite date string
+    {
       time_t t = time(0);   // get current time
       struct tm * now = localtime( & t );
       std::ostringstream sout;
       sout << (now->tm_year + 1900) << '-'
 	   << (now->tm_mon + 1) << '-'
-	   <<  now->tm_mday;
-      cfg.property_tree().put("_date", sout.str());
+	   <<  now->tm_mday << ' '
+	   << std::setfill('0') << std::setw(2) << now->tm_hour << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_min  << ':'
+	   << std::setfill('0') << std::setw(2) << now->tm_sec;
+
+      if (cfg.property_tree().count("_date")) {
+	std::string orig = cfg.property_tree().get<std::string>("_date");
+	cfg.property_tree().put("_date", sout.str() + " [" + orig + "] ");
+      } else {
+	// Write description as the second node, after "_description"
+	//
+	ptree::assoc_iterator ait = cfg.property_tree().find("_description");
+	ptree::iterator it = cfg.property_tree().to_iterator(ait);
+	ptree::value_type val("_date", ptree(sout.str()));
+	cfg.property_tree().insert(++it, val);
+      }
     }
 
     ExactE =
@@ -12858,8 +12962,8 @@ void CollideIon::processConfig()
     EXCESS_DBG =
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
 
-    NTC_DIST =
-      cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
+    ntcDist =
+      cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
 
     DEBUG_CNT =
       cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
@@ -12869,6 +12973,12 @@ void CollideIon::processConfig()
 
     energy_scale =
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);
+
+    TSCOOL =
+      cfg.entry<double>("TSCOOL", "Multiplicative factor for choosing cooling time step", 0.05);
+
+    TSFLOOR =
+      cfg.entry<double>("TSFLOOR", "Floor KE/deltaE for choosing cooling time step", 0.001);
 
     E_split =
       cfg.entry<bool>("E_split", "Apply energy loss to ions and electrons", false);
@@ -12936,10 +13046,38 @@ void CollideIon::processConfig()
       }
     }
 
+    if (cfg.property_tree().find("MFP") !=
+	cfg.property_tree().not_found())
+      {
+	std::string name = cfg.property_tree().get<std::string>("MFP.value");
+	try {
+	  mfptype = MFP_s.right.at(name);
+	}
+	catch ( std::out_of_range & e ) {
+	  if (myid==0) {
+	    std::cout << "Caught standard error: " << e.what() << std::endl
+		      << "CollideIon::processConfig: "
+		      << "MFP algorithm <" << name << "> is not implemented"
+		      << ", using <Direct> instead" << std::endl;
+	  }
+	  mfptype = MFP_t::Direct;
+	  cfg.property_tree().put("MFP.value", "Direct");
+	}
+      }
+    else {
+      if (myid==0) {
+	    std::cout << "CollideIon::processConfig: "
+		      << "MFP algorithm not specified"
+		      << ", using <Direct> instead" << std::endl;
+      }
+      cfg.property_tree().put("MFP.desc", "Name of MFP estimation algorithm for time step selection");
+      cfg.property_tree().put("MFP.value", "Direct");
+    }
+
     // Update atomic weight databases IF ElctronMass is specified
     // using direct call to underlying boost::property_tree
     //
-    if (cfg.property_tree().find("ElectronMass.value") !=
+    if (cfg.property_tree().find("ElectronMass") !=
 	cfg.property_tree().not_found())
       {
 	double mass = cfg.property_tree().get<double>("ElectronMass.value");
@@ -13166,3 +13304,4 @@ void CollideIon::spectrumPrint()
 	<< std::endl;
   }
 }
+
