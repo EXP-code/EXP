@@ -38,6 +38,7 @@ bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
 bool     CollideIon::E_split  = false;
 bool     CollideIon::eDistDBG = false;
+bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
 double   CollideIon::logL     = 10;
@@ -151,10 +152,6 @@ static bool CROSS_DBG         = false;
 // Excess trace map debugging; set to false for production
 //
 static bool EXCESS_DBG        = false;
-
-// Enable NTC full distribution for electrons
-//
-static bool NTC_DIST          = true;
 
 // Minimum energy for Rutherford scattering of ions used to estimate
 // the elastic scattering cross section
@@ -347,8 +344,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (RECOMB_IP ? "on" : "off")             << std::endl
 	      <<  " " << std::setw(20) << std::left << "KE_DEBUG"
 	      << (KE_DEBUG ? "on" : "off" )             << std::endl
-	      <<  " " << std::setw(20) << std::left << "NTC_DIST"
-	      << (NTC_DIST ? "on" : "off" )             << std::endl
+	      <<  " " << std::setw(20) << std::left << "ntcDist"
+	      << (ntcDist ? "on" : "off" )             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
@@ -532,7 +529,13 @@ void CollideIon::meanFdump(int id)
 }
 
 
+// Approximate the minimum, mean and maximum velocities in the cell.
+// Should be much faster than direct computation
+//
+bool MaxwellianApprox = true;
+
 // Returns (min, mean, max) velocities in each cell
+//
 std::array<double, 3> CollideIon::cellMinMax
 (pHOT* const tree, pCell* const cell)
 {
@@ -540,9 +543,43 @@ std::array<double, 3> CollideIon::cellMinMax
 
   if (aType != Hybrid) return ret;
 
-  unsigned count = 0;
-
   std::set<unsigned long> bodies = cell->Bodies();
+
+  if (MaxwellianApprox) {
+    const  double xmin=0.001, xmax=5.0, h=0.005;
+    static double medianVal;
+
+    typedef boost::shared_ptr<tk::spline> tksplPtr;
+    static tksplPtr spl;
+
+    if (spl.get() == 0) {
+      std::vector<double> x, y;
+      double X = xmin;
+      while (X <= xmax) {
+	x.push_back(X);
+	y.push_back(std::erf(X) - 2.0/sqrt(M_PI)*exp(-X*X)*X);
+	X += h;
+      }
+      spl = tksplPtr(new tk::spline); // The new spline instance
+      spl->set_points(y, x);	      // Set the spline data
+      medianVal = (*spl)(0.5);	      // Evaluate median
+    }
+
+    double KEtot, KEdspC;
+    cell->KE(KEtot, KEdspC);
+    double sigma = sqrt(2.0*KEdspC);
+
+    double P = 1.0/sqrt(static_cast<double>(bodies.size()));
+    double Q = 1.0 - P;
+    
+    ret[0] = (*spl)(P) * sigma;
+    ret[1] = medianVal * sigma;
+    ret[2] = (*spl)(Q) * sigma;
+
+    return ret;
+  }
+
+  unsigned count = 0;
 
   for (auto b1 : bodies) {
     Particle *p1 = tree->Body(b1);
@@ -11554,7 +11591,7 @@ void CollideIon::electronGather()
 	iVel.push_back(sqrt(cri));
       }
 
-      if (NTC_DIST) {
+      if (ntcDist) {
 	for (auto q : qv) {
 	  double v = ntcdb[itree.Cell()->mykey].CrsVel(electronKey, elecElec, q);
 	  ee[q].push_back(v);
@@ -11838,7 +11875,7 @@ void CollideIon::electronGather()
 
     }
 
-    if (NTC_DIST) {
+    if (ntcDist) {
 
       for (int n=1; n<numprocs; n++) {
 
@@ -11903,7 +11940,7 @@ void CollideIon::electronGather()
 	}
       }
 
-    } // END: NTC_DIST
+    } // END: ntcDist
 
 
     (*barrier)("CollideIon::electronGather: BEFORE Send/Recv loop", __FILE__, __LINE__);
@@ -12943,8 +12980,8 @@ void CollideIon::processConfig()
     EXCESS_DBG =
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
 
-    NTC_DIST =
-      cfg.entry<bool>("NTC_DIST", "Enable NTC full distribution for electrons", false);
+    ntcDist =
+      cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
 
     DEBUG_CNT =
       cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
