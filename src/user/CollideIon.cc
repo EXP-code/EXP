@@ -212,7 +212,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   Collide(force, comp, hD, sD, Nth)
 {
   // Default MFP type
-  mfptype = MFP_t::Direct;
+  mfptype = MFP_t::Ncoll;
 
   // Process the feature config file
   //
@@ -352,7 +352,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "use_cons"
 	      << use_cons                               << std::endl
 	      <<  " " << std::setw(20) << std::left << "MFPtype"
-	      << MFP_s.left.find(mfptype)->second       << std::endl
+	      << MFP_s.left.at(mfptype)                 << std::endl
 	      <<  " " << std::setw(20) << std::left << "hybrid_pos"
 	      << hybrid_pos                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "use_elec"
