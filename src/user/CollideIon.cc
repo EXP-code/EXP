@@ -37,7 +37,7 @@ bool     CollideIon::AlgOrth  = false;
 bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
 bool     CollideIon::E_split  = false;
-bool     CollideIon::eDistDBG = false;
+bool     CollideIon::elecDist = false;
 bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
@@ -455,7 +455,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
     }
   }
 
-  if (eDistDBG) {
+  if (elecDist) {
     elecEV.resize(nthrds);
     for (auto &v : elecEV) v.set_capacity(bufCap);
     elecEVmin.resize(nthrds);
@@ -1124,7 +1124,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      efac*mu2*eVels[2]*eVels[2]/eV
 	    };
 
-	  if (eDistDBG) {
+	  if (elecDist) {
 	    elecEVmin[id].push_back(E1s[0]);
 	    elecEVavg[id].push_back(E1s[1]);
 	    elecEVmax[id].push_back(E1s[2]);
@@ -2563,7 +2563,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
 
   // For verbose diagnostic output only
   //
-  if (eDistDBG) {
+  if (elecDist) {
     elecEV[id].push_back(kEe1[id]);
     elecEV[id].push_back(kEe2[id]);
   }
@@ -10587,7 +10587,7 @@ Collide::Interact CollideIon::generateSelectionHybridSub
   kEe1[id] = kEe2[id] = ke;
 
 				// For debugging diagnostics
-  if (eDistDBG) elecEVsub[id].push_back(ke);
+  if (elecDist) elecEVsub[id].push_back(ke);
 
   // Loop through ionization levels in p1.  p2 only donates an
   // electron velocity and its weight does not matter.
@@ -11636,7 +11636,7 @@ void CollideIon::electronGather()
 	  << std::endl << std::setfill(' ');
     }
 
-    if (eDistDBG and aType==Hybrid) {
+    if (elecDist and aType==Hybrid) {
       std::vector<double> eEV, eEVmin, eEVavg, eEVmax, eEVsub;
       for (int t=0; t<nthrds; t++) {
 	eEV.insert(eEV.end(),
@@ -11755,7 +11755,7 @@ void CollideIon::electronGather()
 	elecEVHsub = ahistoDPtr(new AsciiHisto<double>(eEVsub, 20, 0.01));
       }
 
-    } // END: eDistDBG
+    } // END: elecDist
 
     if (ExactE and DebugE) {
       for (int t=0; t<nthrds; t++) {
@@ -13006,8 +13006,8 @@ void CollideIon::processConfig()
     minCollFrac =
       cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
 
-    eDistDBG =
-      cfg.entry<bool>("eDistDBG", "Report binned histogram for electron velocities", false);
+    elecDist =
+      cfg.entry<bool>("elecDist", "Report binned histogram for electron velocities", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
