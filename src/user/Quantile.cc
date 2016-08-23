@@ -64,10 +64,10 @@ void Quantile::init(void)
   N = 2;
 
   // Initialize storage for end points
-  q .resize(N);
-  dn.resize(N);
-  np.resize(N);
-  n .resize(N);
+  q .resize(N, 0);
+  dn.resize(N, 0);
+  np.resize(N, 0);
+  n .resize(N, 0);
 
   // Add end points
   dn[0] = 0.0;
@@ -78,10 +78,10 @@ void Quantile::init(void)
 
 double * Quantile::extend(int count)
 {
-  q .resize(N + count);
-  dn.resize(N + count);
-  np.resize(N + count);
-  n .resize(N + count);
+  q .resize(N + count, 0);
+  dn.resize(N + count, 0);
+  np.resize(N + count, 0);
+  n .resize(N + count, 0);
 
   int last = N;
   N += count;
@@ -94,7 +94,7 @@ void Quantile::update()
   std::sort(dn.begin(), dn.end());
 
   // Reset markers to uniform distribution
-  for (int i=0; i<N; i++)  
+  for (unsigned i=0; i<N; i++)  
     np[i] = dn[i]*(N - 1) + 1;
 }
 
@@ -124,7 +124,7 @@ void Quantile::histogram(int n)
 double Quantile::parabolic(int i, int d)
 {
   return q[i] + 
-    d / static_cast<double>(n[i+1] - n[i-1]) * 
+    d / (n[i+1] - n[i-1]) * 
     ( (n[i] - n[i-1] + d) * (q[i+1] - q[i] ) / (n[i+1] - n[i]) + 
       (n[i+1] - n[i] - d) * (q[i] - q[i-1] ) / (n[i] - n[i-1]) );
 }
@@ -153,7 +153,7 @@ void Quantile::add(double x)
       q[N - 1] = x;	// Right of right end
       k = N - 1;
     } else {			// Look for marker
-      for(int i=1; i<N; i++) {
+      for(unsigned i=1; i<N; i++) {
 	if (x < q[i]) {
 	  k = i;
 	  break;
@@ -163,7 +163,7 @@ void Quantile::add(double x)
 
     // Box 2: B.2
     //
-    for (int i=k; i<N; i++) {
+    for (unsigned i=k; i<N; i++) {
       n[i]++;
       np[i] += dn[i];
     }
@@ -171,7 +171,7 @@ void Quantile::add(double x)
     
     // Box 2: B.3
     //
-    for (int i=1; i<N-1; i++) {
+    for (unsigned i=1; i<N-1; i++) {
       double d = np[i] - n[i];
       if ( (d >=  1.0 && n[i+1] - n[i] >  1) ||
 	   (d <= -1.0 && n[i-1] - n[i] < -1)) {
@@ -199,7 +199,7 @@ void Quantile::add(double x)
       // We have enough to start the algorithm, sort and initialize
       // position vector
       std::sort(q.begin(), q.end());
-      for (int i=0; i<N; i++) n[i] = i + 1;
+      for (unsigned i=0; i<N; i++) n[i] = i + 1;
     }
   }
 }
@@ -219,8 +219,8 @@ double Quantile::operator()(double p)
 
     // Use simplest empirical CDF
     //
-    int best = 1;
-    for (int i=2; i<M; i++) {
+    unsigned best = 1;
+    for (unsigned i=2; i<M; i++) {
       if (fabs(static_cast<double>(i)/M - p) < fabs(static_cast<double>(best)/N - p)) {
 	best = i;
       }
@@ -232,7 +232,7 @@ double Quantile::operator()(double p)
     // Find the closest quantile value to p
     //
     int best = 1;
-    for (int i=2; i<N-1; i++) {
+    for (unsigned i=2; i<N-1; i++) {
       if (fabs(dn[i] - p) < fabs(dn[best] - p)) {
 	best = i;
       }
@@ -244,40 +244,40 @@ double Quantile::operator()(double p)
 // Node sends its internal data to root
 void Quantile::send()
 {
-  int sz = q.size();
+  unsigned sz = q.size();
 
   // Send vector size
-  MPI_Send(&sz,    1, MPI_INT,     0, 1100, MPI_COMM_WORLD);
+  MPI_Send(&sz,    1, MPI_UNSIGNED,  0, 1100, MPI_COMM_WORLD);
 
   // Send data
-  MPI_Send(&q[0],  sz, MPI_DOUBLE, 0, 1101, MPI_COMM_WORLD);
+  MPI_Send(&q[0],  sz, MPI_DOUBLE,   0, 1101, MPI_COMM_WORLD);
 
   // Send marker values
-  MPI_Send(&dn[0], sz, MPI_DOUBLE, 0, 1102, MPI_COMM_WORLD);
+  MPI_Send(&dn[0], sz, MPI_DOUBLE,   0, 1102, MPI_COMM_WORLD);
 
   // Send position values
-  MPI_Send(&np[0], sz, MPI_DOUBLE, 0, 1103, MPI_COMM_WORLD);
+  MPI_Send(&np[0], sz, MPI_DOUBLE,   0, 1103, MPI_COMM_WORLD);
 
   // Send current indices
-  MPI_Send(&n[0],  sz, MPI_INT,    0, 1104, MPI_COMM_WORLD);
+  MPI_Send(&n[0],  sz, MPI_DOUBLE,   0, 1104, MPI_COMM_WORLD);
 
   // Send number of data processed so far
-  MPI_Send(&M,      1, MPI_INT,    0, 1105, MPI_COMM_WORLD);
+  MPI_Send(&M,      1, MPI_UNSIGNED, 0, 1105, MPI_COMM_WORLD);
 
   // Send number of markers
-  MPI_Send(&N,      1, MPI_INT,    0, 1106, MPI_COMM_WORLD);
+  MPI_Send(&N,      1, MPI_UNSIGNED, 0, 1106, MPI_COMM_WORLD);
 }
     
 // Root intializes itself from node's data
 void Quantile::recv(int id)
 {
-  int sz;			// Data size
+  unsigned sz;			// Data size
 
   MPI_Status status;		// MPI return values
   int count;
 
   // Send vector size
-  MPI_Recv(&sz,     1, MPI_INT,    id, 1100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&sz,     1, MPI_UNSIGNED, id, 1100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   q .resize(sz);
   dn.resize(sz);
@@ -285,53 +285,53 @@ void Quantile::recv(int id)
   n .resize(sz);
 
   // Receive data values
-  MPI_Recv(&q[0],  sz, MPI_DOUBLE, id, 1101, MPI_COMM_WORLD, &status);
+  MPI_Recv(&q[0],  sz, MPI_DOUBLE,   id, 1101, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
-  if (DBG_VERBOSE && count != sz) {
+  if (DBG_VERBOSE && static_cast<unsigned>(count) != sz) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count q [" << myid << "] count=" << count
 	      << ", expected=" << sz << std::endl;
   }
   // Receive marker values
-  MPI_Recv(&dn[0], sz, MPI_DOUBLE, id, 1102, MPI_COMM_WORLD, &status);
+  MPI_Recv(&dn[0], sz, MPI_DOUBLE,   id, 1102, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
-  if (DBG_VERBOSE && count != sz) {
+  if (DBG_VERBOSE && static_cast<unsigned>(count) != sz) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count dn [" << myid << "] count=" << count
 	      << ", expected=" << sz << std::endl;
   }
 
   // Receive position values
-  MPI_Recv(&np[0], sz, MPI_DOUBLE, id, 1103, MPI_COMM_WORLD, &status);
+  MPI_Recv(&np[0], sz, MPI_DOUBLE,   id, 1103, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
-  if (DBG_VERBOSE && count != sz) {
+  if (DBG_VERBOSE && static_cast<unsigned>(count) != sz) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count np [" << myid << "] count=" << count
 	      << ", expected=" << sz << std::endl;
   }
 
   // Receive the rank position of data
-  MPI_Recv(&n[0],  sz, MPI_INT,    id, 1104, MPI_COMM_WORLD, &status);
+  MPI_Recv(&n[0],  sz, MPI_DOUBLE,   id, 1104, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_INT, &count);
-  if (DBG_VERBOSE && count != sz) {
+  if (DBG_VERBOSE && count != static_cast<unsigned>(sz)) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count n [" << myid << "] count=" << count
 	      << ", expected=" << sz << std::endl;
   }
 
   // Receice the probability value
-  MPI_Recv(&M,      1, MPI_INT,    id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&M,      1, MPI_UNSIGNED, id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   // Number of markers
-  MPI_Recv(&N,      1, MPI_INT,     id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&N,      1, MPI_UNSIGNED, id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   if (DBG_VERBOSE && instance % 1000 == 0)
     std::cout << "I=" << instance << std::endl;
