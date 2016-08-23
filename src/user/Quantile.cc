@@ -321,7 +321,7 @@ void Quantile::recv(int id)
 
   // Sanity
   MPI_Get_count(&status, MPI_INT, &count);
-  if (DBG_VERBOSE && count != static_cast<unsigned>(sz)) {
+  if (DBG_VERBOSE && static_cast<unsigned>(count) != sz) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count n [" << myid << "] count=" << count
 	      << ", expected=" << sz << std::endl;
