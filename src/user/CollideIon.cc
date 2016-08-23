@@ -37,6 +37,7 @@ bool     CollideIon::AlgOrth  = false;
 bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
 bool     CollideIon::E_split  = false;
+bool     CollideIon::distDiag = false;
 bool     CollideIon::elecDist = false;
 bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
@@ -11552,6 +11553,8 @@ void CollideIon::printSpeciesColl()
 
 void CollideIon::electronGather()
 {
+  if (not distDiag) return;
+
   static bool IDBG = false;
 
   if ((aType==Direct or aType==Weight or aType==Hybrid) && use_elec >= 0) {
@@ -12268,6 +12271,8 @@ void CollideIon::electronGather()
 
 void CollideIon::electronPrint(std::ostream& out)
 {
+  if (not distDiag) return;
+
   // Mean electron density per cell n #/cm^3
   //
   if (CntE) {
@@ -12980,9 +12985,6 @@ void CollideIon::processConfig()
     EXCESS_DBG =
       cfg.entry<bool>("EXCESS_DBG", "Enable check for excess weight counter in trace algorithm", false);
 
-    ntcDist =
-      cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
-
     DEBUG_CNT =
       cfg.entry<int>("DEBUG_CNT", "Count collisions in each particle for debugging", -1);
 
@@ -13006,8 +13008,14 @@ void CollideIon::processConfig()
     minCollFrac =
       cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
 
+    distDiag =
+      cfg.entry<bool>("distDiag", "Report binned histogram for electron velocities", false);
+
     elecDist =
-      cfg.entry<bool>("elecDist", "Report binned histogram for electron velocities", false);
+      cfg.entry<bool>("elecDist", "Additional detailed histograms for electron velocities", false);
+
+    ntcDist =
+      cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
