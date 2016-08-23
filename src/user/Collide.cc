@@ -22,9 +22,9 @@ using namespace std;
 static bool CDEBUG     = false;	// Thread diagnostics, false for
 				// production
 
-static bool DEBUG_NTC  = true;	// Enable NTC diagnostics
+static bool DEBUG_NTC  = false;	// Enable NTC diagnostics
 
-static bool NTC_DIST   = true;	// Enable NTC full distribution
+static bool NTC_DIST   = false;	// Enable NTC full distribution
 
 				// Use the original Pullin velocity 
 				// selection algorithm
