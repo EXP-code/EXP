@@ -45,10 +45,6 @@ namespace NTC {
     friend class boost::serialization::access;
 
   private:
-    static const size_t ssize = 5;
-    
-    //! Set true for debugging and sanity checking MPI
-    static const bool DBG_VERBOSE = false;
 
     //! Count instances for debugging only
     static unsigned instance;
@@ -66,16 +62,19 @@ namespace NTC {
     std::vector<double> n;
     
     //! Number of datums so far
-    unsigned M;
+    unsigned long M;
 
     //! Number of markers
     unsigned N;
 
+    //! Histogram or Quantile
+    enum class Box {none=0, quantile=1, histogram=2} t;
+
     //@{
-    //! For storage management and updating
+    //! For storage management, data updating, and interpolation
     void    init();
-    double *extend(int count);
-    void    update();
+    void    addBox1(double x);
+    void    addBox2(double x);
     double  parabolic( int i, int d );
     double  linear   ( int i, int d );
     //@}
@@ -83,59 +82,26 @@ namespace NTC {
     template<class Archive>
     void serialize(Archive &ar, const unsigned int version)
     {
+      ar & BOOST_SERIALIZATION_NVP(t);
       ar & BOOST_SERIALIZATION_NVP(q);
       ar & BOOST_SERIALIZATION_NVP(dn);
       ar & BOOST_SERIALIZATION_NVP(np);
       ar & BOOST_SERIALIZATION_NVP(n);
       ar & BOOST_SERIALIZATION_NVP(M);
       ar & BOOST_SERIALIZATION_NVP(N);
-
-      if (DBG_VERBOSE) {
-	std::string stat("loading");
-	if (Archive::is_saving::value) stat = "saving";
-	
-	if (q.size() != ssize) {
-	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-	  std::cout << "[" << myid
-		    << "] crazy q size=" << q.size()
-		    << " on " << stat << std::endl;
-	  dn.resize(ssize);
-	}
-
-	if (dn.size() != ssize) {
-	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-	  std::cout << "[" << myid
-		    << "] crazy dn size=" << dn.size()
-		    << " on " << stat << std::endl;
-	  dn.resize(ssize);
-	}
-
-	if (np.size() != ssize) {
-	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-	  std::cout << "[" << myid
-		    << "[ crazy np size=" << np.size()
-		    << " on " << stat << std::endl;
-	  np.resize(ssize);
-	}
-
-	if (n.size() != ssize) {
-	  int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
-	  std::cout << "[" << myid
-		    << "] crazy n size=" << n.size()
-		    << " on " << stat << std::endl;
-	  n.resize(ssize);
-	}
-      }
     }
 
   public:
 
+    // Enable for debugging
+    const static bool DBG_VERBOSE = true;
+
     //! Add a new quantile value
     //! @param P the quantile probability
-    void newQ(double P);
+    void quantile(double P);
 
     //! Make a histogram with \f$n\f$ bins
-    void histogram(int n);
+    void histogram(unsigned n);
 
     //! Null constructor
     Quantile();
@@ -143,6 +109,10 @@ namespace NTC {
     //! Constructs a single quantile object
     //! @param P the quantile probability
     Quantile(double p);
+
+    //! Constructs a histogram quantile object
+    //! @param n number of bins
+    Quantile(unsigned n);
 
     //! Copy constructor
     //! @param p another Quantile instance

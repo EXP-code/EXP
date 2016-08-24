@@ -228,14 +228,14 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
    //
    if (db.find(indx) == db.end()) {
      db[indx][intr].histogram(Nequal);
-     for (auto v : qs) db[indx][intr].newQ(v);
+     for (auto v : qs) db[indx][intr].quantile(v);
    }
 
    // Check for intr in map
    //
    if (db[indx].find(intr) == db[indx].end()) {
      db[indx][intr].histogram(Nequal);
-     for (auto v : qs) db[indx][intr].newQ(v);
+     for (auto v : qs) db[indx][intr].quantile(v);
    }
 
    if (0) {

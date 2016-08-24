@@ -1,4 +1,4 @@
-#include <stdexcept>
+#include <exception>
 #include <algorithm>
 #include <iostream>
 #include <iomanip>
@@ -17,14 +17,14 @@ unsigned Quantile::instance = 0;
 
 Quantile::Quantile()
 {
+  // Type not yet identified
+  t = Box::none;
+
   // No data to start
   M = 0;
 
   // No markers to start
   N = 0;
-
-  // Initialize storage
-  init();
 
   // For debugging
   instance++;
@@ -32,14 +32,15 @@ Quantile::Quantile()
 
 Quantile::Quantile(double p)
 {
-  // No data to start
-  M = 0;
+  quantile(p);
 
-  // Initialize storage, will set markers
-  init();
+  // For debugging
+  instance++;
+}
 
-  // Add a quantile
-  newQ(p);
+Quantile::Quantile(unsigned n)
+{
+  histogram(n);
 
   // For debugging
   instance++;
@@ -47,6 +48,7 @@ Quantile::Quantile(double p)
 
 Quantile::Quantile(const Quantile & p)
 {
+  t  = p.t;
   q  = p.q;
   dn = p.dn;
   np = p.np;
@@ -60,65 +62,73 @@ Quantile::Quantile(const Quantile & p)
 
 void Quantile::init(void)
 {
-  // Set end points
-  N = 2;
-
-  // Initialize storage for end points
+  // Initialize storage
   q .resize(N, 0);
   dn.resize(N, 0);
   np.resize(N, 0);
-  n .resize(N, 0);
+  n .resize(N);
 
-  // Add end points
+  // Set markers
+  for (unsigned i=0; i<N; i++) n[i] = i;
+}
+
+void Quantile::add(double x)
+{
+  if (t==Box::quantile)  addBox1(x);
+  if (t==Box::histogram) addBox2(x);
+  if (t==Box::none) {
+    throw std::runtime_error("Quantile: trying to operate with BoxType=none");
+  }
+}
+
+void Quantile::quantile(double p)
+{
+  // We are a quantile
+  t = Box::quantile;
+
+  // Number of markers
+  N = 5;
+
+  // No data to start
+  M = 0;
+
+  // Initialize storage and set marker positions
+  // (Box 1.A)
+  init();
+
+  // Set desired marker positions
+  // (Box 1.A)
+  np[0] = 0.0;
+  np[1] = 2.0*p;
+  np[2] = 4.0*p;
+  np[3] = 2.0 + 2.0*p;
+  np[4] = 4.0;
+
+  // Set marker increments
+  // (Box 1.A)
   dn[0] = 0.0;
-  dn[1] = 1.0;
-
-  update();
+  dn[1] = 0.5*p;
+  dn[2] = p;
+  dn[3] = 0.5*(1.0 + p);
+  dn[4] = 1.0;
 }
 
-double * Quantile::extend(int count)
+void Quantile::histogram(unsigned n)
 {
-  q .resize(N + count, 0);
-  dn.resize(N + count, 0);
-  np.resize(N + count, 0);
-  n .resize(N + count, 0);
+  // We are a histogram
+  t = Box::histogram;
 
-  int last = N;
-  N += count;
+  // No data to start
+  M = 0;
 
-  return &dn[last];
-}
+  // Number of markers
+  N = n;
 
-void Quantile::update()
-{
-  std::sort(dn.begin(), dn.end());
+  // Initialize storage
+  init();
 
-  // Reset markers to uniform distribution
-  for (unsigned i=0; i<N; i++)  
-    np[i] = dn[i]*(N - 1) + 1;
-}
-
-void Quantile::newQ(double p)
-{
-  double *markers = extend(3);
-
-  // Add new dn markers for this quantile
-  markers[0] = p;
-  markers[1] = 0.5*p;
-  markers[2] = 0.5*(1.0 + p);
-  
-  update();
-}
-
-void Quantile::histogram(int n)
-{
-  double *markers = extend(n - 1);
-
-  // Add in the new markers for a uniform distribution
-  for (int i=1; i<n; i++) 
-    markers[i-1] = static_cast<double>(i) / n;
-  
-  update();
+  // Set marker increments
+  for (unsigned i=0; i<N; i++) dn[i] = static_cast<double>(i)/(N-1);
 }
 
 double Quantile::parabolic(int i, int d)
@@ -134,7 +144,75 @@ double Quantile::linear(int i, int d)
   return q[i] + d * (q[i+d] - q[i]) / (n[i+d] - n[i]);
 }
 
-void Quantile::add(double x)
+void Quantile::addBox1(double x)
+{
+  int k = 0;
+
+  // Algorithm from Box 1 on page 1079 of Jain & Chlamtac
+  
+  if (M >= N) {
+    
+    M++;			// Update data count
+
+    // Box 1.B.1
+    //
+    if(x < q[0]) {
+      q[0] = x;			// Left of left end
+      k = 0;
+    } else if (x >= q[N - 1]) {
+      q[N - 1] = x;		// Right of right end
+      k = N - 2;
+    } else {			// Look for marker
+      for(unsigned i=0; i<N-1; i++) {
+	if (x < q[i+1]) {
+	  k = i;
+	  break;
+	}
+      }
+    }
+
+    // Box 1.B.2
+    //
+    for (unsigned i=k+1; i<N; i++) n[i]++;
+    for (unsigned i=0; i<N; i++) np[i] += dn[i];
+    
+    // Box 1.B.3
+    //
+    for (unsigned i=1; i<N-1; i++) {
+      double d = np[i] - n[i];
+      if ( (d >=  1.0 && n[i+1] - n[i] >  1) or
+	   (d <= -1.0 && n[i-1] - n[i] < -1)) {
+
+	double tq = parabolic(i, std::copysign(1.0, d));
+	if (q[i-1] < tq && tq < q[i+1]) {
+	  q[i] = tq;
+	} else {
+	  q[i] = linear(i, std::copysign(1.0, d));
+	}
+	n[i] += std::copysign(1.0, d);
+      }
+    }
+    
+  } else {
+
+    // Box 1.A
+    //
+
+    q[M] = x;
+
+    M++;			// Increment data count
+
+    if (M == N) {
+      // We have enough to start the algorithm, sort and initialize
+      // position vector
+      std::sort(q.begin(), q.end());
+      for (unsigned i=0; i<N; i++) n[i] = i + 1;
+    }
+  }
+}
+
+
+void Quantile::addBox2(double x)
 {
   int k = 0;
 
@@ -143,18 +221,20 @@ void Quantile::add(double x)
   if (M >= N) {
     
     M++;			// Update data count
-
+    
     // Box 2: B.1
     //
-    if(x < q[0]) {		
+    if (x < q[0]) {		
       q[0] = x;			// Left of left end
-      k = 1;
-    } else if (x >= q[N - 1]) {
+      k = 0;
+    } else if (x > q[N - 1]) {
       q[N - 1] = x;	// Right of right end
-      k = N - 1;
+      k = N - 2;
+    } else if (x >= q[N - 1] and x <= q[N -2]) {
+      k = N - 2;
     } else {			// Look for marker
-      for(unsigned i=1; i<N; i++) {
-	if (x < q[i]) {
+      for (unsigned i=0; i<N-1; i++) {
+	if (x < q[i+1]) {
 	  k = i;
 	  break;
 	}
@@ -163,11 +243,8 @@ void Quantile::add(double x)
 
     // Box 2: B.2
     //
-    for (unsigned i=k; i<N; i++) {
-      n[i]++;
-      np[i] += dn[i];
-    }
-    for (int i=0; i<k; i++) np[i] += dn[i];
+    for (unsigned i=k+1; i<N; i++) n[i]++;
+    for (unsigned i=0; i<N; i++) np[i] += dn[i];
     
     // Box 2: B.3
     //
@@ -188,7 +265,7 @@ void Quantile::add(double x)
 
   } else {
 
-    // Box 2: A
+    // Box 2.A
     //
 
     q[M] = x;
@@ -250,22 +327,22 @@ void Quantile::send()
   MPI_Send(&sz,    1, MPI_UNSIGNED,  0, 1100, MPI_COMM_WORLD);
 
   // Send data
-  MPI_Send(&q[0],  sz, MPI_DOUBLE,   0, 1101, MPI_COMM_WORLD);
+  MPI_Send(&q[0],  sz, MPI_DOUBLE,        0, 1101, MPI_COMM_WORLD);
 
   // Send marker values
-  MPI_Send(&dn[0], sz, MPI_DOUBLE,   0, 1102, MPI_COMM_WORLD);
+  MPI_Send(&dn[0], sz, MPI_DOUBLE,        0, 1102, MPI_COMM_WORLD);
 
   // Send position values
-  MPI_Send(&np[0], sz, MPI_DOUBLE,   0, 1103, MPI_COMM_WORLD);
+  MPI_Send(&np[0], sz, MPI_DOUBLE,        0, 1103, MPI_COMM_WORLD);
 
   // Send current indices
-  MPI_Send(&n[0],  sz, MPI_DOUBLE,   0, 1104, MPI_COMM_WORLD);
+  MPI_Send(&n[0],  sz, MPI_DOUBLE,        0, 1104, MPI_COMM_WORLD);
 
   // Send number of data processed so far
-  MPI_Send(&M,      1, MPI_UNSIGNED, 0, 1105, MPI_COMM_WORLD);
+  MPI_Send(&M,      1, MPI_UNSIGNED_LONG, 0, 1105, MPI_COMM_WORLD);
 
   // Send number of markers
-  MPI_Send(&N,      1, MPI_UNSIGNED, 0, 1106, MPI_COMM_WORLD);
+  MPI_Send(&N,      1, MPI_UNSIGNED,      0, 1106, MPI_COMM_WORLD);
 }
     
 // Root intializes itself from node's data
@@ -277,7 +354,7 @@ void Quantile::recv(int id)
   int count;
 
   // Send vector size
-  MPI_Recv(&sz,     1, MPI_UNSIGNED, id, 1100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&sz,     1, MPI_UNSIGNED,      id, 1100, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   q .resize(sz);
   dn.resize(sz);
@@ -285,7 +362,7 @@ void Quantile::recv(int id)
   n .resize(sz);
 
   // Receive data values
-  MPI_Recv(&q[0],  sz, MPI_DOUBLE,   id, 1101, MPI_COMM_WORLD, &status);
+  MPI_Recv(&q[0],  sz, MPI_DOUBLE,        id, 1101, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
@@ -295,7 +372,7 @@ void Quantile::recv(int id)
 	      << ", expected=" << sz << std::endl;
   }
   // Receive marker values
-  MPI_Recv(&dn[0], sz, MPI_DOUBLE,   id, 1102, MPI_COMM_WORLD, &status);
+  MPI_Recv(&dn[0], sz, MPI_DOUBLE,        id, 1102, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
@@ -306,7 +383,7 @@ void Quantile::recv(int id)
   }
 
   // Receive position values
-  MPI_Recv(&np[0], sz, MPI_DOUBLE,   id, 1103, MPI_COMM_WORLD, &status);
+  MPI_Recv(&np[0], sz, MPI_DOUBLE,        id, 1103, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_DOUBLE, &count);
@@ -317,7 +394,7 @@ void Quantile::recv(int id)
   }
 
   // Receive the rank position of data
-  MPI_Recv(&n[0],  sz, MPI_DOUBLE,   id, 1104, MPI_COMM_WORLD, &status);
+  MPI_Recv(&n[0],  sz, MPI_DOUBLE,        id, 1104, MPI_COMM_WORLD, &status);
 
   // Sanity
   MPI_Get_count(&status, MPI_INT, &count);
@@ -328,10 +405,10 @@ void Quantile::recv(int id)
   }
 
   // Receice the probability value
-  MPI_Recv(&M,      1, MPI_UNSIGNED, id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&M,      1, MPI_UNSIGNED_LONG, id, 1105, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   // Number of markers
-  MPI_Recv(&N,      1, MPI_UNSIGNED, id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+  MPI_Recv(&N,      1, MPI_UNSIGNED,      id, 1106, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 
   if (DBG_VERBOSE && instance % 1000 == 0)
     std::cout << "I=" << instance << std::endl;
@@ -351,12 +428,12 @@ double Quantile::inverse(double x)
   if (x <= q.front()) return 0.0;
   if (x >= q.back ()) return 1.0;
 
-  int K = std::min(M, N);
+  unsigned K = N; if (M < N) K = M;
   double ret = q[(q.size()-1)/2];
 
   // Linear interpolation to get x
   //
-  for (int i=1; i<K; i++) {
+  for (unsigned i=1; i<K; i++) {
     if (x > q[i-1] and x <= q[i]) {
       if (M<N) 
 	ret = ( (q[i] - x)*i + (x - q[i-1])*(i-1) ) / ( (q[i] - q[i-1])*M );
