@@ -12,7 +12,7 @@ AM_LDFLAGS  = -L$(top_srcdir)/expgnu -L$(top_srcdir)/exputil -lgomp
 libdir      = $(prefix)/lib/user
 
 # bin_PROGRAMS = testcoord
-bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb
+bin_PROGRAMS = testCrossSection testIonRecomb genIonRecomb testQuantile
 
 lib_LTLIBRARIES = libuser.la libbar.la libebar.la libsat.la		\
 	libdiffuse.la libsatfix.la libdiffrot.la liblogpot.la		\
@@ -142,6 +142,9 @@ testIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libds
 
 genIonRecomb_SOURCES = genIonRecomb.cc phfit2.f
 genIonRecomb_LDADD = $(BOOST_FILESYSTEM_LIB) $(BOOST_PROGRAM_OPTIONS_LIB) libdsmc.a -lexputil -lexpgnu -llapack -lblas
+
+testQuantile_SOURCES = testQuantile.cc Quantile.cc
+testQuantile_LDADD = $(BOOST_PROGRAM_OPTIONS_LIB)
 
 
 CylindricalDisk.cc:	$(top_srcdir)/utils/SL/CylindricalDisk.cc
