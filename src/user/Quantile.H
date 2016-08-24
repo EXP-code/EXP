@@ -63,13 +63,13 @@ namespace NTC {
     std::vector<double> np;
 
     //! Current indices of saved data points
-    std::vector<int>    n;
+    std::vector<double> n;
     
     //! Number of datums so far
-    int M;
+    unsigned M;
 
     //! Number of markers
-    int N;
+    unsigned N;
 
     //@{
     //! For storage management and updating
@@ -188,8 +188,8 @@ namespace NTC {
 
     //@{
     //! Get internal data count and target (for debugging only)
-    int datums() { return M; }
-    int target() { return N; }
+    unsigned datums() { return M; }
+    unsigned target() { return N; }
     //@}
 
     //! Return if quantile estimator is fully populated
