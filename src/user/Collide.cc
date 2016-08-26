@@ -564,6 +564,7 @@ const Collide::UU&
 Collide::collide(pHOT& tree, sKeyDmap& Fn, int mlevel, bool diag)
 {
   std::get<0>(ret) = std::get<1>(ret) = 0;
+  mlev = mlevel;
 
   snglTime.start();
 
@@ -840,6 +841,12 @@ void * Collide::collide_thread(void * arg)
     (*barrier)(sout.str(), __FILE__, __LINE__);
   }
 
+  // Initialize cell loop diagnostics
+  //
+  pre_cell_loop(id);
+
+  // Start execution timer
+  //
   cellTime[id].start();
   
   // Loop over cells, processing collisions in each cell
@@ -1548,6 +1555,10 @@ void * Collide::collide_thread(void * arg)
   }
 
   cellSoFar[id] = cellTime[id].stop();
+
+  // Diagnostics at end of cell loop
+  //
+  post_cell_loop(id);
 
   thread_timing_end(id);
   

@@ -59,6 +59,10 @@ CollideIon::esMapType CollideIon::esMap = { {"none",      none},
 
 Collide::Interact::T CollideIon::elecElec;
 
+// Kinetic energy conservation check for NOCOOL
+//
+static bool KE_NOCOOL_CHECK   = true;
+
 // Add trace energy excess to electron distribution
 //
 static bool TRACE_ELEC        = false;
@@ -179,6 +183,10 @@ static double energy_scale    = -1.0;
 // Use particle collision counter for debugging
 //
 static int DEBUG_CNT          = -1;
+
+// Deep debug check
+//
+static bool PRE_POST_COLL_KE  = true;
 
   
 // Convert energy in eV to wavelength in angstroms
@@ -389,6 +397,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   kEe1     .resize(nthrds);
   kEe2     .resize(nthrds);
   kEee     .resize(nthrds);
+  testKE   .resize(nthrds);
   clrE     .resize(nthrds);
   misE     .resize(nthrds);
   Ein1     .resize(nthrds);
@@ -412,6 +421,9 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   elecDen  .resize(nthrds, 0);
   elecDn2  .resize(nthrds, 0);
   elecCnt  .resize(nthrds, 0);
+  testCnt  .resize(nthrds, 0);
+  cellEg   .resize(nthrds, 0);
+  cellEb   .resize(nthrds, 0);
   Escat    .resize(nthrds);
   Etotl    .resize(nthrds);
   Italy    .resize(nthrds);
@@ -658,7 +670,12 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   // Values for estimating effective MFP per cell
   //
-  spNcol [id] = 0;
+  spNcol[id] = 0;
+
+  // NOCOOL KE test
+  //
+  testKE [id] = 0;
+  testCnt[id] = 0;
 
   // Loop through all bodies in cell
   //
@@ -676,12 +693,26 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
     if (aType == Hybrid) {
       speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
-      double ee    = 0.0;
+      unsigned short Z = k.first;
+      double ee = 0.0;
 
-      for (unsigned short C=0; C<=k.first; C++) ee += p->dattrib[hybrid_pos + C] * C;
-      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[k.first];
-      densE[id][k] += p->mass * ee / atomic_weights[k.first];
-      densEtot     += p->mass * ee / atomic_weights[k.first];
+      for (unsigned short C=0; C<=Z; C++) ee += p->dattrib[hybrid_pos + C] * C;
+      numEf[id]    += p->mass * (1.0 + ee) / atomic_weights[Z];
+      densE[id][k] += p->mass * ee / atomic_weights[Z];
+      densEtot     += p->mass * ee / atomic_weights[Z];
+
+      if (NOCOOL and KE_NOCOOL_CHECK) {
+	double ke = 0.0;
+	for (unsigned j=0; j<3; j++) {
+	  double vi = p->vel[j];
+	  ke += vi * vi;
+	  if (use_elec >= 0) {
+	    double ve = p->dattrib[use_elec+j];
+	    ke += atomic_weights[0]/atomic_weights[Z] * ve * ve;
+	  }
+	}
+	testKE[id] += 0.5 * p->mass * ke;
+      }
     }
 
     if (aType == Trace) {
@@ -5389,8 +5420,6 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 		<< ", mis=" << std::setw(14) << missE
 		<< ", NCX=" << std::setw(14) << NCXTRA
 		<< std::endl;
-
-
   }
 
   return ret;
@@ -5489,6 +5518,22 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   Particle* p1    = _p1;	// Copy pointers for swapping, if
   Particle* p2    = _p2;	// necessary
+
+  double pre_coll_KE = 0.0, post_coll_KE = 0.0;
+  if (PRE_POST_COLL_KE) {
+    unsigned short Z1 = KeyConvert(p1->iattrib[use_key]).getKey().first;
+    unsigned short Z2 = KeyConvert(p2->iattrib[use_key]).getKey().first;
+    for (size_t j=0; j<3; j++) {
+      pre_coll_KE += 0.5 * p1->mass * p1->vel[j] * p1->vel[j];
+      pre_coll_KE += 0.5 * p2->mass * p2->vel[j] * p2->vel[j];
+      if (use_elec>=0) {
+	pre_coll_KE += 0.5 * p1->mass * atomic_weights[0]/atomic_weights[Z1] *
+	  p1->dattrib[use_elec+j] * p1->dattrib[use_elec+j];
+	pre_coll_KE += 0.5 * p2->mass * atomic_weights[0]/atomic_weights[Z2] *
+	  p2->dattrib[use_elec+j] * p2->dattrib[use_elec+j];
+      }
+    }
+  }
 
   double NeutFrac = 0.0;
   double Ion1Frac = 0.0;
@@ -5751,11 +5796,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->ff[id][0] += cF;
 	if (prob >= 0.0) {
 	  ctd2->ff[id][1] += N0 * cF;
-	  ctd2->ff[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd2->ff[id][1] += NN;
-	  ctd2->ff[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->ff[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
@@ -5773,11 +5818,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	if (prob >= 0.0) {
 	  ctd1->ff[id][1] += N0 * cF;
-	  ctd1->ff[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd1->ff[id][1] += NN;
-	  ctd1->ff[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->ff[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
@@ -5803,11 +5848,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	if (prob >= 0.0) {
 	  ctd2->CE[id][1] += N0 * cF;
-	  ctd2->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd2->CE[id][1] += NN;
-	  ctd2->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
@@ -5825,11 +5870,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	if (prob >= 0.0) {
 	  ctd1->CE[id][1] += N0 * cF;
-	  ctd1->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd1->CE[id][1] += NN;
-	  ctd1->CE[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->CE[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
@@ -5881,11 +5926,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->CI[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd2->CI[id][1] += N0 * cF;
-	  ctd2->CI[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd2->CI[id][1] += NN;
-	  ctd2->CI[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion2Frac += cF;
@@ -5936,11 +5981,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd1->CI[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd1->CI[id][1] += N0 * cF;
-	  ctd1->CI[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, N0 * cF);
 	} else {
 	  ctd1->CI[id][1] += NN;
-	  ctd1->CI[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->CI[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, tmpE, NN);
 	}
 	Ion1Frac += cF;
@@ -5996,11 +6041,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd2->RR[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd2->RR[id][1] += N0 * cF;
-	  ctd2->RR[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], N0 * cF);
 	} else {
 	  ctd2->RR[id][1] += NN;
-	  ctd2->RR[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd2->RR[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe2[id], NN);
 	}
 	Ion2Frac += cF;
@@ -6070,11 +6115,11 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd1->RR[id][0] += cF * q0;
 	if (prob >= 0.0) {
 	  ctd1->RR[id][1] += N0 * cF;
-	  ctd1->RR[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->RR[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], N0 * cF);
 	} else {
 	  ctd1->RR[id][1] += NN;
-	  ctd1->RR[id][2] += N0 * dE;
+	  if (not NOCOOL) ctd1->RR[id][2] += N0 * dE;
 	  if (use_spectrum) spectrumAdd(id, interFlag, kEe1[id], NN);
 	}
 	Ion1Frac += cF;
@@ -6143,17 +6188,17 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       ctd1->dv[id][0] += cF;
       if (prob >= 0.0) {
 	ctd1->dv[id][1] += Wb * cF;
-	ctd1->dv[id][2] += Wb * dE;
+	if (not NOCOOL) ctd1->dv[id][2] += Wb * dE;
       } else {
 	ctd1->dv[id][1] += Wb * cF;
-	ctd1->dv[id][2] += Wb * dE;
+	if (not NOCOOL) ctd1->dv[id][2] += Wb * dE;
       }
     }
 
     if (Ion2Frac>0.0) {
       ctd2->dv[id][0] += cF;
       ctd2->dv[id][1] += Wb * cF;
-      ctd2->dv[id][2] += Wb * dE;
+      if (not NOCOOL) ctd2->dv[id][2] += Wb * dE;
     }
 
   } // END: compute this interaction [ok]
@@ -6274,6 +6319,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	scatterHybrid(d, KE, v1, v2);
 	checkEnergyHybrid(d, KE, v1, v2, Neutral, id);
+	if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	for (int k=0; k<3; k++) {
 	  p1->vel[k] = v1[k];
@@ -6303,6 +6349,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1 | Scatter, id);
+	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	  for (int k=0; k<3; k++) {
 	    p1->vel[k] = v1[k];
@@ -6335,6 +6382,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2 | Scatter, id);
+	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	  for (int k=0; k<3; k++) {
 	    p1->dattrib[use_elec+k] = v1[k];
@@ -6385,6 +6433,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion1, id);
+	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	  if (scatter_check) Italy[id][Z1*100+Z2][interFlag]++;
 
@@ -6435,6 +6484,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
 	  scatterHybrid(d, KE, v1, v2);
 	  checkEnergyHybrid(d, KE, v1, v2, Ion2, id);
+	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
 
 	  if (scatter_check) Italy[id][Z2*100+Z1][interFlag]++;
 
@@ -6495,6 +6545,31 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
       cout.precision(orig);
     }
 
+  }
+
+  if (PRE_POST_COLL_KE) {
+    unsigned short Z1 = KeyConvert(p1->iattrib[use_key]).getKey().first;
+    unsigned short Z2 = KeyConvert(p2->iattrib[use_key]).getKey().first;
+
+    for (size_t j=0; j<3; j++) {
+      post_coll_KE += 0.5 * p1->mass * p1->vel[j] * p1->vel[j];
+      post_coll_KE += 0.5 * p2->mass * p2->vel[j] * p2->vel[j];
+      if (use_elec>=0) {
+	post_coll_KE += 0.5 * p1->mass * atomic_weights[0]/atomic_weights[Z1] *
+	  p1->dattrib[use_elec+j] * p1->dattrib[use_elec+j];
+	post_coll_KE += 0.5 * p2->mass * atomic_weights[0]/atomic_weights[Z2] *
+	  p2->dattrib[use_elec+j] * p2->dattrib[use_elec+j];
+      }
+    }
+
+    double delE = 0.5*(post_coll_KE - pre_coll_KE)/(post_coll_KE + pre_coll_KE);
+    if (fabs(delE) > 1.0e-10) {
+      std::cout << "Particle KE mismatch: "
+		<< "pre="  << std::setw(14) << pre_coll_KE
+		<< "post=" << std::setw(14) << post_coll_KE
+		<< "delE=" << std::setw(14) << delE
+		<< std::endl;
+    }
   }
 
   return ret;
@@ -7685,6 +7760,60 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   static bool debugFC = false;
 
   //
+  // Collision cell energy conservation debugging
+  //
+  if (aType == Hybrid and NOCOOL and KE_NOCOOL_CHECK) {
+
+    double totKEf = 0.0;
+    double totMas = 0.0;
+    
+    for (auto b : cell->bods) {
+      Particle *p  = tree->Body(b);
+      unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+
+      double ke = 0.0;
+      for (unsigned j=0; j<3; j++) {
+	double vi = p->vel[j];
+	ke += vi * vi;
+	if (use_elec >= 0) {
+	  double ve = p->dattrib[use_elec+j];
+	  ke += atomic_weights[0]/atomic_weights[Z] * ve * ve;
+	}
+      }
+      totKEf += 0.5 * p->mass * ke;
+      totMas += p->mass;
+    }
+    
+    double delE = 0.0;
+    if (testKE[id] > 0.0) {
+      if (testCnt[id] > 0) {
+	delE = totKEf/testKE[id] - 1.0;
+	if ( fabs(delE) > 1.0e-10 ) {
+	  std::cout << "KE conservation error:" << std::left
+		    << " T="       << std::setw(14) << tnow
+		    << " before="  << std::setw(14) << testKE[id]
+		    << " after="   << std::setw(14) << totKEf
+		    << " rel err=" << std::setw(14) << delE
+		    << " mass="    << std::setw(14) << totMas
+		    << " bodies="  << cell->bods.size()
+		    << std::endl;
+	  cellEb[id]++;
+	} else {
+	  cellEg[id]++;
+	}
+      }
+    } else {
+      std::cout << "KE conservation error:"
+		<< " T="       << std::setw(14) << tnow
+		<< " before="  << std::setw(14) << testKE[id]
+		<< " after="   << std::setw(14) << totKEf
+		<< " mass="    << std::setw(14) << totMas
+		<< " bodies="  << cell->bods.size()
+		<< std::endl;
+    }
+  }
+
+  //
   // Spread out species change differences
   //
   if (aType == Trace) {
@@ -8404,7 +8533,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
   // Collision diagnostics
   //
-  double KEtot, KEdspC;
+  double KEtot, KEdspC, KEdspE = 0.0;
 
   cell->KE(KEtot, KEdspC);	// KE in cell
 
@@ -8413,17 +8542,34 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 				// Used for diagnostics only
   totalSoFar += massC * KEdspC;
   massSoFar  += massC;
+
 				// Add cell energy to diagnostic
-				// handler
-  collD->addCell(KEtot*massC, id);
+				// handler.  Only do this at top level
+				// time step
+  if (mlev==0) {
+    if (1) {			// Alternative KE comptuation
+      KEtot = 0.0;
+      for (auto i : cell->bods) {
+	double ke = 0.0;
+	Particle *p = cell->Body(i);
+	for (auto v : p->vel) ke += v*v;
+	KEtot += 0.5 * p->mass * ke;
+      }
+      collD->addCell(KEtot, id);
+    } else {
+      collD->addCell(KEtot*massC, id);
+    }
 				// Cleared excess energy tally
-  collD->addCellEclr(clrE[id], misE[id], id);
+    collD->addCellEclr(clrE[id], misE[id], id);
 				// Add electron stats to diagnostic
 				// handler
-  double KEdspE = collD->addCellElec(cell, use_elec, id);
+    KEdspE = collD->addCellElec(cell, use_elec, id);
 
 				// Add electronic potential energy
-  collD->addCellPotl(cell, id);
+    collD->addCellPotl(cell, id);
+  } else {
+    KEdspE = computeEdsp(cell);
+  }
 
   // Assign cooling time steps
   //
@@ -8443,6 +8589,44 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   //
   // Done
   //
+}
+
+double CollideIon::computeEdsp(pCell* cell)
+{
+  std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
+  double m = 0.0, KEdspE = 0.0;
+  for (auto n : cell->bods) {
+    Particle * p = cell->Body(n);
+    speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
+    unsigned short Z = k.first;
+    double mass = p->mass * atomic_weights[0]/atomic_weights[Z];
+      
+    if (aType == CollideIon::Hybrid) {
+      double cnt = 0.0;
+      for (unsigned short C=1; C<Z+1; C++)
+	cnt += p->dattrib[hybrid_pos+1]*C;
+      // mass *= cnt;
+    } else {
+      mass *= static_cast<double>(k.second - 1);
+    }
+    
+    m += mass;
+    for (size_t j=0; j<3; j++) {
+      double v = p->dattrib[use_elec+j];
+      ev1[j] += mass * v;
+      ev2[j] += mass * v*v;
+    }
+  }
+  
+  if (m>0.0) {
+    for (size_t j=0; j<3; j++) {
+	ev1[j] /= m;
+	ev2[j] /= m;
+	KEdspE += 0.5 * m * (ev2[j] - ev1[j]*ev1[j]);
+    }
+  }
+
+  return KEdspE;
 }
 
 // Help class that maintains database of diagnostics
@@ -8507,7 +8691,7 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
       double cnt = 0.0;
       for (unsigned short C=1; C<Z+1; C++)
 	cnt += s->dattrib[p->hybrid_pos+1]*C;
-      mass *= cnt;
+      // mass *= cnt;
     } else {
       mass *= static_cast<double>(k.second - 1);
     }
@@ -13313,3 +13497,64 @@ void CollideIon::spectrumPrint()
   }
 }
 
+void CollideIon::post_cell_loop(int id)
+{
+  if (aType == Hybrid and NOCOOL and KE_NOCOOL_CHECK) {
+    unsigned good = 0;
+    unsigned bad  = 0;
+    unsigned cnt  = 0;
+
+    for (auto & v : cellEg)  { good += v; v = 0; }
+    for (auto & v : cellEb)  { bad  += v; v = 0; }
+
+    unsigned nC = 0;
+    unsigned nP = 0;
+    double   KE = 0.0;
+    for (auto c : cellist[id]) {
+      nC++;
+      for (auto b : c->bods) {
+	Particle *p = curTree->Body(b);
+	nP++;
+	unsigned short Z = KeyConvert(p->iattrib[use_key]).getKey().first;
+	for (size_t j=0; j<3; j++) {
+	  KE += 0.5 * p->mass * p->vel[j] * p->vel[j];
+	  if (use_elec>=0) {
+	    KE += 0.5 * p->mass * atomic_weights[0]/atomic_weights[Z] *
+	      p->dattrib[use_elec+j] * p->dattrib[use_elec+j];
+	  }
+	}
+      }
+    }
+
+    MPI_Barrier(MPI_COMM_WORLD);
+
+    unsigned u;
+    MPI_Reduce(&(u=good), &good, 1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=bad),  &bad,  1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=nC),   &nC,   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+    MPI_Reduce(&(u=nP),   &nP,   1, MPI_UNSIGNED, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    double z;
+    MPI_Reduce(&(z=KE), &KE, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+
+    if (myid==0 and mlev==0 and nP>0) {
+      if (bad)
+	std::cout << std::endl << "KE cell conservation check, T="
+		  << std::left << std::setw(10) << tnow
+		  << " good="  << std::setw(8)  << good
+		  << " bad="   << std::setw(8)  << bad
+		  << " KE="    << std::setprecision(10) << KE
+		  << std::endl;
+      // For debugging . . . 
+      /*
+      else
+	std::cout << std::endl << "KE, T="
+		  << std::left << std::setw(10) << tnow
+		  << ": "  << std::setprecision(10) << std::setw(18) << KE
+		  << " C: " << std::setw(9) << nC
+		  << " P: " << std::setw(9) << nP
+		  << std::endl;
+      */
+    }
+  }
+}

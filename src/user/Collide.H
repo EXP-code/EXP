@@ -233,6 +233,9 @@ protected:
   //! Calling force
   ExternalForce *caller;
   
+  //! Called with multistep level
+  int mlev;
+
   //@{
   //! Threading stuff
   int nthrds;
@@ -372,6 +375,12 @@ protected:
   int use_Eint;
   //@}
   
+  //@{
+  //! Diagnostic for entire cell iteration loop
+  virtual void pre_cell_loop(int id)  {}
+  virtual void post_cell_loop(int id) {}
+  //@}
+
   //! Initializes cross sections
   virtual void initialize_cell
   (pHOT* const tree, pCell* const cell, double vrelmax, int id) = 0;

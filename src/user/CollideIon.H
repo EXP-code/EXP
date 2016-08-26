@@ -407,10 +407,10 @@ private:
   std::vector< double >                              meanE, neutF, meanR, meanM;
   std::vector< double >                              numEf, colSc, elecDen, elecDn2;
   std::vector< double >                              kEi, kEe1, kEe2, kEee, clrE, misE;
-  std::vector< double >                              Ein1, Ein2, Evel, Vrel;
+  std::vector< double >                              Ein1, Ein2, Evel, Vrel, testKE;
   std::vector< double >                              spCrm, spTau, spProb, spEdel;
   std::vector< unsigned >                            spNsel, elecCnt, spNcol;
-  std::vector< unsigned >                            elecOvr, elecAcc, elecTot;
+  std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< TypeMap >                             Escat, Etotl;
   std::vector< std::map<unsigned short, TypeMap> >   Italy;
   //@}
@@ -537,8 +537,8 @@ private:
   void spectrumPrint();
   //@}
 
-  //! MFP computation
-  
+  //! Compute electron dispersion KE per cell
+  double computeEdsp(pCell* cell);
 
 public:
 
@@ -606,6 +606,12 @@ protected:
   //! Returns (min, mean, max) velocities in each cell
   virtual std::array<double, 3> 
   cellMinMax(pHOT* const tree, pCell* const cell);
+
+  //@{
+  //! Diagnostic for entire cell iteration loop
+  std::vector<unsigned> cellEg, cellEb;
+  virtual void post_cell_loop(int id);
+  //@}
 
   virtual void 
   initialize_cell(pHOT* const tree, pCell* const c, double rvmax, int id);

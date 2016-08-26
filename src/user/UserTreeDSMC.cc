@@ -1717,7 +1717,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     
     (*barrier)("TreeDSMC: after collision diags", __FILE__, __LINE__);
-  }
+
+  } // END: diagstep
   
   
 #ifdef USE_GPTL
