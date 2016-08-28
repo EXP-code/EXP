@@ -927,14 +927,14 @@ protected:
   //! Interaction data structure for simplifying variable passing
   struct InteractData 
   {
-    double m1, m2, Wa, Wb, q, vi2;
+    double m1, m2, W1, W2, q, vi2;
     unsigned short Z1, Z2;
     Particle *p1, *p2;
 
-    InteractData(double m1, double m2, double Wa, double Wb, double q, 
+    InteractData(double m1, double m2, double W1, double W2, double q, 
 		 unsigned short Z1, unsigned short Z2, Particle* p1, Particle* p2) :
       
-      m1(m1), m2(m2), Wa(Wa), Wb(Wb), q(q), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
+      m1(m1), m2(m2), W1(W1), W2(W2), q(q), vi2(0.0), Z1(Z1), Z2(Z2), p1(p1), p2(p2) {}
 
   };
 
