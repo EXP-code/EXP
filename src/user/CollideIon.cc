@@ -186,8 +186,7 @@ static int DEBUG_CNT          = -1;
 
 // Deep debug check
 //
-static bool PRE_POST_COLL_KE  = true;
-
+static bool PRE_POST_COLL_KE  = false;
   
 // Convert energy in eV to wavelength in angstroms
 //
@@ -711,7 +710,10 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    ke += atomic_weights[0]/atomic_weights[Z] * ve * ve;
 	  }
 	}
-	testKE[id] += 0.5 * p->mass * ke;
+	double KE = 0.5 * p->mass * ke;
+	if (use_cons>=0) KE -= p->dattrib[use_cons];
+	if (use_elec>=0) KE -= p->dattrib[use_elec+3];
+	testKE[id] += KE;
       }
     }
 
@@ -6936,8 +6938,8 @@ void CollideIon::checkEnergyHybrid
 
     if (not equal) {
       if (TRACE_ELEC) {
-	d.p1->dattrib[use_elec+3] += KE.delta * TRACE_FRAC;
-	d.p2->dattrib[use_cons]   += KE.delta * (1.0 - TRACE_FRAC);
+	d.p1->dattrib[use_elec+3] -= KE.delta * TRACE_FRAC;
+	d.p2->dattrib[use_cons]   -= KE.delta * (1.0 - TRACE_FRAC);
       }
     }
 
@@ -7759,8 +7761,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 {
   static bool debugFC = false;
 
-  //
+  //======================================================================
   // Collision cell energy conservation debugging
+  //======================================================================
   //
   if (aType == Hybrid and NOCOOL and KE_NOCOOL_CHECK) {
 
@@ -7780,7 +7783,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  ke += atomic_weights[0]/atomic_weights[Z] * ve * ve;
 	}
       }
-      totKEf += 0.5 * p->mass * ke;
+      double KE = 0.5 * p->mass * ke;
+      if (use_cons>=0) KE -= p->dattrib[use_cons];
+      if (use_elec>=0) KE -= p->dattrib[use_elec+3];
+      totKEf += KE;
       totMas += p->mass;
     }
     
@@ -7813,8 +7819,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     }
   }
 
-  //
+  //======================================================================
   // Spread out species change differences
+  //======================================================================
   //
   if (aType == Trace) {
 
@@ -8015,10 +8022,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       } // end: Sanity check
 
     }
+
   } // end: Trace
 
 
+  //======================================================================
   // Count scattering interactions for debugging output
+  //======================================================================
   //
   std::map<speciesKey,  unsigned> countE;
   std::ofstream outdbg;
@@ -8030,7 +8040,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		       << " electron scattering BEGIN" << std::endl;
   }
 
+  //======================================================================
   // Do electron interactions separately
+  //======================================================================
   //
   if ( (aType == Direct or aType == Weight or aType == Hybrid)
        and use_elec>=0 and esType != always and esType != none) {
@@ -8039,6 +8051,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
+    // Eta will be the true # of electrons
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
@@ -8134,6 +8147,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  k2 = KeyConvert(p2->iattrib[use_key]);
 	}
 
+      // Default not valid for Hybrid method
+      //
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
 
@@ -8150,6 +8165,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       double Wa = p1->mass / atomic_weights[k1.Z()];
       double Wb = p2->mass / atomic_weights[k2.Z()];
       double  q = Wb / Wa;
+
+      // [Should update for Hybrid method to include fractional
+      // ionization states]
 
       double ma = atomic_weights[0];
       double mb = atomic_weights[0];
@@ -8174,7 +8192,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       if (vi == 0.0) continue;
 
-      // Relative velocity
+      // Relative speed
       //
       vi = sqrt(vi);
 
@@ -8239,9 +8257,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	KEi2 *= 0.5*Wb*mb;
       }
 
+      // For normalizing orthogonal direction unit vector
+      //
       double wnrm = 0.0;
 
-      // Scatter
+      // Scatter electrons
       //
       if (ok) {
 
@@ -8409,27 +8429,45 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double vfac = 1.0;
 	  if (equal) {
-	    const double tol = -0.95;
-	    double KE0 = 0.5*Wa*ma*mb/mt*vi*vi;
+	    const double tol = 0.95; // eps = 0.05, tol = 1 - eps
+	    double KE0 = 0.5*Wa*ma*mb/mt * vi*vi;
 	    dKE = p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
-	    if (dKE/KE0 < tol) {
+	    // Too much KE to be removed, clamp to tol*KE0
+	    // 
+	    if (dKE/KE0 > tol) {
+	      // Therefore, remaining excess is:
+	      // dKE' = dKE - tol*KE0 = dKE*(1 - tol*KE0/dKE);
+	      //
 	      double ratk = tol*KE0/dKE;
-	      dKE = ratk*(p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3]);
 	      p1->dattrib[use_elec+3] *= (1.0 - ratk);
 	      p2->dattrib[use_elec+3] *= (1.0 - ratk);
+
+	      // Sanity check
+	      double test = 0.0;
+	      {
+		double orig = dKE;
+		double finl = tol*KE0 + p1->dattrib[use_elec+3] + p2->dattrib[use_elec+3];
+		test = orig - finl;
+	      }
+	      
+	      if (fabs(test/KE0) > 1.0e-10) {
+		std::cout << std::setw(20) << "Energy excess error: "
+			  << std::setw(12) << test/KE0
+			  << std::setw(12) << ", " << ratk
+			  << std::setw(12) << ", " << KE0
+			  << std::setw(12) << ", " << test
+			  << std::endl;
+	      }
+	      dKE = tol*KE0;
 	    } else {
 	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.0;
 	    }
 	    
-	    if (dKE < KE0) {
-	      vfac = sqrt(1.0 - dKE/KE0);
-	    } else {
-	      vfac = 0.0;
-	      p1->dattrib[use_elec+3] = p2->dattrib[use_elec+3] = 0.5*(dKE - KE0);
-	    }
+	    vfac = sqrt(1.0 - dKE/KE0);
 	  }
 	  
 	  double qKEfac = 0.5*Wa*ma*q*(1.0 - q);
+	  deltaKE = 0.0;
 	  for (int k=0; k<3; k++) {
 	    double v0 = vcom[k] + mb/mt*vrel[k]*vfac;
 	    deltaKE += (v0 - v1[k])*(v0 - v1[k]) * qKEfac;
@@ -8437,7 +8475,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    p2->dattrib[use_elec+k] = vcom[k] - ma/mt*vrel[k]*vfac;
 	  }
 				// Correct energy for conservation
-	  if (!equal) p1->dattrib[use_elec+3] += deltaKE;
+	  if (!equal) p1->dattrib[use_elec+3] -= deltaKE;
 	}
 
 	// For debugging
@@ -8467,7 +8505,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	double KEi = KEi1 + KEi2;
 	double KEf = KEf1 + KEf2;
 
-	double testE = KEi - KEf - deltaKE + dKE;
+	double testE = KEi - KEf - deltaKE - dKE;
 
 	if (fabs(testE) > DEBUG_THRESH*KEi) {
 	  std::cout << std::endl << std::string(70, '-') << std::endl
@@ -8487,10 +8525,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     } // loop over particles
 
 
-  } // end: Direct, Weight, or Hybrid for use_elec>=0
+  } // end: electron interactions for Direct, Weight, or Hybrid for use_elec>=0
 
 
+  //======================================================================
   // For debugging
+  //======================================================================
   //
   if (debugFC and outdbg) {
     if (countE.size()) {
@@ -8505,8 +8545,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	   << std::endl << std::string(70, '-') << std::endl;
   }
 
-  //
+  //======================================================================
   // Cross-section debugging
+  //======================================================================
   //
   if (CROSS_DBG && id==0) {
     if (nextTime_dbg <= tnow && nCnt_dbg < nCel_dbg)
@@ -8531,7 +8572,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       }
   }
 
+  //======================================================================
   // Collision diagnostics
+  //======================================================================
   //
   double KEtot, KEdspC, KEdspE = 0.0;
 
@@ -8571,9 +8614,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     KEdspE = computeEdsp(cell);
   }
 
+  //======================================================================
   // Assign cooling time steps
+  //======================================================================
   //
-
   double totalKE = KEdspE + massC*KEdspC;
 
   if (use_delt>=0) {
@@ -8586,9 +8630,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     for (auto i : cell->bods) cell->Body(i)->dattrib[use_delt] = dtE;
   }
 
-  //
-  // Done
-  //
+  //======================================================================
+  // DONE
+  //======================================================================
 }
 
 double CollideIon::computeEdsp(pCell* cell)
@@ -13082,6 +13126,17 @@ void CollideIon::processConfig()
     ALWAYS_APPLY =
       cfg.entry<bool>("ALWAYS_APPLY", "Attempt to remove excess energy from all interactions", false);
 
+    if (!ExactE and ALWAYS_APPLY) {
+      ALWAYS_APPLY = false;
+      if (myid==0) {
+	std::cout << "ALWAYS_APPLY should only be used with ENERGY_ES"
+		  << "; I am disabling this option.  If you are sure"
+		  << std::endl
+		  << "that you want this, change the code at line "
+		  << __LINE__ << " in file " << __FILE__ << std::endl;
+      }
+    }
+
     COLL_SPECIES =
       cfg.entry<bool>("COLL_SPECIES", "Print collision count by species for debugging", false);
 
@@ -13502,7 +13557,6 @@ void CollideIon::post_cell_loop(int id)
   if (aType == Hybrid and NOCOOL and KE_NOCOOL_CHECK) {
     unsigned good = 0;
     unsigned bad  = 0;
-    unsigned cnt  = 0;
 
     for (auto & v : cellEg)  { good += v; v = 0; }
     for (auto & v : cellEb)  { bad  += v; v = 0; }
