@@ -171,8 +171,8 @@ def plot_data(nametag, window, order, msz, dot, scr):
                 ncol = 13
             if line.find("N(nn)") >= 0: 
                 ncol = 16
-            if line.find("EratC") >= 0: 
-                tail = 7
+            if line.find("EratC") >= 0 or line.find("Efrac") >= 0: 
+                tail = 12
         if line.find('[1]')>=0:     # Get the column indices
             toks = line.translate(trans).split()
             for i in range(head, len(toks)-tail):
