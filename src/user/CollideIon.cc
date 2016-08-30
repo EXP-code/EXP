@@ -144,7 +144,7 @@ static bool KE_DEBUG          = true;
 
 // KE debugging threshold for triggering diagnostic output
 //
-static double DEBUG_THRESH    = 1.0e-09;
+static double DEBUG_THRESH    = 1.0e-08;
 
 // Tally ionization potential with energy loss during recombination
 //
@@ -6382,74 +6382,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->vel[k] = v2[k];
 	}
       }
-
-      // Now, scatter electrons and ions
-      //
-      if (Ion1Frac>0.0) {
-
-	InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
-
-	ke1 = ke2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-	  v1[k]  = p1->vel[k];	// Particle 1 is the ion
-				// Particle 2 is the elctron
-	  v2[k]  = p2->dattrib[use_elec+k];
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
-	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion1 | Scatter, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  for (int k=0; k<3; k++) {
-	    p1->vel[k] = v1[k];
-	    p2->dattrib[use_elec+k] = v2[k];
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
-      }
-
-      if (Ion2Frac>0.0) {
-
-	InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
-
-	ke1 = ke2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-				// Particle 1 is the elctron
-	  v1[k]  = p1->dattrib[use_elec+k];
-	  v2[k]  = p2->vel[k];	// Particle 2 is the ion
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
-	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion2 | Scatter, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = v1[k];
-	    p2->vel[k] = v2[k];
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
-      }
     }
     // END: NeutFrac>0
     else {
@@ -8402,9 +8334,30 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  if (!AlgOrth or !algok) {
 	    double qT = v1u1 * q;
 	    if (v1i2 > 0.0) qT /= v1i2;
-	    vrat =
-	      ( -qT + std::copysign(1.0, qT) *
-		sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	    // Disable Taylor expansion.  Something is not working
+	    // correctly with expansion.  Convergence?
+	    //
+	    // if (q<0.999) {
+	    if (q<1.1) {
+	      vrat = ( -qT + std::copysign(1.0, qT) *
+		  sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	    } else {		// Taylor expansion
+	      double x = v1u1, y = b1f2, ep = 1.0 - q;
+	      if (v1i2 > 0.0) { x /= v1i2; y /= v1i2; }
+	      double x2 = x  * x,   y2 = y  * y,    ep2 = ep * ep;
+	      double x3 = x2 * x,   x4 = x2 * x2,    y3 = y2 * y;
+	      double x5 = x2 * x3,  x6 = x3 * x3,    y4 = y2 * y2;
+	      double x7 = x3 * x4, ep3 = ep * ep2;
+
+	      vrat = 0.5*(1.0 + y)/x -
+		0.125*(1.0 - 4.0*x2 + 2.0*y + y2)*ep/x3 +
+		0.0625*(1.0 - 6.0*x2 + 8.0*x4 + (3.0 - 8.0*x2)*y +
+			(3.0 - 2*x2)*y2 + y3)*ep2/x5 -
+		0.0078125*(5.0 - 40.0*x2 + 96.0*x4 - 64.0*x6 +
+			   (96.0*x4 - 96.0*x2 + 20.0)*y +
+			   (16.0*x4 - 72.0*x2 + 30.0)*y2 +
+			   (20.0 - 16.0*x2)*y3 + 5.0*y4)*ep3/x7;
+	    }
 	  }
 
 	  // New velocities in inertial frame
@@ -8444,7 +8397,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  //
 	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
 
-	  if ( fabs(Efin - Ebeg) > 1.0e-12*(Ebeg) ) {
+	  if ( fabs(Efin - Ebeg) > 1.0e-8*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
 		      << " Efin="  << Efin
@@ -8473,7 +8426,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    double KEcom = 0.0;
 
 	    for (int k=0; k<3; k++) {
-	      vcom[k] = (m1*u1[k] + m2*u2[k]);
+	      vcom[k] = (m1*u1[k] + m2*u2[k])/mt;
 	      vrel[k] = u1[k] - u2[k];
 	      KEcom  += vrel[k] * vrel[k];
 	    }
