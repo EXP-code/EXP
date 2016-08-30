@@ -144,7 +144,7 @@ static bool KE_DEBUG          = true;
 
 // KE debugging threshold for triggering diagnostic output
 //
-static double DEBUG_THRESH    = 1.0e-09;
+static double DEBUG_THRESH    = 1.0e-08;
 
 // Tally ionization potential with energy loss during recombination
 //
@@ -6382,74 +6382,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	  p2->vel[k] = v2[k];
 	}
       }
-
-      // Now, scatter electrons and ions
-      //
-      if (Ion1Frac>0.0) {
-
-	InteractData d(m1, atomic_weights[0], W1, W2, q, Z1, Z2, p1, p2);
-
-	ke1 = ke2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-	  v1[k]  = p1->vel[k];	// Particle 1 is the ion
-				// Particle 2 is the elctron
-	  v2[k]  = p2->dattrib[use_elec+k];
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
-	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion1 | Scatter, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  for (int k=0; k<3; k++) {
-	    p1->vel[k] = v1[k];
-	    p2->dattrib[use_elec+k] = v2[k];
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p1);
-      }
-
-      if (Ion2Frac>0.0) {
-
-	InteractData d(atomic_weights[0], m2, W1, W2, q, Z1, Z2, p1, p2);
-
-	ke1 = ke2 = 0.0;
-
-	for (int k=0; k<3; k++) {
-				// Particle 1 is the elctron
-	  v1[k]  = p1->dattrib[use_elec+k];
-	  v2[k]  = p2->vel[k];	// Particle 2 is the ion
-
-	  ke1   += v1[k] * v1[k];
-	  ke2   += v2[k] * v2[k];
-	}
-
-	if (ke1 > 0.0 and ke2 > 0.0) {
-	  KE_ KE(delE);
-
-	  scatterHybrid(d, KE, v1, v2);
-	  checkEnergyHybrid(d, KE, v1, v2, Ion2 | Scatter, id);
-	  if (NOCOOL and KE_NOCOOL_CHECK) testCnt[id]++;
-
-	  for (int k=0; k<3; k++) {
-	    p1->dattrib[use_elec+k] = v1[k];
-	    p2->vel[k] = v2[k];
-	  }
-	}
-
-	// Secondary electron-ion scattering
-	//
-	for (unsigned n=0; n<SECONDARY_SCATTER; n++) secondaryScatter(p2);
-      }
     }
     // END: NeutFrac>0
     else {
@@ -8402,9 +8334,30 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  if (!AlgOrth or !algok) {
 	    double qT = v1u1 * q;
 	    if (v1i2 > 0.0) qT /= v1i2;
-	    vrat =
-	      ( -qT + std::copysign(1.0, qT) *
-		sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	    // Disable Taylor expansion.  Something is not working
+	    // correctly with expansion.  Convergence?
+	    //
+	    // if (q<0.999) {
+	    if (q<1.1) {
+	      vrat = ( -qT + std::copysign(1.0, qT) *
+		  sqrt(qT*qT + (1.0 - q)*(q*b1f2/v1i2 + 1.0) ) )/(1.0 - q);
+	    } else {		// Taylor expansion
+	      double x = v1u1, y = b1f2, ep = 1.0 - q;
+	      if (v1i2 > 0.0) { x /= v1i2; y /= v1i2; }
+	      double x2 = x  * x,   y2 = y  * y,    ep2 = ep * ep;
+	      double x3 = x2 * x,   x4 = x2 * x2,    y3 = y2 * y;
+	      double x5 = x2 * x3,  x6 = x3 * x3,    y4 = y2 * y2;
+	      double x7 = x3 * x4, ep3 = ep * ep2;
+
+	      vrat = 0.5*(1.0 + y)/x -
+		0.125*(1.0 - 4.0*x2 + 2.0*y + y2)*ep/x3 +
+		0.0625*(1.0 - 6.0*x2 + 8.0*x4 + (3.0 - 8.0*x2)*y +
+			(3.0 - 2*x2)*y2 + y3)*ep2/x5 -
+		0.0078125*(5.0 - 40.0*x2 + 96.0*x4 - 64.0*x6 +
+			   (96.0*x4 - 96.0*x2 + 20.0)*y +
+			   (16.0*x4 - 72.0*x2 + 30.0)*y2 +
+			   (20.0 - 16.0*x2)*y3 + 5.0*y4)*ep3/x7;
+	    }
 	  }
 
 	  // New velocities in inertial frame
@@ -8444,7 +8397,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  //
 	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
 
-	  if ( fabs(Efin - Ebeg) > 1.0e-12*(Ebeg) ) {
+	  if ( fabs(Efin - Ebeg) > 1.0e-8*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
 		      << " Efin="  << Efin
@@ -8473,7 +8426,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    double KEcom = 0.0;
 
 	    for (int k=0; k<3; k++) {
-	      vcom[k] = (m1*u1[k] + m2*u2[k]);
+	      vcom[k] = (m1*u1[k] + m2*u2[k])/mt;
 	      vrel[k] = u1[k] - u2[k];
 	      KEcom  += vrel[k] * vrel[k];
 	    }
@@ -8781,7 +8734,7 @@ collDiag::collDiag(CollideIon* caller) : p(caller)
   Esum.resize(nthrds, 0.0);
   Elec.resize(nthrds, 0.0);
   Edsp.resize(nthrds, 0.0);
-  Erat.resize(nthrds, 0.0);
+  Efrc.resize(nthrds, 0.0);
   Emas.resize(nthrds, 0.0);
   Epot.resize(nthrds, 0.0);
   delI.resize(nthrds, 0.0);
@@ -8811,6 +8764,7 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
       double cnt = 0.0;
       for (unsigned short C=1; C<Z+1; C++)
 	cnt += s->dattrib[p->hybrid_pos+1]*C;
+      Efrc[id] += mass * cnt;
       // mass *= cnt;
     } else {
       mass *= static_cast<double>(k.second - 1);
@@ -8832,7 +8786,6 @@ double collDiag::addCellElec(pCell* cell, int ue, int id)
 	ev1[j] /= m;
 	ev2[j] /= m;
 	Edsp[id] += 0.5 * m * (ev2[j] - ev1[j]*ev1[j]);
-	Erat[id] += m * ev1[j]*ev1[j]/ev2[j];
       }
     }
     Emas[id] += m;
@@ -8887,7 +8840,7 @@ void collDiag::gather()
   Elec_s = std::accumulate(Elec.begin(), Elec.end(), 0.0);
   Epot_s = std::accumulate(Epot.begin(), Epot.end(), 0.0);
   Edsp_s = std::accumulate(Edsp.begin(), Edsp.end(), 0.0);
-  Erat_s = std::accumulate(Erat.begin(), Erat.end(), 0.0);
+  Efrc_s = std::accumulate(Efrc.begin(), Efrc.end(), 0.0);
   Emas_s = std::accumulate(Emas.begin(), Emas.end(), 0.0);
   delI_s = std::accumulate(delI.begin(), delI.end(), 0.0);
   delE_s = std::accumulate(delE.begin(), delE.end(), 0.0);
@@ -8900,7 +8853,7 @@ void collDiag::gather()
   MPI_Reduce(&(z=Elec_s), &Elec_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Epot_s), &Epot_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Edsp_s), &Edsp_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
-  MPI_Reduce(&(z=Erat_s), &Erat_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+  MPI_Reduce(&(z=Efrc_s), &Efrc_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=Emas_s), &Emas_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=delI_s), &delI_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
   MPI_Reduce(&(z=delE_s), &delE_s,  1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
@@ -8923,7 +8876,7 @@ void collDiag::reset()
   std::fill(Elec.begin(), Elec.end(), 0.0);
   std::fill(Epot.begin(), Epot.end(), 0.0);
   std::fill(Edsp.begin(), Edsp.end(), 0.0);
-  std::fill(Erat.begin(), Erat.end(), 0.0);
+  std::fill(Efrc.begin(), Efrc.end(), 0.0);
   std::fill(Emas.begin(), Emas.end(), 0.0);
   std::fill(delI.begin(), delI.end(), 0.0);
   std::fill(delE.begin(), delE.end(), 0.0);
@@ -8978,7 +8931,7 @@ void collDiag::initialize()
 	    << "# clrE          cleared excess energy    " << std::endl
 	    << "# misE          missed excess energy     " << std::endl
 	    << "# EdspE         electron E dispersion    " << std::endl
-	    << "# EratC         electron velocity ratio  " << std::endl
+	    << "# Efrac         electron number fraction " << std::endl
 	    << "# Etotl         total kinetic energy     " << std::endl
 	    << "#"                                         << std::endl;
 
@@ -9039,7 +8992,7 @@ void collDiag::initialize()
 	    << std::setw(12) << "clrE  |"
 	    << std::setw(12) << "misE  |"
 	    << std::setw(12) << "EdspE |"
-	    << std::setw(12) << "EratC |"
+	    << std::setw(12) << "Efrac |"
 	    << std::setw(12) << "Etotl |"
 	    << " | " << std::endl;
 
@@ -9221,7 +9174,7 @@ void collDiag::print()
 	  << std::setw(12) << clrE_s
 	  << std::setw(12) << misE_s
 	  << std::setw(12) << Edsp_s
-	  << std::setw(12) << sqrt(Erat_s/Emas_s)
+	  << std::setw(12) << Efrc_s/Emas_s
 	  << std::setw(12) << Etot_c + Esum_s + Elec_s - delI_s - delE_s
 	  << " |" << std::endl;
     }
