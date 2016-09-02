@@ -17,6 +17,7 @@ import sys, getopt
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+import plotColl as pC
 
 def scanSeq(a):
         """ 
@@ -125,6 +126,12 @@ def plot_data(argv):
         print "  Final shape:", a.shape
         print "---------------------------------"
 
+        pC.readDB(argv[-1])
+        pc_time = pC.db['Time']
+        pc_frac = pC.db['Efrac']
+        pc_len  = len(pc_time)
+        if pc_len != len(pc_frac) or pc_len==0: pc_len = 0
+
         #
         # Species plot
         #
@@ -136,12 +143,16 @@ def plot_data(argv):
                 plt.semilogx(x, a[4], fmt, label='He')
                 plt.semilogx(x, a[5], fmt, label='He+')
                 plt.semilogx(x, a[6], fmt, label='He++')
+                if pc_len:
+                        plt.semilogx(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
                 plt.plot(x, a[2], fmt, label='H')
                 plt.plot(x, a[3], fmt, label='H+')
                 plt.plot(x, a[4], fmt, label='He')
                 plt.plot(x, a[5], fmt, label='He+')
                 plt.plot(x, a[6], fmt, label='He++')
+                if pc_len:
+                        plt.plot(pc_time*Tscl, pc_frac, fmt, label='e')
         plt.legend().draggable()
         if Temp: plt.xlabel('Temperature')
         else:
@@ -160,12 +171,16 @@ def plot_data(argv):
                 plt.loglog(x, a[4], fmt, label='He')
                 plt.loglog(x, a[5], fmt, label='He+')
                 plt.loglog(x, a[6], fmt, label='He++')
+                if pc_len:
+                        plt.loglog(pc_time*Tscl, pc_frac, fmt, label='e')
         else:
                 plt.semilogy(x, a[2], fmt, label='H')
                 plt.semilogy(x, a[3], fmt, label='H+')
                 plt.semilogy(x, a[4], fmt, label='He')
                 plt.semilogy(x, a[5], fmt, label='He+')
                 plt.semilogy(x, a[6], fmt, label='He++')
+                if pc_len:
+                        plt.semilogy(pc_time*Tscl, pc_frac, fmt, label='e')
         #
         plt.legend().draggable()
         if Temp: plt.xlabel('Temperature')

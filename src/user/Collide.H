@@ -171,6 +171,16 @@ public:
   //! Upper thresh for reporting
   static unsigned numSanityFreq;
   
+  //! Toggle for deep debugging output for hybrid method (set to false
+  //! for production)
+  static constexpr bool init_dbg = true;
+
+  //! Initial time for deep debugging output
+  static constexpr double init_dbg_time = 0.0;
+
+  //! Species selection for deep debugging output
+  static constexpr unsigned short init_dbg_Z = 2;
+
   //@}
 
   //! Container for interaction list to add UI to data types

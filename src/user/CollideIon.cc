@@ -36,6 +36,8 @@ bool     CollideIon::ExactE   = false;
 bool     CollideIon::AlgOrth  = false;
 bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
+unsigned CollideIon::maxSelA  = 1000;
+unsigned CollideIon::maxSelB  = 1000;
 bool     CollideIon::E_split  = false;
 bool     CollideIon::distDiag = false;
 bool     CollideIon::elecDist = false;
@@ -325,8 +327,13 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "COLL_SPECIES"
 	      << (COLL_SPECIES ? "on" : "off")          << std::endl
 	      <<  " " << std::setw(20) << std::left << "COLL_LIMIT"
-	      << (collLim ? "on" : "off")               << std::endl
-	      <<  " " << std::setw(20) << std::left << "E_split"
+	      << (collLim ? "on" : "off")               << std::endl;
+    if (collLim)		// print collLim parameters
+    std::cout <<  " " << std::setw(20) << std::left << "maxSelA"
+	      << maxSelA                                << std::endl
+	      <<  " " << std::setw(20) << std::left << "maxSelB"
+	      << maxSelB                                << std::endl;
+    std::cout <<  " " << std::setw(20) << std::left << "E_split"
 	      << (E_split ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "TRACE_ELEC"
 	      << (TRACE_ELEC ? "on" : "off")            << std::endl
@@ -577,9 +584,13 @@ std::array<double, 3> CollideIon::cellMinMax
       medianVal = (*spl)(0.5);	      // Evaluate median
     }
 
+    std::pair<double, double> KEdspE = computeEdsp(cell);
     double KEtot, KEdspC;
     cell->KE(KEtot, KEdspC);
-    double sigma = sqrt(2.0*KEdspC);
+    
+    double sigma = KEdspC;
+    if (KEdspE.first>0.0) sigma += KEdspE.second/KEdspE.first;
+    sigma = sqrt(2.0*sigma);
 
     double P = 1.0/sqrt(static_cast<double>(bodies.size()));
     double Q = 1.0 - P;
@@ -1216,7 +1227,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      double b = 0.5*esu*esu*C1 /
 		std::max<double>(E1s[u]*eV, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      cc3.push_back(M_PI*b*b * eVels[u]);
+	      cc3.push_back(M_PI*b*b * eVels[u] / rvmax);
 	    }
 	    std::sort(cc3.begin(), cc3.end());
 
@@ -1228,6 +1239,21 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		cc3[1] * C2 * mfac *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+
+	      // Test
+	      if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z) {
+
+		std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+		std::ostringstream sout;
+
+		sout << " #1 [" << Z1 << ", " << Z2 << "] "
+		     << "("  << C1 << ", " << C2 << ") = ";
+		
+		out << "Time = " << std::setw(10) << tnow
+		    << sout.str() << csections[id][i1][i2][Interact::T(ion_elec, C1, C2)] << std::endl;
+	      }
+	      // End Test
+
 	    }
 	  }
 
@@ -1239,7 +1265,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      double b = 0.5*esu*esu*C2 /
 		std::max<double>(E2s[0]*eV, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      cc3.push_back(M_PI*b*b * eVels[u]);
+	      cc3.push_back(M_PI*b*b * eVels[u] / rvmax);
 	    }
 	    std::sort(cc3.begin(), cc3.end());
 
@@ -1251,6 +1277,21 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 		cc3[1] * C1 * mfac *
 		meanF[id][k1] * meanF[id][k2] / (tot*tot) *
 		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
+
+	      // Test
+	      if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z) {
+
+		std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+		std::ostringstream sout;
+
+		sout << " #2 [" << Z1 << ", " << Z2 << "] "
+		     << "("  << C1 << ", " << C2 << ") = ";
+		
+		out << "Time = " << std::setw(10) << tnow
+		    << sout.str() << csections[id][i2][i1][Interact::T(ion_elec, C2, C1)] << std::endl;
+	      }
+	      // End Test
+
 	    }
 	  }
 
@@ -5801,6 +5842,26 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
     double NN = N0 * cF;
 
+    //* BEGIN DEEP DEBUG *//
+    if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z and prob < 0.0) {
+
+      std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+
+      std::ostringstream sout;
+
+      sout << ", [" << Z1 << ", " << Z2 << "] "
+	   << "("  << labels[std::get<0>(itype)]
+	   << ", " << std::get<1>(itype)
+	   << ", " << std::get<2>(itype)
+	   << ")";
+      
+      out << "Time = " << std::setw(10) << tnow
+	  << sout.str()
+	  << ", prob = " << std::setw(10) << prob
+	  << ", NN = " << NN
+	  << std::endl;
+    }
+
     if (interFlag == neut_neut) {
       ctd1->nn[id][0] += cF;
       ctd1->nn[id][1] += NN;
@@ -5834,6 +5895,26 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 	ctd1->ie[id][0] += cF;
 	ctd1->ie[id][1] += NN;
 	Ion1Frac += cF;
+      }
+      //* BEGIN DEEP DEBUG *//
+      if (init_dbg and myid==0 and tnow > init_dbg_time and Z1 == init_dbg_Z and prob < 0.0) {
+	std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+	
+	std::ostringstream sout;
+	
+	sout << ", [" << Z1 << ", " << Z2 << "] "
+	     << "("  << labels[std::get<0>(itype)]
+	     << ", " << std::get<1>(itype)
+	     << ", " << std::get<2>(itype)
+	     << ")";
+	
+	out << "Time = " << std::setw(10) << tnow
+	    << sout.str()
+	    << ", cF = " << std::setw(10) << cF
+	    << ", NN = " << NN
+	    << ", #1 = " << ctd1->ie[id][0]
+	    << ", #2 = " << ctd2->ie[id][0]
+	    << std::endl;
       }
     }
 
@@ -8640,7 +8721,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 				// Add electronic potential energy
     collD->addCellPotl(cell, id);
   } else {
-    KEdspE = computeEdsp(cell);
+    KEdspE = computeEdsp(cell).second;
   }
 
   //======================================================================
@@ -8664,7 +8745,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   //======================================================================
 }
 
-double CollideIon::computeEdsp(pCell* cell)
+std::pair<double, double> CollideIon::computeEdsp(pCell* cell)
 {
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
   double m = 0.0, KEdspE = 0.0;
@@ -8699,7 +8780,7 @@ double CollideIon::computeEdsp(pCell* cell)
     }
   }
 
-  return KEdspE;
+  return std::pair<double, double>(m, KEdspE);
 }
 
 // Help class that maintains database of diagnostics
@@ -10206,6 +10287,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   sKeyDmap            eta, densM, densN, collP, nsigmaM, ncrossM;
   sKey2Amap           selcM;
 
+  // For debugging
+  //
+  constexpr bool allow_ntcdb = false;
+
   // Convert from CHIANTI to system units
   //
   const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
@@ -10338,193 +10423,12 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   } // END: DEBUG_SL diagnostic output
 
-  double meanDens = 0.0;
   meanLambda      = 0.0;
   meanCollP       = 0.0;
-
-  for (auto it1 : c->count) {
-
-    // Only compute if particles of this species is in the cell
-    //
-    if (it1.second) {
-
-      speciesKey i1 = it1.first;
-      ncrossM[i1]   = 0.0;
-      nsigmaM[i1]   = 0.0;
-
-      for (auto it2 : c->count) {
-
-	// Only compute if particles of this species is in the cell
-	//
-	if (it2.second) {
-
-	  speciesKey i2 = it2.first;
-
-	  sKeyPair k(i1, i2);
-
-	  for (auto & v : csections[id][i1][i2].v) {
-
-	    // Compute the computational cross section (that is, true
-	    // cross seciton scaled by number of true particles per
-	    // computational particle)
-	    //
-	    double crossT = 0.0;
-
-	    /*
-	    if (ntcdb[samp->mykey].Ready(k, v.first)) {
-	      v.second = crossT = ntcdb[samp->mykey].CrsVel(k, v.first, 0.5) * cunit / crm;
-	    } else
-	      crossT = v.second;
-	    */
-
-	    crossT = v.second;
-
-	    // Choose the trace species of the two (may be neither in
-	    // which case it doesn't matter)
-	    //
-	    if (densM[i2] <= densM[i1]) {
-	      crossT      *= (*Fn)[i2] * eta[i2];
-	      ncrossM[i1] += crossT;
-	      nsigmaM[i1] += densN[i2] * crossT;
-	    } else {
-	      crossT      *= (*Fn)[i1] * eta[i1];
-	      ncrossM[i2] += crossT;
-	      nsigmaM[i2] += densN[i1] * crossT;
-	    }
-
-	    // So, ncrossM is the superparticle cross section for each species
-
-	    // Sanity check debugging
-	    //
-	    if (v.second < 0.0 || std::isnan(v.second)) {
-	      cout << "INVALID CROSS SECTION! :: " << v.second
-		   << " #1 = (" << i1.first << ", " << i1.second << ")"
-		   << " #2 = (" << i2.first << ", " << i2.second << ")"
-		   << std::endl;
-
-	      v.second = 0.0; // Zero out
-
-	    } // END: sanity check debugging
-
-	  } // END: subspecies list
-	}
-      } // END: species loop 2
-    }
-  } // END: species loop 1
-
-  // Compute mean values
-  //
-  for (auto it1 : c->count) {
-
-    // Only compute if particles of this species is in the cell
-    //
-    if (it1.second) {
-
-      speciesKey i1 = it1.first;
-
-      // Sanity check debugging
-      //
-      if (ncrossM[i1] < 0 || std::isnan(ncrossM[i1])) {
-	cout << "INVALID CROSS SECTION! ::"
-	     << " (" << i1.first << ", " << i1.second << ")"
-	     << " nsigmaM = " << nsigmaM [i1]
-	     << " ncrossM = " << ncrossM [i1]
-	     << " Fn = "      <<   (*Fn) [i1] << endl;
-
-	std::cout << std::endl
-		  << std::setw(10) << "Species"
-		  << std::setw(20) << "Inter"
-		  << std::setw(16) << "x-section"
-		  << std::setw(16) << "sp mass"
-		  << std::setw(16) << "n*sigma"
-		  << std::setw(16) << "n*cross"
-		  << std::endl
-		  << std::setw(10) << "---------"
-		  << std::setw(16) << "---------"
-		  << std::setw(16) << "---------"
-		  << std::setw(16) << "---------"
-		  << std::setw(16) << "---------"
-		  << std::endl;
-
-	for (auto it : csections[id][i1]) {
-	  std::ostringstream sout1;
-	  sout1 << "(" << it.first.first << ", " << it.first.second << ")";
-	  for (auto v : it.second.v) {
-	    std::ostringstream sout2;
-	    sout2 << "(" << labels[std::get<0>(v.first)]
-		  << "," << std::get<1>(v.first)
-		  << "," << std::get<2>(v.first) << ")";
-	    cout << std::setw(10) << sout1.str()
-		 << std::setw(20) << sout2.str()
-		 << std::setw(16) << c->Mass(it.first)
-		 << std::setw(16) << nsigmaM[it.first]
-		 << std::setw(16) << ncrossM[it.first]
-		 << std::endl;
-	  }
-	}
-
-      } // END: sanity check debugging
-
-      // Collision probability
-      //
-      collP[i1] = nsigmaM[i1] * crm * tau;
-
-      meanDens   += densN[i1];
-      meanCollP  += densN[i1] * collP  [i1];
-      meanLambda += densN[i1] * nsigmaM[i1];
-    }
-  }
-
-
-  if (DEBUG_SL) {
-    std::cout << std::endl
-	      << std::setw(10) << "Species"
-	      << std::setw(16) << "count"
-	      << std::setw(16) << "sp mass"
-	      << std::setw(16) << "n*sigma"
-	      << std::setw(16) << "n*cross"
-	      << std::setw(16) << "Prob"
-	      << std::endl
-	      << std::setw(10) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::setw(16) << "---------"
-	      << std::endl;
-
-    for (auto it : c->count) {
-
-      // Only output if particles of this species is in the cell
-      //
-      if (it.second) {
-	double prob = densN[it.first] * ncrossM[it.first] * crm * tau;
-	std::ostringstream sout;
-	sout << "(" << it.first.first << ", " << it.first.second << ")";
-	cout << std::setw(10) << sout.str()
-	     << std::setw(16) << it.second
-	     << std::setw(16) << c->Mass(it.first)
-	     << std::setw(16) << nsigmaM[it.first]
-	     << std::setw(16) << ncrossM[it.first]
-	     << std::setw(16) << prob
-	     << std::endl;
-      }
-    }
-  }
 
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
   spTau[id]  = tau;
-
-  // This is the number density-weighted MFP (used for diagnostics
-  // only)
-  //
-  meanLambda  = meanDens/meanLambda;
-
-  // Number-density weighted collision probability (used for
-  // diagnostics only)
-  //
-  meanCollP  /= meanDens;
 
   // This is the per-species N_{coll}
   //
@@ -10556,16 +10460,19 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      continue;
 	    }
 
-	    crsvel = csections[id][k.first][k.second][v.first]/cunit
-	      * 3.0 * crm;
+	    double crs0 = csections[id][k.first][k.second][v.first];
 
-	    if (samp) {
-	      if (ntcdb[samp->mykey].Ready(k, v.first))
-		crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	    }
-	    else {
-	      if (ntcdb[c->mykey].Ready(k, v.first))
-		crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
+	    crsvel = crs0/cunit * 3.0 * crm;
+
+	    if (allow_ntcdb) {
+	      if (samp) {
+		if (ntcdb[samp->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
+	      }
+	      else {
+		if (ntcdb[c->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
+	      }
 	    }
 
 	    // Probability of an interaction of between particles of type 1
@@ -10575,8 +10482,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	    if (densM[i1]>=densM[i2]) {
 	      Prob = (*Fn)[i2] * eta[i2] * cunit * crsvel * tau / volc;
+	      meanCollP += densM[i2] * (*Fn)[i2] * eta[i2] * crs0;
 	    } else {
 	      Prob = (*Fn)[i1] * eta[i1] * cunit * crsvel * tau / volc;
+	      meanCollP += densM[i1] * (*Fn)[i1] * eta[i1] * crs0;
 	    }
 
 	    // Count _pairs_ of identical particles only
@@ -10638,6 +10547,10 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
   }
 
+  // This is the number density-weighted MFP (used for diagnostics
+  // only)
+  //
+  meanLambda  = 1.0/meanCollP;
 
   if (0) {
     unsigned nbods  = c->bods.size();
@@ -10651,27 +10564,31 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
   }
 
   if (collLim) {		// Sanity clamp
-    const double maxSel = 5000.0;
-    const double cpbodM = 100.0;
 
     unsigned     nbods  = c->bods.size();
     double       cpbod  = static_cast<double>(totalNsel)/nbods;
 
     colSc[id] = 1.0;
 
-    if (totalNsel > maxSel or cpbod > cpbodM) {
+    if (totalNsel > maxSelA or cpbod > maxSelB) {
       std::get<0>(clampdat[id]) ++;
       std::get<1>(clampdat[id]) += cpbod;
       std::get<2>(clampdat[id])  = std::max<double>(cpbod, std::get<2>(clampdat[id]));
 
-      colSc[id] = std::min<double>(maxSel/totalNsel, cpbodM/cpbod);
+      colSc[id] = std::min<double>(maxSelA/totalNsel, maxSelB/cpbod);
 
       totalNsel = 0;
       for (auto u : selcM) {
 	for (auto v : u.second) {
 	  for (auto w : v.second.v) {
+	    // Old algorithm: scale to threshold for all interaction types
+	    /*
 	    w.second *= colSc[id];
 	    selcM[u.first][v.first][w.first] = static_cast<unsigned>(floor(w.second+0.5));
+	    */
+	    // Clamp to threshold for each interaction type
+	    selcM[u.first][v.first][w.first] = std::min<unsigned>
+	      (maxSelA, static_cast<unsigned>(floor(w.second+0.5)));
 	    totalNsel += selcM[u.first][v.first][w.first];
 	  }
 	}
@@ -10722,14 +10639,16 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 		csections[id][k.first][k.second][v.first]/cunit
 		* 3.0 * crm;
 
-	      if (samp) {
-		if (ntcdb[samp->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
-	      } else {
-		if (ntcdb[c->mykey].Ready(k, v.first))
-		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
+	      if (allow_ntcdb) {
+		if (samp) {
+		  if (ntcdb[samp->mykey].Ready(k, v.first))
+		    crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
+		} else {
+		  if (ntcdb[c->mykey].Ready(k, v.first))
+		    crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
+		}
 	      }
-
+		
 	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
 
 	      if (densM[i1]>=densM[i2]) {
@@ -10772,6 +10691,142 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 	      << std::endl << std::endl;
 
   } // END: DEBUG_SL output
+
+
+  //* BEGIN DEEP DEBUG *//
+  if (init_dbg and myid==0 and tnow > init_dbg_time) {
+
+    std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+
+    out << std::endl
+	<< std::string(72, '-') <<  std::endl
+	<< "Time = " << tnow    << std::endl
+	<< std::string(72, '-') << std::endl
+	<< std::right
+	<< std::setw(20) << "Species"
+	<< std::setw(20) << "Interact"
+	<< std::setw(16) << "N sel"
+	<< std::setw(16) << "Prob 0"
+	<< std::setw(16) << "Prob 1"
+	<< std::setw(16) << "Dens"
+	<< std::setw(16) << "Crs*Vel"
+	<< std::setw(16) << "Crs*Vel [0]"
+	<< std::endl
+	<< std::setw(20) << "--------"
+	<< std::setw(20) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::setw(16) << "--------"
+	<< std::endl;
+
+    for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
+
+      // Only output if particles of this species is in the cell
+      //
+      if (it1->second) {
+
+	for (it2=c->count.begin(); it2!=c->count.end(); it2++) {
+
+	  // Only output if particles of this species is in the cell
+	  //
+	  if (it2->second) {
+
+	    speciesKey i1 = it1->first;
+	    speciesKey i2 = it2->first;
+	    sKeyPair   k(i1, i2);
+
+	    for (auto v : selcM[i1][i2].v) {
+
+	      double crsvel1 =
+		csections[id][k.first][k.second][v.first]/cunit
+		* 3.0 * crm;
+
+	      double crsvel0 = csections[id][k.first][k.second][v.first];
+
+	      double crsvel = crsvel1;
+
+	      if (samp) {
+		if (ntcdb[samp->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[samp->mykey].CrsVel(k, v.first, ntcThresh);
+	      } else {
+		if (ntcdb[c->mykey].Ready(k, v.first))
+		  crsvel = ntcdb[c->mykey].CrsVel(k, v.first, ntcThresh);
+	      }
+
+	      double Prob0 = 0.0, Prob1 = 0.0, Dens = 0.0;
+
+
+	      if (densM[i1]>=densM[i2]) {
+		Prob0 = (*Fn)[i1] * eta[i1] * cunit * crsvel  * tau / volc;
+		Prob1 = (*Fn)[i1] * eta[i1] * cunit * crsvel1 * tau / volc;
+		Dens  = densM[i2];
+	      } else {
+		Prob0 = (*Fn)[i2] * eta[i2] * cunit * crsvel  * tau / volc;
+		Prob1 = (*Fn)[i2] * eta[i2] * cunit * crsvel1 * tau / volc;
+		Dens  = densM[i1];
+	      }
+
+	      std::ostringstream sout1;
+	      sout1 << '(' << std::setw(2)  << i1.first
+		    << '|' << std::setw(2)  << i2.first
+		    << ')';
+	      std::ostringstream sout2;
+	      sout2 << '[' << labels[std::get<0>(v.first)]
+		    << ',' << std::get<1>(v.first)
+		    << ',' << std::get<2>(v.first) << ']';
+
+	      out << std::setw(20) << sout1.str()
+		  << std::setw(20) << sout2.str()
+		  << std::setw(16) << v.second
+		  << std::setw(16) << Prob0
+		  << std::setw(16) << Prob1
+		  << std::setw(16) << Dens
+		  << std::setw(16) << crsvel
+		  << std::setw(16) << crsvel0
+		  << std::endl;
+	    }
+	  }
+	}
+      }
+    }
+
+    out << std::endl
+	<< "  Mean Coll P = " << meanCollP
+	<< "  Mean Lambda = " << meanLambda
+	<< "  MFP/L = "       << meanLambda/pow(volc, 0.333333333)
+	<< "  totalNsel = "   << totalNsel
+	<< std::endl << std::string(72, '-') <<  std::endl
+	<< std::setw(4)  << "Z"
+	<< std::setw(4)  << "C"
+	<< std::setw(12) << "Fraction"
+	<< std::endl;
+
+    for (auto v : meanF[id]) {
+      out << std::setw(4)  << v.first.first
+	  << std::setw(4)  << v.first.second
+	  << std::setw(12) << v.second
+	  << std::endl;
+    }
+
+    out << std::endl << std::left
+	<< std::setw(14) << "Species"
+	<< std::setw( 8) << "Count"
+	<< std::endl;
+
+    for (auto it=c->count.begin(); it!=c->count.end(); it++) {
+      std::ostringstream sout;
+      sout << "(" << it->first.first << ", " << it->first.second << ")";
+      out << std::setw(14) << sout.str()
+	  << std::setw( 8) << it->second
+	  << std::endl;
+    }
+
+    out << std::string(72, '-') <<  std::endl;
+  }
+  //* END DEEP DEBUG *//
 
   return selcM;
 }
@@ -13240,6 +13295,12 @@ void CollideIon::processConfig()
 
     collLim =
       cfg.entry<bool>("COLL_LIMIT", "Limit number of collisions per particle", false);
+
+    maxSelA =
+      cfg.entry<unsigned>("COLL_LIMIT_ABS", "Limiting number of collisions per cell", 5000);
+
+    maxSelB =
+      cfg.entry<unsigned>("COLL_LIMIT_REL", "Limiting number of collisions per body", 400);
 
     energy_scale =
       cfg.entry<double>("COOL_SCALE", "If positive, reduce the inelastic energy by this fraction", -1.0);

@@ -538,7 +538,7 @@ private:
   //@}
 
   //! Compute electron dispersion KE per cell
-  double computeEdsp(pCell* cell);
+  std::pair<double, double> computeEdsp(pCell* cell);
 
 public:
 
@@ -968,6 +968,8 @@ public:
   static double   Tmax;
   static unsigned Nnum;
   static unsigned Tnum;
+  static unsigned maxSelA;
+  static unsigned maxSelB;
   static unsigned NoDelC;
   static string   cache;
   static bool     equiptn;
