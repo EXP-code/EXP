@@ -241,7 +241,8 @@ std::ostream& operator<< (std::ostream& out, const sKeyPair& t)
    if (0) {
      std::ostringstream sout; sout << "<" << val << ">";
 
-     std::cout << "Adding " << std::setw(16) << sout.str() << " to " << indx 
+     std::cout << "Adding " << std::setw(16) << sout.str() << " to "
+	       << indx << " " << intr
 	       << " [" << db[indx][intr].datums() 
 	       << "/"  << db[indx][intr].target() << "]";
      if (db[indx][intr].full()) 

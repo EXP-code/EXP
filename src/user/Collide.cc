@@ -1248,6 +1248,22 @@ void * Collide::collide_thread(void * arg)
 	    std::cout << "ntc singleton" << std::endl;
 	  }
 
+	  //* BEGIN DEBUG *//
+	  if (init_dbg and myid==0 and tnow > init_dbg_time and i1.first == init_dbg_Z) {
+	    std::ofstream out(runtag + ".heplus_test_cross", ios::out | ios::app);
+	    std::ostringstream sout;
+
+	    sout << ", [" << i1.first << ", " << i2.first << "] "
+		 << "("  << labels[std::get<0>(maxT)]
+		 << ", " << std::get<1>(maxT)
+		 << ", " << std::get<2>(maxT)
+		 << ")";
+	    
+	    out << "Time = " << std::setw(10) << tnow
+		<< sout.str()
+		<< ", Nsel = " << nselM[i1][i2][maxT] << std::endl;
+	  }
+
 	}
 
 	// Loop over total number of candidate collision pairs
