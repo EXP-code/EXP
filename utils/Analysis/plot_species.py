@@ -97,9 +97,11 @@ def plot_data(argv):
                 if line.find('#') < 0:
                         pvec = [float(v) for v in line.split()]
                         lvec = len(pvec)
+                        # Assign size of first data line as default
+                        #
+                        if nvec==0: nvec = lvec
                         # Enforce equal size vectors; data line integrity
                         #
-            if nvec==0: nvec = lvec
                         if nvec == lvec: data.append(pvec)
         a = np.array(data).transpose()
         #
