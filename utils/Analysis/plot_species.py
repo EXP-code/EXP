@@ -92,9 +92,15 @@ def plot_data(argv):
                 print "Error opening file <{}>".format(argv[-1] + ".species")
                 return
         data = []
+        nvec = 0
         for line in file:
                 if line.find('#') < 0:
-                        data.append([float(v) for v in line.split()])
+                        pvec = [float(v) for v in line.split()]
+                        lvec = len(pvec)
+                        # Enforce equal size vectors; data line integrity
+                        #
+            if nvec==0: nvec = lvec
+                        if nvec == lvec: data.append(pvec)
         a = np.array(data).transpose()
         #
         # Search for appended sequence(s)

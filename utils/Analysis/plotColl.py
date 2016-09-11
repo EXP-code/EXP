@@ -71,37 +71,36 @@ def readDB(tag):
     indx = head + stanza*nspc
     for i in range(indx,len(labs)): db[labs[i]] = []
 
+    # Number of fields for checking integrity of data line
+    #
+    nlab = len(labs)
+
     # Process the data from the file
+    #
     for line in file:
         toks = re.findall('([\+\-]*(?:inf|INF|nan|NAN|[\+\-0-9.eE]+))', line)
-        for i in range(head): db[labs[i]].append(float(toks[i]))
-        for j in range(nspc):
-            indx = head + stanza*j
-            for k in range(stanza):
-                db[species[j]][labs[indx+k]].append(float(toks[indx+k]))
-        indx = head + stanza*nspc
-        for i in range(indx,len(toks)):
-            try:
-                db[labs[i]].append(float(toks[i]))
-            except:
-                print("Trouble reading float value??")
-                print("Toks[{}]={}".format(len(toks), toks))
-                print("Line=", line)
-                print("labels[{}]={}".format(len(labs), labs))
-                print("Attempting to read column {} out of {} expect {}".format(i, len(toks), len(labs)))
-                if len(toks) != len(labs):
-                    for n in range(max(len(toks), len(labs))):
-                        lab1 = "***"
-                        lab2 = "***"
-                        if n < len(labs): lab1 = labs[n]
-                        if n < len(toks): lab2 = toks[n]
-                        print("{:20s} {:20s}".format(lab1, lab2))
-                else:
-                    print("Variable={} token={}".format(labs[i], toks[i]))
-                print("Unexpected error: {}".format(sys.exc_info()[0]))
-                raise
+        nvec = len(toks)
+        # Check number of fields with expected
+        #
+        if nvec == nlab:
+            for i in range(head): db[labs[i]].append(float(toks[i]))
+            for j in range(nspc):
+                indx = head + stanza*j
+                for k in range(stanza):
+                    db[species[j]][labs[indx+k]].append(float(toks[indx+k]))
+                indx = head + stanza*nspc
+                for i in range(indx,len(toks)):
+                    try:
+                        db[labs[i]].append(float(toks[i]))
+                    except:
+                        print("Trouble reading float value??")
+                        print("Toks[{}]={}".format(len(toks), toks))
+                        print("Line=", line)
+                        print("labels[{}]={}".format(len(labs), labs))
+                        print("Attempting to read column {} out of {} expect {}".format(i, len(toks), len(labs)))
 
     # Convert lists to numpy arrays
+    #
     for k in db:
         if k in species:
             for j in db[k]:
