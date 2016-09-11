@@ -10423,16 +10423,23 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
   } // END: DEBUG_SL diagnostic output
 
-  meanLambda      = 0.0;
-  meanCollP       = 0.0;
-
   // Cache time step for estimating "over" cooling timestep is use_delt>=0
   //
   spTau[id]  = tau;
 
   // This is the per-species N_{coll}
   //
-  totalNsel = 0.0;
+  totalNsel  = 0.0;
+
+  // Diagnostics to be returned
+  //
+  meanLambda = 0.0;
+  meanCollP  = 0.0;
+
+  // Normalization for meanF
+  //
+  double totalF = 0.0;
+  for (auto v : meanF[id]) totalF += v.second;
 
   std::map<speciesKey, unsigned>::iterator it1, it2;
 
@@ -10482,10 +10489,12 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
 
 	    if (densM[i1]>=densM[i2]) {
 	      Prob = (*Fn)[i2] * eta[i2] * cunit * crsvel * tau / volc;
-	      meanCollP += densM[i2] * (*Fn)[i2] * eta[i2] * crs0;
+	      speciesKey t1(i1); t1.second = std::get<1>(v.first) + 1;
+	      meanCollP += meanF[id][t1] * densM[i2] * (*Fn)[i2] * crs0;
 	    } else {
 	      Prob = (*Fn)[i1] * eta[i1] * cunit * crsvel * tau / volc;
-	      meanCollP += densM[i1] * (*Fn)[i1] * eta[i1] * crs0;
+	      speciesKey t2(i2); t2.second = std::get<2>(v.first) + 1;
+	      meanCollP += meanF[id][t2] * densM[i1] * (*Fn)[i1] * crs0;
 	    }
 
 	    // Count _pairs_ of identical particles only
