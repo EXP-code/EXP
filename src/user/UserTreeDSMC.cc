@@ -1161,7 +1161,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 	      << setw(14) << "Cells"
 	      << setw(14) << "MFP/size"
 	      << setw(14) << "Flight/size"
-	      << setw(14) << "Collions/cell"
+	      << setw(14) << "Coll/cell"
 	      << setw(14) << "Nsel/Number"
 	      << setw(14) << "Energy ratio"
 	      << setw(14) << "Excess ratio"

@@ -20,13 +20,16 @@ public:
 protected:
 
   //! The cross-section database
-  xSection atomicdata;
+  xSection atomicdata, iondata;
 
   //! Internal interpolation
   double interpolate(const std::map<double, double>& data, double x);
 
 public:
   
+  //! Charged particle type
+  enum CPtype { electron, proton };
+
   //! Constructor
   Elastic();
 
@@ -39,14 +42,26 @@ public:
       Similarly, if you ask for a set that does not exist, data for
       the closest Z is used.
   */
-  double operator()(unsigned short Z, double x)
+  double operator()(unsigned short Z, double x, CPtype type=electron)
   {
     // Bohr cross section (pi*a_0^2) in nm
     const double b_cross = 0.00879735542978;
     Z = std::max<unsigned short>(Z, 1);
-    xSection::const_iterator i = atomicdata.lower_bound(Z);
-    if (i==atomicdata.end()) --i;
-    return b_cross * interpolate(i->second, x);
+    if (type == electron) {
+      if (atomicdata.find(Z)==atomicdata.end()) return 0.0;
+      xSection::const_iterator i = atomicdata.lower_bound(Z);
+      if (i==atomicdata.end()) --i;
+      return b_cross * interpolate(i->second, x);
+    } else {
+      if (iondata.find(Z)==iondata.end()) return 0.0;
+      // Make sure energy is on grid
+      x = log10(x);
+      if (x > iondata[Z].rbegin()->first) return 0.0;
+      // Ok . . . do the interpolation
+      xSection::const_iterator i = iondata.lower_bound(Z);
+      if (i==iondata.end()) --i;
+      return b_cross * pow(10.0, interpolate(i->second, x));
+    }
   }
 
 };

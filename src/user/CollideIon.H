@@ -66,7 +66,7 @@ public:
 
   //@{
   //! Vectors for each type of diagnostic by thread id
-  IDVP nn, ne, ie, ff, CE, CI, RR, dv;
+  IDVP nn, ne, np, ie, ff, CE, CI, RR, dv;
   IDVD eV_av, eV_max, eV_min;
   IDVI eV_N, eV_10;
   //@}
@@ -75,7 +75,7 @@ protected:
 
   //@{
   //! Variables to hold processes collective reductions
-  UDDA          nn_s, ne_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
+  UDDA          nn_s, ne_s, np_s, ie_s, ff_s, CE_s, CI_s, RR_s, dv_s;
   double        eV_av_s, eV_max_s, eV_min_s, eV_N_s, eV_10_s;
   //@}
   
@@ -108,6 +108,7 @@ public:
 
     nn.resize(nthrds, zero);
     ne.resize(nthrds, zero);
+    np.resize(nthrds, zero);
     ie.resize(nthrds, zero);
     ff.resize(nthrds, zero);
     CE.resize(nthrds, zero);
@@ -127,6 +128,7 @@ public:
   {
     std::fill(nn.begin(), nn.end(), zero);
     std::fill(ne.begin(), ne.end(), zero);
+    std::fill(np.begin(), np.end(), zero);
     std::fill(ie.begin(), ie.end(), zero);
     std::fill(ff.begin(), ff.end(), zero);
     std::fill(CE.begin(), CE.end(), zero);
@@ -147,6 +149,7 @@ public:
   {
     nn_s     =  accum(nn);
     ne_s     =  accum(ne);
+    np_s     =  accum(np);
     ie_s     =  accum(ie);
     ff_s     =  accum(ff);
     CE_s     =  accum(CE);
@@ -173,6 +176,7 @@ public:
   {
     syncUDDA(nn_s);
     syncUDDA(ne_s);
+    syncUDDA(np_s);
     syncUDDA(ie_s);
     syncUDDA(ff_s);
     syncUDDA(CE_s);
@@ -421,26 +425,29 @@ private:
     any_type    = 0,
     neut_neut   = 1,
     neut_elec   = 2,
-    ion_elec    = 3,
-    free_free   = 4,
-    colexcite   = 5,
-    ionize      = 6,
-    recomb      = 7,
-    elec_elec   = 8,
+    neut_prot   = 3,
+    ion_elec    = 4,
+    free_free   = 5,
+    colexcite   = 6,
+    ionize      = 7,
+    recomb      = 8,
+    elec_elec   = 9,
     neut_neut_1 = 101,
     neut_elec_1 = 102,
-    ion_elec_1  = 103,
-    free_free_1 = 104,
-    colexcite_1 = 105,
-    ionize_1    = 106,
-    recomb_1    = 107,
+    neut_prot_1 = 103,
+    ion_elec_1  = 104,
+    free_free_1 = 105,
+    colexcite_1 = 106,
+    ionize_1    = 107,
+    recomb_1    = 108,
     neut_neut_2 = 201,
     neut_elec_2 = 202,
-    ion_elec_2  = 203,
-    free_free_2 = 204,
-    colexcite_2 = 205,
-    ionize_2    = 206,
-    recomb_2    = 207
+    neut_prot_2 = 203,
+    ion_elec_2  = 204,
+    free_free_2 = 205,
+    colexcite_2 = 206,
+    ionize_2    = 207,
+    recomb_2    = 208
   };    
 
   //! Default electron-electron interaction type
@@ -604,7 +611,7 @@ protected:
 protected:
   
   //! Returns (min, mean, max) velocities in each cell
-  virtual std::array<double, 3> 
+  virtual std::pair< std::array<double, 3>, std::array<double, 3> >
   cellMinMax(pHOT* const tree, pCell* const cell);
 
   //@{
