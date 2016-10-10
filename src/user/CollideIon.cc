@@ -44,7 +44,7 @@ bool     CollideIon::elecDist = false;
 bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
-double   CollideIon::logL     = 10;
+double   CollideIon::logL     = 24.0;
 double   CollideIon::tolE     = 1.0e-6;
 double   CollideIon::TSCOOL   = 0.05;
 double   CollideIon::TSFLOOR  = 0.001;
@@ -1296,7 +1296,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	    std::sort(cc3.begin(), cc3.end());
 
-	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+	    double mfac = 4.0 * logL;
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k2.second = C2 + 1;
 
@@ -1334,7 +1334,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	    std::sort(cc3.begin(), cc3.end());
 
-	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+	    double mfac = 4.0 * logL;
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
 	      k1.second = C1 + 1;
 
@@ -1523,7 +1523,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      double b = 0.5*esu*esu*(i1.second - 1) /
 		std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      double mfac = 4.0*atomic_weights[0]/atomic_weights[i1.first] * logL;
+	      double mfac = 4.0 * logL;
+
 	      Cross1 = M_PI*b*b * eVel2 * ne2 * mfac;
 	    }
 	  }
@@ -1535,7 +1536,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      double b = 0.5*esu*esu*(i2.second - 1) /
 		std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      double mfac = 4.0*atomic_weights[0]/atomic_weights[i2.first] * logL;
+	      double mfac = 4.0 * logL;
+
 	      Cross2 = M_PI*b*b * eVel1 * ne1 * mfac;
 	    }
 	  }
@@ -1660,7 +1662,8 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	double b = 0.5*esu*esu*(k.second - 1) /
 	  std::max<double>(Eerg*mu, FloorEv*eV) * 1.0e7; // nm
 	b = std::min<double>(b, ips);
-	double mfac = 4.0*atomic_weights[0]/atomic_weights[k.first] * logL;
+	double mfac = 4.0 * logL;
+
 	Cross += M_PI*b*b * eVel * meanE[id] * mfac;
       }
 
@@ -1780,7 +1783,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    double b = 0.5*esu*esu*C1 /
 	      std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
-	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+	    double mfac = 4.0 * logL;
 	    for (unsigned short C2=1; C2<=Z2; C2++) {
 	      k2.second = C2 + 1;
 	      Cross1 += M_PI*b*b * eVel2 * C2 * mfac *
@@ -1803,7 +1806,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    double b = 0.5*esu*esu*C2 /
 	      std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	    b = std::min<double>(b, ips);
-	    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z2] * logL;
+	    double mfac = 4.0 * logL;
 	    for (unsigned short C1=1; C1<=Z1; C1++) {
 	      k1.second = C1 + 1;
 	      Cross2 += M_PI*b*b * eVel1 * C1 * mfac *
@@ -1831,7 +1834,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	      double b = 0.5*esu*esu*(i1.second - 1) /
 		std::max<double>(Eerg*m1/dof2, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      double mfac = 4.0*atomic_weights[0]/atomic_weights[i1.first] * logL;
+	      double mfac = 4.0 * logL;
 	      Cross1 = M_PI*b*b * eVel2 * ne2 * mfac;
 	    }
 	  }
@@ -1845,7 +1848,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	      double b = 0.5*esu*esu*(i2.second - 1) /
 		std::max<double>(Eerg*m2/dof1, FloorEv*eV) * 1.0e7; // nm
 	      b = std::min<double>(b, ips);
-	      double mfac = 4.0*atomic_weights[0]/atomic_weights[i2.first] * logL;
+	      double mfac = 4.0 * logL;
 	      Cross2 = M_PI*b*b * eVel1 * ne1 * mfac;
 	    }
 	  }
@@ -1901,7 +1904,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	double b = 0.5*esu*esu*(k.second - 1) /
 	  std::max<double>(Eerg*meanM[id], FloorEv*eV) * 1.0e7; // nm
 	b = std::min<double>(b, ips);
-	double mfac = 4.0*atomic_weights[0]/atomic_weights[k.first] * logL;
+	double mfac = 4.0 * logL;
 	Cross += M_PI*b*b * eVel * meanE[id] * mfac;
       }
 
@@ -2068,7 +2071,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+      double mfac = 4.0 * logL;
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * mfac;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
@@ -2087,7 +2090,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z2] * logL;
+      double mfac = 4.0 * logL;
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2125,7 +2128,7 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z2] * logL;
+      double mfac = 4.0 * logL;
       cross21 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2442,7 +2445,7 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
       double b = 0.5*esu*esu*(C1-1) /
 	std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+      double mfac = 4.0 * logL;
       cross12 = M_PI*b*b * eVel2 * ne2 * crossfac * cscl_[Z1] * mfac;
       dCross[id].push_back(cross12);
       dInter[id].push_back(ion_elec_1);
@@ -2461,7 +2464,7 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
       double b = 0.5*esu*esu*(C2-1) /
 	std::max<double>(kEe2[id]*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z2] * logL;
+      double mfac = 4.0 * logL;
       cross21 = M_PI*b*b * eVel1 * ne1 * crossfac * cscl_[Z2] * mfac;
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
@@ -2836,7 +2839,7 @@ double CollideIon::crossSectionHybrid(int id, pCell* const c,
       std::max<double>(kEe1[id]*eV, FloorEv*eV) * 1.0e7; // nm
     b = std::min<double>(b, ips);
 
-    double mfac = 4.0*atomic_weights[0]/atomic_weights[Z1] * logL;
+    double mfac = 4.0 * logL;
 
     double crs1 =
       M_PI*b*b * eVel2 * C2 * crossfac * cscl_[Z1] * mfac * cfac;
@@ -3077,7 +3080,7 @@ double CollideIon::crossSectionTrace(int id, pCell* const c,
       double b = 0.5*esu*esu*(C-1) /
 	std::max<double>(kEe*eV, FloorEv*eV) * 1.0e7; // nm
       b = std::min<double>(b, ips);
-      double mfac = 4.0*atomic_weights[0]/atomic_weights[Z] * logL;
+      double mfac = 4.0 * logL;
       crossS += M_PI*b*b * eVel * meanE[id] * crossfac * cscl_[Z] * mfac;
 
       tCrossMap.push_back(crossS);
