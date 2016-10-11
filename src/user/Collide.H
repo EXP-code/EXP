@@ -563,7 +563,13 @@ public:
   
   //! Print out additional CPU timing detail
   static bool TIMING;
-  
+
+  //! Enable verbose NTC diagnostics (default: false)
+  static bool DEBUG_NTC;
+
+  //! Enable full NTC distribution output (default: false)
+  static bool NTC_DIST;
+
   /** Use EPSM when mean free path/cell size ratio is below EPSMratio
       (default = -1.0, never) */
   static double EPSMratio;

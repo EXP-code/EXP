@@ -22,10 +22,6 @@ using namespace std;
 static bool CDEBUG     = false;	// Thread diagnostics, false for
 				// production
 
-static bool DEBUG_NTC  = false;	// Enable NTC diagnostics
-
-static bool NTC_DIST   = false;	// Enable NTC full distribution
-
 				// Use the original Pullin velocity 
 				// selection algorithm
 bool Collide::PULLIN   = false;
@@ -116,6 +112,13 @@ std::string Collide::Labels::def = "default";
 
 // Electron type tag
 const unsigned short Collide::electronTyp = 0;
+
+// Enable NTC diagnostics
+bool Collide::DEBUG_NTC         = false;
+
+// Enable NTC full distribution
+bool Collide::NTC_DIST          = false;
+
 
 extern "C"
 void *
