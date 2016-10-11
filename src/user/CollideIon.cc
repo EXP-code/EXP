@@ -206,11 +206,12 @@ static std::string interLabels[] =
     "Neutral-electron",		// 2
     "Neutral-proton",		// 3
     "Ion-electron",		// 4
-    "Free_free",		// 5
-    "Collisional",		// 6
-    "Ionization",		// 7
-    "Recombination",		// 8
-    "Electron-electron"		// 9
+    "Ion-ion",			// 5
+    "Free_free",		// 6
+    "Collisional",		// 7
+    "Ionization",		// 8
+    "Recombination",		// 9
+    "Electron-electron"		// 10
   };
 
 
@@ -494,6 +495,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   labels[neut_elec  ] = "neutral el";
   labels[neut_prot  ] = "neutral p+";
   labels[ion_elec   ] = "charged el";
+  labels[ion_ion    ] = "ion-ion sc";
   labels[free_free  ] = "free-free ";
   labels[colexcite  ] = "col excite";
   labels[ionize     ] = "ionization";
@@ -503,6 +505,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   labels[neut_elec_1] = "neutral el [1]";
   labels[neut_prot_1] = "neutral p+ [1]";
   labels[ion_elec_1 ] = "charged el [1]";
+  labels[ion_ion_1  ] = "ion-ion sc [1]";
   labels[free_free_1] = "free-free  [1]";
   labels[colexcite_1] = "col excite [1]";
   labels[ionize_1   ] = "ionization [1]";
@@ -512,6 +515,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
   labels[neut_elec_2] = "neutral el [2]";
   labels[neut_prot_2] = "neutral p+ [2]";
   labels[ion_elec_2 ] = "charged el [2]";
+  labels[ion_ion_2  ] = "ion-ion sc [2]";
   labels[free_free_2] = "free-free  [2]";
   labels[colexcite_2] = "col excite [2]";
   labels[ionize_2   ] = "ionization [2]";
@@ -1282,7 +1286,7 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	  }
 
 
-	  // Coulombic (Rutherford) cross section
+	  // Coulombic (Rutherford) cross section (ion-electron)
 	  //
 	  for (unsigned short C1=1; C1<=Z1; C1++) {
 	    k1.second = C1 + 1;
@@ -1357,6 +1361,32 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 	      }
 	      // End Test
 
+	    }
+	  }
+
+	  // Coulombic (Rutherford) cross section (ion-ion)
+	  //
+	  for (unsigned short C1=1; C1<=Z1; C1++) {
+	    k1.second = C1 + 1;
+
+	    for (unsigned short C2=1; C2<=Z2; C2++) {
+	      k2.second = C2 + 1;
+
+	      std::vector<double> cc3;
+	      for (size_t u=0; u<3; u++) {
+		double b = 0.5*esu*esu*C1*C2 /
+		  std::max<double>(Eii[u]*eV, FloorEv*eV) * 1.0e7; // nm
+		b = std::min<double>(b, ips);
+		cc3.push_back(M_PI*b*b);
+	      }
+	      std::sort(cc3.begin(), cc3.end());
+	      
+	      double mfac = 4.0 * logL;
+
+	      csections[id][i1][i2][Interact::T(ion_ion, C1, C2)] =
+		cc3[1] * mfac *
+		meanF[id][k1] * meanF[id][k2] / (tot*tot) *
+		crossfac * crs_units * cscl_[i1.first] * cscl_[i2.first];
 	    }
 	  }
 
@@ -1704,6 +1734,8 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	speciesKey i2 = it2.first;
 	double geom2  = geometric(i2.first);
 
+	double m0     = atomic_weights[i1.first] * atomic_weights[i2.first] /
+	  (atomic_weights[i1.first] + atomic_weights[i2.first]);
 	double m1     = atomic_weights[i1.first];
 	double m2     = atomic_weights[i2.first];
 
@@ -1814,6 +1846,23 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	    }
 	  }
 
+	  // Ion-ion scattering, Rutherford scattering
+	  for (unsigned short C1=1; C1<=Z1; C1++) {
+	    k1.second = C1 + 1;
+	    for (unsigned short C2=1; C2<=Z2; C2++) {
+	      k2.second = C2 + 1;
+
+	      double b = 0.5*esu*esu*C1*C2 /
+		std::max<double>(Eerg*m0, FloorEv*eV) * 1.0e7; // nm
+
+	      b = std::min<double>(b, ips);
+	      double mfac = 4.0 * logL;
+
+	      Cross1 += M_PI*b*b * mfac *
+		meanF[id][k1]/tot * meanF[id][k2]/tot;
+	    }
+	  }
+
 	} // END: type "Hybrid"
 	else {
 
@@ -1852,6 +1901,17 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 	      Cross2 = M_PI*b*b * eVel1 * ne1 * mfac;
 	    }
 	  }
+
+	  // Ion-ion scattering
+	  //
+	  if (ne1>0 and ne2>0) {
+	    double b = 0.5*esu*esu*(i1.second - 1)*(i2.second-1) /
+	      std::max<double>(Eerg*m0, FloorEv*eV) * 1.0e7; // nm
+	    b = std::min<double>(b, ips);
+	    double mfac = 4.0 * logL;
+	    Cross1 += M_PI*b*b * mfac;
+	  }
+
 	} // END: types "Direct" and "Weight"
 
 	csections[id][i1][i2]() = (Cross1 + Cross2) * crossfac * 1e-14 /
@@ -1893,7 +1953,7 @@ CollideIon::totalScatteringCrossSections(double crm, pCell* const c, int id)
 
 	if (meanE[id]>0.0) {
 
-	  // Use neutral or Rutherford scattering
+	  // Use neutral-electron
 	  //
 	  Cross += elastic(k.first, EeV * meanM[id]) * eVel * meanE[id];
 	}
@@ -2133,6 +2193,21 @@ double CollideIon::crossSectionDirect(int id, pCell* const c,
       dCross[id].push_back(cross21);
       dInter[id].push_back(ion_elec_2);
     }
+  }
+
+				//-------------------------------
+				// Ion-ion scattering
+				//-------------------------------
+  if (ne1 > 0 and ne2 > 0) {
+    double b = 0.5*esu*esu*(C1-1)*(C2-1) /
+      std::max<double>(kEi[id]*eV, FloorEv*eV) * 1.0e7; // in nm
+    b = std::min<double>(b, ips);
+    double mfac = 4.0 * logL;
+    double crossS = M_PI*b*b * crossfac * cscl_[Z1] * cscl_[Z2] * mfac;
+    dCross[id].push_back(crossS);
+    dInter[id].push_back(ion_ion_1);
+    
+    cross12 += crossS;
   }
 
   //--------------------------------------------------
@@ -2490,6 +2565,22 @@ double CollideIon::crossSectionWeight(int id, pCell* const c,
       dInter[id].push_back(neut_prot_2);
     }
   }
+
+				//-------------------------------
+				// Ion-ion scattering
+				//-------------------------------
+  if (ne1 > 0 and ne2 > 0) {
+    double b = 0.5*esu*esu*(C1-1)*(C2-1) /
+      std::max<double>(kEi[id]*eV, FloorEv*eV) * 1.0e7; // in nm
+    b = std::min<double>(b, ips);
+    double mfac = 4.0 * logL;
+    double crossS = M_PI*b*b * crossfac * cscl_[Z1] * cscl_[Z2] * mfac;
+    dCross[id].push_back(crossS);
+    dInter[id].push_back(ion_ion_1);
+
+    cross12 += crossS;
+  }
+
 
   //--------------------------------------------------
   // Ion keys
@@ -5939,7 +6030,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   } else if (scatter) {
 				// Only pass elastic scattering events
-    if (interFlag < 5) ok = true;
+    if (interFlag < 6) ok = true;
 
 				// Otherwise, pass all events . . .
   } else {
