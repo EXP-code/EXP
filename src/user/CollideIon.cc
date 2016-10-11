@@ -13531,6 +13531,12 @@ void CollideIon::processConfig()
     delSpect =
       cfg.entry<double>("delEvSpect", "Energy or wavelength bin width for tabulated emission spectrum (eV)", 100.0);
 
+    Collide::DEBUG_NTC =
+      cfg.entry<bool>("DEBUG_NTC", "Enable verbose NTC diagnostics", false);
+
+    Collide::NTC_DIST =
+      cfg.entry<bool>("NTC_DIST", "Enable full NTC distribution output", false);
+
     Collide::numSanityStop =
       cfg.entry<bool>("collStop", "Stop simulation if collisions per step are over threshold", false);
 
