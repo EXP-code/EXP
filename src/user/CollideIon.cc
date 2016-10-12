@@ -9024,7 +9024,9 @@ std::pair<double, double> CollideIon::computeEdsp(pCell* cell)
 {
   std::vector<double> ev1(3, 0.0), ev2(3, 0.0);
   double m = 0.0, KEdspE = 0.0;
-  for (auto n : cell->bods) {
+  std::set<unsigned long> bodies = cell->Bodies();
+
+  for (auto n : bodies) {
     Particle * p = cell->Body(n);
     speciesKey k = KeyConvert(p->iattrib[use_key]).getKey();
     unsigned short Z = k.first;
