@@ -324,7 +324,7 @@ void Quantile::send()
   unsigned sz = q.size();
 
   // Send vector size
-  MPI_Send(&sz,    1, MPI_UNSIGNED,  0, 1100, MPI_COMM_WORLD);
+  MPI_Send(&sz,     1, MPI_UNSIGNED,      0, 1100, MPI_COMM_WORLD);
 
   // Send data
   MPI_Send(&q[0],  sz, MPI_DOUBLE,        0, 1101, MPI_COMM_WORLD);
@@ -397,7 +397,7 @@ void Quantile::recv(int id)
   MPI_Recv(&n[0],  sz, MPI_DOUBLE,        id, 1104, MPI_COMM_WORLD, &status);
 
   // Sanity
-  MPI_Get_count(&status, MPI_INT, &count);
+  MPI_Get_count(&status, MPI_DOUBLE, &count);
   if (DBG_VERBOSE && static_cast<unsigned>(count) != sz) {
     int myid; MPI_Comm_rank(MPI_COMM_WORLD, &myid);
     std::cout << "Bad count n [" << myid << "] count=" << count
