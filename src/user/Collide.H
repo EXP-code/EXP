@@ -173,7 +173,7 @@ public:
   
   //! Toggle for deep debugging output for hybrid method (set to false
   //! for production)
-  static constexpr bool init_dbg = true;
+  static constexpr bool init_dbg = false;
 
   //! Initial time for deep debugging output
   static constexpr double init_dbg_time = 0.0;
