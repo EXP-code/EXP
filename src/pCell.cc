@@ -110,6 +110,10 @@ pCell::pCell(pCell* mom, unsigned id) :
   sample  = 0;
   ctotal  = 0;
 
+				// Copy attribute lists
+  dattrib = mom->dattrib;
+  iattrib = mom->iattrib;
+
   tree->frontier[mykey] = this;	// All nodes born on the frontier
   // DEBUG
   if (this==0) {

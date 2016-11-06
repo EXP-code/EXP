@@ -1195,7 +1195,7 @@ void * Collide::collide_thread(void * arg)
       }
     }
     
-    int totalCount = 0;
+    int totalCount = 0, acceptCount = 0;
     
     for (it1=c->count.begin(); it1!=c->count.end(); it1++) {
 
@@ -1337,8 +1337,8 @@ void * Collide::collide_thread(void * arg)
 				// Over NTC max average
 	    if (targ >= 1.0) ntcOvr[id]++;
 				// Used / Total
-	    if (ok)          ntcAcc[id]++; ntcTot[id]++;
-	    
+	    if (ok) ntcAcc[id]++;
+	    ntcTot[id]++;
 
 				// Accumulate average
 #pragma omp critical
@@ -1373,6 +1373,8 @@ void * Collide::collide_thread(void * arg)
 	  }
 
 	  if (ok) {
+
+	    acceptCount++;
 
 	    elasTime[id].start();
 	    
@@ -1481,6 +1483,8 @@ void * Collide::collide_thread(void * arg)
     GPTLstart("Collide::diag");
 #endif
   
+    c->iattrib["collCount"] = acceptCount;
+
     // Compute dispersion diagnostics
     //
     stat3Time[id].start();
