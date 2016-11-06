@@ -123,6 +123,10 @@ public:
   //! Destructor
   ~pCell();
   
+  //! Attributes
+  std::map<std::string, double> dattrib;
+  std::map<std::string, int>    iattrib;
+
   key_type mykey;
   key_type mask;
   unsigned maxplev;

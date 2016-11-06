@@ -29,6 +29,7 @@ double   CollideIon::Tmin     = 1.0e+03;
 double   CollideIon::Tmax     = 1.0e+08;
 unsigned CollideIon::Nnum     = 400;
 unsigned CollideIon::Tnum     = 200;
+unsigned CollideIon::collTnum = 16;
 string   CollideIon::cache    = ".HeatCool";
 bool     CollideIon::equiptn  = false;
 bool     CollideIon::scatter  = false;
@@ -8154,6 +8155,15 @@ void * CollideIon::timestep_thread(void * arg)
     c = cellist[id][j];
     L = c->Scale();
 
+    // Look for collCount in cell attributes
+    //
+    std::map<std::string, int>::iterator itc = c->iattrib.find("collCount");
+    double DTcoll = DBL_MAX;
+    if (itc != c->iattrib.end()) {
+      if (itc->second > 0)
+	DTcoll = spTau[id] * collTnum / itc->second;
+    }
+
     double volc = c->Volume();
 
     sKeyDmap   densM, lambdaM, crossM;
@@ -8256,6 +8266,10 @@ void * CollideIon::timestep_thread(void * arg)
 	for (unsigned k=0; k<3; k++)
 	  DT = std::min<double>(meanLambda/vtot, DT);
       }
+
+      // Collision target
+      //
+      DT = std::min<double>(DT, DTcoll);
 
       // Time-of-flight size scale for multistep timestep calc.
       //
@@ -13850,6 +13864,9 @@ void CollideIon::processConfig()
 
     minCollFrac =
       cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
+
+    collTnum = 
+      cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", 16);
 
     distDiag =
       cfg.entry<bool>("distDiag", "Report binned histogram for electron velocities", false);
