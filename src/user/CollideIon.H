@@ -981,7 +981,6 @@ public:
   static unsigned maxSelA;
   static unsigned maxSelB;
   static unsigned NoDelC;
-  static unsigned collTnum;
   static string   cache;
   static bool     equiptn;
   static bool     scatter;

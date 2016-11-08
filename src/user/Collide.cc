@@ -83,6 +83,9 @@ bool Collide::MFPTS    = false;
 double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
+// Target number of collisions per cell
+unsigned Collide::collTnum = 16;
+
 // Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
 
@@ -1374,6 +1377,8 @@ void * Collide::collide_thread(void * arg)
 
 	  if (ok) {
 
+	    // Counter for time-step selection
+	    //
 	    acceptCount++;
 
 	    elasTime[id].start();
@@ -1483,6 +1488,8 @@ void * Collide::collide_thread(void * arg)
     GPTLstart("Collide::diag");
 #endif
   
+    // Update collision counter in the cell
+    //
     c->iattrib["collCount"] = acceptCount;
 
     // Compute dispersion diagnostics
@@ -2872,6 +2879,19 @@ void * Collide::timestep_thread(void * arg)
     c = cellist[id][j];
     L = c->Scale();
     
+    // Look for collCount in cell attributes
+    //
+    std::map<std::string, int>::iterator itc = c->iattrib.find("collCount");
+    double DTcoll = DBL_MAX;
+    if (itc != c->iattrib.end()) {
+				// Timestep for this cell
+    double tau = dtime / (1<<c->maxplev);
+				// If there have been collisions, set
+				// time step based on scaling to
+      if (itc->second > 0)	// target
+	DTcoll = tau * collTnum / itc->second;
+    }
+
     for (auto i : c->bods) {
 
       // Current particle
@@ -2888,6 +2908,10 @@ void * Collide::timestep_thread(void * arg)
       // Size scale for multistep timestep calc.
       //
       p->scale = mscale;
+
+      // Collision target
+      //
+      DT = std::min<double>(DT, DTcoll);
 
       // Compute cooling criterion timestep
       //

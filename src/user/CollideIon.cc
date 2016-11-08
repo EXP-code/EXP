@@ -29,7 +29,6 @@ double   CollideIon::Tmin     = 1.0e+03;
 double   CollideIon::Tmax     = 1.0e+08;
 unsigned CollideIon::Nnum     = 400;
 unsigned CollideIon::Tnum     = 200;
-unsigned CollideIon::collTnum = 16;
 string   CollideIon::cache    = ".HeatCool";
 bool     CollideIon::equiptn  = false;
 bool     CollideIon::scatter  = false;
@@ -13617,7 +13616,7 @@ void CollideIon::processConfig()
     minCollFrac =
       cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
 
-    collTnum = 
+    Collide::collTnum = 
       cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", 16);
 
     distDiag =
