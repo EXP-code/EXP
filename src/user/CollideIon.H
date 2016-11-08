@@ -393,6 +393,9 @@ private:
   typedef std::map<lQ, CFreturn>                     CFmap;
   typedef Icont<std::map, unsigned short, unsigned>  TypeMap;
   typedef Icont<std::map, speciesKey, double>        keyWghts;
+  typedef std::pair< std::array<double, 3>,
+		     std::array<double, 3> >         CVels;
+  
 
   std::vector< std::vector<dKey>   >                 kInter;
   std::vector< std::vector<double> >                 dCross;
@@ -417,6 +420,7 @@ private:
   std::vector< unsigned >                            elecOvr, elecAcc, elecTot, testCnt;
   std::vector< TypeMap >                             Escat, Etotl;
   std::vector< std::map<unsigned short, TypeMap> >   Italy;
+  std::vector< CVels >                               cVels;
   //@}
 
   //! This defines the various types of interactions used to tag
@@ -613,9 +617,8 @@ protected:
 
 protected:
   
-  //! Returns (min, mean, max) velocities in each cell
-  virtual std::pair< std::array<double, 3>, std::array<double, 3> >
-  cellMinMax(pHOT* const tree, pCell* const cell);
+  //! Computes (min, mean, max) velocities in each cell
+  virtual void cellMinMax(pHOT* const tree, pCell* const cell, int id);
 
   //@{
   //! Diagnostic for entire cell iteration loop
