@@ -44,6 +44,7 @@ bool     CollideIon::elecDist = false;
 bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
 unsigned CollideIon::NoDelC   = 0;
+unsigned CollideIon::maxCoul  = UINT_MAX;
 double   CollideIon::logL     = 24.0;
 double   CollideIon::tolE     = 1.0e-6;
 double   CollideIon::TSCOOL   = 0.05;
@@ -528,7 +529,7 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 
   labels[elec_elec  ] = "el collisions ";
 
-  elecElec = Interact::T(0, 0, CollideIon::elec_elec);
+  elecElec = Interact::T(CollideIon::elec_elec, 0, 0);
 
   spectrumSetup();
 }
@@ -11108,6 +11109,20 @@ Collide::sKey2Amap CollideIon::generateSelectionHybrid
     }
   }
 
+  if (maxCoul<UINT_MAX) {
+    for (auto u : selcM) {
+      for (auto v : u.second) {
+	for (auto w : v.second.v) {
+	  // Look for Coulombic interactions only
+	  if (std::get<0>(w.first) == ion_elec or
+	      std::get<0>(w.first) == ion_ion  ) 
+	    selcM[u.first][v.first][w.first] = std::min<unsigned>
+	      (maxCoul, static_cast<unsigned>(floor(w.second+0.5)));
+	}
+      }
+    }
+  }
+
   if (collLim) {		// Sanity clamp
 
     unsigned     nbods  = c->bods.size();
@@ -13864,8 +13879,11 @@ void CollideIon::processConfig()
     minCollFrac =
       cfg.entry<double>("minCollFrac", "Minimum relative fraction for collisional excitation", -1.0f);
 
+    maxCoul = 
+      cfg.entry<unsigned>("maxCoul", "Maximum number of elastic Coulombic collisions per step", UINT_MAX);
+
     Collide::collTnum = 
-      cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", 16);
+      cfg.entry<unsigned>("collTnum", "Target number of accepted collisions per cell for assigning time step", UINT_MAX);
 
     distDiag =
       cfg.entry<bool>("distDiag", "Report binned histogram for electron velocities", false);

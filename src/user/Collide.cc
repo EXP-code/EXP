@@ -84,7 +84,7 @@ double 				// Enhance (or suppress) fiducial cooling rate
 Collide::ENHANCE       = 1.0;	// Currently, only used in LTE method
 
 // Target number of collisions per cell
-unsigned Collide::collTnum = 16;
+unsigned Collide::collTnum = UINT_MAX;
 
 // Power of two interval for KE/cool histogram
 int Collide::TSPOW     = 4;
