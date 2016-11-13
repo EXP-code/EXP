@@ -35,30 +35,31 @@ void OutCalbr::set_energies()
 
     PartMapItr it = tcomp->Particles().begin();
     unsigned long n;
+    Particle *p = tcomp->Part(n);
 
     for (int q=0; q<tcomp->Number(); q++) {
       n = (it++)->first;
 
       v2 = 0.0;
       for (int j=0; j<3; j++) 
-	v2 += tcomp->Part(n)->vel[j]*tcomp->Part(n)->vel[j];
+	v2 += p->vel[j]*p->vel[j];
 				// Energy
-      tcomp->Part(n)->dattrib[0] = E =
-	0.5*v2 + tcomp->Part(n)->pot + tcomp->Part(n)->potext;
+      p->dattrib[0] = E =
+	0.5*v2 + p->pot + p->potext;
 				// Lx
-      tcomp->Part(n)->dattrib[1] = 
-	tcomp->Part(n)->pos[1]*tcomp->Part(n)->vel[2] - 
-	tcomp->Part(n)->pos[2]*tcomp->Part(n)->vel[1] ;
+      p->dattrib[1] = 
+	p->pos[1]*p->vel[2] - 
+	p->pos[2]*p->vel[1] ;
       
 				// Ly
-      tcomp->Part(n)->dattrib[2] = 
-	tcomp->Part(n)->pos[2]*tcomp->Part(n)->vel[0] -
-	tcomp->Part(n)->pos[0]*tcomp->Part(n)->vel[2] ; 
+      p->dattrib[2] = 
+	p->pos[2]*p->vel[0] -
+	p->pos[0]*p->vel[2] ; 
       
 				// Lz
-      tcomp->Part(n)->dattrib[3] = 
-	tcomp->Part(n)->pos[0]*tcomp->Part(n)->vel[1] - 
-	tcomp->Part(n)->pos[1]*tcomp->Part(n)->vel[0] ;
+      p->dattrib[3] = 
+	p->pos[0]*p->vel[1] - 
+	p->pos[1]*p->vel[0] ;
 
       Emin1 = min<double>(Emin1, E);
       Emax1 = max<double>(Emax1, E);
@@ -180,42 +181,44 @@ void OutCalbr::Run(int ns, bool last)
   for (int q=0; q<tcomp->Number(); q++) {
     n = (it++)->first;
 
+    Particle *p = tcomp->Part(n);
+
     v2 = 0.0;
     for (int j=0; j<3; j++) 
-      v2 += tcomp->Part(n)->vel[j]*tcomp->Part(n)->vel[j];
+      v2 += p->vel[j]*p->vel[j];
 
-    E =	0.5*v2 + tcomp->Part(n)->pot + tcomp->Part(n)->potext;
+    E =	0.5*v2 + p->pot + p->potext;
 
     if (E<Emin || E>=Emax) continue;
     indx = min<int>((int)floor((E-Emin)/dE), num-1);
 
     Lx = 
-      tcomp->Part(n)->pos[1]*tcomp->Part(n)->vel[2] - 
-      tcomp->Part(n)->pos[2]*tcomp->Part(n)->vel[1] ;
+      p->pos[1]*p->vel[2] - 
+      p->pos[2]*p->vel[1] ;
       
     Ly = 
-      tcomp->Part(n)->pos[2]*tcomp->Part(n)->vel[0] -
-      tcomp->Part(n)->pos[0]*tcomp->Part(n)->vel[2] ; 
+      p->pos[2]*p->vel[0] -
+      p->pos[0]*p->vel[2] ; 
       
     Lz = 
-      tcomp->Part(n)->pos[0]*tcomp->Part(n)->vel[1] - 
-      tcomp->Part(n)->pos[1]*tcomp->Part(n)->vel[0] ;
+      p->pos[0]*p->vel[1] - 
+      p->pos[1]*p->vel[0] ;
 
     deltaE1[indx] += 
-      (E - tcomp->Part(n)->dattrib[0])*
-      (E - tcomp->Part(n)->dattrib[0]);
+      (E - p->dattrib[0])*
+      (E - p->dattrib[0]);
 
     deltaLx1[indx] += 
-      (Lx - tcomp->Part(n)->dattrib[1])*
-      (Lx - tcomp->Part(n)->dattrib[1]);
+      (Lx - p->dattrib[1])*
+      (Lx - p->dattrib[1]);
 
     deltaLy1[indx] += 
-      (Ly - tcomp->Part(n)->dattrib[2])*
-      (Ly - tcomp->Part(n)->dattrib[2]);
+      (Ly - p->dattrib[2])*
+      (Ly - p->dattrib[2]);
 
     deltaLz1[indx] += 
-      (Lz - tcomp->Part(n)->dattrib[3])*
-      (Lz - tcomp->Part(n)->dattrib[3]);
+      (Lz - p->dattrib[3])*
+      (Lz - p->dattrib[3]);
 
     ncnt1[indx]++;
   }

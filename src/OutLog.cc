@@ -372,7 +372,9 @@ void OutLog::Run(int n, bool last)
 
       if (c->freeze(i)) continue;
 
-      mtot1[indx] +=  c->Mass(i);
+      Particle *p = c->Part(i);
+
+      mtot1[indx] +=  p->mass;
       
       for (int k=0; k<3; k++) {
 	pos0[k] = c->Pos(i, k, Component::Inertial);
@@ -382,27 +384,27 @@ void OutLog::Run(int n, bool last)
       }
 
       for (int k=0; k<3; k++) {
-	com1[indx][k] += c->Mass(i)*posL[k];
-	cov1[indx][k] += c->Mass(i)*velL[k];
-	comG[k] += c->Mass(i)*pos0[k];
-	covG[k] += c->Mass(i)*vel0[k];
+	com1[indx][k] += p->mass*posL[k];
+	cov1[indx][k] += p->mass*velL[k];
+	comG[k] += p->mass*pos0[k];
+	covG[k] += p->mass*vel0[k];
       }
 
-      angm1[indx][0] += c->Mass(i)*(posL[1]*velL[2] - posL[2]*velL[1]);
-      angm1[indx][1] += c->Mass(i)*(posL[2]*velL[0] - posL[0]*velL[2]);
-      angm1[indx][2] += c->Mass(i)*(posL[0]*velL[1] - posL[1]*velL[0]);
+      angm1[indx][0] += p->mass*(posL[1]*velL[2] - posL[2]*velL[1]);
+      angm1[indx][1] += p->mass*(posL[2]*velL[0] - posL[0]*velL[2]);
+      angm1[indx][2] += p->mass*(posL[0]*velL[1] - posL[1]*velL[0]);
 
-      angmG[0] += c->Mass(i)*(pos0[1]*vel0[2] - pos0[2]*vel0[1]);
-      angmG[1] += c->Mass(i)*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
-      angmG[2] += c->Mass(i)*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
+      angmG[0] += p->mass*(pos0[1]*vel0[2] - pos0[2]*vel0[1]);
+      angmG[1] += p->mass*(pos0[2]*vel0[0] - pos0[0]*vel0[2]);
+      angmG[2] += p->mass*(pos0[0]*vel0[1] - pos0[1]*vel0[0]);
 
       for (int k=0; k<3; k++) pos0[k] = c->Pos(i, k, Component::Centered);
       
-      eptot1[indx]  += 0.5*c->Mass(i)*c->Part(i)->pot;
-      eptotx1[indx] += c->Mass(i)*c->Part(i)->potext;
+      eptot1[indx]  += 0.5*p->mass*p->pot;
+      eptotx1[indx] += p->mass*p->potext;
       for (int k=0; k<3; k++) {
-	ektot1[indx]    += 0.5*c->Mass(i)*velL[k]*velL[k];
-	clausius1[indx] += c->Mass(i)*posL[k]*c->Part(i)->acc[k];
+	ektot1[indx]    += 0.5*p->mass*velL[k]*velL[k];
+	clausius1[indx] += p->mass*posL[k]*p->acc[k];
       }
     }
 

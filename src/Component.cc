@@ -1652,34 +1652,35 @@ void * fix_positions_thread(void *ptr)
     for (int q=nbeg; q<nend; q++) {
     
       unsigned long n = c->levlist[mm][q];
+      Particle     *p = c->Part(n);
 
       if (consp) {
-	if (c->escape_com(*c->Part(n)) && c->Part(n)->iattrib[tidal]==0) {
+	if (c->escape_com(*p) && p->iattrib[tidal]==0) {
 				// Set flag indicating escaped particle
-	  c->Part(n)->iattrib[tidal] = 1;
+	  p->iattrib[tidal] = 1;
 
 	  if (com_system) {	// Conserve momentum of center of mass
 				// and compute center of acceleration
-	    mtotE[mm] += c->Part(n)->mass;
+	    mtotE[mm] += p->mass;
 	    for (unsigned k=0; k<3; k++) {
-	      comE[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k]; 
-	      covE[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k]; 
+	      comE[3*mm+k] += p->mass*p->pos[k]; 
+	      covE[3*mm+k] += p->mass*p->vel[k]; 
 	    }
 	  }
 	  continue;
 	}
 	
-	if (c->Part(n)->iattrib[tidal]==1) continue;
+	if (p->iattrib[tidal]==1) continue;
       }
 
-      mtot[mm] += c->Part(n)->mass;
+      mtot[mm] += p->mass;
 
       // Compute new center of mass quantities
       //
       for (int k=0; k<c->dim; k++) {
-	com[3*mm+k] += c->Part(n)->mass*c->Part(n)->pos[k];
-	cov[3*mm+k] += c->Part(n)->mass*c->Part(n)->vel[k];
-	coa[3*mm+k] += c->Part(n)->mass*c->Part(n)->acc[k];
+	com[3*mm+k] += p->mass*p->pos[k];
+	cov[3*mm+k] += p->mass*p->vel[k];
+	coa[3*mm+k] += p->mass*p->acc[k];
       }
     }
   }
@@ -1984,12 +1985,13 @@ void * get_angmom_thread(void *ptr)
     for (int q=nbeg; q<nend; q++) {
       
       unsigned long n = c->levlist[mm][q];
+      Particle     *p = c->Part(n);
 
       if (c->freeze(n)) continue;
 
-      mass = c->Part(n)->mass;
-      pos  = c->Part(n)->pos;
-      vel  = c->Part(n)->vel;
+      mass = p->mass;
+      pos  = p->pos;
+      vel  = p->vel;
     
       angm1[3*mm + 0] += mass*(pos[1]*vel[2] - pos[2]*vel[1]);
 

@@ -682,8 +682,11 @@ void CollideIon::initialize_cell(pHOT* const tree, pCell* const cell,
 
   // Min/Mean/Max electron ion velocity (hybrid only)
   //
+  /*
   if (cell->sample) cellMinMax(tree, cell->sample, id);
   else              cellMinMax(tree, cell, id);
+  */
+  cellMinMax(tree, cell, id);
 
   std::array<double, 3> iVels = cVels[id].first;
   std::array<double, 3> eVels = cVels[id].second;

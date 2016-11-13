@@ -15,8 +15,10 @@ void init_velocity(void)
       ntot = c->Number();
       for (int i=0; i<ntot; i++) {
 
+	Particle *p = c->Part(i);
+
 	for (int k=0; k<c->dim; k++) 
-	  c->Part(i)->vel[k] += 0.5*dtime*c->Part(i)->acc[k];
+	  p->vel[k] += 0.5*dtime*p->acc[k];
       }
       
       if (c->com_system) {

@@ -569,17 +569,18 @@ void pCell::accumState()
 {
 				// March through the body list
   for (auto j: bods) {
+    Particle & p = C->Particles()[j];
     speciesKey spc = defaultKey;
     if (C->keyPos>=0) {
-      KeyConvert kc(C->Particles()[j].iattrib[C->keyPos]);
+      KeyConvert kc(p.iattrib[C->keyPos]);
       spc = kc.getKey();
     }
-    state[spc][0] += C->Particles()[j].mass;
+    state[spc][0] += p.mass;
     for (int k=0; k<3; k++) {
-      state[spc][1+k] += C->Particles()[j].mass * 
-	C->Particles()[j].vel[k]*C->Particles()[j].vel[k];
-      state[spc][4+k] += C->Particles()[j].mass * C->Particles()[j].vel[k];
-      state[spc][7+k] += C->Particles()[j].mass * C->Particles()[j].pos[k];
+      state[spc][1+k] += p.mass * 
+	p.vel[k]*p.vel[k];
+      state[spc][4+k] += p.mass * p.vel[k];
+      state[spc][7+k] += p.mass * p.pos[k];
     }
     count[spc]++;
   }

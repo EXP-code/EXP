@@ -355,6 +355,7 @@ void Orient::accumulate(double time, Component *c)
   for (unsigned q=0; q<nbodies; q++) {
 
     unsigned long i = (it++)->first;
+    Particle     *p = c->Part(i);
 
     v2 = 0.0;
     for (int k=0; k<3; k++) {
@@ -363,11 +364,11 @@ void Orient::accumulate(double time, Component *c)
 	cerr << "Orient: process " << myid << " index=" << i
 	     << " has NaN on component ";
 	for (int s=0; s<3; s++)
-	  cerr << setw(16) << c->Part(i)->pos[s];
+	  cerr << setw(16) << p->pos[s];
 	for (int s=0; s<3; s++)
-	  cerr << setw(16) << c->Part(i)->vel[s];
+	  cerr << setw(16) << p->vel[s];
 	for (int s=0; s<3; s++)
-	  cerr << setw(16) << c->Part(i)->acc[s];
+	  cerr << setw(16) << p->acc[s];
 	cerr << endl;
       }
       vel[k] = c->Vel(i, k, Component::Local);
@@ -375,11 +376,11 @@ void Orient::accumulate(double time, Component *c)
       v2 += vel[k]*vel[k];
     }
 
-    energy = c->Part(i)->pot;
+    energy = p->pot;
     
     if (cflags & KE) energy += 0.5*v2;
 
-    if (cflags & EXTERNAL) energy += c->Part(i)->potext;
+    if (cflags & EXTERNAL) energy += p->potext;
 
     unsigned size0 = angm.size();
     bool test1 = (size0 <= tkeep);
@@ -389,7 +390,7 @@ void Orient::accumulate(double time, Component *c)
     
     if (test1 || test2) {
 
-      mass = c->Part(i)->mass;
+      mass = p->mass;
 
       t.E = energy;
       t.T = time;

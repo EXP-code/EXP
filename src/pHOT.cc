@@ -3734,13 +3734,14 @@ bool pHOT::checkDupes1(const std::string& msg)
 	<< endl
 	<< "#" << setfill('-') << setw(60) << '-' << setfill(' ') << endl;
     for (auto b : kdup) {
-      out << setw(10) << b.first << setw(18) << cc->Mass(b.first);
-      for (int k=0; k<3; k++) out << setw(18) << cc->Pos(b.first, k);
-      out << setw(10) << cc->Part(b.first)->indx
+      Particle *p = cc->Part(b.first);
+      out << setw(10) << b.first << setw(18) << p->mass;
+      for (int k=0; k<3; k++) out << setw(18) << p->pos[k];
+      out << setw(10) << p->indx
 #ifdef INT128
-	  << "    "   << cc->Part(b.first)->key.toHex() << endl
+	  << "    "   << p->key.toHex() << endl
 #else
-	  << "    "   << hex << cc->Part(b.first)->key << dec << endl
+	  << "    "   << hex << p->key << dec << endl
 #endif
 	;
       for (auto k : b.second) {

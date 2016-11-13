@@ -79,6 +79,7 @@ void * adjust_multistep_level_thread(void *ptr)
   for (int i=nbeg; i<nend; i++) {
 
     int n = c->levlist[level][i];
+    Particle *p = c->Part(n);
 
     if (DTold) {
 
@@ -94,14 +95,14 @@ void * adjust_multistep_level_thread(void *ptr)
 	rtot += 
 	  c->Pos(n, k, Component::Local | Component::Centered) *
 	  c->Pos(n, k, Component::Local | Component::Centered) ;
-	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
-	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+	vtot += p->vel[k]*p->vel[k];
+	atot += p->acc[k]*p->acc[k];
       }
       rtot = sqrt(rtot);
       vtot = sqrt(vtot) + 1.0e-18;
       atot = sqrt(atot) + 1.0e-18;
 
-      dsr = c->Part(n)->scale;
+      dsr = p->scale;
       if (dsr>0) dts = dynfracS*dsr/vtot;
       else       dts = 1.0/eps;
 
@@ -122,14 +123,14 @@ void * adjust_multistep_level_thread(void *ptr)
       atot = 0.0;
 
       for (int k=0; k<c->dim; k++) {
-	dtr  += c->Part(n)->vel[k]*c->Part(n)->acc[k];
-	vtot += c->Part(n)->vel[k]*c->Part(n)->vel[k];
-	atot += c->Part(n)->acc[k]*c->Part(n)->acc[k];
+	dtr  += p->vel[k]*p->acc[k];
+	vtot += p->vel[k]*p->vel[k];
+	atot += p->acc[k]*p->acc[k];
       }
-      ptot = fabs(c->Part(n)->pot + c->Part(n)->potext);
+      ptot = fabs(p->pot + p->potext);
 
 
-      dsr = c->Part(n)->scale;
+      dsr = p->scale;
       if (dsr>0) dts = dynfracS*dsr/fabs(sqrt(vtot)+eps);
       else       dts = 1.0/eps;
       
@@ -146,14 +147,14 @@ void * adjust_multistep_level_thread(void *ptr)
       dseq[dts] = 1;
       if ( dta > 0.0 ) dseq[dta] = 2;
       if ( dtA > 0.0 ) dseq[dtA] = 3;
-      if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 4;
+      if ( (dtr=p->dtreq) > 0.0 ) dseq[dtr] = 4;
     } else {
       dseq[dtd] = 0;
       dseq[dtv] = 1;
       dseq[dts] = 2;
       if ( dta > 0.0 ) dseq[dta] = 3;
       if ( dtA > 0.0 ) dseq[dtA] = 4;
-      if ( (dtr=c->Part(n)->dtreq) > 0.0 ) dseq[dtr] = 5;
+      if ( (dtr=p->dtreq) > 0.0 ) dseq[dtr] = 5;
     }
 
 
@@ -188,7 +189,7 @@ void * adjust_multistep_level_thread(void *ptr)
       offlo++;
     }
     
-    unsigned plev = c->Part(n)->level;
+    unsigned plev = p->level;
     unsigned nlev = lev;
 
     // Sanity check
@@ -196,7 +197,7 @@ void * adjust_multistep_level_thread(void *ptr)
       cerr << "Process " << myid << " id=" << id 
 	   << ": n=" << n << " level=" << level 
 	   << " tlevel=" << plev
-	   << " plevel=" << c->Part(n)->level << endl;
+	   << " plevel=" << p->level << endl;
     }
 
     if (nlev != level) {
@@ -204,7 +205,7 @@ void * adjust_multistep_level_thread(void *ptr)
       // Update coefficients
       //
       c->force->multistep_update(plev, nlev, c, n, id);
-      c->Part(n)->level = lev;
+      p->level = lev;
     }
   }
 

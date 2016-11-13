@@ -213,12 +213,14 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
     for (int l=0; l<3; l++) 
       v2 += cC->Vel(i, l) * cC->Vel(i, l);
 
-    cC->Part(i)->dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
+    Particle *p = cC->Part(i);
 
-    if (1.0 - exp(-cC->Part(i)->dattrib[mfp_index]/tauscat)>(*unif)()) {
+    p->dattrib[mfp_index] += dtau[ind] * sqrt(v2) * dtime;
+
+    if (1.0 - exp(-p->dattrib[mfp_index]/tauscat)>(*unif)()) {
 
 				// Initialize optical depth
-      cC->Part(i)->dattrib[mfp_index] = 0.0;
+      p->dattrib[mfp_index] = 0.0;
 
 				// Choose a buddy
       if (j==1)
@@ -239,6 +241,8 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
       if (j>1 && rtst<(rtst1=min<double>(rm, rp))) rtst = rtst1;
 #endif
 
+      Particle *q = cC->Part(k);
+
       vcom[1] = 0.5*(cC->Vel(i, 0) + cC->Vel(k, 0));
       vcom[2] = 0.5*(cC->Vel(i, 1) + cC->Vel(k, 1));
       vcom[3] = 0.5*(cC->Vel(i, 2) + cC->Vel(k, 2));
@@ -255,13 +259,13 @@ void * ScatterMFP::determine_acceleration_and_potential_thread(void * arg)
       vfnl *= sqrt(vrel*vrel)/sqrt(vfnl*vfnl);
 
 				// To lab frame
-      cC->Part(i)->vel[0] = vcom[1] + 0.5*vfnl[1];
-      cC->Part(i)->vel[1] = vcom[2] + 0.5*vfnl[2];
-      cC->Part(i)->vel[2] = vcom[3] + 0.5*vfnl[3];
+      p->vel[0] = vcom[1] + 0.5*vfnl[1];
+      p->vel[1] = vcom[2] + 0.5*vfnl[2];
+      p->vel[2] = vcom[3] + 0.5*vfnl[3];
 
-      cC->Part(k)->vel[0] = vcom[1] - 0.5*vfnl[1];
-      cC->Part(k)->vel[1] = vcom[2] - 0.5*vfnl[2];
-      cC->Part(k)->vel[2] = vcom[3] - 0.5*vfnl[3];
+      q->vel[0] = vcom[1] - 0.5*vfnl[1];
+      q->vel[1] = vcom[2] - 0.5*vfnl[2];
+      q->vel[2] = vcom[3] - 0.5*vfnl[3];
 
       cntr[id]++;
     }
