@@ -188,9 +188,9 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
 				// Move up the tree . . .
     return parent->Add(keypair, change);
   }
-  
-				// If this cell is a leaf, try to add the
-				// new body
+
+  // If this cell is a leaf, try to add the new body
+  //
   if (isLeaf && keys.find(keypair)==keys.end()) {
 
 				// I am still a leaf . . .
@@ -198,15 +198,20 @@ pCell* pCell::Add(const key_pair& keypair, change_list* change)
       keys.insert(keypair);
       tree->bodycell.insert(key_item(key, cellindx));
       bods.push_back(keypair.second);
-				// Flag to recompute sample cell
+				// Flag to recompute sample cell.
       if (change) change->push_back(cell_indx(this, pHOT::RECOMP));
       maxplev = max<int>(maxplev, C->Particles()[keypair.second].level);
       
       return this;
     }
-    
-				// Bucket is full, I need to make
-				// leaves and become a branch
+
+    // NB: it is possible to add a cell to the change list for RECOMP
+    // but have this cell subsequently become a branch cell before the
+    // RECOMP is executed.  This needs to be checked at the top level
+    // loop.
+
+    // Bucket is full, I need to make leaves and become a branch
+    //
     for (auto n : keys) {
 				// Give all of my body keys to my
 				// children
