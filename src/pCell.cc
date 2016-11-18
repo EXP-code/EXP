@@ -577,8 +577,7 @@ void pCell::accumState()
     }
     state[spc][0] += p.mass;
     for (int k=0; k<3; k++) {
-      state[spc][1+k] += p.mass * 
-	p.vel[k]*p.vel[k];
+      state[spc][1+k] += p.mass * p.vel[k]*p.vel[k];
       state[spc][4+k] += p.mass * p.vel[k];
       state[spc][7+k] += p.mass * p.pos[k];
     }
