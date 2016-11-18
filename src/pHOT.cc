@@ -370,7 +370,7 @@ void pHOT::computeCellStates()
   //
 #pragma omp parallel for default(none) private(iTmp) shared(tmp, cTmp)
   for (iTmp = 0; iTmp < cTmp; iTmp++) {
-    tmp[iTmp]->findSampleCell();
+    tmp[iTmp]->findSampleCell("Frontier scan");
   }
 
   // Sanity check
@@ -3386,7 +3386,7 @@ void pHOT::adjustTree(unsigned mlevel)
       clevels[m].insert(c);
     }
     // Locate the new sample cell
-    c->findSampleCell();
+    c->findSampleCell("adjustTree<create leaves>");
   }
 
   //
@@ -3436,10 +3436,12 @@ void pHOT::adjustTree(unsigned mlevel)
   std::sort(deleteL.begin(), deleteL.end());
 #pragma omp parallel for default(shared)
   for (int i=0; i<recompL.size(); i++) {
-    if (!std::binary_search(deleteL.begin(), deleteL.end(), recompL[i]))
-      {
-	recompL[i]->findSampleCell();
-      }
+    if (!std::binary_search(deleteL.begin(), deleteL.end(), recompL[i])) {
+      // Am I still a leaf?  If previous cell reaches bucket limit, it
+      // will be split and RECOMP calls may still be in the list
+      if (recompL[i]->children.size() == 0)
+	recompL[i]->findSampleCell("adjustTree<recompute>");
+    }
   }
 
   

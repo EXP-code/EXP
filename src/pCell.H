@@ -191,8 +191,9 @@ public:
   //! Remake the maxplev variable from the particles
   unsigned remake_plev();
   
-  //! Find the cells whose body number is "just" larger than Bucket
-  pCell* findSampleCell();
+  //! Find the cells whose body number is "just" larger than Bucket.
+  //! Optional "message" string is for tagging debugging lines
+  pCell* findSampleCell(const std::string& message="");
   
   //@{
   //! Return bodies from this cell

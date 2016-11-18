@@ -919,7 +919,11 @@ double pCell::Scale()
 
 void pCell::match(pCell* target, int& mcount, key_type& key)
 {
-  if (children.size()) {
+  if (target == this) {
+    mcount++;
+    key = this->mykey;
+  }
+  else if (children.size()) {
     for (auto i : children) i.second->match(target, mcount, key);
   } else {
     if (target == this) mcount++;
@@ -936,9 +940,21 @@ void pCell::collect(std::set<unsigned long>& bset)
   }
 }
 
-pCell* pCell::findSampleCell()
+pCell* pCell::findSampleCell(const std::string & msg)
 {
   pCell *cur   = this;		// Begin with this cell
+  // +----- set to false to turn off debugging
+  // V
+  if (true) {
+    if (this->children.size()) {
+      std::cout << "Looking for sample cell with children";
+      if (msg.size()) std::cout << " [" << msg << "]";
+      std::cout << ": key=" << this->mykey
+		<< ", lev=" << this->level
+		<< ", children=" << this->children.size()
+		<< std::endl;
+    }
+  }
   unsigned dbl = 0;		// Count the number of levels upwards
   while(cur->ctotal < Bucket) {
 				// Maximum expansion reached or we are
@@ -972,8 +988,9 @@ pCell* pCell::findSampleCell()
       }
 
       bcount++;
-      std::cout << "Cell not in the sample cell:"
-		<< "  key=" << sample->mykey
+      std::cout << "Cell not in the sample cell";
+      if (msg.size()) std::cout << " [" << msg << "]";
+      std::cout << ": key=" << sample->mykey
 		<< ", lev=" << sample->level
 		<< ", target key=" << this->mykey
 		<< ", target lev=" << this->level
@@ -987,10 +1004,20 @@ pCell* pCell::findSampleCell()
 		<< "," << maxpos[1]
 		<< "," << maxpos[2] << ")"
 		<< std::endl;
+
+      std::cout << "CRAZY CHECK";
+      if (msg.size()) std::cout << " [" << msg << "]";
+      std::cout << ": begin" << std::endl;
+      tree->checkSampleCells("REMOVE THIS CRAZY CHECK");
+      std::cout << "CRAZY CHECK";
+      if (msg.size()) std::cout << " [" << msg << "]";
+      std::cout << ": end" << std::endl;
+
     } else if (mcount != 1) {
       bcount++;
-      std::cout << "Muliple sample cell matches="
-		<< mcount << std::endl;
+      std::cout << "Muliple sample cell matches";
+      if (msg.size()) std::cout << " [" << msg << "]";
+      std::cout << " = " << mcount << std::endl;
     }
   }
 
