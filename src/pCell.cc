@@ -560,13 +560,14 @@ void pCell::zeroState()
 {
   for (auto i : tree->spec_list) {
     count[i] = 0;
-    for (int k=0; k<10; k++) state[i][k] = 0.0;
+    std::vector<double> & s = state[i];
+    for (auto & v : s) v = 0.0;
   }
 
   for (auto i : children) i.second->zeroState();
 
   ctotal = 0;
-  for (int k=0; k<10; k++) stotal[k] = 0.0;
+  for (auto & v : stotal) v = 0.0;
 }
 
 
@@ -580,18 +581,23 @@ void pCell::accumState()
       KeyConvert kc(p.iattrib[C->keyPos]);
       spc = kc.getKey();
     }
-    state[spc][0] += p.mass;
+
+				// Only do the mapping to vector once
+				// in the loop
+    std::vector<double> & s = state[spc];
+    s[0] += p.mass;
     for (int k=0; k<3; k++) {
-      state[spc][1+k] += p.mass * p.vel[k]*p.vel[k];
-      state[spc][4+k] += p.mass * p.vel[k];
-      state[spc][7+k] += p.mass * p.pos[k];
+      s[1+k] += p.mass * p.vel[k]*p.vel[k];
+      s[4+k] += p.mass * p.vel[k];
+      s[7+k] += p.mass * p.pos[k];
     }
     count[spc]++;
   }
   
   for (auto i : tree->spec_list) {
-    ctotal += count[i];
-    for (int k=0; k<10; k++) stotal[k] += state[i][k];
+    ctotal += count[i];		// Only do the mapping to vector once
+    std::vector<double> & s = state[i];
+    for (int k=0; k<10; k++) stotal[k] += s[k];
   }
     
 				// Walk up the tree . . .
@@ -605,9 +611,12 @@ void pCell::accumState(sKeyUmap& _count, sKeyvDmap& _state)
     for (auto i : tree->spec_list) {
       ctotal   += _count[i];
       count[i] += _count[i];
+      // Only do the mappings to vector once
+      std::vector<double> &  s =  state[i];
+      std::vector<double> & _s = _state[i];
       for (int k=0; k<10; k++) {
-	stotal[k]   += _state[i][k];
-	state[i][k] += _state[i][k];
+	stotal[k] += _s[k];
+	s[k] += _s[k];
       }
     }
   }
@@ -622,7 +631,7 @@ void pCell::Find(key_type key, unsigned& curcnt, unsigned& lev,
   if (key==0u) {
     curcnt = 0;
     lev    = 0;
-    for (auto s=st.begin(); s!=st.end(); s++) *s = 0;
+    for (auto & v : st) v = 0;
     return;
   }
     
@@ -656,7 +665,8 @@ void pCell::Find(key_type key, sKeyUmap& curcnt, unsigned& lev, sKeyvDmap& st)
 
     for (auto i : tree->spec_list) {
       curcnt[i] = 0;
-      for (auto s=st[i].begin(); s!=st[i].end(); s++) *s = 0;
+      auto & s = st[i];
+      for (auto & v : s) v = 0;
     }
 
     return;
