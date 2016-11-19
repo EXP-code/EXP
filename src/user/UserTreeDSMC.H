@@ -290,7 +290,7 @@ private:
 				// Timers
   Timer partnTime, tree1Time, tradjTime, tcellTime, tstepTime, llistTime;
   Timer clldeTime, clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
-  RunningTime overhead;
+  RunningTime overhead, fullstep;
 
 				// Elapsed time counters
   TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;

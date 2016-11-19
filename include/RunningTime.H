@@ -60,6 +60,7 @@ public:
   void Stop()  { timer.stop(); append(); timer.reset(); }
 
   double getTime() { return current; }
+  double getLast() { return value;   }
 };
 
 #endif
