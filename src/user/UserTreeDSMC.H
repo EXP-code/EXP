@@ -292,6 +292,11 @@ private:
   Timer clldeTime, clldeWait, partnWait, tree1Wait, tree2Wait, timerDiag;
   RunningTime overhead;
 
+				// Elapsed time counters
+  TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
+  TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
+  TimeElapsed collideSoFar;
+  
 				// Full time step counters
   vector<TimeElapsed> tt;
 

@@ -855,10 +855,6 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   if (msteps>=0 && diagstep) 
     diagstep = (mlevel <= static_cast<unsigned>(msteps)) ? true : false;
   
-  TimeElapsed partnSoFar, tree1SoFar, tradjSoFar, tcellSoFar, tstepSoFar;
-  TimeElapsed waitcSoFar, waitpSoFar, wait1SoFar, wait2SoFar, timerSoFar;
-  TimeElapsed collideSoFar;
-  
   overhead.Start();
   
   //
@@ -878,11 +874,11 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     
     partnTime.start();
     c0->Tree()->Repartition(mlevel); nrep++;
-    partnSoFar = partnTime.stop();
+    partnSoFar += partnTime.stop();
     
     partnWait.start();
     (*barrier)("TreeDSMC: after repartition", __FILE__, __LINE__);
-    waitpSoFar = partnWait.stop();
+    waitpSoFar += partnWait.stop();
     
 #ifdef USE_GPTL
     GPTLstop ("UserTreeDSMC::repart");
@@ -894,7 +890,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree1Time.stop();
     tree1Wait.start();
     (*barrier)("TreeDSMC: after makeTree", __FILE__, __LINE__);
-    wait1SoFar = tree1Wait.stop();
+    wait1SoFar += tree1Wait.stop();
 #ifdef USE_GPTL
     GPTLstop ("UserTreeDSMC::makeTree");
     GPTLstart("UserTreeDSMC::pcheck");
@@ -915,7 +911,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       c0->Tree()->checkSampleCells(sout.str().c_str());
       c0->Tree()->logFrontierStats();
     }
-    tree1SoFar = tree1Time.stop();
+    tree1SoFar += tree1Time.stop();
     
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::pcheck");
@@ -935,13 +931,13 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 #endif
     tradjTime.start();
     c0->Tree()->adjustTree(mlevel);
-    tradjSoFar = tradjTime.stop();
+    tradjSoFar += tradjTime.stop();
     tcellTime.start();
     c0->Tree()->adjustCellLevelList(mlevel);
-    tcellSoFar = tcellTime.stop();
+    tcellSoFar += tcellTime.stop();
     tree2Wait.start();
     (*barrier)("TreeDSMC: after adjustTree", __FILE__, __LINE__);
-    wait2SoFar = tree2Wait.stop();
+    wait2SoFar += tree2Wait.stop();
     
     if (sampcel_debug) {
       std::ostringstream sout;
@@ -1003,7 +999,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   // Tuple_0 is the body count at this level
   // Tuple_1 is the collision count
   
-  collideSoFar = clldeTime.stop();
+  collideSoFar += clldeTime.stop();
   
   clldeWait.start();
   (*barrier)("TreeDSMC: after collide", __FILE__, __LINE__);
@@ -1012,7 +1008,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   GPTLstop("UserTreeDSMC::collide");
 #endif
   
-  waitcSoFar = clldeWait.stop();
+  waitcSoFar += clldeWait.stop();
   
   // -----------------
   // Time step request
@@ -1030,7 +1026,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
   
   tstepTime.start();
   if (use_multi) collide->compute_timestep(c0->Tree(), coolfrac);
-  tstepSoFar = tstepTime.stop();
+  tstepSoFar += tstepTime.stop();
   
 #ifdef USE_GPTL
   GPTLstop("UserTreeDSMC::collide_timestep");
@@ -1234,7 +1230,7 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     MPI_Reduce(&cmass1, &cmass, 1, MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
     c0->Tree()->CollectTiming();
     collide->CollectTiming();
-    timerSoFar = timerDiag.stop();
+    timerSoFar += timerDiag.stop();
     
     const unsigned nf = 12;
     const unsigned nt = pHOT::ntile+2;
@@ -1712,6 +1708,21 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     tree2Wait.reset();
     clldeWait.reset();
     
+    //
+    // Zero the elapsed time counters
+    //
+    partnSoFar.zero();
+    tree1SoFar.zero();
+    tradjSoFar.zero();
+    tcellSoFar.zero();
+    tstepSoFar.zero();
+    collideSoFar.zero();
+    timerSoFar.zero();
+    waitpSoFar.zero();
+    waitcSoFar.zero();
+    wait1SoFar.zero();
+    wait2SoFar.zero();
+
 #ifdef USE_GPTL
     GPTLstop("UserTreeDSMC::collide_diag");
 #endif
