@@ -8328,6 +8328,16 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
     KeyConvert k(p->iattrib[use_key]);
     if (k.C() - 1 > 0) {
       double numb = p->mass/atomic_weights[k.Z()];
+
+      // Electron fraction for hybrid model
+      //
+      if (aType == Hybrid) {
+	double cnt = 0.0;
+	for (unsigned short C=0; C<=Z; C++)
+	  cnt += p->dattrib[hybrid_pos + C] * C;
+	numb *= cnt;
+      }
+
       for (unsigned j=0; j<3; j++) {
 	double v = p->dattrib[use_elec+j];
 	Eengy += 0.5 * v*v * numb;
