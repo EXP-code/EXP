@@ -1,22 +1,35 @@
+#!/usr/bin/python
+
+"""Module for plotting UserTreeDSMC::CollideIon output for multiple runts"""
+
 import sys, getopt
 import matplotlib.pyplot as plt
 import getSpecies as gs
 
 def plot(tags, tmin, tmax, Tmin, Tmax, scale):
     """ Plotting routine """
+
+    fig = plt.figure()
+    ax  = plt.subplot(111)
+
+    # Shrink current axis's height by 10% on the bottom
+    box = ax.get_position()
+    newBox = [box.x0, box.y0, 0.9*box.width, box.height]
+    ax.set_position(newBox)
+
     fields = ['Telc(1)', 'Telc(2)', 'Tion(1)', 'Tion(2)']
     d = {}
     for tag in tags:
         d[tag] = gs.readDB(tag)
         for f in fields:
-            plt.plot(d[tag]['Time']*scale, d[tag][f], '-', label="{}: {}".format(tag[5:],f))
+            if f in d[tag]:
+                plt.plot(d[tag]['Time']*scale, d[tag][f], '-', label="{}: {}".format(tag[5:],f))
 
     plt.xlabel('Time')
     plt.ylabel('Temp')
-    if tmax > tmin: plt.xlim([tmin*scale, tmax*scale])
+    if tmax > tmin: plt.xlim([tmin, tmax])
     if Tmax > Tmin: plt.ylim([Tmin, Tmax])
-    plt.legend(loc=3, prop={'size':10}, bbox_to_anchor=(1,0)).draggable()
-    plt.tight_layout(pad=7)
+    plt.legend(prop={'size':10}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0).draggable()
     plt.show()
 
 def main(argv):

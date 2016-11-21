@@ -1258,18 +1258,18 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
     in[10] = wait1SoFar();
     in[11] = wait2SoFar();
     
-    tt[ 0] += partnSoFar;
-    tt[ 1] += tree1SoFar;
-    tt[ 2] += tradjSoFar;
-    tt[ 3] += tcellSoFar;
-    tt[ 4] += tstepSoFar;
-    tt[ 5] += llistTime.getTime();
-    tt[ 6] += collideSoFar;
-    tt[ 7] += timerSoFar;
-    tt[ 8] += waitpSoFar;
-    tt[ 9] += waitcSoFar;
-    tt[10] += wait1SoFar;
-    tt[11] += wait2SoFar;
+    tt[ 0] = partnSoFar;
+    tt[ 1] = tree1SoFar;
+    tt[ 2] = tradjSoFar;
+    tt[ 3] = tcellSoFar;
+    tt[ 4] = tstepSoFar;
+    tt[ 5] = llistTime.getTime();
+    tt[ 6] = collideSoFar;
+    tt[ 7] = timerSoFar;
+    tt[ 8] = waitpSoFar;
+    tt[ 9] = waitcSoFar;
+    tt[10] = wait1SoFar;
+    tt[11] = wait2SoFar;
     
     if (mlevel==0) {
       for (unsigned k=0; k<nf; k++) {
@@ -1534,9 +1534,10 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
 			 keynewc, keyoldc, treebar, diagdbg, numbods);
       
       mout << "------------------------------------" << endl
-	   << "Timing (secs) at mlevel="             << mlevel << endl
-	   << "  ** Running average="                << fullstep.getTime() << endl
-	   << "  ** Last step time ="                << fullstep.getLast() << endl
+	   << "Timing (microsec) at mlevel="         << mlevel << endl
+	   << "------------------------------------" << endl
+	   << "----Running average = "               << fullstep.getTime()*1.0e+06 << endl
+	   << "----Last step time  = "               << fullstep.getLast()*1.0e+06 << endl
 	   << "------------------------------------" << endl;
       
       outHeader0(mout);
@@ -1584,6 +1585,8 @@ void UserTreeDSMC::determine_acceleration_and_potential(void)
       outHelper0(mout, "collide  ", 6, out, tot);
       outHelper0(mout, "coll wait", 9, out, tot);
       outHelper0(mout, "overhead ", 7, out, tot);
+
+      mout << endl;
       
       collide->tsdiag(mout);
       collide->voldiag(mout);

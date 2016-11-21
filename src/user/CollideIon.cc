@@ -8644,6 +8644,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     if (outdbg) outdbg << "Cell=" << cell->mykey
 		       << " electron scattering BEGIN" << std::endl;
   }
+  
+  // RMS energy diagnostic for debugFC
+  //
+  std::vector<std::pair<double, double> > EconsV;
 
   //======================================================================
   // Do electron interactions separately
@@ -9010,7 +9014,11 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  //
 	  if (DebugE) momD[id].push_back(sqrt(dp2/pi2));
 
-	  if ( fabs(Efin - Ebeg) > 1.0e-8*(Ebeg) ) {
+	  double deltaEn = Efin - Ebeg;
+
+	  if (debugFC) EconsV.push_back(std::pair<double, double>(deltaEn, Ebeg));
+
+	  if ( fabs(deltaEn) > 1.0e-8*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
 		      << " Ebeg="  << Ebeg
 		      << " Efin="  << Efin
@@ -9030,7 +9038,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Upscale electron energy
 	  //
-	  if (k1.Z() == k2.Z()) {
+	  if (false and k1.Z() == k2.Z()) {
 
 	    double m1    = p1->mass*atomic_weights[0]/atomic_weights[k1.Z()] * ne1;
 	    double m2    = p2->mass*atomic_weights[0]/atomic_weights[k2.Z()] * ne2;
@@ -9183,6 +9191,33 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	       << ", "   << std::setw(3) << i.first.second
 	       << ") = " << i.second     << std::endl;
       }
+    }
+
+    size_t count = EconsV.size();
+    if (count) {
+      std::sort(EconsV.begin(), EconsV.end());
+
+      const std::vector<float> qv =
+	{0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
+      
+      typedef std::pair<double, double> ddP;
+      std::map<float, ddP> qq;
+      for (auto v : qv) qq[v] = EconsV[std::floor(count*v)];
+      
+      outdbg << "Delta Econs [" << count << "]" << endl
+	     << std::setw(8)  << std::right << "quantile" << ": "
+	     << std::setw(18) << std::left  << "delta E"
+	     << std::setw(18) << std::left  << "(delta E)/E"
+	     << std::endl
+	     << std::setw(8)  << std::right << "--------" << ": "
+	     << std::setw(18) << std::left  << "-------------"
+	     << std::setw(18) << std::left  << "-------------"
+	     << std::endl;
+      for (auto v : qq)
+	outdbg << std::setw(8)  << std::right  << std::right << v.first << ": "
+	       << std::setw(18) << std::left   << v.second.first
+	       << std::setw(18) << std::left   << v.second.first/v.second.second
+	       << std::endl;
     }
     outdbg << "Cell=" << cell->mykey << " electron scattering DONE"
 	   << std::endl << std::string(70, '-') << std::endl;
