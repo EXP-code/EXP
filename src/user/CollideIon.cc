@@ -8660,7 +8660,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     const double cunit = 1e-14/(UserTreeDSMC::Lunit*UserTreeDSMC::Lunit);
     std::vector<unsigned long> bods;
+
     // Eta will be the true # of electrons
+    //
     double eta = 0.0, crsvel = 0.0;
     double volc = cell->Volume();
     double me   = atomic_weights[0]*amu;
