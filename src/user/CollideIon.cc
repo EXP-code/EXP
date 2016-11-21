@@ -149,6 +149,10 @@ static bool KE_DEBUG          = true;
 //
 static double DEBUG_THRESH    = 1.0e-08;
 
+// Finalize cell debug diagnostics
+//
+static bool debugFC = false;
+
 // Tally ionization potential with energy loss during recombination
 //
 static bool RECOMB_IP         = false;
@@ -8362,8 +8366,6 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 			       sKeyDmap* const Fn, double kedsp, double tau,
 			       int id)
 {
-  static bool debugFC = false;
-
   //======================================================================
   // Collision cell energy conservation debugging
   //======================================================================
@@ -9116,7 +9118,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	  }
 				// Correct energy for conservation
 	  if (!equal) p1->dattrib[use_elec+3] -= deltaKE;
-	}
+
+	} // END: momentum conservation
 
 	// For debugging
 	//
@@ -13896,6 +13899,9 @@ void CollideIon::processConfig()
 
     ntcDist =
       cfg.entry<bool>("ntcDist", "Enable NTC full distribution for electrons", false);
+
+    debugFC =
+      cfg.entry<bool>("debugFC", "Enable finalize-cell electron scattering diagnostics", false);
 
     use_spectrum =
       cfg.entry<bool>("Spectrum", "Tabulate emission spectrum.  Use log scale if min > 0.0 and wvlSpect is false", false);
