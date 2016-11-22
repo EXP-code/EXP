@@ -8325,19 +8325,26 @@ double CollideIon::electronEnergy(pCell* const cell, int dbg)
   double Eengy = 0.0;
   for (auto b : cell->bods) {
     Particle *p = c0->Tree()->Body(b);
+
     KeyConvert k(p->iattrib[use_key]);
-    if (k.C() - 1 > 0) {
-      double numb = p->mass/atomic_weights[k.Z()];
+    double numb = 0.0;
 
-      // Electron fraction for hybrid model
-      //
-      if (aType == Hybrid) {
-	double cnt = 0.0;
-	for (unsigned short C=0; C<=Z; C++)
-	  cnt += p->dattrib[hybrid_pos + C] * C;
-	numb *= cnt;
-      }
+    // Electron fraction for hybrid model
+    //
+    if (aType == Hybrid) {
+      double cnt = 0.0;
+      const unsigned short Z = k.getKey().first;
+      for (unsigned short C=0; C<=Z; C++)
+	cnt += p->dattrib[hybrid_pos + C] * C;
+      numb = p->mass/atomic_weights[k.Z()] * cnt;
+    }
+    // All other models . . .
+    //
+    else if (k.C() - 1 > 0) {
+      numb = p->mass/atomic_weights[k.Z()];
+    }
 
+    if (numb>0.0) {
       for (unsigned j=0; j<3; j++) {
 	double v = p->dattrib[use_elec+j];
 	Eengy += 0.5 * v*v * numb;
@@ -9216,22 +9223,22 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       std::map<float, ddP> qq;
       for (auto v : qv) qq[v] = EconsV[std::floor(count*v)];
       
-      outdbg << "Delta Econs [" << count << "]" << endl
-	     << std::setw(8)  << std::right << "quantile" << ": "
-	     << std::setw(18) << std::left  << "delta E"
-	     << std::setw(18) << std::left  << "(delta E)/E"
+      outdbg << endl << "Delta Econs [" << count << "]" << endl
+	     << std::setw(8)  << std::right << "quantile" << "|  "
+	     << std::setw(18) << std::right << "delta E"
+	     << std::setw(18) << std::right << "(delta E)/E"
 	     << std::endl
-	     << std::setw(8)  << std::right << "--------" << ": "
-	     << std::setw(18) << std::left  << "-------------"
-	     << std::setw(18) << std::left  << "-------------"
+	     << std::setw(8)  << std::right << "--------" << "|  "
+	     << std::setw(18) << std::right << "-------------"
+	     << std::setw(18) << std::right << "-------------"
 	     << std::endl;
       for (auto v : qq)
-	outdbg << std::setw(8)  << std::right  << std::right << v.first << ": "
-	       << std::setw(18) << std::left   << v.second.first
-	       << std::setw(18) << std::left   << v.second.first/v.second.second
+	outdbg << std::setw(8)  << std::right  << std::right << v.first << "|  "
+	       << std::setw(18) << std::right  << v.second.first
+	       << std::setw(18) << std::right  << v.second.first/v.second.second
 	       << std::endl;
     }
-    outdbg << "Cell=" << cell->mykey << " electron scattering DONE"
+    outdbg << std::endl << "Cell=" << cell->mykey << " electron scattering DONE"
 	   << std::endl << std::string(70, '-') << std::endl;
   }
 
