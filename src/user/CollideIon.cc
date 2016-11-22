@@ -43,6 +43,7 @@ bool     CollideIon::distDiag = false;
 bool     CollideIon::elecDist = false;
 bool     CollideIon::ntcDist  = false;
 unsigned CollideIon::esNum    = 100;
+double   CollideIon::esThr    = 0.0;
 unsigned CollideIon::NoDelC   = 0;
 unsigned CollideIon::maxCoul  = UINT_MAX;
 double   CollideIon::logL     = 24.0;
@@ -8665,6 +8666,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // RMS energy diagnostic for debugFC
   //
   std::vector<std::pair<double, double> > EconsV;
+  std::vector<double> EconsQ;
 
   //======================================================================
   // Do electron interactions separately
@@ -8693,13 +8695,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
     for (auto i : cell->bods) {
       Particle *p = cell->Body(i);
       KeyConvert k(p->iattrib[use_key]);
+				// Ionization-fraction-weighted charge
       if (aType == Hybrid) {
 	bods.push_back(i);
 	for (unsigned short C=1; C<=k.Z(); C++) {
 	  eta += ZMList[k.Z()]/atomic_weights[k.Z()] *
 	    (*Fn)[k.getKey()] * p->dattrib[hybrid_pos+C]*C;
 	}
-
+				// Mean charge
       } else {
 	if (k.C()>1) {
 	  bods.push_back(i);
@@ -8763,20 +8766,20 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       double W1 = p1->mass / atomic_weights[k1.Z()];
       double W2 = p2->mass / atomic_weights[k2.Z()];
 
-      // Default not valid for Hybrid method
+      // Default (not valid for Hybrid method)
       //
       double ne1 = k1.C() - 1;
       double ne2 = k2.C() - 1;
 
+      // Compute species-weighted electron number for Hybrid method
+      //
       if (aType == Hybrid) {
 	ne1 = ne2 = 0.0;
 	for (unsigned short C=1; C<=k1.Z(); C++)
 	  ne1 += p1->dattrib[hybrid_pos+C]*C;
 	for (unsigned short C=1; C<=k2.Z(); C++)
 	  ne2 += p2->dattrib[hybrid_pos+C]*C;
-      }
 
-      if (aType == Hybrid) {
 	W1 *= ne1;
 	W2 *= ne2;
       }
@@ -8808,11 +8811,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	W2  = tmp;
       }
 
+      if (esThr > 0.0) {
+	if (W2/W1 > esThr) W1 = W2 = 1.0;
+	else continue;
+      }
+
       double  q = W2 / W1;
-
-      // [Should update for Hybrid method to include fractional
-      // ionization states]
-
       double m1 = atomic_weights[0];
       double m2 = atomic_weights[0];
       double mt = m1 + m2;
@@ -9035,7 +9039,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  double deltaEn = Efin - Ebeg;
 
-	  if (debugFC) EconsV.push_back(std::pair<double, double>(deltaEn, Ebeg));
+	  if (debugFC) {
+	    EconsV.push_back(std::pair<double, double>(deltaEn, Ebeg));
+	    EconsQ.push_back(q);
+	  }
 
 	  if ( fabs(deltaEn) > 1.0e-8*(Ebeg) ) {
 	    std::cout << "Broken energy conservation,"
@@ -9057,6 +9064,9 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
 	  // Upscale electron energy
 	  //
+	  //  +------Turn off energy conservation correction, for now
+	  //  |
+	  //  v
 	  if (false and k1.Z() == k2.Z()) {
 
 	    double m1    = p1->mass*atomic_weights[0]/atomic_weights[k1.Z()] * ne1;
@@ -9238,6 +9248,30 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	       << std::setw(18) << std::right  << v.second.first/v.second.second
 	       << std::endl;
     }
+
+    count = EconsQ.size();
+    if (count) {
+      std::sort(EconsQ.begin(), EconsQ.end());
+
+      const std::vector<float> qv =
+	{0.01, 0.05, 0.1, 0.2, 0.5, 0.8, 0.9, 0.95, 0.99};
+      
+      std::map<float, double> qq;
+      for (auto v : qv) qq[v] = EconsQ[std::floor(count*v)];
+      
+      outdbg << endl << "q values [" << count << "]" << endl
+	     << std::setw(8)  << std::right << "quantile" << "|  "
+	     << std::setw(18) << std::right << "q"
+	     << std::endl
+	     << std::setw(8)  << std::right << "--------" << "|  "
+	     << std::setw(18) << std::right << "-------------"
+	     << std::endl;
+      for (auto v : qq)
+	outdbg << std::setw(8)  << std::right  << std::right << v.first << "|  "
+	       << std::setw(18) << std::right  << v.second
+	       << std::endl;
+    }
+
     outdbg << std::endl << "Cell=" << cell->mykey << " electron scattering DONE"
 	   << std::endl << std::string(70, '-') << std::endl;
   }

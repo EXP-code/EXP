@@ -576,8 +576,11 @@ void UserTreeDSMC::userinfo()
       cout << ", scattering only is OFF";
     const std::string eslab = CollideIon::getEStype();
     cout << ", electron algorithm is <" << eslab << ">";
-    if (eslab.compare("limited")==0)
+    if (eslab.compare("limited")==0) {
       cout << ", collision limit is " << CollideIon::esNum;
+      if (CollideIon::esThr > 0.0)
+	cout << ", q-threshold is "     << CollideIon::esThr;
+    }
   }
   
   cout << endl;
@@ -703,6 +706,7 @@ void UserTreeDSMC::initialize()
     if (get_value("nodelC",  val))        CollideIon::NoDelC  = atoi(val);
     if (get_value("estype",  val))        CollideIon::setEStype(val);
     if (get_value("esnum",   val))        CollideIon::esNum   = atoi(val);
+    if (get_value("esthr",   val))        CollideIon::esThr   = atof(val);
     if (get_value("logL",    val))        CollideIon::logL    = atof(val);
     if (get_value("config",  val))        CollideIon::config0 = val;
   }

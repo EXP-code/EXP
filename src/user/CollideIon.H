@@ -563,6 +563,10 @@ public:
   //! algorithm
   static unsigned esNum;
 
+  //! Minimum q ratio for electron scatterings using the "limited"
+  //! algorithm
+  static double esThr;
+
   //! Coulombic log Lambda value
   static double logL;
 
