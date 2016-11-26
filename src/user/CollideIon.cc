@@ -34,6 +34,7 @@ bool     CollideIon::equiptn  = false;
 bool     CollideIon::scatter  = false;
 bool     CollideIon::ExactE   = false;
 bool     CollideIon::AlgOrth  = false;
+bool     CollideIon::AlgWght  = false;
 bool     CollideIon::DebugE   = false;
 bool     CollideIon::collLim  = false;
 unsigned CollideIon::maxSelA  = 1000;
@@ -91,8 +92,10 @@ static bool COLL_SPECIES      = false;
 // Same species tests (for debugging only)
 //
 static bool SAME_ELEC_SCAT    = false;
+static bool DIFF_ELEC_SCAT    = false;
 static bool SAME_IONS_SCAT    = false;
 static bool SAME_INTERACT     = false;
+static bool DIFF_INTERACT     = false;
 static bool SAME_TRACE_SUPP   = false;
 
 // Suppress distribution of energy to electrons when using NOCOOL
@@ -333,6 +336,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (DebugE ? "on" : "off")                << std::endl
 	      <<  " " << std::setw(20) << std::left << "ENERGY_ORTHO"
 	      << (AlgOrth ? "on" : "off")               << std::endl
+	      <<  " " << std::setw(20) << std::left << "ENERGY_WEIGHT"
+	      << (AlgWght ? "on" : "off")               << std::endl
 	      <<  " " << std::setw(20) << std::left << "SECONDARY_SCATTER"
 	      << (SECONDARY_SCATTER ? "on [" : "off [") << SECONDARY_SCATTER
 	      << "]" << std::endl
@@ -353,10 +358,14 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << TRACE_FRAC                             << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_ELEC_SCAT"
 	      << (SAME_ELEC_SCAT ? "on" : "off")        << std::endl
+	      <<  " " << std::setw(20) << std::left << "DIFF_ELEC_SCAT"
+	      << (DIFF_ELEC_SCAT ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_IONS_SCAT"
 	      << (SAME_IONS_SCAT ? "on" : "off")        << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_INTERACT"
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "DIFF_INTERACT"
+	      << (DIFF_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
 	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
 	      <<  " " << std::setw(20) << std::left << "NoDelC"
@@ -3533,6 +3542,7 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
   if (SAME_INTERACT and Z1 != Z2) return 0;
+  if (DIFF_INTERACT and Z1 == Z2) return 0;
 
   // Number of atoms in each super particle
   //
@@ -4454,6 +4464,7 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
   unsigned short Z2 = k2.getKey().first, C2 = k2.getKey().second;
 
   if (SAME_INTERACT and Z1 != Z2) return 0;
+  if (DIFF_INTERACT and Z1 == Z2) return 0;
 
   // Particle 1 is assumed to be the "dominant" species and Particle 2
   // is assumed to be the "trace" species (or another "dominant").
@@ -6123,6 +6134,7 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   unsigned short Z2 = k2.getKey().first;
 
   if (SAME_INTERACT and Z1 != Z2) return ret;
+  if (DIFF_INTERACT and Z1 == Z2) return 0;
 
   // These are the number of electrons in each particle to be scaled
   // by number of atoms/ions in each superparticle
@@ -7316,7 +7328,88 @@ void CollideIon::scatterHybrid
 
       }
 
-      if (!AlgOrth or !algok) {
+
+      if (AlgWght) {
+	
+	KE.bs.set(KE_Flags::AlgW);
+
+	// Compute initial and final energy after combination to get
+	// energy excess
+	//
+	double KEi1 = 0.0, KEi2 = 0.0, KEf1 = 0.0, KEf2 = 0.0;
+	for (size_t k=0; k<3; k++) {
+	  KEi1 += v1[k]*v1[k];
+	  KEi2 += v2[k]*v2[k];
+	  double ww = (1.0 - d.q)*v1[k] + d.q*uu[k];
+	  KEf1 += ww*ww;
+	  KEf2 += vv[k]*vv[k];
+	}
+	
+	KEi1 *= 0.5*d.W1*d.m1;
+	KEi2 *= 0.5*d.W2*d.m2;
+	KEf1 *= 0.5*d.W1*d.m1;
+	KEf2 *= 0.5*d.W2*d.m2;
+
+
+	double delE  = kE - totE;
+	double difE  = KEi1 + KEi2 - delE - KEf1 - KEf2;
+	double difE1 = difE * d.W1/(d.W1 + d.W2);
+	double difE2 = difE * d.W2/(d.W1 + d.W2);
+	double totEf = KEf1 + KEf2;
+	
+	algok = true;
+
+	if (totEf + difE < 0.0) {
+	  algok = false;
+	} else if (difE1 + KEf1 < 0.0) {
+	  vrat = 0.0;
+	  double vfac = sqrt((totEf + difE)/KEf2);
+	  for (auto & v : vv) v *= vfac;
+	} else if (difE2 + KEf2 < 0.0) {
+	  vrat = sqrt((totEf + difE)/KEf1);
+	  for (auto & v : uu) v *= vrat;
+	  for (auto & v : vv) v  = 0.0;
+	} else {
+	  vrat = sqrt(1.0 + difE1/KEf1);
+	  for (auto & v : uu) v *= vrat;
+	  double vfac = sqrt(1.0 + difE2/KEf2);
+	  for (auto & v : vv) v *= vfac;
+	}
+
+	// Temporary deep debug
+	//
+	if (algok) {
+
+	  double M1 = 0.5 * d.W1 * d.m1;
+	  double M2 = 0.5 * d.W2 * d.m2;
+	  // Initial KE
+	  double KE1i = 0.0, KE2i = 0.0;
+	  double KE1f = 0.0, KE2f = 0.0;
+	  for (auto v : v1) KE1i += v*v;
+	  for (auto v : v2) KE2i += v*v;
+	  for (size_t k=0; k<3; k++) {
+	    double w  = (1.0 - d.q)*v1[k]*vrat + d.q*uu[k];
+	    KE1f += w*w;
+	  }
+	  for (auto v : vv) KE2f += v*v;
+
+	  KE1i *= M1;
+	  KE2i *= M2;
+	  KE1f *= M1;
+	  KE2f *= M2;
+
+	  // KE differences
+	  double KEi   = KE1i + KE2i;
+	  double KEf   = KE1f + KE2f;
+	  double delEt = KEi - delE  - KEf;
+
+	  if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
+	    std::cout << "Electron-ion error: delEt = " << delEt << std::endl;
+	  }
+	}
+      }
+
+      if (!algok or (!AlgOrth and !AlgWght)) {
 
 	KE.bs.set(KE_Flags::StdE);
 
@@ -7394,7 +7487,7 @@ void CollideIon::scatterHybrid
 		  << " wnrm = " << wnrm
 		  << " b1f2 = " << b1f2/v1i2
 		  << " v1u1 = " << v1u1/v1i2
-		  << " alg = " << (algok ? "orth": "std")
+		  << " alg = " << (algok ? (AlgWght ? "wght" : "orth"): "std")
 		  << " flg = " << KE.decode()
 		  << std::endl;
       }
@@ -8392,6 +8485,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 
     double totKEf = 0.0;
     double totMas = 0.0;
+    double totIon = 0.0;
+    double totElc = 0.0;
     
     for (auto b : cell->bods) {
       Particle *p  = tree->Body(b);
@@ -8415,8 +8510,14 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	}
       }
       double KE = 0.5 * p->mass * ke;
-      if (use_cons>=0) KE -= p->dattrib[use_cons];
-      if (use_elec>=0) KE -= p->dattrib[use_elec+3];
+      if (use_cons>=0) {
+	KE -= p->dattrib[use_cons];
+	totIon += p->dattrib[use_cons];
+      }
+      if (use_elec>=0) {
+	KE -= p->dattrib[use_elec+3];
+	totElc += p->dattrib[use_elec+3];
+      }
       totKEf += KE;
       totMas += p->mass;
     }
@@ -8431,6 +8532,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		    << " before="  << std::setw(14) << testKE[id]
 		    << " after="   << std::setw(14) << totKEf
 		    << " rel err=" << std::setw(14) << delE
+		    << " cons I="  << std::setw(14) << totIon
+		    << " cons E="  << std::setw(14) << totElc
 		    << " mass="    << std::setw(14) << totMas
 		    << " bodies="  << cell->bods.size()
 		    << std::endl;
@@ -8760,6 +8863,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       KeyConvert k2(p2->iattrib[use_key]);
 
       if (SAME_ELEC_SCAT) if (k1.Z() != k2.Z()) continue;
+      if (DIFF_ELEC_SCAT) if (k1.Z() == k2.Z()) continue;
 
       // Find the trace ratio
       //
@@ -8971,7 +9075,82 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    }
 	  }
 
-	  if (!AlgOrth or !algok) {
+	  if (AlgWght) {
+	    // Compute initial and final energy after combination to get
+	    // energy excess
+	    //
+	    double KEi1 = 0.0, KEi2 = 0.0, KEf1 = 0.0, KEf2 = 0.0;
+	    for (size_t k=0; k<3; k++) {
+	      KEi1 += v1[k]*v1[k];
+	      KEi2 += v2[k]*v2[k];
+	      double ww = (1.0 - q)*v1[k] + q*uu[k];
+	      KEf1 += ww*ww;
+	      KEf2 += vv[k]*vv[k];
+	    }
+	    
+	    KEi1 *= 0.5*W1*m1;
+	    KEi2 *= 0.5*W2*m2;
+	    KEf1 *= 0.5*W1*m1;
+	    KEf2 *= 0.5*W2*m2;
+
+	    double difE  = KEi1 + KEi2 - KEf1 - KEf2;
+	    double difE1 = difE * W1/(W1 + W2);
+	    double difE2 = difE * W2/(W1 + W2);
+	    double totEf = KEf1 + KEf2;
+	    
+	    algok = true;
+
+	    if (totEf + difE < 0.0) {
+	      algok = false;
+	    } else if (difE1 + KEf1 < 0.0) {
+	      vrat = 0.0;
+	      double vfac = sqrt((totEf + difE)/KEf2);
+	      for (auto & v : vv) v *= vfac;
+	    } else if (difE2 + KEf2 < 0.0) {
+	      vrat = sqrt((totEf + difE)/KEf1);
+	      for (auto & v : uu) v *= vrat;
+	      for (auto & v : vv) v  = 0.0;
+	    } else {
+	      vrat = sqrt(1.0 + difE1/KEf1);
+	      for (auto & v : uu) v *= vrat;
+	      double vfac = sqrt(1.0 + difE2/KEf2);
+	      for (auto & v : vv) v *= vfac;
+	    }
+
+	    // Temporary deep debug
+	    //
+	    if (algok) {
+	      
+	      double M1 = 0.5 * W1 * m1;
+	      double M2 = 0.5 * W2 * m2;
+	      // Initial KE
+	      double KE1i = 0.0, KE2i = 0.0;
+	      double KE1f = 0.0, KE2f = 0.0;
+	      for (auto v : v1) KE1i += v*v;
+	      for (auto v : v2) KE2i += v*v;
+	      for (size_t k=0; k<3; k++) {
+		double w  = (1.0 - q)*v1[k]*vrat + q*uu[k];
+		KE1f += w*w;
+	      }
+	      for (auto v : vv) KE2f += v*v;
+	      
+	      KE1i *= M1;
+	      KE2i *= M2;
+	      KE1f *= M1;
+	      KE2f *= M2;
+	      
+	      // KE differences
+	      double KEi   = KE1i + KE2i;
+	      double KEf   = KE1f + KE2f;
+	      double delEt = KEi  - KEf;
+	      
+	      if ( fabs(delEt)/std::min<double>(KEi, KEf) > tolE) {
+		std::cout << "Elec-elec error: delEt = " << delEt << std::endl;
+	      }
+	    }
+	  }
+
+	  if (!algok or (!AlgOrth and !AlgWght)) {
 	    double qT = v1u1 * q;
 	    if (v1i2 > 0.0) qT /= v1i2;
 	    // Disable Taylor expansion.  Something is not working
@@ -9058,6 +9237,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		      << " costh=" << cos_th
 		      << "   phi=" << phi
 		      << " AlgOr=" << std::boolalpha << AlgOrth
+		      << " AlgWg=" << std::boolalpha << AlgWght
 		      << " algok=" << std::boolalpha << algok
 		      << std::endl;
 	  }
@@ -13858,6 +14038,9 @@ void CollideIon::processConfig()
     AlgOrth =
       cfg.entry<bool>("ENERGY_ORTHO", "Add energy in orthogonal direction", false);
 
+    AlgWght =
+      cfg.entry<bool>("ENERGY_WEIGHT", "Energy conservation weighted by superparticle number count", false);
+
     TRACE_ELEC =
       cfg.entry<bool>("TRACE_ELEC", "Add excess energy directly to the electrons", false);
 
@@ -13887,11 +14070,17 @@ void CollideIon::processConfig()
     SAME_ELEC_SCAT =
       cfg.entry<bool>("SAME_ELEC_SCAT", "Only scatter electrons with the same donor-ion mass", false);
 
+    DIFF_ELEC_SCAT =
+      cfg.entry<bool>("DIFF_ELEC_SCAT", "Only scatter electrons with different donor-ion mass", false);
+
     SAME_IONS_SCAT =
       cfg.entry<bool>("SAME_IONS_SCAT", "Only scatter ions with the same mass", false);
 
     SAME_INTERACT =
       cfg.entry<bool>("SAME_INTERACT", "Only perform interactions with equal-mass particles", false);
+
+    DIFF_INTERACT =
+      cfg.entry<bool>("DIFF_INTERACT", "Only perform interactions with different species particles", false);
 
     SAME_TRACE_SUPP =
       cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);

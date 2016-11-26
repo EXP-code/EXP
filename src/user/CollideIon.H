@@ -243,6 +243,7 @@ enum KE_Flags {
   KEpos,			//!< [positive KE]
   ExQ,				//!< [Exact q<1]
   AlgO,				//!< [Orthogonal exact]
+  AlgW,				//!< [Weighted exact]
   StdE,				//!< [Standard exact]
   negE,				//!< [negative KE]
   zeroKE,			//!< [zero COM KE]
@@ -895,6 +896,7 @@ protected:
       "[positive KE]",
       "[Exact q<1]",
       "[Orthogonal exact]",
+      "[Weighted exact]",
       "[Standard exact]",
       "[negative KE]",
       "[zero COM KE]",
@@ -994,6 +996,7 @@ public:
   static bool     scatter;
   static bool     ExactE;
   static bool     AlgOrth;
+  static bool     AlgWght;
   static bool     DebugE;
   static bool     collLim;
   static bool     E_split;
