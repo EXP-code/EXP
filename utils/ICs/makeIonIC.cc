@@ -126,6 +126,18 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   std::cout << "Mass unit:   "  << Munit << " g"    << std::endl;
   std::cout << std::string(70, '-')                 << std::endl;
   
+  /*
+    We want every d.o.f. to have 1/2 k_B T of energy.  For classic
+    DSMC, every superparticle has m/mu(Z) real particles [in physical
+    units where mu(Z) = atomic_masses[Z]*amu].  So the velocity factor
+    is given by the equality: 
+
+    3/2*N*k_B*T = 3/2*m*k_B*T/mu(Z) = 3/2*m*v^2 
+
+    where N is the number of particles, or 
+
+    v^2 = k_B*T/mu(Z)
+  */
   std::map<unsigned char, double> varI, varE;
   for (auto v : T) {
     unsigned char Z = v.first;
@@ -139,10 +151,23 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
   
   double tKEi  = 0.0;
   double tKEe  = 0.0;
-  double numb  = 0.0;
+  double numbI = 0.0;
+  double numbE = 0.0;
   double Eunit = Munit*Vunit*Vunit;
   double ttemp = T[0];
   
+  size_t nd = 0;		// Get the species fraction location
+				// in dattrib
+  if (type == Hybrid) {
+    std::ifstream hin ("species.spec");
+    std::string method, line;
+    std::getline (hin, method);
+    std::getline (hin, line);
+    std::istringstream sin(line);
+    sin >> nd;
+    sin >> nd;
+  }
+
   for (unsigned i=0; i<npart; i++) {
     
     double KE = 0.0;
@@ -175,12 +200,28 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
 	}
       }
       
-      tKEi += 0.5 * p[i].mass * KE * Eunit;
-      tKEe += 0.5 * p[i].mass * atomic_masses[0]/atomic_masses[Z] * KEe * Eunit;
-      numb += p[i].mass/atomic_masses[Z] * Munit / amu;
-      
-      KE *= 0.5 * p[i].mass * (C-1);
-      
+      // Ion KE
+      //
+      tKEi  += 0.5 * p[i].mass * KE * Eunit;
+
+      // Ion number
+      //
+      numbI += p[i].mass/atomic_masses[Z] * Munit / amu;
+
+      // Electron KE and number
+      //
+      if (type == Hybrid) {
+	double eta = 0.0;
+	for (unsigned short C=1; C<=Z; C++)
+	  eta += p[i].dattrib[nd+C]*C;
+	eta *= p[i].mass/atomic_masses[Z];
+	numbE += eta * Munit / amu;
+	tKEe  += 0.5 * eta * atomic_masses[0] * KEe * Eunit;
+      } else {
+	tKEe  += 0.5 * p[i].mass * atomic_masses[0]/atomic_masses[Z] * KEe * Eunit;
+	numbE += p[i].mass/atomic_masses[Z] * Munit / amu * C;
+      }
+
       ttemp = T[Z];
     }
     
@@ -196,9 +237,15 @@ void InitializeUniform(std::vector<Particle>& p, double mass,
     }
   }
   
-  if (type != Trace) {
-    std::cout << "T (ion):     " << tKEi/(1.5*numb*boltz) << std::endl
-	      << "T (elec):    " << tKEe/(1.5*numb*boltz) << std::endl
+  if (type == Hybrid) {
+    std::cout << "T (ion):      " << tKEi/(1.5*numbI*boltz) << std::endl
+	      << "T (elec):     " << tKEe/(1.5*numbE*boltz) << std::endl
+	      << "N (elec/ion): " << numbE/numbI            << std::endl
+	      << std::string(70, '-') << std::endl;
+  }
+  else if (type != Trace) {
+    std::cout << "T (ion):     " << tKEi/(1.5*numbI*boltz) << std::endl
+	      << "T (elec):    " << tKEe/(1.5*numbI*boltz) << std::endl
 	      << std::string(70, '-') << std::endl;
   }
 }
@@ -845,6 +892,7 @@ void InitializeSpeciesHybrid
   // Compute cumulative species
   // distribution
   size_t NS = sF.size();
+
   // Normalize sF
   //
   double norm = std::accumulate(sF.begin(), sF.end(), 0.0);
@@ -854,7 +902,7 @@ void InitializeSpeciesHybrid
   
   std::vector<double> frcS(sF), wght(NS);
   double fH = sF[0], W_H = 1.0;
-  for (auto &v : frcS) v /= fH;
+  for (auto & v : frcS) v /= fH;
   
   auto it = std::max_element(std::begin(sZ), std::end(sZ));
   size_t maxSp = *it;
@@ -875,16 +923,21 @@ void InitializeSpeciesHybrid
     
     particles[i].iattrib.resize(ni, 0);
     particles[i].dattrib.resize(nd, 0);
+
     // Add the use_cons field
     particles[i].dattrib.push_back(0.0);
+
     // Add the ionization states
     for (auto v : frac[Zi]) {
       particles[i].dattrib.push_back(v);
     }
+
     // Pad
     for (size_t v=frac[Zi].size(); v<=maxSp; v++) 
       particles[i].dattrib.push_back(0.0);
-    if (ne>=0) {		// Add the use_elec fields
+
+    // Add the use_elec fields
+    if (ne>=0) {
       for (int l=0; l<4; l++) particles[i].dattrib.push_back(0.0);
     }
     
