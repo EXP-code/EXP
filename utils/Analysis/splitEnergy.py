@@ -27,8 +27,9 @@ if is_number(sys.argv[-1]):
 else:
         labs = sys.argv[1:]
         
-fields = [ ['Telc(1)', 'Telc(2)'], ['Tion(1)', 'Tion(2)'] ]
-titles = ['Electrons', 'Ions']
+fields = [ ['Eelc(1)', 'Eion(1)', 'Selc(1)', 'Sion(1)'], \
+           ['Eelc(2)', 'Eion(2)', 'Selc(2)', 'Sion(2)'] ]
+labels = [ 'Hydrogen', 'Helium' ]
 
 d = {}
 for v in labs:
@@ -37,19 +38,18 @@ for v in labs:
 f, ax = plt.subplots(2, 1, sharex='col')
 for x in ax:
         box = x.get_position()
-        newBox = [box.x0, box.y0, 0.9*box.width, box.height]
+        newBox = [box.x0+0.05*box.width, box.y0, 0.85*box.width, box.height]
         x.set_position(newBox)
 
-cnt = 0
-for v in labs:
-        for n in range(2):
-                for F in fields[n]:
-                        if F in d[v]:
+for n in range(2):
+        for v in labs:
+                for f in fields[n]:
+                        if f in d[v]:
                                 indx = np.searchsorted(d[v]['Time'], tmax)
-                                ax[n].plot(d[v]['Time'][0:indx], d[v][F][0:indx], '-', label=v+':'+F)
+                                ax[n].plot(d[v]['Time'][0:indx], d[v][f][0:indx], '-', label=v+':'+f)
 
-                ax[n].legend(prop={'size':8}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0)
-                if n>0: ax[n].set_xlabel('Time')
-                ax[n].set_ylabel('Temperature')
-                ax[n].set_title(titles[n])
+        ax[n].legend(prop={'size':8}, bbox_to_anchor=(1.02, 1), loc=2, borderaxespad=0.0)
+        if n==len(labels)-1: ax[n].set_xlabel('Time')
+        ax[n].set_ylabel('Energy')
+        ax[n].set_title(labels[n])
 plt.show()
