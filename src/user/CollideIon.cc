@@ -97,6 +97,7 @@ static bool SAME_IONS_SCAT    = false;
 static bool SAME_INTERACT     = false;
 static bool DIFF_INTERACT     = false;
 static bool SAME_TRACE_SUPP   = false;
+static bool INFR_INTERACT     = false;
 
 // Suppress distribution of energy to electrons when using NOCOOL
 //
@@ -203,6 +204,10 @@ static int DEBUG_CNT          = -1;
 //
 static bool PRE_POST_COLL_KE  = false;
   
+// Use mass weighting rather than number weigting for AlgWght
+//
+static bool ALG_WGHT_MASS     = false;
+
 // Convert energy in eV to wavelength in angstroms
 //
 static constexpr double eVtoAng = 12398.41842144513;
@@ -366,6 +371,8 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      << (SAME_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "DIFF_INTERACT"
 	      << (DIFF_INTERACT ? "on" : "off")         << std::endl
+	      <<  " " << std::setw(20) << std::left << "INFR_INTERACT"
+	      << (INFR_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
 	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
 	      <<  " " << std::setw(20) << std::left << "NoDelC"
@@ -6134,7 +6141,8 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   unsigned short Z2 = k2.getKey().first;
 
   if (SAME_INTERACT and Z1 != Z2) return ret;
-  if (DIFF_INTERACT and Z1 == Z2) return 0;
+  if (DIFF_INTERACT and Z1 == Z2) return ret;
+  if (INFR_INTERACT and Z1 >  Z2) return ret;
 
   // These are the number of electrons in each particle to be scaled
   // by number of atoms/ions in each superparticle
@@ -7357,6 +7365,12 @@ void CollideIon::scatterHybrid
 	double difE2 = difE * d.W2/(d.W1 + d.W2);
 	double totEf = KEf1 + KEf2;
 	
+	if (ALG_WGHT_MASS) {
+	  double ms1 = d.p1->mass, ms2 = d.p2->mass;
+	  difE1 = difE * ms1/(ms1 + ms2);
+	  difE2 = difE * ms2/(ms1 + ms2);
+	}
+
 	algok = true;
 
 	if (totEf + difE < 0.0) {
@@ -9098,6 +9112,12 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    double difE2 = difE * W2/(W1 + W2);
 	    double totEf = KEf1 + KEf2;
 	    
+	    if (ALG_WGHT_MASS) {
+	      double ms1 = p1->mass, ms2 = p2->mass;
+	      difE1 = difE * ms1/(ms1 + ms2);
+	      difE2 = difE * ms2/(ms1 + ms2);
+	    }
+
 	    algok = true;
 
 	    if (totEf + difE < 0.0) {
@@ -12122,7 +12142,8 @@ void CollideIon::gatherSpecies()
 	for (auto b : cell->bods) {
 	  Particle *p = c0->Tree()->Body(b);
 	  unsigned Z  = KeyConvert(p->iattrib[use_key]).Z();
-	  double num  = p->mass / atomic_weights[Z];
+	  double masI = p->mass;
+	  double masE = p->mass * atomic_weights[0] / atomic_weights[Z];
 
 	  if (aType == Hybrid) {
 	    if (specI.find(Z) == specI.end()) specI[Z] = ztup_0;
@@ -12130,44 +12151,47 @@ void CollideIon::gatherSpecies()
 
 	    for (size_t j=0; j<3; j++) {
 	      double v = p->vel[j];
-	      std::get<0>(std::get<0>(specI[Z])[j]) += num*v;
-	      std::get<1>(std::get<0>(specI[Z])[j]) += num*v*v;
+	      std::get<0>(std::get<0>(specI[Z])[j]) += masI*v;
+	      std::get<1>(std::get<0>(specI[Z])[j]) += masI*v*v;
 	    }
-	    std::get<1>(specI[Z]) += num;
+	    std::get<1>(specI[Z]) += masI;
 
-	    double numE = 0.0;
+	    double eta = 0.0;
 	    for (unsigned short C=1; C<=Z; C++)
-	      numE += p->dattrib[hybrid_pos+C] * C * num;
+	      eta += p->dattrib[hybrid_pos+C] * C;
+
+	    masE *= eta;
 
 	    for (size_t j=0; j<3; j++) {
 	      double v = p->dattrib[use_elec+j];
-	      std::get<0>(std::get<0>(specE[Z])[j]) += numE*v;
-	      std::get<1>(std::get<0>(specE[Z])[j]) += numE*v*v;
+	      std::get<0>(std::get<0>(specE[Z])[j]) += masE*v;
+	      std::get<1>(std::get<0>(specE[Z])[j]) += masE*v*v;
 	    }
-	    std::get<1>(specE[Z]) += numE;
+	    std::get<1>(specE[Z]) += masE;
+
 	  } // end: Hybrid
 	  else {
 	    if (specI.find(Z) == specI.end()) specI[Z] = ztup_0;
 
 	    for (size_t j=0; j<3; j++) {
 	      double v = p->vel[j];
-	      std::get<0>(std::get<0>(specI[Z])[j]) += num*v;
-	      std::get<1>(std::get<0>(specI[Z])[j]) += num*v*v;
+	      std::get<0>(std::get<0>(specI[Z])[j]) += masI*v;
+	      std::get<1>(std::get<0>(specI[Z])[j]) += masI*v*v;
 	    }
-	    std::get<1>(specI[Z]) += num;
+	    std::get<1>(specI[Z]) += masI;
 
 	    if (KeyConvert(p->iattrib[use_key]).C()==1) continue;
 
 	    if (specE.find(Z) == specE.end()) specE[Z] = ztup_0;
 
-	    double numE = num * (KeyConvert(p->iattrib[use_key]).C() - 1);
+	    masE *= (KeyConvert(p->iattrib[use_key]).C() - 1);
 
 	    for (size_t j=0; j<3; j++) {
 	      double v = p->dattrib[use_elec+j];
-	      std::get<0>(std::get<0>(specE[Z])[j]) += numE*v;
-	      std::get<1>(std::get<0>(specE[Z])[j]) += numE*v*v;
+	      std::get<0>(std::get<0>(specE[Z])[j]) += masE*v;
+	      std::get<1>(std::get<0>(specE[Z])[j]) += masE*v*v;
 	    }
-	    std::get<1>(specE[Z]) += numE;
+	    std::get<1>(specE[Z]) += masE;
 
 	  } // end: Direct and Weight
 
@@ -13807,22 +13831,24 @@ void CollideIon::printSpeciesElectrons
 	  sout1 << "Eion(" << Z << ")";
 	  sout2 << "Nion(" << Z << ")";
 	  sout3 << "Tion(" << Z << ")";
-	  sout4 << "Eelc(" << Z << ")";
-	  sout5 << "Nelc(" << Z << ")";
-	  sout6 << "Telc(" << Z << ")";
-	  sout7 << "Vion(" << Z << ")";
-	  sout8 << "Velc(" << Z << ")";
+	  sout4 << "Sion(" << Z << ")";
+	  sout5 << "Eelc(" << Z << ")";
+	  sout6 << "Nelc(" << Z << ")";
+	  sout7 << "Telc(" << Z << ")";
+	  sout8 << "Selc(" << Z << ")";
 	  dout << std::setw(wid) << std::right << sout1.str()
 	       << std::setw(wid) << std::right << sout2.str()
-	       << std::setw(wid) << std::right << sout3.str();
+	       << std::setw(wid) << std::right << sout3.str()
+	       << std::setw(wid) << std::right << sout4.str();
 	  for (int j=0; j<3; j++) {
 	    std::ostringstream sout;
 	    sout << "Vi[" << j << "](" << Z << ")";
 	    dout << std::setw(wid) << std::right << sout.str();
 	  }
-	  dout << std::setw(wid) << std::right << sout4.str()
-	       << std::setw(wid) << std::right << sout5.str()
-	       << std::setw(wid) << std::right << sout6.str();
+	  dout << std::setw(wid) << std::right << sout5.str()
+	       << std::setw(wid) << std::right << sout6.str()
+	       << std::setw(wid) << std::right << sout7.str()
+	       << std::setw(wid) << std::right << sout8.str();
 	  for (int j=0; j<3; j++) {
 	    std::ostringstream sout;
 	    sout << "Ve[" << j << "](" << Z << ")";
@@ -13842,22 +13868,13 @@ void CollideIon::printSpeciesElectrons
 	for (spCountMapItr it=spec.begin(); it != spec.end(); it++)
 	  dout << setw(wid) << std::right << "--------";
       }
-      dout << std::setw(wid) << std::right << "--------"
-	   << std::setw(wid) << std::right << "--------"
-	   << std::setw(wid) << std::right << "--------";
+      for (int j=0; j<3; j++)
+	dout << std::setw(wid) << std::right << "--------";
       if (use_elec>=0) {
-	dout << std::setw(wid) << std::right << "--------"
-	     << std::setw(wid) << std::right << "--------"
-	     << std::setw(wid) << std::right << "--------"
-	     << std::setw(wid) << std::right << "--------";
+	for (int j=0; j<4; j++)
+	  dout << std::setw(wid) << std::right << "--------";
 	for (size_t z=0; z<specZ.size(); z++) {
-	  dout << std::setw(wid) << std::right << "--------"
-	       << std::setw(wid) << std::right << "--------"
-	       << std::setw(wid) << std::right << "--------"
-	       << std::setw(wid) << std::right << "--------"
-	       << std::setw(wid) << std::right << "--------"
-	       << std::setw(wid) << std::right << "--------";
-	  for (int j=0; j<6; j++)
+	  for (int j=0; j<8+6; j++)
 	    dout << std::setw(wid) << std::right << "--------";
 	}
       }
@@ -13908,6 +13925,7 @@ void CollideIon::printSpeciesElectrons
   dout << std::setw(wid) << std::right << consE
        << std::setw(wid) << std::right << totlE
        << std::setw(wid) << std::right << totlE + consE;
+  
   if (use_elec>=0)
     dout << std::setw(wid) << std::right << tempE
 	 << std::setw(wid) << std::right << elecE
@@ -13916,22 +13934,22 @@ void CollideIon::printSpeciesElectrons
   for (auto Z : specZ) {
 
     if (specI.find(Z) != specI.end()) {
-      double E = 0.0, S = 0.0, N = std::get<1>(specI[Z]);
+      double E = 0.0, S = 0.0, T = 0.0, N = std::get<1>(specI[Z]);
       std::array<double, 3> V;
       if (N > 0.0) {
 	for (int j=0; j<3; j++) {
 	  double v1 = std::get<0>(std::get<0>(specI[Z])[j])/N;
 	  double v2 = std::get<1>(std::get<0>(specI[Z])[j]);
 	  E += 0.5*v2;
-	  S += 0.5*(v2/N - v1*v1);
+	  S += 0.5*(v2 - v1*v1*N);
 	  V[j] = v1;
 	}
+	T = E * Tfac * atomic_weights[Z] / N;
       }
-
-      S *= Tfac * atomic_weights[Z];
 
       dout << std::setw(wid) << std::right << E
 	   << std::setw(wid) << std::right << N
+	   << std::setw(wid) << std::right << T
 	   << std::setw(wid) << std::right << S;
       for (int j=0; j<3; j++)
 	dout << std::setw(wid) << std::right << V[j];
@@ -13945,30 +13963,28 @@ void CollideIon::printSpeciesElectrons
 
     if (specE.find(Z) != specE.end()) {
 
-      double E = 0.0, S = 0.0, N = std::get<1>(specE[Z]);
+      double E = 0.0, S = 0.0, T = 0.0, N = std::get<1>(specE[Z]);
       std::array<double, 3> V;
       if (N > 0.0) {
 	for (int j=0; j<3; j++) {
 	  double v1 = std::get<0>(std::get<0>(specE[Z])[j])/N;
 	  double v2 = std::get<1>(std::get<0>(specE[Z])[j]);
 	  E += 0.5*v2;
-	  S += 0.5*(v2/N - v1*v1);
+	  S += 0.5*(v2 - v1*v1*N);
 	  V[j] = v1;
 	}
+	T = E * Tfac * atomic_weights[0] / N;
       }
 
-      S *= Tfac * atomic_weights[0];
 
       dout << std::setw(wid) << std::right << E
 	   << std::setw(wid) << std::right << N
+	   << std::setw(wid) << std::right << T
 	   << std::setw(wid) << std::right << S;
       for (int j=0; j<3; j++)
 	dout << std::setw(wid) << std::right << V[j];
     } else {
-      dout << std::setw(wid) << std::right << 0.0
-	   << std::setw(wid) << std::right << 0.0
-	   << std::setw(wid) << std::right << 0.0;
-      for (int j=0; j<3; j++)
+      for (int j=0; j<6; j++)
 	dout << std::setw(wid) << std::right << 0.0;
     }
   }
@@ -14081,6 +14097,9 @@ void CollideIon::processConfig()
 
     DIFF_INTERACT =
       cfg.entry<bool>("DIFF_INTERACT", "Only perform interactions with different species particles", false);
+
+    INFR_INTERACT =
+      cfg.entry<bool>("INFR_INTERACT", "Only perform interactions with electrons of same or heavier elements", false);
 
     SAME_TRACE_SUPP =
       cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);
