@@ -816,7 +816,7 @@ protected:
   typedef std::tuple<std::array<DTup, 3>, double> ZTup;
 
   typedef std::map<unsigned short, ZTup> ZMap;
-  ZMap   specE, specI;
+  ZMap specE, specI;
   std::set<unsigned short> specZ;
 
   typedef std::array<unsigned long, 2> CollCounts;
