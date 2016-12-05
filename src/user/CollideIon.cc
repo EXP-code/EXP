@@ -97,7 +97,6 @@ static bool SAME_IONS_SCAT    = false;
 static bool SAME_INTERACT     = false;
 static bool DIFF_INTERACT     = false;
 static bool SAME_TRACE_SUPP   = false;
-static bool INFR_INTERACT     = false;
 
 // Suppress distribution of energy to electrons when using NOCOOL
 //
@@ -207,6 +206,10 @@ static bool PRE_POST_COLL_KE  = false;
 // Use mass weighting rather than number weigting for AlgWght
 //
 static bool ALG_WGHT_MASS     = false;
+
+// Use mass weighting rather than number weigting for AlgWght
+//
+static double Fwght           = 0.5;
 
 // Convert energy in eV to wavelength in angstroms
 //
@@ -372,8 +375,6 @@ CollideIon::CollideIon(ExternalForce *force, Component *comp,
 	      <<  " " << std::setw(20) << std::left << "DIFF_INTERACT"
 	      << (DIFF_INTERACT ? "on" : "off")         << std::endl
 	      <<  " " << std::setw(20) << std::left << "INFR_INTERACT"
-	      << (INFR_INTERACT ? "on" : "off")         << std::endl
-	      <<  " " << std::setw(20) << std::left << "SAME_TRACE_SUPP"
 	      << (SAME_TRACE_SUPP ? "on" : "off")       << std::endl
 	      <<  " " << std::setw(20) << std::left << "NoDelC"
 	      << NoDelC                                 << std::endl
@@ -6142,7 +6143,6 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
 
   if (SAME_INTERACT and Z1 != Z2) return ret;
   if (DIFF_INTERACT and Z1 == Z2) return ret;
-  if (INFR_INTERACT and Z1 >  Z2) return ret;
 
   // These are the number of electrons in each particle to be scaled
   // by number of atoms/ions in each superparticle
@@ -7358,11 +7358,14 @@ void CollideIon::scatterHybrid
 	KEf1 *= 0.5*d.W1*d.m1;
 	KEf2 *= 0.5*d.W2*d.m2;
 
+	double R1    = d.W1*Fwght;
+	double R2    = d.W2*(1.0 - Fwght);
+	double R12   = R1 + R2;
 
 	double delE  = kE - totE;
 	double difE  = KEi1 + KEi2 - delE - KEf1 - KEf2;
-	double difE1 = difE * d.W1/(d.W1 + d.W2);
-	double difE2 = difE * d.W2/(d.W1 + d.W2);
+	double difE1 = difE * R1/R12;
+	double difE2 = difE * R2/R12;
 	double totEf = KEf1 + KEf2;
 	
 	if (ALG_WGHT_MASS) {
@@ -9107,9 +9110,13 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    KEf1 *= 0.5*W1*m1;
 	    KEf2 *= 0.5*W2*m2;
 
+	    double R1    = W1*Fwght;
+	    double R2    = W2*(1.0 - Fwght);
+	    double R12   = R1 + R2;
+
 	    double difE  = KEi1 + KEi2 - KEf1 - KEf2;
-	    double difE1 = difE * W1/(W1 + W2);
-	    double difE2 = difE * W2/(W1 + W2);
+	    double difE1 = difE * R1/R12;
+	    double difE2 = difE * R2/R12;
 	    double totEf = KEf1 + KEf2;
 	    
 	    if (ALG_WGHT_MASS) {
@@ -14098,8 +14105,8 @@ void CollideIon::processConfig()
     DIFF_INTERACT =
       cfg.entry<bool>("DIFF_INTERACT", "Only perform interactions with different species particles", false);
 
-    INFR_INTERACT =
-      cfg.entry<bool>("INFR_INTERACT", "Only perform interactions with electrons of same or heavier elements", false);
+    Fwght =
+      cfg.entry<double>("WEIGHT_RATIO", "Weighting ratio for spreading excess energy to components", 0.5);
 
     SAME_TRACE_SUPP =
       cfg.entry<bool>("SAME_TRACE_SUPP", "Distribute energy equally to trace species", false);
