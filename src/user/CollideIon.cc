@@ -4449,6 +4449,20 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   return ret;
 }
 
+template <class T> void zswap(T & x, T & y) {T t = x; x = y; y = t;}
+const std::tuple<int, int, int> zorder(std::vector<double> & p)
+{
+  typedef std::pair<double, int> dk;
+  std::vector<dk> z(3);
+  for (int k=0; k<3; k++) z[k] = dk(fabs(p[k]), k);
+  if (z[0].first>z[2].first) zswap(z[0], z[2]);
+  if (z[1].first>z[2].first) zswap(z[1], z[2]);
+  
+  std::tuple<int, int, int> ret {z[0].second, z[1].second, z[2].second};
+  return ret;
+}
+
+
 int CollideIon::inelasticWeight(int id, pCell* const c,
 				Particle* const _p1, Particle* const _p2,
 				double *cr)
@@ -5297,7 +5311,23 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
       //
       double wnrm = 0.0;
       for (auto   v : w1) wnrm += v*v;
-      if (wnrm > 1.0e-12*sqrt(vcm2)) {
+
+      const double tol = 1.0e-12;
+      // Generate random vector if |u|~0 or |v1|~0
+      if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
+	for (auto & v : w1) v = (*norm)();
+      }
+      // Choose random orthogonal vector if uu || v1
+      else if (wnrm < tol*v1i2) {
+	auto t3 = zorder(v1);
+	int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
+	w1[i0] = (*norm)();
+	w1[i1] = (*norm)();
+	w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
+	wnrm = 0.0; for (auto v : w1) wnrm += v*v;
+      }
+      // Sanity check on norm |w|
+      if (wnrm > tol*sqrt(vcm2)) {
 	for (auto & v : w1) v *= 1.0/sqrt(wnrm);
 	gamm = sqrt(q*(1.0 - q)*udif);
 	algok = true;
@@ -7318,10 +7348,25 @@ void CollideIon::scatterHybrid
 
 	// Normalize
 	//
-	wnrm = 0.0;
-	for (auto v : w1) wnrm += v*v;
+	double wnrm = 0.0;
+	for (auto   v : w1) wnrm += v*v;
 
-	if (wnrm>1.0e-12*vcm2) {
+	const double tol = 1.0e-12;
+	// Generate random vector if |u|~0 or |v1|~0
+	if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
+	  for (auto & v : w1) v = (*norm)();
+	}
+	// Choose random orthogonal vector if uu || v1
+	else if (wnrm < tol*v1i2) {
+	  auto t3 = zorder(v1);
+	  int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
+	  w1[i0] = (*norm)();
+	  w1[i1] = (*norm)();
+	  w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
+	  wnrm = 0.0; for (auto v : w1) wnrm += v*v;
+	}
+	// Sanity check on norm |w|
+	if (wnrm > tol*vcm2) {
 	  for (auto & v : w1) v *= 1.0/sqrt(wnrm);
 	  KE.o1 = KE.o2 = 0.0;
 	  for (size_t k=0; k<3; k++) {
@@ -9085,9 +9130,25 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	    //
 	    wnrm = 0.0;
 	    for (auto v : w1) wnrm += v*v;
-	    if (wnrm>1.0e-12*sqrt(vcm2)) {
+
+	    const double tol = 1.0e-12;
+	    // Generate random vector if |u|~0 or |v1|~0
+	    if (v1i2 < tol*b1f2 or b1f2 < tol*v1i2) {
+	      for (auto & v : w1) v = (*norm)();
+	    }
+	    // Choose random orthogonal vector if uu || v1
+	    else if (wnrm < tol*v1i2) {
+	      auto t3 = zorder(v1);
+	      int i0 = std::get<0>(t3), i1 = std::get<1>(t3), i2 = std::get<2>(t3);
+	      w1[i0] = (*norm)();
+	      w1[i1] = (*norm)();
+	      w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
+	      wnrm = 0.0; for (auto v : w1) wnrm += v*v;
+	    }
+	    // Sanity check on norm |w|
+	    if (wnrm > tol*sqrt(vcm2)) {
 	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
-	      gamm = sqrt( (1.0 - q)*q*udif );
+	      gamm = sqrt(q*(1.0 - q)*udif);
 	      algok = true;
 	    }
 	  }
