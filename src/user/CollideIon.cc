@@ -4449,7 +4449,6 @@ int CollideIon::inelasticDirect(int id, pCell* const c,
   return ret;
 }
 
-template <class T> void zswap(T & x, T & y) {T t = x; x = y; y = t;}
 const std::tuple<int, int, int> zorder(std::vector<double> & p)
 {
   typedef std::pair<double, int> dk;
@@ -4496,26 +4495,17 @@ int CollideIon::inelasticWeight(int id, pCell* const c,
 
     // Swap the particle pointers
     //
-    Particle *pT = p1;
-    p1 = p2;
-    p2 = pT;
+    zswap(p1, p2);
 
     // Swap the collision diag pointers
     //
-    collTDPtr ctdT = ctd1;
-    ctd1 = ctd2;
-    ctd2 = ctdT;
-
-    // Reassign the keys and species indices
+    zswap(ctd1, ctd2);
+    
+    // Swap the keys and species indices
     //
-    k1 = KeyConvert(p1->iattrib[use_key]);
-    k2 = KeyConvert(p2->iattrib[use_key]);
-
-    Z1 = k1.getKey().first;
-    C1 = k1.getKey().second;
-
-    Z2 = k2.getKey().first;
-    C2 = k2.getKey().second;
+    zswap(k1, k2);
+    zswap(Z1, Z2);
+    zswap(C1, C2);
   }
 
   // Find the trace ratio
@@ -6232,33 +6222,22 @@ int CollideIon::inelasticHybrid(int id, pCell* const c,
   // maintain this identification.
   //
   if (W1 < W2) {
-    double tmp;
-
     // Swap the particle pointers
     //
-    Particle *pT = p1;
-    p1 = p2;
-    p2 = pT;
+    zswap(p1, p2);
 
-    // Reassign the keys, species indices, and electron fractions
+    // Swap the keys, species indices, and electron fractions
     //
-    k1 = KeyConvert(p1->iattrib[use_key]);
-    k2 = KeyConvert(p2->iattrib[use_key]);
-
-    Z1 = k1.getKey().first;
-    Z2 = k2.getKey().first;
+    zswap(k1, k2);
+    zswap(Z1, Z2);
 
     // Swap electron number fraction
     //
-    tmp  = eta1;
-    eta1 = eta2;
-    eta2 = tmp;
+    zswap(eta1, eta2);
 
     // Swap true particle numbers
     //
-    tmp = W1;
-    W1  = W2;
-    W2  = tmp;
+    zswap(W1, W2);
 
     swapped = true;
   }
@@ -8818,7 +8797,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
   // Count scattering interactions for debugging output
   //======================================================================
   //
-  std::map<speciesKey,  unsigned> countE;
+  std::map<speciesKey, unsigned> countE;
   std::ofstream outdbg;
   if (debugFC) {
     ostringstream ostr;
@@ -8941,8 +8920,10 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       //
       if (aType == Hybrid) {
 	ne1 = ne2 = 0.0;
+
 	for (unsigned short C=1; C<=k1.Z(); C++)
 	  ne1 += p1->dattrib[hybrid_pos+C]*C;
+
 	for (unsigned short C=1; C<=k2.Z(); C++)
 	  ne2 += p2->dattrib[hybrid_pos+C]*C;
 
@@ -8953,28 +8934,18 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
       // Swap particles so that p2 is the trace element
       //
       if (W1 < W2) {
-	double tmp;
-
 	// Swap the particle pointers
 	//
-	Particle *pT = p1;
-	p1 = p2;
-	p2 = pT;
-	
+	zswap(p1, p2);
+
 	// Reassign the keys and species indices
 	//
-	k1 = KeyConvert(p1->iattrib[use_key]);
-	k2 = KeyConvert(p2->iattrib[use_key]);
+	zswap(k1, k2);
 
 	// Swap electron fraction and particle count
 	//
-	tmp = ne1;
-	ne1 = ne2;
-	ne2 = tmp;
-
-	tmp = W1;
-	W1  = W2;
-	W2  = tmp;
+	zswap(ne1, ne2);
+	zswap(W1, W2);
       }
 
       if (esThr > 0.0) {
@@ -9145,6 +9116,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	      w1[i2] = -(w1[i0]*v1[i0] + w1[i1]*v1[i1])/v1[i2];
 	      wnrm = 0.0; for (auto v : w1) wnrm += v*v;
 	    }
+
 	    // Sanity check on norm |w|
 	    if (wnrm > tol*sqrt(vcm2)) {
 	      for (auto & v : w1) v *= 1.0/sqrt(wnrm);
@@ -9236,7 +9208,8 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 		std::cout << "Elec-elec error: delEt = " << delEt << std::endl;
 	      }
 	    }
-	  }
+
+	  } // END: AlgWght
 
 	  if (!algok or (!AlgOrth and !AlgWght)) {
 	    double qT = v1u1 * q;
@@ -9434,7 +9407,7 @@ void CollideIon::finalize_cell(pHOT* const tree, pCell* const cell,
 	}
 
       } // END: scatter
-
+      
       if (KE_DEBUG) {
 
 	double KEf1 = 0.0;

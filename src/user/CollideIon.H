@@ -44,6 +44,17 @@ std::ostream& operator<<(std::ostream& o, const std::array<T, N>& arr)
   return o;
 }
 
+
+// Swap values
+//
+template <class T>
+void zswap(T & x, T & y)
+{
+  T t = x;
+  x   = y;
+  y   = t;
+}
+
 class collDiag;
 
 /**
